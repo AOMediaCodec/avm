@@ -819,6 +819,10 @@ typedef struct {
   bool enable_deblocking;
   // Indicates if CDEF should be enabled.
   bool enable_cdef;
+#if CONFIG_GDF
+  // Indicates if GDF should be enabled.
+  bool enable_gdf;
+#endif  // CONFIG_GDF
   // Indicates if loop restoration filter should be enabled.
   bool enable_restoration;
   // Indicates if pc_wiener in loop restoration filter should be enabled.

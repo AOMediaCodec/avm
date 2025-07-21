@@ -418,6 +418,9 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->order_hint_info.enable_ref_frame_mvs &=
       seq->order_hint_info.enable_order_hint;
   seq->enable_cdef = tool_cfg->enable_cdef;
+#if CONFIG_GDF
+  seq->enable_gdf = tool_cfg->enable_gdf;
+#endif  // CONFIG_GDF
   seq->enable_restoration = tool_cfg->enable_restoration;
   seq->enable_ccso = tool_cfg->enable_ccso;
 #if CONFIG_LF_SUB_PU
@@ -2363,9 +2366,11 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
        y_pos += cm->gdf_info.gdf_block_size) {
     for (int x_pos = 0; x_pos < rec_width;
          x_pos += cm->gdf_info.gdf_block_size) {
-      for (int v_pos = y_pos; v_pos < y_pos + cm->gdf_info.gdf_block_size;
+      for (int v_pos = y_pos;
+           v_pos < y_pos + cm->gdf_info.gdf_block_size && v_pos < rec_height;
            v_pos += 4) {
-        for (int u_pos = x_pos; u_pos < x_pos + cm->gdf_info.gdf_block_size;
+        for (int u_pos = x_pos;
+             u_pos < x_pos + cm->gdf_info.gdf_block_size && u_pos < rec_width;
              u_pos += 4) {
           int id = gdf_get_block_idx(cm, v_pos, u_pos);
           if (id >= 0) {
@@ -2415,27 +2420,33 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
             continue;
           }
 #endif
+#if (GDF_TEST_VIRTUAL_BOUNDARY == 2)
+          if (u_pos == 0) {
+            gdf_setup_reference_lines(cm, i_min, i_max, v_pos);
+          }
+#endif
           int use_gdf_local =
               gdf_block_adjust_and_validate(&i_min, &i_max, &j_min, &j_max);
           if (use_gdf_local) {
             gdf_set_lap_and_cls_unit(
                 i_min, i_max, j_min, j_max, cm->gdf_info.gdf_stripe_size,
-                cm->gdf_info.inp_ptr + rec_stride * i_min + j_min, rec_stride,
-                bit_depth, cm->gdf_info.lap_ptr, cm->gdf_info.lap_stride,
-                cm->gdf_info.cls_ptr, cm->gdf_info.cls_stride);
+                cm->gdf_info.inp_ptr + cm->gdf_info.inp_stride * i_min + j_min,
+                cm->gdf_info.inp_stride, bit_depth, cm->gdf_info.lap_ptr,
+                cm->gdf_info.lap_stride, cm->gdf_info.cls_ptr,
+                cm->gdf_info.cls_stride);
           }
           for (int qp_idx = 0; qp_idx < GDF_RDO_QP_NUM; qp_idx++) {
             if (use_gdf_local) {
               gdf_inference_unit(
                   i_min, i_max, j_min, j_max, cm->gdf_info.gdf_stripe_size,
                   qp_idx + qp_idx_base,
-                  cm->gdf_info.inp_ptr + rec_stride * i_min + j_min, rec_stride,
-                  cm->gdf_info.lap_ptr, cm->gdf_info.lap_stride,
-                  cm->gdf_info.cls_ptr, cm->gdf_info.cls_stride,
-                  cm->gdf_info.err_ptr, cm->gdf_info.err_stride, pxl_shift,
-                  ref_dst_idx);
+                  cm->gdf_info.inp_ptr + cm->gdf_info.inp_stride * i_min +
+                      j_min,
+                  cm->gdf_info.inp_stride, cm->gdf_info.lap_ptr,
+                  cm->gdf_info.lap_stride, cm->gdf_info.cls_ptr,
+                  cm->gdf_info.cls_stride, cm->gdf_info.err_ptr,
+                  cm->gdf_info.err_stride, pxl_shift, ref_dst_idx);
             }
-
             for (int i = i_min; i < i_max; i++) {
               for (int j = j_min; j < j_max; j++) {
                 int rec_loc = i * rec_stride + j;
@@ -2471,6 +2482,11 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
               }
             }
           }
+#if (GDF_TEST_VIRTUAL_BOUNDARY == 2)
+          if (u_pos == 0) {
+            gdf_unset_reference_lines(cm, i_min, i_max, v_pos);
+          }
+#endif
         }
       }
       blk_idx++;
@@ -2598,7 +2614,12 @@ void gdf_optimize_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
  */
 static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
                                    MACROBLOCKD *xd, int use_restoration,
-                                   int use_cdef) {
+                                   int use_cdef
+#if CONFIG_GDF
+                                   ,
+                                   int use_gdf
+#endif  // CONFIG_GDF
+) {
   uint16_t *rec_uv[CCSO_NUM_COMPONENTS];
   uint16_t *org_uv[CCSO_NUM_COMPONENTS];
   uint16_t *ext_rec_y = NULL;
@@ -2662,17 +2683,21 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
 #endif  // CONFIG_F054_PIC_BOUNDARY
   }
 
-  MultiThreadInfo *const mt_info = &cpi->mt_info;
-  const int num_workers = mt_info->num_workers;
-  if (use_restoration)
-    av1_loop_restoration_save_boundary_lines(&cm->cur_frame->buf, cm, 0);
-
 #if CONFIG_GDF
-  const int use_gdf = is_allow_gdf(cm);
+  use_gdf = use_gdf & is_allow_gdf(cm);
   if (!use_gdf) {
     cm->gdf_info.gdf_mode = 0;
   }
 #endif  // CONFIG_GDF
+
+  MultiThreadInfo *const mt_info = &cpi->mt_info;
+  const int num_workers = mt_info->num_workers;
+  if (use_restoration
+#if CONFIG_GDF
+      || use_gdf
+#endif  // CONFIG_GDF
+  )
+    av1_loop_restoration_save_boundary_lines(&cm->cur_frame->buf, cm, 0);
 
   if (use_cdef) {
 #if CONFIG_COLLECT_COMPONENT_TIMING
@@ -2762,8 +2787,13 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
   start_timing(cpi, loop_restoration_time);
 #endif
 
-  if (use_restoration) {
+  if (use_restoration
+#if CONFIG_GDF
+      || use_gdf
+#endif  // CONFIG_GDF
+  )
     av1_loop_restoration_save_boundary_lines(&cm->cur_frame->buf, cm, 1);
+  if (use_restoration) {
     av1_pick_filter_restoration(cpi->source, cpi);
     if (cm->rst_info[0].frame_restoration_type != RESTORE_NONE ||
         cm->rst_info[1].frame_restoration_type != RESTORE_NONE ||
@@ -2819,6 +2849,13 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
                        !cm->bru.frame_inactive_flag &&
 #endif  // CONFIG_BRU
                        !cm->features.coded_lossless && !cm->tiles.large_scale;
+#if CONFIG_GDF
+  const int use_gdf = cm->seq_params.enable_gdf &&
+#if CONFIG_BRU
+                      !cm->bru.frame_inactive_flag &&
+#endif  // CONFIG_BRU
+                      !cm->features.all_lossless && !cm->tiles.large_scale;
+#endif  // CONFIG_GDF
   const int use_restoration = cm->seq_params.enable_restoration &&
 #if CONFIG_BRU
                               !cm->bru.frame_inactive_flag &&
@@ -2851,7 +2888,12 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
   end_timing(cpi, loop_filter_time);
 #endif
 
-  cdef_restoration_frame(cpi, cm, xd, use_restoration, use_cdef);
+  cdef_restoration_frame(cpi, cm, xd, use_restoration, use_cdef
+#if CONFIG_GDF
+                         ,
+                         use_gdf
+#endif  // CONFIG_GDF
+  );
 }
 
 /*!\brief If the error resilience mode is turned on in the encoding, for frames

@@ -401,6 +401,12 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_cdef;
+#if CONFIG_GDF
+  /*!\brief enable GDF filter
+   *
+   */
+  unsigned int enable_gdf;
+#endif  // CONFIG_GDF
   /*!\brief enable Loop Restoration Filter
    *
    */

@@ -1251,6 +1251,17 @@ enum aome_enc_control_id {
    * \note This is only used in quantization matrix unit test.
    */
   AV1E_SET_FRAME_MULTI_QMATRIX_UNIT_TEST = 172,
+#if CONFIG_GDF
+  /*!\brief Codec control function to encode with GDF, unsigned int parameter
+   *
+   * GDF is the guided detail filter which is an
+   * in-loop filter aiming to remove coding artifacts
+   *
+   * - 0 = disable
+   * - 1 = enable (default)
+   */
+  AV1E_SET_ENABLE_GDF = 173,
+#endif  // CONFIG_GDF
 };
 
 /*!\brief aom 1-D scaling mode
@@ -1455,6 +1466,11 @@ AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_DEBLOCKING, unsigned int)
 
 AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_CDEF, unsigned int)
 #define AOM_CTRL_AV1E_SET_ENABLE_CDEF
+
+#if CONFIG_GDF
+AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_GDF, unsigned int)
+#define AOM_CTRL_AV1E_SET_ENABLE_GDF
+#endif  // CONFIG_GDF
 
 AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_RESTORATION, unsigned int)
 #define AOM_CTRL_AV1E_SET_ENABLE_RESTORATION

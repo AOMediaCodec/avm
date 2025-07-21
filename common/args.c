@@ -118,6 +118,9 @@ int parse_cfg(const char *file, cfg_options_t *config) {
     GET_PARAMS(enable_flip_idtx);
     GET_PARAMS(enable_deblocking);
     GET_PARAMS(enable_cdef);
+#if CONFIG_GDF
+    GET_PARAMS(enable_gdf);
+#endif  // CONFIG_GDF
     GET_PARAMS(enable_restoration);
     GET_PARAMS(enable_ccso);
 #if CONFIG_LF_SUB_PU

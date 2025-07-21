@@ -27,17 +27,12 @@
 #define GDF_TRAIN_QP_NUM 6
 #define GDF_TRAIN_CLS_NUM 4
 
-#define GDF_TRAIN_PAR_SCALE_LOG2 6
+#define GDF_TRAIN_PAR_SCALE_LOG2 5
 #define GDF_NET_INP_REC_NUM 18
 #define GDF_NET_INP_GRD_NUM 4
 #define GDF_NET_LUT_IDX_NUM 3
 #define GDF_NET_LUT_IDX_INTRA_MAX 16
 #define GDF_NET_LUT_IDX_INTER_MAX 10
-
-#define GDF_TEST_VIRTUAL_BOUNDARY 1
-#if GDF_TEST_VIRTUAL_BOUNDARY
-#define GDF_TEST_LINE_BUFFER 0
-#endif
 
 extern const int gdf_guided_sample_coordinates_fwd[GDF_NET_INP_REC_NUM][2];
 extern const int gdf_guided_sample_coordinates_bwd[GDF_NET_INP_REC_NUM][2];
@@ -71,14 +66,15 @@ extern const int32_t
 extern const int32_t
     gdf_inter_bias_table[GDF_TRAIN_REFDST_NUM][GDF_TRAIN_QP_NUM]
                         [GDF_TRAIN_CLS_NUM * GDF_NET_LUT_IDX_NUM];
-extern const int8_t gdf_intra_error_table
-    [GDF_TRAIN_QP_NUM][GDF_NET_LUT_IDX_INTRA_MAX * GDF_NET_LUT_IDX_INTRA_MAX *
-                       GDF_NET_LUT_IDX_INTRA_MAX * GDF_TRAIN_CLS_NUM];
-extern const int8_t
-    gdf_inter_error_table[GDF_TRAIN_REFDST_NUM][GDF_TRAIN_QP_NUM]
-                         [GDF_NET_LUT_IDX_INTER_MAX *
-                          GDF_NET_LUT_IDX_INTER_MAX *
-                          GDF_NET_LUT_IDX_INTER_MAX * GDF_TRAIN_CLS_NUM];
+extern const int8_t gdf_intra_error_table[GDF_TRAIN_QP_NUM]
+                                         [GDF_NET_LUT_IDX_INTRA_MAX *
+                                          GDF_NET_LUT_IDX_INTRA_MAX *
+                                          GDF_NET_LUT_IDX_INTRA_MAX];
+extern const int8_t gdf_inter_error_table[GDF_TRAIN_REFDST_NUM]
+                                         [GDF_TRAIN_QP_NUM]
+                                         [GDF_NET_LUT_IDX_INTER_MAX *
+                                          GDF_NET_LUT_IDX_INTER_MAX *
+                                          GDF_NET_LUT_IDX_INTER_MAX];
 
 #endif  // CONFIG_GDF
 #endif  // AOM_AV1_COMMON_GDF_BLOCK_H

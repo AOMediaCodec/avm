@@ -4529,7 +4529,7 @@ static AOM_INLINE void encode_loopfilter(AV1_COMMON *cm,
 static AOM_INLINE void encode_gdf(const AV1_COMMON *cm,
                                   struct aom_write_bit_buffer *wb) {
   assert(!cm->features.coded_lossless);
-  if (!is_allow_gdf(cm)) return;
+  if (!cm->seq_params.enable_gdf || !is_allow_gdf(cm)) return;
 #if CONFIG_BRU
   if (cm->bru.frame_inactive_flag) {
     return;
@@ -5576,6 +5576,9 @@ static AOM_INLINE void write_sequence_header(
   }
 
   aom_wb_write_bit(wb, seq_params->enable_cdef);
+#if CONFIG_GDF
+  aom_wb_write_bit(wb, seq_params->enable_gdf);
+#endif  // CONFIG_GDF
   aom_wb_write_bit(wb, seq_params->enable_restoration);
   if (seq_params->enable_restoration) {
     for (int i = 1; i < RESTORE_SWITCHABLE_TYPES; ++i) {

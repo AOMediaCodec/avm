@@ -443,6 +443,7 @@ typedef struct {
                         i.e., before LF frame */
   uint16_t *inp_pad_ptr; /*!< Pointer to padded and actually allocated data
                             into which inp_ptr points */
+  int inp_stride;        /*!< Stride of GDF memory storing guided frame */
 } GdfInfo;
 #endif  // CONFIG_GDF
 
@@ -587,7 +588,9 @@ typedef struct SequenceHeader {
   aom_opfl_refine_type enable_opfl_refine;  // optical flow refinement type for
                                             // this frame
   uint8_t enable_cdef;                      // To turn on/off CDEF
-
+#if CONFIG_GDF
+  uint8_t enable_gdf;          // To turn on/off GDF
+#endif                         // CONFIG_GDF
   uint8_t enable_restoration;  // To turn on/off loop restoration
   uint8_t enable_ccso;         // To turn on/off CCSO
 #if CONFIG_LF_SUB_PU

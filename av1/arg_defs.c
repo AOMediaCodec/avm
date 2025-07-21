@@ -334,6 +334,11 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       NULL, "enable-cdef", 1,
       "Enable the constrained directional enhancement filter (0: false, "
       "1: true (default))"),
+#if CONFIG_GDF
+  .enable_gdf = ARG_DEF(NULL, "enable-gdf", 1,
+                        "Enable the guided detail filter (0: false, "
+                        "1: true (default))"),
+#endif  // CONFIG_GDF
   .enable_restoration = ARG_DEF(NULL, "enable-restoration", 1,
                                 "Enable the loop restoration filter (0: false, "
                                 "1: true (default))"),

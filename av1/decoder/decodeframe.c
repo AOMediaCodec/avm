@@ -6295,6 +6295,9 @@ void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
   }
 
   seq_params->enable_cdef = aom_rb_read_bit(rb);
+#if CONFIG_GDF
+  seq_params->enable_gdf = aom_rb_read_bit(rb);
+#endif  // CONFIG_GDF
   seq_params->enable_restoration = aom_rb_read_bit(rb);
   seq_params->lr_tools_disable_mask[0] = 0;
   seq_params->lr_tools_disable_mask[1] = 0;
@@ -8386,7 +8389,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   setup_loopfilter(cm, rb);
 
 #if CONFIG_GDF
-  setup_gdf(cm, rb);
+  if (!features->coded_lossless && seq_params->enable_gdf) {
+    setup_gdf(cm, rb);
+  } else {
+    cm->gdf_info.gdf_mode = 0;
+  }
 #endif  // CONFIG_GDF
 
   if (!features->coded_lossless && seq_params->enable_cdef) {
@@ -8741,7 +8748,11 @@ static AOM_INLINE void setup_frame_info(AV1Decoder *pbi) {
 
   if (cm->rst_info[0].frame_restoration_type != RESTORE_NONE ||
       cm->rst_info[1].frame_restoration_type != RESTORE_NONE ||
-      cm->rst_info[2].frame_restoration_type != RESTORE_NONE) {
+      cm->rst_info[2].frame_restoration_type != RESTORE_NONE
+#if CONFIG_GDF
+      || cm->gdf_info.gdf_mode
+#endif  // CONFIG_GDF
+  ) {
     av1_alloc_restoration_buffers(cm);
   }
   const int buf_size = MC_TEMP_BUF_PELS << 1;
@@ -8932,7 +8943,11 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
         !use_ccso && !do_cdef;
 
     if (!optimized_loop_restoration) {
-      if (do_loop_restoration)
+      if (do_loop_restoration
+#if CONFIG_GDF
+          || do_gdf
+#endif  // CONFIG_GDF
+      )
         av1_loop_restoration_save_boundary_lines(&pbi->common.cur_frame->buf,
                                                  cm, 0);
 
@@ -8950,9 +8965,15 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
       }
 #endif  // CONFIG_GDF
 
-      if (do_loop_restoration) {
+      if (do_loop_restoration
+#if CONFIG_GDF
+          || do_gdf
+#endif  // CONFIG_GDF
+      ) {
         av1_loop_restoration_save_boundary_lines(&pbi->common.cur_frame->buf,
                                                  cm, 1);
+      }
+      if (do_loop_restoration) {
         // HERE
 #if CONFIG_COMBINE_PC_NS_WIENER
         copy_frame_filters_to_runits_if_needed(cm);
@@ -8970,6 +8991,9 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
       }
 
 #if CONFIG_GDF
+#if GDF_VERBOSE
+      gdf_print_info(cm, "DEC", cm->current_frame.absolute_poc);
+#endif  //
       if (do_gdf) {
         av1_gdf_frame_dec(cm);
         gdf_free_guided_frame(cm);
