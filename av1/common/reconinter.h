@@ -1039,7 +1039,6 @@ static INLINE int default_refinemv_modes(const AV1_COMMON *cm,
 #else
 static INLINE int default_refinemv_modes(const MB_MODE_INFO *mbmi) {
 #endif
-  if (mbmi->skip_mode) return 0;
 
 #if CONFIG_AFFINE_REFINEMENT
   if (cm->seq_params.enable_affine_refine) {
