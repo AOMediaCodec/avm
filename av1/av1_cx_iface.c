@@ -128,7 +128,7 @@ struct av1_extracfg {
   int enable_extended_sdp;  // enable inter semi-decoupled partitioning
   int enable_mrls;          // enable multiple reference line selection
   int enable_tip;           // enable temporal interpolated prediction
-  int enable_mv_traj;  // enable MV trajectory tracking
+  int enable_mv_traj;       // enable MV trajectory tracking
 #if CONFIG_MV_RANGE_EXTENSION
   int enable_high_motion;  // Enable a large motion search window
 #endif                     // CONFIG_MV_RANGE_EXTENSION

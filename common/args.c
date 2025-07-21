@@ -90,9 +90,7 @@ int parse_cfg(const char *file, cfg_options_t *config) {
     GET_PARAMS(enable_extended_sdp);
     GET_PARAMS(enable_mrls);
     GET_PARAMS(enable_tip);
-#if CONFIG_TMVP_SIMPLIFICATIONS_F085
     GET_PARAMS(enable_mv_traj);
-#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
 #if CONFIG_MV_RANGE_EXTENSION
     GET_PARAMS(enable_high_motion);
 #endif  // CONFIG_MV_RANGE_EXTENSION

@@ -664,9 +664,7 @@ static void init_config(cfg_options_t *config) {
   config->enable_extended_sdp = 1;
   config->enable_mrls = 1;
   config->enable_tip = 1;
-#if CONFIG_TMVP_SIMPLIFICATIONS_F085
   config->enable_mv_traj = 1;
-#endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
 #if CONFIG_MV_RANGE_EXTENSION
   config->enable_high_motion = 0;
 #endif  // CONFIG_MV_RANGE_EXTENSION
