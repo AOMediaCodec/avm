@@ -34,12 +34,10 @@ void generate_warped_model(libaom_test::ACMRandom *rnd, int32_t *mat,
                            int16_t *alpha, int16_t *beta, int16_t *gamma,
                            int16_t *delta, int is_alpha_zero, int is_beta_zero,
                            int is_gamma_zero, int is_delta_zero);
-#if CONFIG_OPFL_MEMBW_REDUCTION
 void generate_ref_area_limits(libaom_test::ACMRandom *rnd,
                               ReferenceArea *ref_area, int w, int h, int out_w,
                               int out_h, int p_row, int p_col, int *mat,
                               int use_ref_area_pad);
-#endif
 
 namespace AV1WarpFilter {
 

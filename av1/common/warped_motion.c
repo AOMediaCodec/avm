@@ -824,12 +824,10 @@ void av1_highbd_warp_affine_c(const int32_t *mat, const uint16_t *ref,
                               int subsampling_y, int bd,
                               ConvolveParams *conv_params, int16_t alpha,
                               int16_t beta, int16_t gamma, int16_t delta) {
-#if CONFIG_OPFL_MEMBW_REDUCTION
   const int left_limit = 0;
   const int right_limit = width - 1;
   const int top_limit = 0;
   const int bottom_limit = height - 1;
-#endif  // CONFIG_OPFL_MEMBW_REDUCTION
   int32_t tmp[15 * 8];
   const int reduce_bits_horiz = conv_params->round_0;
   const int reduce_bits_vert = conv_params->is_compound
@@ -879,11 +877,7 @@ void av1_highbd_warp_affine_c(const int32_t *mat, const uint16_t *ref,
 
       // Horizontal filter
       for (int k = -7; k < 8; ++k) {
-#if CONFIG_OPFL_MEMBW_REDUCTION
         const int iy = clamp(iy4 + k, top_limit, bottom_limit);
-#else
-        const int iy = clamp(iy4 + k, 0, height - 1);
-#endif  // CONFIG_OPFL_MEMBW_REDUCTION
 
         int sx = sx4 + beta * (k + 4);
         for (int l = -4; l < 4; ++l) {
@@ -900,11 +894,7 @@ void av1_highbd_warp_affine_c(const int32_t *mat, const uint16_t *ref,
           const int16_t *coeffs = av1_warped_filter[offs];
           int32_t sum = 1 << offset_bits_horiz;
           for (int m = 0; m < taps; ++m) {
-#if CONFIG_OPFL_MEMBW_REDUCTION
             const int sample_x = clamp(ix + m, left_limit, right_limit);
-#else
-            const int sample_x = clamp(ix + m, 0, width - 1);
-#endif  // CONFIG_OPFL_MEMBW_REDUCTION
             sum += ref[iy * stride + sample_x] * coeffs[m];
           }
           sum = ROUND_POWER_OF_TWO(sum, reduce_bits_horiz);

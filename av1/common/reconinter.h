@@ -192,11 +192,7 @@ struct build_prediction_ctxt {
 };
 
 #if CONFIG_REFINEMV
-#if CONFIG_OPFL_MEMBW_REDUCTION
 #define REFINE_MV_MAX_OFFSET 0
-#else
-#define REFINE_MV_MAX_OFFSET 1
-#endif  // CONFIG_OPFL_MEMBW_REDUCTION
 #define REF_TOP_BORDER (AOM_INTERP_EXTEND - 1 + REFINE_MV_MAX_OFFSET)
 #define REF_LEFT_BORDER (AOM_INTERP_EXTEND - 1 + REFINE_MV_MAX_OFFSET)
 #define REF_RIGHT_BORDER (AOM_INTERP_EXTEND + REFINE_MV_MAX_OFFSET)
@@ -763,12 +759,10 @@ int av1_get_refinemv_context(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 void fill_subblock_refine_mv(REFINEMV_SUBMB_INFO *refinemv_subinfo, int bw,
                              int bh, MV mv0, MV mv1);
 
-#if CONFIG_OPFL_MEMBW_REDUCTION
 void av1_get_reference_area_with_padding_single(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mi,
     const MV mv, int bw, int bh, int mi_x, int mi_y, ReferenceArea *ref_area,
     int pu_width, int pu_height, int ref);
-#endif  // CONFIG_OPFL_MEMBW_REDUCTION
 #if CONFIG_WARP_BD_BOX
 void av1_get_reference_area_with_padding_single_warp(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, MB_MODE_INFO *mi,
@@ -1005,12 +999,7 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
                          CalcSubpelParamsFunc calc_subpel_params_func,
                          int pre_x, int pre_y, uint16_t *dst_ref0,
                          uint16_t *dst_ref1, MV *best_mv_ref, int pu_width,
-                         int pu_height
-#if CONFIG_OPFL_MEMBW_REDUCTION
-                         ,
-                         ReferenceArea ref_area[2]
-#endif  // CONFIG_OPFL_MEMBW_REDUCTION
-);
+                         int pu_height, ReferenceArea ref_area[2]);
 
 // check if padding is required during motion compensation
 // return 1 means reference pixel is outside of the reference range and padding
@@ -1022,14 +1011,12 @@ int update_extend_mc_border_params(const struct scale_factors *const sf,
                                    int *x_pad, int *y_pad,
                                    const ReferenceArea *ref_area);
 
-#if CONFIG_OPFL_MEMBW_REDUCTION
 int update_extend_mc_border_params_bi(const struct scale_factors *const sf,
                                       struct buf_2d *const pre_buf,
                                       MV32 scaled_mv, PadBlock *block,
                                       int subpel_x_mv, int subpel_y_mv,
                                       int do_warp, int is_intrabc,
                                       const ReferenceArea *ref_area);
-#endif  // CONFIG_OPFL_MEMBW_REDUCTION
 
 // Derive the sub-pixel related parameters of refinemv non-TIP blocks
 // Sub-pel related parameters are stored in the structures pointed by

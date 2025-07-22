@@ -57,11 +57,9 @@ INSTANTIATE_TEST_SUITE_P(AVX2, AV1ExtHighbdWarpFilterTest,
 #endif  // CONFIG_EXT_WARP_FILTER
 
 #if HAVE_AVX2
-#if CONFIG_OPFL_MEMBW_REDUCTION
 INSTANTIATE_TEST_SUITE_P(
     AVX2, AV1HighbdWarpFilterTest,
     libaom_test::AV1HighbdWarpFilter::BuildParams(av1_highbd_warp_affine_avx2));
-#endif  // CONFIG_OPFL_MEMBW_REDUCTION
 #endif  // HAVE_AVX2
 
 }  // namespace

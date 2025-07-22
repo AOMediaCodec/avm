@@ -654,12 +654,7 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
 
     apply_mv_refinement(cm, xd, plane, mbmi, bw, bh, mi_x, mi_y, mc_buf, mv,
                         calc_subpel_params_func, comp_pixel_x, comp_pixel_y,
-                        dst_ref0, dst_ref1, best_mv_ref, bw, bh
-#if CONFIG_OPFL_MEMBW_REDUCTION
-                        ,
-                        ref_area
-#endif  // CONFIG_OPFL_MEMBW_REDUCTION
-    );
+                        dst_ref0, dst_ref1, best_mv_ref, bw, bh, ref_area);
     REFINEMV_SUBMB_INFO *refinemv_subinfo = &xd->refinemv_subinfo[0];
     fill_subblock_refine_mv(refinemv_subinfo, bw, bh, best_mv_ref[0],
                             best_mv_ref[1]);
@@ -778,11 +773,7 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
                           cm->tip_interp_filter);
 
 #if CONFIG_REFINEMV
-#if CONFIG_OPFL_MEMBW_REDUCTION
     if (apply_refinemv || do_opfl) {
-#else
-    if (apply_refinemv) {
-#endif  // CONFIG_OPFL_MEMBW_REDUCTION
       inter_pred_params.use_ref_padding = 1;
       inter_pred_params.ref_area = &ref_area[ref];
     }

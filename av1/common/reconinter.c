@@ -3126,7 +3126,6 @@ static void get_ref_area_info(const MV *const src_mv,
   ref_area->pad_block.y1 = CLIP(block.y1, 1, frame_height);
 }
 
-#if CONFIG_OPFL_MEMBW_REDUCTION
 void av1_get_reference_area_with_padding_single(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mi,
     const MV mv, int bw, int bh, int mi_x, int mi_y, ReferenceArea *ref_area,
@@ -3172,7 +3171,6 @@ void av1_get_reference_area_with_padding_single(
   get_ref_area_info(src_mv, &inter_pred_params, xd, mi_x, mi_y, 0, &src,
                     &subpel_params, &src_stride, ref_area);
 }
-#endif  // CONFIG_OPFL_MEMBW_REDUCTION
 
 #if CONFIG_WARP_BD_BOX
 static void get_ref_area_info_warp(const MV *const src_mv,
@@ -3364,12 +3362,7 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
                          CalcSubpelParamsFunc calc_subpel_params_func,
                          int pre_x, int pre_y, uint16_t *dst_ref0,
                          uint16_t *dst_ref1, MV *best_mv_ref, int pu_width,
-                         int pu_height
-#if CONFIG_OPFL_MEMBW_REDUCTION
-                         ,
-                         ReferenceArea ref_area[2]
-#endif  // CONFIG_OPFL_MEMBW_REDUCTION
-) {
+                         int pu_height, ReferenceArea ref_area[2]) {
   // initialize basemv as best MV
   best_mv_ref[0] = mv[0];
   best_mv_ref[1] = mv[1];
@@ -3514,10 +3507,8 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
   const int ext_bw = bw + 4;
   const int ext_bh = bh + 4;
   for (int ref = 0; ref < 2; ref++) {
-#if CONFIG_OPFL_MEMBW_REDUCTION
     inter_pred_params[ref].use_ref_padding = 1;
     inter_pred_params[ref].ref_area = &ref_area[ref];
-#endif  // CONFIG_OPFL_MEMBW_REDUCTION
     inter_pred_params[ref].block_width = ext_bw;
     inter_pred_params[ref].block_height = ext_bh;
 #if CONFIG_REFINEMV
@@ -3800,12 +3791,7 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
 
     apply_mv_refinement(cm, xd, plane, mi, bw, bh, mi_x, mi_y, mc_buf, mi_mv,
                         calc_subpel_params_func, pre_x, pre_y, dst_ref0,
-                        dst_ref1, best_mv_ref, pu_width, pu_height
-#if CONFIG_OPFL_MEMBW_REDUCTION
-                        ,
-                        ref_area
-#endif  // CONFIG_OPFL_MEMBW_REDUCTION
-    );
+                        dst_ref1, best_mv_ref, pu_width, pu_height, ref_area);
     if (sb_refined_mv) {
       // store the DMVR refined MV so that chroma can use it
       sb_refined_mv[0] = best_mv_ref[0];
@@ -3944,17 +3930,10 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
                           pd->subsampling_x, pd->subsampling_y, xd->bd,
                           mi->use_intrabc[0], sf, pre_buf, mi->interp_fltr);
 #if CONFIG_REFINEMV
-#if CONFIG_OPFL_MEMBW_REDUCTION
     const int use_ref_padding =
         tip_ref_frame ? ((apply_refinemv || use_optflow_refinement) ||
                          (plane && (comp_bw > 4 || comp_bh > 4)))
                       : 1;
-#else
-    const int use_ref_padding =
-        tip_ref_frame
-            ? apply_refinemv || (plane && (comp_bw > 4 || comp_bh > 4))
-            : 1;
-#endif  // CONFIG_OPFL_MEMBW_REDUCTION
     if (use_ref_padding) {
       inter_pred_params.use_ref_padding = 1;
       inter_pred_params.ref_area = &ref_area[ref];
