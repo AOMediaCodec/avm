@@ -45,8 +45,10 @@
 // two extra zeros at the end so that each kernel is 16-byte aligned
 #define EXT_WARP_STORAGE_TAPS 8
 
+#if !CONFIG_DIV_LUT_SIMP
 #define DIV_LUT_PREC_BITS 14
 #define DIV_LUT_BITS 8
+#endif  // !CONFIG_DIV_LUT_SIMP
 #define DIV_LUT_NUM (1 << DIV_LUT_BITS)
 
 extern const uint16_t div_lut[DIV_LUT_NUM + 1];
