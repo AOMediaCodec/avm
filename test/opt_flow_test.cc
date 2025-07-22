@@ -319,6 +319,7 @@ template <typename T>
 #if OPFL_BICUBIC_GRAD
 typedef void (*bicubic_grad_interp_highbd)(const int16_t *pred_src,
                                            int16_t *x_grad, int16_t *y_grad,
+                                           const int stride,
                                            const int blk_width,
                                            const int blk_height);
 
@@ -395,8 +396,8 @@ class AV1OptFlowBiCubicGradHighbdTest
                          const int16_t *pred_src, int16_t *x_grad_ref,
                          int16_t *y_grad_ref, int16_t *x_grad_test,
                          int16_t *y_grad_test, const int bw, const int bh) {
-    ref_func(pred_src, x_grad_ref, y_grad_ref, bw, bh);
-    test_func(pred_src, x_grad_test, y_grad_test, bw, bh);
+    ref_func(pred_src, x_grad_ref, y_grad_ref, bw, bw, bh);
+    test_func(pred_src, x_grad_test, y_grad_test, bw, bw, bh);
 
     AssertOutputBufferEq(x_grad_ref, x_grad_test, bw, bh, bw);
     AssertOutputBufferEq(y_grad_ref, y_grad_test, bw, bh, bw);
@@ -417,12 +418,12 @@ class AV1OptFlowBiCubicGradHighbdTest
 
     aom_usec_timer_start(&timer_ref);
     for (int count = 0; count < numIter; count++)
-      ref_func(pred_src, x_grad_ref, y_grad_ref, bw, bh);
+      ref_func(pred_src, x_grad_ref, y_grad_ref, bw, bw, bh);
     aom_usec_timer_mark(&timer_ref);
 
     aom_usec_timer_start(&timer_test);
     for (int count = 0; count < numIter; count++)
-      test_func(pred_src, x_grad_test, y_grad_test, bw, bh);
+      test_func(pred_src, x_grad_test, y_grad_test, bw, bw, bh);
     aom_usec_timer_mark(&timer_test);
 
     const int total_time_ref =
@@ -865,11 +866,7 @@ INSTANTIATE_TEST_SUITE_P(
 #if CONFIG_AFFINE_REFINEMENT
 typedef void (*calc_affine_autocorrelation_matrix)(
     const int16_t *pdiff, int pstride, const int16_t *gx, const int16_t *gy,
-    int gstride, int bw, int bh,
-#if CONFIG_AFFINE_REFINEMENT_SB
-    int x_offset, int y_offset,
-#endif  // CONFIG_AFFINE_REFINEMENT_SB
-    int32_t *mat_a, int32_t *vec_b);
+    int gstride, int bw, int bh, int32_t *mat_a, int32_t *vec_b);
 
 class AV1CalcAffineAutocorrelationMatrixTest
     : public AV1OptFlowTest<calc_affine_autocorrelation_matrix> {
@@ -950,16 +947,8 @@ class AV1CalcAffineAutocorrelationMatrixTest
     memset(mat_test, 0, sizeof(mat_test));
     memset(vec_ref, 0, sizeof(vec_ref));
     memset(vec_test, 0, sizeof(vec_test));
-    ref_func(pdiff, pstride, gx, gy, gstride, bw, bh,
-#if CONFIG_AFFINE_REFINEMENT_SB
-             0, 0,
-#endif  // CONFIG_AFFINE_REFINEMENT_SB
-             mat_ref, vec_ref);
-    test_func(pdiff, pstride, gx, gy, gstride, bw, bh,
-#if CONFIG_AFFINE_REFINEMENT_SB
-              0, 0,
-#endif  // CONFIG_AFFINE_REFINEMENT_SB
-              mat_test, vec_test);
+    ref_func(pdiff, pstride, gx, gy, gstride, bw, bh, mat_ref, vec_ref);
+    test_func(pdiff, pstride, gx, gy, gstride, bw, bh, mat_test, vec_test);
 
     int failed = 0;
     for (int i = 0; i < 16; ++i) {
@@ -999,21 +988,13 @@ class AV1CalcAffineAutocorrelationMatrixTest
 
     aom_usec_timer_start(&timer_ref);
     for (int count = 0; count < knumIter; count++) {
-      ref_func(pdiff, pstride, gx, gy, gstride, bw, bh,
-#if CONFIG_AFFINE_REFINEMENT_SB
-               0, 0,
-#endif  // CONFIG_AFFINE_REFINEMENT_SB
-               mat_ref, vec_ref);
+      ref_func(pdiff, pstride, gx, gy, gstride, bw, bh, mat_ref, vec_ref);
     }
     aom_usec_timer_mark(&timer_ref);
 
     aom_usec_timer_start(&timer_test);
     for (int count = 0; count < knumIter; count++) {
-      test_func(pdiff, pstride, gx, gy, gstride, bw, bh,
-#if CONFIG_AFFINE_REFINEMENT_SB
-                0, 0,
-#endif  // CONFIG_AFFINE_REFINEMENT_SB
-                mat_test, vec_test);
+      test_func(pdiff, pstride, gx, gy, gstride, bw, bh, mat_test, vec_test);
     }
     aom_usec_timer_mark(&timer_test);
 

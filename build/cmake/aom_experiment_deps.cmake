@@ -71,6 +71,10 @@ macro(fix_experiment_configs)
     change_config_and_warn(CONFIG_AFFINE_REFINEMENT_SB 0
                            !CONFIG_AFFINE_REFINEMENT)
   endif()
+  # CONFIG_DAMR_CLEAN_UP depends on CONFIG_AFFINE_REFINEMENT
+  if(NOT CONFIG_AFFINE_REFINEMENT AND CONFIG_DAMR_CLEAN_UP)
+    change_config_and_warn(CONFIG_DAMR_CLEAN_UP 0 !CONFIG_AFFINE_REFINEMENT)
+  endif()
 
   if(CONFIG_ML_PART_SPLIT)
     change_config_and_warn(CONFIG_TENSORFLOW_LITE 1 CONFIG_ML_PART_SPLIT)

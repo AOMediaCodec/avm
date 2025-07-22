@@ -2517,11 +2517,11 @@ typedef struct macroblockd {
 #if CONFIG_AFFINE_REFINEMENT
   /** variable to store if affine refinement was enabled for luma */
   int use_affine_opfl;
+  /** variable to store affine refinement parameters per subblock */
+  WarpedMotionParams wm_params_sb[2 * NUM_AFFINE_PARAMS];
 #endif  // CONFIG_AFFINE_REFINEMENT
   /** variable to store optical flow refined MVs per subblock */
   int_mv mv_refined[2 * N_OF_OFFSETS];
-  /** variable to store affine refinement parameters per subblock */
-  WarpedMotionParams wm_params_sb[2 * NUM_AFFINE_PARAMS];
 #if CONFIG_SDP_CFL_LATENCY_FIX
   /*! \brief Flag to decide whether CFL is allowed for a particular chroma
    * block as passed down from the parent tree */

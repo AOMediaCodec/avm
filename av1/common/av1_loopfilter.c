@@ -535,6 +535,8 @@ static AOM_INLINE void check_opfl_edge(const AV1_COMMON *const cm,
     *ts = scale ? TX_4X4 : TX_8X8;
     return;
   }
+#else
+  (void)scale;
 #endif  // CONFIG_AFFINE_REFINEMENT
   if (plane > 0) return;
   if (is_opfl_mode) {
@@ -562,6 +564,7 @@ static AOM_INLINE void check_rfmv_edge(const AV1_COMMON *const cm,
 #if CONFIG_AFFINE_REFINEMENT
   if (is_rfmv_mode && default_refinemv_modes(cm, mbmi))
 #else
+  (void)cm;
   if (is_rfmv_mode && default_refinemv_modes(mbmi))
 #endif  // CONFIG_AFFINE_REFINEMENT
     is_rfmv_mode &= (mbmi->comp_group_idx == 0 &&

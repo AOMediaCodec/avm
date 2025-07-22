@@ -98,7 +98,7 @@ void generate_warped_model(libaom_test::ACMRandom *rnd, int32_t *mat,
     return;
   }
 }
-#if CONFIG_OPFL_MEMBW_REDUCTION
+#if CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
 void generate_ref_area_limits(libaom_test::ACMRandom *rnd,
                               ReferenceArea *ref_area, int w, int h, int out_w,
                               int out_h, int p_row, int p_col, int *mat,
@@ -122,7 +122,7 @@ void generate_ref_area_limits(libaom_test::ACMRandom *rnd,
   ref_area->pad_block.x1 = CLIP(ref_area->pad_block.x1, 1, w);
   ref_area->pad_block.y1 = CLIP(ref_area->pad_block.y1, 1, h);
 }
-#endif
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
 
 namespace AV1HighbdWarpFilter {
 ::testing::internal::ParamGenerator<HighbdWarpTestParams> BuildParams(
@@ -201,10 +201,10 @@ void AV1HighbdWarpFilterTest::RunSpeedTest(highbd_warp_affine_func test_impl) {
   for (int i = 0; i < num_loops; ++i)
     test_impl(mat, input, w, h, stride, output, p_col, p_row, out_w, out_h,
               out_w, sub_x, sub_y, bd, &conv_params, alpha, beta, gamma, delta
-#if CONFIG_OPFL_MEMBW_REDUCTION
+#if CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
               ,
               0, NULL
-#endif  // CONFIG_OPFL_MEMBW_REDUCTION
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
     );
 
   aom_usec_timer_mark(&timer);
@@ -213,7 +213,7 @@ void AV1HighbdWarpFilterTest::RunSpeedTest(highbd_warp_affine_func test_impl) {
   printf("highbd warp %3dx%-3d: %7.2f ns\n", out_w, out_h,
          1000.0 * elapsed_time1 / num_loops);
 
-#if CONFIG_OPFL_MEMBW_REDUCTION
+#if CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
   ReferenceArea ref_area;
   generate_ref_area_limits(&rnd_, &ref_area, w, h, out_w, out_h, p_row, p_col,
                            mat, 1);
@@ -228,7 +228,7 @@ void AV1HighbdWarpFilterTest::RunSpeedTest(highbd_warp_affine_func test_impl) {
   const int elapsed_time2 = static_cast<int>(aom_usec_timer_elapsed(&timer));
   printf("highbd warp using ref area padding %3dx%-3d: %7.2f ns\n", out_w,
          out_h, 1000.0 * elapsed_time2 / num_loops);
-#endif
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
 
   delete[] input_;
   delete[] output;
@@ -264,9 +264,9 @@ void AV1HighbdWarpFilterTest::RunCheckOutput(
   ConvolveParams conv_params = get_conv_params(0, 0, bd);
   CONV_BUF_TYPE *dsta = new CONV_BUF_TYPE[output_n];
   CONV_BUF_TYPE *dstb = new CONV_BUF_TYPE[output_n];
-#if CONFIG_OPFL_MEMBW_REDUCTION
+#if CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
   ReferenceArea ref_area;
-#endif
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
   for (int i = 0; i < output_n; ++i) output[i] = output2[i] = rnd_.Rand16();
 
   for (i = 0; i < num_iters; ++i) {
@@ -279,11 +279,11 @@ void AV1HighbdWarpFilterTest::RunCheckOutput(
         input[r * stride + w + c] = input[r * stride + (w - 1)];
       }
     }
-#if CONFIG_OPFL_MEMBW_REDUCTION
+#if CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
     int use_damr_padding = i % 2 == 0;
     generate_ref_area_limits(&rnd_, &ref_area, w, h, out_w, out_h, p_row, p_col,
                              NULL, 0);
-#endif
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
     const int use_no_round = rnd_.Rand8() & 1;
     for (sub_x = 0; sub_x < 2; ++sub_x)
       for (sub_y = 0; sub_y < 2; ++sub_y) {
@@ -309,10 +309,10 @@ void AV1HighbdWarpFilterTest::RunCheckOutput(
                                        p_row, out_w, out_h, out_w, sub_x, sub_y,
                                        bd, &conv_params, alpha, beta, gamma,
                                        delta
-#if CONFIG_OPFL_MEMBW_REDUCTION
+#if CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
                                        ,
                                        use_damr_padding, &ref_area
-#endif  // CONFIG_OPFL_MEMBW_REDUCTION
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
               );
               if (use_no_round) {
                 // TODO(angiebird): Change this to test_impl once we have SIMD
@@ -328,10 +328,10 @@ void AV1HighbdWarpFilterTest::RunCheckOutput(
               test_impl(mat, input, w, h, stride, output2, p_col, p_row, out_w,
                         out_h, out_w, sub_x, sub_y, bd, &conv_params, alpha,
                         beta, gamma, delta
-#if CONFIG_OPFL_MEMBW_REDUCTION
+#if CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
                         ,
                         use_damr_padding, &ref_area
-#endif  // CONFIG_OPFL_MEMBW_REDUCTION
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
               );
 
               if (use_no_round) {
@@ -367,7 +367,6 @@ void AV1HighbdWarpFilterTest::RunCheckOutput(
 }  // namespace AV1HighbdWarpFilter
 
 #if CONFIG_AFFINE_REFINEMENT
-#if AFFINE_FAST_WARP_METHOD == 3
 namespace AV1HighbdWarpBilinearFilter {
 ::testing::internal::ParamGenerator<HighbdWarpBilinearTestParams> BuildParams(
     highbd_warp_plane_bilinear_func filter) {
@@ -671,7 +670,6 @@ void AV1HighbdWarpBilinearFilterTest::RunSpeedTest(
   delete[] output;
 }
 }  // namespace AV1HighbdWarpBilinearFilter
-#endif  // AFFINE_FAST_WARP_METHOD == 3
 #endif  // CONFIG_AFFINE_REFINEMENT
 
 #if CONFIG_EXT_WARP_FILTER
@@ -753,7 +751,11 @@ void AV1ExtHighbdWarpFilterTest::RunSpeedTest(
               sub_x, sub_y, bd, &conv_params
 #if CONFIG_WARP_BD_BOX
               ,
-              0, NULL, 0, NULL
+              0, NULL
+#if CONFIG_AFFINE_REFINEMENT
+              ,
+              0, NULL
+#endif  // CONFIG_AFFINE_REFINEMENT
 #endif  // CONFIG_WARP_BD_BOX
     );
 
@@ -829,7 +831,11 @@ void AV1ExtHighbdWarpFilterTest::RunCheckOutput(
                                          bd, &conv_params
 #if CONFIG_WARP_BD_BOX
                                          ,
-                                         0, NULL, 0, NULL
+                                         0, NULL
+#if CONFIG_AFFINE_REFINEMENT
+                                         ,
+                                         0, NULL
+#endif  // CONFIG_AFFINE_REFINEMENT
 #endif  // CONFIG_WARP_BD_BOX
             );
             if (use_no_round) {
@@ -844,7 +850,11 @@ void AV1ExtHighbdWarpFilterTest::RunCheckOutput(
                       out_w, sub_x, sub_y, bd, &conv_params
 #if CONFIG_WARP_BD_BOX
                       ,
-                      0, NULL, 0, NULL
+                      0, NULL
+#if CONFIG_AFFINE_REFINEMENT
+                      ,
+                      0, NULL
+#endif  // CONFIG_AFFINE_REFINEMENT
 #endif  // CONFIG_WARP_BD_BOX
             );
 

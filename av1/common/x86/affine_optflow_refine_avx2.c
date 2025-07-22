@@ -16,6 +16,7 @@
 
 #include "av1/common/reconinter.h"
 
+#if CONFIG_AFFINE_REFINEMENT
 DECLARE_ALIGNED(32, static const uint16_t,
                 col_8_vector[16]) = { 0, 1, 2, 3, 4, 5, 6, 7,
                                       0, 1, 2, 3, 4, 5, 6, 7 };
@@ -71,7 +72,6 @@ static INLINE __m256i pack_epi64_to_epi32(__m256i a, __m256i b) {
   return ret;
 }
 
-#if CONFIG_AFFINE_REFINEMENT
 void av1_warp_plane_bilinear_avx2(WarpedMotionParams *wm, int bd,
                                   const uint16_t *ref, int width, int height,
                                   int stride, uint16_t *pred, int p_col,
@@ -103,7 +103,6 @@ void av1_warp_plane_bilinear_avx2(WarpedMotionParams *wm, int bd,
     bottom_limit = height - 1;
   }
 #endif  // CONFIG_DAMR_CLEAN_UP
-#if AFFINE_FAST_WARP_METHOD == 3
   assert(wm->wmtype <= AFFINE);
   assert(!is_uneven_wtd_comp_avg(conv_params));
   assert(IMPLIES(conv_params->is_compound, conv_params->dst != NULL));
@@ -123,6 +122,7 @@ void av1_warp_plane_bilinear_avx2(WarpedMotionParams *wm, int bd,
   __m256i width_minus_1_vec = _mm256_set1_epi32(width - 1);
   __m256i height_minus_1_vec = _mm256_set1_epi32(height - 1);
 #endif  // CONFIG_DAMR_CLEAN_UP
+
   __m256i stride_vec = _mm256_set1_epi32(stride);
 
   __m256i warpmodel_prec_bits =
@@ -251,22 +251,6 @@ void av1_warp_plane_bilinear_avx2(WarpedMotionParams *wm, int bd,
                        _mm256_castsi256_si128(pred_vec));
     }
   }
-#else
-  (void)wm;
-  (void)bd;
-  (void)ref;
-  (void)width;
-  (void)height;
-  (void)stride;
-  (void)pred;
-  (void)p_col;
-  (void)p_row;
-  (void)p_width;
-  (void)p_height;
-  (void)p_stride;
-  (void)subsampling_x;
-  (void)subsampling_y;
-#endif  // AFFINE_FAST_WARP_METHOD == 3
 }
 #endif  // CONFIG_AFFINE_REFINEMENT
 
@@ -278,6 +262,7 @@ static INLINE void sign_extend_16bit_to_32bit(__m256i in, __m256i zero,
   *out_hi = _mm256_unpackhi_epi16(in, sign_bits);
 }
 
+#if CONFIG_AFFINE_REFINEMENT
 static INLINE void sign_extend_32bit_to_64bit(__m256i in, __m256i zero,
                                               __m256i *out_lo,
                                               __m256i *out_hi) {
@@ -285,6 +270,7 @@ static INLINE void sign_extend_32bit_to_64bit(__m256i in, __m256i zero,
   *out_lo = _mm256_unpacklo_epi32(in, sign_bits);
   *out_hi = _mm256_unpackhi_epi32(in, sign_bits);
 }
+#endif  // CONFIG_AFFINE_REFINEMENT
 
 static INLINE __m256i round_power_of_two_epi32(__m256i in, int reduce_bits) {
   __m256i rounding_offset = _mm256_set1_epi32((1 << (reduce_bits)) >> 1);
@@ -313,6 +299,7 @@ static INLINE __m256i round_power_of_two_signed_epi32(__m256i in,
   return rounded_vec;
 }
 
+#if CONFIG_AFFINE_REFINEMENT
 static INLINE int64_t horiz_sum_epi64(__m256i vec) {
   int64_t sum;
   __m256i vec_low = _mm256_srli_si256(vec, 8);
@@ -339,7 +326,6 @@ static INLINE __m256i add_epi32_as_epi64(__m256i a, __m256i b) {
   return sum;
 }
 
-#if CONFIG_AFFINE_REFINEMENT
 static INLINE void calc_max_vector(__m256i *gx_vec, __m256i *gy_vec,
                                    __m256i *pdiff_vec, __m256i *max_vec) {
   *gx_vec = _mm256_abs_epi16(*gx_vec);
@@ -556,9 +542,6 @@ static INLINE void multiply_and_accumulate(__m256i *gx_vec, __m256i *gy_vec,
 static INLINE void calc_mat_a_and_vec_b(const int16_t *pdiff, int pstride,
                                         const int16_t *gx, const int16_t *gy,
                                         int gstride, int bw, int bh,
-#if CONFIG_AFFINE_REFINEMENT_SB
-                                        int x_offset, int y_offset,
-#endif  // CONFIG_AFFINE_REFINEMENT_SB
                                         const int coords_bits,
                                         const int grad_bits0, int32_t *mat_a,
                                         int32_t *vec_b) {
@@ -566,13 +549,8 @@ static INLINE void calc_mat_a_and_vec_b(const int16_t *pdiff, int pstride,
   int16_t step_w = AOMMAX(1, bw >> AFFINE_AVG_MAX_SIZE_LOG2);
 
   __m256i step_w_vec = _mm256_set1_epi16(step_w);
-#if CONFIG_AFFINE_REFINEMENT_SB
-  __m256i x_offset_vec = _mm256_set1_epi16(1 + x_offset - (bw / 2));
-  __m256i y_offset_vec = _mm256_set1_epi16(1 + y_offset - (bh / 2));
-#else
   __m256i x_offset_vec = _mm256_set1_epi16(1 - (bw / 2));
   __m256i y_offset_vec = _mm256_set1_epi16(1 - (bh / 2));
-#endif  // CONFIG_AFFINE_REFINEMENT_SB
   __m256i zeros = _mm256_setzero_si256();
   int grad_bits = grad_bits0;
 
@@ -621,6 +599,7 @@ static INLINE void calc_mat_a_and_vec_b(const int16_t *pdiff, int pstride,
         for (int t = s; t < 4; t++)
           mat_a[s * 4 + t] += horiz_sum_epi64(a_mat[index++]);
       for (int l = 0; l < 4; ++l) vec_b[l] += horiz_sum_epi64(b_vec[l]);
+#if !CONFIG_F107_GRADIENT_SIMPLIFY
       int32_t max_autocorr =
           AOMMAX(AOMMAX(mat_a[0], mat_a[5]), AOMMAX(mat_a[10], mat_a[15]));
       int32_t max_xcorr = AOMMAX(AOMMAX(abs(vec_b[0]), abs(vec_b[1])),
@@ -634,48 +613,57 @@ static INLINE void calc_mat_a_and_vec_b(const int16_t *pdiff, int pstride,
         }
         grad_bits++;
       }
+#endif  // !CONFIG_F107_GRADIENT_SIMPLIFY
     }
   } else {
-    __m256i j_vec = _mm256_load_si256((__m256i *)col_16_vector);
-    __m256i x_vec =
-        _mm256_add_epi16(_mm256_mullo_epi16(step_w_vec, j_vec), x_offset_vec);
-    for (int i = 0; i < height_loop; ++i) {
-      __m256i y_vec =
-          _mm256_add_epi16(_mm256_set1_epi16(i * step_h), y_offset_vec);
+    int width_loop = AOMMIN(bw, AFFINE_AVG_MAX_SIZE) >> 4;
+    for (int j = 0; j < width_loop; j++) {
+      __m256i j16 = _mm256_set1_epi16(j << 4);
+      __m256i j_vec =
+          _mm256_add_epi16(j16, _mm256_load_si256((__m256i *)col_16_vector));
+      __m256i x_vec =
+          _mm256_add_epi16(_mm256_mullo_epi16(step_w_vec, j_vec), x_offset_vec);
+      for (int i = 0; i < height_loop; ++i) {
+        __m256i y_vec =
+            _mm256_add_epi16(_mm256_set1_epi16(i * step_h), y_offset_vec);
 
-      __m256i gx_vec = _mm256_loadu_si256((__m256i *)&gx[i * gstride]);
-      __m256i gy_vec = _mm256_loadu_si256((__m256i *)&gy[i * gstride]);
+        __m256i gx_vec =
+            _mm256_loadu_si256((__m256i *)&gx[i * gstride + (j << 4)]);
+        __m256i gy_vec =
+            _mm256_loadu_si256((__m256i *)&gy[i * gstride + (j << 4)]);
 
-      __m256i pdiff_vec =
-          _mm256_loadu_si256((const __m256i *)&pdiff[i * pstride]);
+        __m256i pdiff_vec =
+            _mm256_loadu_si256((const __m256i *)&pdiff[i * pstride + (j << 4)]);
 
-      multiply_and_accumulate(&gx_vec, &gy_vec, &x_vec, &y_vec, &pdiff_vec,
-                              coords_bits, grad_bits, a_mat, b_vec);
-      int index = 0;
-      // Sum the individual values in upper triangular part of mat_a[] and in
-      // vec_b[]
-      for (int s = 0; s < 4; s++)
-        for (int t = s; t < 4; t++)
-          mat_a[s * 4 + t] += horiz_sum_epi64(a_mat[index++]);
-      for (int l = 0; l < 4; ++l) vec_b[l] += horiz_sum_epi64(b_vec[l]);
-      int32_t max_autocorr =
-          AOMMAX(AOMMAX(mat_a[0], mat_a[5]), AOMMAX(mat_a[10], mat_a[15]));
-      int32_t max_xcorr = AOMMAX(AOMMAX(abs(vec_b[0]), abs(vec_b[1])),
-                                 AOMMAX(abs(vec_b[2]), abs(vec_b[3])));
-      if (get_msb_signed(AOMMAX(max_autocorr, max_xcorr)) >=
-          MAX_AFFINE_AUTOCORR_BITS - 2) {
-        for (int s = 0; s < 4; s++) {
+        multiply_and_accumulate(&gx_vec, &gy_vec, &x_vec, &y_vec, &pdiff_vec,
+                                coords_bits, grad_bits, a_mat, b_vec);
+        int index = 0;
+        // Sum the individual values in upper triangular part of mat_a[] and in
+        // vec_b[]
+        for (int s = 0; s < 4; s++)
           for (int t = s; t < 4; t++)
-            mat_a[s * 4 + t] = ROUND_POWER_OF_TWO_SIGNED(mat_a[s * 4 + t], 1);
-          vec_b[s] = ROUND_POWER_OF_TWO_SIGNED(vec_b[s], 1);
+            mat_a[s * 4 + t] += horiz_sum_epi64(a_mat[index++]);
+        for (int l = 0; l < 4; ++l) vec_b[l] += horiz_sum_epi64(b_vec[l]);
+#if !CONFIG_F107_GRADIENT_SIMPLIFY
+        int32_t max_autocorr =
+            AOMMAX(AOMMAX(mat_a[0], mat_a[5]), AOMMAX(mat_a[10], mat_a[15]));
+        int32_t max_xcorr = AOMMAX(AOMMAX(abs(vec_b[0]), abs(vec_b[1])),
+                                   AOMMAX(abs(vec_b[2]), abs(vec_b[3])));
+        if (get_msb_signed(AOMMAX(max_autocorr, max_xcorr)) >=
+            MAX_AFFINE_AUTOCORR_BITS - 2) {
+          for (int s = 0; s < 4; s++) {
+            for (int t = s; t < 4; t++)
+              mat_a[s * 4 + t] = ROUND_POWER_OF_TWO_SIGNED(mat_a[s * 4 + t], 1);
+            vec_b[s] = ROUND_POWER_OF_TWO_SIGNED(vec_b[s], 1);
+          }
+          grad_bits++;
         }
-        grad_bits++;
+#endif  // !CONFIG_F107_GRADIENT_SIMPLIFY
       }
     }
   }
   for (int s = 0; s < 4; ++s) {
     for (int t = s + 1; t < 4; ++t) mat_a[t * 4 + s] = mat_a[s * 4 + t];
-    // for (int t = 0; t < s; ++t) mat_a[s * 4 + t] = mat_a[t * 4 + s];
   }
   const int rls_alpha = (bw * bh >> 4) * AFFINE_RLS_PARAM;
   mat_a[0] += rls_alpha;
@@ -687,11 +675,7 @@ static INLINE void calc_mat_a_and_vec_b(const int16_t *pdiff, int pstride,
 void av1_calc_affine_autocorrelation_matrix_avx2(const int16_t *pdiff,
                                                  int pstride, const int16_t *gx,
                                                  const int16_t *gy, int gstride,
-                                                 int bw, int bh,
-#if CONFIG_AFFINE_REFINEMENT_SB
-                                                 int x_offset, int y_offset,
-#endif  // CONFIG_AFFINE_REFINEMENT_SB
-                                                 int32_t *mat_a,
+                                                 int bw, int bh, int32_t *mat_a,
                                                  int32_t *vec_b) {
   int x_range_log2 = get_msb(bw);
   int y_range_log2 = get_msb(bh);
@@ -699,7 +683,6 @@ void av1_calc_affine_autocorrelation_matrix_avx2(const int16_t *pdiff,
                   AOMMIN(AFFINE_AVG_MAX_SIZE_LOG2, y_range_log2);
   int32_t max_el =
       find_max_matrix_element_avx2(pdiff, pstride, gx, gy, gstride, bw, bh);
-
   int max_el_msb = max_el > 0 ? get_msb((int)max_el) : 0;
   int grad_bits =
       AOMMAX(0, max_el_msb * 2 + npel_log2 +
@@ -707,11 +690,8 @@ void av1_calc_affine_autocorrelation_matrix_avx2(const int16_t *pdiff,
   const int coords_bits = AOMMAX(
       0, ((x_range_log2 + y_range_log2) >> 1) - AFFINE_COORDS_OFFSET_BITS);
 
-  calc_mat_a_and_vec_b(pdiff, pstride, gx, gy, gstride, bw, bh,
-#if CONFIG_AFFINE_REFINEMENT_SB
-                       x_offset, y_offset,
-#endif  // CONFIG_AFFINE_REFINEMENT_SB
-                       coords_bits, grad_bits, mat_a, vec_b);
+  calc_mat_a_and_vec_b(pdiff, pstride, gx, gy, gstride, bw, bh, coords_bits,
+                       grad_bits, mat_a, vec_b);
 }
 #endif  // CONFIG_AFFINE_REFINEMENT
 
@@ -1660,7 +1640,6 @@ void av1_avg_pooling_pdiff_gradients_avx2(int16_t *pdiff, const int pstride,
                                           const int gstride, const int bw,
                                           const int bh, const int n) {
 #if CONFIG_OPFL_MV_SEARCH
-#if !OPFL_DOWNSAMP_QUINCUNX
   const int bh_low = AOMMIN(bh, n);
   const int bw_low = AOMMIN(bw, n);
   if (bh == bh_low && bw == bw_low) return;
@@ -1688,9 +1667,6 @@ void av1_avg_pooling_pdiff_gradients_avx2(int16_t *pdiff, const int pstride,
     av1_avg_pooling_pdiff_gradients_c(pdiff, pstride, gx, gy, gstride, bw, bh,
                                       n);
   }
-#else
-  av1_avg_pooling_pdiff_gradients_c(pdiff, pstride, gx, gy, gstride, bw, bh, n);
-#endif  // !OPFL_DOWNSAMP_QUINCUNX
 #else
   (void)pdiff;
   (void)pstride;
@@ -1726,26 +1702,23 @@ DECLARE_ALIGNED(32, static const uint8_t, next2_pixel_mask[32]) = {
   8, 9, 10, 11, 12, 13, 14, 15, 12, 13, 14, 15, 12, 13, 14, 15
 };
 
-static AOM_INLINE void sub_mul_add(
-    const __m256i *id_next, const __m256i *id_prev, const __m256i *id_next2,
-    const __m256i *id_prev2, const __m256i *coeff_0, const __m256i *coeff_1,
-#if OPFL_DOWNSAMP_QUINCUNX
-    const __m256i *mask,
-#endif
-    __m256i *temp_reg) {
+static AOM_INLINE void sub_mul_add(const __m256i *id_next,
+                                   const __m256i *id_prev,
+                                   const __m256i *id_next2,
+                                   const __m256i *id_prev2,
+                                   const __m256i *coeff_0,
+                                   const __m256i *coeff_1, __m256i *temp_reg) {
   const __m256i sub_0 = _mm256_sub_epi32(*id_next, *id_prev);
   const __m256i sub_1 = _mm256_sub_epi32(*id_next2, *id_prev2);
   __m256i temp = _mm256_add_epi32(_mm256_mullo_epi32(sub_0, *coeff_0),
                                   _mm256_mullo_epi32(sub_1, *coeff_1));
-#if OPFL_DOWNSAMP_QUINCUNX
-  temp = _mm256_mullo_epi32(temp, mask);
-#endif
   *temp_reg = round_power_of_two_signed_epi32(temp, bicubic_bits);
 }
 
 void av1_bicubic_grad_interpolation_highbd_avx2(const int16_t *pred_src,
                                                 int16_t *x_grad,
-                                                int16_t *y_grad, const int bw,
+                                                int16_t *y_grad,
+                                                const int stride, const int bw,
                                                 const int bh) {
 #if OPFL_BICUBIC_GRAD
   assert(bw % 8 == 0);
@@ -1769,9 +1742,6 @@ void av1_bicubic_grad_interpolation_highbd_avx2(const int16_t *pred_src,
       const __m256i coeffs_2 = _mm256_shuffle_epi32(coeff_256bit, 0xea);
       // c11 c10 c10 c10 | c11 c10 c10 c10
       const __m256i coeffs_3 = _mm256_shuffle_epi32(coeff_256bit, 0xab);
-#if OPFL_DOWNSAMP_QUINCUNX
-      const __m256i mask = _mm256_set_epi32(1, 0, 1, 0, 0, 1, 0, 1);
-#endif
       const __m256i prev_mask = _mm256_load_si256((__m256i *)prev_pixel_mask);
       const __m256i prev2_mask = _mm256_load_si256((__m256i *)prev2_pixel_mask);
       const __m256i next_mask = _mm256_load_si256((__m256i *)next_pixel_mask);
@@ -1779,10 +1749,10 @@ void av1_bicubic_grad_interpolation_highbd_avx2(const int16_t *pred_src,
       for (int col = 0; col < bh; col += 2) {
         // s00 s01 s02 s03 s04 s05 s06 s07
         const __m128i src_128_0 =
-            _mm_loadu_si128((__m128i *)(p_src + bw * col));
+            _mm_loadu_si128((__m128i *)(p_src + stride * col));
         // s10 s11 s12 s13 s14 s15 s16 s17
         const __m128i src_128_1 =
-            _mm_loadu_si128((__m128i *)(p_src + bw * col + 8));
+            _mm_loadu_si128((__m128i *)(p_src + stride * col + stride));
         // s00 s01 s02 s03 s10 s11 s12 s13
         const __m128i up_lo = _mm_unpacklo_epi64(src_128_0, src_128_1);
         // s04 s05 s06 s07 s14 s15 s16 s17
@@ -1812,19 +1782,11 @@ void av1_bicubic_grad_interpolation_highbd_avx2(const int16_t *pred_src,
         __m256i id_next2_1 = _mm256_shuffle_epi8(src_hi, next2_mask);
         __m256i temp_0, temp_1;
         sub_mul_add(&id_next_0, &id_prev_0, &id_next2_0, &id_prev2_0, &coeffs_1,
-                    &coeffs_3,
-#if OPFL_DOWNSAMP_QUINCUNX
-                    &mask,
-#endif
-                    &temp_0);
+                    &coeffs_3, &temp_0);
         sub_mul_add(&id_next_1, &id_prev_1, &id_next2_1, &id_prev2_1, &coeffs_0,
-                    &coeffs_2,
-#if OPFL_DOWNSAMP_QUINCUNX
-                    &mask,
-#endif
-                    &temp_1);
+                    &coeffs_2, &temp_1);
         // t00 t01 t02 t03 t04 t05 t06 t07 | t10 t11 t12 t13 t14 t15 t16 t17
-        _mm256_storeu_si256((__m256i *)(&x_grad[bw * col]),
+        _mm256_storeu_si256((__m256i *)(&x_grad[stride * col]),
                             _mm256_packs_epi32(temp_0, temp_1));
       }
     }
@@ -1838,37 +1800,25 @@ void av1_bicubic_grad_interpolation_highbd_avx2(const int16_t *pred_src,
           _mm256_set1_epi32(coeffs_bicubic[SUBPEL_GRAD_DELTA_BITS][1][1]);
       const __m256i coeffs_3 =
           _mm256_set1_epi32(coeffs_bicubic[SUBPEL_GRAD_DELTA_BITS][1][0]);
-#if OPFL_DOWNSAMP_QUINCUNX
-      const __m256i mask_0 = _mm256_set_epi32(0, 1, 0, 1, 0, 1, 0, 1);
-      const __m256i mask_1 = _mm256_set_epi32(1, 0, 1, 0, 1, 0, 1, 0);
-#endif
       // s00 s01 s02 s03 s04 s05 s06 s07
       const __m128i src_128_0 = _mm_loadu_si128((__m128i *)(p_src));
       // s10 s11 s12 s13 s14 s15 s16 s17
-      __m128i src_128_1 = _mm_loadu_si128((__m128i *)(p_src + 8));
+      __m128i src_128_1 = _mm_loadu_si128((__m128i *)(p_src + stride));
       // s20 s21 s22 s23 s24 s25 s26 s27
-      __m128i src_128_2 = _mm_loadu_si128((__m128i *)(p_src + 16));
+      __m128i src_128_2 = _mm_loadu_si128((__m128i *)(p_src + 2 * stride));
       __m256i src_prev2 = _mm256_cvtepi16_epi32(src_128_0);
       __m256i src_next = _mm256_cvtepi16_epi32(src_128_1);
       __m256i src_next2 = _mm256_cvtepi16_epi32(src_128_2);
       __m256i src_prev = src_prev2;
       __m256i temp_0, temp_1;
       sub_mul_add(&src_next, &src_prev, &src_next2, &src_prev2, &coeffs_0,
-                  &coeffs_2,
-#if OPFL_DOWNSAMP_QUINCUNX
-                  &mask_0,
-#endif
-                  &temp_0);
+                  &coeffs_2, &temp_0);
       src_next = src_next2;
       // s30 s31 s32 s33 s34 s35 s36 s37
-      __m128i src_128_3 = _mm_loadu_si128((__m128i *)(p_src + 24));
+      __m128i src_128_3 = _mm_loadu_si128((__m128i *)(p_src + 3 * stride));
       src_next2 = _mm256_cvtepi16_epi32(src_128_3);
       sub_mul_add(&src_next, &src_prev, &src_next2, &src_prev2, &coeffs_1,
-                  &coeffs_3,
-#if OPFL_DOWNSAMP_QUINCUNX
-                  &mask_1,
-#endif
-                  &temp_1);
+                  &coeffs_3, &temp_1);
       // t00 t01 t02 t03 t04 t05 t06 t07 | t10 t11 t12 t13 t14 t15 t16 t17
       const __m256i temp =
           _mm256_permute4x64_epi64(_mm256_packs_epi32(temp_0, temp_1), 0xd8);
@@ -1877,73 +1827,57 @@ void av1_bicubic_grad_interpolation_highbd_avx2(const int16_t *pred_src,
         // s00 s01 s02 s03 s04 s05 s06 s07
         src_prev2 = src_prev;
         // s10 s11 s12 s13 s14 s15 s16 s17
-        src_128_1 = _mm_loadu_si128((__m128i *)(p_src + (col - 1) * 8));
+        src_128_1 = _mm_loadu_si128((__m128i *)(p_src + (col - 1) * stride));
         src_prev = _mm256_cvtepi16_epi32(src_128_1);
         // s30 s31 s32 s33 s34 s35 s36 s37
         src_next = src_next2;
         // s40 s41 s42 s43 s44 s45 s46 s47
-        src_128_2 = _mm_loadu_si128((__m128i *)(p_src + (col + 2) * 8));
+        src_128_2 = _mm_loadu_si128((__m128i *)(p_src + (col + 2) * stride));
         src_next2 = _mm256_cvtepi16_epi32(src_128_2);
         __m256i temp_2, temp_3;
         sub_mul_add(&src_next, &src_prev, &src_next2, &src_prev2, &coeffs_1,
-                    &coeffs_3,
-#if OPFL_DOWNSAMP_QUINCUNX
-                    &mask_0,
-#endif
-                    &temp_2);
+                    &coeffs_3, &temp_2);
         // s10 s11 s12 s13 s14 s15 s16 s17
         src_prev2 = src_prev;
         // s10 s11 s12 s13 s14 s15 s16 s17
-        src_128_3 = _mm_loadu_si128((__m128i *)(p_src + (col) * 8));
+        src_128_3 = _mm_loadu_si128((__m128i *)(p_src + col * stride));
         src_prev = _mm256_cvtepi16_epi32(src_128_3);
         // s40 s41 s42 s43 s44 s45 s46 s47
         src_next = src_next2;
         // s50 s51 s52 s53 s54 s55 s56 s57
         const __m128i src_128_4 =
-            _mm_loadu_si128((__m128i *)(p_src + (col + 3) * 8));
+            _mm_loadu_si128((__m128i *)(p_src + (col + 3) * stride));
         src_next2 = _mm256_cvtepi16_epi32(src_128_4);
         sub_mul_add(&src_next, &src_prev, &src_next2, &src_prev2, &coeffs_1,
-                    &coeffs_3,
-#if OPFL_DOWNSAMP_QUINCUNX
-                    &mask_0,
-#endif
-                    &temp_3);
+                    &coeffs_3, &temp_3);
         // t00 t01 t02 t03 t04 t05 t06 t07 | t10 t11 t12 t13 t14 t15 t16 t17
         const __m256i temp0 =
             _mm256_permute4x64_epi64(_mm256_packs_epi32(temp_2, temp_3), 0xd8);
-        _mm256_storeu_si256((__m256i *)(&y_grad[col * bw]), temp0);
+        _mm256_storeu_si256((__m256i *)(&y_grad[col * stride]), temp0);
       }
       // s40 s41 s42 s43 s44 s45 s46 s47
       src_prev2 = src_prev;
       // s50 s51 s52 s53 s54 s55 s56 s57
       const __m128i src_128_5 =
-          _mm_loadu_si128((__m128i *)(p_src + (bh - 3) * 8));
+          _mm_loadu_si128((__m128i *)(p_src + (bh - 3) * stride));
       src_prev = _mm256_cvtepi16_epi32(src_128_5);
       // s70 s71 s72 s73 s74 s75 s76 s77
       src_next = src_next2;
       __m256i temp_4, temp_5;
       sub_mul_add(&src_next, &src_prev, &src_next2, &src_prev2, &coeffs_1,
-                  &coeffs_3,
-#if OPFL_DOWNSAMP_QUINCUNX
-                  &mask_0,
-#endif
-                  &temp_4);
+                  &coeffs_3, &temp_4);
       // s50 s51 s52 s53 s54 s55 s56 s57
       src_prev2 = src_prev;
       // s60 s61 s62 s63 s64 s65 s66 s67
       const __m128i src_128_6 =
-          _mm_loadu_si128((__m128i *)(p_src + (bh - 2) * 8));
+          _mm_loadu_si128((__m128i *)(p_src + (bh - 2) * stride));
       src_prev = _mm256_cvtepi16_epi32(src_128_6);
       sub_mul_add(&src_next, &src_prev, &src_next2, &src_prev2, &coeffs_0,
-                  &coeffs_2,
-#if OPFL_DOWNSAMP_QUINCUNX
-                  &mask_0,
-#endif
-                  &temp_5);
+                  &coeffs_2, &temp_5);
       // t60 t61 t62 t63 t64 t65 t67 | t70 t71 t72 t73 t74 t75 t77
       const __m256i temp0 =
           _mm256_permute4x64_epi64(_mm256_packs_epi32(temp_4, temp_5), 0xd8);
-      _mm256_storeu_si256((__m256i *)(&y_grad[(bh - 2) * bw]), temp0);
+      _mm256_storeu_si256((__m256i *)(&y_grad[(bh - 2) * stride]), temp0);
     }
   } else {
     // Calculation of x_grad.
@@ -1959,24 +1893,21 @@ void av1_bicubic_grad_interpolation_highbd_avx2(const int16_t *pred_src,
       // c10 c10 c10 c10 | c10 c10 c10 c10
       const __m256i coeffs_5 =
           _mm256_set1_epi32(coeffs_bicubic[SUBPEL_GRAD_DELTA_BITS][1][0]);
-#if OPFL_DOWNSAMP_QUINCUNX
-      const __m256i mask = _mm256_set_epi32(1, 0, 1, 0, 0, 1, 0, 1);
-#endif
       const __m256i prev_mask = _mm256_load_si256((__m256i *)prev_pixel_mask);
       const __m256i prev2_mask = _mm256_load_si256((__m256i *)prev2_pixel_mask);
       for (int col = 0; col < bh; col += 2) {
         // s00 s01 s02 s03 s04 s05 s06 s07
         const __m128i src_128_0 =
-            _mm_loadu_si128((__m128i *)(p_src + bw * col));
+            _mm_loadu_si128((__m128i *)(p_src + stride * col));
         // s08 s09 s010 s011 s012 s013 s014 s015
         const __m128i src_128_1 =
-            _mm_loadu_si128((__m128i *)(p_src + bw * col + 8));
+            _mm_loadu_si128((__m128i *)(p_src + stride * col + 8));
         // s10 s11 s12 s13 s14 s15 s16 s17
         const __m128i src_128_2 =
-            _mm_loadu_si128((__m128i *)(p_src + bw * (col + 1)));
+            _mm_loadu_si128((__m128i *)(p_src + stride * (col + 1)));
         // s18 s19 s110 s111 s112 s113 s114 s115
         const __m128i src_128_3 =
-            _mm_loadu_si128((__m128i *)(p_src + bw * (col + 1) + 8));
+            _mm_loadu_si128((__m128i *)(p_src + stride * (col + 1) + 8));
         // s00 s01 s02 s03 s10 s11 s12 s13
         const __m128i up_0 = _mm_unpacklo_epi64(src_128_0, src_128_2);
         // s04 s05 s06 s07 s14 s15 s16 s17
@@ -2010,25 +1941,17 @@ void av1_bicubic_grad_interpolation_highbd_avx2(const int16_t *pred_src,
         const __m256i id_next2_1 = _mm256_alignr_epi8(src_2, src_1, 8);
         __m256i temp_0, temp_1;
         sub_mul_add(&id_next_0, &id_prev_0, &id_next2_0, &id_prev2_0, &coeffs_1,
-                    &coeffs_3,
-#if OPFL_DOWNSAMP_QUINCUNX
-                    &mask,
-#endif
-                    &temp_0);
+                    &coeffs_3, &temp_0);
         sub_mul_add(&id_next_1, &id_prev_1, &id_next2_1, &id_prev2_1, &coeffs_4,
-                    &coeffs_5,
-#if OPFL_DOWNSAMP_QUINCUNX
-                    &mask,
-#endif
-                    &temp_1);
+                    &coeffs_5, &temp_1);
         // t00 t01 t02 t03 t04 t05 t06 t07 | t10 t11 t12 t13 t14 t15 t16 t17
         const __m256i x_reg_0 = _mm256_packs_epi32(temp_0, temp_1);
 
         // t00 t01 t02 t03 t04 t05 t06 t07
-        _mm_storeu_si128((__m128i *)(&x_grad[bw * col]),
+        _mm_storeu_si128((__m128i *)(&x_grad[stride * col]),
                          _mm256_castsi256_si128(x_reg_0));
         // t10 t11 t12 t13 t14 t15 t16 t17
-        _mm_storeu_si128((__m128i *)(&x_grad[bw * (col + 1)]),
+        _mm_storeu_si128((__m128i *)(&x_grad[stride * (col + 1)]),
                          _mm256_extracti128_si256(x_reg_0, 1));
       }
     }
@@ -2040,17 +1963,17 @@ void av1_bicubic_grad_interpolation_highbd_avx2(const int16_t *pred_src,
       for (int col = 0; col < bh; col += 2) {
         __m256i src_0, src_1, src_2;
         // s06 s07 s08 s09 s010 s011 s012 s013
-        const __m128i src_128_0 =
-            _mm_loadu_si128((__m128i *)(p_src + bw * col + 6 + counter * 8));
+        const __m128i src_128_0 = _mm_loadu_si128(
+            (__m128i *)(p_src + stride * col + 6 + counter * 8));
         // s010 s011 s012 s013 s014 s015 s016 s017
-        const __m128i src_128_1 =
-            _mm_loadu_si128((__m128i *)(p_src + bw * col + 10 + counter * 8));
+        const __m128i src_128_1 = _mm_loadu_si128(
+            (__m128i *)(p_src + stride * col + 10 + counter * 8));
         // s16 s17 s18 s19 s110 s111 s112 s113
         const __m128i src_128_2 = _mm_loadu_si128(
-            (__m128i *)(p_src + bw * (col + 1) + 6 + counter * 8));
+            (__m128i *)(p_src + stride * (col + 1) + 6 + counter * 8));
         // s110 s111 s112 s113 s114 s115 s116 s117
         const __m128i src_128_3 = _mm_loadu_si128(
-            (__m128i *)(p_src + bw * (col + 1) + 10 + counter * 8));
+            (__m128i *)(p_src + stride * (col + 1) + 10 + counter * 8));
         // s06 s07 s08 s09 s16 s17 s18 s19
         const __m128i up_0 = _mm_unpacklo_epi64(src_128_0, src_128_2);
         // s010 s011 s012 s013 s110 s111 s112 s113
@@ -2084,26 +2007,18 @@ void av1_bicubic_grad_interpolation_highbd_avx2(const int16_t *pred_src,
         const __m256i id_next2_1 = src_2;
         __m256i temp_0, temp_1;
         sub_mul_add(&id_next_0, &id_prev_0, &id_next2_0, &id_prev2_0, &coeffs_4,
-                    &coeffs_5,
-#if OPFL_DOWNSAMP_QUINCUNX
-                    &mask,
-#endif
-                    &temp_0);
+                    &coeffs_5, &temp_0);
         sub_mul_add(&id_next_1, &id_prev_1, &id_next2_1, &id_prev2_1, &coeffs_4,
-                    &coeffs_5,
-#if OPFL_DOWNSAMP_QUINCUNX
-                    &mask,
-#endif
-                    &temp_1);
+                    &coeffs_5, &temp_1);
         // t00 t01 t02 t03 t04 t05 t06 t07 | t10 t11 t12 t13 t14 t15 t16 t17
         const __m256i x_reg_0 = _mm256_packs_epi32(temp_0, temp_1);
 
         // t00 t01 t02 t03 t04 t05 t06 t07
-        _mm_storeu_si128((__m128i *)(&x_grad[bw * col + (counter + 1) * 8]),
+        _mm_storeu_si128((__m128i *)(&x_grad[stride * col + (counter + 1) * 8]),
                          _mm256_castsi256_si128(x_reg_0));
         // t10 t11 t12 t13 t14 t15 t16 t17
         _mm_storeu_si128(
-            (__m128i *)(&x_grad[bw * (col + 1) + (counter + 1) * 8]),
+            (__m128i *)(&x_grad[stride * (col + 1) + (counter + 1) * 8]),
             _mm256_extracti128_si256(x_reg_0, 1));
       }
     }
@@ -2120,16 +2035,16 @@ void av1_bicubic_grad_interpolation_highbd_avx2(const int16_t *pred_src,
         __m256i src_0, src_1, src_3;
         // s022 s023 s024 s025 s026 s027 s028 s029
         const __m128i src_128_0 =
-            _mm_loadu_si128((__m128i *)(p_src + bw * (col + 1) - 10));
+            _mm_loadu_si128((__m128i *)(p_src + stride * col + bw - 10));
         // s024 s025 s026 s027 s028 s029 s030 s031
         const __m128i src_128_1 =
-            _mm_loadu_si128((__m128i *)(p_src + bw * (col + 1) - 8));
+            _mm_loadu_si128((__m128i *)(p_src + stride * col + bw - 8));
         // s122 s123 s124 s125 s126 s127 s128 s129
         const __m128i src_128_2 =
-            _mm_loadu_si128((__m128i *)(p_src + bw * (col + 2) - 10));
+            _mm_loadu_si128((__m128i *)(p_src + stride * (col + 1) + bw - 10));
         // s124 s125 s126 s127 s128 s129 s130 s131
         const __m128i src_128_3 =
-            _mm_loadu_si128((__m128i *)(p_src + bw * (col + 2) - 8));
+            _mm_loadu_si128((__m128i *)(p_src + stride * (col + 1) + bw - 8));
         // s022 s023 s024 s025 s122 s123 s124 s125
         const __m128i up_0 = _mm_unpacklo_epi64(src_128_0, src_128_2);
         // s026 s027 s028 s029 s126 s127 s128 s129
@@ -2163,36 +2078,24 @@ void av1_bicubic_grad_interpolation_highbd_avx2(const int16_t *pred_src,
         const __m256i id_prev2_1 = id_next2_0;
         __m256i temp_0, temp_1;
         sub_mul_add(&id_next_0, &id_prev_0, &id_next2_0, &id_prev2_0, &coeffs_4,
-                    &coeffs_5,
-#if OPFL_DOWNSAMP_QUINCUNX
-                    &mask,
-#endif
-                    &temp_0);
+                    &coeffs_5, &temp_0);
         sub_mul_add(&id_next_1, &id_prev_1, &id_next2_1, &id_prev2_1, &coeffs_0,
-                    &coeffs_2,
-#if OPFL_DOWNSAMP_QUINCUNX
-                    &mask,
-#endif
-                    &temp_1);
+                    &coeffs_2, &temp_1);
         // t024 t025 t026 t027 t028 t029 t030 t031 | t124 t125 t126 t127 t128
         // t129 t130 t131
         const __m256i x_reg_0 = _mm256_packs_epi32(temp_0, temp_1);
 
         // t024 t025 t026 t027 t028 t029 t030 t031
-        _mm_storeu_si128((__m128i *)(&x_grad[bw * (col + 1) - 8]),
+        _mm_storeu_si128((__m128i *)(&x_grad[stride * col + bw - 8]),
                          _mm256_castsi256_si128(x_reg_0));
         // t10 t11 t12 t13 t14 t15 t16 t17
-        _mm_storeu_si128((__m128i *)(&x_grad[bw * (col + 2) - 8]),
+        _mm_storeu_si128((__m128i *)(&x_grad[stride * (col + 1) + bw - 8]),
                          _mm256_extracti128_si256(x_reg_0, 1));
       }
     }
     // Calculation of y_grad.
     int inc = 0;
     do {
-#if OPFL_DOWNSAMP_QUINCUNX
-      const __m256i mask_0 = _mm256_set_epi32(0, 1, 0, 1, 0, 1, 0, 1);
-      const __m256i mask_1 = _mm256_set_epi32(1, 0, 1, 0, 1, 0, 1, 0);
-#endif
       {
         const __m256i coeffs_0 =
             _mm256_set1_epi32(coeffs_bicubic[SUBPEL_GRAD_DELTA_BITS][0][1]);
@@ -2207,16 +2110,17 @@ void av1_bicubic_grad_interpolation_highbd_avx2(const int16_t *pred_src,
         // s08 s09 s010 s011 s012 s013 s014 s015
         const __m128i src_0_1 = _mm_loadu_si128((__m128i *)(p_src + inc + 8));
         // s10 s11 s12 s13 s14 s15 s16 s17
-        const __m128i src_1_0 = _mm_loadu_si128((__m128i *)(p_src + inc + bw));
+        const __m128i src_1_0 =
+            _mm_loadu_si128((__m128i *)(p_src + inc + stride));
         // s18 s19 s110 s111 s112 s113 s114 s115
         const __m128i src_1_1 =
-            _mm_loadu_si128((__m128i *)(p_src + inc + bw + 8));
+            _mm_loadu_si128((__m128i *)(p_src + inc + stride + 8));
         // s20 s21 s22 s23 s24 s25 s26 s27
         const __m128i src_2_0 =
-            _mm_loadu_si128((__m128i *)(p_src + inc + 2 * bw));
+            _mm_loadu_si128((__m128i *)(p_src + inc + 2 * stride));
         // s28 s29 s210 s211 s212 s213 s214 s215
         const __m128i src_2_1 =
-            _mm_loadu_si128((__m128i *)(p_src + inc + 2 * bw + 8));
+            _mm_loadu_si128((__m128i *)(p_src + inc + 2 * stride + 8));
 
         __m256i src_prev2_0, src_prev2_1, src_prev_0, src_prev_1, src_next_0,
             src_next_1, src_next2_0, src_next2_1;
@@ -2231,39 +2135,23 @@ void av1_bicubic_grad_interpolation_highbd_avx2(const int16_t *pred_src,
 
         __m256i temp_0, temp_1, temp_2, temp_3;
         sub_mul_add(&src_next_0, &src_prev_0, &src_next2_0, &src_prev2_0,
-                    &coeffs_0, &coeffs_2,
-#if OPFL_DOWNSAMP_QUINCUNX
-                    &mask_0,
-#endif
-                    &temp_0);
+                    &coeffs_0, &coeffs_2, &temp_0);
         sub_mul_add(&src_next_1, &src_prev_1, &src_next2_1, &src_prev2_1,
-                    &coeffs_0, &coeffs_2,
-#if OPFL_DOWNSAMP_QUINCUNX
-                    &mask_0,
-#endif
-                    &temp_1);
+                    &coeffs_0, &coeffs_2, &temp_1);
         src_next_0 = src_next2_0;
         src_next_1 = src_next2_1;
         // s30 s31 s32 s33 s34 s35 s36 s37
         const __m128i src_3_0 =
-            _mm_loadu_si128((__m128i *)(p_src + 3 * bw + inc));
+            _mm_loadu_si128((__m128i *)(p_src + 3 * stride + inc));
         // s38 s39 s310 s311 s312 s313 s314 s315
         const __m128i src_3_1 =
-            _mm_loadu_si128((__m128i *)(p_src + 3 * bw + 8 + inc));
+            _mm_loadu_si128((__m128i *)(p_src + 3 * stride + 8 + inc));
         src_next2_0 = _mm256_cvtepi16_epi32(src_3_0);
         src_next2_1 = _mm256_cvtepi16_epi32(src_3_1);
         sub_mul_add(&src_next_0, &src_prev_0, &src_next2_0, &src_prev2_0,
-                    &coeffs_1, &coeffs_3,
-#if OPFL_DOWNSAMP_QUINCUNX
-                    &mask_1,
-#endif
-                    &temp_2);
+                    &coeffs_1, &coeffs_3, &temp_2);
         sub_mul_add(&src_next_1, &src_prev_1, &src_next2_1, &src_prev2_1,
-                    &coeffs_1, &coeffs_3,
-#if OPFL_DOWNSAMP_QUINCUNX
-                    &mask_1,
-#endif
-                    &temp_3);
+                    &coeffs_1, &coeffs_3, &temp_3);
         // t00 t01 t02 t03 t08 t09 t010 t011 | t04 t05 t06 t07 t14 t15 t16 t17
         const __m256i y_reg_0 =
             _mm256_permute4x64_epi64(_mm256_packs_epi32(temp_0, temp_1), 0xd8);
@@ -2272,7 +2160,7 @@ void av1_bicubic_grad_interpolation_highbd_avx2(const int16_t *pred_src,
         const __m256i y_reg_1 =
             _mm256_permute4x64_epi64(_mm256_packs_epi32(temp_2, temp_3), 0xd8);
         _mm256_storeu_si256((__m256i *)&y_grad[0 + inc], y_reg_0);
-        _mm256_storeu_si256((__m256i *)&y_grad[bw + inc], y_reg_1);
+        _mm256_storeu_si256((__m256i *)&y_grad[stride + inc], y_reg_1);
         for (int col = 2; col < bh - 2; col += 2) {
           // s00 s01 s02 s03 s04 s05 s06 s07
           src_prev2_0 = src_prev_0;
@@ -2280,10 +2168,10 @@ void av1_bicubic_grad_interpolation_highbd_avx2(const int16_t *pred_src,
           src_prev2_1 = src_prev_1;
           // s10 s11 s12 s13 s14 s15 s16 s17
           const __m128i src_128_0 =
-              _mm_loadu_si128((__m128i *)(p_src + (col - 1) * bw + inc));
+              _mm_loadu_si128((__m128i *)(p_src + (col - 1) * stride + inc));
           // s18 s19 s110 s111 s112 s113 s114 s115
-          const __m128i src_128_1 =
-              _mm_loadu_si128((__m128i *)(p_src + (col - 1) * bw + 8 + inc));
+          const __m128i src_128_1 = _mm_loadu_si128(
+              (__m128i *)(p_src + (col - 1) * stride + 8 + inc));
           src_prev_0 = _mm256_cvtepi16_epi32(src_128_0);
           src_prev_1 = _mm256_cvtepi16_epi32(src_128_1);
           // s30 s31 s32 s33 s34 s35 s36 s37
@@ -2292,35 +2180,27 @@ void av1_bicubic_grad_interpolation_highbd_avx2(const int16_t *pred_src,
           src_next_1 = src_next2_1;
           // s40 s41 s42 s43 s44 s45 s46 s47
           const __m128i src_128_2 =
-              _mm_loadu_si128((__m128i *)(p_src + (col + 2) * bw + inc));
+              _mm_loadu_si128((__m128i *)(p_src + (col + 2) * stride + inc));
           // s48 s49 s410 s411 s412 s413 s414 s415
-          const __m128i src_128_3 =
-              _mm_loadu_si128((__m128i *)(p_src + (col + 2) * bw + 8 + inc));
+          const __m128i src_128_3 = _mm_loadu_si128(
+              (__m128i *)(p_src + (col + 2) * stride + 8 + inc));
           src_next2_0 = _mm256_cvtepi16_epi32(src_128_2);
           src_next2_1 = _mm256_cvtepi16_epi32(src_128_3);
           __m256i temp_5, temp_6, temp_7, temp_8;
           sub_mul_add(&src_next_0, &src_prev_0, &src_next2_0, &src_prev2_0,
-                      &coeffs_1, &coeffs_3,
-#if OPFL_DOWNSAMP_QUINCUNX
-                      &mask_0,
-#endif
-                      &temp_5);
+                      &coeffs_1, &coeffs_3, &temp_5);
           sub_mul_add(&src_next_1, &src_prev_1, &src_next2_1, &src_prev2_1,
-                      &coeffs_1, &coeffs_3,
-#if OPFL_DOWNSAMP_QUINCUNX
-                      &mask_0,
-#endif
-                      &temp_6);
+                      &coeffs_1, &coeffs_3, &temp_6);
           // s10 s11 s12 s13 s14 s15 s16 s17
           src_prev2_0 = src_prev_0;
           // s18 s19 s110 s111 s112 s113 s114 s115
           src_prev2_1 = src_prev_1;
           // s20 s21 s22 s23 s24 s25 s26 s27
           const __m128i src_128_4 =
-              _mm_loadu_si128((__m128i *)(p_src + (col)*bw + inc));
+              _mm_loadu_si128((__m128i *)(p_src + (col)*stride + inc));
           // s28 s29 s210 s211 s212 s213 s214 s215
           const __m128i src_128_5 =
-              _mm_loadu_si128((__m128i *)(p_src + (col)*bw + 8 + inc));
+              _mm_loadu_si128((__m128i *)(p_src + (col)*stride + 8 + inc));
           src_prev_0 = _mm256_cvtepi16_epi32(src_128_4);
           src_prev_1 = _mm256_cvtepi16_epi32(src_128_5);
           // s40 s41 s42 s43 s44 s45 s46 s47
@@ -2329,24 +2209,16 @@ void av1_bicubic_grad_interpolation_highbd_avx2(const int16_t *pred_src,
           src_next_1 = src_next2_1;
           // s50 s51 s52 s53 s54 s55 s56 s57
           const __m128i src_128_6 =
-              _mm_loadu_si128((__m128i *)(p_src + (col + 3) * bw + inc));
+              _mm_loadu_si128((__m128i *)(p_src + (col + 3) * stride + inc));
           // s58 s59 s510 s511 s512 s513 s514 s515
-          const __m128i src_128_7 =
-              _mm_loadu_si128((__m128i *)(p_src + (col + 3) * bw + 8 + inc));
+          const __m128i src_128_7 = _mm_loadu_si128(
+              (__m128i *)(p_src + (col + 3) * stride + 8 + inc));
           src_next2_0 = _mm256_cvtepi16_epi32(src_128_6);
           src_next2_1 = _mm256_cvtepi16_epi32(src_128_7);
           sub_mul_add(&src_next_0, &src_prev_0, &src_next2_0, &src_prev2_0,
-                      &coeffs_1, &coeffs_3,
-#if OPFL_DOWNSAMP_QUINCUNX
-                      &mask_1,
-#endif
-                      &temp_7);
+                      &coeffs_1, &coeffs_3, &temp_7);
           sub_mul_add(&src_next_1, &src_prev_1, &src_next2_1, &src_prev2_1,
-                      &coeffs_1, &coeffs_3,
-#if OPFL_DOWNSAMP_QUINCUNX
-                      &mask_1,
-#endif
-                      &temp_8);
+                      &coeffs_1, &coeffs_3, &temp_8);
           // t20 t21 t22 t23 t24 t25 t26 t27 | t30 t31 t32 t33 t34 t35 t36 t37
           const __m256i y_reg_2 = _mm256_permute4x64_epi64(
               _mm256_packs_epi32(temp_5, temp_6), 0xd8);
@@ -2354,8 +2226,9 @@ void av1_bicubic_grad_interpolation_highbd_avx2(const int16_t *pred_src,
           // t314 t315
           const __m256i y_reg_3 = _mm256_permute4x64_epi64(
               _mm256_packs_epi32(temp_7, temp_8), 0xd8);
-          _mm256_storeu_si256((__m256i *)(&y_grad[col * bw + inc]), y_reg_2);
-          _mm256_storeu_si256((__m256i *)(&y_grad[(col + 1) * bw + inc]),
+          _mm256_storeu_si256((__m256i *)(&y_grad[col * stride + inc]),
+                              y_reg_2);
+          _mm256_storeu_si256((__m256i *)(&y_grad[(col + 1) * stride + inc]),
                               y_reg_3);
         }
         // s40 s41 s42 s43 s44 s45 s46 s47
@@ -2363,10 +2236,10 @@ void av1_bicubic_grad_interpolation_highbd_avx2(const int16_t *pred_src,
         src_prev2_1 = src_prev_1;
         // s50 s51 s52 s53 s54 s55 s56 s57
         const __m128i src_128_8 =
-            _mm_loadu_si128((__m128i *)(p_src + (bh - 3) * bw + inc));
+            _mm_loadu_si128((__m128i *)(p_src + (bh - 3) * stride + inc));
         // s58 s59 s510 s511 s512 s513 s514 s515
         const __m128i src_128_9 =
-            _mm_loadu_si128((__m128i *)(p_src + (bh - 3) * bw + 8 + inc));
+            _mm_loadu_si128((__m128i *)(p_src + (bh - 3) * stride + 8 + inc));
         src_prev_0 = _mm256_cvtepi16_epi32(src_128_8);
         src_prev_1 = _mm256_cvtepi16_epi32(src_128_9);
         // s70 s71 s72 s73 s74 s75 s76 s77
@@ -2375,48 +2248,34 @@ void av1_bicubic_grad_interpolation_highbd_avx2(const int16_t *pred_src,
         src_next_1 = src_next2_1;
         __m256i temp_9, temp_09, temp_10, temp_11;
         sub_mul_add(&src_next_0, &src_prev_0, &src_next2_0, &src_prev2_0,
-                    &coeffs_1, &coeffs_3,
-#if OPFL_DOWNSAMP_QUINCUNX
-                    &mask_0,
-#endif
-                    &temp_9);
+                    &coeffs_1, &coeffs_3, &temp_9);
         sub_mul_add(&src_next_1, &src_prev_1, &src_next2_1, &src_prev2_1,
-                    &coeffs_1, &coeffs_3,
-#if OPFL_DOWNSAMP_QUINCUNX
-                    &mask_1,
-#endif
-                    &temp_09);
+                    &coeffs_1, &coeffs_3, &temp_09);
         // s50 s51 s52 s53 s54 s55 s56 s57
         src_prev2_0 = src_prev_0;
         // s58 s59 s510 s511 s512 s513 s514 s515
         src_prev2_1 = src_prev_1;
         // s60 s61 s62 s63 s64 s65 s66 s67
         const __m128i src_128_10 =
-            _mm_loadu_si128((__m128i *)(p_src + (bh - 2) * bw + inc));
+            _mm_loadu_si128((__m128i *)(p_src + (bh - 2) * stride + inc));
         // s68 s69 s610 s611 s612 s613 s614 s615
         const __m128i src_128_11 =
-            _mm_loadu_si128((__m128i *)(p_src + (bh - 2) * bw + 8 + inc));
+            _mm_loadu_si128((__m128i *)(p_src + (bh - 2) * stride + 8 + inc));
         src_prev_0 = _mm256_cvtepi16_epi32(src_128_10);
         src_prev_1 = _mm256_cvtepi16_epi32(src_128_11);
         sub_mul_add(&src_next_0, &src_prev_0, &src_next2_0, &src_prev2_0,
-                    &coeffs_0, &coeffs_2,
-#if OPFL_DOWNSAMP_QUINCUNX
-                    &mask_1,
-#endif
-                    &temp_10);
+                    &coeffs_0, &coeffs_2, &temp_10);
         sub_mul_add(&src_next_1, &src_prev_1, &src_next2_1, &src_prev2_1,
-                    &coeffs_0, &coeffs_2,
-#if OPFL_DOWNSAMP_QUINCUNX
-                    &mask_0,
-#endif
-                    &temp_11);
+                    &coeffs_0, &coeffs_2, &temp_11);
         // t60 t61 t62 t63 t64 t65 t67 | t70 t71 t72 t73 t74 t75 t77
         const __m256i y_reg_4 =
             _mm256_permute4x64_epi64(_mm256_packs_epi32(temp_9, temp_09), 0xd8);
         const __m256i y_reg_5 = _mm256_permute4x64_epi64(
             _mm256_packs_epi32(temp_10, temp_11), 0xd8);
-        _mm256_storeu_si256((__m256i *)(&y_grad[(bh - 2) * bw + inc]), y_reg_4);
-        _mm256_storeu_si256((__m256i *)(&y_grad[(bh - 1) * bw + inc]), y_reg_5);
+        _mm256_storeu_si256((__m256i *)(&y_grad[(bh - 2) * stride + inc]),
+                            y_reg_4);
+        _mm256_storeu_si256((__m256i *)(&y_grad[(bh - 1) * stride + inc]),
+                            y_reg_5);
       }
       inc += 16;
     } while (inc < bw);
@@ -2504,35 +2363,15 @@ static void opfl_mv_refinement_16x8_avx2(const int16_t *pdiff, int pstride,
   int32_t suv_lo = 0;
   int32_t suw_lo = 0;
   int32_t svw_lo = 0;
+  // TODO(kslu) clean up all grad_bits if later it is still not needed
   int grad_bits_lo = 0;
   int grad_bits_hi = 0;
   const __m256i opfl_samp_min = _mm256_set1_epi16(-OPFL_SAMP_CLAMP_VAL);
   const __m256i opfl_samp_max = _mm256_set1_epi16(OPFL_SAMP_CLAMP_VAL);
-#if OPFL_DOWNSAMP_QUINCUNX
-  step_size = 2;
-  const __m256i even_row =
-      _mm256_set_epi16(0, 0xFFFF, 0, 0xFFFF, 0, 0xFFFF, 0, 0xFFFF, 0, 0xFFFF, 0,
-                       0xFFFF, 0, 0xFFFF, 0, 0xFFFF);
-  const __m256i odd_row =
-      _mm256_set_epi16(0xFFFF, 0, 0xFFFF, 0, 0xFFFF, 0, 0xFFFF, 0, 0xFFFF, 0,
-                       0xFFFF, 0, 0xFFFF, 0, 0xFFFF, 0);
-#endif
   do {
     __m256i gradX = _mm256_loadu_si256((const __m256i *)gx);
     __m256i gradY = _mm256_loadu_si256((const __m256i *)gy);
     __m256i pred = _mm256_loadu_si256((const __m256i *)pdiff);
-#if OPFL_DOWNSAMP_QUINCUNX
-    const __m256i gradX1 = _mm256_loadu_si256((const __m256i *)(gx + gstride));
-    const __m256i gradY1 = _mm256_loadu_si256((const __m256i *)(gy + gstride));
-    const __m256i pred1 =
-        _mm256_loadu_si256((const __m256i *)(pdiff + pstride));
-    gradX = _mm256_or_si256(_mm256_and_si256(gradX, even_row),
-                            _mm256_and_si256(gradX1, odd_row));
-    gradY = _mm256_or_si256(_mm256_and_si256(gradY, even_row),
-                            _mm256_and_si256(gradY1, odd_row));
-    pred = _mm256_or_si256(_mm256_and_si256(pred, even_row),
-                           _mm256_and_si256(pred1, odd_row));
-#endif
     gradX =
         _mm256_max_epi16(_mm256_min_epi16(gradX, opfl_samp_max), opfl_samp_min);
     gradY =
@@ -2585,6 +2424,7 @@ static void opfl_mv_refinement_16x8_avx2(const int16_t *pdiff, int pstride,
     svw_lo += temp_lo;
     svw_hi += temp_hi;
 
+#if !CONFIG_F107_GRADIENT_SIMPLIFY
     // For every 8 pixels, do a range check and add a downshift if range is
     // getting close to the max allowed bit depth
     if (get_msb_signed(
@@ -2599,6 +2439,7 @@ static void opfl_mv_refinement_16x8_avx2(const int16_t *pdiff, int pstride,
       OPFL_OUTPUT_RANGE_CHECK(su2_hi, sv2_hi, suv_hi, suw_hi, svw_hi)
       grad_bits_hi++;
     }
+#endif  // !CONFIG_F107_GRADIENT_SIMPLIFY
 
     gx += gstride * step_size;
     gy += gstride * step_size;

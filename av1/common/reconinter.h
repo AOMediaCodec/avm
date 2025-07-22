@@ -265,17 +265,19 @@ typedef struct InterPredParams {
 
 #if CONFIG_REFINEMV
   int use_ref_padding;
-#if CONFIG_OPFL_MEMBW_REDUCTION
+#if CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
   int use_damr_padding;
-#endif  // CONFIG_OPFL_MEMBW_REDUCTION
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
   ReferenceArea *ref_area;
 #endif  // CONFIG_REFINEMV
 
 #if CONFIG_WARP_BD_BOX
   int use_warp_bd_box;
   WarpBoundaryBox *warp_bd_box;
+#if CONFIG_AFFINE_REFINEMENT
   int use_warp_bd_damr;
   WarpBoundaryBox warp_bd_box_damr;
+#endif  // CONFIG_AFFINE_REFINEMENT
 #endif  // CONFIG_WARP_BD_BOX
 
 #if CONFIG_D071_IMP_MSK_BLD
@@ -290,9 +292,6 @@ typedef struct InterPredParams {
 // and complexity.
 #define OPFL_BILINEAR_GRAD 0
 #define OPFL_BICUBIC_GRAD 1
-
-// Use downsampled gradient arrays to compute MV offsets
-#define OPFL_DOWNSAMP_QUINCUNX 0
 
 // Delta to use for computing gradients in bits, with 0 referring to
 // integer-pel. The actual delta value used from the 1/8-pel original MVs
@@ -665,17 +664,18 @@ void av1_get_optflow_based_mv(
 // With the refined MVs, generate the inter prediction for the block.
 void av1_opfl_rebuild_inter_predictor(
     uint16_t *dst, int dst_stride, int plane, int_mv *const mv_refined,
-    int *vxy_bufs, const int vxy_size, InterPredParams *inter_pred_params,
-    MACROBLOCKD *xd, int mi_x, int mi_y,
+    InterPredParams *inter_pred_params, MACROBLOCKD *xd, int mi_x, int mi_y,
 #if CONFIG_E191_OFS_PRED_RES_HANDLE
     int build_for_decode,
 #endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
+    const AV1_COMMON *cm, int pu_width,
 #if CONFIG_AFFINE_REFINEMENT
-    const AV1_COMMON *cm, int pu_width, CompoundRefineType comp_refine_type,
+    int *vxy_bufs, const int vxy_size, CompoundRefineType comp_refine_type,
     WarpedMotionParams *wms, int_mv *mv, const int use_affine_opfl,
 #endif  // CONFIG_AFFINE_REFINEMENT
     int ref, uint16_t **mc_buf, CalcSubpelParamsFunc calc_subpel_params_func,
     int use_4x4
+#if CONFIG_AFFINE_REFINEMENT
 #if CONFIG_OPFL_MEMBW_REDUCTION || CONFIG_WARP_BD_BOX
     ,
     MB_MODE_INFO *mi, int pu_height, const MV mi_mv[2]
@@ -688,6 +688,7 @@ void av1_opfl_rebuild_inter_predictor(
     ,
     int use_sub_pad_warp
 #endif  // CONFIG_WARP_BD_BOX
+#endif  // CONFIG_AFFINE_REFINEMENT
 );
 
 // We consider this tunable number K=MAX_LS_BITS-1 (sign bit excluded)
@@ -751,14 +752,11 @@ void av1_avg_pooling_pdiff_gradients_c(int16_t *pdiff, const int pstride,
 void av1_calc_affine_autocorrelation_matrix_c(const int16_t *pdiff, int pstride,
                                               const int16_t *gx,
                                               const int16_t *gy, int gstride,
-                                              int bw, int bh,
-#if CONFIG_AFFINE_REFINEMENT_SB
-                                              int x_offset, int y_offset,
-#endif  // CONFIG_AFFINE_REFINEMENT_SB
-                                              int32_t *mat_a, int32_t *vec_b);
+                                              int bw, int bh, int32_t *mat_a,
+                                              int32_t *vec_b);
 
-#define AFFINE_OPFL_BASED_ON_SAD 1
-#define AFFINE_FAST_ENC_SEARCH 1
+#define AFFINE_OPFL_BASED_ON_SAD 0
+#define AFFINE_FAST_ENC_SEARCH 0
 
 // Method to refine chroma in DAMR
 // 0: no chroma refinement at all
@@ -766,13 +764,6 @@ void av1_calc_affine_autocorrelation_matrix_c(const int16_t *pdiff, int pstride,
 // 2: translational compound prediction using DAMR warp MVs, whole block based
 // 3: translational compound prediction using DAMR warp MVs, subblock based
 #define AFFINE_CHROMA_REFINE_METHOD 1
-
-// Fast intermediate warp prediction
-// 0: normal per 8x8 warp prediction
-// 1: per 4x4 translational warp (requires CONFIG_EXT_WARP_FILTER)
-// 2: per pixel bicubic interpolated warp prediction
-// 3: per pixel bilinear interpolated warp prediction
-#define AFFINE_FAST_WARP_METHOD 3
 
 // Apply averaging of gradient array to downscale prediction block. It can
 // be set to MAX_SB_SIZE_LOG2 to turn off the avg pooling feature.
@@ -796,9 +787,7 @@ void av1_calc_affine_autocorrelation_matrix_c(const int16_t *pdiff, int pstride,
 #define AFFINE_PREC_BITS 12
 #define AFFINE_RLS_PARAM 2
 
-#if AFFINE_FAST_WARP_METHOD == 3
 #define BILINEAR_WARP_PREC_BITS 12
-#endif  // AFFINE_FAST_WARP_METHOD == 3
 
 static INLINE int is_translational_refinement_allowed(const AV1_COMMON *cm,
 #if CONFIG_COMPOUND_4XN
@@ -813,9 +802,7 @@ static INLINE int is_translational_refinement_allowed(const AV1_COMMON *cm,
 #if CONFIG_COMPOUND_4XN
   if (is_thin_4xn_nx4_block(bsize)) return 0;
 #endif  // CONFIG_COMPOUND_4XN
-
   if (!cm->seq_params.enable_affine_refine) return 1;
-
 #if CONFIG_ACROSS_SCALE_WARP
   for (int ref = 0; ref < 1 + has_second_ref(xd->mi[0]); ref++) {
     if (av1_is_scaled(
@@ -823,7 +810,6 @@ static INLINE int is_translational_refinement_allowed(const AV1_COMMON *cm,
       return 1;
   }
 #endif  // CONFIG_ACROSS_SCALE_WARP
-
   return 0;
 }
 
@@ -915,6 +901,26 @@ static INLINE int get_allowed_comp_refine_type_mask(const AV1_COMMON *cm,
   assert(mask != 0);
   return mask;
 }
+#else
+static INLINE int is_translational_refinement_allowed(const AV1_COMMON *cm,
+#if CONFIG_COMPOUND_4XN
+                                                      BLOCK_SIZE bsize,
+#endif  // CONFIG_COMPOUND_4XN
+#if CONFIG_ACROSS_SCALE_WARP
+                                                      const MACROBLOCKD *xd,
+#endif  // CONFIG_ACROSS_SCALE_WARP
+                                                      const int mode) {
+  assert(cm->seq_params.enable_opfl_refine);
+  (void)cm;
+  if (mode < NEAR_NEARMV_OPTFLOW) return 0;
+#if CONFIG_COMPOUND_4XN
+  if (is_thin_4xn_nx4_block(bsize)) return 0;
+#endif  // CONFIG_COMPOUND_4XN
+#if CONFIG_ACROSS_SCALE_WARP
+  (void)xd;
+#endif  // CONFIG_ACROSS_SCALE_WARP
+  return 1;
+}
 #endif  // CONFIG_AFFINE_REFINEMENT
 
 #if CONFIG_BRU
@@ -954,7 +960,7 @@ void fill_subblock_refine_mv(REFINEMV_SUBMB_INFO *refinemv_subinfo, int bw,
 
 #if CONFIG_OPFL_MEMBW_REDUCTION
 void av1_get_reference_area_with_padding_single(
-    const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, MB_MODE_INFO *mi,
+    const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mi,
     const MV mv, int bw, int bh, int mi_x, int mi_y, ReferenceArea *ref_area,
     int pu_width, int pu_height, int ref);
 #endif  // CONFIG_OPFL_MEMBW_REDUCTION
@@ -1129,7 +1135,10 @@ static INLINE int is_any_mv_refinement_allowed(const AV1_COMMON *const cm) {
   if (!cm->has_both_sides_refs) return 0;
 
   if (!cm->seq_params.enable_opfl_refine &&
-      !cm->seq_params.enable_affine_refine && !cm->seq_params.enable_refinemv)
+#if CONFIG_AFFINE_REFINEMENT
+      !cm->seq_params.enable_affine_refine &&
+#endif  // CONFIG_AFFINE_REFINEMENT
+      !cm->seq_params.enable_refinemv)
     return 0;
 
   const int tip_wtd_index = cm->tip_global_wtd_index;
@@ -1144,7 +1153,10 @@ static INLINE int is_unequal_weighted_tip_allowed(const AV1_COMMON *const cm) {
   if (!cm->has_both_sides_refs) return 1;
 
   if (!cm->seq_params.enable_opfl_refine &&
-      !cm->seq_params.enable_affine_refine && !cm->seq_params.enable_refinemv)
+#if CONFIG_AFFINE_REFINEMENT
+      !cm->seq_params.enable_affine_refine &&
+#endif  // CONFIG_AFFINE_REFINEMENT
+      !cm->seq_params.enable_refinemv)
     return 1;
 
   return 0;
@@ -1296,8 +1308,11 @@ void av1_opfl_mv_refinement(const int16_t *pdiff, int pstride0,
                             int mv_prec_bits, int *vx0, int *vy0, int *vx1,
                             int *vy1);
 void av1_compute_subpel_gradients_interp(int16_t *pred_dst, int bw, int bh,
-                                         int *grad_prec_bits, int16_t *x_grad,
-                                         int16_t *y_grad);
+                                         int *grad_prec_bits,
+#if CONFIG_AFFINE_REFINEMENT_SB
+                                         int use_affine,
+#endif  // CONFIG_AFFINE_REFINEMENT_SB
+                                         int16_t *x_grad, int16_t *y_grad);
 
 // TODO(jkoleszar): yet another mv clamping function :-(
 static INLINE MV clamp_mv_to_umv_border_sb(const MACROBLOCKD *xd,

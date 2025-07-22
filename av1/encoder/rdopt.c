@@ -4871,6 +4871,8 @@ static int process_compound_inter_mode(
 #endif  // CONFIG_REFINEMV
 #if CONFIG_AFFINE_REFINEMENT
       && mbmi->comp_refine_type < COMP_AFFINE_REFINE_START
+#else
+      && !opfl_allowed_cur_pred_mode(cm, xd, mbmi)
 #endif  // CONFIG_AFFINE_REFINEMENT
       ;
   int mode_search_mask =
@@ -5923,6 +5925,8 @@ static int64_t handle_inter_mode(
 #if CONFIG_AFFINE_REFINEMENT && !AFFINE_FAST_ENC_SEARCH
                       || (is_comp_pred &&
                           mbmi->comp_refine_type >= COMP_AFFINE_REFINE_START)
+#elif !CONFIG_AFFINE_REFINEMENT
+                    || is_comp_pred
 #endif  // CONFIG_AFFINE_REFINEMENT && !AFFINE_FAST_ENC_SEARCH
                   ) {
                     // Build this inter predictor if it has not been previously
@@ -7481,7 +7485,9 @@ static AOM_INLINE void rd_pick_skip_mode(
   mbmi->ref_frame[0] = ref_frame;
   mbmi->ref_frame[1] = second_ref_frame;
   mbmi->cwp_idx = CWP_EQUAL;
+#if CONFIG_AFFINE_REFINEMENT
   mbmi->comp_refine_type = COMP_REFINE_NONE;
+#endif  // CONFIG_AFFINE_REFINEMENT
 #if CONFIG_IBC_SR_EXT
   mbmi->use_intrabc[xd->tree_type == CHROMA_PART] = 0;
 #endif  // CONFIG_IBC_SR_EXT
@@ -7712,8 +7718,9 @@ static AOM_INLINE void rd_pick_skip_mode(
           !is_compound ? NEARMV :
 #endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                        NEAR_NEARMV;
+#if CONFIG_AFFINE_REFINEMENT
       mbmi->comp_refine_type = COMP_REFINE_NONE;
-
+#endif  // CONFIG_AFFINE_REFINEMENT
       search_state->best_mbmode.ref_frame[0] = mbmi->ref_frame[0];
       search_state->best_mbmode.ref_frame[1] = mbmi->ref_frame[1];
       search_state->best_mbmode.mv[0].as_int = mbmi->mv[0].as_int;

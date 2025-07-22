@@ -463,6 +463,8 @@ set_aom_config_var(CONFIG_AFFINE_REFINEMENT 1
                    "Decoder side affine motion refinement.")
 set_aom_config_var(CONFIG_AFFINE_REFINEMENT_SB 1
                    "Subblock based affine refinement")
+set_aom_config_var(CONFIG_F107_GRADIENT_SIMPLIFY 1
+                   "Use smaller OPFL gradient units and remove bit checks.")
 set_aom_config_var(CONFIG_LF_SUB_PU 1 "AV2 enable LF on sub blocks")
 set_aom_config_var(CONFIG_ASYM_DF 1 "Enable asymmetric DF")
 set_aom_config_var(CONFIG_DERIVED_MVD_SIGN 1 "Enable MVD sign derivations")

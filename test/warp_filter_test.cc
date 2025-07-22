@@ -70,7 +70,6 @@ INSTANTIATE_TEST_SUITE_P(
 }  // namespace
 
 #if CONFIG_AFFINE_REFINEMENT
-#if AFFINE_FAST_WARP_METHOD == 3
 TEST_P(AV1HighbdWarpBilinearFilterTest, DISABLED_Speed) {
   RunSpeedTest(std::get<4>(GET_PARAM(0)));
 }
@@ -86,5 +85,4 @@ INSTANTIATE_TEST_SUITE_P(AVX2, AV1HighbdWarpBilinearFilterTest,
                          libaom_test::AV1HighbdWarpBilinearFilter::BuildParams(
                              av1_warp_plane_bilinear_avx2));
 #endif  // HAVE_AVX2
-#endif  // AFFINE_FAST_WARP_METHOD == 3
 #endif  // CONFIG_AFFINE_REFINEMENT

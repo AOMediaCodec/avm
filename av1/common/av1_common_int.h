@@ -4712,13 +4712,6 @@ static INLINE int get_relative_dist(const OrderHintInfo *oh, int a, int b) {
   return diff;
 }
 
-// This parameter k=OPFL_DIST_RATIO_THR is used to prune MV refinement for the
-// case where d0 and d1 are very different. Assuming a = max(|d0|, |d1|) and
-// b = min(|d0|, |d1|), MV refinement will only be allowed only if a/b <= k.
-// If k is set to 0, refinement will always be enabled.
-// If k is set to 1, refinement will only be enabled when |d0|=|d1|.
-#define OPFL_DIST_RATIO_THR 0
-
 // Check whether optical flow refinement is applicable based on the sequence
 // level flag and the signaled reference frames & block size
 static INLINE int opfl_allowed_cur_refs_bsize(const AV1_COMMON *cm,
@@ -4762,11 +4755,8 @@ static INLINE int opfl_allowed_cur_refs_bsize(const AV1_COMMON *cm,
 #endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   }
 
-  if (!((d0 <= 0) ^ (d1 <= 0))) return 0;
-
-  return OPFL_DIST_RATIO_THR == 0 ||
-         (AOMMAX(abs(d0), abs(d1)) <=
-          OPFL_DIST_RATIO_THR * AOMMIN(abs(d0), abs(d1)));
+  // Allow for all two-sided refs
+  return (d0 <= 0) ^ (d1 <= 0);
 }
 
 // Check whether optical flow refinement is applicable based on the prediction
@@ -4814,10 +4804,15 @@ static AOM_INLINE int is_optflow_refinement_enabled(const AV1_COMMON *cm,
       cm->features.opfl_refine_type == REFINE_NONE)
     return 0;
 
+  if (cm->seq_params.enable_opfl_refine == AOM_OPFL_REFINE_ALL)
+    return opfl_allowed_cur_pred_mode(cm,
+#if CONFIG_COMPOUND_4XN
+                                      xd,
+#endif  // CONFIG_COMPOUND_4XN
+                                      mi);
+
 #if CONFIG_AFFINE_REFINEMENT
-  if (cm->seq_params.enable_opfl_refine != AOM_OPFL_REFINE_ALL &&
-      mi->comp_refine_type == COMP_REFINE_NONE)
-    return 0;
+  if (mi->comp_refine_type == COMP_REFINE_NONE) return 0;
 #endif  // CONFIG_AFFINE_REFINEMENT
 
   if (tip_ref_frame) {

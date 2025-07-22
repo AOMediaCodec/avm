@@ -201,14 +201,17 @@ void highbd_warp_plane(WarpedMotionParams *wm, const uint16_t *const ref,
                        ,
                        const struct scale_factors *sf
 #endif  // CONFIG_ACROSS_SCALE_WARP
-#if CONFIG_OPFL_MEMBW_REDUCTION
+#if CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
                        ,
                        int use_damr_padding, ReferenceArea *ref_area
-#endif  // CONFIG_OPFL_MEMBW_REDUCTION
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
 #if CONFIG_WARP_BD_BOX
                        ,
-                       int use_warp_bd_box, WarpBoundaryBox *warp_bd_box,
+                       int use_warp_bd_box, WarpBoundaryBox *warp_bd_box
+#if CONFIG_AFFINE_REFINEMENT
+                       ,
                        int use_warp_bd_damr, WarpBoundaryBox *warp_bd_box_damr
+#endif  // CONFIG_AFFINE_REFINEMENT
 #endif  // CONFIG_WARP_BD_BOX
 );
 
@@ -216,13 +219,6 @@ void warp_plane(WarpedMotionParams *wm, const uint8_t *const ref, int width,
                 int height, int stride, uint8_t *pred, int p_col, int p_row,
                 int p_width, int p_height, int p_stride, int subsampling_x,
                 int subsampling_y, ConvolveParams *conv_params);
-#if CONFIG_AFFINE_REFINEMENT && CONFIG_EXT_WARP_FILTER
-void av1_warp_plane_ext(WarpedMotionParams *wm, int bd, const uint16_t *ref,
-                        int width, int height, int stride, uint16_t *pred,
-                        int p_col, int p_row, int p_width, int p_height,
-                        int p_stride, int subsampling_x, int subsampling_y,
-                        ConvolveParams *conv_params);
-#endif  // CONFIG_AFFINE_REFINEMENT && CONFIG_EXT_WARP_FILTER
 void av1_warp_plane(WarpedMotionParams *wm, int bd, const uint16_t *ref,
                     int width, int height, int stride, uint16_t *pred,
                     int p_col, int p_row, int p_width, int p_height,
@@ -232,14 +228,17 @@ void av1_warp_plane(WarpedMotionParams *wm, int bd, const uint16_t *ref,
                     ,
                     const struct scale_factors *sf
 #endif  // CONFIG_ACROSS_SCALE_WARP
-#if CONFIG_OPFL_MEMBW_REDUCTION
+#if CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
                     ,
                     int use_damr_padding, ReferenceArea *ref_area
-#endif  // CONFIG_OPFL_MEMBW_REDUCTION
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
 #if CONFIG_WARP_BD_BOX
                     ,
-                    int use_warp_bd_box, WarpBoundaryBox *warp_bd_box,
+                    int use_warp_bd_box, WarpBoundaryBox *warp_bd_box
+#if CONFIG_AFFINE_REFINEMENT
+                    ,
                     int use_warp_bd_damr, WarpBoundaryBox *warp_bd_box_damr
+#endif  // CONFIG_AFFINE_REFINEMENT
 #endif  // CONFIG_WARP_BD_BOX
 );
 

@@ -52,8 +52,9 @@ static INLINE __m128i pack_and_round_epi32(__m128i temp1, __m128i temp2,
 
 void av1_bicubic_grad_interpolation_highbd_sse4_1(const int16_t *pred_src,
                                                   int16_t *x_grad,
-                                                  int16_t *y_grad, const int bw,
-                                                  const int bh) {
+                                                  int16_t *y_grad,
+                                                  const int stride,
+                                                  const int bw, const int bh) {
 #if OPFL_BICUBIC_GRAD
   assert(bw % 8 == 0);
   assert(bh % 8 == 0);
@@ -74,11 +75,6 @@ void av1_bicubic_grad_interpolation_highbd_sse4_1(const int16_t *pred_src,
   const __m128i v_bias_d = _mm_set1_epi32((1 << bicubic_bits) >> 1);
   const __m128i ones = _mm_set1_epi32(1);
 
-#if OPFL_DOWNSAMP_QUINCUNX
-  __m128i mask_val[2] = { _mm_set_epi32(0, 1, 0, 1),
-                          _mm_set_epi32(1, 0, 1, 0) };
-#endif
-
   if (bw < 16) {
     for (int col = 0; col < bh; col++) {
       const int is_y_boundary = (col + 1 > bh - 1 || col - 1 < 0);
@@ -87,9 +83,6 @@ void av1_bicubic_grad_interpolation_highbd_sse4_1(const int16_t *pred_src,
       const int id_next1 = AOMMIN(col + 1, bh - 1);
       const int id_next2 = AOMMIN(col + 2, bh - 1);
 
-#if OPFL_DOWNSAMP_QUINCUNX
-      __m128i mask = mask_val[col & 0x1];
-#endif
       for (int row = 0; row < bw; row += 8) {
         __m128i vpred_next1, vpred_prev1, vpred_next2, vpred_prev2;
         __m128i temp1, temp2, sub1, sub2, sub3, sub4;
@@ -122,21 +115,17 @@ void av1_bicubic_grad_interpolation_highbd_sse4_1(const int16_t *pred_src,
         temp2 = _mm_add_epi32(_mm_mullo_epi32(sub2, coeff_bi[3][0]),
                               _mm_mullo_epi32(sub4, coeff_bi[3][1]));
 
-#if OPFL_DOWNSAMP_QUINCUNX
-        temp1 = _mm_mullo_epi32(temp1, mask);
-        temp2 = _mm_mullo_epi32(temp2, mask);
-#endif
         temp1 =
             pack_and_round_epi32(temp1, temp2, v_bias_d, ones, bicubic_bits);
 
-        const int idx = col * bw + row;
+        const int idx = col * stride + row;
         xx_storeu_128(x_grad + idx, temp1);
 
         src = pred_src + row;
-        vpred_prev1 = xx_loadu_128(src + id_prev1 * bw);
-        vpred_prev2 = xx_loadu_128(src + id_prev2 * bw);
-        vpred_next1 = xx_loadu_128(src + id_next1 * bw);
-        vpred_next2 = xx_loadu_128(src + id_next2 * bw);
+        vpred_prev1 = xx_loadu_128(src + id_prev1 * stride);
+        vpred_prev2 = xx_loadu_128(src + id_prev2 * stride);
+        vpred_next1 = xx_loadu_128(src + id_next1 * stride);
+        vpred_next2 = xx_loadu_128(src + id_next2 * stride);
 
         sub1 = _mm_sub_epi32(_mm_cvtepi16_epi32(vpred_next1),
                              _mm_cvtepi16_epi32(vpred_prev1));
@@ -156,10 +145,6 @@ void av1_bicubic_grad_interpolation_highbd_sse4_1(const int16_t *pred_src,
             _mm_add_epi32(_mm_mullo_epi32(sub2, coeff_bi[is_y_boundary][0]),
                           _mm_mullo_epi32(sub4, coeff_bi[is_y_boundary][1]));
 
-#if OPFL_DOWNSAMP_QUINCUNX
-        temp1 = _mm_mullo_epi32(temp1, mask);
-        temp2 = _mm_mullo_epi32(temp2, mask);
-#endif
         temp1 =
             pack_and_round_epi32(temp1, temp2, v_bias_d, ones, bicubic_bits);
         xx_storeu_128(y_grad + idx, temp1);
@@ -172,16 +157,13 @@ void av1_bicubic_grad_interpolation_highbd_sse4_1(const int16_t *pred_src,
       const int id_prev2 = AOMMAX(col - 2, 0);
       const int id_next = AOMMIN(col + 1, bh - 1);
       const int id_next2 = AOMMIN(col + 2, bh - 1);
-#if OPFL_DOWNSAMP_QUINCUNX
-      __m128i mask = mask_val[col & 0x1];
-#endif
       for (int row = 0; row < bw; row += 16) {
         __m128i vpred_next1_1, vpred_prev1_1, vpred_next2_1, vpred_prev2_1;
         __m128i vpred_next1_2, vpred_prev1_2, vpred_next2_2, vpred_prev2_2;
         __m128i temp1, temp2;
         __m128i sub1, sub2, sub3, sub4;
 
-        const int16_t *src = &pred_src[col * bw + row];
+        const int16_t *src = &pred_src[col * stride + row];
 
         if (row - 1 < 0) {
           vpred_prev1_1 =
@@ -229,14 +211,10 @@ void av1_bicubic_grad_interpolation_highbd_sse4_1(const int16_t *pred_src,
         temp2 = _mm_add_epi32(_mm_mullo_epi32(sub2, coeff_bi[0][0]),
                               _mm_mullo_epi32(sub4, coeff_bi[0][1]));
 
-#if OPFL_DOWNSAMP_QUINCUNX
-        temp1 = _mm_mullo_epi32(temp1, mask);
-        temp2 = _mm_mullo_epi32(temp2, mask);
-#endif
         temp1 =
             pack_and_round_epi32(temp1, temp2, v_bias_d, ones, bicubic_bits);
 
-        const int idx = col * bw + row;
+        const int idx = col * stride + row;
         xx_storeu_128(x_grad + idx, temp1);
 
         sub1 = _mm_sub_epi32(_mm_cvtepi16_epi32(vpred_next1_2),
@@ -256,24 +234,20 @@ void av1_bicubic_grad_interpolation_highbd_sse4_1(const int16_t *pred_src,
             _mm_mullo_epi32(sub2, coeff_bi[is_right_boundary][0]),
             _mm_mullo_epi32(sub4, coeff_bi[is_right_boundary][1]));
 
-#if OPFL_DOWNSAMP_QUINCUNX
-        temp1 = _mm_mullo_epi32(temp1, mask);
-        temp2 = _mm_mullo_epi32(temp2, mask);
-#endif
         temp1 =
             pack_and_round_epi32(temp1, temp2, v_bias_d, ones, bicubic_bits);
         xx_storeu_128(x_grad + idx + 8, temp1);
 
         src = pred_src + row;
-        vpred_prev1_1 = xx_loadu_128(src + bw * id_prev);
-        vpred_prev2_1 = xx_loadu_128(src + bw * id_prev2);
-        vpred_next1_1 = xx_loadu_128(src + id_next * bw);
-        vpred_next2_1 = xx_loadu_128(src + id_next2 * bw);
+        vpred_prev1_1 = xx_loadu_128(src + stride * id_prev);
+        vpred_prev2_1 = xx_loadu_128(src + stride * id_prev2);
+        vpred_next1_1 = xx_loadu_128(src + id_next * stride);
+        vpred_next2_1 = xx_loadu_128(src + id_next2 * stride);
 
-        vpred_prev1_2 = xx_loadu_128(src + bw * id_prev + 8);
-        vpred_prev2_2 = xx_loadu_128(src + bw * id_prev2 + 8);
-        vpred_next1_2 = xx_loadu_128(src + id_next * bw + 8);
-        vpred_next2_2 = xx_loadu_128(src + id_next2 * bw + 8);
+        vpred_prev1_2 = xx_loadu_128(src + stride * id_prev + 8);
+        vpred_prev2_2 = xx_loadu_128(src + stride * id_prev2 + 8);
+        vpred_next1_2 = xx_loadu_128(src + id_next * stride + 8);
+        vpred_next2_2 = xx_loadu_128(src + id_next2 * stride + 8);
 
         sub1 = _mm_sub_epi32(_mm_cvtepi16_epi32(vpred_next1_1),
                              _mm_cvtepi16_epi32(vpred_prev1_1));
@@ -292,10 +266,6 @@ void av1_bicubic_grad_interpolation_highbd_sse4_1(const int16_t *pred_src,
         temp2 =
             _mm_add_epi32(_mm_mullo_epi32(sub2, coeff_bi[is_y_boundary][0]),
                           _mm_mullo_epi32(sub4, coeff_bi[is_y_boundary][1]));
-#if OPFL_DOWNSAMP_QUINCUNX
-        temp1 = _mm_mullo_epi32(temp1, mask);
-        temp2 = _mm_mullo_epi32(temp2, mask);
-#endif
 
         temp1 =
             pack_and_round_epi32(temp1, temp2, v_bias_d, ones, bicubic_bits);
@@ -317,10 +287,6 @@ void av1_bicubic_grad_interpolation_highbd_sse4_1(const int16_t *pred_src,
         temp2 =
             _mm_add_epi32(_mm_mullo_epi32(sub2, coeff_bi[is_y_boundary][0]),
                           _mm_mullo_epi32(sub4, coeff_bi[is_y_boundary][1]));
-#if OPFL_DOWNSAMP_QUINCUNX
-        temp1 = _mm_mullo_epi32(temp1, mask);
-        temp2 = _mm_mullo_epi32(temp2, mask);
-#endif
         temp1 =
             pack_and_round_epi32(temp1, temp2, v_bias_d, ones, bicubic_bits);
         xx_storeu_128(y_grad + idx + 8, temp1);
@@ -339,41 +305,6 @@ void av1_bicubic_grad_interpolation_highbd_sse4_1(const int16_t *pred_src,
 static INLINE __m128i LoadUnaligned16(const void *a) {
   return _mm_loadu_si128((const __m128i *)a);
 }
-
-#if OPFL_DOWNSAMP_QUINCUNX
-static INLINE __m128i LoadAligned16(const void *a) {
-  return _mm_load_si128((const __m128i *)a);
-}
-
-static AOM_FORCE_INLINE void down_sample(
-    __m128i *gradX0, __m128i *gradX1, __m128i *gradY0, __m128i *gradY1,
-    __m128i *pred0, __m128i *pred1, const __m128i *pred0_odd,
-    const __m128i *pred1_odd, const int16_t *gx0, const int16_t *gx1,
-    const int16_t *gy0, const int16_t *gy1, int gstride) {
-  const __m128i odd = _mm_set_epi16(0xFFFF, 0, 0xFFFF, 0, 0xFFFF, 0, 0xFFFF, 0);
-  const __m128i even =
-      _mm_set_epi16(0, 0xFFFF, 0, 0xFFFF, 0, 0xFFFF, 0, 0xFFFF);
-
-  const __m128i gradX01 = LoadAligned16(gx0 + gstride);
-  const __m128i gradX11 = LoadAligned16(gx1 + gstride);
-  const __m128i gradY01 = LoadAligned16(gy0 + gstride);
-  const __m128i gradY11 = LoadAligned16(gy1 + gstride);
-
-  gradX0[0] =
-      _mm_or_si128(_mm_and_si128(gradX0[0], even), _mm_and_si128(gradX01, odd));
-  gradX1[0] =
-      _mm_or_si128(_mm_and_si128(gradX1[0], even), _mm_and_si128(gradX11, odd));
-  gradY0[0] =
-      _mm_or_si128(_mm_and_si128(gradY0[0], even), _mm_and_si128(gradY01, odd));
-  gradY1[0] =
-      _mm_or_si128(_mm_and_si128(gradY1[0], even), _mm_and_si128(gradY11, odd));
-
-  pred0[0] = _mm_or_si128(_mm_and_si128(pred0[0], even),
-                          _mm_and_si128(pred0_odd[0], odd));
-  pred1[0] = _mm_or_si128(_mm_and_si128(pred1[0], even),
-                          _mm_and_si128(pred1_odd[0], odd));
-}
-#endif  // OPFL_DOWNSAMP_QUINCUNX
 
 static AOM_FORCE_INLINE void multiply_and_accum(
     __m128i a_lo_0, __m128i b_lo_0, __m128i a_hi_0, __m128i b_hi_0,
@@ -412,31 +343,15 @@ static void opfl_mv_refinement_8x4_sse4_1(const int16_t *pdiff, int pstride,
   int32_t suv_lo = 0;
   int32_t suw_lo = 0;
   int32_t svw_lo = 0;
+  // TODO(kslu) clean up all grad_bits if later it is still not needed
   int grad_bits_lo = 0;
   int grad_bits_hi = 0;
   __m128i opfl_samp_min = _mm_set1_epi16(-OPFL_SAMP_CLAMP_VAL);
   __m128i opfl_samp_max = _mm_set1_epi16(OPFL_SAMP_CLAMP_VAL);
-#if OPFL_DOWNSAMP_QUINCUNX
-  const __m128i even_row =
-      _mm_set_epi16(0, 0xFFFF, 0, 0xFFFF, 0, 0xFFFF, 0, 0xFFFF);
-  const __m128i odd_row =
-      _mm_set_epi16(0xFFFF, 0, 0xFFFF, 0, 0xFFFF, 0, 0xFFFF, 0);
-#endif
   do {
     __m128i gradX = LoadUnaligned16(gx);
     __m128i gradY = LoadUnaligned16(gy);
     __m128i pred = LoadUnaligned16(pdiff);
-#if OPFL_DOWNSAMP_QUINCUNX
-    const __m128i gradX1 = LoadUnaligned16(gx + gstride);
-    const __m128i gradY1 = LoadUnaligned16(gy + gstride);
-    const __m128i pred1 = LoadUnaligned16(pdiff + pstride);
-    gradX = _mm_or_si128(_mm_and_si128(gradX, even_row),
-                         _mm_and_si128(gradX1, odd_row));
-    gradY = _mm_or_si128(_mm_and_si128(gradY, even_row),
-                         _mm_and_si128(gradY1, odd_row));
-    pred = _mm_or_si128(_mm_and_si128(pred, even_row),
-                        _mm_and_si128(pred1, odd_row));
-#endif
     // The precision of gx, gy and pred (i.e. d0*p0-d1*p1) buffers is signed
     // 16bit and there are cases where these buffers can be filled with extreme
     // values. Hence, the accumulation here needs to be done at 64-bit precision
@@ -474,17 +389,11 @@ static void opfl_mv_refinement_8x4_sse4_1(const int16_t *pdiff, int pstride,
                        pred_lo1, gradY_hi1, pred_hi1, grad_bits_lo,
                        grad_bits_hi, &vw_lo, &vw_hi);
 
-#if OPFL_DOWNSAMP_QUINCUNX
-    gx += gstride << 1;
-    gy += gstride << 1;
-    pdiff += pstride << 1;
-    bHeight -= 2;
-#else
     gx += gstride;
     gy += gstride;
     pdiff += pstride;
     bHeight -= 1;
-#endif
+
     int64_t temp;
     xx_storel_64(&temp, _mm_add_epi64(u2_lo, _mm_srli_si128(u2_lo, 8)));
     su2_lo += (int32_t)temp;
@@ -506,6 +415,7 @@ static void opfl_mv_refinement_8x4_sse4_1(const int16_t *pdiff, int pstride,
     suw_hi += (int32_t)temp;
     xx_storel_64(&temp, _mm_add_epi64(vw_hi, _mm_srli_si128(vw_hi, 8)));
     svw_hi += (int32_t)temp;
+#if !CONFIG_F107_GRADIENT_SIMPLIFY
     // Do a range check and add a downshift if range is getting close to the bit
     // depth cap.
     if (bHeight % 2 == 0) {
@@ -530,6 +440,7 @@ static void opfl_mv_refinement_8x4_sse4_1(const int16_t *pdiff, int pstride,
         grad_bits_hi++;
       }
     }
+#endif  // !CONFIG_F107_GRADIENT_SIMPLIFY
   } while (bHeight != 0);
 
   calc_mv_process(su2_lo, sv2_lo, suv_lo, suw_lo, svw_lo, d0, d1, bits,
@@ -553,30 +464,14 @@ static void opfl_mv_refinement_8x8_sse4_1(const int16_t *pdiff, int pstride,
   int32_t suv = 0;
   int32_t suw = 0;
   int32_t svw = 0;
+  // TODO(kslu) clean up all grad_bits if later it is still not needed
   int grad_bits = 0;
   __m128i opfl_samp_min = _mm_set1_epi16(-OPFL_SAMP_CLAMP_VAL);
   __m128i opfl_samp_max = _mm_set1_epi16(OPFL_SAMP_CLAMP_VAL);
-#if OPFL_DOWNSAMP_QUINCUNX
-  const __m128i even_row =
-      _mm_set_epi16(0, 0xFFFF, 0, 0xFFFF, 0, 0xFFFF, 0, 0xFFFF);
-  const __m128i odd_row =
-      _mm_set_epi16(0xFFFF, 0, 0xFFFF, 0, 0xFFFF, 0, 0xFFFF, 0);
-#endif
   do {
     __m128i gradX = LoadUnaligned16(gx);
     __m128i gradY = LoadUnaligned16(gy);
     __m128i pred = LoadUnaligned16(pdiff);
-#if OPFL_DOWNSAMP_QUINCUNX
-    const __m128i gradX1 = LoadUnaligned16(gx + gstride);
-    const __m128i gradY1 = LoadUnaligned16(gy + gstride);
-    const __m128i pred1 = LoadUnaligned16(pdiff + pstride);
-    gradX = _mm_or_si128(_mm_and_si128(gradX, even_row),
-                         _mm_and_si128(gradX1, odd_row));
-    gradY = _mm_or_si128(_mm_and_si128(gradY, even_row),
-                         _mm_and_si128(gradY1, odd_row));
-    pred = _mm_or_si128(_mm_and_si128(pred, even_row),
-                        _mm_and_si128(pred1, odd_row));
-#endif
     // The precision of gx, gy and pred (i.e. d0*p0-d1*p1) buffers is signed
     // 16bit and there are cases where these buffers can be filled with extreme
     // values. Hence, the accumulation here needs to be done at 64bit to avoid
@@ -623,17 +518,10 @@ static void opfl_mv_refinement_8x8_sse4_1(const int16_t *pdiff, int pstride,
                        pred_lo1, gradY_hi1, pred_hi1, grad_bits, grad_bits, &t1,
                        &t2);
     vw = _mm_add_epi64(t1, t2);
-#if OPFL_DOWNSAMP_QUINCUNX
-    gx += gstride << 1;
-    gy += gstride << 1;
-    pdiff += pstride << 1;
-    bHeight -= 2;
-#else
     gx += gstride;
     gy += gstride;
     pdiff += pstride;
     bHeight -= 1;
-#endif
     int64_t temp;
     xx_storel_64(&temp, _mm_add_epi64(u2, _mm_srli_si128(u2, 8)));
     su2 += (int32_t)temp;
@@ -645,6 +533,7 @@ static void opfl_mv_refinement_8x8_sse4_1(const int16_t *pdiff, int pstride,
     suw += (int32_t)temp;
     xx_storel_64(&temp, _mm_add_epi64(vw, _mm_srli_si128(vw, 8)));
     svw += (int32_t)temp;
+#if !CONFIG_F107_GRADIENT_SIMPLIFY
     // For every 8 pixels, do a range check and add a downshift if range is
     // getting close to the max allowed bit depth
     if (get_msb_signed(AOMMAX(AOMMAX(su2, sv2), AOMMAX(abs(suw), abs(svw)))) >=
@@ -656,6 +545,7 @@ static void opfl_mv_refinement_8x8_sse4_1(const int16_t *pdiff, int pstride,
       svw = ROUND_POWER_OF_TWO_SIGNED(svw, 1);
       grad_bits++;
     }
+#endif  // !CONFIG_F107_GRADIENT_SIMPLIFY
   } while (bHeight != 0);
 
   calc_mv_process(su2, sv2, suv, suw, svw, d0, d1, bits, rls_alpha, vx0, vy0,

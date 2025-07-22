@@ -80,10 +80,10 @@ typedef void (*highbd_warp_affine_func)(
     int p_stride, int subsampling_x, int subsampling_y, int bd,
     ConvolveParams *conv_params, int16_t alpha, int16_t beta, int16_t gamma,
     int16_t delta
-#if CONFIG_OPFL_MEMBW_REDUCTION
+#if CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
     ,
     int use_damr_padding, ReferenceArea *ref_area
-#endif  // CONFIG_OPFL_MEMBW_REDUCTION
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
 );
 
 typedef std::tuple<int, int, int, int, highbd_warp_affine_func>
@@ -112,7 +112,6 @@ class AV1HighbdWarpFilterTest
 }  // namespace AV1HighbdWarpFilter
 
 #if CONFIG_AFFINE_REFINEMENT
-#if AFFINE_FAST_WARP_METHOD == 3
 namespace AV1HighbdWarpBilinearFilter {
 typedef void (*highbd_warp_plane_bilinear_func)(
     WarpedMotionParams *wm, int bd, const uint16_t *ref, int width, int height,
@@ -148,7 +147,6 @@ class AV1HighbdWarpBilinearFilterTest
   libaom_test::ACMRandom rnd_;
 };
 }  // namespace AV1HighbdWarpBilinearFilter
-#endif  // AFFINE_FAST_WARP_METHOD == 3
 #endif  // CONFIG_AFFINE_REFINEMENT
 
 #if CONFIG_EXT_WARP_FILTER
@@ -160,8 +158,11 @@ typedef void (*ext_highbd_warp_affine_func)(
     ConvolveParams *conv_params
 #if CONFIG_WARP_BD_BOX
     ,
-    int use_warp_bd_box, WarpBoundaryBox *warp_bd_box, int use_warp_bd_damr,
-    WarpBoundaryBox *warp_bd_box_damr
+    int use_warp_bd_box, WarpBoundaryBox *warp_bd_box
+#if CONFIG_AFFINE_REFINEMENT
+    ,
+    int use_warp_bd_damr, WarpBoundaryBox *warp_bd_box_damr
+#endif  // CONFIG_AFFINE_REFINEMENT
 #endif  // CONFIG_WARP_BD_BOX
 );
 

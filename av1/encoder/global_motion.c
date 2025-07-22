@@ -212,13 +212,17 @@ static int64_t highbd_warp_error(WarpedMotionParams *wm,
                         ,
                         NULL
 #endif  // CONFIG_ACROSS_SCALE_WARP
-#if CONFIG_OPFL_MEMBW_REDUCTION
+#if CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
                         ,
                         0, NULL
-#endif  // CONFIG_OPFL_MEMBW_REDUCTION
+#endif  // CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
 #if CONFIG_WARP_BD_BOX
                         ,
-                        0, NULL, 0, NULL
+                        0, NULL
+#if CONFIG_AFFINE_REFINEMENT
+                        ,
+                        0, NULL
+#endif  // CONFIG_AFFINE_REFINEMENT
 #endif  // CONFIG_WARP_BD_BOX
       );
 
