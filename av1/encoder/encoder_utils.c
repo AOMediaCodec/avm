@@ -917,7 +917,8 @@ void av1_setup_frame(AV1_COMP *cpi) {
 #if CONFIG_IMPROVED_SECONDARY_REFERENCE
       int ref_frame_used = PRIMARY_REF_NONE;
       int map_idx = INVALID_IDX;
-      get_secondary_reference_frame_idx(cm, &ref_frame_used, &map_idx);
+      get_secondary_reference_frame_idx(
+          cm, &ref_frame_used, cpi->signal_primary_ref_frame, &map_idx);
       avg_primary_secondary_references(cm, ref_frame_used, map_idx);
 #else
       const int ref_frame_used = (cm->features.primary_ref_frame ==
@@ -1179,6 +1180,9 @@ void av1_determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
                       q_cfg->enable_chroma_deltaq);
     av1_set_speed_features_qindex_dependent(cpi, oxcf->speed);
 
+#if CONFIG_PRIMARY_REF_FRAME_OPT
+    cpi->signal_primary_ref_frame = 0;
+#endif  // CONFIG_PRIMARY_REF_FRAME_OPT
     av1_setup_frame(cpi);
 
     av1_set_lossless(cpi);

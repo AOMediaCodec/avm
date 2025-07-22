@@ -9460,7 +9460,8 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
 #if CONFIG_IMPROVED_SECONDARY_REFERENCE
       int ref_frame_used = PRIMARY_REF_NONE;
       int map_idx = INVALID_IDX;
-      get_secondary_reference_frame_idx(cm, &ref_frame_used, &map_idx);
+      get_secondary_reference_frame_idx(
+          cm, &ref_frame_used, pbi->signal_primary_ref_frame, &map_idx);
       avg_primary_secondary_references(cm, ref_frame_used, map_idx);
 #else
       const int ref_frame_used = (cm->features.primary_ref_frame ==
@@ -9506,7 +9507,8 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
 #if CONFIG_IMPROVED_SECONDARY_REFERENCE
     int ref_frame_used = PRIMARY_REF_NONE;
     int map_idx = INVALID_IDX;
-    get_secondary_reference_frame_idx(cm, &ref_frame_used, &map_idx);
+    get_secondary_reference_frame_idx(cm, &ref_frame_used,
+                                      pbi->signal_primary_ref_frame, &map_idx);
     avg_primary_secondary_references(cm, ref_frame_used, map_idx);
 #else
     const int ref_frame_used = (cm->features.primary_ref_frame ==

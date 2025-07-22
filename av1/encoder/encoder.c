@@ -4221,7 +4221,8 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
 #if CONFIG_IMPROVED_SECONDARY_REFERENCE
     int ref_frame_used = PRIMARY_REF_NONE;
     int secondary_map_idx = INVALID_IDX;
-    get_secondary_reference_frame_idx(cm, &ref_frame_used, &secondary_map_idx);
+    get_secondary_reference_frame_idx(
+        cm, &ref_frame_used, cpi->signal_primary_ref_frame, &secondary_map_idx);
 #if CONFIG_BRU
     if (!cm->bru.enabled || ref_frame_used != cm->bru.update_ref_idx) {
 #endif  // CONFIG_BRU

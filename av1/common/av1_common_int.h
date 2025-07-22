@@ -509,7 +509,7 @@ typedef struct {
   int cdef_on_skip_txfm_frame_enable; /*!< Frame level flag to on or off CDEF on
                                          skip_txfm = 1 */
 #else
-  int cdef_bits;                  /*!< Number of CDEF strength values in bits */
+  int cdef_bits; /*!< Number of CDEF strength values in bits */
 #endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_FIX_CDEF_SYNTAX
   int cdef_frame_enable; /*!< CDEF on/off for current frame */
@@ -2394,9 +2394,9 @@ static INLINE int get_ref_frame_map_idx(const AV1_COMMON *const cm,
 }
 
 #if CONFIG_IMPROVED_SECONDARY_REFERENCE
-static INLINE void get_secondary_reference_frame_idx(const AV1_COMMON *const cm,
-                                                     int *ref_frame_used,
-                                                     int *secondary_map_idx) {
+static INLINE void get_secondary_reference_frame_idx(
+    const AV1_COMMON *const cm, int *ref_frame_used,
+    int signal_primary_ref_frame, int *secondary_map_idx) {
   if (cm->features.primary_ref_frame == PRIMARY_REF_NONE) {
     *secondary_map_idx = INVALID_IDX;
     *ref_frame_used = PRIMARY_REF_NONE;
@@ -2407,6 +2407,9 @@ static INLINE void get_secondary_reference_frame_idx(const AV1_COMMON *const cm,
           ? cm->features.derived_secondary_ref_frame
           : cm->features.derived_primary_ref_frame;
   *secondary_map_idx = get_ref_frame_map_idx(cm, *ref_frame_used);
+  // This search is disabled with signal_primary_ref_frame=1 to remove the
+  // dependency of unreliable ref_frame_map_pairs in scalable stream case
+  if (signal_primary_ref_frame) return;
   if ((*ref_frame_used == PRIMARY_REF_NONE) ||
       (*secondary_map_idx == INVALID_IDX) ||
       (*ref_frame_used == cm->features.primary_ref_frame)) {
