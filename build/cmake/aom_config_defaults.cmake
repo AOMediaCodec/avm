@@ -137,8 +137,6 @@ set_aom_config_var(CONFIG_COLLECT_COMPONENT_TIMING 0
 set_aom_config_var(CONFIG_AV1_TEMPORAL_DENOISING 0
                    "Build with temporal denoising support.")
 set_aom_config_var(CONFIG_NN_V2 0 "Fully-connected neural nets ver.2.")
-set_aom_config_var(CONFIG_OPTICAL_FLOW_API 0
-                   "AV1 experiment flag for optical flow API.")
 set_aom_config_var(CONFIG_AV2CTC_PSNR_PEAK 1
                    "Use AV2 CTC type PSNR peak for 10- and 12-bit")
 set_aom_config_var(CONFIG_ZERO_OFFSET_BITUPSHIFT 1
