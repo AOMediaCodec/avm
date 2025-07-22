@@ -172,12 +172,10 @@ typedef struct SubpelParams {
   int ys;
   int subpel_x;
   int subpel_y;
-#if CONFIG_D071_IMP_MSK_BLD
   int x0;  // top left sample horizontal cood.
   int y0;  // top left sample vertical cood.
   int x1;  // x0 + bw
   int y1;  // y0 + bh
-#endif     // CONFIG_D071_IMP_MSK_BLD
 
 } SubpelParams;
 
@@ -269,9 +267,7 @@ typedef struct InterPredParams {
   WarpBoundaryBox *warp_bd_box;
 #endif  // CONFIG_WARP_BD_BOX
 
-#if CONFIG_D071_IMP_MSK_BLD
   INTERINTER_COMPOUND_BORDER_DATA border_data;
-#endif  // CONFIG_D071_IMP_MSK_BLD
 } InterPredParams;
 
 // Apply bilinear and bicubic interpolation for subpel gradient to avoid
@@ -1079,7 +1075,6 @@ static INLINE MV clamp_mv_to_umv_border_sb(const MACROBLOCKD *xd,
   return clamped_mv;
 }
 
-#if CONFIG_D071_IMP_MSK_BLD
 void make_masked_inter_predictor(const uint16_t *pre, int pre_stride,
                                  uint16_t *dst, int dst_stride,
                                  InterPredParams *inter_pred_params,
@@ -1105,7 +1100,6 @@ static INLINE int use_border_aware_compound(const AV1_COMMON *cm,
 }
 int is_out_of_frame_block(InterPredParams const *inter_pred_params,
                           int frame_width, int frame_height, int sub_block_id);
-#endif  // CONFIG_D071_IMP_MSK_BLD
 
 static INLINE int64_t scaled_buffer_offset(int x_offset, int y_offset,
                                            int stride,

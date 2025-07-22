@@ -588,9 +588,7 @@ typedef struct SequenceHeader {
   uint8_t enable_mv_traj;          // enables/disables mv trajectory tracking
   uint8_t enable_bawp;  // enables/disables block adaptive weighted prediction
   uint8_t enable_cwp;   // enables/disables compound weighted prediction
-#if CONFIG_D071_IMP_MSK_BLD
-  uint8_t enable_imp_msk_bld;  // enable implicit maksed blending
-#endif                         // CONFIG_D071_IMP_MSK_BLD
+  uint8_t enable_imp_msk_bld;  // enable implicit masked blending
 
   uint8_t enable_fsc;                // enables/disables forward skip coding
   uint8_t enable_filter_intra;       // enables/disables filterintra
@@ -917,12 +915,10 @@ typedef struct {
    * Enables/disables compound weighted prediction
    */
   bool enable_cwp;
-#if CONFIG_D071_IMP_MSK_BLD
   /*!
    * Enables/disables implicit masked blending.
    */
   bool enable_imp_msk_bld;
-#endif  // CONFIG_D071_IMP_MSK_BLD
   /*!
    * Bit mask of enabled motion modes for this frame
    */

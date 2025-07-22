@@ -101,10 +101,8 @@ void av1_init_inter_params(InterPredParams *inter_pred_params, int block_width,
   inter_pred_params->warp_bd_box = NULL;
 #endif  // CONFIG_WARP_BD_BOX
 
-#if CONFIG_D071_IMP_MSK_BLD
   inter_pred_params->border_data.enable_bacp = 0;
   inter_pred_params->border_data.bacp_block_data = NULL;
-#endif  // CONFIG_D071_IMP_MSK_BLD
 
   if (is_intrabc) {
     inter_pred_params->interp_filter_params[0] = &av1_intrabc_filter_params;
@@ -675,17 +673,12 @@ static void get_wedge_tmvp_decision(const uint8_t *mask, int mask_stride,
 
 const uint8_t *av1_get_compound_type_mask(
     const INTERINTER_COMPOUND_DATA *const comp_data, BLOCK_SIZE sb_type) {
-#if !CONFIG_D071_IMP_MSK_BLD
-  assert(is_masked_compound_type(comp_data->type));
-#endif  // !CONFIG_D071_IMP_MSK_BLD
   (void)sb_type;
   switch (comp_data->type) {
     case COMPOUND_WEDGE:
       return av1_get_contiguous_soft_mask(comp_data->wedge_index,
                                           comp_data->wedge_sign, sb_type);
-#if CONFIG_D071_IMP_MSK_BLD
     case COMPOUND_AVERAGE:
-#endif  // CONFIG_D071_IMP_MSK_BLD
     case COMPOUND_DIFFWTD: return comp_data->seg_mask;
     default: assert(0); return NULL;
   }
@@ -1647,7 +1640,6 @@ void av1_get_optflow_based_mv(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
   }
 }
 
-#if CONFIG_D071_IMP_MSK_BLD
 int is_out_of_frame_block(const InterPredParams *inter_pred_params,
                           int frame_width, int frame_height, int sub_block_id) {
   for (int ref = 0; ref < 2; ref++) {
@@ -1663,7 +1655,6 @@ int is_out_of_frame_block(const InterPredParams *inter_pred_params,
   }
   return 0;
 }
-#endif  // CONFIG_D071_IMP_MSK_BLD
 
 // Equation of line: f(x, y) = a[0]*(x - a[2]*w/8) + a[1]*(y - a[3]*h/8) = 0
 void av1_init_wedge_masks() {
@@ -1677,7 +1668,6 @@ static AOM_INLINE void build_masked_compound_no_round(
     const CONV_BUF_TYPE *src1, int src1_stride,
     const INTERINTER_COMPOUND_DATA *const comp_data, BLOCK_SIZE sb_type, int h,
     int w, InterPredParams *inter_pred_params) {
-#if CONFIG_D071_IMP_MSK_BLD
   const int ssy = (inter_pred_params->conv_params.plane &&
                    comp_data->type == COMPOUND_AVERAGE)
                       ? 0
@@ -1686,10 +1676,6 @@ static AOM_INLINE void build_masked_compound_no_round(
                    comp_data->type == COMPOUND_AVERAGE)
                       ? 0
                       : inter_pred_params->subsampling_x;
-#else
-  const int ssy = inter_pred_params->subsampling_y;
-  const int ssx = inter_pred_params->subsampling_x;
-#endif  // CONFIG_D071_IMP_MSK_BLD
   const uint8_t *mask = av1_get_compound_type_mask(comp_data, sb_type);
   const int mask_stride = block_size_wide[sb_type];
   aom_highbd_blend_a64_d16_mask(dst, dst_stride, src0, src0_stride, src1,
@@ -1697,19 +1683,11 @@ static AOM_INLINE void build_masked_compound_no_round(
                                 &inter_pred_params->conv_params,
                                 inter_pred_params->bit_depth);
 }
-#if !CONFIG_D071_IMP_MSK_BLD
-static
-#endif
-    void
-    make_masked_inter_predictor(const uint16_t *pre, int pre_stride,
-                                uint16_t *dst, int dst_stride,
-                                InterPredParams *inter_pred_params,
-                                const SubpelParams *subpel_params
-#if CONFIG_D071_IMP_MSK_BLD
-                                ,
-                                int use_bacp, int sub_block_id
-#endif  // CONFIG_D071_IMP_MSK_BLD
-    ) {
+void make_masked_inter_predictor(const uint16_t *pre, int pre_stride,
+                                 uint16_t *dst, int dst_stride,
+                                 InterPredParams *inter_pred_params,
+                                 const SubpelParams *subpel_params,
+                                 int use_bacp, int sub_block_id) {
   const INTERINTER_COMPOUND_DATA *comp_data = &inter_pred_params->mask_comp;
   BLOCK_SIZE sb_type = inter_pred_params->sb_type;
 
@@ -1739,7 +1717,6 @@ static
         inter_pred_params->bit_depth);
   }
 
-#if CONFIG_D071_IMP_MSK_BLD
   // Mask is generated from luma and reuse for chroma
   const int generate_mask_for_this_plane =
       (!inter_pred_params->conv_params.plane ||
@@ -1778,18 +1755,15 @@ static
       mask += mask_stride;
     }
   }
-#endif  // CONFIG_D071_IMP_MSK_BLD
 
   build_masked_compound_no_round(
       dst, dst_stride, org_dst, org_dst_stride, tmp_buf16, tmp_buf_stride,
       comp_data, sb_type, inter_pred_params->block_height,
       inter_pred_params->block_width, inter_pred_params);
 
-#if CONFIG_D071_IMP_MSK_BLD
   // restore to previous state
   inter_pred_params->conv_params.dst = org_dst;
   inter_pred_params->conv_params.dst_stride = org_dst_stride;
-#endif  // CONFIG_D071_IMP_MSK_BLD
 }
 
 // Makes the interpredictor for the region by dividing it up into nxn blocks
@@ -1878,7 +1852,6 @@ void make_inter_pred_of_nxn(uint16_t *dst, int dst_stride,
                               mi_y + j, ref, 1, mc_buf, &pre, subpel_params,
                               &src_stride);
 
-#if CONFIG_D071_IMP_MSK_BLD
       int use_bacp = 0;
       assert(inter_pred_params->mask_comp.type == COMPOUND_AVERAGE);
       assert(inter_pred_params->comp_mode == UNIFORM_COMP);
@@ -1917,11 +1890,8 @@ void make_inter_pred_of_nxn(uint16_t *dst, int dst_stride,
                                     n_blocks);
 
       } else {
-#endif
-
         av1_make_inter_predictor(pre, src_stride, dst, dst_stride,
                                  inter_pred_params, subpel_params);
-#if CONFIG_D071_IMP_MSK_BLD
       }
 
       // Restored to original inter_pred_params
@@ -1930,7 +1900,6 @@ void make_inter_pred_of_nxn(uint16_t *dst, int dst_stride,
         inter_pred_params->comp_mode = stored_comp_mode;
         inter_pred_params->mask_comp.seg_mask = stored_seg_mask;
       }
-#endif  // CONFIG_D071_IMP_MSK_BLD
       n_blocks++;
       dst += sub_bw;
       inter_pred_params->conv_params.dst += sub_bw;
@@ -1975,7 +1944,6 @@ void av1_build_one_inter_predictor(
                           1 /* is_mv_1_16th_pel  */, mc_buf, &src,
                           &subpel_params, &src_stride);
 
-#if CONFIG_D071_IMP_MSK_BLD
   int use_bacp = 0;
   int sub_block_id = 0;
   if (inter_pred_params->border_data.enable_bacp) {
@@ -2000,27 +1968,17 @@ void av1_build_one_inter_predictor(
   }
 
   assert(IMPLIES(ref == 0, !use_bacp));
-#endif  // CONFIG_D071_IMP_MSK_BLD
 
   if (inter_pred_params->comp_mode == UNIFORM_SINGLE ||
       inter_pred_params->comp_mode == UNIFORM_COMP) {
     av1_make_inter_predictor(src, src_stride, dst, dst_stride,
                              inter_pred_params, &subpel_params);
-#if CONFIG_D071_IMP_MSK_BLD
     assert(IMPLIES(use_bacp, ref == 0));
     assert(use_bacp == 0);
-#endif  // CONFIG_D071_IMP_MSK_BLD
   } else {
     make_masked_inter_predictor(src, src_stride, dst, dst_stride,
-                                inter_pred_params, &subpel_params
-#if CONFIG_D071_IMP_MSK_BLD
-                                ,
-                                use_bacp, 0
-#endif  // CONFIG_D071_IMP_MSK_BLD
-    );
-#if CONFIG_D071_IMP_MSK_BLD
+                                inter_pred_params, &subpel_params, use_bacp, 0);
     assert(IMPLIES(inter_pred_params->border_data.enable_bacp, ref == 1));
-#endif  // CONFIG_D071_IMP_MSK_BLD
   }
 }
 
@@ -2336,12 +2294,7 @@ void av1_build_one_bawp_inter_predictor(
                              inter_pred_params, &subpel_params);
   } else {
     make_masked_inter_predictor(src, src_stride, dst, dst_stride,
-                                inter_pred_params, &subpel_params
-#if CONFIG_D071_IMP_MSK_BLD
-                                ,
-                                0, 0
-#endif  // CONFIG_D071_IMP_MSK_BLD
-    );
+                                inter_pred_params, &subpel_params, 0, 0);
   }
 
   const int shift = 8;
@@ -3039,14 +2992,12 @@ void dec_calc_subpel_params(const MV *const src_mv,
   *pre = pre_buf->buf0 + block->y0 * pre_buf->stride + block->x0;
   *src_stride = pre_buf->stride;
 
-#if CONFIG_D071_IMP_MSK_BLD
   if (inter_pred_params->border_data.enable_bacp) {
     subpel_params->x0 = block->x0;
     subpel_params->x1 = block->x1;
     subpel_params->y0 = block->y0;
     subpel_params->y1 = block->y1;
   }
-#endif  // CONFIG_D071_IMP_MSK_BLD
 }
 
 void common_calc_subpel_params_and_extend(
@@ -3870,7 +3821,6 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
     }
   }
 
-#if CONFIG_D071_IMP_MSK_BLD
   BacpBlockData bacp_block_data[2 * N_OF_OFFSETS];
   uint8_t use_bacp =
       tip_ref_frame
@@ -3879,7 +3829,6 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
                 !av1_is_scaled(cm->tip_ref.ref_scale_factor[1])
           : use_border_aware_compound(cm, xd, mi) && mi->cwp_idx == CWP_EQUAL &&
                 cm->features.enable_imp_msk_bld;
-#endif  // CONFIG_D071_IMP_MSK_BLD
 
   int opfl_sub_bw = OF_BSIZE;
   int opfl_sub_bh = OF_BSIZE;
@@ -3916,24 +3865,20 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
     inter_pred_params.original_pu_height = pu_height;
 
     if (is_compound) av1_init_comp_mode(&inter_pred_params);
-#if CONFIG_D071_IMP_MSK_BLD
     inter_pred_params.border_data.enable_bacp = use_bacp;
     inter_pred_params.border_data.bacp_block_data =
         &bacp_block_data[0];  // Always point to the first ref
-#endif                        // CONFIG_D071_IMP_MSK_BLD
     inter_pred_params.conv_params = get_conv_params_no_round(
         ref, plane, xd->tmp_conv_dst, MAX_SB_SIZE, is_compound, xd->bd);
 
     av1_init_warp_params(&inter_pred_params, &warp_types, ref, xd, mi);
     assert(inter_pred_params.mode != WARP_PRED);
 
-#if CONFIG_D071_IMP_MSK_BLD
     if (is_compound) {
       inter_pred_params.sb_type =
           tip_ref_frame ? BLOCK_8X8 : mi->sb_type[PLANE_TYPE_Y];
       inter_pred_params.mask_comp = mi->interinter_comp;
     }
-#endif  // CONFIG_D071_IMP_MSK_BLD
 
     if (use_optflow_refinement && plane == 0) {
       inter_pred_params.interp_filter_params[0] =
@@ -4250,7 +4195,6 @@ static void build_inter_predictors_8x8_and_bigger(
   int opfl_sub_bh = OF_BSIZE;
   opfl_subblock_size_plane(xd, plane, use_4x4, &opfl_sub_bw, &opfl_sub_bh);
 
-#if CONFIG_D071_IMP_MSK_BLD
   BacpBlockData bacp_block_data[2 * N_OF_OFFSETS];
   uint8_t use_bacp = tip_ref_frame
                          ?
@@ -4263,7 +4207,6 @@ static void build_inter_predictors_8x8_and_bigger(
                          : use_border_aware_compound(cm, xd, mi) &&
                                mi->cwp_idx == CWP_EQUAL &&
                                cm->features.enable_imp_msk_bld;
-#endif  // CONFIG_D071_IMP_MSK_BLD
 
 #if CONFIG_WARP_BD_BOX
   WarpBoundaryBox warp_bd_box_mem[MAX_WARP_BD_SQ];
@@ -4293,11 +4236,9 @@ static void build_inter_predictors_8x8_and_bigger(
     inter_pred_params.original_pu_height = pu_height;
 
     if (is_compound) av1_init_comp_mode(&inter_pred_params);
-#if CONFIG_D071_IMP_MSK_BLD
     inter_pred_params.border_data.enable_bacp = use_bacp;
     inter_pred_params.border_data.bacp_block_data =
         &bacp_block_data[0];  // Always point to the first ref
-#endif                        // CONFIG_D071_IMP_MSK_BLD
 
     inter_pred_params.conv_params = get_conv_params_no_round(
         ref, plane, xd->tmp_conv_dst, MAX_SB_SIZE, is_compound, xd->bd);
@@ -4361,20 +4302,13 @@ static void build_inter_predictors_8x8_and_bigger(
 #endif  // CONFIG_ACROSS_SCALE_WARP
 #endif  // CONFIG_EXT_WARP_FILTER
 
-#if CONFIG_D071_IMP_MSK_BLD
     if (is_compound) {
       inter_pred_params.sb_type =
           tip_ref_frame ? BLOCK_8X8 : mi->sb_type[PLANE_TYPE_Y];
       inter_pred_params.mask_comp = mi->interinter_comp;
     }
-#endif  // CONFIG_D071_IMP_MSK_BLD
 
     if (is_masked_compound_type(mi->interinter_comp.type)) {
-#if !CONFIG_D071_IMP_MSK_BLD
-      inter_pred_params.sb_type = mi->sb_type[PLANE_TYPE_Y];
-      inter_pred_params.mask_comp = mi->interinter_comp;
-#endif  // !CONFIG_D071_IMP_MSK_BLD
-
       if (ref == 1) {
         inter_pred_params.conv_params.do_average = 0;
         inter_pred_params.comp_mode = MASK_COMP;

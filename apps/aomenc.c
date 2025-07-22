@@ -455,9 +455,7 @@ const arg_def_t *av1_key_val_args[] = {
   &g_av1_codec_arg_defs.enable_mhccp,
 #endif  // CONFIG_ENABLE_MHCCP
   &g_av1_codec_arg_defs.enable_cwp,
-#if CONFIG_D071_IMP_MSK_BLD
   &g_av1_codec_arg_defs.enable_imp_msk_bld,
-#endif  // CONFIG_D071_IMP_MSK_BLD
   &g_av1_codec_arg_defs.enable_fsc,
   &g_av1_codec_arg_defs.enable_orip,
   &g_av1_codec_arg_defs.enable_ist,
@@ -667,9 +665,7 @@ static void init_config(cfg_options_t *config) {
 #endif  // CONFIG_MV_RANGE_EXTENSION
   config->enable_bawp = 1;
   config->enable_cwp = 1;
-#if CONFIG_D071_IMP_MSK_BLD
   config->enable_imp_msk_bld = 1;
-#endif  // CONFIG_D071_IMP_MSK_BLD
   config->enable_fsc = 1;
   config->enable_orip = 1;
   config->enable_ist = 1;
@@ -1631,12 +1627,8 @@ static void show_stream_config(struct stream_state *stream,
           encoder_cfg->enable_bawp);
   fprintf(stdout, "                               : CWP (%d)\n",
           encoder_cfg->enable_cwp);
-
-#if CONFIG_D071_IMP_MSK_BLD
   fprintf(stdout, "                               : ImpMskBld (%d)\n",
           encoder_cfg->enable_imp_msk_bld);
-#endif  // CONFIG_D071_IMP_MSK_BLD
-
   fprintf(stdout,
           "                               : GlobalMotion (%d), "
           "DiffCompound (%d)\n",

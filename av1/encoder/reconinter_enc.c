@@ -86,7 +86,6 @@ void av1_enc_calc_subpel_params(const MV *const src_mv,
     subpel_params->xs = sf->x_step_q4;
     subpel_params->ys = sf->y_step_q4;
 
-#if CONFIG_D071_IMP_MSK_BLD
     if (inter_pred_params->border_data.enable_bacp) {
       // Get reference block top left coordinate.
       subpel_params->x0 = pos_x >> SCALE_SUBPEL_BITS;
@@ -101,7 +100,6 @@ void av1_enc_calc_subpel_params(const MV *const src_mv,
                            SCALE_SUBPEL_BITS) +
                           1;
     }
-#endif  // CONFIG_D071_IMP_MSK_BLD
 
     *pre = pre_buf->buf0 + (pos_y >> SCALE_SUBPEL_BITS) * pre_buf->stride +
            (pos_x >> SCALE_SUBPEL_BITS);
@@ -131,7 +129,6 @@ void av1_enc_calc_subpel_params(const MV *const src_mv,
     subpel_params->subpel_y = (mv_q4.row & SUBPEL_MASK) << SCALE_EXTRA_BITS;
     pos_x += mv_q4.col;
     pos_y += mv_q4.row;
-#if CONFIG_D071_IMP_MSK_BLD
     if (inter_pred_params->border_data.enable_bacp) {
       subpel_params->x0 = pos_x >> SUBPEL_BITS;
       subpel_params->y0 = pos_y >> SUBPEL_BITS;
@@ -142,7 +139,6 @@ void av1_enc_calc_subpel_params(const MV *const src_mv,
       subpel_params->y1 =
           (pos_y >> SUBPEL_BITS) + (inter_pred_params->block_height - 1) + 1;
     }
-#endif  // CONFIG_D071_IMP_MSK_BLD
     *pre = pre_buf->buf0 + (pos_y >> SUBPEL_BITS) * pre_buf->stride +
            (pos_x >> SUBPEL_BITS);
   }

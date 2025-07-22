@@ -448,11 +448,9 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .enable_cwp = ARG_DEF(NULL, "enable-cwp", 1,
                         "Enable compound weighted prediction (CWP)"
                         "(0: false, 1: true (default))"),
-#if CONFIG_D071_IMP_MSK_BLD
   .enable_imp_msk_bld = ARG_DEF(NULL, "enable-imp-msk-bld", 1,
-                                "Enable implicit maksed blending"
+                                "Enable implicit masked blending"
                                 "(0:false), 1:true (default)"),
-#endif  // CONFIG_D071_IMP_MSK_BLD
   .enable_fsc = ARG_DEF(NULL, "enable-fsc", 1,
                         "Enable forward skip coding"
                         "(0: false, 1: true (default))"),

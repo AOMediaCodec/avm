@@ -752,13 +752,11 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
     xd->mv_refined[1] = mv_refined[1];
   }
 
-#if CONFIG_D071_IMP_MSK_BLD
   BacpBlockData bacp_block_data[2 * N_OF_OFFSETS];
   const struct scale_factors *const sf0 = cm->tip_ref.ref_scale_factor[0];
   const struct scale_factors *const sf1 = cm->tip_ref.ref_scale_factor[1];
   uint8_t use_bacp = cm->features.enable_imp_msk_bld && !av1_is_scaled(sf0) &&
                      !av1_is_scaled(sf1);
-#endif  // CONFIG_D071_IMP_MSK_BLD
 
   for (int ref = 0; ref < 2; ++ref) {
     const struct scale_factors *const sf = cm->tip_ref.ref_scale_factor[ref];
@@ -778,13 +776,11 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
 
     inter_pred_params.comp_mode = UNIFORM_COMP;
 
-#if CONFIG_D071_IMP_MSK_BLD
     inter_pred_params.border_data.enable_bacp = use_bacp;
     inter_pred_params.border_data.bacp_block_data =
         &bacp_block_data[0];  // Always point to the first ref
     inter_pred_params.sb_type = mbmi->sb_type[PLANE_TYPE_Y];
     inter_pred_params.mask_comp = mbmi->interinter_comp;
-#endif  // CONFIG_D071_IMP_MSK_BLD
 
     inter_pred_params.conv_params =
         get_conv_params_no_round(ref, plane, tmp_conv_dst, MAX_SB_SIZE, 1, bd);
@@ -947,7 +943,6 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
     xd->mv_refined[1].as_mv = convert_mv_to_1_16th_pel(&mv[1]);
   }
 
-#if CONFIG_D071_IMP_MSK_BLD
   BacpBlockData bacp_block_data[2 * N_OF_OFFSETS];
   const struct scale_factors *const sf0 = cm->tip_ref.ref_scale_factor[0];
   const struct scale_factors *const sf1 = cm->tip_ref.ref_scale_factor[1];
@@ -957,7 +952,6 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
 #endif  // CONFIG_TIP_ENHANCEMENT
       cm->features.enable_imp_msk_bld && !av1_is_scaled(sf0) &&
       !av1_is_scaled(sf1);
-#endif  // CONFIG_D071_IMP_MSK_BLD
 
   for (int ref = 0; ref < 1 + is_compound; ++ref) {
     const struct scale_factors *const sf = cm->tip_ref.ref_scale_factor[ref];
@@ -976,7 +970,6 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
     }
 #endif  // CONFIG_TIP_ENHANCEMENT
 
-#if CONFIG_D071_IMP_MSK_BLD
     inter_pred_params.border_data.enable_bacp = use_bacp;
     inter_pred_params.border_data.bacp_block_data =
         &bacp_block_data[0];  // Always point to the first ref
@@ -990,7 +983,6 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
 #if CONFIG_TIP_ENHANCEMENT
     }
 #endif  // CONFIG_TIP_ENHANCEMENT
-#endif  // CONFIG_D071_IMP_MSK_BLD
 
     inter_pred_params.conv_params = get_conv_params_no_round(
         ref, plane, tmp_conv_dst, MAX_SB_SIZE, is_compound, bd);

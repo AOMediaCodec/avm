@@ -306,7 +306,6 @@ typedef struct {
   DIFFWTD_MASK_TYPE mask_type;
   COMPOUND_TYPE type;
 } INTERINTER_COMPOUND_DATA;
-#if CONFIG_D071_IMP_MSK_BLD
 // This structure is used for the position check of the implicit masked blending
 typedef struct BacpBlockData {
   int x0;  // top left sample horizontal cood.
@@ -319,7 +318,6 @@ typedef struct {
   uint8_t enable_bacp;  // enable boundary aware compound prediction
   BacpBlockData *bacp_block_data;
 } INTERINTER_COMPOUND_BORDER_DATA;
-#endif  // CONFIG_D071_IMP_MSK_BLD
 
 #if CONFIG_REFINEMV
 #if CONFIG_ACROSS_SCALE_REFINEMV

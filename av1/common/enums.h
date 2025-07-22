@@ -83,9 +83,7 @@ extern "C" {
 #define NUM_REF_SAM_CFL 8
 #endif  // CONFIG_CFL_SIMPLIFICATION
 
-#if CONFIG_D071_IMP_MSK_BLD
 #define DEFAULT_IMP_MSK_WT 0  // default implict masked blending weight
-#endif                        // CONFIG_D071_IMP_MSK_BLD
 
 #if CONFIG_BAWP_FIX_DIVISION_16x16_MC
 #define BAWP_MAX_REF_NUMB 16

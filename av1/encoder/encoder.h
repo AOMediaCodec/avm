@@ -920,10 +920,8 @@ typedef struct {
   int enable_bawp;
   // enable compound weighted prediction
   int enable_cwp;
-#if CONFIG_D071_IMP_MSK_BLD
   // enable implicit masked blending
   bool enable_imp_msk_bld;
-#endif  // CONFIG_D071_IMP_MSK_BLD
   // When enabled, video mode should be used even for single frame input.
   bool force_video_mode;
   // Indicates if the error resiliency features should be enabled.

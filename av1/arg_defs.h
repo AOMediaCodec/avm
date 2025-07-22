@@ -168,9 +168,7 @@ typedef struct av1_codec_arg_definitions {
 #endif  // CONFIG_MV_RANGE_EXTENSION
   arg_def_t enable_bawp;
   arg_def_t enable_cwp;
-#if CONFIG_D071_IMP_MSK_BLD
   arg_def_t enable_imp_msk_bld;
-#endif  // CONFIG_D071_IMP_MSK_BLD
   arg_def_t enable_fsc;
   arg_def_t enable_orip;
   arg_def_t enable_ist;

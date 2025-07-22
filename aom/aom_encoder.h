@@ -341,12 +341,10 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_cwp;
-#if CONFIG_D071_IMP_MSK_BLD
-  /*!\brief enable implicit maksed blending
+  /*!\brief enable implicit masked blending
    *
    */
   unsigned int enable_imp_msk_bld;
-#endif  // CONFIG_D071_IMP_MSK_BLD
   /*!\brief enable Forward skip coding
    *
    */

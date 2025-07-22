@@ -813,14 +813,12 @@ static void dec_calc_subpel_params(const MV *const src_mv,
   *pre = pre_buf->buf0 + block->y0 * pre_buf->stride + block->x0;
   *src_stride = pre_buf->stride;
 
-#if CONFIG_D071_IMP_MSK_BLD
   if (inter_pred_params->border_data.enable_bacp) {
     subpel_params->x0 = block->x0;
     subpel_params->x1 = block->x1;
     subpel_params->y0 = block->y0;
     subpel_params->y1 = block->y1;
   }
-#endif  // CONFIG_D071_IMP_MSK_BLD
 }
 #endif  //! CONFIG_REFINEMV
 static void dec_calc_subpel_params_and_extend(
@@ -6794,9 +6792,7 @@ void av1_read_sequence_header_beyond_av1(
   seq_params->enable_mv_traj = aom_rb_read_bit(rb);
   seq_params->enable_bawp = aom_rb_read_bit(rb);
   seq_params->enable_cwp = aom_rb_read_bit(rb);
-#if CONFIG_D071_IMP_MSK_BLD
   seq_params->enable_imp_msk_bld = aom_rb_read_bit(rb);
-#endif  // CONFIG_D071_IMP_MSK_BLD
   seq_params->enable_fsc = aom_rb_read_bit(rb);
   seq_params->enable_ccso = aom_rb_read_bit(rb);
 #if CONFIG_LF_SUB_PU
@@ -8697,9 +8693,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     features->allow_warpmv_mode = aom_rb_read_bit(rb);
   }
 
-#if CONFIG_D071_IMP_MSK_BLD
   features->enable_imp_msk_bld = seq_params->enable_imp_msk_bld;
-#endif  // CONFIG_D071_IMP_MSK_BLD
 
   features->reduced_tx_set_used = aom_rb_read_bit(rb);
 

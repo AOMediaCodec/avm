@@ -96,9 +96,7 @@ int parse_cfg(const char *file, cfg_options_t *config) {
 #endif  // CONFIG_MV_RANGE_EXTENSION
     GET_PARAMS(enable_bawp);
     GET_PARAMS(enable_cwp);
-#if CONFIG_D071_IMP_MSK_BLD
     GET_PARAMS(enable_imp_msk_bld);
-#endif  // CONFIG_D071_IMP_MSK_BLD
     GET_PARAMS(enable_fsc);
     GET_PARAMS(enable_orip);
     GET_PARAMS(enable_ist);

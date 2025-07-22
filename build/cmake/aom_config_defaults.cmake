@@ -282,9 +282,6 @@ set_aom_config_var(
 set_aom_config_var(CONFIG_BAWP_ACROSS_SCALES 0 NUMBER
                    "Enable BAWP across scales prediction")
 set_aom_config_var(CONFIG_IMPROVED_INTRA_DIR_PRED 1 "Improved intra prediction")
-set_aom_config_var(CONFIG_D071_IMP_MSK_BLD 1
-                   "Enable single reference mode for frame boundary")
-
 set_aom_config_var(CONFIG_REFINEMV 1 "Enable refinemv modes")
 
 set_aom_config_var(CONFIG_EXPLICIT_TEMPORAL_DIST_CALC 1

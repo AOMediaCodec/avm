@@ -436,9 +436,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_mv_traj = tool_cfg->enable_mv_traj;
   seq->enable_bawp = tool_cfg->enable_bawp;
   seq->enable_cwp = tool_cfg->enable_cwp;
-#if CONFIG_D071_IMP_MSK_BLD
   seq->enable_imp_msk_bld = tool_cfg->enable_imp_msk_bld;
-#endif  // CONFIG_D071_IMP_MSK_BLD
   seq->seq_enabled_motion_modes =
       oxcf->motion_mode_cfg.seq_enabled_motion_modes;
 #if CONFIG_SIX_PARAM_WARP_DELTA
@@ -4462,9 +4460,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 #endif  // CONFIG_MORPH_PRED
   features->enable_cwp = seq_params->enable_cwp;
 
-#if CONFIG_D071_IMP_MSK_BLD
   features->enable_imp_msk_bld = seq_params->enable_imp_msk_bld;
-#endif  // CONFIG_D071_IMP_MSK_BLD
 
 #if CONFIG_EXT_SEG
   features->enable_ext_seg = seq_params->enable_ext_seg;
