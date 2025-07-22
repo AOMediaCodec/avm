@@ -74,8 +74,7 @@ static INLINE int get_msb(unsigned int n) {
 }
 #endif
 
-#if CONFIG_AFFINE_REFINEMENT || CONFIG_OPFL_MV_SEARCH || \
-    CONFIG_E125_MHCCP_SIMPLIFY
+#if CONFIG_OPFL_MV_SEARCH || CONFIG_E125_MHCCP_SIMPLIFY
 static INLINE int get_msb_signed(int32_t n) {
   return n == 0 ? 0 : get_msb((unsigned int)abs(n));
 }
@@ -87,8 +86,7 @@ static INLINE int get_msb_signed_64(int64_t n) {
   if (high32 != 0) return 32 + get_msb(high32);
   return low32 == 0 ? 0 : get_msb((unsigned int)low32);
 }
-#endif  // CONFIG_AFFINE_REFINEMENT || CONFIG_OPFL_MV_SEARCH ||
-        // CONFIG_E125_MHCCP_SIMPLIFY
+#endif  // CONFIG_OPFL_MV_SEARCH || CONFIG_E125_MHCCP_SIMPLIFY
 
 // Returns (int)ceil(log2(n)).
 static inline int aom_ceil_log2(int n) {

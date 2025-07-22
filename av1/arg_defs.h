@@ -230,9 +230,6 @@ typedef struct av1_codec_arg_definitions {
 #endif  // CONFIG_IBC_SR_EXT
   arg_def_t enable_angle_delta;
   arg_def_t enable_opfl_refine;
-#if CONFIG_AFFINE_REFINEMENT
-  arg_def_t enable_affine_refine;
-#endif  // CONFIG_AFFINE_REFINEMENT
   arg_def_t enable_trellis_quant;
   arg_def_t enable_qm;
   arg_def_t qm_min;

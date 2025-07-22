@@ -528,16 +528,7 @@ static AOM_INLINE void check_opfl_edge(const AV1_COMMON *const cm,
                                                        xd,
 #endif  // CONFIG_COMPOUND_4XN
                                                        mbmi);
-#if CONFIG_AFFINE_REFINEMENT
-  if (is_opfl_mode && plane &&
-      mbmi->comp_refine_type >= COMP_AFFINE_REFINE_START) {
-    *opfl_edge = 1;
-    *ts = scale ? TX_4X4 : TX_8X8;
-    return;
-  }
-#else
   (void)scale;
-#endif  // CONFIG_AFFINE_REFINEMENT
   if (plane > 0) return;
   if (is_opfl_mode) {
     const BLOCK_SIZE bsize_base = mbmi->sb_type[PLANE_TYPE_Y];
@@ -554,19 +545,10 @@ static AOM_INLINE void check_rfmv_edge(const AV1_COMMON *const cm,
                                        const int scale, TX_SIZE *ts,
                                        int32_t *rfmv_edge) {
   const int tip_ref_frame = is_tip_ref_frame(mbmi->ref_frame[0]);
-  int is_rfmv_mode = mbmi->refinemv_flag &&
-#if CONFIG_AFFINE_REFINEMENT
-                     (is_damr_allowed_with_refinemv(mbmi->mode) ||
-                      mbmi->comp_refine_type < COMP_AFFINE_REFINE_START) &&
-#endif  // CONFIG_AFFINE_REFINEMENT
-                     !tip_ref_frame;
+  int is_rfmv_mode = mbmi->refinemv_flag && !tip_ref_frame;
 
-#if CONFIG_AFFINE_REFINEMENT
-  if (is_rfmv_mode && default_refinemv_modes(cm, mbmi))
-#else
   (void)cm;
   if (is_rfmv_mode && default_refinemv_modes(mbmi))
-#endif  // CONFIG_AFFINE_REFINEMENT
     is_rfmv_mode &= (mbmi->comp_group_idx == 0 &&
                      mbmi->interinter_comp.type == COMPOUND_AVERAGE);
 

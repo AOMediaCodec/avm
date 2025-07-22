@@ -1713,33 +1713,16 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
                                       xd,
 #endif  // CONFIG_COMPOUND_4XN
                                       mbmi)) {
-#if CONFIG_AFFINE_REFINEMENT
-        const int allow_translational = is_translational_refinement_allowed(
-            cm,
-#if CONFIG_COMPOUND_4XN
-            bsize,
-#endif  // CONFIG_COMPOUND_4XN
-#if CONFIG_ACROSS_SCALE_WARP
-            xd,
-#endif  // CONFIG_ACROSS_SCALE_WARP
-            comp_idx_to_opfl_mode[opfl_get_comp_idx(mode)]);
-        const int allow_affine = is_affine_refinement_allowed(
-            cm, xd, comp_idx_to_opfl_mode[opfl_get_comp_idx(mode)]);
-        if (allow_affine || allow_translational) {
-#endif  // CONFIG_AFFINE_REFINEMENT
-          const int use_optical_flow = mode >= NEAR_NEARMV_OPTFLOW;
+        const int use_optical_flow = mode >= NEAR_NEARMV_OPTFLOW;
 #if CONFIG_ENTROPY_STATS
-          ++counts->use_optflow[mode_ctx][use_optical_flow];
+        ++counts->use_optflow[mode_ctx][use_optical_flow];
 #endif
 #if CONFIG_OPFL_CTX_OPT
-          const int opfl_ctx = get_optflow_context(opfl_get_comp_idx(mode));
-          update_cdf(fc->use_optflow_cdf[opfl_ctx], use_optical_flow, 2);
+        const int opfl_ctx = get_optflow_context(opfl_get_comp_idx(mode));
+        update_cdf(fc->use_optflow_cdf[opfl_ctx], use_optical_flow, 2);
 #else
         update_cdf(fc->use_optflow_cdf[mode_ctx], use_optical_flow, 2);
 #endif  // CONFIG_OPFL_CTX_OPT
-#if CONFIG_AFFINE_REFINEMENT
-        }
-#endif  // CONFIG_AFFINE_REFINEMENT
       }
       const int comp_mode_idx = opfl_get_comp_idx(mode);
 #if CONFIG_OPT_INTER_MODE_CTX

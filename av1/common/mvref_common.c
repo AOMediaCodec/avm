@@ -188,12 +188,6 @@ void av1_copy_frame_refined_mvs_tip_frame_mode(const AV1_COMMON *const cm,
 #endif  // CONFIG_COMPOUND_4XN
                                     mi, AOM_PLANE_Y, tip_ref_frame);
   int n = opfl_get_subblock_size(bw, bh, AOM_PLANE_Y, use_4x4);
-#if CONFIG_AFFINE_REFINEMENT_SB
-  int sb_idx = 0;
-  int sub_bw = AOMMIN(AFFINE_MAX_UNIT, bw);
-  int sub_bh = AOMMIN(AFFINE_MAX_UNIT, bh);
-  int wms_stride = bw / sub_bw;
-#endif  // CONFIG_AFFINE_REFINEMENT_SB
 
   // Pointers to hold optical flow MV offsets.
   int *vx0 = xd->opfl_vxy_bufs;
@@ -201,21 +195,11 @@ void av1_copy_frame_refined_mvs_tip_frame_mode(const AV1_COMMON *const cm,
   int *vy0 = xd->opfl_vxy_bufs + (N_OF_OFFSETS * 2);
   int *vy1 = xd->opfl_vxy_bufs + (N_OF_OFFSETS * 3);
 
-  int apply_sub_block_refinemv =
-      tip_ref_frame ||
-#if CONFIG_AFFINE_REFINEMENT
-      (mi->refinemv_flag && (is_damr_allowed_with_refinemv(mi->mode) ||
-                             mi->comp_refine_type < COMP_AFFINE_REFINE_START));
-#else
-      mi->refinemv_flag;
-#endif  // CONFIG_AFFINE_REFINEMENT
+  int apply_sub_block_refinemv = tip_ref_frame || mi->refinemv_flag;
 
   for (int h = 0; h < y_inside_boundary; h++) {
     MV_REF *mv = frame_mvs;
     for (int w = 0; w < x_inside_boundary; w++) {
-#if CONFIG_AFFINE_REFINEMENT_SB
-      sb_idx = ((h * 8) / sub_bh) * wms_stride + (w * 8) / sub_bw;
-#endif  // CONFIG_AFFINE_REFINEMENT_SB
       for (int idx = 0; idx < 2; ++idx) {
 #if CONFIG_TMVP_MVS_WRITING_FLOW_OPT
         mv->ref_frame[idx] = NONE_FRAME;
@@ -225,41 +209,17 @@ void av1_copy_frame_refined_mvs_tip_frame_mode(const AV1_COMMON *const cm,
         if (!is_inter_ref_frame(ref_frame) && !tip_ref_frame) continue;
 
         int_mv refined_mv;
-#if CONFIG_AFFINE_REFINEMENT
-        if (is_opfl_mode && xd->use_affine_opfl &&
-            mi->comp_refine_type >= COMP_AFFINE_REFINE_START
 #if CONFIG_REFINEMV
-            && (is_damr_allowed_with_refinemv(mi->mode) ||
-                !apply_sub_block_refinemv)
+        // Refined MVs are stored per 4x4 in refinemv_subinfo, but h and
+        // w for TMVP are per 8x8, so (h<<1) and (w<<1) are used here.
+        if (apply_sub_block_refinemv)
+          refined_mv.as_mv =
+              xd->refinemv_subinfo[(h << 1) * MAX_MIB_SIZE + (w << 1)]
+                  .refinemv[idx]
+                  .as_mv;
+        else
 #endif  // CONFIG_REFINEMV
-        ) {
-          // Apply offsets based on the affine parameters
-          const int32_t src_x = mi_col * MI_SIZE + w * 8;
-          const int32_t src_y = mi_row * MI_SIZE + h * 8;
-          WarpedMotionParams warp_params;
-#if CONFIG_AFFINE_REFINEMENT_SB
-          warp_params = xd->wm_params_sb[2 * sb_idx + idx];
-#else
-          warp_params = mi->wm_params[idx];
-#endif  // CONFIG_AFFINE_REFINEMENT_SB
-          refined_mv.as_mv = get_sub_block_warp_mv(&warp_params, src_x, src_y,
-                                                   TMVP_MI_SIZE, TMVP_MI_SIZE);
-        } else {
-#endif  // CONFIG_AFFINE_REFINEMENT
-#if CONFIG_REFINEMV
-          // Refined MVs are stored per 4x4 in refinemv_subinfo, but h and
-          // w for TMVP are per 8x8, so (h<<1) and (w<<1) are used here.
-          if (apply_sub_block_refinemv)
-            refined_mv.as_mv =
-                xd->refinemv_subinfo[(h << 1) * MAX_MIB_SIZE + (w << 1)]
-                    .refinemv[idx]
-                    .as_mv;
-          else
-#endif  // CONFIG_REFINEMV
-            refined_mv.as_mv = mi->mv[idx].as_mv;
-#if CONFIG_AFFINE_REFINEMENT
-        }
-#endif  // CONFIG_AFFINE_REFINEMENT
+          refined_mv.as_mv = mi->mv[idx].as_mv;
         if (is_opfl_mode) {
           int *vy = idx ? vy1 : vy0;
           int *vx = idx ? vx1 : vx0;
@@ -429,12 +389,6 @@ void av1_copy_frame_refined_mvs(const AV1_COMMON *const cm,
                                                        mi);
   int n = opfl_get_subblock_size(bw, bh, AOM_PLANE_Y, 1);
   int w, h;
-#if CONFIG_AFFINE_REFINEMENT_SB
-  int sb_idx = 0;
-  int sub_bw = AOMMIN(AFFINE_MAX_UNIT, bw);
-  int sub_bh = AOMMIN(AFFINE_MAX_UNIT, bh);
-  int wms_stride = bw / sub_bw;
-#endif  // CONFIG_AFFINE_REFINEMENT_SB
 
   // Pointers to hold optical flow MV offsets.
   int *vx0 = xd->opfl_vxy_bufs;
@@ -443,19 +397,11 @@ void av1_copy_frame_refined_mvs(const AV1_COMMON *const cm,
   int *vy1 = xd->opfl_vxy_bufs + (N_OF_OFFSETS * 3);
 
   int apply_sub_block_refinemv =
-      mi->refinemv_flag &&
-#if CONFIG_AFFINE_REFINEMENT
-      (is_damr_allowed_with_refinemv(mi->mode) ||
-       mi->comp_refine_type < COMP_AFFINE_REFINE_START) &&
-#endif  // CONFIG_AFFINE_REFINEMENT
-      !is_tip_ref_frame(mi->ref_frame[0]);
+      mi->refinemv_flag && !is_tip_ref_frame(mi->ref_frame[0]);
 
   for (h = 0; h < y_inside_boundary; h++) {
     MV_REF *mv = frame_mvs;
     for (w = 0; w < x_inside_boundary; w++) {
-#if CONFIG_AFFINE_REFINEMENT_SB
-      sb_idx = ((h * 8) / sub_bh) * wms_stride + (w * 8) / sub_bw;
-#endif  // CONFIG_AFFINE_REFINEMENT_SB
       for (int idx = 0; idx < 2; ++idx) {
 #if CONFIG_TMVP_MVS_WRITING_FLOW_OPT
         mv->ref_frame[idx] = NONE_FRAME;
@@ -464,41 +410,17 @@ void av1_copy_frame_refined_mvs(const AV1_COMMON *const cm,
         MV_REFERENCE_FRAME ref_frame = mi->ref_frame[idx];
         if (is_inter_ref_frame(ref_frame)) {
           int_mv refined_mv;
-#if CONFIG_AFFINE_REFINEMENT
-          if (is_opfl_mode && xd->use_affine_opfl &&
-              mi->comp_refine_type >= COMP_AFFINE_REFINE_START
 #if CONFIG_REFINEMV
-              && (is_damr_allowed_with_refinemv(mi->mode) ||
-                  !apply_sub_block_refinemv)
+          // Refined MVs are stored per 4x4 in refinemv_subinfo, but h and
+          // w for TMVP are per 8x8, so (h<<1) and (w<<1) are used here.
+          if (apply_sub_block_refinemv)
+            refined_mv.as_mv =
+                xd->refinemv_subinfo[(h << 1) * MAX_MIB_SIZE + (w << 1)]
+                    .refinemv[idx]
+                    .as_mv;
+          else
 #endif  // CONFIG_REFINEMV
-          ) {
-            // Apply offsets based on the affine parameters
-            const int32_t src_x = mi_col * MI_SIZE + w * 8;
-            const int32_t src_y = mi_row * MI_SIZE + h * 8;
-            WarpedMotionParams warp_params;
-#if CONFIG_AFFINE_REFINEMENT_SB
-            warp_params = xd->wm_params_sb[2 * sb_idx + idx];
-#else
-            warp_params = mi->wm_params[idx];
-#endif  // CONFIG_AFFINE_REFINEMENT_SB
-            refined_mv.as_mv = get_sub_block_warp_mv(
-                &warp_params, src_x, src_y, TMVP_MI_SIZE, TMVP_MI_SIZE);
-          } else {
-#endif  // CONFIG_AFFINE_REFINEMENT
-#if CONFIG_REFINEMV
-            // Refined MVs are stored per 4x4 in refinemv_subinfo, but h and
-            // w for TMVP are per 8x8, so (h<<1) and (w<<1) are used here.
-            if (apply_sub_block_refinemv)
-              refined_mv.as_mv =
-                  xd->refinemv_subinfo[(h << 1) * MAX_MIB_SIZE + (w << 1)]
-                      .refinemv[idx]
-                      .as_mv;
-            else
-#endif  // CONFIG_REFINEMV
-              refined_mv.as_mv = mi->mv[idx].as_mv;
-#if CONFIG_AFFINE_REFINEMENT
-          }
-#endif  // CONFIG_AFFINE_REFINEMENT
+            refined_mv.as_mv = mi->mv[idx].as_mv;
           if (is_opfl_mode) {
             int *vy = idx ? vy1 : vy0;
             int *vx = idx ? vx1 : vx0;

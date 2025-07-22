@@ -284,12 +284,7 @@ specialize qw/av1_build_compound_diffwtd_mask_highbd ssse3 avx2/;
 add_proto qw/void av1_build_compound_diffwtd_mask_d16/, "uint8_t *mask, DIFFWTD_MASK_TYPE mask_type, const CONV_BUF_TYPE *src0, int src0_stride, const CONV_BUF_TYPE *src1, int src1_stride, int h, int w, ConvolveParams *conv_params, int bd";
 specialize qw/av1_build_compound_diffwtd_mask_d16 sse4_1 avx2 neon/;
 
-if (aom_config("CONFIG_AFFINE_REFINEMENT") eq "yes") {
-  add_proto qw/void av1_calc_affine_autocorrelation_matrix/, "const int16_t *pdiff, int pstride, const int16_t *gx, const int16_t *gy, int gstride, int bw, int bh, int32_t *mat_a, int32_t *vec_b";
-  specialize qw/av1_calc_affine_autocorrelation_matrix avx2/;
-}
-
-if (aom_config("CONFIG_OPFL_MV_SEARCH") eq "yes" or aom_config("CONFIG_AFFINE_REFINEMENT") eq "yes") {
+if (aom_config("CONFIG_OPFL_MV_SEARCH") eq "yes") {
     add_proto qw/void av1_avg_pooling_pdiff_gradients/,"int16_t *pdiff, const int pstride, int16_t *gx, int16_t *gy, const int gstride, const int bw, const int bh, const int n";
     specialize qw/av1_avg_pooling_pdiff_gradients avx2/;
 }
@@ -563,11 +558,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
 # WARPED_MOTION / GLOBAL_MOTION functions
 
 if (aom_config("CONFIG_OPFL_MEMBW_REDUCTION") eq "yes") {
-  if (aom_config("CONFIG_AFFINE_REFINEMENT") eq "yes") {
-    add_proto qw/void av1_highbd_warp_affine/, "const int32_t *mat, const uint16_t *ref, int width, int height, int stride, uint16_t *pred, int p_col, int p_row, int p_width, int p_height, int p_stride, int subsampling_x, int subsampling_y, int bd, ConvolveParams *conv_params, int16_t alpha, int16_t beta, int16_t gamma, int16_t delta, int use_damr_padding, ReferenceArea *ref_area";
-  } else {
-    add_proto qw/void av1_highbd_warp_affine/, "const int32_t *mat, const uint16_t *ref, int width, int height, int stride, uint16_t *pred, int p_col, int p_row, int p_width, int p_height, int p_stride, int subsampling_x, int subsampling_y, int bd, ConvolveParams *conv_params, int16_t alpha, int16_t beta, int16_t gamma, int16_t delta";
-  }
+  add_proto qw/void av1_highbd_warp_affine/, "const int32_t *mat, const uint16_t *ref, int width, int height, int stride, uint16_t *pred, int p_col, int p_row, int p_width, int p_height, int p_stride, int subsampling_x, int subsampling_y, int bd, ConvolveParams *conv_params, int16_t alpha, int16_t beta, int16_t gamma, int16_t delta";
   specialize qw/av1_highbd_warp_affine sse4_1 avx2/;
 }
 else{
@@ -577,21 +568,12 @@ else{
 
 if (aom_config("CONFIG_EXT_WARP_FILTER") eq "yes") {
   if (aom_config("CONFIG_WARP_BD_BOX") eq "yes") {
-    if (aom_config("CONFIG_AFFINE_REFINEMENT") eq "yes") {
-      add_proto qw/void av1_ext_highbd_warp_affine/, "const int32_t *mat, const uint16_t *ref, int width, int height, int stride, uint16_t *pred, int p_col, int p_row, int p_width, int p_height, int p_stride, int subsampling_x, int subsampling_y, int bd, ConvolveParams *conv_params, int use_warp_bd_box, WarpBoundaryBox *warp_bd_box, int use_warp_bd_damr, WarpBoundaryBox *warp_bd_box_damr";
-    } else {
-      add_proto qw/void av1_ext_highbd_warp_affine/, "const int32_t *mat, const uint16_t *ref, int width, int height, int stride, uint16_t *pred, int p_col, int p_row, int p_width, int p_height, int p_stride, int subsampling_x, int subsampling_y, int bd, ConvolveParams *conv_params, int use_warp_bd_box, WarpBoundaryBox *warp_bd_box";
-    }
+    add_proto qw/void av1_ext_highbd_warp_affine/, "const int32_t *mat, const uint16_t *ref, int width, int height, int stride, uint16_t *pred, int p_col, int p_row, int p_width, int p_height, int p_stride, int subsampling_x, int subsampling_y, int bd, ConvolveParams *conv_params, int use_warp_bd_box, WarpBoundaryBox *warp_bd_box";
     specialize qw/av1_ext_highbd_warp_affine sse4_1/;
   } else {
     add_proto qw/void av1_ext_highbd_warp_affine/, "const int32_t *mat, const uint16_t *ref, int width, int height, int stride, uint16_t *pred, int p_col, int p_row, int p_width, int p_height, int p_stride, int subsampling_x, int subsampling_y, int bd, ConvolveParams *conv_params";
     specialize qw/av1_ext_highbd_warp_affine sse4_1 avx2/;
   }
-}
-
-if (aom_config("CONFIG_AFFINE_REFINEMENT") eq "yes") {
-    add_proto qw/void av1_warp_plane_bilinear/, "WarpedMotionParams *wm, int bd, const uint16_t *ref, int width, int height, int stride, uint16_t *pred, int p_col, int p_row,int p_width, int p_height, int p_stride,int subsampling_x, int subsampling_y, ConvolveParams *conv_params, ReferenceArea *ref_area";
-    specialize qw/av1_warp_plane_bilinear avx2/;
 }
 
 # LOOP_RESTORATION functions

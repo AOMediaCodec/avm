@@ -971,10 +971,6 @@ typedef struct {
   // Indicates if BRU is enabled and the mode
   unsigned int enable_bru;
 #endif  // CONFIG_BRU
-#if CONFIG_AFFINE_REFINEMENT
-  // Indicates if affine motion refinement should be enabled
-  aom_opfl_refine_type enable_affine_refine;
-#endif  // CONFIG_AFFINE_REFINEMENT
   // Indicates if parity hiding should be enabled
   bool enable_parity_hiding;
 #if CONFIG_REFRESH_FLAG

@@ -98,31 +98,6 @@ void generate_warped_model(libaom_test::ACMRandom *rnd, int32_t *mat,
     return;
   }
 }
-#if CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
-void generate_ref_area_limits(libaom_test::ACMRandom *rnd,
-                              ReferenceArea *ref_area, int w, int h, int out_w,
-                              int out_h, int p_row, int p_col, int *mat,
-                              int use_ref_area_pad) {
-  int left_limit;
-  if (use_ref_area_pad) {
-    const int32_t src_x = (p_col + 4);
-    const int32_t src_y = (p_row + 4);
-    const int64_t dst_x =
-        (int64_t)mat[2] * src_x + (int64_t)mat[3] * src_y + (int64_t)mat[0];
-    const int32_t ix4 = (int32_t)(dst_x >> WARPEDMODEL_PREC_BITS);
-    left_limit = ix4 - 7 + 3;
-  } else {
-    left_limit = rnd->Rand8() % (w - 1);
-  }
-  ref_area->pad_block.x0 = left_limit;
-  ref_area->pad_block.x1 = ref_area->pad_block.x0 + out_w + 7;
-  ref_area->pad_block.y0 = rnd->Rand8() % (h - 1);
-  ref_area->pad_block.y1 = ref_area->pad_block.y0 + out_h + 7;
-
-  ref_area->pad_block.x1 = CLIP(ref_area->pad_block.x1, 1, w);
-  ref_area->pad_block.y1 = CLIP(ref_area->pad_block.y1, 1, h);
-}
-#endif  // CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
 
 namespace AV1HighbdWarpFilter {
 ::testing::internal::ParamGenerator<HighbdWarpTestParams> BuildParams(
@@ -200,35 +175,13 @@ void AV1HighbdWarpFilterTest::RunSpeedTest(highbd_warp_affine_func test_impl) {
 
   for (int i = 0; i < num_loops; ++i)
     test_impl(mat, input, w, h, stride, output, p_col, p_row, out_w, out_h,
-              out_w, sub_x, sub_y, bd, &conv_params, alpha, beta, gamma, delta
-#if CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
-              ,
-              0, NULL
-#endif  // CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
-    );
+              out_w, sub_x, sub_y, bd, &conv_params, alpha, beta, gamma, delta);
 
   aom_usec_timer_mark(&timer);
   const int elapsed_time1 = static_cast<int>(aom_usec_timer_elapsed(&timer));
 
   printf("highbd warp %3dx%-3d: %7.2f ns\n", out_w, out_h,
          1000.0 * elapsed_time1 / num_loops);
-
-#if CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
-  ReferenceArea ref_area;
-  generate_ref_area_limits(&rnd_, &ref_area, w, h, out_w, out_h, p_row, p_col,
-                           mat, 1);
-  aom_usec_timer_start(&timer);
-
-  for (int i = 0; i < num_loops; ++i)
-    test_impl(mat, input, w, h, stride, output, p_col, p_row, out_w, out_h,
-              out_w, sub_x, sub_y, bd, &conv_params, alpha, beta, gamma, delta,
-              1, &ref_area);
-
-  aom_usec_timer_mark(&timer);
-  const int elapsed_time2 = static_cast<int>(aom_usec_timer_elapsed(&timer));
-  printf("highbd warp using ref area padding %3dx%-3d: %7.2f ns\n", out_w,
-         out_h, 1000.0 * elapsed_time2 / num_loops);
-#endif  // CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
 
   delete[] input_;
   delete[] output;
@@ -264,9 +217,6 @@ void AV1HighbdWarpFilterTest::RunCheckOutput(
   ConvolveParams conv_params = get_conv_params(0, 0, bd);
   CONV_BUF_TYPE *dsta = new CONV_BUF_TYPE[output_n];
   CONV_BUF_TYPE *dstb = new CONV_BUF_TYPE[output_n];
-#if CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
-  ReferenceArea ref_area;
-#endif  // CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
   for (int i = 0; i < output_n; ++i) output[i] = output2[i] = rnd_.Rand16();
 
   for (i = 0; i < num_iters; ++i) {
@@ -279,11 +229,6 @@ void AV1HighbdWarpFilterTest::RunCheckOutput(
         input[r * stride + w + c] = input[r * stride + (w - 1)];
       }
     }
-#if CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
-    int use_damr_padding = i % 2 == 0;
-    generate_ref_area_limits(&rnd_, &ref_area, w, h, out_w, out_h, p_row, p_col,
-                             NULL, 0);
-#endif  // CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
     const int use_no_round = rnd_.Rand8() & 1;
     for (sub_x = 0; sub_x < 2; ++sub_x)
       for (sub_y = 0; sub_y < 2; ++sub_y) {
@@ -308,12 +253,7 @@ void AV1HighbdWarpFilterTest::RunCheckOutput(
               av1_highbd_warp_affine_c(mat, input, w, h, stride, output, p_col,
                                        p_row, out_w, out_h, out_w, sub_x, sub_y,
                                        bd, &conv_params, alpha, beta, gamma,
-                                       delta
-#if CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
-                                       ,
-                                       use_damr_padding, &ref_area
-#endif  // CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
-              );
+                                       delta);
               if (use_no_round) {
                 // TODO(angiebird): Change this to test_impl once we have SIMD
                 // implementation
@@ -327,12 +267,7 @@ void AV1HighbdWarpFilterTest::RunCheckOutput(
               }
               test_impl(mat, input, w, h, stride, output2, p_col, p_row, out_w,
                         out_h, out_w, sub_x, sub_y, bd, &conv_params, alpha,
-                        beta, gamma, delta
-#if CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
-                        ,
-                        use_damr_padding, &ref_area
-#endif  // CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
-              );
+                        beta, gamma, delta);
 
               if (use_no_round) {
                 for (j = 0; j < out_w * out_h; ++j)
@@ -365,312 +300,6 @@ void AV1HighbdWarpFilterTest::RunCheckOutput(
   delete[] dstb;
 }
 }  // namespace AV1HighbdWarpFilter
-
-#if CONFIG_AFFINE_REFINEMENT
-namespace AV1HighbdWarpBilinearFilter {
-::testing::internal::ParamGenerator<HighbdWarpBilinearTestParams> BuildParams(
-    highbd_warp_plane_bilinear_func filter) {
-  const HighbdWarpBilinearTestParam params[] = {
-    make_tuple(8, 8, 100, 8, filter),
-    make_tuple(8, 8, 100, 10, filter),
-    make_tuple(8, 8, 100, 12, filter),
-    make_tuple(8, 16, 100, 8, filter),
-    make_tuple(8, 16, 100, 10, filter),
-    make_tuple(8, 16, 100, 12, filter),
-    make_tuple(16, 16, 100, 8, filter),
-    make_tuple(16, 16, 100, 10, filter),
-    make_tuple(16, 16, 100, 12, filter),
-    make_tuple(16, 8, 100, 8, filter),
-    make_tuple(16, 8, 100, 10, filter),
-    make_tuple(16, 8, 100, 12, filter),
-    make_tuple(16, 32, 100, 8, filter),
-    make_tuple(16, 32, 100, 10, filter),
-    make_tuple(16, 32, 100, 12, filter),
-    make_tuple(32, 32, 100, 8, filter),
-    make_tuple(32, 32, 100, 10, filter),
-    make_tuple(32, 32, 100, 12, filter),
-    make_tuple(32, 16, 100, 8, filter),
-    make_tuple(32, 16, 100, 10, filter),
-    make_tuple(32, 16, 100, 12, filter),
-    make_tuple(32, 64, 100, 10, filter),
-    make_tuple(32, 64, 100, 12, filter),
-    make_tuple(32, 64, 100, 8, filter),
-    make_tuple(64, 64, 100, 8, filter),
-    make_tuple(64, 64, 100, 10, filter),
-    make_tuple(64, 64, 100, 12, filter),
-    make_tuple(64, 32, 100, 8, filter),
-    make_tuple(64, 32, 100, 10, filter),
-    make_tuple(64, 32, 100, 12, filter),
-    make_tuple(64, 128, 100, 8, filter),
-    make_tuple(64, 128, 100, 10, filter),
-    make_tuple(64, 128, 100, 12, filter),
-    make_tuple(128, 128, 100, 8, filter),
-    make_tuple(128, 128, 100, 10, filter),
-    make_tuple(128, 128, 100, 12, filter),
-    make_tuple(128, 64, 100, 8, filter),
-    make_tuple(128, 64, 100, 10, filter),
-    make_tuple(128, 64, 100, 12, filter),
-    make_tuple(128, 256, 100, 8, filter),
-    make_tuple(128, 256, 100, 10, filter),
-    make_tuple(128, 256, 100, 12, filter),
-    make_tuple(256, 256, 100, 8, filter),
-    make_tuple(256, 256, 100, 10, filter),
-    make_tuple(256, 256, 100, 12, filter),
-    make_tuple(256, 128, 100, 8, filter),
-    make_tuple(256, 128, 100, 10, filter),
-    make_tuple(256, 128, 100, 12, filter),
-  };
-  return ::testing::Combine(::testing::ValuesIn(params),
-                            ::testing::Values(0, 1), ::testing::Values(0, 1),
-                            ::testing::Values(0, 1), ::testing::Values(0, 1));
-}
-
-AV1HighbdWarpBilinearFilterTest::~AV1HighbdWarpBilinearFilterTest() {}
-void AV1HighbdWarpBilinearFilterTest::SetUp() {
-  rnd_.Reset(ACMRandom::DeterministicSeed());
-}
-
-void AV1HighbdWarpBilinearFilterTest::TearDown() {
-  libaom_test::ClearSystemState();
-}
-
-void AV1HighbdWarpBilinearFilterTest::RunCheckOutput(
-    highbd_warp_plane_bilinear_func test_impl) {
-  const int w = 128, h = 128;
-  const int border = 16;
-  const int stride = w + 2 * border;
-  HighbdWarpBilinearTestParam param = GET_PARAM(0);
-  const int is_alpha_zero = GET_PARAM(1);
-  const int is_beta_zero = GET_PARAM(2);
-  const int is_gamma_zero = GET_PARAM(3);
-  const int is_delta_zero = GET_PARAM(4);
-  const int out_w = std::get<0>(param), out_h = std::get<1>(param);
-  const int bd = std::get<3>(param);
-  const int num_iters = std::get<2>(param);
-  const int mask = (1 << bd) - 1;
-  int i, j, sub_x, sub_y;
-  int output_n = ((out_w + 7) & ~7) * out_h;
-  uint16_t *input_ = new uint16_t[h * stride];
-  uint16_t *input = input_ + border;
-  uint16_t *output = new uint16_t[output_n];
-  uint16_t *output2 = new uint16_t[output_n];
-  int32_t mat[8];
-  WarpedMotionParams wms;
-  int16_t alpha, beta, gamma, delta;
-  ConvolveParams conv_params = get_conv_params(0, 0, bd);
-  for (int i = 0; i < output_n; ++i) output[i] = output2[i] = rnd_.Rand16();
-
-  for (i = 0; i < num_iters; ++i) {
-    // Generate an input block and extend its borders horizontally
-    for (int r = 0; r < h; ++r)
-      for (int c = 0; c < w; ++c) input[r * stride + c] = rnd_.Rand16() & mask;
-    for (int r = 0; r < h; ++r) {
-      for (int c = 0; c < border; ++c) {
-        input[r * stride - border + c] = input[r * stride];
-        input[r * stride + w + c] = input[r * stride + (w - 1)];
-      }
-    }
-    for (sub_x = 0; sub_x < 2; ++sub_x)
-      for (sub_y = 0; sub_y < 2; ++sub_y) {
-        generate_warped_model(&rnd_, mat, &alpha, &beta, &gamma, &delta,
-                              is_alpha_zero, is_beta_zero, is_gamma_zero,
-                              is_delta_zero);
-        for (int i = 0; i < 6; ++i) wms.wmmat[i] = mat[i];
-        wms.wmtype = AFFINE;
-        conv_params = get_conv_params_no_round(0, 0, NULL, 0, 0, bd);
-
-        av1_warp_plane_bilinear_c(&wms, bd, input, w, h, stride, output, 32, 32,
-                                  out_w, out_h, out_w, sub_x, sub_y,
-                                  &conv_params
-#if CONFIG_DAMR_CLEAN_UP
-                                  ,
-                                  NULL
-#endif  // CONFIG_DAMR_CLEAN_UP
-        );
-        test_impl(&wms, bd, input, w, h, stride, output2, 32, 32, out_w, out_h,
-                  out_w, sub_x, sub_y, &conv_params
-#if CONFIG_DAMR_CLEAN_UP
-                  ,
-                  NULL
-#endif  // CONFIG_DAMR_CLEAN_UP
-        );
-
-        for (int k = 0; k < out_h; ++k) {
-          for (j = 0; j < out_w; ++j) {
-            ASSERT_EQ(output[(k * out_w + j)], output2[k * out_w + j])
-                << "Pixel mismatch at index " << (k * out_w + j) << " = ("
-                << ((k * out_w + j) % out_w) << ", "
-                << ((k * out_w + j) / out_w) << ") on iteration " << i;
-          }
-        }
-      }
-  }
-
-  delete[] input_;
-  delete[] output;
-  delete[] output2;
-}
-
-void AV1HighbdWarpBilinearFilterTest::RunTest_ExtremeValues(
-    highbd_warp_plane_bilinear_func test_impl) {
-  const int w = 256, h = 256;
-  const int border = 16;
-  const int stride = w + 2 * border;
-  HighbdWarpBilinearTestParam param = GET_PARAM(0);
-  const int out_w = std::get<0>(param), out_h = std::get<1>(param);
-  const int max_w = 16384 - out_w, max_h = 8704 - out_h;
-  const int bd = std::get<3>(param);
-  const int num_iters = std::get<2>(param);
-  const int mask = (1 << bd) - 1;
-  int i, j, sub_x, sub_y;
-  int output_n = ((out_w + 7) & ~7) * out_h;
-  uint16_t *input_ = new uint16_t[h * stride];
-  uint16_t *input = input_ + border;
-  uint16_t *output = new uint16_t[output_n];
-  uint16_t *output2 = new uint16_t[output_n];
-  WarpedMotionParams wms;
-  ConvolveParams conv_params = get_conv_params(0, 0, bd);
-  for (int i = 0; i < output_n; ++i) output[i] = output2[i] = rnd_.Rand16();
-
-  for (i = 0; i < num_iters; ++i) {
-    // Generate an input block and extend its borders horizontally
-    for (int r = 0; r < h; ++r)
-      for (int c = 0; c < w; ++c) input[r * stride + c] = rnd_.Rand16() & mask;
-    for (int r = 0; r < h; ++r) {
-      for (int c = 0; c < border; ++c) {
-        input[r * stride - border + c] = input[r * stride];
-        input[r * stride + w + c] = input[r * stride + (w - 1)];
-      }
-    }
-    for (sub_x = 0; sub_x < 2; ++sub_x)
-      for (sub_y = 0; sub_y < 2; ++sub_y) {
-        wms.wmtype = AFFINE;
-        wms.wmmat[0] = WARPEDMODEL_TRANS_CLAMP - (1 << WARP_PARAM_REDUCE_BITS);
-        wms.wmmat[1] = WARPEDMODEL_TRANS_CLAMP - (1 << WARP_PARAM_REDUCE_BITS);
-        const int max_value =
-            (1 << (WARPEDMODEL_PREC_BITS - 1)) - (1 << WARP_PARAM_REDUCE_BITS);
-        for (int i = 2; i < 6; i++) {
-          int offset = (i == 2 || i == 5) ? (1 << WARPEDMODEL_PREC_BITS) : 0;
-          wms.wmmat[i] = max_value + offset;
-        }
-        conv_params = get_conv_params_no_round(0, 0, NULL, 0, 0, bd);
-
-        av1_warp_plane_bilinear_c(&wms, bd, input, w, h, stride, output, max_w,
-                                  max_h, out_w, out_h, out_w, sub_x, sub_y,
-                                  &conv_params
-#if CONFIG_DAMR_CLEAN_UP
-                                  ,
-                                  NULL
-#endif  // CONFIG_DAMR_CLEAN_UP
-        );
-        test_impl(&wms, bd, input, w, h, stride, output2, max_w, max_h, out_w,
-                  out_h, out_w, sub_x, sub_y, &conv_params
-#if CONFIG_DAMR_CLEAN_UP
-                  ,
-                  NULL
-#endif  // CONFIG_DAMR_CLEAN_UP
-        );
-
-        for (int k = 0; k < out_h; ++k) {
-          for (j = 0; j < out_w; ++j) {
-            ASSERT_EQ(output[(k * out_w + j)], output2[k * out_w + j])
-                << "Pixel mismatch at index " << (k * out_w + j) << " = ("
-                << ((k * out_w + j) % out_w) << ", "
-                << ((k * out_w + j) / out_w) << ") on iteration " << i;
-          }
-        }
-      }
-  }
-
-  delete[] input_;
-  delete[] output;
-  delete[] output2;
-}
-
-void AV1HighbdWarpBilinearFilterTest::RunSpeedTest(
-    highbd_warp_plane_bilinear_func test_impl) {
-  const int w = 128, h = 128;
-  const int border = 16;
-  const int stride = w + 2 * border;
-  HighbdWarpBilinearTestParam param = GET_PARAM(0);
-  const int is_alpha_zero = GET_PARAM(1);
-  const int is_beta_zero = GET_PARAM(2);
-  const int is_gamma_zero = GET_PARAM(3);
-  const int is_delta_zero = GET_PARAM(4);
-  const int out_w = std::get<0>(param), out_h = std::get<1>(param);
-  const int bd = std::get<3>(param);
-  const int mask = (1 << bd) - 1;
-  int sub_x, sub_y;
-  int output_n = ((out_w + 7) & ~7) * out_h;
-  uint16_t *input_ = new uint16_t[h * stride];
-  uint16_t *input = input_ + border;
-  uint16_t *output = new uint16_t[output_n];
-  WarpedMotionParams wms;
-  int32_t mat[8];
-  int16_t alpha, beta, gamma, delta;
-  ConvolveParams conv_params = get_conv_params(0, 0, bd);
-
-  generate_warped_model(&rnd_, mat, &alpha, &beta, &gamma, &delta,
-                        is_alpha_zero, is_beta_zero, is_gamma_zero,
-                        is_delta_zero);
-  for (int i = 0; i < 6; ++i) wms.wmmat[i] = mat[i];
-  wms.wmtype = AFFINE;
-  // Generate an input block and extend its borders horizontally
-  for (int r = 0; r < h; ++r)
-    for (int c = 0; c < w; ++c) input[r * stride + c] = rnd_.Rand16() & mask;
-  for (int r = 0; r < h; ++r) {
-    for (int c = 0; c < border; ++c) {
-      input[r * stride - border + c] = input[r * stride];
-      input[r * stride + w + c] = input[r * stride + (w - 1)];
-    }
-  }
-
-  sub_x = 0;
-  sub_y = 0;
-  conv_params = get_conv_params_no_round(0, 0, NULL, 0, 0, bd);
-
-  const int num_loops = 1000000;
-  aom_usec_timer timer_ref, timer_mod;
-
-  aom_usec_timer_start(&timer_ref);
-  for (int i = 0; i < num_loops; ++i)
-    av1_warp_plane_bilinear_c(&wms, bd, input, w, h, stride, output, 32, 32,
-                              out_w, out_h, out_w, sub_x, sub_y, &conv_params
-#if CONFIG_DAMR_CLEAN_UP
-                              ,
-                              NULL
-#endif  // CONFIG_DAMR_CLEAN_UP
-    );
-  aom_usec_timer_mark(&timer_ref);
-  const int elapsed_time_ref =
-      static_cast<int>(aom_usec_timer_elapsed(&timer_ref));
-
-  aom_usec_timer_start(&timer_mod);
-  for (int i = 0; i < num_loops; ++i)
-    test_impl(&wms, bd, input, w, h, stride, output, 32, 32, out_w, out_h,
-              out_w, sub_x, sub_y, &conv_params
-#if CONFIG_DAMR_CLEAN_UP
-              ,
-              NULL
-#endif  // CONFIG_DAMR_CLEAN_UP
-    );
-
-  aom_usec_timer_mark(&timer_mod);
-  const int elapsed_time_mod =
-      static_cast<int>(aom_usec_timer_elapsed(&timer_mod));
-
-  printf(
-      "Block size: %dx%d, ref_time = %d \t simd_time = %d \t Scaling = %4.2f "
-      "\n",
-      out_w, out_h, elapsed_time_ref, elapsed_time_mod,
-      (static_cast<float>(elapsed_time_ref) /
-       static_cast<float>(elapsed_time_mod)));
-
-  delete[] input_;
-  delete[] output;
-}
-}  // namespace AV1HighbdWarpBilinearFilter
-#endif  // CONFIG_AFFINE_REFINEMENT
 
 #if CONFIG_EXT_WARP_FILTER
 namespace AV1ExtHighbdWarpFilter {
@@ -752,10 +381,6 @@ void AV1ExtHighbdWarpFilterTest::RunSpeedTest(
 #if CONFIG_WARP_BD_BOX
               ,
               0, NULL
-#if CONFIG_AFFINE_REFINEMENT
-              ,
-              0, NULL
-#endif  // CONFIG_AFFINE_REFINEMENT
 #endif  // CONFIG_WARP_BD_BOX
     );
 
@@ -832,10 +457,6 @@ void AV1ExtHighbdWarpFilterTest::RunCheckOutput(
 #if CONFIG_WARP_BD_BOX
                                          ,
                                          0, NULL
-#if CONFIG_AFFINE_REFINEMENT
-                                         ,
-                                         0, NULL
-#endif  // CONFIG_AFFINE_REFINEMENT
 #endif  // CONFIG_WARP_BD_BOX
             );
             if (use_no_round) {
@@ -851,10 +472,6 @@ void AV1ExtHighbdWarpFilterTest::RunCheckOutput(
 #if CONFIG_WARP_BD_BOX
                       ,
                       0, NULL
-#if CONFIG_AFFINE_REFINEMENT
-                      ,
-                      0, NULL
-#endif  // CONFIG_AFFINE_REFINEMENT
 #endif  // CONFIG_WARP_BD_BOX
             );
 

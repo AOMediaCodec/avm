@@ -483,9 +483,6 @@ const arg_def_t *av1_key_val_args[] = {
   &g_av1_codec_arg_defs.enable_tiles_cdfs_avg,
 #endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   &g_av1_codec_arg_defs.enable_opfl_refine,
-#if CONFIG_AFFINE_REFINEMENT
-  &g_av1_codec_arg_defs.enable_affine_refine,
-#endif  // CONFIG_AFFINE_REFINEMENT
   &g_av1_codec_arg_defs.enable_ccso,
 #if CONFIG_LF_SUB_PU
   &g_av1_codec_arg_defs.enable_lf_sub_pu,
@@ -731,9 +728,6 @@ static void init_config(cfg_options_t *config) {
   config->enable_intra_dip = 1;
   config->enable_angle_delta = 1;
   config->enable_opfl_refine = 1;
-#if CONFIG_AFFINE_REFINEMENT
-  config->enable_affine_refine = 1;
-#endif  // CONFIG_AFFINE_REFINEMENT
   config->explicit_ref_frame_map = 0;
   config->enable_frame_output_order = 1;
   config->enable_intra_edge_filter = 1;
@@ -1679,10 +1673,6 @@ static void show_stream_config(struct stream_state *stream,
 
   fprintf(stdout, "                               : OptflowRefinement (%d)\n",
           encoder_cfg->enable_opfl_refine);
-#if CONFIG_AFFINE_REFINEMENT
-  fprintf(stdout, "                               : AffineRefinement (%d)\n",
-          encoder_cfg->enable_affine_refine);
-#endif  // CONFIG_AFFINE_REFINEMENT
 
   fprintf(stdout,
           "Tool setting (Transform)       : Flip & IDT (%d), "

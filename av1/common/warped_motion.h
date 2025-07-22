@@ -201,17 +201,9 @@ void highbd_warp_plane(WarpedMotionParams *wm, const uint16_t *const ref,
                        ,
                        const struct scale_factors *sf
 #endif  // CONFIG_ACROSS_SCALE_WARP
-#if CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
-                       ,
-                       int use_damr_padding, ReferenceArea *ref_area
-#endif  // CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
 #if CONFIG_WARP_BD_BOX
                        ,
                        int use_warp_bd_box, WarpBoundaryBox *warp_bd_box
-#if CONFIG_AFFINE_REFINEMENT
-                       ,
-                       int use_warp_bd_damr, WarpBoundaryBox *warp_bd_box_damr
-#endif  // CONFIG_AFFINE_REFINEMENT
 #endif  // CONFIG_WARP_BD_BOX
 );
 
@@ -228,17 +220,9 @@ void av1_warp_plane(WarpedMotionParams *wm, int bd, const uint16_t *ref,
                     ,
                     const struct scale_factors *sf
 #endif  // CONFIG_ACROSS_SCALE_WARP
-#if CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
-                    ,
-                    int use_damr_padding, ReferenceArea *ref_area
-#endif  // CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
 #if CONFIG_WARP_BD_BOX
                     ,
                     int use_warp_bd_box, WarpBoundaryBox *warp_bd_box
-#if CONFIG_AFFINE_REFINEMENT
-                    ,
-                    int use_warp_bd_damr, WarpBoundaryBox *warp_bd_box_damr
-#endif  // CONFIG_AFFINE_REFINEMENT
 #endif  // CONFIG_WARP_BD_BOX
 );
 

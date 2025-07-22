@@ -996,11 +996,7 @@ static AOM_INLINE void dec_build_inter_predictor(const AV1_COMMON *cm,
   int need_subblock_mvs = xd->is_chroma_ref && mbmi->refinemv_flag &&
                           !is_intrabc_block(mbmi, xd->tree_type);
   assert(IMPLIES(need_subblock_mvs, !is_interintra_pred(mbmi)));
-#if CONFIG_AFFINE_REFINEMENT
-  if (need_subblock_mvs && default_refinemv_modes(cm, mbmi))
-#else
   if (need_subblock_mvs && default_refinemv_modes(mbmi))
-#endif  // CONFIG_AFFINE_REFINEMENT
     need_subblock_mvs &= (mbmi->comp_group_idx == 0 &&
                           mbmi->interinter_comp.type == COMPOUND_AVERAGE);
   if (need_subblock_mvs) {
@@ -6515,9 +6511,6 @@ void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
 #endif  // CONFIG_TCQ
     seq_params->order_hint_info.order_hint_bits_minus_1 = -1;
     seq_params->enable_opfl_refine = AOM_OPFL_REFINE_NONE;
-#if CONFIG_AFFINE_REFINEMENT
-    seq_params->enable_affine_refine = 0;
-#endif  // CONFIG_AFFINE_REFINEMENT
 #if CONFIG_SIX_PARAM_WARP_DELTA
     seq_params->enable_six_param_warp_delta = 0;
 #endif  // CONFIG_SIX_PARAM_WARP_DELTA
@@ -6831,10 +6824,6 @@ void av1_read_sequence_header_beyond_av1(
   seq_params->enable_opfl_refine = seq_params->order_hint_info.enable_order_hint
                                        ? aom_rb_read_literal(rb, 2)
                                        : AOM_OPFL_REFINE_NONE;
-#if CONFIG_AFFINE_REFINEMENT
-  seq_params->enable_affine_refine =
-      seq_params->enable_opfl_refine ? aom_rb_read_bit(rb) : 0;
-#endif  // CONFIG_AFFINE_REFINEMENT
   seq_params->enable_ibp = aom_rb_read_bit(rb);
   seq_params->enable_adaptive_mvd = aom_rb_read_bit(rb);
 

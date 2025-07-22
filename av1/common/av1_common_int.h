@@ -632,9 +632,6 @@ typedef struct SequenceHeader {
   uint8_t enable_masked_compound;           // enables/disables masked compound
   aom_opfl_refine_type enable_opfl_refine;  // optical flow refinement type for
                                             // this frame
-#if CONFIG_AFFINE_REFINEMENT
-  uint8_t enable_affine_refine;  // To turn on/off DAMR
-#endif                           // CONFIG_AFFINE_REFINEMENT
 #if CONFIG_ENABLE_SR
   uint8_t enable_superres;  // 0 - Disable superres for the sequence
                             //     and no frame level superres flag
@@ -4810,10 +4807,6 @@ static AOM_INLINE int is_optflow_refinement_enabled(const AV1_COMMON *cm,
                                       xd,
 #endif  // CONFIG_COMPOUND_4XN
                                       mi);
-
-#if CONFIG_AFFINE_REFINEMENT
-  if (mi->comp_refine_type == COMP_REFINE_NONE) return 0;
-#endif  // CONFIG_AFFINE_REFINEMENT
 
   if (tip_ref_frame) {
 #if CONFIG_TIP_ENHANCEMENT

@@ -210,9 +210,6 @@ struct av1_extracfg {
   int enable_angle_delta;
   aom_opfl_refine_type enable_opfl_refine;  // optical flow refinement type
                                             // for sequence
-#if CONFIG_AFFINE_REFINEMENT
-  int enable_affine_refine;  // enable affine refinement
-#endif                       // CONFIG_AFFINE_REFINEMENT
 #if CONFIG_DENOISE
   float noise_level;
   int noise_block_size;
@@ -568,9 +565,6 @@ static struct av1_extracfg default_extra_cfg = {
 #endif  // CONFIG_IBC_SR_EXT
   1,    // enable angle delta
   1,    // enable optical flow refinement
-#if CONFIG_AFFINE_REFINEMENT
-  1,    // enable affine refinement
-#endif  // CONFIG_AFFINE_REFINEMENT
 #if CONFIG_DENOISE
   0,   // noise_level
   32,  // noise_block_size
@@ -1003,9 +997,6 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_warped_motion = extra_cfg->enable_warped_motion;
   cfg->enable_diff_wtd_comp = extra_cfg->enable_diff_wtd_comp;
   cfg->enable_opfl_refine = extra_cfg->enable_opfl_refine;
-#if CONFIG_AFFINE_REFINEMENT
-  cfg->enable_affine_refine = extra_cfg->enable_affine_refine;
-#endif  // CONFIG_AFFINE_REFINEMENT
   cfg->enable_angle_delta = extra_cfg->enable_angle_delta;
   cfg->disable_ml_partition_speed_features =
       extra_cfg->disable_ml_partition_speed_features;
@@ -1147,9 +1138,6 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_warped_motion = cfg->enable_warped_motion;
   extra_cfg->enable_diff_wtd_comp = cfg->enable_diff_wtd_comp;
   extra_cfg->enable_opfl_refine = cfg->enable_opfl_refine;
-#if CONFIG_AFFINE_REFINEMENT
-  extra_cfg->enable_affine_refine = cfg->enable_affine_refine;
-#endif  // CONFIG_AFFINE_REFINEMENT
   extra_cfg->enable_angle_delta = cfg->enable_angle_delta;
   extra_cfg->enable_rect_partitions = cfg->enable_rect_partitions;
   extra_cfg->enable_uneven_4way_partitions = cfg->enable_uneven_4way_partitions;
@@ -1608,10 +1596,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
                                      ? extra_cfg->enable_opfl_refine
                                      : AOM_OPFL_REFINE_NONE;
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
-#if CONFIG_AFFINE_REFINEMENT
-  tool_cfg->enable_affine_refine =
-      extra_cfg->enable_opfl_refine ? extra_cfg->enable_affine_refine : 0;
-#endif  // CONFIG_AFFINE_REFINEMENT
   tool_cfg->enable_parity_hiding = extra_cfg->enable_parity_hiding;
 #if CONFIG_MRSSE
   tool_cfg->enable_mrsse = extra_cfg->enable_mrsse;
@@ -4392,11 +4376,6 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_opfl_refine,
                               argv, err_string)) {
     extra_cfg.enable_opfl_refine = arg_parse_int_helper(&arg, err_string);
-#if CONFIG_AFFINE_REFINEMENT
-  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_affine_refine,
-                              argv, err_string)) {
-    extra_cfg.enable_affine_refine = arg_parse_int_helper(&arg, err_string);
-#endif  // CONFIG_AFFINE_REFINEMENT
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.reduced_tx_type_set,
                               argv, err_string)) {
     extra_cfg.reduced_tx_type_set = arg_parse_int_helper(&arg, err_string);
@@ -4831,14 +4810,10 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         1,
 #endif  // CONFIG_ENABLE_MHCCP
         1,   1, 1, 1,
-        1,
-#if CONFIG_AFFINE_REFINEMENT
-        1,
-#endif  // CONFIG_AFFINE_REFINEMENT
         1,   1, 1, 1,
-        1,   1, 3, 1,
-        1,   0, 1, 0,
-        0,
+        1,   1, 1, 3,
+        1,   1, 0, 1,
+        0,   0,
 #if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
         0,
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL

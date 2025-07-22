@@ -511,10 +511,6 @@ typedef struct MB_MODE_INFO {
 #endif  // CONFIG_COMPOUND_WARP_CAUSAL
   /*! \brief The parameters used in warp motion mode. */
   WarpedMotionParams wm_params[2];
-#if CONFIG_AFFINE_REFINEMENT
-  /*! \brief Compound refinement type */
-  CompoundRefineType comp_refine_type;
-#endif  // CONFIG_AFFINE_REFINEMENT
   /*! \brief The type of intra mode used by inter-intra */
   INTERINTRA_MODE interintra_mode;
   /*! \brief The type of wedge used in interintra mode. */
@@ -2514,12 +2510,6 @@ typedef struct macroblockd {
   /** block level storage to store luma refined MVs for chroma use */
   REFINEMV_SUBMB_INFO refinemv_subinfo[MAX_MIB_SIZE * MAX_MIB_SIZE];
 #endif  // CONFIG_REFINEMV
-#if CONFIG_AFFINE_REFINEMENT
-  /** variable to store if affine refinement was enabled for luma */
-  int use_affine_opfl;
-  /** variable to store affine refinement parameters per subblock */
-  WarpedMotionParams wm_params_sb[2 * NUM_AFFINE_PARAMS];
-#endif  // CONFIG_AFFINE_REFINEMENT
   /** variable to store optical flow refined MVs per subblock */
   int_mv mv_refined[2 * N_OF_OFFSETS];
 #if CONFIG_SDP_CFL_LATENCY_FIX

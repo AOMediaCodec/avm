@@ -534,12 +534,6 @@ typedef struct cfg_options {
    *
    */
   aom_opfl_refine_type enable_opfl_refine;
-#if CONFIG_AFFINE_REFINEMENT
-  /*!\brief enable affine refinement
-   *
-   */
-  unsigned int enable_affine_refine;
-#endif  // CONFIG_AFFINE_REFINEMENT
   /*!\brief enable intra edge filter
    *
    */

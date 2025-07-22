@@ -265,19 +265,12 @@ typedef struct InterPredParams {
 
 #if CONFIG_REFINEMV
   int use_ref_padding;
-#if CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
-  int use_damr_padding;
-#endif  // CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
   ReferenceArea *ref_area;
 #endif  // CONFIG_REFINEMV
 
 #if CONFIG_WARP_BD_BOX
   int use_warp_bd_box;
   WarpBoundaryBox *warp_bd_box;
-#if CONFIG_AFFINE_REFINEMENT
-  int use_warp_bd_damr;
-  WarpBoundaryBox warp_bd_box_damr;
-#endif  // CONFIG_AFFINE_REFINEMENT
 #endif  // CONFIG_WARP_BD_BOX
 
 #if CONFIG_D071_IMP_MSK_BLD
@@ -639,22 +632,14 @@ void av1_opfl_build_inter_predictor(
 
 // Generate refined MVs using optflow refinement
 void av1_get_optflow_based_mv(
-    const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
-#if !CONFIG_DAMR_CLEAN_UP
-    const
-#endif  // !CONFIG_DAMR_CLEAN_UP
-    MB_MODE_INFO *mbmi,
+    const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mbmi,
     int_mv *mv_refined, int bw, int bh, int mi_x, int mi_y,
 #if CONFIG_E191_OFS_PRED_RES_HANDLE
     int build_for_decode,
 #endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
     uint16_t **mc_buf, CalcSubpelParamsFunc calc_subpel_params_func,
-    int16_t *gx0, int16_t *gy0, int16_t *gx1, int16_t *gy1,
-#if CONFIG_AFFINE_REFINEMENT
-    WarpedMotionParams *wms, int *use_affine_opfl,
-#endif  // CONFIG_AFFINE_REFINEMENT
-    int *vx0, int *vy0, int *vx1, int *vy1, uint16_t *dst0, uint16_t *dst1,
-    int do_pred, int use_4x4
+    int16_t *gx0, int16_t *gy0, int16_t *gx1, int16_t *gy1, int *vx0, int *vy0,
+    int *vx1, int *vy1, uint16_t *dst0, uint16_t *dst1, int do_pred, int use_4x4
 #if CONFIG_REFINEMV
     ,
     MV *best_mv_ref, int pu_width, int pu_height
@@ -668,28 +653,8 @@ void av1_opfl_rebuild_inter_predictor(
 #if CONFIG_E191_OFS_PRED_RES_HANDLE
     int build_for_decode,
 #endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
-    const AV1_COMMON *cm, int pu_width,
-#if CONFIG_AFFINE_REFINEMENT
-    int *vxy_bufs, const int vxy_size, CompoundRefineType comp_refine_type,
-    WarpedMotionParams *wms, int_mv *mv, const int use_affine_opfl,
-#endif  // CONFIG_AFFINE_REFINEMENT
-    int ref, uint16_t **mc_buf, CalcSubpelParamsFunc calc_subpel_params_func,
-    int use_4x4
-#if CONFIG_AFFINE_REFINEMENT
-#if CONFIG_OPFL_MEMBW_REDUCTION || CONFIG_WARP_BD_BOX
-    ,
-    MB_MODE_INFO *mi, int pu_height, const MV mi_mv[2]
-#endif  // CONFIG_OPFL_MEMBW_REDUCTION||CONFIG_WARP_BD_BOX
-#if CONFIG_OPFL_MEMBW_REDUCTION
-    ,
-    int use_sub_pad
-#endif  // CONFIG_OPFL_MEMBW_REDUCTION
-#if CONFIG_WARP_BD_BOX
-    ,
-    int use_sub_pad_warp
-#endif  // CONFIG_WARP_BD_BOX
-#endif  // CONFIG_AFFINE_REFINEMENT
-);
+    const AV1_COMMON *cm, int pu_width, int ref, uint16_t **mc_buf,
+    CalcSubpelParamsFunc calc_subpel_params_func, int use_4x4);
 
 // We consider this tunable number K=MAX_LS_BITS-1 (sign bit excluded)
 // as the target maximum bit depth of all intermediate results for LS problem.
@@ -734,174 +699,15 @@ static INLINE void divide_and_round_array(int32_t *sol, int32_t den,
   }
 }
 
-#if CONFIG_AFFINE_REFINEMENT || CONFIG_E125_MHCCP_SIMPLIFY
+#if CONFIG_E125_MHCCP_SIMPLIFY
 // This function is a stable version of ROUND_POWER_OF_TWO_SIGNED(a*b, shift),
 // where shifts are partially applied before multiplcation operations to avoid
 // overflow issues, i.e., (a>>s1)*(b>>s2)>>s3, where s1+s2+s3=shift
 int64_t stable_mult_shift(const int64_t a, const int64_t b, const int shift,
                           const int msb_a, const int msb_b, const int max_bd,
                           int *rem_shift);
-#endif  // CONFIG_AFFINE_REFINEMENT || CONFIG_E125_MHCCP_SIMPLIFY
+#endif  // CONFIG_E125_MHCCP_SIMPLIFY
 
-#if CONFIG_AFFINE_REFINEMENT
-int solver_4d(const int32_t *mat, const int32_t *vec, int *precbits, int *sol);
-void av1_avg_pooling_pdiff_gradients_c(int16_t *pdiff, const int pstride,
-                                       int16_t *gx, int16_t *gy,
-                                       const int gstride, const int bw,
-                                       const int bh, const int n);
-void av1_calc_affine_autocorrelation_matrix_c(const int16_t *pdiff, int pstride,
-                                              const int16_t *gx,
-                                              const int16_t *gy, int gstride,
-                                              int bw, int bh, int32_t *mat_a,
-                                              int32_t *vec_b);
-
-#define AFFINE_OPFL_BASED_ON_SAD 0
-#define AFFINE_FAST_ENC_SEARCH 0
-
-// Method to refine chroma in DAMR
-// 0: no chroma refinement at all
-// 1: affine compound prediction using DAMR warp MVs
-// 2: translational compound prediction using DAMR warp MVs, whole block based
-// 3: translational compound prediction using DAMR warp MVs, subblock based
-#define AFFINE_CHROMA_REFINE_METHOD 1
-
-// Apply averaging of gradient array to downscale prediction block. It can
-// be set to MAX_SB_SIZE_LOG2 to turn off the avg pooling feature.
-#define AFFINE_AVG_MAX_SIZE_LOG2 4
-#define AFFINE_AVG_MAX_SIZE (1 << AFFINE_AVG_MAX_SIZE_LOG2)
-
-// We consider this tunable number H=MAX_AFFINE_AUTOCORR_BITS-1 (sign bit
-// excluded) as the maximum bit depth for autocorrelation matrix filling.
-// This value should not be set lower than 25, since gx*x+gy*y can reach 25
-// bits given the most extreme case (16+8+1 bits).
-#define MAX_AFFINE_AUTOCORR_BITS 32
-// Clamp range for a[] and d. If it uses h unsigned bits, then a[s]a[t] uses 2h
-// unsigned bits. Every sum of 16 a[s]a[t] use at most 2h+4 unsigned bits, and
-// must not exceed max bd of A minus 2. Thus, 2h+4 <= H-2
-#define AFFINE_SAMP_CLAMP_VAL \
-  ((1L << ((MAX_AFFINE_AUTOCORR_BITS - 7) >> 1)) - 1)
-#define AFFINE_COORDS_OFFSET_BITS 2
-
-// Internal bit depths for affine parameter derivation
-#define AFFINE_GRAD_BITS_THR 32
-#define AFFINE_PREC_BITS 12
-#define AFFINE_RLS_PARAM 2
-
-#define BILINEAR_WARP_PREC_BITS 12
-
-static INLINE int is_translational_refinement_allowed(const AV1_COMMON *cm,
-#if CONFIG_COMPOUND_4XN
-                                                      BLOCK_SIZE bsize,
-#endif  // CONFIG_COMPOUND_4XN
-#if CONFIG_ACROSS_SCALE_WARP
-                                                      const MACROBLOCKD *xd,
-#endif  // CONFIG_ACROSS_SCALE_WARP
-                                                      const int mode) {
-  assert(cm->seq_params.enable_opfl_refine);
-  if (mode < NEAR_NEARMV_OPTFLOW) return 0;
-#if CONFIG_COMPOUND_4XN
-  if (is_thin_4xn_nx4_block(bsize)) return 0;
-#endif  // CONFIG_COMPOUND_4XN
-  if (!cm->seq_params.enable_affine_refine) return 1;
-#if CONFIG_ACROSS_SCALE_WARP
-  for (int ref = 0; ref < 1 + has_second_ref(xd->mi[0]); ref++) {
-    if (av1_is_scaled(
-            get_ref_scale_factors_const(cm, xd->mi[0]->ref_frame[ref])))
-      return 1;
-  }
-#endif  // CONFIG_ACROSS_SCALE_WARP
-  return 0;
-}
-
-static INLINE int is_affine_refinement_allowed(const AV1_COMMON *cm,
-                                               const MACROBLOCKD *xd,
-                                               const int mode) {
-  if (!cm->seq_params.enable_affine_refine) return 0;
-  if (mode < NEAR_NEARMV) return 0;
-
-  if (cm->features.opfl_refine_type == REFINE_NONE ||
-      (cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
-       mode < NEAR_NEARMV_OPTFLOW))
-    return 0;
-
-#if CONFIG_ACROSS_SCALE_WARP
-  for (int ref = 0; ref < 1 + has_second_ref(xd->mi[0]); ref++) {
-    if (av1_is_scaled(
-            get_ref_scale_factors_const(cm, xd->mi[0]->ref_frame[ref])))
-      return 0;
-  }
-#endif  // CONFIG_ACROSS_SCALE_WARP
-
-  const MB_MODE_INFO *mbmi = xd->mi[0];
-  if (mbmi->skip_mode && COMP_REFINE_TYPE_FOR_SKIP < COMP_AFFINE_REFINE_START)
-    return 0;
-
-#if CONFIG_COMPOUND_4XN
-  if (has_second_ref(mbmi) &&
-      is_thin_4xn_nx4_block(mbmi->sb_type[xd->tree_type == CHROMA_PART]))
-    return 0;
-#endif  // CONFIG_COMPOUND_4XN
-
-  return 1;
-}
-
-// Return 1 if the second step (subblock based translational refinement) is
-// applied.
-static INLINE int damr_refine_subblock(int plane, const int bw, const int bh,
-                                       CompoundRefineType comp_refine_type,
-                                       int opfl_sub_bw, int opfl_sub_bh) {
-  if (opfl_sub_bw > bw || opfl_sub_bh > bh) return 0;
-  if (plane == 0 && opfl_sub_bw == bw && opfl_sub_bh == bh) return 0;
-#if !CONFIG_EXT_WARP_FILTER
-  if (opfl_sub_bw < 8 || opfl_sub_bh < 8 || bw < 8 || bh < 8) return 0;
-#endif  // !CONFIG_EXT_WARP_FILTER
-
-#if AFFINE_CHROMA_REFINE_METHOD == 2
-  if (plane) return 0;
-#endif
-
-  if (comp_refine_type < COMP_AFFINE_REFINE_START) return 0;
-  return comp_refine_type == COMP_REFINE_ROTZOOM4P_SUBBLK2P;
-}
-
-static INLINE int get_allowed_comp_refine_type_mask(const AV1_COMMON *cm,
-                                                    const MACROBLOCKD *xd,
-                                                    const MB_MODE_INFO *mbmi) {
-  if (cm->features.opfl_refine_type == REFINE_ALL &&
-      opfl_allowed_cur_pred_mode(cm,
-#if CONFIG_COMPOUND_4XN
-                                 xd,
-#endif  // CONFIG_COMPOUND_4XN
-                                 mbmi)) {
-    if (cm->seq_params.enable_affine_refine)
-      return 1 << COMP_REFINE_TYPE_FOR_REFINE_ALL;
-    else
-      return 1 << COMP_REFINE_SUBBLK2P;
-  }
-  if (mbmi->mode < NEAR_NEARMV_OPTFLOW) return 1 << COMP_REFINE_NONE;
-
-  int mask = 0;
-  if (is_translational_refinement_allowed(
-          cm,
-#if CONFIG_COMPOUND_4XN
-          mbmi->sb_type[xd->tree_type == CHROMA_PART],
-#endif  // CONFIG_COMPOUND_4XN
-#if CONFIG_ACROSS_SCALE_WARP
-          xd,
-#endif  // CONFIG_ACROSS_SCALE_WARP
-          mbmi->mode))
-    mask |= (1 << COMP_REFINE_SUBBLK2P);
-
-  if (is_affine_refinement_allowed(cm, xd, mbmi->mode)) {
-    for (CompoundRefineType r = COMP_AFFINE_REFINE_START; r < COMP_REFINE_TYPES;
-         r++)
-      mask |= (1 << r);
-  }
-  // Some kind of refinement must be applied in OPTFLOW modes
-  assert(mask != 0);
-  return mask;
-}
-#else
 static INLINE int is_translational_refinement_allowed(const AV1_COMMON *cm,
 #if CONFIG_COMPOUND_4XN
                                                       BLOCK_SIZE bsize,
@@ -921,7 +727,6 @@ static INLINE int is_translational_refinement_allowed(const AV1_COMMON *cm,
 #endif  // CONFIG_ACROSS_SCALE_WARP
   return 1;
 }
-#endif  // CONFIG_AFFINE_REFINEMENT
 
 #if CONFIG_BRU
 void highbd_build_mc_border(const uint16_t *src, int src_stride, uint16_t *dst,
@@ -1000,14 +805,6 @@ static INLINE int is_refinemv_allowed_bsize(BLOCK_SIZE bsize) {
   return (block_size_wide[bsize] >= 16 || block_size_high[bsize] >= 16);
 }
 
-#if CONFIG_AFFINE_REFINEMENT
-static INLINE int is_damr_allowed_with_refinemv(const PREDICTION_MODE mode) {
-  // if (mode == NEAR_NEARMV_OPTFLOW) return 1;
-  (void)mode;
-  return 0;
-}
-#endif  // CONFIG_AFFINE_REFINEMENT
-
 // check if the refinemv mode is allwed for a given mode and precision
 static INLINE int is_refinemv_allowed_mode_precision(
     PREDICTION_MODE mode, MvSubpelPrecision precision,
@@ -1015,43 +812,16 @@ static INLINE int is_refinemv_allowed_mode_precision(
   (void)precision;
   if (mode == GLOBAL_GLOBALMV) return 0;
 
-#if CONFIG_AFFINE_REFINEMENT
-  // Refine MV is allow in JOINT_NEWMV and disallowed in *_OPTFLOW modes
-  if (cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
-      cm->seq_params.enable_affine_refine) {
-    if (mode == JOINT_NEWMV) return 1;
-  }
-#endif  // CONFIG_AFFINE_REFINEMENT
-
   if (cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
       (mode == JOINT_NEWMV || mode == NEAR_NEWMV || mode == NEW_NEARMV ||
        mode == NEW_NEWMV))
     return 0;
 
-#if CONFIG_AFFINE_REFINEMENT
-  if (cm->seq_params.enable_affine_refine) {
-    if (is_damr_allowed_with_refinemv(mode)) return 1;
-    if (cm->features.opfl_refine_type == REFINE_ALL) return 0;
-    return mode == NEAR_NEARMV;
-  }
-#endif
   return (mode >= NEAR_NEARMV);
 }
 
 // check if the prediction mode infered to refimemv to always 1.
-#if CONFIG_AFFINE_REFINEMENT
-static INLINE int default_refinemv_modes(const AV1_COMMON *cm,
-                                         const MB_MODE_INFO *mbmi) {
-#else
 static INLINE int default_refinemv_modes(const MB_MODE_INFO *mbmi) {
-#endif
-
-#if CONFIG_AFFINE_REFINEMENT
-  if (cm->seq_params.enable_affine_refine) {
-    if (is_damr_allowed_with_refinemv(mbmi->mode)) return 1;
-    return mbmi->mode == NEAR_NEARMV || mbmi->mode == JOINT_NEWMV;
-  }
-#endif  // CONFIG_AFFINE_REFINEMENT
   return (mbmi->mode == NEAR_NEARMV || mbmi->mode == NEAR_NEARMV_OPTFLOW ||
           mbmi->mode == JOINT_NEWMV_OPTFLOW);
 }
@@ -1134,11 +904,7 @@ static INLINE int is_refinemv_allowed(const AV1_COMMON *const cm,
 static INLINE int is_any_mv_refinement_allowed(const AV1_COMMON *const cm) {
   if (!cm->has_both_sides_refs) return 0;
 
-  if (!cm->seq_params.enable_opfl_refine &&
-#if CONFIG_AFFINE_REFINEMENT
-      !cm->seq_params.enable_affine_refine &&
-#endif  // CONFIG_AFFINE_REFINEMENT
-      !cm->seq_params.enable_refinemv)
+  if (!cm->seq_params.enable_opfl_refine && !cm->seq_params.enable_refinemv)
     return 0;
 
   const int tip_wtd_index = cm->tip_global_wtd_index;
@@ -1152,11 +918,7 @@ static INLINE int is_any_mv_refinement_allowed(const AV1_COMMON *const cm) {
 static INLINE int is_unequal_weighted_tip_allowed(const AV1_COMMON *const cm) {
   if (!cm->has_both_sides_refs) return 1;
 
-  if (!cm->seq_params.enable_opfl_refine &&
-#if CONFIG_AFFINE_REFINEMENT
-      !cm->seq_params.enable_affine_refine &&
-#endif  // CONFIG_AFFINE_REFINEMENT
-      !cm->seq_params.enable_refinemv)
+  if (!cm->seq_params.enable_opfl_refine && !cm->seq_params.enable_refinemv)
     return 1;
 
   return 0;
@@ -1214,11 +976,7 @@ static INLINE int get_default_refinemv_flag(const AV1_COMMON *const cm,
            ? is_refinemv_allowed_skip_mode(cm, mbmi)
            : is_refinemv_allowed(cm, mbmi, mbmi->sb_type[PLANE_TYPE_Y]));
   if (is_refinemv) {
-#if CONFIG_AFFINE_REFINEMENT
-    if (default_refinemv_modes(cm, mbmi)) return 1;
-#else
     if (default_refinemv_modes(mbmi)) return 1;
-#endif  // CONFIG_AFFINE_REFINEMENT
   }
   return 0;
 }
@@ -1232,11 +990,7 @@ static INLINE int switchable_refinemv_flag(const AV1_COMMON *const cm,
            ? is_refinemv_allowed_skip_mode(cm, mbmi)
            : is_refinemv_allowed(cm, mbmi, mbmi->sb_type[PLANE_TYPE_Y]));
   if (is_refinemv && !is_tip_ref_frame(mbmi->ref_frame[0])) {
-#if CONFIG_AFFINE_REFINEMENT
-    if (default_refinemv_modes(cm, mbmi)) return 0;
-#else
     if (default_refinemv_modes(mbmi)) return 0;
-#endif  // CONFIG_AFFINE_REFINEMENT
     return 1;
   }
 
@@ -1308,11 +1062,8 @@ void av1_opfl_mv_refinement(const int16_t *pdiff, int pstride0,
                             int mv_prec_bits, int *vx0, int *vy0, int *vx1,
                             int *vy1);
 void av1_compute_subpel_gradients_interp(int16_t *pred_dst, int bw, int bh,
-                                         int *grad_prec_bits,
-#if CONFIG_AFFINE_REFINEMENT_SB
-                                         int use_affine,
-#endif  // CONFIG_AFFINE_REFINEMENT_SB
-                                         int16_t *x_grad, int16_t *y_grad);
+                                         int *grad_prec_bits, int16_t *x_grad,
+                                         int16_t *y_grad);
 
 // TODO(jkoleszar): yet another mv clamping function :-(
 static INLINE MV clamp_mv_to_umv_border_sb(const MACROBLOCKD *xd,

@@ -627,11 +627,6 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
               "Enable optical flow MV refinement (0: off , 1: switchable per "
               "block (default), 2: used in all blocks with simple compound "
               "average, 3: auto (swtichable per frame by the encoder))"),
-#if CONFIG_AFFINE_REFINEMENT
-  .enable_affine_refine =
-      ARG_DEF(NULL, "enable-affine-refine", 1,
-              "Enable affine refinement (0: false, 1: true (default))"),
-#endif  // CONFIG_AFFINE_REFINEMENT
   .enable_trellis_quant =
       ARG_DEF(NULL, "enable-trellis-quant", 1,
               "Enable trellis optimization of quantized coefficients "

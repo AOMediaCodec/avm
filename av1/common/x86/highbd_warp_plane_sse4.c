@@ -377,26 +377,12 @@ void av1_highbd_warp_affine_sse4_1(const int32_t *mat, const uint16_t *ref,
                                    int p_width, int p_height, int p_stride,
                                    int subsampling_x, int subsampling_y, int bd,
                                    ConvolveParams *conv_params, int16_t alpha,
-                                   int16_t beta, int16_t gamma, int16_t delta
-#if CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
-                                   ,
-                                   int use_damr_padding, ReferenceArea *ref_area
-#endif  // CONFIG_OPFL_MEMBW_REDUCTION && CONFIG_AFFINE_REFINEMENT
-) {
+                                   int16_t beta, int16_t gamma, int16_t delta) {
 #if CONFIG_OPFL_MEMBW_REDUCTION
-#if CONFIG_AFFINE_REFINEMENT
-  const int left_limit = use_damr_padding ? ref_area->pad_block.x0 : 0;
-  const int right_limit =
-      use_damr_padding ? ref_area->pad_block.x1 - 1 : width - 1;
-  const int top_limit = use_damr_padding ? ref_area->pad_block.y0 : 0;
-  const int bottom_limit =
-      use_damr_padding ? ref_area->pad_block.y1 - 1 : height - 1;
-#else
   const int left_limit = 0;
   const int right_limit = width - 1;
   const int top_limit = 0;
   const int bottom_limit = height - 1;
-#endif  // CONFIG_AFFINE_REFINEMENT
 #endif  // CONFIG_OPFL_MEMBW_REDUCTION
   __m128i tmp[15];
   int i, j, k;
@@ -997,18 +983,16 @@ void av1_ext_highbd_warp_horiz_sse4_1(const uint16_t *ref, __m128i *tmp,
   }
 }
 
-void av1_ext_highbd_warp_affine_sse4_1(
-    const int32_t *mat, const uint16_t *ref, int width, int height, int stride,
-    uint16_t *pred, int p_col, int p_row, int p_width, int p_height,
-    int p_stride, int subsampling_x, int subsampling_y, int bd,
-    ConvolveParams *conv_params
+void av1_ext_highbd_warp_affine_sse4_1(const int32_t *mat, const uint16_t *ref,
+                                       int width, int height, int stride,
+                                       uint16_t *pred, int p_col, int p_row,
+                                       int p_width, int p_height, int p_stride,
+                                       int subsampling_x, int subsampling_y,
+                                       int bd, ConvolveParams *conv_params
 #if CONFIG_WARP_BD_BOX
-    ,
-    int use_warp_bd_box, WarpBoundaryBox *warp_bd_box
-#if CONFIG_AFFINE_REFINEMENT
-    ,
-    int use_warp_bd_damr, WarpBoundaryBox *warp_bd_box_damr
-#endif  // CONFIG_AFFINE_REFINEMENT
+                                       ,
+                                       int use_warp_bd_box,
+                                       WarpBoundaryBox *warp_bd_box
 #endif  // CONFIG_WARP_BD_BOX
 ) {
 
@@ -1079,17 +1063,6 @@ void av1_ext_highbd_warp_affine_sse4_1(
         top_limit = warp_bd_box[box_idx].y0;
         bottom_limit = warp_bd_box[box_idx].y1 - 1;
       }
-#if CONFIG_AFFINE_REFINEMENT
-      if (use_warp_bd_damr) {
-        if (use_warp_bd_box) {
-          printf("this should not be true\n");
-        }
-        left_limit = warp_bd_box_damr->x0;
-        right_limit = warp_bd_box_damr->x1 - 1;
-        top_limit = warp_bd_box_damr->y0;
-        bottom_limit = warp_bd_box_damr->y1 - 1;
-      }
-#endif  // CONFIG_AFFINE_REFINEMENT
 #endif  // CONFIG_WARP_BD_BOX
       // Calculate the center of this 4x4 block,
       // project to luma coordinates (if in a subsampled chroma plane),

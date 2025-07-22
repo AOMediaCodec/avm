@@ -640,16 +640,6 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
   mbmi->morph_pred = 0;
 #endif  // CONFIG_MORPH_PRED
 
-#if CONFIG_AFFINE_REFINEMENT
-  mbmi->comp_refine_type = COMP_REFINE_SUBBLK2P;
-  int use_affine_opfl = 0;
-  WarpedMotionParams wms[8];
-  for (int mvi = 0; mvi < 4; mvi++) {
-    wms[2 * mvi] = default_warp_params;
-    wms[2 * mvi + 1] = default_warp_params;
-  }
-#endif  // CONFIG_AFFINE_REFINEMENT
-
 #if CONFIG_REFINEMV
   MV best_mv_ref[2] = { { mbmi->mv[0].as_mv.row, mbmi->mv[0].as_mv.col },
                         { mbmi->mv[1].as_mv.row, mbmi->mv[1].as_mv.col } };
@@ -746,19 +736,16 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
     }
     // Refine MV using optical flow. The final output MV will be in 1/16
     // precision.
-    av1_get_optflow_based_mv(
-        cm, xd, plane, mbmi, mv_refined, bw, bh, mi_x, mi_y,
+    av1_get_optflow_based_mv(cm, xd, plane, mbmi, mv_refined, bw, bh, mi_x,
+                             mi_y,
 #if CONFIG_E191_OFS_PRED_RES_HANDLE
-        0 /* build_for_decode */,
+                             0 /* build_for_decode */,
 #endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
-        mc_buf, calc_subpel_params_func, gx0, gy0, gx1, gy1,
-#if CONFIG_AFFINE_REFINEMENT
-        use_affine_opfl ? wms : NULL, &use_affine_opfl,
-#endif  // CONFIG_AFFINE_REFINEMENT
-        vx0, vy0, vx1, vy1, dst0, dst1, 0, use_4x4
+                             mc_buf, calc_subpel_params_func, gx0, gy0, gx1,
+                             gy1, vx0, vy0, vx1, vy1, dst0, dst1, 0, use_4x4
 #if CONFIG_REFINEMV
-        ,
-        best_mv_ref, bw, bh
+                             ,
+                             best_mv_ref, bw, bh
 #endif  // CONFIG_REFINEMV
     );
 
@@ -815,33 +802,13 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
         get_conv_params_no_round(ref, plane, tmp_conv_dst, MAX_SB_SIZE, 1, bd);
 
     if (do_opfl) {
-      av1_opfl_rebuild_inter_predictor(
-          dst, dst_stride, plane, mv_refined, &inter_pred_params, xd, mi_x,
-          mi_y,
+      av1_opfl_rebuild_inter_predictor(dst, dst_stride, plane, mv_refined,
+                                       &inter_pred_params, xd, mi_x, mi_y,
 #if CONFIG_E191_OFS_PRED_RES_HANDLE
-          0 /* build_for_decode */,
+                                       0 /* build_for_decode */,
 #endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
-          cm, bw,
-#if CONFIG_AFFINE_REFINEMENT
-          vxy_bufs, 4, mbmi->comp_refine_type, use_affine_opfl ? wms : NULL,
-          &mbmi->mv[ref], use_affine_opfl,
-#endif  // CONFIG_AFFINE_REFINEMENT
-          ref, mc_buf, calc_subpel_params_func, use_4x4
-#if CONFIG_AFFINE_REFINEMENT
-#if CONFIG_OPFL_MEMBW_REDUCTION || CONFIG_WARP_BD_BOX
-          ,
-          mbmi, bh, mv
-#endif  // CONFIG_OPFL_MEMBW_REDUCTION||CONFIG_WARP_BD_BOX
-#if CONFIG_OPFL_MEMBW_REDUCTION
-          ,
-          0
-#endif  // CONFIG_OPFL_MEMBW_REDUCTION
-#if CONFIG_WARP_BD_BOX
-          ,
-          0
-#endif  // CONFIG_WARP_BD_BOX
-#endif  // CONFIG_AFFINE_REFINEMENT
-      );
+                                       cm, bw, ref, mc_buf,
+                                       calc_subpel_params_func, use_4x4);
     } else {
 #if CONFIG_REFINEMV
       const MV mv_1_16th_pel = convert_mv_to_1_16th_pel(&best_mv_ref[ref]);
@@ -1201,9 +1168,6 @@ static void tip_setup_tip_frame_plane(
           mbmi.motion_mode = SIMPLE_TRANSLATION;
           mbmi.interinter_comp.type = COMPOUND_AVERAGE;
           mbmi.cwp_idx = 0;
-#if CONFIG_AFFINE_REFINEMENT
-          mbmi.comp_refine_type = COMP_REFINE_SUBBLK2P;
-#endif  // CONFIG_AFFINE_REFINEMENT
           mbmi.refinemv_flag = 0;
 
           // Save the MVs before refinement into the TMVP list.

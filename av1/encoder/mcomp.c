@@ -378,11 +378,7 @@ int opfl_refine_fullpel_mv_one_sided(
   else
     av1_copy_pred_array_highbd(dst0, dst1, tmp0, tmp1, bw, bh, 1, -1, 1);
   // Buffers gx0 and gy0 are used to store the gradients of tmp0
-  av1_compute_subpel_gradients_interp(tmp0, bw, bh, &grad_prec_bits,
-#if CONFIG_AFFINE_REFINEMENT_SB
-                                      0,
-#endif  // CONFIG_AFFINE_REFINEMENT_SB
-                                      gx0, gy0);
+  av1_compute_subpel_gradients_interp(tmp0, bw, bh, &grad_prec_bits, gx0, gy0);
   int bits = 3 + get_opfl_mv_upshift_bits(mbmi);
 #if OMVS_AVG_POOLING
   int n = AOMMIN(8, AOMMIN(bw, bh));

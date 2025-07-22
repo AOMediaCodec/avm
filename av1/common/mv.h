@@ -530,19 +530,6 @@ typedef struct {
 #endif  // CONFIG_EXT_WARP_FILTER
 } WarpedMotionParams;
 
-#if CONFIG_AFFINE_REFINEMENT
-// Affine parameters per unit of temporal distance
-typedef struct AffineModelParams {
-  int rot_angle;    // rotation angle is d*rot_angle
-  int scale_alpha;  // x scaling factor is 1+d*scale_alpha
-  int scale_beta;   // y scaling factor is 1+d*scale_beta
-  int tran_x;       // x translation is d*tran_x
-  int tran_y;       // y translation is d*tran_y
-} AffineModelParams;
-
-static const AffineModelParams default_affine_params = { 0, 0, 0, 0, 0 };
-#endif  // CONFIG_AFFINE_REFINEMENT
-
 /* clang-format off */
 static const WarpedMotionParams default_warp_params = {
   { 0, 0, (1 << WARPEDMODEL_PREC_BITS), 0, 0, (1 << WARPEDMODEL_PREC_BITS), 0,
