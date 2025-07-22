@@ -3261,9 +3261,6 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 #if CONFIG_IBC_SR_EXT
   if (cm->features.allow_intrabc) {
     cm->features.allow_global_intrabc =
-#if CONFIG_ENABLE_IBC_NAT
-        cm->features.is_scc_content_by_detector &&
-#endif  // CONFIG_ENABLE_IBC_NAT
         (oxcf->kf_cfg.enable_intrabc_ext != 2) && frame_is_intra_only(cm);
     cm->features.allow_local_intrabc = !!oxcf->kf_cfg.enable_intrabc_ext;
   } else {
@@ -4424,9 +4421,6 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   cpi->is_screen_content_type = features->allow_screen_content_tools;
   if (cm->features.allow_intrabc) {
     cm->features.allow_global_intrabc =
-#if CONFIG_ENABLE_IBC_NAT
-        cm->features.is_scc_content_by_detector &&
-#endif  // CONFIG_ENABLE_IBC_NAT
         (oxcf->kf_cfg.enable_intrabc_ext != 2) && frame_is_intra_only(cm);
 
     cm->features.allow_local_intrabc = !!oxcf->kf_cfg.enable_intrabc_ext;
