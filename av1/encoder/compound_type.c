@@ -538,9 +538,6 @@ static int64_t estimate_yrd_for_sb(const AV1_COMP *const cpi, BLOCK_SIZE bs,
   MACROBLOCKD *const xd = &x->e_mbd;
 
   if (ref_best_rd < 0) return INT64_MAX;
-#if !CONFIG_E191_OFS_PRED_RES_HANDLE
-  av1_subtract_plane(x, bs, 0);
-#endif  // !CONFIG_E191_OFS_PRED_RES_HANDLE
   x->rd_model = LOW_TXFM_RD;
   const int skip_trellis = (cpi->optimize_seg_arr[xd->mi[0]->segment_id] ==
                             NO_ESTIMATE_YRD_TRELLIS_OPT);

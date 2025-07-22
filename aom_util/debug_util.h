@@ -56,17 +56,11 @@ void mismatch_record_block_tx(const uint16_t *src, int src_stride,
                               int frame_offset, int plane, int pixel_c,
                               int pixel_r, int blk_w, int blk_h);
 void mismatch_check_block_pre(const uint16_t *src, int src_stride,
-                              int frame_offset,
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
-                              int pixels_c, int pixels_r,
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
+                              int frame_offset, int pixels_c, int pixels_r,
                               int plane, int pixel_c, int pixel_r, int blk_w,
                               int blk_h);
 void mismatch_check_block_tx(const uint16_t *src, int src_stride,
-                             int frame_offset,
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
-                             int pixels_c, int pixels_r,
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
+                             int frame_offset, int pixels_c, int pixels_r,
                              int plane, int pixel_c, int pixel_r, int blk_w,
                              int blk_h);
 #endif  // CONFIG_MISMATCH_DEBUG

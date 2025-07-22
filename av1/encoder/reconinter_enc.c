@@ -170,11 +170,8 @@ void enc_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
 #if CONFIG_REFINEMV
                              build_for_refine_mv_only,
 #endif  // CONFIG_REFINEMV
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
-                             0 /* build_for_decode */,
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
-                             bw, bh, mi_x, mi_y, NULL /* mc_buf */,
-                             av1_enc_calc_subpel_params);
+                             0 /* build_for_decode */, bw, bh, mi_x, mi_y,
+                             NULL /* mc_buf */, av1_enc_calc_subpel_params);
 }
 
 void av1_enc_build_inter_predictor_y(MACROBLOCKD *xd, int mi_row, int mi_col) {

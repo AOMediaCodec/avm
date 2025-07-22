@@ -467,11 +467,9 @@ typedef int (*opfl_mv_refinement)(const int16_t *pdiff, int pstride,
                                   const int16_t *gx, const int16_t *gy,
                                   int gstride, int bw, int bh, int n, int d0,
                                   int d1, int grad_prec_bits, int mv_prec_bits,
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
                                   int mi_x, int mi_y, int mi_cols, int mi_rows,
-                                  int build_for_decode,
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
-                                  int *vx0, int *vy0, int *vx1, int *vy1);
+                                  int build_for_decode, int *vx0, int *vy0,
+                                  int *vx1, int *vy1);
 
 class AV1OptFlowRefineTest : public AV1OptFlowTest<opfl_mv_refinement> {
  public:
@@ -574,20 +572,14 @@ class AV1OptFlowRefineTest : public AV1OptFlowTest<opfl_mv_refinement> {
 
     int n_blocks_ref = ref_func(
         input, stride, gx, gy, gstride, bw, bh, n, d0, d1, grad_prec_bits,
-        mv_prec_bits,
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
-        0, 0, 0, 0, 0,
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
-        &ref_out[kVX_0 * N_OF_OFFSETS], &ref_out[kVY_0 * N_OF_OFFSETS],
-        &ref_out[kVX_1 * N_OF_OFFSETS], &ref_out[kVY_1 * N_OF_OFFSETS]);
+        mv_prec_bits, 0, 0, 0, 0, 0, &ref_out[kVX_0 * N_OF_OFFSETS],
+        &ref_out[kVY_0 * N_OF_OFFSETS], &ref_out[kVX_1 * N_OF_OFFSETS],
+        &ref_out[kVY_1 * N_OF_OFFSETS]);
     int n_blocks = test_func(
         input, stride, gx, gy, gstride, bw, bh, n, d0, d1, grad_prec_bits,
-        mv_prec_bits,
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
-        0, 0, 0, 0, 0,
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
-        &test_out[kVX_0 * N_OF_OFFSETS], &test_out[kVY_0 * N_OF_OFFSETS],
-        &test_out[kVX_1 * N_OF_OFFSETS], &test_out[kVY_1 * N_OF_OFFSETS]);
+        mv_prec_bits, 0, 0, 0, 0, 0, &test_out[kVX_0 * N_OF_OFFSETS],
+        &test_out[kVY_0 * N_OF_OFFSETS], &test_out[kVX_1 * N_OF_OFFSETS],
+        &test_out[kVY_1 * N_OF_OFFSETS]);
 
     ASSERT_EQ(n_blocks_ref, n_blocks) << "Mismatch of subblock numbers";
     AssertOutputEq(&ref_out[kVX_0 * N_OF_OFFSETS],
@@ -620,10 +612,7 @@ class AV1OptFlowRefineTest : public AV1OptFlowTest<opfl_mv_refinement> {
     aom_usec_timer_start(&timer_ref);
     for (int count = 0; count < numIter; count++) {
       ref_func(input, stride, gx, gy, gstride, bw, bh, n, d0, d1,
-               grad_prec_bits, mv_prec_bits,
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
-               0, 0, 0, 0, 0,
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
+               grad_prec_bits, mv_prec_bits, 0, 0, 0, 0, 0,
                &ref_out[kVX_0 * N_OF_OFFSETS], &ref_out[kVY_0 * N_OF_OFFSETS],
                &ref_out[kVX_1 * N_OF_OFFSETS], &ref_out[kVY_1 * N_OF_OFFSETS]);
     }
@@ -633,12 +622,9 @@ class AV1OptFlowRefineTest : public AV1OptFlowTest<opfl_mv_refinement> {
     for (int count = 0; count < numIter; count++) {
       test_func(
           input, stride, gx, gy, gstride, bw, bh, n, d0, d1, grad_prec_bits,
-          mv_prec_bits,
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
-          0, 0, 0, 0, 0,
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
-          &test_out[kVX_0 * N_OF_OFFSETS], &test_out[kVY_0 * N_OF_OFFSETS],
-          &test_out[kVX_1 * N_OF_OFFSETS], &test_out[kVY_1 * N_OF_OFFSETS]);
+          mv_prec_bits, 0, 0, 0, 0, 0, &test_out[kVX_0 * N_OF_OFFSETS],
+          &test_out[kVY_0 * N_OF_OFFSETS], &test_out[kVX_1 * N_OF_OFFSETS],
+          &test_out[kVY_1 * N_OF_OFFSETS]);
     }
     aom_usec_timer_mark(&timer_test);
 

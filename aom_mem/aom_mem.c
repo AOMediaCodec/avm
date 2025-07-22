@@ -84,11 +84,9 @@ void *aom_memset16(void *dest, int val, size_t length) {
   return dest;
 }
 
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
 void *aom_memset_int16(void *dest, int16_t val, size_t length) {
   size_t i;
   int16_t *dest16 = (int16_t *)dest;
   for (i = 0; i < length; i++) *dest16++ = val;
   return dest;
 }
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE

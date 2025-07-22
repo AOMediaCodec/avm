@@ -294,9 +294,6 @@ set_aom_config_var(CONFIG_EXPLICIT_TEMPORAL_DIST_CALC 1
 set_aom_config_var(CONFIG_IMPROVED_GLOBAL_MOTION 1
                    "New global motion syntax for AV2")
 
-set_aom_config_var(CONFIG_E191_OFS_PRED_RES_HANDLE 1
-                   "Enable outside frame boundary block handling")
-
 set_aom_config_var(CONFIG_EXT_WARP_FILTER 1 "Enable extended warp filter")
 
 set_aom_config_var(CONFIG_IMPROVE_EXT_WARP 1

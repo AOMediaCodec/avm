@@ -326,20 +326,16 @@ static AOM_INLINE void predict_and_reconstruct_intra_block(
       mi_to_pixel_loc(&pixel_c, &pixel_r, mi_col, mi_row, col, row,
                       pd->subsampling_x, pd->subsampling_y);
     }
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
     int pixels_c = (cm->mi_params.mi_cols * MI_SIZE) >> pd->subsampling_x;
     int pixels_r = (cm->mi_params.mi_rows * MI_SIZE) >> pd->subsampling_y;
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
     mismatch_check_block_pre(pd->dst.buf, pd->dst.stride,
 #if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
                              cm->current_frame.display_order_hint,
 #else
                              cm->current_frame.order_hint,
 #endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
-                             pixels_c, pixels_r,
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
-                             plane, pixel_c, pixel_r, blk_w, blk_h);
+                             pixels_c, pixels_r, plane, pixel_c, pixel_r, blk_w,
+                             blk_h);
   }
 #endif  // CONFIG_MISMATCH_DEBUG
 
@@ -380,20 +376,16 @@ static AOM_INLINE void predict_and_reconstruct_intra_block(
       mi_to_pixel_loc(&pixel_c, &pixel_r, mi_col, mi_row, col, row,
                       pd->subsampling_x, pd->subsampling_y);
     }
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
     int pixels_c = (cm->mi_params.mi_cols * MI_SIZE) >> pd->subsampling_x;
     int pixels_r = (cm->mi_params.mi_rows * MI_SIZE) >> pd->subsampling_y;
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
     mismatch_check_block_tx(dst, pd->dst.stride,
 #if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
                             cm->current_frame.display_order_hint,
 #else
                             cm->current_frame.order_hint,
 #endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
-                            pixels_c, pixels_r,
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
-                            plane, pixel_c, pixel_r, blk_w, blk_h);
+                            pixels_c, pixels_r, plane, pixel_c, pixel_r, blk_w,
+                            blk_h);
   }
 #endif  // CONFIG_MISMATCH_DEBUG
 }
@@ -450,20 +442,16 @@ static AOM_INLINE void inverse_transform_inter_block(
     mi_to_pixel_loc(&pixel_c, &pixel_r, mi_col, mi_row, blk_col, blk_row,
                     pd->subsampling_x, pd->subsampling_y);
   }
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
   int pixels_c = (cm->mi_params.mi_cols * MI_SIZE) >> pd->subsampling_x;
   int pixels_r = (cm->mi_params.mi_rows * MI_SIZE) >> pd->subsampling_y;
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
   mismatch_check_block_tx(dst, pd->dst.stride,
 #if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
                           cm->current_frame.display_order_hint,
 #else
                           cm->current_frame.order_hint,
 #endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
-                          pixels_c, pixels_r,
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
-                          plane, pixel_c, pixel_r, blk_w, blk_h);
+                          pixels_c, pixels_r, plane, pixel_c, pixel_r, blk_w,
+                          blk_h);
 #endif  // CONFIG_MISMATCH_DEBUG
 }
 
@@ -977,11 +965,8 @@ static void dec_build_inter_predictors(const AV1_COMMON *cm,
 #if CONFIG_REFINEMV
                              build_for_refine_mv_only,
 #endif  // CONFIG_REFINEMV
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
-                             1 /* build_for_decode */,
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
-                             bw, bh, mi_x, mi_y, dcb->mc_buf,
-                             dec_calc_subpel_params_and_extend);
+                             1 /* build_for_decode */, bw, bh, mi_x, mi_y,
+                             dcb->mc_buf, dec_calc_subpel_params_and_extend);
 }
 
 static AOM_INLINE void dec_build_inter_predictor(const AV1_COMMON *cm,
@@ -1107,20 +1092,16 @@ static AOM_INLINE void predict_inter_block(AV1_COMMON *const cm,
       mi_to_pixel_loc(&pixel_c, &pixel_r, mi_col, mi_row, 0, 0,
                       pd->subsampling_x, pd->subsampling_y);
     }
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
     int pixels_c = (cm->mi_params.mi_cols * MI_SIZE) >> pd->subsampling_x;
     int pixels_r = (cm->mi_params.mi_rows * MI_SIZE) >> pd->subsampling_y;
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
     mismatch_check_block_pre(pd->dst.buf, pd->dst.stride,
 #if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
                              cm->current_frame.display_order_hint,
 #else
                              cm->current_frame.order_hint,
 #endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
-                             pixels_c, pixels_r,
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
-                             plane, pixel_c, pixel_r, pd->width, pd->height);
+                             pixels_c, pixels_r, plane, pixel_c, pixel_r,
+                             pd->width, pd->height);
   }
 #endif  // CONFIG_MISMATCH_DEBUG
 

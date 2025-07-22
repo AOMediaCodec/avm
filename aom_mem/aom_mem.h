@@ -38,9 +38,7 @@ void *aom_malloc(size_t size);
 void *aom_calloc(size_t num, size_t size);
 void aom_free(void *memblk);
 void *aom_memset16(void *dest, int val, size_t length);
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
 void *aom_memset_int16(void *dest, int16_t val, size_t length);
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
 
 /*returns an addr aligned to the byte boundary specified by align*/
 #define aom_align_addr(addr, align) \

@@ -7825,12 +7825,7 @@ static AOM_INLINE void refine_winner_mode_tx(
         av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0,
                                       av1_num_planes(cm) - 1);
 
-        av1_subtract_plane(x, bsize, 0
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
-                           ,
-                           cm->width, cm->height
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
-        );
+        av1_subtract_plane(x, bsize, 0, cm->width, cm->height);
         if (txfm_params->tx_mode_search_type == TX_MODE_SELECT &&
             !xd->lossless[mbmi->segment_id]) {
           av1_pick_recursive_tx_size_type_yrd(cpi, x, &rd_stats_y, bsize,

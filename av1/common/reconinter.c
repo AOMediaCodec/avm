@@ -1459,17 +1459,13 @@ int av1_opfl_mv_refinement_nxn_c(const int16_t *pdiff, int pstride,
                                  const int16_t *gx, const int16_t *gy,
                                  int gstride, int bw, int bh, int n, int d0,
                                  int d1, int grad_prec_bits, int mv_prec_bits,
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
                                  int mi_x, int mi_y, int mi_cols, int mi_rows,
-                                 int build_for_decode,
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
-
-                                 int *vx0, int *vy0, int *vx1, int *vy1) {
+                                 int build_for_decode, int *vx0, int *vy0,
+                                 int *vx1, int *vy1) {
   assert(bw % n == 0 && bh % n == 0);
   int n_blocks = 0;
   for (int i = 0; i < bh; i += n) {
     for (int j = 0; j < bw; j += n) {
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
       if (is_subblock_outside(mi_x + j, mi_y + i, mi_cols, mi_rows,
                               build_for_decode)) {
         *(vx0 + n_blocks) = 0;
@@ -1479,7 +1475,6 @@ int av1_opfl_mv_refinement_nxn_c(const int16_t *pdiff, int pstride,
         n_blocks++;
         continue;
       }
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
       av1_opfl_mv_refinement(pdiff + (i * pstride + j), pstride,
                              gx + (i * gstride + j), gy + (i * gstride + j),
                              gstride, n, n, d0, d1, grad_prec_bits,
@@ -1516,18 +1511,18 @@ void av1_copy_pred_array_highbd_c(const uint16_t *src1, const uint16_t *src2,
                                         centered);
 }
 
-void av1_get_optflow_based_mv(
-    const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mbmi,
-    int_mv *mv_refined, int bw, int bh, int mi_x, int mi_y,
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
-    int build_for_decode,
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
-    uint16_t **mc_buf, CalcSubpelParamsFunc calc_subpel_params_func,
-    int16_t *gx0, int16_t *gy0, int16_t *gx1, int16_t *gy1, int *vx0, int *vy0,
-    int *vx1, int *vy1, uint16_t *dst0, uint16_t *dst1, int do_pred, int use_4x4
+void av1_get_optflow_based_mv(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
+                              const MB_MODE_INFO *mbmi, int_mv *mv_refined,
+                              int bw, int bh, int mi_x, int mi_y,
+                              int build_for_decode, uint16_t **mc_buf,
+                              CalcSubpelParamsFunc calc_subpel_params_func,
+                              int16_t *gx0, int16_t *gy0, int16_t *gx1,
+                              int16_t *gy1, int *vx0, int *vy0, int *vx1,
+                              int *vy1, uint16_t *dst0, uint16_t *dst1,
+                              int do_pred, int use_4x4
 #if CONFIG_REFINEMV
-    ,
-    MV *best_mv_ref, int pu_width, int pu_height
+                              ,
+                              MV *best_mv_ref, int pu_width, int pu_height
 #endif  // CONFIG_REFINEMV
 ) {
   const int target_prec = MV_REFINE_PREC_BITS;
@@ -1626,13 +1621,10 @@ void av1_get_optflow_based_mv(
   // Buffers gx0 and gy0 are used to store the gradients of tmp0
   av1_compute_subpel_gradients_interp(tmp0, bw, bh, &grad_prec_bits, gx0, gy0);
 
-  n_blocks = av1_opfl_mv_refinement_nxn(tmp1, bw, gx0, gy0, bw, bw, bh, n, d0,
-                                        d1, grad_prec_bits, target_prec,
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
-                                        mi_x, mi_y, cm->mi_params.mi_cols,
-                                        cm->mi_params.mi_rows, build_for_decode,
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
-                                        vx0, vy0, vx1, vy1);
+  n_blocks = av1_opfl_mv_refinement_nxn(
+      tmp1, bw, gx0, gy0, bw, bw, bh, n, d0, d1, grad_prec_bits, target_prec,
+      mi_x, mi_y, cm->mi_params.mi_cols, cm->mi_params.mi_rows,
+      build_for_decode, vx0, vy0, vx1, vy1);
 
   aom_free(tmp0);
   aom_free(tmp1);
@@ -1805,10 +1797,7 @@ static
 void make_inter_pred_of_nxn(uint16_t *dst, int dst_stride,
                             int_mv *const mv_refined,
                             InterPredParams *inter_pred_params, MACROBLOCKD *xd,
-                            int mi_x, int mi_y,
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
-                            int build_for_decode,
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
+                            int mi_x, int mi_y, int build_for_decode,
                             const AV1_COMMON *cm, int pu_width, int plane,
                             int ref, uint16_t **mc_buf,
                             CalcSubpelParamsFunc calc_subpel_params_func,
@@ -1837,7 +1826,6 @@ void make_inter_pred_of_nxn(uint16_t *dst, int dst_stride,
   for (int j = 0; j < bh; j += sub_bh) {
     for (int i = 0; i < bw; i += sub_bw) {
       int delta_idx = (j / sub_bh) * (pu_width / sub_bw) + (i / sub_bw);
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
       const int x = mi_x + i * (1 << inter_pred_params->subsampling_x);
       const int y = mi_y + j * (1 << inter_pred_params->subsampling_y);
       if (is_subblock_outside(x, y, cm->mi_params.mi_cols,
@@ -1848,7 +1836,6 @@ void make_inter_pred_of_nxn(uint16_t *dst, int dst_stride,
         inter_pred_params->pix_col += sub_bw;
         continue;
       }
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
       if (bw == 4 && bh == 4 && sub_bw == 4 && sub_bh == 4) {
         avg_mv.row =
             ROUND_POWER_OF_TWO_SIGNED(mv_refined[0 * 2 + ref].as_mv.row +
@@ -1966,20 +1953,15 @@ void make_inter_pred_of_nxn(uint16_t *dst, int dst_stride,
 void av1_opfl_rebuild_inter_predictor(
     uint16_t *dst, int dst_stride, int plane, int_mv *const mv_refined,
     InterPredParams *inter_pred_params, MACROBLOCKD *xd, int mi_x, int mi_y,
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
-    int build_for_decode,
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
-    const AV1_COMMON *cm, int pu_width, int ref, uint16_t **mc_buf,
-    CalcSubpelParamsFunc calc_subpel_params_func, int use_4x4) {
+    int build_for_decode, const AV1_COMMON *cm, int pu_width, int ref,
+    uint16_t **mc_buf, CalcSubpelParamsFunc calc_subpel_params_func,
+    int use_4x4) {
   SubpelParams subpel_params;
 
   make_inter_pred_of_nxn(dst, dst_stride, mv_refined, inter_pred_params, xd,
-                         mi_x, mi_y,
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
-                         build_for_decode,
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
-                         cm, pu_width, plane, ref, mc_buf,
-                         calc_subpel_params_func, use_4x4, &subpel_params);
+                         mi_x, mi_y, build_for_decode, cm, pu_width, plane, ref,
+                         mc_buf, calc_subpel_params_func, use_4x4,
+                         &subpel_params);
 }
 
 void av1_build_one_inter_predictor(
@@ -3741,14 +3723,11 @@ static AOM_INLINE int skip_opfl_refine_with_tip(
 
 static void build_inter_predictors_8x8_and_bigger_refinemv(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, MB_MODE_INFO *mi,
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
-    int build_for_decode,
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
-    int bw, int bh, int mi_x, int mi_y, uint16_t **mc_buf, MV mi_mv[2],
-    CalcSubpelParamsFunc calc_subpel_params_func, uint16_t *dst, int dst_stride,
-    int subblk_start_x, int subblk_start_y, int pu_width, int pu_height,
-    uint16_t *dst0_16_refinemv, uint16_t *dst1_16_refinemv, int row_start,
-    int col_start, MV *sb_refined_mv, MV *chroma_refined_mv,
+    int build_for_decode, int bw, int bh, int mi_x, int mi_y, uint16_t **mc_buf,
+    MV mi_mv[2], CalcSubpelParamsFunc calc_subpel_params_func, uint16_t *dst,
+    int dst_stride, int subblk_start_x, int subblk_start_y, int pu_width,
+    int pu_height, uint16_t *dst0_16_refinemv, uint16_t *dst1_16_refinemv,
+    int row_start, int col_start, MV *sb_refined_mv, MV *chroma_refined_mv,
     int build_for_refine_mv_only, ReferenceArea ref_area[2], int_mv *mv_refined,
     int *opfl_vxy_bufs) {
   const int tip_ref_frame = is_tip_ref_frame(mi->ref_frame[0]);
@@ -3871,12 +3850,9 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
       }
       av1_get_optflow_based_mv(
           cm, xd, plane, mi, mv_refined_sb, bw, bh, mi_x, mi_y,
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
-          build_for_decode,
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
-          mc_buf, calc_subpel_params_func, gx0, gy0, gx1, gy1, vx0_sb, vy0_sb,
-          vx1_sb, vy1_sb, dst0, dst1, use_4x4, do_pred, best_mv_ref, pu_width,
-          pu_height);
+          build_for_decode, mc_buf, calc_subpel_params_func, gx0, gy0, gx1, gy1,
+          vx0_sb, vy0_sb, vx1_sb, vy1_sb, dst0, dst1, use_4x4, do_pred,
+          best_mv_ref, pu_width, pu_height);
       for (int i = 0; i < sb_rows; i++) {
         for (int j = 0; j < sb_cols; j++) {
           int mvidx = opfl_sb_idx + i * opfl_mv_stride + j;
@@ -3968,13 +3944,10 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
           av1_get_interp_filter_params_with_block_size(mi->interp_fltr,
                                                        opfl_sub_bh);
 
-      av1_opfl_rebuild_inter_predictor(dst, dst_stride, plane, mv_refined_sb,
-                                       &inter_pred_params, xd, mi_x, mi_y,
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
-                                       build_for_decode,
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
-                                       cm, pu_width, ref, mc_buf,
-                                       calc_subpel_params_func, use_4x4);
+      av1_opfl_rebuild_inter_predictor(
+          dst, dst_stride, plane, mv_refined_sb, &inter_pred_params, xd, mi_x,
+          mi_y, build_for_decode, cm, pu_width, ref, mc_buf,
+          calc_subpel_params_func, use_4x4);
       continue;
     }
     const MV mv_1_16th_pel = (tip_ref_frame && plane)
@@ -3989,11 +3962,8 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
 
 static void build_inter_predictors_8x8_and_bigger(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, MB_MODE_INFO *mi,
-    const BUFFER_SET *dst_orig,
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
-    int build_for_decode,
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
-    int bw, int bh, int mi_x, int mi_y, uint16_t **mc_buf, MV mi_mv[2],
+    const BUFFER_SET *dst_orig, int build_for_decode, int bw, int bh, int mi_x,
+    int mi_y, uint16_t **mc_buf, MV mi_mv[2],
     CalcSubpelParamsFunc calc_subpel_params_func, uint16_t *dst, int dst_stride,
     int pu_width, int pu_height,
 #if CONFIG_REFINEMV
@@ -4090,14 +4060,12 @@ static void build_inter_predictors_8x8_and_bigger(
     assert(bh % refinemv_sb_size_height == 0);
     for (int h = 0; h < bh; h += refinemv_sb_size_height) {
       for (int w = 0; w < bw; w += refinemv_sb_size_width) {
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
         const int x = mi_x + w * (1 << pd->subsampling_x);
         const int y = mi_y + h * (1 << pd->subsampling_y);
         if (is_subblock_outside(x, y, cm->mi_params.mi_cols,
                                 cm->mi_params.mi_rows, build_for_decode)) {
           continue;
         }
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
         uint16_t *dst_buf = dst + h * dst_stride + w;
         xd->tmp_conv_dst = tmp_conv_dst + h * MAX_SB_SIZE + w;
 
@@ -4140,12 +4108,8 @@ static void build_inter_predictors_8x8_and_bigger(
         // mi_x, and mi_y are the top-left position of the luma samples of the
         // sub-block
         build_inter_predictors_8x8_and_bigger_refinemv(
-            cm, xd, plane, mi,
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
-            build_for_decode,
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
-            refinemv_sb_size_width, refinemv_sb_size_height,
-            mi_x + w * (1 << pd->subsampling_x),
+            cm, xd, plane, mi, build_for_decode, refinemv_sb_size_width,
+            refinemv_sb_size_height, mi_x + w * (1 << pd->subsampling_x),
             mi_y + h * (1 << pd->subsampling_y), mc_buf, mi_mv,
             calc_subpel_params_func, dst_buf, dst_stride, w, h, pu_width,
             pu_height, dst0_16_refinemv, dst1_16_refinemv, row_start, col_start,
@@ -4270,16 +4234,13 @@ static void build_inter_predictors_8x8_and_bigger(
         mv_refined[mvi * 2].as_mv = mv0;
         mv_refined[mvi * 2 + 1].as_mv = mv1;
       }
-      av1_get_optflow_based_mv(
-          cm, xd, plane, mi, mv_refined, bw, bh, mi_x, mi_y,
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
-          build_for_decode,
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
-          mc_buf, calc_subpel_params_func, gx0, gy0, gx1, gy1, vx0, vy0, vx1,
-          vy1, dst0, dst1, use_4x4, do_pred
+      av1_get_optflow_based_mv(cm, xd, plane, mi, mv_refined, bw, bh, mi_x,
+                               mi_y, build_for_decode, mc_buf,
+                               calc_subpel_params_func, gx0, gy0, gx1, gy1, vx0,
+                               vy0, vx1, vy1, dst0, dst1, use_4x4, do_pred
 #if CONFIG_REFINEMV
-          ,
-          best_mv_ref, pu_width, pu_height
+                               ,
+                               best_mv_ref, pu_width, pu_height
 #endif  // CONFIG_REFINEMV
       );
     }
@@ -4439,13 +4400,10 @@ static void build_inter_predictors_8x8_and_bigger(
       inter_pred_params.interp_filter_params[1] =
           av1_get_interp_filter_params_with_block_size(mi->interp_fltr,
                                                        opfl_sub_bh);
-      av1_opfl_rebuild_inter_predictor(dst, dst_stride, plane, mv_refined,
-                                       &inter_pred_params, xd, mi_x, mi_y,
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
-                                       build_for_decode,
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
-                                       cm, pu_width, ref, mc_buf,
-                                       calc_subpel_params_func, use_4x4);
+      av1_opfl_rebuild_inter_predictor(
+          dst, dst_stride, plane, mv_refined, &inter_pred_params, xd, mi_x,
+          mi_y, build_for_decode, cm, pu_width, ref, mc_buf,
+          calc_subpel_params_func, use_4x4);
       continue;
     }
     if (mi->bawp_flag[0] > 0 && (plane == 0 || mi->bawp_flag[1])) {
@@ -4474,12 +4432,8 @@ static void build_inter_predictors_8x8_and_bigger(
 // and the non-TIP ref mode block.
 static void build_inter_predictors_8x8_and_bigger_facade(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, MB_MODE_INFO *mi,
-    const BUFFER_SET *dst_orig,
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
-    int build_for_decode,
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
-    int bw, int bh, int mi_x, int mi_y, uint16_t **mc_buf,
-    CalcSubpelParamsFunc calc_subpel_params_func
+    const BUFFER_SET *dst_orig, int build_for_decode, int bw, int bh, int mi_x,
+    int mi_y, uint16_t **mc_buf, CalcSubpelParamsFunc calc_subpel_params_func
 #if CONFIG_REFINEMV
     ,
     int build_for_refine_mv_only
@@ -4522,12 +4476,10 @@ static void build_inter_predictors_8x8_and_bigger_facade(
         MV tip_mv[2];
         int_mv tip_mv_tmp[2];
 
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
         if (is_subblock_outside(pixel_col, pixel_row, cm->mi_params.mi_cols,
                                 cm->mi_params.mi_rows, build_for_decode)) {
           continue;
         }
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
 
         get_tip_mv(cm, &mi->mv[0].as_mv, tpl_col, tpl_row, tip_mv_tmp);
 
@@ -4555,11 +4507,8 @@ static void build_inter_predictors_8x8_and_bigger_facade(
                        ((col_offset << TMVP_MI_SZ_LOG2) >> ss_x);
 
         build_inter_predictors_8x8_and_bigger(
-            cm, xd, plane, mi, dst_orig,
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
-            build_for_decode,
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
-            unit_blk_size, unit_blk_size, pixel_col, pixel_row, mc_buf, tip_mv,
+            cm, xd, plane, mi, dst_orig, build_for_decode, unit_blk_size,
+            unit_blk_size, pixel_col, pixel_row, mc_buf, tip_mv,
             calc_subpel_params_func, dst_buf->buf, dst_stride, bw, bh,
 #if CONFIG_REFINEMV
             build_for_refine_mv_only,
@@ -4574,12 +4523,8 @@ static void build_inter_predictors_8x8_and_bigger_facade(
   } else {
     MV mv[2] = { mi->mv[0].as_mv, mi->mv[1].as_mv };
     build_inter_predictors_8x8_and_bigger(
-        cm, xd, plane, mi, dst_orig,
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
-        build_for_decode,
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
-        bw, bh, mi_x, mi_y, mc_buf, mv, calc_subpel_params_func, dst,
-        dst_stride, bw, bh,
+        cm, xd, plane, mi, dst_orig, build_for_decode, bw, bh, mi_x, mi_y,
+        mc_buf, mv, calc_subpel_params_func, dst, dst_stride, bw, bh,
 #if CONFIG_REFINEMV
         build_for_refine_mv_only,
 #endif  // CONFIG_REFINEMV
@@ -4594,11 +4539,8 @@ void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
 #if CONFIG_REFINEMV
                                 int build_for_refine_mv_only,
 #endif  // CONFIG_REFINEMV
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
-                                int build_for_decode,
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
-                                int bw, int bh, int mi_x, int mi_y,
-                                uint16_t **mc_buf,
+                                int build_for_decode, int bw, int bh, int mi_x,
+                                int mi_y, uint16_t **mc_buf,
                                 CalcSubpelParamsFunc calc_subpel_params_func) {
   if (plane == AOM_PLANE_Y)
     memset(xd->mv_refined, 0, 2 * N_OF_OFFSETS * sizeof(int_mv));
@@ -4614,15 +4556,12 @@ void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
     build_inter_predictors_sub8x8(cm, xd, plane, mi, mi_x, mi_y, mc_buf,
                                   calc_subpel_params_func);
   } else {
-    build_inter_predictors_8x8_and_bigger_facade(cm, xd, plane, mi, dst_orig,
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
-                                                 build_for_decode,
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
-                                                 bw, bh, mi_x, mi_y, mc_buf,
-                                                 calc_subpel_params_func
+    build_inter_predictors_8x8_and_bigger_facade(
+        cm, xd, plane, mi, dst_orig, build_for_decode, bw, bh, mi_x, mi_y,
+        mc_buf, calc_subpel_params_func
 #if CONFIG_REFINEMV
-                                                 ,
-                                                 build_for_refine_mv_only
+        ,
+        build_for_refine_mv_only
 #endif  // CONFIG_REFINEMV
     );
   }

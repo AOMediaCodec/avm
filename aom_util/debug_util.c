@@ -208,10 +208,7 @@ void mismatch_record_block_tx(const uint16_t *src, int src_stride,
 #endif
 }
 void mismatch_check_block_pre(const uint16_t *src, int src_stride,
-                              int frame_offset,
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
-                              int pixels_c, int pixels_r,
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
+                              int frame_offset, int pixels_c, int pixels_r,
                               int plane, int pixel_c, int pixel_r, int blk_w,
                               int blk_h) {
   if (pixel_c + blk_w >= frame_stride || pixel_r + blk_h >= frame_height) {
@@ -222,9 +219,7 @@ void mismatch_check_block_pre(const uint16_t *src, int src_stride,
   int mismatch = 0;
   for (int r = 0; r < blk_h; ++r) {
     for (int c = 0; c < blk_w; ++c) {
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
       if (r + pixel_r >= pixels_r || c + pixel_c >= pixels_c) continue;
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
       if (frame_pre[frame_buf_idx_r][plane]
                    [(r + pixel_r) * frame_stride + c + pixel_c] !=
           src[r * src_stride + c]) {
@@ -258,10 +253,7 @@ void mismatch_check_block_pre(const uint16_t *src, int src_stride,
   }
 }
 void mismatch_check_block_tx(const uint16_t *src, int src_stride,
-                             int frame_offset,
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
-                             int pixels_c, int pixels_r,
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
+                             int frame_offset, int pixels_c, int pixels_r,
                              int plane, int pixel_c, int pixel_r, int blk_w,
                              int blk_h) {
   if (pixel_c + blk_w >= frame_stride || pixel_r + blk_h >= frame_height) {
@@ -272,9 +264,7 @@ void mismatch_check_block_tx(const uint16_t *src, int src_stride,
   int mismatch = 0;
   for (int r = 0; r < blk_h; ++r) {
     for (int c = 0; c < blk_w; ++c) {
-#if CONFIG_E191_OFS_PRED_RES_HANDLE
       if (r + pixel_r >= pixels_r || c + pixel_c >= pixels_c) continue;
-#endif  // CONFIG_E191_OFS_PRED_RES_HANDLE
       if (frame_tx[frame_buf_idx_r][plane]
                   [(r + pixel_r) * frame_stride + c + pixel_c] !=
           src[r * src_stride + c]) {
