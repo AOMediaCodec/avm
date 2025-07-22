@@ -1028,7 +1028,6 @@ static INLINE void clamp_mv_in_range(MACROBLOCK *const x, int_mv *mv,
   clamp_mv(&mv->as_mv, &mv_limits);
 }
 
-#if CONFIG_SKIP_ME_FOR_OPFL_MODES
 static INLINE void save_comp_mv_search_stat(MACROBLOCK *const x,
                                             HandleInterModeArgs *const args,
                                             int_mv *cur_mv, int_mv start_mv) {
@@ -1300,7 +1299,6 @@ static INLINE int reuse_comp_mv_for_opfl(const AV1_COMMON *const cm,
   }
   return 0;
 }
-#endif  // CONFIG_SKIP_ME_FOR_OPFL_MODES
 
 static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
                             const BLOCK_SIZE bsize, int_mv *cur_mv,
@@ -1344,11 +1342,9 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
     const int valid_mv1 = valid_mv1_found;
 
     if (this_mode == NEW_NEWMV || this_mode == NEW_NEWMV_OPTFLOW) {
-#if CONFIG_SKIP_ME_FOR_OPFL_MODES
       if (reuse_comp_mv_for_opfl(cm, x, args, cur_mv, rate_mv)) {
         return 0;
       } else {
-#endif  // CONFIG_SKIP_ME_FOR_OPFL_MODES
         if (valid_mv0) {
           cur_mv[0].as_int =
               args->single_newmv[valid_precision_mv0][get_ref_mv_idx(mbmi, 0)]
@@ -1395,11 +1391,9 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
                                         MV_COST_WEIGHT, 0);
           }
         }
-#if CONFIG_SKIP_ME_FOR_OPFL_MODES
         int_mv start_mv = { 0 };
         save_comp_mv_search_stat(x, args, cur_mv, start_mv);
       }
-#endif  // CONFIG_SKIP_ME_FOR_OPFL_MODES
     } else if (this_mode == NEAR_NEWMV || this_mode == NEAR_NEWMV_OPTFLOW) {
       if (valid_mv1) {
         cur_mv[1].as_int = args->single_newmv[valid_precision_mv1]
@@ -1413,15 +1407,11 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
         );
       }
       if (cm->seq_params.enable_adaptive_mvd) {
-#if CONFIG_SKIP_ME_FOR_OPFL_MODES
         if (reuse_comp_mv_for_opfl(cm, x, args, cur_mv, rate_mv)) {
           return 0;
         }
-#endif  // CONFIG_SKIP_ME_FOR_OPFL_MODES
 
-#if CONFIG_SKIP_ME_FOR_OPFL_MODES
         int_mv start_mv = cur_mv[1];
-#endif  // CONFIG_SKIP_ME_FOR_OPFL_MODES
 
         av1_compound_single_motion_search_interinter(cpi, x, bsize, cur_mv,
                                                      NULL, 0, rate_mv, 1);
@@ -1429,9 +1419,7 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
         if (cur_mv->as_int == INVALID_MV) return INT64_MAX;
 #endif
 
-#if CONFIG_SKIP_ME_FOR_OPFL_MODES
         save_comp_mv_search_stat(x, args, cur_mv, start_mv);
-#endif  // CONFIG_SKIP_ME_FOR_OPFL_MODES
       } else {
         // aomenc2
         if (cpi->sf.inter_sf.comp_inter_joint_search_thresh <= bsize ||
@@ -1466,11 +1454,9 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
       const int sec_ref_dist = cm->ref_frame_relative_dist[mbmi->ref_frame[1]];
       if (first_ref_dist != sec_ref_dist) return INT64_MAX;
 
-#if CONFIG_SKIP_ME_FOR_OPFL_MODES
       if (reuse_comp_mv_for_opfl(cm, x, args, cur_mv, rate_mv)) {
         return 0;
       }
-#endif  // CONFIG_SKIP_ME_FOR_OPFL_MODES
 
       const int jmvd_base_ref_list = get_joint_mvd_base_ref_list(cm, mbmi);
       const int valid_mv_base = (!jmvd_base_ref_list && valid_mv0) ||
@@ -1496,17 +1482,13 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
 #if CONFIG_VQ_MVD_CODING
       if (cur_mv->as_int == INVALID_MV) return INT64_MAX;
 #endif  // CONFIG_VQ_MVD_CODING
-#if CONFIG_SKIP_ME_FOR_OPFL_MODES
       int_mv start_mv = { 0 };
       save_comp_mv_search_stat(x, args, cur_mv, start_mv);
-#endif  // CONFIG_SKIP_ME_FOR_OPFL_MODES
     } else {
       assert(this_mode == NEW_NEARMV || this_mode == NEW_NEARMV_OPTFLOW);
-#if CONFIG_SKIP_ME_FOR_OPFL_MODES
       if (reuse_comp_mv_for_opfl(cm, x, args, cur_mv, rate_mv)) {
         return 0;
       }
-#endif  // CONFIG_SKIP_ME_FOR_OPFL_MODES
       if (valid_mv0) {
         cur_mv[0].as_int = args->single_newmv[valid_precision_mv0]
                                              [get_ref_mv_idx(mbmi, 0)][refs[0]]
@@ -1523,10 +1505,8 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
 #if CONFIG_VQ_MVD_CODING
         if (cur_mv->as_int == INVALID_MV) return INT64_MAX;
 #endif  // CONFIG_VQ_MVD_CODING
-#if CONFIG_SKIP_ME_FOR_OPFL_MODES
         int_mv start_mv = { 0 };
         save_comp_mv_search_stat(x, args, cur_mv, start_mv);
-#endif  // CONFIG_SKIP_ME_FOR_OPFL_MODES
       } else {
         // aomenc3
         if (cpi->sf.inter_sf.comp_inter_joint_search_thresh <= bsize ||
@@ -9593,10 +9573,6 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
     0,
     interintra_modes,
     { { 0, { { 0 } }, { 0 }, 0, 0, 0 } },
-    0
-#if CONFIG_SKIP_ME_FOR_OPFL_MODES
-    ,
-    { { 0 } },
     0,
     { { 0 } },
     0,
@@ -9612,7 +9588,8 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
     0,
     { { 0 } },
     0,
-#endif  // CONFIG_SKIP_ME_FOR_OPFL_MODES
+    { { 0 } },
+    0,
   };
 
   // Indicates the appropriate number of simple translation winner modes for

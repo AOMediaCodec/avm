@@ -294,9 +294,6 @@ set_aom_config_var(CONFIG_EXPLICIT_TEMPORAL_DIST_CALC 1
 set_aom_config_var(CONFIG_IMPROVED_GLOBAL_MOTION 1
                    "New global motion syntax for AV2")
 
-set_aom_config_var(CONFIG_SKIP_ME_FOR_OPFL_MODES 1
-                   "Reuse the mvs of compound mode from non-opfl path")
-
 set_aom_config_var(CONFIG_E191_OFS_PRED_RES_HANDLE 1
                    "Enable outside frame boundary block handling")
 

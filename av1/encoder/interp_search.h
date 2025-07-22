@@ -110,7 +110,6 @@ typedef struct {
    * Index of the last set of saved stats in the interp_filter_stats array.
    */
   int interp_filter_stats_idx;
-#if CONFIG_SKIP_ME_FOR_OPFL_MODES
   /*!
    * Saved MV information for opfl off case.
    */
@@ -137,7 +136,6 @@ typedef struct {
 
   NEAR_NEWMV_AMVD_STATS near_newmv_amvd_stats[MAX_COMP_MV_STATS];
   int near_newmv_amvd_stats_idx;
-#endif  // CONFIG_SKIP_ME_FOR_OPFL_MODES
 } HandleInterModeArgs;
 
 /*!\cond */

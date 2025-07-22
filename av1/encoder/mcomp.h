@@ -461,7 +461,6 @@ typedef struct {
   SUBPEL_SEARCH_VAR_PARAMS var_params;
 } SUBPEL_MOTION_SEARCH_PARAMS;
 
-#if CONFIG_SKIP_ME_FOR_OPFL_MODES
 #define MAX_COMP_MV_STATS 128
 
 typedef struct {
@@ -529,7 +528,6 @@ typedef struct {
   int use_amvd;
   int_mv mv[2];
 } JOINT_AMVDNEWMV_STATS;
-#endif  // CONFIG_SKIP_ME_FOR_OPFL_MODES
 
 #if CONFIG_OPFL_MV_SEARCH
 int opfl_refine_fullpel_mv_one_sided(
