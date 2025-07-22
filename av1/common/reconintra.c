@@ -916,159 +916,6 @@ static void highbd_second_dr_predictor_idif(uint16_t *dst, ptrdiff_t stride,
   }
 }
 
-DECLARE_ALIGNED(16, const int8_t,
-                av1_filter_intra_taps[FILTER_INTRA_MODES][8][8]) = {
-  {
-      { -6, 10, 0, 0, 0, 12, 0, 0 },
-      { -5, 2, 10, 0, 0, 9, 0, 0 },
-      { -3, 1, 1, 10, 0, 7, 0, 0 },
-      { -3, 1, 1, 2, 10, 5, 0, 0 },
-      { -4, 6, 0, 0, 0, 2, 12, 0 },
-      { -3, 2, 6, 0, 0, 2, 9, 0 },
-      { -3, 2, 2, 6, 0, 2, 7, 0 },
-      { -3, 1, 2, 2, 6, 3, 5, 0 },
-  },
-  {
-      { -10, 16, 0, 0, 0, 10, 0, 0 },
-      { -6, 0, 16, 0, 0, 6, 0, 0 },
-      { -4, 0, 0, 16, 0, 4, 0, 0 },
-      { -2, 0, 0, 0, 16, 2, 0, 0 },
-      { -10, 16, 0, 0, 0, 0, 10, 0 },
-      { -6, 0, 16, 0, 0, 0, 6, 0 },
-      { -4, 0, 0, 16, 0, 0, 4, 0 },
-      { -2, 0, 0, 0, 16, 0, 2, 0 },
-  },
-  {
-      { -8, 8, 0, 0, 0, 16, 0, 0 },
-      { -8, 0, 8, 0, 0, 16, 0, 0 },
-      { -8, 0, 0, 8, 0, 16, 0, 0 },
-      { -8, 0, 0, 0, 8, 16, 0, 0 },
-      { -4, 4, 0, 0, 0, 0, 16, 0 },
-      { -4, 0, 4, 0, 0, 0, 16, 0 },
-      { -4, 0, 0, 4, 0, 0, 16, 0 },
-      { -4, 0, 0, 0, 4, 0, 16, 0 },
-  },
-  {
-      { -2, 8, 0, 0, 0, 10, 0, 0 },
-      { -1, 3, 8, 0, 0, 6, 0, 0 },
-      { -1, 2, 3, 8, 0, 4, 0, 0 },
-      { 0, 1, 2, 3, 8, 2, 0, 0 },
-      { -1, 4, 0, 0, 0, 3, 10, 0 },
-      { -1, 3, 4, 0, 0, 4, 6, 0 },
-      { -1, 2, 3, 4, 0, 4, 4, 0 },
-      { -1, 2, 2, 3, 4, 3, 3, 0 },
-  },
-  {
-      { -12, 14, 0, 0, 0, 14, 0, 0 },
-      { -10, 0, 14, 0, 0, 12, 0, 0 },
-      { -9, 0, 0, 14, 0, 11, 0, 0 },
-      { -8, 0, 0, 0, 14, 10, 0, 0 },
-      { -10, 12, 0, 0, 0, 0, 14, 0 },
-      { -9, 1, 12, 0, 0, 0, 12, 0 },
-      { -8, 0, 0, 12, 0, 1, 11, 0 },
-      { -7, 0, 0, 1, 12, 1, 9, 0 },
-  },
-};
-
-void av1_filter_intra_predictor_c(uint8_t *dst, ptrdiff_t stride,
-                                  TX_SIZE tx_size, const uint8_t *above,
-                                  const uint8_t *left, int mode) {
-  int r, c;
-  uint8_t buffer[33][33];
-  const int bw = tx_size_wide[tx_size];
-  const int bh = tx_size_high[tx_size];
-
-  assert(bw <= 32 && bh <= 32);
-
-  // The initialization is just for silencing Jenkins static analysis warnings
-  for (r = 0; r < bh + 1; ++r)
-    memset(buffer[r], 0, (bw + 1) * sizeof(buffer[0][0]));
-
-  for (r = 0; r < bh; ++r) buffer[r + 1][0] = left[r];
-  memcpy(buffer[0], &above[-1], (bw + 1) * sizeof(uint8_t));
-
-  for (r = 1; r < bh + 1; r += 2)
-    for (c = 1; c < bw + 1; c += 4) {
-      const uint8_t p0 = buffer[r - 1][c - 1];
-      const uint8_t p1 = buffer[r - 1][c];
-      const uint8_t p2 = buffer[r - 1][c + 1];
-      const uint8_t p3 = buffer[r - 1][c + 2];
-      const uint8_t p4 = buffer[r - 1][c + 3];
-      const uint8_t p5 = buffer[r][c - 1];
-      const uint8_t p6 = buffer[r + 1][c - 1];
-      for (int k = 0; k < 8; ++k) {
-        int r_offset = k >> 2;
-        int c_offset = k & 0x03;
-        buffer[r + r_offset][c + c_offset] =
-            clip_pixel(ROUND_POWER_OF_TWO_SIGNED(
-                av1_filter_intra_taps[mode][k][0] * p0 +
-                    av1_filter_intra_taps[mode][k][1] * p1 +
-                    av1_filter_intra_taps[mode][k][2] * p2 +
-                    av1_filter_intra_taps[mode][k][3] * p3 +
-                    av1_filter_intra_taps[mode][k][4] * p4 +
-                    av1_filter_intra_taps[mode][k][5] * p5 +
-                    av1_filter_intra_taps[mode][k][6] * p6,
-                FILTER_INTRA_SCALE_BITS));
-      }
-    }
-
-  for (r = 0; r < bh; ++r) {
-    memcpy(dst, &buffer[r + 1][1], bw * sizeof(uint8_t));
-    dst += stride;
-  }
-}
-
-static void highbd_filter_intra_predictor(uint16_t *dst, ptrdiff_t stride,
-                                          TX_SIZE tx_size,
-                                          const uint16_t *above,
-                                          const uint16_t *left, int mode,
-                                          int bd) {
-  int r, c;
-  uint16_t buffer[33][33];
-  const int bw = tx_size_wide[tx_size];
-  const int bh = tx_size_high[tx_size];
-
-  assert(bw <= 32 && bh <= 32);
-
-  // The initialization is just for silencing Jenkins static analysis warnings
-  for (r = 0; r < bh + 1; ++r)
-    memset(buffer[r], 0, (bw + 1) * sizeof(buffer[0][0]));
-
-  for (r = 0; r < bh; ++r) buffer[r + 1][0] = left[r];
-  memcpy(buffer[0], &above[-1], (bw + 1) * sizeof(buffer[0][0]));
-
-  for (r = 1; r < bh + 1; r += 2)
-    for (c = 1; c < bw + 1; c += 4) {
-      const uint16_t p0 = buffer[r - 1][c - 1];
-      const uint16_t p1 = buffer[r - 1][c];
-      const uint16_t p2 = buffer[r - 1][c + 1];
-      const uint16_t p3 = buffer[r - 1][c + 2];
-      const uint16_t p4 = buffer[r - 1][c + 3];
-      const uint16_t p5 = buffer[r][c - 1];
-      const uint16_t p6 = buffer[r + 1][c - 1];
-      for (int k = 0; k < 8; ++k) {
-        int r_offset = k >> 2;
-        int c_offset = k & 0x03;
-        buffer[r + r_offset][c + c_offset] =
-            clip_pixel_highbd(ROUND_POWER_OF_TWO_SIGNED(
-                                  av1_filter_intra_taps[mode][k][0] * p0 +
-                                      av1_filter_intra_taps[mode][k][1] * p1 +
-                                      av1_filter_intra_taps[mode][k][2] * p2 +
-                                      av1_filter_intra_taps[mode][k][3] * p3 +
-                                      av1_filter_intra_taps[mode][k][4] * p4 +
-                                      av1_filter_intra_taps[mode][k][5] * p5 +
-                                      av1_filter_intra_taps[mode][k][6] * p6,
-                                  FILTER_INTRA_SCALE_BITS),
-                              bd);
-      }
-    }
-
-  for (r = 0; r < bh; ++r) {
-    memcpy(dst, &buffer[r + 1][1], bw * sizeof(dst[0]));
-    dst += stride;
-  }
-}
-
 static int is_smooth(const MB_MODE_INFO *mbmi, int plane, TREE_TYPE tree_type) {
   (void)tree_type;
   if (plane == 0) {
@@ -1248,8 +1095,7 @@ void av1_highbd_ibp_dr_prediction_z3_c(
 
 static void build_intra_predictors_high(
     const MACROBLOCKD *xd, const uint16_t *ref, int ref_stride, uint16_t *dst,
-    int dst_stride, PREDICTION_MODE mode, int angle_delta,
-    FILTER_INTRA_MODE filter_intra_mode, TX_SIZE tx_size,
+    int dst_stride, PREDICTION_MODE mode, int angle_delta, TX_SIZE tx_size,
     int disable_edge_filter, int n_top_px, int n_topright_px, int n_left_px,
     int n_bottomleft_px, int plane, int is_sb_boundary,
     const int seq_intra_pred_filter_flag, const int seq_ibp_flag,
@@ -1286,7 +1132,6 @@ static void build_intra_predictors_high(
 
   int p_angle = 0;
   const int is_dr_mode = av1_is_directional_mode(mode);
-  const int use_filter_intra = filter_intra_mode != FILTER_INTRA_MODES;
   const int use_intra_dip = mbmi->use_intra_dip && plane == PLANE_TYPE_Y;
   int base = 128 << (xd->bd - 8);
   // The left_data, above_data buffers must be zeroed to fix some intermittent
@@ -1350,7 +1195,6 @@ static void build_intra_predictors_high(
     }
 #endif
   }
-  if (use_filter_intra) need_left = need_above = need_above_left = 1;
   if (use_intra_dip) need_left = need_above = need_above_left = 1;
   assert(n_top_px >= 0);
   assert(n_topright_px >= 0);
@@ -1375,7 +1219,6 @@ static void build_intra_predictors_high(
   // NEED_LEFT
   if (need_left) {
     int need_bottom = extend_modes[mode] & NEED_BOTTOMLEFT;
-    if (use_filter_intra) need_bottom = 0;
     if (use_intra_dip) need_bottom = 1;
     if (is_dr_mode)
       need_bottom =
@@ -1414,7 +1257,6 @@ static void build_intra_predictors_high(
   // NEED_ABOVE
   if (need_above) {
     int need_right = extend_modes[mode] & NEED_ABOVERIGHT;
-    if (use_filter_intra) need_right = 0;
     if (use_intra_dip) need_right = 1;
     if (is_dr_mode)
       need_right = apply_ibp ? (p_angle < 90) || (p_angle > 180) : p_angle < 90;
@@ -1471,12 +1313,6 @@ static void build_intra_predictors_high(
         above_row_2nd[-i] = left_col_2nd[-i] = base;
       }
     }
-  }
-
-  if (use_filter_intra) {
-    highbd_filter_intra_predictor(dst, dst_stride, tx_size, above_row_1st,
-                                  left_col_1st, filter_intra_mode, xd->bd);
-    return;
   }
 
   if (use_intra_dip) {
@@ -1656,11 +1492,12 @@ static void build_intra_predictors_high(
 #define ARITHMETIC_LEFT_SHIFT(x, shift) \
   (((x) >= 0) ? ((x) << (shift)) : (-((-(x)) << (shift))))
 
-void av1_predict_intra_block(
-    const AV1_COMMON *cm, const MACROBLOCKD *xd, int wpx, int hpx,
-    TX_SIZE tx_size, PREDICTION_MODE mode, int angle_delta, int use_palette,
-    FILTER_INTRA_MODE filter_intra_mode, const uint16_t *ref, int ref_stride,
-    uint16_t *dst, int dst_stride, int col_off, int row_off, int plane) {
+void av1_predict_intra_block(const AV1_COMMON *cm, const MACROBLOCKD *xd,
+                             int wpx, int hpx, TX_SIZE tx_size,
+                             PREDICTION_MODE mode, int angle_delta,
+                             int use_palette, const uint16_t *ref,
+                             int ref_stride, uint16_t *dst, int dst_stride,
+                             int col_off, int row_off, int plane) {
   const MB_MODE_INFO *const mbmi = xd->mi[0];
   const int txwpx = tx_size_wide[tx_size];
   const int txhpx = tx_size_high[tx_size];
@@ -1733,9 +1570,8 @@ void av1_predict_intra_block(
       (mi_row % cm->mib_size == 0 && row_off == 0) ? 1 : 0;
 
   build_intra_predictors_high(
-      xd, ref, ref_stride, dst, dst_stride, mode, angle_delta,
-      filter_intra_mode, tx_size, disable_edge_filter,
-      have_top ? AOMMIN(txwpx, xr + txwpx) : 0,
+      xd, ref, ref_stride, dst, dst_stride, mode, angle_delta, tx_size,
+      disable_edge_filter, have_top ? AOMMIN(txwpx, xr + txwpx) : 0,
       have_top_right ? px_top_right : 0,
       have_left ? AOMMIN(txhpx, yd + txhpx) : 0,
       have_bottom_left ? px_bottom_left : 0, plane, is_sb_boundary,
@@ -2137,11 +1973,6 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
   const PREDICTION_MODE mode =
       (plane == AOM_PLANE_Y) ? mbmi->mode : get_uv_mode(mbmi->uv_mode);
   const int use_palette = mbmi->palette_mode_info.palette_size[plane != 0] > 0;
-  const FILTER_INTRA_MODE filter_intra_mode =
-      (plane == AOM_PLANE_Y && mbmi->filter_intra_mode_info.use_filter_intra)
-          ? mbmi->filter_intra_mode_info.filter_intra_mode
-          : FILTER_INTRA_MODES;
-
   const int angle_delta = mbmi->angle_delta[plane != AOM_PLANE_Y] * ANGLE_STEP;
 
   if (plane != AOM_PLANE_Y) mbmi->txb_idx = 0;
@@ -2188,9 +2019,8 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
     }
     if (cfl->dc_pred_is_cached[pred_plane] == 0) {
       av1_predict_intra_block(cm, xd, pd->width, pd->height, tx_size, mode,
-                              angle_delta, use_palette, filter_intra_mode, dst,
-                              dst_stride, dst, dst_stride, blk_col, blk_row,
-                              plane);
+                              angle_delta, use_palette, dst, dst_stride, dst,
+                              dst_stride, blk_col, blk_row, plane);
       if (cfl->use_dc_pred_cache) {
         cfl_store_dc_pred(xd, dst, pred_plane, tx_size_wide[tx_size]);
         cfl->dc_pred_is_cached[pred_plane] = 1;
@@ -2334,8 +2164,8 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
   }
 
   av1_predict_intra_block(cm, xd, pd->width, pd->height, tx_size, mode,
-                          angle_delta, use_palette, filter_intra_mode, dst,
-                          dst_stride, dst, dst_stride, blk_col, blk_row, plane);
+                          angle_delta, use_palette, dst, dst_stride, dst,
+                          dst_stride, blk_col, blk_row, plane);
 }
 
 void av1_init_intra_predictors(void) {

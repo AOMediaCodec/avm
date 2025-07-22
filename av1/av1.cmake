@@ -348,7 +348,6 @@ list(
   "${AOM_ROOT}/av1/common/x86/av1_txfm_sse4.c"
   "${AOM_ROOT}/av1/common/x86/av1_txfm_sse4.h"
   "${AOM_ROOT}/av1/common/x86/cfl_sse4.c"
-  "${AOM_ROOT}/av1/common/x86/filterintra_sse4.c"
   "${AOM_ROOT}/av1/common/x86/highbd_convolve_2d_sse4.c"
   "${AOM_ROOT}/av1/common/x86/highbd_inv_txfm_sse4.c"
   "${AOM_ROOT}/av1/common/x86/highbd_jnt_convolve_sse4.c"
@@ -443,7 +442,6 @@ list(
   "${AOM_ROOT}/av1/common/arm/convolve_neon.c"
   "${AOM_ROOT}/av1/common/arm/convolve_neon.h"
   "${AOM_ROOT}/av1/common/arm/reconinter_neon.c"
-  "${AOM_ROOT}/av1/common/arm/reconintra_neon.c"
   "${AOM_ROOT}/av1/common/arm/selfguided_neon.c"
   "${AOM_ROOT}/av1/common/arm/highbd_inv_txfm_neon.c"
   "${AOM_ROOT}/av1/common/cdef_block_neon.c")

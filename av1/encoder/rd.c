@@ -207,20 +207,6 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
   for (i = 0; i < CFL_CONTEXTS; ++i)
     av1_cost_tokens_from_cdf(mode_costs->cfl_mode_cost[i], fc->cfl_cdf[i],
                              NULL);
-
-  av1_cost_tokens_from_cdf(mode_costs->filter_intra_mode_cost,
-                           fc->filter_intra_mode_cdf, NULL);
-#if CONFIG_D149_CTX_MODELING_OPT
-  av1_cost_tokens_from_cdf(mode_costs->filter_intra_cost, fc->filter_intra_cdfs,
-                           NULL);
-#else
-  for (i = 0; i < BLOCK_SIZES_ALL; ++i) {
-    if (av1_filter_intra_allowed_bsize(cm, i))
-      av1_cost_tokens_from_cdf(mode_costs->filter_intra_cost[i],
-                               fc->filter_intra_cdfs[i], NULL);
-  }
-#endif  // CONFIG_D149_CTX_MODELING_OPT
-
   for (i = 0; i < DIP_CTXS; i++) {
     av1_cost_tokens_from_cdf(mode_costs->intra_dip_cost[i],
                              fc->intra_dip_cdf[i], NULL);

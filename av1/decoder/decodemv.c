@@ -877,7 +877,6 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
       mbmi->use_dpcm_uv = 0;
       mbmi->dpcm_mode_uv = 0;
 #endif  // CONFIG_LOSSLESS_DPCM
-      mbmi->filter_intra_mode_info.use_filter_intra = 0;
       mbmi->use_intra_dip = 0;
       if (av1_is_wedge_used(bsize)) {
         mbmi->use_wedge_interintra =
@@ -1443,37 +1442,6 @@ static void read_palette_mode_info(AV1_COMMON *const cm, MACROBLOCKD *const xd,
   }
 }
 
-static void read_filter_intra_mode_info(const AV1_COMMON *const cm,
-                                        MACROBLOCKD *const xd, aom_reader *r) {
-  MB_MODE_INFO *const mbmi = xd->mi[0];
-  FILTER_INTRA_MODE_INFO *filter_intra_mode_info =
-      &mbmi->filter_intra_mode_info;
-  if (av1_filter_intra_allowed(cm, mbmi
-#if CONFIG_LOSSLESS_DPCM
-                               ,
-                               xd
-#endif
-                               ) &&
-      xd->tree_type != CHROMA_PART) {
-    filter_intra_mode_info->use_filter_intra =
-#if CONFIG_D149_CTX_MODELING_OPT
-        aom_read_symbol(r, xd->tile_ctx->filter_intra_cdfs, 2,
-                        ACCT_INFO("use_filter_intra"));
-#else
-        aom_read_symbol(
-            r, xd->tile_ctx->filter_intra_cdfs[mbmi->sb_type[PLANE_TYPE_Y]], 2,
-            ACCT_INFO("use_filter_intra"));
-#endif  // CONFIG_D149_CTX_MODELING_OPT
-    if (filter_intra_mode_info->use_filter_intra) {
-      filter_intra_mode_info->filter_intra_mode =
-          aom_read_symbol(r, xd->tile_ctx->filter_intra_mode_cdf,
-                          FILTER_INTRA_MODES, ACCT_INFO("filter_intra_mode"));
-    }
-  } else {
-    filter_intra_mode_info->use_filter_intra = 0;
-  }
-}
-
 static void read_intra_dip_mode_info(const AV1_COMMON *const cm,
                                      MACROBLOCKD *const xd, aom_reader *r) {
   MB_MODE_INFO *const mbmi = xd->mi[0];
@@ -1576,11 +1544,7 @@ void av1_read_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd, int blk_row,
 
       if (tx_set_type != EXT_TX_SET_LONG_SIDE_64 &&
           tx_set_type != EXT_TX_SET_LONG_SIDE_32) {
-        const PREDICTION_MODE intra_mode =
-            mbmi->filter_intra_mode_info.use_filter_intra
-                ? fimode_to_intradir[mbmi->filter_intra_mode_info
-                                         .filter_intra_mode]
-                : get_intra_mode(mbmi, PLANE_TYPE_Y);
+        const PREDICTION_MODE intra_mode = get_intra_mode(mbmi, PLANE_TYPE_Y);
         const int size_info = av1_size_class[tx_size];
         int tx_type_idx = aom_read_symbol(
             r,
@@ -2193,7 +2157,6 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
   if (xd->tree_type != CHROMA_PART) mbmi->palette_mode_info.palette_size[0] = 0;
   mbmi->palette_mode_info.palette_size[1] = 0;
   if (xd->tree_type != CHROMA_PART) {
-    mbmi->filter_intra_mode_info.use_filter_intra = 0;
     mbmi->use_intra_dip = 0;
   }
 
@@ -2364,9 +2327,6 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
   mbmi->palette_mode_info.palette_size[1] = 0;
   if (av1_allow_palette(cm->features.allow_screen_content_tools, bsize))
     read_palette_mode_info(cm, xd, r);
-
-  if (xd->tree_type != CHROMA_PART) read_filter_intra_mode_info(cm, xd, r);
-
   if (xd->tree_type != CHROMA_PART) {
     mbmi->use_intra_dip = 0;
     read_intra_dip_mode_info(cm, xd, r);
@@ -3187,9 +3147,6 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
   mbmi->palette_mode_info.palette_size[1] = 0;
   if (av1_allow_palette(cm->features.allow_screen_content_tools, bsize))
     read_palette_mode_info(cm, xd, r);
-
-  if (xd->tree_type != CHROMA_PART) read_filter_intra_mode_info(cm, xd, r);
-
   if (xd->tree_type != CHROMA_PART) {
     mbmi->use_intra_dip = 0;
     read_intra_dip_mode_info(cm, xd, r);
@@ -4034,7 +3991,6 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       mbmi->use_dpcm_uv = 0;
       mbmi->dpcm_mode_uv = 0;
 #endif  // CONFIG_LOSSLESS_DPCM
-      mbmi->filter_intra_mode_info.use_filter_intra = 0;
       mbmi->use_intra_dip = 0;
       if (av1_is_wedge_used(bsize)) {
         mbmi->use_wedge_interintra =

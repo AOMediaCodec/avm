@@ -481,7 +481,6 @@ void av1_rd_pick_palette_intra_sby(
     mbmi->mode = DC_PRED;
     mbmi->joint_y_mode_delta_angle = DC_PRED;
     mbmi->y_mode_idx = DC_PRED;
-    mbmi->filter_intra_mode_info.use_filter_intra = 0;
     mbmi->use_intra_dip = 0;
 
     uint16_t color_cache[2 * PALETTE_MAX_SIZE];

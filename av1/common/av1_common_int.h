@@ -591,7 +591,6 @@ typedef struct SequenceHeader {
   uint8_t enable_imp_msk_bld;  // enable implicit masked blending
 
   uint8_t enable_fsc;                // enables/disables forward skip coding
-  uint8_t enable_filter_intra;       // enables/disables filterintra
   uint8_t enable_intra_dip;          // enables/disables intra_dip
   uint8_t enable_intra_edge_filter;  // enables/disables edge upsampling
   uint8_t enable_orip;               // To turn on/off sub-block based ORIP

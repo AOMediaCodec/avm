@@ -695,39 +695,6 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
 #endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
 #endif  // CONFIG_LOSSLESS_DPCM
     }
-    if (av1_filter_intra_allowed(cm, mbmi
-#if CONFIG_LOSSLESS_DPCM
-                                 ,
-                                 xd
-#endif
-                                 )) {
-      const int use_filter_intra_mode =
-          mbmi->filter_intra_mode_info.use_filter_intra;
-#if CONFIG_D149_CTX_MODELING_OPT
-#if CONFIG_ENTROPY_STATS
-      ++counts->filter_intra[use_filter_intra_mode];
-      if (use_filter_intra_mode) {
-        ++counts->filter_intra_mode[mbmi->filter_intra_mode_info
-                                        .filter_intra_mode];
-      }
-#endif  // CONFIG_ENTROPY_STATS
-      update_cdf(fc->filter_intra_cdfs, use_filter_intra_mode, 2);
-#else
-#if CONFIG_ENTROPY_STATS
-      ++counts->filter_intra[bsize][use_filter_intra_mode];
-      if (use_filter_intra_mode) {
-        ++counts->filter_intra_mode[mbmi->filter_intra_mode_info
-                                        .filter_intra_mode];
-      }
-#endif  // CONFIG_ENTROPY_STATS
-      update_cdf(fc->filter_intra_cdfs[bsize], use_filter_intra_mode, 2);
-#endif  // CONFIG_D149_CTX_MODELING_OPT
-      if (use_filter_intra_mode) {
-        update_cdf(fc->filter_intra_mode_cdf,
-                   mbmi->filter_intra_mode_info.filter_intra_mode,
-                   FILTER_INTRA_MODES);
-      }
-    }
     if (av1_intra_dip_allowed(cm, mbmi)) {
       const int use_intra_dip = mbmi->use_intra_dip;
       int ctx = get_intra_dip_ctx(xd->neighbors[0], xd->neighbors[1], bsize);

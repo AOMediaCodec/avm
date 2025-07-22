@@ -1718,14 +1718,6 @@ int main(int argc, const char **argv) {
                      0, &total_count, 0, mem_wanted, "Intra");
 #endif  // CONFIG_MORPH_PRED
 
-  /* filter_intra experiment */
-  cts_each_dim[0] = FILTER_INTRA_MODES;
-  optimize_cdf_table(
-      &fc.filter_intra_mode[0], probsfile, 1, cts_each_dim,
-      "static const aom_cdf_prob "
-      "default_filter_intra_mode_cdf[CDF_SIZE(FILTER_INTRA_MODES)]",
-      0, &total_count, 0, mem_wanted, "Intra");
-
   cts_each_dim[0] = 3;
   cts_each_dim[1] = CCSO_CONTEXT;
   cts_each_dim[2] = 2;
@@ -1760,22 +1752,6 @@ int main(int argc, const char **argv) {
       "default_switchable_flex_restore_cdf[MAX_LR_FLEX_SWITCHABLE_BITS]"
       "[MAX_MB_PLANE][CDF_SIZE(2)]",
       0, &total_count, 0, mem_wanted, "Filters");
-
-#if CONFIG_D149_CTX_MODELING_OPT
-  cts_each_dim[0] = 2;
-  optimize_cdf_table(&fc.filter_intra[0], probsfile, 1, cts_each_dim,
-                     "static const aom_cdf_prob "
-                     "default_filter_intra_cdfs[CDF_SIZE(2)]",
-                     0, &total_count, 0, mem_wanted, "Intra");
-#else
-  cts_each_dim[0] = BLOCK_SIZES_ALL;
-  cts_each_dim[1] = 2;
-  optimize_cdf_table(&fc.filter_intra[0][0], probsfile, 2, cts_each_dim,
-                     "static const aom_cdf_prob "
-                     "default_filter_intra_cdfs[BLOCK_SIZES_ALL][CDF_SIZE(2)]",
-                     0, &total_count, 0, mem_wanted, "Intra");
-#endif  // CONFIG_D149_CTX_MODELING_OPT
-
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = DIP_CTXS;
   cts_each_dim[2] = 2;

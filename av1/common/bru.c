@@ -239,7 +239,6 @@ void bru_set_default_inter_mb_mode_info(const AV1_COMMON *const cm,
   mbmi->max_num_warp_candidates = 0;
   mbmi->warpmv_with_mvd_flag = 0;
   mbmi->motion_mode = SIMPLE_TRANSLATION;
-  mbmi->filter_intra_mode_info.use_filter_intra = 0;
   mbmi->interintra_mode = (INTERINTRA_MODE)(II_DC_PRED - 1);
   mbmi->comp_group_idx = 0;
   mbmi->interinter_comp.type = COMPOUND_AVERAGE;

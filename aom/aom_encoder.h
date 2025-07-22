@@ -524,10 +524,6 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_smooth_intra;
-  /*!\brief enable filter intra
-   *
-   */
-  unsigned int enable_filter_intra;
   /*!\brief enable intra_dip
    *
    */

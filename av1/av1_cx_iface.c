@@ -191,7 +191,6 @@ struct av1_extracfg {
                                     // for sequence
 #endif                              // CONFIG_SIX_PARAM_WARP_DELTA
   int enable_warp_extend;           // enable warp extension for sequence
-  int enable_filter_intra;          // enable filter intra for sequence
   int enable_intra_dip;     // enable intra DIP (data-driven intra) sequence
   int enable_smooth_intra;  // enable smooth intra modes for sequence
   int enable_paeth_intra;   // enable Paeth intra mode for sequence
@@ -540,7 +539,6 @@ static struct av1_extracfg default_extra_cfg = {
   1,    // enable_six_param_warp_delta at sequence level
 #endif  // CONFIG_SIX_PARAM_WARP_DELTA
   1,    // enable_warp_extend at sequence level
-  0,    // enable filter intra at sequence level
   1,    // enable_intra_dip at sequence level
   1,    // enable smooth intra modes usage for sequence
   1,    // enable Paeth intra mode usage for sequence
@@ -1065,7 +1063,6 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_six_param_warp_delta = extra_cfg->enable_six_param_warp_delta;
 #endif  // CONFIG_SIX_PARAM_WARP_DELTA
   cfg->enable_warp_extend = extra_cfg->enable_warp_extend;
-  cfg->enable_filter_intra = extra_cfg->enable_filter_intra;
   cfg->enable_intra_dip = extra_cfg->enable_intra_dip;
   cfg->enable_smooth_intra = extra_cfg->enable_smooth_intra;
   cfg->enable_paeth_intra = extra_cfg->enable_paeth_intra;
@@ -1204,7 +1201,6 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_six_param_warp_delta = cfg->enable_six_param_warp_delta;
 #endif  // CONFIG_SIX_PARAM_WARP_DELTA
   extra_cfg->enable_warp_extend = cfg->enable_warp_extend;
-  extra_cfg->enable_filter_intra = cfg->enable_filter_intra;
   extra_cfg->enable_intra_dip = cfg->enable_intra_dip;
   extra_cfg->enable_smooth_intra = cfg->enable_smooth_intra;
   extra_cfg->enable_paeth_intra = cfg->enable_paeth_intra;
@@ -1840,7 +1836,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   intra_mode_cfg->enable_angle_delta = extra_cfg->enable_angle_delta;
   intra_mode_cfg->enable_intra_edge_filter =
       extra_cfg->enable_intra_edge_filter;
-  intra_mode_cfg->enable_filter_intra = extra_cfg->enable_filter_intra;
   intra_mode_cfg->enable_intra_dip = extra_cfg->enable_intra_dip;
   intra_mode_cfg->enable_smooth_intra = extra_cfg->enable_smooth_intra;
   intra_mode_cfg->enable_paeth_intra = extra_cfg->enable_paeth_intra;
@@ -2599,13 +2594,6 @@ static aom_codec_err_t ctrl_set_enable_warped_motion(aom_codec_alg_priv_t *ctx,
                                                      va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
   extra_cfg.enable_warped_motion = CAST(AV1E_SET_ENABLE_WARPED_MOTION, args);
-  return update_extra_cfg(ctx, &extra_cfg);
-}
-
-static aom_codec_err_t ctrl_set_enable_filter_intra(aom_codec_alg_priv_t *ctx,
-                                                    va_list args) {
-  struct av1_extracfg extra_cfg = ctx->extra_cfg;
-  extra_cfg.enable_filter_intra = CAST(AV1E_SET_ENABLE_FILTER_INTRA, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
@@ -4335,9 +4323,6 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_warp_extend,
                               argv, err_string)) {
     extra_cfg.enable_warp_extend = arg_parse_int_helper(&arg, err_string);
-  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_filter_intra,
-                              argv, err_string)) {
-    extra_cfg.enable_filter_intra = arg_parse_int_helper(&arg, err_string);
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_intra_dip,
                               argv, err_string)) {
     extra_cfg.enable_intra_dip = arg_parse_int_helper(&arg, err_string);
@@ -4595,7 +4580,6 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_ENABLE_INTERINTRA_WEDGE, ctrl_set_enable_interintra_wedge },
   { AV1E_SET_ENABLE_GLOBAL_MOTION, ctrl_set_enable_global_motion },
   { AV1E_SET_ENABLE_WARPED_MOTION, ctrl_set_enable_warped_motion },
-  { AV1E_SET_ENABLE_FILTER_INTRA, ctrl_set_enable_filter_intra },
   { AV1E_SET_ENABLE_INTRA_DIP, ctrl_set_enable_intra_dip },
   { AV1E_SET_ENABLE_SMOOTH_INTRA, ctrl_set_enable_smooth_intra },
   { AV1E_SET_ENABLE_PAETH_INTRA, ctrl_set_enable_paeth_intra },
@@ -4806,9 +4790,9 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #endif  // CONFIG_ENABLE_MHCCP
         1,   1, 1, 1,
         1,   1, 1, 1,
-        1,   1, 1, 3,
-        1,   1, 0, 1,
-        0,   0,
+        1,   1, 3, 1,
+        1,   0, 1, 0,
+        0,
 #if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
         0,
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL

@@ -1118,33 +1118,6 @@ static AOM_INLINE void write_ref_frames(const AV1_COMMON *cm,
   }
 }
 
-static AOM_INLINE void write_filter_intra_mode_info(
-    const AV1_COMMON *cm, const MACROBLOCKD *xd, const MB_MODE_INFO *const mbmi,
-    aom_writer *w) {
-  if (av1_filter_intra_allowed(cm, mbmi
-#if CONFIG_LOSSLESS_DPCM
-                               ,
-                               xd
-#endif
-                               ) &&
-      xd->tree_type != CHROMA_PART) {
-    aom_write_symbol(w, mbmi->filter_intra_mode_info.use_filter_intra,
-#if CONFIG_D149_CTX_MODELING_OPT
-                     xd->tile_ctx->filter_intra_cdfs,
-#else
-                     xd->tile_ctx
-                         ->filter_intra_cdfs[mbmi->sb_type[PLANE_TYPE_Y]],
-#endif  // CONFIG_D149_CTX_MODELING_OPT
-                     2);
-    if (mbmi->filter_intra_mode_info.use_filter_intra) {
-      const FILTER_INTRA_MODE mode =
-          mbmi->filter_intra_mode_info.filter_intra_mode;
-      aom_write_symbol(w, mode, xd->tile_ctx->filter_intra_mode_cdf,
-                       FILTER_INTRA_MODES);
-    }
-  }
-}
-
 static AOM_INLINE void write_intra_dip_mode_info(const AV1_COMMON *cm,
                                                  const MACROBLOCKD *xd,
                                                  const MB_MODE_INFO *const mbmi,
@@ -1382,11 +1355,7 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
   if (plane != PLANE_TYPE_Y || dc_skip) return;
   MB_MODE_INFO *mbmi = xd->mi[0];
   PREDICTION_MODE intra_dir;
-  if (mbmi->filter_intra_mode_info.use_filter_intra)
-    intra_dir =
-        fimode_to_intradir[mbmi->filter_intra_mode_info.filter_intra_mode];
-  else
-    intra_dir = get_intra_mode(mbmi, AOM_PLANE_Y);
+  intra_dir = get_intra_mode(mbmi, AOM_PLANE_Y);
   const FeatureFlags *const features = &cm->features;
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
 #if CONFIG_IMPROVE_LOSSLESS_TXM
@@ -2057,10 +2026,6 @@ static AOM_INLINE void write_intra_prediction_modes(AV1_COMP *cpi,
   if (av1_allow_palette(cm->features.allow_screen_content_tools, bsize)) {
     write_palette_mode_info(cm, xd, mbmi, w);
   }
-
-  // Filter intra.
-  write_filter_intra_mode_info(cm, xd, mbmi, w);
-
   // Intra ML prediction
   write_intra_dip_mode_info(cm, xd, mbmi, w);
 }
@@ -5717,7 +5682,6 @@ static AOM_INLINE void write_sequence_header(
   }
 
   write_sb_size(seq_params, wb);
-  aom_wb_write_bit(wb, seq_params->enable_filter_intra);
   aom_wb_write_bit(wb, seq_params->enable_intra_dip);
   aom_wb_write_bit(wb, seq_params->enable_intra_edge_filter);
   if (!seq_params->reduced_still_picture_hdr) {

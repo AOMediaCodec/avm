@@ -254,15 +254,6 @@ typedef struct {
   uint8_t palette_size[2];
 } PALETTE_MODE_INFO;
 
-typedef struct {
-  FILTER_INTRA_MODE filter_intra_mode;
-  uint8_t use_filter_intra;
-} FILTER_INTRA_MODE_INFO;
-
-static const PREDICTION_MODE fimode_to_intradir[FILTER_INTRA_MODES] = {
-  DC_PRED, V_PRED, H_PRED, D157_PRED, DC_PRED
-};
-
 #if CONFIG_RD_DEBUG
 #define TXB_COEFF_COST_MAP_SIZE (MAX_MIB_SIZE)
 #endif
@@ -525,8 +516,6 @@ typedef struct MB_MODE_INFO {
   /*! \brief Directional mode delta: the angle is base angle + (angle_delta *
    * step). */
   int8_t angle_delta[PLANE_TYPES];
-  /*! \brief The type of filter intra mode used (if applicable). */
-  FILTER_INTRA_MODE_INFO filter_intra_mode_info;
   /*! \brief intra_dip prediction mode (0=disable). */
   uint8_t use_intra_dip;
   /*! \brief intra_dip prediction mode selection. */
@@ -3326,13 +3315,7 @@ static INLINE int block_signals_sec_tx_type(const MACROBLOCKD *xd,
   if (is_inter_block(xd->mi[0], xd->tree_type) ? (eob <= 3) : (eob <= 1))
     return 0;
   const MB_MODE_INFO *mbmi = xd->mi[0];
-  PREDICTION_MODE intra_dir;
-  if (mbmi->filter_intra_mode_info.use_filter_intra) {
-    intra_dir =
-        fimode_to_intradir[mbmi->filter_intra_mode_info.filter_intra_mode];
-  } else {
-    intra_dir = get_intra_mode(mbmi, AOM_PLANE_Y);
-  }
+  PREDICTION_MODE intra_dir = get_intra_mode(mbmi, AOM_PLANE_Y);
 #if !CONFIG_IST_NON_ZERO_DEPTH
   const BLOCK_SIZE bs = mbmi->sb_type[PLANE_TYPE_Y];
 #endif  // !CONFIG_IST_NON_ZERO_DEPTH
@@ -3373,10 +3356,8 @@ static INLINE int block_signals_sec_tx_type(const MACROBLOCKD *xd,
 #endif  // !CONFIG_IST_NON_ZERO_DEPTH
   bool condition = (primary_tx_type == DCT_DCT && width >= 16 && height >= 16);
   bool mode_dependent_condition =
-      (is_inter_block(mbmi, xd->tree_type)
-           ? condition
-           : (intra_dir < PAETH_PRED &&
-              !(mbmi->filter_intra_mode_info.use_filter_intra)));
+      (is_inter_block(mbmi, xd->tree_type) ? condition
+                                           : intra_dir < PAETH_PRED);
   const int code_stx =
       (primary_tx_type == DCT_DCT || primary_tx_type == ADST_ADST) &&
       mode_dependent_condition && ist_eob;

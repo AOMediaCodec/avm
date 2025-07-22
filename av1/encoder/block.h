@@ -933,14 +933,6 @@ typedef struct {
   int mbmode_cost[BLOCK_SIZE_GROUPS][INTRA_MODES];
   //! Luma mode cost for intra frame.
   int y_mode_costs[INTRA_MODES][INTRA_MODES][INTRA_MODES];
-  //! filter_intra_cost
-#if CONFIG_D149_CTX_MODELING_OPT
-  int filter_intra_cost[2];
-#else
-  int filter_intra_cost[BLOCK_SIZES_ALL][2];
-#endif  // CONFIG_D149_CTX_MODELING_OPT
-  //! filter_intra_mode_cost
-  int filter_intra_mode_cost[FILTER_INTRA_MODES];
   //! intra_dip_cost
   int intra_dip_cost[DIP_CTXS][2];
   //! intra_dip_mode_cost

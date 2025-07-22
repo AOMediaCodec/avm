@@ -273,11 +273,6 @@ typedef struct {
    */
   bool enable_intra_edge_filter;
   /*!
-   * Flag to indicate if recursive filtering based intra prediction should be
-   * enabled.
-   */
-  bool enable_filter_intra;
-  /*!
    * Flag to indicate if data-drive intra prediction should be enabled.
    */
   bool enable_intra_dip;
@@ -1663,7 +1658,6 @@ typedef struct FRAME_COUNTS {
 #else
   unsigned int cctx_type[EXT_TX_SIZES][CCTX_CONTEXTS][CCTX_TYPES];
 #endif  // CONFIG_REDUCE_CCTX_CTX
-  unsigned int filter_intra_mode[FILTER_INTRA_MODES];
 #if CONFIG_D149_CTX_MODELING_OPT
   unsigned int filter_intra[2];
 #else

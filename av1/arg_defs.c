@@ -578,9 +578,6 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .enable_warp_extend = ARG_DEF(NULL, "enable-warp-extend", 1,
                                 "Enable warp extension "
                                 "(0: false, 1: true (default))"),
-  .enable_filter_intra = ARG_DEF(NULL, "enable-filter-intra", 1,
-                                 "Enable filter intra prediction mode "
-                                 "(0: false (default), 1: true)"),
   .enable_intra_dip = ARG_DEF(NULL, "enable-intra-dip", 1,
                               "Enable intra data-driven prediction mode "
                               "(0: false, 1: true (default))"),

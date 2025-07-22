@@ -6549,9 +6549,6 @@ aom_cdf_prob
                                     };
 #endif  // CONFIG_IBC_SUBPEL_PRECISION
 
-static const aom_cdf_prob default_filter_intra_mode_cdf[CDF_SIZE(
-    FILTER_INTRA_MODES)] = { AOM_CDF5(7939, 11923, 16608, 28264), 0 };
-
 #if CONFIG_MORPH_PRED
 static const aom_cdf_prob default_morph_pred_cdf[3][CDF_SIZE(2)] = {
   { AOM_CDF2(19186), 50 },
@@ -6559,27 +6556,6 @@ static const aom_cdf_prob default_morph_pred_cdf[3][CDF_SIZE(2)] = {
   { AOM_CDF2(8242), 95 },
 };
 #endif  // CONFIG_MORPH_PRED
-
-#if CONFIG_D149_CTX_MODELING_OPT
-static const aom_cdf_prob default_filter_intra_cdfs[CDF_SIZE(2)] = {
-  AOM_CDF2(23506), 0
-};
-#else
-static const aom_cdf_prob
-    default_filter_intra_cdfs[BLOCK_SIZES_ALL][CDF_SIZE(2)] = {
-      { AOM_CDF2(4621) },  { AOM_CDF2(6743) },  { AOM_CDF2(5893) },
-      { AOM_CDF2(7866) },  { AOM_CDF2(12551) }, { AOM_CDF2(9394) },
-      { AOM_CDF2(12408) }, { AOM_CDF2(14301) }, { AOM_CDF2(12756) },
-      { AOM_CDF2(22343) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
-      { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
-      { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
-      { AOM_CDF2(16384) }, { AOM_CDF2(12770) }, { AOM_CDF2(10368) },
-      { AOM_CDF2(20229) }, { AOM_CDF2(18101) }, { AOM_CDF2(16384) },
-      { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
-      { AOM_CDF2(16384) }, { AOM_CDF2(16384) }, { AOM_CDF2(16384) },
-      { AOM_CDF2(16384) },
-    };
-#endif  // CONFIG_D149_CTX_MODELING_OPT
 
 static const aom_cdf_prob
     default_switchable_flex_restore_cdf[MAX_LR_FLEX_SWITCHABLE_BITS]
@@ -7247,8 +7223,6 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   av1_copy(fc->interintra_mode_cdf, default_interintra_mode_cdf);
   av1_copy(fc->seg.pred_cdf, default_segment_pred_cdf);
   av1_copy(fc->seg.tree_cdf, default_seg_tree_cdf);
-  av1_copy(fc->filter_intra_cdfs, default_filter_intra_cdfs);
-  av1_copy(fc->filter_intra_mode_cdf, default_filter_intra_mode_cdf);
   av1_copy(fc->switchable_flex_restore_cdf,
            default_switchable_flex_restore_cdf);
   for (int plane = 0; plane < MAX_MB_PLANE; plane++) {
@@ -7748,10 +7722,6 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
   CUMULATIVE_AVERAGE_CDF(ctx_left->seg.pred_cdf, ctx_tr->seg.pred_cdf, 2);
   CUMULATIVE_AVERAGE_CDF(ctx_left->seg.spatial_pred_seg_cdf,
                          ctx_tr->seg.spatial_pred_seg_cdf, MAX_SEGMENTS);
-  CUMULATIVE_AVERAGE_CDF(ctx_left->filter_intra_cdfs, ctx_tr->filter_intra_cdfs,
-                         2);
-  CUMULATIVE_AVERAGE_CDF(ctx_left->filter_intra_mode_cdf,
-                         ctx_tr->filter_intra_mode_cdf, FILTER_INTRA_MODES);
   CUMULATIVE_AVERAGE_CDF(ctx_left->switchable_flex_restore_cdf,
                          ctx_tr->switchable_flex_restore_cdf, 2);
   CUMULATIVE_AVERAGE_CDF(ctx_left->ccso_cdf, ctx_tr->ccso_cdf, 2);
@@ -8154,8 +8124,6 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
   SHIFT_CDF(ctx_ptr->seg.tree_cdf, MAX_SEGMENTS);
   SHIFT_CDF(ctx_ptr->seg.pred_cdf, 2);
   SHIFT_CDF(ctx_ptr->seg.spatial_pred_seg_cdf, MAX_SEGMENTS);
-  SHIFT_CDF(ctx_ptr->filter_intra_cdfs, 2);
-  SHIFT_CDF(ctx_ptr->filter_intra_mode_cdf, FILTER_INTRA_MODES);
   SHIFT_CDF(ctx_ptr->switchable_flex_restore_cdf, 2);
   SHIFT_CDF(ctx_ptr->ccso_cdf, 2);
   SHIFT_CDF(ctx_ptr->cdef_strength_index0_cdf, 2);
@@ -8590,9 +8558,6 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->seg.pred_cdf, ctx_tr->seg.pred_cdf, 2);
   AVERAGE_CDF(ctx_left->seg.spatial_pred_seg_cdf,
               ctx_tr->seg.spatial_pred_seg_cdf, MAX_SEGMENTS);
-  AVERAGE_CDF(ctx_left->filter_intra_cdfs, ctx_tr->filter_intra_cdfs, 2);
-  AVERAGE_CDF(ctx_left->filter_intra_mode_cdf, ctx_tr->filter_intra_mode_cdf,
-              FILTER_INTRA_MODES);
   AVERAGE_CDF(ctx_left->switchable_flex_restore_cdf,
               ctx_tr->switchable_flex_restore_cdf, 2);
   AVERAGE_CDF(ctx_left->ccso_cdf, ctx_tr->ccso_cdf, 2);

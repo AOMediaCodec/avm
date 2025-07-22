@@ -181,7 +181,6 @@ read_coeff_hidden
 read_coeffs_forward_2d
 read_coeffs_reverse
 read_coeffs_reverse_2d
-read_filter_intra_mode_info
 read_fsc_mode
 read_intra_luma_mode
 read_intra_uv_mode

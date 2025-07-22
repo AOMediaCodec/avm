@@ -1342,8 +1342,7 @@ static void init_txfm_param(const MACROBLOCKD *xd, int plane, TX_SIZE tx_size,
   bool mode_dependent_condition =
       (txfm_param->is_inter
            ? (txfm_param->tx_type == DCT_DCT && width >= 16 && height >= 16)
-           : (txfm_param->intra_mode < PAETH_PRED &&
-              !(mbmi->filter_intra_mode_info.use_filter_intra)));
+           : txfm_param->intra_mode < PAETH_PRED);
   if (mode_dependent_condition && !xd->lossless[mbmi->segment_id]) {
     // updated EOB condition
     txfm_param->sec_tx_type = get_secondary_tx_type(tx_type);

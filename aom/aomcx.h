@@ -931,16 +931,7 @@ enum aome_enc_control_id {
 
   /* Note: enum value 97 unused */
 
-  /*!\brief Codec control function to turn on / off filter intra usage at
-   * sequence level, int parameter
-   *
-   * \attention If AV1E_SET_ENABLE_FILTER_INTRA is 0, then this flag is
-   * forced to 0.
-   *
-   * - 0 = disable
-   * - 1 = enable (default)
-   */
-  AV1E_SET_ENABLE_FILTER_INTRA = 98,
+  /* Note: enum value 98 unused */
 
   /*!\brief Codec control function to turn on / off smooth intra modes usage,
    * int parameter
@@ -1569,9 +1560,6 @@ AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_GLOBAL_MOTION, int)
 
 AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_WARPED_MOTION, int)
 #define AOM_CTRL_AV1E_SET_ENABLE_WARPED_MOTION
-
-AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_FILTER_INTRA, int)
-#define AOM_CTRL_AV1E_SET_ENABLE_FILTER_INTRA
 
 AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_INTRA_DIP, int)
 #define AOM_CTRL_AV1E_SET_ENABLE_INTRA_DIP

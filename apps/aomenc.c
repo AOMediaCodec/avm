@@ -158,7 +158,6 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
                                         AV1E_SET_ENABLE_INTERINTRA_WEDGE,
                                         AV1E_SET_ENABLE_GLOBAL_MOTION,
                                         AV1E_SET_ENABLE_WARPED_MOTION,
-                                        AV1E_SET_ENABLE_FILTER_INTRA,
                                         AV1E_SET_ENABLE_INTRA_DIP,
                                         AV1E_SET_ENABLE_SMOOTH_INTRA,
                                         AV1E_SET_ENABLE_PAETH_INTRA,
@@ -360,7 +359,6 @@ const arg_def_t *av1_ctrl_args[] = {
   &g_av1_codec_arg_defs.enable_interintra_wedge,
   &g_av1_codec_arg_defs.enable_global_motion,
   &g_av1_codec_arg_defs.enable_warped_motion,
-  &g_av1_codec_arg_defs.enable_filter_intra,
   &g_av1_codec_arg_defs.enable_intra_dip,
   &g_av1_codec_arg_defs.enable_smooth_intra,
   &g_av1_codec_arg_defs.enable_paeth_intra,
@@ -720,7 +718,6 @@ static void init_config(cfg_options_t *config) {
   config->enable_mhccp = 1;
 #endif  // CONFIG_ENABLE_MHCCP
   config->enable_smooth_intra = 1;
-  config->enable_filter_intra = 0;
   config->enable_intra_dip = 1;
   config->enable_angle_delta = 1;
   config->enable_opfl_refine = 1;
@@ -1562,10 +1559,8 @@ static void show_stream_config(struct stream_state *stream,
           encoder_cfg->enable_chroma_dctonly);
 #endif  // CONFIG_CHROMA_TX
   fprintf(stdout,
-          "Tool setting (Intra)           : SmoothIntra (%d), CfL (%d), "
-          "FilterIntra (%d)\n",
-          encoder_cfg->enable_smooth_intra, encoder_cfg->enable_cfl_intra,
-          encoder_cfg->enable_filter_intra);
+          "Tool setting (Intra)           : SmoothIntra (%d), CfL (%d), ",
+          encoder_cfg->enable_smooth_intra, encoder_cfg->enable_cfl_intra);
 #if CONFIG_ENABLE_MHCCP
   fprintf(stdout, "                               : MHCCP: (%d)\n",
           encoder_cfg->enable_mhccp);

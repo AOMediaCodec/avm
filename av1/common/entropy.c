@@ -364,8 +364,6 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
 #if CONFIG_ENABLE_MHCCP
   RESET_CDF_COUNTER(fc->filter_dir_cdf, MHCCP_MODE_NUM);
 #endif  // CONFIG_ENABLE_MHCCP
-  RESET_CDF_COUNTER(fc->filter_intra_cdfs, 2);
-  RESET_CDF_COUNTER(fc->filter_intra_mode_cdf, FILTER_INTRA_MODES);
   RESET_CDF_COUNTER(fc->intra_dip_cdf, 2);
   RESET_CDF_COUNTER(fc->intra_dip_mode_n6_cdf, 6);
   RESET_CDF_COUNTER(fc->switchable_flex_restore_cdf, 2);

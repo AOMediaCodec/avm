@@ -63,11 +63,12 @@ void av1_init_intra_predictors(void);
 void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                     int plane, int blk_col, int blk_row,
                                     TX_SIZE tx_size);
-void av1_predict_intra_block(
-    const AV1_COMMON *cm, const MACROBLOCKD *xd, int wpx, int hpx,
-    TX_SIZE tx_size, PREDICTION_MODE mode, int angle_delta, int use_palette,
-    FILTER_INTRA_MODE filter_intra_mode, const uint16_t *ref, int ref_stride,
-    uint16_t *dst, int dst_stride, int col_off, int row_off, int plane);
+void av1_predict_intra_block(const AV1_COMMON *cm, const MACROBLOCKD *xd,
+                             int wpx, int hpx, TX_SIZE tx_size,
+                             PREDICTION_MODE mode, int angle_delta,
+                             int use_palette, const uint16_t *ref,
+                             int ref_stride, uint16_t *dst, int dst_stride,
+                             int col_off, int row_off, int plane);
 
 void av1_apply_orip_4x4subblock_hbd(uint16_t *dst, ptrdiff_t stride,
                                     TX_SIZE tx_size, const uint16_t *above,
@@ -83,8 +84,6 @@ static const INTERINTRA_MODE intra_to_interintra_mode[INTRA_MODES] = {
   II_DC_PRED, II_V_PRED, II_H_PRED, II_V_PRED,      II_SMOOTH_PRED, II_V_PRED,
   II_H_PRED,  II_H_PRED, II_V_PRED, II_SMOOTH_PRED, II_SMOOTH_PRED
 };
-
-#define FILTER_INTRA_SCALE_BITS 4
 
 static INLINE int av1_is_directional_mode(PREDICTION_MODE mode) {
   return mode >= V_PRED && mode <= D67_PRED;
@@ -172,28 +171,6 @@ static INLINE int use_inter_fsc(const AV1_COMMON *const cm,
   return allow_fsc;
 }
 
-static INLINE int av1_filter_intra_allowed_bsize(const AV1_COMMON *const cm,
-                                                 BLOCK_SIZE bs) {
-  if (!cm->seq_params.enable_filter_intra || bs == BLOCK_INVALID) return 0;
-
-  return block_size_wide[bs] <= 32 && block_size_high[bs] <= 32;
-}
-
-static INLINE int av1_filter_intra_allowed(const AV1_COMMON *const cm,
-                                           const MB_MODE_INFO *mbmi
-#if CONFIG_LOSSLESS_DPCM
-                                           ,
-                                           const MACROBLOCKD *const xd
-#endif  // CONFIG_LOSSLESS_DPCM
-) {
-  return mbmi->mode == DC_PRED && mbmi->mrl_index == 0 &&
-         mbmi->palette_mode_info.palette_size[0] == 0 &&
-#if CONFIG_LOSSLESS_DPCM
-         (!xd->lossless[mbmi->segment_id] || mbmi->use_dpcm_y == 0) &&
-#endif  // CONFIG_LOSSLESS_DPCM
-         av1_filter_intra_allowed_bsize(cm, mbmi->sb_type[PLANE_TYPE_Y]);
-}
-
 static INLINE int av1_intra_dip_allowed_bsize(const AV1_COMMON *const cm,
                                               BLOCK_SIZE bs) {
   if (!cm->seq_params.enable_intra_dip || bs == BLOCK_INVALID) return 0;
@@ -209,7 +186,6 @@ static INLINE int av1_intra_dip_allowed(const AV1_COMMON *const cm,
                                         const MB_MODE_INFO *mbmi) {
   return mbmi->mode == DC_PRED && mbmi->mrl_index == 0 &&
          mbmi->palette_mode_info.palette_size[0] == 0 &&
-         mbmi->filter_intra_mode_info.use_filter_intra == 0 &&
          av1_intra_dip_allowed_bsize(cm, mbmi->sb_type[PLANE_TYPE_Y]);
 }
 
@@ -286,8 +262,6 @@ static INLINE int av1_allow_orip_dir(int p_angle) {
   return (p_angle == 90 || p_angle == 180);
 }
 #endif
-
-extern const int8_t av1_filter_intra_taps[FILTER_INTRA_MODES][8][8];
 
 #if CONFIG_IMPROVED_INTRA_DIR_PRED
 // moved to av1_common_int.h

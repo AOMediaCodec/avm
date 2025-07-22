@@ -1717,11 +1717,7 @@ int get_tx_type_cost(const MACROBLOCK *x, const MACROBLOCKD *xd, int plane,
     } else {
       if (ext_tx_set > 0) {
         PREDICTION_MODE intra_dir;
-        if (mbmi->filter_intra_mode_info.use_filter_intra)
-          intra_dir = fimode_to_intradir[mbmi->filter_intra_mode_info
-                                             .filter_intra_mode];
-        else
-          intra_dir = get_intra_mode(mbmi, AOM_PLANE_Y);
+        intra_dir = get_intra_mode(mbmi, AOM_PLANE_Y);
         int tx_type_cost = 0;
         if (eob != 1) {
           const TxSetType tx_set_type =
@@ -4772,11 +4768,8 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
         }
         if (eob == 1 && allow_update_cdf) return;
         PREDICTION_MODE intra_dir;
-        if (mbmi->filter_intra_mode_info.use_filter_intra)
-          intra_dir = fimode_to_intradir[mbmi->filter_intra_mode_info
-                                             .filter_intra_mode];
 #if CONFIG_WAIP
-        else if (mbmi->is_wide_angle[0][mbmi->txb_idx])
+        if (mbmi->is_wide_angle[0][mbmi->txb_idx])
           intra_dir = mbmi->mapped_intra_mode[0][mbmi->txb_idx];
 #endif  // CONFIG_WAIP
         else

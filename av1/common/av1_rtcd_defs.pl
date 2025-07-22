@@ -115,11 +115,6 @@ specialize qw/av1_convolve_symmetric_dual_subtract_center_highbd avx2/;
 add_proto qw/void av1_convolve_mixedsymmetric_highbd/, "const uint16_t *dgd, int stride, const NonsepFilterConfig *filter_config, const int16_t *filter, uint16_t *dst, int dst_stride, int bit_depth, int block_row_begin, int block_row_end, int block_col_begin, int block_col_end";
 specialize qw/av1_convolve_mixedsymmetric_highbd avx2/;
 
-
-# FILTER_INTRA predictor functions
-add_proto qw/void av1_filter_intra_predictor/, "uint8_t *dst, ptrdiff_t stride, TX_SIZE tx_size, const uint8_t *above, const uint8_t *left, int mode";
-specialize qw/av1_filter_intra_predictor sse4_1 neon/;
-
 # optical flow interpolation function
 add_proto qw/void av1_bicubic_grad_interpolation_highbd/, "const int16_t *pred_src, int16_t *x_grad, int16_t *y_grad, const int stride, const int blk_width, const int blk_height";
 specialize qw/av1_bicubic_grad_interpolation_highbd sse4_1 avx2/;

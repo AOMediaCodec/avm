@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (c) 2021, Alliance for Open Media. All rights reserved
  *
  * This source code is subject to the terms of the BSD 3-Clause Clear License
@@ -1234,12 +1234,7 @@ static INLINE int is_intra_hash_match(const AV1_COMP *cpi, MACROBLOCK *x,
          !is_inter_block(xd->mi[0], xd->tree_type) && plane == 0 &&
          tx_size_wide[tx_size] == tx_size_high[tx_size]);
   MB_MODE_INFO *mbmi = xd->mi[0];
-  PREDICTION_MODE intra_dir;
-  if (mbmi->filter_intra_mode_info.use_filter_intra)
-    intra_dir =
-        fimode_to_intradir[mbmi->filter_intra_mode_info.filter_intra_mode];
-  else
-    intra_dir = mbmi->mode;
+  PREDICTION_MODE intra_dir = mbmi->mode;
   const uint32_t intra_hash = get_intra_txb_hash(
       x, plane, blk_row, blk_col, plane_bsize, tx_size, intra_dir);
 
@@ -1906,12 +1901,7 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
   const AV1_COMMON *cm = &cpi->common;
   MACROBLOCKD *xd = &x->e_mbd;
   MB_MODE_INFO *mbmi = xd->mi[0];
-  PREDICTION_MODE intra_dir;
-  if (mbmi->filter_intra_mode_info.use_filter_intra)
-    intra_dir =
-        fimode_to_intradir[mbmi->filter_intra_mode_info.filter_intra_mode];
-  else
-    intra_dir = get_intra_mode(mbmi, AOM_PLANE_Y);
+  PREDICTION_MODE intra_dir = get_intra_mode(mbmi, AOM_PLANE_Y);
   const TxfmSearchParams *txfm_params = &x->txfm_search_params;
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
   const int fast_tx_search = ftxs_mode & FTXS_DCT_AND_1D_DCT_ONLY;
@@ -2584,7 +2574,6 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
         !xd->lossless[mbmi->segment_id];
 
     const PREDICTION_MODE intra_mode = get_intra_mode(mbmi, plane);
-    const int filter = mbmi->filter_intra_mode_info.use_filter_intra;
 #if !CONFIG_IST_NON_ZERO_DEPTH
     const int is_depth0 = tx_size_is_depth0(tx_size, plane_bsize);
 #endif  // !CONFIG_IST_NON_ZERO_DEPTH
@@ -2593,7 +2582,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
          plane != 0 ||
          (is_inter_block(mbmi, xd->tree_type)
               ? (primary_tx_type != DCT_DCT || txw < 16 || txh < 16)
-              : (intra_mode >= PAETH_PRED || filter)) ||
+              : intra_mode >= PAETH_PRED) ||
 #if CONFIG_IST_NON_ZERO_DEPTH
          dc_only_blk || (eob_found) || !xd->enable_ist);
 #else

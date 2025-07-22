@@ -6826,7 +6826,6 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
 #endif  // CONFIG_IBC_SUBPEL_PRECISION
 
     memset(&mbmi->palette_mode_info, 0, sizeof(mbmi->palette_mode_info));
-    mbmi->filter_intra_mode_info.use_filter_intra = 0;
     mbmi->use_intra_dip = 0;
     mbmi->use_intrabc[xd->tree_type == CHROMA_PART] = 1;
     assert(xd->tree_type != CHROMA_PART);
@@ -7333,7 +7332,6 @@ static AOM_INLINE void rd_pick_skip_mode(
   mbmi->fsc_mode[xd->tree_type == CHROMA_PART] = 0;
   mbmi->bawp_flag[0] = 0;
   mbmi->bawp_flag[1] = 0;
-  mbmi->filter_intra_mode_info.use_filter_intra = 0;
   mbmi->use_intra_dip = 0;
   mbmi->interintra_mode = (INTERINTRA_MODE)(II_DC_PRED - 1);
   mbmi->comp_group_idx = 0;
@@ -7587,7 +7585,6 @@ static AOM_INLINE void rd_pick_skip_mode(
 
       search_state->best_mbmode.interintra_mode =
           (INTERINTRA_MODE)(II_DC_PRED - 1);
-      search_state->best_mbmode.filter_intra_mode_info.use_filter_intra = 0;
       search_state->best_mbmode.use_intra_dip = 0;
 
       set_default_interp_filters(&search_state->best_mbmode, cm,
@@ -8454,7 +8451,6 @@ static INLINE void init_mbmi(MB_MODE_INFO *mbmi, PREDICTION_MODE curr_mode,
   mbmi->ref_frame[1] = ref_frames[1];
   pmi->palette_size[0] = 0;
   pmi->palette_size[1] = 0;
-  mbmi->filter_intra_mode_info.use_filter_intra = 0;
   mbmi->use_intra_dip = 0;
   mbmi->mv[0].as_int = mbmi->mv[1].as_int = 0;
   mbmi->cwp_idx = CWP_EQUAL;
@@ -9861,7 +9857,6 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
 #endif  // CONFIG_NEW_CONTEXT_MODELING
           mbmi->angle_delta[PLANE_TYPE_Y] = 0;
           mbmi->angle_delta[PLANE_TYPE_UV] = 0;
-          mbmi->filter_intra_mode_info.use_filter_intra = 0;
           mbmi->use_intra_dip = 0;
 #if CONFIG_LOSSLESS_DPCM
           mbmi->use_dpcm_y = 0;
@@ -10475,7 +10470,6 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
   mbmi->skip_mode = 0;
   mbmi->palette_mode_info.palette_size[0] = 0;
   mbmi->palette_mode_info.palette_size[1] = 0;
-  mbmi->filter_intra_mode_info.use_filter_intra = 0;
   mbmi->use_intra_dip = 0;
   mbmi->mode = GLOBALMV;
   mbmi->motion_mode = SIMPLE_TRANSLATION;

@@ -1710,9 +1710,8 @@ static AOM_INLINE void av1_ml_part_split_features_square(AV1_COMP *const cpi,
           xd->left_available = (mi_col + col_off) > 0;
           av1_predict_intra_block(
               cm, xd, w_sub_mi << MI_SIZE_LOG2, h_sub_mi << MI_SIZE_LOG2,
-              tx_sub_size, intra_sub_mode, 0, 0, FILTER_INTRA_MODES,
-              x->plane[0].src.buf + src_off, x->plane[0].src.stride, intrapred,
-              MAX_TX_SIZE, 0, 0, 0);
+              tx_sub_size, intra_sub_mode, 0, 0, x->plane[0].src.buf + src_off,
+              x->plane[0].src.stride, intrapred, MAX_TX_SIZE, 0, 0, 0);
 
           unsigned int curr_sse = 0, curr_var = 0;
           curr_var = cpi->fn_ptr[txsize_to_bsize[tx_sub_size]].vf(
@@ -1784,11 +1783,11 @@ static AOM_INLINE void av1_ml_part_split_features_none(AV1_COMP *const cpi,
         int intr_off = (row_off << 2) * MAX_BLK_SIZE + (col_off << 2);
         xd->up_available = (mi_row + row_off) > 0;
         xd->left_available = (mi_col + col_off) > 0;
-        av1_predict_intra_block(
-            cm, xd, w_mi << MI_SIZE_LOG2, h_mi << MI_SIZE_LOG2, tx_size,
-            intra_mode, 0, 0, FILTER_INTRA_MODES, x->plane[0].src.buf + src_off,
-            x->plane[0].src.stride, intrapred + intr_off, MAX_BLK_SIZE, 0, 0,
-            0);
+        av1_predict_intra_block(cm, xd, w_mi << MI_SIZE_LOG2,
+                                h_mi << MI_SIZE_LOG2, tx_size, intra_mode, 0, 0,
+                                x->plane[0].src.buf + src_off,
+                                x->plane[0].src.stride, intrapred + intr_off,
+                                MAX_BLK_SIZE, 0, 0, 0);
         unsigned int tmp = 0;
         curr_var += cpi->fn_ptr[txsize_to_bsize[tx_size]].vf(
             x->plane[0].src.buf + src_off, x->plane[0].src.stride,

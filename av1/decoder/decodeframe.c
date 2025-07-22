@@ -6489,7 +6489,6 @@ void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
 
   setup_seq_sb_size(seq_params, rb);
 
-  seq_params->enable_filter_intra = aom_rb_read_bit(rb);
   seq_params->enable_intra_dip = aom_rb_read_bit(rb);
   seq_params->enable_intra_edge_filter = aom_rb_read_bit(rb);
   if (seq_params->reduced_still_picture_hdr) {

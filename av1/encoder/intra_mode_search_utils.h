@@ -209,12 +209,10 @@ static AOM_INLINE int intra_mode_info_cost_y(const AV1_COMP *cpi,
   int total_rate = mode_cost;
   const ModeCosts *mode_costs = &x->mode_costs;
   const int use_palette = mbmi->palette_mode_info.palette_size[0] > 0;
-  const int use_filter_intra = mbmi->filter_intra_mode_info.use_filter_intra;
   const MACROBLOCKD *xd = &x->e_mbd;
   const int use_intrabc = mbmi->use_intrabc[PLANE_TYPE_Y];
   // Can only activate one mode.
-  assert(((mbmi->mode != DC_PRED) + use_palette + use_intrabc +
-          use_filter_intra) <= 1);
+  assert(((mbmi->mode != DC_PRED) + use_palette + use_intrabc) <= 1);
   const int try_palette =
       av1_allow_palette(cpi->common.features.allow_screen_content_tools,
                         mbmi->sb_type[PLANE_TYPE_Y]);
@@ -252,23 +250,6 @@ static AOM_INLINE int intra_mode_info_cost_y(const AV1_COMP *cpi,
     const int fsc_ctx = get_fsc_mode_ctx(xd, frame_is_intra_only(&cpi->common));
     total_rate +=
         mode_costs->fsc_cost[fsc_ctx][fsc_bsize_groups[bsize]][use_fsc];
-  }
-  if (av1_filter_intra_allowed(&cpi->common, mbmi
-#if CONFIG_LOSSLESS_DPCM
-                               ,
-                               xd
-#endif
-                               )) {
-#if CONFIG_D149_CTX_MODELING_OPT
-    total_rate += mode_costs->filter_intra_cost[use_filter_intra];
-#else
-    total_rate += mode_costs->filter_intra_cost[bsize][use_filter_intra];
-#endif  // CONFIG_D149_CTX_MODELING_OPT
-    if (use_filter_intra) {
-      total_rate +=
-          mode_costs->filter_intra_mode_cost[mbmi->filter_intra_mode_info
-                                                 .filter_intra_mode];
-    }
   }
   const int use_intra_dip = mbmi->use_intra_dip;
   if (av1_intra_dip_allowed(&cpi->common, mbmi)) {
@@ -396,26 +377,6 @@ static int64_t intra_model_yrd(const AV1_COMP *const cpi, MACROBLOCK *const x,
       SSE_TYPE_INTRA
 #endif  // CONFIG_MRSSE
   );
-  if (mbmi->mode == DC_PRED &&
-      av1_filter_intra_allowed_bsize(cm, mbmi->sb_type[PLANE_TYPE_Y])) {
-#if CONFIG_D149_CTX_MODELING_OPT
-    if (mbmi->filter_intra_mode_info.use_filter_intra) {
-      const int mode = mbmi->filter_intra_mode_info.filter_intra_mode;
-      mode_cost += mode_costs->filter_intra_cost[1] +
-                   mode_costs->filter_intra_mode_cost[mode];
-    } else {
-      mode_cost += mode_costs->filter_intra_cost[0];
-    }
-#else
-    if (mbmi->filter_intra_mode_info.use_filter_intra) {
-      const int mode = mbmi->filter_intra_mode_info.filter_intra_mode;
-      mode_cost += mode_costs->filter_intra_cost[bsize][1] +
-                   mode_costs->filter_intra_mode_cost[mode];
-    } else {
-      mode_cost += mode_costs->filter_intra_cost[bsize][0];
-    }
-#endif  // CONFIG_D149_CTX_MODELING_OPT
-  }
   const int use_intra_dip = mbmi->use_intra_dip;
   if (av1_intra_dip_allowed(&cpi->common, mbmi)) {
     int ctx = get_intra_dip_ctx(xd->neighbors[0], xd->neighbors[1], bsize);
