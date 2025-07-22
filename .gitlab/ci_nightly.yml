@@ -36,6 +36,9 @@ Linux Nightly Build:
       - 'aom_nightly_build/test_libaom'
       - 'aom_nightly_build/**/*.gcno'
       - 'aom_nightly_build/**/*.[hc]'
+      - 'aom_nightly_build/**/*.[hc]pp'
+      - 'aom_nightly_build/**/*.cc'
+      - 'aom_nightly_build/**/*.inc'
 
 # Full unit tests run (with coverage report)
 Linux All Unit Test:
