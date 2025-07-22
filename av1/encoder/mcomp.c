@@ -301,7 +301,6 @@ void av1_set_mv_search_range(FullMvLimits *mv_limits, const MV *mv,
   mv_limits->row_max = AOMMAX(mv_limits->row_min, mv_limits->row_max);
 }
 
-#if CONFIG_OPFL_MV_SEARCH
 // Obtain number of iterations for optical flow based MV search.
 int get_opfl_mv_iterations(const AV1_COMP *cpi, const MB_MODE_INFO *mbmi) {
   // Allowed only for screen content
@@ -411,7 +410,6 @@ int opfl_refine_fullpel_mv_one_sided(
   mv_refined[0].as_mv.col += vx0;
   return 0;
 }
-#endif  // CONFIG_OPFL_MV_SEARCH
 
 int av1_init_search_range(int size
 #if CONFIG_MV_RANGE_EXTENSION

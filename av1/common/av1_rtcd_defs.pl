@@ -284,10 +284,8 @@ specialize qw/av1_build_compound_diffwtd_mask_highbd ssse3 avx2/;
 add_proto qw/void av1_build_compound_diffwtd_mask_d16/, "uint8_t *mask, DIFFWTD_MASK_TYPE mask_type, const CONV_BUF_TYPE *src0, int src0_stride, const CONV_BUF_TYPE *src1, int src1_stride, int h, int w, ConvolveParams *conv_params, int bd";
 specialize qw/av1_build_compound_diffwtd_mask_d16 sse4_1 avx2 neon/;
 
-if (aom_config("CONFIG_OPFL_MV_SEARCH") eq "yes") {
-    add_proto qw/void av1_avg_pooling_pdiff_gradients/,"int16_t *pdiff, const int pstride, int16_t *gx, int16_t *gy, const int gstride, const int bw, const int bh, const int n";
-    specialize qw/av1_avg_pooling_pdiff_gradients avx2/;
-}
+add_proto qw/void av1_avg_pooling_pdiff_gradients/,"int16_t *pdiff, const int pstride, int16_t *gx, int16_t *gy, const int gstride, const int bw, const int bh, const int n";
+specialize qw/av1_avg_pooling_pdiff_gradients avx2/;
 
 #
 # Block Adaptive Weighted Prediction

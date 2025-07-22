@@ -441,8 +441,6 @@ set_aom_config_var(CONFIG_FIX_RESIZE_PSNR 1
 set_aom_config_var(CONFIG_MOTION_MODE_RD_PRUNE 1
                    "Enable fast motion mode search")
 
-set_aom_config_var(CONFIG_OPFL_MV_SEARCH 1 "Optical flow based MV search")
-
 set_aom_config_var(CONFIG_MRSSE 0 "Enable MRSSE")
 
 set_aom_config_var(CONFIG_MAX_PB_RATIO 1

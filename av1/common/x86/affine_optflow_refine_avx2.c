@@ -51,7 +51,6 @@ static INLINE __m256i round_power_of_two_signed_epi32(__m256i in,
   return rounded_vec;
 }
 
-#if CONFIG_OPFL_MV_SEARCH
 static INLINE void avg_pool_pdiff_grad_8_avx2(int16_t *pdiff, const int pstride,
                                               int16_t *gx, int16_t *gy,
                                               const int gstride, const int bh) {
@@ -1023,7 +1022,6 @@ void av1_avg_pooling_pdiff_gradients_avx2(int16_t *pdiff, const int pstride,
                                       n);
   }
 }
-#endif  // CONFIG_OPFL_MV_SEARCH
 
 // Masks used to reorder the pixels at the block boundary during gradient
 // calculation.

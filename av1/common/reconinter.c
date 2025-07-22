@@ -1300,14 +1300,12 @@ void av1_compute_subpel_gradients_interp(int16_t *pred_dst, int bw, int bh,
   for (int i = 0; i < bh; i += sub_bh) {
     for (int j = 0; j < bw; j += sub_bw) {
       // Reuse pixels in pred_dst to compute gradients
-#if CONFIG_OPFL_MV_SEARCH
       // SIMD code does not support bw=4 or bh=4
       if (bw < 8 || bh < 8)
         av1_bicubic_grad_interpolation_highbd_c(
             pred_dst + i * bw + j, x_grad + i * bw + j, y_grad + i * bw + j, bw,
             sub_bw, sub_bh);
       else
-#endif  // CONFIG_OPFL_MV_SEARCH
         av1_bicubic_grad_interpolation_highbd(
             pred_dst + i * bw + j, x_grad + i * bw + j, y_grad + i * bw + j, bw,
             sub_bw, sub_bh);
@@ -1318,7 +1316,6 @@ void av1_compute_subpel_gradients_interp(int16_t *pred_dst, int bw, int bh,
   *grad_prec_bits = 3 - SUBPEL_GRAD_DELTA_BITS - 2;
 }
 
-#if CONFIG_OPFL_MV_SEARCH
 // Apply average pooling to reduce the sizes of pred difference and gradients
 // arrays. It reduces the complexity of the parameter solving routine
 void av1_avg_pooling_pdiff_gradients_c(int16_t *pdiff, const int pstride,
@@ -1350,7 +1347,6 @@ void av1_avg_pooling_pdiff_gradients_c(int16_t *pdiff, const int pstride,
     }
   }
 }
-#endif  // CONFIG_OPFL_MV_SEARCH
 
 void calc_mv_process(int32_t su2, int32_t sv2, int32_t suv, int32_t suw,
                      int32_t svw, const int d0, const int d1, const int bits,

@@ -608,7 +608,7 @@ int av1_opfl_mv_refinement_nxn_sse4_1(const int16_t *pdiff, int pstride,
 }
 
 // This round shift function has only been tested for the case d0 = 1, d1 = -1
-// that is used in CONFIG_OPFL_MV_SEARCH. To use centered=1 option for more
+// that is used in optical flow MV search. To use centered=1 option for more
 // general d0 and d1, this function needs to be extended.
 static INLINE __m128i round_power_of_two_signed_epi16(__m128i temp1,
                                                       const int bits) {

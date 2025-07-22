@@ -57,7 +57,6 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
   const MotionVectorSearchParams *mv_search_params = &cpi->mv_search_params;
   const int num_planes = av1_num_planes(cm);
   MB_MODE_INFO *mbmi = xd->mi[0];
-#if CONFIG_OPFL_MV_SEARCH
   int opfl_its = get_opfl_mv_iterations(cpi, mbmi);
   int_mv cur_mv;
   FULLPEL_MV this_best_opfl_mv, this_second_best_opfl_mv;
@@ -66,7 +65,6 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
       1 << AOMMAX(0, MV_PRECISION_ONE_PEL - mbmi->pb_mv_precision);
   const int range_thr = OMVS_RANGE_THR * radix;
   const int step = OMVS_BIG_STEP * radix;
-#endif  // CONFIG_OPFL_MV_SEARCH
   MOTION_MODE backup_motion_mode = mbmi->motion_mode;
   // Make the motion mode transalational, so that transalation MS can be used.
   if (mbmi->mode == WARPMV) mbmi->motion_mode = SIMPLE_TRANSLATION;
@@ -248,7 +246,6 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
         FULLPEL_MV smv = cand[m].fmv;
         FULLPEL_MV this_best_mv, this_second_best_mv;
 
-#if CONFIG_OPFL_MV_SEARCH
         this_best_mv = smv;
         best_opfl_sme = INT_MAX;
         int term = 0;
@@ -276,7 +273,6 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
               smv = cur_fullmv;
             }
           }
-#endif  // CONFIG_OPFL_MV_SEARCH
 
           int thissme = av1_full_pixel_search(
               smv, &full_ms_params, step_param, cond_cost_list(cpi, cost_list),
@@ -289,7 +285,6 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
           assert(is_this_mv_precision_compliant(
               get_mv_from_fullmv(&this_second_best_mv), pb_mv_precision));
 
-#if CONFIG_OPFL_MV_SEARCH
           if (thissme < best_opfl_sme) {
             best_opfl_sme = thissme;
             this_best_opfl_mv = this_best_mv;
@@ -303,13 +298,6 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
           best_mv->as_fullmv = this_best_opfl_mv;
           second_best_mv.as_fullmv = this_second_best_opfl_mv;
         }
-#else
-        if (thissme < bestsme) {
-          bestsme = thissme;
-          best_mv->as_fullmv = this_best_mv;
-          second_best_mv.as_fullmv = this_second_best_mv;
-        }
-#endif  // CONFIG_OPFL_MV_SEARCH
 
         sum_weight += cand[m].weight;
         if (m >= 2 || 4 * sum_weight > 3 * total_weight) break;
@@ -484,7 +472,6 @@ void av1_single_motion_search_high_precision(const AV1_COMP *const cpi,
   const MvCosts *mv_costs = &x->mv_costs;
   *best_mv = *start_mv;
 
-#if CONFIG_OPFL_MV_SEARCH
   int opfl_its = get_opfl_mv_iterations(cpi, mbmi);
   int_mv cur_mv;
   int best_opfl_sme = INT_MAX;
@@ -493,7 +480,6 @@ void av1_single_motion_search_high_precision(const AV1_COMP *const cpi,
 
   const int range_thr = OMVS_RANGE_THR * radix;
   const int step = OMVS_BIG_STEP * radix;
-#endif  // CONFIG_OPFL_MV_SEARCH
 
   const int is_adaptive_mvd = enable_adaptive_mvd_resolution(cm, mbmi);
   assert(!is_adaptive_mvd);
@@ -533,7 +519,6 @@ void av1_single_motion_search_high_precision(const AV1_COMP *const cpi,
                                      is_ibc_cost,
 #endif
                                      NULL, 0);
-#if CONFIG_OPFL_MV_SEARCH
   FULLPEL_MV best_opfl_mv = start_fullmv;
   best_opfl_sme = INT_MAX;
   curr_best_mv = *start_mv;
@@ -562,7 +547,6 @@ void av1_single_motion_search_high_precision(const AV1_COMP *const cpi,
         start_fullmv = cur_fullmv;
       }
     }
-#endif  // CONFIG_OPFL_MV_SEARCH
 
     if (pb_mv_precision < MV_PRECISION_ONE_PEL)
       bestsme = av1_refining_search_8p_c_low_precision(
@@ -572,7 +556,6 @@ void av1_single_motion_search_high_precision(const AV1_COMP *const cpi,
       bestsme = av1_refining_search_8p_c(&full_ms_params, start_fullmv,
                                          &curr_best_mv.as_fullmv);
 
-#if CONFIG_OPFL_MV_SEARCH
     if (bestsme < best_opfl_sme) {
       best_opfl_sme = bestsme;
       best_opfl_mv = curr_best_mv.as_fullmv;
@@ -582,7 +565,6 @@ void av1_single_motion_search_high_precision(const AV1_COMP *const cpi,
   }
   bestsme = best_opfl_sme;
   curr_best_mv.as_fullmv = best_opfl_mv;
-#endif  // CONFIG_OPFL_MV_SEARCH
 
   if (scaled_ref_frame) {
     // Swap back the original buffers for subpel motion search.
