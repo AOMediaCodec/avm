@@ -50,6 +50,13 @@ static INLINE __m128i pack_and_round_epi32(__m128i temp1, __m128i temp2,
   return (_mm_packs_epi32(temp1, temp2));
 }
 
+static INLINE __m128i clamp_epi16(__m128i val, const int min_val,
+                                  const int max_val) {
+  const __m128i min = _mm_set1_epi16(min_val);
+  const __m128i max = _mm_set1_epi16(max_val);
+  return _mm_min_epi16(_mm_max_epi16(val, min), max);
+}
+
 void av1_bicubic_grad_interpolation_highbd_sse4_1(const int16_t *pred_src,
                                                   int16_t *x_grad,
                                                   int16_t *y_grad,
@@ -117,7 +124,7 @@ void av1_bicubic_grad_interpolation_highbd_sse4_1(const int16_t *pred_src,
 
         temp1 =
             pack_and_round_epi32(temp1, temp2, v_bias_d, ones, bicubic_bits);
-
+        temp1 = clamp_epi16(temp1, -OPFL_GRAD_CLAMP_VAL, OPFL_GRAD_CLAMP_VAL);
         const int idx = col * stride + row;
         xx_storeu_128(x_grad + idx, temp1);
 
@@ -147,6 +154,7 @@ void av1_bicubic_grad_interpolation_highbd_sse4_1(const int16_t *pred_src,
 
         temp1 =
             pack_and_round_epi32(temp1, temp2, v_bias_d, ones, bicubic_bits);
+        temp1 = clamp_epi16(temp1, -OPFL_GRAD_CLAMP_VAL, OPFL_GRAD_CLAMP_VAL);
         xx_storeu_128(y_grad + idx, temp1);
       }
     }
@@ -213,7 +221,7 @@ void av1_bicubic_grad_interpolation_highbd_sse4_1(const int16_t *pred_src,
 
         temp1 =
             pack_and_round_epi32(temp1, temp2, v_bias_d, ones, bicubic_bits);
-
+        temp1 = clamp_epi16(temp1, -OPFL_GRAD_CLAMP_VAL, OPFL_GRAD_CLAMP_VAL);
         const int idx = col * stride + row;
         xx_storeu_128(x_grad + idx, temp1);
 
@@ -236,6 +244,7 @@ void av1_bicubic_grad_interpolation_highbd_sse4_1(const int16_t *pred_src,
 
         temp1 =
             pack_and_round_epi32(temp1, temp2, v_bias_d, ones, bicubic_bits);
+        temp1 = clamp_epi16(temp1, -OPFL_GRAD_CLAMP_VAL, OPFL_GRAD_CLAMP_VAL);
         xx_storeu_128(x_grad + idx + 8, temp1);
 
         src = pred_src + row;
@@ -269,6 +278,7 @@ void av1_bicubic_grad_interpolation_highbd_sse4_1(const int16_t *pred_src,
 
         temp1 =
             pack_and_round_epi32(temp1, temp2, v_bias_d, ones, bicubic_bits);
+        temp1 = clamp_epi16(temp1, -OPFL_GRAD_CLAMP_VAL, OPFL_GRAD_CLAMP_VAL);
         xx_storeu_128(y_grad + idx, temp1);
 
         sub1 = _mm_sub_epi32(_mm_cvtepi16_epi32(vpred_next1_2),
@@ -289,6 +299,7 @@ void av1_bicubic_grad_interpolation_highbd_sse4_1(const int16_t *pred_src,
                           _mm_mullo_epi32(sub4, coeff_bi[is_y_boundary][1]));
         temp1 =
             pack_and_round_epi32(temp1, temp2, v_bias_d, ones, bicubic_bits);
+        temp1 = clamp_epi16(temp1, -OPFL_GRAD_CLAMP_VAL, OPFL_GRAD_CLAMP_VAL);
         xx_storeu_128(y_grad + idx + 8, temp1);
       }
     }
@@ -346,8 +357,6 @@ static void opfl_mv_refinement_8x4_sse4_1(const int16_t *pdiff, int pstride,
   // TODO(kslu) clean up all grad_bits if later it is still not needed
   int grad_bits_lo = 0;
   int grad_bits_hi = 0;
-  __m128i opfl_samp_min = _mm_set1_epi16(-OPFL_SAMP_CLAMP_VAL);
-  __m128i opfl_samp_max = _mm_set1_epi16(OPFL_SAMP_CLAMP_VAL);
   do {
     __m128i gradX = LoadUnaligned16(gx);
     __m128i gradY = LoadUnaligned16(gy);
@@ -356,9 +365,6 @@ static void opfl_mv_refinement_8x4_sse4_1(const int16_t *pdiff, int pstride,
     // 16bit and there are cases where these buffers can be filled with extreme
     // values. Hence, the accumulation here needs to be done at 64-bit precision
     // to avoid overflow issues.
-    gradX = _mm_max_epi16(_mm_min_epi16(gradX, opfl_samp_max), opfl_samp_min);
-    gradY = _mm_max_epi16(_mm_min_epi16(gradY, opfl_samp_max), opfl_samp_min);
-    pred = _mm_max_epi16(_mm_min_epi16(pred, opfl_samp_max), opfl_samp_min);
     const __m128i gradX_lo_0 = _mm_cvtepi16_epi32(gradX);
     const __m128i gradY_lo_0 = _mm_cvtepi16_epi32(gradY);
     const __m128i pred_lo_0 = _mm_cvtepi16_epi32(pred);
@@ -466,8 +472,6 @@ static void opfl_mv_refinement_8x8_sse4_1(const int16_t *pdiff, int pstride,
   int32_t svw = 0;
   // TODO(kslu) clean up all grad_bits if later it is still not needed
   int grad_bits = 0;
-  __m128i opfl_samp_min = _mm_set1_epi16(-OPFL_SAMP_CLAMP_VAL);
-  __m128i opfl_samp_max = _mm_set1_epi16(OPFL_SAMP_CLAMP_VAL);
   do {
     __m128i gradX = LoadUnaligned16(gx);
     __m128i gradY = LoadUnaligned16(gy);
@@ -476,9 +480,6 @@ static void opfl_mv_refinement_8x8_sse4_1(const int16_t *pdiff, int pstride,
     // 16bit and there are cases where these buffers can be filled with extreme
     // values. Hence, the accumulation here needs to be done at 64bit to avoid
     // overflow issues.
-    gradX = _mm_max_epi16(_mm_min_epi16(gradX, opfl_samp_max), opfl_samp_min);
-    gradY = _mm_max_epi16(_mm_min_epi16(gradY, opfl_samp_max), opfl_samp_min);
-    pred = _mm_max_epi16(_mm_min_epi16(pred, opfl_samp_max), opfl_samp_min);
     const __m128i gradX_lo_0 = _mm_cvtepi16_epi32(gradX);
     const __m128i gradY_lo_0 = _mm_cvtepi16_epi32(gradY);
     const __m128i pred_lo_0 = _mm_cvtepi16_epi32(pred);
@@ -615,7 +616,7 @@ static INLINE __m128i round_power_of_two_signed_epi16(__m128i temp1,
 
 static AOM_FORCE_INLINE void compute_pred_using_interp_grad_highbd_sse4_1(
     const uint16_t *src1, const uint16_t *src2, int16_t *dst1, int16_t *dst2,
-    int bw, int bh, int d0, int d1, int centered) {
+    int bw, int bh, int d0, int d1, int bd, int centered) {
   const __m128i zero = _mm_setzero_si128();
   const __m128i mul_one = _mm_set1_epi16(1);
   const __m128i mul1 = _mm_set1_epi16(d0);
@@ -641,13 +642,18 @@ static AOM_FORCE_INLINE void compute_pred_using_interp_grad_highbd_sse4_1(
       temp2 = _mm_madd_epi16(reg2, mul_val1);
       temp1 = _mm_packs_epi32(temp1, temp2);
       if (centered) temp1 = round_power_of_two_signed_epi16(temp1, 1);
-
-      reg1 = _mm_madd_epi16(reg1, mul_val2);
-      reg2 = _mm_madd_epi16(reg2, mul_val2);
-      temp2 = _mm_packs_epi32(reg1, reg2);
-
+      temp1 = round_power_of_two_signed_epi16(temp1, bd - 8);
+      temp1 = clamp_epi16(temp1, -OPFL_PRED_MAX, OPFL_PRED_MAX);
       xx_store_128(out1 + j, temp1);
-      if (dst2) xx_store_128(out2 + j, temp2);
+
+      if (dst2) {
+        reg1 = _mm_madd_epi16(reg1, mul_val2);
+        reg2 = _mm_madd_epi16(reg2, mul_val2);
+        temp2 = _mm_packs_epi32(reg1, reg2);
+        temp2 = round_power_of_two_signed_epi16(temp2, bd - 8);
+        temp2 = clamp_epi16(temp2, -OPFL_PRED_MAX, OPFL_PRED_MAX);
+        xx_store_128(out2 + j, temp2);
+      }
     }
   }
 }
@@ -655,7 +661,7 @@ static AOM_FORCE_INLINE void compute_pred_using_interp_grad_highbd_sse4_1(
 void av1_copy_pred_array_highbd_sse4_1(const uint16_t *src1,
                                        const uint16_t *src2, int16_t *dst1,
                                        int16_t *dst2, int bw, int bh, int d0,
-                                       int d1, int centered) {
+                                       int d1, int bd, int centered) {
   compute_pred_using_interp_grad_highbd_sse4_1(src1, src2, dst1, dst2, bw, bh,
-                                               d0, d1, centered);
+                                               d0, d1, bd, centered);
 }

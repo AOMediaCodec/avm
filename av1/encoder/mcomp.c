@@ -359,9 +359,11 @@ int opfl_refine_fullpel_mv_one_sided(
       (int16_t *)aom_memalign(16, MAX_SB_SIZE * MAX_SB_SIZE * sizeof(int16_t));
   // tmp0 = (P0 + Cur) / 2, tmp1 = P0 - Cur
   if (bw < 8)
-    av1_copy_pred_array_highbd_c(dst0, dst1, tmp0, tmp1, bw, bh, 1, -1, 1);
+    av1_copy_pred_array_highbd_c(dst0, dst1, tmp0, tmp1, bw, bh, 1, -1, xd->bd,
+                                 1);
   else
-    av1_copy_pred_array_highbd(dst0, dst1, tmp0, tmp1, bw, bh, 1, -1, 1);
+    av1_copy_pred_array_highbd(dst0, dst1, tmp0, tmp1, bw, bh, 1, -1, xd->bd,
+                               1);
   // Buffers gx0 and gy0 are used to store the gradients of tmp0
   av1_compute_subpel_gradients_interp(tmp0, bw, bh, &grad_prec_bits, gx0, gy0);
   int bits = 3 + get_opfl_mv_upshift_bits(mbmi);

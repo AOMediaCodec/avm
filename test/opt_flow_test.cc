@@ -506,9 +506,10 @@ class AV1OptFlowRefineTest : public AV1OptFlowTest<opfl_mv_refinement> {
         const int ref1_frm_idx = RandomFrameIdx(oh_bits);
 
         oh_info.order_hint_bits_minus_1 = oh_bits - 1;
-        const int d0 = get_relative_dist(&oh_info, cur_frm_idx, ref0_frm_idx);
-        const int d1 = get_relative_dist(&oh_info, cur_frm_idx, ref1_frm_idx);
+        int d0 = get_relative_dist(&oh_info, cur_frm_idx, ref0_frm_idx);
+        int d1 = get_relative_dist(&oh_info, cur_frm_idx, ref1_frm_idx);
         if (!d0 || !d1) continue;
+        reduce_temporal_dist(&d0, &d1);
 
         // Here, the input corresponds to 'd0*p0 - d1*p1' (where P0 and P1 can
         // be 12 bits, d0 and d1 can be >=5 bits) and gx, gy are gradients of
@@ -529,9 +530,10 @@ class AV1OptFlowRefineTest : public AV1OptFlowTest<opfl_mv_refinement> {
     for (int oh_bits = oh_start_bits; oh_bits <= kMaxOrderHintBits;
          oh_bits += kMaxOrderHintBits - 1) {
       for (int count = 0; count < numIter;) {
-        const int d0 = RelativeDistExtreme(oh_bits);
-        const int d1 = RelativeDistExtreme(oh_bits);
+        int d0 = RelativeDistExtreme(oh_bits);
+        int d1 = RelativeDistExtreme(oh_bits);
         if (!d0 || !d1) continue;
+        reduce_temporal_dist(&d0, &d1);
 
         RandomInput16Extreme(input_, GetParam(), AOMMIN(16, bd + 1));
         RandomInput16Extreme(gx_, GetParam(), AOMMIN(16, bd + 6));
@@ -674,7 +676,7 @@ INSTANTIATE_TEST_SUITE_P(
 typedef void (*pred_buffer_copy_highbd)(const uint16_t *src1,
                                         const uint16_t *src2, int16_t *dst1,
                                         int16_t *dst2, int bw, int bh, int d0,
-                                        int d1, int centered);
+                                        int d1, int bd, int centered);
 
 class AV1OptFlowCopyPredHighbdTest
     : public AV1OptFlowTest<pred_buffer_copy_highbd> {
@@ -725,9 +727,10 @@ class AV1OptFlowCopyPredHighbdTest
         const int ref1_frm_idx = RandomFrameIdx(oh_bits);
 
         oh_info.order_hint_bits_minus_1 = oh_bits - 1;
-        const int d0 = get_relative_dist(&oh_info, cur_frm_idx, ref0_frm_idx);
-        const int d1 = get_relative_dist(&oh_info, cur_frm_idx, ref1_frm_idx);
+        int d0 = get_relative_dist(&oh_info, cur_frm_idx, ref0_frm_idx);
+        int d1 = get_relative_dist(&oh_info, cur_frm_idx, ref1_frm_idx);
         if (!d0 || !d1) continue;
+        reduce_temporal_dist(&d0, &d1);
 
         RandomInput16(src_buf1_, GetParam(), bd);
         RandomInput16(src_buf2_, GetParam(), bd);
@@ -742,9 +745,10 @@ class AV1OptFlowCopyPredHighbdTest
     for (int oh_bits = oh_start_bits; oh_bits <= kMaxOrderHintBits;
          oh_bits += kMaxOrderHintBits - 1) {
       for (int count = 0; count < numIter;) {
-        const int d0 = RelativeDistExtreme(oh_bits);
-        const int d1 = RelativeDistExtreme(oh_bits);
+        int d0 = RelativeDistExtreme(oh_bits);
+        int d1 = RelativeDistExtreme(oh_bits);
         if (!d0 || !d1) continue;
+        reduce_temporal_dist(&d0, &d1);
 
         RandomInput16Extreme(src_buf1_, GetParam(), bd);
         RandomInput16Extreme(src_buf2_, GetParam(), bd);
@@ -781,9 +785,11 @@ class AV1OptFlowCopyPredHighbdTest
                      int16_t *dst_buf1_ref, int16_t *dst_buf2_ref,
                      int16_t *dst_buf1_test, int16_t *dst_buf2_test,
                      const int d0, const int d1, const int bw, const int bh) {
-    ref_func(src_buf1, src_buf2, dst_buf1_ref, dst_buf2_ref, bw, bh, d0, d1, 0);
+    const int bd = GetParam().BitDepth();
+    ref_func(src_buf1, src_buf2, dst_buf1_ref, dst_buf2_ref, bw, bh, d0, d1, bd,
+             0);
     test_func(src_buf1, src_buf2, dst_buf1_test, dst_buf2_test, bw, bh, d0, d1,
-              0);
+              bd, 0);
 
     AssertOutputBufferEq(dst_buf1_ref, dst_buf1_test, bw, bh, bw);
     AssertOutputBufferEq(dst_buf2_ref, dst_buf2_test, bw, bh, bw);
@@ -800,19 +806,20 @@ class AV1OptFlowCopyPredHighbdTest
     const int bh_log2 = bh >> MI_SIZE_LOG2;
     printf("bw=%d, bh=%d\n", bw, bh);
     const int numIter = 2097152 / (bw_log2 * bh_log2);
+    const int bd = GetParam().BitDepth();
     aom_usec_timer timer_ref;
     aom_usec_timer timer_test;
 
     aom_usec_timer_start(&timer_ref);
     for (int count = 0; count < numIter; count++)
       ref_func(src_buf1, src_buf2, dst_buf1_ref, dst_buf2_ref, bw, bh, d0, d1,
-               0);
+               bd, 0);
     aom_usec_timer_mark(&timer_ref);
 
     aom_usec_timer_start(&timer_test);
     for (int count = 0; count < numIter; count++)
       test_func(src_buf1, src_buf2, dst_buf1_test, dst_buf2_test, bw, bh, d0,
-                d1, 0);
+                d1, bd, 0);
     aom_usec_timer_mark(&timer_test);
 
     const int total_time_ref =

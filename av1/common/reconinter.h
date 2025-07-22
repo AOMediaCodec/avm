@@ -531,6 +531,8 @@ void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
 // 1/16-pel can be used.
 #define MV_REFINE_PREC_BITS 4  // (1/16-pel)
 
+#define OPFL_PRED_MAX ((1 << 10) - 1)
+
 // Apply regularized least squares (RLS). The RLS parameter is bw * bh * 2^(b-4)
 // where b = OPFL_RLS_PARAM.
 #define OPFL_REGULARIZED_LS 1
@@ -538,11 +540,13 @@ void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
 
 // Number of bits allowed for all intermediate results of covariance matrix
 // filling
-#define MAX_OPFL_AUTOCORR_BITS 28
+#define MAX_OPFL_AUTOCORR_BITS 24
 // Clamp range for u/v/w. If it uses h unsigned bits, then u2/v2 uses 2h
 // unsigned bits. Every sum of 8 u2/v2 use at most 2h+3 unsigned bits, and
 // must not exceed max bd of su2/sv2 minus 2. Thus, 2h+3 <= H-2
-#define OPFL_SAMP_CLAMP_VAL ((1 << ((MAX_OPFL_AUTOCORR_BITS - 6) >> 1)) - 1)
+#define OPFL_GRAD_CLAMP_VAL ((1 << ((MAX_OPFL_AUTOCORR_BITS - 6) >> 1)) - 1)
+
+void reduce_temporal_dist(int *d0, int *d1);
 
 void av1_opfl_build_inter_predictor(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mi,
@@ -573,7 +577,7 @@ void av1_opfl_rebuild_inter_predictor(
 
 // We consider this tunable number K=MAX_LS_BITS-1 (sign bit excluded)
 // as the target maximum bit depth of all intermediate results for LS problem.
-#define MAX_LS_BITS 32
+#define MAX_LS_BITS 26
 
 // Divide all elements of a vector by a common factor, and apply shifts.
 // The integer division is based on lookup table.
