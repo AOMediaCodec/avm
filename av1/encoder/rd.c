@@ -218,6 +218,16 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
     av1_cost_tokens_from_cdf(mode_costs->switchable_interp_costs[i],
                              fc->switchable_interp_cdf[i], NULL);
 
+#if CONFIG_PALETTE_CTX_REDUCTION
+  av1_cost_tokens_from_cdf(mode_costs->palette_y_size_cost,
+                           fc->palette_y_size_cdf, NULL);
+  av1_cost_tokens_from_cdf(mode_costs->palette_uv_size_cost,
+                           fc->palette_uv_size_cdf, NULL);
+  av1_cost_tokens_from_cdf(mode_costs->palette_y_mode_cost,
+                           fc->palette_y_mode_cdf, NULL);
+  av1_cost_tokens_from_cdf(mode_costs->palette_uv_mode_cost,
+                           fc->palette_uv_mode_cdf, NULL);
+#else
   for (i = 0; i < PALATTE_BSIZE_CTXS; ++i) {
     av1_cost_tokens_from_cdf(mode_costs->palette_y_size_cost[i],
                              fc->palette_y_size_cdf[i], NULL);
@@ -233,13 +243,16 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
     av1_cost_tokens_from_cdf(mode_costs->palette_uv_mode_cost[i],
                              fc->palette_uv_mode_cdf[i], NULL);
   }
+#endif  // CONFIG_PALETTE_CTX_REDUCTION
 
   for (i = 0; i < PALETTE_SIZES; ++i) {
     for (j = 0; j < PALETTE_COLOR_INDEX_CONTEXTS; ++j) {
       av1_cost_tokens_from_cdf(mode_costs->palette_y_color_cost[i][j],
                                fc->palette_y_color_index_cdf[i][j], NULL);
+#if !CONFIG_PALETTE_CTX_REDUCTION
       av1_cost_tokens_from_cdf(mode_costs->palette_uv_color_cost[i][j],
                                fc->palette_uv_color_index_cdf[i][j], NULL);
+#endif  // !CONFIG_PALETTE_CTX_REDUCTION
     }
   }
 

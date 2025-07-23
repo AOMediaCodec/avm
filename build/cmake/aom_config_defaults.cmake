@@ -430,7 +430,8 @@ set_aom_config_var(CONFIG_TIP_INTERP_SMOOTH 1
 
 set_aom_config_var(CONFIG_PALETTE_THREE_NEIGHBOR 1
                    "Derive palette context using three neighbors")
-
+set_aom_config_var(CONFIG_PALETTE_CTX_REDUCTION 1
+                   "Context reductions to Palette mode related syntax")
 set_aom_config_var(CONFIG_WRL_NO_PRUNING 1 "No pruning when construct WRL")
 
 # This is an encode-only change.

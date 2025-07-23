@@ -36,7 +36,11 @@ extern "C" {
 // contexts are (2,0,0), (2,2,1), (3,2,0), (4,1,0), (5,0,0) pluss one
 // extra case for the first element of an identity row. These are mapped to
 // a value from 0 to 5 using 'palette_color_index_context_lookup' table.
+#if CONFIG_PALETTE_CTX_REDUCTION
+#define PALETTE_COLOR_INDEX_CONTEXTS 5
+#else
 #define PALETTE_COLOR_INDEX_CONTEXTS 6
+#endif  // CONFIG_PALETTE_CTX_REDUCTION
 #if CONFIG_PALETTE_LINE_COPY
 #define PALETTE_ROW_FLAG_CONTEXTS 4
 #else
@@ -49,6 +53,7 @@ extern "C" {
 #define PALETTE_COLOR_INDEX_CONTEXTS 5
 #endif  // CONFIG_PALETTE_IMPROVEMENTS
 
+#if !CONFIG_PALETTE_CTX_REDUCTION
 // Palette Y mode context for a block is determined by number of neighboring
 // blocks (top and/or left) using a palette for Y plane. So, possible Y mode'
 // context values are:
@@ -69,6 +74,7 @@ extern "C" {
 //   ...
 // 4096(BLOCK_64X64)                        -> 6
 #define PALATTE_BSIZE_CTXS 7
+#endif  // !CONFIG_PALETTE_CTX_REDUCTION
 
 #define KF_MODE_CONTEXTS 5
 
@@ -375,8 +381,13 @@ typedef struct frame_contexts {
 
   aom_cdf_prob tip_cdf[TIP_CONTEXTS][CDF_SIZE(2)];
   aom_cdf_prob tip_pred_mode_cdf[CDF_SIZE(TIP_PRED_MODES)];
+#if CONFIG_PALETTE_CTX_REDUCTION
+  aom_cdf_prob palette_y_size_cdf[CDF_SIZE(PALETTE_SIZES)];
+  aom_cdf_prob palette_uv_size_cdf[CDF_SIZE(PALETTE_SIZES)];
+#else
   aom_cdf_prob palette_y_size_cdf[PALATTE_BSIZE_CTXS][CDF_SIZE(PALETTE_SIZES)];
   aom_cdf_prob palette_uv_size_cdf[PALATTE_BSIZE_CTXS][CDF_SIZE(PALETTE_SIZES)];
+#endif  // CONFIG_PALETTE_CTX_REDUCTION
 #if CONFIG_PALETTE_IMPROVEMENTS
 #if CONFIG_PALETTE_LINE_COPY
   aom_cdf_prob identity_row_cdf_y[PALETTE_ROW_FLAG_CONTEXTS][CDF_SIZE(3)];
@@ -390,12 +401,17 @@ typedef struct frame_contexts {
   aom_cdf_prob palette_y_color_index_cdf[PALETTE_SIZES]
                                         [PALETTE_COLOR_INDEX_CONTEXTS]
                                         [CDF_SIZE(PALETTE_COLORS)];
+#if CONFIG_PALETTE_CTX_REDUCTION
+  aom_cdf_prob palette_y_mode_cdf[CDF_SIZE(2)];
+  aom_cdf_prob palette_uv_mode_cdf[CDF_SIZE(2)];
+#else
   aom_cdf_prob palette_uv_color_index_cdf[PALETTE_SIZES]
                                          [PALETTE_COLOR_INDEX_CONTEXTS]
                                          [CDF_SIZE(PALETTE_COLORS)];
   aom_cdf_prob palette_y_mode_cdf[PALATTE_BSIZE_CTXS][PALETTE_Y_MODE_CONTEXTS]
                                  [CDF_SIZE(2)];
   aom_cdf_prob palette_uv_mode_cdf[PALETTE_UV_MODE_CONTEXTS][CDF_SIZE(2)];
+#endif  // CONFIG_PALETTE_CTX_REDUCTION
   aom_cdf_prob comp_inter_cdf[COMP_INTER_CONTEXTS][CDF_SIZE(2)];
   aom_cdf_prob single_ref_cdf[REF_CONTEXTS][INTER_REFS_PER_FRAME - 1]
                              [CDF_SIZE(2)];
@@ -842,10 +858,10 @@ int av1_get_palette_color_index_context(const uint8_t *color_map, int stride,
                                         int palette_size,
 #endif  // CONFIG_PALETTE_THREE_NEIGHBOR
                                         uint8_t *color_order, int *color_idx
-#if CONFIG_PALETTE_IMPROVEMENTS
+#if CONFIG_PALETTE_IMPROVEMENTS && !CONFIG_PALETTE_CTX_REDUCTION
                                         ,
                                         int row_flag, int prev_row_flag
-#endif
+#endif  // CONFIG_PALETTE_IMPROVEMENTS && !CONFIG_PALETTE_CTX_REDUCTION
 );
 #if !CONFIG_PALETTE_THREE_NEIGHBOR
 // A faster version of av1_get_palette_color_index_context used by the encoder

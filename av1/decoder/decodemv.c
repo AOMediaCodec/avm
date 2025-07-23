@@ -1411,16 +1411,31 @@ static void read_palette_mode_info(AV1_COMMON *const cm, MACROBLOCKD *const xd,
   MB_MODE_INFO *const mbmi = xd->mi[0];
   const BLOCK_SIZE bsize = mbmi->sb_type[xd->tree_type == CHROMA_PART];
   assert(av1_allow_palette(cm->features.allow_screen_content_tools, bsize));
+#if CONFIG_PALETTE_CTX_REDUCTION
+  (void)bsize;
+#endif  // CONFIG_PALETTE_CTX_REDUCTION
   PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
+#if !CONFIG_PALETTE_CTX_REDUCTION
   const int bsize_ctx = av1_get_palette_bsize_ctx(bsize);
+#endif  // !CONFIG_PALETTE_CTX_REDUCTION
   if (mbmi->mode == DC_PRED && xd->tree_type != CHROMA_PART) {
+#if !CONFIG_PALETTE_CTX_REDUCTION
     const int palette_mode_ctx = av1_get_palette_mode_ctx(xd);
+#endif  // !CONFIG_PALETTE_CTX_REDUCTION
     const int modev = aom_read_symbol(
+#if CONFIG_PALETTE_CTX_REDUCTION
+        r, xd->tile_ctx->palette_y_mode_cdf, 2,
+#else
         r, xd->tile_ctx->palette_y_mode_cdf[bsize_ctx][palette_mode_ctx], 2,
+#endif  // CONFIG_PALETTE_CTX_REDUCTION
         ACCT_INFO("modev", "luma"));
     if (modev) {
       pmi->palette_size[0] =
+#if CONFIG_PALETTE_CTX_REDUCTION
+          aom_read_symbol(r, xd->tile_ctx->palette_y_size_cdf,
+#else
           aom_read_symbol(r, xd->tile_ctx->palette_y_size_cdf[bsize_ctx],
+#endif  // CONFIG_PALETTE_CTX_REDUCTION
                           PALETTE_SIZES, ACCT_INFO("palette_size", "luma")) +
           2;
       read_palette_colors_y(xd, cm->seq_params.bit_depth, pmi, r);
@@ -1428,13 +1443,23 @@ static void read_palette_mode_info(AV1_COMMON *const cm, MACROBLOCKD *const xd,
   }
   if (num_planes > 1 && xd->tree_type != LUMA_PART &&
       mbmi->uv_mode == UV_DC_PRED && xd->is_chroma_ref) {
+#if !CONFIG_PALETTE_CTX_REDUCTION
     const int palette_uv_mode_ctx = (pmi->palette_size[0] > 0);
+#endif  // !CONFIG_PALETTE_CTX_REDUCTION
     const int modev = aom_read_symbol(
+#if CONFIG_PALETTE_CTX_REDUCTION
+        r, xd->tile_ctx->palette_uv_mode_cdf, 2,
+#else
         r, xd->tile_ctx->palette_uv_mode_cdf[palette_uv_mode_ctx], 2,
+#endif  // CONFIG_PALETTE_CTX_REDUCTION
         ACCT_INFO("modev", "chroma"));
     if (modev) {
       pmi->palette_size[1] =
+#if CONFIG_PALETTE_CTX_REDUCTION
+          aom_read_symbol(r, xd->tile_ctx->palette_uv_size_cdf,
+#else
           aom_read_symbol(r, xd->tile_ctx->palette_uv_size_cdf[bsize_ctx],
+#endif  // CONFIG_PALETTE_CTX_REDUCTION
                           PALETTE_SIZES, ACCT_INFO("palette_size", "chroma")) +
           2;
       read_palette_colors_uv(xd, cm->seq_params.bit_depth, pmi, r);

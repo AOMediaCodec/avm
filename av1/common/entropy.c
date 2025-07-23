@@ -303,8 +303,10 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
     int nsymbs = j + PALETTE_MIN_SIZE;
     RESET_CDF_COUNTER_STRIDE(fc->palette_y_color_index_cdf[j], nsymbs,
                              CDF_SIZE(PALETTE_COLORS));
+#if !CONFIG_PALETTE_CTX_REDUCTION
     RESET_CDF_COUNTER_STRIDE(fc->palette_uv_color_index_cdf[j], nsymbs,
                              CDF_SIZE(PALETTE_COLORS));
+#endif  // !CONFIG_PALETTE_CTX_REDUCTION
   }
   RESET_CDF_COUNTER(fc->palette_y_mode_cdf, 2);
   RESET_CDF_COUNTER(fc->palette_uv_mode_cdf, 2);

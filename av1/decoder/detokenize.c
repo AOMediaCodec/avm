@@ -87,7 +87,12 @@ static int decode_color_map_tokens(Av1ColorMapParam *param, aom_reader *r) {
 #if !CONFIG_PALETTE_THREE_NEIGHBOR
             num_colors,
 #endif  // CONFIG_PALETTE_THREE_NEIGHBOR
-            color_order, NULL, identity_row_flag, prev_identity_row_flag);
+            color_order, NULL
+#if !CONFIG_PALETTE_CTX_REDUCTION
+            ,
+            identity_row_flag, prev_identity_row_flag
+#endif  // !CONFIG_PALETTE_CTX_REDUCTION
+        );
         const int color_idx = aom_read_symbol(
             r, color_map_cdf[num_colors - PALETTE_MIN_SIZE][color_ctx],
             num_colors, ACCT_INFO());
@@ -144,7 +149,12 @@ static int decode_color_map_tokens(Av1ColorMapParam *param, aom_reader *r) {
 #if !CONFIG_PALETTE_THREE_NEIGHBOR
             num_colors,
 #endif  // CONFIG_PALETTE_THREE_NEIGHBOR
-            color_order, NULL, identity_row_flag, prev_identity_row_flag);
+            color_order, NULL
+#if !CONFIG_PALETTE_CTX_REDUCTION
+            ,
+            identity_row_flag, prev_identity_row_flag
+#endif  // !CONFIG_PALETTE_CTX_REDUCTION
+        );
         const int color_idx = aom_read_symbol(
             r, color_map_cdf[num_colors - PALETTE_MIN_SIZE][color_ctx],
             num_colors, ACCT_INFO("color_idx"));
@@ -199,8 +209,12 @@ void av1_decode_palette_tokens(MACROBLOCKD *const xd, int plane,
   Av1ColorMapParam params;
   params.color_map =
       xd->plane[plane].color_index_map + xd->color_index_map_offset[plane];
+#if CONFIG_PALETTE_CTX_REDUCTION
+  params.map_cdf = xd->tile_ctx->palette_y_color_index_cdf;
+#else
   params.map_cdf = plane ? xd->tile_ctx->palette_uv_color_index_cdf
                          : xd->tile_ctx->palette_y_color_index_cdf;
+#endif  // CONFIG_PALETTE_CTX_REDUCTION
 #if CONFIG_PALETTE_IMPROVEMENTS
   params.identity_row_cdf = plane ? xd->tile_ctx->identity_row_cdf_uv
                                   : xd->tile_ctx->identity_row_cdf_y;

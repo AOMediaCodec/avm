@@ -823,11 +823,18 @@ static AOM_INLINE void pack_map_tokens(const MACROBLOCKD *xd, aom_writer *w,
 #endif  // CONFIG_PALETTE_LINE_COPY
           assert(p->color_map_palette_size_idx >= 0 &&
                  p->color_map_ctx_idx >= 0);
+#if CONFIG_PALETTE_CTX_REDUCTION
+          aom_cdf_prob *color_map_pb_cdf =
+              xd->tile_ctx
+                  ->palette_y_color_index_cdf[p->color_map_palette_size_idx]
+                                             [p->color_map_ctx_idx];
+#else
           aom_cdf_prob *color_map_pb_cdf =
               plane ? xd->tile_ctx->palette_uv_color_index_cdf
                           [p->color_map_palette_size_idx][p->color_map_ctx_idx]
                     : xd->tile_ctx->palette_y_color_index_cdf
                           [p->color_map_palette_size_idx][p->color_map_ctx_idx];
+#endif  // CONFIG_PALETTE_CTX_REDUCTION
           aom_write_symbol(w, p->token, color_map_pb_cdf, n);
         }
       }
@@ -850,6 +857,11 @@ static AOM_INLINE void pack_map_tokens(const MACROBLOCKD *xd, aom_writer *w,
   --num;
   for (int i = 0; i < num; ++i) {
     assert(p->color_map_palette_size_idx >= 0 && p->color_map_ctx_idx >= 0);
+#if CONFIG_PALETTE_CTX_REDUCTION
+    aom_cdf_prob *color_map_pb_cdf =
+        xd->tile_ctx->palette_y_color_index_cdf[p->color_map_palette_size_idx]
+                                               [p->color_map_ctx_idx];
+#else
     aom_cdf_prob *color_map_pb_cdf =
         plane ? xd->tile_ctx
                     ->palette_uv_color_index_cdf[p->color_map_palette_size_idx]
@@ -857,6 +869,7 @@ static AOM_INLINE void pack_map_tokens(const MACROBLOCKD *xd, aom_writer *w,
               : xd->tile_ctx
                     ->palette_y_color_index_cdf[p->color_map_palette_size_idx]
                                                [p->color_map_ctx_idx];
+#endif  // CONFIG_PALETTE_CTX_REDUCTION
     aom_write_symbol(w, p->token, color_map_pb_cdf, n);
     ++p;
   }
@@ -1326,17 +1339,33 @@ static AOM_INLINE void write_palette_mode_info(const AV1_COMMON *cm,
   const int num_planes = av1_num_planes(cm);
   const BLOCK_SIZE bsize = mbmi->sb_type[xd->tree_type == CHROMA_PART];
   assert(av1_allow_palette(cm->features.allow_screen_content_tools, bsize));
+#if CONFIG_PALETTE_CTX_REDUCTION
+  (void)bsize;
+#endif  // CONFIG_PALETTE_CTX_REDUCTION
   const PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
+#if !CONFIG_PALETTE_CTX_REDUCTION
   const int bsize_ctx = av1_get_palette_bsize_ctx(bsize);
+#endif  // !CONFIG_PALETTE_CTX_REDUCTION
   if (mbmi->mode == DC_PRED && xd->tree_type != CHROMA_PART) {
     const int n = pmi->palette_size[0];
+#if !CONFIG_PALETTE_CTX_REDUCTION
     const int palette_y_mode_ctx = av1_get_palette_mode_ctx(xd);
-    aom_write_symbol(
-        w, n > 0,
-        xd->tile_ctx->palette_y_mode_cdf[bsize_ctx][palette_y_mode_ctx], 2);
+#endif  // !CONFIG_PALETTE_CTX_REDUCTION
+    aom_write_symbol(w, n > 0,
+#if CONFIG_PALETTE_CTX_REDUCTION
+                     xd->tile_ctx->palette_y_mode_cdf, 2);
+#else
+                     xd->tile_ctx
+                         ->palette_y_mode_cdf[bsize_ctx][palette_y_mode_ctx],
+                     2);
+#endif  // CONFIG_PALETTE_CTX_REDUCTION
     if (n > 0) {
       aom_write_symbol(w, n - PALETTE_MIN_SIZE,
+#if CONFIG_PALETTE_CTX_REDUCTION
+                       xd->tile_ctx->palette_y_size_cdf,
+#else
                        xd->tile_ctx->palette_y_size_cdf[bsize_ctx],
+#endif  // CONFIG_PALETTE_CTX_REDUCTION
                        PALETTE_SIZES);
       write_palette_colors_y(xd, pmi, cm->seq_params.bit_depth, w);
     }
@@ -1346,12 +1375,22 @@ static AOM_INLINE void write_palette_mode_info(const AV1_COMMON *cm,
                          mbmi->uv_mode == UV_DC_PRED && xd->is_chroma_ref;
   if (uv_dc_pred) {
     const int n = pmi->palette_size[1];
+#if !CONFIG_PALETTE_CTX_REDUCTION
     const int palette_uv_mode_ctx = (pmi->palette_size[0] > 0);
+#endif  // !CONFIG_PALETTE_CTX_REDUCTION
     aom_write_symbol(w, n > 0,
+#if CONFIG_PALETTE_CTX_REDUCTION
+                     xd->tile_ctx->palette_uv_mode_cdf, 2);
+#else
                      xd->tile_ctx->palette_uv_mode_cdf[palette_uv_mode_ctx], 2);
+#endif  // CONFIG_PALETTE_CTX_REDUCTION
     if (n > 0) {
       aom_write_symbol(w, n - PALETTE_MIN_SIZE,
+#if CONFIG_PALETTE_CTX_REDUCTION
+                       xd->tile_ctx->palette_uv_size_cdf,
+#else
                        xd->tile_ctx->palette_uv_size_cdf[bsize_ctx],
+#endif  // CONFIG_PALETTE_CTX_REDUCTION
                        PALETTE_SIZES);
       write_palette_colors_uv(xd, pmi, cm->seq_params.bit_depth, w);
     }

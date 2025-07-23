@@ -5914,6 +5914,15 @@ static const aom_cdf_prob default_comp_ref1_cdf[REF_CONTEXTS][COMPREF_BIT_TYPES]
                                                };
 #endif  // CONFIG_NEW_CONTEXT_MODELING
 
+#if CONFIG_PALETTE_CTX_REDUCTION
+static const aom_cdf_prob default_palette_y_size_cdf[CDF_SIZE(7)] = {
+  AOM_CDF7(7882, 14719, 20582, 24895, 28455, 30765), 70
+};
+
+static const aom_cdf_prob default_palette_uv_size_cdf[CDF_SIZE(7)] = {
+  AOM_CDF7(8195, 19832, 25803, 29025, 30747, 31974), 50
+};
+#else
 static const aom_cdf_prob
     default_palette_y_size_cdf[PALATTE_BSIZE_CTXS][CDF_SIZE(7)] = {
       { AOM_CDF7(8980, 17001, 23975, 28227, 31080, 32391), 31 },
@@ -5935,8 +5944,13 @@ static const aom_cdf_prob
       { AOM_CDF7(5790, 20135, 25662, 27372, 30399, 31320), 0 },
       { AOM_CDF7(10923, 19275, 23773, 28913, 30198, 31483), 0 },
     };
+#endif  // CONFIG_PALETTE_CTX_REDUCTION
 
 #if CONFIG_NEW_CONTEXT_MODELING
+#if CONFIG_PALETTE_CTX_REDUCTION
+const aom_cdf_prob default_palette_y_mode_cdf[CDF_SIZE(2)] = { AOM_CDF2(24488),
+                                                               55 };
+#else
 const aom_cdf_prob default_palette_y_mode_cdf[PALATTE_BSIZE_CTXS]
                                              [PALETTE_Y_MODE_CONTEXTS]
                                              [CDF_SIZE(2)] = {
@@ -5976,6 +5990,7 @@ const aom_cdf_prob default_palette_y_mode_cdf[PALATTE_BSIZE_CTXS]
                                                    { AOM_CDF2(446), 0 },
                                                },
                                              };
+#endif  // CONFIG_PALETTE_CTX_REDUCTION
 #else
 static const aom_cdf_prob default_palette_y_mode_cdf
     [PALATTE_BSIZE_CTXS][PALETTE_Y_MODE_CONTEXTS][CDF_SIZE(2)] = {
@@ -5989,11 +6004,17 @@ static const aom_cdf_prob default_palette_y_mode_cdf
     };
 #endif  // CONFIG_NEW_CONTEXT_MODELING
 
+#if CONFIG_PALETTE_CTX_REDUCTION
+static const aom_cdf_prob default_palette_uv_mode_cdf[CDF_SIZE(2)] = {
+  AOM_CDF2(30790), 50
+};
+#else
 static const aom_cdf_prob default_palette_uv_mode_cdf[PALETTE_UV_MODE_CONTEXTS]
                                                      [CDF_SIZE(2)] = {
                                                        { AOM_CDF2(32725), 37 },
                                                        { AOM_CDF2(32721), 62 },
                                                      };
+#endif  // CONFIG_PALETTE_CTX_REDUCTION
 
 #if CONFIG_PALETTE_IMPROVEMENTS
 #if CONFIG_PALETTE_LINE_COPY
@@ -6028,6 +6049,60 @@ static const aom_cdf_prob default_identity_row_cdf_uv[3][CDF_SIZE(2)] = {
 };
 #endif  // CONFIG_PALETTE_LINE_COPY
 
+#if CONFIG_PALETTE_CTX_REDUCTION
+static const aom_cdf_prob default_palette_y_color_index_cdf
+    [PALETTE_SIZES][PALETTE_COLOR_INDEX_CONTEXTS][CDF_SIZE(PALETTE_COLORS)] = {
+      {
+          { AOM_CDF2(27953), 120 },
+          { AOM_CDF2(16384), 0 },
+          { AOM_CDF2(8822), 60 },
+          { AOM_CDF2(27664), 25 },
+          { AOM_CDF2(30470), 0 },
+      },
+      {
+          { AOM_CDF3(25275, 28972), 70 },
+          { AOM_CDF3(12296, 25651), 85 },
+          { AOM_CDF3(7235, 28020), 45 },
+          { AOM_CDF3(20976, 25896), 50 },
+          { AOM_CDF3(30329, 31531), 60 },
+      },
+      {
+          { AOM_CDF4(23381, 26612, 28974), 70 },
+          { AOM_CDF4(10717, 22776, 27574), 70 },
+          { AOM_CDF4(6423, 25697, 29375), 110 },
+          { AOM_CDF4(19518, 23623, 28343), 60 },
+          { AOM_CDF4(30332, 31099, 31857), 50 },
+      },
+      {
+          { AOM_CDF5(23985, 26707, 28381, 29936), 60 },
+          { AOM_CDF5(9530, 19953, 23789, 28724), 60 },
+          { AOM_CDF5(6047, 24926, 27833, 30371), 0 },
+          { AOM_CDF5(20148, 23267, 27043, 28890), 70 },
+          { AOM_CDF5(30829, 31286, 31746, 32197), 0 },
+      },
+      {
+          { AOM_CDF6(21093, 24342, 26015, 27567, 29307), 0 },
+          { AOM_CDF6(8394, 18615, 21558, 26002, 28573), 50 },
+          { AOM_CDF6(5813, 23913, 26226, 28289, 30468), 10 },
+          { AOM_CDF6(19001, 22337, 25424, 26705, 28663), 50 },
+          { AOM_CDF6(30558, 31067, 31403, 31756, 32196), 60 },
+      },
+      {
+          { AOM_CDF7(22109, 24619, 25982, 27240, 28446, 29822), 60 },
+          { AOM_CDF7(8462, 18350, 20440, 25007, 26774, 28765), 0 },
+          { AOM_CDF7(6112, 23012, 25022, 26868, 28683, 30708), 0 },
+          { AOM_CDF7(22602, 24933, 27205, 28064, 28697, 29814), 100 },
+          { AOM_CDF7(30803, 31187, 31462, 31737, 32020, 32331), 50 },
+      },
+      {
+          { AOM_CDF8(22076, 24783, 25777, 26792, 27691, 28748, 29942), 50 },
+          { AOM_CDF8(8293, 17397, 19329, 23699, 25608, 27188, 28865), 0 },
+          { AOM_CDF8(7220, 21444, 23642, 25420, 27182, 28981, 30832), 0 },
+          { AOM_CDF8(23128, 24999, 27546, 28542, 29286, 29744, 30499), 50 },
+          { AOM_CDF8(30626, 30964, 31219, 31444, 31661, 31956, 32318), 10 },
+      },
+    };
+#else
 static const aom_cdf_prob default_palette_y_color_index_cdf
     [PALETTE_SIZES][PALETTE_COLOR_INDEX_CONTEXTS][CDF_SIZE(PALETTE_COLORS)] = {
       {
@@ -6087,7 +6162,6 @@ static const aom_cdf_prob default_palette_y_color_index_cdf
           { AOM_CDF8(20311, 31143, 31414, 31685, 31956, 32226, 32497), 65 },
       },
     };
-
 static const aom_cdf_prob default_palette_uv_color_index_cdf
     [PALETTE_SIZES][PALETTE_COLOR_INDEX_CONTEXTS][CDF_SIZE(PALETTE_COLORS)] = {
       {
@@ -6147,6 +6221,7 @@ static const aom_cdf_prob default_palette_uv_color_index_cdf
           { AOM_CDF8(4096, 8192, 12288, 16384, 20480, 24576, 28672), 0 },
       },
     };
+#endif  // CONFIG_PALETTE_CTX_REDUCTION
 #else
 static const aom_cdf_prob default_palette_y_color_index_cdf
     [PALETTE_SIZES][PALETTE_COLOR_INDEX_CONTEXTS][CDF_SIZE(PALETTE_COLORS)] = {
@@ -6201,6 +6276,7 @@ static const aom_cdf_prob default_palette_y_color_index_cdf
       },
     };
 
+#if !CONFIG_PALETTE_CTX_REDUCTION
 static const aom_cdf_prob default_palette_uv_color_index_cdf
     [PALETTE_SIZES][PALETTE_COLOR_INDEX_CONTEXTS][CDF_SIZE(PALETTE_COLORS)] = {
       {
@@ -6253,6 +6329,7 @@ static const aom_cdf_prob default_palette_uv_color_index_cdf
           { AOM_CDF8(31190, 31329, 31516, 31679, 31825, 32026, 32322) },
       },
     };
+#endif
 #endif  // CONFIG_PALETTE_IMPROVEMENTS
 
 static const aom_cdf_prob
@@ -6841,10 +6918,17 @@ static INLINE int derive_color_index_ctx(uint8_t *color_order, int *color_idx,
                        &color_cnt);
     } else {
       color_index_ctx = 1;
+#if CONFIG_PALETTE_CTX_REDUCTION
+      swap_color_order(color_order, color_status, 0, color_neighbors[0],
+                       &color_cnt);
+      swap_color_order(color_order, color_status, 1, color_neighbors[2],
+                       &color_cnt);
+#else
       int min_color = AOMMIN(color_neighbors[0], color_neighbors[2]);
       int max_color = AOMMAX(color_neighbors[0], color_neighbors[2]);
       swap_color_order(color_order, color_status, 0, min_color, &color_cnt);
       swap_color_order(color_order, color_status, 1, max_color, &color_cnt);
+#endif
       swap_color_order(color_order, color_status, 2, color_neighbors[1],
                        &color_cnt);
     }
@@ -6884,21 +6968,21 @@ static INLINE int derive_color_index_ctx(uint8_t *color_order, int *color_idx,
 int av1_get_palette_color_index_context(const uint8_t *color_map, int stride,
                                         int r, int c, uint8_t *color_order,
                                         int *color_idx
-#if CONFIG_PALETTE_IMPROVEMENTS
+#if CONFIG_PALETTE_IMPROVEMENTS && !CONFIG_PALETTE_CTX_REDUCTION
                                         ,
                                         int row_flag, int prev_row_flag
-#endif  // CONFIG_PALETTE_IMPROVEMENTS
+#endif  // CONFIG_PALETTE_IMPROVEMENTS && !CONFIG_PALETTE_CTX_REDUCTION
 ) {
   assert(r > 0 || c > 0);
 
   int color_index_ctx =
       derive_color_index_ctx(color_order, color_idx, color_map, stride, r, c);
-#if CONFIG_PALETTE_IMPROVEMENTS
+#if CONFIG_PALETTE_IMPROVEMENTS && !CONFIG_PALETTE_CTX_REDUCTION
   // Special context value for the first (and only) index of an identity row
   // and when the previous row is also an identity row.
   if (c == 0 && row_flag && prev_row_flag)
     color_index_ctx = PALETTE_COLOR_INDEX_CONTEXTS - 1;
-#endif  // CONFIG_PALETTE_IMPROVEMENTS
+#endif  // CONFIG_PALETTE_IMPROVEMENTS && !CONFIG_PALETTE_CTX_REDUCTION
   return color_index_ctx;
 }
 #else
@@ -6947,6 +7031,12 @@ int av1_get_palette_color_index_context(const uint8_t *color_map, int stride,
         max = scores[j];
         max_idx = j;
       }
+#if CONFIG_PALETTE_CTX_REDUCTION
+      else if (scores[j] > 0 && scores[j] == max && j == color_neighbors[0]) {
+        max = scores[j];
+        max_idx = j;
+      }
+#endif  // CONFIG_PALETTE_CTX_REDUCTION
     }
     if (max_idx != i) {
       // Move the score at index 'max_idx' to index 'i', and shift the scores
@@ -6967,12 +7057,12 @@ int av1_get_palette_color_index_context(const uint8_t *color_map, int stride,
   if (color_idx != NULL)
     *color_idx = inverse_color_order[color_map[r * stride + c]];
 
-#if CONFIG_PALETTE_IMPROVEMENTS
+#if CONFIG_PALETTE_IMPROVEMENTS && !CONFIG_PALETTE_CTX_REDUCTION
   // Special context value for the first (and only) index of an identity row and
   // when the previous row is also an identity row.
   if (c == 0 && row_flag && prev_row_flag)
     return PALETTE_COLOR_INDEX_CONTEXTS - 1;
-#endif  // CONFIG_PALETTE_IMPROVEMENTS
+#endif  // CONFIG_PALETTE_IMPROVEMENTS && !CONFIG_PALETTE_CTX_REDUCTION
 
   // Get hash value of context.
   int color_index_ctx_hash = 0;
@@ -7044,8 +7134,12 @@ int av1_fast_palette_color_index_context(const uint8_t *color_map, int stride,
   // Sort everything
   // We need to swap the first two elements if they have the same score but
   // the color indices are not in the right order
+#if CONFIG_PALETTE_CTX_REDUCTION
+  if (score_rank[0] < score_rank[1]) {
+#else
   if (score_rank[0] < score_rank[1] ||
       (score_rank[0] == score_rank[1] && color_rank[0] > color_rank[1])) {
+#endif  // CONFIG_PALETTE_CTX_REDUCTION
     const int tmp_score = score_rank[0];
     const int tmp_color = color_rank[0];
     score_rank[0] = score_rank[1];
@@ -7088,12 +7182,12 @@ int av1_fast_palette_color_index_context(const uint8_t *color_map, int stride,
     }
   }
 
-#if CONFIG_PALETTE_IMPROVEMENTS
+#if CONFIG_PALETTE_IMPROVEMENTS && !CONFIG_PALETTE_CTX_REDUCTION
   // Special context value for the first (and only) index of an identity row and
   // when the previous row is also an identity row.
   if (c == 0 && row_flag && prev_row_flag)
     return PALETTE_COLOR_INDEX_CONTEXTS - 1;
-#endif  // CONFIG_PALETTE_IMPROVEMENTS
+#endif  // CONFIG_PALETTE_IMPROVEMENTS && !CONFIG_PALETTE_CTX_REDUCTION
 
   // Get hash value of context.
   int color_index_ctx_hash = 0;
@@ -7128,7 +7222,9 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
 #endif  // CONFIG_PALETTE_LINE_COPY
 #endif  // CONFIG_PALETTE_IMPROVEMENTS
   av1_copy(fc->palette_y_color_index_cdf, default_palette_y_color_index_cdf);
+#if !CONFIG_PALETTE_CTX_REDUCTION
   av1_copy(fc->palette_uv_color_index_cdf, default_palette_uv_color_index_cdf);
+#endif  // !CONFIG_PALETTE_CTX_REDUCTION
   av1_copy(fc->comp_inter_cdf, default_comp_inter_cdf);
   av1_copy(fc->tip_cdf, default_tip_cdf);
   av1_copy(fc->tip_pred_mode_cdf, default_tip_pred_mode_cdf);
@@ -7665,9 +7761,11 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
     CUMULATIVE_AVG_CDF_STRIDE(ctx_left->palette_y_color_index_cdf[j],
                               ctx_tr->palette_y_color_index_cdf[j], nsymbs,
                               CDF_SIZE(PALETTE_COLORS));
+#if !CONFIG_PALETTE_CTX_REDUCTION
     CUMULATIVE_AVG_CDF_STRIDE(ctx_left->palette_uv_color_index_cdf[j],
                               ctx_tr->palette_uv_color_index_cdf[j], nsymbs,
                               CDF_SIZE(PALETTE_COLORS));
+#endif  // !CONFIG_PALETTE_CTX_REDUCTION
   }
   CUMULATIVE_AVERAGE_CDF(ctx_left->palette_y_mode_cdf,
                          ctx_tr->palette_y_mode_cdf, 2);
@@ -8083,8 +8181,10 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
     int nsymbs = j + PALETTE_MIN_SIZE;
     SHIFT_CDF_STRIDE(ctx_ptr->palette_y_color_index_cdf[j], nsymbs,
                      CDF_SIZE(PALETTE_COLORS));
+#if !CONFIG_PALETTE_CTX_REDUCTION
     SHIFT_CDF_STRIDE(ctx_ptr->palette_uv_color_index_cdf[j], nsymbs,
                      CDF_SIZE(PALETTE_COLORS));
+#endif  // !CONFIG_PALETTE_CTX_REDUCTION
   }
   SHIFT_CDF(ctx_ptr->palette_y_mode_cdf, 2);
   SHIFT_CDF(ctx_ptr->palette_uv_mode_cdf, 2);
@@ -8510,9 +8610,11 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
     AVG_CDF_STRIDE(ctx_left->palette_y_color_index_cdf[j],
                    ctx_tr->palette_y_color_index_cdf[j], nsymbs,
                    CDF_SIZE(PALETTE_COLORS));
+#if !CONFIG_PALETTE_CTX_REDUCTION
     AVG_CDF_STRIDE(ctx_left->palette_uv_color_index_cdf[j],
                    ctx_tr->palette_uv_color_index_cdf[j], nsymbs,
                    CDF_SIZE(PALETTE_COLORS));
+#endif  // !CONFIG_PALETTE_CTX_REDUCTION
   }
   AVERAGE_CDF(ctx_left->palette_y_mode_cdf, ctx_tr->palette_y_mode_cdf, 2);
   AVERAGE_CDF(ctx_left->palette_uv_mode_cdf, ctx_tr->palette_uv_mode_cdf, 2);

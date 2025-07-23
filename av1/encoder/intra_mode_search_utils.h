@@ -217,10 +217,16 @@ static AOM_INLINE int intra_mode_info_cost_y(const AV1_COMP *cpi,
       av1_allow_palette(cpi->common.features.allow_screen_content_tools,
                         mbmi->sb_type[PLANE_TYPE_Y]);
   if (try_palette && mbmi->mode == DC_PRED) {
+#if !CONFIG_PALETTE_CTX_REDUCTION
     const int bsize_ctx = av1_get_palette_bsize_ctx(bsize);
     const int mode_ctx = av1_get_palette_mode_ctx(xd);
+#endif  // !CONFIG_PALETTE_CTX_REDUCTION
     total_rate +=
+#if CONFIG_PALETTE_CTX_REDUCTION
+        mode_costs->palette_y_mode_cost[use_palette];
+#else
         mode_costs->palette_y_mode_cost[bsize_ctx][mode_ctx][use_palette];
+#endif  // CONFIG_PALETTE_CTX_REDUCTION
     if (use_palette) {
       const uint8_t *const color_map = xd->plane[0].color_index_map;
       int block_width, block_height, rows, cols;
@@ -228,8 +234,12 @@ static AOM_INLINE int intra_mode_info_cost_y(const AV1_COMP *cpi,
                                &cols);
       const int plt_size = mbmi->palette_mode_info.palette_size[0];
       int palette_mode_cost =
+#if CONFIG_PALETTE_CTX_REDUCTION
+          mode_costs->palette_y_size_cost[plt_size - PALETTE_MIN_SIZE] +
+#else
           mode_costs
               ->palette_y_size_cost[bsize_ctx][plt_size - PALETTE_MIN_SIZE] +
+#endif  // CONFIG_PALETTE_CTX_REDUCTION
           write_uniform_cost(plt_size, color_map[0]);
       uint16_t color_cache[2 * PALETTE_MAX_SIZE];
       const int n_cache = av1_get_palette_cache(xd, 0, color_cache);
@@ -304,15 +314,25 @@ static AOM_INLINE int intra_mode_info_cost_uv(const AV1_COMP *cpi,
   if (try_palette && mode == UV_DC_PRED) {
     const PALETTE_MODE_INFO *pmi = &mbmi->palette_mode_info;
     total_rate +=
+#if CONFIG_PALETTE_CTX_REDUCTION
+        mode_costs->palette_uv_mode_cost[use_palette];
+#else
         mode_costs->palette_uv_mode_cost[pmi->palette_size[0] > 0][use_palette];
+#endif  // CONFIG_PALETTE_CTX_REDUCTION
     if (use_palette) {
+#if !CONFIG_PALETTE_CTX_REDUCTION
       const int bsize_ctx = av1_get_palette_bsize_ctx(bsize);
+#endif  // !CONFIG_PALETTE_CTX_REDUCTION
       const int plt_size = pmi->palette_size[1];
       const MACROBLOCKD *xd = &x->e_mbd;
       const uint8_t *const color_map = xd->plane[1].color_index_map;
       int palette_mode_cost =
+#if CONFIG_PALETTE_CTX_REDUCTION
+          mode_costs->palette_uv_size_cost[plt_size - PALETTE_MIN_SIZE] +
+#else
           mode_costs
               ->palette_uv_size_cost[bsize_ctx][plt_size - PALETTE_MIN_SIZE] +
+#endif  // CONFIG_PALETTE_CTX_REDUCTION
           write_uniform_cost(plt_size, color_map[0]);
       uint16_t color_cache[2 * PALETTE_MAX_SIZE];
       const int n_cache = av1_get_palette_cache(xd, 1, color_cache);

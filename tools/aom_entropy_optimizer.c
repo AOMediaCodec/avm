@@ -1542,6 +1542,28 @@ int main(int argc, const char **argv) {
 #endif  // CONFIG_PALETTE_IMPROVEMENTS
 
   /* palette */
+#if CONFIG_PALETTE_CTX_REDUCTION
+  cts_each_dim[0] = 2;
+  optimize_cdf_table(&fc.palette_y_size[0], probsfile, 1, cts_each_dim,
+                     "const aom_cdf_prob default_palette_y_size_cdf"
+                     "[CDF_SIZE(PALETTE_SIZES)]",
+                     0, &total_count, 0, mem_wanted, "Coefficients");
+
+  optimize_cdf_table(&fc.palette_uv_size[0], probsfile, 1, cts_each_dim,
+                     "const aom_cdf_prob default_palette_uv_size_cdf"
+                     "[CDF_SIZE(PALETTE_SIZES)]",
+                     0, &total_count, 0, mem_wanted, "Coefficients");
+
+  optimize_cdf_table(&fc.palette_y_mode[0], probsfile, 1, cts_each_dim,
+                     "const aom_cdf_prob default_palette_y_mode_cdf"
+                     "[CDF_SIZE(2)]",
+                     0, &total_count, 0, mem_wanted, "Coefficients");
+
+  optimize_cdf_table(&fc.palette_uv_mode[0], probsfile, 1, cts_each_dim,
+                     "const aom_cdf_prob default_palette_uv_mode_cdf"
+                     "[CDF_SIZE(2)]",
+                     0, &total_count, 0, mem_wanted, "Coefficients");
+#else
   cts_each_dim[0] = PALATTE_BSIZE_CTXS;
   cts_each_dim[1] = PALETTE_SIZES;
   optimize_cdf_table(&fc.palette_y_size[0][0], probsfile, 2, cts_each_dim,
@@ -1571,6 +1593,7 @@ int main(int argc, const char **argv) {
                      "const aom_cdf_prob default_palette_uv_mode_cdf"
                      "[PALETTE_UV_MODE_CONTEXTS][CDF_SIZE(2)]",
                      0, &total_count, 0, mem_wanted, "Coefficients");
+#endif  // CONFIG_PALETTE_CTX_REDUCTION
 
   cts_each_dim[0] = PALETTE_SIZES;
   cts_each_dim[1] = PALETTE_COLOR_INDEX_CONTEXTS;
