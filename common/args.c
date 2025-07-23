@@ -146,9 +146,7 @@ int parse_cfg(const char *file, cfg_options_t *config) {
     GET_PARAMS(enable_intrabc_ext);
 #endif  // CONFIG_IBC_SR_EXT
     GET_PARAMS(enable_cfl_intra);
-#if CONFIG_ENABLE_MHCCP
     GET_PARAMS(enable_mhccp);
-#endif  // CONFIG_ENABLE_MHCCP
     GET_PARAMS(enable_smooth_intra);
     GET_PARAMS(enable_intra_dip);
     GET_PARAMS(enable_angle_delta);

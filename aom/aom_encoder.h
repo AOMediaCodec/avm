@@ -514,12 +514,10 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_cfl_intra;
-#if CONFIG_ENABLE_MHCCP
   /*!\brief enable Multi-Hypothesis Cross Component Prediction (MHCCP)
    *
    */
   unsigned int enable_mhccp;
-#endif  // CONFIG_ENABLE_MHCCP
   /*!\brief enable intra smooth mode
    *
    */

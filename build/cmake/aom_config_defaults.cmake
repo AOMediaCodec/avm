@@ -363,25 +363,6 @@ set_aom_config_var(CONFIG_BLEND_MODE 1
                    "Enable improved intra blend mode from CWG-D046")
 set_aom_config_var(CONFIG_BLENDING_SIMPLIFICATION 1
                    "CWG F137 simplification for blending mode")
-set_aom_config_var(CONFIG_ENABLE_MHCCP 1
-                   "Enable multi hypothesis cross component prediction")
-set_aom_config_var(CONFIG_E125_MHCCP_SIMPLIFY 1
-                   "Simplify the parameter derivation for MHCCP")
-set_aom_config_var(CONFIG_MHCCP_CONVOLVE_SIMPLIFY 1
-                   "Simplify the convolve for MHCCP")
-
-set_aom_config_var(CONFIG_E149_MHCCP_4PARA 1 "Using 4 parameters in MHCCP")
-set_aom_config_var(
-  CONFIG_MHCCP_SB_BOUNDARY 1
-  "Using only 1 lines when MHCCP block at the superblock top boundary")
-
-set_aom_config_var(MHCCP_BUFFER_4LINES 1
-                   "Using 2 lines for the chroma reference region in MHCCP")
-
-set_aom_config_var(CONFIG_MHCCP_GAUSSIAN 1
-                   "Fix gaussian elimination precision for MHCCP")
-
-set_aom_config_var(MHCCP_3_PARAMETERS 1 "Using 3 parameters in MHCCP")
 
 set_aom_config_var(CONFIG_C071_SUBBLK_WARPMV 1
                    "AV2 experiment flag to use subblock warp MV for SMVP")

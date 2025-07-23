@@ -447,9 +447,7 @@ const arg_def_t *av1_key_val_args[] = {
   &g_av1_codec_arg_defs.enable_high_motion,
 #endif  // CONFIG_MV_RANGE_EXTENSION
   &g_av1_codec_arg_defs.enable_bawp,
-#if CONFIG_ENABLE_MHCCP
   &g_av1_codec_arg_defs.enable_mhccp,
-#endif  // CONFIG_ENABLE_MHCCP
   &g_av1_codec_arg_defs.enable_cwp,
   &g_av1_codec_arg_defs.enable_imp_msk_bld,
   &g_av1_codec_arg_defs.enable_fsc,
@@ -712,9 +710,7 @@ static void init_config(cfg_options_t *config) {
   config->enable_intrabc_ext = 1;
 #endif  // CONFIG_IBC_SR_EXT
   config->enable_cfl_intra = 1;
-#if CONFIG_ENABLE_MHCCP
   config->enable_mhccp = 1;
-#endif  // CONFIG_ENABLE_MHCCP
   config->enable_smooth_intra = 1;
   config->enable_intra_dip = 1;
   config->enable_angle_delta = 1;
@@ -1557,10 +1553,8 @@ static void show_stream_config(struct stream_state *stream,
   fprintf(stdout,
           "Tool setting (Intra)           : SmoothIntra (%d), CfL (%d), ",
           encoder_cfg->enable_smooth_intra, encoder_cfg->enable_cfl_intra);
-#if CONFIG_ENABLE_MHCCP
   fprintf(stdout, "                               : MHCCP: (%d)\n",
           encoder_cfg->enable_mhccp);
-#endif  // CONFIG_ENABLE_MHCCP
   fprintf(stdout, "                               : IntraDIP (%d)\n",
           encoder_cfg->enable_intra_dip);
   fprintf(stdout, "                               : IntraDeltaAngle (%d)\n",

@@ -112,16 +112,9 @@ static const aom_cdf_prob
                                                     { AOM_CDF2(32203) },
                                                     { AOM_CDF2(32283) } } };
 #endif  // CONFIG_NEW_CONTEXT_MODELING
-#if CONFIG_ENABLE_MHCCP
+
 static const aom_cdf_prob default_cfl_index_cdf[CDF_SIZE(
     CFL_TYPE_COUNT - 1)] = { AOM_CDF3(4124, 16615), 75 };
-#else
-static const aom_cdf_prob default_cfl_index_cdf[CDF_SIZE(CFL_TYPE_COUNT)] = {
-  AOM_CDF2(18000), 0
-};
-#endif  // CONFIG_ENABLE_MHCCP
-#if CONFIG_ENABLE_MHCCP
-#if MHCCP_3_PARAMETERS
 static const aom_cdf_prob default_filter_dir_cdf[MHCCP_CONTEXT_GROUP_SIZE]
                                                 [CDF_SIZE(MHCCP_MODE_NUM)] = {
                                                   { AOM_CDF3(16384, 24576), 1 },
@@ -130,19 +123,6 @@ static const aom_cdf_prob default_filter_dir_cdf[MHCCP_CONTEXT_GROUP_SIZE]
                                                   { AOM_CDF3(16384, 24576),
                                                     32 },
                                                 };
-#else
-static const aom_cdf_prob default_filter_dir_cdf[MHCCP_CONTEXT_GROUP_SIZE]
-                                                [CDF_SIZE(MHCCP_MODE_NUM)] = {
-                                                  { AOM_CDF2(13909), 1 },
-                                                  { AOM_CDF2(8925), 76 },
-                                                  { AOM_CDF2(4205), 1 },
-                                                  { AOM_CDF2(5225), 6 },
-                                                  { AOM_CDF2(6694), 31 },
-                                                  { AOM_CDF2(9557), 32 },
-                                                  { AOM_CDF2(16384), 32 },
-                                                };
-#endif  // MHCCP_3_PARAMETERS
-#endif  // CONFIG_ENABLE_MHCCP
 
 static const aom_cdf_prob default_y_mode_set_cdf[CDF_SIZE(INTRA_MODE_SETS)] = {
   AOM_CDF4(28618, 30909, 31555), 118
@@ -7351,9 +7331,7 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   av1_copy(fc->dpcm_uv_vert_horz_cdf, default_dpcm_uv_vert_horz_cdf);
 #endif  // CONFIG_LOSSLESS_DPCM
   av1_copy(fc->cfl_index_cdf, default_cfl_index_cdf);
-#if CONFIG_ENABLE_MHCCP
   av1_copy(fc->filter_dir_cdf, default_filter_dir_cdf);
-#endif  // CONFIG_ENABLE_MHCCP
   av1_copy(fc->switchable_interp_cdf, default_switchable_interp_cdf);
   av1_copy(fc->region_type_cdf, default_region_type_cdf);
   av1_copy(fc->do_split_cdf, default_do_split_cdf);
@@ -7862,15 +7840,11 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
                          ctx_tr->dpcm_uv_vert_horz_cdf, 2);
 #endif  // CONFIG_LOSSLESS_DPCM
 
-#if CONFIG_ENABLE_MHCCP
   CUMULATIVE_AVERAGE_CDF(ctx_left->filter_dir_cdf, ctx_tr->filter_dir_cdf,
                          MHCCP_MODE_NUM);
   CUMULATIVE_AVERAGE_CDF(ctx_left->cfl_index_cdf, ctx_tr->cfl_index_cdf,
                          CFL_TYPE_COUNT - 1);
-#else
-  CUMULATIVE_AVERAGE_CDF(ctx_left->cfl_index_cdf, ctx_tr->cfl_index_cdf,
-                         CFL_TYPE_COUNT);
-#endif  // CONFIG_ENABLE_MHCCP
+
   CUMULATIVE_AVERAGE_CDF(ctx_left->y_mode_set_cdf, ctx_tr->y_mode_set_cdf,
                          INTRA_MODE_SETS);
   CUMULATIVE_AVERAGE_CDF(ctx_left->y_mode_idx_cdf_0, ctx_tr->y_mode_idx_cdf_0,
@@ -8250,12 +8224,9 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
   SHIFT_CDF(ctx_ptr->dpcm_uv_vert_horz_cdf, 2);
 #endif  // CONFIG_LOSSLESS_DPCM
 
-#if CONFIG_ENABLE_MHCCP
   SHIFT_CDF(ctx_ptr->filter_dir_cdf, MHCCP_MODE_NUM);
   SHIFT_CDF(ctx_ptr->cfl_index_cdf, CFL_TYPE_COUNT - 1);
-#else
-  SHIFT_CDF(ctx_ptr->cfl_index_cdf, CFL_TYPE_COUNT);
-#endif  // CONFIG_ENABLE_MHCCP
+
   SHIFT_CDF(ctx_ptr->y_mode_set_cdf, INTRA_MODE_SETS);
   SHIFT_CDF(ctx_ptr->y_mode_idx_cdf_0, FIRST_MODE_COUNT);
   SHIFT_CDF(ctx_ptr->y_mode_idx_cdf_1, SECOND_MODE_COUNT);
@@ -8692,13 +8663,10 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
               2);
 #endif  // CONFIG_LOSSLESS_DPCM
 
-#if CONFIG_ENABLE_MHCCP
   AVERAGE_CDF(ctx_left->filter_dir_cdf, ctx_tr->filter_dir_cdf, MHCCP_MODE_NUM);
   AVERAGE_CDF(ctx_left->cfl_index_cdf, ctx_tr->cfl_index_cdf,
               CFL_TYPE_COUNT - 1);
-#else
-  AVERAGE_CDF(ctx_left->cfl_index_cdf, ctx_tr->cfl_index_cdf, CFL_TYPE_COUNT);
-#endif  // CONFIG_ENABLE_MHCCP
+
   AVERAGE_CDF(ctx_left->y_mode_set_cdf, ctx_tr->y_mode_set_cdf,
               INTRA_MODE_SETS);
   AVERAGE_CDF(ctx_left->y_mode_idx_cdf_0, ctx_tr->y_mode_idx_cdf_0,

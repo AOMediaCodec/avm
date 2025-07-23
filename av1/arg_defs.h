@@ -216,9 +216,7 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t enable_smooth_intra;
   arg_def_t enable_paeth_intra;
   arg_def_t enable_cfl_intra;
-#if CONFIG_ENABLE_MHCCP
   arg_def_t enable_mhccp;
-#endif  // CONFIG_ENABLE_MHCCP
   arg_def_t force_video_mode;
   arg_def_t enable_overlay;
   arg_def_t enable_palette;

@@ -1065,7 +1065,6 @@ int get_refinemv_sad(uint16_t *src1, uint16_t *src2, int stride, int width,
 }
 #endif  // CONFIG_REFINEMV
 
-#if CONFIG_E125_MHCCP_SIMPLIFY
 int64_t stable_mult_shift(const int64_t a, const int64_t b, const int shift,
                           const int msb_a, const int msb_b, const int max_bd,
                           int *rem_shift) {
@@ -1104,7 +1103,6 @@ int64_t stable_mult_shift(const int64_t a, const int64_t b, const int shift,
       ROUND_POWER_OF_TWO_SIGNED_64(a, s1) * ROUND_POWER_OF_TWO_SIGNED_64(b, s2),
       shift - s1 - s2);
 }
-#endif  // CONFIG_E125_MHCCP_SIMPLIFY
 
 // Restrict MV delta to 1 or 2 pixels. This restriction would reduce complexity
 // in hardware.

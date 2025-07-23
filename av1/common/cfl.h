@@ -111,26 +111,15 @@ static INLINE CFL_ALLOWED_TYPE store_cfl_required(const AV1_COMMON *cm,
                             mbmi->uv_mode == UV_CFL_PRED);
 }
 
-#if CONFIG_ENABLE_MHCCP
 // Derive multi parameters for MHCCP
 void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
                                  int above_lines, int left_lines, int ref_width,
-                                 int ref_height, int dir
-#if CONFIG_MHCCP_SB_BOUNDARY
-                                 ,
-                                 int is_top_sb_boundary
-#endif  // CONFIG_MHCCP_SB_BOUNDARY
-);
-#if CONFIG_E125_MHCCP_SIMPLIFY
+                                 int ref_height, int dir,
+                                 int is_top_sb_boundary);
 // Apply the back substitution process to generate the MHCCP parameters
 void gauss_back_substitute(int64_t *x,
                            int64_t C[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS + 1],
-                           int numEq, int col
-#if CONFIG_MHCCP_GAUSSIAN
-                           ,
-                           int round, int bits
-#endif  // CONFIG_MHCCP_GAUSSIAN
-);
+                           int numEq, int col, int round, int bits);
 // Use gaussian elimination approach to derive the parameters for MHCCP mode
 void gauss_elimination_mhccp(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
                              int64_t C[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS + 1],
@@ -138,34 +127,6 @@ void gauss_elimination_mhccp(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
 // Get the number of shifted bits for denominator and the scaling factors
 void get_division_scale_shift(uint64_t denom, int *scale, int64_t *round,
                               int *shift);
-#endif  // CONFIG_E125_MHCCP_SIMPLIFY
-
-#if !CONFIG_E125_MHCCP_SIMPLIFY
-// ldl decomposition
-bool ldl_decomp(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
-                int64_t U[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
-                int64_t diag[MHCCP_NUM_PARAMS], int numEq);
-
-// ldl transpose back substitution
-void ldl_transpose_back_substitution(
-    int64_t U[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS], int64_t *y, int64_t *z,
-    int numEq);
-
-// ldl back substitution
-void ldl_back_substitution(int64_t U[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
-                           int64_t *z, int64_t *x, int numEq);
-
-// Solve ldl fuction
-void ldl_solve(int64_t U[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
-               int64_t diag[MHCCP_NUM_PARAMS], int64_t *y, int64_t *x,
-               int numEq, bool decompOk);
-
-// ldl decomposition
-bool ldl_decompose(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
-                   int64_t U[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
-                   int64_t diag[MHCCP_NUM_PARAMS], int numEq);
-#endif  // !CONFIG_E125_MHCCP_SIMPLIFY
-#endif  // CONFIG_ENABLE_MHCCP
 
 static INLINE int get_scaled_luma_q0(int alpha_q3, int16_t pred_buf_q3) {
   int scaled_luma_q6 = alpha_q3 * pred_buf_q3;
@@ -177,14 +138,9 @@ static INLINE CFL_PRED_TYPE get_cfl_pred_type(PLANE_TYPE plane) {
   return (CFL_PRED_TYPE)(plane - 1);
 }
 
-#if CONFIG_ENABLE_MHCCP
 void cfl_predict_block(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
                        TX_SIZE tx_size, int plane, bool have_top,
                        bool have_left, int above_lines, int left_lines);
-#else
-void cfl_predict_block(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
-                       TX_SIZE tx_size, int plane);
-#endif
 
 void cfl_store_block(MACROBLOCKD *const xd, BLOCK_SIZE bsize, TX_SIZE tx_size,
                      int filter_type);

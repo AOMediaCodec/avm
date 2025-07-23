@@ -15,18 +15,11 @@
 #include "av1/common/common_data.h"
 #include "av1/common/enums.h"
 #include "av1/common/reconintra.h"
-
 #include "config/av1_rtcd.h"
-
-#if CONFIG_E125_MHCCP_SIMPLIFY
 #include "av1/common/reconinter.h"
-#endif  // CONFIG_E125_MHCCP_SIMPLIFY
-
 #include "av1/common/warped_motion.h"
 
-#if CONFIG_MHCCP_GAUSSIAN
 #define LOCAL_FIXED_MULT(x, y, round, bits) (((x) * (y) + round) >> bits)
-#endif  // CONFIG_MHCCP_GAUSSIAN
 
 void cfl_init(CFL_CTX *cfl, const SequenceHeader *seq_params) {
   assert(block_size_wide[CFL_MAX_BLOCK_SIZE] == CFL_BUF_LINE);
@@ -34,9 +27,7 @@ void cfl_init(CFL_CTX *cfl, const SequenceHeader *seq_params) {
 
   memset(&cfl->recon_buf_q3, 0, sizeof(cfl->recon_buf_q3));
   memset(&cfl->ac_buf_q3, 0, sizeof(cfl->ac_buf_q3));
-#if CONFIG_ENABLE_MHCCP
   memset(&cfl->mhccp_ref_buf_q3, 0, sizeof(cfl->mhccp_ref_buf_q3));
-#endif  // CONFIG_ENABLE_MHCCP
   cfl->subsampling_x = seq_params->subsampling_x;
   cfl->subsampling_y = seq_params->subsampling_y;
   cfl->are_parameters_computed = 0;
@@ -629,22 +620,15 @@ void cfl_derive_block_implicit_scaling_factor(uint16_t *l, const uint16_t *c,
                                           shift);
 }
 
-#if CONFIG_ENABLE_MHCCP
 void cfl_predict_block(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
                        TX_SIZE tx_size, int plane, bool have_top,
                        bool have_left, int above_lines, int left_lines) {
-#else
-void cfl_predict_block(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
-                       TX_SIZE tx_size, int plane) {
-#endif  // CONFIG_ENABLE_MHCCP
   CFL_CTX *const cfl = &xd->cfl;
   MB_MODE_INFO *mbmi = xd->mi[0];
   assert(is_cfl_allowed(xd));
 
   cfl_compute_parameters_alt(cfl, tx_size);
   int alpha_q3;
-#if CONFIG_ENABLE_MHCCP
-#if MHCCP_3_PARAMETERS
   if (mbmi->cfl_idx == CFL_MULTI_PARAM_V) {
     mhccp_predict_hv_hbd(cfl->mhccp_ref_buf_q3[0] + (uint16_t)left_lines +
                              (uint16_t)above_lines * CFL_BUF_LINE * 2,
@@ -653,40 +637,13 @@ void cfl_predict_block(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
                          tx_size_wide[tx_size], tx_size_high[tx_size],
                          mbmi->mh_dir);
     return;
-  }
-#else
-  if (mbmi->cfl_idx == CFL_MULTI_PARAM_V && mbmi->mh_dir == 0) {
-    mhccp_predict_hv_hbd(cfl->mhccp_ref_buf_q3[0] + (uint16_t)left_lines +
-                             (uint16_t)above_lines * CFL_BUF_LINE * 2,
-                         dst, have_top, have_left, dst_stride,
-                         mbmi->mhccp_implicit_param[plane - 1], xd->bd,
-                         tx_size_wide[tx_size], tx_size_high[tx_size], 0);
-    return;
-  } else if (mbmi->cfl_idx == CFL_MULTI_PARAM_V && mbmi->mh_dir == 1) {
-    mhccp_predict_hv_hbd(cfl->mhccp_ref_buf_q3[0] + (uint16_t)left_lines +
-                             (uint16_t)above_lines * CFL_BUF_LINE * 2,
-                         dst, have_top, have_left, dst_stride,
-                         mbmi->mhccp_implicit_param[plane - 1], xd->bd,
-                         tx_size_wide[tx_size], tx_size_high[tx_size], 1);
-    return;
-  }
-#endif  // MHCCP_3_PARAMETERS
-  else if (mbmi->cfl_idx == CFL_DERIVED_ALPHA) {
+  } else if (mbmi->cfl_idx == CFL_DERIVED_ALPHA) {
     alpha_q3 = mbmi->cfl_implicit_alpha[plane - 1];
   } else {
     alpha_q3 =
         cfl_idx_to_alpha(mbmi->cfl_alpha_idx, mbmi->cfl_alpha_signs, plane - 1);
     alpha_q3 *= (1 << CFL_ADD_BITS_ALPHA);
   }
-#else
-  if (mbmi->cfl_idx == CFL_DERIVED_ALPHA) {
-    alpha_q3 = mbmi->cfl_implicit_alpha[plane - 1];
-  } else {
-    alpha_q3 =
-        cfl_idx_to_alpha(mbmi->cfl_alpha_idx, mbmi->cfl_alpha_signs, plane - 1);
-    alpha_q3 *= (1 << CFL_ADD_BITS_ALPHA);
-  }
-#endif  // CONFIG_ENABLE_MHCCP
 
   assert((tx_size_high[tx_size] - 1) * CFL_BUF_LINE + tx_size_wide[tx_size] <=
          CFL_BUF_SQUARE);
@@ -919,16 +876,11 @@ void cfl_store_block(MACROBLOCKD *const xd, BLOCK_SIZE bsize, TX_SIZE tx_size,
             tx_size, filter_type);
 }
 
-#if CONFIG_ENABLE_MHCCP
 #define NON_LINEAR(V, M, BD) ((V * V + M) >> BD)
 void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
                                  int above_lines, int left_lines, int ref_width,
-                                 int ref_height, int dir
-#if CONFIG_MHCCP_SB_BOUNDARY
-                                 ,
-                                 int is_top_sb_boundary
-#endif  // CONFIG_MHCCP_SB_BOUNDARY
-) {
+                                 int ref_height, int dir,
+                                 int is_top_sb_boundary) {
   CFL_CTX *const cfl = &xd->cfl;
   MB_MODE_INFO *mbmi = xd->mi[0];
 
@@ -948,14 +900,11 @@ void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
       for (int i = 1; i < ref_width - 1; ++i) {
         if ((i >= left_lines && j >= above_lines)) continue;
         int ref_h_offset = 0;
-#if CONFIG_MHCCP_SB_BOUNDARY
         if (is_top_sb_boundary && above_lines == (LINE_NUM + 1)) {
           if (j < above_lines) {
             ref_h_offset = above_lines - 1 - j;
           }
         }
-#endif  // CONFIG_MHCCP_SB_BOUNDARY
-#if MHCCP_3_PARAMETERS
         // 3-tap cross
         assert(dir >= 0 && dir <= 2);
         if (dir == 0) {
@@ -974,39 +923,6 @@ void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
               (l[i + (j + ref_h_offset) * ref_stride] >> 3), mid, xd->bd);
         }
         A[2][count] = mid;
-#else
-        // 5-tap cross or 4-tap cross based on CONFIG_E149_MHCCP_4PARA
-        A[0][count] = (l[i + (j + ref_h_offset) * ref_stride] >> 3);  // C
-        if (dir == 0) {
-          A[1][count] =
-              (l[i + (j + ref_h_offset - 1) * ref_stride] >> 3);  // N 1, -1
-#if !CONFIG_E149_MHCCP_4PARA
-          A[2][count] =
-              (i >= left_lines && (j + 1 + ref_h_offset) >= above_lines)
-                  ? (l[i + (j + ref_h_offset) * ref_stride] >> 3)
-                  : (l[i + (j + 1 + ref_h_offset) * ref_stride] >>
-                     3);  // S 1,  1
-#endif  // !CONFIG_E149_MHCCP_4PARA
-        } else {
-          A[1][count] =
-              (l[(i - 1) + (j + ref_h_offset) * ref_stride] >> 3);  // W 1, -1
-#if !CONFIG_E149_MHCCP_4PARA
-          A[2][count] = (i + 1 >= left_lines && j >= above_lines)
-                            ? (l[(i) + (j + ref_h_offset) * ref_stride] >> 3)
-                            : (l[(i + 1) + (j + ref_h_offset) * ref_stride] >>
-                               3);  // E 1,  1
-#endif  // !CONFIG_E149_MHCCP_4PARA
-        }
-#if CONFIG_E149_MHCCP_4PARA
-        A[2][count] = NON_LINEAR((l[i + (j + ref_h_offset) * ref_stride] >> 3),
-                                 mid, xd->bd);
-        A[3][count] = mid;
-#else
-        A[3][count] = NON_LINEAR((l[i + (j + ref_h_offset) * ref_stride] >> 3),
-                                 mid, xd->bd);
-        A[4][count] = mid;
-#endif  // CONFIG_E149_MHCCP_4PARA
-#endif  // MHCCP_3_PARAMETERS
         YCb[count] = c[i + (j + ref_h_offset) * ref_stride];
         ++count;
       }
@@ -1015,17 +931,13 @@ void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
 
   if (count > 0) {
     int64_t ATA[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS];
-#if CONFIG_E125_MHCCP_SIMPLIFY
     // One more column is added to store the derived parameters
     int64_t C[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS + 1];
-#endif  // CONFIG_E125_MHCCP_SIMPLIFY
     int64_t Ty[MHCCP_NUM_PARAMS];
     memset(ATA, 0x00,
            sizeof(int64_t) * (MHCCP_NUM_PARAMS) * (MHCCP_NUM_PARAMS));
     memset(Ty, 0x00, sizeof(int64_t) * (MHCCP_NUM_PARAMS));
-#if CONFIG_E125_MHCCP_SIMPLIFY
     memset(C, 0x00, sizeof(C));
-#endif  // CONFIG_E125_MHCCP_SIMPLIFY
     for (int coli0 = 0; coli0 < (MHCCP_NUM_PARAMS); ++coli0) {
       for (int coli1 = coli0; coli1 < (MHCCP_NUM_PARAMS); ++coli1) {
         int16_t *col0 = A[coli0];
@@ -1066,18 +978,8 @@ void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
       for (int coli = 0; coli < MHCCP_NUM_PARAMS; coli++)
         Ty[coli] >>= matrixShift;
     }
-#if CONFIG_E125_MHCCP_SIMPLIFY
     gauss_elimination_mhccp(ATA, C, Ty, mbmi->mhccp_implicit_param[plane - 1],
                             MHCCP_NUM_PARAMS, xd->bd);
-#else
-    int64_t U[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS];
-    int64_t diag[MHCCP_NUM_PARAMS];
-    memset(U, 0x00, sizeof(int64_t) * (MHCCP_NUM_PARAMS) * (MHCCP_NUM_PARAMS));
-    memset(diag, 0x00, sizeof(int64_t) * (MHCCP_NUM_PARAMS));
-    bool decompOk = ldl_decompose(ATA, U, diag, MHCCP_NUM_PARAMS);
-    ldl_solve(U, diag, Ty, mbmi->mhccp_implicit_param[plane - 1],
-              MHCCP_NUM_PARAMS, decompOk);
-#endif  // CONFIG_E125_MHCCP_SIMPLIFY
   } else {
     for (int i = 0; i < MHCCP_NUM_PARAMS - 1; ++i) {
       mbmi->mhccp_implicit_param[plane - 1][i] = 0;
@@ -1087,7 +989,6 @@ void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
   }
 }
 
-#if CONFIG_E125_MHCCP_SIMPLIFY
 #define DIV_PREC_BITS 14
 #define DIV_PREC_BITS_POW2 8
 #define DIV_SLOT_BITS 3
@@ -1146,7 +1047,6 @@ void get_division_scale_shift(uint64_t denom, int *scale, int64_t *round,
   else
     *round = (int64_t)(1ULL << (*shift) >> 1);
 
-#if CONFIG_MHCCP_GAUSSIAN
   // Consider the division approximation: y = (x + D/2) / D,
   // where x is the numerator and D is the denominator.
   // We want to approximate it as: y ≈ (x / d) >> s,
@@ -1171,14 +1071,7 @@ void get_division_scale_shift(uint64_t denom, int *scale, int64_t *round,
   // Step 3: Extract the fractional part of the normalized denominator `d`.
   //         This is done by masking out the lower DIV_PREC_BITS bits.
   int normDiff = normDiff_clip & ((1 << DIV_PREC_BITS) - 1);
-#else
-  if (*shift > DIV_PREC_BITS)
-    normDiff = (int)((denom >> ((*shift) - DIV_PREC_BITS)) &
-                     ((1 << DIV_PREC_BITS) - 1));
-  else
-    normDiff = (int)((denom << (DIV_PREC_BITS - (*shift))) &
-                     ((1 << DIV_PREC_BITS) - 1));
-#endif  // CONFIG_MHCCP_GAUSSIAN
+
   // The vale of index is ranging from 0 to 7
   int index = normDiff >> DIV_INTR_BITS;
   int normDiff2 = normDiff - pow2O[index];
@@ -1191,25 +1084,14 @@ void get_division_scale_shift(uint64_t denom, int *scale, int64_t *round,
 
 void gauss_back_substitute(int64_t *x,
                            int64_t C[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS + 1],
-                           int numEq, int col
-#if CONFIG_MHCCP_GAUSSIAN
-                           ,
-                           int round, int bits
-#endif  // CONFIG_MHCCP_GAUSSIAN
-) {
+                           int numEq, int col, int round, int bits) {
   x[numEq - 1] = C[numEq - 1][col];
 
   for (int i = numEq - 2; i >= 0; i--) {
     x[i] = C[i][col];
 
     for (int j = i + 1; j < numEq; j++) {
-#if CONFIG_MHCCP_GAUSSIAN
       x[i] -= LOCAL_FIXED_MULT(C[i][j], x[j], round, bits);
-#else
-      x[i] -= stable_mult_shift(C[i][j], x[j], MHCCP_DECIM_BITS,
-                                get_msb_signed_64(C[i][j]),
-                                get_msb_signed_64(x[j]), 32, NULL);
-#endif  // CONFIG_MHCCP_GAUSSIAN
     }
   }
 }
@@ -1220,10 +1102,8 @@ void gauss_elimination_mhccp(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
   int colChr0 = numEq;
 
   int reg = 2 << (bd - 8);
-#if CONFIG_MHCCP_GAUSSIAN
   const int decimBits = MHCCP_DECIM_BITS;
   const int decimRound = (1 << (decimBits - 1));
-#endif  // CONFIG_MHCCP_GAUSSIAN
   // Create an [M][M+2] matrix system (could have been done already when
   // calculating auto/cross-correlations)
   for (int i = 0; i < numEq; i++) {
@@ -1237,23 +1117,13 @@ void gauss_elimination_mhccp(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
 
   for (int i = 0; i < numEq; i++) {
     int64_t *src = C[i];
-#if CONFIG_MHCCP_GAUSSIAN
     uint64_t diag = llabs(src[i]) < 1 ? 1 : llabs(src[i]);
-#else
-    uint64_t diag = src[i] < 1 ? 1 : src[i];
-#endif  // CONFIG_MHCCP_GAUSSIAN
     int64_t round;
     int scale, shift;
     get_division_scale_shift(diag, &scale, &round, &shift);
 
     for (int j = i + 1; j < numEq + 1; j++) {
-#if CONFIG_MHCCP_GAUSSIAN
       src[j] = (src[j] * scale + round) >> shift;
-#else
-      src[j] =
-          stable_mult_shift(src[j], scale, shift, get_msb_signed_64(src[j]),
-                            get_msb_signed_64(scale), 32, NULL);
-#endif  // CONFIG_MHCCP_GAUSSIAN
     }
 
     for (int j = i + 1; j < numEq; j++) {
@@ -1263,143 +1133,23 @@ void gauss_elimination_mhccp(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
       // On row j all elements with k < i+1 are now zero (not zeroing those here
       // as backsubstitution does not need them)
       for (int k = i + 1; k < numEq + 1; k++) {
-#if CONFIG_MHCCP_GAUSSIAN
         dst[k] -= LOCAL_FIXED_MULT(scale_factor, src[k], decimRound, decimBits);
-#else
-        dst[k] -= stable_mult_shift(scale_factor, src[k], MHCCP_DECIM_BITS,
-                                    get_msb_signed_64(scale_factor),
-                                    get_msb_signed_64(src[k]), 32, NULL);
-#endif  // CONFIG_MHCCP_GAUSSIAN
       }
     }
   }
 
   // Solve with backsubstitution
-  gauss_back_substitute(x0, C, numEq, colChr0
-#if CONFIG_MHCCP_GAUSSIAN
-                        ,
-                        decimRound, decimBits
-#endif  // CONFIG_MHCCP_GAUSSIAN
-  );
+  gauss_back_substitute(x0, C, numEq, colChr0, decimRound, decimBits);
 }
-#endif  // CONFIG_E125_MHCCP_SIMPLIFY
-
-#if !CONFIG_E125_MHCCP_SIMPLIFY
-bool ldl_decomp(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
-                int64_t U[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
-                int64_t diag[MHCCP_NUM_PARAMS], int numEq) {
-  for (int i = 0; i < numEq; i++) {
-    diag[i] = A[i][i];
-
-    for (int k = i - 1; k >= 0; k--) {
-      uint64_t u_unsigned = U[k][i];
-      uint64_t tmp = FIXED_MULT(u_unsigned, u_unsigned);
-      uint64_t mult = FIXED_MULT(tmp, diag[k]);
-      if ((uint64_t)diag[i] <= mult) return false;
-      diag[i] -= mult;
-    }
-
-    for (int j = i + 1; j < numEq; j++) {
-      int64_t scale = A[i][j];
-
-      for (int k = i - 1; k >= 0; k--) {
-        int64_t tmp = FIXED_MULT(U[k][j], U[k][i]);
-        scale -= FIXED_MULT(tmp, diag[k]);
-      }
-
-      U[i][j] = FIXED_DIV(AOMMAX(scale, 0), diag[i]);
-    }
-  }
-
-  return true;
-}
-
-void ldl_transpose_back_substitution(
-    int64_t U[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS], int64_t *y, int64_t *z,
-    int numEq) {
-  z[0] = y[0];
-
-  for (int i = 1; i < numEq; i++) {
-    int64_t sum = 0;
-
-    for (int j = 0; j < i; j++) {
-      sum += FIXED_MULT(z[j], U[j][i]);
-    }
-
-    z[i] = y[i] - sum;
-  }
-}
-
-void ldl_back_substitution(int64_t U[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
-                           int64_t *z, int64_t *x, int numEq) {
-  x[numEq - 1] = z[numEq - 1];
-
-  for (int i = numEq - 2; i >= 0; i--) {
-    int64_t sum = 0;
-
-    for (int j = i + 1; j < numEq; j++) {
-      sum += FIXED_MULT(U[i][j], x[j]);
-    }
-
-    x[i] = z[i] - sum;
-  }
-}
-
-bool ldl_decompose(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
-                   int64_t U[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
-                   int64_t diag[MHCCP_NUM_PARAMS], int numEq) {
-  for (int i = 0; i < numEq; i++) {
-    A[i][i] += 1;
-  }
-
-  return ldl_decomp(A, U, diag, numEq);
-}
-
-void ldl_solve(int64_t U[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
-               int64_t diag[MHCCP_NUM_PARAMS], int64_t *y, int64_t *x,
-               int numEq, bool decomp_ok) {
-  if (decomp_ok) {
-    int64_t aux[MHCCP_NUM_PARAMS];
-    ldl_transpose_back_substitution(U, y, aux, numEq);
-
-    for (int i = 0; i < numEq; i++) {
-      aux[i] = FIXED_DIV(AOMMAX(aux[i], 0), diag[i]);
-    }
-
-    ldl_back_substitution(U, aux, x, numEq);
-  } else {
-    memset(x, 0, sizeof(int64_t) * numEq);
-  }
-}
-#endif  // !CONFIG_E125_MHCCP_SIMPLIFY
 
 static int16_t convolve(int64_t *params, uint16_t *vector, int16_t numParams) {
   int64_t sum = 0;
-#if CONFIG_MHCCP_GAUSSIAN
   const int decimBits = MHCCP_DECIM_BITS;
   const int decimRound = (1 << (decimBits - 1));
-#endif  // CONFIG_MHCCP_GAUSSIAN
   for (int i = 0; i < numParams; i++) {
-#if CONFIG_MHCCP_GAUSSIAN
     sum += LOCAL_FIXED_MULT(params[i], vector[i], decimRound, decimBits);
-#else
-#if CONFIG_E125_MHCCP_SIMPLIFY && !CONFIG_MHCCP_CONVOLVE_SIMPLIFY
-    sum += stable_mult_shift(params[i], vector[i], MHCCP_DECIM_BITS,
-                             get_msb_signed_64(params[i]),
-                             get_msb_signed(vector[i]), 32, NULL);
-#else
-    sum += params[i] * vector[i];
-#endif  // CONFIG_E125_MHCCP_SIMPLIFY
-#endif  // CONFIG_MHCCP_GAUSSIAN
   }
-#if (CONFIG_E125_MHCCP_SIMPLIFY && !CONFIG_MHCCP_CONVOLVE_SIMPLIFY) || \
-    CONFIG_MHCCP_GAUSSIAN
   return (int16_t)clamp64(sum, INT16_MIN, INT16_MAX);
-#else
-  return (int16_t)clamp64(((sum + MHCCP_DECIM_ROUND) >> MHCCP_DECIM_BITS),
-                          INT16_MIN, INT16_MAX);
-#endif  // (CONFIG_E125_MHCCP_SIMPLIFY && !CONFIG_MHCCP_CONVOLVE_SIMPLIFY) ||
-        // CONFIG_MHCCP_GAUSSIAN
 }
 
 void mhccp_predict_hv_hbd_c(const uint16_t *input, uint16_t *dst, bool have_top,
@@ -1414,16 +1164,8 @@ void mhccp_predict_hv_hbd_c(const uint16_t *input, uint16_t *dst, bool have_top,
       uint16_t a =
           (j - 1 < 0 && !have_top ? input[i] : input[i - CFL_BUF_LINE * 2]) >>
           3;  // above
-#if !CONFIG_E149_MHCCP_4PARA
-      uint16_t b = (j + 1 >= height ? input[i] : input[i + CFL_BUF_LINE * 2]) >>
-                   3;  // below
-#endif                 // !CONFIG_E149_MHCCP_4PARA
       uint16_t c =
           (i - 1 < 0 && !have_left ? input[i] : input[i - 1]) >> 3;  // left
-#if !CONFIG_E149_MHCCP_4PARA
-      uint16_t d = (i + 1 >= width ? input[i] : input[i + 1]) >> 3;  // right
-#endif  // !CONFIG_E149_MHCCP_4PARA
-#if MHCCP_3_PARAMETERS
       if (dir == 1) {
         vector[0] = a;  // T
       } else if (dir == 2) {
@@ -1431,26 +1173,6 @@ void mhccp_predict_hv_hbd_c(const uint16_t *input, uint16_t *dst, bool have_top,
       }
       vector[1] = NON_LINEAR((input[i] >> 3), mid, bit_depth);
       vector[2] = mid;
-#else
-      if (dir == 0) {
-        vector[1] = a;
-#if !CONFIG_E149_MHCCP_4PARA
-        vector[2] = b;
-#endif  // !CONFIG_E149_MHCCP_4PARA
-      } else {
-        vector[1] = c;
-#if !CONFIG_E149_MHCCP_4PARA
-        vector[2] = d;
-#endif  // !CONFIG_E149_MHCCP_4PARA
-      }
-#if CONFIG_E149_MHCCP_4PARA
-      vector[2] = NON_LINEAR((input[i] >> 3), mid, bit_depth);
-      vector[3] = mid;
-#else
-      vector[3] = NON_LINEAR((input[i] >> 3), mid, bit_depth);
-      vector[4] = mid;
-#endif  // CONFIG_E149_MHCCP_4PARA
-#endif  // MHCCP_3_PARAMETERS
       dst[i] = clip_pixel_highbd(convolve(alpha_q3, vector, MHCCP_NUM_PARAMS),
                                  bit_depth);
     }
@@ -1459,4 +1181,3 @@ void mhccp_predict_hv_hbd_c(const uint16_t *input, uint16_t *dst, bool have_top,
   }
 }
 #undef NON_LINEAR
-#endif  // CONFIG_ENABLE_MHCCP

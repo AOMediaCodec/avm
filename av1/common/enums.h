@@ -155,45 +155,18 @@ enum {
 #define CCSO_BAND_NUM 128
 #define CCSO_NUM_COMPONENTS 3
 
-#if CONFIG_ENABLE_MHCCP
-#if MHCCP_3_PARAMETERS
 #define MHCCP_MODE_NUM 3
 #define MHCCP_CONTEXT_GROUP_SIZE 4
-#else
-#define MHCCP_MODE_NUM 2
-#define MHCCP_CONTEXT_GROUP_SIZE 7
-#endif  // MHCCP_3_PARAMETERS
-#if MHCCP_BUFFER_4LINES
 #define LINE_NUM 2
-#else
-#define LINE_NUM 3
-#endif  // MHCCP_BUFFER_4LINES
-#if CONFIG_E149_MHCCP_4PARA
-#if MHCCP_3_PARAMETERS
 #define MHCCP_NUM_PARAMS 3
-#else
-#define MHCCP_NUM_PARAMS 4
-#endif  // MHCCP_3_PARAMETERS
-#else
-#define MHCCP_NUM_PARAMS 5
-#endif  // CONFIG_E149_MHCCP_4PARA
 #define MHCCP_WINDOW_SIZE 6
 #define MHCCP_MAX_REF_SAMPLES \
   (2 * MHCCP_WINDOW_SIZE * (2 * MAX_SB_SIZE + MHCCP_WINDOW_SIZE))
-#if CONFIG_E125_MHCCP_SIMPLIFY
-#if CONFIG_MHCCP_GAUSSIAN
 #define MHCCP_DECIM_BITS 16
-#else
-#define MHCCP_DECIM_BITS 20
-#endif  // CONFIG_MHCCP_GAUSSIAN
-#else
-#define MHCCP_DECIM_BITS 22
-#endif  // CONFIG_E125_MHCCP_SIMPLIFY
 #define MHCCP_DECIM_ROUND (1 << (MHCCP_DECIM_BITS - 1))
 
 #define FIXED_MULT(x, y) (((x) * (y) + MHCCP_DECIM_ROUND) >> MHCCP_DECIM_BITS)
 #define FIXED_DIV(x, y) (((x) << MHCCP_DECIM_BITS) / (y))
-#endif  // CONFIG_ENABLE_MHCCP
 
 // Min superblock size
 #define MIN_SB_SIZE_LOG2 6
@@ -931,10 +904,8 @@ enum {
 enum {
   CFL_EXPLICIT,       // av1 cfl
   CFL_DERIVED_ALPHA,  // implicit CfL mode with derived scaling factor
-#if CONFIG_ENABLE_MHCCP
   CFL_MULTI_PARAM_V,  // multi hypothesis cross component vertical prediction
   CFL_MULTI_PARAM_H,  // multi hypothesis cross component horizontal prediction
-#endif                // CONFIG_ENABLE_MHCCP
   CFL_TYPE_COUNT,     // CfL mode type count
 } UENUM1BYTE(CFL_TYPE);
 

@@ -379,27 +379,21 @@ static INLINE int wide_angle_mapping(MB_MODE_INFO *mbmi, int angle_delta,
 }
 #endif  // CONFIG_WAIP
 
-#if CONFIG_ENABLE_MHCCP
 // fetch neighboring luma samples for multi hypothesis cross component
 // prediction
 void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
                                         MACROBLOCKD *const xd, int row, int col,
                                         TX_SIZE tx_size, int *above_lines,
-                                        int *left_lines,
-#if CONFIG_MHCCP_SB_BOUNDARY
-                                        int is_top_sb_boundary,
-#endif
+                                        int *left_lines, int is_top_sb_boundary,
                                         int *ref_width, int *ref_height);
 // fetch neighboring chroma samples for multi hypothesis cross component
 // prediction
 void mhccp_implicit_fetch_neighbor_chroma(MACROBLOCKD *const xd, int plane,
                                           int row, int col, TX_SIZE tx_size,
                                           int above_lines, int left_lines,
-#if CONFIG_MHCCP_SB_BOUNDARY
-                                          int is_top_sb_boundary,
-#endif
-                                          int ref_width, int ref_height);
-#endif  // CONFIG_ENABLE_MHCCP
+                                          int is_top_sb_boundary, int ref_width,
+                                          int ref_height);
+
 static INLINE int av1_use_intra_edge_upsample(int bs0, int bs1, int delta,
                                               int type) {
   const int d = abs(delta);

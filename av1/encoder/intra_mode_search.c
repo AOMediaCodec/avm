@@ -674,11 +674,7 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
       mode_rd_info_uv != NULL && !xd->lossless[mbmi->segment_id];
   int best_uv_mode_idx = -1;
   get_uv_intra_mode_set(mbmi);
-#if CONFIG_ENABLE_MHCCP
   int implicit_cfl_mode_num = 1 + MHCCP_MODE_NUM;
-#else
-  int implicit_cfl_mode_num = 1;
-#endif  // CONFIG_ENABLE_MHCCP
 #if CONFIG_LOSSLESS_DPCM
   mbmi->use_dpcm_uv = 0;
   mbmi->dpcm_mode_uv = 0;
@@ -718,9 +714,7 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
         mbmi->cfl_idx = 1;
         mbmi->uv_mode = UV_CFL_PRED;
         mbmi->uv_mode_idx = 0;
-      }
-#if CONFIG_ENABLE_MHCCP
-      else if (mode_idx == 2) {
+      } else if (mode_idx == 2) {
         mbmi->cfl_idx = 2;
         mbmi->mh_dir = 0;
         mbmi->uv_mode = UV_CFL_PRED;
@@ -730,30 +724,15 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
         mbmi->mh_dir = 1;
         mbmi->uv_mode = UV_CFL_PRED;
         mbmi->uv_mode_idx = 0;
-      }
-#if MHCCP_3_PARAMETERS
-      else if (mode_idx == 4) {
+      } else if (mode_idx == 4) {
         mbmi->cfl_idx = 2;
         mbmi->mh_dir = 2;
         mbmi->uv_mode = UV_CFL_PRED;
         mbmi->uv_mode_idx = 0;
-      }
-#endif  // MHCCP_3_PARAMETERS
-#endif  // CONFIG_ENABLE_MHCCP
-      else {
+      } else {
         mbmi->cfl_idx = 0;
-#if CONFIG_ENABLE_MHCCP
-#if MHCCP_3_PARAMETERS
         mbmi->uv_mode = mbmi->uv_intra_mode_list[mode_idx - 5];
         mbmi->uv_mode_idx = mode_idx - 5;
-#else
-        mbmi->uv_mode = mbmi->uv_intra_mode_list[mode_idx - 4];
-        mbmi->uv_mode_idx = mode_idx - 4;
-#endif  // MHCCP_3_PARAMETERS
-#else
-      mbmi->uv_mode = mbmi->uv_intra_mode_list[mode_idx - 2];
-      mbmi->uv_mode_idx = mode_idx - 2;
-#endif  // CONFIG_ENABLE_MHCCP
       }
       if (mbmi->uv_mode == mbmi->mode)
         mbmi->angle_delta[PLANE_TYPE_UV] = mbmi->angle_delta[PLANE_TYPE_Y];
@@ -797,9 +776,7 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
 
       // Init variables for cfl and angle delta
       int cfl_alpha_rate = 0;
-#if CONFIG_ENABLE_MHCCP
       int filter_dir_rate = 0;
-#endif  // CONFIG_ENABLE_MHCCP
       int cfl_idx_rate = 0;
       if (mode == UV_CFL_PRED) {
         if (!is_cfl_allowed(xd) || !intra_mode_cfg->enable_cfl_intra) continue;
@@ -807,32 +784,20 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
         assert(IMPLIES(xd->tree_type == CHROMA_PART,
                        xd->is_cfl_allowed_in_sdp == CFL_ALLOWED_FOR_CHROMA));
 #endif  // CONFIG_SDP_CFL_LATENCY_FIX
-#if CONFIG_ENABLE_MHCCP
         if (mbmi->cfl_idx == CFL_MULTI_PARAM_V && !intra_mode_cfg->enable_mhccp)
           continue;
-#endif  // CONFIG_ENABLE_MHCCP
         const TX_SIZE uv_tx_size = av1_get_tx_size(AOM_PLANE_U, xd);
         if (mbmi->cfl_idx == 0)
           cfl_alpha_rate = cfl_rd_pick_alpha(x, cpi, uv_tx_size, best_rd);
         cfl_idx_rate = x->mode_costs.cfl_index_cost[mbmi->cfl_idx];
-#if CONFIG_ENABLE_MHCCP
         if (mbmi->cfl_idx == CFL_MULTI_PARAM_V) {
-#if MHCCP_3_PARAMETERS
           const uint8_t mh_size_group = size_group_lookup[bsize];
-#else
-          const uint8_t mh_size_group = fsc_bsize_groups[bsize];
-#endif  // MHCCP_3_PARAMETERS
           filter_dir_rate =
               x->mode_costs.filter_dir_cost[mh_size_group][mbmi->mh_dir];
         }
-#endif  // CONFIG_ENABLE_MHCCP
         if (cfl_alpha_rate == INT_MAX) continue;
       }
-#if CONFIG_ENABLE_MHCCP
       mode_cost += cfl_alpha_rate + cfl_idx_rate + filter_dir_rate;
-#else
-    mode_cost += cfl_alpha_rate + cfl_idx_rate;
-#endif  // CONFIG_ENABLE_MHCCP
       // Check if the reuse is enabled. If enabled, save the mode information
       // (i.e., rate and distortion) when the mode is evaluated for the first
       // time, else fetch the mode info saved.

@@ -680,14 +680,12 @@ static INLINE void divide_and_round_array(int32_t *sol, int32_t den,
   }
 }
 
-#if CONFIG_E125_MHCCP_SIMPLIFY
 // This function is a stable version of ROUND_POWER_OF_TWO_SIGNED(a*b, shift),
 // where shifts are partially applied before multiplcation operations to avoid
 // overflow issues, i.e., (a>>s1)*(b>>s2)>>s3, where s1+s2+s3=shift
 int64_t stable_mult_shift(const int64_t a, const int64_t b, const int shift,
                           const int msb_a, const int msb_b, const int max_bd,
                           int *rem_shift);
-#endif  // CONFIG_E125_MHCCP_SIMPLIFY
 
 static INLINE int is_translational_refinement_allowed(const AV1_COMMON *cm,
 #if CONFIG_COMPOUND_4XN

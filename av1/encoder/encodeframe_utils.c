@@ -818,15 +818,11 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
 #if CONFIG_ENTROPY_STATS
       ++counts->cfl_index[mbmi->cfl_idx];
 #endif
-#if CONFIG_ENABLE_MHCCP
       update_cdf(fc->cfl_index_cdf, mbmi->cfl_idx, CFL_TYPE_COUNT - 1);
       if (mbmi->cfl_idx == CFL_MULTI_PARAM_V) {
         aom_cdf_prob *filter_dir_cdf = get_mhccp_dir_cdf(xd, bsize);
         update_cdf(filter_dir_cdf, mbmi->mh_dir, MHCCP_MODE_NUM);
       }
-#else
-      update_cdf(fc->cfl_index_cdf, mbmi->cfl_idx, CFL_TYPE_COUNT);
-#endif  // CONFIG_ENABLE_MHCCP
     }
     if (uv_mode == UV_CFL_PRED) {
       const int8_t joint_sign = mbmi->cfl_alpha_signs;

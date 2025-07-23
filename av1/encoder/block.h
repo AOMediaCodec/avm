@@ -933,16 +933,10 @@ typedef struct {
   int multi_line_mrl_cost[MRL_INDEX_CONTEXTS][2];
   //! Cost of signaling the forward skip coding mode
   int fsc_cost[FSC_MODE_CONTEXTS][FSC_BSIZE_CONTEXTS][FSC_MODES];
-#if CONFIG_ENABLE_MHCCP
   //! Cost of signaling the cfl mode
   int cfl_index_cost[CFL_TYPE_COUNT - 1];
-#else
-  int cfl_index_cost[CFL_TYPE_COUNT];
-#endif  // CONFIG_ENABLE_MHCCP
-#if CONFIG_ENABLE_MHCCP
   //! cost of signaling filter direction
   int filter_dir_cost[MHCCP_CONTEXT_GROUP_SIZE][MHCCP_MODE_NUM];
-#endif  // CONFIG_ENABLE_MHCCP
 
   //! y primary flag cost
   int y_primary_flag_cost[INTRA_MODE_SETS];

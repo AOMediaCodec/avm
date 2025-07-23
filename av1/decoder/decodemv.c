@@ -424,23 +424,16 @@ static uint8_t read_fsc_mode(aom_reader *r, aom_cdf_prob *fsc_cdf) {
 }
 
 static uint8_t read_cfl_index(FRAME_CONTEXT *ec_ctx, aom_reader *r) {
-#if CONFIG_ENABLE_MHCCP
   uint8_t cfl_index = aom_read_symbol(r, ec_ctx->cfl_index_cdf,
                                       CFL_TYPE_COUNT - 1, ACCT_INFO());
-#else
-  uint8_t cfl_index =
-      aom_read_symbol(r, ec_ctx->cfl_index_cdf, CFL_TYPE_COUNT, ACCT_INFO());
-#endif  // CONFIG_ENABLE_MHCCP
   return cfl_index;
 }
 
-#if CONFIG_ENABLE_MHCCP
 // Read multi hypothesis cross component prediction filter direction
 static uint8_t read_mh_dir(aom_cdf_prob *mh_dir_cdf, aom_reader *r) {
   uint8_t mh_dir = aom_read_symbol(r, mh_dir_cdf, MHCCP_MODE_NUM, ACCT_INFO());
   return mh_dir;
 }
-#endif  // CONFIG_ENABLE_MHCCP
 
 static uint8_t read_cfl_alphas(FRAME_CONTEXT *const ec_ctx, aom_reader *r,
                                int8_t *signs_out) {
@@ -2317,13 +2310,8 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
       if (mbmi->uv_mode == UV_CFL_PRED) {
         {
           mbmi->cfl_idx = read_cfl_index(ec_ctx, r);
-#if CONFIG_ENABLE_MHCCP
           if (mbmi->cfl_idx == CFL_MULTI_PARAM_V) {
-#if MHCCP_3_PARAMETERS
             const uint8_t mh_size_group = size_group_lookup[bsize];
-#else
-            const uint8_t mh_size_group = fsc_bsize_groups[bsize];
-#endif  // MHCCP_3_PARAMETERS
 #if CONFIG_CFL_64x64
             assert(mh_size_group < MHCCP_CONTEXT_GROUP_SIZE);
 #else
@@ -2332,7 +2320,6 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
             aom_cdf_prob *mh_dir_cdf = ec_ctx->filter_dir_cdf[mh_size_group];
             mbmi->mh_dir = read_mh_dir(mh_dir_cdf, r);
           }
-#endif  // CONFIG_ENABLE_MHCCP
         }
         if (mbmi->cfl_idx == 0)
           mbmi->cfl_alpha_idx =
@@ -3146,17 +3133,11 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
     if (mbmi->uv_mode == UV_CFL_PRED) {
       {
         mbmi->cfl_idx = read_cfl_index(ec_ctx, r);
-#if CONFIG_ENABLE_MHCCP
         if (mbmi->cfl_idx == CFL_MULTI_PARAM_V) {
-#if MHCCP_3_PARAMETERS
           const uint8_t mh_size_group = size_group_lookup[bsize];
-#else
-          const uint8_t mh_size_group = fsc_bsize_groups[bsize];
-#endif  // MHCCP_3_PARAMETERS
           aom_cdf_prob *mh_dir_cdf = ec_ctx->filter_dir_cdf[mh_size_group];
           mbmi->mh_dir = read_mh_dir(mh_dir_cdf, r);
         }
-#endif  // CONFIG_ENABLE_MHCCP
       }
       if (mbmi->cfl_idx == 0) {
         mbmi->cfl_alpha_idx =

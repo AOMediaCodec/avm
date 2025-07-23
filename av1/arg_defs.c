@@ -579,11 +579,9 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .enable_cfl_intra = ARG_DEF(NULL, "enable-cfl-intra", 1,
                               "Enable chroma from luma intra prediction mode "
                               "(0: false, 1: true (default))"),
-#if CONFIG_ENABLE_MHCCP
   .enable_mhccp = ARG_DEF(NULL, "enable-mhccp", 1,
                           "Enable multi-hypothesis cross-component prediction "
                           "(0: false, 1: true (default))"),
-#endif  // CONFIG_ENABLE_MHCCP
   .force_video_mode = ARG_DEF(NULL, "force-video-mode", 1,
                               "Force video mode (0: false, 1: true (default))"),
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT

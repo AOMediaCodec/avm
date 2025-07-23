@@ -1661,20 +1661,14 @@ static AOM_INLINE void write_fsc_mode(uint8_t fsc_mode, aom_writer *w,
 
 static AOM_INLINE void write_cfl_index(FRAME_CONTEXT *ec_ctx, uint8_t cfl_index,
                                        aom_writer *w) {
-#if CONFIG_ENABLE_MHCCP
   aom_write_symbol(w, cfl_index, ec_ctx->cfl_index_cdf, CFL_TYPE_COUNT - 1);
-#else
-  aom_write_symbol(w, cfl_index, ec_ctx->cfl_index_cdf, CFL_TYPE_COUNT);
-#endif  // CONFIG_ENABLE_MHCCP
 }
 
-#if CONFIG_ENABLE_MHCCP
 // write MHCCP filter direction
 static AOM_INLINE void write_mh_dir(aom_cdf_prob *mh_dir_cdf, uint8_t mh_dir,
                                     aom_writer *w) {
   aom_write_symbol(w, mh_dir, mh_dir_cdf, MHCCP_MODE_NUM);
 }
-#endif  // CONFIG_ENABLE_MHCCP
 
 static AOM_INLINE void write_cfl_alphas(FRAME_CONTEXT *const ec_ctx,
                                         uint8_t idx, int8_t joint_sign,
@@ -2055,17 +2049,11 @@ static AOM_INLINE void write_intra_prediction_modes(AV1_COMP *cpi,
 #endif  // CONFIG_LOSSLESS_DPCM
     if (uv_mode == UV_CFL_PRED) {
       write_cfl_index(ec_ctx, mbmi->cfl_idx, w);
-#if CONFIG_ENABLE_MHCCP
       if (mbmi->cfl_idx == CFL_MULTI_PARAM_V) {
-#if MHCCP_3_PARAMETERS
         const uint8_t mh_size_group = size_group_lookup[bsize];
-#else
-        const uint8_t mh_size_group = fsc_bsize_groups[bsize];
-#endif  // MHCCP_3_PARAMETERS
         aom_cdf_prob *mh_dir_cdf = ec_ctx->filter_dir_cdf[mh_size_group];
         write_mh_dir(mh_dir_cdf, mbmi->mh_dir, w);
       }
-#endif  // CONFIG_ENABLE_MHCCP
       if (mbmi->cfl_idx == 0)
         write_cfl_alphas(ec_ctx, mbmi->cfl_alpha_idx, mbmi->cfl_alpha_signs, w);
     }
