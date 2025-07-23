@@ -3840,7 +3840,7 @@ static aom_codec_err_t ctrl_set_number_mlayers(aom_codec_alg_priv_t *ctx,
                                                va_list args) {
   const int number_mlayers = va_arg(args, int);
   if (number_mlayers > MAX_NUM_MLAYERS) return AOM_CODEC_INVALID_PARAM;
-  ctx->cpi->common.number_spatial_layers = number_mlayers;
+  ctx->cpi->common.number_mlayers = number_mlayers;
   return AOM_CODEC_OK;
 }
 #else
@@ -4768,7 +4768,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_F159_OBUSIZE_ANNEXB
     1,  // save_as_annexb (0. external mean)
 #else
-    0,      // save_as_annexb
+    0,  // save_as_annexb
 #endif
     0,                           // tile_width_count
     0,                           // tile_height_count

@@ -211,7 +211,8 @@ typedef struct aom_image {
 
 #if CONFIG_F159_OBU_HEADER
   int tlayer_id; /**< Temporal layer Id of image */
-  int mlayer_id; /**< Layer Id of image */
+  int mlayer_id; /**< mlayer id of image */
+  int xlayer_id; /**< xlayer id of image */
 #else
   int temporal_id; /**< Temporal layer Id of image */
   int spatial_id;  /**< Spatial layer Id of image */

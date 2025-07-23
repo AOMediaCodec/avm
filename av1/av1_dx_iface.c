@@ -1138,6 +1138,7 @@ static aom_image_t *decoder_get_frame_(aom_codec_alg_priv_t *ctx,
 #if CONFIG_F159_OBU_HEADER
         img->tlayer_id = cm->tlayer_id;
         img->mlayer_id = cm->mlayer_id;
+        img->xlayer_id = cm->xlayer_id;
 #else
         img->temporal_id = cm->temporal_layer_id;
         img->spatial_id = cm->spatial_layer_id;

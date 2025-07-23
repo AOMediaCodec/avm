@@ -729,6 +729,7 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   cm->number_mlayers = 1;
   cm->number_tlayers = 1;
   cm->mlayer_id = 0;
+  cm->xlayer_id = 0;
   cm->tlayer_id = 0;
 #else
   // Set init SVC parameters.

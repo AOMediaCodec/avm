@@ -986,6 +986,7 @@ int av1_add_film_grain(const aom_film_grain_t *params, const aom_image_t *src,
 #if CONFIG_F159_OBU_HEADER
   dst->tlayer_id = src->tlayer_id;
   dst->mlayer_id = src->mlayer_id;
+  dst->xlayer_id = src->xlayer_id;
 #else
   dst->temporal_id = src->temporal_id;
   dst->spatial_id = src->spatial_id;

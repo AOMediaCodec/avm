@@ -513,7 +513,7 @@ typedef struct {
   int cdef_on_skip_txfm_frame_enable; /*!< Frame level flag to on or off CDEF on
                                          skip_txfm = 1 */
 #else
-  int cdef_bits;                  /*!< Number of CDEF strength values in bits */
+  int cdef_bits; /*!< Number of CDEF strength values in bits */
 #endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_FIX_CDEF_SYNTAX
   int cdef_frame_enable; /*!< CDEF on/off for current frame */
@@ -2090,14 +2090,14 @@ typedef struct AV1Common {
    */
   int mlayer_id;
   /*!
-   * Number of spatial layers: may be > 1 for SVC (scalable vector coding).
+   * Number of extended layers: may be > 1 for SVC (scalable vector coding).
    */
-  unsigned int number_spatial_layers;
+  unsigned int number_xlayers;
   /*!
-   * Spatial layer ID of this frame
-   * (in the range 0 ... (number_spatial_layers - 1)).
+   * Extended layer ID of this frame
+   * (in the range 0 ... (number_xlayers - 1)).
    */
-  int spatial_layer_id;
+  int xlayer_id;
 #else
   /*!
    * Number of temporal layers: may be > 1 for SVC (scalable vector coding).
