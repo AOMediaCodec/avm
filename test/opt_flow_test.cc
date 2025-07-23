@@ -512,13 +512,17 @@ class AV1OptFlowRefineTest : public AV1OptFlowTest<opfl_mv_refinement> {
         reduce_temporal_dist(&d0, &d1);
 
         // Here, the input corresponds to 'd0*p0 - d1*p1' (where P0 and P1 can
-        // be 12 bits, d0 and d1 can be >=5 bits) and gx, gy are gradients of
-        // input. Due to the clamping of these value to [INT16_MIN, INT16_MAX],
+        // be 12 bits, abs(d0)+abs(d1) can be >=2 bits) and gx, gy are gradients
+        // of input. Due to the clamping of these value to
+        // [-OPFL_GRAD_CLAMP_VAL, OPFL_GRAD_CLAMP_VAL], with
+        // OPFL_GRAD_CLAMP_VAL ((1 << ((MAX_OPFL_AUTOCORR_BITS - 6) >> 1)) - 1),
         // testing of the same is required. Hence, populating the input_, gx_
         // and gy_ buffers as per the requirement.
         RandomInput16(input_, GetParam(), AOMMIN(16, bd + 1));
-        RandomInput16(gx_, GetParam(), AOMMIN(16, bd + 6));
-        RandomInput16(gy_, GetParam(), AOMMIN(16, bd + 6));
+        RandomInput16(gx_, GetParam(),
+                      AOMMIN(16, (MAX_OPFL_AUTOCORR_BITS - 6) >> 1));
+        RandomInput16(gy_, GetParam(),
+                      AOMMIN(16, (MAX_OPFL_AUTOCORR_BITS - 6) >> 1));
 
         TestOptFlowRefine(input_, gx_, gy_, is_speed, d0, d1);
         count++;
@@ -536,8 +540,10 @@ class AV1OptFlowRefineTest : public AV1OptFlowTest<opfl_mv_refinement> {
         reduce_temporal_dist(&d0, &d1);
 
         RandomInput16Extreme(input_, GetParam(), AOMMIN(16, bd + 1));
-        RandomInput16Extreme(gx_, GetParam(), AOMMIN(16, bd + 6));
-        RandomInput16Extreme(gy_, GetParam(), AOMMIN(16, bd + 6));
+        RandomInput16Extreme(gx_, GetParam(),
+                             AOMMIN(16, (MAX_OPFL_AUTOCORR_BITS - 6) >> 1));
+        RandomInput16Extreme(gy_, GetParam(),
+                             AOMMIN(16, (MAX_OPFL_AUTOCORR_BITS - 6) >> 1));
 
         TestOptFlowRefine(input_, gx_, gy_, 0, d0, d1);
         count++;
@@ -648,7 +654,7 @@ class AV1OptFlowRefineTest : public AV1OptFlowTest<opfl_mv_refinement> {
   static constexpr int kVY_0 = 2;
   static constexpr int kVY_1 = 3;
   static constexpr int kMaxOrderHintBits = 8;
-  static constexpr int kSubpelGradDeltaBits = 3;
+  static constexpr int kSubpelGradDeltaBits = 2;
   int16_t *input_;
   int16_t *gx_;
   int16_t *gy_;
