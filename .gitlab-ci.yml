@@ -1,9 +1,3 @@
-include:
-  # Conditionally include nightly-only jobs
-  - local: .gitlab/ci_nightly.yml
-    rules:
-    - if: '$CI_PIPELINE_SOURCE == "schedule"'
-
 stages:
   - check
   - build
@@ -23,99 +17,6 @@ workflow:
     - if: '$CI_COMMIT_BRANCH'
       when: never
 
-# Check code style with clang-format and cmake-format
-Style Check:
-  stage: check
-  interruptible: true
-  variables:
-    DIFF_REF: $CI_MERGE_REQUEST_DIFF_BASE_SHA
-  script:
-    - 'echo "Diff ref is: $DIFF_REF"'
-    - git fetch --unshallow
-    - export PATH="/usr/lib/llvm-18/bin:${PATH}"
-    - clang-format --version
-    - cmake-format --version
-    - |
-      # Run clang-format check.
-      for f in $(git diff --diff-filter=ACMR --name-only $DIFF_REF '*.[hc]pp' '*.cc' '*.[ch]' \
-        | grep -v third_party); do
-        exit_code=0
-        clang-format -i --style=file $f -n -Werror || exit_code=$?
-        if [ ${exit_code} -ne 0 ]; then
-          echo -e "\e[31mPlease format your code by following instructions here:\e[0m"
-          echo -e "\e[31mhttps://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#style-check\e[0m"
-          exit 1
-        fi
-      done
-    - |
-      # Run cmake-format check.
-      for f in $(git diff --diff-filter=ACMR --name-only $DIFF_REF '*.cmake' 'CMakeLists.txt' \
-        | grep -v third_party); do
-        exit_code=0
-        cmake-format --check $f || exit_code=$?
-        if [ ${exit_code} -ne 0 ]; then
-          echo -e "\e[31mPlease format your code by following instructions here:\e[0m"
-          echo -e "\e[31mhttps://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#style-check\e[0m"
-          exit 1
-        fi
-      done
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "schedule"'
-      when: never
-    - when: on_success
-
-.commit-checks-common:
-  stage: check
-  interruptible: true
-  script:
-    - 'echo "Diff ref is: $DIFF_REF"'
-    - git fetch --unshallow
-    - git diff "$DIFF_REF" --check
-    - |
-      # Validate files with the executable bit set
-      files=$(git diff --name-only "$DIFF_REF" | tr '\n' ' ')
-      git ls-tree -r HEAD $files | while read mode type sha1 file; do
-        if [ "$mode" = "100755" ]; then
-          case "$file" in
-            configure|*.php|*.pl|*.py|*.sh)
-              ;;
-            *)
-              echo "File $file should not be executable."
-              echo "Only configure|*.php|*.pl|*.py|*.sh are accepted."
-              exit 1
-              ;;
-          esac
-        fi
-      done
-
-# MR checks (formerly patch_check)
-MR checks:
-  extends: .commit-checks-common
-  variables:
-    DIFF_REF: $CI_MERGE_REQUEST_DIFF_BASE_SHA
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-
-# Commit checks (formerly patch_check)
-Commit checks:
-  extends: .commit-checks-common
-  variables:
-    DIFF_REF: $CI_COMMIT_BEFORE_SHA
-  before_script:
-    - |
-      # Checking if the DIFF_REF is a valid commit
-      # In case of a force-push it can end up not being valid
-      if ! git cat-file commit "$DIFF_REF"; then
-        echo "DIFF_REF ($DIFF_REF) is not a valid commit ref, skipping checks!"
-        exit 77
-      fi
-  allow_failure:
-    exit_codes: 77
-  except:
-    - merge_requests
-    - schedules
-    - tags
-
 # Fetch the test data later needed for the unit test jobs
 Test Data:
   stage: check
@@ -132,884 +33,106 @@ Test Data:
     paths:
       - ${CI_PROJECT_DIR}/libaom-test-data
 
-Test Data Check:
-  stage: check
-  interruptible: true
-  variables:
-    DIFF_REF: $CI_MERGE_REQUEST_DIFF_BASE_SHA
-  script:
-    - git fetch --unshallow
-    - |
-      ADDED_TEST_FILES="$(git diff $DIFF_REF "test/" \
-        | perl -ne  '/^\++.*?"(.*?\.(ivf|webm|res|mkv|y4m|yuv))"/g and print "$1\n"')"
-
-      printf "Checking for files:\n%s\n\n" "$ADDED_TEST_FILES"
-      echo "$ADDED_TEST_FILES" | while read -r f; do
-        if [ -n "$(grep -L "${f}"  test/test-data.sha1 test/test_data_util.cmake)" ]; then
-          echo "file: ${f} was not found in test-data.sha1 or test_data_util.cmake"
-          exit 1
-        fi
-      done
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "schedule"'
-      when: never
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      changes:
-        - 'test/**/*'
-
-.ccache-common:
-  variables:
-    CCACHE_BASEDIR: ${CI_PROJECT_DIR}
-    CCACHE_DIR: ${CI_PROJECT_DIR}/ccache
-    CCACHE_COMPILERCHECK: content
-  before_script:
-    - ccache --zero-stats
-    - ccache --show-stats
-  after_script:
-    - ccache --show-stats
-  cache:
-    key: ${CI_JOB_NAME}
-    paths:
-      - ccache
-
-.build-common:
+# Simple x86_64 Linux build
+Linux Nightly Build:
   stage: build
   interruptible: true
-  extends: .ccache-common
+  # CMake 4.0.0 removed compatibility with CMake < 3.5. Add
+  # -DCMAKE_POLICY_VERSION_MINIMUM=3.5 to try configuring anyway.
   variables:
-    # CMake 4.0.0 removed compatibility with CMake < 3.5. Add
-    # -DCMAKE_POLICY_VERSION_MINIMUM=3.5 to try configuring anyway.
-    CMAKE_FLAGS: -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DENABLE_CCACHE=1 -DENABLE_WERROR=1 -DENABLE_DOCS=0
-    INSTALLROOT_FOLDER: installroot
-  parallel:
-    matrix:
-      - AOM_BUILD_CONFIG:
-          - shared
-          - no-rtcd
-          - rtcd
-          - encode-only
-          - decode-only
-          - no-thread
-          - no-webm
-          - inspection-accounting
-          - nasm
-          - no-examples
-          - debug
-  script:
-    - export PATH="/usr/lib/llvm-18/bin:${PATH}"
-    - |
-      case $AOM_BUILD_CONFIG in
-        internal-stats)
-          CMAKE_FLAGS="$CMAKE_FLAGS -DCONFIG_INTERNAL_STATS=1"
-          ;;
-        small)
-          CMAKE_FLAGS="$CMAKE_FLAGS -DCONFIG_SMALL=1"
-          ;;
-        shared)
-          CMAKE_FLAGS="$CMAKE_FLAGS -DBUILD_SHARED_LIBS=1"
-          ;;
-        shared-no-static)
-          CMAKE_FLAGS="$CMAKE_FLAGS -DBUILD_SHARED_LIBS=1 -DCONFIG_STATIC=0"
-          ;;
-        no-rtcd)
-          CMAKE_FLAGS="$CMAKE_FLAGS -DCONFIG_RUNTIME_CPU_DETECT=0"
-          ;;
-        rtcd)
-          CMAKE_FLAGS="$CMAKE_FLAGS -DCONFIG_RUNTIME_CPU_DETECT=1"
-          ;;
-        encode-only)
-          CMAKE_FLAGS="$CMAKE_FLAGS -DCONFIG_AV1_DECODER=0"
-          ;;
-        decode-only)
-          CMAKE_FLAGS="$CMAKE_FLAGS -DCONFIG_AV1_ENCODER=0"
-          ;;
-        no-thread)
-          CMAKE_FLAGS="$CMAKE_FLAGS -DCONFIG_MULTITHREAD=0"
-          ;;
-        no-webm)
-          CMAKE_FLAGS="$CMAKE_FLAGS -DCONFIG_WEBM_IO=0"
-          ;;
-        inspection-accounting)
-          CMAKE_FLAGS="$CMAKE_FLAGS -DCONFIG_INSPECTION=1 -DCONFIG_ACCOUNTING=1"
-          ;;
-        entropy-stats)
-          CMAKE_FLAGS="$CMAKE_FLAGS -DCONFIG_ENTROPY_STATS=1"
-          ;;
-        bawp-across-scales-fix)
-          CMAKE_FLAGS="$CMAKE_FLAGS -DCONFIG_BAWP_ACROSS_SCALES=1"
-          ;;
-        nasm)
-          CMAKE_FLAGS="$CMAKE_FLAGS -DENABLE_NASM=1"
-          ;;
-        no-examples)
-          CMAKE_FLAGS="$CMAKE_FLAGS -DENABLE_EXAMPLES=0"
-          ;;
-        debug)
-          CMAKE_FLAGS="$CMAKE_FLAGS -DCMAKE_BUILD_TYPE=Debug"
-          ;;
-        release)
-          CMAKE_FLAGS="$CMAKE_FLAGS -DCMAKE_BUILD_TYPE=Release"
-          ;;
-        *)
-          echo -n "Unknown configuration: '$AOM_BUILD_CONFIG'"
-          exit 1
-          ;;
-      esac
-      cmake --version
-      echo "CMake Flags:       $CMAKE_FLAGS"
-      echo "Extra CMake Flags: $EXTRA_CMAKE_FLAGS"
-      echo "Configuration:     $AOM_BUILD_CONFIG"
-    - exit_code=0
-    - cmake -B aom_build -S . -GNinja -DCMAKE_BUILD_TYPE=Release $CMAKE_FLAGS $EXTRA_CMAKE_FLAGS
-    - cmake --build aom_build -j 2 || exit_code=$?
-    - |
-      if [ ${exit_code} -ne 0 ]; then
-        echo -e "\e[31mYou may reproduce the compile failure by following instructions here:\e[0m"
-        echo -e "\e[31mhttps://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#build-avm-in-various-configurations\e[0m"
-        echo -e "\e[31mUsing following values:\e[0m"
-        echo -e "\e[31mCMAKE_FLAGS = ${CMAKE_FLAGS}\e[0m"
-        echo -e "\e[31mEXTRA_CMAKE_FLAGS = ${EXTRA_CMAKE_FLAGS}\e[0m"
-        exit 1
-      fi
-    - cmake --build aom_build --target dist
-    - DESTDIR="${CI_PROJECT_DIR}/${INSTALLROOT_FOLDER}" cmake --build aom_build --target install/strip
-  needs: []
-
-Build (generic-gnu):
-  extends: .build-common
-  parallel:
-    matrix:
-      - AOM_BUILD_CONFIG:
-          - internal-stats
-          - no-rtcd
-          - rtcd
-          - encode-only
-          - decode-only
-          - no-thread
-          - no-webm
-          - inspection-accounting
-          - no-examples
-  variables:
-    EXTRA_CMAKE_FLAGS: -DAOM_TARGET_CPU=generic
-
-Build (x86_64-linux-gcc):
-  extends: .build-common
-
-Previous Build (x86_64-linux-gcc):
-  extends: .build-common
-  variables:
-    DIFF_REF: $CI_MERGE_REQUEST_DIFF_BASE_SHA
-    INSTALLROOT_FOLDER: installroot_old
-    # Allow build warnings.
-    EXTRA_CMAKE_FLAGS: -DENABLE_WERROR=0
-  before_script:
-    - git fetch --unshallow
-    - git checkout "$DIFF_REF"
-  parallel:
-    matrix:
-      - AOM_BUILD_CONFIG:
-          - encode-only
-  artifacts:
-    expire_in: 1 day
-    paths:
-      - ${CI_PROJECT_DIR}/installroot_old/*
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-
-Build (entropy-stats):
-  extends: .build-common
-  variables:
-    # Allow build warnings.
-    EXTRA_CMAKE_FLAGS: -DENABLE_WERROR=0
-  parallel:
-    matrix:
-      - AOM_BUILD_CONFIG:
-          - entropy-stats
-
-Build (bawp-across-scales-fix):
-  extends: .build-common
-  parallel:
-    matrix:
-      - AOM_BUILD_CONFIG:
-          - bawp-across-scales-fix
-
-Build (x86-linux-gcc):
-  extends: .build-common
-  image: registry.gitlab.com/aomediacodec/aom-testing/ubuntu2404-multilib:20250702215355
-  variables:
-    EXTRA_CMAKE_FLAGS: >-
-      -DCMAKE_TOOLCHAIN_FILE=build/cmake/toolchains/x86-linux.cmake
-
-Build (aarch64-linux-gcc):
-  extends: .build-common
-  parallel:
-    matrix:
-      - AOM_BUILD_CONFIG:
-          - shared
-          - no-rtcd
-          - rtcd
-          - encode-only
-          - decode-only
-          - no-thread
-          - no-webm
-          - inspection-accounting
-          - no-examples
-  variables:
-    # Overwriting the default flags to disalbe Werror
-    CMAKE_FLAGS: >-
-      -DENABLE_CCACHE=1
-      -DENABLE_DOCS=0
-      -DCONFIG_ML_PART_SPLIT=0
-      -DCONFIG_DIP_EXT_PRUNING=0
-      -DCMAKE_TOOLCHAIN_FILE=build/cmake/toolchains/arm64-linux-gcc.cmake
-
-Build (armv7-linux-gcc):
-  extends: .build-common
-  parallel:
-    matrix:
-      - AOM_BUILD_CONFIG:
-          - shared
-          - no-rtcd
-          - rtcd
-          - encode-only
-          - decode-only
-          - no-thread
-          - no-webm
-          - inspection-accounting
-          - no-examples
-  variables:
-    # Overwriting the default flags to disalbe Werror
-    CMAKE_FLAGS: >-
-      -DENABLE_CCACHE=1
-      -DENABLE_DOCS=0
-      -DCONFIG_ML_PART_SPLIT=0
-      -DCONFIG_DIP_EXT_PRUNING=0
-      -DCMAKE_TOOLCHAIN_FILE=build/cmake/toolchains/armv7-linux-gcc.cmake
-
-Build (ppc-linux-gcc):
-  extends: .build-common
-  variables:
-    EXTRA_CMAKE_FLAGS: >-
-      -DCONFIG_ML_PART_SPLIT=0
-      -DCONFIG_DIP_EXT_PRUNING=0
-      -DCROSS=powerpc64le-linux-gnu-
-      -DCMAKE_TOOLCHAIN_FILE=build/cmake/toolchains/ppc-linux-gcc.cmake
-
-Build (x86-mingw-gcc):
-  extends: .build-common
-  parallel:
-    matrix:
-      - AOM_BUILD_CONFIG:
-          - no-rtcd
-          - rtcd
-          - encode-only
-          - decode-only
-          - no-thread
-          - no-webm
-          - inspection-accounting
-          - nasm
-          - no-examples
-  variables:
-    EXTRA_CMAKE_FLAGS: >-
-      -DCONFIG_ML_PART_SPLIT=0
-      -DCONFIG_DIP_EXT_PRUNING=0
-      -DCMAKE_TOOLCHAIN_FILE=build/cmake/toolchains/x86-mingw-gcc.cmake
-
-Build (x86_64-mingw-gcc):
-  extends: .build-common
-  parallel:
-    matrix:
-      - AOM_BUILD_CONFIG:
-          - no-rtcd
-          - rtcd
-          - encode-only
-          - decode-only
-          - no-thread
-          - no-webm
-          - inspection-accounting
-          - nasm
-          - no-examples
-  variables:
-    EXTRA_CMAKE_FLAGS: >-
-      -DCONFIG_ML_PART_SPLIT=0
-      -DCONFIG_DIP_EXT_PRUNING=0
-      -DCMAKE_TOOLCHAIN_FILE=build/cmake/toolchains/x86_64-mingw-gcc.cmake
-
-Build Documentation:
-  stage: build
-  interruptible: true
-  script:
-    # Force doxygen warnings to be treated as errors.
-    - sed -i 's/WARN_AS_ERROR\s\+= NO/WARN_AS_ERROR        = YES/g'  libs.doxy_template
-    - cmake --version
-    # CMake 4.0.0 removed compatibility with CMake < 3.5. Add
-    # -DCMAKE_POLICY_VERSION_MINIMUM=3.5 to try configuring anyway.
-    - cmake -B aom_docs_build -GNinja
-        -DCMAKE_POLICY_VERSION_MINIMUM=3.5
-        -DENABLE_DOCS=1
-        -DENABLE_EXAMPLES=0
-        -DBUILD_SHARED_LIBS=0
-        -DCMAKE_BUILD_TYPE=Debug
-    - cmake --build aom_docs_build --target docs
-  artifacts:
-    expire_in: 1 week
-    paths:
-      - aom_docs_build/docs/
-
-Build (x86_64-clang):
-  extends: .build-common
-  parallel:
-    matrix:
-      - AOM_BUILD_CONFIG:
-          - debug
-          - release
-  variables:
-    EXTRA_CMAKE_FLAGS: >-
-      -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
-
-Example Build (x86_64-gcc):
-  stage: build
-  interruptible: true
-  variables:
-    GIT_FETCH_EXTRA_FLAGS: --tags
-  script:
-    - git fetch --unshallow
-    - cmake --version
-    # CMake 4.0.0 removed compatibility with CMake < 3.5. Add
-    # -DCMAKE_POLICY_VERSION_MINIMUM=3.5 to try configuring anyway.
-    - cmake -B aom_example_build
-        -DCMAKE_POLICY_VERSION_MINIMUM=3.5
-        -DENABLE_ASSERTS=1
-        -DENABLE_EXAMPLES=1
-        -DBUILD_SHARED_LIBS=0
-    - cmake --build aom_example_build
-  needs: []
-  artifacts:
-    expire_in: 1 day
-    paths:
-      - aom_example_build/aomenc
-      - aom_example_build/aomdec
-      - aom_example_build/config
-      - aom_example_build/examples
-      - aom_example_build/tools
-
-Linux Sanitizers (x86_64-clang):
-  stage: build
-  interruptible: true
-  variables:
-    SANITIZER_IGNORES_FILE: .gitlab/SanitizerIgnores.txt
-    # CMake 4.0.0 removed compatibility with CMake < 3.5. Add
-    # -DCMAKE_POLICY_VERSION_MINIMUM=3.5 to try configuring anyway.
     CMAKE_FLAGS: >-
       -DCMAKE_POLICY_VERSION_MINIMUM=3.5
-      -DENABLE_CCACHE=1
-      -DCMAKE_C_COMPILER=clang
-      -DCMAKE_CXX_COMPILER=clang++
-      -DENABLE_EXAMPLES=0
-  parallel:
-    matrix:
-      - AOM_SANITIZER_TYPE:
-          - address
-          - undefined
-          - integer
-          - thread
-          # CFI Sanitizer commented for now, as lto build does not work
-          #- cfi
+      -DCMAKE_BUILD_TYPE=RelWithDebInfo
+      -DAOM_EXTRA_C_FLAGS="--coverage"
+      -DAOM_EXTRA_CXX_FLAGS="--coverage"
+      -DAOM_EXTRA_EXE_LINKER_FLAGS="--coverage"
   script:
-    - export PATH="/usr/lib/llvm-18/bin:${PATH}"
-    - |
-      SANITIZER_BLACKLIST_FLAG="-fsanitize-blacklist=${PWD}/${SANITIZER_IGNORES_FILE}"
-
-      CMAKE_FLAGS="$CMAKE_FLAGS -DSANITIZE=${AOM_SANITIZER_TYPE}"
-      CMAKE_FLAGS="$CMAKE_FLAGS -DENABLE_ASSERTS=1"
-      CMAKE_FLAGS="$CMAKE_FLAGS -DAOM_EXTRA_C_FLAGS=${SANITIZER_BLACKLIST_FLAG}"
-      CMAKE_FLAGS="$CMAKE_FLAGS -DAOM_EXTRA_CXX_FLAGS=${SANITIZER_BLACKLIST_FLAG}"
-      echo "CMake Flags: $CMAKE_FLAGS"
-    - cmake -B "aom_build/$AOM_SANITIZER_TYPE" -GNinja -DCMAKE_BUILD_TYPE=RelWithDebInfo $CMAKE_FLAGS
-    - cmake --build "aom_build/$AOM_SANITIZER_TYPE" --target test_libaom
+    - 'echo "CMake Flags: $CMAKE_FLAGS"'
+    - cmake -B "aom_nightly_build" -GNinja $CMAKE_FLAGS
+    - cmake --build "aom_nightly_build" --target aomenc
+    - cmake --build "aom_nightly_build" --target test_libaom
   needs: []
   artifacts:
     expire_in: 1 day
     paths:
-      - aom_build/*/test_libaom
+      - 'aom_nightly_build/aomenc'
+      - 'aom_nightly_build/test_libaom'
+      - 'aom_nightly_build/**/*.gcno'
+      - 'aom_nightly_build/**/*.[hc]'
+      - 'aom_nightly_build/**/*.[hc]pp'
+      - 'aom_nightly_build/**/*.cc'
+      - 'aom_nightly_build/**/*.inc'
 
-Example Test (x86_64):
+# Full unit tests run (with coverage report)
+Linux All Unit Test:
   stage: test
   interruptible: true
-  parallel: 5
-  variables:
-    GIT_FETCH_EXTRA_FLAGS: --tags
-    LIBAOM_TEST_DATA_PATH: ${CI_PROJECT_DIR}/libaom-test-data
-  before_script:
-    - export SHARD_INDEX=$((CI_NODE_INDEX - 1))
-  script:
-    - git fetch --unshallow
-    - cd aom_example_build
-    - |
-      for t in $(../test/examples.sh --list-tests | awk "{ if ((NR-1) % ${CI_NODE_TOTAL} == ${SHARD_INDEX}) print }"); do
-        sh ../test/examples.sh \
-          --bin-path examples \
-          --verbose \
-          --show-program-output \
-          --filter "\b$t\b"
-        # Only the last return value counts. Need to break early.
-        if [ $? -ne 0 ]; then
-          echo "Failure running '${t}' example test, see log above for details!"
-          exit 1
-        fi
-      done
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "schedule"'
-      when: never
-    - when: on_success
-  needs:
-    - 'Test Data'
-    - 'Example Build (x86_64-gcc)'
-
-.sanitizer-common:
-  stage: test
-  interruptible: true
-  parallel: 20
+  parallel: 24
   variables:
     LIBAOM_TEST_DATA_PATH: ${CI_PROJECT_DIR}/libaom-test-data
     GTEST_TOTAL_SHARDS: ${CI_NODE_TOTAL}
     GTEST_OUTPUT: "xml:report.xml"
-    SANITIZER_OPTIONS: "\
-     :handle_segv=1\
-     :handle_abort=1\
-     :handle_sigfpe=1\
-     :fast_unwind_on_fatal=1\
-     :allocator_may_return_null=1"
   before_script:
-    - export PATH="/usr/lib/llvm-18/bin:${PATH}"
     - export GTEST_SHARD_INDEX=$((CI_NODE_INDEX - 1))
   script:
-    - |
-      case $AOM_SANITIZER_TYPE in
-        address)
-          SANITIZER_OPTIONS="${SANITIZER_OPTIONS}:detect_stack_use_after_return=1"
-          SANITIZER_OPTIONS="${SANITIZER_OPTIONS}:max_uar_stack_size_log=17"
-          export ASAN_OPTIONS="${SANITIZER_OPTIONS}"
-          ;;
-        memory)
-          export MSAN_OPTIONS="${SANITIZER_OPTIONS}"
-          ;;
-        thread)
-          # The thread sanitizer uses a subset.
-          TSAN_OPTIONS="handle_sigfpe=1"
-          TSAN_OPTIONS="$TSAN_OPTIONS handle_segv=1"
-          TSAN_OPTIONS="$TSAN_OPTIONS handle_abort=1"
-          export TSAN_OPTIONS
-          ;;
-        undefined|integer)
-          SANITIZER_OPTIONS="${SANITIZER_OPTIONS}:print_stacktrace=1"
-          SANITIZER_OPTIONS="${SANITIZER_OPTIONS}:report_error_type=1"
-          SANITIZER_OPTIONS="${SANITIZER_OPTIONS}:suppressions=.gitlab/UBSan.supp"
-          export UBSAN_OPTIONS="${SANITIZER_OPTIONS}"
-          ;;
-      esac
-    - |
-      filter="-*Large*:*MD5Test*:*TestVectorTest*:*InvalidFile*:*ExternalFrameBuffer*"
-      case $AOM_SANITIZER_TYPE in
-        thread)
-          filter="*Thread*:${filter}"
-      esac
-    - ./aom_build/${AOM_SANITIZER_TYPE}/test_libaom --gtest_filter="${filter}" 2> >(tee -a sanitizer.log >&2)
-    - |
-      # Looking for sanitizer output in log...
-      grep -q "\(ERROR\|WARNING\): \(Address\|Thread\|Memory\|Leak\)Sanitizer:" sanitizer.log && {
-        echo "Found sanitizer errors or warnings, check the log below:"
-        cat sanitizer.log
-        echo "You may reproduce sanitizer builds and tests by following instructions below: "
-        echo "https://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#build-unit-tests-with-sanitizers and"
-        echo "https://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#run-unit-tests-with-sanitizers"
-        exit 1
-      }
-      # Looking for UBSan output in log (differs from the common format)
-      grep -q ":[[:digit:]]\+:[[:digit:]]\+: runtime error:" sanitizer.log && {
-        echo "Found sanitizer errors or warnings, check the log below:"
-        cat sanitizer.log
-        echo "You may reproduce sanitizer builds and tests by following instructions below: "
-        echo "https://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#build-unit-tests-with-sanitizers and"
-        echo "https://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#run-unit-tests-with-sanitizers"
-        exit 1
-      }
-      echo "No sanitizer errors found"
-  artifacts:
-    expose_as: 'Sanitizer logs'
-    name: "sanitizer.log-$CI_JOB_ID"
-    when: on_failure
-    paths:
-      - sanitizer.log
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "schedule"'
-      when: never
-    - when: on_success
-
-Linux Sanitizer (address) Test:
-  extends: .sanitizer-common
-  variables:
-    AOM_SANITIZER_TYPE: address
+    - cd aom_nightly_build
+    - ./test_libaom --gtest_filter=-*Large*
+    # Ignore parse errors due to a bug in `gcovr 7.0`:
+    # https://github.com/gcovr/gcovr/issues/882
+    # Ignore errors about 'no_working_dir_found' because
+    # tarballs for third_party code (e.g. tensorflow and dependencies) are NOT
+    # extracted here and so the source files from those are NOT available.
+    - >-
+      gcovr
+      --gcov-ignore-parse-errors
+      --gcov-ignore-errors=no_working_dir_found
+      --gcov-executable gcov-14
+      --exclude ../third_party --exclude _deps --exclude abseil-cpp --exclude
+      benchmark --exclude cpuinfo --exclude eigen --exclude farmhash --exclude
+      fft2d --exclude flatbuffers --exclude flatbuffers-flatc --exclude fp16
+      --exclude FP16 --exclude FXdiv --exclude psimd  --exclude ml_dtypes
+      --exclude neon2sse  --exclude protobuf --exclude pthreadpool --exclude
+      pthreadpool-source --exclude ruy --exclude xnnpack --exclude XNNPACK
+      --exclude gemmlowp  --exclude googletest
+      --exclude-directories "third_party"
+      --exclude-directories "aom_nightly_build/third_party" 
+      --json -o "coverage_${CI_NODE_INDEX}.json"
+      -r ../ . >  "coverage_${CI_NODE_INDEX}.log" 2>&1
   needs:
     - 'Test Data'
-    - 'Linux Sanitizers (x86_64-clang): [address]'
-
-Linux Sanitizer (undefined) Test:
-  extends: .sanitizer-common
-  variables:
-    AOM_SANITIZER_TYPE: undefined
-  needs:
-    - 'Test Data'
-    - 'Linux Sanitizers (x86_64-clang): [undefined]'
-
-Linux Sanitizer (integer) Test:
-  extends: .sanitizer-common
-  variables:
-    AOM_SANITIZER_TYPE: integer
-  needs:
-    - 'Test Data'
-    - 'Linux Sanitizers (x86_64-clang): [integer]'
-
-# CFI Sanitizer commented for now, as lto build does not work
-
-# Linux Sanitizer (cfi) Test:
-#   extends: .sanitizer-common
-#   variables:
-#     AOM_SANITIZER_TYPE: cfi
-#   needs:
-#     - 'Test Data'
-#     - 'Linux Sanitizers (x86_64-clang): [cfi]'
-
-Linux Sanitizer (thread) Test:
-  extends: .sanitizer-common
-  # Very few tests, so minimum parallelism.
-  parallel: 2
-  variables:
-    AOM_SANITIZER_TYPE: thread
-  needs:
-    - 'Test Data'
-    - 'Linux Sanitizers (x86_64-clang): [thread]'
-
-# Encoder run and compare with target branch (MR) or previous runs
-.enc-run-common:
-  stage: test
-  interruptible: true
-  variables:
-    AOMENC_LIMIT: 30
-    AOMENC_QP: 210
-    AOMENC_INPUT: Vertical_Bayshore_270x480_2997.y4m
-    AOMENC: aom_example_build/aomenc
-  before_script:
-    - curl -s -S -f -O https://gitlab.com/AOMediaCodec/aom-testing/-/raw/master/test-files/${AOMENC_INPUT}.xz
-    - unxz ${AOMENC_INPUT}.xz
-  needs:
-    - 'Example Build (x86_64-gcc)'
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-    - if: '$CI_PIPELINE_SOURCE == "schedule"'
-      when: never
-
-
-Enc Run (All-intra):
-  extends: .enc-run-common
-  variables:
-    AOMENC_OUTPUT: all-intra
-    AOMENC_LIMIT: 15
-  script:
-    - ${AOMENC}
-        --debug
-        --cpu-used=0
-        --passes=1
-        --end-usage=q
-        --qp=${AOMENC_QP}
-        --kf-min-dist=0
-        --kf-max-dist=0
-        --use-fixed-qp-offsets=1
-        --deltaq-mode=0
-        --enable-tpl-model=0
-        --enable-keyframe-filtering=0
-        --psnr
-        --obu
-        --limit=${AOMENC_LIMIT}
-        -o "${AOMENC_OUTPUT}.obu"
-        "${AOMENC_INPUT}" 2>&1 | tee "${AOMENC_OUTPUT}.psnr.log"
-    - '[ -f "${AOMENC_OUTPUT}.obu" ] || exit 1'
-    - md5sum -b "${AOMENC_OUTPUT}.obu" | cut -d' ' -f1 > "${AOMENC_OUTPUT}.md5"
+    - 'Linux Nightly Build'
   artifacts:
     when: always
+    reports:
+      junit: ./aom_nightly_build/report.xml
     paths:
-      - ${AOMENC_OUTPUT}.*
+      - aom_nightly_build/coverage_*.json
+      - aom_nightly_build/coverage_*.log
 
-Previous Enc Run (All-intra):
-  extends: 'Enc Run (All-intra)'
-  variables:
-    AOMENC: installroot_old/usr/local/bin/aomenc
-    AOMENC_OUTPUT: previous-all-intra
-  needs:
-    - 'Previous Build (x86_64-linux-gcc): [encode-only]'
-
-
-Enc Run (Random Access):
-  extends: .enc-run-common
-  variables:
-    AOMENC_OUTPUT: random-access
-  script:
-    - ${AOMENC}
-        --debug
-        --cpu-used=0
-        --passes=1
-        --lag-in-frames=19
-        --auto-alt-ref=1
-        --min-gf-interval=16
-        --max-gf-interval=16
-        --gf-min-pyr-height=4
-        --gf-max-pyr-height=4
-        --kf-min-dist=65
-        --kf-max-dist=65
-        --use-fixed-qp-offsets=1
-        --deltaq-mode=0
-        --enable-tpl-model=0
-        --end-usage=q
-        --qp=${AOMENC_QP}
-        --enable-keyframe-filtering=0
-        --psnr
-        --obu
-        --limit=${AOMENC_LIMIT}
-        -o "${AOMENC_OUTPUT}.obu"
-        "${AOMENC_INPUT}" 2>&1 | tee "${AOMENC_OUTPUT}.psnr.log"
-    - '[ -f "${AOMENC_OUTPUT}.obu" ] || exit 1'
-    - md5sum -b "${AOMENC_OUTPUT}.obu" | cut -d' ' -f1 > "${AOMENC_OUTPUT}.md5"
-  artifacts:
-    when: always
-    paths:
-      - ${AOMENC_OUTPUT}.*
-
-Previous Enc Run (Random Access):
-  extends: 'Enc Run (Random Access)'
-  variables:
-    AOMENC: installroot_old/usr/local/bin/aomenc
-    AOMENC_OUTPUT: previous-random-access
-  needs:
-    - 'Previous Build (x86_64-linux-gcc): [encode-only]'
-
-Enc Run (Low-delay):
-  extends: .enc-run-common
-  variables:
-    AOMENC_OUTPUT: low-delay
-  script:
-    - ${AOMENC}
-        --debug
-        --cpu-used=0
-        --passes=1
-        --lag-in-frames=0
-        --min-gf-interval=16
-        --max-gf-interval=16
-        --gf-min-pyr-height=4
-        --gf-max-pyr-height=4
-        --kf-min-dist=9999
-        --kf-max-dist=9999
-        --use-fixed-qp-offsets=1
-        --deltaq-mode=0
-        --enable-tpl-model=0
-        --end-usage=q
-        --qp=${AOMENC_QP}
-        --subgop-config-str=ld
-        --enable-keyframe-filtering=0
-        --psnr
-        --obu
-        --limit=${AOMENC_LIMIT}
-        -o "${AOMENC_OUTPUT}.obu"
-        "${AOMENC_INPUT}" 2>&1 | tee "${AOMENC_OUTPUT}.psnr.log"
-    - '[ -f "${AOMENC_OUTPUT}.obu" ] || exit 1'
-    - md5sum -b "${AOMENC_OUTPUT}.obu" | cut -d' ' -f1 > "${AOMENC_OUTPUT}.md5"
-  artifacts:
-    when: always
-    paths:
-      - ${AOMENC_OUTPUT}.*
-
-Previous Enc Run (Low-delay):
-  extends: 'Enc Run (Low-delay)'
-  variables:
-    AOMENC: installroot_old/usr/local/bin/aomenc
-    AOMENC_OUTPUT: previous-low-delay
-  needs:
-    - 'Previous Build (x86_64-linux-gcc): [encode-only]'
-
-# Decode encoded streams and verify that number of frames is as expected.
-.dec-run-common:
-  stage: test
-  interruptible: true
-  variables:
-    AOMENC_LIMIT: 30  # Should match the same variable in `.enc-run-common`
-    AOMDEC: aom_example_build/aomdec
-  script:
-    - ${AOMDEC} ${AOMENC_OUTPUT}.obu -o ${AOMDEC_OUTPUT}.decoded.y4m --summary
-       2>&1 | tee "${AOMDEC_OUTPUT}.summary.log"
-    - '[ -f "${AOMDEC_OUTPUT}.decoded.y4m" ] || exit 1'
-    - '[ -f "${AOMDEC_OUTPUT}.summary.log" ] || exit 1'
-    - |
-      for str in 'decoded frames' 'showed frames'; do
-        frame_count=$(grep -E -o "[0-9]+ ${str}" "${AOMDEC_OUTPUT}.summary.log" | sed -E "s/([0-9]+) ${str}/\1/g")
-        echo "${str} = ${frame_count}"
-        if [[ ${frame_count} -ne ${AOMENC_LIMIT} ]]; then
-          echo "ERROR: Unexpected number of ${str}. Got ${frame_count}, expected ${AOMENC_LIMIT}"
-          exit 1
-        fi
-      done
-  artifacts:
-    when: always
-    paths:
-      - ${AOMDEC_OUTPUT}.*
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-    - if: '$CI_PIPELINE_SOURCE == "schedule"'
-      when: never
-
-
-Dec Run (All-intra):
-  extends: .dec-run-common
-  variables:
-    AOMENC_LIMIT: 15  # Should match the same variable in 'Enc Run (All-intra)'
-    AOMENC_OUTPUT: all-intra
-    AOMDEC_OUTPUT: dec-all-intra
-  needs:
-    - 'Enc Run (All-intra)'
-    - 'Example Build (x86_64-gcc)'
-
-
-Dec Run (Random Access):
-  extends: .dec-run-common
-  variables:
-    AOMENC_OUTPUT: random-access
-    AOMDEC_OUTPUT: dec-random-access
-  needs:
-    - 'Enc Run (Random Access)'
-    - 'Example Build (x86_64-gcc)'
-
-
-Dec Run (Low-delay):
-  extends: .dec-run-common
-  variables:
-    AOMENC_OUTPUT: low-delay
-    AOMDEC_OUTPUT: dec-low-delay
-  needs:
-    - 'Enc Run (Low-delay)'
-    - 'Example Build (x86_64-gcc)'
-
-
-Enc compare:
+# Produce actual coverage report from the
+# "Linux All Unit Test" job that ran in the
+# test stage before.
+Coverage Report:
   stage: report
   interruptible: true
   script:
-    - git fetch --unshallow
-    - |
-      ALLOW_FAIL=0
-      FAILED=0
-      if [ -n "$(git --no-pager log --grep STATS_CHANGED --format=format:"%H" "${CI_MERGE_REQUEST_DIFF_BASE_SHA}..${CI_COMMIT_SHA}")" ]; then
-        ALLOW_FAIL=1
-      fi
-      for variant in all-intra random-access low-delay; do
-        if diff -- "previous-${variant}.md5" "${variant}.md5" &>/dev/null; then
-          echo "OK: No differences in ${variant} outputs found."
-          echo ""
-        else
-          echo "WARNING: previous-${variant}.md5 and ${variant}.md5 differ!"
-          echo "previous-${variant}.md5 : $(cat previous-${variant}.md5)"
-          echo "${variant}.md5          : $(cat ${variant}.md5)"
-          echo ""
-          FAILED=1
-        fi
-      done
-      if [ $FAILED -eq 1 ]; then
-        if [ $ALLOW_FAIL -eq 1 ]; then
-          echo "SUCCESS: Even though a mismatch was detected, one or more"
-          echo "         commits contain the STATS_CHANGED keyword, so mismatch"
-          echo "         of encode outputs is allowed."
-          echo "Commits containing STATS_CHANGED added in this MR:"
-          git --no-pager log --grep STATS_CHANGED --format=format:"%h: %s; \"%aN\" <%aE>" "${CI_MERGE_REQUEST_DIFF_BASE_SHA}..${CI_COMMIT_SHA}"
-          echo ""
-          exit 77
-        fi
-        echo "FAIL: Failing job due to mismatch and no STATS_CHANGED keyword"
-        echo "      was found in any of the commits added in this MR!"
-        exit 1
-      fi
-  allow_failure:
-    exit_codes: 77
-  needs:
-    - 'Enc Run (All-intra)'
-    - 'Previous Enc Run (All-intra)'
-    - 'Enc Run (Random Access)'
-    - 'Previous Enc Run (Random Access)'
-    - 'Enc Run (Low-delay)'
-    - 'Previous Enc Run (Low-delay)'
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-    - if: '$CI_PIPELINE_SOURCE == "schedule"'
-      when: never
-
-Static Analyzer:
-  stage: test
-  interruptible: true
-  parallel:
-    matrix:
-      - ANALYZER_MODE:
-          - shallow
-          - deep
-  script:
-    - export PATH="/usr/lib/llvm-18/bin:${PATH}"
-    - mkdir output-${ANALYZER_MODE}
-    - |
-      scan_build() {
-        scan-build --exclude third_party --exclude _deps --exclude abseil-cpp --exclude benchmark --exclude cpuinfo --exclude eigen --exclude farmhash --exclude fft2d --exclude flatbuffers --exclude flatbuffers-flatc --exclude fp16  --exclude FP16 --exclude FXdiv --exclude psimd  --exclude ml_dtypes --exclude neon2sse  --exclude protobuf --exclude pthreadpool --exclude pthreadpool-source --exclude ruy --exclude xnnpack --exclude XNNPACK  --exclude googletest -o output-${ANALYZER_MODE} -analyzer-config mode=${ANALYZER_MODE} $*
-      }
-    - |
-      # CMake 4.0.0 removed compatibility with CMake < 3.5. Add
-      # -DCMAKE_POLICY_VERSION_MINIMUM=3.5 to try configuring anyway.
-      scan_build cmake -B aom_build -GNinja -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_BUILD_TYPE=Debug
-      exit_code=0
-      scan_build --status-bugs cmake --build aom_build || exit_code=$?
-      if [ ${exit_code} -ne 0 ]; then
-        echo -e "\e[31mstatic analyzer HTML warning report can be browsed by following this wiki page:\e[0m"
-        echo -e "\e[31mhttps://gitlab.com/AOMediaCodec/avm/-/wikis/Reproducing-CI-Test-Failures-Locally#viewing-static-analysis-report-from-gitlab-ci\e[0m"
-        exit 1
-      fi
+    - mkdir -p coverage-html
+    - cd aom_nightly_build
+    - >-
+      gcovr
+      --gcov-executable gcov-14
+      --add-tracefile "coverage_*.json"
+      --exclude ../third_party --exclude _deps --exclude abseil-cpp --exclude
+      benchmark --exclude cpuinfo --exclude eigen --exclude farmhash --exclude
+      fft2d --exclude flatbuffers --exclude flatbuffers-flatc --exclude fp16
+      --exclude FP16 --exclude FXdiv --exclude psimd  --exclude ml_dtypes
+      --exclude neon2sse  --exclude protobuf --exclude pthreadpool --exclude
+      pthreadpool-source --exclude ruy --exclude xnnpack --exclude XNNPACK
+      --exclude gemmlowp  --exclude googletest
+      --xml ../coverage.xml
+      --html --html-details ../coverage-html/coverage.html
+      --print-summary
+      -r ../ .
   artifacts:
-    expire_in: 2 weeks
-    when: on_failure
     paths:
-      - output-*
-  dependencies: []
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "schedule"'
-      when: never
-    - when: on_success
-
-SO Checks:
-  stage: test
-  interruptible: true
-  script:
-    - |
-      for so in $(find -name '*.so*'); do
-        echo "Checking $so for textrels..."
-        if readelf -dW $so | grep TEXTREL; then
-          textrels=$(eu-findtextrel $so | sort | uniq)
-          if [ -n "$textrels" ]; then
-            echo "$textrels"
-            exit 1
-          fi
-        fi
-
-        echo "Checking $so ELF header/section headers..."
-        if readelf -lW $so | grep WE; then
-          echo "Invalid ELF header/section headers"
-          echo "https://android.googlesource.com/platform/bionic/+/master/android-changes-for-ndk-developers.md#Writable-and-Executable-Segments-Enforced-for-API-level-26"
-          exit 1
-        fi
-      done
-  needs:
-    - 'Build (x86_64-linux-gcc): [shared]'
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "schedule"'
-      when: never
-    - when: on_success
+      - coverage-html
