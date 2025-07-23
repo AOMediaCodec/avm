@@ -54,9 +54,15 @@ Linux All Unit Test:
   script:
     - cd aom_nightly_build
     - ./test_libaom
+    # Ignore parse errors due to a bug in `gcovr 7.0`:
+    # https://github.com/gcovr/gcovr/issues/882
+    # Ignore errors about 'no_working_dir_found' because
+    # tarballs for third_party code (e.g. tensorflow and dependencies) are NOT
+    # extracted here and so the source files from those are NOT available.
     - >-
       gcovr
       --gcov-ignore-parse-errors
+      --gcov-ignore-errors=no_working_dir_found
       --gcov-executable gcov-14
       --exclude ../third_party --exclude _deps --exclude abseil-cpp --exclude
       benchmark --exclude cpuinfo --exclude eigen --exclude farmhash --exclude
@@ -65,6 +71,8 @@ Linux All Unit Test:
       --exclude neon2sse  --exclude protobuf --exclude pthreadpool --exclude
       pthreadpool-source --exclude ruy --exclude xnnpack --exclude XNNPACK
       --exclude gemmlowp  --exclude googletest
+      --exclude-directories "third_party"
+      --exclude-directories "aom_nightly_build/third_party"
       --json -o "coverage_${CI_NODE_INDEX}.json"
       -r ../ . >  "coverage_${CI_NODE_INDEX}.log" 2>&1
   needs:
