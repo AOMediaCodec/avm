@@ -3139,6 +3139,71 @@ static aom_codec_frame_flags_t get_frame_pkt_flags(const AV1_COMP *cpi,
   return flags;
 }
 
+#if CONFIG_MIXED_LOSSLESS_ENCODE
+
+static void check_mixed_lossless_plane(AV1_COMP *cpi, const uint16_t *a,
+                                       int a_stride, const uint16_t *b,
+                                       int b_stride, int width, int height,
+                                       int plane) {
+  int shift = plane ? 1 : 0;
+
+  for (int y = 0; y < height; ++y) {
+    for (int x = 0; x < width; ++x) {
+      uint16_t org = a[y * a_stride + x];
+      uint16_t rec = b[y * b_stride + x];
+      int mi_row = (y << shift) >> MI_SIZE_LOG2;
+      int mi_col = (x << shift) >> MI_SIZE_LOG2;
+      int curr_sb_row = mi_row / cpi->common.mib_size;
+      int curr_sb_col = mi_col / cpi->common.mib_size;
+      int middle_sb_rows =
+          (cpi->common.mi_params.mi_rows / cpi->common.mib_size) >> 1;
+      int middle_sb_cols =
+          (cpi->common.mi_params.mi_cols / cpi->common.mib_size) >> 1;
+      int min_sb_rows = AOMMAX(0, middle_sb_rows - 1);
+      int max_sb_rows =
+          AOMMIN(cpi->common.mi_params.mi_rows / cpi->common.mib_size,
+                 middle_sb_rows + 1);
+      int min_sb_cols = AOMMAX(0, middle_sb_cols - 1);
+      int max_sb_cols =
+          AOMMIN(cpi->common.mi_params.mi_cols / cpi->common.mib_size,
+                 middle_sb_cols + 1);
+      int is_lossless = 1;
+      is_lossless &=
+          (curr_sb_row >= min_sb_rows) && (curr_sb_row <= max_sb_rows);
+      is_lossless &=
+          (curr_sb_col >= min_sb_cols) && (curr_sb_col <= max_sb_cols);
+
+      if (is_lossless && org != rec) {
+        printf(" plane = %d x = %x, y=%d \n", plane, x, y);
+      }
+      assert(IMPLIES(is_lossless, org == rec));
+    }
+  }
+}
+
+static void check_mixed_lossless(AV1_COMP *cpi, const YV12_BUFFER_CONFIG *a,
+                                 const YV12_BUFFER_CONFIG *b) {
+  assert(a->y_crop_width == b->y_crop_width);
+  assert(a->y_crop_height == b->y_crop_height);
+  assert(a->uv_crop_width == b->uv_crop_width);
+  assert(a->uv_crop_height == b->uv_crop_height);
+  const int widths[3] = { a->y_crop_width, a->uv_crop_width, a->uv_crop_width };
+  const int heights[3] = { a->y_crop_height, a->uv_crop_height,
+                           a->uv_crop_height };
+  const int a_strides[3] = { a->y_stride, a->uv_stride, a->uv_stride };
+  const int b_strides[3] = { b->y_stride, b->uv_stride, b->uv_stride };
+  int i;
+
+  for (i = 0; i < 3; ++i) {
+    const int w = widths[i];
+    const int h = heights[i];
+    check_mixed_lossless_plane(cpi, a->buffers[i], a_strides[i], b->buffers[i],
+                               b_strides[i], w, h, i);
+  }
+}
+
+#endif  // CONFIG_MIXED_LOSSLESS_ENCODE
+
 static void calculate_psnr(AV1_COMP *cpi, PSNR_STATS *psnr) {
   const uint32_t in_bit_depth = cpi->oxcf.input_cfg.input_bit_depth;
   const uint32_t bit_depth = cpi->td.mb.e_mbd.bd;
@@ -3148,10 +3213,23 @@ static void calculate_psnr(AV1_COMP *cpi, PSNR_STATS *psnr) {
       resize_mode == RESIZE_NONE ? cpi->unfiltered_source : cpi->source;
   aom_calc_highbd_psnr(source, &cpi->common.cur_frame->buf, psnr, bit_depth,
                        in_bit_depth, is_lossless_requested(&cpi->oxcf.rc_cfg));
+
+#if CONFIG_MIXED_LOSSLESS_ENCODE
+  if (cpi->enc_seg.has_lossless_segment) {
+    check_mixed_lossless(cpi, source, &cpi->common.cur_frame->buf);
+  }
+#endif  // CONFIG_MIXED_LOSSLESS_ENCODE
+
 #else
   aom_calc_highbd_psnr(cpi->unfiltered_source, &cpi->common.cur_frame->buf,
                        psnr, bit_depth, in_bit_depth,
                        is_lossless_requested(&cpi->oxcf.rc_cfg));
+
+#if CONFIG_MIXED_LOSSLESS_ENCODE
+  check_mixed_lossless(cpi, cpi->unfiltered_source, &cpi->common.cur_frame->buf,
+                       psnr, bit_depth, in_bit_depth,
+                       is_lossless_requested(&cpi->oxcf.rc_cfg));
+#endif  // CONFIG_MIXED_LOSSLESS_ENCODE
 #endif  // CONFIG_FIX_RESIZE_PSNR
 }
 
@@ -3591,6 +3669,68 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
         if (cpi->print_per_frame_stats) {
           report_stats(cpi, frame_size, cx_time);
         }
+
+#if CONFIG_MIXED_LOSSLESS_ENCODE
+        if (!is_lossless_requested(&cpi->oxcf.rc_cfg)) {
+          int lossless_broken = 0;
+          const YV12_BUFFER_CONFIG *source = cpi->unfiltered_source;
+          const YV12_BUFFER_CONFIG *recon = &cpi->common.cur_frame->buf;
+          assert(source->y_crop_width == recon->y_crop_width);
+          assert(source->y_crop_height == recon->y_crop_height);
+          assert(source->uv_crop_width == recon->uv_crop_width);
+          assert(source->uv_crop_height == recon->uv_crop_height);
+          const int widths[3] = { source->y_crop_width, source->uv_crop_width,
+                                  source->uv_crop_width };
+          const int heights[3] = { source->y_crop_height,
+                                   source->uv_crop_height,
+                                   source->uv_crop_height };
+          const int source_strides[3] = { source->y_stride, source->uv_stride,
+                                          source->uv_stride };
+          const int recon_strides[3] = { recon->y_stride, recon->uv_stride,
+                                         recon->uv_stride };
+
+          for (int plane = 0; plane < 3; plane++) {
+            const uint16_t *a = source->buffers[plane];
+            const uint16_t *b = recon->buffers[plane];
+            int source_stride = source_strides[plane];
+            int recon_stride = recon_strides[plane];
+            int w = widths[plane];
+            int h = heights[plane];
+            int mi_size_plane = plane ? (MI_SIZE >> 1) : MI_SIZE;
+            int scale_horz = plane && cpi->common.seq_params.subsampling_x;
+            int scale_vert = plane && cpi->common.seq_params.subsampling_y;
+            for (int row = 0; row < h; row += mi_size_plane) {
+              for (int col = 0; col < w; col += mi_size_plane) {
+                int blk_width = AOMMIN(mi_size_plane, w - col);
+                int blk_height = AOMMIN(mi_size_plane, h - row);
+                const int mi_row = (row << scale_vert) >> MI_SIZE_LOG2;
+                const int mi_col = (col << scale_horz) >> MI_SIZE_LOG2;
+                MB_MODE_INFO **this_mi =
+                    cpi->common.mi_params.mi_grid_base +
+                    mi_row * cpi->common.mi_params.mi_stride + mi_col;
+                if (cpi->common.features
+                        .lossless_segment[this_mi[0]->segment_id]) {
+                  for (int i = 0; i < blk_height; i++) {
+                    for (int j = 0; j < blk_width; j++) {
+                      if (a[(row + i) * source_stride + (col + j)] !=
+                          b[(row + i) * recon_stride + (col + j)]) {
+                        printf("mismatch at [%d, %d, %d]\t[src/rec]: %d/%d\n",
+                               row + i, col + j, plane,
+                               a[(row + i) * source_stride + (col + j)],
+                               b[(row + i) * recon_stride + (col + j)]);
+                        lossless_broken = 1;
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+          if (lossless_broken) {
+            exit(1);
+          }
+        }
+#endif  // CONFIG_MIXED_LOSSLESS_ENCODE
       }
     }
     if (is_frame_visible) {

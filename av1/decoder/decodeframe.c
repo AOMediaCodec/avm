@@ -8691,6 +8691,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   }
 
   xd->cur_frame_force_integer_mv = features->cur_frame_force_integer_mv;
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+  features->has_lossless_segment = 0;
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 
 #if !CONFIG_F311_QM_PARAMS
   if (!cm->seg.enabled && quant_params->using_qmatrix &&
@@ -8716,6 +8719,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         (quant_params->v_dc_delta_q + cm->seq_params.base_uv_dc_delta_q <= 0) &&
         (quant_params->u_ac_delta_q + cm->seq_params.base_uv_ac_delta_q <= 0) &&
         (quant_params->v_ac_delta_q + cm->seq_params.base_uv_ac_delta_q <= 0);
+
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+    features->lossless_segment[i] = xd->lossless[i];
+    if (xd->lossless[i]) features->has_lossless_segment = 1;
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+
     xd->qindex[i] = qindex;
     if (av1_use_qmatrix(quant_params, xd, i)) {
       if (quant_params->qm_index_bits > 0) {

@@ -251,7 +251,12 @@ static AOM_INLINE void setup_delta_q(AV1_COMP *const cpi, ThreadData *td,
       current_qindex = av1_compute_q_from_energy_level_deltaq_mode(
           cpi, block_wavelet_energy_level);
     } else {
-      const int block_var_level = av1_log_block_var(cpi, x, sb_size);
+      const int block_var_level = av1_log_block_var(cpi, x, sb_size
+#if CONFIG_MIXED_LOSSLESS_ENCODE
+                                                    ,
+                                                    mi_row, mi_col
+#endif  // CONFIG_MIXED_LOSSLESS_ENCODE
+      );
       x->sb_energy_level = block_var_level;
       current_qindex =
           av1_compute_q_from_energy_level_deltaq_mode(cpi, block_var_level);
@@ -1522,6 +1527,9 @@ void av1_set_lossless(AV1_COMP *cpi) {
   MACROBLOCKD *const xd = &cpi->td.mb.e_mbd;
   AV1_COMMON *const cm = &cpi->common;
   const CommonQuantParams *quant_params = &cm->quant_params;
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+  cm->features.has_lossless_segment = 0;
+#endif  //  CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
   for (int i = 0; i < MAX_SEGMENTS; ++i) {
     const int qindex =
         cm->seg.enabled ? av1_get_qindex(&cm->seg, i, quant_params->base_qindex,
@@ -1535,6 +1543,11 @@ void av1_set_lossless(AV1_COMP *cpi) {
         (quant_params->u_ac_delta_q + cm->seq_params.base_uv_ac_delta_q <= 0) &&
         (quant_params->v_ac_delta_q + cm->seq_params.base_uv_ac_delta_q <= 0);
 
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+    cm->features.lossless_segment[i] = xd->lossless[i];
+    if (xd->lossless[i]) cm->features.has_lossless_segment = 1;
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+
     if (xd->lossless[i]) cpi->enc_seg.has_lossless_segment = 1;
     xd->qindex[i] = qindex;
     if (xd->lossless[i]) {
@@ -1543,6 +1556,27 @@ void av1_set_lossless(AV1_COMP *cpi) {
       cpi->optimize_seg_arr[i] = cpi->sf.rd_sf.optimize_coefficients;
     }
   }
+
+#if CONFIG_MIXED_LOSSLESS_ENCODE
+  const int max_seg_num =
+      cm->seg.enabled ? (cm->seg.enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8)
+                      : 1;
+  printf(" Encoder Segmentation QPS = ");
+  for (int i = 0; i < max_seg_num; ++i) {
+    printf(" %d ", xd->qindex[i]);
+  }
+  printf(" \n");
+  printf(" Encoder lossless map = ");
+  for (int i = 0; i < max_seg_num; ++i) {
+#if !CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+    printf(" %d ", xd->lossless[i]);
+#else
+    printf(" %d ", cm->features.lossless_segment[i]);
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+  }
+  printf(" \n");
+#endif  // CONFIG_MIXED_LOSSLESS_ENCODE
+
   cm->features.coded_lossless = is_coded_lossless(cm, xd);
   cm->features.all_lossless = cm->features.coded_lossless;
 }

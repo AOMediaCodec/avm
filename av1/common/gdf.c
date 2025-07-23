@@ -499,10 +499,56 @@ void gdf_filter_frame(AV1_COMMON *cm) {
                   cm->gdf_info.err_ptr, cm->gdf_info.err_stride, pxl_shift,
                   ref_dst_idx);
 #endif
-              gdf_compensation_unit(
-                  rec_pnt + i_min * rec_stride + j_min, rec_stride,
-                  cm->gdf_info.err_ptr, cm->gdf_info.err_stride, err_shift,
-                  scale_val, pxl_max, i_max - i_min, j_max - j_min);
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+              // If there is at-least 1 segment is lossless in a frame, we have
+              // to do 4x4 processing, because minimum lossless block can be 4x4
+              // size. Although, regardless the value of
+              // cm->features.has_lossless_segment, we can always do 4x4
+              // processing, however, for software optimization purpose we have
+              // used  full block processing for whole lossy frame.
+              if (cm->features.has_lossless_segment) {
+                // 4x4 block level processing
+                int min_b_size = 1 << MI_SIZE_LOG2;
+                for (int i_pos_4x4 = i_min; i_pos_4x4 < i_max;
+                     i_pos_4x4 += min_b_size) {
+                  for (int j_pos_4x4 = j_min; j_pos_4x4 < j_max;
+                       j_pos_4x4 += min_b_size) {
+                    // CHECK_LOSSLESS(j_pos_4x4 % 4, " j_pos_4x4 is not multiple
+                    // of 4"); CHECK_LOSSLESS(i_pos_4x4 % 4, " i_pos_4x4 is not
+                    // multiple of 4");
+
+                    const int mi_idx = get_mi_grid_idx(
+                        &cm->mi_params, i_pos_4x4 >> MI_SIZE_LOG2,
+                        j_pos_4x4 >> MI_SIZE_LOG2);
+                    const int is_lossless =
+                        cm->features.lossless_segment
+                            [cm->mi_params.mi_grid_base[mi_idx]->segment_id];
+                    if (!is_lossless) {
+                      int height_4x4 = AOMMIN(min_b_size, i_max - i_pos_4x4);
+                      int width_4x4 = AOMMIN(min_b_size, j_max - j_pos_4x4);
+                      uint16_t *rec_pnt_4x4 =
+                          rec_pnt + i_pos_4x4 * rec_stride + j_pos_4x4;
+                      int16_t *errPnt =
+                          cm->gdf_info.err_ptr +
+                          (i_pos_4x4 - i_min) * cm->gdf_info.err_stride +
+                          (j_pos_4x4 - j_min);
+                      gdf_compensation_unit_c(rec_pnt_4x4, rec_stride, errPnt,
+                                              cm->gdf_info.err_stride,
+                                              err_shift, scale_val, pxl_max,
+                                              height_4x4, width_4x4);
+                    }
+                  }
+                }
+              } else {
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+
+                gdf_compensation_unit(
+                    rec_pnt + i_min * rec_stride + j_min, rec_stride,
+                    cm->gdf_info.err_ptr, cm->gdf_info.err_stride, err_shift,
+                    scale_val, pxl_max, i_max - i_min, j_max - j_min);
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+              }
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
             }
           }
         }

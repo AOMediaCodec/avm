@@ -856,6 +856,21 @@ typedef struct {
    * If true, frame is fully lossless at upscaled resolution.
    */
   bool all_lossless;
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+  /*!
+   * If true, segment is fully lossless and loop filters will be skipped for
+   * lossless segment
+   */
+  bool lossless_segment[MAX_SEGMENTS];
+
+  /*!
+   * If true, segment is fully lossless and loop filters will be skipped for
+   * lossless segment
+   */
+  bool has_lossless_segment;
+
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+
   /*!
    * If true, the frame is restricted to a reduced subset of the full set of
    * transform types.

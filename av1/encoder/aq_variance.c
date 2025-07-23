@@ -87,6 +87,15 @@ void av1_vaq_frame_setup(AV1_COMP *cpi) {
           rate_ratio[i] / avg_ratio, cpi->is_screen_content_type,
           cm->seq_params.bit_depth);
 
+#if CONFIG_MIXED_LOSSLESS_ENCODE
+      // Assume base QP in command line 100
+      if (i > 0) {
+        qindex_delta = -base_qindex;
+      } else {
+        qindex_delta = 0;
+      }
+
+#else
       // We don't allow qindex 0 in a segment if the base value is not 0.
       // Q index 0 (lossless) implies 4x4 encoding only and in AQ mode a segment
       // Q delta is sometimes applied without going back around the rd loop.
@@ -94,6 +103,7 @@ void av1_vaq_frame_setup(AV1_COMP *cpi) {
       if ((base_qindex != 0) && ((base_qindex + qindex_delta) == 0)) {
         qindex_delta = -base_qindex + 1;
       }
+#endif  // CONFIG_MIXED_LOSSLESS_ENCODE
 
       av1_set_segdata(seg, i, SEG_LVL_ALT_Q, qindex_delta);
       av1_enable_segfeature(seg, i, SEG_LVL_ALT_Q);
@@ -121,7 +131,12 @@ void av1_vaq_frame_setup(AV1_COMP *cpi) {
   }
 }
 
-int av1_log_block_var(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bs) {
+int av1_log_block_var(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bs
+#if CONFIG_MIXED_LOSSLESS_ENCODE
+                      ,
+                      int mi_row, int mi_col
+#endif  // CONFIG_MIXED_LOSSLESS_ENCODE
+) {
   // This functions returns a score for the blocks local variance as calculated
   // by: sum of the log of the (4x4 variances) of each subblock to the current
   // block (x,bs)
@@ -135,6 +150,25 @@ int av1_log_block_var(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bs) {
   double var = 0;
   unsigned int sse;
   int i, j;
+
+#if CONFIG_MIXED_LOSSLESS_ENCODE
+  int curr_sb_row = mi_row / cpi->common.mib_size;
+  int curr_sb_col = mi_col / cpi->common.mib_size;
+  int middle_sb_rows =
+      (cpi->common.mi_params.mi_rows / cpi->common.mib_size) >> 1;
+  int middle_sb_cols =
+      (cpi->common.mi_params.mi_cols / cpi->common.mib_size) >> 1;
+  int min_sb_rows = AOMMAX(0, middle_sb_rows - 1);
+  int max_sb_rows = AOMMIN(cpi->common.mi_params.mi_rows / cpi->common.mib_size,
+                           middle_sb_rows + 1);
+  int min_sb_cols = AOMMAX(0, middle_sb_cols - 1);
+  int max_sb_cols = AOMMIN(cpi->common.mi_params.mi_cols / cpi->common.mib_size,
+                           middle_sb_cols + 1);
+  int lossless = 1;
+  lossless &= (curr_sb_row >= min_sb_rows) && (curr_sb_row <= max_sb_rows);
+  lossless &= (curr_sb_col >= min_sb_cols) && (curr_sb_col <= max_sb_cols);
+  return lossless;
+#endif  // CONFIG_MIXED_LOSSLESS_ENCODE
 
   int right_overflow =
       (xd->mb_to_right_edge < 0) ? ((-xd->mb_to_right_edge) >> 3) : 0;

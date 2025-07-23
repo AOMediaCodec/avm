@@ -23,8 +23,12 @@
 static INLINE void filt_generic_asym_highbd(int q_threshold, int width_neg,
                                             int width_pos, uint16_t *s,
                                             const int pitch, int bd) {
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+  if (width_neg < 1 && width_pos < 1) return;
+#else
   if (width_neg < 1) return;
   if (width_pos < 1) return;
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 
   int width = AOMMAX(width_neg, width_pos);
   int delta_m2 = (3 * (s[0] - s[-1 * pitch]) - (s[pitch] - s[-2 * pitch])) * 4;
@@ -32,21 +36,30 @@ static INLINE void filt_generic_asym_highbd(int q_threshold, int width_neg,
   int q_thresh_clamp = q_threshold * q_thresh_mults[width - 1];
   delta_m2 = clamp(delta_m2, -q_thresh_clamp, q_thresh_clamp);
 
-  int delta_m2_neg = delta_m2 * w_mult[width_neg - 1];
-  int delta_m2_pos = delta_m2 * w_mult[width_pos - 1];
-
-  for (int i = 0; i < width_neg; i++) {
-    s[(-i - 1) * pitch] = clip_pixel_highbd(
-        s[(-i - 1) * pitch] +
-            ROUND_POWER_OF_TWO(delta_m2_neg * (width_neg - i), 3 + DF_SHIFT),
-        bd);
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+  if (width_neg >= 1) {
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+    int delta_m2_neg = delta_m2 * w_mult[width_neg - 1];
+    for (int i = 0; i < width_neg; i++) {
+      s[(-i - 1) * pitch] = clip_pixel_highbd(
+          s[(-i - 1) * pitch] +
+              ROUND_POWER_OF_TWO(delta_m2_neg * (width_neg - i), 3 + DF_SHIFT),
+          bd);
+    }
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
   }
-  for (int i = 0; i < width_pos; i++) {
-    s[i * pitch] = clip_pixel_highbd(
-        s[i * pitch] -
-            ROUND_POWER_OF_TWO(delta_m2_pos * (width_pos - i), 3 + DF_SHIFT),
-        bd);
+  if (width_pos >= 1) {
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+    int delta_m2_pos = delta_m2 * w_mult[width_pos - 1];
+    for (int i = 0; i < width_pos; i++) {
+      s[i * pitch] = clip_pixel_highbd(
+          s[i * pitch] -
+              ROUND_POWER_OF_TWO(delta_m2_pos * (width_pos - i), 3 + DF_SHIFT),
+          bd);
+    }
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
   }
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 }
 #else
 static INLINE void filt_generic_highbd(int q_threshold, int width, uint16_t *s,
@@ -93,7 +106,11 @@ void aom_highbd_lpf_horizontal_generic_c(uint16_t *s, int pitch,
 
 #if EDGE_DECISION
 #if CONFIG_ASYM_DF
-  int filt_neg = (filt_width_neg >> 1) - 1;
+  int filt_neg =
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+      filt_width_neg == 0 ? 0 :
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+                          (filt_width_neg >> 1) - 1;
   int filter = filt_choice_highbd(s, pitch, filt_width_neg, filt_width_pos,
                                   *q_thresh, *side_thresh, s + count - 1);
 #else
@@ -144,7 +161,11 @@ void aom_highbd_lpf_vertical_generic_c(uint16_t *s, int pitch,
 
 #if EDGE_DECISION
 #if CONFIG_ASYM_DF
-  int filt_neg = (filt_width_neg >> 1) - 1;
+  int filt_neg =
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+      filt_width_neg == 0 ? 0 :
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+                          (filt_width_neg >> 1) - 1;
 
   int filter =
       filt_choice_highbd(s, 1, filt_width_neg, filt_width_pos, *q_thresh,

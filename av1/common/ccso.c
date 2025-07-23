@@ -148,6 +148,72 @@ void ccso_filter_block_hbd_wo_buf_c(
   }
 }
 
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+// If there is at-least 1 segment is lossless in a frame, we have
+// to do 4x4 processing, because minimum lossless block can be 4x4
+// size. Although, regardless the value of
+// cm->features.has_lossless_segment, we can always do 4x4
+// processing, however, for software optimization purpose we have
+// used  full block processing for whole lossy frame.
+void ccso_filter_block_hbd_wo_buf_4x4_c(
+    AV1_COMMON *cm, const uint16_t *src_y, uint16_t *dst_yuv, const int x,
+    const int y, const int pic_width, const int pic_height, int *src_cls,
+    const int8_t *offset_buf, const int src_y_stride, const int dst_stride,
+    const int y_uv_hscale, const int y_uv_vscale, const int thr,
+    const int neg_thr, const int *src_loc, const int max_val,
+    const int blk_size_x, const int blk_size_y, const bool isSingleBand,
+    const uint8_t shift_bits, const int edge_clf, const uint8_t ccso_bo_only) {
+  const CommonModeInfoParams *const mi_params = &cm->mi_params;
+  const int y_end = AOMMIN(pic_height - y, blk_size_y);
+  const int x_end = AOMMIN(pic_width - x, blk_size_x);
+  int min_b_size_x = (1 << MI_SIZE_LOG2) >> y_uv_hscale;
+  int min_b_size_y = (1 << MI_SIZE_LOG2) >> y_uv_vscale;
+
+  for (int y_start = 0; y_start < y_end; y_start += min_b_size_y) {
+    const int y_pos = y_start;
+    for (int x_start = 0; x_start < x_end; x_start += min_b_size_x) {
+      const int x_pos = x + x_start;
+
+      const int mbmi_idx = get_mi_grid_idx(
+          mi_params, (y_pos + y) >> (MI_SIZE_LOG2 - y_uv_vscale),
+          (x_pos) >> (MI_SIZE_LOG2 - y_uv_hscale));
+      const int is_lossless =
+          cm->features
+              .lossless_segment[mi_params->mi_grid_base[mbmi_idx]->segment_id];
+      if (!is_lossless) {
+        int j_max = AOMMIN(x_pos + min_b_size_x, x + x_start + x_end);
+        int i_max = AOMMIN(y_pos + min_b_size_y, y_end);
+        for (int i_pos_4x4 = y_pos; i_pos_4x4 < i_max; i_pos_4x4++) {
+          for (int j_pos_4x4 = x_pos; j_pos_4x4 < j_max; j_pos_4x4++) {
+            if (!ccso_bo_only) {
+              cal_filter_support(
+                  src_cls,
+                  &src_y[(i_pos_4x4 << y_uv_vscale) * src_y_stride +
+                         (j_pos_4x4 << y_uv_hscale)],
+                  thr, neg_thr, src_loc, edge_clf);
+            } else {
+              src_cls[0] = 0;
+              src_cls[1] = 0;
+            }
+            const int band_num =
+                isSingleBand ? 0
+                             : src_y[(i_pos_4x4 << y_uv_vscale) * src_y_stride +
+                                     (j_pos_4x4 << y_uv_hscale)] >>
+                                   shift_bits;
+            const int lut_idx_ext =
+                (band_num << 4) + (src_cls[0] << 2) + src_cls[1];
+            const int offset_val = offset_buf[lut_idx_ext];
+            dst_yuv[i_pos_4x4 * dst_stride + j_pos_4x4] =
+                clamp(offset_val + dst_yuv[i_pos_4x4 * dst_stride + j_pos_4x4],
+                      0, max_val);
+          }
+        }
+      }
+    }
+  }
+}
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+
 /* Apply CCSO on luma component when multiple bands are applied */
 void ccso_apply_luma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
                                const uint16_t *src_y, uint16_t *dst_yuv,
@@ -209,20 +275,36 @@ void ccso_apply_luma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
             return;
           }
 #endif  // CONFIG_BRU
-          if (cm->ccso_info.ccso_bo_only[plane]) {
-            ccso_filter_block_hbd_wo_buf_c(
-                src_unit_y, dst_unit_yuv, x + unit_x, y + unit_y, pic_width,
+
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+          if (cm->features.has_lossless_segment) {
+            ccso_filter_block_hbd_wo_buf_4x4_c(
+                cm, src_unit_y, dst_unit_yuv, x + unit_x, y + unit_y, pic_width,
                 pic_height, src_cls, cm->ccso_info.filter_offset[plane],
                 ccso_ext_stride, dst_stride, 0, 0, thr, neg_thr, src_loc,
                 max_val, unit_size, unit_size, false, shift_bits, edge_clf,
                 cm->ccso_info.ccso_bo_only[plane]);
           } else {
-            ccso_filter_block_hbd_wo_buf(
-                src_unit_y, dst_unit_yuv, x + unit_x, y + unit_y, pic_width,
-                pic_height, src_cls, cm->ccso_info.filter_offset[plane],
-                ccso_ext_stride, dst_stride, 0, 0, thr, neg_thr, src_loc,
-                max_val, unit_size, unit_size, false, shift_bits, edge_clf, 0);
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+
+            if (cm->ccso_info.ccso_bo_only[plane]) {
+              ccso_filter_block_hbd_wo_buf_c(
+                  src_unit_y, dst_unit_yuv, x + unit_x, y + unit_y, pic_width,
+                  pic_height, src_cls, cm->ccso_info.filter_offset[plane],
+                  ccso_ext_stride, dst_stride, 0, 0, thr, neg_thr, src_loc,
+                  max_val, unit_size, unit_size, false, shift_bits, edge_clf,
+                  cm->ccso_info.ccso_bo_only[plane]);
+            } else {
+              ccso_filter_block_hbd_wo_buf(
+                  src_unit_y, dst_unit_yuv, x + unit_x, y + unit_y, pic_width,
+                  pic_height, src_cls, cm->ccso_info.filter_offset[plane],
+                  ccso_ext_stride, dst_stride, 0, 0, thr, neg_thr, src_loc,
+                  max_val, unit_size, unit_size, false, shift_bits, edge_clf,
+                  0);
+            }
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
           }
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
         }
         dst_unit_yuv += (dst_stride << unit_log2);
         src_unit_y += (ccso_ext_stride << unit_log2);
@@ -310,20 +392,33 @@ void ccso_apply_luma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
             return;
           }
 #endif  // CONFIG_BRU
-          if (cm->ccso_info.ccso_bo_only[plane]) {
-            ccso_filter_block_hbd_wo_buf_c(
-                src_unit_y, dst_unit_yuv, x + unit_x, y + unit_y, pic_width,
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+          if (cm->features.has_lossless_segment) {
+            ccso_filter_block_hbd_wo_buf_4x4_c(
+                cm, src_unit_y, dst_unit_yuv, x + unit_x, y + unit_y, pic_width,
                 pic_height, src_cls, cm->ccso_info.filter_offset[plane],
                 ccso_ext_stride, dst_stride, 0, 0, thr, neg_thr, src_loc,
                 max_val, unit_size, unit_size, true, shift_bits, edge_clf,
                 cm->ccso_info.ccso_bo_only[plane]);
           } else {
-            ccso_filter_block_hbd_wo_buf(
-                src_unit_y, dst_unit_yuv, x + unit_x, y + unit_y, pic_width,
-                pic_height, src_cls, cm->ccso_info.filter_offset[plane],
-                ccso_ext_stride, dst_stride, 0, 0, thr, neg_thr, src_loc,
-                max_val, unit_size, unit_size, true, shift_bits, edge_clf, 0);
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+            if (cm->ccso_info.ccso_bo_only[plane]) {
+              ccso_filter_block_hbd_wo_buf_c(
+                  src_unit_y, dst_unit_yuv, x + unit_x, y + unit_y, pic_width,
+                  pic_height, src_cls, cm->ccso_info.filter_offset[plane],
+                  ccso_ext_stride, dst_stride, 0, 0, thr, neg_thr, src_loc,
+                  max_val, unit_size, unit_size, true, shift_bits, edge_clf,
+                  cm->ccso_info.ccso_bo_only[plane]);
+            } else {
+              ccso_filter_block_hbd_wo_buf(
+                  src_unit_y, dst_unit_yuv, x + unit_x, y + unit_y, pic_width,
+                  pic_height, src_cls, cm->ccso_info.filter_offset[plane],
+                  ccso_ext_stride, dst_stride, 0, 0, thr, neg_thr, src_loc,
+                  max_val, unit_size, unit_size, true, shift_bits, edge_clf, 0);
+            }
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
           }
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
         }
         dst_unit_yuv += (dst_stride << unit_log2);
         src_unit_y += (ccso_ext_stride << unit_log2);
@@ -421,21 +516,35 @@ void ccso_apply_chroma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
             return;
           }
 #endif  // CONFIG_BRU
-          if (cm->ccso_info.ccso_bo_only[plane]) {
-            ccso_filter_block_hbd_wo_buf_c(
-                src_unit_y, dst_unit_yuv, x + unit_x, y + unit_y, pic_width,
+
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+          if (cm->features.has_lossless_segment) {
+            ccso_filter_block_hbd_wo_buf_4x4_c(
+                cm, src_unit_y, dst_unit_yuv, x + unit_x, y + unit_y, pic_width,
                 pic_height, src_cls, cm->ccso_info.filter_offset[plane],
                 ccso_ext_stride, dst_stride, y_uv_hscale, y_uv_vscale, thr,
                 neg_thr, src_loc, max_val, unit_size_x, unit_size_y, false,
                 shift_bits, edge_clf, cm->ccso_info.ccso_bo_only[plane]);
           } else {
-            ccso_filter_block_hbd_wo_buf(
-                src_unit_y, dst_unit_yuv, x + unit_x, y + unit_y, pic_width,
-                pic_height, src_cls, cm->ccso_info.filter_offset[plane],
-                ccso_ext_stride, dst_stride, y_uv_hscale, y_uv_vscale, thr,
-                neg_thr, src_loc, max_val, unit_size_x, unit_size_y, false,
-                shift_bits, edge_clf, 0);
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+            if (cm->ccso_info.ccso_bo_only[plane]) {
+              ccso_filter_block_hbd_wo_buf_c(
+                  src_unit_y, dst_unit_yuv, x + unit_x, y + unit_y, pic_width,
+                  pic_height, src_cls, cm->ccso_info.filter_offset[plane],
+                  ccso_ext_stride, dst_stride, y_uv_hscale, y_uv_vscale, thr,
+                  neg_thr, src_loc, max_val, unit_size_x, unit_size_y, false,
+                  shift_bits, edge_clf, cm->ccso_info.ccso_bo_only[plane]);
+            } else {
+              ccso_filter_block_hbd_wo_buf(
+                  src_unit_y, dst_unit_yuv, x + unit_x, y + unit_y, pic_width,
+                  pic_height, src_cls, cm->ccso_info.filter_offset[plane],
+                  ccso_ext_stride, dst_stride, y_uv_hscale, y_uv_vscale, thr,
+                  neg_thr, src_loc, max_val, unit_size_x, unit_size_y, false,
+                  shift_bits, edge_clf, 0);
+            }
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
           }
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
         }
         dst_unit_yuv += (dst_stride << unit_log2_y);
         src_unit_y += (ccso_ext_stride << (unit_log2_y + y_uv_vscale));
@@ -535,21 +644,35 @@ void ccso_apply_chroma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
             return;
           }
 #endif  // CONFIG_BRU
-          if (cm->ccso_info.ccso_bo_only[plane]) {
-            ccso_filter_block_hbd_wo_buf_c(
-                src_unit_y, dst_unit_yuv, x + unit_x, y + unit_y, pic_width,
+
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+          if (cm->features.has_lossless_segment) {
+            ccso_filter_block_hbd_wo_buf_4x4_c(
+                cm, src_unit_y, dst_unit_yuv, x + unit_x, y + unit_y, pic_width,
                 pic_height, src_cls, cm->ccso_info.filter_offset[plane],
                 ccso_ext_stride, dst_stride, y_uv_hscale, y_uv_vscale, thr,
                 neg_thr, src_loc, max_val, unit_size_x, unit_size_y, true,
                 shift_bits, edge_clf, cm->ccso_info.ccso_bo_only[plane]);
           } else {
-            ccso_filter_block_hbd_wo_buf(
-                src_unit_y, dst_unit_yuv, x + unit_x, y + unit_y, pic_width,
-                pic_height, src_cls, cm->ccso_info.filter_offset[plane],
-                ccso_ext_stride, dst_stride, y_uv_hscale, y_uv_vscale, thr,
-                neg_thr, src_loc, max_val, unit_size_x, unit_size_y, true,
-                shift_bits, edge_clf, 0);
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+            if (cm->ccso_info.ccso_bo_only[plane]) {
+              ccso_filter_block_hbd_wo_buf_c(
+                  src_unit_y, dst_unit_yuv, x + unit_x, y + unit_y, pic_width,
+                  pic_height, src_cls, cm->ccso_info.filter_offset[plane],
+                  ccso_ext_stride, dst_stride, y_uv_hscale, y_uv_vscale, thr,
+                  neg_thr, src_loc, max_val, unit_size_x, unit_size_y, true,
+                  shift_bits, edge_clf, cm->ccso_info.ccso_bo_only[plane]);
+            } else {
+              ccso_filter_block_hbd_wo_buf(
+                  src_unit_y, dst_unit_yuv, x + unit_x, y + unit_y, pic_width,
+                  pic_height, src_cls, cm->ccso_info.filter_offset[plane],
+                  ccso_ext_stride, dst_stride, y_uv_hscale, y_uv_vscale, thr,
+                  neg_thr, src_loc, max_val, unit_size_x, unit_size_y, true,
+                  shift_bits, edge_clf, 0);
+            }
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
           }
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
         }
         dst_unit_yuv += (dst_stride << unit_log2_y);
         src_unit_y += (ccso_ext_stride << (unit_log2_y + y_uv_vscale));

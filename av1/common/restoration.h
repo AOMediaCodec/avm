@@ -342,6 +342,9 @@ typedef struct {
   struct aom_internal_error_info *error;
   /*!\endcond */
 #endif  // CONFIG_BRU
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+  const bool *lossless_segment;
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 } RestorationUnitInfo;
 
 /*!\cond */
@@ -585,6 +588,9 @@ typedef struct FilterFrameCtxt {
   int order_hint;
   struct aom_internal_error_info *error;
 #endif  // CONFIG_BRU
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+  const bool *lossless_segment;
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 } FilterFrameCtxt;
 
 typedef struct AV1LrStruct {

@@ -382,7 +382,12 @@ void setup_block_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
       if (cpi->vaq_refresh) {
         const int energy = bsize <= BLOCK_16X16
                                ? x->mb_energy
-                               : av1_log_block_var(cpi, x, bsize);
+                               : av1_log_block_var(cpi, x, bsize
+#if CONFIG_MIXED_LOSSLESS_ENCODE
+                                                   ,
+                                                   mi_row, mi_col
+#endif  // CONFIG_MIXED_LOSSLESS_ENCODE
+                                 );
         mbmi->segment_id = energy;
       }
       x->rdmult = set_segment_rdmult(cpi, x, mbmi->segment_id);
@@ -2922,7 +2927,12 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
   if (bsize == BLOCK_16X16 && cpi->vaq_refresh) {
     av1_set_offsets(cpi, tile_info, x, mi_row, mi_col, bsize,
                     &pc_tree->chroma_ref_info);
-    x->mb_energy = av1_log_block_var(cpi, x, bsize);
+    x->mb_energy = av1_log_block_var(cpi, x, bsize
+#if CONFIG_MIXED_LOSSLESS_ENCODE
+                                     ,
+                                     mi_row, mi_col
+#endif  // CONFIG_MIXED_LOSSLESS_ENCODE
+    );
   }
 
   // Save rdmult before it might be changed, so it can be restored later.
@@ -6436,7 +6446,12 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
   av1_rd_cost_update(x->rdmult, &best_rdc);
 
   if (bsize == BLOCK_16X16 && cpi->vaq_refresh)
-    x->mb_energy = av1_log_block_var(cpi, x, bsize);
+    x->mb_energy = av1_log_block_var(cpi, x, bsize
+#if CONFIG_MIXED_LOSSLESS_ENCODE
+                                     ,
+                                     mi_row, mi_col
+#endif  // CONFIG_MIXED_LOSSLESS_ENCODE
+    );
 
   av1_save_context(x, &x_ctx, mi_row, mi_col, bsize, num_planes);
   LevelBanksRDO level_banks = {
