@@ -5115,6 +5115,7 @@ static INLINE int is_warp_newmv_allowed(const AV1_COMMON *cm,
       is_inter_ref_frame(mbmi->ref_frame[0]) &&
       !is_tip_ref_frame(mbmi->ref_frame[0]) &&
 #if !CONFIG_ACROSS_SCALE_WARP
+      !cm->features.error_resilient_mode &&
       !av1_is_scaled(get_ref_scale_factors_const(cm, mbmi->ref_frame[0])) &&
 #endif  // !CONFIG_ACROSS_SCALE_WARP
       !xd->cur_frame_force_integer_mv;
@@ -5223,6 +5224,7 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
       is_motion_variation_allowed_bsize(bsize, xd->mi_row, xd->mi_col) &&
       mbmi->mode == NEW_NEWMV &&
 #if !CONFIG_ACROSS_SCALE_WARP
+      !cm->features.error_resilient_mode &&
       !av1_is_scaled(xd->block_ref_scale_factors[0]) &&
 #endif  // !CONFIG_ACROSS_SCALE_WARP
       !xd->cur_frame_force_integer_mv &&
@@ -5244,6 +5246,7 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
   const int allow_warped_motion =
       motion_variation_allowed &&
 #if !CONFIG_ACROSS_SCALE_WARP
+      !cm->features.error_resilient_mode &&
       !av1_is_scaled(xd->block_ref_scale_factors[0]) &&
 #endif  // !CONFIG_ACROSS_SCALE_WARP
       !xd->cur_frame_force_integer_mv;
@@ -5253,6 +5256,7 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
       is_motion_variation_allowed_bsize(bsize, xd->mi_row, xd->mi_col) &&
       is_inter_mode(mbmi->mode) &&
 #if !CONFIG_ACROSS_SCALE_WARP
+      !cm->features.error_resilient_mode &&
       !av1_is_scaled(xd->block_ref_scale_factors[0]) &&
 #endif  // !CONFIG_ACROSS_SCALE_WARP
       !xd->cur_frame_force_integer_mv &&
