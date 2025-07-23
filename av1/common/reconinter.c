@@ -1548,13 +1548,17 @@ void av1_get_optflow_based_mv(
   const int mv_mult = 1 << (MV_REFINE_PREC_BITS - 3);
   for (int mvi = 0; mvi < n_blocks; mvi++) {
     mv_refined[mvi * 2].as_mv.row =
-        clamp(mv_refined[mvi * 2].as_mv.row * mv_mult, INT16_MIN, INT16_MAX);
+        clamp(mv_refined[mvi * 2].as_mv.row * mv_mult, MV_1_16TH_PEL_MIN,
+              MV_1_16TH_PEL_MAX);
     mv_refined[mvi * 2].as_mv.col =
-        clamp(mv_refined[mvi * 2].as_mv.col * mv_mult, INT16_MIN, INT16_MAX);
-    mv_refined[mvi * 2 + 1].as_mv.row = clamp(
-        mv_refined[mvi * 2 + 1].as_mv.row * mv_mult, INT16_MIN, INT16_MAX);
-    mv_refined[mvi * 2 + 1].as_mv.col = clamp(
-        mv_refined[mvi * 2 + 1].as_mv.col * mv_mult, INT16_MIN, INT16_MAX);
+        clamp(mv_refined[mvi * 2].as_mv.col * mv_mult, MV_1_16TH_PEL_MIN,
+              MV_1_16TH_PEL_MAX);
+    mv_refined[mvi * 2 + 1].as_mv.row =
+        clamp(mv_refined[mvi * 2 + 1].as_mv.row * mv_mult, MV_1_16TH_PEL_MIN,
+              MV_1_16TH_PEL_MAX);
+    mv_refined[mvi * 2 + 1].as_mv.col =
+        clamp(mv_refined[mvi * 2 + 1].as_mv.col * mv_mult, MV_1_16TH_PEL_MIN,
+              MV_1_16TH_PEL_MAX);
   }
 
   // Obtain d0 and d1
@@ -1648,14 +1652,16 @@ void av1_get_optflow_based_mv(
     vx0[i] = clamp(vx0[i], -OPFL_MV_DELTA_LIMIT, OPFL_MV_DELTA_LIMIT);
     vy1[i] = clamp(vy1[i], -OPFL_MV_DELTA_LIMIT, OPFL_MV_DELTA_LIMIT);
     vx1[i] = clamp(vx1[i], -OPFL_MV_DELTA_LIMIT, OPFL_MV_DELTA_LIMIT);
-    mv_refined[i * 2].as_mv.row =
-        clamp(mv_refined[i * 2].as_mv.row + vy0[i], INT16_MIN, INT16_MAX);
-    mv_refined[i * 2].as_mv.col =
-        clamp(mv_refined[i * 2].as_mv.col + vx0[i], INT16_MIN, INT16_MAX);
+    mv_refined[i * 2].as_mv.row = clamp(mv_refined[i * 2].as_mv.row + vy0[i],
+                                        MV_1_16TH_PEL_MIN, MV_1_16TH_PEL_MAX);
+    mv_refined[i * 2].as_mv.col = clamp(mv_refined[i * 2].as_mv.col + vx0[i],
+                                        MV_1_16TH_PEL_MIN, MV_1_16TH_PEL_MAX);
     mv_refined[i * 2 + 1].as_mv.row =
-        clamp(mv_refined[i * 2 + 1].as_mv.row + vy1[i], INT16_MIN, INT16_MAX);
+        clamp(mv_refined[i * 2 + 1].as_mv.row + vy1[i], MV_1_16TH_PEL_MIN,
+              MV_1_16TH_PEL_MAX);
     mv_refined[i * 2 + 1].as_mv.col =
-        clamp(mv_refined[i * 2 + 1].as_mv.col + vx1[i], INT16_MIN, INT16_MAX);
+        clamp(mv_refined[i * 2 + 1].as_mv.col + vx1[i], MV_1_16TH_PEL_MIN,
+              MV_1_16TH_PEL_MAX);
   }
 }
 

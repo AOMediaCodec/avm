@@ -29,9 +29,15 @@ extern "C" {
 #if CONFIG_MV_RANGE_EXTENSION
 #define INVALID_MV 0x2000020000
 #define MV_IN_USE_BITS 16
+// Maximum and minimum allowed 1/16th pel motion vector value sin 18bits
+#define MV_1_16TH_PEL_MAX ((1 << 17) - 1)
+#define MV_1_16TH_PEL_MIN (-(1 << 17))
 #else
 #define INVALID_MV 0x80008000
 #define MV_IN_USE_BITS 14
+// Maximum and minimum allowed 1/16th pel motion vector value in 16bits
+#define MV_1_16TH_PEL_MAX INT16_MAX
+#define MV_1_16TH_PEL_MIN INT16_MIN
 #endif  // CONFIG_MV_RANGE_EXTENSION
 #define MV_UPP (1 << MV_IN_USE_BITS)
 #define MV_LOW (-(1 << MV_IN_USE_BITS))
@@ -704,8 +710,8 @@ static INLINE void clamp_fullmv(FULLPEL_MV *mv, const FullMvLimits *mv_limits) {
 // Convert the 1/8th pel motion vector to 1/16th pel.
 static INLINE MV convert_mv_to_1_16th_pel(const MV *in_mv) {
   MV mv;
-  mv.col = clamp((in_mv->col * 2), INT16_MIN, INT16_MAX);
-  mv.row = clamp((in_mv->row * 2), INT16_MIN, INT16_MAX);
+  mv.col = clamp((in_mv->col * 2), MV_1_16TH_PEL_MIN, MV_1_16TH_PEL_MAX);
+  mv.row = clamp((in_mv->row * 2), MV_1_16TH_PEL_MIN, MV_1_16TH_PEL_MAX);
   return mv;
 }
 
