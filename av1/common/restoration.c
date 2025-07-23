@@ -1168,7 +1168,14 @@ void apply_pc_wiener_highbd(
     int bit_depth, bool classify_only,
     const int16_t (*pcwiener_filters_luma)[NUM_PC_WIENER_TAPS_LUMA],
     const uint8_t *filter_selector, PcwienerBuffers *buffers,
-    bool tskip_zero_flag) {
+    bool tskip_zero_flag
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+    ,
+    MB_MODE_INFO **mbmi_ptr_procunit, int mi_stride, int ss_x, int ss_y,
+    const bool *lossless_segment
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+
+) {
   (void)is_uv;
   const bool skip_filtering = classify_only;
   assert(!is_uv || skip_filtering);
@@ -1306,6 +1313,26 @@ void apply_pc_wiener_highbd(
       const int block_col_end = j + 1;
 #endif  // PC_WIENER_BLOCK_SIZE > 1
 
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+      if (mbmi_ptr_procunit) {
+        assert(!classify_only);
+        const int start_mi_x = block_col_begin >> (MI_SIZE_LOG2 - ss_x);
+        const int start_mi_y = block_row_begin >> (MI_SIZE_LOG2 - ss_y);
+        MB_MODE_INFO **this_mbmi_ptr =
+            mbmi_ptr_procunit + start_mi_y * mi_stride + start_mi_x;
+
+        if (lossless_segment[this_mbmi_ptr[0]->segment_id]) {
+          // Copy the data
+          for (int r = block_row_begin; r < block_row_end; ++r) {
+            for (int c = block_col_begin; c < block_col_end; ++c) {
+              dst[r * dst_stride + c] = dgd[r * stride + c];
+            }
+          }
+          continue;
+        }
+      }
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+
 #if USE_CONVOLVE_SYM
       av1_convolve_symmetric_highbd(
           dgd, stride, filter_config, filter, dst, dst_stride, bit_depth,
@@ -1402,6 +1429,10 @@ static void pc_wiener_stripe_highbd(const RestorationUnitInfo *rui,
           "Invalid BRU activity in LR: only active SB can be filtered");
       return;
     }
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+    MB_MODE_INFO **mbmi_ptr_procunit = rui->mbmi_ptr + mi_offset_x;
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+
 #endif  // CONFIG_BRU
     // The function update_accumulator() is used to compute the accumulated
     // result of tx_skip and feature direction filtering output at
@@ -1414,7 +1445,13 @@ static void pc_wiener_stripe_highbd(const RestorationUnitInfo *rui,
         rui->wiener_class_id + (j >> MI_SIZE_LOG2), rui->wiener_class_id_stride,
         rui->plane != AOM_PLANE_Y, bit_depth, classify_only,
         pcwiener_filters_luma, filter_selector, rui->pcwiener_buffers,
-        rui->tskip_zero_flag);
+        rui->tskip_zero_flag
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+        ,
+        mbmi_ptr_procunit, rui->mi_stride, rui->ss_x, rui->ss_y,
+        rui->lossless_segment
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+    );
   }
 }
 
@@ -1516,6 +1553,11 @@ void apply_wienerns_class_id_highbd(
     const uint8_t *class_id, int class_id_stride, int class_id_restrict,
     int num_classes, int set_index
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+    ,
+    MB_MODE_INFO **mbmi_ptr_procunit, int mi_stride, int ss_x, int ss_y,
+    const bool *lossless_segment
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 ) {
   (void)luma;
   (void)luma_stride;
@@ -1542,6 +1584,16 @@ void apply_wienerns_class_id_highbd(
       for (int c = 0; c < width; c += block_size) {
         const int w = AOMMIN(block_size, width - c);
 
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+        const int start_mi_x = c >> (MI_SIZE_LOG2 - ss_x);
+        const int start_mi_y = r >> (MI_SIZE_LOG2 - ss_y);
+        MB_MODE_INFO **this_mbmi_ptr =
+            mbmi_ptr_procunit + start_mi_y * mi_stride + start_mi_x;
+        if (lossless_segment[this_mbmi_ptr[0]->segment_id]) {
+          copy_tile(w, h, dgd_row + c, stride, dst_row + c, dst_stride);
+          continue;
+        }
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
         int sub_class_id = 0;
 #if CONFIG_COMBINE_PC_NS_WIENER_ADD
         if (num_classes > 1) {
@@ -1572,7 +1624,17 @@ void apply_wienerns_class_id_highbd(
     uint16_t *dst_row = dst + r * dst_stride;
     for (int c = 0; c < width; c += block_size) {
       const int w = AOMMIN(block_size, width - c);
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+      const int start_mi_x = c >> (MI_SIZE_LOG2 - ss_x);
+      const int start_mi_y = r >> (MI_SIZE_LOG2 - ss_y);
+      MB_MODE_INFO **this_mbmi_ptr =
+          mbmi_ptr_procunit + start_mi_y * mi_stride + start_mi_x;
 
+      if (lossless_segment[this_mbmi_ptr[0]->segment_id]) {
+        copy_tile(w, h, dgd_row + c, stride, dst_row + c, dst_stride);
+        continue;
+      }
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
       int sub_class_id = 0;
 #if CONFIG_COMBINE_PC_NS_WIENER
       if (num_classes > 1) {
@@ -1619,7 +1681,12 @@ static void wiener_nsfilter_stripe_highbd(const RestorationUnitInfo *rui,
           rui->tskip + (j >> MI_SIZE_LOG2), rui->tskip_stride,
           rui->wiener_class_id + (j >> MI_SIZE_LOG2),
           rui->wiener_class_id_stride, rui->plane != AOM_PLANE_Y, bit_depth,
-          true, NULL, NULL, rui->pcwiener_buffers, rui->tskip_zero_flag);
+          true, NULL, NULL, rui->pcwiener_buffers, rui->tskip_zero_flag
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+          ,
+          NULL, rui->mi_stride, rui->ss_x, rui->ss_y, rui->lossless_segment
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+      );
     }
   }
 #else
@@ -1673,6 +1740,9 @@ static void wiener_nsfilter_stripe_highbd(const RestorationUnitInfo *rui,
           "Invalid BRU activity in LR: only active SB can be filtered");
       return;
     }
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+    MB_MODE_INFO **mbmi_ptr_procunit = rui->mbmi_ptr + mi_offset_x;
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 #endif  // CONFIG_BRU
     apply_wienerns_class_id_highbd(
         src + j, w, stripe_height, src_stride, nsfilter_info, nsfilter_config,
@@ -1683,6 +1753,11 @@ static void wiener_nsfilter_stripe_highbd(const RestorationUnitInfo *rui,
         rui->wiener_class_id + (j >> MI_SIZE_LOG2), rui->wiener_class_id_stride,
         rui->wiener_class_id_restrict, rui->wienerns_info.num_classes, set_index
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+        ,
+        mbmi_ptr_procunit, rui->mi_stride, rui->ss_x, rui->ss_y,
+        rui->lossless_segment
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
     );
   }
 }
@@ -2306,6 +2381,11 @@ static void filter_frame_on_unit(const RestorationTileLimits *limits,
   rsi->unit_info[rest_unit_idx].mi_stride = ctxt->mi_params->mi_stride;
   rsi->unit_info[rest_unit_idx].error = ctxt->error;
 #endif  // CONFIG_BRU
+
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+  rsi->unit_info[rest_unit_idx].lossless_segment = ctxt->lossless_segment;
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+
   av1_loop_restoration_filter_unit(
       limits, &rsi->unit_info[rest_unit_idx], &rsi->boundaries, rlbs, tile_rect,
       ctxt->tile_stripe0, ctxt->ss_x, ctxt->ss_y, ctxt->bit_depth, ctxt->data8,
@@ -2380,6 +2460,9 @@ void av1_loop_restoration_filter_frame_init(AV1LrStruct *lr_ctxt,
     lr_plane_ctxt->order_hint = cm->current_frame.order_hint;
     lr_plane_ctxt->error = &cm->error;
 #endif  // CONFIG_BRU
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+    lr_plane_ctxt->lossless_segment = &cm->features.lossless_segment[0];
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
   }
 }
 

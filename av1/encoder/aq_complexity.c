@@ -163,7 +163,12 @@ void av1_caq_select_segment(const AV1_COMP *cpi, MACROBLOCK *mb, BLOCK_SIZE bs,
 
     av1_setup_src_planes(mb, cpi->source, mi_row, mi_col, num_planes,
                          &mb->e_mbd.mi[0]->chroma_ref_info);
-    logvar = av1_log_block_var(cpi, mb, bs);
+    logvar = av1_log_block_var(cpi, mb, bs
+#if CONFIG_MIXED_LOSSLESS_ENCODE
+                               ,
+                               mi_row, mi_col
+#endif  // CONFIG_MIXED_LOSSLESS_ENCODE
+    );
 
     segment = AQ_C_SEGMENTS - 1;  // Just in case no break out below.
     for (i = 0; i < AQ_C_SEGMENTS; ++i) {

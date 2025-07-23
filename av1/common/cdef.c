@@ -34,6 +34,23 @@ static int is_8x8_block_skip(MB_MODE_INFO **grid, int mi_row, int mi_col,
   return 1;
 }
 
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+// Check any 4x4 sub-block of the entire block is lossless or not.
+// If one of the 4x4 sub-block is lossless, filter of full block will be
+// skipped.
+static int contains_lossless_8x8(const AV1_COMMON *const cm,
+                                 MB_MODE_INFO **grid, int mi_row, int mi_col,
+                                 int mi_stride) {
+  MB_MODE_INFO **mbmi = grid + mi_row * mi_stride + mi_col;
+  for (int r = 0; r < mi_size_high[BLOCK_8X8]; ++r, mbmi += mi_stride) {
+    for (int c = 0; c < mi_size_wide[BLOCK_8X8]; ++c) {
+      if (cm->features.lossless_segment[mbmi[c]->segment_id]) return 1;
+    }
+  }
+  return 0;
+}
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+
 int av1_cdef_compute_sb_list(const AV1_COMMON *const cm,
                              const CommonModeInfoParams *const mi_params,
                              int mi_row, int mi_col, cdef_list *dlist,
@@ -62,9 +79,18 @@ int av1_cdef_compute_sb_list(const AV1_COMMON *const cm,
   int count = 0;
   for (int r = 0; r < maxr; r += r_step) {
     for (int c = 0; c < maxc; c += c_step) {
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+      bool contains_lossless = contains_lossless_8x8(
+          cm, grid, mi_row + r, mi_col + c, mi_params->mi_stride);
+      if ((cm->cdef_info.cdef_on_skip_txfm_frame_enable == 1 ||
+           !is_8x8_block_skip(grid, mi_row + r, mi_col + c,
+                              mi_params->mi_stride)) &&
+          !contains_lossless) {
+#else
       if (cm->cdef_info.cdef_on_skip_txfm_frame_enable == 1 ||
           !is_8x8_block_skip(grid, mi_row + r, mi_col + c,
                              mi_params->mi_stride)) {
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
         dlist[count].by = r >> r_shift;
         dlist[count].bx = c >> c_shift;
         count++;

@@ -493,6 +493,13 @@ set_aom_config_var(
 set_aom_config_var(CONFIG_ADAPTIVE_WEDGE_BOUNDARY 1
                    "Adaptive wedge boundary based on block size.")
 
+set_aom_config_var(CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS 1
+                   "Disable loop filters for lossless segments")
+set_aom_config_var(
+  CONFIG_MIXED_LOSSLESS_ENCODE 0
+  "Encoder only flag to configure encoder to enable mixed lossy/lossless coding"
+)
+
 #
 # Variables in this section control optional features of the build system.
 #

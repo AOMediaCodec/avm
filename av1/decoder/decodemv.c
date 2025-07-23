@@ -972,7 +972,14 @@ static int read_segment_id(AV1_COMMON *const cm, const MACROBLOCKD *const xd,
                            aom_reader *r, int skip) {
   int cdf_num;
   const int pred = av1_get_spatial_seg_pred(cm, xd, &cdf_num);
-  if (skip && !xd->lossless[pred]) return pred;
+  if (skip &&
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+      !cm->features.has_lossless_segment
+#else
+      !xd->lossless[pred]
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+  )
+    return pred;
 
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
   struct segmentation *const seg = &cm->seg;
@@ -4234,6 +4241,10 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
   read_delta_q_params(cm, xd, r);
 
   mbmi->current_qindex = xd->current_base_qindex;
+
+#if CONFIG_MIXED_LOSSLESS_ENCODE
+  assert(IMPLIES(mbmi->segment_id, xd->lossless[mbmi->segment_id]));
+#endif  // CONFIG_MIXED_LOSSLESS_ENCODE
 
 #if CONFIG_IBC_SR_EXT
   if (!inter_block &&
