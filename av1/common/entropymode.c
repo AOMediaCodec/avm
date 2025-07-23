@@ -8176,14 +8176,15 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
 
 static void avg_cdf_symbol(aom_cdf_prob *cdf_ptr_left, aom_cdf_prob *cdf_ptr_tr,
                            int num_cdfs, int cdf_stride, int nsymbs,
-                           int wt_left, int wt_tr) {
+                           int wt_left, int wt_tr, unsigned int offset,
+                           unsigned int shift) {
   for (int i = 0; i < num_cdfs; i++) {
     for (int j = 0; j <= nsymbs; j++) {
       cdf_ptr_left[i * cdf_stride + j] =
           (aom_cdf_prob)(((int)cdf_ptr_left[i * cdf_stride + j] * wt_left +
                           (int)cdf_ptr_tr[i * cdf_stride + j] * wt_tr +
-                          ((wt_left + wt_tr) / 2)) /
-                         (wt_left + wt_tr));
+                          offset) >>
+                         shift);
       assert(cdf_ptr_left[i * cdf_stride + j] >= 0 &&
              cdf_ptr_left[i * cdf_stride + j] < CDF_PROB_TOP);
     }
@@ -8199,11 +8200,11 @@ static void avg_cdf_symbol(aom_cdf_prob *cdf_ptr_left, aom_cdf_prob *cdf_ptr_tr,
     int array_size = (int)sizeof(cname_left) / sizeof(aom_cdf_prob);       \
     int num_cdfs = array_size / cdf_stride;                                \
     avg_cdf_symbol(cdf_ptr_left, cdf_ptr_tr, num_cdfs, cdf_stride, nsymbs, \
-                   wt_left, wt_tr);                                        \
+                   wt_left, wt_tr, offset, shift);                         \
   } while (0)
 
 static void avg_nmv(nmv_context *nmv_left, nmv_context *nmv_tr, int wt_left,
-                    int wt_tr) {
+                    int wt_tr, unsigned int offset, unsigned int shift) {
 #if !CONFIG_VQ_MVD_CODING
   AVERAGE_CDF(nmv_left->joints_cdf, nmv_tr->joints_cdf, 4);
 #else
@@ -8301,6 +8302,9 @@ static void avg_nmv(nmv_context *nmv_left, nmv_context *nmv_tr, int wt_left,
 // of CDF and used only when row-mt is enabled in encoder.
 void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
                          int wt_left, int wt_tr) {
+  unsigned int shift = compute_log2(wt_left + wt_tr);
+  assert(shift - 1 < 32);
+  unsigned int offset = 1 << (shift - 1);
   AVERAGE_CDF(ctx_left->txb_skip_cdf, ctx_tr->txb_skip_cdf, 2);
 #if CONFIG_CONTEXT_DERIVATION
   AVERAGE_CDF(ctx_left->v_txb_skip_cdf, ctx_tr->v_txb_skip_cdf, 2);
@@ -8493,8 +8497,8 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->skip_mode_cdfs, ctx_tr->skip_mode_cdfs, 2);
   AVERAGE_CDF(ctx_left->skip_txfm_cdfs, ctx_tr->skip_txfm_cdfs, 2);
   AVERAGE_CDF(ctx_left->intra_inter_cdf, ctx_tr->intra_inter_cdf, 2);
-  avg_nmv(&ctx_left->nmvc, &ctx_tr->nmvc, wt_left, wt_tr);
-  avg_nmv(&ctx_left->ndvc, &ctx_tr->ndvc, wt_left, wt_tr);
+  avg_nmv(&ctx_left->nmvc, &ctx_tr->nmvc, wt_left, wt_tr, offset, shift);
+  avg_nmv(&ctx_left->ndvc, &ctx_tr->ndvc, wt_left, wt_tr, offset, shift);
   AVERAGE_CDF(ctx_left->intrabc_cdf, ctx_tr->intrabc_cdf, 2);
 #if CONFIG_IBC_BV_IMPROVEMENT
   AVERAGE_CDF(ctx_left->intrabc_mode_cdf, ctx_tr->intrabc_mode_cdf, 2);
