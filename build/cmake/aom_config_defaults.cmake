@@ -401,6 +401,10 @@ set_aom_config_var(CONFIG_REDUCED_TX_SET_EXT 1
 
 # This is an encode-only change.
 
+set_aom_config_var(
+  CONFIG_MIXED_LOSSLESS_ENCODE 0
+  "Set the encoder to encode fixed pattern mixed lossy/lossless encoding")
+
 set_aom_config_var(CONFIG_FIX_RESIZE_PSNR 1
                    "Fix PSNR computation of resize mode in coded resolution")
 
@@ -488,6 +492,8 @@ set_aom_config_var(CONFIG_CWG_F243_ORDER_HINT_BITDEPTH 1
 set_aom_config_var(
   CONFIG_FSC_RES_HLS 1
   "add high level flag to switch fsc residual and regular residual.")
+set_aom_config_var(CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS 1
+                   "Disable loop filters for lossless segments")
 #
 # Variables in this section control optional features of the build system.
 #

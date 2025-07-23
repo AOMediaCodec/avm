@@ -843,6 +843,21 @@ typedef struct {
    * If true, frame is fully lossless at upscaled resolution.
    */
   bool all_lossless;
+#if CONFIG_DISABLE_LR_LOSSLESS || CONFIG_DISABLE_GDF_LOSSLESS
+  /*!
+   * If true, segment is fully lossless and loop filters will be skipped for
+   * lossless segment
+   */
+  bool lossless_segment[MAX_SEGMENTS];
+
+#endif  // CONFIG_DISABLE_LR_LOSSLESS || CONFIG_DISABLE_GDF_LOSSLESS
+
+  /*!
+   * If true, segment is fully lossless and loop filters will be skipped for
+   * lossless segment
+   */
+  bool has_lossless_segment;
+
   /*!
    * If true, the frame is restricted to a reduced subset of the full set of
    * transform types.
@@ -3797,15 +3812,31 @@ static AOM_INLINE void init_allowed_partitions_for_signaling(
       1 << (cm->seq_params.max_pb_aspect_ratio_log2_m1 + 1);
 #endif  // CONFIG_MAX_PB_RATIO
 
+#if CONFIG_DISABLE_SUB8X8_MIXED_LOSSY_LOSSLESS
+  bool mixed_lossy_lossless =
+      !cm->features.coded_lossless && cm->features.has_lossless_segment;
+  assert((mixed_lossy_lossless && is_chroma_ref) || !mixed_lossy_lossless);
+#endif  // CONFIG_DISABLE_SUB8X8_MIXED_LOSSY_LOSSLESS
+
   const int is_horz_size_valid =
       is_partition_valid(bsize, PARTITION_HORZ) && implied_rect_type != VERT &&
       check_is_chroma_size_valid(cm, tree_type, PARTITION_HORZ, bsize, mi_row,
-                                 mi_col, ss_x, ss_y, chroma_ref_info);
+                                 mi_col, ss_x, ss_y, chroma_ref_info)
+#if CONFIG_DISABLE_SUB8X8_MIXED_LOSSY_LOSSLESS
+      && ((mixed_lossy_lossless && block_size_high[bsize] > 8) ||
+          !mixed_lossy_lossless)
+#endif  // CONFIG_DISABLE_SUB8X8_MIXED_LOSSY_LOSSLESS
+      ;
 
   const int is_vert_size_valid =
       is_partition_valid(bsize, PARTITION_VERT) && implied_rect_type != HORZ &&
       check_is_chroma_size_valid(cm, tree_type, PARTITION_VERT, bsize, mi_row,
-                                 mi_col, ss_x, ss_y, chroma_ref_info);
+                                 mi_col, ss_x, ss_y, chroma_ref_info)
+#if CONFIG_DISABLE_SUB8X8_MIXED_LOSSY_LOSSLESS
+      && ((mixed_lossy_lossless && block_size_wide[bsize] > 8) ||
+          !mixed_lossy_lossless)
+#endif  // CONFIG_DISABLE_SUB8X8_MIXED_LOSSY_LOSSLESS
+      ;
 
   const bool is_block_splittable = is_partition_point(bsize);
   partition_allowed[PARTITION_NONE] =
@@ -3846,8 +3877,13 @@ static AOM_INLINE void init_allowed_partitions_for_signaling(
       check_is_chroma_size_valid(cm, tree_type, PARTITION_HORZ_3, bsize, mi_row,
                                  mi_col, ss_x, ss_y, chroma_ref_info) &&
       is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
-                                    mi_col, bsize, PARTITION_HORZ_3, ss_x,
-                                    ss_y);
+                                    mi_col, bsize, PARTITION_HORZ_3, ss_x, ss_y)
+#if CONFIG_DISABLE_SUB8X8_MIXED_LOSSY_LOSSLESS
+      && ((mixed_lossy_lossless && ((block_size_wide[bsize] >> 1) >= 8) &&
+           ((block_size_high[bsize] >> 2) >= 8)) ||
+          !mixed_lossy_lossless)
+#endif  // CONFIG_DISABLE_SUB8X8_MIXED_LOSSY_LOSSLESS
+      ;
   num_allowed_partitions += partition_allowed[PARTITION_HORZ_3];
 
   partition_allowed[PARTITION_VERT_3] =
@@ -3861,8 +3897,13 @@ static AOM_INLINE void init_allowed_partitions_for_signaling(
       check_is_chroma_size_valid(cm, tree_type, PARTITION_VERT_3, bsize, mi_row,
                                  mi_col, ss_x, ss_y, chroma_ref_info) &&
       is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
-                                    mi_col, bsize, PARTITION_VERT_3, ss_x,
-                                    ss_y);
+                                    mi_col, bsize, PARTITION_VERT_3, ss_x, ss_y)
+#if CONFIG_DISABLE_SUB8X8_MIXED_LOSSY_LOSSLESS
+      && ((mixed_lossy_lossless && ((block_size_wide[bsize] >> 2) >= 8) &&
+           ((block_size_high[bsize] >> 1) >= 8)) ||
+          !mixed_lossy_lossless)
+#endif  // CONFIG_DISABLE_SUB8X8_MIXED_LOSSY_LOSSLESS
+      ;
   num_allowed_partitions += partition_allowed[PARTITION_VERT_3];
 
   const bool uneven_4way_partition_allowed =
@@ -3879,7 +3920,12 @@ static AOM_INLINE void init_allowed_partitions_for_signaling(
                                  mi_row, mi_col, ss_x, ss_y, chroma_ref_info) &&
       is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
                                     mi_col, bsize, PARTITION_HORZ_4A, ss_x,
-                                    ss_y);
+                                    ss_y)
+#if CONFIG_DISABLE_SUB8X8_MIXED_LOSSY_LOSSLESS
+      && ((mixed_lossy_lossless && ((block_size_high[bsize] >> 3) >= 8)) ||
+          !mixed_lossy_lossless)
+#endif  // CONFIG_DISABLE_SUB8X8_MIXED_LOSSY_LOSSLESS
+      ;
   num_allowed_partitions += partition_allowed[PARTITION_HORZ_4A];
 
   partition_allowed[PARTITION_HORZ_4B] =
@@ -3894,7 +3940,12 @@ static AOM_INLINE void init_allowed_partitions_for_signaling(
                                  mi_row, mi_col, ss_x, ss_y, chroma_ref_info) &&
       is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
                                     mi_col, bsize, PARTITION_HORZ_4B, ss_x,
-                                    ss_y);
+                                    ss_y)
+#if CONFIG_DISABLE_SUB8X8_MIXED_LOSSY_LOSSLESS
+      && ((mixed_lossy_lossless && ((block_size_high[bsize] >> 3) >= 8)) ||
+          !mixed_lossy_lossless)
+#endif  // CONFIG_DISABLE_SUB8X8_MIXED_LOSSY_LOSSLESS
+      ;
   num_allowed_partitions += partition_allowed[PARTITION_HORZ_4B];
 
   partition_allowed[PARTITION_VERT_4A] =
@@ -3909,7 +3960,12 @@ static AOM_INLINE void init_allowed_partitions_for_signaling(
                                  mi_row, mi_col, ss_x, ss_y, chroma_ref_info) &&
       is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
                                     mi_col, bsize, PARTITION_VERT_4A, ss_x,
-                                    ss_y);
+                                    ss_y)
+#if CONFIG_DISABLE_SUB8X8_MIXED_LOSSY_LOSSLESS
+      && ((mixed_lossy_lossless && ((block_size_wide[bsize] >> 3) >= 8)) ||
+          !mixed_lossy_lossless)
+#endif  // CONFIG_DISABLE_SUB8X8_MIXED_LOSSY_LOSSLESS
+      ;
   num_allowed_partitions += partition_allowed[PARTITION_VERT_4A];
 
   partition_allowed[PARTITION_VERT_4B] =
@@ -3924,7 +3980,12 @@ static AOM_INLINE void init_allowed_partitions_for_signaling(
                                  mi_row, mi_col, ss_x, ss_y, chroma_ref_info) &&
       is_chroma_ref_within_boundary(cm, tree_type, is_chroma_ref, mi_row,
                                     mi_col, bsize, PARTITION_VERT_4B, ss_x,
-                                    ss_y);
+                                    ss_y)
+#if CONFIG_DISABLE_SUB8X8_MIXED_LOSSY_LOSSLESS
+      && ((mixed_lossy_lossless && ((block_size_wide[bsize] >> 3) >= 8)) ||
+          !mixed_lossy_lossless)
+#endif  // CONFIG_DISABLE_SUB8X8_MIXED_LOSSY_LOSSLESS
+      ;
   num_allowed_partitions += partition_allowed[PARTITION_VERT_4B];
 
   assert(partition_allowed[PARTITION_HORZ_4A] ==

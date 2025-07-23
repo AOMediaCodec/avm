@@ -23,8 +23,12 @@
 static INLINE void filt_generic_asym_highbd(int q_threshold, int width_neg,
                                             int width_pos, uint16_t *s,
                                             const int pitch, int bd) {
+#if CONFIG_DISABLE_DEBLOCK_LOSSLESS && DISABLE_DEBLOCK_ASYM
+  if (width_neg < 1 && width_pos < 1) return;
+#else
   if (width_neg < 1) return;
   if (width_pos < 1) return;
+#endif  // CONFIG_DISABLE_DEBLOCK_LOSSLESS && DISABLE_DEBLOCK_ASYM
 
   int width = AOMMAX(width_neg, width_pos);
   int delta_m2 = (3 * (s[0] - s[-1 * pitch]) - (s[pitch] - s[-2 * pitch])) * 4;
@@ -32,21 +36,30 @@ static INLINE void filt_generic_asym_highbd(int q_threshold, int width_neg,
   int q_thresh_clamp = q_threshold * q_thresh_mults[width - 1];
   delta_m2 = clamp(delta_m2, -q_thresh_clamp, q_thresh_clamp);
 
-  int delta_m2_neg = delta_m2 * w_mult[width_neg - 1];
-  int delta_m2_pos = delta_m2 * w_mult[width_pos - 1];
-
-  for (int i = 0; i < width_neg; i++) {
-    s[(-i - 1) * pitch] = clip_pixel_highbd(
-        s[(-i - 1) * pitch] +
-            ROUND_POWER_OF_TWO(delta_m2_neg * (width_neg - i), 3 + DF_SHIFT),
-        bd);
+#if CONFIG_DISABLE_DEBLOCK_LOSSLESS && DISABLE_DEBLOCK_ASYM
+  if (width_neg >= 1) {
+#endif  // CONFIG_DISABLE_DEBLOCK_LOSSLESS && DISABLE_DEBLOCK_ASYM
+    int delta_m2_neg = delta_m2 * w_mult[width_neg - 1];
+    for (int i = 0; i < width_neg; i++) {
+      s[(-i - 1) * pitch] = clip_pixel_highbd(
+          s[(-i - 1) * pitch] +
+              ROUND_POWER_OF_TWO(delta_m2_neg * (width_neg - i), 3 + DF_SHIFT),
+          bd);
+    }
+#if CONFIG_DISABLE_DEBLOCK_LOSSLESS && DISABLE_DEBLOCK_ASYM
   }
-  for (int i = 0; i < width_pos; i++) {
-    s[i * pitch] = clip_pixel_highbd(
-        s[i * pitch] -
-            ROUND_POWER_OF_TWO(delta_m2_pos * (width_pos - i), 3 + DF_SHIFT),
-        bd);
+  if (width_pos >= 1) {
+#endif  // CONFIG_DISABLE_DEBLOCK_LOSSLESS && DISABLE_DEBLOCK_ASYM
+    int delta_m2_pos = delta_m2 * w_mult[width_pos - 1];
+    for (int i = 0; i < width_pos; i++) {
+      s[i * pitch] = clip_pixel_highbd(
+          s[i * pitch] -
+              ROUND_POWER_OF_TWO(delta_m2_pos * (width_pos - i), 3 + DF_SHIFT),
+          bd);
+    }
+#if CONFIG_DISABLE_DEBLOCK_LOSSLESS && DISABLE_DEBLOCK_ASYM
   }
+#endif  // CONFIG_DISABLE_DEBLOCK_LOSSLESS && DISABLE_DEBLOCK_ASYM
 }
 #else
 static INLINE void filt_generic_highbd(int q_threshold, int width, uint16_t *s,

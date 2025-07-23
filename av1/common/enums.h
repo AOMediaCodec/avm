@@ -27,6 +27,36 @@ extern "C" {
 
 /*!\cond */
 
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+#define CONFIG_DISABLE_LR_LOSSLESS 1
+#define CONFIG_CHECK_LOSSLESS_MIXED_CONTENT 0
+#define CONFIG_DISABLE_GDF_LOSSLESS 0
+#define CONFIG_DISABLE_DEBLOCK_LOSSLESS 1
+#define CONFIG_DISABLE_CDEF_LOSSLESS 1
+#define CONFIG_DISABLE_CCSO_LOSSLESS 1
+#define CONFIG_DISABLE_SUB8X8_MIXED_LOSSY_LOSSLESS 0
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+
+#if CONFIG_MIXED_LOSSLESS_ENCODE
+#define FIXED_MIXED_LOSSLESS_PATTERN 2
+#if FIXED_MIXED_LOSSLESS_PATTERN == 1
+#define NUMBER_OF_LOSSY_SBS_ROWS (2)
+#define NUMBER_OF_LOSSY_SBS_COLS (2)
+#endif  // FIXED_MIXED_LOSSLESS_PATTERN
+
+#define CHECK_LOSSLESS_PSNR 1
+#define CHECK_LOSSLESS(c, err)                                           \
+  if (c) {                                                               \
+    printf("The assertion failed on line %d, in file %s %s\n", __LINE__, \
+           __FILE__, err);                                               \
+    exit(1);                                                             \
+  }
+#endif  // CONFIG_MIXED_LOSSLESS_ENCODE
+
+#if CONFIG_DISABLE_DEBLOCK_LOSSLESS
+#define DISABLE_DEBLOCK_ASYM 1
+#endif  // CONFIG_DISABLE_DEBLOCK_LOSSLESS
+
 #undef MAX_SB_SIZE
 
 #if CONFIG_DRL_PR_LIM

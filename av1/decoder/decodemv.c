@@ -981,7 +981,7 @@ static int read_segment_id(AV1_COMMON *const cm, const MACROBLOCKD *const xd,
                            aom_reader *r, int skip) {
   int cdf_num;
   const int pred = av1_get_spatial_seg_pred(cm, xd, &cdf_num);
-  if (skip && !xd->lossless[pred]) return pred;
+  if (skip && !cm->features.has_lossless_segment) return pred;
 
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
   struct segmentation *const seg = &cm->seg;
@@ -2134,6 +2134,11 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
         cm, xd, bsize, r, mbmi->skip_txfm[xd->tree_type == CHROMA_PART]);
 
   mbmi->seg_id_predicted = 0;
+#if CONFIG_MIXED_LOSSLESS_ENCODE
+  assert(IMPLIES(mbmi->segment_id, xd->lossless[mbmi->segment_id]));
+  CHECK_LOSSLESS(!IMPLIES(mbmi->segment_id, xd->lossless[mbmi->segment_id]),
+                 "lossless condition is broken");
+#endif  // CONFIG_MIXED_LOSSLESS_ENCODE
 
 #if CONFIG_GDF
   if (xd->tree_type != CHROMA_PART) read_gdf(cm, r, xd);
@@ -4285,6 +4290,12 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
   read_delta_q_params(cm, xd, r);
 
   mbmi->current_qindex = xd->current_base_qindex;
+
+#if CONFIG_MIXED_LOSSLESS_ENCODE
+  assert(IMPLIES(mbmi->segment_id, xd->lossless[mbmi->segment_id]));
+  CHECK_LOSSLESS(!IMPLIES(mbmi->segment_id, xd->lossless[mbmi->segment_id]),
+                 "lossless condition is broken");
+#endif  // CONFIG_MIXED_LOSSLESS_ENCODE
 
 #if CONFIG_IBC_SR_EXT
   if (!inter_block &&

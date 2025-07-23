@@ -1058,6 +1058,18 @@ static TX_SIZE set_lpf_parameters(
   }
   return ts;
 }
+
+#if CONFIG_DISABLE_DEBLOCK_LOSSLESS
+static uint8_t get_lossless_flag(AV1_COMMON *const cm, uint32_t x, uint32_t y,
+                                 uint32_t scale_horz, uint32_t scale_vert) {
+  const int this_mi_row = (y << scale_vert) >> MI_SIZE_LOG2;
+  const int this_mi_col = (x << scale_horz) >> MI_SIZE_LOG2;
+  MB_MODE_INFO **this_mi = cm->mi_params.mi_grid_base +
+                           this_mi_row * cm->mi_params.mi_stride + this_mi_col;
+  return this_mi[0] ? cm->features.lossless_segment[this_mi[0]->segment_id] : 0;
+}
+#endif  // CONFIG_DISABLE_DEBLOCK_LOSSLESS
+
 #if CONFIG_BRU
 void av1_filter_block_plane_vert(AV1_COMMON *const cm,
 #else
@@ -1112,10 +1124,23 @@ void av1_filter_block_plane_vert(const AV1_COMMON *const cm,
       }
 
       const aom_bit_depth_t bit_depth = cm->seq_params.bit_depth;
+#if CONFIG_DISABLE_DEBLOCK_LOSSLESS
+      int skip_filter =
+          get_lossless_flag(cm, curr_x, curr_y, scale_horz, scale_vert) ||
+          get_lossless_flag(cm, prev_x, curr_y, scale_horz, scale_vert);
+#endif  // CONFIG_DISABLE_DEBLOCK_LOSSLESS
 #if CONFIG_ASYM_DF
-      if (params.filter_length_neg || params.filter_length_pos) {
+      if (
+#if CONFIG_DISABLE_DEBLOCK_LOSSLESS
+          !skip_filter &&
+#endif  // CONFIG_DISABLE_DEBLOCK_LOSSLESS
+          (params.filter_length_neg || params.filter_length_pos)) {
 #else
-      if (params.filter_length) {
+      if (
+#if CONFIG_DISABLE_DEBLOCK_LOSSLESS
+          !skip_filter &&
+#endif  // CONFIG_DISABLE_DEBLOCK_LOSSLESS
+          params.filter_length) {
 #endif  // CONFIG_ASYM_DF
         aom_highbd_lpf_vertical_generic(
             p, dst_stride,
@@ -1193,11 +1218,24 @@ void av1_filter_block_plane_horz(const AV1_COMMON *const cm,
         tx_size = TX_4X4;
       }
       const aom_bit_depth_t bit_depth = cm->seq_params.bit_depth;
+#if CONFIG_DISABLE_DEBLOCK_LOSSLESS
+      int skip_filter =
+          get_lossless_flag(cm, curr_x, curr_y, scale_horz, scale_vert) ||
+          get_lossless_flag(cm, curr_x, prev_y, scale_horz, scale_vert);
+#endif  // CONFIG_DISABLE_DEBLOCK_LOSSLESS
 
 #if CONFIG_ASYM_DF
-      if (params.filter_length_neg || params.filter_length_pos) {
+      if (
+#if CONFIG_DISABLE_DEBLOCK_LOSSLESS
+          !skip_filter &&
+#endif  // CONFIG_DISABLE_DEBLOCK_LOSSLESS
+          (params.filter_length_neg || params.filter_length_pos)) {
 #else
-      if (params.filter_length) {
+      if (
+#if CONFIG_DISABLE_DEBLOCK_LOSSLESS
+          !skip_filter &&
+#endif  // CONFIG_DISABLE_DEBLOCK_LOSSLESS
+          params.filter_length) {
 #endif  // CONFIG_ASYM_DF
         aom_highbd_lpf_horizontal_generic(
             p, dst_stride,

@@ -1521,6 +1521,18 @@ static AOM_INLINE void parse_decode_block(AV1Decoder *const pbi,
   AV1_COMMON *cm = &pbi->common;
   const int num_planes = av1_num_planes(cm);
   MB_MODE_INFO *mbmi = xd->mi[0];
+
+#ifndef NDEBUG
+#if CONFIG_DISABLE_SUB8X8_MIXED_LOSSY_LOSSLESS
+  bool mixed_lossy_lossless =
+      !cm->features.coded_lossless && cm->features.has_lossless_segment;
+  assert((mixed_lossy_lossless && xd->is_chroma_ref) || !mixed_lossy_lossless);
+  assert((mixed_lossy_lossless && block_size_wide[bsize] > 4 &&
+          block_size_high[bsize] > 4) ||
+         !mixed_lossy_lossless);
+#endif  // CONFIG_DISABLE_SUB8X8_MIXED_LOSSY_LOSSLESS
+#endif //NDEBUG
+
   int inter_block_tx = is_inter_block(mbmi, xd->tree_type) ||
                        is_intrabc_block(mbmi, xd->tree_type);
   if (xd->tree_type != CHROMA_PART) {
@@ -8597,6 +8609,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   }
 
   xd->cur_frame_force_integer_mv = features->cur_frame_force_integer_mv;
+  features->has_lossless_segment = 0;
 
 #if !CONFIG_F311_QM_PARAMS
   if (!cm->seg.enabled && quant_params->using_qmatrix &&
@@ -8622,6 +8635,13 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         (quant_params->v_dc_delta_q + cm->seq_params.base_uv_dc_delta_q <= 0) &&
         (quant_params->u_ac_delta_q + cm->seq_params.base_uv_ac_delta_q <= 0) &&
         (quant_params->v_ac_delta_q + cm->seq_params.base_uv_ac_delta_q <= 0);
+
+#if CONFIG_DISABLE_LR_LOSSLESS || CONFIG_DISABLE_GDF_LOSSLESS
+    features->lossless_segment[i] = xd->lossless[i];
+#endif  // CONFIG_DISABLE_LR_LOSSLESS || CONFIG_DISABLE_GDF_LOSSLESS
+
+    if (xd->lossless[i]) features->has_lossless_segment = 1;
+
     xd->qindex[i] = qindex;
     if (av1_use_qmatrix(quant_params, xd, i)) {
       if (quant_params->qm_index_bits > 0) {
