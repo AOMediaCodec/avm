@@ -1265,7 +1265,6 @@ static INLINE void av1_get_neighbor_warp_model(const AV1_COMMON *cm,
   }
 }
 
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 static INLINE int av1_get_warp_causal_ctx(const MACROBLOCKD *xd) {
   int ctx = 0;
   int has_warp_neighbor = 0;
@@ -1279,7 +1278,6 @@ static INLINE int av1_get_warp_causal_ctx(const MACROBLOCKD *xd) {
 
   return (ctx + has_warp_neighbor);
 }
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
 static INLINE int av1_get_warp_extend_ctx(const MACROBLOCKD *xd) {
   int ctx = 0;

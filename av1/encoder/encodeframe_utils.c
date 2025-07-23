@@ -441,7 +441,6 @@ void av1_update_inter_mode_stats(FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
 
   if (is_warpmv_mode_allowed(cm, mbmi, bsize)) {
     const int16_t iswarpmvmode_ctx = inter_warpmv_mode_ctx(cm, xd, mbmi);
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
     const int is_warpmv_or_warp_newmv = (mode == WARPMV || mode == WARP_NEWMV);
 #if CONFIG_ENTROPY_STATS
     ++counts->inter_warp_cnts[iswarpmvmode_ctx][is_warpmv_or_warp_newmv];
@@ -457,10 +456,6 @@ void av1_update_inter_mode_stats(FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
       }
       return;
     }
-#else
-    update_cdf(fc->inter_warp_mode_cdf[iswarpmvmode_ctx], mode == WARPMV, 2);
-    if (mode == WARPMV) return;
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   }
 
   const int16_t ismode_ctx = inter_single_mode_ctx(mode_context);

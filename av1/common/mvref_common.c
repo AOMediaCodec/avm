@@ -5608,11 +5608,7 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
     return num_of_warp_neighbors;
   }
 
-  if (mbmi->mode == NEWMV
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-      || mbmi->mode == WARP_NEWMV
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-  ) {
+  if (mbmi->mode == NEWMV || mbmi->mode == WARP_NEWMV) {
     return allow_new_ext;
   } else if (mbmi->mode == NEARMV) {
     return allow_near_ext;
@@ -5715,10 +5711,7 @@ static AOM_INLINE int check_pos_and_get_base_pos(const AV1_COMMON *cm,
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
     if (is_same_ref_frame(neighbor_mi, mbmi)) {
       if ((is_warp_mode(neighbor_mi->motion_mode) && mbmi->mode == NEARMV) ||
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-          mbmi->mode == WARP_NEWMV ||
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-          mbmi->mode == NEWMV) {
+          mbmi->mode == WARP_NEWMV || mbmi->mode == NEWMV) {
         base_pos->row = mi_pos.row;
         base_pos->col = mi_pos.col;
         return 1;
@@ -5736,10 +5729,7 @@ int get_extend_base_pos(const AV1_COMMON *cm, const MACROBLOCKD *xd,
         xd->mi[mvp_row_offset * xd->mi_stride + mvp_col_offset];
     if (!is_tip_ref_frame(neighbor_mi->ref_frame[0])) {
       if ((is_warp_mode(neighbor_mi->motion_mode) && mbmi->mode == NEARMV) ||
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-          mbmi->mode == WARP_NEWMV ||
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-          mbmi->mode == NEWMV) {
+          mbmi->mode == WARP_NEWMV || mbmi->mode == NEWMV) {
         base_pos->row = mvp_row_offset;
         base_pos->col = mvp_col_offset;
         return 1;

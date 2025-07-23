@@ -482,7 +482,6 @@ static PREDICTION_MODE read_inter_mode(FRAME_CONTEXT *ec_ctx, aom_reader *r,
     return tip_pred_index_to_mode[tip_pred_index];
   }
 
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   if (is_warpmv_mode_allowed(cm, mbmi, bsize)) {
     const int16_t iswarpmvmode_ctx = inter_warpmv_mode_ctx(cm, xd, mbmi);
     const int is_warpmv_or_warp_newmv =
@@ -498,18 +497,6 @@ static PREDICTION_MODE read_inter_mode(FRAME_CONTEXT *ec_ctx, aom_reader *r,
       }
     }
   }
-#else
-  int is_warpmv = 0;
-  if (is_warpmv_mode_allowed(cm, mbmi, bsize)) {
-    const int16_t iswarpmvmode_ctx = inter_warpmv_mode_ctx(cm, xd, mbmi);
-    is_warpmv =
-        aom_read_symbol(r, ec_ctx->inter_warp_mode_cdf[iswarpmvmode_ctx], 2,
-                        ACCT_INFO("is_warpmv"));
-    if (is_warpmv) {
-      return WARPMV;
-    }
-  }
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
   const int16_t ismode_ctx = inter_single_mode_ctx(ctx);
   return SINGLE_INTER_MODE_START +
@@ -836,7 +823,6 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
     return WARP_DELTA;
   }
 
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   if (is_warp_newmv_allowed(cm, xd, mbmi, bsize) && mbmi->mode == WARP_NEWMV) {
     if (!((allowed_motion_modes & (1 << WARP_CAUSAL)) ||
           (allowed_motion_modes & (1 << WARP_DELTA))))
@@ -855,21 +841,10 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
     if (!(allowed_motion_modes & (1 << WARP_DELTA))) return WARP_CAUSAL;
 
     if (allowed_motion_modes & (1 << WARP_CAUSAL)) {
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
       const int ctx = av1_get_warp_causal_ctx(xd);
       const int use_warp_causal =
           aom_read_symbol(r, xd->tile_ctx->warp_causal_cdf[ctx], 2,
                           ACCT_INFO("use_warp_causal"));
-#else
-#if CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARP_CAUSAL
-      int use_warp_causal = aom_read_symbol(r, xd->tile_ctx->warp_causal_cdf, 2,
-                                            ACCT_INFO("use_warp_causal"));
-#else
-      int use_warp_causal =
-          aom_read_symbol(r, xd->tile_ctx->warp_causal_cdf[bsize], 2,
-                          ACCT_INFO("use_warp_causal"));
-#endif  // CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARP_CAUSAL
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
       if (use_warp_causal) {
         return WARP_CAUSAL;
       }
@@ -877,7 +852,6 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
 
     return WARP_DELTA;
   }
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
   mbmi->use_wedge_interintra = 0;
   if (allowed_motion_modes & (1 << INTERINTRA)) {
@@ -930,52 +904,14 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
     }
   }
 
-#if !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-  if (allowed_motion_modes & (1 << WARP_EXTEND)) {
-    const int ctx = av1_get_warp_extend_ctx(xd);
-    const int use_warp_extend = aom_read_symbol(
-        r, xd->tile_ctx->warp_extend_cdf[ctx], 2, ACCT_INFO("use_warp_extend"));
-    if (use_warp_extend) {
-      return WARP_EXTEND;
-    }
-  }
-#endif  // !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-
   if (allowed_motion_modes & (1 << WARP_CAUSAL)) {
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
     const int ctx = av1_get_warp_causal_ctx(xd);
     const int use_warp_causal = aom_read_symbol(
         r, xd->tile_ctx->warp_causal_cdf[ctx], 2, ACCT_INFO("use_warp_causal"));
-#else
-#if CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARP_CAUSAL
-    int use_warp_causal = aom_read_symbol(r, xd->tile_ctx->warp_causal_cdf, 2,
-                                          ACCT_INFO("use_warp_causal"));
-#else
-    int use_warp_causal =
-        aom_read_symbol(r, xd->tile_ctx->warp_causal_cdf[bsize], 2,
-                        ACCT_INFO("use_warp_causal"));
-#endif  // CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARP_CAUSAL
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
     if (use_warp_causal) {
       return WARP_CAUSAL;
     }
   }
-
-#if !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-  if (allowed_motion_modes & (1 << WARP_DELTA)) {
-#if CONFIG_D149_CTX_MODELING_OPT
-    int use_warp_delta = aom_read_symbol(r, xd->tile_ctx->warp_delta_cdf, 2,
-                                         ACCT_INFO("use_warp_delta"));
-#else
-    int use_warp_delta = aom_read_symbol(r, xd->tile_ctx->warp_delta_cdf[bsize],
-                                         2, ACCT_INFO("use_warp_delta"));
-#endif  // CONFIG_D149_CTX_MODELING_OPT
-    if (use_warp_delta) {
-      mbmi->motion_mode = WARP_DELTA;
-      return WARP_DELTA;
-    }
-  }
-#endif  // !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
   return SIMPLE_TRANSLATION;
 }
@@ -3300,9 +3236,7 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
 #endif  // CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
 
   switch (mode) {
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
     case WARP_NEWMV:
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
     case NEWMV: {
       nmv_context *const nmvc = &ec_ctx->nmvc;
 #if CONFIG_DERIVED_MVD_SIGN
@@ -3968,17 +3902,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       int is_warpmv_warp_causal =
           ((mbmi->motion_mode == WARP_CAUSAL) && mbmi->mode == WARPMV);
       if (mbmi->motion_mode == WARP_DELTA || is_warpmv_warp_causal) {
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
         mbmi->max_num_warp_candidates = MAX_WARP_REF_CANDIDATES;
-#else
-        mbmi->max_num_warp_candidates =
-            (mbmi->mode == GLOBALMV || mbmi->mode == NEARMV)
-                ? 1
-                : MAX_WARP_REF_CANDIDATES;
-        if (is_warpmv_warp_causal) {
-          mbmi->max_num_warp_candidates = MAX_WARP_REF_CANDIDATES;
-        }
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
         av1_find_warp_delta_base_candidates(
             xd, mbmi, warp_param_stack,
             xd->warp_param_stack[av1_ref_frame_type(mbmi->ref_frame)],
@@ -4356,11 +4280,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       mbmi->wm_params[0] = neighbor_mi->wm_params[0];
 #endif  // CONFIG_COMPOUND_WARP_CAUSAL
     } else {
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
       assert(mbmi->mode == WARP_NEWMV);
-#else
-      assert(mbmi->mode == NEWMV);
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
       bool neighbor_is_above =
           xd->up_available && (base_pos.row == -1 && base_pos.col >= 0);

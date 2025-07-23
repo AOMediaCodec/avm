@@ -876,13 +876,9 @@ enum {
   NEARMV,
   GLOBALMV,
   NEWMV,
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   WARPMV,      // WARPMV mode (original WARPMV)
   WARP_NEWMV,  // WARP_NEWMV mode (original warp modes under NEWMV)
-#else
-  WARPMV,  // WARPMV mode
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-        // Compound ref compound modes
+               // Compound ref compound modes
   NEAR_NEARMV,
   NEAR_NEWMV,
   NEW_NEARMV,
@@ -1039,15 +1035,9 @@ enum {
 // Total delta angles for one nominal directional mode
 #define TOTAL_ANGLE_DELTA_COUNT 7
 
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 // The warpmv and warpmv_new mode is signalled as a separate flag
 // So the number of remaining modes to be signalled is (SINGLE_INTER_MODE_NUM-2)
 #define INTER_SINGLE_MODES (SINGLE_INTER_MODE_NUM - 2)
-#else
-// The warpmv mode is signalled as a separate flag
-// So the number of remaining modes to be signalled is (SINGLE_INTER_MODE_NUM-1)
-#define INTER_SINGLE_MODES (SINGLE_INTER_MODE_NUM - 1)
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
 #define INTER_COMPOUND_MODES COMP_INTER_MODE_NUM
 
@@ -1193,9 +1183,7 @@ typedef uint8_t INTRA_REGION_CONTEXT;
 
 #define TIP_CONTEXTS 3
 
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 #define WARP_CAUSAL_MODE_CTX 4
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
 #define TIP_PRED_MODES 2
 #define WARP_EXTEND_CTX 3

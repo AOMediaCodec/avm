@@ -382,14 +382,8 @@ static INLINE int allow_warp_parameter_signaling(const AV1_COMMON *const cm,
       (mbmi->warp_ref_idx == 1);  // 4-parameter
 #endif  // CONFIG_REORDER_SIX_PARAM_DELTA
 
-  return (
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-      mbmi->mode == WARP_NEWMV &&
-#else
-      mbmi->mode != WARPMV &&
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-      cm->features.allow_warpmv_mode && mbmi->motion_mode == WARP_DELTA &&
-      allow_delta_for_this_warp_ref_idx);
+  return (mbmi->mode == WARP_NEWMV && cm->features.allow_warpmv_mode &&
+          mbmi->motion_mode == WARP_DELTA && allow_delta_for_this_warp_ref_idx);
 }
 
 // Map the index to weighting factor for compound weighted prediction
@@ -1302,9 +1296,7 @@ static INLINE int av1_allow_bawp(const AV1_COMMON *const cm,
     return 0;
   }
 #endif  // !CONFIG_BAWP_ACROSS_SCALES
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   if (mbmi->mode == WARP_NEWMV) return 0;
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   if (is_tip_ref_frame(mbmi->ref_frame[0])) return 0;
   if (is_motion_variation_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y], mi_row,
                                         mi_col) &&
@@ -1432,10 +1424,7 @@ static INLINE int is_mvd_sign_derive_allowed(const AV1_COMMON *const cm,
     }
     if (drl_idx > 0) return 0;
   }
-  return (mbmi->mode == NEWMV ||
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-          mbmi->mode == WARP_NEWMV ||
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+  return (mbmi->mode == NEWMV || mbmi->mode == WARP_NEWMV ||
           mbmi->mode == JOINT_NEWMV || mbmi->mode == JOINT_NEWMV_OPTFLOW ||
           mbmi->mode == NEW_NEWMV || mbmi->mode == NEW_NEWMV_OPTFLOW);
 }

@@ -694,11 +694,8 @@ static AOM_INLINE void collect_mv_stats_b(MV_STATS *mv_stats,
   MvSubpelPrecision pb_mv_precision = mbmi->pb_mv_precision;
   const int most_probable_pb_mv_precision = mbmi->most_probable_pb_mv_precision;
 
-  if (mode == NEWMV ||
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-      mode == WARP_NEWMV ||
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-      mode == NEW_NEWMV_OPTFLOW || mode == NEW_NEWMV) {
+  if (mode == NEWMV || mode == WARP_NEWMV || mode == NEW_NEWMV_OPTFLOW ||
+      mode == NEW_NEWMV) {
     // All mvs are new
     for (int ref_idx = 0; ref_idx < 1 + is_compound; ++ref_idx) {
       const MV ref_mv =

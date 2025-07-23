@@ -556,7 +556,6 @@ static int cost_prediction_mode(const ModeCosts *const mode_costs,
   int warp_mode_cost = 0;
   if (is_warpmv_mode_allowed(cm, mbmi, mbmi->sb_type[PLANE_TYPE_Y])) {
     const int16_t iswarpmvmode_ctx = inter_warpmv_mode_ctx(cm, xd, mbmi);
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
     const BLOCK_SIZE bsize = mbmi->sb_type[xd->tree_type == CHROMA_PART];
     const int is_warpmv_or_warp_newmv = (mode == WARPMV || mode == WARP_NEWMV);
     warp_mode_cost =
@@ -569,11 +568,6 @@ static int cost_prediction_mode(const ModeCosts *const mode_costs,
       }
       return warp_mode_cost;
     }
-#else
-    warp_mode_cost =
-        mode_costs->inter_warp_mode_cost[iswarpmvmode_ctx][mode == WARPMV];
-    if (mode == WARPMV) return warp_mode_cost;
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   }
 
   const int16_t ismode_ctx = inter_single_mode_ctx(mode_context);
@@ -1536,8 +1530,6 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
     cur_mv[0].as_int = best_mv.as_int;
   } else {
     // Single ref case.
-
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
     if (this_mode == WARP_NEWMV) {
       const int ref_mv_idx = get_ref_mv_idx(mbmi, 0);
       if (args->single_newmv_valid[pb_mv_precision][ref_mv_idx][refs[0]]) {
@@ -1548,7 +1540,7 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
         return 0;
       }
     }
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+
     const int ref_idx = 0;
     int_mv best_mv;
     int valid_precision_mv0 = NUM_MV_PRECISIONS;
@@ -2526,11 +2518,7 @@ static int64_t motion_mode_rd(
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
   int modes_to_search =
-      (base_mbmi.mode == WARPMV
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-       || base_mbmi.mode == WARP_NEWMV
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-       )
+      (base_mbmi.mode == WARPMV || base_mbmi.mode == WARP_NEWMV)
           ? allowed_motion_modes
           : select_modes_to_search(cpi, allowed_motion_modes, eval_motion_mode,
                                    args->skip_motion_mode);
@@ -2822,21 +2810,10 @@ static int64_t motion_mode_rd(
             assert(!is_comp_pred);
 #endif  // CONFIG_COMPOUND_WARP_CAUSAL
 #if CONFIG_COMPOUND_WARP_CAUSAL
-                if ((((
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-                          this_mode == WARP_NEWMV ||
-#else
-                          this_mode == NEWMV ||
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-                          this_mode == NEW_NEWMV) &&
+                if ((((this_mode == WARP_NEWMV || this_mode == NEW_NEWMV) &&
                       !l0_invalid)
 #else
-            if ((
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-                    this_mode == WARP_NEWMV
-#else
-                    this_mode == NEWMV
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+            if ((this_mode == WARP_NEWMV
 #endif  // CONFIG_COMPOUND_WARP_CAUSAL
                      && (mbmi->pb_mv_precision >= MV_PRECISION_ONE_PEL))
 
@@ -2982,12 +2959,7 @@ static int64_t motion_mode_rd(
               // assert(mbmi->ref_frame[1] == INTRA_FRAME);
 #endif  // CONFIG_INTERINTRA_IMPROVEMENT
             } else if (mbmi->motion_mode == WARP_DELTA) {
-              if (
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-                  mbmi->mode == WARP_NEWMV &&
-#else
-              mbmi->mode == NEWMV &&
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+              if (mbmi->mode == WARP_NEWMV &&
                   mbmi->pb_mv_precision < MV_PRECISION_ONE_PEL) {
                 // Don't bother with warp modes for MV precisions >1px
                 continue;
@@ -3096,11 +3068,7 @@ static int64_t motion_mode_rd(
                     ms_params.mv_cost_params.is_adaptive_mvd);
 
                 tmp_rate2 = rate2_nocoeff - rate_mv0 + tmp_rate_mv;
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
                 assert(mbmi->mode == WARP_NEWMV || mbmi->warpmv_with_mvd_flag);
-#else
-            assert(mbmi->mode == NEWMV || mbmi->warpmv_with_mvd_flag);
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
                 assert(IMPLIES(mbmi->mode == WARPMV, rate_mv0 == 0));
               }
 #if CONFIG_C071_SUBBLK_WARPMV
@@ -3124,12 +3092,7 @@ static int64_t motion_mode_rd(
               av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
                                             0, av1_num_planes(cm) - 1);
             } else if (mbmi->motion_mode == WARP_EXTEND) {
-              if (
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-                  mbmi->mode == WARP_NEWMV &&
-#else
-              mbmi->mode == NEWMV &&
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+              if (mbmi->mode == WARP_NEWMV &&
                   mbmi->pb_mv_precision < MV_PRECISION_ONE_PEL) {
                 // Don't bother with warp modes for MV precisions >1px
                 continue;
@@ -3175,11 +3138,7 @@ static int64_t motion_mode_rd(
             mbmi->wm_params[0] = neighbor_mi->wm_params[0];
 #endif  // CONFIG_COMPOUND_WARP_CAUSAL
               } else {
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
                 assert(mbmi->mode == WARP_NEWMV);
-#else
-            assert(mbmi->mode == NEWMV);
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
                 bool neighbor_is_above =
                     xd->up_available &&
@@ -3361,11 +3320,8 @@ static int64_t motion_mode_rd(
             }
 
             MOTION_MODE motion_mode = mbmi->motion_mode;
-            bool continue_motion_mode_signaling = (mbmi->mode != WARPMV
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-                                                   && mbmi->mode != WARP_NEWMV
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-            );
+            bool continue_motion_mode_signaling =
+                (mbmi->mode != WARPMV && mbmi->mode != WARP_NEWMV);
 
             if (continue_motion_mode_signaling &&
                 allowed_motion_modes & (1 << INTERINTRA)) {
@@ -3380,50 +3336,13 @@ static int64_t motion_mode_rd(
               }
             }
 
-#if !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-            if (continue_motion_mode_signaling &&
-                allowed_motion_modes & (1 << WARP_EXTEND)) {
-              const int ctx = av1_get_warp_extend_ctx(xd);
-              rd_stats->rate +=
-                  mode_costs->warp_extend_cost[ctx][motion_mode == WARP_EXTEND];
-              if (motion_mode == WARP_EXTEND) {
-                continue_motion_mode_signaling = false;
-              }
-            }
-#endif  // !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-
             if (continue_motion_mode_signaling &&
                 allowed_motion_modes & (1 << WARP_CAUSAL)) {
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
               const int ctx = av1_get_warp_causal_ctx(xd);
               rd_stats->rate +=
                   mode_costs->warp_causal_cost[ctx][motion_mode == WARP_CAUSAL];
-#else
-          rd_stats->rate +=
-#if CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARP_CAUSAL
-              mode_costs->warp_causal_cost[motion_mode == WARP_CAUSAL];
-#else
-              mode_costs->warp_causal_cost[bsize][motion_mode == WARP_CAUSAL];
-#endif  // CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARP_CAUSAL
-          if (motion_mode == WARP_CAUSAL) {
-            continue_motion_mode_signaling = false;
-          }
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
             }
 
-#if !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-            if (continue_motion_mode_signaling &&
-                allowed_motion_modes & (1 << WARP_DELTA)) {
-              rd_stats->rate +=
-#if CONFIG_D149_CTX_MODELING_OPT
-                  mode_costs->warp_delta_cost[motion_mode == WARP_DELTA];
-#else
-                  mode_costs->warp_delta_cost[bsize][motion_mode == WARP_DELTA];
-#endif  // CONFIG_D149_CTX_MODELING_OPT
-            }
-#endif  // !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
             if (is_warp_newmv_allowed(cm, xd, mbmi, bsize) &&
                 mbmi->mode == WARP_NEWMV) {
               continue_motion_mode_signaling =
@@ -3444,26 +3363,12 @@ static int64_t motion_mode_rd(
               if (continue_motion_mode_signaling &&
                   (allowed_motion_modes & (1 << WARP_DELTA)) &&
                   (allowed_motion_modes & (1 << WARP_CAUSAL))) {
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
                 const int ctx = av1_get_warp_causal_ctx(xd);
                 rd_stats->rate +=
                     mode_costs
                         ->warp_causal_cost[ctx][motion_mode == WARP_CAUSAL];
-#else
-                rd_stats->rate +=
-#if CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARP_CAUSAL
-                    mode_costs->warp_causal_cost[motion_mode == WARP_CAUSAL];
-#else
-                    mode_costs
-                        ->warp_causal_cost[bsize][motion_mode == WARP_CAUSAL];
-#endif  // CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARP_CAUSAL
-                if (motion_mode == WARP_CAUSAL) {
-                  continue_motion_mode_signaling = false;
-                }
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
               }
             }
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
             if (mbmi->mode == WARPMV) {
               if (allowed_motion_modes & (1 << WARP_CAUSAL)) {
@@ -3734,11 +3639,7 @@ static INLINE int check_repeat_ref_mv(const MB_MODE_INFO_EXT *mbmi_ext,
                                     : av1_ref_frame_type(ref_frame);
   if (is_tip_ref_frame(ref_frame_type)) return 0;
   const int ref_mv_count = mbmi_ext->ref_mv_count[ref_frame_type];
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   assert(single_mode != NEWMV && single_mode != WARP_NEWMV);
-#else
-  assert(single_mode != NEWMV);
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   // when ref_mv_count = 0 or 1, NEARMV is same as GLOBALMV
   if (single_mode == NEARMV && ref_mv_count < 2) {
     return 1;
@@ -3777,11 +3678,7 @@ static INLINE int get_this_mv(int_mv *this_mv, PREDICTION_MODE this_mode,
                               const MB_MODE_INFO_EXT *mbmi_ext) {
   const PREDICTION_MODE single_mode = get_single_mode(this_mode, ref_idx);
   assert(is_inter_singleref_mode(single_mode));
-  if (single_mode == NEWMV
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-      || single_mode == WARP_NEWMV
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-  ) {
+  if (single_mode == NEWMV || single_mode == WARP_NEWMV) {
     this_mv->as_int = INVALID_MV;
   } else if (single_mode == GLOBALMV) {
     if (skip_repeated_ref_mv &&
@@ -3878,11 +3775,7 @@ static INLINE int build_cur_mv(int_mv *cur_mv, PREDICTION_MODE this_mode,
                       mbmi->ref_frame, x->mbmi_ext);
     if (!ret) return 0;
     const PREDICTION_MODE single_mode = get_single_mode(this_mode, i);
-    if (single_mode == NEWMV
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-        || single_mode == WARP_NEWMV
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-    ) {
+    if (single_mode == NEWMV || single_mode == WARP_NEWMV) {
       const uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
       if (has_second_drl(mbmi))
         cur_mv[i] =
@@ -3977,12 +3870,7 @@ static INLINE int is_single_newmv_valid(const HandleInterModeArgs *const args,
     const MV_REFERENCE_FRAME ref =
         ref_idx == 0 ? COMPACT_INDEX0_NRS(mbmi->ref_frame[ref_idx])
                      : COMPACT_INDEX1_NRS(mbmi->ref_frame[ref_idx]);
-    if (
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-        (single_mode == NEWMV || single_mode == WARP_NEWMV) &&
-#else
-        single_mode == NEWMV &&
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
+    if ((single_mode == NEWMV || single_mode == WARP_NEWMV) &&
         args->single_newmv_valid[mbmi->pb_mv_precision]
                                 [get_ref_mv_idx(mbmi, ref_idx)][ref] == 0) {
       return 0;
@@ -4626,13 +4514,8 @@ static int skip_repeated_newmv(
     int_mv *cur_mv, int64_t *best_rd, const BUFFER_SET orig_dst,
     int ref_mv_idx[2]) {
   // This feature only works for NEWMV when a previous mv has been searched
-  if (
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-      (this_mode != NEWMV && this_mode != WARP_NEWMV)
-#else
-      this_mode != NEWMV
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-      || (ref_mv_idx[0] == 0 && ref_mv_idx[1] == 0))
+  if ((this_mode != NEWMV && this_mode != WARP_NEWMV) ||
+      (ref_mv_idx[0] == 0 && ref_mv_idx[1] == 0))
     return 0;
 
   MACROBLOCKD *xd = &x->e_mbd;
@@ -5610,11 +5493,7 @@ static int64_t handle_inter_mode(
                   for (int ref = 0; ref < is_comp_pred + 1; ref++) {
                     const PREDICTION_MODE single_mode =
                         get_single_mode(this_mode, ref);
-                    if (single_mode == NEWMV
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-                        || single_mode == WARP_NEWMV
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-                    ) {
+                    if (single_mode == NEWMV || single_mode == WARP_NEWMV) {
                       SUBPEL_MOTION_SEARCH_PARAMS ms_params;
                       MV ref_mv = av1_get_ref_mv(x, ref).as_mv;
                       if (mbmi->pb_mv_precision < MV_PRECISION_HALF_PEL)
@@ -9899,20 +9778,13 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
         init_mbmi(mbmi, this_mode, ref_frames, cm, xd->sbi);
 #endif  // CONFIG_IBC_SR_EXT
 
-        if (
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-            (this_mode == WARPMV || this_mode == WARP_NEWMV)
-#else
-            this_mode == WARPMV
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-            && !is_warpmv_mode_allowed(cm, mbmi, bsize))
+        if ((this_mode == WARPMV || this_mode == WARP_NEWMV) &&
+            !is_warpmv_mode_allowed(cm, mbmi, bsize))
           continue;
 
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
         if (this_mode == WARP_NEWMV &&
             !is_warp_newmv_allowed(cm, xd, mbmi, bsize))
           continue;
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
 #if CONFIG_C071_SUBBLK_WARPMV
         init_submi(xd, cm, mi_row, mi_col, bsize);

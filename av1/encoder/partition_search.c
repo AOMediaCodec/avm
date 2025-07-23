@@ -1367,7 +1367,6 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
           mbmi->mode == WARPMV,
           mbmi->motion_mode == WARP_DELTA || mbmi->motion_mode == WARP_CAUSAL));
 
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
       if (continue_motion_mode_signaling &&
           is_warp_newmv_allowed(cm, xd, mbmi, bsize) &&
           mbmi->mode == WARP_NEWMV) {
@@ -1391,31 +1390,16 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
         if (continue_motion_mode_signaling &&
             (allowed_motion_modes & (1 << WARP_DELTA)) &&
             (allowed_motion_modes & (1 << WARP_CAUSAL))) {
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
           const int ctx = av1_get_warp_causal_ctx(xd);
           const int use_warp_causal = (mbmi->motion_mode == WARP_CAUSAL);
 #if CONFIG_ENTROPY_STATS
           counts->warp_causal_cnt[ctx][use_warp_causal]++;
 #endif
           update_cdf(fc->warp_causal_cdf[ctx], use_warp_causal, 2);
-#else
-#if CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARP_CAUSAL
-#if CONFIG_ENTROPY_STATS
-          counts->warp_causal_cnt[motion_mode == WARP_CAUSAL]++;
-#endif
-          update_cdf(fc->warp_causal_cdf, motion_mode == WARP_CAUSAL, 2);
-#else
-#if CONFIG_ENTROPY_STATS
-          counts->warp_causal_cnt[bsize][motion_mode == WARP_CAUSAL]++;
-#endif
-          update_cdf(fc->warp_causal_cdf[bsize], motion_mode == WARP_CAUSAL, 2);
-#endif  // CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARP_CAUSAL
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
         }
 
         continue_motion_mode_signaling = false;
       }
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
       if (continue_motion_mode_signaling &&
           (allowed_motion_modes & (1 << INTERINTRA))) {
@@ -1466,64 +1450,15 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
         }
       }
 
-#if !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-      if (continue_motion_mode_signaling &&
-          allowed_motion_modes & (1 << WARP_EXTEND)) {
-        const int ctx = av1_get_warp_extend_ctx(xd);
-#if CONFIG_ENTROPY_STATS
-        counts->warp_extend[ctx][mbmi->motion_mode == WARP_EXTEND]++;
-#endif
-        update_cdf(fc->warp_extend_cdf[ctx], mbmi->motion_mode == WARP_EXTEND,
-                   2);
-        if (motion_mode == WARP_EXTEND) {
-          continue_motion_mode_signaling = false;
-        }
-      }
-#endif  // !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-
       if (continue_motion_mode_signaling &&
           (allowed_motion_modes & (1 << WARP_CAUSAL))) {
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
         const int ctx = av1_get_warp_causal_ctx(xd);
         const int use_warp_causal = (mbmi->motion_mode == WARP_CAUSAL);
 #if CONFIG_ENTROPY_STATS
         counts->warp_causal_cnt[ctx][use_warp_causal]++;
 #endif
         update_cdf(fc->warp_causal_cdf[ctx], use_warp_causal, 2);
-#else
-#if CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARP_CAUSAL
-#if CONFIG_ENTROPY_STATS
-        counts->warp_causal_cnt[motion_mode == WARP_CAUSAL]++;
-#endif
-        update_cdf(fc->warp_causal_cdf, motion_mode == WARP_CAUSAL, 2);
-#else
-#if CONFIG_ENTROPY_STATS
-        counts->warp_causal_cnt[bsize][motion_mode == WARP_CAUSAL]++;
-#endif
-        update_cdf(fc->warp_causal_cdf[bsize], motion_mode == WARP_CAUSAL, 2);
-#endif  // CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARP_CAUSAL
-        if (motion_mode == WARP_CAUSAL) {
-          continue_motion_mode_signaling = false;
-        }
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
       }
-
-#if !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-      if (continue_motion_mode_signaling &&
-          (allowed_motion_modes & (1 << WARP_DELTA))) {
-#if CONFIG_D149_CTX_MODELING_OPT
-#if CONFIG_ENTROPY_STATS
-        counts->warp_delta[motion_mode == WARP_DELTA]++;
-#endif
-        update_cdf(fc->warp_delta_cdf, motion_mode == WARP_DELTA, 2);
-#else
-#if CONFIG_ENTROPY_STATS
-        counts->warp_delta[bsize][motion_mode == WARP_DELTA]++;
-#endif
-        update_cdf(fc->warp_delta_cdf[bsize], motion_mode == WARP_DELTA, 2);
-#endif  // CONFIG_D149_CTX_MODELING_OPT
-      }
-#endif  // !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
       if (motion_mode == WARP_DELTA ||
           (motion_mode == WARP_CAUSAL && mbmi->mode == WARPMV)) {

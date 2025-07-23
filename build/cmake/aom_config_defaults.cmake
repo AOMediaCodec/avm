@@ -421,8 +421,6 @@ set_aom_config_var(CONFIG_TIP_LD 1 "Enable TIP for low delay")
 set_aom_config_var(CONFIG_TIP_ENHANCEMENT 1
                    "Enable different weighted prediction for TIP")
 
-set_aom_config_var(CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW 1
-                   "Enable the redesign of warp modes signaling flow")
 set_aom_config_var(CONFIG_PALETTE_THREE_NEIGHBOR 1
                    "Derive palette context using three neighbors")
 

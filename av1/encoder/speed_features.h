@@ -65,11 +65,8 @@ enum {
 
 enum {
   INTER_ALL = (1 << NEARMV) | (1 << GLOBALMV) | (1 << NEWMV) |
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-              (1 << WARP_NEWMV) |
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-              (1 << NEAR_NEARMV) | (1 << NEW_NEWMV) | (1 << NEAR_NEWMV) |
-              (1 << NEW_NEARMV) | (1 << GLOBAL_GLOBALMV),
+              (1 << WARP_NEWMV) | (1 << NEAR_NEARMV) | (1 << NEW_NEWMV) |
+              (1 << NEAR_NEWMV) | (1 << NEW_NEARMV) | (1 << GLOBAL_GLOBALMV),
   INTER_NEAR_GLOBAL = (1 << NEARMV) | (1 << GLOBALMV) | (1 << GLOBAL_GLOBALMV) |
                       (1 << NEW_NEARMV) | (1 << NEAR_NEWMV) |
                       (1 << NEAR_NEARMV),

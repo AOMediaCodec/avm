@@ -309,18 +309,9 @@ int get_opfl_mv_iterations(const AV1_COMP *cpi, const MB_MODE_INFO *mbmi) {
 
   if (mbmi->ref_frame[0] == NONE_FRAME) return 0;
 
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-    // Optical flow MV search is allowed for NEWMV, WARP_NEWMV, and WARPMV only,
-    // since it shows little improvements in compound modes.
-#else
-    // Optical flow MV search is allowed for NEWMV and WARPMV only, since it
-    // shows little improvements in compound modes.
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-  if (mbmi->mode == NEWMV ||
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-      mbmi->mode == WARP_NEWMV ||
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-      mbmi->mode == WARPMV)
+  // Optical flow MV search is allowed for NEWMV, WARP_NEWMV, and WARPMV only,
+  // since it shows little improvements in compound modes.
+  if (mbmi->mode == NEWMV || mbmi->mode == WARP_NEWMV || mbmi->mode == WARPMV)
     return 3;
 
   return 0;
@@ -5819,11 +5810,7 @@ int av1_pick_warp_delta(const AV1_COMMON *const cm, MACROBLOCKD *xd,
   // Note(rachelbarker): Technically we can refine MVs for the AMVDNEWMV mode
   // too, but it requires more complex logic for less payoff compared to
   // refinement for NEWMV. So we don't do that currently.
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   bool can_refine_mv = (mbmi->mode == WARP_NEWMV);
-#else
-  bool can_refine_mv = (mbmi->mode == NEWMV);
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   const SubpelMvLimits *mv_limits = &ms_params->mv_limits;
 
   WarpedMotionParams base_params;
@@ -6198,13 +6185,8 @@ int av1_refine_mv_for_base_param_warp_model(
 
   assert(IMPLIES(mbmi->warpmv_with_mvd_flag, mbmi->mode == WARPMV));
 
-  bool can_refine_mv = (
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-      mbmi->mode == WARP_NEWMV ||
-#else
-      mbmi->mode == NEWMV ||
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-      (mbmi->mode == WARPMV && mbmi->warpmv_with_mvd_flag));
+  bool can_refine_mv = (mbmi->mode == WARP_NEWMV ||
+                        (mbmi->mode == WARPMV && mbmi->warpmv_with_mvd_flag));
   const SubpelMvLimits *mv_limits = &ms_params->mv_limits;
 
   // get the base parameters

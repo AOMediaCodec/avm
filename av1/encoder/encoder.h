@@ -1388,9 +1388,7 @@ typedef struct FRAME_COUNTS {
 #endif                                                  // CONFIG_REFINEMV
 
   unsigned int inter_warp_cnts[WARPMV_MODE_CONTEXT][2];  // placeholder
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   unsigned int is_warpmv_or_warp_newmv_cnt[2];
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 
   unsigned int cfl_sign[CFL_JOINT_SIGNS];
   unsigned int cfl_alpha[CFL_ALPHA_CONTEXTS][CFL_ALPHABET_SIZE];
@@ -1594,15 +1592,7 @@ typedef struct FRAME_COUNTS {
 #else
   unsigned int compound_type[BLOCK_SIZES_ALL][MASKED_COMPOUND_TYPES];
 #endif  // CONFIG_D149_CTX_MODELING_OPT
-#if CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   unsigned int warp_causal_cnt[WARP_CAUSAL_MODE_CTX][2];
-#else
-#if CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARP_CAUSAL
-  unsigned int warp_causal_cnt[2];
-#else
-  unsigned int warp_causal_cnt[BLOCK_SIZES_ALL][2];
-#endif  // CONFIG_D149_CTX_MODELING_OPT && !NO_D149_FOR_WARP_CAUSAL
-#endif  // CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
 #if CONFIG_D149_CTX_MODELING_OPT
   unsigned int warp_causal_warpmv[CDF_SIZE(2)];
 #else
@@ -1613,13 +1603,6 @@ typedef struct FRAME_COUNTS {
 #else
   unsigned int warpmv_with_mvd_flag[BLOCK_SIZES_ALL][CDF_SIZE(2)];
 #endif  // CONFIG_D149_CTX_MODELING_OPT
-#if !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
-#if CONFIG_D149_CTX_MODELING_OPT
-  unsigned int warp_delta[2];
-#else
-  unsigned int warp_delta[BLOCK_SIZES_ALL][2];
-#endif  // CONFIG_D149_CTX_MODELING_OPT
-#endif  // !CONFIG_REDESIGN_WARP_MODES_SIGNALING_FLOW
   unsigned int warp_delta_param[2][WARP_DELTA_NUMSYMBOLS_LOW];
 #if CONFIG_WARP_PRECISION
   unsigned int warp_delta_param_high[2][WARP_DELTA_NUMSYMBOLS_HIGH];
