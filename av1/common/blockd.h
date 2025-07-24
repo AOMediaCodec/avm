@@ -3477,11 +3477,9 @@ static INLINE TX_TYPE av1_get_tx_type(const MACROBLOCKD *xd,
   if (plane_type == PLANE_TYPE_Y) {
     tx_type = xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col];
   } else {
-#if CONFIG_CHROMA_TX
     if (reduced_tx_set) {
       tx_type = DCT_DCT;
     } else {
-#endif  // CONFIG_CHROMA_TX
       if (is_inter_block(mbmi, xd->tree_type)) {
         // scale back to y plane's coordinate
         const struct macroblockd_plane *const pd = &xd->plane[plane_type];
@@ -3508,9 +3506,7 @@ static INLINE TX_TYPE av1_get_tx_type(const MACROBLOCKD *xd,
           tx_type = DCT_DCT;
         }
       }
-#if CONFIG_CHROMA_TX
     }
-#endif  // CONFIG_CHROMA_TX
   }
   assert(av1_ext_tx_used[av1_get_ext_tx_set_type(
       tx_size, is_inter_block(mbmi, xd->tree_type), reduced_tx_set)]

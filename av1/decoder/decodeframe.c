@@ -6784,10 +6784,8 @@ void av1_read_sequence_header_beyond_av1(
       seq_params->enable_sdp ? aom_rb_read_bit(rb) : 0;
   seq_params->enable_ist = aom_rb_read_bit(rb);
   seq_params->enable_inter_ist = aom_rb_read_bit(rb);
-#if CONFIG_CHROMA_TX
   seq_params->enable_chroma_dctonly =
       seq_params->monochrome ? 0 : aom_rb_read_bit(rb);
-#endif  // CONFIG_CHROMA_TX
   seq_params->enable_inter_ddt = aom_rb_read_bit(rb);
   seq_params->enable_cctx = seq_params->monochrome ? 0 : aom_rb_read_bit(rb);
   seq_params->enable_mrls = aom_rb_read_bit(rb);

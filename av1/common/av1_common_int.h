@@ -592,11 +592,9 @@ typedef struct SequenceHeader {
   uint8_t enable_intra_dip;          // enables/disables intra_dip
   uint8_t enable_intra_edge_filter;  // enables/disables edge upsampling
   uint8_t enable_orip;               // To turn on/off sub-block based ORIP
-  uint8_t enable_ist;        // enables/disables intra secondary transform
-  uint8_t enable_inter_ist;  // enables/disables inter secondary transform
-#if CONFIG_CHROMA_TX
+  uint8_t enable_ist;             // enables/disables intra secondary transform
+  uint8_t enable_inter_ist;       // enables/disables inter secondary transform
   uint8_t enable_chroma_dctonly;  // enables/disables dct only for chroma
-#endif                            // CONFIG_CHROMA_TX
   uint8_t enable_inter_ddt;  // enables/disables inter data-driven transform
   uint8_t enable_cctx;  // enables/disables cross-chroma component transform
   uint8_t enable_ibp;   // enables/disables intra bi-prediction(IBP)
@@ -5109,14 +5107,9 @@ static INLINE unsigned int av1_compute_allowed_tiles_log2(
 
 static INLINE int is_reduced_tx_set_used(const AV1_COMMON *const cm,
                                          const PLANE_TYPE plane_type) {
-#if CONFIG_CHROMA_TX
   const bool reduced_tx_set_used = plane_type == PLANE_TYPE_Y
                                        ? cm->features.reduced_tx_set_used
                                        : cm->seq_params.enable_chroma_dctonly;
-#else
-  (void)plane_type;
-  const bool reduced_tx_set_used = cm->features.reduced_tx_set_used;
-#endif
   return reduced_tx_set_used;
 }
 

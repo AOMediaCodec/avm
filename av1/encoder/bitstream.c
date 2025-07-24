@@ -5868,10 +5868,8 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
     aom_wb_write_bit(wb, seq_params->enable_extended_sdp);
   aom_wb_write_bit(wb, seq_params->enable_ist);
   aom_wb_write_bit(wb, seq_params->enable_inter_ist);
-#if CONFIG_CHROMA_TX
   if (!seq_params->monochrome)
     aom_wb_write_bit(wb, seq_params->enable_chroma_dctonly);
-#endif  // CONFIG_CHROMA_TX
   aom_wb_write_bit(wb, seq_params->enable_inter_ddt);
   if (!seq_params->monochrome) aom_wb_write_bit(wb, seq_params->enable_cctx);
   aom_wb_write_bit(wb, seq_params->enable_mrls);

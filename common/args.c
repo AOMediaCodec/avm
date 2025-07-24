@@ -101,9 +101,7 @@ int parse_cfg(const char *file, cfg_options_t *config) {
     GET_PARAMS(enable_orip);
     GET_PARAMS(enable_ist);
     GET_PARAMS(enable_inter_ist);
-#if CONFIG_CHROMA_TX
     GET_PARAMS(enable_chroma_dctonly);
-#endif  // CONFIG_CHROMA_TX
     GET_PARAMS(enable_inter_ddt);
     GET_PARAMS(enable_cctx);
     GET_PARAMS(enable_ibp);

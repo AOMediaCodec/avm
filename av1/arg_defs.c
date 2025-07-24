@@ -452,11 +452,9 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .enable_inter_ist = ARG_DEF(NULL, "enable-inter-ist", 1,
                               "Enable inter secondary transform"
                               "(0: false, 1: true (default))"),
-#if CONFIG_CHROMA_TX
   .enable_chroma_dctonly = ARG_DEF(NULL, "enable-chroma-dctonly", 1,
                                    "Enable only DCT for chroma"
                                    "(0: false (default), 1: true)"),
-#endif  // CONFIG_CHROMA_TX
   .enable_inter_ddt = ARG_DEF(NULL, "enable-inter-ddt", 1,
                               "Enable inter data-driven transform"
                               "(0: false, 1: true (default))"),

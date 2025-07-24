@@ -139,18 +139,16 @@ struct av1_extracfg {
   int enable_cwp;          // enable compound weighted prediction
   int enable_imp_msk_bld;  // enable implicit masked blending
 
-  int enable_fsc;        // enable forward skip coding
-  int enable_orip;       // enable ORIP
-  int enable_ist;        // enable intra secondary transform
-  int enable_inter_ist;  // enable inter secondary transform
-#if CONFIG_CHROMA_TX
+  int enable_fsc;             // enable forward skip coding
+  int enable_orip;            // enable ORIP
+  int enable_ist;             // enable intra secondary transform
+  int enable_inter_ist;       // enable inter secondary transform
   int enable_chroma_dctonly;  // enable dct only for chroma
-#endif
-  int enable_inter_ddt;     // enable inter data-driven transform
-  int enable_cctx;          // enable cross-chroma component transform
-  int enable_ibp;           // enable intra bi-prediction
-  int enable_adaptive_mvd;  // enable adaptive MVD resolution
-  int enable_flex_mvres;    // enable flexible MV resolution
+  int enable_inter_ddt;       // enable inter data-driven transform
+  int enable_cctx;            // enable cross-chroma component transform
+  int enable_ibp;             // enable intra bi-prediction
+  int enable_adaptive_mvd;    // enable adaptive MVD resolution
+  int enable_flex_mvres;      // enable flexible MV resolution
 
   int select_cfl_ds_filter;  // select adaptive downsample filter
 
@@ -488,9 +486,7 @@ static struct av1_extracfg default_extra_cfg = {
   1,    // enable ORIP
   1,    // enable intra secondary transform
   1,    // enable inter secondary transform
-#if CONFIG_CHROMA_TX
   0,    // enable DCT only for chroma
-#endif  // CONFIG_CHROMA_TX
   1,    // enable inter data-driven transform
   1,    // enable cross-chroma component transform
   1,    // enable intra bi-prediction
@@ -1019,9 +1015,7 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_orip = extra_cfg->enable_orip;
   cfg->enable_ist = extra_cfg->enable_ist;
   cfg->enable_inter_ist = extra_cfg->enable_inter_ist;
-#if CONFIG_CHROMA_TX
   cfg->enable_chroma_dctonly = extra_cfg->enable_chroma_dctonly;
-#endif  // CONFIG_CHROMA_TX
   cfg->enable_inter_ddt = extra_cfg->enable_inter_ddt;
   cfg->enable_cctx = extra_cfg->enable_cctx;
   cfg->enable_ibp = extra_cfg->enable_ibp;
@@ -1154,9 +1148,7 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_orip = cfg->enable_orip;
   extra_cfg->enable_ist = cfg->enable_ist;
   extra_cfg->enable_inter_ist = cfg->enable_inter_ist;
-#if CONFIG_CHROMA_TX
   extra_cfg->enable_chroma_dctonly = cfg->enable_chroma_dctonly;
-#endif  // CONFIG_CHROMA_TX
   extra_cfg->enable_inter_ddt = cfg->enable_inter_ddt;
   extra_cfg->enable_cctx = cfg->enable_cctx;
   extra_cfg->enable_ibp = cfg->enable_ibp;
@@ -1841,10 +1833,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   txfm_cfg->enable_ist = extra_cfg->enable_ist && !extra_cfg->lossless;
   txfm_cfg->enable_inter_ist =
       extra_cfg->enable_inter_ist && !extra_cfg->lossless;
-#if CONFIG_CHROMA_TX
   txfm_cfg->enable_chroma_dctonly =
       extra_cfg->enable_chroma_dctonly && !extra_cfg->lossless;
-#endif  // CONFIG_CHROMA_TX
   txfm_cfg->enable_inter_ddt =
       extra_cfg->enable_inter_ddt && !extra_cfg->lossless;
   txfm_cfg->enable_cctx =
@@ -4165,11 +4155,9 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_inter_ist,
                               argv, err_string)) {
     extra_cfg.enable_inter_ist = arg_parse_int_helper(&arg, err_string);
-#if CONFIG_CHROMA_TX
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_chroma_dctonly,
                               argv, err_string)) {
     extra_cfg.enable_chroma_dctonly = arg_parse_int_helper(&arg, err_string);
-#endif  // CONFIG_CHROMA_TX
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_inter_ddt,
                               argv, err_string)) {
     extra_cfg.enable_inter_ddt = arg_parse_int_helper(&arg, err_string);
@@ -4720,9 +4708,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         1,
         1,  // IST
         1,  // inter IST
-#if CONFIG_CHROMA_TX
         0,  // chroma DCT only
-#endif
         1,  // inter DDT
         1,  // enable_cctx
         1,   1, 1,
