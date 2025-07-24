@@ -274,18 +274,32 @@ typedef struct {
   int qp_diff;      // QP difference of cur and ref
   int base_qindex;  // cur QP
   int disp_order;   // display order hint
+#if CONFIG_ACROSS_SCALE_PRIMARY_REF_OPT
+  int res_log2;
+#endif  // CONFIG_ACROSS_SCALE_PRIMARY_REF_OPT
 } RefCandidate;
 
 // Check if one reference frame is better based on its distance to the current
 // frame.
 static int is_ref_better(const OrderHintInfo *oh, int cur_disp, int ref_disp,
+#if CONFIG_ACROSS_SCALE_PRIMARY_REF_OPT
+                         const int res_ratio_log2,
+#endif  // CONFIG_ACROSS_SCALE_PRIMARY_REF_OPT
                          int best_disp_so_far) {
   const int d0 = get_relative_dist(oh, cur_disp, ref_disp);
   const int d1 = get_relative_dist(oh, cur_disp, best_disp_so_far);
+#if CONFIG_ACROSS_SCALE_PRIMARY_REF_OPT
+  int bits = 1;
+  if ((abs(d0) - abs(d1)) + (res_ratio_log2 << bits) < 0) return 1;
+  if ((abs(d0) - abs(d1)) + (res_ratio_log2 << bits) == 0 &&
+      get_relative_dist(oh, ref_disp, best_disp_so_far) > 0)
+    return 1;
+#else
   if (abs(d0) < abs(d1)) return 1;
   if (abs(d0) == abs(d1) &&
       get_relative_dist(oh, ref_disp, best_disp_so_far) > 0)
     return 1;
+#endif  // CONFIG_ACROSS_SCALE_PRIMARY_REF_OPT
   return 0;
 }
 
@@ -308,8 +322,13 @@ void choose_primary_secondary_ref_frame(const AV1_COMMON *const cm,
   }
 
   // initialize
+#if CONFIG_ACROSS_SCALE_PRIMARY_REF_OPT
+  RefCandidate primary_cand = { -1, INT_MAX, -1, -1, -1 };
+  RefCandidate secondary_cand = { -1, INT_MAX, -1, -1, -1 };
+#else
   RefCandidate primary_cand = { -1, INT_MAX, -1, -1 };
   RefCandidate secondary_cand = { -1, INT_MAX, -1, -1 };
+#endif  // CONFIG_ACROSS_SCALE_PRIMARY_REF_OPT
 
   const int current_qp = cm->quant_params.base_qindex;
   const int cur_frame_disp = cm->current_frame.display_order_hint;
@@ -326,21 +345,40 @@ void choose_primary_secondary_ref_frame(const AV1_COMMON *const cm,
 
     const int ref_qp = cur_ref.base_qindex;
     const int qp_diff = abs(ref_qp - current_qp);
+#if CONFIG_ACROSS_SCALE_PRIMARY_REF_OPT
+    int res_log2 = get_msb(cur_ref.width * cur_ref.height);
+#endif  // CONFIG_ACROSS_SCALE_PRIMARY_REF_OPT
 
     // comparision
     if (qp_diff < primary_cand.qp_diff ||
         (qp_diff == primary_cand.qp_diff &&
          is_ref_better(oh, cur_frame_disp, cur_ref.disp_order,
+#if CONFIG_ACROSS_SCALE_PRIMARY_REF_OPT
+                       primary_cand.res_log2 - res_log2,
+#endif  // CONFIG_ACROSS_SCALE_PRIMARY_REF_OPT
                        primary_cand.disp_order))) {
       secondary_cand = primary_cand;  // secondary pick the previous primary
+#if CONFIG_ACROSS_SCALE_PRIMARY_REF_OPT
+      primary_cand = (RefCandidate){ i, qp_diff, cur_ref.base_qindex,
+                                     cur_ref.disp_order, res_log2 };
+#else
       primary_cand =
           (RefCandidate){ i, qp_diff, cur_ref.base_qindex, cur_ref.disp_order };
+#endif  // CONFIG_ACROSS_SCALE_PRIMARY_REF_OPT
     } else if (qp_diff < secondary_cand.qp_diff ||
                (qp_diff == secondary_cand.qp_diff &&
                 is_ref_better(oh, cur_frame_disp, cur_ref.disp_order,
+#if CONFIG_ACROSS_SCALE_PRIMARY_REF_OPT
+                              primary_cand.res_log2 - res_log2,
+#endif  // CONFIG_ACROSS_SCALE_PRIMARY_REF_OPT
                               secondary_cand.disp_order))) {
+#if CONFIG_ACROSS_SCALE_PRIMARY_REF_OPT
+      secondary_cand = (RefCandidate){ i, qp_diff, cur_ref.base_qindex,
+                                       cur_ref.disp_order, res_log2 };
+#else
       secondary_cand =
           (RefCandidate){ i, qp_diff, cur_ref.base_qindex, cur_ref.disp_order };
+#endif  // CONFIG_ACROSS_SCALE_PRIMARY_REF_OPT
     }
   }
 
