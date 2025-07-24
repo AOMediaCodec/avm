@@ -3199,6 +3199,20 @@ typedef struct AV1_COMP {
    * allocation sb_size
    */
   int alloc_sb_size;
+#if CONFIG_MULTI_FRAME_HEADER
+  /*!
+   * Indicates if a CNN parameter is signaled in the current bitstream.
+   */
+  int mfh_params_signaled_flag;
+  /*!
+   * Record the previous multi-frame header ID
+   */
+  int prev_mfh_id;
+  /*!
+   * Record the current multi-frame header parameters
+   */
+  MultiFrameHeader cur_mfh_params;
+#endif
 #if CONFIG_TIP_LD
   /*!
    * TIP mode selected count for first INTER_REFS_PER_FRAME frames
@@ -3207,6 +3221,9 @@ typedef struct AV1_COMP {
    */
   int tip_mode_count[INTER_REFS_PER_FRAME];
 #endif  // CONFIG_TIP_LD
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+  struct SequenceHeader seq_list[MAX_SEQ_NUM];
+#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
 } AV1_COMP;
 
 /*!

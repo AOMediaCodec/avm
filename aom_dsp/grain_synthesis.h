@@ -38,6 +38,12 @@ typedef struct {
 
   int update_parameters;
 
+#if CONFIG_CWG_F109
+  // 8 bit values
+  int fgm_points[3];  // value: 0..14
+  int fgm_value_increment[3][14];
+  int fgm_value_scale[3][14];
+#else
   // 8 bit values
   int scaling_points_y[14][2];
   int num_y_points;  // value: 0..14
@@ -49,6 +55,7 @@ typedef struct {
   // 8 bit values
   int scaling_points_cr[10][2];
   int num_cr_points;  // value: 0..10
+#endif
 
   int scaling_shift;  // values : 8..11
 
@@ -80,7 +87,11 @@ typedef struct {
 
   unsigned int bit_depth;  // video bit depth
 
+#if CONFIG_CWG_F109
+  int fgm_scale_from_channel0_flag;
+#else
   int chroma_scaling_from_luma;
+#endif
 
   int grain_scale_shift;
 
@@ -105,8 +116,21 @@ typedef struct {
 static INLINE int av1_check_grain_params_equiv(
     const aom_film_grain_t *const pa, const aom_film_grain_t *const pb) {
   if (pa->apply_grain != pb->apply_grain) return 0;
-  // Don't compare update_parameters
+    // Don't compare update_parameters
 
+#if CONFIG_CWG_F109
+  if (memcmp(pa->fgm_points, pb->fgm_points, sizeof(pa->fgm_points)) != 0)
+    return 0;
+
+  for (int i = 0; i < 3; ++i) {
+    if (memcmp(pa->fgm_value_increment[i], pb->fgm_value_increment[i],
+               pa->fgm_points[i] * sizeof(*pa->fgm_value_increment[i])) != 0)
+      return 0;
+    if (memcmp(pa->fgm_value_scale[i], pb->fgm_value_scale[i],
+               pa->fgm_points[i] * sizeof(*pa->fgm_value_scale[i])) != 0)
+      return 0;
+  }
+#else
   if (pa->num_y_points != pb->num_y_points) return 0;
   if (memcmp(pa->scaling_points_y, pb->scaling_points_y,
              pa->num_y_points * 2 * sizeof(*pa->scaling_points_y)) != 0)
@@ -121,6 +145,7 @@ static INLINE int av1_check_grain_params_equiv(
   if (memcmp(pa->scaling_points_cr, pb->scaling_points_cr,
              pa->num_cr_points * 2 * sizeof(*pa->scaling_points_cr)) != 0)
     return 0;
+#endif
 
   if (pa->scaling_shift != pb->scaling_shift) return 0;
   if (pa->ar_coeff_lag != pb->ar_coeff_lag) return 0;
@@ -149,7 +174,12 @@ static INLINE int av1_check_grain_params_equiv(
   if (pa->overlap_flag != pb->overlap_flag) return 0;
   if (pa->clip_to_restricted_range != pb->clip_to_restricted_range) return 0;
   if (pa->bit_depth != pb->bit_depth) return 0;
+#if CONFIG_CWG_F109
+  if (pa->fgm_scale_from_channel0_flag != pb->fgm_scale_from_channel0_flag)
+    return 0;
+#else
   if (pa->chroma_scaling_from_luma != pb->chroma_scaling_from_luma) return 0;
+#endif
   if (pa->grain_scale_shift != pb->grain_scale_shift) return 0;
 #if CONFIG_FGS_BLOCK_SIZE
   if (pa->block_size != pb->block_size) return 0;

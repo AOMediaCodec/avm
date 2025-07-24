@@ -378,6 +378,11 @@ typedef struct AV1Decoder {
   aom_s_frame_info sframe_info;
   unsigned int enable_subgop_stats;
   SubGOPStatsDec subgop_stats;
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+  struct SequenceHeader seq_list[MAX_SEQ_NUM];
+  int dec_seq_counter;
+  struct SequenceHeader *active_seq;
+#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
   /*!
    * Indicate if the primary reference frame is signaled.
    */

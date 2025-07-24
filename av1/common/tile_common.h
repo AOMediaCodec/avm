@@ -68,6 +68,10 @@ void av1_calculate_tile_cols(const struct AV1Common *cm, int cm_mi_rows,
 void av1_calculate_tile_rows(const struct AV1Common *cm, int cm_mi_rows,
                              struct CommonTileParams *const tiles);
 
+#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
+int tile_log2(int blk_size, int target);
+#endif  // !CONFIG_CWG_E242_SIGNAL_TILE_INFO
+
 // Checks if the minimum tile_width requirement is satisfied
 int av1_is_min_tile_width_satisfied(const struct AV1Common *cm);
 

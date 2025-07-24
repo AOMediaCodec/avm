@@ -10,7 +10,7 @@
  * aomedia.org/license/patent-license/.
  */
 #include <assert.h>
-
+#include "config/aom_config.h"
 #include "av1/common/obu_util.h"
 
 #include "aom_dsp/bitreader_buffer.h"
@@ -21,11 +21,16 @@ static int valid_obu_type(int obu_type) {
   switch (obu_type) {
     case OBU_SEQUENCE_HEADER:
     case OBU_TEMPORAL_DELIMITER:
+#if CONFIG_MULTI_FRAME_HEADER
+    case OBU_MULTI_FRAME_HEADER:
+#endif
     case OBU_FRAME_HEADER:
     case OBU_TILE_GROUP:
     case OBU_METADATA:
     case OBU_FRAME:
+#if !CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER
     case OBU_REDUNDANT_FRAME_HEADER:
+#endif
     case OBU_TILE_LIST:
     case OBU_PADDING: valid_type = 1; break;
     default: break;

@@ -529,6 +529,10 @@ void av1_apply_active_map(AV1_COMP *cpi) {
     cpi->active_map.update = 1;
   }
 
+#if CONFIG_MULTI_FRAME_HEADER
+  cpi->common.seq_params.segmentation_params_present = 1;
+#endif
+
   if (cpi->active_map.update) {
     if (cpi->active_map.enabled) {
       for (i = 0;
@@ -646,16 +650,38 @@ void av1_set_size_dependent_vars(AV1_COMP *cpi, int *q, int *bottom_index,
 }
 
 static void reset_film_grain_chroma_params(aom_film_grain_t *pars) {
+#if CONFIG_CWG_F109
+  pars->fgm_points[2] = 0;
+#else
   pars->num_cr_points = 0;
+#endif
   pars->cr_mult = 0;
   pars->cr_luma_mult = 0;
+#if CONFIG_CWG_F109
+  memset(pars->fgm_value_increment[2], 0, sizeof(pars->fgm_value_increment[2]));
+  memset(pars->fgm_value_scale[2], 0, sizeof(pars->fgm_value_scale[2]));
+#else
   memset(pars->scaling_points_cr, 0, sizeof(pars->scaling_points_cr));
+#endif
   memset(pars->ar_coeffs_cr, 0, sizeof(pars->ar_coeffs_cr));
+#if CONFIG_CWG_F109
+  pars->fgm_points[1] = 0;
+#else
   pars->num_cb_points = 0;
+#endif
   pars->cb_mult = 0;
   pars->cb_luma_mult = 0;
+#if CONFIG_CWG_F109
+  pars->fgm_scale_from_channel0_flag = 0;
+#else
   pars->chroma_scaling_from_luma = 0;
+#endif
+#if CONFIG_CWG_F109
+  memset(pars->fgm_value_increment[1], 0, sizeof(pars->fgm_value_increment[1]));
+  memset(pars->fgm_value_scale[1], 0, sizeof(pars->fgm_value_scale[1]));
+#else
   memset(pars->scaling_points_cb, 0, sizeof(pars->scaling_points_cb));
+#endif
   memset(pars->ar_coeffs_cb, 0, sizeof(pars->ar_coeffs_cb));
 }
 
@@ -1176,7 +1202,7 @@ void av1_finalize_encoded_frame(AV1_COMP *const cpi) {
   AV1_COMMON *const cm = &cpi->common;
   CurrentFrame *const current_frame = &cm->current_frame;
 
-  if (!cm->seq_params.reduced_still_picture_hdr &&
+  if (!cm->seq_params.single_picture_hdr_flag &&
       (encode_show_existing_frame(cm) || cm->show_existing_frame)) {
     RefCntBuffer *const frame_to_show =
         cm->ref_frame_map[cpi->existing_fb_idx_to_show];

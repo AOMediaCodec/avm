@@ -12,6 +12,8 @@
 #ifndef AOM_AV1_ENCODER_GRAIN_TEST_VECTORS_H_
 #define AOM_AV1_ENCODER_GRAIN_TEST_VECTORS_H_
 
+#include "config/aom_config.h"
+
 /* Test vectors for emulation of different film grain types.
  * Note that bit depth would be derived from the bitstream and
  * not signaled in film grain metadata. The parameters are valid
@@ -21,40 +23,56 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
   /* Test 1 */
   { 1 /* apply_grain */,
     1 /* update_parameters */,
-    { { 16, 0 },
-      { 25, 136 },
-      { 33, 144 },
-      { 41, 160 },
-      { 48, 168 },
-      { 56, 136 },
-      { 67, 128 },
-      { 82, 144 },
-      { 97, 152 },
-      { 113, 144 },
-      { 128, 176 },
-      { 143, 168 },
-      { 158, 176 },
-      { 178, 184 } },
-    14 /* num_points_y */,
-    { { 16, 0 },
-      { 20, 64 },
-      { 28, 88 },
-      { 60, 104 },
-      { 90, 136 },
-      { 105, 160 },
-      { 134, 168 },
-      { 168, 208 } },
-    8 /* num_cb_points */,
-    { { 16, 0 },
-      { 28, 96 },
-      { 56, 80 },
-      { 66, 96 },
-      { 80, 104 },
-      { 108, 96 },
-      { 122, 112 },
-      { 137, 112 },
-      { 169, 176 } },
-    9 /* num_cr_points */,
+#if CONFIG_CWG_F109
+    { 14, 8, 9 } /* fgm_points */,
+    {
+        { 16, 25, 33, 41, 48, 56, 67, 82, 97, 113, 128, 143, 158,
+          178 } /* fgm_value_increment[0] */,
+        { 16, 20, 28, 60, 90, 105, 134, 168 } /* fgm_value_increment[1] */,
+        { 16, 28, 56, 66, 80, 108, 122, 137, 169 } /* fgm_value_increment[2] */,
+    },
+    {
+        { 0, 136, 144, 160, 168, 136, 128, 144, 152, 144, 176, 168, 176,
+          184 } /* fgm_value_scale[0] */,
+        { 0, 64, 88, 104, 136, 160, 168, 208 } /* fgm_value_scale[1] */,
+        { 0, 96, 80, 96, 104, 96, 112, 112, 176 } /* fgm_value_scale[2] */,
+    },
+#else
+      { { 16, 0 },
+        { 25, 136 },
+        { 33, 144 },
+        { 41, 160 },
+        { 48, 168 },
+        { 56, 136 },
+        { 67, 128 },
+        { 82, 144 },
+        { 97, 152 },
+        { 113, 144 },
+        { 128, 176 },
+        { 143, 168 },
+        { 158, 176 },
+        { 178, 184 } },
+      14 /* num_points_y */,
+      { { 16, 0 },
+        { 20, 64 },
+        { 28, 88 },
+        { 60, 104 },
+        { 90, 136 },
+        { 105, 160 },
+        { 134, 168 },
+        { 168, 208 } },
+      8 /* num_cb_points */,
+      { { 16, 0 },
+        { 28, 96 },
+        { 56, 80 },
+        { 66, 96 },
+        { 80, 104 },
+        { 108, 96 },
+        { 122, 112 },
+        { 137, 112 },
+        { 169, 176 } },
+      9 /* num_cr_points */,
+#endif
     11 /* scaling_shift */,
     2 /* ar_coeff_lag */,
     { 0, 0, -58, 0, 0, 0, -76, 100, -43, 0, -51, 82 },
@@ -70,7 +88,11 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
     0 /* overlap_flag */,
     1 /* clip_to_restricted_range */,
     8 /* bit_depth */,
-    0 /* chroma_scaling_from_luma*/,
+#if CONFIG_CWG_F109
+    0 /* fgm_scale_from_channel0_flag*/,
+#else
+      0 /* chroma_scaling_from_luma*/,
+#endif
     0 /* grain_scale_shift*/,
     45231 /* random_seed */
 #if CONFIG_FGS_BLOCK_SIZE
@@ -81,12 +103,26 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
   /* Test 2 */
   { 1 /* apply_grain */,
     1 /* update_parameters */,
-    { { 0, 96 }, { 255, 96 } },
-    2 /* num_points_y */,
-    { { 0, 64 }, { 255, 64 } },
-    2 /* num_cb_points */,
-    { { 0, 64 }, { 255, 64 } },
-    2 /* num_cr_points */,
+#if CONFIG_CWG_F109
+    { 2, 2, 2 } /* fgm_points */,
+    {
+        { 0, 255 } /* fgm_value_increment[0] */,
+        { 0, 255 } /* fgm_value_increment[1] */,
+        { 0, 255 } /* fgm_value_increment[2] */,
+    },
+    {
+        { 96, 96 } /* fgm_value_scale[0] */,
+        { 64, 64 } /* fgm_value_scale[1] */,
+        { 64, 64 } /* fgm_value_scale[2] */,
+    },
+#else
+      { { 0, 96 }, { 255, 96 } },
+      2 /* num_points_y */,
+      { { 0, 64 }, { 255, 64 } },
+      2 /* num_cb_points */,
+      { { 0, 64 }, { 255, 64 } },
+      2 /* num_cr_points */,
+#endif
     11 /* scaling_shift */,
     3 /* ar_coeff_lag */,
     {
@@ -111,7 +147,11 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
     1 /* overlap_flag */,
     0 /* clip_to_restricted_range */,
     8 /* bit_depth */,
-    0 /*chroma_scaling_from_luma*/,
+#if CONFIG_CWG_F109
+    0 /* fgm_scale_from_channel0_flag*/,
+#else
+      0 /*chroma_scaling_from_luma*/,
+#endif
     0 /* grain_scale_shift*/,
     45231 /* random_seed */
 #if CONFIG_FGS_BLOCK_SIZE
@@ -122,12 +162,26 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
   /* Test 3 */
   { 1 /* apply_grain */,
     1 /* update_parameters */,
-    { { 0, 192 }, { 255, 192 } },
-    2 /* num_points_y */,
-    { { 0, 128 }, { 255, 128 } },
-    2 /* num_cb_points */,
-    { { 0, 128 }, { 255, 128 } },
-    2 /* num_cr_points */,
+#if CONFIG_CWG_F109
+    { 2, 2, 2 } /* fgm_points */,
+    {
+        { 0, 255 } /* fgm_value_increment[0] */,
+        { 0, 255 } /* fgm_value_increment[1] */,
+        { 0, 255 } /* fgm_value_increment[2] */,
+    },
+    {
+        { 192, 192 } /* fgm_value_scale[0] */,
+        { 128, 128 } /* fgm_value_scale[1] */,
+        { 128, 128 } /* fgm_value_scale[2] */,
+    },
+#else
+      { { 0, 192 }, { 255, 192 } },
+      2 /* num_points_y */,
+      { { 0, 128 }, { 255, 128 } },
+      2 /* num_cb_points */,
+      { { 0, 128 }, { 255, 128 } },
+      2 /* num_cr_points */,
+#endif
     11 /* scaling_shift */,
     3 /* ar_coeff_lag */,
     {
@@ -152,7 +206,11 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
     1 /* overlap_flag */,
     1 /* clip_to_restricted_range */,
     8 /* bit_depth */,
-    0 /*chroma_scaling_from_luma*/,
+#if CONFIG_CWG_F109
+    0 /* fgm_scale_from_channel0_flag*/,
+#else
+      0 /*chroma_scaling_from_luma*/,
+#endif
     1 /* grain_scale_shift*/,
     45231 /* random_seed */
 #if CONFIG_FGS_BLOCK_SIZE
@@ -163,42 +221,56 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
   /* Test 4 */
   { 1 /* apply_grain */,
     1 /* update_parameters */,
+#if CONFIG_CWG_F109
+    { 9, 9, 9 } /* fgm_points */,
     {
-        { 16, 0 },
-        { 24, 137 },
-        { 53, 146 },
-        { 63, 155 },
-        { 78, 155 },
-        { 107, 150 },
-        { 122, 147 },
-        { 136, 147 },
-        { 166, 153 },
+        { 16, 24, 53, 63, 78, 107, 122, 136, 166 } /* fgm_value_increment[0] */,
+        { 16, 20, 27, 33, 69, 95, 108, 134, 147 } /* fgm_value_increment[1] */,
+        { 16, 24, 54, 65, 79, 109, 124, 139, 169 } /* fgm_value_increment[2] */,
     },
-    9 /* num_points_y */,
     {
-        { 16, 0 },
-        { 20, 72 },
-        { 27, 82 },
-        { 33, 91 },
-        { 69, 121 },
-        { 95, 143 },
-        { 108, 154 },
-        { 134, 169 },
-        { 147, 177 },
+        { 0, 137, 146, 155, 155, 150, 147, 147, 153 } /* fgm_value_scale[0] */,
+        { 0, 72, 82, 91, 121, 143, 154, 169, 177 } /* fgm_value_scale[1] */,
+        { 0, 95, 93, 94, 98, 107, 119, 136, 170 } /* fgm_value_scale[2] */,
     },
-    9 /* num_cb_points */,
-    {
-        { 16, 0 },
-        { 24, 95 },
-        { 54, 93 },
-        { 65, 94 },
-        { 79, 98 },
-        { 109, 107 },
-        { 124, 119 },
-        { 139, 136 },
-        { 169, 170 },
-    },
-    9 /* num_cr_points */,
+#else
+      {
+          { 16, 0 },
+          { 24, 137 },
+          { 53, 146 },
+          { 63, 155 },
+          { 78, 155 },
+          { 107, 150 },
+          { 122, 147 },
+          { 136, 147 },
+          { 166, 153 },
+      },
+      9 /* num_points_y */,
+      {
+          { 16, 0 },
+          { 20, 72 },
+          { 27, 82 },
+          { 33, 91 },
+          { 69, 121 },
+          { 95, 143 },
+          { 108, 154 },
+          { 134, 169 },
+          { 147, 177 },
+      },
+      9 /* num_cb_points */,
+      {
+          { 16, 0 },
+          { 24, 95 },
+          { 54, 93 },
+          { 65, 94 },
+          { 79, 98 },
+          { 109, 107 },
+          { 124, 119 },
+          { 139, 136 },
+          { 169, 170 },
+      },
+      9 /* num_cr_points */,
+#endif
     11 /* scaling_shift */,
     3 /* ar_coeff_lag */,
     {
@@ -223,7 +295,11 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
     1 /* overlap_flag */,
     0 /* clip_to_restricted_range */,
     8 /* bit_depth */,
-    0 /*chroma_scaling_from_luma*/,
+#if CONFIG_CWG_F109
+    0 /* fgm_scale_from_channel0_flag*/,
+#else
+      0 /*chroma_scaling_from_luma*/,
+#endif
     0 /* grain_scale_shift*/,
     45231 /* random_seed */
 #if CONFIG_FGS_BLOCK_SIZE
@@ -234,32 +310,46 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
   /* Test 5 */
   { 1 /* apply_grain */,
     0 /* update_parameters */,
-    { { 0, 64 }, { 255, 64 } },
-    2 /* num_points_y */,
+#if CONFIG_CWG_F109
+    { 2, 9, 9 } /* fgm_points */,
     {
-        { 0, 96 },
-        { 32, 90 },
-        { 64, 83 },
-        { 96, 76 },
-        { 128, 68 },
-        { 159, 59 },
-        { 191, 48 },
-        { 223, 34 },
-        { 255, 0 },
+        { 0, 255 } /* fgm_value_increment[0] */,
+        { 0, 32, 64, 96, 128, 159, 191, 223, 255 } /* fgm_value_increment[1] */,
+        { 0, 32, 64, 96, 128, 159, 191, 223, 255 } /* fgm_value_increment[2] */,
     },
-    9 /* num_cb_points */,
     {
-        { 0, 0 },
-        { 32, 34 },
-        { 64, 48 },
-        { 96, 59 },
-        { 128, 68 },
-        { 159, 76 },
-        { 191, 83 },
-        { 223, 90 },
-        { 255, 96 },
+        { 64, 64 } /* fgm_value_scale[0] */,
+        { 96, 90, 83, 76, 68, 59, 48, 34, 0 } /* fgm_value_scale[1] */,
+        { 0, 34, 48, 59, 68, 76, 83, 90, 96 } /* fgm_value_scale[2] */,
     },
-    9 /* num_cr_points */,
+#else
+      { { 0, 64 }, { 255, 64 } },
+      2 /* num_points_y */,
+      {
+          { 0, 96 },
+          { 32, 90 },
+          { 64, 83 },
+          { 96, 76 },
+          { 128, 68 },
+          { 159, 59 },
+          { 191, 48 },
+          { 223, 34 },
+          { 255, 0 },
+      },
+      9 /* num_cb_points */,
+      {
+          { 0, 0 },
+          { 32, 34 },
+          { 64, 48 },
+          { 96, 59 },
+          { 128, 68 },
+          { 159, 76 },
+          { 191, 83 },
+          { 223, 90 },
+          { 255, 96 },
+      },
+      9 /* num_cr_points */,
+#endif
     11 /* scaling_shift */,
     3 /* ar_coeff_lag */,
     {
@@ -284,7 +374,11 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
     1 /* overlap_flag */,
     1 /* clip_to_restricted_range */,
     8 /* bit_depth */,
-    0 /*chroma_scaling_from_luma*/,
+#if CONFIG_CWG_F109
+    0 /* fgm_scale_from_channel0_flag*/,
+#else
+      0 /*chroma_scaling_from_luma*/,
+#endif
     0 /* grain_scale_shift*/,
     1063 /* random_seed */
 #if CONFIG_FGS_BLOCK_SIZE
@@ -295,27 +389,43 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
   /* Test 6 */
   { 1 /* apply_grain */,
     1 /* update_parameters */,
+#if CONFIG_CWG_F109
+    { 14, 0, 0 } /* fgm_points */,
     {
-        { 0, 96 },
-        { 20, 92 },
-        { 39, 88 },
-        { 59, 84 },
-        { 78, 80 },
-        { 98, 75 },
-        { 118, 70 },
-        { 137, 65 },
-        { 157, 60 },
-        { 177, 53 },
-        { 196, 46 },
-        { 216, 38 },
-        { 235, 27 },
-        { 255, 0 },
+        { 0, 20, 39, 59, 78, 98, 118, 137, 157, 177, 196, 216, 235,
+          255 } /* fgm_value_increment[0] */,
+        { 0 } /* fgm_value_increment[1] */,
+        { 0 } /* fgm_value_increment[2] */,
     },
-    14 /* num_points_y */,
-    { { 0, 0 } },
-    0 /* num_cb_points */,
-    { { 0, 0 } },
-    0 /* num_cr_points */,
+    {
+        { 96, 92, 88, 84, 80, 75, 70, 65, 60, 53, 46, 38, 27,
+          0 } /* fgm_value_scale[0] */,
+        { 0 } /* fgm_value_scale[1] */,
+        { 0 } /* fgm_value_scale[2] */,
+    },
+#else
+      {
+          { 0, 96 },
+          { 20, 92 },
+          { 39, 88 },
+          { 59, 84 },
+          { 78, 80 },
+          { 98, 75 },
+          { 118, 70 },
+          { 137, 65 },
+          { 157, 60 },
+          { 177, 53 },
+          { 196, 46 },
+          { 216, 38 },
+          { 235, 27 },
+          { 255, 0 },
+      },
+      14 /* num_points_y */,
+      { { 0, 0 } },
+      0 /* num_cb_points */,
+      { { 0, 0 } },
+      0 /* num_cr_points */,
+#endif
     11 /* scaling_shift */,
     3 /* ar_coeff_lag */,
     {
@@ -340,7 +450,11 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
     1 /* overlap_flag */,
     1 /* clip_to_restricted_range */,
     8 /* bit_depth */,
-    0 /*chroma_scaling_from_luma*/,
+#if CONFIG_CWG_F109
+    0 /* fgm_scale_from_channel0_flag*/,
+#else
+      0 /*chroma_scaling_from_luma*/,
+#endif
     0 /* grain_scale_shift*/,
     2754 /* random_seed */
 #if CONFIG_FGS_BLOCK_SIZE
@@ -351,27 +465,43 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
   /* Test 7 */
   { 1 /* apply_grain */,
     1 /* update_parameters */,
+#if CONFIG_CWG_F109
+    { 14, 2, 2 } /* fgm_points */,
     {
-        { 0, 0 },
-        { 20, 27 },
-        { 39, 38 },
-        { 59, 46 },
-        { 78, 53 },
-        { 98, 60 },
-        { 118, 65 },
-        { 137, 70 },
-        { 157, 75 },
-        { 177, 80 },
-        { 196, 84 },
-        { 216, 88 },
-        { 235, 92 },
-        { 255, 96 },
+        { 0, 20, 39, 59, 78, 98, 118, 137, 157, 177, 196, 216, 235,
+          255 } /* fgm_value_increment[0] */,
+        { 0, 255 } /* fgm_value_increment[1] */,
+        { 0, 255 } /* fgm_value_increment[2] */,
     },
-    14 /* num_points_y */,
-    { { 0, 0 }, { 255, 0 } },
-    2 /* num_cb_points */,
-    { { 0, 0 }, { 255, 0 } },
-    2 /* num_cr_points */,
+    {
+        { 0, 27, 38, 46, 53, 60, 65, 70, 75, 80, 84, 88, 92,
+          96 } /* fgm_value_scale[0] */,
+        { 0, 0 } /* fgm_value_scale[1] */,
+        { 0, 0 } /* fgm_value_scale[2] */,
+    },
+#else
+      {
+          { 0, 0 },
+          { 20, 27 },
+          { 39, 38 },
+          { 59, 46 },
+          { 78, 53 },
+          { 98, 60 },
+          { 118, 65 },
+          { 137, 70 },
+          { 157, 75 },
+          { 177, 80 },
+          { 196, 84 },
+          { 216, 88 },
+          { 235, 92 },
+          { 255, 96 },
+      },
+      14 /* num_points_y */,
+      { { 0, 0 }, { 255, 0 } },
+      2 /* num_cb_points */,
+      { { 0, 0 }, { 255, 0 } },
+      2 /* num_cr_points */,
+#endif
     11 /* scaling_shift */,
     3 /* ar_coeff_lag */,
     {
@@ -396,7 +526,11 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
     1 /* overlap_flag */,
     1 /* clip_to_restricted_range */,
     8 /* bit_depth */,
-    0 /*chroma_scaling_from_luma*/,
+#if CONFIG_CWG_F109
+    0 /* fgm_scale_from_channel0_flag*/,
+#else
+      0 /*chroma_scaling_from_luma*/,
+#endif
     0 /* grain_scale_shift*/,
     45231 /* random_seed */
 #if CONFIG_FGS_BLOCK_SIZE
@@ -407,12 +541,26 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
   /* Test 8 */
   { 1 /* apply_grain */,
     1 /* update_parameters */,
-    { { 0, 96 }, { 255, 96 } },
-    2 /* num_points_y */,
-    { { 0, 62 }, { 255, 62 } },
-    2 /* num_cb_points */,
-    { { 0, 62 }, { 255, 62 } },
-    2 /* num_cr_points */,
+#if CONFIG_CWG_F109
+    { 2, 2, 2 } /* fgm_points */,
+    {
+        { 0, 255 } /* fgm_value_increment[0] */,
+        { 0, 255 } /* fgm_value_increment[1] */,
+        { 0, 255 } /* fgm_value_increment[2] */,
+    },
+    {
+        { 96, 96 } /* fgm_value_scale[0] */,
+        { 62, 62 } /* fgm_value_scale[1] */,
+        { 62, 62 } /* fgm_value_scale[2] */,
+    },
+#else
+      { { 0, 96 }, { 255, 96 } },
+      2 /* num_points_y */,
+      { { 0, 62 }, { 255, 62 } },
+      2 /* num_cb_points */,
+      { { 0, 62 }, { 255, 62 } },
+      2 /* num_cr_points */,
+#endif
     11 /* scaling_shift */,
     3 /* ar_coeff_lag */,
     {
@@ -437,7 +585,11 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
     1 /* overlap_flag */,
     0 /* clip_to_restricted_range */,
     8 /* bit_depth */,
-    0 /*chroma_scaling_from_luma*/,
+#if CONFIG_CWG_F109
+    0 /* fgm_scale_from_channel0_flag*/,
+#else
+      0 /*chroma_scaling_from_luma*/,
+#endif
     0 /* grain_scale_shift*/,
     45231 /* random_seed */
 #if CONFIG_FGS_BLOCK_SIZE
@@ -448,12 +600,26 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
   /* Test 9 */
   { 1 /* apply_grain */,
     0 /* update_parameters */,
-    { { 0, 48 }, { 255, 48 } },
-    2 /* num_points_y */,
-    { { 0, 32 }, { 255, 32 } },
-    2 /* num_cb_points */,
-    { { 0, 32 }, { 255, 32 } },
-    2 /* num_cr_points */,
+#if CONFIG_CWG_F109
+    { 2, 2, 2 } /* fgm_points */,
+    {
+        { 0, 255 } /* fgm_value_increment[0] */,
+        { 0, 255 } /* fgm_value_increment[1] */,
+        { 0, 255 } /* fgm_value_increment[2] */,
+    },
+    {
+        { 48, 48 } /* fgm_value_scale[0] */,
+        { 32, 32 } /* fgm_value_scale[1] */,
+        { 32, 32 } /* fgm_value_scale[2] */,
+    },
+#else
+      { { 0, 48 }, { 255, 48 } },
+      2 /* num_points_y */,
+      { { 0, 32 }, { 255, 32 } },
+      2 /* num_cb_points */,
+      { { 0, 32 }, { 255, 32 } },
+      2 /* num_cr_points */,
+#endif
     10 /* scaling_shift */,
     2 /* ar_coeff_lag */,
     { 10, -30, -20, -39, 1, -24, 12, 103, 60, -9, -24, 113 },
@@ -469,7 +635,11 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
     1 /* overlap_flag */,
     0 /* clip_to_restricted_range */,
     8 /* bit_depth */,
-    0 /*chroma_scaling_from_luma*/,
+#if CONFIG_CWG_F109
+    0 /* fgm_scale_from_channel0_flag*/,
+#else
+      0 /*chroma_scaling_from_luma*/,
+#endif
     0 /* grain_scale_shift*/,
     45231 /* random_seed */
 #if CONFIG_FGS_BLOCK_SIZE
@@ -480,12 +650,26 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
   /* Test 10 */
   { 1 /* apply_grain */,
     1 /* update_parameters */,
-    { { 0, 48 }, { 255, 48 } },
-    2 /* num_points_y */,
-    { { 0, 32 }, { 255, 32 } },
-    2 /* num_cb_points */,
-    { { 0, 32 }, { 255, 32 } },
-    2 /* num_cr_points */,
+#if CONFIG_CWG_F109
+    { 2, 2, 2 } /* fgm_points */,
+    {
+        { 0, 255 } /* fgm_value_increment[0] */,
+        { 0, 255 } /* fgm_value_increment[1] */,
+        { 0, 255 } /* fgm_value_increment[2] */,
+    },
+    {
+        { 48, 48 } /* fgm_value_scale[0] */,
+        { 32, 32 } /* fgm_value_scale[1] */,
+        { 32, 32 } /* fgm_value_scale[2] */,
+    },
+#else
+      { { 0, 48 }, { 255, 48 } },
+      2 /* num_points_y */,
+      { { 0, 32 }, { 255, 32 } },
+      2 /* num_cb_points */,
+      { { 0, 32 }, { 255, 32 } },
+      2 /* num_cr_points */,
+#endif
     10 /* scaling_shift */,
     2 /* ar_coeff_lag */,
     { 10, -30, -20, -39, 1, -24, 12, 103, 60, -9, -24, 113 },
@@ -501,7 +685,11 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
     1 /* overlap_flag */,
     0 /* clip_to_restricted_range */,
     8 /* bit_depth */,
-    0 /*chroma_scaling_from_luma*/,
+#if CONFIG_CWG_F109
+    0 /* fgm_scale_from_channel0_flag*/,
+#else
+      0 /*chroma_scaling_from_luma*/,
+#endif
     0 /* grain_scale_shift*/,
     45231 /* random_seed */
 #if CONFIG_FGS_BLOCK_SIZE
@@ -512,32 +700,46 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
   /* Test 11 */
   { 1 /* apply_grain */,
     0 /* update_parameters */,
-    { { 0, 32 }, { 255, 32 } },
-    2 /* num_points_y */,
+#if CONFIG_CWG_F109
+    { 2, 9, 9 } /* fgm_points */,
     {
-        { 0, 48 },
-        { 32, 45 },
-        { 64, 42 },
-        { 96, 38 },
-        { 128, 34 },
-        { 159, 29 },
-        { 191, 24 },
-        { 223, 17 },
-        { 255, 0 },
+        { 0, 255 } /* fgm_value_increment[0] */,
+        { 0, 32, 64, 96, 128, 159, 191, 223, 255 } /* fgm_value_increment[1] */,
+        { 0, 32, 64, 96, 128, 159, 191, 223, 255 } /* fgm_value_increment[2] */,
     },
-    9 /* num_cb_points */,
     {
-        { 0, 0 },
-        { 32, 17 },
-        { 64, 24 },
-        { 96, 29 },
-        { 128, 34 },
-        { 159, 38 },
-        { 191, 42 },
-        { 223, 45 },
-        { 255, 48 },
+        { 32, 32 } /* fgm_value_scale[0] */,
+        { 48, 45, 42, 38, 34, 29, 24, 17, 0 } /* fgm_value_scale[1] */,
+        { 0, 17, 24, 29, 34, 38, 42, 45, 48 } /* fgm_value_scale[2] */,
     },
-    9 /* num_cr_points */,
+#else
+      { { 0, 32 }, { 255, 32 } },
+      2 /* num_points_y */,
+      {
+          { 0, 48 },
+          { 32, 45 },
+          { 64, 42 },
+          { 96, 38 },
+          { 128, 34 },
+          { 159, 29 },
+          { 191, 24 },
+          { 223, 17 },
+          { 255, 0 },
+      },
+      9 /* num_cb_points */,
+      {
+          { 0, 0 },
+          { 32, 17 },
+          { 64, 24 },
+          { 96, 29 },
+          { 128, 34 },
+          { 159, 38 },
+          { 191, 42 },
+          { 223, 45 },
+          { 255, 48 },
+      },
+      9 /* num_cr_points */,
+#endif
     10 /* scaling_shift */,
     3 /* ar_coeff_lag */,
     {
@@ -562,7 +764,11 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
     1 /* overlap_flag */,
     1 /* clip_to_restricted_range */,
     8 /* bit_depth */,
-    0 /*chroma_scaling_from_luma*/,
+#if CONFIG_CWG_F109
+    0 /* fgm_scale_from_channel0_flag*/,
+#else
+      0 /*chroma_scaling_from_luma*/,
+#endif
     0 /* grain_scale_shift*/,
     1357 /* random_seed */
 #if CONFIG_FGS_BLOCK_SIZE
@@ -573,42 +779,56 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
   /* Test 12 */
   { 1 /* apply_grain */,
     1 /* update_parameters */,
+#if CONFIG_CWG_F109
+    { 9, 9, 9 } /* fgm_points */,
     {
-        { 16, 0 },
-        { 24, 49 },
-        { 39, 69 },
-        { 46, 84 },
-        { 53, 91 },
-        { 63, 100 },
-        { 78, 114 },
-        { 92, 134 },
-        { 164, 139 },
+        { 16, 24, 39, 46, 53, 63, 78, 92, 164 } /* fgm_value_increment[0] */,
+        { 16, 20, 26, 33, 40, 47, 56, 84, 152 } /* fgm_value_increment[1] */,
+        { 16, 25, 39, 47, 54, 64, 79, 94, 167 } /* fgm_value_increment[2] */,
     },
-    9 /* num_points_y */,
     {
-        { 16, 0 },
-        { 20, 31 },
-        { 26, 42 },
-        { 33, 54 },
-        { 40, 65 },
-        { 47, 72 },
-        { 56, 85 },
-        { 84, 123 },
-        { 152, 157 },
+        { 0, 49, 69, 84, 91, 100, 114, 134, 139 } /* fgm_value_scale[0] */,
+        { 0, 31, 42, 54, 65, 72, 85, 123, 157 } /* fgm_value_scale[1] */,
+        { 0, 14, 33, 40, 47, 62, 76, 83, 101 } /* fgm_value_scale[2] */,
     },
-    9 /* num_cb_points */,
-    {
-        { 16, 0 },
-        { 25, 14 },
-        { 39, 33 },
-        { 47, 40 },
-        { 54, 47 },
-        { 64, 62 },
-        { 79, 76 },
-        { 94, 83 },
-        { 167, 101 },
-    },
-    9 /* num_cr_points */,
+#else
+      {
+          { 16, 0 },
+          { 24, 49 },
+          { 39, 69 },
+          { 46, 84 },
+          { 53, 91 },
+          { 63, 100 },
+          { 78, 114 },
+          { 92, 134 },
+          { 164, 139 },
+      },
+      9 /* num_points_y */,
+      {
+          { 16, 0 },
+          { 20, 31 },
+          { 26, 42 },
+          { 33, 54 },
+          { 40, 65 },
+          { 47, 72 },
+          { 56, 85 },
+          { 84, 123 },
+          { 152, 157 },
+      },
+      9 /* num_cb_points */,
+      {
+          { 16, 0 },
+          { 25, 14 },
+          { 39, 33 },
+          { 47, 40 },
+          { 54, 47 },
+          { 64, 62 },
+          { 79, 76 },
+          { 94, 83 },
+          { 167, 101 },
+      },
+      9 /* num_cr_points */,
+#endif
     10 /* scaling_shift */,
     2 /* ar_coeff_lag */,
     { 0, 0, -58, 0, 0, 0, -76, 100, -43, 0, -51, 82 },
@@ -624,7 +844,11 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
     0 /* overlap_flag */,
     0 /* clip_to_restricted_range */,
     8 /* bit_depth */,
-    0 /*chroma_scaling_from_luma*/,
+#if CONFIG_CWG_F109
+    0 /* fgm_scale_from_channel0_flag*/,
+#else
+      0 /*chroma_scaling_from_luma*/,
+#endif
     0 /* grain_scale_shift*/,
     45231 /* random_seed */
 #if CONFIG_FGS_BLOCK_SIZE
@@ -635,27 +859,43 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
   /* Test 13 */
   { 1 /* apply_grain */,
     1 /* update_parameters */,
+#if CONFIG_CWG_F109
+    { 14, 0, 0 } /* fgm_points */,
     {
-        { 0, 48 },
-        { 20, 46 },
-        { 39, 44 },
-        { 59, 42 },
-        { 78, 40 },
-        { 98, 38 },
-        { 118, 35 },
-        { 137, 33 },
-        { 157, 30 },
-        { 177, 27 },
-        { 196, 23 },
-        { 216, 19 },
-        { 235, 13 },
-        { 255, 0 },
+        { 0, 20, 39, 59, 78, 98, 118, 137, 157, 177, 196, 216, 235,
+          255 } /* fgm_value_increment[0] */,
+        { 0, 255 } /* fgm_value_increment[1] */,
+        { 0, 255 } /* fgm_value_increment[2] */,
     },
-    14 /* num_points_y */,
-    { { 0, 0 }, { 255, 0 } },
-    0 /* num_cb_points */,
-    { { 0, 0 }, { 255, 0 } },
-    0 /* num_cr_points */,
+    {
+        { 48, 46, 44, 42, 40, 38, 35, 33, 30, 27, 23, 19, 13,
+          0 } /* fgm_value_scale[0] */,
+        { 0, 0 } /* fgm_value_scale[1] */,
+        { 0, 0 } /* fgm_value_scale[2] */,
+    },
+#else
+      {
+          { 0, 48 },
+          { 20, 46 },
+          { 39, 44 },
+          { 59, 42 },
+          { 78, 40 },
+          { 98, 38 },
+          { 118, 35 },
+          { 137, 33 },
+          { 157, 30 },
+          { 177, 27 },
+          { 196, 23 },
+          { 216, 19 },
+          { 235, 13 },
+          { 255, 0 },
+      },
+      14 /* num_points_y */,
+      { { 0, 0 }, { 255, 0 } },
+      0 /* num_cb_points */,
+      { { 0, 0 }, { 255, 0 } },
+      0 /* num_cr_points */,
+#endif
     10 /* scaling_shift */,
     2 /* ar_coeff_lag */,
     { 10, -30, -20, -39, 1, -24, 12, 103, 60, -9, -24, 113 },
@@ -671,7 +911,11 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
     1 /* overlap_flag */,
     0 /* clip_to_restricted_range */,
     8 /* bit_depth */,
-    0 /*chroma_scaling_from_luma*/,
+#if CONFIG_CWG_F109
+    0 /* fgm_scale_from_channel0_flag*/,
+#else
+      0 /*chroma_scaling_from_luma*/,
+#endif
     0 /* grain_scale_shift*/,
     45231 /* random_seed */
 #if CONFIG_FGS_BLOCK_SIZE
@@ -682,27 +926,43 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
   /* Test 14 */
   { 1 /* apply_grain */,
     1 /* update_parameters */,
+#if CONFIG_CWG_F109
+    { 14, 0, 0 } /* fgm_points */,
     {
-        { 0, 0 },
-        { 20, 13 },
-        { 39, 19 },
-        { 59, 23 },
-        { 78, 27 },
-        { 98, 30 },
-        { 118, 33 },
-        { 137, 35 },
-        { 157, 38 },
-        { 177, 40 },
-        { 196, 42 },
-        { 216, 44 },
-        { 235, 46 },
-        { 255, 48 },
+        { 0, 20, 39, 59, 78, 98, 118, 137, 157, 177, 196, 216, 235,
+          255 } /* fgm_value_increment[0] */,
+        { 0, 255 } /* fgm_value_increment[1] */,
+        { 0, 255 } /* fgm_value_increment[2] */,
     },
-    14 /* num_points_y */,
-    { { 0, 0 }, { 255, 0 } },
-    0 /* num_cb_points */,
-    { { 0, 0 }, { 255, 0 } },
-    0 /* num_cr_points */,
+    {
+        { 0, 13, 19, 23, 27, 30, 33, 35, 38, 40, 42, 44, 46,
+          48 } /* fgm_value_scale[0] */,
+        { 0, 0 } /* fgm_value_scale[1] */,
+        { 0, 0 } /* fgm_value_scale[2] */,
+    },
+#else
+      {
+          { 0, 0 },
+          { 20, 13 },
+          { 39, 19 },
+          { 59, 23 },
+          { 78, 27 },
+          { 98, 30 },
+          { 118, 33 },
+          { 137, 35 },
+          { 157, 38 },
+          { 177, 40 },
+          { 196, 42 },
+          { 216, 44 },
+          { 235, 46 },
+          { 255, 48 },
+      },
+      14 /* num_points_y */,
+      { { 0, 0 }, { 255, 0 } },
+      0 /* num_cb_points */,
+      { { 0, 0 }, { 255, 0 } },
+      0 /* num_cr_points */,
+#endif
     10 /* scaling_shift */,
     2 /* ar_coeff_lag */,
     { 10, -30, -20, -39, 1, -24, 12, 103, 60, -9, -24, 113 },
@@ -718,7 +978,11 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
     1 /* overlap_flag */,
     1 /* clip_to_restricted_range */,
     8 /* bit_depth */,
-    0 /*chroma_scaling_from_luma*/,
+#if CONFIG_CWG_F109
+    0 /* fgm_scale_from_channel0_flag*/,
+#else
+      0 /*chroma_scaling_from_luma*/,
+#endif
     0 /* grain_scale_shift*/,
     45231 /* random_seed */
 #if CONFIG_FGS_BLOCK_SIZE
@@ -729,12 +993,26 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
   /* Test 15 */
   { 1 /* apply_grain */,
     1 /* update_parameters */,
-    { { 0, 96 }, { 255, 96 } },
-    1 /* num_points_y */,
-    { { 0, 96 }, { 255, 96 } },
-    0 /* num_cb_points */,
-    { { 0, 96 }, { 255, 96 } },
-    0 /* num_cr_points */,
+#if CONFIG_CWG_F109
+    { 1, 0, 0 } /* fgm_points */,
+    {
+        { 0, 255 } /* fgm_value_increment[0] */,
+        { 0, 255 } /* fgm_value_increment[1] */,
+        { 0, 255 } /* fgm_value_increment[2] */,
+    },
+    {
+        { 96, 96 } /* fgm_value_scale[0] */,
+        { 96, 96 } /* fgm_value_scale[1] */,
+        { 96, 96 } /* fgm_value_scale[2] */,
+    },
+#else
+      { { 0, 96 }, { 255, 96 } },
+      1 /* num_points_y */,
+      { { 0, 96 }, { 255, 96 } },
+      0 /* num_cb_points */,
+      { { 0, 96 }, { 255, 96 } },
+      0 /* num_cr_points */,
+#endif
     11 /* scaling_shift */,
     2 /* ar_coeff_lag */,
     { 5, -15, -10, -19, 0, -12, 6, 51, 30, -5, -12, 56 },
@@ -761,39 +1039,53 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
   /* Test 16 */
   { 1 /* apply_grain */,
     1 /* update_parameters */,
+#if CONFIG_CWG_F109
+    { 8, 8, 8 } /* fgm_points */,
     {
-        { 16, 0 },
-        { 58, 126 },
-        { 87, 120 },
-        { 97, 122 },
-        { 112, 125 },
-        { 126, 131 },
-        { 141, 139 },
-        { 199, 153 },
+        { 16, 58, 87, 97, 112, 126, 141, 199 } /* fgm_value_increment[0] */,
+        { 16, 59, 66, 73, 79, 86, 151, 192 } /* fgm_value_increment[1] */,
+        { 16, 59, 89, 99, 114, 129, 144, 203 } /* fgm_value_increment[2] */,
     },
-    8 /* num_points_y */,
     {
-        { 16, 0 },
-        { 59, 68 },
-        { 66, 76 },
-        { 73, 82 },
-        { 79, 85 },
-        { 86, 86 },
-        { 151, 95 },
-        { 192, 101 },
+        { 0, 126, 120, 122, 125, 131, 139, 153 } /* fgm_value_scale[0] */,
+        { 0, 68, 76, 82, 85, 86, 95, 101 } /* fgm_value_scale[1] */,
+        { 0, 64, 80, 86, 90, 93, 97, 85 } /* fgm_value_scale[2] */,
     },
-    8 /* num_cb_points */,
-    {
-        { 16, 0 },
-        { 59, 64 },
-        { 89, 80 },
-        { 99, 86 },
-        { 114, 90 },
-        { 129, 93 },
-        { 144, 97 },
-        { 203, 85 },
-    },
-    8 /* num_cr_points */,
+#else
+      {
+          { 16, 0 },
+          { 58, 126 },
+          { 87, 120 },
+          { 97, 122 },
+          { 112, 125 },
+          { 126, 131 },
+          { 141, 139 },
+          { 199, 153 },
+      },
+      8 /* num_points_y */,
+      {
+          { 16, 0 },
+          { 59, 68 },
+          { 66, 76 },
+          { 73, 82 },
+          { 79, 85 },
+          { 86, 86 },
+          { 151, 95 },
+          { 192, 101 },
+      },
+      8 /* num_cb_points */,
+      {
+          { 16, 0 },
+          { 59, 64 },
+          { 89, 80 },
+          { 99, 86 },
+          { 114, 90 },
+          { 129, 93 },
+          { 144, 97 },
+          { 203, 85 },
+      },
+      8 /* num_cr_points */,
+#endif
     10 /* scaling_shift */,
     3 /* ar_coeff_lag */,
     {
@@ -818,7 +1110,11 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
     1 /* overlap_flag */,
     0 /* clip_to_restricted_range */,
     8 /* bit_depth */,
-    0 /*chroma_scaling_from_luma*/,
+#if CONFIG_CWG_F109
+    0 /* fgm_scale_from_channel0_flag*/,
+#else
+      0 /*chroma_scaling_from_luma*/,
+#endif
     2 /* grain_scale_shift*/,
     45231 /* random_seed */
 #if CONFIG_FGS_BLOCK_SIZE

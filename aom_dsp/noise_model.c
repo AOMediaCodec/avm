@@ -1152,6 +1152,18 @@ int aom_noise_model_get_grain_parameters(aom_noise_model_t *const noise_model,
   film_grain->scaling_shift = 5 + (8 - max_scaling_value_log2);
 
   const double scale_factor = 1 << (8 - max_scaling_value_log2);
+
+#if CONFIG_CWG_F109
+  for (int c = 0; c < 3; c++) {
+    film_grain->fgm_points[c] = scaling_points[c].num_points;
+    for (int i = 0; i < scaling_points[c].num_points; ++i) {
+      film_grain->fgm_value_increment[c][i] =
+          (int)(scaling_points[c].points[i][0] + 0.5);
+      film_grain->fgm_value_scale[c][i] = clamp(
+          (int)(scale_factor * scaling_points[c].points[i][1] + 0.5), 0, 255);
+    }
+  }
+#else
   film_grain->num_y_points = scaling_points[0].num_points;
   film_grain->num_cb_points = scaling_points[1].num_points;
   film_grain->num_cr_points = scaling_points[2].num_points;
@@ -1168,6 +1180,7 @@ int aom_noise_model_get_grain_parameters(aom_noise_model_t *const noise_model,
           (int)(scale_factor * scaling_points[c].points[i][1] + 0.5), 0, 255);
     }
   }
+#endif
   aom_noise_strength_lut_free(scaling_points + 0);
   aom_noise_strength_lut_free(scaling_points + 1);
   aom_noise_strength_lut_free(scaling_points + 2);
@@ -1243,7 +1256,11 @@ int aom_noise_model_get_grain_parameters(aom_noise_model_t *const noise_model,
   film_grain->cr_luma_mult = 192;  // 8 bits
   film_grain->cr_offset = 256;     // 9 bits
 
+#if CONFIG_CWG_F109
+  film_grain->fgm_scale_from_channel0_flag = 0;
+#else
   film_grain->chroma_scaling_from_luma = 0;
+#endif
   film_grain->grain_scale_shift = 0;
   film_grain->overlap_flag = 1;
   return 1;

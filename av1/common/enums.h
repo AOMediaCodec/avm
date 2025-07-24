@@ -35,6 +35,11 @@ extern "C" {
 #define MAX_DR_PR_NUM 2
 #endif  // DRL_PR_LIM
 
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+#define SEQ_ID_BITS 4
+#define MAX_SEQ_NUM (1 << SEQ_ID_BITS)
+#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
+
 #if CONFIG_REDUCE_SYMBOL_SIZE
 // Macros related to joint shell signaling
 #define FIRST_SHELL_CLASS 8
@@ -1149,6 +1154,9 @@ typedef uint8_t INTRA_REGION_CONTEXT;
 
 #define TIP_CONTEXTS 3
 
+#if CONFIG_MULTI_FRAME_HEADER
+#define MAX_MFH_NUM 16
+#endif
 #define WARP_CAUSAL_MODE_CTX 4
 
 #define TIP_PRED_MODES 2

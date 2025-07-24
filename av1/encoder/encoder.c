@@ -367,15 +367,15 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 
   seq->still_picture =
       (tool_cfg->force_video_mode == 0) && (oxcf->input_cfg.limit == 1);
-  seq->reduced_still_picture_hdr = seq->still_picture;
-  seq->reduced_still_picture_hdr &= !tool_cfg->full_still_picture_hdr;
+  seq->single_picture_hdr_flag = seq->still_picture;
+  seq->single_picture_hdr_flag &= !tool_cfg->full_still_picture_hdr;
   seq->force_screen_content_tools = 2;
   seq->force_integer_mv = 2;
   seq->order_hint_info.enable_order_hint = tool_cfg->enable_order_hint;
   seq->frame_id_numbers_present_flag =
-      !(seq->still_picture && seq->reduced_still_picture_hdr) &&
+      !(seq->still_picture && seq->single_picture_hdr_flag) &&
       !oxcf->tile_cfg.enable_large_scale_tile && tool_cfg->error_resilient_mode;
-  if (seq->still_picture && seq->reduced_still_picture_hdr) {
+  if (seq->still_picture && seq->single_picture_hdr_flag) {
     seq->order_hint_info.enable_order_hint = 0;
     seq->force_screen_content_tools = 2;
     seq->force_integer_mv = 2;
@@ -554,7 +554,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   // point, and set to 0 if cpi->sf.gm_sf.gm_search_type == GM_DISABLE_SEARCH
   // if possible
   seq->enable_global_motion =
-      tool_cfg->enable_global_motion && !seq->reduced_still_picture_hdr;
+      tool_cfg->enable_global_motion && !seq->single_picture_hdr_flag;
 #endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 #if CONFIG_REFRESH_FLAG
   seq->enable_short_refresh_frame_flags =
@@ -600,6 +600,14 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   const ColorCfg *const color_cfg = &oxcf->color_cfg;
   cpi->oxcf = *oxcf;
   cpi->framerate = oxcf->input_cfg.init_framerate;
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+  for (int i = 0; i < MAX_SEQ_NUM; i++) {
+    memset(&cpi->seq_list[i], 0, sizeof(struct SequenceHeader));
+    cpi->seq_list[i].seq_header_id = -1;
+  }
+  seq_params->seq_header_id =
+      0;  // intentionally 0 for a single layer bitstream
+#endif    // CONFIG_CWG_E242_SEQ_HDR_ID
   seq_params->profile = oxcf->profile;
   seq_params->bit_depth = oxcf->tool_cfg.bit_depth;
   seq_params->color_primaries = color_cfg->color_primaries;
@@ -673,6 +681,26 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   alloc_compressor_data(cpi);
 
   av1_update_film_grain_parameters(cpi, oxcf);
+
+#if CONFIG_MULTI_FRAME_HEADER
+  cm->cur_mfh_id = 0;
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+  cm->mfh_params[cm->cur_mfh_id].mfh_seq_header_id =
+      cm->seq_params.seq_header_id;
+#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
+  cm->seq_params.seq_film_grain_model_present_flag = 0;
+  cpi->cur_mfh_params.mfh_film_grain_model_present_flag = 0;
+#if !CONFIG_CWG_F109
+  cm->film_grain_params_override_flag = 1;
+#endif
+  cm->seq_params.segmentation_params_present = 0;
+  cm->seq_params.seq_segmentation_params_update_flag = 0;
+  cpi->cur_mfh_params.mfh_film_grain_model_present_flag = 0;
+#if !CONFIG_CWG_F109
+  cm->film_grain_params_override_flag = 1;
+#endif
+  cpi->cur_mfh_params.mfh_loop_filter_update_flag = 0;
+#endif
 
   // Single thread case: use counts in common.
   cpi->td.counts = &cpi->counts;
@@ -2907,7 +2935,12 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
     lf->filter_level[0] = 0;
     lf->filter_level[1] = 0;
   }
-
+#if CONFIG_MULTI_FRAME_HEADER
+  cpi->cur_mfh_params.mfh_filter_level[0] = lf->filter_level[0];
+  cpi->cur_mfh_params.mfh_filter_level[1] = lf->filter_level[1];
+  cpi->cur_mfh_params.mfh_filter_level[2] = lf->filter_level_u;
+  cpi->cur_mfh_params.mfh_filter_level[3] = lf->filter_level_v;
+#endif
   if (lf->filter_level[0] || lf->filter_level[1]) {
     if (num_workers > 1)
       av1_loop_filter_frame_mt(&cm->cur_frame->buf, cm, xd, 0, num_planes, 0,
@@ -4390,7 +4423,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
           (frame_is_intra_only(cm) || !cm->show_frame) ? 0 : 1;
       break;
   }
-  seq_params->timing_info_present &= !seq_params->reduced_still_picture_hdr;
+  seq_params->timing_info_present &= !seq_params->single_picture_hdr_flag;
 
   if (cpi->oxcf.tool_cfg.enable_global_motion && !frame_is_intra_only(cm)) {
     // Flush any stale global motion information, which may be left over
@@ -4571,6 +4604,13 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
 
   current_frame->order_hint %=
       (1 << (cm->seq_params.order_hint_info.order_hint_bits_minus_1 + 1));
+
+#if CONFIG_MULTI_FRAME_HEADER
+  if (current_frame->absolute_poc == 0) {
+    cpi->mfh_params_signaled_flag = 0;
+    cpi->prev_mfh_id = -1;
+  }
+#endif
 
   if (is_stat_generation_stage(cpi)) {
     av1_first_pass(cpi, frame_input->ts_duration);
@@ -4791,7 +4831,9 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
                             const aom_rational64_t *timestamp_ratio) {
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   AV1_COMMON *const cm = &cpi->common;
-
+#if CONFIG_MULTI_FRAME_HEADER
+  cm->cur_mfh_id = 0;
+#endif
   cm->showable_frame = 0;
   *size = 0;
 #if CONFIG_INTERNAL_STATS
@@ -5024,8 +5066,13 @@ aom_fixed_buf_t *av1_get_global_headers(AV1_COMP *cpi) {
   if (!cpi) return NULL;
 
   uint8_t header_buf[512] = { 0 };
+#if CONFIG_MULTI_FRAME_HEADER
+  const uint32_t sequence_header_size = av1_write_sequence_header_obu(
+      cpi, &cpi->common.seq_params, &header_buf[0]);
+#else
   const uint32_t sequence_header_size =
       av1_write_sequence_header_obu(&cpi->common.seq_params, &header_buf[0]);
+#endif
   assert(sequence_header_size <= sizeof(header_buf));
   if (sequence_header_size == 0) return NULL;
 
