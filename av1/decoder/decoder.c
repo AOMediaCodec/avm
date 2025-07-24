@@ -749,7 +749,9 @@ int av1_receive_compressed_data(AV1Decoder *pbi, size_t size,
   const uint8_t *source = *psource;
   cm->error.error_code = AOM_CODEC_OK;
   cm->error.has_detail = 0;
-
+#if CONFIG_MULTI_FRAME_HEADER
+  cm->cur_mfh_id = 0;
+#endif
   if (size == 0) {
     // This is used to signal that we are missing frames.
     // We do not know if the missing frame(s) was supposed to update

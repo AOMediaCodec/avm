@@ -199,8 +199,20 @@ static aom_codec_err_t decoder_destroy(aom_codec_alg_priv_t *ctx) {
 // Reads the high_bitdepth and twelve_bit fields in color_config() and sets
 // *bit_depth based on the values of those fields and profile.
 static aom_codec_err_t parse_bitdepth(struct aom_read_bit_buffer *rb,
+#if !CONFIG_CWG_E242_BITDEPTH
                                       BITSTREAM_PROFILE profile,
+#endif  // !CONFIG_CWG_E242_BITDEPTH
                                       aom_bit_depth_t *bit_depth) {
+#if CONFIG_CWG_E242_BITDEPTH
+  int bitdepth_lut_idx = aom_rb_read_uvlc(rb);
+  if (bitdepth_lut_idx == 0)
+    *bit_depth = AOM_BITS_10;
+  else if (bitdepth_lut_idx == 1)
+    *bit_depth = AOM_BITS_8;
+  else
+    // unsupported bit_depth
+    return AOM_CODEC_UNSUP_BITSTREAM;
+#else
   const int high_bitdepth = aom_rb_read_bit(rb);
   if (profile == PROFILE_2 && high_bitdepth) {
     const int twelve_bit = aom_rb_read_bit(rb);
@@ -211,14 +223,22 @@ static aom_codec_err_t parse_bitdepth(struct aom_read_bit_buffer *rb,
     // Unsupported profile/bit-depth combination
     return AOM_CODEC_UNSUP_BITSTREAM;
   }
+#endif  // CONFIG_CWG_E242_BITDEPTH
   return AOM_CODEC_OK;
 }
 
 static aom_codec_err_t parse_color_config(struct aom_read_bit_buffer *rb,
-                                          BITSTREAM_PROFILE profile) {
+                                          BITSTREAM_PROFILE profile
+#if CONFIG_CWG_E242_BITDEPTH
+                                          ,
+                                          aom_bit_depth_t bit_depth
+#endif  // CONFIG_CWG_E242_BITDEPTH
+) {
+#if !CONFIG_CWG_E242_BITDEPTH
   aom_bit_depth_t bit_depth;
   aom_codec_err_t err = parse_bitdepth(rb, profile, &bit_depth);
   if (err != AOM_CODEC_OK) return err;
+#endif  // !CONFIG_CWG_E242_BITDEPTH
 
   // monochrome bit (not needed for PROFILE_1)
   const int is_monochrome = profile != PROFILE_1 ? aom_rb_read_bit(rb) : 0;
@@ -404,7 +424,7 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
   memset(&obu_header, 0, sizeof(obu_header));
   size_t payload_size = 0;
   size_t bytes_read = 0;
-  uint8_t reduced_still_picture_hdr = 0;
+  uint8_t single_picture_hdr_flag = 0;
   aom_codec_err_t status = aom_read_obu_header_and_size(
       data, data_sz, si->is_annexb, &obu_header, &payload_size, &bytes_read);
   if (status != AOM_CODEC_OK) return status;
@@ -432,6 +452,10 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
       // Read a few values from the sequence header payload
       struct aom_read_bit_buffer rb = { data, data + data_sz, 0, NULL, NULL };
 
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+      int seq_header_id = aom_rb_read_uvlc(&rb);
+#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
+
       BITSTREAM_PROFILE profile = av1_read_profile(&rb);  // profile
 
       int num_bits_width = aom_rb_read_literal(&rb, 4) + 1;
@@ -441,29 +465,47 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
       si->w = max_frame_width;
       si->h = max_frame_height;
 
-      status = parse_color_config(&rb, profile);
+#if CONFIG_CWG_E242_BITDEPTH
+      aom_bit_depth_t bit_depth;
+      aom_codec_err_t err = parse_bitdepth(&rb, &bit_depth);
+      if (err != AOM_CODEC_OK) return err;
+#endif  // CONFIG_CWG_E242_BITDEPTH
+
+      status = parse_color_config(&rb, profile
+#if CONFIG_CWG_E242_BITDEPTH
+                                  ,
+                                  bit_depth
+#endif  // CONFIG_CWG_E242_BITDEPTH
+      );
       if (status != AOM_CODEC_OK) return status;
 
       const uint8_t still_picture = aom_rb_read_bit(&rb);
-      reduced_still_picture_hdr = aom_rb_read_bit(&rb);
+      single_picture_hdr_flag = aom_rb_read_bit(&rb);
 
-      if (!still_picture && reduced_still_picture_hdr) {
+      if (!still_picture && single_picture_hdr_flag) {
         return AOM_CODEC_UNSUP_BITSTREAM;
       }
 
-      status = parse_operating_points(&rb, reduced_still_picture_hdr, si);
+      status = parse_operating_points(&rb, single_picture_hdr_flag, si);
       if (status != AOM_CODEC_OK) return status;
 
       got_sequence_header = 1;
     } else if (obu_header.type == OBU_FRAME_HEADER ||
                obu_header.type == OBU_FRAME) {
-      if (got_sequence_header && reduced_still_picture_hdr) {
+      if (got_sequence_header && single_picture_hdr_flag) {
         found_keyframe = 1;
         break;
       } else {
         // make sure we have enough bits to get the frame type out
         if (data_sz < 1) return AOM_CODEC_CORRUPT_FRAME;
         struct aom_read_bit_buffer rb = { data, data + data_sz, 0, NULL, NULL };
+#if CONFIG_MULTI_FRAME_HEADER
+#if CONFIG_CWG_E242_MFH_ID_UVLC
+        int mfh_id = aom_rb_read_uvlc(&rb);
+#else
+        int mfh_id = aom_rb_read_literal(&rb, 4);
+#endif  // CONFIG_CWG_E242_MFH_ID_UVLC
+#endif
         const int show_existing_frame = aom_rb_read_bit(&rb);
         if (!show_existing_frame) {
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
@@ -768,12 +810,32 @@ static void av1_write_show_existing_frame_obu(uint8_t *const dst,
   aom_wb_write_literal(&wb, 0, 1);         // extention flag
   aom_wb_write_literal(&wb, 1, 1);         // obu_has_payload_length_field
   aom_wb_write_literal(&wb, 0, 1);         // reserved
-  aom_wb_write_literal(&wb, 0x01, 8);      // obu_size 1
-  aom_wb_write_bit(&wb, 1);                // show_existing_frame
+#if CONFIG_MULTI_FRAME_HEADER
+#if CONFIG_CWG_E242_MFH_ID_UVLC
+  aom_wb_write_literal(&wb, 1, 8);  // obu_size 2
+  aom_wb_write_uvlc(&wb, 0);
+  aom_wb_write_bit(&wb, 1);  // show_existing_frame
+  aom_wb_write_literal(&wb, existing_fb_idx_to_show,
+                       ref_frames_log2);  // signal frame to be output
+  aom_wb_write_bit(&wb, 1);               // trailing one
+  aom_wb_write_literal(&wb, 0, 4 - ref_frames_log2);  // trailing zeros
+#else
+  aom_wb_write_literal(&wb, 2, 8);  // obu_size 2
+  aom_wb_write_literal(&wb, 0, 4);  // Multi-frame header ID
+  aom_wb_write_bit(&wb, 1);         // show_existing_frame
+  aom_wb_write_literal(&wb, existing_fb_idx_to_show,
+                       ref_frames_log2);  // signal frame to be output
+  aom_wb_write_bit(&wb, 1);               // trailing one
+  aom_wb_write_literal(&wb, 0, 10 - ref_frames_log2);  // trailing zeros
+#endif  // CONFIG_CWG_E242_MFH_ID_UVLC
+#else
+  aom_wb_write_literal(&wb, 0x01, 8);  // obu_size 1
+  aom_wb_write_bit(&wb, 1);            // show_existing_frame
   aom_wb_write_literal(&wb, existing_fb_idx_to_show,
                        ref_frames_log2);  // signal frame to be output
   aom_wb_write_bit(&wb, 1);               // trailing one
   aom_wb_write_literal(&wb, 0, 6 - ref_frames_log2);  // trailing zeros
+#endif
 }
 
 // This function outputs all frames from the frame buffers that are showable but
@@ -1432,8 +1494,8 @@ static aom_codec_err_t ctrl_get_still_picture(aom_codec_alg_priv_t *ctx,
       const AV1Decoder *pbi = frame_worker_data->pbi;
       still_picture_info->is_still_picture =
           (int)pbi->common.seq_params.still_picture;
-      still_picture_info->is_reduced_still_picture_hdr =
-          (int)(pbi->common.seq_params.reduced_still_picture_hdr);
+      still_picture_info->is_single_picture_hdr_flag =
+          (int)(pbi->common.seq_params.single_picture_hdr_flag);
       return AOM_CODEC_OK;
     } else {
       return AOM_CODEC_ERROR;

@@ -380,6 +380,11 @@ typedef struct AV1Decoder {
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   int error_resilient_frame_seen;
 #endif
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+  struct SequenceHeader seq_list[MAX_SEQ_NUM];
+  int dec_seq_counter;
+  struct SequenceHeader *active_seq;
+#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
   /*!
    * Indicate if the primary reference frame is signaled.
    */

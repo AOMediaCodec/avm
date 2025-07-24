@@ -502,7 +502,7 @@ typedef struct {
   int cdef_on_skip_txfm_frame_enable; /*!< Frame level flag to on or off CDEF on
                                          skip_txfm = 1 */
 #else
-  int cdef_bits;                  /*!< Number of CDEF strength values in bits */
+  int cdef_bits; /*!< Number of CDEF strength values in bits */
 #endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_FIX_CDEF_SYNTAX
   int cdef_frame_enable; /*!< CDEF on/off for current frame */
@@ -549,6 +549,33 @@ typedef struct {
                                 // 1 - enable it
 } OrderHintInfo;
 
+#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
+struct tileinfo_syntax {
+  int uniform_spacing;
+  int mi_cols;
+  int mib_size_log2;
+  int mi_rows;
+  int log2_cols;
+  int min_log2_cols;
+  int max_log2_cols;
+  int log2_rows;
+  int min_log2_rows;
+  int max_log2_rows;
+  int cols;
+  int col_start_sb[MAX_TILES];
+  int rows;
+  int max_width_sb;
+  int row_start_sb[MAX_TILES];
+  int max_height_sb;
+  int tile_cols_sb[MAX_TILES];
+  int tile_rows_sb[MAX_TILES];
+  int height_sb;
+  int width_sb;
+  int min_log2;
+  int size_sb;
+};
+#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
+
 // Sequence header structure.
 // Note: All syntax elements of sequence_header_obu that need to be
 // bit-identical across multiple sequence headers must be part of this struct,
@@ -556,6 +583,9 @@ typedef struct {
 // One exception is the last member 'op_params' that is ignored by
 // are_seq_headers_consistent() function.
 typedef struct SequenceHeader {
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+  int seq_header_id;
+#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
   int num_bits_width;
   int num_bits_height;
   int max_frame_width;
@@ -591,7 +621,7 @@ typedef struct SequenceHeader {
                                        // 1 - force on
                                        // 2 - adaptive
   uint8_t still_picture;               // Video is a single frame still picture
-  uint8_t reduced_still_picture_hdr;   // Use reduced header for still picture
+  uint8_t single_picture_hdr_flag;     // Use reduced header for still picture
   uint8_t force_integer_mv;            // 0 - Don't force. MV can use subpel
                                        // 1 - force to integer
                                        // 2 - adaptive
@@ -740,7 +770,16 @@ typedef struct SequenceHeader {
   uint8_t uv_ac_delta_q_enabled;
 #endif  // CONFIG_EXT_QUANT_UPD
   uint8_t film_grain_params_present;
-
+#if CONFIG_MULTI_FRAME_HEADER
+  uint8_t seq_film_grain_model_present_flag;
+  aom_film_grain_t seq_film_grain_params;
+  uint8_t segmentation_params_present;
+  uint8_t seq_segmentation_params_update_flag;
+#endif
+#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
+  uint8_t seq_tile_info_present_flag;
+  struct tileinfo_syntax tile_params;
+#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
   // Operating point info.
   int operating_points_cnt_minus_1;
   int operating_point_idc[MAX_NUM_OPERATING_POINTS];
@@ -785,6 +824,9 @@ typedef struct {
   unsigned int frame_number;
   SkipModeInfo skip_mode_info;
   int refresh_frame_flags;  // Which ref frames are overwritten by this frame
+#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
+  bool tile_info_present_in_frame_header;
+#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 } CurrentFrame;
 
 /*!\endcond */
@@ -1079,6 +1121,69 @@ typedef struct CommonTileParams {
    */
   unsigned int single_tile_decoding;
 } CommonTileParams;
+
+#if CONFIG_MULTI_FRAME_HEADER
+typedef struct MultiFrameHeader {
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+  /*!
+   * Sequence Header ID in multi-frame header
+   */
+  int mfh_seq_header_id;
+#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
+  /*!
+   * Frame Width of frames that reference this multi-frame header
+   */
+  int mfh_frame_width;
+  /*!
+   * Frame Height of frames that reference this multi-frame header
+   */
+  int mfh_frame_height;
+  /*!
+   * Render Height of frames that reference this multi-frame header
+   */
+  int mfh_render_width;
+  /*!
+   * Render Height of frames that reference this multi-frame header
+   */
+  int mfh_render_height;
+  /*!
+   * Presence of filter levels in this multi-frame header
+   */
+  int mfh_loop_filter_update_flag;
+  /*!
+   * loop filter levels of frames that reference this multi-frame header
+   */
+  int mfh_filter_level[4];
+  /*!
+   * Presence of film grain models in this multi-frame header
+   */
+  int mfh_film_grain_model_present_flag;
+#if CWG_F109
+  /*!
+   * Film grain model in this multi-frame header
+   */
+  aom_film_grain_t mfh_film_grain_model;
+#endif
+  /*!
+   * Presence of segmentation parameters in this multi-frame header
+   */
+  int mfh_segmentation_params_update_flag;
+#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
+  /*!
+   * Presence of tile parameters in this multi-frame header
+   */
+  int mfh_tiles_info_present_flag;
+  /*!
+   * Presence of tile parameters in this multi-frame header
+   */
+  struct tileinfo_syntax tile_params;
+  /*!
+   * Superblock size in this multi-frame header
+   */
+  int mfh_sb_size;
+#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
+} MultiFrameHeader;
+#endif
 
 typedef struct CommonModeInfoParams CommonModeInfoParams;
 /*!
@@ -1947,6 +2052,14 @@ typedef struct AV1Common {
    */
   SequenceHeader seq_params;
 
+#if CONFIG_MULTI_FRAME_HEADER
+  /*!
+   * Elements part of the frame group header, that are applicable for multiple
+   * frames in the video.
+   */
+  MultiFrameHeader mfh_params[MAX_MFH_NUM];
+#endif
+
   /*!
    * Current CDFs of all the symbols for the current frame.
    */
@@ -2154,6 +2267,11 @@ typedef struct AV1Common {
   YV12_BUFFER_CONFIG predicted_pixels;
   YV12_BUFFER_CONFIG prefiltered_pixels;
 #endif  // CONFIG_INSPECTION
+#if CONFIG_MULTI_FRAME_HEADER
+  int cur_mfh_id;
+  int film_grain_params_override_flag;
+  int segmentation_params_override_flag;
+#endif
 } AV1_COMMON;
 
 /*!\cond */

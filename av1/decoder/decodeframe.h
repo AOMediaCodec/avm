@@ -39,10 +39,30 @@ struct ThreadData;
 void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
                               SequenceHeader *seq_params);
 
+#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
+void read_sequence_tile_info(struct SequenceHeader *seq_params,
+                             struct aom_read_bit_buffer *rb);
+#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
+
 // Reads additional sequence header for coding tools beyond AV1
 void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
                                          SequenceHeader *seq_params);
+#if CONFIG_MULTI_FRAME_HEADER
+// Reads frame group header
+void av1_read_multi_frame_header(AV1_COMMON *cm,
+                                 struct aom_read_bit_buffer *rb);
 
+void read_film_grain(AV1_COMMON *cm, struct aom_read_bit_buffer *rb);
+#if CWG_F109
+void av1_read_film_grain_model(AV1_COMMON *cm, struct aom_read_bit_buffer *rb);
+#endif
+
+void setup_segmentation(AV1_COMMON *const cm, struct aom_read_bit_buffer *rb);
+#endif
+#if CONFIG_CWG_E242_BITDEPTH
+void read_bitdepth(struct aom_read_bit_buffer *rb, SequenceHeader *seq_params,
+                   struct aom_internal_error_info *error_info);
+#endif  // CONFIG_CWG_E242_BITDEPTH
 void av1_read_frame_size(struct aom_read_bit_buffer *rb, int num_bits_width,
                          int num_bits_height, int *width, int *height);
 BITSTREAM_PROFILE av1_read_profile(struct aom_read_bit_buffer *rb);
@@ -59,6 +79,9 @@ uint32_t av1_decode_frame_headers_and_setup(struct AV1Decoder *pbi,
                                             struct aom_read_bit_buffer *rb,
                                             const uint8_t *data,
                                             const uint8_t **p_data_end,
+#if CONFIG_F106_OBU_SWITCH
+                                            OBU_TYPE obu_type,
+#endif
                                             int trailing_bits_present);
 
 void av1_decode_tg_tiles_and_wrapup(struct AV1Decoder *pbi, const uint8_t *data,

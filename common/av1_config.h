@@ -13,6 +13,7 @@
 #define AOM_COMMON_AV1_CONFIG_H_
 
 #include "aom/aom_integer.h"
+#include "config/aom_config.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -50,11 +51,18 @@ extern "C" {
 typedef struct _Av1Config {
   uint8_t marker;
   uint8_t version;
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+  uint8_t seq_header_id;
+#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
   uint8_t seq_profile;
   uint8_t seq_level_idx_0;
   uint8_t seq_tier_0;
+#if CONFIG_CWG_E242_BITDEPTH
+  uint8_t bitdepth;
+#else
   uint8_t high_bitdepth;
   uint8_t twelve_bit;
+#endif  // CONFIG_CWG_E242_BITDEPTH
   uint8_t monochrome;
   uint8_t chroma_subsampling_x;
   uint8_t chroma_subsampling_y;

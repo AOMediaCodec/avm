@@ -531,6 +531,10 @@ void av1_apply_active_map(AV1_COMP *cpi) {
     cpi->active_map.update = 1;
   }
 
+#if CONFIG_MULTI_FRAME_HEADER
+  cpi->common.seq_params.segmentation_params_present = 1;
+#endif
+
   if (cpi->active_map.update) {
     if (cpi->active_map.enabled) {
       for (i = 0;
@@ -1225,7 +1229,7 @@ void av1_finalize_encoded_frame(AV1_COMP *const cpi) {
   AV1_COMMON *const cm = &cpi->common;
   CurrentFrame *const current_frame = &cm->current_frame;
 
-  if (!cm->seq_params.reduced_still_picture_hdr &&
+  if (!cm->seq_params.single_picture_hdr_flag &&
       (encode_show_existing_frame(cm) || cm->show_existing_frame)) {
     RefCntBuffer *const frame_to_show =
         cm->ref_frame_map[cpi->existing_fb_idx_to_show];

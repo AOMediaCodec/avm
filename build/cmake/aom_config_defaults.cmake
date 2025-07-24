@@ -286,6 +286,10 @@ set_aom_config_var(
   "AV2 experiment flag to remove parsing dependency of skip mode.")
 set_aom_config_var(CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT 1
                    "Enable enhanced frame output order derivation")
+set_aom_config_var(CONFIG_MULTI_FRAME_HEADER 1
+                   "Enable multi-frame header.")
+set_aom_config_var(CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER 1
+                   "Disable redundant frame header.")                    
 set_aom_config_var(CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY 1
                    "Enable temporal scalability")
 set_aom_config_var(CONFIG_SAME_REF_COMPOUND 1
@@ -382,8 +386,23 @@ set_aom_config_var(CONFIG_WRL_PRUNE_FOUR_PARAMETERS 1
 set_aom_config_var(CONFIG_KEY_OVERLAY 1
                    "Enable to support the key overlay frame")
 
+set_aom_config_var(CONFIG_CWG_E242_SIGNAL_TILE_INFO 1
+                   "Signal tile information at sequence, mfh.")
+
 set_aom_config_var(CONFIG_DRL_REORDER_CONTROL 1
                    "Enable to have a flag to turn on and off DRL reorder")
+
+set_aom_config_var(CONFIG_CWG_E242_MFH_ID_UVLC 1
+                   "Reorder sequence level flags.")
+
+set_aom_config_var(CONFIG_CWG_E242_BITDEPTH 1
+                   "Enable bitdepth signalling using a LUT.")
+
+set_aom_config_var(CONFIG_CWG_E242_SEQ_HDR_ID 1
+                   "Introduce sequence header id.")
+
+set_aom_config_var(CONFIG_F106_OBU_SWITCH 1 "use switch obu")
+
 set_aom_config_var(CONFIG_OPFL_CTX_OPT 1
                    "Enable optimization of the CDFs for use optflow flag")
 
