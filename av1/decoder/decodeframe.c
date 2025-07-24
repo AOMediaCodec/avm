@@ -1740,7 +1740,7 @@ static AOM_INLINE void parse_decode_block(AV1Decoder *const pbi,
         const int ac_delta_q = j == 0 ? 0
                                       : (j == 1 ? quant_params->u_ac_delta_q
                                                 : quant_params->v_ac_delta_q);
-#if CONFIG_TCQ
+#if !CONFIG_TCQ_FOR_ALL_FRAMES
         int tcq_mode = cm->features.tcq_mode;
         xd->plane[j].seg_dequant_QTX[i][0] =
             av1_dc_quant_QTX_tcq(current_qindex, dc_delta_q,
@@ -1761,7 +1761,7 @@ static AOM_INLINE void parse_decode_block(AV1Decoder *const pbi,
             av1_ac_quant_QTX(current_qindex, ac_delta_q,
                              j == 0 ? 0 : cm->seq_params.base_uv_ac_delta_q,
                              cm->seq_params.bit_depth);
-#endif  // CONFIG_TCQ
+#endif  // !CONFIG_TCQ_FOR_ALL_FRAMES
       }
     }
   }
@@ -3868,13 +3868,13 @@ static AOM_INLINE void setup_segmentation_dequant(AV1_COMMON *const cm,
   // When segmentation is disabled, only the first value is used.  The
   // remaining are don't cares.
   const int max_segments = cm->seg.enabled ? MAX_SEGMENTS : 1;
-#if CONFIG_TCQ
+#if !CONFIG_TCQ_FOR_ALL_FRAMES
   const int tcq_mode = cm->features.tcq_mode;
-#endif  // CONFIG_TCQ
+#endif  // !CONFIG_TCQ_FOR_ALL_FRAMES
   CommonQuantParams *const quant_params = &cm->quant_params;
   for (int i = 0; i < max_segments; ++i) {
     const int qindex = xd->qindex[i];
-#if CONFIG_TCQ
+#if !CONFIG_TCQ_FOR_ALL_FRAMES
     quant_params->y_dequant_QTX[i][0] = av1_dc_quant_QTX_tcq(
         qindex, quant_params->y_dc_delta_q, cm->seq_params.base_y_dc_delta_q,
         bit_depth, tcq_mode);
@@ -3910,7 +3910,7 @@ static AOM_INLINE void setup_segmentation_dequant(AV1_COMMON *const cm,
     quant_params->v_dequant_QTX[i][1] =
         av1_ac_quant_QTX(qindex, quant_params->v_ac_delta_q,
                          cm->seq_params.base_uv_ac_delta_q, bit_depth);
-#endif  // CONFIG_TCQ
+#endif  // !CONFIG_TCQ_FOR_ALL_FRAMES
     const int use_qmatrix = av1_use_qmatrix(quant_params, xd, i);
     // NB: depends on base index so there is only 1 set per frame
     // No quant weighting when lossless or signalled not using QM
@@ -6514,9 +6514,7 @@ void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
     seq_params->order_hint_info.enable_ref_frame_mvs = 0;
     seq_params->force_screen_content_tools = 2;  // SELECT_SCREEN_CONTENT_TOOLS
     seq_params->force_integer_mv = 2;            // SELECT_INTEGER_MV
-#if CONFIG_TCQ
     seq_params->enable_tcq = 1;
-#endif  // CONFIG_TCQ
     seq_params->order_hint_info.order_hint_bits_minus_1 = -1;
     seq_params->enable_opfl_refine = AOM_OPFL_REFINE_NONE;
 #if CONFIG_SIX_PARAM_WARP_DELTA
@@ -6842,7 +6840,6 @@ void av1_read_sequence_header_beyond_av1(
   seq_params->cfl_ds_filter_index =
       seq_params->monochrome ? 0 : aom_rb_read_literal(rb, 2);
 
-#if CONFIG_TCQ
   seq_params->enable_tcq = 0;
   int enable_tcq = aom_rb_read_bit(rb);
   if (enable_tcq) {
@@ -6855,9 +6852,6 @@ void av1_read_sequence_header_beyond_av1(
   } else {
     seq_params->enable_parity_hiding = 0;
   }
-#else
-  seq_params->enable_parity_hiding = aom_rb_read_bit(rb);
-#endif  // CONFIG_TCQ
   seq_params->enable_ext_partitions = aom_rb_read_bit(rb);
   if (seq_params->enable_ext_partitions)
     seq_params->enable_uneven_4way_partitions = aom_rb_read_bit(rb);
@@ -8643,7 +8637,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // CONFIG_ENABLE_SR
       ;
 
-#if CONFIG_TCQ
   // Decode frame-level TCQ flag, if applicable.
   if (features->coded_lossless) {
     features->tcq_mode = 0;
@@ -8652,13 +8645,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   } else {
     features->tcq_mode = seq_params->enable_tcq;
   }
-#endif  // CONFIG_TCQ
 
-  if (features->coded_lossless || !cm->seq_params.enable_parity_hiding
-#if CONFIG_TCQ
-      || features->tcq_mode
-#endif  // CONFIG_TCQ
-  )
+  if (features->coded_lossless || !cm->seq_params.enable_parity_hiding ||
+      features->tcq_mode)
     features->allow_parity_hiding = false;
   else
     features->allow_parity_hiding = aom_rb_read_bit(rb);

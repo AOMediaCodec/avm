@@ -575,10 +575,8 @@ typedef struct SequenceHeader {
   uint8_t force_integer_mv;            // 0 - Don't force. MV can use subpel
                                        // 1 - force to integer
                                        // 2 - adaptive
-#if CONFIG_TCQ
   uint8_t enable_tcq;  // Seq: 0 - disable, 1: 8-state, 2: 8-state (frame adap)
-#endif
-  uint8_t enable_sdp;           // enables/disables semi-decoupled partitioning
+  uint8_t enable_sdp;  // enables/disables semi-decoupled partitioning
   uint8_t enable_extended_sdp;  // enables/disables extended semi-decoupled
                                 // partitioning
   uint8_t enable_mrls;  // enables/disables multiple reference line selection
@@ -952,12 +950,10 @@ typedef struct {
    * restoration type is lr_last_switchable_ndx_0_type.
    */
   int lr_last_switchable_ndx_0_type[MAX_MB_PLANE];
-#if CONFIG_TCQ
   /*!
    * Frame tcq_mode: 0 = disabled, 1 = enabled (8-state)
    */
   int tcq_mode;
-#endif  // CONFIG_TCQ
 #if CONFIG_EXT_SEG
   /*!
    * Enables/disables max # of segments to be 16

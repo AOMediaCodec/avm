@@ -54,9 +54,7 @@ void av1_enc_calc_subpel_params(const MV *const src_mv,
                                 int *src_stride);
 void av1_set_lossless(struct AV1_COMP *cpi);
 void av1_enc_setup_ph_frame(struct AV1_COMP *cpi);
-#if CONFIG_TCQ
 void av1_set_frame_tcq_mode(struct AV1_COMP *cpi);
-#endif  // CONFIG_TCQ
 
 #ifdef __cplusplus
 }  // extern "C"

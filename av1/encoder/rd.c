@@ -45,9 +45,7 @@
 #include "av1/encoder/rd.h"
 #include "av1/encoder/rdopt_utils.h"
 #include "av1/encoder/tokenize.h"
-#if CONFIG_TCQ
 #include "av1/encoder/trellis_quant.h"
-#endif  // CONFIG_TCQ
 
 #define RD_THRESH_POW 1.25
 
@@ -790,7 +788,7 @@ static const int rd_layer_depth_factor[6] = {
 };
 
 int av1_compute_rd_mult_based_on_qindex(const AV1_COMP *cpi, int qindex) {
-#if CONFIG_TCQ
+#if !CONFIG_TCQ_FOR_ALL_FRAMES
   const int tcq_mode = cpi->common.features.tcq_mode;
   const int q =
       av1_dc_quant_QTX_tcq(qindex, 0, cpi->common.seq_params.base_y_dc_delta_q,
@@ -799,7 +797,7 @@ int av1_compute_rd_mult_based_on_qindex(const AV1_COMP *cpi, int qindex) {
   const int q =
       av1_dc_quant_QTX(qindex, 0, cpi->common.seq_params.base_y_dc_delta_q,
                        cpi->common.seq_params.bit_depth);
-#endif  // CONFIG_TCQ
+#endif  // !CONFIG_TCQ_FOR_ALL_FRAMES
 
   int64_t rdmult = ROUND_POWER_OF_TWO_64(
       (int64_t)((int64_t)q * q * RDMULT_FROM_Q2_NUM / RDMULT_FROM_Q2_DEN),
@@ -966,7 +964,6 @@ static void set_block_thresholds(const AV1_COMMON *cm, RD_OPT *rd) {
 
 void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
                           const int num_planes) {
-#if CONFIG_TCQ
   // Look-up take to retrive data from precomputed cost array
   static const uint8_t trel_abslev[15][4] = {
     { 2, 1, 1, 2 },  // qIdx=1
@@ -985,7 +982,6 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
     { 8, 9, 7, 8 },  // qidx=14
     { 8, 9, 9, 8 },  // qidx=15
   };
-#endif  // CONFIG_TCQ
   const int nplanes = AOMMIN(num_planes, PLANE_TYPES);
   for (int eob_multi_size = 0; eob_multi_size < 7; ++eob_multi_size) {
     for (int plane = 0; plane < nplanes; ++plane) {
@@ -1052,7 +1048,6 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
       for (int ctx = 0; ctx < SIG_COEF_CONTEXTS_EOB; ++ctx)
         av1_cost_tokens_from_cdf(pcost->base_lf_eob_cost[ctx],
                                  fc->coeff_base_lf_eob_cdf[tx_size][ctx], NULL);
-#if CONFIG_TCQ
       for (int ctx = 0; ctx < LF_SIG_COEF_CONTEXTS; ++ctx) {
         for (int q_i = 0; q_i < TCQ_CTXS; q_i++) {
           av1_cost_tokens_from_cdf(pcost->base_lf_cost[ctx][q_i],
@@ -1187,24 +1182,6 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
               pcost->base_lf_eob_cost_uv[ctx][a2 - 1] + av1_cost_literal(1);
         }
       }
-#else
-      for (int ctx = 0; ctx < LF_SIG_COEF_CONTEXTS_UV; ++ctx) {
-        av1_cost_tokens_from_cdf(pcost->base_lf_cost_uv[ctx],
-                                 fc->coeff_base_lf_uv_cdf[ctx], NULL);
-      }
-      for (int ctx = 0; ctx < SIG_COEF_CONTEXTS_UV; ++ctx) {
-        av1_cost_tokens_from_cdf(pcost->base_cost_uv[ctx],
-                                 fc->coeff_base_uv_cdf[ctx], NULL);
-      }
-      for (int ctx = 0; ctx < LF_SIG_COEF_CONTEXTS; ++ctx) {
-        av1_cost_tokens_from_cdf(pcost->base_lf_cost[ctx],
-                                 fc->coeff_base_lf_cdf[tx_size][ctx], NULL);
-      }
-      for (int ctx = 0; ctx < SIG_COEF_CONTEXTS; ++ctx) {
-        av1_cost_tokens_from_cdf(pcost->base_cost[ctx],
-                                 fc->coeff_base_cdf[tx_size][ctx], NULL);
-      }
-#endif  // CONFIG_TCQ
       for (int ctx = 0; ctx < SIG_COEF_CONTEXTS_BOB; ++ctx)
         av1_cost_tokens_from_cdf(
             pcost->base_bob_cost[ctx],
@@ -1328,7 +1305,6 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
               pcost->lps_cost[ctx][i] - pcost->lps_cost[ctx][i - 1];
         }
       }
-#if CONFIG_TCQ
       // Precalc mid costs for default region.
       for (int idx = 0; idx < 5 + 2 * COEFF_BASE_RANGE; idx++) {
         int a0 = get_low_range(trel_abslev[idx][0], 0);
@@ -1367,7 +1343,6 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
               a3 < 0 ? 0 : pcost->lps_lf_cost[ctx][a3];
         }
       }
-#endif  // CONFIG_TCQ
     }
   }
 

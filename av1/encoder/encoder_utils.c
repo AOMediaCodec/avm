@@ -1153,9 +1153,7 @@ void av1_determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
     av1_setup_frame(cpi);
 
     av1_set_lossless(cpi);
-#if CONFIG_TCQ
     cm->features.tcq_mode = 0;
-#endif  // CONFIG_TCQ
     av1_enc_setup_ph_frame(cpi);
     av1_init_quantizer(&cm->seq_params, &cpi->enc_quant_dequant_params, cm);
 

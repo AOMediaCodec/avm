@@ -1545,7 +1545,6 @@ void av1_set_lossless(AV1_COMP *cpi) {
       ;
 }
 
-#if CONFIG_TCQ
 /*!\brief Set the tcq_mode for a frame before encoding it
  *
  * \ingroup high_level_algo
@@ -1566,17 +1565,13 @@ void av1_set_frame_tcq_mode(AV1_COMP *cpi) {
     }
   }
 }
-#endif  // CONFIG_TCQ
 
 void av1_enc_setup_ph_frame(AV1_COMP *cpi) {
   // Note parity_hiding is to be set for a frame after lossless and tcq_mode
   // are set
   AV1_COMMON *const cm = &cpi->common;
-  if (cm->features.coded_lossless || !cm->seq_params.enable_parity_hiding
-#if CONFIG_TCQ
-      || cm->features.tcq_mode
-#endif  // CONFIG_TCQ
-  )
+  if (cm->features.coded_lossless || !cm->seq_params.enable_parity_hiding ||
+      cm->features.tcq_mode)
     cm->features.allow_parity_hiding = false;
   else
     cm->features.allow_parity_hiding = true;

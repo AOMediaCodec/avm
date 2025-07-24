@@ -266,10 +266,7 @@ if(NOT BUILD_SHARED_LIBS)
     list(APPEND AOM_UNIT_TEST_ENCODER_SOURCES "${AOM_ROOT}/test/hash_test.cc")
   endif()
 
-  if(CONFIG_TCQ)
-    list(APPEND AOM_UNIT_TEST_ENCODER_SOURCES
-         "${AOM_ROOT}/test/trellis_test.cc")
-  endif()
+  list(APPEND AOM_UNIT_TEST_ENCODER_SOURCES "${AOM_ROOT}/test/trellis_test.cc")
 
 endif()
 

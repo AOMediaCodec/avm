@@ -1500,9 +1500,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   tool_cfg->superblock_size = extra_cfg->superblock_size;
   tool_cfg->enable_monochrome = cfg->monochrome;
   tool_cfg->full_still_picture_hdr = cfg->full_still_picture_hdr;
-#if CONFIG_TCQ
   tool_cfg->enable_tcq = cfg->enable_tcq;
-#endif  // CONFIG_TCQ
   tool_cfg->enable_order_hint = extra_cfg->enable_order_hint;
   tool_cfg->ref_frame_mvs_present =
       extra_cfg->enable_ref_frame_mvs & extra_cfg->enable_order_hint;
@@ -4714,12 +4712,10 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
     0,            // large_scale_tile
     0,            // monochrome
     0,            // full_still_picture_hdr
-#if CONFIG_TCQ
 #if CONFIG_TCQ_FOR_ALL_FRAMES
     1,  // enable_tcq
 #else
     2,  // enable_tcq
-#endif
 #endif
     0,                           // save_as_annexb
     0,                           // tile_width_count

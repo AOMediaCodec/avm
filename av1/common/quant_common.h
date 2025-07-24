@@ -23,7 +23,6 @@
 extern "C" {
 #endif
 
-#if CONFIG_TCQ
 #define QINDEX_INCR 2          // tunable general QP index increment
 #define QINDEX_INCR_8_BITS 2   // tunable QP index increment for 8 bits
 #define QINDEX_INCR_10_BITS 4  // tunable QP index increment for 10 bits
@@ -32,7 +31,6 @@ extern "C" {
 #define TCQ_N_STATES_LOG 3     // only 8-states version is supported
 #define TCQ_N_STATES (1 << TCQ_N_STATES_LOG)
 #define TCQ_MAX_STATES 8
-#endif  // CONFIG_TCQ
 
 #define PHTHRESH 4
 #define MINQ 0
@@ -65,7 +63,6 @@ struct AV1Common;
 struct CommonQuantParams;
 struct macroblockd;
 
-#if CONFIG_TCQ
 // Trellis codec quant modes, only 8-state scheme is supported
 enum {
   TCQ_DISABLE = 0,  // tcq off
@@ -98,14 +95,13 @@ int tcq_parity(int absLevel);
 int tcq_init_state(int tcq_mode);
 // Find the next state in trellis codec quant
 int tcq_next_state(const int curState, const int absLevel);
-#endif  // CONFIG_TCQ
 
 int32_t av1_dc_quant_QTX(int qindex, int delta, int base_dc_delta_q,
                          aom_bit_depth_t bit_depth);
 int32_t av1_ac_quant_QTX(int qindex, int delta, int base_ac_delta_q,
                          aom_bit_depth_t bit_depth);
 
-#if CONFIG_TCQ
+#if !CONFIG_TCQ_FOR_ALL_FRAMES
 // Adjust qindex for better RDO when tcq is on
 static INLINE int get_new_qindex(int qindex, aom_bit_depth_t bit_depth) {
   switch (bit_depth) {
@@ -124,13 +120,9 @@ static INLINE int32_t av1_dc_quant_QTX_tcq(int qindex, int delta,
                                            int base_dc_delta_q,
                                            aom_bit_depth_t bit_depth,
                                            int use_tcq_offset) {
-#if !CONFIG_TCQ_FOR_ALL_FRAMES
   if (use_tcq_offset && qindex != 0) {
     qindex = get_new_qindex(qindex, bit_depth);
   }
-#else
-  (void)use_tcq_offset;
-#endif
   return av1_dc_quant_QTX(qindex, delta, base_dc_delta_q, bit_depth);
 }
 
@@ -139,16 +131,12 @@ static INLINE int32_t av1_ac_quant_QTX_tcq(int qindex, int delta,
                                            int base_ac_delta_q,
                                            aom_bit_depth_t bit_depth,
                                            int use_tcq_offset) {
-#if !CONFIG_TCQ_FOR_ALL_FRAMES
   if (use_tcq_offset && qindex != 0) {
     qindex = get_new_qindex(qindex, bit_depth);
   }
-#else
-  (void)use_tcq_offset;
-#endif
   return av1_ac_quant_QTX(qindex, delta, base_ac_delta_q, bit_depth);
 }
-#endif  // CONFIG_TCQ
+#endif  // !CONFIG_TCQ_FOR_ALL_FRAMES
 
 int av1_get_qindex(const struct segmentation *seg, int segment_id,
                    int base_qindex, aom_bit_depth_t bit_depth);

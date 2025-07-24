@@ -5933,7 +5933,6 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
   if (!seq_params->monochrome)
     aom_wb_write_literal(wb, seq_params->cfl_ds_filter_index, 2);
 
-#if CONFIG_TCQ
   int enable_tcq = seq_params->enable_tcq;
   aom_wb_write_bit(wb, enable_tcq != 0);
   if (enable_tcq) {
@@ -5944,9 +5943,6 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
     // disabled, or enabled/disabled at frame level.
     aom_wb_write_bit(wb, seq_params->enable_parity_hiding);
   }
-#else
-  aom_wb_write_bit(wb, seq_params->enable_parity_hiding);
-#endif  // CONFIG_TCQ
   aom_wb_write_bit(wb, seq_params->enable_ext_partitions);
   if (seq_params->enable_ext_partitions)
     aom_wb_write_bit(wb, seq_params->enable_uneven_4way_partitions);
@@ -6833,7 +6829,6 @@ static AOM_INLINE void write_uncompressed_header_obu(
     }
   }
 
-#if CONFIG_TCQ
   // Encode adaptive frame-level TCQ flag, if applicable.
   // Basic frame-level strategy: enable for keyframes only.
   // This can be extended in other ways (e.g., include alt-ref).
@@ -6844,13 +6839,9 @@ static AOM_INLINE void write_uncompressed_header_obu(
   } else {
     assert(features->tcq_mode == seq_params->enable_tcq);
   }
-#endif  // CONFIG_TCQ
 
-  if (features->coded_lossless || !cm->seq_params.enable_parity_hiding
-#if CONFIG_TCQ
-      || features->tcq_mode
-#endif  // CONFIG_TCQ
-  ) {
+  if (features->coded_lossless || !cm->seq_params.enable_parity_hiding ||
+      features->tcq_mode) {
     assert(features->allow_parity_hiding == false);
   } else {
     aom_wb_write_bit(wb, features->allow_parity_hiding);

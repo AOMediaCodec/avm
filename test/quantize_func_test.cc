@@ -84,10 +84,10 @@ class QuantizeTest : public ::testing::TestWithParam<QuantizeParam> {
   void InitQuantizer() {
     av1_build_quantizer(bd_, 0, 0, 0, 0, 0, 0, 0, 0, &qtab_->quant,
                         &qtab_->dequant
-#if CONFIG_TCQ
+#if !CONFIG_TCQ_FOR_ALL_FRAMES
                         ,
                         0
-#endif  // CONFIG_TCQ
+#endif  // !CONFIG_TCQ_FOR_ALL_FRAMES
     );
   }
 

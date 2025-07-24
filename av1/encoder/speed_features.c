@@ -400,9 +400,7 @@ static void set_good_speed_features_framesize_independent(
     sf->tx_sf.tx_type_search.skip_tx_search = 1;
     sf->tx_sf.use_intra_txb_hash = 1;
 
-#if CONFIG_TCQ
     sf->rd_sf.disable_tcq = 1;
-#endif  // CONFIG_TCQ
     sf->rd_sf.perform_coeff_opt = boosted ? 2 : 3;
     sf->rd_sf.tx_domain_dist_level = boosted ? 1 : 2;
     sf->rd_sf.tx_domain_dist_thres_level = 1;
@@ -847,9 +845,7 @@ static AOM_INLINE void init_rd_sf(RD_CALC_SPEED_FEATURES *rd_sf,
   }
   rd_sf->use_mb_rd_hash = 1;
   rd_sf->simple_model_rd_from_var = 0;
-#if CONFIG_TCQ
   rd_sf->disable_tcq = 0;
-#endif  // CONFIG_TCQ
   rd_sf->tx_domain_dist_level = 0;
   rd_sf->tx_domain_dist_thres_level = 0;
   rd_sf->perform_coeff_opt = 0;
@@ -1089,13 +1085,11 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
     if (sf->intra_sf.skip_intra_dip_search) {
       cpi->common.seq_params.enable_intra_dip = 0;
     }
-#if CONFIG_TCQ
     // Disable tcq modes in sequence header when cpu-used >= 2
     if (sf->rd_sf.disable_tcq) {
       cpi->common.seq_params.enable_tcq = TCQ_DISABLE;
       cpi->common.features.tcq_mode = TCQ_DISABLE;
     }
-#endif
   }
 
   // sf->part_sf.partition_search_breakout_dist_thr is set assuming max 64x64

@@ -889,10 +889,8 @@ typedef struct RD_CALC_SPEED_FEATURES {
   // Fast approximation of av1_model_rd_from_var_lapndz
   int simple_model_rd_from_var;
 
-#if CONFIG_TCQ
   // Use regular scaler quant instead of trellis coded quant
   bool disable_tcq;
-#endif  // CONFIG_TCQ
 
   // Whether to compute distortion in the image domain (slower but
   // more accurate), or in the transform domain (faster but less acurate).

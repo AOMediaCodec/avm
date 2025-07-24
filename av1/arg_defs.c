@@ -233,12 +233,10 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       ARG_DEF(NULL, "monochrome", 0, "Monochrome video (no chroma planes)"),
   .full_still_picture_hdr = ARG_DEF(NULL, "full-still-picture-hdr", 0,
                                     "Use full header for still picture"),
-#if CONFIG_TCQ
   .enable_tcq = ARG_DEF(NULL, "enable-tcq", 1,
                         "Enable trellis coded quantization"
                         "(0: off, 1: on for every frame, "
                         "2: on for key and altref frames (default))"),
-#endif  // CONFIG_TCQ
   .dropframe_thresh =
       ARG_DEF(NULL, "drop-frame", 1, "Temporal resampling threshold (buf %)"),
   .resize_mode = ARG_DEF(NULL, "resize-mode", 1, "Frame resize mode"),

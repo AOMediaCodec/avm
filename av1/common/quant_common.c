@@ -89,7 +89,6 @@ static const uint16_t ac_qlookup_QTX_full[QINDEX_RANGE_8_BITS] = {
 // addition, the minimum allowable quantizer is 4; smaller values will
 // underflow to 0 in the actual quantization routines.
 
-#if CONFIG_TCQ
 int tcq_parity(int absLevel) {
   int par = absLevel & 1;
   return par;
@@ -122,7 +121,6 @@ int tcq_next_state(const int curState, const int absLevel) {
   nextState += (tcq_mode << 8);
   return nextState;
 }
-#endif  // CONFIG_TCQ
 
 int32_t av1_dc_quant_QTX(int qindex, int delta, int base_dc_delta_q,
                          aom_bit_depth_t bit_depth) {

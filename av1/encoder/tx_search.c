@@ -2359,7 +2359,6 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
           intra_txb_rd_info->txb_entropy_ctx;
       best_eob = intra_txb_rd_info->eob;
       best_tx_type = intra_txb_rd_info->tx_type;
-#if CONFIG_TCQ
       const TX_CLASS tx_class =
           tx_type_to_class[get_primary_tx_type(best_tx_type)];
       if (tcq_enable(cm->features.tcq_mode, xd->lossless[xd->mi[0]->segment_id],
@@ -2368,7 +2367,6 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
         // we do not skip any optimization in loop of txfm search. so make sure
         // each block is optimized.
         assert(intra_txb_rd_info->perform_block_coeff_opt);
-#endif  // CONFIG_TCQ
       skip_trellis |= !intra_txb_rd_info->perform_block_coeff_opt;
       update_txk_array(xd, blk_row, blk_col, tx_size, best_tx_type);
       recon_intra(cpi, x, plane, block, blk_row, blk_col, plane_bsize, tx_size,
@@ -2435,13 +2433,10 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
   // effective.
   // TODO(any): Experiment with variance and mean based thresholds
   int perform_block_coeff_opt = 0;
-#if CONFIG_TCQ
   if (tcq_enable(cm->features.tcq_mode, xd->lossless[xd->mi[0]->segment_id],
                  plane, TX_CLASS_2D)) {
     perform_block_coeff_opt = 1;
-  } else
-#endif  // CONFIG_TCQ
-  {
+  } else {
     perform_block_coeff_opt =
         ((uint64_t)block_mse_q8 <=
          (uint64_t)txfm_params->coeff_opt_dist_threshold * qstep * qstep);
@@ -2715,14 +2710,12 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
         }
         *coeffs_available = 1;
 
-#if CONFIG_TCQ
         const TX_CLASS tx_class =
             tx_type_to_class[get_primary_tx_type(tx_type)];
         if (tcq_enable(cm->features.tcq_mode,
                        xd->lossless[xd->mi[0]->segment_id], plane, tx_class)) {
           skip_trellis_based_on_satd[txfm_param.tx_type] = skip_trellis;
         } else
-#endif  // CONFIG_TCQ
           skip_trellis_based_on_satd[txfm_param.tx_type] =
               skip_trellis_opt_based_on_satd(
                   x, &quant_param, plane, block, tx_size,

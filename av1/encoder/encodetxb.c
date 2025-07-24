@@ -1057,13 +1057,9 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
 #endif
 
   const TX_CLASS tx_class = tx_type_to_class[get_primary_tx_type(tx_type)];
-#if CONFIG_TCQ
   const int tcq_mode =
       tcq_enable(cm->features.tcq_mode, xd->lossless[xd->mi[0]->segment_id],
                  plane, tx_class);
-#else
-  const int tcq_mode = 0;
-#endif  // CONFIG_TCQ
 
   // write sec_tx_type here
   // Only y plane's sec_tx_type is transmitted
@@ -1101,18 +1097,14 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
       !xd->lossless[xd->mi[0]->segment_id] && plane == PLANE_TYPE_Y &&
       ph_allowed_tx_types[get_primary_tx_type(tx_type)] && (eob > PHTHRESH);
 
-#if CONFIG_TCQ
   int state = tcq_init_state(tcq_mode);
-#endif  // CONFIG_TCQ
   // Loop to code AC coefficient magnitudes
   for (int c = eob - 1; c > 0; --c) {
     const int pos = scan[c];
     const int coeff_ctx = coeff_contexts[pos];
     const tran_low_t v = tcoeff[pos];
     const tran_low_t level = abs(v);
-#if CONFIG_TCQ
     int q_i = tcq_quant(state);
-#endif  // CONFIG_TCQ
 
     if (c == eob - 1) {
       const int row = pos >> bwl;
@@ -1144,38 +1136,20 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
       if (plane > 0) {
         if (limits) {
           aom_write_symbol(w, AOMMIN(level, LF_BASE_SYMBOLS - 1),
-                           ec_ctx->coeff_base_lf_uv_cdf[coeff_ctx]
-#if CONFIG_TCQ
-                                                       [q_i]
-#endif  // CONFIG_TCQ
-                           ,
+                           ec_ctx->coeff_base_lf_uv_cdf[coeff_ctx][q_i],
                            LF_BASE_SYMBOLS);
         } else {
           aom_write_symbol(w, AOMMIN(level, 3),
-                           ec_ctx->coeff_base_uv_cdf[coeff_ctx]
-#if CONFIG_TCQ
-                                                    [q_i]
-#endif  // CONFIG_TCQ
-                           ,
-                           4);
+                           ec_ctx->coeff_base_uv_cdf[coeff_ctx][q_i], 4);
         }
       } else {
         if (limits) {
           aom_write_symbol(w, AOMMIN(level, LF_BASE_SYMBOLS - 1),
-                           ec_ctx->coeff_base_lf_cdf[txs_ctx][coeff_ctx]
-#if CONFIG_TCQ
-                                                    [q_i]
-#endif  // CONFIG_TCQ
-                           ,
+                           ec_ctx->coeff_base_lf_cdf[txs_ctx][coeff_ctx][q_i],
                            LF_BASE_SYMBOLS);
         } else {
           aom_write_symbol(w, AOMMIN(level, 3),
-                           ec_ctx->coeff_base_cdf[txs_ctx][coeff_ctx]
-#if CONFIG_TCQ
-                                                 [q_i]
-#endif  // CONFIG_TCQ
-                           ,
-                           4);
+                           ec_ctx->coeff_base_cdf[txs_ctx][coeff_ctx][q_i], 4);
         }
       }
     }
@@ -1212,9 +1186,7 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
         }
       }
     }
-#if CONFIG_TCQ
     state = tcq_next_state(state, level);
-#endif  // CONFIG_TCQ
   }
 
   // Code DC coefficient magnitude
@@ -1239,11 +1211,7 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
     const int coeff_ctx = coeff_contexts[pos];
     const tran_low_t v = tcoeff[pos];
     const tran_low_t level = abs(v);
-#if CONFIG_TCQ
     int q_i = tcq_quant(state);
-#elif CONFIG_TCQ
-    int q_i = 0;
-#endif  // CONFIG_TCQ
 
     if (plane > 0) {
       if (c == eob - 1) {
@@ -1264,20 +1232,11 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
         int limits = get_lf_limits(row, col, tx_class, plane);
         if (limits) {
           aom_write_symbol(w, AOMMIN(level, LF_BASE_SYMBOLS - 1),
-                           ec_ctx->coeff_base_lf_uv_cdf[coeff_ctx]
-#if CONFIG_TCQ
-                                                       [q_i]
-#endif  // CONFIG_TCQ
-                           ,
+                           ec_ctx->coeff_base_lf_uv_cdf[coeff_ctx][q_i],
                            LF_BASE_SYMBOLS);
         } else {
           aom_write_symbol(w, AOMMIN(level, 3),
-                           ec_ctx->coeff_base_uv_cdf[coeff_ctx]
-#if CONFIG_TCQ
-                                                    [q_i]
-#endif  // CONFIG_TCQ
-                           ,
-                           4);
+                           ec_ctx->coeff_base_uv_cdf[coeff_ctx][q_i], 4);
         }
       }
     } else {
@@ -1299,20 +1258,11 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
         int limits = get_lf_limits(row, col, tx_class, plane);
         if (limits) {
           aom_write_symbol(w, AOMMIN(level, LF_BASE_SYMBOLS - 1),
-                           ec_ctx->coeff_base_lf_cdf[txs_ctx][coeff_ctx]
-#if CONFIG_TCQ
-                                                    [q_i]
-#endif  // CONFIG_TCQ
-                           ,
+                           ec_ctx->coeff_base_lf_cdf[txs_ctx][coeff_ctx][q_i],
                            LF_BASE_SYMBOLS);
         } else {
           aom_write_symbol(w, AOMMIN(level, 3),
-                           ec_ctx->coeff_base_cdf[txs_ctx][coeff_ctx]
-#if CONFIG_TCQ
-                                                 [q_i]
-#endif  // CONFIG_TCQ
-                           ,
-                           4);
+                           ec_ctx->coeff_base_cdf[txs_ctx][coeff_ctx][q_i], 4);
         }
       }
     }
@@ -2090,20 +2040,12 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
       }
     }
   }
-#if CONFIG_TCQ
   const int(*base_lf_cost)[TCQ_CTXS][LF_BASE_SYMBOLS * 2] =
       coeff_costs->base_lf_cost;
   const int(*base_cost)[TCQ_CTXS][8] = coeff_costs->base_cost;
   const int(*base_lf_cost_uv)[TCQ_CTXS][LF_BASE_SYMBOLS * 2] =
       coeff_costs->base_lf_cost_uv;
   const int(*base_cost_uv)[TCQ_CTXS][8] = coeff_costs->base_cost_uv;
-#else
-  const int(*base_lf_cost)[LF_BASE_SYMBOLS * 2] = coeff_costs->base_lf_cost;
-  const int(*base_cost)[8] = coeff_costs->base_cost;
-  const int(*base_lf_cost_uv)[LF_BASE_SYMBOLS * 2] =
-      coeff_costs->base_lf_cost_uv;
-  const int(*base_cost_uv)[8] = coeff_costs->base_cost_uv;
-#endif  // CONFIG_TCQ
 #if CONFIG_COEFF_HR_ADAPTIVE
   int hr_level_avg = hr_level >> 1;
 #endif  // CONFIG_COEFF_HR_ADAPTIVE
@@ -2117,31 +2059,16 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
     int limits = get_lf_limits(row, col, tx_class, plane);
     if (plane > 0) {
       if (limits) {
-        cost += base_lf_cost_uv[coeff_ctx]
-#if CONFIG_TCQ
-                               [0]
-#endif  // CONFIG_TCQ
-                               [AOMMIN(level, LF_BASE_SYMBOLS - 1)];
+        cost +=
+            base_lf_cost_uv[coeff_ctx][0][AOMMIN(level, LF_BASE_SYMBOLS - 1)];
       } else {
-        cost += base_cost_uv[coeff_ctx]
-#if CONFIG_TCQ
-                            [0]
-#endif  // CONFIG_TCQ
-                            [AOMMIN(level, 3)];
+        cost += base_cost_uv[coeff_ctx][0][AOMMIN(level, 3)];
       }
     } else {
       if (limits) {
-        cost += base_lf_cost[coeff_ctx]
-#if CONFIG_TCQ
-                            [0]
-#endif  // CONFIG_TCQ
-                            [AOMMIN(level, LF_BASE_SYMBOLS - 1)];
+        cost += base_lf_cost[coeff_ctx][0][AOMMIN(level, LF_BASE_SYMBOLS - 1)];
       } else {
-        cost += base_cost[coeff_ctx]
-#if CONFIG_TCQ
-                         [0]
-#endif  // CONFIG_TCQ
-                         [AOMMIN(level, 3)];
+        cost += base_cost[coeff_ctx][0][AOMMIN(level, 3)];
       }
     }
     if (v) {
@@ -2271,31 +2198,16 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
     int limits = get_lf_limits(row, col, tx_class, plane);
     if (plane > 0) {
       if (limits) {
-        cost += base_lf_cost_uv[coeff_ctx]
-#if CONFIG_TCQ
-                               [0]
-#endif  // CONFIG_TCQ
-                               [AOMMIN(level, LF_BASE_SYMBOLS - 1)];
+        cost +=
+            base_lf_cost_uv[coeff_ctx][0][AOMMIN(level, LF_BASE_SYMBOLS - 1)];
       } else {
-        cost += base_cost_uv[coeff_ctx]
-#if CONFIG_TCQ
-                            [0]
-#endif  // CONFIG_TCQ
-                            [AOMMIN(level, 3)];
+        cost += base_cost_uv[coeff_ctx][0][AOMMIN(level, 3)];
       }
     } else {
       if (limits) {
-        cost += base_lf_cost[coeff_ctx]
-#if CONFIG_TCQ
-                            [0]
-#endif  // CONFIG_TCQ
-                            [AOMMIN(level, LF_BASE_SYMBOLS - 1)];
+        cost += base_lf_cost[coeff_ctx][0][AOMMIN(level, LF_BASE_SYMBOLS - 1)];
       } else {
-        cost += base_cost[coeff_ctx]
-#if CONFIG_TCQ
-                         [0]
-#endif  // CONFIG_TCQ
-                         [AOMMIN(level, 3)];
+        cost += base_cost[coeff_ctx][0][AOMMIN(level, 3)];
       }
     }
 
@@ -2614,7 +2526,6 @@ static AOM_FORCE_INLINE int get_two_coeff_cost_simple(
   assert(ci > 0);
   int cost = 0;
 
-#if CONFIG_TCQ
   const int(*base_lf_cost_ptr)[TCQ_CTXS][LF_BASE_SYMBOLS * 2] =
       plane > 0 ? txb_costs->base_lf_cost_uv : txb_costs->base_lf_cost;
   const int(*base_cost_ptr)[TCQ_CTXS][8] =
@@ -2623,41 +2534,19 @@ static AOM_FORCE_INLINE int get_two_coeff_cost_simple(
       limits
           ? base_lf_cost_ptr[coeff_ctx][0][AOMMIN(abs_qc, LF_BASE_SYMBOLS - 1)]
           : base_cost_ptr[coeff_ctx][0][AOMMIN(abs_qc, 3)];
-#else
-  const int(*base_lf_cost_ptr)[LF_BASE_SYMBOLS * 2] =
-      plane > 0 ? txb_costs->base_lf_cost_uv : txb_costs->base_lf_cost;
-  const int(*base_cost_ptr)[8] =
-      plane > 0 ? txb_costs->base_cost_uv : txb_costs->base_cost;
-
-  cost += limits
-              ? base_lf_cost_ptr[coeff_ctx][AOMMIN(abs_qc, LF_BASE_SYMBOLS - 1)]
-              : base_cost_ptr[coeff_ctx][AOMMIN(abs_qc, 3)];
-#endif  // CONFIG_TCQ
   int diff = 0;
 
   if (limits) {
     if (abs_qc <= (LF_BASE_SYMBOLS - 1)) {
-#if CONFIG_TCQ
       diff = (abs_qc == 0) ? 0
                            : base_lf_cost_ptr[coeff_ctx][0][abs_qc] -
                                  base_lf_cost_ptr[coeff_ctx][0][abs_qc - 1];
-#else
-      diff = (abs_qc == 0) ? 0
-                           : base_lf_cost_ptr[coeff_ctx][abs_qc] -
-                                 base_lf_cost_ptr[coeff_ctx][abs_qc - 1];
-#endif  // CONFIG_TCQ
     }
   } else {
     if (abs_qc <= 3) {
-#if CONFIG_TCQ
       diff = (abs_qc == 0) ? 0
                            : base_cost_ptr[coeff_ctx][0][abs_qc] -
                                  base_cost_ptr[coeff_ctx][0][abs_qc - 1];
-#else
-      diff = (abs_qc == 0) ? 0
-                           : base_cost_ptr[coeff_ctx][abs_qc] -
-                                 base_cost_ptr[coeff_ctx][abs_qc - 1];
-#endif  // CONFIG_TCQ
     }
   }
   diff += (abs_qc == 1) ? av1_cost_literal(1) : 0;
@@ -2913,7 +2802,6 @@ static INLINE int get_coeff_cost_general(
                                       [AOMMIN(abs_qc, LF_BASE_SYMBOLS - 1) - 1]
                 : base_eob_cost_ptr[coeff_ctx][AOMMIN(abs_qc, 3) - 1];
   } else {
-#if CONFIG_TCQ
     const int(*base_lf_cost_ptr)[TCQ_CTXS][LF_BASE_SYMBOLS * 2] =
         plane > 0 ? txb_costs->base_lf_cost_uv : txb_costs->base_lf_cost;
     const int(*base_cost_ptr)[TCQ_CTXS][8] =
@@ -2921,16 +2809,6 @@ static INLINE int get_coeff_cost_general(
     cost += limits ? base_lf_cost_ptr[coeff_ctx][0]
                                      [AOMMIN(abs_qc, LF_BASE_SYMBOLS - 1)]
                    : base_cost_ptr[coeff_ctx][0][AOMMIN(abs_qc, 3)];
-#else
-    const int(*base_lf_cost_ptr)[LF_BASE_SYMBOLS * 2] =
-        plane > 0 ? txb_costs->base_lf_cost_uv : txb_costs->base_lf_cost;
-    const int(*base_cost_ptr)[8] =
-        plane > 0 ? txb_costs->base_cost_uv : txb_costs->base_cost;
-    cost +=
-        limits
-            ? base_lf_cost_ptr[coeff_ctx][AOMMIN(abs_qc, LF_BASE_SYMBOLS - 1)]
-            : base_cost_ptr[coeff_ctx][AOMMIN(abs_qc, 3)];
-#endif  // CONFIG_TCQ
   }
   if (abs_qc != 0) {
     const int dc_ph_group = 0;  // PH disabled
@@ -3155,28 +3033,16 @@ static INLINE void update_coeff_general(
   int hr_level = 0;
   int hr_level_low = 0;
 #endif  // CONFIG_COEFF_HR_ADAPTIVE
-#if CONFIG_TCQ
   const int(*base_lf_cost_ptr)[TCQ_CTXS][LF_BASE_SYMBOLS * 2] =
       plane > 0 ? txb_costs->base_lf_cost_uv : txb_costs->base_lf_cost;
   const int(*base_cost_ptr)[TCQ_CTXS][8] =
       plane > 0 ? txb_costs->base_cost_uv : txb_costs->base_cost;
-#else
-  const int(*base_lf_cost_ptr)[LF_BASE_SYMBOLS * 2] =
-      plane > 0 ? txb_costs->base_lf_cost_uv : txb_costs->base_lf_cost;
-  const int(*base_cost_ptr)[8] =
-      plane > 0 ? txb_costs->base_cost_uv : txb_costs->base_cost;
-#endif  // CONFIG_TCQ
   const int row = ci >> bwl;
   const int col = ci - (row << bwl);
   int limits = get_lf_limits(row, col, tx_class, plane);
   if (qc == 0) {
-#if CONFIG_TCQ
     *accu_rate += limits ? base_lf_cost_ptr[coeff_ctx][0][0]
                          : base_cost_ptr[coeff_ctx][0][0];
-#else
-    *accu_rate +=
-        limits ? base_lf_cost_ptr[coeff_ctx][0] : base_cost_ptr[coeff_ctx][0];
-#endif  // CONFIG_TCQ
   } else {
     const int sign = (qc < 0) ? 1 : 0;
     const tran_low_t abs_qc = abs(qc);
@@ -3206,13 +3072,8 @@ static INLINE void update_coeff_general(
     if (abs_qc == 1) {
       abs_qc_low = qc_low = dqc_low = 0;
       dist_low = dist0;
-#if CONFIG_TCQ
       rate_low = limits ? base_lf_cost_ptr[coeff_ctx][0][0]
                         : base_cost_ptr[coeff_ctx][0][0];
-#else
-      rate_low =
-          limits ? base_lf_cost_ptr[coeff_ctx][0] : base_cost_ptr[coeff_ctx][0];
-#endif  // CONFIG_TCQ
     } else {
       get_qc_dqc_low(abs_qc, sign, dqv, shift, &qc_low, &dqc_low);
       abs_qc_low = abs_qc - 1;
@@ -3300,7 +3161,6 @@ static AOM_FORCE_INLINE void update_coeff_simple(
     }
   }
   if (qc == 0) {
-#if CONFIG_TCQ
     if (plane > 0) {
       if (limits) {
         *accu_rate += txb_costs->base_lf_cost_uv[coeff_ctx][0][0];
@@ -3314,21 +3174,6 @@ static AOM_FORCE_INLINE void update_coeff_simple(
         *accu_rate += txb_costs->base_cost[coeff_ctx][0][0];
       }
     }
-#else
-    if (plane > 0) {
-      if (limits) {
-        *accu_rate += txb_costs->base_lf_cost_uv[coeff_ctx][0];
-      } else {
-        *accu_rate += txb_costs->base_cost_uv[coeff_ctx][0];
-      }
-    } else {
-      if (limits) {
-        *accu_rate += txb_costs->base_lf_cost[coeff_ctx][0];
-      } else {
-        *accu_rate += txb_costs->base_cost[coeff_ctx][0];
-      }
-    }
-#endif  // CONFIG_TCQ
   } else {
     const tran_low_t abs_qc = abs(qc);
     const tran_low_t abs_tqc = abs(tcoeff[ci]);
@@ -3605,7 +3450,6 @@ static AOM_FORCE_INLINE void update_coeff_eob(
     }
   }
   if (qc == 0) {
-#if CONFIG_TCQ
     if (plane > 0) {
       if (limits) {
         *accu_rate += txb_costs->base_lf_cost_uv[coeff_ctx][0][0];
@@ -3619,21 +3463,6 @@ static AOM_FORCE_INLINE void update_coeff_eob(
         *accu_rate += txb_costs->base_cost[coeff_ctx][0][0];
       }
     }
-#else
-    if (plane > 0) {
-      if (limits) {
-        *accu_rate += txb_costs->base_lf_cost_uv[coeff_ctx][0];
-      } else {
-        *accu_rate += txb_costs->base_cost_uv[coeff_ctx][0];
-      }
-    } else {
-      if (limits) {
-        *accu_rate += txb_costs->base_lf_cost[coeff_ctx][0];
-      } else {
-        *accu_rate += txb_costs->base_cost[coeff_ctx][0];
-      }
-    }
-#endif  // CONFIG_TCQ
   } else {
     int64_t rd_eob_low = INT64_MAX >> 1;
     int rate_eob_low = INT32_MAX >> 1;
@@ -3667,7 +3496,6 @@ static AOM_FORCE_INLINE void update_coeff_eob(
       abs_qc_low = 0;
       dqc_low = qc_low = 0;
       dist_low = 0;
-#if CONFIG_TCQ
       if (plane > 0) {
         if (limits) {
           rate_low = txb_costs->base_lf_cost_uv[coeff_ctx][0][0];
@@ -3681,21 +3509,6 @@ static AOM_FORCE_INLINE void update_coeff_eob(
           rate_low = txb_costs->base_cost[coeff_ctx][0][0];
         }
       }
-#else
-      if (plane > 0) {
-        if (limits) {
-          rate_low = txb_costs->base_lf_cost_uv[coeff_ctx][0];
-        } else {
-          rate_low = txb_costs->base_cost_uv[coeff_ctx][0];
-        }
-      } else {
-        if (limits) {
-          rate_low = txb_costs->base_lf_cost[coeff_ctx][0];
-        } else {
-          rate_low = txb_costs->base_cost[coeff_ctx][0];
-        }
-      }
-#endif  // CONFIG_TCQ
       rd_low = RDCOST(rdmult, *accu_rate + rate_low, *accu_dist);
     } else {
       get_qc_dqc_low(abs_qc, sign, dqv, shift, &qc_low, &dqc_low);
@@ -5232,21 +5045,17 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
         cm->features.allow_parity_hiding &&
         !xd->lossless[xd->mi[0]->segment_id] && plane == PLANE_TYPE_Y &&
         ph_allowed_tx_types[get_primary_tx_type(tx_type)] && (eob > PHTHRESH);
-#if CONFIG_TCQ
     int tcq_mode =
         tcq_enable(cm->features.tcq_mode, xd->lossless[xd->mi[0]->segment_id],
                    plane, tx_class);
     int state = tcq_init_state(tcq_mode);
-#endif  // CONFIG_TCQ
 
     for (int c = eob - 1; c > 0; --c) {
       const int pos = scan[c];
       const int coeff_ctx = coeff_contexts[pos];
       const tran_low_t v = qcoeff[pos];
       const tran_low_t level = abs(v);
-#if CONFIG_TCQ
       const int q_i = tcq_quant(state);
-#endif  // CONFIG_TCQ
       if (allow_update_cdf) {
         if (c == eob - 1) {
           assert(coeff_ctx < 4);
@@ -5278,34 +5087,18 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
           int limits = get_lf_limits(row, col, tx_class, plane);
           if (plane > 0) {
             if (limits) {
-              update_cdf(ec_ctx->coeff_base_lf_uv_cdf[coeff_ctx]
-#if CONFIG_TCQ
-                                                     [q_i]
-#endif  // CONFIG_TCQ
-                         ,
+              update_cdf(ec_ctx->coeff_base_lf_uv_cdf[coeff_ctx][q_i],
                          AOMMIN(level, LF_BASE_SYMBOLS - 1), LF_BASE_SYMBOLS);
             } else {
-              update_cdf(ec_ctx->coeff_base_uv_cdf[coeff_ctx]
-#if CONFIG_TCQ
-                                                  [q_i]
-#endif  // CONFIG_TCQ
-                         ,
+              update_cdf(ec_ctx->coeff_base_uv_cdf[coeff_ctx][q_i],
                          AOMMIN(level, 3), 4);
             }
           } else {
             if (limits) {
-              update_cdf(ec_ctx->coeff_base_lf_cdf[txsize_ctx][coeff_ctx]
-#if CONFIG_TCQ
-                                                  [q_i]
-#endif  // CONFIG_TCQ
-                         ,
+              update_cdf(ec_ctx->coeff_base_lf_cdf[txsize_ctx][coeff_ctx][q_i],
                          AOMMIN(level, LF_BASE_SYMBOLS - 1), LF_BASE_SYMBOLS);
             } else {
-              update_cdf(ec_ctx->coeff_base_cdf[txsize_ctx][coeff_ctx]
-#if CONFIG_TCQ
-                                               [q_i]
-#endif  // CONFIG_TCQ
-                         ,
+              update_cdf(ec_ctx->coeff_base_cdf[txsize_ctx][coeff_ctx][q_i],
                          AOMMIN(level, 3), 4);
             }
           }
@@ -5344,31 +5137,19 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
         if (plane > 0) {
           if (limits) {
             ++td->counts
-                  ->coeff_base_lf_multi_uv[cdf_idx][coeff_ctx]
-#if CONFIG_TCQ
-                                          [q_i]
-#endif  // CONFIG_TCQ
+                  ->coeff_base_lf_multi_uv[cdf_idx][coeff_ctx][q_i]
                                           [AOMMIN(level, LF_BASE_SYMBOLS - 1)];
           } else {
-            ++td->counts->coeff_base_multi_uv[cdf_idx][coeff_ctx]
-#if CONFIG_TCQ
-                                             [q_i]
-#endif  // CONFIG_TCQ
+            ++td->counts->coeff_base_multi_uv[cdf_idx][coeff_ctx][q_i]
                                              [AOMMIN(level, 3)];
           }
         } else {
           if (limits) {
             ++td->counts
-                  ->coeff_base_lf_multi[cdf_idx][txsize_ctx][coeff_ctx]
-#if CONFIG_TCQ
-                                       [q_i]
-#endif  // CONFIG_TCQ
+                  ->coeff_base_lf_multi[cdf_idx][txsize_ctx][coeff_ctx][q_i]
                                        [AOMMIN(level, LF_BASE_SYMBOLS - 1)];
           } else {
-            ++td->counts->coeff_base_multi[cdf_idx][txsize_ctx][coeff_ctx]
-#if CONFIG_TCQ
-                                          [q_i]
-#endif  // CONFIG_TCQ
+            ++td->counts->coeff_base_multi[cdf_idx][txsize_ctx][coeff_ctx][q_i]
                                           [AOMMIN(level, 3)];
           }
         }
@@ -5468,9 +5249,7 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
           }
         }
       }
-#if CONFIG_TCQ
       state = tcq_next_state(state, level);
-#endif  // CONFIG_TCQ
     }
 
     bool is_hidden = false;
@@ -5528,39 +5307,21 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
           const int row = pos >> bwl;
           const int col = pos - (row << bwl);
           int limits = get_lf_limits(row, col, tx_class, plane);
-#if CONFIG_TCQ
           int q_i = tcq_quant(state);
-#endif  // CONFIG_TCQ
           if (plane > 0) {
             if (limits) {
-              update_cdf(ec_ctx->coeff_base_lf_uv_cdf[coeff_ctx]
-#if CONFIG_TCQ
-                                                     [q_i]
-#endif  // CONFIG_TCQ
-                         ,
+              update_cdf(ec_ctx->coeff_base_lf_uv_cdf[coeff_ctx][q_i],
                          AOMMIN(level, LF_BASE_SYMBOLS - 1), LF_BASE_SYMBOLS);
             } else {
-              update_cdf(ec_ctx->coeff_base_uv_cdf[coeff_ctx]
-#if CONFIG_TCQ
-                                                  [q_i]
-#endif  // CONFIG_TCQ
-                         ,
+              update_cdf(ec_ctx->coeff_base_uv_cdf[coeff_ctx][q_i],
                          AOMMIN(level, 3), 4);
             }
           } else {
             if (limits) {
-              update_cdf(ec_ctx->coeff_base_lf_cdf[txsize_ctx][coeff_ctx]
-#if CONFIG_TCQ
-                                                  [q_i]
-#endif  // CONFIG_TCQ
-                         ,
+              update_cdf(ec_ctx->coeff_base_lf_cdf[txsize_ctx][coeff_ctx][q_i],
                          AOMMIN(level, LF_BASE_SYMBOLS - 1), LF_BASE_SYMBOLS);
             } else {
-              update_cdf(ec_ctx->coeff_base_cdf[txsize_ctx][coeff_ctx]
-#if CONFIG_TCQ
-                                               [q_i]
-#endif  // CONFIG_TCQ
-                         ,
+              update_cdf(ec_ctx->coeff_base_cdf[txsize_ctx][coeff_ctx][q_i],
                          AOMMIN(level, 3), 4);
             }
           }
@@ -5599,31 +5360,19 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
         if (plane > 0) {
           if (limits) {
             ++td->counts
-                  ->coeff_base_lf_multi_uv[cdf_idx][coeff_ctx]
-#if CONFIG_TCQ
-                                          [q_i]
-#endif  // CONFIG_TCQ
+                  ->coeff_base_lf_multi_uv[cdf_idx][coeff_ctx][q_i]
                                           [AOMMIN(level, LF_BASE_SYMBOLS - 1)];
           } else {
-            ++td->counts->coeff_base_multi_uv[cdf_idx][coeff_ctx]
-#if CONFIG_TCQ
-                                             [q_i]
-#endif  // CONFIG_TCQ
+            ++td->counts->coeff_base_multi_uv[cdf_idx][coeff_ctx][q_i]
                                              [AOMMIN(level, 3)];
           }
         } else {
           if (limits) {
             ++td->counts
-                  ->coeff_base_lf_multi[cdf_idx][txsize_ctx][coeff_ctx]
-#if CONFIG_TCQ
-                                       [q_i]
-#endif  // CONFIG_TCQ
+                  ->coeff_base_lf_multi[cdf_idx][txsize_ctx][coeff_ctx][q_i]
                                        [AOMMIN(level, LF_BASE_SYMBOLS - 1)];
           } else {
-            ++td->counts->coeff_base_multi[cdf_idx][txsize_ctx][coeff_ctx]
-#if CONFIG_TCQ
-                                          [q_i]
-#endif  // CONFIG_TCQ
+            ++td->counts->coeff_base_multi[cdf_idx][txsize_ctx][coeff_ctx][q_i]
                                           [AOMMIN(level, 3)];
           }
         }

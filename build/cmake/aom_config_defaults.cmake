@@ -164,8 +164,6 @@ set_aom_config_var(CONFIG_INTRA_SDP_SIMPLIFICATION 1 NUMBER
                    "Simplify intra sdp logic")
 set_aom_config_var(CONFIG_DIP_EXT_PRUNING 1 "AV2 DIP TFLite pruning.")
 set_aom_config_var(CONFIG_ERP_TFLITE 0 NUMBER "Build ERP with TFLite")
-set_aom_config_var(CONFIG_TCQ 1 "AV2 trellis coded quantization flag")
-set_aom_config_var(CONFIG_TCQ_IMP 1 "AV2 TCQ improvement")
 set_aom_config_var(CONFIG_TCQ_FOR_ALL_FRAMES 1 "Adjust base QP for TCQ")
 set_aom_config_var(CONFIG_COMPOUND_WARP_SAMPLES 1 NUMBER
                    "AV2 compound warped motion samples experiment flag")

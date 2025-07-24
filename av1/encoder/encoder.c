@@ -559,7 +559,6 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_cdef_on_skip_txfm = tool_cfg->enable_cdef_on_skip_txfm;
   seq->enable_avg_cdf = tool_cfg->enable_avg_cdf;
   seq->avg_cdf_type = tool_cfg->avg_cdf_type;
-#if CONFIG_TCQ
   seq->enable_tcq =
       is_lossless_requested(&oxcf->rc_cfg) ? 0 : tool_cfg->enable_tcq;
   if (seq->enable_tcq == TCQ_DISABLE || seq->enable_tcq >= TCQ_8ST_FR) {
@@ -569,10 +568,6 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   } else {
     seq->enable_parity_hiding = 0;
   }
-#else
-  seq->enable_parity_hiding =
-      is_lossless_requested(&oxcf->rc_cfg) ? 0 : tool_cfg->enable_parity_hiding;
-#endif  // CONFIG_TCQ
 #if CONFIG_IMPROVED_GLOBAL_MOTION
   // TODO(rachelbarker): Check if cpi->sf.gm_sf.gm_search_type is set by this
   // point, and set to 0 if cpi->sf.gm_sf.gm_search_type == GM_DISABLE_SEARCH
@@ -3169,9 +3164,7 @@ static int encode_without_recode(AV1_COMP *cpi) {
   }
 
   av1_set_lossless(cpi);
-#if CONFIG_TCQ
   av1_set_frame_tcq_mode(cpi);
-#endif  // CONFIG_TCQ
   av1_enc_setup_ph_frame(cpi);
   av1_init_quantizer(&cm->seq_params, &cpi->enc_quant_dequant_params, cm);
 
@@ -3397,9 +3390,7 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
     }
 
     av1_set_lossless(cpi);
-#if CONFIG_TCQ
     av1_set_frame_tcq_mode(cpi);
-#endif  // CONFIG_TCQ
     av1_enc_setup_ph_frame(cpi);
     av1_init_quantizer(&cm->seq_params, &cpi->enc_quant_dequant_params, cm);
 

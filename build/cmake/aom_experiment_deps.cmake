@@ -74,7 +74,4 @@ macro(fix_experiment_configs)
     change_config_and_warn(CONFIG_TENSORFLOW_LITE 1 CONFIG_DIP_EXT_PRUNING)
   endif()
 
-  if(CONFIG_TCQ)
-    change_config_and_warn(CONFIG_CONTEXT_DERIVATION 1 CONFIG_TCQ)
-  endif()
 endmacro()

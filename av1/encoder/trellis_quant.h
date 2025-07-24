@@ -28,7 +28,6 @@
 extern "C" {
 #endif
 
-#if CONFIG_TCQ
 #define MAX_DIAG 32
 #define MAX_LF_SCAN 10
 
@@ -162,7 +161,7 @@ static AOM_FORCE_INLINE int get_high_range(int abs_qc, int lf) {
 
 // Calculate the cost of high range of a coeff
 static AOM_FORCE_INLINE int get_golomb_cost_tcq(int abs_qc, int lf) {
-#if CONFIG_COEFF_HR_ADAPTIVE && CONFIG_TCQ_IMP
+#if CONFIG_COEFF_HR_ADAPTIVE
   int hr = get_high_range(abs_qc, lf);
   int hr_cost = av1_cost_literal(get_adaptive_hr_length(hr, 0));
   return hr_cost;
@@ -225,7 +224,6 @@ int av1_trellis_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
                       int block, TX_SIZE tx_size, TX_TYPE tx_type,
                       CctxType cctx_type, const TXB_CTX *const txb_ctx,
                       int *rate_cost, int sharpness);
-#endif  // CONFIG_TCQ
 
 #ifdef __cplusplus
 }
