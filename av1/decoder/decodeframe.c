@@ -8220,8 +8220,18 @@ static int read_uncompressed_header(AV1Decoder *pbi,
               if (sign) cm->tip_global_motion.as_mv.col *= -1;
             }
           }
+#if CONFIG_TIP_INTERP_SMOOTH
+          if (aom_rb_read_bit(rb)) {
+            cm->tip_interp_filter = MULTITAP_SHARP;
+          } else if (aom_rb_read_bit(rb)) {
+            cm->tip_interp_filter = EIGHTTAP_REGULAR;
+          } else {
+            cm->tip_interp_filter = EIGHTTAP_SMOOTH;
+          }
+#else
           cm->tip_interp_filter =
               aom_rb_read_bit(rb) ? MULTITAP_SHARP : EIGHTTAP_REGULAR;
+#endif  // CONFIG_TIP_INTERP_SMOOTH
         }
       } else {
         features->tip_frame_mode = TIP_FRAME_DISABLED;

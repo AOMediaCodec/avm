@@ -3622,8 +3622,9 @@ static INLINE int compute_tip_direct_output_mode_RD(AV1_COMP *cpi,
 
     for (InterpFilter interp_filter = EIGHTTAP_REGULAR;
          interp_filter <= MULTITAP_SHARP; ++interp_filter) {
+#if !CONFIG_TIP_INTERP_SMOOTH
       if (interp_filter == EIGHTTAP_SMOOTH) continue;
-
+#endif  // !CONFIG_TIP_INTERP_SMOOTH
       cm->tip_interp_filter = interp_filter;
       av1_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
                           av1_enc_calc_subpel_params, 0 /* copy_refined_mvs */
