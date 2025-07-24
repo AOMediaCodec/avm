@@ -3040,7 +3040,7 @@ static void set_primary_ref_frame_for_error_resilient(AV1_COMP *cpi) {
  */
 static void set_primary_ref_frame(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
-  cpi->signal_primary_ref_frame = 0;
+  cpi->signal_primary_ref_frame = cm->seq_params.explicit_ref_frame_map;
   // Got the derived_primary_ref_frame.
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
   int tmp_ref_frame[2] = { 0 };
