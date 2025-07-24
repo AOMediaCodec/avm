@@ -148,7 +148,6 @@ static AOM_INLINE void fill_residue_outside_frame(
   }
 }
 
-#if CONFIG_IST_REDUCTION
 // Mapping of IST kernel set to index (for encoder only)
 static const uint8_t inv_ist_intra_stx_mapping[IST_DIR_SIZE][IST_DIR_SIZE] = {
   { 2, 1, 6, 5, 4, 3, 0 },  // DC_PRED
@@ -159,7 +158,6 @@ static const uint8_t inv_ist_intra_stx_mapping[IST_DIR_SIZE][IST_DIR_SIZE] = {
   { 1, 4, 3, 6, 5, 0, 2 },  // D203_PRED, D67_PRED
   { 2, 1, 6, 5, 4, 3, 0 },  // SMOOTH_PRED
 };
-#if CONFIG_F105_IST_MEM_REDUCE
 static const uint8_t
     inv_ist_intra_stx_mapping_ADST_ADST[IST_DIR_SIZE][IST_DIR_SIZE] = {
       { 2, 1, 6, 5, 3, 4, 0 },  // DC_PRED
@@ -170,8 +168,6 @@ static const uint8_t
       { 1, 0, 5, 6, 3, 4, 2 },  // D203_PRED, D67_PRED
       { 2, 1, 6, 5, 3, 4, 0 },  // SMOOTH_PRED
     };
-#endif  // CONFIG_F105_IST_MEM_REDUCE
-#endif  // CONFIG_IST_REDUCTION
 
 void av1_subtract_block(const MACROBLOCKD *xd, int rows, int cols,
                         int16_t *diff, ptrdiff_t diff_stride,
@@ -680,21 +676,11 @@ void av1_xform(MACROBLOCK *x, int plane, int block, int blk_row, int blk_col,
     const int tr_height = tx_size_high[txfm_param->tx_size] <= 32
                               ? tx_size_high[txfm_param->tx_size]
                               : 32;
-#if CONFIG_IST_ANY_SET
     // perform fwd tx only once (and save the result in temp buff) during the
     // search loop for IST Set (IST_DIR_SIZE sets) and its kenerls (3 tx kernels
     // per set) Set 0 ~ IST_DIR_SIZE-1 for DCT_DCT, and Set IST_DIR_SIZE ~
     // IST_SET_SIZE-1 for ADST_ADST
-    if (txfm_param->sec_tx_type == 0 &&
-#if CONFIG_IST_REDUCTION
-        txfm_param->sec_tx_set_idx == 0)
-#else
-        (txfm_param->sec_tx_set == 0 || txfm_param->sec_tx_set == IST_DIR_SIZE))
-#endif
-#else
-    if (txfm_param->sec_tx_type == 0)
-#endif  // CONFIG_IST_ANY_SET
-    {
+    if (txfm_param->sec_tx_type == 0 && txfm_param->sec_tx_set_idx == 0) {
       av1_fwd_txfm(src_diff, coeff, diff_stride, txfm_param);
       if (plane == 0) {
         memcpy(p->temp_coeff, coeff, tr_width * tr_height * sizeof(tran_low_t));
@@ -707,20 +693,9 @@ void av1_xform(MACROBLOCK *x, int plane, int block, int blk_row, int blk_col,
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
   const PREDICTION_MODE intra_mode = get_intra_mode(mbmi, plane);
-#if !CONFIG_IST_NON_ZERO_DEPTH
-  const int is_depth0 = tx_size_is_depth0(txfm_param->tx_size, plane_bsize);
-#endif  // !CONFIG_IST_NON_ZERO_DEPTH
   if (!is_inter_block(mbmi, xd->tree_type))
-#if CONFIG_IST_NON_ZERO_DEPTH
     assert((intra_mode >= PAETH_PRED && txfm_param->sec_tx_type) == 0);
-#else
-    assert(((intra_mode >= PAETH_PRED || filter || !is_depth0) &&
-            txfm_param->sec_tx_type) == 0);
-#endif  // CONFIG_IST_NON_ZERO_DEPTH
   (void)intra_mode;
-#if !CONFIG_IST_NON_ZERO_DEPTH
-  (void)is_depth0;
-#endif  // !CONFIG_IST_NON_ZERO_DEPTH
   av1_fwd_stxfm(coeff, txfm_param, sec_tx_sse);
 }
 
@@ -817,12 +792,8 @@ void av1_setup_xform(const AV1_COMMON *cm, MACROBLOCK *x, int plane,
   MB_MODE_INFO *const mbmi = xd->mi[0];
 
   txfm_param->tx_type = get_primary_tx_type(tx_type);
-#if CONFIG_IST_SET_FLAG
   txfm_param->sec_tx_set = 0;
-#if CONFIG_IST_REDUCTION
   txfm_param->sec_tx_set_idx = 0;
-#endif  // CONFIG_IST_REDUCTION
-#endif  // CONFIG_IST_SET_FLAG
   txfm_param->sec_tx_type = 0;
   txfm_param->intra_mode = get_intra_mode(mbmi, plane);
   txfm_param->is_inter = is_inter_block(xd->mi[0], xd->tree_type);
@@ -835,9 +806,7 @@ void av1_setup_xform(const AV1_COMMON *cm, MACROBLOCK *x, int plane,
                                cm->seq_params.enable_ist));
   if (mode_dependent_condition && !xd->lossless[mbmi->segment_id] &&
       !(mbmi->fsc_mode[xd->tree_type == CHROMA_PART])) {
-#if CONFIG_IST_SET_FLAG
     txfm_param->sec_tx_set = get_secondary_tx_set(tx_type);
-#if CONFIG_IST_REDUCTION
     txfm_param->sec_tx_set_idx = txfm_param->sec_tx_set;
     if (!is_inter_block(xd->mi[0], xd->tree_type)) {
       int intra_stx_mode =
@@ -845,22 +814,16 @@ void av1_setup_xform(const AV1_COMMON *cm, MACROBLOCK *x, int plane,
       uint8_t stx_id = 0, stx_idx;
       if (txfm_param->tx_type == ADST_ADST) {
         stx_id = AOMMAX(txfm_param->sec_tx_set - IST_DIR_SIZE, 0);
-#if CONFIG_F105_IST_MEM_REDUCE
         if (width < 8 || height < 8)
           stx_idx = inv_ist_intra_stx_mapping[intra_stx_mode][stx_id];
         else
           stx_idx = inv_ist_intra_stx_mapping_ADST_ADST[intra_stx_mode][stx_id];
-#else
-        stx_idx = inv_ist_intra_stx_mapping[intra_stx_mode][stx_id];
-#endif  // CONFIG_F105_IST_MEM_REDUCE
       } else {
         stx_id = txfm_param->sec_tx_set;
         stx_idx = inv_ist_intra_stx_mapping[intra_stx_mode][stx_id];
       }
       txfm_param->sec_tx_set_idx = stx_idx;
     }
-#endif  // CONFIG_IST_REDUCTION
-#endif  // CONFIG_IST_SET_FLAG
     txfm_param->sec_tx_type = get_secondary_tx_type(tx_type);
   }
   txfm_param->cctx_type = cctx_type;

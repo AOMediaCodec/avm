@@ -153,42 +153,22 @@ void fwd_stxfm_avx2(tran_low_t *src, tran_low_t *dst,
   // processing needs. This avoids on-the-fly conversion from int16_t to int32_t
   // during execution by letting SIMD variants directly load the pre-converted
   // filter weights.
-#if CONFIG_E124_IST_REDUCE_METHOD4
   const int32_t *kernel = (size == 0) ? ist_4x4_kernel_int32[mode][stx_idx][0]
                                       : ist_8x8_kernel_int32[mode][stx_idx][0];
-#else
-  const int32_t *kernel = (size == 4) ? ist_4x4_kernel_int32[mode][stx_idx][0]
-                                      : ist_8x8_kernel_int32[mode][stx_idx][0];
-#endif  // CONFIG_E124_IST_REDUCE_METHOD4
 
   int reduced_width, reduced_height;
-#if CONFIG_E124_IST_REDUCE_METHOD4
   if (size == 0) {
     reduced_height = IST_4x4_HEIGHT;
     reduced_width = IST_4x4_WIDTH;
   } else {
-#if CONFIG_F105_IST_MEM_REDUCE
     reduced_height = (size == 1)
                          ? IST_8x8_HEIGHT_RED
                          : ((size == 3) ? IST_ADST_NZ_CNT : IST_8x8_HEIGHT);
-#else
-    reduced_height = (size == 1) ? IST_8x8_HEIGHT_RED : IST_8x8_HEIGHT;
-#endif  // CONFIG_F105_IST_MEM_REDUCE
     reduced_width = IST_8x8_WIDTH;
   }
-#else
-  if (size == 4) {
-    reduced_height = IST_4x4_HEIGHT;
-    reduced_width = IST_4x4_WIDTH;
-  } else {
-    reduced_height = IST_8x8_HEIGHT;
-    reduced_width = IST_8x8_WIDTH;
-  }
-#endif  // CONFIG_E124_IST_REDUCE_METHOD4
 
   const int shift = 7;
 
-#if CONFIG_E124_IST_REDUCE_METHOD4
   if (reduced_height == 8) {
     assert(reduced_width % 8 == 0);
     __m256i resi_vec[8];
@@ -300,7 +280,6 @@ void fwd_stxfm_avx2(tran_low_t *src, tran_low_t *dst,
       out += 4;
     }
   } else {
-#endif  // CONFIG_E124_IST_REDUCE_METHOD4
     assert(reduced_height % 8 == 0 && reduced_width % 8 == 0);
     __m256i resi_vec[8];
     __m256i resi_vec_out[8];
@@ -368,9 +347,7 @@ void fwd_stxfm_avx2(tran_low_t *src, tran_low_t *dst,
       kernel += stride_width << 3;
       out += 8;
     }
-#if CONFIG_E124_IST_REDUCE_METHOD4
   }
-#endif  // CONFIG_E124_IST_REDUCE_METHOD4
 }
 
 void transpose_store_8x8_avx2(__m256i *a, int *dst, int size) {

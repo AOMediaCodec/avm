@@ -48,12 +48,7 @@ class AV1FwdSecTxfmTest : public ::testing::TestWithParam<FwdSTxfmFunc> {
     av1_init_stxfm_kernels();
     for (int set_id = 0; set_id < IST_DIR_SIZE; ++set_id) {
       for (uint8_t stx = 0; stx < STX_TYPES - 1; ++stx) {
-#if CONFIG_E124_IST_REDUCE_METHOD4
         for (int sb_size = 0; sb_size < 3; ++sb_size) {
-#else
-        for (int sb_size_idx = 0; sb_size_idx < 2; ++sb_size_idx) {
-          int sb_size = (sb_size_idx == 0) ? 4 : 8;
-#endif
           DECLARE_ALIGNED(32, tran_low_t, input[IST_8x8_WIDTH]) = { 0 };
           DECLARE_ALIGNED(32, tran_low_t, output[IST_8x8_HEIGHT]) = { 0 };
           DECLARE_ALIGNED(32, tran_low_t, ref_output[IST_8x8_HEIGHT]) = { 0 };
@@ -75,13 +70,9 @@ class AV1FwdSecTxfmTest : public ::testing::TestWithParam<FwdSTxfmFunc> {
             }
             fwd_stxfm_c(input, ref_output, set_id, stx, sb_size, bd);
             fwd_stxfm_func_(input, output, set_id, stx, sb_size, bd);
-#if CONFIG_E124_IST_REDUCE_METHOD4
             int check_rows = (sb_size == 0)   ? IST_4x4_HEIGHT
                              : (sb_size == 1) ? IST_8x8_HEIGHT_RED
                                               : IST_8x8_HEIGHT;
-#else
-            int check_rows = (sb_size == 4) ? IST_4x4_HEIGHT : IST_8x8_HEIGHT;
-#endif
             for (int r = 0; r < check_rows; ++r) {
               ASSERT_EQ(ref_output[r], output[r])
                   << "[" << r << "] cnt:" << cnt
@@ -96,12 +87,7 @@ class AV1FwdSecTxfmTest : public ::testing::TestWithParam<FwdSTxfmFunc> {
 
   void AV1FwdSecTxfmSpeedTest() {
     av1_init_stxfm_kernels();
-#if CONFIG_E124_IST_REDUCE_METHOD4
     for (int sb_size = 0; sb_size < 3; ++sb_size) {
-#else
-    for (int sb_size_idx = 0; sb_size_idx < 2; ++sb_size_idx) {
-      int sb_size = (sb_size_idx == 0) ? 4 : 8;
-#endif
       DECLARE_ALIGNED(32, tran_low_t, input[IST_8x8_WIDTH]) = { 0 };
       DECLARE_ALIGNED(32, tran_low_t, output[IST_8x8_HEIGHT]) = { 0 };
       ACMRandom rnd(ACMRandom::DeterministicSeed());
@@ -165,12 +151,7 @@ class AV1InvSecTxfmTest : public ::testing::TestWithParam<InvSTxfmFunc> {
     av1_init_stxfm_kernels();
     for (int set_id = 0; set_id < IST_DIR_SIZE; ++set_id) {
       for (uint8_t stx = 0; stx < STX_TYPES - 1; ++stx) {
-#if CONFIG_E124_IST_REDUCE_METHOD4
         for (int sb_size = 0; sb_size < 3; ++sb_size) {
-#else
-        for (int sb_size_idx = 0; sb_size_idx < 2; ++sb_size_idx) {
-          int sb_size = (sb_size_idx == 0) ? 4 : 8;
-#endif
           DECLARE_ALIGNED(32, tran_low_t, input[IST_8x8_HEIGHT]) = { 0 };
           DECLARE_ALIGNED(32, tran_low_t, output[IST_8x8_WIDTH]) = { 0 };
           DECLARE_ALIGNED(32, tran_low_t, ref_output[IST_8x8_WIDTH]) = { 0 };
@@ -181,11 +162,7 @@ class AV1InvSecTxfmTest : public ::testing::TestWithParam<InvSTxfmFunc> {
           }
           inv_stxfm_c(input, ref_output, set_id, stx, sb_size, bd);
           inv_stxfm_func_(input, output, set_id, stx, sb_size, bd);
-#if CONFIG_E124_IST_REDUCE_METHOD4
           int check_rows = (sb_size == 0) ? IST_4x4_WIDTH : IST_8x8_WIDTH;
-#else
-          int check_rows = (sb_size == 4) ? IST_4x4_WIDTH : IST_8x8_WIDTH;
-#endif
           for (int r = 0; r < check_rows; ++r) {
             ASSERT_EQ(ref_output[r], output[r])
                 << "[" << r << "] " << " ref_output: " << ref_output[r]
@@ -198,12 +175,7 @@ class AV1InvSecTxfmTest : public ::testing::TestWithParam<InvSTxfmFunc> {
 
   void AV1InvSecTxfmSpeedTest() {
     av1_init_stxfm_kernels();
-#if CONFIG_E124_IST_REDUCE_METHOD4
     for (int sb_size = 0; sb_size < 3; ++sb_size) {
-#else
-    for (int sb_size_idx = 0; sb_size_idx < 2; ++sb_size_idx) {
-      int sb_size = (sb_size_idx == 0) ? 4 : 8;
-#endif
       DECLARE_ALIGNED(32, tran_low_t, input[IST_8x8_HEIGHT]) = { 0 };
       DECLARE_ALIGNED(32, tran_low_t, output[IST_8x8_WIDTH]) = { 0 };
       ACMRandom rnd(ACMRandom::DeterministicSeed());

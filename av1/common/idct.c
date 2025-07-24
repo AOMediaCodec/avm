@@ -1117,9 +1117,7 @@ static void init_txfm_param(const MACROBLOCKD *xd, int plane, TX_SIZE tx_size,
   (void)plane;
   MB_MODE_INFO *const mbmi = xd->mi[0];
   txfm_param->tx_type = get_primary_tx_type(tx_type);
-#if CONFIG_IST_SET_FLAG
   txfm_param->sec_tx_set = 0;
-#endif  // CONFIG_IST_SET_FLAG
   txfm_param->sec_tx_type = 0;
   txfm_param->intra_mode = get_intra_mode(mbmi, plane);
   txfm_param->is_inter = is_inter_block(xd->mi[0], xd->tree_type);
@@ -1132,38 +1130,20 @@ static void init_txfm_param(const MACROBLOCKD *xd, int plane, TX_SIZE tx_size,
   if (mode_dependent_condition && !xd->lossless[mbmi->segment_id]) {
     // updated EOB condition
     txfm_param->sec_tx_type = get_secondary_tx_type(tx_type);
-#if CONFIG_IST_SET_FLAG
     txfm_param->sec_tx_set = get_secondary_tx_set(tx_type);
-#endif  // CONFIG_IST_SET_FLAG
   }
   txfm_param->tx_size = tx_size;
   // EOB needs to adjusted after inverse IST
   if (txfm_param->sec_tx_type) {
-#if CONFIG_E124_IST_REDUCE_METHOD4
-#if CONFIG_F105_IST_MEM_REDUCE
     const int st_size_class =
         (width == 8 && height == 8 && txfm_param->tx_type == DCT_DCT) ? 1
         : (width >= 8 && height >= 8) ? (txfm_param->tx_type == DCT_DCT ? 2 : 3)
-#else
-    const int st_size_class = (width == 8 && height == 8)   ? 1
-                              : (width >= 8 && height >= 8) ? 2
-#endif  // CONFIG_F105_IST_MEM_REDUCE
                                       : 0;
     txfm_param->eob =
         (st_size_class == 0) ? IST_4x4_HEIGHT
         : (st_size_class == 1)
             ? IST_8x8_HEIGHT_RED
-#if CONFIG_F105_IST_MEM_REDUCE
             : ((st_size_class == 3) ? IST_ADST_NZ_CNT : IST_8x8_HEIGHT);
-#else
-            : IST_8x8_HEIGHT;
-#endif  // CONFIG_F105_IST_MEM_REDUCE
-#else
-    // txfm_param->eob = av1_get_max_eob(tx_size);
-    const int sb_size =
-        (tx_size_wide[tx_size] >= 8 && tx_size_high[tx_size] >= 8) ? 8 : 4;
-    txfm_param->eob = (sb_size == 4) ? IST_4x4_WIDTH : IST_8x8_WIDTH;
-#endif  // CONFIG_E124_IST_REDUCE_METHOD4
   } else {
     txfm_param->eob = eob;
   }
@@ -1311,40 +1291,21 @@ void av1_inverse_transform_block(const MACROBLOCKD *xd,
 void inv_stxfm_c(tran_low_t *src, tran_low_t *dst, const PREDICTION_MODE mode,
                  const uint8_t stx_idx, const int size, const int bd) {
   assert(stx_idx < 4);
-#if CONFIG_E124_IST_REDUCE_METHOD4
   const int16_t *kernel = (size == 0) ? ist_4x4_kernel[mode][stx_idx][0]
                                       : ist_8x8_kernel[mode][stx_idx][0];
-#else
-  const int16_t *kernel = (size == 4) ? ist_4x4_kernel[mode][stx_idx][0]
-                                      : ist_8x8_kernel[mode][stx_idx][0];
-#endif  // CONFIG_E124_IST_REDUCE_METHOD4
   int *out = dst;
   const int shift = 7;
 
   int reduced_width, reduced_height;
-#if CONFIG_E124_IST_REDUCE_METHOD4
   if (size == 0) {
     reduced_height = IST_4x4_HEIGHT;
     reduced_width = IST_4x4_WIDTH;
   } else {
-#if CONFIG_F105_IST_MEM_REDUCE
     reduced_height = (size == 1)
                          ? IST_8x8_HEIGHT_RED
                          : ((size == 3) ? IST_ADST_NZ_CNT : IST_8x8_HEIGHT);
-#else
-    reduced_height = (size == 1) ? IST_8x8_HEIGHT_RED : IST_8x8_HEIGHT;
-#endif  // CONFIG_F105_IST_MEM_REDUCE
     reduced_width = IST_8x8_WIDTH;
   }
-#else
-  if (size == 4) {
-    reduced_height = IST_4x4_HEIGHT;
-    reduced_width = IST_4x4_WIDTH;
-  } else {
-    reduced_height = IST_8x8_HEIGHT;
-    reduced_width = IST_8x8_WIDTH;
-  }
-#endif  // CONFIG_E124_IST_REDUCE_METHOD4
   for (int j = 0; j < reduced_width; j++) {
     int32_t resi = 0;
     const int16_t *kernel_tmp = kernel;
@@ -1408,24 +1369,8 @@ void av1_inv_stxfm(tran_low_t *coeff, TxfmParam *txfm_param) {
       fprintf(stderr, "\n");
     }
 #endif  // STX_COEFF_DEBUG
-#if CONFIG_IST_SET_FLAG
     mode_t = txfm_param->sec_tx_set;
     assert(mode_t < IST_SET_SIZE);
-// If in debug mode, verify whether txfm_param->sec_tx_set == intra pred dir
-// based tx set id
-#if !CONFIG_IST_ANY_SET && !defined(NDEBUG)
-    {
-      int mode_t2 = (txfm_param->tx_type == ADST_ADST)
-                        ? stx_transpose_mapping[mode] + 7
-                        : stx_transpose_mapping[mode];
-      assert(mode_t == mode_t2);
-    }
-#endif  // !CONFIG_IST_ANY_SET && !defined(NDEBUG)
-#else   // CONFIG_IST_SET_FLAG
-    mode_t = (txfm_param->tx_type == ADST_ADST)
-                 ? stx_transpose_mapping[mode] + 7
-                 : stx_transpose_mapping[mode];
-#endif  // CONFIG_IST_SET_FLAG
     if (transpose) {
       scan_order_out = (sb_size == 4)
                            ? stx_scan_orders_transpose_4x4[log2width - 2]
@@ -1434,19 +1379,10 @@ void av1_inv_stxfm(tran_low_t *coeff, TxfmParam *txfm_param) {
       scan_order_out = (sb_size == 4) ? stx_scan_orders_4x4[log2width - 2]
                                       : stx_scan_orders_8x8[log2width - 2];
     }
-#if CONFIG_E124_IST_REDUCE_METHOD4
-#if CONFIG_F105_IST_MEM_REDUCE
     const int st_size_class =
         (width == 8 && height == 8 && txfm_param->tx_type == DCT_DCT) ? 1
         : (width >= 8 && height >= 8) ? (txfm_param->tx_type == DCT_DCT ? 2 : 3)
-#else
-    const int st_size_class = (width == 8 && height == 8)   ? 1
-                              : (width >= 8 && height >= 8) ? 2
-#endif  // CONFIG_F105_IST_MEM_REDUCE
                                       : 0;
-#else
-    const int st_size_class = sb_size;
-#endif  // CONFIG_E124_IST_REDUCE_METHOD4
     inv_stxfm(buf0, buf1, mode_t, stx_type - 1, st_size_class, txfm_param->bd);
     tmp = buf1;
     src = coeff;

@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2021, Alliance for Open Media. All rights reserved
  *
  * This source code is subject to the terms of the BSD 3-Clause Clear License
@@ -53,7 +53,6 @@ typedef struct tx_size_rd_info_node {
   struct tx_size_rd_info_node *children[4];
 } TXB_RD_INFO_NODE;
 
-#if CONFIG_IST_REDUCTION
 // Mapping of index to IST kernel set (for encoder search only)
 static const uint8_t ist_intra_stx_mapping[IST_DIR_SIZE][IST_DIR_SIZE] = {
   { 6, 1, 0, 5, 4, 3, 2 },  // DC_PRED
@@ -64,7 +63,6 @@ static const uint8_t ist_intra_stx_mapping[IST_DIR_SIZE][IST_DIR_SIZE] = {
   { 5, 0, 6, 2, 1, 4, 3 },  // D203_PRED, D67_PRED
   { 6, 1, 0, 5, 4, 3, 2 },  // SMOOTH_PRED
 };
-#if CONFIG_F105_IST_MEM_REDUCE
 static const uint8_t
     ist_intra_stx_mapping_ADST_ADST[IST_DIR_SIZE][IST_DIR_SIZE] = {
       { 6, 1, 0, 4, 5, 3, 2 },  // DC_PRED
@@ -75,8 +73,6 @@ static const uint8_t
       { 1, 0, 6, 4, 5, 2, 3 },  // D203_PRED, D67_PRED
       { 6, 1, 0, 4, 5, 3, 2 },  // SMOOTH_PRED
     };
-#endif  // CONFIG_F105_IST_MEM_REDUCE
-#endif  // CONFIG_IST_REDUCTION
 
 // origin_threshold * 128 / 100
 static const uint32_t skip_pred_threshold[3][BLOCK_SIZES_ALL] = {
@@ -2564,26 +2560,16 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
         !xd->lossless[mbmi->segment_id];
 
     const PREDICTION_MODE intra_mode = get_intra_mode(mbmi, plane);
-#if !CONFIG_IST_NON_ZERO_DEPTH
-    const int is_depth0 = tx_size_is_depth0(tx_size, plane_bsize);
-#endif  // !CONFIG_IST_NON_ZERO_DEPTH
     bool skip_stx =
         ((primary_tx_type != DCT_DCT && primary_tx_type != ADST_ADST) ||
          plane != 0 ||
          (is_inter_block(mbmi, xd->tree_type)
               ? (primary_tx_type != DCT_DCT || txw < 16 || txh < 16)
               : intra_mode >= PAETH_PRED) ||
-#if CONFIG_IST_NON_ZERO_DEPTH
          dc_only_blk || (eob_found) || !xd->enable_ist);
-#else
-         dc_only_blk || !is_depth0 || (eob_found) || !xd->enable_ist);
-#endif  // CONFIG_IST_NON_ZERO_DEPTH
-#if CONFIG_IST_ANY_SET
     int init_set_id = 0;
     int max_set_id =
         (skip_stx || is_inter_block(mbmi, xd->tree_type)) ? 1 : IST_DIR_SIZE;
-#if CONFIG_IST_REDUCTION
-#if CONFIG_F105_IST_MEM_REDUCE
     int max_set_id_ptx_type[4] = { IST_REDUCE_SET_SIZE, 1, 1,
                                    IST_REDUCE_SET_SIZE_ADST_ADST };
     if (max_set_id == IST_DIR_SIZE) {
@@ -2591,18 +2577,12 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
       max_set_id = (txw < 8 || txh < 8) ? IST_REDUCE_SET_SIZE
                                         : max_set_id_ptx_type[primary_tx_type];
     }
-#else
-    if (max_set_id == IST_DIR_SIZE) {
-      max_set_id = IST_REDUCE_SET_SIZE;
-    }
-#endif  // CONFIG_F105_IST_MEM_REDUCE
     for (int set_idx = init_set_id; set_idx < max_set_id; ++set_idx) {
       txfm_param.sec_tx_set_idx = set_idx;
       uint8_t set_id = set_idx;
       if (!is_inter_block(mbmi, xd->tree_type)) {
         const PREDICTION_MODE mode = AOMMIN(intra_mode, SMOOTH_H_PRED);
         int intra_stx_mode = stx_transpose_mapping[mode];
-#if CONFIG_F105_IST_MEM_REDUCE
         if (txw < 8 || txh < 8) {
           assert(set_idx < IST_REDUCE_SET_SIZE);
           set_id = ist_intra_stx_mapping[intra_stx_mode][set_idx];
@@ -2615,34 +2595,14 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
           else
             set_id = ist_intra_stx_mapping[intra_stx_mode][set_idx];
         }
-#else
-        assert(set_idx < IST_REDUCE_SET_SIZE);
-        set_id = ist_intra_stx_mapping[intra_stx_mode][set_idx];
-#endif  // CONFIG_F105_IST_MEM_REDUCE
       }
-#else
-    // Iterate through all possible secondary tx sets for given primary tx type
-    for (int set_id = init_set_id; set_id < max_set_id; ++set_id) {
-#endif  // CONFIG_IST_REDUCTION
-#endif  // CONFIG_IST_ANY_SET
-
       const int max_stx = xd->enable_ist && !(eob_found) ? 4 : 1;
-
       for (int stx = 0; stx < max_stx; ++stx) {
         // Skip repeated evaluation of no secondary transform.
-#if CONFIG_IST_REDUCTION
         if (set_idx && !stx) continue;
-#else
-      if (set_id && !stx) continue;
-#endif  // CONFIG_IST_REDUCTION
-#if CONFIG_IST_ANY_SET
         TX_TYPE tx_type = primary_tx_type;
         if (eob_found) skip_stx = true;
         uint16_t stx_set = 0;
-#else   // CONFIG_IST_ANY_SET
-      TX_TYPE tx_type = primary_tx_type;
-      skip_stx |= eob_found;
-#endif  // CONFIG_IST_ANY_SET
 
         if (skip_stx && stx) continue;
 
@@ -2651,37 +2611,13 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
         txfm_param.sec_tx_type = stx;
 
         TX_TYPE tx_type1 = tx_type;  // does not keep set info
-#if !CONFIG_IST_ANY_SET && CONFIG_IST_SET_FLAG
-        const PREDICTION_MODE mode = AOMMIN(intra_mode, SMOOTH_H_PRED);
-        uint16_t stx_set = 0;
-        if (!skip_stx) {
-#if CONFIG_E124_IST_REDUCE_METHOD1
-          stx_set = stx_transpose_mapping[mode];
-#else
-          stx_set = (txfm_param.tx_type == ADST_ADST)
-                        ? stx_transpose_mapping[mode] + IST_DIR_SIZE
-                        : stx_transpose_mapping[mode];
-#endif  // CONFIG_E124_IST_REDUCE_METHOD1
-        }
-        assert(stx_set < IST_SET_SIZE);
-        set_secondary_tx_set(&tx_type, stx_set);
-        assert(tx_type < (1 << (PRIMARY_TX_BITS + SECONDARY_TX_BITS +
-                                SECONDARY_TX_SET_BITS)));
-        txfm_param.sec_tx_set = stx_set;
-#endif  // !CONFIG_IST_ANY_SET && CONFIG_IST_SET_FLAG
-#if CONFIG_IST_ANY_SET
-#if CONFIG_E124_IST_REDUCE_METHOD1
-        stx_set = set_id;
-#else
         stx_set = (primary_tx_type == ADST_ADST && stx) ? set_id + IST_DIR_SIZE
                                                         : set_id;
-#endif  // CONFIG_E124_IST_REDUCE_METHOD1
         set_secondary_tx_set(&tx_type, stx_set);
         txfm_param.sec_tx_set = stx_set;
         assert(stx_set < IST_SET_SIZE);
         assert(tx_type < (1 << (PRIMARY_TX_BITS + SECONDARY_TX_BITS +
                                 SECONDARY_TX_SET_BITS)));
-#endif  // CONFIG_IST_ANY_SET
         if (av1_use_qmatrix(&cm->quant_params, xd, mbmi->segment_id)) {
           av1_setup_qmatrix(&cm->quant_params, xd, plane, tx_size, tx_type,
                             &quant_param);

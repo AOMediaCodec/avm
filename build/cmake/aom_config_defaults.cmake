@@ -355,15 +355,6 @@ set_aom_config_var(CONFIG_SDP_CFL_LATENCY_FIX 1 "Reduce SDP-CFL latency")
 set_aom_config_var(CONFIG_CHROMA_MERGE_LATENCY_FIX 1
                    "Fix the latency issue in chroma merge region")
 
-# IST for sub-TU partitions from CWG-E151
-set_aom_config_var(CONFIG_IST_NON_ZERO_DEPTH 1
-                   "Enable IST non zero depth TUs from CWG-E151.")
-
-# IST set reduction (non-normative)
-set_aom_config_var(
-  CONFIG_IST_REDUCTION 1
-  "Non-normatively use 4 sets for IST encoder search from CWG-E142.")
-
 set_aom_config_var(CONFIG_COMPOUND_4XN 1
                    "Enable compound modes for 4XN/Nx4 blocks")
 
@@ -397,14 +388,9 @@ set_aom_config_var(CONFIG_MRSSE 0 "Enable MRSSE")
 set_aom_config_var(CONFIG_MAX_PB_RATIO 1
                    "Enable max partition block aspect ratio constraint")
 
-set_aom_config_var(CONFIG_IST_SET_FLAG 1
-                   "AV2 experiment flag to signal Secondary Tx set ID.")
-
 set_aom_config_var(CONFIG_SCC_DETERMINATION 1
                    "Enable the screen content tools determination improvement.")
 
-set_aom_config_var(CONFIG_IST_ANY_SET 1
-                   "Enable R-D Optimized IST set selection from CWG-D159.")
 set_aom_config_var(CONFIG_F107_GRADIENT_SIMPLIFY 1
                    "Use smaller OPFL gradient units and remove bit checks.")
 set_aom_config_var(CONFIG_LF_SUB_PU 1 "AV2 enable LF on sub blocks")
@@ -420,11 +406,6 @@ set_aom_config_var(CONFIG_SUBBLK_PAD 1
 
 set_aom_config_var(CONFIG_ML_PART_SPLIT 1
                    "Partition SPLIT pruning/forcing as predicted by ML.")
-set_aom_config_var(CONFIG_F105_IST_MEM_REDUCE 1
-                   "Prune ADST_ADST IST sets for 8x8 intra blocks")
-set_aom_config_var(CONFIG_E124_IST_REDUCE_METHOD1 0 "AV2 IST reduction.")
-set_aom_config_var(CONFIG_E124_IST_REDUCE_METHOD4 1
-                   "AV2 remove worst-case multiplications.")
 set_aom_config_var(CONFIG_COEFF_HR_ADAPTIVE 1
                    "AV2 enable adaptive coding of HR coefficients.")
 set_aom_config_var(CONFIG_MV_TRAJECTORY 1

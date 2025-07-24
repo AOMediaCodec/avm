@@ -3084,7 +3084,6 @@ static INLINE int tx_size_is_depth0(TX_SIZE tx_size, BLOCK_SIZE bsize) {
 
 #define PRIMARY_TX_BITS 4  // # of bits for primary tx
 
-#if CONFIG_IST_SET_FLAG
 // Number of bits to be taken from TX_TYPE to represent
 // primary tx, secondary tx set, and secondary tx kernel
 #define SECONDARY_TX_SET_BITS 4  // # of bits for secondary tx set
@@ -3092,7 +3091,6 @@ static INLINE int tx_size_is_depth0(TX_SIZE tx_size, BLOCK_SIZE bsize) {
 // Bit masks to keep only wanted info
 #define SECONDARY_TX_SET_MASK ((1 << SECONDARY_TX_SET_BITS) - 1)
 #define SECONDARY_TX_MASK ((1 << SECONDARY_TX_BITS) - 1)
-#endif  // CONFIG_IST_SET_FLAG
 
 /*
  * If secondary transform is enabled (IST) :
@@ -3104,31 +3102,19 @@ static INLINE int tx_size_is_depth0(TX_SIZE tx_size, BLOCK_SIZE bsize) {
  *
  */
 static INLINE void disable_secondary_tx_type(TX_TYPE *tx_type) {
-#if CONFIG_IST_SET_FLAG
   *tx_type &= 0x000f;
-#else
-  *tx_type &= 0x0f;
-#endif
 }
 /*
  * This function masks primary transform type used by the transform block
  */
 static INLINE void disable_primary_tx_type(TX_TYPE *tx_type) {
-#if CONFIG_IST_SET_FLAG
   *tx_type &= 0xfff0;
-#else   // CONFIG_IST_SET_FLAG
-  *tx_type &= 0xf0;
-#endif  // CONFIG_IST_SET_FLAG
 }
 /*
  * This function returns primary transform type used by the transform block
  */
 static INLINE TX_TYPE get_primary_tx_type(TX_TYPE tx_type) {
-#if CONFIG_IST_SET_FLAG
   return tx_type & 0x000f;
-#else
-  return tx_type & 0x0f;
-#endif
 }
 
 // Maps tx type to the indices.
@@ -3230,18 +3216,13 @@ get_txtype_from_idx_for_large_txfm(TX_SIZE tx_size, const TxSetType tx_set_type,
  * This function returns secondary transform type used by the transform block
  */
 static INLINE TX_TYPE get_secondary_tx_type(TX_TYPE tx_type) {
-#if CONFIG_IST_SET_FLAG
   return (tx_type >> PRIMARY_TX_BITS) & SECONDARY_TX_MASK;
-#else   // CONFIG_IST_SET_FLAG
-  return (tx_type >> PRIMARY_TX_BITS);
-#endif  // CONFIG_IST_SET_FLAG
 }
 
 static INLINE void set_secondary_tx_type(TX_TYPE *tx_type, TX_TYPE stx_flag) {
   *tx_type |= (stx_flag << PRIMARY_TX_BITS);
 }
 
-#if CONFIG_IST_SET_FLAG
 /*
  * This function returns secondary transform set used by the transform block
  */
@@ -3258,7 +3239,6 @@ static INLINE void set_secondary_tx_set(TX_TYPE *tx_type,
                                         TX_TYPE stx_set_flag) {
   *tx_type |= (stx_set_flag << (PRIMARY_TX_BITS + SECONDARY_TX_BITS));
 }
-#endif  // CONFIG_IST_SET_FLAG
 
 /*
  * This function checks and returns 1 if secondary transform type needs to be
@@ -3271,44 +3251,21 @@ static INLINE int block_signals_sec_tx_type(const MACROBLOCKD *xd,
     return 0;
   const MB_MODE_INFO *mbmi = xd->mi[0];
   PREDICTION_MODE intra_dir = get_intra_mode(mbmi, AOM_PLANE_Y);
-#if !CONFIG_IST_NON_ZERO_DEPTH
-  const BLOCK_SIZE bs = mbmi->sb_type[PLANE_TYPE_Y];
-#endif  // !CONFIG_IST_NON_ZERO_DEPTH
   const TX_TYPE primary_tx_type = get_primary_tx_type(tx_type);
   const int width = tx_size_wide[tx_size];
   const int height = tx_size_high[tx_size];
-#if CONFIG_E124_IST_REDUCE_METHOD4
-#if CONFIG_F105_IST_MEM_REDUCE
   const int st_size_class =
       (width == 8 && height == 8 && primary_tx_type == DCT_DCT) ? 1
       : (width >= 8 && height >= 8) ? (primary_tx_type == DCT_DCT ? 2 : 3)
-#else
-  const int st_size_class = (width == 8 && height == 8)   ? 1
-                            : (width >= 8 && height >= 8) ? 2
-#endif  // CONFIG_F105_IST_MEM_REDUCE
                                     : 0;
-#else
-  const int sb_size = (width >= 8 && height >= 8) ? 8 : 4;
-#endif  // CONFIG_E124_IST_REDUCE_METHOD4
   bool ist_eob = 1;
   // Updated EOB condition
-#if CONFIG_E124_IST_REDUCE_METHOD4
   if (((st_size_class == 0) && (eob > IST_4x4_HEIGHT)) ||
       ((st_size_class == 1) && (eob > IST_8x8_HEIGHT_RED)) ||
-      ((st_size_class == 2) && (eob > IST_8x8_HEIGHT))
-#if CONFIG_F105_IST_MEM_REDUCE
-      || ((st_size_class == 3) && (eob > IST_ADST_NZ_CNT))
-#endif  // CONFIG_F105_IST_MEM_REDUCE
-  ) {
-#else
-  if (((sb_size == 4) && (eob > IST_4x4_HEIGHT)) ||
-      ((sb_size == 8) && (eob > IST_8x8_HEIGHT))) {
-#endif  // CONFIG_E124_IST_REDUCE_METHOD4
+      ((st_size_class == 2) && (eob > IST_8x8_HEIGHT)) ||
+      ((st_size_class == 3) && (eob > IST_ADST_NZ_CNT))) {
     ist_eob = 0;
   }
-#if !CONFIG_IST_NON_ZERO_DEPTH
-  const int is_depth0 = tx_size_is_depth0(tx_size, bs);
-#endif  // !CONFIG_IST_NON_ZERO_DEPTH
   bool condition = (primary_tx_type == DCT_DCT && width >= 16 && height >= 16);
   bool mode_dependent_condition =
       (is_inter_block(mbmi, xd->tree_type) ? condition
@@ -3316,11 +3273,7 @@ static INLINE int block_signals_sec_tx_type(const MACROBLOCKD *xd,
   const int code_stx =
       (primary_tx_type == DCT_DCT || primary_tx_type == ADST_ADST) &&
       mode_dependent_condition && ist_eob;
-#if CONFIG_IST_NON_ZERO_DEPTH
   return code_stx;
-#else
-  return (code_stx && is_depth0);
-#endif  // CONFIG_IST_NON_ZERO_DEPTH
 }
 
 static INLINE void adjust_ext_tx_used_flag(TX_SIZE tx_size,
@@ -3478,10 +3431,8 @@ static INLINE TX_TYPE av1_get_tx_type(const MACROBLOCKD *xd,
     // TX_32X32 while tx_type is by default DCT_DCT.
     disable_primary_tx_type(&tx_type);
   }
-#if CONFIG_IST_SET_FLAG
   assert(tx_type <
          (1 << (PRIMARY_TX_BITS + SECONDARY_TX_BITS + SECONDARY_TX_SET_BITS)));
-#endif  // CONFIG_IST_SET_FLAG
   return tx_type;
 }
 

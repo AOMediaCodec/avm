@@ -6741,7 +6741,6 @@ static const aom_cdf_prob
 #endif  // CONFIG_EXT_SEG
     };
 
-#if CONFIG_IST_ANY_SET
 static const aom_cdf_prob default_stx_cdf[2][TX_SIZES][CDF_SIZE(STX_TYPES)] = {
   {
       { AOM_CDF4(293, 11683, 25053), 75 },
@@ -6758,41 +6757,17 @@ static const aom_cdf_prob default_stx_cdf[2][TX_SIZES][CDF_SIZE(STX_TYPES)] = {
       { AOM_CDF4(10685, 14127, 17177), 31 },
   },
 };
-#else
-static const aom_cdf_prob default_stx_cdf[TX_SIZES][CDF_SIZE(STX_TYPES)] = {
-  { AOM_CDF4(1542, 11565, 24287), 0 },  { AOM_CDF4(4776, 13664, 21624), 0 },
-  { AOM_CDF4(7447, 17278, 24725), 0 },  { AOM_CDF4(5783, 17348, 21203), 0 },
-  { AOM_CDF4(17873, 20852, 23831), 1 },
-};
-#endif  // CONFIG_IST_ANY_SET
 
-#if CONFIG_IST_SET_FLAG
-#if CONFIG_IST_ANY_SET
 static const aom_cdf_prob
     default_most_probable_stx_set_cdf[CDF_SIZE(IST_DIR_SIZE)] = {
       AOM_CDF7(16328, 21408, 25613, 27672, 29722, 31413),
       75,
     };
-#if CONFIG_F105_IST_MEM_REDUCE
 static const aom_cdf_prob default_most_probable_stx_set_cdf_ADST_ADST[CDF_SIZE(
     IST_REDUCE_SET_SIZE_ADST_ADST)] = {
   AOM_CDF4(16328, 21408, 25613),
   75,
 };
-#endif  // CONFIG_F105_IST_MEM_REDUCE
-#else
-static const aom_cdf_prob
-    default_stx_set_cdf[IST_DIR_SIZE][CDF_SIZE(IST_DIR_SIZE)] = {
-      { AOM_CDF7(32744, 32748, 32752, 32756, 32760, 32764), 0 },
-      { AOM_CDF7(4, 32748, 32752, 32756, 32760, 32764), 0 },
-      { AOM_CDF7(4, 8, 32752, 32756, 32760, 32764), 0 },
-      { AOM_CDF7(4, 8, 12, 32756, 32760, 32764), 0 },
-      { AOM_CDF7(4, 8, 12, 16, 32760, 32764), 0 },
-      { AOM_CDF7(4, 8, 12, 16, 20, 32764), 0 },
-      { AOM_CDF7(4, 8, 12, 16, 20, 24), 0 },
-    };
-#endif  // CONFIG_IST_ANY_SET
-#endif  // CONFIG_IST_SET_FLAG
 
 static const aom_cdf_prob
     default_pb_mv_most_probable_precision_cdf[NUM_MV_PREC_MPP_CONTEXT]
@@ -7355,13 +7330,9 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   av1_copy(fc->morph_pred_cdf, default_morph_pred_cdf);
 #endif  // CONFIG_MORPH_PRED
   av1_copy(fc->stx_cdf, default_stx_cdf);
-#if CONFIG_IST_SET_FLAG
   av1_copy(fc->most_probable_stx_set_cdf, default_most_probable_stx_set_cdf);
-#if CONFIG_F105_IST_MEM_REDUCE
   av1_copy(fc->most_probable_stx_set_cdf_ADST_ADST,
            default_most_probable_stx_set_cdf_ADST_ADST);
-#endif  // CONFIG_F105_IST_MEM_REDUCE
-#endif  // CONFIG_IST_SET_FLAG
   av1_copy(fc->pb_mv_precision_cdf, default_pb_mv_precision_cdf);
   av1_copy(fc->pb_mv_mpp_flag_cdf, default_pb_mv_most_probable_precision_cdf);
   av1_copy(fc->cctx_type_cdf, default_cctx_type_cdf);
@@ -7873,15 +7844,11 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
   CUMULATIVE_AVERAGE_CDF(ctx_left->cfl_alpha_cdf, ctx_tr->cfl_alpha_cdf,
                          CFL_ALPHABET_SIZE);
   CUMULATIVE_AVERAGE_CDF(ctx_left->stx_cdf, ctx_tr->stx_cdf, STX_TYPES);
-#if CONFIG_IST_SET_FLAG
   CUMULATIVE_AVERAGE_CDF(ctx_left->most_probable_stx_set_cdf,
                          ctx_tr->most_probable_stx_set_cdf, IST_DIR_SIZE);
-#if CONFIG_F105_IST_MEM_REDUCE
   CUMULATIVE_AVERAGE_CDF(ctx_left->most_probable_stx_set_cdf_ADST_ADST,
                          ctx_tr->most_probable_stx_set_cdf_ADST_ADST,
                          IST_REDUCE_SET_SIZE_ADST_ADST);
-#endif  // CONFIG_F105_IST_MEM_REDUCE
-#endif  // CONFIG_IST_SET_FLAG
 
   CUMULATIVE_AVERAGE_CDF(ctx_left->pb_mv_mpp_flag_cdf,
                          ctx_tr->pb_mv_mpp_flag_cdf, 2);
@@ -8229,13 +8196,9 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
   SHIFT_CDF(ctx_ptr->cfl_sign_cdf, CFL_JOINT_SIGNS);
   SHIFT_CDF(ctx_ptr->cfl_alpha_cdf, CFL_ALPHABET_SIZE);
   SHIFT_CDF(ctx_ptr->stx_cdf, STX_TYPES);
-#if CONFIG_IST_SET_FLAG
   SHIFT_CDF(ctx_ptr->most_probable_stx_set_cdf, IST_DIR_SIZE);
-#if CONFIG_F105_IST_MEM_REDUCE
   SHIFT_CDF(ctx_ptr->most_probable_stx_set_cdf_ADST_ADST,
             IST_REDUCE_SET_SIZE_ADST_ADST);
-#endif  // CONFIG_F105_IST_MEM_REDUCE
-#endif  // CONFIG_IST_SET_FLAG
 
   SHIFT_CDF(ctx_ptr->pb_mv_mpp_flag_cdf, 2);
   for (int p = MV_PRECISION_HALF_PEL; p < NUM_MV_PRECISIONS; ++p) {
@@ -8674,15 +8637,11 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
               CFL_ALPHABET_SIZE);
   AVG_CDF_STRIDE(ctx_left->stx_cdf, ctx_tr->stx_cdf, STX_TYPES,
                  CDF_SIZE(STX_TYPES));
-#if CONFIG_IST_SET_FLAG
   AVERAGE_CDF(ctx_left->most_probable_stx_set_cdf,
               ctx_tr->most_probable_stx_set_cdf, IST_DIR_SIZE);
-#if CONFIG_F105_IST_MEM_REDUCE
   AVERAGE_CDF(ctx_left->most_probable_stx_set_cdf_ADST_ADST,
               ctx_tr->most_probable_stx_set_cdf_ADST_ADST,
               IST_REDUCE_SET_SIZE_ADST_ADST);
-#endif  // CONFIG_F105_IST_MEM_REDUCE
-#endif  // CONFIG_IST_SET_FLAG
 
   AVERAGE_CDF(ctx_left->pb_mv_mpp_flag_cdf, ctx_tr->pb_mv_mpp_flag_cdf, 2);
   for (int p = MV_PRECISION_HALF_PEL; p < NUM_MV_PRECISIONS; ++p) {

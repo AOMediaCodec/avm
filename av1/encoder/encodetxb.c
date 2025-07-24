@@ -1569,20 +1569,13 @@ int get_cctx_type_cost(const AV1_COMMON *cm, const MACROBLOCK *x,
 }
 
 // This function gets the estimated bit cost for a 'secondary tx set'
-#if CONFIG_F105_IST_MEM_REDUCE
 static int get_sec_tx_set_cost(const MACROBLOCK *x, const MACROBLOCKD *xd,
                                const MB_MODE_INFO *mbmi, TX_SIZE tx_size,
-#else
-static int get_sec_tx_set_cost(const MACROBLOCK *x, const MB_MODE_INFO *mbmi,
-#endif  // CONFIG_F105_IST_MEM_REDUCE
                                TX_TYPE tx_type) {
   uint8_t stx_set_flag = get_secondary_tx_set(tx_type);
-#if !CONFIG_E124_IST_REDUCE_METHOD1
   if (get_primary_tx_type(tx_type) == ADST_ADST) stx_set_flag -= IST_DIR_SIZE;
-#endif  // !CONFIG_E124_IST_REDUCE_METHOD1
   assert(stx_set_flag < IST_DIR_SIZE);
   uint8_t intra_mode = get_intra_mode(mbmi, PLANE_TYPE_Y);
-#if CONFIG_F105_IST_MEM_REDUCE
   if (!is_inter_block(mbmi, xd->tree_type) && tx_size_wide[tx_size] >= 8 &&
       tx_size_high[tx_size] >= 8 && get_primary_tx_type(tx_type) == ADST_ADST) {
     return x->mode_costs.most_probable_stx_set_flag_cost_ADST_ADST
@@ -1591,10 +1584,6 @@ static int get_sec_tx_set_cost(const MACROBLOCK *x, const MB_MODE_INFO *mbmi,
     return x->mode_costs.most_probable_stx_set_flag_cost
         [most_probable_stx_mapping[intra_mode][stx_set_flag]];
   }
-#else
-  return x->mode_costs.most_probable_stx_set_flag_cost
-      [most_probable_stx_mapping[intra_mode][stx_set_flag]];
-#endif  // CONFIG_F105_IST_MEM_REDUCE
 }
 
 // TODO(angiebird): use this function whenever it's possible
@@ -1706,15 +1695,8 @@ int get_tx_type_cost(const MACROBLOCK *x, const MACROBLOCKD *xd, int plane,
           tx_type_cost +=
               x->mode_costs.stx_flag_cost[is_inter][square_tx_size]
                                          [get_secondary_tx_type(tx_type)];
-#if CONFIG_IST_SET_FLAG
-#if CONFIG_F105_IST_MEM_REDUCE
           if (get_secondary_tx_type(tx_type) > 0)
             tx_type_cost += get_sec_tx_set_cost(x, xd, mbmi, tx_size, tx_type);
-#else
-          if (get_secondary_tx_type(tx_type) > 0)
-            tx_type_cost += get_sec_tx_set_cost(x, mbmi, tx_type);
-#endif  // CONFIG_F105_IST_MEM_REDUCE
-#endif  // CONFIG_IST_SET_FLAG
         }
         return tx_type_cost;
       }
@@ -1725,15 +1707,8 @@ int get_tx_type_cost(const MACROBLOCK *x, const MACROBLOCKD *xd, int plane,
       int tx_type_cost =
           x->mode_costs.stx_flag_cost[is_inter][square_tx_size]
                                      [get_secondary_tx_type(tx_type)];
-#if CONFIG_IST_SET_FLAG
-#if CONFIG_F105_IST_MEM_REDUCE
       if (get_secondary_tx_type(tx_type) > 0 && !is_inter)
         tx_type_cost += get_sec_tx_set_cost(x, xd, mbmi, tx_size, tx_type);
-#else
-      if (get_secondary_tx_type(tx_type) > 0 && !is_inter)
-        tx_type_cost += get_sec_tx_set_cost(x, mbmi, tx_type);
-#endif  // CONFIG_F105_IST_MEM_REDUCE
-#endif  // CONFIG_IST_SET_FLAG
       return tx_type_cost;
     }
   }
@@ -4445,20 +4420,13 @@ static void update_cctx_type_count(const AV1_COMMON *cm, MACROBLOCKD *xd,
 }
 
 // This function updates the cdf for a 'secondary tx set'
-#if CONFIG_F105_IST_MEM_REDUCE
 static void update_sec_tx_set_cdf(MACROBLOCKD *xd, FRAME_CONTEXT *fc,
                                   MB_MODE_INFO *mbmi, TX_SIZE tx_size,
-#else
-static void update_sec_tx_set_cdf(FRAME_CONTEXT *fc, MB_MODE_INFO *mbmi,
-#endif  // CONFIG_F105_IST_MEM_REDUCE
                                   TX_TYPE tx_type) {
   uint8_t stx_set_flag = get_secondary_tx_set(tx_type);
-#if !CONFIG_E124_IST_REDUCE_METHOD1
   if (get_primary_tx_type(tx_type) == ADST_ADST) stx_set_flag -= IST_DIR_SIZE;
-#endif  // !CONFIG_E124_IST_REDUCE_METHOD1
   assert(stx_set_flag < IST_DIR_SIZE);
   uint8_t intra_mode = get_intra_mode(mbmi, PLANE_TYPE_Y);
-#if CONFIG_F105_IST_MEM_REDUCE
   if (!is_inter_block(mbmi, xd->tree_type) && tx_size_wide[tx_size] >= 8 &&
       tx_size_high[tx_size] >= 8 && get_primary_tx_type(tx_type) == ADST_ADST) {
     update_cdf(fc->most_probable_stx_set_cdf_ADST_ADST,
@@ -4469,10 +4437,6 @@ static void update_sec_tx_set_cdf(FRAME_CONTEXT *fc, MB_MODE_INFO *mbmi,
                most_probable_stx_mapping[intra_mode][stx_set_flag],
                IST_DIR_SIZE);
   }
-#else
-  update_cdf(fc->most_probable_stx_set_cdf,
-             most_probable_stx_mapping[intra_mode][stx_set_flag], IST_DIR_SIZE);
-#endif  // CONFIG_F105_IST_MEM_REDUCE
 }
 
 static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
@@ -4633,15 +4597,8 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
             block_signals_sec_tx_type(xd, tx_size, tx_type, eob)) {
           update_cdf(fc->stx_cdf[is_inter][txsize_sqr_map[tx_size]],
                      (int8_t)get_secondary_tx_type(tx_type), STX_TYPES);
-#if CONFIG_IST_SET_FLAG
-#if CONFIG_F105_IST_MEM_REDUCE
           if (get_secondary_tx_type(tx_type) > 0)
             update_sec_tx_set_cdf(xd, fc, mbmi, tx_size, tx_type);
-#else
-          if (get_secondary_tx_type(tx_type) > 0)
-            update_sec_tx_set_cdf(fc, mbmi, tx_type);
-#endif  // CONFIG_F105_IST_MEM_REDUCE
-#endif  // CONFIG_IST_SET_FLAG
         }
       }
     }
@@ -4656,15 +4613,8 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
     if (allow_update_cdf) {
       update_cdf(fc->stx_cdf[is_inter][txsize_sqr_map[tx_size]],
                  (int8_t)get_secondary_tx_type(tx_type), STX_TYPES);
-#if CONFIG_IST_SET_FLAG
-#if CONFIG_F105_IST_MEM_REDUCE
       if (get_secondary_tx_type(tx_type) > 0 && !is_inter)
         update_sec_tx_set_cdf(xd, fc, mbmi, tx_size, tx_type);
-#else
-      if (get_secondary_tx_type(tx_type) > 0 && !is_inter)
-        update_sec_tx_set_cdf(fc, mbmi, tx_type);
-#endif  // CONFIG_F105_IST_MEM_REDUCE
-#endif  // CONFIG_IST_SET_FLAG
     }
   }
 }

@@ -39,38 +39,19 @@ void inv_stxfm_sse4_1(tran_low_t *src, tran_low_t *dst,
   // during execution by letting SIMD variants directly load the pre-converted
   // filter weights.
   assert(stx_idx < 4);
-#if CONFIG_E124_IST_REDUCE_METHOD4
   const int32_t *kernel = (size == 0) ? ist_4x4_kernel_int32[mode][stx_idx][0]
                                       : ist_8x8_kernel_int32[mode][stx_idx][0];
-#else
-  const int32_t *kernel = (size == 4) ? ist_4x4_kernel_int32[mode][stx_idx][0]
-                                      : ist_8x8_kernel_int32[mode][stx_idx][0];
-#endif  // CONFIG_E124_IST_REDUCE_METHOD4
 
   int reduced_width, reduced_height;
-#if CONFIG_E124_IST_REDUCE_METHOD4
   if (size == 0) {
     reduced_height = IST_4x4_HEIGHT;
     reduced_width = IST_4x4_WIDTH;
   } else {
-#if CONFIG_F105_IST_MEM_REDUCE
     reduced_height = (size == 1)
                          ? IST_8x8_HEIGHT_RED
                          : ((size == 3) ? IST_ADST_NZ_CNT : IST_8x8_HEIGHT);
-#else
-    reduced_height = (size == 1) ? IST_8x8_HEIGHT_RED : IST_8x8_HEIGHT;
-#endif  // CONFIG_F105_IST_MEM_REDUCE
     reduced_width = IST_8x8_WIDTH;
   }
-#else
-  if (size == 4) {
-    reduced_height = IST_4x4_HEIGHT;
-    reduced_width = IST_4x4_WIDTH;
-  } else {
-    reduced_height = IST_8x8_HEIGHT;
-    reduced_width = IST_8x8_WIDTH;
-  }
-#endif  // CONFIG_E124_IST_REDUCE_METHOD4
   for (int j = 0; j < reduced_height; j++) {
     const int32_t *kernel_tmp = kernel;
     int *srcPtr = src;

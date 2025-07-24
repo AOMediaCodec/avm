@@ -234,24 +234,18 @@ enum {
 
 // Intra Secondary Transform
 #define IST_SET_SIZE 14  // IST kernel set size
-#if CONFIG_IST_SET_FLAG
 // Number of directional groups in IST kernels
 #define IST_DIR_SIZE (IST_SET_SIZE >> 1)
-#endif               // CONFIG_IST_SET_FLAG
 #define STX_TYPES 4  // 4 sec_tx_types including no IST
 #define IST_4x4_WIDTH 16
 #define IST_4x4_HEIGHT 8
-#if CONFIG_E124_IST_REDUCE_METHOD4
 #define IST_8x8_HEIGHT_RED 20
-#endif  // CONFIG_E124_IST_REDUCE_METHOD4
 // Note: IST_8x8_WIDTH needs to be a multiple of 4 for sse4 to work
 #define IST_8x8_WIDTH_MAX 64
 #define IST_8x8_WIDTH 48
 #define IST_8x8_HEIGHT_MAX 32
 #define IST_8x8_HEIGHT 32
-#if CONFIG_F105_IST_MEM_REDUCE
 #define IST_ADST_NZ_CNT 20
-#endif  // CONFIG_F105_IST_MEM_REDUCE
 
 #define STX_SYNTAX_DEBUG 0
 #define STX_COEFF_DEBUG 0
@@ -657,12 +651,8 @@ enum {
   FDDT,
 } UENUM2BYTE(TX1D_TYPE);
 
-#if CONFIG_IST_REDUCTION
 #define IST_REDUCE_SET_SIZE 4  // reduced set size for IST
-#if CONFIG_F105_IST_MEM_REDUCE
 #define IST_REDUCE_SET_SIZE_ADST_ADST 4
-#endif  // CONFIG_F105_IST_MEM_REDUCE
-#endif  // CONFIG_IST_REDUCTION
 
 #if !CONFIG_REDUCE_CCTX_CTX
 #define CCTX_CONTEXTS 3

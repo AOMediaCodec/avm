@@ -34,27 +34,11 @@ extern "C" {
 #endif
 
 // Secondary transform coeffs in int precision
-#if CONFIG_IST_ANY_SET
-#if CONFIG_F105_IST_MEM_REDUCE
 extern int32_t ist_4x4_kernel_int32[IST_SET_SIZE][STX_TYPES - 1][16]
                                    [IST_4x4_WIDTH];
 
 extern int32_t ist_8x8_kernel_int32[IST_SET_SIZE][STX_TYPES - 1]
                                    [IST_8x8_HEIGHT_MAX][IST_8x8_WIDTH];
-#else
-extern int32_t ist_4x4_kernel_int32[IST_SET_SIZE][STX_TYPES - 1][IST_4x4_HEIGHT]
-                                   [IST_4x4_WIDTH];
-
-extern int32_t ist_8x8_kernel_int32[IST_SET_SIZE][STX_TYPES - 1]
-                                   [IST_8x8_HEIGHT_MAX][IST_8x8_WIDTH];
-#endif  // CONFIG_F105_IST_MEM_REDUCE
-#else   // CONFIG_IST_ANY_SET
-extern int32_t ist_4x4_kernel_int32[IST_SET_SIZE][STX_TYPES - 1][IST_4x4_HEIGHT]
-                                   [IST_4x4_WIDTH];
-
-extern int32_t ist_8x8_kernel_int32[IST_SET_SIZE][STX_TYPES - 1][IST_8x8_HEIGHT]
-                                   [IST_8x8_WIDTH];
-#endif  // CONFIG_IST_ANY_SET
 
 #define REPLACE_ADST4 0
 #define REPLACE_ADST8 1

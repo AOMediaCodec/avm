@@ -409,15 +409,11 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
                                fc->stx_cdf[j][i], NULL);
     }
   }
-#if CONFIG_IST_SET_FLAG
   av1_cost_tokens_from_cdf(mode_costs->most_probable_stx_set_flag_cost,
                            fc->most_probable_stx_set_cdf, NULL);
-#if CONFIG_F105_IST_MEM_REDUCE
   av1_cost_tokens_from_cdf(
       mode_costs->most_probable_stx_set_flag_cost_ADST_ADST,
       fc->most_probable_stx_set_cdf_ADST_ADST, NULL);
-#endif  // CONFIG_F105_IST_MEM_REDUCE
-#endif  // CONFIG_IST_SET_FLAG
 
 #if CONFIG_REDUCE_CCTX_CTX
   av1_cost_tokens_from_cdf(mode_costs->cctx_type_cost, fc->cctx_type_cdf, NULL);

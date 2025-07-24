@@ -1492,19 +1492,13 @@ void av1_write_cctx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
 
 // This function writes a 'secondary tx set' onto the bitstream
 static void write_sec_tx_set(FRAME_CONTEXT *ec_ctx, aom_writer *w,
-                             MB_MODE_INFO *mbmi,
-#if CONFIG_F105_IST_MEM_REDUCE
-                             TX_SIZE tx_size,
-#endif  // CONFIG_F105_IST_MEM_REDUCE
+                             MB_MODE_INFO *mbmi, TX_SIZE tx_size,
                              TX_TYPE tx_type) {
   TX_TYPE stx_set_flag = get_secondary_tx_set(tx_type);
   assert(stx_set_flag <= IST_SET_SIZE - 1);
-#if !CONFIG_E124_IST_REDUCE_METHOD1
   if (get_primary_tx_type(tx_type) == ADST_ADST) stx_set_flag -= IST_DIR_SIZE;
-#endif  // !CONFIG_E124_IST_REDUCE_METHOD1
   assert(stx_set_flag < IST_DIR_SIZE);
   uint8_t intra_mode = get_intra_mode(mbmi, PLANE_TYPE_Y);
-#if CONFIG_F105_IST_MEM_REDUCE
   if (get_primary_tx_type(tx_type) == ADST_ADST && tx_size_wide[tx_size] >= 8 &&
       tx_size_high[tx_size] >= 8) {
     uint8_t stx_set_in_bitstream =
@@ -1520,10 +1514,6 @@ static void write_sec_tx_set(FRAME_CONTEXT *ec_ctx, aom_writer *w,
     aom_write_symbol(w, stx_set_in_bitstream, ec_ctx->most_probable_stx_set_cdf,
                      IST_DIR_SIZE);
   }
-#else
-  aom_write_symbol(w, most_probable_stx_mapping[intra_mode][stx_set_flag],
-                   ec_ctx->most_probable_stx_set_cdf, IST_DIR_SIZE);
-#endif  // CONFIG_F105_IST_MEM_REDUCE
 }
 
 void av1_write_sec_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
@@ -1546,15 +1536,9 @@ void av1_write_sec_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
     if (block_signals_sec_tx_type(xd, tx_size, tx_type, eob)) {
       aom_write_symbol(w, stx_flag, ec_ctx->stx_cdf[is_inter][square_tx_size],
                        STX_TYPES);
-#if CONFIG_IST_SET_FLAG
-#if CONFIG_F105_IST_MEM_REDUCE
       if (stx_flag > 0 && !is_inter) {
         write_sec_tx_set(ec_ctx, w, mbmi, tx_size, tx_type);
       }
-#else
-      if (stx_flag > 0 && !is_inter) write_sec_tx_set(ec_ctx, w, mbmi, tx_type);
-#endif  // CONFIG_F105_IST_MEM_REDUCE
-#endif  // CONFIG_IST_SET_FLAG
     }
   } else {
     FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
@@ -1564,15 +1548,9 @@ void av1_write_sec_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
     if (block_signals_sec_tx_type(xd, tx_size, tx_type, eob)) {
       aom_write_symbol(w, stx_flag, ec_ctx->stx_cdf[is_inter][square_tx_size],
                        STX_TYPES);
-#if CONFIG_IST_SET_FLAG
-#if CONFIG_F105_IST_MEM_REDUCE
       if (stx_flag > 0 && !is_inter) {
         write_sec_tx_set(ec_ctx, w, mbmi, tx_size, tx_type);
       }
-#else
-      if (stx_flag > 0 && !is_inter) write_sec_tx_set(ec_ctx, w, mbmi, tx_type);
-#endif  // CONFIG_F105_IST_MEM_REDUCE
-#endif  // CONFIG_IST_SET_FLAG
     }
   }
 }

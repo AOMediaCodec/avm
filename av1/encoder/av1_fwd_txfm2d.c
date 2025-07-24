@@ -22,41 +22,22 @@
 void fwd_stxfm_c(tran_low_t *src, tran_low_t *dst, const PREDICTION_MODE mode,
                  const uint8_t stx_idx, const int size, const int bd) {
   assert(stx_idx < 4);
-#if CONFIG_E124_IST_REDUCE_METHOD4
   const int16_t *kernel = (size == 0) ? ist_4x4_kernel[mode][stx_idx][0]
                                       : ist_8x8_kernel[mode][stx_idx][0];
-#else
-  const int16_t *kernel = (size == 4) ? ist_4x4_kernel[mode][stx_idx][0]
-                                      : ist_8x8_kernel[mode][stx_idx][0];
-#endif  // CONFIG_E124_IST_REDUCE_METHOD4
   int coef;
   int *out = dst;
   int shift = 7;
 
   int reduced_width, reduced_height;
-#if CONFIG_E124_IST_REDUCE_METHOD4
   if (size == 0) {
     reduced_height = IST_4x4_HEIGHT;
     reduced_width = IST_4x4_WIDTH;
   } else {
-#if CONFIG_F105_IST_MEM_REDUCE
     reduced_height = (size == 1)
                          ? IST_8x8_HEIGHT_RED
                          : ((size == 3) ? IST_ADST_NZ_CNT : IST_8x8_HEIGHT);
-#else
-    reduced_height = (size == 1) ? IST_8x8_HEIGHT_RED : IST_8x8_HEIGHT;
-#endif  // CONFIG_F105_IST_MEM_REDUCE
     reduced_width = IST_8x8_WIDTH;
   }
-#else
-  if (size == 4) {
-    reduced_height = IST_4x4_HEIGHT;
-    reduced_width = IST_4x4_WIDTH;
-  } else {
-    reduced_height = IST_8x8_HEIGHT;
-    reduced_width = IST_8x8_WIDTH;
-  }
-#endif  // CONFIG_E124_IST_REDUCE_METHOD4
   for (int j = 0; j < reduced_height; j++) {
     int *srcPtr = src;
     const int16_t *kernel_tmp = kernel;
