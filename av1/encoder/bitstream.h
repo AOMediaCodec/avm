@@ -24,8 +24,14 @@ struct aom_write_bit_buffer;
 // Writes only the OBU Sequence Header payload, and returns the size of the
 // payload written to 'dst'. This function does not write the OBU header, the
 // optional extension, or the OBU size to 'dst'.
+#if CONFIG_MULTI_FRAME_HEADER
+uint32_t av1_write_sequence_header_obu(AV1_COMP *cpi,
+                                       const SequenceHeader *seq_params,
+                                       uint8_t *const dst);
+#else
 uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
                                        uint8_t *const dst);
+#endif
 
 // Writes the OBU header byte, and the OBU header extension byte when
 // 'obu_extension' is non-zero. Returns number of bytes written to 'dst'.
@@ -72,6 +78,17 @@ int av1_set_ops_params(AV1_COMP *cpi, struct OperatingPointSet *ops,
  * \ingroup high_level_algo
  * \callgraph
  */
+
+#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
+void set_sequence_header_with_keyframe(AV1_COMP *cpi,
+                                       struct SequenceHeader *seq_params,
+                                       int seq_header_id);
+
+void set_multi_frame_header_with_keyframe(AV1_COMP *cpi,
+                                          struct MultiFrameHeader *mfh_params,
+                                          int mfh_id);
+#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
+
 int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
                        int *const largest_tile_id);
 

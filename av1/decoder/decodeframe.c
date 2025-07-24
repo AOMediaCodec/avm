@@ -2542,7 +2542,7 @@ static AOM_INLINE void setup_bru_active_info(AV1_COMMON *const cm,
   }
 }
 static AOM_INLINE void setup_segmentation(AV1_COMMON *const cm,
-                                          struct aom_read_bit_buffer *rb) {
+                        struct aom_read_bit_buffer *rb) {
   struct segmentation *const seg = &cm->seg;
 
   seg->update_map = 0;
@@ -6281,12 +6281,23 @@ static AOM_INLINE void read_bitdepth(
 #endif  // CONFIG_CWG_E242_BITDEPTH
   else {
     aom_internal_error(error_info, AOM_CODEC_UNSUP_BITSTREAM,
-                       "Unsupported profile/bit-depth combination");
-  }
+                       "Unsupported bit-depth combination");
+#else
+    const int high_bitdepth = aom_rb_read_bit(rb);
+    if (seq_params->profile == PROFILE_2 && high_bitdepth) {
+      const int twelve_bit = aom_rb_read_bit(rb);
+      seq_params->bit_depth = twelve_bit ? AOM_BITS_12 : AOM_BITS_10;
+    } else if (seq_params->profile <= PROFILE_2) {
+      seq_params->bit_depth = high_bitdepth ? AOM_BITS_10 : AOM_BITS_8;
+    } else {
+      aom_internal_error(error_info, AOM_CODEC_UNSUP_BITSTREAM,
+                         "Unsupported profile/bit-depth combination");
+    }
+#endif  // CONFIG_CWG_E242_BITDEPTH
 }
 
-void av1_read_film_grain_params(AV1_COMMON *cm,
-                                struct aom_read_bit_buffer *rb) {
+#if CWG_F109
+void av1_read_film_grain_model(AV1_COMMON *cm, struct aom_read_bit_buffer *rb) {
   aom_film_grain_t *pars = &cm->film_grain_params;
   const SequenceHeader *const seq_params = &cm->seq_params;
 
@@ -6460,6 +6471,7 @@ void av1_read_film_grain_params(AV1_COMMON *cm,
   pars->block_size = aom_rb_read_bit(rb);
 #endif
 }
+#endif
 
 static AOM_INLINE void read_film_grain(AV1_COMMON *cm,
                                        struct aom_read_bit_buffer *rb) {
@@ -6509,7 +6521,9 @@ void av1_read_color_config(struct aom_read_bit_buffer *rb,
   set_seq_chroma_format(seq_chroma_format_idc, seq_params, error_info);
 #endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
+#if !CONFIG_CWG_E242_BITDEPTH
   read_bitdepth(rb, seq_params, error_info);
+#endif  // CONFIG_CWG_E242_BITDEPTH
 
 #if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
   const int is_monochrome = (seq_chroma_format_idc == CHROMA_FORMAT_400);
@@ -7959,7 +7973,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         // CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP)
                                     struct aom_read_bit_buffer *rb) {
   AV1_COMMON *const cm = &pbi->common;
+#if !CONFIG_CWG_E242_SEQ_HDR_ID
   const SequenceHeader *const seq_params = &cm->seq_params;
+#endif  // !CONFIG_CWG_E242_SEQ_HDR_ID
   CurrentFrame *const current_frame = &cm->current_frame;
   FeatureFlags *const features = &cm->features;
   MACROBLOCKD *const xd = &pbi->dcb.xd;
@@ -7980,11 +7996,29 @@ static int read_uncompressed_header(AV1Decoder *pbi,
             beginningFrameFlag[i][j][k][l][h] = 1;
   }
 #endif
-
-  if (!pbi->sequence_header_ready) {
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+  if (pbi->dec_seq_counter == 0) {
     aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                        "No sequence header");
   }
+  bool seq_is_found = false;
+  for (int i = 0; i < pbi->dec_seq_counter; i++) {
+    if (pbi->seq_list[i].seq_header_id ==
+        cm->mfh_params[cm->cur_mfh_id].mfh_seq_header_id) {
+      pbi->active_seq = &pbi->seq_list[i];
+      seq_is_found = true;
+      break;
+    }
+  }
+  if (!seq_is_found) {
+    printf(
+        "error: no sequence header found: cm->seq_header_id: %d, "
+        "pbi->dec_seq_counter: %d\n seq_header_ids:",
+        cm->mfh_params[cm->cur_mfh_id].mfh_seq_header_id, pbi->dec_seq_counter);
+    for (int i = 0; i < pbi->dec_seq_counter; i++) {
+      printf("%d, ", pbi->seq_list[i].seq_header_id);
+    }
+    printf("\n");
 
 #if CONFIG_CWG_F317
   cm->bridge_frame_info.bridge_frame_ref_idx = INVALID_IDX;
@@ -9477,7 +9511,20 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     features->disable_cdf_update = 1;
     cm->cur_frame->film_grain_params_present =
         seq_params->film_grain_params_present;
-    read_film_grain(cm, rb);
+#if CONFIG_MULTI_FRAME_HEADER
+    if (seq_params->film_grain_params_present) {
+#if !CWG_F109
+      if (aom_rb_read_bit(rb)) {
+#else
+      cm->film_grain_params_override_flag = aom_rb_read_bit(rb);
+      if (cm->film_grain_params_override_flag) {
+#endif
+        read_film_grain(cm, rb);
+      }
+    }
+#else
+      read_film_grain(cm, rb);
+#endif
     // TIP frame will be output for displaying
     // No futher processing needed
     return 0;
@@ -9536,7 +9583,23 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     }
   }
 
-  setup_segmentation(cm, rb);
+#if CONFIG_MULTI_FRAME_HEADER
+  if (cm->seq_params.segmentation_params_present) {
+    if (aom_rb_read_bit(rb)) {
+      setup_segmentation(cm, rb);
+    }
+  } else {
+    struct segmentation *const seg = &cm->seg;
+    if (cm->cur_frame->seg_map) {
+      memset(cm->cur_frame->seg_map, 0,
+             (cm->cur_frame->mi_rows * cm->cur_frame->mi_cols));
+    }
+    memset(seg, 0, sizeof(*seg));
+    segfeatures_copy(&cm->cur_frame->seg, seg);
+  }
+#else
+    setup_segmentation(cm, rb);
+#endif
 
   setup_qm_params(&cm->seq_params, quant_params, cm->seg.enabled,
                   av1_num_planes(cm), rb);
@@ -9703,7 +9766,15 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
   cm->cur_frame->film_grain_params_present =
       seq_params->film_grain_params_present;
-  read_film_grain(cm, rb);
+#if CONFIG_MULTI_FRAME_HEADER
+  if (seq_params->film_grain_params_present) {
+    if (aom_rb_read_bit(rb)) {
+      read_film_grain(cm, rb);
+    }
+  }
+#else
+    read_film_grain(cm, rb);
+#endif
 
 #if EXT_TILE_DEBUG
   if (pbi->ext_tile_debug && cm->tiles.large_scale) {
@@ -10142,6 +10213,9 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
                                             struct aom_read_bit_buffer *rb,
                                             const uint8_t *data,
                                             const uint8_t **p_data_end,
+#if CONFIG_F106_OBU_SWITCH
+                                            OBU_TYPE obu_type,
+#endif
                                             int trailing_bits_present) {
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(pbi, av1_decode_frame_headers_and_setup_time);
@@ -10165,9 +10239,11 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
   }
 
   xd->global_motion = cm->global_motion;
-
-  read_uncompressed_header(pbi, rb);
-
+#if CONFIG_F106_OBU_SWITCH
+  read_uncompressed_header(pbi, obu_type, rb);
+#else
+    read_uncompressed_header(pbi, rb);
+#endif
 #if CONFIG_BITSTREAM_DEBUG
   aom_bitstream_queue_set_frame_read(cm->current_frame.order_hint * 2 +
                                      cm->show_frame);

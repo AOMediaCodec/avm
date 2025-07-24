@@ -258,8 +258,42 @@ set_aom_config_var(CONFIG_GLOBAL_INTRABC_DELAY_OPT 1
 set_aom_config_var(CONFIG_LOCAL_INTRABC_BAWP 1
                    "CWG-F165 Enable intraBAWP in local intraBC")
 
+<<<<<<< HEAD
 set_aom_config_var(CONFIG_REDUCED_REF_FRAME_MVS_MODE 1
                    "Use reduced reference frame mvs for temporal mv prediction")
+=======
+set_aom_config_var(CONFIG_CWG_E242_SIGNAL_TILE_INFO 1
+                   "Signal tile information at sequence, mfh.")
+
+set_aom_config_var(CONFIG_DRL_REORDER_CONTROL 1
+                   "Enable to have a flag to turn on and off DRL reorder")
+
+set_aom_config_var(CONFIG_CWG_E242_MFH_ID_UVLC 1
+                   "Reorder sequence level flags.")
+
+set_aom_config_var(CONFIG_CWG_E242_BITDEPTH 1
+                   "Enable bitdepth signalling using a LUT.")
+
+set_aom_config_var(CONFIG_CWG_E242_SEQ_HDR_ID 1
+                   "Introduce sequence header id.")
+
+set_aom_config_var(CONFIG_F106_OBU_SWITCH 1 "use switch obu")
+
+set_aom_config_var(CONFIG_OPFL_CTX_OPT 1
+                   "Enable optimization of the CDFs for use optflow flag")
+
+set_aom_config_var(CONFIG_CDEF_ENHANCEMENTS 1
+                   "Enable the optimization of CDEF strengths")
+set_aom_config_var(CONFIG_MVD_CDF_REDUCTION 1
+                   "Enable reduction of the CDFs for MVD related sybmols")
+
+set_aom_config_var(CONFIG_TMVP_SIMPLIFICATIONS_F085 1
+                   "Improvements to TMVP & MV trajectory")
+
+set_aom_config_var(CONFIG_TMVP_SIMPLIFICATION 1
+                   "Enable to reduce the number of TMVP candidates")
+set_aom_config_var(CONFIG_IMPROVE_TIP_SMVP 1 "Improve SMVP with TIP (F043)")
+>>>>>>> bc8a7f9db6 (1. Multi-frame header with FGS multi-level signaling (F109))
 
 set_aom_config_var(
   CONFIG_QM_DEBUG 0

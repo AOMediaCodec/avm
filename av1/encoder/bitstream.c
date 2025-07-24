@@ -4340,11 +4340,19 @@ static AOM_INLINE void encode_loopfilter(AV1_COMMON *cm,
   // Encode the loop filter level and type
 #if CONFIG_MULTI_FRAME_HEADER
   if (!cm->mfh_params[cm->cur_mfh_id].mfh_loop_filter_update_flag) {
+<<<<<<< HEAD
 #endif  // CONFIG_MULTI_FRAME_HEADER
     aom_wb_write_bit(wb, lf->filter_level[0]);
 #if DF_DUAL
     aom_wb_write_bit(wb, lf->filter_level[1]);
 #endif
+=======
+#endif
+    aom_wb_write_bit(wb, lf->filter_level[0]);
+#if DF_DUAL
+    aom_wb_write_bit(wb, lf->filter_level[1]);
+#endif
+>>>>>>> bc8a7f9db6 (1. Multi-frame header with FGS multi-level signaling (F109))
     if (num_planes > 1) {
       if (lf->filter_level[0] || lf->filter_level[1]) {
         aom_wb_write_bit(wb, lf->filter_level_u);
@@ -4353,7 +4361,12 @@ static AOM_INLINE void encode_loopfilter(AV1_COMMON *cm,
     }
 #if CONFIG_MULTI_FRAME_HEADER
   }
+<<<<<<< HEAD
 #endif  // CONFIG_MULTI_FRAME_HEADER
+=======
+#endif
+#if CONFIG_DF_PAR_BITS
+>>>>>>> bc8a7f9db6 (1. Multi-frame header with FGS multi-level signaling (F109))
   const uint8_t df_par_bits = cm->seq_params.df_par_bits_minus2 + 2;
   const uint8_t df_par_offset = 1 << (df_par_bits - 1);
 #if DF_DUAL
@@ -5089,6 +5102,7 @@ int av1_get_index_from_bitdepth(int bit_depth) {
 static AOM_INLINE void write_bitdepth(const SequenceHeader *const seq_params,
                                       struct aom_write_bit_buffer *wb) {
 #if CONFIG_CWG_E242_BITDEPTH
+<<<<<<< HEAD
   const int bitdepth_lut_idx =
       av1_get_index_from_bitdepth(seq_params->bit_depth);
   assert(bitdepth_lut_idx >= 0);
@@ -5100,11 +5114,31 @@ static AOM_INLINE void write_bitdepth(const SequenceHeader *const seq_params,
   if (seq_params->profile == PROFILE_2 && seq_params->bit_depth != AOM_BITS_8) {
     aom_wb_write_bit(wb, seq_params->bit_depth == AOM_BITS_10 ? 0 : 1);
   }
+=======
+  // LUT [0] 10bits, [1] for 8bits, [2+] for Reserved
+  int bitdepth_lut_idx = 0;
+  if (seq_params->bit_depth == 10)
+    bitdepth_lut_idx = 0;
+  else if (seq_params->bit_depth == 8)
+    bitdepth_lut_idx = 1;
+  else
+    bitdepth_lut_idx = 2;
+  aom_wb_write_uvlc(wb, bitdepth_lut_idx);
+#else
+    // Profile 0/1: [0] for 8 bit, [1]  10-bit
+    // Profile   2: [0] for 8 bit, [10] 10-bit, [11] - 12-bit
+    aom_wb_write_bit(wb, seq_params->bit_depth == AOM_BITS_8 ? 0 : 1);
+    if (seq_params->profile == PROFILE_2 &&
+        seq_params->bit_depth != AOM_BITS_8) {
+      aom_wb_write_bit(wb, seq_params->bit_depth == AOM_BITS_10 ? 0 : 1);
+    }
+>>>>>>> bc8a7f9db6 (1. Multi-frame header with FGS multi-level signaling (F109))
 #endif  // CONFIG_CWG_E242_BITDEPTH
 }
 
 static AOM_INLINE void write_color_config(
     const SequenceHeader *const seq_params, struct aom_write_bit_buffer *wb) {
+<<<<<<< HEAD
 #if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
   write_seq_chroma_format(seq_params, wb);
   // NB: the bitdepth will be signalled after the chroma format
@@ -5112,6 +5146,11 @@ static AOM_INLINE void write_color_config(
 
   write_bitdepth(seq_params, wb);
 
+=======
+#if !CONFIG_CWG_E242_BITDEPTH
+  write_bitdepth(seq_params, wb);
+#endif  // !CONFIG_CWG_E242_BITDEPTH
+>>>>>>> bc8a7f9db6 (1. Multi-frame header with FGS multi-level signaling (F109))
   const int is_monochrome = seq_params->monochrome;
 #if !CONFIG_CWG_E242_CHROMA_FORMAT_IDC
   // monochrome bit
@@ -5242,12 +5281,18 @@ static AOM_INLINE void write_tu_pts_info(AV1_COMMON *const cm,
 }
 
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO
+<<<<<<< HEAD
 // Writes tile syntax
 void write_tile_syntax_info(const TileInfoSyntax *tiles,
                             struct aom_write_bit_buffer *wb) {
   int size_sb, i;
   int tile_width_sb = tiles->width_sb;
   int tile_height_sb = tiles->height_sb;
+=======
+void write_tile_syntax_info(struct tileinfo_syntax *tiles,
+                            struct aom_write_bit_buffer *wb) {
+  int size_sb, i;
+>>>>>>> bc8a7f9db6 (1. Multi-frame header with FGS multi-level signaling (F109))
   aom_wb_write_bit(wb, tiles->uniform_spacing);
 
   if (tiles->uniform_spacing) {
@@ -5625,7 +5670,10 @@ static AOM_INLINE void write_sb_size(const SequenceHeader *const seq_params,
 
 static AOM_INLINE void write_sequence_header(
     const SequenceHeader *const seq_params, struct aom_write_bit_buffer *wb) {
+<<<<<<< HEAD
 #if !CWG_F215_CONFIG_REMOVE_FRAME_ID
+=======
+>>>>>>> bc8a7f9db6 (1. Multi-frame header with FGS multi-level signaling (F109))
   if (!seq_params->single_picture_hdr_flag) {
     aom_wb_write_bit(wb, seq_params->frame_id_numbers_present_flag);
     if (seq_params->frame_id_numbers_present_flag) {
@@ -5970,6 +6018,7 @@ static AOM_INLINE void write_multi_frame_header(
     AV1_COMP *cpi, const MultiFrameHeader *const mfh_param,
     struct aom_write_bit_buffer *wb) {
   AV1_COMMON *const cm = &cpi->common;
+<<<<<<< HEAD
   aom_wb_write_literal(wb, cm->cur_mfh_id, 4);
 
   bool mfh_frame_size_update_flag =
@@ -5981,17 +6030,61 @@ static AOM_INLINE void write_multi_frame_header(
   if (mfh_frame_size_update_flag) {
     const int coded_width = cm->width - 1;
     const int coded_height = cm->height - 1;
+=======
+  MACROBLOCKD *const xd = &cpi->td.mb.e_mbd;
+#if CONFIG_CWG_E242_MFH_ID_UVLC
+  aom_wb_write_uvlc(wb, cm->cur_mfh_id);
+#else
+  aom_wb_write_literal(wb, cm->cur_mfh_id, 4);
+#endif  // CONFIG_CWG_E242_MFH_ID_UVLC
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+  aom_wb_write_uvlc(wb, mfh_param->mfh_seq_header_id);
+#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
+  bool frame_size_update_flag =
+#if CONFIG_ENABLE_SR
+      cm->superres_upscaled_width != cm->seq_params.max_frame_width ||
+      cm->superres_upscaled_height != cm->seq_params.max_frame_height;
+#else
+      cm->width != cm->seq_params.max_frame_width ||
+      cm->height != cm->seq_params.max_frame_height;
+#endif  // CONFIG_ENABLE_SR
+
+  aom_wb_write_bit(wb, frame_size_update_flag);
+
+  if (frame_size_update_flag) {
+#if CONFIG_ENABLE_SR
+    const int coded_width = cm->superres_upscaled_width - 1;
+    const int coded_height = cm->superres_upscaled_height - 1;
+#else
+    const int coded_width = cm->width - 1;
+    const int coded_height = cm->height - 1;
+#endif
+>>>>>>> bc8a7f9db6 (1. Multi-frame header with FGS multi-level signaling (F109))
     int num_bits_width = cm->seq_params.num_bits_width;
     int num_bits_height = cm->seq_params.num_bits_height;
     aom_wb_write_literal(wb, coded_width, num_bits_width);
     aom_wb_write_literal(wb, coded_height, num_bits_height);
   }
+<<<<<<< HEAD
   bool mfh_render_size_update_flag =
       mfh_frame_size_update_flag &&
       (cm->width != cm->render_width || cm->height != cm->render_height);
   aom_wb_write_bit(wb, mfh_render_size_update_flag);
 
   if (mfh_render_size_update_flag) {
+=======
+  bool render_size_update_flag =
+      frame_size_update_flag &&
+#if CONFIG_ENABLE_SR
+      (cm->superres_upscaled_width != cm->render_width ||
+       cm->superres_upscaled_height != cm->render_height);
+#else
+      (cm->width != cm->render_width || cm->height != cm->render_height);
+#endif
+  aom_wb_write_bit(wb, render_size_update_flag);
+
+  if (render_size_update_flag) {
+>>>>>>> bc8a7f9db6 (1. Multi-frame header with FGS multi-level signaling (F109))
     aom_wb_write_literal(wb, cm->render_width - 1, 16);
     aom_wb_write_literal(wb, cm->render_height - 1, 16);
   }
@@ -5999,11 +6092,40 @@ static AOM_INLINE void write_multi_frame_header(
   aom_wb_write_bit(wb, mfh_param->mfh_loop_filter_update_flag);
   if (mfh_param->mfh_loop_filter_update_flag) {
     for (int i = 0; i < 4; i++) {
+<<<<<<< HEAD
       aom_wb_write_bit(wb, mfh_param->mfh_loop_filter_level[i]);
     }
   }
 }
 #endif  // CONFIG_MULTI_FRAME_HEADER
+=======
+      aom_wb_write_bit(wb, mfh_param->mfh_filter_level[i]);
+    }
+  }
+
+#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
+  aom_wb_write_bit(wb, mfh_param->mfh_tiles_info_present_flag);
+  if (mfh_param->mfh_tiles_info_present_flag) {
+    write_tile_syntax_info(&cm->mfh_params[cm->cur_mfh_id].tile_params, wb);
+  }
+#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
+
+  if (cm->seq_params.film_grain_params_present) {
+    aom_wb_write_bit(wb, mfh_param->mfh_film_grain_model_present_flag);
+    if (mfh_param->mfh_film_grain_model_present_flag) {
+      write_film_grain_params(cpi, wb);
+    }
+  }
+
+  if (cm->seq_params.segmentation_params_present) {
+    aom_wb_write_bit(wb, mfh_param->mfh_segmentation_params_update_flag);
+    if (mfh_param->mfh_segmentation_params_update_flag) {
+      encode_segmentation(cm, xd, wb);
+    }
+  }
+}
+#endif
+>>>>>>> bc8a7f9db6 (1. Multi-frame header with FGS multi-level signaling (F109))
 
 static AOM_INLINE void write_global_motion_params(
     const WarpedMotionParams *params, const WarpedMotionParams *ref_params,
@@ -7001,7 +7123,10 @@ static AOM_INLINE void write_uncompressed_header_obu
 #else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
         && (cm->show_frame || cm->showable_frame))
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
-      write_film_grain_params(cpi, wb);
+#if CONFIG_MULTI_FRAME_HEADER
+      if (cm->film_grain_params_override_flag)
+#endif
+        write_film_grain_params(cpi, wb);
     return;
   }
 
@@ -7014,19 +7139,38 @@ static AOM_INLINE void write_uncompressed_header_obu
     if (cm->tiles.large_scale)
       assert(features->refresh_frame_context == REFRESH_FRAME_CONTEXT_DISABLED);
 
+<<<<<<< HEAD
     if (might_bwd_adapt) {
       aom_wb_write_bit(wb, features->refresh_frame_context ==
                                REFRESH_FRAME_CONTEXT_DISABLED);
     }
 #if CONFIG_CWG_F317
+=======
+  const int might_bwd_adapt =
+      !(seq_params->single_picture_hdr_flag) && !(features->disable_cdf_update);
+  if (cm->tiles.large_scale)
+    assert(features->refresh_frame_context == REFRESH_FRAME_CONTEXT_DISABLED);
+
+  if (might_bwd_adapt) {
+    aom_wb_write_bit(
+        wb, features->refresh_frame_context == REFRESH_FRAME_CONTEXT_DISABLED);
+>>>>>>> bc8a7f9db6 (1. Multi-frame header with FGS multi-level signaling (F109))
   }
 #endif  // CONFIG_CWG_F317
 
   write_tile_info(cm, saved_wb, wb);
 
   encode_quantization(quant_params, av1_num_planes(cm), &cm->seq_params, wb);
+<<<<<<< HEAD
   encode_segmentation(cm, xd, wb);
   encode_qm_params(cm, wb);
+=======
+#if CONFIG_MULTI_FRAME_HEADER
+  if (seq_params->segmentation_params_present &&
+      cm->segmentation_params_override_flag)
+#endif
+    encode_segmentation(cm, xd, wb);
+>>>>>>> bc8a7f9db6 (1. Multi-frame header with FGS multi-level signaling (F109))
 
   const DeltaQInfo *const delta_q_info = &cm->delta_q_info;
   if (delta_q_info->delta_q_present_flag) assert(quant_params->base_qindex > 0);
@@ -7154,7 +7298,10 @@ static AOM_INLINE void write_uncompressed_header_obu
 #else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
       && (cm->show_frame || cm->showable_frame))
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
-    write_film_grain_params(cpi, wb);
+#if CONFIG_MULTI_FRAME_HEADER
+    if (cm->film_grain_params_override_flag)
+#endif
+      write_film_grain_params(cpi, wb);
 
   if (cm->tiles.large_scale) write_ext_tile_info(cm, saved_wb, wb);
 }
@@ -7311,12 +7458,21 @@ uint32_t av1_write_obu_header(AV1LevelParams *const level_params,
 #endif  // CONFIG_F106_OBU_TILEGROUP
 
   if (level_params->keep_level_stats &&
+<<<<<<< HEAD
 #if CONFIG_F106_OBU_TILEGROUP
       count_header
 #else
       (obu_type == OBU_FRAME || obu_type == OBU_FRAME_HEADER)
 #endif  // CONFIG_F106_OBU_TILEGROUP
   )
+=======
+#if CONFIG_F106_OBU_SWITCH
+      (obu_type == OBU_FRAME || obu_type == OBU_FRAME_HEADER ||
+       obu_type == OBU_SWITCH))
+#else
+        (obu_type == OBU_FRAME || obu_type == OBU_FRAME_HEADER))
+#endif  // CONFIG_F106_OBU_SWITCH
+>>>>>>> bc8a7f9db6 (1. Multi-frame header with FGS multi-level signaling (F109))
     ++level_params->frame_header_count;
 
   struct aom_write_bit_buffer wb = { dst, 0 };
@@ -7373,6 +7529,7 @@ static AOM_INLINE void write_bitstream_level(AV1_LEVEL seq_level_idx,
   assert(is_valid_seq_level_idx(seq_level_idx));
   aom_wb_write_literal(wb, seq_level_idx, LEVEL_BITS);
 }
+<<<<<<< HEAD
 
 #if CONFIG_MULTILAYER_CORE_HLS
 static void av1_write_tlayer_dependency_info(struct aom_write_bit_buffer *wb,
@@ -7399,9 +7556,24 @@ static void av1_write_mlayer_dependency_info(struct aom_write_bit_buffer *wb,
 #endif  // CONFIG_MULTILAYER_CORE_HLS
 
 uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
+=======
+#if CONFIG_MULTI_FRAME_HEADER
+uint32_t av1_write_sequence_header_obu(AV1_COMP *cpi,
+                                       const SequenceHeader *seq_params,
+#else
+  uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
+#endif
+>>>>>>> bc8a7f9db6 (1. Multi-frame header with FGS multi-level signaling (F109))
                                        uint8_t *const dst) {
   struct aom_write_bit_buffer wb = { dst, 0 };
   uint32_t size = 0;
+#if CONFIG_MULTI_FRAME_HEADER
+  AV1_COMMON *const cm = &cpi->common;
+  MACROBLOCKD *const xd = &cpi->td.mb.e_mbd;
+#endif
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+  aom_wb_write_uvlc(&wb, seq_params->seq_header_id);
+#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
 
   write_profile(seq_params->profile, &wb);
 
@@ -7411,6 +7583,10 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
                        seq_params->num_bits_width);
   aom_wb_write_literal(&wb, seq_params->max_frame_height - 1,
                        seq_params->num_bits_height);
+
+#if CONFIG_CWG_E242_BITDEPTH
+  write_bitdepth(seq_params, &wb);
+#endif  // CONFIG_CWG_E242_BITDEPTH
 
   write_color_config(seq_params, &wb);
 
@@ -7500,9 +7676,29 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
     write_tile_syntax_info(&seq_params->tile_params, &wb);
   }
 #endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
+<<<<<<< HEAD
 
   aom_wb_write_bit(&wb, seq_params->film_grain_params_present);
+=======
+>>>>>>> bc8a7f9db6 (1. Multi-frame header with FGS multi-level signaling (F109))
 
+  aom_wb_write_bit(&wb, seq_params->film_grain_params_present);
+#if CONFIG_MULTI_FRAME_HEADER
+  if (seq_params->film_grain_params_present) {
+    aom_wb_write_bit(&wb, seq_params->seq_film_grain_model_present_flag);
+    if (seq_params->seq_film_grain_model_present_flag) {
+      write_film_grain_params(cpi, &wb);
+    }
+  }
+
+  aom_wb_write_bit(&wb, seq_params->segmentation_params_present);
+  if (seq_params->segmentation_params_present) {
+    aom_wb_write_bit(&wb, seq_params->seq_segmentation_params_update_flag);
+    if (seq_params->seq_segmentation_params_update_flag) {
+      encode_segmentation(cm, xd, &wb);
+    }
+  }
+#endif
   // Sequence header for coding tools beyond AV1
   write_sequence_header_beyond_av1(seq_params, &wb);
 
@@ -7521,11 +7717,16 @@ uint32_t write_multi_frame_header_obu(AV1_COMP *cpi,
 
   write_multi_frame_header(cpi, mfh_param, &wb);
 
+<<<<<<< HEAD
   av1_add_trailing_bits(&wb);
+=======
+  add_trailing_bits(&wb);
+>>>>>>> bc8a7f9db6 (1. Multi-frame header with FGS multi-level signaling (F109))
 
   size = aom_wb_bytes_written(&wb);
   return size;
 }
+<<<<<<< HEAD
 #endif  // CONFIG_MULTI_FRAME_HEADER
 
 #if CONFIG_F106_OBU_TILEGROUP
@@ -7945,6 +8146,10 @@ static uint32_t write_tilegroup_obu(
   return curr_tg_header_size + curr_tg_data_size;
 }
 #else
+=======
+#endif
+
+>>>>>>> bc8a7f9db6 (1. Multi-frame header with FGS multi-level signaling (F109))
 static uint32_t write_frame_header_obu(AV1_COMP *cpi,
                                        struct aom_write_bit_buffer *saved_wb,
                                        uint8_t *const dst,
@@ -8344,6 +8549,7 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
           curr_tg_data_size += (int)(fh_info->total_length);
           total_size += (uint32_t)(fh_info->total_length);
         }
+#endif
         first_tg = 0;
 #endif  // !CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER
       }
@@ -8542,7 +8748,11 @@ static size_t av1_write_frame_hash_metadata(
 }
 
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO
+<<<<<<< HEAD
 void set_tile_info(AV1_COMP *cpi, TileInfoSyntax *tiles) {
+=======
+void set_tile_info(AV1_COMP *cpi, struct tileinfo_syntax *tiles, int id) {
+>>>>>>> bc8a7f9db6 (1. Multi-frame header with FGS multi-level signaling (F109))
   AV1_COMMON *cm = &cpi->common;
   tiles->uniform_spacing = cm->tiles.uniform_spacing;
 
@@ -8578,6 +8788,7 @@ void set_tile_info(AV1_COMP *cpi, TileInfoSyntax *tiles) {
 }
 
 void set_sequence_header_with_keyframe(AV1_COMP *cpi,
+<<<<<<< HEAD
                                        SequenceHeader *seq_params) {
   AV1_COMMON *cm = &cpi->common;
   // Set SH tile info
@@ -8585,6 +8796,29 @@ void set_sequence_header_with_keyframe(AV1_COMP *cpi,
   seq_params->seq_tile_info_present_flag = 0;
   if (cm->sb_size == BLOCK_128X128) seq_params->seq_tile_info_present_flag = 1;
   set_tile_info(cpi, &seq_params->tile_params);
+=======
+                                       SequenceHeader *seq_params,
+                                       int seq_header_id) {
+  AV1_COMMON *cm = &cpi->common;
+  // Set SH tile info
+  memset(&seq_params->tile_params, 0, sizeof(struct tileinfo_syntax));
+  seq_params->seq_tile_info_present_flag = 0;
+  if (cm->sb_size == BLOCK_128X128) seq_params->seq_tile_info_present_flag = 1;
+  set_tile_info(cpi, &seq_params->tile_params, seq_header_id);
+}
+
+void set_multi_frame_header_with_keyframe(AV1_COMP *cpi,
+                                          struct MultiFrameHeader *mfh_params,
+                                          int mfh_id) {
+  AV1_COMMON *cm = &cpi->common;
+  // Set MFH tile info
+  memset(&mfh_params->tile_params, 0, sizeof(struct tileinfo_syntax));
+  mfh_params->mfh_tiles_info_present_flag = 0;
+  if (cm->sb_size == BLOCK_128X128 &&
+      cm->seq_params.seq_tile_info_present_flag == 0)
+    mfh_params->mfh_tiles_info_present_flag = 1;
+  set_tile_info(cpi, &mfh_params->tile_params, mfh_id);
+>>>>>>> bc8a7f9db6 (1. Multi-frame header with FGS multi-level signaling (F109))
 }
 #endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 
@@ -8681,7 +8915,17 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 
   // write sequence header obu if KEY_FRAME, preceded by 4-byte size
   if (cm->current_frame.frame_type == KEY_FRAME && !cpi->no_show_fwd_kf) {
+#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+    int seq_header_id = cm->seq_params.seq_header_id;
+#else
+    int seq_header_id = 0;
+    // NB: This id needs to come from the the above macro
+#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
+    set_sequence_header_with_keyframe(cpi, &cm->seq_params, seq_header_id);
+#endif  // #if CONFIG_CWG_E242_SIGNAL_TILE_INFO
     obu_header_size =
+<<<<<<< HEAD
         av1_write_obu_header(level_params, OBU_SEQUENCE_HEADER, 0, 0, data);
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO
     set_sequence_header_with_keyframe(cpi, &cm->seq_params);
@@ -8696,6 +8940,23 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
     const size_t length_field_size =
         obu_memmove(obu_header_size, obu_payload_size, data);
 #endif  // CONFIG_MULTI_FRAME_HEADER
+=======
+        av1_write_obu_header(level_params, OBU_SEQUENCE_HEADER, 0, data);
+#if CONFIG_MULTI_FRAME_HEADER
+    obu_payload_size = av1_write_sequence_header_obu(cpi, &cm->seq_params,
+                                                     data + obu_header_size);
+#else
+        obu_payload_size = av1_write_sequence_header_obu(
+            &cm->seq_params, data + obu_header_size);
+#endif
+#if CONFIG_MULTI_FRAME_HEADER
+    size_t length_field_size =
+        obu_memmove(obu_header_size, obu_payload_size, data);
+#else
+        const size_t length_field_size =
+            obu_memmove(obu_header_size, obu_payload_size, data);
+#endif
+>>>>>>> bc8a7f9db6 (1. Multi-frame header with FGS multi-level signaling (F109))
     if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
         AOM_CODEC_OK) {
       return AOM_CODEC_ERROR;
@@ -8703,6 +8964,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 
     data += obu_header_size + obu_payload_size + length_field_size;
 #if CONFIG_MULTI_FRAME_HEADER
+<<<<<<< HEAD
     // write multi-frame header if KEY_FRAME
     obu_header_size =
         av1_write_obu_header(level_params, OBU_MULTI_FRAME_HEADER, 0, 0, data);
@@ -8717,6 +8979,29 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 
     data += obu_header_size + obu_payload_size + length_field_size;
 #endif  // CONFIG_MULTI_FRAME_HEADER
+=======
+    // write frame group header if the first KEY_FRAME
+    if (cpi->mfh_params_signaled_flag == 0) {
+#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
+      set_multi_frame_header_with_keyframe(cpi, cm->mfh_params, cm->cur_mfh_id);
+#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
+      obu_header_size =
+          av1_write_obu_header(level_params, OBU_MULTI_FRAME_HEADER, 0, data);
+
+      obu_payload_size = write_multi_frame_header_obu(
+          cpi, &cm->mfh_params[cm->cur_mfh_id], data + obu_header_size);
+      length_field_size = obu_memmove(obu_header_size, obu_payload_size, data);
+      if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
+          AOM_CODEC_OK) {
+        return AOM_CODEC_ERROR;
+      }
+
+      data += obu_header_size + obu_payload_size + length_field_size;
+
+      cpi->mfh_params_signaled_flag = 1;
+    }
+#endif
+>>>>>>> bc8a7f9db6 (1. Multi-frame header with FGS multi-level signaling (F109))
   }
 
   // write metadata obus before the frame obu that has the show_frame flag set

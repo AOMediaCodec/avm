@@ -13,6 +13,7 @@
 #define AOM_COMMON_AV1_CONFIG_H_
 
 #include "aom/aom_integer.h"
+#include "config/aom_config.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -50,6 +51,9 @@ extern "C" {
 typedef struct _Av1Config {
   uint8_t marker;
   uint8_t version;
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+  uint8_t seq_header_id;
+#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
   uint8_t seq_profile;
   uint8_t seq_level_idx_0;
   uint8_t seq_tier_0;

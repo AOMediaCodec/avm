@@ -57,11 +57,18 @@ bool VerifyAv1c(const uint8_t *const obu_buffer, size_t obu_buffer_length,
   if (parse_ok) {
     EXPECT_EQ(1, av1_config.marker);
     EXPECT_EQ(1, av1_config.version);
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+    EXPECT_EQ(0, av1_config.seq_header_id);
+#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
     EXPECT_EQ(0, av1_config.seq_profile);
     EXPECT_EQ(0, av1_config.seq_level_idx_0);
     EXPECT_EQ(0, av1_config.seq_tier_0);
+#if CONFIG_CWG_E242_BITDEPTH
+    EXPECT_EQ(1, av1_config.bitdepth);  // bitdepth_lut_idx
+#else
     EXPECT_EQ(0, av1_config.high_bitdepth);
     EXPECT_EQ(0, av1_config.twelve_bit);
+#endif  // CONFIG_CWG_E242_BITDEPTH
     EXPECT_EQ(0, av1_config.monochrome);
     EXPECT_EQ(1, av1_config.chroma_subsampling_x);
     EXPECT_EQ(1, av1_config.chroma_subsampling_y);

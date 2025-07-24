@@ -198,7 +198,9 @@ static aom_codec_err_t decoder_destroy(aom_codec_alg_priv_t *ctx) {
 // *bit_depth based on the values of those fields and profile.
 #endif
 static aom_codec_err_t parse_bitdepth(struct aom_read_bit_buffer *rb,
+#if !CONFIG_CWG_E242_BITDEPTH
                                       BITSTREAM_PROFILE profile,
+#endif  // !CONFIG_CWG_E242_BITDEPTH
                                       aom_bit_depth_t *bit_depth) {
 #if CONFIG_CWG_E242_BITDEPTH
   (void)profile;
@@ -232,6 +234,7 @@ static aom_codec_err_t parse_color_config(struct aom_read_bit_buffer *rb,
   aom_bit_depth_t bit_depth;
   aom_codec_err_t err = parse_bitdepth(rb, profile, &bit_depth);
   if (err != AOM_CODEC_OK) return err;
+#endif  // !CONFIG_CWG_E242_BITDEPTH
 
 #if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
   const int is_monochrome = (chroma_format_idc == CHROMA_FORMAT_400);
@@ -465,6 +468,10 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
       // Read a few values from the sequence header payload
       struct aom_read_bit_buffer rb = { data, data + data_sz, 0, NULL, NULL };
 
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+      int seq_header_id = aom_rb_read_uvlc(&rb);
+#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
+
       BITSTREAM_PROFILE profile = av1_read_profile(&rb);  // profile
 
       int num_bits_width = aom_rb_read_literal(&rb, 4) + 1;
@@ -474,7 +481,18 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
       si->w = max_frame_width;
       si->h = max_frame_height;
 
-      status = parse_color_config(&rb, profile);
+#if CONFIG_CWG_E242_BITDEPTH
+      aom_bit_depth_t bit_depth;
+      aom_codec_err_t err = parse_bitdepth(&rb, &bit_depth);
+      if (err != AOM_CODEC_OK) return err;
+#endif  // CONFIG_CWG_E242_BITDEPTH
+
+      status = parse_color_config(&rb, profile
+#if CONFIG_CWG_E242_BITDEPTH
+                                  ,
+                                  bit_depth
+#endif  // CONFIG_CWG_E242_BITDEPTH
+      );
       if (status != AOM_CODEC_OK) return status;
 
       const uint8_t still_picture = aom_rb_read_bit(&rb);

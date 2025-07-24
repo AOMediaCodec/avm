@@ -3056,11 +3056,19 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
     lf->filter_level[1] = 0;
   }
 #if CONFIG_MULTI_FRAME_HEADER
+<<<<<<< HEAD
   cpi->cur_mfh_params.mfh_loop_filter_level[0] = lf->filter_level[0];
   cpi->cur_mfh_params.mfh_loop_filter_level[1] = lf->filter_level[1];
   cpi->cur_mfh_params.mfh_loop_filter_level[2] = lf->filter_level_u;
   cpi->cur_mfh_params.mfh_loop_filter_level[3] = lf->filter_level_v;
 #endif  // CONFIG_MULTI_FRAME_HEADER
+=======
+  cpi->cur_mfh_params.mfh_filter_level[0] = lf->filter_level[0];
+  cpi->cur_mfh_params.mfh_filter_level[1] = lf->filter_level[1];
+  cpi->cur_mfh_params.mfh_filter_level[2] = lf->filter_level_u;
+  cpi->cur_mfh_params.mfh_filter_level[3] = lf->filter_level_v;
+#endif
+>>>>>>> bc8a7f9db6 (1. Multi-frame header with FGS multi-level signaling (F109))
   if (lf->filter_level[0] || lf->filter_level[1]) {
     if (num_workers > 1)
       av1_loop_filter_frame_mt(&cm->cur_frame->buf, cm, xd, 0, num_planes, 0,
@@ -4671,6 +4679,13 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
   current_frame->order_hint %=
       (1 << (cm->seq_params.order_hint_info.order_hint_bits_minus_1 + 1));
 
+#if CONFIG_MULTI_FRAME_HEADER
+  if (current_frame->absolute_poc == 0) {
+    cpi->mfh_params_signaled_flag = 0;
+    cpi->prev_mfh_id = -1;
+  }
+#endif
+
   if (is_stat_generation_stage(cpi)) {
     av1_first_pass(cpi, frame_input->ts_duration);
   } else {
@@ -4884,7 +4899,11 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
   AV1_COMMON *const cm = &cpi->common;
 #if CONFIG_MULTI_FRAME_HEADER
   cm->cur_mfh_id = 0;
+<<<<<<< HEAD
 #endif  // CONFIG_MULTI_FRAME_HEADER
+=======
+#endif
+>>>>>>> bc8a7f9db6 (1. Multi-frame header with FGS multi-level signaling (F109))
   cm->showable_frame = 0;
   *size = 0;
 #if CONFIG_INTERNAL_STATS
@@ -5115,8 +5134,13 @@ aom_fixed_buf_t *av1_get_global_headers(AV1_COMP *cpi) {
   if (!cpi) return NULL;
 
   uint8_t header_buf[512] = { 0 };
-  const uint32_t sequence_header_size =
-      av1_write_sequence_header_obu(&cpi->common.seq_params, &header_buf[0]);
+#if CONFIG_MULTI_FRAME_HEADER
+  const uint32_t sequence_header_size = av1_write_sequence_header_obu(
+      cpi, &cpi->common.seq_params, &header_buf[0]);
+#else
+    const uint32_t sequence_header_size =
+        av1_write_sequence_header_obu(&cpi->common.seq_params, &header_buf[0]);
+#endif
   assert(sequence_header_size <= sizeof(header_buf));
   if (sequence_header_size == 0) return NULL;
 

@@ -10,7 +10,7 @@
  * aomedia.org/license/patent-license/.
  */
 #include <assert.h>
-
+#include "config/aom_config.h"
 #include "av1/common/obu_util.h"
 
 #include "config/aom_config.h"

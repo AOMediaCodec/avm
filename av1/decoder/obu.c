@@ -25,6 +25,9 @@
 #include "av1/decoder/decoder.h"
 #include "av1/decoder/decodeframe.h"
 #include "av1/decoder/obu.h"
+#if CWG_F109
+#include "av1/decoder/decodeframe.h"
+#endif
 
 aom_codec_err_t aom_get_num_layers_from_operating_point_idc(
     int operating_point_idc, unsigned int *number_mlayers,
@@ -139,8 +142,28 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
 
   // Use a local variable to store the information as we decode. At the end,
   // if no errors have occurred, cm->seq_params is updated.
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+  // Use a local variable to store the information as we decode. At the end,
+  // if no errors have occurred, cm->seq_params is updated.
+  uint8_t seq_header_id = aom_rb_read_uvlc(rb);
+  struct SequenceHeader *seq_params;
+  int seq_header_pos = -1;
+  for (int i = 0; i < pbi->dec_seq_counter; i++) {
+    if (pbi->seq_list[i].seq_header_id == seq_header_id) {
+      seq_header_pos = i;
+      break;
+    }
+  }  // i
+  if (seq_header_pos != -1)
+    seq_params = &pbi->seq_list[seq_header_pos];
+  else
+    seq_params = &pbi->seq_list[pbi->dec_seq_counter];
+  pbi->dec_seq_counter++;
+  seq_params->seq_header_id = seq_header_id;
+#else
   SequenceHeader sh = cm->seq_params;
   SequenceHeader *const seq_params = &sh;
+#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
 
   seq_params->profile = av1_read_profile(rb);
   if (seq_params->profile > CONFIG_MAX_DECODE_PROFILE) {
@@ -157,6 +180,9 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
   seq_params->num_bits_height = num_bits_height;
   seq_params->max_frame_width = max_frame_width;
   seq_params->max_frame_height = max_frame_height;
+#if CONFIG_CWG_E242_BITDEPTH
+  read_bitdepth(rb, seq_params, &cm->error);
+#endif  // CONFIG_CWG_E242_BITDEPTH
 
   av1_read_color_config(rb, seq_params, &cm->error);
 #if !CONFIG_CWG_E242_CHROMA_FORMAT_IDC
@@ -334,7 +360,47 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
   }
 #endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 
+#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
+  seq_params->seq_tile_info_present_flag = aom_rb_read_bit(rb);
+  if (seq_params->seq_tile_info_present_flag) {
+    read_sequence_tile_info(seq_params, rb);
+  }
+#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
+
   seq_params->film_grain_params_present = aom_rb_read_bit(rb);
+
+#if CONFIG_MULTI_FRAME_HEADER
+  if (seq_params->film_grain_params_present) {
+#if !CWG_F109
+    seq_params->seq_film_grain_model_present_flag = aom_rb_read_bit(rb);
+    if (seq_params->seq_film_grain_model_present_flag) {
+      read_film_grain(cm, rb);
+    }
+#else
+    // Check if a film grain model is included in the sequence header
+    seq_params->seq_film_grain_model_present_flag = aom_rb_read_bit(rb);
+
+    // Read and store the model if present.  Otherwise, clear the model
+    if (seq_params->seq_film_grain_model_present_flag) {
+      av1_read_film_grain_model(cm, rb);
+      memcpy(&seq_params->seq_film_grain_params, &cm->film_grain_params,
+             sizeof(seq_params->seq_film_grain_params));
+    } else {
+      memcpy(&seq_params->seq_film_grain_params, 0,
+             sizeof(seq_params->seq_film_grain_params));
+    }
+#endif
+  }
+
+  seq_params->segmentation_params_present = aom_rb_read_bit(rb);
+
+  if (seq_params->segmentation_params_present) {
+    seq_params->seq_segmentation_params_update_flag = aom_rb_read_bit(rb);
+    if (seq_params->seq_segmentation_params_update_flag) {
+      setup_segmentation(cm, rb);
+    }
+  }
+#endif
 
   // Sequence header for coding tools beyond AV1
   av1_read_sequence_header_beyond_av1(rb, seq_params, &cm->quant_params,
@@ -398,6 +464,7 @@ static uint32_t read_multi_frame_header_obu(AV1Decoder *pbi,
 
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }
+<<<<<<< HEAD
 #endif  // CONFIG_MULTI_FRAME_HEADER
 
 #if CONFIG_F106_OBU_TILEGROUP
@@ -455,14 +522,24 @@ static uint32_t read_tilegroup_obu(AV1Decoder *pbi,
   return header_size + tg_payload_size;
 }
 #else
+=======
+#endif
+
+>>>>>>> bc8a7f9db6 (1. Multi-frame header with FGS multi-level signaling (F109))
 // On success, returns the frame header size. On failure, calls
 // aom_internal_error and does not return.
 static uint32_t read_frame_header_obu(AV1Decoder *pbi,
                                       struct aom_read_bit_buffer *rb,
                                       const uint8_t *data,
                                       const uint8_t **p_data_end,
+#if CONFIG_F106_OBU_SWITCH
+                                      OBU_TYPE obu_type,
+#endif
                                       int trailing_bits_present) {
   return av1_decode_frame_headers_and_setup(pbi, rb, data, p_data_end,
+#if CONFIG_F106_OBU_SWITCH
+                                            obu_type,
+#endif
                                             trailing_bits_present);
 }
 
@@ -999,6 +1076,9 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
 
     if (obu_header.type != OBU_TEMPORAL_DELIMITER &&
         obu_header.type != OBU_SEQUENCE_HEADER &&
+#if CONFIG_MULTI_FRAME_HEADER
+        obu_header.type != OBU_MULTI_FRAME_HEADER &&
+#endif
         obu_header.type != OBU_PADDING) {
       // don't decode obu if it's not in current operating mode
       if (!is_obu_in_current_operating_point(pbi, obu_header)) {
@@ -1024,6 +1104,7 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
           return -1;
         }
         break;
+<<<<<<< HEAD
 #if CONFIG_MULTILAYER_HLS
       case OBU_LAYER_CONFIGURATION_RECORD:
         decoded_payload_size =
@@ -1041,11 +1122,14 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
         break;
 #endif  // CONFIG_MULTILAYER_HLS
+=======
+>>>>>>> bc8a7f9db6 (1. Multi-frame header with FGS multi-level signaling (F109))
 #if CONFIG_MULTI_FRAME_HEADER
       case OBU_MULTI_FRAME_HEADER:
         decoded_payload_size = read_multi_frame_header_obu(pbi, &rb);
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
         break;
+<<<<<<< HEAD
 #endif  // CONFIG_MULTI_FRAME_HEADER
 #if CONFIG_F106_OBU_TILEGROUP
       case OBU_TILE_GROUP:
@@ -1111,6 +1195,17 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
         pbi->num_tile_groups++;
         break;
 #else  // CONFIG_F106_OBU_TILEGROUP
+=======
+#endif
+      case OBU_FRAME_HEADER:
+#if !CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER
+      case OBU_REDUNDANT_FRAME_HEADER:
+#endif
+#if CONFIG_F106_OBU_SWITCH
+      case OBU_SWITCH:
+#endif
+      case OBU_FRAME:
+>>>>>>> bc8a7f9db6 (1. Multi-frame header with FGS multi-level signaling (F109))
 #if !CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER
         if (obu_header.type == OBU_REDUNDANT_FRAME_HEADER) {
           if (!pbi->seen_frame_header) {
@@ -1118,15 +1213,24 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
             return -1;
           }
         } else {
+<<<<<<< HEAD
 #endif  // !CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER
         // OBU_FRAME_HEADER or OBU_FRAME.
+=======
+#endif
+          // OBU_FRAME_HEADER or OBU_FRAME.
+>>>>>>> bc8a7f9db6 (1. Multi-frame header with FGS multi-level signaling (F109))
           if (pbi->seen_frame_header) {
             cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
             return -1;
           }
 #if !CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER
         }
+<<<<<<< HEAD
 #endif  // !CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER
+=======
+#endif
+>>>>>>> bc8a7f9db6 (1. Multi-frame header with FGS multi-level signaling (F109))
         // Only decode first frame header received
         if (!pbi->seen_frame_header ||
             (cm->tiles.large_scale && !pbi->camera_frame_header_ready)) {
@@ -1136,8 +1240,18 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
                                                     trailing_bits_present);
 #else
           frame_header_size = read_frame_header_obu(
+<<<<<<< HEAD
               pbi, &rb, data, p_data_end, obu_header.type != OBU_FRAME);
 #endif  // CONFIG_CWG_F317
+=======
+              pbi, &rb, data, p_data_end,
+#if CONFIG_F106_OBU_SWITCH
+              obu_header.type,
+              obu_header.type != OBU_FRAME && obu_header.type != OBU_SWITCH);
+#else
+              obu_header.type != OBU_FRAME);
+#endif
+>>>>>>> bc8a7f9db6 (1. Multi-frame header with FGS multi-level signaling (F109))
           pbi->seen_frame_header = 1;
           if (!pbi->ext_tile_debug && cm->tiles.large_scale)
             pbi->camera_frame_header_ready = 1;
