@@ -5875,7 +5875,8 @@ static AOM_INLINE void write_film_grain_params(
 
   aom_wb_write_literal(wb, pars->random_seed, 16);
 
-  if (cm->current_frame.frame_type == INTER_FRAME)
+  if (cm->current_frame.frame_type == INTER_FRAME &&
+      !cm->features.error_resilient_mode)
     aom_wb_write_bit(wb, pars->update_parameters);
 
   if (!pars->update_parameters) {
@@ -6501,7 +6502,12 @@ static AOM_INLINE void write_global_motion(AV1_COMP *cpi,
 
   int our_ref = cpi->gm_info.base_model_our_ref;
   int their_ref = cpi->gm_info.base_model_their_ref;
-  aom_wb_write_primitive_quniform(wb, num_total_refs + 1, our_ref);
+
+  // In error resilient mode, our_ref == num_total_refs is implicitly derived
+  assert(IMPLIES(cm->features.error_resilient_mode, our_ref == num_total_refs));
+  if (!cm->features.error_resilient_mode)
+    aom_wb_write_primitive_quniform(wb, num_total_refs + 1, our_ref);
+
   if (our_ref >= num_total_refs) {
     // Special case: Use IDENTITY model
     // Nothing more to code

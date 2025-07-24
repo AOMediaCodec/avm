@@ -2395,12 +2395,19 @@ static INLINE int get_ref_frame_map_idx(const AV1_COMMON *const cm,
 
 #if CONFIG_IMPROVED_SECONDARY_REFERENCE
 static INLINE void get_secondary_reference_frame_idx(
-    const AV1_COMMON *const cm, int *ref_frame_used,
-    int signal_primary_ref_frame, int *secondary_map_idx) {
+    AV1_COMMON *const cm, int *ref_frame_used, int signal_primary_ref_frame,
+    int *secondary_map_idx) {
   if (cm->features.primary_ref_frame == PRIMARY_REF_NONE) {
     *secondary_map_idx = INVALID_IDX;
     *ref_frame_used = PRIMARY_REF_NONE;
     return;
+  }
+  if (signal_primary_ref_frame &&
+      cm->features.derived_secondary_ref_frame != PRIMARY_REF_NONE &&
+      cm->features.derived_secondary_ref_frame >=
+          cm->ref_frames_info.num_total_refs) {
+    aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+                       "Invalid derived_secondary_ref_frame");
   }
   *ref_frame_used =
       (cm->features.primary_ref_frame == cm->features.derived_primary_ref_frame)

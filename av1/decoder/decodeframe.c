@@ -6542,7 +6542,8 @@ void av1_read_film_grain_params(AV1_COMMON *cm,
   }
 
   pars->random_seed = aom_rb_read_literal(rb, 16);
-  if (cm->current_frame.frame_type == INTER_FRAME)
+  if (cm->current_frame.frame_type == INTER_FRAME &&
+      !cm->features.error_resilient_mode)
     pars->update_parameters = aom_rb_read_bit(rb);
   else
     pars->update_parameters = 1;
@@ -7394,7 +7395,9 @@ static AOM_INLINE void read_global_motion(AV1_COMMON *cm,
     return;
   }
 
-  int our_ref = aom_rb_read_primitive_quniform(rb, num_total_refs + 1);
+  int our_ref = num_total_refs;
+  if (!cm->features.error_resilient_mode)
+    our_ref = aom_rb_read_primitive_quniform(rb, num_total_refs + 1);
   if (our_ref == num_total_refs) {
     // Special case: Use IDENTITY model
     cm->base_global_motion_model = default_warp_params;
