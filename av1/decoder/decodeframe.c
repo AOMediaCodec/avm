@@ -1667,7 +1667,7 @@ static AOM_INLINE void parse_decode_block(AV1Decoder *const pbi,
       1 << (pbi->common.seq_params.max_pb_aspect_ratio_log2_m1 + 1);
   const int blk_w = block_size_wide[bsize];
   const int blk_h = block_size_high[bsize];
-  if (blk_w > blk_h * max_aspect_ratio && blk_h > blk_w * max_aspect_ratio) {
+  if (blk_w > blk_h * max_aspect_ratio || blk_h > blk_w * max_aspect_ratio) {
     aom_internal_error(
         xd->error_info, AOM_CODEC_CORRUPT_FRAME,
         "Block size %dx%d violates aspect ratio constraint of %d", blk_w, blk_h,
@@ -1867,7 +1867,7 @@ static AOM_INLINE void decode_block(AV1Decoder *const pbi, ThreadData *const td,
       1 << (pbi->common.seq_params.max_pb_aspect_ratio_log2_m1 + 1);
   const int blk_w = block_size_wide[bsize];
   const int blk_h = block_size_high[bsize];
-  if (blk_w > blk_h * max_aspect_ratio && blk_h > blk_w * max_aspect_ratio) {
+  if (blk_w > blk_h * max_aspect_ratio || blk_h > blk_w * max_aspect_ratio) {
     aom_internal_error(
         td->dcb.xd.error_info, AOM_CODEC_CORRUPT_FRAME,
         "Block size %dx%d violates aspect ratio constraint of %d", blk_w, blk_h,
