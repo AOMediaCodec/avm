@@ -1632,39 +1632,6 @@ typedef struct macroblockd_plane {
 #define LR_BANK_SIZE 4
 /*!\endcond */
 
-/*!\brief Parameters related to Sgrproj Filter */
-typedef struct {
-  /*!
-   * Parameter index.
-   */
-  int ep;
-
-  /*!
-   * Weights for linear combination of filtered versions
-   */
-  int xqd[2];
-  /*!
-   * Best Reference from dynamic bank
-   */
-  int bank_ref;
-} SgrprojInfo;
-
-/*!\brief Parameters related to Sgrproj Filter Bank */
-typedef struct {
-  /*!
-   * Bank of filter infos
-   */
-  SgrprojInfo filter[LR_BANK_SIZE];
-  /*!
-   * Size of the bank
-   */
-  int bank_size;
-  /*!
-   * Pointer to the most current filter
-   */
-  int bank_ptr;
-} SgrprojInfoBank;
-
 #if CONFIG_COMBINE_PC_NS_WIENER
 #define WIENERNS_MAX_CLASSES 16
 #define NUM_WIENERNS_CLASS_INIT_LUMA 16
@@ -2293,7 +2260,6 @@ typedef struct macroblockd {
    * cm->rst_info[plane].unit_info[unit_idx] and these reference values.
    */
   /**@{*/
-  SgrprojInfoBank sgrproj_info[MAX_MB_PLANE]; /*!< Refs for SGR filter */
   /*!
    * Nonseparable Wiener filter information for all planes.
    */
@@ -3651,14 +3617,6 @@ void av1_reset_entropy_context(MACROBLOCKD *xd, BLOCK_SIZE bsize,
                                const int num_planes);
 
 void av1_reset_loop_filter_delta(MACROBLOCKD *xd, int num_planes);
-
-void av1_reset_sgrproj_bank(SgrprojInfoBank *bank);
-void av1_add_to_sgrproj_bank(SgrprojInfoBank *bank, const SgrprojInfo *info);
-SgrprojInfo *av1_ref_from_sgrproj_bank(SgrprojInfoBank *bank, int ndx);
-const SgrprojInfo *av1_constref_from_sgrproj_bank(const SgrprojInfoBank *bank,
-                                                  int ndx);
-void av1_upd_to_sgrproj_bank(SgrprojInfoBank *bank, int ndx,
-                             const SgrprojInfo *info);
 
 // Resets the bank data structure holding LR_BANK_SIZE nonseparable Wiener
 // filters. The bank holds a rootating buffer of filters.

@@ -425,10 +425,6 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_restoration;
-  /*!\brief enable Self-Guided Filter in Loop Restoration
-   *
-   */
-  unsigned int enable_sgrproj;
   /*!\brief enable Pixel-Classified Wiener Filter in Loop Restoration
    *
    */

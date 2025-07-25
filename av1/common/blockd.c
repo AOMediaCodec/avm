@@ -182,60 +182,9 @@ void av1_reset_loop_filter_delta(MACROBLOCKD *xd, int num_planes) {
 void av1_reset_loop_restoration(MACROBLOCKD *xd, int plane_start, int plane_end,
                                 const int *num_filter_classes) {
   for (int p = plane_start; p < plane_end; ++p) {
-    av1_reset_sgrproj_bank(&xd->sgrproj_info[p]);
     av1_reset_wienerns_bank(&xd->wienerns_info[p], xd->current_base_qindex,
                             num_filter_classes[p], p != AOM_PLANE_Y);
   }
-}
-
-// Initialize bank
-void av1_reset_sgrproj_bank(SgrprojInfoBank *bank) {
-  set_default_sgrproj(&bank->filter[0]);
-  bank->bank_size = 0;
-  bank->bank_ptr = 0;
-}
-
-// Add a new filter to bank
-void av1_add_to_sgrproj_bank(SgrprojInfoBank *bank, const SgrprojInfo *info) {
-  if (bank->bank_size < LR_BANK_SIZE) {
-    bank->bank_ptr = bank->bank_size;
-    memcpy(&bank->filter[bank->bank_ptr], info, sizeof(*info));
-    bank->bank_size++;
-  } else {
-    bank->bank_ptr = (bank->bank_ptr + 1) % LR_BANK_SIZE;
-    memcpy(&bank->filter[bank->bank_ptr], info, sizeof(*info));
-  }
-}
-
-// Get a reference to a filter given the index
-SgrprojInfo *av1_ref_from_sgrproj_bank(SgrprojInfoBank *bank, int ndx) {
-  if (bank->bank_size == 0) {
-    return &bank->filter[0];
-  } else {
-    assert(ndx < bank->bank_size);
-    const int ptr =
-        bank->bank_ptr - ndx + (bank->bank_ptr < ndx ? LR_BANK_SIZE : 0);
-    return &bank->filter[ptr];
-  }
-}
-
-// Get a const reference to a filter given the index
-const SgrprojInfo *av1_constref_from_sgrproj_bank(const SgrprojInfoBank *bank,
-                                                  int ndx) {
-  if (bank->bank_size == 0) {
-    return &bank->filter[0];
-  } else {
-    assert(ndx < bank->bank_size);
-    const int ptr =
-        bank->bank_ptr - ndx + (bank->bank_ptr < ndx ? LR_BANK_SIZE : 0);
-    return &bank->filter[ptr];
-  }
-}
-
-// Directly replace a filter in the bank at given index
-void av1_upd_to_sgrproj_bank(SgrprojInfoBank *bank, int ndx,
-                             const SgrprojInfo *info) {
-  memcpy(av1_ref_from_sgrproj_bank(bank, ndx), info, sizeof(*info));
 }
 
 // Initialize bank

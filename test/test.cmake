@@ -105,7 +105,6 @@ if(NOT BUILD_SHARED_LIBS)
     "${AOM_ROOT}/test/intra_matrix_test.cc"
     "${AOM_ROOT}/test/opt_flow_test.cc"
     "${AOM_ROOT}/test/scan_test.cc"
-    "${AOM_ROOT}/test/selfguided_filter_test.cc"
     "${AOM_ROOT}/test/simd_cmp_impl.h"
     "${AOM_ROOT}/test/simd_impl.h")
 
@@ -215,7 +214,6 @@ if(NOT BUILD_SHARED_LIBS)
     "${AOM_ROOT}/test/masked_variance_test.cc"
     "${AOM_ROOT}/test/motion_vector_test.cc"
     "${AOM_ROOT}/test/noise_model_test.cc"
-    "${AOM_ROOT}/test/pickrst_test.cc"
     "${AOM_ROOT}/test/quantize_func_test.cc"
     "${AOM_ROOT}/test/sad_test.cc"
     "${AOM_ROOT}/test/stream_iter_test.cc"

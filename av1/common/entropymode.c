@@ -6674,10 +6674,6 @@ static const aom_cdf_prob
 static const aom_cdf_prob default_gdf_cdf[CDF_SIZE(2)] = { AOM_CDF2(11570) };
 #endif  // CONFIG_GDF
 
-static const aom_cdf_prob default_sgrproj_restore_cdf[CDF_SIZE(2)] = {
-  AOM_CDF2(13795), 32
-};
-
 static const aom_cdf_prob default_wienerns_length_cdf[2][CDF_SIZE(2)] = {
   { AOM_CDF2(16384), 61 },
   { AOM_CDF2(16384), 31 },
@@ -7312,7 +7308,6 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
 #if CONFIG_GDF
   av1_copy(fc->gdf_cdf, default_gdf_cdf);
 #endif  // CONFIG_GDF
-  av1_copy(fc->sgrproj_restore_cdf, default_sgrproj_restore_cdf);
   av1_copy(fc->wienerns_restore_cdf, default_wienerns_restore_cdf);
   av1_copy(fc->wienerns_length_cdf, default_wienerns_length_cdf);
   av1_copy(fc->wienerns_uv_sym_cdf, default_wienerns_uv_sym_cdf);
@@ -7813,8 +7808,6 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
 #if CONFIG_GDF
   CUMULATIVE_AVERAGE_CDF(ctx_left->gdf_cdf, ctx_tr->gdf_cdf, 2);
 #endif
-  CUMULATIVE_AVERAGE_CDF(ctx_left->sgrproj_restore_cdf,
-                         ctx_tr->sgrproj_restore_cdf, 2);
   CUMULATIVE_AVERAGE_CDF(ctx_left->wienerns_restore_cdf,
                          ctx_tr->wienerns_restore_cdf, 2);
   CUMULATIVE_AVERAGE_CDF(ctx_left->wienerns_length_cdf,
@@ -8210,7 +8203,6 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
 #if CONFIG_GDF
   SHIFT_CDF(ctx_ptr->gdf_cdf, 2);
 #endif
-  SHIFT_CDF(ctx_ptr->sgrproj_restore_cdf, 2);
   SHIFT_CDF(ctx_ptr->wienerns_restore_cdf, 2);
   SHIFT_CDF(ctx_ptr->wienerns_length_cdf, 2);
   SHIFT_CDF(ctx_ptr->wienerns_uv_sym_cdf, 2);
@@ -8646,7 +8638,6 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
 #if CONFIG_GDF
   AVERAGE_CDF(ctx_left->gdf_cdf, ctx_tr->gdf_cdf, 2);
 #endif
-  AVERAGE_CDF(ctx_left->sgrproj_restore_cdf, ctx_tr->sgrproj_restore_cdf, 2);
   AVERAGE_CDF(ctx_left->wienerns_restore_cdf, ctx_tr->wienerns_restore_cdf, 2);
   AVERAGE_CDF(ctx_left->wienerns_length_cdf, ctx_tr->wienerns_length_cdf, 2);
   AVERAGE_CDF(ctx_left->wienerns_uv_sym_cdf, ctx_tr->wienerns_uv_sym_cdf, 2);

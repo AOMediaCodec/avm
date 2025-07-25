@@ -47,22 +47,8 @@
 // Number of Wiener iterations
 #define NUM_WIENER_ITERS 5
 
-// Penalty factor for use of dual sgr
-#define DUAL_SGR_PENALTY_MULT 0.01
-
 // Working precision for Wiener filter coefficients
 #define WIENER_TAP_SCALE_FACTOR ((int64_t)1 << 16)
-
-#define SGRPROJ_EP_GRP1_START_IDX 0
-#define SGRPROJ_EP_GRP1_END_IDX 9
-#define SGRPROJ_EP_GRP1_SEARCH_COUNT 4
-#define SGRPROJ_EP_GRP2_3_SEARCH_COUNT 2
-static const int sgproj_ep_grp1_seed[SGRPROJ_EP_GRP1_SEARCH_COUNT] = { 0, 3, 6,
-                                                                       9 };
-static const int sgproj_ep_grp2_3[SGRPROJ_EP_GRP2_3_SEARCH_COUNT][14] = {
-  { 10, 10, 11, 11, 12, 12, 13, 13, 13, 13, -1, -1, -1, -1 },
-  { 14, 14, 14, 14, 14, 14, 14, 15, 15, 15, 15, 15, 15, 15 }
-};
 
 // Number of elements needed in the temporary buffer for
 // compute_wienerns_filter
@@ -100,20 +86,16 @@ static int64_t sse_restoration_unit(const RestorationTileLimits *limits,
 }
 
 typedef struct {
-  // The best coefficients for Sgrproj and Non-sep Wiener restoration.
-  SgrprojInfo sgrproj_info;
+  // The best coefficients for Non-sep Wiener restoration.
   WienerNonsepInfo wienerns_info;
 
   // The sum of squared errors for this rtype.
   int64_t sse[RESTORE_SWITCHABLE_TYPES];
 
   // The rtype to use for this unit given a frame rtype as
-  // index. Indices: WIENER, SGRPROJ, SWITCHABLE.
+  // index. Indices: PC_WIENER, WIENER_NONSEP, SWITCHABLE.
   RestorationType best_rtype[RESTORE_TYPES - 1];
 
-  // This flag will be set based on the speed feature
-  // 'prune_sgr_based_on_wiener'. 0 implies no pruning and 1 implies pruning.
-  uint8_t skip_sgr_eval;
 #if CONFIG_BRU
   // indicate the unit is skipped due to BRU (so no signaling)
   int bru_unit_skipped;
@@ -154,9 +136,6 @@ typedef struct {
   // Number of RUs in tile
   int num_rus_in_tile;
 
-  // sgrproj is initialised by rsc_on_tile when starting the first tile in the
-  // frame.
-  SgrprojInfoBank sgrproj_bank;
   WienerNonsepInfoBank wienerns_bank;
 
   // Vector storing statistics for all RUs.
@@ -231,8 +210,6 @@ typedef struct RstUnitSnapshot {
   // Wiener filter info
   int64_t M[WIENER_WIN2];
   int64_t H[WIENER_WIN2 * WIENER_WIN2];
-  // Sgrproj filter info
-  SgrprojInfoBank ref_sgrproj_bank;
   // Pointers to respective stats in RstUnitStats.
   const double *A;
   const double *b;
@@ -241,7 +218,6 @@ typedef struct RstUnitSnapshot {
 } RstUnitSnapshot;
 
 static AOM_INLINE void reset_all_banks(RestSearchCtxt *rsc) {
-  av1_reset_sgrproj_bank(&rsc->sgrproj_bank);
   av1_reset_wienerns_bank(&rsc->wienerns_bank,
                           rsc->cm->quant_params.base_qindex,
                           rsc->num_filter_classes, rsc->plane != AOM_PLANE_Y);
@@ -407,886 +383,12 @@ static int64_t try_restoration_unit(const RestSearchCtxt *rsc,
       tile_rect, rsc->tile_stripe0, is_uv && cm->seq_params.subsampling_x,
       is_uv && cm->seq_params.subsampling_y, bit_depth, fts->buffers[plane],
       fts->strides[is_uv], rsc->dst->buffers[plane], rsc->dst->strides[is_uv],
-      cm->rst_tmpbuf, optimized_lr);
+      optimized_lr);
 
 #if ISSUE_253
   if (rlbs != NULL) aom_free(rlbs);
 #endif
   return sse_restoration_unit(limits, rsc->src, rsc->dst, plane);
-}
-
-int64_t av1_highbd_pixel_proj_error_c(const uint16_t *src, int width,
-                                      int height, int src_stride,
-                                      const uint16_t *dat, int dat_stride,
-                                      int32_t *flt0, int flt0_stride,
-                                      int32_t *flt1, int flt1_stride, int xq[2],
-                                      const sgr_params_type *params) {
-  int i, j;
-  int64_t err = 0;
-  const int32_t half = 1 << (SGRPROJ_RST_BITS + SGRPROJ_PRJ_BITS - 1);
-  if (params->r[0] > 0 && params->r[1] > 0) {
-    int xq0 = xq[0];
-    int xq1 = xq[1];
-    for (i = 0; i < height; ++i) {
-      for (j = 0; j < width; ++j) {
-        const int32_t d = dat[j];
-        const int32_t s = src[j];
-        const int32_t u = (int32_t)(d << SGRPROJ_RST_BITS);
-        int32_t v0 = flt0[j] - u;
-        int32_t v1 = flt1[j] - u;
-        int32_t v = half;
-        v += xq0 * v0;
-        v += xq1 * v1;
-        const int32_t e = (v >> (SGRPROJ_RST_BITS + SGRPROJ_PRJ_BITS)) + d - s;
-        err += ((int64_t)e * e);
-      }
-      dat += dat_stride;
-      flt0 += flt0_stride;
-      flt1 += flt1_stride;
-      src += src_stride;
-    }
-  } else if (params->r[0] > 0 || params->r[1] > 0) {
-    int exq;
-    int32_t *flt;
-    int flt_stride;
-    if (params->r[0] > 0) {
-      exq = xq[0];
-      flt = flt0;
-      flt_stride = flt0_stride;
-    } else {
-      exq = xq[1];
-      flt = flt1;
-      flt_stride = flt1_stride;
-    }
-    for (i = 0; i < height; ++i) {
-      for (j = 0; j < width; ++j) {
-        const int32_t d = dat[j];
-        const int32_t s = src[j];
-        const int32_t u = (int32_t)(d << SGRPROJ_RST_BITS);
-        int32_t v = half;
-        v += exq * (flt[j] - u);
-        const int32_t e = (v >> (SGRPROJ_RST_BITS + SGRPROJ_PRJ_BITS)) + d - s;
-        err += ((int64_t)e * e);
-      }
-      dat += dat_stride;
-      flt += flt_stride;
-      src += src_stride;
-    }
-  } else {
-    for (i = 0; i < height; ++i) {
-      for (j = 0; j < width; ++j) {
-        const int32_t d = dat[j];
-        const int32_t s = src[j];
-        const int32_t e = d - s;
-        err += ((int64_t)e * e);
-      }
-      dat += dat_stride;
-      src += src_stride;
-    }
-  }
-  return err;
-}
-
-static int64_t get_pixel_proj_error(const uint16_t *src, int width, int height,
-                                    int src_stride, const uint16_t *dat,
-                                    int dat_stride, int32_t *flt0,
-                                    int flt0_stride, int32_t *flt1,
-                                    int flt1_stride, int *xqd,
-                                    const sgr_params_type *params) {
-  int xq[2];
-  av1_decode_xq(xqd, xq, params);
-
-  return av1_highbd_pixel_proj_error(src, width, height, src_stride, dat,
-                                     dat_stride, flt0, flt0_stride, flt1,
-                                     flt1_stride, xq, params);
-}
-
-#define USE_SGRPROJ_REFINEMENT_SEARCH 1
-static int64_t finer_search_pixel_proj_error(
-    const uint16_t *src, int width, int height, int src_stride,
-    const uint16_t *dat, int dat_stride, int32_t *flt0, int flt0_stride,
-    int32_t *flt1, int flt1_stride, int start_step, int *xqd,
-    const sgr_params_type *params) {
-  int64_t err =
-      get_pixel_proj_error(src, width, height, src_stride, dat, dat_stride,
-                           flt0, flt0_stride, flt1, flt1_stride, xqd, params);
-  (void)start_step;
-#if USE_SGRPROJ_REFINEMENT_SEARCH
-  int64_t err2;
-  int tap_min[] = { SGRPROJ_PRJ_MIN0, SGRPROJ_PRJ_MIN1 };
-  int tap_max[] = { SGRPROJ_PRJ_MAX0, SGRPROJ_PRJ_MAX1 };
-  for (int s = start_step; s >= 1; s >>= 1) {
-    for (int p = 0; p < 2; ++p) {
-      if ((params->r[0] == 0 && p == 0) || (params->r[1] == 0 && p == 1)) {
-        continue;
-      }
-      int skip = 0;
-      do {
-        if (xqd[p] - s >= tap_min[p]) {
-          xqd[p] -= s;
-          err2 = get_pixel_proj_error(src, width, height, src_stride, dat,
-                                      dat_stride, flt0, flt0_stride, flt1,
-                                      flt1_stride, xqd, params);
-          if (err2 > err) {
-            xqd[p] += s;
-          } else {
-            err = err2;
-            skip = 1;
-            // At the highest step size continue moving in the same direction
-            if (s == start_step) continue;
-          }
-        }
-        break;
-      } while (1);
-      if (skip) break;
-      do {
-        if (xqd[p] + s <= tap_max[p]) {
-          xqd[p] += s;
-          err2 = get_pixel_proj_error(src, width, height, src_stride, dat,
-                                      dat_stride, flt0, flt0_stride, flt1,
-                                      flt1_stride, xqd, params);
-          if (err2 > err) {
-            xqd[p] -= s;
-          } else {
-            err = err2;
-            // At the highest step size continue moving in the same direction
-            if (s == start_step) continue;
-          }
-        }
-        break;
-      } while (1);
-    }
-  }
-#endif  // USE_SGRPROJ_REFINEMENT_SEARCH
-  return err;
-}
-
-static int64_t signed_rounded_divide(int64_t dividend, int64_t divisor) {
-  if (dividend < 0)
-    return (dividend - divisor / 2) / divisor;
-  else
-    return (dividend + divisor / 2) / divisor;
-}
-
-static AOM_INLINE void calc_proj_params_r0_r1_high_bd_c(
-    const uint16_t *src, int width, int height, int src_stride,
-    const uint16_t *dat, int dat_stride, int32_t *flt0, int flt0_stride,
-    int32_t *flt1, int flt1_stride, int64_t H[2][2], int64_t C[2]) {
-  const int size = width * height;
-  for (int i = 0; i < height; ++i) {
-    for (int j = 0; j < width; ++j) {
-      const int32_t u = (int32_t)(dat[i * dat_stride + j] << SGRPROJ_RST_BITS);
-      const int32_t s =
-          (int32_t)(src[i * src_stride + j] << SGRPROJ_RST_BITS) - u;
-      const int32_t f1 = (int32_t)flt0[i * flt0_stride + j] - u;
-      const int32_t f2 = (int32_t)flt1[i * flt1_stride + j] - u;
-      H[0][0] += (int64_t)f1 * f1;
-      H[1][1] += (int64_t)f2 * f2;
-      H[0][1] += (int64_t)f1 * f2;
-      C[0] += (int64_t)f1 * s;
-      C[1] += (int64_t)f2 * s;
-    }
-  }
-  H[0][0] /= size;
-  H[0][1] /= size;
-  H[1][1] /= size;
-  H[1][0] = H[0][1];
-  C[0] /= size;
-  C[1] /= size;
-}
-
-static AOM_INLINE void calc_proj_params_r0_high_bd_c(
-    const uint16_t *src, int width, int height, int src_stride,
-    const uint16_t *dat, int dat_stride, int32_t *flt0, int flt0_stride,
-    int64_t H[2][2], int64_t C[2]) {
-  const int size = width * height;
-  for (int i = 0; i < height; ++i) {
-    for (int j = 0; j < width; ++j) {
-      const int32_t u = (int32_t)(dat[i * dat_stride + j] << SGRPROJ_RST_BITS);
-      const int32_t s =
-          (int32_t)(src[i * src_stride + j] << SGRPROJ_RST_BITS) - u;
-      const int32_t f1 = (int32_t)flt0[i * flt0_stride + j] - u;
-      H[0][0] += (int64_t)f1 * f1;
-      C[0] += (int64_t)f1 * s;
-    }
-  }
-  H[0][0] /= size;
-  C[0] /= size;
-}
-
-static AOM_INLINE void calc_proj_params_r1_high_bd_c(
-    const uint16_t *src, int width, int height, int src_stride,
-    const uint16_t *dat, int dat_stride, int32_t *flt1, int flt1_stride,
-    int64_t H[2][2], int64_t C[2]) {
-  const int size = width * height;
-  for (int i = 0; i < height; ++i) {
-    for (int j = 0; j < width; ++j) {
-      const int32_t u = (int32_t)(dat[i * dat_stride + j] << SGRPROJ_RST_BITS);
-      const int32_t s =
-          (int32_t)(src[i * src_stride + j] << SGRPROJ_RST_BITS) - u;
-      const int32_t f2 = (int32_t)flt1[i * flt1_stride + j] - u;
-      H[1][1] += (int64_t)f2 * f2;
-      C[1] += (int64_t)f2 * s;
-    }
-  }
-  H[1][1] /= size;
-  C[1] /= size;
-}
-
-// The function calls 3 subfunctions for the following cases :
-// 1) When params->r[0] > 0 and params->r[1] > 0. In this case all elements
-// of C and H need to be computed.
-// 2) When only params->r[0] > 0. In this case only H[0][0] and C[0] are
-// non-zero and need to be computed.
-// 3) When only params->r[1] > 0. In this case only H[1][1] and C[1] are
-// non-zero and need to be computed.
-static AOM_INLINE void av1_calc_proj_params_high_bd_c(
-    const uint16_t *src, int width, int height, int src_stride,
-    const uint16_t *dat, int dat_stride, int32_t *flt0, int flt0_stride,
-    int32_t *flt1, int flt1_stride, int64_t H[2][2], int64_t C[2],
-    const sgr_params_type *params) {
-  if ((params->r[0] > 0) && (params->r[1] > 0)) {
-    calc_proj_params_r0_r1_high_bd_c(src, width, height, src_stride, dat,
-                                     dat_stride, flt0, flt0_stride, flt1,
-                                     flt1_stride, H, C);
-  } else if (params->r[0] > 0) {
-    calc_proj_params_r0_high_bd_c(src, width, height, src_stride, dat,
-                                  dat_stride, flt0, flt0_stride, H, C);
-  } else if (params->r[1] > 0) {
-    calc_proj_params_r1_high_bd_c(src, width, height, src_stride, dat,
-                                  dat_stride, flt1, flt1_stride, H, C);
-  }
-}
-
-static AOM_INLINE void get_proj_subspace(
-    const uint16_t *src, int width, int height, int src_stride,
-    const uint16_t *dat, int dat_stride, int32_t *flt0, int flt0_stride,
-    int32_t *flt1, int flt1_stride, int *xq, const sgr_params_type *params) {
-  int64_t H[2][2] = { { 0, 0 }, { 0, 0 } };
-  int64_t C[2] = { 0, 0 };
-
-  // Default values to be returned if the problem becomes ill-posed
-  xq[0] = 0;
-  xq[1] = 0;
-
-  av1_calc_proj_params_high_bd_c(src, width, height, src_stride, dat,
-                                 dat_stride, flt0, flt0_stride, flt1,
-                                 flt1_stride, H, C, params);
-
-  if (params->r[0] == 0) {
-    // H matrix is now only the scalar H[1][1]
-    // C vector is now only the scalar C[1]
-    const int64_t Det = H[1][1];
-    if (Det == 0) return;  // ill-posed, return default values
-    xq[0] = 0;
-    xq[1] = (int)signed_rounded_divide(C[1] * (1 << SGRPROJ_PRJ_BITS), Det);
-  } else if (params->r[1] == 0) {
-    // H matrix is now only the scalar H[0][0]
-    // C vector is now only the scalar C[0]
-    const int64_t Det = H[0][0];
-    if (Det == 0) return;  // ill-posed, return default values
-    xq[0] = (int)signed_rounded_divide(C[0] * (1 << SGRPROJ_PRJ_BITS), Det);
-    xq[1] = 0;
-  } else {
-    const int64_t Det = H[0][0] * H[1][1] - H[0][1] * H[1][0];
-    if (Det == 0) return;  // ill-posed, return default values
-
-    // If scaling up dividend would overflow, instead scale down the divisor
-    const int64_t div1 = H[1][1] * C[0] - H[0][1] * C[1];
-    if ((div1 > 0 && INT64_MAX / (1 << SGRPROJ_PRJ_BITS) < div1) ||
-        (div1 < 0 && INT64_MIN / (1 << SGRPROJ_PRJ_BITS) > div1))
-      xq[0] = (int)signed_rounded_divide(div1, Det / (1 << SGRPROJ_PRJ_BITS));
-    else
-      xq[0] = (int)signed_rounded_divide(div1 * (1 << SGRPROJ_PRJ_BITS), Det);
-
-    const int64_t div2 = H[0][0] * C[1] - H[1][0] * C[0];
-    if ((div2 > 0 && INT64_MAX / (1 << SGRPROJ_PRJ_BITS) < div2) ||
-        (div2 < 0 && INT64_MIN / (1 << SGRPROJ_PRJ_BITS) > div2))
-      xq[1] = (int)signed_rounded_divide(div2, Det / (1 << SGRPROJ_PRJ_BITS));
-    else
-      xq[1] = (int)signed_rounded_divide(div2 * (1 << SGRPROJ_PRJ_BITS), Det);
-  }
-}
-
-static AOM_INLINE void encode_xq(int *xq, int *xqd,
-                                 const sgr_params_type *params) {
-  if (params->r[0] == 0) {
-    xqd[0] = 0;
-    xqd[1] = clamp((1 << SGRPROJ_PRJ_BITS) - xq[1], SGRPROJ_PRJ_MIN1,
-                   SGRPROJ_PRJ_MAX1);
-  } else if (params->r[1] == 0) {
-    xqd[0] = clamp(xq[0], SGRPROJ_PRJ_MIN0, SGRPROJ_PRJ_MAX0);
-    xqd[1] = clamp((1 << SGRPROJ_PRJ_BITS) - xqd[0], SGRPROJ_PRJ_MIN1,
-                   SGRPROJ_PRJ_MAX1);
-  } else {
-    xqd[0] = clamp(xq[0], SGRPROJ_PRJ_MIN0, SGRPROJ_PRJ_MAX0);
-    xqd[1] = clamp((1 << SGRPROJ_PRJ_BITS) - xqd[0] - xq[1], SGRPROJ_PRJ_MIN1,
-                   SGRPROJ_PRJ_MAX1);
-  }
-}
-
-// Apply the self-guided filter across an entire restoration unit.
-static AOM_INLINE void apply_sgr(int sgr_params_idx, const uint16_t *dat,
-                                 int width, int height, int dat_stride,
-                                 int bit_depth, int pu_width, int pu_height,
-                                 int32_t *flt0, int32_t *flt1, int flt_stride) {
-  for (int i = 0; i < height; i += pu_height) {
-    const int h = AOMMIN(pu_height, height - i);
-    int32_t *flt0_row = flt0 + i * flt_stride;
-    int32_t *flt1_row = flt1 + i * flt_stride;
-    const uint16_t *dat_row = dat + i * dat_stride;
-
-    // Iterate over the stripe in blocks of width pu_width
-    for (int j = 0; j < width; j += pu_width) {
-      const int w = AOMMIN(pu_width, width - j);
-      const int ret = av1_selfguided_restoration(
-          dat_row + j, w, h, dat_stride, flt0_row + j, flt1_row + j, flt_stride,
-          sgr_params_idx, bit_depth);
-      (void)ret;
-      assert(!ret);
-    }
-  }
-}
-
-static AOM_INLINE int64_t compute_sgrproj_err(
-    const uint16_t *dat, const int width, const int height,
-    const int dat_stride, const uint16_t *src, const int src_stride,
-    const int bit_depth, const int pu_width, const int pu_height, const int ep,
-    int32_t *flt0, int32_t *flt1, const int flt_stride, int *exqd) {
-  int exq[2];
-  apply_sgr(ep, dat, width, height, dat_stride, bit_depth, pu_width, pu_height,
-            flt0, flt1, flt_stride);
-  aom_clear_system_state();
-  const sgr_params_type *const params = &av1_sgr_params[ep];
-  get_proj_subspace(src, width, height, src_stride, dat, dat_stride, flt0,
-                    flt_stride, flt1, flt_stride, exq, params);
-  aom_clear_system_state();
-  encode_xq(exq, exqd, params);
-  int64_t err = finer_search_pixel_proj_error(
-      src, width, height, src_stride, dat, dat_stride, flt0, flt_stride, flt1,
-      flt_stride, 2, exqd, params);
-  return err;
-}
-
-static AOM_INLINE void get_best_error(int64_t *besterr, const int64_t err,
-                                      const int *exqd, int *bestxqd,
-                                      int *bestep, const int ep) {
-  if (*besterr == -1 || err < *besterr) {
-    *bestep = ep;
-    *besterr = err;
-    bestxqd[0] = exqd[0];
-    bestxqd[1] = exqd[1];
-  }
-}
-
-// If limits != NULL, calculates error for current restoration unit.
-// Otherwise, calculates error for all units in the stack using stored limits.
-static int64_t calc_sgrproj_err(const RestSearchCtxt *rsc,
-                                const RestorationTileLimits *limits,
-                                const int bit_depth, const int pu_width,
-                                const int pu_height, const int ep,
-                                int32_t *flt0, int32_t *flt1, int *exqd) {
-  int64_t err = 0;
-
-  uint16_t *dat;
-  const uint16_t *src;
-  int width, height, dat_stride, src_stride, flt_stride;
-  dat_stride = rsc->dgd_stride;
-  src_stride = rsc->src_stride;
-  if (limits != NULL) {
-    dat = rsc->dgd_buffer + limits->v_start * rsc->dgd_stride + limits->h_start;
-    src = rsc->src_buffer + limits->v_start * rsc->src_stride + limits->h_start;
-    width = limits->h_end - limits->h_start;
-    height = limits->v_end - limits->v_start;
-    flt_stride = ((width + 7) & ~7) + 8;
-    err = compute_sgrproj_err(dat, width, height, dat_stride, src, src_stride,
-                              bit_depth, pu_width, pu_height, ep, flt0, flt1,
-                              flt_stride, exqd);
-  } else {
-    Vector *current_unit_stack = rsc->unit_stack;
-    Vector *current_unit_indices = rsc->unit_indices;
-    assert(current_unit_stack->size > 0);
-    assert(current_unit_indices->size > 0);
-    int n = 0;
-    int idx = *(int *)aom_vector_const_get(current_unit_indices, n);
-    VECTOR_FOR_EACH(current_unit_stack, listed_unit) {
-      RstUnitSnapshot *old_unit = (RstUnitSnapshot *)(listed_unit.pointer);
-      if (old_unit->rest_unit_idx == idx) {
-        RestorationTileLimits old_limits = old_unit->limits;
-        dat = rsc->dgd_buffer + old_limits.v_start * rsc->dgd_stride +
-              old_limits.h_start;
-        src = rsc->src_buffer + old_limits.v_start * rsc->src_stride +
-              old_limits.h_start;
-        width = old_limits.h_end - old_limits.h_start;
-        height = old_limits.v_end - old_limits.v_start;
-        flt_stride = ((width + 7) & ~7) + 8;
-        err += compute_sgrproj_err(dat, width, height, dat_stride, src,
-                                   src_stride, bit_depth, pu_width, pu_height,
-                                   ep, flt0, flt1, flt_stride, exqd);
-        n++;
-        if (n >= (int)current_unit_indices->size) break;
-        idx = *(int *)aom_vector_const_get(current_unit_indices, n);
-      }
-    }
-  }
-  return err;
-}
-
-static SgrprojInfo search_selfguided_restoration(
-    const RestSearchCtxt *rsc, const RestorationTileLimits *limits,
-    int bit_depth, int pu_width, int pu_height, int32_t *rstbuf,
-    int enable_sgr_ep_pruning) {
-  int32_t *flt0 = rstbuf;
-  int32_t *flt1 = flt0 + RESTORATION_UNITPELS_MAX;
-  int ep, idx, bestep = 0;
-  int64_t besterr = -1;
-  int exqd[2] = { 0 };
-  int bestxqd[2] = { 0, 0 };
-  assert(pu_width == (RESTORATION_PROC_UNIT_SIZE >> 1) ||
-         pu_width == RESTORATION_PROC_UNIT_SIZE);
-  assert(pu_height == (RESTORATION_PROC_UNIT_SIZE >> 1) ||
-         pu_height == RESTORATION_PROC_UNIT_SIZE);
-  if (!enable_sgr_ep_pruning) {
-    for (ep = 0; ep < SGRPROJ_PARAMS; ep++) {
-      int64_t err = calc_sgrproj_err(rsc, limits, bit_depth, pu_width,
-                                     pu_height, ep, flt0, flt1, exqd);
-      get_best_error(&besterr, err, exqd, bestxqd, &bestep, ep);
-    }
-  } else {
-    // evaluate first four seed ep in first group
-    for (idx = 0; idx < SGRPROJ_EP_GRP1_SEARCH_COUNT; idx++) {
-      ep = sgproj_ep_grp1_seed[idx];
-      int64_t err = calc_sgrproj_err(rsc, limits, bit_depth, pu_width,
-                                     pu_height, ep, flt0, flt1, exqd);
-      get_best_error(&besterr, err, exqd, bestxqd, &bestep, ep);
-    }
-    // evaluate left and right ep of winner in seed ep
-    int bestep_ref = bestep;
-    for (ep = bestep_ref - 1; ep < bestep_ref + 2; ep += 2) {
-      if (ep < SGRPROJ_EP_GRP1_START_IDX || ep > SGRPROJ_EP_GRP1_END_IDX)
-        continue;
-      int64_t err = calc_sgrproj_err(rsc, limits, bit_depth, pu_width,
-                                     pu_height, ep, flt0, flt1, exqd);
-      get_best_error(&besterr, err, exqd, bestxqd, &bestep, ep);
-    }
-    // evaluate last two group
-    for (idx = 0; idx < SGRPROJ_EP_GRP2_3_SEARCH_COUNT; idx++) {
-      ep = sgproj_ep_grp2_3[idx][bestep];
-      int64_t err = calc_sgrproj_err(rsc, limits, bit_depth, pu_width,
-                                     pu_height, ep, flt0, flt1, exqd);
-      get_best_error(&besterr, err, exqd, bestxqd, &bestep, ep);
-    }
-  }
-
-  SgrprojInfo ret;
-  ret.ep = bestep;
-  ret.xqd[0] = bestxqd[0];
-  ret.xqd[1] = bestxqd[1];
-  return ret;
-}
-
-static int64_t count_sgrproj_bits(const ModeCosts *mode_costs,
-                                  SgrprojInfo *sgrproj_info,
-                                  const SgrprojInfoBank *bank) {
-  (void)mode_costs;
-  int64_t bits = 0;
-  const int ref = sgrproj_info->bank_ref;
-  const SgrprojInfo *ref_sgrproj_info =
-      av1_constref_from_sgrproj_bank(bank, ref);
-  const int equal_ref = check_sgrproj_eq(sgrproj_info, ref_sgrproj_info);
-  for (int k = 0; k < AOMMAX(0, bank->bank_size - 1); ++k) {
-    const int match = (k == ref);
-    bits += (1 << AV1_PROB_COST_SHIFT);
-    if (match) break;
-  }
-  bits += mode_costs->merged_param_cost[equal_ref];
-  if (equal_ref) return bits;
-  bits += (SGRPROJ_PARAMS_BITS << AV1_PROB_COST_SHIFT);
-  const sgr_params_type *params = &av1_sgr_params[sgrproj_info->ep];
-  if (params->r[0] > 0) {
-    bits += aom_count_primitive_refsubexpfin(
-                SGRPROJ_PRJ_MAX0 - SGRPROJ_PRJ_MIN0 + 1, SGRPROJ_PRJ_SUBEXP_K,
-                ref_sgrproj_info->xqd[0] - SGRPROJ_PRJ_MIN0,
-                sgrproj_info->xqd[0] - SGRPROJ_PRJ_MIN0)
-            << AV1_PROB_COST_SHIFT;
-  }
-  if (params->r[1] > 0) {
-    bits += aom_count_primitive_refsubexpfin(
-                SGRPROJ_PRJ_MAX1 - SGRPROJ_PRJ_MIN1 + 1, SGRPROJ_PRJ_SUBEXP_K,
-                ref_sgrproj_info->xqd[1] - SGRPROJ_PRJ_MIN1,
-                sgrproj_info->xqd[1] - SGRPROJ_PRJ_MIN1)
-            << AV1_PROB_COST_SHIFT;
-  }
-  return bits;
-}
-
-static int64_t count_sgrproj_bits_set(const ModeCosts *mode_costs,
-                                      SgrprojInfo *info,
-                                      const SgrprojInfoBank *bank) {
-  int64_t best_bits = INT64_MAX;
-  int best_ref = -1;
-  for (int ref = 0; ref < AOMMAX(1, bank->bank_size); ++ref) {
-    info->bank_ref = ref;
-    const int64_t bits = count_sgrproj_bits(mode_costs, info, bank);
-    if (bits < best_bits) {
-      best_bits = bits;
-      best_ref = ref;
-    }
-  }
-  info->bank_ref = AOMMAX(0, best_ref);
-  return best_bits;
-}
-
-static AOM_INLINE void search_sgrproj_visitor(
-    const RestorationTileLimits *limits, const AV1PixelRect *tile_rect,
-    int rest_unit_idx, int rest_unit_idx_in_rutile, void *priv, int32_t *tmpbuf,
-    RestorationLineBuffers *rlbs) {
-  (void)tile_rect;
-  (void)rlbs;
-  (void)rest_unit_idx_in_rutile;
-  RestSearchCtxt *rsc = (RestSearchCtxt *)priv;
-  RestUnitSearchInfo *rusi = &rsc->rusi[rest_unit_idx];
-
-  const MACROBLOCK *const x = rsc->x;
-  const AV1_COMMON *const cm = rsc->cm;
-  const int bit_depth = cm->seq_params.bit_depth;
-
-  const int64_t bits_none = x->mode_costs.sgrproj_restore_cost[0];
-#if CONFIG_BRU
-  if (rusi->bru_unit_skipped) {
-    rusi->skip_sgr_eval = 1;
-  }
-#endif  // CONFIG_BRU
-  // Prune evaluation of RESTORE_SGRPROJ if 'skip_sgr_eval' is set
-  if (rusi->skip_sgr_eval) {
-    rsc->bits += bits_none;
-    rsc->sse += rusi->sse[RESTORE_NONE];
-    rusi->best_rtype[RESTORE_SGRPROJ - 1] = RESTORE_NONE;
-    rusi->sse[RESTORE_SGRPROJ] = INT64_MAX;
-    return;
-  }
-
-  const int is_uv = rsc->plane > 0;
-  const int ss_x = is_uv && cm->seq_params.subsampling_x;
-  const int ss_y = is_uv && cm->seq_params.subsampling_y;
-  const int procunit_width = RESTORATION_PROC_UNIT_SIZE >> ss_x;
-  const int procunit_height = RESTORATION_PROC_UNIT_SIZE >> ss_y;
-
-  rusi->sgrproj_info = search_selfguided_restoration(
-      rsc, limits, bit_depth, procunit_width, procunit_height, tmpbuf,
-      rsc->lpf_sf->enable_sgr_ep_pruning);
-
-  RestorationUnitInfo rui;
-#if CONFIG_BRU
-  memset(&rui, 0, sizeof(RestorationUnitInfo));
-#endif  // CONFIG_BRU
-  rui.restoration_type = RESTORE_SGRPROJ;
-  rui.sgrproj_info = rusi->sgrproj_info;
-
-#if CONFIG_BRU
-  const int start_mi_x = limits->h_start >> (MI_SIZE_LOG2 - ss_x);
-  const int start_mi_y = limits->v_start >> (MI_SIZE_LOG2 - ss_y);
-  const int mbmi_idx = get_mi_grid_idx(&cm->mi_params, start_mi_y, start_mi_x);
-  rui.mbmi_ptr = cm->mi_params.mi_grid_base + mbmi_idx;
-  rui.mi_stride = cm->mi_params.mi_stride;
-  rui.ss_x = ss_x;
-  rui.ss_y = ss_y;
-#endif  // CONFIG_BRU
-  rusi->sse[RESTORE_SGRPROJ] =
-      try_restoration_unit(rsc, limits, &rsc->tile_rect, &rui);
-
-  double cost_none = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-      x->rdmult, bits_none >> 4, rusi->sse[RESTORE_NONE], bit_depth);
-
-  Vector *current_unit_stack = rsc->unit_stack;
-  int64_t bits_nomerge_base =
-      x->mode_costs.sgrproj_restore_cost[1] +
-      count_sgrproj_bits_set(&x->mode_costs, &rusi->sgrproj_info,
-                             &rsc->sgrproj_bank);
-
-  const int bank_ref_base = rusi->sgrproj_info.bank_ref;
-  // Only test the reference in rusi->sgrproj_info.bank_ref, generated from
-  // the count call above.
-
-  double cost_nomerge_base = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-      x->rdmult, bits_nomerge_base >> 4, rusi->sse[RESTORE_SGRPROJ], bit_depth);
-  const int bits_min = x->mode_costs.sgrproj_restore_cost[1] +
-                       x->mode_costs.merged_param_cost[1] +
-                       (1 << AV1_PROB_COST_SHIFT);
-  const double cost_min = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-      x->rdmult, bits_min >> 4, rusi->sse[RESTORE_SGRPROJ], bit_depth);
-  const double cost_nomerge_thr = (cost_nomerge_base + 3 * cost_min) / 4;
-  RestorationType rtype =
-      (cost_none <= cost_nomerge_thr) ? RESTORE_NONE : RESTORE_SGRPROJ;
-  if (cost_none <= cost_nomerge_thr) {
-    bits_nomerge_base = bits_none;
-    cost_nomerge_base = cost_none;
-  }
-
-  RstUnitSnapshot unit_snapshot;
-  memset(&unit_snapshot, 0, sizeof(unit_snapshot));
-  unit_snapshot.limits = *limits;
-  unit_snapshot.rest_unit_idx = rest_unit_idx;
-  rusi->best_rtype[RESTORE_SGRPROJ - 1] = rtype;
-  rsc->sse += rusi->sse[rtype];
-  rsc->bits += bits_nomerge_base;
-  unit_snapshot.current_sse = rusi->sse[rtype];
-  unit_snapshot.current_bits = bits_nomerge_base;
-  // Only matters for first unit in stack.
-  unit_snapshot.ref_sgrproj_bank = rsc->sgrproj_bank;
-  // If current_unit_stack is empty, we can leave early.
-  if (aom_vector_is_empty(current_unit_stack)) {
-    if (rtype == RESTORE_SGRPROJ)
-      av1_add_to_sgrproj_bank(&rsc->sgrproj_bank, &rusi->sgrproj_info);
-    aom_vector_push_back(current_unit_stack, &unit_snapshot);
-    return;
-  }
-
-  // Handles special case where no-merge filter is equal to merged
-  // filter for the stack - we don't want to perform another merge and
-  // get a less optimal filter, but we want to continue building the stack.
-  int equal_ref;
-  if (rtype == RESTORE_SGRPROJ &&
-      (equal_ref = check_sgrproj_bank_eq(&rsc->sgrproj_bank,
-                                         &rusi->sgrproj_info)) >= 0) {
-    rsc->bits -= bits_nomerge_base;
-    rusi->sgrproj_info.bank_ref = equal_ref;
-    unit_snapshot.current_bits =
-        x->mode_costs.sgrproj_restore_cost[1] +
-        count_sgrproj_bits(&x->mode_costs, &rusi->sgrproj_info,
-                           &rsc->sgrproj_bank);
-    rsc->bits += unit_snapshot.current_bits;
-    aom_vector_push_back(current_unit_stack, &unit_snapshot);
-    return;
-  }
-
-  // Push current unit onto stack.
-  aom_vector_push_back(current_unit_stack, &unit_snapshot);
-  const int last_idx =
-      ((RstUnitSnapshot *)aom_vector_back(current_unit_stack))->rest_unit_idx;
-
-  double cost_merge = DBL_MAX;
-  double cost_nomerge = 0;
-  int begin_idx = -1;
-  int bank_ref = -1;
-  RestorationUnitInfo rui_temp;
-
-  // Trial start
-  for (int bank_ref_cand = 0;
-       bank_ref_cand < AOMMAX(1, rsc->sgrproj_bank.bank_size);
-       bank_ref_cand++) {
-#if MERGE_DRL_SEARCH_LEVEL == 1
-    if (bank_ref_cand != 0 && bank_ref_cand != bank_ref_base) continue;
-#elif MERGE_DRL_SEARCH_LEVEL == 2
-    if (bank_ref_cand != bank_ref_base) continue;
-#else
-    (void)bank_ref_base;
-#endif
-    const SgrprojInfo *ref_sgrproj_info_cand =
-        av1_constref_from_sgrproj_bank(&rsc->sgrproj_bank, bank_ref_cand);
-    SgrprojInfo ref_sgrproj_info_tmp = *ref_sgrproj_info_cand;
-
-    // Iterate once to get the begin unit of the run
-    int begin_idx_cand = -1;
-    VECTOR_FOR_EACH(current_unit_stack, listed_unit) {
-      RstUnitSnapshot *old_unit = (RstUnitSnapshot *)(listed_unit.pointer);
-      RestUnitSearchInfo *old_rusi = &rsc->rusi[old_unit->rest_unit_idx];
-      if (old_unit->rest_unit_idx == last_idx) continue;
-      if (old_rusi->best_rtype[RESTORE_SGRPROJ - 1] == RESTORE_SGRPROJ &&
-          check_sgrproj_eq(&old_rusi->sgrproj_info, ref_sgrproj_info_cand)) {
-        if (check_sgrproj_bank_eq(&old_unit->ref_sgrproj_bank,
-                                  ref_sgrproj_info_cand) == -1) {
-          begin_idx_cand = old_unit->rest_unit_idx;
-        }
-      }
-    }
-    if (begin_idx_cand == -1) continue;
-
-    Vector *current_unit_indices = rsc->unit_indices;
-    aom_vector_clear(current_unit_indices);
-    bool has_begun = false;
-    VECTOR_FOR_EACH(current_unit_stack, listed_unit) {
-      RstUnitSnapshot *old_unit = (RstUnitSnapshot *)(listed_unit.pointer);
-      RestUnitSearchInfo *old_rusi = &rsc->rusi[old_unit->rest_unit_idx];
-      if (old_unit->rest_unit_idx == begin_idx_cand) has_begun = true;
-      if (!has_begun) continue;
-      if (old_rusi->best_rtype[RESTORE_SGRPROJ - 1] == RESTORE_SGRPROJ &&
-          old_unit->rest_unit_idx != last_idx &&
-          !check_sgrproj_eq(&old_rusi->sgrproj_info, ref_sgrproj_info_cand))
-        continue;
-      int index = old_unit->rest_unit_idx;
-      aom_vector_push_back(current_unit_indices, &index);
-    }
-
-    // Generate new filter.
-    RestorationUnitInfo rui_temp_cand;
-    memset(&rui_temp_cand, 0, sizeof(rui_temp_cand));
-    rui_temp_cand.restoration_type = RESTORE_SGRPROJ;
-#if CONFIG_BRU
-    rui_temp_cand.mbmi_ptr = rui.mbmi_ptr;
-    rui_temp_cand.mi_stride = rui.mi_stride;
-    rui_temp_cand.ss_x = ss_x;
-    rui_temp_cand.ss_y = ss_y;
-#endif  // CONFIG_BRU
-    rui_temp_cand.sgrproj_info = search_selfguided_restoration(
-        rsc, NULL, bit_depth, procunit_width, procunit_height, tmpbuf,
-        rsc->lpf_sf->enable_sgr_ep_pruning);
-
-    aom_vector_clear(current_unit_indices);
-
-    // Iterate once more for the no-merge cost
-    double cost_nomerge_cand = cost_nomerge_base;
-    has_begun = false;
-    VECTOR_FOR_EACH(current_unit_stack, listed_unit) {
-      RstUnitSnapshot *old_unit = (RstUnitSnapshot *)(listed_unit.pointer);
-      RestUnitSearchInfo *old_rusi = &rsc->rusi[old_unit->rest_unit_idx];
-      if (old_unit->rest_unit_idx == begin_idx_cand) has_begun = true;
-      if (!has_begun) continue;
-      // last unit already in cost_nomerge
-      if (old_unit->rest_unit_idx == last_idx) continue;
-      if (old_rusi->best_rtype[RESTORE_SGRPROJ - 1] == RESTORE_SGRPROJ &&
-          !check_sgrproj_eq(&old_rusi->sgrproj_info, ref_sgrproj_info_cand))
-        continue;
-      cost_nomerge_cand +=
-          RDCOST_DBL_WITH_NATIVE_BD_DIST(x->rdmult, old_unit->current_bits >> 4,
-                                         old_unit->current_sse, bit_depth);
-    }
-
-    // Iterate through vector to get sse and bits for each on the new filter.
-    double cost_merge_cand = 0;
-    has_begun = false;
-    VECTOR_FOR_EACH(current_unit_stack, listed_unit) {
-      RstUnitSnapshot *old_unit = (RstUnitSnapshot *)(listed_unit.pointer);
-      RestUnitSearchInfo *old_rusi = &rsc->rusi[old_unit->rest_unit_idx];
-      if (old_unit->rest_unit_idx == begin_idx_cand) has_begun = true;
-      if (!has_begun) continue;
-      if (old_rusi->best_rtype[RESTORE_SGRPROJ - 1] == RESTORE_SGRPROJ &&
-          old_unit->rest_unit_idx != last_idx &&
-          !check_sgrproj_eq(&old_rusi->sgrproj_info, ref_sgrproj_info_cand))
-        continue;
-
-#if CONFIG_BRU
-      if (old_rusi->bru_unit_skipped) {
-        old_unit->merge_sse_cand = 0;
-      } else {
-        const int old_start_mi_x =
-            old_unit->limits.h_start >> (MI_SIZE_LOG2 - ss_x);
-        const int old_start_mi_y =
-            old_unit->limits.v_start >> (MI_SIZE_LOG2 - ss_y);
-        const int old_mbmi_idx = get_mi_grid_idx(
-            &rsc->cm->mi_params, old_start_mi_y, old_start_mi_x);
-        rui_temp_cand.mbmi_ptr = rsc->cm->mi_params.mi_grid_base + old_mbmi_idx;
-        old_unit->merge_sse_cand = try_restoration_unit(
-            rsc, &old_unit->limits, &rsc->tile_rect, &rui_temp_cand);
-      }
-#else
-      old_unit->merge_sse_cand = try_restoration_unit(
-          rsc, &old_unit->limits, &rsc->tile_rect, &rui_temp_cand);
-#endif  // CONFIG_BRU
-      // First unit in stack has larger unit_bits because the
-      // merged coeffs are linked to it.
-      if (old_unit->rest_unit_idx == begin_idx_cand) {
-        const int new_bits = (int)count_sgrproj_bits_set(
-            &x->mode_costs, &rui_temp_cand.sgrproj_info,
-            &old_unit->ref_sgrproj_bank);
-        old_unit->merge_bits_cand =
-            x->mode_costs.sgrproj_restore_cost[1] + new_bits;
-      } else {
-        equal_ref = check_sgrproj_bank_eq(&old_unit->ref_sgrproj_bank,
-                                          ref_sgrproj_info_cand);
-        assert(equal_ref >= 0);  // Must exist in bank
-        ref_sgrproj_info_tmp.bank_ref = equal_ref;
-        const int merge_bits = (int)count_sgrproj_bits(
-            &x->mode_costs, &ref_sgrproj_info_tmp, &old_unit->ref_sgrproj_bank);
-        old_unit->merge_bits_cand =
-            x->mode_costs.sgrproj_restore_cost[1] + merge_bits;
-      }
-      cost_merge_cand += RDCOST_DBL_WITH_NATIVE_BD_DIST(
-          x->rdmult, old_unit->merge_bits_cand >> 4, old_unit->merge_sse_cand,
-          bit_depth);
-    }
-    if (cost_merge_cand - cost_nomerge_cand < cost_merge - cost_nomerge) {
-      begin_idx = begin_idx_cand;
-      bank_ref = bank_ref_cand;
-      cost_merge = cost_merge_cand;
-      cost_nomerge = cost_nomerge_cand;
-      has_begun = false;
-      VECTOR_FOR_EACH(current_unit_stack, listed_unit) {
-        RstUnitSnapshot *old_unit = (RstUnitSnapshot *)(listed_unit.pointer);
-        RestUnitSearchInfo *old_rusi = &rsc->rusi[old_unit->rest_unit_idx];
-        if (old_unit->rest_unit_idx == begin_idx_cand) has_begun = true;
-        if (!has_begun) continue;
-        if (old_rusi->best_rtype[RESTORE_SGRPROJ - 1] == RESTORE_SGRPROJ &&
-            old_unit->rest_unit_idx != last_idx &&
-            !check_sgrproj_eq(&old_rusi->sgrproj_info, ref_sgrproj_info_cand))
-          continue;
-        old_unit->merge_sse = old_unit->merge_sse_cand;
-        old_unit->merge_bits = old_unit->merge_bits_cand;
-      }
-      rui_temp = rui_temp_cand;
-    }
-  }
-  // Trial end
-
-  if (cost_merge < cost_nomerge) {
-    const SgrprojInfo *ref_sgrproj_info =
-        av1_constref_from_sgrproj_bank(&rsc->sgrproj_bank, bank_ref);
-    // Update data within the stack.
-    bool has_begun = false;
-    VECTOR_FOR_EACH(current_unit_stack, listed_unit) {
-      RstUnitSnapshot *old_unit = (RstUnitSnapshot *)(listed_unit.pointer);
-      RestUnitSearchInfo *old_rusi = &rsc->rusi[old_unit->rest_unit_idx];
-      if (old_unit->rest_unit_idx == begin_idx) has_begun = true;
-      if (!has_begun) continue;
-      if (old_rusi->best_rtype[RESTORE_SGRPROJ - 1] == RESTORE_SGRPROJ &&
-          old_unit->rest_unit_idx != last_idx &&
-          !check_sgrproj_eq(&old_rusi->sgrproj_info, ref_sgrproj_info))
-        continue;
-
-      if (old_unit->rest_unit_idx != begin_idx) {
-        equal_ref = check_sgrproj_bank_eq(&old_unit->ref_sgrproj_bank,
-                                          ref_sgrproj_info);
-        assert(equal_ref >= 0);  // Must exist in bank
-        av1_upd_to_sgrproj_bank(&old_unit->ref_sgrproj_bank, equal_ref,
-                                &rui_temp.sgrproj_info);
-      }
-      old_rusi->best_rtype[RESTORE_SGRPROJ - 1] = RESTORE_SGRPROJ;
-      old_rusi->sgrproj_info = rui_temp.sgrproj_info;
-      old_rusi->sse[RESTORE_SGRPROJ] = old_unit->merge_sse;
-      rsc->sse -= old_unit->current_sse;
-      rsc->sse += old_unit->merge_sse;
-      rsc->bits -= old_unit->current_bits;
-      rsc->bits += old_unit->merge_bits;
-      old_unit->current_sse = old_unit->merge_sse;
-      old_unit->current_bits = old_unit->merge_bits;
-    }
-    RstUnitSnapshot *last_unit = aom_vector_back(current_unit_stack);
-    equal_ref = check_sgrproj_bank_eq(&last_unit->ref_sgrproj_bank,
-                                      &rui_temp.sgrproj_info);
-    assert(equal_ref >= 0);  // Must exist in bank
-    av1_upd_to_sgrproj_bank(&rsc->sgrproj_bank, equal_ref,
-                            &rui_temp.sgrproj_info);
-  } else {
-    // Copy current unit from the top of the stack.
-    // memset(&unit_snapshot, 0, sizeof(unit_snapshot));
-    // unit_snapshot = *(RstUnitSnapshot *)aom_vector_back(current_unit_stack);
-    // RESTORE_NONE units are discarded if they make the sse worse compared to
-    // the no restore case, without consideration for bitrate.
-    if (rtype == RESTORE_SGRPROJ) {
-      av1_add_to_sgrproj_bank(&rsc->sgrproj_bank, &rusi->sgrproj_info);
-      // aom_vector_clear(current_unit_stack);
-      // aom_vector_push_back(current_unit_stack, &unit_snapshot);
-    } else /*if (rusi->sse[RESTORE_SGRPROJ] > rusi->sse[RESTORE_NONE])*/ {
-      // Remove unit of RESTORE_NONE type only if its sse is worse (higher)
-      // than no_restore ss.
-      aom_vector_pop_back(current_unit_stack);
-    }
-  }
-  /*
-     intf("sgrproj(%d) [merge %f < nomerge %f] : %d, bank_size %d\n",
-     rsc->plane, cost_merge, cost_nomerge, (cost_merge < cost_nomerge),
-     rsc->sgrproj_bank.bank_size);
-     */
 }
 
 static void initialize_rui_for_nonsep_search(const RestSearchCtxt *rsc,
@@ -1322,10 +424,9 @@ static int count_pc_wiener_bits() {
 
 static AOM_INLINE void search_pc_wiener_visitor(
     const RestorationTileLimits *limits, const AV1PixelRect *tile_rect,
-    int rest_unit_idx, int rest_unit_idx_seq, void *priv, int32_t *tmpbuf,
+    int rest_unit_idx, int rest_unit_idx_seq, void *priv,
     RestorationLineBuffers *rlbs) {
   (void)tile_rect;
-  (void)tmpbuf;
   (void)rlbs;
   (void)rest_unit_idx_seq;
 
@@ -1592,10 +693,9 @@ static int64_t reset_unit_stack_dst_buffers(const RestSearchCtxt *rsc,
 
 static AOM_INLINE void search_norestore_visitor(
     const RestorationTileLimits *limits, const AV1PixelRect *tile_rect,
-    int rest_unit_idx, int rest_unit_idx_seq, void *priv, int32_t *tmpbuf,
+    int rest_unit_idx, int rest_unit_idx_seq, void *priv,
     RestorationLineBuffers *rlbs) {
   (void)tile_rect;
-  (void)tmpbuf;
   (void)rlbs;
   (void)rest_unit_idx_seq;
 
@@ -3318,9 +2418,7 @@ static void gather_stats_wienerns(const RestorationTileLimits *limits,
                                   const AV1PixelRect *tile_rect,
                                   int rest_unit_idx,
                                   int rest_unit_idx_in_rutile, void *priv,
-                                  int32_t *tmpbuf,
                                   RestorationLineBuffers *rlbs) {
-  (void)tmpbuf;
   (void)rlbs;
   (void)rest_unit_idx_in_rutile;
   (void)tile_rect;
@@ -3462,10 +2560,8 @@ static void search_wienerns_visitor(const RestorationTileLimits *limits,
                                     const AV1PixelRect *tile_rect,
                                     int rest_unit_idx,
                                     int rest_unit_idx_in_rutile, void *priv,
-                                    int32_t *tmpbuf,
                                     RestorationLineBuffers *rlbs) {
   (void)tile_rect;
-  (void)tmpbuf;
   (void)rlbs;
   (void)rest_unit_idx_in_rutile;
 
@@ -3933,10 +3029,6 @@ static int64_t count_switchable_bits(int rest_type, RestSearchCtxt *rsc,
   int64_t coeff_bits = 0;
   switch (rest_type) {
     case RESTORE_NONE: coeff_bits = 0; break;
-    case RESTORE_SGRPROJ:
-      coeff_bits = count_sgrproj_bits_set(&x->mode_costs, &rusi->sgrproj_info,
-                                          &rsc->sgrproj_bank);
-      break;
     case RESTORE_PC_WIENER:
       // No side-information for now.
       coeff_bits = 0;
@@ -3965,11 +3057,10 @@ static int64_t count_switchable_bits(int rest_type, RestSearchCtxt *rsc,
 static void search_switchable_visitor(const RestorationTileLimits *limits,
                                       const AV1PixelRect *tile_rect,
                                       int rest_unit_idx, int rest_unit_idx_seq,
-                                      void *priv, int32_t *tmpbuf,
+                                      void *priv,
                                       RestorationLineBuffers *rlbs) {
   (void)limits;
   (void)tile_rect;
-  (void)tmpbuf;
   (void)rlbs;
   (void)rest_unit_idx_seq;
   RestSearchCtxt *rsc = (RestSearchCtxt *)priv;
@@ -4013,7 +3104,7 @@ static void search_switchable_visitor(const RestorationTileLimits *limits,
       break;
     }
 #endif  // CONFIG_BRU
-    // Check for the condition that sgrproj or non-sep wiener search could not
+    // Check for the condition that non-sep wiener search could not
     // find a solution or the solution was worse than RESTORE_NONE.
     // In either case the best_rtype will be set as RESTORE_NONE. These
     // should be skipped from the test below.
@@ -4028,8 +3119,6 @@ static void search_switchable_visitor(const RestorationTileLimits *limits,
     int64_t bits = count_switchable_bits(r, rsc, rusi);
     double cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(x->rdmult, bits >> 4, sse,
                                                  rsc->cm->seq_params.bit_depth);
-    if (r == RESTORE_SGRPROJ && rusi->sgrproj_info.ep < 10)
-      cost *= (1 + DUAL_SGR_PENALTY_MULT * rsc->lpf_sf->dual_sgr_penalty_level);
     if (r == 0 || cost < best_cost) {
       best_cost = cost;
       best_bits = bits;
@@ -4041,12 +3130,7 @@ static void search_switchable_visitor(const RestorationTileLimits *limits,
   rsc->sse += rusi->sse[best_rtype];
   rsc->bits += best_bits;
 
-  if (best_rtype == RESTORE_SGRPROJ) {
-    const int equal_ref =
-        check_sgrproj_bank_eq(&rsc->sgrproj_bank, &rusi->sgrproj_info);
-    if (equal_ref == -1 || rsc->sgrproj_bank.bank_size == 0)
-      av1_add_to_sgrproj_bank(&rsc->sgrproj_bank, &rusi->sgrproj_info);
-  } else if (best_rtype == RESTORE_PC_WIENER) {
+  if (best_rtype == RESTORE_PC_WIENER) {
     // No side-information for now.
   } else if (best_rtype == RESTORE_WIENER_NONSEP) {
     rsc->num_wiener_nonsep++;
@@ -4122,20 +3206,7 @@ static AOM_INLINE void copy_unit_info(RestorationType frame_rtype,
     return;
   }
 #endif  // CONFIG_BRU
-  if (rui->restoration_type == RESTORE_SGRPROJ) {
-    rui->sgrproj_info = rusi->sgrproj_info;
-    const int equal_ref =
-        check_sgrproj_bank_eq(&rsc->sgrproj_bank, &rui->sgrproj_info);
-    if (equal_ref >= 0) {
-      rui->sgrproj_info.bank_ref = equal_ref;
-      if (rsc->sgrproj_bank.bank_size == 0)
-        av1_add_to_sgrproj_bank(&rsc->sgrproj_bank, &rui->sgrproj_info);
-    } else {
-      count_sgrproj_bits_set(mode_costs, &rui->sgrproj_info,
-                             &rsc->sgrproj_bank);
-      av1_add_to_sgrproj_bank(&rsc->sgrproj_bank, &rui->sgrproj_info);
-    }
-  } else if (rui->restoration_type == RESTORE_PC_WIENER) {
+  if (rui->restoration_type == RESTORE_PC_WIENER) {
     // No side-information for now.
   } else if (rui->restoration_type == RESTORE_WIENER_NONSEP) {
     rui->wienerns_info = rusi->wienerns_info;
@@ -4231,8 +3302,8 @@ static void process_one_rutile(RestSearchCtxt *rsc, int tile_row, int tile_col,
         const int unit_idx0 = rrow0 * rsi->horz_units_per_tile + rcol0;
         av1_foreach_rest_unit_in_sb(&ru_sb_rect, unit_idx0, rcol1 - rcol0,
                                     rrow1 - rrow0, rsi->horz_units_per_tile,
-                                    ru_size, ss_y, rsc->plane, fun, rsc,
-                                    rsc->cm->rst_tmpbuf, NULL, processed);
+                                    ru_size, ss_y, rsc->plane, fun, rsc, NULL,
+                                    processed);
       }
     }
   }
@@ -4270,7 +3341,7 @@ static double process_rd_by_rutile(RestSearchCtxt *rsc,
 
 static void gather_stats_rest_type(RestSearchCtxt *rsc, RestorationType rtype) {
   static const rest_unit_visitor_t funs[RESTORE_TYPES] = {
-    NULL, NULL, NULL, gather_stats_wienerns, NULL
+    NULL, NULL, gather_stats_wienerns, NULL
   };
   if (rtype == RESTORE_WIENER_NONSEP) aom_vector_clear(rsc->wienerns_stats);
 
@@ -4279,8 +3350,8 @@ static void gather_stats_rest_type(RestSearchCtxt *rsc, RestorationType rtype) {
 
 static double search_rest_type(RestSearchCtxt *rsc, RestorationType rtype) {
   static const rest_unit_visitor_t funs[RESTORE_TYPES] = {
-    search_norestore_visitor, search_sgrproj_visitor, search_pc_wiener_visitor,
-    search_wienerns_visitor, search_switchable_visitor
+    search_norestore_visitor, search_pc_wiener_visitor, search_wienerns_visitor,
+    search_switchable_visitor
   };
 
   if (funs[rtype])
@@ -4292,12 +3363,10 @@ static double search_rest_type(RestSearchCtxt *rsc, RestorationType rtype) {
 static void copy_unit_info_visitor(const RestorationTileLimits *limits,
                                    const AV1PixelRect *tile_rect,
                                    int rest_unit_idx, int rest_unit_idx_seq,
-                                   void *priv, int32_t *tmpbuf,
-                                   RestorationLineBuffers *rlbs) {
+                                   void *priv, RestorationLineBuffers *rlbs) {
   (void)limits;
   (void)tile_rect;
   (void)rest_unit_idx_seq;
-  (void)tmpbuf;
   (void)rlbs;
 
   RestSearchCtxt *rsc = (RestSearchCtxt *)priv;

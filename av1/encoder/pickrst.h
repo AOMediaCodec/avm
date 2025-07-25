@@ -56,22 +56,6 @@ static INLINE uint16_t find_average_highbd(const uint16_t *src, int h_start,
   return (uint16_t)avg;
 }
 
-static INLINE int check_sgrproj_eq(const SgrprojInfo *info,
-                                   const SgrprojInfo *ref) {
-  if (info->ep == ref->ep && !memcmp(info->xqd, ref->xqd, sizeof(info->xqd)))
-    return 1;
-  return 0;
-}
-
-static INLINE int check_sgrproj_bank_eq(const SgrprojInfoBank *bank,
-                                        const SgrprojInfo *info) {
-  for (int k = 0; k < AOMMAX(1, bank->bank_size); ++k) {
-    if (check_sgrproj_eq(info, av1_constref_from_sgrproj_bank(bank, k)))
-      return k;
-  }
-  return -1;
-}
-
 static INLINE int check_wienerns_eq(const WienerNonsepInfo *info,
                                     const WienerNonsepInfo *ref, int num_coeffs,
                                     int wiener_class_id) {
@@ -169,7 +153,6 @@ static INLINE int wienerns_info_diff(
  * \ref RestorationUnitInfo are populated:
  * \arg \c rst_info[ \c p ].\c unit_info[ \c u ].\c restoration_type
  * \arg \c rst_info[ \c p ].\c unit_info[ \c u ].\c wiener_info OR
- *      \c rst_info[ \c p ].\c unit_info[ \c u ].\c sgrproj_info OR
  *      neither, depending on
  *      \c rst_info[ \c p ].\c unit_info[ \c u ].\c restoration_type
  *

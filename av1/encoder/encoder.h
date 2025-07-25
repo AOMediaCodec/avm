@@ -861,8 +861,6 @@ typedef struct {
   bool enable_cdef;
   // Indicates if loop restoration filter should be enabled.
   bool enable_restoration;
-  // Indicates if sgrproj in loop restoration filter should be enabled.
-  bool enable_sgrproj;
   // Indicates if pc_wiener in loop restoration filter should be enabled.
   bool enable_pc_wiener;
   // Indicates if nonsep wiener in loop restoration filter should be enabled.
@@ -1646,7 +1644,6 @@ typedef struct FRAME_COUNTS {
   unsigned int intra_dip[TOKEN_CDF_Q_CTXS][DIP_CTXS][2];
   unsigned int intra_dip_mode_n6[6];
   unsigned int switchable_restore[RESTORE_SWITCHABLE_TYPES];
-  unsigned int sgrproj_restore[2];
   unsigned int wienerns_4part_cnts[WIENERNS_4PART_CTX_MAX]
                                   [CDF_SIZE(4)];  // placeholder
   unsigned int wienerns_length[2];                // placeholder

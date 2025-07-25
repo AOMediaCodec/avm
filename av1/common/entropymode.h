@@ -472,7 +472,6 @@ typedef struct frame_contexts {
 #if CONFIG_GDF
   aom_cdf_prob gdf_cdf[CDF_SIZE(2)];
 #endif  // CONFIG_GDF
-  aom_cdf_prob sgrproj_restore_cdf[CDF_SIZE(2)];
   aom_cdf_prob wienerns_restore_cdf[CDF_SIZE(2)];
   aom_cdf_prob wienerns_length_cdf[2][CDF_SIZE(2)];
   aom_cdf_prob wienerns_uv_sym_cdf[CDF_SIZE(2)];

@@ -406,8 +406,6 @@ static void set_good_speed_features_framesize_independent(
     sf->rd_sf.tx_domain_dist_thres_level = 1;
 
     sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL1;
-    sf->lpf_sf.dual_sgr_penalty_level = 1;
-    sf->lpf_sf.enable_sgr_ep_pruning = 1;
     sf->lpf_sf.wienerns_refine_iters = 0;
 
     // TODO(any, yunqing): move this feature to speed 0.
@@ -866,11 +864,8 @@ static AOM_INLINE void init_winner_mode_sf(
 
 static AOM_INLINE void init_lpf_sf(LOOP_FILTER_SPEED_FEATURES *lpf_sf) {
   lpf_sf->disable_loop_restoration_chroma = 0;
-  lpf_sf->enable_sgr_ep_pruning = 0;
   lpf_sf->lpf_pick = LPF_PICK_FROM_FULL_IMAGE;
   lpf_sf->cdef_pick_method = CDEF_FULL_SEARCH;
-  // Set decoder side speed feature to use less dual sgr modes
-  lpf_sf->dual_sgr_penalty_level = 0;
   lpf_sf->disable_lr_filter = 0;
   lpf_sf->wienerns_refine_iters = 2;
 }

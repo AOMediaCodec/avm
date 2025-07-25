@@ -4087,57 +4087,6 @@ static AOM_INLINE void encode_restoration_mode(
   }
 }
 
-static AOM_INLINE void write_sgrproj_filter(MACROBLOCKD *xd,
-                                            const SgrprojInfo *sgrproj_info,
-                                            SgrprojInfoBank *bank,
-                                            aom_writer *wb) {
-  const int equal_ref = check_sgrproj_bank_eq(bank, sgrproj_info);
-  const int exact_match = (equal_ref >= 0);
-  aom_write_symbol(wb, exact_match, xd->tile_ctx->merged_param_cdf, 2);
-  const int ref = sgrproj_info->bank_ref;
-  assert(IMPLIES(exact_match, ref == equal_ref));
-  assert(ref < AOMMAX(1, bank->bank_size));
-  int match = 0;
-  for (int k = 0; k < AOMMAX(0, bank->bank_size - 1); ++k) {
-    match = (k == ref);
-    aom_write_literal(wb, match, 1);
-    if (match) break;
-  }
-  assert(IMPLIES(!match, ref == AOMMAX(0, bank->bank_size - 1)));
-  if (exact_match) {
-    if (bank->bank_size == 0) av1_add_to_sgrproj_bank(bank, sgrproj_info);
-    return;
-  }
-  const SgrprojInfo *ref_sgrproj_info = av1_ref_from_sgrproj_bank(bank, ref);
-
-  aom_write_literal(wb, sgrproj_info->ep, SGRPROJ_PARAMS_BITS);
-  const sgr_params_type *params = &av1_sgr_params[sgrproj_info->ep];
-
-  if (params->r[0] == 0) {
-    assert(sgrproj_info->xqd[0] == 0);
-    aom_write_primitive_refsubexpfin(
-        wb, SGRPROJ_PRJ_MAX1 - SGRPROJ_PRJ_MIN1 + 1, SGRPROJ_PRJ_SUBEXP_K,
-        ref_sgrproj_info->xqd[1] - SGRPROJ_PRJ_MIN1,
-        sgrproj_info->xqd[1] - SGRPROJ_PRJ_MIN1);
-  } else if (params->r[1] == 0) {
-    aom_write_primitive_refsubexpfin(
-        wb, SGRPROJ_PRJ_MAX0 - SGRPROJ_PRJ_MIN0 + 1, SGRPROJ_PRJ_SUBEXP_K,
-        ref_sgrproj_info->xqd[0] - SGRPROJ_PRJ_MIN0,
-        sgrproj_info->xqd[0] - SGRPROJ_PRJ_MIN0);
-  } else {
-    aom_write_primitive_refsubexpfin(
-        wb, SGRPROJ_PRJ_MAX0 - SGRPROJ_PRJ_MIN0 + 1, SGRPROJ_PRJ_SUBEXP_K,
-        ref_sgrproj_info->xqd[0] - SGRPROJ_PRJ_MIN0,
-        sgrproj_info->xqd[0] - SGRPROJ_PRJ_MIN0);
-    aom_write_primitive_refsubexpfin(
-        wb, SGRPROJ_PRJ_MAX1 - SGRPROJ_PRJ_MIN1 + 1, SGRPROJ_PRJ_SUBEXP_K,
-        ref_sgrproj_info->xqd[1] - SGRPROJ_PRJ_MIN1,
-        sgrproj_info->xqd[1] - SGRPROJ_PRJ_MIN1);
-  }
-  av1_add_to_sgrproj_bank(bank, sgrproj_info);
-  return;
-}
-
 static int check_and_write_merge_info(
     const WienerNonsepInfo *wienerns_info, const WienerNonsepInfoBank *bank,
     const WienernsFilterParameters *nsfilter_params, int wiener_class_id,
@@ -4514,10 +4463,6 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
         !found,
         (int)unit_rtype == cm->features.lr_last_switchable_ndx_0_type[plane]));
     switch (unit_rtype) {
-      case RESTORE_SGRPROJ:
-        write_sgrproj_filter(xd, &rui->sgrproj_info, &xd->sgrproj_info[plane],
-                             w);
-        break;
       case RESTORE_WIENER_NONSEP:
         write_wienerns_filter(xd, plane, rsi, &rui->wienerns_info,
                               &xd->wienerns_info[plane], w);
@@ -4526,15 +4471,6 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
         // No side-information for now.
         break;
       default: assert(unit_rtype == RESTORE_NONE); break;
-    }
-  } else if (frame_rtype == RESTORE_SGRPROJ) {
-    aom_write_symbol(w, unit_rtype != RESTORE_NONE,
-                     xd->tile_ctx->sgrproj_restore_cdf, 2);
-#if CONFIG_ENTROPY_STATS
-    ++counts->sgrproj_restore[unit_rtype != RESTORE_NONE];
-#endif
-    if (unit_rtype != RESTORE_NONE) {
-      write_sgrproj_filter(xd, &rui->sgrproj_info, &xd->sgrproj_info[plane], w);
     }
   } else if (frame_rtype == RESTORE_WIENER_NONSEP) {
     aom_write_symbol(w, unit_rtype != RESTORE_NONE,

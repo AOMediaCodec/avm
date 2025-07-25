@@ -452,8 +452,6 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   add_proto qw/void av1_compute_stats_highbd/,  "int wiener_win, const uint16_t *dgd8, const uint16_t *src, int h_start, int h_end, int v_start, int v_end, int dgd_stride, int src_stride, int64_t *M, int64_t *H, aom_bit_depth_t bit_depth";
   specialize qw/av1_compute_stats_highbd sse4_1 avx2/;
 
-  add_proto qw/int64_t av1_highbd_pixel_proj_error/, " const uint16_t *src8, int width, int height, int src_stride, const uint16_t *dat8, int dat_stride, int32_t *flt0, int flt0_stride, int32_t *flt1, int flt1_stride, int xq[2], const sgr_params_type *params";
-  specialize qw/av1_highbd_pixel_proj_error sse4_1 avx2/;
   add_proto qw/void av1_get_horver_correlation_full/, " const int16_t *diff, int stride, int w, int h, float *hcorr, float *vcorr";
   specialize qw/av1_get_horver_correlation_full sse4_1 avx2 neon/;
 
@@ -556,16 +554,6 @@ if (aom_config("CONFIG_EXT_WARP_FILTER") eq "yes") {
     specialize qw/av1_ext_highbd_warp_affine sse4_1 avx2/;
   }
 }
-
-# LOOP_RESTORATION functions
-
-add_proto qw/void av1_apply_selfguided_restoration/, "const uint16_t *dat, int width, int height, int stride, int eps, const int *xqd, uint16_t *dst, int dst_stride, int32_t *tmpbuf, int bit_depth";
-specialize qw/av1_apply_selfguided_restoration sse4_1 avx2 neon/;
-
-add_proto qw/int av1_selfguided_restoration/, "const uint16_t *dgd, int width, int height,
-                                 int dgd_stride, int32_t *flt0, int32_t *flt1, int flt_stride,
-                                 int sgr_params_idx, int bit_depth";
-specialize qw/av1_selfguided_restoration sse4_1 avx2 neon/;
 
 # CONVOLVE_ROUND/COMPOUND_ROUND functions
 

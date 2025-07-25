@@ -2971,60 +2971,6 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
   }
 }
 
-static AOM_INLINE void read_sgrproj_filter(MACROBLOCKD *xd,
-                                           SgrprojInfo *sgrproj_info,
-                                           SgrprojInfoBank *bank,
-                                           aom_reader *rb) {
-  const int exact_match = aom_read_symbol(rb, xd->tile_ctx->merged_param_cdf, 2,
-                                          ACCT_INFO("exact_match"));
-  int k;
-  for (k = 0; k < bank->bank_size - 1; ++k) {
-    if (aom_read_literal(rb, 1, ACCT_INFO("bank"))) break;
-  }
-  const int ref = k;
-  if (exact_match) {
-    memcpy(sgrproj_info, av1_constref_from_sgrproj_bank(bank, ref),
-           sizeof(*sgrproj_info));
-    sgrproj_info->bank_ref = ref;
-    if (bank->bank_size == 0) av1_add_to_sgrproj_bank(bank, sgrproj_info);
-    return;
-  }
-  SgrprojInfo *ref_sgrproj_info = av1_ref_from_sgrproj_bank(bank, ref);
-
-  sgrproj_info->ep = aom_read_literal(rb, SGRPROJ_PARAMS_BITS, ACCT_INFO("ep"));
-  const sgr_params_type *params = &av1_sgr_params[sgrproj_info->ep];
-
-  if (params->r[0] == 0) {
-    sgrproj_info->xqd[0] = 0;
-    sgrproj_info->xqd[1] =
-        aom_read_primitive_refsubexpfin(
-            rb, SGRPROJ_PRJ_MAX1 - SGRPROJ_PRJ_MIN1 + 1, SGRPROJ_PRJ_SUBEXP_K,
-            ref_sgrproj_info->xqd[1] - SGRPROJ_PRJ_MIN1, ACCT_INFO()) +
-        SGRPROJ_PRJ_MIN1;
-  } else if (params->r[1] == 0) {
-    sgrproj_info->xqd[0] =
-        aom_read_primitive_refsubexpfin(
-            rb, SGRPROJ_PRJ_MAX0 - SGRPROJ_PRJ_MIN0 + 1, SGRPROJ_PRJ_SUBEXP_K,
-            ref_sgrproj_info->xqd[0] - SGRPROJ_PRJ_MIN0, ACCT_INFO()) +
-        SGRPROJ_PRJ_MIN0;
-    sgrproj_info->xqd[1] = clamp((1 << SGRPROJ_PRJ_BITS) - sgrproj_info->xqd[0],
-                                 SGRPROJ_PRJ_MIN1, SGRPROJ_PRJ_MAX1);
-  } else {
-    sgrproj_info->xqd[0] =
-        aom_read_primitive_refsubexpfin(
-            rb, SGRPROJ_PRJ_MAX0 - SGRPROJ_PRJ_MIN0 + 1, SGRPROJ_PRJ_SUBEXP_K,
-            ref_sgrproj_info->xqd[0] - SGRPROJ_PRJ_MIN0, ACCT_INFO()) +
-        SGRPROJ_PRJ_MIN0;
-    sgrproj_info->xqd[1] =
-        aom_read_primitive_refsubexpfin(
-            rb, SGRPROJ_PRJ_MAX1 - SGRPROJ_PRJ_MIN1 + 1, SGRPROJ_PRJ_SUBEXP_K,
-            ref_sgrproj_info->xqd[1] - SGRPROJ_PRJ_MIN1, ACCT_INFO()) +
-        SGRPROJ_PRJ_MIN1;
-  }
-
-  av1_add_to_sgrproj_bank(bank, sgrproj_info);
-}
-
 #if CONFIG_COMBINE_PC_NS_WIENER_ADD
 // Decodes match indices.
 static void read_match_indices(int plane, WienerNonsepInfo *wienerns_info,
@@ -3343,10 +3289,6 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(AV1_COMMON *cm,
       }
     }
     switch (rui->restoration_type) {
-      case RESTORE_SGRPROJ:
-        read_sgrproj_filter(xd, &rui->sgrproj_info, &xd->sgrproj_info[plane],
-                            r);
-        break;
       case RESTORE_WIENER_NONSEP:
         read_wienerns_filter(xd, plane != AOM_PLANE_Y, rsi, &rui->wienerns_info,
                              &xd->wienerns_info[plane], r);
@@ -3355,14 +3297,6 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(AV1_COMMON *cm,
         // No side-information for now.
         break;
       default: assert(rui->restoration_type == RESTORE_NONE); break;
-    }
-  } else if (rsi->frame_restoration_type == RESTORE_SGRPROJ) {
-    if (aom_read_symbol(r, xd->tile_ctx->sgrproj_restore_cdf, 2,
-                        ACCT_INFO("sgrproj_restore_cdf"))) {
-      rui->restoration_type = RESTORE_SGRPROJ;
-      read_sgrproj_filter(xd, &rui->sgrproj_info, &xd->sgrproj_info[plane], r);
-    } else {
-      rui->restoration_type = RESTORE_NONE;
     }
   } else if (rsi->frame_restoration_type == RESTORE_WIENER_NONSEP) {
     if (aom_read_symbol(r, xd->tile_ctx->wienerns_restore_cdf, 2,

@@ -761,11 +761,6 @@ static void set_seq_lr_tools_mask(SequenceHeader *const seq_params,
   seq_params->lr_tools_disable_mask[1] = 0;  // default - no tools disabled
 
   // Parse oxcf here to disable tools as requested through cmd lines
-  // Disable SGRPROJ if needed
-  if (!tool_cfg->enable_sgrproj) {
-    seq_params->lr_tools_disable_mask[0] |= (1 << RESTORE_SGRPROJ);
-    seq_params->lr_tools_disable_mask[1] |= (1 << RESTORE_SGRPROJ);
-  }
   if (!tool_cfg->enable_pc_wiener) {
     seq_params->lr_tools_disable_mask[0] |= (1 << RESTORE_PC_WIENER);
     seq_params->lr_tools_disable_mask[1] |= (1 << RESTORE_PC_WIENER);
@@ -1402,7 +1397,6 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
   cm->superres_upscaled_width = oxcf->frm_dim_cfg.width;
   cm->superres_upscaled_height = oxcf->frm_dim_cfg.height;
 #endif  // CONFIG_ENABLE_SR
-  av1_loop_restoration_precal();
 
   // The buffers related to TIP are not used during LAP stage. Hence,
   // the allocation is limited to encode stage.

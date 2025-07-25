@@ -1223,7 +1223,6 @@ typedef int8_t MV_REFERENCE_FRAME;
  */
 typedef enum {
   RESTORE_NONE,          /**< No restoration */
-  RESTORE_SGRPROJ,       /**< Selfguided restoration */
   RESTORE_PC_WIENER,     /**< Pixel-classified Wiener restoration */
   RESTORE_WIENER_NONSEP, /**< Nonseparable Wiener restoration */
   RESTORE_SWITCHABLE,    /**< Switchable restoration */

@@ -1798,12 +1798,6 @@ int main(int argc, const char **argv) {
                      0, &total_count, 0, mem_wanted, "Intra");
 
   /* restoration type */
-  cts_each_dim[0] = 2;
-  optimize_cdf_table(&fc.sgrproj_restore[0], probsfile, 1, cts_each_dim,
-                     "static const aom_cdf_prob default_sgrproj_restore_cdf"
-                     "[CDF_SIZE(2)]",
-                     0, &total_count, 0, mem_wanted, "Filters");
-
   cts_each_dim[0] = WIENERNS_4PART_CTX_MAX;
   cts_each_dim[1] = 4;
   optimize_cdf_table(&fc.wienerns_4part_cnts[0][0], probsfile, 2, cts_each_dim,

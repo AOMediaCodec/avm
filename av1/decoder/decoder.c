@@ -241,7 +241,6 @@ AV1Decoder *av1_decoder_create(BufferPool *const pool) {
   seq_params->quantizer_matrix_8x8 = av1_alloc_qm(8, 8);
   seq_params->quantizer_matrix_8x4 = av1_alloc_qm(8, 4);
   seq_params->quantizer_matrix_4x8 = av1_alloc_qm(4, 8);
-  av1_loop_restoration_precal();
 #if CONFIG_ACCOUNTING
   pbi->acct_enabled = 1;
   aom_accounting_init(&pbi->accounting);

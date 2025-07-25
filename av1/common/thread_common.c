@@ -486,13 +486,10 @@ static void loop_restoration_alloc(AV1LrSync *lr_sync, AV1_COMMON *cm,
 
   for (int worker_idx = 0; worker_idx < num_workers; ++worker_idx) {
     if (worker_idx < num_workers - 1) {
-      CHECK_MEM_ERROR(cm, lr_sync->lrworkerdata[worker_idx].rst_tmpbuf,
-                      (int32_t *)aom_memalign(16, RESTORATION_TMPBUF_SIZE));
       CHECK_MEM_ERROR(cm, lr_sync->lrworkerdata[worker_idx].rlbs,
                       aom_malloc(sizeof(RestorationLineBuffers)));
 
     } else {
-      lr_sync->lrworkerdata[worker_idx].rst_tmpbuf = cm->rst_tmpbuf;
       lr_sync->lrworkerdata[worker_idx].rlbs = cm->rlbs;
     }
   }
@@ -547,7 +544,6 @@ void av1_loop_restoration_dealloc(AV1LrSync *lr_sync, int num_workers) {
         LRWorkerData *const workerdata_data =
             lr_sync->lrworkerdata + worker_idx;
 
-        aom_free(workerdata_data->rst_tmpbuf);
         aom_free(workerdata_data->rlbs);
       }
       aom_free(lr_sync->lrworkerdata);
@@ -700,8 +696,7 @@ static int loop_restoration_row_worker(void *arg1, void *arg2) {
           ctxt[plane].rsi->horz_units_per_tile,
           ctxt[plane].rsi->vert_units_per_tile,
           ctxt[plane].rsi->horz_units_per_tile, plane, &ctxt[plane],
-          lrworkerdata->rst_tmpbuf, lrworkerdata->rlbs, on_sync_read,
-          on_sync_write, lr_sync, NULL);
+          lrworkerdata->rlbs, on_sync_read, on_sync_write, lr_sync, NULL);
 
       copy_funs[plane](lr_ctxt->dst, lr_ctxt->frame, ctxt[plane].tile_rect.left,
                        ctxt[plane].tile_rect.right, cur_job_info->v_copy_start,

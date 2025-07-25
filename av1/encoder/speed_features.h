@@ -960,14 +960,6 @@ typedef struct LOOP_FILTER_SPEED_FEATURES {
   // Control how the CDEF strength is determined.
   CDEF_PICK_METHOD cdef_pick_method;
 
-  // Decoder side speed feature to add penalty for use of dual-sgr filters.
-  // Takes values 0 - 10, 0 indicating no penalty and each additional level
-  // adding a penalty of 1%
-  int dual_sgr_penalty_level;
-
-  // prune sgr ep using binary search like mechanism
-  int enable_sgr_ep_pruning;
-
   // Disable loop restoration for Chroma plane
   int disable_loop_restoration_chroma;
 

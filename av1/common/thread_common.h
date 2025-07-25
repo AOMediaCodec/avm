@@ -66,7 +66,6 @@ typedef struct AV1LrMTInfo {
 } AV1LrMTInfo;
 
 typedef struct LoopRestorationWorkerData {
-  int32_t *rst_tmpbuf;
   void *rlbs;
   void *lr_ctxt;
 } LRWorkerData;

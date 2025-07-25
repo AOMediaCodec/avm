@@ -78,11 +78,6 @@ void av1_alloc_restoration_buffers(AV1_COMMON *cm) {
   }
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
 
-  if (cm->rst_tmpbuf == NULL) {
-    CHECK_MEM_ERROR(cm, cm->rst_tmpbuf,
-                    (int32_t *)aom_memalign(16, RESTORATION_TMPBUF_SIZE));
-  }
-
   if (cm->rlbs == NULL) {
     CHECK_MEM_ERROR(cm, cm->rlbs, aom_malloc(sizeof(RestorationLineBuffers)));
   }
@@ -140,8 +135,6 @@ void av1_free_restoration_buffers(AV1_COMMON *cm) {
   int p;
   for (p = 0; p < MAX_MB_PLANE; ++p)
     av1_free_restoration_struct(&cm->rst_info[p]);
-  aom_free(cm->rst_tmpbuf);
-  cm->rst_tmpbuf = NULL;
   aom_free(cm->rlbs);
   cm->rlbs = NULL;
   for (p = 0; p < MAX_MB_PLANE; ++p) {

@@ -352,8 +352,7 @@ list(
   "${AOM_ROOT}/av1/common/x86/highbd_warp_plane_sse4.c"
   "${AOM_ROOT}/av1/common/x86/intra_edge_sse4.c"
   "${AOM_ROOT}/av1/common/x86/optflow_refine_sse4.c"
-  "${AOM_ROOT}/av1/common/x86/reconinter_sse4.c"
-  "${AOM_ROOT}/av1/common/x86/selfguided_sse4.c")
+  "${AOM_ROOT}/av1/common/x86/reconinter_sse4.c")
 
 list(
   APPEND
@@ -368,8 +367,7 @@ list(
   "${AOM_ROOT}/av1/common/x86/highbd_jnt_convolve_avx2.c"
   "${AOM_ROOT}/av1/common/x86/highbd_wiener_convolve_avx2.c"
   "${AOM_ROOT}/av1/common/x86/highbd_warp_affine_avx2.c"
-  "${AOM_ROOT}/av1/common/x86/reconinter_avx2.c"
-  "${AOM_ROOT}/av1/common/x86/selfguided_avx2.c")
+  "${AOM_ROOT}/av1/common/x86/reconinter_avx2.c")
 
 list(APPEND AOM_AV1_COMMON_INTRIN_AVX2
      "${AOM_ROOT}/av1/common/gdf_block_avx2.c")
@@ -440,7 +438,6 @@ list(
   "${AOM_ROOT}/av1/common/arm/convolve_neon.c"
   "${AOM_ROOT}/av1/common/arm/convolve_neon.h"
   "${AOM_ROOT}/av1/common/arm/reconinter_neon.c"
-  "${AOM_ROOT}/av1/common/arm/selfguided_neon.c"
   "${AOM_ROOT}/av1/common/arm/highbd_inv_txfm_neon.c"
   "${AOM_ROOT}/av1/common/cdef_block_neon.c")
 

@@ -737,8 +737,6 @@ void av1_fill_lr_rates(ModeCosts *mode_costs, FRAME_CONTEXT *fc) {
     for (int p = 0; p < MAX_MB_PLANE; ++p)
       av1_cost_tokens_from_cdf(mode_costs->switchable_flex_restore_cost[c][p],
                                fc->switchable_flex_restore_cdf[c][p], NULL);
-  av1_cost_tokens_from_cdf(mode_costs->sgrproj_restore_cost,
-                           fc->sgrproj_restore_cdf, NULL);
   av1_cost_tokens_from_cdf(mode_costs->wienerns_restore_cost,
                            fc->wienerns_restore_cdf, NULL);
   for (int c = 0; c < 2; ++c)
