@@ -7795,7 +7795,6 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
 #endif  // MHCCP_RUNTIME_FLAG
   CUMULATIVE_AVERAGE_CDF(ctx_left->cfl_index_cdf, ctx_tr->cfl_index_cdf,
                          CFL_TYPE_COUNT - 1);
-
   CUMULATIVE_AVERAGE_CDF(ctx_left->y_mode_set_cdf, ctx_tr->y_mode_set_cdf,
                          INTRA_MODE_SETS);
   CUMULATIVE_AVERAGE_CDF(ctx_left->y_mode_idx_cdf_0, ctx_tr->y_mode_idx_cdf_0,
@@ -8187,7 +8186,6 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
   SHIFT_CDF(ctx_ptr->cfl_mhccp_cdf, CFL_MHCCP_SWITCH_NUM);
 #endif  // MHCCP_RUNTIME_FLAG
   SHIFT_CDF(ctx_ptr->cfl_index_cdf, CFL_TYPE_COUNT - 1);
-
   SHIFT_CDF(ctx_ptr->y_mode_set_cdf, INTRA_MODE_SETS);
   SHIFT_CDF(ctx_ptr->y_mode_idx_cdf_0, FIRST_MODE_COUNT);
 #if !CONFIG_CTX_Y_SECOND_MODE
@@ -8641,7 +8639,6 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
 #endif  // CONFIG_RUNTIME_FLAG
   AVERAGE_CDF(ctx_left->cfl_index_cdf, ctx_tr->cfl_index_cdf,
               CFL_TYPE_COUNT - 1);
-
   AVERAGE_CDF(ctx_left->y_mode_set_cdf, ctx_tr->y_mode_set_cdf,
               INTRA_MODE_SETS);
   AVERAGE_CDF(ctx_left->y_mode_idx_cdf_0, ctx_tr->y_mode_idx_cdf_0,

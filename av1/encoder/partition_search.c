@@ -7178,10 +7178,12 @@ BEGIN_PARTITION_SEARCH:
       }
       av1_reset_ptree_in_sbi(xd->sbi, xd->tree_type);
       x->cb_offset[xd->tree_type == CHROMA_PART] = 0;
+
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, run_type, bsize,
                 pc_tree, xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)],
                 xd->tree_type == CHROMA_PART ? xd->sbi->ptree_root[0] : NULL,
                 NULL);
+
       // Dealloc the whole PC_TREE after a superblock is done.
       av1_free_pc_tree_recursive(pc_tree, num_planes, 0, 0);
       pc_tree_dealloc = 1;

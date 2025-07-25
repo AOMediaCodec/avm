@@ -582,8 +582,12 @@ void av1_tokenize_sb_vartx(const AV1_COMP *cpi, ThreadData *td,
     const int step =
         tx_size_wide_unit[max_tx_size] * tx_size_high_unit[max_tx_size];
 
+#if CONFIG_CHROMA_LARGE_TX
+    const BLOCK_SIZE max_unit_bsize = get_plane_block_size(BLOCK_64X64, 0, 0);
+#else
     const BLOCK_SIZE max_unit_bsize =
         get_plane_block_size(BLOCK_64X64, ss_x, ss_y);
+#endif  // CONFIG_CHROMA_LARGE_TX
     int mu_blocks_wide = mi_size_wide[max_unit_bsize];
     int mu_blocks_high = mi_size_high[max_unit_bsize];
 

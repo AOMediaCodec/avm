@@ -281,6 +281,8 @@ set_aom_config_var(CONFIG_CWG_F168_DPB_HLS 1
 set_aom_config_var(CONFIG_CWG_F260_REFRESH_FLAG 0
                    "refresh frame flag signaling in CWG-F260 method 2")
 
+set_aom_config_var(CONFIG_CHROMA_LARGE_TX 1 "Large transform for chroma")
+
 set_aom_config_var(CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING 1
                    "TX partition type signalling bugfix")
 set_aom_config_var(CONFIG_REFRESH_FLAG 0

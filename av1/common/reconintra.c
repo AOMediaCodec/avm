@@ -72,6 +72,11 @@ static int has_top_right(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 
   if (px_tr_common <= 0) return 0;
 
+#if CONFIG_CHROMA_LARGE_TX
+  // Do not allow more than 64 top reference samples for intra prediction
+  if (plane != AOM_PLANE_Y && tx_size_wide[txsz] > 32) return 0;
+#endif  // CONFIG_CHROMA_LARGE_TX
+
   *px_top_right = px_tr_common;
 
   if (plane == AOM_PLANE_Y) {
@@ -161,6 +166,11 @@ static int has_bottom_left(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   const int px_bl_common = AOMMIN(tx_size_high[txsz], px_to_bottom_edge);
 
   if (px_bl_common <= 0) return 0;
+
+#if CONFIG_CHROMA_LARGE_TX
+  // Do not allow more than 64 left reference samples for intra prediction
+  if (plane != AOM_PLANE_Y && tx_size_high[txsz] > 32) return 0;
+#endif  // CONFIG_CHROMA_LARGE_TX
 
   if (plane == AOM_PLANE_Y) {
     int txb_idx = xd->mi[0]->txb_idx;
@@ -1419,8 +1429,16 @@ static void build_intra_predictors_high(
   }
   // predict
   if (mode == DC_PRED) {
-    dc_pred_high[n_left_px > 0][n_top_px > 0][tx_size](
-        dst, dst_stride, above_row_1st, left_col_1st, xd->bd);
+#if CONFIG_CHROMA_LARGE_TX
+    if (plane != AOM_PLANE_Y && mbmi->uv_mode == UV_CFL_PRED &&
+        (txwpx > 32 || txhpx > 32)) {
+      highbd_dc_predictor_subsampled(dst, dst_stride, n_top_px > 0,
+                                     n_left_px > 0, txwpx, txhpx, above_row_1st,
+                                     left_col_1st, xd->bd);
+    } else
+#endif  // CONFIG_CHROMA_LARGE_TX
+      dc_pred_high[n_left_px > 0][n_top_px > 0][tx_size](
+          dst, dst_stride, above_row_1st, left_col_1st, xd->bd);
     if (apply_ibp && ((plane == 0) || (xd->mi[0]->uv_mode != UV_CFL_PRED)) &&
         ((n_left_px > 0) || (n_top_px > 0))) {
       ibp_dc_pred_high[n_left_px > 0][n_top_px > 0][tx_size](
@@ -1946,7 +1964,9 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
     const BLOCK_SIZE chroma_bsize = get_bsize_base(xd, mbmi, PLANE_TYPE_UV);
     // chroma_tx_size is the size in units of 4x4 luma samples of the chroma
     // block represented as a TX_SIZE
+#if !CONFIG_CHROMA_LARGE_TX
     const TX_SIZE chroma_tx_size = max_txsize_rect_lookup[chroma_bsize];
+#endif  // !CONFIG_CHROMA_LARGE_TX
     CFL_CTX *const cfl = &xd->cfl;
     const int mi_row = -xd->mb_to_top_edge >> MI_SUBPEL_SIZE_LOG2;
     const int mi_col = -xd->mb_to_left_edge >> MI_SUBPEL_SIZE_LOG2;
@@ -1959,7 +1979,12 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
     // chroma sample of the chroma block
     uint16_t *luma_dst = &luma_pd->dst.buf[-(
         (row_offset * luma_pd->dst.stride + col_offset) << MI_SIZE_LOG2)];
-    cfl_store(xd, cfl, luma_dst, luma_pd->dst.stride, 0, 0, chroma_tx_size,
+    cfl_store(xd, cfl, luma_dst, luma_pd->dst.stride, 0, 0,
+#if CONFIG_CHROMA_LARGE_TX
+              block_size_wide[chroma_bsize], block_size_high[chroma_bsize],
+#else
+              chroma_tx_size,
+#endif  // CONFIG_CHROMA_LARGE_TX
               cm->seq_params.cfl_ds_filter_index);
 
     CFL_PRED_TYPE pred_plane = get_cfl_pred_type(plane);
@@ -2000,7 +2025,13 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
 #if CONFIG_CFL_SIMPLIFICATION
                                          is_top_sb_boundary,
 #endif  // CONFIG_CFL_SIMPLIFICATION
-                                         chroma_tx_size);
+#if CONFIG_CHROMA_LARGE_TX
+                                         block_size_wide[chroma_bsize],
+                                         block_size_high[chroma_bsize]
+#else
+                                         chroma_tx_size
+#endif  // CONFIG_CHROMA_LARGE_TX
+        );
         cfl_calc_luma_dc(xd, blk_row, blk_col, tx_size);
       }
       if (mbmi->cfl_idx == CFL_DERIVED_ALPHA) {

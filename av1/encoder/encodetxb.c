@@ -813,7 +813,9 @@ int av1_write_sig_txtype(const AV1_COMMON *const cm, MACROBLOCK *const x,
   aom_write_symbol(w, eob == 0, ec_ctx->txb_skip_cdf[txs_ctx][txb_skip_ctx], 2);
 #endif  // CONFIG_CONTEXT_DERIVATION
 
-  if (eob == 0) return 0;
+  if (eob == 0) {
+    return 0;
+  }
   int esc_eob = is_fsc ? bob_code : eob;
   const int dc_skip = (eob == 1) && !is_inter;
   code_eob(x, w, plane, tx_size, esc_eob);
@@ -821,8 +823,9 @@ int av1_write_sig_txtype(const AV1_COMMON *const cm, MACROBLOCK *const x,
   if (plane == AOM_PLANE_U && is_cctx_allowed(cm, xd)) {
     const int skip_cctx = is_inter ? 0 : (eob == 1);
     CctxType cctx_type = av1_get_cctx_type(xd, blk_row, blk_col);
-    if (eob > 0 && !skip_cctx)
+    if (eob > 0 && !skip_cctx) {
       av1_write_cctx_type(cm, xd, cctx_type, tx_size, w);
+    }
   }
   return 1;
 }
@@ -1500,6 +1503,14 @@ void av1_write_intra_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x,
               get_plane_tx_unit_height(xd, plane_bsize, plane, row, ss_y);
           const int plane_unit_width =
               get_plane_tx_unit_width(xd, plane_bsize, plane, col, ss_x);
+
+#if CONFIG_CHROMA_LARGE_TX
+          if (plane != AOM_PLANE_Y &&
+              ((ss_x && (col & 16)) || (ss_y && (row & 16)))) {
+            continue;
+          }
+#endif  // CONFIG_CHROMA_LARGE_TX
+
           for (int blk_row = row >> ss_y; blk_row < plane_unit_height;
                blk_row += stepr) {
             for (int blk_col = col >> ss_x; blk_col < plane_unit_width;
@@ -1558,7 +1569,11 @@ int get_cctx_type_cost(const AV1_COMMON *cm, const MACROBLOCK *x,
     (void)tx_size;
     return x->mode_costs.cctx_type_cost[cctx_type];
 #else
+#if CONFIG_CHROMA_LARGE_TX
+    const TX_SIZE square_tx_size = AOMMIN(TX_32X32, txsize_sqr_map[tx_size]);
+#else
     const TX_SIZE square_tx_size = txsize_sqr_map[tx_size];
+#endif  // CONFIG_CHROMA_LARGE_TX
     int above_cctx, left_cctx;
     get_above_and_left_cctx_type(cm, xd, &above_cctx, &left_cctx);
     const int cctx_ctx = get_cctx_context(xd, &above_cctx, &left_cctx);

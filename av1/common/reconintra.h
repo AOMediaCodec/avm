@@ -216,6 +216,39 @@ static INLINE int av1_allow_orip_dir(int p_angle, TX_SIZE tx_size) {
   return ((p_angle == 90 || p_angle == 180) && orip_allowed);
 }
 
+#if CONFIG_CHROMA_LARGE_TX
+// Use subsampled reference samples for DC calculation for CfL mode
+static INLINE void highbd_dc_predictor_subsampled(
+    uint16_t *dst, ptrdiff_t stride, const int have_top, const int have_left,
+    int bw, int bh, const uint16_t *above, const uint16_t *left, int bd) {
+  const int ss_hor = bw > 32 ? 2 : 1;
+  const int ss_ver = bh > 32 ? 2 : 1;
+  int sum = 0;
+  int count = 0;
+
+  if (have_top) {
+    for (int i = 0; i < bw; i += ss_hor) {
+      sum += above[i];
+      count++;
+    }
+  }
+
+  if (have_left) {
+    for (int i = 0; i < bh; i += ss_ver) {
+      sum += left[i];
+      count++;
+    }
+  }
+
+  sum = count > 0 ? (sum + count / 2) / count : 8 << (bd - 1);
+
+  for (int r = 0; r < bh; r++) {
+    aom_memset16(dst, sum, bw);
+    dst += stride;
+  }
+}
+#endif  // CONFIG_CHROMA_LARGE_TX
+
 // Get the shift (up-scaled by 256) in X w.r.t a unit change in Y.
 // If angle > 0 && angle < 90, dx = -((int)(256 / t));
 // If angle > 90 && angle < 180, dx = (int)(256 / t);

@@ -1615,7 +1615,11 @@ void av1_read_cctx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd,
   cctx_type = aom_read_symbol(r, ec_ctx->cctx_type_cdf, CCTX_TYPES,
                               ACCT_INFO("cctx_type"));
 #else
+#if CONFIG_CHROMA_LARGE_TX
+  const TX_SIZE square_tx_size = AOMMIN(TX_32X32, txsize_sqr_map[tx_size]);
+#else
   const TX_SIZE square_tx_size = txsize_sqr_map[tx_size];
+#endif  // CONFIG_CHROMA_LARGE_TX
   int above_cctx, left_cctx;
   get_above_and_left_cctx_type(cm, xd, &above_cctx, &left_cctx);
   const int cctx_ctx = get_cctx_context(xd, &above_cctx, &left_cctx);
@@ -2255,7 +2259,11 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
       if (mbmi->uv_mode == UV_CFL_PRED) {
         {
 #if MHCCP_RUNTIME_FLAG
+#if CONFIG_CHROMA_LARGE_TX
+          if (is_mhccp_allowed(cm, xd)) {
+#else
           if (cm->seq_params.enable_mhccp) {
+#endif  // CONFIG_CHROMA_LARGE_TX
             int cfl_mhccp_switch = read_cfl_mhccp_switch(ec_ctx, r);
             if (cfl_mhccp_switch) {
               mbmi->cfl_idx = CFL_MULTI_PARAM;
@@ -3053,7 +3061,11 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
     if (mbmi->uv_mode == UV_CFL_PRED) {
       {
 #if MHCCP_RUNTIME_FLAG
+#if CONFIG_CHROMA_LARGE_TX
+        if (is_mhccp_allowed(cm, xd)) {
+#else
         if (cm->seq_params.enable_mhccp) {
+#endif  // CONFIG_CHROMA_LARGE_TX
           int cfl_mhccp_switch = read_cfl_mhccp_switch(ec_ctx, r);
           if (cfl_mhccp_switch) {
             mbmi->cfl_idx = CFL_MULTI_PARAM;

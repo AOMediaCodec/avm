@@ -738,14 +738,22 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
       ++counts->cfl_index[mbmi->cfl_idx];
 #endif
 #if MHCCP_RUNTIME_FLAG
-      update_cdf(fc->cfl_mhccp_cdf, mbmi->cfl_idx == CFL_MULTI_PARAM,
-                 CFL_MHCCP_SWITCH_NUM);
-      if (mbmi->cfl_idx == CFL_MULTI_PARAM) {
-        aom_cdf_prob *filter_dir_cdf = get_mhccp_dir_cdf(xd, bsize);
-        update_cdf(filter_dir_cdf, mbmi->mh_dir, MHCCP_MODE_NUM);
+#if CONFIG_CHROMA_LARGE_TX
+      if (is_mhccp_allowed(cm, xd)) {
+#endif  // CONFIG_CHROMA_LARGE_TX
+        update_cdf(fc->cfl_mhccp_cdf, mbmi->cfl_idx == CFL_MULTI_PARAM,
+                   CFL_MHCCP_SWITCH_NUM);
+        if (mbmi->cfl_idx == CFL_MULTI_PARAM) {
+          aom_cdf_prob *filter_dir_cdf = get_mhccp_dir_cdf(xd, bsize);
+          update_cdf(filter_dir_cdf, mbmi->mh_dir, MHCCP_MODE_NUM);
+        } else {
+          update_cdf(fc->cfl_index_cdf, mbmi->cfl_idx, CFL_TYPE_COUNT - 1);
+        }
+#if CONFIG_CHROMA_LARGE_TX
       } else {
         update_cdf(fc->cfl_index_cdf, mbmi->cfl_idx, CFL_TYPE_COUNT - 1);
       }
+#endif  // CONFIG_CHROMA_LARGE_TX
 #else
       update_cdf(fc->cfl_index_cdf, mbmi->cfl_idx, CFL_TYPE_COUNT - 1);
       if (mbmi->cfl_idx == CFL_MULTI_PARAM_V) {

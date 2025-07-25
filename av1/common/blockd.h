@@ -1787,13 +1787,16 @@ void copy_nsfilter_taps(WienerNonsepInfo *to_info,
 #define CFL_SUB8X8_VAL_MI_SQUARE \
   (CFL_SUB8X8_VAL_MI_SIZE * CFL_SUB8X8_VAL_MI_SIZE)
 #endif  // CONFIG_DEBUG
-#if CONFIG_CFL_64x64
+#if CONFIG_CHROMA_LARGE_TX
+#define CFL_MAX_BLOCK_SIZE (BLOCK_128X128)
+#define CFL_BUF_LINE (128)
+#elif CONFIG_CFL_64x64
 #define CFL_MAX_BLOCK_SIZE (BLOCK_64X64)
 #define CFL_BUF_LINE (64)
 #else
 #define CFL_MAX_BLOCK_SIZE (BLOCK_32X32)
 #define CFL_BUF_LINE (32)
-#endif  // CONFIG_CFL_64x64
+#endif  // CONFIG_CHROMA_LARGE_TX
 #define CFL_BUF_LINE_I128 (CFL_BUF_LINE >> 3)
 #define CFL_BUF_LINE_I256 (CFL_BUF_LINE >> 4)
 #define CFL_BUF_SQUARE (CFL_BUF_LINE * CFL_BUF_LINE)
@@ -2844,6 +2847,13 @@ static INLINE BLOCK_SIZE get_plane_block_size(BLOCK_SIZE bsize,
   return ss_size_lookup[bsize][subsampling_x][subsampling_y];
 }
 
+#if CONFIG_CHROMA_LARGE_TX
+static INLINE int skip_parsing_recon(int row, int col, int subsampling_x,
+                                     int subsampling_y) {
+  return ((subsampling_x && (col & 16)) || (subsampling_y && (row & 16)));
+}
+#endif  // CONFIG_CHROMA_LARGE_TX
+
 static INLINE int max_block_wide(const MACROBLOCKD *xd, BLOCK_SIZE bsize,
                                  int plane) {
   assert(bsize < BLOCK_SIZES_ALL);
@@ -2876,7 +2886,11 @@ static INLINE int get_plane_tx_unit_height(const MACROBLOCKD *xd,
                                            int row, int ss_y) {
   const int max_plane_blocks_high = max_block_high(xd, plane_bsize, plane);
   const int mu_plane_blocks_high =
+#if CONFIG_CHROMA_LARGE_TX
+      AOMMIN(mi_size_high[BLOCK_64X64], max_plane_blocks_high);
+#else
       AOMMIN(mi_size_high[BLOCK_64X64] >> ss_y, max_plane_blocks_high);
+#endif  // CONFIG_CHROMA_LARGE_TX
   return AOMMIN(mu_plane_blocks_high + (row >> ss_y), max_plane_blocks_high);
 }
 
@@ -2885,7 +2899,11 @@ static INLINE int get_plane_tx_unit_width(const MACROBLOCKD *xd,
                                           int col, int ss_x) {
   const int max_plane_blocks_wide = max_block_wide(xd, plane_bsize, plane);
   const int mu_plane_blocks_wide =
+#if CONFIG_CHROMA_LARGE_TX
+      AOMMIN(mi_size_wide[BLOCK_64X64], max_plane_blocks_wide);
+#else
       AOMMIN(mi_size_wide[BLOCK_64X64] >> ss_x, max_plane_blocks_wide);
+#endif  // CONFIG_CHROMA_LARGE_TX
   return AOMMIN(mu_plane_blocks_wide + (col >> ss_x), max_plane_blocks_wide);
 }
 
@@ -3552,8 +3570,27 @@ static INLINE TX_SIZE av1_get_max_uv_txsize(BLOCK_SIZE bsize, int subsampling_x,
       get_plane_block_size(bsize, subsampling_x, subsampling_y);
   assert(plane_bsize < BLOCK_SIZES_ALL);
   const TX_SIZE uv_tx = max_txsize_rect_lookup[plane_bsize];
+#if CONFIG_CHROMA_LARGE_TX
+  return uv_tx;
+#else
+  return av1_get_adjusted_tx_size(uv_tx);
+#endif  // CONFIG_CHROMA_LARGE_TX
+}
+
+#if CONFIG_CHROMA_LARGE_TX
+// This function is required for MHCCP mode because its applicable coding block
+// size differs from CfL. In CfL, the maximum chroma transform block size is set
+// to 64×64. In MHCCP, the maximum chroma transform block size remains 32×32.
+static INLINE TX_SIZE av1_get_max_uv_txsize_adjusted(BLOCK_SIZE bsize,
+                                                     int subsampling_x,
+                                                     int subsampling_y) {
+  const BLOCK_SIZE plane_bsize =
+      get_plane_block_size(bsize, subsampling_x, subsampling_y);
+  assert(plane_bsize < BLOCK_SIZES_ALL);
+  const TX_SIZE uv_tx = max_txsize_rect_lookup[plane_bsize];
   return av1_get_adjusted_tx_size(uv_tx);
 }
+#endif  // CONFIG_CHROMA_LARGE_TX
 
 static INLINE TX_SIZE av1_get_tx_size(int plane, const MACROBLOCKD *xd) {
   const MB_MODE_INFO *mbmi = xd->mi[0];
@@ -3682,8 +3719,12 @@ static INLINE int get_vartx_max_txsize(const MACROBLOCKD *xd, BLOCK_SIZE bsize,
   }
 
   const TX_SIZE max_txsize = max_txsize_rect_lookup[bsize];
+#if CONFIG_CHROMA_LARGE_TX
+  return max_txsize;
+#else
   if (plane == 0) return max_txsize;            // luma
   return av1_get_adjusted_tx_size(max_txsize);  // chroma
+#endif  // CONFIG_CHROMA_LARGE_TX
 }
 
 static INLINE int is_motion_variation_allowed_bsize(BLOCK_SIZE bsize,
