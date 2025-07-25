@@ -1560,8 +1560,6 @@ static AOM_INLINE void scan_blk_mbmi(
     int max_num_of_warp_candidates, uint8_t *valid_num_warp_candidates,
     MV_REFERENCE_FRAME ref_frame, uint8_t *refmv_count) {
 
-  if (*refmv_count >= MAX_REF_MV_STACK_SIZE) return;
-
   const TileInfo *const tile = &xd->tile;
   POSITION mi_pos;
 
@@ -1596,6 +1594,8 @@ static AOM_INLINE void scan_blk_mbmi(
                                 max_num_of_warp_candidates,
                                 valid_num_warp_candidates, PROJ_SPATIAL);
     }
+
+    if (*refmv_count >= MAX_REF_MV_STACK_SIZE) return;
 
     add_ref_mv_candidate(mi_row, mi_col, cand_mi_row, cand_mi_col, candidate,
 #if CONFIG_C071_SUBBLK_WARPMV
