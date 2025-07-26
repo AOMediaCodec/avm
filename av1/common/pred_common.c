@@ -131,6 +131,9 @@ void av1_get_past_future_cur_ref_lists(AV1_COMMON *cm, RefScoreData *scores) {
 
 #define DIST_WEIGHT_BITS 6
 #define DECAY_DIST_CAP 6
+#if CONFIG_ACROSS_SCALE_REF_RANKING
+#define RES_RATIO_LOG2_BITS 5
+#endif  // CONFIG_ACROSS_SCALE_REF_RANKING
 
 static const int temp_dist_score_lookup[7] = {
   0, 64, 96, 112, 120, 124, 126,
@@ -188,12 +191,20 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
     const int disp_diff = get_relative_dist(&cm->seq_params.order_hint_info,
                                             cur_frame_disp, ref_disp);
 #endif  // CONFIG_MULTILAYER_CORE
+#if CONFIG_ACROSS_SCALE_REF_RANKING
+    const int res_ratio_log2 = get_msb(cm->width * cm->height) -
+                               get_msb(cur_ref.width * cur_ref.height);
+#endif  // CONFIG_ACROSS_SCALE_REF_RANKING
     int tdist = abs(disp_diff);
     const int score =
-        max_disp > cur_frame_disp
-            ? ((tdist << DIST_WEIGHT_BITS) + ref_base_qindex)
-            : temp_dist_score_lookup[AOMMIN(tdist, DECAY_DIST_CAP)] +
-                  AOMMAX(tdist - DECAY_DIST_CAP, 0) + ref_base_qindex;
+        (max_disp > cur_frame_disp
+             ? (tdist << DIST_WEIGHT_BITS)
+             : (temp_dist_score_lookup[AOMMIN(tdist, DECAY_DIST_CAP)] +
+                AOMMAX(tdist - DECAY_DIST_CAP, 0)))
+#if CONFIG_ACROSS_SCALE_REF_RANKING
+        + (res_ratio_log2 << RES_RATIO_LOG2_BITS)
+#endif  // CONFIG_ACROSS_SCALE_REF_RANKING
+        + ref_base_qindex;
     if (is_in_ref_score(scores, ref_disp,
 #if CONFIG_MULTILAYER_CORE
                         ref_layer_id,
@@ -206,6 +217,9 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
     scores[n_ranked].distance = disp_diff;
     scores[n_ranked].disp_order = ref_disp;
     scores[n_ranked].base_qindex = ref_base_qindex;
+#if CONFIG_ACROSS_SCALE_REF_RANKING
+    scores[n_ranked].res_ratio_log2 = res_ratio_log2;
+#endif  // CONFIG_ACROSS_SCALE_REF_RANKING
     n_ranked++;
   }
   if (n_ranked > INTER_REFS_PER_FRAME) {

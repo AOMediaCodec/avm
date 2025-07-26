@@ -228,6 +228,8 @@ set_aom_config_var(CWG_F215_CONFIG_REMOVE_FRAME_ID 1
 set_aom_config_var(
   CONFIG_LOSSLESS_LARGER_IDTX 1
   "AV2 replace 8x8 IDTX with larger IDTX for luma in lossless mode")
+set_aom_config_var(CONFIG_ACROSS_SCALE_REF_RANKING 1 NUMBER
+                   "Reference ranking based on resolutions.")
 
 set_aom_config_var(CONFIG_ACROSS_SCALE_WARP 1 NUMBER
                    "AV2 experiment flag to enable across scale warp modes.")

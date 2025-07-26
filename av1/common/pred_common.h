@@ -95,6 +95,10 @@ typedef struct {
 #if CONFIG_MULTILAYER_CORE
   int layer_id;
 #endif  // CONFIG_MULTILAYER_CORE
+#if CONFIG_ACROSS_SCALE_REF_RANKING
+  // log2 of resolution ratio
+  int res_ratio_log2;
+#endif  // CONFIG_ACROSS_SCALE_REF_RANKING
 } RefScoreData;
 /*!\endcond */
 
