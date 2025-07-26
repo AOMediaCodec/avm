@@ -6419,7 +6419,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
           seq_params->explicit_ref_frame_map ||
           !seq_params->order_hint_info.enable_order_hint;
       if (explicit_ref_frame_map) {
-        if (cm->ref_frames_info.num_total_refs <= 0 ||
+        if (cm->ref_frames_info.num_total_refs < 0 ||
             cm->ref_frames_info.num_total_refs >
                 seq_params->max_reference_frames)
           aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR,

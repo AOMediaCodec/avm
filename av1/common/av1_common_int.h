@@ -389,6 +389,8 @@ typedef struct {
 #if CONFIG_MULTILAYER_CORE
   int layer_id;
 #endif  // CONFIG_MULTILAYER_CORE
+  int width;
+  int height;
 } RefFrameMapPair;
 
 typedef struct BufferPool {
