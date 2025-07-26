@@ -2325,8 +2325,8 @@ void av1_build_one_bawp_inter_predictor(
   int ref_h = scaled_y_gen(bh, sf);
   if ((mi_y_p + ref_h) >= height_p) ref_h = height_p - mi_y_p;
 #else  // CONFIG_BAWP_ACROSS_SCALES
-  const int x_off = mbmi->mv[ref].as_mv.col >> 3;
-  const int y_off = mbmi->mv[ref].as_mv.row >> 3;
+  const int x_off = GET_MV_RAWPEL(mbmi->mv[ref].as_mv.col);
+  const int y_off = GET_MV_RAWPEL(mbmi->mv[ref].as_mv.row);
 
   const int x_off_p = x_off >> inter_pred_params->subsampling_x;
   const int y_off_p = y_off >> inter_pred_params->subsampling_y;
