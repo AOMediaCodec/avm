@@ -5344,10 +5344,14 @@ int av1_convert_sect5obus_to_annexb(uint8_t *buffer, size_t *frame_size) {
     size_t length_of_payload_size;
     size_t length_of_obu_size;
 #if CONFIG_F159_OBUSIZE_ANNEXB
+#if CONFIG_F301_OBU_HEADER
+    uint32_t obu_header_size = (buff_ptr[0] >> 3) & 0x1 ? 2 : 1;
+#else
     uint32_t obu_header_size = OBU_HEADER_SIZE;
+#endif  // CONFIG_F301_OBU_HEADER
 #else
       uint32_t obu_header_size = (buff_ptr[0] >> 2) & 0x1 ? 2 : 1;
-#endif
+#endif                                        // CONFIG_F159_OBUSIZE_ANNEXB
     size_t obu_bytes_read = obu_header_size;  // bytes read for current obu
 
     // save the obu header (1 or 2 bytes)
@@ -5439,7 +5443,11 @@ aom_fixed_buf_t *av1_get_global_headers(AV1_COMP *cpi) {
   if (sequence_header_size == 0) return NULL;
 
 #if CONFIG_F159_OBU_HEADER
+#if CONFIG_F301_OBU_HEADER
+  const size_t obu_header_size = 1;
+#else
   const size_t obu_header_size = 2;
+#endif  // CONFIG_F301_OBU_HEADER
 #else
     const size_t obu_header_size = 1;
 #endif  // CONFIG_F159_OBU_HEADER

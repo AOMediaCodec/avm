@@ -3506,7 +3506,11 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 
           if (ctx->pending_cx_data) {
 #if CONFIG_F159_OBU_HEADER
+#if CONFIG_F301_OBU_HEADER
+            const size_t move_offset = length_field_size + 1;
+#else
             const size_t move_offset = length_field_size + 2;
+#endif  // CONFIG_F301_OBU_HEADER
 #else
             const size_t move_offset = length_field_size + 1;
 #endif  // CONFIG_F159_OBU_HEADER

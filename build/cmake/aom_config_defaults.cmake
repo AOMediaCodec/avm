@@ -149,6 +149,8 @@ set_aom_config_var(CONFIG_F159_OBU_HEADER 1
                    "Enable 2 byte OBU header with layer ids")
 set_aom_config_var(CONFIG_F159_OBUSIZE_ANNEXB 1
                    "Enable annexb, disable size signaling")
+set_aom_config_var(CONFIG_F301_OBU_HEADER 1
+                   "Enable optionally one-byte OBU header with layer ids")
 set_aom_config_var(CONFIG_PARAKIT_COLLECT_DATA 0
                    "enables data collection for ParaKit training.")
 

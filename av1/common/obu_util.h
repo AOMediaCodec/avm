@@ -20,13 +20,22 @@ extern "C" {
 #endif
 
 typedef struct {
-#if !CONFIG_F159_OBU_HEADER
+#if CONFIG_F159_OBU_HEADER
+#if CONFIG_F301_OBU_HEADER
+  size_t size;  // Size (1 or 2 bytes) of the OBU header (including the
+                // optional second byte) in the bitstream.
+#endif          // CONFIG_F301_OBU_HEADER
+#else
   size_t size;  // Size (1 or 2 bytes) of the OBU header (including the
                 // optional OBU extension header) in the bitstream.
-#endif
+#endif  // CONFIG_F159_OBU_HEADER
   OBU_TYPE type;
 #if CONFIG_F159_OBU_HEADER
+#if CONFIG_F301_OBU_HEADER
+  int obu_extension_flag;
+#else
   int obu_reserved_bit;
+#endif  // CONFIG_F301_OBU_HEADER
   int obu_tlayer_id;
   int obu_mlayer_id;  // same as spatial_layer_id in the old design
   int obu_xlayer_id;
