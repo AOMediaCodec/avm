@@ -1104,6 +1104,7 @@ void av1_update_level_info(AV1_COMP *cpi, size_t size, int64_t ts_start,
   const int tlayer_id = cm->tlayer_id;
   const int mlayer_id = cm->mlayer_id;
   const int xlayer_id = cm->xlayer_id;
+  (void) xlayer_id;
 #else
   const int temporal_layer_id = cm->temporal_layer_id;
   const int spatial_layer_id = cm->spatial_layer_id;

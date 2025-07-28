@@ -356,6 +356,7 @@ enum {
 #if CONFIG_F159_OBU_HEADER
 #define OP_POINTS_CNT_MINUS_1_BITS 6
 #define OP_POINTS_IDC_BITS 16
+#define ENABLE_LEVEL_EXTENSION 0
 #else
 #define OP_POINTS_CNT_MINUS_1_BITS 5
 #define OP_POINTS_IDC_BITS 12
@@ -1077,7 +1078,7 @@ enum {
   SEQ_LEVEL_7_3,
   SEQ_LEVELS,
 // TODO (@hegilmez): subject to change, pending level design
-#if CONFIG_F159_OBU_HEADER
+#if CONFIG_F159_OBU_HEADER && ENABLE_LEVEL_EXTENSION
   SEQ_LEVEL_MAX = 63
 #else
   SEQ_LEVEL_MAX = 31
@@ -1085,7 +1086,7 @@ enum {
 } UENUM1BYTE(AV1_LEVEL);
 
 // TODO (@hegilmez): subject to change, pending level design
-#if CONFIG_F159_OBU_HEADER
+#if CONFIG_F159_OBU_HEADER && ENABLE_LEVEL_EXTENSION
 #define LEVEL_BITS 6
 #else
 #define LEVEL_BITS 5
