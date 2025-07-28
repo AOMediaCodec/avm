@@ -644,12 +644,12 @@ void av1_set_quantizer(AV1_COMP *const cpi, int min_qmlevel, int max_qmlevel,
                        &quant_params->v_ac_delta_q);
   cm->cur_frame->u_ac_delta_q = quant_params->u_ac_delta_q;
   cm->cur_frame->v_ac_delta_q = quant_params->v_ac_delta_q;
-
   if (cpi->oxcf.unit_test_cfg.frame_multi_qmatrix_unit_test == 0) {
     set_qm_params(cm, quant_params, min_qmlevel, max_qmlevel);
   } else {
-    set_qm_test_params(cm, quant_params, min_qmlevel, max_qmlevel,
-                       cpi->oxcf.unit_test_cfg.frame_multi_qmatrix_unit_test);
+    set_qm_test_params(cm, quant_params, min_qmlevel, max_qmlevel, 4
+                       // cpi->oxcf.unit_test_cfg.frame_multi_qmatrix_unit_test
+    );
   }
 }
 

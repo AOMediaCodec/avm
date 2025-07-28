@@ -226,9 +226,10 @@ AV1Decoder *av1_decoder_create(BufferPool *const pool) {
   cm->num_ref_filters = NULL;
 
   av1_loop_filter_init(cm);
-
+#if !CONFIG_F255_QMOBU
   cm->quant_params.qmatrix_allocated = false;
   cm->quant_params.qmatrix_initialized = false;
+#endif  // !CONFIG_F255_QMOBU
 
 #if CONFIG_ACCOUNTING
   pbi->acct_enabled = 1;
@@ -442,13 +443,19 @@ void av1_decoder_remove(AV1Decoder *pbi) {
     }
   }
 #endif
-
+#if CONFIG_F255_QMOBU
+  for (int qm_pos = 0; qm_pos < NUM_CUSTOM_QMS; qm_pos++) {
+    if (pbi->qm_list[qm_pos].quantizer_matrix != NULL)
+      av1_free_qm(pbi->qm_list[qm_pos].quantizer_matrix,
+                  pbi->common.seq_params.monochrome ? 1 : 3, qm_pos);
+  }
+#else
   if (pbi->common.quant_params.qmatrix_allocated) {
     av1_free_qm(pbi->common.seq_params.quantizer_matrix_8x8);
     av1_free_qm(pbi->common.seq_params.quantizer_matrix_8x4);
     av1_free_qm(pbi->common.seq_params.quantizer_matrix_4x8);
   }
-
+#endif  // CONFIG_F255_QMOBU
   aom_free(pbi);
 }
 

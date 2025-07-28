@@ -435,6 +435,13 @@ typedef struct AV1Decoder {
   struct OperatingPointSet ops_list[MAX_NUM_OPS_ID];
   int ops_counter;
 #endif  // CONFIG_MULTILAYER_HLS
+
+#if CONFIG_F255_QMOBU
+  struct quantization_matrix_set
+      qm_list[NUM_CUSTOM_QMS];  //[jkei] NUM_CUSTOM_QMS or NUM_QM_LEVELS?
+  int total_signalled_qm_count;
+#endif  // CONFIG_F255_QMOBU
+
 } AV1Decoder;
 
 // Returns 0 on success. Sets pbi->common.error.error_code to a nonzero error

@@ -28,6 +28,9 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
 aom_codec_err_t aom_get_num_layers_from_operating_point_idc(
     int operating_point_idc, unsigned int *number_spatial_layers,
     unsigned int *number_temporal_layers);
+#if CONFIG_F255_QMOBU
+uint32_t read_qm_obu(AV1Decoder *pbi, struct aom_read_bit_buffer *rb);
+#endif  // CONFIG_F255_QMOBU
 
 #if CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
 uint32_t av1_read_buffer_removal_timing_obu(struct AV1Decoder *pbi,

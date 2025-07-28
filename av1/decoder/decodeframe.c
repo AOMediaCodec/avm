@@ -3965,13 +3965,74 @@ static AOM_INLINE void setup_quantization(CommonQuantParams *quant_params,
     quant_params->v_ac_delta_q = 0;
   }
 }
+#if CONFIG_F255_QMOBU
+void setup_cm_quant_params(AV1Decoder *pbi, CommonQuantParams *quant_params,
+                           int num_planes, int qmlevel) {
+#if 1  // ENABLE_QM_TRACE
+  printf("(%s)qmlevel %d\n", __func__, qmlevel);
+  fflush(stdout);
+#endif
+  int qm_pos_found = -1;
+  // int valid_qm_num = AOMMIN(pbi->total_signalled_qm_count, NUM_CUSTOM_QMS);
+  for (int qm_pos = 0; qm_pos < NUM_CUSTOM_QMS; qm_pos++) {
+#if 1
+    printf("(%s)pbi->qm_list[%d/%d].qm_id %d\n", __func__, qm_pos,
+           NUM_CUSTOM_QMS, pbi->qm_list[qm_pos].qm_id);
+    fflush(stdout);
+#endif
+    if (pbi->qm_list[qm_pos].qm_id == qmlevel) {
+      qm_pos_found = qm_pos;
+      break;
+    }
+  }
+#if 1  // ENABLE_QM_TRACE
+  printf("(setup_cm_quant_params)qm_pos_found %d\n", qm_pos_found);
+  fflush(stdout);
+#endif
 
-static AOM_INLINE void setup_qm_params(SequenceHeader *seq_params,
-                                       CommonQuantParams *quant_params,
-                                       bool segmentation_enabled,
-                                       int num_planes,
-                                       struct aom_read_bit_buffer *rb) {
+  int q = NUM_QM_LEVELS - 1;
+  if (qm_pos_found >= 0) q = qmlevel;
+
+  for (int c = 0; c < num_planes; ++c) {
+    // Generate matrices for each tx size
+    int current = 0;
+    for (int t = 0; t < TX_SIZES_ALL; ++t) {
+      const int size = tx_size_2d[t];
+      const int qm_tx_size = av1_get_adjusted_tx_size(t);
+      if (q == NUM_QM_LEVELS - 1) {
+        quant_params->giqmatrix[q][c][t] = NULL;
+      } else if (t != qm_tx_size) {  // Reuse matrices for 'qm_tx_size'
+        assert(t > qm_tx_size);
+        quant_params->giqmatrix[q][c][t] =
+            quant_params->giqmatrix[q][c][qm_tx_size];
+      } else {
+        assert(current + size <= QM_TOTAL_SIZE);
+        // Generate the iwt matrices from the base matrices.
+        const int plane = c;
+        scale_tx(t, q, plane, &quant_params->iwt_matrix_ref[q][plane][current],
+                 pbi->qm_list[qm_pos_found].quantizer_matrix);
+        quant_params->giqmatrix[q][c][t] =
+            &quant_params->iwt_matrix_ref[q][plane][current];
+        current += size;
+      }
+    }
+  }
+}
+#endif  // CONFIG_F255_QMOBU
+
+static AOM_INLINE void setup_qm_params(
+#if CONFIG_F255_QMOBU
+    AV1Decoder *pbi,
+#else
+    SequenceHeader *seq_params,
+#endif  // CONFIG_F255_QMOBU
+    CommonQuantParams *quant_params, bool segmentation_enabled, int num_planes,
+    struct aom_read_bit_buffer *rb) {
   quant_params->using_qmatrix = aom_rb_read_bit(rb);
+#if CONFIG_F255_QMOBU
+  AV1_COMMON *const cm = &pbi->common;
+  const SequenceHeader *const seq_params = &cm->seq_params;
+#else
   if (quant_params->using_qmatrix) {
     if (!quant_params->qmatrix_allocated) {
       seq_params->quantizer_matrix_8x8 = av1_alloc_qm(8, 8);
@@ -3995,6 +4056,7 @@ static AOM_INLINE void setup_qm_params(SequenceHeader *seq_params,
 #if CONFIG_QM_DEBUG
   printf("[DEC-FRM] using_qmatrix: %d\n", quant_params->using_qmatrix);
 #endif
+#endif  // CONFIG_F255_QMOBU
   if (quant_params->using_qmatrix) {
     if (segmentation_enabled) {
       quant_params->pic_qm_num = aom_rb_read_literal(rb, 2) + 1;
@@ -4033,6 +4095,49 @@ static AOM_INLINE void setup_qm_params(SequenceHeader *seq_params,
       }
 #endif
     }
+#if CONFIG_F255_QMOBU
+#if 1
+    printf("(read_uncompressed_header) pic_qm_num %d\n",
+           quant_params->pic_qm_num);
+    for (uint8_t i = 0; i < quant_params->pic_qm_num; i++) {
+      printf("(read_uncompressed_header) doh[%d] qm_yuv[%d] %d, %d, %d\n",
+             pbi->common.current_frame.display_order_hint, i,
+             quant_params->qm_y[i], quant_params->qm_u[i],
+             quant_params->qm_v[i]);
+    }
+    printf("qm_list.qm_id:\t");
+    for (int qm_pos = 0; qm_pos < NUM_CUSTOM_QMS; qm_pos++) {
+      printf("%d, ", pbi->qm_list[qm_pos].qm_id);
+    }
+    printf("\n");
+#endif
+    for (uint8_t i = 0; i < quant_params->pic_qm_num; i++) {
+#if 1  // ENABLE_QM_TRACE
+       //      printf("(read_uncompressed_header) doh[%d] qm_id[%d] %d, %d,
+       //      %d\n",
+       //             pbi->common.current_frame.display_order_hint, i,
+       //             quant_params->qm_y[i], quant_params->qm_u[i],
+       //             quant_params->qm_v[i]);
+      printf("(read_uncompressed_header) y[%d]: %d\n", i,
+             quant_params->qm_y[i]);
+#endif
+      setup_cm_quant_params(pbi, quant_params, num_planes,
+                            quant_params->qm_y[i]);
+#if 1
+      printf("(read_uncompressed_header) u[%d]: %d\n", i,
+             quant_params->qm_u[i]);
+#endif
+      setup_cm_quant_params(pbi, quant_params, num_planes,
+                            quant_params->qm_u[i]);
+#if 1
+      printf("(read_uncompressed_header) v[%d]: %d\n", i,
+             quant_params->qm_v[i]);
+#endif
+
+      setup_cm_quant_params(pbi, quant_params, num_planes,
+                            quant_params->qm_v[i]);
+    }
+#endif  // CONFIG_F255_QMOBU
   } else {
     for (uint8_t i = 0; i < 4; i++) {
       quant_params->qm_y[i] = 0;
@@ -4041,10 +4146,17 @@ static AOM_INLINE void setup_qm_params(SequenceHeader *seq_params,
     }
   }
 }
-
 // Build y/uv dequant values based on segmentation.
-static AOM_INLINE void setup_segmentation_dequant(AV1_COMMON *const cm,
-                                                  MACROBLOCKD *const xd) {
+static AOM_INLINE void setup_segmentation_dequant(
+#if CONFIG_F255_QMOBU
+    AV1Decoder *const pbi,
+#else
+    AV1_COMMON *const cm,
+#endif  // CONFIG_F255_QMOBU
+    MACROBLOCKD *const xd) {
+#if CONFIG_F255_QMOBU
+  AV1_COMMON *const cm = &pbi->common;
+#endif  // CONFIG_F255_QMOBU
   const int bit_depth = cm->seq_params.bit_depth;
   // When segmentation is disabled, only the first value is used.  The
   // remaining are don't cares.
@@ -7204,7 +7316,7 @@ void av1_read_sequence_header(
   }
 #endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 }
-
+#if !CONFIG_F255_QMOBU
 // Decodes the user-defined quantization matrices for the given level and stores
 // them in seq_params.
 static AOM_INLINE void decode_qm_data(
@@ -7307,11 +7419,14 @@ static AOM_INLINE void decode_user_defined_qm(
     }
   }
 }
-
+#endif  // !CONFIG_F255_QMOBU
 void av1_read_sequence_header_beyond_av1(
-    struct aom_read_bit_buffer *rb, SequenceHeader *seq_params,
-    CommonQuantParams *quant_params,
-    struct aom_internal_error_info *error_info) {
+    struct aom_read_bit_buffer *rb, SequenceHeader *seq_params
+#if !CONFIG_F255_QMOBU
+    ,
+    CommonQuantParams *quant_params, struct aom_internal_error_info *error_info
+#endif  // !CONFIG_F255_QMOBU
+) {
   // printf("print sps\n");
   seq_params->enable_refmvbank = aom_rb_read_bit(rb);
   if (aom_rb_read_bit(rb)) {
@@ -7490,28 +7605,13 @@ void av1_read_sequence_header_beyond_av1(
 #if CONFIG_EXT_SEG
   seq_params->enable_ext_seg = aom_rb_read_bit(rb);
 #endif  // CONFIG_EXT_SEG
+#if !CONFIG_F255_QMOBU
   seq_params->user_defined_qmatrix = aom_rb_read_bit(rb);
 #if CONFIG_QM_DEBUG
   printf("[DEC-SEQ] user_defined_qmatrix=%d\n",
          seq_params->user_defined_qmatrix);
 #endif
-  if (seq_params->user_defined_qmatrix) {
-    int num_planes = seq_params->monochrome ? 1 : MAX_MB_PLANE;
-    if (!quant_params->qmatrix_allocated) {
-      seq_params->quantizer_matrix_8x8 = av1_alloc_qm(8, 8);
-      seq_params->quantizer_matrix_8x4 = av1_alloc_qm(8, 4);
-      seq_params->quantizer_matrix_4x8 = av1_alloc_qm(4, 8);
-      quant_params->qmatrix_allocated = true;
-    }
-    av1_init_qmatrix(seq_params->quantizer_matrix_8x8,
-                     seq_params->quantizer_matrix_8x4,
-                     seq_params->quantizer_matrix_4x8, num_planes);
-    decode_user_defined_qm(seq_params, rb, num_planes, error_info);
-  } else {
-    for (uint16_t i = 0; i < NUM_CUSTOM_QMS; i++) {
-      seq_params->qm_data_present[i] = false;
-    }
-  }
+#endif  // !CONFIG_F255_QMOBU
 }
 
 #if CONFIG_MFH_SIGNAL_TILE_INFO
@@ -10016,9 +10116,19 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   }
 
   setup_segmentation(cm, rb);
-
-  setup_qm_params(&cm->seq_params, quant_params, cm->seg.enabled,
-                  av1_num_planes(cm), rb);
+#if 1
+  for (int qm_pos = 0; qm_pos < NUM_CUSTOM_QMS; qm_pos++) {
+    printf("(%s)pbi->qm_list[%d/%d].qm_id %d\n", __func__, qm_pos,
+           NUM_CUSTOM_QMS, pbi->qm_list[qm_pos].qm_id);
+  }
+#endif
+  setup_qm_params(
+#if CONFIG_F255_QMOBU
+      pbi,
+#else
+        &cm->seq_params,
+#endif
+      quant_params, cm->seg.enabled, av1_num_planes(cm), rb);
 
   cm->delta_q_info.delta_q_res = 1;
   cm->delta_q_info.delta_lf_res = 1;
@@ -10101,7 +10211,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   else
     features->allow_parity_hiding = aom_rb_read_bit(rb);
 
-  setup_segmentation_dequant(cm, xd);
+#if CONFIG_F255_QMOBU
+  setup_segmentation_dequant(pbi, xd);
+#else
+    setup_segmentation_dequant(cm, xd);
+#endif  // CONFIG_F255_QMOBU
 
   if (features->coded_lossless) {
     cm->lf.filter_level[0] = 0;

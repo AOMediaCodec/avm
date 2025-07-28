@@ -1051,8 +1051,10 @@ typedef struct SequenceHeader {
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 #if CONFIG_EXT_SEG
   uint8_t enable_ext_seg;
-#endif                                   // CONFIG_EXT_SEG
-  bool user_defined_qmatrix;             // User defined quantizer matrix
+#endif  // CONFIG_EXT_SEG
+#if CONFIG_F255_QMOBU
+  bool user_defined_qmatrix;  // User defined quantizer matrix
+#else
   bool qm_data_present[NUM_CUSTOM_QMS];  // User defined QM data present
   // Note: qm_copy_from_previous_plane and qm_4x8_is_transpose_of_8x4 flags
   // are automatically derived from stored QM coefficient data
@@ -1062,6 +1064,7 @@ typedef struct SequenceHeader {
   qm_val_t ***quantizer_matrix_8x8;
   qm_val_t ***quantizer_matrix_8x4;
   qm_val_t ***quantizer_matrix_4x8;
+#endif  // CONFIG_F255_QMOBU
 
   BITSTREAM_PROFILE profile;
 
@@ -2060,6 +2063,55 @@ typedef struct BridgeFrame_Info {
 } BridgeFrameInfo;
 #endif  // CONFIG_CWG_F317
 
+#if CONFIG_F255_QMOBU
+/*!
+ * \brief Structure used for quantization matrix set
+ */
+
+struct quantization_matrix_set {
+  /*!
+   * id of the quantization matrix
+   */
+  int qm_id;
+  /*!
+   * Indicates the index of the predefined matrix indicated by the quantization
+   * matrix
+   */
+  int qm_default_index;  // -1: user_defined 0~15: predefined_matrix_idx
+  /*!
+   * quantization matrix
+   */
+  qm_val_t ***quantizer_matrix;  //[8x8/8x4,4x8][y/u/v][64]
+  //    for (int c = 0; c < num_planes; ++c) {
+  //      // plane_type: 0:luma, 1:chroma
+  //      const int plane_type = (c >= 1);
+  //      memcpy(qm_8x8[q][c], default_8x8_iwt_base_matrix[q][plane_type],
+  //             8 * 8 * sizeof(qm_val_t));
+  //      memcpy(qm_8x4[q][c], default_8x4_iwt_base_matrix[q][plane_type],
+  //             8 * 4 * sizeof(qm_val_t));
+  //      memcpy(qm_4x8[q][c], default_4x8_iwt_base_matrix[q][plane_type],
+  //             4 * 8 * sizeof(qm_val_t));
+  //    }
+};
+/*!
+ * \brief Structure for an obu with obu_type equals to OBU_QM
+ */
+struct qm_obu {
+  /*!
+   * Mask to indicates the ids of quantization matrices in this OBU_QM
+   */
+  int qm_bit_map;
+  /*!
+   * Indication that quantization matrices are in monochrome
+   */
+  int qm_is_monochrome;
+  /*!
+   * list of quantization matrices
+   */
+  struct quantization_matrix_set qm_list[NUM_CUSTOM_QMS];  // max NUM_CUSTOM_QM
+};
+#endif  // CONFIG_F255_QMOBU
+
 /*!
  * \brief Top level common structure used by both encoder and decoder.
  */
@@ -2698,6 +2750,18 @@ typedef struct AV1Common {
    */
   struct OperatingPointSet *ops;
 #endif  // CONFIG_MULTILAYER_HLS
+
+#if CONFIG_F255_QMOBU
+  /*!
+   * Flags to indicate whether user defined qm is used for id, i
+   */
+  bool use_user_defined_qm[NUM_CUSTOM_QMS];
+  /*!
+   * new_qmobu_added
+   */
+  int new_qmobu_added;
+#endif  // CONFIG_F255_QMOBU
+
 } AV1_COMMON;
 
 /*!\cond */

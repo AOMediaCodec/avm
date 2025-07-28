@@ -353,11 +353,11 @@ const qm_val_t *av1_get_qmatrix(const CommonQuantParams *quant_params,
              ? pd->seg_qmatrix[seg_id][qm_tx_size]
              : quant_params->gqmatrix[NUM_QM_LEVELS - 1][0][qm_tx_size];
 }
-
+#if !CONFIG_F255_QMOBU
 static const qm_val_t default_8x8_iwt_base_matrix[NUM_QM_LEVELS - 1][2][64];
 static const qm_val_t default_8x4_iwt_base_matrix[NUM_QM_LEVELS - 1][2][8 * 4];
 static const qm_val_t default_4x8_iwt_base_matrix[NUM_QM_LEVELS - 1][2][4 * 8];
-
+#endif  // !CONFIG_F255_QMOBU
 // Upsamples base matrix using indexing according to input and output
 // dimensions.
 static void upsample(const int input_w, const int input_h, const int output_w,
@@ -374,6 +374,24 @@ static void upsample(const int input_w, const int input_h, const int output_w,
       output[(y * output_w) + x] = input[subsample_y * input_w + subsample_x];
     }
   }
+#if 0
+  if(input_w==8 && input_h==8 && output_w==8 && output_h==8){
+    printf("input8x8\n");
+    for (int y = 0; y < output_h; ++y) {
+      for (int x = 0; x < output_w; ++x) {
+        printf("%d, ", input[(y * input_w) + x]);
+      }
+      printf("\n");
+    }
+    printf("output8x8\n");
+    for (int y = 0; y < output_h; ++y) {
+      for (int x = 0; x < output_w; ++x) {
+        printf("%d, ", output[(y * output_w) + x]);
+      }
+      printf("\n");
+    }
+  }
+#endif
 }
 
 // Downsamples base matrix using indexing according to input and output
@@ -396,24 +414,77 @@ static void downsample(const int input_w, const int input_h, const int output_w,
 // Given output tx size and QM level, output the correctly scaled matrix based
 // on the source matrices.
 // plane: 0:Y, 1:U, 2:V
-static void scale_tx(const int txsize, const int level, const int plane,
-                     qm_val_t *output, qm_val_t ****fund_matrices) {
+#if CONFIG_F255_QMOBU
+static void scale_tx_init(const int txsize, const int level, const int plane,
+                          qm_val_t *output) {
+  int c = plane;
+  if (plane > 1) c = 1;
   int height = tx_size_high[txsize];
   int width = tx_size_wide[txsize];
 
   if (width == 4 && height == 4) {
     // TX4X4 is the only case using downsampling
-    const qm_val_t *input = fund_matrices[0][level][plane];
+    const qm_val_t *input = predefined_8x8_iwt_base_matrix[level][c];
     downsample(8, 8, 4, 4, 0, 0, input, output);
   } else if (width == height) {
-    const qm_val_t *input = fund_matrices[0][level][plane];
+    const qm_val_t *input = predefined_8x8_iwt_base_matrix[level][c];
     upsample(8, 8, width, height, input, output);
   } else if (width > height) {
-    const qm_val_t *input = fund_matrices[1][level][plane];
+    const qm_val_t *input = predefined_8x4_iwt_base_matrix[level][c];
     upsample(8, 4, width, height, input, output);
   } else {
     // width < height
+    const qm_val_t *input = predefined_4x8_iwt_base_matrix[level][c];
+    upsample(4, 8, width, height, input, output);
+  }
+}
+#endif  // CONFIG_F255_QMOBU
+#if !CONFIG_F255_QMOBU
+static
+#endif  // !CONFIG_F255_QMOBU
+    void
+    scale_tx(const int txsize, const int level, const int plane,
+#if CONFIG_F255_QMOBU
+             qm_val_t *output, qm_val_t ***fund_matrices
+#else
+                     qm_val_t *output, qm_val_t ****fund_matrices
+#endif  // CONFIG_F255_QMOBU
+    ) {
+#if CONFIG_F255_QMOBU
+  (void)level;
+#endif
+  int height = tx_size_high[txsize];
+  int width = tx_size_wide[txsize];
+
+  if (width == 4 && height == 4) {
+    // TX4X4 is the only case using downsampling
+#if CONFIG_F255_QMOBU
+    const qm_val_t *input = fund_matrices[0][plane];
+#else
+    const qm_val_t *input = fund_matrices[0][level][plane];
+#endif  // CONFIG_F255_QMOBU
+    downsample(8, 8, 4, 4, 0, 0, input, output);
+  } else if (width == height) {
+#if CONFIG_F255_QMOBU
+    const qm_val_t *input = fund_matrices[0][plane];
+#else
+    const qm_val_t *input = fund_matrices[0][level][plane];
+#endif  // CONFIG_F255_QMOBU
+    upsample(8, 8, width, height, input, output);
+  } else if (width > height) {
+#if CONFIG_F255_QMOBU
+    const qm_val_t *input = fund_matrices[1][plane];
+#else
+    const qm_val_t *input = fund_matrices[1][level][plane];
+#endif  // CONFIG_F255_QMOBU
+    upsample(8, 4, width, height, input, output);
+  } else {
+    // width < height
+#if CONFIG_F255_QMOBU
+    const qm_val_t *input = fund_matrices[2][plane];
+#else
     const qm_val_t *input = fund_matrices[2][level][plane];
+#endif
     upsample(4, 8, width, height, input, output);
   }
 }
@@ -430,6 +501,114 @@ static void calc_wt_matrix(const int txsize, const qm_val_t *iwt_matrix,
   }
 }
 
+#if CONFIG_F255_QMOBU
+qm_val_t ***av1_alloc_qmset(int num_planes) {
+  // const int num_planes = 3;   // Y, U, V planes
+  const int num_tx_size = 3;  // 8x8, 8x4, 4x8
+  qm_val_t ***mat = (qm_val_t ***)aom_malloc(num_tx_size * sizeof(qm_val_t **));
+  for (int q = 0; q < num_tx_size; q++) {
+    mat[q] = (qm_val_t **)aom_malloc(num_planes * sizeof(qm_val_t *));
+    int num_coeff = 8 * 8;
+    if (q != 0) num_coeff = 32;
+    for (int c = 0; c < num_planes; c++) {
+      mat[q][c] = (qm_val_t *)aom_malloc(num_coeff * sizeof(qm_val_t));
+    }
+  }
+#if ENABLE_QM_TRACE
+  printf("av1_alloc_qmset: mat %p\n", mat);
+#endif
+  return mat;
+}
+void av1_free_qm(qm_val_t ***mat, int num_planes, int qm_pos) {
+  const int num_tsize = 3;  // 8x8, 8x4, 4x8
+#if ENABLE_QM_TRACE
+  printf("av1_free_qm: qm[%d] %p\n", qm_pos, mat);
+  for (int t = 0; t < 3; t++) {
+    for (int c = 0; c < num_planes; c++) {
+      printf("\tqm_set->quantizer_matrix[%d][%d]:%p\n", t, c, &mat[t][c]);
+    }
+  }
+#endif
+  (void)qm_pos;
+  for (int q = 0; q < num_tsize; q++) {
+    for (int c = 0; c < num_planes; c++) {
+      if (mat[q][c] != NULL) aom_free(mat[q][c]);
+    }
+    if (mat[q] != NULL) aom_free(mat[q]);
+  }
+  if (mat != NULL) aom_free(mat);
+}
+#if CONFIG_F255_QMOBU_USERQM_TEST
+void av1_test_user_defined_qm_load(qm_val_t ***user_qmatrix_set, int num_planes,
+                                   int qm_idx) {
+  if (user_qmatrix_set == NULL) user_qmatrix_set = av1_alloc_qmset(num_planes);
+  // it is an example:[tx_size][color][64,32,32]
+  if (qm_idx == 5) {
+    for (int plane = 0; plane < num_planes; plane++) {
+      const qm_val_t *user_qm_values8x8 =
+          &user_defined_qm_8x8[plane == 0 ? 0 : 1][0];
+      const qm_val_t *user_qm_values8x4 =
+          &user_defined_qm_8x4[plane == 0 ? 0 : 1][0];
+      const qm_val_t *user_qm_values4x8 =
+          &user_defined_qm_4x8[plane == 0 ? 0 : 1][0];
+      memcpy(user_qmatrix_set[0][plane], user_qm_values8x8,
+             sizeof(qm_val_t) * 8 * 8);
+      memcpy(user_qmatrix_set[1][plane], user_qm_values8x4,
+             sizeof(qm_val_t) * 32);
+      memcpy(user_qmatrix_set[2][plane], user_qm_values4x8,
+             sizeof(qm_val_t) * 32);
+    }
+  } else if (qm_idx == 7) {
+    for (int plane = 0; plane < num_planes; plane++) {
+      const qm_val_t *user_qm_values8x8 = &flat_qm_8x8[plane == 0 ? 0 : 1][0];
+      const qm_val_t *user_qm_values8x4 = &flat_qm_8x4[plane == 0 ? 0 : 1][0];
+      const qm_val_t *user_qm_values4x8 = &flat_qm_4x8[plane == 0 ? 0 : 1][0];
+      memcpy(user_qmatrix_set[0][plane], user_qm_values8x8,
+             sizeof(qm_val_t) * 8 * 8);
+      memcpy(user_qmatrix_set[1][plane], user_qm_values8x4,
+             sizeof(qm_val_t) * 32);
+      memcpy(user_qmatrix_set[2][plane], user_qm_values4x8,
+             sizeof(qm_val_t) * 32);
+    }
+  }
+}
+#endif  // CONFIG_F255_QMOBU_USERQM_TEST
+
+void av1_qm_frame_update(struct CommonQuantParams *quant_params, int num_planes,
+                         int q, qm_val_t ***matrix_set) {
+  // matrix_set[tx_size(3)][color(3)][64,32,32]
+  assert(q != (NUM_QM_LEVELS - 1));
+  for (int c = 0; c < num_planes; ++c) {
+    // Generate matrices for each tx size
+    int current = 0;
+    for (int t = 0; t < TX_SIZES_ALL; ++t) {
+      const int size = tx_size_2d[t];
+      const int qm_tx_size = av1_get_adjusted_tx_size(t);
+      if (t != qm_tx_size) {  // Reuse matrices for 'qm_tx_size'
+        assert(t > qm_tx_size);
+        quant_params->gqmatrix[q][c][t] =
+            quant_params->gqmatrix[q][c][qm_tx_size];
+        quant_params->giqmatrix[q][c][t] =
+            quant_params->giqmatrix[q][c][qm_tx_size];
+      } else {
+        assert(current + size <= QM_TOTAL_SIZE);
+        // Generate the iwt and wt matrices from the base matrices.
+        const int plane = c;
+        scale_tx(t, q, plane, &quant_params->iwt_matrix_ref[q][plane][current],
+                 matrix_set);
+        calc_wt_matrix(t, &quant_params->iwt_matrix_ref[q][plane][current],
+                       &quant_params->wt_matrix_ref[q][plane][current]);
+
+        quant_params->gqmatrix[q][c][t] =
+            &quant_params->wt_matrix_ref[q][plane][current];
+        quant_params->giqmatrix[q][c][t] =
+            &quant_params->iwt_matrix_ref[q][plane][current];
+        current += size;
+      }
+    }  // t
+  }  // c
+}
+#else   // CONFIG_F255_QMOBU
 qm_val_t ***av1_alloc_qm(int width, int height) {
   const int num_planes = 3;  // Y, U, V planes
   qm_val_t ***mat =
@@ -442,7 +621,6 @@ qm_val_t ***av1_alloc_qm(int width, int height) {
   }
   return mat;
 }
-
 void av1_free_qm(qm_val_t ***mat) {
   const int num_planes = 3;  // Y, U, V planes
   for (int q = 0; q < NUM_CUSTOM_QMS; q++) {
@@ -472,9 +650,14 @@ void av1_init_qmatrix(qm_val_t ***qm_8x8, qm_val_t ***qm_8x4,
     }
   }
 }
+#endif  // CONFIG_F255_QMOBU
 
-void av1_qm_init(CommonQuantParams *quant_params, int num_planes,
-                 qm_val_t ****fund_matrices) {
+void av1_qm_init(CommonQuantParams *quant_params, int num_planes
+#if !CONFIG_F255_QMOBU
+                 ,
+                 qm_val_t ****fund_matrices
+#endif  // !CONFIG_F255_QMOBU
+) {
   for (int q = 0; q < NUM_QM_LEVELS; ++q) {
     for (int c = 0; c < num_planes; ++c) {
       // Generate matrices for each tx size
@@ -495,9 +678,14 @@ void av1_qm_init(CommonQuantParams *quant_params, int num_planes,
           assert(current + size <= QM_TOTAL_SIZE);
           // Generate the iwt and wt matrices from the base matrices.
           const int plane = c;
+#if CONFIG_F255_QMOBU
+          scale_tx_init(t, q, plane,
+                        &quant_params->iwt_matrix_ref[q][plane][current]);
+#else
           scale_tx(t, q, plane,
                    &quant_params->iwt_matrix_ref[q][plane][current],
                    fund_matrices);
+#endif  // CONFIG_F255_QMOBU
           calc_wt_matrix(t, &quant_params->iwt_matrix_ref[q][plane][current],
                          &quant_params->wt_matrix_ref[q][plane][current]);
 
@@ -512,8 +700,15 @@ void av1_qm_init(CommonQuantParams *quant_params, int num_planes,
   }
 }
 
-void av1_qm_init_dequant_only(CommonQuantParams *quant_params, int num_planes,
-                              qm_val_t ****fund_matrices) {
+void av1_qm_init_dequant_only(CommonQuantParams *quant_params, int num_planes
+#if CONFIG_F255_QMOBU
+                              ,
+                              qm_val_t ***fund_matrices
+#else
+                              ,
+                              qm_val_t ****fund_matrices
+#endif  // CONFIG_F255_QMOBU
+) {
   for (int q = 0; q < NUM_QM_LEVELS; ++q) {
     for (int c = 0; c < num_planes; ++c) {
       // Generate matrices for each tx size
@@ -531,10 +726,15 @@ void av1_qm_init_dequant_only(CommonQuantParams *quant_params, int num_planes,
           assert(current + size <= QM_TOTAL_SIZE);
           // Generate the iwt matrices from the base matrices.
           const int plane = c;
-          scale_tx(t, q, plane,
-                   &quant_params->iwt_matrix_ref[q][plane][current],
-                   fund_matrices);
-
+#if CONFIG_F255_QMOBU
+          if (fund_matrices == NULL)
+            scale_tx_init(t, q, plane,
+                          &quant_params->iwt_matrix_ref[q][plane][current]);
+          else
+#endif  // CONFIG_F255_QMOBU
+            scale_tx(t, q, plane,
+                     &quant_params->iwt_matrix_ref[q][plane][current],
+                     fund_matrices);
           quant_params->giqmatrix[q][c][t] =
               &quant_params->iwt_matrix_ref[q][plane][current];
           current += size;
@@ -545,7 +745,13 @@ void av1_qm_init_dequant_only(CommonQuantParams *quant_params, int num_planes,
 }
 
 void av1_qm_replace_level(CommonQuantParams *quant_params, int level,
-                          int num_planes, qm_val_t ****fund_matrices) {
+#if CONFIG_F255_QMOBU
+                          int num_planes, qm_val_t ***fund_matrices
+#else
+                          int num_planes, qm_val_t ****fund_matrices
+#endif  // CONFIG_F255_QMOBU
+
+) {
   const int q = level;
   for (int c = 0; c < num_planes; ++c) {
     // Generate matrices for each tx size
@@ -758,7 +964,7 @@ static const int iwt_matrix_para[BASE_TX_SIZES_ALL][2][13][9] = {
 };
 
 */
-
+#if !CONFIG_F255_QMOBU
 /* Provide 15 sets of base quantization matrices for chroma and luma
    and each TX size. Matrices for different TX sizes are in fact
    scaled from the 8x8, 8x4, and 4x8 sizes using indexing.
@@ -1737,4 +1943,5 @@ static const qm_val_t default_4x8_iwt_base_matrix[NUM_QM_LEVELS - 1][2][4 * 8] =
         },
     },
 };
+#endif  // !CONFIG_F255_QMOBU
 /* clang-format on */

@@ -1434,6 +1434,26 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     av1_set_lr_tools(cm->seq_params.lr_tools_disable_mask[1], 1, &cm->features);
     av1_set_lr_tools(cm->seq_params.lr_tools_disable_mask[1], 2, &cm->features);
   }
+#if CONFIG_F255_QMOBU
+  if (cm->quant_params.using_qmatrix) {
+    //[jkei] quant_params's quantizers are already initialized with the
+    // predefined in av1_create_compressor() by av1_qm_init()
+    if (cm->seq_params.user_defined_qmatrix) {
+      for (int qm_id = 0; qm_id < NUM_CUSTOM_QMS; qm_id++) {
+        if (cm->use_user_defined_qm[qm_id]) {
+#if ENABLE_QM_TRACE
+          printf(
+              "update quant_params with user_defined_qm at DOH[%d] qm_id[%d]\n",
+              cm->current_frame.display_order_hint, qm_id);
+#endif
+          av1_qm_frame_update(&cm->quant_params,
+                              cm->seq_params.monochrome ? 1 : 3, qm_id,
+                              cpi->user_defined_qm_list[qm_id]);
+        }
+      }
+    }
+  }
+#else
   if (cm->quant_params.using_qmatrix) {
     if (!cm->quant_params.qmatrix_allocated) {
       cm->seq_params.quantizer_matrix_8x8 = av1_alloc_qm(8, 8);
@@ -1452,6 +1472,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
       cm->quant_params.qmatrix_initialized = true;
     }
   }
+#endif  // CONFIG_F255_QMOBU
   if (denoise_and_encode(cpi, dest, &frame_input, &frame_params,
                          &frame_results) != AOM_CODEC_OK) {
     return AOM_CODEC_ERROR;

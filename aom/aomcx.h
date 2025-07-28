@@ -627,6 +627,15 @@ enum aome_enc_control_id {
    */
   AV1E_SET_FORCE_VIDEO_MODE = 60,
 
+#if CONFIG_F255_QMOBU_FULLPREDEF
+  /*!\brief Codec control function to set all the quantization matrices as the
+   * predefined matrices when the quantization matrices are
+   *
+   * - 0 = disable
+   * - 1 = enable (default)
+   */
+  AV1E_SET_QM_FULL_PREDEFINED = 61,
+#endif
   /*!\brief Codec control function to enable trellis quantization,
    * unsigned int parameter
    *
@@ -1492,6 +1501,11 @@ AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_RESTORATION, unsigned int)
 
 AOM_CTRL_USE_TYPE(AV1E_SET_FORCE_VIDEO_MODE, unsigned int)
 #define AOM_CTRL_AV1E_SET_FORCE_VIDEO_MODE
+
+#if CONFIG_F255_QMOBU_FULLPREDEF
+AOM_CTRL_USE_TYPE(AV1E_SET_QM_FULL_PREDEFINED, unsigned int)
+#define AOM_CTRL_AV1E_SET_QM_FULL_PREDEFINED
+#endif
 
 AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_TRELLIS_QUANT, unsigned int)
 #define AOM_CTRL_AV1E_SET_ENABLE_TRELLIS_QUANT

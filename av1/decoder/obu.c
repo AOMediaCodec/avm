@@ -387,8 +387,12 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
   seq_params->film_grain_params_present = aom_rb_read_bit(rb);
 
   // Sequence header for coding tools beyond AV1
-  av1_read_sequence_header_beyond_av1(rb, seq_params, &cm->quant_params,
-                                      &cm->error);
+  av1_read_sequence_header_beyond_av1(rb, seq_params
+#if !CONFIG_F255_QMOBU
+                                      ,
+                                      &cm->quant_params, &cm->error
+#endif  // !CONFIG_F255_QMOBU
+  );
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   if (!seq_params->order_hint_info.enable_order_hint &&
       !seq_params->single_picture_hdr_flag
@@ -1196,6 +1200,9 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
 
     if (obu_header.type != OBU_TEMPORAL_DELIMITER &&
         obu_header.type != OBU_SEQUENCE_HEADER &&
+#if CONFIG_F255_QMOBU
+        obu_header.type != OBU_QM &&
+#endif  // CONFIG_F255_QMOBU
         obu_header.type != OBU_PADDING) {
       // don't decode obu if it's not in current operating mode
       if (!is_obu_in_current_operating_point(pbi, obu_header)) {
@@ -1464,6 +1471,13 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
         pbi->num_tile_groups++;
         break;
 #endif  // CONFIG_F106_OBU_TILEGROUP
+#if CONFIG_F255_QMOBU
+      case OBU_QM:
+        decoded_payload_size = read_qm_obu(pbi, &rb);
+        // setup_cm_quant_params(pbi);
+        if (cm->error.error_code != AOM_CODEC_OK) return -1;
+        break;
+#endif  // CONFIG_F255_QMOBU
       case OBU_METADATA:
         decoded_payload_size = read_metadata(pbi, data, payload_size);
         if (cm->error.error_code != AOM_CODEC_OK) return -1;

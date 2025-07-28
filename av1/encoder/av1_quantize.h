@@ -103,7 +103,6 @@ typedef struct {
 
 struct AV1_COMP;
 struct AV1Common;
-
 void av1_frame_init_quantizer(struct AV1_COMP *cpi);
 
 void av1_init_plane_quantizers(const struct AV1_COMP *cpi, MACROBLOCK *x,
@@ -121,7 +120,9 @@ void av1_init_quantizer(SequenceHeader *seq_params,
 
 void av1_set_quantizer(struct AV1_COMP *const cpi, int min_qmlevel,
                        int max_qmlevel, int q, int enable_chroma_deltaq);
-
+#if CONFIG_F255_QMOBU_USERQM_TEST
+void av1_test_user_defined_qm(struct AV1_COMP *cpi);
+#endif
 int av1_quantizer_to_qindex(int quantizer, aom_bit_depth_t bit_depth);
 
 int av1_qindex_to_quantizer(int qindex, aom_bit_depth_t bit_depth);
