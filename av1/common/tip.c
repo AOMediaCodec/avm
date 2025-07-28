@@ -29,16 +29,13 @@
 
 static void tip_temporal_scale_motion_field(AV1_COMMON *cm,
                                             const int ref_frames_offset) {
-  TPL_MV_REF *tpl_mvs_base = cm->tpl_mvs;
   const int mvs_rows =
       ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, TMVP_SHIFT_BITS);
   const int mvs_cols =
       ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
-  const int mvs_stride = mvs_cols;
   for (int blk_row = 0; blk_row < mvs_rows; ++blk_row) {
     for (int blk_col = 0; blk_col < mvs_cols; ++blk_col) {
-      const int tpl_offset = blk_row * mvs_stride + blk_col;
-      TPL_MV_REF *tpl_mvs = tpl_mvs_base + tpl_offset;
+      TPL_MV_REF *tpl_mvs = cm->tpl_mvs_rows[blk_row] + blk_col;
       if (tpl_mvs->mfmv0.as_int != INVALID_MV) {
         int_mv this_refmv;
         get_mv_projection_clamp(&this_refmv.as_mv, tpl_mvs->mfmv0.as_mv,
@@ -81,7 +78,6 @@ static void tip_fill_motion_field_holes(AV1_COMMON *cm) {
   compute_tmvp_mi_info(cm, &mvs_rows, &mvs_cols, &mvs_stride, &sb_tmvp_size);
 
   const int dirs[4][2] = { { -1, 0 }, { 0, -1 }, { 1, 0 }, { 0, 1 } };
-  TPL_MV_REF *tpl_mvs_base = cm->tpl_mvs;
   for (int sb_row = 0; sb_row < mvs_rows; sb_row += sb_tmvp_size) {
     const int start_row = sb_row;
     const int end_row = AOMMIN(sb_row + sb_tmvp_size, mvs_rows);
@@ -90,21 +86,18 @@ static void tip_fill_motion_field_holes(AV1_COMMON *cm) {
       const int end_col = AOMMIN(sb_col + sb_tmvp_size, mvs_cols);
       for (int row = start_row; row < end_row; row += sample) {
         for (int col = start_col; col < end_col; col += sample) {
-          const int cur_tpl_offset = row * mvs_stride + col;
-          const TPL_MV_REF *cur_tpl_mvs = tpl_mvs_base + cur_tpl_offset;
+          const TPL_MV_REF *cur_tpl_mvs = cm->tpl_mvs_rows[row] + col;
           if (cur_tpl_mvs->mfmv0.as_int != INVALID_MV) {
             for (int dir = 0; dir < 4; ++dir) {
               const int neighbor_row = row + dirs[dir][0] * sample;
               const int neighbor_col = col + dirs[dir][1] * sample;
-              const int neighbor_tpl_offset =
-                  neighbor_row * mvs_stride + neighbor_col;
               if (neighbor_row >= start_row && neighbor_row < end_row &&
                   neighbor_col >= start_col && neighbor_col < end_col &&
-                  tpl_mvs_base[neighbor_tpl_offset].mfmv0.as_int ==
+                  cm->tpl_mvs_rows[neighbor_row][neighbor_col].mfmv0.as_int ==
                       INVALID_MV) {
-                tpl_mvs_base[neighbor_tpl_offset].mfmv0.as_int =
+                cm->tpl_mvs_rows[neighbor_row][neighbor_col].mfmv0.as_int =
                     cur_tpl_mvs->mfmv0.as_int;
-                tpl_mvs_base[neighbor_tpl_offset].ref_frame_offset =
+                cm->tpl_mvs_rows[neighbor_row][neighbor_col].ref_frame_offset =
                     cur_tpl_mvs->ref_frame_offset;
               }
             }
@@ -133,7 +126,6 @@ static void tip_blk_average_filter_mv(AV1_COMMON *cm) {
   const int weight_div_mult[6] = { 0, 65536, 32768, 21845, 16384, 13107 };
   const int sb_stride = MAX_SB_TMVP_SIZE;
   int_mv tpl_mfs[MAX_SB_TMVP_SIZE * MAX_SB_TMVP_SIZE];
-  TPL_MV_REF *tpl_mvs_base = cm->tpl_mvs;
   for (int sb_row = 0; sb_row < mvs_rows; sb_row += sb_tmvp_size) {
     const int start_row = sb_row;
     const int end_row = AOMMIN(sb_row + sb_tmvp_size, mvs_rows);
@@ -149,46 +141,41 @@ static void tip_blk_average_filter_mv(AV1_COMMON *cm) {
           int weights = 0;
           int sum_mv_row = 0;
           int sum_mv_col = 0;
-          const int cur_pos = row * mvs_stride + col;
-          if (tpl_mvs_base[cur_pos].mfmv0.as_int != INVALID_MV) {
+          if (cm->tpl_mvs_rows[row][col].mfmv0.as_int != INVALID_MV) {
             weights++;
-            sum_mv_row += tpl_mvs_base[cur_pos].mfmv0.as_mv.row;
-            sum_mv_col += tpl_mvs_base[cur_pos].mfmv0.as_mv.col;
+            sum_mv_row += cm->tpl_mvs_rows[row][col].mfmv0.as_mv.row;
+            sum_mv_col += cm->tpl_mvs_rows[row][col].mfmv0.as_mv.col;
           }
 
           if (i0 >= start_row) {
-            const int top_pos = i0 * mvs_stride + col;
-            if (tpl_mvs_base[top_pos].mfmv0.as_int != INVALID_MV) {
+            if (cm->tpl_mvs_rows[i0][col].mfmv0.as_int != INVALID_MV) {
               weights++;
-              sum_mv_row += tpl_mvs_base[top_pos].mfmv0.as_mv.row;
-              sum_mv_col += tpl_mvs_base[top_pos].mfmv0.as_mv.col;
+              sum_mv_row += cm->tpl_mvs_rows[i0][col].mfmv0.as_mv.row;
+              sum_mv_col += cm->tpl_mvs_rows[i0][col].mfmv0.as_mv.col;
             }
           }
 
           if (i1 < end_row) {
-            const int bottom_pos = i1 * mvs_stride + col;
-            if (tpl_mvs_base[bottom_pos].mfmv0.as_int != INVALID_MV) {
+            if (cm->tpl_mvs_rows[i1][col].mfmv0.as_int != INVALID_MV) {
               weights++;
-              sum_mv_row += tpl_mvs_base[bottom_pos].mfmv0.as_mv.row;
-              sum_mv_col += tpl_mvs_base[bottom_pos].mfmv0.as_mv.col;
+              sum_mv_row += cm->tpl_mvs_rows[i1][col].mfmv0.as_mv.row;
+              sum_mv_col += cm->tpl_mvs_rows[i1][col].mfmv0.as_mv.col;
             }
           }
 
           if (j0 >= start_col) {
-            const int left_pos = row * mvs_stride + j0;
-            if (tpl_mvs_base[left_pos].mfmv0.as_int != INVALID_MV) {
+            if (cm->tpl_mvs_rows[row][j0].mfmv0.as_int != INVALID_MV) {
               weights++;
-              sum_mv_row += tpl_mvs_base[left_pos].mfmv0.as_mv.row;
-              sum_mv_col += tpl_mvs_base[left_pos].mfmv0.as_mv.col;
+              sum_mv_row += cm->tpl_mvs_rows[row][j0].mfmv0.as_mv.row;
+              sum_mv_col += cm->tpl_mvs_rows[row][j0].mfmv0.as_mv.col;
             }
           }
 
           if (j1 < end_col) {
-            const int right_pos = row * mvs_stride + j1;
-            if (tpl_mvs_base[right_pos].mfmv0.as_int != INVALID_MV) {
+            if (cm->tpl_mvs_rows[row][j1].mfmv0.as_int != INVALID_MV) {
               weights++;
-              sum_mv_row += tpl_mvs_base[right_pos].mfmv0.as_mv.row;
-              sum_mv_col += tpl_mvs_base[right_pos].mfmv0.as_mv.col;
+              sum_mv_row += cm->tpl_mvs_rows[row][j1].mfmv0.as_mv.row;
+              sum_mv_col += cm->tpl_mvs_rows[row][j1].mfmv0.as_mv.col;
             }
           }
 
@@ -211,9 +198,9 @@ static void tip_blk_average_filter_mv(AV1_COMMON *cm) {
 
       for (int row = start_row; row < end_row; row += sample) {
         for (int col = start_col; col < end_col; col += sample) {
-          const int tpl_offset = row * mvs_stride + col;
           const int blk_pos_in_sb = (row - sb_row) * sb_stride + (col - sb_col);
-          tpl_mvs_base[tpl_offset].mfmv0.as_int = tpl_mfs[blk_pos_in_sb].as_int;
+          cm->tpl_mvs_rows[row][col].mfmv0.as_int =
+              tpl_mfs[blk_pos_in_sb].as_int;
         }
       }
     }

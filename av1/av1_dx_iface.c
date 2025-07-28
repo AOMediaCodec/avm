@@ -152,12 +152,15 @@ static aom_codec_err_t decoder_destroy(aom_codec_alg_priv_t *ctx) {
     FrameWorkerData *const frame_worker_data = (FrameWorkerData *)worker->data1;
     aom_get_worker_interface()->end(worker);
     aom_free(frame_worker_data->pbi->common.tpl_mvs);
+    aom_free(frame_worker_data->pbi->common.tpl_mvs_rows);
     frame_worker_data->pbi->common.tpl_mvs = NULL;
     for (int rf = 0; rf < INTER_REFS_PER_FRAME; rf++) {
       aom_free(frame_worker_data->pbi->common.id_offset_map[rf]);
+      aom_free(frame_worker_data->pbi->common.id_offset_map_rows[rf]);
       frame_worker_data->pbi->common.id_offset_map[rf] = NULL;
       for (int k = 0; k < 3; k++) {
         aom_free(frame_worker_data->pbi->common.blk_id_map[k][rf]);
+        aom_free(frame_worker_data->pbi->common.blk_id_map_rows[k][rf]);
         frame_worker_data->pbi->common.blk_id_map[k][rf] = NULL;
       }
     }

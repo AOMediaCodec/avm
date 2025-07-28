@@ -1982,6 +1982,10 @@ typedef struct AV1Common {
    * stride = cm->mi_params.mi_stride / 2
    */
   TPL_MV_REF *tpl_mvs;
+  /*!
+   * List of pointers to the start of each row in tpl_mvs.
+   */
+  TPL_MV_REF **tpl_mvs_rows;
 
   /*!
    * Step size for tmvp sampling. Should be 1 (no sampling) or 2.
@@ -2009,10 +2013,17 @@ typedef struct AV1Common {
    */
   int_mv *id_offset_map[INTER_REFS_PER_FRAME];
   /*!
+   * List of pointers to the start of each row in id_offset_map[ref].
+   */
+  int_mv **id_offset_map_rows[INTER_REFS_PER_FRAME];
+  /*!
    * Mapping table from block location to trajectory id.
    */
-  int *blk_id_map[3][INTER_REFS_PER_FRAME];
-
+  int_mv *blk_id_map[3][INTER_REFS_PER_FRAME];
+  /*!
+   * List of pointers to the start of each row in blk_id_map[k][ref].
+   */
+  int_mv **blk_id_map_rows[3][INTER_REFS_PER_FRAME];
   /*!
    * Allocated size of 'tpl_mvs' array. Refer to 'ensure_mv_buffer()' function.
    */
@@ -2599,19 +2610,39 @@ static INLINE void ensure_mv_buffer(RefCntBuffer *buf, AV1_COMMON *cm) {
   int realloc = cm->tpl_mvs == NULL || is_tpl_mvs_mem_size_too_small;
   if (realloc) {
     aom_free(cm->tpl_mvs);
+    aom_free(cm->tpl_mvs_rows);
+
+    cm->tpl_mvs_rows =
+        (TPL_MV_REF **)aom_malloc(tpl_rows * sizeof(*cm->tpl_mvs_rows));
     CHECK_MEM_ERROR(cm, cm->tpl_mvs,
                     (TPL_MV_REF *)aom_calloc(mem_size, sizeof(*cm->tpl_mvs)));
+    for (int r = 0; r < tpl_rows; r++) {
+      cm->tpl_mvs_rows[r] = cm->tpl_mvs + r * tpl_cols;
+    }
+
     cm->tpl_mvs_mem_size = mem_size;
     for (int rf = 0; rf < INTER_REFS_PER_FRAME; rf++) {
       aom_free(cm->id_offset_map[rf]);
+      aom_free(cm->id_offset_map_rows[rf]);
       cm->id_offset_map[rf] =
           (int_mv *)aom_malloc(mem_size * sizeof(*cm->id_offset_map[rf]));
+      cm->id_offset_map_rows[rf] =
+          (int_mv **)aom_malloc(tpl_rows * sizeof(*cm->id_offset_map_rows[rf]));
+      for (int r = 0; r < tpl_rows; r++) {
+        cm->id_offset_map_rows[rf][r] = cm->id_offset_map[rf] + r * tpl_cols;
+      }
       for (int k = 0; k < 3; k++) {
         aom_free(cm->blk_id_map[k][rf]);
+        aom_free(cm->blk_id_map_rows[k][rf]);
       }
       for (int k = 0; k < 3; k++) {
         cm->blk_id_map[k][rf] =
-            (int *)aom_malloc(mem_size * sizeof(*cm->blk_id_map[k][rf]));
+            (int_mv *)aom_malloc(mem_size * sizeof(*cm->blk_id_map[k][rf]));
+        cm->blk_id_map_rows[k][rf] = (int_mv **)aom_malloc(
+            tpl_rows * sizeof(*cm->blk_id_map_rows[k][rf]));
+        for (int r = 0; r < tpl_rows; r++) {
+          cm->blk_id_map_rows[k][rf][r] = cm->blk_id_map[k][rf] + r * tpl_cols;
+        }
       }
     }
   }
