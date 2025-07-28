@@ -375,7 +375,7 @@ class ResizeModeTestLarge
     if (video->frame() == 0) {
       encoder->Control(AOME_SET_CPUUSED, cpu_used_);
       encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
-      encoder->Control(AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, 0);
+      encoder->Control(AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, 1);
     }
   }
 
