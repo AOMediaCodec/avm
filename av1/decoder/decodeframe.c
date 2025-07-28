@@ -1431,8 +1431,12 @@ static TX_SIZE read_tx_size(MACROBLOCKD *xd, TX_MODE tx_mode, int is_inter,
 #if CONFIG_IMPROVE_LOSSLESS_TXM
   if (xd->lossless[xd->mi[0]->segment_id]) {
     const bool is_fsc = xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART];
+#if CONFIG_LOSSLESS_LARGER_IDTX
+    if (bsize == BLOCK_4X4 || (!is_inter && !is_fsc))
+#else
     if (block_size_wide[bsize] < 8 || block_size_high[bsize] < 8 ||
         (!is_inter && !is_fsc))
+#endif  // CONFIG_LOSSLESS_LARGER_IDTX
       return TX_4X4;
     else {
       const int bsize_group = size_group_lookup[bsize];
@@ -1440,6 +1444,11 @@ static TX_SIZE read_tx_size(MACROBLOCKD *xd, TX_MODE tx_mode, int is_inter,
           r, xd->tile_ctx->lossless_tx_size_cdf[bsize_group][is_inter], 2,
           ACCT_INFO("lossless_tx_size"));
       assert(cur_tx_size == TX_4X4 || cur_tx_size == TX_8X8);
+#if CONFIG_LOSSLESS_LARGER_IDTX
+      if (cur_tx_size == TX_8X8) {
+        cur_tx_size = lossless_max_txsize_lookup[bsize];
+      }
+#endif  // CONFIG_LOSSLESS_LARGER_IDTX
       return cur_tx_size;
     }
   }

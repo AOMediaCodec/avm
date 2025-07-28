@@ -3300,13 +3300,21 @@ static INLINE TX_TYPE av1_get_tx_type(const MACROBLOCKD *xd,
       else
         return DCT_DCT;
     } else if (is_inter && plane_type == PLANE_TYPE_Y) {
+#if CONFIG_LOSSLESS_LARGER_IDTX
+      if (tx_size != TX_4X4) {
+#else
       if (tx_size == TX_8X8) {
+#endif  // CONFIG_LOSSLESS_LARGER_IDTX
         return IDTX;
       } else {
         return xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col];
       }
     } else if (is_inter && plane_type == PLANE_TYPE_UV) {
+#if CONFIG_LOSSLESS_LARGER_IDTX
+      if (mbmi->tx_size != TX_4X4) {
+#else
       if (mbmi->tx_size == TX_8X8) {
+#endif  // CONFIG_LOSSLESS_LARGER_IDTX
         return IDTX;
       } else {
         const struct macroblockd_plane *const pd = &xd->plane[plane_type];
@@ -3465,6 +3473,23 @@ static INLINE TX_SIZE av1_get_adjusted_tx_size(TX_SIZE tx_size) {
   }
 }
 
+static INLINE TX_SIZE get_lossless_tx_size(int plane, const MACROBLOCKD *xd) {
+  const MB_MODE_INFO *mbmi = xd->mi[0];
+  const bool is_fsc = mbmi->fsc_mode[xd->tree_type == CHROMA_PART] && !plane;
+  const int is_inter = is_inter_block(mbmi, xd->tree_type);
+  const BLOCK_SIZE bsize_base = get_bsize_base(xd, mbmi, plane);
+
+#if CONFIG_LOSSLESS_LARGER_IDTX
+  if (bsize_base == BLOCK_4X4 || plane || (!is_inter && !is_fsc))
+#else
+  if (block_size_wide[bsize_base] < 8 || block_size_high[bsize_base] < 8 ||
+      plane || (!is_inter && !is_fsc))
+#endif  // CONFIG_LOSSLESS_LARGER_IDTX
+    return TX_4X4;
+  else
+    return mbmi->tx_size;
+}
+
 static INLINE TX_SIZE av1_get_max_uv_txsize(BLOCK_SIZE bsize, int subsampling_x,
                                             int subsampling_y) {
   const BLOCK_SIZE plane_bsize =
@@ -3478,14 +3503,7 @@ static INLINE TX_SIZE av1_get_tx_size(int plane, const MACROBLOCKD *xd) {
   const MB_MODE_INFO *mbmi = xd->mi[0];
 #if CONFIG_IMPROVE_LOSSLESS_TXM
   if (xd->lossless[mbmi->segment_id]) {
-    const bool is_fsc = mbmi->fsc_mode[xd->tree_type == CHROMA_PART] && !plane;
-    const int is_inter = is_inter_block(mbmi, xd->tree_type);
-    const BLOCK_SIZE bs = get_bsize_base(xd, mbmi, plane);
-    if (block_size_wide[bs] < 8 || block_size_high[bs] < 8 || plane ||
-        (!is_inter && !is_fsc))
-      return TX_4X4;
-    else
-      return mbmi->tx_size;
+    return get_lossless_tx_size(plane, xd);
   }
 #else
   if (xd->lossless[mbmi->segment_id]) return TX_4X4;
@@ -3621,14 +3639,7 @@ static INLINE int get_vartx_max_txsize(const MACROBLOCKD *xd, BLOCK_SIZE bsize,
                                        int plane) {
 #if CONFIG_IMPROVE_LOSSLESS_TXM
   if (xd->lossless[xd->mi[0]->segment_id]) {
-    const bool is_fsc =
-        xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] && !plane;
-    const int is_inter = is_inter_block(xd->mi[0], xd->tree_type);
-    if (block_size_wide[bsize] < 8 || block_size_high[bsize] < 8 || plane ||
-        (!is_inter && !is_fsc))
-      return TX_4X4;
-    else
-      return xd->mi[0]->tx_size;
+    return get_lossless_tx_size(plane, xd);
   }
 #else
   if (xd->lossless[xd->mi[0]->segment_id]) return TX_4X4;

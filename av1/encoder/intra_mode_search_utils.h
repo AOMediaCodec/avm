@@ -370,10 +370,16 @@ static int64_t intra_model_yrd(const AV1_COMP *const cpi, MACROBLOCK *const x,
 
 #if CONFIG_IMPROVE_LOSSLESS_TXM
   if (xd->lossless[mbmi->segment_id]) {
+#if CONFIG_LOSSLESS_LARGER_IDTX
+    if (bsize > BLOCK_4X4 && mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) {
+      mbmi->tx_size = lossless_max_txsize_lookup[bsize];
+    }
+#else
     if (block_size_wide[bsize] >= 8 && block_size_high[bsize] >= 8 &&
         mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) {
       mbmi->tx_size = TX_8X8;
     }
+#endif  // CONFIG_LOSSLESS_LARGER_IDTX
   }
 #endif  // CONFIG_IMPROVE_LOSSLESS_TXM
 

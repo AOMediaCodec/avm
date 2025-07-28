@@ -2073,7 +2073,11 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
         allowed_tx_mask = 1 << txk_allowed;
       }
     } else if (is_inter) {
+#if CONFIG_LOSSLESS_LARGER_IDTX
+      if (tx_size != TX_4X4) {
+#else
       if (tx_size == TX_8X8) {
+#endif  // CONFIG_LOSSLESS_LARGER_IDTX
         assert(!plane);
         txk_allowed = IDTX;
         allowed_tx_mask = 1 << txk_allowed;
@@ -3601,11 +3605,16 @@ static AOM_INLINE void choose_smallest_tx_size(const AV1_COMP *const cpi,
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
   ModeCosts mode_costs = x->mode_costs;
   const int bsize_group = size_group_lookup[bs];
-  int rate8x8 = INT_MAX;
+  int rate_larger_than_4x4 = INT_MAX;
 
+#if CONFIG_LOSSLESS_LARGER_IDTX
+  if (bs > BLOCK_4X4 && (is_inter || (!is_inter && is_fsc))) {
+    mbmi->tx_size = lossless_max_txsize_lookup[bs];
+#else
   if (block_size_wide[bs] >= 8 && block_size_high[bs] >= 8 &&
       (is_inter || (!is_inter && is_fsc))) {
     mbmi->tx_size = TX_8X8;
+#endif  // CONFIG_LOSSLESS_LARGER_IDTX
     if (is_inter) {
       memset(mbmi->inter_tx_size, mbmi->tx_size, sizeof(mbmi->inter_tx_size));
     }
@@ -3614,7 +3623,7 @@ static AOM_INLINE void choose_smallest_tx_size(const AV1_COMP *const cpi,
     // TODO(any) : Pass this_rd based on skip/non-skip cost
     av1_txfm_rd_in_plane(x, cpi, rd_stats, ref_best_rd, 0, 0, bs, mbmi->tx_size,
                          FTXS_NONE, skip_trellis);
-    rate8x8 = rd_stats->rate;
+    rate_larger_than_4x4 = rd_stats->rate;
   }
 #endif  // CONFIG_IMPROVE_LOSSLESS_TXM
 
@@ -3626,23 +3635,34 @@ static AOM_INLINE void choose_smallest_tx_size(const AV1_COMP *const cpi,
                        FTXS_NONE, skip_trellis);
 
 #if CONFIG_IMPROVE_LOSSLESS_TXM
+#if CONFIG_LOSSLESS_LARGER_IDTX
+  if (bs > BLOCK_4X4 && (is_inter || (!is_inter && is_fsc))) {
+#else
   if (block_size_wide[bs] >= 8 && block_size_high[bs] >= 8 &&
       (is_inter || (!is_inter && is_fsc))) {
-    int rate4x4 = rd_stats->rate;
-    bool not_max_flag = (rate4x4 != INT_MAX && rate8x8 != INT_MAX);
+#endif  // CONFIG_LOSSLESS_LARGER_IDTX
+    int rate_4x4 = rd_stats->rate;
+    bool not_max_flag =
+        (rate_4x4 != INT_MAX && rate_larger_than_4x4 != INT_MAX);
     if (not_max_flag) {
-      rate4x4 += mode_costs.lossless_tx_size_cost[bsize_group][is_inter][0];
-      rate8x8 += mode_costs.lossless_tx_size_cost[bsize_group][is_inter][1];
+      rate_4x4 += mode_costs.lossless_tx_size_cost[bsize_group][is_inter][0];
+      rate_larger_than_4x4 +=
+          mode_costs.lossless_tx_size_cost[bsize_group][is_inter][1];
     }
-    if (rate8x8 == INT_MAX || (not_max_flag && (rate4x4 < rate8x8))) {
+    if (rate_larger_than_4x4 == INT_MAX ||
+        (not_max_flag && (rate_4x4 < rate_larger_than_4x4))) {
       // Add cost of signaling tx_size 4x4
-      if (rate4x4 != INT_MAX)
+      if (rate_4x4 != INT_MAX)
         rd_stats->rate +=
-            mode_costs.lossless_tx_size_cost[bsize_group][is_inter][TX_4X4];
+            mode_costs.lossless_tx_size_cost[bsize_group][is_inter][0];
     } else {
-      assert((rate4x4 == INT_MAX && rate8x8 != INT_MAX) ||
-             (not_max_flag && (rate4x4 >= rate8x8)));
+      assert((rate_4x4 == INT_MAX && rate_larger_than_4x4 != INT_MAX) ||
+             (not_max_flag && (rate_4x4 >= rate_larger_than_4x4)));
+#if CONFIG_LOSSLESS_LARGER_IDTX
+      mbmi->tx_size = lossless_max_txsize_lookup[bs];
+#else
       mbmi->tx_size = TX_8X8;
+#endif  // CONFIG_LOSSLESS_LARGER_IDTX
       if (is_inter) {
         memset(mbmi->inter_tx_size, mbmi->tx_size, sizeof(mbmi->inter_tx_size));
       }
@@ -3653,7 +3673,7 @@ static AOM_INLINE void choose_smallest_tx_size(const AV1_COMP *const cpi,
                            mbmi->tx_size, FTXS_NONE, skip_trellis);
       // Add cost of signaling tx_size 8x8
       rd_stats->rate +=
-          mode_costs.lossless_tx_size_cost[bsize_group][is_inter][TX_8X8];
+          mode_costs.lossless_tx_size_cost[bsize_group][is_inter][1];
     }
   }
 #endif  // CONFIG_IMPROVE_LOSSLESS_TXM

@@ -1459,7 +1459,11 @@ void av1_read_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd, int blk_row,
             aom_read_symbol(r, xd->tile_ctx->lossless_inter_tx_type_cdf, 2,
                             ACCT_INFO("lossless_inter_tx_type"));
       }
+#if CONFIG_LOSSLESS_LARGER_IDTX
+      if (lossless_inter_tx_type || tx_size != TX_4X4) *tx_type = IDTX;
+#else
       if (lossless_inter_tx_type || tx_size == TX_8X8) *tx_type = IDTX;
+#endif  // CONFIG_LOSSLESS_LARGER_IDTX
     }
     return;
   }

@@ -474,6 +474,39 @@ static const TX_SIZE max_txsize_rect_lookup[BLOCK_SIZES_ALL] = {
       TX_4X64,   TX_64X4
 };
 
+#if CONFIG_LOSSLESS_LARGER_IDTX
+static const TX_SIZE lossless_max_txsize_lookup[BLOCK_SIZES_ALL] = {
+      // 4X4
+      TX_4X4,
+      // 4X8,    8X4,      8X8
+      TX_4X8,    TX_8X4,   TX_8X8,
+      // 8X16,   16X8,     16X16
+      TX_8X16,   TX_16X8,  TX_16X16,
+      // 16X32,  32X16,    32X32
+      TX_16X32,  TX_32X16, TX_32X32,
+      // 32X64,  64X32,
+      TX_32X32,  TX_32X32,
+      // 64X64
+      TX_32X32,
+      // 64x128, 128x64,   128x128
+      TX_32X32,  TX_32X32, TX_32X32,
+      // 128X256,256X128,  256X256
+      TX_32X32,  TX_32X32, TX_32X32,
+      // 4x16,   16x4,
+      TX_4X16,   TX_16X4,
+      // 8x32,   32x8
+      TX_8X32,   TX_32X8,
+      // 16x64,  64x16
+      TX_16X32,  TX_32X16,
+      // 4x32,   32x4,
+      TX_4X32,   TX_32X4,
+      // 8x64,   64x8
+      TX_8X32,   TX_32X8,
+      // 4x64,   64x4
+      TX_4X32,   TX_32X4
+};
+#endif  // CONFIG_LOSSLESS_LARGER_IDTX
+
 static const TX_TYPE_1D vtx_tab[TX_TYPES] = {
   DCT_1D,      ADST_1D, DCT_1D,      ADST_1D,
   FLIPADST_1D, DCT_1D,  FLIPADST_1D, ADST_1D, FLIPADST_1D, IDTX_1D,
