@@ -445,6 +445,10 @@ typedef struct AV1Decoder {
    */
   struct SequenceHeader *active_seq;
 #endif  // CONFIG_CWG_E242_SEQ_HDR_ID
+#if CONFIG_F255_QMOBU
+  struct quantization_matrix_set qm_list[NUM_CUSTOM_QMS];
+  int total_signalled_qm_count;
+#endif  // CONFIG_F255_QMOBU
 } AV1Decoder;
 
 // Returns 0 on success. Sets pbi->common.error.error_code to a nonzero error

@@ -314,12 +314,33 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
   cpi->alloc_width = 0;
   cpi->alloc_height = 0;
   cpi->alloc_sb_size = 0;
-
+#if CONFIG_F255_QMOBU
+  for (int qmobu_pos = 0; qmobu_pos < cpi->total_signalled_qmobu_count;
+       qmobu_pos++) {
+    int qm_bit_map = cpi->qmobu_list[qmobu_pos].qm_bit_map;
+    for (int j = 0; j < NUM_CUSTOM_QMS; j++) {
+      if (qm_bit_map & (1 << j)) {
+        if (cpi->qmobu_list[qmobu_pos].qm_list[j].quantizer_matrix != NULL)
+          av1_free_qm(cpi->qmobu_list[qmobu_pos].qm_list[j].quantizer_matrix,
+                      cm->seq_params.monochrome ? 1 : 3, j);
+      }
+    }
+  }
+#if ENABLE_QM_TRACE
+  printf("av1_free_qm for user_defined_qm_list\n");
+#endif
+  for (int qm_idx = 0; qm_idx < NUM_CUSTOM_QMS; qm_idx++) {
+    if (cpi->user_defined_qm_list[qm_idx] != NULL)
+      av1_free_qm(cpi->user_defined_qm_list[qm_idx],
+                  cm->seq_params.monochrome ? 1 : 3, qm_idx);
+  }
+#else
   if (cm->quant_params.qmatrix_allocated) {
     av1_free_qm(cm->seq_params.quantizer_matrix_8x8);
     av1_free_qm(cm->seq_params.quantizer_matrix_8x4);
     av1_free_qm(cm->seq_params.quantizer_matrix_4x8);
   }
+#endif
 }
 
 static AOM_INLINE void alloc_altref_frame_buffer(AV1_COMP *cpi) {

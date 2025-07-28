@@ -67,6 +67,11 @@ set_aom_config_var(CONFIG_F322_OBUER_ERM 1
                    "Infer error_resilient_mode without signalling.")
 
 set_aom_config_var(CONFIG_F160_TD 1 "Signal temporal delimiter optionally")
+set_aom_config_var(CONFIG_F255_QMOBU 1 "Enable QM_OBU")
+set_aom_config_var(
+  CONFIG_F255_QMOBU_FULLPREDEF 1
+  "Indicating 15 predefined quanization matrices are available")
+set_aom_config_var(ENABLE_QM_TRACE 0 "Enable trace outputs for QM OBUs")
 
 #
 # Variables in this section can be set from the CMake command line or from

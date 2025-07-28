@@ -26,6 +26,17 @@ void av1_write_conformance_window(const SequenceHeader *seq_params,
                                   struct aom_write_bit_buffer *wb);
 #endif  // CONFIG_CROP_WIN_CWG_F220
 
+#if CONFIG_F255_QMOBU
+void setup_cm_qmindex_list(AV1_COMMON *const cm);
+void check_qm_is_predefined(AV1_COMP *cpi, int qmobu_pos);
+bool check_add_cmqm_in_qmobulist(AV1_COMP *cpi, bool write_in_prevobu);
+bool add_userqm_in_qmobulist(AV1_COMP *cpi);
+uint32_t write_qm_obu(AV1_COMP *cpi, int signalled_obu_pos, uint8_t *const dst);
+int write_qm_data(AV1_COMP *cpi, struct quantization_matrix_set *qm_list,
+                  int qm_pos, const int num_planes,
+                  struct aom_write_bit_buffer *wb);
+#endif
+
 // Writes only the OBU Sequence Header payload, and returns the size of the
 // payload written to 'dst'. This function does not write the OBU header, the
 // optional extension, or the OBU size to 'dst'.

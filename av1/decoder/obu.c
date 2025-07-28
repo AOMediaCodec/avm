@@ -456,8 +456,12 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
   seq_params->film_grain_params_present = aom_rb_read_bit(rb);
 
   // Sequence header for coding tools beyond AV1
-  av1_read_sequence_header_beyond_av1(rb, seq_params, &cm->quant_params,
-                                      &cm->error);
+  av1_read_sequence_header_beyond_av1(rb, seq_params,
+#if !CONFIG_F255_QMOBU
+                                      ,
+                                      &cm->quant_params, &cm->error
+#endif  // !CONFIG_F255_QMOBU
+);
 #if CONFIG_SCAN_TYPE_METADATA
   // TODO(seethalpaluri): Move these to the CI OBU
   seq_params->scan_type_info_present_flag = aom_rb_read_bit(rb);
@@ -1514,6 +1518,13 @@ static int is_coded_frame(OBU_TYPE obu_type) {
 // On success, return 0. If failed return 1.
 #if OBU_ORDER_IN_TU
 static int check_obu_order(OBU_TYPE prev_obu_type, OBU_TYPE curr_obu_type) {
+  #if CONFIG_F255_QMOBU
+    if (is_coded_frame(curr_obu_type) && prev_obu_type == OBU_QM) {
+      return 0;
+    } else if (curr_obu_type == OBU_QM) {
+      return 0;
+    } else
+  #endif
   if ((prev_obu_type == OBU_TEMPORAL_DELIMITER) &&
       (curr_obu_type == OBU_MSDO ||
        curr_obu_type == OBU_LAYER_CONFIGURATION_RECORD ||
@@ -1676,7 +1687,9 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
     if (prev_obu_type_initialized &&
         check_obu_order(prev_obu_type, curr_obu_type)) {
       aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-                         "OBU order is incorrect in TU");
+                         "OBU order is incorrect in TU previous %s current %s",
+                         aom_obu_type_to_string(prev_obu_type),
+                         aom_obu_type_to_string(curr_obu_type));
     }
     prev_obu_type = curr_obu_type;
     prev_obu_type_initialized = 1;
@@ -1990,9 +2003,10 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
         obu_payload_offset = frame_header_size;
         // Byte align the reader before reading the tile group.
-        // av1_check_byte_alignment() has set cm->error.error_code if it returns
-        // -1.
-        if (av1_check_byte_alignment(cm, &rb)) return -1;
+        // av1_check_byte_alignment() has set cm->error.error_code if it
+        returns
+            // -1.
+            if (av1_check_byte_alignment(cm, &rb)) return -1;
         AOM_FALLTHROUGH_INTENDED;  // fall through to read tile group.
       case OBU_TILE_GROUP:
         if (!pbi->seen_frame_header) {
@@ -2016,6 +2030,13 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
         pbi->num_tile_groups++;
         break;
 #endif  // CONFIG_F106_OBU_TILEGROUP
+#if CONFIG_F255_QMOBU
+      case OBU_QM:
+        decoded_payload_size = read_qm_obu(pbi, &rb);
+        // setup_cm_quant_params(pbi);
+        if (cm->error.error_code != AOM_CODEC_OK) return -1;
+        break;
+#endif  // CONFIG_F255_QMOBU
       case OBU_METADATA:
 #if CONFIG_METADATA && !CONFIG_SHORT_METADATA
         decoded_payload_size =

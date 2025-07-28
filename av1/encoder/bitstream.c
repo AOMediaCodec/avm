@@ -5165,6 +5165,7 @@ static AOM_INLINE void write_film_grain_params(
   aom_wb_write_bit(wb, pars->block_size);
 }
 
+#if !CONFIG_F255_QMOBU
 static bool qm_matrices_are_equal(const qm_val_t *mat_a, const qm_val_t *mat_b,
                                   int width, int height) {
   return memcmp(mat_a, mat_b, width * height * sizeof(qm_val_t)) == 0;
@@ -5369,7 +5370,7 @@ static AOM_INLINE void code_user_defined_qm(
     }
   }
 }
-
+#endif  // !CONFIG_F255_QMOBU
 static AOM_INLINE void write_sb_size(const SequenceHeader *const seq_params,
                                      struct aom_write_bit_buffer *wb) {
   (void)seq_params;
@@ -6092,6 +6093,7 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
   aom_wb_write_bit(wb, seq_params->enable_ext_seg);
 #endif  // !CONFIG_REORDER_SEQ_FLAGS //transformgroup
 
+#if !CONFIG_F255_QMOBU
 #if CONFIG_QM_DEBUG
   printf("[ENC-SEQ] user_defined_qmatrix=%d\n",
          seq_params->user_defined_qmatrix);
@@ -6101,6 +6103,7 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
     int num_planes = seq_params->monochrome ? 1 : MAX_MB_PLANE;
     code_user_defined_qm(wb, seq_params, num_planes);
   }
+#endif  // !CONFIG_F255_QMOBU
 }
 
 #if CONFIG_MFH_SIGNAL_TILE_INFO
@@ -8844,6 +8847,9 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
       obu_mlayer << 5 |
       obu_xlayer;  // obu_layer byte (mlayer (3-bit) | xlayer (5-bit))
 
+#if CONFIG_F255_QMOBU
+  bool add_new_user_qm = false;
+#endif  // CONFIG_F255_QMOBU
   // If no non-zero delta_q has been used, reset delta_q_present_flag
   if (cm->delta_q_info.delta_q_present_flag && cpi->deltaq_used == 0) {
     cm->delta_q_info.delta_q_present_flag = 0;
@@ -8955,6 +8961,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
     }
 
     data += obu_header_size + obu_payload_size + length_field_size;
+
 #if CONFIG_MULTI_FRAME_HEADER
     if (cm->cur_mfh_id != 0) {
       // write multi-frame header if KEY_FRAME
@@ -8974,8 +8981,61 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
       data += obu_header_size + obu_payload_size + length_field_size;
     }
 #endif  // CONFIG_MULTI_FRAME_HEADER
-  }
 
+#if CONFIG_F255_QMOBU
+    if (cm->quant_params.using_qmatrix) {
+      cpi->total_signalled_qmobu_count = 0;
+      cpi->obu_is_written = 0;
+      AV1EncoderConfig *const oxcf = &cpi->oxcf;
+      if (oxcf->q_cfg.use_full_qm_predefined) {
+        obu_header_size = av1_write_obu_header(level_params, OBU_QM,
+                                               obu_temporal, obu_layer, data);
+        obu_payload_size = write_qm_obu(cpi, 0, data + obu_header_size);
+        size_t length_field_size_qm =
+            obu_memmove(obu_header_size, obu_payload_size, data);
+        if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
+            AOM_CODEC_OK) {
+          return AOM_CODEC_ERROR;
+        }
+        data += obu_header_size + obu_payload_size + length_field_size_qm;
+        cpi->total_signalled_qmobu_count--;
+        cm->new_qmobu_added = 1;
+      } else if (oxcf->q_cfg.using_qm && oxcf->q_cfg.user_defined_qmatrix) {
+        add_new_user_qm = add_userqm_in_qmobulist(cpi);
+      }
+    }
+#endif  // CONFIG_F255_QMOBU
+  }
+#if CONFIG_F255_QMOBU
+  if (cm->quant_params.using_qmatrix && !cpi->obu_is_written &&
+      !cm->show_existing_frame) {
+#if ENABLE_QM_TRACE
+    printf("(av1_pack_bitstream) DOH[%d] cpi->obu_is_written==0\n",
+           cm->current_frame.display_order_hint);
+#endif
+    AV1EncoderConfig *const oxcf = &cpi->oxcf;
+    bool need_new_qmobu =
+        oxcf->q_cfg.use_full_qm_predefined
+            ? 0
+            : check_add_cmqm_in_qmobulist(cpi, add_new_user_qm);
+    if (need_new_qmobu) {
+      assert(cpi->total_signalled_qmobu_count > 0);
+      obu_header_size = av1_write_obu_header(level_params, OBU_QM, obu_temporal,
+                                             obu_layer, data);
+      obu_payload_size = write_qm_obu(cpi, cpi->total_signalled_qmobu_count - 1,
+                                      data + obu_header_size);
+      size_t length_field_size_qm =
+          obu_memmove(obu_header_size, obu_payload_size, data);
+      if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
+          AOM_CODEC_OK) {
+        return AOM_CODEC_ERROR;
+      }
+      data += obu_header_size + obu_payload_size + length_field_size_qm;
+      cpi->total_signalled_qmobu_count--;
+      cm->new_qmobu_added = 1;
+    }  // need_new_qmobu
+  }
+#endif  // CONFIG_F255_QMOBU
   // write metadata obus before the frame obu that has the show_frame flag set
   if (cm->show_frame)
 #if CONFIG_METADATA

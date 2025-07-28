@@ -717,6 +717,10 @@ static aom_codec_err_t init_decoder(aom_codec_alg_priv_t *ctx) {
   frame_worker_data->pbi->is_fwd_kf_present = 0;
   frame_worker_data->pbi->enable_subgop_stats = ctx->enable_subgop_stats;
   frame_worker_data->pbi->is_arf_frame_present = 0;
+#if CONFIG_F255_QMOBU
+  frame_worker_data->pbi->total_signalled_qm_count = 0;
+#endif  // CONFIG_F255_QMOBU
+
   memcpy(frame_worker_data->pbi->common.ibp_directional_weights,
          ctx->base.ibp_directional_weights,
          sizeof(ctx->base.ibp_directional_weights));

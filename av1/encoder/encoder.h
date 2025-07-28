@@ -759,6 +759,10 @@ typedef struct {
   bool enable_chroma_deltaq;
   // Indicates if encoding with quantization matrices should be enabled.
   bool using_qm;
+#if CONFIG_F255_QMOBU_FULLPREDEF
+  // Indicates if 15 quantization matrices are set as the predefined matrices.
+  bool use_full_qm_predefined;
+#endif
   // Indicates whether user-defined quantization matrices should be used
   bool user_defined_qmatrix;
   bool qm_data_present[NUM_CUSTOM_QMS];
@@ -3017,6 +3021,7 @@ typedef struct AV1_COMP {
    */
   int write_brt_obu;
 #endif  // CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
+
 #if CONFIG_MULTILAYER_HLS
   /*!
    * list for Layer Config Record (LCR) information
@@ -3031,12 +3036,36 @@ typedef struct AV1_COMP {
    */
   struct AtlasSegmentInfo atlas_list[MAX_NUM_ATLAS_SEG_ID];
 #endif  // CONFIG_MULTILAYER_HLS
+
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   /*!
    * determine the mode of the switch frame
    */
   int switch_frame_mode;
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+
+#if CONFIG_F255_QMOBU
+  /*!
+   * a list of OBU_QM
+   */
+
+  struct qm_obu qmobu_list[130];  // any big enough size
+  /*!
+   * Intermediate list of quantiztaion matrices for input user defined matrices
+   */
+  // 15*3*3*64 bytes :
+  qm_val_t ***user_defined_qm_list[NUM_CUSTOM_QMS];  //[8x8/8x4,4x8][y/u/v][64]
+  /*!
+   * number of signalled qm obus
+   */
+  int total_signalled_qmobu_count;
+  /*!
+   * indication that an obu is written for a frame during encoding to prevent an
+   * qm obu from being written multiple times
+   */
+  bool obu_is_written;
+#endif
+
 } AV1_COMP;
 
 /*!

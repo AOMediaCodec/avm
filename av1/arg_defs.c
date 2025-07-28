@@ -610,6 +610,12 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .enable_qm =
       ARG_DEF(NULL, "enable-qm", 1,
               "Enable quantisation matrices (0: false (default), 1: true)"),
+#if CONFIG_F255_QMOBU_FULLPREDEF
+  .use_full_qm_predefinedA =
+      ARG_DEF(NULL, "use-qm-predefined", 1,
+              "Set 15 quantisation matrices as the predefined matrices (0: "
+              "false, 1: true(default))"),
+#endif
   .qm_min = ARG_DEF(NULL, "qm-min", 1,
                     "Min quant matrix flatness (0..15), default is 8"),
   .qm_max = ARG_DEF(NULL, "qm-max", 1,

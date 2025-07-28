@@ -202,6 +202,9 @@ const char *aom_obu_type_to_string(OBU_TYPE type) {
     case OBU_RAS_FRAME: return "OBU_RAS_FRAME";
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     case OBU_PADDING: return "OBU_PADDING";
+#if CONFIG_F255_QMOBU
+    case OBU_QM: return "OBU_QM";
+#endif  // CONFIG_F255_QMOBU
     default: break;
   }
   return "<Invalid OBU Type>";

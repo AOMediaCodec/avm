@@ -94,6 +94,9 @@ bool ValidObuType(int obu_type) {
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     case OBU_RAS_FRAME:
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+#if CONFIG_F255_QMOBU
+    case OBU_QM:
+#endif
     case OBU_PADDING: return true;
   }
   return false;

@@ -69,6 +69,10 @@ static int valid_obu_type(int obu_type) {
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     case OBU_RAS_FRAME:
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+#if CONFIG_F255_QMOBU
+    case OBU_QM:
+#endif  // CONFIG_F255_QMOBU
+
     case OBU_PADDING: valid_type = 1; break;
     default: break;
   }

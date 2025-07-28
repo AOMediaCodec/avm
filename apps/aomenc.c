@@ -169,6 +169,9 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
                                         AV1E_SET_ENABLE_ANGLE_DELTA,
                                         AV1E_SET_ENABLE_TRELLIS_QUANT,
                                         AV1E_SET_ENABLE_QM,
+#if CONFIG_F255_QMOBU_FULLPREDEF
+                                        AV1E_SET_QM_FULL_PREDEFINED,
+#endif
                                         AV1E_SET_QM_MIN,
                                         AV1E_SET_QM_MAX,
                                         AV1E_SET_REDUCED_TX_TYPE_SET,
@@ -373,6 +376,9 @@ const arg_def_t *av1_ctrl_args[] = {
   &g_av1_codec_arg_defs.enable_angle_delta,
   &g_av1_codec_arg_defs.enable_trellis_quant,
   &g_av1_codec_arg_defs.enable_qm,
+#if CONFIG_F255_QMOBU_FULLPREDEF
+  &g_av1_codec_arg_defs.use_full_qm_predefinedA,
+#endif
   &g_av1_codec_arg_defs.qm_min,
   &g_av1_codec_arg_defs.qm_max,
   &g_av1_codec_arg_defs.reduced_tx_type_set,
@@ -1784,7 +1790,6 @@ static void initialize_encoder(struct stream_state *stream,
   aom_codec_enc_init(&stream->encoder, global->codec, &stream->config.cfg,
                      flags);
   ctx_exit_on_error(&stream->encoder, "Failed to initialize encoder");
-
   for (i = 0; i < stream->config.arg_ctrl_cnt; i++) {
     int ctrl = stream->config.arg_ctrls[i][0];
     int value = stream->config.arg_ctrls[i][1];

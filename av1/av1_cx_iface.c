@@ -77,6 +77,9 @@ struct av1_extracfg {
   unsigned int force_video_mode;
   unsigned int enable_trellis_quant;
   unsigned int enable_qm;
+#if CONFIG_F255_QMOBU_FULLPREDEF
+  unsigned int use_full_qm_predefined;
+#endif
   unsigned int qm_y;
   unsigned int qm_u;
   unsigned int qm_v;
@@ -408,6 +411,9 @@ static struct av1_extracfg default_extra_cfg = {
   0,                            // force_video_mode
   3,                            // enable_trellis_quant
   0,                            // enable_qm
+#if CONFIG_F255_QMOBU_FULLPREDEF
+  1,                            // use_full_qm_predefined;
+#endif
   DEFAULT_QM_Y,                 // qm_y
   DEFAULT_QM_U,                 // qm_u
   DEFAULT_QM_V,                 // qm_v
@@ -1469,6 +1475,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 
   // Set Quantization related configuration.
   q_cfg->using_qm = extra_cfg->enable_qm;
+#if CONFIG_F255_QMOBU_FULLPREDEF
+  q_cfg->use_full_qm_predefined = extra_cfg->use_full_qm_predefined;
+#endif
   q_cfg->qm_minlevel = extra_cfg->qm_min;
   q_cfg->qm_maxlevel = extra_cfg->qm_max;
   q_cfg->user_defined_qmatrix = extra_cfg->user_defined_qmatrix != 0;
@@ -2070,6 +2079,14 @@ static aom_codec_err_t ctrl_set_force_video_mode(aom_codec_alg_priv_t *ctx,
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
+#if CONFIG_F255_QMOBU_FULLPREDEF
+static aom_codec_err_t ctrl_set_qm_fullpredefined(aom_codec_alg_priv_t *ctx,
+                                                  va_list args) {
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.use_full_qm_predefined = CAST(AV1E_SET_QM_FULL_PREDEFINED, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+#endif
 static aom_codec_err_t ctrl_set_enable_trellis_quant(aom_codec_alg_priv_t *ctx,
                                                      va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
@@ -2129,6 +2146,13 @@ static aom_codec_err_t ctrl_set_user_defined_qmatrix(aom_codec_alg_priv_t *ctx,
   }
 
   AV1_COMP *cpi = ctx->cpi;
+#if CONFIG_F255_QMOBU
+#if ENABLE_QM_TRACE
+  printf("av1_alloc_qmset for cpi->user_defined_qm_list[%d]\n", level);
+#endif
+  assert(num_planes == (cpi->common.seq_params.monochrome ? 1 : 3));
+  cpi->user_defined_qm_list[level] = av1_alloc_qmset(num_planes);
+#else
   SequenceHeader *seq_params = &cpi->common.seq_params;
   if (num_planes != av1_num_planes(&cpi->common)) {
     return AOM_CODEC_INVALID_PARAM;
@@ -2149,6 +2173,7 @@ static aom_codec_err_t ctrl_set_user_defined_qmatrix(aom_codec_alg_priv_t *ctx,
     av1_qm_init(&cpi->common.quant_params, num_planes, fund_mat);
     cpi->common.quant_params.qmatrix_initialized = true;
   }
+#endif  // CONFIG_F255_QMOBU
   // Copy user-defined QMs for level.
   for (int c = 0; c < num_planes; c++) {
     if (!user_defined_qm->qm_8x8[c]) {
@@ -2164,8 +2189,13 @@ static aom_codec_err_t ctrl_set_user_defined_qmatrix(aom_codec_alg_priv_t *ctx,
         return AOM_CODEC_INVALID_PARAM;
       }
     }
+#if CONFIG_F255_QMOBU
+    memcpy(cpi->user_defined_qm_list[level][0][c], user_defined_qm->qm_8x8[c],
+           8 * 8 * sizeof(qm_val_t));
+#else
     memcpy(seq_params->quantizer_matrix_8x8[level][c],
            user_defined_qm->qm_8x8[c], 8 * 8 * sizeof(qm_val_t));
+#endif  // CONFIG_F255_QMOBU
     if (!user_defined_qm->qm_8x4[c]) {
       return AOM_CODEC_INVALID_PARAM;
     }
@@ -2174,8 +2204,13 @@ static aom_codec_err_t ctrl_set_user_defined_qmatrix(aom_codec_alg_priv_t *ctx,
         return AOM_CODEC_INVALID_PARAM;
       }
     }
+#if CONFIG_F255_QMOBU
+    memcpy(cpi->user_defined_qm_list[level][1][c], user_defined_qm->qm_8x4[c],
+           8 * 4 * sizeof(qm_val_t));
+#else
     memcpy(seq_params->quantizer_matrix_8x4[level][c],
            user_defined_qm->qm_8x4[c], 8 * 4 * sizeof(qm_val_t));
+#endif  // CONFIG_F255_QMOBU
     if (!user_defined_qm->qm_4x8[c]) {
       return AOM_CODEC_INVALID_PARAM;
     }
@@ -2184,16 +2219,22 @@ static aom_codec_err_t ctrl_set_user_defined_qmatrix(aom_codec_alg_priv_t *ctx,
         return AOM_CODEC_INVALID_PARAM;
       }
     }
+#if CONFIG_F255_QMOBU
+    memcpy(cpi->user_defined_qm_list[level][2][c], user_defined_qm->qm_4x8[c],
+           4 * 8 * sizeof(qm_val_t));
+#else
     memcpy(seq_params->quantizer_matrix_4x8[level][c],
            user_defined_qm->qm_4x8[c], 4 * 8 * sizeof(qm_val_t));
+#endif  // CONFIG_F255_QMOBU
   }
 
-  // Re-initialize QMs with user-defined matrices for level
+#if !CONFIG_F255_QMOBU
+  // Re-initialize QMs (of cm) with user-defined matrices for level
   qm_val_t ***fund_mat[3] = { seq_params->quantizer_matrix_8x8,
                               seq_params->quantizer_matrix_8x4,
                               seq_params->quantizer_matrix_4x8 };
   av1_qm_replace_level(&cpi->common.quant_params, level, num_planes, fund_mat);
-
+#endif  // !CONFIG_F255_QMOBU
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
   extra_cfg.user_defined_qmatrix = 1;
   extra_cfg.qm_data_present[level] = 1;
@@ -3873,6 +3914,12 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_qm, argv,
                               err_string)) {
     extra_cfg.enable_qm = arg_parse_uint_helper(&arg, err_string);
+#if CONFIG_F255_QMOBU_FULLPREDEF
+  } else if (arg_match_helper(&arg,
+                              &g_av1_codec_arg_defs.use_full_qm_predefinedA,
+                              argv, err_string)) {
+    extra_cfg.use_full_qm_predefined = arg_parse_uint_helper(&arg, err_string);
+#endif
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.qm_max, argv,
                               err_string)) {
     extra_cfg.qm_max = arg_parse_uint_helper(&arg, err_string);
@@ -4385,6 +4432,9 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_ENABLE_GDF, ctrl_set_enable_gdf },
   { AV1E_SET_ENABLE_RESTORATION, ctrl_set_enable_restoration },
   { AV1E_SET_FORCE_VIDEO_MODE, ctrl_set_force_video_mode },
+#if CONFIG_F255_QMOBU_FULLPREDEF
+  { AV1E_SET_QM_FULL_PREDEFINED, ctrl_set_qm_fullpredefined },
+#endif
   { AV1E_SET_ENABLE_TRELLIS_QUANT, ctrl_set_enable_trellis_quant },
   { AV1E_SET_ENABLE_QM, ctrl_set_enable_qm },
   { AV1E_SET_QM_Y, ctrl_set_qm_y },
