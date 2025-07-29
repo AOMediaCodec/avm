@@ -253,14 +253,6 @@ enum {
   QTR_ONLY,
 } UENUM1BYTE(MV_PREC_LOGIC);
 
-#if CONFIG_ENABLE_SR
-enum {
-  SUPERRES_AUTO_ALL,   // Tries all possible superres ratios
-  SUPERRES_AUTO_DUAL,  // Tries no superres and q-based superres ratios
-  SUPERRES_AUTO_SOLO,  // Only apply the q-based superres ratio
-} UENUM1BYTE(SUPERRES_AUTO_SEARCH_TYPE);
-#endif  // CONFIG_ENABLE_SR
-
 /*!\endcond */
 /*! \brief Used with \ref MACROBLOCK::reuse_inter_mode_cache_type to determine
  * whether partition mode is reused. */
@@ -312,13 +304,6 @@ typedef struct HIGH_LEVEL_SPEED_FEATURES {
   // backgrounds very to cheap to encode, and the segmentation we have
   // adds overhead.
   int static_segmentation;
-
-#if CONFIG_ENABLE_SR
-  /*!
-   * Superres-auto mode search type:
-   */
-  SUPERRES_AUTO_SEARCH_TYPE superres_auto_search_type;
-#endif  // CONFIG_ENABLE_SR
 
   /*!
    * disallow references at different scale

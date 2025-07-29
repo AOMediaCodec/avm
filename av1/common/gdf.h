@@ -90,9 +90,6 @@ void gdf_filter_frame(AV1_COMMON *cm);
  */
 static inline int is_allow_gdf(const AV1_COMMON *cm) {
   return !cm->features.coded_lossless && !cm->tiles.large_scale
-#if CONFIG_ENABLE_SR
-         && !av1_superres_scaled(cm)
-#endif
 #if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
          && !is_global_intrabc_allowed(cm)
 #endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC

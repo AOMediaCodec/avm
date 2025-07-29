@@ -19,11 +19,6 @@
 extern "C" {
 #endif
 
-#if CONFIG_ENABLE_SR
-int av1_superres_in_recode_allowed(const AV1_COMP *const cpi);
-void av1_superres_post_encode(AV1_COMP *cpi);
-#endif  // CONFIG_ENABLE_SR
-
 #ifdef __cplusplus
 }  // extern "C"
 #endif

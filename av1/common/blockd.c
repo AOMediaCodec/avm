@@ -733,24 +733,12 @@ uint8_t av1_get_txk_skip(const AV1_COMMON *cm, int mi_row, int mi_col,
   return cm->mi_params.tx_skip[plane][idx];
 }
 
-void av1_alloc_class_id_array(CommonModeInfoParams *mi_params, AV1_COMMON *cm
-#if !CONFIG_ENABLE_SR
-                              ,
-                              int height
-#endif  // !CONFIG_ENABLE_SR
-) {
+void av1_alloc_class_id_array(CommonModeInfoParams *mi_params, AV1_COMMON *cm,
+                              int height) {
   (void)cm;
   for (int plane = 0; plane < MAX_MB_PLANE; plane++) {
-#if CONFIG_ENABLE_SR
-    // Allocate for the maximum possible value of cm->superres_upscaled_width,
-    // which is the coded frame width * 2, instead of just
-    // cm->superres_upscaled_width
-    int w = (mi_params->mi_cols << MI_SIZE_LOG2) * 2;
-    int h = cm->superres_upscaled_height;
-#else
     int w = (mi_params->mi_cols << MI_SIZE_LOG2);
     int h = height;
-#endif  // CONFIG_ENABLE_SR
     w = ((w + MAX_SB_SIZE - 1) >> MAX_SB_SIZE_LOG2) << MAX_SB_SIZE_LOG2;
     h = ((h + MAX_SB_SIZE - 1) >> MAX_SB_SIZE_LOG2) << MAX_SB_SIZE_LOG2;
     int stride = (w + MIN_TX_SIZE - 1) >> MIN_TX_SIZE_LOG2;
@@ -763,24 +751,11 @@ void av1_alloc_class_id_array(CommonModeInfoParams *mi_params, AV1_COMMON *cm
 }
 
 void av1_set_class_id_array_stride(CommonModeInfoParams *mi_params,
-                                   AV1_COMMON *cm
-#if !CONFIG_ENABLE_SR
-                                   ,
-                                   int height
-#endif  // !CONFIG_ENABLE_SR
-) {
+                                   AV1_COMMON *cm, int height) {
   (void)cm;
   for (int plane = 0; plane < MAX_MB_PLANE; plane++) {
-#if CONFIG_ENABLE_SR
-    // Allocate for the maximum possible value of cm->superres_upscaled_width,
-    // which is the coded frame width * 2, instead of just
-    // cm->superres_upscaled_width
-    int w = (mi_params->mi_cols << MI_SIZE_LOG2) * 2;
-    int h = cm->superres_upscaled_height;
-#else
     int w = (mi_params->mi_cols << MI_SIZE_LOG2);
     int h = height;
-#endif  // CONFIG_ENABLE_SR
     w = ((w + MAX_SB_SIZE - 1) >> MAX_SB_SIZE_LOG2) << MAX_SB_SIZE_LOG2;
     h = ((h + MAX_SB_SIZE - 1) >> MAX_SB_SIZE_LOG2) << MAX_SB_SIZE_LOG2;
     int stride = (w + MIN_TX_SIZE - 1) >> MIN_TX_SIZE_LOG2;

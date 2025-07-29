@@ -192,10 +192,7 @@ struct av1_extracfg {
   int enable_smooth_intra;  // enable smooth intra modes for sequence
   int enable_paeth_intra;   // enable Paeth intra mode for sequence
   int enable_cfl_intra;     // enable CFL uv intra mode for sequence
-  int enable_mhccp;  // enable multi-hypothesis cross-component prediction
-#if CONFIG_ENABLE_SR
-  int enable_superres;
-#endif                 // CONFIG_ENABLE_SR
+  int enable_mhccp;    // enable multi-hypothesis cross-component prediction
   int enable_overlay;  // enable overlay for filtered arf frames
   int enable_palette;
   int enable_intrabc;
@@ -532,9 +529,6 @@ static struct av1_extracfg default_extra_cfg = {
   1,    // enable Paeth intra mode usage for sequence
   1,    // enable CFL uv intra mode usage for sequence
   1,    // enable mhccp
-#if CONFIG_ENABLE_SR
-  1,    // superres
-#endif  // CONFIG_ENABLE_SR
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
   0,    // enable overlay
 #else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
@@ -737,15 +731,6 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
               SCALE_NUMERATOR << 1);
   RANGE_CHECK(cfg, rc_resize_kf_denominator, SCALE_NUMERATOR,
               SCALE_NUMERATOR << 1);
-#if CONFIG_ENABLE_SR
-  RANGE_CHECK_HI(cfg, rc_superres_mode, AOM_SUPERRES_AUTO);
-  RANGE_CHECK(cfg, rc_superres_denominator, SCALE_NUMERATOR,
-              SCALE_NUMERATOR << 1);
-  RANGE_CHECK(cfg, rc_superres_kf_denominator, SCALE_NUMERATOR,
-              SCALE_NUMERATOR << 1);
-  RANGE_CHECK(cfg, rc_superres_qthresh, 1, 255);
-  RANGE_CHECK(cfg, rc_superres_kf_qthresh, 1, 255);
-#endif  // CONFIG_ENABLE_SR
   RANGE_CHECK_HI(extra_cfg, cdf_update_mode, 2);
 
   RANGE_CHECK_HI(extra_cfg, motion_vector_unit_test, 2);
@@ -952,17 +937,6 @@ static int get_image_bps(const aom_image_t *img) {
   }
   return 0;
 }
-
-#if CONFIG_ENABLE_SR
-// Set appropriate options to disable frame super-resolution.
-static void disable_superres(SuperResCfg *const superres_cfg) {
-  superres_cfg->superres_mode = AOM_SUPERRES_NONE;
-  superres_cfg->superres_scale_denominator = SCALE_NUMERATOR;
-  superres_cfg->superres_kf_scale_denominator = SCALE_NUMERATOR;
-  superres_cfg->superres_qthresh = 255;
-  superres_cfg->superres_kf_qthresh = 255;
-}
-#endif  // CONFIG_ENABLE_SR
 
 static void update_encoder_config(cfg_options_t *cfg,
                                   struct av1_extracfg *extra_cfg) {
@@ -1298,10 +1272,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   TxfmSizeTypeCfg *const txfm_cfg = &oxcf->txfm_cfg;
 
   CompoundTypeCfg *const comp_type_cfg = &oxcf->comp_type_cfg;
-
-#if CONFIG_ENABLE_SR
-  SuperResCfg *const superres_cfg = &oxcf->superres_cfg;
-#endif  // CONFIG_ENABLE_SR
 
   KeyFrameCfg *const kf_cfg = &oxcf->kf_cfg;
 
@@ -1844,65 +1814,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   comp_type_cfg->enable_interintra_wedge =
       extra_cfg->enable_interintra_comp & extra_cfg->enable_interintra_wedge;
 
-#if CONFIG_ENABLE_SR
-  // Set Super-resolution mode configuration.
-  if (extra_cfg->lossless || cfg->large_scale_tile) {
-    disable_superres(superres_cfg);
-  } else {
-    superres_cfg->superres_mode = cfg->rc_superres_mode;
-    superres_cfg->superres_scale_denominator =
-        (uint8_t)cfg->rc_superres_denominator;
-    superres_cfg->superres_kf_scale_denominator =
-        (uint8_t)cfg->rc_superres_kf_denominator;
-    superres_cfg->superres_qthresh = cfg->rc_superres_qthresh;
-    superres_cfg->superres_kf_qthresh = cfg->rc_superres_kf_qthresh;
-    int offset_superres_qthresh;
-    int offset_superres_kf_qthresh;
-    switch (cfg->g_bit_depth) {
-      case AOM_BITS_8:
-        offset_superres_qthresh = 0;
-        offset_superres_kf_qthresh = 0;
-        break;
-      case AOM_BITS_10:
-        offset_superres_qthresh =
-            qindex_10b_offset[superres_cfg->superres_qthresh != 0];
-        offset_superres_kf_qthresh =
-            qindex_10b_offset[superres_cfg->superres_kf_qthresh != 0];
-        break;
-      case AOM_BITS_12:
-        offset_superres_qthresh =
-            qindex_12b_offset[superres_cfg->superres_qthresh != 0];
-        offset_superres_kf_qthresh =
-            qindex_12b_offset[superres_cfg->superres_kf_qthresh != 0];
-        break;
-      default:
-        offset_superres_qthresh = 0;
-        offset_superres_kf_qthresh = 0;
-        break;
-    }
-    superres_cfg->superres_qthresh += offset_superres_qthresh;
-    superres_cfg->superres_kf_qthresh += offset_superres_kf_qthresh;
-
-    if (superres_cfg->superres_mode == AOM_SUPERRES_FIXED &&
-        superres_cfg->superres_scale_denominator == SCALE_NUMERATOR &&
-        superres_cfg->superres_kf_scale_denominator == SCALE_NUMERATOR) {
-      disable_superres(superres_cfg);
-    }
-    if (superres_cfg->superres_mode == AOM_SUPERRES_QTHRESH &&
-        superres_cfg->superres_qthresh == 255 &&
-        superres_cfg->superres_kf_qthresh == 255) {
-      disable_superres(superres_cfg);
-    }
-  }
-
-  superres_cfg->enable_superres =
-      (superres_cfg->superres_mode != AOM_SUPERRES_NONE) &&
-      extra_cfg->enable_superres;
-  if (!superres_cfg->enable_superres) {
-    disable_superres(superres_cfg);
-  }
-#endif  // CONFIG_ENABLE_SR
-
   if (input_cfg->limit == 1) {
     // still picture mode, display model and timing is meaningless
     dec_model_cfg->display_model_info_present_flag = 0;
@@ -1920,13 +1831,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->unit_test_cfg.frame_multi_qmatrix_unit_test =
       extra_cfg->frame_multi_qmatrix_unit_test;
 
-  oxcf->border_in_pixels = (resize_cfg->resize_mode
-#if CONFIG_ENABLE_SR
-                            || superres_cfg->superres_mode
-#endif  // CONFIG_ENABLE_SR
-                            )
-                               ? AOM_BORDER_IN_PIXELS
-                               : AOM_ENC_NO_SCALE_BORDER;
+  oxcf->border_in_pixels =
+      resize_cfg->resize_mode ? AOM_BORDER_IN_PIXELS : AOM_ENC_NO_SCALE_BORDER;
   memcpy(oxcf->target_seq_level_idx, extra_cfg->target_seq_level_idx,
          sizeof(oxcf->target_seq_level_idx));
   oxcf->tier_mask = extra_cfg->tier_mask;
@@ -2582,15 +2488,6 @@ static aom_codec_err_t ctrl_set_enable_cfl_intra(aom_codec_alg_priv_t *ctx,
   extra_cfg.enable_cfl_intra = CAST(AV1E_SET_ENABLE_CFL_INTRA, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
-
-#if CONFIG_ENABLE_SR
-static aom_codec_err_t ctrl_set_enable_superres(aom_codec_alg_priv_t *ctx,
-                                                va_list args) {
-  struct av1_extracfg extra_cfg = ctx->extra_cfg;
-  extra_cfg.enable_superres = CAST(AV1E_SET_ENABLE_SUPERRES, args);
-  return update_extra_cfg(ctx, &extra_cfg);
-}
-#endif  // CONFIG_ENABLE_SR
 
 static aom_codec_err_t ctrl_set_enable_overlay(aom_codec_alg_priv_t *ctx,
                                                va_list args) {
@@ -4529,9 +4426,6 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_ENABLE_SMOOTH_INTRA, ctrl_set_enable_smooth_intra },
   { AV1E_SET_ENABLE_PAETH_INTRA, ctrl_set_enable_paeth_intra },
   { AV1E_SET_ENABLE_CFL_INTRA, ctrl_set_enable_cfl_intra },
-#if CONFIG_ENABLE_SR
-  { AV1E_SET_ENABLE_SUPERRES, ctrl_set_enable_superres },
-#endif  // CONFIG_ENABLE_SR
   { AV1E_SET_ENABLE_OVERLAY, ctrl_set_enable_overlay },
   { AV1E_SET_ENABLE_PALETTE, ctrl_set_enable_palette },
   { AV1E_SET_ENABLE_INTRABC, ctrl_set_enable_intrabc },
@@ -4625,14 +4519,6 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
     RESIZE_NONE,      // rc_resize_mode
     SCALE_NUMERATOR,  // rc_resize_denominator
     SCALE_NUMERATOR,  // rc_resize_kf_denominator
-
-#if CONFIG_ENABLE_SR
-    AOM_SUPERRES_NONE,  // rc_superres_mode
-    SCALE_NUMERATOR,    // rc_superres_denominator
-    SCALE_NUMERATOR,    // rc_superres_kf_denominator
-    255,                // rc_superres_qthresh
-    128,                // rc_superres_kf_qthresh
-#endif                  // CONFIG_ENABLE_SR
 
     AOM_VBR,      // rc_end_usage
     { NULL, 0 },  // rc_firstpass_mb_stats_in

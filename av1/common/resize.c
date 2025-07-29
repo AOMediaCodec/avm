@@ -1230,15 +1230,7 @@ void av1_upscale_normative_rows(const AV1_COMMON *cm, const uint16_t *src,
   const int is_uv = (plane > 0);
   const int ss_x = is_uv && cm->seq_params.subsampling_x;
   const int downscaled_plane_width = ROUND_POWER_OF_TWO(cm->width, ss_x);
-  const int upscaled_plane_width =
-#if CONFIG_ENABLE_SR
-      ROUND_POWER_OF_TWO(cm->superres_upscaled_width, ss_x);
-#else
-      ROUND_POWER_OF_TWO(cm->width, ss_x);
-#endif  // CONFIG_ENABLE_SR
-#if CONFIG_ENABLE_SR
-  const int superres_denom = cm->superres_scale_denominator;
-#endif  // CONFIG_ENABLE_SR
+  const int upscaled_plane_width = ROUND_POWER_OF_TWO(cm->width, ss_x);
 
   TileInfo tile_col;
   const int32_t x_step_qn = av1_get_upscale_convolve_step(
@@ -1257,11 +1249,7 @@ void av1_upscale_normative_rows(const AV1_COMMON *cm, const uint16_t *src,
     const int downscaled_x1 = tile_col.mi_col_end << (MI_SIZE_LOG2 - ss_x);
     const int src_width = downscaled_x1 - downscaled_x0;
 
-#if CONFIG_ENABLE_SR
-    const int upscaled_x0 = (downscaled_x0 * superres_denom) / SCALE_NUMERATOR;
-#else
     const int upscaled_x0 = downscaled_x0;
-#endif  // CONFIG_ENABLE_SR
     int upscaled_x1;
     if (j == cm->tiles.cols - 1) {
       // Note that we can't just use AOMMIN here - due to rounding,
@@ -1269,11 +1257,7 @@ void av1_upscale_normative_rows(const AV1_COMMON *cm, const uint16_t *src,
       // upscaled_plane_width.
       upscaled_x1 = upscaled_plane_width;
     } else {
-#if CONFIG_ENABLE_SR
-      upscaled_x1 = (downscaled_x1 * superres_denom) / SCALE_NUMERATOR;
-#else
       upscaled_x1 = downscaled_x1;
-#endif  // CONFIG_ENABLE_SR
     }
 
     const uint16_t *const src_ptr = src + downscaled_x0;
@@ -1307,25 +1291,17 @@ void av1_upscale_normative_and_extend_frame(const AV1_COMMON *cm,
   aom_extend_frame_borders(dst, num_planes);
 }
 
-YV12_BUFFER_CONFIG *av1_scale_if_required(
-    AV1_COMMON *cm, YV12_BUFFER_CONFIG *unscaled, YV12_BUFFER_CONFIG *scaled,
-    const InterpFilter filter, const int phase, const bool use_optimized_scaler
-#if CONFIG_ENABLE_SR
-    ,
-    const bool for_psnr
-#endif  // CONFIG_ENABLE_SR
-) {
+YV12_BUFFER_CONFIG *av1_scale_if_required(AV1_COMMON *cm,
+                                          YV12_BUFFER_CONFIG *unscaled,
+                                          YV12_BUFFER_CONFIG *scaled,
+                                          const InterpFilter filter,
+                                          const int phase,
+                                          const bool use_optimized_scaler) {
   // If scaling is performed for the sole purpose of calculating PSNR, then our
   // target dimensions are superres upscaled width/height. Otherwise our target
   // dimensions are coded width/height.
-  const bool scaling_required =
-#if CONFIG_ENABLE_SR
-      for_psnr ? (cm->superres_upscaled_width != unscaled->y_crop_width ||
-                  cm->superres_upscaled_height != unscaled->y_crop_height)
-               :
-#endif  // CONFIG_ENABLE_SR
-               (cm->width != unscaled->y_crop_width ||
-                cm->height != unscaled->y_crop_height);
+  const bool scaling_required = (cm->width != unscaled->y_crop_width ||
+                                 cm->height != unscaled->y_crop_height);
 
   if (scaling_required) {
     const int num_planes = av1_num_planes(cm);
@@ -1381,123 +1357,3 @@ void av1_calculate_scaled_size(int *width, int *height, int resize_denom) {
   calculate_scaled_size_helper(width, resize_denom);
   calculate_scaled_size_helper(height, resize_denom);
 }
-
-#if CONFIG_ENABLE_SR
-void av1_calculate_scaled_superres_size(int *width, int *height,
-                                        int superres_denom) {
-  (void)height;
-  calculate_scaled_size_helper(width, superres_denom);
-}
-
-void av1_calculate_unscaled_superres_size(int *width, int *height, int denom) {
-  if (denom != SCALE_NUMERATOR) {
-    // Note: av1_calculate_scaled_superres_size() rounds *up* after division
-    // when the resulting dimensions are odd. So here, we round *down*.
-    *width = *width * denom / SCALE_NUMERATOR;
-    (void)height;
-  }
-}
-
-// Copy only the config data from 'src' to 'dst'.
-static void copy_buffer_config(const YV12_BUFFER_CONFIG *const src,
-                               YV12_BUFFER_CONFIG *const dst) {
-  dst->bit_depth = src->bit_depth;
-  dst->color_primaries = src->color_primaries;
-  dst->transfer_characteristics = src->transfer_characteristics;
-  dst->matrix_coefficients = src->matrix_coefficients;
-  dst->monochrome = src->monochrome;
-  dst->chroma_sample_position = src->chroma_sample_position;
-  dst->color_range = src->color_range;
-}
-
-// TODO(afergs): Look for in-place upscaling
-// TODO(afergs): aom_ vs av1_ functions? Which can I use?
-// Upscale decoded image.
-void av1_superres_upscale(AV1_COMMON *cm, BufferPool *const pool,
-                          bool alloc_pyramid) {
-  const int num_planes = av1_num_planes(cm);
-  if (!av1_superres_scaled(cm)) return;
-  const SequenceHeader *const seq_params = &cm->seq_params;
-  const int byte_alignment = cm->features.byte_alignment;
-
-  YV12_BUFFER_CONFIG copy_buffer;
-  memset(&copy_buffer, 0, sizeof(copy_buffer));
-
-  YV12_BUFFER_CONFIG *const frame_to_show = &cm->cur_frame->buf;
-
-  const int aligned_width = ALIGN_POWER_OF_TWO(cm->width, 3);
-  if (aom_alloc_frame_buffer(&copy_buffer, aligned_width, cm->height,
-                             seq_params->subsampling_x,
-                             seq_params->subsampling_y, AOM_BORDER_IN_PIXELS,
-                             byte_alignment, false))
-    aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
-                       "Failed to allocate copy buffer for superres upscaling");
-
-  // Copy function assumes the frames are the same size.
-  // Note that it does not copy YV12_BUFFER_CONFIG config data.
-  aom_yv12_copy_frame(frame_to_show, &copy_buffer, num_planes);
-
-  assert(copy_buffer.y_crop_width == aligned_width);
-  assert(copy_buffer.y_crop_height == cm->height);
-
-  // Realloc the current frame buffer at a higher resolution in place.
-  if (pool != NULL) {
-    // Use callbacks if on the decoder.
-    aom_codec_frame_buffer_t *fb = &cm->cur_frame->raw_frame_buffer;
-    aom_release_frame_buffer_cb_fn_t release_fb_cb = pool->release_fb_cb;
-    aom_get_frame_buffer_cb_fn_t cb = pool->get_fb_cb;
-    void *cb_priv = pool->cb_priv;
-
-    lock_buffer_pool(pool);
-    // Realloc with callback does not release the frame buffer - release first.
-    if (release_fb_cb(cb_priv, fb)) {
-      unlock_buffer_pool(pool);
-      aom_internal_error(
-          &cm->error, AOM_CODEC_MEM_ERROR,
-          "Failed to free current frame buffer before superres upscaling");
-    }
-    // aom_realloc_frame_buffer() leaves config data for frame_to_show intact
-    if (aom_realloc_frame_buffer(
-            frame_to_show, cm->superres_upscaled_width,
-            cm->superres_upscaled_height, seq_params->subsampling_x,
-            seq_params->subsampling_y, AOM_BORDER_IN_PIXELS, byte_alignment, fb,
-            cb, cb_priv, alloc_pyramid)) {
-      unlock_buffer_pool(pool);
-      aom_internal_error(
-          &cm->error, AOM_CODEC_MEM_ERROR,
-          "Failed to allocate current frame buffer for superres upscaling");
-    }
-    unlock_buffer_pool(pool);
-  } else {
-    // Make a copy of the config data for frame_to_show in copy_buffer
-    copy_buffer_config(frame_to_show, &copy_buffer);
-
-    // Don't use callbacks on the encoder.
-    // aom_alloc_frame_buffer() clears the config data for frame_to_show
-    if (aom_alloc_frame_buffer(frame_to_show, cm->superres_upscaled_width,
-                               cm->superres_upscaled_height,
-                               seq_params->subsampling_x,
-                               seq_params->subsampling_y, AOM_BORDER_IN_PIXELS,
-                               byte_alignment, alloc_pyramid))
-      aom_internal_error(
-          &cm->error, AOM_CODEC_MEM_ERROR,
-          "Failed to reallocate current frame buffer for superres upscaling");
-
-    // Restore config data back to frame_to_show
-    copy_buffer_config(&copy_buffer, frame_to_show);
-  }
-  // TODO(afergs): verify frame_to_show is correct after realloc
-  //               encoder:
-  //               decoder:
-
-  assert(frame_to_show->y_crop_width == cm->superres_upscaled_width);
-  assert(frame_to_show->y_crop_height == cm->superres_upscaled_height);
-
-  // Scale up and back into frame_to_show.
-  assert(frame_to_show->y_crop_width != cm->width);
-  av1_upscale_normative_and_extend_frame(cm, &copy_buffer, frame_to_show);
-
-  // Free the copy buffer
-  aom_free_frame_buffer(&copy_buffer);
-}
-#endif  // CONFIG_ENABLE_SR

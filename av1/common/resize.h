@@ -75,14 +75,12 @@ void av1_upscale_normative_and_extend_frame(const AV1_COMMON *cm,
                                             const YV12_BUFFER_CONFIG *src,
                                             YV12_BUFFER_CONFIG *dst);
 
-YV12_BUFFER_CONFIG *av1_scale_if_required(
-    AV1_COMMON *cm, YV12_BUFFER_CONFIG *unscaled, YV12_BUFFER_CONFIG *scaled,
-    const InterpFilter filter, const int phase, const bool use_optimized_scaler
-#if CONFIG_ENABLE_SR
-    ,
-    const bool for_psnr
-#endif  // CONFIG_ENABLE_SR
-);
+YV12_BUFFER_CONFIG *av1_scale_if_required(AV1_COMMON *cm,
+                                          YV12_BUFFER_CONFIG *unscaled,
+                                          YV12_BUFFER_CONFIG *scaled,
+                                          const InterpFilter filter,
+                                          const int phase,
+                                          const bool use_optimized_scaler);
 
 void av1_resize_and_extend_frame_nonnormative(const YV12_BUFFER_CONFIG *src,
                                               YV12_BUFFER_CONFIG *dst, int bd,
@@ -91,29 +89,6 @@ void av1_resize_and_extend_frame_nonnormative(const YV12_BUFFER_CONFIG *src,
 // Calculates the scaled dimensions from the given original dimensions and the
 // resize scale denominator.
 void av1_calculate_scaled_size(int *width, int *height, int resize_denom);
-
-#if CONFIG_ENABLE_SR
-// Similar to above, but calculates scaled dimensions after superres from the
-// given original dimensions and superres scale denominator.
-void av1_calculate_scaled_superres_size(int *width, int *height,
-                                        int superres_denom);
-
-// Inverse of av1_calculate_scaled_superres_size() above: calculates the
-// original dimensions from the given scaled dimensions and the scale
-// denominator.
-void av1_calculate_unscaled_superres_size(int *width, int *height, int denom);
-
-void av1_superres_upscale(AV1_COMMON *cm, BufferPool *const pool,
-                          bool alloc_pyramid);
-
-// Returns 1 if a superres upscaled frame is scaled and 0 otherwise.
-static INLINE int av1_superres_scaled(const AV1_COMMON *cm) {
-  // Note: for some corner cases (e.g. cm->width of 1), there may be no scaling
-  // required even though cm->superres_scale_denominator != SCALE_NUMERATOR.
-  // So, the following check is more accurate.
-  return !(cm->width == cm->superres_upscaled_width);
-}
-#endif  // CONFIG_ENABLE_SR
 
 #define UPSCALE_NORMATIVE_TAPS 8
 extern const int16_t av1_resize_filter_normative[1 << RS_SUBPEL_BITS]

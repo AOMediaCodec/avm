@@ -88,13 +88,6 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t resize_mode;
   arg_def_t resize_denominator;
   arg_def_t resize_kf_denominator;
-#if CONFIG_ENABLE_SR
-  arg_def_t superres_mode;
-  arg_def_t superres_denominator;
-  arg_def_t superres_kf_denominator;
-  arg_def_t superres_qthresh;
-  arg_def_t superres_kf_qthresh;
-#endif  // CONFIG_ENABLE_SR
   arg_def_t end_usage;
   arg_def_t target_bitrate;
   arg_def_t min_q_level;

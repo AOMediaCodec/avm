@@ -244,20 +244,6 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       ARG_DEF(NULL, "resize-denominator", 1, "Frame resize denominator"),
   .resize_kf_denominator = ARG_DEF(NULL, "resize-kf-denominator", 1,
                                    "Frame resize keyframe denominator"),
-#if CONFIG_ENABLE_SR
-  .superres_mode =
-      ARG_DEF(NULL, "superres-mode", 1, "Frame super-resolution mode"),
-  .superres_denominator = ARG_DEF(NULL, "superres-denominator", 1,
-                                  "Frame super-resolution denominator"),
-  .superres_kf_denominator =
-      ARG_DEF(NULL, "superres-kf-denominator", 1,
-              "Frame super-resolution keyframe denominator"),
-  .superres_qthresh = ARG_DEF(NULL, "superres-qthresh", 1,
-                              "Frame super-resolution qindex threshold"),
-  .superres_kf_qthresh =
-      ARG_DEF(NULL, "superres-kf-qthresh", 1,
-              "Frame super-resolution keyframe qindex threshold"),
-#endif  // CONFIG_ENABLE_SR
   .end_usage =
       ARG_DEF_ENUM(NULL, "end-usage", 1, "Rate control mode", end_usage_enum),
   .target_bitrate = ARG_DEF(NULL, "target-bitrate", 1, "Bitrate (kbps)"),

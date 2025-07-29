@@ -191,24 +191,6 @@ enum aom_kf_mode {
   AOM_KF_DISABLED = 0 /**< Encoder does not place keyframes. */
 };
 
-#if CONFIG_ENABLE_SR
-/*!\brief Frame super-resolution mode. */
-typedef enum {
-  /**< Frame super-resolution is disabled for all frames. */
-  AOM_SUPERRES_NONE,
-  /**< All frames are coded at the specified scale and super-resolved. */
-  AOM_SUPERRES_FIXED,
-  /**< All frames are coded at a random scale and super-resolved. */
-  AOM_SUPERRES_RANDOM,
-  /**< Super-resolution scale for each frame is determined based on the q index
-     of that frame. */
-  AOM_SUPERRES_QTHRESH,
-  /**< Full-resolution or super-resolution and the scale (in case of
-     super-resolution) are automatically selected for each frame. */
-  AOM_SUPERRES_AUTO,
-} aom_superres_mode;
-#endif  // CONFIG_ENABLE_SR
-
 /*!\brief Frame super-resolution mode. */
 typedef enum {
   /**< MV refinement is disabled for all frames. */
@@ -840,56 +822,6 @@ typedef struct aom_codec_enc_cfg {
    * Valid denominators are  8 - 16 for now.
    */
   unsigned int rc_resize_kf_denominator;
-
-#if CONFIG_ENABLE_SR
-  /*!\brief Frame super-resolution scaling mode.
-   *
-   * Similar to spatial resampling, frame super-resolution integrates
-   * upscaling after the encode/decode process. Taking control of upscaling and
-   * using restoration filters should allow it to outperform normal resizing.
-   */
-  aom_superres_mode rc_superres_mode;
-
-  /*!\brief Frame super-resolution denominator.
-   *
-   * The denominator for superres to use. If fixed it will only change if the
-   * cumulative scale change over resizing and superres is greater than 1/2;
-   * this forces superres to reduce scaling.
-   *
-   * Valid denominators are 8 to 16.
-   *
-   * Used only by AOM_SUPERRES_FIXED.
-   */
-  unsigned int rc_superres_denominator;
-
-  /*!\brief Keyframe super-resolution denominator.
-   *
-   * The denominator for superres to use. If fixed it will only change if the
-   * cumulative scale change over resizing and superres is greater than 1/2;
-   * this forces superres to reduce scaling.
-   *
-   * Valid denominators are 8 - 16 for now.
-   */
-  unsigned int rc_superres_kf_denominator;
-
-  /*!\brief Frame super-resolution q threshold.
-   *
-   * The q level threshold after which superres is used.
-   * Valid values are 1 to 255.
-   *
-   * Used only by AOM_SUPERRES_QTHRESH
-   */
-  unsigned int rc_superres_qthresh;
-
-  /*!\brief Keyframe super-resolution q threshold.
-   *
-   * The q level threshold after which superres is used for key frames.
-   * Valid values are 1 to 255.
-   *
-   * Used only by AOM_SUPERRES_QTHRESH
-   */
-  unsigned int rc_superres_kf_qthresh;
-#endif  // CONFIG_ENABLE_SR
 
   /*!\brief Rate control algorithm to use.
    *

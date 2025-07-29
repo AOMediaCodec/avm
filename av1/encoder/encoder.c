@@ -242,11 +242,7 @@ void av1_new_framerate(AV1_COMP *cpi, double framerate) {
 
 double av1_get_compression_ratio(const AV1_COMMON *const cm,
                                  size_t encoded_frame_size) {
-#if CONFIG_ENABLE_SR
-  const int upscaled_width = cm->superres_upscaled_width;
-#else
   const int upscaled_width = cm->width;
-#endif  // CONFIG_ENABLE_SR
   const int height = cm->height;
   const int luma_pic_size = upscaled_width * height;
   const SequenceHeader *const seq_params = &cm->seq_params;
@@ -421,9 +417,6 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->order_hint_info.enable_ref_frame_mvs = tool_cfg->ref_frame_mvs_present;
   seq->order_hint_info.enable_ref_frame_mvs &=
       seq->order_hint_info.enable_order_hint;
-#if CONFIG_ENABLE_SR
-  seq->enable_superres = oxcf->superres_cfg.enable_superres;
-#endif  // CONFIG_ENABLE_SR
   seq->enable_cdef = tool_cfg->enable_cdef;
   seq->enable_restoration = tool_cfg->enable_restoration;
   seq->enable_ccso = tool_cfg->enable_ccso;
@@ -678,10 +671,6 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
 
   cm->width = oxcf->frm_dim_cfg.width;
   cm->height = oxcf->frm_dim_cfg.height;
-#if CONFIG_ENABLE_SR
-  cm->superres_upscaled_width = oxcf->frm_dim_cfg.width;
-  cm->superres_upscaled_height = oxcf->frm_dim_cfg.height;
-#endif  // CONFIG_ENABLE_SR
   // set sb size before allocations
   const BLOCK_SIZE sb_size = av1_select_sb_size(cpi);
   set_sb_size(cm, sb_size);
@@ -837,16 +826,6 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   av1_update_film_grain_parameters(cpi, oxcf);
 
   cpi->oxcf = *oxcf;
-#if CONFIG_ENABLE_SR
-  // When user provides superres_mode = AOM_SUPERRES_AUTO, we still initialize
-  // superres mode for current encoding = AOM_SUPERRES_NONE. This is to ensure
-  // that any analysis (e.g. TPL) happening outside the main encoding loop still
-  // happens at full resolution.
-  // This value will later be set appropriately just before main encoding loop.
-  cpi->superres_mode = oxcf->superres_cfg.superres_mode == AOM_SUPERRES_AUTO
-                           ? AOM_SUPERRES_NONE
-                           : oxcf->superres_cfg.superres_mode;  // default
-#endif  // CONFIG_ENABLE_SR
 
   x->e_mbd.bd = (int)seq_params->bit_depth;
   x->e_mbd.global_motion = cm->global_motion;
@@ -1392,11 +1371,6 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
 
   cm->seq_params.df_par_bits_minus2 = DF_PAR_BITS - 2;
   av1_loop_filter_init(cm);
-#if CONFIG_ENABLE_SR
-  cm->superres_scale_denominator = SCALE_NUMERATOR;
-  cm->superres_upscaled_width = oxcf->frm_dim_cfg.width;
-  cm->superres_upscaled_height = oxcf->frm_dim_cfg.height;
-#endif  // CONFIG_ENABLE_SR
 
   // The buffers related to TIP are not used during LAP stage. Hence,
   // the allocation is limited to encode stage.
@@ -2108,12 +2082,8 @@ static void init_motion_estimation(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   MotionVectorSearchParams *const mv_search_params = &cpi->mv_search_params;
   const int y_stride = cpi->scaled_source.y_stride;
-  const int y_stride_src = ((cpi->oxcf.frm_dim_cfg.width != cm->width ||
-                             cpi->oxcf.frm_dim_cfg.height != cm->height)
-#if CONFIG_ENABLE_SR
-                            || av1_superres_scaled(cm)
-#endif  // CONFIG_ENABLE_SR
-                                )
+  const int y_stride_src = (cpi->oxcf.frm_dim_cfg.width != cm->width ||
+                            cpi->oxcf.frm_dim_cfg.height != cm->height)
                                ? y_stride
                                : cpi->lookahead->buf->img.y_stride;
   int fpf_y_stride = cm->cur_frame != NULL ? cm->cur_frame->buf.y_stride
@@ -2289,11 +2259,7 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
     // There has been a change in the encoded frame size
     av1_set_size_literal(cpi, width, height);
     // Recalculate 'all_lossless' in case super-resolution was (un)selected.
-    cm->features.all_lossless = cm->features.coded_lossless
-#if CONFIG_ENABLE_SR
-                                && !av1_superres_scaled(cm)
-#endif  // CONFIG_ENABLE_SR
-        ;
+    cm->features.all_lossless = cm->features.coded_lossless;
 
     av1_noise_estimate_init(&cpi->noise_estimate, cm->width, cm->height);
   }
@@ -2326,13 +2292,8 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
     aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate frame buffer");
 
-#if CONFIG_ENABLE_SR
-  const int frame_width = cm->superres_upscaled_width;
-  const int frame_height = cm->superres_upscaled_height;
-#else
   const int frame_width = cm->width;
   const int frame_height = cm->height;
-#endif  // CONFIG_ENABLE_SR
   set_restoration_unit_size(frame_width, frame_height,
                             seq_params->subsampling_x,
                             seq_params->subsampling_y, cm->rst_info);
@@ -2812,10 +2773,6 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
     aom_free(org_uv[pli]);
   }
 
-#if CONFIG_ENABLE_SR
-  av1_superres_post_encode(cpi);
-#endif  // CONFIG_ENABLE_SR
-
 #if CONFIG_GDF
   if (use_gdf) {
     gdf_copy_guided_frame(cm);
@@ -3055,12 +3012,7 @@ static int encode_without_recode(AV1_COMP *cpi) {
   aom_clear_system_state();
 
   cpi->source = av1_scale_if_required(cm, unscaled, &cpi->scaled_source,
-                                      filter_scaler, phase_scaler, true
-#if CONFIG_ENABLE_SR
-                                      ,
-                                      false
-#endif  // CONFIG_ENABLE_SR
-  );
+                                      filter_scaler, phase_scaler, true);
   if (frame_is_intra_only(cm) || resize_pending != 0) {
     memset(cpi->consec_zero_mv, 0,
            ((cm->mi_params.mi_rows * cm->mi_params.mi_cols) >> 2) *
@@ -3070,23 +3022,13 @@ static int encode_without_recode(AV1_COMP *cpi) {
   if (cpi->unscaled_last_source != NULL) {
     cpi->last_source = av1_scale_if_required(cm, cpi->unscaled_last_source,
                                              &cpi->scaled_last_source,
-                                             filter_scaler, phase_scaler, true
-#if CONFIG_ENABLE_SR
-                                             ,
-                                             false
-#endif  // CONFIG_ENABLE_SR
-    );
+                                             filter_scaler, phase_scaler, true);
   }
 
   // The code below turns across scale references off, which seems unnecessary.
   // So only enable this based on a speed-feature, and if superes_in_recode is
   // not allowed. Also consider dropping this segment completely.
-#if CONFIG_ENABLE_SR
-  if (cpi->sf.hl_sf.disable_unequal_scale_refs &&
-      !av1_superres_in_recode_allowed(cpi)) {
-#else
   if (cpi->sf.hl_sf.disable_unequal_scale_refs) {
-#endif  // CONFIG_ENABLE_SR
     const MV_REFERENCE_FRAME golden_frame = get_best_past_ref_index(cm);
     const MV_REFERENCE_FRAME altref_frame = get_furthest_future_ref_index(cm);
     if (golden_frame != NONE_FRAME &&
@@ -3209,17 +3151,6 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 
   av1_setup_frame_size(cpi);
 
-#if CONFIG_ENABLE_SR
-  if (av1_superres_in_recode_allowed(cpi) &&
-      cpi->superres_mode != AOM_SUPERRES_NONE &&
-      cm->superres_scale_denominator == SCALE_NUMERATOR) {
-    // Superres mode is currently enabled, but the denominator selected will
-    // disable superres. So no need to continue, as we will go through another
-    // recode loop for full-resolution after this anyway.
-    return -1;
-  }
-#endif  // CONFIG_ENABLE_SR
-
   int top_index = 0, bottom_index = 0;
   int q = 0, q_low = 0, q_high = 0;
   av1_set_size_dependent_vars(cpi, &q, &bottom_index, &top_index);
@@ -3279,22 +3210,12 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
     }
     cpi->source =
         av1_scale_if_required(cm, cpi->unscaled_source, &cpi->scaled_source,
-                              EIGHTTAP_REGULAR, 0, false
-#if CONFIG_ENABLE_SR
-                              ,
-                              false
-#endif  // CONFIG_ENABLE_SR
-        );
+                              EIGHTTAP_REGULAR, 0, false);
 
     if (cpi->unscaled_last_source != NULL) {
       cpi->last_source = av1_scale_if_required(cm, cpi->unscaled_last_source,
                                                &cpi->scaled_last_source,
-                                               EIGHTTAP_REGULAR, 0, false
-#if CONFIG_ENABLE_SR
-                                               ,
-                                               false
-#endif  // CONFIG_ENABLE_SR
-      );
+                                               EIGHTTAP_REGULAR, 0, false);
     }
 
     if (!frame_is_intra_only(cm)) {
@@ -3466,9 +3387,6 @@ static INLINE bool allow_tip_direct_output(AV1_COMMON *const cm) {
 #if CONFIG_BRU
       && !cm->bru.enabled
 #endif  // CONFIG_BRU
-#if CONFIG_ENABLE_SR
-      && !av1_superres_scaled(cm)
-#endif  // CONFIG_ENABLE_SR
   ) {
     return true;
   }
@@ -4135,204 +4053,6 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
   return AOM_CODEC_OK;
 }
 
-#if CONFIG_ENABLE_SR
-static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
-                                            uint8_t *dest,
-                                            int *largest_tile_id) {
-  AV1_COMMON *const cm = &cpi->common;
-  assert(cm->seq_params.enable_superres);
-  assert(av1_superres_in_recode_allowed(cpi));
-  aom_codec_err_t err = AOM_CODEC_OK;
-  av1_save_all_coding_context(cpi);
-  FrameProbInfo *const frame_probs = &cpi->frame_probs;
-  const FRAME_UPDATE_TYPE update_type = get_frame_update_type(&cpi->gf_group);
-  int warped_probs_tmp = frame_probs->warped_probs[update_type];
-
-  aom_superres_mode orig_superres_mode = cpi->superres_mode;
-  cpi->superres_mode = AOM_SUPERRES_NONE;
-  int top_index = 0, bottom_index = 0, full_res_q = 0;
-  full_res_q =
-      av1_rc_pick_q_and_bounds(cpi, &cpi->rc, cm->width, cm->height,
-                               cpi->gf_group.index, &bottom_index, &top_index);
-  const int64_t rdmult = av1_compute_rd_mult_based_on_qindex(cpi, full_res_q);
-
-  cpi->superres_mode = orig_superres_mode;
-  int q_th = 160 + (MAXQ_OFFSET * (cm->seq_params.bit_depth - 8));
-
-  int do_not_search_superres = full_res_q <= q_th;
-  if (do_not_search_superres) {
-    restore_all_coding_context(cpi);
-    cpi->superres_mode = AOM_SUPERRES_NONE;
-    frame_probs->warped_probs[update_type] = warped_probs_tmp;
-    err = encode_with_recode_loop_and_filter(cpi, size, dest, NULL, NULL,
-                                             largest_tile_id);
-    return err;
-  }
-
-  int64_t sse1 = INT64_MAX;
-  int64_t rate1 = INT64_MAX;
-  int largest_tile_id1 = 0;
-  int64_t sse2 = INT64_MAX;
-  int64_t rate2 = INT64_MAX;
-  int largest_tile_id2;
-  double proj_rdcost1 = DBL_MAX;
-  const int search_step = 2;
-
-  // Encode with superres.
-  if (cpi->sf.hl_sf.superres_auto_search_type == SUPERRES_AUTO_ALL) {
-    SuperResCfg *const superres_cfg = &cpi->oxcf.superres_cfg;
-    int64_t superres_sses[SCALE_NUMERATOR];
-    int64_t superres_rates[SCALE_NUMERATOR];
-    int superres_largest_tile_ids[SCALE_NUMERATOR];
-    // Use superres for Key-frames and Alt-ref frames only.
-    const GF_GROUP *const gf_group = &cpi->gf_group;
-    if (gf_group->update_type[gf_group->index] != OVERLAY_UPDATE &&
-        gf_group->update_type[gf_group->index] != INTNL_OVERLAY_UPDATE) {
-      for (int denom = SCALE_NUMERATOR + 2; denom <= 2 * SCALE_NUMERATOR;
-           denom += search_step) {
-        superres_cfg->superres_scale_denominator = denom;
-        superres_cfg->superres_kf_scale_denominator = denom;
-        const int this_index = denom - (SCALE_NUMERATOR + 1);
-
-        cpi->superres_mode = AOM_SUPERRES_AUTO;  // Super-res on for this loop.
-        frame_probs->warped_probs[update_type] = warped_probs_tmp;
-        if (cpi->superres_mode == AOM_SUPERRES_AUTO &&
-            superres_cfg->superres_scale_denominator != SCALE_NUMERATOR) {
-          cpi->common.features.allow_screen_content_tools = 0;
-          cpi->common.features.cur_frame_force_integer_mv = 0;
-        }
-        err = encode_with_recode_loop_and_filter(
-            cpi, size, dest, &superres_sses[this_index],
-            &superres_rates[this_index],
-            &superres_largest_tile_ids[this_index]);
-        cpi->superres_mode = AOM_SUPERRES_NONE;  // Reset to default (full-res).
-        if (err != AOM_CODEC_OK) return err;
-        restore_all_coding_context(cpi);
-      }
-      // Reset.
-      superres_cfg->superres_scale_denominator = SCALE_NUMERATOR;
-      superres_cfg->superres_kf_scale_denominator = SCALE_NUMERATOR;
-    } else {
-      for (int denom = SCALE_NUMERATOR + 1; denom <= 2 * SCALE_NUMERATOR;
-           ++denom) {
-        const int this_index = denom - (SCALE_NUMERATOR + 1);
-        superres_sses[this_index] = INT64_MAX;
-        superres_rates[this_index] = INT64_MAX;
-      }
-    }
-    // Encode without superres.
-    assert(cpi->superres_mode == AOM_SUPERRES_NONE);
-    frame_probs->warped_probs[update_type] = warped_probs_tmp;
-    err = encode_with_recode_loop_and_filter(cpi, size, dest, &sse2, &rate2,
-                                             &largest_tile_id2);
-    if (err != AOM_CODEC_OK) return err;
-
-    // Find the best rdcost among all superres denoms.
-    int best_denom = -1;
-    for (int denom = SCALE_NUMERATOR + 2; denom <= 2 * SCALE_NUMERATOR;
-         denom += search_step) {
-      const int this_index = denom - (SCALE_NUMERATOR + 1);
-      const int64_t this_sse = superres_sses[this_index];
-      const int64_t this_rate = superres_rates[this_index];
-      const int this_largest_tile_id = superres_largest_tile_ids[this_index];
-      const double this_rdcost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-          rdmult, this_rate, this_sse, cm->seq_params.bit_depth);
-      if (this_rdcost < proj_rdcost1) {
-        sse1 = this_sse;
-        rate1 = this_rate;
-        largest_tile_id1 = this_largest_tile_id;
-        proj_rdcost1 = this_rdcost;
-        best_denom = denom;
-      }
-    }
-    const double proj_rdcost2 = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-        rdmult, rate2, sse2, cm->seq_params.bit_depth);
-    // Re-encode with superres if it's better.
-    if (proj_rdcost1 < proj_rdcost2) {
-      restore_all_coding_context(cpi);
-      // TODO(urvang): We should avoid rerunning the recode loop by saving
-      // previous output+state, or running encode only for the selected 'q' in
-      // previous step.
-      // Again, temporarily force the best denom.
-      superres_cfg->superres_scale_denominator = best_denom;
-      superres_cfg->superres_kf_scale_denominator = best_denom;
-      int64_t sse3 = INT64_MAX;
-      int64_t rate3 = INT64_MAX;
-      cpi->superres_mode =
-          AOM_SUPERRES_AUTO;  // Super-res on for this recode loop.
-      frame_probs->warped_probs[update_type] = warped_probs_tmp;
-      if (cpi->superres_mode == AOM_SUPERRES_AUTO &&
-          superres_cfg->superres_scale_denominator != SCALE_NUMERATOR) {
-        cpi->common.features.allow_screen_content_tools = 0;
-        cpi->common.features.cur_frame_force_integer_mv = 0;
-      }
-      err = encode_with_recode_loop_and_filter(cpi, size, dest, &sse3, &rate3,
-                                               largest_tile_id);
-      cpi->superres_mode = AOM_SUPERRES_NONE;  // Reset to default (full-res).
-      assert(sse1 == sse3);
-      assert(rate1 == rate3);
-      assert(largest_tile_id1 == *largest_tile_id);
-      // Reset.
-      superres_cfg->superres_scale_denominator = SCALE_NUMERATOR;
-      superres_cfg->superres_kf_scale_denominator = SCALE_NUMERATOR;
-    } else {
-      *largest_tile_id = largest_tile_id2;
-    }
-  } else {
-    assert(cpi->sf.hl_sf.superres_auto_search_type == SUPERRES_AUTO_DUAL);
-    cpi->superres_mode =
-        AOM_SUPERRES_AUTO;  // Super-res on for this recode loop.
-    frame_probs->warped_probs[update_type] = warped_probs_tmp;
-    if (cpi->superres_mode == AOM_SUPERRES_AUTO) {
-      cpi->common.features.allow_screen_content_tools = 0;
-      cpi->common.features.cur_frame_force_integer_mv = 0;
-    }
-    err = encode_with_recode_loop_and_filter(cpi, size, dest, &sse1, &rate1,
-                                             &largest_tile_id1);
-    cpi->superres_mode = AOM_SUPERRES_NONE;  // Reset to default (full-res).
-    if (err != AOM_CODEC_OK) return err;
-    restore_all_coding_context(cpi);
-    // Encode without superres.
-    assert(cpi->superres_mode == AOM_SUPERRES_NONE);
-    frame_probs->warped_probs[update_type] = warped_probs_tmp;
-    err = encode_with_recode_loop_and_filter(cpi, size, dest, &sse2, &rate2,
-                                             &largest_tile_id2);
-
-    if (err != AOM_CODEC_OK) return err;
-
-    proj_rdcost1 = RDCOST_DBL_WITH_NATIVE_BD_DIST(rdmult, rate1, sse1,
-                                                  cm->seq_params.bit_depth);
-    const double proj_rdcost2 = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-        rdmult, rate2, sse2, cm->seq_params.bit_depth);
-    // Re-encode with superres if it's better.
-    if (proj_rdcost1 < proj_rdcost2) {
-      restore_all_coding_context(cpi);
-      // TODO(urvang): We should avoid rerunning the recode loop by saving
-      // previous output+state, or running encode only for the selected 'q' in
-      // previous step.
-      int64_t sse3 = INT64_MAX;
-      int64_t rate3 = INT64_MAX;
-      cpi->superres_mode =
-          AOM_SUPERRES_AUTO;  // Super-res on for this recode loop.
-      frame_probs->warped_probs[update_type] = warped_probs_tmp;
-      if (cpi->superres_mode == AOM_SUPERRES_AUTO) {
-        cpi->common.features.allow_screen_content_tools = 0;
-        cpi->common.features.cur_frame_force_integer_mv = 0;
-      }
-      err = encode_with_recode_loop_and_filter(cpi, size, dest, &sse3, &rate3,
-                                               largest_tile_id);
-      cpi->superres_mode = AOM_SUPERRES_NONE;  // Reset to default (full-res).
-      assert(sse1 == sse3);
-      assert(rate1 == rate3);
-      assert(largest_tile_id1 == *largest_tile_id);
-    } else {
-      *largest_tile_id = largest_tile_id2;
-    }
-  }
-  return err;
-}
-#endif  // CONFIG_ENABLE_SR
-
 extern void av1_print_frame_contexts(const FRAME_CONTEXT *fc,
                                      const char *filename);
 
@@ -4623,24 +4343,10 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   }
 
   int largest_tile_id = 0;
-#if CONFIG_ENABLE_SR
-  if (av1_superres_in_recode_allowed(cpi)) {
-    if (encode_with_and_without_superres(cpi, size, dest, &largest_tile_id) !=
-        AOM_CODEC_OK) {
-      return AOM_CODEC_ERROR;
-    }
-  } else {
-    const aom_superres_mode orig_superres_mode = cpi->superres_mode;  // save
-    cpi->superres_mode = cpi->oxcf.superres_cfg.superres_mode;
-#endif  // CONFIG_ENABLE_SR
-    if (encode_with_recode_loop_and_filter(cpi, size, dest, NULL, NULL,
-                                           &largest_tile_id) != AOM_CODEC_OK) {
-      return AOM_CODEC_ERROR;
-    }
-#if CONFIG_ENABLE_SR
-    cpi->superres_mode = orig_superres_mode;  // restore
+  if (encode_with_recode_loop_and_filter(cpi, size, dest, NULL, NULL,
+                                         &largest_tile_id) != AOM_CODEC_OK) {
+    return AOM_CODEC_ERROR;
   }
-#endif  // CONFIG_ENABLE_SR
 
   cpi->seq_params_locked = 1;
 

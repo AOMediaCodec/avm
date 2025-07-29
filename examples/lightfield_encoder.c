@@ -160,11 +160,7 @@ static void pass1(aom_image_t *raw, FILE *infile, const char *outfile_name,
   aom_img_fmt_t ref_fmt = AOM_IMG_FMT_I420;
   ref_fmt |= AOM_IMG_FMT_HIGHBITDEPTH;
   // Allocate memory with the border so that it can be used as a reference.
-  int border_in_pixels = (codec.config.enc->rc_resize_mode
-#if CONFIG_ENABLE_SR
-                          || codec.config.enc->rc_superres_mode
-#endif  // CONFIG_ENABLE_SR
-                          )
+  int border_in_pixels = codec.config.enc->rc_resize_mode
                              ? AOM_BORDER_IN_PIXELS
                              : AOM_ENC_NO_SCALE_BORDER;
   for (i = 0; i < reference_image_num; i++) {

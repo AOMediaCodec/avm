@@ -2917,13 +2917,8 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
     assert(IMPLIES(!rsi->frame_filters_on, !rsi->temporal_pred_flag));
 #endif  // CONFIG_COMBINE_PC_NS_WIENER && CONFIG_TEMP_LR
   }
-#if CONFIG_ENABLE_SR
-  const int frame_width = cm->superres_upscaled_width;
-  const int frame_height = cm->superres_upscaled_height;
-#else
   const int frame_width = cm->width;
   const int frame_height = cm->height;
-#endif  // CONFIG_ENABLE_SR
   set_restoration_unit_size(frame_width, frame_height,
                             cm->seq_params.subsampling_x,
                             cm->seq_params.subsampling_y, cm->rst_info);
@@ -3907,43 +3902,11 @@ static InterpFilter read_frame_interp_filter(struct aom_read_bit_buffer *rb) {
 
 static AOM_INLINE void setup_render_size(AV1_COMMON *cm,
                                          struct aom_read_bit_buffer *rb) {
-#if CONFIG_ENABLE_SR
-  cm->render_width = cm->superres_upscaled_width;
-  cm->render_height = cm->superres_upscaled_height;
-#else
   cm->render_width = cm->width;
   cm->render_height = cm->height;
-#endif  // CONFIG_ENABLE_SR
   if (aom_rb_read_bit(rb))
     av1_read_frame_size(rb, 16, 16, &cm->render_width, &cm->render_height);
 }
-
-#if CONFIG_ENABLE_SR
-// TODO(afergs): make "struct aom_read_bit_buffer *const rb"?
-static AOM_INLINE void setup_superres(AV1_COMMON *const cm,
-                                      struct aom_read_bit_buffer *rb,
-                                      int *width, int *height) {
-  cm->superres_upscaled_width = *width;
-  cm->superres_upscaled_height = *height;
-  cm->superres_scale_denominator = SCALE_NUMERATOR;
-
-  const SequenceHeader *const seq_params = &cm->seq_params;
-  if (!seq_params->enable_superres) return;
-
-  if (aom_rb_read_bit(rb)) {
-    cm->superres_scale_denominator =
-        (uint8_t)aom_rb_read_literal(rb, SUPERRES_SCALE_BITS);
-    cm->superres_scale_denominator += SUPERRES_SCALE_DENOMINATOR_MIN;
-    // Don't edit cm->width or cm->height directly, or the buffers won't get
-    // resized correctly
-    av1_calculate_scaled_superres_size(width, height,
-                                       cm->superres_scale_denominator);
-  } else {
-    // 1:1 scaling - ie. no scaling, scale not provided
-    cm->superres_scale_denominator = SCALE_NUMERATOR;
-  }
-}
-#endif  // CONFIG_ENABLE_SR
 
 static AOM_INLINE void resize_context_buffers(AV1_COMMON *cm, int width,
                                               int height) {
@@ -4095,9 +4058,6 @@ static AOM_INLINE void setup_frame_size(AV1_COMMON *cm,
     height = seq_params->max_frame_height;
   }
 
-#if CONFIG_ENABLE_SR
-  setup_superres(cm, rb, &width, &height);
-#endif  // CONFIG_ENABLE_SR
   resize_context_buffers(cm, width, height);
   setup_render_size(cm, rb);
   setup_buffer_pool(cm);
@@ -4155,9 +4115,6 @@ static AOM_INLINE void setup_frame_size_with_refs(
         height = buf->y_crop_height;
         cm->render_width = buf->render_width;
         cm->render_height = buf->render_height;
-#if CONFIG_ENABLE_SR
-        setup_superres(cm, rb, &width, &height);
-#endif  // CONFIG_ENABLE_SR
         resize_context_buffers(cm, width, height);
         found = 1;
         break;
@@ -4171,9 +4128,6 @@ static AOM_INLINE void setup_frame_size_with_refs(
     int num_bits_height = seq_params->num_bits_height;
 
     av1_read_frame_size(rb, num_bits_width, num_bits_height, &width, &height);
-#if CONFIG_ENABLE_SR
-    setup_superres(cm, rb, &width, &height);
-#endif  // CONFIG_ENABLE_SR
     resize_context_buffers(cm, width, height);
     setup_render_size(cm, rb);
   }
@@ -6515,9 +6469,6 @@ void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
             : -1;
   }
 
-#if CONFIG_ENABLE_SR
-  seq_params->enable_superres = aom_rb_read_bit(rb);
-#endif  // CONFIG_ENABLE_SR
   seq_params->enable_cdef = aom_rb_read_bit(rb);
   seq_params->enable_restoration = aom_rb_read_bit(rb);
   seq_params->lr_tools_disable_mask[0] = 0;
@@ -7859,12 +7810,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if !CONFIG_ENABLE_IBC_NAT
         features->allow_screen_content_tools &&
 #endif  //! CONFIG_ENABLE_IBC_NAT
-#if CONFIG_ENABLE_SR
-        !av1_superres_scaled(cm)
-#else
-        1
-#endif  // CONFIG_ENABLE_SR
-    )
+        1)
       features->allow_intrabc = aom_rb_read_bit(rb);
 #if CONFIG_IBC_SR_EXT
     if (features->allow_intrabc) {
@@ -7910,12 +7856,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if !CONFIG_ENABLE_IBC_NAT
           features->allow_screen_content_tools &&
 #endif  //! CONFIG_ENABLE_IBC_NAT
-#if CONFIG_ENABLE_SR
-          !av1_superres_scaled(cm)
-#else
-          1
-#endif  // CONFIG_ENABLE_SR
-      )
+          1)
         features->allow_intrabc = aom_rb_read_bit(rb);
 #if CONFIG_IBC_SR_EXT
       if (features->allow_intrabc) {
@@ -8133,13 +8074,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                              "Invalid TIP mode.");
         }
-#if CONFIG_ENABLE_SR
-        if (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT &&
-            av1_superres_scaled(cm)) {
-          aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
-                             "Invalid TIP Direct mode with superres.");
-        }
-#endif  // CONFIG_ENABLE_SR
 
         if (features->tip_frame_mode && cm->seq_params.enable_tip_hole_fill) {
           features->allow_tip_hole_fill = aom_rb_read_bit(rb);
@@ -8211,12 +8145,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if !CONFIG_ENABLE_IBC_NAT
             features->allow_screen_content_tools &&
 #endif  //! CONFIG_ENABLE_IBC_NAT
-#if CONFIG_ENABLE_SR
-            !av1_superres_scaled(cm)
-#else
-            1
-#endif  // CONFIG_ENABLE_SR
-        ) {
+            1) {
           features->allow_intrabc = aom_rb_read_bit(rb);
           features->allow_global_intrabc = 0;
           features->allow_local_intrabc = features->allow_intrabc;
@@ -8582,11 +8511,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     }
   }
   features->coded_lossless = is_coded_lossless(cm, xd);
-  features->all_lossless = features->coded_lossless
-#if CONFIG_ENABLE_SR
-                           && !av1_superres_scaled(cm)
-#endif  // CONFIG_ENABLE_SR
-      ;
+  features->all_lossless = features->coded_lossless;
 
   // Decode frame-level TCQ flag, if applicable.
   if (features->coded_lossless) {
@@ -8719,18 +8644,6 @@ BITSTREAM_PROFILE av1_read_profile(struct aom_read_bit_buffer *rb) {
   int profile = aom_rb_read_literal(rb, PROFILE_BITS);
   return (BITSTREAM_PROFILE)profile;
 }
-
-#if CONFIG_ENABLE_SR
-static AOM_INLINE void superres_post_decode(AV1Decoder *pbi) {
-  AV1_COMMON *const cm = &pbi->common;
-  BufferPool *const pool = cm->buffer_pool;
-
-  if (!av1_superres_scaled(cm)) return;
-  assert(!cm->features.all_lossless);
-
-  av1_superres_upscale(cm, pool, false);
-}
-#endif  // CONFIG_ENABLE_SR
 
 static AOM_INLINE void tip_mode_legal_check(AV1Decoder *const pbi) {
   AV1_COMMON *const cm = &pbi->common;
@@ -9175,9 +9088,6 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
     const int do_cdef = !pbi->skip_loop_filter &&
                         !cm->features.coded_lossless &&
                         cm->cdef_info.cdef_frame_enable;
-#if CONFIG_ENABLE_SR
-    const int do_superres = av1_superres_scaled(cm);
-#endif  // CONFIG_ENABLE_SR
 #if CONFIG_GDF
     const int do_gdf = is_gdf_enabled(cm);
 #endif  // CONFIG_GDF
@@ -9185,11 +9095,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
 #if CONFIG_GDF
         !do_gdf &&
 #endif  // CONFIG_GDF
-        !use_ccso && !do_cdef
-#if CONFIG_ENABLE_SR
-        && !do_superres
-#endif  // CONFIG_ENABLE_SR
-        ;
+        !use_ccso && !do_cdef;
 
     if (!optimized_loop_restoration) {
       if (do_loop_restoration)
@@ -9203,10 +9109,6 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
         ccso_frame(&cm->cur_frame->buf, cm, xd, ext_rec_y);
         aom_free(ext_rec_y);
       }
-
-#if CONFIG_ENABLE_SR
-      superres_post_decode(pbi);
-#endif  // CONFIG_ENABLE_SR
 
 #if CONFIG_GDF
       if (do_gdf) {

@@ -340,11 +340,7 @@ static AOM_INLINE void init_rsc(const YV12_BUFFER_CONFIG *src,
   rsc->best_num_filter_classes = rsc->num_filter_classes;
   rsc->frame_filters_on = 0;
   rsc->num_wiener_nonsep = 0;
-#if CONFIG_ENABLE_SR
-  rsc->tskip_zero_flag = av1_superres_scaled(cm);
-#else
   rsc->tskip_zero_flag = 0;
-#endif
 #if CONFIG_COMBINE_PC_NS_WIENER
   rsc->classification_is_buffered = 0;
   rsc->adjust_switchable_for_frame_filters = 0;

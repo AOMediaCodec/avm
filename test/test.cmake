@@ -77,11 +77,6 @@ list(
   "${AOM_ROOT}/test/yuv_video_source.h"
   "${AOM_ROOT}/test/time_stamp_test.cc")
 
-if(CONFIG_ENABLE_SR)
-  list(APPEND AOM_UNIT_TEST_ENCODER_SOURCES
-       "${AOM_ROOT}/test/horz_superres_test.cc")
-endif()
-
 list(APPEND AOM_DECODE_PERF_TEST_SOURCES "${AOM_ROOT}/test/decode_perf_test.cc")
 list(APPEND AOM_UNIT_TEST_WEBM_SOURCES "${AOM_ROOT}/test/webm_video_source.h")
 list(APPEND AOM_TEST_INTRA_PRED_SPEED_SOURCES "${AOM_GEN_SRC_DIR}/usage_exit.c"
@@ -253,11 +248,6 @@ if(NOT BUILD_SHARED_LIBS)
     list(APPEND AOM_UNIT_TEST_ENCODER_SOURCES
          "${AOM_ROOT}/test/av1_convolve_scale_test.cc"
          "${AOM_ROOT}/test/intra_edge_test.cc")
-
-    if(CONFIG_ENABLE_SR)
-      list(APPEND AOM_UNIT_TEST_ENCODER_SOURCES
-           "${AOM_ROOT}/test/av1_horz_only_frame_superres_test.cc")
-    endif()
   endif()
 
   if(HAVE_SSE4_2)

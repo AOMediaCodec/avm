@@ -590,13 +590,7 @@ typedef struct SequenceHeader {
   uint8_t enable_masked_compound;           // enables/disables masked compound
   aom_opfl_refine_type enable_opfl_refine;  // optical flow refinement type for
                                             // this frame
-#if CONFIG_ENABLE_SR
-  uint8_t enable_superres;  // 0 - Disable superres for the sequence
-                            //     and no frame level superres flag
-                            // 1 - Enable superres for the sequence
-                            //     enable per-frame superres flag
-#endif                      // CONFIG_ENABLE_SR
-  uint8_t enable_cdef;      // To turn on/off CDEF
+  uint8_t enable_cdef;                      // To turn on/off CDEF
 
   uint8_t enable_restoration;  // To turn on/off loop restoration
   uint8_t enable_ccso;         // To turn on/off CCSO
@@ -1612,27 +1606,6 @@ typedef struct AV1Common {
   int render_height; /*!< Rendered frame height */
   /**@}*/
 
-#if CONFIG_ENABLE_SR
-  /**
-   * \name Super-resolved frame dimensions.
-   * Frame dimensions after applying super-resolution to the coded frame (if
-   * present), but before applying resize.
-   * Larger than the coded dimensions if super-resolution is being used for
-   * this frame.
-   * Different from rendered dimensions if resize is being used for this frame.
-   */
-  /**@{*/
-  int superres_upscaled_width;  /*!< Super-resolved frame width */
-  int superres_upscaled_height; /*!< Super-resolved frame height */
-  /**@}*/
-
-  /*!
-   * The denominator of the superres scale used by this frame.
-   * Note: The numerator is fixed to be SCALE_NUMERATOR.
-   */
-  uint8_t superres_scale_denominator;
-#endif  // CONFIG_ENABLE_SR
-
   /*!
    * If true, buffer removal times are present.
    */
@@ -2107,19 +2080,10 @@ uint8_t av1_get_txk_skip(const AV1_COMMON *cm, int mi_row, int mi_col,
                          TREE_TYPE tree_type,
                          const CHROMA_REF_INFO *chroma_ref_info, int plane,
                          int blk_row, int blk_col);
-void av1_alloc_class_id_array(CommonModeInfoParams *mi_params, AV1_COMMON *cm
-#if !CONFIG_ENABLE_SR
-                              ,
-                              int height
-#endif  // !CONFIG_ENABLE_SR
-);
+void av1_alloc_class_id_array(CommonModeInfoParams *mi_params, AV1_COMMON *cm,
+                              int height);
 void av1_set_class_id_array_stride(CommonModeInfoParams *mi_params,
-                                   AV1_COMMON *cm
-#if !CONFIG_ENABLE_SR
-                                   ,
-                                   int height
-#endif  // !CONFIG_ENABLE_SR
-);
+                                   AV1_COMMON *cm, int height);
 void av1_dealloc_class_id_array(CommonModeInfoParams *mi_params);
 
 // TODO(hkuang): Don't need to lock the whole pool after implementing atomic

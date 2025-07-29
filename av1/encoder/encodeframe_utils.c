@@ -70,22 +70,10 @@ static int get_superblock_tpl_column_end(const AV1_COMMON *const cm, int mi_col,
   // Find the start column of this superblock.
   const int sb_mi_col_start = (mi_col >> cm->mib_size_log2)
                               << cm->mib_size_log2;
-#if CONFIG_ENABLE_SR
-  // Same but in superres upscaled dimension.
-  const int sb_mi_col_start_sr =
-      coded_to_superres_mi(sb_mi_col_start, cm->superres_scale_denominator);
-#else
   const int sb_mi_col_start_sr = sb_mi_col_start;
-#endif  // CONFIG_ENABLE_SR
   // Width of this superblock in mi units.
   const int sb_mi_width = mi_size_wide[cm->sb_size];
-#if CONFIG_ENABLE_SR
-  // Same but in superres upscaled dimension.
-  const int sb_mi_width_sr =
-      coded_to_superres_mi(sb_mi_width, cm->superres_scale_denominator);
-#else
   const int sb_mi_width_sr = sb_mi_width;
-#endif  // CONFIG_ENABLE_SR
   // Superblock end in mi units.
   const int sb_mi_end = sb_mi_col_start_sr + sb_mi_width_sr;
   // Superblock end in TPL units.
@@ -107,17 +95,9 @@ int av1_get_hier_tpl_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
   if (tpl_idx >= MAX_TPL_FRAME_IDX) return deltaq_rdmult;
   if (cpi->oxcf.q_cfg.aq_mode != NO_AQ) return deltaq_rdmult;
 
-#if CONFIG_ENABLE_SR
-  const int mi_col_sr =
-      coded_to_superres_mi(mi_col, cm->superres_scale_denominator);
-  const int mi_cols_sr = av1_pixels_to_mi(cm->superres_upscaled_width);
-  const int block_mi_width_sr =
-      coded_to_superres_mi(mi_size_wide[bsize], cm->superres_scale_denominator);
-#else
   const int mi_col_sr = mi_col;
   const int mi_cols_sr = av1_pixels_to_mi(cm->width);
   const int block_mi_width_sr = mi_size_wide[bsize];
-#endif  // CONFIG_ENABLE_SR
   const BLOCK_SIZE bsize_base = BLOCK_16X16;
   const int num_mi_w = mi_size_wide[bsize_base];
   const int num_mi_h = mi_size_high[bsize_base];
@@ -999,25 +979,12 @@ int av1_get_rdmult_delta(AV1_COMP *cpi, BLOCK_SIZE bsize, int mi_row,
 #ifndef NDEBUG
   int mi_count = 0;
 #endif  // NDEBUG
-#if CONFIG_ENABLE_SR
-  const int mi_col_sr =
-      coded_to_superres_mi(mi_col, cm->superres_scale_denominator);
-  const int mi_col_end_sr =
-      coded_to_superres_mi(mi_col + mi_wide, cm->superres_scale_denominator);
-  const int mi_cols_sr = av1_pixels_to_mi(cm->superres_upscaled_width);
-#else
   const int mi_col_sr = mi_col;
   const int mi_col_end_sr = mi_col + mi_wide;
   const int mi_cols_sr = av1_pixels_to_mi(cm->width);
-#endif  // CONFIG_ENABLE_SR
   const int step = 1 << block_mis_log2;
   const int row_step = step;
-#if CONFIG_ENABLE_SR
-  const int col_step_sr =
-      coded_to_superres_mi(step, cm->superres_scale_denominator);
-#else
   const int col_step_sr = step;
-#endif  // CONFIG_ENABLE_SR
   for (int row = mi_row; row < mi_row + mi_high; row += row_step) {
     for (int col = mi_col_sr; col < mi_col_end_sr; col += col_step_sr) {
       if (row >= cm->mi_params.mi_rows || col >= mi_cols_sr) continue;
@@ -1113,31 +1080,17 @@ void av1_get_tpl_stats_sb(AV1_COMP *cpi, BLOCK_SIZE bsize, int mi_row,
 
   int mi_count = 0;
   int count = 0;
-#if CONFIG_ENABLE_SR
-  const int mi_col_sr =
-      coded_to_superres_mi(mi_col, cm->superres_scale_denominator);
-  const int mi_col_end_sr =
-      coded_to_superres_mi(mi_col + mi_wide, cm->superres_scale_denominator);
-  // mi_cols_sr is mi_cols at superres case.
-  const int mi_cols_sr = av1_pixels_to_mi(cm->superres_upscaled_width);
-#else
   const int mi_col_sr = mi_col;
   const int mi_col_end_sr = mi_col + mi_wide;
   // mi_cols_sr is mi_cols at superres case.
   const int mi_cols_sr = av1_pixels_to_mi(cm->width);
-#endif  // CONFIG_ENABLE_SR
   // TPL store unit size is not the same as the motion estimation unit size.
   // Here always use motion estimation size to avoid getting repetitive inter/
   // intra cost.
   const BLOCK_SIZE tpl_bsize = convert_length_to_bsize(tpl_data->tpl_bsize_1d);
   assert(mi_size_wide[tpl_bsize] == mi_size_high[tpl_bsize]);
   const int row_step = mi_size_high[tpl_bsize];
-#if CONFIG_ENABLE_SR
-  const int col_step_sr = coded_to_superres_mi(mi_size_wide[tpl_bsize],
-                                               cm->superres_scale_denominator);
-#else
   const int col_step_sr = mi_size_wide[tpl_bsize];
-#endif  // CONFIG_ENABLE_SR
 
   // Stride is only based on SB size, and we fill in values for every 16x16
   // block in a SB.
@@ -1202,25 +1155,12 @@ int av1_get_q_for_deltaq_objective(AV1_COMP *const cpi, BLOCK_SIZE bsize,
 #ifndef NDEBUG
   int mi_count = 0;
 #endif  // NDEBUG
-#if CONFIG_ENABLE_SR
-  const int mi_col_sr =
-      coded_to_superres_mi(mi_col, cm->superres_scale_denominator);
-  const int mi_col_end_sr =
-      coded_to_superres_mi(mi_col + mi_wide, cm->superres_scale_denominator);
-  const int mi_cols_sr = av1_pixels_to_mi(cm->superres_upscaled_width);
-#else
   const int mi_col_sr = mi_col;
   const int mi_col_end_sr = mi_col + mi_wide;
   const int mi_cols_sr = av1_pixels_to_mi(cm->width);
-#endif  // CONFIG_ENABLE_SR
   const int step = 1 << block_mis_log2;
   const int row_step = step;
-#if CONFIG_ENABLE_SR
-  const int col_step_sr =
-      coded_to_superres_mi(step, cm->superres_scale_denominator);
-#else
   const int col_step_sr = step;
-#endif  // CONFIG_ENABLE_SR
   for (int row = mi_row; row < mi_row + mi_high; row += row_step) {
     for (int col = mi_col_sr; col < mi_col_end_sr; col += col_step_sr) {
       if (row >= cm->mi_params.mi_rows || col >= mi_cols_sr) continue;

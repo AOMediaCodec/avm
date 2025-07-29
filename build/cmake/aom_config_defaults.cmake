@@ -333,8 +333,6 @@ set_aom_config_var(CONFIG_MVD_CDF_REDUCTION 1
 set_aom_config_var(CONFIG_LOCAL_INTRABC_ALIGN_RNG 1
                    "CWG F177 align inter/intra local intraBC search range")
 
-set_aom_config_var(CONFIG_ENABLE_SR 0 "Enable super resolution mode")
-
 set_aom_config_var(
   CONFIG_QM_DEBUG 0
   "Enable debug information for extension to AV1 quantization matrices.")

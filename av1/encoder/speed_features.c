@@ -344,9 +344,6 @@ static void set_good_speed_features_framesize_independent(
   sf->mv_sf.fast_motion_estimation_on_block_256 = 1;
 
   sf->rd_sf.perform_coeff_opt = 1;
-#if CONFIG_ENABLE_SR
-  sf->hl_sf.superres_auto_search_type = SUPERRES_AUTO_ALL;
-#endif  // CONFIG_ENABLE_SR
   if (speed >= 1) {
     sf->inter_sf.selective_ref_frame = 2;
 
@@ -619,9 +616,6 @@ static AOM_INLINE void init_hl_sf(HIGH_LEVEL_SPEED_FEATURES *hl_sf) {
   // Recode loop tolerance %.
   hl_sf->recode_tolerance = 25;
   hl_sf->high_precision_mv_usage = CURRENT_Q;
-#if CONFIG_ENABLE_SR
-  hl_sf->superres_auto_search_type = SUPERRES_AUTO_ALL;
-#endif  // CONFIG_ENABLE_SR
 }
 
 static AOM_INLINE void init_tpl_sf(TPL_SPEED_FEATURES *tpl_sf) {
