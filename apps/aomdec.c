@@ -117,7 +117,7 @@ static const arg_def_t outbitdeptharg =
 #if CONFIG_F159_OBUSIZE_ANNEXB
 static const arg_def_t isannexb =
     ARG_DEF(NULL, "annexb", 1,
-            "0. external mean 1. Bitstream is in Annex-B format(default)");
+            "0: external means, 1: Bitstream is in Annex-B format (default)");
 #else
 static const arg_def_t isannexb =
     ARG_DEF(NULL, "annexb", 0, "Bitstream is in Annex-B format");
@@ -685,7 +685,11 @@ static int main_loop(int argc, const char **argv_) {
   memset(&webm_ctx, 0, sizeof(webm_ctx));
   input.webm_ctx = &webm_ctx;
 #endif
-  struct ObuDecInputContext obu_ctx = { NULL, NULL, 0, 0, 0 };
+#if CONFIG_F159_OBUSIZE_ANNEXB
+  struct ObuDecInputContext obu_ctx = { NULL, NULL, 0, 0, /*is_annexb=*/1 };
+#else
+  struct ObuDecInputContext obu_ctx = { NULL, NULL, 0, 0, /*is_annexb=*/0 };
+#endif
   int is_ivf = 0;
 
   obu_ctx.avx_ctx = &aom_input_ctx;
@@ -804,9 +808,6 @@ static int main_loop(int argc, const char **argv_) {
       argj++;
     }
   }
-#if CONFIG_F159_OBUSIZE_ANNEXB
-  input.obu_ctx->is_annexb = is_annexb;
-#endif
 
   /* Check for unrecognized options */
   for (argi = argv; *argi; argi++)

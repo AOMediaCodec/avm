@@ -20,7 +20,7 @@ extern "C" {
 #endif
 
 typedef struct {
-#if !CONFIG_F159_OBUSIZE_ANNEXB
+#if !CONFIG_F159_OBU_HEADER
   size_t size;  // Size (1 or 2 bytes) of the OBU header (including the
                 // optional OBU extension header) in the bitstream.
 #endif

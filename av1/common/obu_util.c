@@ -57,13 +57,9 @@ static aom_codec_err_t read_obu_header(struct aom_read_bit_buffer *rb,
   const ptrdiff_t bit_buffer_byte_length = rb->bit_buffer_end - rb->bit_buffer;
 
 #if CONFIG_F159_OBU_HEADER
-#if CONFIG_F159_OBUSIZE_ANNEXB
   (void)is_annexb;
   if (bit_buffer_byte_length < OBU_HEADER_SIZE) return AOM_CODEC_CORRUPT_FRAME;
-#else
-  if (bit_buffer_byte_length < 2) return AOM_CODEC_CORRUPT_FRAME;
-  header->size = 2;
-#endif
+
   header->type = (OBU_TYPE)aom_rb_read_literal(rb, 4);  // obu_type
   header->obu_reserved_bit =
       aom_rb_read_literal(rb, 1);  // reserved bit (will be potentially used for
@@ -157,6 +153,7 @@ aom_codec_err_t aom_read_obu_header_and_size(const uint8_t *data,
   if (status != AOM_CODEC_OK) return status;
 
 #if CONFIG_F159_OBUSIZE_ANNEXB
+  // Derive the payload size from the data we've already read
   if (obu_size < OBU_HEADER_SIZE) return AOM_CODEC_CORRUPT_FRAME;
   *payload_size = obu_size - OBU_HEADER_SIZE;
 #else

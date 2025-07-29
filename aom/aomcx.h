@@ -168,7 +168,11 @@ enum aome_enc_control_id {
    * aom_scaling_mode_t* parameter.
    */
   AOME_SET_SCALEMODE = 11,
+
 #if CONFIG_F159_OBU_HEADER
+  /*!\brief Codec control function to set encoder layer id, unsigned int
+   * parameter.
+   */
   AOME_SET_MLAYER_ID = 12,
 #else
   /*!\brief Codec control function to set encoder spatial layer id, unsigned int
@@ -176,6 +180,7 @@ enum aome_enc_control_id {
    */
   AOME_SET_SPATIAL_LAYER_ID = 12,
 #endif  // CONFIG_F159_OBU_HEADER
+
   /*!\brief Codec control function to set encoder internal speed settings,
    * int parameter
    *
@@ -259,6 +264,7 @@ enum aome_enc_control_id {
    * to a keyframe, set this to 450.
    */
   AOME_SET_MAX_INTRA_BITRATE_PCT = 26,
+
 #if CONFIG_F159_OBU_HEADER
   /*!\brief Codec control function to set number of layers, int
    * parameter
@@ -1444,8 +1450,13 @@ AOM_CTRL_USE_TYPE(AOME_SET_MAX_INTRA_BITRATE_PCT, unsigned int)
 AOM_CTRL_USE_TYPE(AOME_SET_MAX_INTER_BITRATE_PCT, unsigned int)
 #define AOM_CTRL_AOME_SET_MAX_INTER_BITRATE_PCT
 
+#if CONFIG_F159_OBU_HEADER
+AOM_CTRL_USE_TYPE(AOME_SET_NUMBER_MLAYERS, int)
+#define AOME_CTRL_AOME_SET_NUMBER_MLAYERS
+#else
 AOM_CTRL_USE_TYPE(AOME_SET_NUMBER_SPATIAL_LAYERS, int)
 #define AOME_CTRL_AOME_SET_NUMBER_SPATIAL_LAYERS
+#endif  // CONFIG_F159_OBU_HEADER
 
 AOM_CTRL_USE_TYPE(AV1E_SET_GF_CBR_BOOST_PCT, unsigned int)
 #define AOM_CTRL_AV1E_SET_GF_CBR_BOOST_PCT

@@ -118,6 +118,10 @@ static aom_codec_err_t decoder_init(aom_codec_ctx_t *ctx) {
     // Turn row_mt off by default.
     priv->row_mt = 0;
 
+#if CONFIG_F159_OBUSIZE_ANNEXB
+    priv->is_annexb = 1;
+#endif
+
     // Turn on normal tile coding mode by default.
     // 0 is for normal tile coding mode, and 1 is for large scale tile coding
     // mode(refer to lightfield example).
@@ -824,7 +828,11 @@ static aom_codec_err_t flush_showable_frames(aom_codec_alg_priv_t *ctx,
 
     data_start = (const uint8_t *)generated_data;
     ctx->flushed = 0;
+#if CONFIG_F159_OBUSIZE_ANNEXB
+    ctx->is_annexb = 1;
+#else
     ctx->is_annexb = 0;
+#endif
     pbi->common.seq_params.decoder_model_info_present_flag = 0;
     pbi->common.seq_params.frame_id_numbers_present_flag = 0;
     res = decode_one(ctx, &data_start, 3, user_priv);

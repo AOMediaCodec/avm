@@ -3500,11 +3500,6 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 #endif  // CONFIG_F159_OBU_HEADER
 
         if (write_temporal_delimiter) {
-#if CONFIG_F159_OBU_HEADER
-          uint32_t obu_header_size = 0;
-#else
-          uint32_t obu_header_size = 1;
-#endif  //  CONFIG_F159_OBU_HEADER
           const uint32_t obu_payload_size = 0;
           const size_t length_field_size =
               aom_uleb_size_in_bytes(obu_payload_size);
@@ -3519,7 +3514,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
                     frame_size);
           }
           const uint32_t obu_header_offset = 0;
-          obu_header_size = av1_write_obu_header(
+          const uint32_t obu_header_size = av1_write_obu_header(
               &cpi->level_params, OBU_TEMPORAL_DELIMITER,
 #if CONFIG_F159_OBU_HEADER
               0, 0,

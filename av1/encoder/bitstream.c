@@ -7595,7 +7595,7 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
     const OBU_TYPE obu_type = OBU_FRAME;
     const uint32_t tg_hdr_size = av1_write_obu_header(level_params, obu_type,
 #if CONFIG_F159_OBU_HEADER
-                                                      obu_temporal, obu_layer,
+                                                      0, 0,
 #else
                                                         0,
 #endif  // CONFIG_F159_OBU_HEADER
@@ -8091,8 +8091,8 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
   uint32_t obu_payload_size = 0;
   FrameHeaderInfo fh_info = { NULL, 0, 0 };
 #if CONFIG_F159_OBU_HEADER
-  const int obu_temporal = 0;
-  const int obu_mlayer = 0;
+  const int obu_temporal = cm->tlayer_id;
+  const int obu_mlayer = cm->mlayer_id;
   const int obu_xlayer = 0;
   const int obu_layer =
       obu_mlayer << 5 |
@@ -8119,7 +8119,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
   if (cm->current_frame.frame_type == KEY_FRAME && !cpi->no_show_fwd_kf) {
     obu_header_size = av1_write_obu_header(level_params, OBU_SEQUENCE_HEADER,
 #if CONFIG_F159_OBU_HEADER
-                                           obu_temporal, obu_layer,
+                                           0, 0,
 #else
                                                0,
 #endif  // CONFIG_F159_OBU_HEADER

@@ -967,11 +967,11 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
       return -1;
     }
 
+    // Record obu size header information.
 #if CONFIG_F159_OBUSIZE_ANNEXB
     pbi->obu_size_hdr.data = data + OBU_HEADER_SIZE;
     pbi->obu_size_hdr.size = bytes_read - OBU_HEADER_SIZE;
 #else
-    // Record obu size header information.
     pbi->obu_size_hdr.data = data + obu_header.size;
     pbi->obu_size_hdr.size = bytes_read - obu_header.size;
 #endif
