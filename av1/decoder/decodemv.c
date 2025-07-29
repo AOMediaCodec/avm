@@ -2458,10 +2458,8 @@ static INLINE void read_mv(aom_reader *r,
   mv_diff->row = diff.row;
   mv_diff->col = diff.col;
 #else
-#if BUGFIX_AMVD_AMVR
-  if (!is_adaptive_mvd)
-#endif  // BUGFIX_AMVD_AMVR
-    if (precision < MV_PRECISION_HALF_PEL) lower_mv_precision(&ref, precision);
+  if (!is_adaptive_mvd && precision < MV_PRECISION_HALF_PEL)
+    lower_mv_precision(&ref, precision);
   mv->row = ref.row + diff.row;
   mv->col = ref.col + diff.col;
 #endif  // CONFIG_DERIVED_MVD_SIGN
@@ -2751,10 +2749,8 @@ static INLINE void read_mv(aom_reader *r, MV *mv_diff, int skip_sign_coding,
     }
   }
 
-#if BUGFIX_AMVD_AMVR
-  if (!is_adaptive_mvd)
-#endif  // BUGFIX_AMVD_AMVR
-    if (precision < MV_PRECISION_HALF_PEL) lower_mv_precision(&ref, precision);
+  if (!is_adaptive_mvd && precision < MV_PRECISION_HALF_PEL)
+    lower_mv_precision(&ref, precision);
   mv->row = ref.row + mv_diff->row;
   mv->col = ref.col + mv_diff->col;
 #endif
@@ -3364,11 +3360,8 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
       MV diff = { 0, 0 };
 
       MV low_prec_refmv = ref_mv[jmvd_base_ref_list].as_mv;
-#if BUGFIX_AMVD_AMVR
-      if (!is_adaptive_mvd)
-#endif  // BUGFIX_AMVD_AMVR
-        if (precision < MV_PRECISION_HALF_PEL)
-          lower_mv_precision(&low_prec_refmv, precision);
+      if (!is_adaptive_mvd && precision < MV_PRECISION_HALF_PEL)
+        lower_mv_precision(&low_prec_refmv, precision);
       diff.row = mv[jmvd_base_ref_list].as_mv.row - low_prec_refmv.row;
       diff.col = mv[jmvd_base_ref_list].as_mv.col - low_prec_refmv.col;
 
@@ -3452,11 +3445,8 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
     for (int ref_idx = start_signaled_mvd_idx;
          ref_idx < (num_signaled_mvd + start_signaled_mvd_idx); ref_idx++) {
       MV low_prec_refmv = ref_mv[ref_idx].as_mv;
-#if BUGFIX_AMVD_AMVR
-      if (!is_adaptive_mvd)
-#endif  // BUGFIX_AMVD_AMVR
-        if (precision < MV_PRECISION_HALF_PEL)
-          lower_mv_precision(&low_prec_refmv, precision);
+      if (!is_adaptive_mvd && precision < MV_PRECISION_HALF_PEL)
+        lower_mv_precision(&low_prec_refmv, precision);
       mv[ref_idx].as_mv.row = low_prec_refmv.row + mv_diff[ref_idx].row;
       mv[ref_idx].as_mv.col = low_prec_refmv.col + mv_diff[ref_idx].col;
     }
@@ -3466,11 +3456,8 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
       MV other_mvd = { 0, 0 };
       MV diff = { 0, 0 };
       MV low_prec_refmv = ref_mv[jmvd_base_ref_list].as_mv;
-#if BUGFIX_AMVD_AMVR
-      if (!is_adaptive_mvd)
-#endif  // BUGFIX_AMVD_AMVR
-        if (precision < MV_PRECISION_HALF_PEL)
-          lower_mv_precision(&low_prec_refmv, precision);
+      if (!is_adaptive_mvd && precision < MV_PRECISION_HALF_PEL)
+        lower_mv_precision(&low_prec_refmv, precision);
       diff.row = mv[jmvd_base_ref_list].as_mv.row - low_prec_refmv.row;
       diff.col = mv[jmvd_base_ref_list].as_mv.col - low_prec_refmv.col;
       get_mv_projection(&other_mvd, diff, sec_ref_dist, first_ref_dist);
@@ -3835,10 +3822,8 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
         set_most_probable_mv_precision(cm, mbmi, bsize);
         mbmi->pb_mv_precision = av1_read_pb_mv_precision(cm, xd, r);
       }
-#if BUGFIX_AMVD_AMVR
       if (enable_adaptive_mvd_resolution(cm, mbmi))
         set_amvd_mv_precision(mbmi, mbmi->max_mv_precision);
-#endif  // BUGFIX_AMVD_AMVR
     }
   }
 

@@ -1131,13 +1131,11 @@ static INLINE int reuse_comp_mv_for_opfl(const AV1_COMMON *const cm,
   MB_MODE_INFO *const mbmi = xd->mi[0];
   MvSubpelPrecision cur_mv_precision = mbmi->pb_mv_precision;
   int is_adaptive_mvd = enable_adaptive_mvd_resolution(cm, mbmi);
-#if BUGFIX_AMVD_AMVR
   if (is_adaptive_mvd) {
     cur_mv_precision = mbmi->max_mv_precision <= MV_PRECISION_QTR_PEL
                            ? mbmi->max_mv_precision
                            : MV_PRECISION_QTR_PEL;
   }
-#endif
   int match_idx = -1;
   int ref_mv_idx = 0;
 
@@ -1286,11 +1284,9 @@ static INLINE int reuse_comp_mv_for_opfl(const AV1_COMMON *const cm,
           av1_mv_bit_cost(&cur_mv[i].as_mv, &ref_mv.as_mv, cur_mv_precision,
                           &x->mv_costs, MV_COST_WEIGHT, is_adaptive_mvd);
     }
-#if BUGFIX_AMVD_AMVR
     if (is_adaptive_mvd) {
       set_amvd_mv_precision(mbmi, mbmi->max_mv_precision);
     }
-#endif
     return 1;
   }
   return 0;
@@ -1788,11 +1784,8 @@ static int get_othermv_for_jointmv_mode(
   MV other_mvd = { 0, 0 };
   MV diff = { 0, 0 };
   MV low_prec_refmv = ref_mvs[jmvd_base_ref_list].as_mv;
-#if BUGFIX_AMVD_AMVR
-  if (!is_adaptive_mvd)
-#endif  // BUGFIX_AMVD_AMVR
-    if (precision < MV_PRECISION_HALF_PEL)
-      lower_mv_precision(&low_prec_refmv, precision);
+  if (!is_adaptive_mvd && precision < MV_PRECISION_HALF_PEL)
+    lower_mv_precision(&low_prec_refmv, precision);
   diff.row = this_mv.row - low_prec_refmv.row;
   diff.col = this_mv.col - low_prec_refmv.col;
 

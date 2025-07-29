@@ -1281,9 +1281,7 @@ int av1_get_mv_class_context(const MvSubpelPrecision pb_mv_precision);
 
 // set the precision of a block to the precision
 void set_mv_precision(MB_MODE_INFO *mbmi, MvSubpelPrecision precision);
-#if BUGFIX_AMVD_AMVR
 void set_amvd_mv_precision(MB_MODE_INFO *mbmi, MvSubpelPrecision precision);
-#endif  // BUGFIX_AMVD_AMVR
 
 #if CONFIG_IBC_SUBPEL_PRECISION
 // Function to check if precision need to be signaled or not

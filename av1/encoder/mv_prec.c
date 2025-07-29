@@ -278,11 +278,8 @@ static AOM_INLINE void keep_one_mv_stat(
                                [max_mv_precision - MV_PRECISION_HALF_PEL];
 
   MV low_prec_ref_mv = *ref_mv;
-#if BUGFIX_AMVD_AMVR
-  if (!is_adaptive_mvd)
-#endif
-    if (pb_mv_precision < MV_PRECISION_HALF_PEL)
-      lower_mv_precision(&low_prec_ref_mv, pb_mv_precision);
+  if (!is_adaptive_mvd && pb_mv_precision < MV_PRECISION_HALF_PEL)
+    lower_mv_precision(&low_prec_ref_mv, pb_mv_precision);
   const MV diff = { cur_mv->row - low_prec_ref_mv.row,
                     cur_mv->col - low_prec_ref_mv.col };
 
@@ -603,11 +600,8 @@ static AOM_INLINE void keep_vq_one_mv_stat(
                                [max_mv_precision - MV_PRECISION_HALF_PEL];
 
   MV low_prec_ref_mv = *ref_mv;
-#if BUGFIX_AMVD_AMVR
-  if (!is_adaptive_mvd)
-#endif
-    if (pb_mv_precision < MV_PRECISION_HALF_PEL)
-      lower_mv_precision(&low_prec_ref_mv, pb_mv_precision);
+  if (!is_adaptive_mvd && pb_mv_precision < MV_PRECISION_HALF_PEL)
+    lower_mv_precision(&low_prec_ref_mv, pb_mv_precision);
   const MV diff = { cur_mv->row - low_prec_ref_mv.row,
                     cur_mv->col - low_prec_ref_mv.col };
 

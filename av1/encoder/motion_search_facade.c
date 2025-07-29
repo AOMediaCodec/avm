@@ -865,11 +865,7 @@ void av1_amvd_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
   const MvCosts *mv_costs = &x->mv_costs;
 
   assert(!is_pb_mv_precision_active(cm, mbmi, bsize));
-#if BUGFIX_AMVD_AMVR
   set_amvd_mv_precision(mbmi, mbmi->max_mv_precision);
-#else
-  assert(mbmi->pb_mv_precision == mbmi->max_mv_precision);
-#endif  // BUGFIX_AMVD_AMVR
 
   struct buf_2d backup_yv12[MAX_MB_PLANE];
   const YV12_BUFFER_CONFIG *const scaled_ref_frame =
@@ -1035,12 +1031,10 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
   int_mv best_other_mv;
   best_other_mv.as_mv = kZeroMv;
   const int is_adaptive_mvd = enable_adaptive_mvd_resolution(cm, mbmi);
-#if BUGFIX_AMVD_AMVR
   if (is_adaptive_mvd) {
     set_amvd_mv_precision(mbmi, mbmi->max_mv_precision);
     pb_mv_precision = mbmi->pb_mv_precision;
   }
-#endif
   if (is_adaptive_mvd &&
       !is_joint_amvd_coding_mode(mbmi->mode, mbmi->use_amvd)) {
     int dis; /* TODO: use dis in distortion calculation later. */

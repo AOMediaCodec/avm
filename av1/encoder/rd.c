@@ -1570,12 +1570,8 @@ void av1_fill_mv_costs(const FRAME_CONTEXT *fc, int integer_mv,
   mv_costs->amvd_nmv_cost[1] = &mv_costs->amvd_nmv_cost_alloc[1][MV_MAX];
   av1_build_nmv_cost_table(
       mv_costs->amvd_nmv_joint_cost, mv_costs->amvd_nmv_cost, &fc->nmvc,
-#if BUGFIX_AMVD_AMVR
       (fr_mv_precision <= MV_PRECISION_QTR_PEL ? fr_mv_precision
                                                : MV_PRECISION_QTR_PEL),
-#else
-      fr_mv_precision,
-#endif
       1
 #if CONFIG_DERIVED_MVD_SIGN
       ,

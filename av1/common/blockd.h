@@ -869,11 +869,8 @@ static INLINE int get_intra_mode(const MB_MODE_INFO *mbmi, int plane) {
 // This function return the MVD from MV and refMV
 static INLINE void get_mvd_from_ref_mv(MV mv, MV ref_mv, int is_adaptive_mvd,
                                        MvSubpelPrecision precision, MV *mvd) {
-#if BUGFIX_AMVD_AMVR
-  if (!is_adaptive_mvd)
-#endif  // BUGFIX_AMVD_AMVR
-    if (precision < MV_PRECISION_HALF_PEL)
-      lower_mv_precision(&ref_mv, precision);
+  if (!is_adaptive_mvd && precision < MV_PRECISION_HALF_PEL)
+    lower_mv_precision(&ref_mv, precision);
   mvd->row = mv.row - ref_mv.row;
   mvd->col = mv.col - ref_mv.col;
 }
@@ -885,11 +882,8 @@ static INLINE void update_mv_component_from_mvd(int16_t modified_mvd_comp,
                                                 int is_adaptive_mvd,
                                                 MvSubpelPrecision precision,
                                                 MV *mv) {
-#if BUGFIX_AMVD_AMVR
-  if (!is_adaptive_mvd)
-#endif  // BUGFIX_AMVD_AMVR
-    if (precision < MV_PRECISION_HALF_PEL)
-      lower_mv_precision(&ref_mv, precision);
+  if (!is_adaptive_mvd && precision < MV_PRECISION_HALF_PEL)
+    lower_mv_precision(&ref_mv, precision);
 
   if (comp == 0)
     mv->row = ref_mv.row + modified_mvd_comp;

@@ -620,11 +620,8 @@ void av1_update_mv_stats(
 #if CONFIG_DERIVED_MVD_SIGN
   const MV diff = { mv_diff.row, mv_diff.col };
 #else
-#if BUGFIX_AMVD_AMVR
-    if (!is_adaptive_mvd)
-#endif  // BUGFIX_AMVD_AMVR
-      if (precision < MV_PRECISION_HALF_PEL)
-        lower_mv_precision(&ref, precision);
+    if (!is_adaptive_mvd && precision < MV_PRECISION_HALF_PEL)
+      lower_mv_precision(&ref, precision);
     const MV diff = { mv.row - ref.row, mv.col - ref.col };
     assert(is_this_mv_precision_compliant(diff, precision));
 #endif  // CONFIG_DERIVED_MVD_SIGN
@@ -949,11 +946,8 @@ void av1_encode_mv(AV1_COMP *cpi, aom_writer *w, MV mv,
 #if CONFIG_DERIVED_MVD_SIGN
   const MV diff = mv_diff;
 #else
-#if BUGFIX_AMVD_AMVR
-    if (!is_adaptive_mvd)
-#endif  // BUGFIX_AMVD_AMVR
-      if (pb_mv_precision < MV_PRECISION_HALF_PEL)
-        lower_mv_precision(&ref, pb_mv_precision);
+    if (!is_adaptive_mvd && pb_mv_precision < MV_PRECISION_HALF_PEL)
+      lower_mv_precision(&ref, pb_mv_precision);
     const MV diff = { mv.row - ref.row, mv.col - ref.col };
 #endif  // CONFIG_DERIVED_MVD_SIGN
   assert(is_this_mv_precision_compliant(diff, pb_mv_precision));

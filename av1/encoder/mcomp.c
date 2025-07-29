@@ -188,11 +188,6 @@ void av1_make_default_subpel_ms_params(SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
 
   const int is_adaptive_mvd = enable_adaptive_mvd_resolution(cm, mbmi);
 
-#if !BUGFIX_AMVD_AMVR
-  assert(
-      !(is_adaptive_mvd && (mbmi->pb_mv_precision != mbmi->max_mv_precision)));
-#endif  // BUGFIX_AMVD_AMVR
-
   // High level params
   ms_params->forced_stop = cpi->sf.mv_sf.subpel_force_stop;
   ms_params->iters_per_step = cpi->sf.mv_sf.subpel_iters_per_step;
@@ -641,11 +636,8 @@ static INLINE int get_mv_cost_with_precision(
     const MvCosts *mv_costs, int weight, int round_bits) {
 
   MV low_prec_ref_mv = ref_mv;
-#if BUGFIX_AMVD_AMVR
-  if (!is_adaptive_mvd)
-#endif
-    if (pb_mv_precision < MV_PRECISION_HALF_PEL)
-      lower_mv_precision(&low_prec_ref_mv, pb_mv_precision);
+  if (!is_adaptive_mvd && pb_mv_precision < MV_PRECISION_HALF_PEL)
+    lower_mv_precision(&low_prec_ref_mv, pb_mv_precision);
   const MV diff = { mv.row - low_prec_ref_mv.row,
                     mv.col - low_prec_ref_mv.col };
 #if CONFIG_VQ_MVD_CODING
@@ -794,11 +786,9 @@ static INLINE int mv_err_cost(const MV mv,
   const MV_COST_TYPE mv_cost_type = mv_cost_params->mv_cost_type;
   const MvCosts *mv_costs = mv_cost_params->mv_costs;
   MV low_prec_ref_mv = ref_mv;
-#if BUGFIX_AMVD_AMVR
-  if (!mv_cost_params->is_adaptive_mvd)
-#endif
-    if (pb_mv_precision < MV_PRECISION_HALF_PEL)
-      lower_mv_precision(&low_prec_ref_mv, pb_mv_precision);
+  if (!mv_cost_params->is_adaptive_mvd &&
+      pb_mv_precision < MV_PRECISION_HALF_PEL)
+    lower_mv_precision(&low_prec_ref_mv, pb_mv_precision);
   const MV diff = { mv.row - low_prec_ref_mv.row,
                     mv.col - low_prec_ref_mv.col };
 #if CONFIG_VQ_MVD_CODING
@@ -844,9 +834,7 @@ static INLINE int mvsad_err_cost(const FULLPEL_MV mv,
   MV ref_mv = { GET_MV_SUBPEL(mv_cost_params->full_ref_mv.row),
                 GET_MV_SUBPEL(mv_cost_params->full_ref_mv.col) };
 
-#if BUGFIX_AMVD_AMVR
   if (!mv_cost_params->is_adaptive_mvd)
-#endif
     lower_mv_precision(&ref_mv, pb_mv_precision);
 
   const MV diff = { (this_mv.row - ref_mv.row), (this_mv.col - ref_mv.col) };
@@ -4017,11 +4005,7 @@ void av1_amvd_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
 
   const int is_adaptive_mvd = enable_adaptive_mvd_resolution(cm, mbmi);
   assert(!is_pb_mv_precision_active(cm, mbmi, bsize));
-#if BUGFIX_AMVD_AMVR
   set_amvd_mv_precision(mbmi, mbmi->max_mv_precision);
-#else
-  assert(mbmi->pb_mv_precision == mbmi->max_mv_precision);
-#endif  // BUGFIX_AMVD_AMVR
 
   const MvSubpelPrecision pb_mv_precision = mbmi->pb_mv_precision;
 
@@ -4223,12 +4207,8 @@ int adaptive_mvd_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
   const SubpelMvLimits *mv_limits = &ms_params->mv_limits;
 
   MB_MODE_INFO *const mbmi = xd->mi[0];
-#if BUGFIX_AMVD_AMVR
   set_amvd_mv_precision(mbmi, mbmi->max_mv_precision);
   mv_cost_params->pb_mv_precision = mbmi->pb_mv_precision;
-#else
-  assert(mbmi->pb_mv_precision == mbmi->max_mv_precision);
-#endif
 
 #if !CONFIG_VQ_MVD_CODING
   // How many steps to take. A round of 0 means fullpel search only, 1 means
@@ -4362,11 +4342,7 @@ int av1_joint_amvd_motion_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
   // perform prediction for second MV
   const BLOCK_SIZE bsize = mbmi->sb_type[PLANE_TYPE_Y];
 
-#if BUGFIX_AMVD_AMVR
   set_amvd_mv_precision(mbmi, mbmi->max_mv_precision);
-#else
-  assert(mbmi->pb_mv_precision == mbmi->max_mv_precision);
-#endif
 
 #if !CONFIG_VQ_MVD_CODING
   // How many steps to take. A round of 0 means fullpel search only, 1 means
