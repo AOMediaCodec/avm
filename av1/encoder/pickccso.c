@@ -95,9 +95,7 @@ void ccso_derive_src_block_c(const uint16_t *src_y, uint8_t *const src_cls0,
 /* Derive CCSO filter support information */
 static void ccso_derive_src_info(AV1_COMMON *cm, MACROBLOCKD *xd,
                                  const int plane, const uint16_t *src_y,
-#if CCSO_REFACTORING
                                  const int proc_unit_log2,
-#endif  // CCSO_REFACTORING
                                  const uint16_t qstep, const uint8_t filter_sup,
                                  uint8_t *src_cls0, uint8_t *src_cls1,
                                  int edge_clf, int ccso_stride,
@@ -114,17 +112,14 @@ static void ccso_derive_src_info(AV1_COMMON *cm, MACROBLOCKD *xd,
   const int blk_size_y = 1 << blk_log2_y;
   const int blk_size_x = 1 << blk_log2_x;
   src_y += CCSO_PADDING_SIZE * ccso_stride_ext + CCSO_PADDING_SIZE;
-#if CCSO_REFACTORING
   const int unit_log2_x =
       proc_unit_log2 > blk_log2_x ? blk_log2_x : proc_unit_log2;
   const int unit_size_x = 1 << (unit_log2_x);
   const int unit_log2_y =
       proc_unit_log2 > blk_log2_y ? blk_log2_y : proc_unit_log2;
   const int unit_size_y = 1 << (unit_log2_y);
-#endif  // CCSO_REFACTORING
   for (int y = 0; y < pic_height; y += blk_size_y) {
     for (int x = 0; x < pic_width; x += blk_size_x) {
-#if CCSO_REFACTORING
       // check BRU skip in entire CCSO FU, this means no signal needed
       if (bru_is_fu_skipped_mbmi(cm, x >> (MI_SIZE_LOG2 - y_uv_hscale),
                                  y >> (MI_SIZE_LOG2 - y_uv_vscale),
@@ -159,12 +154,6 @@ static void ccso_derive_src_info(AV1_COMMON *cm, MACROBLOCKD *xd,
         src_unit_0 += (ccso_stride << (unit_log2_y + y_uv_vscale));
         src_unit_1 += (ccso_stride << (unit_log2_y + y_uv_vscale));
       }
-#else
-      ccso_derive_src_block(src_y, src_cls0, src_cls1, ccso_stride_ext,
-                            ccso_stride, x, y, pic_width, pic_height,
-                            y_uv_hscale, y_uv_vscale, qstep, neg_qstep, src_loc,
-                            blk_size_x, blk_size_y, edge_clf);
-#endif  // CCSO_REFACTORING
     }
     src_y += (ccso_stride_ext << (blk_log2_y + y_uv_vscale));
     src_cls0 += (ccso_stride << (blk_log2_y + y_uv_vscale));
@@ -177,9 +166,7 @@ static void ccso_derive_src_info(AV1_COMMON *cm, MACROBLOCKD *xd,
 static void ccso_pre_compute_class_err(CcsoCtx *ctx, MACROBLOCKD *xd,
                                        const int plane,
                                        const AV1_COMMON *cm,
-#if CCSO_REFACTORING
                                        const int proc_unit_log2,
-#endif  // CCSO_REFACTORING
                                        const uint16_t *src_y,
                                        const uint16_t *ref, const uint16_t *dst,
                                        uint8_t *src_cls0, uint8_t *src_cls1,
@@ -198,14 +185,12 @@ static void ccso_pre_compute_class_err(CcsoCtx *ctx, MACROBLOCKD *xd,
   const int scaled_ext_stride = (ctx->ccso_stride_ext << y_uv_vscale);
   const int scaled_stride = (ctx->ccso_stride << y_uv_vscale);
   src_y += CCSO_PADDING_SIZE * ctx->ccso_stride_ext + CCSO_PADDING_SIZE;
-#if CCSO_REFACTORING
   const int unit_log2_x =
       proc_unit_log2 > blk_log2_x ? blk_log2_x : proc_unit_log2;
   const int unit_size_x = 1 << (unit_log2_x);
   const int unit_log2_y =
       proc_unit_log2 > blk_log2_y ? blk_log2_y : proc_unit_log2;
   const int unit_size_y = 1 << (unit_log2_y);
-#endif  // CCSO_REFACTORING
   for (int y = 0; y < pic_height; y += blk_size_y) {
     for (int x = 0; x < pic_width; x += blk_size_x) {
       fb_idx++;
@@ -214,7 +199,6 @@ static void ccso_pre_compute_class_err(CcsoCtx *ctx, MACROBLOCKD *xd,
       }
       const int y_end = AOMMIN(pic_height - y, blk_size_y);
       const int x_end = AOMMIN(pic_width - x, blk_size_x);
-#if CCSO_REFACTORING
       // reset temp pointers for sbs
       const uint16_t *ref_unit = ref;
       const uint16_t *dst_unit = dst;
@@ -267,30 +251,6 @@ static void ccso_pre_compute_class_err(CcsoCtx *ctx, MACROBLOCKD *xd,
         src_unit0 += scaled_stride * unit_size_y;
         src_unit1 += scaled_stride * unit_size_y;
       }  // unit_y
-#else
-      for (int y_start = 0; y_start < y_end; y_start++) {
-        for (int x_start = 0; x_start < x_end; x_start++) {
-          const int x_pos = x + x_start;
-          cur_src_cls0 = src_cls0[x_pos << y_uv_hscale];
-          cur_src_cls1 = src_cls1[x_pos << y_uv_hscale];
-          const int band_num = src_y[x_pos << y_uv_hscale] >> shift_bits;
-          ctx->total_class_err[cur_src_cls0][cur_src_cls1][band_num]
-                              [fb_idx - 1] += ref[x_pos] - dst[x_pos];
-          ctx->total_class_cnt[cur_src_cls0][cur_src_cls1][band_num]
-                              [fb_idx - 1]++;
-        }
-        ref += ctx->ccso_stride;
-        dst += ctx->ccso_stride;
-        src_y += scaled_ext_stride;
-        src_cls0 += scaled_stride;
-        src_cls1 += scaled_stride;
-      }
-      ref -= ctx->ccso_stride * y_end;
-      dst -= ctx->ccso_stride * y_end;
-      src_y -= scaled_ext_stride * y_end;
-      src_cls0 -= scaled_stride * y_end;
-      src_cls1 -= scaled_stride * y_end;
-#endif  // CCSO_REFACTORING
     }
     ref += (ctx->ccso_stride << blk_log2_y);
     dst += (ctx->ccso_stride << blk_log2_y);
@@ -304,9 +264,7 @@ static void ccso_pre_compute_class_err(CcsoCtx *ctx, MACROBLOCKD *xd,
 static void ccso_pre_compute_class_err_bo(CcsoCtx *ctx, MACROBLOCKD *xd,
                                           const int plane,
                                           const AV1_COMMON *cm,
-#if CCSO_REFACTORING
                                           const int proc_unit_log2,
-#endif  // CCSO_REFACTORING
                                           const uint16_t *src_y,
                                           const uint16_t *ref,
                                           const uint16_t *dst,
@@ -322,14 +280,12 @@ static void ccso_pre_compute_class_err_bo(CcsoCtx *ctx, MACROBLOCKD *xd,
   const int blk_size_x = 1 << blk_log2_x;
   const int scaled_ext_stride = (ctx->ccso_stride_ext << y_uv_vscale);
   src_y += CCSO_PADDING_SIZE * ctx->ccso_stride_ext + CCSO_PADDING_SIZE;
-#if CCSO_REFACTORING
   const int unit_log2_x =
       proc_unit_log2 > blk_log2_x ? blk_log2_x : proc_unit_log2;
   const int unit_size_x = 1 << (unit_log2_x);
   const int unit_log2_y =
       proc_unit_log2 > blk_log2_y ? blk_log2_y : proc_unit_log2;
   const int unit_size_y = 1 << (unit_log2_y);
-#endif  // CCSO_REFACTORING
   for (int y = 0; y < pic_height; y += blk_size_y) {
     for (int x = 0; x < pic_width; x += blk_size_x) {
       fb_idx++;
@@ -339,7 +295,6 @@ static void ccso_pre_compute_class_err_bo(CcsoCtx *ctx, MACROBLOCKD *xd,
       }
       const int y_end = AOMMIN(pic_height - y, blk_size_y);
       const int x_end = AOMMIN(pic_width - x, blk_size_x);
-#if CCSO_REFACTORING
       assert(ctx->filter_control);
       // reset temp pointers for sbs
       const uint16_t *ref_unit = ref;
@@ -379,23 +334,6 @@ static void ccso_pre_compute_class_err_bo(CcsoCtx *ctx, MACROBLOCKD *xd,
         dst_unit += unit_size_y * ctx->ccso_stride;
         src_y_unit += unit_size_y * scaled_ext_stride;
       }  // unit_y
-#else
-      for (int y_start = 0; y_start < y_end; y_start++) {
-        for (int x_start = 0; x_start < x_end; x_start++) {
-          const int x_pos = x + x_start;
-          const int band_num = src_y[x_pos << y_uv_hscale] >> shift_bits;
-          ctx->total_class_err_bo[band_num][fb_idx - 1] +=
-              ref[x_pos] - dst[x_pos];
-          ctx->total_class_cnt_bo[band_num][fb_idx - 1]++;
-        }
-        ref += ctx->ccso_stride;
-        dst += ctx->ccso_stride;
-        src_y += scaled_ext_stride;
-      }
-      ref -= ctx->ccso_stride * y_end;
-      dst -= ctx->ccso_stride * y_end;
-      src_y -= scaled_ext_stride * y_end;
-#endif  // CCSO_REFACTORING
     }
     ref += (ctx->ccso_stride << blk_log2_y);
     dst += (ctx->ccso_stride << blk_log2_y);
@@ -494,14 +432,12 @@ void ccso_try_luma_filter(CcsoCtx *ctx, AV1_COMMON *cm, MACROBLOCKD *xd,
   const int blk_size = 1 << blk_log2;
   int fb_idx = 0;
   src_y += CCSO_PADDING_SIZE * ccso_stride_ext + CCSO_PADDING_SIZE;
-#if CCSO_REFACTORING
   // luma only
   int unit_log2 = cm->mib_size_log2 + MI_SIZE_LOG2;
   if (unit_log2 > blk_log2) {
     unit_log2 = blk_log2;
   }
   const int unit_size = 1 << (unit_log2);
-#endif  // CCSO_REFACTORING
   for (int y = 0; y < pic_height; y += blk_size) {
     for (int x = 0; x < pic_width; x += blk_size) {
       fb_idx++;
@@ -509,7 +445,6 @@ void ccso_try_luma_filter(CcsoCtx *ctx, AV1_COMMON *cm, MACROBLOCKD *xd,
       if (cm->bru.enabled && !ctx->filter_control[fb_idx - 1]) {
         continue;  // FSU level skip
       }
-#if CCSO_REFACTORING
       const uint16_t *src_y_unit = src_y;
       uint16_t *dst_unit = dst_yuv;
       const uint8_t *src_unit0 = src_cls0;
@@ -548,23 +483,6 @@ void ccso_try_luma_filter(CcsoCtx *ctx, AV1_COMMON *cm, MACROBLOCKD *xd,
         src_unit0 += (ccso_stride << unit_log2);
         src_unit1 += (ccso_stride << unit_log2);
       }  // unit_y
-#else
-      if (ccso_bo_only) {
-        ccso_filter_block_hbd_with_buf_bo_only(
-            src_y, dst_yuv, src_cls0, src_cls1, ccso_stride_ext, dst_stride,
-            ccso_stride, x, y, pic_width, pic_height, filter_offset, blk_size,
-            blk_size,
-            // y_uv_scale in h and v shall be zero
-            0, 0, max_val, shift_bits, ccso_bo_only);
-      } else {
-        ccso_filter_block_hbd_with_buf(src_y, dst_yuv, src_cls0, src_cls1,
-                                       ccso_stride_ext, dst_stride, ccso_stride,
-                                       x, y, pic_width, pic_height,
-                                       filter_offset, blk_size, blk_size,
-                                       // y_uv_scale in h and v shall be zero
-                                       0, 0, max_val, shift_bits, 0);
-      }
-#endif  // CCSO_REFACTORING
     }
     dst_yuv += (dst_stride << blk_log2);
     src_y += (ccso_stride_ext << blk_log2);
@@ -591,7 +509,6 @@ static void ccso_try_chroma_filter(
   const int blk_size_x = 1 << blk_log2_x;
   int fb_idx = 0;
   src_y += CCSO_PADDING_SIZE * ccso_stride_ext + CCSO_PADDING_SIZE;
-#if CCSO_REFACTORING
   int unit_log2_x = cm->mib_size_log2 + MI_SIZE_LOG2 - y_uv_hscale;
   if (unit_log2_x > blk_log2_x) {
     unit_log2_x = blk_log2_x;
@@ -602,7 +519,6 @@ static void ccso_try_chroma_filter(
     unit_log2_y = blk_log2_y;
   }
   const int unit_size_y = 1 << (unit_log2_y);
-#endif  // CCSO_REFACTORING
   for (int y = 0; y < pic_height; y += blk_size_y) {
     for (int x = 0; x < pic_width; x += blk_size_x) {
       fb_idx++;
@@ -610,7 +526,6 @@ static void ccso_try_chroma_filter(
       if (cm->bru.enabled && !ctx->filter_control[fb_idx - 1]) {
         continue;
       }
-#if CCSO_REFACTORING
       const uint16_t *src_y_unit = src_y;
       uint16_t *dst_unit = dst_yuv;
       const uint8_t *src_unit0 = src_cls0;
@@ -647,20 +562,6 @@ static void ccso_try_chroma_filter(
         src_unit0 += (ccso_stride << (unit_log2_y + y_uv_vscale));
         src_unit1 += (ccso_stride << (unit_log2_y + y_uv_vscale));
       }  // unit_y
-#else
-      if (ccso_bo_only) {
-        ccso_filter_block_hbd_with_buf_bo_only(
-            src_y, dst_yuv, src_cls0, src_cls1, ccso_stride_ext, dst_stride,
-            ccso_stride, x, y, pic_width, pic_height, filter_offset, blk_size_x,
-            blk_size_y, y_uv_hscale, y_uv_vscale, max_val, shift_bits,
-            ccso_bo_only);
-      } else {
-        ccso_filter_block_hbd_with_buf(
-            src_y, dst_yuv, src_cls0, src_cls1, ccso_stride_ext, dst_stride,
-            ccso_stride, x, y, pic_width, pic_height, filter_offset, blk_size_x,
-            blk_size_y, y_uv_hscale, y_uv_vscale, max_val, shift_bits, 0);
-      }
-#endif  // CCSO_REFACTORING
     }
     dst_yuv += (dst_stride << blk_log2_y);
     src_y += (ccso_stride_ext << (blk_log2_y + y_uv_vscale));
@@ -703,13 +604,10 @@ static void compute_distortion(
     const uint16_t *org, const int org_stride, const uint16_t *rec16,
     const int rec_stride, const int log2_filter_unit_size_y,
     const int log2_filter_unit_size_x,
-#if CCSO_REFACTORING
     const int log2_proc_unit_size,
-#endif  // CCSO_REFACTORING
     const AV1_COMMON *cm, const int subsampling_y, const int subsampling_x,
     const int height, const int width, uint64_t *distortion_buf,
     const int distortion_buf_stride, uint64_t *total_distortion) {
-#if CCSO_REFACTORING
   int unit_log2_x = log2_proc_unit_size > log2_filter_unit_size_x
                         ? log2_filter_unit_size_x
                         : log2_proc_unit_size;
@@ -718,7 +616,6 @@ static void compute_distortion(
                         : log2_proc_unit_size;
   const int unit_size_x = 1 << (unit_log2_x);
   const int unit_size_y = 1 << (unit_log2_y);
-#endif  // CCSO_REFACTORING
   const int blk_size_x = (1 << log2_filter_unit_size_x);
   const int blk_size_y = (1 << log2_filter_unit_size_y);
   for (int y = 0; y < height; y += (1 << log2_filter_unit_size_y)) {
@@ -733,7 +630,6 @@ static void compute_distortion(
                        (x >> log2_filter_unit_size_x)] = 0;
         continue;
       }
-#if CCSO_REFACTORING
       // All unified into pixel size
       uint64_t sb_ssd = 0;
       const uint16_t *org_unit = org;
@@ -761,11 +657,6 @@ static void compute_distortion(
         rec_unit += (rec_stride << unit_log2_x);
       }  //
       const uint64_t ssd = sb_ssd;
-#else
-      const uint64_t ssd = compute_distortion_block(
-          org, org_stride, rec16, rec_stride, x, y, log2_filter_unit_size_y,
-          log2_filter_unit_size_x, height, width);
-#endif  // CCSO_REFACTORING
       distortion_buf[(y >> log2_filter_unit_size_y) * distortion_buf_stride +
                      (x >> log2_filter_unit_size_x)] = ssd;
       *total_distortion += ssd;
@@ -1206,9 +1097,7 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
 
   compute_distortion(org_uv, ctx->ccso_stride, rec_uv, ctx->ccso_stride,
                      log2_filter_unit_size_y, log2_filter_unit_size_x,
-#if CCSO_REFACTORING
                      cm->mib_size_log2 - AOMMAX(ss_x, ss_y) + MI_SIZE_LOG2,
-#endif  // CCSO_REFACTORING
                      cm, ss_y, ss_x, pic_height_c, pic_width_c,
                      ctx->unfiltered_dist_block, ccso_nhfb,
                      &ctx->unfiltered_dist_frame);
@@ -1295,10 +1184,8 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
             if (!ccso_bo_only) {
               ccso_derive_src_info(
                   cm, xd, plane, ext_rec_y,
-#if CCSO_REFACTORING
                   cm->mib_size_log2 - (ss_x > ss_y ? ss_x : ss_y) +
                       MI_SIZE_LOG2,
-#endif  // CCSO_REFACTORING
                   quant_sz[scale_idx][quant_idx], ext_filter_support, src_cls0,
                   src_cls1, edge_clf, ctx->ccso_stride, ctx->ccso_stride_ext);
             }
@@ -1319,9 +1206,7 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
                 }
                 ccso_pre_compute_class_err_bo(
                     ctx, xd, plane, cm,
-#if CCSO_REFACTORING
                     cm->mib_size_log2 - AOMMAX(ss_x, ss_y) + MI_SIZE_LOG2,
-#endif  // CCSO_REFACTORING
                     ext_rec_y, org_uv, rec_uv, shift_bits);
               } else {
                 for (int d0 = 0; d0 < max_edge_interval; d0++) {
@@ -1338,9 +1223,7 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
                 }
                 ccso_pre_compute_class_err(
                     ctx, xd, plane, cm,
-#if CCSO_REFACTORING
                     cm->mib_size_log2 - AOMMAX(ss_x, ss_y) + MI_SIZE_LOG2,
-#endif  // CCSO_REFACTORING
                     ext_rec_y, org_uv, rec_uv, src_cls0, src_cls1, shift_bits);
               }
 
@@ -1484,10 +1367,8 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
                             org_uv, ctx->ccso_stride, temp_rec_uv_buf,
                             ctx->ccso_stride, log2_filter_unit_size_y,
                             log2_filter_unit_size_x,
-#if CCSO_REFACTORING
                             cm->mib_size_log2 - AOMMAX(ss_x, ss_y) +
                                 MI_SIZE_LOG2,
-#endif  // CCSO_REFACTORING
                             cm, ss_y, ss_x, pic_height_c, pic_width_c,
                             ctx->training_dist_block, ccso_nhfb,
                             &ctx->filtered_dist_frame);
