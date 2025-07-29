@@ -1676,7 +1676,7 @@ void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
                                     : 0)) >=
       (int)(xd->tile.mi_col_end << MI_SIZE_LOG2)) {
     *ref_width = (xd->tile.mi_col_end << MI_SIZE_LOG2) -
-                 ((tx_mi_col) << MI_SIZE_LOG2) + *left_lines - 1;
+                 ((tx_mi_col) << MI_SIZE_LOG2) + *left_lines;
   }
 
   *ref_height = AOMMIN(128, *above_lines + height +
@@ -1689,7 +1689,7 @@ void mhccp_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
             ? AOMMIN((px_bottom_left << sub_y), height)
             : 0)) >= (int)(xd->tile.mi_row_end << MI_SIZE_LOG2)) {
     *ref_height = *above_lines + (xd->tile.mi_row_end << MI_SIZE_LOG2) -
-                  ((tx_mi_row) << MI_SIZE_LOG2) - 1;
+                  ((tx_mi_row) << MI_SIZE_LOG2);
   }
 
   *ref_width = AOMMIN(*ref_width, 128);
