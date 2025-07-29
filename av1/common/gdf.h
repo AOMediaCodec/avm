@@ -13,9 +13,7 @@
 #ifndef AOM_AV1_COMMON_GDF_H
 #define AOM_AV1_COMMON_GDF_H
 #include "av1/common/av1_common_int.h"
-#if CONFIG_BRU
 #include "av1/common/bru.h"
-#endif  // CONFIG_BRU
 #ifdef __cplusplus
 extern "C" {
 #endif

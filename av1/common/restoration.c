@@ -19,9 +19,7 @@
 
 #include "aom_mem/aom_mem.h"
 #include "av1/common/av1_common_int.h"
-#if CONFIG_BRU
 #include "av1/common/bru.h"
-#endif  // CONFIG_BRU
 #include "av1/common/resize.h"
 #include "av1/common/restoration.h"
 #include "aom_dsp/aom_dsp_common.h"
@@ -537,11 +535,7 @@ void av1_extend_frame(uint16_t *data, int width, int height, int stride,
   extend_frame_highbd(data, width, height, stride, border_horz, border_vert);
 }
 
-#if CONFIG_BRU
 void copy_tile(int width, int height, const uint16_t *src,
-#else
-static void copy_tile(int width, int height, const uint16_t *src,
-#endif  // CONFIG_BRU
                int src_stride, uint16_t *dst, int dst_stride) {
   copy_tile_highbd(width, height, src, src_stride, dst, dst_stride);
 }
@@ -1351,7 +1345,6 @@ static void pc_wiener_stripe_highbd(const RestorationUnitInfo *rui,
                        rui->pcwiener_buffers);
   for (int j = 0; j < stripe_width; j += procunit_width) {
     int w = AOMMIN(procunit_width, stripe_width - j);
-#if CONFIG_BRU
     const int mi_offset_x = j >> (MI_SIZE_LOG2 - rui->ss_x);
     const int mi_offset_y =
         AOMMIN(stripe_height - 1, RESTORATION_UNIT_OFFSET) >>
@@ -1372,7 +1365,6 @@ static void pc_wiener_stripe_highbd(const RestorationUnitInfo *rui,
     MB_MODE_INFO **mbmi_ptr_procunit = rui->mbmi_ptr + mi_offset_x;
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 
-#endif  // CONFIG_BRU
     // The function update_accumulator() is used to compute the accumulated
     // result of tx_skip and feature direction filtering output at
     // PC_WIENER_BLOCk_SIZE samples. The SIMD for the same is implemented with
@@ -1703,7 +1695,6 @@ static void wiener_nsfilter_stripe_highbd(const RestorationUnitInfo *rui,
 
   for (int j = 0; j < stripe_width; j += procunit_width) {
     int w = AOMMIN(procunit_width, stripe_width - j);
-#if CONFIG_BRU
     const int mi_offset_x = j >> (MI_SIZE_LOG2 - rui->ss_x);
     const int mi_offset_y =
         AOMMIN(stripe_height - 1, RESTORATION_UNIT_OFFSET) >>
@@ -1723,7 +1714,6 @@ static void wiener_nsfilter_stripe_highbd(const RestorationUnitInfo *rui,
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
     MB_MODE_INFO **mbmi_ptr_procunit = rui->mbmi_ptr + mi_offset_x;
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-#endif  // CONFIG_BRU
     apply_wienerns_class_id_highbd(
         src + j, w, stripe_height, src_stride, nsfilter_info, nsfilter_config,
         dst + j, dst_stride, rui->plane, rui->luma ? rui->luma + j : NULL,
@@ -2147,9 +2137,7 @@ void av1_loop_restoration_filter_unit(
   // stripe_filter(). Use a temporary.
   RestorationUnitInfo rui_contents = *rui;
   RestorationUnitInfo *tmp_rui = &rui_contents;
-#if CONFIG_BRU
   MB_MODE_INFO **const mbmi_base_ptr = rui->mbmi_ptr;
-#endif  // CONFIG_BRU
   const uint16_t *luma_in_ru = NULL;
   const int enable_cross_buffers =
       unit_rtype == RESTORE_WIENER_NONSEP && rui->plane != AOM_PLANE_Y;
@@ -2202,7 +2190,6 @@ void av1_loop_restoration_filter_unit(
         full_stripe_height - ((rel_tile_stripe == 0) ? runit_offset : 0);
     const int h = AOMMIN(nominal_stripe_height,
                          remaining_stripes.v_end - remaining_stripes.v_start);
-#if CONFIG_BRU
     // pass BRU related info to tmp RUI
     tmp_rui->ss_x = ss_x;
     tmp_rui->ss_y = ss_y;
@@ -2210,7 +2197,6 @@ void av1_loop_restoration_filter_unit(
         mbmi_base_ptr + (i >> (MI_SIZE_LOG2 - ss_y)) * rui->mi_stride;
     tmp_rui->mi_stride = rui->mi_stride;
     tmp_rui->error = rui->error;
-#endif  // CONFIG_BRU
     setup_processing_stripe_boundary(&remaining_stripes, rsb, rsb_row, h, data,
                                      stride, rlbs, 1, 1, optimized_lr,
                                      rui->plane != PLANE_TYPE_Y);
@@ -2296,7 +2282,6 @@ static void filter_frame_on_unit(const RestorationTileLimits *limits,
   rsi->unit_info[rest_unit_idx].tskip_zero_flag = ctxt->tskip_zero_flag;
   rsi->unit_info[rest_unit_idx].compute_classification = 1;
   rsi->unit_info[rest_unit_idx].skip_pcwiener_filtering = 0;
-#if CONFIG_BRU
   const int start_mi_x = limits->h_start >> (MI_SIZE_LOG2 - ctxt->ss_x);
   const int start_mi_y = limits->v_start >> (MI_SIZE_LOG2 - ctxt->ss_y);
   const int mbmi_idx = get_mi_grid_idx(ctxt->mi_params, start_mi_y, start_mi_x);
@@ -2304,7 +2289,6 @@ static void filter_frame_on_unit(const RestorationTileLimits *limits,
       ctxt->mi_params->mi_grid_base + mbmi_idx;
   rsi->unit_info[rest_unit_idx].mi_stride = ctxt->mi_params->mi_stride;
   rsi->unit_info[rest_unit_idx].error = ctxt->error;
-#endif  // CONFIG_BRU
 
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
   rsi->unit_info[rest_unit_idx].lossless_segment = ctxt->lossless_segment;
@@ -2375,11 +2359,9 @@ void av1_loop_restoration_filter_frame_init(AV1LrStruct *lr_ctxt,
     lr_plane_ctxt->tile_rect = av1_whole_frame_rect(cm, is_uv);
     lr_plane_ctxt->tile_stripe0 = 0;
     lr_plane_ctxt->tskip_zero_flag = 0;
-#if CONFIG_BRU
     lr_plane_ctxt->mi_params = &cm->mi_params;
     lr_plane_ctxt->order_hint = cm->current_frame.order_hint;
     lr_plane_ctxt->error = &cm->error;
-#endif  // CONFIG_BRU
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
     lr_plane_ctxt->lossless_segment = &cm->features.lossless_segment[0];
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS

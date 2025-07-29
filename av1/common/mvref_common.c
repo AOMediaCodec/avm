@@ -440,7 +440,6 @@ void av1_copy_frame_refined_mvs(const AV1_COMMON *const cm,
   }
 }
 
-#if CONFIG_BRU
 // Copy mvs from bru ref frame to cur frame
 // Used for keeping the old ref frame mvs in the cur frame
 void bru_copy_sb_mvs(const AV1_COMMON *const cm, int src_ref_idx,
@@ -527,7 +526,6 @@ void bru_zero_sb_mvs(const AV1_COMMON *const cm, int dst_ref_idx, int mi_row,
     dst_frame_mvs += frame_mvs_stride;
   }
 }
-#endif  // CONFIG_BRU
 
 // Copy the MVs into the TMVP list
 void av1_copy_frame_mvs(const AV1_COMMON *const cm, const MACROBLOCKD *const xd,
@@ -3881,12 +3879,10 @@ static void check_and_add_process_ref(const AV1_COMMON *cm, int max_check,
   if (get_ref_frame_buf(cm, start_frame) == NULL ||
       get_ref_frame_buf(cm, start_frame)->frame_type != INTER_FRAME)
     return;
-#if CONFIG_BRU
   if (cm->bru.enabled && cm->bru.update_ref_idx != -1) {
     if (start_frame == cm->bru.update_ref_idx) return;
     if (target_frame == cm->bru.update_ref_idx) return;
   }
-#endif
 
 #if CONFIG_SIMPLIFY_MV_FIELD
   if (*process_count >= MFMV_STACK_SIZE) return;

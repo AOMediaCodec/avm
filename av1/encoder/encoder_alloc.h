@@ -114,7 +114,6 @@ static AOM_INLINE void realloc_segmentation_maps(AV1_COMP *cpi) {
                   aom_calloc(mi_params->mi_rows * mi_params->mi_cols, 1));
 }
 
-#if CONFIG_BRU
 static AOM_INLINE void realloc_ARD_queue(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   CommonModeInfoParams *const mi_params = &cm->mi_params;
@@ -136,7 +135,6 @@ static AOM_INLINE void realloc_ARD_queue(AV1_COMP *cpi) {
   cpi->enc_act_queue_size =
       (mi_params->mb_cols / 3 + 1) * (mi_params->mb_rows / 3 + 1);
 }
-#endif  // CONFIG_BRU
 static AOM_INLINE void alloc_compound_type_rd_buffers(
     AV1_COMMON *const cm, CompoundTypeRdBuffers *const bufs) {
   CHECK_MEM_ERROR(
@@ -178,7 +176,6 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
   // Delete sementation map
   aom_free(cpi->enc_seg.map);
   cpi->enc_seg.map = NULL;
-#if CONFIG_BRU
   // have to make sure empty queue
   for (uint32_t r = 0; r < cpi->enc_act_queue_size; r++) {
     ARD_Queue *q = cpi->enc_act_sb_queue[r];
@@ -191,7 +188,6 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
   }
   aom_free(cpi->enc_act_sb_queue);
   cpi->enc_act_sb_queue = NULL;
-#endif  // CONFIG_BRU
 
   av1_cyclic_refresh_free(cpi->cyclic_refresh);
   cpi->cyclic_refresh = NULL;
@@ -216,13 +212,11 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
   aom_close_vmaf_model_rc(cpi->vmaf_info.vmaf_model);
 #endif
 #endif
-#if CONFIG_BRU
   BruInfo *bru_info = &cpi->common.bru;
   aom_free(bru_info->active_mode_map);
   bru_info->active_mode_map = NULL;
   aom_free(bru_info->active_region);
   bru_info->active_region = NULL;
-#endif  // CONFIG_BRU
 
   aom_free(cpi->td.mb.inter_modes_info);
   cpi->td.mb.inter_modes_info = NULL;

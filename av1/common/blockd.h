@@ -253,13 +253,11 @@ typedef struct {
 #define TXB_COEFF_COST_MAP_SIZE (MAX_MIB_SIZE)
 #endif
 
-#if CONFIG_BRU
 typedef enum {
   BRU_INACTIVE_SB = 0,  //'00'
   BRU_SUPPORT_SB = 1,   //'01'
   BRU_ACTIVE_SB = 2,    //'10'
 } BruActiveMode;
-#endif  // CONFIG_BRU
 
 typedef struct RD_STATS {
   int rate;
@@ -661,7 +659,6 @@ typedef struct MB_MODE_INFO {
 #endif
   /*! \brief The implicitly derived scaling factors*/
   int64_t mhccp_implicit_param[2][MHCCP_NUM_PARAMS];  //[u/v]
-#if CONFIG_BRU
   /*! \brief Whether current block is inactive(0), support (1) and active(2)*/
   BruActiveMode sb_active_mode;
   /*! \brief store restoration type in current SB */
@@ -671,7 +668,6 @@ typedef struct MB_MODE_INFO {
   int local_ccso_blk_flag;
   /*! \brief store GDF mode in current SB in current implementation */
   int local_gdf_mode;
-#endif  // CONFIG_BRU
 #if CONFIG_LOCAL_INTRABC_ALIGN_RNG
   /*! \brief Which partition the superblock used. */
   int sb_root_partition_info;
@@ -750,9 +746,7 @@ void av1_free_ptree_recursive(PARTITION_TREE *ptree);
 typedef struct SB_INFO {
   int mi_row;
   int mi_col;
-#if CONFIG_BRU
   BruActiveMode sb_active_mode;
-#endif  // CONFIG_BRU
   PARTITION_TREE *ptree_root[2];
   MvSubpelPrecision sb_mv_precision;
 } SB_INFO;

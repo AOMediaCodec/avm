@@ -391,7 +391,6 @@ void ccso_apply_luma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
             const int x_end = AOMMIN(tile_col_end - frame_pxl_x, blk_size);
             for (int unit_y = 0; unit_y < y_end; unit_y += unit_size) {
               for (int unit_x = 0; unit_x < x_end; unit_x += unit_size) {
-#if CONFIG_BRU
                 // FPU level skip
                 const int mbmi_idx = get_mi_grid_idx(
                     mi_params, (frame_pxl_y + unit_y) >> MI_SIZE_LOG2,
@@ -409,7 +408,6 @@ void ccso_apply_luma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
                                      "active SB can be filtered");
                   return;
                 }
-#endif  // CONFIG_BRU
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
                 if (cm->features.has_lossless_segment) {
                   ccso_filter_block_hbd_wo_buf_4x4_c(
@@ -472,7 +470,6 @@ void ccso_apply_luma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
       const int x_end = AOMMIN(pic_width - x, blk_size);
       for (int unit_y = 0; unit_y < y_end; unit_y += unit_size) {
         for (int unit_x = 0; unit_x < x_end; unit_x += unit_size) {
-#if CONFIG_BRU
           // FPU level skip
           const int mbmi_idx =
               get_mi_grid_idx(mi_params, (y + unit_y) >> MI_SIZE_LOG2,
@@ -490,7 +487,6 @@ void ccso_apply_luma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
                 "Invalid BRU activity in CCSO: only active SB can be filtered");
             return;
           }
-#endif  // CONFIG_BRU
 
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
           if (cm->features.has_lossless_segment) {
@@ -640,7 +636,6 @@ void ccso_apply_luma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
             const int x_end = AOMMIN(tile_col_end - frame_pxl_x, blk_size);
             for (int unit_y = 0; unit_y < y_end; unit_y += unit_size) {
               for (int unit_x = 0; unit_x < x_end; unit_x += unit_size) {
-#if CONFIG_BRU
                 // FPU level skip
                 const int mbmi_idx = get_mi_grid_idx(
                     mi_params, (frame_pxl_y + unit_y) >> MI_SIZE_LOG2,
@@ -658,7 +653,6 @@ void ccso_apply_luma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
                                      "active SB can be filtered");
                   return;
                 }
-#endif  // CONFIG_BRU
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
                 if (cm->features.has_lossless_segment) {
                   ccso_filter_block_hbd_wo_buf_4x4_c(
@@ -721,7 +715,6 @@ void ccso_apply_luma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
       const int x_end = AOMMIN(pic_width - x, blk_size);
       for (int unit_y = 0; unit_y < y_end; unit_y += unit_size) {
         for (int unit_x = 0; unit_x < x_end; unit_x += unit_size) {
-#if CONFIG_BRU
           // FPU level skip
           const int mbmi_idx =
               get_mi_grid_idx(mi_params, (y + unit_y) >> MI_SIZE_LOG2,
@@ -739,7 +732,6 @@ void ccso_apply_luma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
                 "Invalid BRU activity in CCSO: only active SB can be filtered");
             return;
           }
-#endif  // CONFIG_BRU
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
           if (cm->features.has_lossless_segment) {
             ccso_filter_block_hbd_wo_buf_4x4_c(
@@ -908,7 +900,6 @@ void ccso_apply_chroma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
             const int x_end = AOMMIN(tile_uv_col_end - frame_pxl_x, blk_size_x);
             for (int unit_y = 0; unit_y < y_end; unit_y += unit_size_y) {
               for (int unit_x = 0; unit_x < x_end; unit_x += unit_size_x) {
-#if CONFIG_BRU
                 // FPU level skip
                 const int mbmi_idx = get_mi_grid_idx(
                     mi_params,
@@ -927,7 +918,6 @@ void ccso_apply_chroma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
                                      "active SB can be filtered");
                   return;
                 }
-#endif  // CONFIG_BRU
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
                 if (cm->features.has_lossless_segment) {
                   ccso_filter_block_hbd_wo_buf_4x4_c(
@@ -995,7 +985,6 @@ void ccso_apply_chroma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
       const int x_end = AOMMIN(pic_width - x, blk_size_x);
       for (int unit_y = 0; unit_y < y_end; unit_y += unit_size_y) {
         for (int unit_x = 0; unit_x < x_end; unit_x += unit_size_x) {
-#if CONFIG_BRU
           // FPU level skip
           const int mbmi_idx = get_mi_grid_idx(
               mi_params, (y + unit_y) >> (MI_SIZE_LOG2 - y_uv_vscale),
@@ -1013,7 +1002,6 @@ void ccso_apply_chroma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
                 "Invalid BRU activity in CCSO: only active SB can be filtered");
             return;
           }
-#endif  // CONFIG_BRU
 
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
           if (cm->features.has_lossless_segment) {
@@ -1186,7 +1174,6 @@ void ccso_apply_chroma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
             const int x_end = AOMMIN(tile_uv_col_end - frame_pxl_x, blk_size_x);
             for (int unit_y = 0; unit_y < y_end; unit_y += unit_size_y) {
               for (int unit_x = 0; unit_x < x_end; unit_x += unit_size_x) {
-#if CONFIG_BRU
                 // FPU level skip
                 const int mbmi_idx = get_mi_grid_idx(
                     mi_params,
@@ -1205,7 +1192,6 @@ void ccso_apply_chroma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
                                      "active SB can be filtered");
                   return;
                 }
-#endif  // CONFIG_BRU
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
                 if (cm->features.has_lossless_segment) {
                   ccso_filter_block_hbd_wo_buf_4x4_c(
@@ -1273,7 +1259,6 @@ void ccso_apply_chroma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
       const int x_end = AOMMIN(pic_width - x, blk_size_x);
       for (int unit_y = 0; unit_y < y_end; unit_y += unit_size_y) {
         for (int unit_x = 0; unit_x < x_end; unit_x += unit_size_x) {
-#if CONFIG_BRU
           // FPU level skip
           const int mbmi_idx = get_mi_grid_idx(
               mi_params, (y + unit_y) >> (MI_SIZE_LOG2 - y_uv_vscale),
@@ -1291,7 +1276,6 @@ void ccso_apply_chroma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
                 "Invalid BRU activity in CCSO: only active SB can be filtered");
             return;
           }
-#endif  // CONFIG_BRU
 
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
           if (cm->features.has_lossless_segment) {

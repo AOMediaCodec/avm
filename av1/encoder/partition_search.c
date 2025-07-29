@@ -12,9 +12,7 @@
 
 #include "aom/aom_codec.h"
 #include "aom_ports/system_state.h"
-#if CONFIG_BRU
 #include "av1/common/bru.h"
-#endif  // CONFIG_BRU
 #include "aom_ports/aom_timer.h"
 
 #include "av1/common/av1_common_int.h"
@@ -954,9 +952,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
   FRAME_CONTEXT *fc = xd->tile_ctx;
   const int inter_block = mbmi->ref_frame[0] != INTRA_FRAME;
   const int seg_ref_active = 0;
-#if CONFIG_BRU
   if (!bru_is_sb_active(cm, xd->mi_col, xd->mi_row)) return;
-#endif  // CONFIG_BRU
 
   if (mbmi->region_type != INTRA_REGION && is_skip_mode_allowed(cm, xd)) {
     const int skip_mode_ctx = av1_get_skip_mode_context(xd);
@@ -1156,9 +1152,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
         }
       }
 
-#if CONFIG_BRU
       if (!cm->bru.enabled || cm->ref_frames_info.num_total_refs > 2) {
-#endif  // CONFIG_BRU
         if (has_second_ref(mbmi)) {
           const int n_refs = cm->ref_frames_info.num_total_refs;
           int n_bits = 0;
@@ -1170,11 +1164,9 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
                i++) {
             const int bit = ((n_bits == 0) && (ref0 == i)) ||
                             ((n_bits == 1) && (ref1 == i));
-#if CONFIG_BRU
             if (cm->bru.enabled && i == cm->bru.update_ref_idx) {
               continue;  // skip inter on bru ref
             }
-#endif  // CONFIG_BRU
             const int bit_type = n_bits == 0
                                      ? -1
                                      : av1_get_compound_ref_bit_type(
@@ -1212,11 +1204,9 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
           const MV_REFERENCE_FRAME ref0_nrs = mbmi->ref_frame[0];
           for (int i = 0; i < n_refs - 1; i++) {
             const int bit = ref0_nrs == i;
-#if CONFIG_BRU
             if (cm->bru.enabled && i == cm->bru.update_ref_idx) {
               continue;  // skip inter on bru ref
             }
-#endif  // CONFIG_BRU
             update_cdf(av1_get_pred_cdf_single_ref(xd, i, n_refs), bit, 2);
 #if CONFIG_ENTROPY_STATS
             counts
@@ -1225,9 +1215,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
             if (bit) break;
           }
         }
-#if CONFIG_BRU
       }
-#endif  // CONFIG_BRU
 
       if (cm->features.enable_bawp &&
           av1_allow_bawp(cm, mbmi, xd->mi_row, xd->mi_col)) {
@@ -1719,11 +1707,9 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   MB_MODE_INFO *mbmi = xd->mi[0];
   mbmi->partition = partition;
   av1_update_state(cpi, td, ctx, mi_row, mi_col, bsize, dry_run);
-#if CONFIG_BRU
   mbmi->local_rest_type = 1;      // for SW it only matter 0 or 1
   mbmi->local_ccso_blk_flag = 1;  // for SW it only matter 0 or 1
   mbmi->local_gdf_mode = 1;       // for SW it only matter 0 or 1
-#endif                            // CONFIG_BRU
   const int num_planes = av1_num_planes(cm);
   const int plane_start = (xd->tree_type == CHROMA_PART);
   const int plane_end = (xd->tree_type == LUMA_PART) ? 1 : num_planes;
@@ -1902,9 +1888,7 @@ static void update_partition_stats(
 
   const bool ss_x = xd->plane[1].subsampling_x;
   const bool ss_y = xd->plane[1].subsampling_y;
-#if CONFIG_BRU
   assert(xd->mi[0]);
-#endif  // CONFIG_BRU
 
   PARTITION_TYPE derived_partition = av1_get_normative_forced_partition_type(
       mi_params, tree_type, ss_x, ss_y, mi_row, mi_col, bsize, ptree_luma);
@@ -3242,13 +3226,10 @@ static AOM_INLINE PARTITION_TYPE get_forced_partition_type(
 
 static AOM_INLINE void init_allowed_partitions(
     PartitionSearchState *part_search_state, const PartitionCfg *part_cfg,
-#if CONFIG_BRU
     const int bru_skip,
-#endif  // CONFIG_BRU
     const bool *partition_allowed) {
   const PartitionBlkParams *blk_params = &part_search_state->part_blk_params;
   const BLOCK_SIZE bsize = blk_params->bsize;
-#if CONFIG_BRU
   if (bru_skip) {
     part_search_state->do_rectangular_split = 0;
     part_search_state->is_block_splittable = 0;
@@ -3261,7 +3242,6 @@ static AOM_INLINE void init_allowed_partitions(
 #endif  // CONFIG_ML_PART_SPLIT
     return;
   }
-#endif  // CONFIG_BRU
   const bool allow_rect = part_cfg->enable_rect_partitions ||
                           !(blk_params->has_rows && blk_params->has_cols);
   const int min_partition_size = (blk_params->has_rows && blk_params->has_cols)
@@ -3430,9 +3410,7 @@ static void init_partition_search_state_params(
 
   init_allowed_partitions(
       part_search_state, &cpi->oxcf.part_cfg,
-#if CONFIG_BRU
       is_bru_not_active_and_not_on_partial_border(cm, mi_col, mi_row, bsize),
-#endif  // CONFIG_BRU
       partition_allowed);
 
   if (max_recursion_depth == 0) {
@@ -3536,7 +3514,6 @@ static void rd_pick_rect_partition(
       av1_rd_cost_update(x->rdmult, sum_rdc);
     }
   }
-#if CONFIG_BRU
   // force early terminate after successful rect if found
   if (partition_found &&
       !bru_is_sb_active(&cpi->common, x->e_mbd.mi_col, x->e_mbd.mi_row)) {
@@ -3554,7 +3531,6 @@ static void rd_pick_rect_partition(
     part_search_state->prune_partition_split = false;
 #endif  // CONFIG_ML_PART_SPLIT
   }
-#endif  // CONFIG_BRU
 }
 
 static AOM_INLINE bool is_part_pruned_by_forced_partition(
@@ -3944,7 +3920,6 @@ static void prune_partitions_after_none(AV1_COMP *const cpi, MACROBLOCK *x,
         cpi, x, sms_tree, blk_params.mi_row, blk_params.mi_col, bsize, this_rdc,
         &part_search_state->terminate_partition_search);
   }
-#if CONFIG_BRU
   // force early terminate after successful none in not active
   if (!bru_is_sb_active(cm, blk_params.mi_col, blk_params.mi_row)) {
     part_search_state->terminate_partition_search = 1;
@@ -3959,7 +3934,6 @@ static void prune_partitions_after_none(AV1_COMP *const cpi, MACROBLOCK *x,
     part_search_state->prune_partition_split = false;
 #endif  // CONFIG_ML_PART_SPLIT
   }
-#endif  // CONFIG_BRU
 }
 
 static void inter_sdp_copy_luma_mode_info(PC_TREE *pc_tree,
@@ -4316,7 +4290,6 @@ static void split_partition_search(
   }
   av1_restore_context(cm, x, x_ctx, mi_row, mi_col, bsize, av1_num_planes(cm));
   restore_level_banks(&x->e_mbd, level_banks);
-#if CONFIG_BRU
   // todo: this may be moved to early stage
   //  force early terminate after successful split if found
   if (part_search_state->found_best_partition &&
@@ -4331,7 +4304,6 @@ static void split_partition_search(
     part_search_state->prune_partition_split = false;
 #endif  // CONFIG_ML_PART_SPLIT
   }
-#endif  // CONFIG_BRU
 }
 
 /*!\brief Stores some data used by rd_try_subblock_new to do rdopt. */
@@ -6330,9 +6302,7 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
   // and the same neighboring context at the same location but from a
   // different partition path. If yes directly copy the RDO decision made for
   // the counterpart.
-#if CONFIG_BRU
   if (bru_is_sb_active(cm, mi_col, mi_row)) {
-#endif  // CONFIG_BRU
     PC_TREE *counterpart_block = av1_look_for_counterpart_block(pc_tree);
     assert(pc_tree != NULL);
     if (counterpart_block &&
@@ -6367,16 +6337,10 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
         return false;
       }
     }
-#if CONFIG_BRU
   }
-#endif  // CONFIG_BRU
 
-#if CONFIG_BRU
   if ((bsize == cm->sb_size) && bru_is_sb_active(cm, mi_col, mi_row))
     x->must_find_valid_partition = 0;
-#else
-  if (bsize == cm->sb_size) x->must_find_valid_partition = 0;
-#endif  // CONFIG_BRU
 #if CONFIG_SDP_CFL_LATENCY_FIX
   if (bsize == cm->sb_size && pc_tree)
     pc_tree->is_cfl_allowed_for_this_chroma = CFL_DISALLOWED_FOR_CHROMA;
@@ -6426,9 +6390,7 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
   bool search_none_after_split = false;
   bool search_none_after_rect = false;
   if (part_search_state.forced_partition == PARTITION_INVALID
-#if CONFIG_BRU
       && bru_is_sb_active(cm, mi_col, mi_row)
-#endif  // CONFIG_BRU
   ) {
     if (cpi->sf.part_sf.adaptive_partition_search_order) {
       search_none_after_rect =
@@ -6512,9 +6474,7 @@ BEGIN_PARTITION_SEARCH:
         mi_row, mi_col, ss_x, ss_y, bsize, &pc_tree->chroma_ref_info);
     init_allowed_partitions(
         &part_search_state, &cpi->oxcf.part_cfg,
-#if CONFIG_BRU
         is_bru_not_active_and_not_on_partial_border(cm, mi_col, mi_row, bsize),
-#endif  // CONFIG_BRU
         partition_allowed);
 #if CONFIG_ML_PART_SPLIT
     part_search_state.prune_rect_part[HORZ] = 0;

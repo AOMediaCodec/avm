@@ -25,9 +25,7 @@
 #endif  // CONFIG_MISMATCH_DEBUG
 
 #include "av1/common/av1_common_int.h"
-#if CONFIG_BRU
 #include "av1/common/bru.h"
-#endif  // CONFIG_BRU
 #include "av1/common/reconinter.h"
 
 #include "av1/encoder/encoder.h"
@@ -72,11 +70,9 @@ void av1_get_ref_frames_enc(AV1_COMMON *cm, int cur_frame_disp,
   av1_get_ref_frames(cm, cur_frame_disp, ref_frame_map_pairs);
 #endif  // CONFIG_ACROSS_SCALE_REF_OPT
 
-#if CONFIG_BRU
   // if BRU ref frame is not in the top n_refs list, swap bru ref to the last of
   // top_n
   enc_bru_swap_ref(cm);
-#endif  // CONFIG_BRU
 }
 
 void av1_configure_buffer_updates(AV1_COMP *const cpi,
@@ -312,7 +308,6 @@ static void get_gop_cfg_enabled_refs(AV1_COMP *const cpi, int *ref_frame_flags,
     if (!ref_frame_used[frame]) *ref_frame_flags &= ~(1 << (frame));
 }
 
-#if CONFIG_BRU
 static void bru_lookahead_update(AV1_COMP *const cpi,
                                  const int bru_ref_buf_offset,
                                  struct lookahead_entry **bru_ref_source) {
@@ -339,7 +334,6 @@ static void init_bru_frame(AV1_COMMON *const cm) {
     }
   }
 }
-#endif  // CONFIG_BRU
 
 static void adjust_frame_rate(AV1_COMP *cpi, int64_t ts_start, int64_t ts_end) {
   TimeStamps *time_stamps = &cpi->time_stamps;
@@ -413,9 +407,7 @@ int get_forced_keyframe_position(struct lookahead_ctx *lookahead,
 // Return the frame source, or NULL if we couldn't find one
 static struct lookahead_entry *choose_frame_source(
     AV1_COMP *const cpi, int *const flush, struct lookahead_entry **last_source,
-#if CONFIG_BRU
     int bru_ref_buf_offset, struct lookahead_entry **bru_ref_source,
-#endif  // CONFIG_BRU
     EncodeFrameParams *const frame_params) {
   AV1_COMMON *const cm = &cpi->common;
   const GF_GROUP *const gf_group = &cpi->gf_group;
@@ -458,11 +450,9 @@ static struct lookahead_entry *choose_frame_source(
       *last_source =
           av1_lookahead_peek(cpi->lookahead, -1, cpi->compressor_stage);
     }
-#if CONFIG_BRU
     if (cpi->common.seq_params.enable_bru) {
       bru_lookahead_update(cpi, bru_ref_buf_offset, bru_ref_source);
     }
-#endif  // CONFIG_BRU
     // Read in the source frame.
     source = av1_lookahead_pop(cpi->lookahead, *flush, cpi->compressor_stage);
   } else {
@@ -703,7 +693,6 @@ int av1_get_refresh_frame_flags(
     return refresh_mask;
   }
 
-#if CONFIG_BRU
   // BRU frame, refresh flag is set to refresh BRU ref frame
   int free_fb_index = INVALID_IDX;
   if (cpi->common.bru.enabled) {
@@ -719,11 +708,6 @@ int av1_get_refresh_frame_flags(
     free_fb_index = get_free_ref_map_index(ref_frame_map_pairs,
                                            cpi->common.seq_params.ref_frames);
   }
-#else
-  // Search for the open slot to store the current frame.
-  int free_fb_index = get_free_ref_map_index(ref_frame_map_pairs,
-                                             cpi->common.seq_params.ref_frames);
-#endif  // CONFIG_BRU
   if (use_subgop_cfg(&cpi->gf_group, gf_index)) {
     const int mask = get_refresh_frame_flags_subgop_cfg(
         cpi, gf_index, cur_disp_order, ref_frame_map_pairs, refresh_mask,
@@ -933,11 +917,9 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   memset(&frame_input, 0, sizeof(frame_input));
   memset(&frame_params, 0, sizeof(frame_params));
   memset(&frame_results, 0, sizeof(frame_results));
-#if CONFIG_BRU
   cm->bru.update_ref_idx = -1;
   cm->bru.explicit_ref_idx = -1;
   cm->bru.ref_disp_order = -1;
-#endif  // CONFIG_BRU
 
   // Check if we need to stuff more src frames
   if (flush == 0) {
@@ -990,18 +972,14 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 
   struct lookahead_entry *source = NULL;
   struct lookahead_entry *last_source = NULL;
-#if CONFIG_BRU
   struct lookahead_entry *bru_ref_source = NULL;
-#endif  // CONFIG_BRU
   if (frame_params.show_existing_frame) {
     source = av1_lookahead_pop(cpi->lookahead, flush, cpi->compressor_stage);
     frame_params.show_frame = 1;
   } else {
     source = choose_frame_source(cpi, &flush, &last_source,
-#if CONFIG_BRU  // use -2 distance frame as BRU ref frame
                                  -(BRU_ENC_LOOKAHEAD_DIST_MINUS_1 + 1),
                                  &bru_ref_source,
-#endif  // CONFIG_BRU
                                  &frame_params);
   }
 
@@ -1015,7 +993,6 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   // Source may be changed if temporal filtered later.
   frame_input.source = &source->img;
   frame_input.last_source = last_source != NULL ? &last_source->img : NULL;
-#if CONFIG_BRU
   // prepare bru ref source
   frame_input.bru_ref_source =
       bru_ref_source != NULL ? &bru_ref_source->img : NULL;
@@ -1023,7 +1000,6 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     cpi->common.bru.update_ref_idx = bru_ref_source->disp_order_hint;
     cpi->common.bru.ref_disp_order = bru_ref_source->disp_order_hint;
   }
-#endif  // CONFIG_BRU
   frame_input.ts_duration = source->ts_end - source->ts_start;
   // Save unfiltered source. It is used in av1_get_second_pass_params().
   cpi->unfiltered_source = frame_input.source;
@@ -1110,11 +1086,9 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     cm->txcoeff_cost_count = 0;
 #endif
   }
-#if CONFIG_BRU
   if (frame_params.frame_type == KEY_FRAME) {
     source->disp_order_hint = 0;
   }
-#endif
   if (frame_params.frame_type == KEY_FRAME) cm->showable_frame = 0;
 
 #if CONFIG_MISMATCH_DEBUG
@@ -1178,7 +1152,6 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   if (!is_stat_generation_stage(cpi)) {
     cm->current_frame.frame_type = frame_params.frame_type;
     cm->features.error_resilient_mode = frame_params.error_resilient_mode;
-#if CONFIG_BRU
     // get last frame idx as bru frame
     cm->bru.enabled = cpi->oxcf.tool_cfg.enable_bru > 0 &&
                       (frame_params.frame_type == INTER_FRAME);
@@ -1248,7 +1221,6 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     } else {
       cm->features.tip_frame_mode = TIP_FRAME_DISABLED;
     }
-#endif  // CONFIG_BRU
 
     if (cm->seq_params.explicit_ref_frame_map) {
       av1_get_ref_frames_enc(cm, cur_frame_disp, cm->ref_frame_map_pairs);
@@ -1265,7 +1237,6 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 #endif  // CONFIG_ACROSS_SCALE_REF_OPT
     }
 
-#if CONFIG_BRU
     if (!cm->seq_params.explicit_ref_frame_map && cm->bru.enabled) {
       const int num_past_refs = cm->ref_frames_info.num_past_refs;
       if (cm->bru.ref_disp_order >= 0) {
@@ -1301,7 +1272,6 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
       cm->cur_frame->u_ac_delta_q = cm->quant_params.u_ac_delta_q;
       cm->cur_frame->v_ac_delta_q = cm->quant_params.v_ac_delta_q;
     }
-#endif  // CONFIG_BRU
     cm->ref_frames_info.num_same_ref_compound =
         AOMMIN(cm->seq_params.num_same_ref_compound,
                cm->ref_frames_info.num_total_refs);
@@ -1348,9 +1318,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   // cm->remapped_ref_idx then update_ref_frame_map() will have no effect.
   memcpy(frame_params.remapped_ref_idx, cm->remapped_ref_idx,
          REF_FRAMES * sizeof(*cm->remapped_ref_idx));
-#if CONFIG_BRU
   init_bru_frame(cm);
-#endif  // CONFIG_BRU
 
   cpi->td.mb.delta_qindex = 0;
 

@@ -682,9 +682,7 @@ typedef struct SequenceHeader {
   uint8_t enable_lf_sub_pu;  // To turn on/off sub-block deblocking
 #endif                       // CONFIG_LF_SUB_PU
   uint8_t enable_refmvbank;  // To turn on/off Ref MV Bank
-#if CONFIG_BRU
   uint8_t enable_bru;          // To turn on/off backward reference updating
-#endif                         // CONFIG_BRU
   uint8_t enable_drl_reorder;  // 0 - DRL reorder is disabled
                                // 1 - DRL reorder with constraints
                                // 2 - Always reorder DRL
@@ -1609,7 +1607,6 @@ typedef struct TIP_Buffer {
   int *mf_need_clamp;
 } TIP;
 
-#if CONFIG_BRU
 /*!
  * \brief Structure used for BRU (Backward Reference Update).
  */
@@ -1683,7 +1680,6 @@ typedef struct BRU_Info {
    */
   int ref_n_ranked;
 } BruInfo;
-#endif  // CONFIG_BRU
 /*!
  * \brief Top level common structure used by both encoder and decoder.
  */
@@ -2229,13 +2225,10 @@ typedef struct AV1Common {
    * Log2 of the size of the superblock in units of MI.
    */
   int mib_size_log2;
-
-#if CONFIG_BRU
   /*!
    * Structure contain frame level BRU parameters
    */
   BruInfo bru;
-#endif  // CONFIG_BRU
 #if CONFIG_INSPECTION
   YV12_BUFFER_CONFIG predicted_pixels;
   YV12_BUFFER_CONFIG prefiltered_pixels;
@@ -2547,9 +2540,7 @@ static INLINE void avg_primary_secondary_references(const AV1_COMMON *const cm,
                                                     int map_idx) {
   if ((map_idx != INVALID_IDX) &&
       (ref_frame_used != cm->features.primary_ref_frame) &&
-#if CONFIG_BRU
       (!cm->bru.frame_inactive_flag) &&
-#endif
       (cm->seq_params.enable_avg_cdf && !cm->seq_params.avg_cdf_type) &&
       !(cm->features.error_resilient_mode || frame_is_sframe(cm)) &&
       (ref_frame_used != PRIMARY_REF_NONE)) {
@@ -2938,10 +2929,8 @@ static INLINE void set_mi_row_col(
   xd->chroma_up_available = xd->up_available;
   xd->chroma_left_available = xd->left_available;
 
-#if CONFIG_BRU
   xd->tile.tile_active_mode = tile->tile_active_mode;
   xd->mi[0]->sb_active_mode = xd->sbi ? xd->sbi->sb_active_mode : BRU_ACTIVE_SB;
-#endif  // CONFIG_BRU
   if (xd->up_available) {
     xd->above_mbmi = xd->mi[-xd->mi_stride];
   } else {
@@ -4738,20 +4727,13 @@ static INLINE SB_INFO *av1_get_sb_info(const AV1_COMMON *cm, int mi_row,
 }
 
 static INLINE void av1_set_sb_info(AV1_COMMON *cm, MACROBLOCKD *xd, int mi_row,
-                                   int mi_col
-#if CONFIG_BRU
-                                   ,
-                                   BruActiveMode sb_active_mode
-#endif  // CONFIG_BRU
-) {
+                                   int mi_col, BruActiveMode sb_active_mode) {
   SB_INFO *sbi = xd->sbi = av1_get_sb_info(cm, mi_row, mi_col);
 
   sbi->mi_row = mi_row;
   sbi->mi_col = mi_col;
   sbi->sb_mv_precision = cm->features.fr_mv_precision;
-#if CONFIG_BRU
   sbi->sb_active_mode = sb_active_mode;
-#endif  // CONFIG_BRU
 }
 
 // Returns true if the frame is fully lossless at the coded resolution.

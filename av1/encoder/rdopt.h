@@ -388,10 +388,8 @@ static INLINE bool prune_curr_mv_precision_eval(
   return false;
 }
 
-#if CONFIG_BRU
 int get_drl_cost(int max_drl_bits, const MB_MODE_INFO *mbmi,
                  const MB_MODE_INFO_EXT *mbmi_ext, const MACROBLOCK *x);
-#endif  // CONFIG_BRU
 
 #ifdef __cplusplus
 }  // extern "C"

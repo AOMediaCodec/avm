@@ -396,9 +396,7 @@ typedef struct AV1Decoder {
   int context_update_tile_id;
   int skip_loop_filter;
   int skip_film_grain;
-#if CONFIG_BRU
   int bru_opt_mode;
-#endif  // CONFIG_BRU
   int is_annexb;
   int valid_for_referencing[REF_FRAMES];
   int is_fwd_kf_present;

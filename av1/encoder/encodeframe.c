@@ -33,9 +33,7 @@
 #if CONFIG_MISMATCH_DEBUG
 #include "aom_util/debug_util.h"
 #endif  // CONFIG_MISMATCH_DEBUG
-#if CONFIG_BRU
 #include "av1/common/bru.h"
-#endif  // CONFIG_BRU
 
 #include "av1/common/cfl.h"
 #include "av1/common/common.h"
@@ -868,9 +866,7 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
       perform_two_partition_passes(cpi, td, tile_data, tp, tp_chroma, mi_row,
                                    mi_col);
     } else if (!frame_is_intra_only(cm) &&
-#if CONFIG_BRU
                bru_is_sb_active(cm, mi_col, mi_row) &&
-#endif  // CONFIG_BRU
                sf->part_sf.two_pass_partition_search) {
       perform_two_pass_partition_search(cpi, td, tile_data, tp, tp_chroma,
                                         mi_row, mi_col);
@@ -886,14 +882,12 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
 #endif
   }
 
-#if CONFIG_BRU
   if (cm->bru.enabled && cm->current_frame.frame_type != KEY_FRAME) {
     if (bru_is_sb_available(cm, mi_col, mi_row)) {
       assert(get_ref_frame_buf(cm, cm->bru.update_ref_idx) != NULL);
       bru_update_sb(cm, mi_col, mi_row);
     }
   }
-#endif  // CONFIG_BRU
   // Update the inter rd model
   // TODO(angiebird): Let inter_mode_rd_model_estimation support multi-tile.
   if (cpi->sf.inter_sf.inter_mode_rd_model_estimation == 1 &&
@@ -950,14 +944,10 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
        mi_col < tile_info->mi_col_end; mi_col += mib_size, sb_col_in_tile++) {
     (*(enc_row_mt->sync_read_ptr))(row_mt_sync, sb_row, sb_col_in_tile);
     av1_reset_is_mi_coded_map(xd, cm->mib_size);
-#if CONFIG_BRU
     BruActiveMode sb_active_mode =
         enc_get_cur_sb_active_mode(cm, mi_col, mi_row);
     // use for lpf only, use causal restriction only
     av1_set_sb_info(cm, xd, mi_row, mi_col, sb_active_mode);
-#else
-    av1_set_sb_info(cm, xd, mi_row, mi_col);
-#endif  // CONFIG_BRU
 
     if (tile_data->allow_update_cdf && row_mt_enabled &&
         (tile_info->mi_row_start != mi_row)) {
@@ -998,7 +988,6 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
       seg_skip = segfeature_active(seg, segment_id, SEG_LVL_SKIP);
     }
 
-#if CONFIG_BRU
     BruActiveMode cur_sb_active_mode =
         enc_get_cur_sb_active_mode(cm, mi_col, mi_row);
     // support SB let it go to RD but restrict
@@ -1039,7 +1028,6 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
       }
       av1_reset_entropy_context(xd, cm->seq_params.sb_size, av1_num_planes(cm));
     } else
-#endif  // CONFIG_BRU
       // encode the superblock
       encode_rd_sb(cpi, td, tile_data, tp, tp_chroma, mi_row, mi_col, seg_skip);
 
@@ -1128,7 +1116,6 @@ void av1_init_tile_data(AV1_COMP *cpi) {
       tile_data->allow_update_cdf =
           tile_data->allow_update_cdf && !cm->features.disable_cdf_update;
       tile_data->tctx = *cm->fc;
-#if CONFIG_BRU
       tile_info->tile_active_mode = 1;
       // check tile skip
       if (cm->bru.enabled) {
@@ -1158,7 +1145,6 @@ void av1_init_tile_data(AV1_COMP *cpi) {
             (tile_info->tile_active_mode << active_bitmap_bit);
 #endif  // CONFIG_BRU_TILE_FLAG
       }
-#endif  // CONFIG_BRU
     }
   }
 }
@@ -1381,14 +1367,12 @@ static AOM_INLINE void set_default_interp_skip_flags(
 static AOM_INLINE int could_tip_mode_be_selected(AV1_COMP *const cpi) {
   const AV1_COMMON *const cm = &cpi->common;
   const int cur_order_hint = cm->current_frame.display_order_hint;
-#if CONFIG_BRU
   if (cm->bru.enabled) {
     if ((cm->tip_ref.ref_frame[0] == cm->bru.update_ref_idx) ||
         (cm->tip_ref.ref_frame[1] == cm->bru.update_ref_idx)) {
       return 0;
     }
   }
-#endif
   if (cm->has_both_sides_refs) return 1;
   if (cur_order_hint < INTER_REFS_PER_FRAME) return 1;
 
@@ -1949,13 +1933,11 @@ void av1_encode_frame(AV1_COMP *cpi) {
   // rather than the potential full set of 16 transforms
   features->reduced_tx_set_used = cpi->oxcf.txfm_cfg.reduced_tx_type_set;
 
-#if CONFIG_BRU
   if (cm->bru.enabled && features->all_lossless) {
     cm->bru.enabled = 0;
     cm->bru.frame_inactive_flag = 0;
     memset(cm->bru.active_mode_map, 2, sizeof(uint8_t) * cm->bru.total_units);
   }
-#endif
   // Make sure segment_id is no larger than last_active_segid.
   if (cm->seg.enabled && cm->seg.update_map) {
     const int mi_rows = cm->mi_params.mi_rows;

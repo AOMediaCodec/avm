@@ -267,9 +267,7 @@ struct av1_extracfg {
 #else
   int num_extra_dpb;
 #endif  // CONFIG_CWG_F168_DPB_HLS
-#if CONFIG_BRU
   unsigned int enable_bru;
-#endif  // CONFIG_BRU
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   unsigned int disable_loopfilters_across_tiles;
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
@@ -634,9 +632,7 @@ static struct av1_extracfg default_extra_cfg = {
 #else
   0,    // num_extra_dpb
 #endif  // CONFIG_CWG_F168_DPB_HLS
-#if CONFIG_BRU
   0,    // enable_bru
-#endif  // CONFIG_BRU
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   0,
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
@@ -1104,9 +1100,7 @@ static void update_encoder_config(cfg_options_t *cfg,
 #endif  // CONFIG_REDUCED_REF_FRAME_MVS_MODE
   cfg->enable_onesided_comp = extra_cfg->enable_onesided_comp;
   cfg->enable_reduced_reference_set = extra_cfg->enable_reduced_reference_set;
-#if CONFIG_BRU
   cfg->enable_bru = extra_cfg->enable_bru;
-#endif  // CONFIG_BRU
   cfg->explicit_ref_frame_map = extra_cfg->explicit_ref_frame_map;
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   cfg->disable_loopfilters_across_tiles =
@@ -1248,10 +1242,8 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
 #endif  // CONFIG_REDUCED_REF_FRAME_MVS_MODE
   extra_cfg->enable_onesided_comp = cfg->enable_onesided_comp;
   extra_cfg->enable_reduced_reference_set = cfg->enable_reduced_reference_set;
-#if CONFIG_BRU
   // imply explicit_ref_frame_map = 1 when bru is on
   extra_cfg->enable_bru = cfg->enable_bru;
-#endif  // CONFIG_BRU
   extra_cfg->explicit_ref_frame_map = cfg->explicit_ref_frame_map;
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   extra_cfg->disable_loopfilters_across_tiles =
@@ -1509,7 +1501,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 #if CONFIG_DERIVED_MVD_SIGN
   tool_cfg->enable_mvd_sign_derive = extra_cfg->enable_mvd_sign_derive;
 #endif  // CONFIG_DERIVED_MVD_SIGN
-#if CONFIG_BRU
   // Turn off BRU if LA, AI or resize mode
   tool_cfg->enable_bru = extra_cfg->enable_bru;
   if (tool_cfg->enable_bru) {
@@ -1524,7 +1515,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   if (cfg->rc_resize_mode != RESIZE_NONE) {
     tool_cfg->enable_bru = 0;
   }
-#endif  // CONFIG_BRU
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   tool_cfg->disable_loopfilters_across_tiles =
       extra_cfg->disable_loopfilters_across_tiles;
@@ -2990,7 +2980,6 @@ static aom_codec_err_t ctrl_set_frame_output_order(aom_codec_alg_priv_t *ctx,
   return update_extra_cfg(ctx, &extra_cfg);
 }
 #endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
-#if CONFIG_BRU
 static aom_codec_err_t ctrl_set_enable_bru(aom_codec_alg_priv_t *ctx,
                                            va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
@@ -3005,7 +2994,6 @@ static aom_codec_err_t ctrl_get_enable_bru(aom_codec_alg_priv_t *ctx,
   *arg = ctx->cpi->common.seq_params.enable_bru;
   return AOM_CODEC_OK;
 }
-#endif  // CONFIG_BRU
 
 static aom_codec_err_t create_stats_buffer(FIRSTPASS_STATS **frame_stats_buffer,
                                            STATS_BUFFER_CTX *stats_buf_context,
@@ -3305,57 +3293,68 @@ static void report_stats(AV1_COMP *cpi, size_t frame_size, uint64_t cx_time) {
     }
     if (cpi->b_calculate_psnr >= 1) {
       const bool use_hbd_psnr = (cpi->b_calculate_psnr == 2);
+      if (cpi->oxcf.tool_cfg.enable_bru) {
       fprintf(stdout,
-#if CONFIG_BRU
               "POC:%6d [%s][BRU%1d:%1d][Level:%d][Q:%3d]: %10" PRIu64
-#else
-              "POC:%6d [%s][Level:%d][Q:%3d]: %10" PRIu64
-#endif  // CONFIG_BRU
               " Bytes, "
               "%6.1fms, %2.4f dB(Y), %2.4f dB(U), "
               "%2.4f dB(V), "
               "%2.4f dB(Avg)",
               cm->cur_frame->absolute_poc,
               frameType[cm->current_frame.frame_type],
-#if CONFIG_BRU
               cm->bru.enabled, cm->bru.update_ref_idx,
-#endif  // CONFIG_BRU
               cm->cur_frame->pyramid_level, base_qindex, (uint64_t)frame_size,
               cx_time / 1000.0, use_hbd_psnr ? psnr.psnr_hbd[1] : psnr.psnr[1],
               use_hbd_psnr ? psnr.psnr_hbd[2] : psnr.psnr[2],
               use_hbd_psnr ? psnr.psnr_hbd[3] : psnr.psnr[3],
               use_hbd_psnr ? psnr.psnr_hbd[0] : psnr.psnr[0]);
-    } else {
-      fprintf(stdout,
-#if CONFIG_BRU
-              "POC:%6d [%s][BRU%1d:%1d][Level:%d][Q:%3d]: %10" PRIu64
-#else
+      } else {
+        fprintf(stdout,
               "POC:%6d [%s][Level:%d][Q:%3d]: %10" PRIu64
-#endif  // CONFIG_BRU
+              " Bytes, "
+              "%6.1fms, %2.4f dB(Y), %2.4f dB(U), "
+              "%2.4f dB(V), "
+              "%2.4f dB(Avg)",
+              cm->cur_frame->absolute_poc,
+              frameType[cm->current_frame.frame_type],
+              cm->cur_frame->pyramid_level, base_qindex, (uint64_t)frame_size,
+              cx_time / 1000.0, use_hbd_psnr ? psnr.psnr_hbd[1] : psnr.psnr[1],
+              use_hbd_psnr ? psnr.psnr_hbd[2] : psnr.psnr[2],
+              use_hbd_psnr ? psnr.psnr_hbd[3] : psnr.psnr[3],
+              use_hbd_psnr ? psnr.psnr_hbd[0] : psnr.psnr[0]);
+      }
+    } else {
+      if (cpi->oxcf.tool_cfg.enable_bru) {
+      fprintf(stdout,
+              "POC:%6d [%s][BRU%1d:%1d][Level:%d][Q:%3d]: %10" PRIu64
               " Bytes, "
               "%6.1fms",
               cm->cur_frame->absolute_poc,
               frameType[cm->current_frame.frame_type],
-#if CONFIG_BRU
               cm->bru.enabled, cm->bru.update_ref_idx,
-#endif  // CONFIG_BRU
               cm->cur_frame->pyramid_level, base_qindex, (uint64_t)frame_size,
               cx_time / 1000.0);
+      } else {
+        fprintf(stdout,
+              "POC:%6d [%s][Level:%d][Q:%3d]: %10" PRIu64
+              " Bytes, "
+              "%6.1fms",
+              cm->cur_frame->absolute_poc,
+              frameType[cm->current_frame.frame_type],
+              cm->cur_frame->pyramid_level, base_qindex, (uint64_t)frame_size,
+              cx_time / 1000.0);
+      }
     }
 
     fprintf(stdout, "    [");
     for (int ref_idx = 0; ref_idx < INTER_REFS_PER_FRAME; ++ref_idx) {
       fprintf(stdout, "%3d,", ref_poc[ref_idx]);
     }
-#if CONFIG_BRU
     if (cpi->oxcf.tool_cfg.enable_bru)
       fprintf(stdout, "] SB skipped %d/%d\n", cm->bru.blocks_skipped,
               cm->bru.total_units);
     else
       fprintf(stdout, "]\n");
-#else
-    fprintf(stdout, "]\n");
-#endif  // CONFIG_BRU
   }
 }
 
@@ -3505,10 +3504,8 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
             subsampling_x, subsampling_y, lag_in_frames,
             cpi->oxcf.border_in_pixels, cpi->common.features.byte_alignment,
             ctx->num_lap_buffers,
-#if CONFIG_BRU
             cpi->common.seq_params.enable_bru ? BRU_ENC_LOOKAHEAD_DIST_MINUS_1
                                               : 0,
-#endif  // CONFIG_BRU
             cpi->oxcf.tool_cfg.enable_global_motion);
       }
       if (!cpi->lookahead)
@@ -4725,11 +4722,9 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                               err_string)) {
     extra_cfg.num_extra_dpb = arg_parse_int_helper(&arg, err_string);
 #endif  // CONFIG_CWG_F168_DPB_HLS
-#if CONFIG_BRU
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_bru, argv,
                               err_string)) {
     extra_cfg.enable_bru = arg_parse_int_helper(&arg, err_string);
-#endif  // CONFIG_BRU
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   } else if (arg_match_helper(
                  &arg, &g_av1_codec_arg_defs.disable_loopfilters_across_tiles,
@@ -4905,10 +4900,8 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
   { AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, ctrl_set_frame_output_order },
 #endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
-#if CONFIG_BRU
   { AV1E_SET_ENABLE_BRU, ctrl_set_enable_bru },
   { AV1E_GET_ENABLE_BRU, ctrl_get_enable_bru },
-#endif  // CONFIG_BRU
   // Getters
   { AOME_GET_LAST_QUANTIZER, ctrl_get_quantizer },
   { AV1_GET_REFERENCE, ctrl_get_reference },
@@ -5084,9 +5077,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #else
         0,  // num_extra_dpb
 #endif  // CONFIG_CWG_F168_DPB_HLS
-#if CONFIG_BRU
         0,  // enable_bru
-#endif      // CONFIG_BRU
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
         0,  // disable_loopfilters_across_tiles
 #endif      // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES

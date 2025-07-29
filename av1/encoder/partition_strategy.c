@@ -865,9 +865,7 @@ void av1_prune_partitions_before_search(
   const AV1_COMMON *const cm = &cpi->common;
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   MACROBLOCKD *const xd = &x->e_mbd;
-#if CONFIG_BRU
   if (!bru_is_sb_active(cm, mi_col, mi_row)) return;
-#endif  // CONFIG_BRU
 
   // A CNN-based speed feature pruning out either split or all non-split
   // partition in INTRA frame coding.

@@ -41,14 +41,12 @@ typedef struct {
 double aom_sse_to_psnr(double samples, double peak, double sse);
 int64_t aom_get_sse_plane(const YV12_BUFFER_CONFIG *a,
                           const YV12_BUFFER_CONFIG *b, int plane);
-#if CONFIG_BRU
 int64_t aom_get_sse_plane_available(const YV12_BUFFER_CONFIG *a,
                                     const YV12_BUFFER_CONFIG *b, int plane,
                                     const uint8_t *active_map,
                                     const int active_map_stride,
                                     const int unit_cols, const int unit_rows,
                                     const int unit_w, const int unit_h);
-#endif  // CONFIG_BRU
 uint64_t aom_highbd_get_y_var(const YV12_BUFFER_CONFIG *a, int hstart,
                               int width, int vstart, int height);
 uint64_t aom_highbd_get_u_var(const YV12_BUFFER_CONFIG *a, int hstart,

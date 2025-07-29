@@ -128,10 +128,8 @@ static const arg_def_t outallarg = ARG_DEF(
     NULL, "all-layers", 0, "Output all decoded frames of a scalable bitstream");
 static const arg_def_t skipfilmgrain =
     ARG_DEF(NULL, "skip-film-grain", 0, "Skip film grain application");
-#if CONFIG_BRU
 static const arg_def_t bruoptmodearg =
     ARG_DEF(NULL, "bru-opt-mode", 0, "Use BRU optimized decode mode");
-#endif  // CONFIG_BRU
 static const arg_def_t *all_args[] = { &help,
                                        &codecarg,
                                        &use_yv12,
@@ -161,9 +159,7 @@ static const arg_def_t *all_args[] = { &help,
                                        &oppointarg,
                                        &outallarg,
                                        &skipfilmgrain,
-#if CONFIG_BRU
                                        &bruoptmodearg,
-#endif  // CONFIG_BRU
                                        NULL };
 
 #if CONFIG_LANCZOS_RESAMPLE
@@ -653,9 +649,7 @@ static int main_loop(int argc, const char **argv_) {
   int operating_point = 0;
   int output_all_layers = 0;
   int skip_film_grain = 0;
-#if CONFIG_BRU
   int bru_opt_mode = 0;
-#endif  // CONFIG_BRU
   aom_image_t *scaled_img = NULL;
   aom_image_t *img_shifted = NULL;
   int frame_avail, got_data, flush_decoder = 0;
@@ -799,10 +793,8 @@ static int main_loop(int argc, const char **argv_) {
       output_all_layers = 1;
     } else if (arg_match(&arg, &skipfilmgrain, argi)) {
       skip_film_grain = 1;
-#if CONFIG_BRU
     } else if (arg_match(&arg, &bruoptmodearg, argi)) {
       bru_opt_mode = 1;
-#endif  // CONFIG_BRU
     } else {
       argj++;
     }
@@ -944,14 +936,12 @@ static int main_loop(int argc, const char **argv_) {
     goto fail;
   }
 
-#if CONFIG_BRU
   if (AOM_CODEC_CONTROL_TYPECHECKED(&decoder, AV1D_SET_BRU_OPT_MODE,
                                     bru_opt_mode)) {
     fprintf(stderr, "Failed to set bru_opt_mode: %s\n",
             aom_codec_error(&decoder));
     goto fail;
   }
-#endif  // CONFIG_BRU
 
   if (arg_skip) fprintf(stderr, "Skipping first %d frames.\n", arg_skip);
   while (arg_skip) {

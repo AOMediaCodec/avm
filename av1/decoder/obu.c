@@ -436,9 +436,7 @@ static uint32_t read_tilegroup_obu(AV1Decoder *pbi,
 #else
   skip_payload |= (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT);
 #endif  // CONFIG_F106_OBU_TIP
-#if CONFIG_BRU
   skip_payload |= cm->bru.frame_inactive_flag;
-#endif
 
   if (skip_payload) {
     *is_last_tg = 1;
@@ -483,13 +481,11 @@ static int32_t read_tile_group_header(AV1Decoder *pbi,
   uint32_t saved_bit_offset = rb->bit_offset;
   int tile_start_and_end_present_flag = 0;
   const int num_tiles = tiles->rows * tiles->cols;
-#if CONFIG_BRU
   if (cm->bru.frame_inactive_flag) {
     *start_tile = 0;
     *end_tile = num_tiles - 1;
     return 0;
   }
-#endif  // CONFIG_BRU
 
   if (!tiles->large_scale && num_tiles > 1) {
     tile_start_and_end_present_flag = aom_rb_read_bit(rb);
@@ -1051,7 +1047,6 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
                                obu_header.type, &frame_decoding_finished);
 
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
-#if CONFIG_BRU
         if (cm->bru.frame_inactive_flag) {
           pbi->seen_frame_header = 0;
           frame_decoding_finished = 1;
@@ -1062,7 +1057,6 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
                                          end_tile, 0);
           break;
         }
-#endif  // CONFIG_BRU
         if (obu_payload_offset > payload_size) {
           cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
           return -1;
@@ -1118,7 +1112,6 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
           break;
         }
 
-#if CONFIG_BRU
         if (cm->bru.frame_inactive_flag) {
           pbi->seen_frame_header = 0;
           frame_decoding_finished = 1;
@@ -1139,8 +1132,6 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
                                          end_tile, 0);
           break;
         }
-#endif  // CONFIG_BRU
-
         if (obu_header.type != OBU_FRAME) break;
         obu_payload_offset = frame_header_size;
         // Byte align the reader before reading the tile group.

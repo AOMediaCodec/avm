@@ -13,9 +13,7 @@
 #include <assert.h>
 
 #include "av1/common/blockd.h"
-#if CONFIG_BRU
 #include "av1/common/bru.h"
-#endif  // CONFIG_BRU
 #include "av1/common/cdef.h"
 #include "av1/common/ccso.h"
 #include "av1/common/cdef_block.h"
@@ -46,23 +44,17 @@
 
 #define DEC_MISMATCH_DEBUG 0
 
-#if CONFIG_BRU
 void read_gdf(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
-#else
-static void read_gdf(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
-#endif  // CONFIG_BRU
   if (!is_allow_gdf(cm)) return;
   if ((cm->gdf_info.gdf_mode < 2) || (cm->gdf_info.gdf_block_num <= 1)) return;
   if ((xd->mi_row % cm->mib_size != 0) || (xd->mi_col % cm->mib_size != 0))
     return;
 
-#if CONFIG_BRU
   if (cm->bru.frame_inactive_flag) return;
   if (cm->bru.enabled && cm->gdf_info.gdf_mode == 1) {
     aom_internal_error(&cm->error, AOM_CODEC_ERROR,
                        "BRU frame cannnot use gdf_mode 1");
   }
-#endif
 
   for (int mi_row = xd->mi_row; mi_row < xd->mi_row + cm->mib_size; mi_row++) {
     for (int mi_col = xd->mi_col; mi_col < xd->mi_col + cm->mib_size;
@@ -77,11 +69,7 @@ static void read_gdf(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
   }
 }
 
-#if CONFIG_BRU
 void read_cdef(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
-#else
-static void read_cdef(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
-#endif  // CONFIG_BRU
   assert(xd->tree_type != CHROMA_PART);
   const int skip_txfm = xd->mi[0]->skip_txfm[0];
   if (cm->features.coded_lossless) return;
@@ -166,11 +154,7 @@ static void span_ccso(AV1_COMMON *cm, MACROBLOCKD *const xd, int pli,
   }
 }
 
-#if CONFIG_BRU
 void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
-#else
-static void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
-#endif  // CONFIG_BRU
   if (cm->features.coded_lossless) return;
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   const int mi_row = xd->mi_row;

@@ -920,9 +920,7 @@ static AOM_INLINE void refresh_reference_frames(AV1_COMP *cpi) {
   if (cm->cur_frame->frame_type == KEY_FRAME && cm->show_existing_frame) {
     cm->cur_frame->display_order_hint = 0;
   }
-#if CONFIG_BRU
   if (!cm->bru.enabled) {
-#endif  // CONFIG_BRU
     // All buffers are refreshed for shown keyframes and S-frames.
     for (int ref_frame = 0; ref_frame < cm->seq_params.ref_frames;
          ref_frame++) {
@@ -930,9 +928,7 @@ static AOM_INLINE void refresh_reference_frames(AV1_COMP *cpi) {
         assign_frame_buffer_p(&cm->ref_frame_map[ref_frame], cm->cur_frame);
       }
     }
-#if CONFIG_BRU
   }
-#endif  // CONFIG_BRU
 }
 
 static AOM_INLINE void update_subgop_stats(
@@ -980,9 +976,7 @@ void av1_scale_references(AV1_COMP *cpi, const InterpFilter filter,
 void av1_setup_frame(AV1_COMP *cpi);
 
 BLOCK_SIZE av1_select_sb_size(const AV1_COMP *const cpi);
-#if CONFIG_BRU
 void set_ard_active_map(AV1_COMP *cpi);
-#endif  // CONFIG_BRU
 
 void av1_apply_active_map(AV1_COMP *cpi);
 
@@ -1000,11 +994,9 @@ int av1_is_integer_mv(const YV12_BUFFER_CONFIG *cur_picture,
 void av1_set_mb_ssim_rdmult_scaling(AV1_COMP *cpi);
 
 void av1_save_all_coding_context(AV1_COMP *cpi);
-#if CONFIG_BRU
 void active_region_detection(AV1_COMP *cpi,
                              const YV12_BUFFER_CONFIG *cur_picture,
                              const YV12_BUFFER_CONFIG *last_picture);
-#endif  // CONFIG_BRU
 
 static AOM_INLINE void av1_set_tile_info(AV1_COMMON *const cm,
                                          const TileConfig *const tile_cfg) {

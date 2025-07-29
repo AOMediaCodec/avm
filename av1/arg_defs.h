@@ -306,9 +306,7 @@ typedef struct av1_codec_arg_definitions {
 #else
   arg_def_t num_extra_dpb;
 #endif  // CONFIG_CWG_F168_DPB_HLS
-#if CONFIG_BRU
   arg_def_t enable_bru;
-#endif  // CONFIG_BRU
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   arg_def_t disable_loopfilters_across_tiles;
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES

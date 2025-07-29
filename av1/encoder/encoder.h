@@ -26,9 +26,7 @@
 #include "av1/common/alloccommon.h"
 #include "av1/common/av1_common_int.h"
 #include "av1/common/blockd.h"
-#if CONFIG_BRU
 #include "av1/common/bru.h"
-#endif  // CONFIG_BRU
 #include "av1/common/entropymode.h"
 #include "av1/common/enums.h"
 #include "av1/common/pred_common.h"
@@ -952,10 +950,8 @@ typedef struct {
   bool avg_cdf_type;
   // Indicates if optical flow refinement should be enabled
   aom_opfl_refine_type enable_opfl_refine;
-#if CONFIG_BRU
   // Indicates if BRU is enabled and the mode
   unsigned int enable_bru;
-#endif  // CONFIG_BRU
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   bool disable_loopfilters_across_tiles;
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
@@ -2494,7 +2490,6 @@ typedef struct {
   int64_t first_ever;
 } TimeStamps;
 
-#if CONFIG_BRU
 /*!\cond */
 
 /*!
@@ -2566,7 +2561,6 @@ static INLINE bool is_valid_ard_location(int x, int y, int width, int height) {
 }
 
 /*!\endcond */
-#endif  // CONFIG_BRU
 
 /*!
  * \brief Top level encoder structure.
@@ -2790,7 +2784,6 @@ typedef struct AV1_COMP {
    */
   EncSegmentationInfo enc_seg;
 
-#if CONFIG_BRU
   /*!
    * queue for encoding active SBs in each active region
    */
@@ -2800,7 +2793,6 @@ typedef struct AV1_COMP {
    * store queue memory allocated size
    */
   uint32_t enc_act_queue_size;
-#endif  // CONFIG_BRU
 
   /*!
    * Parameters related to cyclic refresh aq-mode.
@@ -3200,9 +3192,7 @@ typedef struct EncodeFrameInput {
   /*!\cond */
   YV12_BUFFER_CONFIG *source;
   YV12_BUFFER_CONFIG *last_source;
-#if CONFIG_BRU
   YV12_BUFFER_CONFIG *bru_ref_source;
-#endif  // CONFIG_BRU
   int64_t ts_duration;
   /*!\endcond */
 } EncodeFrameInput;
@@ -3807,10 +3797,8 @@ static INLINE char const *get_frame_type_enum(int type) {
   return "error";
 }
 #endif
-#if CONFIG_BRU
 void enc_bru_swap_stage(AV1_COMP *cpi);
 void enc_bru_swap_ref(AV1_COMMON *const cm);
-#endif  // CONFIG_BRU
 
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
 static INLINE void check_ref_count_status_enc(AV1_COMP *cpi) {

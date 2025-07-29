@@ -24,11 +24,7 @@
 #include "aom_ports/mem.h"
 #include "av1/common/av1_common_int.h"
 
-#if CONFIG_BRU
 #define CCSO_REFACTORING 1
-#else
-#define CCSO_REFACTORING 0
-#endif
 
 #if CONFIG_CCSO_CLEANUP
 static const uint16_t quant_sz[4][4] = { { 16, 8, 32, 0 },

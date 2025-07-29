@@ -299,7 +299,6 @@ set_aom_config_var(CONFIG_MHCCP_BUFFER_1LINES 1
 set_aom_config_var(MHCCP_RUNTIME_FLAG 1 "Using runtime flag to control MHCCP")
 set_aom_config_var(CONFIG_CWG_F307_CFL_SEQ_FLAG 1 "Sequence level flag for CfL")
 
-set_aom_config_var(CONFIG_BRU 1 "enable BRU update")
 set_aom_config_var(CONFIG_BRU_TILE_FLAG 1
                    "move BRU tile active flag to tile_group_header")
 set_aom_config_var(CONFIG_MOVE_TILE_DATA_ALLOC 1

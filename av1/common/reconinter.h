@@ -648,11 +648,9 @@ static INLINE int is_translational_refinement_allowed(const AV1_COMMON *cm,
   return 1;
 }
 
-#if CONFIG_BRU
 void highbd_build_mc_border(const uint16_t *src, int src_stride, uint16_t *dst,
                             int dst_stride, int x, int y, int b_w, int b_h,
                             int w, int h);
-#endif  // CONFIG_BRU
 
 // Compute the SAD between the two predictors when refinemv is ON
 int get_refinemv_sad(uint16_t *src1, uint16_t *src2, int stride, int width,

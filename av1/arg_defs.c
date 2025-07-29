@@ -905,12 +905,10 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .num_extra_dpb = ARG_DEF(NULL, "num-extra-dpb", 1,
                            "extra dpb number (0..8), default is 0"),
 #endif  // CONFIG_CWG_F168_DPB_HLS
-#if CONFIG_BRU
   .enable_bru = ARG_DEF(NULL, "enable-bru", 1,
                         "Enable Backward Reference Update "
                         "(0: false (default), 1: true with regular decoder, 2: "
                         "true with optimized decoder)"),
-#endif  // CONFIG_BRU
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   .disable_loopfilters_across_tiles =
       ARG_DEF(NULL, "disable-loopfilters-across-tiles", 1,

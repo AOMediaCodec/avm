@@ -314,9 +314,7 @@ static int alloc_sbi(CommonSBInfoParams *sbi_params) {
     for (int i = 0; i < sbi_size; ++i) {
       sbi_params->sbi_grid_base[i].ptree_root[0] = NULL;
       sbi_params->sbi_grid_base[i].ptree_root[1] = NULL;
-#if CONFIG_BRU
       sbi_params->sbi_grid_base[i].sb_active_mode = BRU_ACTIVE_SB;
-#endif
     }
   }
 

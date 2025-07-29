@@ -20,9 +20,7 @@
 #include "aom_ports/mem.h"
 #include "av1/common/av1_common_int.h"
 #include "av1/common/av1_loopfilter.h"
-#if CONFIG_BRU
 #include "av1/common/bru.h"
-#endif  // CONFIG_BRU
 #include "av1/common/reconinter.h"
 #include "av1/common/seg_common.h"
 
@@ -823,13 +821,8 @@ MB_MODE_INFO **get_mi_location(const AV1_COMMON *const cm, int scale_horz,
 // aware
 static TX_SIZE set_lpf_parameters(
     AV1_DEBLOCKING_PARAMETERS *const params, uint32_t prev_x, uint32_t prev_y,
-#if CONFIG_BRU
-    AV1_COMMON *const cm,
-#else
-    const AV1_COMMON *const cm,
-#endif  // CONFIG_BRU
-    const MACROBLOCKD *const xd, const EDGE_DIR edge_dir, const uint32_t x,
-    const uint32_t y, const int plane,
+    AV1_COMMON *const cm, const MACROBLOCKD *const xd, const EDGE_DIR edge_dir,
+    const uint32_t x, const uint32_t y, const int plane,
     const struct macroblockd_plane *const plane_ptr) {
   // reset to initial values
 
@@ -900,7 +893,6 @@ static TX_SIZE set_lpf_parameters(
         if (is_horz_tile_boundary(&cm->tiles, mi_row)) return ts;
     }
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-#if CONFIG_BRU
     if (cm->bru.enabled) {
       if (mbmi->sb_active_mode != BRU_ACTIVE_SB) {
         aom_internal_error(&cm->error, AOM_CODEC_ERROR,
@@ -908,7 +900,6 @@ static TX_SIZE set_lpf_parameters(
                            "can be filtered");
       }
     }
-#endif  // CONFIG_BRU
     // prepare outer edge parameters. deblock the edge if it's an edge of a TU
     {
       const uint32_t curr_q =
@@ -1268,11 +1259,7 @@ static uint8_t get_lossless_flag(
 }
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 
-#if CONFIG_BRU
 void av1_filter_block_plane_vert(AV1_COMMON *const cm,
-#else
-void av1_filter_block_plane_vert(const AV1_COMMON *const cm,
-#endif  // CONFIG_BRU
                                  const MACROBLOCKD *const xd, const int plane,
                                  const MACROBLOCKD_PLANE *const plane_ptr,
                                  const uint32_t mi_row, const uint32_t mi_col) {
@@ -1280,7 +1267,6 @@ void av1_filter_block_plane_vert(const AV1_COMMON *const cm,
   const int mib_size = cm->mib_size;
   const uint32_t scale_horz = plane_ptr->subsampling_x;
   const uint32_t scale_vert = plane_ptr->subsampling_y;
-#if CONFIG_BRU
   if (cm->bru.enabled) {
     MB_MODE_INFO **mi =
         cm->mi_params.mi_grid_base + mi_row * cm->mi_params.mi_stride + mi_col;
@@ -1288,7 +1274,6 @@ void av1_filter_block_plane_vert(const AV1_COMMON *const cm,
       return;
     }
   }
-#endif  // CONFIG_BRU
   uint16_t *const dst_ptr = plane_ptr->dst.buf;
   const int dst_stride = plane_ptr->dst.stride;
   const int y_range = (mib_size >> scale_vert);
@@ -1402,11 +1387,7 @@ void av1_filter_block_plane_vert(const AV1_COMMON *const cm,
     }
   }
 }
-#if CONFIG_BRU
 void av1_filter_block_plane_horz(AV1_COMMON *const cm,
-#else
-void av1_filter_block_plane_horz(const AV1_COMMON *const cm,
-#endif  // CONFIG_BRU
                                  const MACROBLOCKD *const xd, const int plane,
                                  const MACROBLOCKD_PLANE *const plane_ptr,
                                  const uint32_t mi_row, const uint32_t mi_col) {
@@ -1414,7 +1395,6 @@ void av1_filter_block_plane_horz(const AV1_COMMON *const cm,
   const int mib_size = cm->mib_size;
   const uint32_t scale_horz = plane_ptr->subsampling_x;
   const uint32_t scale_vert = plane_ptr->subsampling_y;
-#if CONFIG_BRU
   if (cm->bru.enabled) {
     MB_MODE_INFO **mi =
         cm->mi_params.mi_grid_base + mi_row * cm->mi_params.mi_stride + mi_col;
@@ -1422,7 +1402,6 @@ void av1_filter_block_plane_horz(const AV1_COMMON *const cm,
       return;
     }
   }
-#endif  // CONFIG_BRU
   uint16_t *const dst_ptr = plane_ptr->dst.buf;
   const int dst_stride = plane_ptr->dst.stride;
   const int y_range = (mib_size >> scale_vert);

@@ -3689,10 +3689,8 @@ static const aom_cdf_prob default_skip_txfm_cdfs[SKIP_CONTEXTS][CDF_SIZE(2)] = {
   { AOM_CDF2(23222), 1 }, { AOM_CDF2(8799), 76 },  { AOM_CDF2(1437), 90 },
 };
 
-#if CONFIG_BRU
 static const aom_cdf_prob default_bru_mode_cdf[CDF_SIZE(3)] = { AOM_CDF3(
     4124, 16615) };
-#endif  // CONFIG_BRU
 
 static const aom_cdf_prob default_skip_mode_cdfs[SKIP_MODE_CONTEXTS]
                                                 [CDF_SIZE(2)] = {
@@ -4233,9 +4231,7 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   av1_copy(fc->inter_tx_type_offset_1, default_inter_tx_type_offset_1_cdf);
   av1_copy(fc->inter_tx_type_offset_2, default_inter_tx_type_offset_2_cdf);
 #endif  // CONFIG_REDUCE_SYMBOL_SIZE
-#if CONFIG_BRU
   av1_copy(fc->bru_mode_cdf, default_bru_mode_cdf);
-#endif  // CONFIG_BRU
   av1_copy(fc->skip_mode_cdfs, default_skip_mode_cdfs);
   av1_copy(fc->skip_txfm_cdfs, default_skip_txfm_cdfs);
   av1_copy(fc->intra_inter_cdf, default_intra_inter_cdf);
@@ -4622,9 +4618,7 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
                          ctx_tr->lossless_inter_tx_type_cdf, 2);
   CUMULATIVE_AVERAGE_CDF(ctx_left->comp_group_idx_cdf,
                          ctx_tr->comp_group_idx_cdf, 2);
-#if CONFIG_BRU
   CUMULATIVE_AVERAGE_CDF(ctx_left->bru_mode_cdf, ctx_tr->bru_mode_cdf, 3);
-#endif  // CONFIG_BRU
   CUMULATIVE_AVERAGE_CDF(ctx_left->skip_mode_cdfs, ctx_tr->skip_mode_cdfs, 2);
   CUMULATIVE_AVERAGE_CDF(ctx_left->skip_txfm_cdfs, ctx_tr->skip_txfm_cdfs, 2);
   CUMULATIVE_AVERAGE_CDF(ctx_left->intra_inter_cdf, ctx_tr->intra_inter_cdf, 2);
@@ -5038,9 +5032,7 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
   SHIFT_CDF(ctx_ptr->lossless_tx_size_cdf, 2);
   SHIFT_CDF(ctx_ptr->lossless_inter_tx_type_cdf, 2);
   SHIFT_CDF(ctx_ptr->comp_group_idx_cdf, 2);
-#if CONFIG_BRU
   SHIFT_CDF(ctx_ptr->bru_mode_cdf, 3);
-#endif  // CONFIG_BRU
   SHIFT_CDF(ctx_ptr->skip_mode_cdfs, 2);
   SHIFT_CDF(ctx_ptr->skip_txfm_cdfs, 2);
   SHIFT_CDF(ctx_ptr->intra_inter_cdf, 2);
@@ -5466,9 +5458,7 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->lossless_inter_tx_type_cdf,
               ctx_tr->lossless_inter_tx_type_cdf, 2);
   AVERAGE_CDF(ctx_left->comp_group_idx_cdf, ctx_tr->comp_group_idx_cdf, 2);
-#if CONFIG_BRU
   AVERAGE_CDF(ctx_left->bru_mode_cdf, ctx_tr->bru_mode_cdf, 3);
-#endif  // CONFIG_BRU
   AVERAGE_CDF(ctx_left->skip_mode_cdfs, ctx_tr->skip_mode_cdfs, 2);
   AVERAGE_CDF(ctx_left->skip_txfm_cdfs, ctx_tr->skip_txfm_cdfs, 2);
   AVERAGE_CDF(ctx_left->intra_inter_cdf, ctx_tr->intra_inter_cdf, 2);

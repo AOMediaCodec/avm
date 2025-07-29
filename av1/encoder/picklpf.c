@@ -88,7 +88,6 @@ static int64_t try_filter_frame(const YV12_BUFFER_CONFIG *sd,
     av1_loop_filter_frame(&cm->cur_frame->buf, cm, &cpi->td.mb.e_mbd, plane,
                           plane + 1, partial_frame);
 
-#if CONFIG_BRU
   if (cm->bru.enabled) {
     filt_err = aom_get_sse_plane_available(
         sd, &cm->cur_frame->buf, plane, cm->bru.active_mode_map,
@@ -100,9 +99,6 @@ static int64_t try_filter_frame(const YV12_BUFFER_CONFIG *sd,
   } else {
     filt_err = aom_get_sse_plane(sd, &cm->cur_frame->buf, plane);
   }
-#else
-  filt_err = aom_get_sse_plane(sd, &cm->cur_frame->buf, plane);
-#endif  // CONFIG_BRU
 
   // Re-instate the unfiltered frame
   yv12_copy_plane(&cpi->last_frame_uf, &cm->cur_frame->buf, plane);
@@ -336,7 +332,6 @@ void av1_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
   for (int i = 0; i < num_planes; i++) {
     const int chroma_lambda_mult = i ? CHROMA_LAMBDA_MULT : 1;
     const int64_t no_deblocking_sse =
-#if CONFIG_BRU
         cm->bru.enabled
             ? aom_get_sse_plane_available(
                   cpi->source, &cm->cur_frame->buf, i,
@@ -347,9 +342,6 @@ void av1_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
                   1 << (cm->bru.unit_mi_size_log2 + MI_SIZE_LOG2 -
                         (i > 0 ? cpi->source->subsampling_y : 0)))
             : aom_get_sse_plane(cpi->source, &cm->cur_frame->buf, i);
-#else
-        aom_get_sse_plane(cpi->source, &cm->cur_frame->buf, i);
-#endif  // CONFIG_BRU
     no_deblocking_cost[i] = RDCOST_DBL_WITH_NATIVE_BD_DIST(
         cpi->td.mb.rdmult * chroma_lambda_mult, 0, no_deblocking_sse,
         cm->seq_params.bit_depth);

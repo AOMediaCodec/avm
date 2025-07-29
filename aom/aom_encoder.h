@@ -659,12 +659,10 @@ typedef struct cfg_options {
    */
   int num_extra_dpb;
 #endif  // CONFIG_CWG_F168_DPB_HLS
-#if CONFIG_BRU
   /*!\brief enable bru
    *
    */
   unsigned int enable_bru;
-#endif  // CONFIG_BRU
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   /*!\brief disable_loopfilters_across_tiles
    *

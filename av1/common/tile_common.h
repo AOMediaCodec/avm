@@ -30,9 +30,7 @@ typedef struct TileInfo {
   int mi_col_start, mi_col_end;
   int tile_row;
   int tile_col;
-#if CONFIG_BRU
   int tile_active_mode;
-#endif  // CONFIG_BRU
 } TileInfo;
 
 // initializes 'tile->mi_(row|col)_(start|end)' for (row, col) based on

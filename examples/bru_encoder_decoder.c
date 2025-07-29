@@ -38,9 +38,7 @@ static const char *exec_name;
 void usage_exit(void) {
   fprintf(stderr,
           "Usage: %s <width> <height> <bit-depth> "
-#if CONFIG_BRU
           "<enable_bru> "
-#endif  // CONFIG_BRU
           "<infile> <outfile> <md5_file_opt> <md5_file_reg>\n",
           exec_name);
   exit(EXIT_FAILURE);
@@ -162,9 +160,7 @@ int main(int argc, char **argv) {
   cfg.g_input_bit_depth = bit_depth;
 
   const int bru_enable = (int)strtol(argv[argi++], NULL, 0);
-#if CONFIG_BRU
   cfg.encoder_cfg.enable_bru = bru_enable;
-#endif  // CONFIG_BRU
   printf("bru_enable %d\n", bru_enable);
   printf("input file %s\n", argv[argi]);
 
@@ -186,10 +182,8 @@ int main(int argc, char **argv) {
     die_codec(&codec, "Failed to set cpu-used");
 
     // aom_codec_set_option(&codec, "qp", "110");
-#if CONFIG_BRU
   if (aom_codec_control(&codec, AV1E_SET_ENABLE_BRU, bru_enable))
     die_codec(&codec, "Failed to set enable_bru");
-#endif  // CONFIG_BRU
 
   // Encode frames.
   while (aom_img_read(&raw, infile) && frame_count < limit) {
@@ -224,19 +218,15 @@ int main(int argc, char **argv) {
 
   printf("Using %s\n", aom_codec_iface_name(decoder));
   frame_count = 0;
-#if CONFIG_BRU
   FILE *opt_md5_file = NULL;
   FILE *reg_md5_file = NULL;
-#endif  // CONFIG_BRU
   if (!(opt_md5_file = fopen(md5_opt, "wb")))
     die("Failed to open %s for writing.", opt_md5_file);
 
   if (aom_codec_dec_init(&codec, decoder, NULL, 0))
     die("Failed to initialize decoder");
-#if CONFIG_BRU
   if (aom_codec_control(&codec, AV1D_SET_BRU_OPT_MODE, 1))
     die_codec(&codec, "Failed to set bru_optmode");
-#endif  // CONFIG_BRU
   while (aom_video_reader_read_frame(reader)) {
     aom_codec_iter_t iter = NULL;
     aom_image_t *img = NULL;
@@ -245,7 +235,6 @@ int main(int argc, char **argv) {
         aom_video_reader_get_frame(reader, &frame_size);
     if (aom_codec_decode(&codec, frame, frame_size, NULL))
       die_codec(&codec, "Failed to decode frame");
-#if CONFIG_BRU
     while ((img = aom_codec_get_frame(&codec, &iter)) != NULL) {
       unsigned char digest[16];
 
@@ -253,12 +242,10 @@ int main(int argc, char **argv) {
       print_md5(opt_md5_file, digest);
       frame_count++;
     }
-#endif  // CONFIG_BRU
   }
 
   printf("Processed %d frames.\n", frame_count);
   aom_video_reader_close(reader);
-#if CONFIG_BRU
   // bru reg mode
   reader = aom_video_reader_open(bitstream);
   frame_count = 0;
@@ -289,7 +276,6 @@ int main(int argc, char **argv) {
     }
   }
   aom_video_reader_close(reader);
-#endif  // CONFIG_BRU
   if (aom_codec_destroy(&codec)) die_codec(&codec, "Failed to destroy codec.");
   fclose(decfile);
   fclose(opt_md5_file);

@@ -202,7 +202,6 @@ int64_t aom_get_sse_plane(const YV12_BUFFER_CONFIG *a,
   }
 }
 
-#if CONFIG_BRU
 int64_t aom_get_sse_plane_available(const YV12_BUFFER_CONFIG *a,
                                     const YV12_BUFFER_CONFIG *b, int plane,
                                     const uint8_t *active_map,
@@ -245,7 +244,6 @@ int64_t aom_get_sse_plane_available(const YV12_BUFFER_CONFIG *a,
   }
   return total_err;
 }
-#endif  // CONFIG_BRU
 void aom_calc_highbd_psnr(const YV12_BUFFER_CONFIG *a,
                           const YV12_BUFFER_CONFIG *b, PSNR_STATS *psnr,
                           uint32_t bit_depth, uint32_t in_bit_depth,

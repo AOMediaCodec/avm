@@ -1294,9 +1294,7 @@ void av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
 
     cm->current_frame.frame_type = INTER_FRAME;
   }
-#if CONFIG_BRU
   realloc_bru_info(cm);
-#endif  // CONFIG_BRU
   int pframe_qindex;
   int tpl_gf_group_frames;
   init_gop_frames_for_tpl(cpi, frame_params, gf_group, gop_eval,

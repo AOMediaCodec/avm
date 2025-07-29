@@ -2517,7 +2517,6 @@ static inline void aom_memset16_optimized(uint16_t *dst, uint16_t value,
   }
 }
 
-#if CONFIG_BRU
 AOM_INLINE void highbd_build_mc_border(const uint16_t *src, int src_stride,
                                        uint16_t *dst, int dst_stride, int x,
                                        int y, int b_w, int b_h, int w, int h) {
@@ -2619,7 +2618,6 @@ void bru_extend_mc_border(const AV1_COMMON *const cm, int mi_row, int mi_col,
     }
   }
 }
-#endif  // CONFIG_BRU
 
 void refinemv_highbd_pad_mc_border(const uint16_t *src, int src_stride,
                                    uint16_t *dst, int dst_stride, int x0,

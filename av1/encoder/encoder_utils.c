@@ -296,7 +296,6 @@ const int default_switchable_interp_probs[FRAME_UPDATE_TYPES]
                                              { 512, 512, 512 } }
                                          };
 
-#if CONFIG_BRU
 /* Convert cpi->active_map to BRU active map (SB-by-SB) */
 void set_ard_active_map(AV1_COMP *cpi) {
   struct segmentation *const seg = &cpi->common.seg;
@@ -515,7 +514,6 @@ AV1PixelRect *cluster_active_regions(unsigned char *map, AV1PixelRect *regions,
   }
   return regions;
 }
-#endif  // CONFIG_BRU
 void av1_apply_active_map(AV1_COMP *cpi) {
   struct segmentation *const seg = &cpi->common.seg;
   unsigned char *const seg_map = cpi->enc_seg.map;
@@ -1390,7 +1388,6 @@ void av1_save_all_coding_context(AV1_COMP *cpi) {
   if (!frame_is_intra_only(&cpi->common)) release_scaled_references(cpi);
 }
 
-#if CONFIG_BRU
 /* Active region detection and clustering */
 void active_region_detection(AV1_COMP *cpi,
                              const YV12_BUFFER_CONFIG *cur_picture,
@@ -1468,4 +1465,3 @@ void active_region_detection(AV1_COMP *cpi,
                          cm->bru.unit_cols, cm->bru.unit_rows,
                          &bru_info->num_active_regions);
 }
-#endif  // CONFIG_BRU

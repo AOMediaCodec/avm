@@ -301,9 +301,7 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->lossless_inter_tx_type_cdf, 2);
   RESET_CDF_COUNTER(fc->comp_group_idx_cdf, 2);
   RESET_CDF_COUNTER(fc->skip_mode_cdfs, 2);
-#if CONFIG_BRU
   RESET_CDF_COUNTER(fc->bru_mode_cdf, 3);
-#endif  // CONFIG_BRU
   RESET_CDF_COUNTER(fc->intra_inter_cdf, 2);
   RESET_CDF_COUNTER(fc->skip_txfm_cdfs, 2);
   reset_nmv_counter(&fc->nmvc);

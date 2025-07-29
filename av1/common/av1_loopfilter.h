@@ -170,20 +170,12 @@ void loop_filter_tip_frame(struct AV1Common *cm, int plane_start,
 void init_tip_lf_parameter(struct AV1Common *cm, int plane_start,
                            int plane_end);
 #endif  // CONFIG_LF_SUB_PU
-#if CONFIG_BRU
 void av1_filter_block_plane_vert(struct AV1Common *const cm,
-#else
-void av1_filter_block_plane_vert(const struct AV1Common *const cm,
-#endif  // CONFIG_BRU
                                  const MACROBLOCKD *const xd, const int plane,
                                  const MACROBLOCKD_PLANE *const plane_ptr,
                                  const uint32_t mi_row, const uint32_t mi_col);
 
-#if CONFIG_BRU
 void av1_filter_block_plane_horz(struct AV1Common *const cm,
-#else
-void av1_filter_block_plane_horz(const struct AV1Common *const cm,
-#endif  // CONFIG_BRU
                                  const MACROBLOCKD *const xd, const int plane,
                                  const MACROBLOCKD_PLANE *const plane_ptr,
                                  const uint32_t mi_row, const uint32_t mi_col);

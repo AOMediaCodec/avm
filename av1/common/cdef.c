@@ -273,7 +273,6 @@ void av1_cdef_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
         cdef_left = 0;
         continue;
       }
-#if CONFIG_BRU
       if (cm->bru.enabled) {
         if (mi_params
                 ->mi_grid_base[MI_SIZE_64X64 * fbr * mi_params->mi_stride +
@@ -284,7 +283,6 @@ void av1_cdef_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
               "Invalid BRU activity in CDEF: only active SB can be filtered");
         }
       }
-#endif  // CONFIG_BRU
       curr_row_cdef[fbc] = 1;
       for (int pli = 0; pli < num_planes; pli++) {
         int coffset;

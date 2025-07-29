@@ -575,9 +575,7 @@ void gdf_filter_frame(AV1_COMMON *cm) {
   uint16_t *const rec_pnt = cm->cur_frame->buf.buffers[AOM_PLANE_Y];
   const int rec_stride = cm->cur_frame->buf.y_stride;
 
-#if CONFIG_BRU
   if (cm->bru.frame_inactive_flag) return;
-#endif
   const int bit_depth = cm->cur_frame->buf.bit_depth;
   const int pxl_max = (1 << cm->cur_frame->buf.bit_depth) - 1;
   const int pxl_shift =
@@ -657,7 +655,6 @@ void gdf_filter_frame(AV1_COMMON *cm) {
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 
               int use_gdf_local = 1;
-#if CONFIG_BRU
               // FU level skip
               if (cm->bru.enabled) {
                 const int mbmi_idx = get_mi_grid_idx(
@@ -668,13 +665,11 @@ void gdf_filter_frame(AV1_COMMON *cm) {
                 use_gdf_local =
                     cm->mi_params.mi_grid_base[mbmi_idx]->local_gdf_mode;
               }
-#endif
               use_gdf_local &=
                   gdf_block_adjust_and_validate(&i_min, &i_max, &j_min, &j_max);
               if ((cm->gdf_info.gdf_mode == 1 ||
                    cm->gdf_info.gdf_block_flags[blk_idx]) &&
                   use_gdf_local) {
-#if CONFIG_BRU
                 const int bru_blk_skip = !bru_is_sb_active(
                     cm, j_min >> MI_SIZE_LOG2,
                     AOMMIN(i_max - 1, (i_min + GDF_TEST_STRIPE_OFF)) >>
@@ -683,7 +678,6 @@ void gdf_filter_frame(AV1_COMMON *cm) {
                   aom_internal_error(&cm->error, AOM_CODEC_ERROR,
                                      "GDF on not active SB");
                 }
-#endif
                 for (int qp_idx = qp_idx_min; qp_idx < qp_idx_max_plus_1;
                      qp_idx++) {
 #if CONFIG_GDF_IMPROVEMENT
