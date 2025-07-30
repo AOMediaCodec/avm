@@ -4761,12 +4761,29 @@ static AOM_INLINE void encode_quantization(
     assert(quant_params->u_ac_delta_q == 0);
     assert(quant_params->v_ac_delta_q == 0);
   }
+}
+
+static AOM_INLINE void encode_qm_params(AV1_COMMON *cm,
+                                        struct aom_write_bit_buffer *wb) {
+  const CommonQuantParams *quant_params = &cm->quant_params;
   aom_wb_write_bit(wb, quant_params->using_qmatrix);
   if (quant_params->using_qmatrix) {
+#if CONFIG_F311_QM_PARAMS
+    if (cm->seg.enabled) {
+      aom_wb_write_literal(wb, quant_params->pic_qm_num - 1, 2);
+    } else if (quant_params->pic_qm_num > 1) {
+      aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+                         "The frame does not use segmentation but uses "
+                         "per-segment quantizer matrices");
+    }
+#else
     aom_wb_write_literal(wb, quant_params->pic_qm_num - 1, 2);
+#endif  // CONFIG_F311_QM_PARAMS
 #if CONFIG_QM_DEBUG
     printf("[ENC-FRM] pic_qm_num: %d\n", quant_params->pic_qm_num);
 #endif
+    const int num_planes = av1_num_planes(cm);
+    bool separate_uv_delta_q = cm->seq_params.separate_uv_delta_q;
     for (uint8_t i = 0; i < quant_params->pic_qm_num; i++) {
       aom_wb_write_literal(wb, quant_params->qm_y[i], QM_LEVEL_BITS);
       if (num_planes > 1) {
@@ -4799,6 +4816,7 @@ static AOM_INLINE void encode_quantization(
     }
   }
 }
+
 #if CONFIG_BRU
 static AOM_INLINE void encode_bru_active_info(AV1_COMP *cpi,
                                               struct aom_write_bit_buffer *wb) {
@@ -4815,6 +4833,7 @@ static AOM_INLINE void encode_bru_active_info(AV1_COMP *cpi,
   return;
 }
 #endif  // CONFIG_BRU
+
 static AOM_INLINE void encode_segmentation(AV1_COMMON *cm, MACROBLOCKD *xd,
                                            struct aom_write_bit_buffer *wb) {
   int i, j;
@@ -6599,7 +6618,13 @@ static AOM_INLINE void write_uncompressed_header_obu(
   write_tile_info(cm, saved_wb, wb);
 
   encode_quantization(quant_params, av1_num_planes(cm), &cm->seq_params, wb);
+#if !CONFIG_F311_QM_PARAMS
+  encode_qm_params(cm, wb);
+#endif  // !CONFIG_F311_QM_PARAMS
   encode_segmentation(cm, xd, wb);
+#if CONFIG_F311_QM_PARAMS
+  encode_qm_params(cm, wb);
+#endif  // CONFIG_F311_QM_PARAMS
 
   const DeltaQInfo *const delta_q_info = &cm->delta_q_info;
   if (delta_q_info->delta_q_present_flag) assert(quant_params->base_qindex > 0);
@@ -6624,11 +6649,13 @@ static AOM_INLINE void write_uncompressed_header_obu(
 
   if (quant_params->using_qmatrix) {
     const struct segmentation *seg = &cm->seg;
+#if !CONFIG_F311_QM_PARAMS
     if (!seg->enabled && quant_params->qm_index_bits > 0) {
       aom_internal_error(&cm->error, AOM_CODEC_ERROR,
                          "The frame does not use segmentation but uses "
                          "per-segment quantizer matrices");
     }
+#endif  // !CONFIG_F311_QM_PARAMS
 #if CONFIG_EXT_SEG
     const int max_seg_num = seg->enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
 #else   // CONFIG_EXT_SEG

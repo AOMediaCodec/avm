@@ -3596,12 +3596,28 @@ static AOM_INLINE void setup_quantization(CommonQuantParams *quant_params,
     quant_params->v_dc_delta_q = 0;
     quant_params->v_ac_delta_q = 0;
   }
+}
+
+static AOM_INLINE void setup_qm_params(CommonQuantParams *quant_params,
+#if CONFIG_F311_QM_PARAMS
+                                       bool segmentation_enabled,
+#endif  // CONFIG_F311_QM_PARAMS
+                                       int num_planes, bool separate_uv_delta_q,
+                                       struct aom_read_bit_buffer *rb) {
   quant_params->using_qmatrix = aom_rb_read_bit(rb);
 #if CONFIG_QM_DEBUG
   printf("[DEC-FRM] using_qmatrix: %d\n", quant_params->using_qmatrix);
 #endif
   if (quant_params->using_qmatrix) {
+#if CONFIG_F311_QM_PARAMS
+    if (segmentation_enabled) {
+      quant_params->pic_qm_num = aom_rb_read_literal(rb, 2) + 1;
+    } else {
+      quant_params->pic_qm_num = 1;
+    }
+#else
     quant_params->pic_qm_num = aom_rb_read_literal(rb, 2) + 1;
+#endif  // CONFIG_F311_QM_PARAMS
 #if CONFIG_QM_DEBUG
     printf("[DEC-FRM] pic_qm_num: %d\n", quant_params->pic_qm_num);
 #endif
@@ -3618,7 +3634,7 @@ static AOM_INLINE void setup_quantization(CommonQuantParams *quant_params,
           quant_params->qm_v[i] = quant_params->qm_y[i];
         } else {
           quant_params->qm_u[i] = aom_rb_read_literal(rb, QM_LEVEL_BITS);
-          if (!seq_params->separate_uv_delta_q) {
+          if (!separate_uv_delta_q) {
             quant_params->qm_v[i] = quant_params->qm_u[i];
           } else {
             quant_params->qm_v[i] = aom_rb_read_literal(rb, QM_LEVEL_BITS);
@@ -8369,6 +8385,10 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
   CommonQuantParams *const quant_params = &cm->quant_params;
   setup_quantization(quant_params, av1_num_planes(cm), &cm->seq_params, rb);
+#if !CONFIG_F311_QM_PARAMS
+  setup_qm_params(quant_params, av1_num_planes(cm),
+                  cm->seq_params.separate_uv_delta_q, rb);
+#endif  // !CONFIG_F311_QM_PARAMS
   cm->cur_frame->base_qindex = quant_params->base_qindex;
   cm->cur_frame->u_ac_delta_q = quant_params->u_ac_delta_q;
   cm->cur_frame->v_ac_delta_q = quant_params->v_ac_delta_q;
@@ -8390,6 +8410,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   }
 
   setup_segmentation(cm, rb);
+
+#if CONFIG_F311_QM_PARAMS
+  setup_qm_params(quant_params, cm->seg.enabled, av1_num_planes(cm),
+                  cm->seq_params.separate_uv_delta_q, rb);
+#endif  // CONFIG_F311_QM_PARAMS
 
   cm->delta_q_info.delta_q_res = 1;
   cm->delta_q_info.delta_lf_res = 1;
@@ -8413,12 +8438,14 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
   xd->cur_frame_force_integer_mv = features->cur_frame_force_integer_mv;
 
+#if !CONFIG_F311_QM_PARAMS
   if (!cm->seg.enabled && quant_params->using_qmatrix &&
       quant_params->qm_index_bits > 0) {
     aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                        "The frame does not use segmentation but uses "
                        "per-segment quantizer matrices");
   }
+#endif  // !CONFIG_F311_QM_PARAMS
 #if CONFIG_EXT_SEG
   const int max_seg_num =
       cm->seg.enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
