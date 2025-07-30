@@ -110,6 +110,8 @@ Coverage Report:
       --html --html-details ../coverage-html/coverage.html
       --print-summary
       -r ../ .
+  needs:
+    - 'Linux All Unit Test'
   coverage: '/lines:\s(\d+.\d+\%)/'
   artifacts:
     reports:
