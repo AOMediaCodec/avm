@@ -5777,6 +5777,47 @@ static AOM_INLINE void write_sequence_header(
   }
 }
 
+static void write_frame_max_drl_bits(AV1_COMMON *const cm,
+                                     struct aom_write_bit_buffer *wb) {
+  FeatureFlags *const features = &cm->features;
+#if CONFIG_SEQ_MAX_DRL_BITS
+  const SequenceHeader *const seq_params = &cm->seq_params;
+  if (seq_params->allow_frame_max_drl_bits) {
+    aom_wb_write_primitive_ref_quniform(
+        wb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1,
+        seq_params->def_max_drl_bits - MIN_MAX_DRL_BITS,
+        features->max_drl_bits - MIN_MAX_DRL_BITS);
+  } else {
+    assert(features->max_drl_bits == seq_params->def_max_drl_bits);
+  }
+#else
+  aom_wb_write_primitive_quniform(wb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1,
+                                  features->max_drl_bits - MIN_MAX_DRL_BITS);
+#endif  // CONFIG_SEQ_MAX_DRL_BITS
+}
+
+#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+static void write_frame_max_bvp_drl_bits(AV1_COMMON *const cm,
+                                         struct aom_write_bit_buffer *wb) {
+  FeatureFlags *const features = &cm->features;
+#if CONFIG_SEQ_MAX_DRL_BITS
+  const SequenceHeader *const seq_params = &cm->seq_params;
+  if (seq_params->allow_frame_max_bvp_drl_bits) {
+    aom_wb_write_primitive_ref_quniform(
+        wb, MAX_MAX_IBC_DRL_BITS - MIN_MAX_IBC_DRL_BITS + 1,
+        seq_params->def_max_bvp_drl_bits - MIN_MAX_IBC_DRL_BITS,
+        features->max_bvp_drl_bits - MIN_MAX_IBC_DRL_BITS);
+  } else {
+    assert(features->max_bvp_drl_bits == seq_params->def_max_bvp_drl_bits);
+  }
+#else
+  aom_wb_write_primitive_quniform(
+      wb, MAX_MAX_IBC_DRL_BITS - MIN_MAX_IBC_DRL_BITS + 1,
+      features->max_bvp_drl_bits - MIN_MAX_IBC_DRL_BITS);
+#endif  // CONFIG_SEQ_MAX_DRL_BITS
+}
+#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+
 static AOM_INLINE void write_sequence_header_beyond_av1(
     const SequenceHeader *const seq_params, struct aom_write_bit_buffer *wb) {
   aom_wb_write_bit(wb, seq_params->enable_refmvbank);
@@ -5829,6 +5870,20 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
   }
 #endif  // CONFIG_EXTRA_DPB
 #endif  // CONFIG_CWG_F168_DPB_HLS
+
+#if CONFIG_SEQ_MAX_DRL_BITS
+  aom_wb_write_primitive_quniform(
+      wb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1,
+      seq_params->def_max_drl_bits - MIN_MAX_DRL_BITS);
+  aom_wb_write_bit(wb, seq_params->allow_frame_max_drl_bits);
+#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+  aom_wb_write_primitive_quniform(
+      wb, MAX_MAX_IBC_DRL_BITS - MIN_MAX_IBC_DRL_BITS + 1,
+      seq_params->def_max_bvp_drl_bits - MIN_MAX_IBC_DRL_BITS);
+  aom_wb_write_bit(wb, seq_params->allow_frame_max_bvp_drl_bits);
+#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+#endif  // CONFIG_SEQ_MAX_DRL_BITS
+
   aom_wb_write_literal(wb, seq_params->num_same_ref_compound, 2);
   if (!seq_params->monochrome) aom_wb_write_bit(wb, seq_params->enable_sdp);
   if (seq_params->enable_sdp)
@@ -6382,13 +6437,9 @@ static AOM_INLINE void write_uncompressed_header_obu(
 #if CONFIG_IBC_MAX_DRL
       assert(features->max_bvp_drl_bits >= MIN_MAX_IBC_DRL_BITS &&
              features->max_bvp_drl_bits <= MAX_MAX_IBC_DRL_BITS);
-      aom_wb_write_primitive_quniform(
-          wb, MAX_MAX_IBC_DRL_BITS - MIN_MAX_IBC_DRL_BITS + 1,
-          features->max_bvp_drl_bits - MIN_MAX_IBC_DRL_BITS);
+      write_frame_max_bvp_drl_bits(cm, wb);
 #else
-      aom_wb_write_primitive_quniform(
-          wb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1,
-          features->max_drl_bits - MIN_MAX_DRL_BITS);
+      write_frame_max_drl_bits(cm, wb);
 #endif  // CONFIG_IBC_MAX_DRL
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
     }
@@ -6415,13 +6466,9 @@ static AOM_INLINE void write_uncompressed_header_obu(
 #if CONFIG_IBC_MAX_DRL
         assert(features->max_bvp_drl_bits >= MIN_MAX_IBC_DRL_BITS &&
                features->max_bvp_drl_bits <= MAX_MAX_IBC_DRL_BITS);
-        aom_wb_write_primitive_quniform(
-            wb, MAX_MAX_IBC_DRL_BITS - MIN_MAX_IBC_DRL_BITS + 1,
-            features->max_bvp_drl_bits - MIN_MAX_IBC_DRL_BITS);
+        write_frame_max_bvp_drl_bits(cm, wb);
 #else
-        aom_wb_write_primitive_quniform(
-            wb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1,
-            features->max_drl_bits - MIN_MAX_DRL_BITS);
+        write_frame_max_drl_bits(cm, wb);
 #endif  // CONFIG_IBC_MAX_DRL
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
       }
@@ -6603,17 +6650,12 @@ static AOM_INLINE void write_uncompressed_header_obu(
             1)
           aom_wb_write_bit(wb, features->allow_intrabc);
 #endif  // CONFIG_IBC_SR_EXT
-
-        aom_wb_write_primitive_quniform(
-            wb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1,
-            features->max_drl_bits - MIN_MAX_DRL_BITS);
+        write_frame_max_drl_bits(cm, wb);
 #if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
         if (features->allow_intrabc) {
           assert(features->max_bvp_drl_bits >= MIN_MAX_IBC_DRL_BITS &&
                  features->max_bvp_drl_bits <= MAX_MAX_IBC_DRL_BITS);
-          aom_wb_write_primitive_quniform(
-              wb, MAX_MAX_IBC_DRL_BITS - MIN_MAX_IBC_DRL_BITS + 1,
-              features->max_bvp_drl_bits - MIN_MAX_IBC_DRL_BITS);
+          write_frame_max_bvp_drl_bits(cm, wb);
         }
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
         if (!features->cur_frame_force_integer_mv) {

@@ -116,6 +116,19 @@ void aom_wb_write_primitive_quniform(struct aom_write_bit_buffer *wb,
   }
 }
 
+void aom_wb_write_primitive_ref_quniform(struct aom_write_bit_buffer *wb,
+                                         uint16_t n, uint16_t r, uint16_t v) {
+  // Signal a single bit to indicate if the value is unequal to the reference r
+  // If unequal signal a (n - 1)-ary quasi-uniform code where v values
+  // higher than r are reduced by 1.
+  const int unequal = (v != r);
+  aom_wb_write_bit(wb, unequal);
+  if (unequal) {
+    v -= (v > r);
+    aom_wb_write_primitive_quniform(wb, n - 1, v);
+  }
+}
+
 static void wb_write_primitive_subexpfin(struct aom_write_bit_buffer *wb,
                                          uint16_t n, uint16_t k, uint16_t v) {
   int i = 0;

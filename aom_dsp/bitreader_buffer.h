@@ -57,6 +57,9 @@ int16_t aom_rb_read_signed_primitive_refsubexpfin(
 
 uint16_t aom_rb_read_primitive_quniform(struct aom_read_bit_buffer *rb,
                                         uint16_t n);
+
+uint16_t aom_rb_read_primitive_ref_quniform(struct aom_read_bit_buffer *rb,
+                                            uint16_t n, uint16_t r);
 #ifdef __cplusplus
 }  // extern "C"
 #endif

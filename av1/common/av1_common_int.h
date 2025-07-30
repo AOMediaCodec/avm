@@ -565,6 +565,14 @@ typedef struct SequenceHeader {
                                   // on order hint value
 #endif                            // !CONFIG_F253_REMOVE_OUTPUTFLAG
   int max_reference_frames;       // Number of reference frames allowed
+#if CONFIG_SEQ_MAX_DRL_BITS
+  int def_max_drl_bits;              // default max drl bits for MVs
+  uint8_t allow_frame_max_drl_bits;  // whether to allow frame level update
+#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+  int def_max_bvp_drl_bits;              // default max ibc drl bits for MVs
+  uint8_t allow_frame_max_bvp_drl_bits;  // whether to allow frame level update
+#endif                        // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+#endif                        // CONFIG_SEQ_MAX_DRL_BITS
   int num_same_ref_compound;  // Number of the allowed same reference frames for
                               // the compound mode
 #if CONFIG_EXTRA_DPB

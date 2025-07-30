@@ -85,6 +85,17 @@ uint16_t aom_rb_read_primitive_quniform(struct aom_read_bit_buffer *rb,
   return v < m ? v : (v << 1) - m + aom_rb_read_bit(rb);
 }
 
+uint16_t aom_rb_read_primitive_ref_quniform(struct aom_read_bit_buffer *rb,
+                                            uint16_t n, uint16_t r) {
+  if (aom_rb_read_bit(rb)) {  // unequal
+    int v = aom_rb_read_primitive_quniform(rb, n - 1);
+    v += (v >= r);
+    return v;
+  } else {
+    return r;
+  }
+}
+
 static uint16_t aom_rb_read_primitive_subexpfin(struct aom_read_bit_buffer *rb,
                                                 uint16_t n, uint16_t k) {
   int i = 0;
