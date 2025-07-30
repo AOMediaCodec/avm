@@ -546,6 +546,9 @@ aom_codec_err_t aom_codec_set_option(aom_codec_ctx_t *ctx, const char *name,
 typedef enum ATTRIBUTE_PACKED {
   OBU_SEQUENCE_HEADER = 1,
   OBU_TEMPORAL_DELIMITER = 2,
+#if OBU_ORDER_IN_TU
+  OBU_MULTI_FRAME_HEADER = 3,
+#endif  // OBU_ORDER_IN_TU
 #if !CONFIG_F106_OBU_TILEGROUP
   OBU_FRAME_HEADER = 3,
 #endif  // !CONFIG_F106_OBU_TILEGROUP

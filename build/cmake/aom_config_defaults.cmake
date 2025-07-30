@@ -215,6 +215,7 @@ set_aom_config_var(CONFIG_THROUGHPUT_ANALYSIS 0
 set_aom_config_var(
   CONFIG_WARP_EXTEND_SIMPLIFICATION 1
   "Reduce the number of neighbors used in warp extend mode to four")
+set_aom_config_var(OBU_ORDER_IN_TU 1 "Check OBU order in TU")
 set_aom_config_var(CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT 1
                    "Enable enhanced frame output order derivation")
 set_aom_config_var(CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER 1

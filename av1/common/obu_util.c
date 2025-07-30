@@ -11,6 +11,7 @@
  */
 #include <assert.h>
 
+#include "config/aom_config.h"
 #include "av1/common/obu_util.h"
 
 #include "config/aom_config.h"
@@ -24,6 +25,9 @@ static int valid_obu_type(int obu_type) {
   switch (obu_type) {
     case OBU_SEQUENCE_HEADER:
     case OBU_TEMPORAL_DELIMITER:
+#if OBU_ORDER_IN_TU
+    case OBU_MULTI_FRAME_HEADER:
+#endif  // OBU_ORDER_IN_TU
 #if CONFIG_F106_OBU_TILEGROUP
 #if CONFIG_F106_OBU_SWITCH
     case OBU_SWITCH:

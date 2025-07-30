@@ -157,6 +157,9 @@ const char *aom_obu_type_to_string(OBU_TYPE type) {
   switch (type) {
     case OBU_SEQUENCE_HEADER: return "OBU_SEQUENCE_HEADER";
     case OBU_TEMPORAL_DELIMITER: return "OBU_TEMPORAL_DELIMITER";
+#if OBU_ORDER_IN_TU
+    case OBU_MULTI_FRAME_HEADER: return "OBU_MULTI_FRAME_HEADER";
+#endif  // OBU_ORDER_IN_TU
 #if CONFIG_F106_OBU_TILEGROUP
 #if CONFIG_F106_OBU_SWITCH
     case OBU_SWITCH: return "OBU_SWITCH";

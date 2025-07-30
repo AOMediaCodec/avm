@@ -15,6 +15,7 @@
 #include <string.h>
 #include <assert.h>
 
+#include "config/aom_config.h"
 #include "common/obudec.h"
 
 #include "aom_dsp/aom_dsp_common.h"
@@ -552,6 +553,49 @@ int file_is_obu(struct ObuDecInputContext *obu_ctx) {
   return 1;
 }
 
+#if OBU_ORDER_IN_TU
+int check_obu_order(OBU_TYPE prev_obu_type, OBU_TYPE curr_obu_type) {
+  if ((prev_obu_type == OBU_TEMPORAL_DELIMITER) &&
+      (curr_obu_type == OBU_SEQUENCE_HEADER || curr_obu_type == OBU_SEF ||
+       curr_obu_type == OBU_TIP || curr_obu_type == OBU_SWITCH ||
+       curr_obu_type == OBU_TILE_GROUP || curr_obu_type == OBU_METADATA))
+    return 0;
+  else if ((prev_obu_type == OBU_SEQUENCE_HEADER) &&
+           (curr_obu_type == OBU_SEQUENCE_HEADER ||
+            curr_obu_type == OBU_MULTI_FRAME_HEADER ||
+            curr_obu_type == OBU_SEF || curr_obu_type == OBU_TIP ||
+            curr_obu_type == OBU_SWITCH || curr_obu_type == OBU_TILE_GROUP ||
+            curr_obu_type == OBU_METADATA))
+    return 0;
+  else if ((prev_obu_type == OBU_MULTI_FRAME_HEADER) &&
+           (curr_obu_type == OBU_MULTI_FRAME_HEADER ||
+            curr_obu_type == OBU_SEF || curr_obu_type == OBU_TIP ||
+            curr_obu_type == OBU_SWITCH || curr_obu_type == OBU_TILE_GROUP ||
+            curr_obu_type == OBU_METADATA))
+    return 0;
+  else if ((prev_obu_type == OBU_METADATA) &&
+           (curr_obu_type == OBU_METADATA || curr_obu_type == OBU_SEF ||
+            curr_obu_type == OBU_TIP || curr_obu_type == OBU_SWITCH ||
+            curr_obu_type == OBU_TILE_GROUP ||
+            curr_obu_type == OBU_TEMPORAL_DELIMITER))
+    return 0;
+  else if ((prev_obu_type == OBU_TILE_GROUP) &&
+           (curr_obu_type == OBU_TILE_GROUP ||
+            curr_obu_type == OBU_TEMPORAL_DELIMITER))
+    return 0;
+  else if ((prev_obu_type == OBU_SWITCH) &&
+           (curr_obu_type == OBU_SWITCH ||
+            curr_obu_type == OBU_TEMPORAL_DELIMITER))
+    else if (
+        (prev_obu_type == OBU_SEF) &&
+        (curr_obu_type ==
+         OBU_TEMPORAL_DELIMITER)) else if ((prev_obu_type == OBU_TIP) &&
+                                           (curr_obu_type ==
+                                            OBU_TEMPORAL_DELIMITER)) return 0;
+  return 1;
+}
+#endif  // OBU_ORDER_IN_TU
+
 int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
                               uint8_t **buffer, size_t *bytes_read,
                               size_t *buffer_size) {
@@ -599,6 +643,10 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
     size += length_of_temporal_unit_size;
     tu_size = (size_t)size;
   } else {
+#if OBU_ORDER_IN_TU
+    OBU_TYPE prev_obu_type = OBU_TEMPORAL_DELIMITER;
+    OBU_TYPE curr_obu_type = OBU_TEMPORAL_DELIMITER;
+#endif  // OBU_ORDER_IN_TU
     while (1) {
       ObuHeader obu_header;
       memset(&obu_header, 0, sizeof(obu_header));
@@ -609,7 +657,15 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
         fprintf(stderr, "obudec: read_one_obu failed in TU loop\n");
         return -1;
       }
-
+#if OBU_ORDER_IN_TU
+      curr_obu_type = obu_header.type;
+      if (curr_obu_type > 0 && check_obu_order(prev_obu_type, curr_obu_type)) {
+        fprintf(stderr, "obudec: OBU orders is incorrect in TU, %d, %d\n",
+                prev_obu_type, curr_obu_type);
+        return -1;
+      }
+      prev_obu_type = curr_obu_type;
+#endif  // OBU_ORDER_IN_TU
       if (obu_header.type == OBU_TEMPORAL_DELIMITER || obu_size == 0) {
         tu_size = obu_ctx->bytes_buffered;
         break;
