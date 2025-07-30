@@ -222,9 +222,6 @@ Linux Unit (x86_64, sse4_2):
           SANITIZER_OPTIONS="${SANITIZER_OPTIONS}:max_uar_stack_size_log=17"
           export ASAN_OPTIONS="${SANITIZER_OPTIONS}"
           ;;
-        memory)
-          export MSAN_OPTIONS="${SANITIZER_OPTIONS}"
-          ;;
         thread)
           # The thread sanitizer uses a subset.
           TSAN_OPTIONS="handle_sigfpe=1"
@@ -336,7 +333,6 @@ Linux Sanitizers (x86_64-clang) (Memory):
     - echo "CXXFLAGS = ${CXXFLAGS}"
     - echo "LDFLAGS = ${LDFLAGS}"
     - cmake -B "${AVM_MSAN_BUILD_DIR}" -G Ninja
-        -DCMAKE_BUILD_TYPE=RelWithDebInfo
         -DAOM_TARGET_CPU=generic
         -DCMAKE_C_COMPILER=clang
         -DCMAKE_CXX_COMPILER=clang++
