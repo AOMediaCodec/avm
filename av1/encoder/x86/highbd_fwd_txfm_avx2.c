@@ -24,6 +24,7 @@
 #include "av1/common/txb_common.h"
 #endif  // CONFIG_CORE_TX
 
+#if !CONFIG_CORE_TX
 static INLINE void load_buffer_8x8_avx2(const int16_t *input, __m256i *out,
                                         int stride, int flipud, int fliplr,
                                         int shift) {
@@ -3960,6 +3961,7 @@ void av1_fwd_txfm2d_64x32_avx2(const int16_t *input, int32_t *output,
   av1_round_shift_rect_array_32_avx2(outcoef256, outcoef256, 256, -shift[2],
                                      NewSqrt2);
 }
+#endif  // !CONFIG_CORE_TX
 
 static INLINE __m256i round_power_of_two_signed_avx2(__m256i v_val_d,
                                                      int bits) {

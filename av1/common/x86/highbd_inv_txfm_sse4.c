@@ -22,6 +22,7 @@
 #include "av1/common/x86/av1_txfm_sse4.h"
 #include "av1/common/x86/highbd_txfm_utility_sse4.h"
 
+#if !CONFIG_CORE_TX
 static INLINE __m128i highbd_clamp_epi16(__m128i u, int bd) {
   const __m128i zero = _mm_setzero_si128();
   const __m128i one = _mm_set1_epi16(1);
@@ -6547,6 +6548,7 @@ void av1_highbd_inv_txfm_add_64x4_sse4_1(const tran_low_t *input,
   highbd_inv_txfm2d_add_64x4_sse4_1(input, dest, stride, tx_type, tx_size,
                                     txfm_param->use_ddt, eob, bd);
 }
+#endif  // !CONFIG_CORE_TX
 
 void av1_highbd_inv_txfm_add_sse4_1(const tran_low_t *input, uint16_t *dest,
                                     int stride, const TxfmParam *txfm_param) {

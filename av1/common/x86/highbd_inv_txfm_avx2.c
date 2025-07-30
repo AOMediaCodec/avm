@@ -25,6 +25,7 @@
 #include "av1/common/txb_common.h"
 #endif  // CONFIG_CORE_TX
 
+#if !CONFIG_CORE_TX
 // Note:
 //  Total 32x4 registers to represent 32x32 block coefficients.
 //  For high bit depth, each coefficient is 4-byte.
@@ -4418,6 +4419,8 @@ void av1_highbd_inv_txfm2d_add_universe_avx2(const int32_t *input,
     default: assert(0); break;
   }
 }
+#endif  // !CONFIG_CORE_TX
+
 void av1_highbd_inv_txfm_add_avx2(const tran_low_t *input, uint16_t *dest,
                                   int stride, const TxfmParam *txfm_param) {
   assert(av1_ext_tx_used[txfm_param->tx_set_type][txfm_param->tx_type]);

@@ -1059,6 +1059,7 @@ void av1_highbd_iwht4x4_horz_add(const tran_low_t *input, uint16_t *dest,
 }
 #endif  // CONFIG_LOSSLESS_DPCM
 
+#if !CONFIG_CORE_TX
 void av1_highbd_inv_txfm_add_4x4_c(const tran_low_t *input, uint16_t *dest,
                                    int stride, const TxfmParam *txfm_param) {
   assert(av1_ext_tx_used[txfm_param->tx_set_type][txfm_param->tx_type]);
@@ -1085,6 +1086,7 @@ void av1_highbd_inv_txfm_add_4x4_c(const tran_low_t *input, uint16_t *dest,
 
   av1_inv_txfm2d_add_4x4_c(src, dest, stride, tx_type, txfm_param->use_ddt, bd);
 }
+#endif  // !CONFIG_CORE_TX
 
 #if CONFIG_LOSSLESS_DPCM
 // inverse transform for 4x4 dpcm lossless vertical mode
@@ -1095,11 +1097,16 @@ void av1_highbd_inv_txfm_add_4x4_vert_c(const tran_low_t *input, uint16_t *dest,
   int eob = txfm_param->eob;
   int bd = txfm_param->bd;
   int lossless = txfm_param->lossless;
+#if !CONFIG_CORE_TX
   const int32_t *src = cast_to_int32(input);
+#endif  // !CONFIG_CORE_TX
   const TX_TYPE tx_type = txfm_param->tx_type;
   if (lossless) {
 #if CONFIG_IMPROVE_LOSSLESS_TXM
     assert(tx_type == DCT_DCT);
+#if CONFIG_CORE_TX
+    (void)tx_type;
+#endif  // CONFIG_CORE_TX
     av1_highbd_iwht4x4_vert_add(input, dest, stride, eob, bd);
 #else
     assert(tx_type == DCT_DCT || tx_type == IDTX);
@@ -1111,8 +1118,9 @@ void av1_highbd_inv_txfm_add_4x4_vert_c(const tran_low_t *input, uint16_t *dest,
 #endif  // CONFIG_IMPROVE_LOSSLESS_TXM
     return;
   }
-
+#if !CONFIG_CORE_TX
   av1_inv_txfm2d_add_4x4_c(src, dest, stride, tx_type, txfm_param->use_ddt, bd);
+#endif  // !CONFIG_CORE_TX
 }
 
 // inverse transform for 4x4 dpcm lossless horizontal mode
@@ -1123,11 +1131,16 @@ void av1_highbd_inv_txfm_add_4x4_horz_c(const tran_low_t *input, uint16_t *dest,
   int eob = txfm_param->eob;
   int bd = txfm_param->bd;
   int lossless = txfm_param->lossless;
+#if !CONFIG_CORE_TX
   const int32_t *src = cast_to_int32(input);
+#endif  // !CONFIG_CORE_TX
   const TX_TYPE tx_type = txfm_param->tx_type;
   if (lossless) {
 #if CONFIG_IMPROVE_LOSSLESS_TXM
     assert(tx_type == DCT_DCT);
+#if CONFIG_CORE_TX
+    (void)tx_type;
+#endif  // CONFIG_CORE_TX
     av1_highbd_iwht4x4_horz_add(input, dest, stride, eob, bd);
 #else
     assert(tx_type == DCT_DCT || tx_type == IDTX);
@@ -1140,10 +1153,13 @@ void av1_highbd_inv_txfm_add_4x4_horz_c(const tran_low_t *input, uint16_t *dest,
     return;
   }
 
+#if !CONFIG_CORE_TX
   av1_inv_txfm2d_add_4x4_c(src, dest, stride, tx_type, txfm_param->use_ddt, bd);
+#endif  // !CONFIG_CORE_TX
 }
 #endif  // CONFIG_LOSSLESS_DPCM
 
+#if !CONFIG_CORE_TX
 void av1_highbd_inv_txfm_add_4x8_c(const tran_low_t *input, uint16_t *dest,
                                    int stride, const TxfmParam *txfm_param) {
   assert(av1_ext_tx_used[txfm_param->tx_set_type][txfm_param->tx_type]);
@@ -1324,6 +1340,7 @@ void av1_highbd_inv_txfm_add_64x4_c(const tran_low_t *input, uint16_t *dest,
   av1_inv_txfm2d_add_64x4_c(src, dest, stride, txfm_param->tx_type,
                             txfm_param->use_ddt, txfm_param->bd);
 }
+#endif  // !CONFIG_CORE_TX
 
 static void init_txfm_param(const MACROBLOCKD *xd, int plane, TX_SIZE tx_size,
                             TX_TYPE tx_type, int eob, int reduced_tx_set,

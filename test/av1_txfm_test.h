@@ -30,6 +30,7 @@
 #include "av1/common/enums.h"
 
 namespace libaom_test {
+#if !CONFIG_CORE_TX
 enum {
   TYPE_DCT = 0,
   TYPE_ADST,
@@ -85,6 +86,7 @@ typedef void (*LbdInvTxfm2dFunc)(const int32_t *, uint8_t *, int, TX_TYPE,
 
 static const int bd = 10;
 static const int input_base = (1 << bd);
+#endif  // !CONFIG_CORE_TX
 
 static INLINE bool IsTxSizeTypeValid(TX_SIZE tx_size, TX_TYPE tx_type) {
   const TX_SIZE tx_size_sqr_up = txsize_sqr_up_map[tx_size];
@@ -113,6 +115,7 @@ static INLINE bool IsTxSizeTypeValid(TX_SIZE tx_size, TX_TYPE tx_type) {
   return av1_ext_tx_used[tx_set_type][tx_type] != 0;
 }
 
+#if !CONFIG_CORE_TX
 #if CONFIG_AV1_ENCODER
 
 static const FwdTxfm2dFunc fwd_txfm_func_ls[TX_SIZES_ALL] = {
@@ -153,5 +156,6 @@ extern int8_t high_range_arr[];
 void txfm_stage_range_check(const int8_t *stage_range, int stage_num,
                             const int8_t cos_bit, int low_range,
                             int high_range);
+#endif  // !CONFIG_CORE_TX
 }  // namespace libaom_test
 #endif  // AOM_TEST_AV1_TXFM_TEST_H_

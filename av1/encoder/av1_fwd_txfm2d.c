@@ -21,6 +21,7 @@
 #include "av1/encoder/av1_fwd_txfm1d.h"
 #include "av1/encoder/av1_fwd_txfm1d_cfg.h"
 
+#if !CONFIG_CORE_TX
 static INLINE TxfmFunc fwd_txfm_type_to_func(TXFM_TYPE txfm_type, int use_ddt) {
   switch (txfm_type) {
     case TXFM_TYPE_DCT4: return av1_fdct4;
@@ -511,6 +512,7 @@ void av1_get_fwd_txfm_cfg(TX_TYPE tx_type, TX_SIZE tx_size,
   cfg->stage_num_row = av1_txfm_stage_num_list[cfg->txfm_type_row];
   set_fwd_txfm_non_scale_range(cfg);
 }
+#endif  // !CONFIG_CORE_TX
 
 void fwd_stxfm_c(tran_low_t *src, tran_low_t *dst, const PREDICTION_MODE mode,
                  const uint8_t stx_idx, const int size, const int bd) {

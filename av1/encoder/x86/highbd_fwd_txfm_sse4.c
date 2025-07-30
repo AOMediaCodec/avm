@@ -24,6 +24,7 @@
 #include "aom_dsp/x86/txfm_common_sse2.h"
 #include "aom_ports/mem.h"
 
+#if !CONFIG_CORE_TX
 static INLINE void load_buffer_4x4(const int16_t *input, __m128i *in,
                                    int stride, int flipud, int fliplr,
                                    int shift) {
@@ -3517,6 +3518,7 @@ void av1_fwd_txfm2d_32x4_sse4_1(const int16_t *input, int32_t *coeff,
 
   (void)bd;
 }
+#endif  // !CONFIG_CORE_TX
 
 // Forward secondary transform
 void fwd_stxfm_sse4_1(tran_low_t *src, tran_low_t *dst,

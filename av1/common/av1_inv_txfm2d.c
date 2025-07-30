@@ -359,6 +359,7 @@ void av1_highbd_iwht4x4_1_horz_add_c(const tran_low_t *in, uint16_t *dest,
 }
 #endif  // CONFIG_LOSSLESS_DPCM
 
+#if !CONFIG_CORE_TX
 static INLINE TxfmFunc inv_txfm_type_to_func(TXFM_TYPE txfm_type, int use_ddt) {
   switch (txfm_type) {
     case TXFM_TYPE_DCT4: return av1_idct4;
@@ -1070,3 +1071,4 @@ void av1_inv_txfm2d_add_64x4_c(const int32_t *input, uint16_t *output,
   inv_txfm2d_add_facade(mod_input, output, stride, txfm_buf, tx_type, TX_64X4,
                         use_ddt, bd);
 }
+#endif  // !CONFIG_CORE_TX

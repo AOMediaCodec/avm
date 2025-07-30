@@ -184,13 +184,7 @@ if(NOT BUILD_SHARED_LIBS)
     AOM_UNIT_TEST_ENCODER_SOURCES
     "${AOM_ROOT}/test/arf_freq_test.cc"
     "${AOM_ROOT}/test/av1_convolve_test.cc"
-    "${AOM_ROOT}/test/av1_fwd_txfm1d_test.cc"
-    "${AOM_ROOT}/test/av1_fwd_txfm2d_test.cc"
-    "${AOM_ROOT}/test/av1_inv_txfm1d_test.cc"
     "${AOM_ROOT}/test/av1_nn_predict_test.cc"
-    "${AOM_ROOT}/test/av1_round_shift_array_test.cc"
-    "${AOM_ROOT}/test/av1_txfm_test.cc"
-    "${AOM_ROOT}/test/av1_txfm_test.h"
     "${AOM_ROOT}/test/av1_wedge_utils_test.cc"
     "${AOM_ROOT}/test/av1_ccso_simd_cmp.cc"
     "${AOM_ROOT}/test/blend_a64_mask_1d_test.cc"
@@ -203,7 +197,6 @@ if(NOT BUILD_SHARED_LIBS)
     "${AOM_ROOT}/test/error_block_test.cc"
     "${AOM_ROOT}/test/fft_test.cc"
     "${AOM_ROOT}/test/fwht4x4_test.cc"
-    "${AOM_ROOT}/test/fdct4x4_test.cc"
     "${AOM_ROOT}/test/horver_correlation_test.cc"
     "${AOM_ROOT}/test/masked_sad_test.cc"
     "${AOM_ROOT}/test/masked_variance_test.cc"
@@ -224,12 +217,25 @@ if(NOT BUILD_SHARED_LIBS)
     "${AOM_ROOT}/test/webmenc_test.cc"
     "${AOM_ROOT}/test/palette_test.cc")
 
+  if(NOT CONFIG_CORE_TX)
+    list(
+      APPEND
+      AOM_UNIT_TEST_ENCODER_SOURCES
+      "${AOM_ROOT}/test/av1_round_shift_array_test.cc"
+      "${AOM_ROOT}/test/av1_fwd_txfm1d_test.cc"
+      "${AOM_ROOT}/test/av1_fwd_txfm2d_test.cc"
+      "${AOM_ROOT}/test/av1_inv_txfm1d_test.cc"
+      "${AOM_ROOT}/test/av1_txfm_test.cc"
+      "${AOM_ROOT}/test/av1_txfm_test.h"
+      "${AOM_ROOT}/test/fdct4x4_test.cc")
+  endif()
+
   if(CONFIG_IMPROVE_LOSSLESS_TXM)
     list(APPEND AOM_UNIT_TEST_ENCODER_SOURCES
          "${AOM_ROOT}/test/lossless_idtx_test.cc")
   endif()
 
-  if((HAVE_SSE4_1 OR HAVE_NEON))
+  if((HAVE_SSE4_1 OR HAVE_NEON) AND (NOT CONFIG_CORE_TX))
     list(APPEND AOM_UNIT_TEST_ENCODER_SOURCES
          "${AOM_ROOT}/test/av1_highbd_iht_test.cc")
   endif()

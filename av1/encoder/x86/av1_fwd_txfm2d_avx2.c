@@ -16,12 +16,15 @@
 #include "av1/common/av1_txfm.h"
 #include "av1/common/idct.h"
 #include "av1/encoder/x86/av1_fwd_txfm_avx2.h"
+#if !CONFIG_CORE_TX
 #include "av1/common/x86/av1_txfm_sse2.h"
 #include "av1/encoder/av1_fwd_txfm1d_cfg.h"
 #include "av1/encoder/x86/av1_txfm1d_sse4.h"
 #include "av1/encoder/x86/av1_fwd_txfm_sse2.h"
 #include "aom_dsp/x86/txfm_common_avx2.h"
+#endif  // !CONFIG_CORE_TX
 
+#if !CONFIG_CORE_TX
 static INLINE void fdct16x16_new_avx2(const __m256i *input, __m256i *output,
                                       int8_t cos_bit) {
   const int32_t *cospi = cospi_arr(cos_bit);
@@ -3201,6 +3204,7 @@ void av1_lowbd_fwd_txfm_avx2(const int16_t *src_diff, tran_low_t *coeff,
                     txfm_param->use_ddt, txfm_param->bd);
   }
 }
+#endif  // !CONFIG_CORE_TX
 
 #if CONFIG_IMPROVE_LOSSLESS_TXM
 static INLINE __m256i load_4x4_s16_avx2(const int16_t *src, int stride) {

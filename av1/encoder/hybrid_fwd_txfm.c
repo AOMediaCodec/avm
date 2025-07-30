@@ -857,6 +857,7 @@ void av1_highbd_fwht4x4_c(const int16_t *input, tran_low_t *output,
   av1_fwht4x4_c(input, output, stride);
 }
 
+#if !CONFIG_CORE_TX
 static void highbd_fwd_txfm_4x4(const int16_t *src_diff, tran_low_t *coeff,
                                 int diff_stride, TxfmParam *txfm_param) {
   int32_t *dst_coeff = (int32_t *)coeff;
@@ -1072,6 +1073,7 @@ static void highbd_fwd_txfm_64x4(const int16_t *src_diff, tran_low_t *coeff,
   av1_fwd_txfm2d_64x4(src_diff, dst_coeff, diff_stride, txfm_param->tx_type,
                       txfm_param->use_ddt, bd);
 }
+#endif  // !CONFIG_CORE_TX
 
 #if CONFIG_CORE_TX
 void fwd_transform_1d_c(const int *src, int *dst, int shift, int line,
@@ -1275,6 +1277,7 @@ void av1_fwd_txfm(const int16_t *src_diff, tran_low_t *coeff, int diff_stride,
 #endif  // CONFIG_CORE_TX
 }
 
+#if !CONFIG_CORE_TX
 void av1_lowbd_fwd_txfm_c(const int16_t *src_diff, tran_low_t *coeff,
                           int diff_stride, TxfmParam *txfm_param) {
   av1_highbd_fwd_txfm(src_diff, coeff, diff_stride, txfm_param);
@@ -1363,6 +1366,7 @@ void av1_highbd_fwd_txfm(const int16_t *src_diff, tran_low_t *coeff,
     default: assert(0); break;
   }
 }
+#endif  // !CONFIG_CORE_TX
 
 // Apply forward cross chroma component transform
 void av1_fwd_cross_chroma_tx_block_c(tran_low_t *coeff_c1, tran_low_t *coeff_c2,

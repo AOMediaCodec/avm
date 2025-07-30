@@ -34,6 +34,7 @@ using libaom_test::TYPE_TXFM;
 using std::vector;
 
 namespace {
+#if !CONFIG_CORE_TX
 // tx_type_, tx_size_, max_error_, max_avg_error_
 typedef std::tuple<TX_TYPE, TX_SIZE, double, double> AV1FwdTxfm2dParam;
 
@@ -755,6 +756,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(TestFuncs(&av1_fwd_cross_chroma_tx_block_c,
                                 &av1_fwd_cross_chroma_tx_block_avx2)));
 #endif  // HAVE_AVX2
+#endif  // !CONFIG_CORE_TX
 
 ///////////////////////////////////////////////////////////////
 //       unit-test for 'fwd_stxfm'                           //
