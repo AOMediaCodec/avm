@@ -4581,10 +4581,8 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
         }
         if (eob == 1 && allow_update_cdf) return;
         PREDICTION_MODE intra_dir;
-#if CONFIG_WAIP
         if (mbmi->is_wide_angle[0][mbmi->txb_idx])
           intra_dir = mbmi->mapped_intra_mode[0][mbmi->txb_idx];
-#endif  // CONFIG_WAIP
         else
           intra_dir = mbmi->mode;
         if (tx_set_type != EXT_TX_SET_LONG_SIDE_64 &&

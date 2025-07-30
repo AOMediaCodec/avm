@@ -548,7 +548,6 @@ uint8_t av1_read_sig_txtype(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
   }
 #endif  // CONFIG_CONTEXT_DERIVATION
 
-#if CONFIG_WAIP
 #if !CONFIG_INSPECTION
   MB_MODE_INFO *mbmi = xd->mi[0];
 #endif  // !CONFIG_INSPECTION
@@ -563,7 +562,6 @@ uint8_t av1_read_sig_txtype(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
         mbmi->angle_delta[plane != AOM_PLANE_Y] * ANGLE_STEP;
     wide_angle_mapping(mbmi, angle_delta, tx_size, mode, plane);
   }
-#endif  // CONFIG_WAIP
 
   if (all_zero) {
     *max_scan_line = 0;

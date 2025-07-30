@@ -81,9 +81,7 @@ extern "C" {
 #define FSC_MODE_CONTEXTS 4
 #define FSC_BSIZE_CONTEXTS 6
 
-#if CONFIG_IMPROVED_INTRA_DIR_PRED
 #define MRL_INDEX_CONTEXTS 3
-#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
 
 #define COMPREF_BIT_TYPES 2
 #define RANKED_REF0_TO_PRUNE 3
@@ -465,11 +463,7 @@ typedef struct frame_contexts {
   aom_cdf_prob wienerns_4part_cdf[WIENERNS_4PART_CTX_MAX][CDF_SIZE(4)];
   aom_cdf_prob pc_wiener_restore_cdf[CDF_SIZE(2)];
   aom_cdf_prob merged_param_cdf[CDF_SIZE(2)];
-#if CONFIG_IMPROVED_INTRA_DIR_PRED
   aom_cdf_prob mrl_index_cdf[MRL_INDEX_CONTEXTS][CDF_SIZE(MRL_LINE_NUMBER)];
-#else
-  aom_cdf_prob mrl_index_cdf[CDF_SIZE(MRL_LINE_NUMBER)];
-#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
   aom_cdf_prob multi_line_mrl_cdf[MRL_INDEX_CONTEXTS][CDF_SIZE(2)];
 #if CONFIG_LOSSLESS_DPCM
   aom_cdf_prob dpcm_cdf[CDF_SIZE(2)];

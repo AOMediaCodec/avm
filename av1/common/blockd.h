@@ -422,12 +422,10 @@ typedef struct TXB_POS_INFO {
 #define TXK_TYPE_BUF_LEN 64
 /*!\endcond */
 
-#if CONFIG_WAIP
 #define WAIP_WH_RATIO_2_THRES 61
 #define WAIP_WH_RATIO_4_THRES 73
 #define WAIP_WH_RATIO_8_THRES 82
 #define WAIP_WH_RATIO_16_THRES 86
-#endif  // CONFIG_WAIP
 
 /*! \brief Stores the prediction/txfm mode of the current coding block
  */
@@ -557,12 +555,10 @@ typedef struct MB_MODE_INFO {
   /*! \brief Enable or disable using more than one reference line for multiple
    * reference line selection. */
   bool multi_line_mrl;
-#if CONFIG_WAIP
   /*! \brief Whether this luma/chroma mode is wide angle mode. */
   uint8_t is_wide_angle[2][MAX_TX_PARTITIONS];
   /*! \brief The mapped luma/chroma prediction mode */
   PREDICTION_MODE mapped_intra_mode[2][MAX_TX_PARTITIONS];
-#endif  // CONFIG_WAIP
 
 #if CONFIG_LOSSLESS_DPCM
   /*! \brief Whether dpcm mode is selected for luma blk*/
@@ -848,21 +844,13 @@ static INLINE int is_inter_block(const MB_MODE_INFO *mbmi, int tree_type) {
 // be mapped.
 static INLINE int get_intra_mode(const MB_MODE_INFO *mbmi, int plane) {
   if (plane == AOM_PLANE_Y)
-#if CONFIG_WAIP
     return mbmi->is_wide_angle[0][mbmi->txb_idx]
                ? mbmi->mapped_intra_mode[0][mbmi->txb_idx]
                : mbmi->mode;
-#else
-    return mbmi->mode;
-#endif  // CONFIG_WAIP
   else
-#if CONFIG_WAIP
     return mbmi->is_wide_angle[1][0]
                ? get_uv_mode(mbmi->mapped_intra_mode[1][0])
                : get_uv_mode(mbmi->uv_mode);
-#else
-    return get_uv_mode(mbmi->uv_mode);
-#endif  // CONFIG_WAIP
 }
 
 #if CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING

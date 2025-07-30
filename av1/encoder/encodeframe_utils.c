@@ -650,7 +650,6 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
 #if CONFIG_LOSSLESS_DPCM
       if (xd->lossless[mbmi->segment_id]) {
         if (mbmi->use_dpcm_y == 0) {
-#if CONFIG_IMPROVED_INTRA_DIR_PRED
           int mrl_ctx = get_mrl_index_ctx(xd->neighbors[0], xd->neighbors[1]);
           update_cdf(fc->mrl_index_cdf[mrl_ctx], mbmi->mrl_index,
                      MRL_LINE_NUMBER);
@@ -668,15 +667,8 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
             ++counts->multi_line_mrl[multi_line_mrl_ctx][mbmi->multi_line_mrl];
           }
 #endif  // CONFIG_ENTROPY_STATS
-#else
-          update_cdf(fc->mrl_index_cdf, mbmi->mrl_index, MRL_LINE_NUMBER);
-#if CONFIG_ENTROPY_STATS
-          ++counts->mrl_index[mbmi->mrl_index];
-#endif  // CONFIG_ENTROPY_STATS
-#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
         }
       } else {
-#if CONFIG_IMPROVED_INTRA_DIR_PRED
         int mrl_ctx = get_mrl_index_ctx(xd->neighbors[0], xd->neighbors[1]);
         update_cdf(fc->mrl_index_cdf[mrl_ctx], mbmi->mrl_index,
                    MRL_LINE_NUMBER);
@@ -694,26 +686,13 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
           ++counts->multi_line_mrl[multi_line_mrl_ctx][mbmi->multi_line_mrl];
         }
 #endif  // CONFIG_ENTROPY_STATS
-#else
-        update_cdf(fc->mrl_index_cdf, mbmi->mrl_index, MRL_LINE_NUMBER);
-#if CONFIG_ENTROPY_STATS
-        ++counts->mrl_index[mbmi->mrl_index];
-#endif  // CONFIG_ENTROPY_STATS
-#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
       }
 #else  // CONFIG_LOSSLESS_DPCM
-#if CONFIG_IMPROVED_INTRA_DIR_PRED
       int mrl_ctx = get_mrl_index_ctx(xd->neighbors[0], xd->neighbors[1]);
       update_cdf(fc->mrl_index_cdf[mrl_ctx], mbmi->mrl_index, MRL_LINE_NUMBER);
 #if CONFIG_ENTROPY_STATS
       ++counts->mrl_index[mrl_ctx][mbmi->mrl_index];
 #endif  // CONFIG_ENTROPY_STATS
-#else
-      update_cdf(fc->mrl_index_cdf, mbmi->mrl_index, MRL_LINE_NUMBER);
-#if CONFIG_ENTROPY_STATS
-      ++counts->mrl_index[mbmi->mrl_index];
-#endif  // CONFIG_ENTROPY_STATS
-#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
 #endif  // CONFIG_LOSSLESS_DPCM
     }
     if (av1_intra_dip_allowed(cm, mbmi)) {

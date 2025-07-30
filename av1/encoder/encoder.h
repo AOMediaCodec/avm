@@ -1306,11 +1306,7 @@ typedef struct FRAME_COUNTS {
   unsigned int uv_mode[UV_MODE_CONTEXTS][UV_INTRA_MODES - 1];
   unsigned int cfl_mode[CFL_CONTEXTS][2];
   unsigned int fsc_mode[FSC_MODE_CONTEXTS][FSC_BSIZE_CONTEXTS][FSC_MODES];
-#if CONFIG_IMPROVED_INTRA_DIR_PRED
   unsigned int mrl_index[MRL_INDEX_CONTEXTS][MRL_LINE_NUMBER];
-#else
-  unsigned int mrl_index[MRL_LINE_NUMBER];
-#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
   unsigned int multi_line_mrl[MRL_INDEX_CONTEXTS][2];
   unsigned int cfl_index[CFL_TYPE_COUNT];
 #if CONFIG_REFINEMV

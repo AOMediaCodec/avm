@@ -427,12 +427,10 @@ void av1_rd_pick_palette_intra_sby(
 
   mbmi->mrl_index = 0;
   mbmi->multi_line_mrl = 0;
-#if CONFIG_WAIP
   for (int i = 0; i < MAX_TX_PARTITIONS; ++i) {
     mbmi->is_wide_angle[0][i] = 0;
     mbmi->mapped_intra_mode[0][i] = DC_PRED;
   }
-#endif  // CONFIG_WAIP
 
   mbmi->fsc_mode[xd->tree_type == CHROMA_PART] = 0;
   assert(!is_inter_block(mbmi, xd->tree_type));
@@ -658,10 +656,8 @@ void av1_rd_pick_palette_intra_sbuv(const AV1_COMP *cpi, MACROBLOCK *x,
   PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
   const BLOCK_SIZE bsize = mbmi->sb_type[PLANE_TYPE_UV];
   mbmi->fsc_mode[PLANE_TYPE_UV] = 0;
-#if CONFIG_WAIP
   mbmi->is_wide_angle[1][0] = 0;
   mbmi->mapped_intra_mode[1][0] = DC_PRED;
-#endif  // CONFIG_WAIP
 
   const SequenceHeader *const seq_params = &cpi->common.seq_params;
   int this_rate;

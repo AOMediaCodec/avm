@@ -862,20 +862,12 @@ static void highbd_second_dr_predictor(uint16_t *dst, ptrdiff_t stride,
   const int bh = tx_size_high[tx_size];
 
   if (angle > 0 && angle < 90) {
-#if CONFIG_IMPROVED_INTRA_DIR_PRED
     int dy = dr_intra_derivative[90 - angle];
-#else
-    int dy = second_dr_intra_derivative[angle];
-#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
     int dx = 1;
     av1_highbd_dr_prediction_z3(dst, stride, bw, bh, above, left, upsample_left,
                                 dx, dy, bd, 0);
   } else if (angle > 180 && angle < 270) {
-#if CONFIG_IMPROVED_INTRA_DIR_PRED
     int dx = dr_intra_derivative[angle - 180];
-#else
-    int dx = second_dr_intra_derivative[270 - angle];
-#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
     int dy = 1;
     av1_highbd_dr_prediction_z1(dst, stride, bw, bh, above, left,
                                 upsample_above, dx, dy, bd, 0);
@@ -892,22 +884,14 @@ static void highbd_second_dr_predictor_idif(uint16_t *dst, ptrdiff_t stride,
   const int max_base = ((bw + bh) - 1);
 
   if (angle > 0 && angle < 90) {
-#if CONFIG_IMPROVED_INTRA_DIR_PRED
     int dy = dr_intra_derivative[90 - angle];
-#else
-    int dy = second_dr_intra_derivative[angle];
-#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
     int dx = 1;
     left[max_base + 1] = left[max_base];
     left[max_base + 2] = left[max_base];
     av1_highbd_dr_prediction_z3_idif(dst, stride, bw, bh, above, left, dx, dy,
                                      bd, 0);
   } else if (angle > 180 && angle < 270) {
-#if CONFIG_IMPROVED_INTRA_DIR_PRED
     int dx = dr_intra_derivative[angle - 180];
-#else
-    int dx = second_dr_intra_derivative[270 - angle];
-#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
     int dy = 1;
     above[max_base + 1] = above[max_base];
     above[max_base + 2] = above[max_base];
@@ -1155,19 +1139,14 @@ static void build_intra_predictors_high(
   const bool is_ibp_orip_allowed_blk_sz = tx_size != TX_4X4;
   apply_sub_block_based_refinement_filter &= is_ibp_orip_allowed_blk_sz;
   const int apply_ibp = seq_ibp_flag && is_ibp_orip_allowed_blk_sz;
-#if CONFIG_WAIP
   const int txb_idx = get_tx_partition_idx(xd->mi[0], plane);
   xd->mi[0]->is_wide_angle[plane > 0][txb_idx] = 0;
   xd->mi[0]->mapped_intra_mode[plane > 0][txb_idx] = DC_PRED;
-#endif  // CONFIG_WAIP
   if (is_dr_mode) {
     p_angle = mode_to_angle_map[mode] + angle_delta;
-#if CONFIG_IMPROVED_INTRA_DIR_PRED
     const int mrl_index_to_delta[4] = { 0, 1, -1, 0 };
     p_angle += mrl_index_to_delta[mrl_index];
     assert(p_angle > 0 && p_angle < 270);
-#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
-#if CONFIG_WAIP
     if (!is_inter_block(xd->mi[0], xd->tree_type)) {
       p_angle =
           wide_angle_mapping(xd->mi[0], angle_delta, tx_size, mode, plane);
@@ -1175,7 +1154,6 @@ static void build_intra_predictors_high(
       mbmi->is_wide_angle[plane > 0][txb_idx] = 0;
       mbmi->mapped_intra_mode[plane > 0][txb_idx] = DC_PRED;
     }
-#endif  // CONFIG_WAIP
     if (p_angle <= 90)
       need_above = 1, need_left = 0, need_above_left = 1;
     else if (p_angle < 180)
@@ -1406,11 +1384,7 @@ static void build_intra_predictors_high(
       }
     }
     if (apply_ibp) {
-      if (mrl_index == 0
-#if CONFIG_IMPROVED_INTRA_DIR_PRED
-          && (angle_delta % 2 == 0) && plane == PLANE_TYPE_Y
-#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
-      ) {
+      if (mrl_index == 0 && (angle_delta % 2 == 0) && plane == PLANE_TYPE_Y) {
         if (p_angle > 0 && p_angle < 90) {
           int mode_index = angle_to_mode_index[p_angle];
           if (is_ibp_enabled[mode_index]) {

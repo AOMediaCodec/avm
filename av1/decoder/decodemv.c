@@ -356,32 +356,19 @@ static int read_delta_lflevel(const AV1_COMMON *const cm, aom_reader *r,
   return reduced_delta_lflevel;
 }
 
-static uint8_t read_mrl_index(FRAME_CONTEXT *ec_ctx, aom_reader *r
-#if CONFIG_IMPROVED_INTRA_DIR_PRED
-                              ,
+static uint8_t read_mrl_index(FRAME_CONTEXT *ec_ctx, aom_reader *r,
                               const MB_MODE_INFO *neighbor0,
-                              const MB_MODE_INFO *neighbor1
-#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
-) {
-#if CONFIG_IMPROVED_INTRA_DIR_PRED
+                              const MB_MODE_INFO *neighbor1) {
   int ctx = get_mrl_index_ctx(neighbor0, neighbor1);
   aom_cdf_prob *mrl_cdf = ec_ctx->mrl_index_cdf[ctx];
   const uint8_t mrl_index =
       aom_read_symbol(r, mrl_cdf, MRL_LINE_NUMBER, ACCT_INFO());
-#else
-  const uint8_t mrl_index =
-      aom_read_symbol(r, ec_ctx->mrl_index_cdf, MRL_LINE_NUMBER, ACCT_INFO());
-#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
   return mrl_index;
 }
 
-static bool read_multi_line_mrl(FRAME_CONTEXT *ec_ctx, aom_reader *r
-#if CONFIG_IMPROVED_INTRA_DIR_PRED
-                                ,
+static bool read_multi_line_mrl(FRAME_CONTEXT *ec_ctx, aom_reader *r,
                                 const MB_MODE_INFO *neighbor0,
-                                const MB_MODE_INFO *neighbor1
-#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
-) {
+                                const MB_MODE_INFO *neighbor1) {
   int multi_line_mrl_ctx = get_multi_line_mrl_index_ctx(neighbor0, neighbor1);
   aom_cdf_prob *multi_line_mrl_cdf =
       ec_ctx->multi_line_mrl_cdf[multi_line_mrl_ctx];
@@ -2194,11 +2181,7 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
       if (mbmi->use_dpcm_y == 0) {
         mbmi->mrl_index =
             (cm->seq_params.enable_mrls && av1_is_directional_mode(mbmi->mode))
-#if CONFIG_IMPROVED_INTRA_DIR_PRED
                 ? read_mrl_index(ec_ctx, r, xd->neighbors[0], xd->neighbors[1])
-#else
-                ? read_mrl_index(ec_ctx, r)
-#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
                 : 0;
         if (mbmi->mrl_index) {
           mbmi->multi_line_mrl = read_multi_line_mrl(
@@ -2213,11 +2196,7 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
     } else {
       mbmi->mrl_index =
           (cm->seq_params.enable_mrls && av1_is_directional_mode(mbmi->mode))
-#if CONFIG_IMPROVED_INTRA_DIR_PRED
               ? read_mrl_index(ec_ctx, r, xd->neighbors[0], xd->neighbors[1])
-#else
-              ? read_mrl_index(ec_ctx, r)
-#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
               : 0;
       if (mbmi->mrl_index) {
         mbmi->multi_line_mrl =
@@ -2226,14 +2205,10 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
         mbmi->multi_line_mrl = 0;
       }
     }
-#else  // CONFIG_LOSSLESS_DPCM
+#else   // CONFIG_LOSSLESS_DPCM
     mbmi->mrl_index =
         (cm->seq_params.enable_mrls && av1_is_directional_mode(mbmi->mode))
-#if CONFIG_IMPROVED_INTRA_DIR_PRED
             ? read_mrl_index(ec_ctx, r, xd->neighbors[0], xd->neighbors[1])
-#else
-            ? read_mrl_index(ec_ctx, r)
-#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
             : 0;
 #endif  // CONFIG_LOSSLESS_DPCM
   }
@@ -3005,11 +2980,7 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
       if (mbmi->use_dpcm_y == 0) {
         mbmi->mrl_index =
             (cm->seq_params.enable_mrls && av1_is_directional_mode(mbmi->mode))
-#if CONFIG_IMPROVED_INTRA_DIR_PRED
                 ? read_mrl_index(ec_ctx, r, xd->neighbors[0], xd->neighbors[1])
-#else
-                ? read_mrl_index(ec_ctx, r)
-#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
                 : 0;
         if (mbmi->mrl_index) {
           mbmi->multi_line_mrl = read_multi_line_mrl(
@@ -3024,11 +2995,7 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
     } else {
       mbmi->mrl_index =
           (cm->seq_params.enable_mrls && av1_is_directional_mode(mbmi->mode))
-#if CONFIG_IMPROVED_INTRA_DIR_PRED
               ? read_mrl_index(ec_ctx, r, xd->neighbors[0], xd->neighbors[1])
-#else
-              ? read_mrl_index(ec_ctx, r)
-#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
               : 0;
       if (mbmi->mrl_index) {
         mbmi->multi_line_mrl =
@@ -3038,16 +3005,12 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
       }
     }
   }
-#else  // CONFIG_LOSSLESS_DPCM
+#else   // CONFIG_LOSSLESS_DPCM
   // Parsing reference line index
   if (xd->tree_type != CHROMA_PART) {
     mbmi->mrl_index =
         (cm->seq_params.enable_mrls && av1_is_directional_mode(mbmi->mode))
-#if CONFIG_IMPROVED_INTRA_DIR_PRED
             ? read_mrl_index(ec_ctx, r, xd->neighbors[0], xd->neighbors[1])
-#else
-            ? read_mrl_index(ec_ctx, r)
-#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
             : 0;
   }
 #endif  // CONFIG_LOSSLESS_DPCM

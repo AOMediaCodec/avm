@@ -160,16 +160,12 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
                              fc->skip_txfm_cdfs[i], NULL);
   }
 
-#if CONFIG_IMPROVED_INTRA_DIR_PRED
   for (i = 0; i < MRL_INDEX_CONTEXTS; ++i) {
     av1_cost_tokens_from_cdf(mode_costs->mrl_index_cost[i],
                              fc->mrl_index_cdf[i], NULL);
     av1_cost_tokens_from_cdf(mode_costs->multi_line_mrl_cost[i],
                              fc->multi_line_mrl_cdf[i], NULL);
   }
-#else
-  av1_cost_tokens_from_cdf(mode_costs->mrl_index_cost, fc->mrl_index_cdf, NULL);
-#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
 #if CONFIG_LOSSLESS_DPCM
   av1_cost_tokens_from_cdf(mode_costs->dpcm_cost, fc->dpcm_cdf, NULL);
 

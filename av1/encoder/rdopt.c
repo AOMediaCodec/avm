@@ -8279,14 +8279,12 @@ static INLINE void init_mbmi(MB_MODE_INFO *mbmi, PREDICTION_MODE curr_mode,
 #if CONFIG_REFINEMV
   mbmi->refinemv_flag = 0;
 #endif  // CONFIG_REFINEMV
-#if CONFIG_WAIP
   for (int i = 0; i < MAX_TX_PARTITIONS; ++i) {
     mbmi->is_wide_angle[0][i] = 0;
     mbmi->is_wide_angle[1][i] = 0;
     mbmi->mapped_intra_mode[0][i] = DC_PRED;
     mbmi->mapped_intra_mode[1][i] = DC_PRED;
   }
-#endif  // CONFIG_WAIP
   set_default_interp_filters(mbmi, cm,
 #if CONFIG_COMPOUND_4XN
                              xd,

@@ -2769,7 +2769,6 @@ static INLINE aom_cdf_prob *get_fsc_mode_cdf(const MACROBLOCKD *xd,
   return tile_ctx->fsc_mode_cdf[ctx][fsc_size_group];
 }
 
-#if CONFIG_IMPROVED_INTRA_DIR_PRED
 static INLINE int get_mrl_index_ctx(const MB_MODE_INFO *neighbor0,
                                     const MB_MODE_INFO *neighbor1) {
   int ctx0 = neighbor0 && !is_inter_block(neighbor0, SHARED_PART) &&
@@ -2780,7 +2779,6 @@ static INLINE int get_mrl_index_ctx(const MB_MODE_INFO *neighbor0,
              neighbor1->mrl_index != 0;
   return ctx0 + ctx1;
 }
-#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
 
 static INLINE int get_multi_line_mrl_index_ctx(const MB_MODE_INFO *neighbor0,
                                                const MB_MODE_INFO *neighbor1) {
@@ -4485,7 +4483,6 @@ static INLINE int is_valid_seq_level_idx(AV1_LEVEL seq_level_idx) {
 
 // Intra derivative for directional predictions.
 // second_dr_intra_derivative[x] = 64*64/dr_intra_derivative[x]
-#if CONFIG_IMPROVED_INTRA_DIR_PRED
 static const int16_t dr_intra_derivative[90] = {
   // Angle in degrees.
   // Starred (*) values are unused.
@@ -4518,38 +4515,6 @@ static const int16_t dr_intra_derivative[90] = {
   6,    5,    4,               // 84.6, 85.5, 86.4,
   3,    2,    1,               // 87.3, 88.2, 89.1,
 };
-#else
-static const int16_t second_dr_intra_derivative[90] = {
-  0,    0, 0,        //
-  4,    0, 0,        // 3, ...
-  7,    0, 0,        // 6, ...
-  11,   0, 0, 0, 0,  // 9, ...
-  15,   0, 0,        // 14, ...
-  19,   0, 0,        // 17, ...
-  23,   0, 0,        // 20, ...
-  27,   0, 0,        // 23, ... (113 & 203 are base angles)
-  31,   0, 0,        // 26, ...
-  35,   0, 0,        // 29, ...
-  40,   0, 0, 0,     // 32, ...
-  46,   0, 0,        // 36, ...
-  51,   0, 0,        // 39, ...
-  58,   0, 0,        // 42, ...
-  64,   0, 0,        // 45, ... (45 & 135 are base angles)
-  72,   0, 0,        // 48, ...
-  80,   0, 0,        // 51, ...
-  91,   0, 0, 0,     // 54, ...
-  102,  0, 0,        // 58, ...
-  117,  0, 0,        // 61, ...
-  132,  0, 0,        // 64, ...
-  152,  0, 0,        // 67, ... (67 & 157 are base angles)
-  178,  0, 0,        // 70, ...
-  216,  0, 0,        // 73, ...
-  273,  0, 0, 0, 0,  // 76, ...
-  372,  0, 0,        // 81, ...
-  585,  0, 0,        // 84, ...
-  1365, 0, 0,        // 87, ...
-};
-#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
 
 // Generate the weights per pixel position for IBP
 static void av1_dr_prediction_z1_info(
@@ -4569,7 +4534,6 @@ static void av1_dr_prediction_z1_info(
   }
 }
 
-#if CONFIG_WAIP
 static const uint8_t angle_to_mode_index[90] = {
   15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15,
   15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15,
@@ -4577,14 +4541,6 @@ static const uint8_t angle_to_mode_index[90] = {
   10, 0,  0,  0,  9,  0,  0,  8,  0,  0,  7,  0,  0,  6,  0,  0,  5,  0,
   0,  4,  0,  0,  3,  0,  0,  0,  0,  2,  0,  0,  1,  0,  0,  0,  0,  0
 };
-#else
-static const uint8_t angle_to_mode_index[90] = {
-  0, 0, 0,  0, 0, 0,  0, 0, 0,  0, 0, 0, 0, 0,  0, 0, 0,  0, 0, 0,  0, 0, 0,
-  0, 0, 0,  0, 0, 0,  0, 0, 0,  0, 0, 0, 0, 16, 0, 0, 15, 0, 0, 14, 0, 0, 13,
-  0, 0, 12, 0, 0, 11, 0, 0, 10, 0, 0, 0, 9, 0,  0, 8, 0,  0, 7, 0,  0, 6, 0,
-  0, 5, 0,  0, 4, 0,  0, 3, 0,  0, 0, 0, 2, 0,  0, 1, 0,  0, 0, 0,  0
-};
-#endif  // CONFIG_WAIP
 
 static const int is_ibp_enabled[16] = { 0, 1, 0, 0, 1, 0, 1, 0,
                                         1, 0, 0, 1, 0, 1, 0, 1 };
@@ -4595,11 +4551,7 @@ static INLINE void init_ibp_info_per_mode(
     int delta) {
   const int angle = mode_to_angle_map[mode] + delta * 3;
   const int mode_idx = angle_to_mode_index[angle];
-#if CONFIG_IMPROVED_INTRA_DIR_PRED
   const int dy = dr_intra_derivative[90 - angle];
-#else
-  const int dy = second_dr_intra_derivative[angle];
-#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
   av1_dr_prediction_z1_info(weights, dy, mode_idx);
   return;
 }
@@ -4614,20 +4566,12 @@ static INLINE void init_ibp_info(
       }
     }
   }
-#if CONFIG_IMPROVED_INTRA_DIR_PRED
   for (int delta = -2; delta < 0; delta += 2) {
-#else
-  for (int delta = -3; delta < 0; delta++) {
-#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
     init_ibp_info_per_mode(weights, V_PRED, delta);
     init_ibp_info_per_mode(weights, D67_PRED, delta);
     init_ibp_info_per_mode(weights, D45_PRED, delta);
   }
-#if CONFIG_IMPROVED_INTRA_DIR_PRED
   for (int delta = 0; delta <= 2; delta += 2) {
-#else
-  for (int delta = 0; delta <= 3; delta++) {
-#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
     init_ibp_info_per_mode(weights, D67_PRED, delta);
     init_ibp_info_per_mode(weights, D45_PRED, delta);
   }

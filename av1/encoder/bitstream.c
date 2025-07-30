@@ -1578,25 +1578,17 @@ void av1_write_sec_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
 }
 
 static AOM_INLINE void write_mrl_index(FRAME_CONTEXT *ec_ctx,
-#if CONFIG_IMPROVED_INTRA_DIR_PRED
                                        const MB_MODE_INFO *neighbor0,
                                        const MB_MODE_INFO *neighbor1,
-#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
                                        uint8_t mrl_index, aom_writer *w) {
-#if CONFIG_IMPROVED_INTRA_DIR_PRED
   int ctx = get_mrl_index_ctx(neighbor0, neighbor1);
   aom_cdf_prob *mrl_cdf = ec_ctx->mrl_index_cdf[ctx];
   aom_write_symbol(w, mrl_index, mrl_cdf, MRL_LINE_NUMBER);
-#else
-  aom_write_symbol(w, mrl_index, ec_ctx->mrl_index_cdf, MRL_LINE_NUMBER);
-#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
 }
 
 static AOM_INLINE void write_multi_line_mrl(FRAME_CONTEXT *ec_ctx,
-#if CONFIG_IMPROVED_INTRA_DIR_PRED
                                             const MB_MODE_INFO *neighbor0,
                                             const MB_MODE_INFO *neighbor1,
-#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
                                             bool multi_line_mrl,
                                             aom_writer *w) {
   int multi_line_mrl_ctx = get_multi_line_mrl_index_ctx(neighbor0, neighbor1);
@@ -1965,40 +1957,25 @@ static AOM_INLINE void write_intra_prediction_modes(AV1_COMP *cpi,
     if (cm->seq_params.enable_mrls && av1_is_directional_mode(mode)) {
       if (xd->lossless[mbmi->segment_id]) {
         if (mbmi->use_dpcm_y == 0) {
-          write_mrl_index(ec_ctx,
-#if CONFIG_IMPROVED_INTRA_DIR_PRED
-                          xd->neighbors[0], xd->neighbors[1],
-#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
+          write_mrl_index(ec_ctx, xd->neighbors[0], xd->neighbors[1],
                           mbmi->mrl_index, w);
           if (mbmi->mrl_index) {
-            write_multi_line_mrl(ec_ctx,
-#if CONFIG_IMPROVED_INTRA_DIR_PRED
-                                 xd->neighbors[0], xd->neighbors[1],
-#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
+            write_multi_line_mrl(ec_ctx, xd->neighbors[0], xd->neighbors[1],
                                  mbmi->multi_line_mrl, w);
           }
         }
       } else {
-        write_mrl_index(ec_ctx,
-#if CONFIG_IMPROVED_INTRA_DIR_PRED
-                        xd->neighbors[0], xd->neighbors[1],
-#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
+        write_mrl_index(ec_ctx, xd->neighbors[0], xd->neighbors[1],
                         mbmi->mrl_index, w);
         if (mbmi->mrl_index) {
-          write_multi_line_mrl(ec_ctx,
-#if CONFIG_IMPROVED_INTRA_DIR_PRED
-                               xd->neighbors[0], xd->neighbors[1],
-#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
+          write_multi_line_mrl(ec_ctx, xd->neighbors[0], xd->neighbors[1],
                                mbmi->multi_line_mrl, w);
         }
       }
     }
-#else  // CONFIG_LOSSLESS_DPCM
+#else   // CONFIG_LOSSLESS_DPCM
     if (cm->seq_params.enable_mrls && av1_is_directional_mode(mode)) {
-      write_mrl_index(ec_ctx,
-#if CONFIG_IMPROVED_INTRA_DIR_PRED
-                      xd->neighbors[0], xd->neighbors[1],
-#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
+      write_mrl_index(ec_ctx, xd->neighbors[0], xd->neighbors[1],
                       mbmi->mrl_index, w);
     }
 #endif  // CONFIG_LOSSLESS_DPCM

@@ -924,11 +924,7 @@ typedef struct {
                       [2 * MAX_ANGLE_DELTA + 1];
 
   //! mrl_index_cost
-#if CONFIG_IMPROVED_INTRA_DIR_PRED
   int mrl_index_cost[MRL_INDEX_CONTEXTS][MRL_LINE_NUMBER];
-#else
-  int mrl_index_cost[MRL_LINE_NUMBER];
-#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
   //! multi_line_mrl_cost
   int multi_line_mrl_cost[MRL_INDEX_CONTEXTS][2];
   //! Cost of signaling the forward skip coding mode

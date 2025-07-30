@@ -640,10 +640,8 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
 
   init_sbuv_mode(mbmi);
 
-#if CONFIG_WAIP
   mbmi->is_wide_angle[1][0] = 0;
   mbmi->mapped_intra_mode[1][0] = DC_PRED;
-#endif  // CONFIG_WAIP
 
   // Return if the current block does not correspond to a chroma block.
   if (!xd->is_chroma_ref) {
@@ -1181,7 +1179,6 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
   const PREDICTION_MODE mode = mbmi->mode;
   const ModeCosts *mode_costs = &x->mode_costs;
 
-#if CONFIG_IMPROVED_INTRA_DIR_PRED
   int mrl_ctx = get_mrl_index_ctx(xd->neighbors[0], xd->neighbors[1]);
   int mrl_idx_cost =
       (av1_is_directional_mode(mbmi->mode) &&
@@ -1196,12 +1193,6 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
         x->mode_costs
             .multi_line_mrl_cost[multi_line_mrl_ctx][mbmi->multi_line_mrl];
   }
-#else
-  int mrl_idx_cost = (av1_is_directional_mode(mbmi->mode) &&
-                      cpi->common.seq_params.enable_mrls)
-                         ? x->mode_costs.mrl_index_cost[mbmi->mrl_index]
-                         : 0;
-#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
   int mode_cost = 0;
 #if CONFIG_LOSSLESS_DPCM
   if (xd->lossless[mbmi->segment_id]) {
@@ -1572,19 +1563,12 @@ void search_fsc_mode(const AV1_COMP *const cpi, MACROBLOCK *x, int *rate,
             continue;
 
           if (!is_directional_mode && mrl_idx) continue;
-#if !CONFIG_IMPROVED_INTRA_DIR_PRED
-          if (best_mbmi->mrl_index == 0 && mbmi->mrl_index > 1 &&
-              av1_is_directional_mode(best_mbmi->mode) == 0) {
-            continue;
-          }
-#endif  // !CONFIG_IMPROVED_INTRA_DIR_PRED
           if (((best_mbmi->mrl_index == 0 &&
                 av1_is_directional_mode(best_mbmi->mode) == 0) ||
                (best_mbmi->mrl_index && mbmi->multi_line_mrl == 0)) &&
               mbmi->mrl_index > 1 && mbmi->multi_line_mrl) {
             continue;
           }
-#if CONFIG_IMPROVED_INTRA_DIR_PRED
           int mrl_ctx = get_mrl_index_ctx(xd->neighbors[0], xd->neighbors[1]);
           int mrl_idx_cost =
               (is_directional_mode && enable_mrls_flag)
@@ -1598,11 +1582,6 @@ void search_fsc_mode(const AV1_COMP *const cpi, MACROBLOCK *x, int *rate,
                 x->mode_costs.multi_line_mrl_cost[multi_line_mrl_ctx]
                                                  [mbmi->multi_line_mrl];
           }
-#else
-        int mrl_idx_cost = (is_directional_mode && enable_mrls_flag)
-                               ? x->mode_costs.mrl_index_cost[mbmi->mrl_index]
-                               : 0;
-#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
           mode_costs += mrl_idx_cost;
           int64_t this_model_rd;
           this_model_rd = intra_model_yrd(cpi, x, bsize, mode_costs);
@@ -1736,10 +1715,8 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, ThreadData *td,
   set_mode_eval_params(cpi, x, MODE_EVAL);
 
   get_y_intra_mode_set(mbmi, xd);
-#if CONFIG_WAIP
   mbmi->is_wide_angle[0][mbmi->txb_idx] = 0;
   mbmi->mapped_intra_mode[0][mbmi->txb_idx] = DC_PRED;
-#endif  // CONFIG_WAIP
 
   MB_MODE_INFO best_mbmi = *mbmi;
   av1_zero(x->winner_mode_stats);
@@ -1842,13 +1819,6 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, ThreadData *td,
               mbmi->mrl_index > 1 && mbmi->multi_line_mrl) {
             continue;
           }
-#if !CONFIG_IMPROVED_INTRA_DIR_PRED
-          if (best_mbmi.mrl_index == 0 && mbmi->mrl_index > 1 &&
-              av1_is_directional_mode(best_mbmi.mode) == 0) {
-            continue;
-          }
-#endif  // !CONFIG_IMPROVED_INTRA_DIR_PRED
-#if CONFIG_IMPROVED_INTRA_DIR_PRED
           int mrl_ctx = get_mrl_index_ctx(xd->neighbors[0], xd->neighbors[1]);
           int mrl_idx_cost =
               (is_directional_mode && enable_mrls_flag)
@@ -1862,11 +1832,6 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, ThreadData *td,
                 x->mode_costs.multi_line_mrl_cost[multi_line_mrl_ctx]
                                                  [mbmi->multi_line_mrl];
           }
-#else
-        int mrl_idx_cost = (is_directional_mode && enable_mrls_flag)
-                               ? x->mode_costs.mrl_index_cost[mbmi->mrl_index]
-                               : 0;
-#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
 #if CONFIG_LOSSLESS_DPCM
           if (dpcm_index == 0)
 #endif  // CONFIG_LOSSLESS_DPCM

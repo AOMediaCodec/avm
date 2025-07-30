@@ -20,18 +20,12 @@
 #include "av1/common/txb_common.h"
 #include "av1/encoder/mcomp.h"
 
-#if CONFIG_IMPROVED_INTRA_DIR_PRED
 static const aom_cdf_prob
     default_mrl_index_cdf[MRL_INDEX_CONTEXTS][CDF_SIZE(MRL_LINE_NUMBER)] = {
       { AOM_CDF4(28081, 30613, 31659), 78 },
       { AOM_CDF4(22175, 28045, 30623), 75 },
       { AOM_CDF4(17175, 25921, 29682), 1 },
     };
-#else
-static const aom_cdf_prob default_mrl_index_cdf[CDF_SIZE(MRL_LINE_NUMBER)] = {
-  AOM_CDF4(24756, 29049, 31092)
-};
-#endif  // CONFIG_IMPROVED_INTRA_DIR_PRED
 
 static const aom_cdf_prob default_multi_line_mrl_cdf[MRL_INDEX_CONTEXTS]
                                                     [CDF_SIZE(2)] = {

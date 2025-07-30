@@ -3743,10 +3743,8 @@ static void choose_tx_size_type_from_rd(const AV1_COMP *const cpi,
   TX_TYPE best_txk_type_map[MAX_MIB_SIZE * MAX_MIB_SIZE];
   uint8_t best_blk_skip[MAX_MIB_SIZE * MAX_MIB_SIZE];
   TX_SIZE best_tx_size = max_tx_size;
-#if CONFIG_WAIP
   int is_wide_angle_mapped[MAX_TX_PARTITIONS] = { 0 };
   int mapped_wide_angle[MAX_TX_PARTITIONS] = { 0 };
-#endif  // CONFIG_WAIP
   TX_PARTITION_TYPE best_tx_partition_type = TX_PARTITION_NONE;
   int64_t best_rd = INT64_MAX;
   x->rd_model = FULL_TXFM_RD;
@@ -3809,12 +3807,10 @@ static void choose_tx_size_type_from_rd(const AV1_COMP *const cpi,
       av1_copy_array(best_blk_skip, txfm_info->blk_skip[AOM_PLANE_Y], num_blks);
       av1_copy_array(best_txk_type_map, xd->tx_type_map, num_blks);
       best_tx_size = cur_tx_size;
-#if CONFIG_WAIP
       for (int i = 0; i < MAX_TX_PARTITIONS; ++i) {
         is_wide_angle_mapped[i] = mbmi->is_wide_angle[0][i];
         mapped_wide_angle[i] = mbmi->mapped_intra_mode[0][i];
       }
-#endif  // CONFIG_WAIP
       best_tx_partition_type = type;
       best_rd = cur_rd;
       *rd_stats = this_rd_stats;
@@ -3839,12 +3835,10 @@ static void choose_tx_size_type_from_rd(const AV1_COMP *const cpi,
   if (rd_stats->rate != INT_MAX) {
     mbmi->tx_size = best_tx_size;
 
-#if CONFIG_WAIP
     for (int i = 0; i < MAX_TX_PARTITIONS; ++i) {
       mbmi->is_wide_angle[0][i] = is_wide_angle_mapped[i];
       mbmi->mapped_intra_mode[0][i] = mapped_wide_angle[i];
     }
-#endif  // CONFIG_WAIP
 
     memset(mbmi->tx_partition_type, best_tx_partition_type,
            sizeof(mbmi->tx_partition_type));
