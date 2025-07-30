@@ -970,7 +970,7 @@ Static Analyzer:
     when: on_failure
     paths:
       - output-*
-  dependencies: []
+  needs: []
   rules:
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
       when: never
