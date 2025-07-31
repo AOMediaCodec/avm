@@ -774,7 +774,15 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
 #if CONFIG_MULTI_FRAME_HEADER
   cm->cur_mfh_id = 0;
   cpi->cur_mfh_params.mfh_loop_filter_update_flag = 0;
+<<<<<<< HEAD
 #endif  // CONFIG_MULTI_FRAME_HEADER
+=======
+#if CONFIG_CWG_E242_PARSING_INDEP
+  cm->segmentation_params_override_flag =
+      1 & cm->seq_params.segmentation_params_present;
+#endif  // CONFIG_CWG_E242_PARSING_INDEP
+#endif
+>>>>>>> 8a16f76c66 (CWG-F298 Test E: CWG-E242 parsing independence)
 
   // Single thread case: use counts in common.
   cpi->td.counts = &cpi->counts;
@@ -3056,19 +3064,11 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
     lf->filter_level[1] = 0;
   }
 #if CONFIG_MULTI_FRAME_HEADER
-<<<<<<< HEAD
   cpi->cur_mfh_params.mfh_loop_filter_level[0] = lf->filter_level[0];
   cpi->cur_mfh_params.mfh_loop_filter_level[1] = lf->filter_level[1];
   cpi->cur_mfh_params.mfh_loop_filter_level[2] = lf->filter_level_u;
   cpi->cur_mfh_params.mfh_loop_filter_level[3] = lf->filter_level_v;
 #endif  // CONFIG_MULTI_FRAME_HEADER
-=======
-  cpi->cur_mfh_params.mfh_filter_level[0] = lf->filter_level[0];
-  cpi->cur_mfh_params.mfh_filter_level[1] = lf->filter_level[1];
-  cpi->cur_mfh_params.mfh_filter_level[2] = lf->filter_level_u;
-  cpi->cur_mfh_params.mfh_filter_level[3] = lf->filter_level_v;
-#endif
->>>>>>> bc8a7f9db6 (1. Multi-frame header with FGS multi-level signaling (F109))
   if (lf->filter_level[0] || lf->filter_level[1]) {
     if (num_workers > 1)
       av1_loop_filter_frame_mt(&cm->cur_frame->buf, cm, xd, 0, num_planes, 0,

@@ -1062,6 +1062,10 @@ typedef struct SequenceHeader {
   // are_seq_headers_consistent() can be implemented with a memcmp() call.
   // TODO(urvang): We probably don't need the +1 here.
   aom_dec_model_op_parameters_t op_params[MAX_NUM_OPERATING_POINTS + 1];
+#if CONFIG_CWG_E242_PARSING_INDEP
+  struct segmentation_params seq_seg;
+  int seq_chroma_format_idc;
+#endif  // CONFIG_CWG_E242_PARSING_INDEP
 } SequenceHeader;
 
 typedef struct {
