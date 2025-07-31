@@ -1194,6 +1194,26 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     else
       av1_get_ref_frames(cm, cur_frame_disp, cm->ref_frame_map_pairs);
 #if CONFIG_BRU
+    if (!cm->seq_params.explicit_ref_frame_map && cm->bru.enabled) {
+      const int num_past_refs = cm->ref_frames_info.num_past_refs;
+      if (cm->bru.ref_order >= 0) {
+        cm->bru.update_ref_idx = -1;
+        cm->bru.explicit_ref_idx = -1;
+        for (int i = 0; i < num_past_refs; i++) {
+          const int ref_list_order =
+              cm->ref_frame_map[cm->remapped_ref_idx[i]]->order_hint;
+          if (ref_list_order == cm->bru.ref_order) {
+            cm->bru.update_ref_idx = i;
+            cm->bru.explicit_ref_idx = cm->remapped_ref_idx[i];
+            break;
+          }
+        }
+      }
+      if (cm->bru.update_ref_idx < 0) {
+        cm->bru.enabled = 0;
+        cm->bru.frame_inactive_flag = 0;
+      }
+    }
     if (cm->bru.frame_inactive_flag) {
       cm->features.refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
       const RefCntBuffer *bru_ref_buf =

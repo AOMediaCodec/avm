@@ -4796,12 +4796,8 @@ static AOM_INLINE void encode_bru_active_info(AV1_COMP *cpi,
     aom_wb_write_bit(wb, cm->bru.enabled);
 
     if (cm->bru.enabled) {
-//#if CONFIG_EXTRA_DPB
-//      aom_wb_write_literal(wb, cm->bru.explicit_ref_idx,
-//                           cm->seq_params.ref_frames_log2);
-//#else
-//      aom_wb_write_literal(wb, cm->bru.explicit_ref_idx, REF_FRAMES_LOG2);
-//#endif  // CONFIG_EXTRA_DPB
+      aom_wb_write_literal(wb, cm->bru.update_ref_idx,
+                           aom_ceil_log2(cm->ref_frames_info.num_total_refs));
       aom_wb_write_bit(wb, cm->bru.frame_inactive_flag);
     }
   }
@@ -6120,14 +6116,6 @@ static AOM_INLINE void write_uncompressed_header_obu(
                                cm->height != seq_params->max_frame_height);
     if (!frame_is_sframe(cm)) aom_wb_write_bit(wb, frame_size_override_flag);
 
-#if CONFIG_BRU
-    if (cm->bru.frame_inactive_flag) {
-      cm->features.disable_cdf_update = 1;
-    }
-    if (current_frame->frame_type == INTER_FRAME) {
-      encode_bru_active_info(cpi, wb);
-    }
-#endif  // CONFIG_BRU
     if (seq_params->order_hint_info.enable_order_hint)
       aom_wb_write_literal(
           wb, current_frame->order_hint,
@@ -6335,17 +6323,13 @@ static AOM_INLINE void write_uncompressed_header_obu(
 #endif  // CONFIG_EXTRA_DPB
       }
 #if CONFIG_BRU
-      if (cm->bru.enabled) {
-        aom_wb_write_literal(
-                  wb, cm->bru.update_ref_idx,
-                  aom_ceil_log2(cm->ref_frames_info.num_total_refs));
-        printf("Enc F %d, bru ref idx %d, explicit idx %d\n",
-          cm->current_frame.order_hint,
-          cm->bru.update_ref_idx,
-          cm->bru.explicit_ref_idx
-        );
-      } 
-#endif      
+      if (current_frame->frame_type == INTER_FRAME) {
+        encode_bru_active_info(cpi, wb);
+      }
+      if (cm->bru.frame_inactive_flag) {
+        cm->features.disable_cdf_update = 1;
+      }
+#endif  // CONFIG_BRU
       for (ref_frame = 0; ref_frame < cm->ref_frames_info.num_total_refs;
            ++ref_frame) {
         assert(get_ref_frame_map_idx(cm, ref_frame) != INVALID_IDX);

@@ -1059,13 +1059,9 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_onesided_comp = extra_cfg->enable_onesided_comp;
   cfg->enable_reduced_reference_set = extra_cfg->enable_reduced_reference_set;
 #if CONFIG_BRU
-  // imply explicit_ref_frame_map = 1 when bru is on
   cfg->enable_bru = extra_cfg->enable_bru;
-  if (cfg->enable_bru)
-    cfg->explicit_ref_frame_map = 1;
-  else
 #endif  // CONFIG_BRU
-    cfg->explicit_ref_frame_map = extra_cfg->explicit_ref_frame_map;
+  cfg->explicit_ref_frame_map = extra_cfg->explicit_ref_frame_map;
   cfg->enable_frame_output_order = extra_cfg->enable_frame_output_order;
   cfg->reduced_tx_type_set = extra_cfg->reduced_tx_type_set;
   cfg->max_drl_refmvs = extra_cfg->max_drl_refmvs;
@@ -1198,11 +1194,8 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
 #if CONFIG_BRU
   // imply explicit_ref_frame_map = 1 when bru is on
   extra_cfg->enable_bru = cfg->enable_bru;
-  if (extra_cfg->enable_bru)
-    extra_cfg->explicit_ref_frame_map = 1;
-  else
 #endif  // CONFIG_BRU
-    extra_cfg->explicit_ref_frame_map = cfg->explicit_ref_frame_map;
+  extra_cfg->explicit_ref_frame_map = cfg->explicit_ref_frame_map;
   extra_cfg->enable_frame_output_order = cfg->enable_frame_output_order;
   extra_cfg->reduced_tx_type_set = cfg->reduced_tx_type_set;
   extra_cfg->max_drl_refmvs = cfg->max_drl_refmvs;
