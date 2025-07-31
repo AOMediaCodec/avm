@@ -7570,13 +7570,28 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       cm->seq_params.enable_short_refresh_frame_flags &&
       !cm->features.error_resilient_mode;
   const int refresh_frame_flags_bits =
+#if CONFIG_CWG_F168_DPB_HLS
+      short_refresh_frame_flags ? seq_params->ref_frames_log2
+                                : seq_params->ref_frames;
+#else
       short_refresh_frame_flags ? 3 : seq_params->ref_frames;
+#endif
 
 #endif  // CONFIG_REFRESH_FLAG
   if (current_frame->frame_type == KEY_FRAME) {
     if (!cm->show_frame) {  // unshown keyframe (forward keyframe)
 #if CONFIG_REFRESH_FLAG
       if (short_refresh_frame_flags) {
+#if CONFIG_CWG_F260_REFRESH_FLAG
+        const bool has_refresh_frame_flags = aom_rb_read_literal(rb, 1);
+        if (has_refresh_frame_flags) {
+          const int refresh_idx =
+              aom_rb_read_literal(rb, refresh_frame_flags_bits);
+          current_frame->refresh_frame_flags = 1 << refresh_idx;
+        } else {
+          current_frame->refresh_frame_flags = 0;
+        }
+#else
         const int refresh_idx =
             aom_rb_read_literal(rb, refresh_frame_flags_bits);
         if (refresh_idx == 0) {
@@ -7585,6 +7600,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         } else {
           current_frame->refresh_frame_flags = 1 << refresh_idx;
         }
+#endif  // CONFIG_CWG_F260_REFRESH_FLAG
       } else {
         current_frame->refresh_frame_flags =
             aom_rb_read_literal(rb, refresh_frame_flags_bits);
@@ -7612,6 +7628,16 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     if (current_frame->frame_type == INTRA_ONLY_FRAME) {
 #if CONFIG_REFRESH_FLAG
       if (short_refresh_frame_flags) {
+#if CONFIG_CWG_F260_REFRESH_FLAG
+        const bool has_refresh_frame_flags = aom_rb_read_literal(rb, 1);
+        if (has_refresh_frame_flags) {
+          const int refresh_idx =
+              aom_rb_read_literal(rb, refresh_frame_flags_bits);
+          current_frame->refresh_frame_flags = 1 << refresh_idx;
+        } else {
+          current_frame->refresh_frame_flags = 0;
+        }
+#else
         const int refresh_idx =
             aom_rb_read_literal(rb, refresh_frame_flags_bits);
         if (refresh_idx == 0) {
@@ -7620,6 +7646,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         } else {
           current_frame->refresh_frame_flags = 1 << refresh_idx;
         }
+#endif  // CONFIG_CWG_F260_REFRESH_FLAG
       } else {
         current_frame->refresh_frame_flags =
             aom_rb_read_literal(rb, refresh_frame_flags_bits);
@@ -7648,6 +7675,16 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         current_frame->refresh_frame_flags = REFRESH_FRAME_ALL;
       } else {
         if (short_refresh_frame_flags) {
+#if CONFIG_CWG_F260_REFRESH_FLAG
+          const bool has_refresh_frame_flags = aom_rb_read_literal(rb, 1);
+          if (has_refresh_frame_flags) {
+            const int refresh_idx =
+                aom_rb_read_literal(rb, refresh_frame_flags_bits);
+            current_frame->refresh_frame_flags = 1 << refresh_idx;
+          } else {
+            current_frame->refresh_frame_flags = 0;
+          }
+#else
           const int refresh_idx =
               aom_rb_read_literal(rb, refresh_frame_flags_bits);
           if (refresh_idx == 0) {
@@ -7657,6 +7694,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           } else {
             current_frame->refresh_frame_flags = 1 << refresh_idx;
           }
+#endif  // CONFIG_CWG_F260_REFRESH_FLAG
         } else {
           current_frame->refresh_frame_flags =
               aom_rb_read_literal(rb, refresh_frame_flags_bits);
@@ -7877,7 +7915,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         // Check whether num_total_refs read is valid
         if (cm->ref_frames_info.num_total_refs <= 0 ||
             cm->ref_frames_info.num_total_refs >
+#if CONFIG_CWG_F168_DPB_HLS
+                AOMMIN(seq_params->ref_frames - 1, INTER_REFS_PER_FRAME))
+#else
                 seq_params->max_reference_frames)
+#endif  // CONFIG_CWG_F168_DPB_HLS
           aom_internal_error(&cm->error, AOM_CODEC_ERROR,
                              "Invalid num_total_refs");
       }

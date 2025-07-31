@@ -272,13 +272,15 @@ set_aom_config_var(CONFIG_EXTRA_DPB 1 "Use extra dpb")
 # Configurable DPB extension
 set_aom_config_var(CONFIG_CWG_F168_DPB_HLS 1
                    "signaling changes for DPB extension")
+set_aom_config_var(CONFIG_CWG_F260_REFRESH_FLAG 1
+                   "refresh frame flag signaling in CWG-F260 method 2")
 
 set_aom_config_var(CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING 1
                    "TX partition type signalling bugfix")
 set_aom_config_var(CONFIG_INTERINTRA_IMPROVEMENT 1
                    "Enable additional inter-intra block sizes")
-set_aom_config_var(CONFIG_REFRESH_FLAG 0
-                   "Experiment flag to Signal refresh frame flag with 3 bits")
+set_aom_config_var(CONFIG_REFRESH_FLAG 1
+                   "Experiment flag to signal refresh frame flag using index")
 
 set_aom_config_var(CONFIG_D149_CTX_MODELING_OPT 1
                    "Enable to optimize block size dependent context modeling")

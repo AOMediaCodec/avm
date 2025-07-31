@@ -6251,6 +6251,9 @@ static AOM_INLINE void write_uncompressed_header_obu(
         !cm->features.error_resilient_mode) {
       const bool has_refresh_frame_flags =
           current_frame->refresh_frame_flags != 0;
+#if CONFIG_CWG_F260_REFRESH_FLAG
+      aom_wb_write_literal(wb, has_refresh_frame_flags, 1);
+#endif  // CONFIG_CWG_F260_REFRESH_FLAG
       if (has_refresh_frame_flags) {
         int refresh_idx = 0;
         for (int i = 0; i < cm->seq_params.ref_frames; ++i) {
@@ -6259,14 +6262,26 @@ static AOM_INLINE void write_uncompressed_header_obu(
             break;
           }
         }
+#if CONFIG_CWG_F168_DPB_HLS
+        aom_wb_write_literal(wb, refresh_idx, seq_params->ref_frames_log2);
+#else
         aom_wb_write_literal(wb, refresh_idx, 3);
+#endif  // CONFIG_CWG_F168_DPB_HLS
+#if CONFIG_CWG_F260_REFRESH_FLAG
+      }
+#else
         if (refresh_idx == 0) {
           aom_wb_write_literal(wb, 1, 1);
         }
       } else {
+#if CONFIG_CWG_F168_DPB_HLS
+        aom_wb_write_literal(wb, 0, seq_params->ref_frames_log2);
+#else
         aom_wb_write_literal(wb, 0, 3);
+#endif  // CONFIG_CWG_F168_DPB_HLS
         aom_wb_write_literal(wb, 0, 1);
       }
+#endif  // CONFIG_CWG_F260_REFRESH_FLAG
     } else {
       aom_wb_write_literal(wb, current_frame->refresh_frame_flags,
                            cm->seq_params.ref_frames);
