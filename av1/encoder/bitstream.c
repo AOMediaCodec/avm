@@ -4794,13 +4794,14 @@ static AOM_INLINE void encode_bru_active_info(AV1_COMP *cpi,
   const AV1_COMMON *cm = &cpi->common;
   if (cm->seq_params.enable_bru) {
     aom_wb_write_bit(wb, cm->bru.enabled);
+
     if (cm->bru.enabled) {
-#if CONFIG_EXTRA_DPB
-      aom_wb_write_literal(wb, cm->bru.explicit_ref_idx,
-                           cm->seq_params.ref_frames_log2);
-#else
-      aom_wb_write_literal(wb, cm->bru.explicit_ref_idx, REF_FRAMES_LOG2);
-#endif  // CONFIG_EXTRA_DPB
+//#if CONFIG_EXTRA_DPB
+//      aom_wb_write_literal(wb, cm->bru.explicit_ref_idx,
+//                           cm->seq_params.ref_frames_log2);
+//#else
+//      aom_wb_write_literal(wb, cm->bru.explicit_ref_idx, REF_FRAMES_LOG2);
+//#endif  // CONFIG_EXTRA_DPB
       aom_wb_write_bit(wb, cm->bru.frame_inactive_flag);
     }
   }
@@ -6333,6 +6334,18 @@ static AOM_INLINE void write_uncompressed_header_obu(
                              REF_FRAMES_LOG2);
 #endif  // CONFIG_EXTRA_DPB
       }
+#if CONFIG_BRU
+      if (cm->bru.enabled) {
+        aom_wb_write_literal(
+                  wb, cm->bru.update_ref_idx,
+                  aom_ceil_log2(cm->ref_frames_info.num_total_refs));
+        printf("Enc F %d, bru ref idx %d, explicit idx %d\n",
+          cm->current_frame.order_hint,
+          cm->bru.update_ref_idx,
+          cm->bru.explicit_ref_idx
+        );
+      } 
+#endif      
       for (ref_frame = 0; ref_frame < cm->ref_frames_info.num_total_refs;
            ++ref_frame) {
         assert(get_ref_frame_map_idx(cm, ref_frame) != INVALID_IDX);

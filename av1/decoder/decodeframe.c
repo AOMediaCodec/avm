@@ -2471,12 +2471,12 @@ static AOM_INLINE void setup_bru_active_info(AV1_COMMON *const cm,
     cm->bru.enabled = aom_rb_read_bit(rb);
     if (cm->bru.enabled) {
       memset(cm->bru.active_mode_map, 0, sizeof(uint8_t) * cm->bru.total_units);
-#if CONFIG_EXTRA_DPB
-      cm->bru.explicit_ref_idx =
-          aom_rb_read_literal(rb, cm->seq_params.ref_frames_log2);
-#else
-      cm->bru.explicit_ref_idx = aom_rb_read_literal(rb, REF_FRAMES_LOG2);
-#endif  // CONFIG_EXTRA_DPB
+//#if CONFIG_EXTRA_DPB
+//      cm->bru.explicit_ref_idx =
+//          aom_rb_read_literal(rb, cm->seq_params.ref_frames_log2);
+//#else
+//      cm->bru.explicit_ref_idx = aom_rb_read_literal(rb, REF_FRAMES_LOG2);
+//#endif  // CONFIG_EXTRA_DPB
       cm->bru.frame_inactive_flag = aom_rb_read_bit(rb);
     }
   }
@@ -7786,7 +7786,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           aom_internal_error(&cm->error, AOM_CODEC_ERROR,
                              "Invalid num_total_refs");
       }
-
+#if CONFIG_BRU
+      if (cm->bru.enabled) {
+        cm->bru.update_ref_idx = aom_rb_read_literal(
+            rb, aom_ceil_log2(cm->ref_frames_info.num_total_refs));
+      }
+#endif
       cm->ref_frames_info.num_same_ref_compound =
           AOMMIN(cm->seq_params.num_same_ref_compound,
                  cm->ref_frames_info.num_total_refs);
@@ -7819,9 +7824,16 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         }
 #if CONFIG_BRU
         // find corresponding bru ref idx given explicit_bru_idx
-        if (cm->bru.explicit_ref_idx == ref) {
+        //if (cm->bru.explicit_ref_idx == ref) {
+        //  cm->bru.ref_order = cm->ref_frame_map[ref]->order_hint;
+        //  cm->bru.update_ref_idx = i;
+        //}
+        if (cm->bru.enabled && cm->bru.update_ref_idx == i) {
           cm->bru.ref_order = cm->ref_frame_map[ref]->order_hint;
-          cm->bru.update_ref_idx = i;
+          cm->bru.explicit_ref_idx = ref;
+          printf("Dec F %d, bru ref idx %d, explicit idx %d\n",
+                 cm->current_frame.order_hint, cm->bru.update_ref_idx,
+                 cm->bru.explicit_ref_idx);
         }
 #endif  // CONFIG_BRU
         // Check valid for referencing
