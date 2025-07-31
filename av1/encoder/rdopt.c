@@ -6227,6 +6227,41 @@ int rd_pick_ref_bv_sub_pel(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
 
 #if CONFIG_MORPH_PRED
+#if CONFIG_LOCAL_INTRABC_BAWP
+static int is_bv_valid_for_morph(const MV sub_pel_dv,
+                                       const AV1_COMMON *cm,
+                                       const MACROBLOCKD *xd,
+                                       int mi_row, int mi_col, BLOCK_SIZE bsize) {
+//   FULLPEL_MV dv = get_fullmv_from_mv(&sub_pel_dv);
+  const int cur_x = mi_col * MI_SIZE;
+  const int cur_y = mi_row * MI_SIZE;
+  const struct macroblockd_plane *const pd = &xd->plane[AOM_PLANE_Y];
+#if CONFIG_F054_PIC_BOUNDARY
+  if (cur_x >= pd->dst.width || cur_y >= pd->dst.height) return false;
+#else
+  if (cur_x >= cm->width || cur_y >= cm->height) return false;
+#endif  // CONFIG_F054_PIC_BOUNDARY
+  const int bw = block_size_wide[bsize];
+  const int bh = block_size_high[bsize];
+  int ref_w = bw;
+  int ref_h = bh;
+  if (cur_x + bw >= cm->width) ref_w = cm->width - cur_x;
+  if (cur_y + bh >= cm->height) ref_h = cm->height - cur_y;
+  const int cur_tmplt_x = cur_x - BAWP_REF_LINES;
+  const int cur_tmplt_y = cur_y - BAWP_REF_LINES;
+  assert(cur_tmplt_x + ref_w < cm->width);
+  assert(cur_tmplt_y + ref_h < cm->height);
+  //the input sub_pel_dv is already a valid bv for global (or local) intraBC
+  MV bv_to_tl_template = { sub_pel_dv.row - GET_MV_SUBPEL(BAWP_REF_LINES),
+                            sub_pel_dv.col - GET_MV_SUBPEL(BAWP_REF_LINES) };
+  assert(BAWP_REF_LINES < 4);
+  if(!av1_is_dv_valid(bv_to_tl_template, cm, xd, mi_row,
+                                          mi_col, bsize, cm->mib_size_log2)){
+    return false;
+  }
+  return true;
+}
+#else
 #if CONFIG_IBC_SR_EXT
 // This function checks if the given motion vector "dv" is within the local
 // range of intra bc.
@@ -6284,44 +6319,6 @@ static int is_local_intrabc(const MV dv, const AV1_COMMON *cm,
   return 0;
 }
 #endif  // CONFIG_IBC_SR_EXT
-#if CONFIG_LOCAL_INTRABC_BAWP
-static int is_local_ref_template_valid(const MV sub_pel_dv,
-                                       const AV1_COMMON *cm,
-#if CONFIG_LOCAL_INTRABC_ALIGN_RNG
-                                       const MACROBLOCKD *xd,
-#endif  // CONFIG_LOCAL_INTRABC_ALIGN_RNG
-                                       int mi_row, int mi_col, BLOCK_SIZE bsize,
-                                       int is_local_bv) {
-  FULLPEL_MV dv = get_fullmv_from_mv(&sub_pel_dv);
-  const int cur_x = mi_col * MI_SIZE;
-  const int cur_y = mi_row * MI_SIZE;
-  if (cur_x >= cm->width || cur_y >= cm->height) return false;
-  const int bw = block_size_wide[bsize];
-  const int bh = block_size_high[bsize];
-  int ref_w = bw;
-  int ref_h = bh;
-  if (cur_x + bw >= cm->width) ref_w = cm->width - cur_x;
-  if (cur_y + bh >= cm->height) ref_h = cm->height - cur_y;
-  const int cur_tmplt_x = cur_x - BAWP_REF_LINES;
-  const int cur_tmplt_y = cur_y - BAWP_REF_LINES;
-  const int ref_x = cur_x + dv.col;
-  const int ref_y = cur_y + dv.row;
-  assert(cur_tmplt_x + ref_w < cm->width);
-  assert(cur_tmplt_y + ref_h < cm->height);
-
-#if CONFIG_LOCAL_INTRABC_ALIGN_RNG
-  MV bv_to_tl_template = { sub_pel_dv.row - GET_MV_SUBPEL(BAWP_REF_LINES),
-                           sub_pel_dv.col - GET_MV_SUBPEL(BAWP_REF_LINES) };
-  const int is_template_valid = is_local_intrabc(
-      bv_to_tl_template, cm, xd, mi_row, mi_col, bsize, cm->mib_size_log2);
-  if (!is_template_valid) return false;
-#endif  // CONFIG_LOCAL_INTRABC_ALIGN_RNG
-  if (is_local_bv) {
-    if (ref_x % 64 == 0) return false;
-    if (ref_y % 64 == 0) return false;
-  }
-  return true;
-}
 #endif  // CONFIG_LOCAL_INTRABC_BAWP
 #endif  // CONFIG_MORPH_PRED
 
@@ -7108,16 +7105,9 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
 #if CONFIG_IBC_SR_EXT
 #if CONFIG_LOCAL_INTRABC_BAWP
         if (num_modes_to_search > 1) {
-          const int local_intrabc =
-              is_local_intrabc(mbmi->mv[0].as_mv, cm, xd, mi_row, mi_col, bsize,
-                               cm->mib_size_log2);
-          const int local_valid =
-              is_local_ref_template_valid(dv, cm,
-#if CONFIG_LOCAL_INTRABC_ALIGN_RNG
-                                          xd,
-#endif
-                                          mi_row, mi_col, bsize, local_intrabc);
-          if (local_intrabc && !local_valid) num_modes_to_search = 1;
+          if(!is_bv_valid_for_morph(mbmi->mv[0].as_mv, cm, xd, mi_row, mi_col, bsize)){
+            num_modes_to_search = 1;
+          }
         }
 #else
         if (num_modes_to_search > 1) {
