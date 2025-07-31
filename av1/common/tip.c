@@ -685,7 +685,11 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
                                              xd,
 #endif  // CONFIG_COMPOUND_4XN
                                              mbmi) &&
+#if CONFIG_ADAPT_OPFL_IN_TIP_DIRECT
+                 (cm->tip_interp_filter == MULTITAP_SHARP) && plane == 0);
+#else
                  plane == 0);
+#endif  // CONFIG_ADAPT_OPFL_IN_TIP_DIRECT
 
   const unsigned int sad_thres =
       cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT ? 15 : 6;

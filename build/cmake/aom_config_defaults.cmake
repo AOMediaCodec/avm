@@ -416,6 +416,9 @@ set_aom_config_var(CONFIG_WEDGE_SIMPL 1 "Wedge mode simplificaitons.")
 set_aom_config_var(CONFIG_WARP_INTER_INTRA 1
                    "Enable inter-intra mode for warp block.")
 
+set_aom_config_var(CONFIG_ADAPT_OPFL_IN_TIP_DIRECT 1
+                   "Enable adaptive OPFL MV refinement in TIP-direct mode")
+
 set_aom_config_var(CONFIG_NEW_PART_CTX 1 "New partition context models")
 
 set_aom_config_var(CONFIG_EXT_SEG 1
