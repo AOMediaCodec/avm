@@ -401,6 +401,9 @@ set_aom_config_var(CONFIG_CWG_E242_BITDEPTH 1
 set_aom_config_var(CONFIG_CWG_E242_SEQ_HDR_ID 1
                    "Introduce sequence header id.")
 
+set_aom_config_var(CONFIG_CWG_E242_PARSING_INDEP 1
+                   "Parsing independence of MFH.")
+
 set_aom_config_var(CONFIG_F106_OBU_SWITCH 1 "use switch obu")
 
 set_aom_config_var(CONFIG_OPFL_CTX_OPT 1

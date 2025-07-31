@@ -799,6 +799,10 @@ typedef struct SequenceHeader {
   // are_seq_headers_consistent() can be implemented with a memcmp() call.
   // TODO(urvang): We probably don't need the +1 here.
   aom_dec_model_op_parameters_t op_params[MAX_NUM_OPERATING_POINTS + 1];
+#if CONFIG_CWG_E242_PARSING_INDEP
+  struct segmentation_params seq_seg;
+  int seq_chroma_format_idc;
+#endif  // CONFIG_CWG_E242_PARSING_INDEP
 } SequenceHeader;
 
 typedef struct {
@@ -1182,6 +1186,16 @@ typedef struct MultiFrameHeader {
    */
   int mfh_sb_size;
 #endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
+#if CONFIG_CWG_E242_PARSING_INDEP
+  struct segmentation_params mfh_seg;
+  int mfh_chroma_format_idc;
+  int isMonochrome;
+  int subsampling_x;
+  int subsampling_y;
+  aom_film_grain_t mfh_film_grain_params;
+  int mfh_frame_size_update_flag;
+  int mfh_frame_render_size_present_flag;
+#endif  // CONFIG_CWG_E242_PARSING_INDEP
 } MultiFrameHeader;
 #endif
 

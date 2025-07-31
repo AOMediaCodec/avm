@@ -61,6 +61,23 @@ struct segmentation {
 #endif                     // CONFIG_EXT_SEG
 };
 
+#if CONFIG_CWG_E242_PARSING_INDEP
+struct segmentation_params {
+  //uint8_t enabled[MAX_SEGMENTS][SEG_LVL_MAX];
+  unsigned int feature_mask[MAX_SEGMENTS];
+  uint8_t feature_enabled[MAX_SEGMENTS][SEG_LVL_MAX];
+  uint8_t update_map;
+  uint8_t update_data;
+  uint8_t temporal_update;
+  int16_t feature_data[MAX_SEGMENTS][SEG_LVL_MAX];
+  uint8_t segid_preskip;
+  int last_active_segid;
+#if CONFIG_EXT_SEG
+  uint8_t enable_ext_seg;  // Enable the extended max segment num = 16
+#endif
+};
+#endif  // CONFIG_CWG_E242_PARSING_INDEP
+
 struct segmentation_probs {
   aom_cdf_prob tree_cdf[CDF_SIZE(MAX_SEGMENTS)];
   aom_cdf_prob pred_cdf[SEG_TEMPORAL_PRED_CTXS][CDF_SIZE(2)];

@@ -733,6 +733,9 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   cpi->cur_mfh_params.mfh_film_grain_model_present_flag = 0;
   cm->film_grain_params_override_flag = 1;
   cpi->cur_mfh_params.mfh_loop_filter_update_flag = 0;
+#if CONFIG_CWG_E242_PARSING_INDEP
+  cm->segmentation_params_override_flag = 1 & cm->seq_params.segmentation_params_present;
+#endif  // CONFIG_CWG_E242_PARSING_INDEP
 #endif
 
   // Single thread case: use counts in common.
