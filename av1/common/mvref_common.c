@@ -2793,6 +2793,82 @@ static AOM_INLINE int generate_points_from_corners(
 }
 #endif  // CONFIG_WRL_CORNER_MVS
 
+#if CONFIG_EXT_MVPRED
+static int insert_mvp_candidate(
+#if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+    const MACROBLOCKD *xd, MV_REFERENCE_FRAME *ref_frame_idx0,
+    MV_REFERENCE_FRAME *ref_frame_idx1, MV_REFERENCE_FRAME rf[2],
+#endif  // #if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+    CANDIDATE_MV ref_mv_stack[MAX_REF_MV_STACK_SIZE],
+    uint16_t ref_mv_weight[MAX_REF_MV_STACK_SIZE], int16_t this_mv_col,
+    int16_t this_mv_row, int16_t comp_mv_col, int16_t comp_mv_row,
+    uint16_t weight, uint8_t *refmv_count, int *drl_pr_count) {
+  CANDIDATE_MV ext_mv;
+  ext_mv.this_mv.as_mv.col = this_mv_col;
+  ext_mv.this_mv.as_mv.row = this_mv_row;
+  ext_mv.comp_mv.as_mv.col = comp_mv_col;
+  ext_mv.comp_mv.as_mv.row = comp_mv_row;
+
+#if CONFIG_DRL_PR_LIM
+  if ((*drl_pr_count) < MAX_PR_NUM) {
+#endif
+    int idx = 0;
+    for (idx = 0; idx < *refmv_count; ++idx) {
+#if CONFIG_DRL_PR_LIM
+      ++(*drl_pr_count);
+#endif
+#if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+      if ((ref_mv_stack[idx].this_mv.as_int == ext_mv.this_mv.as_int) &&
+          (rf[1] == NONE_FRAME ||
+           (rf[1] > NONE_FRAME &&
+            ref_mv_stack[idx].comp_mv.as_int == ext_mv.comp_mv.as_int))) {
+        break;
+      }
+#endif  // #if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+    }
+    // Add a new item to the list.
+    if (idx == *refmv_count) {
+      ref_mv_stack[idx].this_mv.as_int = ext_mv.this_mv.as_int;
+      ref_mv_stack[idx].comp_mv.as_int = ext_mv.comp_mv.as_int;
+      ref_mv_stack[idx].row_offset = OFFSET_NONSPATIAL;
+      ref_mv_stack[idx].col_offset = OFFSET_NONSPATIAL;
+      ref_mv_stack[idx].cwp_idx = CWP_EQUAL;
+#if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+      if (xd->mi[0]->skip_mode) {
+        ref_frame_idx0[idx] = rf[0];
+        ref_frame_idx1[idx] = rf[1];
+      }
+#endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+      ref_mv_weight[idx] = weight;
+      ++(*refmv_count);
+      return 1;
+    }
+    return 0;
+#if CONFIG_DRL_PR_LIM
+  } else {
+    if (*refmv_count < MAX_REF_MV_STACK_SIZE) {
+      ref_mv_stack[*refmv_count].this_mv.as_int = ext_mv.this_mv.as_int;
+      ref_mv_stack[*refmv_count].comp_mv.as_int = ext_mv.comp_mv.as_int;
+      ref_mv_stack[*refmv_count].row_offset = OFFSET_NONSPATIAL;
+      ref_mv_stack[*refmv_count].col_offset = OFFSET_NONSPATIAL;
+      ref_mv_stack[*refmv_count].cwp_idx = CWP_EQUAL;
+#if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+      if (xd->mi[0]->skip_mode) {
+        ref_frame_idx0[*refmv_count] = rf[0];
+        ref_frame_idx1[*refmv_count] = rf[1];
+      }
+#endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+      ref_mv_weight[*refmv_count] = weight;
+      ++(*refmv_count);
+      return 1;
+    }
+    return 0;
+  }
+#endif
+  return 0;
+}
+#endif  // CONFIG_EXT_MVPRED
+
 static AOM_INLINE void setup_ref_mv_list(
     const AV1_COMMON *cm, const MACROBLOCKD *xd, MV_REFERENCE_FRAME ref_frame,
     uint8_t *const refmv_count,
@@ -3334,6 +3410,116 @@ static AOM_INLINE void setup_ref_mv_list(
       }
     }
 #endif
+#if CONFIG_EXT_MVPRED
+    uint8_t added_ext_cnt = 0;
+    int original_mv_count = *refmv_count;
+    uint8_t max_ext_stack_size = 0;
+    if (xd->width <= 8 || xd->height <= 8)
+      max_ext_stack_size = 0;
+    else
+      max_ext_stack_size = 6;
+
+    if (max_ext_stack_size) {
+      int16_t row = 0;
+      int16_t col = 0;
+      int16_t comp_mv_row = 0;
+      int16_t comp_mv_col = 0;
+      uint16_t curr_mv_weight = 1;
+      if (*refmv_count < MAX_REF_MV_STACK_SIZE && original_mv_count > 1 &&
+          added_ext_cnt < max_ext_stack_size) {
+        // Add (0_y, 1_x)
+        row = ref_mv_stack[0].this_mv.as_mv.row;
+        col = ref_mv_stack[1].this_mv.as_mv.col;
+        comp_mv_row = ref_mv_stack[0].comp_mv.as_mv.row;
+        comp_mv_col = ref_mv_stack[1].comp_mv.as_mv.col;
+        curr_mv_weight = (ref_mv_weight[0] + ref_mv_weight[1] + 1) / 2;
+        added_ext_cnt += insert_mvp_candidate(
+#if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+            xd, ref_frame_idx0, ref_frame_idx1, rf,
+#endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+            ref_mv_stack, ref_mv_weight, col, row, comp_mv_col, comp_mv_row,
+            curr_mv_weight, refmv_count, &drl_pr_count);
+        if (*refmv_count < MAX_REF_MV_STACK_SIZE &&
+            added_ext_cnt < max_ext_stack_size) {
+          // Add (1_y, 0_x)
+          row = ref_mv_stack[1].this_mv.as_mv.row;
+          col = ref_mv_stack[0].this_mv.as_mv.col;
+          comp_mv_row = ref_mv_stack[1].comp_mv.as_mv.row;
+          comp_mv_col = ref_mv_stack[0].comp_mv.as_mv.col;
+          curr_mv_weight = (ref_mv_weight[0] + ref_mv_weight[1] + 1) / 2;
+          added_ext_cnt += insert_mvp_candidate(
+#if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+              xd, ref_frame_idx0, ref_frame_idx1, rf,
+#endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+              ref_mv_stack, ref_mv_weight, col, row, comp_mv_col, comp_mv_row,
+              curr_mv_weight, refmv_count, &drl_pr_count);
+        }
+      }
+      if (*refmv_count < MAX_REF_MV_STACK_SIZE && original_mv_count > 2 &&
+          added_ext_cnt < max_ext_stack_size) {
+        // Add (0_y, 2_x)
+        row = ref_mv_stack[0].this_mv.as_mv.row;
+        col = ref_mv_stack[2].this_mv.as_mv.col;
+        comp_mv_row = ref_mv_stack[0].comp_mv.as_mv.row;
+        comp_mv_col = ref_mv_stack[2].comp_mv.as_mv.col;
+        curr_mv_weight = (ref_mv_weight[0] + ref_mv_weight[2] + 1) / 2;
+        added_ext_cnt += insert_mvp_candidate(
+#if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+            xd, ref_frame_idx0, ref_frame_idx1, rf,
+#endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+            ref_mv_stack, ref_mv_weight, col, row, comp_mv_col, comp_mv_row,
+            curr_mv_weight, refmv_count, &drl_pr_count);
+
+        if (*refmv_count < MAX_REF_MV_STACK_SIZE &&
+            added_ext_cnt < max_ext_stack_size) {
+          // Add(2_y,0_x)
+          row = ref_mv_stack[2].this_mv.as_mv.row;
+          col = ref_mv_stack[0].this_mv.as_mv.col;
+          comp_mv_row = ref_mv_stack[2].comp_mv.as_mv.row;
+          comp_mv_col = ref_mv_stack[0].comp_mv.as_mv.col;
+          curr_mv_weight = (ref_mv_weight[0] + ref_mv_weight[2] + 1) / 2;
+          added_ext_cnt += insert_mvp_candidate(
+#if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+              xd, ref_frame_idx0, ref_frame_idx1, rf,
+#endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+              ref_mv_stack, ref_mv_weight, col, row, comp_mv_col, comp_mv_row,
+              curr_mv_weight, refmv_count, &drl_pr_count);
+        }
+
+        if (*refmv_count < MAX_REF_MV_STACK_SIZE &&
+            added_ext_cnt < max_ext_stack_size) {
+          // Add (1_y, 2_x)
+          row = ref_mv_stack[1].this_mv.as_mv.row;
+          col = ref_mv_stack[2].this_mv.as_mv.col;
+          comp_mv_row = ref_mv_stack[1].comp_mv.as_mv.row;
+          comp_mv_col = ref_mv_stack[2].comp_mv.as_mv.col;
+          curr_mv_weight = (ref_mv_weight[1] + ref_mv_weight[2] + 1) / 2;
+          added_ext_cnt += insert_mvp_candidate(
+#if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+              xd, ref_frame_idx0, ref_frame_idx1, rf,
+#endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+              ref_mv_stack, ref_mv_weight, col, row, comp_mv_col, comp_mv_row,
+              curr_mv_weight, refmv_count, &drl_pr_count);
+        }
+        // Add (2_y, 1_x)
+        if (*refmv_count < MAX_REF_MV_STACK_SIZE &&
+            added_ext_cnt < max_ext_stack_size) {
+          row = ref_mv_stack[2].this_mv.as_mv.row;
+          col = ref_mv_stack[1].this_mv.as_mv.col;
+          comp_mv_row = ref_mv_stack[2].comp_mv.as_mv.row;
+          comp_mv_col = ref_mv_stack[1].comp_mv.as_mv.col;
+          curr_mv_weight = (ref_mv_weight[1] + ref_mv_weight[2] + 1) / 2;
+          added_ext_cnt += insert_mvp_candidate(
+#if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+              xd, ref_frame_idx0, ref_frame_idx1, rf,
+#endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+              ref_mv_stack, ref_mv_weight, col, row, comp_mv_col, comp_mv_row,
+              curr_mv_weight, refmv_count, &drl_pr_count);
+          (void)added_ext_cnt;
+        }
+      }
+    }
+#endif  // CONFIG_EXT_MVPRED
   }
 
   if (warp_param_stack && valid_num_warp_candidates &&
