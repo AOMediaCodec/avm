@@ -327,8 +327,6 @@ static AOM_INLINE void av1_ml_part_split_features(AV1_COMP *const cpi,
         (float)mi_size_wide_log2[left_bsize];
     out_features[FEATURE_INTRA_LOG_LEFT_HEIGHT] =
         (float)mi_size_high_log2[left_bsize];
-    out_features[FEATURE_INTRA_SWITCH] = search_none_after_rect;
-    out_features[FEATURE_INTRA_PART_T] = xd->tree_type;
   }
 
   int old1 = xd->mb_to_top_edge;
@@ -472,21 +470,22 @@ static void get_model_type(bool intra, BLOCK_SIZE bsize, int harsh_level,
   TRY_MODEL(true, 1, 12, MODEL_64X64, 0.25f, 0.7f, 60, 116)
   TRY_MODEL(true, 1, 9, MODEL_32X32, 0.07f, 0.25f, 60, 116)
   TRY_MODEL(true, 1, 6, MODEL_16X16, 0.01f, 0.15f, 60, 116)
+
   // CWG-E135
-  TRY_MODEL(false, -2, 12, MODEL_INTER_SPLIT_64X64, 0.01f, 1.f, 75, 150)
-  TRY_MODEL(false, -2, 9, MODEL_INTER_SPLIT_32X32, 0.02f, 1.f, 75, 150)
-  TRY_MODEL(false, -2, 6, MODEL_INTER_SPLIT_16X16, 0.05f, 1.f, 75, 150)
-  TRY_MODEL(false, -2, 3, MODEL_INTER_SPLIT_8X8, 0.25f, 1.f, 75, 150)
+  TRY_MODEL(false, -2, 12, MODEL_INTER_SPLIT_64X64, 0.005f, 1.f, 75, 150)
+  TRY_MODEL(false, -2, 9, MODEL_INTER_SPLIT_32X32, 0.005f, 1.f, 75, 150)
+  TRY_MODEL(false, -2, 6, MODEL_INTER_SPLIT_16X16, 0.02f, 1.f, 75, 150)
+  TRY_MODEL(false, -2, 3, MODEL_INTER_SPLIT_8X8, 0.1f, 1.f, 75, 150)
   TRY_MODEL(false, -1, 12, MODEL_INTER_SPLIT_64X64, 0.01f, 1.f, 75, 150)
   TRY_MODEL(false, -1, 9, MODEL_INTER_SPLIT_32X32, 0.02f, 1.f, 75, 150)
   TRY_MODEL(false, -1, 6, MODEL_INTER_SPLIT_16X16, 0.05f, 1.f, 75, 150)
   TRY_MODEL(false, -1, 3, MODEL_INTER_SPLIT_8X8, 0.25f, 1.f, 75, 150)
-  TRY_MODEL(false, 0, 12, MODEL_INTER_SPLIT_64X64, 0.01f, 1.f, 75, 150)
-  TRY_MODEL(false, 0, 9, MODEL_INTER_SPLIT_32X32, 0.02f, 1.f, 75, 150)
+  TRY_MODEL(false, 0, 12, MODEL_INTER_SPLIT_64X64, 0.01f, 0.85f, 75, 150)
+  TRY_MODEL(false, 0, 9, MODEL_INTER_SPLIT_32X32, 0.02f, 0.9f, 75, 150)
   TRY_MODEL(false, 0, 6, MODEL_INTER_SPLIT_16X16, 0.05f, 1.f, 75, 150)
   TRY_MODEL(false, 0, 3, MODEL_INTER_SPLIT_8X8, 0.25f, 1.f, 75, 150)
-  TRY_MODEL(false, 1, 12, MODEL_INTER_SPLIT_64X64, 0.02f, 1.f, 75, 150)
-  TRY_MODEL(false, 1, 9, MODEL_INTER_SPLIT_32X32, 0.04f, 1.f, 75, 150)
+  TRY_MODEL(false, 1, 12, MODEL_INTER_SPLIT_64X64, 0.02f, 0.8f, 75, 150)
+  TRY_MODEL(false, 1, 9, MODEL_INTER_SPLIT_32X32, 0.04f, 0.85f, 75, 150)
   TRY_MODEL(false, 1, 6, MODEL_INTER_SPLIT_16X16, 0.1f, 1.f, 75, 150)
   TRY_MODEL(false, 1, 3, MODEL_INTER_SPLIT_8X8, 0.35f, 1.f, 75, 150)
 }

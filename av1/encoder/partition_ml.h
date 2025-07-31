@@ -46,11 +46,6 @@ enum {
   FEATURE_INTRA_NORM_BEST_VAR_2_10,
   FEATURE_INTRA_NORM_BEST_SSE_2_11,
   FEATURE_INTRA_NORM_BEST_VAR_2_11,
-  // V1 features
-  // NONE w RECT switch, search_none_after_rect
-  FEATURE_INTRA_SWITCH,
-  // partition type: mixed, luma, chroma
-  FEATURE_INTRA_PART_T,
 
   FEATURE_INTRA_MAX
 };
