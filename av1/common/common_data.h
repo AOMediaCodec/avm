@@ -889,7 +889,6 @@ static AOM_INLINE bool is_bsize_gt(BLOCK_SIZE bsize1, BLOCK_SIZE bsize2) {
          block_size_high[bsize1] > block_size_high[bsize2];
 }
 
-#if CONFIG_CORE_TX
 static const int fwd_tx_shift[TX_SIZES_ALL][2] = {
   { 1, 10 },  // TX_4X4,    // 4x4 transform
   { 2, 10 },  // TX_8X8,    // 8x8 transform
@@ -983,7 +982,6 @@ static const int g_ver_tx_type[TX_TYPES] = {
   DCT8,  // V_FLIPADST,         // FLIPADST in vertical, identity in horizontal
   IDT,   // H_FLIPADST,         // Identity in vertical, FLIPADST in horizontal
 };
-#endif  // CONFIG_CORE_TX
 
 static const int min_class_with_offset[7] = { 4, 3, 2, 0, 0, 0, 0 };
 

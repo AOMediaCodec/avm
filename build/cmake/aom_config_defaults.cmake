@@ -281,8 +281,6 @@ set_aom_config_var(CONFIG_IMPROVED_GLOBAL_MOTION 1
 # CWG-F082: Extended DPB mode for AV2 in RTC
 set_aom_config_var(CONFIG_EXTRA_DPB 1 "Use extra dpb")
 
-# CWG-E230: On core transform for AV2
-set_aom_config_var(CONFIG_CORE_TX 1 "AV2 core transform")
 set_aom_config_var(CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING 1
                    "TX partition type signalling bugfix")
 set_aom_config_var(CONFIG_INTERINTRA_IMPROVEMENT 1

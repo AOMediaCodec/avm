@@ -400,7 +400,6 @@ const int16_t av1_eob_group_start[12] = { 0,  1,  2,  3,   5,   9,
                                           17, 33, 65, 129, 257, 513 };
 const int16_t av1_eob_offset_bits[12] = { 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
 
-#if CONFIG_CORE_TX
 // DCT-2
 const int tx_kernel_dct2_size4[TXFM_DIRECTIONS][4][4] = {
   {
@@ -2116,4 +2115,3 @@ const int tx_kernel_ddtx_size16[TXFM_DIRECTIONS][16][16] = {
     { 51, -89, 73, -17, -45, 89, -103, 97, -83, 71, -56, 44, -31, 22, -11, 5 },
     { 44, -95, 124, -126, 108, -81, 54, -30, 16, -6, 1, 3, -4, 5, -3, 2 } },
 };
-#endif

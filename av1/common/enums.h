@@ -648,7 +648,6 @@ enum {
   DCT_ADST_TX_MASK = 0x000F,  // Either DCT or ADST in each direction
 } UENUM2BYTE(TX_TYPE);
 
-#if CONFIG_CORE_TX
 enum {
   DCT2,
   IDT,
@@ -657,7 +656,6 @@ enum {
   DDTX,
   FDDT,
 } UENUM2BYTE(TX1D_TYPE);
-#endif  // CONFIG_CORE_TX
 
 #if CONFIG_IST_REDUCTION
 #define IST_REDUCE_SET_SIZE 4  // reduced set size for IST
