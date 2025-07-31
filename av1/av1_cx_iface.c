@@ -905,6 +905,10 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
     }
   }
 
+#if CONFIG_REDUCED_TX_SET_EXT
+  RANGE_CHECK(extra_cfg, reduced_tx_type_set, 0, 3);
+#endif  // CONFIG_REDUCED_TX_SET_EXT
+
   return AOM_CODEC_OK;
 }
 

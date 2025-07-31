@@ -382,6 +382,9 @@ set_aom_config_var(CONFIG_PALETTE_CTX_REDUCTION 1
                    "Context reductions to Palette mode related syntax")
 set_aom_config_var(CONFIG_WRL_NO_PRUNING 1 "No pruning when construct WRL")
 
+set_aom_config_var(CONFIG_REDUCED_TX_SET_EXT 1
+                   "Extension to reduced transform sets.")
+
 # This is an encode-only change.
 
 set_aom_config_var(CONFIG_FIX_RESIZE_PSNR 1

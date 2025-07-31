@@ -1504,16 +1504,34 @@ void av1_read_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd, int blk_row,
         return;
       }
 
+#if CONFIG_REDUCED_TX_SET_EXT
+      if (cm->features.reduced_tx_set_used == 2) {
+        *tx_type = DCT_DCT;
+        return;
+      }
+#endif  // CONFIG_REDUCED_TX_SET_EXT
+
       if (tx_set_type != EXT_TX_SET_LONG_SIDE_64 &&
           tx_set_type != EXT_TX_SET_LONG_SIDE_32) {
         const PREDICTION_MODE intra_mode = get_intra_mode(mbmi, PLANE_TYPE_Y);
         const int size_info = av1_size_class[tx_size];
         int tx_type_idx = aom_read_symbol(
             r,
-            ec_ctx->intra_ext_tx_cdf[eset + cm->features.reduced_tx_set_used]
-                                    [square_tx_size],
+            ec_ctx->intra_ext_tx_cdf[eset +
+#if CONFIG_REDUCED_TX_SET_EXT
+                                             cm->features.reduced_tx_set_used
+                                         ? 1
+                                         : 0
+#else
+                                     cm->features.reduced_tx_set_used
+#endif  // CONFIG_REDUCED_TX_SET_EXT
+        ][square_tx_size],
             cm->features.reduced_tx_set_used
+#if CONFIG_REDUCED_TX_SET_EXT
+                ? av1_num_reduced_tx_set[cm->features.reduced_tx_set_used - 1]
+#else
                 ? av1_num_reduced_tx_set
+#endif  // CONFIG_REDUCED_TX_SET_EXT
                 : av1_num_ext_tx_set_intra[tx_set_type],
             ACCT_INFO("tx_type"));
         *tx_type =

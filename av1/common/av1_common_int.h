@@ -817,7 +817,12 @@ typedef struct {
    * If true, the frame is restricted to a reduced subset of the full set of
    * transform types.
    */
-  bool reduced_tx_set_used;
+#if CONFIG_REDUCED_TX_SET_EXT
+  uint8_t
+#else
+  bool
+#endif  // CONFIG_REDUCED_TX_SET_EXT
+      reduced_tx_set_used;
   /*!
    * If true, error resilient mode is enabled.
    * Note: Error resilient mode allows the syntax of a frame to be parsed
@@ -5033,9 +5038,15 @@ static INLINE unsigned int av1_compute_allowed_tiles_log2(
 
 static INLINE int is_reduced_tx_set_used(const AV1_COMMON *const cm,
                                          const PLANE_TYPE plane_type) {
-  const bool reduced_tx_set_used = plane_type == PLANE_TYPE_Y
-                                       ? cm->features.reduced_tx_set_used
-                                       : cm->seq_params.enable_chroma_dctonly;
+  const
+#if CONFIG_REDUCED_TX_SET_EXT
+      uint8_t
+#else
+      bool
+#endif  // CONFIG_REDUCED_TX_SET_EXT
+          reduced_tx_set_used =
+              plane_type == PLANE_TYPE_Y ? cm->features.reduced_tx_set_used
+                                         : cm->seq_params.enable_chroma_dctonly;
   return reduced_tx_set_used;
 }
 

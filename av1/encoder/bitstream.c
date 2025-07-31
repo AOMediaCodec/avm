@@ -1432,16 +1432,34 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
       if (mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) {
         return;
       }
+#if CONFIG_REDUCED_TX_SET_EXT
+      if (cm->features.reduced_tx_set_used == 2) {
+        assert(get_primary_tx_type(tx_type) == DCT_DCT);
+        return;
+      }
+#endif  // CONFIG_REDUCED_TX_SET_EXT
       if (tx_set_type != EXT_TX_SET_LONG_SIDE_64 &&
           tx_set_type != EXT_TX_SET_LONG_SIDE_32) {
         aom_write_symbol(
             w,
             av1_tx_type_to_idx(get_primary_tx_type(tx_type), tx_set_type,
                                intra_dir, size_info),
-            ec_ctx->intra_ext_tx_cdf[eset + features->reduced_tx_set_used]
-                                    [square_tx_size],
+            ec_ctx->intra_ext_tx_cdf[eset +
+#if CONFIG_REDUCED_TX_SET_EXT
+                                             features->reduced_tx_set_used
+#else
+                                                 features
+                                                     ->reduced_tx_set_used ==
+                                             1
+#endif  // CONFIG_REDUCED_TX_SET_EXT
+                                         ? 1
+                                         : 0][square_tx_size],
             features->reduced_tx_set_used
+#if CONFIG_REDUCED_TX_SET_EXT
+                ? av1_num_reduced_tx_set[features->reduced_tx_set_used - 1]
+#else
                 ? av1_num_reduced_tx_set
+#endif  // CONFIG_REDUCED_TX_SET_EXT
                 : av1_num_ext_tx_set_intra[tx_set_type]);
       } else {
         int is_long_side_dct =
@@ -6723,7 +6741,11 @@ static AOM_INLINE void write_uncompressed_header_obu(
     assert(IMPLIES(!frame_is_intra_only(cm), !features->allow_warpmv_mode));
   }
 
+#if CONFIG_REDUCED_TX_SET_EXT
+  aom_wb_write_literal(wb, features->reduced_tx_set_used, 2);
+#else
   aom_wb_write_bit(wb, features->reduced_tx_set_used);
+#endif  // CONFIG_REDUCED_TX_SET_EXT
 
   if (!frame_is_intra_only(cm)) write_global_motion(cpi, wb);
 

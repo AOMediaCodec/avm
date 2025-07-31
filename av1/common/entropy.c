@@ -445,6 +445,10 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
                            CDF_SIZE(TX_TYPES));
   RESET_CDF_COUNTER_STRIDE(fc->inter_ext_tx_cdf[3], INTER_TX_SET3,
                            CDF_SIZE(TX_TYPES));
+#if CONFIG_REDUCED_TX_SET_EXT
+  RESET_CDF_COUNTER_STRIDE(fc->inter_ext_tx_cdf[4], INTER_TX_SET4,
+                           CDF_SIZE(TX_TYPES));
+#endif  // CONFIG_REDUCED_TX_SET_EXT
   RESET_CDF_COUNTER(fc->inter_ext_tx_short_side_cdf, 4);
   RESET_CDF_COUNTER(fc->intra_ext_tx_short_side_cdf, 4);
   RESET_CDF_COUNTER(fc->tx_ext_32_cdf, 2);

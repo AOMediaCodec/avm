@@ -351,7 +351,13 @@ static AOM_INLINE void predict_and_reconstruct_intra_block(
       recon_with_cctx = eob_data_c1->eob > 0;
     }
     if (eob_data->eob || recon_with_cctx) {
-      const bool reduced_tx_set_used = is_reduced_tx_set_used(cm, plane_type);
+      const
+#if CONFIG_REDUCED_TX_SET_EXT
+          uint8_t
+#else
+          bool
+#endif  // CONFIG_REDUCED_TX_SET_EXT
+              reduced_tx_set_used = is_reduced_tx_set_used(cm, plane_type);
       // tx_type was read out in av1_read_coeffs_txb.
       const TX_TYPE tx_type = av1_get_tx_type(xd, plane_type, row, col, tx_size,
                                               reduced_tx_set_used);
@@ -416,7 +422,13 @@ static AOM_INLINE void inverse_transform_inter_block(
   MACROBLOCKD *const xd = &dcb->xd;
   PLANE_TYPE plane_type = get_plane_type(plane);
   const struct macroblockd_plane *const pd = &xd->plane[plane];
-  const bool reduced_tx_set_used = is_reduced_tx_set_used(cm, plane_type);
+  const
+#if CONFIG_REDUCED_TX_SET_EXT
+      uint8_t
+#else
+      bool
+#endif  // CONFIG_REDUCED_TX_SET_EXT
+          reduced_tx_set_used = is_reduced_tx_set_used(cm, plane_type);
   // tx_type was read out in av1_read_coeffs_txb.
   const TX_TYPE tx_type = av1_get_tx_type(xd, plane_type, blk_row, blk_col,
                                           tx_size, reduced_tx_set_used);
@@ -8562,7 +8574,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
   features->enable_imp_msk_bld = seq_params->enable_imp_msk_bld;
 
-  features->reduced_tx_set_used = aom_rb_read_bit(rb);
+  features->reduced_tx_set_used =
+#if CONFIG_REDUCED_TX_SET_EXT
+      aom_rb_read_literal(rb, 2);
+#else
+      aom_rb_read_bit(rb);
+#endif  // CONFIG_REDUCED_TX_SET_EXT
 
   if (features->allow_ref_frame_mvs && !frame_might_allow_ref_frame_mvs(cm)) {
     aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,

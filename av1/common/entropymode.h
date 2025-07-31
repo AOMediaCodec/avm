@@ -538,6 +538,9 @@ static const int av1_ext_tx_ind[EXT_TX_SET_TYPES][TX_TYPES] = {
   { 3, 4, 5, 8, 6, 7, 9, 10, 11, 0, 1, 2, 0, 0, 0, 0 },
   { 7, 8, 9, 12, 10, 11, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6 },
   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+#if CONFIG_REDUCED_TX_SET_EXT
+  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 1, 2, 0, 0, 0, 0 },
+#endif  // CONFIG_REDUCED_TX_SET_EXT
 };
 
 static const int av1_ext_tx_inv[EXT_TX_SET_TYPES][TX_TYPES] = {
@@ -550,6 +553,9 @@ static const int av1_ext_tx_inv[EXT_TX_SET_TYPES][TX_TYPES] = {
   { 9, 10, 11, 0, 1, 2, 4, 5, 3, 6, 7, 8, 0, 0, 0, 0 },
   { 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 4, 5, 3, 6, 7, 8 },
   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+#if CONFIG_REDUCED_TX_SET_EXT
+  { 0, 10, 11, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+#endif  // CONFIG_REDUCED_TX_SET_EXT
 };
 
 static const int av1_md_type2idx[EXT_TX_SIZES][INTRA_MODES][TX_TYPES] = {
