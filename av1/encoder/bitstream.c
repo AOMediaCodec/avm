@@ -5488,6 +5488,7 @@ static AOM_INLINE void code_qm_data(const SequenceHeader *const seq_params,
           const int row = pos / width;
           const int col = pos % width;
           if (col > row) {
+            prev = mat[col * width + row];
             continue;
           }
         }

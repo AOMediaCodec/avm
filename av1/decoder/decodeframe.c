@@ -6461,7 +6461,8 @@ static AOM_INLINE void decode_qm_data(
           const int row = pos / width;
           const int col = pos % width;
           if (col > row) {
-            mat[pos] = mat[col * width + row];
+            prev = mat[col * width + row];
+            mat[pos] = prev;
             continue;
           }
         }
