@@ -5720,6 +5720,17 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
   aom_wb_write_bit(wb, seq_params->explicit_ref_frame_map);
   // 0 : show_existing_frame, 1: implicit derviation
   aom_wb_write_bit(wb, seq_params->enable_frame_output_order);
+
+#if CONFIG_CWG_F168_DPB_HLS
+  const int signal_dpb_explicit =
+      seq_params->max_dpb_size != 8;  // DPB size 8 is the default value
+  aom_wb_write_bit(wb, signal_dpb_explicit);
+  if (signal_dpb_explicit) {
+    aom_wb_write_literal(wb, seq_params->max_dpb_size - 1, 4);
+  }
+#endif  // CONFIG_CWG_F168_DPB_HLS
+
+#if !CONFIG_CWG_F168_DPB_HLS
   // A bit is sent here to indicate if the max number of references is 7. If
   // this bit is 0, then two more bits are sent to indicate the exact number
   // of references allowed (range: 3 to 6).
@@ -5734,6 +5745,7 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
     aom_wb_write_literal(wb, 0, 1);
   }
 #endif  // CONFIG_EXTRA_DPB
+#endif  // !CONFIG_CWG_F168_DPB_HLS
   aom_wb_write_literal(wb, seq_params->num_same_ref_compound, 2);
   if (!seq_params->monochrome) aom_wb_write_bit(wb, seq_params->enable_sdp);
   if (seq_params->enable_sdp)

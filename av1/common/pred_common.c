@@ -210,7 +210,12 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
   bubble_sort_ref_scores(scores, n_ranked);
 
   cm->ref_frames_info.num_total_refs =
+#if CONFIG_CWG_F168_DPB_HLS
+      AOMMIN(n_ranked,
+             AOMMIN(cm->seq_params.ref_frames - 1, INTER_REFS_PER_FRAME));
+#else
       AOMMIN(n_ranked, cm->seq_params.max_reference_frames);
+#endif
   for (int i = 0; i < cm->ref_frames_info.num_total_refs; i++) {
     cm->remapped_ref_idx[i] = scores[i].index;
     // The distance is not available to the decoder when order_hint is disabled.

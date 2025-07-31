@@ -561,11 +561,20 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_ext_seg = tool_cfg->enable_ext_seg;
 #endif  // CONFIG_EXT_SEG
 #if CONFIG_EXTRA_DPB
+#if CONFIG_CWG_F168_DPB_HLS
+  seq->max_dpb_size = tool_cfg->max_dpb_size;
+  seq->ref_frames = seq->max_dpb_size;
+  seq->ref_frames_log2 = seq->max_dpb_size > 8   ? 4
+                         : seq->max_dpb_size > 4 ? 3
+                         : seq->max_dpb_size > 2 ? 2
+                                                 : 1;
+#else
   seq->num_extra_dpb = tool_cfg->num_extra_dpb;
   seq->ref_frames = seq->num_extra_dpb ? REGULAR_REF_FRAMES + seq->num_extra_dpb
                                        : REGULAR_REF_FRAMES;
   seq->ref_frames_log2 =
       seq->num_extra_dpb ? REF_FRAMES_LOG2 + 1 : REF_FRAMES_LOG2;
+#endif  // CONFIG_CWG_F168_DPB_HLS
 #else
   seq->ref_frames = REF_FRAMES;
   seq->ref_frames_log2 = REF_FRAMES_LOG2;

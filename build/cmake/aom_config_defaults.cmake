@@ -269,6 +269,9 @@ set_aom_config_var(CONFIG_IMPROVED_GLOBAL_MOTION 1
 
 # CWG-F082: Extended DPB mode for AV2 in RTC
 set_aom_config_var(CONFIG_EXTRA_DPB 1 "Use extra dpb")
+# Configurable DPB extension
+set_aom_config_var(CONFIG_CWG_F168_DPB_HLS 1
+                   "signaling changes for DPB extension")
 
 set_aom_config_var(CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING 1
                    "TX partition type signalling bugfix")
