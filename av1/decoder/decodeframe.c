@@ -9525,7 +9525,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
 #if CONFIG_COMBINE_PC_NS_WIENER
         copy_frame_filters_to_runits_if_needed(cm);
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
-        if (pbi->num_workers > 1) {
+        if (pbi->num_workers > 1 && USE_LOOP_RESTORATION_MT) {
           av1_loop_restoration_filter_frame_mt(
               (YV12_BUFFER_CONFIG *)xd->cur_buf, cm, optimized_loop_restoration,
               pbi->tile_workers, pbi->num_workers, &pbi->lr_row_sync,
@@ -9549,7 +9549,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
 #if CONFIG_COMBINE_PC_NS_WIENER
         copy_frame_filters_to_runits_if_needed(cm);
 #endif  // CONFIG_COMBINE_PC_NS_WIENER
-        if (pbi->num_workers > 1) {
+        if (pbi->num_workers > 1 && USE_LOOP_RESTORATION_MT) {
           av1_loop_restoration_filter_frame_mt(
               (YV12_BUFFER_CONFIG *)xd->cur_buf, cm, optimized_loop_restoration,
               pbi->tile_workers, pbi->num_workers, &pbi->lr_row_sync,

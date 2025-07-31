@@ -566,10 +566,22 @@ static void enqueue_lr_jobs(AV1LrSync *lr_sync, AV1LrStruct *lr_ctxt,
   lr_sync->jobs_enqueued = 0;
   lr_sync->jobs_dequeued = 0;
 
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  const int num_tile_rows =
+      cm->seq_params.disable_loopfilters_across_tiles ? cm->tiles.rows : 1;
+  const int num_tile_cols =
+      cm->seq_params.disable_loopfilters_across_tiles ? cm->tiles.cols : 1;
+#else
+  const int num_tile_rows = 1;
+  const int num_tile_cols = 1;
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+
   for (int plane = 0; plane < num_planes; plane++) {
     if (cm->rst_info[plane].frame_restoration_type == RESTORE_NONE) continue;
-    num_even_lr_jobs =
-        num_even_lr_jobs + ((ctxt[plane].rsi->vert_units_per_tile[0] + 1) >> 1);
+    for (int tile_row = 0; tile_row < num_tile_rows; ++tile_row)
+      num_even_lr_jobs +=
+          ((ctxt[plane].rsi->vert_units_per_tile[tile_row] + 1) >> 1) *
+          num_tile_cols;
   }
   lr_job_counter[0] = 0;
   lr_job_counter[1] = num_even_lr_jobs;
@@ -578,58 +590,78 @@ static void enqueue_lr_jobs(AV1LrSync *lr_sync, AV1LrStruct *lr_ctxt,
     if (cm->rst_info[plane].frame_restoration_type == RESTORE_NONE) continue;
     const int is_uv = plane > 0;
     const int ss_y = is_uv && cm->seq_params.subsampling_y;
-
-    AV1PixelRect tile_rect = ctxt[plane].tile_rect;
     const int unit_size = ctxt[plane].rsi->restoration_unit_size;
 
-    const int tile_h = tile_rect.bottom - tile_rect.top;
-    const int ext_size = unit_size * 3 / 2;
-
-    int y0 = 0, i = 0;
-    while (y0 < tile_h) {
-      int remaining_h = tile_h - y0;
-      int h = (remaining_h < ext_size) ? remaining_h : unit_size;
-
-      RestorationTileLimits limits;
-      limits.v_start = tile_rect.top + y0;
-      limits.v_end = tile_rect.top + y0 + h;
-      assert(limits.v_end <= tile_rect.bottom);
-      // Offset the tile upwards to align with the restoration processing stripe
-      const int voffset = RESTORATION_UNIT_OFFSET >> ss_y;
-      limits.v_start = AOMMAX(tile_rect.top, limits.v_start - voffset);
-      if (limits.v_end < tile_rect.bottom) limits.v_end -= voffset;
-
-      assert(lr_job_counter[0] <= num_even_lr_jobs);
-
-      lr_job_queue[lr_job_counter[i & 1]].lr_unit_row = i;
-      lr_job_queue[lr_job_counter[i & 1]].plane = plane;
-      lr_job_queue[lr_job_counter[i & 1]].v_start = limits.v_start;
-      lr_job_queue[lr_job_counter[i & 1]].v_end = limits.v_end;
-      lr_job_queue[lr_job_counter[i & 1]].sync_mode = i & 1;
-      if ((i & 1) == 0) {
-        lr_job_queue[lr_job_counter[i & 1]].v_copy_start =
-            limits.v_start + RESTORATION_BORDER;
-        lr_job_queue[lr_job_counter[i & 1]].v_copy_end =
-            limits.v_end - RESTORATION_BORDER;
-        if (i == 0) {
-          assert(limits.v_start == tile_rect.top);
-          lr_job_queue[lr_job_counter[i & 1]].v_copy_start = tile_rect.top;
+    for (int tile_row = 0; tile_row < num_tile_rows; ++tile_row) {
+      for (int tile_col = 0; tile_col < num_tile_cols; ++tile_col) {
+        AV1PixelRect tile_rect;
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+        if (cm->seq_params.disable_loopfilters_across_tiles) {
+          TileInfo tile_info;
+          av1_tile_init(&tile_info, cm, tile_row, tile_col);
+          tile_rect = av1_get_tile_rect(&tile_info, cm, is_uv);
+        } else {
+          tile_rect = av1_whole_frame_rect(cm, is_uv);
         }
-        if (i == (ctxt[plane].rsi->vert_units_per_tile[0] - 1)) {
-          assert(limits.v_end == tile_rect.bottom);
-          lr_job_queue[lr_job_counter[i & 1]].v_copy_end = tile_rect.bottom;
+#else
+        tile_rect = av1_whole_frame_rect(cm, is_uv);
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+        const int tile_h = tile_rect.bottom - tile_rect.top;
+        int y0 = 0, i = 0;
+        while (y0 < tile_h) {
+          int remaining_h = tile_h - y0;
+          int h = (i == ctxt[plane].rsi->vert_units_per_tile[tile_row] - 1)
+                      ? remaining_h
+                      : unit_size;
+          RestorationTileLimits limits;
+          limits.v_start = tile_rect.top + y0;
+          limits.v_end = tile_rect.top + y0 + h;
+          assert(limits.v_end <= tile_rect.bottom);
+          // Offset the tile upwards to align with the restoration processing
+          // stripe
+          if (limits.v_start == tile_rect.top) {
+            const int voffset = RESTORATION_UNIT_OFFSET >> ss_y;
+            if (limits.v_end < tile_rect.bottom) limits.v_end -= voffset;
+            h = limits.v_end - limits.v_start;
+          }
+
+          assert(lr_job_counter[0] <= num_even_lr_jobs);
+
+          lr_job_queue[lr_job_counter[i & 1]].lr_unit_row = i;
+          lr_job_queue[lr_job_counter[i & 1]].plane = plane;
+          lr_job_queue[lr_job_counter[i & 1]].v_start = limits.v_start;
+          lr_job_queue[lr_job_counter[i & 1]].v_end = limits.v_end;
+          lr_job_queue[lr_job_counter[i & 1]].tile_rect = tile_rect;
+          lr_job_queue[lr_job_counter[i & 1]].sync_mode = i & 1;
+          lr_job_queue[lr_job_counter[i & 1]].tile_row = tile_row;
+          lr_job_queue[lr_job_counter[i & 1]].tile_col = tile_col;
+
+          if ((i & 1) == 0) {
+            lr_job_queue[lr_job_counter[i & 1]].v_copy_start =
+                limits.v_start + RESTORATION_BORDER;
+            lr_job_queue[lr_job_counter[i & 1]].v_copy_end =
+                limits.v_end - RESTORATION_BORDER;
+            if (i == 0) {
+              assert(limits.v_start == tile_rect.top);
+              lr_job_queue[lr_job_counter[i & 1]].v_copy_start = tile_rect.top;
+            }
+            if (i == (ctxt[plane].rsi->vert_units_per_tile[tile_row] - 1)) {
+              assert(limits.v_end == tile_rect.bottom);
+              lr_job_queue[lr_job_counter[i & 1]].v_copy_end = tile_rect.bottom;
+            }
+          } else {
+            lr_job_queue[lr_job_counter[i & 1]].v_copy_start =
+                AOMMAX(limits.v_start - RESTORATION_BORDER, tile_rect.top);
+            lr_job_queue[lr_job_counter[i & 1]].v_copy_end =
+                AOMMIN(limits.v_end + RESTORATION_BORDER, tile_rect.bottom);
+          }
+          lr_job_counter[i & 1]++;
+          lr_sync->jobs_enqueued++;
+
+          y0 += h;
+          ++i;
         }
-      } else {
-        lr_job_queue[lr_job_counter[i & 1]].v_copy_start =
-            AOMMAX(limits.v_start - RESTORATION_BORDER, tile_rect.top);
-        lr_job_queue[lr_job_counter[i & 1]].v_copy_end =
-            AOMMIN(limits.v_end + RESTORATION_BORDER, tile_rect.bottom);
       }
-      lr_job_counter[i & 1]++;
-      lr_sync->jobs_enqueued++;
-
-      y0 += h;
-      ++i;
     }
   }
 }
@@ -659,13 +691,8 @@ static int loop_restoration_row_worker(void *arg1, void *arg2) {
   LRWorkerData *lrworkerdata = (LRWorkerData *)arg2;
   AV1LrStruct *lr_ctxt = (AV1LrStruct *)lrworkerdata->lr_ctxt;
   FilterFrameCtxt *ctxt = lr_ctxt->ctxt;
-  // CommonTileParams *tiles = lr_ctxt->tiles;
   int lr_unit_row;
   int plane;
-  const int tile_row = LR_TILE_ROW;
-  const int tile_col = LR_TILE_COL;
-  // const int tile_cols = LR_TILE_COLS;
-  // const int tile_idx = tile_col + tile_row * tile_cols;
   typedef void (*copy_fun)(const YV12_BUFFER_CONFIG *src_ybc,
                            YV12_BUFFER_CONFIG *dst_ybc, int hstart, int hend,
                            int vstart, int vend);
@@ -676,6 +703,7 @@ static int loop_restoration_row_worker(void *arg1, void *arg2) {
   while (1) {
     AV1LrMTInfo *cur_job_info = get_lr_job_info(lr_sync);
     if (cur_job_info != NULL) {
+      AV1PixelRect tile_rect = cur_job_info->tile_rect;
       RestorationTileLimits limits;
       sync_read_fn_t on_sync_read;
       sync_write_fn_t on_sync_write;
@@ -683,6 +711,12 @@ static int loop_restoration_row_worker(void *arg1, void *arg2) {
       limits.v_end = cur_job_info->v_end;
       lr_unit_row = cur_job_info->lr_unit_row;
       plane = cur_job_info->plane;
+      const int tile_row = cur_job_info->tile_row;
+      const int tile_col = cur_job_info->tile_col;
+      assert(tile_row == get_tile_row_from_mi_row(
+                             lr_ctxt->tiles, tile_rect.top >> MI_SIZE_LOG2));
+      assert(tile_col == get_tile_col_from_mi_col(
+                             lr_ctxt->tiles, tile_rect.left >> MI_SIZE_LOG2));
       const int unit_idx0 =
           get_ru_index_for_tile_start(ctxt[plane].rsi, tile_row, tile_col);
 
@@ -694,15 +728,15 @@ static int loop_restoration_row_worker(void *arg1, void *arg2) {
                                                    : av1_lr_sync_write_dummy;
 
       av1_foreach_rest_unit_in_row(
-          &limits, &(ctxt[plane].tile_rect), lr_ctxt->on_rest_unit, lr_unit_row,
+          &limits, &tile_rect, lr_ctxt->on_rest_unit, lr_unit_row,
           ctxt[plane].rsi->restoration_unit_size, unit_idx0,
           ctxt[plane].rsi->horz_units_per_tile[tile_col],
           ctxt[plane].rsi->vert_units_per_tile[tile_row],
           ctxt[plane].rsi->horz_units_per_frame, plane, &ctxt[plane],
           lrworkerdata->rlbs, on_sync_read, on_sync_write, lr_sync, NULL);
 
-      copy_funs[plane](lr_ctxt->dst, lr_ctxt->frame, ctxt[plane].tile_rect.left,
-                       ctxt[plane].tile_rect.right, cur_job_info->v_copy_start,
+      copy_funs[plane](lr_ctxt->dst, lr_ctxt->frame, tile_rect.left,
+                       tile_rect.right, cur_job_info->v_copy_start,
                        cur_job_info->v_copy_end);
     } else {
       break;
@@ -754,6 +788,13 @@ static void foreach_rest_unit_in_planes_mt(AV1LrStruct *lr_ctxt,
 
   const int num_planes = av1_num_planes(cm);
 
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  const int num_tile_cols =
+      cm->seq_params.disable_loopfilters_across_tiles ? cm->tiles.cols : 1;
+#else
+  const int num_tile_cols = 1;
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+
   const AVxWorkerInterface *const winterface = aom_get_worker_interface();
   int num_rows_lr = 0;
 
@@ -777,13 +818,16 @@ static void foreach_rest_unit_in_planes_mt(AV1LrStruct *lr_ctxt,
     ctxt[plane].wiener_class_id_stride =
         cm->mi_params.wiener_class_id_stride[plane];
     ctxt[plane].tskip_zero_flag = 0;
-    const AV1PixelRect tile_rect = ctxt[plane].tile_rect;
-    const int max_tile_h = tile_rect.bottom - tile_rect.top;
+    // const AV1PixelRect tile_rect = ctxt[plane].tile_rect;
+    // const int max_tile_h = tile_rect.bottom - tile_rect.top;
 
-    const int unit_size = cm->rst_info[plane].restoration_unit_size;
+    // const int unit_size = cm->rst_info[plane].restoration_unit_size;
 
-    num_rows_lr =
-        AOMMAX(num_rows_lr, av1_lr_count_units_in_tile(unit_size, max_tile_h));
+    // num_rows_lr =
+    //     AOMMAX(num_rows_lr, av1_lr_count_units_in_tile(unit_size,
+    //     max_tile_h));
+    num_rows_lr = AOMMAX(
+        num_rows_lr, cm->rst_info[plane].vert_units_per_frame * num_tile_cols);
   }
 
   const int num_workers = nworkers;

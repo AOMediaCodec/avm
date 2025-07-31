@@ -2565,9 +2565,14 @@ void av1_foreach_rest_unit_in_tile(const AV1PixelRect *tile_rect, int unit_idx0,
     limits.v_end = tile_rect->top + y0 + h;
     assert(limits.v_end <= tile_rect->bottom);
     // Offset the tile upwards to align with the restoration processing stripe
-    const int voffset = RESTORATION_UNIT_OFFSET >> ss_y;
-    limits.v_start = AOMMAX(tile_rect->top, limits.v_start - voffset);
-    if (limits.v_end < tile_rect->bottom) limits.v_end -= voffset;
+    if (limits.v_start == tile_rect->top) {
+      const int voffset = RESTORATION_UNIT_OFFSET >> ss_y;
+      if (limits.v_end < tile_rect->bottom) limits.v_end -= voffset;
+      h = limits.v_end - limits.v_start;
+    }
+    // const int voffset = RESTORATION_UNIT_OFFSET >> ss_y;
+    // limits.v_start = AOMMAX(tile_rect->top, limits.v_start - voffset);
+    // if (limits.v_end < tile_rect->bottom) limits.v_end -= voffset;
 
     assert(i < vunits_per_tile);
     av1_foreach_rest_unit_in_row(

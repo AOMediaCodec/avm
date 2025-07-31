@@ -58,6 +58,9 @@ typedef struct AV1LfSyncData {
 typedef struct AV1LrMTInfo {
   int v_start;
   int v_end;
+  AV1PixelRect tile_rect;
+  int tile_row;
+  int tile_col;
   int lr_unit_row;
   int plane;
   int sync_mode;
