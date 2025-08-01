@@ -68,4 +68,9 @@ macro(fix_experiment_configs)
     change_config_and_warn(CONFIG_TENSORFLOW_LITE 1 CONFIG_DIP_EXT_PRUNING)
   endif()
 
+  if(CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES)
+    change_config_and_warn(CONFIG_LR_FRAMEFILTERS_IN_HEADER 1
+                           CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES)
+  endif()
+
 endmacro()

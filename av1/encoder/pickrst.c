@@ -3574,8 +3574,13 @@ int count_match_indices_bits(int plane, int num_classes, int num_ref_frames,
     const int base = get_group_base(group, group_counts);
     const int n = group == 0 ? c_id + 1 : group_counts[group];
     if (n > 1) {
+#if CONFIG_LR_FRAMEFILTERS_IN_HEADER
+      total_bits += aom_wb_count_primitive_refsubexpfin(
+          n, 4, ref - base, match_indices[c_id] - base);
+#else
       total_bits += aom_count_primitive_refsubexpfin(
           n, 4, ref - base, match_indices[c_id] - base);
+#endif  // CONFIG_LR_FRAMEFILTERS_IN_HEADER
     }
   }
   return total_bits;

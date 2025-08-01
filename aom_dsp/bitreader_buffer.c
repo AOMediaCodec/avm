@@ -121,8 +121,9 @@ static uint16_t aom_rb_read_primitive_subexpfin(struct aom_read_bit_buffer *rb,
   return 0;
 }
 
-static uint16_t aom_rb_read_primitive_refsubexpfin(
-    struct aom_read_bit_buffer *rb, uint16_t n, uint16_t k, uint16_t ref) {
+uint16_t aom_rb_read_primitive_refsubexpfin(struct aom_read_bit_buffer *rb,
+                                            uint16_t n, uint16_t k,
+                                            uint16_t ref) {
   assert(ref < n);
   return inv_recenter_finite_nonneg(n, ref,
                                     aom_rb_read_primitive_subexpfin(rb, n, k));

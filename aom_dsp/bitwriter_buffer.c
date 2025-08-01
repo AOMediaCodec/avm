@@ -129,6 +129,20 @@ void aom_wb_write_primitive_ref_quniform(struct aom_write_bit_buffer *wb,
   }
 }
 
+static int wb_count_primitive_quniform(uint16_t n, uint16_t v) {
+  int bits = 0;
+  if (n <= 1) return 0;
+  assert(v < n);
+  const int l = get_msb(n) + 1;
+  const int m = (1 << l) - n;
+  if (v < m) {
+    bits += l - 1;
+  } else {
+    bits += l;
+  }
+  return bits;
+}
+
 static void wb_write_primitive_subexpfin(struct aom_write_bit_buffer *wb,
                                          uint16_t n, uint16_t k, uint16_t v) {
   int i = 0;
@@ -153,9 +167,34 @@ static void wb_write_primitive_subexpfin(struct aom_write_bit_buffer *wb,
   }
 }
 
-static void wb_write_primitive_refsubexpfin(struct aom_write_bit_buffer *wb,
-                                            uint16_t n, uint16_t k,
-                                            uint16_t ref, uint16_t v) {
+static int wb_count_primitive_subexpfin(uint16_t n, uint16_t k, uint16_t v) {
+  int bits = 0;
+  int i = 0;
+  int mk = 0;
+  while (1) {
+    int b = (i ? k + i - 1 : k);
+    int a = (1 << b);
+    if (n <= mk + 3 * a) {
+      bits += wb_count_primitive_quniform(n - mk, v - mk);
+      break;
+    } else {
+      int t = (v >= mk + a);
+      bits++;
+      if (t) {
+        i = i + 1;
+        mk += a;
+      } else {
+        bits += b;
+        break;
+      }
+    }
+  }
+  return bits;
+}
+
+void aom_wb_write_primitive_refsubexpfin(struct aom_write_bit_buffer *wb,
+                                         uint16_t n, uint16_t k, uint16_t ref,
+                                         uint16_t v) {
   assert(ref < n);
   assert(v < n);
   wb_write_primitive_subexpfin(wb, n, k, recenter_finite_nonneg(n, ref, v));
@@ -167,5 +206,13 @@ void aom_wb_write_signed_primitive_refsubexpfin(struct aom_write_bit_buffer *wb,
   assert(n > 0);
   const uint16_t offset = n - 1;
   const uint16_t scaled_n = (n << 1) - 1;
-  wb_write_primitive_refsubexpfin(wb, scaled_n, k, ref + offset, v + offset);
+  aom_wb_write_primitive_refsubexpfin(wb, scaled_n, k, ref + offset,
+                                      v + offset);
+}
+
+int aom_wb_count_primitive_refsubexpfin(uint16_t n, uint16_t k, int16_t ref,
+                                        int16_t v) {
+  assert(ref < n);
+  assert(v < n);
+  return wb_count_primitive_subexpfin(n, k, recenter_finite_nonneg(n, ref, v));
 }
