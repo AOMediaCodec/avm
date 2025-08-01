@@ -197,12 +197,14 @@ static void tip_blk_average_filter_mv(AV1_COMMON *cm) {
           const int blk_pos_in_sb = (row - sb_row) * sb_stride + (col - sb_col);
           if (weights) {
             const int scale_factor = weight_div_mult[weights];
+            const int64_t scale_mv_row = (int64_t)sum_mv_row * scale_factor;
+            const int64_t scale_mv_col = (int64_t)sum_mv_col * scale_factor;
             tpl_mfs[blk_pos_in_sb].as_mv.row =
-                (MV_COMP_DATA_TYPE)ROUND_POWER_OF_TWO_SIGNED(
-                    sum_mv_row * scale_factor, DIV_SHIFT_BITS);
+                (MV_COMP_DATA_TYPE)ROUND_POWER_OF_TWO_SIGNED_64(scale_mv_row,
+                                                                DIV_SHIFT_BITS);
             tpl_mfs[blk_pos_in_sb].as_mv.col =
-                (MV_COMP_DATA_TYPE)ROUND_POWER_OF_TWO_SIGNED(
-                    sum_mv_col * scale_factor, DIV_SHIFT_BITS);
+                (MV_COMP_DATA_TYPE)ROUND_POWER_OF_TWO_SIGNED_64(scale_mv_col,
+                                                                DIV_SHIFT_BITS);
           } else {
             tpl_mfs[blk_pos_in_sb].as_int = INVALID_MV;
           }
