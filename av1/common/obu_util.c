@@ -58,7 +58,6 @@ static aom_codec_err_t read_obu_header(struct aom_read_bit_buffer *rb,
 
 #if CONFIG_NEW_OBU_HEADER
   (void)is_annexb;
-#if CONFIG_F301_OBU_HEADER
   if (bit_buffer_byte_length < 1) return AOM_CODEC_CORRUPT_FRAME;
   header->size = 1;
 
@@ -78,18 +77,6 @@ static aom_codec_err_t read_obu_header(struct aom_read_bit_buffer *rb,
     header->obu_mlayer_id = 0;  // obu_layer (mlayer)
     header->obu_xlayer_id = 0;  // obu_layer (xlayer)
   }
-#else   // !CONFIG_F301_OBU_HEADER
-  if (bit_buffer_byte_length < OBU_HEADER_SIZE) return AOM_CODEC_CORRUPT_FRAME;
-
-  header->type = (OBU_TYPE)aom_rb_read_literal(rb, 4);  // obu_type
-  header->obu_reserved_bit =
-      aom_rb_read_literal(rb, 1);  // reserved bit (will be potentially used for
-                                   // OBU type extension to 5 bits)
-  header->obu_tlayer_id = aom_rb_read_literal(rb, 3);  // obu_temporal
-  header->obu_mlayer_id = aom_rb_read_literal(rb, 3);  // obu_layer (mlayer)
-  header->obu_xlayer_id = aom_rb_read_literal(rb, 5);  // obu_layer (xlayer)
-  if (!valid_obu_type(header->type)) return AOM_CODEC_CORRUPT_FRAME;
-#endif  // CONFIG_F301_OBU_HEADER
 #else   // !CONFIG_NEW_OBU_HEADER
   if (bit_buffer_byte_length < 1) return AOM_CODEC_CORRUPT_FRAME;
 
@@ -176,13 +163,8 @@ aom_codec_err_t aom_read_obu_header_and_size(const uint8_t *data,
 
 #if CONFIG_F159_OBUSIZE_ANNEXB
   // Derive the payload size from the data we've already read
-#if CONFIG_F301_OBU_HEADER
   if (obu_size < obu_header->size) return AOM_CODEC_CORRUPT_FRAME;
   *payload_size = obu_size - obu_header->size;
-#else
-  if (obu_size < OBU_HEADER_SIZE) return AOM_CODEC_CORRUPT_FRAME;
-  *payload_size = obu_size - OBU_HEADER_SIZE;
-#endif  // CONFIG_F301_OBU_HEADER
 #else   // !CONFIG_F159_OBUSIZE_ANNEXB
   if (!obu_header->has_size_field) {
     assert(is_annexb);
@@ -200,17 +182,8 @@ aom_codec_err_t aom_read_obu_header_and_size(const uint8_t *data,
   }
 #endif  // CONFIG_F159_OBUSIZE_ANNEXB
 
-#if CONFIG_F159_OBUSIZE_ANNEXB
-#if CONFIG_F301_OBU_HEADER
   *bytes_read =
       length_field_size_obu + obu_header->size + length_field_size_payload;
-#else
-  *bytes_read =
-      length_field_size_obu + OBU_HEADER_SIZE + length_field_size_payload;
-#endif  // CONFIG_F301_OBU_HEADER
-#else
-  *bytes_read =
-      length_field_size_obu + obu_header->size + length_field_size_payload;
-#endif  // CONFIG_F159_OBUSIZE_ANNEXB
+
   return AOM_CODEC_OK;
 }

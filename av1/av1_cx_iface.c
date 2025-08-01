@@ -3505,15 +3505,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
               aom_uleb_size_in_bytes(obu_payload_size);
 
           if (ctx->pending_cx_data) {
-#if CONFIG_NEW_OBU_HEADER
-#if CONFIG_F301_OBU_HEADER
             const size_t move_offset = length_field_size + 1;
-#else
-            const size_t move_offset = length_field_size + 2;
-#endif  // CONFIG_F301_OBU_HEADER
-#else
-            const size_t move_offset = length_field_size + 1;
-#endif  // CONFIG_NEW_OBU_HEADER
             memmove(ctx->pending_cx_data + move_offset, ctx->pending_cx_data,
                     frame_size);
           }

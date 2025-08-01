@@ -774,16 +774,9 @@ static void av1_write_show_existing_frame_obu(uint8_t *const dst,
   int obu_type = OBU_FRAME_HEADER;
 
 #if CONFIG_NEW_OBU_HEADER
-#if CONFIG_F301_OBU_HEADER
   aom_wb_write_literal(&wb, (int)obu_type, 4);  // obu_type
   aom_wb_write_literal(&wb, 0, 1);              // obu_extension_flag
   aom_wb_write_literal(&wb, 0, 3);              // obu_temporal
-#else
-  aom_wb_write_literal(&wb, (int)obu_type, 4);  // obu_type
-  aom_wb_write_literal(&wb, 0, 1);              // reserved bit
-  aom_wb_write_literal(&wb, 0, 3);              // obu_temporal
-  aom_wb_write_literal(&wb, 0, 8);              // obu_layer
-#endif  // CONFIG_F301_OBU_HEADER
 #else
   aom_wb_write_literal(&wb, 0, 1);         // forbidden bit.
   aom_wb_write_literal(&wb, obu_type, 4);  // obu type
