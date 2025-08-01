@@ -210,7 +210,7 @@ typedef struct aom_image {
   int bps; /**< bits per sample (for packed formats) */
 
 #if CONFIG_F159_OBU_HEADER
-  int tlayer_id; /**< Temporal layer Id of image */
+  int tlayer_id; /**< tlayer id of image */
   int mlayer_id; /**< mlayer id of image */
   int xlayer_id; /**< xlayer id of image */
 #else

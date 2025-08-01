@@ -726,11 +726,12 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
 
 #if CONFIG_F159_OBU_HEADER
   // Set init SVC parameters.
-  cm->number_mlayers = 1;
   cm->number_tlayers = 1;
+  cm->number_mlayers = 1;
+  cm->number_xlayers = 0;
+  cm->tlayer_id = 0;
   cm->mlayer_id = 0;
   cm->xlayer_id = 0;
-  cm->tlayer_id = 0;
 #else
   // Set init SVC parameters.
   cm->number_spatial_layers = 1;
@@ -4947,8 +4948,13 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
 #endif  // CONFIG_KEY_OVERLAY
 
 #if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
+#if CONFIG_F159_OBU_HEADER
+  cm->tlayer_id = 0;
+  current_frame->temporal_layer_id = cm->tlayer_id;
+#else
   cm->temporal_layer_id = 0;
   current_frame->temporal_layer_id = cm->temporal_layer_id;
+#endif
 
   const int order_offset = cpi->gf_group.arf_src_offset[cpi->gf_group.index];
   const int cur_frame_disp =

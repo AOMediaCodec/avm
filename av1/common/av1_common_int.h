@@ -2070,18 +2070,8 @@ typedef struct AV1Common {
    * (in the range 0 ... (number_tlayers - 1)).
    */
   int tlayer_id;
-
   /*!
-   * Number of temporal layers: may be > 1 for SVC (scalable vector coding).
-   */
-  unsigned int number_temporal_layers;  //@hegilmez TODO: change
-  /*!
-   * Temporal layer ID of this frame
-   * (in the range 0 ... (number_temporal_layers - 1)).
-   */
-  int temporal_layer_id;  //@hegilmez TODO: change
-  /*!
-   * Number of mlayers: may be > 1 for SVC (scalable vector coding).
+   * Number of embedded layers: may be > 1 for SVC (scalable vector coding).
    */
   unsigned int number_mlayers;
   /*!

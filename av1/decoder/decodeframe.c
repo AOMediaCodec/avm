@@ -81,9 +81,9 @@
 
 // This is needed by ext_tile related unit tests.
 #define EXT_TILE_DEBUG 1
-#define MC_TEMP_BUF_PELS                       \
-  (((MAX_SB_SIZE)*2 + (AOM_INTERP_EXTEND)*2) * \
-   ((MAX_SB_SIZE)*2 + (AOM_INTERP_EXTEND)*2))
+#define MC_TEMP_BUF_PELS                           \
+  (((MAX_SB_SIZE) * 2 + (AOM_INTERP_EXTEND) * 2) * \
+   ((MAX_SB_SIZE) * 2 + (AOM_INTERP_EXTEND) * 2))
 
 #if CONFIG_COMBINE_PC_NS_WIENER
 static void read_wienerns_framefilters(AV1_COMMON *cm, MACROBLOCKD *xd,
@@ -5016,7 +5016,7 @@ static INLINE int get_sync_range(int width) {
   else
     return 8;
 #else
-    (void)width;
+  (void)width;
 #endif
   return 1;
 }
@@ -7495,7 +7495,11 @@ static INLINE int get_disp_order_hint(AV1_COMMON *const cm) {
     const RefCntBuffer *const buf = cm->ref_frame_map[map_idx];
     if (buf == NULL
 #if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
+#if CONFIG_F159_OBU_HEADER
+        || buf->temporal_layer_id > (unsigned int)cm->tlayer_id
+#else
         || buf->temporal_layer_id > (unsigned int)cm->temporal_layer_id
+#endif  // CONFIG_F159_OBU_HEADER
 #endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
     )
       continue;
@@ -7522,7 +7526,11 @@ static INLINE int get_ref_frame_disp_order_hint(AV1_COMMON *const cm,
   int max_disp_order_hint = 0;
   for (int map_idx = 0; map_idx < INTER_REFS_PER_FRAME; map_idx++) {
 #if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
+#if CONFIG_F159_OBU_HEADER
+    if (buf->temporal_layer_id > (unsigned int)cm->tlayer_id) continue;
+#else
     if (buf->temporal_layer_id > (unsigned int)cm->temporal_layer_id) continue;
+#endif  // CONFIG_F159_OBU_HEADER
 #endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
     if ((int)buf->ref_display_order_hint[map_idx] > max_disp_order_hint)
       max_disp_order_hint = buf->ref_display_order_hint[map_idx];
@@ -8161,7 +8169,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   if (current_frame->frame_type == KEY_FRAME) {
     cm->current_frame.pyramid_level = 1;
 #if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
+#if CONFIG_F159_OBU_HEADER
+    cm->current_frame.temporal_layer_id = cm->tlayer_id;
+#else
     cm->current_frame.temporal_layer_id = cm->temporal_layer_id;
+#endif  // CONFIG_F159_OBU_HEADER
 #endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
     features->tip_frame_mode = TIP_FRAME_DISABLED;
     setup_frame_size(cm, frame_size_override_flag, rb);
@@ -8208,7 +8220,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // CONFIG_IMPROVED_GLOBAL_MOTION
   } else {
 #if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
+#if CONFIG_F159_OBU_HEADER
+    cm->current_frame.temporal_layer_id = cm->tlayer_id;
+#else
     cm->current_frame.temporal_layer_id = cm->temporal_layer_id;
+#endif  // CONFIG_F159_OBU_HEADER
 #endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
     features->allow_ref_frame_mvs = 0;
     features->tip_frame_mode = TIP_FRAME_DISABLED;
