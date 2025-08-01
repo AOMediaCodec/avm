@@ -2431,19 +2431,22 @@ void av1_build_one_bawp_inter_predictor(
 static bool is_sub8x8_inter(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                             const MB_MODE_INFO *mi, int plane, int is_intrabc) {
 #if CONFIG_CHROMA_MERGE_LATENCY_FIX
-  (void)is_intrabc;
-  (void)cm;
   (void)xd;
-#else
-  if (is_intrabc) {
+#endif  // CONFIG_CHROMA_MERGE_LATENCY_FIX
+  if (is_intrabc
+#if CONFIG_CHROMA_MERGE_LATENCY_FIX
+      && frame_is_intra_only(cm)
+#endif  // CONFIG_CHROMA_MERGE_LATENCY_FIX
+  ) {
     return false;
   }
-#endif  // CONFIG_CHROMA_MERGE_LATENCY_FIX
   if (!(plane &&
         (mi->sb_type[PLANE_TYPE_UV] != mi->chroma_ref_info.bsize_base)))
     return false;
 
-#if !CONFIG_CHROMA_MERGE_LATENCY_FIX
+#if CONFIG_CHROMA_MERGE_LATENCY_FIX
+  assert(!frame_is_intra_only(cm));
+#else
   // For sub8x8 chroma blocks, we may be covering more than one luma block's
   // worth of pixels. Thus (mi_row, mi_col) may not be the correct coordinates
   // for the top-left corner of the prediction source. So, we need to find the
@@ -2481,7 +2484,7 @@ static bool is_sub8x8_inter(const AV1_COMMON *cm, const MACROBLOCKD *xd,
       if (is_intrabc_block(this_mbmi, xd->tree_type)) return false;
     }
   }
-#endif  // !CONFIG_CHROMA_MERGE_LATENCY_FIX
+#endif  // CONFIG_CHROMA_MERGE_LATENCY_FIX
   return true;
 }
 
