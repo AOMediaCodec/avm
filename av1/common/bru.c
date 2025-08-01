@@ -248,9 +248,7 @@ void bru_set_default_inter_mb_mode_info(const AV1_COMMON *const cm,
 #if CONFIG_WARP_INTER_INTRA
   mbmi->warp_inter_intra = 0;
 #endif
-#if CONFIG_MORPH_PRED
   mbmi->morph_pred = 0;
-#endif
   mbmi->use_intra_dip = 0;
   mbmi->seg_id_predicted = 0;
   mbmi->use_amvd = 0;

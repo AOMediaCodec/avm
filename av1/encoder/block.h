@@ -980,10 +980,8 @@ typedef struct {
                                [NUM_ALLOWED_BV_PRECISIONS];
 #endif  // CONFIG_IBC_SUBPEL_PRECISION
 
-#if CONFIG_MORPH_PRED
   //! cost for the new prediction mode
   int morph_pred_cost[3][2];
-#endif  // CONFIG_MORPH_PRED
 
 #if CONFIG_PALETTE_CTX_REDUCTION
   //! palette_y_size_cost

@@ -1168,23 +1168,16 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
       }
 #endif  // CONFIG_IBC_SUBPEL_PRECISION
 
-#if CONFIG_MORPH_PRED
-#if CONFIG_IMPROVED_MORPH_PRED
       if (av1_allow_intrabc_morph_pred(cm)) {
-#endif  // CONFIG_IMPROVED_MORPH_PRED
         const int morph_pred_ctx = get_morph_pred_ctx(xd);
         update_cdf(fc->morph_pred_cdf[morph_pred_ctx], mbmi->morph_pred, 2);
 #if CONFIG_ENTROPY_STATS
         ++td->counts->morph_pred_count[morph_pred_ctx][mbmi->morph_pred];
 #endif  // CONFIG_ENTROPY_STATS
 
-#if CONFIG_IMPROVED_MORPH_PRED
       } else {
         assert(mbmi->morph_pred == 0);
       }
-#endif  // CONFIG_IMPROVED_MORPH_PRED
-
-#endif  // CONFIG_MORPH_PRED
     }
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
   }

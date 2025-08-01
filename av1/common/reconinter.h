@@ -56,10 +56,8 @@ extern "C" {
 
 #define WEDGE_NONE -1
 
-#if CONFIG_MORPH_PRED
 #define MORPH_FIT_SHIFT 8
 #define TEMPLATE_SIZE 1
-#endif  // CONFIG_MORPH_PRED
 
 #if CONFIG_WEDGE_MOD_EXT
 static const int wedge_angle_dist_2_index[WEDGE_ANGLES][NUM_WEDGE_DIST] = {
@@ -1387,7 +1385,6 @@ static INLINE int is_mvd_sign_derive_allowed(const AV1_COMMON *const cm,
 }
 #endif  // CONFIG_DERIVED_MVD_SIGN
 
-#if CONFIG_MORPH_PRED
 void av1_build_linear_predictor(uint16_t *dst, const int dst_stride,
                                 const int width, const int height,
                                 const int alpha, const int beta,
@@ -1395,7 +1392,6 @@ void av1_build_linear_predictor(uint16_t *dst, const int dst_stride,
 bool av1_build_morph_pred(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
                           const BLOCK_SIZE bsize, const int mi_row,
                           const int mi_col);
-#endif  // CONFIG_MORPH_PRED
 
 static AOM_INLINE bool is_subblock_outside(int x, int y, int mi_cols,
                                            int mi_rows, int build_for_decode) {

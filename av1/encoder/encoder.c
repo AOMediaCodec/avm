@@ -4140,9 +4140,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   features->allow_warpmv_mode = features->enabled_motion_modes;
   // temporal set of frame level enable_bawp flag.
   features->enable_bawp = seq_params->enable_bawp;
-#if CONFIG_MORPH_PRED
   features->enable_intra_bawp = seq_params->enable_bawp;
-#endif  // CONFIG_MORPH_PRED
   features->enable_cwp = seq_params->enable_cwp;
 
   features->enable_imp_msk_bld = seq_params->enable_imp_msk_bld;

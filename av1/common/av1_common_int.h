@@ -852,7 +852,6 @@ typedef struct {
    * Enables/disables block adaptive weighted prediction
    */
   bool enable_bawp;
-#if CONFIG_MORPH_PRED
   /*!
    * Enables/disables intra BAWP (Morph Pred)
    * In the current implementation, both |enable_bawp| and
@@ -864,7 +863,6 @@ typedef struct {
    * one command line control flag for BAWP.
    */
   bool enable_intra_bawp;
-#endif  // CONFIG_MORPH_PRED
   /*!
    * Enables/disables compound weighted prediction
    */

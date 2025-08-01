@@ -925,9 +925,7 @@ int av1_search_palette_mode(IntraModeSearchState *intra_search_state,
 #if CONFIG_REFINEMV
   mbmi->refinemv_flag = 0;
 #endif  // CONFIG_REFINEMV
-#if CONFIG_MORPH_PRED
   mbmi->morph_pred = 0;
-#endif  // CONFIG_MORPH_PRED
 
   mbmi->motion_mode = SIMPLE_TRANSLATION;
   mbmi->warp_ref_idx = 0;

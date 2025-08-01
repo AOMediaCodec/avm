@@ -1545,9 +1545,7 @@ typedef struct FRAME_COUNTS {
   unsigned int intrabc_mode[2];
   unsigned int intrabc_drl_idx[MAX_REF_BV_STACK_SIZE - 1][2];
 #endif
-#if CONFIG_MORPH_PRED
   unsigned int morph_pred_count[3][2];
-#endif  // CONFIG_MORPH_PRED
   unsigned int txfm_do_partition[FSC_MODES][2][TXFM_SPLIT_GROUP][2];
 #if CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING
   unsigned int txfm_4way_partition_type[FSC_MODES][2]

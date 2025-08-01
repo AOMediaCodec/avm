@@ -93,13 +93,11 @@ static INLINE int av1_use_angle_delta(BLOCK_SIZE bsize) {
   return bsize >= BLOCK_8X8;
 }
 
-#if CONFIG_MORPH_PRED && CONFIG_IMPROVED_MORPH_PRED
 // Function to check morph prediction is allowed or not
 static INLINE int av1_allow_intrabc_morph_pred(const AV1_COMMON *const cm) {
   return cm->features.enable_intra_bawp &&
          cm->features.allow_screen_content_tools && frame_is_intra_only(cm);
 }
-#endif  // CONFIG_MORPH_PRED && CONFIG_IMPROVED_MORPH_PRED
 static INLINE int av1_allow_intrabc(const AV1_COMMON *const cm,
                                     const MACROBLOCKD *const xd
 #if CONFIG_ENABLE_IBC_NAT

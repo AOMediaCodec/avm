@@ -434,9 +434,7 @@ typedef struct frame_contexts {
                                        [CDF_SIZE(NUM_ALLOWED_BV_PRECISIONS)];
 #endif  // CONFIG_IBC_SUBPEL_PRECISION
 
-#if CONFIG_MORPH_PRED
   aom_cdf_prob morph_pred_cdf[3][CDF_SIZE(2)];
-#endif  // CONFIG_MORPH_PRED
   struct segmentation_probs seg;
   aom_cdf_prob intra_dip_cdf[DIP_CTXS][CDF_SIZE(2)];
   aom_cdf_prob intra_dip_mode_n6_cdf[CDF_SIZE(6)];

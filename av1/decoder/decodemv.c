@@ -1904,17 +1904,11 @@ static void read_intrabc_info(AV1_COMMON *const cm, DecoderCodingBlock *dcb,
                                           mbmi->pb_mv_precision));
 #endif  // CONFIG_IBC_SUBPEL_PRECISION
 
-#if CONFIG_MORPH_PRED
-#if CONFIG_IMPROVED_MORPH_PRED
     if (av1_allow_intrabc_morph_pred(cm)) {
-#endif  // CONFIG_IMPROVED_MORPH_PRED
       const int morph_pred_ctx = get_morph_pred_ctx(xd);
       mbmi->morph_pred = aom_read_symbol(
           r, ec_ctx->morph_pred_cdf[morph_pred_ctx], 2, ACCT_INFO());
-#if CONFIG_IMPROVED_MORPH_PRED
     }
-#endif  // CONFIG_IMPROVED_MORPH_PRED
-#endif  // CONFIG_MORPH_PRED
   }
 }
 
@@ -2038,9 +2032,7 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
     mbmi->segment_id = read_intra_segment_id(cm, xd, bsize, r, 0);
 
   mbmi->skip_mode = 0;
-#if CONFIG_MORPH_PRED
   if (xd->tree_type != CHROMA_PART) mbmi->morph_pred = 0;
-#endif  // CONFIG_MORPH_PRED
   mbmi->motion_mode = SIMPLE_TRANSLATION;
 #if CONFIG_REFINEMV
   mbmi->refinemv_flag = 0;
@@ -3558,9 +3550,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   mbmi->use_intrabc[0] = 0;
   mbmi->use_intrabc[1] = 0;
 #endif  // CONFIG_NEW_CONTEXT_MODELING
-#if CONFIG_MORPH_PRED
   mbmi->morph_pred = 0;
-#endif  // CONFIG_MORPH_PRED
 
   set_default_max_mv_precision(mbmi, sbi->sb_mv_precision);
   set_mv_precision(mbmi, mbmi->max_mv_precision);  // initialize to max
@@ -4216,9 +4206,7 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
     mbmi->use_intrabc[1] = 0;
 #endif  // CONFIG_NEW_CONTEXT_MODELING
     mbmi->use_intra_dip = 0;
-#if CONFIG_MORPH_PRED
     mbmi->morph_pred = 0;
-#endif  // CONFIG_MORPH_PRED
   }
 
   if (!mbmi->skip_mode) {
@@ -4238,9 +4226,7 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
 #if CONFIG_NEW_CONTEXT_MODELING
     mbmi->use_intrabc[0] = 0;
     mbmi->use_intrabc[1] = 0;
-#if CONFIG_MORPH_PRED
     mbmi->morph_pred = 0;
-#endif  // CONFIG_MORPH_PRED
     const int intrabc_ctx = get_intrabc_ctx(xd);
     mbmi->use_intrabc[xd->tree_type == CHROMA_PART] =
         aom_read_symbol(r, xd->tile_ctx->intrabc_cdf[intrabc_ctx], 2,

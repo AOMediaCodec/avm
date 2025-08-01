@@ -397,12 +397,10 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
   }
 #endif  // CONFIG_IBC_SUBPEL_PRECISION
 
-#if CONFIG_MORPH_PRED
   for (i = 0; i < 3; ++i) {
     av1_cost_tokens_from_cdf(mode_costs->morph_pred_cost[i],
                              fc->morph_pred_cdf[i], NULL);
   }
-#endif  // CONFIG_MORPH_PRED
   for (j = 0; j < 2; ++j) {
     for (i = 0; i < TX_SIZES; ++i) {
       av1_cost_tokens_from_cdf(mode_costs->stx_flag_cost[j][i],

@@ -6051,7 +6051,6 @@ int rd_pick_ref_bv_sub_pel(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
 
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
 
-#if CONFIG_MORPH_PRED
 #if CONFIG_IBC_SR_EXT
 // This function checks if the given motion vector "dv" is within the local
 // range of intra bc.
@@ -6109,7 +6108,6 @@ static int is_local_intrabc(const MV dv, const AV1_COMMON *cm,
   return 0;
 }
 #endif  // CONFIG_IBC_SR_EXT
-#endif  // CONFIG_MORPH_PRED
 
 #if CONFIG_IBC_SUBPEL_PRECISION
 static int av1_pick_ref_bv_subpel(
@@ -6303,9 +6301,7 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
     IBC_MOTION_DIRECTIONS
   };
 
-#if CONFIG_MORPH_PRED
   mbmi->morph_pred = 0;
-#endif  // CONFIG_MORPH_PRED
   MB_MODE_INFO best_mbmi = *mbmi;
   RD_STATS best_rdstats = *rd_stats;
   uint8_t best_blk_skip[MAX_MB_PLANE][MAX_MIB_SIZE * MAX_MIB_SIZE] = { 0 };
@@ -6712,11 +6708,6 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
                                           mbmi->pb_mv_precision));
 #endif  // CONFIG_IBC_SUBPEL_PRECISION
 
-#if !CONFIG_MORPH_PRED
-    av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0,
-                                  av1_num_planes(cm) - 1);
-#endif  // CONFIG_MORPH_PRED
-
     const int_mv default_dv_ref = mbmi->ref_bv;
 #if CONFIG_IBC_SUBPEL_PRECISION
     assert(mbmi->pb_mv_precision == default_mv_precision);
@@ -6836,19 +6827,8 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
 #endif  // CONFIG_NEW_CONTEXT_MODELING
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
 
-#if CONFIG_MORPH_PRED
-
-#if CONFIG_IMPROVED_MORPH_PRED
       int allow_morph_pred = av1_allow_intrabc_morph_pred(cm);
       int num_modes_to_search = 1 + allow_morph_pred;
-#else
-      int num_modes_to_search =
-          frame_is_intra_only(cm) ? 2 : 1 + cm->features.allow_intrabc;
-      if (block_size_wide[bsize] > 64 || block_size_high[bsize] > 64) {
-        num_modes_to_search = 1;
-      }
-#endif  // CONFIG_IMPROVED_MORPH_PRED
-
 #if CONFIG_IBC_SR_EXT
       if (num_modes_to_search > 1) {
         const int local_intrabc = is_local_intrabc(dv, cm, xd, mi_row, mi_col,
@@ -6858,18 +6838,13 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
       }
 #endif  // CONFIG_IBC_SR_EXT
       for (int morph_idx = 0; morph_idx < num_modes_to_search; ++morph_idx) {
-#if CONFIG_IMPROVED_MORPH_PRED
         if (morph_idx && !allow_morph_pred) continue;
-#endif  // CONFIG_IMPROVED_MORPH_PRED
         mbmi->morph_pred = morph_idx;
         const int morph_pred_ctx = get_morph_pred_ctx(xd);
         const int morph_pred_cost =
-#if CONFIG_IMPROVED_MORPH_PRED
             !allow_morph_pred
                 ? 0
-                :
-#endif  // CONFIG_IMPROVED_MORPH_PRED
-                x->mode_costs.morph_pred_cost[morph_pred_ctx][morph_idx];
+                : x->mode_costs.morph_pred_cost[morph_pred_ctx][morph_idx];
         if (morph_idx == 0) {
           // Build intra bc predictor for yuv planes as baseline.
           av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0,
@@ -6905,29 +6880,6 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
               (xd->plane[1].height * xd->plane[1].width) >> (2 * MI_SIZE_LOG2));
         }
       }
-#else
-    RD_STATS rd_stats_yuv, rd_stats_y, rd_stats_uv;
-    if (!av1_txfm_search(cpi, x, bsize, &rd_stats_yuv, &rd_stats_y,
-                         &rd_stats_uv, rate_mode + rate_mv, INT64_MAX))
-      continue;
-    rd_stats_yuv.rdcost =
-        RDCOST(x->rdmult, rd_stats_yuv.rate, rd_stats_yuv.dist);
-    if (rd_stats_yuv.rdcost < best_rd) {
-      best_rd = rd_stats_yuv.rdcost;
-      best_mbmi = *mbmi;
-      best_rdstats = rd_stats_yuv;
-      for (int i = 0; i < num_planes; ++i) {
-        const int num_blk_plane =
-            (xd->plane[i].height * xd->plane[i].width) >> (2 * MI_SIZE_LOG2);
-        memcpy(best_blk_skip[i], txfm_info->blk_skip[i],
-               sizeof(*txfm_info->blk_skip[i]) * num_blk_plane);
-      }
-      av1_copy_array(best_tx_type_map, xd->tx_type_map, xd->height * xd->width);
-      av1_copy_array(
-          best_cctx_type_map, xd->cctx_type_map,
-          (xd->plane[1].height * xd->plane[1].width) >> (2 * MI_SIZE_LOG2));
-    }
-#endif  // CONFIG_MORPH_PRED
 
 #if CONFIG_IBC_SUBPEL_PRECISION
     }  //(int index = av1_intraBc_precision_sets.num_precisions - 1; index > 0;
@@ -7158,9 +7110,7 @@ static AOM_INLINE void rd_pick_skip_mode(
 #if CONFIG_REFINEMV
   mbmi->refinemv_flag = 0;
 #endif  // CONFIG_REFINEMV
-#if CONFIG_MORPH_PRED
   mbmi->morph_pred = 0;
-#endif  // CONFIG_MORPH_PRED
 
   assert(this_mode == NEAR_NEARMV);
 
@@ -8292,9 +8242,7 @@ static INLINE void init_mbmi(MB_MODE_INFO *mbmi, PREDICTION_MODE curr_mode,
                              cm->features.interp_filter);
 #if CONFIG_IBC_SR_EXT
   mbmi->use_intrabc[xd->tree_type == CHROMA_PART] = 0;
-#if CONFIG_MORPH_PRED
   mbmi->morph_pred = 0;
-#endif  // CONFIG_MORPH_PRED
 #endif  // CONFIG_IBC_SR_EXT
 #if CONFIG_BRU
   mbmi->local_rest_type = 1;
@@ -10064,9 +10012,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
       mbmi->warp_ref_idx = 0;
       mbmi->max_num_warp_candidates = 0;
       mbmi->warpmv_with_mvd_flag = 0;
-#if CONFIG_MORPH_PRED
       mbmi->morph_pred = 0;
-#endif  // CONFIG_MORPH_PRED
       mbmi->six_param_warp_model_flag = 0;
       mbmi->warp_precision_idx = 0;
 

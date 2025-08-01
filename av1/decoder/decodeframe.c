@@ -1030,20 +1030,16 @@ static AOM_INLINE void dec_build_inter_predictor(const AV1_COMMON *cm,
     }
   }
 
-#if CONFIG_MORPH_PRED
   if (mbmi->morph_pred) {
 #if CONFIG_ENABLE_IBC_NAT
     assert(av1_allow_intrabc(cm, xd, bsize));
 #else
     assert(av1_allow_intrabc(cm, xd));
 #endif  // CONFIG_ENABLE_IBC_NAT
-#if CONFIG_IMPROVED_MORPH_PRED
     assert(av1_allow_intrabc_morph_pred(cm));
-#endif  // CONFIG_IMPROVED_MORPH_PRED
     assert(is_intrabc_block(mbmi, xd->tree_type));
     av1_build_morph_pred(cm, xd, bsize, mi_row, mi_col);
   }
-#endif  // CONFIG_MORPH_PRED
 }
 
 static AOM_INLINE void cfl_store_inter_block(AV1_COMMON *const cm,
@@ -8582,9 +8578,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   else
     features->enable_bawp = 0;
 
-#if CONFIG_MORPH_PRED
   features->enable_intra_bawp = seq_params->enable_bawp;
-#endif  // CONFIG_MORPH_PRED
 
   features->enable_cwp = seq_params->enable_cwp;
   features->allow_warpmv_mode = 0;

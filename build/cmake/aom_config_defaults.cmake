@@ -177,9 +177,6 @@ set_aom_config_var(CONFIG_DMVR_OFF_IN_TIP_DIRECT 1
 
 set_aom_config_var(CONFIG_ORIP_DC_DISABLED 0
                    "AV2 experiment flag to disable ORIP for DC mode.")
-set_aom_config_var(CONFIG_MORPH_PRED 1 "AV2 intra prediction mode flag.")
-set_aom_config_var(CONFIG_IMPROVED_MORPH_PRED 1
-                   "Improvement of AV2 linear intra prediction mode.")
 set_aom_config_var(
   CONFIG_CONTEXT_DERIVATION 1
   "AV2 experiment flag to enable modified context derivation : CWG-B065.")
@@ -261,11 +258,6 @@ set_aom_config_var(CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY 1
                    "Enable temporal scalability")
 set_aom_config_var(CONFIG_DISPLAY_ORDER_HINT_FIX 1
                    "Bug fix on display order hints of key frames")
-set_aom_config_var(
-  CONFIG_BAWP_FIX_DIVISION_16x16_MC
-  1
-  "Fix BAWP from CWG-E245, only use up to 16 samples from left and above and remove division using 8, 16 , or 32 samples"
-)
 
 set_aom_config_var(CONFIG_BAWP_ACROSS_SCALES 0 NUMBER
                    "Enable BAWP across scales prediction")

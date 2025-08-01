@@ -1989,7 +1989,6 @@ static INLINE int scaled_y_gen(int val, const struct scale_factors *sf) {
 // mode. One row from the top boundary and one column from the left boundary
 // are used in the less square error process.
 
-#if CONFIG_BAWP_FIX_DIVISION_16x16_MC
 // The bellow arrays are used to map the number of BAWP reference samples to a
 // 2^N number for each side (left or above).
 static const uint8_t blk_size_log2_bawp[BAWP_MAX_REF_NUMB + 1] = {
@@ -2043,7 +2042,6 @@ static void derive_number_ref_samples_bawp(bool above_valid, bool left_valid,
     *numb_left = 0;
   }
 }
-#endif  // CONFIG_BAWP_FIX_DIVISION_16x16_MC
 
 static void derive_bawp_parameters(MACROBLOCKD *xd, uint16_t *recon_top,
                                    uint16_t *recon_left, int rec_stride,
@@ -2056,17 +2054,12 @@ static void derive_bawp_parameters(MACROBLOCKD *xd, uint16_t *recon_top,
 #endif  // CONFIG_BAWP_ACROSS_SCALES
 {
   MB_MODE_INFO *mbmi = xd->mi[0];
-#if CONFIG_MORPH_PRED
   if (!mbmi->morph_pred) assert(mbmi->bawp_flag[0] >= 1);
-#else
-  assert(mbmi->bawp_flag[0] >= 1);
-#endif  // CONFIG_MORPH_PRED
   // only integer position of reference, may need to consider
   // fractional position of ref samples
   int count = 0;
   int sum_x = 0, sum_y = 0, sum_xy = 0, sum_xx = 0;
 
-#if CONFIG_BAWP_FIX_DIVISION_16x16_MC
   const int max_numb_each_size =
       plane ? (BAWP_MAX_REF_NUMB >> 1) : BAWP_MAX_REF_NUMB;
   // Clamp the bw and bh to use up to 16 samples in the left and above
@@ -2168,59 +2161,7 @@ static void derive_bawp_parameters(MACROBLOCKD *xd, uint16_t *recon_top,
     }
     count += numb_left;
   }
-#else
-  if (xd->up_available) {
-#if CONFIG_BAWP_ACROSS_SCALES
-    if (sf != NULL && sf->x_scale_fp != REF_NO_SCALE) {
-      for (int i = 0; i < bw; i++) {
-        int idx = scaled_x_gen(i, sf);
-        sum_x += ref_top[idx];
-        sum_y += recon_top[i];
-        sum_xy += ref_top[idx] * recon_top[i];
-        sum_xx += ref_top[idx] * ref_top[idx];
-      }
-    } else {
-#endif  // CONFIG_BAWP_ACROSS_SCALES
-      for (int i = 0; i < bw; ++i) {
-        sum_x += ref_top[i];
-        sum_y += recon_top[i];
-        sum_xy += ref_top[i] * recon_top[i];
-        sum_xx += ref_top[i] * ref_top[i];
-      }
-#if CONFIG_BAWP_ACROSS_SCALES
-    }
-#endif  // CONFIG_BAWP_ACROSS_SCALES
-    count += bw;
-  }
 
-  if (xd->left_available) {
-#if CONFIG_BAWP_ACROSS_SCALES
-    if (sf != NULL && sf->y_scale_fp != REF_NO_SCALE) {
-      for (int i = 0; i < bh; i++) {
-        int ref_left_tmp_idx = scaled_y_gen(i, sf) * ref_stride;
-        sum_x += ref_left[ref_left_tmp_idx];
-        sum_y += recon_left[0];
-        sum_xy += ref_left[ref_left_tmp_idx] * recon_left[0];
-        sum_xx += ref_left[ref_left_tmp_idx] * ref_left[ref_left_tmp_idx];
-        recon_left += rec_stride;
-      }
-    } else {
-#endif  // CONFIG_BAWP_ACROSS_SCALES
-      for (int i = 0; i < bh; ++i) {
-        sum_x += ref_left[0];
-        sum_y += recon_left[0];
-        sum_xy += ref_left[0] * recon_left[0];
-        sum_xx += ref_left[0] * ref_left[0];
-
-        recon_left += rec_stride;
-        ref_left += ref_stride;
-      }
-#if CONFIG_BAWP_ACROSS_SCALES
-    }
-#endif                      // CONFIG_BAWP_ACROSS_SCALES
-    count += bh;
-  }
-#endif                      // CONFIG_BAWP_FIX_DIVISION_16x16_MC
   const int16_t shift = 8;  // maybe a smaller value can be used
 
   if (mbmi->bawp_flag[0] > 1 && plane == 0) {
@@ -2349,9 +2290,7 @@ void av1_build_one_bawp_inter_predictor(
       (mi_y_p + ref_h + y_off_p) >= height_p) {
     mbmi->bawp_alpha[plane][ref] = 1 << shift;
     mbmi->bawp_beta[plane][ref] = -(1 << shift);
-#if CONFIG_BAWP_FIX_DIVISION_16x16_MC
     return;
-#endif
   } else {
     uint16_t *recon_buf = xd->plane[plane].dst.buf;
     int recon_stride = xd->plane[plane].dst.stride;
@@ -3637,9 +3576,7 @@ static AOM_INLINE int skip_opfl_refine_with_tip(
   mbmi.interinter_comp.type = COMPOUND_AVERAGE;
   mbmi.max_mv_precision = MV_PRECISION_ONE_EIGHTH_PEL;
   mbmi.pb_mv_precision = MV_PRECISION_ONE_EIGHTH_PEL;
-#if CONFIG_MORPH_PRED
   mbmi.morph_pred = 0;
-#endif  // CONFIG_MORPH_PRED
 
   InterPredParams params0, params1;
   av1_opfl_build_inter_predictor(cm, xd, plane, &mbmi, bw, bh, mi_x, mi_y,
@@ -4851,7 +4788,6 @@ void fill_subblock_refine_mv(REFINEMV_SUBMB_INFO *refinemv_subinfo, int bw,
 }
 #endif  // CONFIG_REFINEMV
 
-#if CONFIG_MORPH_PRED
 bool av1_build_morph_pred(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
                           const BLOCK_SIZE bsize, const int mi_row,
                           const int mi_col) {
@@ -4959,4 +4895,3 @@ bool av1_build_morph_pred(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
   }
   return true;
 }
-#endif  // CONFIG_MORPH_PRED

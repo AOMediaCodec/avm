@@ -101,11 +101,8 @@ static AOM_INLINE void write_intrabc_info(
 #if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
     int max_bvp_drl_bits,
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
-#if CONFIG_MORPH_PRED && CONFIG_IMPROVED_MORPH_PRED
-    const AV1_COMMON *const cm,
-#endif  // CONFIG_MORPH_PRED && CONFIG_IMPROVED_MORPH_PRED
-    MACROBLOCKD *xd, const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame,
-    aom_writer *w);
+    const AV1_COMMON *const cm, MACROBLOCKD *xd,
+    const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame, aom_writer *w);
 #endif  // CONFIG_IBC_SR_EXT
 
 static AOM_INLINE void write_inter_mode(
@@ -2238,10 +2235,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 #if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
         cm->features.max_bvp_drl_bits,
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
-#if CONFIG_MORPH_PRED && CONFIG_IMPROVED_MORPH_PRED
-        cm,
-#endif  // CONFIG_MORPH_PRED && CONFIG_IMPROVED_MORPH_PRED
-        xd, mbmi_ext_frame, w);
+        cm, xd, mbmi_ext_frame, w);
     if (is_intrabc_block(mbmi, xd->tree_type)) return;
   }
 #endif  // CONFIG_IBC_SR_EXT
@@ -2665,11 +2659,8 @@ static AOM_INLINE void write_intrabc_info(
 #if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
     int max_bvp_drl_bits,
 #endif  //  CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
-#if CONFIG_MORPH_PRED && CONFIG_IMPROVED_MORPH_PRED
-    const AV1_COMMON *const cm,
-#endif  // CONFIG_MORPH_PRED && CONFIG_IMPROVED_MORPH_PRED
-    MACROBLOCKD *xd, const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame,
-    aom_writer *w) {
+    const AV1_COMMON *const cm, MACROBLOCKD *xd,
+    const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame, aom_writer *w) {
   const MB_MODE_INFO *const mbmi = xd->mi[0];
   int use_intrabc = is_intrabc_block(mbmi, xd->tree_type);
   if (xd->tree_type == CHROMA_PART) assert(use_intrabc == 0);
@@ -2762,19 +2753,13 @@ static AOM_INLINE void write_intrabc_info(
 #endif  // CONFIG_DERIVED_MVD_SIGN
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
 
-#if CONFIG_MORPH_PRED
-#if CONFIG_IMPROVED_MORPH_PRED
     if (av1_allow_intrabc_morph_pred(cm)) {
-#endif  // CONFIG_IMPROVED_MORPH_PRED
       const int morph_pred_ctx = get_morph_pred_ctx(xd);
       aom_write_symbol(w, mbmi->morph_pred,
                        ec_ctx->morph_pred_cdf[morph_pred_ctx], 2);
-#if CONFIG_IMPROVED_MORPH_PRED
     } else {
       assert(mbmi->morph_pred == 0);
     }
-#endif  // CONFIG_IMPROVED_MORPH_PRED
-#endif  // CONFIG_MORPH_PRED
   }
 }
 
@@ -2836,10 +2821,7 @@ static AOM_INLINE void write_mb_modes_kf(
 #if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
         cm->features.max_bvp_drl_bits,
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
-#if CONFIG_MORPH_PRED && CONFIG_IMPROVED_MORPH_PRED
-        cm,
-#endif  // CONFIG_MORPH_PRED && CONFIG_IMPROVED_MORPH_PRED
-        xd, mbmi_ext_frame, w);
+        cm, xd, mbmi_ext_frame, w);
     if (is_intrabc_block(mbmi, xd->tree_type)) return;
   }
 

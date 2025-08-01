@@ -449,7 +449,6 @@ static INLINE int get_intrabc_ctx(const MACROBLOCKD *xd) {
 }
 #endif  // CONFIG_NEW_CONTEXT_MODELING
 
-#if CONFIG_MORPH_PRED
 static INLINE int get_morph_pred_ctx(const MACROBLOCKD *xd) {
   int ctx = 0;
   for (int i = 0; i < MAX_NUM_NEIGHBORS; ++i) {
@@ -461,7 +460,6 @@ static INLINE int get_morph_pred_ctx(const MACROBLOCKD *xd) {
   }
   return ctx;
 }
-#endif  // CONFIG_MORPH_PRED
 
 static INLINE int is_cctx_enabled(const AV1_COMMON *cm, const MACROBLOCKD *xd) {
   const MB_MODE_INFO *const mbmi = xd->mi[0];
