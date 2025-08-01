@@ -4113,14 +4113,15 @@ static void build_inter_predictors_8x8_and_bigger(
       cm->features.opfl_refine_type == REFINE_ALL));
   assert(IMPLIES(use_optflow_refinement && tip_ref_frame, plane == 0));
   // In REFINE_ALL mode, refinement should be used whenever applicable
-  assert(IMPLIES(cm->features.opfl_refine_type == REFINE_ALL &&
-                     !tip_ref_frame &&
-                     opfl_allowed_cur_pred_mode(cm,
 #if CONFIG_COMPOUND_4XN
-                                                xd,
-#endif  // CONFIG_COMPOUND_4XN
-                                                mi),
+  assert(IMPLIES(cm->features.opfl_refine_type == REFINE_ALL &&
+                     !tip_ref_frame && opfl_allowed_cur_pred_mode(cm, xd, mi),
                  use_optflow_refinement));
+#else
+  assert(IMPLIES(cm->features.opfl_refine_type == REFINE_ALL &&
+                     !tip_ref_frame && opfl_allowed_cur_pred_mode(cm, mi),
+                 use_optflow_refinement));
+#endif  // CONFIG_COMPOUND_4XN
 
 #if CONFIG_COMPOUND_4XN
   assert(IMPLIES(

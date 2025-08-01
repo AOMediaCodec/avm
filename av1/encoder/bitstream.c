@@ -1326,22 +1326,22 @@ static AOM_INLINE void write_palette_mode_info(const AV1_COMMON *cm,
 #if !CONFIG_PALETTE_CTX_REDUCTION
     const int palette_y_mode_ctx = av1_get_palette_mode_ctx(xd);
 #endif  // !CONFIG_PALETTE_CTX_REDUCTION
-    aom_write_symbol(w, n > 0,
 #if CONFIG_PALETTE_CTX_REDUCTION
-                     xd->tile_ctx->palette_y_mode_cdf, 2);
+    aom_write_symbol(w, n > 0, xd->tile_ctx->palette_y_mode_cdf, 2);
 #else
-                     xd->tile_ctx
-                         ->palette_y_mode_cdf[bsize_ctx][palette_y_mode_ctx],
-                     2);
+    aom_write_symbol(
+        w, n > 0,
+        xd->tile_ctx->palette_y_mode_cdf[bsize_ctx][palette_y_mode_ctx], 2);
 #endif  // CONFIG_PALETTE_CTX_REDUCTION
     if (n > 0) {
-      aom_write_symbol(w, n - PALETTE_MIN_SIZE,
 #if CONFIG_PALETTE_CTX_REDUCTION
-                       xd->tile_ctx->palette_y_size_cdf,
+      aom_write_symbol(w, n - PALETTE_MIN_SIZE,
+                       xd->tile_ctx->palette_y_size_cdf, PALETTE_SIZES);
 #else
+      aom_write_symbol(w, n - PALETTE_MIN_SIZE,
                        xd->tile_ctx->palette_y_size_cdf[bsize_ctx],
-#endif  // CONFIG_PALETTE_CTX_REDUCTION
                        PALETTE_SIZES);
+#endif  // CONFIG_PALETTE_CTX_REDUCTION
       write_palette_colors_y(xd, pmi, cm->seq_params.bit_depth, w);
     }
   }
@@ -1353,20 +1353,21 @@ static AOM_INLINE void write_palette_mode_info(const AV1_COMMON *cm,
 #if !CONFIG_PALETTE_CTX_REDUCTION
     const int palette_uv_mode_ctx = (pmi->palette_size[0] > 0);
 #endif  // !CONFIG_PALETTE_CTX_REDUCTION
-    aom_write_symbol(w, n > 0,
 #if CONFIG_PALETTE_CTX_REDUCTION
-                     xd->tile_ctx->palette_uv_mode_cdf, 2);
+    aom_write_symbol(w, n > 0, xd->tile_ctx->palette_uv_mode_cdf, 2);
 #else
+    aom_write_symbol(w, n > 0,
                      xd->tile_ctx->palette_uv_mode_cdf[palette_uv_mode_ctx], 2);
 #endif  // CONFIG_PALETTE_CTX_REDUCTION
     if (n > 0) {
-      aom_write_symbol(w, n - PALETTE_MIN_SIZE,
 #if CONFIG_PALETTE_CTX_REDUCTION
-                       xd->tile_ctx->palette_uv_size_cdf,
+      aom_write_symbol(w, n - PALETTE_MIN_SIZE,
+                       xd->tile_ctx->palette_uv_size_cdf, PALETTE_SIZES);
 #else
+      aom_write_symbol(w, n - PALETTE_MIN_SIZE,
                        xd->tile_ctx->palette_uv_size_cdf[bsize_ctx],
-#endif  // CONFIG_PALETTE_CTX_REDUCTION
                        PALETTE_SIZES);
+#endif  // CONFIG_PALETTE_CTX_REDUCTION
       write_palette_colors_uv(xd, pmi, cm->seq_params.bit_depth, w);
     }
   }
