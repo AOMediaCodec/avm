@@ -144,13 +144,14 @@ set_aom_config_var(CONFIG_AV2CTC_PSNR_PEAK 1
 set_aom_config_var(CONFIG_ZERO_OFFSET_BITUPSHIFT 1
                    "Use zero offset for non-normative bit upshift")
 
-# CWG-F159: OBU Header design and obu size signaling changes
-set_aom_config_var(CONFIG_F159_OBU_HEADER 1
+# New OBU header changes
+set_aom_config_var(CONFIG_NEW_OBU_HEADER 1
                    "Enable 2 byte OBU header with layer ids")
 set_aom_config_var(CONFIG_F159_OBUSIZE_ANNEXB 1
                    "Enable annexb, disable size signaling")
 set_aom_config_var(CONFIG_F301_OBU_HEADER 1
                    "Enable optionally one-byte OBU header with layer ids")
+
 set_aom_config_var(CONFIG_PARAKIT_COLLECT_DATA 0
                    "enables data collection for ParaKit training.")
 

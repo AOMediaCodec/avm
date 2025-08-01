@@ -591,7 +591,7 @@ static struct av1_extracfg default_extra_cfg = {
       SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
       SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
       SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
-#if CONFIG_F159_OBU_HEADER
+#if CONFIG_NEW_OBU_HEADER
       SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
       SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
       SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
@@ -599,7 +599,7 @@ static struct av1_extracfg default_extra_cfg = {
       SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
       SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
       SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
-#endif          // CONFIG_F159_OBU_HEADER
+#endif          // CONFIG_NEW_OBU_HEADER
   },            // target_seq_level_idx
   0,            // tier_mask
   0,            // min_cr
@@ -3306,11 +3306,11 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
   if (is_stat_generation_stage(cpi)) {
     if (ctx->cfg.kf_mode == AOM_KF_AUTO &&
         ctx->cfg.kf_min_dist == ctx->cfg.kf_max_dist) {
-#if CONFIG_F159_OBU_HEADER
+#if CONFIG_NEW_OBU_HEADER
       if (cpi->common.mlayer_id == 0 &&
 #else
       if (cpi->common.spatial_layer_id == 0 &&
-#endif  // CONFIG_F159_OBU_HEADER
+#endif  // CONFIG_NEW_OBU_HEADER
           ++ctx->fixed_kf_cntr > ctx->cfg.kf_min_dist) {
         flags |= AOM_EFLAG_FORCE_KF;
         ctx->fixed_kf_cntr = 1;
@@ -3490,14 +3490,14 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       if (frame_size) {
         if (ctx->pending_cx_data == 0) ctx->pending_cx_data = cx_data;
 
-#if CONFIG_F159_OBU_HEADER
+#if CONFIG_NEW_OBU_HEADER
         const int write_temporal_delimiter =
             !cpi->common.mlayer_id && !ctx->pending_frame_count;
 
 #else
         const int write_temporal_delimiter =
             !cpi->common.spatial_layer_id && !ctx->pending_frame_count;
-#endif  // CONFIG_F159_OBU_HEADER
+#endif  // CONFIG_NEW_OBU_HEADER
 
         if (write_temporal_delimiter) {
           const uint32_t obu_payload_size = 0;
@@ -3505,7 +3505,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
               aom_uleb_size_in_bytes(obu_payload_size);
 
           if (ctx->pending_cx_data) {
-#if CONFIG_F159_OBU_HEADER
+#if CONFIG_NEW_OBU_HEADER
 #if CONFIG_F301_OBU_HEADER
             const size_t move_offset = length_field_size + 1;
 #else
@@ -3513,18 +3513,18 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 #endif  // CONFIG_F301_OBU_HEADER
 #else
             const size_t move_offset = length_field_size + 1;
-#endif  // CONFIG_F159_OBU_HEADER
+#endif  // CONFIG_NEW_OBU_HEADER
             memmove(ctx->pending_cx_data + move_offset, ctx->pending_cx_data,
                     frame_size);
           }
           const uint32_t obu_header_offset = 0;
           const uint32_t obu_header_size = av1_write_obu_header(
               &cpi->level_params, OBU_TEMPORAL_DELIMITER,
-#if CONFIG_F159_OBU_HEADER
+#if CONFIG_NEW_OBU_HEADER
               0, 0,
 #else
               0,
-#endif  // CONFIG_F159_OBU_HEADER
+#endif  // CONFIG_NEW_OBU_HEADER
               (uint8_t *)(ctx->pending_cx_data + obu_header_offset));
 
           // OBUs are preceded/succeeded by an unsigned leb128 coded integer.
@@ -3814,7 +3814,7 @@ static aom_codec_err_t ctrl_set_scale_mode(aom_codec_alg_priv_t *ctx,
   }
 }
 
-#if CONFIG_F159_OBU_HEADER
+#if CONFIG_NEW_OBU_HEADER
 static aom_codec_err_t ctrl_set_mlayer_id(aom_codec_alg_priv_t *ctx,
                                           va_list args) {
   const int mlayer_id = va_arg(args, int);
@@ -3824,17 +3824,17 @@ static aom_codec_err_t ctrl_set_spatial_layer_id(aom_codec_alg_priv_t *ctx,
                                                  va_list args) {
   const int spatial_layer_id = va_arg(args, int);
   if (spatial_layer_id >= MAX_NUM_SPATIAL_LAYERS)
-#endif  // CONFIG_F159_OBU_HEADER
+#endif  // CONFIG_NEW_OBU_HEADER
     return AOM_CODEC_INVALID_PARAM;
-#if CONFIG_F159_OBU_HEADER
+#if CONFIG_NEW_OBU_HEADER
   ctx->cpi->common.mlayer_id = mlayer_id;
 #else
   ctx->cpi->common.spatial_layer_id = spatial_layer_id;
-#endif  // CONFIG_F159_OBU_HEADER
+#endif  // CONFIG_NEW_OBU_HEADER
   return AOM_CODEC_OK;
 }
 
-#if CONFIG_F159_OBU_HEADER
+#if CONFIG_NEW_OBU_HEADER
 static aom_codec_err_t ctrl_set_number_mlayers(aom_codec_alg_priv_t *ctx,
                                                va_list args) {
   const int number_mlayers = va_arg(args, int);
@@ -3851,7 +3851,7 @@ static aom_codec_err_t ctrl_set_number_spatial_layers(aom_codec_alg_priv_t *ctx,
   ctx->cpi->common.number_spatial_layers = number_spatial_layers;
   return AOM_CODEC_OK;
 }
-#endif  // CONFIG_F159_OBU_HEADER
+#endif  // CONFIG_NEW_OBU_HEADER
 
 static aom_codec_err_t ctrl_set_tune_content(aom_codec_alg_priv_t *ctx,
                                              va_list args) {
@@ -4554,11 +4554,11 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AOME_SET_ROI_MAP, ctrl_set_roi_map },
   { AOME_SET_ACTIVEMAP, ctrl_set_active_map },
   { AOME_SET_SCALEMODE, ctrl_set_scale_mode },
-#if CONFIG_F159_OBU_HEADER
+#if CONFIG_NEW_OBU_HEADER
   { AOME_SET_MLAYER_ID, ctrl_set_mlayer_id },
 #else
   { AOME_SET_SPATIAL_LAYER_ID, ctrl_set_spatial_layer_id },
-#endif  // CONFIG_F159_OBU_HEADER
+#endif  // CONFIG_NEW_OBU_HEADER
   { AOME_SET_CPUUSED, ctrl_set_cpuused },
   { AOME_SET_ENABLEAUTOALTREF, ctrl_set_enable_auto_alt_ref },
   { AOME_SET_ENABLEAUTOBWDREF, ctrl_set_enable_auto_bwd_ref },
@@ -4574,11 +4574,11 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AOME_SET_TUNING, ctrl_set_tuning },
   { AOME_SET_QP, ctrl_set_qp },
   { AOME_SET_MAX_INTRA_BITRATE_PCT, ctrl_set_rc_max_intra_bitrate_pct },
-#if CONFIG_F159_OBU_HEADER
+#if CONFIG_NEW_OBU_HEADER
   { AOME_SET_NUMBER_MLAYERS, ctrl_set_number_mlayers },
 #else
   { AOME_SET_NUMBER_SPATIAL_LAYERS, ctrl_set_number_spatial_layers },
-#endif  // CONFIG_F159_OBU_HEADER
+#endif  // CONFIG_NEW_OBU_HEADER
   { AV1E_SET_MAX_INTER_BITRATE_PCT, ctrl_set_rc_max_inter_bitrate_pct },
   { AV1E_SET_GF_CBR_BOOST_PCT, ctrl_set_rc_gf_cbr_boost_pct },
   { AV1E_SET_LOSSLESS, ctrl_set_lossless },

@@ -76,7 +76,7 @@ extern "C" {
 
 #define NUM_PING_PONG_BUFFERS 2
 
-#if CONFIG_F159_OBU_HEADER
+#if CONFIG_NEW_OBU_HEADER
 #define MAX_NUM_TLAYERS 8
 #define MAX_NUM_MLAYERS 8
 #define MAX_NUM_XLAYERS 32
@@ -93,7 +93,7 @@ extern "C" {
 // multiplication.
 #define MAX_NUM_OPERATING_POINTS \
   (MAX_NUM_TEMPORAL_LAYERS * MAX_NUM_SPATIAL_LAYERS)
-#endif  // CONFIG_F159_OBU_HEADER
+#endif  // CONFIG_NEW_OBU_HEADER
 /* clang-format on */
 
 // TODO(jingning): Turning this on to set up transform coefficient
@@ -2060,7 +2060,7 @@ typedef struct AV1Common {
    */
   int ref_frame_relative_dist[INTER_REFS_PER_FRAME];
 
-#if CONFIG_F159_OBU_HEADER
+#if CONFIG_NEW_OBU_HEADER
   /*!
    * Number of temporal layers: may be > 1 for SVC (scalable vector coding).
    */
@@ -2108,7 +2108,7 @@ typedef struct AV1Common {
    * (in the range 0 ... (number_spatial_layers - 1)).
    */
   int spatial_layer_id;
-#endif  // CONFIG_F159_OBU_HEADER
+#endif  // CONFIG_NEW_OBU_HEADER
 
 /*!
  * Weights for IBP of directional modes.

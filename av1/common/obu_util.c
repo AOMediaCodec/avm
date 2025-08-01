@@ -56,7 +56,7 @@ static aom_codec_err_t read_obu_header(struct aom_read_bit_buffer *rb,
 
   const ptrdiff_t bit_buffer_byte_length = rb->bit_buffer_end - rb->bit_buffer;
 
-#if CONFIG_F159_OBU_HEADER
+#if CONFIG_NEW_OBU_HEADER
   (void)is_annexb;
 #if CONFIG_F301_OBU_HEADER
   if (bit_buffer_byte_length < 1) return AOM_CODEC_CORRUPT_FRAME;
@@ -90,7 +90,7 @@ static aom_codec_err_t read_obu_header(struct aom_read_bit_buffer *rb,
   header->obu_xlayer_id = aom_rb_read_literal(rb, 5);  // obu_layer (xlayer)
   if (!valid_obu_type(header->type)) return AOM_CODEC_CORRUPT_FRAME;
 #endif  // CONFIG_F301_OBU_HEADER
-#else   // !CONFIG_F159_OBU_HEADER
+#else   // !CONFIG_NEW_OBU_HEADER
   if (bit_buffer_byte_length < 1) return AOM_CODEC_CORRUPT_FRAME;
 
   header->size = 1;
@@ -128,7 +128,7 @@ static aom_codec_err_t read_obu_header(struct aom_read_bit_buffer *rb,
       return AOM_CODEC_CORRUPT_FRAME;
     }
   }
-#endif  // CONFIG_F159_OBU_HEADER
+#endif  // CONFIG_NEW_OBU_HEADER
 
   return AOM_CODEC_OK;
 }

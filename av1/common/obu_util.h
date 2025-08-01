@@ -20,7 +20,7 @@ extern "C" {
 #endif
 
 typedef struct {
-#if CONFIG_F159_OBU_HEADER
+#if CONFIG_NEW_OBU_HEADER
 #if CONFIG_F301_OBU_HEADER
   size_t size;  // Size (1 or 2 bytes) of the OBU header (including the
                 // optional second byte) in the bitstream.
@@ -28,9 +28,9 @@ typedef struct {
 #else
   size_t size;  // Size (1 or 2 bytes) of the OBU header (including the
                 // optional OBU extension header) in the bitstream.
-#endif  // CONFIG_F159_OBU_HEADER
+#endif  // CONFIG_NEW_OBU_HEADER
   OBU_TYPE type;
-#if CONFIG_F159_OBU_HEADER
+#if CONFIG_NEW_OBU_HEADER
 #if CONFIG_F301_OBU_HEADER
   int obu_extension_flag;
 #else
@@ -46,7 +46,7 @@ typedef struct {
   // only used if has_extension is true.
   int temporal_layer_id;
   int spatial_layer_id;
-#endif  // CONFIG_F159_OBU_HEADER
+#endif  // CONFIG_NEW_OBU_HEADER
 } ObuHeader;
 
 aom_codec_err_t aom_read_obu_header(uint8_t *buffer, size_t buffer_length,

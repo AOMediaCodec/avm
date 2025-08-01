@@ -31,11 +31,11 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
 // 'obu_extension' is non-zero. Returns number of bytes written to 'dst'.
 uint32_t av1_write_obu_header(AV1LevelParams *const level_params,
                               OBU_TYPE obu_type,
-#if CONFIG_F159_OBU_HEADER
+#if CONFIG_NEW_OBU_HEADER
                               int obu_temporal, int obu_layer,
 #else
                               int obu_extension,
-#endif  // CONFIG_F159_OBU_HEADER
+#endif  // CONFIG_NEW_OBU_HEADER
                               uint8_t *const dst);
 
 int av1_write_uleb_obu_size(size_t obu_header_size, size_t obu_payload_size,

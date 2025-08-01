@@ -1258,13 +1258,13 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 #else
       cur_frame_disp, cpi->gf_group.max_layer_depth);
 #endif  // CONFIG_KEY_OVERLAY
-#if CONFIG_F159_OBU_HEADER
+#if CONFIG_NEW_OBU_HEADER
   cm->tlayer_id = 0;
   cm->current_frame.temporal_layer_id = cm->tlayer_id;
 #else
   cm->temporal_layer_id = 0;
   cm->current_frame.temporal_layer_id = cm->temporal_layer_id;
-#endif  // CONFIG_F159_OBU_HEADER
+#endif  // CONFIG_NEW_OBU_HEADER
 #endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
 
 #if CONFIG_PRIMARY_REF_FRAME_OPT

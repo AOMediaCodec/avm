@@ -434,7 +434,7 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
 static int obudec_read_obu_header(FILE *f, size_t buffer_capacity,
                                   int is_annexb, uint8_t *obu_data,
                                   ObuHeader *obu_header, size_t *bytes_read) {
-#if CONFIG_F159_OBU_HEADER
+#if CONFIG_NEW_OBU_HEADER
   if (!f || buffer_capacity < 2 || !obu_data || !obu_header || !bytes_read) {
     return -1;
   }
@@ -467,7 +467,7 @@ static int obudec_read_obu_header(FILE *f, size_t buffer_capacity,
     }
     ++*bytes_read;
   }
-#endif  // CONFIG_F159_OBU_HEADER
+#endif  // CONFIG_NEW_OBU_HEADER
 
   size_t obu_bytes_parsed = 0;
   const aom_codec_err_t parse_result = aom_read_obu_header(

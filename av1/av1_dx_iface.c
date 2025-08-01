@@ -382,7 +382,7 @@ static aom_codec_err_t parse_operating_points(struct aom_read_bit_buffer *rb,
   }
 
   if (aom_get_num_layers_from_operating_point_idc(
-#if CONFIG_F159_OBU_HEADER
+#if CONFIG_NEW_OBU_HEADER
           operating_point_idc0, &si->number_mlayers, &si->number_tlayers) !=
       AOM_CODEC_OK)
 #else
@@ -773,7 +773,7 @@ static void av1_write_show_existing_frame_obu(uint8_t *const dst,
   struct aom_write_bit_buffer wb = { dst, 0 };
   int obu_type = OBU_FRAME_HEADER;
 
-#if CONFIG_F159_OBU_HEADER
+#if CONFIG_NEW_OBU_HEADER
 #if CONFIG_F301_OBU_HEADER
   aom_wb_write_literal(&wb, (int)obu_type, 4);  // obu_type
   aom_wb_write_literal(&wb, 0, 1);              // obu_extension_flag
@@ -790,7 +790,7 @@ static void av1_write_show_existing_frame_obu(uint8_t *const dst,
   aom_wb_write_literal(&wb, 0, 1);         // extention flag
   aom_wb_write_literal(&wb, 1, 1);         // obu_has_payload_length_field
   aom_wb_write_literal(&wb, 0, 1);         // reserved
-#endif  // CONFIG_F159_OBU_HEADER
+#endif  // CONFIG_NEW_OBU_HEADER
 
   aom_wb_write_literal(&wb, 0x01, 8);  // obu_size 1
   aom_wb_write_bit(&wb, 1);            // show_existing_frame
@@ -971,14 +971,14 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
     res = decode_one(ctx, &data_start, (size_t)frame_size, user_priv);
     if (res != AOM_CODEC_OK) return res;
 
-#if !CONFIG_F159_OBU_HEADER
+#if !CONFIG_NEW_OBU_HEADER
     // Allow extra zero bytes after the frame end
     while (data_start < data_end) {
       const uint8_t marker = data_start[0];
       if (marker) break;
       ++data_start;
     }
-#endif  // CONFIG_F159_OBU_HEADER
+#endif  // CONFIG_NEW_OBU_HEADER
   }
 
   return res;
@@ -1150,14 +1150,14 @@ static aom_image_t *decoder_get_frame_(aom_codec_alg_priv_t *ctx,
 
         ctx->img.fb_priv = output_frame_buf->raw_frame_buffer.priv;
         img = &ctx->img;
-#if CONFIG_F159_OBU_HEADER
+#if CONFIG_NEW_OBU_HEADER
         img->tlayer_id = cm->tlayer_id;
         img->mlayer_id = cm->mlayer_id;
         img->xlayer_id = cm->xlayer_id;
 #else
         img->temporal_id = cm->temporal_layer_id;
         img->spatial_id = cm->spatial_layer_id;
-#endif  // CONFIG_F159_OBU_HEADER
+#endif  // CONFIG_NEW_OBU_HEADER
         if (pbi->skip_film_grain) grain_params->apply_grain = 0;
         aom_image_t *res =
             add_grain_if_needed(ctx, img, &ctx->image_with_grain, grain_params);

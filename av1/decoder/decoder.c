@@ -703,11 +703,11 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
                (cm->show_existing_frame || cm->show_frame)) {
       if (pbi->output_all_layers) {
         // Append this frame to the output queue
-#if CONFIG_F159_OBU_HEADER
+#if CONFIG_NEW_OBU_HEADER
         if (pbi->num_output_frames >= MAX_NUM_MLAYERS)
 #else
         if (pbi->num_output_frames >= MAX_NUM_SPATIAL_LAYERS)
-#endif  // CONFIG_F159_OBU_HEADER
+#endif  // CONFIG_NEW_OBU_HEADER
         {
           // We can't store the new frame anywhere, so drop it and return an
           // error

@@ -37,7 +37,7 @@ const uint8_t kMetadataPayloadCll[kMetadataPayloadSizeCll] = { 0xB5, 0x01, 0x02,
 
 #if CONFIG_AV1_ENCODER
 
-#if CONFIG_F159_OBU_HEADER
+#if CONFIG_NEW_OBU_HEADER
 #if CONFIG_F301_OBU_HEADER
 const size_t kMetadataObuSizeT35 = 28;
 const uint8_t kMetadataObuT35[kMetadataObuSizeT35] = {
@@ -72,7 +72,7 @@ const uint8_t kMetadataObuCll[kMetadataObuSizeCll] = { 0x08, 0x50, 0x00,
                                                        0x01, 0xB5, 0x01,
                                                        0x02, 0x03, 0x80 };
 #endif  // CONFIG_F301_OBU_HEADER
-#else   // !CONFIG_F159_OBU_HEADER
+#else   // !CONFIG_NEW_OBU_HEADER
 const size_t kMetadataObuSizeT35 = 28;
 const uint8_t kMetadataObuT35[kMetadataObuSizeT35] = {
   0x2A, 0x1A, 0x04, 0xB5, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06,
@@ -88,7 +88,7 @@ const uint8_t kMetadataObuMdcv[kMetadataObuSizeMdcv] = {
 const size_t kMetadataObuSizeCll = 8;
 const uint8_t kMetadataObuCll[kMetadataObuSizeCll] = { 0x2A, 0x06, 0x01, 0xB5,
                                                        0x01, 0x02, 0x03, 0x80 };
-#endif  // CONFIG_F159_OBU_HEADER
+#endif  // CONFIG_NEW_OBU_HEADER
 
 class MetadataEncodeTest
     : public ::libaom_test::CodecTestWithParam<libaom_test::TestMode>,
