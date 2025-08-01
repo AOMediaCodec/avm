@@ -1232,9 +1232,11 @@ enum aome_enc_control_id {
   /*!\brief Control to get frame info
    */
   AV1E_GET_FRAME_INFO = 165,
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
   /*!\brief Control to set frame output order derivation method
    */
   AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION = 166,
+#endif
 #if CONFIG_DIP
   /*!\brief Control to enable intra_dip mode
    */
@@ -1746,10 +1748,10 @@ AOM_CTRL_USE_TYPE(AV1E_SET_SUBGOP_CONFIG_STR, const char *)
 
 AOM_CTRL_USE_TYPE(AV1E_SET_SUBGOP_CONFIG_PATH, const char *)
 #define AOM_CTRL_AV1E_SET_SUBGOP_CONFIG_PATH
-
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
 AOM_CTRL_USE_TYPE(AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, int)
 #define AOM_CTRL_AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION
-
+#endif
 #if CONFIG_BRU
 AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_BRU, int)
 #define AOM_CTRL_AV1E_SET_ENABLE_BRU

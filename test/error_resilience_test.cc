@@ -82,7 +82,9 @@ class ErrorResilienceTestLarge
     if (video->frame() == 0) {
       encoder->Control(AOME_SET_CPUUSED, kCpuUsed);
       encoder->Control(AOME_SET_ENABLEAUTOALTREF, enable_altref_);
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
       encoder->Control(AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, 0);
+#endif
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
       encoder->Control(AV1E_SET_ENABLE_CDF_AVERAGING, 0);
 #endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
@@ -509,7 +511,9 @@ class SFramePresenceTestLarge
                                   ::libaom_test::Encoder *encoder) {
     if (video->frame() == 0) {
       encoder->Control(AOME_SET_CPUUSED, kCpuUsed);
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
       encoder->Control(AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, 0);
+#endif
       if (rc_end_usage_ == AOM_Q || rc_end_usage_ == AOM_CQ) {
         encoder->Control(AOME_SET_QP, 210);
       }
