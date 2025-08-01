@@ -6233,24 +6233,24 @@ static int is_bv_valid_for_morph(const MV sub_pel_dv,
                                        const MACROBLOCKD *xd,
                                        int mi_row, int mi_col, BLOCK_SIZE bsize) {
 //   FULLPEL_MV dv = get_fullmv_from_mv(&sub_pel_dv);
-  const int cur_x = mi_col * MI_SIZE;
-  const int cur_y = mi_row * MI_SIZE;
-  const struct macroblockd_plane *const pd = &xd->plane[AOM_PLANE_Y];
-#if CONFIG_F054_PIC_BOUNDARY
-  if (cur_x >= pd->dst.width || cur_y >= pd->dst.height) return false;
-#else
-  if (cur_x >= cm->width || cur_y >= cm->height) return false;
-#endif  // CONFIG_F054_PIC_BOUNDARY
-  const int bw = block_size_wide[bsize];
-  const int bh = block_size_high[bsize];
-  int ref_w = bw;
-  int ref_h = bh;
-  if (cur_x + bw >= cm->width) ref_w = cm->width - cur_x;
-  if (cur_y + bh >= cm->height) ref_h = cm->height - cur_y;
-  const int cur_tmplt_x = cur_x - BAWP_REF_LINES;
-  const int cur_tmplt_y = cur_y - BAWP_REF_LINES;
-  assert(cur_tmplt_x + ref_w < cm->width);
-  assert(cur_tmplt_y + ref_h < cm->height);
+//   const int cur_x = mi_col * MI_SIZE;
+//   const int cur_y = mi_row * MI_SIZE;
+//   const struct macroblockd_plane *const pd = &xd->plane[AOM_PLANE_Y];
+// #if CONFIG_F054_PIC_BOUNDARY
+//   if (cur_x >= pd->dst.width || cur_y >= pd->dst.height) return false;
+// #else
+//   if (cur_x >= cm->width || cur_y >= cm->height) return false;
+// #endif  // CONFIG_F054_PIC_BOUNDARY
+//   const int bw = block_size_wide[bsize];
+//   const int bh = block_size_high[bsize];
+//   int ref_w = bw;
+//   int ref_h = bh;
+//   if (cur_x + bw >= cm->width) ref_w = cm->width - cur_x;
+//   if (cur_y + bh >= cm->height) ref_h = cm->height - cur_y;
+//   const int cur_tmplt_x = cur_x - BAWP_REF_LINES;
+//   const int cur_tmplt_y = cur_y - BAWP_REF_LINES;
+//   assert(cur_tmplt_x + ref_w < cm->width);
+//   assert(cur_tmplt_y + ref_h < cm->height);
   //the input sub_pel_dv is already a valid bv for global (or local) intraBC
   MV bv_to_tl_template = { sub_pel_dv.row - GET_MV_SUBPEL(BAWP_REF_LINES),
                             sub_pel_dv.col - GET_MV_SUBPEL(BAWP_REF_LINES) };
