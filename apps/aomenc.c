@@ -220,7 +220,9 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
 #endif
                                         AV1E_SET_SUBGOP_CONFIG_STR,
                                         AV1E_SET_SUBGOP_CONFIG_PATH,
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
                                         AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION,
+#endif
                                         AV1E_SET_ENABLE_CDF_AVERAGING,
 #if CONFIG_BRU
                                         AV1E_SET_ENABLE_BRU,
