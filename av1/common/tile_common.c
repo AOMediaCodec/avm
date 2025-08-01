@@ -248,3 +248,25 @@ int get_tile_col_from_mi_col(const CommonTileParams *tiles, int mi_col) {
   }
   return col;
 }
+
+int is_vert_tile_boundary(CommonTileParams *const tiles, int mi_col) {
+  for (int col = 0; col < tiles->cols; ++col) {
+    const int mi_col_start = tiles->col_start_sb[col] << tiles->mib_size_log2;
+    if (mi_col == mi_col_start)
+      return 1;
+    else if (mi_col < mi_col_start)
+      return 0;
+  }
+  return 0;
+}
+
+int is_horz_tile_boundary(CommonTileParams *const tiles, int mi_row) {
+  for (int row = 0; row < tiles->rows; ++row) {
+    const int mi_row_start = tiles->row_start_sb[row] << tiles->mib_size_log2;
+    if (mi_row == mi_row_start)
+      return 1;
+    else if (mi_row < mi_row_start)
+      return 0;
+  }
+  return 0;
+}

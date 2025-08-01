@@ -718,6 +718,14 @@ static TX_SIZE set_lpf_parameters(
   const TX_SIZE ts = get_transform_size(xd, mi[0], edge_dir, mi_row, mi_col,
                                         plane, tree_type, plane_ptr, &tu_edge);
 #endif  // CONFIG_LF_SUB_PU
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  if (cm->seq_params.disable_loopfilters_across_tiles) {
+    if (edge_dir == VERT_EDGE)
+      if (is_vert_tile_boundary(&cm->tiles, mi_col)) return ts;
+    if (edge_dir == HORZ_EDGE)
+      if (is_horz_tile_boundary(&cm->tiles, mi_row)) return ts;
+  }
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   {
     const uint32_t coord = (VERT_EDGE == edge_dir) ? (x) : (y);
 
@@ -1084,10 +1092,9 @@ void av1_filter_block_plane_vert(const AV1_COMMON *const cm,
       const uint32_t curr_x = ((mi_col * MI_SIZE) >> scale_horz) + x * MI_SIZE;
       const uint32_t curr_y = ((mi_row * MI_SIZE) >> scale_vert) + y * MI_SIZE;
       uint32_t advance_units;
-      TX_SIZE tx_size;
+      TX_SIZE tx_size = TX_4X4;
       AV1_DEBLOCKING_PARAMETERS params;
       memset(&params, 0, sizeof(params));
-
       tx_size = set_lpf_parameters(&params, prev_x, curr_y, cm, xd, VERT_EDGE,
                                    curr_x, curr_y, plane, plane_ptr);
       if (tx_size == TX_INVALID) {
@@ -1100,25 +1107,33 @@ void av1_filter_block_plane_vert(const AV1_COMMON *const cm,
         tx_size = TX_4X4;
       }
 
-      const aom_bit_depth_t bit_depth = cm->seq_params.bit_depth;
+      int do_filter = 1;
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+      if (cm->seq_params.disable_loopfilters_across_tiles) {
+        if (is_vert_tile_boundary(&cm->tiles, mi_col + (x << scale_horz)))
+          do_filter = 0;
+      }
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+      if (do_filter) {
+        const aom_bit_depth_t bit_depth = cm->seq_params.bit_depth;
 #if CONFIG_ASYM_DF
-      if (params.filter_length_neg || params.filter_length_pos) {
+        if (params.filter_length_neg || params.filter_length_pos)
 #else
-      if (params.filter_length) {
+        if (params.filter_length)
 #endif  // CONFIG_ASYM_DF
-        aom_highbd_lpf_vertical_generic(
-            p, dst_stride,
+          aom_highbd_lpf_vertical_generic(
+              p, dst_stride,
 #if CONFIG_ASYM_DF
-            params.filter_length_neg, params.filter_length_pos,
+              params.filter_length_neg, params.filter_length_pos,
 #else
-            params.filter_length,
+              params.filter_length,
 #endif  // CONFIG_ASYM_DF
-            &params.q_threshold, &params.side_threshold, bit_depth
+              &params.q_threshold, &params.side_threshold, bit_depth
 #if CONFIG_LF_SUB_PU && !CONFIG_IMPROVE_TIP_LF
-            ,
-            4
+              ,
+              4
 #endif  // CONFIG_LF_SUB_PU  && !CONFIG_IMPROVE_TIP_LF
-        );
+          );
       }
 
       // advance the destination pointer
@@ -1166,10 +1181,9 @@ void av1_filter_block_plane_horz(const AV1_COMMON *const cm,
       const uint32_t curr_x = ((mi_col * MI_SIZE) >> scale_horz) + x * MI_SIZE;
       const uint32_t curr_y = ((mi_row * MI_SIZE) >> scale_vert) + y * MI_SIZE;
       uint32_t advance_units;
-      TX_SIZE tx_size;
+      TX_SIZE tx_size = TX_4X4;
       AV1_DEBLOCKING_PARAMETERS params;
       memset(&params, 0, sizeof(params));
-
       tx_size = set_lpf_parameters(&params, curr_x, prev_y, cm, xd, HORZ_EDGE,
                                    curr_x, curr_y, plane, plane_ptr);
       if (tx_size == TX_INVALID) {
@@ -1181,26 +1195,34 @@ void av1_filter_block_plane_horz(const AV1_COMMON *const cm,
 #endif  // CONFIG_ASYM_DF
         tx_size = TX_4X4;
       }
-      const aom_bit_depth_t bit_depth = cm->seq_params.bit_depth;
 
+      int do_filter = 1;
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+      if (cm->seq_params.disable_loopfilters_across_tiles) {
+        if (is_horz_tile_boundary(&cm->tiles, mi_row + (y << scale_vert)))
+          do_filter = 0;
+      }
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+      if (do_filter) {
+        const aom_bit_depth_t bit_depth = cm->seq_params.bit_depth;
 #if CONFIG_ASYM_DF
-      if (params.filter_length_neg || params.filter_length_pos) {
+        if (params.filter_length_neg || params.filter_length_pos)
 #else
-      if (params.filter_length) {
+        if (params.filter_length)
 #endif  // CONFIG_ASYM_DF
-        aom_highbd_lpf_horizontal_generic(
-            p, dst_stride,
+          aom_highbd_lpf_horizontal_generic(
+              p, dst_stride,
 #if CONFIG_ASYM_DF
-            params.filter_length_neg, params.filter_length_pos,
+              params.filter_length_neg, params.filter_length_pos,
 #else
-            params.filter_length,
+              params.filter_length,
 #endif  // CONFIG_ASYM_DF
-            &params.q_threshold, &params.side_threshold, bit_depth
+              &params.q_threshold, &params.side_threshold, bit_depth
 #if CONFIG_LF_SUB_PU && !CONFIG_IMPROVE_TIP_LF
-            ,
-            4
+              ,
+              4
 #endif  // CONFIG_LF_SUB_PU && !CONFIG_IMPROVE_TIP_LF
-        );
+          );
       }
 
       // advance the destination pointer
@@ -1370,9 +1392,11 @@ AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
   int sub_bw = 8;
   int sub_bh = 8;
 #endif  // CONFIG_FLEX_TIP_BLK_SIZE
-  const int subsampling_x = cm->seq_params.subsampling_x;
-  const int subsampling_y = cm->seq_params.subsampling_y;
+  int subsampling_x = 0;
+  int subsampling_y = 0;
   if (plane > 0) {
+    subsampling_x = cm->seq_params.subsampling_x;
+    subsampling_y = cm->seq_params.subsampling_y;
     sub_bw >>= subsampling_x;
     sub_bh >>= subsampling_y;
   }
@@ -1395,6 +1419,11 @@ AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
 #endif  // CONFIG_IMPROVE_TIP_LF
     for (int i = 0; i <= w; i += sub_bw) {
       // filter vertical boundary
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+      if (cm->seq_params.disable_loopfilters_across_tiles) {
+        if (is_vert_tile_boundary(&cm->tiles, i << subsampling_x)) continue;
+      }
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
       if (i > 0) {
         int filter_length_neg = 0;
         int filter_length_pos = 0;
@@ -1425,7 +1454,12 @@ AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
     uint16_t *p = dst + i;
     for (int j = 0; j <= h; j += sub_bh) {
 #endif  // CONFIG_IMPROVE_TIP_LF
-      // filter horizontal boundary
+        // filter horizontal boundary
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+      if (cm->seq_params.disable_loopfilters_across_tiles) {
+        if (is_horz_tile_boundary(&cm->tiles, j << subsampling_y)) continue;
+      }
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
       if (j > 0) {
         int filter_length_neg = 0;
         int filter_length_pos = 0;

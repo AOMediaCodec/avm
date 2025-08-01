@@ -75,6 +75,9 @@ int av1_is_min_tile_width_satisfied(const struct AV1Common *cm);
 int get_tile_row_from_mi_row(const struct CommonTileParams *tiles, int mi_row);
 int get_tile_col_from_mi_col(const struct CommonTileParams *tiles, int mi_col);
 
+// Check if location of a block is on the horz or vert tile boundary
+int is_horz_tile_boundary(struct CommonTileParams *const tiles, int mi_row);
+int is_vert_tile_boundary(struct CommonTileParams *const tiles, int mi_col);
 #ifdef __cplusplus
 }  // extern "C"
 #endif
