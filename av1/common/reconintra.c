@@ -1164,14 +1164,12 @@ static void build_intra_predictors_high(
       need_above = 1, need_left = 1, need_above_left = 1;
     }
 
-#if !CONFIG_ORIP_NONDC_DISABLED
     if (apply_sub_block_based_refinement_filter &&
         (p_angle == 90 || p_angle == 180)) {
       need_above = 1;
       need_left = 1;
       need_above_left = 1;
     }
-#endif
   }
   if (use_intra_dip) need_left = need_above = need_above_left = 1;
   assert(n_top_px >= 0);
@@ -1422,18 +1420,12 @@ static void build_intra_predictors_high(
       }
     }
 
-#if !CONFIG_ORIP_NONDC_DISABLED
     // Apply sub-block based filter for horizontal/vertical intra mode
     if (apply_sub_block_based_refinement_filter &&
-#if DF_RESTRICT_ORIP
         av1_allow_orip_dir(p_angle, tx_size)) {
-#else
-        av1_allow_orip_dir(p_angle)) {
-#endif
       av1_apply_orip_4x4subblock_hbd(dst, dst_stride, tx_size, above_row_1st,
                                      left_col_1st, mode, xd->bd);
     }
-#endif
     return;
   }
   // predict
@@ -1452,11 +1444,7 @@ static void build_intra_predictors_high(
 
   // Apply sub-block based filter for DC/smooth intra mode
   apply_sub_block_based_refinement_filter &=
-#if DF_RESTRICT_ORIP
       av1_allow_orip_smooth_dc(mode, plane, tx_size);
-#else
-      av1_allow_orip_smooth_dc(mode, plane);
-#endif
   if (apply_sub_block_based_refinement_filter) {
     av1_apply_orip_4x4subblock_hbd(dst, dst_stride, tx_size, above_row_1st,
                                    left_col_1st, mode, xd->bd);

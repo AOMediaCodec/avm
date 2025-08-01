@@ -177,8 +177,6 @@ set_aom_config_var(CONFIG_DMVR_OFF_IN_TIP_DIRECT 1
 
 set_aom_config_var(CONFIG_ORIP_DC_DISABLED 0
                    "AV2 experiment flag to disable ORIP for DC mode.")
-set_aom_config_var(CONFIG_ORIP_NONDC_DISABLED 0
-                   "AV2 experiment flag to disable ORIP for non-DC modes.")
 set_aom_config_var(CONFIG_MORPH_PRED 1 "AV2 intra prediction mode flag.")
 set_aom_config_var(CONFIG_IMPROVED_MORPH_PRED 1
                    "Improvement of AV2 linear intra prediction mode.")

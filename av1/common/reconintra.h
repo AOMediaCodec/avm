@@ -25,7 +25,6 @@
 extern "C" {
 #endif
 
-#define DF_RESTRICT_ORIP 1
 #define ORIP_BLOCK_SIZE 32
 
 /*! \brief set the luma intra mode and delta angles for a given mode index.
@@ -197,13 +196,9 @@ static INLINE int get_intra_dip_ctx(const MB_MODE_INFO *nbr0,
   return ctx0 + ctx1;
 }
 
-#if DF_RESTRICT_ORIP
 static INLINE int av1_allow_orip_smooth_dc(PREDICTION_MODE mode, int plane,
                                            TX_SIZE tx_size) {
 #if CONFIG_ORIP_DC_DISABLED
-#if CONFIG_ORIP_NONDC_DISABLED
-  return 0;
-#else
   const int bw = tx_size_wide[tx_size];
   const int bh = tx_size_high[tx_size];
 
@@ -212,21 +207,15 @@ static INLINE int av1_allow_orip_smooth_dc(PREDICTION_MODE mode, int plane,
 
   if (plane == AOM_PLANE_Y) return ((mode == SMOOTH_PRED) && orip_allowed);
   return ((mode == UV_SMOOTH_PRED) && orip_allowed);
-#endif
 #else
   const int bw = tx_size_wide[tx_size];
   const int bh = tx_size_high[tx_size];
 
   int orip_allowed = 1;
   if (bw >= ORIP_BLOCK_SIZE || bh >= ORIP_BLOCK_SIZE) orip_allowed = 0;
-#if CONFIG_ORIP_NONDC_DISABLED
-  if (plane == AOM_PLANE_Y) return ((mode == DC_PRED) && orip_allowed);
-  return 0;
-#else
   if (plane == AOM_PLANE_Y)
     return ((mode == SMOOTH_PRED || mode == DC_PRED) && orip_allowed);
   return ((mode == UV_SMOOTH_PRED) && orip_allowed);
-#endif
 #endif
 }
 static INLINE int av1_allow_orip_dir(int p_angle, TX_SIZE tx_size) {
@@ -239,29 +228,6 @@ static INLINE int av1_allow_orip_dir(int p_angle, TX_SIZE tx_size) {
 
   return ((p_angle == 90 || p_angle == 180) && orip_allowed);
 }
-#else
-static INLINE int av1_allow_orip_smooth_dc(PREDICTION_MODE mode, int plane) {
-#if CONFIG_ORIP_DC_DISABLED
-#if CONFIG_ORIP_NONDC_DISABLED
-  return 0;
-#else
-  if (plane == AOM_PLANE_Y) return (mode == SMOOTH_PRED);
-  return (mode == UV_SMOOTH_PRED);
-#endif
-#else
-#if CONFIG_ORIP_NONDC_DISABLED
-  if (plane == AOM_PLANE_Y) return (mode == DC_PRED);
-  return 0;
-#else
-  if (plane == AOM_PLANE_Y) return (mode == SMOOTH_PRED || mode == DC_PRED);
-  return (mode == UV_SMOOTH_PRED);
-#endif
-#endif
-}
-static INLINE int av1_allow_orip_dir(int p_angle) {
-  return (p_angle == 90 || p_angle == 180);
-}
-#endif
 
 // Get the shift (up-scaled by 256) in X w.r.t a unit change in Y.
 // If angle > 0 && angle < 90, dx = -((int)(256 / t));
