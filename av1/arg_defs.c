@@ -915,6 +915,12 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
                         "(0: false (default), 1: true with regular decoder, 2: "
                         "true with optimized decoder)"),
 #endif  // CONFIG_BRU
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  .disable_loopfilters_across_tiles =
+      ARG_DEF(NULL, "disable-loopfilters-across-tiles", 1,
+              "Disable loopfilters across tiles "
+              "(0: false (default), 1: true)"),
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   .frame_hash_metadata = ARG_DEF_ENUM(
       NULL, "frame-hash", 1,
       "Write decoded frame hash metadata OBUs:", frame_hash_metadata_enum),

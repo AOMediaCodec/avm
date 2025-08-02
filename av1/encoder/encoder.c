@@ -477,7 +477,8 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
       tool_cfg->reduced_ref_frame_mvs_mode;
 #endif  // CONFIG_REDUCED_REF_FRAME_MVS_MODE
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-  seq->disable_loopfilters_across_tiles = 0;
+  seq->disable_loopfilters_across_tiles =
+      tool_cfg->disable_loopfilters_across_tiles;
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   seq->enable_cdef = tool_cfg->enable_cdef;
   seq->enable_gdf = tool_cfg->enable_gdf;

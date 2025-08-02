@@ -671,6 +671,12 @@ typedef struct cfg_options {
    */
   unsigned int enable_bru;
 #endif  // CONFIG_BRU
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  /*!\brief disable_loopfilters_across_tiles
+   *
+   */
+  unsigned int disable_loopfilters_across_tiles;
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 } cfg_options_t;
 
 /*!\brief Encoded Frame Flags

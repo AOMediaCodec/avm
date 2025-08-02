@@ -282,6 +282,9 @@ struct av1_extracfg {
 #if CONFIG_BRU
   unsigned int enable_bru;
 #endif  // CONFIG_BRU
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  unsigned int disable_loopfilters_across_tiles;
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 };
 
 // Example subgop configs. Currently not used by default.
@@ -661,6 +664,9 @@ static struct av1_extracfg default_extra_cfg = {
 #if CONFIG_BRU
   0,    // enable_bru
 #endif  // CONFIG_BRU
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  0,
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 };
 // clang-format on
 
@@ -1130,6 +1136,10 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_bru = extra_cfg->enable_bru;
 #endif  // CONFIG_BRU
   cfg->explicit_ref_frame_map = extra_cfg->explicit_ref_frame_map;
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  cfg->disable_loopfilters_across_tiles =
+      extra_cfg->disable_loopfilters_across_tiles;
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
   cfg->enable_frame_output_order = extra_cfg->enable_frame_output_order;
 #endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
@@ -1277,6 +1287,10 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_bru = cfg->enable_bru;
 #endif  // CONFIG_BRU
   extra_cfg->explicit_ref_frame_map = cfg->explicit_ref_frame_map;
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  extra_cfg->disable_loopfilters_across_tiles =
+      cfg->disable_loopfilters_across_tiles;
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
   extra_cfg->enable_frame_output_order = cfg->enable_frame_output_order;
 #endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
@@ -1550,6 +1564,10 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
     tool_cfg->enable_bru = 0;
   }
 #endif  // CONFIG_BRU
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  tool_cfg->disable_loopfilters_across_tiles =
+      extra_cfg->disable_loopfilters_across_tiles;
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   tool_cfg->enable_bawp = extra_cfg->enable_bawp;
   tool_cfg->enable_cwp = extra_cfg->enable_cwp;
   tool_cfg->enable_imp_msk_bld = extra_cfg->enable_imp_msk_bld;
@@ -4602,6 +4620,13 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                               err_string)) {
     extra_cfg.enable_bru = arg_parse_int_helper(&arg, err_string);
 #endif  // CONFIG_BRU
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  } else if (arg_match_helper(
+                 &arg, &g_av1_codec_arg_defs.disable_loopfilters_across_tiles,
+                 argv, err_string)) {
+    extra_cfg.disable_loopfilters_across_tiles =
+        arg_parse_int_helper(&arg, err_string);
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   } else {
     match = 0;
     snprintf(err_string, ARG_ERR_MSG_MAX_LEN, "Cannot find aom option %s",
@@ -4959,6 +4984,9 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_BRU
         0,  // enable_bru
 #endif      // CONFIG_BRU
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+        0,  // disable_loopfilters_across_tiles
+#endif      // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
     },      // cfg
 } };
 

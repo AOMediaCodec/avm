@@ -530,6 +530,9 @@ const arg_def_t *av1_key_val_args[] = {
 #if CONFIG_BRU
   &g_av1_codec_arg_defs.enable_bru,
 #endif  // CONFIG_BRU
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  &g_av1_codec_arg_defs.disable_loopfilters_across_tiles,
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   NULL,
 };
 
@@ -785,6 +788,9 @@ static void init_config(cfg_options_t *config) {
 #if CONFIG_BRU
   config->enable_bru = 0;
 #endif  // CONFIG_BRU
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  config->disable_loopfilters_across_tiles = 0;
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 }
 
 /* Parses global config arguments into the AvxEncoderConfig. Note that
@@ -1708,6 +1714,11 @@ static void show_stream_config(struct stream_state *stream,
           encoder_cfg->enable_cdef_on_skip_txfm, encoder_cfg->enable_ccso,
           encoder_cfg->enable_gdf, encoder_cfg->enable_restoration,
           encoder_cfg->enable_pc_wiener, encoder_cfg->enable_wiener_nonsep);
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  fprintf(
+      stdout, "Loopfilters across tiles       : %s\n",
+      encoder_cfg->disable_loopfilters_across_tiles ? "Disabled" : "Enabled");
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 
   fprintf(stdout,
           "Tool setting (Others)          : Palette (%d), "
@@ -1833,8 +1844,9 @@ static void initialize_encoder(struct stream_state *stream,
   for (i = 0; i < stream->config.arg_key_val_cnt; i++) {
     const char *name = stream->config.arg_key_vals[i][0];
     const char *val = stream->config.arg_key_vals[i][1];
-    if (aom_codec_set_option(&stream->encoder, name, val))
+    if (aom_codec_set_option(&stream->encoder, name, val)) {
       fprintf(stderr, "Error: Tried to set option %s = %s\n", name, val);
+    }
 
     ctx_exit_on_error(&stream->encoder, "Failed to set codec option");
   }

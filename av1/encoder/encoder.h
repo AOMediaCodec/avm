@@ -956,6 +956,9 @@ typedef struct {
   // Indicates if BRU is enabled and the mode
   unsigned int enable_bru;
 #endif  // CONFIG_BRU
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  bool disable_loopfilters_across_tiles;
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   // Indicates if parity hiding should be enabled
   bool enable_parity_hiding;
 #if CONFIG_REFRESH_FLAG
