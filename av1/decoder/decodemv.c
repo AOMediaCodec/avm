@@ -1779,16 +1779,27 @@ static INLINE int assign_dv(AV1_COMMON *cm, MACROBLOCKD *xd, int_mv *mv,
 }
 
 #if CONFIG_IBC_BV_IMPROVEMENT
-static void read_intrabc_drl_idx(int max_ref_bv_cnt, FRAME_CONTEXT *ec_ctx,
+static void read_intrabc_drl_idx(int max_ref_bv_cnt,
+#if !CONFIG_BYPASS_INTRABC_DRL_IDX
+                                 FRAME_CONTEXT *ec_ctx,
+#endif  // CONFIG_BYPASS_INTRABC_DRL_IDX
                                  MB_MODE_INFO *mbmi, aom_reader *r) {
   mbmi->intrabc_drl_idx = 0;
+#if !CONFIG_BYPASS_INTRABC_DRL_IDX
   int bit_cnt = 0;
+#endif  // CONFIG_BYPASS_INTRABC_DRL_IDX
   for (int idx = 0; idx < max_ref_bv_cnt - 1; ++idx) {
+#if CONFIG_BYPASS_INTRABC_DRL_IDX
+    const int intrabc_drl_idx = aom_read_bit(r, ACCT_INFO());
+#else
     const int intrabc_drl_idx = aom_read_symbol(
         r, ec_ctx->intrabc_drl_idx_cdf[bit_cnt], 2, ACCT_INFO());
+#endif  // CONFIG_BYPASS_INTRABC_DRL_IDX
     mbmi->intrabc_drl_idx = idx + intrabc_drl_idx;
     if (!intrabc_drl_idx) break;
+#if !CONFIG_BYPASS_INTRABC_DRL_IDX
     ++bit_cnt;
+#endif  // CONFIG_BYPASS_INTRABC_DRL_IDX
   }
   assert(mbmi->intrabc_drl_idx < max_ref_bv_cnt);
 }
@@ -1849,7 +1860,11 @@ static void read_intrabc_info(AV1_COMMON *const cm, DecoderCodingBlock *dcb,
     mbmi->intrabc_mode =
         aom_read_symbol(r, ec_ctx->intrabc_mode_cdf, 2, ACCT_INFO());
 #if CONFIG_IBC_MAX_DRL
-    read_intrabc_drl_idx(cm->features.max_bvp_drl_bits + 1, ec_ctx, mbmi, r);
+    read_intrabc_drl_idx(cm->features.max_bvp_drl_bits + 1,
+#if !CONFIG_BYPASS_INTRABC_DRL_IDX
+                         ec_ctx,
+#endif  // CONFIG_BYPASS_INTRABC_DRL_IDX
+                         mbmi, r);
 #else
     read_intrabc_drl_idx(MAX_REF_BV_STACK_SIZE, ec_ctx, mbmi, r);
 #endif  // CONFIG_IBC_MAX_DRL
@@ -1964,10 +1979,14 @@ static void read_intra_luma_mode(MACROBLOCKD *const xd, aom_reader *r) {
         aom_read_symbol(r, ec_ctx->y_mode_idx_cdf_0[context], FIRST_MODE_COUNT,
                         ACCT_INFO("mode_idx", "y_mode_idx_cdf_0"));
   } else {
-    mode_idx =
-        FIRST_MODE_COUNT + (mode_set_index - 1) * SECOND_MODE_COUNT +
-        aom_read_symbol(r, ec_ctx->y_mode_idx_cdf_1[context], SECOND_MODE_COUNT,
-                        ACCT_INFO("mode_idx", "y_mode_idx_cdf_1"));
+    mode_idx = FIRST_MODE_COUNT + (mode_set_index - 1) * SECOND_MODE_COUNT +
+#if CONFIG_CTX_Y_SECOND_MODE
+               aom_read_literal(r, 4, ACCT_INFO("mode_idx"));
+#else
+               aom_read_symbol(r, ec_ctx->y_mode_idx_cdf_1[context],
+                               SECOND_MODE_COUNT,
+                               ACCT_INFO("mode_idx", "y_mode_idx_cdf_1"));
+#endif  // CONFIG_CTX_Y_SECOND_MODE
   }
   assert(mode_idx < LUMA_MODE_COUNT);
   get_y_intra_mode_set(mbmi, xd);
@@ -2616,6 +2635,9 @@ static INLINE void read_mv(aom_reader *r, MV *mv_diff, int skip_sign_coding,
     const int num_of_bits_for_this_offset =
         (shell_class == 0) ? 1 : shell_class;
     for (int i = 0; i < num_of_bits_for_this_offset; ++i) {
+#if CONFIG_CTX_MV_SHELL_OFFSET_OTHER
+      shell_cls_offset |= aom_read_bit(r, ACCT_INFO("offset")) << i;
+#else
       shell_cls_offset |=
 #if CONFIG_CTX_MV_SHELL_OFFSET_OTHER
           aom_read_bit(r, ACCT_INFO("offset"))
@@ -2624,6 +2646,7 @@ static INLINE void read_mv(aom_reader *r, MV *mv_diff, int skip_sign_coding,
                           ACCT_INFO("offset"))
 #endif  // CONFIG_CTX_MV_SHELL_OFFSET_OTHER
           << i;
+#endif
     }
   }
 

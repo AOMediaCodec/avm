@@ -749,7 +749,11 @@ static AOM_INLINE void pack_map_tokens(const MACROBLOCKD *xd, aom_writer *w,
 #if CONFIG_PALETTE_LINE_COPY
   const int direction = (direction_allowed) ? p->direction : 0;
   if (direction_allowed) {
+#if CONFIG_PLT_DIR_CTX
+    aom_write_bit(w, p->direction);
+#else
     aom_write_symbol(w, p->direction, xd->tile_ctx->palette_direction_cdf, 2);
+#endif  // CONFIG_PLT_DIR_CTX
   }
 #else
   const int direction = 0;
@@ -1852,10 +1856,17 @@ static AOM_INLINE void write_intra_luma_mode(MACROBLOCKD *const xd,
     aom_write_symbol(w, mode_idx, ec_ctx->y_mode_idx_cdf_0[context],
                      FIRST_MODE_COUNT);
   } else {
+#if CONFIG_CTX_Y_SECOND_MODE
+    aom_write_literal(
+        w,
+        mode_idx - FIRST_MODE_COUNT - (mode_set_index - 1) * SECOND_MODE_COUNT,
+        4);
+#else
     aom_write_symbol(
         w,
         mode_idx - FIRST_MODE_COUNT - (mode_set_index - 1) * SECOND_MODE_COUNT,
         ec_ctx->y_mode_idx_cdf_1[context], SECOND_MODE_COUNT);
+#endif  // !CONFIG_CTX_Y_SECOND_MODE
   }
   if (mbmi->joint_y_mode_delta_angle < NON_DIRECTIONAL_MODES_COUNT)
     assert(mbmi->joint_y_mode_delta_angle == mbmi->y_mode_idx);
@@ -2618,7 +2629,10 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 }
 
 #if CONFIG_IBC_BV_IMPROVEMENT
-static void write_intrabc_drl_idx(int max_ref_bv_num, FRAME_CONTEXT *ec_ctx,
+static void write_intrabc_drl_idx(int max_ref_bv_num,
+#if !CONFIG_BYPASS_INTRABC_DRL_IDX
+                                  FRAME_CONTEXT *ec_ctx,
+#endif  // CONFIG_BYPASS_INTRABC_DRL_IDX
                                   const MB_MODE_INFO *mbmi,
                                   const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame,
                                   aom_writer *w) {
@@ -2626,13 +2640,21 @@ static void write_intrabc_drl_idx(int max_ref_bv_num, FRAME_CONTEXT *ec_ctx,
   assert(mbmi->intrabc_drl_idx < mbmi_ext_frame->ref_mv_count[0]);
   assert(mbmi->intrabc_drl_idx < max_ref_bv_num);
   (void)mbmi_ext_frame;
-
+#if !CONFIG_BYPASS_INTRABC_DRL_IDX
   int bit_cnt = 0;
+#endif  // CONFIG_BYPASS_INTRABC_DRL_IDX
   for (int idx = 0; idx < max_ref_bv_num - 1; ++idx) {
+#if CONFIG_BYPASS_INTRABC_DRL_IDX
+    aom_write_bit(w, mbmi->intrabc_drl_idx != idx);
+#else
     aom_write_symbol(w, mbmi->intrabc_drl_idx != idx,
                      ec_ctx->intrabc_drl_idx_cdf[bit_cnt], 2);
+#endif  // CONFIG_BYPASS_INTRABC_DRL_IDX
+
     if (mbmi->intrabc_drl_idx == idx) break;
+#if !CONFIG_BYPASS_INTRABC_DRL_IDX
     ++bit_cnt;
+#endif  // CONFIG_BYPASS_INTRABC_DRL_IDX
   }
 }
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
@@ -2670,7 +2692,10 @@ static AOM_INLINE void write_intrabc_info(
 #else
         MAX_REF_BV_STACK_SIZE,
 #endif  // CONFIG_IBC_MAX_DRL
-        ec_ctx, mbmi, mbmi_ext_frame, w);
+#if !CONFIG_BYPASS_INTRABC_DRL_IDX
+        ec_ctx,
+#endif  // CONFIG_BYPASS_INTRABC_DRL_IDX
+        mbmi, mbmi_ext_frame, w);
 
 #if CONFIG_IBC_SUBPEL_PRECISION
     if (is_intraBC_bv_precision_active(cm, mbmi->intrabc_mode)) {
@@ -3984,8 +4009,12 @@ static int check_and_write_merge_info(
       check_wienerns_bank_eq(bank, wienerns_info, nsfilter_params->ncoeffs,
                              wiener_class_id, ref_for_class);
   const int exact_match = (is_equal >= 0);
+#if CONFIG_MERGE_PARA_CTX
+  (void)xd;
+  aom_write_bit(wb, exact_match);
+#else
   aom_write_symbol(wb, exact_match, xd->tile_ctx->merged_param_cdf, 2);
-
+#endif  // CONFIG_MERGE_PARA_CTX
   if (!exact_match) {
     ref_for_class[wiener_class_id] =
         wienerns_info->bank_ref_for_class[wiener_class_id];
@@ -4013,7 +4042,12 @@ static int check_and_write_exact_match(
   const int exact_match =
       check_wienerns_eq(wienerns_info, ref_wienerns_info,
                         nsfilter_params->ncoeffs, wiener_class_id);
+#if CONFIG_MERGE_PARA_CTX
+  (void)xd;
+  aom_write_bit(wb, exact_match);
+#else
   aom_write_symbol(wb, exact_match, xd->tile_ctx->merged_param_cdf, 2);
+#endif  // CONFIG_MERGE_PARA_CTX
   return exact_match;
 }
 

@@ -151,6 +151,15 @@ static AOM_FORCE_INLINE int get_low_range(int abs_qc, int lf) {
   return low;
 }
 
+#if CONFIG_COEFF_BR_LF_UV_BYPASS
+// Get the high range part of a coeff
+static AOM_FORCE_INLINE int get_high_range_uv(int abs_qc, int lf) {
+  int base_levels = lf ? 6 : 4;
+  int high_range = (abs_qc - (base_levels - 1)) >> 1;
+  return high_range;
+}
+#endif  // CONFIG_COEFF_BR_LF_UV_BYPASS
+
 // Get the high range part of a coeff
 static AOM_FORCE_INLINE int get_high_range(int abs_qc, int lf) {
   int base_levels = lf ? 6 : 4;
@@ -171,6 +180,15 @@ static AOM_FORCE_INLINE int get_golomb_cost_tcq(int abs_qc, int lf) {
   return av1_cost_literal(2 * length - 1);
 #endif
 }
+
+#if CONFIG_COEFF_BR_LF_UV_BYPASS
+// Calculate the cost of low range of a coeff in low-freq region
+static AOM_FORCE_INLINE int get_br_lf_cost_tcq_uv(tran_low_t level) {
+  const int r = 1 + get_high_range_uv(level, 1);
+  const int length = get_msb(r) + 1;
+  return av1_cost_literal(2 * length - 1);
+}
+#endif  // CONFIG_COEFF_BR_LF_UV_BYPASS
 
 // Calculate the cost of low range of a coeff in low-freq region
 static AOM_FORCE_INLINE int get_br_lf_cost_tcq(tran_low_t level,

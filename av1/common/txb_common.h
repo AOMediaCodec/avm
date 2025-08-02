@@ -139,11 +139,13 @@ static INLINE int get_br_ctx_2d(const uint8_t *const levels,
   return mag;
 }
 
+#if !CONFIG_COEFF_BR_LF_UV_BYPASS
 static AOM_FORCE_INLINE int get_br_ctx_lf_eob_chroma(const int c,
                                                      const TX_CLASS tx_class) {
   if (tx_class == TX_CLASS_2D && c == 0) return 0;
   return 4;
 }
+#endif  // !CONFIG_COEFF_BR_LF_UV_BYPASS
 
 static INLINE int get_br_ctx_2d_chroma(const uint8_t *const levels, const int c,
                                        const int bwl) {
@@ -185,6 +187,7 @@ static INLINE int get_br_lf_ctx_2d_chroma(const uint8_t *const levels,
   return mag + 4;
 }
 
+#if !CONFIG_COEFF_BR_LF_UV_BYPASS
 // This function returns the low range context index/increment for the
 // coefficients residing in the low-frequency region for 1D and 2D
 // transforms and covers the 1D and 2D TX DC terms. For chroma only.
@@ -217,6 +220,7 @@ static AOM_FORCE_INLINE int get_br_lf_ctx_chroma(const uint8_t *const levels,
   }
   return mag + 4;
 }
+#endif  // !CONFIG_COEFF_BR_LF_UV_BYPASS
 
 // This function returns the low range context index/increment for the
 // coefficients residing in the higher-frequency default region

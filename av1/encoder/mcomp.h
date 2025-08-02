@@ -794,8 +794,12 @@ int av1_get_mv_err_cost(const MV *mv, const MV_COST_PARAMS *mv_cost_params);
 void av1_init_ref_mv(MV_COST_PARAMS *mv_cost_params, const MV *ref_mv);
 
 // Compute the cost for signalling the intrabc DRL index
-int av1_get_intrabc_drl_idx_cost(int max_ref_bv_num, int intrabc_drl_idx,
-                                 const MACROBLOCK *x);
+int av1_get_intrabc_drl_idx_cost(int max_ref_bv_num, int intrabc_drl_idx
+#if !CONFIG_BYPASS_INTRABC_DRL_IDX
+                                 ,
+                                 const MACROBLOCK *x
+#endif  // CONFIG_BYPASS_INTRABC_DRL_IDX
+);
 
 // Compute the cost for signalling the intrabc mode and intrabc DRL index. This
 // is only used during the motion search

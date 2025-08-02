@@ -156,8 +156,12 @@ static INLINE int get_coeff_cost_eob(int ci, tran_low_t abs_qc, int sign,
     if (plane > 0) {
       if (limits) {
         if (abs_qc > LF_NUM_BASE_LEVELS) {
+#if CONFIG_COEFF_BR_LF_UV_BYPASS
+          cost += get_br_lf_cost_tcq_uv(abs_qc);
+#else
           int br_ctx = get_br_ctx_lf_eob_chroma(ci, tx_class);
           cost += get_br_lf_cost_tcq(abs_qc, txb_costs->lps_lf_cost_uv[br_ctx]);
+#endif  // CONFIG_COEFF_BR_LF_UV_BYPASS
         }
       } else {
         if (abs_qc > NUM_BASE_LEVELS) {
@@ -255,8 +259,12 @@ static INLINE int get_coeff_cost_general(int ci, tran_low_t abs_qc, int sign,
     if (plane > 0) {
       if (limits) {
         if (abs_qc > LF_NUM_BASE_LEVELS) {
+#if CONFIG_COEFF_BR_LF_UV_BYPASS
+          cost += get_br_lf_cost_tcq_uv(abs_qc);
+#else
           cost +=
               get_br_lf_cost_tcq(abs_qc, txb_costs->lps_lf_cost_uv[mid_ctx]);
+#endif  // CONFIG_COEFF_BR_LF_UV_BYPASS
         }
       } else {
         if (abs_qc > NUM_BASE_LEVELS) {
@@ -1061,9 +1069,13 @@ void trellis_loop(const tcq_param_t *p, int first_scan_pos, int scan_hi,
         for (int i = 0; i < TCQ_N_STATES; i++) {
           int base_ctx = get_lower_levels_lf_ctx_chroma(prev_levels[i], blk_pos,
                                                         bwl, tx_class, plane);
+#if CONFIG_COEFF_BR_LF_UV_BYPASS
+          coeff_ctx.coef[i] = base_ctx - diag_ctx;
+#else
           int br_ctx =
               get_br_lf_ctx_chroma(prev_levels[i], blk_pos, bwl, tx_class);
           coeff_ctx.coef[i] = base_ctx - diag_ctx + (br_ctx << 4);
+#endif  // CONFIG_COEFF_BR_LF_UV_BYPASS
         }
         av1_get_rate_dist_lf_chroma(txb_costs, &pqData, &coeff_ctx, blk_pos,
                                     diag_ctx, eob_rate, dc_sign_ctx, tmp_sign,

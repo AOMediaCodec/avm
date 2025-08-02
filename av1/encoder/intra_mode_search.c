@@ -1208,11 +1208,15 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
         mode_cost +=
             x->mode_costs.y_first_mode_costs[context][mbmi->y_mode_idx];
       } else {
+#if CONFIG_CTX_Y_SECOND_MODE
+        mode_cost += av1_cost_literal(4);
+#else
         mode_cost +=
             x->mode_costs
                 .y_second_mode_costs[context]
                                     [mbmi->y_mode_idx - FIRST_MODE_COUNT -
                                      SECOND_MODE_COUNT * (mode_set_index - 1)];
+#endif  // CONFIG_CTX_Y_SECOND_MODE
       }
       mode_cost += ref_frame_cost;
       mode_cost += mrl_idx_cost;
@@ -1228,16 +1232,20 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
     if (mbmi->y_mode_idx < FIRST_MODE_COUNT) {
       mode_cost += x->mode_costs.y_first_mode_costs[context][mbmi->y_mode_idx];
     } else {
+#if CONFIG_CTX_Y_SECOND_MODE
+      mode_cost += av1_cost_literal(4);
+#else
       mode_cost +=
           x->mode_costs
               .y_second_mode_costs[context]
                                   [mbmi->y_mode_idx - FIRST_MODE_COUNT -
                                    SECOND_MODE_COUNT * (mode_set_index - 1)];
+#endif  // CONFIG_CTX_Y_SECOND_MODE
     }
     mode_cost += ref_frame_cost;
     mode_cost += mrl_idx_cost;
   }
-#else   // CONFIG_LOSSLESS_DPCM
+#else  // CONFIG_LOSSLESS_DPCM
   const int context = get_y_mode_idx_ctx(xd);
   int mode_set_index = mbmi->y_mode_idx < FIRST_MODE_COUNT ? 0 : 1;
   mode_set_index += ((mbmi->y_mode_idx - FIRST_MODE_COUNT) / SECOND_MODE_COUNT);
@@ -1245,11 +1253,15 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
   if (mbmi->y_mode_idx < FIRST_MODE_COUNT) {
     mode_cost += x->mode_costs.y_first_mode_costs[context][mbmi->y_mode_idx];
   } else {
+#if CONFIG_CTX_Y_SECOND_MODE
+    mode_cost += av1_cost_literal(4);
+#else
     mode_cost +=
         x->mode_costs
             .y_second_mode_costs[context]
                                 [mbmi->y_mode_idx - FIRST_MODE_COUNT -
                                  SECOND_MODE_COUNT * (mode_set_index - 1)];
+#endif  // CONFIG_CTX_Y_SECOND_MODE
   }
   if (mbmi->region_type != INTRA_REGION) mode_cost += ref_frame_cost;
   mode_cost += mrl_idx_cost;
@@ -1522,10 +1534,14 @@ void search_fsc_mode(const AV1_COMP *const cpi, MACROBLOCK *x, int *rate,
             if (mode_idx < FIRST_MODE_COUNT) {
               mode_costs += x->mode_costs.y_first_mode_costs[context][mode_idx];
             } else {
-              mode_costs +=
-                  x->mode_costs.y_second_mode_costs
-                      [context][mbmi->y_mode_idx - FIRST_MODE_COUNT -
-                                SECOND_MODE_COUNT * (mode_set_index - 1)];
+#if CONFIG_CTX_Y_SECOND_MODE
+              mode_costs += av1_cost_literal(4);
+#else
+          mode_costs += x->mode_costs.y_second_mode_costs
+                            [context][mbmi->y_mode_idx - FIRST_MODE_COUNT -
+                                      SECOND_MODE_COUNT * (mode_set_index - 1)];
+
+#endif  // CONFIG_CTX_Y_SECOND_MODE
             }
 #if CONFIG_LOSSLESS_DPCM
           } else {
@@ -1783,10 +1799,13 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, ThreadData *td,
             if (mode_idx < FIRST_MODE_COUNT) {
               mode_costs += x->mode_costs.y_first_mode_costs[context][mode_idx];
             } else {
-              mode_costs +=
-                  x->mode_costs.y_second_mode_costs
-                      [context][mbmi->y_mode_idx - FIRST_MODE_COUNT -
-                                SECOND_MODE_COUNT * (mode_set_index - 1)];
+#if CONFIG_CTX_Y_SECOND_MODE
+              mode_costs += av1_cost_literal(4);
+#else
+          mode_costs += x->mode_costs.y_second_mode_costs
+                            [context][mbmi->y_mode_idx - FIRST_MODE_COUNT -
+                                      SECOND_MODE_COUNT * (mode_set_index - 1)];
+#endif  // CONFIG_CTX_Y_SECOND_MODE
             }
 #if CONFIG_LOSSLESS_DPCM
           } else {

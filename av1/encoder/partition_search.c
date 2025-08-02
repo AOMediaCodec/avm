@@ -831,22 +831,31 @@ static void update_drl_index_stats(int max_drl_bits, const int16_t mode_ctx,
 }
 
 #if CONFIG_IBC_BV_IMPROVEMENT
-static void update_intrabc_drl_idx_stats(int max_ref_bv_num, FRAME_CONTEXT *fc,
+static void update_intrabc_drl_idx_stats(int max_ref_bv_num,
+#if !CONFIG_BYPASS_INTRABC_DRL_IDX
+                                         FRAME_CONTEXT *fc,
+#endif  // CONFIG_BYPASS_INTRABC_DRL_IDX
                                          FRAME_COUNTS *counts,
                                          const MB_MODE_INFO *mbmi) {
 #if !CONFIG_ENTROPY_STATS
   (void)counts;
 #endif  // !CONFIG_ENTROPY_STATS
   assert(mbmi->intrabc_drl_idx < max_ref_bv_num);
+#if !CONFIG_BYPASS_INTRABC_DRL_IDX
   int bit_cnt = 0;
+#endif  // CONFIG_BYPASS_INTRABC_DRL_IDX
   for (int idx = 0; idx < max_ref_bv_num - 1; ++idx) {
-#if CONFIG_ENTROPY_STATS
+#if CONFIG_ENTROPY_STATS && !CONFIG_BYPASS_INTRABC_DRL_IDX
     counts->intrabc_drl_idx[bit_cnt][mbmi->intrabc_drl_idx != idx]++;
 #endif  // CONFIG_ENTROPY_STATS
+#if !CONFIG_BYPASS_INTRABC_DRL_IDX
     update_cdf(fc->intrabc_drl_idx_cdf[bit_cnt], mbmi->intrabc_drl_idx != idx,
                2);
+#endif  // CONFIG_BYPASS_INTRABC_DRL_IDX
     if (mbmi->intrabc_drl_idx == idx) break;
+#if !CONFIG_BYPASS_INTRABC_DRL_IDX
     ++bit_cnt;
+#endif  // CONFIG_BYPASS_INTRABC_DRL_IDX
   }
 }
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
@@ -1152,7 +1161,10 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
       ++td->counts->intrabc_mode[mbmi->intrabc_mode];
 #endif  // CONFIG_ENTROPY_STATS
 #if CONFIG_IBC_MAX_DRL
-      update_intrabc_drl_idx_stats(cm->features.max_bvp_drl_bits + 1, fc,
+      update_intrabc_drl_idx_stats(cm->features.max_bvp_drl_bits + 1,
+#if !CONFIG_BYPASS_INTRABC_DRL_IDX
+                                   fc,
+#endif  // CONFIG_BYPASS_INTRABC_DRL_IDX
                                    td->counts, mbmi);
 #else
       update_intrabc_drl_idx_stats(MAX_REF_BV_STACK_SIZE, fc, td->counts, mbmi);

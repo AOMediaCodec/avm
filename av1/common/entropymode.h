@@ -177,8 +177,12 @@ typedef struct frame_contexts {
 #if CONFIG_CONTEXT_DERIVATION
   aom_cdf_prob v_txb_skip_cdf[V_TXB_SKIP_CONTEXTS][CDF_SIZE(2)];
 #endif  // CONFIG_CONTEXT_DERIVATION
+#if CONFIG_EOB_PT_CTX_REDUCTION
+  aom_cdf_prob eob_extra_cdf[CDF_SIZE(2)];
+#else
   aom_cdf_prob eob_extra_cdf[TX_SIZES][PLANE_TYPES][EOB_COEF_CONTEXTS]
                             [CDF_SIZE(2)];
+#endif  // CONFIG_EOB_PT_CTX_REDUCTION
   aom_cdf_prob dc_sign_cdf[PLANE_TYPES][DC_SIGN_GROUPS][DC_SIGN_CONTEXTS]
                           [CDF_SIZE(2)];
 #if CONFIG_CONTEXT_DERIVATION
@@ -223,7 +227,9 @@ typedef struct frame_contexts {
                                        [CDF_SIZE(LF_BASE_SYMBOLS - 1)];
   aom_cdf_prob coeff_base_uv_cdf[SIG_COEF_CONTEXTS_UV][TCQ_CTXS][CDF_SIZE(4)];
   aom_cdf_prob coeff_base_eob_uv_cdf[SIG_COEF_CONTEXTS_EOB][CDF_SIZE(3)];
+#if !CONFIG_COEFF_BR_LF_UV_BYPASS
   aom_cdf_prob coeff_br_lf_uv_cdf[LF_LEVEL_CONTEXTS_UV][CDF_SIZE(BR_CDF_SIZE)];
+#endif  // !CONFIG_COEFF_BR_LF_UV_BYPASS
   aom_cdf_prob coeff_br_uv_cdf[LEVEL_CONTEXTS_UV][CDF_SIZE(BR_CDF_SIZE)];
   aom_cdf_prob idtx_sign_cdf[TX_SIZES][IDTX_SIGN_CONTEXTS][CDF_SIZE(2)];
   aom_cdf_prob coeff_base_cdf_idtx[TX_SIZES][IDTX_SIG_COEF_CONTEXTS]
@@ -233,8 +239,9 @@ typedef struct frame_contexts {
   aom_cdf_prob coeff_base_bob_cdf[TX_SIZES][SIG_COEF_CONTEXTS_BOB][CDF_SIZE(3)];
   aom_cdf_prob coeff_base_ph_cdf[COEFF_BASE_PH_CONTEXTS]
                                 [CDF_SIZE(NUM_BASE_LEVELS + 2)];
+#if !CONFIG_COEFF_BR_PH_BYPASS
   aom_cdf_prob coeff_br_ph_cdf[COEFF_BR_PH_CONTEXTS][CDF_SIZE(BR_CDF_SIZE)];
-
+#endif  // !CONFIG_COEFF_BR_PH_BYPASS
 #if CONFIG_OPT_INTER_MODE_CTX
   aom_cdf_prob inter_single_mode_cdf[INTER_MODE_CONTEXTS]
                                     [CDF_SIZE(INTER_SINGLE_MODES)];
@@ -360,7 +367,9 @@ typedef struct frame_contexts {
 #if CONFIG_PALETTE_LINE_COPY
   aom_cdf_prob identity_row_cdf_y[PALETTE_ROW_FLAG_CONTEXTS][CDF_SIZE(3)];
   aom_cdf_prob identity_row_cdf_uv[PALETTE_ROW_FLAG_CONTEXTS][CDF_SIZE(3)];
+#if !CONFIG_PLT_DIR_CTX
   aom_cdf_prob palette_direction_cdf[CDF_SIZE(2)];
+#endif  // !CONFIG_PLT_DIR_CTX
 #else
   aom_cdf_prob identity_row_cdf_y[PALETTE_ROW_FLAG_CONTEXTS][CDF_SIZE(2)];
   aom_cdf_prob identity_row_cdf_uv[PALETTE_ROW_FLAG_CONTEXTS][CDF_SIZE(2)];
@@ -456,7 +465,9 @@ typedef struct frame_contexts {
   aom_cdf_prob wienerns_uv_sym_cdf[CDF_SIZE(2)];
   aom_cdf_prob wienerns_4part_cdf[WIENERNS_4PART_CTX_MAX][CDF_SIZE(4)];
   aom_cdf_prob pc_wiener_restore_cdf[CDF_SIZE(2)];
+#if !CONFIG_MERGE_PARA_CTX
   aom_cdf_prob merged_param_cdf[CDF_SIZE(2)];
+#endif  // !CONFIG_MERGE_PARA_CTX
   aom_cdf_prob mrl_index_cdf[MRL_INDEX_CONTEXTS][CDF_SIZE(MRL_LINE_NUMBER)];
   aom_cdf_prob multi_line_mrl_cdf[MRL_INDEX_CONTEXTS][CDF_SIZE(2)];
 #if CONFIG_LOSSLESS_DPCM
@@ -475,7 +486,9 @@ typedef struct frame_contexts {
   // y mode cdf
   aom_cdf_prob y_mode_set_cdf[CDF_SIZE(INTRA_MODE_SETS)];
   aom_cdf_prob y_mode_idx_cdf_0[Y_MODE_CONTEXTS][CDF_SIZE(FIRST_MODE_COUNT)];
+#if !CONFIG_CTX_Y_SECOND_MODE
   aom_cdf_prob y_mode_idx_cdf_1[Y_MODE_CONTEXTS][CDF_SIZE(SECOND_MODE_COUNT)];
+#endif  // !CONFIG_CTX_Y_SECOND_MODE
   aom_cdf_prob uv_mode_cdf[UV_MODE_CONTEXTS][CDF_SIZE(UV_INTRA_MODES - 1)];
   aom_cdf_prob cfl_cdf[CFL_CONTEXTS][CDF_SIZE(2)];
   aom_cdf_prob do_split_cdf[PARTITION_STRUCTURE_NUM][PARTITION_CONTEXTS]

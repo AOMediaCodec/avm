@@ -134,7 +134,7 @@ static const aom_cdf_prob
                   29340, 31013, 31870),
         75 },
     };
-
+#if !CONFIG_CTX_Y_SECOND_MODE
 static const aom_cdf_prob
     default_y_second_mode_cdf[Y_MODE_CONTEXTS][CDF_SIZE(SECOND_MODE_COUNT)] = {
       { AOM_CDF16(2614, 4872, 7327, 9645, 11546, 13349, 15504, 17424, 19397,
@@ -147,7 +147,7 @@ static const aom_cdf_prob
                   19690, 21835, 25356, 27731, 29157, 30362),
         76 },
     };
-
+#endif  // !CONFIG_CTX_Y_SECOND_MODE
 static const aom_cdf_prob
     default_uv_mode_cdf[UV_MODE_CONTEXTS][CDF_SIZE(UV_INTRA_MODES - 1)] = {
       { AOM_CDF13(13848, 18930, 20641, 22133, 23986, 25450, 28075, 28950, 29740,
@@ -5940,9 +5940,11 @@ static const aom_cdf_prob
       { AOM_CDF3(10923, 21845), 30 },
       { AOM_CDF3(10923, 21845), 56 },
     };
+#if !CONFIG_PLT_DIR_CTX
 static const aom_cdf_prob default_palette_direction_cdf[CDF_SIZE(2)] = {
   AOM_CDF2(21697), 6
 };
+#endif  // !CONFIG_PLT_DIR_CTX
 #else
 static const aom_cdf_prob default_identity_row_cdf_y[3][CDF_SIZE(2)] = {
   { AOM_CDF2(16384), 28 },
@@ -6617,10 +6619,11 @@ static const aom_cdf_prob default_wienerns_restore_cdf[CDF_SIZE(2)] = {
 static const aom_cdf_prob default_pc_wiener_restore_cdf[CDF_SIZE(2)] = {
   AOM_CDF2(14330), 8
 };
-
+#if !CONFIG_MERGE_PARA_CTX
 static const aom_cdf_prob default_merged_param_cdf[CDF_SIZE(2)] = {
   AOM_CDF2(14319), 7
 };
+#endif  // !CONFIG_MERGE_PARA_CTX
 
 static const aom_cdf_prob default_delta_q_cdf[CDF_SIZE(DELTA_Q_PROBS + 1)] = {
   AOM_CDF8(16594, 23325, 26424, 28225, 29358, 30099, 30613), 56
@@ -7094,8 +7097,10 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
 #if CONFIG_PALETTE_IMPROVEMENTS
   av1_copy(fc->identity_row_cdf_y, default_identity_row_cdf_y);
   av1_copy(fc->identity_row_cdf_uv, default_identity_row_cdf_uv);
+#if !CONFIG_PLT_DIR_CTX
 #if CONFIG_PALETTE_LINE_COPY
   av1_copy(fc->palette_direction_cdf, default_palette_direction_cdf);
+#endif  // !CONFIG_PLT_DIR_CTX
 #endif  // CONFIG_PALETTE_LINE_COPY
 #endif  // CONFIG_PALETTE_IMPROVEMENTS
   av1_copy(fc->palette_y_color_index_cdf, default_palette_y_color_index_cdf);
@@ -7203,10 +7208,14 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   av1_copy(fc->wienerns_uv_sym_cdf, default_wienerns_uv_sym_cdf);
   av1_copy(fc->wienerns_4part_cdf, default_wienerns_4part_cdf);
   av1_copy(fc->pc_wiener_restore_cdf, default_pc_wiener_restore_cdf);
+#if !CONFIG_MERGE_PARA_CTX
   av1_copy(fc->merged_param_cdf, default_merged_param_cdf);
+#endif  // CONFIG_MERGE_PARA_CTX
   av1_copy(fc->y_mode_set_cdf, default_y_mode_set_cdf);
   av1_copy(fc->y_mode_idx_cdf_0, default_y_first_mode_cdf);
+#if !CONFIG_CTX_Y_SECOND_MODE
   av1_copy(fc->y_mode_idx_cdf_1, default_y_second_mode_cdf);
+#endif  // !CONFIG_CTX_Y_SECOND_MODE
   av1_copy(fc->uv_mode_cdf, default_uv_mode_cdf);
   av1_copy(fc->cfl_cdf, default_cfl_cdf);
   av1_copy(fc->mrl_index_cdf, default_mrl_index_cdf);
@@ -7491,8 +7500,10 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
                          ctx_tr->coeff_base_lf_uv_cdf, LF_BASE_SYMBOLS);
   CUMULATIVE_AVERAGE_CDF(ctx_left->coeff_base_lf_eob_uv_cdf,
                          ctx_tr->coeff_base_lf_eob_uv_cdf, LF_BASE_SYMBOLS - 1);
+#if !CONFIG_COEFF_BR_LF_UV_BYPASS
   CUMULATIVE_AVERAGE_CDF(ctx_left->coeff_br_lf_uv_cdf,
                          ctx_tr->coeff_br_lf_uv_cdf, BR_CDF_SIZE);
+#endif  // !CONFIG_COEFF_BR_LF_UV_BYPASS
 
   CUMULATIVE_AVERAGE_CDF(ctx_left->inter_warp_mode_cdf,
                          ctx_tr->inter_warp_mode_cdf, 2);
@@ -7594,8 +7605,10 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
                          ctx_tr->identity_row_cdf_y, 3);
   CUMULATIVE_AVERAGE_CDF(ctx_left->identity_row_cdf_uv,
                          ctx_tr->identity_row_cdf_uv, 3);
+#if !CONFIG_PLT_DIR_CTX
   CUMULATIVE_AVERAGE_CDF(ctx_left->palette_direction_cdf,
                          ctx_tr->palette_direction_cdf, 2);
+#endif  // !CONFIG_PLT_DIR_CTX
 #else
   CUMULATIVE_AVERAGE_CDF(ctx_left->identity_row_cdf_y,
                          ctx_tr->identity_row_cdf_y, 2);
@@ -7694,8 +7707,10 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
                          ctx_tr->wienerns_4part_cdf, 4);
   CUMULATIVE_AVERAGE_CDF(ctx_left->pc_wiener_restore_cdf,
                          ctx_tr->pc_wiener_restore_cdf, 2);
+#if !CONFIG_MERGE_PARA_CTX
   CUMULATIVE_AVERAGE_CDF(ctx_left->merged_param_cdf, ctx_tr->merged_param_cdf,
                          2);
+#endif  // !CONFIG_MERGE_PARA_CTX
   CUMULATIVE_AVERAGE_CDF(ctx_left->fsc_mode_cdf, ctx_tr->fsc_mode_cdf,
                          FSC_MODES);
   CUMULATIVE_AVERAGE_CDF(ctx_left->mrl_index_cdf, ctx_tr->mrl_index_cdf,
@@ -7721,8 +7736,10 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
                          INTRA_MODE_SETS);
   CUMULATIVE_AVERAGE_CDF(ctx_left->y_mode_idx_cdf_0, ctx_tr->y_mode_idx_cdf_0,
                          FIRST_MODE_COUNT);
+#if !CONFIG_CTX_Y_SECOND_MODE
   CUMULATIVE_AVERAGE_CDF(ctx_left->y_mode_idx_cdf_1, ctx_tr->y_mode_idx_cdf_1,
                          SECOND_MODE_COUNT);
+#endif  // !CONFIG_CTX_Y_SECOND_MODE
   CUMULATIVE_AVERAGE_CDF(ctx_left->uv_mode_cdf, ctx_tr->uv_mode_cdf,
                          UV_INTRA_MODES - 1);
 
@@ -7798,7 +7815,9 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
 
   CUMULATIVE_AVERAGE_CDF(ctx_left->coeff_base_ph_cdf, ctx_tr->coeff_base_ph_cdf,
                          4);
+#if !CONFIG_COEFF_BR_PH_BYPASS
   CUMULATIVE_AVERAGE_CDF(ctx_left->coeff_br_ph_cdf, ctx_tr->coeff_br_ph_cdf, 4);
+#endif  // !CONFIG_COEFF_BR_PH_BYPASS
   CUMULATIVE_AVERAGE_CDF(ctx_left->cctx_type_cdf, ctx_tr->cctx_type_cdf,
                          CCTX_TYPES);
 }
@@ -7938,7 +7957,9 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
   SHIFT_CDF(ctx_ptr->coeff_base_eob_uv_cdf, 3);
   SHIFT_CDF(ctx_ptr->coeff_base_lf_uv_cdf, LF_BASE_SYMBOLS);
   SHIFT_CDF(ctx_ptr->coeff_base_lf_eob_uv_cdf, LF_BASE_SYMBOLS - 1);
+#if !CONFIG_COEFF_BR_LF_UV_BYPASS
   SHIFT_CDF(ctx_ptr->coeff_br_lf_uv_cdf, BR_CDF_SIZE);
+#endif  // !CONFIG_COEFF_BR_LF_UV_BYPASS
 
   SHIFT_CDF(ctx_ptr->inter_warp_mode_cdf, 2);
   SHIFT_CDF(ctx_ptr->is_warpmv_or_warp_newmv_cdf, 2);
@@ -8003,7 +8024,9 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
 #if CONFIG_PALETTE_LINE_COPY
   SHIFT_CDF(ctx_ptr->identity_row_cdf_y, 3);
   SHIFT_CDF(ctx_ptr->identity_row_cdf_uv, 3);
+#if !CONFIG_PLT_DIR_CTX
   SHIFT_CDF(ctx_ptr->palette_direction_cdf, 2);
+#endif  // !CONFIG_PLT_DIR_CTX
 #else
   SHIFT_CDF(ctx_ptr->identity_row_cdf_y, 2);
   SHIFT_CDF(ctx_ptr->identity_row_cdf_uv, 2);
@@ -8072,7 +8095,9 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
   SHIFT_CDF(ctx_ptr->wienerns_uv_sym_cdf, 2);
   SHIFT_CDF(ctx_ptr->wienerns_4part_cdf, 4);
   SHIFT_CDF(ctx_ptr->pc_wiener_restore_cdf, 2);
+#if !CONFIG_MERGE_PARA_CTX
   SHIFT_CDF(ctx_ptr->merged_param_cdf, 2);
+#endif  // !CONFIG_MERGE_PARA_CTX
   SHIFT_CDF(ctx_ptr->fsc_mode_cdf, FSC_MODES);
   SHIFT_CDF(ctx_ptr->mrl_index_cdf, MRL_LINE_NUMBER);
   SHIFT_CDF(ctx_ptr->multi_line_mrl_cdf, 2);
@@ -8088,7 +8113,9 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
 
   SHIFT_CDF(ctx_ptr->y_mode_set_cdf, INTRA_MODE_SETS);
   SHIFT_CDF(ctx_ptr->y_mode_idx_cdf_0, FIRST_MODE_COUNT);
+#if !CONFIG_CTX_Y_SECOND_MODE
   SHIFT_CDF(ctx_ptr->y_mode_idx_cdf_1, SECOND_MODE_COUNT);
+#endif  // !CONFIG_CTX_Y_SECOND_MODE
   SHIFT_CDF(ctx_ptr->uv_mode_cdf, UV_INTRA_MODES - 1);
 
   SHIFT_CDF(ctx_ptr->region_type_cdf, REGION_TYPES);
@@ -8139,7 +8166,9 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
   }
 
   SHIFT_CDF(ctx_ptr->coeff_base_ph_cdf, 4);
+#if !CONFIG_COEFF_BR_PH_BYPASS
   SHIFT_CDF(ctx_ptr->coeff_br_ph_cdf, 4);
+#endif  // !CONFIG_COEFF_BR_PH_BYPASS
   SHIFT_CDF(ctx_ptr->cctx_type_cdf, CCTX_TYPES);
 }
 
@@ -8322,8 +8351,10 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
               LF_BASE_SYMBOLS);
   AVERAGE_CDF(ctx_left->coeff_base_lf_eob_uv_cdf,
               ctx_tr->coeff_base_lf_eob_uv_cdf, LF_BASE_SYMBOLS - 1);
+#if !CONFIG_COEFF_BR_LF_UV_BYPASS
   AVERAGE_CDF(ctx_left->coeff_br_lf_uv_cdf, ctx_tr->coeff_br_lf_uv_cdf,
               BR_CDF_SIZE);
+#endif  // !CONFIG_COEFF_BR_LF_UV_BYPASS
 
   AVERAGE_CDF(ctx_left->inter_warp_mode_cdf, ctx_tr->inter_warp_mode_cdf, 2);
   AVERAGE_CDF(ctx_left->is_warpmv_or_warp_newmv_cdf,
@@ -8413,8 +8444,10 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
 #if CONFIG_PALETTE_LINE_COPY
   AVERAGE_CDF(ctx_left->identity_row_cdf_y, ctx_tr->identity_row_cdf_y, 3);
   AVERAGE_CDF(ctx_left->identity_row_cdf_uv, ctx_tr->identity_row_cdf_uv, 3);
+#if !CONFIG_PLT_DIR_CTX
   AVERAGE_CDF(ctx_left->palette_direction_cdf, ctx_tr->palette_direction_cdf,
               2);
+#endif  // !CONFIG_PLT_DIR_CTX
 #else
   CUMULATIVE_AVERAGE_CDF(ctx_left->identity_row_cdf_y,
                          ctx_tr->identity_row_cdf_y, 2);
@@ -8494,7 +8527,9 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->wienerns_4part_cdf, ctx_tr->wienerns_4part_cdf, 4);
   AVERAGE_CDF(ctx_left->pc_wiener_restore_cdf, ctx_tr->pc_wiener_restore_cdf,
               2);
+#if !CONFIG_MERGE_PARA_CTX
   AVERAGE_CDF(ctx_left->merged_param_cdf, ctx_tr->merged_param_cdf, 2);
+#endif  // !CONFIG_MERGE_PARA_CTX
   AVERAGE_CDF(ctx_left->fsc_mode_cdf, ctx_tr->fsc_mode_cdf, FSC_MODES);
   AVERAGE_CDF(ctx_left->mrl_index_cdf, ctx_tr->mrl_index_cdf, MRL_LINE_NUMBER);
   AVERAGE_CDF(ctx_left->multi_line_mrl_cdf, ctx_tr->multi_line_mrl_cdf, 2);
@@ -8515,8 +8550,10 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
               INTRA_MODE_SETS);
   AVERAGE_CDF(ctx_left->y_mode_idx_cdf_0, ctx_tr->y_mode_idx_cdf_0,
               FIRST_MODE_COUNT);
+#if !CONFIG_CTX_Y_SECOND_MODE
   AVERAGE_CDF(ctx_left->y_mode_idx_cdf_1, ctx_tr->y_mode_idx_cdf_1,
               SECOND_MODE_COUNT);
+#endif  // !CONFIG_CTX_Y_SECOND_MODE
   AVERAGE_CDF(ctx_left->uv_mode_cdf, ctx_tr->uv_mode_cdf, UV_INTRA_MODES - 1);
   AVERAGE_CDF(ctx_left->region_type_cdf, ctx_tr->region_type_cdf, REGION_TYPES);
 
@@ -8577,7 +8614,9 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   }
 
   AVERAGE_CDF(ctx_left->coeff_base_ph_cdf, ctx_tr->coeff_base_ph_cdf, 4);
+#if !CONFIG_COEFF_BR_PH_BYPASS
   AVERAGE_CDF(ctx_left->coeff_br_ph_cdf, ctx_tr->coeff_br_ph_cdf, 4);
+#endif  // !CONFIG_COEFF_BR_PH_BYPASS
   AVERAGE_CDF(ctx_left->cctx_type_cdf, ctx_tr->cctx_type_cdf, CCTX_TYPES);
 }
 

@@ -6806,7 +6806,12 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
 #else
           MAX_REF_BV_STACK_SIZE,
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
-          mbmi->intrabc_drl_idx, x);
+          mbmi->intrabc_drl_idx
+#if !CONFIG_BYPASS_INTRABC_DRL_IDX
+          ,
+          x
+#endif  // CONFIG_BYPASS_INTRABC_DRL_IDX
+      );
 #else
     // TODO(aconverse@google.com): The full motion field defining discount
     // in MV_COST_WEIGHT is too large. Explore other values.

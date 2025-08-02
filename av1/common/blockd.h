@@ -3778,8 +3778,10 @@ typedef struct {
   ColorCost color_cost;
 #if CONFIG_PALETTE_IMPROVEMENTS
 #if CONFIG_PALETTE_LINE_COPY
+#if !CONFIG_PLT_DIR_CTX
   aom_cdf_prob *direction_cdf;
   PaletteDirectionCost direction_cost;
+#endif  // !CONFIG_PLT_DIR_CTX
 #endif  // CONFIG_PALETTE_LINE_COPY
   IdentityRowCdf identity_row_cdf;
   IdentityRowCost identity_row_cost;

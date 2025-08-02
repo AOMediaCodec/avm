@@ -141,8 +141,24 @@ set_aom_config_var(CONFIG_NN_V2 0 "Fully-connected neural nets ver.2.")
 set_aom_config_var(CONFIG_PARAKIT_COLLECT_DATA 0
                    "enables data collection for ParaKit training.")
 
+# FG8 context simplification tests
 set_aom_config_var(CONFIG_CTX_V_AC_SIGN 1 "FG8-Test1.")
-set_aom_config_var(CONFIG_CTX_MV_SHELL_OFFSET_OTHER 1 "FG8-Test3.")
+set_aom_config_var(CONFIG_CTX_MV_SHELL_OFFSET_OTHER 0 "FG8-Test3.")
+
+set_aom_config_var(CONFIG_EOB_PT_CTX_REDUCTION 1 "FG8-Test4.")
+set_aom_config_var(CONFIG_COEFF_BR_LF_UV_BYPASS 1
+                   "AV2 experiment flag to bypass UV LF syntax. FG8-Test9.")
+set_aom_config_var(CONFIG_COEFF_BR_PH_BYPASS 1
+                   "AV2 experiment flag to bypass BR PH syntax. FG8-Test10.")
+set_aom_config_var(CONFIG_BY_PASS_V_SIGN 1 "FG8-Test11.")
+set_aom_config_var(CONFIG_CTX_BYPASS_CB_DC_SIGN 1
+                   "bypass coding FG8-Test8-chroma-only")
+
+set_aom_config_var(CONFIG_PLT_DIR_CTX 1 "by-pass PLT dir coding. FG8-Test24")
+set_aom_config_var(CONFIG_BYPASS_INTRABC_DRL_IDX 1 "bypass coding FG8-Test25")
+set_aom_config_var(CONFIG_MERGE_PARA_CTX 1
+                   "by-pass merge para coding. FG8-Test26")
+set_aom_config_var(CONFIG_CTX_Y_SECOND_MODE 1 "bypass coding FG8-Test27")
 
 # AV2 experiment flags.
 set_aom_config_var(
