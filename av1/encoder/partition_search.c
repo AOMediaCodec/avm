@@ -5528,7 +5528,7 @@ static AOM_INLINE void prune_ext_partitions_4way(
 static const int cum_step_multipliers_4a[4] = { 0, 1, 3, 7 };
 static const int cum_step_multipliers_4b[4] = { 0, 1, 5, 7 };
 
-static INLINE void search_partition_horz_4a(
+static void search_partition_horz_4a(
     PartitionSearchState *search_state, AV1_COMP *const cpi, ThreadData *td,
     TileDataEnc *tile_data, TokenExtra **tp, RD_STATS *best_rdc,
     PC_TREE *pc_tree, const PARTITION_TREE *ptree_luma,
@@ -5651,7 +5651,7 @@ static INLINE void search_partition_horz_4a(
   restore_level_banks(&x->e_mbd, level_banks);
 }
 
-static INLINE void search_partition_horz_4b(
+static void search_partition_horz_4b(
     PartitionSearchState *search_state, AV1_COMP *const cpi, ThreadData *td,
     TileDataEnc *tile_data, TokenExtra **tp, RD_STATS *best_rdc,
     PC_TREE *pc_tree, const PARTITION_TREE *ptree_luma,
@@ -5774,7 +5774,7 @@ static INLINE void search_partition_horz_4b(
   restore_level_banks(&x->e_mbd, level_banks);
 }
 
-static INLINE void search_partition_vert_4a(
+static void search_partition_vert_4a(
     PartitionSearchState *search_state, AV1_COMP *const cpi, ThreadData *td,
     TileDataEnc *tile_data, TokenExtra **tp, RD_STATS *best_rdc,
     PC_TREE *pc_tree, const PARTITION_TREE *ptree_luma,
@@ -5897,7 +5897,7 @@ static INLINE void search_partition_vert_4a(
   restore_level_banks(&x->e_mbd, level_banks);
 }
 
-static INLINE void search_partition_vert_4b(
+static void search_partition_vert_4b(
     PartitionSearchState *search_state, AV1_COMP *const cpi, ThreadData *td,
     TileDataEnc *tile_data, TokenExtra **tp, RD_STATS *best_rdc,
     PC_TREE *pc_tree, const PARTITION_TREE *ptree_luma,
