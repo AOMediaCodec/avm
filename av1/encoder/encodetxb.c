@@ -336,7 +336,7 @@ void av1_update_eob_context(int eob, TX_SIZE tx_size,
     int bit = (eob_extra & (1 << eob_shift)) ? 1 : 0;
 #if CONFIG_ENTROPY_STATS
 #if CONFIG_EOB_PT_CTX_REDUCTION
-    counts->eob_extra[cdf_idx][0][0][0][bit]++;
+    counts->eob_extra[cdf_idx][bit]++;
 #else
     counts->eob_extra[cdf_idx][txs_ctx][plane][eob_ctx][bit]++;
 #endif  // CONFIG_EOB_PT_CTX_REDUCTION
