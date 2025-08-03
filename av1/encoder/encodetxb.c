@@ -5661,10 +5661,14 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
           }
 #endif  // CONFIG_ENTROPY_STATS
           if (allow_update_cdf) {
+#if !CONFIG_BY_PASS_V_SIGN
             if (plane == AOM_PLANE_V) {
               update_cdf(ec_ctx->v_dc_sign_cdf[xd->tmp_sign[pos]][dc_sign_ctx],
                          dc_sign, 2);
             } else {
+#else
+            if (plane != AOM_PLANE_V) {
+#endif
               const int dc_ph_group = is_hidden ? 1 : 0;
               update_cdf(
                   ec_ctx->dc_sign_cdf[plane_type][dc_ph_group][dc_sign_ctx],

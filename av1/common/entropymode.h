@@ -186,8 +186,10 @@ typedef struct frame_contexts {
   aom_cdf_prob dc_sign_cdf[PLANE_TYPES][DC_SIGN_GROUPS][DC_SIGN_CONTEXTS]
                           [CDF_SIZE(2)];
 #if CONFIG_CONTEXT_DERIVATION
+#if !CONFIG_BY_PASS_V_SIGN
   aom_cdf_prob v_dc_sign_cdf[CROSS_COMPONENT_CONTEXTS][DC_SIGN_CONTEXTS]
                             [CDF_SIZE(2)];
+#endif  // !CONFIG_BY_PASS_V_SIGN
 #if !CONFIG_CTX_V_AC_SIGN
   aom_cdf_prob v_ac_sign_cdf[CROSS_COMPONENT_CONTEXTS][CDF_SIZE(2)];
 #endif  // !CONFIG_CTX_V_AC_SIGN
@@ -432,7 +434,9 @@ typedef struct frame_contexts {
 #endif  // CONFIG_NEW_CONTEXT_MODELING
 #if CONFIG_IBC_BV_IMPROVEMENT
   aom_cdf_prob intrabc_mode_cdf[CDF_SIZE(2)];
+#if !CONFIG_BYPASS_INTRABC_DRL_IDX
   aom_cdf_prob intrabc_drl_idx_cdf[MAX_REF_BV_STACK_SIZE - 1][CDF_SIZE(2)];
+#endif  // !CONFIG_BYPASS_INTRABC_DRL_IDX
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
 #if CONFIG_IBC_SUBPEL_PRECISION
   aom_cdf_prob intrabc_bv_precision_cdf[NUM_BV_PRECISION_CONTEXTS]

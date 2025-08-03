@@ -43,7 +43,9 @@ void av1_default_coef_probs(AV1_COMMON *cm) {
   av1_copy(cm->fc->eob_extra_cdf, av1_default_eob_extra_cdfs[index]);
   av1_copy(cm->fc->dc_sign_cdf, av1_default_dc_sign_cdfs[index]);
 #if CONFIG_CONTEXT_DERIVATION
+#if !CONFIG_BY_PASS_V_SIGN
   av1_copy(cm->fc->v_dc_sign_cdf, av1_default_v_dc_sign_cdfs[index]);
+#endif  // !CONFIG_BY_PASS_V_SIGN
 #if !CONFIG_CTX_V_AC_SIGN
   av1_copy(cm->fc->v_ac_sign_cdf, av1_default_v_ac_sign_cdfs[index]);
 #endif  // !CONFIG_CTX_V_AC_SIGN
@@ -194,7 +196,9 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->eob_extra_cdf, 2);
   RESET_CDF_COUNTER(fc->dc_sign_cdf, 2);
 #if CONFIG_CONTEXT_DERIVATION
+#if !CONFIG_BY_PASS_V_SIGN
   RESET_CDF_COUNTER(fc->v_dc_sign_cdf, 2);
+#endif  // !CONFIG_BY_PASS_V_SIGN
 #if !CONFIG_CTX_V_AC_SIGN
   RESET_CDF_COUNTER(fc->v_ac_sign_cdf, 2);
 #endif  // !CONFIG_CTX_V_AC_SIGN
@@ -335,7 +339,9 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->intrabc_cdf, 2);
 #if CONFIG_IBC_BV_IMPROVEMENT
   RESET_CDF_COUNTER(fc->intrabc_mode_cdf, 2);
+#if !CONFIG_BYPASS_INTRABC_DRL_IDX
   RESET_CDF_COUNTER(fc->intrabc_drl_idx_cdf, 2);
+#endif  // !CONFIG_BYPASS_INTRABC_DRL_IDX
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
 #if CONFIG_IBC_SUBPEL_PRECISION
   RESET_CDF_COUNTER(fc->intrabc_bv_precision_cdf, NUM_ALLOWED_BV_PRECISIONS);

@@ -18,6 +18,7 @@
 #include "av1/common/entropy.h"
 
 #if CONFIG_CONTEXT_DERIVATION
+#if !CONFIG_BY_PASS_V_SIGN
 static const aom_cdf_prob
     av1_default_v_dc_sign_cdfs[TOKEN_CDF_Q_CTXS][CROSS_COMPONENT_CONTEXTS]
                               [DC_SIGN_CONTEXTS][CDF_SIZE(2)] = {
@@ -90,7 +91,7 @@ static const aom_cdf_prob
                                     },
                                 },
                               };
-
+#endif  // !CONFIG_BY_PASS_V_SIGN
 #if !CONFIG_CTX_V_AC_SIGN
 static const aom_cdf_prob
     av1_default_v_ac_sign_cdfs[TOKEN_CDF_Q_CTXS][CROSS_COMPONENT_CONTEXTS]
@@ -3180,6 +3181,7 @@ static const aom_cdf_prob av1_default_coeff_base_lf_multi_uv_cdfs
     };
 #endif
 
+#if !CONFIG_COEFF_BR_LF_UV_BYPASS
 static const aom_cdf_prob av1_default_coeff_lps_lf_multi_uv_cdfs
     [TOKEN_CDF_Q_CTXS][LF_LEVEL_CONTEXTS_UV][CDF_SIZE(BR_CDF_SIZE)] = {
       {
@@ -3223,6 +3225,7 @@ static const aom_cdf_prob av1_default_coeff_lps_lf_multi_uv_cdfs
           { AOM_CDF4(8192, 16384, 24576), 0 },
       },
     };
+#endif  // !CONFIG_COEFF_BR_LF_UV_BYPASS
 
 #if TCQ_DIS_CHR
 static const aom_cdf_prob

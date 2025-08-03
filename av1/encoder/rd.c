@@ -385,6 +385,7 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
 #if CONFIG_IBC_BV_IMPROVEMENT
   av1_cost_tokens_from_cdf(mode_costs->intrabc_mode_cost, fc->intrabc_mode_cdf,
                            NULL);
+#if !CONFIG_BYPASS_INTRABC_DRL_IDX
 #if CONFIG_IBC_MAX_DRL
   for (i = 0; i < cm->features.max_bvp_drl_bits; ++i) {
 #else
@@ -393,6 +394,7 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
     av1_cost_tokens_from_cdf(mode_costs->intrabc_drl_idx_cost[i],
                              fc->intrabc_drl_idx_cdf[i], NULL);
   }
+#endif
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
 #if CONFIG_IBC_SUBPEL_PRECISION
   for (i = 0; i < NUM_BV_PRECISION_CONTEXTS; ++i) {

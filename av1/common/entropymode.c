@@ -6521,11 +6521,13 @@ static const aom_cdf_prob default_intrabc_mode_cdf[CDF_SIZE(2)] = {
   AOM_CDF2(26560), 31
 };
 
+#if !CONFIG_BYPASS_INTRABC_DRL_IDX
 static const aom_cdf_prob default_intrabc_drl_idx_cdf[3][CDF_SIZE(2)] = {
   { AOM_CDF2(22959), 123 },
   { AOM_CDF2(19303), 123 },
   { AOM_CDF2(18859), 124 },
 };
+#endif  // !CONFIG_BYPASS_INTRABC_DRL_IDX
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
 
 #if CONFIG_IBC_SUBPEL_PRECISION
@@ -7269,7 +7271,9 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   av1_copy(fc->intrabc_cdf, default_intrabc_cdf);
 #if CONFIG_IBC_BV_IMPROVEMENT
   av1_copy(fc->intrabc_mode_cdf, default_intrabc_mode_cdf);
+#if !CONFIG_BYPASS_INTRABC_DRL_IDX
   av1_copy(fc->intrabc_drl_idx_cdf, default_intrabc_drl_idx_cdf);
+#endif  // !CONFIG_BYPASS_INTRABC_DRL_IDX
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
 #if CONFIG_IBC_SUBPEL_PRECISION
   av1_copy(fc->intrabc_bv_precision_cdf, default_intrabc_bv_precision_cdf);
@@ -7448,7 +7452,9 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
   CUMULATIVE_AVERAGE_CDF(ctx_left->eob_extra_cdf, ctx_tr->eob_extra_cdf, 2);
   CUMULATIVE_AVERAGE_CDF(ctx_left->dc_sign_cdf, ctx_tr->dc_sign_cdf, 2);
 #if CONFIG_CONTEXT_DERIVATION
+#if !CONFIG_BY_PASS_V_SIGN
   CUMULATIVE_AVERAGE_CDF(ctx_left->v_dc_sign_cdf, ctx_tr->v_dc_sign_cdf, 2);
+#endif  // !CONFIG_BY_PASS_V_SIGN
 #if !CONFIG_CTX_V_AC_SIGN
   CUMULATIVE_AVERAGE_CDF(ctx_left->v_ac_sign_cdf, ctx_tr->v_ac_sign_cdf, 2);
 #endif  // !CONFIG_CTX_V_AC_SIGN
@@ -7671,8 +7677,10 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
 #if CONFIG_IBC_BV_IMPROVEMENT
   CUMULATIVE_AVERAGE_CDF(ctx_left->intrabc_mode_cdf, ctx_tr->intrabc_mode_cdf,
                          2);
+#if !CONFIG_BYPASS_INTRABC_DRL_IDX
   CUMULATIVE_AVERAGE_CDF(ctx_left->intrabc_drl_idx_cdf,
                          ctx_tr->intrabc_drl_idx_cdf, 2);
+#endif  // !CONFIG_BYPASS_INTRABC_DRL_IDX
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
 #if CONFIG_IBC_SUBPEL_PRECISION
   CUMULATIVE_AVERAGE_CDF(ctx_left->intrabc_bv_precision_cdf,
@@ -7927,7 +7935,9 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
   SHIFT_CDF(ctx_ptr->eob_extra_cdf, 2);
   SHIFT_CDF(ctx_ptr->dc_sign_cdf, 2);
 #if CONFIG_CONTEXT_DERIVATION
+#if !CONFIG_BY_PASS_V_SIGN
   SHIFT_CDF(ctx_ptr->v_dc_sign_cdf, 2);
+#endif  // !CONFIG_BY_PASS_V_SIGN
 #if !CONFIG_CTX_V_AC_SIGN
   SHIFT_CDF(ctx_ptr->v_ac_sign_cdf, 2);
 #endif  // !CONFIG_CTX_V_AC_SIGN
@@ -8072,7 +8082,9 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
   SHIFT_CDF(ctx_ptr->intrabc_cdf, 2);
 #if CONFIG_IBC_BV_IMPROVEMENT
   SHIFT_CDF(ctx_ptr->intrabc_mode_cdf, 2);
+#if !CONFIG_BYPASS_INTRABC_DRL_IDX
   SHIFT_CDF(ctx_ptr->intrabc_drl_idx_cdf, 2);
+#endif  // !CONFIG_BYPASS_INTRABC_DRL_IDX
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
 #if CONFIG_IBC_SUBPEL_PRECISION
   SHIFT_CDF(ctx_ptr->intrabc_bv_precision_cdf, NUM_ALLOWED_BV_PRECISIONS);
@@ -8306,7 +8318,9 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->eob_extra_cdf, ctx_tr->eob_extra_cdf, 2);
   AVERAGE_CDF(ctx_left->dc_sign_cdf, ctx_tr->dc_sign_cdf, 2);
 #if CONFIG_CONTEXT_DERIVATION
+#if !CONFIG_BY_PASS_V_SIGN
   AVERAGE_CDF(ctx_left->v_dc_sign_cdf, ctx_tr->v_dc_sign_cdf, 2);
+#endif  // !CONFIG_BY_PASS_V_SIGN
 #if !CONFIG_CTX_V_AC_SIGN
   AVERAGE_CDF(ctx_left->v_ac_sign_cdf, ctx_tr->v_ac_sign_cdf, 2);
 #endif  // !CONFIG_CTX_V_AC_SIGN
@@ -8498,7 +8512,9 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->intrabc_cdf, ctx_tr->intrabc_cdf, 2);
 #if CONFIG_IBC_BV_IMPROVEMENT
   AVERAGE_CDF(ctx_left->intrabc_mode_cdf, ctx_tr->intrabc_mode_cdf, 2);
+#if !CONFIG_BYPASS_INTRABC_DRL_IDX
   AVERAGE_CDF(ctx_left->intrabc_drl_idx_cdf, ctx_tr->intrabc_drl_idx_cdf, 2);
+#endif  // !CONFIG_BYPASS_INTRABC_DRL_IDX
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
 #if CONFIG_IBC_SUBPEL_PRECISION
   AVERAGE_CDF(ctx_left->intrabc_bv_precision_cdf,

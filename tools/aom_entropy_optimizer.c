@@ -495,6 +495,7 @@ int main(int argc, const char **argv) {
       "default_y_first_mode_cdf[Y_MODE_CONTEXTS][CDF_SIZE(FIRST_MODE_COUNT)]",
       0, &total_count, 0, mem_wanted, "Intra");
 
+#if !CONFIG_CTX_Y_SECOND_MODE
   cts_each_dim[0] = Y_MODE_CONTEXTS;
   cts_each_dim[1] = SECOND_MODE_COUNT;
   optimize_cdf_table(&fc.y_mode_idx_1[0][0], probsfile, 2, cts_each_dim,
@@ -502,7 +503,7 @@ int main(int argc, const char **argv) {
                      "default_y_second_mode_cdf[Y_MODE_CONTEXTS][CDF_SIZE("
                      "SECOND_MODE_COUNT)]",
                      0, &total_count, 0, mem_wanted, "Intra");
-
+#endif  // !CONFIG_CTX_Y_SECOND_MODE
   /* Intra mode (chroma) */
 
   cts_each_dim[0] = UV_MODE_CONTEXTS;
@@ -1506,11 +1507,13 @@ int main(int argc, const char **argv) {
                      "const aom_cdf_prob default_identity_row_cdf_uv"
                      "[PALETTE_ROW_FLAG_CONTEXTS][CDF_SIZE(3)]",
                      0, &total_count, 0, mem_wanted, "Coefficients");
+#if !CONFIG_PLT_DIR_CTX
   cts_each_dim[0] = 2;
   optimize_cdf_table(&fc.palette_direction_cnts[0], probsfile, 1, cts_each_dim,
                      "const aom_cdf_prob default_palette_direction_cdf"
                      "[CDF_SIZE(2)]",
                      0, &total_count, 0, mem_wanted, "Coefficients");
+#endif  // !CONFIG_PLT_DIR_CTX
 #else
   cts_each_dim[0] = PALETTE_ROW_FLAG_CONTEXTS;
   cts_each_dim[1] = 2;
@@ -1709,7 +1712,7 @@ int main(int argc, const char **argv) {
                      "static const aom_cdf_prob "
                      "default_intrabc_mode_cdf[CDF_SIZE(2)]",
                      0, &total_count, 0, mem_wanted, "Intra");
-
+#if !CONFIG_BYPASS_INTRABC_DRL_IDX
   /* intrabc drl index*/
   cts_each_dim[0] = MAX_REF_BV_STACK_SIZE - 1;
   cts_each_dim[1] = 2;
@@ -1717,6 +1720,7 @@ int main(int argc, const char **argv) {
                      "static const aom_cdf_prob default_intrabc_drl_idx_cdf"
                      "[MAX_REF_BV_STACK_SIZE - 1][CDF_SIZE(2)]",
                      0, &total_count, 0, mem_wanted, "Intra");
+#endif  // !CONFIG_BYPASS_INTRABC_DRL_IDX
 #endif
 
 #if CONFIG_MORPH_PRED
@@ -1809,12 +1813,13 @@ int main(int argc, const char **argv) {
                      "static const aom_cdf_prob default_wienerns_length_cdf"
                      "[CDF_SIZE(2)]",
                      0, &total_count, 0, mem_wanted, "Filters");
-
+#if !CONFIG_MERGE_PARA_CTX
   cts_each_dim[0] = 2;
   optimize_cdf_table(&fc.merged_param_cnts[0], probsfile, 1, cts_each_dim,
                      "static const aom_cdf_prob default_merged_param_cdf"
                      "[CDF_SIZE(2)]",
                      0, &total_count, 0, mem_wanted, "Filters");
+#endif  // !CONFIG_MERGE_PARA_CTX
 
   /* transform coding */
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
@@ -1863,6 +1868,14 @@ int main(int argc, const char **argv) {
 
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = TX_SIZES;
+#if CONFIG_EOB_PT_CTX_REDUCTION
+  cts_each_dim[2] = 2;
+  optimize_cdf_table(&fc.eob_extra[0][0][0], probsfile, 3, cts_each_dim,
+                     "static const aom_cdf_prob av1_default_eob_extra_cdfs"
+                     "[TOKEN_CDF_Q_CTXS]"
+                     "[CDF_SIZE(2)]",
+                     1, &total_count, 0, mem_wanted, "Coefficients");
+#else
   cts_each_dim[2] = PLANE_TYPES;
   cts_each_dim[3] = EOB_COEF_CONTEXTS;
   cts_each_dim[4] = 2;
@@ -1872,6 +1885,7 @@ int main(int argc, const char **argv) {
       "[TOKEN_CDF_Q_CTXS][TX_SIZES][PLANE_TYPES][EOB_COEF_CONTEXTS]"
       "[CDF_SIZE(2)]",
       1, &total_count, 0, mem_wanted, "Coefficients");
+#endif
 #if CONFIG_EOB_POS_LUMA
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = EOB_PLANE_CTXS;
@@ -2026,7 +2040,7 @@ int main(int argc, const char **argv) {
       "[TOKEN_CDF_Q_CTXS][SIG_COEF_CONTEXTS_UV][TCQ_CTXS][CDF_SIZE(NUM_BASE_"
       "LEVELS + 2)]",
       1, &total_count, dq_minus_entries_uv, mem_wanted, "Coefficients");
-
+#if !CONFIG_COEFF_BR_LF_UV_BYPASS
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = LF_LEVEL_CONTEXTS_UV;
   cts_each_dim[2] = BR_CDF_SIZE;
@@ -2035,6 +2049,7 @@ int main(int argc, const char **argv) {
       "static const aom_cdf_prob av1_default_coeff_lps_lf_multi_uv_cdfs"
       "[TOKEN_CDF_Q_CTXS][LF_LEVEL_CONTEXTS_UV][CDF_SIZE(BR_CDF_SIZE)]",
       1, &total_count, 0, mem_wanted, "Coefficients");
+#endif  // !CONFIG_COEFF_BR_LF_UV_BYPASS
 
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = LEVEL_CONTEXTS_UV;
@@ -2076,7 +2091,7 @@ int main(int argc, const char **argv) {
                      "av1_default_coeff_base_ph_cdfs[TOKEN_CDF_Q_CTXS][COEFF_"
                      "BASE_PH_CONTEXTS][CDF_SIZE(NUM_BASE_LEVELS + 2)]",
                      1, &total_count, 0, mem_wanted, "Coefficients");
-
+#if !CONFIG_COEFF_BR_PH_BYPASS
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = COEFF_BR_PH_CONTEXTS;
   cts_each_dim[2] = BR_CDF_SIZE;
@@ -2086,6 +2101,7 @@ int main(int argc, const char **argv) {
                      "av1_default_coeff_br_ph_cdfs[TOKEN_CDF_Q_CTXS][COEFF_BR_"
                      "PH_CONTEXTS][CDF_SIZE(BR_CDF_SIZE)]",
                      1, &total_count, 0, mem_wanted, "Coefficients");
+#endif  // !CONFIG_COEFF_BR_PH_BYPASS
 
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = TX_SIZES;
@@ -2191,7 +2207,7 @@ int main(int argc, const char **argv) {
       "[TOKEN_CDF_Q_CTXS][PLANE_TYPES][DC_SIGN_GROUPS][DC_SIGN_CONTEXTS]"
       "[CDF_SIZE(2)]",
       1, &total_count, 0, mem_wanted, "Coefficients");
-
+#if !CONFIG_BY_PASS_V_SIGN
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
   cts_each_dim[1] = CROSS_COMPONENT_CONTEXTS;
   cts_each_dim[2] = DC_SIGN_CONTEXTS;
@@ -2202,6 +2218,7 @@ int main(int argc, const char **argv) {
       "[TOKEN_CDF_Q_CTXS][CROSS_COMPONENT_CONTEXTS][DC_SIGN_CONTEXTS]"
       "[CDF_SIZE(2)]",
       1, &total_count, 0, mem_wanted, "Coefficients");
+#endif  // !CONFIG_BY_PASS_V_SIGN
 
 #if !CONFIG_CTX_V_AC_SIGN
   cts_each_dim[0] = TOKEN_CDF_Q_CTXS;
