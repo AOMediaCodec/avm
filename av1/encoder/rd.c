@@ -55,7 +55,9 @@
 #else
 #define RDMULT_FROM_Q2_NUM 80
 #endif  // CONFIG_ADJ_PYR_Q_OFFSET
+#define RDMULT_FROM_Q2_NUM_AI 80
 #define RDMULT_FROM_Q2_NUM_LD 80
+
 #define RDMULT_FROM_Q2_DEN 32
 
 // The baseline rd thresholds for breaking out of the rd loop for
@@ -776,8 +778,10 @@ static const int rd_layer_depth_factor[6] = {
 
 int av1_compute_rd_mult_based_on_qindex(const AV1_COMP *cpi, int qindex) {
   const int rdmult_from_q2_num =
-      (cpi->oxcf.gf_cfg.lag_in_frames == 0 ? RDMULT_FROM_Q2_NUM_LD
-                                           : RDMULT_FROM_Q2_NUM);
+      (cpi->oxcf.kf_cfg.key_freq_max == 0
+           ? RDMULT_FROM_Q2_NUM_AI
+           : (cpi->oxcf.gf_cfg.lag_in_frames == 0 ? RDMULT_FROM_Q2_NUM_LD
+                                                  : RDMULT_FROM_Q2_NUM));
 #if !CONFIG_TCQ_FOR_ALL_FRAMES
   const int tcq_mode = cpi->common.features.tcq_mode;
   const int q =
@@ -847,8 +851,10 @@ int av1_get_deltaq_offset(const AV1_COMP *cpi, int qindex, double beta) {
 int av1_get_adaptive_rdmult(const AV1_COMP *cpi, double beta) {
   assert(beta > 0.0);
   const int rdmult_from_q2_num =
-      (cpi->oxcf.gf_cfg.lag_in_frames == 0 ? RDMULT_FROM_Q2_NUM_LD
-                                           : RDMULT_FROM_Q2_NUM);
+      (cpi->oxcf.kf_cfg.key_freq_max == 0
+           ? RDMULT_FROM_Q2_NUM_AI
+           : (cpi->oxcf.gf_cfg.lag_in_frames == 0 ? RDMULT_FROM_Q2_NUM_LD
+                                                  : RDMULT_FROM_Q2_NUM));
   const AV1_COMMON *cm = &cpi->common;
   int64_t q = av1_dc_quant_QTX(cm->quant_params.base_qindex, 0,
                                cm->seq_params.base_y_dc_delta_q,

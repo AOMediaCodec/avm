@@ -1349,6 +1349,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   // guess a frame rate if out of whack, use 30
   input_cfg->init_framerate = (double)cfg->g_timebase.den / cfg->g_timebase.num;
   input_cfg->limit = cfg->g_limit;
+  // Set lag in frames to 0 when limit is 1
+  if (input_cfg->limit == 1) cfg->g_lag_in_frames = 0;
   input_cfg->chroma_subsampling_x = extra_cfg->chroma_subsampling_x;
   input_cfg->chroma_subsampling_y = extra_cfg->chroma_subsampling_y;
   if (input_cfg->init_framerate > 180) {
