@@ -8748,13 +8748,16 @@ static AOM_INLINE void setup_frame_info(AV1Decoder *pbi) {
 
   if (cm->rst_info[0].frame_restoration_type != RESTORE_NONE ||
       cm->rst_info[1].frame_restoration_type != RESTORE_NONE ||
-      cm->rst_info[2].frame_restoration_type != RESTORE_NONE
-#if CONFIG_GDF && CONFIG_GDF_IMPROVEMENT
-      || cm->gdf_info.gdf_mode
-#endif  // CONFIG_GDF
-  ) {
+      cm->rst_info[2].frame_restoration_type != RESTORE_NONE) {
     av1_alloc_restoration_buffers(cm);
   }
+#if CONFIG_GDF && CONFIG_GDF_IMPROVEMENT
+  else {
+    if (cm->gdf_info.gdf_mode) {
+      av1_alloc_restoration_boundary_buffers(cm, 1);
+    }
+  }
+#endif  // CONFIG_GDF
   const int buf_size = MC_TEMP_BUF_PELS << 1;
   if (pbi->td.mc_buf_size != buf_size) {
     av1_free_mc_tmp_buf(&pbi->td);
@@ -8943,13 +8946,15 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
         !use_ccso && !do_cdef;
 
     if (!optimized_loop_restoration) {
-      if (do_loop_restoration
-#if CONFIG_GDF && CONFIG_GDF_IMPROVEMENT
-          || do_gdf
-#endif  // CONFIG_GDF
-      )
+      if (do_loop_restoration)
         av1_loop_restoration_save_boundary_lines(&pbi->common.cur_frame->buf,
                                                  cm, 0);
+#if CONFIG_GDF && CONFIG_GDF_IMPROVEMENT
+      else {
+        if (do_gdf)
+          save_tile_row_boundary_lines(&pbi->common.cur_frame->buf, 0, cm, 0);
+      }
+#endif  // CONFIG_GDF
 
       if (do_cdef) {
         av1_cdef_frame(&pbi->common.cur_frame->buf, cm, &pbi->dcb.xd);
@@ -8965,14 +8970,16 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
       }
 #endif  // CONFIG_GDF
 
-      if (do_loop_restoration
-#if CONFIG_GDF && CONFIG_GDF_IMPROVEMENT
-          || do_gdf
-#endif  // CONFIG_GDF
-      ) {
+      if (do_loop_restoration) {
         av1_loop_restoration_save_boundary_lines(&pbi->common.cur_frame->buf,
                                                  cm, 1);
       }
+#if CONFIG_GDF && CONFIG_GDF_IMPROVEMENT
+      else {
+        if (do_gdf)
+          save_tile_row_boundary_lines(&pbi->common.cur_frame->buf, 0, cm, 1);
+      }
+#endif  // CONFIG_GDF
       if (do_loop_restoration) {
         // HERE
 #if CONFIG_COMBINE_PC_NS_WIENER

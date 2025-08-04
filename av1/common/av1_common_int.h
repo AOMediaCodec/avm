@@ -407,6 +407,17 @@ typedef struct BufferPool {
 /*!\endcond */
 
 #if CONFIG_GDF
+#if CONFIG_GDF_IMPROVEMENT
+
+/*!
+ * \brief Temporary buffers to save/restore lines above/below the GDF
+ */
+typedef struct {
+  uint16_t gdf_save_above[4][RESTORATION_LINEBUFFER_WIDTH];
+  uint16_t gdf_save_below[4][RESTORATION_LINEBUFFER_WIDTH];
+} GDFLineBuffers;
+#endif
+
 /*!
  * \brief Structure used for GDF (Guided Detail Filter).
  */
@@ -444,7 +455,8 @@ typedef struct {
   uint16_t *inp_pad_ptr; /*!< Pointer to padded and actually allocated data
                             into which inp_ptr points */
 #if CONFIG_GDF_IMPROVEMENT
-  int inp_stride; /*!< Stride of GDF memory storing guided frame */
+  int inp_stride;       /*!< Stride of GDF memory storing guided frame */
+  GDFLineBuffers *glbs; /*!< Line buffers needed by Guided detail filter */
 #endif
 } GdfInfo;
 #endif  // CONFIG_GDF

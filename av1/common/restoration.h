@@ -758,6 +758,8 @@ int av1_loop_restoration_corners_in_sb(const struct AV1Common *cm, int plane,
 void av1_loop_restoration_save_boundary_lines(const YV12_BUFFER_CONFIG *frame,
                                               struct AV1Common *cm,
                                               int after_cdef);
+void save_tile_row_boundary_lines(const YV12_BUFFER_CONFIG *frame, int plane,
+                                  struct AV1Common *cm, int after_cdef);
 void av1_loop_restoration_filter_frame_init(AV1LrStruct *lr_ctxt,
                                             YV12_BUFFER_CONFIG *frame,
                                             struct AV1Common *cm,

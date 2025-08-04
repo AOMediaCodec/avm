@@ -39,6 +39,8 @@ void av1_free_context_buffers(struct AV1Common *cm);
 
 void av1_free_ref_frame_buffers(struct BufferPool *pool);
 void av1_alloc_restoration_buffers(struct AV1Common *cm);
+void av1_alloc_restoration_boundary_buffers(struct AV1Common *cm,
+                                            int num_planes);
 void av1_free_restoration_buffers(struct AV1Common *cm);
 
 int av1_alloc_state_buffers(struct AV1Common *cm, int width, int height);

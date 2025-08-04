@@ -2647,9 +2647,8 @@ static void save_cdef_boundary_lines(const YV12_BUFFER_CONFIG *frame,
                RESTORATION_EXTRA_HORZ);
 }
 
-static void save_tile_row_boundary_lines(const YV12_BUFFER_CONFIG *frame,
-                                         int plane, AV1_COMMON *cm,
-                                         int after_cdef) {
+void save_tile_row_boundary_lines(const YV12_BUFFER_CONFIG *frame, int plane,
+                                  AV1_COMMON *cm, int after_cdef) {
   const int is_uv = plane > 0;
   const int ss_y = is_uv && cm->seq_params.subsampling_y;
   const int stripe_height = RESTORATION_PROC_UNIT_SIZE >> ss_y;

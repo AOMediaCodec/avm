@@ -9,10 +9,10 @@
  * source code in the PATENTS file, you can obtain it at
  * aomedia.org/license/patent-license/.
  */
+#ifndef AOM_COMMON_GDF_H_
+#define AOM_COMMON_GDF_H_
 
 #include "av1/common/gdf.h"
-
-#include "pred_common.h"
 #include "av1/common/gdf_block.h"
 
 #if CONFIG_GDF
@@ -54,6 +54,7 @@ void alloc_gdf_buffers(GdfInfo *gi) {
   memset(gi->err_ptr, 0, gi->err_height * gi->err_stride * sizeof(int16_t));
   gi->gdf_block_flags = (int32_t *)aom_malloc(gi->gdf_block_num * sizeof(int));
   memset(gi->gdf_block_flags, 0, gi->gdf_block_num * sizeof(int));
+  gi->glbs = (GDFLineBuffers *)aom_malloc(sizeof(GDFLineBuffers));
 }
 
 void free_gdf_buffers(GdfInfo *gi) {
@@ -76,6 +77,10 @@ void free_gdf_buffers(GdfInfo *gi) {
   if (gi->gdf_block_flags != NULL) {
     aom_free(gi->gdf_block_flags);
     gi->gdf_block_flags = NULL;
+  }
+  if (gi->glbs != NULL) {
+    aom_free(gi->glbs);
+    gi->glbs = NULL;
   }
 }
 
@@ -171,12 +176,9 @@ void gdf_copy_guided_frame(AV1_COMMON *cm) {
                           GDF_TEST_EXTRA_VER_BORDER);
 }
 
-static uint16_t gdf_save_above[GDF_BORDER][RESTORATION_LINEBUFFER_WIDTH];
-static uint16_t gdf_save_below[GDF_BORDER][RESTORATION_LINEBUFFER_WIDTH];
-
 void gdf_setup_reference_lines(AV1_COMMON *cm, int i_min, int i_max,
                                int v_pos) {
-  const RestorationStripeBoundaries *rsb = &cm->rst_info->boundaries;
+  const RestorationStripeBoundaries *rsb = &cm->rst_info[0].boundaries;
   const int rsb_row =
       ((v_pos + GDF_TEST_STRIPE_OFF) / cm->gdf_info.gdf_unit_size) *
       RESTORATION_CTX_VERT;
@@ -200,7 +202,7 @@ void gdf_setup_reference_lines(AV1_COMMON *cm, int i_min, int i_max,
       const uint16_t *buf = rsb->stripe_boundary_above + buf_off;
       uint16_t *dst = data_tl + i * data_stride;
       // Save old pixels, then replace with data from stripe_boundary_above
-      memcpy(gdf_save_above[i + RESTORATION_BORDER],
+      memcpy(cm->gdf_info.glbs->gdf_save_above[i + RESTORATION_BORDER],
              dst - GDF_TEST_EXTRA_HOR_BORDER,
              line_size + 4 * GDF_TEST_EXTRA_HOR_BORDER);
       memcpy(dst, buf, line_size);
@@ -215,10 +217,10 @@ void gdf_setup_reference_lines(AV1_COMMON *cm, int i_min, int i_max,
       const int buf_row = rsb_row + AOMMIN(i, RESTORATION_CTX_VERT - 1);
       const int buf_off = buf_x0_off + buf_row * buf_stride;
       const uint16_t *src = rsb->stripe_boundary_below + buf_off;
-      assert(*src <= 1023);
       uint16_t *dst = data_bl + i * data_stride;
       // Save old pixels, then replace with data from stripe_boundary_below
-      memcpy(gdf_save_below[i], dst - GDF_TEST_EXTRA_HOR_BORDER,
+      memcpy(cm->gdf_info.glbs->gdf_save_below[i],
+             dst - GDF_TEST_EXTRA_HOR_BORDER,
              line_size + 4 * GDF_TEST_EXTRA_HOR_BORDER);
       memcpy(dst, src, line_size);
       gdf_extend_frame_highbd(dst, rec_width, 1, data_stride,
@@ -243,7 +245,7 @@ void gdf_unset_reference_lines(AV1_COMMON *cm, int i_min, int i_max,
     for (int i = -RESTORATION_BORDER; i < 0; ++i) {
       uint16_t *dst = data_tl + i * data_stride;
       memcpy(dst - GDF_TEST_EXTRA_HOR_BORDER,
-             gdf_save_above[i + RESTORATION_BORDER],
+             cm->gdf_info.glbs->gdf_save_above[i + RESTORATION_BORDER],
              line_size + 4 * GDF_TEST_EXTRA_HOR_BORDER);
     }
   }
@@ -253,7 +255,8 @@ void gdf_unset_reference_lines(AV1_COMMON *cm, int i_min, int i_max,
         cm->gdf_info.inp_ptr + i_max * data_stride + data_x0_off;
     for (int i = 0; i < RESTORATION_BORDER; ++i) {
       uint16_t *dst = data_bl + i * data_stride;
-      memcpy(dst - GDF_TEST_EXTRA_HOR_BORDER, gdf_save_below[i],
+      memcpy(dst - GDF_TEST_EXTRA_HOR_BORDER,
+             cm->gdf_info.glbs->gdf_save_below[i],
              line_size + 4 * GDF_TEST_EXTRA_HOR_BORDER);
     }
   }
@@ -477,3 +480,5 @@ void gdf_filter_frame(AV1_COMMON *cm) {
 }
 
 #endif  // CONFIG_GDF
+
+#endif  // AOM_COMMON_GDF_H_

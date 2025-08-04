@@ -2713,13 +2713,13 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
 
   MultiThreadInfo *const mt_info = &cpi->mt_info;
   const int num_workers = mt_info->num_workers;
-  if (use_restoration
-#if CONFIG_GDF_IMPROVEMENT && CONFIG_GDF
-      || use_gdf
-#endif  // CONFIG_GDF
-  )
+  if (use_restoration)
     av1_loop_restoration_save_boundary_lines(&cm->cur_frame->buf, cm, 0);
-
+#if CONFIG_GDF && CONFIG_GDF_IMPROVEMENT
+  else {
+    if (use_gdf) save_tile_row_boundary_lines(&cm->cur_frame->buf, 0, cm, 0);
+  }
+#endif  // CONFIG_GDF
   if (use_cdef) {
 #if CONFIG_COLLECT_COMPONENT_TIMING
     start_timing(cpi, cdef_time);
@@ -2808,12 +2808,13 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
   start_timing(cpi, loop_restoration_time);
 #endif
 
-  if (use_restoration
-#if CONFIG_GDF_IMPROVEMENT && CONFIG_GDF
-      || use_gdf
-#endif  // CONFIG_GDF
-  )
+  if (use_restoration)
     av1_loop_restoration_save_boundary_lines(&cm->cur_frame->buf, cm, 1);
+#if CONFIG_GDF && CONFIG_GDF_IMPROVEMENT
+  else {
+    if (use_gdf) save_tile_row_boundary_lines(&cm->cur_frame->buf, 0, cm, 1);
+  }
+#endif  // CONFIG_GDF
   if (use_restoration) {
     av1_pick_filter_restoration(cpi->source, cpi);
     if (cm->rst_info[0].frame_restoration_type != RESTORE_NONE ||
