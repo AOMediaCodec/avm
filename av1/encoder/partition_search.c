@@ -244,6 +244,13 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
             cpi, x, bsize, dry_run, cpi->optimize_seg_arr[mbmi->segment_id]);
     }
 
+    // If there is at least one lossless segment, force the skip for intra
+    // block to be 0, in order to avoid the segment_id to be changed by in
+    // write_segment_id().
+    if (!cpi->common.seg.segid_preskip && cpi->common.seg.update_map &&
+        cpi->enc_seg.has_lossless_segment)
+      mbmi->skip_txfm[xd->tree_type == CHROMA_PART] = 0;
+
     xd->cfl.store_y = 0;
     if (av1_allow_palette(cm->features.allow_screen_content_tools, bsize)) {
       for (int plane = plane_start; plane < AOMMIN(2, plane_end); ++plane) {
@@ -318,9 +325,6 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
     av1_tokenize_sb_vartx(cpi, td, dry_run, bsize, rate,
                           tile_data->allow_update_cdf, plane_start, plane_end);
   }
-
-  if (frame_is_intra_only(cm) && !is_intrabc_block(mbmi, xd->tree_type))
-    assert(mbmi->skip_txfm[xd->tree_type == CHROMA_PART] == 0);
 
   if (!dry_run) {
     if (av1_allow_intrabc(cm, xd

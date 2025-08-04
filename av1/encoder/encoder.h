@@ -2466,6 +2466,12 @@ typedef struct {
    * (x,y) position.
    */
   uint8_t *map;
+  /*!
+   * Flag to indicate if current frame has lossless segments or not.
+   * 1: frame has at least one lossless segment.
+   * 0: frame has no lossless segments.
+   */
+  bool has_lossless_segment;
 } EncSegmentationInfo;
 
 /*!

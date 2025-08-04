@@ -1523,6 +1523,7 @@ void av1_set_lossless(AV1_COMP *cpi) {
         (quant_params->u_ac_delta_q + cm->seq_params.base_uv_ac_delta_q <= 0) &&
         (quant_params->v_ac_delta_q + cm->seq_params.base_uv_ac_delta_q <= 0);
 
+    if (xd->lossless[i]) cpi->enc_seg.has_lossless_segment = 1;
     xd->qindex[i] = qindex;
     if (xd->lossless[i]) {
       cpi->optimize_seg_arr[i] = NO_TRELLIS_OPT;
