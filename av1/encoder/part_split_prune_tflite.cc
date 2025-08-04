@@ -95,7 +95,7 @@ struct ModelDef {
   int model_version;
 };
 
-#clang-format off
+// clang-format off
 #define MODELDEF(data, type, part_type, n_features, model_version) \
   { data,      sizeof(data), { false, NULL, NULL, NULL },          \
     type,      #data,        #type,                                \
@@ -104,7 +104,7 @@ struct ModelDef {
   { data,      sizeof(data), { true, data##_mean, data##_std, data##_std_inv }, \
     type,      #data,        #type,                                             \
     part_type, n_features,   model_version }
-#clang-format on
+// clang-format on
 
 const ModelDef models[] = {
   MODELDEF(NULL, MODEL_OTHER, PT_INVAL, 0, 0),
