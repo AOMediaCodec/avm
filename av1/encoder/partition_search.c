@@ -366,7 +366,7 @@ void setup_block_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
                         AQ_MODE aq_mode, MB_MODE_INFO *mbmi) {
   x->rdmult = cpi->rd.RDMULT;
   MACROBLOCKD *const xd = &x->e_mbd;
-  if (aq_mode != NO_AQ && xd->tree_type == SHARED_PART) {
+  if (aq_mode != NO_AQ && xd->tree_type != CHROMA_PART) {
     assert(mbmi != NULL);
     if (aq_mode == VARIANCE_AQ) {
       if (cpi->vaq_refresh) {
@@ -464,8 +464,8 @@ void av1_set_offsets(const AV1_COMP *const cpi, const TileInfo *const tile,
   av1_set_offsets_without_segment_id(cpi, tile, x, mi_row, mi_col, bsize,
                                      chroma_ref_info);
 
-  // Don't set up segment ID for chroma part in SDP of inter frame
-  if (!frame_is_intra_only(cm) && xd->tree_type == CHROMA_PART) return;
+  // Don't set up segment ID for chroma part
+  if (xd->tree_type == CHROMA_PART) return;
 
   // Setup segment ID.
   mbmi = xd->mi[0];
