@@ -3954,6 +3954,12 @@ static void check_and_add_process_ref(const AV1_COMMON *cm, int max_check,
     if (target_frame == cm->bru.update_ref_idx) return;
   }
 #endif
+
+#if CONFIG_SIMPLIFY_MV_FIELD
+  if (*process_count >= MFMV_STACK_SIZE) return;
+  if (checked_ref[start_frame][side]) return;
+#endif  // CONFIG_SIMPLIFY_MV_FIELD
+
   if (!checked_ref[start_frame][side] && *checked_count < max_check) {
     checked_ref[start_frame][side] = 1;
     (*checked_count)++;
@@ -3979,8 +3985,14 @@ static INLINE void check_traj_intersect(AV1_COMMON *cm,
                                         MV_REFERENCE_FRAME end_frame,
                                         const MV *mv, int start_row,
                                         int start_col, int mvs_cols) {
+#if CONFIG_SIMPLIFY_MV_FIELD
+  const int clamp_max = REFMVS_LIMIT;
+  const int clamp_min = -REFMVS_LIMIT;
+#else
   const int clamp_max = MV_UPP - 1;
   const int clamp_min = MV_LOW + 1;
+#endif  // CONFIG_SIMPLIFY_MV_FIELD
+
   const int start_offset = start_row * mvs_cols + start_col;
   assert(start_row % cm->tmvp_sample_step == 0);
   assert(start_col % cm->tmvp_sample_step == 0);
@@ -4222,18 +4234,34 @@ static int motion_field_projection_start_target(
                 int blk_id_k = get_blk_id_k(mi_c, cm->tmvp_proc_size);
                 int **blk_id_map = cm->blk_id_map[blk_id_k];
 
+#if CONFIG_SIMPLIFY_MV_FIELD
+                cm->id_offset_map[start_frame][traj_id].as_mv.row =
+                    clamp(-this_mv.as_mv.row, -REFMVS_LIMIT, REFMVS_LIMIT);
+                cm->id_offset_map[start_frame][traj_id].as_mv.col =
+                    clamp(-this_mv.as_mv.col, -REFMVS_LIMIT, REFMVS_LIMIT);
+#else
                 cm->id_offset_map[start_frame][traj_id].as_mv.row =
                     -this_mv.as_mv.row;
                 cm->id_offset_map[start_frame][traj_id].as_mv.col =
                     -this_mv.as_mv.col;
+#endif  // CONFIG_SIMPLIFY_MV_FIELD
                 blk_id_map[start_frame][scaled_blk_row * mvs_cols +
                                         scaled_blk_col] = traj_id;
 
                 MV target_frame_mv;
                 tip_get_mv_projection(&target_frame_mv, ref_mv,
                                       ref_temporal_scale_factor);
-                cm->id_offset_map[target_frame][traj_id].as_mv =
-                    target_frame_mv;
+#if CONFIG_SIMPLIFY_MV_FIELD
+                cm->id_offset_map[target_frame][traj_id].as_mv.row =
+                    clamp(target_frame_mv.row, -REFMVS_LIMIT, REFMVS_LIMIT);
+                cm->id_offset_map[target_frame][traj_id].as_mv.col =
+                    clamp(target_frame_mv.col, -REFMVS_LIMIT, REFMVS_LIMIT);
+#else
+                cm->id_offset_map[target_frame][traj_id].as_mv.row =
+                    target_frame_mv.row;
+                cm->id_offset_map[target_frame][traj_id].as_mv.col =
+                    target_frame_mv.col;
+#endif  // CONFIG_SIMPLIFY_MV_FIELD
                 int target_row = 0, target_col = 0;
                 int target_pos_valid;
                 if (ref_mv.row == 0 && ref_mv.col == 0) {
@@ -4281,6 +4309,9 @@ static int motion_field_projection_start_target(
 // start_frame to one side.
 static int motion_field_projection_side(AV1_COMMON *cm,
                                         MV_REFERENCE_FRAME start_frame,
+#if CONFIG_SIMPLIFY_MV_FIELD
+                                        MV_REFERENCE_FRAME target_frame,
+#endif  // CONFIG_SIMPLIFY_MV_FIELD
                                         int side_idx) {
   TPL_MV_REF *tpl_mvs_base = cm->tpl_mvs;
   int ref_offset[INTER_REFS_PER_FRAME] = { 0 };
@@ -4420,17 +4451,30 @@ static int motion_field_projection_side(AV1_COMMON *cm,
                                              mi_r, mi_c);
           if (pos_valid) {
             const int mi_offset = mi_r * mvs_stride + mi_c;
-            if (tpl_mvs_base[mi_offset].mfmv0.as_int == INVALID_MV) {
+            if (tpl_mvs_base[mi_offset].mfmv0.as_int == INVALID_MV
+#if CONFIG_SIMPLIFY_MV_FIELD
+                || (target_frame != -1 && end_frame == target_frame &&
+                    tpl_mvs_base[mi_offset].ref_frame_offset !=
+                        ref_abs_offset[ref_frame])
+#endif  // CONFIG_SIMPLIFY_MV_FIELD
+            ) {
 #if CONFIG_MV_TRAJECTORY
               if (cm->seq_params.enable_mv_traj) {
                 int blk_id_k = get_blk_id_k(mi_c, cm->tmvp_proc_size);
                 int **blk_id_map = cm->blk_id_map[blk_id_k];
                 int traj_id = mi_offset;
 
+#if CONFIG_SIMPLIFY_MV_FIELD
+                cm->id_offset_map[start_frame][traj_id].as_mv.row =
+                    clamp(-this_mv.as_mv.row, -REFMVS_LIMIT, REFMVS_LIMIT);
+                cm->id_offset_map[start_frame][traj_id].as_mv.col =
+                    clamp(-this_mv.as_mv.col, -REFMVS_LIMIT, REFMVS_LIMIT);
+#else
                 cm->id_offset_map[start_frame][traj_id].as_mv.row =
                     -this_mv.as_mv.row;
                 cm->id_offset_map[start_frame][traj_id].as_mv.col =
                     -this_mv.as_mv.col;
+#endif  // CONFIG_SIMPLIFY_MV_FIELD
                 blk_id_map[start_frame][scaled_blk_row * mvs_cols +
                                         scaled_blk_col] = traj_id;
 
@@ -4438,7 +4482,17 @@ static int motion_field_projection_side(AV1_COMMON *cm,
                   MV end_frame_mv;
                   tip_get_mv_projection(&end_frame_mv, ref_mv,
                                         ref_temporal_scale_factor[ref_frame]);
-                  cm->id_offset_map[end_frame][traj_id].as_mv = end_frame_mv;
+#if CONFIG_SIMPLIFY_MV_FIELD
+                  cm->id_offset_map[end_frame][traj_id].as_mv.row =
+                      clamp(end_frame_mv.row, -REFMVS_LIMIT, REFMVS_LIMIT);
+                  cm->id_offset_map[end_frame][traj_id].as_mv.col =
+                      clamp(end_frame_mv.col, -REFMVS_LIMIT, REFMVS_LIMIT);
+#else
+                  cm->id_offset_map[end_frame][traj_id].as_mv.row =
+                      end_frame_mv.row;
+                  cm->id_offset_map[end_frame][traj_id].as_mv.col =
+                      end_frame_mv.col;
+#endif  // CONFIG_SIMPLIFY_MV_FIELD
                   int end_row = 0, end_col = 0;
                   int end_pos_valid;
                   if (ref_mv.row == 0 && ref_mv.col == 0) {
@@ -4499,7 +4553,11 @@ static INLINE int calc_avg(int sum, int count) {
     return ROUND_POWER_OF_TWO_SIGNED(sum, 2);
   }
   assert(count == 3);
+#if CONFIG_SIMPLIFY_MV_FIELD
+  return ROUND_POWER_OF_TWO_SIGNED(sum * 85, 8);
+#else
   return ROUND_POWER_OF_TWO_SIGNED(sum * 43, 7);
+#endif  // CONFIG_SIMPLIFY_MV_FIELD
 }
 
 // Calculate the average MV length in the reference frame motion field
@@ -5045,15 +5103,32 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
           rf_topo_stack_idx[cm->tip_ref.ref_frame[1]]) {
         start_frame = cm->tip_ref.ref_frame[0];
         target_frame = cm->tip_ref.ref_frame[1];
+#if !CONFIG_SIMPLIFY_MV_FIELD
         side = 1;  // pointing from left to right
+#endif             // CONFIG_SIMPLIFY_MV_FIELD
       } else {
         start_frame = cm->tip_ref.ref_frame[1];
         target_frame = cm->tip_ref.ref_frame[0];
+#if !CONFIG_SIMPLIFY_MV_FIELD
         side = 0;  // pointing from right to left
+#endif             // CONFIG_SIMPLIFY_MV_FIELD
       }
+
+#if CONFIG_SIMPLIFY_MV_FIELD
+      int dist_diff = get_relative_dist(
+          order_hint_info,
+          get_ref_frame_buf(cm, start_frame)->display_order_hint,
+          get_ref_frame_buf(cm, target_frame)->display_order_hint);
+
+      side = dist_diff < 0 ? 1 : 0;
+      check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE, 0, start_frame,
+                                target_frame, side, checked_ref, &checked_count,
+                                process_ref, &process_count);
+#else
       check_and_add_process_ref(cm, TIP_MFMV_STACK_SIZE, 1, start_frame,
                                 target_frame, side, checked_ref, &checked_count,
                                 process_ref, &process_count);
+#endif  // CONFIG_SIMPLIFY_MV_FIELD
     } else {
       cm->tip_ref.ref_frame[0] = NONE_FRAME;
       cm->tip_ref.ref_frame[1] = NONE_FRAME;
@@ -5169,6 +5244,9 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
   for (int pi = 0; pi < process_count; pi++) {
     if (process_ref[pi].type == 0) {
       motion_field_projection_side(cm, process_ref[pi].start_frame,
+#if CONFIG_SIMPLIFY_MV_FIELD
+                                   process_ref[pi].target_frame,
+#endif  // CONFIG_SIMPLIFY_MV_FIELD
                                    process_ref[pi].side);
     } else {
       motion_field_projection_start_target(cm, process_ref[pi].start_frame,

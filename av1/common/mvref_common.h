@@ -78,7 +78,11 @@ static AOM_INLINE int get_block_position(const AV1_COMMON *cm, int *mi_r,
       col >= (cm->mi_params.mi_cols >> TMVP_SHIFT_BITS))
     return 0;
 
-  if (cm->tmvp_sample_step > 1 || (sb_size < 256 && sb_size != 64)) {
+  if (cm->tmvp_sample_step > 1
+#if !CONFIG_SIMPLIFY_MV_FIELD
+      || (sb_size < 256 && sb_size != 64)
+#endif  // CONFIG_SIMPLIFY_MV_FIELD
+  ) {
     if (row < base_blk_row - MAX_OFFSET_HEIGHT_LOG2 ||
         row >= base_blk_row + sb_tmvp_size + MAX_OFFSET_HEIGHT_LOG2 ||
         col < base_blk_col - sb_tmvp_size ||
@@ -111,7 +115,11 @@ static AOM_INLINE void get_proc_size_and_offset(const AV1_COMMON *cm,
 
   *proc_blk_size = sb_tmvp_size;
 
-  if (cm->tmvp_sample_step > 1 || (sb_size < 256 && sb_size != 64)) {
+  if (cm->tmvp_sample_step > 1
+#if !CONFIG_SIMPLIFY_MV_FIELD
+      || (sb_size < 256 && sb_size != 64)
+#endif  // CONFIG_SIMPLIFY_MV_FIELD
+  ) {
     *row_blk_offset = 0;
     *col_blk_offset = sb_tmvp_size;
   } else {
@@ -136,7 +144,11 @@ static AOM_INLINE int check_block_position(const AV1_COMMON *cm, int row,
       col >= (cm->mi_params.mi_cols >> TMVP_SHIFT_BITS))
     return 0;
 
-  if (cm->tmvp_sample_step > 1 || (sb_size < 256 && sb_size != 64)) {
+  if (cm->tmvp_sample_step > 1
+#if !CONFIG_SIMPLIFY_MV_FIELD
+      || (sb_size < 256 && sb_size != 64)
+#endif  // CONFIG_SIMPLIFY_MV_FIELD
+  ) {
     if (row < base_blk_row - MAX_OFFSET_HEIGHT_LOG2 ||
         row >= base_blk_row + sb_tmvp_size + MAX_OFFSET_HEIGHT_LOG2 ||
         col < base_blk_col - sb_tmvp_size ||
