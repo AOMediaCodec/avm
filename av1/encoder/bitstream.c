@@ -2180,10 +2180,24 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 #endif  // CONFIG_IBC_SR_EXT
   ) {
     skip = write_skip(cm, xd, segment_id, mbmi, w);
+#if CONFIG_BRU
+    if (!skip && !bru_is_sb_active(cm, xd->mi_col, xd->mi_row)) {
+      aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+                         "Invalid BRU skip_txfm: only active SB has transform");
+    }
+#endif  // CONFIG_BRU
   }
 
   if (xd->tree_type != CHROMA_PART)
     write_inter_segment_id(cpi, w, seg, segp, skip, 0);
+
+#if CONFIG_BRU
+  // check BRU inter prediction motion vector
+  if (is_inter && !bru_is_valid_inter(cm, xd)) {
+    aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+                       "Invalid BRU inter prediction");
+  }
+#endif  // CONFIG_BRU
 
 #if CONFIG_GDF
   if (xd->tree_type != CHROMA_PART) write_gdf(cm, xd, w);
@@ -3092,6 +3106,10 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
   // enc need to update part ctx on inactive and ext
   // but only inactive need to return.
   if (!bru_is_sb_active(cm, mi_col, mi_row)) {
+    if (!is_inter_block(mbmi, xd->tree_type)) {
+      aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR,
+                         "BRU: intra prediction on inactive/support SB");
+    }
     if (!cm->bru.frame_inactive_flag) {
       if (cm->seq_params.enable_ccso && xd->tree_type != CHROMA_PART) {
         write_ccso(cm, xd, w);
@@ -4812,7 +4830,13 @@ static AOM_INLINE void encode_qm_params(AV1_COMMON *cm,
 #if CONFIG_BRU
 static AOM_INLINE void encode_bru_active_info(AV1_COMP *cpi,
                                               struct aom_write_bit_buffer *wb) {
-  const AV1_COMMON *cm = &cpi->common;
+  AV1_COMMON *cm = &cpi->common;
+  if (cm->current_frame.frame_type != INTER_FRAME) {
+    return;
+  }
+  if (cm->bru.frame_inactive_flag) {
+    cm->features.disable_cdf_update = 1;
+  }
   if (cm->seq_params.enable_bru) {
     aom_wb_write_bit(wb, cm->bru.enabled);
 
@@ -7684,7 +7708,13 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
     fh_info.total_length = obu_header_size + obu_payload_size + length_field;
     data += fh_info.total_length;
   }
-
+#if CONFIG_BRU
+  if (cm->bru.enabled && cm->current_frame.frame_type != KEY_FRAME) {
+    if (!bru_active_map_validation(cm)) {
+      aom_internal_error(&cm->error, AOM_CODEC_ERROR, "Invalid active region");
+    }
+  }
+#endif  // CONFIG_BRU
   // When enable_frame_output_order == 1, the OBU packet of show_existing_frame
   // is not signaled for non-error-resilient mode.
   // For error-resilienet mode, still an OBU is signaled.

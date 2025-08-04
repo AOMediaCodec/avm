@@ -306,13 +306,14 @@ static void get_gop_cfg_enabled_refs(AV1_COMP *const cpi, int *ref_frame_flags,
 }
 
 #if CONFIG_BRU
-static void bru_lookahead_update(AV1_COMP *const cpi, int *bru_ref_buf_offset,
+static void bru_lookahead_update(AV1_COMP *const cpi,
+                                 const int bru_ref_buf_offset,
                                  struct lookahead_entry **bru_ref_source) {
   if (cpi->common.seq_params.enable_bru) {
     AV1_COMMON *const cm = &cpi->common;
     const int n_refs = cm->ref_frames_info.num_total_refs;
-    if (n_refs > 1)
-      *bru_ref_source = av1_lookahead_peek(cpi->lookahead, *bru_ref_buf_offset,
+    if (n_refs >= BRU_ENC_LOOKAHEAD_DIST_MINUS_1 + BRU_ENC_REF_DELAY)
+      *bru_ref_source = av1_lookahead_peek(cpi->lookahead, bru_ref_buf_offset,
                                            cpi->compressor_stage);
   }
 }
@@ -452,7 +453,7 @@ static struct lookahead_entry *choose_frame_source(
     }
 #if CONFIG_BRU
     if (cpi->common.seq_params.enable_bru) {
-      bru_lookahead_update(cpi, &bru_ref_buf_offset, bru_ref_source);
+      bru_lookahead_update(cpi, bru_ref_buf_offset, bru_ref_source);
     }
 #endif  // CONFIG_BRU
     // Read in the source frame.
@@ -705,9 +706,10 @@ int av1_get_refresh_frame_flags(
   if (cpi->common.bru.enabled) {
     const int bru_ref_order = cpi->common.bru.ref_order;
     assert(bru_ref_order >= 0);
-    for (int idx = 0; idx < REF_FRAMES; ++idx) {
+    for (int idx = 0; idx < cpi->common.seq_params.ref_frames; ++idx) {
       if (ref_frame_map_pairs[idx].disp_order == bru_ref_order) {
-        free_fb_index = idx;
+        free_fb_index = idx;  // get the first one
+        break;
       }
     }
   } else {
@@ -987,7 +989,8 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   } else {
     source = choose_frame_source(cpi, &flush, &last_source,
 #if CONFIG_BRU  // use -2 distance frame as BRU ref frame
-                                 -2, &bru_ref_source,
+                                 -(BRU_ENC_LOOKAHEAD_DIST_MINUS_1 + 1),
+                                 &bru_ref_source,
 #endif  // CONFIG_BRU
                                  &frame_params);
   }
@@ -1094,7 +1097,11 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     cm->txcoeff_cost_count = 0;
 #endif
   }
-
+#if CONFIG_BRU
+  if (frame_params.frame_type == KEY_FRAME) {
+    source->order_hint = 0;
+  }
+#endif
   if (frame_params.frame_type == KEY_FRAME) cm->showable_frame = 0;
 
 #if CONFIG_MISMATCH_DEBUG
@@ -1144,8 +1151,28 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     cm->features.error_resilient_mode = frame_params.error_resilient_mode;
 #if CONFIG_BRU
     // get last frame idx as bru frame
-    cm->bru.enabled = cpi->oxcf.tool_cfg.enable_bru > 0;
-    if (cpi->oxcf.tool_cfg.enable_bru && frame_input.bru_ref_source != NULL &&
+    cm->bru.enabled = cpi->oxcf.tool_cfg.enable_bru > 0 &&
+                      (frame_params.frame_type == INTER_FRAME);
+    cm->bru.frame_inactive_flag = 0;
+    if (cm->bru.enabled && cm->seq_params.order_hint_info.enable_order_hint) {
+      int n_future = 0;
+      for (int i = 0; i < REF_FRAMES; i++) {
+        const RefCntBuffer *const buf = cm->ref_frame_map[i];
+        if (buf) {
+          int ref_disp = (int)buf->display_order_hint;
+          const int disp_diff = get_relative_dist(
+              &cm->seq_params.order_hint_info, cur_frame_disp, ref_disp);
+          if (disp_diff < 0) {
+            n_future++;
+            break;
+          }
+        }
+      }
+      if (n_future > 0) {
+        cm->bru.enabled = 0;
+      }
+    }
+    if (cm->bru.enabled && frame_input.bru_ref_source != NULL &&
         !frame_is_intra_only(&cpi->common)) {
       active_region_detection(cpi, frame_input.source,
                               frame_input.bru_ref_source);

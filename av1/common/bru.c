@@ -250,6 +250,7 @@ void bru_set_default_inter_mb_mode_info(const AV1_COMMON *const cm,
   mbmi->use_intra_dip = 0;
   mbmi->seg_id_predicted = 0;
   mbmi->use_amvd = 0;
+  mbmi->mrl_index = 0;
   // todo find del idx
   mbmi->ref_frame[0] = cm->bru.update_ref_idx;
   mbmi->ref_frame[1] = NONE_FRAME;
@@ -340,11 +341,13 @@ RefCntBuffer *bru_swap_common(AV1_COMMON *cm) {
     ref_buf->display_order_hint = cm->cur_frame->display_order_hint;
     ref_buf->absolute_poc = cm->cur_frame->absolute_poc;
     ref_buf->pyramid_level = cm->cur_frame->pyramid_level;
-    ref_buf->base_qindex = cm->cur_frame->base_qindex;
+    if (!cm->bru.frame_inactive_flag)
+      ref_buf->base_qindex = cm->cur_frame->base_qindex;
     ref_buf->num_ref_frames = cm->cur_frame->num_ref_frames;
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
     ref_buf->frame_output_done = 0;
 #endif
+    ref_buf->frame_type = cm->cur_frame->frame_type;
 #if CONFIG_TEMP_LR
     ref_buf->rst_info[0] = tmp_buf->rst_info[0];
     ref_buf->rst_info[1] = tmp_buf->rst_info[1];

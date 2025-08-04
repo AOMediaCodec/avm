@@ -1035,6 +1035,7 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
       if (cur_sb_active_mode == BRU_SUPPORT_SB) {
         bru_copy_sb(cm, mi_col, mi_row);
       }
+      av1_reset_entropy_context(xd, cm->seq_params.sb_size, av1_num_planes(cm));
     } else
 #endif  // CONFIG_BRU
       // encode the superblock

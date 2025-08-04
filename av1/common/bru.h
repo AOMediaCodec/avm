@@ -14,12 +14,24 @@
 #include "av1/common/av1_common_int.h"
 #include "av1/common/pred_common.h"
 #include "av1/common/blockd.h"
+// Encoder only macros for BRU
 #ifndef BRU_OFF_RATIO
 #define BRU_OFF_RATIO 50
 #endif
 #ifndef MAX_ACTIVE_REGION
 #define MAX_ACTIVE_REGION 8
 #endif
+// how far can BRU ref been picked
+#ifndef BRU_ENC_LOOKAHEAD_DIST_MINUS_1
+#define BRU_ENC_LOOKAHEAD_DIST_MINUS_1 1
+#endif
+#define BRU_ENC_REF_DELAY 1
+// Encoder will use cur order_hint - (BRU_ENC_LOOKAHEAD_DIST_MINUS_1 + 1) as BRU
+// ref frame But it will wait BRU_ENC_REF_DELAY frame to start: e.g.
+// BRU_ENC_REF_DELAY = 1 and BRU_ENC_LOOKAHEAD_DIST_MINUS_1 = 1 means first
+// possible BRU frame is POC3 which is using POC1 as BRU ref. e.g.
+// BRU_ENC_REF_DELAY = 0 and BRU_ENC_LOOKAHEAD_DIST_MINUS_1 = 2 means first
+// possible BRU frame is POC3 which is using POC0 as BRU ref.
 
 /* This function test the reference frame used for inter prediction.
    BRU conformance requires any inter prediction should not use any pixels in
@@ -197,19 +209,35 @@ static INLINE int bru_active_map_validation(const AV1_COMMON *cm) {
     for (unsigned int col = 0; col < cm->bru.unit_cols; col++) {
       // if active must surrounded by active/support
       if (*(act + col) == BRU_ACTIVE_SB) {
+        const uint8_t has_top = row > 0;
+        const uint8_t has_left = col > 0;
+        const uint8_t has_bottom = row + 1 < cm->bru.unit_rows;
+        const uint8_t has_right = col + 1 < cm->bru.unit_cols;
         uint8_t top_inactive =
-            row > 0 ? *(act + col - stride) == BRU_INACTIVE_SB : 0;
-        uint8_t bot_inactive = row + 1 < cm->bru.unit_rows
-                                   ? *(act + col + stride) == BRU_INACTIVE_SB
-                                   : 0;
+            has_top ? *(act + col - stride) == BRU_INACTIVE_SB : 0;
+        uint8_t bot_inactive =
+            has_bottom ? *(act + col + stride) == BRU_INACTIVE_SB : 0;
         uint8_t left_inactive =
-            col > 0 ? *(act + col - 1) == BRU_INACTIVE_SB : 0;
-        uint8_t right_inactive = col + 1 < cm->bru.unit_cols
-                                     ? *(act + col + 1) == BRU_INACTIVE_SB
-                                     : 0;
-        if (top_inactive || bot_inactive || left_inactive || right_inactive) {
-          printf("@sb %d %d: %d, %d, %d, %d\n", col, row, top_inactive,
-                 bot_inactive, left_inactive, right_inactive);
+            has_left ? *(act + col - 1) == BRU_INACTIVE_SB : 0;
+        uint8_t right_inactive =
+            has_right ? *(act + col + 1) == BRU_INACTIVE_SB : 0;
+        uint8_t top_left_inactive =
+            has_top && has_left ? *(act + col - 1 - stride) == BRU_INACTIVE_SB
+                                : 0;
+        uint8_t top_right_inactive =
+            has_top && has_right ? *(act + col + 1 - stride) == BRU_INACTIVE_SB
+                                 : 0;
+        uint8_t bot_left_inactive =
+            has_bottom && has_left
+                ? *(act + col - 1 + stride) == BRU_INACTIVE_SB
+                : 0;
+        uint8_t bot_right_inactive =
+            has_bottom && has_right
+                ? *(act + col + 1 + stride) == BRU_INACTIVE_SB
+                : 0;
+        if (top_inactive || bot_inactive || left_inactive || right_inactive ||
+            top_left_inactive || top_right_inactive || bot_left_inactive ||
+            bot_right_inactive) {
           return 0;
         }
       }

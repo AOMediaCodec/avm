@@ -3870,9 +3870,6 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
   SequenceHeader *const seq_params = &cm->seq_params;
 #if CONFIG_BRU
   if (cm->bru.enabled && cm->current_frame.frame_type != KEY_FRAME) {
-    if (!bru_active_map_validation(cm)) {
-      aom_internal_error(&cm->error, AOM_CODEC_ERROR, "Invalid active region");
-    }
     enc_bru_swap_stage(cpi);
   }
 #endif  // CONFIG_BRU
@@ -4042,8 +4039,15 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
       avg_primary_secondary_references(cm, ref_frame_used, secondary_map_idx);
 #if CONFIG_BRU
     } else {
-      av1_avg_cdf_symbols(cm->fc, &cm->bru.update_ref_fc,
-                          AVG_CDF_WEIGHT_PRIMARY, AVG_CDF_WEIGHT_NON_PRIMARY);
+      if ((map_idx != INVALID_IDX) &&
+          (ref_frame_used != cm->features.primary_ref_frame) &&
+          (!cm->bru.frame_inactive_flag) &&
+          (cm->seq_params.enable_avg_cdf && !cm->seq_params.avg_cdf_type) &&
+          !(cm->features.error_resilient_mode || frame_is_sframe(cm)) &&
+          (ref_frame_used != PRIMARY_REF_NONE)) {
+        av1_avg_cdf_symbols(cm->fc, &cm->bru.update_ref_fc,
+                            AVG_CDF_WEIGHT_PRIMARY, AVG_CDF_WEIGHT_NON_PRIMARY);
+      }
     }
 #endif  // CONFIG_BRU
   }
@@ -4427,7 +4431,8 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   //       for the purpose to verify no mismatch between encoder and decoder.
   if (cm->show_frame) cpi->last_show_frame_buf = cm->cur_frame;
 #if CONFIG_BRU
-  if (cm->seq_params.enable_bru && !cm->bru.enabled) {
+  if (cm->seq_params.enable_bru && !cm->bru.enabled &&
+      cm->current_frame.frame_type == INTER_FRAME) {
     bru_lookahead_buf_refresh(cpi->lookahead,
                               cm->current_frame.refresh_frame_flags,
                               cm->ref_frame_map, ENCODE_STAGE);
@@ -4649,9 +4654,11 @@ int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
 
 #if CONFIG_BRU
   const int order_offset = cpi->gf_group.arf_src_offset[cpi->gf_group.index];
+  const int final_order_hint =
+      (cm->current_frame.frame_number + order_offset) %
+      (1 << (cm->seq_params.order_hint_info.order_hint_bits_minus_1 + 1));
   if (av1_lookahead_push(cpi->lookahead, sd, time_stamp, end_time,
-                         cm->current_frame.frame_number + order_offset,
-                         frame_flags, cpi->alloc_pyramid))
+                         final_order_hint, frame_flags, cpi->alloc_pyramid))
 #else
   if (av1_lookahead_push(cpi->lookahead, sd, time_stamp, end_time, frame_flags,
                          cpi->alloc_pyramid))
@@ -5136,6 +5143,14 @@ void enc_bru_swap_stage(AV1_COMP *cpi) {
       aom_internal_error(&cm->error, AOM_CODEC_ERROR,
                          "Encoder BRU swap stage error");
     } else {
+      // here need to update refresh flag for all the pointer to bru ref
+      int refresh_mask = 0;
+      for (int idx = 0; idx < cpi->common.seq_params.ref_frames; ++idx) {
+        if (cm->ref_frame_map_pairs[idx].disp_order == cm->bru.ref_order) {
+          refresh_mask |= (1 << idx);
+        }
+      }
+      cm->current_frame.refresh_frame_flags |= refresh_mask;
       // add additional assignment for the encoder to avoid issues
       for (int plane = 0; plane < CCSO_NUM_COMPONENTS; plane++) {
         if (cm->bru.frame_inactive_flag) {
