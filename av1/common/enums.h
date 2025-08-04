@@ -29,6 +29,12 @@ extern "C" {
 
 #undef MAX_SB_SIZE
 
+#if CONFIG_DRL_PR_LIM
+#define MAX_PR_NUM 16
+#define MAX_DR_STACK_SIZE 4
+#define MAX_DR_PR_NUM 2
+#endif  // DRL_PR_LIM
+
 #if CONFIG_REDUCE_SYMBOL_SIZE
 // Macros related to joint shell signaling
 #define FIRST_SHELL_CLASS 8

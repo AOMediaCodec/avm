@@ -655,7 +655,12 @@ static AOM_INLINE void fill_mvp_from_derived_smvp(
     const MB_MODE_INFO *mbmi, MV_REFERENCE_FRAME *ref_frame_idx0,
     MV_REFERENCE_FRAME *ref_frame_idx1,
 #endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-    const int max_ref_mv_count) {
+    const int max_ref_mv_count
+#if CONFIG_DRL_PR_LIM
+    ,
+    int *drl_pr_count
+#endif  // CONFIG_DRL_PR_LIM
+) {
   int index = 0;
   int derived_idx = 0;
 
@@ -669,54 +674,102 @@ static AOM_INLINE void fill_mvp_from_derived_smvp(
 #endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 
     for (derived_idx = 0; derived_idx < derived_mv_count; ++derived_idx) {
-      for (index = 0; index < *refmv_count; ++index) {
-        if (ref_mv_stack[index].this_mv.as_int ==
-            derived_mv_stack[derived_idx].this_mv.as_int) {
-          break;
+#if CONFIG_DRL_PR_LIM
+      if (*drl_pr_count < MAX_PR_NUM) {
+#endif  // CONFIG_DRL_PR_LIM
+        for (index = 0; index < *refmv_count; ++index) {
+#if CONFIG_DRL_PR_LIM
+          ++(*drl_pr_count);
+#endif  // CONFIG_DRL_PR_LIM
+          if (ref_mv_stack[index].this_mv.as_int ==
+              derived_mv_stack[derived_idx].this_mv.as_int) {
+            break;
+          }
+        }
+
+        // Add a new item to the list.
+        if (index == *refmv_count && *refmv_count < max_ref_mv_count) {
+          ref_mv_stack[index].this_mv = derived_mv_stack[derived_idx].this_mv;
+          ref_mv_stack[index].row_offset = OFFSET_NONSPATIAL;
+          ref_mv_stack[index].col_offset = OFFSET_NONSPATIAL;
+          ref_mv_stack[index].cwp_idx = derived_mv_stack[derived_idx].cwp_idx;
+          ref_mv_weight[index] = REF_CAT_LEVEL;
+          ++(*refmv_count);
+        }
+#if CONFIG_DRL_PR_LIM
+      } else {
+        if (*refmv_count < max_ref_mv_count) {
+          ref_mv_stack[*refmv_count].this_mv =
+              derived_mv_stack[derived_idx].this_mv;
+          ref_mv_stack[*refmv_count].row_offset = OFFSET_NONSPATIAL;
+          ref_mv_stack[*refmv_count].col_offset = OFFSET_NONSPATIAL;
+          ref_mv_stack[*refmv_count].cwp_idx =
+              derived_mv_stack[derived_idx].cwp_idx;
+          ref_mv_weight[*refmv_count] = REF_CAT_LEVEL;
+          ++(*refmv_count);
         }
       }
-
-      // Add a new item to the list.
-      if (index == *refmv_count && *refmv_count < max_ref_mv_count) {
-        ref_mv_stack[index].this_mv = derived_mv_stack[derived_idx].this_mv;
-        ref_mv_stack[index].row_offset = OFFSET_NONSPATIAL;
-        ref_mv_stack[index].col_offset = OFFSET_NONSPATIAL;
-        ref_mv_stack[index].cwp_idx = derived_mv_stack[derived_idx].cwp_idx;
-        ref_mv_weight[index] = REF_CAT_LEVEL;
-        ++(*refmv_count);
-      }
+#endif  // CONFIG_DRL_PR_LIM
     }
   } else {
     for (derived_idx = 0; derived_idx < derived_mv_count; ++derived_idx) {
-      for (index = 0; index < *refmv_count; ++index) {
-        if ((ref_mv_stack[index].this_mv.as_int ==
-             derived_mv_stack[derived_idx].this_mv.as_int) &&
-            (ref_mv_stack[index].comp_mv.as_int ==
-             derived_mv_stack[derived_idx].comp_mv.as_int)) {
+#if CONFIG_DRL_PR_LIM
+      if (*drl_pr_count < MAX_PR_NUM) {
+#endif  // CONFIG_DRL_PR_LIM
+        for (index = 0; index < *refmv_count; ++index) {
+#if CONFIG_DRL_PR_LIM
+          ++(*drl_pr_count);
+#endif  // CONFIG_DRL_PR_LIM
+          if ((ref_mv_stack[index].this_mv.as_int ==
+               derived_mv_stack[derived_idx].this_mv.as_int) &&
+              (ref_mv_stack[index].comp_mv.as_int ==
+               derived_mv_stack[derived_idx].comp_mv.as_int)) {
 #if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-          if (!mbmi->skip_mode || (ref_frame_idx0[index] == rf[0] &&
-                                   ref_frame_idx1[index] == rf[1]))
+            if (!mbmi->skip_mode || (ref_frame_idx0[index] == rf[0] &&
+                                     ref_frame_idx1[index] == rf[1]))
 #endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-            break;
+              break;
+          }
         }
-      }
 
-      // Add a new item to the list.
-      if (index == *refmv_count && *refmv_count < max_ref_mv_count) {
-        ref_mv_stack[index].this_mv = derived_mv_stack[derived_idx].this_mv;
-        ref_mv_stack[index].comp_mv = derived_mv_stack[derived_idx].comp_mv;
-        ref_mv_stack[index].row_offset = OFFSET_NONSPATIAL;
-        ref_mv_stack[index].col_offset = OFFSET_NONSPATIAL;
-        ref_mv_stack[index].cwp_idx = derived_mv_stack[derived_idx].cwp_idx;
+        // Add a new item to the list.
+        if (index == *refmv_count && *refmv_count < max_ref_mv_count) {
+          ref_mv_stack[index].this_mv = derived_mv_stack[derived_idx].this_mv;
+          ref_mv_stack[index].comp_mv = derived_mv_stack[derived_idx].comp_mv;
+          ref_mv_stack[index].row_offset = OFFSET_NONSPATIAL;
+          ref_mv_stack[index].col_offset = OFFSET_NONSPATIAL;
+          ref_mv_stack[index].cwp_idx = derived_mv_stack[derived_idx].cwp_idx;
 #if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-        if (mbmi->skip_mode) {
-          ref_frame_idx0[index] = rf[0];
-          ref_frame_idx1[index] = rf[1];
-        }
+          if (mbmi->skip_mode) {
+            ref_frame_idx0[index] = rf[0];
+            ref_frame_idx1[index] = rf[1];
+          }
 #endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-        ref_mv_weight[index] = REF_CAT_LEVEL;
-        ++(*refmv_count);
+          ref_mv_weight[index] = REF_CAT_LEVEL;
+          ++(*refmv_count);
+        }
+#if CONFIG_DRL_PR_LIM
+      } else {
+        if (*refmv_count < max_ref_mv_count) {
+          ref_mv_stack[*refmv_count].this_mv =
+              derived_mv_stack[derived_idx].this_mv;
+          ref_mv_stack[*refmv_count].comp_mv =
+              derived_mv_stack[derived_idx].comp_mv;
+          ref_mv_stack[*refmv_count].row_offset = OFFSET_NONSPATIAL;
+          ref_mv_stack[*refmv_count].col_offset = OFFSET_NONSPATIAL;
+          ref_mv_stack[*refmv_count].cwp_idx =
+              derived_mv_stack[derived_idx].cwp_idx;
+#if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+          if (mbmi->skip_mode) {
+            ref_frame_idx0[index] = rf[0];
+            ref_frame_idx1[index] = rf[1];
+          }
+#endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+          ref_mv_weight[*refmv_count] = REF_CAT_LEVEL;
+          ++(*refmv_count);
+        }
       }
+#endif  // CONFIG_DRL_PR_LIM
     }
   }
 }
@@ -728,7 +781,12 @@ static AOM_INLINE void derive_ref_mv_candidate_from_tip_mode(
 #endif  // CONFIG_ACROSS_SCALE_TPL_MVS
     int mi_row_cand, int mi_col_cand, const MB_MODE_INFO *const candidate,
     uint8_t *refmv_count, uint8_t *ref_match_count, uint8_t *newmv_count,
-    CANDIDATE_MV *ref_mv_stack, uint16_t *ref_mv_weight, uint16_t weight) {
+    CANDIDATE_MV *ref_mv_stack, uint16_t *ref_mv_weight, uint16_t weight
+#if CONFIG_DRL_PR_LIM
+    ,
+    int *drl_pr_count
+#endif  // CONFIG_DRL_PR_LIM
+) {
   int index = 0;
 
   const int cand_tpl_row = (mi_row_cand >> TMVP_SHIFT_BITS);
@@ -744,24 +802,43 @@ static AOM_INLINE void derive_ref_mv_candidate_from_tip_mode(
                xd->height << MI_SIZE_LOG2, xd);
 #endif  // CONFIG_ACROSS_SCALE_TPL_MVS
 
-  for (index = 0; index < *refmv_count; ++index) {
-    if ((ref_mv_stack[index].this_mv.as_int == ref_mv[0].as_int) &&
-        (ref_mv_stack[index].comp_mv.as_int == ref_mv[1].as_int)) {
-      ref_mv_weight[index] += weight;
-      break;
+#if CONFIG_DRL_PR_LIM
+  if (*drl_pr_count < MAX_PR_NUM) {
+#endif  // CONFIG_DRL_PR_LIM
+    for (index = 0; index < *refmv_count; ++index) {
+#if CONFIG_DRL_PR_LIM
+      ++(*drl_pr_count);
+#endif  // CONFIG_DRL_PR_LIM
+      if ((ref_mv_stack[index].this_mv.as_int == ref_mv[0].as_int) &&
+          (ref_mv_stack[index].comp_mv.as_int == ref_mv[1].as_int)) {
+        ref_mv_weight[index] += weight;
+        break;
+      }
+    }
+
+    // Add a new item to the list.
+    if (index == *refmv_count && index < MAX_REF_MV_STACK_SIZE) {
+      ref_mv_stack[index].this_mv = ref_mv[0];
+      ref_mv_stack[index].comp_mv = ref_mv[1];
+      ref_mv_weight[index] = weight;
+      ref_mv_stack[index].row_offset = OFFSET_NONSPATIAL;
+      ref_mv_stack[index].col_offset = OFFSET_NONSPATIAL;
+      ref_mv_stack[index].cwp_idx = candidate->cwp_idx;
+      ++(*refmv_count);
+    }
+#if CONFIG_DRL_PR_LIM
+  } else {
+    if (*refmv_count < MAX_REF_MV_STACK_SIZE) {
+      ref_mv_stack[*refmv_count].this_mv = ref_mv[0];
+      ref_mv_stack[*refmv_count].comp_mv = ref_mv[1];
+      ref_mv_weight[*refmv_count] = weight;
+      ref_mv_stack[*refmv_count].row_offset = OFFSET_NONSPATIAL;
+      ref_mv_stack[*refmv_count].col_offset = OFFSET_NONSPATIAL;
+      ref_mv_stack[*refmv_count].cwp_idx = candidate->cwp_idx;
+      ++(*refmv_count);
     }
   }
-
-  // Add a new item to the list.
-  if (index == *refmv_count && index < MAX_REF_MV_STACK_SIZE) {
-    ref_mv_stack[index].this_mv = ref_mv[0];
-    ref_mv_stack[index].comp_mv = ref_mv[1];
-    ref_mv_weight[index] = weight;
-    ref_mv_stack[index].row_offset = OFFSET_NONSPATIAL;
-    ref_mv_stack[index].col_offset = OFFSET_NONSPATIAL;
-    ref_mv_stack[index].cwp_idx = candidate->cwp_idx;
-    ++(*refmv_count);
-  }
+#endif  // CONFIG_DRL_PR_LIM
 
   if (have_newmv_in_inter_mode(candidate->mode)) ++*newmv_count;
   ++*ref_match_count;
@@ -831,7 +908,12 @@ static AOM_INLINE void add_ref_mv_candidate(
 #if CONFIG_ACROSS_SCALE_TPL_MVS
     const MACROBLOCKD *xd,
 #endif  // CONFIG_ACROSS_SCALE_TPL_MVS
-    int row_offset, int col_offset, uint16_t weight) {
+    int row_offset, int col_offset, uint16_t weight
+#if CONFIG_DRL_PR_LIM
+    ,
+    int *drl_pr_count, int *drl_dr_pr_count, int *drl_dr_single_pr_count
+#endif  // CONFIG_DRL_PR_LIM
+) {
   if (!is_inter_block(candidate, SHARED_PART)) return;
 
 #if CONFIG_IBC_SR_EXT
@@ -855,26 +937,45 @@ static AOM_INLINE void add_ref_mv_candidate(
           this_refmv[ref] = get_block_mv(candidate, submi, ref);
       }
 
-      for (index = 0; index < *refmv_count; ++index) {
-        if ((ref_mv_stack[index].this_mv.as_int == this_refmv[0].as_int) &&
-            (ref_mv_stack[index].comp_mv.as_int == this_refmv[1].as_int) &&
-            (ref_frame_idx0[index] == candidate->ref_frame[0]) &&
-            (ref_frame_idx1[index] == candidate->ref_frame[1])) {
-          ref_mv_weight[index] += weight;
-          break;
+#if CONFIG_DRL_PR_LIM
+      if (*drl_pr_count < MAX_PR_NUM) {
+#endif  // CONFIG_DRL_PR_LIM
+        for (index = 0; index < *refmv_count; ++index) {
+#if CONFIG_DRL_PR_LIM
+          ++(*drl_pr_count);
+#endif  // CONFIG_DRL_PR_LIM
+          if ((ref_mv_stack[index].this_mv.as_int == this_refmv[0].as_int) &&
+              (ref_mv_stack[index].comp_mv.as_int == this_refmv[1].as_int) &&
+              (ref_frame_idx0[index] == candidate->ref_frame[0]) &&
+              (ref_frame_idx1[index] == candidate->ref_frame[1])) {
+            ref_mv_weight[index] += weight;
+            break;
+          }
+        }
+
+        // Add a new item to the list.
+        if (index == *refmv_count && *refmv_count < MAX_REF_MV_STACK_SIZE) {
+          ref_mv_stack[index].this_mv = this_refmv[0];
+          ref_mv_stack[index].comp_mv = this_refmv[1];
+          ref_frame_idx0[index] = candidate->ref_frame[0];
+          ref_frame_idx1[index] = candidate->ref_frame[1];
+          ref_mv_stack[index].cwp_idx = candidate->cwp_idx;
+          ref_mv_weight[index] = weight;
+          ++(*refmv_count);
+        }
+#if CONFIG_DRL_PR_LIM
+      } else {
+        if (*refmv_count < MAX_REF_MV_STACK_SIZE) {
+          ref_mv_stack[*refmv_count].this_mv = this_refmv[0];
+          ref_mv_stack[*refmv_count].comp_mv = this_refmv[1];
+          ref_frame_idx0[*refmv_count] = candidate->ref_frame[0];
+          ref_frame_idx1[*refmv_count] = candidate->ref_frame[1];
+          ref_mv_stack[*refmv_count].cwp_idx = candidate->cwp_idx;
+          ref_mv_weight[*refmv_count] = weight;
+          ++(*refmv_count);
         }
       }
-
-      // Add a new item to the list.
-      if (index == *refmv_count && *refmv_count < MAX_REF_MV_STACK_SIZE) {
-        ref_mv_stack[index].this_mv = this_refmv[0];
-        ref_mv_stack[index].comp_mv = this_refmv[1];
-        ref_frame_idx0[index] = candidate->ref_frame[0];
-        ref_frame_idx1[index] = candidate->ref_frame[1];
-        ref_mv_stack[index].cwp_idx = candidate->cwp_idx;
-        ref_mv_weight[index] = weight;
-        ++(*refmv_count);
-      }
+#endif  // CONFIG_DRL_PR_LIM
     } else if (is_inter_ref_frame(candidate->ref_frame[0]) &&
                candidate->ref_frame[1] == NONE_FRAME &&
                !is_tip_ref_frame(candidate->ref_frame[0])) {
@@ -886,25 +987,43 @@ static AOM_INLINE void add_ref_mv_candidate(
         this_refmv = get_block_mv(candidate, submi, 0);
       }
 
-      for (index = 0; index < *refmv_count; ++index) {
-        if (ref_mv_stack[index].this_mv.as_int == this_refmv.as_int &&
-            ref_mv_stack[index].comp_mv.as_int == INVALID_MV &&
-            ref_frame_idx0[index] == candidate->ref_frame[0] &&
-            ref_frame_idx1[index] == candidate->ref_frame[1]) {
-          ref_mv_weight[index] += weight;
-          break;
+#if CONFIG_DRL_PR_LIM
+      if (*drl_pr_count < MAX_PR_NUM) {
+#endif  // CONFIG_DRL_PR_LIM
+        for (index = 0; index < *refmv_count; ++index) {
+#if CONFIG_DRL_PR_LIM
+          ++(*drl_pr_count);
+#endif  // CONFIG_DRL_PR_LIM
+          if (ref_mv_stack[index].this_mv.as_int == this_refmv.as_int &&
+              ref_mv_stack[index].comp_mv.as_int == INVALID_MV &&
+              ref_frame_idx0[index] == candidate->ref_frame[0] &&
+              ref_frame_idx1[index] == candidate->ref_frame[1]) {
+            ref_mv_weight[index] += weight;
+            break;
+          }
+        }
+
+        // Add a new item to the list.
+        if (index == *refmv_count && *refmv_count < MAX_REF_MV_STACK_SIZE) {
+          ref_mv_stack[index].this_mv = this_refmv;
+          ref_mv_stack[index].comp_mv.as_int = INVALID_MV;
+          ref_frame_idx0[index] = candidate->ref_frame[0];
+          ref_frame_idx1[index] = candidate->ref_frame[1];
+          ref_mv_weight[index] = weight;
+          ++(*refmv_count);
+        }
+#if CONFIG_DRL_PR_LIM
+      } else {
+        if (*refmv_count < MAX_REF_MV_STACK_SIZE) {
+          ref_mv_stack[*refmv_count].this_mv = this_refmv;
+          ref_mv_stack[*refmv_count].comp_mv.as_int = INVALID_MV;
+          ref_frame_idx0[*refmv_count] = candidate->ref_frame[0];
+          ref_frame_idx1[*refmv_count] = candidate->ref_frame[1];
+          ref_mv_weight[*refmv_count] = weight;
+          ++(*refmv_count);
         }
       }
-
-      // Add a new item to the list.
-      if (index == *refmv_count && *refmv_count < MAX_REF_MV_STACK_SIZE) {
-        ref_mv_stack[index].this_mv = this_refmv;
-        ref_mv_stack[index].comp_mv.as_int = INVALID_MV;
-        ref_frame_idx0[index] = candidate->ref_frame[0];
-        ref_frame_idx1[index] = candidate->ref_frame[1];
-        ref_mv_weight[index] = weight;
-        ++(*refmv_count);
-      }
+#endif  // CONFIG_DRL_PR_LIM
     }
     return;
   }
@@ -944,22 +1063,40 @@ static AOM_INLINE void add_ref_mv_candidate(
                                    : get_block_mv(candidate, submi, ref);
         }
 
-        for (index = 0; index < *refmv_count; ++index) {
-          if (ref_mv_stack[index].this_mv.as_int == this_refmv.as_int) {
-            ref_mv_weight[index] += weight;
-            break;
+#if CONFIG_DRL_PR_LIM
+        if (*drl_pr_count < MAX_PR_NUM) {
+#endif  // CONFIG_DRL_PR_LIM
+          for (index = 0; index < *refmv_count; ++index) {
+#if CONFIG_DRL_PR_LIM
+            ++(*drl_pr_count);
+#endif  // CONFIG_DRL_PR_LIM
+            if (ref_mv_stack[index].this_mv.as_int == this_refmv.as_int) {
+              ref_mv_weight[index] += weight;
+              break;
+            }
+          }
+
+          // Add a new item to the list.
+          if (index == *refmv_count && *refmv_count < MAX_REF_MV_STACK_SIZE) {
+            ref_mv_stack[index].this_mv = this_refmv;
+            ref_mv_stack[index].row_offset = row_offset;
+            ref_mv_stack[index].col_offset = col_offset;
+            ref_mv_stack[index].cwp_idx = candidate->cwp_idx;
+            ref_mv_weight[index] = weight;
+            ++(*refmv_count);
+          }
+#if CONFIG_DRL_PR_LIM
+        } else {
+          if (*refmv_count < MAX_REF_MV_STACK_SIZE) {
+            ref_mv_stack[*refmv_count].this_mv = this_refmv;
+            ref_mv_stack[*refmv_count].row_offset = row_offset;
+            ref_mv_stack[*refmv_count].col_offset = col_offset;
+            ref_mv_stack[*refmv_count].cwp_idx = candidate->cwp_idx;
+            ref_mv_weight[*refmv_count] = weight;
+            ++(*refmv_count);
           }
         }
-
-        // Add a new item to the list.
-        if (index == *refmv_count && *refmv_count < MAX_REF_MV_STACK_SIZE) {
-          ref_mv_stack[index].this_mv = this_refmv;
-          ref_mv_stack[index].row_offset = row_offset;
-          ref_mv_stack[index].col_offset = col_offset;
-          ref_mv_stack[index].cwp_idx = candidate->cwp_idx;
-          ref_mv_weight[index] = weight;
-          ++(*refmv_count);
-        }
+#endif  // CONFIG_DRL_PR_LIM
         if (ref == 0) {
           if (is_inter_mode(candidate->mode) &&
               compound_ref0_mode(candidate->mode) == NEWMV)
@@ -976,22 +1113,40 @@ static AOM_INLINE void add_ref_mv_candidate(
       } else if (cand_tip_ref_frames[ref] == rf[0]) {
         int_mv this_refmv = cand_tip_mvs[ref];
 
-        for (index = 0; index < *refmv_count; ++index) {
-          if (ref_mv_stack[index].this_mv.as_int == this_refmv.as_int) {
-            ref_mv_weight[index] += weight;
-            break;
+#if CONFIG_DRL_PR_LIM
+        if (*drl_pr_count < MAX_PR_NUM) {
+#endif  // CONFIG_DRL_PR_LIM
+          for (index = 0; index < *refmv_count; ++index) {
+#if CONFIG_DRL_PR_LIM
+            ++(*drl_pr_count);
+#endif  // CONFIG_DRL_PR_LIM
+            if (ref_mv_stack[index].this_mv.as_int == this_refmv.as_int) {
+              ref_mv_weight[index] += weight;
+              break;
+            }
+          }
+
+          // Add a new item to the list.
+          if (index == *refmv_count && *refmv_count < MAX_REF_MV_STACK_SIZE) {
+            ref_mv_stack[index].this_mv = this_refmv;
+            ref_mv_stack[index].row_offset = row_offset;
+            ref_mv_stack[index].col_offset = col_offset;
+            ref_mv_stack[index].cwp_idx = candidate->cwp_idx;
+            ref_mv_weight[index] = weight;
+            ++(*refmv_count);
+          }
+#if CONFIG_DRL_PR_LIM
+        } else {
+          if (*refmv_count < MAX_REF_MV_STACK_SIZE) {
+            ref_mv_stack[*refmv_count].this_mv = this_refmv;
+            ref_mv_stack[*refmv_count].row_offset = row_offset;
+            ref_mv_stack[*refmv_count].col_offset = col_offset;
+            ref_mv_stack[*refmv_count].cwp_idx = candidate->cwp_idx;
+            ref_mv_weight[*refmv_count] = weight;
+            ++(*refmv_count);
           }
         }
-
-        // Add a new item to the list.
-        if (index == *refmv_count && *refmv_count < MAX_REF_MV_STACK_SIZE) {
-          ref_mv_stack[index].this_mv = this_refmv;
-          ref_mv_stack[index].row_offset = row_offset;
-          ref_mv_stack[index].col_offset = col_offset;
-          ref_mv_stack[index].cwp_idx = candidate->cwp_idx;
-          ref_mv_weight[index] = weight;
-          ++(*refmv_count);
-        }
+#endif  // CONFIG_DRL_PR_LIM
         if (have_newmv_in_inter_mode(candidate->mode)) ++*newmv_count;
         ++*ref_match_count;
       } else if (add_more_mvs && ref == 0 && is_tip_ref_frame(rf[0]) &&
@@ -1025,20 +1180,47 @@ static AOM_INLINE void add_ref_mv_candidate(
         derived_mv.as_mv.col =
             clamp(derived_mv.as_mv.col, clamp_min, clamp_max);
 
-        for (index = 0; index < *derived_mv_count; ++index) {
-          if (derived_mv_stack[index].this_mv.as_int == derived_mv.as_int) {
-            derived_mv_weight[index] += weight;
-            break;
+#if CONFIG_DRL_PR_LIM
+        if (*drl_dr_pr_count < MAX_DR_PR_NUM) {
+#endif  // CONFIG_DRL_PR_LIM
+          for (index = 0; index < *derived_mv_count; ++index) {
+#if CONFIG_DRL_PR_LIM
+            ++(*drl_dr_pr_count);
+#endif  // CONFIG_DRL_PR_LIM
+            if (derived_mv_stack[index].this_mv.as_int == derived_mv.as_int) {
+              derived_mv_weight[index] += weight;
+              break;
+            }
+          }
+          // Add a new item to the list.
+          if (index == *derived_mv_count &&
+#if MAX_DR_STACK_SIZE
+              *derived_mv_count < MAX_DR_STACK_SIZE
+#else
+            *derived_mv_count < MAX_REF_MV_STACK_SIZE
+#endif
+          ) {
+            derived_mv_stack[index].this_mv = derived_mv;
+            derived_mv_weight[index] = weight;
+            derived_mv_stack[index].cwp_idx = candidate->cwp_idx;
+            ++(*derived_mv_count);
+          }
+#if CONFIG_DRL_PR_LIM
+        } else {
+          if (
+#if MAX_DR_STACK_SIZE
+              *derived_mv_count < MAX_DR_STACK_SIZE
+#else
+              *derived_mv_count < MAX_REF_MV_STACK_SIZE
+#endif
+          ) {
+            derived_mv_stack[*derived_mv_count].this_mv = derived_mv;
+            derived_mv_weight[*derived_mv_count] = weight;
+            derived_mv_stack[*derived_mv_count].cwp_idx = candidate->cwp_idx;
+            ++(*derived_mv_count);
           }
         }
-        // Add a new item to the list.
-        if (index == *derived_mv_count &&
-            *derived_mv_count < MAX_REF_MV_STACK_SIZE) {
-          derived_mv_stack[index].this_mv = derived_mv;
-          derived_mv_weight[index] = weight;
-          derived_mv_stack[index].cwp_idx = candidate->cwp_idx;
-          ++(*derived_mv_count);
-        }
+#endif  // CONFIG_DRL_PR_LIM
       } else if (add_more_mvs &&
                  (is_inter_ref_frame(candidate->ref_frame[ref]) ||
                   is_tip_ref_frame(candidate->ref_frame[0])) &&
@@ -1084,20 +1266,47 @@ static AOM_INLINE void add_ref_mv_candidate(
                   (mv_traj_cur_ref.as_mv.col - mv_traj_cand_ref.as_mv.col),
               clamp_min, clamp_max);
 
-          for (index = 0; index < *derived_mv_count; ++index) {
-            if (derived_mv_stack[index].this_mv.as_int == derived_mv.as_int) {
-              derived_mv_weight[index] += weight;
-              break;
+#if CONFIG_DRL_PR_LIM
+          if (*drl_dr_pr_count < MAX_DR_PR_NUM) {
+#endif  // CONFIG_DRL_PR_LIM
+            for (index = 0; index < *derived_mv_count; ++index) {
+#if CONFIG_DRL_PR_LIM
+              ++(*drl_dr_pr_count);
+#endif  // CONFIG_DRL_PR_LIM
+              if (derived_mv_stack[index].this_mv.as_int == derived_mv.as_int) {
+                derived_mv_weight[index] += weight;
+                break;
+              }
+            }
+            // Add a new item to the list.
+            if (index == *derived_mv_count &&
+#if MAX_DR_STACK_SIZE
+                *derived_mv_count < MAX_DR_STACK_SIZE
+#else
+              *derived_mv_count < MAX_REF_MV_STACK_SIZE
+#endif
+            ) {
+              derived_mv_stack[index].this_mv = derived_mv;
+              derived_mv_weight[index] = weight;
+              derived_mv_stack[index].cwp_idx = candidate->cwp_idx;
+              ++(*derived_mv_count);
+            }
+#if CONFIG_DRL_PR_LIM
+          } else {
+            if (
+#if MAX_DR_STACK_SIZE
+                *derived_mv_count < MAX_DR_STACK_SIZE
+#else
+                *derived_mv_count < MAX_REF_MV_STACK_SIZE
+#endif
+            ) {
+              derived_mv_stack[*derived_mv_count].this_mv = derived_mv;
+              derived_mv_weight[*derived_mv_count] = weight;
+              derived_mv_stack[*derived_mv_count].cwp_idx = candidate->cwp_idx;
+              ++(*derived_mv_count);
             }
           }
-          // Add a new item to the list.
-          if (index == *derived_mv_count &&
-              *derived_mv_count < MAX_REF_MV_STACK_SIZE) {
-            derived_mv_stack[index].this_mv = derived_mv;
-            derived_mv_weight[index] = weight;
-            derived_mv_stack[index].cwp_idx = candidate->cwp_idx;
-            ++(*derived_mv_count);
-          }
+#endif  // CONFIG_DRL_PR_LIM
         } else {
 #endif  // CONFIG_MV_TRAJECTORY
           const int cur_blk_ref_side = cm->ref_frame_side[rf[0]];
@@ -1116,21 +1325,50 @@ static AOM_INLINE void add_ref_mv_candidate(
             get_mv_projection(&this_refmv.as_mv, cand_refmv.as_mv,
                               cur_to_ref_dist, cand_to_ref_dist);
 
-            for (index = 0; index < *derived_mv_count; ++index) {
-              if (derived_mv_stack[index].this_mv.as_int == this_refmv.as_int) {
-                derived_mv_weight[index] += weight;
-                break;
+#if CONFIG_DRL_PR_LIM
+            if (*drl_dr_pr_count < MAX_DR_PR_NUM) {
+#endif  // CONFIG_DRL_PR_LIM
+              for (index = 0; index < *derived_mv_count; ++index) {
+#if CONFIG_DRL_PR_LIM
+                ++(*drl_dr_pr_count);
+#endif  // CONFIG_DRL_PR_LIM
+                if (derived_mv_stack[index].this_mv.as_int ==
+                    this_refmv.as_int) {
+                  derived_mv_weight[index] += weight;
+                  break;
+                }
+              }
+
+              // Add a new item to the list.
+              if (index == *derived_mv_count &&
+#if MAX_DR_STACK_SIZE
+                  *derived_mv_count < MAX_DR_STACK_SIZE
+#else
+              *derived_mv_count < MAX_REF_MV_STACK_SIZE
+#endif
+              ) {
+                derived_mv_stack[index].this_mv = this_refmv;
+                derived_mv_weight[index] = weight;
+                derived_mv_stack[index].cwp_idx = candidate->cwp_idx;
+                ++(*derived_mv_count);
+              }
+#if CONFIG_DRL_PR_LIM
+            } else {
+              if (
+#if MAX_DR_STACK_SIZE
+                  *derived_mv_count < MAX_DR_STACK_SIZE
+#else
+                  *derived_mv_count < MAX_REF_MV_STACK_SIZE
+#endif
+              ) {
+                derived_mv_stack[*derived_mv_count].this_mv = this_refmv;
+                derived_mv_weight[*derived_mv_count] = weight;
+                derived_mv_stack[*derived_mv_count].cwp_idx =
+                    candidate->cwp_idx;
+                ++(*derived_mv_count);
               }
             }
-
-            // Add a new item to the list.
-            if (index == *derived_mv_count &&
-                *derived_mv_count < MAX_REF_MV_STACK_SIZE) {
-              derived_mv_stack[index].this_mv = this_refmv;
-              derived_mv_weight[index] = weight;
-              derived_mv_stack[index].cwp_idx = candidate->cwp_idx;
-              ++(*derived_mv_count);
-            }
+#endif  // CONFIG_DRL_PR_LIM
           }
 #if CONFIG_MV_TRAJECTORY
         }
@@ -1149,7 +1387,12 @@ static AOM_INLINE void add_ref_mv_candidate(
 #endif  // CONFIG_ACROSS_SCALE_TPL_MVS
 
           mi_row_cand, mi_col_cand, candidate, refmv_count, ref_match_count,
-          newmv_count, ref_mv_stack, ref_mv_weight, weight);
+          newmv_count, ref_mv_stack, ref_mv_weight, weight
+#if CONFIG_DRL_PR_LIM
+          ,
+          drl_pr_count
+#endif  // CONFIG_DRL_PR_LIM
+      );
     } else {
       // compound reference frame
       if (candidate->ref_frame[0] == rf[0] &&
@@ -1167,24 +1410,43 @@ static AOM_INLINE void add_ref_mv_candidate(
             this_refmv[ref] = get_block_mv(candidate, submi, ref);
         }
 
-        for (index = 0; index < *refmv_count; ++index) {
-          if ((ref_mv_stack[index].this_mv.as_int == this_refmv[0].as_int) &&
-              (ref_mv_stack[index].comp_mv.as_int == this_refmv[1].as_int)) {
-            ref_mv_weight[index] += weight;
-            break;
+#if CONFIG_DRL_PR_LIM
+        if (*drl_pr_count < MAX_PR_NUM) {
+#endif  // CONFIG_DRL_PR_LIM
+          for (index = 0; index < *refmv_count; ++index) {
+#if CONFIG_DRL_PR_LIM
+            ++(*drl_pr_count);
+#endif  // CONFIG_DRL_PR_LIM
+            if ((ref_mv_stack[index].this_mv.as_int == this_refmv[0].as_int) &&
+                (ref_mv_stack[index].comp_mv.as_int == this_refmv[1].as_int)) {
+              ref_mv_weight[index] += weight;
+              break;
+            }
+          }
+
+          // Add a new item to the list.
+          if (index == *refmv_count && *refmv_count < MAX_REF_MV_STACK_SIZE) {
+            ref_mv_stack[index].this_mv = this_refmv[0];
+            ref_mv_stack[index].comp_mv = this_refmv[1];
+            ref_mv_weight[index] = weight;
+            ref_mv_stack[index].row_offset = OFFSET_NONSPATIAL;
+            ref_mv_stack[index].col_offset = OFFSET_NONSPATIAL;
+            ref_mv_stack[index].cwp_idx = candidate->cwp_idx;
+            ++(*refmv_count);
+          }
+#if CONFIG_DRL_PR_LIM
+        } else {
+          if (*refmv_count < MAX_REF_MV_STACK_SIZE) {
+            ref_mv_stack[*refmv_count].this_mv = this_refmv[0];
+            ref_mv_stack[*refmv_count].comp_mv = this_refmv[1];
+            ref_mv_weight[*refmv_count] = weight;
+            ref_mv_stack[*refmv_count].row_offset = OFFSET_NONSPATIAL;
+            ref_mv_stack[*refmv_count].col_offset = OFFSET_NONSPATIAL;
+            ref_mv_stack[*refmv_count].cwp_idx = candidate->cwp_idx;
+            ++(*refmv_count);
           }
         }
-
-        // Add a new item to the list.
-        if (index == *refmv_count && *refmv_count < MAX_REF_MV_STACK_SIZE) {
-          ref_mv_stack[index].this_mv = this_refmv[0];
-          ref_mv_stack[index].comp_mv = this_refmv[1];
-          ref_mv_weight[index] = weight;
-          ref_mv_stack[index].row_offset = OFFSET_NONSPATIAL;
-          ref_mv_stack[index].col_offset = OFFSET_NONSPATIAL;
-          ref_mv_stack[index].cwp_idx = candidate->cwp_idx;
-          ++(*refmv_count);
-        }
+#endif  // CONFIG_DRL_PR_LIM
         if (have_newmv_in_inter_mode(candidate->mode)) ++*newmv_count;
         ++*ref_match_count;
       } else if (add_more_mvs) {
@@ -1239,26 +1501,54 @@ static AOM_INLINE void add_ref_mv_candidate(
                 cand_refmv.as_mv.col +
                     (mv_traj_cur_ref1.as_mv.col - mv_traj_cand_ref.as_mv.col),
                 clamp_min, clamp_max);
+#if CONFIG_DRL_PR_LIM
+            if (*drl_dr_pr_count < MAX_DR_PR_NUM) {
+#endif  // CONFIG_DRL_PR_LIM
+              for (index = 0; index < *derived_mv_count; ++index) {
+#if CONFIG_DRL_PR_LIM
+                ++(*drl_dr_pr_count);
+#endif  // CONFIG_DRL_PR_LIM
+                if ((derived_mv_stack[index].this_mv.as_int ==
+                     this_refmv[0].as_int) &&
+                    (derived_mv_stack[index].comp_mv.as_int ==
+                     this_refmv[1].as_int)) {
+                  derived_mv_weight[index] += weight;
+                  break;
+                }
+              }
 
-            for (index = 0; index < *derived_mv_count; ++index) {
-              if ((derived_mv_stack[index].this_mv.as_int ==
-                   this_refmv[0].as_int) &&
-                  (derived_mv_stack[index].comp_mv.as_int ==
-                   this_refmv[1].as_int)) {
-                derived_mv_weight[index] += weight;
-                break;
+              // Add a new item to the list.
+              if (index == *derived_mv_count &&
+#if MAX_DR_STACK_SIZE
+                  *derived_mv_count < MAX_DR_STACK_SIZE
+#else
+                *derived_mv_count < MAX_REF_MV_STACK_SIZE
+#endif
+              ) {
+                derived_mv_stack[index].this_mv = this_refmv[0];
+                derived_mv_stack[index].comp_mv = this_refmv[1];
+                derived_mv_weight[index] = weight;
+                derived_mv_stack[index].cwp_idx = candidate->cwp_idx;
+                ++(*derived_mv_count);
+              }
+#if CONFIG_DRL_PR_LIM
+            } else {
+              if (
+#if MAX_DR_STACK_SIZE
+                  *derived_mv_count < MAX_DR_STACK_SIZE
+#else
+                  *derived_mv_count < MAX_REF_MV_STACK_SIZE
+#endif
+              ) {
+                derived_mv_stack[*derived_mv_count].this_mv = this_refmv[0];
+                derived_mv_stack[*derived_mv_count].comp_mv = this_refmv[1];
+                derived_mv_weight[*derived_mv_count] = weight;
+                derived_mv_stack[*derived_mv_count].cwp_idx =
+                    candidate->cwp_idx;
+                ++(*derived_mv_count);
               }
             }
-
-            // Add a new item to the list.
-            if (index == *derived_mv_count &&
-                *derived_mv_count < MAX_REF_MV_STACK_SIZE) {
-              derived_mv_stack[index].this_mv = this_refmv[0];
-              derived_mv_stack[index].comp_mv = this_refmv[1];
-              derived_mv_weight[index] = weight;
-              derived_mv_stack[index].cwp_idx = candidate->cwp_idx;
-              ++(*derived_mv_count);
-            }
+#endif  // CONFIG_DRL_PR_LIM
           }
         }
 #endif  // CONFIG_MV_TRAJECTORY
@@ -1299,43 +1589,99 @@ static AOM_INLINE void add_ref_mv_candidate(
 
           // Add a new item to the list.
           if (cand_idx < *single_mv_count) {
-            for (index = 0; index < *derived_mv_count; ++index) {
-              if ((derived_mv_stack[index].this_mv.as_int ==
-                   this_refmv[0].as_int) &&
-                  (derived_mv_stack[index].comp_mv.as_int ==
-                   this_refmv[1].as_int)) {
-                derived_mv_weight[index] += weight;
+#if CONFIG_DRL_PR_LIM
+            if (*drl_dr_pr_count < MAX_DR_PR_NUM) {
+#endif  // CONFIG_DRL_PR_LIM
+              for (index = 0; index < *derived_mv_count; ++index) {
+#if CONFIG_DRL_PR_LIM
+                ++(*drl_dr_pr_count);
+#endif  // CONFIG_DRL_PR_LIM
+                if ((derived_mv_stack[index].this_mv.as_int ==
+                     this_refmv[0].as_int) &&
+                    (derived_mv_stack[index].comp_mv.as_int ==
+                     this_refmv[1].as_int)) {
+                  derived_mv_weight[index] += weight;
+                  break;
+                }
+              }
+
+              // Add a new item to the list.
+              if (index == *derived_mv_count &&
+#if MAX_DR_STACK_SIZE
+                  *derived_mv_count < MAX_DR_STACK_SIZE
+#else
+                *derived_mv_count < MAX_REF_MV_STACK_SIZE
+#endif
+              ) {
+                derived_mv_stack[index].this_mv = this_refmv[0];
+                derived_mv_stack[index].comp_mv = this_refmv[1];
+                derived_mv_weight[index] = weight;
+                derived_mv_stack[index].cwp_idx = candidate->cwp_idx;
+                ++(*derived_mv_count);
+              }
+#if CONFIG_DRL_PR_LIM
+            } else {
+              if (
+#if MAX_DR_STACK_SIZE
+                  *derived_mv_count < MAX_DR_STACK_SIZE
+#else
+                  *derived_mv_count < MAX_REF_MV_STACK_SIZE
+#endif
+              ) {
+                derived_mv_stack[*derived_mv_count].this_mv = this_refmv[0];
+                derived_mv_stack[*derived_mv_count].comp_mv = this_refmv[1];
+                derived_mv_weight[*derived_mv_count] = weight;
+                derived_mv_stack[*derived_mv_count].cwp_idx =
+                    candidate->cwp_idx;
+                ++(*derived_mv_count);
+              }
+            }
+#endif  // CONFIG_DRL_PR_LIM
+          }
+
+          // Add the candidate to single MV stack
+#if CONFIG_DRL_PR_LIM
+          if (*drl_dr_single_pr_count < MAX_DR_PR_NUM) {
+#endif  // CONFIG_DRL_PR_LIM
+            for (cand_idx = 0; cand_idx < *single_mv_count; ++cand_idx) {
+#if CONFIG_DRL_PR_LIM
+              ++(*drl_dr_single_pr_count);
+#endif  // CONFIG_DRL_PR_LIM
+              if (single_mv[cand_idx].ref_frame == rf[candidate_ref_idx0] &&
+                  (single_mv[cand_idx].mv.as_int ==
+                   this_refmv[candidate_ref_idx0].as_int)) {
                 break;
               }
             }
 
-            // Add a new item to the list.
-            if (index == *derived_mv_count &&
-                *derived_mv_count < MAX_REF_MV_STACK_SIZE) {
-              derived_mv_stack[index].this_mv = this_refmv[0];
-              derived_mv_stack[index].comp_mv = this_refmv[1];
-              derived_mv_weight[index] = weight;
-              derived_mv_stack[index].cwp_idx = candidate->cwp_idx;
-              ++(*derived_mv_count);
+            if (cand_idx == *single_mv_count &&
+#if MAX_DR_STACK_SIZE
+                *single_mv_count < MAX_DR_STACK_SIZE
+#else
+              *single_mv_count < MAX_REF_MV_STACK_SIZE
+#endif
+            ) {
+              single_mv[cand_idx].mv.as_int =
+                  this_refmv[candidate_ref_idx0].as_int;
+              single_mv[cand_idx].ref_frame = rf[candidate_ref_idx0];
+              ++(*single_mv_count);
+            }
+#if CONFIG_DRL_PR_LIM
+          } else {
+            if (
+#if MAX_DR_STACK_SIZE
+                *single_mv_count < MAX_DR_STACK_SIZE
+#else
+                *single_mv_count < MAX_REF_MV_STACK_SIZE
+#endif
+            ) {
+              single_mv[*single_mv_count].mv.as_int =
+                  this_refmv[candidate_ref_idx0].as_int;
+              single_mv[*single_mv_count].ref_frame = rf[candidate_ref_idx0];
+              ++(*single_mv_count);
             }
           }
-
-          // Add the candidate to single MV stack
-          for (cand_idx = 0; cand_idx < *single_mv_count; ++cand_idx) {
-            if (single_mv[cand_idx].ref_frame == rf[candidate_ref_idx0] &&
-                (single_mv[cand_idx].mv.as_int ==
-                 this_refmv[candidate_ref_idx0].as_int)) {
-              break;
-            }
-          }
-
-          if (cand_idx == *single_mv_count &&
-              *single_mv_count < MAX_REF_MV_STACK_SIZE) {
-            single_mv[cand_idx].mv.as_int =
-                this_refmv[candidate_ref_idx0].as_int;
-            single_mv[cand_idx].ref_frame = rf[candidate_ref_idx0];
-            ++(*single_mv_count);
-          }
+#endif  // CONFIG_DRL_PR_LIM
         }
       }
     }
@@ -1492,7 +1838,12 @@ static AOM_INLINE void scan_blk_mbmi(
     uint8_t *derived_mv_count,
     WARP_CANDIDATE warp_param_stack[MAX_WARP_REF_CANDIDATES],
     int max_num_of_warp_candidates, uint8_t *valid_num_warp_candidates,
-    MV_REFERENCE_FRAME ref_frame, uint8_t *refmv_count) {
+    MV_REFERENCE_FRAME ref_frame, uint8_t *refmv_count
+#if CONFIG_DRL_PR_LIM
+    ,
+    int *drl_pr_count, int *drl_dr_pr_count, int *drl_dr_single_pr_count
+#endif  // CONFIG_DRL_PR_LIM
+) {
 
   const TileInfo *const tile = &xd->tile;
   POSITION mi_pos;
@@ -1543,7 +1894,12 @@ static AOM_INLINE void scan_blk_mbmi(
 #if CONFIG_ACROSS_SCALE_TPL_MVS
                          xd,
 #endif  // CONFIG_ACROSS_SCALE_TPL_MVS
-                         row_offset, col_offset, weight);
+                         row_offset, col_offset, weight
+#if CONFIG_DRL_PR_LIM
+                         ,
+                         drl_pr_count, drl_dr_pr_count, drl_dr_single_pr_count
+#endif  // CONFIG_DRL_PR_LIM
+    );
   }  // Analyze a single 8x8 block motion information.
 }
 
@@ -1648,6 +2004,10 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                           ,
                           int16_t *mode_context
 #endif  // !CONFIG_C076_INTER_MOD_CTX
+#if CONFIG_DRL_PR_LIM
+                          ,
+                          int *drl_pr_count
+#endif  // CONFIG_DRL_PR_LIM
 ) {
   if (*refmv_count >= MAX_REF_MV_STACK_SIZE) return 0;
 
@@ -1750,20 +2110,40 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
     assert(!xd->mi[0]->skip_mode);
 #endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 
-    for (idx = 0; idx < *refmv_count; ++idx)
-      if (this_refmv.as_int == ref_mv_stack[idx].this_mv.as_int) break;
+#if CONFIG_DRL_PR_LIM
+    if (*drl_pr_count < MAX_PR_NUM) {
+#endif  // CONFIG_DRL_PR_LIM
+      for (idx = 0; idx < *refmv_count; ++idx) {
+#if CONFIG_DRL_PR_LIM
+        ++(*drl_pr_count);
+#endif  // CONFIG_DRL_PR_LIM
+        if (this_refmv.as_int == ref_mv_stack[idx].this_mv.as_int) break;
+      }
 
-    if (idx < *refmv_count) ref_mv_weight[idx] += weight;
+      if (idx < *refmv_count) ref_mv_weight[idx] += weight;
 
-    if (idx == *refmv_count && *refmv_count < MAX_REF_MV_STACK_SIZE) {
-      ref_mv_stack[idx].this_mv.as_int = this_refmv.as_int;
-      ref_mv_stack[idx].row_offset = OFFSET_NONSPATIAL;
-      ref_mv_stack[idx].col_offset = OFFSET_NONSPATIAL;
-      ref_mv_stack[idx].cwp_idx = CWP_EQUAL;
-      ref_mv_weight[idx] = weight;
-      ++(*refmv_count);
-      ++(*added_tmvp_cnt);
+      if (idx == *refmv_count && *refmv_count < MAX_REF_MV_STACK_SIZE) {
+        ref_mv_stack[idx].this_mv.as_int = this_refmv.as_int;
+        ref_mv_stack[idx].row_offset = OFFSET_NONSPATIAL;
+        ref_mv_stack[idx].col_offset = OFFSET_NONSPATIAL;
+        ref_mv_stack[idx].cwp_idx = CWP_EQUAL;
+        ref_mv_weight[idx] = weight;
+        ++(*refmv_count);
+        ++(*added_tmvp_cnt);
+      }
+#if CONFIG_DRL_PR_LIM
+    } else {
+      if (*refmv_count < MAX_REF_MV_STACK_SIZE) {
+        ref_mv_stack[*refmv_count].this_mv.as_int = this_refmv.as_int;
+        ref_mv_stack[*refmv_count].row_offset = OFFSET_NONSPATIAL;
+        ref_mv_stack[*refmv_count].col_offset = OFFSET_NONSPATIAL;
+        ref_mv_stack[*refmv_count].cwp_idx = CWP_EQUAL;
+        ref_mv_weight[*refmv_count] = weight;
+        ++(*refmv_count);
+        ++(*added_tmvp_cnt);
+      }
     }
+#endif  // CONFIG_DRL_PR_LIM
   } else {
     // Process compound inter mode
     int_mv comp_refmv;
@@ -1808,45 +2188,85 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 
 #if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
     if (xd->mi[0]->skip_mode) {
-      for (idx = 0; idx < *refmv_count; ++idx) {
-        if (this_refmv.as_int == ref_mv_stack[idx].this_mv.as_int &&
-            comp_refmv.as_int == ref_mv_stack[idx].comp_mv.as_int &&
-            ref_frame_idx0[idx] == rf[0] && ref_frame_idx1[idx] == rf[1])
-          break;
-      }
+#if CONFIG_DRL_PR_LIM
+      if (*drl_pr_count < MAX_PR_NUM) {
+#endif  // CONFIG_DRL_PR_LIM
+        for (idx = 0; idx < *refmv_count; ++idx) {
+#if CONFIG_DRL_PR_LIM
+          ++(*drl_pr_count);
+#endif  // CONFIG_DRL_PR_LIM
+          if (this_refmv.as_int == ref_mv_stack[idx].this_mv.as_int &&
+              comp_refmv.as_int == ref_mv_stack[idx].comp_mv.as_int &&
+              ref_frame_idx0[idx] == rf[0] && ref_frame_idx1[idx] == rf[1])
+            break;
+        }
 
-      if (idx < *refmv_count) ref_mv_weight[idx] += weight;
+        if (idx < *refmv_count) ref_mv_weight[idx] += weight;
 
-      if (idx == *refmv_count && *refmv_count < MAX_REF_MV_STACK_SIZE) {
-        ref_mv_stack[idx].this_mv.as_int = this_refmv.as_int;
-        ref_mv_stack[idx].comp_mv.as_int = comp_refmv.as_int;
-        ref_mv_stack[idx].cwp_idx = CWP_EQUAL;
-        ref_frame_idx0[idx] = rf[0];
-        ref_frame_idx1[idx] = rf[1];
-        ref_mv_weight[idx] = weight;
-        ++(*refmv_count);
-        ++(*added_tmvp_cnt);
+        if (idx == *refmv_count && *refmv_count < MAX_REF_MV_STACK_SIZE) {
+          ref_mv_stack[idx].this_mv.as_int = this_refmv.as_int;
+          ref_mv_stack[idx].comp_mv.as_int = comp_refmv.as_int;
+          ref_mv_stack[idx].cwp_idx = CWP_EQUAL;
+          ref_frame_idx0[idx] = rf[0];
+          ref_frame_idx1[idx] = rf[1];
+          ref_mv_weight[idx] = weight;
+          ++(*refmv_count);
+          ++(*added_tmvp_cnt);
+        }
+#if CONFIG_DRL_PR_LIM
+      } else {
+        if (*refmv_count < MAX_REF_MV_STACK_SIZE) {
+          ref_mv_stack[*refmv_count].this_mv.as_int = this_refmv.as_int;
+          ref_mv_stack[*refmv_count].comp_mv.as_int = comp_refmv.as_int;
+          ref_mv_stack[*refmv_count].cwp_idx = CWP_EQUAL;
+          ref_frame_idx0[*refmv_count] = rf[0];
+          ref_frame_idx1[*refmv_count] = rf[1];
+          ref_mv_weight[*refmv_count] = weight;
+          ++(*refmv_count);
+          ++(*added_tmvp_cnt);
+        }
       }
+#endif  // CONFIG_DRL_PR_LIM
     } else {
 #endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-      for (idx = 0; idx < *refmv_count; ++idx) {
-        if (this_refmv.as_int == ref_mv_stack[idx].this_mv.as_int &&
-            comp_refmv.as_int == ref_mv_stack[idx].comp_mv.as_int)
-          break;
-      }
+#if CONFIG_DRL_PR_LIM
+      if (*drl_pr_count < MAX_PR_NUM) {
+#endif  // CONFIG_DRL_PR_LIM
+        for (idx = 0; idx < *refmv_count; ++idx) {
+#if CONFIG_DRL_PR_LIM
+          ++(*drl_pr_count);
+#endif  // CONFIG_DRL_PR_LIM
+          if (this_refmv.as_int == ref_mv_stack[idx].this_mv.as_int &&
+              comp_refmv.as_int == ref_mv_stack[idx].comp_mv.as_int)
+            break;
+        }
 
-      if (idx < *refmv_count) ref_mv_weight[idx] += weight;
+        if (idx < *refmv_count) ref_mv_weight[idx] += weight;
 
-      if (idx == *refmv_count && *refmv_count < MAX_REF_MV_STACK_SIZE) {
-        ref_mv_stack[idx].this_mv.as_int = this_refmv.as_int;
-        ref_mv_stack[idx].comp_mv.as_int = comp_refmv.as_int;
-        ref_mv_stack[idx].row_offset = OFFSET_NONSPATIAL;
-        ref_mv_stack[idx].col_offset = OFFSET_NONSPATIAL;
-        ref_mv_stack[idx].cwp_idx = CWP_EQUAL;
-        ref_mv_weight[idx] = weight;
-        ++(*refmv_count);
-        ++(*added_tmvp_cnt);
+        if (idx == *refmv_count && *refmv_count < MAX_REF_MV_STACK_SIZE) {
+          ref_mv_stack[idx].this_mv.as_int = this_refmv.as_int;
+          ref_mv_stack[idx].comp_mv.as_int = comp_refmv.as_int;
+          ref_mv_stack[idx].row_offset = OFFSET_NONSPATIAL;
+          ref_mv_stack[idx].col_offset = OFFSET_NONSPATIAL;
+          ref_mv_stack[idx].cwp_idx = CWP_EQUAL;
+          ref_mv_weight[idx] = weight;
+          ++(*refmv_count);
+          ++(*added_tmvp_cnt);
+        }
+#if CONFIG_DRL_PR_LIM
+      } else {
+        if (*refmv_count < MAX_REF_MV_STACK_SIZE) {
+          ref_mv_stack[*refmv_count].this_mv.as_int = this_refmv.as_int;
+          ref_mv_stack[*refmv_count].comp_mv.as_int = comp_refmv.as_int;
+          ref_mv_stack[*refmv_count].row_offset = OFFSET_NONSPATIAL;
+          ref_mv_stack[*refmv_count].col_offset = OFFSET_NONSPATIAL;
+          ref_mv_stack[*refmv_count].cwp_idx = CWP_EQUAL;
+          ref_mv_weight[*refmv_count] = weight;
+          ++(*refmv_count);
+          ++(*added_tmvp_cnt);
+        }
       }
+#endif  // CONFIG_DRL_PR_LIM
 #if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
     }
 #endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
@@ -1892,15 +2312,29 @@ static AOM_INLINE int get_rmb_list_index(const MV_REFERENCE_FRAME ref_frame) {
 static AOM_INLINE bool check_rmb_cand(
     CANDIDATE_MV cand_mv, CANDIDATE_MV *ref_mv_stack, uint16_t *ref_mv_weight,
     uint8_t *refmv_count, int is_comp, int mi_row, int mi_col, int block_width,
-    int block_height, int frame_width, int frame_height) {
+    int block_height, int frame_width, int frame_height
+#if CONFIG_DRL_PR_LIM
+    ,
+    int *drl_pr_count
+#endif  // CONFIG_DRL_PR_LIM
+) {
   // Check if the MV candidate is already existing in the ref MV stack.
-  for (int i = 0; i < *refmv_count; ++i) {
-    if (ref_mv_stack[i].this_mv.as_int == cand_mv.this_mv.as_int &&
-        (!is_comp ||
-         ref_mv_stack[i].comp_mv.as_int == cand_mv.comp_mv.as_int)) {
-      return false;
+#if CONFIG_DRL_PR_LIM
+  if (*drl_pr_count < MAX_PR_NUM) {
+#endif  // CONFIG_DRL_PR_LIM
+    for (int i = 0; i < *refmv_count; ++i) {
+#if CONFIG_DRL_PR_LIM
+      ++(*drl_pr_count);
+#endif  // CONFIG_DRL_PR_LIM
+      if (ref_mv_stack[i].this_mv.as_int == cand_mv.this_mv.as_int &&
+          (!is_comp ||
+           ref_mv_stack[i].comp_mv.as_int == cand_mv.comp_mv.as_int)) {
+        return false;
+      }
     }
+#if CONFIG_DRL_PR_LIM
   }
+#endif  // CONFIG_DRL_PR_LIM
 
   // Check if the MV candidate is pointing to ref block inside frame boundary.
   for (int i = 0; i < 1 + is_comp; ++i) {
@@ -1952,7 +2386,12 @@ static AOM_INLINE void add_tmvp_candidate(
 #if !CONFIG_C076_INTER_MOD_CTX
     int_mv *gm_mv_candidates,
 #endif  //! CONFIG_C076_INTER_MOD_CTX
-    int mi_row, int mi_col) {
+    int mi_row, int mi_col
+#if CONFIG_DRL_PR_LIM
+    ,
+    int *drl_pr_count
+#endif  // CONFIG_DRL_PR_LIM
+) {
   MV_REFERENCE_FRAME rf[2];
   av1_set_ref_frame(rf, ref_frame);
 #if CONFIG_IBC_SR_EXT
@@ -2004,6 +2443,10 @@ static AOM_INLINE void add_tmvp_candidate(
                        ,
                        mode_context
 #endif  // !CONFIG_C076_INTER_MOD_CTX
+#if CONFIG_DRL_PR_LIM
+                       ,
+                       drl_pr_count
+#endif  // CONFIG_DRL_PR_LIM
         );
       }
     }
@@ -2037,8 +2480,17 @@ static AOM_INLINE void add_derived_smvp_candidates(
     uint8_t *const refmv_count,
     CANDIDATE_MV ref_mv_stack[MAX_REF_MV_STACK_SIZE],
     uint16_t ref_mv_weight[MAX_REF_MV_STACK_SIZE],
+#if MAX_DR_STACK_SIZE
+    CANDIDATE_MV derived_mv_stack[MAX_DR_STACK_SIZE],
+#else
     CANDIDATE_MV derived_mv_stack[MAX_REF_MV_STACK_SIZE],
-    uint8_t derived_mv_count) {
+#endif
+    uint8_t derived_mv_count
+#if CONFIG_DRL_PR_LIM
+    ,
+    int *drl_pr_count
+#endif  // CONFIG_DRL_PR_LIM
+) {
   const int max_ref_mv_count =
 #if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
       xd->mi[0]->use_intrabc[xd->tree_type == CHROMA_PART]
@@ -2055,7 +2507,12 @@ static AOM_INLINE void add_derived_smvp_candidates(
 #if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                                xd->mi[0], ref_frame_idx0, ref_frame_idx1,
 #endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-                               max_ref_mv_count);
+                               max_ref_mv_count
+#if CONFIG_DRL_PR_LIM
+                               ,
+                               drl_pr_count
+#endif  // CONFIG_DRL_PR_LIM
+    );
   }
 }
 
@@ -2067,7 +2524,12 @@ static AOM_INLINE void add_ref_mv_bank_candidates(
 #endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
     uint8_t *const refmv_count,
     CANDIDATE_MV ref_mv_stack[MAX_REF_MV_STACK_SIZE],
-    uint16_t ref_mv_weight[MAX_REF_MV_STACK_SIZE]) {
+    uint16_t ref_mv_weight[MAX_REF_MV_STACK_SIZE]
+#if CONFIG_DRL_PR_LIM
+    ,
+    int *drl_pr_count
+#endif  // CONFIG_DRL_PR_LIM
+) {
   const int ref_mv_limit =
 #if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
       xd->mi[0]->use_intrabc[xd->tree_type == CHROMA_PART]
@@ -2117,6 +2579,10 @@ static AOM_INLINE void add_ref_mv_bank_candidates(
 #else
                      cm->width, cm->height
 #endif  // CONFIG_F054_PIC_BOUNDARY
+#if CONFIG_DRL_PR_LIM
+                         ,
+                         drl_pr_count
+#endif  // CONFIG_DRL_PR_LIM
           );
 #if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
       if (xd->mi[0]->skip_mode && rmb_candi_exist) {
@@ -2444,6 +2910,12 @@ static AOM_INLINE void setup_ref_mv_list(
 #endif  //! CONFIG_C076_INTER_MOD_CTX
   *refmv_count = 0;
 
+#if CONFIG_DRL_PR_LIM
+  int drl_pr_count = 0;
+  int drl_dr_pr_count = 0;
+  int drl_dr_single_pr_count = 0;
+#endif  // CONFIG_DRL_PR_LIM
+
   /*
    * The constuction of the DRL after CWG-E021 was adopted:
    *
@@ -2558,9 +3030,17 @@ static AOM_INLINE void setup_ref_mv_list(
   uint8_t row_match_count = 0;
   uint8_t newmv_count = 0;
 
+#if MAX_DR_STACK_SIZE
+  SINGLE_MV_CANDIDATE single_mv[MAX_DR_STACK_SIZE];
+#else
   SINGLE_MV_CANDIDATE single_mv[MAX_REF_MV_STACK_SIZE];
+#endif
   uint8_t single_mv_count = 0;
+#if MAX_DR_STACK_SIZE
+  CANDIDATE_MV derived_mv_stack[MAX_DR_STACK_SIZE];
+#else
   CANDIDATE_MV derived_mv_stack[MAX_REF_MV_STACK_SIZE];
+#endif
   uint16_t derived_mv_weight[MAX_REF_MV_STACK_SIZE];
   uint8_t derived_mv_count = 0;
 
@@ -2576,7 +3056,12 @@ static AOM_INLINE void setup_ref_mv_list(
 #if !CONFIG_C076_INTER_MOD_CTX
                        gm_mv_candidates,
 #endif  //! CONFIG_C076_INTER_MOD_CTX
-                       mi_row, mi_col);
+                       mi_row, mi_col
+#if CONFIG_DRL_PR_LIM
+                       ,
+                       &drl_pr_count
+#endif  // CONFIG_DRL_PR_LIM
+    );
   }
 
   if (xd->left_available) {
@@ -2588,7 +3073,12 @@ static AOM_INLINE void setup_ref_mv_list(
 #endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
         1, single_mv, &single_mv_count, derived_mv_stack, derived_mv_weight,
         &derived_mv_count, warp_param_stack, max_num_of_warp_candidates,
-        valid_num_warp_candidates, ref_frame, refmv_count);
+        valid_num_warp_candidates, ref_frame, refmv_count
+#if CONFIG_DRL_PR_LIM
+        ,
+        &drl_pr_count, &drl_dr_pr_count, &drl_dr_single_pr_count
+#endif  // CONFIG_DRL_PR_LIM
+    );
     update_processed_cols(xd, mi_row, mi_col, (xd->height - 1), -1,
                           max_col_offset, &processed_cols);
   }
@@ -2603,7 +3093,12 @@ static AOM_INLINE void setup_ref_mv_list(
                   1, single_mv, &single_mv_count, derived_mv_stack,
                   derived_mv_weight, &derived_mv_count, warp_param_stack,
                   max_num_of_warp_candidates, valid_num_warp_candidates,
-                  ref_frame, refmv_count);
+                  ref_frame, refmv_count
+#if CONFIG_DRL_PR_LIM
+                  ,
+                  &drl_pr_count, &drl_dr_pr_count, &drl_dr_single_pr_count
+#endif  // CONFIG_DRL_PR_LIM
+    );
   }
 
   if (height_at_least_two) {
@@ -2615,7 +3110,12 @@ static AOM_INLINE void setup_ref_mv_list(
 #endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
         1, single_mv, &single_mv_count, derived_mv_stack, derived_mv_weight,
         &derived_mv_count, warp_param_stack, max_num_of_warp_candidates,
-        valid_num_warp_candidates, ref_frame, refmv_count);
+        valid_num_warp_candidates, ref_frame, refmv_count
+#if CONFIG_DRL_PR_LIM
+        ,
+        &drl_pr_count, &drl_dr_pr_count, &drl_dr_single_pr_count
+#endif  // CONFIG_DRL_PR_LIM
+    );
     update_processed_cols(xd, mi_row, mi_col, 0, -1, max_col_offset,
                           &processed_cols);
   }
@@ -2630,7 +3130,12 @@ static AOM_INLINE void setup_ref_mv_list(
                   1, single_mv, &single_mv_count, derived_mv_stack,
                   derived_mv_weight, &derived_mv_count, warp_param_stack,
                   max_num_of_warp_candidates, valid_num_warp_candidates,
-                  ref_frame, refmv_count);
+                  ref_frame, refmv_count
+#if CONFIG_DRL_PR_LIM
+                  ,
+                  &drl_pr_count, &drl_dr_pr_count, &drl_dr_single_pr_count
+#endif  // CONFIG_DRL_PR_LIM
+    );
   }
   if (has_bl) {
     scan_blk_mbmi(
@@ -2641,7 +3146,12 @@ static AOM_INLINE void setup_ref_mv_list(
 #endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
         1, single_mv, &single_mv_count, derived_mv_stack, derived_mv_weight,
         &derived_mv_count, warp_param_stack, max_num_of_warp_candidates,
-        valid_num_warp_candidates, ref_frame, refmv_count);
+        valid_num_warp_candidates, ref_frame, refmv_count
+#if CONFIG_DRL_PR_LIM
+        ,
+        &drl_pr_count, &drl_dr_pr_count, &drl_dr_single_pr_count
+#endif  // CONFIG_DRL_PR_LIM
+    );
   }
 
   if (row_smvp_state[2].is_available) {
@@ -2654,7 +3164,12 @@ static AOM_INLINE void setup_ref_mv_list(
                   1, single_mv, &single_mv_count, derived_mv_stack,
                   derived_mv_weight, &derived_mv_count, warp_param_stack,
                   max_num_of_warp_candidates, valid_num_warp_candidates,
-                  ref_frame, refmv_count);
+                  ref_frame, refmv_count
+#if CONFIG_DRL_PR_LIM
+                  ,
+                  &drl_pr_count, &drl_dr_pr_count, &drl_dr_single_pr_count
+#endif  // CONFIG_DRL_PR_LIM
+    );
   }
 
 #if !CONFIG_C076_INTER_MOD_CTX
@@ -2670,7 +3185,12 @@ static AOM_INLINE void setup_ref_mv_list(
 #if !CONFIG_C076_INTER_MOD_CTX
                        gm_mv_candidates,
 #endif  //! CONFIG_C076_INTER_MOD_CTX
-                       mi_row, mi_col);
+                       mi_row, mi_col
+#if CONFIG_DRL_PR_LIM
+                       ,
+                       &drl_pr_count
+#endif  // CONFIG_DRL_PR_LIM
+    );
   }
 
   if (row_smvp_state[3].is_available) {
@@ -2685,7 +3205,12 @@ static AOM_INLINE void setup_ref_mv_list(
                   1, single_mv, &single_mv_count, derived_mv_stack,
                   derived_mv_weight, &derived_mv_count, warp_param_stack,
                   max_num_of_warp_candidates, valid_num_warp_candidates,
-                  ref_frame, refmv_count);
+                  ref_frame, refmv_count
+#if CONFIG_DRL_PR_LIM
+                  ,
+                  &drl_pr_count, &drl_dr_pr_count, &drl_dr_single_pr_count
+#endif  // CONFIG_DRL_PR_LIM
+    );
   }
 
   const uint8_t nearest_refmv_count = *refmv_count;
@@ -2701,18 +3226,23 @@ static AOM_INLINE void setup_ref_mv_list(
           abs(col_offset) > processed_cols) {
         for (int unit_idx = 0; unit_idx < SMVP_COL_SEARCH_COUNT; unit_idx++) {
           if (col_units_status[unit_idx].is_available) {
-            scan_blk_mbmi(cm, xd, mi_row, mi_col, rf,
-                          col_units_status[unit_idx].row_offset,
-                          col_units_status[unit_idx].col_offset, ref_mv_stack,
-                          ref_mv_weight, &col_match_count, &newmv_count,
-                          gm_mv_candidates,
+            scan_blk_mbmi(
+                cm, xd, mi_row, mi_col, rf,
+                col_units_status[unit_idx].row_offset,
+                col_units_status[unit_idx].col_offset, ref_mv_stack,
+                ref_mv_weight, &col_match_count, &newmv_count, gm_mv_candidates,
 #if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-                          ref_frame_idx0, ref_frame_idx1,
+                ref_frame_idx0, ref_frame_idx1,
 #endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-                          1, single_mv, &single_mv_count, derived_mv_stack,
-                          derived_mv_weight, &derived_mv_count,
-                          warp_param_stack, max_num_of_warp_candidates,
-                          valid_num_warp_candidates, ref_frame, refmv_count);
+                1, single_mv, &single_mv_count, derived_mv_stack,
+                derived_mv_weight, &derived_mv_count, warp_param_stack,
+                max_num_of_warp_candidates, valid_num_warp_candidates,
+                ref_frame, refmv_count
+#if CONFIG_DRL_PR_LIM
+                ,
+                &drl_pr_count, &drl_dr_pr_count, &drl_dr_single_pr_count
+#endif  // CONFIG_DRL_PR_LIM
+            );
             update_processed_cols(xd, mi_row, mi_col,
                                   col_units_status[unit_idx].row_offset,
                                   col_units_status[unit_idx].col_offset,
@@ -2773,26 +3303,46 @@ static AOM_INLINE void setup_ref_mv_list(
                                 ref_frame_idx0, ref_frame_idx1,
 #endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                                 refmv_count, ref_mv_stack, ref_mv_weight,
-                                derived_mv_stack, derived_mv_count);
+                                derived_mv_stack, derived_mv_count
+#if CONFIG_DRL_PR_LIM
+                                ,
+                                &drl_pr_count
+#endif  // CONFIG_DRL_PR_LIM
+    );
     if (cm->seq_params.enable_refmvbank)
       add_ref_mv_bank_candidates(cm, xd, rf, ref_frame,
 #if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                                  ref_frame_idx0, ref_frame_idx1,
 #endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-                                 refmv_count, ref_mv_stack, ref_mv_weight);
+                                 refmv_count, ref_mv_stack, ref_mv_weight
+#if CONFIG_DRL_PR_LIM
+                                 ,
+                                 &drl_pr_count
+#endif  // CONFIG_DRL_PR_LIM
+      );
   } else {
     if (cm->seq_params.enable_refmvbank)
       add_ref_mv_bank_candidates(cm, xd, rf, ref_frame,
 #if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                                  ref_frame_idx0, ref_frame_idx1,
 #endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-                                 refmv_count, ref_mv_stack, ref_mv_weight);
+                                 refmv_count, ref_mv_stack, ref_mv_weight
+#if CONFIG_DRL_PR_LIM
+                                 ,
+                                 &drl_pr_count
+#endif  // CONFIG_DRL_PR_LIM
+      );
     add_derived_smvp_candidates(cm, xd, rf,
 #if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                                 ref_frame_idx0, ref_frame_idx1,
 #endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                                 refmv_count, ref_mv_stack, ref_mv_weight,
-                                derived_mv_stack, derived_mv_count);
+                                derived_mv_stack, derived_mv_count
+#if CONFIG_DRL_PR_LIM
+                                ,
+                                &drl_pr_count
+#endif  // CONFIG_DRL_PR_LIM
+    );
   }
 
   for (int idx = 0; idx < *refmv_count; ++idx) {
@@ -2822,32 +3372,57 @@ static AOM_INLINE void setup_ref_mv_list(
       && !xd->mi[0]->use_intrabc[xd->tree_type == CHROMA_PART]
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
   ) {
-    int idx = 0;
-    for (idx = 0; idx < *refmv_count; ++idx) {
-      if ((ref_mv_stack[idx].this_mv.as_int == gm_mv_candidates[0].as_int) &&
-          (rf[1] == NONE_FRAME ||
-           (rf[1] > NONE_FRAME &&
-            ref_mv_stack[idx].comp_mv.as_int == gm_mv_candidates[1].as_int))) {
-        break;
+#if CONFIG_DRL_PR_LIM
+    if (drl_pr_count < MAX_PR_NUM) {
+#endif  // CONFIG_DRL_PR_LIM
+      int idx = 0;
+      for (idx = 0; idx < *refmv_count; ++idx) {
+#if CONFIG_DRL_PR_LIM
+        ++(drl_pr_count);
+#endif  // CONFIG_DRL_PR_LIM
+        if ((ref_mv_stack[idx].this_mv.as_int == gm_mv_candidates[0].as_int) &&
+            (rf[1] == NONE_FRAME ||
+             (rf[1] > NONE_FRAME && ref_mv_stack[idx].comp_mv.as_int ==
+                                        gm_mv_candidates[1].as_int))) {
+          break;
+        }
       }
-    }
 
-    // Add a new item to the list.
-    if (idx == *refmv_count) {
-      ref_mv_stack[idx].this_mv.as_int = gm_mv_candidates[0].as_int;
-      ref_mv_stack[idx].comp_mv.as_int = gm_mv_candidates[1].as_int;
-      ref_mv_stack[idx].row_offset = OFFSET_NONSPATIAL;
-      ref_mv_stack[idx].col_offset = OFFSET_NONSPATIAL;
-      ref_mv_stack[idx].cwp_idx = CWP_EQUAL;
+      // Add a new item to the list.
+      if (idx == *refmv_count) {
+        ref_mv_stack[idx].this_mv.as_int = gm_mv_candidates[0].as_int;
+        ref_mv_stack[idx].comp_mv.as_int = gm_mv_candidates[1].as_int;
+        ref_mv_stack[idx].row_offset = OFFSET_NONSPATIAL;
+        ref_mv_stack[idx].col_offset = OFFSET_NONSPATIAL;
+        ref_mv_stack[idx].cwp_idx = CWP_EQUAL;
 #if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-      if (xd->mi[0]->skip_mode) {
-        ref_frame_idx0[idx] = rf[0];
-        ref_frame_idx1[idx] = rf[1];
-      }
+        if (xd->mi[0]->skip_mode) {
+          ref_frame_idx0[idx] = rf[0];
+          ref_frame_idx1[idx] = rf[1];
+        }
 #endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-      ref_mv_weight[idx] = REF_CAT_LEVEL;
-      ++(*refmv_count);
+        ref_mv_weight[idx] = REF_CAT_LEVEL;
+        ++(*refmv_count);
+      }
+#if CONFIG_DRL_PR_LIM
+    } else {
+      if (*refmv_count < MAX_REF_MV_STACK_SIZE) {
+        ref_mv_stack[*refmv_count].this_mv.as_int = gm_mv_candidates[0].as_int;
+        ref_mv_stack[*refmv_count].comp_mv.as_int = gm_mv_candidates[1].as_int;
+        ref_mv_stack[*refmv_count].row_offset = OFFSET_NONSPATIAL;
+        ref_mv_stack[*refmv_count].col_offset = OFFSET_NONSPATIAL;
+        ref_mv_stack[*refmv_count].cwp_idx = CWP_EQUAL;
+#if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+        if (xd->mi[0]->skip_mode) {
+          ref_frame_idx0[*refmv_count] = rf[0];
+          ref_frame_idx1[*refmv_count] = rf[1];
+        }
+#endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+        ref_mv_weight[*refmv_count] = REF_CAT_LEVEL;
+        ++(*refmv_count);
+      }
     }
+#endif
   }
 
   if (warp_param_stack && valid_num_warp_candidates &&
