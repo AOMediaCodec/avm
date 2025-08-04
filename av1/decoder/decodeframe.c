@@ -7449,7 +7449,13 @@ static int read_show_existing_frame(AV1Decoder *pbi,
   CurrentFrame *const current_frame = &cm->current_frame;
   BufferPool *const pool = cm->buffer_pool;
   cm->show_existing_frame = 1;
-
+#if CONFIG_BRU
+  cm->bru.enabled = 0;
+  cm->bru.update_ref_idx = -1;
+  cm->bru.explicit_ref_idx = -1;
+  cm->bru.ref_disp_order = -1;
+  cm->bru.frame_inactive_flag = 0;
+#endif  // CONFIG_BRU
   if (pbi->sequence_header_changed) {
     aom_internal_error(
         &cm->error, AOM_CODEC_CORRUPT_FRAME,
