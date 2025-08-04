@@ -13,8 +13,6 @@
 #include "av1/common/hr_coding.h"
 #include "aom/internal/aom_codec_internal.h"
 
-#if CONFIG_COEFF_HR_ADAPTIVE
-
 /*
  * This is a table hosting the threshold values for deriving the
  * Rice parameter m based on input context value ctx. For context
@@ -76,5 +74,3 @@ int get_adaptive_hr_length_diff(int level, int ctx, int *diff) {
   return get_truncated_rice_length_diff(level, m, m + 1, AOMMIN(m + 4, 6),
                                         diff);
 }
-
-#endif  // CONFIG_COEFF_HR_ADAPTIVE

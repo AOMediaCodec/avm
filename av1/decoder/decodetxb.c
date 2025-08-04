@@ -81,7 +81,6 @@ static int read_exp_golomb(MACROBLOCKD *xd, aom_reader *r, int k) {
   return x - (1 << k);
 }
 
-#if CONFIG_COEFF_HR_ADAPTIVE
 /*!\brief Read and decode from the bitstream a Truncated-Rice coded integer
  * value.
  *
@@ -148,15 +147,10 @@ static int read_adaptive_hr(MACROBLOCKD *xd, aom_reader *r, int ctx) {
   int m = get_adaptive_param(ctx);
   return read_truncated_rice(xd, r, m, m + 1, AOMMIN(m + 4, 6));
 }
-#endif  // CONFIG_COEFF_HR_ADAPTIVE
 
 // Read high range part of coeff
 static INLINE int read_high_range(MACROBLOCKD *xd, aom_reader *r, int tcq_mode,
-                                  int level, int lf
-#if CONFIG_COEFF_HR_ADAPTIVE
-                                  ,
-                                  int *hr_avg
-#endif
+                                  int level, int lf, int *hr_avg
 #if CONFIG_COEFF_BR_LF_UV_BYPASS
                                   ,
                                   int plane
@@ -170,7 +164,6 @@ static INLINE int read_high_range(MACROBLOCKD *xd, aom_reader *r, int tcq_mode,
   int max_br = lf ? LF_MAX_BASE_BR_RANGE : MAX_BASE_BR_RANGE;
 #endif  // CONFIG_COEFF_BR_LF_UV_BYPASS
   int use_tcq_hr = tcq_mode && (level >= max_br - 1);
-#if CONFIG_COEFF_HR_ADAPTIVE
   int hr_level_avg = *hr_avg;
   int use_hr = use_tcq_hr || level >= max_br;
   if (use_hr) {
@@ -178,11 +171,6 @@ static INLINE int read_high_range(MACROBLOCKD *xd, aom_reader *r, int tcq_mode,
     level += hr << (tcq_mode ? 1 : 0);
     *hr_avg = (hr_level_avg + hr) >> 1;
   }
-#else
-  int use_hr = use_tcq_hr || level >= max_br;
-  int hr = use_hr ? read_exp_golomb(xd, r, 0) : 0;
-  level += (1 << use_tcq_hr) * hr;
-#endif
   return level;
 }
 
@@ -706,9 +694,7 @@ uint8_t av1_read_coeffs_txb_skip(const AV1_COMMON *const cm,
   }
 
   const int bob = av1_get_max_eob(tx_size) - bob_data->eob;
-#if CONFIG_COEFF_HR_ADAPTIVE
   int hr_level_avg = 0;
-#endif  // CONFIG_COEFF_HR_ADAPTIVE
   for (int c = bob; c < eob_data->eob; c++) {
     const int pos = scan[c];
     const int sign_idx = get_padded_idx_left(pos, bwl);
@@ -720,11 +706,7 @@ uint8_t av1_read_coeffs_txb_skip(const AV1_COMMON *const cm,
       sign = aom_read_symbol(r, ec_ctx->idtx_sign_cdf[size_ctx][idtx_sign_ctx],
                              2, ACCT_INFO("sign"));
       signs[sign_idx] = sign > 0 ? -1 : 1;
-      level = read_high_range(xd, r, 0, level, 0
-#if CONFIG_COEFF_HR_ADAPTIVE
-                              ,
-                              &hr_level_avg
-#endif
+      level = read_high_range(xd, r, 0, level, 0, &hr_level_avg
 #if CONFIG_COEFF_BR_LF_UV_BYPASS
                               ,
                               plane
@@ -1028,9 +1010,7 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
     }
   }
 
-#if CONFIG_COEFF_HR_ADAPTIVE
   int hr_level_avg = 0;
-#endif  // CONFIG_COEFF_HR_ADAPTIVE
   for (int c = *eob - 1; c >= 0; --c) {
     const int pos = scan[c];
     uint8_t sign;
@@ -1110,22 +1090,14 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
         }
 #else
         if (level >= (MAX_BASE_BR_RANGE << 1)) {
-#if CONFIG_COEFF_HR_ADAPTIVE
           int hr_level = (read_adaptive_hr(xd, r, hr_level_avg >> 1) << 1);
           level += hr_level;
           hr_level_avg = (hr_level_avg + hr_level) >> 1;
-#else
-          level += (read_exp_golomb(xd, r, 0) << 1);
-#endif  // CONFIG_COEFF_HR_ADAPTIVE
         }
 #endif  // CONFIG_COEFF_BR_PH_BYPASS
       } else {
         int limits = get_lf_limits(row, col, tx_class, plane);
-        level = read_high_range(xd, r, tcq_mode, level, limits
-#if CONFIG_COEFF_HR_ADAPTIVE
-                                ,
-                                &hr_level_avg
-#endif
+        level = read_high_range(xd, r, tcq_mode, level, limits, &hr_level_avg
 #if CONFIG_COEFF_BR_LF_UV_BYPASS
                                 ,
                                 plane

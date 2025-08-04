@@ -17,9 +17,7 @@
 
 #include "av1/common/av1_common_int.h"
 #include "av1/common/blockd.h"
-#if CONFIG_COEFF_HR_ADAPTIVE
 #include "av1/common/hr_coding.h"
-#endif
 #include "av1/common/txb_common.h"
 #include "av1/encoder/block.h"
 #include "av1/encoder/encoder.h"
@@ -170,15 +168,9 @@ static AOM_FORCE_INLINE int get_high_range(int abs_qc, int lf) {
 
 // Calculate the cost of high range of a coeff
 static AOM_FORCE_INLINE int get_golomb_cost_tcq(int abs_qc, int lf) {
-#if CONFIG_COEFF_HR_ADAPTIVE
   int hr = get_high_range(abs_qc, lf);
   int hr_cost = av1_cost_literal(get_adaptive_hr_length(hr, 0));
   return hr_cost;
-#else
-  const int r = 1 + get_high_range(abs_qc, lf);
-  const int length = get_msb(r) + 1;
-  return av1_cost_literal(2 * length - 1);
-#endif
 }
 
 #if CONFIG_COEFF_BR_LF_UV_BYPASS

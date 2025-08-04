@@ -65,7 +65,6 @@ static INLINE int get_exp_golomb_length_diff(int level, int k, int *diff) {
   return 2 * get_msb(x) + 1 - k;
 }
 
-#if CONFIG_COEFF_HR_ADAPTIVE
 /*!\brief Derive the Rice parameter m based on input context value
  *
  * \ingroup coefficient_coding
@@ -150,7 +149,5 @@ int get_adaptive_hr_length(int level, int ctx);
  *
  */
 int get_adaptive_hr_length_diff(int level, int ctx, int *diff);
-
-#endif  // CONFIG_COEFF_HR_ADAPTIVE
 
 #endif  // AOM_AV1_COMMON_HR_CODING_H_

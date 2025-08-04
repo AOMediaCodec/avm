@@ -397,8 +397,6 @@ set_aom_config_var(CONFIG_SUBBLK_PAD 1
 
 set_aom_config_var(CONFIG_ML_PART_SPLIT 1
                    "Partition SPLIT pruning/forcing as predicted by ML.")
-set_aom_config_var(CONFIG_COEFF_HR_ADAPTIVE 1
-                   "AV2 enable adaptive coding of HR coefficients.")
 set_aom_config_var(CONFIG_MV_TRAJECTORY 1
                    "Enables TMVP MV trajectory tracking.")
 
