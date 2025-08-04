@@ -473,10 +473,10 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
       got_sequence_header = 1;
     }
 #if F106_OBU_TILEGROUP
-    else if(obu_header.type == OBU_TILEGROUP)
+    else if (obu_header.type == OBU_TILEGROUP)
 #else
     else if (obu_header.type == OBU_FRAME_HEADER ||
-               obu_header.type == OBU_FRAME)
+             obu_header.type == OBU_FRAME)
 #endif
     {
       if (got_sequence_header && reduced_still_picture_hdr) {
@@ -489,7 +489,7 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
 
 #if F106_OBU_TILEGROUP
         int first_tile_group_in_frame = aom_rb_read_bit(&rb);
-        if(!first_tile_group_in_frame){
+        if (!first_tile_group_in_frame) {
           aom_rb_read_bit(&rb);
         }
 #endif
@@ -513,7 +513,7 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
             }
           }
 #else
-          const FRAME_TYPE frame_type = (FRAME_TYPE)aom_rb_read_literal(&rb, 2);
+        const FRAME_TYPE frame_type = (FRAME_TYPE)aom_rb_read_literal(&rb, 2);
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
           if (frame_type == KEY_FRAME) {
             found_keyframe = 1;

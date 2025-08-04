@@ -62,12 +62,9 @@ int av1_check_trailing_bits(struct AV1Decoder *pbi,
 // TODO(wtc): Figure out and document the p_data_end parameter.
 int32_t read_tilegroup_header(struct AV1Decoder *pbi,
                               struct aom_read_bit_buffer *rb,
-                              const uint8_t *data,
-                              const uint8_t **p_data_end,
-                              int* first_tile_group_in_frame,
-                              int *start_tile,
-                              int *end_tile,
-                              OBU_TYPE obu_type);
+                              const uint8_t *data, const uint8_t **p_data_end,
+                              int *first_tile_group_in_frame, int *start_tile,
+                              int *end_tile, OBU_TYPE obu_type);
 #endif
 // On success, returns the frame header size. On failure, calls
 // aom_internal_error and does not return.

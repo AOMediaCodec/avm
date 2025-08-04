@@ -61,7 +61,8 @@ set_aom_detect_var(HAVE_UNISTD_H 0
                    "Internal flag, unistd.h present for target.")
 set_aom_detect_var(HAVE_WXWIDGETS 0 "WxWidgets present.")
 
-set_aom_config_var(F106_OBU_TILEGROUP 1 "Enable decoder trace for reading bits.")
+set_aom_config_var(F106_OBU_TILEGROUP 1
+                   "Enable decoder trace for reading bits.")
 set_aom_config_var(F106_OBU_SWITCH 1 "Use SWITCH_OBU.")
 set_aom_config_var(F106_OBU_SEF 1 "Use SEF OBU.")
 set_aom_config_var(F106_OBU_TIP 1 "Use TIP_OBU.")
