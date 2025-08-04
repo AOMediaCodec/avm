@@ -386,12 +386,8 @@ static INLINE void decode_eob(DecoderCodingBlock *dcb, aom_reader *const r,
   const PLANE_TYPE plane_type = get_plane_type(plane);
 #endif  // !CONFIG_EOB_PT_CTX_REDUCTION
   FRAME_CONTEXT *const ec_ctx = xd->tile_ctx;
-#if CONFIG_EOB_POS_LUMA
   const int is_inter = is_inter_block(xd->mi[0], xd->tree_type);
   const int pl_ctx = get_eob_plane_ctx(plane, is_inter);
-#else
-  const int pl_ctx = plane_type;
-#endif  // CONFIG_EOB_POS_LUMA
 #if !CONFIG_EOB_PT_CTX_REDUCTION
   const TX_SIZE txs_ctx = get_txsize_entropy_ctx(tx_size);
 #endif  // !CONFIG_EOB_PT_CTX_REDUCTION

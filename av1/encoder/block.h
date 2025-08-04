@@ -293,11 +293,7 @@ typedef struct LV_MAP_COEFF_COST {
  */
 typedef struct {
   //! eob_cost.
-#if CONFIG_EOB_POS_LUMA
   int eob_cost[2][16];
-#else
-  int eob_cost[EOB_MAX_SYMS];
-#endif  // CONFIG_EOB_POS_LUMA
 } LV_MAP_EOB_COST;
 
 /*! \brief Stores the transforms coefficients for the whole superblock.

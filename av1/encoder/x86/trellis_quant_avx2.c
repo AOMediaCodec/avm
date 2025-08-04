@@ -1113,11 +1113,7 @@ void av1_calc_block_eob_rate_avx2(struct macroblock *x, int plane,
   const LV_MAP_EOB_COST *txb_eob_costs =
       &coeff_costs->eob_costs[eob_multi_size][plane_type];
 
-#if CONFIG_EOB_POS_LUMA
   const int *tbl_eob_cost = txb_eob_costs->eob_cost[is_inter];
-#else
-  const int *tbl_eob_cost = txb_eob_costs->eob_cost;
-#endif
   const int(*tbl_eob_extra)[2] = txb_costs->eob_extra_cost;
 
   static const int8_t kShuf[4][32] = {

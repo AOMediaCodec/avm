@@ -191,7 +191,6 @@ typedef struct frame_contexts {
   aom_cdf_prob v_ac_sign_cdf[CROSS_COMPONENT_CONTEXTS][CDF_SIZE(2)];
 #endif  // !CONFIG_CTX_V_AC_SIGN
 #endif  // CONFIG_CONTEXT_DERIVATION
-#if CONFIG_EOB_POS_LUMA
   aom_cdf_prob eob_flag_cdf16[EOB_PLANE_CTXS][CDF_SIZE(EOB_MAX_SYMS - 6)];
   aom_cdf_prob eob_flag_cdf32[EOB_PLANE_CTXS][CDF_SIZE(EOB_MAX_SYMS - 5)];
   aom_cdf_prob eob_flag_cdf64[EOB_PLANE_CTXS][CDF_SIZE(EOB_MAX_SYMS - 4)];
@@ -199,15 +198,6 @@ typedef struct frame_contexts {
   aom_cdf_prob eob_flag_cdf256[EOB_PLANE_CTXS][CDF_SIZE(EOB_MAX_SYMS - 2)];
   aom_cdf_prob eob_flag_cdf512[EOB_PLANE_CTXS][CDF_SIZE(EOB_MAX_SYMS - 1)];
   aom_cdf_prob eob_flag_cdf1024[EOB_PLANE_CTXS][CDF_SIZE(EOB_MAX_SYMS)];
-#else
-  aom_cdf_prob eob_flag_cdf16[PLANE_TYPES][CDF_SIZE(EOB_MAX_SYMS - 6)];
-  aom_cdf_prob eob_flag_cdf32[PLANE_TYPES][CDF_SIZE(EOB_MAX_SYMS - 5)];
-  aom_cdf_prob eob_flag_cdf64[PLANE_TYPES][CDF_SIZE(EOB_MAX_SYMS - 4)];
-  aom_cdf_prob eob_flag_cdf128[PLANE_TYPES][CDF_SIZE(EOB_MAX_SYMS - 3)];
-  aom_cdf_prob eob_flag_cdf256[PLANE_TYPES][CDF_SIZE(EOB_MAX_SYMS - 2)];
-  aom_cdf_prob eob_flag_cdf512[PLANE_TYPES][CDF_SIZE(EOB_MAX_SYMS - 1)];
-  aom_cdf_prob eob_flag_cdf1024[PLANE_TYPES][CDF_SIZE(EOB_MAX_SYMS)];
-#endif  // CONFIG_EOB_POS_LUMA
 
   // Y CDFs
   aom_cdf_prob coeff_base_lf_cdf[TX_SIZES][LF_SIG_COEF_CONTEXTS][TCQ_CTXS]

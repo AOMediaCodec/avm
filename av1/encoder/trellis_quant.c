@@ -1145,11 +1145,7 @@ void av1_calc_block_eob_rate_c(struct macroblock *x, int plane, TX_SIZE tx_size,
   const LV_MAP_EOB_COST *txb_eob_costs =
       &coeff_costs->eob_costs[eob_multi_size][plane_type];
 
-#if CONFIG_EOB_POS_LUMA
   const int *tbl_eob_cost = txb_eob_costs->eob_cost[is_inter];
-#else
-  const int *tbl_eob_cost = txb_eob_costs->eob_cost;
-#endif
 
   block_eob_rate[0] = tbl_eob_cost[0];
   block_eob_rate[1] = tbl_eob_cost[1];
