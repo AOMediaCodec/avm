@@ -524,7 +524,7 @@ typedef struct SequenceHeader {
   int enable_frame_output_order;  // Enable frame output order derivation based
                                   // on order hint value
 #endif
-  int max_reference_frames;       // Number of reference frames allowed
+  int max_reference_frames;   // Number of reference frames allowed
   int num_same_ref_compound;  // Number of the allowed same reference frames for
                               // the compound mode
 #if CONFIG_EXTRA_DPB

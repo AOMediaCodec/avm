@@ -790,7 +790,7 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
         && pbi->common.seq_params.enable_frame_output_order
 #endif
-        ) {
+    ) {
       output_trailing_frames(pbi);
       for (size_t j = 0; j < pbi->num_output_frames; j++) {
         decrease_ref_count(pbi->output_frames[j], pool);

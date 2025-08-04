@@ -166,25 +166,25 @@ struct av1_extracfg {
   int enable_flip_idtx;          // enable flip and identity transform types
   int max_reference_frames;      // maximum number of references per frame
   int enable_reduced_reference_set;  // enable reduced set of references
-  int explicit_ref_frame_map;     // explicitly signal reference frame mapping
+  int explicit_ref_frame_map;  // explicitly signal reference frame mapping
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
   int enable_frame_output_order;  // enable frame output order derivation based
                                   // on order hint value
 #endif
-  int enable_ref_frame_mvs;       // sequence level
-  int allow_ref_frame_mvs;        // frame level
-  int enable_masked_comp;         // enable masked compound for sequence
-  int enable_onesided_comp;       // enable one sided compound for sequence
-  int enable_interintra_comp;     // enable interintra compound for sequence
-  int enable_smooth_interintra;   // enable smooth interintra mode usage
-  int enable_diff_wtd_comp;       // enable diff-wtd compound usage
-  int enable_interinter_wedge;    // enable interinter-wedge compound usage
-  int enable_interintra_wedge;    // enable interintra-wedge compound usage
-  int enable_global_motion;       // enable global motion usage for sequence
-  int enable_skip_mode;           // enable skip mode for sequence
-  int enable_warped_motion;       // enable local warped motion for sequence
-  int enable_warp_causal;         // enable spatial warp prediction for sequence
-  int enable_warp_delta;          // enable explicit warp models for sequence
+  int enable_ref_frame_mvs;      // sequence level
+  int allow_ref_frame_mvs;       // frame level
+  int enable_masked_comp;        // enable masked compound for sequence
+  int enable_onesided_comp;      // enable one sided compound for sequence
+  int enable_interintra_comp;    // enable interintra compound for sequence
+  int enable_smooth_interintra;  // enable smooth interintra mode usage
+  int enable_diff_wtd_comp;      // enable diff-wtd compound usage
+  int enable_interinter_wedge;   // enable interinter-wedge compound usage
+  int enable_interintra_wedge;   // enable interintra-wedge compound usage
+  int enable_global_motion;      // enable global motion usage for sequence
+  int enable_skip_mode;          // enable skip mode for sequence
+  int enable_warped_motion;      // enable local warped motion for sequence
+  int enable_warp_causal;        // enable spatial warp prediction for sequence
+  int enable_warp_delta;         // enable explicit warp models for sequence
   int enable_six_param_warp_delta;  // enable explicit six-parameter warp models
                                     // for sequence
   int enable_warp_extend;           // enable warp extension for sequence
@@ -1175,7 +1175,7 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   else
 #endif  // CONFIG_BRU
     extra_cfg->explicit_ref_frame_map = cfg->explicit_ref_frame_map;
-#if!CONFIG_F253_REMOVE_OUTPUTFLAG
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
   extra_cfg->enable_frame_output_order = cfg->enable_frame_output_order;
 #endif
   extra_cfg->reduced_tx_type_set = cfg->reduced_tx_type_set;
@@ -4127,14 +4127,14 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   }
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
   else if (arg_match_helper(&arg,
-                              &g_av1_codec_arg_defs.enable_frame_output_order,
-                              argv, err_string)) {
+                            &g_av1_codec_arg_defs.enable_frame_output_order,
+                            argv, err_string)) {
     extra_cfg.enable_frame_output_order =
         arg_parse_int_helper(&arg, err_string);
   }
 #endif
   else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_ref_frame_mvs,
-                              argv, err_string)) {
+                            argv, err_string)) {
     extra_cfg.enable_ref_frame_mvs = arg_parse_int_helper(&arg, err_string);
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_masked_comp,
                               argv, err_string)) {
@@ -4593,20 +4593,18 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_MAX_PB_RATIO
         8,  // max_partition_aspect_ratio
 #endif      // CONFIG_MAX_PB_RATIO
-        0,   1, 1, /*extended sdp*/ 1,
-        1,
+        0, 1, 1, /*extended sdp*/ 1, 1,
         1,  // MV traj
 #if CONFIG_MV_RANGE_EXTENSION
         0,  // enable_high_motion
 #endif      // CONFIG_MV_RANGE_EXTENSION
-        1,   1, 1, 1,
-        1,
+        1, 1, 1, 1, 1,
         1,  // IST
         1,  // inter IST
         0,  // chroma DCT only
         1,  // inter DDT
         1,  // enable_cctx
-        1,   1, 1,
+        1, 1, 1,
         3,  // select_cfl_ds
         1,
 #if CONFIG_REFINEMV
@@ -4615,43 +4613,40 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_DERIVED_MVD_SIGN
         1,
 #endif  // CONFIG_DERIVED_MVD_SIGN
-        1,   1, 1, 1,
-        1,   1, 1,
+        1, 1, 1, 1, 1, 1, 1,
 #if CONFIG_LF_SUB_PU
         1,
 #endif  // CONFIG_LF_SUB_PU
-        1,   1, 1, 1,
-        1,   1, 1, 1,
-        1,   1, 0, 0,
-        1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1,
 #if CONFIG_IBC_SR_EXT
         1,
 #endif  // CONFIG_IBC_SR_EXT
-//      enable_cfl_intra;
-//      enable_mhccp;
-//      enable_smooth_intra;
-//      enable_intra_dip;
-        1,   1, 1, 1,
-//      enable_angle_delta;
-//      enable_opfl_refine;
-//      enable_intra_edge_filter;
-//      enable_tx64;
-        1,   1, 1, 1,
-//      enable_smooth_interintra;
-//      enable_interinter_wedge;
-//      enable_interintra_wedge;
-//      enable_paeth_intra;
-        1,   1, 1, 1,
-      //enable_trellis_quant enable_ref_frame_mvs enable_reduced_reference_set explicit_ref_frame_map
-        3,   1, 1, 0,
+        //      enable_cfl_intra;
+        //      enable_mhccp;
+        //      enable_smooth_intra;
+        //      enable_intra_dip;
+        1, 1, 1, 1,
+        //      enable_angle_delta;
+        //      enable_opfl_refine;
+        //      enable_intra_edge_filter;
+        //      enable_tx64;
+        1, 1, 1, 1,
+        //      enable_smooth_interintra;
+        //      enable_interinter_wedge;
+        //      enable_interintra_wedge;
+        //      enable_paeth_intra;
+        1, 1, 1, 1,
+        // enable_trellis_quant enable_ref_frame_mvs
+        // enable_reduced_reference_set explicit_ref_frame_map
+        3, 1, 1, 0,
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
         1,
 #endif
-      0, 0, //enable_frame_output_order reduced_tx_type_set max_drl_refmvs
+        0, 0,  // enable_frame_output_order reduced_tx_type_set max_drl_refmvs
 #if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
-        0, //max_drl_refbvs
-#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
-        1,   1, 1,
+        0,  // max_drl_refbvs
+#endif      // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+        1, 1, 1,
         1,  // enable_avg_cdf
         1,  // avg_cdf_type
         1,

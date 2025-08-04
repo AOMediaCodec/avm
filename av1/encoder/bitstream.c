@@ -6511,7 +6511,8 @@ static AOM_INLINE void write_uncompressed_header_obu(
       }
     }
     if (seq_params->film_grain_params_present &&
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT && !CONFIG_F253_REMOVE_OUTPUTFLAG
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT && \
+    !CONFIG_F253_REMOVE_OUTPUTFLAG
         (cm->seq_params.enable_frame_output_order || cm->show_frame ||
          cm->showable_frame))
 #else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
@@ -6665,7 +6666,8 @@ static AOM_INLINE void write_uncompressed_header_obu(
   if (!frame_is_intra_only(cm)) write_global_motion(cpi, wb);
 
   if (seq_params->film_grain_params_present &&
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT && !CONFIG_F253_REMOVE_OUTPUTFLAG
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT && \
+    !CONFIG_F253_REMOVE_OUTPUTFLAG
       (cm->seq_params.enable_frame_output_order || cm->show_frame ||
        cm->showable_frame))
 #else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT

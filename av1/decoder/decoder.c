@@ -757,12 +757,12 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
       decrease_ref_count(cm->cur_frame, pool);
     } else if (
 #if CONFIG_F253_REMOVE_OUTPUTFLAG
-               !cm->seq_params.order_hint_info.enable_order_hint &&
+        !cm->seq_params.order_hint_info.enable_order_hint &&
 #else
-               (!cm->seq_params.order_hint_info.enable_order_hint ||
-                !cm->seq_params.enable_frame_output_order) &&
+        (!cm->seq_params.order_hint_info.enable_order_hint ||
+         !cm->seq_params.enable_frame_output_order) &&
 #endif
-               (cm->show_existing_frame || cm->show_frame)) {
+        (cm->show_existing_frame || cm->show_frame)) {
       if (pbi->output_all_layers) {
         // Append this frame to the output queue
         if (pbi->num_output_frames >= MAX_NUM_SPATIAL_LAYERS) {
@@ -936,7 +936,7 @@ int av1_get_frame_to_show(AV1Decoder *pbi, YV12_BUFFER_CONFIG *frame) {
   if (pbi->num_output_frames == 0) return -1;
   const size_t out_frame_idx =
 #if CONFIG_F253_REMOVE_OUTPUTFLAG
-  pbi->common.seq_params.order_hint_info.enable_order_hint
+      pbi->common.seq_params.order_hint_info.enable_order_hint
 #else
       (pbi->common.seq_params.order_hint_info.enable_order_hint &&
        pbi->common.seq_params.enable_frame_output_order)

@@ -6248,7 +6248,8 @@ void av1_read_film_grain_params(AV1_COMMON *cm,
 static AOM_INLINE void read_film_grain(AV1_COMMON *cm,
                                        struct aom_read_bit_buffer *rb) {
   if (cm->seq_params.film_grain_params_present &&
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT && !CONFIG_F253_REMOVE_OUTPUTFLAG
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT && \
+    !CONFIG_F253_REMOVE_OUTPUTFLAG
       (cm->seq_params.enable_frame_output_order || cm->show_frame ||
        cm->showable_frame)) {
 #else
@@ -7379,8 +7380,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       // frame is output via the show_existing_frame mechanism at most once.
 #if CONFIG_F253_REMOVE_OUTPUTFLAG
       if ((frame_to_show->frame_type == KEY_FRAME &&
-           !frame_to_show->showable_frame &&
-           frame_to_show->frame_output_done))
+           !frame_to_show->showable_frame && frame_to_show->frame_output_done))
 #else
       if ((seq_params->enable_frame_output_order &&
            frame_to_show->frame_type == KEY_FRAME &&

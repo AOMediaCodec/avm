@@ -3571,8 +3571,8 @@ static INLINE int av1_frame_scaled(const AV1_COMMON *cm) {
 static INLINE int encode_show_existing_frame(const AV1_COMMON *cm) {
   if (!cm->show_existing_frame) return 0;
 
-  // When enable_frame_output_order == 1, show_existing_frame can be equal to 1
-  // only for a forward key frame
+    // When enable_frame_output_order == 1, show_existing_frame can be equal to
+    // 1 only for a forward key frame
 #if CONFIG_F253_REMOVE_OUTPUTFLAG
   return (!cm->features.error_resilient_mode &&
           cm->current_frame.frame_type == KEY_FRAME);
