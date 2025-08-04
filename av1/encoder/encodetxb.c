@@ -1459,9 +1459,15 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
                 w, sign,
                 ec_ctx->dc_sign_cdf[plane_type][is_hidden ? 1 : 0][dc_sign_ctx],
                 2);
-          } else
-#endif  // CONFIG_CTX_BYPASS_CB_DC_SIGN
+          } else {
             aom_write_literal(w, sign, 1);
+          }
+#else
+          aom_write_symbol(
+              w, sign,
+              ec_ctx->dc_sign_cdf[plane_type][is_hidden ? 1 : 0][dc_sign_ctx],
+              2);
+#endif  // CONFIG_CTX_BYPASS_CB_DC_SIGN
         }
 #else
         aom_write_symbol(w, sign, ec_ctx->dc_sign_cdf[plane_type][dc_sign_ctx],
