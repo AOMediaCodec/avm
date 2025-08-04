@@ -1335,7 +1335,6 @@ int main(int argc, const char **argv) {
       0, &total_count, 0, mem_wanted, "Inter");
 #endif  // CONFIG_D149_CTX_MODELING_OPT
 
-#if CONFIG_REFINEMV
   cts_each_dim[0] = NUM_REFINEMV_CTX;
   cts_each_dim[1] = REFINEMV_NUM_MODES;
   optimize_cdf_table(&fc.refinemv_flag_cnts[0][0], probsfile, 2, cts_each_dim,
@@ -1343,7 +1342,6 @@ int main(int argc, const char **argv) {
                      "default_refinemv_flag_cdf[NUM_REFINEMV_CTX][CDF_SIZE("
                      "REFINEMV_NUM_MODES)]",
                      0, &total_count, 0, mem_wanted, "Inter");
-#endif  // CONFIG_REFINEMV
 
   cts_each_dim[0] = 3;
   cts_each_dim[1] = 2;

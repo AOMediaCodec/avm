@@ -4593,11 +4593,9 @@ static int process_compound_inter_mode(
   const AV1_COMMON *cm = &cpi->common;
   const int masked_compound_used =
       is_any_masked_compound_used(bsize) &&
-      cm->seq_params.enable_masked_compound
-#if CONFIG_REFINEMV
-      && (!mbmi->refinemv_flag || !switchable_refinemv_flag(cm, mbmi))
-#endif  // CONFIG_REFINEMV
-      && !opfl_allowed_cur_pred_mode(cm, xd, mbmi);
+      cm->seq_params.enable_masked_compound &&
+      (!mbmi->refinemv_flag || !switchable_refinemv_flag(cm, mbmi)) &&
+      !opfl_allowed_cur_pred_mode(cm, xd, mbmi);
   int mode_search_mask =
       (1 << COMPOUND_AVERAGE) | (1 << COMPOUND_WEDGE) | (1 << COMPOUND_DIFFWTD);
 
@@ -4966,9 +4964,8 @@ static int64_t handle_inter_mode(
 
   mbmi->bawp_flag[0] = 0;
   mbmi->bawp_flag[1] = 0;
-#if CONFIG_REFINEMV
   mbmi->refinemv_flag = 0;
-#endif  // CONFIG_REFINEMV
+
   // Do not prune the mode based on inter cost from tpl if the current ref
   // frame is the winner ref in neighbouring blocks.
   int ref_match_found_in_above_nb = 0;
@@ -5086,10 +5083,8 @@ static int64_t handle_inter_mode(
   //    4.) Build the inter predictor
   //    5.) Pick the motion mode
   //    6.) Update stats if best so far
-#if CONFIG_REFINEMV
   mbmi->refinemv_flag =
       0;  // initialize to 0; later on the default value is assigned
-#endif    // CONFIG_REFINEMV
   const int jmvd_scaling_factor_num =
       is_joint_mvd_coding_mode(mbmi->mode) ? JOINT_NEWMV_SCALE_FACTOR_CNT : 1;
   for (int scale_index = 0; scale_index < jmvd_scaling_factor_num;
@@ -5237,11 +5232,9 @@ static int64_t handle_inter_mode(
               }
             }
 
-#if CONFIG_REFINEMV
             // Get the default value of DMVR flag based on mode
             assert(mbmi->motion_mode == SIMPLE_TRANSLATION);
             mbmi->refinemv_flag = get_default_refinemv_flag(cm, mbmi);
-#endif  // CONFIG_REFINEMV
 
             int rs = 0;
             int compmode_interinter_cost = 0;
@@ -5279,9 +5272,7 @@ static int64_t handle_inter_mode(
             }
 
             int bawp_eanbled = cm->features.enable_bawp &&
-#if CONFIG_REFINEMV
                                !mbmi->refinemv_flag &&
-#endif  // CONFIG_REFINEMV
                                av1_allow_bawp(cm, mbmi, xd->mi_row, xd->mi_col);
             if (bawp_eanbled && av1_allow_explicit_bawp(mbmi))
               bawp_eanbled += EXPLICIT_BAWP_SCALE_CNT;
@@ -5309,10 +5300,7 @@ static int64_t handle_inter_mode(
                     .rd = INT64_MAX;
                 mode_info[bawp_flag][mbmi->pb_mv_precision][ref_mv_idx_type]
                     .drl_cost = drl_cost;
-                if (mbmi->mode != WARPMV &&
-#if CONFIG_REFINEMV
-                    !mbmi->refinemv_flag &&
-#endif  // CONFIG_REFINEMV
+                if (mbmi->mode != WARPMV && !mbmi->refinemv_flag &&
                     !mask_check_bit(idx_mask[bawp_flag][mbmi->pb_mv_precision],
                                     ref_mv_idx_type)) {
                   // MV did not perform well in simple translation search. Skip
@@ -5320,9 +5308,7 @@ static int64_t handle_inter_mode(
                   continue;
                 }
 
-#if CONFIG_REFINEMV
                 assert(!(mbmi->bawp_flag[0] && mbmi->refinemv_flag));
-#endif  // CONFIG_REFINEMV
 
                 if (mbmi->bawp_flag[0] >= 1) {
                   bawp_off_mv[1].as_int = -1;  // bawp_off_mv[1] won't be used
@@ -5412,7 +5398,6 @@ static int64_t handle_inter_mode(
                     continue;
                 }
 
-#if CONFIG_REFINEMV
                 const MB_MODE_INFO base_mbmi = *mbmi;
                 for (int refinemv_loop = 0; refinemv_loop < REFINEMV_NUM_MODES;
                      refinemv_loop++) {
@@ -5422,8 +5407,6 @@ static int64_t handle_inter_mode(
                     tmp_cur_mv[i].as_int = cur_mv[i].as_int;
                   }
                   int tmp_rate_mv = rate_mv;
-#endif  // CONFIG_REFINEMV
-
                   av1_init_rd_stats(rd_stats);
                   // Initialize compound mode data
                   mbmi->interinter_comp.type = COMPOUND_AVERAGE;
@@ -5434,7 +5417,7 @@ static int64_t handle_inter_mode(
 #if CONFIG_COMPOUND_WARP_CAUSAL
                   mbmi->num_proj_ref[0] = mbmi->num_proj_ref[1] = 0;
 #else
-                mbmi->num_proj_ref = 0;
+                  mbmi->num_proj_ref = 0;
 #endif
                   mbmi->motion_mode = SIMPLE_TRANSLATION;
                   mbmi->ref_mv_idx[0] = ref_mv_idx[0];
@@ -5446,7 +5429,6 @@ static int64_t handle_inter_mode(
                   rd_stats->rate += drl_cost;
                   rd_stats->rate += jmvd_scale_mode_cost;
 
-#if CONFIG_REFINEMV
                   if (refinemv_loop && !switchable_refinemv_flag(cm, mbmi))
                     continue;
                   mbmi->refinemv_flag =
@@ -5459,27 +5441,17 @@ static int64_t handle_inter_mode(
                   }
                   if (mbmi->refinemv_flag && mbmi->cwp_idx != CWP_EQUAL)
                     continue;
-#endif  // CONFIG_REFINEMV
 
-#if CONFIG_REFINEMV
                   rd_stats->rate += tmp_rate_mv;
                   if (switchable_refinemv_flag(cm, mbmi)) {
                     rd_stats->rate +=
                         mode_costs->refinemv_flag_cost[av1_get_refinemv_context(
                             cm, xd, bsize)][mbmi->refinemv_flag];
                   }
-#else
-                rd_stats->rate += rate_mv;
-#endif  // CONFIG_REFINEMV
 
                   // Copy the motion vector for this mode into mbmi struct
                   for (i = 0; i < is_comp_pred + 1; ++i) {
-#if CONFIG_REFINEMV
                     mbmi->mv[i].as_int = tmp_cur_mv[i].as_int;
-#else
-
-                  mbmi->mv[i].as_int = cur_mv[i].as_int;
-#endif  // CONFIG_REFINEMV
                   }
                   assert(check_mv_precision(cm, mbmi, x));
 
@@ -5523,30 +5495,14 @@ static int64_t handle_inter_mode(
                   // Handle a compound predictor, continue if it is determined
                   // this cannot be the best compound mode
                   if (is_comp_pred &&
-                      !is_joint_amvd_coding_mode(mbmi->mode, mbmi->use_amvd)
-#if CONFIG_REFINEMV
-                      && (!mbmi->refinemv_flag ||
-                          !switchable_refinemv_flag(cm, mbmi))
-#endif  // CONFIG_REFINEMV
-                  ) {
+                      !is_joint_amvd_coding_mode(mbmi->mode, mbmi->use_amvd) &&
+                      (!mbmi->refinemv_flag ||
+                       !switchable_refinemv_flag(cm, mbmi))) {
                     const int not_best_mode = process_compound_inter_mode(
-                        cpi, x, args, ref_best_rd,
-#if CONFIG_REFINEMV
-                        tmp_cur_mv,
-#else
-                      cur_mv,
-#endif  // CONFIG_REFINEMV
-                        bsize, &compmode_interinter_cost, rd_buffers, &orig_dst,
-                        &tmp_dst,
-
-#if CONFIG_REFINEMV
-                        &tmp_rate_mv,
-#else
-
-                      &rate_mv,
-#endif  // CONFIG_REFINEMV
-
-                        rd_stats, skip_rd, &skip_build_pred);
+                        cpi, x, args, ref_best_rd, tmp_cur_mv, bsize,
+                        &compmode_interinter_cost, rd_buffers, &orig_dst,
+                        &tmp_dst, &tmp_rate_mv, rd_stats, skip_rd,
+                        &skip_build_pred);
                     if (not_best_mode) continue;
                   }
 
@@ -5626,24 +5582,15 @@ static int64_t handle_inter_mode(
                   start_timing(cpi, motion_mode_rd_time);
 #endif
                   int rate2_nocoeff = rd_stats->rate;
-#if CONFIG_REFINEMV
                   assert(IMPLIES(
                       mbmi->mode == WARPMV,
                       (rd_stats->rate == base_rate && tmp_rate_mv == 0)));
-#else
-                assert(IMPLIES(mbmi->mode == WARPMV,
-                               (rd_stats->rate == base_rate && rate_mv == 0)));
-#endif  // CONFIG_REFINEMV
-        // Determine the motion mode. This will be one of SIMPLE_TRANSLATION,
-        // WARP_CAUSAL or WARP_EXTEND or WARP_DELTA
+                  // Determine the motion mode. This will be one of
+                  // SIMPLE_TRANSLATION, WARP_CAUSAL or WARP_EXTEND or
+                  // WARP_DELTA
                   ret_val = motion_mode_rd(
                       cpi, tile_data, x, bsize, rd_stats, rd_stats_y,
-                      rd_stats_uv, args, ref_best_rd, skip_rd,
-#if CONFIG_REFINEMV
-                      &tmp_rate_mv,
-#else
-                    &rate_mv,
-#endif  // CONFIG_REFINEMV
+                      rd_stats_uv, args, ref_best_rd, skip_rd, &tmp_rate_mv,
                       &orig_dst, best_est_rd, do_tx_search, inter_modes_info,
                       enable_tx_prune ? top_motion_mode_model_rd : NULL, 0);
 #if CONFIG_COLLECT_COMPONENT_TIMING
@@ -5673,14 +5620,9 @@ static int64_t handle_inter_mode(
                       mode_info[bawp_flag][mbmi->pb_mv_precision]
                                [ref_mv_idx_type]
                                    .mv.as_int = mbmi->mv[0].as_int;
-#if CONFIG_REFINEMV
                       mode_info[bawp_flag][mbmi->pb_mv_precision]
                                [ref_mv_idx_type]
                                    .rate_mv = tmp_rate_mv;
-#else
-                    mode_info[bawp_flag][mbmi->pb_mv_precision][ref_mv_idx_type]
-                        .rate_mv = rate_mv;
-#endif  // CONFIG_REFINEMV
                       mode_info[bawp_flag][mbmi->pb_mv_precision]
                                [ref_mv_idx_type]
                                    .rd = tmp_rd;
@@ -5717,12 +5659,7 @@ static int64_t handle_inter_mode(
                           best_cctx_type_map, xd->cctx_type_map,
                           (xd->plane[1].height * xd->plane[1].width) >>
                               (2 * MI_SIZE_LOG2));
-
-#if CONFIG_REFINEMV
                       motion_mode_cand->rate_mv = tmp_rate_mv;
-#else
-                    motion_mode_cand->rate_mv = rate_mv;
-#endif  // CONFIG_REFINEMV
                       motion_mode_cand->rate2_nocoeff = rate2_nocoeff;
                     }
 
@@ -5741,9 +5678,7 @@ static int64_t handle_inter_mode(
                     }
                   }
                   restore_dst_buf(xd, orig_dst, num_planes);
-#if CONFIG_REFINEMV
                 }
-#endif  // CONFIG_REFINEMV
               }  // bawp_chroma loop
             }  // bawp loop
           }
@@ -6231,10 +6166,7 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
 
   mbmi->bawp_flag[0] = 0;
   mbmi->bawp_flag[1] = 0;
-
-#if CONFIG_REFINEMV
   mbmi->refinemv_flag = 0;
-#endif  // CONFIG_REFINEMV
 #if CONFIG_BRU
   assert(xd->sbi->sb_active_mode == BRU_ACTIVE_SB);
 #endif  // CONFIG_BRU
@@ -6938,9 +6870,7 @@ void av1_rd_pick_intra_mode_sb(const struct AV1_COMP *cpi, ThreadData *td,
   ctx->rd_stats.skip_txfm = 0;
   mbmi->ref_frame[0] = INTRA_FRAME;
   mbmi->ref_frame[1] = NONE_FRAME;
-#if CONFIG_REFINEMV
   mbmi->refinemv_flag = 0;
-#endif  // CONFIG_REFINEMV
   mbmi->use_intrabc[xd->tree_type == CHROMA_PART] = 0;
 #if CONFIG_BRU
   mbmi->local_rest_type = 1;
@@ -7112,9 +7042,7 @@ static AOM_INLINE void rd_pick_skip_mode(
   mbmi->warp_inter_intra = 0;
 #endif  // CONFIG_WARP_INTER_INTRA
 
-#if CONFIG_REFINEMV
   mbmi->refinemv_flag = 0;
-#endif  // CONFIG_REFINEMV
   mbmi->morph_pred = 0;
 
   assert(this_mode == NEAR_NEARMV);
@@ -7189,9 +7117,8 @@ static AOM_INLINE void rd_pick_skip_mode(
   // mbmi_ext->weight[ref_frame][4] inside av1_find_mv_refs.
   av1_copy_usable_ref_mv_stack_and_weight(xd, mbmi_ext, ref_frame_type);
 
-#if CONFIG_REFINEMV
   mbmi->mode = this_mode;
-#endif  // CONFIG_REFINEMV
+
   // loop of ref_mv_idx
   assert(!has_second_drl(mbmi));
   int ref_set = get_drl_refmv_count(cm->features.max_drl_bits, x,
@@ -7231,7 +7158,6 @@ static AOM_INLINE void rd_pick_skip_mode(
     }
 #endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 
-#if CONFIG_REFINEMV
     mbmi->refinemv_flag = (
 #if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                               is_compound &&
@@ -7240,7 +7166,6 @@ static AOM_INLINE void rd_pick_skip_mode(
                               is_refinemv_allowed_skip_mode(cm, mbmi))
                               ? 1
                               : 0;
-#endif  // CONFIG_REFINEMV
 
     if (!build_cur_mv(mbmi->mv, mbmi->mode, cm, x, 0)) {
       assert(av1_check_newmv_joint_nonzero(cm, x));
@@ -7373,9 +7298,7 @@ static AOM_INLINE void rd_pick_skip_mode(
                                  xd,
 #endif  // CONFIG_COMPOUND_4XN
                                  cm->features.interp_filter);
-#if CONFIG_REFINEMV
       search_state->best_mbmode.refinemv_flag = mbmi->refinemv_flag;
-#endif  // CONFIG_REFINEMV
 
       // Update rd_cost
       best_rd_cost->rate = skip_mode_rd_stats.rate;
@@ -8231,9 +8154,7 @@ static INLINE void init_mbmi(MB_MODE_INFO *mbmi, PREDICTION_MODE curr_mode,
   mbmi->cwp_idx = CWP_EQUAL;
   mbmi->motion_mode = SIMPLE_TRANSLATION;
   mbmi->interintra_mode = (INTERINTRA_MODE)(II_DC_PRED - 1);
-#if CONFIG_REFINEMV
   mbmi->refinemv_flag = 0;
-#endif  // CONFIG_REFINEMV
   for (int i = 0; i < MAX_TX_PARTITIONS; ++i) {
     mbmi->is_wide_angle[0][i] = 0;
     mbmi->is_wide_angle[1][i] = 0;
@@ -9312,11 +9233,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   mbmi->bawp_flag[1] = 0;
   // Reset skip mode flag.
   mbmi->skip_mode = 0;
-
-#if CONFIG_REFINEMV
   mbmi->refinemv_flag = 0;
-#endif  // CONFIG_REFINEMV
-
   mbmi->mode = NEARMV;
   // init params, set frame modes, speed features
   set_params_rd_pick_inter_mode(cpi, x, bsize, &mode_skip_mask,
@@ -10223,9 +10140,8 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
 
   mbmi->bawp_flag[0] = 0;
   mbmi->bawp_flag[1] = 0;
-#if CONFIG_REFINEMV
   mbmi->refinemv_flag = 0;
-#endif  // CONFIG_REFINEMV
+
 #if CONFIG_BRU
   assert(xd->sbi->sb_active_mode == BRU_ACTIVE_SB);
 #endif  // CONFIG_BRU

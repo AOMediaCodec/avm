@@ -922,9 +922,8 @@ int av1_search_palette_mode(IntraModeSearchState *intra_search_state,
     mbmi->dpcm_mode_uv = 0;
   }
 #endif  // CONFIG_LOSSLESS_DPCM
-#if CONFIG_REFINEMV
+
   mbmi->refinemv_flag = 0;
-#endif  // CONFIG_REFINEMV
   mbmi->morph_pred = 0;
 
   mbmi->motion_mode = SIMPLE_TRANSLATION;
@@ -1084,9 +1083,7 @@ static INLINE void handle_intra_dip_mode(const AV1_COMP *cpi, MACROBLOCK *x,
 
   set_mv_precision(mbmi, mbmi->max_mv_precision);
 
-#if CONFIG_REFINEMV
   mbmi->refinemv_flag = 0;
-#endif  // CONFIG_REFINEMV
   mbmi->motion_mode = SIMPLE_TRANSLATION;
 
   RD_STATS rd_stats_y_iml;

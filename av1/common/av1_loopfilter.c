@@ -536,7 +536,6 @@ static AOM_INLINE void check_opfl_edge(const AV1_COMMON *const cm,
   }
 }
 
-#if CONFIG_REFINEMV
 // Check whether current block is RFMV mode
 static AOM_INLINE void check_rfmv_edge(const AV1_COMMON *const cm,
                                        const MB_MODE_INFO *const mbmi,
@@ -556,7 +555,6 @@ static AOM_INLINE void check_rfmv_edge(const AV1_COMMON *const cm,
     *ts = rfmv_ts;
   }
 }
-#endif  // CONFIG_REFINEMV
 
 // Check whether current block is sub-prediction mode
 static AOM_INLINE void check_sub_pu_edge(
@@ -579,9 +577,7 @@ static AOM_INLINE void check_sub_pu_edge(
                     xd,
 #endif  // CONFIG_COMPOUND_4XN
                     mbmi, scale, &temp_ts, &temp_edge);
-#if CONFIG_REFINEMV
   if (!temp_edge) check_rfmv_edge(cm, mbmi, scale, &temp_ts, &temp_edge);
-#endif  // CONFIG_REFINEMV
 
   if (temp_edge) {
     const int sub_pu_size =

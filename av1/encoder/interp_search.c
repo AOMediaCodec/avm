@@ -126,9 +126,7 @@ static INLINE int get_switchable_rate(MACROBLOCK *const x,
   // When optical flow refinement is used, interp filter type is always set
   // to MULTITAP_SHARP, and thus is not switchable.
   assert(x->e_mbd.mi[0]->mode < NEAR_NEARMV_OPTFLOW);
-#if CONFIG_REFINEMV
   assert(!x->e_mbd.mi[0]->refinemv_flag);
-#endif  // CONFIG_REFINEMV
   const int inter_filter_cost =
       x->mode_costs.switchable_interp_costs[ctx[0]][interp_fltr];
   return SWITCHABLE_INTERP_RATE_FACTOR * inter_filter_cost;
@@ -198,11 +196,8 @@ static INLINE int64_t interpolation_filter_rd(
 #if CONFIG_COMPOUND_4XN
                                   xd,
 #endif  // CONFIG_COMPOUND_4XN
-                                  mbmi)
-#if CONFIG_REFINEMV
-       || mbmi->refinemv_flag
-#endif  // CONFIG_REFINEMV
-       || is_tip_ref_frame(mbmi->ref_frame[0]))
+                                  mbmi) ||
+       mbmi->refinemv_flag || is_tip_ref_frame(mbmi->ref_frame[0]))
           ? 0
           : get_switchable_rate(x, mbmi->interp_fltr, switchable_ctx);
 
@@ -450,11 +445,8 @@ int64_t av1_interpolation_filter_search(
 #if CONFIG_COMPOUND_4XN
                                   xd,
 #endif  // CONFIG_COMPOUND_4XN
-                                  mbmi)
-#if CONFIG_REFINEMV
-       || mbmi->refinemv_flag
-#endif  // CONFIG_REFINEMV
-       || is_tip_ref_frame(mbmi->ref_frame[0]))
+                                  mbmi) ||
+       mbmi->refinemv_flag || is_tip_ref_frame(mbmi->ref_frame[0]))
           ? 0
           : get_switchable_rate(x, mbmi->interp_fltr, switchable_ctx);
 
@@ -486,7 +478,6 @@ int64_t av1_interpolation_filter_search(
     return 0;
   }
   if (!need_search) {
-#if CONFIG_REFINEMV
 #if CONFIG_COMPOUND_4XN
     assert(mbmi->interp_fltr ==
            ((opfl_allowed_cur_pred_mode(cm, xd, mbmi) || mbmi->refinemv_flag ||
@@ -500,20 +491,9 @@ int64_t av1_interpolation_filter_search(
                 ? MULTITAP_SHARP
                 : EIGHTTAP_REGULAR));
 #endif  // CONFIG_COMPOUND_4XN
-#else
-    assert(mbmi->interp_fltr == (opfl_allowed_cur_pred_mode(cm,
-#if CONFIG_COMPOUND_4XN
-                                                            xd,
-#endif  // CONFIG_COMPOUND_4XN
-                                                            mbmi) ||
-                                         is_tip_ref_frame(mbmi->ref_frame[0])
-                                     ? MULTITAP_SHARP
-                                     : EIGHTTAP_REGULAR));
-#endif  // CONFIG_REFINEMV
     return 0;
   }
   if (args->modelled_rd != NULL) {
-#if CONFIG_REFINEMV
     int use_default_filter = mbmi->refinemv_flag ||
                              opfl_allowed_cur_pred_mode(cm,
 #if CONFIG_COMPOUND_4XN
@@ -522,13 +502,6 @@ int64_t av1_interpolation_filter_search(
                                                         mbmi) ||
                              is_tip_ref_frame(mbmi->ref_frame[0]);
     if (has_second_ref(mbmi) && !use_default_filter) {
-#else
-    if (has_second_ref(mbmi) && !opfl_allowed_cur_pred_mode(cm,
-#if CONFIG_COMPOUND_4XN
-                                                            xd,
-#endif  // CONFIG_COMPOUND_4XN
-                                                            mbmi)) {
-#endif  // CONFIG_REFINEMV
       MV_REFERENCE_FRAME *refs = mbmi->ref_frame;
       const int mode0 = compound_ref0_mode(mbmi->mode);
       const int mode1 = compound_ref1_mode(mbmi->mode);

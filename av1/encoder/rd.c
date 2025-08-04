@@ -636,12 +636,10 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
     }
 #endif  // CONFIG_D149_CTX_MODELING_OPT
 
-#if CONFIG_REFINEMV
     for (i = 0; i < NUM_REFINEMV_CTX; ++i) {
       av1_cost_tokens_from_cdf(mode_costs->refinemv_flag_cost[i],
                                fc->refinemv_flag_cdf[i], NULL);
     }
-#endif  // CONFIG_REFINEMV
 
     for (i = 0; i < WARP_CAUSAL_MODE_CTX; i++) {
       av1_cost_tokens_from_cdf(mode_costs->warp_causal_cost[i],

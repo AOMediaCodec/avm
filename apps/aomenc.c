@@ -473,9 +473,7 @@ const arg_def_t *av1_key_val_args[] = {
   &g_av1_codec_arg_defs.enable_flex_mvres,
   &g_av1_codec_arg_defs.select_cfl_ds_filter,
   &g_av1_codec_arg_defs.enable_joint_mvd,
-#if CONFIG_REFINEMV
   &g_av1_codec_arg_defs.enable_refinemv,
-#endif  // CONFIG_REFINEMV
 #if CONFIG_DERIVED_MVD_SIGN
   &g_av1_codec_arg_defs.enable_mvd_sign_derive,
 #endif  // CONFIG_DERIVED_MVD_SIGN
@@ -660,9 +658,7 @@ static void init_config(cfg_options_t *config) {
   config->enable_flex_mvres = 1;
   config->select_cfl_ds_filter = 3;
   config->enable_joint_mvd = 1;
-#if CONFIG_REFINEMV
   config->enable_refinemv = 1;
-#endif  // CONFIG_REFINEMV
 #if CONFIG_DERIVED_MVD_SIGN
   config->enable_mvd_sign_derive = 1;
 #endif  // CONFIG_DERIVED_MVD_SIGN
@@ -1589,10 +1585,8 @@ static void show_stream_config(struct stream_state *stream,
           encoder_cfg->enable_flex_mvres);
   fprintf(stdout, "                               : Joint MVD coding: (%d)\n",
           encoder_cfg->enable_joint_mvd);
-#if CONFIG_REFINEMV
   fprintf(stdout, "                               : RefineMV mode: (%d)\n",
           encoder_cfg->enable_refinemv);
-#endif  // CONFIG_REFINEMV
 #if CONFIG_DERIVED_MVD_SIGN
   fprintf(stdout,
           "                               : MVD sign derivation mode: (%d)\n",

@@ -842,10 +842,8 @@ typedef struct {
 
   // Indicates if joint mvd coding should be enabled.
   bool enable_joint_mvd;
-#if CONFIG_REFINEMV
   // Indicates if refineMV mode should be enabled.
   bool enable_refinemv;
-#endif  // CONFIG_REFINEMV
 #if CONFIG_DERIVED_MVD_SIGN
   // Indicates if mvd sign derivation should be enabled.
   bool enable_mvd_sign_derive;
@@ -1307,10 +1305,8 @@ typedef struct FRAME_COUNTS {
   unsigned int mrl_index[MRL_INDEX_CONTEXTS][MRL_LINE_NUMBER];
   unsigned int multi_line_mrl[MRL_INDEX_CONTEXTS][2];
   unsigned int cfl_index[CFL_TYPE_COUNT];
-#if CONFIG_REFINEMV
   unsigned int refinemv_flag_cnts[NUM_REFINEMV_CTX]
                                  [REFINEMV_NUM_MODES];  // placeholder
-#endif                                                  // CONFIG_REFINEMV
 
   unsigned int inter_warp_cnts[WARPMV_MODE_CONTEXT][2];  // placeholder
   unsigned int is_warpmv_or_warp_newmv_cnt[2];

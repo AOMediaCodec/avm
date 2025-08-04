@@ -173,9 +173,7 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t select_cfl_ds_filter;
 #endif  // CONFIG_IMPROVED_CFL
   arg_def_t enable_joint_mvd;
-#if CONFIG_REFINEMV
   arg_def_t enable_refinemv;
-#endif  // CONFIG_REFINEMV
 #if CONFIG_DERIVED_MVD_SIGN
   arg_def_t enable_mvd_sign_derive;
 #endif  // CONFIG_DERIVED_MVD_SIGN

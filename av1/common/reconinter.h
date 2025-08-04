@@ -161,13 +161,11 @@ struct build_prediction_ctxt {
   void *dcb;  // Decoder-only coding block.
 };
 
-#if CONFIG_REFINEMV
 #define REFINE_MV_MAX_OFFSET 0
 #define REF_TOP_BORDER (AOM_INTERP_EXTEND - 1 + REFINE_MV_MAX_OFFSET)
 #define REF_LEFT_BORDER (AOM_INTERP_EXTEND - 1 + REFINE_MV_MAX_OFFSET)
 #define REF_RIGHT_BORDER (AOM_INTERP_EXTEND + REFINE_MV_MAX_OFFSET)
 #define REF_BOTTOM_BORDER (AOM_INTERP_EXTEND + REFINE_MV_MAX_OFFSET)
-#endif  // CONFIG_REFINEMV
 
 #define REF_TOP_BORDER_WARP (AOM_INTERP_EXTEND - 1)
 #define REF_LEFT_BORDER_WARP (AOM_INTERP_EXTEND - 1)
@@ -200,13 +198,11 @@ typedef struct InterPredParams {
   int orig_block_width;
   int orig_block_height;
 
-#if CONFIG_REFINEMV
   // In refinemV, the prediction is generated maximum 16x16 sub-block basis
   // original_pu_width and  original_pu_height represents the width and height
   // of the original block.
   int original_pu_width;
   int original_pu_height;
-#endif  // CONFIG_REFINEMV
 
   int pix_row;
   int pix_col;
@@ -227,10 +223,8 @@ typedef struct InterPredParams {
   int dist_to_top_edge;    /*!< Distance from top edge */
   int dist_to_bottom_edge; /*!< Distance from bottom edge */
 
-#if CONFIG_REFINEMV
   int use_ref_padding;
   ReferenceArea *ref_area;
-#endif  // CONFIG_REFINEMV
 
   int use_warp_bd_box;
   WarpBoundaryBox *warp_bd_box;
@@ -528,9 +522,7 @@ void av1_build_one_inter_predictor(
 void av1_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                 int plane, MB_MODE_INFO *mi,
                                 const BUFFER_SET *dst_orig,
-#if CONFIG_REFINEMV
                                 int build_for_refine_mv_only,
-#endif  // CONFIG_REFINEMV
                                 int build_for_decode, int bw, int bh, int mi_x,
                                 int mi_y, uint16_t **mc_buf,
                                 CalcSubpelParamsFunc calc_subpel_params_func);
@@ -556,12 +548,8 @@ void av1_opfl_build_inter_predictor(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mi,
     int bw, int bh, int mi_x, int mi_y, uint16_t **mc_buf,
     InterPredParams *inter_pred_params,
-    CalcSubpelParamsFunc calc_subpel_params_func, int ref, uint16_t *pred_dst
-#if CONFIG_REFINEMV
-    ,
-    const MV *const src_mv, int pu_width, int pu_height
-#endif  // CONFIG_REFINEMV
-);
+    CalcSubpelParamsFunc calc_subpel_params_func, int ref, uint16_t *pred_dst,
+    const MV *const src_mv, int pu_width, int pu_height);
 
 // Generate refined MVs using optflow refinement
 void av1_get_optflow_based_mv(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
@@ -572,12 +560,8 @@ void av1_get_optflow_based_mv(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
                               int16_t *gx0, int16_t *gy0, int16_t *gx1,
                               int16_t *gy1, int *vx0, int *vy0, int *vx1,
                               int *vy1, uint16_t *dst0, uint16_t *dst1,
-                              int do_pred, int use_4x4
-#if CONFIG_REFINEMV
-                              ,
-                              MV *best_mv_ref, int pu_width, int pu_height
-#endif  // CONFIG_REFINEMV
-);
+                              int do_pred, int use_4x4, MV *best_mv_ref,
+                              int pu_width, int pu_height);
 
 // With the refined MVs, generate the inter prediction for the block.
 void av1_opfl_rebuild_inter_predictor(
@@ -663,11 +647,9 @@ void highbd_build_mc_border(const uint16_t *src, int src_stride, uint16_t *dst,
                             int w, int h);
 #endif  // CONFIG_BRU
 
-#if CONFIG_REFINEMV
 // Compute the SAD between the two predictors when refinemv is ON
 int get_refinemv_sad(uint16_t *src1, uint16_t *src2, int stride, int width,
                      int height, int bd);
-#if CONFIG_16_FULL_SEARCH_DMVR || CONFIG_24_FULL_SEARCH_DMVR
 // Generate two prediction signals of a given mv0 and mv1
 void av1_refinemv_build_predictors(MACROBLOCKD *xd, int mi_x, int mi_y,
                                    uint16_t **mc_buf,
@@ -675,13 +657,6 @@ void av1_refinemv_build_predictors(MACROBLOCKD *xd, int mi_x, int mi_y,
                                    uint16_t *dst_ref0, uint16_t *dst_ref1,
                                    int dst_stride, MV mv0, MV mv1,
                                    InterPredParams *inter_pred_params);
-#else
-// Generate two prediction signals and compute SAD of a given mv0 and mv1
-int av1_refinemv_build_predictors_and_get_sad(
-    MACROBLOCKD *xd, int bw, int bh, int mi_x, int mi_y, uint16_t **mc_buf,
-    CalcSubpelParamsFunc calc_subpel_params_func, uint16_t *dst_ref0,
-    uint16_t *dst_ref1, MV mv0, MV mv1, InterPredParams *inter_pred_params);
-#endif  // CONFIG_16_FULL_SEARCH_DMVR || CONFIG_24_FULL_SEARCH_DMVR
 
 // Get the context index to code refinemv flag
 int av1_get_refinemv_context(const AV1_COMMON *cm, const MACROBLOCKD *xd,
@@ -762,7 +737,6 @@ static INLINE int is_refinemv_allowed_reference(const AV1_COMMON *cm,
   int d0, d1;
   int is_tip = (mbmi->ref_frame[0] == TIP_FRAME);
 
-#if !CONFIG_ACROSS_SCALE_REFINEMV
   // If one of the reference frame is different resolution than the current
   // frame, refinemv is disabled.
   const struct scale_factors *const sf0 =
@@ -774,7 +748,6 @@ static INLINE int is_refinemv_allowed_reference(const AV1_COMMON *cm,
   if (av1_is_scaled(sf0) || av1_is_scaled(sf1)) {
     return 0;
   }
-#endif  //! CONFIG_ACROSS_SCALE_REFINEMV
 
   if (is_tip) {
     d0 = cm->tip_ref.ref_offset[0];
@@ -945,7 +918,6 @@ void common_calc_subpel_params_and_extend(
     MACROBLOCKD *const xd, int mi_x, int mi_y, int ref,
     int use_optflow_refinement, uint16_t **mc_buf, uint16_t **pre,
     SubpelParams *subpel_params, int *src_stride);
-#endif  // CONFIG_REFINEMV
 
 unsigned int get_highbd_sad(const uint16_t *src_ptr, int source_stride,
                             const uint16_t *ref_ptr, int ref_stride, int bd,
@@ -1123,17 +1095,15 @@ static INLINE void set_default_interp_filters(
     mbmi->interp_fltr = MULTITAP_SHARP;
     return;
   }
-  mbmi->interp_fltr = (opfl_allowed_cur_pred_mode(cm,
+  mbmi->interp_fltr =
+      (opfl_allowed_cur_pred_mode(cm,
 #if CONFIG_COMPOUND_4XN
-                                                  xd,
+                                  xd,
 #endif  // CONFIG_COMPOUND_4XN
-                                                  mbmi)
-#if CONFIG_REFINEMV
-                       || mbmi->refinemv_flag
-#endif  // CONFIG_REFINEMV
-                       || is_tip_ref_frame(mbmi->ref_frame[0]))
-                          ? MULTITAP_SHARP
-                          : av1_unswitchable_filter(frame_interp_filter);
+                                  mbmi) ||
+       mbmi->refinemv_flag || is_tip_ref_frame(mbmi->ref_frame[0]))
+          ? MULTITAP_SHARP
+          : av1_unswitchable_filter(frame_interp_filter);
 }
 
 static INLINE int av1_is_interp_needed(const AV1_COMMON *const cm,
@@ -1151,11 +1121,8 @@ static INLINE int av1_is_interp_needed(const AV1_COMMON *const cm,
                                  mbmi))
     return 0;
 
-#if CONFIG_REFINEMV
   // No interpolation filter search when MV refinement is used.
   if (mbmi->refinemv_flag) return 0;
-#endif  // CONFIG_REFINEMV
-
   if (is_warp_mode(mbmi->motion_mode)) return 0;
   if (is_nontrans_global_motion(xd, xd->mi[0])) return 0;
   if (is_tip_ref_frame(mbmi->ref_frame[0])) return 0;

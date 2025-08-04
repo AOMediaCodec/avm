@@ -377,12 +377,10 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_joint_mvd;
-#if CONFIG_REFINEMV
   /*!\brief enable refine MV mode
    *
    */
   unsigned int enable_refinemv;
-#endif  // CONFIG_REFINEMV
 
 #if CONFIG_DERIVED_MVD_SIGN
   /*!\brief enable mvd_sign_derive

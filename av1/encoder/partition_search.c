@@ -1199,13 +1199,11 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
     update_skip_drl_index_stats(cm->features.max_drl_bits, fc, counts, mbmi);
   }
 
-#if CONFIG_REFINEMV
   if (mbmi->skip_mode && switchable_refinemv_flag(cm, mbmi)) {
     const int refinemv_ctx = av1_get_refinemv_context(cm, xd, bsize);
     update_cdf(fc->refinemv_flag_cdf[refinemv_ctx], mbmi->refinemv_flag,
                REFINEMV_NUM_MODES);
   }
-#endif  // CONFIG_REFINEMV
 
   if (frame_is_intra_only(cm) || mbmi->skip_mode) return;
 
@@ -1517,7 +1515,6 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
         assert(mbmi->warpmv_with_mvd_flag == 0);
       }
 
-#if CONFIG_REFINEMV
       int is_refinemv_signaled = switchable_refinemv_flag(cm, mbmi);
       if (!mbmi->skip_mode && is_refinemv_signaled) {
         const int refinemv_ctx = av1_get_refinemv_context(cm, xd, bsize);
@@ -1527,12 +1524,9 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
       assert(IMPLIES(mbmi->refinemv_flag && is_refinemv_signaled,
                      mbmi->comp_group_idx == 0 &&
                          mbmi->interinter_comp.type == COMPOUND_AVERAGE));
-#endif  // CONFIG_REFINEMV
-      if (has_second_ref(mbmi) && mbmi->mode < NEAR_NEARMV_OPTFLOW
-#if CONFIG_REFINEMV
-          && (!mbmi->refinemv_flag || !is_refinemv_signaled)
-#endif  // CONFIG_REFINEMV
-          && !is_joint_amvd_coding_mode(mbmi->mode, mbmi->use_amvd)) {
+      if (has_second_ref(mbmi) && mbmi->mode < NEAR_NEARMV_OPTFLOW &&
+          (!mbmi->refinemv_flag || !is_refinemv_signaled) &&
+          !is_joint_amvd_coding_mode(mbmi->mode, mbmi->use_amvd)) {
 #if CONFIG_COMPOUND_WARP_CAUSAL
 #if CONFIG_COMPOUND_4XN
         assert(current_frame->reference_mode != SINGLE_REFERENCE &&
@@ -1603,11 +1597,9 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
   }
 
   if (inter_block && cm->features.interp_filter == SWITCHABLE &&
-      !is_warp_mode(mbmi->motion_mode) && !is_nontrans_global_motion(xd, mbmi)
-#if CONFIG_REFINEMV
-      && !(mbmi->refinemv_flag || mbmi->mode >= NEAR_NEARMV_OPTFLOW)
-#endif  // CONFIG_REFINEMV
-  ) {
+      !is_warp_mode(mbmi->motion_mode) &&
+      !is_nontrans_global_motion(xd, mbmi) &&
+      !(mbmi->refinemv_flag || mbmi->mode >= NEAR_NEARMV_OPTFLOW)) {
     update_filter_type_cdf(xd, mbmi);
   }
   if (inter_block &&

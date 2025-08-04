@@ -593,14 +593,9 @@ MAKE_BFP_SAD_WRAPPER_COMMON8x8(aom_highbd_sad8x8)
 static AOM_INLINE void tip_build_inter_predictors_8x8(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MV mv[2], int mi_x,
     int mi_y, uint16_t **mc_buf, CONV_BUF_TYPE *tmp_conv_dst,
-    CalcSubpelParamsFunc calc_subpel_params_func, uint16_t *dst, int dst_stride
-#if CONFIG_REFINEMV
-    ,
+    CalcSubpelParamsFunc calc_subpel_params_func, uint16_t *dst, int dst_stride,
     uint16_t *dst0_16_refinemv, uint16_t *dst1_16_refinemv,
-    ReferenceArea ref_area[2]
-#endif  // CONFIG_REFINEMV
-
-) {
+    ReferenceArea ref_area[2]) {
   // TODO(any): currently this only works for y plane
   assert(plane == 0);
 
@@ -640,7 +635,6 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
   mbmi->pb_mv_precision = MV_PRECISION_ONE_EIGHTH_PEL;
   mbmi->morph_pred = 0;
 
-#if CONFIG_REFINEMV
   MV best_mv_ref[2] = { { mbmi->mv[0].as_mv.row, mbmi->mv[0].as_mv.col },
                         { mbmi->mv[1].as_mv.row, mbmi->mv[1].as_mv.col } };
 
@@ -660,7 +654,6 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
                             best_mv_ref[1]);
   }
 
-#endif  // CONFIG_REFINEMV
   if (plane == 0) {
     mv_refined[0].as_mv = convert_mv_to_1_16th_pel(&best_mv_ref[0]);
     mv_refined[1].as_mv = convert_mv_to_1_16th_pel(&best_mv_ref[1]);
@@ -699,21 +692,10 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
     InterPredParams params0, params1;
     av1_opfl_build_inter_predictor(cm, xd, plane, mbmi, bw, bh, mi_x, mi_y,
                                    mc_buf, &params0, calc_subpel_params_func, 0,
-                                   dst0
-#if CONFIG_REFINEMV
-                                   ,
-                                   &best_mv_ref[0], bw, bh
-#endif  // CONFIG_REFINEMV
-    );
+                                   dst0, &best_mv_ref[0], bw, bh);
     av1_opfl_build_inter_predictor(cm, xd, plane, mbmi, bw, bh, mi_x, mi_y,
                                    mc_buf, &params1, calc_subpel_params_func, 1,
-                                   dst1
-#if CONFIG_REFINEMV
-                                   ,
-                                   &best_mv_ref[1], bw, bh
-#endif  // CONFIG_REFINEMV
-
-    );
+                                   dst1, &best_mv_ref[1], bw, bh);
     const unsigned int sad = get_highbd_sad(dst0, bw, dst1, bw, bd, 8, 8);
     if (sad < sad_thres) {
       do_opfl = 0;
@@ -722,13 +704,9 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
 
   if (do_opfl) {
     // Initialize refined mv
-#if CONFIG_REFINEMV
     const MV mv0 = best_mv_ref[0];
     const MV mv1 = best_mv_ref[1];
-#else
-    const MV mv0 = mv[0];
-    const MV mv1 = mv[1];
-#endif  // CONFIG_REFINEMV
+
     for (int mvi = 0; mvi < 4; mvi++) {
       mv_refined[mvi * 2].as_mv = mv0;
       mv_refined[mvi * 2 + 1].as_mv = mv1;
@@ -738,12 +716,8 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
     av1_get_optflow_based_mv(cm, xd, plane, mbmi, mv_refined, bw, bh, mi_x,
                              mi_y, 0 /* build_for_decode */, mc_buf,
                              calc_subpel_params_func, gx0, gy0, gx1, gy1, vx0,
-                             vy0, vx1, vy1, dst0, dst1, 0, use_4x4
-#if CONFIG_REFINEMV
-                             ,
-                             best_mv_ref, bw, bh
-#endif  // CONFIG_REFINEMV
-    );
+                             vy0, vx1, vy1, dst0, dst1, 0, use_4x4, best_mv_ref,
+                             bw, bh);
 
     xd->opfl_vxy_bufs[0] = *vx0;
     xd->opfl_vxy_bufs[N_OF_OFFSETS * 1] = *vx1;
@@ -771,12 +745,10 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
                           comp_pixel_x, ss_x, ss_y, bd, 0, sf, pred_buf,
                           cm->tip_interp_filter);
 
-#if CONFIG_REFINEMV
     if (apply_refinemv || do_opfl) {
       inter_pred_params.use_ref_padding = 1;
       inter_pred_params.ref_area = &ref_area[ref];
     }
-#endif  // CONFIG_REFINEMV
 
     inter_pred_params.comp_mode = UNIFORM_COMP;
 
@@ -795,11 +767,7 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
           mi_y, 0 /* build_for_decode */, cm, bw, ref, mc_buf,
           calc_subpel_params_func, use_4x4);
     } else {
-#if CONFIG_REFINEMV
       const MV mv_1_16th_pel = convert_mv_to_1_16th_pel(&best_mv_ref[ref]);
-#else
-      const MV mv_1_16th_pel = convert_mv_to_1_16th_pel(&mv[ref]);
-#endif
       av1_build_one_inter_predictor(dst, dst_stride, &mv_1_16th_pel,
                                     &inter_pred_params, xd, mi_x, mi_y, ref,
                                     mc_buf, calc_subpel_params_func);
@@ -841,7 +809,6 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
   const int is_compound = 1;
 #endif  // CONFIG_TIP_ENHANCEMENT
 
-#if CONFIG_REFINEMV
 #if CONFIG_SUBBLK_REF_EXT
   uint16_t
       dst0_16_refinemv[(REFINEMV_SUBBLOCK_WIDTH +
@@ -902,7 +869,6 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
                                         comp_bh, mi_x, mi_y, ref_area, bw, bh);
     aom_free(mbmi);
   }
-#endif  // CONFIG_REFINEMV
 
   int dst_stride = dst_buf->stride;
   if (plane == 0 &&
@@ -910,11 +876,7 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
       is_any_mv_refinement_allowed(cm) && is_compound &&
       tip_weight == TIP_EQUAL_WTD &&
 #endif  // CONFIG_TIP_ENHANCEMENT
-      (cm->features.use_optflow_tip
-#if CONFIG_REFINEMV
-       || apply_refinemv
-#endif  // CONFIG_REFINEMV
-       )) {
+      (cm->features.use_optflow_tip || apply_refinemv)) {
     if (bw != 8 || bh != 8) {
       for (int h = 0; h < bh; h += 8) {
         for (int w = 0; w < bw; w += 8) {
@@ -929,12 +891,8 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
     }
     tip_build_inter_predictors_8x8(cm, xd, plane, mv, mi_x, mi_y, mc_buf,
                                    tmp_conv_dst, calc_subpel_params_func, dst,
-                                   dst_stride
-#if CONFIG_REFINEMV
-                                   ,
-                                   dst0_16_refinemv, dst1_16_refinemv, ref_area
-#endif  // CONFIG_REFINEMV
-    );
+                                   dst_stride, dst0_16_refinemv,
+                                   dst1_16_refinemv, ref_area);
     return;
   }
 

@@ -1833,10 +1833,7 @@ static void read_intrabc_info(AV1_COMMON *const cm, DecoderCodingBlock *dcb,
     set_default_precision_set(cm, mbmi, bsize);
     set_most_probable_mv_precision(cm, mbmi, bsize);
 
-#if CONFIG_REFINEMV
     mbmi->refinemv_flag = 0;
-#endif  // CONFIG_REFINEMV
-
     mbmi->bawp_flag[0] = 0;
     mbmi->bawp_flag[1] = 0;
 #if !CONFIG_C076_INTER_MOD_CTX
@@ -2045,9 +2042,7 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
   mbmi->skip_mode = 0;
   if (xd->tree_type != CHROMA_PART) mbmi->morph_pred = 0;
   mbmi->motion_mode = SIMPLE_TRANSLATION;
-#if CONFIG_REFINEMV
   mbmi->refinemv_flag = 0;
-#endif  // CONFIG_REFINEMV
 
   if (av1_allow_intrabc(cm, xd
 #if CONFIG_ENABLE_IBC_NAT
@@ -2910,10 +2905,7 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
 
   mbmi->bawp_flag[0] = 0;
   mbmi->bawp_flag[1] = 0;
-
-#if CONFIG_REFINEMV
   mbmi->refinemv_flag = 0;
-#endif  // CONFIG_REFINEMV
 
   // Reset to avoid potential bug for warp mode context modeling
   mbmi->motion_mode = SIMPLE_TRANSLATION;
@@ -3489,7 +3481,6 @@ static void dec_dump_logs(AV1_COMMON *cm, MB_MODE_INFO *const mbmi, int mi_row,
 }
 #endif  // DEC_MISMATCH_DEBUG
 
-#if CONFIG_REFINEMV
 // This function read the refinemv_flag ( if require) from the bitstream
 static void read_refinemv_flag(AV1_COMMON *const cm, MACROBLOCKD *xd,
                                aom_reader *r, BLOCK_SIZE bsize) {
@@ -3503,7 +3494,6 @@ static void read_refinemv_flag(AV1_COMMON *const cm, MACROBLOCKD *xd,
                         REFINEMV_NUM_MODES, ACCT_INFO("refinemv_flag"));
   }
 }
-#endif  // CONFIG_REFINEMV
 
 MvSubpelPrecision av1_read_pb_mv_precision(AV1_COMMON *const cm,
                                            MACROBLOCKD *const xd,
@@ -3574,10 +3564,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 
   mbmi->bawp_flag[0] = 0;
   mbmi->bawp_flag[1] = 0;
-
-#if CONFIG_REFINEMV
   mbmi->refinemv_flag = 0;
-#endif  // CONFIG_REFINEMV
 
 #if CONFIG_COMPOUND_WARP_CAUSAL
   mbmi->num_proj_ref[0] = 0;  // assume num_proj_ref >=1
@@ -3894,20 +3881,16 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   }
 #endif  // CONFIG_WARP_INTER_INTRA
 
-#if CONFIG_REFINEMV
   if (!mbmi->skip_mode) {
     read_refinemv_flag(cm, xd, r, bsize);
   }
-#endif  // CONFIG_REFINEMV
 
   // init
   mbmi->comp_group_idx = 0;
   mbmi->interinter_comp.type = COMPOUND_AVERAGE;
 
   if (has_second_ref(mbmi) && mbmi->mode < NEAR_NEARMV_OPTFLOW &&
-#if CONFIG_REFINEMV
       (!mbmi->refinemv_flag || !switchable_refinemv_flag(cm, mbmi)) &&
-#endif  // CONFIG_REFINEMV
       !is_joint_amvd_coding_mode(mbmi->mode, mbmi->use_amvd) &&
       !mbmi->skip_mode) {
     // Read idx to indicate current compound inter prediction mode group
@@ -3979,11 +3962,9 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       mbmi->cwp_idx =
           xd->skip_mvp_candidate_list.ref_mv_stack[mbmi->ref_mv_idx[0]].cwp_idx;
   }
-#if CONFIG_REFINEMV
   if (mbmi->skip_mode) {
     mbmi->refinemv_flag = 0;
   }
-#endif  // CONFIG_REFINEMV
 
   read_mb_interp_filter(xd, features->interp_filter, cm, mbmi, r);
 
@@ -4186,10 +4167,7 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
 
   mbmi->bawp_flag[0] = 0;
   mbmi->bawp_flag[1] = 0;
-
-#if CONFIG_REFINEMV
   mbmi->refinemv_flag = 0;
-#endif  // CONFIG_REFINEMV
 
   if (xd->tree_type != CHROMA_PART)
     mbmi->segment_id = read_inter_segment_id(cm, xd, 1, r);

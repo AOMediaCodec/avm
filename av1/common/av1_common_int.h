@@ -572,9 +572,7 @@ typedef struct SequenceHeader {
 
   uint8_t enable_joint_mvd;  // enables/disables joint MVD coding
 
-#if CONFIG_REFINEMV
   uint8_t enable_refinemv;  // enables/disables refineMV mode
-#endif                      // CONFIG_REFINEMV
 
 #if CONFIG_DERIVED_MVD_SIGN
   uint8_t enable_mvd_sign_derive;  // enables/disables MVD sign derivation

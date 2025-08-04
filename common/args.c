@@ -111,9 +111,7 @@ int parse_cfg(const char *file, cfg_options_t *config) {
 
     GET_PARAMS(select_cfl_ds_filter);
     GET_PARAMS(enable_joint_mvd);
-#if CONFIG_REFINEMV
     GET_PARAMS(enable_refinemv);
-#endif  // CONFIG_REFINEMV
 #if CONFIG_DERIVED_MVD_SIGN
     GET_PARAMS(enable_mvd_sign_derive);
 #endif  // CONFIG_DERIVED_MVD_SIGN

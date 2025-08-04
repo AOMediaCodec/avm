@@ -1399,10 +1399,8 @@ int_mv av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
 
   mbmi->bawp_flag[0] = 0;
   mbmi->bawp_flag[1] = 0;
-
-#if CONFIG_REFINEMV
   mbmi->refinemv_flag = 0;
-#endif  // CONFIG_REFINEMV
+
 #if CONFIG_WARP_INTER_INTRA
   mbmi->warp_inter_intra = 0;
 #endif  // CONFIG_WARP_INTER_INTRA
@@ -1564,10 +1562,7 @@ int_mv av1_simple_motion_search_ext(AV1_COMP *const cpi,
 
   mbmi->bawp_flag[0] = 0;
   mbmi->bawp_flag[1] = 0;
-
-#if CONFIG_REFINEMV
   mbmi->refinemv_flag = 0;
-#endif  // CONFIG_REFINEMV
 
 #if CONFIG_WARP_INTER_INTRA
   mbmi->warp_inter_intra = 0;

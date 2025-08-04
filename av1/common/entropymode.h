@@ -148,11 +148,8 @@ extern "C" {
 // Second context is log2(number of MI units along common edge)
 #define WARP_EXTEND_CTXS1 5
 #define WARP_EXTEND_CTXS2 5
-
-#if CONFIG_REFINEMV
 #define NUM_REFINEMV_CTX 24
 #define REFINEMV_NUM_MODES 2
-#endif  // CONFIG_REFINEMV
 
 struct AV1Common;
 
@@ -256,11 +253,8 @@ typedef struct frame_contexts {
   aom_cdf_prob drl_cdf[3][DRL_MODE_CONTEXTS][CDF_SIZE(2)];
   aom_cdf_prob skip_drl_cdf[3][CDF_SIZE(2)];
   aom_cdf_prob tip_drl_cdf[3][CDF_SIZE(2)];
-
-#if CONFIG_REFINEMV
   aom_cdf_prob refinemv_flag_cdf[NUM_REFINEMV_CTX]
                                 [CDF_SIZE(REFINEMV_NUM_MODES)];
-#endif  // CONFIG_REFINEMV
 
 #if CONFIG_OPT_INTER_MODE_CTX
 #if CONFIG_OPFL_CTX_OPT

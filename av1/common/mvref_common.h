@@ -601,11 +601,9 @@ static INLINE int enable_refined_mvs_in_tmvp(const AV1_COMMON *cm,
 #if CONFIG_COMPOUND_4XN
                                  xd,
 #endif  // CONFIG_COMPOUND_4XN
-                                 mbmi)
-#if CONFIG_REFINEMV
-      || (mbmi->refinemv_flag && mbmi->interinter_comp.type == COMPOUND_AVERAGE)
-#endif  // CONFIG_REFINEMV
-      || is_tip_ref_frame(mbmi->ref_frame[0]));
+                                 mbmi) ||
+      (mbmi->refinemv_flag && mbmi->interinter_comp.type == COMPOUND_AVERAGE) ||
+      is_tip_ref_frame(mbmi->ref_frame[0]));
 }
 
 static INLINE int allow_amvd_mode(PREDICTION_MODE mode) {

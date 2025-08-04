@@ -463,9 +463,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_flex_mvres = tool_cfg->enable_flex_mvres;
   seq->cfl_ds_filter_index = tool_cfg->select_cfl_ds_filter;
   seq->enable_joint_mvd = tool_cfg->enable_joint_mvd;
-#if CONFIG_REFINEMV
   seq->enable_refinemv = tool_cfg->enable_refinemv;
-#endif  // CONFIG_REFINEMV
 #if CONFIG_DERIVED_MVD_SIGN
   seq->enable_mvd_sign_derive = tool_cfg->enable_mvd_sign_derive;
 #endif  // CONFIG_DERIVED_MVD_SIGN

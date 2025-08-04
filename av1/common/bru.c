@@ -229,9 +229,7 @@ void bru_set_default_inter_mb_mode_info(const AV1_COMMON *const cm,
   mbmi->use_intrabc[xd->tree_type == CHROMA_PART] = 0;
 #endif  // CONFIG_IBC_SR_EXT
 #if CONFIG_C076_INTER_MOD_CTX
-#if CONFIG_REFINEMV
   mbmi->refinemv_flag = 0;
-#endif  // CONFIG_REFINEMV
 #endif  // CONFIG_C076_INTER_MOD_CTX
   mbmi->ref_mv_idx[0] = 0;
   mbmi->ref_mv_idx[1] = 0;

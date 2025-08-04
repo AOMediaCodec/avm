@@ -310,32 +310,6 @@ typedef struct {
   BacpBlockData *bacp_block_data;
 } INTERINTER_COMPOUND_BORDER_DATA;
 
-#if CONFIG_REFINEMV
-#if CONFIG_ACROSS_SCALE_REFINEMV
-// Currently we support upto 2x resolution change in both direction
-#if CONFIG_SUBBLK_REF_EXT
-#define REF_BUFFER_WIDTH                                                    \
-  (2 *                                                                      \
-   (REFINEMV_SUBBLOCK_WIDTH + (AOM_INTERP_EXTEND - 1) + AOM_INTERP_EXTEND + \
-    2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES)))
-#else
-#define REF_BUFFER_WIDTH                                    \
-  (2 * (REFINEMV_SUBBLOCK_WIDTH + (AOM_INTERP_EXTEND - 1) + \
-        AOM_INTERP_EXTEND + 2 * DMVR_SEARCH_EXT_LINES))
-#endif
-
-#if CONFIG_SUBBLK_REF_EXT
-#define REF_BUFFER_HEIGHT                                                    \
-  (2 *                                                                       \
-   (REFINEMV_SUBBLOCK_HEIGHT + (AOM_INTERP_EXTEND - 1) + AOM_INTERP_EXTEND + \
-    2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES)))
-#else
-#define REF_BUFFER_HEIGHT                                    \
-  (2 * (REFINEMV_SUBBLOCK_HEIGHT + (AOM_INTERP_EXTEND - 1) + \
-        AOM_INTERP_EXTEND + 2 * DMVR_SEARCH_EXT_LINES))
-#endif  // CONFIG_SUBBLK_REF_EXT
-
-#else
 #if CONFIG_SUBBLK_REF_EXT
 #define REF_BUFFER_WIDTH                                                   \
   (REFINEMV_SUBBLOCK_WIDTH + (AOM_INTERP_EXTEND - 1) + AOM_INTERP_EXTEND + \
@@ -355,8 +329,6 @@ typedef struct {
   (REFINEMV_SUBBLOCK_HEIGHT + (AOM_INTERP_EXTEND - 1) + AOM_INTERP_EXTEND + \
    2 * DMVR_SEARCH_EXT_LINES)
 #endif  // CONFIG_SUBBLK_REF_EXT
-
-#endif  // CONFIG_ACROSS_SCALE_REFINEMV
 
 typedef struct PadBlock {
   int x0;
@@ -378,8 +350,6 @@ typedef struct PadArea {
   uint16_t paded_ref_buf[(REF_BUFFER_WIDTH) * (REF_BUFFER_HEIGHT)];
   int paded_ref_buf_stride;
 } ReferenceArea;
-
-#endif  // CONFIG_REFINEMV
 
 // Macros for optical flow experiment where offsets are added in nXn blocks
 // rather than adding a single offset to the entire prediction unit.
@@ -488,10 +458,8 @@ typedef struct MB_MODE_INFO {
    */
   uint8_t mb_precision_set;
 
-#if CONFIG_REFINEMV
   /*! \brief The flag to signal if DMVR is used for the inter prediction. */
   uint8_t refinemv_flag;
-#endif  // CONFIG_REFINEMV
 
   /*! \brief The motion mode used by the inter prediction. */
   MOTION_MODE motion_mode;
@@ -725,14 +693,12 @@ typedef struct SUBMB_INFO {
   int_mv mv[2];
 } SUBMB_INFO;
 
-#if CONFIG_REFINEMV
 /*! \brief Stores the subblock refinemv motion info of the current coding block
  */
 typedef struct REFINEMV_SUBMB_INFO {
   /*! \brief Stored subblock mv for reference. */
   int_mv refinemv[2];
 } REFINEMV_SUBMB_INFO;
-#endif  // CONFIG_REFINEMV
 
 /*!\cond */
 // Get the start plane for semi-decoupled partitioning
@@ -2436,10 +2402,9 @@ typedef struct macroblockd {
   uint8_t eob_u_flag;
 #endif  // CONFIG_CONTEXT_DERIVATION
 
-#if CONFIG_REFINEMV
   /** block level storage to store luma refined MVs for chroma use */
   REFINEMV_SUBMB_INFO refinemv_subinfo[MAX_MIB_SIZE * MAX_MIB_SIZE];
-#endif  // CONFIG_REFINEMV
+
   /** variable to store optical flow refined MVs per subblock */
   int_mv mv_refined[2 * N_OF_OFFSETS];
 #if CONFIG_SDP_CFL_LATENCY_FIX
@@ -3838,10 +3803,7 @@ static AOM_INLINE PARTITION_TREE *get_partition_subtree_const(
 
 // check whether compound weighted prediction can be allowed
 static INLINE int is_cwp_allowed(const MB_MODE_INFO *mbmi) {
-#if CONFIG_REFINEMV
   if (mbmi->refinemv_flag) return 0;
-#endif  // CONFIG_REFINEMV
-
   if (mbmi->skip_mode) return 1;
   int use_cwp = has_second_ref(mbmi) && mbmi->mode < NEAR_NEARMV_OPTFLOW &&
                 mbmi->interinter_comp.type == COMPOUND_AVERAGE &&

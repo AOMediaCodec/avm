@@ -209,7 +209,6 @@ void av1_copy_frame_refined_mvs_tip_frame_mode(const AV1_COMMON *const cm,
         if (!is_inter_ref_frame(ref_frame) && !tip_ref_frame) continue;
 
         int_mv refined_mv;
-#if CONFIG_REFINEMV
         // Refined MVs are stored per 4x4 in refinemv_subinfo, but h and
         // w for TMVP are per 8x8, so (h<<1) and (w<<1) are used here.
         if (apply_sub_block_refinemv)
@@ -218,7 +217,6 @@ void av1_copy_frame_refined_mvs_tip_frame_mode(const AV1_COMMON *const cm,
                   .refinemv[idx]
                   .as_mv;
         else
-#endif  // CONFIG_REFINEMV
           refined_mv.as_mv = mi->mv[idx].as_mv;
         if (is_opfl_mode) {
           int *vy = idx ? vy1 : vy0;
@@ -410,7 +408,6 @@ void av1_copy_frame_refined_mvs(const AV1_COMMON *const cm,
         MV_REFERENCE_FRAME ref_frame = mi->ref_frame[idx];
         if (is_inter_ref_frame(ref_frame)) {
           int_mv refined_mv;
-#if CONFIG_REFINEMV
           // Refined MVs are stored per 4x4 in refinemv_subinfo, but h and
           // w for TMVP are per 8x8, so (h<<1) and (w<<1) are used here.
           if (apply_sub_block_refinemv)
@@ -419,7 +416,6 @@ void av1_copy_frame_refined_mvs(const AV1_COMMON *const cm,
                     .refinemv[idx]
                     .as_mv;
           else
-#endif  // CONFIG_REFINEMV
             refined_mv.as_mv = mi->mv[idx].as_mv;
           if (is_opfl_mode) {
             int *vy = idx ? vy1 : vy0;

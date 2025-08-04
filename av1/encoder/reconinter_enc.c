@@ -34,14 +34,12 @@ void av1_enc_calc_subpel_params(const MV *const src_mv,
                                 int use_optflow_refinement, uint16_t **mc_buf,
                                 uint16_t **pre, SubpelParams *subpel_params,
                                 int *src_stride) {
-#if CONFIG_REFINEMV
   if (inter_pred_params->use_ref_padding) {
     common_calc_subpel_params_and_extend(
         src_mv, inter_pred_params, xd, mi_x, mi_y, ref, use_optflow_refinement,
         mc_buf, pre, subpel_params, src_stride);
     return;
   }
-#endif  // CONFIG_REFINEMV
 
   // These are part of the function signature to use this function through a
   // function pointer. See typedef of 'CalcSubpelParamsFunc'.
@@ -107,22 +105,11 @@ void av1_enc_calc_subpel_params(const MV *const src_mv,
     int pos_x = inter_pred_params->pix_col << SUBPEL_BITS;
     int pos_y = inter_pred_params->pix_row << SUBPEL_BITS;
 
-#if CONFIG_REFINEMV
     const int bw = inter_pred_params->original_pu_width;
     const int bh = inter_pred_params->original_pu_height;
     const MV mv_q4 = clamp_mv_to_umv_border_sb(
         xd, src_mv, bw, bh, use_optflow_refinement,
         inter_pred_params->subsampling_x, inter_pred_params->subsampling_y);
-
-#else
-    const int bw = use_optflow_refinement ? inter_pred_params->orig_block_width
-                                          : inter_pred_params->block_width;
-    const int bh = use_optflow_refinement ? inter_pred_params->orig_block_height
-                                          : inter_pred_params->block_height;
-    const MV mv_q4 = clamp_mv_to_umv_border_sb(
-        xd, src_mv, bw, bh, use_optflow_refinement,
-        inter_pred_params->subsampling_x, inter_pred_params->subsampling_y);
-#endif  // CONFIG_REFINEMV
 
     subpel_params->xs = subpel_params->ys = SCALE_SUBPEL_SHIFTS;
     subpel_params->subpel_x = (mv_q4.col & SUBPEL_MASK) << SCALE_EXTRA_BITS;
@@ -158,14 +145,9 @@ void av1_enc_build_one_inter_predictor(uint16_t *dst, int dst_stride,
 void enc_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                 int plane, MB_MODE_INFO *mi,
                                 const BUFFER_SET *ctx,
-#if CONFIG_REFINEMV
-                                int build_for_refine_mv_only,
-#endif  // CONFIG_REFINEMV
-                                int bw, int bh, int mi_x, int mi_y) {
-  av1_build_inter_predictors(cm, xd, plane, mi, ctx,
-#if CONFIG_REFINEMV
-                             build_for_refine_mv_only,
-#endif  // CONFIG_REFINEMV
+                                int build_for_refine_mv_only, int bw, int bh,
+                                int mi_x, int mi_y) {
+  av1_build_inter_predictors(cm, xd, plane, mi, ctx, build_for_refine_mv_only,
                              0 /* build_for_decode */, bw, bh, mi_x, mi_y,
                              NULL /* mc_buf */, av1_enc_calc_subpel_params);
 }
@@ -196,7 +178,6 @@ void av1_enc_build_inter_predictor(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                    int mi_row, int mi_col,
                                    const BUFFER_SET *ctx, BLOCK_SIZE bsize,
                                    int plane_from, int plane_to) {
-#if CONFIG_REFINEMV
   MB_MODE_INFO *mbmi = xd->mi[0];
 
   int is_refinemv_supported =
@@ -229,17 +210,13 @@ void av1_enc_build_inter_predictor(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                  mi_col * MI_SIZE, mi_row * MI_SIZE);
     }
   }
-#endif  // CONFIG_REFINEMV
 
   for (int plane = plane_from; plane <= plane_to; ++plane) {
     if (plane && !xd->is_chroma_ref) break;
     const int mi_x = mi_col * MI_SIZE;
     const int mi_y = mi_row * MI_SIZE;
 
-    enc_build_inter_predictors(cm, xd, plane, xd->mi[0], ctx,
-#if CONFIG_REFINEMV
-                               0,
-#endif  // CONFIG_REFINEMV
+    enc_build_inter_predictors(cm, xd, plane, xd->mi[0], ctx, 0,
                                xd->plane[plane].width, xd->plane[plane].height,
                                mi_x, mi_y);
 

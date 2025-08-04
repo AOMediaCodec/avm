@@ -463,11 +463,9 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
                               "Enable joint MVD coding"
                               "(0: false, 1: true (default))"),
 
-#if CONFIG_REFINEMV
   .enable_refinemv = ARG_DEF(NULL, "enable-refinemv", 1,
                              "Enable RefineMV mode"
                              "(0: false, 1: true (default))"),
-#endif  // CONFIG_REFINEMV
 #if CONFIG_DERIVED_MVD_SIGN
   .enable_mvd_sign_derive = ARG_DEF(NULL, "enable-mvd-sign-derive", 1,
                                     "Enable MVD sign derivation"

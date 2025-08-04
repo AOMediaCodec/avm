@@ -1146,11 +1146,8 @@ static AOM_INLINE void write_mb_interp_filter(AV1_COMMON *const cm,
 #if CONFIG_COMPOUND_4XN
                                     xd,
 #endif  // CONFIG_COMPOUND_4XN
-                                    mbmi)
-
-#if CONFIG_REFINEMV
-         || mbmi->refinemv_flag
-#endif  // CONFIG_REFINEMV
+                                    mbmi) ||
+         mbmi->refinemv_flag
 #if CONFIG_BRU
          || (cm->bru.enabled && xd->sbi->sb_active_mode != BRU_ACTIVE_SB)
 #endif  // CONFIG_BRU
@@ -1167,11 +1164,8 @@ static AOM_INLINE void write_mb_interp_filter(AV1_COMMON *const cm,
 #if CONFIG_COMPOUND_4XN
                                    xd,
 #endif  // CONFIG_COMPOUND_4XN
-                                   mbmi)
-#if CONFIG_REFINEMV
-        || mbmi->refinemv_flag
-#endif  // CONFIG_REFINEMV
-        || is_tip_ref_frame(mbmi->ref_frame[0])) {
+                                   mbmi) ||
+        mbmi->refinemv_flag || is_tip_ref_frame(mbmi->ref_frame[0])) {
       assert(mbmi->interp_fltr == MULTITAP_SHARP);
       return;
     }
@@ -2056,7 +2050,6 @@ static INLINE int_mv get_ref_mv(const MACROBLOCK *x, int ref_idx) {
                                x->mbmi_ext_frame, mbmi);
 }
 
-#if CONFIG_REFINEMV
 // This function write the refinemv_flag ( if require) to the bitstream
 static void write_refinemv_flag(const AV1_COMMON *const cm,
                                 MACROBLOCKD *const xd, aom_writer *w,
@@ -2075,7 +2068,6 @@ static void write_refinemv_flag(const AV1_COMMON *const cm,
     assert(mbmi->refinemv_flag == get_default_refinemv_flag(cm, mbmi));
   }
 }
-#endif  // CONFIG_REFINEMV
 
 static void write_pb_mv_precision(const AV1_COMMON *const cm,
                                   MACROBLOCKD *const xd, aom_writer *w) {
@@ -2202,7 +2194,6 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 
   write_delta_q_params(cpi, skip, w);
 
-#if CONFIG_REFINEMV
   assert(IMPLIES(mbmi->refinemv_flag,
                  mbmi->skip_mode ? is_refinemv_allowed_skip_mode(cm, mbmi)
                                  : is_refinemv_allowed(cm, mbmi, bsize)));
@@ -2212,7 +2203,6 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
     assert(mbmi->bawp_flag[0] == 0);
   }
   assert(IMPLIES(mbmi->refinemv_flag, mbmi->cwp_idx == CWP_EQUAL));
-#endif  // CONFIG_REFINEMV
   // Just for debugging purpose
   if (mbmi->mode == WARPMV) {
     assert(mbmi->skip_mode == 0);
@@ -2550,21 +2540,17 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
     }
 #endif  // CONFIG_WARP_INTER_INTRA
 
-#if CONFIG_REFINEMV
     if (!mbmi->skip_mode) {
       write_refinemv_flag(cm, xd, w, bsize);
     }
-#endif  // CONFIG_REFINEMV
 
     // First write idx to indicate current compound inter prediction mode
     // group Group A (0): dist_wtd_comp, compound_average Group B (1):
     // interintra, compound_diffwtd, wedge
 
-    if (has_second_ref(mbmi) && mbmi->mode < NEAR_NEARMV_OPTFLOW
-#if CONFIG_REFINEMV
-        && (!mbmi->refinemv_flag || !switchable_refinemv_flag(cm, mbmi))
-#endif  // CONFIG_REFINEMV
-        && !is_joint_amvd_coding_mode(mbmi->mode, mbmi->use_amvd)) {
+    if (has_second_ref(mbmi) && mbmi->mode < NEAR_NEARMV_OPTFLOW &&
+        (!mbmi->refinemv_flag || !switchable_refinemv_flag(cm, mbmi)) &&
+        !is_joint_amvd_coding_mode(mbmi->mode, mbmi->use_amvd)) {
       const int masked_compound_used = is_any_masked_compound_used(bsize) &&
                                        cm->seq_params.enable_masked_compound;
 
@@ -5722,10 +5708,7 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
   }
   aom_wb_write_bit(wb, seq_params->enable_ibp);
   aom_wb_write_bit(wb, seq_params->enable_adaptive_mvd);
-
-#if CONFIG_REFINEMV
   aom_wb_write_bit(wb, seq_params->enable_refinemv);
-#endif  // CONFIG_REFINEMV
 
 #if CONFIG_BRU
   aom_wb_write_bit(wb, (int)(seq_params->enable_bru > 0));

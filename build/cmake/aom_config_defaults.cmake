@@ -179,15 +179,6 @@ set_aom_config_var(CONFIG_ERP_TFLITE 0 NUMBER "Build ERP with TFLite")
 set_aom_config_var(CONFIG_TCQ_FOR_ALL_FRAMES 1 "Adjust base QP for TCQ")
 set_aom_config_var(CONFIG_DISABLE_4X4_INTER 1 "Disable 4x4 inter blocks")
 
-set_aom_config_var(
-  CONFIG_16_FULL_SEARCH_DMVR
-  1
-  "AV2 remove 2-stage search and early termination in neighbors for DMVR with 16-neighbor full search"
-)
-
-set_aom_config_var(CONFIG_24_FULL_SEARCH_DMVR 1
-                   "AV2 DMVR with 24-neighbor full search")
-
 set_aom_config_var(CONFIG_DMVR_OFF_IN_TIP_DIRECT 1
                    "Disable DMVR in TIP-direct mode")
 
@@ -240,9 +231,6 @@ set_aom_config_var(
 set_aom_config_var(CONFIG_ACROSS_SCALE_WARP 1 NUMBER
                    "AV2 experiment flag to enable across scale warp modes.")
 
-set_aom_config_var(CONFIG_ACROSS_SCALE_REFINEMV 0 NUMBER
-                   "AV2 experiment flag to enable across scale refinemv modes.")
-
 # CWG-E210
 set_aom_config_var(CONFIG_RECT_CTX 1
                    "AV2 enable Context Reduction for Rectangle Partition Type")
@@ -277,7 +265,6 @@ set_aom_config_var(CONFIG_DISPLAY_ORDER_HINT_FIX 1
 
 set_aom_config_var(CONFIG_BAWP_ACROSS_SCALES 0 NUMBER
                    "Enable BAWP across scales prediction")
-set_aom_config_var(CONFIG_REFINEMV 1 "Enable refinemv modes")
 
 set_aom_config_var(CONFIG_EXPLICIT_TEMPORAL_DIST_CALC 1
                    "Enable to explicit temporal distance calculation")

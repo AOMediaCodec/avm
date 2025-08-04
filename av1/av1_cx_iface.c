@@ -152,9 +152,7 @@ struct av1_extracfg {
   int select_cfl_ds_filter;  // select adaptive downsample filter
 
   int enable_joint_mvd;  // enable joint MVD coding
-#if CONFIG_REFINEMV
-  int enable_refinemv;  // enable refineMV mode
-#endif                  // CONFIG_REFINEMV
+  int enable_refinemv;   // enable refineMV mode
 #if CONFIG_DERIVED_MVD_SIGN
   int enable_mvd_sign_derive;    // enable mvd-sign-derivation
 #endif                           // CONFIG_DERIVED_MVD_SIGN
@@ -487,9 +485,7 @@ static struct av1_extracfg default_extra_cfg = {
   1,    // enable flexible MV precision
   3,    // enable adaptive downsample filter
   1,    // enable joint mvd coding
-#if CONFIG_REFINEMV
   1,    // enable refineMV mode
-#endif  // CONFIG_REFINEMV
 #if CONFIG_DERIVED_MVD_SIGN
   1,    // enable mvd-sign derivation
 #endif  // CONFIG_DERIVED_MVD_SIGN
@@ -992,9 +988,7 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->select_cfl_ds_filter = extra_cfg->select_cfl_ds_filter;
 
   cfg->enable_joint_mvd = extra_cfg->enable_joint_mvd;
-#if CONFIG_REFINEMV
   cfg->enable_refinemv = extra_cfg->enable_refinemv;
-#endif  // CONFIG_REFINEMV
 #if CONFIG_DERIVED_MVD_SIGN
   cfg->enable_mvd_sign_derive = extra_cfg->enable_mvd_sign_derive;
 #endif  // CONFIG_DERIVED_MVD_SIGN
@@ -1123,9 +1117,7 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
 
   extra_cfg->enable_joint_mvd = cfg->enable_joint_mvd;
 
-#if CONFIG_REFINEMV
   extra_cfg->enable_refinemv = cfg->enable_refinemv;
-#endif  // CONFIG_REFINEMV
 #if CONFIG_DERIVED_MVD_SIGN
   extra_cfg->enable_mvd_sign_derive = cfg->enable_mvd_sign_derive;
 #endif  // CONFIG_DERIVED_MVD_SIGN
@@ -1413,9 +1405,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   tool_cfg->select_cfl_ds_filter = extra_cfg->select_cfl_ds_filter;
 
   tool_cfg->enable_joint_mvd = extra_cfg->enable_joint_mvd;
-#if CONFIG_REFINEMV
   tool_cfg->enable_refinemv = extra_cfg->enable_refinemv;
-#endif  // CONFIG_REFINEMV
 #if CONFIG_DERIVED_MVD_SIGN
   tool_cfg->enable_mvd_sign_derive = extra_cfg->enable_mvd_sign_derive;
 #endif  // CONFIG_DERIVED_MVD_SIGN
@@ -4068,11 +4058,9 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                               argv, err_string)) {
     extra_cfg.enable_joint_mvd = arg_parse_int_helper(&arg, err_string);
 
-#if CONFIG_REFINEMV
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_refinemv, argv,
                               err_string)) {
     extra_cfg.enable_refinemv = arg_parse_int_helper(&arg, err_string);
-#endif  // CONFIG_REFINEMV
 #if CONFIG_DERIVED_MVD_SIGN
   } else if (arg_match_helper(&arg,
                               &g_av1_codec_arg_defs.enable_mvd_sign_derive,
@@ -4588,10 +4576,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         1,  // enable_cctx
         1,   1, 1,
         3,  // select_cfl_ds
-        1,
-#if CONFIG_REFINEMV
-        1,
-#endif  // CONFIG_REFINEMV
+        1,   1,
 #if CONFIG_DERIVED_MVD_SIGN
         1,
 #endif  // CONFIG_DERIVED_MVD_SIGN

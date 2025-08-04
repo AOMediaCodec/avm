@@ -1220,10 +1220,8 @@ typedef struct {
   //! warp_extend_cost
   int warp_extend_cost[WARP_EXTEND_CTX][2];
 
-#if CONFIG_REFINEMV
   //! refinemv_flag_cost
   int refinemv_flag_cost[NUM_REFINEMV_CTX][REFINEMV_NUM_MODES];
-#endif  // CONFIG_REFINEMV
 
   //! bawp flag cost
   int bawp_flg_cost[2][2];
