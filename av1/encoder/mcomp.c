@@ -3247,10 +3247,11 @@ static INLINE int estimated_pref_error(
 #if !CONFIG_IBC_SUBPEL_PRECISION
 static
 #endif  // CONFIG_IBC_SUBPEL_PRECISION
-    int upsampled_pref_error(MACROBLOCKD *xd, const AV1_COMMON *cm,
-                             const MV *this_mv,
-                             const SUBPEL_SEARCH_VAR_PARAMS *var_params,
-                             unsigned int *sse) {
+    int
+    upsampled_pref_error(MACROBLOCKD *xd, const AV1_COMMON *cm,
+                         const MV *this_mv,
+                         const SUBPEL_SEARCH_VAR_PARAMS *var_params,
+                         unsigned int *sse) {
   const aom_variance_fn_ptr_t *vfp = var_params->vfp;
   const SUBPEL_SEARCH_TYPE subpel_search_type = var_params->subpel_search_type;
 
