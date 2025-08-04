@@ -137,27 +137,36 @@ void gdf_extend_frame_highbd(uint16_t *data, int width, int height, int stride,
 void gdf_copy_guided_frame(AV1_COMMON *cm) {
   int top_buf = GDF_TEST_EXTRA_VER_BORDER;
   int bot_buf = GDF_TEST_EXTRA_VER_BORDER;
-  const int recHeight = cm->cur_frame->buf.y_height;
-  const int recWidth = cm->cur_frame->buf.y_width;
-  const int recStride = cm->cur_frame->buf.y_stride;
+  const int rec_height = cm->cur_frame->buf.y_height;
+  const int rec_width = cm->cur_frame->buf.y_width;
+  const int rec_stride = cm->cur_frame->buf.y_stride;
 
-  const int input_stride = (((recWidth + GDF_TEST_STRIPE_SIZE) >> 4) << 4) +
+  const int input_stride = (((rec_width + GDF_TEST_STRIPE_SIZE) >> 4) << 4) +
                            16;  // GDF_TEST_STRIPE_SIZE: max unit size
                                 // 16: AVX2 vector length
   cm->gdf_info.inp_stride = input_stride;
 
   cm->gdf_info.inp_pad_ptr =
-      (uint16_t *)aom_memalign(32, (top_buf + recHeight + bot_buf + 4) *
+      (uint16_t *)aom_memalign(32, (top_buf + rec_height + bot_buf + 4) *
                                        input_stride * sizeof(uint16_t));
-  for (int i = top_buf; i < top_buf + recHeight; i++) {
+  for (int i = top_buf; i < top_buf + rec_height; i++) {
     memcpy(
         cm->gdf_info.inp_pad_ptr + i * input_stride + GDF_TEST_EXTRA_HOR_BORDER,
-        cm->cur_frame->buf.buffers[AOM_PLANE_Y] + (i - top_buf) * recStride,
-        sizeof(uint16_t) * recWidth);
+        cm->cur_frame->buf.buffers[AOM_PLANE_Y] + (i - top_buf) * rec_stride,
+        sizeof(uint16_t) * rec_width);
+    if (cm->cur_frame->buf.bit_depth > GDF_TEST_INP_PREC) {
+      const unsigned int diff_bit_depth =
+          cm->cur_frame->buf.bit_depth - GDF_TEST_INP_PREC;
+      for (int j = 0; j < rec_width; j++) {
+        uint16_t *cur_line = cm->gdf_info.inp_pad_ptr + i * input_stride +
+                             GDF_TEST_EXTRA_HOR_BORDER;
+        cur_line[j] >>= diff_bit_depth;
+      }
+    }
   }
   cm->gdf_info.inp_ptr = cm->gdf_info.inp_pad_ptr + top_buf * input_stride +
                          GDF_TEST_EXTRA_HOR_BORDER;
-  gdf_extend_frame_highbd(cm->gdf_info.inp_ptr, recWidth, recHeight,
+  gdf_extend_frame_highbd(cm->gdf_info.inp_ptr, rec_width, rec_height,
                           input_stride, GDF_TEST_EXTRA_HOR_BORDER,
                           GDF_TEST_EXTRA_VER_BORDER);
 }
@@ -362,8 +371,9 @@ void gdf_filter_frame(AV1_COMMON *cm) {
 #endif
   const int bit_depth = cm->cur_frame->buf.bit_depth;
   const int pxl_max = (1 << cm->cur_frame->buf.bit_depth) - 1;
-  const int pxl_shift = GDF_TEST_INP_PREC - bit_depth;
-  const int err_shift = GDF_RDO_SCALE_NUM_LOG2 + pxl_shift;
+  const int pxl_shift =
+      GDF_TEST_INP_PREC - AOMMIN(bit_depth, GDF_TEST_INP_PREC);
+  const int err_shift = GDF_RDO_SCALE_NUM_LOG2 + GDF_TEST_INP_PREC - bit_depth;
 
   int ref_dst_idx = gdf_get_ref_dst_idx(cm);
   int qp_idx_min = gdf_get_qp_idx_base(cm) + cm->gdf_info.gdf_pic_qp_idx;

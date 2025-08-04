@@ -48,8 +48,10 @@ void gdf_set_lap_and_cls_unit_avx2(
       _mm256_set_epi8(13, 12, 15, 14, 9, 8, 11, 10, 5, 4, 7, 6, 1, 0, 3, 2, 13,
                       12, 15, 14, 9, 8, 11, 10, 5, 4, 7, 6, 1, 0, 3, 2);
   __m256i shuffle_mask2 = _mm256_set_epi32(0, 7, 6, 5, 4, 3, 2, 1);
-  __m256i clip_mask = _mm256_set1_epi16(
-      (short)((1 << (16 - (GDF_TEST_INP_PREC - bit_depth))) - 1));
+  __m256i clip_mask =
+      _mm256_set1_epi16((short)((1 << (16 - GDF_TEST_INP_PREC -
+                                       AOMMIN(GDF_TEST_INP_PREC, bit_depth))) -
+                                1));
   for (int j = 0; j < (j_max - j_min); j += 14) {
     const uint16_t *std_pos = rec_pnt + (i_max - i_min) * rec_stride + j;
     const uint16_t *std_pos_1;
@@ -230,11 +232,11 @@ void gdf_compensation_unit_avx2(uint16_t *rec_pnt, const int rec_stride,
                                 const int err_shift, const int scale,
                                 const int pxl_max, const int blk_height,
                                 const int blk_width) {
-  const int errShift_half = 1 << (err_shift - 1);
+  const int err_shift_half = err_shift > 0 ? 1 << (err_shift - 1) : 0;
   const int j_avx2 = ((blk_width) >> 4) << 4;
   __m256i scale_reg = _mm256_set1_epi16(scale);
   __m256i zero_reg = _mm256_setzero_si256();
-  __m256i tgt_shalf_reg = _mm256_set1_epi16(errShift_half);
+  __m256i tgt_half_reg = _mm256_set1_epi16(err_shift_half);
   __m256i pxl_max_reg = _mm256_set1_epi16(pxl_max);
 
   for (int i = 0; i < blk_height; i++) {
@@ -243,7 +245,7 @@ void gdf_compensation_unit_avx2(uint16_t *rec_pnt, const int rec_stride,
       __m256i neg_err_mask = _mm256_cmpgt_epi16(zero_reg, err_reg);
       __m256i abs_err_reg = _mm256_abs_epi16(err_reg);
       __m256i out_reg00 = _mm256_mullo_epi16(abs_err_reg, scale_reg);
-      out_reg00 = _mm256_add_epi16(out_reg00, tgt_shalf_reg);
+      out_reg00 = _mm256_add_epi16(out_reg00, tgt_half_reg);
       out_reg00 = _mm256_srli_epi16(out_reg00, err_shift);
       out_reg00 = _mm256_sub_epi16(_mm256_xor_si256(out_reg00, neg_err_mask),
                                    neg_err_mask);
@@ -255,14 +257,14 @@ void gdf_compensation_unit_avx2(uint16_t *rec_pnt, const int rec_stride,
       _mm256_storeu_si256((__m256i *)(rec_pnt + j), out_reg00);
     }
     for (int j = j_avx2; j < blk_width; j++) {
-      int16_t resPxl = scale * (*(err_pnt + j));
+      int16_t res_pxl = scale * (*(err_pnt + j));
       uint16_t *rec_ptr = rec_pnt + j;
-      if (resPxl > 0) {
-        resPxl = (resPxl + errShift_half) >> err_shift;
+      if (res_pxl > 0) {
+        res_pxl = (res_pxl + err_shift_half) >> err_shift;
       } else {
-        resPxl = -(((-resPxl) + errShift_half) >> err_shift);
+        res_pxl = -(((-res_pxl) + err_shift_half) >> err_shift);
       }
-      *rec_ptr = (int16_t)CLIP(resPxl + (*rec_ptr), 0, pxl_max);
+      *rec_ptr = (int16_t)CLIP(res_pxl + (*rec_ptr), 0, pxl_max);
     }
     rec_pnt += rec_stride;
     err_pnt += err_stride;

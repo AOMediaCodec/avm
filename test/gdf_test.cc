@@ -93,6 +93,7 @@ class GDFTest : public ::testing::TestWithParam<gdf_param_t> {
 
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(GDFTest);
 
+ACMRandom rnd(ACMRandom::DeterministicSeed());
 void test_gdf(int iterations, int height, int width, int depth, int qp_idx,
               int ref_dst, int mib_size, gdf_set_lap_and_cls_unit_func lapgdf,
               gdf_set_lap_and_cls_unit_func ref_lapgdf,
@@ -100,8 +101,6 @@ void test_gdf(int iterations, int height, int width, int depth, int qp_idx,
               gdf_inference_unit_func ref_infgdf,
               gdf_compensation_unit_func compgdf,
               gdf_compensation_unit_func ref_compgdf) {
-  ACMRandom rnd(ACMRandom::DeterministicSeed());
-
   DECLARE_ALIGNED(16, static uint16_t,
                   rec[(max_test_tile_size + GDF_TEST_FRAME_BOUNDARY_SIZE * 2) *
                       (max_test_tile_size + GDF_TEST_FRAME_BOUNDARY_SIZE * 2 +
@@ -121,22 +120,56 @@ void test_gdf(int iterations, int height, int width, int depth, int qp_idx,
   memset(&ref_gi, 0, sizeof(ref_gi));
   init_gdf(&gi, mib_size, height, width);
   init_gdf(&ref_gi, mib_size, height, width);
-  alloc_gdf_buffers(&gi);
-  alloc_gdf_buffers(&ref_gi);
+
   int err = 0, is_lap_err = 0, is_cls_err = 0;
   int is_inf_err = 0, is_comp_err = 0;
-  const int stripe_size = gi.gdf_stripe_size;
   const int rec_stride =
       (max_test_tile_size + GDF_TEST_FRAME_BOUNDARY_SIZE * 2 +
        GDF_ERR_STRIDE_MARGIN);
   const int pxl_max = (1 << depth) - 1;
-  const int pxl_shift = GDF_TEST_INP_PREC - depth;
-  const int err_shift = GDF_RDO_SCALE_NUM_LOG2 + pxl_shift;
+  const int pxl_shift = GDF_TEST_INP_PREC - AOMMIN(depth, GDF_TEST_INP_PREC);
+  const int err_shift = GDF_RDO_SCALE_NUM_LOG2 + GDF_TEST_INP_PREC - depth;
   for (int iter = 0; iter < iterations && !err; iter++) {
     memset(rec, 0, sizeof(rec));
     for (uint16_t &i : rec) {
       i = clamp(rnd.Rand16() & ((1 << depth) - 1), 0, (1 << depth) - 1);
     }
+    alloc_gdf_buffers(&gi);
+    alloc_gdf_buffers(&ref_gi);
+    const int stripe_size = gi.gdf_stripe_size;
+#if CONFIG_GDF_IMPROVEMENT
+    int top_buf = GDF_TEST_EXTRA_VER_BORDER;
+    int bot_buf = GDF_TEST_EXTRA_VER_BORDER;
+    const int rec_height = height;
+    const int rec_width = width;
+
+    const int input_stride = (((rec_width + GDF_TEST_STRIPE_SIZE) >> 4) << 4) +
+                             16;  // GDF_TEST_STRIPE_SIZE: max unit size
+    // 16: AVX2 vector length
+    gi.inp_stride = input_stride;
+
+    gi.inp_pad_ptr =
+        (uint16_t *)aom_memalign(32, (top_buf + rec_height + bot_buf + 4) *
+                                         input_stride * sizeof(uint16_t));
+    for (int i = top_buf; i < top_buf + rec_height; i++) {
+      memcpy(gi.inp_pad_ptr + i * input_stride + GDF_TEST_EXTRA_HOR_BORDER,
+             rec + (i - top_buf) * rec_stride, sizeof(uint16_t) * rec_width);
+      if (depth > GDF_TEST_INP_PREC) {
+        const unsigned int diff_bit_depth = depth - GDF_TEST_INP_PREC;
+        for (int j = 0; j < rec_width; j++) {
+          uint16_t *cur_line =
+              gi.inp_pad_ptr + i * input_stride + GDF_TEST_EXTRA_HOR_BORDER;
+          cur_line[j] >>= diff_bit_depth;
+        }
+      }
+    }
+    gi.inp_ptr =
+        gi.inp_pad_ptr + top_buf * input_stride + GDF_TEST_EXTRA_HOR_BORDER;
+    gdf_extend_frame_highbd(gi.inp_ptr, rec_width, rec_height, input_stride,
+                            GDF_TEST_EXTRA_HOR_BORDER,
+                            GDF_TEST_EXTRA_VER_BORDER);
+#endif
+
     for (int y_pos = -GDF_TEST_STRIPE_OFF; y_pos < height;
          y_pos += gi.gdf_block_size) {
       for (int x_pos = 0; x_pos < width; x_pos += gi.gdf_block_size) {
@@ -152,14 +185,23 @@ void test_gdf(int iterations, int height, int width, int depth, int qp_idx,
             int j_min = AOMMAX(u_pos, GDF_TEST_FRAME_BOUNDARY_SIZE);
             int j_max = AOMMIN(u_pos + gi.gdf_unit_size,
                                width - GDF_TEST_FRAME_BOUNDARY_SIZE);
-
+#if CONFIG_GDF_IMPROVEMENT
+            const uint16_t *inp_ptr =
+                gi.inp_ptr + gi.inp_stride * i_min + j_min;
+            lapgdf(i_min, i_max, j_min, j_max, stripe_size, inp_ptr,
+                   gi.inp_stride, depth, gi.lap_ptr, gi.lap_stride, gi.cls_ptr,
+                   gi.cls_stride);
+            ref_lapgdf(i_min, i_max, j_min, j_max, stripe_size, inp_ptr,
+                       gi.inp_stride, depth, ref_gi.lap_ptr, ref_gi.lap_stride,
+                       ref_gi.cls_ptr, ref_gi.cls_stride);
+#else
             const uint16_t *inp_ptr = rec + i_min * rec_stride + j_min;
-
             lapgdf(i_min, i_max, j_min, j_max, stripe_size, inp_ptr, rec_stride,
                    depth, gi.lap_ptr, gi.lap_stride, gi.cls_ptr, gi.cls_stride);
             ref_lapgdf(i_min, i_max, j_min, j_max, stripe_size, inp_ptr,
                        rec_stride, depth, ref_gi.lap_ptr, ref_gi.lap_stride,
                        ref_gi.cls_ptr, ref_gi.cls_stride);
+#endif
 
             const int lap_height = (i_max - i_min) >> 1;
             const int lap_width = (j_max - j_min);
@@ -170,13 +212,25 @@ void test_gdf(int iterations, int height, int width, int depth, int qp_idx,
               for (int grd_idx = 0;
                    grd_idx < GDF_NET_INP_GRD_NUM && !is_lap_err; grd_idx++) {
                 is_lap_err =
-                    memcmp(gi.lap_ptr[grd_idx], ref_gi.lap_ptr[grd_idx],
+                    memcmp(gi.lap_ptr[grd_idx] + i * gi.lap_stride,
+                           ref_gi.lap_ptr[grd_idx] + i * ref_gi.lap_stride,
                            sizeof(uint16_t) * lap_width);
               }
-              is_cls_err = memcmp(gi.cls_ptr, ref_gi.cls_ptr,
+              is_cls_err = memcmp(gi.cls_ptr + i * gi.cls_stride,
+                                  ref_gi.cls_ptr + i * ref_gi.cls_stride,
                                   sizeof(uint32_t) * cls_width);
               err = is_lap_err | is_cls_err;
             }
+#if CONFIG_GDF_IMPROVEMENT
+            infgdf(i_min, i_max, j_min, j_max, gi.gdf_stripe_size, qp_idx,
+                   inp_ptr, gi.inp_stride, gi.lap_ptr, gi.lap_stride,
+                   gi.cls_ptr, gi.cls_stride, gi.err_ptr, gi.err_stride,
+                   pxl_shift, ref_dst);
+            ref_infgdf(i_min, i_max, j_min, j_max, ref_gi.gdf_stripe_size,
+                       qp_idx, inp_ptr, gi.inp_stride, ref_gi.lap_ptr,
+                       ref_gi.lap_stride, ref_gi.cls_ptr, ref_gi.cls_stride,
+                       ref_gi.err_ptr, ref_gi.err_stride, pxl_shift, ref_dst);
+#else
             infgdf(i_min, i_max, j_min, j_max, gi.gdf_stripe_size, qp_idx,
                    inp_ptr, rec_stride, gi.lap_ptr, gi.lap_stride, gi.cls_ptr,
                    gi.cls_stride, gi.err_ptr, gi.err_stride, pxl_shift,
@@ -185,8 +239,10 @@ void test_gdf(int iterations, int height, int width, int depth, int qp_idx,
                        qp_idx, inp_ptr, rec_stride, ref_gi.lap_ptr,
                        ref_gi.lap_stride, ref_gi.cls_ptr, ref_gi.cls_stride,
                        ref_gi.err_ptr, ref_gi.err_stride, pxl_shift, ref_dst);
+#endif
             for (int i = 0; i < res_height && !err; i++) {
-              is_inf_err = memcmp(gi.err_ptr, ref_gi.err_ptr,
+              is_inf_err = memcmp(gi.err_ptr + i * gi.err_stride,
+                                  ref_gi.err_ptr + i * ref_gi.err_stride,
                                   sizeof(int16_t) * res_width);
               err |= is_inf_err;
             }
@@ -220,6 +276,9 @@ void test_gdf(int iterations, int height, int width, int depth, int qp_idx,
         }
       }
     }
+#if CONFIG_GDF_IMPROVEMENT
+    aom_free(gi.inp_pad_ptr);
+#endif
   }
   free_gdf_buffers(&gi);
   free_gdf_buffers(&ref_gi);

@@ -36,15 +36,6 @@ enum Direction { GDF_VER, GDF_HOR, GDF_DIAG0, GDF_DIAG1, GDF_NUM_DIRS };
 #define GDF_TEST_EXTRA_HOR_BORDER 6
 #define GDF_TEST_EXTRA_VER_BORDER 6
 #define GDF_BORDER 4
-#else
-#define GDF_TEST_INP_PREC 12
-#define GDF_TEST_FRAME_BOUNDARY_SIZE 6
-#endif
-#define GDF_TEST_BLK_SIZE 128
-#define GDF_TEST_STRIPE_OFF 8  // GDF_TEST_STRIPE_OFF has to be multiple of 8
-#define GDF_ERR_STRIDE_MARGIN 16
-#define GDF_TEST_STRIPE_SIZE \
-  64  // GDF_TEST_BLK_SIZE has to be multiple of GDF_TEST_STRIPE_SIZE
 /*
 0 : no padding, using the full reconstructed frame
 1 : padding with mirror padding, no use of LR line buffer
@@ -54,6 +45,20 @@ enum Direction { GDF_VER, GDF_HOR, GDF_DIAG0, GDF_DIAG1, GDF_NUM_DIRS };
 #if GDF_TEST_VIRTUAL_BOUNDARY
 #define GDF_TEST_LINE_BUFFER 2
 #endif
+#else
+#define GDF_TEST_INP_PREC 12
+#define GDF_TEST_FRAME_BOUNDARY_SIZE 6
+#define GDF_TEST_VIRTUAL_BOUNDARY 1
+#if GDF_TEST_VIRTUAL_BOUNDARY
+#define GDF_TEST_LINE_BUFFER 0
+#endif
+#endif
+
+#define GDF_TEST_BLK_SIZE 128
+#define GDF_TEST_STRIPE_OFF 8  // GDF_TEST_STRIPE_OFF has to be multiple of 8
+#define GDF_ERR_STRIDE_MARGIN 16
+#define GDF_TEST_STRIPE_SIZE \
+  64  // GDF_TEST_BLK_SIZE has to be multiple of GDF_TEST_STRIPE_SIZE
 
 /*!\brief Function to initialize information of GDF
  */
@@ -72,14 +77,11 @@ void free_gdf_buffers(GdfInfo *gi);
  */
 void gdf_print_info(AV1_COMMON *cm, char *info, int poc);
 
+#if CONFIG_GDF_IMPROVEMENT
 /*!\brief Function to extend - pad - the copy guided frame of GDF
  */
 void gdf_extend_frame_highbd(uint16_t *data, int width, int height, int stride,
                              int border_horz, int border_vert);
-
-/*!\brief Function to allocate memory and copy guided frame of GDF
- */
-void gdf_copy_guided_frame(AV1_COMMON *cm);
 
 /*!\brief Function to setup reference lines for filtering stripe
  */
@@ -88,7 +90,10 @@ void gdf_setup_reference_lines(AV1_COMMON *cm, int i_min, int i_max, int v_pos);
 /*!\brief Function to unset reference lines for filtering stripe
  */
 void gdf_unset_reference_lines(AV1_COMMON *cm, int i_min, int i_max, int v_pos);
-
+#endif
+/*!\brief Function to allocate memory and copy guided frame of GDF
+ */
+void gdf_copy_guided_frame(AV1_COMMON *cm);
 /*!\brief Function to free memory for guided frame of GDF
  */
 void gdf_free_guided_frame(AV1_COMMON *cm);

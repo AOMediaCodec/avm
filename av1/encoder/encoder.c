@@ -2333,9 +2333,11 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
 
   const int bit_depth = cm->seq_params.bit_depth;
   const int pxl_max = (1 << cm->cur_frame->buf.bit_depth) - 1;
-  const int pxl_shift = GDF_TEST_INP_PREC - cm->cur_frame->buf.bit_depth;
-  const int err_shift = GDF_RDO_SCALE_NUM_LOG2 + pxl_shift;
-  const int err_shift_half_pow2 = 1 << (err_shift - 1);
+  const int pxl_shift = GDF_TEST_INP_PREC -
+                        AOMMIN(cm->cur_frame->buf.bit_depth, GDF_TEST_INP_PREC);
+  const int err_shift =
+      GDF_RDO_SCALE_NUM_LOG2 + GDF_TEST_INP_PREC - cm->cur_frame->buf.bit_depth;
+  const int err_shift_half_pow2 = err_shift > 0 ? 1 << (err_shift - 1) : 0;
 
   int ref_dst_idx = gdf_get_ref_dst_idx(cm);
   int qp_idx_base = gdf_get_qp_idx_base(cm);
