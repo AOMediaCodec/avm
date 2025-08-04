@@ -571,11 +571,12 @@ typedef struct SimpleMotionData {
 
   int ref_frame; /*!< ref frame used */
   int rdmult;    /*!< rd_mult for the block */
-
+#if CONFIG_ML_PART_SPLIT
   //! Has residual stats been computed, this is controlled by the flag.
   bool residual_stats_valid;
   //! Residual stats used by ML models.
   ResidualStats residual_stats;
+#endif  // CONFIG_ML_PART_SPLIT
 } SimpleMotionData;
 
 /*!\cond */
