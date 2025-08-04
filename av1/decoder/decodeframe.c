@@ -4164,6 +4164,17 @@ static AOM_INLINE void read_tile_info_max_tile(
     tiles->row_start_sb[i] = start_sb + height_sb;
   }
   av1_calculate_tile_rows(cm, cm->mi_params.mi_rows, tiles);
+#if CONFIG_BRU_TILE_FLAG
+  if (cm->bru.enabled) {
+    const int num_tile = tiles->rows * tiles->cols;
+    if (num_tile > 1) {
+      memset(cm->tiles.tile_active_bitmap, 0,
+             sizeof(cm->tiles.tile_active_bitmap));
+    } else {
+      cm->tiles.tile_active_bitmap[0] = 1;
+    }
+  }
+#endif
 }
 
 void av1_set_single_tile_decoding_mode(AV1_COMMON *const cm) {
@@ -4455,6 +4466,18 @@ static AOM_INLINE void get_tile_buffers(
       data += hdr_offset;
       get_tile_buffer(data_end, pbi->tile_size_bytes, is_last,
                       &pbi->common.error, &data, buf);
+#if CONFIG_BRU_TILE_FLAG
+      if (cm->bru.enabled) {
+        const int tile_idx = r * tile_cols + c;
+        TileDataDec *const this_tile = pbi->tile_data + tile_idx;
+        const int tile_active_map_byte = tile_idx >> 3;
+        const int tile_active_map_bit = tile_idx % 8;
+        this_tile->tile_info.tile_active_mode =
+            (cm->tiles.tile_active_bitmap[tile_active_map_byte] >>
+             tile_active_map_bit) &
+            1;
+      }
+#endif
     }
   }
 }
@@ -4738,11 +4761,12 @@ static AOM_INLINE void decode_tile(AV1Decoder *pbi, ThreadData *const td,
   av1_reset_loop_restoration(xd, 0, num_planes, num_filter_classes);
 #if CONFIG_BRU
   if (cm->bru.enabled) {
-    if (cm->bru.frame_inactive_flag)
-      xd->tile.tile_active_mode = 0;
+    if (cm->bru.frame_inactive_flag) xd->tile.tile_active_mode = 0;
+#if !CONFIG_BRU_TILE_FLAG
     else
       xd->tile.tile_active_mode =
           aom_read_bit(td->bit_reader, ACCT_INFO("tile_active_mode"));
+#endif
   }
 #endif  // CONFIG_BRU
 
@@ -4958,6 +4982,13 @@ static const uint8_t *decode_tiles(AV1Decoder *pbi, const uint8_t *data,
       av1_init_above_context(&cm->above_contexts, av1_num_planes(cm), row,
                              &td->dcb.xd);
 
+#if CONFIG_BRU
+      td->dcb.xd.tile.tile_active_mode = 1;
+      if (cm->bru.enabled && (cm->tiles.cols * cm->tiles.rows > 1)) {
+        td->dcb.xd.tile.tile_active_mode =
+            tile_data->tile_info.tile_active_mode;
+      }
+#endif  // CONFIG_BRU
       // Initialise the tile context from the frame context
       tile_data->tctx = *cm->fc;
       td->dcb.xd.tile_ctx = &tile_data->tctx;

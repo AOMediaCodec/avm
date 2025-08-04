@@ -730,7 +730,6 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
             if (ref_index == cm->bru.explicit_ref_idx) {
               ++ref_index;
               continue;  // skip refresh BRU ref , this is done
-                         // dec_bru_swap_stage()
             }
           }
 #endif
