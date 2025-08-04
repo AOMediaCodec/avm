@@ -113,13 +113,8 @@ static AOM_FORCE_INLINE int get_br_ctx_skip(const uint8_t *const levels,
   const int col = (c - (row << bwl)) + TX_PAD_LEFT;
   const int stride = (1 << bwl) + TX_PAD_LEFT;
   const int pos = row * stride + col;
-#if CONFIG_COEFF_HR_LR1
   int mag = AOMMIN(levels[pos - 1], MAX_VAL_BR_CTX);
   mag += AOMMIN(levels[pos - stride], MAX_VAL_BR_CTX);
-#else
-  int mag = levels[pos - 1];
-  mag += levels[pos - stride];
-#endif  // CONFIG_COEFF_HR_LR1
   mag = AOMMIN(mag, 6);
   return mag;
 }
@@ -272,11 +267,7 @@ static AOM_FORCE_INLINE int get_br_lf_ctx(const uint8_t *const levels,
   const int stride = (1 << bwl) + TX_PAD_HOR;
   const int pos = row * stride + col;
   int mag = AOMMIN(levels[pos + 1], MAX_VAL_BR_CTX);
-#if CONFIG_COEFF_HR_LR1
   mag += AOMMIN(levels[pos + stride], MAX_VAL_BR_CTX);
-#else
-  mag += levels[pos + stride];
-#endif  // CONFIG_COEFF_HR_LR1
   switch (tx_class) {
     case TX_CLASS_2D:
       mag += AOMMIN(levels[pos + stride + 1], MAX_VAL_BR_CTX);
@@ -309,7 +300,6 @@ static AOM_FORCE_INLINE int get_br_ctx(const uint8_t *const levels,
   const int col = c - (row << bwl);
   const int stride = (1 << bwl) + TX_PAD_HOR;
   const int pos = row * stride + col;
-#if CONFIG_COEFF_HR_LR1
   int mag = AOMMIN(levels[pos + 1], MAX_VAL_BR_CTX);
   mag += AOMMIN(levels[pos + stride], MAX_VAL_BR_CTX);
   if (tx_class == TX_CLASS_2D) {
@@ -319,17 +309,6 @@ static AOM_FORCE_INLINE int get_br_ctx(const uint8_t *const levels,
   } else {
     mag += AOMMIN(levels[pos + 2], MAX_VAL_BR_CTX);
   }
-#else
-  int mag = levels[pos + 1];
-  mag += levels[pos + stride];
-  if (tx_class == TX_CLASS_2D) {
-    mag += levels[pos + stride + 1];
-  } else if (tx_class == TX_CLASS_VERT) {
-    mag += levels[pos + (stride << 1)];
-  } else {
-    mag += levels[pos + 2];
-  }
-#endif  // CONFIG_COEFF_HR_LR1
   mag = AOMMIN((mag + 1) >> 1, 6);
   return mag;
 }

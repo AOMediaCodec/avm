@@ -164,8 +164,6 @@ set_aom_config_var(CONFIG_CTX_Y_SECOND_MODE 1 "bypass coding FG8-Test27")
 set_aom_config_var(
   CONFIG_WIENERNS_9x9 1
   "AV2 non-separable 16-tap Wiener filter with enlarged 9x9 diamond shape")
-set_aom_config_var(CONFIG_COEFF_HR_LR1 1
-                   "AV2 enable coding 1 LR in coefficient coding.")
 set_aom_config_var(CONFIG_PARA_BD_REDUCE 1 "AV2 bitdepth reduction for PARA.")
 set_aom_config_var(CONFIG_BYPASS_IMPROVEMENT 1
                    "AV2 enable entropy bypass improvement.")
