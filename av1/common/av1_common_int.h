@@ -443,7 +443,9 @@ typedef struct {
                         i.e., before LF frame */
   uint16_t *inp_pad_ptr; /*!< Pointer to padded and actually allocated data
                             into which inp_ptr points */
-  int inp_stride;        /*!< Stride of GDF memory storing guided frame */
+#if CONFIG_GDF_IMPROVEMENT
+  int inp_stride; /*!< Stride of GDF memory storing guided frame */
+#endif
 } GdfInfo;
 #endif  // CONFIG_GDF
 

@@ -2420,7 +2420,7 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
             continue;
           }
 #endif
-#if (GDF_TEST_VIRTUAL_BOUNDARY == 2)
+#if CONFIG_GDF_IMPROVEMENT && (GDF_TEST_VIRTUAL_BOUNDARY == 2)
           if (u_pos == 0) {
             gdf_setup_reference_lines(cm, i_min, i_max, v_pos);
           }
@@ -2428,6 +2428,7 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
           int use_gdf_local =
               gdf_block_adjust_and_validate(&i_min, &i_max, &j_min, &j_max);
           if (use_gdf_local) {
+#if CONFIG_GDF_IMPROVEMENT
             gdf_set_lap_and_cls_unit(
                 i_min, i_max, j_min, j_max, cm->gdf_info.gdf_stripe_size,
                 cm->gdf_info.inp_ptr + cm->gdf_info.inp_stride * i_min + j_min,
@@ -2435,8 +2436,16 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
                 cm->gdf_info.lap_stride, cm->gdf_info.cls_ptr,
                 cm->gdf_info.cls_stride);
           }
+#else
+            gdf_set_lap_and_cls_unit(
+                i_min, i_max, j_min, j_max, cm->gdf_info.gdf_stripe_size,
+                cm->gdf_info.inp_ptr + rec_stride * i_min + j_min, rec_stride,
+                bit_depth, cm->gdf_info.lap_ptr, cm->gdf_info.lap_stride,
+                cm->gdf_info.cls_ptr, cm->gdf_info.cls_stride);
+#endif
           for (int qp_idx = 0; qp_idx < GDF_RDO_QP_NUM; qp_idx++) {
             if (use_gdf_local) {
+#if CONFIG_GDF_IMPROVEMENT
               gdf_inference_unit(
                   i_min, i_max, j_min, j_max, cm->gdf_info.gdf_stripe_size,
                   qp_idx + qp_idx_base,
@@ -2446,6 +2455,16 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
                   cm->gdf_info.lap_stride, cm->gdf_info.cls_ptr,
                   cm->gdf_info.cls_stride, cm->gdf_info.err_ptr,
                   cm->gdf_info.err_stride, pxl_shift, ref_dst_idx);
+#else
+                gdf_inference_unit(
+                    i_min, i_max, j_min, j_max, cm->gdf_info.gdf_stripe_size,
+                    qp_idx + qp_idx_base,
+                    cm->gdf_info.inp_ptr + rec_stride * i_min + j_min,
+                    rec_stride, cm->gdf_info.lap_ptr, cm->gdf_info.lap_stride,
+                    cm->gdf_info.cls_ptr, cm->gdf_info.cls_stride,
+                    cm->gdf_info.err_ptr, cm->gdf_info.err_stride, pxl_shift,
+                    ref_dst_idx);
+#endif
             }
             for (int i = i_min; i < i_max; i++) {
               for (int j = j_min; j < j_max; j++) {
@@ -2482,7 +2501,7 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
               }
             }
           }
-#if (GDF_TEST_VIRTUAL_BOUNDARY == 2)
+#if CONFIG_GDF_IMPROVEMENT && (GDF_TEST_VIRTUAL_BOUNDARY == 2)
           if (u_pos == 0) {
             gdf_unset_reference_lines(cm, i_min, i_max, v_pos);
           }
@@ -2513,7 +2532,7 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
   for (int gdf_mode = cm->bru.enabled ? 2 : 1; gdf_mode < gdf_enable_max_plus_1;
        gdf_mode++) {
 #else
-  for (int gdf_mode = 1; gdf_mode < gdf_enable_max_plus_1; gdf_mode++) {
+    for (int gdf_mode = 1; gdf_mode < gdf_enable_max_plus_1; gdf_mode++) {
 #endif
     for (int scale_idx = 0; scale_idx < GDF_RDO_SCALE_NUM; scale_idx++) {
       for (int qp_idx = 0; qp_idx < GDF_RDO_QP_NUM; qp_idx++) {
@@ -2539,7 +2558,7 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
             for (int block_flag = 0; block_flag < 2 - bru_skip_blk[blk_idx];
                  block_flag++) {
 #else
-            for (int block_flag = 0; block_flag < 2; block_flag++) {
+              for (int block_flag = 0; block_flag < 2; block_flag++) {
 #endif
               int block_rate = cost_from_cdf[block_flag];
               int64_t block_error = 0;
@@ -2693,7 +2712,7 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
   MultiThreadInfo *const mt_info = &cpi->mt_info;
   const int num_workers = mt_info->num_workers;
   if (use_restoration
-#if CONFIG_GDF
+#if CONFIG_GDF_IMPROVEMENT && CONFIG_GDF
       || use_gdf
 #endif  // CONFIG_GDF
   )
@@ -2788,7 +2807,7 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
 #endif
 
   if (use_restoration
-#if CONFIG_GDF
+#if CONFIG_GDF_IMPROVEMENT && CONFIG_GDF
       || use_gdf
 #endif  // CONFIG_GDF
   )

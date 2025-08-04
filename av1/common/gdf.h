@@ -30,13 +30,18 @@ enum Direction { GDF_VER, GDF_HOR, GDF_DIAG0, GDF_DIAG1, GDF_NUM_DIRS };
 #define GDF_RDO_SCALE_NUM_LOG2 2
 #define GDF_RDO_QP_NUM (1 << GDF_RDO_QP_NUM_LOG2)
 #define GDF_RDO_SCALE_NUM (1 << GDF_RDO_SCALE_NUM_LOG2)
-
+#if CONFIG_GDF_IMPROVEMENT
 #define GDF_TEST_INP_PREC 10
-#define GDF_TEST_BLK_SIZE 128
-#define GDF_TEST_STRIPE_OFF 8  // GDF_TEST_STRIPE_OFF has to be multiple of 8
 #define GDF_TEST_FRAME_BOUNDARY_SIZE 0
 #define GDF_TEST_EXTRA_HOR_BORDER 6
 #define GDF_TEST_EXTRA_VER_BORDER 6
+#define GDF_BORDER 4
+#else
+#define GDF_TEST_INP_PREC 12
+#define GDF_TEST_FRAME_BOUNDARY_SIZE 6
+#endif
+#define GDF_TEST_BLK_SIZE 128
+#define GDF_TEST_STRIPE_OFF 8  // GDF_TEST_STRIPE_OFF has to be multiple of 8
 #define GDF_ERR_STRIDE_MARGIN 16
 #define GDF_TEST_STRIPE_SIZE \
   64  // GDF_TEST_BLK_SIZE has to be multiple of GDF_TEST_STRIPE_SIZE
@@ -49,8 +54,6 @@ enum Direction { GDF_VER, GDF_HOR, GDF_DIAG0, GDF_DIAG1, GDF_NUM_DIRS };
 #if GDF_TEST_VIRTUAL_BOUNDARY
 #define GDF_TEST_LINE_BUFFER 2
 #endif
-
-#define GDF_BORDER 4
 
 /*!\brief Function to initialize information of GDF
  */
@@ -78,6 +81,14 @@ void gdf_extend_frame_highbd(uint16_t *data, int width, int height, int stride,
  */
 void gdf_copy_guided_frame(AV1_COMMON *cm);
 
+/*!\brief Function to setup reference lines for filtering stripe
+ */
+void gdf_setup_reference_lines(AV1_COMMON *cm, int i_min, int i_max, int v_pos);
+
+/*!\brief Function to unset reference lines for filtering stripe
+ */
+void gdf_unset_reference_lines(AV1_COMMON *cm, int i_min, int i_max, int v_pos);
+
 /*!\brief Function to free memory for guided frame of GDF
  */
 void gdf_free_guided_frame(AV1_COMMON *cm);
@@ -97,14 +108,6 @@ int gdf_get_ref_dst_idx(const AV1_COMMON *cm);
  * clipping, and expected coding error
  */
 int gdf_get_qp_idx_base(const AV1_COMMON *cm);
-
-/*!\brief Function to setup reference lines for filtering stripe
- */
-void gdf_setup_reference_lines(AV1_COMMON *cm, int i_min, int i_max, int v_pos);
-
-/*!\brief Function to unset reference lines for filtering stripe
- */
-void gdf_unset_reference_lines(AV1_COMMON *cm, int i_min, int i_max, int v_pos);
 
 /*!\brief Function to apply GDF to whole frame
  */

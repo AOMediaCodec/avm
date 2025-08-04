@@ -8749,7 +8749,7 @@ static AOM_INLINE void setup_frame_info(AV1Decoder *pbi) {
   if (cm->rst_info[0].frame_restoration_type != RESTORE_NONE ||
       cm->rst_info[1].frame_restoration_type != RESTORE_NONE ||
       cm->rst_info[2].frame_restoration_type != RESTORE_NONE
-#if CONFIG_GDF
+#if CONFIG_GDF && CONFIG_GDF_IMPROVEMENT
       || cm->gdf_info.gdf_mode
 #endif  // CONFIG_GDF
   ) {
@@ -8944,7 +8944,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
 
     if (!optimized_loop_restoration) {
       if (do_loop_restoration
-#if CONFIG_GDF
+#if CONFIG_GDF && CONFIG_GDF_IMPROVEMENT
           || do_gdf
 #endif  // CONFIG_GDF
       )
@@ -8966,7 +8966,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
 #endif  // CONFIG_GDF
 
       if (do_loop_restoration
-#if CONFIG_GDF
+#if CONFIG_GDF && CONFIG_GDF_IMPROVEMENT
           || do_gdf
 #endif  // CONFIG_GDF
       ) {
