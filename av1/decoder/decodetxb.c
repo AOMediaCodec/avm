@@ -1209,9 +1209,13 @@ void av1_read_coeffs_txb_facade(const AV1_COMMON *const cm,
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
   uint8_t cul_level = 0;
   if (decode_rest) {
-    if ((mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
-         get_primary_tx_type(tx_type) == IDTX && plane == PLANE_TYPE_Y) ||
-        use_inter_fsc(cm, plane, tx_type, is_inter)) {
+    if (((mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
+          get_primary_tx_type(tx_type) == IDTX && plane == PLANE_TYPE_Y) ||
+         use_inter_fsc(cm, plane, tx_type, is_inter))
+#if CONFIG_FSC_RES_HLS
+        && cm->seq_params.enable_fsc_residual
+#endif  // CONFIG_FSC_RES_HLS
+    ) {
       cul_level =
           av1_read_coeffs_txb_skip(cm, dcb, r, row, col, plane, tx_size);
     } else {

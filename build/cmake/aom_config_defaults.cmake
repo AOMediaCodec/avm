@@ -475,6 +475,9 @@ set_aom_config_var(CONFIG_FGS_BLOCK_SIZE 1 "Choice of FGS blocks size.")
 set_aom_config_var(CONFIG_CWG_F243_ORDER_HINT_BITDEPTH 1
                    "Encoder-only reduce order hint bitdepth.")
 
+set_aom_config_var(
+  CONFIG_FSC_RES_HLS 1
+  "add high level flag to switch fsc residual and regular residual.")
 #
 # Variables in this section control optional features of the build system.
 #

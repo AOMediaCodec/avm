@@ -299,6 +299,14 @@ typedef struct {
    * Flag to indicate if forward skip coding is enabled
    */
   bool enable_fsc;
+#if CONFIG_FSC_RES_HLS
+  /*!
+   * Flag to indicate if forward skip coding residual coding is enabled, If 0,
+   * regular residual coding is used and fsc residual coding is disabled for
+   * IDTX. If 1, fsc residual coding is used for IDTX.
+   */
+  bool enable_fsc_residual;
+#endif  // CONFIG_FSC_RES_HLS
   /*!
    * Flag to indicate if ORIP should be enabled
    */

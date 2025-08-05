@@ -101,6 +101,9 @@ int parse_cfg(const char *file, cfg_options_t *config) {
     GET_PARAMS(enable_cwp);
     GET_PARAMS(enable_imp_msk_bld);
     GET_PARAMS(enable_fsc);
+#if CONFIG_FSC_RES_HLS
+    GET_PARAMS(enable_fsc_residual);
+#endif  // CONFIG_FSC_RES_HLS
     GET_PARAMS(enable_orip);
     GET_PARAMS(enable_ist);
     GET_PARAMS(enable_inter_ist);

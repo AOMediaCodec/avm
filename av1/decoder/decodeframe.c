@@ -6601,6 +6601,11 @@ void av1_read_sequence_header_beyond_av1(
   seq_params->enable_cwp = aom_rb_read_bit(rb);
   seq_params->enable_imp_msk_bld = aom_rb_read_bit(rb);
   seq_params->enable_fsc = aom_rb_read_bit(rb);
+#if CONFIG_FSC_RES_HLS
+  if (seq_params->enable_fsc) {
+    seq_params->enable_fsc_residual = aom_rb_read_bit(rb);
+  }
+#endif  // CONFIG_FSC_RES_HLS
   seq_params->enable_ccso = aom_rb_read_bit(rb);
 #if CONFIG_LF_SUB_PU
   seq_params->enable_lf_sub_pu = aom_rb_read_bit(rb);

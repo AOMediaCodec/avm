@@ -857,9 +857,13 @@ static AOM_INLINE void av1_write_coeffs_txb_facade(
                       is_reduced_tx_set_used(cm, get_plane_type(plane)));
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
   if (code_rest) {
-    if ((mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
-         get_primary_tx_type(tx_type) == IDTX && plane == PLANE_TYPE_Y) ||
-        use_inter_fsc(cm, plane, tx_type, is_inter)) {
+    if (((mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
+          get_primary_tx_type(tx_type) == IDTX && plane == PLANE_TYPE_Y) ||
+         use_inter_fsc(cm, plane, tx_type, is_inter))
+#if CONFIG_FSC_RES_HLS
+        && cm->seq_params.enable_fsc_residual
+#endif  // CONFIG_FSC_RES_HLS
+    ) {
       av1_write_coeffs_txb_skip(cm, x, w, blk_row, blk_col, plane, block,
                                 tx_size);
     } else {
@@ -5819,6 +5823,11 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
   aom_wb_write_bit(wb, seq_params->enable_cwp);
   aom_wb_write_bit(wb, seq_params->enable_imp_msk_bld);
   aom_wb_write_bit(wb, seq_params->enable_fsc);
+#if CONFIG_FSC_RES_HLS
+  if (seq_params->enable_fsc) {
+    aom_wb_write_bit(wb, seq_params->enable_fsc_residual);
+  }
+#endif  // CONFIG_FSC_RES_HLS
   aom_wb_write_bit(wb, seq_params->enable_ccso);
 #if CONFIG_LF_SUB_PU
   aom_wb_write_bit(wb, seq_params->enable_lf_sub_pu);
