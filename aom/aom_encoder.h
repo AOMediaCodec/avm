@@ -550,6 +550,13 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_ref_frame_mvs;
+#if CONFIG_REDUCED_REF_FRAME_MVS_MODE
+  /*!\brief use reduced reference frame combinations for temporal mv
+   * prediction.
+   *
+   */
+  unsigned int reduced_ref_frame_mvs_mode;
+#endif  // CONFIG_REDUCED_REF_FRAME_MVS_MODE
   /*!\brief use reduced reference frame set
    *
    */

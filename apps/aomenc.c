@@ -475,6 +475,9 @@ const arg_def_t *av1_key_val_args[] = {
 #if CONFIG_LF_SUB_PU
   &g_av1_codec_arg_defs.enable_lf_sub_pu,
 #endif  // CONFIG_LF_SUB_PU
+#if CONFIG_REDUCED_REF_FRAME_MVS_MODE
+  &g_av1_codec_arg_defs.reduced_ref_frame_mvs_mode,
+#endif  // CONFIG_REDUCED_REF_FRAME_MVS_MODE
 #if CONFIG_IBC_SR_EXT
   &g_av1_codec_arg_defs.enable_intrabc_ext,
 #endif  // CONFIG_IBC_SR_EXT
@@ -719,6 +722,9 @@ static void init_config(cfg_options_t *config) {
   config->enable_paeth_intra = 1;
   config->enable_trellis_quant = 3;
   config->enable_ref_frame_mvs = 1;
+#if CONFIG_REDUCED_REF_FRAME_MVS_MODE
+  config->reduced_ref_frame_mvs_mode = 0;
+#endif  // CONFIG_REDUCED_REF_FRAME_MVS_MODE
   config->enable_reduced_reference_set = 0;
   config->reduced_tx_type_set = 0;
   config->enable_refmvbank = 1;

@@ -159,6 +159,9 @@ int parse_cfg(const char *file, cfg_options_t *config) {
     GET_PARAMS(enable_paeth_intra);
     GET_PARAMS(enable_trellis_quant);
     GET_PARAMS(enable_ref_frame_mvs);
+#if CONFIG_REDUCED_REF_FRAME_MVS_MODE
+    GET_PARAMS(reduced_ref_frame_mvs_mode);
+#endif  // CONFIG_REDUCED_REF_FRAME_MVS_MODE
     GET_PARAMS(enable_reduced_reference_set);
     GET_PARAMS(reduced_tx_type_set);
     GET_PARAMS(max_drl_refmvs);

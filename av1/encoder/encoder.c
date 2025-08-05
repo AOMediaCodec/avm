@@ -417,6 +417,10 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->order_hint_info.enable_ref_frame_mvs = tool_cfg->ref_frame_mvs_present;
   seq->order_hint_info.enable_ref_frame_mvs &=
       seq->order_hint_info.enable_order_hint;
+#if CONFIG_REDUCED_REF_FRAME_MVS_MODE
+  seq->order_hint_info.reduced_ref_frame_mvs_mode =
+      tool_cfg->reduced_ref_frame_mvs_mode;
+#endif  // CONFIG_REDUCED_REF_FRAME_MVS_MODE
   seq->enable_cdef = tool_cfg->enable_cdef;
 #if CONFIG_GDF
   seq->enable_gdf = tool_cfg->enable_gdf;

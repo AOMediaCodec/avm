@@ -174,19 +174,23 @@ struct av1_extracfg {
   int enable_frame_output_order;  // enable frame output order derivation based
                                   // on order hint value
   int enable_ref_frame_mvs;       // sequence level
-  int allow_ref_frame_mvs;        // frame level
-  int enable_masked_comp;         // enable masked compound for sequence
-  int enable_onesided_comp;       // enable one sided compound for sequence
-  int enable_interintra_comp;     // enable interintra compound for sequence
-  int enable_smooth_interintra;   // enable smooth interintra mode usage
-  int enable_diff_wtd_comp;       // enable diff-wtd compound usage
-  int enable_interinter_wedge;    // enable interinter-wedge compound usage
-  int enable_interintra_wedge;    // enable interintra-wedge compound usage
-  int enable_global_motion;       // enable global motion usage for sequence
-  int enable_skip_mode;           // enable skip mode for sequence
-  int enable_warped_motion;       // enable local warped motion for sequence
-  int enable_warp_causal;         // enable spatial warp prediction for sequence
-  int enable_warp_delta;          // enable explicit warp models for sequence
+#if CONFIG_REDUCED_REF_FRAME_MVS_MODE
+  int reduced_ref_frame_mvs_mode;  // use reduced reference frame combinations
+                                   // for temporal mv prediction
+#endif                             // CONFIG_REDUCED_REF_FRAME_MVS_MODE
+  int allow_ref_frame_mvs;         // frame level
+  int enable_masked_comp;          // enable masked compound for sequence
+  int enable_onesided_comp;        // enable one sided compound for sequence
+  int enable_interintra_comp;      // enable interintra compound for sequence
+  int enable_smooth_interintra;    // enable smooth interintra mode usage
+  int enable_diff_wtd_comp;        // enable diff-wtd compound usage
+  int enable_interinter_wedge;     // enable interinter-wedge compound usage
+  int enable_interintra_wedge;     // enable interintra-wedge compound usage
+  int enable_global_motion;        // enable global motion usage for sequence
+  int enable_skip_mode;            // enable skip mode for sequence
+  int enable_warped_motion;        // enable local warped motion for sequence
+  int enable_warp_causal;  // enable spatial warp prediction for sequence
+  int enable_warp_delta;   // enable explicit warp models for sequence
   int enable_six_param_warp_delta;  // enable explicit six-parameter warp models
                                     // for sequence
   int enable_warp_extend;           // enable warp extension for sequence
@@ -513,6 +517,9 @@ static struct av1_extracfg default_extra_cfg = {
   0,  // explicit_ref_frame_map
   1,  // enable frame output order derivation based on order hint value
   1,  // enable_ref_frame_mvs sequence level
+#if CONFIG_REDUCED_REF_FRAME_MVS_MODE
+  0,    // reduced_ref_frame_mvs_mode sequence level
+#endif  // CONFIG_REDUCED_REF_FRAME_MVS_MODE
   1,  // allow ref_frame_mvs frame level
   1,  // enable masked compound at sequence level
   1,  // enable one sided compound at sequence level
@@ -854,6 +861,9 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   }
 
   RANGE_CHECK(extra_cfg, max_reference_frames, 3, 7);
+#if CONFIG_REDUCED_REF_FRAME_MVS_MODE
+  RANGE_CHECK(extra_cfg, reduced_ref_frame_mvs_mode, 0, 1);
+#endif  // CONFIG_REDUCED_REF_FRAME_MVS_MODE
   RANGE_CHECK(extra_cfg, enable_reduced_reference_set, 0, 1);
   RANGE_CHECK(extra_cfg, explicit_ref_frame_map, 0, 1);
   RANGE_CHECK(extra_cfg, enable_frame_output_order, 0, 1);
@@ -1039,6 +1049,9 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_trellis_quant = extra_cfg->enable_trellis_quant;
   cfg->enable_ref_frame_mvs =
       (extra_cfg->allow_ref_frame_mvs || extra_cfg->enable_ref_frame_mvs);
+#if CONFIG_REDUCED_REF_FRAME_MVS_MODE
+  cfg->reduced_ref_frame_mvs_mode = extra_cfg->reduced_ref_frame_mvs_mode;
+#endif  // CONFIG_REDUCED_REF_FRAME_MVS_MODE
   cfg->enable_onesided_comp = extra_cfg->enable_onesided_comp;
   cfg->enable_reduced_reference_set = extra_cfg->enable_reduced_reference_set;
 #if CONFIG_BRU
@@ -1173,6 +1186,9 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
 #endif  // CONFIG_IBC_SR_EXT
   extra_cfg->enable_trellis_quant = cfg->enable_trellis_quant;
   extra_cfg->enable_ref_frame_mvs = cfg->enable_ref_frame_mvs;
+#if CONFIG_REDUCED_REF_FRAME_MVS_MODE
+  extra_cfg->reduced_ref_frame_mvs_mode = cfg->reduced_ref_frame_mvs_mode;
+#endif  // CONFIG_REDUCED_REF_FRAME_MVS_MODE
   extra_cfg->enable_onesided_comp = cfg->enable_onesided_comp;
   extra_cfg->enable_reduced_reference_set = cfg->enable_reduced_reference_set;
 #if CONFIG_BRU
@@ -1463,6 +1479,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   // Disallow using temporal MVs while large_scale_tile = 1.
   tool_cfg->enable_ref_frame_mvs =
       extra_cfg->allow_ref_frame_mvs && !cfg->large_scale_tile;
+#if CONFIG_REDUCED_REF_FRAME_MVS_MODE
+  tool_cfg->reduced_ref_frame_mvs_mode = extra_cfg->reduced_ref_frame_mvs_mode;
+#endif  // CONFIG_REDUCED_REF_FRAME_MVS_MODE
   tool_cfg->superblock_size = extra_cfg->superblock_size;
   tool_cfg->enable_monochrome = cfg->monochrome;
   tool_cfg->full_still_picture_hdr = cfg->full_still_picture_hdr;
@@ -4161,6 +4180,13 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_ref_frame_mvs,
                               argv, err_string)) {
     extra_cfg.enable_ref_frame_mvs = arg_parse_int_helper(&arg, err_string);
+#if CONFIG_REDUCED_REF_FRAME_MVS_MODE
+  } else if (arg_match_helper(&arg,
+                              &g_av1_codec_arg_defs.reduced_ref_frame_mvs_mode,
+                              argv, err_string)) {
+    extra_cfg.reduced_ref_frame_mvs_mode =
+        arg_parse_int_helper(&arg, err_string);
+#endif  // CONFIG_REDUCED_REF_FRAME_MVS_MODE
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_masked_comp,
                               argv, err_string)) {
     extra_cfg.enable_masked_comp = arg_parse_int_helper(&arg, err_string);
@@ -4659,8 +4685,12 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         1,   1, 1, 1,
         1,   1, 1, 1,
         1,   1, 1, 1,
-        3,   1, 1, 0,
-        1,   0, 0,
+        3,   1,
+#if CONFIG_REDUCED_REF_FRAME_MVS_MODE
+        0,
+#endif  // CONFIG_REDUCED_REF_FRAME_MVS_MODE
+        1,   0, 1, 0,
+        0,
 #if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
         0,
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL

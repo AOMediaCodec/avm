@@ -243,6 +243,9 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t denoise_block_size;
 #endif
   arg_def_t enable_ref_frame_mvs;
+#if CONFIG_REDUCED_REF_FRAME_MVS_MODE
+  arg_def_t reduced_ref_frame_mvs_mode;
+#endif  // CONFIG_REDUCED_REF_FRAME_MVS_MODE
   arg_def_t frame_parallel_decoding;
   arg_def_t error_resilient_mode;
   arg_def_t aq_mode;

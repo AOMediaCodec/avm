@@ -664,6 +664,16 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .enable_ref_frame_mvs =
       ARG_DEF(NULL, "enable-ref-frame-mvs", 1,
               "Enable temporal mv prediction (default is 1)"),
+#if CONFIG_REDUCED_REF_FRAME_MVS_MODE
+  .reduced_ref_frame_mvs_mode =
+      ARG_DEF(NULL, "reduced-ref-frame-mvs-mode", 1,
+              "Use reduced reference frame combinations "
+              "for temporal mv prediction (default is 0) "
+              "0: Temporal mv prediction is performed for "
+              "maximum allowed reference frame combinations "
+              "1: Temporal mv prediction is performed for reduced "
+              "reference frame combinations"),
+#endif  // CONFIG_REDUCED_REF_FRAME_MVS_MODE
   .frame_parallel_decoding =
       ARG_DEF(NULL, "frame-parallel", 1,
               "Enable frame parallel decodability features "
