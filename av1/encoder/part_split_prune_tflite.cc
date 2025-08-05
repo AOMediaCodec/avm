@@ -170,7 +170,7 @@ static void get_input_order(tflite::Interpreter *interpreter, uint8_t *order) {
   };
   memset(order, 0, 8 * sizeof(order[0]));
 
-  for (int i = 0; i < interpreter->inputs().size(); ++i) {
+  for (size_t i = 0; i < interpreter->inputs().size(); ++i) {
     int input_index = interpreter->inputs()[i];
     const TfLiteTensor *input_tensor = interpreter->tensor(input_index);
     try {
@@ -224,9 +224,9 @@ extern "C" int av2_model_input_norm(MODEL_TYPE model_type,
 
 static inline float norm(const float *input, int feature,
                          struct InputNorm norm) {
-  return norm.valid
-             ? (input[feature] - norm.mean[feature]) * norm.invstd[feature]
-             : input[feature];
+  return norm.valid ? (float)((input[feature] - norm.mean[feature]) *
+                              norm.invstd[feature])
+                    : input[feature];
 }
 
 extern "C" int av2_part_prune_tflite_exec(void **context, const float *ml_input,
@@ -262,7 +262,8 @@ extern "C" int av2_part_prune_tflite_exec(void **context, const float *ml_input,
     float *input = interpreter->typed_input_tensor<float>(0);
     if (input_norm.valid) {
       for (int i = 0; i < num_input_features; i++) {
-        input[i] = (ml_input[i] - input_norm.mean[i]) * input_norm.invstd[i];
+        input[i] =
+            (float)((ml_input[i] - input_norm.mean[i]) * input_norm.invstd[i]);
       }
     } else {
       for (int i = 0; i < num_input_features; i++) {
@@ -308,13 +309,13 @@ extern "C" int av2_part_prune_tflite_exec(void **context, const float *ml_input,
       FEATURE_INTER_VER_0_LOG_SATDQ,    FEATURE_INTER_VER_1_LOG_SATDQ
     };
 
-    for (int i = 0; i < sizeof(kV6Inp0) / sizeof(kV6Inp0[0]); i++)
+    for (size_t i = 0; i < sizeof(kV6Inp0) / sizeof(kV6Inp0[0]); i++)
       input0[i] = norm(ml_input, kV6Inp0[i], input_norm);
-    for (int i = 0; i < sizeof(kV6Inp1) / sizeof(kV6Inp1[0]); i++)
+    for (size_t i = 0; i < sizeof(kV6Inp1) / sizeof(kV6Inp1[0]); i++)
       input1[i] = norm(ml_input, kV6Inp1[i], input_norm);
-    for (int i = 0; i < sizeof(kV6Inp2) / sizeof(kV6Inp2[0]); i++)
+    for (size_t i = 0; i < sizeof(kV6Inp2) / sizeof(kV6Inp2[0]); i++)
       input2[i] = norm(ml_input, kV6Inp2[i], input_norm);
-    for (int i = 0; i < sizeof(kV6Inp3) / sizeof(kV6Inp3[0]); i++)
+    for (size_t i = 0; i < sizeof(kV6Inp3) / sizeof(kV6Inp3[0]); i++)
       input3[i] = norm(ml_input, kV6Inp3[i], input_norm);
   }
 
