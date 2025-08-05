@@ -96,7 +96,6 @@ void compute_residual_stats(AV1_COMP *const cpi, ThreadData *td, MACROBLOCK *x,
   aom_free(p->eobs);
   p->eobs = NULL;
   aom_free(p->bobs);
-
   p->bobs = NULL;
   aom_free(p->txb_entropy_ctx);
   p->txb_entropy_ctx = NULL;
@@ -158,8 +157,8 @@ static AOM_INLINE void av1_ml_part_split_features_square(AV1_COMP *const cpi,
         // Don't process beyond the tile boundary
         if (mi_col_left < 0) break;
         int src_off = (row_off << 2) * x->plane[0].src.stride + (col_off << 2);
-        xd->mb_to_top_edge = (-mi_row - row_off) << MI_SUBPEL_SIZE_LOG2;
-        xd->mb_to_left_edge = (-mi_col - col_off) << MI_SUBPEL_SIZE_LOG2;
+        xd->mb_to_top_edge = -GET_MV_SUBPEL((mi_row + row_off) * MI_SIZE);
+        xd->mb_to_left_edge = -GET_MV_SUBPEL((mi_col + col_off) * MI_SIZE);
         mbmi->sb_type[0] = subsize_sq;
         xd->up_available = (mi_row + row_off) > 0;
         xd->left_available = (mi_col + col_off) > 0;
@@ -228,8 +227,8 @@ static AOM_INLINE void av1_ml_part_split_features_none(AV1_COMP *const cpi,
   unsigned int tx_h = tx_size_high_unit[tx_size];
   DECLARE_ALIGNED(16, uint16_t, intrapred[MAX_BLK_SQUARE]);
 
-  xd->mb_to_top_edge = -mi_row << MI_SUBPEL_SIZE_LOG2;
-  xd->mb_to_left_edge = -mi_col << MI_SUBPEL_SIZE_LOG2;
+  xd->mb_to_top_edge = -GET_MV_SUBPEL(mi_row * MI_SIZE);
+  xd->mb_to_left_edge = -GET_MV_SUBPEL(mi_col * MI_SIZE);
   mbmi->sb_type[0] = bsize;
   unsigned int best_sse[3] = { INT_MAX, INT_MAX, INT_MAX };
   unsigned int best_var[3] = { 0, 0, 0 };
@@ -291,7 +290,6 @@ static AOM_INLINE void av1_ml_part_split_features_none(AV1_COMP *const cpi,
 static AOM_INLINE void av1_ml_part_split_features(AV1_COMP *const cpi,
                                                   MACROBLOCK *x, int mi_row,
                                                   int mi_col, BLOCK_SIZE bsize,
-                                                  bool search_none_after_rect,
                                                   float *out_features) {
   MACROBLOCKD *xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
@@ -333,6 +331,8 @@ static AOM_INLINE void av1_ml_part_split_features(AV1_COMP *const cpi,
   int old2 = xd->mb_to_left_edge;
   int old3 = mbmi->sb_type[0];
   int old4 = mbmi->mrl_index;
+  int old5 = mbmi->multi_line_mrl;
+  mbmi->multi_line_mrl = 0;
   mbmi->mrl_index = 0;
 
   av1_ml_part_split_features_square(cpi, x, mi_row, mi_col, bsize,
@@ -343,7 +343,7 @@ static AOM_INLINE void av1_ml_part_split_features(AV1_COMP *const cpi,
   xd->mb_to_left_edge = old2;
   mbmi->sb_type[0] = old3;
   mbmi->mrl_index = old4;
-
+  mbmi->multi_line_mrl = old5;
   aom_clear_system_state();
 }
 
@@ -490,12 +490,12 @@ static void get_model_type(bool intra, BLOCK_SIZE bsize, int harsh_level,
   TRY_MODEL(false, 1, 3, MODEL_INTER_SPLIT_8X8, 0.35f, 1.f, 75, 150)
 }
 
-static double log_mag(MV mv) {
+static float log_mag(MV mv) {
   double mag = sqrt(mv.col * mv.col + mv.row * mv.row);
-  return (float)logf(1.0f + mag);
+  return (float)logl(1.0f + mag);
 }
 
-static double angle_rad(MV mv) {
+static float angle_rad(MV mv) {
   double mag = sqrt(mv.col * mv.col + mv.row * mv.row);
   return (float)(mag == 0 ? 0 : asin(mv.row / mag));
 }
@@ -535,6 +535,7 @@ static void av1_ml_part_split_features_inter(
   if (subsize_sq != BLOCK_INVALID) {
     int w_sub_mi = mi_size_wide[subsize_sq];
     int h_sub_mi = mi_size_high[subsize_sq];
+
     SimpleMotionData *blk_sq_0 = av1_get_sms_data(
         cpi, tile_info, x, mi_row, mi_col, subsize_sq, td, true, 1);
     SimpleMotionData *blk_sq_1 = av1_get_sms_data(
@@ -653,8 +654,7 @@ int av1_ml_part_split_infer(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
 
     if (!has_features) {
       if (key_frame) {
-        av1_ml_part_split_features(cpi, x, mi_row, mi_col, bsize,
-                                   search_none_after_rect, ml_input);
+        av1_ml_part_split_features(cpi, x, mi_row, mi_col, bsize, ml_input);
       } else {
         av1_ml_part_split_features_inter(cpi, x, mi_row, mi_col, bsize,
                                          tile_info, td, search_none_after_rect,
