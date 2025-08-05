@@ -2084,6 +2084,9 @@ typedef struct AV1Common {
   YV12_BUFFER_CONFIG prefiltered_pixels;
 #endif  // CONFIG_INSPECTION
 
+  /*!
+   * True if we are in a decoding process.
+   */
   bool decoding;
 } AV1_COMMON;
 
