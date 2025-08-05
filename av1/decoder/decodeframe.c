@@ -1601,19 +1601,6 @@ static AOM_INLINE void parse_decode_block(AV1Decoder *const pbi,
 #endif  // CONFIG_BRU
     decode_token_recon_block(pbi, td, r, partition, bsize);
 
-  if (!frame_is_intra_only(cm) &&
-      cm->seq_params.order_hint_info.enable_ref_frame_mvs) {
-    MB_MODE_INFO *const mi = xd->mi[0];
-    if (enable_refined_mvs_in_tmvp(cm, xd, mi)) {
-      const int bw = mi_size_wide[bsize];
-      const int bh = mi_size_high[bsize];
-      const int x_inside_boundary = AOMMIN(bw, cm->mi_params.mi_cols - mi_col);
-      const int y_inside_boundary = AOMMIN(bh, cm->mi_params.mi_rows - mi_row);
-      av1_copy_frame_refined_mvs(cm, xd, mi, xd->mi_row, xd->mi_col,
-                                 x_inside_boundary, y_inside_boundary);
-    }
-  }
-
   // Note: the copying here must match corresponding encoder-side copying in
   // av1_update_state().
   // TODO(any): Refactor.
@@ -7971,7 +7958,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       if (cm->bru.enabled) {
         int n_future = 0;
         int cur_frame_disp = (int)current_frame->display_order_hint;
+#if CONFIG_EXTRA_DPB
+        for (int i = 0; i < cm->seq_params.ref_frames; i++) {
+#else
         for (int i = 0; i < REF_FRAMES; i++) {
+#endif
           const RefCntBuffer *const buf = cm->ref_frame_map[i];
           if (buf) {
             int ref_disp = (int)buf->display_order_hint;
@@ -9044,6 +9035,9 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
          cm->prefiltered_pixels.frame_size);
 #endif  // CONFIG_INSPECTION
 
+  if (end_tile != tiles->rows * tiles->cols - 1) {
+    return;
+  }
 #if CONFIG_BRU
   // verify active region
   if (!bru_active_map_validation(cm)) {
@@ -9076,9 +9070,6 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
   }
 #endif  // CONFIG_BRU
 
-  if (end_tile != tiles->rows * tiles->cols - 1) {
-    return;
-  }
   if (
 #if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
       !is_global_intrabc_allowed(cm) &&
