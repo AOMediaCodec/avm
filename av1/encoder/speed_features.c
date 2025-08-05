@@ -1038,7 +1038,10 @@ static AOM_INLINE void set_erp_speed_features(AV1_COMP *cpi) {
         !!(cpi->oxcf.part_cfg.use_ml_erp_pruning & 2);
     // Only using NONE-pruning in RA
     sf->part_sf.prune_none_with_ml =
-        sf->part_sf.prune_split_with_ml && cpi->oxcf.gf_cfg.lag_in_frames > 0;
+        !!(cpi->oxcf.part_cfg.use_ml_erp_pruning & 4) &&
+        cpi->oxcf.gf_cfg.lag_in_frames > 0;
+    if (!sf->part_sf.prune_none_with_ml)
+      part_sf->prune_split_ml_level_inter = 0;
   }
 #endif  // CONFIG_ML_PART_SPLIT
 }
