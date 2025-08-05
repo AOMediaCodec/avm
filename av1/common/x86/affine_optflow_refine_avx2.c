@@ -1872,7 +1872,6 @@ static AOM_FORCE_INLINE void compute_pred_using_interp_grad_highbd_bw8_avx2(
     const uint16_t *src1, const uint16_t *src2, int src_stride, int16_t *dst1,
     int16_t *dst2, int bw, int bh, int d0, int d1, int bd, int centered) {
   assert(bw == 8);
-  assert(src_stride == 8);
   const __m256i zero = _mm256_setzero_si256();
   const __m256i mul1 = _mm256_set1_epi16(d0);
   const __m256i mul2 = _mm256_sub_epi16(zero, _mm256_set1_epi16(d1));

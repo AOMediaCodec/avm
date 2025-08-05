@@ -18,13 +18,9 @@
 
 #include "aom_dsp/loopfilter.h"
 
-#include "aom_ports/aom_timer.h"
-
-// int64_t ref_time = 0;
-// int64_t test_time = 0;
-
-// int num_same = 0;
-// int num_diff = 0;
+// An alternative implementation for vertical filtering is available under this
+// macro.
+#define USE_TRANSPOSE_VERT 0
 
 // Helper function: ROUND_POWER_OF_TWO for SIMD 32-bit integers (SSE version)
 static inline __m128i mm_round_power_of_two_epi32_sse(__m128i value, int n) {
@@ -44,6 +40,7 @@ static inline __m128i mm_clip_pixel_highbd_epu16_sse(__m128i pixels, int bd) {
   return clipped_at_max;
 }
 
+#if USE_TRANSPOSE_VERT
 // Helper function: clip_pixel_highbd for SIMD 32-bit unsigned integers (SSE
 // version)
 static inline __m128i mm_clip_pixel_highbd_epu32_sse(__m128i pixels, int bd) {
@@ -53,6 +50,7 @@ static inline __m128i mm_clip_pixel_highbd_epu32_sse(__m128i pixels, int bd) {
   __m128i clipped_at_max = _mm_min_epi32(clipped_at_min, max_val);
   return clipped_at_max;
 }
+#endif  // USE_TRANSPOSE_VERT
 
 static void filt_generic_asym_highbd_hor_4px_sse4_1(int q_threshold,
                                                     int filter_len_neg,
@@ -65,15 +63,12 @@ static void filt_generic_asym_highbd_hor_4px_sse4_1(int q_threshold,
   int filter_len = AOMMAX(filter_len_neg, filter_len_pos);
 
   // --- Calculate delta_m2 for 4 horizontal pixels ---
-  // Load 4 uint16_t pixels (64 bits) into the lower part of XMM registers.
-  // These represent src[0,1,2,3], (src-stride)[0,1,2,3], etc.
   __m128i xmm_src_p0_64 = _mm_loadl_epi64((__m128i const *)(src));
   __m128i xmm_src_m1s_64 = _mm_loadl_epi64((__m128i const *)(src - stride));
   __m128i xmm_src_p1s_64 = _mm_loadl_epi64((__m128i const *)(src + stride));
   __m128i xmm_src_m2s_64 = _mm_loadl_epi64((__m128i const *)(src - 2 * stride));
 
   // Convert 4 uint16_t values to 4 int32_t values.
-  // _mm_cvtepu16_epi32 (SSE4.1) operates on the lower 64 bits of the source.
   __m128i xmm_s0 = _mm_cvtepu16_epi32(xmm_src_p0_64);
   __m128i xmm_sm1 = _mm_cvtepu16_epi32(xmm_src_m1s_64);
   __m128i xmm_sp1 = _mm_cvtepu16_epi32(xmm_src_p1s_64);
@@ -83,10 +78,10 @@ static void filt_generic_asym_highbd_hor_4px_sse4_1(int q_threshold,
   __m128i xmm_three = _mm_set1_epi32(3);
   __m128i xmm_four = _mm_set1_epi32(4);
 
-  // delta_m2_tmp = (3 * (src[0] - src[-stride]) - (src[stride] -
-  // src[-2*stride]))
+  // delta_m2_tmp =
+  //   (3 * (src[0] - src[-stride]) - (src[stride] - src[-2*stride]))
   __m128i xmm_diff1 = _mm_sub_epi32(xmm_s0, xmm_sm1);
-  __m128i xmm_term1 = _mm_mullo_epi32(xmm_three, xmm_diff1);  // SSE2
+  __m128i xmm_term1 = _mm_mullo_epi32(xmm_three, xmm_diff1);
   __m128i xmm_diff2 = _mm_sub_epi32(xmm_sp1, xmm_sm2);
   __m128i xmm_delta_m2_tmp = _mm_sub_epi32(xmm_term1, xmm_diff2);
   __m128i xmm_delta_m2 = _mm_mullo_epi32(xmm_delta_m2_tmp, xmm_four);
@@ -97,7 +92,6 @@ static void filt_generic_asym_highbd_hor_4px_sse4_1(int q_threshold,
   __m128i xmm_q_clamp_val = _mm_set1_epi32(scalar_q_thresh_val);
   __m128i xmm_neg_q_clamp_val = _mm_set1_epi32(-scalar_q_thresh_val);
 
-  // SSE4.1: _mm_min_epi32, _mm_max_epi32
   xmm_delta_m2 = _mm_max_epi32(xmm_delta_m2, xmm_neg_q_clamp_val);
   xmm_delta_m2 = _mm_min_epi32(xmm_delta_m2, xmm_q_clamp_val);
 
@@ -111,7 +105,7 @@ static void filt_generic_asym_highbd_hor_4px_sse4_1(int q_threshold,
   __m128i xmm_delta_m2_neg = _mm_mullo_epi32(xmm_delta_m2, xmm_w_mult_neg);
   __m128i xmm_delta_m2_pos = _mm_mullo_epi32(xmm_delta_m2, xmm_w_mult_pos);
 
-  // --- Inner loops: Apply modifications ---
+  // Apply modifications
 
   // Negative side filtering (pixels above)
   for (int row = 0; row < filter_len_neg; ++row) {
@@ -131,7 +125,7 @@ static void filt_generic_asym_highbd_hor_4px_sse4_1(int q_threshold,
     // Resulting 4 uint16_t will be in the lower 64 bits of
     // xmm_final_result_neg_epi16.
     __m128i xmm_final_result_neg_epi16 =
-        _mm_packus_epi32(xmm_result_neg, _mm_setzero_si128());  // SSE2
+        _mm_packus_epi32(xmm_result_neg, _mm_setzero_si128());
 
     // Clip the 4 uint16_t pixels (lower 64 bits)
     xmm_final_result_neg_epi16 =
@@ -184,6 +178,7 @@ static inline void transpose_4x4_epi32(__m128i r0, __m128i r1, __m128i r2,
   *c3 = _mm_unpackhi_epi64(tmp2, tmp3);  // [r0e3, r1e3, r2e3, r3e3] (Column 3)
 }
 
+#if USE_TRANSPOSE_VERT
 // Transpose a 4x4 matrix of __m128i registers where each holds 4 epi16
 // elements. Input: r0, r1, r2, r3 are rows. Output: c01, c23 are columns.
 static inline void transpose_4x4_epi16_to_epi32(__m128i r0, __m128i r1,
@@ -214,6 +209,7 @@ static inline void transpose_4x4_epi32_to_packed_epi16(__m128i r0, __m128i r1,
   *c01 = _mm_unpacklo_epi32(tmp0, tmp1);  // Column 0 and 1
   *c23 = _mm_unpackhi_epi32(tmp0, tmp1);  // Column 2 and 3
 }
+#endif  // USE_TRANSPOSE_VERT
 
 static INLINE void filt_generic_asym_highbd_ver_4px_sse4_1(
     int q_threshold, int filter_len_neg, int filter_len_pos, uint16_t *src,
@@ -249,10 +245,10 @@ static INLINE void filt_generic_asym_highbd_ver_4px_sse4_1(
   __m128i xmm_three = _mm_set1_epi32(3);
   __m128i xmm_four = _mm_set1_epi32(4);
 
-  // delta_m2_tmp = (3 * (src[0] - src[-stride]) - (src[stride] -
-  // src[-2*stride]))
+  // delta_m2_tmp =
+  //   (3 * (src[0] - src[-stride]) - (src[stride] - src[-2*stride]))
   __m128i xmm_diff1 = _mm_sub_epi32(xmm_s0, xmm_sm1);
-  __m128i xmm_term1 = _mm_mullo_epi32(xmm_three, xmm_diff1);  // SSE2
+  __m128i xmm_term1 = _mm_mullo_epi32(xmm_three, xmm_diff1);
   __m128i xmm_diff2 = _mm_sub_epi32(xmm_sp1, xmm_sm2);
   __m128i xmm_delta_m2_tmp = _mm_sub_epi32(xmm_term1, xmm_diff2);
   __m128i xmm_delta_m2 = _mm_mullo_epi32(xmm_delta_m2_tmp, xmm_four);
@@ -263,7 +259,6 @@ static INLINE void filt_generic_asym_highbd_ver_4px_sse4_1(
   __m128i xmm_q_clamp_val = _mm_set1_epi32(scalar_q_thresh_val);
   __m128i xmm_neg_q_clamp_val = _mm_set1_epi32(-scalar_q_thresh_val);
 
-  // SSE4.1: _mm_min_epi32, _mm_max_epi32
   xmm_delta_m2 = _mm_max_epi32(xmm_delta_m2, xmm_neg_q_clamp_val);
   xmm_delta_m2 = _mm_min_epi32(xmm_delta_m2, xmm_q_clamp_val);
 
@@ -283,7 +278,6 @@ static INLINE void filt_generic_asym_highbd_ver_4px_sse4_1(
   _mm_store_si128((__m128i *)delta_m2_neg, xmm_delta_m2_neg);
   _mm_store_si128((__m128i *)delta_m2_pos, xmm_delta_m2_pos);
 
-  /* adjustment by sse4*/
   // Find the adjustment values
   __m128i xmm_coeff_neg_lo, xmm_coeff_neg_hi;
 
@@ -303,13 +297,12 @@ static INLINE void filt_generic_asym_highbd_ver_4px_sse4_1(
   xmm_coeff_pos_lo = _mm_cvtepu16_epi32(xmm_coeff_pos);
   xmm_coeff_pos_hi = _mm_cvtepu16_epi32(_mm_srli_si128(xmm_coeff_pos, 8));
 
-  // --- Inner loops: Apply modifications ---
+  // Apply modifications
   uint16_t *s = src;
   for (int row = 0; row < 4; ++row) {
     int delta_m2_neg_val = delta_m2_neg[row];
     int delta_m2_pos_val = delta_m2_pos[row];
 
-    /* calculate src by sse4 */
     // negative
     __m128i xmm_delta_m2_neg_row = _mm_set1_epi32(delta_m2_neg_val);
     __m128i xmm_adj_neg_hi =
@@ -332,9 +325,7 @@ static INLINE void filt_generic_asym_highbd_ver_4px_sse4_1(
     xmm_src_neg8 = mm_clip_pixel_highbd_epu16_sse(xmm_src_neg8, bd);
     // Store
     _mm_storeu_si128((__m128i *)(s - 8), xmm_src_neg8);
-    /**/
 
-    /* calculate src by sse4 */
     // positive
     __m128i xmm_delta_m2_pos_row = _mm_set1_epi32(delta_m2_pos_val);
     __m128i xmm_adj_pos_lo =
@@ -356,12 +347,12 @@ static INLINE void filt_generic_asym_highbd_ver_4px_sse4_1(
     xmm_src_pos8 = mm_clip_pixel_highbd_epu16_sse(xmm_src_pos8, bd);
     // Store
     _mm_storeu_si128((__m128i *)s, xmm_src_pos8);
-    /* */
 
     s += stride;
   }
 }
 
+#if USE_TRANSPOSE_VERT
 static INLINE void transpose_filt_generic_asym_highbd_ver_4px_sse4_1(
     int q_threshold, int filter_len_neg, int filter_len_pos, uint16_t *src,
     const int stride, int bd) {
@@ -392,11 +383,11 @@ static INLINE void transpose_filt_generic_asym_highbd_ver_4px_sse4_1(
   __m128i xmm_three = _mm_set1_epi32(3);
   __m128i xmm_four = _mm_set1_epi32(4);
 
-  // delta_m2_tmp = (3 * (src[0] - src[-stride]) - (src[stride] -
-  // src[-2*stride]))
+  // delta_m2_tmp =
+  //   (3 * (src[0] - src[-stride]) - (src[stride] - src[-2*stride]))
   __m128i xmm_diff1 =
       _mm_sub_epi32(xmm_transposed_cols_32[8], xmm_transposed_cols_32[7]);
-  __m128i xmm_term1 = _mm_mullo_epi32(xmm_three, xmm_diff1);  // SSE2
+  __m128i xmm_term1 = _mm_mullo_epi32(xmm_three, xmm_diff1);
   __m128i xmm_diff2 =
       _mm_sub_epi32(xmm_transposed_cols_32[9], xmm_transposed_cols_32[6]);
   __m128i xmm_delta_m2_tmp = _mm_sub_epi32(xmm_term1, xmm_diff2);
@@ -408,7 +399,6 @@ static INLINE void transpose_filt_generic_asym_highbd_ver_4px_sse4_1(
   __m128i xmm_q_clamp_val = _mm_set1_epi32(scalar_q_thresh_val);
   __m128i xmm_neg_q_clamp_val = _mm_set1_epi32(-scalar_q_thresh_val);
 
-  // SSE4.1: _mm_min_epi32, _mm_max_epi32
   xmm_delta_m2 = _mm_max_epi32(xmm_delta_m2, xmm_neg_q_clamp_val);
   xmm_delta_m2 = _mm_min_epi32(xmm_delta_m2, xmm_q_clamp_val);
 
@@ -422,7 +412,7 @@ static INLINE void transpose_filt_generic_asym_highbd_ver_4px_sse4_1(
   __m128i xmm_delta_m2_neg = _mm_mullo_epi32(xmm_delta_m2, xmm_w_mult_neg);
   __m128i xmm_delta_m2_pos = _mm_mullo_epi32(xmm_delta_m2, xmm_w_mult_pos);
 
-  // --- Inner loops: Apply modifications ---
+  // Apply modifications
 
   // Negative side filtering
   for (int col = 0; col < filter_len_neg; ++col) {
@@ -467,6 +457,7 @@ static INLINE void transpose_filt_generic_asym_highbd_ver_4px_sse4_1(
                      _mm_srli_si128(xmm_r23, 8));
   }
 }
+#endif  // USE_TRANSPOSE_VERT
 
 static INLINE int filt_choice_highbd_horizontal_px4_sse4_1(
     uint16_t *s, int pitch, int max_filt_neg, int max_filt_pos,
@@ -957,57 +948,22 @@ void aom_highbd_lpf_horizontal_generic_sse4_1(uint16_t *s, int pitch,
                                               const uint16_t *q_thresh,
                                               const uint16_t *side_thresh,
                                               int bd
-#if CONFIG_LF_SUB_PU
+#if CONFIG_LF_SUB_PU && !CONFIG_IMPROVE_TIP_LF
                                               ,
                                               const int count
-#endif  // CONFIG_LF_SUB_PU
+#endif  // CONFIG_LF_SUB_PU && !CONFIG_IMPROVE_TIP_LF
 ) {
-#if !CONFIG_LF_SUB_PU
+#if !CONFIG_LF_SUB_PU || CONFIG_IMPROVE_TIP_LF
   int count = 4;
-#endif  // !CONFIG_LF_SUB_PU
+#endif  // !CONFIG_LF_SUB_PU || CONFIG_IMPROVE_TIP_LF
 
 #if EDGE_DECISION
 #if CONFIG_ASYM_DF
   int filt_neg = (filt_width_neg >> 1) - 1;
   int filter;
   if (count == 4) {
-    /*
-    const int MAX_COUNT = 100000;
-    struct aom_usec_timer timer;
-    aom_usec_timer_start(&timer);
-    int total_f1 = 0;
-    for (int k = 0; k < MAX_COUNT; k++) {
-      int filter1 = filt_choice_highbd(s, pitch, filt_width_neg, filt_width_pos,
-                                       *q_thresh, *side_thresh, s + count - 1);
-      total_f1 += filter1;
-    }
-    aom_usec_timer_mark(&timer);
-    ref_time += aom_usec_timer_elapsed(&timer);
-
-    aom_usec_timer_start(&timer);
-    int total_f = 0;
-    for (int k = 0; k < MAX_COUNT; k++) {
-      */
     filter = filt_choice_highbd_horizontal_px4_sse4_1(
         s, pitch, filt_width_neg, filt_width_pos, *q_thresh, *side_thresh);
-    /*
-      total_f += filter;
-    }
-    aom_usec_timer_mark(&timer);
-    test_time += aom_usec_timer_elapsed(&timer);
-
-    if (total_f == total_f1) {
-      num_same++;
-    } else {
-      num_diff++;
-    }
-
-    if (num_same + num_diff == 10000) {
-      printf("\nref_time: %ld, test_time: %ld, num_same: %d, num_diff: %d\n",
-             ref_time, test_time, num_same, num_diff);
-      exit(0);
-    }
-      */
   } else {
     filter = filt_choice_highbd(s, pitch, filt_width_neg, filt_width_pos,
                                 *q_thresh, *side_thresh, s + count - 1);
@@ -1023,11 +979,22 @@ void aom_highbd_lpf_horizontal_generic_sse4_1(uint16_t *s, int pitch,
   int filter = AOMMIN(filter0, filter3);
 #endif  // CONFIG_ASYM_DF
 #endif  // EDGE_DECISION
+
   // loop filter designed to work using chars so that we can make maximum use
   // of 8 bit simd instructions.
   for (int i = 0; i < count; i += 4) {
+#if !EDGE_DECISION
+    int filter =
+        filt_choice_highbd(s, pitch, filt_width, *q_thresh, *side_thresh);
+#endif
+#if CONFIG_ASYM_DF
     filt_generic_asym_highbd_hor_4px_sse4_1(*q_thresh, AOMMIN(filter, filt_neg),
                                             filter, s, pitch, bd);
+#else
+    filt_generic_asym_highbd_hor_4px_sse4_1(*q_thresh, filter, filter, s, pitch,
+                                            bd);
+#endif  // CONFIG_ASYM_DF
+
     s += 4;
   }
 }
@@ -1041,13 +1008,13 @@ void aom_highbd_lpf_vertical_generic_sse4_1(uint16_t *s, int pitch,
 #endif
                                             const uint16_t *q_thresh,
                                             const uint16_t *side_thresh, int bd
-#if CONFIG_LF_SUB_PU
+#if CONFIG_LF_SUB_PU && !CONFIG_IMPROVE_TIP_LF
                                             ,
                                             const int count
 #endif  // CONFIG_LF_SUB_PU
 ) {
   int i;
-#if !CONFIG_LF_SUB_PU
+#if !CONFIG_LF_SUB_PU || CONFIG_IMPROVE_TIP_LF
   int count = 4;
 #endif  // CONFIG_LF_SUB_PU
 
@@ -1056,43 +1023,8 @@ void aom_highbd_lpf_vertical_generic_sse4_1(uint16_t *s, int pitch,
   int filt_neg = (filt_width_neg >> 1) - 1;
   int filter;
   if (count == 4) {
-    /*
-    const int MAX_COUNT = 100000;
-    struct aom_usec_timer timer;
-    aom_usec_timer_start(&timer);
-    int total_f1 = 0;
-    for (int k = 0; k < MAX_COUNT; k++) {
-      int filter1 =
-          filt_choice_highbd(s, 1, filt_width_neg, filt_width_pos, *q_thresh,
-                             *side_thresh, s + (count - 1) * pitch);
-      total_f1 += filter1;
-    }
-    aom_usec_timer_mark(&timer);
-    ref_time += aom_usec_timer_elapsed(&timer);
-
-    aom_usec_timer_start(&timer);
-    int total_f = 0;
-    for (int k = 0; k < MAX_COUNT; k++) {
-      */
     filter = filt_choice_highbd_vertical_px4_sse4_1(
         s, pitch, filt_width_neg, filt_width_pos, *q_thresh, *side_thresh);
-    /*
-          total_f += filter;
-        }
-        aom_usec_timer_mark(&timer);
-        test_time += aom_usec_timer_elapsed(&timer);
-
-        if (total_f == total_f1) {
-          num_same++;
-        } else {
-          num_diff++;
-        }
-
-        if (num_same + num_diff == 10000) {
-          printf("\nref_time: %ld, test_time: %ld, num_same: %d, num_diff:
-       %d\n", ref_time, test_time, num_same, num_diff); exit(0);
-        }
-          */
   } else {
     filter = filt_choice_highbd(s, 1, filt_width_neg, filt_width_pos, *q_thresh,
                                 *side_thresh, s + (count - 1) * pitch);
@@ -1111,8 +1043,17 @@ void aom_highbd_lpf_vertical_generic_sse4_1(uint16_t *s, int pitch,
   // loop filter designed to work using chars so that we can make maximum use
   // of 8 bit simd instructions.
   for (i = 0; i < count; i += 4) {
+#if !EDGE_DECISION
+    int filter = filt_choice_highbd(s, 1, filt_width, *q_thresh, *side_thresh);
+#endif
+
+#if CONFIG_ASYM_DF
     filt_generic_asym_highbd_ver_4px_sse4_1(*q_thresh, AOMMIN(filter, filt_neg),
                                             filter, s, pitch, bd);
+#else
+    filt_generic_asym_highbd_ver_4px_sse4_1(*q_thresh, filter, filter, s, pitch,
+                                            bd);
+#endif
     s += 4 * pitch;
   }
 }
