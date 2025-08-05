@@ -830,8 +830,11 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
 #endif  // CONFIG_SUBBLK_REF_EXT
 
 #if CONFIG_TIP_LD
-  const int apply_refinemv = (cm->seq_params.enable_refinemv && plane == 0 &&
-                              has_both_sides_refs && is_compound
+  const int apply_refinemv = (cm->seq_params.enable_refinemv &&
+#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+                              cm->seq_params.enable_tip_refinemv &&
+#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+                              plane == 0 && has_both_sides_refs && is_compound
 #if CONFIG_TIP_ENHANCEMENT
                               && tip_weight == TIP_EQUAL_WTD
 #endif  // CONFIG_TIP_ENHANCEMENT
@@ -841,7 +844,15 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
 #endif  // CONFIG_TIP_LD
 
   ReferenceArea ref_area[2];
+  const int do_opfl = cm->seq_params.enable_opfl_refine &&
+#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+                      cm->seq_params.enable_tip_refinemv &&
+#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+                      cm->features.use_optflow_tip && plane == 0;
   const int do_ref_area_pad =
+#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+      cm->seq_params.enable_tip_refinemv &&
+#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
 #if CONFIG_TIP_LD
       cm->has_both_sides_refs &&
 #endif
@@ -876,7 +887,7 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
       is_any_mv_refinement_allowed(cm) && is_compound &&
       tip_weight == TIP_EQUAL_WTD &&
 #endif  // CONFIG_TIP_ENHANCEMENT
-      (cm->features.use_optflow_tip || apply_refinemv)) {
+      (do_opfl || apply_refinemv)) {
     if (bw != 8 || bh != 8) {
       for (int h = 0; h < bh; h += 8) {
         for (int w = 0; w < bw; w += 8) {

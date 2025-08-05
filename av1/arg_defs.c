@@ -409,6 +409,11 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
               "(0: disable TIP, "
               " 1: TIP frame is used as reference or direct output (default), "
               " 2: TIP frame is only used as reference)"),
+#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+  .enable_tip_refinemv = ARG_DEF(NULL, "enable-tip-refinemv", 1,
+                                 "Enable RefineMV and OPFL for TIP"
+                                 "(0: false, 1: true (default))"),
+#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
   .enable_mv_traj = ARG_DEF(NULL, "enable-mv-traj", 1,
                             "Enable MV trajectory tracking"
                             "(0: disable MV traj tracking, "

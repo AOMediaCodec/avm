@@ -2882,6 +2882,10 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
   const MV center_mvs[2] = { best_mv_ref[0], best_mv_ref[1] };
   assert(mi->refinemv_flag < REFINEMV_NUM_MODES);
   assert(cm->seq_params.enable_refinemv);
+#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+  assert(IMPLIES(is_tip_ref_frame(mi->ref_frame[0]),
+                 cm->seq_params.enable_tip_refinemv));
+#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
 
   // Generate MV independent inter_pred_params for both references
   InterPredParams inter_pred_params[2];
@@ -3023,6 +3027,9 @@ static AOM_INLINE int is_sub_block_refinemv_enabled(const AV1_COMMON *cm,
   if (!cm->seq_params.enable_refinemv) return 0;
 
   if (tip_ref_frame) {
+#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+    if (!cm->seq_params.enable_tip_refinemv) return 0;
+#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
 #if CONFIG_TIP_ENHANCEMENT
     const int tip_wtd_index = cm->tip_global_wtd_index;
     const int8_t tip_weight = tip_weighting_factors[tip_wtd_index];

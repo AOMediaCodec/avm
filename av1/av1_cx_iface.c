@@ -133,6 +133,9 @@ struct av1_extracfg {
   int enable_extended_sdp;  // enable inter semi-decoupled partitioning
   int enable_mrls;          // enable multiple reference line selection
   int enable_tip;           // enable temporal interpolated prediction
+#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+  int enable_tip_refinemv;  // enable RefineMv and OPFL for TIP
+#endif                      // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
   int enable_mv_traj;       // enable MV trajectory tracking
 #if CONFIG_MV_RANGE_EXTENSION
   int enable_high_motion;  // Enable a large motion search window
@@ -472,6 +475,9 @@ static struct av1_extracfg default_extra_cfg = {
   1,    // enable semi-decoupled partitioning for inter frame
   1,    // enable multiple reference line selection
   1,    // enable temporal interpolated prediction (TIP)
+#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+  1,    // enable RefineMv and OPFL for TIP
+#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
   1,    // enable mv trajectory tracking
 #if CONFIG_MV_RANGE_EXTENSION
   0,    // enable a large motion search window
@@ -976,6 +982,9 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_extended_sdp = extra_cfg->enable_extended_sdp;
   cfg->enable_mrls = extra_cfg->enable_mrls;
   cfg->enable_tip = extra_cfg->enable_tip;
+#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+  cfg->enable_tip_refinemv = extra_cfg->enable_tip_refinemv;
+#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
   cfg->enable_mv_traj = extra_cfg->enable_mv_traj;
 #if CONFIG_MV_RANGE_EXTENSION
   cfg->enable_high_motion = extra_cfg->enable_high_motion;
@@ -1107,6 +1116,9 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_extended_sdp = cfg->enable_extended_sdp;
   extra_cfg->enable_mrls = cfg->enable_mrls;
   extra_cfg->enable_tip = cfg->enable_tip;
+#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+  extra_cfg->enable_tip_refinemv = cfg->enable_tip_refinemv;
+#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
   extra_cfg->enable_mv_traj = cfg->enable_mv_traj;
 #if CONFIG_MV_RANGE_EXTENSION
   extra_cfg->enable_high_motion = cfg->enable_high_motion;
@@ -1534,6 +1546,13 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
                                      ? extra_cfg->enable_opfl_refine
                                      : AOM_OPFL_REFINE_NONE;
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
+#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+  tool_cfg->enable_tip_refinemv =
+      (tool_cfg->enable_tip &&
+       (tool_cfg->enable_opfl_refine || tool_cfg->enable_refinemv))
+          ? extra_cfg->enable_tip_refinemv
+          : 0;
+#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
   tool_cfg->enable_parity_hiding = extra_cfg->enable_parity_hiding;
 #if CONFIG_MRSSE
   tool_cfg->enable_mrsse = extra_cfg->enable_mrsse;
@@ -4035,6 +4054,11 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_tip, argv,
                               err_string)) {
     extra_cfg.enable_tip = arg_parse_int_helper(&arg, err_string);
+#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_tip_refinemv,
+                              argv, err_string)) {
+    extra_cfg.enable_tip_refinemv = arg_parse_int_helper(&arg, err_string);
+#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_mv_traj, argv,
                               err_string)) {
     extra_cfg.enable_mv_traj = arg_parse_int_helper(&arg, err_string);
@@ -4597,6 +4621,9 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #endif      // CONFIG_MAX_PB_RATIO
         0,   1, 1, /*extended sdp*/ 1,
         1,
+#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+        1,  // enable RefineMv and OPFL for TIP
+#endif      // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
         1,  // MV traj
 #if CONFIG_MV_RANGE_EXTENSION
         0,  // enable_high_motion

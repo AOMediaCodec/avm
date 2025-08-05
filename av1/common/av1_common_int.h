@@ -569,7 +569,10 @@ typedef struct SequenceHeader {
                                 // partitioning
   uint8_t enable_mrls;  // enables/disables multiple reference line selection
   uint8_t enable_tip;   // enables/disables temporal interpolated prediction
-  uint8_t enable_tip_hole_fill;    // enables/disables hole fill for TIP
+  uint8_t enable_tip_hole_fill;  // enables/disables hole fill for TIP
+#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+  uint8_t enable_tip_refinemv;     // enables/disables RefineMv and OPFL for TIP
+#endif                             // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
   uint8_t enable_tip_explicit_qp;  // enables/disables explicit qp for TIP
   uint8_t enable_mv_traj;          // enables/disables mv trajectory tracking
   uint8_t enable_bawp;  // enables/disables block adaptive weighted prediction
@@ -4637,6 +4640,11 @@ static INLINE int opfl_allowed_cur_refs_bsize(const AV1_COMMON *cm,
       cm->features.opfl_refine_type == REFINE_NONE)
     return 0;
 
+#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+  if (!cm->seq_params.enable_tip_refinemv &&
+      is_tip_ref_frame(mbmi->ref_frame[0]))
+    return 0;
+#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
 #if CONFIG_COMPOUND_4XN
   // Optical flow is not allowed for 4xN , Nx4 blocks
   if (AOMMIN(block_size_wide[mbmi->sb_type[xd->tree_type == CHROMA_PART]],

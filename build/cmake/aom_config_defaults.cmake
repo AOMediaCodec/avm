@@ -359,6 +359,8 @@ set_aom_config_var(
 set_aom_config_var(CONFIG_TIP_LD 1 "Enable TIP for low delay")
 set_aom_config_var(CONFIG_TIP_ENHANCEMENT 1
                    "Enable different weighted prediction for TIP")
+set_aom_config_var(CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG 1
+                   "Enable RefineMV and OPFL for TIP")
 
 set_aom_config_var(CONFIG_TIP_INTERP_SMOOTH 1
                    "Enable Smooth interpolation for TIP direct output mode")

@@ -305,6 +305,12 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_tip;
+#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+  /*!\brief enable RefineMV and OPFL for TIP
+   *
+   */
+  unsigned int enable_tip_refinemv;
+#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
   /*!\brief enable mv trajectory tracking
    *
    */

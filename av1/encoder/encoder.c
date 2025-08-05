@@ -428,6 +428,9 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #endif  // CONFIG_LF_SUB_PU
   seq->enable_opfl_refine = tool_cfg->enable_opfl_refine;
   seq->enable_tip = tool_cfg->enable_tip;
+#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+  seq->enable_tip_refinemv = tool_cfg->enable_tip_refinemv;
+#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
   seq->enable_tip_hole_fill = seq->enable_tip != 0;
   seq->enable_tip_explicit_qp = 0;
   seq->enable_mv_traj = tool_cfg->enable_mv_traj;

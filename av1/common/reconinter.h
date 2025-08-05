@@ -838,6 +838,9 @@ static INLINE int is_refinemv_allowed_tip_blocks(const AV1_COMMON *const cm,
                                                  const MB_MODE_INFO *mbmi) {
   assert(is_tip_ref_frame(mbmi->ref_frame[0]));
   return cm->seq_params.enable_refinemv &&
+#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+         cm->seq_params.enable_tip_refinemv &&
+#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
 #if CONFIG_DMVR_OFF_IN_TIP_DIRECT
          is_refinemv_allowed_reference(cm, mbmi) &&
          (cm->features.tip_frame_mode != TIP_FRAME_AS_OUTPUT);

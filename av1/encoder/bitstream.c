@@ -5716,6 +5716,12 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
   aom_wb_write_bit(wb, seq_params->enable_ibp);
   aom_wb_write_bit(wb, seq_params->enable_adaptive_mvd);
   aom_wb_write_bit(wb, seq_params->enable_refinemv);
+#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+  if (seq_params->enable_tip != 0 &&
+      (seq_params->enable_opfl_refine != 0 || seq_params->enable_refinemv)) {
+    aom_wb_write_bit(wb, seq_params->enable_tip_refinemv);
+  }
+#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
 
 #if CONFIG_BRU
   aom_wb_write_bit(wb, (int)(seq_params->enable_bru > 0));

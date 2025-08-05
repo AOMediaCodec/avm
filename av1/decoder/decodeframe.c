@@ -6559,6 +6559,13 @@ void av1_read_sequence_header_beyond_av1(
 
   seq_params->enable_refinemv = aom_rb_read_bit(rb);
 
+#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+  seq_params->enable_tip_refinemv =
+      (seq_params->enable_tip &&
+       (seq_params->enable_opfl_refine || seq_params->enable_refinemv))
+          ? aom_rb_read_bit(rb)
+          : 0;
+#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
 #if CONFIG_BRU
   seq_params->enable_bru = aom_rb_read_bit(rb);
 #endif  // CONFIG_BRU
