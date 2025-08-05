@@ -190,7 +190,7 @@ if ((aom_config("CONFIG_LF_SUB_PU") eq "yes") && (aom_config("CONFIG_IMPROVE_TIP
     add_proto qw/void aom_highbd_lpf_horizontal_generic/, "uint16_t *s, int pitch, int filt_width, const uint16_t *q_thresh, const uint16_t *side_thresh, int bd, int count";
 
     specialize qw/aom_highbd_lpf_horizontal_generic sse4_1/;
-    
+
     add_proto qw/void aom_highbd_lpf_vertical_generic/, "uint16_t *s, int pitch, int filt_width, const uint16_t *q_thresh, const uint16_t *side_thresh, int bd, int count";
 
     specialize qw/aom_highbd_lpf_vertical_generic sse4_1/;
@@ -201,7 +201,7 @@ else{
     add_proto qw/void aom_highbd_lpf_horizontal_generic/, "uint16_t *s, int pitch, int filt_width_neg, int filt_width_pos, const uint16_t *q_thresh, const uint16_t *side_thresh, int bd";
 
     specialize qw/aom_highbd_lpf_horizontal_generic sse4_1/;
-    
+
     add_proto qw/void aom_highbd_lpf_vertical_generic/, "uint16_t *s, int pitch, int filt_width_neg, int filt_width_pos, const uint16_t *q_thresh, const uint16_t *side_thresh, int bd";
 
     specialize qw/aom_highbd_lpf_vertical_generic sse4_1/;
