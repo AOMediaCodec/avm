@@ -624,72 +624,105 @@ if(CONFIG_AV1_ENCODER)
     # variable "XYZ_SOURCE_DIR" pointing to "third_party/xyz" like below, also
     # update the command line to extrac the archive below.
 
-    string(
-      CONCAT
-        EXTRACT_TF_UPDATE_DEPS_CMAKE_CONFIG
-        "cd ${CMAKE_CURRENT_SOURCE_DIR}/third_party;"
-        "tar -xzf tensorflow.tar.gz; "
-        "cd tensorflow; "
-        "patch -p1 < ../tensorflow-designated-initializers.patch; "
-        "cd ..; "
-        "tar -xzf deps_cmake.tar.gz; "
-        "cp deps_cmake/abseil-cpp.cmake ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/tensorflow/lite/tools/cmake/modules; "
-        "cp deps_cmake/cpuinfo.cmake ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/tensorflow/lite/tools/cmake/modules; "
-        "cp deps_cmake/eigen.cmake ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/tensorflow/lite/tools/cmake/modules; "
-        "cp deps_cmake/farmhash.cmake ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/tensorflow/lite/tools/cmake/modules; "
-        "cp deps_cmake/fft2d.cmake ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/tensorflow/lite/tools/cmake/modules; "
-        "cp deps_cmake/flatbuffers.cmake ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/tensorflow/lite/tools/cmake/modules; "
-        "cp deps_cmake/gemmlowp.cmake ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/tensorflow/lite/tools/cmake/modules; "
-        "cp deps_cmake/ml_dtypes.cmake ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/tensorflow/lite/tools/cmake/modules; "
-        "cp deps_cmake/neon2sse.cmake ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/tensorflow/lite/tools/cmake/modules; "
-        "cp deps_cmake/protobuf.cmake ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/tensorflow/lite/tools/cmake/modules; "
-        "cp deps_cmake/ruy.cmake ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/tensorflow/lite/tools/cmake/modules; "
-        "cp deps_cmake/xnnpack.cmake ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tensorflow/tensorflow/lite/tools/cmake/modules"
+    set(THIRD_PARTY_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party")
+    set(TF_SRC_DIR "${THIRD_PARTY_DIR}/tensorflow")
+    set(DEPS_CMAKE_DIR "${THIRD_PARTY_DIR}/deps_cmake")
+
+    # === unzip tensorflow.tar.gz ===
+    if(NOT EXISTS "${TF_SRC_DIR}/tensorflow")
+      message(STATUS "Extracting tensorflow.tar.gz...")
+      execute_process(
+        COMMAND ${CMAKE_COMMAND} -E tar xzf tensorflow.tar.gz
+        WORKING_DIRECTORY "${THIRD_PARTY_DIR}"
+        RESULT_VARIABLE TF_TAR_RESULT
+        ERROR_VARIABLE TF_TAR_ERROR
+      )
+      if(NOT TF_TAR_RESULT EQUAL 0)
+        message(FATAL_ERROR "Failed to extract tensorflow.tar.gz: ${TF_TAR_ERROR}")
+      endif()
+    endif()
+
+    # === Apply patch (optional) ===
+    if(EXISTS "${TF_SRC_DIR}/tensorflow" AND EXISTS "${TF_SRC_DIR}/tensorflow-designated-initializers.patch")
+      message(STATUS "Applying tensorflow patch...")
+      execute_process(
+        COMMAND patch -p1 -i ../tensorflow-designated-initializers.patch
+        WORKING_DIRECTORY "${TF_SRC_DIR}/tensorflow"
+        RESULT_VARIABLE PATCH_RESULT
+        ERROR_VARIABLE PATCH_ERROR
+      )
+      if(NOT PATCH_RESULT EQUAL 0)
+        message(WARNING "Patch failed: ${PATCH_ERROR}")
+      endif()
+    endif()
+
+    # === unzip deps_cmake.tar.gz ===
+    if(NOT EXISTS "${DEPS_CMAKE_DIR}")
+      message(STATUS "Extracting deps_cmake.tar.gz...")
+      execute_process(
+        COMMAND ${CMAKE_COMMAND} -E tar xzf deps_cmake.tar.gz
+        WORKING_DIRECTORY "${THIRD_PARTY_DIR}"
+        RESULT_VARIABLE DEPS_TAR_RESULT
+        ERROR_VARIABLE DEPS_TAR_ERROR
+      )
+      if(NOT DEPS_TAR_RESULT EQUAL 0)
+        message(FATAL_ERROR "Failed to extract deps_cmake.tar.gz: ${DEPS_TAR_ERROR}")
+      endif()
+    endif()
+
+    # === Copy all .cmake files to tensorflow lite tools directory ===
+    set(CMAKE_MODULE_TARGET_DIR "${TF_SRC_DIR}/tensorflow/tensorflow/lite/tools/cmake/modules")
+    file(GLOB DEPS_CMAKE_FILES "${DEPS_CMAKE_DIR}/*.cmake")
+    file(COPY ${DEPS_CMAKE_FILES} DESTINATION "${CMAKE_MODULE_TARGET_DIR}")
+
+    # === Define dependency list ===
+    set(TFLITE_DEP_ARCHIVES
+      abseil-cpp
+      eigen
+      xnnpack
+      ruy
+      cpuinfo
+      fft2d
+      farmhash
+      flatbuffers
+      gemmlowp
+      ml_dtypes
+      protobuf
+      neon2sse
+      fp16
+      pthreadpool
+      psimd
+      FXdiv
+      benchmark
+      googletest
     )
 
-    execute_process(COMMAND bash -c "${EXTRACT_TF_UPDATE_DEPS_CMAKE_CONFIG}")
-    string(
-      CONCAT EXTRACT_DEPS_TO_BUILD
-             "cd ${CMAKE_CURRENT_SOURCE_DIR}/third_party; "
-             "tar -xzf abseil-cpp.tar.gz -C ${CMAKE_BINARY_DIR}; "
-             "tar -xzf eigen.tar.gz -C ${CMAKE_BINARY_DIR}; "
-             "tar -xzf neon2sse.tar.gz -C ${CMAKE_BINARY_DIR}; "
-             "tar -xzf xnnpack.tar.gz -C ${CMAKE_BINARY_DIR}; "
-             "tar -xzf ruy.tar.gz -C ${CMAKE_BINARY_DIR}; "
-             "tar -xzf farmhash.tar.gz -C ${CMAKE_BINARY_DIR}; "
-             "tar -xzf fft2d.tar.gz -C ${CMAKE_BINARY_DIR}; "
-             "tar -xzf gemmlowp.tar.gz -C ${CMAKE_BINARY_DIR}; "
-             "tar -xzf ml_dtypes.tar.gz -C ${CMAKE_BINARY_DIR}; "
-             "tar -xzf cpuinfo.tar.gz -C ${CMAKE_BINARY_DIR}; "
-             "tar -xzf protobuf.tar.gz -C ${CMAKE_BINARY_DIR}; "
-             "tar -xzf flatbuffers.tar.gz -C ${CMAKE_BINARY_DIR}; "
-             "tar -xzf fp16.tar.gz -C ${CMAKE_BINARY_DIR}; "
-             "tar -xzf pthreadpool.tar.gz -C ${CMAKE_BINARY_DIR}; "
-             "tar -xzf psimd.tar.gz -C ${CMAKE_BINARY_DIR}; "
-             "tar -xzf FXdiv.tar.gz -C ${CMAKE_BINARY_DIR}; "
-             "tar -xzf benchmark.tar.gz -C ${CMAKE_BINARY_DIR}; "
-             "tar -xzf googletest.tar.gz -C ${CMAKE_BINARY_DIR}")
+    foreach(dep ${TFLITE_DEP_ARCHIVES})
+      set(DEP_ARCHIVE "${THIRD_PARTY_DIR}/${dep}.tar.gz")
+      set(DEP_TARGET_DIR "${CMAKE_BINARY_DIR}/${dep}")
 
-    execute_process(COMMAND bash -c "${EXTRACT_DEPS_TO_BUILD}")
+      if(NOT EXISTS "${DEP_TARGET_DIR}")
+        message(STATUS "Extracting ${dep}.tar.gz ...")
 
-    set(FP16_SOURCE_DIR ${CMAKE_BINARY_DIR}/fp16)
-    set(PTHREADPOOL_SOURCE_DIR ${CMAKE_BINARY_DIR}/pthreadpool)
-    set(PSIMD_SOURCE_DIR ${CMAKE_BINARY_DIR}/psimd)
-    set(FXDIV_SOURCE_DIR ${CMAKE_BINARY_DIR}/FXdiv)
-    set(GOOGLEBENCHMARK_SOURCE_DIR ${CMAKE_BINARY_DIR}/benchmark)
-    set(GOOGLETEST_SOURCE_DIR ${CMAKE_BINARY_DIR}/googletest)
-    set(abseil-cpp_SOURCE_DIR ${CMAKE_BINARY_DIR}/abseil-cpp)
-    set(CPUINFO_SOURCE_DIR ${CMAKE_BINARY_DIR}/cpuinfo)
-    set(EIGEN_SOURCE_DIR ${CMAKE_BINARY_DIR}/eigen)
-    set(FARMHASH_SOURCE_DIR ${CMAKE_BINARY_DIR}/farmhash)
-    set(FFT2D_SOURCE_DIR ${CMAKE_BINARY_DIR}/fft2d)
-    set(FLATBUFFERS_SOURCE_DIR ${CMAKE_BINARY_DIR}/flatbuffers)
-    set(GEMMLOWP_SOURCE_DIR ${CMAKE_BINARY_DIR}/gemmlowp)
-    set(ML_DTYPES_SOURCE_DIR ${CMAKE_BINARY_DIR}/ml_dtypes)
-    set(PROTOBUF_SOURCE_DIR ${CMAKE_BINARY_DIR}/protobuf)
-    set(RUY_SOURCE_DIR ${CMAKE_BINARY_DIR}/ruy)
-    set(NEON2SSE_SOURCE_DIR ${CMAKE_BINARY_DIR}/neon2sse)
-    set(XNNPACK_SOURCE_DIR ${CMAKE_BINARY_DIR}/XNNPACK)
+        execute_process(
+          COMMAND ${CMAKE_COMMAND} -E tar xzf ${DEP_ARCHIVE}
+          WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
+          RESULT_VARIABLE TAR_RESULT
+          ERROR_VARIABLE TAR_ERROR
+        )
+
+        if(NOT TAR_RESULT EQUAL 0)
+          message(FATAL_ERROR "Failed to extract ${dep}.tar.gz: ${TAR_ERROR}")
+        endif()
+      else()
+        message(STATUS "${dep} already extracted, skipping.")
+      endif()
+
+      # === Dynamically set SOURCE_DIR variable ===
+      string(TOUPPER "${dep}" DEP_UPPER)
+      string(REGEX REPLACE "[^A-Z0-9]" "_" VAR_NAME "${DEP_UPPER}")
+      set("${VAR_NAME}_SOURCE_DIR" "${DEP_TARGET_DIR}" CACHE PATH "Path to local ${dep} source")
+    endforeach()
 
     # static linking makes life with TFLite much easier
     set(TFLITE_C_BUILD_SHARED_LIBS OFF)
@@ -1062,13 +1095,14 @@ if(ENABLE_DOCS)
       list(GET DOXYGEN_VERSION_LIST 0 DOXYGEN_MAJOR)
       list(GET DOXYGEN_VERSION_LIST 1 DOXYGEN_MINOR)
       list(GET DOXYGEN_VERSION_LIST 2 DOXYGEN_PATCH)
-    endif()
+      
+      # Construct a version value for comparison.
+      math(EXPR DOXYGEN_MAJOR "${DOXYGEN_MAJOR}*1000000")
+      math(EXPR DOXYGEN_MINOR "${DOXYGEN_MINOR}*1000")
+      math(EXPR DOXYGEN_VERSION_VALUE
+          "${DOXYGEN_MAJOR} + ${DOXYGEN_MINOR} + ${DOXYGEN_PATCH}")
 
-    # Construct a version value for comparison.
-    math(EXPR DOXYGEN_MAJOR "${DOXYGEN_MAJOR}*1000000")
-    math(EXPR DOXYGEN_MINOR "${DOXYGEN_MINOR}*1000")
-    math(EXPR DOXYGEN_VERSION_VALUE
-         "${DOXYGEN_MAJOR} + ${DOXYGEN_MINOR} + ${DOXYGEN_PATCH}")
+    endif()
 
     if(${DOXYGEN_VERSION_VALUE} LESS ${MINIMUM_DOXYGEN_VERSION})
       set(DOXYGEN_FOUND NO)
