@@ -48,10 +48,10 @@ void gdf_set_lap_and_cls_unit_avx2(
       _mm256_set_epi8(13, 12, 15, 14, 9, 8, 11, 10, 5, 4, 7, 6, 1, 0, 3, 2, 13,
                       12, 15, 14, 9, 8, 11, 10, 5, 4, 7, 6, 1, 0, 3, 2);
   __m256i shuffle_mask2 = _mm256_set_epi32(0, 7, 6, 5, 4, 3, 2, 1);
-  __m256i clip_mask =
-      _mm256_set1_epi16((short)((1 << (16 - GDF_TEST_INP_PREC -
-                                       AOMMIN(GDF_TEST_INP_PREC, bit_depth))) -
-                                1));
+  __m256i clip_mask = _mm256_set1_epi16(
+      (short)((1 << (16 - (GDF_TEST_INP_PREC -
+                           AOMMIN(GDF_TEST_INP_PREC, bit_depth)))) -
+              1));
   for (int j = 0; j < (j_max - j_min); j += 14) {
     const uint16_t *std_pos = rec_pnt + (i_max - i_min) * rec_stride + j;
     const uint16_t *std_pos_1;

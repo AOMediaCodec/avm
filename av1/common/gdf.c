@@ -54,7 +54,9 @@ void alloc_gdf_buffers(GdfInfo *gi) {
   memset(gi->err_ptr, 0, gi->err_height * gi->err_stride * sizeof(int16_t));
   gi->gdf_block_flags = (int32_t *)aom_malloc(gi->gdf_block_num * sizeof(int));
   memset(gi->gdf_block_flags, 0, gi->gdf_block_num * sizeof(int));
+#if CONFIG_GDF_IMPROVEMENT
   gi->glbs = (GDFLineBuffers *)aom_malloc(sizeof(GDFLineBuffers));
+#endif
 }
 
 void free_gdf_buffers(GdfInfo *gi) {
@@ -78,10 +80,12 @@ void free_gdf_buffers(GdfInfo *gi) {
     aom_free(gi->gdf_block_flags);
     gi->gdf_block_flags = NULL;
   }
+#if CONFIG_GDF_IMPROVEMENT
   if (gi->glbs != NULL) {
     aom_free(gi->glbs);
     gi->glbs = NULL;
   }
+#endif
 }
 
 #define GDF_PRINT_INT(x) printf(#x " : %d\n", x)

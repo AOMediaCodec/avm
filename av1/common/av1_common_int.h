@@ -413,8 +413,14 @@ typedef struct BufferPool {
  * \brief Temporary buffers to save/restore lines above/below the GDF
  */
 typedef struct {
-  uint16_t gdf_save_above[4][RESTORATION_LINEBUFFER_WIDTH];
-  uint16_t gdf_save_below[4][RESTORATION_LINEBUFFER_WIDTH];
+  uint16_t
+      gdf_save_above[4]
+                    [RESTORATION_LINEBUFFER_WIDTH]; /*!< GDF temporary buffer to
+                                                       save/restore above */
+  uint16_t
+      gdf_save_below[4]
+                    [RESTORATION_LINEBUFFER_WIDTH]; /*!< GDF temporary buffer to
+                                                       save/restore below */
 } GDFLineBuffers;
 #endif
 
