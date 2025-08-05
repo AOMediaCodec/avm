@@ -474,16 +474,12 @@ static INLINE int filt_choice_highbd_horizontal_px4_sse4_1(
 
   __m128i xmm_sample_mask = _mm_set_epi16(1, 0, 0, 1, 1, 0, 0, 1);
 
-  __m128i xmm_row_m5 = _mm_loadl_epi64((__m128i *)&s[-5 * stride]);
-  __m128i xmm_row_m4 = _mm_loadl_epi64((__m128i *)&s[-4 * stride]);
   __m128i xmm_row_m3 = _mm_loadl_epi64((__m128i *)&s[-3 * stride]);
   __m128i xmm_row_m2 = _mm_loadl_epi64((__m128i *)&s[-2 * stride]);
   __m128i xmm_row_m1 = _mm_loadl_epi64((__m128i *)&s[-1 * stride]);
   __m128i xmm_row_p0 = _mm_loadl_epi64((__m128i *)&s[0]);
   __m128i xmm_row_p1 = _mm_loadl_epi64((__m128i *)&s[1 * stride]);
   __m128i xmm_row_p2 = _mm_loadl_epi64((__m128i *)&s[2 * stride]);
-  __m128i xmm_row_p3 = _mm_loadl_epi64((__m128i *)&s[3 * stride]);
-  __m128i xmm_row_p4 = _mm_loadl_epi64((__m128i *)&s[4 * stride]);
 
   // Put two 4x16 bits together, if we are doing the same operation
 
@@ -520,25 +516,41 @@ static INLINE int filt_choice_highbd_horizontal_px4_sse4_1(
       _mm_add_epi16(_mm_slli_si128(xmm_row_p1, 8), xmm_row_m2);
   __m128i xmm_row_m1p0_sub_m2p1 = _mm_sub_epi16(xmm_row_m1p0, xmm_row_m2p1);
 
-  // For diff_neg(3) and diff_pos(3)
-  __m128i xmm_three = _mm_set1_epi16(3);
-  __m128i xmm_row_m4p3 =
-      _mm_add_epi16(_mm_slli_si128(xmm_row_p3, 8), xmm_row_m4);
-  __m128i xmm_diffs_3 = _mm_sub_epi16(xmm_row_m1p0, xmm_row_m4p3);
-  xmm_diffs_3 = _mm_sub_epi16(
-      xmm_diffs_3, _mm_mullo_epi16(xmm_three, xmm_row_m1p0_sub_m2p1));
-  xmm_diffs_3 = _mm_abs_epi16(xmm_diffs_3);
-  xmm_diffs_3 = _mm_mullo_epi16(xmm_diffs_3, xmm_sample_mask);
+  __m128i xmm_diffs_3;
+  if (max_samples_pos >= 3) {
+    // For diff_neg(3) and diff_pos(3)
+    __m128i xmm_row_m4 = _mm_loadl_epi64((__m128i *)&s[-4 * stride]);
+    __m128i xmm_row_p3 = _mm_loadl_epi64((__m128i *)&s[3 * stride]);
 
-  // For diff_neg(4) and diff_pos(4)
-  __m128i xmm_four = _mm_set1_epi16(4);
-  __m128i xmm_row_m5p4 =
-      _mm_add_epi16(_mm_slli_si128(xmm_row_p4, 8), xmm_row_m5);
-  __m128i xmm_diffs_4 = _mm_sub_epi16(xmm_row_m1p0, xmm_row_m5p4);
-  xmm_diffs_4 = _mm_sub_epi16(xmm_diffs_4,
-                              _mm_mullo_epi16(xmm_four, xmm_row_m1p0_sub_m2p1));
-  xmm_diffs_4 = _mm_abs_epi16(xmm_diffs_4);
-  xmm_diffs_4 = _mm_mullo_epi16(xmm_diffs_4, xmm_sample_mask);
+    __m128i xmm_three = _mm_set1_epi16(3);
+    __m128i xmm_row_m4p3 =
+        _mm_add_epi16(_mm_slli_si128(xmm_row_p3, 8), xmm_row_m4);
+    xmm_diffs_3 = _mm_sub_epi16(xmm_row_m1p0, xmm_row_m4p3);
+    xmm_diffs_3 = _mm_sub_epi16(
+        xmm_diffs_3, _mm_mullo_epi16(xmm_three, xmm_row_m1p0_sub_m2p1));
+    xmm_diffs_3 = _mm_abs_epi16(xmm_diffs_3);
+    xmm_diffs_3 = _mm_mullo_epi16(xmm_diffs_3, xmm_sample_mask);
+  } else {
+    xmm_diffs_3 = _mm_setzero_si128();
+  }
+
+  __m128i xmm_diffs_4;
+  if (max_samples_pos >= 4) {
+    // For diff_neg(4) and diff_pos(4)
+    __m128i xmm_row_m5 = _mm_loadl_epi64((__m128i *)&s[-5 * stride]);
+    __m128i xmm_row_p4 = _mm_loadl_epi64((__m128i *)&s[4 * stride]);
+
+    __m128i xmm_four = _mm_set1_epi16(4);
+    __m128i xmm_row_m5p4 =
+        _mm_add_epi16(_mm_slli_si128(xmm_row_p4, 8), xmm_row_m5);
+    xmm_diffs_4 = _mm_sub_epi16(xmm_row_m1p0, xmm_row_m5p4);
+    xmm_diffs_4 = _mm_sub_epi16(
+        xmm_diffs_4, _mm_mullo_epi16(xmm_four, xmm_row_m1p0_sub_m2p1));
+    xmm_diffs_4 = _mm_abs_epi16(xmm_diffs_4);
+    xmm_diffs_4 = _mm_mullo_epi16(xmm_diffs_4, xmm_sample_mask);
+  } else {
+    xmm_diffs_4 = _mm_setzero_si128();
+  }
 
   // Do horizontal add to get these numbers
   __m128i xmm_sds = _mm_hadd_epi16(xmm_sd_m2m1, xmm_sd_p0p1);
@@ -649,8 +661,7 @@ static INLINE int filt_choice_highbd_horizontal_px4_sse4_1(
 
   // Store into memory. This array consists of:
   // { diff_neg[6], diff_pos[6], diff_neg[7], diff_pos[7]}
-  DECLARE_ALIGNED(16, uint16_t, res_arr_67[4]);
-  _mm_storel_epi64((__m128i *)res_arr_67, xmm_diffs_67);
+  _mm_storel_epi64((__m128i *)res_arr, xmm_diffs_67);
 
   // 6 sample modification
   {
@@ -659,8 +670,8 @@ static INLINE int filt_choice_highbd_horizontal_px4_sse4_1(
 
     end_dir_thresh = (side_thresh * 6) >> 4;
 
-    if (max_samples_neg >= 6) mask |= (res_arr_67[0] > end_dir_thresh) * -1;
-    mask |= (res_arr_67[1] > end_dir_thresh) * -1;
+    if (max_samples_neg >= 6) mask |= (res_arr[0] > end_dir_thresh) * -1;
+    mask |= (res_arr[1] > end_dir_thresh) * -1;
 
     if (mask) return 4;
     if (max_samples_pos <= 6) return 6;
@@ -673,8 +684,8 @@ static INLINE int filt_choice_highbd_horizontal_px4_sse4_1(
 
     end_dir_thresh = (side_thresh * 8) >> 4;
 
-    if (max_samples_neg >= 7) mask |= (res_arr_67[2] > end_dir_thresh) * -1;
-    mask |= (res_arr_67[3] > end_dir_thresh) * -1;
+    if (max_samples_neg >= 7) mask |= (res_arr[2] > end_dir_thresh) * -1;
+    mask |= (res_arr[3] > end_dir_thresh) * -1;
 
     if (mask) return 6;
     if (max_samples_pos <= 8) return 8;
