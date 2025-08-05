@@ -17,7 +17,6 @@
 #include "av1/common/idct.h"
 #include "av1/encoder/x86/av1_fwd_txfm_avx2.h"
 
-#if CONFIG_IMPROVE_LOSSLESS_TXM
 static INLINE __m256i load_4x4_s16_avx2(const int16_t *src, int stride) {
   // Cast src pointer to handle byte-level stride arithmetic
   const uint8_t *src_bytes = (const uint8_t *)src;
@@ -113,4 +112,3 @@ void av1_lossless_fwd_idtx_avx2(const int16_t *src_diff, tran_low_t *coeff,
     }
   }
 }
-#endif  // CONFIG_IMPROVE_LOSSLESS_TXM

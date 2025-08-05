@@ -189,7 +189,6 @@ void av1_subtract_block(const MACROBLOCKD *xd, int rows, int cols,
   }
 }
 
-#if CONFIG_LOSSLESS_DPCM
 // subtraction for residue calculation of DPCM mode
 void av1_subtract_block_dpcm(const MACROBLOCKD *xd, int rows, int cols,
                              int16_t *diff, ptrdiff_t diff_stride,
@@ -250,7 +249,6 @@ void av1_subtract_block_horz(const MACROBLOCKD *xd, int rows, int cols,
   aom_highbd_subtract_block_horz(rows, cols, diff, diff_stride, src, src_stride,
                                  pred, pred_stride, xd->bd);
 }
-#endif  // CONFIG_LOSSLESS_DPCM
 
 void av1_subtract_txb(MACROBLOCK *x, int plane, BLOCK_SIZE plane_bsize,
                       int blk_col, int blk_row, TX_SIZE tx_size,
@@ -268,7 +266,6 @@ void av1_subtract_txb(MACROBLOCK *x, int plane, BLOCK_SIZE plane_bsize,
   uint16_t *src = &p->src.buf[(blk_row * src_stride + blk_col) << MI_SIZE_LOG2];
   int16_t *src_diff =
       &p->src_diff[(blk_row * diff_stride + blk_col) << MI_SIZE_LOG2];
-#if CONFIG_LOSSLESS_DPCM
   if (xd->lossless[xd->mi[0]->segment_id]) {
     av1_subtract_block_dpcm(xd, tx1d_height, tx1d_width, src_diff, diff_stride,
                             src, src_stride, dst, dst_stride, plane, blk_col,
@@ -278,11 +275,6 @@ void av1_subtract_txb(MACROBLOCK *x, int plane, BLOCK_SIZE plane_bsize,
                        src_stride, dst, dst_stride, plane, blk_col, blk_row,
                        frame_width, frame_height, tx_type);
   }
-#else
-  av1_subtract_block(xd, tx1d_height, tx1d_width, src_diff, diff_stride, src,
-                     src_stride, dst, dst_stride, plane, blk_col, blk_row,
-                     frame_width, frame_height, tx_type);
-#endif
 }
 
 void av1_subtract_plane(MACROBLOCK *x, BLOCK_SIZE plane_bsize, int plane,
@@ -293,7 +285,6 @@ void av1_subtract_plane(MACROBLOCK *x, BLOCK_SIZE plane_bsize, int plane,
   const int bw = block_size_wide[plane_bsize];
   const int bh = block_size_high[plane_bsize];
   const MACROBLOCKD *xd = &x->e_mbd;
-#if CONFIG_LOSSLESS_DPCM
   if (xd->lossless[xd->mi[0]->segment_id]) {
     av1_subtract_block_dpcm(xd, bh, bw, p->src_diff, bw, p->src.buf,
                             p->src.stride, pd->dst.buf, pd->dst.stride, plane,
@@ -303,11 +294,6 @@ void av1_subtract_plane(MACROBLOCK *x, BLOCK_SIZE plane_bsize, int plane,
                        pd->dst.buf, pd->dst.stride, plane, 0, 0, frame_width,
                        frame_height, DCT_DCT);
   }
-#else
-  av1_subtract_block(xd, bh, bw, p->src_diff, bw, p->src.buf, p->src.stride,
-                     pd->dst.buf, pd->dst.stride, plane, 0, 0, frame_width,
-                     frame_height, DCT_DCT);
-#endif
 }
 
 /*

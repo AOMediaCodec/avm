@@ -528,7 +528,6 @@ typedef struct MB_MODE_INFO {
   /*! \brief The mapped luma/chroma prediction mode */
   PREDICTION_MODE mapped_intra_mode[2][MAX_TX_PARTITIONS];
 
-#if CONFIG_LOSSLESS_DPCM
   /*! \brief Whether dpcm mode is selected for luma blk*/
   uint8_t use_dpcm_y;
   /*! \brief dpcm direction if dpcm is selected for the luma blk*/
@@ -537,7 +536,6 @@ typedef struct MB_MODE_INFO {
   uint8_t use_dpcm_uv;
   /*! \brief dpcm direction if dpcm is selected for the chroma blk*/
   uint8_t dpcm_mode_uv;
-#endif
 
   /*! \brief mode index of y mode and y delta angle after re-ordering. */
   uint8_t y_mode_idx;
@@ -3283,11 +3281,9 @@ static INLINE TX_TYPE av1_get_tx_type(const MACROBLOCKD *xd,
   const bool is_fsc = xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
                       !is_inter_block(mbmi, xd->tree_type) &&
                       plane_type == PLANE_TYPE_Y;
-#if CONFIG_LOSSLESS_DPCM
   if (is_fsc) {
     return IDTX;
   }
-#if CONFIG_IMPROVE_LOSSLESS_TXM
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
   if (xd->lossless[mbmi->segment_id]) {
 #if CONFIG_LOSSLESS_CHROMA_IDTX
@@ -3345,19 +3341,7 @@ static INLINE TX_TYPE av1_get_tx_type(const MACROBLOCKD *xd,
     }
 #endif  // CONFIG_LOSSLESS_CHROMA_IDTX
   }
-#else
-  if (xd->lossless[mbmi->segment_id]) {
-    return DCT_DCT;
-  }
-#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
-#else   // CONFIG_LOSSLESS_DPCM
-  if (xd->lossless[mbmi->segment_id]) {
-    return DCT_DCT;
-  }
-  if (is_fsc) {
-    return IDTX;
-  }
-#endif  // CONFIG_LOSSLESS_DPCM
+
   TX_TYPE tx_type;
   if (plane_type == PLANE_TYPE_Y) {
     tx_type = xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col];
@@ -3501,13 +3485,11 @@ static INLINE TX_SIZE av1_get_max_uv_txsize(BLOCK_SIZE bsize, int subsampling_x,
 
 static INLINE TX_SIZE av1_get_tx_size(int plane, const MACROBLOCKD *xd) {
   const MB_MODE_INFO *mbmi = xd->mi[0];
-#if CONFIG_IMPROVE_LOSSLESS_TXM
+
   if (xd->lossless[mbmi->segment_id]) {
     return get_lossless_tx_size(plane, xd);
   }
-#else
-  if (xd->lossless[mbmi->segment_id]) return TX_4X4;
-#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
+
   if (plane == 0) return mbmi->tx_size;
   const MACROBLOCKD_PLANE *pd = &xd->plane[plane];
   const BLOCK_SIZE bsize_base = get_bsize_base(xd, mbmi, plane);
@@ -3637,13 +3619,10 @@ static INLINE int is_interintra_pred(const MB_MODE_INFO *mbmi) {
 
 static INLINE int get_vartx_max_txsize(const MACROBLOCKD *xd, BLOCK_SIZE bsize,
                                        int plane) {
-#if CONFIG_IMPROVE_LOSSLESS_TXM
   if (xd->lossless[xd->mi[0]->segment_id]) {
     return get_lossless_tx_size(plane, xd);
   }
-#else
-  if (xd->lossless[xd->mi[0]->segment_id]) return TX_4X4;
-#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
+
   const TX_SIZE max_txsize = max_txsize_rect_lookup[bsize];
   if (plane == 0) return max_txsize;            // luma
   return av1_get_adjusted_tx_size(max_txsize);  // chroma

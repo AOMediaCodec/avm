@@ -332,7 +332,6 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
   const BLOCK_SIZE bsize_base =
       get_bsize_base_from_tree_type(mbmi, tree_type, plane);
 
-#if CONFIG_IMPROVE_LOSSLESS_TXM
   if (xd && xd->lossless[mbmi->segment_id]) {
     TX_SIZE tx_size = get_lossless_tx_size(plane, xd);
     int mi_row_start = mbmi->mi_row_start;
@@ -346,12 +345,6 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
     assert(IMPLIES((plane != AOM_PLANE_Y), (*tu_edge == 1)));
     return tx_size;
   }
-#else
-  if (xd && xd->lossless[mbmi->segment_id]) {
-    *tu_edge = true;
-    return TX_4X4;
-  }
-#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
   const int plane_type = av1_get_sdp_idx(tree_type);
 
   TX_SIZE tx_size = TX_INVALID;

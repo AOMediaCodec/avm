@@ -4940,20 +4940,9 @@ void inv_txfm_avx2(const tran_low_t *input, uint16_t *dest, int stride,
   const uint32_t tx_high_index = tx_size_high_log2[tx_size] - 2;
 
   if (txfm_param->lossless) {
-#if CONFIG_LOSSLESS_DPCM && !CONFIG_IMPROVE_LOSSLESS_TXM
-    assert(tx_type == DCT_DCT || tx_type == IDTX);
-    if (tx_type == IDTX) {
-      av1_inv_txfm2d_add_4x4_c(input, dest, stride, tx_type,
-                               txfm_param->use_ddt, txfm_param->bd);
-    } else {
-      av1_highbd_iwht4x4_add(input, dest, stride, txfm_param->eob,
-                             txfm_param->bd);
-    }
-#else
     assert(tx_type == DCT_DCT);
     av1_highbd_iwht4x4_add(input, dest, stride, txfm_param->eob,
                            txfm_param->bd);
-#endif  // CONFIG_LOSSLESS_DPCM && !CONFIG_IMPROVE_LOSSLESS_TXM
     return;
   }
 
@@ -5122,7 +5111,6 @@ void inv_txfm_avx2(const tran_low_t *input, uint16_t *dest, int stride,
   }
 }
 
-#if CONFIG_IMPROVE_LOSSLESS_TXM
 void process_inv_idtx_add_4x4_avx2(const tran_low_t *input, int in_stride,
                                    uint16_t *dst, int out_stride,
                                    int scale_bits, int bd) {
@@ -5255,4 +5243,3 @@ void av1_lossless_inv_idtx_add_avx2(const tran_low_t *input, uint16_t *dest,
     }
   }
 }
-#endif  // CONFIG_IMPROVE_LOSSLESS_TXM

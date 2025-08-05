@@ -1586,14 +1586,12 @@ int get_tx_type_cost(const MACROBLOCK *x, const MACROBLOCKD *xd, int plane,
   }
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
   const TX_SIZE tx_size_sqr_up = txsize_sqr_up_map[tx_size];
-#if CONFIG_IMPROVE_LOSSLESS_TXM
   if (xd->lossless[xd->mi[0]->segment_id]) {
     if (is_inter && tx_size == TX_4X4) {
       TX_TYPE lossless_inter_tx_type = get_primary_tx_type(tx_type) == IDTX;
       return x->mode_costs.lossless_inter_tx_type_cost[lossless_inter_tx_type];
     }
   }
-#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
   if (get_ext_tx_types(tx_size, is_inter, reduced_tx_set_used) > 1 &&
       !xd->lossless[xd->mi[0]->segment_id]) {
     const int ext_tx_set =
@@ -4177,7 +4175,6 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
     }
   }
 
-#if CONFIG_IMPROVE_LOSSLESS_TXM
   if (xd->lossless[mbmi->segment_id]) {
     if (is_inter && tx_size == TX_4X4) {
       update_cdf(xd->tile_ctx->lossless_inter_tx_type_cdf,
@@ -4185,7 +4182,6 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
     }
     return;
   }
-#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
 
   if (get_ext_tx_types(tx_size, is_inter, reduced_tx_set_used) > 1 &&
       !mbmi->skip_txfm[xd->tree_type == CHROMA_PART] &&

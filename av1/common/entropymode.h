@@ -400,10 +400,8 @@ typedef struct frame_contexts {
                                            [CDF_SIZE(TX_PARTITION_TYPE_NUM)];
 #endif  // CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING
 
-#if CONFIG_IMPROVE_LOSSLESS_TXM
   aom_cdf_prob lossless_tx_size_cdf[BLOCK_SIZE_GROUPS][2][CDF_SIZE(2)];
   aom_cdf_prob lossless_inter_tx_type_cdf[CDF_SIZE(2)];
-#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
   aom_cdf_prob comp_group_idx_cdf[COMP_GROUP_IDX_CONTEXTS][CDF_SIZE(2)];
 #if CONFIG_BRU
   aom_cdf_prob bru_mode_cdf[CDF_SIZE(3)];
@@ -460,12 +458,10 @@ typedef struct frame_contexts {
 #endif  // !CONFIG_MERGE_PARA_CTX
   aom_cdf_prob mrl_index_cdf[MRL_INDEX_CONTEXTS][CDF_SIZE(MRL_LINE_NUMBER)];
   aom_cdf_prob multi_line_mrl_cdf[MRL_INDEX_CONTEXTS][CDF_SIZE(2)];
-#if CONFIG_LOSSLESS_DPCM
   aom_cdf_prob dpcm_cdf[CDF_SIZE(2)];
   aom_cdf_prob dpcm_vert_horz_cdf[CDF_SIZE(2)];
   aom_cdf_prob dpcm_uv_cdf[CDF_SIZE(2)];
   aom_cdf_prob dpcm_uv_vert_horz_cdf[CDF_SIZE(2)];
-#endif  // CONFIG_LOSSLESS_DPCM
   aom_cdf_prob fsc_mode_cdf[FSC_MODE_CONTEXTS][FSC_BSIZE_CONTEXTS]
                            [CDF_SIZE(FSC_MODES)];
 

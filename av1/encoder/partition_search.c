@@ -374,7 +374,6 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
 #endif  // CONFIG_COMPOUND_WARP_CAUSAL && COMPOUND_WARP_LINE_BUFFER_REDUCTION
                                  mbmi);
 #endif  // !WARP_CU_BANK
-#if CONFIG_IMPROVE_LOSSLESS_TXM
     if (xd->lossless[mbmi->segment_id]) {
 #if CONFIG_LOSSLESS_LARGER_IDTX
       if (bsize > BLOCK_4X4) {
@@ -392,7 +391,6 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
 #endif  // CONFIG_LOSSLESS_LARGER_IDTX
       }
     }
-#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
   }
 
   if (is_inter_block(mbmi, xd->tree_type) && !xd->is_chroma_ref &&

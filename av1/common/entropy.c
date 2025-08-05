@@ -323,10 +323,8 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->txfm_2or3_way_partition_type_cdf, 2);
 #endif  // CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING
   RESET_CDF_COUNTER(fc->txfm_4way_partition_type_cdf, TX_PARTITION_TYPE_NUM);
-#if CONFIG_IMPROVE_LOSSLESS_TXM
   RESET_CDF_COUNTER(fc->lossless_tx_size_cdf, 2);
   RESET_CDF_COUNTER(fc->lossless_inter_tx_type_cdf, 2);
-#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
   RESET_CDF_COUNTER(fc->comp_group_idx_cdf, 2);
   RESET_CDF_COUNTER(fc->skip_mode_cdfs, 2);
 #if CONFIG_BRU
@@ -354,13 +352,11 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->multi_line_mrl_cdf, 2);
   RESET_CDF_COUNTER(fc->fsc_mode_cdf, FSC_MODES);
 
-#if CONFIG_LOSSLESS_DPCM
   // CDF for dpcm related symbols
   RESET_CDF_COUNTER(fc->dpcm_cdf, 2);
   RESET_CDF_COUNTER(fc->dpcm_vert_horz_cdf, 2);
   RESET_CDF_COUNTER(fc->dpcm_uv_cdf, 2);
   RESET_CDF_COUNTER(fc->dpcm_uv_vert_horz_cdf, 2);
-#endif  // CONFIG_LOSSLESS_DPCM
 
   RESET_CDF_COUNTER(fc->cfl_index_cdf, CFL_TYPE_COUNT - 1);
   RESET_CDF_COUNTER(fc->filter_dir_cdf, MHCCP_MODE_NUM);

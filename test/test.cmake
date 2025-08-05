@@ -217,10 +217,8 @@ if(NOT BUILD_SHARED_LIBS)
     "${AOM_ROOT}/test/webmenc_test.cc"
     "${AOM_ROOT}/test/palette_test.cc")
 
-  if(CONFIG_IMPROVE_LOSSLESS_TXM)
-    list(APPEND AOM_UNIT_TEST_ENCODER_SOURCES
-         "${AOM_ROOT}/test/lossless_idtx_test.cc")
-  endif()
+  list(APPEND AOM_UNIT_TEST_ENCODER_SOURCES
+       "${AOM_ROOT}/test/lossless_idtx_test.cc")
 
   list(
     APPEND AOM_UNIT_TEST_ENCODER_INTRIN_SSE4_1

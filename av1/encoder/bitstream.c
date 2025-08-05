@@ -1378,7 +1378,6 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
   intra_dir = get_intra_mode(mbmi, AOM_PLANE_Y);
   const FeatureFlags *const features = &cm->features;
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
-#if CONFIG_IMPROVE_LOSSLESS_TXM
   if (xd->lossless[mbmi->segment_id]) {
     if (is_inter && tx_size == TX_4X4) {
       int lossless_inter_tx_type = get_primary_tx_type(tx_type) == IDTX;
@@ -1387,7 +1386,6 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
     }
     return;
   }
-#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
   if (get_ext_tx_types(tx_size, is_inter, features->reduced_tx_set_used) > 1 &&
       !mbmi->skip_txfm[xd->tree_type == CHROMA_PART] &&
       !segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP)) {
@@ -1572,7 +1570,6 @@ static AOM_INLINE void write_multi_line_mrl(FRAME_CONTEXT *ec_ctx,
   aom_write_symbol(w, multi_line_mrl, multi_line_mrl_cdf, 2);
 }
 
-#if CONFIG_LOSSLESS_DPCM
 static AOM_INLINE void write_dpcm_index(FRAME_CONTEXT *ec_ctx,
                                         uint8_t dpcm_mode, aom_writer *w) {
   aom_write_symbol(w, dpcm_mode, ec_ctx->dpcm_cdf, 2);
@@ -1594,7 +1591,6 @@ static AOM_INLINE void write_dpcm_uv_vert_horz_mode(
     FRAME_CONTEXT *ec_ctx, uint8_t dpcm_uv_vert_horz_mode, aom_writer *w) {
   aom_write_symbol(w, dpcm_uv_vert_horz_mode, ec_ctx->dpcm_uv_vert_horz_cdf, 2);
 }
-#endif  // CONFIG_LOSSLESS_DPCM
 
 static AOM_INLINE void write_fsc_mode(uint8_t fsc_mode, aom_writer *w,
                                       aom_cdf_prob *fsc_cdf) {
@@ -1906,12 +1902,9 @@ static AOM_INLINE void write_intra_prediction_modes(AV1_COMP *cpi,
 
   // Y mode.
   if (xd->tree_type != CHROMA_PART) {
-#if CONFIG_LOSSLESS_DPCM
     if (xd->lossless[mbmi->segment_id]) {
       write_dpcm_index(ec_ctx, mbmi->use_dpcm_y, w);
     }
-#endif  // CONFIG_LOSSLESS_DPCM
-#if CONFIG_LOSSLESS_DPCM
     if (xd->lossless[mbmi->segment_id]) {
       if (mbmi->use_dpcm_y == 0) {
         write_intra_luma_mode(xd, w);
@@ -1921,21 +1914,13 @@ static AOM_INLINE void write_intra_prediction_modes(AV1_COMP *cpi,
     } else {
       write_intra_luma_mode(xd, w);
     }
-#else   // CONFIG_LOSSLESS_DPCM
-    write_intra_luma_mode(xd, w);
-#endif  // CONFIG_LOSSLESS_DPCM
-    if (allow_fsc_intra(cm,
-#if !CONFIG_LOSSLESS_DPCM
-                        xd,
-#endif  // CONFIG_LOSSLESS_DPCM
-                        bsize, mbmi) &&
-        xd->tree_type != CHROMA_PART) {
+
+    if (allow_fsc_intra(cm, bsize, mbmi) && xd->tree_type != CHROMA_PART) {
       aom_cdf_prob *fsc_cdf = get_fsc_mode_cdf(xd, bsize, is_keyframe);
       write_fsc_mode(mbmi->fsc_mode[xd->tree_type == CHROMA_PART], w, fsc_cdf);
     }
 
     // Encoding reference line index
-#if CONFIG_LOSSLESS_DPCM
     if (cm->seq_params.enable_mrls && av1_is_directional_mode(mode)) {
       if (xd->lossless[mbmi->segment_id]) {
         if (mbmi->use_dpcm_y == 0) {
@@ -1955,19 +1940,12 @@ static AOM_INLINE void write_intra_prediction_modes(AV1_COMP *cpi,
         }
       }
     }
-#else   // CONFIG_LOSSLESS_DPCM
-    if (cm->seq_params.enable_mrls && av1_is_directional_mode(mode)) {
-      write_mrl_index(ec_ctx, xd->neighbors[0], xd->neighbors[1],
-                      mbmi->mrl_index, w);
-    }
-#endif  // CONFIG_LOSSLESS_DPCM
   }
 
   // UV mode and UV angle delta.
   if (!cm->seq_params.monochrome && xd->is_chroma_ref &&
       xd->tree_type != LUMA_PART) {
     const UV_PREDICTION_MODE uv_mode = mbmi->uv_mode;
-#if CONFIG_LOSSLESS_DPCM
     if (xd->lossless[mbmi->segment_id]) {
       write_dpcm_uv_index(ec_ctx, mbmi->use_dpcm_uv, w);
       if (mbmi->use_dpcm_uv == 0) {
@@ -1978,9 +1956,7 @@ static AOM_INLINE void write_intra_prediction_modes(AV1_COMP *cpi,
     } else {
       write_intra_uv_mode(xd, is_cfl_allowed(xd), w);
     }
-#else   // CONFIG_LOSSLESS_DPCM
-    write_intra_uv_mode(xd, is_cfl_allowed(xd), w);
-#endif  // CONFIG_LOSSLESS_DPCM
+
     if (uv_mode == UV_CFL_PRED) {
       write_cfl_index(ec_ctx, mbmi->cfl_idx, w);
       if (mbmi->cfl_idx == CFL_MULTI_PARAM_V) {
@@ -3173,7 +3149,6 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
         write_tx_partition(xd, mbmi, max_tx_size, 0, 0, w);
       }
     }
-#if CONFIG_IMPROVE_LOSSLESS_TXM
     if (xd->lossless[segment_id]) {
       const int is_fsc = xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART];
 #if CONFIG_LOSSLESS_LARGER_IDTX
@@ -3196,7 +3171,6 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
             xd->tile_ctx->lossless_tx_size_cdf[bsize_group][is_inter_tx], 2);
       }
     }
-#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
   }
 
   if (!mbmi->skip_txfm[xd->tree_type == CHROMA_PART]) {

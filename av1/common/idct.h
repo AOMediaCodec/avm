@@ -49,13 +49,11 @@ void av1_inverse_transform_block(const MACROBLOCKD *xd,
 void av1_highbd_iwht4x4_add(const tran_low_t *input, uint16_t *dest, int stride,
                             int eob, int bd);
 
-#if CONFIG_LOSSLESS_DPCM
 void av1_highbd_iwht4x4_horz_add(const tran_low_t *input, uint16_t *dest,
                                  int stride, int eob, int bd);
 
 void av1_highbd_iwht4x4_vert_add(const tran_low_t *input, uint16_t *dest,
                                  int stride, int eob, int bd);
-#endif
 
 static INLINE const int32_t *cast_to_int32(const tran_low_t *input) {
   assert(sizeof(int32_t) == sizeof(tran_low_t));

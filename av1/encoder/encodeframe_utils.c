@@ -538,11 +538,7 @@ static INLINE void update_fsc_cdf(const AV1_COMMON *const cm, MACROBLOCKD *xd,
                                   const int intraonly) {
   const MB_MODE_INFO *const mbmi = xd->mi[0];
   const BLOCK_SIZE bsize = mbmi->sb_type[xd->tree_type == CHROMA_PART];
-  if (allow_fsc_intra(cm,
-#if !CONFIG_LOSSLESS_DPCM
-                      xd,
-#endif  // CONFIG_LOSSLESS_DPCM
-                      bsize, mbmi)) {
+  if (allow_fsc_intra(cm, bsize, mbmi)) {
 #if CONFIG_ENTROPY_STATS
     const int ctx = get_fsc_mode_ctx(xd, intraonly);
     ++counts->fsc_mode[ctx][fsc_bsize_groups[bsize]]
@@ -564,7 +560,6 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
   const BLOCK_SIZE bsize = mbmi->sb_type[xd->tree_type == CHROMA_PART];
   if (xd->tree_type != CHROMA_PART) {
     const int intraonly = frame_is_intra_only(cm);
-#if CONFIG_LOSSLESS_DPCM
     if (xd->lossless[mbmi->segment_id]) {
       update_cdf(fc->dpcm_cdf, mbmi->use_dpcm_y, 2);
       if (mbmi->use_dpcm_y == 0) {
@@ -623,40 +618,13 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
       }
 #endif  // !CONFIG_CTX_Y_SECOND_MODE
     }
-#else  // CONFIG_LOSSLESS_DPCM
-    const int context = get_y_mode_idx_ctx(xd);
-    const int mode_idx = mbmi->y_mode_idx;
-    int mode_set_index = mode_idx < FIRST_MODE_COUNT ? 0 : 1;
-    mode_set_index += ((mode_idx - FIRST_MODE_COUNT) / SECOND_MODE_COUNT);
-#if CONFIG_ENTROPY_STATS
-    ++counts->y_mode_set_idx[mode_set_index];
-#endif
-    update_cdf(fc->y_mode_set_cdf, mode_set_index, INTRA_MODE_SETS);
-    if (mode_set_index == 0) {
-#if CONFIG_ENTROPY_STATS
-      ++counts->y_mode_idx_0[context][mode_idx];
-#endif
-      update_cdf(fc->y_mode_idx_cdf_0[context], mode_idx, FIRST_MODE_COUNT);
-    }
-#if !CONFIG_CTX_Y_SECOND_MODE
-    else {
-      const int mode_idx_in_set = mode_idx - FIRST_MODE_COUNT -
-                                  SECOND_MODE_COUNT * (mode_set_index - 1);
-#if CONFIG_ENTROPY_STATS
-      ++counts->y_mode_idx_1[context][mode_idx_in_set];
-#endif
-      update_cdf(fc->y_mode_idx_cdf_1[context], mode_idx_in_set,
-                 SECOND_MODE_COUNT);
-    }
-#endif  // !CONFIG_CTX_Y_SECOND_MODE
-#endif  // CONFIG_LOSSLESS_DPCM
+
     update_fsc_cdf(cm, xd,
 #if CONFIG_ENTROPY_STATS
                    counts,
 #endif  // CONFIG_ENTROPY_STATS
                    intraonly);
     if (cm->seq_params.enable_mrls && av1_is_directional_mode(mbmi->mode)) {
-#if CONFIG_LOSSLESS_DPCM
       if (xd->lossless[mbmi->segment_id]) {
         if (mbmi->use_dpcm_y == 0) {
           int mrl_ctx = get_mrl_index_ctx(xd->neighbors[0], xd->neighbors[1]);
@@ -696,13 +664,6 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
         }
 #endif  // CONFIG_ENTROPY_STATS
       }
-#else  // CONFIG_LOSSLESS_DPCM
-      int mrl_ctx = get_mrl_index_ctx(xd->neighbors[0], xd->neighbors[1]);
-      update_cdf(fc->mrl_index_cdf[mrl_ctx], mbmi->mrl_index, MRL_LINE_NUMBER);
-#if CONFIG_ENTROPY_STATS
-      ++counts->mrl_index[mrl_ctx][mbmi->mrl_index];
-#endif  // CONFIG_ENTROPY_STATS
-#endif  // CONFIG_LOSSLESS_DPCM
     }
     if (av1_intra_dip_allowed(cm, mbmi)) {
       const int use_intra_dip = mbmi->use_intra_dip;
@@ -743,7 +704,6 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
       const int cfl_ctx = get_cfl_ctx(xd);
       update_cdf(fc->cfl_cdf[cfl_ctx], mbmi->uv_mode == UV_CFL_PRED, 2);
       if (mbmi->uv_mode != UV_CFL_PRED) {
-#if CONFIG_LOSSLESS_DPCM
         if (xd->lossless[mbmi->segment_id]) {
           update_cdf(fc->dpcm_uv_cdf, mbmi->use_dpcm_uv, 2);
           if (mbmi->use_dpcm_uv == 0) {
@@ -756,13 +716,8 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
           update_cdf(fc->uv_mode_cdf[uv_context], mbmi->uv_mode_idx,
                      UV_INTRA_MODES - 1);
         }
-#else   // CONFIG_LOSSLESS_DPCM
-        update_cdf(fc->uv_mode_cdf[uv_context], mbmi->uv_mode_idx,
-                   UV_INTRA_MODES - 1);
-#endif  // CONFIG_LOSSLESS_DPCM
       }
     } else {
-#if CONFIG_LOSSLESS_DPCM
       if (xd->lossless[mbmi->segment_id]) {
         update_cdf(fc->dpcm_uv_cdf, mbmi->use_dpcm_uv, 2);
         if (mbmi->use_dpcm_uv == 0) {
@@ -775,10 +730,6 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
         update_cdf(fc->uv_mode_cdf[uv_context], mbmi->uv_mode_idx,
                    UV_INTRA_MODES - 1);
       }
-#else   // CONFIG_LOSSLESS_DPCM
-      update_cdf(fc->uv_mode_cdf[uv_context], mbmi->uv_mode_idx,
-                 UV_INTRA_MODES - 1);
-#endif  // CONFIG_LOSSLESS_DPCM
     }
     if (mbmi->uv_mode == UV_CFL_PRED) {
 #if CONFIG_ENTROPY_STATS

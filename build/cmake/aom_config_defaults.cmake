@@ -215,14 +215,6 @@ set_aom_config_var(
   "Replace the six-tap luma downsampling filter with a two-tap filter for cross-plane non-sep wiener filter"
 )
 
-# CWG-D178
-set_aom_config_var(CONFIG_LOSSLESS_DPCM 1
-                   "AV2 enable DPCM and FSC for lossless coding mode")
-set_aom_config_var(
-  CONFIG_IMPROVE_LOSSLESS_TXM
-  1
-  "AV2 enable 4x4 IDTX for inter blocks and 8x8 IDTX for all blocks in lossless mode (luma only)"
-)
 set_aom_config_var(CONFIG_LOSSLESS_CHROMA_IDTX 1
                    "AV2 enable IDTX for chroma blocks in lossless mode")
 set_aom_config_var(

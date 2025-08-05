@@ -168,7 +168,6 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
     av1_cost_tokens_from_cdf(mode_costs->multi_line_mrl_cost[i],
                              fc->multi_line_mrl_cdf[i], NULL);
   }
-#if CONFIG_LOSSLESS_DPCM
   av1_cost_tokens_from_cdf(mode_costs->dpcm_cost, fc->dpcm_cdf, NULL);
 
   av1_cost_tokens_from_cdf(mode_costs->dpcm_vert_horz_cost,
@@ -178,7 +177,6 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
 
   av1_cost_tokens_from_cdf(mode_costs->dpcm_uv_vert_horz_cost,
                            fc->dpcm_uv_vert_horz_cdf, NULL);
-#endif  // CONFIG_LOSSLESS_DPCM
 
   for (i = 0; i < FSC_MODE_CONTEXTS; ++i) {
     for (j = 0; j < FSC_BSIZE_CONTEXTS; ++j) {
@@ -324,7 +322,6 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
     }
   }
 
-#if CONFIG_IMPROVE_LOSSLESS_TXM
   for (i = 0; i < BLOCK_SIZE_GROUPS; ++i) {
     for (j = 0; j < 2; ++j) {
       av1_cost_tokens_from_cdf(mode_costs->lossless_tx_size_cost[i][j],
@@ -333,7 +330,6 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
   }
   av1_cost_tokens_from_cdf(mode_costs->lossless_inter_tx_type_cost,
                            fc->lossless_inter_tx_type_cdf, NULL);
-#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
 
   for (i = 0; i < 2; ++i) {
     av1_cost_tokens_from_cdf(mode_costs->tx_ext_32_costs[i],

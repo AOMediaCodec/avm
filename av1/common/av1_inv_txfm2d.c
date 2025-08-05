@@ -76,7 +76,6 @@ void av1_highbd_iwht4x4_16_add_c(const tran_low_t *input, uint16_t *dest,
   }
 }
 
-#if CONFIG_LOSSLESS_DPCM
 // perform 16 coefficents 4x4 inverse Hadamard transform for vertical DPCM
 void av1_highbd_iwht4x4_16_vert_add_c(const tran_low_t *input, uint16_t *dest,
                                       int stride, int bd) {
@@ -227,7 +226,6 @@ void av1_highbd_iwht4x4_16_horz_add_c(const tran_low_t *input, uint16_t *dest,
     dest++;
   }
 }
-#endif  // CONFIG_LOSSLESS_DPCM
 
 void av1_highbd_iwht4x4_1_add_c(const tran_low_t *in, uint16_t *dest,
                                 int dest_stride, int bd) {
@@ -261,7 +259,6 @@ void av1_highbd_iwht4x4_1_add_c(const tran_low_t *in, uint16_t *dest,
   }
 }
 
-#if CONFIG_LOSSLESS_DPCM
 // perform 1 coefficents 4x4 inverse idetity transform for vertical DPCM
 void av1_highbd_iwht4x4_1_vert_add_c(const tran_low_t *in, uint16_t *dest,
                                      int dest_stride, int bd) {
@@ -355,4 +352,3 @@ void av1_highbd_iwht4x4_1_horz_add_c(const tran_low_t *in, uint16_t *dest,
     dest++;
   }
 }
-#endif  // CONFIG_LOSSLESS_DPCM

@@ -880,20 +880,9 @@ void inv_txfm_c(const tran_low_t *input, uint16_t *dest, int stride,
   const uint32_t tx_high_index = tx_size_high_log2[tx_size] - 2;
 
   if (txfm_param->lossless) {
-#if CONFIG_LOSSLESS_DPCM && !CONFIG_IMPROVE_LOSSLESS_TXM
-    assert(tx_type == DCT_DCT || tx_type == IDTX);
-    if (tx_type == IDTX) {
-      av1_inv_txfm2d_add_4x4_c(input, dest, stride, tx_type,
-                               txfm_param->use_ddt, txfm_param->bd);
-    } else {
-      av1_highbd_iwht4x4_add(input, dest, stride, txfm_param->eob,
-                             txfm_param->bd);
-    }
-#else
     assert(tx_type == DCT_DCT);
     av1_highbd_iwht4x4_add(input, dest, stride, txfm_param->eob,
                            txfm_param->bd);
-#endif  // CONFIG_LOSSLESS_DPCM && !CONFIG_IMPROVE_LOSSLESS_TXM
     return;
   }
 
@@ -978,7 +967,6 @@ int av1_get_tx_scale(const TX_SIZE tx_size) {
 // NOTE: The implementation of all inverses need to be aware of the fact
 // that input and output could be the same buffer.
 
-#if CONFIG_IMPROVE_LOSSLESS_TXM
 void av1_lossless_inv_idtx_add_c(const tran_low_t *input, uint16_t *dest,
                                  int stride, const TxfmParam *txfm_param) {
   const int txw = tx_size_wide[txfm_param->tx_size];
@@ -993,7 +981,6 @@ void av1_lossless_inv_idtx_add_c(const tran_low_t *input, uint16_t *dest,
   }
 }
 
-#if CONFIG_LOSSLESS_DPCM
 void av1_lossless_inv_idtx_add_vert_c(const tran_low_t *input, uint16_t *dest,
                                       int stride, const TxfmParam *txfm_param) {
   const int txw = tx_size_wide[txfm_param->tx_size];
@@ -1025,8 +1012,6 @@ void av1_lossless_inv_idtx_add_horz_c(const tran_low_t *input, uint16_t *dest,
     }
   }
 }
-#endif  // CONFIG_LOSSLESS_DPCM
-#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
 
 // idct
 void av1_highbd_iwht4x4_add(const tran_low_t *input, uint16_t *dest, int stride,
@@ -1037,7 +1022,6 @@ void av1_highbd_iwht4x4_add(const tran_low_t *input, uint16_t *dest, int stride,
     av1_highbd_iwht4x4_1_add(input, dest, stride, bd);
 }
 
-#if CONFIG_LOSSLESS_DPCM
 // inverse hadamard transform for DPCM lossless vertical mode
 void av1_highbd_iwht4x4_vert_add(const tran_low_t *input, uint16_t *dest,
                                  int stride, int eob, int bd) {
@@ -1055,9 +1039,7 @@ void av1_highbd_iwht4x4_horz_add(const tran_low_t *input, uint16_t *dest,
   else
     av1_highbd_iwht4x4_1_horz_add(input, dest, stride, bd);
 }
-#endif  // CONFIG_LOSSLESS_DPCM
 
-#if CONFIG_LOSSLESS_DPCM
 // inverse transform for 4x4 dpcm lossless vertical mode
 void av1_highbd_inv_txfm_add_4x4_vert_c(const tran_low_t *input, uint16_t *dest,
                                         int stride,
@@ -1068,18 +1050,9 @@ void av1_highbd_inv_txfm_add_4x4_vert_c(const tran_low_t *input, uint16_t *dest,
   int lossless = txfm_param->lossless;
   const TX_TYPE tx_type = txfm_param->tx_type;
   if (lossless) {
-#if CONFIG_IMPROVE_LOSSLESS_TXM
     assert(tx_type == DCT_DCT);
     (void)tx_type;
     av1_highbd_iwht4x4_vert_add(input, dest, stride, eob, bd);
-#else
-    assert(tx_type == DCT_DCT || tx_type == IDTX);
-    if (tx_type == IDTX) {
-      av1_inv_idfm2d_add_4x4_vert_c(src, dest, stride, tx_type, bd);
-    } else {
-      av1_highbd_iwht4x4_vert_add(input, dest, stride, eob, bd);
-    }
-#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
     return;
   }
 }
@@ -1094,22 +1067,12 @@ void av1_highbd_inv_txfm_add_4x4_horz_c(const tran_low_t *input, uint16_t *dest,
   int lossless = txfm_param->lossless;
   const TX_TYPE tx_type = txfm_param->tx_type;
   if (lossless) {
-#if CONFIG_IMPROVE_LOSSLESS_TXM
     assert(tx_type == DCT_DCT);
     (void)tx_type;
     av1_highbd_iwht4x4_horz_add(input, dest, stride, eob, bd);
-#else
-    assert(tx_type == DCT_DCT || tx_type == IDTX);
-    if (tx_type == IDTX) {
-      av1_inv_idfm2d_add_4x4_horz_c(src, dest, stride, tx_type, bd);
-    } else {
-      av1_highbd_iwht4x4_horz_add(input, dest, stride, eob, bd);
-    }
-#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
     return;
   }
 }
-#endif  // CONFIG_LOSSLESS_DPCM
 
 static void init_txfm_param(const MACROBLOCKD *xd, int plane, TX_SIZE tx_size,
                             TX_TYPE tx_type, int eob, int reduced_tx_set,
@@ -1161,19 +1124,16 @@ void av1_highbd_inv_txfm_add_c(const tran_low_t *input, uint16_t *dest,
   inv_txfm(input, dest, stride, txfm_param);
 }
 
-#if CONFIG_LOSSLESS_DPCM
 // inverse transform for dpcm lossless horizontal mode
 void av1_highbd_inv_txfm_add_horz_c(const tran_low_t *input, uint16_t *dest,
                                     int stride, const TxfmParam *txfm_param) {
   assert(av1_ext_tx_used[txfm_param->tx_set_type][txfm_param->tx_type]);
   const TX_SIZE tx_size = txfm_param->tx_size;
   assert(txfm_param->lossless);
-#if CONFIG_IMPROVE_LOSSLESS_TXM
   if (txfm_param->tx_type == IDTX) {
     av1_lossless_inv_idtx_add_horz(input, dest, stride, txfm_param);
     return;
   }
-#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
   switch (tx_size) {
     case TX_4X4:
       av1_highbd_inv_txfm_add_4x4_horz_c(input, dest, stride, txfm_param);
@@ -1188,12 +1148,10 @@ void av1_highbd_inv_txfm_add_vert_c(const tran_low_t *input, uint16_t *dest,
   assert(av1_ext_tx_used[txfm_param->tx_set_type][txfm_param->tx_type]);
   const TX_SIZE tx_size = txfm_param->tx_size;
   assert(txfm_param->lossless);
-#if CONFIG_IMPROVE_LOSSLESS_TXM
   if (txfm_param->tx_type == IDTX) {
     av1_lossless_inv_idtx_add_vert(input, dest, stride, txfm_param);
     return;
   }
-#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
   switch (tx_size) {
     case TX_4X4:
       av1_highbd_inv_txfm_add_4x4_vert_c(input, dest, stride, txfm_param);
@@ -1201,7 +1159,6 @@ void av1_highbd_inv_txfm_add_vert_c(const tran_low_t *input, uint16_t *dest,
     default: assert(0 && "Invalid transform size for lossless coding"); break;
   }
 }
-#endif  // CONFIG_LOSSLESS_DPCM
 
 // Apply inverse cross chroma component transform
 void av1_inv_cross_chroma_tx_block(tran_low_t *dqcoeff_c1,
@@ -1229,14 +1186,12 @@ void av1_inv_cross_chroma_tx_block(tran_low_t *dqcoeff_c1,
 static void av1_highbd_inv_txfm_add_master(const tran_low_t *input,
                                            uint16_t *dest, int stride,
                                            const TxfmParam *txfm_param) {
-#if CONFIG_IMPROVE_LOSSLESS_TXM
   if (txfm_param->lossless) {
     if (txfm_param->tx_type == IDTX) {
       av1_lossless_inv_idtx_add(input, dest, stride, txfm_param);
       return;
     }
   }
-#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
   av1_highbd_inv_txfm_add(input, dest, stride, txfm_param);
 }
 
@@ -1263,7 +1218,6 @@ void av1_inverse_transform_block(const MACROBLOCKD *xd,
 
   av1_inv_stxfm(temp_dqcoeff, &txfm_param);
 
-#if CONFIG_LOSSLESS_DPCM
   MB_MODE_INFO *const mbmi = xd->mi[0];
   if (xd->lossless[mbmi->segment_id]) {
     PREDICTION_MODE cur_pred_mode =
@@ -1282,9 +1236,6 @@ void av1_inverse_transform_block(const MACROBLOCKD *xd,
   } else {
     av1_highbd_inv_txfm_add_master(temp_dqcoeff, dst, stride, &txfm_param);
   }
-#else   // CONFIG_LOSSLESS_DPCM
-  av1_highbd_inv_txfm_add_master(temp_dqcoeff, dst, stride, &txfm_param);
-#endif  // CONFIG_LOSSLESS_DPCM
 }
 
 // Inverse secondary transform

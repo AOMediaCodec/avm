@@ -2064,7 +2064,6 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
     allowed_tx_mask &= fsc_mask;
   }
 
-#if CONFIG_IMPROVE_LOSSLESS_TXM
   if (xd->lossless[mbmi->segment_id]) {
 #if CONFIG_LOSSLESS_CHROMA_IDTX
     if (!is_inter && plane) {
@@ -2104,7 +2103,6 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
     }
 #endif  // CONFIG_LOSSLESS_CHROMA_IDTX
   }
-#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
 
   // Need to have at least one transform type allowed.
   if (allowed_tx_mask == 0) {
@@ -3583,24 +3581,15 @@ static AOM_INLINE void choose_largest_tx_size(const AV1_COMP *const cpi,
                        mbmi->tx_size, FTXS_NONE, skip_trellis);
 }
 
-#if CONFIG_IMPROVE_LOSSLESS_TXM
 static AOM_INLINE void choose_lossless_tx_size(const AV1_COMP *const cpi,
                                                MACROBLOCK *x,
                                                RD_STATS *rd_stats,
                                                int64_t ref_best_rd,
                                                BLOCK_SIZE bs) {
-#else
-static AOM_INLINE void choose_smallest_tx_size(const AV1_COMP *const cpi,
-                                               MACROBLOCK *x,
-                                               RD_STATS *rd_stats,
-                                               int64_t ref_best_rd,
-                                               BLOCK_SIZE bs) {
-#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
   const int skip_trellis = 0;
 
-#if CONFIG_IMPROVE_LOSSLESS_TXM
   const bool is_fsc = mbmi->fsc_mode[xd->tree_type == CHROMA_PART];
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
   ModeCosts mode_costs = x->mode_costs;
@@ -3625,7 +3614,6 @@ static AOM_INLINE void choose_smallest_tx_size(const AV1_COMP *const cpi,
                          FTXS_NONE, skip_trellis);
     rate_larger_than_4x4 = rd_stats->rate;
   }
-#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
 
   mbmi->tx_size = TX_4X4;
   memset(mbmi->tx_partition_type, TX_PARTITION_NONE,
@@ -3634,7 +3622,6 @@ static AOM_INLINE void choose_smallest_tx_size(const AV1_COMP *const cpi,
   av1_txfm_rd_in_plane(x, cpi, rd_stats, ref_best_rd, 0, 0, bs, mbmi->tx_size,
                        FTXS_NONE, skip_trellis);
 
-#if CONFIG_IMPROVE_LOSSLESS_TXM
 #if CONFIG_LOSSLESS_LARGER_IDTX
   if (bs > BLOCK_4X4 && (is_inter || (!is_inter && is_fsc))) {
 #else
@@ -3676,7 +3663,6 @@ static AOM_INLINE void choose_smallest_tx_size(const AV1_COMP *const cpi,
           mode_costs.lossless_tx_size_cost[bsize_group][is_inter][1];
     }
   }
-#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
 }
 
 // Search for the best uniform transform size and type for current coding block.
@@ -3913,7 +3899,6 @@ int64_t av1_uniform_txfm_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
       is_inter ? RDCOST(x->rdmult, skip_txfm_rate, 0) : INT64_MAX;
   const int64_t no_this_rd =
       is_inter ? RDCOST(x->rdmult, no_skip_txfm_rate + tx_size_rate, 0) : 0;
-#if CONFIG_IMPROVE_LOSSLESS_TXM
   if (xd->lossless[mbmi->segment_id]) {
     get_tx_partition_sizes(mbmi->tx_partition_type[0], TX_4X4, &mbmi->txb_pos,
                            mbmi->sub_txs);
@@ -3922,10 +3907,7 @@ int64_t av1_uniform_txfm_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
                            max_txsize_rect_lookup[bs], &mbmi->txb_pos,
                            mbmi->sub_txs);
   }
-#else
-  get_tx_partition_sizes(mbmi->tx_partition_type[0], max_txsize_rect_lookup[bs],
-                         &mbmi->txb_pos, mbmi->sub_txs);
-#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
+
   mbmi->tx_size = mbmi->sub_txs[mbmi->txb_pos.n_partitions - 1];
   av1_txfm_rd_in_plane(x, cpi, rd_stats, ref_best_rd,
                        AOMMIN(no_this_rd, skip_txfm_rd), AOM_PLANE_Y, bs,
@@ -4358,12 +4340,7 @@ void av1_pick_uniform_tx_size_type_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
          sizeof(xd->cctx_type_map[0]) * num_4x4_blk_chroma);
 
   if (xd->lossless[mbmi->segment_id]) {
-#if CONFIG_IMPROVE_LOSSLESS_TXM
     choose_lossless_tx_size(cpi, x, rd_stats, ref_best_rd, bs);
-#else
-    // Lossless mode can only pick the smallest (4x4) transform size.
-    choose_smallest_tx_size(cpi, x, rd_stats, ref_best_rd, bs);
-#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
   } else if (tx_params->tx_size_search_method == USE_LARGESTALL) {
     choose_largest_tx_size(cpi, x, rd_stats, ref_best_rd, bs);
   } else {

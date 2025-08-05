@@ -265,10 +265,8 @@ static AOM_INLINE void palette_rd_y(
       intra_mode_info_cost_y(cpi, x, mbmi, bsize, dc_mode_cost);
   mbmi->angle_delta[PLANE_TYPE_Y] = 0;
 
-#if CONFIG_LOSSLESS_DPCM
   mbmi->use_dpcm_y = 0;
   mbmi->dpcm_mode_y = 0;
-#endif  // CONFIG_LOSSLESS_DPCM
   if (model_intra_yrd_and_prune(cpi, x, bsize, palette_mode_cost,
                                 best_model_rd)) {
     return;
@@ -439,10 +437,8 @@ void av1_rd_pick_palette_intra_sby(
   assert(PALETTE_MAX_SIZE == 8);
   assert(PALETTE_MIN_SIZE == 2);
   mbmi->angle_delta[PLANE_TYPE_Y] = 0;
-#if CONFIG_LOSSLESS_DPCM
   mbmi->use_dpcm_y = 0;
   mbmi->dpcm_mode_y = 0;
-#endif  // CONFIG_LOSSLESS_DPCM
   const int src_stride = x->plane[0].src.stride;
   uint16_t *src = x->plane[0].src.buf;
   int block_width, block_height, rows, cols;
@@ -674,10 +670,8 @@ void av1_rd_pick_palette_intra_sbuv(const AV1_COMP *cpi, MACROBLOCK *x,
                            &plane_block_height, &rows, &cols);
 
   mbmi->uv_mode = UV_DC_PRED;
-#if CONFIG_LOSSLESS_DPCM
   mbmi->use_dpcm_uv = 0;
   mbmi->dpcm_mode_uv = 0;
-#endif  // CONFIG_LOSSLESS_DPCM
   if (av1_is_directional_mode(mbmi->mode))
     mbmi->uv_mode_idx = 1;
   else

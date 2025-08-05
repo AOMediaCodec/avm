@@ -58,7 +58,6 @@ typedef struct IntraModeSearchState {
    * \brief The best multi_line_mrl flag found so far
    */
   int best_multi_line_mrl;
-#if CONFIG_LOSSLESS_DPCM
   /*!
    * \brief The best dpcm mode found for Y block
    */
@@ -75,7 +74,6 @@ typedef struct IntraModeSearchState {
    * \brief The best dpcm direction found for UV block
    */
   int best_dpcm_uv_dir;
-#endif
   /*!
    * \brief The best forward skip mode found.
    */

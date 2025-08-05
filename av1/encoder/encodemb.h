@@ -154,7 +154,6 @@ void av1_subtract_block(const MACROBLOCKD *xd, int rows, int cols,
                         int blk_col, int blk_row, int frame_width,
                         int frame_height, TX_TYPE tx_type);
 
-#if CONFIG_LOSSLESS_DPCM
 void av1_subtract_block_dpcm(const MACROBLOCKD *xd, int rows, int cols,
                              int16_t *diff, ptrdiff_t diff_stride,
                              const uint16_t *src, ptrdiff_t src_stride,
@@ -172,7 +171,6 @@ void av1_subtract_block_horz(const MACROBLOCKD *xd, int rows, int cols,
                              int16_t *diff, ptrdiff_t diff_stride,
                              const uint16_t *src, ptrdiff_t src_stride,
                              const uint16_t *pred, ptrdiff_t pred_stride);
-#endif
 
 void av1_subtract_txb(MACROBLOCK *x, int plane, BLOCK_SIZE plane_bsize,
                       int blk_col, int blk_row, TX_SIZE tx_size,

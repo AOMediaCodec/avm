@@ -251,11 +251,7 @@ static AOM_INLINE int intra_mode_info_cost_y(const AV1_COMP *cpi,
       total_rate += palette_mode_cost;
     }
   }
-  if (allow_fsc_intra(&cpi->common,
-#if !CONFIG_LOSSLESS_DPCM
-                      xd,
-#endif  // CONFIG_LOSSLESS_DPCM
-                      bsize, mbmi)) {
+  if (allow_fsc_intra(&cpi->common, bsize, mbmi)) {
     const int use_fsc = mbmi->fsc_mode[PLANE_TYPE_Y];
     const int fsc_ctx = get_fsc_mode_ctx(xd, frame_is_intra_only(&cpi->common));
     total_rate +=
@@ -368,7 +364,6 @@ static int64_t intra_model_yrd(const AV1_COMP *const cpi, MACROBLOCK *const x,
   const int max_blocks_high = max_block_high(xd, bsize, 0);
   mbmi->tx_size = tx_size;
 
-#if CONFIG_IMPROVE_LOSSLESS_TXM
   if (xd->lossless[mbmi->segment_id]) {
 #if CONFIG_LOSSLESS_LARGER_IDTX
     if (bsize > BLOCK_4X4 && mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) {
@@ -381,7 +376,6 @@ static int64_t intra_model_yrd(const AV1_COMP *const cpi, MACROBLOCK *const x,
     }
 #endif  // CONFIG_LOSSLESS_LARGER_IDTX
   }
-#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
 
   mbmi->tx_partition_type[0] = TX_PARTITION_NONE;
   get_tx_partition_sizes(mbmi->tx_partition_type[0], tx_size, &mbmi->txb_pos,

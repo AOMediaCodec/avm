@@ -36,7 +36,6 @@ void aom_highbd_subtract_block_c(int rows, int cols, int16_t *diff,
   }
 }
 
-#if CONFIG_LOSSLESS_DPCM
 // perform vertical subtraction for DPCM lossless mode
 void aom_highbd_subtract_block_vert_c(int rows, int cols, int16_t *diff,
                                       ptrdiff_t diff_stride,
@@ -94,4 +93,3 @@ void aom_highbd_subtract_block_horz_c(int rows, int cols, int16_t *diff,
     src += src_stride;
   }
 }
-#endif

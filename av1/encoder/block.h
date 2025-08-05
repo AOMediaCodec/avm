@@ -1256,13 +1256,11 @@ typedef struct {
                                        [2];
 #endif  // CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING
 
-#if CONFIG_IMPROVE_LOSSLESS_TXM
   /*! Cost of signaling lossless transform size (4x4 or 8x8) */
   int lossless_tx_size_cost[BLOCK_SIZE_GROUPS][2][2];
   /*! Cost of signaling lossless transform type for inter blocks (WHT or IDTX)
    */
   int lossless_inter_tx_type_cost[2];
-#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
   //! inter_tx_type_costs
   int inter_tx_type_costs[EXT_TX_SETS_INTER][EOB_TX_CTXS][EXT_TX_SIZES]
                          [TX_TYPES];
@@ -1313,8 +1311,7 @@ typedef struct {
    * pc_wiener_restore_cost
    */
   int pc_wiener_restore_cost[2];
-/**@}*/
-#if CONFIG_LOSSLESS_DPCM
+  /**@}*/
   /*****************************************************************************
    * \name DPCM Mode Costs
    ****************************************************************************/
@@ -1336,7 +1333,6 @@ typedef struct {
    */
   int dpcm_uv_vert_horz_cost[2];
   /**@}*/
-#endif  // CONFIG_LOSSLESS_DPCM
 } ModeCosts;
 
 /*! \brief Holds mv costs for encoding and motion search.

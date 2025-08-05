@@ -1428,7 +1428,6 @@ static TX_SIZE read_tx_partition(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
 static TX_SIZE read_tx_size(MACROBLOCKD *xd, TX_MODE tx_mode, int is_inter,
                             int allow_select_inter, aom_reader *r) {
   const BLOCK_SIZE bsize = xd->mi[0]->sb_type[xd->tree_type == CHROMA_PART];
-#if CONFIG_IMPROVE_LOSSLESS_TXM
   if (xd->lossless[xd->mi[0]->segment_id]) {
     const bool is_fsc = xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART];
 #if CONFIG_LOSSLESS_LARGER_IDTX
@@ -1452,9 +1451,6 @@ static TX_SIZE read_tx_size(MACROBLOCKD *xd, TX_MODE tx_mode, int is_inter,
       return cur_tx_size;
     }
   }
-#else
-  if (xd->lossless[xd->mi[0]->segment_id]) return TX_4X4;
-#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
 
   if (block_signals_txsize(bsize)) {
     if ((!is_inter || allow_select_inter) && tx_mode == TX_MODE_SELECT) {

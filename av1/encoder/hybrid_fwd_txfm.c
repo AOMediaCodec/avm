@@ -20,7 +20,6 @@
 #include "av1/common/secondary_tx.h"
 #include "av1/common/txb_common.h"
 
-#if CONFIG_IMPROVE_LOSSLESS_TXM
 void av1_lossless_fwd_idtx_c(const int16_t *src_diff, tran_low_t *coeff,
                              int diff_stride, TxfmParam *txfm_param) {
   const int txw = tx_size_wide[txfm_param->tx_size];
@@ -32,7 +31,6 @@ void av1_lossless_fwd_idtx_c(const int16_t *src_diff, tran_low_t *coeff,
     }
   }
 }
-#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
 
 // ********************************** DCT-II **********************************
 void fwd_txfm_dct2_size4_c(const int *src, int *dst, int shift, int line,
@@ -960,19 +958,8 @@ void fwd_txfm_c(const int16_t *resi, tran_low_t *coeff, int diff_stride,
   TX_TYPE tx_type = txfm_param->tx_type;
 
   if (txfm_param->lossless) {
-#if CONFIG_LOSSLESS_DPCM && !CONFIG_IMPROVE_LOSSLESS_TXM
-    assert(width == 4 && height == 4);
-    assert(tx_type == DCT_DCT || tx_type == IDTX);
-    if (tx_type == IDTX) {
-      av1_fwd_txfm2d_4x4(resi, coeff, diff_stride, tx_type, txfm_param->use_ddt,
-                         txfm_param->bd);
-    } else {
-      av1_highbd_fwht4x4(resi, coeff, diff_stride);
-    }
-#else
     assert(tx_type == DCT_DCT);
     av1_highbd_fwht4x4(resi, coeff, diff_stride);
-#endif  // CONFIG_LOSSLESS_DPCM && !CONFIG_IMPROVE_LOSSLESS_TXM
     return;
   }
 
@@ -1032,14 +1019,12 @@ void fwd_txfm_c(const int16_t *resi, tran_low_t *coeff, int diff_stride,
 
 void av1_fwd_txfm(const int16_t *src_diff, tran_low_t *coeff, int diff_stride,
                   TxfmParam *txfm_param) {
-#if CONFIG_IMPROVE_LOSSLESS_TXM
   if (txfm_param->lossless) {
     if (txfm_param->tx_type == IDTX) {
       av1_lossless_fwd_idtx(src_diff, coeff, diff_stride, txfm_param);
       return;
     }
   }
-#endif  // CONFIG_IMPROVE_LOSSLESS_TXM
   fwd_txfm(src_diff, coeff, diff_stride, txfm_param);
 }
 

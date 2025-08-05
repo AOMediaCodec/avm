@@ -6641,12 +6641,11 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
       mbmi->angle_delta[PLANE_TYPE_Y] = 0;
       mbmi->angle_delta[PLANE_TYPE_UV] = 0;
 
-#if CONFIG_LOSSLESS_DPCM
       mbmi->use_dpcm_y = 0;
       mbmi->dpcm_mode_y = 0;
       mbmi->use_dpcm_uv = 0;
       mbmi->dpcm_mode_uv = 0;
-#endif  // CONFIG_LOSSLESS_DPCM
+
       mbmi->fsc_mode[PLANE_TYPE_Y] = 0;
       mbmi->fsc_mode[PLANE_TYPE_UV] = 0;
       mbmi->mode = DC_PRED;
@@ -9554,12 +9553,10 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
           mbmi->angle_delta[PLANE_TYPE_Y] = 0;
           mbmi->angle_delta[PLANE_TYPE_UV] = 0;
           mbmi->use_intra_dip = 0;
-#if CONFIG_LOSSLESS_DPCM
           mbmi->use_dpcm_y = 0;
           mbmi->dpcm_mode_y = 0;
           mbmi->use_dpcm_uv = 0;
           mbmi->dpcm_mode_uv = 0;
-#endif  // CONFIG_LOSSLESS_DPCM
           mbmi->ref_mv_idx[0] = 0;
           mbmi->ref_mv_idx[1] = 0;
           mbmi->warp_ref_idx = 0;
@@ -9733,7 +9730,6 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   }
 #endif  // CONFIG_CHROMA_MERGE_LATENCY_FIX
 
-#if CONFIG_LOSSLESS_DPCM
   int dpcm_loop_num = 1;
   if (xd->lossless[mbmi->segment_id]) {
     dpcm_loop_num = 2;
@@ -9742,14 +9738,8 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   // mbmi->dpcm_angle_delta = 0;
   for (int dpcm_idx = 0; dpcm_idx < dpcm_loop_num; dpcm_idx++) {
     mbmi->use_dpcm_y = dpcm_idx;
-#endif  // CONFIG_LOSSLESS_DPCM
-    for (int fsc_mode = 0; fsc_mode < (allow_fsc_intra(cm,
-#if !CONFIG_LOSSLESS_DPCM
-                                                       xd,
-#endif  // CONFIG_LOSSLESS_DPCM
-                                                       bsize, mbmi)
-                                           ? FSC_MODES
-                                           : 1);
+    for (int fsc_mode = 0;
+         fsc_mode < (allow_fsc_intra(cm, bsize, mbmi) ? FSC_MODES : 1);
          fsc_mode++) {
       uint8_t enable_mrls_flag = cm->seq_params.enable_mrls && !fsc_mode;
       ModeRDInfoUV mode_rd_info_uv = { { false }, { 0 }, { 0 } };
@@ -9789,11 +9779,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
                 av1_is_directional_mode(mbmi->mode) == 0) {
               continue;
             }
-            if (!allow_fsc_intra(cm,
-#if !CONFIG_LOSSLESS_DPCM
-                                 xd,
-#endif  // CONFIG_LOSSLESS_DPCM
-                                 bsize, mbmi) &&
+            if (!allow_fsc_intra(cm, bsize, mbmi) &&
                 mbmi->fsc_mode[PLANE_TYPE_Y] > 0) {
               continue;
             }
@@ -9821,7 +9807,6 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
               }
             }
 
-#if CONFIG_LOSSLESS_DPCM
             if (dpcm_idx > 0 &&
                 (mrl_index > 0 ||
                  (mbmi->mode != V_PRED && mbmi->mode != H_PRED) ||
@@ -9834,7 +9819,6 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
                  (mbmi->angle_delta[0] != 0))) {
               continue;
             }
-#endif  // CONFIG_LOSSLESS_DPCM
             const PREDICTION_MODE this_mode = mbmi->mode;
 
             MV_REFERENCE_FRAME refs[2] = { INTRA_FRAME, NONE_FRAME };
@@ -9842,17 +9826,15 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
 #if CONFIG_IBC_SR_EXT
             init_mbmi(mbmi, this_mode, refs, cm, xd, xd->sbi);
 #else
-          init_mbmi(mbmi, this_mode, refs, cm, xd->sbi);
+            init_mbmi(mbmi, this_mode, refs, cm, xd->sbi);
 #endif  // CONFIG_IBC_SR_EXT
             txfm_info->skip_txfm = 0;
 
-#if CONFIG_LOSSLESS_DPCM
             if (mbmi->use_dpcm_y > 0 &&
                 (mbmi->mode == V_PRED || mbmi->mode == H_PRED) &&
                 mbmi->angle_delta[0] == 0) {
               mbmi->dpcm_mode_y = mbmi->mode - 1;
             }
-#endif  // CONFIG_LOSSLESS_DPCM
             RD_STATS intra_rd_stats, intra_rd_stats_y, intra_rd_stats_uv;
             intra_rd_stats.rdcost = av1_handle_intra_mode(
                 &search_state.intra_search_state, cpi, x, bsize,
@@ -9880,9 +9862,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
         }
       }
     }
-#if CONFIG_LOSSLESS_DPCM
   }
-#endif  // CONFIG_LOSSLESS_DPCM
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, handle_intra_mode_time);
 #endif
