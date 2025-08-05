@@ -634,7 +634,7 @@ int av1_ml_part_split_infer(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
 
   // use intra model only for key frames for now
   if (xd->tree_type == CHROMA_PART) return ML_PART_DONT_FORCE;
-  MODEL_TYPE model_types[4]{ 0, 0, 0, 0 };
+  MODEL_TYPE model_types[4] = { 0, 0, 0, 0 };
   struct ModelParams model_params[4];
   int num_models = 0;
   get_model_type(key_frame, bsize, harsh_level, model_types, model_params,
