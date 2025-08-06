@@ -138,6 +138,9 @@ set_aom_config_var(CONFIG_AV1_TEMPORAL_DENOISING 0
                    "Build with temporal denoising support.")
 set_aom_config_var(CONFIG_NN_V2 0 "Fully-connected neural nets ver.2.")
 
+# New OBU header changes, enables annex B and disables size signaling
+set_aom_config_var(CONFIG_NEW_OBU_HEADER 1 "Enable new obu changes.")
+
 # Multilayer coding
 set_aom_config_var(
   CONFIG_MULTILAYER_CORE 1

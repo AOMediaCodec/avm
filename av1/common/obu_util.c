@@ -12,6 +12,7 @@
 #include <assert.h>
 
 #include "av1/common/obu_util.h"
+#include "config/aom_config.h"
 
 #include "aom_dsp/bitreader_buffer.h"
 
@@ -54,6 +55,29 @@ static aom_codec_err_t read_obu_header(struct aom_read_bit_buffer *rb,
   if (!rb || !header) return AOM_CODEC_INVALID_PARAM;
 
   const ptrdiff_t bit_buffer_byte_length = rb->bit_buffer_end - rb->bit_buffer;
+
+#if CONFIG_NEW_OBU_HEADER
+  (void)is_annexb;
+  if (bit_buffer_byte_length < 1) return AOM_CODEC_CORRUPT_FRAME;
+  header->size = 1;
+
+  header->type = (OBU_TYPE)aom_rb_read_literal(rb, 4);  // obu_type
+  if (!valid_obu_type(header->type)) return AOM_CODEC_CORRUPT_FRAME;
+
+  header->obu_extension_flag = aom_rb_read_bit(rb);    // obu_extension_flag
+  header->obu_tlayer_id = aom_rb_read_literal(rb, 3);  // obu_temporal
+
+  if (header->obu_extension_flag) {
+    if (bit_buffer_byte_length == 1) return AOM_CODEC_CORRUPT_FRAME;
+    header->size += 1;
+
+    header->obu_mlayer_id = aom_rb_read_literal(rb, 3);  // obu_layer (mlayer)
+    header->obu_xlayer_id = aom_rb_read_literal(rb, 5);  // obu_layer (xlayer)
+  } else {
+    header->obu_mlayer_id = 0;  // obu_layer (mlayer)
+    header->obu_xlayer_id = 0;  // obu_layer (xlayer)
+  }
+#else   // !CONFIG_NEW_OBU_HEADER
   if (bit_buffer_byte_length < 1) return AOM_CODEC_CORRUPT_FRAME;
 
   header->size = 1;
@@ -91,10 +115,12 @@ static aom_codec_err_t read_obu_header(struct aom_read_bit_buffer *rb,
       return AOM_CODEC_CORRUPT_FRAME;
     }
   }
+#endif  // CONFIG_NEW_OBU_HEADER
 
   return AOM_CODEC_OK;
 }
 
+#if !CONFIG_NEW_OBU_HEADER
 aom_codec_err_t aom_read_obu_header(uint8_t *buffer, size_t buffer_length,
                                     size_t *consumed, ObuHeader *header,
                                     int is_annexb) {
@@ -108,6 +134,7 @@ aom_codec_err_t aom_read_obu_header(uint8_t *buffer, size_t buffer_length,
   if (parse_result == AOM_CODEC_OK) *consumed = header->size;
   return parse_result;
 }
+#endif  // !CONFIG_NEW_OBU_HEADER
 
 aom_codec_err_t aom_read_obu_header_and_size(const uint8_t *data,
                                              size_t bytes_available,
@@ -134,6 +161,11 @@ aom_codec_err_t aom_read_obu_header_and_size(const uint8_t *data,
   status = read_obu_header(&rb, is_annexb, obu_header);
   if (status != AOM_CODEC_OK) return status;
 
+#if CONFIG_NEW_OBU_HEADER
+  // Derive the payload size from the data we've already read
+  if (obu_size < obu_header->size) return AOM_CODEC_CORRUPT_FRAME;
+  *payload_size = obu_size - obu_header->size;
+#else   // !CONFIG_NEW_OBU_HEADER
   if (!obu_header->has_size_field) {
     assert(is_annexb);
     // Derive the payload size from the data we've already read
@@ -148,8 +180,10 @@ aom_codec_err_t aom_read_obu_header_and_size(const uint8_t *data,
         payload_size, &length_field_size_payload);
     if (status != AOM_CODEC_OK) return status;
   }
+#endif  // CONFIG_NEW_OBU_HEADER
 
   *bytes_read =
       length_field_size_obu + obu_header->size + length_field_size_payload;
+
   return AOM_CODEC_OK;
 }

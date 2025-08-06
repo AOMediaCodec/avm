@@ -239,8 +239,14 @@ typedef struct aom_image {
 
   int bps; /**< bits per sample (for packed formats) */
 
+#if CONFIG_NEW_OBU_HEADER
+  int tlayer_id; /**< tlayer id of image */
+  int mlayer_id; /**< mlayer id of image */
+  int xlayer_id; /**< xlayer id of image */
+#else
   int temporal_id; /**< Temporal layer Id of image */
   int spatial_id;  /**< Spatial layer Id of image */
+#endif  // CONFIG_NEW_OBU_HEADER
 
   /*!\brief The following member may be set by the application to associate
    * data with this image.
