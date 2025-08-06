@@ -4569,8 +4569,8 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
   cm->tlayer_id = 0;
   current_frame->temporal_layer_id = cm->tlayer_id;
 #else
-  cm->temporal_layer_id = 0;
-  current_frame->temporal_layer_id = cm->temporal_layer_id;
+    cm->temporal_layer_id = 0;
+    current_frame->temporal_layer_id = cm->temporal_layer_id;
 #endif
 
   const int order_offset = cpi->gf_group.arf_src_offset[cpi->gf_group.index];
@@ -4957,7 +4957,7 @@ int av1_convert_sect5obus_to_annexb(uint8_t *buffer, size_t *frame_size) {
 #if CONFIG_NEW_OBU_HEADER
     uint32_t obu_header_size = (buff_ptr[0] >> 3) & 0x1 ? 2 : 1;
 #else
-      uint32_t obu_header_size = (buff_ptr[0] >> 2) & 0x1 ? 2 : 1;
+    uint32_t obu_header_size = (buff_ptr[0] >> 2) & 0x1 ? 2 : 1;
 #endif  // CONFIG_NEW_OBU_HEADER
 
     size_t obu_bytes_read = obu_header_size;  // bytes read for current obu
@@ -5061,7 +5061,7 @@ aom_fixed_buf_t *av1_get_global_headers(AV1_COMP *cpi) {
 #if CONFIG_NEW_OBU_HEADER
                            0, 0,
 #else
-                             0,
+                           0,
 #endif  // CONFIG_NEW_OBU_HEADER
                            &header_buf[0]) != obu_header_size) {
     return NULL;
