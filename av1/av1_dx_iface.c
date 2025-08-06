@@ -118,9 +118,9 @@ static aom_codec_err_t decoder_init(aom_codec_ctx_t *ctx) {
     // Turn row_mt off by default.
     priv->row_mt = 0;
 
-#if CONFIG_F159_OBUSIZE_ANNEXB
+#if CONFIG_NEW_OBU_HEADER
     priv->is_annexb = 1;
-#endif
+#endif  // CONFIG_NEW_OBU_HEADER
 
     // Turn on normal tile coding mode by default.
     // 0 is for normal tile coding mode, and 1 is for large scale tile coding
@@ -388,7 +388,7 @@ static aom_codec_err_t parse_operating_points(struct aom_read_bit_buffer *rb,
 #else
           operating_point_idc0, &si->number_spatial_layers,
           &si->number_temporal_layers) != AOM_CODEC_OK)
-#endif
+#endif  // CONFIG_NEW_OBU_HEADER
   {
     return AOM_CODEC_ERROR;
   }
@@ -828,11 +828,11 @@ static aom_codec_err_t flush_showable_frames(aom_codec_alg_priv_t *ctx,
 
     data_start = (const uint8_t *)generated_data;
     ctx->flushed = 0;
-#if CONFIG_F159_OBUSIZE_ANNEXB
+#if CONFIG_NEW_OBU_HEADER
     ctx->is_annexb = 1;
 #else
     ctx->is_annexb = 0;
-#endif
+#endif  // CONFIG_NEW_OBU_HEADER
     pbi->common.seq_params.decoder_model_info_present_flag = 0;
     pbi->common.seq_params.frame_id_numbers_present_flag = 0;
     res = decode_one(ctx, &data_start, 3, user_priv);
@@ -924,7 +924,7 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
   const uint8_t *data_start = data;
   const uint8_t *data_end = data + data_sz;
 
-#if !CONFIG_F159_OBUSIZE_ANNEXB
+#if !CONFIG_NEW_OBU_HEADER
   if (ctx->is_annexb) {
     // read the size of this temporal unit
     size_t length_of_size;
@@ -938,11 +938,11 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
       return AOM_CODEC_CORRUPT_FRAME;
     data_end = data_start + temporal_unit_size;
   }
-#endif
+#endif  // !CONFIG_NEW_OBU_HEADER
 
   // Decode in serial mode.
   while (data_start < data_end) {
-#if CONFIG_F159_OBUSIZE_ANNEXB
+#if CONFIG_NEW_OBU_HEADER
     uint64_t frame_size = (uint64_t)(data_end - data_start);
 #else
     uint64_t frame_size;
@@ -959,7 +959,7 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
     } else {
       frame_size = (uint64_t)(data_end - data_start);
     }
-#endif
+#endif  // CONFIG_NEW_OBU_HEADER
 
     res = decode_one(ctx, &data_start, (size_t)frame_size, user_priv);
     if (res != AOM_CODEC_OK) return res;
@@ -971,7 +971,7 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
       if (marker) break;
       ++data_start;
     }
-#endif  // CONFIG_NEW_OBU_HEADER
+#endif  // !CONFIG_NEW_OBU_HEADER
   }
 
   return res;

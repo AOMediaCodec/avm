@@ -5352,17 +5352,17 @@ int av1_convert_sect5obus_to_annexb(uint8_t *buffer, size_t *frame_size) {
 #if CONFIG_NEW_OBU_HEADER
     uint32_t obu_header_size = (buff_ptr[0] >> 3) & 0x1 ? 2 : 1;
 #else
-    uint32_t obu_header_size = (buff_ptr[0] >> 2) & 0x1 ? 2 : 1;
+      uint32_t obu_header_size = (buff_ptr[0] >> 2) & 0x1 ? 2 : 1;
 #endif  // CONFIG_NEW_OBU_HEADER
 
     size_t obu_bytes_read = obu_header_size;  // bytes read for current obu
 
     // save the obu header (1 or 2 bytes)
     memmove(saved_obu_header, buff_ptr, obu_header_size);
-#if !CONFIG_F159_OBUSIZE_ANNEXB
+#if !CONFIG_NEW_OBU_HEADER
     // clear the obu_has_size_field
     saved_obu_header[0] = saved_obu_header[0] & (~0x2);
-#endif
+#endif  // !CONFIG_NEW_OBU_HEADER
 
     // get the payload_size and length of payload_size
     if (aom_uleb_decode(buff_ptr + obu_header_size, remaining_size,

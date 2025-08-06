@@ -24,9 +24,9 @@
 
 #define OBU_BUFFER_SIZE (500 * 1024)
 
-#if !CONFIG_F159_OBUSIZE_ANNEXB
+#if !CONFIG_NEW_OBU_HEADER
 #define OBU_HEADER_SIZE 1
-#endif
+#endif  // !CONFIG_NEW_OBU_HEADER
 #define OBU_EXTENSION_SIZE 1
 #define OBU_MAX_LENGTH_FIELD_SIZE 8
 
@@ -63,7 +63,7 @@ static int obudec_read_leb128(FILE *f, uint8_t *value_buffer,
   return aom_uleb_decode(value_buffer, len, value, NULL);
 }
 
-#if CONFIG_F159_OBUSIZE_ANNEXB
+#if CONFIG_NEW_OBU_HEADER
 static int read_nbyte_from_file(FILE *f, size_t obu_header_size,
                                 uint8_t *buffer, ObuHeader *obu_header) {
   if (!f) {
@@ -78,7 +78,7 @@ static int read_nbyte_from_file(FILE *f, size_t obu_header_size,
     return -2;
   }
 
-  obu_header->type = (buffer[0] >> 4) & 15;  // obu_type
+  obu_header->type = (buffer[0] >> 4) & 15;               // obu_type
   obu_header->obu_extension_flag = (buffer[0] >> 3) & 1;  // obu_extension_flag
   obu_header->obu_tlayer_id = (buffer[0]) & 7;            // obu_temporal
   if (obu_header->obu_extension_flag) {
@@ -93,12 +93,12 @@ static int read_nbyte_from_file(FILE *f, size_t obu_header_size,
 }
 static int peek_obu_from_file(FILE *f, size_t obu_header_size, uint8_t *buffer,
                               ObuHeader *obu_header
-#if !CONFIG_F159_OBUSIZE_ANNEXB
+#if !CONFIG_NEW_OBU_HEADER
                               ,
                               int is_annexb,
                               size_t *obu_payload_size_bytelength,
                               uint64_t *obu_payload_size
-#endif
+#endif  // !CONFIG_NEW_OBU_HEADER
 ) {
   if (!f) {
     return -2;
@@ -136,7 +136,7 @@ int file_is_obu(struct ObuDecInputContext *obu_ctx) {
   // avoid using ftell() in the case of very big file whose size cannot be
   // contained in long.
   while (1) {
-#if !CONFIG_F159_OBUSIZE_ANNEXB
+#if !CONFIG_NEW_OBU_HEADER
     size_t file_read = 0;
     if (is_annexb) {
       uint64_t annexb_temporal_unit_size = 0;
@@ -189,7 +189,7 @@ int file_is_obu(struct ObuDecInputContext *obu_ctx) {
 
       ObuHeader obu_header;
       memset(&obu_header, 0, sizeof(obu_header));
-#if CONFIG_F159_OBUSIZE_ANNEXB
+#if CONFIG_NEW_OBU_HEADER
       if (read_nbyte_from_file(f, OBU_HEADER_SIZE, &detect_buf[file_read],
                                &obu_header) != 0) {
         fprintf(stderr, "file_type: Failure reading an OBU.\n");
@@ -204,7 +204,7 @@ int file_is_obu(struct ObuDecInputContext *obu_ctx) {
         rewind(f);
         return 0;
       }
-#endif
+#endif  // CONFIG_NEW_OBU_HEADER
 
       if (obu_header.type == OBU_TEMPORAL_DELIMITER)
         obu_ctx->has_temporal_delimiter = 1;
@@ -214,11 +214,11 @@ int file_is_obu(struct ObuDecInputContext *obu_ctx) {
                 aom_obu_type_to_string(obu_header.type));
         return 0;
       }
-#if CONFIG_F159_OBUSIZE_ANNEXB
+#if CONFIG_NEW_OBU_HEADER
       int bytes_read = OBU_HEADER_SIZE;
 #else
       int bytes_read = OBU_HEADER_SIZE + (obu_header.has_extension ? 1 : 0);
-#endif
+#endif  // CONFIG_NEW_OBU_HEADER
       fseek(f,
             annexb_temporal_unit_size - annexb_frame_unit_size_bytelength -
                 annexb_obu_size_bytelength - bytes_read,
@@ -228,7 +228,7 @@ int file_is_obu(struct ObuDecInputContext *obu_ctx) {
     {
       size_t obu_payload_size_bytelength = 0;
       uint64_t obu_payload_size = 0;
-#if CONFIG_F159_OBUSIZE_ANNEXB
+#if CONFIG_NEW_OBU_HEADER
       if (is_annexb) {
         if (obudec_read_leb128(f, &detect_buf[0], &obu_payload_size_bytelength,
                                &obu_payload_size) != 0) {
@@ -245,7 +245,7 @@ int file_is_obu(struct ObuDecInputContext *obu_ctx) {
         rewind(f);
         return 0;
       }
-#endif
+#endif  // CONFIG_NEW_OBU_HEADER
       ObuHeader obu_header;
       memset(&obu_header, 0, sizeof(obu_header));
       const int read_status =
@@ -287,7 +287,7 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
 
   size_t tu_size = 0;
   unsigned long fpos = ftell(f);
-#if !CONFIG_F159_OBUSIZE_ANNEXB
+#if !CONFIG_NEW_OBU_HEADER
   if (obu_ctx->is_annexb) {
     uint8_t unit_size_filed[2 * OBU_MAX_LENGTH_FIELD_SIZE] = {
       0
@@ -324,14 +324,14 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
     tu_size = (size_t)(annexb_temporal_unit_size +
                        annexb_temporal_unit_size_bytelength);
   } else
-#endif
+#endif  // CONFIG_NEW_OBU_HEADER
   {
     uint8_t detect_buf[OBU_DETECTION_SIZE] = { 0 };
     int first_td = 1;
     while (1) {
       ObuHeader obu_header;
       memset(&obu_header, 0, sizeof(obu_header));
-#if CONFIG_F159_OBUSIZE_ANNEXB
+#if CONFIG_NEW_OBU_HEADER
       uint64_t obu_size = 0;  //[jkei] obu_size includes header size
       size_t obu_size_bytelength = 0;
       if (obu_ctx->is_annexb) {
@@ -348,18 +348,18 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
 #else
       uint64_t obu_payload_size = 0;
       size_t obu_payload_size_bytelength = 0;
-#endif
+#endif  // CONFIG_NEW_OBU_HEADER
 
       const int read_status = peek_obu_from_file(
           f, OBU_HEADER_SIZE, &detect_buf[0], &obu_header
-#if !CONFIG_F159_OBUSIZE_ANNEXB
+#if !CONFIG_NEW_OBU_HEADER
           ,
           &obu_header_total_size
-#endif
-#if !CONFIG_F159_OBUSIZE_ANNEXB
+#endif  // !CONFIG_NEW_OBU_HEADER
+#if !CONFIG_NEW_OBU_HEADER
           ,
           obu_ctx->is_annexb, &obu_payload_size_bytelength, &obu_payload_size
-#endif
+#endif  // !CONFIG_NEW_OBU_HEADER
       );
       if (read_status == -2) {
         return -1;
@@ -367,7 +367,7 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
         // end of file
         return 1;
       }
-#if !CONFIG_F159_OBUSIZE_ANNEXB
+#if !CONFIG_NEW_OBU_HEADER
       uint64_t obu_total_size =
           (obu_header_total_size + obu_payload_size_bytelength +
            obu_payload_size);
@@ -376,16 +376,16 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
         break;
       } else {
         if (obu_header.type == OBU_TEMPORAL_DELIMITER) first_td = 0;
-#if CONFIG_F159_OBUSIZE_ANNEXB
+#if CONFIG_NEW_OBU_HEADER
         fseek(f, obu_size, SEEK_CUR);
         tu_size += (obu_size + obu_size_bytelength);
 #else
         fseek(f, obu_total_size, SEEK_CUR);
         tu_size += obu_total_size;
-#endif
+#endif  // CONFIG_NEW_OBU_HEADER
       }
     }  // while
-  }    // annexb
+  }  // annexb
   fseek(f, fpos, SEEK_SET);
 
 #if defined AOM_MAX_ALLOCABLE_MEMORY
@@ -851,11 +851,11 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
   }
   return 0;
 }
-#endif  // CONFIG_F159_OBUSIZE_ANNEXB
+#endif  // CONFIG_NEW_OBU_HEADER
 
 void obudec_free(struct ObuDecInputContext *obu_ctx) {
-#if CONFIG_F159_OBUSIZE_ANNEXB
+#if CONFIG_NEW_OBU_HEADER
   if (obu_ctx->buffer)
-#endif
+#endif  // CONFIG_NEW_OBU_HEADER
     free(obu_ctx->buffer);
 }

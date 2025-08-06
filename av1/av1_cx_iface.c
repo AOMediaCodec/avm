@@ -3536,7 +3536,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
           }
           frame_size = curr_frame_size;
 
-#if !CONFIG_F159_OBUSIZE_ANNEXB
+#if !CONFIG_NEW_OBU_HEADER
           // B_PRIME (add frame size)
           const size_t length_field_size = aom_uleb_size_in_bytes(frame_size);
           if (ctx->pending_cx_data) {
@@ -3548,7 +3548,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
             aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR, NULL);
           }
           frame_size += length_field_size;
-#endif
+#endif  // !CONFIG_NEW_OBU_HEADER
         }
 
         ctx->pending_frame_sizes[ctx->pending_frame_count++] = frame_size;
@@ -3575,7 +3575,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       // decrement frames_left counter
       cpi->frames_left = AOMMAX(0, cpi->frames_left - 1);
       if (!is_frame_visible_null) {
-#if !CONFIG_F159_OBUSIZE_ANNEXB
+#if !CONFIG_NEW_OBU_HEADER
         if (ctx->oxcf.save_as_annexb) {
           //  B_PRIME (add TU size)
           size_t tu_size = ctx->pending_cx_data_sz;
@@ -3591,7 +3591,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
           }
           ctx->pending_cx_data_sz += length_field_size;
         }
-#endif
+#endif  // !CONFIG_NEW_OBU_HEADER
       }
 
       pkt.kind = is_frame_visible_null ? AOM_CODEC_CX_FRAME_NULL_PKT
@@ -4756,11 +4756,11 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_TCQ
     2,  // enable_tcq
 #endif
-#if CONFIG_F159_OBUSIZE_ANNEXB
+#if CONFIG_NEW_OBU_HEADER
     1,  // save_as_annexb (0. external mean)
 #else
     0,  // save_as_annexb
-#endif
+#endif                           // CONFIG_NEW_OBU_HEADER
     0,                           // tile_width_count
     0,                           // tile_height_count
     { 0 },                       // tile_widths
