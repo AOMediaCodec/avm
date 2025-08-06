@@ -434,8 +434,8 @@ void gdf_inference_unit_avx2(const int i_min, const int i_max, const int j_min,
 
   __m256i m256i_tmp_reg_01, m256i_tmp_reg_02;
   __m256i odd_mask = _mm256_set1_epi32(0x0000ffff);
-  const __m256i min_val = _mm256_set1_epi16(-2048);  // -2^11
-  const __m256i max_val = _mm256_set1_epi16(2047);   // 2^11 - 1
+  const __m256i min_val = _mm256_set1_epi16(-(1 << (GDF_TEST_INP_PREC - 1)));
+  const __m256i max_val = _mm256_set1_epi16((1 << (GDF_TEST_INP_PREC - 1)) - 1);
   __m256 m256_tmp_reg, m256_tmp_reg_02;
 
   for (int i = 0; i < (i_max - i_min); i++) {
