@@ -7696,11 +7696,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                ((seq_params->operating_point_idc[op_num] >>
                  (cm->mlayer_id + 8)) &
 #else
-            if ((((seq_params->operating_point_idc[op_num] >>
-                   cm->temporal_layer_id) &
-                  0x1) &&
-                 ((seq_params->operating_point_idc[op_num] >>
-                   (cm->spatial_layer_id + 8)) &
+          if ((((seq_params->operating_point_idc[op_num] >>
+                 cm->temporal_layer_id) &
+                0x1) &&
+               ((seq_params->operating_point_idc[op_num] >>
+                 (cm->spatial_layer_id + 8)) &
 #endif  // CONFIG_NEW_OBU_HEADER
                 0x1)) ||
               seq_params->operating_point_idc[op_num] == 0) {

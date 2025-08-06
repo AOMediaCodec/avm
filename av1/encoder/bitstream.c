@@ -6345,10 +6345,10 @@ static AOM_INLINE void write_uncompressed_header_obu(
                (seq_params->operating_point_idc[op_num] >>
                 (cm->mlayer_id + 8)) &
 #else
-                  cm->temporal_layer_id) &
-                     0x1 &&
-                 (seq_params->operating_point_idc[op_num] >>
-                  (cm->spatial_layer_id + 8)) &
+                cm->temporal_layer_id) &
+                   0x1 &&
+               (seq_params->operating_point_idc[op_num] >>
+                (cm->spatial_layer_id + 8)) &
 #endif  // CONFIG_NEW_OBU_HEADER
                    0x1) ||
               seq_params->operating_point_idc[op_num] == 0) {
@@ -7091,7 +7091,7 @@ uint32_t av1_write_obu_header(AV1LevelParams *const level_params,
 #if CONFIG_NEW_OBU_HEADER
                               int obu_temporal, int obu_layer,
 #else
-                                int obu_extension,
+                              int obu_extension,
 #endif  // CONFIG_NEW_OBU_HEADER
                               uint8_t *const dst) {
   if (level_params->keep_level_stats &&
@@ -7110,15 +7110,15 @@ uint32_t av1_write_obu_header(AV1LevelParams *const level_params,
     aom_wb_write_literal(&wb, obu_layer, 8);  // obu_layer
   }
 #else
-    aom_wb_write_literal(&wb, 0, 1);  // forbidden bit.
-    aom_wb_write_literal(&wb, (int)obu_type, 4);
-    aom_wb_write_literal(&wb, obu_extension ? 1 : 0, 1);
-    aom_wb_write_literal(&wb, 1, 1);  // obu_has_payload_length_field
-    aom_wb_write_literal(&wb, 0, 1);  // reserved
+  aom_wb_write_literal(&wb, 0, 1);  // forbidden bit.
+  aom_wb_write_literal(&wb, (int)obu_type, 4);
+  aom_wb_write_literal(&wb, obu_extension ? 1 : 0, 1);
+  aom_wb_write_literal(&wb, 1, 1);  // obu_has_payload_length_field
+  aom_wb_write_literal(&wb, 0, 1);  // reserved
 
-    if (obu_extension) {
-      aom_wb_write_literal(&wb, obu_extension & 0xFF, 8);
-    }
+  if (obu_extension) {
+    aom_wb_write_literal(&wb, obu_extension & 0xFF, 8);
+  }
 #endif  // CONFIG_NEW_OBU_HEADER
 
   size = aom_wb_bytes_written(&wb);
@@ -7293,7 +7293,7 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
 #if CONFIG_NEW_OBU_HEADER
                                        int obu_temporal, int obu_layer,
 #else
-                                         uint8_t obu_extension_header,
+                                       uint8_t obu_extension_header,
 #endif  // CONFIG_NEW_OBU_HEADER
                                        const FrameHeaderInfo *fh_info,
                                        int *const largest_tile_id) {
@@ -7334,7 +7334,7 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
 #if CONFIG_NEW_OBU_HEADER
                                                       0, 0,
 #else
-                                                        0,
+                                                      0,
 #endif  // CONFIG_NEW_OBU_HEADER
                                                       data);
     data += tg_hdr_size;
@@ -7491,7 +7491,7 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
 #if CONFIG_NEW_OBU_HEADER
                                                  obu_temporal, obu_layer,
 #else
-                                                   obu_extension_header,
+                                                 obu_extension_header,
 #endif  // CONFIG_NEW_OBU_HEADER
                                                  data);
         obu_header_size = curr_tg_data_size;
@@ -7596,7 +7596,7 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
 #if CONFIG_NEW_OBU_HEADER
                                obu_temporal, obu_layer,
 #else
-                                 obu_extension_header,
+                               obu_extension_header,
 #endif  // CONFIG_NEW_OBU_HEADER
                                &data[fh_info->obu_header_byte_offset]);
 
@@ -7699,7 +7699,7 @@ static size_t av1_write_metadata_array(AV1_COMP *const cpi, uint8_t *dst) {
 #if CONFIG_NEW_OBU_HEADER
                                                0, 0,
 #else
-                                                   0,
+                                               0,
 #endif  // CONFIG_NEW_OBU_HEADER
                                                dst);
         obu_payload_size =
@@ -7792,7 +7792,7 @@ static size_t av1_write_frame_hash_metadata(
 #if CONFIG_NEW_OBU_HEADER
                            0, 0,
 #else
-                               0,
+                           0,
 #endif  // CONFIG_NEW_OBU_HEADER
                            dst);
   size_t obu_payload_size =
@@ -7829,8 +7829,8 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
       obu_mlayer << 5 |
       obu_xlayer;  // obu_layer byte ( mlayer (3-bit) | xlayer (5-bit))
 #else
-      const uint8_t obu_extension_header =
-          cm->temporal_layer_id << 5 | cm->spatial_layer_id << 3 | 0;
+  const uint8_t obu_extension_header =
+      cm->temporal_layer_id << 5 | cm->spatial_layer_id << 3 | 0;
 #endif  // CONFIG_NEW_OBU_HEADER
 
   // If no non-zero delta_q has been used, reset delta_q_present_flag
@@ -7852,7 +7852,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 #if CONFIG_NEW_OBU_HEADER
                                            0, 0,
 #else
-                                               0,
+                                           0,
 #endif  // CONFIG_NEW_OBU_HEADER
                                            data);
 
@@ -7916,7 +7916,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 #if CONFIG_NEW_OBU_HEADER
                                            obu_temporal, obu_layer,
 #else
-                                               obu_extension_header,
+                                           obu_extension_header,
 #endif  // CONFIG_NEW_OBU_HEADER
                                            data);
     obu_payload_size =
@@ -7974,7 +7974,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 #if CONFIG_NEW_OBU_HEADER
                                        obu_temporal, obu_layer,
 #else
-                                           obu_extension_header,
+                                       obu_extension_header,
 #endif  // CONFIG_NEW_OBU_HEADER
                                        &fh_info, largest_tile_id);
   }
