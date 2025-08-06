@@ -1234,6 +1234,7 @@ static void compute_sms_data(AV1_COMP *const cpi, const TileInfo *const tile,
   mbmi->sb_type[0] = mbmi->sb_type[1] = bsize;
   mbmi->chroma_ref_info.bsize_base = bsize;
   mbmi->chroma_ref_info.is_chroma_ref = 1;
+#if CONFIG_ML_PART_SPLIT
   // only if NONE part pruning is enabled
   if (cpi->sf.part_sf.prune_none_with_ml) {
     mbmi->interinter_comp.type = COMPOUND_AVERAGE;
@@ -1245,7 +1246,7 @@ static void compute_sms_data(AV1_COMP *const cpi, const TileInfo *const tile,
     mbmi->bawp_flag[0] = 0;
     mbmi->cwp_idx = CWP_EQUAL;
   }
-
+#endif  // CONFIG_ML_PART_SPLIT
   mbmi->use_amvd = 0;
   setup_block_rdmult(cpi, x, mi_row, mi_col, bsize, aq_mode, mbmi);
   // Set error per bit for current rdmult
