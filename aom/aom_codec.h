@@ -101,6 +101,9 @@ extern "C" {
 #include "aom/aom_image.h"
 #include "aom/aom_integer.h"
 
+#if CONFIG_NEW_OBU_HEADER
+#define OBU_HEADER_SIZE 2
+#endif  // CONFIG_NEW_OBU_HEADER
 /*!\brief Decorator indicating a function is deprecated */
 #ifndef AOM_DEPRECATED
 #if defined(__GNUC__) && __GNUC__
@@ -551,6 +554,9 @@ typedef enum ATTRIBUTE_PACKED {
   OBU_REDUNDANT_FRAME_HEADER = 7,
   OBU_TILE_LIST = 8,
   OBU_PADDING = 15,
+#if CONFIG_NEW_OBU_HEADER
+  NUM_OBU_TYPES = 16
+#endif  // CONFIG_NEW_OBU_HEADER
 } OBU_TYPE;
 
 /*!\brief OBU metadata types. */

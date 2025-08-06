@@ -76,7 +76,18 @@ extern "C" {
 #define PRIMARY_REF_BITS REF_FRAMES_LOG2
 #endif  // CONFIG_EXTRA_DPB
 #define PRIMARY_REF_NONE INTER_REFS_PER_FRAME
+    
 
+#if CONFIG_NEW_OBU_HEADER
+#define MAX_NUM_TLAYERS 8
+#define MAX_NUM_MLAYERS 8
+#define MAX_NUM_XLAYERS 32
+/* clang-format off */
+// clang-format seems to think this is a pointer dereference and not a
+// multiplication.
+#define MAX_NUM_OPERATING_POINTS \
+  (MAX_NUM_TLAYERS * MAX_NUM_MLAYERS)
+#else
 #define MAX_NUM_TEMPORAL_LAYERS 8
 #define MAX_NUM_SPATIAL_LAYERS 4
 
@@ -85,6 +96,7 @@ extern "C" {
 // multiplication.
 #define MAX_NUM_OPERATING_POINTS \
   (MAX_NUM_TEMPORAL_LAYERS * MAX_NUM_SPATIAL_LAYERS)
+#endif  // CONFIG_NEW_OBU_HEADER
 /* clang-format on */
 
 // TODO(jingning): Turning this on to set up transform coefficient
@@ -1955,8 +1967,38 @@ typedef struct AV1Common {
    * relative distance between reference 'k' and current frame.
    */
   int ref_frame_relative_dist[INTER_REFS_PER_FRAME];
+
+#if CONFIG_NEW_OBU_HEADER
   /*!
-   * Number of temporal layers: may be > 1 for SVC (scalable vector coding).
+   * Number of temporal layers: may be > 1 for SVC (scalable video coding).
+   */
+  unsigned int number_tlayers;
+  /*!
+   * Temporal layer ID of this frame
+   * (in the range 0 ... (number_tlayers - 1)).
+   */
+  int tlayer_id;
+  /*!
+   * Number of embedded layers: may be > 1 for SVC (scalable video coding).
+   */
+  unsigned int number_mlayers;
+  /*!
+   * Embedded layer ID of this frame
+   * (in the range 0 ... (number_mlayers - 1)).
+   */
+  int mlayer_id;
+  /*!
+   * Number of extended layers: may be > 1 for SVC (scalable video coding).
+   */
+  unsigned int number_xlayers;
+  /*!
+   * Extended layer ID of this frame
+   * (in the range 0 ... (number_xlayers - 1)).
+   */
+  int xlayer_id;
+#else
+  /*!
+   * Number of temporal layers: may be > 1 for SVC (scalable video coding).
    */
   unsigned int number_temporal_layers;
   /*!
@@ -1966,7 +2008,7 @@ typedef struct AV1Common {
   int temporal_layer_id;
 
   /*!
-   * Number of spatial layers: may be > 1 for SVC (scalable vector coding).
+   * Number of spatial layers: may be > 1 for SVC (scalable video coding).
    */
   unsigned int number_spatial_layers;
   /*!
@@ -1974,6 +2016,7 @@ typedef struct AV1Common {
    * (in the range 0 ... (number_spatial_layers - 1)).
    */
   int spatial_layer_id;
+#endif  // CONFIG_NEW_OBU_HEADER
 
   /*!
    * Weights for IBP of directional modes.
