@@ -10,6 +10,7 @@
  * aomedia.org/license/patent-license/.
  */
 
+#include <array>
 #include <cstdlib>
 #include <string>
 #include <tuple>
@@ -30,8 +31,10 @@ using libaom_test::ACMRandom;
 
 namespace {
 
-typedef std::tuple<cdef_filter_block_func, cdef_filter_block_func, BLOCK_SIZE,
-                   int, int>
+using CdefFilterBlockFunctions = std::array<cdef_filter_block_func, 4>;
+
+typedef std::tuple<CdefFilterBlockFunctions, CdefFilterBlockFunctions,
+                   BLOCK_SIZE, int, int>
     cdef_dir_param_t;
 
 class CDEFBlockTest : public ::testing::TestWithParam<cdef_dir_param_t> {
@@ -51,16 +54,16 @@ class CDEFBlockTest : public ::testing::TestWithParam<cdef_dir_param_t> {
   BLOCK_SIZE bsize;
   int boundary;
   int depth;
-  cdef_filter_block_func cdef;
-  cdef_filter_block_func ref_cdef;
+  CdefFilterBlockFunctions cdef;
+  CdefFilterBlockFunctions ref_cdef;
 };
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CDEFBlockTest);
 
 typedef CDEFBlockTest CDEFSpeedTest;
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CDEFSpeedTest);
 
-void test_cdef(BLOCK_SIZE bsize, int iterations, cdef_filter_block_func cdef,
-               cdef_filter_block_func ref_cdef, int boundary, int depth) {
+void test_cdef(BLOCK_SIZE bsize, int iterations, CdefFilterBlockFunctions cdef,
+               CdefFilterBlockFunctions ref_cdef, int boundary, int depth) {
   assert(depth >= 8);
   const int size = 8;
   const int ysize = size + 2 * CDEF_VBORDER;
@@ -76,6 +79,11 @@ void test_cdef(BLOCK_SIZE bsize, int iterations, cdef_filter_block_func cdef,
       errdepth = 0, errpristrength = 0, errsecstrength = 0, errboundary = 0,
       errpridamping = 0, errsecdamping = 0;
   unsigned int pos = 0;
+
+  const int block_width =
+      ((bsize == BLOCK_8X8) || (bsize == BLOCK_8X4)) ? 8 : 4;
+  const int block_height =
+      ((bsize == BLOCK_8X8) || (bsize == BLOCK_4X8)) ? 8 : 4;
 
   const unsigned int max_pos = size * size >> static_cast<int>(depth == 8);
   for (pridamping = 3 + depth - 8; pridamping < 7 - 3 * !!boundary + depth - 8;
@@ -118,19 +126,23 @@ void test_cdef(BLOCK_SIZE bsize, int iterations, cdef_filter_block_func cdef,
                 for (secstrength = 0; secstrength <= 4 << (depth - 8) && !error;
                      secstrength += 1 << (depth - 8)) {
                   if (secstrength == 3 << (depth - 8)) continue;
-                  ref_cdef(depth == 8 ? (uint8_t *)ref_d : 0, ref_d, size,
-                           s + CDEF_HBORDER + CDEF_VBORDER * CDEF_BSTRIDE,
-                           pristrength, secstrength, dir, pridamping,
-                           secdamping, bsize, depth - 8);
+
+                  const int strength_index =
+                      (secstrength == 0) | ((pristrength == 0) << 1);
+
+                  ref_cdef[strength_index](
+                      ref_d, size,
+                      s + CDEF_HBORDER + CDEF_VBORDER * CDEF_BSTRIDE,
+                      pristrength, secstrength, dir, pridamping, secdamping,
+                      depth - 8, block_width, block_height);
                   // If cdef and ref_cdef are the same, we're just testing
                   // speed
-                  if (cdef != ref_cdef)
-                    ASM_REGISTER_STATE_CHECK(
-                        cdef(depth == 8 ? (uint8_t *)d : 0, d, size,
-                             s + CDEF_HBORDER + CDEF_VBORDER * CDEF_BSTRIDE,
-                             pristrength, secstrength, dir, pridamping,
-                             secdamping, bsize, depth - 8));
-                  if (ref_cdef != cdef) {
+                  if (cdef[0] != ref_cdef[0])
+                    ASM_REGISTER_STATE_CHECK(cdef[strength_index](
+                        d, size, s + CDEF_HBORDER + CDEF_VBORDER * CDEF_BSTRIDE,
+                        pristrength, secstrength, dir, pridamping, secdamping,
+                        depth - 8, block_width, block_height));
+                  if (ref_cdef[0] != cdef[0]) {
                     for (pos = 0; pos < max_pos && !error; pos++) {
                       error = ref_d[pos] != d[pos];
                       errdepth = depth;
@@ -167,8 +179,9 @@ void test_cdef(BLOCK_SIZE bsize, int iterations, cdef_filter_block_func cdef,
 }
 
 void test_cdef_speed(BLOCK_SIZE bsize, int iterations,
-                     cdef_filter_block_func cdef,
-                     cdef_filter_block_func ref_cdef, int boundary, int depth) {
+                     CdefFilterBlockFunctions cdef,
+                     CdefFilterBlockFunctions ref_cdef, int boundary,
+                     int depth) {
   aom_usec_timer ref_timer;
   aom_usec_timer timer;
 
@@ -299,36 +312,60 @@ using std::make_tuple;
 // structs as arguments, which makes the v256 type of the intrinsics
 // hard to support, so optimizations for this target are disabled.
 #if defined(_WIN64) || !defined(_MSC_VER) || defined(__clang__)
+#if (HAVE_SSE2 || HAVE_SSSE3 || HAVE_SSE4_1 || HAVE_AVX2 || HAVE_NEON)
+static const CdefFilterBlockFunctions kCdefFilterHighbdFuncC[] = {
+  { &cdef_filter_16_0_c, &cdef_filter_16_1_c, &cdef_filter_16_2_c,
+    &cdef_filter_16_3_c }
+};
+#endif
+
 #if HAVE_SSE2
+static const CdefFilterBlockFunctions kCdefFilterHighbdFuncSse2[] = {
+  { &cdef_filter_16_0_sse2, &cdef_filter_16_1_sse2, &cdef_filter_16_2_sse2,
+    &cdef_filter_16_3_sse2 }
+};
+
 INSTANTIATE_TEST_SUITE_P(
     SSE2, CDEFBlockTest,
-    ::testing::Combine(::testing::Values(&cdef_filter_block_sse2),
-                       ::testing::Values(&cdef_filter_block_c),
+    ::testing::Combine(::testing::ValuesIn(kCdefFilterHighbdFuncSse2),
+                       ::testing::ValuesIn(kCdefFilterHighbdFuncC),
                        ::testing::Values(BLOCK_4X4, BLOCK_4X8, BLOCK_8X4,
                                          BLOCK_8X8),
                        ::testing::Range(0, 16), ::testing::Range(8, 13, 2)));
+
 INSTANTIATE_TEST_SUITE_P(SSE2, CDEFFindDirTest,
                          ::testing::Values(make_tuple(&cdef_find_dir_sse2,
                                                       &cdef_find_dir_c)));
 #endif
 #if HAVE_SSSE3
+static const CdefFilterBlockFunctions kCdefFilterHighbdFuncSsse3[] = {
+  { &cdef_filter_16_0_ssse3, &cdef_filter_16_1_ssse3, &cdef_filter_16_2_ssse3,
+    &cdef_filter_16_3_ssse3 }
+};
+
 INSTANTIATE_TEST_SUITE_P(
     SSSE3, CDEFBlockTest,
-    ::testing::Combine(::testing::Values(&cdef_filter_block_ssse3),
-                       ::testing::Values(&cdef_filter_block_c),
+    ::testing::Combine(::testing::ValuesIn(kCdefFilterHighbdFuncSsse3),
+                       ::testing::ValuesIn(kCdefFilterHighbdFuncC),
                        ::testing::Values(BLOCK_4X4, BLOCK_4X8, BLOCK_8X4,
                                          BLOCK_8X8),
                        ::testing::Range(0, 16), ::testing::Range(8, 13, 2)));
+
 INSTANTIATE_TEST_SUITE_P(SSSE3, CDEFFindDirTest,
                          ::testing::Values(make_tuple(&cdef_find_dir_ssse3,
                                                       &cdef_find_dir_c)));
 #endif
 
 #if HAVE_SSE4_1
+static const CdefFilterBlockFunctions kCdefFilterHighbdFuncSse4_1[] = {
+  { &cdef_filter_16_0_sse4_1, &cdef_filter_16_1_sse4_1,
+    &cdef_filter_16_2_sse4_1, &cdef_filter_16_3_sse4_1 }
+};
+
 INSTANTIATE_TEST_SUITE_P(
     SSE4_1, CDEFBlockTest,
-    ::testing::Combine(::testing::Values(&cdef_filter_block_sse4_1),
-                       ::testing::Values(&cdef_filter_block_c),
+    ::testing::Combine(::testing::ValuesIn(kCdefFilterHighbdFuncSse4_1),
+                       ::testing::ValuesIn(kCdefFilterHighbdFuncC),
                        ::testing::Values(BLOCK_4X4, BLOCK_4X8, BLOCK_8X4,
                                          BLOCK_8X8),
                        ::testing::Range(0, 16), ::testing::Range(8, 13, 2)));
@@ -338,10 +375,15 @@ INSTANTIATE_TEST_SUITE_P(SSE4_1, CDEFFindDirTest,
 #endif
 
 #if HAVE_AVX2
+static const CdefFilterBlockFunctions kCdefFilterHighbdFuncAvx2[] = {
+  { &cdef_filter_16_0_avx2, &cdef_filter_16_1_avx2, &cdef_filter_16_2_avx2,
+    &cdef_filter_16_3_avx2 }
+};
+
 INSTANTIATE_TEST_SUITE_P(
     AVX2, CDEFBlockTest,
-    ::testing::Combine(::testing::Values(&cdef_filter_block_avx2),
-                       ::testing::Values(&cdef_filter_block_c),
+    ::testing::Combine(::testing::ValuesIn(kCdefFilterHighbdFuncAvx2),
+                       ::testing::ValuesIn(kCdefFilterHighbdFuncC),
                        ::testing::Values(BLOCK_4X4, BLOCK_4X8, BLOCK_8X4,
                                          BLOCK_8X8),
                        ::testing::Range(0, 16), ::testing::Range(8, 13, 2)));
@@ -351,10 +393,15 @@ INSTANTIATE_TEST_SUITE_P(AVX2, CDEFFindDirTest,
 #endif
 
 #if HAVE_NEON
+static const CdefFilterBlockFunctions kCdefFilterHighbdFuncNeon[] = {
+  { &cdef_filter_16_0_neon, &cdef_filter_16_1_neon, &cdef_filter_16_2_neon,
+    &cdef_filter_16_3_neon }
+};
+
 INSTANTIATE_TEST_SUITE_P(
     NEON, CDEFBlockTest,
-    ::testing::Combine(::testing::Values(&cdef_filter_block_neon),
-                       ::testing::Values(&cdef_filter_block_c),
+    ::testing::Combine(::testing::ValuesIn(kCdefFilterHighbdFuncNeon),
+                       ::testing::ValuesIn(kCdefFilterHighbdFuncC),
                        ::testing::Values(BLOCK_4X4, BLOCK_4X8, BLOCK_8X4,
                                          BLOCK_8X8),
                        ::testing::Range(0, 16), ::testing::Range(8, 13, 2)));
@@ -367,8 +414,8 @@ INSTANTIATE_TEST_SUITE_P(NEON, CDEFFindDirTest,
 #if HAVE_SSE2
 INSTANTIATE_TEST_SUITE_P(
     SSE2, CDEFSpeedTest,
-    ::testing::Combine(::testing::Values(&cdef_filter_block_sse2),
-                       ::testing::Values(&cdef_filter_block_c),
+    ::testing::Combine(::testing::ValuesIn(kCdefFilterHighbdFuncSse2),
+                       ::testing::ValuesIn(kCdefFilterHighbdFuncC),
                        ::testing::Values(BLOCK_4X4, BLOCK_4X8, BLOCK_8X4,
                                          BLOCK_8X8),
                        ::testing::Range(0, 16), ::testing::Range(8, 13, 2)));
@@ -380,8 +427,8 @@ INSTANTIATE_TEST_SUITE_P(SSE2, CDEFFindDirSpeedTest,
 #if HAVE_SSSE3
 INSTANTIATE_TEST_SUITE_P(
     SSSE3, CDEFSpeedTest,
-    ::testing::Combine(::testing::Values(&cdef_filter_block_ssse3),
-                       ::testing::Values(&cdef_filter_block_c),
+    ::testing::Combine(::testing::ValuesIn(kCdefFilterHighbdFuncSsse3),
+                       ::testing::ValuesIn(kCdefFilterHighbdFuncC),
                        ::testing::Values(BLOCK_4X4, BLOCK_4X8, BLOCK_8X4,
                                          BLOCK_8X8),
                        ::testing::Range(0, 16), ::testing::Range(8, 13, 2)));
@@ -393,8 +440,8 @@ INSTANTIATE_TEST_SUITE_P(SSSE3, CDEFFindDirSpeedTest,
 #if HAVE_SSE4_1
 INSTANTIATE_TEST_SUITE_P(
     SSE4_1, CDEFSpeedTest,
-    ::testing::Combine(::testing::Values(&cdef_filter_block_sse4_1),
-                       ::testing::Values(&cdef_filter_block_c),
+    ::testing::Combine(::testing::ValuesIn(kCdefFilterHighbdFuncSse4_1),
+                       ::testing::ValuesIn(kCdefFilterHighbdFuncC),
                        ::testing::Values(BLOCK_4X4, BLOCK_4X8, BLOCK_8X4,
                                          BLOCK_8X8),
                        ::testing::Range(0, 16), ::testing::Range(8, 13, 2)));
@@ -406,8 +453,8 @@ INSTANTIATE_TEST_SUITE_P(SSE4_1, CDEFFindDirSpeedTest,
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
     AVX2, CDEFSpeedTest,
-    ::testing::Combine(::testing::Values(&cdef_filter_block_avx2),
-                       ::testing::Values(&cdef_filter_block_c),
+    ::testing::Combine(::testing::ValuesIn(kCdefFilterHighbdFuncAvx2),
+                       ::testing::ValuesIn(kCdefFilterHighbdFuncC),
                        ::testing::Values(BLOCK_4X4, BLOCK_4X8, BLOCK_8X4,
                                          BLOCK_8X8),
                        ::testing::Range(0, 16), ::testing::Range(8, 13, 2)));
@@ -419,8 +466,8 @@ INSTANTIATE_TEST_SUITE_P(AVX2, CDEFFindDirSpeedTest,
 #if HAVE_NEON
 INSTANTIATE_TEST_SUITE_P(
     NEON, CDEFSpeedTest,
-    ::testing::Combine(::testing::Values(&cdef_filter_block_neon),
-                       ::testing::Values(&cdef_filter_block_c),
+    ::testing::Combine(::testing::ValuesIn(kCdefFilterHighbdFuncNeon),
+                       ::testing::ValuesIn(kCdefFilterHighbdFuncC),
                        ::testing::Values(BLOCK_4X4, BLOCK_4X8, BLOCK_8X4,
                                          BLOCK_8X8),
                        ::testing::Range(0, 16), ::testing::Range(8, 13, 2)));
