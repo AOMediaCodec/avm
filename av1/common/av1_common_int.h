@@ -3185,9 +3185,10 @@ static INLINE int get_alloc_mi_idx(const CommonModeInfoParams *const mi_params,
 }
 
 // For this partition block, set pointers in mi_params->mi_grid_base and xd->mi.
-static void set_mi_offsets(const CommonModeInfoParams *const mi_params,
-                           MACROBLOCKD *const xd, int mi_row, int mi_col,
-                           int x_inside_boundary, int y_inside_boundary) {
+static INLINE void set_mi_offsets(const CommonModeInfoParams *const mi_params,
+                                  MACROBLOCKD *const xd, int mi_row, int mi_col,
+                                  int x_inside_boundary,
+                                  int y_inside_boundary) {
   // 'mi_grid_base' should point to appropriate memory in 'mi'.
   const int mi_grid_idx = get_mi_grid_idx(mi_params, mi_row, mi_col);
   const int mi_alloc_idx = get_alloc_mi_idx(mi_params, mi_row, mi_col);
