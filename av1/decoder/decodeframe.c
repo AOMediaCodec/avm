@@ -7004,8 +7004,8 @@ static INLINE int get_disp_order_hint(AV1_COMMON *const cm) {
       }
     }
 #else
-      if ((int)buf->display_order_hint > max_disp_order_hint)
-        max_disp_order_hint = buf->display_order_hint;
+    if ((int)buf->display_order_hint > max_disp_order_hint)
+      max_disp_order_hint = buf->display_order_hint;
 #endif  // CONFIG_MULTILAYER_CORE
   }
 
