@@ -618,11 +618,17 @@ int av1_ml_part_split_infer(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
     prune_list[i] = false;
   }
 
+  const int mi_high = mi_size_high[bsize];
+  const int mi_wide = mi_size_wide[bsize];
+  const AV1_COMMON *const cm = &cpi->common;
+  if (mi_col + mi_wide > cm->mi_params.mi_cols ||
+      mi_row + mi_high > cm->mi_params.mi_rows)
+    return ML_PART_DONT_FORCE;
+
   const MACROBLOCKD *xd = &x->e_mbd;
   int qp = cpi->common.quant_params.base_qindex;
   bool key_frame = cpi->common.current_frame.frame_type == KEY_FRAME;
 
-  const AV1_COMMON *const cm = &cpi->common;
   int qp_offset;
   switch (cm->seq_params.bit_depth) {
     case AOM_BITS_10: qp_offset = qindex_10b_offset[1]; break;
