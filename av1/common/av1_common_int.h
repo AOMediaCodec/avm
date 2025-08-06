@@ -2062,7 +2062,7 @@ typedef struct AV1Common {
 
 #if CONFIG_NEW_OBU_HEADER
   /*!
-   * Number of temporal layers: may be > 1 for SVC (scalable vector coding).
+   * Number of temporal layers: may be > 1 for SVC (scalable video coding).
    */
   unsigned int number_tlayers;
   /*!
@@ -2071,16 +2071,16 @@ typedef struct AV1Common {
    */
   int tlayer_id;
   /*!
-   * Number of embedded layers: may be > 1 for SVC (scalable vector coding).
+   * Number of embedded layers: may be > 1 for SVC (scalable video coding).
    */
   unsigned int number_mlayers;
   /*!
-   * Spatial layer ID of this frame
+   * Embedded layer ID of this frame
    * (in the range 0 ... (number_mlayers - 1)).
    */
   int mlayer_id;
   /*!
-   * Number of extended layers: may be > 1 for SVC (scalable vector coding).
+   * Number of extended layers: may be > 1 for SVC (scalable video coding).
    */
   unsigned int number_xlayers;
   /*!
@@ -2090,7 +2090,7 @@ typedef struct AV1Common {
   int xlayer_id;
 #else
   /*!
-   * Number of temporal layers: may be > 1 for SVC (scalable vector coding).
+   * Number of temporal layers: may be > 1 for SVC (scalable video coding).
    */
   unsigned int number_temporal_layers;
   /*!
@@ -2100,7 +2100,7 @@ typedef struct AV1Common {
   int temporal_layer_id;
 
   /*!
-   * Number of spatial layers: may be > 1 for SVC (scalable vector coding).
+   * Number of spatial layers: may be > 1 for SVC (scalable video coding).
    */
   unsigned int number_spatial_layers;
   /*!

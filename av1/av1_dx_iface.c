@@ -783,10 +783,10 @@ static void av1_write_show_existing_frame_obu(uint8_t *const dst,
   aom_wb_write_literal(&wb, 0, 1);         // extention flag
   aom_wb_write_literal(&wb, 1, 1);         // obu_has_payload_length_field
   aom_wb_write_literal(&wb, 0, 1);         // reserved
+  aom_wb_write_literal(&wb, 0x01, 8);      // obu_size 1
 #endif  // CONFIG_NEW_OBU_HEADER
 
-  aom_wb_write_literal(&wb, 0x01, 8);  // obu_size 1
-  aom_wb_write_bit(&wb, 1);            // show_existing_frame
+  aom_wb_write_bit(&wb, 1);  // show_existing_frame
   aom_wb_write_literal(&wb, existing_fb_idx_to_show,
                        ref_frames_log2);  // signal frame to be output
   aom_wb_write_bit(&wb, 1);               // trailing one

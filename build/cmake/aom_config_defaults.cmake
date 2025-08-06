@@ -144,9 +144,8 @@ set_aom_config_var(CONFIG_AV2CTC_PSNR_PEAK 1
 set_aom_config_var(CONFIG_ZERO_OFFSET_BITUPSHIFT 1
                    "Use zero offset for non-normative bit upshift")
 
-# New OBU header changes
-set_aom_config_var(CONFIG_NEW_OBU_HEADER 1
-                   "Enable 2 byte OBU header with layer ids")
+# New OBU header changes, enables annex B and disables size signaling
+set_aom_config_var(CONFIG_NEW_OBU_HEADER 1 "Enable new obu changes")
 set_aom_config_var(CONFIG_F159_OBUSIZE_ANNEXB 1
                    "Enable annexb, disable size signaling")
 set_aom_config_var(CONFIG_F301_OBU_HEADER 1
