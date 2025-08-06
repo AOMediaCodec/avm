@@ -2856,7 +2856,12 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
 #endif  // CONFIG_F054_PIC_BOUNDARY
   }
 
-  use_gdf = use_gdf & is_allow_gdf(cm);
+  use_gdf =
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+      // TODO(any): Turn off temporarily until supported
+      !cm->seq_params.disable_loopfilters_across_tiles &&
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+      (use_gdf & is_allow_gdf(cm));
   if (!use_gdf) {
     cm->gdf_info.gdf_mode = 0;
   }

@@ -9483,7 +9483,11 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
                         !cm->features.coded_lossless &&
                         cm->cdef_info.cdef_frame_enable;
     const int do_gdf = is_gdf_enabled(cm);
-    const int optimized_loop_restoration = !do_gdf && !use_ccso && !do_cdef;
+    const int optimized_loop_restoration =
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+        !cm->seq_params.disable_loopfilters_across_tiles &&
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+        !do_gdf && !use_ccso && !do_cdef;
 
     if (!optimized_loop_restoration) {
       if (do_loop_restoration)
