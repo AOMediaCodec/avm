@@ -4354,7 +4354,13 @@ static AOM_INLINE int prune_modes_based_on_tpl_stats(
   // 'prune_index' 0, 1, 2 corresponds to ref_mv indices 0, 1 and 2.
   // prune_index 3 corresponds to GLOBALMV/GLOBAL_GLOBALMV
   static const int tpl_inter_mode_prune_mul_factor[2][MAX_REF_MV_SEARCH + 1] = {
-    { 3, 3, 3, 2, 2, 2, 2, 2 }, { 3, 2, 2, 2, 2, 2, 2, 2 }
+#if CONFIG_DRL_SIZE_LIMIT
+    { 3, 3, 3, 2, 2, 2 },
+    { 3, 2, 2, 2, 2, 2 },
+#else
+    { 3, 3, 3, 2, 2, 2, 2, 2 },
+    { 3, 2, 2, 2, 2, 2, 2, 2 },
+#endif  // CONFIG_DRL_SIZE_LIMIT
   };
 
   const int is_comp_pred = is_inter_ref_frame(refs[1]);
