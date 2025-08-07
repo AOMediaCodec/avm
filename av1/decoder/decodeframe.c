@@ -6553,6 +6553,10 @@ void av1_read_sequence_header_beyond_av1(
   }
   seq_params->ref_frames_log2 = aom_ceil_log2(seq_params->ref_frames);
 
+  // TODO: (@hegilmez) dpb_size and ref_frames can be merged to clean up the
+  // code
+  seq_params->dpb_size = seq_params->ref_frames;
+
   seq_params->max_reference_frames =
       AOMMIN(seq_params->ref_frames - 1, INTER_REFS_PER_FRAME);
 #else
