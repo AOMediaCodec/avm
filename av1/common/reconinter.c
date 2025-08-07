@@ -3897,10 +3897,12 @@ static void build_inter_predictors_8x8_and_bigger(
       *ext_warp_used = true;
       inter_pred_params.use_warp_bd_box = 1;
       inter_pred_params.warp_bd_box = &warp_bd_box_mem[0];
+#if !WARP44_FIX
       const BLOCK_SIZE bsize = xd->mi[0]->sb_type[PLANE_TYPE_Y];
       const int_mv warp_mv = get_int_warp_mv_for_fb(
           xd, &inter_pred_params.warp_params, bsize, (mi_x >> MI_SIZE_LOG2),
           (mi_y >> MI_SIZE_LOG2));
+#endif
       // printf("warpmv (%d, %d), loc (%d,
       // %d)\n", warp_mv.as_mv.col,
       //        warp_mv.as_mv.row, mi_x,
@@ -3916,6 +3918,11 @@ static void build_inter_predictors_8x8_and_bigger(
           int block_width = AOMMIN(8, comp_bw);
           int block_height = AOMMIN(8, comp_bh);
           if ((x_loc & 7) == 0 && (y_loc & 7) == 0) {
+#if WARP44_FIX
+            const int_mv warp_mv = get_int_warp_mv_for_fb(
+                xd, &inter_pred_params.warp_params, BLOCK_8X8,
+                sub_mi_x, sub_mi_y);
+#endif
             av1_get_reference_area_with_padding_single_warp(
                 cm, xd, plane, mi, warp_mv.as_mv, block_width, block_height,
                 (sub_mi_x << pd->subsampling_x),
