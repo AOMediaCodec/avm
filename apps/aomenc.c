@@ -465,6 +465,9 @@ const arg_def_t *av1_key_val_args[] = {
   &g_av1_codec_arg_defs.enable_ist,
   &g_av1_codec_arg_defs.enable_inter_ist,
   &g_av1_codec_arg_defs.enable_chroma_dctonly,
+#if CONFIG_TX64_SEQ_FLAG
+  &g_av1_codec_arg_defs.enable_t64_resample,
+#endif  // CONFIG_TX64_SEQ_FLAG
   &g_av1_codec_arg_defs.enable_inter_ddt,
 #if CONFIG_REDUCED_TX_PART
   &g_av1_codec_arg_defs.reduced_tx_part_set,
@@ -690,6 +693,9 @@ static void init_config(cfg_options_t *config) {
   config->enable_ist = 1;
   config->enable_inter_ist = 1;
   config->enable_chroma_dctonly = 0;
+#if CONFIG_TX64_SEQ_FLAG
+  config->enable_t64_resample = 0;
+#endif  // CONFIG_TX64_SEQ_FLAG
   config->enable_inter_ddt = 1;
   config->enable_cctx = 1;
   config->enable_ibp = 1;
@@ -1574,6 +1580,12 @@ static void show_stream_config(struct stream_state *stream,
           encoder_cfg->enable_inter_ddt);
   fprintf(stdout, "                               : Chroma DCT only (%d)\n",
           encoder_cfg->enable_chroma_dctonly);
+#if CONFIG_TX64_SEQ_FLAG
+  fprintf(stdout,
+          "                               : Enable T64 based on T32 w/ "
+          "resampling (%d)\n",
+          encoder_cfg->enable_t64_resample);
+#endif  // CONFIG_TX64_SEQ_FLAG
   fprintf(stdout,
           "Tool setting (Intra)           : SmoothIntra (%d), CfL (%d), ",
           encoder_cfg->enable_smooth_intra, encoder_cfg->enable_cfl_intra);

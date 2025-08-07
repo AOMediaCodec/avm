@@ -361,6 +361,12 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_chroma_dctonly;
+#if CONFIG_TX64_SEQ_FLAG
+  /*!\brief enable t64 based on t32 w/ resampling
+   *
+   */
+  unsigned int enable_t64_resample;
+#endif  // CONFIG_TX64_SEQ_FLAG
   /*!\brief enable Inter data-driven transform
    *
    */

@@ -5896,6 +5896,9 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
   aom_wb_write_bit(wb, seq_params->enable_inter_ist);
   if (!seq_params->monochrome)
     aom_wb_write_bit(wb, seq_params->enable_chroma_dctonly);
+#if CONFIG_TX64_SEQ_FLAG
+  aom_wb_write_bit(wb, seq_params->enable_t64_resample);
+#endif  // CONFIG_TX64_SEQ_FLAG
   aom_wb_write_bit(wb, seq_params->enable_inter_ddt);
 #if CONFIG_REDUCED_TX_PART
   aom_wb_write_bit(wb, seq_params->reduced_tx_part_set);

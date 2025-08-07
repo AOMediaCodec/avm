@@ -229,6 +229,7 @@ void inv_txfm_dct2_size32_c(const int *src, int *dst, int shift, int line,
   }
 }
 
+#if !CONFIG_TX64 || CONFIG_TX64_SEQ_FLAG
 void inv_txfm_dct2_size64_c(const int *src, int *dst, int shift, int line,
                             int skip_line, int zero_line, const int coef_min,
                             const int coef_max) {
@@ -305,6 +306,7 @@ void inv_txfm_dct2_size64_c(const int *src, int *dst, int shift, int line,
     }
   }
 }
+#endif  // !CONFIG_TX64 || CONFIG_TX64_SEQ_FLAG
 
 // ********************************** IDTX **********************************
 void inv_txfm_idtx_size4_c(const int *src, int *dst, int shift, int line,
@@ -851,6 +853,7 @@ void inv_transform_1d_c(const int *src, int *dst, int shift, int line,
         default: assert(0); break;
       }
       break;
+#if !CONFIG_TX64 || CONFIG_TX64_SEQ_FLAG
     case 4:
       switch (tx_type_index) {
         case 0:
@@ -860,6 +863,7 @@ void inv_transform_1d_c(const int *src, int *dst, int shift, int line,
         default: assert(0); break;
       }
       break;
+#endif  // !CONFIG_TX64 || CONFIG_TX64_SEQ_FLAG
     default: assert(0); break;
   }
 }
@@ -870,6 +874,26 @@ void inv_txfm_c(const tran_low_t *input, uint16_t *dest, int stride,
   TX_TYPE tx_type = txfm_param->tx_type;
 
 #if CONFIG_CHROMA_LARGE_TX
+#if CONFIG_TX64
+#if CONFIG_TX64_SEQ_FLAG
+  const int use_resample =
+      (txfm_param->plane_type == PLANE_TYPE_UV || txfm_param->t64resample) ? 1
+                                                                           : 0;
+  int width = AOMMIN(MAX_TX_SIZE >> use_resample, tx_size_wide[tx_size]);
+  int height = AOMMIN(MAX_TX_SIZE >> use_resample, tx_size_high[tx_size]);
+  const uint32_t tx_wide_index =
+      AOMMIN(MAX_TX_SIZE_LOG2 - use_resample, tx_size_wide_log2[tx_size]) - 2;
+  const uint32_t tx_high_index =
+      AOMMIN(MAX_TX_SIZE_LOG2 - use_resample, tx_size_high_log2[tx_size]) - 2;
+#else
+  int width = AOMMIN(MAX_TX_SIZE >> 1, tx_size_wide[tx_size]);
+  int height = AOMMIN(MAX_TX_SIZE >> 1, tx_size_high[tx_size]);
+  const uint32_t tx_wide_index =
+      AOMMIN(MAX_TX_SIZE_LOG2 - 1, tx_size_wide_log2[tx_size]) - 2;
+  const uint32_t tx_high_index =
+      AOMMIN(MAX_TX_SIZE_LOG2 - 1, tx_size_high_log2[tx_size]) - 2;
+#endif  // CONFIG_TX64_SEQ_FLAG
+#else
   const int is_chroma = (txfm_param->plane_type == PLANE_TYPE_UV) ? 1 : 0;
   int width = AOMMIN(MAX_TX_SIZE >> is_chroma, tx_size_wide[tx_size]);
   int height = AOMMIN(MAX_TX_SIZE >> is_chroma, tx_size_high[tx_size]);
@@ -877,12 +901,13 @@ void inv_txfm_c(const tran_low_t *input, uint16_t *dest, int stride,
       AOMMIN(MAX_TX_SIZE_LOG2 - is_chroma, tx_size_wide_log2[tx_size]) - 2;
   const uint32_t tx_high_index =
       AOMMIN(MAX_TX_SIZE_LOG2 - is_chroma, tx_size_high_log2[tx_size]) - 2;
+#endif  // CONFIG_TX64
 #else
   const int width = tx_size_wide[tx_size];
   const int height = tx_size_high[tx_size];
   const uint32_t tx_wide_index = tx_size_wide_log2[tx_size] - 2;
   const uint32_t tx_high_index = tx_size_high_log2[tx_size] - 2;
-#endif  // CONFIG_CHROMA_LARGE_TX
+#endif  // CONFIG_CHROMA_LARGE_TX || CONFIG_TX64
 
   const int intermediate_bitdepth = txfm_param->bd + 8;
   const int rng_min = -(1 << (intermediate_bitdepth - 1));
@@ -1123,12 +1148,20 @@ void av1_highbd_inv_txfm_add_4x4_horz_c(const tran_low_t *input, uint16_t *dest,
 
 static void init_txfm_param(const MACROBLOCKD *xd, int plane, TX_SIZE tx_size,
                             TX_TYPE tx_type, int eob, int reduced_tx_set,
-                            int use_ddt, TxfmParam *txfm_param) {
+                            int use_ddt, TxfmParam *txfm_param
+#if CONFIG_TX64_SEQ_FLAG
+                            ,
+                            int t64resample
+#endif  // CONFIG_TX64_SEQ_FLAG
+) {
   (void)plane;
   MB_MODE_INFO *const mbmi = xd->mi[0];
-#if CONFIG_CHROMA_LARGE_TX
+#if CONFIG_CHROMA_LARGE_TX && (!CONFIG_TX64 || CONFIG_TX64_SEQ_FLAG)
   txfm_param->plane_type = get_plane_type(plane);
-#endif  // CONFIG_CHROMA_LARGE_TX
+#if CONFIG_TX64_SEQ_FLAG
+  txfm_param->t64resample = t64resample;
+#endif  // CONFIG_TX64_SEQ_FLAG
+#endif  // CONFIG_CHROMA_LARGE_TX && (!CONFIG_TX64 || CONFIG_TX64_SEQ_FLAG)
   txfm_param->tx_type = get_primary_tx_type(tx_type);
   txfm_param->sec_tx_set = 0;
   txfm_param->sec_tx_type = 0;
@@ -1249,14 +1282,24 @@ void av1_inverse_transform_block(const MACROBLOCKD *xd,
                                  const tran_low_t *dqcoeff, int plane,
                                  TX_TYPE tx_type, TX_SIZE tx_size,
                                  uint16_t *dst, int stride, int eob,
-                                 int use_ddt, int reduced_tx_set) {
+                                 int use_ddt, int reduced_tx_set
+#if CONFIG_TX64_SEQ_FLAG
+                                 ,
+                                 int t64resample
+#endif  // CONFIG_TX64_SEQ_FLAG
+) {
   if (!eob) return;
 
   assert(eob <= av1_get_max_eob(tx_size));
 
   TxfmParam txfm_param;
   init_txfm_param(xd, plane, tx_size, tx_type, eob, reduced_tx_set, use_ddt,
-                  &txfm_param);
+                  &txfm_param
+#if CONFIG_TX64_SEQ_FLAG
+                  ,
+                  t64resample
+#endif  // CONFIG_TX64_SEQ_FLAG
+  );
   assert(av1_ext_tx_used[txfm_param.tx_set_type][txfm_param.tx_type]);
   assert(IMPLIES(txfm_param.sec_tx_type,
                  block_signals_sec_tx_type(xd, tx_size, txfm_param.tx_type,

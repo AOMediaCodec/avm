@@ -525,6 +525,9 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #if MHCCP_RUNTIME_FLAG
   seq->enable_mhccp = oxcf->intra_mode_cfg.enable_mhccp;
 #endif  // MHCCP_RUNTIME_FLAG
+#if CONFIG_TX64_SEQ_FLAG
+  seq->enable_t64_resample = oxcf->txfm_cfg.enable_t64_resample;
+#endif  // CONFIG_TX64_SEQ_FLAG
   seq->enable_inter_ddt = oxcf->txfm_cfg.enable_inter_ddt;
 #if CONFIG_REDUCED_TX_PART
   seq->reduced_tx_part_set = oxcf->txfm_cfg.reduced_tx_part_set;

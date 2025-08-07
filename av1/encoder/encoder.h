@@ -379,6 +379,12 @@ typedef struct {
    * Flag to indicate if only dct is applied for chroma residual coding.
    */
   bool enable_chroma_dctonly;
+#if CONFIG_TX64_SEQ_FLAG
+  /*!
+   * Flag to indicate if t64 based on t32 w/ resampling should be enabled.
+   */
+  bool enable_t64_resample;
+#endif  // CONFIG_TX64_SEQ_FLAG
   /*!
    * Flag to indicate if inter data-driven transform should be enabled.
    */
