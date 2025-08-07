@@ -562,8 +562,8 @@ typedef struct SequenceHeader {
   int dpb_size;  // number of decoded picture buffer (DPB) slots
 #else
   int num_extra_dpb;  // number of extra decoded picture buffers
-#endif  // CONFIG_CWG_F168_DPB_HLS
-#endif  // CONFIG_EXTRA_DPB
+#endif                  // CONFIG_CWG_F168_DPB_HLS
+#endif                  // CONFIG_EXTRA_DPB
   int ref_frames;       // number of all decoded picture buffers
   int ref_frames_log2;  // the log value of the number of all decoded picture
                         // buffers
