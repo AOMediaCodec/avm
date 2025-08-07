@@ -6551,13 +6551,8 @@ void av1_read_sequence_header_beyond_av1(
   } else {
     seq_params->ref_frames = 8;  // default DPB size: 8
   }
-  seq_params->ref_frames_log2 = seq_params->ref_frames > 8   ? 4
-                                : seq_params->ref_frames > 4 ? 3
-                                : seq_params->ref_frames > 2 ? 2
-                                                             : 1;
-#endif  // CONFIG_CWG_F168_DPB_HLS
+  seq_params->ref_frames_log2 = aom_ceil_log2(seq_params->ref_frames);
 
-#if CONFIG_CWG_F168_DPB_HLS
   seq_params->max_reference_frames =
       AOMMIN(seq_params->ref_frames - 1, INTER_REFS_PER_FRAME);
 #else
@@ -6569,9 +6564,6 @@ void av1_read_sequence_header_beyond_av1(
   } else {
     seq_params->max_reference_frames = 7;
   }
-#endif  // CONFIG_CWG_F168_DPB_HLS
-
-#if !CONFIG_CWG_F168_DPB_HLS
 #if CONFIG_EXTRA_DPB
   const bool use_extra_dpb = aom_rb_read_literal(rb, 1);
 
@@ -6591,7 +6583,7 @@ void av1_read_sequence_header_beyond_av1(
   seq_params->ref_frames = REF_FRAMES;
   seq_params->ref_frames_log2 = REF_FRAMES_LOG2;
 #endif  // CONFIG_EXTRA_DPB
-#endif  // !CONFIG_CWG_F168_DPB_HLS
+#endif  // CONFIG_CWG_F168_DPB_HLS
 
   seq_params->num_same_ref_compound = aom_rb_read_literal(rb, 2);
   seq_params->enable_sdp = seq_params->monochrome ? 0 : aom_rb_read_bit(rb);
@@ -7868,11 +7860,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         // Check whether num_total_refs read is valid
         if (cm->ref_frames_info.num_total_refs <= 0 ||
             cm->ref_frames_info.num_total_refs >
-#if CONFIG_CWG_F168_DPB_HLS
-                AOMMIN(seq_params->ref_frames - 1, INTER_REFS_PER_FRAME))
-#else
                 seq_params->max_reference_frames)
-#endif  // CONFIG_CWG_F168_DPB_HLS
           aom_internal_error(&cm->error, AOM_CODEC_ERROR,
                              "Invalid num_total_refs");
       }

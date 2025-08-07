@@ -564,10 +564,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #if CONFIG_CWG_F168_DPB_HLS
   seq->dpb_size = tool_cfg->dpb_size;
   seq->ref_frames = seq->dpb_size;
-  seq->ref_frames_log2 = seq->dpb_size > 8   ? 4
-                         : seq->dpb_size > 4 ? 3
-                         : seq->dpb_size > 2 ? 2
-                                                 : 1;
+  seq->ref_frames_log2 = aom_ceil_log2(seq->dpb_size);
 #else
   seq->num_extra_dpb = tool_cfg->num_extra_dpb;
   seq->ref_frames = seq->num_extra_dpb ? REGULAR_REF_FRAMES + seq->num_extra_dpb
