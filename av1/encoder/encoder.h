@@ -712,6 +712,10 @@ typedef struct {
   aom_tune_content content;
   // Indicates the film grain parameters.
   int film_grain_test_vector;
+#if CONFIG_FGS_BLOCK_SIZE
+  // Indicates whether to use large blocks for film grain synthesis.
+  int film_grain_block_size;
+#endif
 } TuneCfg;
 
 typedef struct {

@@ -1044,6 +1044,14 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
       cm->cur_frame->film_grain_params_present = aom_film_grain_table_lookup(
           cpi->film_grain_table, *time_stamp, *time_end, 0 /* =erase */,
           &cm->film_grain_params);
+#if CONFIG_FGS_BLOCK_SIZE
+      // Set block_size parameter from configuration even when using film grain
+      // table
+//      if (cm->cur_frame->film_grain_params_present) {
+//        cm->film_grain_params.block_size =
+//        cpi->oxcf.tune_cfg.film_grain_block_size;
+//      }
+#endif
     } else {
       cm->cur_frame->film_grain_params_present =
           cm->seq_params.film_grain_params_present;

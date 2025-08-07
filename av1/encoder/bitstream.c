@@ -5391,6 +5391,10 @@ static AOM_INLINE void write_film_grain_params(
   aom_wb_write_bit(wb, pars->overlap_flag);
 
   aom_wb_write_bit(wb, pars->clip_to_restricted_range);
+
+#if CONFIG_FGS_BLOCK_SIZE
+  aom_wb_write_bit(wb, pars->block_size);
+#endif
 }
 
 static bool qm_matrices_are_equal(const qm_val_t *mat_a, const qm_val_t *mat_b,

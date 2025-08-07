@@ -205,6 +205,9 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
                                         AV1E_SET_TIMING_INFO_TYPE,
                                         AV1E_SET_FILM_GRAIN_TEST_VECTOR,
                                         AV1E_SET_FILM_GRAIN_TABLE,
+#if CONFIG_FGS_BLOCK_SIZE
+                                        AV1E_SET_FILM_GRAIN_BLOCK_SIZE,
+#endif
 #if CONFIG_DENOISE
                                         AV1E_SET_DENOISE_NOISE_LEVEL,
                                         AV1E_SET_DENOISE_BLOCK_SIZE,
@@ -400,6 +403,9 @@ const arg_def_t *av1_ctrl_args[] = {
   &g_av1_codec_arg_defs.timing_info,
   &g_av1_codec_arg_defs.film_grain_test,
   &g_av1_codec_arg_defs.film_grain_table,
+#if CONFIG_FGS_BLOCK_SIZE
+  &g_av1_codec_arg_defs.film_grain_block_size,
+#endif
 #if CONFIG_DENOISE
   &g_av1_codec_arg_defs.denoise_noise_level,
   &g_av1_codec_arg_defs.denoise_block_size,
@@ -586,6 +592,9 @@ struct stream_config {
   int arg_key_val_cnt;
   int write_webm;
   const char *film_grain_filename;
+#if CONFIG_FGS_BLOCK_SIZE
+  int film_grain_block_size;
+#endif
   int write_ivf;
 #if CONFIG_TUNE_VMAF
   const char *vmaf_model_path;
@@ -998,6 +1007,12 @@ static void set_config_arg_ctrls(struct stream_config *config, int key,
     config->film_grain_filename = arg->val;
     return;
   }
+#if CONFIG_FGS_BLOCK_SIZE
+  if (key == AV1E_SET_FILM_GRAIN_BLOCK_SIZE) {
+    config->film_grain_block_size = arg_parse_int(arg);
+    return;
+  }
+#endif
 
   if (key == AV1E_SET_SUBGOP_CONFIG_STR) {
     config->subgop_config_str = arg->val;
@@ -1802,6 +1817,11 @@ static void initialize_encoder(struct stream_state *stream,
     AOM_CODEC_CONTROL_TYPECHECKED(&stream->encoder, AV1E_SET_FILM_GRAIN_TABLE,
                                   stream->config.film_grain_filename);
   }
+#if CONFIG_FGS_BLOCK_SIZE
+  AOM_CODEC_CONTROL_TYPECHECKED(&stream->encoder,
+                                AV1E_SET_FILM_GRAIN_BLOCK_SIZE,
+                                stream->config.film_grain_block_size);
+#endif
   AOM_CODEC_CONTROL_TYPECHECKED(&stream->encoder, AV1E_SET_COLOR_RANGE,
                                 stream->config.color_range);
 

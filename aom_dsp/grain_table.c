@@ -20,7 +20,7 @@
  * and the other parameters are only specified if "update-parms" is
  * non-zero.
  *
- * filmgrn1
+ * filmgrn2
  * E <start-time> <end-time> <apply-grain> <random-seed> <update-parms>
  *  p <ar_coeff_lag> <ar_coeff_shift> <grain_scale_shift> ...
  *  sY <num_y_points> <point_0_x> <point_0_y> ...
@@ -36,9 +36,11 @@
 #include "aom_dsp/aom_dsp_common.h"
 #include "aom_dsp/grain_table.h"
 #include "aom_mem/aom_mem.h"
-
+#if CONFIG_FGS_BLOCK_SIZE
+static const char kFileMagic[8] = "filmgrn2";
+#else
 static const char kFileMagic[8] = "filmgrn1";
-
+#endif
 static void grain_table_entry_read(FILE *file,
                                    struct aom_internal_error_info *error_info,
                                    aom_film_grain_table_entry_t *entry) {
@@ -54,15 +56,30 @@ static void grain_table_entry_read(FILE *file,
     return;
   }
   if (pars->update_parameters) {
+#if CONFIG_FGS_BLOCK_SIZE
+    num_read = fscanf(file, "p %d %d %d %d %d %d %d %d %d %d %d %d %d\n",
+#else
     num_read = fscanf(file, "p %d %d %d %d %d %d %d %d %d %d %d %d\n",
+#endif
                       &pars->ar_coeff_lag, &pars->ar_coeff_shift,
                       &pars->grain_scale_shift, &pars->scaling_shift,
                       &pars->chroma_scaling_from_luma, &pars->overlap_flag,
                       &pars->cb_mult, &pars->cb_luma_mult, &pars->cb_offset,
+#if CONFIG_FGS_BLOCK_SIZE
+                      &pars->cr_mult, &pars->cr_luma_mult, &pars->cr_offset,
+                      &pars->block_size);
+#else
                       &pars->cr_mult, &pars->cr_luma_mult, &pars->cr_offset);
+#endif
+#if CONFIG_FGS_BLOCK_SIZE
+    if (num_read != 13) {
+      aom_internal_error(error_info, AOM_CODEC_ERROR,
+                         "Unable to read entry params. Read %d != 13",
+#else
     if (num_read != 12) {
       aom_internal_error(error_info, AOM_CODEC_ERROR,
                          "Unable to read entry params. Read %d != 12",
+#endif
                          num_read);
       return;
     }
@@ -142,12 +159,20 @@ static void grain_table_entry_write(FILE *file,
           entry->end_time, pars->apply_grain, pars->random_seed,
           pars->update_parameters);
   if (pars->update_parameters) {
+#if CONFIG_FGS_BLOCK_SIZE
+    fprintf(file, "\tp %d %d %d %d %d %d %d %d %d %d %d %d %d\n",
+#else
     fprintf(file, "\tp %d %d %d %d %d %d %d %d %d %d %d %d\n",
+#endif
             pars->ar_coeff_lag, pars->ar_coeff_shift, pars->grain_scale_shift,
             pars->scaling_shift, pars->chroma_scaling_from_luma,
             pars->overlap_flag, pars->cb_mult, pars->cb_luma_mult,
             pars->cb_offset, pars->cr_mult, pars->cr_luma_mult,
+#if CONFIG_FGS_BLOCK_SIZE
+            pars->cr_offset, pars->block_size);
+#else
             pars->cr_offset);
+#endif
     fprintf(file, "\tsY %d ", pars->num_y_points);
     for (int i = 0; i < pars->num_y_points; ++i) {
       fprintf(file, " %d %d", pars->scaling_points_y[i][0],

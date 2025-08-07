@@ -85,6 +85,9 @@ typedef struct {
   int grain_scale_shift;
 
   uint16_t random_seed;
+#if CONFIG_FGS_BLOCK_SIZE
+  int block_size;
+#endif
   // This structure is compared element-by-element in the function
   // av1_check_grain_params_equiv: this function must be updated if any changes
   // are made to this structure.
@@ -148,6 +151,9 @@ static INLINE int av1_check_grain_params_equiv(
   if (pa->bit_depth != pb->bit_depth) return 0;
   if (pa->chroma_scaling_from_luma != pb->chroma_scaling_from_luma) return 0;
   if (pa->grain_scale_shift != pb->grain_scale_shift) return 0;
+#if CONFIG_FGS_BLOCK_SIZE
+  if (pa->block_size != pb->block_size) return 0;
+#endif
 
   return 1;
 }

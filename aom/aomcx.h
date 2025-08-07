@@ -1260,6 +1260,7 @@ enum aome_enc_control_id {
    * \note This is only used in quantization matrix unit test.
    */
   AV1E_SET_FRAME_MULTI_QMATRIX_UNIT_TEST = 172,
+
 #if CONFIG_GDF
   /*!\brief Codec control function to encode with GDF, unsigned int parameter
    *
@@ -1271,6 +1272,16 @@ enum aome_enc_control_id {
    */
   AV1E_SET_ENABLE_GDF = 173,
 #endif  // CONFIG_GDF
+
+#if CONFIG_FGS_BLOCK_SIZE
+  /*!\brief Control to enable large blocks for film grain synthesis, int
+   * parameter
+   *
+   * Valid range: 0..1, 0 is off (default), 1 is on
+   */
+  AV1E_SET_FILM_GRAIN_BLOCK_SIZE = 173,
+#endif
+
 };
 
 /*!\brief aom 1-D scaling mode
@@ -1708,6 +1719,11 @@ AOM_CTRL_USE_TYPE(AV1E_SET_FILM_GRAIN_TEST_VECTOR, int)
 
 AOM_CTRL_USE_TYPE(AV1E_SET_FILM_GRAIN_TABLE, const char *)
 #define AOM_CTRL_AV1E_SET_FILM_GRAIN_TABLE
+
+#if CONFIG_FGS_BLOCK_SIZE
+AOM_CTRL_USE_TYPE(AV1E_SET_FILM_GRAIN_BLOCK_SIZE, int)
+#define AOM_CTRL_AV1E_SET_FILM_GRAIN_BLOCK_SIZE
+#endif
 
 AOM_CTRL_USE_TYPE(AV1E_SET_CDF_UPDATE_MODE, unsigned int)
 #define AOM_CTRL_AV1E_SET_CDF_UPDATE_MODE
