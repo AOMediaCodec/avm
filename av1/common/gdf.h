@@ -59,9 +59,13 @@ enum Direction { GDF_VER, GDF_HOR, GDF_DIAG0, GDF_DIAG1, GDF_NUM_DIRS };
 #define GDF_TEST_STRIPE_SIZE \
   64  // GDF_TEST_BLK_SIZE has to be multiple of GDF_TEST_STRIPE_SIZE
 
-/*!\brief Function to initialize information of GDF
+/*!\brief Function to initialize information of GDF from cm
  */
-void init_gdf(GdfInfo *gi, int mib_size, int rec_height, int rec_width);
+void init_gdf(AV1_COMMON *cm);
+
+/*!\brief Function to initialize information of GDF for tests
+ */
+void init_gdf_test(GdfInfo *gi, int mib_size, int rec_height, int rec_width);
 
 /*!\brief Function to allocate memory storing block's expected coding error of
  * GDF
@@ -84,7 +88,8 @@ void gdf_extend_frame_highbd(uint16_t *data, int width, int height, int stride,
 
 /*!\brief Function to setup reference lines for filtering stripe
  */
-void gdf_setup_reference_lines(AV1_COMMON *cm, int i_min, int i_max, int v_pos);
+void gdf_setup_reference_lines(AV1_COMMON *cm, int i_min, int i_max, int v_pos,
+                               int frame_stripe);
 
 /*!\brief Function to unset reference lines for filtering stripe
  */
@@ -150,6 +155,23 @@ static inline int gdf_block_adjust_and_validate(int *i_min, int *i_max,
   return (*i_max > *i_min) && (*j_max > *j_min);
 }
 
+/*!\brief Function to copy left/right buffers when disabling filtering
+ * across tiles is desired.
+ */
+void gdf_setup_processing_stripe_leftright_boundary(GdfInfo *gdf, int i_min,
+                                                    int i_max, int j_min,
+                                                    int j_max,
+                                                    int tile_boundary_left,
+                                                    int tile_boundary_right);
+
+/*!\brief Function to restore left/right buffers when disabling filtering
+ * across tiles is desired.
+ */
+void gdf_restore_processing_stripe_leftright_boundary(GdfInfo *gdf, int i_min,
+                                                      int i_max, int j_min,
+                                                      int j_max,
+                                                      int tile_boundary_left,
+                                                      int tile_boundary_right);
 #ifdef __cplusplus
 }  // extern "C"
 #endif

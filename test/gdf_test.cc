@@ -118,8 +118,8 @@ void test_gdf(int iterations, int height, int width, int depth, int qp_idx,
   GdfInfo gi, ref_gi;
   memset(&gi, 0, sizeof(gi));
   memset(&ref_gi, 0, sizeof(ref_gi));
-  init_gdf(&gi, mib_size, height, width);
-  init_gdf(&ref_gi, mib_size, height, width);
+  init_gdf_test(&gi, mib_size, height, width);
+  init_gdf_test(&ref_gi, mib_size, height, width);
 
   int err = 0, is_lap_err = 0, is_cls_err = 0;
   int is_inf_err = 0, is_comp_err = 0;

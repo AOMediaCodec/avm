@@ -3594,8 +3594,7 @@ static AOM_INLINE void setup_gdf(AV1_COMMON *cm,
     return;
   }
 #endif
-  init_gdf(&cm->gdf_info, cm->mib_size, cm->cur_frame->buf.y_height,
-           cm->cur_frame->buf.y_width);
+  init_gdf(cm);
   cm->gdf_info.gdf_mode = aom_rb_read_bit(rb);
   if (cm->gdf_info.gdf_mode > 0) {
     alloc_gdf_buffers(&cm->gdf_info);

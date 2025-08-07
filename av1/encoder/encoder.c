@@ -2501,22 +2501,16 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
            v_pos += 4) {
         for (int u_pos = x_pos; u_pos < x_pos + sb_size && u_pos < rec_width;
              u_pos += 4) {
-          int blk_idx = gdf_get_block_idx(cm, v_pos, u_pos);
-          if (blk_idx >= 0) {
-            block_ids[ctx_idx++] = blk_idx;
+          int this_blk_idx = gdf_get_block_idx(cm, v_pos, u_pos);
+          if (this_blk_idx >= 0) {
+            block_ids[ctx_idx++] = this_blk_idx;
           }
         }
       }
     }
   }
-  int blk_idx = 0;
-  for (int y_pos = -GDF_TEST_STRIPE_OFF, blk_idx_h = 0; y_pos < rec_height;
-       y_pos += cm->gdf_info.gdf_block_size, blk_idx_h++) {
-    if (blk_idx_h == cm->gdf_info.gdf_block_num_h) {
-      blk_idx -= cm->gdf_info.gdf_block_num_w;
-    }
 #else
-  int blk_idx = 0;
+  int this_blk_idx = 0;
   for (int y_pos = 0; y_pos < rec_height;
        y_pos += cm->gdf_info.gdf_block_size) {
     for (int x_pos = 0; x_pos < rec_width;
@@ -2529,144 +2523,198 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
              u_pos += 4) {
           int id = gdf_get_block_idx(cm, v_pos, u_pos);
           if (id >= 0) {
-            block_ids[blk_idx++] = id;
+            block_ids[this_blk_idx++] = id;
           }
         }
       }
     }
   }
-  blk_idx = 0;
-  for (int y_pos = -GDF_TEST_STRIPE_OFF; y_pos < rec_height;
-       y_pos += cm->gdf_info.gdf_block_size) {
 #endif
-
-    for (int x_pos = 0; x_pos < rec_width;
-         x_pos += cm->gdf_info.gdf_block_size) {
-#if CONFIG_BRU
-      // mark skip flag for inactive FU
-      if (bru_is_fu_skipped_mbmi(
-              cm, x_pos >> MI_SIZE_LOG2,
-              AOMMIN(y_pos + GDF_TEST_STRIPE_OFF,
-                     rec_height - GDF_TEST_FRAME_BOUNDARY_SIZE) >>
-                  MI_SIZE_LOG2,
-              cm->gdf_info.gdf_block_size >> MI_SIZE_LOG2,
-              cm->gdf_info.gdf_block_size >> MI_SIZE_LOG2)) {
-        bru_skip_blk[blk_idx] = 1;
-        blk_idx++;
-        continue;
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  const int num_tile_rows =
+      cm->seq_params.disable_loopfilters_across_tiles ? cm->tiles.rows : 1;
+  const int num_tile_cols =
+      cm->seq_params.disable_loopfilters_across_tiles ? cm->tiles.cols : 1;
+#else
+  const int num_tile_rows = 1;
+  const int num_tile_cols = 1;
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  TileInfo tile_info;
+  AV1PixelRect tile_rect = av1_whole_frame_rect(cm, 0);
+  int blk_idx = 0;
+  int tile_blk_stripe0 = 0;
+  for (int tile_row = 0; tile_row < num_tile_rows; ++tile_row) {
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+    if (cm->seq_params.disable_loopfilters_across_tiles) {
+      av1_tile_init(&tile_info, cm, tile_row, 0);
+      tile_rect = av1_get_tile_rect(&tile_info, cm, 0);
+    }
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+    const int tile_height = tile_rect.bottom - tile_rect.top;
+    for (int y_pos = -GDF_TEST_STRIPE_OFF, blk_idx_h = 0; y_pos < tile_height;
+         y_pos += cm->gdf_info.gdf_block_size, blk_idx_h++) {
+      if (blk_idx_h == cm->gdf_info.gdf_vert_blks_per_tile[tile_row]) {
+        blk_idx -= cm->gdf_info.gdf_block_num_w;
       }
-#endif
-      for (int v_pos = y_pos; v_pos < y_pos + cm->gdf_info.gdf_block_size &&
-                              v_pos < (rec_height
-#if CONFIG_GDF_IMPROVEMENT
-                                       - GDF_TEST_STRIPE_OFF
-#endif
-                                      );
-           v_pos += cm->gdf_info.gdf_unit_size) {
-        int i_min = AOMMAX(v_pos, GDF_TEST_FRAME_BOUNDARY_SIZE);
-        int i_max = AOMMIN(v_pos + cm->gdf_info.gdf_unit_size,
-                           rec_height - GDF_TEST_FRAME_BOUNDARY_SIZE);
-#if CONFIG_GDF_IMPROVEMENT && (GDF_TEST_VIRTUAL_BOUNDARY == 2)
-        gdf_setup_reference_lines(cm, i_min, i_max, v_pos);
-#endif
-        for (int u_pos = x_pos;
-             u_pos < x_pos + cm->gdf_info.gdf_block_size && u_pos < rec_width;
-             u_pos += cm->gdf_info.gdf_unit_size) {
-          int j_min = AOMMAX(u_pos, GDF_TEST_FRAME_BOUNDARY_SIZE);
-          int j_max = AOMMIN(u_pos + cm->gdf_info.gdf_unit_size,
-                             rec_width - GDF_TEST_FRAME_BOUNDARY_SIZE);
+      int blk_stripe = 0;
+      for (int tile_col = 0; tile_col < num_tile_cols; ++tile_col) {
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+        if (cm->seq_params.disable_loopfilters_across_tiles) {
+          av1_tile_init(&tile_info, cm, tile_row, tile_col);
+          tile_rect = av1_get_tile_rect(&tile_info, cm, 0);
+        }
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+        const int tile_width = tile_rect.right - tile_rect.left;
+        for (int x_pos = 0; x_pos < tile_width;
+             x_pos += cm->gdf_info.gdf_block_size) {
 #if CONFIG_BRU
-          // skip optimize on not active SB
-          // only matter if SB < 128
-          if (!bru_is_sb_active(cm, j_min >> MI_SIZE_LOG2,
-                                i_min >> MI_SIZE_LOG2)) {
+          // mark skip flag for inactive FU
+          if (bru_is_fu_skipped_mbmi(
+                  cm, (x_pos + tile_rect.left) >> MI_SIZE_LOG2,
+                  (AOMMIN(y_pos + GDF_TEST_STRIPE_OFF,
+                          rec_height - GDF_TEST_FRAME_BOUNDARY_SIZE) +
+                   tile_rect.left) >>
+                      MI_SIZE_LOG2,
+                  cm->gdf_info.gdf_block_size >> MI_SIZE_LOG2,
+                  cm->gdf_info.gdf_block_size >> MI_SIZE_LOG2)) {
+            bru_skip_blk[blk_idx] = 1;
+            blk_idx++;
             continue;
           }
 #endif
-          int use_gdf_local =
-              gdf_block_adjust_and_validate(&i_min, &i_max, &j_min, &j_max);
-          if (use_gdf_local) {
-#if CONFIG_GDF_IMPROVEMENT
-            gdf_set_lap_and_cls_unit(
-                i_min, i_max, j_min, j_max, cm->gdf_info.gdf_stripe_size,
-                cm->gdf_info.inp_ptr + cm->gdf_info.inp_stride * i_min + j_min,
-                cm->gdf_info.inp_stride, bit_depth, cm->gdf_info.lap_ptr,
-                cm->gdf_info.lap_stride, cm->gdf_info.cls_ptr,
-                cm->gdf_info.cls_stride);
-#else
-            gdf_set_lap_and_cls_unit(
-                i_min, i_max, j_min, j_max, cm->gdf_info.gdf_stripe_size,
-                cm->gdf_info.inp_ptr + rec_stride * i_min + j_min, rec_stride,
-                bit_depth, cm->gdf_info.lap_ptr, cm->gdf_info.lap_stride,
-                cm->gdf_info.cls_ptr, cm->gdf_info.cls_stride);
+          blk_stripe = 0;
+          for (int v_pos = y_pos; v_pos < y_pos + cm->gdf_info.gdf_block_size &&
+                                  v_pos < (tile_height - GDF_TEST_STRIPE_OFF);
+               v_pos += cm->gdf_info.gdf_unit_size) {
+            const int v_abs_pos = v_pos + tile_rect.top;
+            int i_min =
+                AOMMAX(v_pos, GDF_TEST_FRAME_BOUNDARY_SIZE) + tile_rect.top;
+            int i_max = AOMMIN(v_pos + cm->gdf_info.gdf_unit_size,
+                               tile_height - GDF_TEST_FRAME_BOUNDARY_SIZE) +
+                        tile_rect.top;
+#if CONFIG_GDF_IMPROVEMENT && (GDF_TEST_VIRTUAL_BOUNDARY == 2)
+            gdf_setup_reference_lines(cm, i_min, i_max, v_abs_pos,
+                                      tile_blk_stripe0 + blk_stripe);
 #endif
-          }
-          for (int qp_idx = 0; qp_idx < GDF_RDO_QP_NUM; qp_idx++) {
-            if (use_gdf_local) {
-#if CONFIG_GDF_IMPROVEMENT
-              gdf_inference_unit(
-                  i_min, i_max, j_min, j_max, cm->gdf_info.gdf_stripe_size,
-                  qp_idx + qp_idx_base,
-                  cm->gdf_info.inp_ptr + cm->gdf_info.inp_stride * i_min +
-                      j_min,
-                  cm->gdf_info.inp_stride, cm->gdf_info.lap_ptr,
-                  cm->gdf_info.lap_stride, cm->gdf_info.cls_ptr,
-                  cm->gdf_info.cls_stride, cm->gdf_info.err_ptr,
-                  cm->gdf_info.err_stride, pxl_shift, ref_dst_idx);
-#else
-              gdf_inference_unit(
-                  i_min, i_max, j_min, j_max, cm->gdf_info.gdf_stripe_size,
-                  qp_idx + qp_idx_base,
-                  cm->gdf_info.inp_ptr + rec_stride * i_min + j_min, rec_stride,
-                  cm->gdf_info.lap_ptr, cm->gdf_info.lap_stride,
-                  cm->gdf_info.cls_ptr, cm->gdf_info.cls_stride,
-                  cm->gdf_info.err_ptr, cm->gdf_info.err_stride, pxl_shift,
-                  ref_dst_idx);
+            for (int u_pos = x_pos;
+                 u_pos < x_pos + cm->gdf_info.gdf_block_size &&
+                 u_pos < tile_width;
+                 u_pos += cm->gdf_info.gdf_unit_size) {
+              int j_min =
+                  AOMMAX(u_pos, GDF_TEST_FRAME_BOUNDARY_SIZE) + tile_rect.left;
+              int j_max = AOMMIN(u_pos + cm->gdf_info.gdf_unit_size,
+                                 tile_width - GDF_TEST_FRAME_BOUNDARY_SIZE) +
+                          tile_rect.left;
+#if CONFIG_BRU
+              // skip optimize on not active SB
+              // only matter if SB < 128
+              if (!bru_is_sb_active(cm, j_min >> MI_SIZE_LOG2,
+                                    i_min >> MI_SIZE_LOG2)) {
+                continue;
+              }
 #endif
-            }
-            for (int i = i_min; i < i_max; i++) {
-              for (int j = j_min; j < j_max; j++) {
-                int rec_loc = i * rec_stride + j;
-                int org_loc = i * org_stride + j;
-                int err_loc =
-                    (i - i_min) * cm->gdf_info.err_stride + (j - j_min);
-
-                if (qp_idx == 0) {
-                  int64_t tmp_err = rec_pnt[rec_loc] - org_pnt[org_loc];
-                  rec_pic_error[blk_idx] += tmp_err * tmp_err;
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+              int tile_boundary_left = (j_min == tile_rect.left);
+              int tile_boundary_right = (j_max == tile_rect.right);
+              gdf_setup_processing_stripe_leftright_boundary(
+                  &cm->gdf_info, i_min, i_max, j_min, j_max, tile_boundary_left,
+                  tile_boundary_right);
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+              int use_gdf_local =
+                  gdf_block_adjust_and_validate(&i_min, &i_max, &j_min, &j_max);
+              if (use_gdf_local) {
+#if CONFIG_GDF_IMPROVEMENT
+                gdf_set_lap_and_cls_unit(
+                    i_min, i_max, j_min, j_max, cm->gdf_info.gdf_stripe_size,
+                    cm->gdf_info.inp_ptr + cm->gdf_info.inp_stride * i_min +
+                        j_min,
+                    cm->gdf_info.inp_stride, bit_depth, cm->gdf_info.lap_ptr,
+                    cm->gdf_info.lap_stride, cm->gdf_info.cls_ptr,
+                    cm->gdf_info.cls_stride);
+#else
+                gdf_set_lap_and_cls_unit(
+                    i_min, i_max, j_min, j_max, cm->gdf_info.gdf_stripe_size,
+                    cm->gdf_info.inp_ptr + rec_stride * i_min + j_min,
+                    rec_stride, bit_depth, cm->gdf_info.lap_ptr,
+                    cm->gdf_info.lap_stride, cm->gdf_info.cls_ptr,
+                    cm->gdf_info.cls_stride);
+#endif
+              }
+              for (int qp_idx = 0; qp_idx < GDF_RDO_QP_NUM; qp_idx++) {
+                if (use_gdf_local) {
+#if CONFIG_GDF_IMPROVEMENT
+                  gdf_inference_unit(
+                      i_min, i_max, j_min, j_max, cm->gdf_info.gdf_stripe_size,
+                      qp_idx + qp_idx_base,
+                      cm->gdf_info.inp_ptr + cm->gdf_info.inp_stride * i_min +
+                          j_min,
+                      cm->gdf_info.inp_stride, cm->gdf_info.lap_ptr,
+                      cm->gdf_info.lap_stride, cm->gdf_info.cls_ptr,
+                      cm->gdf_info.cls_stride, cm->gdf_info.err_ptr,
+                      cm->gdf_info.err_stride, pxl_shift, ref_dst_idx);
+#else
+                  gdf_inference_unit(
+                      i_min, i_max, j_min, j_max, cm->gdf_info.gdf_stripe_size,
+                      qp_idx + qp_idx_base,
+                      cm->gdf_info.inp_ptr + rec_stride * i_min + j_min,
+                      rec_stride, cm->gdf_info.lap_ptr, cm->gdf_info.lap_stride,
+                      cm->gdf_info.cls_ptr, cm->gdf_info.cls_stride,
+                      cm->gdf_info.err_ptr, cm->gdf_info.err_stride, pxl_shift,
+                      ref_dst_idx);
+#endif
                 }
+                for (int i = i_min; i < i_max; i++) {
+                  for (int j = j_min; j < j_max; j++) {
+                    int rec_loc = i * rec_stride + j;
+                    int org_loc = i * org_stride + j;
+                    int err_loc =
+                        (i - i_min) * cm->gdf_info.err_stride + (j - j_min);
 
-                for (int scale_idx = 0; scale_idx < GDF_RDO_SCALE_NUM;
-                     scale_idx++) {
-                  if (!use_gdf_local) {
-                    flg_pic_error[scale_idx][qp_idx][blk_idx] +=
-                        rec_pic_error[blk_idx];
-                    continue;
+                    if (qp_idx == 0) {
+                      int64_t tmp_err = rec_pnt[rec_loc] - org_pnt[org_loc];
+                      rec_pic_error[blk_idx] += tmp_err * tmp_err;
+                    }
+
+                    for (int scale_idx = 0; scale_idx < GDF_RDO_SCALE_NUM;
+                         scale_idx++) {
+                      if (!use_gdf_local) {
+                        flg_pic_error[scale_idx][qp_idx][blk_idx] +=
+                            rec_pic_error[blk_idx];
+                        continue;
+                      }
+                      int32_t tmp_val =
+                          (scale_idx + 1) * cm->gdf_info.err_ptr[err_loc];
+                      if (tmp_val > 0) {
+                        tmp_val = (tmp_val + err_shift_half_pow2) >> err_shift;
+                      } else {
+                        tmp_val =
+                            -(((-tmp_val) + err_shift_half_pow2) >> err_shift);
+                      }
+                      tmp_val = CLIP(tmp_val + rec_pnt[rec_loc], 0, pxl_max) -
+                                org_pnt[org_loc];
+                      flg_pic_error[scale_idx][qp_idx][blk_idx] +=
+                          (int64_t)tmp_val * tmp_val;
+                    }
                   }
-                  int32_t tmp_val =
-                      (scale_idx + 1) * cm->gdf_info.err_ptr[err_loc];
-                  if (tmp_val > 0) {
-                    tmp_val = (tmp_val + err_shift_half_pow2) >> err_shift;
-                  } else {
-                    tmp_val =
-                        -(((-tmp_val) + err_shift_half_pow2) >> err_shift);
-                  }
-                  tmp_val = CLIP(tmp_val + rec_pnt[rec_loc], 0, pxl_max) -
-                            org_pnt[org_loc];
-                  flg_pic_error[scale_idx][qp_idx][blk_idx] +=
-                      (int64_t)tmp_val * tmp_val;
                 }
               }
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+              gdf_restore_processing_stripe_leftright_boundary(
+                  &cm->gdf_info, i_min, i_max, j_min, j_max, tile_boundary_left,
+                  tile_boundary_right);
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
             }
-          }
-        }
 #if CONFIG_GDF_IMPROVEMENT && (GDF_TEST_VIRTUAL_BOUNDARY == 2)
-        gdf_unset_reference_lines(cm, i_min, i_max, v_pos);
+            gdf_unset_reference_lines(cm, i_min, i_max, v_abs_pos);
 #endif
-      }
-      blk_idx++;
-    }
-  }
+            blk_stripe++;
+          }  // v_pos
+          blk_idx++;
+        }  // x_pos
+      }  // tile_col
+      tile_blk_stripe0 += blk_stripe;
+    }  // y_pos
+  }  // tile_row
 
   int slice_rate = 1 << AV1_PROB_COST_SHIFT;
   int64_t slice_error = 0;
@@ -2775,8 +2823,7 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
  * frame
  */
 void gdf_optimize_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
-  init_gdf(&cm->gdf_info, cm->mib_size, cm->cur_frame->buf.y_height,
-           cm->cur_frame->buf.y_width);
+  init_gdf(cm);
   alloc_gdf_buffers(&cm->gdf_info);
   gdf_optimizer(cpi, cm);
 #if GDF_VERBOSE

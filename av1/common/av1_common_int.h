@@ -483,6 +483,15 @@ typedef struct {
   int inp_stride;       /*!< Stride of GDF memory storing guided frame */
   GDFLineBuffers *glbs; /*!< Line buffers needed by Guided detail filter */
 #endif
+  int gdf_vert_blks_per_tile[MAX_TILE_ROWS];    /*!< # vert blocks per tile */
+  int gdf_horz_blks_per_tile[MAX_TILE_COLS];    /*!< # horz blocks per tile */
+  int gdf_vert_stripes_per_tile[MAX_TILE_ROWS]; /*!< # stripes per tile */
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  uint16_t *tmp_save_left;  /*!< pointer to memory storing pixels to
+                              left of tile boundary */
+  uint16_t *tmp_save_right; /*!< pointer to memory storing pixels to
+                              right of tile boundary */
+#endif                      // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 } GdfInfo;
 
 /*!\brief Parameters related to CDEF */
