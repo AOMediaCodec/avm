@@ -1239,10 +1239,16 @@ void av1_finalize_encoded_frame(AV1_COMP *const cpi) {
 #endif  // !CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
     assign_frame_buffer_p(&cm->cur_frame, frame_to_show);
   }
-
+#if CONFIG_F281_OUTPUT
   if (!encode_show_existing_frame(cm) &&
       cm->seq_params.film_grain_params_present &&
-      (cm->show_frame || cm->showable_frame)) {
+      cm->showable_frame)
+#else
+  if (!encode_show_existing_frame(cm) &&
+      cm->seq_params.film_grain_params_present &&
+      (cm->show_frame || cm->showable_frame))
+#endif
+  {
     // Copy the current frame's film grain params to the its corresponding
     // RefCntBuffer slot.
     cm->cur_frame->film_grain_params = cm->film_grain_params;

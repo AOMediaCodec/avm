@@ -2547,10 +2547,11 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
 #if CONFIG_BRU
   // BRU frame does not allow mode 1
   for (int gdf_mode = cm->bru.enabled ? 2 : 1; gdf_mode < gdf_enable_max_plus_1;
-       gdf_mode++) {
+       gdf_mode++)
 #else
-  for (int gdf_mode = 1; gdf_mode < gdf_enable_max_plus_1; gdf_mode++) {
+  for (int gdf_mode = 1; gdf_mode < gdf_enable_max_plus_1; gdf_mode++)
 #endif
+  {
     for (int scale_idx = 0; scale_idx < GDF_RDO_SCALE_NUM; scale_idx++) {
       for (int qp_idx = 0; qp_idx < GDF_RDO_QP_NUM; qp_idx++) {
         slice_rate = (1 + gdf_block_enable_bit + GDF_RDO_QP_NUM_LOG2 +
@@ -2573,10 +2574,11 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
             // if bru_skip_blk[blk_idx] is set to 1, no need to check filter on
             // case.
             for (int block_flag = 0; block_flag < 2 - bru_skip_blk[blk_idx];
-                 block_flag++) {
+                 block_flag++)
 #else
-            for (int block_flag = 0; block_flag < 2; block_flag++) {
+            for (int block_flag = 0; block_flag < 2; block_flag++)
 #endif
+            {
               int block_rate = cost_from_cdf[block_flag];
               int64_t block_error = 0;
               block_error += (block_flag == 0)
@@ -3096,10 +3098,11 @@ static int encode_without_recode(AV1_COMP *cpi) {
   // not allowed. Also consider dropping this segment completely.
 #if CONFIG_ENABLE_SR
   if (cpi->sf.hl_sf.disable_unequal_scale_refs &&
-      !av1_superres_in_recode_allowed(cpi)) {
+      !av1_superres_in_recode_allowed(cpi))
 #else
-  if (cpi->sf.hl_sf.disable_unequal_scale_refs) {
+  if (cpi->sf.hl_sf.disable_unequal_scale_refs)
 #endif  // CONFIG_ENABLE_SR
+  {
     const MV_REFERENCE_FRAME golden_frame = get_best_past_ref_index(cm);
     const MV_REFERENCE_FRAME altref_frame = get_furthest_future_ref_index(cm);
     if (golden_frame != NONE_FRAME &&
@@ -4571,11 +4574,23 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     }
 
     cpi->seq_params_locked = 1;
-
+#if CONFIG_F281_OUTPUT //last_show_frame_buf
+    cpi->last_show_frame_buf = cm->cur_frame;
+#else
     // NOTE: Save the new show frame buffer index for --test-code=warn, i.e.,
     //       for the purpose to verify no mismatch between encoder and decoder.
     if (cm->show_frame) cpi->last_show_frame_buf = cm->cur_frame;
-
+#endif
+#if 1
+    printf("cm->show_existing_frame: cpi->last_show_frame_buf %p cm->cur_frame %p\n", cpi->last_show_frame_buf, cm->cur_frame);
+#endif
+#if CONFIG_F281_OUTPUT
+    if(current_frame->frame_type == KEY_FRAME) {
+      for (int i = 0; i < cm->seq_params.ref_frames; ++i) {
+        cm->ref_frame_map[i] = NULL;
+      }
+    }
+#endif
     refresh_reference_frames(cpi);
 
     // Since we allocate a spot for the OVERLAY frame in the gf group, we need
@@ -4778,10 +4793,13 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   if (frame_is_intra_only(cm) == 0) {
     release_scaled_references(cpi);
   }
-
+#if CONFIG_F281_OUTPUT //last_show_frame_buf
+  cpi->last_show_frame_buf = cm->cur_frame;
+#else
   // NOTE: Save the new show frame buffer index for --test-code=warn, i.e.,
   //       for the purpose to verify no mismatch between encoder and decoder.
   if (cm->show_frame) cpi->last_show_frame_buf = cm->cur_frame;
+#endif
 #if CONFIG_BRU
   if (cm->seq_params.enable_bru && !cm->bru.enabled) {
     bru_lookahead_buf_refresh(cpi->lookahead,
@@ -4789,7 +4807,16 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
                               cm->ref_frame_map, ENCODE_STAGE);
   }
 #endif  // CONFIG_BRU
-
+#if 1
+    printf("refresh_reference_frames is called from regular\n");
+#endif
+#if CONFIG_F281_OUTPUT
+  if(current_frame->frame_type == KEY_FRAME) {
+    for (int i = 0; i < cm->seq_params.ref_frames; ++i) {
+      cm->ref_frame_map[i] = NULL;
+    }
+  }
+#endif
   refresh_reference_frames(cpi);
 
 #if CONFIG_ENTROPY_STATS
@@ -4801,13 +4828,14 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     if (cm->seq_params.enable_avg_cdf && cm->seq_params.avg_cdf_type &&
         cm->tiles.rows * cm->tiles.cols > 1) {
       encoder_avg_tiles_cdfs(cpi);
-    } else {
+    } else
 #elif CONFIG_TILE_CDFS_AVG_TO_FRAME
     if (cm->seq_params.enable_tiles_cdfs_avg &&
         cm->tiles.rows * cm->tiles.cols > 1) {
       encoder_avg_tiles_cdfs(cpi);
-    } else {
+    } else
 #endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
+    {
       *cm->fc = cpi->tile_data[largest_tile_id].tctx;
 #if CONFIG_TILE_CDFS_AVG_TO_FRAME || CONFIG_ENHANCED_FRAME_CONTEXT_INIT
     }
@@ -4962,6 +4990,16 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
   if (is_stat_generation_stage(cpi)) {
     av1_first_pass(cpi, frame_input->ts_duration);
   } else {
+#if ENABLE_TRACE_FWK_TEST
+  printf("(av1_encode) cpi->gf_group.index:%d\tupdate_type:%d\tframe_number: %d\torder_offset: %d(%d)\tabsolute_poc:%d\tdisp_order_hint:%d\torder_hint:%d\tshow_existing_frame:%d\n",
+         cpi->gf_group.index,
+         cpi->gf_group.update_type[cpi->gf_group.index],
+         current_frame->frame_number,  frame_params->order_offset, cpi->gf_group.arf_src_offset[cpi->gf_group.index],
+         current_frame->display_order_hint,
+         current_frame->absolute_poc,
+         current_frame->order_hint,
+         cm->show_existing_frame);
+#endif
 #if CONFIG_BITSTREAM_DEBUG
     assert(cpi->oxcf.max_threads <= 1 &&
            "bitstream debug tool does not support multithreading");
@@ -5172,8 +5210,11 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
                             const aom_rational64_t *timestamp_ratio) {
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   AV1_COMMON *const cm = &cpi->common;
-
+#if CONFIG_F281_OUTPUT_TEST
+  cm->showable_frame = 1;
+#else
   cm->showable_frame = 0;
+#endif
   *size = 0;
 #if CONFIG_INTERNAL_STATS
   struct aom_usec_timer cmptimer;
@@ -5263,6 +5304,9 @@ int av1_get_preview_raw_frame(AV1_COMP *cpi, YV12_BUFFER_CONFIG *dest) {
 }
 
 int av1_get_last_show_frame(AV1_COMP *cpi, YV12_BUFFER_CONFIG *frame) {
+//#if ENABLE_VERBOSE_TRACE
+//  printf("encoder(av1_get_last_show_frame): doh %d\n", cpi->last_show_frame_buf->display_order_hint);
+//#endif
   if (cpi->last_show_frame_buf == NULL) return -1;
 
   *frame = cpi->last_show_frame_buf->buf;

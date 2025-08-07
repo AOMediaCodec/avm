@@ -3850,9 +3850,9 @@ static void dec_dump_logs(AV1_COMMON *cm, MB_MODE_INFO *const mbmi, int mi_row,
     if (mbmi->mode != GLOBALMV)
       refmv_ctx = (mode_ctx >> REFMV_OFFSET) & REFMV_CTX_MASK;
   }
-
+#if !CONFIG_F281_OUTPUT
 #define FRAME_TO_CHECK 11
-  if (cm->current_frame.frame_number == FRAME_TO_CHECK && cm->show_frame == 1) {
+  if (cm->current_frame.frame_number == FRAME_TO_CHECK && cm->show_frame == 1) { //[jkei] verbose output
     printf(
         "=== DECODER ===: "
         "Frame=%d, (mi_row,mi_col)=(%d,%d), skip_mode=%d, mode=%d, bsize=%d, "
@@ -3865,6 +3865,7 @@ static void dec_dump_logs(AV1_COMMON *cm, MB_MODE_INFO *const mbmi, int mi_row,
         mbmi->ref_frame[1], mbmi->motion_mode, mode_ctx, newmv_ctx, zeromv_ctx,
         refmv_ctx, mbmi->tx_size);
   }
+#endif
 }
 #endif  // DEC_MISMATCH_DEBUG
 

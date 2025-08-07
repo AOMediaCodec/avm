@@ -922,6 +922,15 @@ static AOM_INLINE void refresh_reference_frames(AV1_COMP *cpi) {
   if (cm->cur_frame->frame_type == KEY_FRAME && cm->show_existing_frame) {
     cm->cur_frame->display_order_hint = 0;
   }
+#if ENABLE_VERBOSE_TRACE //jkei
+  printf("(refresh_reference_frames) DOH%d\t%s\trefresh_frame_flags: %d\n", cm->cur_frame->display_order_hint,
+         (cm->cur_frame->frame_type == KEY_FRAME)?"KEY":"INTER", cm->current_frame.refresh_frame_flags);
+  for (int ref_frame = 0; ref_frame < cm->seq_params.ref_frames; ref_frame++) {
+    if(cm->ref_frame_map[ref_frame]==NULL) printf("refresh_reference_frames[%d] NULL\n", ref_frame);
+    else
+    printf("refresh_reference_frames[%d] %p\n", ref_frame, cm->ref_frame_map[ref_frame]);
+  }
+#endif
 #if CONFIG_BRU
   if (!cm->bru.enabled) {
 #endif  // CONFIG_BRU
@@ -929,6 +938,9 @@ static AOM_INLINE void refresh_reference_frames(AV1_COMP *cpi) {
     for (int ref_frame = 0; ref_frame < cm->seq_params.ref_frames;
          ref_frame++) {
       if (((cm->current_frame.refresh_frame_flags >> ref_frame) & 1) == 1) {
+#if ENABLE_VERBOSE_TRACE //jkei
+        printf("refresh_reference_frames<<<assign_frame_buffer_p>>> cur_frame %p to ref_frame_map[%d]\n", cm->cur_frame, ref_frame);
+#endif
         assign_frame_buffer_p(&cm->ref_frame_map[ref_frame], cm->cur_frame);
       }
     }

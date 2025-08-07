@@ -2823,12 +2823,16 @@ typedef struct AV1_COMP {
    * scaled_ref_buf[i] holds the scaled reference frame of type i.
    */
   RefCntBuffer *scaled_ref_buf[INTER_REFS_PER_FRAME];
-
+#if CONFIG_F281_OUTPUT
+//  int num_output_frames;
+//  RefCntBuffer *output_buffers[REF_FRAMES];
+  RefCntBuffer *last_show_frame_buf;
+#else
   /*!
    * Pointer to the buffer holding the last show frame.
    */
   RefCntBuffer *last_show_frame_buf;
-
+#endif
   /*!
    * For each type of reference frame, this contains the index of a reference
    * frame buffer for a reference frame of the same type.  We use this to

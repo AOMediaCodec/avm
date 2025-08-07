@@ -2039,6 +2039,9 @@ static void get_cx_data(struct stream_state *stream,
         break;
 
       case AOM_CODEC_CX_FRAME_PKT:
+#if CONFIG_F281_OUTPUT
+      case AVM_CODEC_CX_FRAME_REDIRECT_PKT:
+#endif
         ++stream->frames_out;
         update_rate_histogram(stream->rate_hist, cfg, pkt);
 #if CONFIG_WEBM_IO
@@ -2073,8 +2076,17 @@ static void get_cx_data(struct stream_state *stream,
 
 #if CONFIG_AV1_DECODER
         if (global->test_decode != TEST_DECODE_OFF && !stream->mismatch_seen) {
+#if CONFIG_F281_OUTPUT
+          // Advance internal pointer to point to next output frame.
+          AOM_CODEC_CONTROL_TYPECHECKED(&stream->decoder,
+                                        AOMD_INCR_OUTPUT_FRAMES_OFFSET, 1);
+#endif
           aom_codec_decode(&stream->decoder, pkt->data.frame.buf,
-                           pkt->data.frame.sz, NULL);
+                           pkt->data.frame.sz,
+#if CONFIG_F281_OUTPUT
+                           1, //pkt->kind==AVM_CODEC_CX_FRAME_REDIRECT_PKT? 1:-1,
+#endif
+                           NULL);
           if (stream->decoder.err) {
             warn_or_exit_on_error(&stream->decoder,
                                   global->test_decode == TEST_DECODE_FATAL,
@@ -2143,7 +2155,7 @@ static void test_decode(struct stream_state *stream,
 
   /* Get the internal reference frame */
   AOM_CODEC_CONTROL_TYPECHECKED(&stream->encoder, AV1_GET_NEW_FRAME_IMAGE,
-                                &enc_img);
+                                &enc_img); //ctrl_get_new_frame_image
   AOM_CODEC_CONTROL_TYPECHECKED(&stream->decoder, AV1_GET_NEW_FRAME_IMAGE,
                                 &dec_img);
 

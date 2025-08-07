@@ -146,7 +146,11 @@ int main(int argc, char **argv) {
   for (i = 0; i < num_references; ++i) {
     aom_video_reader_read_frame(reader);
     frame = aom_video_reader_get_frame(reader, &frame_size);
-    if (aom_codec_decode(&codec, frame, frame_size, NULL))
+    if (aom_codec_decode(&codec, frame, frame_size,
+#if CONFIG_F281_OUTPUT
+                         0,
+#endif
+                         NULL))
       die_codec(&codec, "Failed to decode frame.");
 
     if (i == 0) {
@@ -195,14 +199,22 @@ int main(int argc, char **argv) {
   // Must decode the camera frame header first.
   aom_video_reader_read_frame(reader);
   frame = aom_video_reader_get_frame(reader, &frame_size);
-  if (aom_codec_decode(&codec, frame, frame_size, NULL))
+  if (aom_codec_decode(&codec, frame, frame_size,
+#if CONFIG_F281_OUTPUT
+                         0,
+#endif
+                       NULL))
     die_codec(&codec, "Failed to decode the frame.");
   // Decode tile lists one by one.
   for (n = 0; n < num_tile_lists; n++) {
     aom_video_reader_read_frame(reader);
     frame = aom_video_reader_get_frame(reader, &frame_size);
 
-    if (aom_codec_decode(&codec, frame, frame_size, NULL))
+    if (aom_codec_decode(&codec, frame, frame_size,
+#if CONFIG_F281_OUTPUT
+                         0,
+#endif
+                         NULL))
       die_codec(&codec, "Failed to decode the tile list.");
     aom_codec_iter_t iter = NULL;
     aom_image_t *img = aom_codec_get_frame(&codec, &iter);

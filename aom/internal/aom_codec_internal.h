@@ -213,6 +213,9 @@ static AOM_INLINE int at_ctrl_map_end(aom_codec_ctrl_fn_map_t *e) {
 typedef aom_codec_err_t (*aom_codec_decode_fn_t)(aom_codec_alg_priv_t *ctx,
                                                  const uint8_t *data,
                                                  size_t data_sz,
+#if CONFIG_F281_OUTPUT
+                                                 int is_test_decoder,
+#endif
                                                  void *user_priv);
 
 /*!\brief Decoded frames iterator

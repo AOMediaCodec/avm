@@ -127,7 +127,7 @@ int av1_check_trailing_bits(AV1Decoder *pbi, struct aom_read_bit_buffer *rb) {
   AV1_COMMON *const cm = &pbi->common;
   // bit_offset is set to 0 (mod 8) when the reader is already byte aligned
   int bits_before_alignment = 8 - rb->bit_offset % 8;
-  int trailing = aom_rb_read_literal(rb, bits_before_alignment);
+  int trailing = aom_rb_read_literal(rb, bits_before_alignment ADD_DECTRACE("trailing"));
   if (trailing != (1 << (bits_before_alignment - 1))) {
     cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
     return -1;
@@ -168,7 +168,7 @@ static int read_is_valid(const uint8_t *start, size_t len, const uint8_t *end) {
 static TX_MODE read_tx_mode(struct aom_read_bit_buffer *rb,
                             int coded_lossless) {
   if (coded_lossless) return ONLY_4X4;
-  return aom_rb_read_bit(rb) ? TX_MODE_SELECT : TX_MODE_LARGEST;
+  return aom_rb_read_bit(rb ADD_DECTRACE("tx_mode")) ? TX_MODE_SELECT : TX_MODE_LARGEST;
 }
 
 static REFERENCE_MODE read_frame_reference_mode(
@@ -176,7 +176,7 @@ static REFERENCE_MODE read_frame_reference_mode(
   if (frame_is_intra_only(cm)) {
     return SINGLE_REFERENCE;
   } else {
-    return aom_rb_read_bit(rb) ? REFERENCE_MODE_SELECT : SINGLE_REFERENCE;
+    return aom_rb_read_bit(rb ADD_DECTRACE("reference_mode")) ? REFERENCE_MODE_SELECT : SINGLE_REFERENCE;
   }
 }
 
@@ -2074,7 +2074,7 @@ direct_recon:
       cm->seq_params.order_hint_info.enable_ref_frame_mvs) {
     MB_MODE_INFO *const mi = xd->mi[0];
 #if CONFIG_IMPROVE_REFINED_MV
-    if (enable_refined_mvs_in_tmvp(cm, xd, mi)) {
+    if (enable_refined_mvs_in_tmvp(cm, xd, mi))
 #else
     if (opfl_allowed_for_cur_block(cm,
 #if CONFIG_COMPOUND_4XN
@@ -2084,8 +2084,9 @@ direct_recon:
 #if CONFIG_REFINEMV
         || (mi->refinemv_flag && mi->interinter_comp.type == COMPOUND_AVERAGE)
 #endif  // CONFIG_REFINEMV
-    ) {
+    )
 #endif  // CONFIG_IMPROVE_REFINED_MV
+    {
       const int bw = mi_size_wide[bsize];
       const int bh = mi_size_high[bsize];
       const int x_inside_boundary = AOMMIN(bw, cm->mi_params.mi_cols - mi_col);
@@ -2892,11 +2893,11 @@ static AOM_INLINE void setup_bru_active_info(AV1_COMMON *const cm,
   memset(cm->bru.active_mode_map, 2, sizeof(uint8_t) * cm->bru.total_units);
   cm->bru.frame_inactive_flag = 0;
   if (cm->seq_params.enable_bru) {
-    cm->bru.enabled = aom_rb_read_bit(rb);
+    cm->bru.enabled = aom_rb_read_bit(rb ADD_DECTRACE("cm->bru.enabled"));
     if (cm->bru.enabled) {
       memset(cm->bru.active_mode_map, 0, sizeof(uint8_t) * cm->bru.total_units);
-      cm->bru.explicit_ref_idx = aom_rb_read_literal(rb, REF_FRAMES_LOG2);
-      cm->bru.frame_inactive_flag = aom_rb_read_bit(rb);
+      cm->bru.explicit_ref_idx = aom_rb_read_literal(rb, REF_FRAMES_LOG2 ADD_DECTRACE("cm->bru.explicit_ref_idx"));
+      cm->bru.frame_inactive_flag = aom_rb_read_bit(rb ADD_DECTRACE("cm->bru.frame_inactive_flag"));
     }
   }
 }
@@ -2912,7 +2913,7 @@ static AOM_INLINE void setup_segmentation(AV1_COMMON *const cm,
   seg->enable_ext_seg = cm->seq_params.enable_ext_seg;
 #endif  // CONFIG_EXT_SEG
 
-  seg->enabled = aom_rb_read_bit(rb);
+  seg->enabled = aom_rb_read_bit(rb ADD_DECTRACE("seg->enabled"));
   if (!seg->enabled) {
     if (cm->cur_frame->seg_map) {
       memset(cm->cur_frame->seg_map, 0,
@@ -2936,22 +2937,23 @@ static AOM_INLINE void setup_segmentation(AV1_COMMON *const cm,
   }
   // Read update flags
 #if CONFIG_PRIMARY_REF_FRAME_OPT
-  if (cm->features.derived_primary_ref_frame == PRIMARY_REF_NONE) {
+  if (cm->features.derived_primary_ref_frame == PRIMARY_REF_NONE)
 #else
-  if (cm->features.primary_ref_frame == PRIMARY_REF_NONE) {
+  if (cm->features.primary_ref_frame == PRIMARY_REF_NONE)
 #endif  // CONFIG_PRIMARY_REF_FRAME_OPT
+  {
     // These frames can't use previous frames, so must signal map + features
     seg->update_map = 1;
     seg->temporal_update = 0;
     seg->update_data = 1;
   } else {
-    seg->update_map = aom_rb_read_bit(rb);
+    seg->update_map = aom_rb_read_bit(rb ADD_DECTRACE("seg->update_map"));
     if (seg->update_map) {
-      seg->temporal_update = aom_rb_read_bit(rb);
+      seg->temporal_update = aom_rb_read_bit(rb ADD_DECTRACE("seg->temporal_update"));
     } else {
       seg->temporal_update = 0;
     }
-    seg->update_data = aom_rb_read_bit(rb);
+    seg->update_data = aom_rb_read_bit(rb ADD_DECTRACE("seg->update_data"));
   }
 
   // Segmentation data update
@@ -2966,7 +2968,7 @@ static AOM_INLINE void setup_segmentation(AV1_COMMON *const cm,
     for (int i = 0; i < max_seg_num; i++) {
       for (int j = 0; j < SEG_LVL_MAX; j++) {
         int data = 0;
-        const int feature_enabled = aom_rb_read_bit(rb);
+        const int feature_enabled = aom_rb_read_bit(rb ADD_DECTRACE("feature_enabled"));
         if (feature_enabled) {
           av1_enable_segfeature(seg, i, j);
 
@@ -2975,9 +2977,9 @@ static AOM_INLINE void setup_segmentation(AV1_COMMON *const cm,
           const int ubits = get_unsigned_bits(data_max);
 
           if (av1_is_segfeature_signed(j)) {
-            data = aom_rb_read_inv_signed_literal(rb, ubits);
+            data = aom_rb_read_inv_signed_literal(rb, ubits ADD_DECTRACE("data"));
           } else {
-            data = aom_rb_read_literal(rb, ubits);
+            data = aom_rb_read_literal(rb, ubits ADD_DECTRACE("data"));
           }
 
           data = clamp(data, data_min, data_max);
@@ -2993,15 +2995,20 @@ static AOM_INLINE void setup_segmentation(AV1_COMMON *const cm,
 }
 
 // Same function as av1_read_uniform but reading from uncompressed header rb
-static int rb_read_uniform(struct aom_read_bit_buffer *const rb, int n) {
+#if ENABLE_DECTRACE
+static int rb_read_uniform(struct aom_read_bit_buffer *const rb, int n, const char* str)
+#else
+static int rb_read_uniform(struct aom_read_bit_buffer *const rb, int n)
+#endif
+{
   const int l = get_unsigned_bits(n);
   const int m = (1 << l) - n;
-  const int v = aom_rb_read_literal(rb, l - 1);
+  const int v = aom_rb_read_literal(rb, l - 1 ADD_DECTRACE(str));
   assert(l != 0);
   if (v < m)
     return v;
   else
-    return (v << 1) - m + aom_rb_read_bit(rb);
+    return (v << 1) - m + aom_rb_read_bit(rb ADD_DECTRACE(str));
 }
 
 // Converts decoded index to frame restoration type depending on lr tools
@@ -3046,15 +3053,15 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
     uint8_t plane_lr_tools_disable_mask =
         cm->seq_params.lr_tools_disable_mask[p > 0];
     av1_set_lr_tools(plane_lr_tools_disable_mask, p, &cm->features);
-    const int ndx = rb_read_uniform(rb, cm->features.lr_frame_tools_count[p]);
+    const int ndx = rb_read_uniform(rb, cm->features.lr_frame_tools_count[p] ADD_DECTRACE_I2("ndx", p));
     rsi->frame_restoration_type = index_to_frame_restoration_type(cm, p, ndx);
     if (rsi->frame_restoration_type == RESTORE_SWITCHABLE &&
         cm->features.lr_tools_count[p] > 2) {
-      if (aom_rb_read_bit(rb)) {
+      if (aom_rb_read_bit(rb ADD_DECTRACE_I2("lr_tools", p))) {
         int tools_count = cm->features.lr_tools_count[p];
         for (int i = 1; i < RESTORE_SWITCHABLE_TYPES; ++i) {
           if (!(plane_lr_tools_disable_mask & (1 << i))) {
-            const int disable_tool = aom_rb_read_bit(rb);
+            const int disable_tool = aom_rb_read_bit(rb ADD_DECTRACE_I2("disable_tool", p));
             plane_lr_tools_disable_mask |= (disable_tool << i);
             tools_count -= disable_tool;
             // if tools_count becomes 2 break from the loop since we
@@ -3079,7 +3086,7 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
       if (is_frame_filters_enabled(p)) {
         const int read_frame_filters_on_off = 1;
         if (read_frame_filters_on_off) {
-          rsi->frame_filters_on = aom_rb_read_literal(rb, 1);
+          rsi->frame_filters_on = aom_rb_read_literal(rb, 1 ADD_DECTRACE_I2("rsi->frame_filters_on", p));
 #if CONFIG_TEMP_LR
           rsi->rst_ref_pic_idx = 0;
           rsi->temporal_pred_flag = 0;
@@ -3090,11 +3097,11 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
                     : cm->ref_frames_info.num_total_refs;
 
             if (num_ref_frames > 0)
-              rsi->temporal_pred_flag = aom_rb_read_bit(rb);
+              rsi->temporal_pred_flag = aom_rb_read_bit(rb ADD_DECTRACE_I2("rsi->temporal_pred_flag", p));
             if (rsi->temporal_pred_flag && num_ref_frames > 1) {
               rsi->rst_ref_pic_idx = aom_rb_read_literal(
                   rb,
-                  av1_ceil_log2(num_ref_frames));  // read_lr_reference_idx
+                  av1_ceil_log2(num_ref_frames) ADD_DECTRACE_I2("rsi->rst_ref_pic_idx", p));  // read_lr_reference_idx
             }
           }
 
@@ -3122,7 +3129,7 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
 #endif  // CONFIG_TEMP_LR
             if (rsi->frame_filters_on && max_num_classes(p) > 1) {
               rsi->num_filter_classes = decode_num_filter_classes(
-                  aom_rb_read_literal(rb, NUM_FILTER_CLASSES_BITS));
+                  aom_rb_read_literal(rb, NUM_FILTER_CLASSES_BITS ADD_DECTRACE_I2("rsi->num_filter_classes", p)) );
             } else
               rsi->num_filter_classes = 1;
 #if CONFIG_TEMP_LR
@@ -3172,10 +3179,10 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
   }
 #endif  // CONFIG_BRU
   if (!luma_none) {
-    if (aom_rb_read_bit(rb))
+    if (aom_rb_read_bit(rb ADD_DECTRACE("restoration_unit_size0")))
       cm->rst_info[0].restoration_unit_size = size >> 1;
     else {
-      if (aom_rb_read_bit(rb))
+      if (aom_rb_read_bit(rb ADD_DECTRACE("restoration_unit_size1")))
         cm->rst_info[0].restoration_unit_size = size;
       else
         cm->rst_info[0].restoration_unit_size = size >> 2;
@@ -3186,10 +3193,10 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
         cm->rst_info[1].max_restoration_unit_size;
     if (!chroma_none) {
       size = cm->rst_info[1].max_restoration_unit_size;
-      if (aom_rb_read_bit(rb))
+      if (aom_rb_read_bit(rb ADD_DECTRACE("restoration_chroma_unit_size0")))
         cm->rst_info[1].restoration_unit_size = size >> 1;
       else {
-        if (aom_rb_read_bit(rb))
+        if (aom_rb_read_bit(rb ADD_DECTRACE("restoration_chroma_unit_size1")))
           cm->rst_info[1].restoration_unit_size = size;
         else
           cm->rst_info[1].restoration_unit_size = size >> 2;
@@ -3739,16 +3746,16 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
     av1_set_default_mode_deltas(lf->mode_deltas);
   }
 
-  lf->filter_level[0] = aom_rb_read_bit(rb);
+  lf->filter_level[0] = aom_rb_read_bit(rb ADD_DECTRACE("lf->filter_level[0]"));
 #if DF_DUAL
-  lf->filter_level[1] = aom_rb_read_bit(rb);
+  lf->filter_level[1] = aom_rb_read_bit(rb ADD_DECTRACE("lf->filter_level[1]"));
 #else
   lf->filter_level[1] = lf->filter_level[0];
 #endif  // DF_DUAL
   if (num_planes > 1) {
     if (lf->filter_level[0] || lf->filter_level[1]) {
-      lf->filter_level_u = aom_rb_read_bit(rb);
-      lf->filter_level_v = aom_rb_read_bit(rb);
+      lf->filter_level_u = aom_rb_read_bit(rb ADD_DECTRACE("lf->filter_level_u"));
+      lf->filter_level_v = aom_rb_read_bit(rb ADD_DECTRACE("lf->filter_level_v"));
     } else {
       lf->filter_level_u = lf->filter_level_v = 0;
     }
@@ -3769,18 +3776,18 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
 
 #if DF_DUAL
   if (lf->filter_level[0]) {
-    int luma_delta_q = aom_rb_read_bit(rb);
+    int luma_delta_q = aom_rb_read_bit(rb ADD_DECTRACE("luma_delta_q"));
     if (luma_delta_q) {
       lf->delta_q_luma[0] =
-          aom_rb_read_literal(rb, df_par_bits) - df_par_offset;
+          aom_rb_read_literal(rb, df_par_bits ADD_DECTRACE("lf->delta_q_luma[0]")) - df_par_offset;
     } else {
       lf->delta_q_luma[0] = 0;
     }
 #if DF_TWO_PARAM
-    int luma_delta_side = aom_rb_read_bit(rb);
+    int luma_delta_side = aom_rb_read_bit(rb ADD_DECTRACE("luma_delta_side"));
     if (luma_delta_side) {
       lf->delta_side_luma[0] =
-          aom_rb_read_literal(rb, df_par_bits) - df_par_offset;
+          aom_rb_read_literal(rb, df_par_bits ADD_DECTRACE("lf->delta_side_luma[0]")) - df_par_offset;
     } else {
       lf->delta_side_luma[0] = 0;
     }
@@ -3792,18 +3799,18 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
     lf->delta_side_luma[0] = 0;
   }
   if (lf->filter_level[1]) {
-    int luma_delta_q = aom_rb_read_bit(rb);
+    int luma_delta_q = aom_rb_read_bit(rb ADD_DECTRACE("luma_delta_q"));
     if (luma_delta_q) {
       lf->delta_q_luma[1] =
-          aom_rb_read_literal(rb, df_par_bits) - df_par_offset;
+          aom_rb_read_literal(rb, df_par_bits ADD_DECTRACE("lf->delta_q_luma[1]")) - df_par_offset;
     } else {
       lf->delta_q_luma[1] = lf->delta_q_luma[0];
     }
 #if DF_TWO_PARAM
-    int luma_delta_side = aom_rb_read_bit(rb);
+    int luma_delta_side = aom_rb_read_bit(rb ADD_DECTRACE("luma_delta_side"));
     if (luma_delta_side) {
       lf->delta_side_luma[1] =
-          aom_rb_read_literal(rb, df_par_bits) - df_par_offset;
+          aom_rb_read_literal(rb, df_par_bits ADD_DECTRACE("lf->delta_side_luma[1]")) - df_par_offset;
     } else {
       lf->delta_side_luma[1] = lf->delta_side_luma[0];
     }
@@ -3816,17 +3823,17 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
   }
 #else
   if (lf->filter_level[0] || lf->filter_level[1]) {
-    int luma_delta_q = aom_rb_read_bit(rb);
+    int luma_delta_q = aom_rb_read_bit(rb ADD_DECTRACE("luma_delta_q"));
     if (luma_delta_q) {
-      lf->delta_q_luma = aom_rb_read_literal(rb, df_par_bits) - df_par_offset;
+      lf->delta_q_luma = aom_rb_read_literal(rb, df_par_bits ADD_DECTRACE("lf->delta_q_luma")) - df_par_offset;
     } else {
       lf->delta_q_luma = 0;
     }
 #if DF_TWO_PARAM
-    int luma_delta_side = aom_rb_read_bit(rb);
+    int luma_delta_side = aom_rb_read_bit(rb ADD_DECTRACE("luma_delta_side"));
     if (luma_delta_side) {
       lf->delta_side_luma =
-          aom_rb_read_literal(rb, df_par_bits) - df_par_offset;
+          aom_rb_read_literal(rb, df_par_bits ADD_DECTRACE("lf->delta_side_luma")) - df_par_offset;
     } else {
       lf->delta_side_luma = 0;
     }
@@ -3840,16 +3847,16 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
 #endif  // DF_DUAL
 
   if (lf->filter_level_u) {
-    int u_delta_q = aom_rb_read_bit(rb);
+    int u_delta_q = aom_rb_read_bit(rb ADD_DECTRACE("u_delta_q"));
     if (u_delta_q) {
-      lf->delta_q_u = aom_rb_read_literal(rb, df_par_bits) - df_par_offset;
+      lf->delta_q_u = aom_rb_read_literal(rb, df_par_bits ADD_DECTRACE("lf->delta_q_u")) - df_par_offset;
     } else {
       lf->delta_q_u = 0;
     }
 #if DF_TWO_PARAM
-    int u_delta_side = aom_rb_read_bit(rb);
+    int u_delta_side = aom_rb_read_bit(rb ADD_DECTRACE("u_delta_side"));
     if (u_delta_side) {
-      lf->delta_side_u = aom_rb_read_literal(rb, df_par_bits) - df_par_offset;
+      lf->delta_side_u = aom_rb_read_literal(rb, df_par_bits ADD_DECTRACE("lf->delta_side_u")) - df_par_offset;
     } else {
       lf->delta_side_u = 0;
     }
@@ -3861,16 +3868,16 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
     lf->delta_side_u = 0;
   }
   if (lf->filter_level_v) {
-    int v_delta_q = aom_rb_read_bit(rb);
+    int v_delta_q = aom_rb_read_bit(rb ADD_DECTRACE("v_delta_q"));
     if (v_delta_q) {
-      lf->delta_q_v = aom_rb_read_literal(rb, df_par_bits) - df_par_offset;
+      lf->delta_q_v = aom_rb_read_literal(rb, df_par_bits ADD_DECTRACE("lf->delta_q_v")) - df_par_offset;
     } else {
       lf->delta_q_v = 0;
     }
 #if DF_TWO_PARAM
-    int v_delta_side = aom_rb_read_bit(rb);
+    int v_delta_side = aom_rb_read_bit(rb ADD_DECTRACE("v_delta_side"));
     if (v_delta_side) {
-      lf->delta_side_v = aom_rb_read_literal(rb, df_par_bits) - df_par_offset;
+      lf->delta_side_v = aom_rb_read_literal(rb, df_par_bits ADD_DECTRACE("lf->delta_side_v")) - df_par_offset;
     } else {
       lf->delta_side_v = 0;
     }
@@ -3897,15 +3904,15 @@ static AOM_INLINE void setup_gdf(AV1_COMMON *cm,
 #endif
   init_gdf(&cm->gdf_info, cm->mib_size, cm->cur_frame->buf.y_height,
            cm->cur_frame->buf.y_width);
-  cm->gdf_info.gdf_mode = aom_rb_read_bit(rb);
+  cm->gdf_info.gdf_mode = aom_rb_read_bit(rb ADD_DECTRACE("cm->gdf_info.gdf_mode"));
   if (cm->gdf_info.gdf_mode > 0) {
     alloc_gdf_buffers(&cm->gdf_info);
     if (cm->gdf_info.gdf_block_num > 1) {
-      cm->gdf_info.gdf_mode += aom_rb_read_bit(rb);
+      cm->gdf_info.gdf_mode += aom_rb_read_bit(rb ADD_DECTRACE("cm->gdf_info.gdf_mode"));
     }
-    cm->gdf_info.gdf_pic_qp_idx = aom_rb_read_literal(rb, GDF_RDO_QP_NUM_LOG2);
+    cm->gdf_info.gdf_pic_qp_idx = aom_rb_read_literal(rb, GDF_RDO_QP_NUM_LOG2 ADD_DECTRACE("cm->gdf_info.gdf_pic_qp_idx"));
     cm->gdf_info.gdf_pic_scale_idx =
-        aom_rb_read_literal(rb, GDF_RDO_SCALE_NUM_LOG2);
+        aom_rb_read_literal(rb, GDF_RDO_SCALE_NUM_LOG2 ADD_DECTRACE("cm->gdf_info.gdf_pic_scale_idx"));
   }
 }
 #endif  // CONFIG_GDF
@@ -3921,7 +3928,7 @@ static AOM_INLINE void setup_cdef(AV1_COMMON *cm,
   if (cm->bru.frame_inactive_flag) return;
 #endif  // CONFIG_BRU
 #if CONFIG_FIX_CDEF_SYNTAX
-  cdef_info->cdef_frame_enable = aom_rb_read_bit(rb);
+  cdef_info->cdef_frame_enable = aom_rb_read_bit(rb ADD_DECTRACE("cdef_info->cdef_frame_enable"));
   if (!cdef_info->cdef_frame_enable) {
 #if CONFIG_CDEF_ENHANCEMENTS
     cdef_info->cdef_on_skip_txfm_frame_enable = 0;
@@ -3929,11 +3936,11 @@ static AOM_INLINE void setup_cdef(AV1_COMMON *cm,
     return;
   }
 #endif  // CONFIG_FIX_CDEF_SYNTAX
-  cdef_info->cdef_damping = aom_rb_read_literal(rb, 2) + 3;
+  cdef_info->cdef_damping = aom_rb_read_literal(rb, 2 ADD_DECTRACE("cdef_info->cdef_damping")) + 3;
 #if CONFIG_CDEF_ENHANCEMENTS
-  cdef_info->nb_cdef_strengths = aom_rb_read_literal(rb, 3) + 1;
+  cdef_info->nb_cdef_strengths = aom_rb_read_literal(rb, 3 ADD_DECTRACE("cdef_info->nb_cdef_strengths")) + 1;
   if (cm->seq_params.enable_cdef_on_skip_txfm == CDEF_ON_SKIP_TXFM_ADAPTIVE) {
-    cdef_info->cdef_on_skip_txfm_frame_enable = aom_rb_read_bit(rb);
+    cdef_info->cdef_on_skip_txfm_frame_enable = aom_rb_read_bit(rb ADD_DECTRACE("cdef_info->cdef_on_skip_txfm_frame_enable"));
   } else if (cm->seq_params.enable_cdef_on_skip_txfm ==
              CDEF_ON_SKIP_TXFM_ALWAYS_ON) {
     cdef_info->cdef_on_skip_txfm_frame_enable = 1;
@@ -3941,34 +3948,34 @@ static AOM_INLINE void setup_cdef(AV1_COMMON *cm,
     cdef_info->cdef_on_skip_txfm_frame_enable = 0;
   }
 #else
-  cdef_info->cdef_bits = aom_rb_read_literal(rb, 2);
+  cdef_info->cdef_bits = aom_rb_read_literal(rb, 2 ADD_DECTRACE("cdef_info->cdef_bits"));
   cdef_info->nb_cdef_strengths = 1 << cdef_info->cdef_bits;
 #endif  // CONFIG_CDEF_ENHANCEMENTS
   for (int i = 0; i < cdef_info->nb_cdef_strengths; i++) {
 #if CONFIG_CDEF_ENHANCEMENTS
-    int less_4 = aom_rb_read_bit(rb);
+    int less_4 = aom_rb_read_bit(rb ADD_DECTRACE("less_4"));
     if (less_4) {
-      cdef_info->cdef_strengths[i] = aom_rb_read_literal(rb, 2);
+      cdef_info->cdef_strengths[i] = aom_rb_read_literal(rb, 2 ADD_DECTRACE("cdef_info->cdef_strengths[i]"));
     } else {
       cdef_info->cdef_strengths[i] =
-          aom_rb_read_literal(rb, CDEF_STRENGTH_BITS);
+          aom_rb_read_literal(rb, CDEF_STRENGTH_BITS ADD_DECTRACE("cdef_info->cdef_strengths[i]"));
     }
 #else
-    cdef_info->cdef_strengths[i] = aom_rb_read_literal(rb, CDEF_STRENGTH_BITS);
+    cdef_info->cdef_strengths[i] = aom_rb_read_literal(rb, CDEF_STRENGTH_BITS ADD_DECTRACE("cdef_info->cdef_strengths[i]"));
 #endif  // CONFIG_CDEF_ENHANCEMENTS
 
     if (num_planes > 1) {
 #if CONFIG_CDEF_ENHANCEMENTS
-      less_4 = aom_rb_read_bit(rb);
+      less_4 = aom_rb_read_bit(rb ADD_DECTRACE("less_4"));
       if (less_4) {
-        cdef_info->cdef_uv_strengths[i] = aom_rb_read_literal(rb, 2);
+        cdef_info->cdef_uv_strengths[i] = aom_rb_read_literal(rb, 2 ADD_DECTRACE("cdef_info->cdef_uv_strengths[i]"));
       } else {
         cdef_info->cdef_uv_strengths[i] =
-            aom_rb_read_literal(rb, CDEF_STRENGTH_BITS);
+            aom_rb_read_literal(rb, CDEF_STRENGTH_BITS ADD_DECTRACE("cdef_info->cdef_uv_strengths[i]"));
       }
 #else
       cdef_info->cdef_uv_strengths[i] =
-          aom_rb_read_literal(rb, CDEF_STRENGTH_BITS);
+          aom_rb_read_literal(rb, CDEF_STRENGTH_BITS ADD_DECTRACE("cdef_info->cdef_uv_strengths[i]"));
 #endif  // CONFIG_CDEF_ENHANCEMENTS
     } else {
       cdef_info->cdef_uv_strengths[i] = 0;
@@ -3980,7 +3987,7 @@ static AOM_INLINE void setup_cdef(AV1_COMMON *cm,
 static AOM_INLINE int read_ccso_offset_idx(struct aom_read_bit_buffer *rb) {
   int offset_idx = 0;
   for (int idx = 0; idx < 7; ++idx) {
-    const int cur_bit = aom_rb_read_bit(rb);
+    const int cur_bit = aom_rb_read_bit(rb ADD_DECTRACE(""));
     if (!cur_bit) break;
     offset_idx++;
   }
@@ -4006,7 +4013,7 @@ static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
 #endif  // CONFIG_BRU
   const int ccso_offset[8] = { 0, 1, -1, 3, -3, 7, -7, -10 };
   const int ccso_scale[4] = { 1, 2, 3, 4 };
-  cm->ccso_info.ccso_frame_flag = aom_rb_read_literal(rb, 1);
+  cm->ccso_info.ccso_frame_flag = aom_rb_read_literal(rb, 1 ADD_DECTRACE("cm->ccso_info.ccso_frame_flag"));
   if (cm->ccso_info.ccso_frame_flag) {
     for (int plane = 0; plane < av1_num_planes(cm); plane++) {
       CcsoInfo *ref_frame_ccso_info = NULL;
@@ -4014,12 +4021,12 @@ static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
           plane ? cm->seq_params.subsampling_y : 0;
       cm->cur_frame->ccso_info.subsampling_x[plane] =
           plane ? cm->seq_params.subsampling_x : 0;
-      cm->ccso_info.ccso_enable[plane] = aom_rb_read_literal(rb, 1);
+      cm->ccso_info.ccso_enable[plane] = aom_rb_read_literal(rb, 1 ADD_DECTRACE_I2("cm->ccso_info.ccso_enable", plane));
       if (cm->ccso_info.ccso_enable[plane]) {
         cm->cur_frame->ccso_info.ccso_enable[plane] = 1;
         if (!frame_is_intra_only(cm)) {
-          cm->ccso_info.reuse_ccso[plane] = aom_rb_read_literal(rb, 1);
-          cm->ccso_info.sb_reuse_ccso[plane] = aom_rb_read_literal(rb, 1);
+          cm->ccso_info.reuse_ccso[plane] = aom_rb_read_literal(rb, 1 ADD_DECTRACE_I2("cm->ccso_info.reuse_ccso", plane));
+          cm->ccso_info.sb_reuse_ccso[plane] = aom_rb_read_literal(rb, 1 ADD_DECTRACE_I2("cm->ccso_info.sb_reuse_ccso", plane));
         } else {
           cm->ccso_info.reuse_ccso[plane] = 0;
           cm->ccso_info.sb_reuse_ccso[plane] = 0;
@@ -4027,7 +4034,7 @@ static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
 
         if (cm->ccso_info.reuse_ccso[plane] ||
             cm->ccso_info.sb_reuse_ccso[plane]) {
-          cm->ccso_info.ccso_ref_idx[plane] = aom_rb_read_literal(rb, 3);
+          cm->ccso_info.ccso_ref_idx[plane] = aom_rb_read_literal(rb, 3 ADD_DECTRACE_I2("cm->ccso_info.ccso_ref_idx", plane));
           if (cm->ccso_info.ccso_ref_idx[plane] >=
               cm->ref_frames_info.num_total_refs) {
             aom_internal_error(
@@ -4058,19 +4065,19 @@ static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
         }
 
         if (!cm->ccso_info.reuse_ccso[plane]) {
-          cm->ccso_info.ccso_bo_only[plane] = aom_rb_read_literal(rb, 1);
-          cm->ccso_info.scale_idx[plane] = aom_rb_read_literal(rb, 2);
+          cm->ccso_info.ccso_bo_only[plane] = aom_rb_read_literal(rb, 1 ADD_DECTRACE_I2("cm->ccso_info.ccso_bo_only", plane));
+          cm->ccso_info.scale_idx[plane] = aom_rb_read_literal(rb, 2 ADD_DECTRACE_I2("cm->ccso_info.scale_idx", plane));
           if (cm->ccso_info.ccso_bo_only[plane]) {
             cm->ccso_info.quant_idx[plane] = 0;
             cm->ccso_info.ext_filter_support[plane] = 0;
             cm->ccso_info.edge_clf[plane] = 0;
-            cm->ccso_info.max_band_log2[plane] = aom_rb_read_literal(rb, 3);
+            cm->ccso_info.max_band_log2[plane] = aom_rb_read_literal(rb, 3 ADD_DECTRACE_I2("cm->ccso_info.max_band_log2", plane));
           } else {
-            cm->ccso_info.quant_idx[plane] = aom_rb_read_literal(rb, 2);
+            cm->ccso_info.quant_idx[plane] = aom_rb_read_literal(rb, 2 ADD_DECTRACE_I2("cm->ccso_info.quant_idx", plane));
             cm->ccso_info.ext_filter_support[plane] =
-                aom_rb_read_literal(rb, 3);
-            cm->ccso_info.edge_clf[plane] = aom_rb_read_bit(rb);
-            cm->ccso_info.max_band_log2[plane] = aom_rb_read_literal(rb, 2);
+                aom_rb_read_literal(rb, 3 ADD_DECTRACE_I2("cm->ccso_info.ext_filter_support", plane));
+            cm->ccso_info.edge_clf[plane] = aom_rb_read_bit(rb ADD_DECTRACE_I2("cm->ccso_info.edge_clf", plane));
+            cm->ccso_info.max_band_log2[plane] = aom_rb_read_literal(rb, 2 ADD_DECTRACE_I2("cm->ccso_info.max_band_log2", plane));
           }
           const int max_band = 1 << cm->ccso_info.max_band_log2[plane];
           const int edge_clf = cm->ccso_info.edge_clf[plane];
@@ -4085,6 +4092,9 @@ static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
                 cm->ccso_info.filter_offset[plane][lut_idx_ext] =
                     ccso_offset[offset_idx] *
                     ccso_scale[cm->ccso_info.scale_idx[plane]];
+#if  ENABLE_ENCTRACE
+                printf("cm->ccso_info[%d].filter_offset[%d]\t%d\n", plane, lut_idx_ext, cm->ccso_info.filter_offset[plane][lut_idx_ext]);
+#endif
               }
             }
           }
@@ -4112,8 +4122,13 @@ static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
   }
 }
 
-static INLINE int read_delta_q(struct aom_read_bit_buffer *rb) {
-  return aom_rb_read_bit(rb) ? aom_rb_read_inv_signed_literal(rb, 6) : 0;
+#if ENABLE_DECTRACE
+static INLINE int read_delta_q(struct aom_read_bit_buffer *rb, const char* str)
+#else
+static INLINE int read_delta_q(struct aom_read_bit_buffer *rb)
+#endif
+{
+  return aom_rb_read_bit(rb ADD_DECTRACE(str)) ? aom_rb_read_inv_signed_literal(rb, 6 ADD_DECTRACE(str)) : 0;
 }
 
 static AOM_INLINE void setup_quantization(CommonQuantParams *quant_params,
@@ -4123,14 +4138,14 @@ static AOM_INLINE void setup_quantization(CommonQuantParams *quant_params,
   aom_bit_depth_t bit_depth = seq_params->bit_depth;
   bool separate_uv_delta_q = seq_params->separate_uv_delta_q;
   quant_params->base_qindex = aom_rb_read_literal(
-      rb, bit_depth == AOM_BITS_8 ? QINDEX_BITS_UNEXT : QINDEX_BITS);
+      rb, bit_depth == AOM_BITS_8 ? QINDEX_BITS_UNEXT : QINDEX_BITS ADD_DECTRACE("quant_params->base_qindex"));
 #if CONFIG_EXT_QUANT_UPD
   if (seq_params->y_dc_delta_q_enabled)
-    quant_params->y_dc_delta_q = read_delta_q(rb);
+    quant_params->y_dc_delta_q = read_delta_q(rb ADD_DECTRACE("quant_params->y_dc_delta_q"));
   else
     quant_params->y_dc_delta_q = 0;
 #else
-  quant_params->y_dc_delta_q = read_delta_q(rb);
+  quant_params->y_dc_delta_q = read_delta_q(rb ADD_DECTRACE("quant_params->y_dc_delta_q"));
 #endif  // CONFIG_EXT_QUANT_UPD
   if (num_planes > 1
 #if CONFIG_EXT_QUANT_UPD
@@ -4139,41 +4154,41 @@ static AOM_INLINE void setup_quantization(CommonQuantParams *quant_params,
 #endif  // CONFIG_EXT_QUANT_UPD
   ) {
     int diff_uv_delta = 0;
-    if (separate_uv_delta_q) diff_uv_delta = aom_rb_read_bit(rb);
+    if (separate_uv_delta_q) diff_uv_delta = aom_rb_read_bit(rb ADD_DECTRACE("diff_uv_delta"));
 #if CONFIG_EXT_QUANT_UPD
     if (!seq_params->equal_ac_dc_q) {
       if (seq_params->uv_dc_delta_q_enabled)
-        quant_params->u_dc_delta_q = read_delta_q(rb);
+        quant_params->u_dc_delta_q = read_delta_q(rb ADD_DECTRACE("quant_params->u_dc_delta_q"));
       else
         quant_params->u_dc_delta_q = 0;
     }
 #else
-    quant_params->u_dc_delta_q = read_delta_q(rb);
+    quant_params->u_dc_delta_q = read_delta_q(rb ADD_DECTRACE("quant_params->u_dc_delta_q"));
 #endif  // CONFIG_EXT_QUANT_UPD
 #if CONFIG_EXT_QUANT_UPD
     if (seq_params->uv_ac_delta_q_enabled)
-      quant_params->u_ac_delta_q = read_delta_q(rb);
+      quant_params->u_ac_delta_q = read_delta_q(rb ADD_DECTRACE("quant_params->u_ac_delta_q"));
     else
       quant_params->u_ac_delta_q = 0;
     if (seq_params->equal_ac_dc_q)
       quant_params->u_dc_delta_q = quant_params->u_ac_delta_q;
 #else
-    quant_params->u_ac_delta_q = read_delta_q(rb);
+    quant_params->u_ac_delta_q = read_delta_q(rb ADD_DECTRACE("quant_params->u_ac_delta_q"));
 #endif  // CONFIG_EXT_QUANT_UPD
     if (diff_uv_delta) {
 #if CONFIG_EXT_QUANT_UPD
       if (!seq_params->equal_ac_dc_q) {
         if (seq_params->uv_dc_delta_q_enabled)
-          quant_params->v_dc_delta_q = read_delta_q(rb);
+          quant_params->v_dc_delta_q = read_delta_q(rb ADD_DECTRACE("quant_params->v_dc_delta_q"));
         else
           quant_params->v_dc_delta_q = 0;
       }
 #else
-      quant_params->v_dc_delta_q = read_delta_q(rb);
+      quant_params->v_dc_delta_q = read_delta_q(rb ADD_DECTRACE("quant_params->v_dc_delta_q"));
 #endif  // CONFIG_EXT_QUANT_UPD
 #if CONFIG_EXT_QUANT_UPD
       if (seq_params->uv_ac_delta_q_enabled)
-        quant_params->v_ac_delta_q = read_delta_q(rb);
+        quant_params->v_ac_delta_q = read_delta_q(rb ADD_DECTRACE("quant_params->v_ac_delta_q"));
       else
         quant_params->v_ac_delta_q = 0;
       if (seq_params->equal_ac_dc_q)
@@ -4191,14 +4206,14 @@ static AOM_INLINE void setup_quantization(CommonQuantParams *quant_params,
     quant_params->v_dc_delta_q = 0;
     quant_params->v_ac_delta_q = 0;
   }
-  quant_params->using_qmatrix = aom_rb_read_bit(rb);
+  quant_params->using_qmatrix = aom_rb_read_bit(rb ADD_DECTRACE("quant_params->using_qmatrix"));
   if (quant_params->using_qmatrix) {
-    quant_params->qmatrix_level_y = aom_rb_read_literal(rb, QM_LEVEL_BITS);
-    quant_params->qmatrix_level_u = aom_rb_read_literal(rb, QM_LEVEL_BITS);
+    quant_params->qmatrix_level_y = aom_rb_read_literal(rb, QM_LEVEL_BITS ADD_DECTRACE("quant_params->qmatrix_level_y"));
+    quant_params->qmatrix_level_u = aom_rb_read_literal(rb, QM_LEVEL_BITS ADD_DECTRACE("quant_params->qmatrix_level_u"));
     if (!separate_uv_delta_q)
       quant_params->qmatrix_level_v = quant_params->qmatrix_level_u;
     else
-      quant_params->qmatrix_level_v = aom_rb_read_literal(rb, QM_LEVEL_BITS);
+      quant_params->qmatrix_level_v = aom_rb_read_literal(rb, QM_LEVEL_BITS ADD_DECTRACE("quant_params->qmatrix_level_v"));
   } else {
     quant_params->qmatrix_level_y = 0;
     quant_params->qmatrix_level_u = 0;
@@ -4301,8 +4316,8 @@ static AOM_INLINE void setup_segmentation_dequant(AV1_COMMON *const cm,
 }
 
 static InterpFilter read_frame_interp_filter(struct aom_read_bit_buffer *rb) {
-  return aom_rb_read_bit(rb) ? SWITCHABLE
-                             : aom_rb_read_literal(rb, LOG_SWITCHABLE_FILTERS);
+  return aom_rb_read_bit(rb ADD_DECTRACE("frame_interp_filter")) ? SWITCHABLE
+                             : aom_rb_read_literal(rb, LOG_SWITCHABLE_FILTERS ADD_DECTRACE("frame_interp_filter"));
 }
 
 static AOM_INLINE void setup_render_size(AV1_COMMON *cm,
@@ -4314,7 +4329,7 @@ static AOM_INLINE void setup_render_size(AV1_COMMON *cm,
   cm->render_width = cm->width;
   cm->render_height = cm->height;
 #endif  // CONFIG_ENABLE_SR
-  if (aom_rb_read_bit(rb))
+  if (aom_rb_read_bit(rb ADD_DECTRACE("render_size")))
     av1_read_frame_size(rb, 16, 16, &cm->render_width, &cm->render_height);
 }
 
@@ -4330,9 +4345,9 @@ static AOM_INLINE void setup_superres(AV1_COMMON *const cm,
   const SequenceHeader *const seq_params = &cm->seq_params;
   if (!seq_params->enable_superres) return;
 
-  if (aom_rb_read_bit(rb)) {
+  if (aom_rb_read_bit(rb ADD_DECTRACE("cm->superres_scale_denominator"))) {
     cm->superres_scale_denominator =
-        (uint8_t)aom_rb_read_literal(rb, SUPERRES_SCALE_BITS);
+        (uint8_t)aom_rb_read_literal(rb, SUPERRES_SCALE_BITS ADD_DECTRACE("cm->superres_scale_denominator"));
     cm->superres_scale_denominator += SUPERRES_SCALE_DENOMINATOR_MIN;
     // Don't edit cm->width or cm->height directly, or the buffers won't get
     // resized correctly
@@ -4500,10 +4515,10 @@ static AOM_INLINE void setup_seq_sb_size(SequenceHeader *seq_params,
   static const BLOCK_SIZE sb_sizes[] = { BLOCK_256X256, BLOCK_128X128,
                                          BLOCK_64X64 };
   int index = 0;
-  bool bit = aom_rb_read_bit(rb);
+  bool bit = aom_rb_read_bit(rb ADD_DECTRACE("is_256"));
   if (!bit) {
     index++;
-    bit = aom_rb_read_bit(rb);
+    bit = aom_rb_read_bit(rb ADD_DECTRACE("is_128"));
     if (!bit) {
       index++;
     }
@@ -4528,7 +4543,7 @@ static AOM_INLINE void setup_frame_size_with_refs(
   int found = 0;
   int has_valid_ref_frame = 0;
   for (int i = 0; i < cm->ref_frames_info.num_total_refs; ++i) {
-    if (aom_rb_read_bit(rb)) {
+    if (aom_rb_read_bit(rb ADD_DECTRACE("i"))) {
       const RefCntBuffer *const ref_buf = get_ref_frame_buf(cm, i);
       // This will never be NULL in a normal stream, as streams are required to
       // have a shown keyframe before any inter frames, which would refresh all
@@ -4606,13 +4621,13 @@ static AOM_INLINE void read_tile_info_max_tile(
   int height_sb = height_mi >> cm->mib_size_log2;
 
   av1_get_tile_limits(cm);
-  tiles->uniform_spacing = aom_rb_read_bit(rb);
+  tiles->uniform_spacing = aom_rb_read_bit(rb ADD_DECTRACE("tiles->uniform_spacing"));
 
   // Read tile columns
   if (tiles->uniform_spacing) {
     tiles->log2_cols = tiles->min_log2_cols;
     while (tiles->log2_cols < tiles->max_log2_cols) {
-      if (!aom_rb_read_bit(rb)) {
+      if (!aom_rb_read_bit(rb ADD_DECTRACE("log2col"))) {
         break;
       }
       tiles->log2_cols++;
@@ -4622,7 +4637,7 @@ static AOM_INLINE void read_tile_info_max_tile(
     int start_sb;
     for (i = 0, start_sb = 0; width_sb > 0 && i < MAX_TILE_COLS; i++) {
       const int size_sb =
-          1 + rb_read_uniform(rb, AOMMIN(width_sb, tiles->max_width_sb));
+          1 + rb_read_uniform(rb, AOMMIN(width_sb, tiles->max_width_sb) ADD_DECTRACE("size_sb") );
       tiles->col_start_sb[i] = start_sb;
       start_sb += size_sb;
       width_sb -= size_sb;
@@ -4637,7 +4652,7 @@ static AOM_INLINE void read_tile_info_max_tile(
   if (tiles->uniform_spacing) {
     tiles->log2_rows = tiles->min_log2_rows;
     while (tiles->log2_rows < tiles->max_log2_rows) {
-      if (!aom_rb_read_bit(rb)) {
+      if (!aom_rb_read_bit(rb ADD_DECTRACE("log2row"))) {
         break;
       }
       tiles->log2_rows++;
@@ -4647,7 +4662,7 @@ static AOM_INLINE void read_tile_info_max_tile(
     int start_sb;
     for (i = 0, start_sb = 0; height_sb > 0 && i < MAX_TILE_ROWS; i++) {
       const int size_sb =
-          1 + rb_read_uniform(rb, AOMMIN(height_sb, tiles->max_height_sb));
+          1 + rb_read_uniform(rb, AOMMIN(height_sb, tiles->max_height_sb) ADD_DECTRACE("size_sb"));
       tiles->row_start_sb[i] = start_sb;
       start_sb += size_sb;
       height_sb -= size_sb;
@@ -4707,13 +4722,14 @@ static AOM_INLINE void read_tile_info(AV1Decoder *const pbi,
   pbi->context_update_tile_id = 0;
   if (cm->tiles.rows * cm->tiles.cols > 1) {
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
-    if (!cm->seq_params.enable_avg_cdf || !cm->seq_params.avg_cdf_type) {
+    if (!cm->seq_params.enable_avg_cdf || !cm->seq_params.avg_cdf_type)
 #elif CONFIG_TILE_CDFS_AVG_TO_FRAME
-    if (!cm->seq_params.enable_tiles_cdfs_avg) {
+    if (!cm->seq_params.enable_tiles_cdfs_avg)
 #endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
+      {
       // tile to use for cdf update
       pbi->context_update_tile_id =
-          aom_rb_read_literal(rb, cm->tiles.log2_rows + cm->tiles.log2_cols);
+          aom_rb_read_literal(rb, cm->tiles.log2_rows + cm->tiles.log2_cols ADD_DECTRACE("pbi->context_update_tile_id"));
       if (pbi->context_update_tile_id >= cm->tiles.rows * cm->tiles.cols) {
         aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                            "Invalid context_update_tile_id");
@@ -4722,7 +4738,7 @@ static AOM_INLINE void read_tile_info(AV1Decoder *const pbi,
     }
 #endif  // CONFIG_TILE_CDFS_AVG_TO_FRAME || CONFIG_ENHANCED_FRAME_CONTEXT_INIT
     // tile size magnitude
-    pbi->tile_size_bytes = aom_rb_read_literal(rb, 2) + 1;
+    pbi->tile_size_bytes = aom_rb_read_literal(rb, 2 ADD_DECTRACE("pbi->tile_size_bytes")) + 1;
   }
 }
 
@@ -4733,13 +4749,13 @@ static AOM_INLINE void read_ext_tile_info(
 
   // This information is stored as a separate byte.
   int mod = rb->bit_offset % CHAR_BIT;
-  if (mod > 0) aom_rb_read_literal(rb, CHAR_BIT - mod);
+  if (mod > 0) aom_rb_read_literal(rb, CHAR_BIT - mod ADD_DECTRACE("mod"));
   assert(rb->bit_offset % CHAR_BIT == 0);
 
   if (cm->tiles.cols * cm->tiles.rows > 1) {
     // Read the number of bytes used to store tile size
-    pbi->tile_col_size_bytes = aom_rb_read_literal(rb, 2) + 1;
-    pbi->tile_size_bytes = aom_rb_read_literal(rb, 2) + 1;
+    pbi->tile_col_size_bytes = aom_rb_read_literal(rb, 2 ADD_DECTRACE("pbi->tile_col_size_bytes")) + 1;
+    pbi->tile_size_bytes = aom_rb_read_literal(rb, 2 ADD_DECTRACE("pbi->tile_size_bytes")) + 1;
   }
 }
 #endif  // EXT_TILE_DEBUG
@@ -6523,9 +6539,9 @@ static AOM_INLINE void error_handler(void *data) {
 static AOM_INLINE void read_bitdepth(
     struct aom_read_bit_buffer *rb, SequenceHeader *seq_params,
     struct aom_internal_error_info *error_info) {
-  const int high_bitdepth = aom_rb_read_bit(rb);
+  const int high_bitdepth = aom_rb_read_bit(rb ADD_DECTRACE("high_bitdepth"));
   if (seq_params->profile == PROFILE_2 && high_bitdepth) {
-    const int twelve_bit = aom_rb_read_bit(rb);
+    const int twelve_bit = aom_rb_read_bit(rb ADD_DECTRACE("twelve_bit"));
     seq_params->bit_depth = twelve_bit ? AOM_BITS_12 : AOM_BITS_10;
   } else if (seq_params->profile <= PROFILE_2) {
     seq_params->bit_depth = high_bitdepth ? AOM_BITS_10 : AOM_BITS_8;
@@ -6540,15 +6556,15 @@ void av1_read_film_grain_params(AV1_COMMON *cm,
   aom_film_grain_t *pars = &cm->film_grain_params;
   const SequenceHeader *const seq_params = &cm->seq_params;
 
-  pars->apply_grain = aom_rb_read_bit(rb);
+  pars->apply_grain = aom_rb_read_bit(rb ADD_DECTRACE("pars->apply_grain"));
   if (!pars->apply_grain) {
     memset(pars, 0, sizeof(*pars));
     return;
   }
 
-  pars->random_seed = aom_rb_read_literal(rb, 16);
+  pars->random_seed = aom_rb_read_literal(rb, 16 ADD_DECTRACE("pars->random_seed"));
   if (cm->current_frame.frame_type == INTER_FRAME)
-    pars->update_parameters = aom_rb_read_bit(rb);
+    pars->update_parameters = aom_rb_read_bit(rb ADD_DECTRACE("pars->update_parameters"));
   else
     pars->update_parameters = 1;
 
@@ -6557,7 +6573,7 @@ void av1_read_film_grain_params(AV1_COMMON *cm,
   if (!pars->update_parameters) {
     // inherit parameters from a previous reference frame
     int film_grain_params_ref_idx =
-        aom_rb_read_literal(rb, cm->seq_params.ref_frames_log2);
+        aom_rb_read_literal(rb, cm->seq_params.ref_frames_log2 ADD_DECTRACE("film_grain_params_ref_idx"));
     // Section 6.8.20: It is a requirement of bitstream conformance that
     // film_grain_params_ref_idx is equal to ref_frame_idx[ j ] for some value
     // of j in the range 0 to INTER_REFS_PER_FRAME - 1.
@@ -6593,22 +6609,22 @@ void av1_read_film_grain_params(AV1_COMMON *cm,
   }
 
   // Scaling functions parameters
-  pars->num_y_points = aom_rb_read_literal(rb, 4);  // max 14
+  pars->num_y_points = aom_rb_read_literal(rb, 4 ADD_DECTRACE("pars->num_y_points"));  // max 14
   if (pars->num_y_points > 14)
     aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                        "Number of points for film grain luma scaling function "
                        "exceeds the maximum value.");
   for (int i = 0; i < pars->num_y_points; i++) {
-    pars->scaling_points_y[i][0] = aom_rb_read_literal(rb, 8);
+    pars->scaling_points_y[i][0] = aom_rb_read_literal(rb, 8 ADD_DECTRACE("pars->scaling_points_y[i][0]"));
     if (i && pars->scaling_points_y[i - 1][0] >= pars->scaling_points_y[i][0])
       aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                          "First coordinate of the scaling function points "
                          "shall be increasing.");
-    pars->scaling_points_y[i][1] = aom_rb_read_literal(rb, 8);
+    pars->scaling_points_y[i][1] = aom_rb_read_literal(rb, 8 ADD_DECTRACE("pars->scaling_points_y[i][1]"));
   }
 
   if (!seq_params->monochrome)
-    pars->chroma_scaling_from_luma = aom_rb_read_bit(rb);
+    pars->chroma_scaling_from_luma = aom_rb_read_bit(rb ADD_DECTRACE("pars->chroma_scaling_from_luma"));
   else
     pars->chroma_scaling_from_luma = 0;
 
@@ -6618,34 +6634,34 @@ void av1_read_film_grain_params(AV1_COMMON *cm,
     pars->num_cb_points = 0;
     pars->num_cr_points = 0;
   } else {
-    pars->num_cb_points = aom_rb_read_literal(rb, 4);  // max 10
+    pars->num_cb_points = aom_rb_read_literal(rb, 4 ADD_DECTRACE("pars->num_cb_points"));  // max 10
     if (pars->num_cb_points > 10)
       aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                          "Number of points for film grain cb scaling function "
                          "exceeds the maximum value.");
     for (int i = 0; i < pars->num_cb_points; i++) {
-      pars->scaling_points_cb[i][0] = aom_rb_read_literal(rb, 8);
+      pars->scaling_points_cb[i][0] = aom_rb_read_literal(rb, 8 ADD_DECTRACE("pars->scaling_points_cb[i][0]"));
       if (i &&
           pars->scaling_points_cb[i - 1][0] >= pars->scaling_points_cb[i][0])
         aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                            "First coordinate of the scaling function points "
                            "shall be increasing.");
-      pars->scaling_points_cb[i][1] = aom_rb_read_literal(rb, 8);
+      pars->scaling_points_cb[i][1] = aom_rb_read_literal(rb, 8 ADD_DECTRACE("pars->scaling_points_cb[i][1]"));
     }
 
-    pars->num_cr_points = aom_rb_read_literal(rb, 4);  // max 10
+    pars->num_cr_points = aom_rb_read_literal(rb, 4 ADD_DECTRACE("pars->num_cr_points"));  // max 10
     if (pars->num_cr_points > 10)
       aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                          "Number of points for film grain cr scaling function "
                          "exceeds the maximum value.");
     for (int i = 0; i < pars->num_cr_points; i++) {
-      pars->scaling_points_cr[i][0] = aom_rb_read_literal(rb, 8);
+      pars->scaling_points_cr[i][0] = aom_rb_read_literal(rb, 8 ADD_DECTRACE("pars->scaling_points_cr[i][0]"));
       if (i &&
           pars->scaling_points_cr[i - 1][0] >= pars->scaling_points_cr[i][0])
         aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                            "First coordinate of the scaling function points "
                            "shall be increasing.");
-      pars->scaling_points_cr[i][1] = aom_rb_read_literal(rb, 8);
+      pars->scaling_points_cr[i][1] = aom_rb_read_literal(rb, 8 ADD_DECTRACE("pars->scaling_points_cr[i][1]"));
     }
 
     if ((seq_params->subsampling_x == 1) && (seq_params->subsampling_y == 1) &&
@@ -6656,13 +6672,13 @@ void av1_read_film_grain_params(AV1_COMMON *cm,
                          "to both chroma components or neither.");
   }
 
-  pars->scaling_shift = aom_rb_read_literal(rb, 2) + 8;  // 8 + value
+  pars->scaling_shift = aom_rb_read_literal(rb, 2 ADD_DECTRACE("pars->scaling_shift")) + 8;  // 8 + value
 
   // AR coefficients
   // Only sent if the corresponsing scaling function has
   // more than 0 points
 
-  pars->ar_coeff_lag = aom_rb_read_literal(rb, 2);
+  pars->ar_coeff_lag = aom_rb_read_literal(rb, 2 ADD_DECTRACE("pars->ar_coeff_lag"));
 
   int num_pos_luma = 2 * pars->ar_coeff_lag * (pars->ar_coeff_lag + 1);
   int num_pos_chroma = num_pos_luma;
@@ -6670,46 +6686,51 @@ void av1_read_film_grain_params(AV1_COMMON *cm,
 
   if (pars->num_y_points)
     for (int i = 0; i < num_pos_luma; i++)
-      pars->ar_coeffs_y[i] = aom_rb_read_literal(rb, 8) - 128;
+      pars->ar_coeffs_y[i] = aom_rb_read_literal(rb, 8 ADD_DECTRACE("pars->ar_coeffs_y[i]")) - 128;
 
   if (pars->num_cb_points || pars->chroma_scaling_from_luma)
     for (int i = 0; i < num_pos_chroma; i++)
-      pars->ar_coeffs_cb[i] = aom_rb_read_literal(rb, 8) - 128;
+      pars->ar_coeffs_cb[i] = aom_rb_read_literal(rb, 8 ADD_DECTRACE("pars->ar_coeffs_cb[i]")) - 128;
 
   if (pars->num_cr_points || pars->chroma_scaling_from_luma)
     for (int i = 0; i < num_pos_chroma; i++)
-      pars->ar_coeffs_cr[i] = aom_rb_read_literal(rb, 8) - 128;
+      pars->ar_coeffs_cr[i] = aom_rb_read_literal(rb, 8 ADD_DECTRACE("pars->ar_coeffs_cr[i]")) - 128;
 
-  pars->ar_coeff_shift = aom_rb_read_literal(rb, 2) + 6;  // 6 + value
+  pars->ar_coeff_shift = aom_rb_read_literal(rb, 2 ADD_DECTRACE("pars->ar_coeff_shift")) + 6;  // 6 + value
 
-  pars->grain_scale_shift = aom_rb_read_literal(rb, 2);
+  pars->grain_scale_shift = aom_rb_read_literal(rb, 2 ADD_DECTRACE("pars->grain_scale_shift"));
 
   if (pars->num_cb_points) {
-    pars->cb_mult = aom_rb_read_literal(rb, 8);
-    pars->cb_luma_mult = aom_rb_read_literal(rb, 8);
-    pars->cb_offset = aom_rb_read_literal(rb, 9);
+    pars->cb_mult = aom_rb_read_literal(rb, 8 ADD_DECTRACE("pars->cb_mult"));
+    pars->cb_luma_mult = aom_rb_read_literal(rb, 8 ADD_DECTRACE("pars->cb_luma_mult"));
+    pars->cb_offset = aom_rb_read_literal(rb, 9 ADD_DECTRACE("pars->cb_offset"));
   }
 
   if (pars->num_cr_points) {
-    pars->cr_mult = aom_rb_read_literal(rb, 8);
-    pars->cr_luma_mult = aom_rb_read_literal(rb, 8);
-    pars->cr_offset = aom_rb_read_literal(rb, 9);
+    pars->cr_mult = aom_rb_read_literal(rb, 8 ADD_DECTRACE("pars->cr_mult"));
+    pars->cr_luma_mult = aom_rb_read_literal(rb, 8 ADD_DECTRACE("pars->cr_luma_mult"));
+    pars->cr_offset = aom_rb_read_literal(rb, 9 ADD_DECTRACE("pars->cr_offset"));
   }
 
-  pars->overlap_flag = aom_rb_read_bit(rb);
+  pars->overlap_flag = aom_rb_read_bit(rb ADD_DECTRACE("pars->overlap_flag"));
 
-  pars->clip_to_restricted_range = aom_rb_read_bit(rb);
+  pars->clip_to_restricted_range = aom_rb_read_bit(rb ADD_DECTRACE("pars->clip_to_restricted_range"));
 }
 
 static AOM_INLINE void read_film_grain(AV1_COMMON *cm,
                                        struct aom_read_bit_buffer *rb) {
   if (cm->seq_params.film_grain_params_present &&
+#if CONFIG_F281_OUTPUT
+      (cm->seq_params.enable_frame_output_order || cm->showable_frame))
+#else
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
       (cm->seq_params.enable_frame_output_order || cm->show_frame ||
-       cm->showable_frame)) {
+       cm->showable_frame))
 #else
-        (cm->show_frame || cm->showable_frame)) {
+        (cm->show_frame || cm->showable_frame))
 #endif
+#endif //CONFIG_F281_OUTPUT
+  {
     av1_read_film_grain_params(cm, rb);
   } else {
     memset(&cm->film_grain_params, 0, sizeof(cm->film_grain_params));
@@ -6726,13 +6747,13 @@ void av1_read_color_config(struct aom_read_bit_buffer *rb,
 
   // monochrome bit (not needed for PROFILE_1)
   const int is_monochrome =
-      seq_params->profile != PROFILE_1 ? aom_rb_read_bit(rb) : 0;
+      seq_params->profile != PROFILE_1 ? aom_rb_read_bit(rb ADD_DECTRACE("!")) : 0;
   seq_params->monochrome = is_monochrome;
-  int color_description_present_flag = aom_rb_read_bit(rb);
+  int color_description_present_flag = aom_rb_read_bit(rb ADD_DECTRACE("color_description_present_flag"));
   if (color_description_present_flag) {
-    seq_params->color_primaries = aom_rb_read_literal(rb, 8);
-    seq_params->transfer_characteristics = aom_rb_read_literal(rb, 8);
-    seq_params->matrix_coefficients = aom_rb_read_literal(rb, 8);
+    seq_params->color_primaries = aom_rb_read_literal(rb, 8 ADD_DECTRACE("seq_params->color_primaries"));
+    seq_params->transfer_characteristics = aom_rb_read_literal(rb, 8 ADD_DECTRACE("seq_params->transfer_characteristics"));
+    seq_params->matrix_coefficients = aom_rb_read_literal(rb, 8 ADD_DECTRACE("seq_params->matrix_coefficients"));
   } else {
     seq_params->color_primaries = AOM_CICP_CP_UNSPECIFIED;
     seq_params->transfer_characteristics = AOM_CICP_TC_UNSPECIFIED;
@@ -6740,7 +6761,7 @@ void av1_read_color_config(struct aom_read_bit_buffer *rb,
   }
   if (is_monochrome) {
     // [16,235] (including xvycc) vs [0,255] range
-    seq_params->color_range = aom_rb_read_bit(rb);
+    seq_params->color_range = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->color_range"));
     seq_params->subsampling_y = seq_params->subsampling_x = 1;
     seq_params->chroma_sample_position = AOM_CSP_UNKNOWN;
   } else {
@@ -6758,7 +6779,7 @@ void av1_read_color_config(struct aom_read_bit_buffer *rb,
       }
     } else {
       // [16,235] (including xvycc) vs [0,255] range
-      seq_params->color_range = aom_rb_read_bit(rb);
+      seq_params->color_range = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->color_range"));
       if (seq_params->profile == PROFILE_0) {
         // 420 only
         seq_params->subsampling_x = seq_params->subsampling_y = 1;
@@ -6768,9 +6789,9 @@ void av1_read_color_config(struct aom_read_bit_buffer *rb,
       } else {
         assert(seq_params->profile == PROFILE_2);
         if (seq_params->bit_depth == AOM_BITS_12) {
-          seq_params->subsampling_x = aom_rb_read_bit(rb);
+          seq_params->subsampling_x = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->subsampling_x"));
           if (seq_params->subsampling_x)
-            seq_params->subsampling_y = aom_rb_read_bit(rb);  // 422 or 420
+            seq_params->subsampling_y = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->subsampling_y"));  // 422 or 420
           else
             seq_params->subsampling_y = 0;  // 444
         } else {
@@ -6786,7 +6807,7 @@ void av1_read_color_config(struct aom_read_bit_buffer *rb,
             "Identity CICP Matrix incompatible with non 4:4:4 color sampling");
       }
       if (seq_params->subsampling_x && seq_params->subsampling_y) {
-        seq_params->chroma_sample_position = aom_rb_read_literal(rb, 2);
+        seq_params->chroma_sample_position = aom_rb_read_literal(rb, 2 ADD_DECTRACE("seq_params->chroma_sample_position"));
       }
     }
   }
@@ -6797,8 +6818,8 @@ void av1_read_timing_info_header(aom_timing_info_t *timing_info,
                                  struct aom_read_bit_buffer *rb) {
   timing_info->num_units_in_display_tick =
       aom_rb_read_unsigned_literal(rb,
-                                   32);  // Number of units in a display tick
-  timing_info->time_scale = aom_rb_read_unsigned_literal(rb, 32);  // Time scale
+                                   32 ADD_DECTRACE("timing_info->num_units_in_display_tick"));  // Number of units in a display tick
+  timing_info->time_scale = aom_rb_read_unsigned_literal(rb, 32 ADD_DECTRACE("timing_info->time_scale"));  // Time scale
   if (timing_info->num_units_in_display_tick == 0 ||
       timing_info->time_scale == 0) {
     aom_internal_error(
@@ -6806,9 +6827,9 @@ void av1_read_timing_info_header(aom_timing_info_t *timing_info,
         "num_units_in_display_tick and time_scale must be greater than 0.");
   }
   timing_info->equal_picture_interval =
-      aom_rb_read_bit(rb);  // Equal picture interval bit
+      aom_rb_read_bit(rb ADD_DECTRACE("timing_info->equal_picture_interval"));  // Equal picture interval bit
   if (timing_info->equal_picture_interval) {
-    const uint32_t num_ticks_per_picture_minus_1 = aom_rb_read_uvlc(rb);
+    const uint32_t num_ticks_per_picture_minus_1 = aom_rb_read_uvlc(rb ADD_DECTRACE("timing_info->num_ticks_per_picture_minus_1"));
     if (num_ticks_per_picture_minus_1 == UINT32_MAX) {
       aom_internal_error(
           error, AOM_CODEC_UNSUP_BITSTREAM,
@@ -6821,30 +6842,30 @@ void av1_read_timing_info_header(aom_timing_info_t *timing_info,
 void av1_read_decoder_model_info(aom_dec_model_info_t *decoder_model_info,
                                  struct aom_read_bit_buffer *rb) {
   decoder_model_info->encoder_decoder_buffer_delay_length =
-      aom_rb_read_literal(rb, 5) + 1;
+      aom_rb_read_literal(rb, 5 ADD_DECTRACE("decoder_model_info->encoder_decoder_buffer_delay_length")) + 1;
   decoder_model_info->num_units_in_decoding_tick =
       aom_rb_read_unsigned_literal(rb,
-                                   32);  // Number of units in a decoding tick
+                                   32 ADD_DECTRACE("decoder_model_info->num_units_in_decoding_tick"));  // Number of units in a decoding tick
   decoder_model_info->buffer_removal_time_length =
-      aom_rb_read_literal(rb, 5) + 1;
+      aom_rb_read_literal(rb, 5 ADD_DECTRACE("decoder_model_info->buffer_removal_time_length")) + 1;
   decoder_model_info->frame_presentation_time_length =
-      aom_rb_read_literal(rb, 5) + 1;
+      aom_rb_read_literal(rb, 5 ADD_DECTRACE("decoder_model_info->frame_presentation_time_length")) + 1;
 }
 
 void av1_read_op_parameters_info(aom_dec_model_op_parameters_t *op_params,
                                  int buffer_delay_length,
                                  struct aom_read_bit_buffer *rb) {
   op_params->decoder_buffer_delay =
-      aom_rb_read_unsigned_literal(rb, buffer_delay_length);
+      aom_rb_read_unsigned_literal(rb, buffer_delay_length ADD_DECTRACE("op_params->decoder_buffer_delay"));
   op_params->encoder_buffer_delay =
-      aom_rb_read_unsigned_literal(rb, buffer_delay_length);
-  op_params->low_delay_mode_flag = aom_rb_read_bit(rb);
+      aom_rb_read_unsigned_literal(rb, buffer_delay_length ADD_DECTRACE("op_params->encoder_buffer_delay"));
+  op_params->low_delay_mode_flag = aom_rb_read_bit(rb ADD_DECTRACE("op_params->low_delay_mode_flag"));
 }
 
 static AOM_INLINE void read_temporal_point_info(
     AV1_COMMON *const cm, struct aom_read_bit_buffer *rb) {
   cm->frame_presentation_time = aom_rb_read_unsigned_literal(
-      rb, cm->seq_params.decoder_model_info.frame_presentation_time_length);
+      rb, cm->seq_params.decoder_model_info.frame_presentation_time_length ADD_DECTRACE("cm->frame_presentation_time"));
 }
 
 void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
@@ -6852,15 +6873,15 @@ void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
   if (seq_params->reduced_still_picture_hdr) {
     seq_params->frame_id_numbers_present_flag = 0;
   } else {
-    seq_params->frame_id_numbers_present_flag = aom_rb_read_bit(rb);
+    seq_params->frame_id_numbers_present_flag = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->frame_id_numbers_present_flag"));
   }
   if (seq_params->frame_id_numbers_present_flag) {
     // We must always have delta_frame_id_length < frame_id_length,
     // in order for a frame to be referenced with a unique delta.
     // Avoid wasting bits by using a coding that enforces this restriction.
-    seq_params->delta_frame_id_length = aom_rb_read_literal(rb, 4) + 2;
+    seq_params->delta_frame_id_length = aom_rb_read_literal(rb, 4 ADD_DECTRACE("seq_params->delta_frame_id_length")) + 2;
     seq_params->frame_id_length =
-        aom_rb_read_literal(rb, 3) + seq_params->delta_frame_id_length + 1;
+        aom_rb_read_literal(rb, 3 ADD_DECTRACE("seq_params->frame_id_length")) + seq_params->delta_frame_id_length + 1;
     if (seq_params->frame_id_length > 16)
       aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                          "Invalid frame_id_length");
@@ -6868,11 +6889,11 @@ void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
 
   setup_seq_sb_size(seq_params, rb);
 
-  seq_params->enable_filter_intra = aom_rb_read_bit(rb);
+  seq_params->enable_filter_intra = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_filter_intra"));
 #if CONFIG_DIP
-  seq_params->enable_intra_dip = aom_rb_read_bit(rb);
+  seq_params->enable_intra_dip = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_intra_dip"));
 #endif  // CONFIG_DIP
-  seq_params->enable_intra_edge_filter = aom_rb_read_bit(rb);
+  seq_params->enable_intra_edge_filter = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_intra_edge_filter"));
   if (seq_params->reduced_still_picture_hdr) {
     seq_params->seq_enabled_motion_modes = (1 << SIMPLE_TRANSLATION);
     seq_params->enable_masked_compound = 0;
@@ -6895,60 +6916,60 @@ void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
     int seq_enabled_motion_modes = (1 << SIMPLE_TRANSLATION);
     for (int motion_mode = INTERINTRA; motion_mode < MOTION_MODES;
          motion_mode++) {
-      int enabled = aom_rb_read_bit(rb);
+      int enabled = aom_rb_read_bit(rb ADD_DECTRACE_I2("motion_modes_enabled", motion_mode));
       if (enabled) {
         seq_enabled_motion_modes |= (1 << motion_mode);
       }
     }
 
 #if CONFIG_SIX_PARAM_WARP_DELTA
-    seq_params->enable_six_param_warp_delta = aom_rb_read_bit(rb);
+    seq_params->enable_six_param_warp_delta = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_six_param_warp_delta"));
 #endif  // CONFIG_SIX_PARAM_WARP_DELTA
 
     seq_params->seq_enabled_motion_modes = seq_enabled_motion_modes;
-    seq_params->enable_masked_compound = aom_rb_read_bit(rb);
-    seq_params->order_hint_info.enable_order_hint = aom_rb_read_bit(rb);
+    seq_params->enable_masked_compound = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_masked_compound"));
+    seq_params->order_hint_info.enable_order_hint = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->order_hint_info.enable_order_hint"));
     seq_params->order_hint_info.enable_ref_frame_mvs =
-        seq_params->order_hint_info.enable_order_hint ? aom_rb_read_bit(rb) : 0;
+        seq_params->order_hint_info.enable_order_hint ? aom_rb_read_bit(rb ADD_DECTRACE("seq_params->order_hint_info.enable_ref_frame_mvs")) : 0;
 
-    if (aom_rb_read_bit(rb)) {
+    if (aom_rb_read_bit(rb ADD_DECTRACE("seq_params->force_screen_content_tools"))) {
       seq_params->force_screen_content_tools =
           2;  // SELECT_SCREEN_CONTENT_TOOLS
     } else {
-      seq_params->force_screen_content_tools = aom_rb_read_bit(rb);
+      seq_params->force_screen_content_tools = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->force_screen_content_tools"));
     }
 
     if (seq_params->force_screen_content_tools > 0) {
-      if (aom_rb_read_bit(rb)) {
+      if (aom_rb_read_bit(rb ADD_DECTRACE("seq_params->force_integer_mv"))) {
         seq_params->force_integer_mv = 2;  // SELECT_INTEGER_MV
       } else {
-        seq_params->force_integer_mv = aom_rb_read_bit(rb);
+        seq_params->force_integer_mv = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->force_integer_mv"));
       }
     } else {
       seq_params->force_integer_mv = 2;  // SELECT_INTEGER_MV
     }
     seq_params->order_hint_info.order_hint_bits_minus_1 =
         seq_params->order_hint_info.enable_order_hint
-            ? aom_rb_read_literal(rb, 3)
+            ? aom_rb_read_literal(rb, 3 ADD_DECTRACE("order_hint_info.order_hint_bits_minus_1"))
             : -1;
   }
 
 #if CONFIG_ENABLE_SR
-  seq_params->enable_superres = aom_rb_read_bit(rb);
+  seq_params->enable_superres = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_superres"));
 #endif  // CONFIG_ENABLE_SR
-  seq_params->enable_cdef = aom_rb_read_bit(rb);
-  seq_params->enable_restoration = aom_rb_read_bit(rb);
+  seq_params->enable_cdef = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_cdef"));
+  seq_params->enable_restoration = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_restoration"));
   seq_params->lr_tools_disable_mask[0] = 0;
   seq_params->lr_tools_disable_mask[1] = 0;
   if (seq_params->enable_restoration) {
     for (int i = 1; i < RESTORE_SWITCHABLE_TYPES; ++i) {
-      seq_params->lr_tools_disable_mask[0] |= (aom_rb_read_bit(rb) << i);
+      seq_params->lr_tools_disable_mask[0] |= (aom_rb_read_bit(rb ADD_DECTRACE_I2("seq_params->lr_tools_disable_mask[0]", i)) << i);
     }
-    if (aom_rb_read_bit(rb)) {
+    if (aom_rb_read_bit(rb ADD_DECTRACE("seq_params->lr_tools_disable_mask"))) {
       seq_params->lr_tools_disable_mask[1] = DEF_UV_LR_TOOLS_DISABLE_MASK;
       for (int i = 1; i < RESTORE_SWITCHABLE_TYPES; ++i) {
         if (DEF_UV_LR_TOOLS_DISABLE_MASK & (1 << i)) continue;
-        seq_params->lr_tools_disable_mask[1] |= (aom_rb_read_bit(rb) << i);
+        seq_params->lr_tools_disable_mask[1] |= (aom_rb_read_bit(rb ADD_DECTRACE_I2("seq_params->lr_tools_disable_mask[1]", i)) << i);
       }
     } else {
       seq_params->lr_tools_disable_mask[1] =
@@ -6960,17 +6981,17 @@ void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
   if (is_monochrome) {
     seq_params->separate_uv_delta_q = 0;
   } else {
-    seq_params->separate_uv_delta_q = aom_rb_read_bit(rb);
+    seq_params->separate_uv_delta_q = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->separate_uv_delta_q"));
   }
 
 #if CONFIG_EXT_QUANT_UPD
-  seq_params->equal_ac_dc_q = aom_rb_read_bit(rb);
+  seq_params->equal_ac_dc_q = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->equal_ac_dc_q"));
   if (!seq_params->equal_ac_dc_q) {
 #endif  // CONFIG_EXT_QUANT_UPD
     seq_params->base_y_dc_delta_q =
-        DELTA_DCQUANT_MIN + aom_rb_read_literal(rb, DELTA_DCQUANT_BITS);
+        DELTA_DCQUANT_MIN + aom_rb_read_literal(rb, DELTA_DCQUANT_BITS ADD_DECTRACE("seq_params->base_y_dc_delta_q"));
 #if CONFIG_EXT_QUANT_UPD
-    seq_params->y_dc_delta_q_enabled = aom_rb_read_bit(rb);
+    seq_params->y_dc_delta_q_enabled = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->y_dc_delta_q_enabled"));
   } else {
     seq_params->base_y_dc_delta_q = 0;
     seq_params->y_dc_delta_q_enabled = 0;
@@ -6981,15 +7002,15 @@ void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
     if (!seq_params->equal_ac_dc_q) {
 #endif  // CONFIG_EXT_QUANT_UPD
       seq_params->base_uv_dc_delta_q =
-          DELTA_DCQUANT_MIN + aom_rb_read_literal(rb, DELTA_DCQUANT_BITS);
+          DELTA_DCQUANT_MIN + aom_rb_read_literal(rb, DELTA_DCQUANT_BITS ADD_DECTRACE("seq_params->base_uv_dc_delta_q"));
 #if CONFIG_EXT_QUANT_UPD
-      seq_params->uv_dc_delta_q_enabled = aom_rb_read_bit(rb);
+      seq_params->uv_dc_delta_q_enabled = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->uv_dc_delta_q_enabled"));
     } else {
       seq_params->uv_dc_delta_q_enabled = 0;
     }
     seq_params->base_uv_ac_delta_q =
-        DELTA_DCQUANT_MIN + aom_rb_read_literal(rb, DELTA_DCQUANT_BITS);
-    seq_params->uv_ac_delta_q_enabled = aom_rb_read_bit(rb);
+        DELTA_DCQUANT_MIN + aom_rb_read_literal(rb, DELTA_DCQUANT_BITS ADD_DECTRACE("seq_params->base_uv_ac_delta_q"));
+    seq_params->uv_ac_delta_q_enabled = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->uv_ac_delta_q_enabled"));
     if (seq_params->equal_ac_dc_q)
       seq_params->base_uv_dc_delta_q = seq_params->base_uv_ac_delta_q;
 #endif  // CONFIG_EXT_QUANT_UPD
@@ -7006,48 +7027,48 @@ void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
 void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
                                          SequenceHeader *seq_params) {
   // printf("print sps\n");
-  seq_params->enable_refmvbank = aom_rb_read_bit(rb);
+  seq_params->enable_refmvbank = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_refmvbank"));
 #if CONFIG_DRL_REORDER_CONTROL
-  if (aom_rb_read_bit(rb)) {
+  if (aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_drl_reorder"))) {
     seq_params->enable_drl_reorder = DRL_REORDER_DISABLED;
   } else {
     seq_params->enable_drl_reorder =
-        aom_rb_read_bit(rb) ? DRL_REORDER_CONSTRAINT : DRL_REORDER_ALWAYS;
+        aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_drl_reorder")) ? DRL_REORDER_CONSTRAINT : DRL_REORDER_ALWAYS;
   }
 #endif  // CONFIG_DRL_REORDER_CONTROL
 #if CONFIG_CDEF_ENHANCEMENTS
-  if (aom_rb_read_bit(rb)) {
+  if (aom_rb_read_bit(rb ADD_DECTRACE("is_cdef_on_skip_txfm_always_on"))) {
     seq_params->enable_cdef_on_skip_txfm = CDEF_ON_SKIP_TXFM_ALWAYS_ON;
   } else {
-    seq_params->enable_cdef_on_skip_txfm = aom_rb_read_bit(rb)
+    seq_params->enable_cdef_on_skip_txfm = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_cdef_on_skip_txfm"))
                                                ? CDEF_ON_SKIP_TXFM_DISABLED
                                                : CDEF_ON_SKIP_TXFM_ADAPTIVE;
   }
 #endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
-  seq_params->enable_avg_cdf = aom_rb_read_bit(rb);
+  seq_params->enable_avg_cdf = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_avg_cdf"));
   if (seq_params->enable_avg_cdf) {
-    seq_params->avg_cdf_type = aom_rb_read_bit(rb);
+    seq_params->avg_cdf_type = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->avg_cdf_type"));
   }
 #elif CONFIG_TILE_CDFS_AVG_TO_FRAME
-    seq_params->enable_tiles_cdfs_avg = aom_rb_read_bit(rb);
+    seq_params->enable_tiles_cdfs_avg = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_tiles_cdfs_avg"));
 #endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
-  seq_params->explicit_ref_frame_map = aom_rb_read_bit(rb);
+  seq_params->explicit_ref_frame_map = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->explicit_ref_frame_map"));
   // 0 : use show_existing_frame, 1: use implicit derivation
-  seq_params->enable_frame_output_order = aom_rb_read_bit(rb);
+  seq_params->enable_frame_output_order = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_frame_output_order"));
   // A bit is sent here to indicate if the max number of references is 7. If
   // this bit is 0, then two more bits are sent to indicate the exact number
   // of references allowed (range: 3 to 6).
-  if (aom_rb_read_bit(rb)) {
-    seq_params->max_reference_frames = 3 + aom_rb_read_literal(rb, 2);
+  if (aom_rb_read_bit(rb ADD_DECTRACE("seq_params->max_reference_frames"))) {
+    seq_params->max_reference_frames = 3 + aom_rb_read_literal(rb, 2 ADD_DECTRACE("seq_params->max_reference_frames"));
   } else {
     seq_params->max_reference_frames = 7;
   }
 #if CONFIG_EXTRA_DPB
-  const bool use_extra_dpb = aom_rb_read_literal(rb, 1);
+  const bool use_extra_dpb = aom_rb_read_literal(rb, 1 ADD_DECTRACE("use_extra_dpb"));
 
   if (use_extra_dpb) {
-    seq_params->num_extra_dpb = 1 + aom_rb_read_literal(rb, 3);
+    seq_params->num_extra_dpb = 1 + aom_rb_read_literal(rb, 3 ADD_DECTRACE("seq_params->num_extra_dpb"));
   } else {
     seq_params->num_extra_dpb = 0;
   }
@@ -7064,44 +7085,44 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
 #endif  // CONFIG_EXTRA_DPB
 
 #if CONFIG_SAME_REF_COMPOUND
-  seq_params->num_same_ref_compound = aom_rb_read_literal(rb, 2);
+  seq_params->num_same_ref_compound = aom_rb_read_literal(rb, 2 ADD_DECTRACE("seq_params->num_same_ref_compound"));
 #endif  // CONFIG_SAME_REF_COMPOUND
-  seq_params->enable_sdp = seq_params->monochrome ? 0 : aom_rb_read_bit(rb);
+  seq_params->enable_sdp = seq_params->monochrome ? 0 : aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_sdp"));
   seq_params->enable_extended_sdp =
-      seq_params->enable_sdp ? aom_rb_read_bit(rb) : 0;
-  seq_params->enable_ist = aom_rb_read_bit(rb);
-  seq_params->enable_inter_ist = aom_rb_read_bit(rb);
+      seq_params->enable_sdp ? aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_extended_sdp")) : 0;
+  seq_params->enable_ist = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_ist"));
+  seq_params->enable_inter_ist = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_inter_ist"));
 #if CONFIG_CHROMA_TX
-  seq_params->enable_chroma_dctonly = aom_rb_read_bit(rb);
+  seq_params->enable_chroma_dctonly = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_chroma_dctonly"));
 #endif  // CONFIG_CHROMA_TX
 #if CONFIG_INTER_DDT
-  seq_params->enable_inter_ddt = aom_rb_read_bit(rb);
+  seq_params->enable_inter_ddt = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_inter_ddt"));
 #endif  // CONFIG_INTER_DDT
-  seq_params->enable_cctx = seq_params->monochrome ? 0 : aom_rb_read_bit(rb);
-  seq_params->enable_mrls = aom_rb_read_bit(rb);
-  uint8_t enable_tip = aom_rb_read_bit(rb);
+  seq_params->enable_cctx = seq_params->monochrome ? 0 : aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_cctx"));
+  seq_params->enable_mrls = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_mrls"));
+  uint8_t enable_tip = aom_rb_read_bit(rb ADD_DECTRACE("enable_tip"));
   if (enable_tip) {
-    seq_params->enable_tip = 1 + aom_rb_read_bit(rb);
+    seq_params->enable_tip = 1 + aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_tip"));
   } else {
     seq_params->enable_tip = 0;
   }
   if (seq_params->enable_tip) {
-    seq_params->enable_tip_hole_fill = aom_rb_read_bit(rb);
+    seq_params->enable_tip_hole_fill = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_tip_hole_fill"));
   } else {
     seq_params->enable_tip_hole_fill = 0;
   }
 #if CONFIG_TMVP_SIMPLIFICATIONS_F085
-  seq_params->enable_mv_traj = aom_rb_read_bit(rb);
+  seq_params->enable_mv_traj = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_mv_traj"));
 #endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
-  seq_params->enable_bawp = aom_rb_read_bit(rb);
-  seq_params->enable_cwp = aom_rb_read_bit(rb);
+  seq_params->enable_bawp = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_bawp"));
+  seq_params->enable_cwp = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_cwp"));
 #if CONFIG_D071_IMP_MSK_BLD
-  seq_params->enable_imp_msk_bld = aom_rb_read_bit(rb);
+  seq_params->enable_imp_msk_bld = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_imp_msk_bld"));
 #endif  // CONFIG_D071_IMP_MSK_BLD
-  seq_params->enable_fsc = aom_rb_read_bit(rb);
-  seq_params->enable_ccso = aom_rb_read_bit(rb);
+  seq_params->enable_fsc = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_fsc"));
+  seq_params->enable_ccso = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_ccso"));
 #if CONFIG_LF_SUB_PU
-  seq_params->enable_lf_sub_pu = aom_rb_read_bit(rb);
+  seq_params->enable_lf_sub_pu = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_lf_sub_pu"));
 #endif  // CONFIG_LF_SUB_PU
 #if CONFIG_TIP_IMPLICIT_QUANT
   if (seq_params->enable_tip == 1 &&
@@ -7109,70 +7130,70 @@ void av1_read_sequence_header_beyond_av1(struct aom_read_bit_buffer *rb,
       seq_params->enable_lf_sub_pu
 #endif  // CONFIG_LF_SUB_PU
   ) {
-    seq_params->enable_tip_explicit_qp = aom_rb_read_bit(rb);
+    seq_params->enable_tip_explicit_qp = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_tip_explicit_qp"));
   } else {
     seq_params->enable_tip_explicit_qp = 0;
   }
 #endif  // CONFIG_TIP_IMPLICIT_QUANT
-  seq_params->enable_orip = aom_rb_read_bit(rb);
+  seq_params->enable_orip = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_orip"));
   seq_params->enable_opfl_refine = seq_params->order_hint_info.enable_order_hint
-                                       ? aom_rb_read_literal(rb, 2)
+                                       ? aom_rb_read_literal(rb, 2 ADD_DECTRACE("seq_params->enable_opfl_refine"))
                                        : AOM_OPFL_REFINE_NONE;
 #if CONFIG_AFFINE_REFINEMENT
   seq_params->enable_affine_refine =
-      seq_params->enable_opfl_refine ? aom_rb_read_bit(rb) : 0;
+      seq_params->enable_opfl_refine ? aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_affine_refine")) : 0;
 #endif  // CONFIG_AFFINE_REFINEMENT
-  seq_params->enable_ibp = aom_rb_read_bit(rb);
-  seq_params->enable_adaptive_mvd = aom_rb_read_bit(rb);
+  seq_params->enable_ibp = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_ibp"));
+  seq_params->enable_adaptive_mvd = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_adaptive_mvd"));
 
 #if CONFIG_REFINEMV
-  seq_params->enable_refinemv = aom_rb_read_bit(rb);
+  seq_params->enable_refinemv = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_refinemv"));
 #endif  // CONFIG_REFINEMV
 #if CONFIG_BRU
-  seq_params->enable_bru = aom_rb_read_bit(rb);
+  seq_params->enable_bru = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_bru"));
 #endif  // CONFIG_BRU
 #if CONFIG_DERIVED_MVD_SIGN
-  seq_params->enable_mvd_sign_derive = aom_rb_read_bit(rb);
+  seq_params->enable_mvd_sign_derive = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_mvd_sign_derive"));
 #endif  // CONFIG_DERIVED_MVD_SIGN
-  seq_params->enable_flex_mvres = aom_rb_read_bit(rb);
-  seq_params->cfl_ds_filter_index = aom_rb_read_literal(rb, 2);
+  seq_params->enable_flex_mvres = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_flex_mvres"));
+  seq_params->cfl_ds_filter_index = aom_rb_read_literal(rb, 2 ADD_DECTRACE("seq_params->cfl_ds_filter_index"));
 
 #if CONFIG_TCQ
   seq_params->enable_tcq = 0;
-  int enable_tcq = aom_rb_read_bit(rb);
+  int enable_tcq = aom_rb_read_bit(rb ADD_DECTRACE("enable_tcq"));
   if (enable_tcq) {
-    enable_tcq += aom_rb_read_literal(rb, 1);
+    enable_tcq += aom_rb_read_literal(rb, 1 ADD_DECTRACE("enable_tcq"));
     seq_params->enable_tcq = enable_tcq;
   }
   if (seq_params->enable_tcq == TCQ_DISABLE ||
       seq_params->enable_tcq >= TCQ_8ST_FR) {
-    seq_params->enable_parity_hiding = aom_rb_read_bit(rb);
+    seq_params->enable_parity_hiding = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_parity_hiding"));
   } else {
     seq_params->enable_parity_hiding = 0;
   }
 #else
-    seq_params->enable_parity_hiding = aom_rb_read_bit(rb);
+    seq_params->enable_parity_hiding = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_parity_hiding"));
 #endif  // CONFIG_TCQ
-  seq_params->enable_ext_partitions = aom_rb_read_bit(rb);
+  seq_params->enable_ext_partitions = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_ext_partitions"));
   if (seq_params->enable_ext_partitions)
-    seq_params->enable_uneven_4way_partitions = aom_rb_read_bit(rb);
+    seq_params->enable_uneven_4way_partitions = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_uneven_4way_partitions"));
   else
     seq_params->enable_uneven_4way_partitions = 0;
 #if CONFIG_IMPROVED_GLOBAL_MOTION
   if (seq_params->reduced_still_picture_hdr) {
     seq_params->enable_global_motion = 0;
   } else {
-    seq_params->enable_global_motion = aom_rb_read_bit(rb);
+    seq_params->enable_global_motion = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_global_motion"));
   }
 #endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 #if CONFIG_DF_PAR_BITS
-  seq_params->df_par_bits_minus2 = aom_rb_read_literal(rb, 2);
+  seq_params->df_par_bits_minus2 = aom_rb_read_literal(rb, 2 ADD_DECTRACE("seq_params->df_par_bits_minus2"));
 #endif  // CONFIG_DF_PAR_BITS
 #if CONFIG_REFRESH_FLAG
-  seq_params->enable_short_refresh_frame_flags = aom_rb_read_bit(rb);
+  seq_params->enable_short_refresh_frame_flags = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_short_refresh_frame_flags"));
 #endif  // CONFIG_REFRESH_FLAG
 #if CONFIG_EXT_SEG
-  seq_params->enable_ext_seg = aom_rb_read_bit(rb);
+  seq_params->enable_ext_seg = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->enable_ext_seg"));
 #endif  // CONFIG_EXT_SEG
 }
 
@@ -7187,15 +7208,15 @@ static int read_global_motion_params(WarpedMotionParams *params,
 #if CONFIG_IMPROVED_GLOBAL_MOTION
   (void)precision_loss;
 #endif  // CONFIG_IMPROVED_GLOBAL_MOTION
-  TransformationType type = aom_rb_read_bit(rb);
+  TransformationType type = aom_rb_read_bit(rb ADD_DECTRACE("type"));
   if (type != IDENTITY) {
-    if (aom_rb_read_bit(rb)) {
+    if (aom_rb_read_bit(rb ADD_DECTRACE("!"))) {
       type = ROTZOOM;
     } else {
 #if CONFIG_IMPROVED_GLOBAL_MOTION
       type = AFFINE;
 #else
-        type = aom_rb_read_bit(rb) ? TRANSLATION : AFFINE;
+        type = aom_rb_read_bit(rb ADD_DECTRACE("type")) ? TRANSLATION : AFFINE;
 #endif  // CONFIG_IMPROVED_GLOBAL_MOTION
     }
   }
@@ -7282,7 +7303,7 @@ static AOM_INLINE void read_global_motion(AV1_COMMON *cm,
   int num_total_refs = cm->ref_frames_info.num_total_refs;
   bool use_global_motion = false;
   if (seq_params->enable_global_motion) {
-    use_global_motion = aom_rb_read_bit(rb);
+    use_global_motion = aom_rb_read_bit(rb ADD_DECTRACE("use_global_motion"));
   }
   if (!use_global_motion) {
     for (int frame = 0; frame < INTER_REFS_PER_FRAME; ++frame) {
@@ -7292,7 +7313,7 @@ static AOM_INLINE void read_global_motion(AV1_COMMON *cm,
     return;
   }
 
-  int our_ref = aom_rb_read_primitive_quniform(rb, num_total_refs + 1);
+  int our_ref = aom_rb_read_primitive_quniform(rb, num_total_refs + 1 ADD_DECTRACE("our_ref"));
   if (our_ref == num_total_refs) {
     // Special case: Use IDENTITY model
     cm->base_global_motion_model = default_warp_params;
@@ -7307,7 +7328,7 @@ static AOM_INLINE void read_global_motion(AV1_COMMON *cm,
       cm->base_global_motion_model = default_warp_params;
       cm->base_global_motion_distance = 1;
     } else {
-      int their_ref = aom_rb_read_primitive_quniform(rb, their_num_refs);
+      int their_ref = aom_rb_read_primitive_quniform(rb, their_num_refs ADD_DECTRACE("their_ref"));
 #if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
       const int our_ref_order_hint = buf->display_order_hint;
       const int their_ref_order_hint = buf->ref_display_order_hint[their_ref];
@@ -7547,7 +7568,7 @@ static INLINE void read_screen_content_params(AV1_COMMON *const cm,
   FeatureFlags *const features = &cm->features;
 
   if (seq_params->force_screen_content_tools == 2) {
-    features->allow_screen_content_tools = aom_rb_read_bit(rb);
+    features->allow_screen_content_tools = aom_rb_read_bit(rb ADD_DECTRACE("features->allow_screen_content_tools"));
   } else {
     features->allow_screen_content_tools =
         seq_params->force_screen_content_tools;
@@ -7555,7 +7576,7 @@ static INLINE void read_screen_content_params(AV1_COMMON *const cm,
 
   if (features->allow_screen_content_tools) {
     if (seq_params->force_integer_mv == 2) {
-      features->cur_frame_force_integer_mv = aom_rb_read_bit(rb);
+      features->cur_frame_force_integer_mv = aom_rb_read_bit(rb ADD_DECTRACE("features->cur_frame_force_integer_mv"));
     } else {
       features->cur_frame_force_integer_mv = seq_params->force_integer_mv;
     }
@@ -7669,10 +7690,14 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                        "No sequence header");
   }
-
+#if CONFIG_F281_OUTPUT //[jkei] intialilization to prevent future problem
+    cm->show_frame = 1;
+#endif
   if (seq_params->reduced_still_picture_hdr) {
     cm->show_existing_frame = 0;
+#if !CONFIG_F281_OUTPUT
     cm->show_frame = 1;
+#endif
     current_frame->frame_type = KEY_FRAME;
     if (pbi->sequence_header_changed) {
       // This is the start of a new coded video sequence.
@@ -7682,7 +7707,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     }
     features->error_resilient_mode = 1;
   } else {
-    cm->show_existing_frame = aom_rb_read_bit(rb);
+    cm->show_existing_frame = aom_rb_read_bit(rb ADD_DECTRACE("cm->show_existing_frame"));
     pbi->reset_decoder_state = 0;
 
     if (cm->show_existing_frame) {
@@ -7693,7 +7718,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       }
       // Show an existing frame directly.
       const int existing_frame_idx =
-          aom_rb_read_literal(rb, seq_params->ref_frames_log2);
+          aom_rb_read_literal(rb, seq_params->ref_frames_log2 ADD_DECTRACE("existing_frame_idx"));
       RefCntBuffer *const frame_to_show = cm->ref_frame_map[existing_frame_idx];
       if (frame_to_show == NULL) {
         aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
@@ -7705,7 +7730,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       }
       if (seq_params->frame_id_numbers_present_flag) {
         int frame_id_length = seq_params->frame_id_length;
-        int display_frame_id = aom_rb_read_literal(rb, frame_id_length);
+        int display_frame_id = aom_rb_read_literal(rb, frame_id_length ADD_DECTRACE("display_frame_id"));
         /* Compare display_frame_id with ref_frame_id and check valid for
          * referencing */
         if (display_frame_id != cm->ref_frame_id[existing_frame_idx] ||
@@ -7744,7 +7769,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
       cm->lf.filter_level[0] = 0;
       cm->lf.filter_level[1] = 0;
+#if !CONFIG_F281_OUTPUT
       cm->show_frame = 1;
+#endif
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
       // It is a requirement of bitstream conformance that when
       // show_existing_frame is used to show a previous frame with
@@ -7752,7 +7779,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       // frame is output via the show_existing_frame mechanism at most once.
       if ((seq_params->enable_frame_output_order &&
            frame_to_show->frame_type == KEY_FRAME &&
-           !frame_to_show->showable_frame &&
+           !frame_to_show->showable_frame && //[jkei] it is in show_existing_frame
            frame_to_show->frame_output_done) ||
           (!seq_params->enable_frame_output_order &&
            !frame_to_show->showable_frame)) {
@@ -7777,23 +7804,29 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       } else {
         current_frame->refresh_frame_flags = 0;
       }
-
+#if CONFIG_F281_OUTPUT
+      //already flushed
+    if(frame_to_show->frame_type == KEY_FRAME){
+     //output remaining frames in the buffer
+      //output_frame_buffers(pbi, -2);
+    }
+#endif
       return 0;
     }
 
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
-    if (aom_rb_read_bit(rb)) {
+    if (aom_rb_read_bit(rb ADD_DECTRACE("current_frame->frame_type"))) {
       current_frame->frame_type = INTER_FRAME;
     } else {
-      if (aom_rb_read_bit(rb)) {
+      if (aom_rb_read_bit(rb ADD_DECTRACE("current_frame->frame_type"))) {
         current_frame->frame_type = KEY_FRAME;
       } else {
         current_frame->frame_type =
-            aom_rb_read_bit(rb) ? INTRA_ONLY_FRAME : S_FRAME;
+            aom_rb_read_bit(rb ADD_DECTRACE("current_frame->frame_type")) ? INTRA_ONLY_FRAME : S_FRAME;
       }
     }
 #else
-      current_frame->frame_type = (FRAME_TYPE)aom_rb_read_literal(rb, 2);
+      current_frame->frame_type = (FRAME_TYPE)aom_rb_read_literal(rb, 2 ADD_DECTRACE("current_frame->frame_type"));
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
     if (pbi->sequence_header_changed) {
       if (current_frame->frame_type == KEY_FRAME) {
@@ -7806,8 +7839,15 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                            "Sequence header has changed without a keyframe.");
       }
     }
-
-    cm->show_frame = aom_rb_read_bit(rb);
+#if CONFIG_F281_OUTPUT
+    //[jkei] fwd_keyframe should be OLK
+    //is_arf_frame_present? is_s_frame_at_altref?
+    cm->showable_frame = aom_rb_read_bit(rb ADD_DECTRACE("cm->showable_frame"));
+    if (seq_params->decoder_model_info_present_flag &&
+        seq_params->timing_info.equal_picture_interval == 0)
+      read_temporal_point_info(cm, rb);
+#else
+    cm->show_frame = aom_rb_read_bit(rb ADD_DECTRACE("cm->show_frame"));
     if (cm->show_frame == 0) pbi->is_arf_frame_present = 1;
     if (cm->show_frame == 0 && cm->current_frame.frame_type == KEY_FRAME)
       pbi->is_fwd_kf_present = 1;
@@ -7827,7 +7867,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         read_temporal_point_info(cm, rb);
     } else {
       // See if this frame can be used as show_existing_frame in future
-      cm->showable_frame = aom_rb_read_bit(rb);
+      cm->showable_frame = aom_rb_read_bit(rb ADD_DECTRACE("cm->showable_frame"));
     }
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
     if (seq_params->enable_frame_output_order &&
@@ -7838,7 +7878,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                          "type is KEY_FRAME.");
     }
 #endif
+#endif //CONFIG_F281_OUTPUT
     cm->cur_frame->showable_frame = cm->showable_frame;
+#if CONFIG_F281_OUTPUT
+    cm->cur_frame->marked_to_be_output = 0;
+#endif //CONFIG_F281_OUTPUT
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
     if (cm->seq_params.enable_frame_output_order)
       cm->cur_frame->frame_output_done = 0;
@@ -7847,21 +7891,29 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
     features->error_resilient_mode =
         frame_is_sframe(cm) ||
+#if CONFIG_F281_OUTPUT
+    (current_frame->frame_type == KEY_FRAME) //[jkei] CLK only
+#else
                 (current_frame->frame_type == KEY_FRAME && cm->show_frame)
+#endif
             ? 1
-            : aom_rb_read_bit(rb);
+            : aom_rb_read_bit(rb ADD_DECTRACE("features->error_resilient_mode"));
   }
 
   av1_set_frame_sb_size(cm, cm->seq_params.sb_size);
-
-  if (current_frame->frame_type == KEY_FRAME && cm->show_frame) {
+#if CONFIG_F281_OUTPUT //CLK
+  if (current_frame->frame_type == KEY_FRAME)
+#else
+  if (current_frame->frame_type == KEY_FRAME && cm->show_frame)
+#endif
+  {
     /* All frames need to be marked as not valid for referencing */
     for (int i = 0; i < seq_params->ref_frames; i++) {
       pbi->valid_for_referencing[i] = 0;
     }
   }
 #if !CONFIG_FRAME_HEADER_SIGNAL_OPT
-  features->disable_cdf_update = aom_rb_read_bit(rb);
+  features->disable_cdf_update = aom_rb_read_bit(rb ADD_DECTRACE("features->disable_cdf_update"));
 
   read_screen_content_params(cm, rb);
 #endif  // !CONFIG_FRAME_HEADER_SIGNAL_OPT
@@ -7887,11 +7939,16 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       int prev_frame_id = 0;
       int have_prev_frame_id =
           !pbi->decoding_first_frame &&
-          !(current_frame->frame_type == KEY_FRAME && cm->show_frame);
+#if CONFIG_F281_OUTPUT //if !CLK
+      current_frame->frame_type != KEY_FRAME
+#else
+         !(current_frame->frame_type == KEY_FRAME && cm->show_frame)
+#endif
+      ;
       if (have_prev_frame_id) {
         prev_frame_id = cm->current_frame_id;
       }
-      cm->current_frame_id = aom_rb_read_literal(rb, frame_id_length);
+      cm->current_frame_id = aom_rb_read_literal(rb, frame_id_length ADD_DECTRACE("cm->current_frame_id"));
 
       if (have_prev_frame_id) {
         int diff_frame_id;
@@ -7923,7 +7980,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       }
     }
 
-    frame_size_override_flag = frame_is_sframe(cm) ? 1 : aom_rb_read_bit(rb);
+    frame_size_override_flag = frame_is_sframe(cm) ? 1 : aom_rb_read_bit(rb ADD_DECTRACE("frame_size_override_flag"));
 #if CONFIG_BRU
     if (current_frame->frame_type == INTER_FRAME) {
       setup_bru_active_info(cm, rb);
@@ -7933,25 +7990,28 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     }
 #endif  // CONFIG_BRU
     current_frame->order_hint = aom_rb_read_literal(
-        rb, seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
+        rb, seq_params->order_hint_info.order_hint_bits_minus_1 + 1 ADD_DECTRACE("current_frame->order_hint"));
 
     current_frame->display_order_hint = get_disp_order_hint(cm);
+#if 1 //ENABLE_VERBOSE_TRACE
+    printf("uncompressed_header DOH %d Frametype %s showable_frame %d\n",current_frame->display_order_hint, current_frame->frame_type==KEY_FRAME?"KEY":"INTER", cm->showable_frame);
+#endif
     current_frame->frame_number = current_frame->order_hint;
 
     if (!features->error_resilient_mode && !frame_is_intra_only(cm)) {
 #if CONFIG_PRIMARY_REF_FRAME_OPT
-      signal_primary_ref_frame = aom_rb_read_literal(rb, 1);
+      signal_primary_ref_frame = aom_rb_read_literal(rb, 1 ADD_DECTRACE("signal_primary_ref_frame"));
       pbi->signal_primary_ref_frame = signal_primary_ref_frame;
       if (signal_primary_ref_frame)
-        features->primary_ref_frame = aom_rb_read_literal(rb, PRIMARY_REF_BITS);
+        features->primary_ref_frame = aom_rb_read_literal(rb, PRIMARY_REF_BITS ADD_DECTRACE("features->primary_ref_frame"));
 #else
-        features->primary_ref_frame = aom_rb_read_literal(rb, PRIMARY_REF_BITS);
+        features->primary_ref_frame = aom_rb_read_literal(rb, PRIMARY_REF_BITS ADD_DECTRACE("features->primary_ref_frame"));
 #endif  // CONFIG_PRIMARY_REF_FRAME_OPT
     }
   }
 
   if (seq_params->decoder_model_info_present_flag) {
-    cm->buffer_removal_time_present = aom_rb_read_bit(rb);
+    cm->buffer_removal_time_present = aom_rb_read_bit(rb ADD_DECTRACE("cm->buffer_removal_time_present"));
     if (cm->buffer_removal_time_present) {
       for (int op_num = 0;
            op_num < seq_params->operating_points_cnt_minus_1 + 1; op_num++) {
@@ -7964,7 +8024,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                 0x1)) ||
               seq_params->operating_point_idc[op_num] == 0) {
             cm->buffer_removal_times[op_num] = aom_rb_read_unsigned_literal(
-                rb, seq_params->decoder_model_info.buffer_removal_time_length);
+                rb, seq_params->decoder_model_info.buffer_removal_time_length ADD_DECTRACE("cm->buffer_removal_times"));
           } else {
             cm->buffer_removal_times[op_num] = 0;
           }
@@ -7983,29 +8043,33 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
 #endif  // CONFIG_REFRESH_FLAG
   if (current_frame->frame_type == KEY_FRAME) {
+#if CONFIG_F281_OUTPUT
+    //CONFIG_F281_OUTPUT_TEST
+    current_frame->refresh_frame_flags = REFRESH_FRAME_ALL;
+#else
     if (!cm->show_frame) {  // unshown keyframe (forward keyframe)
 #if CONFIG_REFRESH_FLAG
       if (short_refresh_frame_flags) {
         const int refresh_idx =
-            aom_rb_read_literal(rb, refresh_frame_flags_bits);
+            aom_rb_read_literal(rb, refresh_frame_flags_bits ADD_DECTRACE("refresh_idx"));
         if (refresh_idx == 0) {
-          const bool has_refresh_frame_flags = aom_rb_read_literal(rb, 1);
+          const bool has_refresh_frame_flags = aom_rb_read_literal(rb, 1 ADD_DECTRACE("has_refresh_frame_flags"));
           current_frame->refresh_frame_flags = has_refresh_frame_flags ? 1 : 0;
         } else {
           current_frame->refresh_frame_flags = 1 << refresh_idx;
         }
       } else {
         current_frame->refresh_frame_flags =
-            aom_rb_read_literal(rb, refresh_frame_flags_bits);
+            aom_rb_read_literal(rb, refresh_frame_flags_bits ADD_DECTRACE("current_frame->refresh_frame_flags"));
       }
 #else
         current_frame->refresh_frame_flags =
-            aom_rb_read_literal(rb, seq_params->ref_frames);
+            aom_rb_read_literal(rb, seq_params->ref_frames ADD_DECTRACE("current_frame->refresh_frame_flags"));
 #endif        // CONFIG_REFRESH_FLAG
     } else {  // shown keyframe
       current_frame->refresh_frame_flags = REFRESH_FRAME_ALL;
     }
-
+#endif  //CONFIG_F281_OUTPUT
     for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
       cm->remapped_ref_idx[i] = INVALID_IDX;
     }
@@ -8018,20 +8082,20 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_REFRESH_FLAG
       if (short_refresh_frame_flags) {
         const int refresh_idx =
-            aom_rb_read_literal(rb, refresh_frame_flags_bits);
+            aom_rb_read_literal(rb, refresh_frame_flags_bits ADD_DECTRACE("refresh_idx"));
         if (refresh_idx == 0) {
-          const bool has_refresh_frame_flags = aom_rb_read_literal(rb, 1);
+          const bool has_refresh_frame_flags = aom_rb_read_literal(rb, 1 ADD_DECTRACE("has_refresh_frame_flags"));
           current_frame->refresh_frame_flags = has_refresh_frame_flags ? 1 : 0;
         } else {
           current_frame->refresh_frame_flags = 1 << refresh_idx;
         }
       } else {
         current_frame->refresh_frame_flags =
-            aom_rb_read_literal(rb, refresh_frame_flags_bits);
+            aom_rb_read_literal(rb, refresh_frame_flags_bits ADD_DECTRACE("current_frame->refresh_frame_flags"));
       }
 #else
         current_frame->refresh_frame_flags =
-            aom_rb_read_literal(rb, seq_params->ref_frames);
+            aom_rb_read_literal(rb, seq_params->ref_frames ADD_DECTRACE("current_frame->refresh_frame_flags"));
 
 #endif  // CONFIG_REFRESH_FLAG
       if (current_frame->refresh_frame_flags == REFRESH_FRAME_ALL) {
@@ -8049,9 +8113,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       } else {
         if (short_refresh_frame_flags) {
           const int refresh_idx =
-              aom_rb_read_literal(rb, refresh_frame_flags_bits);
+              aom_rb_read_literal(rb, refresh_frame_flags_bits ADD_DECTRACE("refresh_idx"));
           if (refresh_idx == 0) {
-            const bool has_refresh_frame_flags = aom_rb_read_literal(rb, 1);
+            const bool has_refresh_frame_flags = aom_rb_read_literal(rb, 1 ADD_DECTRACE("has_refresh_frame_flags"));
             current_frame->refresh_frame_flags =
                 has_refresh_frame_flags ? 1 : 0;
           } else {
@@ -8059,14 +8123,14 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           }
         } else {
           current_frame->refresh_frame_flags =
-              aom_rb_read_literal(rb, refresh_frame_flags_bits);
+              aom_rb_read_literal(rb, refresh_frame_flags_bits ADD_DECTRACE("current_frame->refresh_frame_flags"));
         }
       }
 #else
         current_frame->refresh_frame_flags =
             frame_is_sframe(cm)
                 ? REFRESH_FRAME_ALL
-                : aom_rb_read_literal(rb, seq_params->ref_frames);
+                : aom_rb_read_literal(rb, seq_params->ref_frames ADD_DECTRACE("current_frame->refresh_frame_flags"));
 #endif  // CONFIG_REFRESH_FLAG
     }
   }
@@ -8079,7 +8143,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       for (int ref_idx = 0; ref_idx < seq_params->ref_frames; ref_idx++) {
         // Read order hint from bit stream
         unsigned int order_hint = aom_rb_read_literal(
-            rb, seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
+            rb, seq_params->order_hint_info.order_hint_bits_minus_1 + 1 ADD_DECTRACE("order_hint"));
         // Get buffer
         RefCntBuffer *buf = cm->ref_frame_map[ref_idx];
         if (buf == NULL || order_hint != buf->order_hint) {
@@ -8143,7 +8207,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         RefCntBuffer *buf = cm->ref_frame_map[ref_idx];
         buf->base_qindex = aom_rb_read_literal(
             rb, cm->seq_params.bit_depth == AOM_BITS_8 ? QINDEX_BITS_UNEXT
-                                                       : QINDEX_BITS);
+                                                       : QINDEX_BITS ADD_DECTRACE("buf->base_qindex"));
       }
     }
   }
@@ -8151,6 +8215,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_LF_SUB_PU
   features->allow_lf_sub_pu = 0;
 #endif  // CONFIG_LF_SUB_PU
+#if CONFIG_F281_OUTPUT
+  cm->cur_frame->spatial_layer_id  = cm->spatial_layer_id;
+#endif
   if (current_frame->frame_type == KEY_FRAME) {
     cm->current_frame.pyramid_level = 1;
 #if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
@@ -8171,22 +8238,22 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           1
 #endif  // CONFIG_ENABLE_SR
     )
-      features->allow_intrabc = aom_rb_read_bit(rb);
+      features->allow_intrabc = aom_rb_read_bit(rb ADD_DECTRACE("features->allow_intrabc"));
 #if CONFIG_IBC_SR_EXT
     if (features->allow_intrabc) {
-      features->allow_global_intrabc = aom_rb_read_bit(rb);
+      features->allow_global_intrabc = aom_rb_read_bit(rb ADD_DECTRACE("features->allow_global_intrabc"));
       features->allow_local_intrabc =
-          features->allow_global_intrabc ? aom_rb_read_bit(rb) : 1;
+          features->allow_global_intrabc ? aom_rb_read_bit(rb ADD_DECTRACE("features->allow_local_intrabc")) : 1;
 #if CONFIG_IBC_BV_IMPROVEMENT
 #if CONFIG_IBC_MAX_DRL
       features->max_bvp_drl_bits =
           aom_rb_read_primitive_quniform(
-              rb, MAX_MAX_IBC_DRL_BITS - MIN_MAX_IBC_DRL_BITS + 1) +
+              rb, MAX_MAX_IBC_DRL_BITS - MIN_MAX_IBC_DRL_BITS + 1 ADD_DECTRACE("features->max_bvp_drl_bits")) +
           MIN_MAX_IBC_DRL_BITS;
 #else
       features->max_drl_bits =
           aom_rb_read_primitive_quniform(
-              rb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1) +
+              rb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1 ADD_DECTRACE("features->max_drl_bits")) +
           MIN_MAX_DRL_BITS;
 #endif  // CONFIG_IBC_MAX_DRL
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
@@ -8222,22 +8289,22 @@ static int read_uncompressed_header(AV1Decoder *pbi,
             1
 #endif  // CONFIG_ENABLE_SR
       )
-        features->allow_intrabc = aom_rb_read_bit(rb);
+        features->allow_intrabc = aom_rb_read_bit(rb ADD_DECTRACE("features->allow_intrabc"));
 #if CONFIG_IBC_SR_EXT
       if (features->allow_intrabc) {
-        features->allow_global_intrabc = aom_rb_read_bit(rb);
+        features->allow_global_intrabc = aom_rb_read_bit(rb ADD_DECTRACE("features->allow_global_intrabc"));
         features->allow_local_intrabc =
-            features->allow_global_intrabc ? aom_rb_read_bit(rb) : 1;
+            features->allow_global_intrabc ? aom_rb_read_bit(rb ADD_DECTRACE("features->allow_local_intrabc")) : 1;
 #if CONFIG_IBC_BV_IMPROVEMENT
 #if CONFIG_IBC_MAX_DRL
         features->max_bvp_drl_bits =
             aom_rb_read_primitive_quniform(
-                rb, MAX_MAX_IBC_DRL_BITS - MIN_MAX_IBC_DRL_BITS + 1) +
+                rb, MAX_MAX_IBC_DRL_BITS - MIN_MAX_IBC_DRL_BITS + 1 ADD_DECTRACE("features->max_bvp_drl_bits")) +
             MIN_MAX_IBC_DRL_BITS;
 #else
         features->max_drl_bits =
             aom_rb_read_primitive_quniform(
-                rb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1) +
+                rb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1 ADD_DECTRACE("features->max_bvp_drl_bits")) +
             MIN_MAX_DRL_BITS;
 #endif  // CONFIG_IBC_MAX_DRL
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
@@ -8280,7 +8347,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // CONFIG_BRU
       if (explicit_ref_frame_map) {
         cm->ref_frames_info.num_total_refs =
-            aom_rb_read_literal(rb, REF_FRAMES_LOG2);
+            aom_rb_read_literal(rb, REF_FRAMES_LOG2 ADD_DECTRACE("cm->ref_frames_info.num_total_refs"));
         // Check whether num_total_refs read is valid and not greater than
         // n_ranked (using a reference frame more than once is not allowed).
         if (cm->ref_frames_info.num_total_refs <= 0 ||
@@ -8311,7 +8378,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
             aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                                "Inter frame requests nonexistent reference");
         } else {
-          ref = aom_rb_read_literal(rb, seq_params->ref_frames_log2);
+          ref = aom_rb_read_literal(rb, seq_params->ref_frames_log2 ADD_DECTRACE("ref"));
 
           // Most of the time, streams start with a keyframe. In that case,
           // ref_frame_map will have been filled in at that point and will not
@@ -8339,7 +8406,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         if (seq_params->frame_id_numbers_present_flag) {
           int frame_id_length = seq_params->frame_id_length;
           int diff_len = seq_params->delta_frame_id_length;
-          int delta_frame_id_minus_1 = aom_rb_read_literal(rb, diff_len);
+          int delta_frame_id_minus_1 = aom_rb_read_literal(rb, diff_len ADD_DECTRACE("delta_frame_id_minus_1"));
           int ref_frame_id =
               ((cm->current_frame_id - (delta_frame_id_minus_1 + 1) +
                 (1 << frame_id_length)) %
@@ -8384,7 +8451,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       }
 
       if (frame_might_allow_ref_frame_mvs(cm))
-        features->allow_ref_frame_mvs = aom_rb_read_bit(rb);
+        features->allow_ref_frame_mvs = aom_rb_read_bit(rb ADD_DECTRACE("features->allow_ref_frame_mvs"));
       else
         features->allow_ref_frame_mvs = 0;
 
@@ -8393,7 +8460,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           cm->ref_frames_info.num_total_refs > 1 &&
           seq_params->order_hint_info.enable_order_hint) {
         // Get the TMVP sampling mode
-        cm->tmvp_sample_step = aom_rb_read_bit(rb) + 1;
+        cm->tmvp_sample_step = aom_rb_read_bit(rb ADD_DECTRACE("cm->tmvp_sample_step")) + 1;
       } else {
         cm->tmvp_sample_step = 1;
       }
@@ -8401,7 +8468,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
 #if CONFIG_LF_SUB_PU
       if (cm->seq_params.enable_lf_sub_pu) {
-        features->allow_lf_sub_pu = aom_rb_read_bit(rb);
+        features->allow_lf_sub_pu = aom_rb_read_bit(rb ADD_DECTRACE("features->allow_lf_sub_pu"));
       }
 #endif  // CONFIG_LF_SUB_PU
 
@@ -8422,14 +8489,14 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // CONFIG_BRU
       ) {
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
-        if (cm->seq_params.enable_tip == 1 && aom_rb_read_bit(rb)) {
+        if (cm->seq_params.enable_tip == 1 && aom_rb_read_bit(rb ADD_DECTRACE("="))) {
           features->tip_frame_mode = TIP_FRAME_AS_OUTPUT;
         } else {
           features->tip_frame_mode =
-              aom_rb_read_bit(rb) ? TIP_FRAME_AS_REF : TIP_FRAME_DISABLED;
+              aom_rb_read_bit(rb ADD_DECTRACE("features->tip_frame_mode")) ? TIP_FRAME_AS_REF : TIP_FRAME_DISABLED;
         }
 #else
-          features->tip_frame_mode = aom_rb_read_literal(rb, 2);
+          features->tip_frame_mode = aom_rb_read_literal(rb, 2 ADD_DECTRACE("features->tip_frame_mode"));
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
 #if !CONFIG_TIP_LD
         features->use_optflow_tip = 1;
@@ -8447,21 +8514,21 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // CONFIG_ENABLE_SR
 
         if (features->tip_frame_mode && cm->seq_params.enable_tip_hole_fill) {
-          features->allow_tip_hole_fill = aom_rb_read_bit(rb);
+          features->allow_tip_hole_fill = aom_rb_read_bit(rb ADD_DECTRACE("features->allow_tip_hole_fill"));
         } else {
           features->allow_tip_hole_fill = false;
         }
 #if CONFIG_TIP_ENHANCEMENT
         if (features->tip_frame_mode && is_unequal_weighted_tip_allowed(cm)) {
-          cm->tip_global_wtd_index = aom_rb_read_literal(rb, 3);
+          cm->tip_global_wtd_index = aom_rb_read_literal(rb, 3 ADD_DECTRACE("cm->tip_global_wtd_index"));
         }
 #endif  // CONFIG_TIP_ENHANCEMENT
 #if CONFIG_LF_SUB_PU
         if (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT &&
             cm->seq_params.enable_lf_sub_pu && features->allow_lf_sub_pu) {
-          cm->lf.tip_filter_level = aom_rb_read_bit(rb);
+          cm->lf.tip_filter_level = aom_rb_read_bit(rb ADD_DECTRACE("cm->lf.tip_filter_level"));
           if (cm->lf.tip_filter_level) {
-            cm->lf.tip_delta_idx = aom_rb_read_literal(rb, 2);
+            cm->lf.tip_delta_idx = aom_rb_read_literal(rb, 2 ADD_DECTRACE("cm->lf.tip_delta_idx"));
             const int tip_delta_idx_to_delta[4] = { -10, 0, 6, 12 };
             cm->lf.tip_delta = tip_delta_idx_to_delta[cm->lf.tip_delta_idx];
           }
@@ -8469,21 +8536,21 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // CONFIG_LF_SUB_PU
 
         if (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
-          int all_zero = aom_rb_read_bit(rb);
+          int all_zero = aom_rb_read_bit(rb ADD_DECTRACE("all_zero"));
           if (!all_zero) {
-            cm->tip_global_motion.as_mv.row = aom_rb_read_literal(rb, 4);
-            cm->tip_global_motion.as_mv.col = aom_rb_read_literal(rb, 4);
+            cm->tip_global_motion.as_mv.row = aom_rb_read_literal(rb, 4 ADD_DECTRACE("cm->tip_global_motion.as_mv.row"));
+            cm->tip_global_motion.as_mv.col = aom_rb_read_literal(rb, 4 ADD_DECTRACE("cm->tip_global_motion.as_mv.col"));
             if (cm->tip_global_motion.as_mv.row != 0) {
-              int sign = aom_rb_read_bit(rb);
+              int sign = aom_rb_read_bit(rb ADD_DECTRACE("sign"));
               if (sign) cm->tip_global_motion.as_mv.row *= -1;
             }
             if (cm->tip_global_motion.as_mv.col != 0) {
-              int sign = aom_rb_read_bit(rb);
+              int sign = aom_rb_read_bit(rb ADD_DECTRACE("sign"));
               if (sign) cm->tip_global_motion.as_mv.col *= -1;
             }
           }
           cm->tip_interp_filter =
-              aom_rb_read_bit(rb) ? MULTITAP_SHARP : EIGHTTAP_REGULAR;
+              aom_rb_read_bit(rb ADD_DECTRACE("cm->tip_interp_filter")) ? MULTITAP_SHARP : EIGHTTAP_REGULAR;
         }
       } else {
         features->tip_frame_mode = TIP_FRAME_DISABLED;
@@ -8508,7 +8575,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
             1
 #endif  // CONFIG_ENABLE_SR
         ) {
-          features->allow_intrabc = aom_rb_read_bit(rb);
+          features->allow_intrabc = aom_rb_read_bit(rb ADD_DECTRACE("features->allow_intrabc"));
           features->allow_global_intrabc = 0;
           features->allow_local_intrabc = features->allow_intrabc;
         }
@@ -8516,13 +8583,13 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
         features->max_drl_bits =
             aom_rb_read_primitive_quniform(
-                rb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1) +
+                rb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1 ADD_DECTRACE("features->max_drl_bits")) +
             MIN_MAX_DRL_BITS;
 #if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
         if (features->allow_intrabc) {
           features->max_bvp_drl_bits =
               aom_rb_read_primitive_quniform(
-                  rb, MAX_MAX_IBC_DRL_BITS - MIN_MAX_IBC_DRL_BITS + 1) +
+                  rb, MAX_MAX_IBC_DRL_BITS - MIN_MAX_IBC_DRL_BITS + 1 ADD_DECTRACE("features->max_bvp_drl_bits")) +
               MIN_MAX_IBC_DRL_BITS;
         }
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
@@ -8530,7 +8597,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         if (features->cur_frame_force_integer_mv) {
           features->fr_mv_precision = MV_PRECISION_ONE_PEL;
         } else {
-          features->fr_mv_precision = aom_rb_read_bit(rb)
+          features->fr_mv_precision = aom_rb_read_bit(rb ADD_DECTRACE("features->fr_mv_precision"))
                                           ? MV_PRECISION_ONE_EIGHTH_PEL
                                           : MV_PRECISION_QTR_PEL;
           features->most_probable_fr_mv_precision = features->fr_mv_precision;
@@ -8547,7 +8614,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         for (int motion_mode = INTERINTRA; motion_mode < MOTION_MODES;
              motion_mode++) {
           if (seq_enabled_motion_modes & (1 << motion_mode)) {
-            int enabled = aom_rb_read_bit(rb);
+            int enabled = aom_rb_read_bit(rb ADD_DECTRACE_I2("motion_modes_enabled", motion_mode));
             if (enabled) {
               frame_enabled_motion_modes |= (1 << motion_mode);
             }
@@ -8556,14 +8623,14 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         features->enabled_motion_modes = frame_enabled_motion_modes;
         if (cm->seq_params.enable_opfl_refine == AOM_OPFL_REFINE_AUTO) {
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
-          if (aom_rb_read_bit(rb)) {
+          if (aom_rb_read_bit(rb ADD_DECTRACE("is_opfl_switchable"))) {
             features->opfl_refine_type = REFINE_SWITCHABLE;
           } else {
             features->opfl_refine_type =
-                aom_rb_read_bit(rb) ? REFINE_ALL : REFINE_NONE;
+                aom_rb_read_bit(rb ADD_DECTRACE("features->opfl_refine_type")) ? REFINE_ALL : REFINE_NONE;
           }
 #else
-            features->opfl_refine_type = aom_rb_read_literal(rb, 2);
+            features->opfl_refine_type = aom_rb_read_literal(rb, 2 ADD_DECTRACE("features->opfl_refine_type"));
             if (features->opfl_refine_type == AOM_OPFL_REFINE_AUTO)
               aom_internal_error(
                   &cm->error, AOM_CODEC_CORRUPT_FRAME,
@@ -8770,7 +8837,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     if (cm->seq_params.enable_tip_explicit_qp) {
       cm->quant_params.base_qindex = aom_rb_read_literal(
           rb, cm->seq_params.bit_depth == AOM_BITS_8 ? QINDEX_BITS_UNEXT
-                                                     : QINDEX_BITS);
+                                                     : QINDEX_BITS ADD_DECTRACE("cm->quant_params.base_qindex"));
       if (av1_num_planes(cm) > 1
 #if CONFIG_EXT_QUANT_UPD
           && cm->seq_params.uv_ac_delta_q_enabled
@@ -8778,11 +8845,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       ) {
         int diff_uv_delta = 0;
         if (cm->seq_params.separate_uv_delta_q) {
-          diff_uv_delta = aom_rb_read_bit(rb);
+          diff_uv_delta = aom_rb_read_bit(rb ADD_DECTRACE("diff_uv_delta"));
         }
-        cm->quant_params.u_ac_delta_q = read_delta_q(rb);
+        cm->quant_params.u_ac_delta_q = read_delta_q(rb ADD_DECTRACE("quant_params->u_ac_delta_q"));
         if (diff_uv_delta) {
-          cm->quant_params.v_ac_delta_q = read_delta_q(rb);
+          cm->quant_params.v_ac_delta_q = read_delta_q(rb ADD_DECTRACE("quant_params->v_ac_delta_q"));
         } else {
           cm->quant_params.v_ac_delta_q = cm->quant_params.u_ac_delta_q;
         }
@@ -8796,7 +8863,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #else
       cm->quant_params.base_qindex = aom_rb_read_literal(
           rb, cm->seq_params.bit_depth == AOM_BITS_8 ? QINDEX_BITS_UNEXT
-                                                     : QINDEX_BITS);
+                                                     : QINDEX_BITS ADD_DECTRACE("cm->quant_params.base_qindex"));
       cm->cur_frame->base_qindex = cm->quant_params.base_qindex;
 #endif  // CONFIG_TIP_IMPLICIT_QUANT
     features->refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
@@ -8812,13 +8879,13 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   }
 
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
-  features->disable_cdf_update = aom_rb_read_bit(rb);
+  features->disable_cdf_update = aom_rb_read_bit(rb ADD_DECTRACE("features->disable_cdf_update"));
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
 
   const int might_bwd_adapt = !(seq_params->reduced_still_picture_hdr) &&
                               !(features->disable_cdf_update);
   if (might_bwd_adapt) {
-    features->refresh_frame_context = aom_rb_read_bit(rb)
+    features->refresh_frame_context = aom_rb_read_bit(rb ADD_DECTRACE("features->refresh_frame_context"))
                                           ? REFRESH_FRAME_CONTEXT_DISABLED
                                           : REFRESH_FRAME_CONTEXT_BACKWARD;
   } else {
@@ -8835,7 +8902,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   // Decode frame-level TCQ flag, if applicable.
   int enable_tcq = seq_params->enable_tcq;
   if (enable_tcq >= TCQ_8ST_FR) {
-    features->tcq_mode = aom_rb_read_bit(rb);
+    features->tcq_mode = aom_rb_read_bit(rb ADD_DECTRACE("features->tcq_mode"));
   } else {
     features->tcq_mode = seq_params->enable_tcq;
   }
@@ -8874,17 +8941,17 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   cm->delta_q_info.delta_lf_present_flag = 0;
   cm->delta_q_info.delta_lf_multi = 0;
   cm->delta_q_info.delta_q_present_flag =
-      quant_params->base_qindex > 0 ? aom_rb_read_bit(rb) : 0;
+      quant_params->base_qindex > 0 ? aom_rb_read_bit(rb ADD_DECTRACE("cm->delta_q_info.delta_q_present_flag")) : 0;
   if (cm->delta_q_info.delta_q_present_flag) {
     xd->current_base_qindex = quant_params->base_qindex;
-    cm->delta_q_info.delta_q_res = 1 << aom_rb_read_literal(rb, 2);
+    cm->delta_q_info.delta_q_res = 1 << aom_rb_read_literal(rb, 2 ADD_DECTRACE("cm->delta_q_info.delta_q_res"));
 #if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
     if (!is_global_intrabc_allowed(cm))
 #endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
-      cm->delta_q_info.delta_lf_present_flag = aom_rb_read_bit(rb);
+      cm->delta_q_info.delta_lf_present_flag = aom_rb_read_bit(rb ADD_DECTRACE("cm->delta_q_info.delta_lf_present_flag"));
     if (cm->delta_q_info.delta_lf_present_flag) {
-      cm->delta_q_info.delta_lf_res = 1 << aom_rb_read_literal(rb, 2);
-      cm->delta_q_info.delta_lf_multi = aom_rb_read_bit(rb);
+      cm->delta_q_info.delta_lf_res = 1 << aom_rb_read_literal(rb, 2 ADD_DECTRACE("cm->delta_q_info.delta_lf_res"));
+      cm->delta_q_info.delta_lf_multi = aom_rb_read_bit(rb ADD_DECTRACE("cm->delta_q_info.delta_lf_multi"));
       av1_reset_loop_filter_delta(xd, av1_num_planes(cm));
     }
   }
@@ -8967,17 +9034,17 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   )
     features->allow_parity_hiding = false;
   else
-    features->allow_parity_hiding = aom_rb_read_bit(rb);
+    features->allow_parity_hiding = aom_rb_read_bit(rb ADD_DECTRACE("features->allow_parity_hiding"));
 
   features->tx_mode = read_tx_mode(rb, features->coded_lossless);
   current_frame->reference_mode = read_frame_reference_mode(cm, rb);
 
   av1_setup_skip_mode_allowed(cm);
   current_frame->skip_mode_info.skip_mode_flag =
-      current_frame->skip_mode_info.skip_mode_allowed ? aom_rb_read_bit(rb) : 0;
+      current_frame->skip_mode_info.skip_mode_allowed ? aom_rb_read_bit(rb ADD_DECTRACE("current_frame->skip_mode_info.skip_mode_flag")) : 0;
 
   if (!frame_is_intra_only(cm) && seq_params->enable_bawp)
-    features->enable_bawp = aom_rb_read_bit(rb);
+    features->enable_bawp = aom_rb_read_bit(rb ADD_DECTRACE("features->enable_bawp"));
   else
     features->enable_bawp = 0;
 
@@ -8989,14 +9056,14 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   features->allow_warpmv_mode = 0;
   if (!frame_is_intra_only(cm) &&
       (features->enabled_motion_modes & (1 << WARP_DELTA)) != 0) {
-    features->allow_warpmv_mode = aom_rb_read_bit(rb);
+    features->allow_warpmv_mode = aom_rb_read_bit(rb ADD_DECTRACE("features->allow_warpmv_mode"));
   }
 
 #if CONFIG_D071_IMP_MSK_BLD
   features->enable_imp_msk_bld = seq_params->enable_imp_msk_bld;
 #endif  // CONFIG_D071_IMP_MSK_BLD
 
-  features->reduced_tx_set_used = aom_rb_read_bit(rb);
+  features->reduced_tx_set_used = aom_rb_read_bit(rb ADD_DECTRACE("features->reduced_tx_set_used"));
 
   if (features->allow_ref_frame_mvs && !frame_might_allow_ref_frame_mvs(cm)) {
     aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
@@ -9041,12 +9108,12 @@ struct aom_read_bit_buffer *av1_init_read_bit_buffer(
 
 void av1_read_frame_size(struct aom_read_bit_buffer *rb, int num_bits_width,
                          int num_bits_height, int *width, int *height) {
-  *width = aom_rb_read_literal(rb, num_bits_width) + 1;
-  *height = aom_rb_read_literal(rb, num_bits_height) + 1;
+  *width = aom_rb_read_literal(rb, num_bits_width ADD_DECTRACE("*width")) + 1;
+  *height = aom_rb_read_literal(rb, num_bits_height ADD_DECTRACE("*height")) + 1;
 }
 
 BITSTREAM_PROFILE av1_read_profile(struct aom_read_bit_buffer *rb) {
-  int profile = aom_rb_read_literal(rb, PROFILE_BITS);
+  int profile = aom_rb_read_literal(rb, PROFILE_BITS ADD_DECTRACE("profile"));
   return (BITSTREAM_PROFILE)profile;
 }
 
@@ -9151,7 +9218,7 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
 
   read_uncompressed_header(pbi, rb);
 
-#if CONFIG_BITSTREAM_DEBUG
+#if CONFIG_BITSTREAM_DEBUG && !CONFIG_F281_OUTPUT
   aom_bitstream_queue_set_frame_read(cm->current_frame.order_hint * 2 +
                                      cm->show_frame);
 #endif

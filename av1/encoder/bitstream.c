@@ -318,10 +318,11 @@ static AOM_INLINE void write_inter_compound_mode(MACROBLOCKD *xd, aom_writer *w,
       aom_write_symbol(w, comp_mode_idx == INTER_COMPOUND_OFFSET(JOINT_NEWMV),
                        xd->tile_ctx->inter_compound_mode_joint_type_cdf[0],
                        NUM_OPTIONS_JOINT_TYPE);
-    } else {
+    } else
 #else
-    if (!is_joint) {
+    if (!is_joint)
 #endif  //! CONFIG_INTER_MODE_CONSOLIDATION
+    {
       aom_write_symbol(
           w, comp_mode_idx,
           xd->tile_ctx->inter_compound_mode_non_joint_type_cdf[mode_ctx],
@@ -443,10 +444,11 @@ static void write_tx_partition(MACROBLOCKD *xd, const MB_MODE_INFO *mbmi,
         if (partition == TX_PARTITION_VERT4 || partition == TX_PARTITION_HORZ4)
           has_first_split = 1;
 #if CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING
-        if (txsize_group_h_or_v) {
+        if (txsize_group_h_or_v)
 #else
-        if (txsize_group) {
+        if (txsize_group)
 #endif  // CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING
+        {
           aom_cdf_prob *partition_type_cdf =
 #if CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING
               ec_ctx->txfm_2or3_way_partition_type_cdf[is_fsc][is_inter]
@@ -1046,10 +1048,11 @@ static AOM_INLINE void pack_map_tokens(const MACROBLOCKD *xd, aom_writer *w,
       } else {
 #if CONFIG_PALETTE_LINE_COPY
         if (!(identity_row_flag == 2) &&
-            (!(identity_row_flag == 1) || ax1 == 0)) {
+            (!(identity_row_flag == 1) || ax1 == 0))
 #else
-        if (!identity_row_flag || ax1 == 0) {
+        if (!identity_row_flag || ax1 == 0)
 #endif  // CONFIG_PALETTE_LINE_COPY
+      {
           assert(p->color_map_palette_size_idx >= 0 &&
                  p->color_map_ctx_idx >= 0);
           aom_cdf_prob *color_map_pb_cdf =
@@ -1323,11 +1326,15 @@ static AOM_INLINE void write_compound_ref(
 
 #if CONFIG_SAME_REF_COMPOUND
   for (int i = 0;
-       (i < n_refs + n_bits - 2 || may_have_same_ref_comp) && n_bits < 2; i++) {
+       (i < n_refs + n_bits - 2 || may_have_same_ref_comp) && n_bits < 2; i++)
+#else
+  for (int i = 0; i < n_refs + n_bits - 2 && n_bits < 2; i++)
+#endif  // CONFIG_SAME_REF_COMPOUND
+  {
+#if CONFIG_SAME_REF_COMPOUND
     const int bit =
         ((n_bits == 0) && (ref0 == i)) || ((n_bits == 1) && (ref1 == i));
 #else
-  for (int i = 0; i < n_refs + n_bits - 2 && n_bits < 2; i++) {
     const int bit = ref0 == i || ref1 == i;
 #endif  // CONFIG_SAME_REF_COMPOUND
     // bit_type: -1 for ref0, 0 for opposite sided ref1, 1 for same sided ref1
@@ -1986,11 +1993,11 @@ static AOM_INLINE void write_cfl_alphas(FRAME_CONTEXT *const ec_ctx,
 
 #if CONFIG_GDF
 #if CONFIG_BRU
-static AOM_INLINE void write_gdf(const AV1_COMMON *cm, MACROBLOCKD *const xd,
+static AOM_INLINE void write_gdf(const AV1_COMMON *cm, MACROBLOCKD *const xd, aom_writer *w)
 #else
-static AOM_INLINE void write_gdf(AV1_COMMON *cm, MACROBLOCKD *const xd,
+static AOM_INLINE void write_gdf(AV1_COMMON *cm, MACROBLOCKD *const xd, aom_writer *w)
 #endif  // CONFIG_BRU
-                                 aom_writer *w) {
+{
   if (!is_allow_gdf(cm)) return;
   if ((cm->gdf_info.gdf_mode < 2) || (cm->gdf_info.gdf_block_num <= 1)) return;
   if ((xd->mi_row % cm->mib_size != 0) || (xd->mi_col % cm->mib_size != 0))
@@ -2011,11 +2018,11 @@ static AOM_INLINE void write_gdf(AV1_COMMON *cm, MACROBLOCKD *const xd,
 #endif  // CONFIG_GDF
 
 #if CONFIG_BRU
-static AOM_INLINE void write_cdef(const AV1_COMMON *cm, MACROBLOCKD *const xd,
+static AOM_INLINE void write_cdef(const AV1_COMMON *cm, MACROBLOCKD *const xd, aom_writer *w, int skip)
 #else
-static AOM_INLINE void write_cdef(AV1_COMMON *cm, MACROBLOCKD *const xd,
+static AOM_INLINE void write_cdef(AV1_COMMON *cm, MACROBLOCKD *const xd, aom_writer *w, int skip)
 #endif  // CONFIG_BRU
-                                  aom_writer *w, int skip) {
+{
   if (cm->features.coded_lossless
 #if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
       || is_global_intrabc_allowed(cm)
@@ -2074,11 +2081,11 @@ static AOM_INLINE void write_cdef(AV1_COMMON *cm, MACROBLOCKD *const xd,
 }
 
 #if CONFIG_BRU
-static AOM_INLINE void write_ccso(const AV1_COMMON *cm, MACROBLOCKD *const xd,
+static AOM_INLINE void write_ccso(const AV1_COMMON *cm, MACROBLOCKD *const xd, aom_writer *w)
 #else
-static AOM_INLINE void write_ccso(AV1_COMMON *cm, MACROBLOCKD *const xd,
+static AOM_INLINE void write_ccso(AV1_COMMON *cm, MACROBLOCKD *const xd, aom_writer *w)
 #endif  // CONFIG_BRU
-                                  aom_writer *w) {
+{
   if (cm->features.coded_lossless) return;
 #if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
   if (is_global_intrabc_allowed(cm)) return;
@@ -2450,10 +2457,11 @@ static INLINE int_mv get_ref_mv_from_stack(
 
   assert(ref_idx == 0);
 #if CONFIG_SEP_COMP_DRL
-  if (ref_mv_idx < mbmi_ext_frame->ref_mv_count[0]) {
+  if (ref_mv_idx < mbmi_ext_frame->ref_mv_count[0])
 #else
-  if (ref_mv_idx < mbmi_ext_frame->ref_mv_count) {
+  if (ref_mv_idx < mbmi_ext_frame->ref_mv_count)
 #endif  // CONFIG_SEP_COMP_DRL
+  {
     return curr_ref_mv_stack[ref_mv_idx].this_mv;
   } else if (is_tip_ref_frame(ref_frame_type)) {
     int_mv zero_mv;
@@ -3742,11 +3750,10 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
 }
 #if CONFIG_BRU
 static AOM_INLINE PARTITION_TYPE
-write_partition(const AV1_COMMON *const cm,
 #else
-static AOM_INLINE void write_partition(
-    const AV1_COMMON *const cm,
+static AOM_INLINE
 #endif  // CONFIG_BRU
+write_partition(const AV1_COMMON *const cm,
                 const MACROBLOCKD *const xd, int mi_row, int mi_col,
                 PARTITION_TYPE p, BLOCK_SIZE bsize, const PARTITION_TREE *ptree,
                 const PARTITION_TREE *ptree_luma, aom_writer *w) {
@@ -4356,16 +4363,20 @@ static AOM_INLINE void write_modes(AV1_COMP *const cpi,
 }
 
 // Same function as write_uniform but writing to uncompresses header wb
-static AOM_INLINE void wb_write_uniform(struct aom_write_bit_buffer *wb, int n,
-                                        int v) {
+#if ENABLE_ENCTRACE
+static AOM_INLINE void wb_write_uniform(struct aom_write_bit_buffer *wb, int n, int v, const char* str)
+#else
+static AOM_INLINE void wb_write_uniform(struct aom_write_bit_buffer *wb, int n, int v)
+#endif
+{
   const int l = get_unsigned_bits(n);
   const int m = (1 << l) - n;
   if (l == 0) return;
   if (v < m) {
-    aom_wb_write_literal(wb, v, l - 1);
+    aom_wb_write_literal(wb, v, l - 1 ADD_ENCTRACE(str));
   } else {
-    aom_wb_write_literal(wb, m + ((v - m) >> 1), l - 1);
-    aom_wb_write_literal(wb, (v - m) & 1, 1);
+    aom_wb_write_literal(wb, m + ((v - m) >> 1), l - 1 ADD_ENCTRACE(str));
+    aom_wb_write_literal(wb, (v - m) & 1, 1 ADD_ENCTRACE(str));
   }
 }
 
@@ -4410,21 +4421,21 @@ static AOM_INLINE void encode_restoration_mode(
                    rsi->frame_restoration_type != RESTORE_SWITCHABLE));
     const int ndx =
         frame_restoration_type_to_index(cm, p, rsi->frame_restoration_type);
-    wb_write_uniform(wb, cm->features.lr_frame_tools_count[p], ndx);
+    wb_write_uniform(wb, cm->features.lr_frame_tools_count[p], ndx ADD_ENCTRACE_I2("ndx", p));
     uint8_t plane_lr_tools_disable_mask = cm->features.lr_tools_disable_mask[p];
     uint8_t sw_lr_tools_disable_mask = rsi->sw_lr_tools_disable_mask;
     if (rsi->frame_restoration_type == RESTORE_SWITCHABLE &&
         cm->features.lr_tools_count[p] > 2) {
       if ((sw_lr_tools_disable_mask | plane_lr_tools_disable_mask) ==
           plane_lr_tools_disable_mask) {
-        aom_wb_write_bit(wb, 0);
+        aom_wb_write_bit(wb, 0 ADD_ENCTRACE_I2("lr_tools", p));
       } else {
-        aom_wb_write_bit(wb, 1);
+        aom_wb_write_bit(wb, 1 ADD_ENCTRACE_I2("lr_tools", p));
         int tools_count = cm->features.lr_tools_count[p];
         for (int i = 1; i < RESTORE_SWITCHABLE_TYPES; ++i) {
           if (!(plane_lr_tools_disable_mask & (1 << i))) {
             const int disable_tool = (sw_lr_tools_disable_mask >> i) & 1;
-            aom_wb_write_bit(wb, disable_tool);
+            aom_wb_write_bit(wb, disable_tool ADD_ENCTRACE_I2("disable_tool", p));
             plane_lr_tools_disable_mask |=
                 (sw_lr_tools_disable_mask & (1 << i));
             tools_count -= disable_tool;
@@ -4446,7 +4457,7 @@ static AOM_INLINE void encode_restoration_mode(
       if (is_frame_filters_enabled(p)) {
         const int write_frame_filters_on_off = 1;
         if (write_frame_filters_on_off) {
-          aom_wb_write_literal(wb, rsi->frame_filters_on, 1);
+          aom_wb_write_literal(wb, rsi->frame_filters_on, 1 ADD_ENCTRACE_I2("rsi->frame_filters_on", p));
 #if CONFIG_TEMP_LR
           if (rsi->frame_filters_on) {
             const int num_ref_frames =
@@ -4454,18 +4465,18 @@ static AOM_INLINE void encode_restoration_mode(
                     ? 0
                     : cm->ref_frames_info.num_total_refs;
             if (num_ref_frames > 0)
-              aom_wb_write_bit(wb, rsi->temporal_pred_flag);
+              aom_wb_write_bit(wb, rsi->temporal_pred_flag ADD_ENCTRACE_I2("rsi->temporal_pred_flag", p));
             if (rsi->temporal_pred_flag && num_ref_frames > 1)
               aom_wb_write_literal(
                   wb, rsi->rst_ref_pic_idx,
-                  av1_ceil_log2(num_ref_frames));  // write_lr_reference_idx
+                  av1_ceil_log2(num_ref_frames) ADD_ENCTRACE_I2("rsi->rst_ref_pic_idx", p));  // write_lr_reference_idx
           }
           if (!rsi->temporal_pred_flag) {
 #endif  // CONFIG_TEMP_LR
             if (rsi->frame_filters_on && max_num_classes(p) > 1) {
               aom_wb_write_literal(
                   wb, encode_num_filter_classes(rsi->num_filter_classes),
-                  NUM_FILTER_CLASSES_BITS);
+                  NUM_FILTER_CLASSES_BITS ADD_ENCTRACE_I2("rsi->num_filter_classes", p));
             }
 #if CONFIG_TEMP_LR
           }
@@ -4509,15 +4520,15 @@ static AOM_INLINE void encode_restoration_mode(
   }
   int size = cm->rst_info[0].max_restoration_unit_size;
   if (!luma_none) {
-    aom_wb_write_bit(wb, cm->rst_info[0].restoration_unit_size == size >> 1);
+    aom_wb_write_bit(wb, cm->rst_info[0].restoration_unit_size == size >> 1 ADD_ENCTRACE("restoration_unit_size0"));
     if (cm->rst_info[0].restoration_unit_size != size >> 1)
-      aom_wb_write_bit(wb, cm->rst_info[0].restoration_unit_size == size);
+      aom_wb_write_bit(wb, cm->rst_info[0].restoration_unit_size == size ADD_ENCTRACE("restoration_unit_size1"));
   }
   if (!chroma_none) {
     size = cm->rst_info[1].max_restoration_unit_size;
-    aom_wb_write_bit(wb, cm->rst_info[1].restoration_unit_size == size >> 1);
+    aom_wb_write_bit(wb, cm->rst_info[1].restoration_unit_size == size >> 1 ADD_ENCTRACE("restoration_chroma_unit_size0"));
     if (cm->rst_info[1].restoration_unit_size != size >> 1)
-      aom_wb_write_bit(wb, cm->rst_info[1].restoration_unit_size == size);
+      aom_wb_write_bit(wb, cm->rst_info[1].restoration_unit_size == size ADD_ENCTRACE("restoration_chroma_unit_size1"));
     assert(cm->rst_info[2].restoration_unit_size ==
            cm->rst_info[1].restoration_unit_size);
   }
@@ -5087,14 +5098,14 @@ static AOM_INLINE void encode_loopfilter(AV1_COMMON *cm,
   struct loopfilter *lf = &cm->lf;
 
   // Encode the loop filter level and type
-  aom_wb_write_bit(wb, lf->filter_level[0]);
+  aom_wb_write_bit(wb, lf->filter_level[0] ADD_ENCTRACE("lf->filter_level[0]"));
 #if DF_DUAL
-  aom_wb_write_bit(wb, lf->filter_level[1]);
+  aom_wb_write_bit(wb, lf->filter_level[1] ADD_ENCTRACE("lf->filter_level[1]"));
 #endif
   if (num_planes > 1) {
     if (lf->filter_level[0] || lf->filter_level[1]) {
-      aom_wb_write_bit(wb, lf->filter_level_u);
-      aom_wb_write_bit(wb, lf->filter_level_v);
+      aom_wb_write_bit(wb, lf->filter_level_u ADD_ENCTRACE("lf->filter_level_u"));
+      aom_wb_write_bit(wb, lf->filter_level_v ADD_ENCTRACE("lf->filter_level_v"));
     }
   }
 #if CONFIG_DF_PAR_BITS
@@ -5108,17 +5119,17 @@ static AOM_INLINE void encode_loopfilter(AV1_COMMON *cm,
   if (lf->filter_level[0]) {
     int luma_delta_q_flag = lf->delta_q_luma[0] != 0;
 
-    aom_wb_write_bit(wb, luma_delta_q_flag);
+    aom_wb_write_bit(wb, luma_delta_q_flag ADD_ENCTRACE("luma_delta_q_flag"));
     if (luma_delta_q_flag) {
       aom_wb_write_literal(wb, lf->delta_q_luma[0] + df_par_offset,
-                           df_par_bits);
+                           df_par_bits ADD_ENCTRACE("lf->delta_q_luma[0] + df_par_offset"));
     }
 #if DF_TWO_PARAM
     int luma_delta_side_flag = lf->delta_side_luma[0] != 0;
-    aom_wb_write_bit(wb, luma_delta_side_flag);
+    aom_wb_write_bit(wb, luma_delta_side_flag ADD_ENCTRACE("luma_delta_side_flag"));
     if (luma_delta_side_flag) {
       aom_wb_write_literal(wb, lf->delta_side_luma[0] + df_par_offset,
-                           df_par_bits);
+                           df_par_bits ADD_ENCTRACE("lf->delta_side_luma[0] + df_par_offset"));
     }
 #else
     assert(lf->delta_q_luma[0] == lf->delta_side_luma[0]);
@@ -5128,17 +5139,17 @@ static AOM_INLINE void encode_loopfilter(AV1_COMMON *cm,
   if (lf->filter_level[1]) {
     int luma_delta_q_flag = lf->delta_q_luma[1] != lf->delta_q_luma[0];
 
-    aom_wb_write_bit(wb, luma_delta_q_flag);
+    aom_wb_write_bit(wb, luma_delta_q_flag ADD_ENCTRACE("luma_delta_q_flag"));
     if (luma_delta_q_flag) {
       aom_wb_write_literal(wb, lf->delta_q_luma[1] + df_par_offset,
-                           df_par_bits);
+                           df_par_bits ADD_ENCTRACE("lf->delta_q_luma[1] + df_par_offset"));
     }
 #if DF_TWO_PARAM
     int luma_delta_side_flag = lf->delta_side_luma[1] != lf->delta_side_luma[0];
-    aom_wb_write_bit(wb, luma_delta_side_flag);
+    aom_wb_write_bit(wb, luma_delta_side_flag ADD_ENCTRACE("luma_delta_side_flag"));
     if (luma_delta_side_flag) {
       aom_wb_write_literal(wb, lf->delta_side_luma[1] + df_par_offset,
-                           df_par_bits);
+                           df_par_bits ADD_ENCTRACE("lf->delta_side_luma[1] + df_par_offset"));
     }
 #else
     assert(lf->delta_q_luma[1] == lf->delta_side_luma[1]);
@@ -5148,16 +5159,16 @@ static AOM_INLINE void encode_loopfilter(AV1_COMMON *cm,
   if (lf->filter_level[0] || lf->filter_level[1]) {
     int luma_delta_q_flag = lf->delta_q_luma != 0;
 
-    aom_wb_write_bit(wb, luma_delta_q_flag);
+    aom_wb_write_bit(wb, luma_delta_q_flag ADD_ENCTRACE("luma_delta_q_flag"));
     if (luma_delta_q_flag) {
-      aom_wb_write_literal(wb, lf->delta_q_luma + df_par_offset, df_par_bits);
+      aom_wb_write_literal(wb, lf->delta_q_luma + df_par_offset, df_par_bits ADD_ENCTRACE("lf->delta_q_luma + df_par_offset"));
     }
 #if DF_TWO_PARAM
     int luma_delta_side_flag = lf->delta_side_luma != 0;
-    aom_wb_write_bit(wb, luma_delta_side_flag);
+    aom_wb_write_bit(wb, luma_delta_side_flag ADD_ENCTRACE("luma_delta_side_flag"));
     if (luma_delta_side_flag) {
       aom_wb_write_literal(wb, lf->delta_side_luma + df_par_offset,
-                           df_par_bits);
+                           df_par_bits ADD_ENCTRACE("lf->delta_side_luma + df_par_offset"));
     }
 #else
     assert(lf->delta_q_luma == lf->delta_side_luma);
@@ -5167,15 +5178,15 @@ static AOM_INLINE void encode_loopfilter(AV1_COMMON *cm,
   if (lf->filter_level_u) {
     int u_delta_q_flag = lf->delta_q_u != 0;
 
-    aom_wb_write_bit(wb, u_delta_q_flag);
+    aom_wb_write_bit(wb, u_delta_q_flag ADD_ENCTRACE("u_delta_q_flag"));
     if (u_delta_q_flag) {
-      aom_wb_write_literal(wb, lf->delta_q_u + df_par_offset, df_par_bits);
+      aom_wb_write_literal(wb, lf->delta_q_u + df_par_offset, df_par_bits ADD_ENCTRACE("lf->delta_q_u + df_par_offset"));
     }
 #if DF_TWO_PARAM
     int u_delta_side_flag = lf->delta_side_u != 0;
-    aom_wb_write_bit(wb, u_delta_side_flag);
+    aom_wb_write_bit(wb, u_delta_side_flag ADD_ENCTRACE("u_delta_side_flag"));
     if (u_delta_side_flag) {
-      aom_wb_write_literal(wb, lf->delta_side_u + DF_PAR_OFFSET, DF_PAR_BITS);
+      aom_wb_write_literal(wb, lf->delta_side_u + DF_PAR_OFFSET, DF_PAR_BITS ADD_ENCTRACE("lf->delta_side_u + DF_PAR_OFFSET"));
     }
 #else
     assert(lf->delta_q_u == lf->delta_side_u);
@@ -5185,15 +5196,15 @@ static AOM_INLINE void encode_loopfilter(AV1_COMMON *cm,
   if (lf->filter_level_v) {
     int v_delta_q_flag = lf->delta_q_v != 0;
 
-    aom_wb_write_bit(wb, v_delta_q_flag);
+    aom_wb_write_bit(wb, v_delta_q_flag ADD_ENCTRACE("v_delta_q_flag"));
     if (v_delta_q_flag) {
-      aom_wb_write_literal(wb, lf->delta_q_v + df_par_offset, df_par_bits);
+      aom_wb_write_literal(wb, lf->delta_q_v + df_par_offset, df_par_bits ADD_ENCTRACE("lf->delta_q_v + df_par_offset"));
     }
 #if DF_TWO_PARAM
     int v_delta_side_flag = lf->delta_side_v != 0;
-    aom_wb_write_bit(wb, v_delta_side_flag);
+    aom_wb_write_bit(wb, v_delta_side_flag ADD_ENCTRACE("v_delta_side_flag"));
     if (v_delta_side_flag) {
-      aom_wb_write_literal(wb, lf->delta_side_v + df_par_offset, df_par_bits);
+      aom_wb_write_literal(wb, lf->delta_side_v + df_par_offset, df_par_bits ADD_ENCTRACE("lf->delta_side_v + df_par_offset"));
     }
 #else
     assert(lf->delta_q_v == lf->delta_side_v);
@@ -5211,14 +5222,14 @@ static AOM_INLINE void encode_gdf(const AV1_COMMON *cm,
     return;
   }
 #endif
-  aom_wb_write_bit(wb, cm->gdf_info.gdf_mode == 0 ? 0 : 1);
+  aom_wb_write_bit(wb, cm->gdf_info.gdf_mode == 0 ? 0 : 1 ADD_ENCTRACE("cm->gdf_info.gdf_mode == 0 ? 0 : 1"));
   if (cm->gdf_info.gdf_mode) {
     if (cm->gdf_info.gdf_block_num > 1) {
-      aom_wb_write_bit(wb, cm->gdf_info.gdf_mode == 1 ? 0 : 1);
+      aom_wb_write_bit(wb, cm->gdf_info.gdf_mode == 1 ? 0 : 1 ADD_ENCTRACE("cm->gdf_info.gdf_mode == 1 ? 0 : 1"));
     }
-    aom_wb_write_literal(wb, cm->gdf_info.gdf_pic_qp_idx, GDF_RDO_QP_NUM_LOG2);
+    aom_wb_write_literal(wb, cm->gdf_info.gdf_pic_qp_idx, GDF_RDO_QP_NUM_LOG2 ADD_ENCTRACE("cm->gdf_info.gdf_pic_qp_idx"));
     aom_wb_write_literal(wb, cm->gdf_info.gdf_pic_scale_idx,
-                         GDF_RDO_SCALE_NUM_LOG2);
+                         GDF_RDO_SCALE_NUM_LOG2 ADD_ENCTRACE("cm->gdf_info.gdf_pic_scale_idx"));
   }
 }
 #endif  // CONFIG_GDF
@@ -5235,44 +5246,44 @@ static AOM_INLINE void encode_cdef(const AV1_COMMON *cm,
   if (cm->bru.frame_inactive_flag) return;
 #endif  // CONFIG_BRU
 #if CONFIG_FIX_CDEF_SYNTAX
-  aom_wb_write_bit(wb, cdef_info->cdef_frame_enable);
+  aom_wb_write_bit(wb, cdef_info->cdef_frame_enable ADD_ENCTRACE("cdef_info->cdef_frame_enable"));
   if (!cdef_info->cdef_frame_enable) return;
 #endif  // CONFIG_FIX_CDEF_SYNTAX
   const int num_planes = av1_num_planes(cm);
   int i;
-  aom_wb_write_literal(wb, cdef_info->cdef_damping - 3, 2);
+  aom_wb_write_literal(wb, cdef_info->cdef_damping - 3, 2 ADD_ENCTRACE("cdef_info->cdef_damping - 3"));
 #if CONFIG_CDEF_ENHANCEMENTS
-  aom_wb_write_literal(wb, cdef_info->nb_cdef_strengths - 1, 3);
+  aom_wb_write_literal(wb, cdef_info->nb_cdef_strengths - 1, 3 ADD_ENCTRACE("cdef_info->nb_cdef_strengths - 1"));
   if (cm->seq_params.enable_cdef_on_skip_txfm == CDEF_ON_SKIP_TXFM_ADAPTIVE) {
-    aom_wb_write_bit(wb, cdef_info->cdef_on_skip_txfm_frame_enable);
+    aom_wb_write_bit(wb, cdef_info->cdef_on_skip_txfm_frame_enable ADD_ENCTRACE("cdef_info->cdef_on_skip_txfm_frame_enable"));
   }
 #else
-  aom_wb_write_literal(wb, cdef_info->cdef_bits, 2);
+  aom_wb_write_literal(wb, cdef_info->cdef_bits, 2 ADD_ENCTRACE("cdef_info->cdef_bits"));
 #endif  // CONFIG_CDEF_ENHANCEMENTS
   for (i = 0; i < cdef_info->nb_cdef_strengths; i++) {
 #if CONFIG_CDEF_ENHANCEMENTS
-    aom_wb_write_bit(wb, cdef_info->cdef_strengths[i] < 4);
+    aom_wb_write_bit(wb, cdef_info->cdef_strengths[i] < 4 ADD_ENCTRACE("cdef_info->cdef_strengths[i] < 4"));
     if (cdef_info->cdef_strengths[i] < 4) {
-      aom_wb_write_literal(wb, cdef_info->cdef_strengths[i], 2);
+      aom_wb_write_literal(wb, cdef_info->cdef_strengths[i], 2 ADD_ENCTRACE("cdef_info->cdef_strengths[i]"));
     } else {
       aom_wb_write_literal(wb, cdef_info->cdef_strengths[i],
-                           CDEF_STRENGTH_BITS);
+                           CDEF_STRENGTH_BITS ADD_ENCTRACE("cdef_info->cdef_strengths[i]"));
     }
     if (num_planes > 1) {
-      aom_wb_write_bit(wb, cdef_info->cdef_uv_strengths[i] < 4);
+      aom_wb_write_bit(wb, cdef_info->cdef_uv_strengths[i] < 4 ADD_ENCTRACE("cdef_info->cdef_uv_strengths[i] < 4"));
       if (cdef_info->cdef_uv_strengths[i] < 4) {
-        aom_wb_write_literal(wb, cdef_info->cdef_uv_strengths[i], 2);
+        aom_wb_write_literal(wb, cdef_info->cdef_uv_strengths[i], 2 ADD_ENCTRACE("cdef_info->cdef_uv_strengths[i]"));
       } else {
         aom_wb_write_literal(wb, cdef_info->cdef_uv_strengths[i],
-                             CDEF_STRENGTH_BITS);
+                             CDEF_STRENGTH_BITS ADD_ENCTRACE("cdef_info->cdef_uv_strengths[i]"));
       }
     }
 #else
     aom_wb_write_literal(wb, cm->cdef_info.cdef_strengths[i],
-                         CDEF_STRENGTH_BITS);
+                         CDEF_STRENGTH_BITS ADD_ENCTRACE("cm->cdef_info.cdef_strengths[i]"));
     if (num_planes > 1)
       aom_wb_write_literal(wb, cm->cdef_info.cdef_uv_strengths[i],
-                           CDEF_STRENGTH_BITS);
+                           CDEF_STRENGTH_BITS ADD_ENCTRACE("cm->cdef_info.cdef_uv_strengths[i]"));
 #endif  // CONFIG_CDEF_ENHANCEMENTS
   }
 }
@@ -5281,7 +5292,7 @@ static AOM_INLINE void encode_cdef(const AV1_COMMON *cm,
 static AOM_INLINE void write_ccso_offset_idx(struct aom_write_bit_buffer *wb,
                                              int offset_idx) {
   for (int idx = 0; idx < 7; ++idx) {
-    aom_wb_write_bit(wb, offset_idx != idx);
+    aom_wb_write_bit(wb, offset_idx != idx ADD_ENCTRACE(""));
     if (offset_idx == idx) break;
   }
 }
@@ -5295,36 +5306,36 @@ static AOM_INLINE void encode_ccso(const AV1_COMMON *cm,
 #endif  // CONFIG_BRU
   const int ccso_offset[8] = { 0, 1, -1, 3, -3, 7, -7, -10 };
   const int ccso_scale[4] = { 1, 2, 3, 4 };
-  aom_wb_write_literal(wb, cm->ccso_info.ccso_frame_flag, 1);
+  aom_wb_write_literal(wb, cm->ccso_info.ccso_frame_flag, 1 ADD_ENCTRACE("cm->ccso_info.ccso_frame_flag"));
   if (cm->ccso_info.ccso_frame_flag) {
     for (int plane = 0; plane < av1_num_planes(cm); plane++) {
-      aom_wb_write_literal(wb, cm->ccso_info.ccso_enable[plane], 1);
+      aom_wb_write_literal(wb, cm->ccso_info.ccso_enable[plane], 1 ADD_ENCTRACE_I2("cm->ccso_info.ccso_enable", plane));
       if (cm->ccso_info.ccso_enable[plane]) {
         if (!frame_is_intra_only(cm)) {
-          aom_wb_write_literal(wb, cm->ccso_info.reuse_ccso[plane], 1);
-          aom_wb_write_literal(wb, cm->ccso_info.sb_reuse_ccso[plane], 1);
+          aom_wb_write_literal(wb, cm->ccso_info.reuse_ccso[plane], 1 ADD_ENCTRACE_I2("cm->ccso_info.reuse_ccso", plane));
+          aom_wb_write_literal(wb, cm->ccso_info.sb_reuse_ccso[plane], 1 ADD_ENCTRACE_I2("cm->ccso_info.sb_reuse_ccso", plane));
         } else {
           assert(cm->ccso_info.reuse_ccso[plane] == 0 &&
                  cm->ccso_info.sb_reuse_ccso[plane] == 0);
         }
         if (cm->ccso_info.reuse_ccso[plane] ||
             cm->ccso_info.sb_reuse_ccso[plane]) {
-          aom_wb_write_literal(wb, cm->ccso_info.ccso_ref_idx[plane], 3);
+          aom_wb_write_literal(wb, cm->ccso_info.ccso_ref_idx[plane], 3 ADD_ENCTRACE_I2("cm->ccso_info.ccso_ref_idx", plane));
           assert(cm->ccso_info.ccso_ref_idx[plane] <
                  cm->ref_frames_info.num_total_refs);
         }
 
         if (!cm->ccso_info.reuse_ccso[plane]) {
-          aom_wb_write_literal(wb, cm->ccso_info.ccso_bo_only[plane], 1);
-          aom_wb_write_literal(wb, cm->ccso_info.scale_idx[plane], 2);
+          aom_wb_write_literal(wb, cm->ccso_info.ccso_bo_only[plane], 1 ADD_ENCTRACE_I2("cm->ccso_info.ccso_bo_only", plane));
+          aom_wb_write_literal(wb, cm->ccso_info.scale_idx[plane], 2 ADD_ENCTRACE_I2("cm->ccso_info.scale_idx", plane));
           if (cm->ccso_info.ccso_bo_only[plane]) {
-            aom_wb_write_literal(wb, cm->ccso_info.max_band_log2[plane], 3);
+            aom_wb_write_literal(wb, cm->ccso_info.max_band_log2[plane], 3 ADD_ENCTRACE_I2("cm->ccso_info.max_band_log2", plane));
           } else {
-            aom_wb_write_literal(wb, cm->ccso_info.quant_idx[plane], 2);
+            aom_wb_write_literal(wb, cm->ccso_info.quant_idx[plane], 2 ADD_ENCTRACE_I2("cm->ccso_info.quant_idx", plane));
             aom_wb_write_literal(wb, cm->ccso_info.ext_filter_support[plane],
-                                 3);
-            aom_wb_write_bit(wb, cm->ccso_info.edge_clf[plane]);
-            aom_wb_write_literal(wb, cm->ccso_info.max_band_log2[plane], 2);
+                                 3 ADD_ENCTRACE_I2("cm->ccso_info.ext_filter_support", plane));
+            aom_wb_write_bit(wb, cm->ccso_info.edge_clf[plane] ADD_ENCTRACE_I2("cm->ccso_info.edge_clf", plane));
+            aom_wb_write_literal(wb, cm->ccso_info.max_band_log2[plane], 2 ADD_ENCTRACE_I2("cm->ccso_info.max_band_log2", plane));
           }
           const int max_band = 1 << cm->ccso_info.max_band_log2[plane];
           const int edge_clf = cm->ccso_info.edge_clf[plane];
@@ -5335,6 +5346,9 @@ static AOM_INLINE void encode_ccso(const AV1_COMMON *cm,
             for (int d1 = 0; d1 < num_edge_offset_intervals; d1++) {
               for (int band_num = 0; band_num < max_band; band_num++) {
                 const int lut_idx_ext = (band_num << 4) + (d0 << 2) + d1;
+#if  ENABLE_ENCTRACE
+                printf("cm->ccso_info[%d].filter_offset[%d]\t%d\n", plane, lut_idx_ext, cm->ccso_info.filter_offset[plane][lut_idx_ext]);
+#endif
                 for (int offset_idx = 0; offset_idx < 8; offset_idx++) {
                   if (cm->ccso_info.filter_offset[plane][lut_idx_ext] ==
                       ccso_offset[offset_idx] *
@@ -5351,14 +5365,17 @@ static AOM_INLINE void encode_ccso(const AV1_COMMON *cm,
     }
   }
 }
-
-static AOM_INLINE void write_delta_q(struct aom_write_bit_buffer *wb,
-                                     int delta_q) {
+#if ENABLE_ENCTRACE
+static AOM_INLINE void write_delta_q(struct aom_write_bit_buffer *wb, int delta_q, const char* str)
+#else
+static AOM_INLINE void write_delta_q(struct aom_write_bit_buffer *wb, int delta_q)
+#endif
+{
   if (delta_q != 0) {
-    aom_wb_write_bit(wb, 1);
-    aom_wb_write_inv_signed_literal(wb, delta_q, 6);
+    aom_wb_write_bit(wb, 1 ADD_ENCTRACE(str));
+    aom_wb_write_inv_signed_literal(wb, delta_q, 6 ADD_ENCTRACE(str));
   } else {
-    aom_wb_write_bit(wb, 0);
+    aom_wb_write_bit(wb, 0 ADD_ENCTRACE(str));
   }
 }
 
@@ -5369,11 +5386,11 @@ static AOM_INLINE void encode_quantization(
   bool separate_uv_delta_q = seq_params->separate_uv_delta_q;
   aom_wb_write_literal(
       wb, quant_params->base_qindex,
-      bit_depth == AOM_BITS_8 ? QINDEX_BITS_UNEXT : QINDEX_BITS);
+      bit_depth == AOM_BITS_8 ? QINDEX_BITS_UNEXT : QINDEX_BITS ADD_ENCTRACE("quant_params->base_qindex"));
 
 #if CONFIG_EXT_QUANT_UPD
   if (seq_params->y_dc_delta_q_enabled)
-    write_delta_q(wb, quant_params->y_dc_delta_q);
+    write_delta_q(wb, quant_params->y_dc_delta_q ADD_ENCTRACE("quant_params->y_dc_delta_q"));
   else
     assert(quant_params->y_dc_delta_q == 0);
 #else
@@ -5388,11 +5405,11 @@ static AOM_INLINE void encode_quantization(
     int diff_uv_delta =
         (quant_params->u_dc_delta_q != quant_params->v_dc_delta_q) ||
         (quant_params->u_ac_delta_q != quant_params->v_ac_delta_q);
-    if (separate_uv_delta_q) aom_wb_write_bit(wb, diff_uv_delta);
+    if (separate_uv_delta_q) aom_wb_write_bit(wb, diff_uv_delta ADD_ENCTRACE("diff_uv_delta"));
 #if CONFIG_EXT_QUANT_UPD
     if (!seq_params->equal_ac_dc_q) {
       if (seq_params->uv_dc_delta_q_enabled)
-        write_delta_q(wb, quant_params->u_dc_delta_q);
+        write_delta_q(wb, quant_params->u_dc_delta_q ADD_ENCTRACE("quant_params->u_dc_delta_q"));
       else
         assert(quant_params->u_dc_delta_q == 0);
     } else {
@@ -5403,7 +5420,7 @@ static AOM_INLINE void encode_quantization(
 #endif  // CONFIG_EXT_QUANT_UPD
 #if CONFIG_EXT_QUANT_UPD
     if (seq_params->uv_ac_delta_q_enabled)
-      write_delta_q(wb, quant_params->u_ac_delta_q);
+      write_delta_q(wb, quant_params->u_ac_delta_q ADD_ENCTRACE("quant_params->u_ac_delta_q"));
     else
       assert(quant_params->u_ac_delta_q == 0);
     if (seq_params->equal_ac_dc_q)
@@ -5415,7 +5432,7 @@ static AOM_INLINE void encode_quantization(
 #if CONFIG_EXT_QUANT_UPD
       if (!seq_params->equal_ac_dc_q) {
         if (seq_params->uv_dc_delta_q_enabled)
-          write_delta_q(wb, quant_params->v_dc_delta_q);
+          write_delta_q(wb, quant_params->v_dc_delta_q ADD_ENCTRACE("quant_params->v_dc_delta_q"));
         else
           assert(quant_params->v_dc_delta_q == 0);
       } else {
@@ -5426,7 +5443,7 @@ static AOM_INLINE void encode_quantization(
 #endif  // CONFIG_EXT_QUANT_UPD
 #if CONFIG_EXT_QUANT_UPD
       if (seq_params->uv_ac_delta_q_enabled)
-        write_delta_q(wb, quant_params->v_ac_delta_q);
+        write_delta_q(wb, quant_params->v_ac_delta_q ADD_ENCTRACE("quant_params->v_ac_delta_q"));
       else
         assert(quant_params->v_ac_delta_q == 0);
       if (seq_params->equal_ac_dc_q)
@@ -5441,14 +5458,14 @@ static AOM_INLINE void encode_quantization(
     assert(quant_params->u_ac_delta_q == 0);
     assert(quant_params->v_ac_delta_q == 0);
   }
-  aom_wb_write_bit(wb, quant_params->using_qmatrix);
+  aom_wb_write_bit(wb, quant_params->using_qmatrix ADD_ENCTRACE("quant_params->using_qmatrix"));
   if (quant_params->using_qmatrix) {
-    aom_wb_write_literal(wb, quant_params->qmatrix_level_y, QM_LEVEL_BITS);
-    aom_wb_write_literal(wb, quant_params->qmatrix_level_u, QM_LEVEL_BITS);
+    aom_wb_write_literal(wb, quant_params->qmatrix_level_y, QM_LEVEL_BITS ADD_ENCTRACE("quant_params->qmatrix_level_y"));
+    aom_wb_write_literal(wb, quant_params->qmatrix_level_u, QM_LEVEL_BITS ADD_ENCTRACE("quant_params->qmatrix_level_u"));
     if (!separate_uv_delta_q)
       assert(quant_params->qmatrix_level_u == quant_params->qmatrix_level_v);
     else
-      aom_wb_write_literal(wb, quant_params->qmatrix_level_v, QM_LEVEL_BITS);
+      aom_wb_write_literal(wb, quant_params->qmatrix_level_v, QM_LEVEL_BITS ADD_ENCTRACE("quant_params->qmatrix_level_v"));
   }
 }
 #if CONFIG_BRU
@@ -5456,10 +5473,10 @@ static AOM_INLINE void encode_bru_active_info(AV1_COMP *cpi,
                                               struct aom_write_bit_buffer *wb) {
   const AV1_COMMON *cm = &cpi->common;
   if (cm->seq_params.enable_bru) {
-    aom_wb_write_bit(wb, cm->bru.enabled);
+    aom_wb_write_bit(wb, cm->bru.enabled ADD_ENCTRACE("cm->bru.enabled"));
     if (cm->bru.enabled) {
-      aom_wb_write_literal(wb, cm->bru.explicit_ref_idx, REF_FRAMES_LOG2);
-      aom_wb_write_bit(wb, cm->bru.frame_inactive_flag);
+      aom_wb_write_literal(wb, cm->bru.explicit_ref_idx, REF_FRAMES_LOG2 ADD_ENCTRACE("cm->bru.explicit_ref_idx"));
+      aom_wb_write_bit(wb, cm->bru.frame_inactive_flag ADD_ENCTRACE("cm->bru.frame_inactive_flag"));
     }
   }
   return;
@@ -5470,28 +5487,29 @@ static AOM_INLINE void encode_segmentation(AV1_COMMON *cm, MACROBLOCKD *xd,
   int i, j;
   struct segmentation *seg = &cm->seg;
 
-  aom_wb_write_bit(wb, seg->enabled);
+  aom_wb_write_bit(wb, seg->enabled ADD_ENCTRACE("seg->enabled"));
   if (!seg->enabled) {
     return;
   }
 
   // Write update flags
 #if CONFIG_PRIMARY_REF_FRAME_OPT
-  if (cm->features.derived_primary_ref_frame == PRIMARY_REF_NONE) {
+  if (cm->features.derived_primary_ref_frame == PRIMARY_REF_NONE)
 #else
-  if (cm->features.primary_ref_frame == PRIMARY_REF_NONE) {
+  if (cm->features.primary_ref_frame == PRIMARY_REF_NONE)
 #endif  // CONFIG_PRIMARY_REF_FRAME_OPT
+    {
     assert(seg->update_map == 1);
     seg->temporal_update = 0;
     assert(seg->update_data == 1);
   } else {
-    aom_wb_write_bit(wb, seg->update_map);
+    aom_wb_write_bit(wb, seg->update_map ADD_ENCTRACE("seg->update_map"));
     if (seg->update_map) {
       // Select the coding strategy (temporal or spatial)
       av1_choose_segmap_coding_method(cm, xd);
-      aom_wb_write_bit(wb, seg->temporal_update);
+      aom_wb_write_bit(wb, seg->temporal_update ADD_ENCTRACE("seg->temporal_update"));
     }
-    aom_wb_write_bit(wb, seg->update_data);
+    aom_wb_write_bit(wb, seg->update_data ADD_ENCTRACE("seg->update_data"));
   }
 
   // Segmentation data
@@ -5505,7 +5523,7 @@ static AOM_INLINE void encode_segmentation(AV1_COMMON *cm, MACROBLOCKD *xd,
     for (i = 0; i < max_seg_num; i++) {
       for (j = 0; j < SEG_LVL_MAX; j++) {
         const int active = segfeature_active(seg, i, j);
-        aom_wb_write_bit(wb, active);
+        aom_wb_write_bit(wb, active ADD_ENCTRACE("active"));
         if (active) {
           const int data_max = av1_seg_feature_data_max(j);
           const int data_min = -data_max;
@@ -5513,9 +5531,9 @@ static AOM_INLINE void encode_segmentation(AV1_COMMON *cm, MACROBLOCKD *xd,
           const int data = clamp(get_segdata(seg, i, j), data_min, data_max);
 
           if (av1_is_segfeature_signed(j)) {
-            aom_wb_write_inv_signed_literal(wb, data, ubits);
+            aom_wb_write_inv_signed_literal(wb, data, ubits ADD_ENCTRACE("data"));
           } else {
-            aom_wb_write_literal(wb, data, ubits);
+            aom_wb_write_literal(wb, data, ubits ADD_ENCTRACE("data"));
           }
         }
       }
@@ -5525,9 +5543,9 @@ static AOM_INLINE void encode_segmentation(AV1_COMMON *cm, MACROBLOCKD *xd,
 
 static AOM_INLINE void write_frame_interp_filter(
     InterpFilter filter, struct aom_write_bit_buffer *wb) {
-  aom_wb_write_bit(wb, filter == SWITCHABLE);
+  aom_wb_write_bit(wb, filter == SWITCHABLE ADD_ENCTRACE("filter == SWITCHABLE"));
   if (filter != SWITCHABLE)
-    aom_wb_write_literal(wb, filter, LOG_SWITCHABLE_FILTERS);
+    aom_wb_write_literal(wb, filter, LOG_SWITCHABLE_FILTERS ADD_ENCTRACE("filter"));
 }
 
 static AOM_INLINE void write_tile_info_max_tile(
@@ -5539,31 +5557,31 @@ static AOM_INLINE void write_tile_info_max_tile(
   int size_sb, i;
   const CommonTileParams *const tiles = &cm->tiles;
 
-  aom_wb_write_bit(wb, tiles->uniform_spacing);
+  aom_wb_write_bit(wb, tiles->uniform_spacing ADD_ENCTRACE("tiles->uniform_spacing"));
 
   if (tiles->uniform_spacing) {
     int ones = tiles->log2_cols - tiles->min_log2_cols;
     while (ones--) {
-      aom_wb_write_bit(wb, 1);
+      aom_wb_write_bit(wb, 1 ADD_ENCTRACE("log2col"));
     }
     if (tiles->log2_cols < tiles->max_log2_cols) {
-      aom_wb_write_bit(wb, 0);
+      aom_wb_write_bit(wb, 0 ADD_ENCTRACE("log2col"));
     }
 
     // rows
     ones = tiles->log2_rows - tiles->min_log2_rows;
     while (ones--) {
-      aom_wb_write_bit(wb, 1);
+      aom_wb_write_bit(wb, 1 ADD_ENCTRACE("log2row"));
     }
     if (tiles->log2_rows < tiles->max_log2_rows) {
-      aom_wb_write_bit(wb, 0);
+      aom_wb_write_bit(wb, 0 ADD_ENCTRACE("log2row"));
     }
   } else {
     // Explicit tiles with configurable tile widths and heights
     // columns
     for (i = 0; i < tiles->cols; i++) {
       size_sb = tiles->col_start_sb[i + 1] - tiles->col_start_sb[i];
-      wb_write_uniform(wb, AOMMIN(width_sb, tiles->max_width_sb), size_sb - 1);
+      wb_write_uniform(wb, AOMMIN(width_sb, tiles->max_width_sb), size_sb - 1 ADD_ENCTRACE("size_sb"));
       width_sb -= size_sb;
     }
     assert(width_sb == 0);
@@ -5572,7 +5590,7 @@ static AOM_INLINE void write_tile_info_max_tile(
     for (i = 0; i < tiles->rows; i++) {
       size_sb = tiles->row_start_sb[i + 1] - tiles->row_start_sb[i];
       wb_write_uniform(wb, AOMMIN(height_sb, tiles->max_height_sb),
-                       size_sb - 1);
+                       size_sb - 1 ADD_ENCTRACE("size_sb"));
       height_sb -= size_sb;
     }
     assert(height_sb == 0);
@@ -5587,17 +5605,18 @@ static AOM_INLINE void write_tile_info(const AV1_COMMON *const cm,
   *saved_wb = *wb;
   if (cm->tiles.rows * cm->tiles.cols > 1) {
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
-    if (!cm->seq_params.enable_avg_cdf || !cm->seq_params.avg_cdf_type) {
+    if (!cm->seq_params.enable_avg_cdf || !cm->seq_params.avg_cdf_type)
 #elif CONFIG_TILE_CDFS_AVG_TO_FRAME
-    if (!cm->seq_params.enable_tiles_cdfs_avg) {
+    if (!cm->seq_params.enable_tiles_cdfs_avg)
 #endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
+    {
       // tile id used for cdf update
-      aom_wb_write_literal(wb, 0, cm->tiles.log2_cols + cm->tiles.log2_rows);
+      aom_wb_write_literal(wb, 0, cm->tiles.log2_cols + cm->tiles.log2_rows ADD_ENCTRACE("0"));
 #if CONFIG_TILE_CDFS_AVG_TO_FRAME || CONFIG_ENHANCED_FRAME_CONTEXT_INIT
     }
 #endif  // CONFIG_TILE_CDFS_AVG_TO_FRAME || CONFIG_ENHANCED_FRAME_CONTEXT_INIT
     // Number of bytes in tile size - 1
-    aom_wb_write_literal(wb, 3, 2);
+    aom_wb_write_literal(wb, 3, 2 ADD_ENCTRACE("3"));
   }
 }
 
@@ -5606,7 +5625,7 @@ static AOM_INLINE void write_ext_tile_info(
     struct aom_write_bit_buffer *wb) {
   // This information is stored as a separate byte.
   int mod = wb->bit_offset % CHAR_BIT;
-  if (mod > 0) aom_wb_write_literal(wb, 0, CHAR_BIT - mod);
+  if (mod > 0) aom_wb_write_literal(wb, 0, CHAR_BIT - mod ADD_ENCTRACE("0"));
   assert(aom_wb_is_byte_aligned(wb));
 
   *saved_wb = *wb;
@@ -5614,9 +5633,9 @@ static AOM_INLINE void write_ext_tile_info(
     // Note that the last item in the uncompressed header is the data
     // describing tile configuration.
     // Number of bytes in tile column size - 1
-    aom_wb_write_literal(wb, 0, 2);
+    aom_wb_write_literal(wb, 0, 2 ADD_ENCTRACE("0"));
     // Number of bytes in tile size - 1
-    aom_wb_write_literal(wb, 0, 2);
+    aom_wb_write_literal(wb, 0, 2 ADD_ENCTRACE("0"));
   }
 }
 
@@ -5681,10 +5700,10 @@ static INLINE int find_identical_tile(
 static AOM_INLINE void write_render_size(const AV1_COMMON *cm,
                                          struct aom_write_bit_buffer *wb) {
   const int scaling_active = av1_resize_scaled(cm);
-  aom_wb_write_bit(wb, scaling_active);
+  aom_wb_write_bit(wb, scaling_active ADD_ENCTRACE("scaling_active"));
   if (scaling_active) {
-    aom_wb_write_literal(wb, cm->render_width - 1, 16);
-    aom_wb_write_literal(wb, cm->render_height - 1, 16);
+    aom_wb_write_literal(wb, cm->render_width - 1, 16 ADD_ENCTRACE("cm->render_width - 1"));
+    aom_wb_write_literal(wb, cm->render_height - 1, 16 ADD_ENCTRACE("cm->render_height - 1"));
   }
 }
 
@@ -5699,7 +5718,7 @@ static AOM_INLINE void write_superres_scale(const AV1_COMMON *const cm,
 
   // First bit is whether to to scale or not
   if (cm->superres_scale_denominator == SCALE_NUMERATOR) {
-    aom_wb_write_bit(wb, 0);  // no scaling
+    aom_wb_write_bit(wb, 0 ADD_ENCTRACE("0"));  // no scaling
   } else {
     aom_wb_write_bit(wb, 1);  // scaling, write scale factor
     assert(cm->superres_scale_denominator >= SUPERRES_SCALE_DENOMINATOR_MIN);
@@ -5707,7 +5726,7 @@ static AOM_INLINE void write_superres_scale(const AV1_COMMON *const cm,
            SUPERRES_SCALE_DENOMINATOR_MIN + (1 << SUPERRES_SCALE_BITS));
     aom_wb_write_literal(
         wb, cm->superres_scale_denominator - SUPERRES_SCALE_DENOMINATOR_MIN,
-        SUPERRES_SCALE_BITS);
+        SUPERRES_SCALE_BITS ADD_ENCTRACE("cm->superres_scale_denominator - SUPERRES_SCALE_DENOMINATOR_MIN"));
   }
 }
 #endif  // CONFIG_ENABLE_SR
@@ -5727,8 +5746,8 @@ static AOM_INLINE void write_frame_size(const AV1_COMMON *cm,
     const SequenceHeader *seq_params = &cm->seq_params;
     int num_bits_width = seq_params->num_bits_width;
     int num_bits_height = seq_params->num_bits_height;
-    aom_wb_write_literal(wb, coded_width, num_bits_width);
-    aom_wb_write_literal(wb, coded_height, num_bits_height);
+    aom_wb_write_literal(wb, coded_width, num_bits_width ADD_ENCTRACE("coded_width"));
+    aom_wb_write_literal(wb, coded_height, num_bits_height ADD_ENCTRACE("coded_height"));
   }
 #if CONFIG_ENABLE_SR
   write_superres_scale(cm, wb);
@@ -5756,7 +5775,7 @@ static AOM_INLINE void write_frame_size_with_refs(
       found &= cm->render_width == cfg->render_width &&
                cm->render_height == cfg->render_height;
     }
-    aom_wb_write_bit(wb, found);
+    aom_wb_write_bit(wb, found ADD_ENCTRACE("found"));
     if (found) {
 #if CONFIG_ENABLE_SR
       write_superres_scale(cm, wb);
@@ -5774,16 +5793,16 @@ static AOM_INLINE void write_frame_size_with_refs(
 static AOM_INLINE void write_profile(BITSTREAM_PROFILE profile,
                                      struct aom_write_bit_buffer *wb) {
   assert(profile >= PROFILE_0 && profile < MAX_PROFILES);
-  aom_wb_write_literal(wb, profile, PROFILE_BITS);
+  aom_wb_write_literal(wb, profile, PROFILE_BITS ADD_ENCTRACE("profile"));
 }
 
 static AOM_INLINE void write_bitdepth(const SequenceHeader *const seq_params,
                                       struct aom_write_bit_buffer *wb) {
   // Profile 0/1: [0] for 8 bit, [1]  10-bit
   // Profile   2: [0] for 8 bit, [10] 10-bit, [11] - 12-bit
-  aom_wb_write_bit(wb, seq_params->bit_depth == AOM_BITS_8 ? 0 : 1);
+  aom_wb_write_bit(wb, seq_params->bit_depth == AOM_BITS_8 ? 0 : 1 ADD_ENCTRACE("seq_params->bit_depth == AOM_BITS_8 ? 0 : 1"));
   if (seq_params->profile == PROFILE_2 && seq_params->bit_depth != AOM_BITS_8) {
-    aom_wb_write_bit(wb, seq_params->bit_depth == AOM_BITS_10 ? 0 : 1);
+    aom_wb_write_bit(wb, seq_params->bit_depth == AOM_BITS_10 ? 0 : 1 ADD_ENCTRACE("seq_params->bit_depth == AOM_BITS_10 ? 0 : 1"));
   }
 }
 
@@ -5793,22 +5812,22 @@ static AOM_INLINE void write_color_config(
   const int is_monochrome = seq_params->monochrome;
   // monochrome bit
   if (seq_params->profile != PROFILE_1)
-    aom_wb_write_bit(wb, is_monochrome);
+    aom_wb_write_bit(wb, is_monochrome ADD_ENCTRACE("is_monochrome"));
   else
     assert(!is_monochrome);
   if (seq_params->color_primaries == AOM_CICP_CP_UNSPECIFIED &&
       seq_params->transfer_characteristics == AOM_CICP_TC_UNSPECIFIED &&
       seq_params->matrix_coefficients == AOM_CICP_MC_UNSPECIFIED) {
-    aom_wb_write_bit(wb, 0);  // No color description present
+    aom_wb_write_bit(wb, 0 ADD_ENCTRACE("seq_params->color_description"));  // No color description present
   } else {
-    aom_wb_write_bit(wb, 1);  // Color description present
-    aom_wb_write_literal(wb, seq_params->color_primaries, 8);
-    aom_wb_write_literal(wb, seq_params->transfer_characteristics, 8);
-    aom_wb_write_literal(wb, seq_params->matrix_coefficients, 8);
+    aom_wb_write_bit(wb, 1 ADD_ENCTRACE("seq_params->color_description"));  // Color description present
+    aom_wb_write_literal(wb, seq_params->color_primaries, 8 ADD_ENCTRACE("seq_params->color_primaries"));
+    aom_wb_write_literal(wb, seq_params->transfer_characteristics, 8 ADD_ENCTRACE("seq_params->transfer_characteristics"));
+    aom_wb_write_literal(wb, seq_params->matrix_coefficients, 8 ADD_ENCTRACE("seq_params->matrix_coefficients"));
   }
   if (is_monochrome) {
     // 0: [16, 235] (i.e. xvYCC), 1: [0, 255]
-    aom_wb_write_bit(wb, seq_params->color_range);
+    aom_wb_write_bit(wb, seq_params->color_range ADD_ENCTRACE("seq_params->color_range"));
   } else {
     if (seq_params->color_primaries == AOM_CICP_CP_BT_709 &&
         seq_params->transfer_characteristics == AOM_CICP_TC_SRGB &&
@@ -5819,7 +5838,7 @@ static AOM_INLINE void write_color_config(
               seq_params->bit_depth == AOM_BITS_12));
     } else {
       // 0: [16, 235] (i.e. xvYCC), 1: [0, 255]
-      aom_wb_write_bit(wb, seq_params->color_range);
+      aom_wb_write_bit(wb, seq_params->color_range ADD_ENCTRACE("seq_params->color_range"));
       if (seq_params->profile == PROFILE_0) {
         // 420 only
         assert(seq_params->subsampling_x == 1 &&
@@ -5831,12 +5850,12 @@ static AOM_INLINE void write_color_config(
       } else if (seq_params->profile == PROFILE_2) {
         if (seq_params->bit_depth == AOM_BITS_12) {
           // 420, 444 or 422
-          aom_wb_write_bit(wb, seq_params->subsampling_x);
+          aom_wb_write_bit(wb, seq_params->subsampling_x ADD_ENCTRACE("seq_params->subsampling_x"));
           if (seq_params->subsampling_x == 0) {
             assert(seq_params->subsampling_y == 0 &&
                    "4:4:0 subsampling not allowed in AV1");
           } else {
-            aom_wb_write_bit(wb, seq_params->subsampling_y);
+            aom_wb_write_bit(wb, seq_params->subsampling_y ADD_ENCTRACE("seq_params->subsampling_y"));
           }
         } else {
           // 422 only
@@ -5849,7 +5868,7 @@ static AOM_INLINE void write_color_config(
                seq_params->subsampling_y == 0);
       }
       if (seq_params->subsampling_x == 1 && seq_params->subsampling_y == 1) {
-        aom_wb_write_literal(wb, seq_params->chroma_sample_position, 2);
+        aom_wb_write_literal(wb, seq_params->chroma_sample_position, 2 ADD_ENCTRACE("seq_params->chroma_sample_position"));
       }
     }
   }
@@ -5858,11 +5877,11 @@ static AOM_INLINE void write_color_config(
 static AOM_INLINE void write_timing_info_header(
     const aom_timing_info_t *const timing_info,
     struct aom_write_bit_buffer *wb) {
-  aom_wb_write_unsigned_literal(wb, timing_info->num_units_in_display_tick, 32);
-  aom_wb_write_unsigned_literal(wb, timing_info->time_scale, 32);
-  aom_wb_write_bit(wb, timing_info->equal_picture_interval);
+  aom_wb_write_unsigned_literal(wb, timing_info->num_units_in_display_tick, 32 ADD_ENCTRACE("timing_info->num_units_in_display_tick"));
+  aom_wb_write_unsigned_literal(wb, timing_info->time_scale, 32 ADD_ENCTRACE("timing_info->time_scale"));
+  aom_wb_write_bit(wb, timing_info->equal_picture_interval ADD_ENCTRACE("timing_info->equal_picture_interval"));
   if (timing_info->equal_picture_interval) {
-    aom_wb_write_uvlc(wb, timing_info->num_ticks_per_picture - 1);
+    aom_wb_write_uvlc(wb, timing_info->num_ticks_per_picture - 1 ADD_ENCTRACE("timing_info->num_ticks_per_picture"));
   }
 }
 
@@ -5870,30 +5889,30 @@ static AOM_INLINE void write_decoder_model_info(
     const aom_dec_model_info_t *const decoder_model_info,
     struct aom_write_bit_buffer *wb) {
   aom_wb_write_literal(
-      wb, decoder_model_info->encoder_decoder_buffer_delay_length - 1, 5);
+      wb, decoder_model_info->encoder_decoder_buffer_delay_length - 1, 5 ADD_ENCTRACE("decoder_model_info->encoder_decoder_buffer_delay_length - 1"));
   aom_wb_write_unsigned_literal(
-      wb, decoder_model_info->num_units_in_decoding_tick, 32);
+      wb, decoder_model_info->num_units_in_decoding_tick, 32 ADD_ENCTRACE("decoder_model_info->num_units_in_decoding_tick"));
   aom_wb_write_literal(wb, decoder_model_info->buffer_removal_time_length - 1,
-                       5);
+                       5 ADD_ENCTRACE("decoder_model_info->buffer_removal_time_length - 1"));
   aom_wb_write_literal(
-      wb, decoder_model_info->frame_presentation_time_length - 1, 5);
+      wb, decoder_model_info->frame_presentation_time_length - 1, 5 ADD_ENCTRACE("decoder_model_info->frame_presentation_time_length - 1"));
 }
 
 static AOM_INLINE void write_dec_model_op_parameters(
     const aom_dec_model_op_parameters_t *op_params, int buffer_delay_length,
     struct aom_write_bit_buffer *wb) {
   aom_wb_write_unsigned_literal(wb, op_params->decoder_buffer_delay,
-                                buffer_delay_length);
+                                buffer_delay_length ADD_ENCTRACE("op_params->decoder_buffer_delay"));
   aom_wb_write_unsigned_literal(wb, op_params->encoder_buffer_delay,
-                                buffer_delay_length);
-  aom_wb_write_bit(wb, op_params->low_delay_mode_flag);
+                                buffer_delay_length ADD_ENCTRACE("op_params->encoder_buffer_delay"));
+  aom_wb_write_bit(wb, op_params->low_delay_mode_flag ADD_ENCTRACE("op_params->low_delay_mode_flag"));
 }
 
 static AOM_INLINE void write_tu_pts_info(AV1_COMMON *const cm,
                                          struct aom_write_bit_buffer *wb) {
   aom_wb_write_unsigned_literal(
       wb, cm->frame_presentation_time,
-      cm->seq_params.decoder_model_info.frame_presentation_time_length);
+      cm->seq_params.decoder_model_info.frame_presentation_time_length ADD_ENCTRACE("cm->frame_presentation_time"));
 }
 
 static AOM_INLINE void write_film_grain_params(
@@ -5901,13 +5920,13 @@ static AOM_INLINE void write_film_grain_params(
   const AV1_COMMON *const cm = &cpi->common;
   const aom_film_grain_t *const pars = &cm->cur_frame->film_grain_params;
 
-  aom_wb_write_bit(wb, pars->apply_grain);
+  aom_wb_write_bit(wb, pars->apply_grain ADD_ENCTRACE("pars->apply_grain"));
   if (!pars->apply_grain) return;
 
-  aom_wb_write_literal(wb, pars->random_seed, 16);
+  aom_wb_write_literal(wb, pars->random_seed, 16 ADD_ENCTRACE("pars->random_seed"));
 
   if (cm->current_frame.frame_type == INTER_FRAME)
-    aom_wb_write_bit(wb, pars->update_parameters);
+    aom_wb_write_bit(wb, pars->update_parameters ADD_ENCTRACE("pars->update_parameters"));
 
   if (!pars->update_parameters) {
     int ref_frame;
@@ -5924,19 +5943,19 @@ static AOM_INLINE void write_film_grain_params(
     }
     assert(ref_frame < REGULAR_REF_FRAMES);
     assert(ref_idx != INVALID_IDX);
-    aom_wb_write_literal(wb, ref_idx, cm->seq_params.ref_frames_log2);
+    aom_wb_write_literal(wb, ref_idx, cm->seq_params.ref_frames_log2 ADD_ENCTRACE("ref_idx"));
     return;
   }
 
   // Scaling functions parameters
-  aom_wb_write_literal(wb, pars->num_y_points, 4);  // max 14
+  aom_wb_write_literal(wb, pars->num_y_points, 4 ADD_ENCTRACE("pars->num_y_points"));  // max 14
   for (int i = 0; i < pars->num_y_points; i++) {
-    aom_wb_write_literal(wb, pars->scaling_points_y[i][0], 8);
-    aom_wb_write_literal(wb, pars->scaling_points_y[i][1], 8);
+    aom_wb_write_literal(wb, pars->scaling_points_y[i][0], 8 ADD_ENCTRACE("pars->scaling_points_y[i][0]"));
+    aom_wb_write_literal(wb, pars->scaling_points_y[i][1], 8 ADD_ENCTRACE("pars->scaling_points_y[i][1]"));
   }
 
   if (!cm->seq_params.monochrome) {
-    aom_wb_write_bit(wb, pars->chroma_scaling_from_luma);
+    aom_wb_write_bit(wb, pars->chroma_scaling_from_luma ADD_ENCTRACE("pars->chroma_scaling_from_luma"));
   } else {
     assert(!pars->chroma_scaling_from_luma);
   }
@@ -5946,26 +5965,26 @@ static AOM_INLINE void write_film_grain_params(
        (cm->seq_params.subsampling_y == 1) && (pars->num_y_points == 0))) {
     assert(pars->num_cb_points == 0 && pars->num_cr_points == 0);
   } else {
-    aom_wb_write_literal(wb, pars->num_cb_points, 4);  // max 10
+    aom_wb_write_literal(wb, pars->num_cb_points, 4 ADD_ENCTRACE("pars->num_cb_points"));  // max 10
     for (int i = 0; i < pars->num_cb_points; i++) {
-      aom_wb_write_literal(wb, pars->scaling_points_cb[i][0], 8);
-      aom_wb_write_literal(wb, pars->scaling_points_cb[i][1], 8);
+      aom_wb_write_literal(wb, pars->scaling_points_cb[i][0], 8 ADD_ENCTRACE("pars->scaling_points_cb[i][0]"));
+      aom_wb_write_literal(wb, pars->scaling_points_cb[i][1], 8 ADD_ENCTRACE("pars->scaling_points_cb[i][1]"));
     }
 
-    aom_wb_write_literal(wb, pars->num_cr_points, 4);  // max 10
+    aom_wb_write_literal(wb, pars->num_cr_points, 4 ADD_ENCTRACE("pars->num_cr_points"));  // max 10
     for (int i = 0; i < pars->num_cr_points; i++) {
-      aom_wb_write_literal(wb, pars->scaling_points_cr[i][0], 8);
-      aom_wb_write_literal(wb, pars->scaling_points_cr[i][1], 8);
+      aom_wb_write_literal(wb, pars->scaling_points_cr[i][0], 8 ADD_ENCTRACE("pars->scaling_points_cr[i][0]"));
+      aom_wb_write_literal(wb, pars->scaling_points_cr[i][1], 8 ADD_ENCTRACE("pars->scaling_points_cr[i][1]"));
     }
   }
 
-  aom_wb_write_literal(wb, pars->scaling_shift - 8, 2);  // 8 + value
+  aom_wb_write_literal(wb, pars->scaling_shift - 8, 2 ADD_ENCTRACE("pars->scaling_shift - 8"));  // 8 + value
 
   // AR coefficients
   // Only sent if the corresponsing scaling function has
   // more than 0 points
 
-  aom_wb_write_literal(wb, pars->ar_coeff_lag, 2);
+  aom_wb_write_literal(wb, pars->ar_coeff_lag, 2 ADD_ENCTRACE("pars->ar_coeff_lag"));
 
   int num_pos_luma = 2 * pars->ar_coeff_lag * (pars->ar_coeff_lag + 1);
   int num_pos_chroma = num_pos_luma;
@@ -5973,35 +5992,35 @@ static AOM_INLINE void write_film_grain_params(
 
   if (pars->num_y_points)
     for (int i = 0; i < num_pos_luma; i++)
-      aom_wb_write_literal(wb, pars->ar_coeffs_y[i] + 128, 8);
+      aom_wb_write_literal(wb, pars->ar_coeffs_y[i] + 128, 8 ADD_ENCTRACE("pars->ar_coeffs_y[i] + 128"));
 
   if (pars->num_cb_points || pars->chroma_scaling_from_luma)
     for (int i = 0; i < num_pos_chroma; i++)
-      aom_wb_write_literal(wb, pars->ar_coeffs_cb[i] + 128, 8);
+      aom_wb_write_literal(wb, pars->ar_coeffs_cb[i] + 128, 8 ADD_ENCTRACE("pars->ar_coeffs_cb[i] + 128"));
 
   if (pars->num_cr_points || pars->chroma_scaling_from_luma)
     for (int i = 0; i < num_pos_chroma; i++)
-      aom_wb_write_literal(wb, pars->ar_coeffs_cr[i] + 128, 8);
+      aom_wb_write_literal(wb, pars->ar_coeffs_cr[i] + 128, 8 ADD_ENCTRACE("pars->ar_coeffs_cr[i] + 128"));
 
-  aom_wb_write_literal(wb, pars->ar_coeff_shift - 6, 2);  // 8 + value
+  aom_wb_write_literal(wb, pars->ar_coeff_shift - 6, 2 ADD_ENCTRACE("pars->ar_coeff_shift - 6"));  // 8 + value
 
-  aom_wb_write_literal(wb, pars->grain_scale_shift, 2);
+  aom_wb_write_literal(wb, pars->grain_scale_shift, 2 ADD_ENCTRACE("pars->grain_scale_shift"));
 
   if (pars->num_cb_points) {
-    aom_wb_write_literal(wb, pars->cb_mult, 8);
-    aom_wb_write_literal(wb, pars->cb_luma_mult, 8);
-    aom_wb_write_literal(wb, pars->cb_offset, 9);
+    aom_wb_write_literal(wb, pars->cb_mult, 8 ADD_ENCTRACE("pars->cb_mult"));
+    aom_wb_write_literal(wb, pars->cb_luma_mult, 8 ADD_ENCTRACE("pars->cb_luma_mult"));
+    aom_wb_write_literal(wb, pars->cb_offset, 9 ADD_ENCTRACE("pars->cb_offset"));
   }
 
   if (pars->num_cr_points) {
-    aom_wb_write_literal(wb, pars->cr_mult, 8);
-    aom_wb_write_literal(wb, pars->cr_luma_mult, 8);
-    aom_wb_write_literal(wb, pars->cr_offset, 9);
+    aom_wb_write_literal(wb, pars->cr_mult, 8 ADD_ENCTRACE("pars->cr_mult"));
+    aom_wb_write_literal(wb, pars->cr_luma_mult, 8 ADD_ENCTRACE("pars->cr_luma_mult"));
+    aom_wb_write_literal(wb, pars->cr_offset, 9 ADD_ENCTRACE("pars->cr_offset"));
   }
 
-  aom_wb_write_bit(wb, pars->overlap_flag);
+  aom_wb_write_bit(wb, pars->overlap_flag ADD_ENCTRACE("pars->overlap_flag"));
 
-  aom_wb_write_bit(wb, pars->clip_to_restricted_range);
+  aom_wb_write_bit(wb, pars->clip_to_restricted_range ADD_ENCTRACE("pars->clip_to_restricted_range"));
 }
 
 static AOM_INLINE void write_sb_size(const SequenceHeader *const seq_params,
@@ -6015,35 +6034,35 @@ static AOM_INLINE void write_sb_size(const SequenceHeader *const seq_params,
          seq_params->sb_size == BLOCK_128X128 ||
          seq_params->sb_size == BLOCK_64X64);
   const bool is_256 = seq_params->sb_size == BLOCK_256X256;
-  aom_wb_write_bit(wb, is_256);
+  aom_wb_write_bit(wb, is_256 ADD_ENCTRACE("is_256"));
   if (is_256) {
     return;
   }
-  aom_wb_write_bit(wb, seq_params->sb_size == BLOCK_128X128);
+  aom_wb_write_bit(wb, seq_params->sb_size == BLOCK_128X128 ADD_ENCTRACE("is_128"));
 }
 
 static AOM_INLINE void write_sequence_header(
     const SequenceHeader *const seq_params, struct aom_write_bit_buffer *wb) {
   if (!seq_params->reduced_still_picture_hdr) {
-    aom_wb_write_bit(wb, seq_params->frame_id_numbers_present_flag);
+    aom_wb_write_bit(wb, seq_params->frame_id_numbers_present_flag ADD_ENCTRACE("seq_params->frame_id_numbers_present_flag"));
     if (seq_params->frame_id_numbers_present_flag) {
       // We must always have delta_frame_id_length < frame_id_length,
       // in order for a frame to be referenced with a unique delta.
       // Avoid wasting bits by using a coding that enforces this restriction.
-      aom_wb_write_literal(wb, seq_params->delta_frame_id_length - 2, 4);
+      aom_wb_write_literal(wb, seq_params->delta_frame_id_length - 2, 4 ADD_ENCTRACE("seq_params->delta_frame_id_length - 2"));
       aom_wb_write_literal(
           wb,
           seq_params->frame_id_length - seq_params->delta_frame_id_length - 1,
-          3);
+          3 ADD_ENCTRACE("seq_params->frame_id_length"));
     }
   }
 
   write_sb_size(seq_params, wb);
-  aom_wb_write_bit(wb, seq_params->enable_filter_intra);
+  aom_wb_write_bit(wb, seq_params->enable_filter_intra ADD_ENCTRACE("seq_params->enable_filter_intra"));
 #if CONFIG_DIP
-  aom_wb_write_bit(wb, seq_params->enable_intra_dip);
+  aom_wb_write_bit(wb, seq_params->enable_intra_dip ADD_ENCTRACE("seq_params->enable_intra_dip"));
 #endif  // CONFIG_DIP
-  aom_wb_write_bit(wb, seq_params->enable_intra_edge_filter);
+  aom_wb_write_bit(wb, seq_params->enable_intra_edge_filter ADD_ENCTRACE("seq_params->enable_intra_edge_filter"));
   if (!seq_params->reduced_still_picture_hdr) {
     // Encode allowed motion modes
     // Skip SIMPLE_TRANSLATION, as that is always enabled
@@ -6053,76 +6072,76 @@ static AOM_INLINE void write_sequence_header(
          motion_mode++) {
       int enabled =
           (seq_enabled_motion_modes & (1 << motion_mode)) != 0 ? 1 : 0;
-      aom_wb_write_bit(wb, enabled);
+      aom_wb_write_bit(wb, enabled ADD_ENCTRACE_I2("motion_modes_enabled", motion_mode));
     }
 
 #if CONFIG_SIX_PARAM_WARP_DELTA
-    aom_wb_write_bit(wb, seq_params->enable_six_param_warp_delta);
+    aom_wb_write_bit(wb, seq_params->enable_six_param_warp_delta ADD_ENCTRACE("seq_params->enable_six_param_warp_delta"));
 #endif  // CONFIG_SIX_PARAM_WARP_DELTA
 
-    aom_wb_write_bit(wb, seq_params->enable_masked_compound);
-    aom_wb_write_bit(wb, seq_params->order_hint_info.enable_order_hint);
+    aom_wb_write_bit(wb, seq_params->enable_masked_compound ADD_ENCTRACE("seq_params->enable_masked_compound"));
+    aom_wb_write_bit(wb, seq_params->order_hint_info.enable_order_hint ADD_ENCTRACE("seq_params->order_hint_info.enable_order_hint"));
 
     if (seq_params->order_hint_info.enable_order_hint) {
-      aom_wb_write_bit(wb, seq_params->order_hint_info.enable_ref_frame_mvs);
+      aom_wb_write_bit(wb, seq_params->order_hint_info.enable_ref_frame_mvs ADD_ENCTRACE("seq_params->order_hint_info.enable_ref_frame_mvs"));
     }
     if (seq_params->force_screen_content_tools == 2) {
-      aom_wb_write_bit(wb, 1);
+      aom_wb_write_bit(wb, 1 ADD_ENCTRACE("seq_params->force_screen_content_tools"));
     } else {
-      aom_wb_write_bit(wb, 0);
-      aom_wb_write_bit(wb, seq_params->force_screen_content_tools);
+      aom_wb_write_bit(wb, 0 ADD_ENCTRACE("seq_params->force_screen_content_tools"));
+      aom_wb_write_bit(wb, seq_params->force_screen_content_tools ADD_ENCTRACE("seq_params->force_screen_content_tools"));
     }
     if (seq_params->force_screen_content_tools > 0) {
       if (seq_params->force_integer_mv == 2) {
-        aom_wb_write_bit(wb, 1);
+        aom_wb_write_bit(wb, 1 ADD_ENCTRACE("seq_params->force_integer_mv"));
       } else {
-        aom_wb_write_bit(wb, 0);
-        aom_wb_write_bit(wb, seq_params->force_integer_mv);
+        aom_wb_write_bit(wb, 0 ADD_ENCTRACE("seq_params->force_integer_mv"));
+        aom_wb_write_bit(wb, seq_params->force_integer_mv ADD_ENCTRACE("seq_params->force_integer_mv"));
       }
     } else {
       assert(seq_params->force_integer_mv == 2);
     }
     if (seq_params->order_hint_info.enable_order_hint)
       aom_wb_write_literal(
-          wb, seq_params->order_hint_info.order_hint_bits_minus_1, 3);
+          wb, seq_params->order_hint_info.order_hint_bits_minus_1, 3 ADD_ENCTRACE("seq_params->order_hint_info.order_hint_bits_minus_1"));
   }
 
 #if CONFIG_ENABLE_SR
-  aom_wb_write_bit(wb, seq_params->enable_superres);
+  aom_wb_write_bit(wb, seq_params->enable_superres ADD_ENCTRACE("seq_params->enable_superres"));
 #endif  // CONFIG_ENABLE_SR
-  aom_wb_write_bit(wb, seq_params->enable_cdef);
-  aom_wb_write_bit(wb, seq_params->enable_restoration);
+  aom_wb_write_bit(wb, seq_params->enable_cdef ADD_ENCTRACE("seq_params->enable_cdef"));
+  aom_wb_write_bit(wb, seq_params->enable_restoration ADD_ENCTRACE("seq_params->enable_restoration"));
   if (seq_params->enable_restoration) {
     for (int i = 1; i < RESTORE_SWITCHABLE_TYPES; ++i) {
-      aom_wb_write_bit(wb, (seq_params->lr_tools_disable_mask[0] >> i) & 1);
+      aom_wb_write_bit(wb, (seq_params->lr_tools_disable_mask[0] >> i) & 1 ADD_ENCTRACE_I2("seq_params->lr_tools_disable_mask[0]", i));
     }
     const int uv_neq_y =
         (seq_params->lr_tools_disable_mask[1] !=
          (seq_params->lr_tools_disable_mask[0] | DEF_UV_LR_TOOLS_DISABLE_MASK));
-    aom_wb_write_bit(wb, uv_neq_y);
+    aom_wb_write_bit(wb, uv_neq_y ADD_ENCTRACE("uv_neq_y"));
     if (uv_neq_y) {
       for (int i = 1; i < RESTORE_SWITCHABLE_TYPES; ++i) {
         if (DEF_UV_LR_TOOLS_DISABLE_MASK & (1 << i)) continue;
-        aom_wb_write_bit(wb, (seq_params->lr_tools_disable_mask[1] >> i) & 1);
+        aom_wb_write_bit(wb, (seq_params->lr_tools_disable_mask[1] >> i) & 1 ADD_ENCTRACE_I2("seq_params->lr_tools_disable_mask[1]", i));
       }
     }
   }
 
   const int is_monochrome = seq_params->monochrome;
   if (!is_monochrome) {
-    aom_wb_write_bit(wb, seq_params->separate_uv_delta_q);
+    aom_wb_write_bit(wb, seq_params->separate_uv_delta_q ADD_ENCTRACE("seq_params->separate_uv_delta_q"));
   }
 
 #if CONFIG_EXT_QUANT_UPD
-  aom_wb_write_bit(wb, seq_params->equal_ac_dc_q);
+  aom_wb_write_bit(wb, seq_params->equal_ac_dc_q ADD_ENCTRACE("seq_params->equal_ac_dc_q"));
   if (!seq_params->equal_ac_dc_q) {
 #endif  // CONFIG_EXT_QUANT_UPD
     assert(seq_params->base_y_dc_delta_q <= DELTA_DCQUANT_MAX);
     aom_wb_write_unsigned_literal(
         wb, seq_params->base_y_dc_delta_q - DELTA_DCQUANT_MIN,
-        DELTA_DCQUANT_BITS);
+        DELTA_DCQUANT_BITS ADD_ENCTRACE("seq_params->base_y_dc_delta_q - DELTA_DCQUANT_MIN"));
 #if CONFIG_EXT_QUANT_UPD
-    aom_wb_write_bit(wb, seq_params->y_dc_delta_q_enabled);
+    aom_wb_write_bit(wb, seq_params->y_dc_delta_q_enabled ADD_ENCTRACE("seq_params->y_dc_delta_q_enabled"));
   } else {
     assert(seq_params->base_y_dc_delta_q == 0 &&
            seq_params->y_dc_delta_q_enabled == 0);
@@ -6135,9 +6154,9 @@ static AOM_INLINE void write_sequence_header(
       assert(seq_params->base_uv_dc_delta_q >= DELTA_DCQUANT_MIN);
       aom_wb_write_unsigned_literal(
           wb, seq_params->base_uv_dc_delta_q - DELTA_DCQUANT_MIN,
-          DELTA_DCQUANT_BITS);
+          DELTA_DCQUANT_BITS ADD_ENCTRACE("seq_params->base_uv_dc_delta_q - DELTA_DCQUANT_MIN"));
 #if CONFIG_EXT_QUANT_UPD
-      aom_wb_write_bit(wb, seq_params->uv_dc_delta_q_enabled);
+      aom_wb_write_bit(wb, seq_params->uv_dc_delta_q_enabled ADD_ENCTRACE("seq_params->uv_dc_delta_q_enabled"));
     } else {
       assert(seq_params->base_uv_dc_delta_q == seq_params->base_uv_ac_delta_q &&
              seq_params->uv_dc_delta_q_enabled == 0);
@@ -6145,93 +6164,93 @@ static AOM_INLINE void write_sequence_header(
     assert(seq_params->base_uv_ac_delta_q >= DELTA_DCQUANT_MIN);
     aom_wb_write_unsigned_literal(
         wb, seq_params->base_uv_ac_delta_q - DELTA_DCQUANT_MIN,
-        DELTA_DCQUANT_BITS);
-    aom_wb_write_bit(wb, seq_params->uv_ac_delta_q_enabled);
+        DELTA_DCQUANT_BITS ADD_ENCTRACE("seq_params->base_uv_ac_delta_q - DELTA_DCQUANT_MIN"));
+    aom_wb_write_bit(wb, seq_params->uv_ac_delta_q_enabled ADD_ENCTRACE("seq_params->uv_ac_delta_q_enabled"));
 #endif  // CONFIG_EXT_QUANT_UPD
   }
 }
 
 static AOM_INLINE void write_sequence_header_beyond_av1(
     const SequenceHeader *const seq_params, struct aom_write_bit_buffer *wb) {
-  aom_wb_write_bit(wb, seq_params->enable_refmvbank);
+  aom_wb_write_bit(wb, seq_params->enable_refmvbank ADD_ENCTRACE("seq_params->enable_refmvbank"));
 #if CONFIG_DRL_REORDER_CONTROL
   const int is_drl_reorder_disable =
       (seq_params->enable_drl_reorder == DRL_REORDER_DISABLED);
-  aom_wb_write_bit(wb, is_drl_reorder_disable);
+  aom_wb_write_bit(wb, is_drl_reorder_disable ADD_ENCTRACE("is_drl_reorder_disable"));
   if (!is_drl_reorder_disable) {
     aom_wb_write_bit(wb,
-                     seq_params->enable_drl_reorder == DRL_REORDER_CONSTRAINT);
+                     seq_params->enable_drl_reorder == DRL_REORDER_CONSTRAINT ADD_ENCTRACE("eq_params->enable_drl_reorder == DRL_REORDER_CONSTRAINT"));
   }
 #endif  // CONFIG_DRL_REORDER_CONTROL
 #if CONFIG_CDEF_ENHANCEMENTS
   const int is_cdef_on_skip_txfm_always_on =
       (seq_params->enable_cdef_on_skip_txfm == CDEF_ON_SKIP_TXFM_ALWAYS_ON);
-  aom_wb_write_bit(wb, is_cdef_on_skip_txfm_always_on);
+  aom_wb_write_bit(wb, is_cdef_on_skip_txfm_always_on ADD_ENCTRACE("is_cdef_on_skip_txfm_always_on"));
   if (!is_cdef_on_skip_txfm_always_on) {
     aom_wb_write_bit(
-        wb, seq_params->enable_cdef_on_skip_txfm == CDEF_ON_SKIP_TXFM_DISABLED);
+        wb, seq_params->enable_cdef_on_skip_txfm == CDEF_ON_SKIP_TXFM_DISABLED ADD_ENCTRACE("seq_params->enable_cdef_on_skip_txfm"));
   }
 #endif  // CONFIG_CDEF_ENHANCEMENTS
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
-  aom_wb_write_bit(wb, seq_params->enable_avg_cdf);
+  aom_wb_write_bit(wb, seq_params->enable_avg_cdf ADD_ENCTRACE("seq_params->enable_avg_cdf"));
   if (seq_params->enable_avg_cdf) {
-    aom_wb_write_bit(wb, seq_params->avg_cdf_type);
+    aom_wb_write_bit(wb, seq_params->avg_cdf_type ADD_ENCTRACE("seq_params->avg_cdf_type"));
   }
 #elif CONFIG_TILE_CDFS_AVG_TO_FRAME
-    aom_wb_write_bit(wb, seq_params->enable_tiles_cdfs_avg);
+    aom_wb_write_bit(wb, seq_params->enable_tiles_cdfs_avg ADD_ENCTRACE("seq_params->enable_tiles_cdfs_avg"));
 #endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
-  aom_wb_write_bit(wb, seq_params->explicit_ref_frame_map);
+  aom_wb_write_bit(wb, seq_params->explicit_ref_frame_map ADD_ENCTRACE("seq_params->explicit_ref_frame_map"));
   // 0 : show_existing_frame, 1: implicit derviation
-  aom_wb_write_bit(wb, seq_params->enable_frame_output_order);
+  aom_wb_write_bit(wb, seq_params->enable_frame_output_order ADD_ENCTRACE("seq_params->enable_frame_output_order"));
   // A bit is sent here to indicate if the max number of references is 7. If
   // this bit is 0, then two more bits are sent to indicate the exact number
   // of references allowed (range: 3 to 6).
-  aom_wb_write_bit(wb, seq_params->max_reference_frames < 7);
+  aom_wb_write_bit(wb, seq_params->max_reference_frames < 7 ADD_ENCTRACE("seq_params->max_reference_frames < 7"));
   if (seq_params->max_reference_frames < 7)
-    aom_wb_write_literal(wb, seq_params->max_reference_frames - 3, 2);
+    aom_wb_write_literal(wb, seq_params->max_reference_frames - 3, 2 ADD_ENCTRACE("seq_params->max_reference_frames - 3"));
 #if CONFIG_EXTRA_DPB
   if (seq_params->num_extra_dpb) {
-    aom_wb_write_literal(wb, 1, 1);
-    aom_wb_write_literal(wb, seq_params->num_extra_dpb - 1, 3);
+    aom_wb_write_literal(wb, 1, 1 ADD_ENCTRACE("seq_params->num_extra_dpb"));
+    aom_wb_write_literal(wb, seq_params->num_extra_dpb - 1, 3 ADD_ENCTRACE("seq_params->num_extra_dpb - 1"));
   } else {
-    aom_wb_write_literal(wb, 0, 1);
+    aom_wb_write_literal(wb, 0, 1 ADD_ENCTRACE("seq_params->num_extra_dpb"));
   }
 #endif  // CONFIG_EXTRA_DPB
 #if CONFIG_SAME_REF_COMPOUND
-  aom_wb_write_literal(wb, seq_params->num_same_ref_compound, 2);
+  aom_wb_write_literal(wb, seq_params->num_same_ref_compound, 2 ADD_ENCTRACE("seq_params->num_same_ref_compound"));
 #endif  // CONFIG_SAME_REF_COMPOUND
-  if (!seq_params->monochrome) aom_wb_write_bit(wb, seq_params->enable_sdp);
+  if (!seq_params->monochrome) aom_wb_write_bit(wb, seq_params->enable_sdp ADD_ENCTRACE("seq_params->enable_sdp"));
   if (seq_params->enable_sdp)
-    aom_wb_write_bit(wb, seq_params->enable_extended_sdp);
-  aom_wb_write_bit(wb, seq_params->enable_ist);
-  aom_wb_write_bit(wb, seq_params->enable_inter_ist);
+    aom_wb_write_bit(wb, seq_params->enable_extended_sdp ADD_ENCTRACE("seq_params->enable_extended_sdp"));
+  aom_wb_write_bit(wb, seq_params->enable_ist ADD_ENCTRACE("seq_params->enable_ist"));
+  aom_wb_write_bit(wb, seq_params->enable_inter_ist ADD_ENCTRACE("seq_params->enable_inter_ist"));
 #if CONFIG_CHROMA_TX
-  aom_wb_write_bit(wb, seq_params->enable_chroma_dctonly);
+  aom_wb_write_bit(wb, seq_params->enable_chroma_dctonly ADD_ENCTRACE("seq_params->enable_chroma_dctonly"));
 #endif  // CONFIG_CHROMA_TX
 #if CONFIG_INTER_DDT
-  aom_wb_write_bit(wb, seq_params->enable_inter_ddt);
+  aom_wb_write_bit(wb, seq_params->enable_inter_ddt ADD_ENCTRACE("seq_params->enable_inter_ddt"));
 #endif  // CONFIG_INTER_DDT
-  if (!seq_params->monochrome) aom_wb_write_bit(wb, seq_params->enable_cctx);
-  aom_wb_write_bit(wb, seq_params->enable_mrls);
-  aom_wb_write_bit(wb, seq_params->enable_tip != 0);
+  if (!seq_params->monochrome) aom_wb_write_bit(wb, seq_params->enable_cctx ADD_ENCTRACE("seq_params->enable_cctx"));
+  aom_wb_write_bit(wb, seq_params->enable_mrls ADD_ENCTRACE("seq_params->enable_mrls"));
+  aom_wb_write_bit(wb, seq_params->enable_tip != 0 ADD_ENCTRACE("seq_params->enable_tip != 0"));
   if (seq_params->enable_tip) {
-    aom_wb_write_bit(wb, seq_params->enable_tip != 1);
+    aom_wb_write_bit(wb, seq_params->enable_tip != 1 ADD_ENCTRACE("seq_params->enable_tip != 1"));
   }
   if (seq_params->enable_tip) {
-    aom_wb_write_bit(wb, seq_params->enable_tip_hole_fill);
+    aom_wb_write_bit(wb, seq_params->enable_tip_hole_fill ADD_ENCTRACE("seq_params->enable_tip_hole_fill"));
   }
 #if CONFIG_TMVP_SIMPLIFICATIONS_F085
-  aom_wb_write_bit(wb, seq_params->enable_mv_traj);
+  aom_wb_write_bit(wb, seq_params->enable_mv_traj ADD_ENCTRACE("seq_params->enable_mv_traj"));
 #endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
-  aom_wb_write_bit(wb, seq_params->enable_bawp);
-  aom_wb_write_bit(wb, seq_params->enable_cwp);
+  aom_wb_write_bit(wb, seq_params->enable_bawp ADD_ENCTRACE("seq_params->enable_bawp"));
+  aom_wb_write_bit(wb, seq_params->enable_cwp ADD_ENCTRACE("seq_params->enable_cwp"));
 #if CONFIG_D071_IMP_MSK_BLD
-  aom_wb_write_bit(wb, seq_params->enable_imp_msk_bld);
+  aom_wb_write_bit(wb, seq_params->enable_imp_msk_bld ADD_ENCTRACE("seq_params->enable_imp_msk_bld"));
 #endif  // CONFIG_D071_IMP_MSK_BLD
-  aom_wb_write_bit(wb, seq_params->enable_fsc);
-  aom_wb_write_bit(wb, seq_params->enable_ccso);
+  aom_wb_write_bit(wb, seq_params->enable_fsc ADD_ENCTRACE("seq_params->enable_fsc"));
+  aom_wb_write_bit(wb, seq_params->enable_ccso ADD_ENCTRACE("seq_params->enable_ccso"));
 #if CONFIG_LF_SUB_PU
-  aom_wb_write_bit(wb, seq_params->enable_lf_sub_pu);
+  aom_wb_write_bit(wb, seq_params->enable_lf_sub_pu ADD_ENCTRACE("seq_params->enable_lf_sub_pu"));
 #endif  // CONFIG_LF_SUB_PU
 #if CONFIG_TIP_IMPLICIT_QUANT
   if (seq_params->enable_tip == 1 &&
@@ -6239,67 +6258,67 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
       seq_params->enable_lf_sub_pu
 #endif  // CONFIG_LF_SUB_PU
   ) {
-    aom_wb_write_bit(wb, seq_params->enable_tip_explicit_qp);
+    aom_wb_write_bit(wb, seq_params->enable_tip_explicit_qp ADD_ENCTRACE("seq_params->enable_tip_explicit_qp"));
   }
 #endif  // CONFIG_TIP_IMPLICIT_QUANT
-  aom_wb_write_bit(wb, seq_params->enable_orip);
+  aom_wb_write_bit(wb, seq_params->enable_orip ADD_ENCTRACE("seq_params->enable_orip"));
   if (seq_params->order_hint_info.enable_order_hint) {
-    aom_wb_write_literal(wb, seq_params->enable_opfl_refine, 2);
+    aom_wb_write_literal(wb, seq_params->enable_opfl_refine, 2 ADD_ENCTRACE("seq_params->enable_opfl_refine"));
 #if CONFIG_AFFINE_REFINEMENT
     if (seq_params->enable_opfl_refine)
-      aom_wb_write_bit(wb, seq_params->enable_affine_refine);
+      aom_wb_write_bit(wb, seq_params->enable_affine_refine ADD_ENCTRACE("seq_params->enable_affine_refine"));
 #endif  // CONFIG_AFFINE_REFINEMENT
   }
-  aom_wb_write_bit(wb, seq_params->enable_ibp);
-  aom_wb_write_bit(wb, seq_params->enable_adaptive_mvd);
+  aom_wb_write_bit(wb, seq_params->enable_ibp ADD_ENCTRACE("seq_params->enable_ibp"));
+  aom_wb_write_bit(wb, seq_params->enable_adaptive_mvd ADD_ENCTRACE("seq_params->enable_adaptive_mvd"));
 
 #if CONFIG_REFINEMV
-  aom_wb_write_bit(wb, seq_params->enable_refinemv);
+  aom_wb_write_bit(wb, seq_params->enable_refinemv ADD_ENCTRACE("seq_params->enable_refinemv"));
 #endif  // CONFIG_REFINEMV
 
 #if CONFIG_BRU
-  aom_wb_write_bit(wb, (int)(seq_params->enable_bru > 0));
+  aom_wb_write_bit(wb, (int)(seq_params->enable_bru > 0) ADD_ENCTRACE("(int)(seq_params->enable_bru > 0)"));
 #endif  // CONFIG_BRU
 #if CONFIG_DERIVED_MVD_SIGN
-  aom_wb_write_bit(wb, seq_params->enable_mvd_sign_derive);
+  aom_wb_write_bit(wb, seq_params->enable_mvd_sign_derive ADD_ENCTRACE("seq_params->enable_mvd_sign_derive"));
 #endif  // CONFIG_DERIVED_MVD_SIGN
 
-  aom_wb_write_bit(wb, seq_params->enable_flex_mvres);
+  aom_wb_write_bit(wb, seq_params->enable_flex_mvres ADD_ENCTRACE("seq_params->enable_flex_mvres"));
 
-  aom_wb_write_literal(wb, seq_params->cfl_ds_filter_index, 2);
+  aom_wb_write_literal(wb, seq_params->cfl_ds_filter_index, 2 ADD_ENCTRACE("seq_params->cfl_ds_filter_index"));
 
 #if CONFIG_TCQ
   int enable_tcq = seq_params->enable_tcq;
-  aom_wb_write_bit(wb, enable_tcq != 0);
+  aom_wb_write_bit(wb, enable_tcq != 0 ADD_ENCTRACE("enable_tcq != 0"));
   if (enable_tcq) {
-    aom_wb_write_literal(wb, enable_tcq - 1, 1);
+    aom_wb_write_literal(wb, enable_tcq - 1, 1 ADD_ENCTRACE("enable_tcq - 1"));
   }
   if (enable_tcq == TCQ_DISABLE || enable_tcq >= TCQ_8ST_FR) {
     // Signal whether parity hiding is used if TCQ is
     // disabled, or enabled/disabled at frame level.
-    aom_wb_write_bit(wb, seq_params->enable_parity_hiding);
+    aom_wb_write_bit(wb, seq_params->enable_parity_hiding ADD_ENCTRACE("seq_params->enable_parity_hiding"));
   }
 #else
-    aom_wb_write_bit(wb, seq_params->enable_parity_hiding);
+    aom_wb_write_bit(wb, seq_params->enable_parity_hiding ADD_ENCTRACE("seq_params->enable_parity_hiding"));
 #endif  // CONFIG_TCQ
-  aom_wb_write_bit(wb, seq_params->enable_ext_partitions);
+  aom_wb_write_bit(wb, seq_params->enable_ext_partitions ADD_ENCTRACE("seq_params->enable_ext_partitions"));
   if (seq_params->enable_ext_partitions)
-    aom_wb_write_bit(wb, seq_params->enable_uneven_4way_partitions);
+    aom_wb_write_bit(wb, seq_params->enable_uneven_4way_partitions ADD_ENCTRACE("seq_params->enable_uneven_4way_partitions"));
 #if CONFIG_IMPROVED_GLOBAL_MOTION
   if (seq_params->reduced_still_picture_hdr) {
     assert(seq_params->enable_global_motion == 0);
   } else {
-    aom_wb_write_bit(wb, seq_params->enable_global_motion);
+    aom_wb_write_bit(wb, seq_params->enable_global_motion ADD_ENCTRACE("seq_params->enable_global_motion"));
   }
 #endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 #if CONFIG_DF_PAR_BITS
-  aom_wb_write_literal(wb, seq_params->df_par_bits_minus2, 2);
+  aom_wb_write_literal(wb, seq_params->df_par_bits_minus2, 2 ADD_ENCTRACE("seq_params->df_par_bits_minus2"));
 #endif  // CONFIG_DF_PAR_BITS
 #if CONFIG_REFRESH_FLAG
-  aom_wb_write_bit(wb, seq_params->enable_short_refresh_frame_flags);
+  aom_wb_write_bit(wb, seq_params->enable_short_refresh_frame_flags ADD_ENCTRACE("seq_params->enable_short_refresh_frame_flags"));
 #endif  // CONFIG_REFRESH_FLAG
 #if CONFIG_EXT_SEG
-  aom_wb_write_bit(wb, seq_params->enable_ext_seg);
+  aom_wb_write_bit(wb, seq_params->enable_ext_seg ADD_ENCTRACE("seq_params->enable_ext_seg"));
 #endif  // CONFIG_EXT_SEG
 }
 
@@ -6313,14 +6332,14 @@ static AOM_INLINE void write_global_motion_params(
 
   const TransformationType type = params->wmtype;
 
-  aom_wb_write_bit(wb, type != IDENTITY);
+  aom_wb_write_bit(wb, type != IDENTITY ADD_ENCTRACE("type != IDENTITY"));
   if (type != IDENTITY) {
-    aom_wb_write_bit(wb, type == ROTZOOM);
+    aom_wb_write_bit(wb, type == ROTZOOM ADD_ENCTRACE("type == ROTZOOM"));
     if (type != ROTZOOM) {
 #if CONFIG_IMPROVED_GLOBAL_MOTION
       assert(type == AFFINE);
 #else
-        aom_wb_write_bit(wb, type == TRANSLATION);
+        aom_wb_write_bit(wb, type == TRANSLATION ADD_ENCTRACE("type == TRANSLATION"));
 #endif  // !CONFIG_IMPROVED_GLOBAL_MOTION
     }
   }
@@ -6397,14 +6416,14 @@ static AOM_INLINE void write_global_motion(AV1_COMP *cpi,
     }
   }
 
-  aom_wb_write_bit(wb, use_global_motion);
+  aom_wb_write_bit(wb, use_global_motion ADD_ENCTRACE("use_global_motion"));
   if (!use_global_motion) {
     return;
   }
 
   int our_ref = cpi->gm_info.base_model_our_ref;
   int their_ref = cpi->gm_info.base_model_their_ref;
-  aom_wb_write_primitive_quniform(wb, num_total_refs + 1, our_ref);
+  aom_wb_write_primitive_quniform(wb, num_total_refs + 1, our_ref ADD_ENCTRACE("our_ref"));
   if (our_ref >= num_total_refs) {
     // Special case: Use IDENTITY model
     // Nothing more to code
@@ -6419,7 +6438,7 @@ static AOM_INLINE void write_global_motion(AV1_COMP *cpi,
       // Nothing more to code
       assert(their_ref == -1);
     } else {
-      aom_wb_write_primitive_quniform(wb, their_num_refs, their_ref);
+      aom_wb_write_primitive_quniform(wb, their_num_refs, their_ref ADD_ENCTRACE("their_ref"));
     }
   }
 #endif  // CONFIG_IMPROVED_GLOBAL_MOTION
@@ -6491,7 +6510,7 @@ static AOM_INLINE void write_screen_content_params(
   const SequenceHeader *const seq_params = &cm->seq_params;
   FeatureFlags *const features = &cm->features;
   if (seq_params->force_screen_content_tools == 2) {
-    aom_wb_write_bit(wb, features->allow_screen_content_tools);
+    aom_wb_write_bit(wb, features->allow_screen_content_tools ADD_ENCTRACE("features->allow_screen_content_tools"));
   } else {
     assert(features->allow_screen_content_tools ==
            seq_params->force_screen_content_tools);
@@ -6499,7 +6518,7 @@ static AOM_INLINE void write_screen_content_params(
 
   if (features->allow_screen_content_tools) {
     if (seq_params->force_integer_mv == 2) {
-      aom_wb_write_bit(wb, features->cur_frame_force_integer_mv);
+      aom_wb_write_bit(wb, features->cur_frame_force_integer_mv ADD_ENCTRACE("features->cur_frame_force_integer_mv"));
     } else {
       assert(features->cur_frame_force_integer_mv ==
              seq_params->force_integer_mv);
@@ -6527,9 +6546,9 @@ static AOM_INLINE void write_uncompressed_header_obu(
   }
   if (!seq_params->reduced_still_picture_hdr) {
     if (encode_show_existing_frame(cm)) {
-      aom_wb_write_bit(wb, 1);  // show_existing_frame
+      aom_wb_write_bit(wb, 1 ADD_ENCTRACE("show_existing_frame"));  // show_existing_frame
       aom_wb_write_literal(wb, cpi->existing_fb_idx_to_show,
-                           cm->seq_params.ref_frames_log2);
+                           cm->seq_params.ref_frames_log2 ADD_ENCTRACE("cpi->existing_fb_idx_to_show"));
 
       if (seq_params->decoder_model_info_present_flag &&
           seq_params->timing_info.equal_picture_interval == 0) {
@@ -6538,44 +6557,58 @@ static AOM_INLINE void write_uncompressed_header_obu(
       if (seq_params->frame_id_numbers_present_flag) {
         int frame_id_len = seq_params->frame_id_length;
         int display_frame_id = cm->ref_frame_id[cpi->existing_fb_idx_to_show];
-        aom_wb_write_literal(wb, display_frame_id, frame_id_len);
+        aom_wb_write_literal(wb, display_frame_id, frame_id_len ADD_ENCTRACE("display_frame_id"));
       }
       return;
     } else {
-      aom_wb_write_bit(wb, 0);  // show_existing_frame
+      aom_wb_write_bit(wb, 0 ADD_ENCTRACE("show_existing_frame"));  // show_existing_frame
     }
 
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
     const int is_inter_frame = (current_frame->frame_type == INTER_FRAME);
-    aom_wb_write_bit(wb, is_inter_frame);
+    aom_wb_write_bit(wb, is_inter_frame ADD_ENCTRACE("is_inter_frame"));
     if (!is_inter_frame) {
       const int is_key_frame = (current_frame->frame_type == KEY_FRAME);
-      aom_wb_write_bit(wb, is_key_frame);
+      aom_wb_write_bit(wb, is_key_frame ADD_ENCTRACE("is_key_frame"));
       if (!is_key_frame) {
-        aom_wb_write_bit(wb, current_frame->frame_type == INTRA_ONLY_FRAME);
+        aom_wb_write_bit(wb, current_frame->frame_type == INTRA_ONLY_FRAME ADD_ENCTRACE("current_frame->frame_type == INTRA_ONLY_FRAME"));
       }
     }
 #else
-      aom_wb_write_literal(wb, current_frame->frame_type, 2);
+      aom_wb_write_literal(wb, current_frame->frame_type, 2 ADD_ENCTRACE("current_frame->frame_type"));
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
 
+#if CONFIG_F281_OUTPUT
+//    if(cm->show_frame) aom_wb_write_bit(wb, 1 ADD_ENCTRACE("cm->showable_frame"));
+//    else
+      aom_wb_write_bit(wb, cm->showable_frame ADD_ENCTRACE("cm->showable_frame"));
+    if (seq_params->decoder_model_info_present_flag &&
+        seq_params->timing_info.equal_picture_interval == 0)
+      write_tu_pts_info(cm, wb);
+    if (frame_is_sframe(cm)) {
+      assert(features->error_resilient_mode);
+    } else if (current_frame->frame_type != KEY_FRAME) { //CLK
+      aom_wb_write_bit(wb, features->error_resilient_mode);
+    }
+#else
     aom_wb_write_bit(wb, cm->show_frame);
     if (cm->show_frame) {
       if (seq_params->decoder_model_info_present_flag &&
           seq_params->timing_info.equal_picture_interval == 0)
         write_tu_pts_info(cm, wb);
     } else {
-      aom_wb_write_bit(wb, cm->showable_frame);
+      aom_wb_write_bit(wb, cm->showable_frame ADD_ENCTRACE("cm->showable_frame"));
     }
+
     if (frame_is_sframe(cm)) {
       assert(features->error_resilient_mode);
     } else if (!(current_frame->frame_type == KEY_FRAME && cm->show_frame)) {
-      aom_wb_write_bit(wb, features->error_resilient_mode);
+      aom_wb_write_bit(wb, features->error_resilient_mode ADD_ENCTRACE("features->error_resilient_mode"));
     }
-  }
-
+#endif //CONFIG_F281_OUTPUT
+  } //if (!seq_params->reduced_still_picture_hdr)
 #if !CONFIG_FRAME_HEADER_SIGNAL_OPT
-  aom_wb_write_bit(wb, features->disable_cdf_update);
+  aom_wb_write_bit(wb, features->disable_cdf_update ADD_ENCTRACE("features->disable_cdf_update"));
 
   write_screen_content_params(cm, wb);
 #endif  // !CONFIG_FRAME_HEADER_SIGNAL_OPT
@@ -6593,16 +6626,17 @@ static AOM_INLINE void write_uncompressed_header_obu(
   } else {
     if (seq_params->frame_id_numbers_present_flag) {
       int frame_id_len = seq_params->frame_id_length;
-      aom_wb_write_literal(wb, cm->current_frame_id, frame_id_len);
+      aom_wb_write_literal(wb, cm->current_frame_id, frame_id_len ADD_ENCTRACE("cm->current_frame_id"));
     }
 
 #if CONFIG_ENABLE_SR
     if (cm->superres_upscaled_width > seq_params->max_frame_width ||
-        cm->superres_upscaled_height > seq_params->max_frame_height) {
+        cm->superres_upscaled_height > seq_params->max_frame_height)
 #else
       if (cm->width > seq_params->max_frame_width ||
-          cm->height > seq_params->max_frame_height) {
+          cm->height > seq_params->max_frame_height)
 #endif  // CONFIG_ENABLE_SR
+    {
       aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                          "Frame dimensions are larger than the maximum values");
     }
@@ -6617,7 +6651,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
               : (cm->width != seq_params->max_frame_width ||
                  cm->height != seq_params->max_frame_height);
 #endif  // CONFIG_ENABLE_SR
-    if (!frame_is_sframe(cm)) aom_wb_write_bit(wb, frame_size_override_flag);
+    if (!frame_is_sframe(cm)) aom_wb_write_bit(wb, frame_size_override_flag ADD_ENCTRACE("frame_size_override_flag"));
 
 #if CONFIG_BRU
     if (cm->bru.frame_inactive_flag) {
@@ -6630,15 +6664,18 @@ static AOM_INLINE void write_uncompressed_header_obu(
     if (seq_params->order_hint_info.enable_order_hint)
       aom_wb_write_literal(
           wb, current_frame->order_hint,
-          seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
+          seq_params->order_hint_info.order_hint_bits_minus_1 + 1 ADD_ENCTRACE("current_frame->order_hint"));
+#if ENABLE_VERBOSE_TRACE
+    printf("(write)uncompressed_header DOH %d Frametype %s showable_frame %d\n",current_frame->display_order_hint, current_frame->frame_type==KEY_FRAME?"KEY":"INTER", cm->showable_frame);
+#endif
 
     if (!features->error_resilient_mode && !frame_is_intra_only(cm)) {
 #if CONFIG_PRIMARY_REF_FRAME_OPT
-      aom_wb_write_literal(wb, cpi->signal_primary_ref_frame, 1);
+      aom_wb_write_literal(wb, cpi->signal_primary_ref_frame, 1 ADD_ENCTRACE("cpi->signal_primary_ref_frame"));
       if (cpi->signal_primary_ref_frame)
-        aom_wb_write_literal(wb, features->primary_ref_frame, PRIMARY_REF_BITS);
+        aom_wb_write_literal(wb, features->primary_ref_frame, PRIMARY_REF_BITS ADD_ENCTRACE("features->primary_ref_frame"));
 #else
-        aom_wb_write_literal(wb, features->primary_ref_frame, PRIMARY_REF_BITS);
+        aom_wb_write_literal(wb, features->primary_ref_frame, PRIMARY_REF_BITS ADD_ENCTRACE("features->primary_ref_frame"));
 #endif  // CONFIG_PRIMARY_REF_FRAME_OPT
       if (features->primary_ref_frame >= cm->ref_frames_info.num_total_refs &&
           features->primary_ref_frame != PRIMARY_REF_NONE)
@@ -6648,7 +6685,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
   }
 
   if (seq_params->decoder_model_info_present_flag) {
-    aom_wb_write_bit(wb, cm->buffer_removal_time_present);
+    aom_wb_write_bit(wb, cm->buffer_removal_time_present ADD_ENCTRACE("cm->buffer_removal_time_present"));
     if (cm->buffer_removal_time_present) {
       for (int op_num = 0;
            op_num < seq_params->operating_points_cnt_minus_1 + 1; op_num++) {
@@ -6662,7 +6699,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
               seq_params->operating_point_idc[op_num] == 0) {
             aom_wb_write_unsigned_literal(
                 wb, cm->buffer_removal_times[op_num],
-                seq_params->decoder_model_info.buffer_removal_time_length);
+                seq_params->decoder_model_info.buffer_removal_time_length ADD_ENCTRACE("cm->buffer_removal_times[op_num]"));
             cm->buffer_removal_times[op_num]++;
             if (cm->buffer_removal_times[op_num] == 0) {
               aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
@@ -6676,7 +6713,10 @@ static AOM_INLINE void write_uncompressed_header_obu(
 
   // Shown keyframes and switch-frames automatically refreshes all reference
   // frames.  For all other frame types, we need to write refresh_frame_flags.
-  if ((current_frame->frame_type == KEY_FRAME && !cm->show_frame) ||
+  if (
+#if !CONFIG_F281_OUTPUT //OLK
+      (current_frame->frame_type == KEY_FRAME && !cm->show_frame) ||
+#endif
       current_frame->frame_type == INTER_FRAME ||
       current_frame->frame_type == INTRA_ONLY_FRAME) {
 #if CONFIG_REFRESH_FLAG
@@ -6692,21 +6732,21 @@ static AOM_INLINE void write_uncompressed_header_obu(
             break;
           }
         }
-        aom_wb_write_literal(wb, refresh_idx, 3);
+        aom_wb_write_literal(wb, refresh_idx, 3 ADD_ENCTRACE("refresh_idx"));
         if (refresh_idx == 0) {
-          aom_wb_write_literal(wb, 1, 1);
+          aom_wb_write_literal(wb, 1, 1 ADD_ENCTRACE("refresh_idx"));
         }
       } else {
-        aom_wb_write_literal(wb, 0, 3);
-        aom_wb_write_literal(wb, 0, 1);
+        aom_wb_write_literal(wb, 0, 3 ADD_ENCTRACE("refresh_idx"));
+        aom_wb_write_literal(wb, 0, 1 ADD_ENCTRACE("refresh_idx"));
       }
     } else {
       aom_wb_write_literal(wb, current_frame->refresh_frame_flags,
-                           cm->seq_params.ref_frames);
+                           cm->seq_params.ref_frames ADD_ENCTRACE("current_frame->refresh_frame_flags"));
     }
 #else
       aom_wb_write_literal(wb, current_frame->refresh_frame_flags,
-                           cm->seq_params.ref_frames);
+                           cm->seq_params.ref_frames ADD_ENCTRACE("current_frame->refresh_frame_flags"));
 
 #endif  // CONFIG_REFRESH_FLAG
   }
@@ -6719,7 +6759,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
       for (int ref_idx = 0; ref_idx < cm->seq_params.ref_frames; ref_idx++) {
         aom_wb_write_literal(
             wb, cm->ref_frame_map[ref_idx]->order_hint,
-            seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
+            seq_params->order_hint_info.order_hint_bits_minus_1 + 1 ADD_ENCTRACE("cm->ref_frame_map[ref_idx]->order_hint"));
       }
     }
     // Write all ref frame base_qindex if error_resilient_mode == 1. This is
@@ -6729,7 +6769,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
         aom_wb_write_literal(wb, cm->ref_frame_map[ref_idx]->base_qindex,
                              cm->seq_params.bit_depth == AOM_BITS_8
                                  ? QINDEX_BITS_UNEXT
-                                 : QINDEX_BITS);
+                                 : QINDEX_BITS ADD_ENCTRACE("cm->ref_frame_map[ref_idx]->base_qindex"));
       }
     }
   }
@@ -6752,12 +6792,12 @@ static AOM_INLINE void write_uncompressed_header_obu(
           1
 #endif  // CONFIG_ENABLE_SR
     )
-      aom_wb_write_bit(wb, features->allow_intrabc);
+      aom_wb_write_bit(wb, features->allow_intrabc ADD_ENCTRACE("features->allow_intrabc"));
 #if CONFIG_IBC_SR_EXT
     if (features->allow_intrabc) {
-      aom_wb_write_bit(wb, features->allow_global_intrabc);
+      aom_wb_write_bit(wb, features->allow_global_intrabc ADD_ENCTRACE("features->allow_global_intrabc"));
       if (features->allow_global_intrabc) {
-        aom_wb_write_bit(wb, features->allow_local_intrabc);
+        aom_wb_write_bit(wb, features->allow_local_intrabc ADD_ENCTRACE("features->allow_local_intrabc"));
       }
 #if CONFIG_IBC_BV_IMPROVEMENT
 #if CONFIG_IBC_MAX_DRL
@@ -6765,7 +6805,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
              features->max_bvp_drl_bits <= MAX_MAX_IBC_DRL_BITS);
       aom_wb_write_primitive_quniform(
           wb, MAX_MAX_IBC_DRL_BITS - MIN_MAX_IBC_DRL_BITS + 1,
-          features->max_bvp_drl_bits - MIN_MAX_IBC_DRL_BITS);
+          features->max_bvp_drl_bits - MIN_MAX_IBC_DRL_BITS ADD_ENCTRACE("features->max_bvp_drl_bits"));
 #else
       aom_wb_write_primitive_quniform(
           wb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1,
@@ -6793,12 +6833,12 @@ static AOM_INLINE void write_uncompressed_header_obu(
             1
 #endif  // CONFIG_ENABLE_SR
       )
-        aom_wb_write_bit(wb, features->allow_intrabc);
+        aom_wb_write_bit(wb, features->allow_intrabc ADD_ENCTRACE("features->allow_intrabc"));
 #if CONFIG_IBC_SR_EXT
       if (features->allow_intrabc) {
-        aom_wb_write_bit(wb, features->allow_global_intrabc);
+        aom_wb_write_bit(wb, features->allow_global_intrabc ADD_ENCTRACE("features->allow_global_intrabc"));
         if (features->allow_global_intrabc) {
-          aom_wb_write_bit(wb, features->allow_local_intrabc);
+          aom_wb_write_bit(wb, features->allow_local_intrabc ADD_ENCTRACE("features->allow_local_intrabc"));
         }
 #if CONFIG_IBC_BV_IMPROVEMENT
 #if CONFIG_IBC_MAX_DRL
@@ -6806,7 +6846,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
                features->max_bvp_drl_bits <= MAX_MAX_IBC_DRL_BITS);
         aom_wb_write_primitive_quniform(
             wb, MAX_MAX_IBC_DRL_BITS - MIN_MAX_IBC_DRL_BITS + 1,
-            features->max_bvp_drl_bits - MIN_MAX_IBC_DRL_BITS);
+            features->max_bvp_drl_bits - MIN_MAX_IBC_DRL_BITS ADD_ENCTRACE("features->max_bvp_drl_bits"));
 #else
         aom_wb_write_primitive_quniform(
             wb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1,
@@ -6842,14 +6882,14 @@ static AOM_INLINE void write_uncompressed_header_obu(
           aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR,
                              "Invalid num_total_refs");
         aom_wb_write_literal(wb, cm->ref_frames_info.num_total_refs,
-                             REF_FRAMES_LOG2);
+                             REF_FRAMES_LOG2 ADD_ENCTRACE("cm->ref_frames_info.num_total_refs"));
       }
       for (ref_frame = 0; ref_frame < cm->ref_frames_info.num_total_refs;
            ++ref_frame) {
         assert(get_ref_frame_map_idx(cm, ref_frame) != INVALID_IDX);
         if (explicit_ref_frame_map)
           aom_wb_write_literal(wb, get_ref_frame_map_idx(cm, ref_frame),
-                               cm->seq_params.ref_frames_log2);
+                               cm->seq_params.ref_frames_log2 ADD_ENCTRACE("get_ref_frame_map_idx"));
         if (seq_params->frame_id_numbers_present_flag) {
           int i = get_ref_frame_map_idx(cm, ref_frame);
           int frame_id_len = seq_params->frame_id_length;
@@ -6864,7 +6904,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
             aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR,
                                "Invalid delta_frame_id_minus_1");
           }
-          aom_wb_write_literal(wb, delta_frame_id_minus_1, diff_len);
+          aom_wb_write_literal(wb, delta_frame_id_minus_1, diff_len ADD_ENCTRACE("delta_frame_id_minus_1"));
         }
       }
 
@@ -6875,7 +6915,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
       }
 
       if (frame_might_allow_ref_frame_mvs(cm)) {
-        aom_wb_write_bit(wb, features->allow_ref_frame_mvs);
+        aom_wb_write_bit(wb, features->allow_ref_frame_mvs ADD_ENCTRACE("features->allow_ref_frame_mvs"));
       } else {
         assert(features->allow_ref_frame_mvs == 0);
       }
@@ -6886,13 +6926,13 @@ static AOM_INLINE void write_uncompressed_header_obu(
           seq_params->order_hint_info.enable_order_hint) {
         // Write TMVP sampling mode
         assert(cm->tmvp_sample_step == 1 || cm->tmvp_sample_step == 2);
-        aom_wb_write_bit(wb, cm->tmvp_sample_step - 1);
+        aom_wb_write_bit(wb, cm->tmvp_sample_step - 1 ADD_ENCTRACE("cm->tmvp_sample_step"));
       }
 #endif  // CONFIG_TMVP_SIMPLIFICATIONS_F085
 
 #if CONFIG_LF_SUB_PU
       if (cm->seq_params.enable_lf_sub_pu) {
-        aom_wb_write_bit(wb, features->allow_lf_sub_pu);
+        aom_wb_write_bit(wb, features->allow_lf_sub_pu ADD_ENCTRACE("features->allow_lf_sub_pu"));
       }
 #endif  // CONFIG_LF_SUB_PU
       if (cm->seq_params.enable_tip
@@ -6912,56 +6952,56 @@ static AOM_INLINE void write_uncompressed_header_obu(
         if (cm->seq_params.enable_tip == 1) {
           const int is_tip_direct_output =
               (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT);
-          aom_wb_write_bit(wb, is_tip_direct_output);
+          aom_wb_write_bit(wb, is_tip_direct_output ADD_ENCTRACE("is_tip_direct_output"));
           if (!is_tip_direct_output) {
-            aom_wb_write_bit(wb, features->tip_frame_mode == TIP_FRAME_AS_REF);
+            aom_wb_write_bit(wb, features->tip_frame_mode == TIP_FRAME_AS_REF ADD_ENCTRACE("features->tip_frame_mode"));
           }
         } else {
-          aom_wb_write_bit(wb, features->tip_frame_mode == TIP_FRAME_AS_REF);
+          aom_wb_write_bit(wb, features->tip_frame_mode == TIP_FRAME_AS_REF ADD_ENCTRACE("features->tip_frame_mode"));
         }
 #else
-          aom_wb_write_literal(wb, features->tip_frame_mode, 2);
+          aom_wb_write_literal(wb, features->tip_frame_mode, 2 ADD_ENCTRACE("features->tip_frame_mode"));
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
         if (features->tip_frame_mode && cm->seq_params.enable_tip_hole_fill) {
-          aom_wb_write_bit(wb, features->allow_tip_hole_fill);
+          aom_wb_write_bit(wb, features->allow_tip_hole_fill ADD_ENCTRACE("features->allow_tip_hole_fill"));
         }
 #if CONFIG_TIP_ENHANCEMENT
         if (features->tip_frame_mode && is_unequal_weighted_tip_allowed(cm)) {
-          aom_wb_write_literal(wb, cm->tip_global_wtd_index, 3);
+          aom_wb_write_literal(wb, cm->tip_global_wtd_index, 3 ADD_ENCTRACE("cm->tip_global_wtd_index"));
         }
 #endif  // CONFIG_TIP_ENHANCEMENT
 #if CONFIG_LF_SUB_PU
         if (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT &&
             cm->seq_params.enable_lf_sub_pu && features->allow_lf_sub_pu) {
-          aom_wb_write_bit(wb, cm->lf.tip_filter_level);
+          aom_wb_write_bit(wb, cm->lf.tip_filter_level ADD_ENCTRACE("cm->lf.tip_filter_level"));
           if (cm->lf.tip_filter_level)
-            aom_wb_write_literal(wb, cm->lf.tip_delta_idx, 2);
+            aom_wb_write_literal(wb, cm->lf.tip_delta_idx, 2 ADD_ENCTRACE("cm->lf.tip_delta_idx"));
         }
 #endif  // CONFIG_LF_SUB_PU
 
         if (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
-          aom_wb_write_bit(wb, cm->tip_global_motion.as_int == 0);
+          aom_wb_write_bit(wb, cm->tip_global_motion.as_int == 0 ADD_ENCTRACE("cm->tip_global_motion.as_int == 0"));
           if (cm->tip_global_motion.as_int != 0) {
-            aom_wb_write_literal(wb, abs(cm->tip_global_motion.as_mv.row), 4);
-            aom_wb_write_literal(wb, abs(cm->tip_global_motion.as_mv.col), 4);
+            aom_wb_write_literal(wb, abs(cm->tip_global_motion.as_mv.row), 4 ADD_ENCTRACE("abs(cm->tip_global_motion.as_mv.row)"));
+            aom_wb_write_literal(wb, abs(cm->tip_global_motion.as_mv.col), 4 ADD_ENCTRACE("abs(cm->tip_global_motion.as_mv.col)"));
             if (cm->tip_global_motion.as_mv.row != 0)
-              aom_wb_write_bit(wb, cm->tip_global_motion.as_mv.row < 0);
+              aom_wb_write_bit(wb, cm->tip_global_motion.as_mv.row < 0 ADD_ENCTRACE("cm->tip_global_motion.as_mv.row"));
             if (cm->tip_global_motion.as_mv.col != 0)
-              aom_wb_write_bit(wb, cm->tip_global_motion.as_mv.col < 0);
+              aom_wb_write_bit(wb, cm->tip_global_motion.as_mv.col < 0 ADD_ENCTRACE("cm->tip_global_motion.as_mv.col"));
           }
-          aom_wb_write_bit(wb, cm->tip_interp_filter == MULTITAP_SHARP);
+          aom_wb_write_bit(wb, cm->tip_interp_filter == MULTITAP_SHARP ADD_ENCTRACE("cm->tip_interp_filter"));
         }
       }
 
 #if CONFIG_BRU
       if (!cm->bru.frame_inactive_flag &&
           (!cm->seq_params.enable_tip ||
-           features->tip_frame_mode != TIP_FRAME_AS_OUTPUT)
+           features->tip_frame_mode != TIP_FRAME_AS_OUTPUT))
 #else
         if (!cm->seq_params.enable_tip ||
-            features->tip_frame_mode != TIP_FRAME_AS_OUTPUT
+            features->tip_frame_mode != TIP_FRAME_AS_OUTPUT)
 #endif  // CONFIG_BRU
-      ) {
+       {
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
         write_screen_content_params(cm, wb);
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
@@ -6976,24 +7016,24 @@ static AOM_INLINE void write_uncompressed_header_obu(
             1
 #endif  // CONFIG_ENABLE_SR
         )
-          aom_wb_write_bit(wb, features->allow_intrabc);
+          aom_wb_write_bit(wb, features->allow_intrabc ADD_ENCTRACE("features->allow_intrabc"));
 #endif  // CONFIG_IBC_SR_EXT
 
         aom_wb_write_primitive_quniform(
             wb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1,
-            features->max_drl_bits - MIN_MAX_DRL_BITS);
+            features->max_drl_bits - MIN_MAX_DRL_BITS ADD_ENCTRACE("features->max_drl_bits"));
 #if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
         if (features->allow_intrabc) {
           assert(features->max_bvp_drl_bits >= MIN_MAX_IBC_DRL_BITS &&
                  features->max_bvp_drl_bits <= MAX_MAX_IBC_DRL_BITS);
           aom_wb_write_primitive_quniform(
               wb, MAX_MAX_IBC_DRL_BITS - MIN_MAX_IBC_DRL_BITS + 1,
-              features->max_bvp_drl_bits - MIN_MAX_IBC_DRL_BITS);
+              features->max_bvp_drl_bits - MIN_MAX_IBC_DRL_BITS ADD_ENCTRACE("features->max_bvp_drl_bits"));
         }
 #endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
         if (!features->cur_frame_force_integer_mv) {
           aom_wb_write_bit(wb,
-                           features->fr_mv_precision > MV_PRECISION_QTR_PEL);
+                           features->fr_mv_precision > MV_PRECISION_QTR_PEL ADD_ENCTRACE("features->fr_mv_precision"));
           assert(features->fr_mv_precision ==
                  features->most_probable_fr_mv_precision);
         }
@@ -7014,7 +7054,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
           if (seq_enabled_motion_modes & (1 << motion_mode)) {
             int enabled =
                 (frame_enabled_motion_modes & (1 << motion_mode)) != 0 ? 1 : 0;
-            aom_wb_write_bit(wb, enabled);
+            aom_wb_write_bit(wb, enabled ADD_ENCTRACE_I2("motion_modes_enabled", motion_mode));
           } else {
             assert((frame_enabled_motion_modes & (1 << motion_mode)) == 0);
           }
@@ -7023,22 +7063,26 @@ static AOM_INLINE void write_uncompressed_header_obu(
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
           const int is_opfl_switchable =
               (features->opfl_refine_type == REFINE_SWITCHABLE);
-          aom_wb_write_bit(wb, is_opfl_switchable);
+          aom_wb_write_bit(wb, is_opfl_switchable ADD_ENCTRACE("is_opfl_switchable"));
           if (!is_opfl_switchable) {
-            aom_wb_write_bit(wb, features->opfl_refine_type == REFINE_ALL);
+            aom_wb_write_bit(wb, features->opfl_refine_type == REFINE_ALL ADD_ENCTRACE("features->opfl_refine_type"));
           }
 #else
-            aom_wb_write_literal(wb, features->opfl_refine_type, 2);
+            aom_wb_write_literal(wb, features->opfl_refine_type, 2 ADD_ENCTRACE("features->opfl_refine_type"));
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
         }
       }
-    }
-  }
+    } //else if
+  }//else
 
 #if CONFIG_BRU
   if (cm->bru.frame_inactive_flag) {
+#if CONFIG_F281_OUTPUT
+    if (seq_params->film_grain_params_present && cm->showable_frame)
+#else
     if (seq_params->film_grain_params_present &&
         (cm->show_frame || cm->showable_frame))
+#endif
       write_film_grain_params(cpi, wb);
     if (!cm->tiles.large_scale) {
       cm->cur_frame->frame_context = *cm->fc;
@@ -7053,7 +7097,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
       aom_wb_write_literal(wb, quant_params->base_qindex,
                            cm->seq_params.bit_depth == AOM_BITS_8
                                ? QINDEX_BITS_UNEXT
-                               : QINDEX_BITS);
+                               : QINDEX_BITS ADD_ENCTRACE("quant_params->base_qindex"));
       if (av1_num_planes(cm) > 1
 #if CONFIG_EXT_QUANT_UPD
           && cm->seq_params.uv_ac_delta_q_enabled
@@ -7062,11 +7106,11 @@ static AOM_INLINE void write_uncompressed_header_obu(
         const int diff_uv_delta =
             (quant_params->u_ac_delta_q != quant_params->v_ac_delta_q);
         if (cm->seq_params.separate_uv_delta_q) {
-          aom_wb_write_bit(wb, diff_uv_delta);
+          aom_wb_write_bit(wb, diff_uv_delta ADD_ENCTRACE("diff_uv_delta"));
         }
-        write_delta_q(wb, quant_params->u_ac_delta_q);
+        write_delta_q(wb, quant_params->u_ac_delta_q ADD_ENCTRACE("quant_params->u_ac_delta_q"));
         if (diff_uv_delta) {
-          write_delta_q(wb, quant_params->v_ac_delta_q);
+          write_delta_q(wb, quant_params->v_ac_delta_q ADD_ENCTRACE("quant_params->v_ac_delta_q"));
         }
       }
     }
@@ -7074,21 +7118,27 @@ static AOM_INLINE void write_uncompressed_header_obu(
       aom_wb_write_literal(wb, quant_params->base_qindex,
                            cm->seq_params.bit_depth == AOM_BITS_8
                                ? QINDEX_BITS_UNEXT
-                               : QINDEX_BITS);
+                               : QINDEX_BITS ADD_ENCTRACE("quant_params->base_qindex"));
 #endif  // CONFIG_TIP_IMPLICIT_QUANT
+#if CONFIG_F281_OUTPUT
+    if (seq_params->film_grain_params_present &&
+        (cm->seq_params.enable_frame_output_order || cm->showable_frame))
+#else
     if (seq_params->film_grain_params_present &&
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
         (cm->seq_params.enable_frame_output_order || cm->show_frame ||
-         cm->showable_frame))
+         cm->showable_frame)
 #else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
-          (cm->show_frame || cm->showable_frame))
+          (cm->show_frame || cm->showable_frame)
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+        )
+#endif // CONFIG_F281_OUTPUT
       write_film_grain_params(cpi, wb);
     return;
   }
 
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
-  aom_wb_write_bit(wb, features->disable_cdf_update);
+  aom_wb_write_bit(wb, features->disable_cdf_update ADD_ENCTRACE("features->disable_cdf_update"));
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
 
   const int might_bwd_adapt = !(seq_params->reduced_still_picture_hdr) &&
@@ -7098,7 +7148,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
 
   if (might_bwd_adapt) {
     aom_wb_write_bit(
-        wb, features->refresh_frame_context == REFRESH_FRAME_CONTEXT_DISABLED);
+        wb, features->refresh_frame_context == REFRESH_FRAME_CONTEXT_DISABLED ADD_ENCTRACE("features->refresh_frame_context == REFRESH_FRAME_CONTEXT_DISABLED"));
   }
 
   write_tile_info(cm, saved_wb, wb);
@@ -7109,7 +7159,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
   // This can be extended in other ways (e.g., include alt-ref).
   int enable_tcq = seq_params->enable_tcq;
   if (enable_tcq >= TCQ_8ST_FR) {
-    aom_wb_write_bit(wb, features->tcq_mode != 0);
+    aom_wb_write_bit(wb, features->tcq_mode != 0 ADD_ENCTRACE("features->tcq_mode != 0"));
   }
 #endif  // CONFIG_TCQ
 
@@ -7119,19 +7169,19 @@ static AOM_INLINE void write_uncompressed_header_obu(
   const DeltaQInfo *const delta_q_info = &cm->delta_q_info;
   if (delta_q_info->delta_q_present_flag) assert(quant_params->base_qindex > 0);
   if (quant_params->base_qindex > 0) {
-    aom_wb_write_bit(wb, delta_q_info->delta_q_present_flag);
+    aom_wb_write_bit(wb, delta_q_info->delta_q_present_flag ADD_ENCTRACE("delta_q_info->delta_q_present_flag"));
     if (delta_q_info->delta_q_present_flag) {
-      aom_wb_write_literal(wb, get_msb(delta_q_info->delta_q_res), 2);
+      aom_wb_write_literal(wb, get_msb(delta_q_info->delta_q_res), 2 ADD_ENCTRACE("delta_q_info->delta_lf_res"));
       xd->current_base_qindex = quant_params->base_qindex;
 #if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
       if (is_global_intrabc_allowed(cm))
         assert(delta_q_info->delta_lf_present_flag == 0);
       else
 #endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
-        aom_wb_write_bit(wb, delta_q_info->delta_lf_present_flag);
+        aom_wb_write_bit(wb, delta_q_info->delta_lf_present_flag ADD_ENCTRACE("delta_q_info->delta_lf_present_flag"));
       if (delta_q_info->delta_lf_present_flag) {
-        aom_wb_write_literal(wb, get_msb(delta_q_info->delta_lf_res), 2);
-        aom_wb_write_bit(wb, delta_q_info->delta_lf_multi);
+        aom_wb_write_literal(wb, get_msb(delta_q_info->delta_lf_res), 2 ADD_ENCTRACE("delta_q_info->delta_lf_res"));
+        aom_wb_write_bit(wb, delta_q_info->delta_lf_multi ADD_ENCTRACE("delta_q_info->delta_lf_multi"));
         av1_reset_loop_filter_delta(xd, av1_num_planes(cm));
       }
     }
@@ -7164,46 +7214,51 @@ static AOM_INLINE void write_uncompressed_header_obu(
   ) {
     assert(features->allow_parity_hiding == false);
   } else {
-    aom_wb_write_bit(wb, features->allow_parity_hiding);
+    aom_wb_write_bit(wb, features->allow_parity_hiding ADD_ENCTRACE("features->allow_parity_hiding"));
   }
 
   // Write TX mode
   if (features->coded_lossless)
     assert(features->tx_mode == ONLY_4X4);
   else
-    aom_wb_write_bit(wb, features->tx_mode == TX_MODE_SELECT);
+    aom_wb_write_bit(wb, features->tx_mode == TX_MODE_SELECT ADD_ENCTRACE("features->tx_mode"));
 
   if (!frame_is_intra_only(cm)) {
     const int use_hybrid_pred =
         current_frame->reference_mode == REFERENCE_MODE_SELECT;
 
-    aom_wb_write_bit(wb, use_hybrid_pred);
+    aom_wb_write_bit(wb, use_hybrid_pred ADD_ENCTRACE("use_hybrid_pred"));
   }
 
   if (current_frame->skip_mode_info.skip_mode_allowed)
-    aom_wb_write_bit(wb, current_frame->skip_mode_info.skip_mode_flag);
+    aom_wb_write_bit(wb, current_frame->skip_mode_info.skip_mode_flag ADD_ENCTRACE("current_frame->skip_mode_info.skip_mode_flag"));
 
   if (!frame_is_intra_only(cm) && seq_params->enable_bawp)
-    aom_wb_write_bit(wb, features->enable_bawp);
+    aom_wb_write_bit(wb, features->enable_bawp ADD_ENCTRACE("features->enable_bawp"));
 
   if (!frame_is_intra_only(cm) &&
       (features->enabled_motion_modes & (1 << WARP_DELTA)) != 0) {
-    aom_wb_write_bit(wb, features->allow_warpmv_mode);
+    aom_wb_write_bit(wb, features->allow_warpmv_mode ADD_ENCTRACE("features->allow_warpmv_mode"));
   } else {
     assert(IMPLIES(!frame_is_intra_only(cm), !features->allow_warpmv_mode));
   }
 
-  aom_wb_write_bit(wb, features->reduced_tx_set_used);
+  aom_wb_write_bit(wb, features->reduced_tx_set_used ADD_ENCTRACE("features->reduced_tx_set_used"));
 
   if (!frame_is_intra_only(cm)) write_global_motion(cpi, wb);
-
+#if CONFIG_F281_OUTPUT
+  if (seq_params->film_grain_params_present &&
+      (cm->seq_params.enable_frame_output_order || cm->showable_frame))
+#else
   if (seq_params->film_grain_params_present &&
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
       (cm->seq_params.enable_frame_output_order || cm->show_frame ||
-       cm->showable_frame))
+       cm->showable_frame)
 #else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
-        (cm->show_frame || cm->showable_frame))
+        (cm->show_frame || cm->showable_frame)
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+      )
+#endif // CONFIG_F281_OUTPUT
     write_film_grain_params(cpi, wb);
 
   if (cm->tiles.large_scale) write_ext_tile_info(cm, saved_wb, wb);
@@ -7354,14 +7409,14 @@ uint32_t av1_write_obu_header(AV1LevelParams *const level_params,
   struct aom_write_bit_buffer wb = { dst, 0 };
   uint32_t size = 0;
 
-  aom_wb_write_literal(&wb, 0, 1);  // forbidden bit.
-  aom_wb_write_literal(&wb, (int)obu_type, 4);
-  aom_wb_write_literal(&wb, obu_extension ? 1 : 0, 1);
-  aom_wb_write_literal(&wb, 1, 1);  // obu_has_payload_length_field
-  aom_wb_write_literal(&wb, 0, 1);  // reserved
+  aom_wb_write_literal(&wb, 0, 1 ADD_ENCTRACE("0"));  // forbidden bit.
+  aom_wb_write_literal(&wb, (int)obu_type, 4 ADD_ENCTRACE("(int)obu_type"));
+  aom_wb_write_literal(&wb, obu_extension ? 1 : 0, 1 ADD_ENCTRACE("obu_extension ? 1 : 0"));
+  aom_wb_write_literal(&wb, 1, 1 ADD_ENCTRACE("obu_has_length_field"));  // obu_has_payload_length_field
+  aom_wb_write_literal(&wb, 0, 1 ADD_ENCTRACE("reserved"));  // reserved
 
   if (obu_extension) {
-    aom_wb_write_literal(&wb, obu_extension & 0xFF, 8);
+    aom_wb_write_literal(&wb, obu_extension & 0xFF, 8 ADD_ENCTRACE("obu_extension & 0xFF"));
   }
 
   size = aom_wb_bytes_written(&wb);
@@ -7395,17 +7450,17 @@ static size_t obu_memmove(size_t obu_header_size, size_t obu_payload_size,
 
 static AOM_INLINE void add_trailing_bits(struct aom_write_bit_buffer *wb) {
   if (aom_wb_is_byte_aligned(wb)) {
-    aom_wb_write_literal(wb, 0x80, 8);
+    aom_wb_write_literal(wb, 0x80, 8 ADD_ENCTRACE("0x80"));
   } else {
     // assumes that the other bits are already 0s
-    aom_wb_write_bit(wb, 1);
+    aom_wb_write_bit(wb, 1 ADD_ENCTRACE("1"));
   }
 }
 
 static AOM_INLINE void write_bitstream_level(AV1_LEVEL seq_level_idx,
                                              struct aom_write_bit_buffer *wb) {
   assert(is_valid_seq_level_idx(seq_level_idx));
-  aom_wb_write_literal(wb, seq_level_idx, LEVEL_BITS);
+  aom_wb_write_literal(wb, seq_level_idx, LEVEL_BITS ADD_ENCTRACE("seq_level_idx"));
 }
 
 uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
@@ -7415,21 +7470,21 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
 
   write_profile(seq_params->profile, &wb);
 
-  aom_wb_write_literal(&wb, seq_params->num_bits_width - 1, 4);
-  aom_wb_write_literal(&wb, seq_params->num_bits_height - 1, 4);
+  aom_wb_write_literal(&wb, seq_params->num_bits_width - 1, 4 ADD_ENCTRACE("seq_params->num_bits_width - 1"));
+  aom_wb_write_literal(&wb, seq_params->num_bits_height - 1, 4 ADD_ENCTRACE("seq_params->num_bits_height - 1"));
   aom_wb_write_literal(&wb, seq_params->max_frame_width - 1,
-                       seq_params->num_bits_width);
+                       seq_params->num_bits_width ADD_ENCTRACE("seq_params->max_frame_width - 1"));
   aom_wb_write_literal(&wb, seq_params->max_frame_height - 1,
-                       seq_params->num_bits_height);
+                       seq_params->num_bits_height ADD_ENCTRACE("seq_params->max_frame_height - 1"));
 
   write_color_config(seq_params, &wb);
 
   // Still picture or not
-  aom_wb_write_bit(&wb, seq_params->still_picture);
+  aom_wb_write_bit(&wb, seq_params->still_picture ADD_ENCTRACE("seq_params->still_picture"));
   assert(IMPLIES(!seq_params->still_picture,
                  !seq_params->reduced_still_picture_hdr));
   // whether to use reduced still picture header
-  aom_wb_write_bit(&wb, seq_params->reduced_still_picture_hdr);
+  aom_wb_write_bit(&wb, seq_params->reduced_still_picture_hdr ADD_ENCTRACE("seq_params->reduced_still_picture_hdr"));
 
   if (seq_params->reduced_still_picture_hdr) {
     assert(seq_params->timing_info_present == 0);
@@ -7438,29 +7493,29 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
     write_bitstream_level(seq_params->seq_level_idx[0], &wb);
   } else {
     aom_wb_write_bit(
-        &wb, seq_params->timing_info_present);  // timing info present flag
+        &wb, seq_params->timing_info_present ADD_ENCTRACE("seq_params->timing_info_present"));  // timing info present flag
 
     if (seq_params->timing_info_present) {
       // timing_info
       write_timing_info_header(&seq_params->timing_info, &wb);
-      aom_wb_write_bit(&wb, seq_params->decoder_model_info_present_flag);
+      aom_wb_write_bit(&wb, seq_params->decoder_model_info_present_flag ADD_ENCTRACE("seq_params->decoder_model_info_present_flag"));
       if (seq_params->decoder_model_info_present_flag) {
         write_decoder_model_info(&seq_params->decoder_model_info, &wb);
       }
     }
-    aom_wb_write_bit(&wb, seq_params->display_model_info_present_flag);
+    aom_wb_write_bit(&wb, seq_params->display_model_info_present_flag ADD_ENCTRACE("seq_params->display_model_info_present_flag"));
     aom_wb_write_literal(&wb, seq_params->operating_points_cnt_minus_1,
-                         OP_POINTS_CNT_MINUS_1_BITS);
+                         OP_POINTS_CNT_MINUS_1_BITS ADD_ENCTRACE("seq_params->operating_points_cnt_minus_1"));
     int i;
     for (i = 0; i < seq_params->operating_points_cnt_minus_1 + 1; i++) {
       aom_wb_write_literal(&wb, seq_params->operating_point_idc[i],
-                           OP_POINTS_IDC_BITS);
+                           OP_POINTS_IDC_BITS ADD_ENCTRACE("seq_params->operating_point_idc[i]"));
       write_bitstream_level(seq_params->seq_level_idx[i], &wb);
       if (seq_params->seq_level_idx[i] >= SEQ_LEVEL_4_0)
-        aom_wb_write_bit(&wb, seq_params->tier[i]);
+        aom_wb_write_bit(&wb, seq_params->tier[i] ADD_ENCTRACE("seq_params->tier[i]"));
       if (seq_params->decoder_model_info_present_flag) {
         aom_wb_write_bit(
-            &wb, seq_params->op_params[i].decoder_model_param_present_flag);
+            &wb, seq_params->op_params[i].decoder_model_param_present_flag ADD_ENCTRACE("seq_params->op_params[i].decoder_model_param_present_flag"));
         if (seq_params->op_params[i].decoder_model_param_present_flag) {
           write_dec_model_op_parameters(
               &seq_params->op_params[i],
@@ -7471,18 +7526,18 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
       }
       if (seq_params->display_model_info_present_flag) {
         aom_wb_write_bit(
-            &wb, seq_params->op_params[i].display_model_param_present_flag);
+            &wb, seq_params->op_params[i].display_model_param_present_flag ADD_ENCTRACE("seq_params->op_params[i].display_model_param_present_flag"));
         if (seq_params->op_params[i].display_model_param_present_flag) {
           assert(seq_params->op_params[i].initial_display_delay <= 10);
           aom_wb_write_literal(
-              &wb, seq_params->op_params[i].initial_display_delay - 1, 4);
+              &wb, seq_params->op_params[i].initial_display_delay - 1, 4 ADD_ENCTRACE("seq_params->op_params[i].initial_display_delay - 1"));
         }
       }
     }
   }
   write_sequence_header(seq_params, &wb);
 
-  aom_wb_write_bit(&wb, seq_params->film_grain_params_present);
+  aom_wb_write_bit(&wb, seq_params->film_grain_params_present ADD_ENCTRACE("seq_params->film_grain_params_present"));
 
   // Sequence header for coding tools beyond AV1
   write_sequence_header_beyond_av1(seq_params, &wb);
@@ -7511,11 +7566,11 @@ static uint32_t write_tile_group_header(uint8_t *const dst, int start_tile,
 
   if (!tiles_log2) return size;
 
-  aom_wb_write_bit(&wb, tile_start_and_end_present_flag);
+  aom_wb_write_bit(&wb, tile_start_and_end_present_flag ADD_ENCTRACE("tile_start_and_end_present_flag"));
 
   if (tile_start_and_end_present_flag) {
-    aom_wb_write_literal(&wb, start_tile, tiles_log2);
-    aom_wb_write_literal(&wb, end_tile, tiles_log2);
+    aom_wb_write_literal(&wb, start_tile, tiles_log2 ADD_ENCTRACE("start_tile"));
+    aom_wb_write_literal(&wb, end_tile, tiles_log2 ADD_ENCTRACE("end_tile"));
   }
 
   size = aom_wb_bytes_written(&wb);
@@ -7694,10 +7749,10 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
     // Now fill in the gaps in the uncompressed header.
     if (have_tiles) {
       assert(tile_col_size_bytes >= 1 && tile_col_size_bytes <= 4);
-      aom_wb_overwrite_literal(saved_wb, tile_col_size_bytes - 1, 2);
+      aom_wb_overwrite_literal(saved_wb, tile_col_size_bytes - 1, 2 ADD_ENCTRACE("tile_col_size_bytes - 1"));
 
       assert(tile_size_bytes >= 1 && tile_size_bytes <= 4);
-      aom_wb_overwrite_literal(saved_wb, tile_size_bytes - 1, 2);
+      aom_wb_overwrite_literal(saved_wb, tile_size_bytes - 1, 2 ADD_ENCTRACE("tile_size_bytes - 1"));
     }
     return total_size;
   }
@@ -7839,15 +7894,16 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
 
   if (have_tiles) {
 #if CONFIG_ENHANCED_FRAME_CONTEXT_INIT
-    if (!cm->seq_params.enable_avg_cdf || !cm->seq_params.avg_cdf_type) {
+    if (!cm->seq_params.enable_avg_cdf || !cm->seq_params.avg_cdf_type)
 #elif CONFIG_TILE_CDFS_AVG_TO_FRAME
-      if (!cm->seq_params.enable_tiles_cdfs_avg) {
+      if (!cm->seq_params.enable_tiles_cdfs_avg)
 #endif  // CONFIG_ENHANCED_FRAME_CONTEXT_INIT
+    {
       // Fill in context_update_tile_id indicating the tile to use for the
       // cdf update. The encoder currently sets it to the largest tile
       // (but is up to the encoder)
       aom_wb_overwrite_literal(saved_wb, *largest_tile_id,
-                               tiles->log2_cols + tiles->log2_rows);
+                               tiles->log2_cols + tiles->log2_rows ADD_ENCTRACE("*largest_tile_id"));
 #if CONFIG_TILE_CDFS_AVG_TO_FRAME || CONFIG_ENHANCED_FRAME_CONTEXT_INIT
     }
 #endif  // CONFIG_TILE_CDFS_AVG_TO_FRAME || CONFIG_ENHANCED_FRAME_CONTEXT_INIT
@@ -7865,7 +7921,7 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
       total_size += tile_data_offset;
       assert(tile_size_bytes >= 1 && tile_size_bytes <= 4);
 
-      aom_wb_overwrite_literal(saved_wb, tile_size_bytes - 1, 2);
+      aom_wb_overwrite_literal(saved_wb, tile_size_bytes - 1, 2 ADD_ENCTRACE("tile_size_bytes - 1"));
 
       // Update the OBU length if remux_tiles() reduced the size.
       uint64_t payload_size;
@@ -7959,14 +8015,14 @@ static void write_frame_hash(AV1_COMP *const cpi,
       raw_update_image_md5(img, &yuv[i], 1, &md5_ctx);
       MD5Final(md5_digest, &md5_ctx);
       for (size_t j = 0; j < sizeof(md5_digest); j++)
-        aom_wb_write_literal(wb, md5_digest[j], 8);
+        aom_wb_write_literal(wb, md5_digest[j], 8 ADD_ENCTRACE("md5_digest[j]"));
     }
   } else {
     MD5Init(&md5_ctx);
     raw_update_image_md5(img, yuv, planes, &md5_ctx);
     MD5Final(md5_digest, &md5_ctx);
     for (size_t i = 0; i < sizeof(md5_digest); i++)
-      aom_wb_write_literal(wb, md5_digest[i], 8);
+      aom_wb_write_literal(wb, md5_digest[i], 8 ADD_ENCTRACE("md5_digest[i]"));
   }
 }
 
@@ -7982,10 +8038,10 @@ static size_t av1_write_frame_hash_metadata(
 
   yuvconfig2image(&img, &cm->cur_frame->buf, NULL);
 
-  aom_wb_write_literal(&wb, 0, 4);  // hash_type, 0 = md5
-  aom_wb_write_literal(&wb, cpi->oxcf.tool_cfg.frame_hash_per_plane, 1);
-  aom_wb_write_literal(&wb, !!grain_params, 1);
-  aom_wb_write_literal(&wb, 0, 2);
+  aom_wb_write_literal(&wb, 0, 4 ADD_ENCTRACE("hash_type"));  // hash_type, 0 = md5
+  aom_wb_write_literal(&wb, cpi->oxcf.tool_cfg.frame_hash_per_plane, 1 ADD_ENCTRACE("cpi->oxcf.tool_cfg.frame_hash_per_plane"));
+  aom_wb_write_literal(&wb, !!grain_params, 1 ADD_ENCTRACE("!!grain_params"));
+  aom_wb_write_literal(&wb, 0, 2 ADD_ENCTRACE("0"));
   if (grain_params) {
     const int w_even = ALIGN_POWER_OF_TWO(img.d_w, 1);
     const int h_even = ALIGN_POWER_OF_TWO(img.d_h, 1);
@@ -8086,7 +8142,11 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
     const int write_raw_frame_hash =
         ((cpi->oxcf.tool_cfg.frame_hash_metadata & 1) ||
          ((cpi->oxcf.tool_cfg.frame_hash_metadata & 2) && !apply_grain)) &&
+#if CONFIG_F281_OUTPUT
+        cm->showable_frame &&
+#else
         (cm->show_frame || cm->showable_frame) &&
+#endif
         !encode_show_existing_frame(cm);
     if (write_raw_frame_hash)
       data += av1_write_frame_hash_metadata(cpi, data, NULL);

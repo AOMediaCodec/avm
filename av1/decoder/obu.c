@@ -68,8 +68,13 @@ static int is_obu_in_current_operating_point(AV1Decoder *pbi,
 
 static int byte_alignment(AV1_COMMON *const cm,
                           struct aom_read_bit_buffer *const rb) {
+#if ENABLE_DECTRACE
+  uint32_t startPos=rb->bit_offset;
+  printf("%-32s\t%-10s:[%8d]\t%2d\t%d\n", "byte_alignment", "bit", startPos, 8-rb->bit_offset&7, 1);
+#endif
+
   while (rb->bit_offset & 7) {
-    if (aom_rb_read_bit(rb)) {
+    if (aom_rb_read_bit(rb ADD_DECTRACE(""))) {
       cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
       return -1;
     }
@@ -82,7 +87,7 @@ static uint32_t read_temporal_delimiter_obu() { return 0; }
 // Returns a boolean that indicates success.
 static int read_bitstream_level(AV1_LEVEL *seq_level_idx,
                                 struct aom_read_bit_buffer *rb) {
-  *seq_level_idx = aom_rb_read_literal(rb, LEVEL_BITS);
+  *seq_level_idx = aom_rb_read_literal(rb, LEVEL_BITS ADD_DECTRACE("*seq_level_idx"));
   if (!is_valid_seq_level_idx(*seq_level_idx)) return 0;
   return 1;
 }
@@ -120,10 +125,10 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
     return 0;
   }
 
-  const int num_bits_width = aom_rb_read_literal(rb, 4) + 1;
-  const int num_bits_height = aom_rb_read_literal(rb, 4) + 1;
-  const int max_frame_width = aom_rb_read_literal(rb, num_bits_width) + 1;
-  const int max_frame_height = aom_rb_read_literal(rb, num_bits_height) + 1;
+  const int num_bits_width = aom_rb_read_literal(rb, 4 ADD_DECTRACE("num_bits_width")) + 1;
+  const int num_bits_height = aom_rb_read_literal(rb, 4 ADD_DECTRACE("num_bits_height")) + 1;
+  const int max_frame_width = aom_rb_read_literal(rb, num_bits_width ADD_DECTRACE("max_frame_width")) + 1;
+  const int max_frame_height = aom_rb_read_literal(rb, num_bits_height ADD_DECTRACE("max_frame_height")) + 1;
 
   seq_params->num_bits_width = num_bits_width;
   seq_params->num_bits_height = num_bits_height;
@@ -141,8 +146,8 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
   }
 
   // Still picture or not
-  seq_params->still_picture = aom_rb_read_bit(rb);
-  seq_params->reduced_still_picture_hdr = aom_rb_read_bit(rb);
+  seq_params->still_picture = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->still_picture"));
+  seq_params->reduced_still_picture_hdr = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->reduced_still_picture_hdr"));
   // Video must have reduced_still_picture_hdr = 0
   if (!seq_params->still_picture && seq_params->reduced_still_picture_hdr) {
     cm->error.error_code = AOM_CODEC_UNSUP_BITSTREAM;
@@ -163,22 +168,22 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
     seq_params->op_params[0].decoder_model_param_present_flag = 0;
     seq_params->op_params[0].display_model_param_present_flag = 0;
   } else {
-    seq_params->timing_info_present = aom_rb_read_bit(rb);
+    seq_params->timing_info_present = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->timing_info_present"));
     if (seq_params->timing_info_present) {
       av1_read_timing_info_header(&seq_params->timing_info, &cm->error, rb);
 
-      seq_params->decoder_model_info_present_flag = aom_rb_read_bit(rb);
+      seq_params->decoder_model_info_present_flag = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->decoder_model_info_present_flag"));
       if (seq_params->decoder_model_info_present_flag)
         av1_read_decoder_model_info(&seq_params->decoder_model_info, rb);
     } else {
       seq_params->decoder_model_info_present_flag = 0;
     }
-    seq_params->display_model_info_present_flag = aom_rb_read_bit(rb);
+    seq_params->display_model_info_present_flag = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->display_model_info_present_flag"));
     seq_params->operating_points_cnt_minus_1 =
-        aom_rb_read_literal(rb, OP_POINTS_CNT_MINUS_1_BITS);
+        aom_rb_read_literal(rb, OP_POINTS_CNT_MINUS_1_BITS ADD_DECTRACE("seq_params->operating_points_cnt_minus_1"));
     for (int i = 0; i < seq_params->operating_points_cnt_minus_1 + 1; i++) {
       seq_params->operating_point_idc[i] =
-          aom_rb_read_literal(rb, OP_POINTS_IDC_BITS);
+          aom_rb_read_literal(rb, OP_POINTS_IDC_BITS ADD_DECTRACE("seq_params->operating_point_idc[i]"));
       if (!read_bitstream_level(&seq_params->seq_level_idx[i], rb)) {
         cm->error.error_code = AOM_CODEC_UNSUP_BITSTREAM;
         return 0;
@@ -186,12 +191,12 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
       // This is the seq_level_idx[i] > 7 check in the spec. seq_level_idx 7
       // is equivalent to level 3.3.
       if (seq_params->seq_level_idx[i] >= SEQ_LEVEL_4_0)
-        seq_params->tier[i] = aom_rb_read_bit(rb);
+        seq_params->tier[i] = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->tier[i]"));
       else
         seq_params->tier[i] = 0;
       if (seq_params->decoder_model_info_present_flag) {
         seq_params->op_params[i].decoder_model_param_present_flag =
-            aom_rb_read_bit(rb);
+            aom_rb_read_bit(rb ADD_DECTRACE("seq_params->op_params[i].decoder_model_param_present_flag"));
         if (seq_params->op_params[i].decoder_model_param_present_flag)
           av1_read_op_parameters_info(&seq_params->op_params[i],
                                       seq_params->decoder_model_info
@@ -227,20 +232,28 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
 
       if (seq_params->display_model_info_present_flag) {
         seq_params->op_params[i].display_model_param_present_flag =
-            aom_rb_read_bit(rb);
+            aom_rb_read_bit(rb ADD_DECTRACE("seq_params->op_params[i].display_model_param_present_flag"));
         if (seq_params->op_params[i].display_model_param_present_flag) {
           seq_params->op_params[i].initial_display_delay =
-              aom_rb_read_literal(rb, 4) + 1;
+              aom_rb_read_literal(rb, 4 ADD_DECTRACE("seq_params->op_params[i].initial_display_delay")) + 1;
           if (seq_params->op_params[i].initial_display_delay > 10)
             aom_internal_error(
                 &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                 "AV1 does not support more than 10 decoded frames delay");
         } else {
+#if CONFIG_F281_OUTPUT
+          seq_params->op_params[i].initial_display_delay = 8;
+#else
           seq_params->op_params[i].initial_display_delay = 10;
+#endif
         }
       } else {
         seq_params->op_params[i].display_model_param_present_flag = 0;
+#if CONFIG_F281_OUTPUT
+        seq_params->op_params[i].initial_display_delay = 8;
+#else
         seq_params->op_params[i].initial_display_delay = 10;
+#endif
       }
     }
   }
@@ -261,7 +274,7 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
 
   av1_read_sequence_header(cm, rb, seq_params);
 
-  seq_params->film_grain_params_present = aom_rb_read_bit(rb);
+  seq_params->film_grain_params_present = aom_rb_read_bit(rb ADD_DECTRACE("seq_params->film_grain_params_present"));
 
   // Sequence header for coding tools beyond AV1
   av1_read_sequence_header_beyond_av1(rb, seq_params);
@@ -330,7 +343,7 @@ static int32_t read_tile_group_header(AV1Decoder *pbi,
 #endif  // CONFIG_BRU
 
   if (!tiles->large_scale && num_tiles > 1) {
-    tile_start_and_end_present_flag = aom_rb_read_bit(rb);
+    tile_start_and_end_present_flag = aom_rb_read_bit(rb ADD_DECTRACE("tile_start_and_end_present_flag"));
     if (tile_start_implicit && tile_start_and_end_present_flag) {
       aom_internal_error(
           &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
@@ -344,8 +357,8 @@ static int32_t read_tile_group_header(AV1Decoder *pbi,
     *end_tile = num_tiles - 1;
   } else {
     int tile_bits = tiles->log2_rows + tiles->log2_cols;
-    *start_tile = aom_rb_read_literal(rb, tile_bits);
-    *end_tile = aom_rb_read_literal(rb, tile_bits);
+    *start_tile = aom_rb_read_literal(rb, tile_bits ADD_DECTRACE("*start_tile"));
+    *end_tile = aom_rb_read_literal(rb, tile_bits ADD_DECTRACE("*end_tile"));
   }
   if (*start_tile != pbi->next_start_tile) {
     aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
@@ -493,9 +506,9 @@ static uint32_t read_and_decode_one_tile_list(AV1Decoder *pbi,
   int i = 0;
 
   // Process the tile list info.
-  pbi->output_frame_width_in_tiles_minus_1 = aom_rb_read_literal(rb, 8);
-  pbi->output_frame_height_in_tiles_minus_1 = aom_rb_read_literal(rb, 8);
-  pbi->tile_count_minus_1 = aom_rb_read_literal(rb, 16);
+  pbi->output_frame_width_in_tiles_minus_1 = aom_rb_read_literal(rb, 8 ADD_DECTRACE("pbi->output_frame_width_in_tiles_minus_1"));
+  pbi->output_frame_height_in_tiles_minus_1 = aom_rb_read_literal(rb, 8 ADD_DECTRACE("pbi->output_frame_height_in_tiles_minus_1"));
+  pbi->tile_count_minus_1 = aom_rb_read_literal(rb, 16 ADD_DECTRACE("pbi->tile_count_minus_1"));
   if (pbi->tile_count_minus_1 > MAX_TILES - 1) {
     cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
     return 0;
@@ -518,7 +531,7 @@ static uint32_t read_and_decode_one_tile_list(AV1Decoder *pbi,
     // Read out the tile info.
     uint32_t tile_info_bytes = 5;
     // Set reference for each tile.
-    int ref_idx = aom_rb_read_literal(rb, 8);
+    int ref_idx = aom_rb_read_literal(rb, 8 ADD_DECTRACE("ref_idx"));
     if (ref_idx >= MAX_EXTERNAL_REFERENCES) {
       cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
       return 0;
@@ -526,8 +539,8 @@ static uint32_t read_and_decode_one_tile_list(AV1Decoder *pbi,
     av1_set_reference_dec(cm, cm->remapped_ref_idx[0], 1,
                           &pbi->ext_refs.refs[ref_idx]);
 
-    pbi->dec_tile_row = aom_rb_read_literal(rb, 8);
-    pbi->dec_tile_col = aom_rb_read_literal(rb, 8);
+    pbi->dec_tile_row = aom_rb_read_literal(rb, 8 ADD_DECTRACE("pbi->dec_tile_row"));
+    pbi->dec_tile_col = aom_rb_read_literal(rb, 8 ADD_DECTRACE("pbi->dec_tile_col"));
     if (pbi->dec_tile_row < 0 || pbi->dec_tile_col < 0 ||
         pbi->dec_tile_row >= cm->tiles.rows ||
         pbi->dec_tile_col >= cm->tiles.cols) {
@@ -535,7 +548,7 @@ static uint32_t read_and_decode_one_tile_list(AV1Decoder *pbi,
       return 0;
     }
 
-    pbi->coded_tile_data_size = aom_rb_read_literal(rb, 16) + 1;
+    pbi->coded_tile_data_size = aom_rb_read_literal(rb, 16 ADD_DECTRACE("pbi->coded_tile_data_size")) + 1;
     data += tile_info_bytes;
     if ((size_t)(data_end - data) < pbi->coded_tile_data_size) {
       cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
@@ -672,10 +685,10 @@ static size_t read_metadata_hdr_mdcv(AV1Decoder *const pbi, const uint8_t *data,
 static int read_metadata_frame_hash(AV1Decoder *const pbi,
                                     struct aom_read_bit_buffer *rb) {
   AV1_COMMON *const cm = &pbi->common;
-  const unsigned hash_type = aom_rb_read_literal(rb, 4);
-  const unsigned per_plane = aom_rb_read_bit(rb);
-  const unsigned has_grain = aom_rb_read_bit(rb);
-  aom_rb_read_literal(rb, 2);  // reserved
+  const unsigned hash_type = aom_rb_read_literal(rb, 4 ADD_DECTRACE("hash_type"));
+  const unsigned per_plane = aom_rb_read_bit(rb ADD_DECTRACE("per_plane"));
+  const unsigned has_grain = aom_rb_read_bit(rb ADD_DECTRACE("has_grain"));
+  aom_rb_read_literal(rb, 2 ADD_DECTRACE("has_grain"));  // reserved
 
   // If hash_type is reserved for future use, ignore the entire OBU
   if (hash_type) return -1;
@@ -692,11 +705,11 @@ static int read_metadata_frame_hash(AV1Decoder *const pbi,
     for (int i = 0; i < num_planes; ++i) {
       PlaneHash *plane = &frame_hash->plane[i];
       for (size_t j = 0; j < 16; ++j)
-        plane->md5[j] = aom_rb_read_literal(rb, 8);
+        plane->md5[j] = aom_rb_read_literal(rb, 8 ADD_DECTRACE("plane->md5[j]"));
     }
   } else {
     PlaneHash *plane = &frame_hash->plane[0];
-    for (size_t i = 0; i < 16; ++i) plane->md5[i] = aom_rb_read_literal(rb, 8);
+    for (size_t i = 0; i < 16; ++i) plane->md5[i] = aom_rb_read_literal(rb, 8 ADD_DECTRACE("plane->md5[i]"));
   }
   frame_hash->is_present = 1;
 
@@ -704,74 +717,74 @@ static int read_metadata_frame_hash(AV1Decoder *const pbi,
 }
 
 static void scalability_structure(struct aom_read_bit_buffer *rb) {
-  const int spatial_layers_cnt_minus_1 = aom_rb_read_literal(rb, 2);
-  const int spatial_layer_dimensions_present_flag = aom_rb_read_bit(rb);
-  const int spatial_layer_description_present_flag = aom_rb_read_bit(rb);
-  const int temporal_group_description_present_flag = aom_rb_read_bit(rb);
-  aom_rb_read_literal(rb, 3);  // reserved
+  const int spatial_layers_cnt_minus_1 = aom_rb_read_literal(rb, 2 ADD_DECTRACE("spatial_layers_cnt_minus_1"));
+  const int spatial_layer_dimensions_present_flag = aom_rb_read_bit(rb ADD_DECTRACE("spatial_layer_dimensions_present_flag"));
+  const int spatial_layer_description_present_flag = aom_rb_read_bit(rb ADD_DECTRACE("spatial_layer_description_present_flag"));
+  const int temporal_group_description_present_flag = aom_rb_read_bit(rb ADD_DECTRACE("temporal_group_description_present_flag"));
+  aom_rb_read_literal(rb, 3 ADD_DECTRACE("temporal_group_description_present_flag"));  // reserved
 
   if (spatial_layer_dimensions_present_flag) {
     for (int i = 0; i <= spatial_layers_cnt_minus_1; i++) {
-      aom_rb_read_literal(rb, 16);
-      aom_rb_read_literal(rb, 16);
+      aom_rb_read_literal(rb, 16 ADD_DECTRACE("<"));
+      aom_rb_read_literal(rb, 16 ADD_DECTRACE("bit"));
     }
   }
   if (spatial_layer_description_present_flag) {
     for (int i = 0; i <= spatial_layers_cnt_minus_1; i++) {
-      aom_rb_read_literal(rb, 8);
+      aom_rb_read_literal(rb, 8 ADD_DECTRACE("<"));
     }
   }
   if (temporal_group_description_present_flag) {
-    const int temporal_group_size = aom_rb_read_literal(rb, 8);
+    const int temporal_group_size = aom_rb_read_literal(rb, 8 ADD_DECTRACE("temporal_group_size"));
     for (int i = 0; i < temporal_group_size; i++) {
-      aom_rb_read_literal(rb, 3);
-      aom_rb_read_bit(rb);
-      aom_rb_read_bit(rb);
-      const int temporal_group_ref_cnt = aom_rb_read_literal(rb, 3);
+      aom_rb_read_literal(rb, 3 ADD_DECTRACE("i"));
+      aom_rb_read_bit(rb ADD_DECTRACE("bit"));
+      aom_rb_read_bit(rb ADD_DECTRACE("bit"));
+      const int temporal_group_ref_cnt = aom_rb_read_literal(rb, 3 ADD_DECTRACE("temporal_group_ref_cnt"));
       for (int j = 0; j < temporal_group_ref_cnt; j++) {
-        aom_rb_read_literal(rb, 8);
+        aom_rb_read_literal(rb, 8 ADD_DECTRACE("j"));
       }
     }
   }
 }
 
 static void read_metadata_scalability(struct aom_read_bit_buffer *rb) {
-  const int scalability_mode_idc = aom_rb_read_literal(rb, 8);
+  const int scalability_mode_idc = aom_rb_read_literal(rb, 8 ADD_DECTRACE("scalability_mode_idc"));
   if (scalability_mode_idc == SCALABILITY_SS) {
     scalability_structure(rb);
   }
 }
 
 static void read_metadata_timecode(struct aom_read_bit_buffer *rb) {
-  aom_rb_read_literal(rb, 5);  // counting_type f(5)
+  aom_rb_read_literal(rb, 5 ADD_DECTRACE("counting_type"));  // counting_type f(5)
   const int full_timestamp_flag =
-      aom_rb_read_bit(rb);     // full_timestamp_flag f(1)
-  aom_rb_read_bit(rb);         // discontinuity_flag (f1)
-  aom_rb_read_bit(rb);         // cnt_dropped_flag f(1)
-  aom_rb_read_literal(rb, 9);  // n_frames f(9)
+      aom_rb_read_bit(rb ADD_DECTRACE("full_timestamp_flag"));     // full_timestamp_flag f(1)
+  aom_rb_read_bit(rb ADD_DECTRACE("discontinuity_flag"));         // discontinuity_flag (f1)
+  aom_rb_read_bit(rb ADD_DECTRACE("cnt_dropped_flag"));         // cnt_dropped_flag f(1)
+  aom_rb_read_literal(rb, 9 ADD_DECTRACE("n_frames"));  // n_frames f(9)
   if (full_timestamp_flag) {
-    aom_rb_read_literal(rb, 6);  // seconds_value f(6)
-    aom_rb_read_literal(rb, 6);  // minutes_value f(6)
-    aom_rb_read_literal(rb, 5);  // hours_value f(5)
+    aom_rb_read_literal(rb, 6 ADD_DECTRACE("seconds_value"));  // seconds_value f(6)
+    aom_rb_read_literal(rb, 6 ADD_DECTRACE("minutes_value"));  // minutes_value f(6)
+    aom_rb_read_literal(rb, 5 ADD_DECTRACE("hours_value"));  // hours_value f(5)
   } else {
-    const int seconds_flag = aom_rb_read_bit(rb);  // seconds_flag f(1)
+    const int seconds_flag = aom_rb_read_bit(rb ADD_DECTRACE("seconds_flag"));  // seconds_flag f(1)
     if (seconds_flag) {
-      aom_rb_read_literal(rb, 6);                    // seconds_value f(6)
-      const int minutes_flag = aom_rb_read_bit(rb);  // minutes_flag f(1)
+      aom_rb_read_literal(rb, 6 ADD_DECTRACE("seconds_value"));                    // seconds_value f(6)
+      const int minutes_flag = aom_rb_read_bit(rb ADD_DECTRACE("minutes_flag"));  // minutes_flag f(1)
       if (minutes_flag) {
-        aom_rb_read_literal(rb, 6);                  // minutes_value f(6)
-        const int hours_flag = aom_rb_read_bit(rb);  // hours_flag f(1)
+        aom_rb_read_literal(rb, 6 ADD_DECTRACE("minutes_value"));                  // minutes_value f(6)
+        const int hours_flag = aom_rb_read_bit(rb ADD_DECTRACE("hours_flag"));  // hours_flag f(1)
         if (hours_flag) {
-          aom_rb_read_literal(rb, 5);  // hours_value f(5)
+          aom_rb_read_literal(rb, 5 ADD_DECTRACE("hours_value"));  // hours_value f(5)
         }
       }
     }
   }
   // time_offset_length f(5)
-  const int time_offset_length = aom_rb_read_literal(rb, 5);
+  const int time_offset_length = aom_rb_read_literal(rb, 5 ADD_DECTRACE("time_offset_length"));
   if (time_offset_length) {
     // time_offset_value f(time_offset_length)
-    aom_rb_read_literal(rb, time_offset_length);
+    aom_rb_read_literal(rb, time_offset_length ADD_DECTRACE("time_offset_length"));
   }
 }
 

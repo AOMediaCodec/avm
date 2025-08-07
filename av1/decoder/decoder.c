@@ -44,7 +44,10 @@
 #include "av1/decoder/decoder.h"
 #include "av1/decoder/detokenize.h"
 #include "av1/decoder/obu.h"
-
+#if CONFIG_F281_OUTPUT
+#include "av1/av1_iface_common.h"
+#include "common/tools_common.h"
+#endif
 #if CONFIG_PARAKIT_COLLECT_DATA
 #include "av1/common/entropy_sideinfo.h"
 int beginningFrameFlag[MAX_NUMBER_CONTEXTS][MAX_DIMS_CONTEXT3]
@@ -68,7 +71,9 @@ static void update_subgop_stats(const AV1_COMMON *const cm,
   subgop_stats->disp_frame_idx[subgop_stats->stat_count] = display_order_hint;
   subgop_stats->show_existing_frame[subgop_stats->stat_count] =
       cm->show_existing_frame;
+#if !CONFIG_F281_OUTPUT
   subgop_stats->show_frame[subgop_stats->stat_count] = cm->show_frame;
+#endif
   subgop_stats->qindex[subgop_stats->stat_count] = cm->quant_params.base_qindex;
   subgop_stats->refresh_frame_flags[subgop_stats->stat_count] =
       cm->current_frame.refresh_frame_flags;
@@ -177,10 +182,11 @@ static INLINE void dec_free_optflow_bufs(AV1_COMMON *const cm) {
 
 #if CONFIG_PARAKIT_COLLECT_DATA
 AV1Decoder *av1_decoder_create(BufferPool *const pool, const char *path,
-                               const char *suffix) {
+                               const char *suffix)
 #else
-AV1Decoder *av1_decoder_create(BufferPool *const pool) {
+AV1Decoder *av1_decoder_create(BufferPool *const pool)
 #endif
+  {
   AV1Decoder *volatile const pbi = aom_memalign(32, sizeof(*pbi));
   if (!pbi) return NULL;
   av1_zero(*pbi);
@@ -216,6 +222,9 @@ AV1Decoder *av1_decoder_create(BufferPool *const pool) {
 
   cm->current_frame.frame_number = 0;
   pbi->decoding_first_frame = 1;
+#if CONFIG_F281_OUTPUT
+  pbi->write_output_file_header = 1;
+#endif
   pbi->common.buffer_pool = pool;
 
   cm->seq_params.bit_depth = AOM_BITS_8;
@@ -578,6 +587,113 @@ static void release_current_frame(AV1Decoder *pbi) {
 // the frame to be flushed out from the ref_frame_map slot.
 // ref_idx == -1 indicates the output process is trigged by
 // decoding the current frame.
+#if CONFIG_F281_OUTPUT
+unsigned int output_frame_buffers(AV1Decoder *pbi, int ref_idx) {
+  unsigned int num_to_be_output_frame = 1;
+  AV1_COMMON *const cm = &pbi->common;
+  unsigned int smallest_doh = UINT_MAX;
+  unsigned int smallest_doh_index=0;
+  unsigned int smallest_layer_id = UINT_MAX;
+#if ENABLE_VERBOSE_TRACE_DETAIL
+  printf("(output_frame_buffers) ref_frame_map:\n");
+  for (int idx = 0; idx < cm->seq_params.ref_frames; idx++) {
+    if(pbi->common.ref_frame_map[idx] == NULL) printf("\tremaining ref_frame_map[%d] NULL\n", idx);
+    else
+      printf("\t ref_frame_map[%d] %p doh:%d frame_output_done:%d marked_to_be_output:%d showable_frame:%d ref_count:%d\n",
+             idx,
+             pbi->common.ref_frame_map[idx],
+             pbi->common.ref_frame_map[idx]->display_order_hint,
+             pbi->common.ref_frame_map[idx]->marked_to_be_output,
+             pbi->common.ref_frame_map[idx]->frame_output_done,
+             pbi->common.ref_frame_map[idx]->showable_frame,
+             pbi->common.ref_frame_map[idx]->ref_count);
+  }
+#endif
+  if(ref_idx != -1) {
+    //check if there is any other frames need to be output
+    smallest_doh = cm->ref_frame_map[ref_idx]->display_order_hint;
+    //smallest_doh_index= ref_idx;
+    for(size_t i=0; i<pbi->num_output_frames; i++){
+      if(pbi->output_frames[i]->display_order_hint == smallest_doh &&
+         pbi->output_frames[i]->spatial_layer_id == cm->ref_frame_map[ref_idx]->spatial_layer_id){
+        smallest_doh_index = (unsigned int) i;
+        break;
+      }
+    }
+    //it can be done since output_frames is already ordered.
+    num_to_be_output_frame = smallest_doh_index+1;
+    return num_to_be_output_frame;
+  }
+  else{
+    //list small doh/smaller layer_id
+    for (int i = 0; i < cm->seq_params.ref_frames; i++) {
+      if ((cm->ref_frame_map[i] != NULL && !cm->ref_frame_map[i]->marked_to_be_output && cm->ref_frame_map[i]->showable_frame)
+          && cm->ref_frame_map[i]->display_order_hint < smallest_doh
+          && cm->ref_frame_map[i]->spatial_layer_id < smallest_layer_id) {
+        smallest_doh = cm->ref_frame_map[i]->display_order_hint;
+        smallest_layer_id = cm->ref_frame_map[i]->spatial_layer_id;
+        smallest_doh_index = i;
+      } //if
+    } //i
+  }
+  //[jkei] frame_output_done is more like to-be-written
+  //[jkei] at the encoder, reference should not updated when it is not yet written but to-be-written
+  cm->ref_frame_map[smallest_doh_index]->marked_to_be_output = 1;
+#if ENABLE_VERBOSE_TRACE_DETAIL
+  printf("(output_frame_buffers) marked_to_be_output updated\n");
+  for (int idx = 0; idx < cm->seq_params.ref_frames; idx++) {
+    if(pbi->common.ref_frame_map[idx] == NULL) printf("\tremaining ref_frame_map[%d] NULL\n", idx);
+    else
+      printf("\t ref_frame_map[%d] %p doh:%d marked_to_be_output:%d\n",
+             idx,
+             pbi->common.ref_frame_map[idx],
+             pbi->common.ref_frame_map[idx]->display_order_hint,
+             pbi->common.ref_frame_map[idx]->marked_to_be_output);
+  }
+#endif
+  //output frame list reordering
+#if 1
+  if((pbi->num_output_frames == 0)
+    || smallest_doh>pbi->output_frames[pbi->num_output_frames-1]->display_order_hint){
+    pbi->output_frames[pbi->num_output_frames] = pbi->common.ref_frame_map[smallest_doh_index];
+  } else {
+    unsigned int smallest_doh_layer_id = MAX_NUM_SPATIAL_LAYERS*smallest_doh + smallest_layer_id;
+    for(size_t i=0; i<pbi->num_output_frames-1; i++){
+      unsigned int doh_layer_id = MAX_NUM_SPATIAL_LAYERS*pbi->output_frames[i]->display_order_hint +
+       pbi->output_frames[i]->spatial_layer_id;
+      unsigned int doh_layer_id1 = MAX_NUM_SPATIAL_LAYERS*pbi->output_frames[i+1]->display_order_hint +
+       pbi->output_frames[i+1]->spatial_layer_id;
+      if( smallest_doh_layer_id > doh_layer_id
+         && smallest_doh_layer_id < doh_layer_id1){
+        for(size_t j=pbi->num_output_frames; j>(i+1); j--){
+          pbi->output_frames[j] = pbi->output_frames[j-1];
+        }//for(j) shift
+        pbi->output_frames[i+1] = pbi->common.ref_frame_map[smallest_doh_index];
+        break;
+      }//if
+    }//for(i)
+  }//else
+#else
+  if((pbi->num_output_frames == 0)
+    || smallest_doh>pbi->output_frames[pbi->num_output_frames-1]->display_order_hint){
+    pbi->output_frames[pbi->num_output_frames] = pbi->common.ref_frame_map[smallest_doh_index];
+  } else {
+    for(size_t i=0; i<pbi->num_output_frames-1; i++){
+      if( smallest_doh > pbi->output_frames[i]->display_order_hint
+         && smallest_doh < pbi->output_frames[i+1]->display_order_hint){
+        for(size_t j=pbi->num_output_frames; j>(i+1); j--){
+          pbi->output_frames[j] = pbi->output_frames[j-1];
+        }//for(j) shift
+        pbi->output_frames[i+1] = pbi->common.ref_frame_map[smallest_doh_index];
+        break;
+      }//if
+    }//for(i)
+  }//else
+#endif
+  pbi->num_output_frames++;
+  return num_to_be_output_frame;
+}
+#else
 void output_frame_buffers(AV1Decoder *pbi, int ref_idx) {
   AV1_COMMON *const cm = &pbi->common;
   RefCntBuffer *trigger_frame = NULL;
@@ -646,22 +762,40 @@ void output_frame_buffers(AV1Decoder *pbi, int ref_idx) {
     }
   }
 }
-
+#endif
 // If any buffer updating is signaled it should be done here.
 // Consumes a reference to cm->cur_frame.
 //
 // This functions returns void. It reports failure by setting
 // cm->error.error_code.
-static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
+unsigned int update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
   int ref_index = 0;
   AV1_COMMON *const cm = &pbi->common;
   BufferPool *const pool = cm->buffer_pool;
-
+  unsigned int num_popped_frames = 0;
+#if !CONFIG_F281_OUTPUT
   pbi->output_frames_offset = 0;
+#endif
   if (frame_decoded) {
     lock_buffer_pool(pool);
+    
+#if ENABLE_VERBOSE_TRACE_DETAIL
+  for (int idx = 0; idx < REF_FRAMES; idx++) {
+    if(pbi->common.ref_frame_map[idx] == NULL) printf("\t(update_frame_buffers)ref_frame_map[%d] NULL\n", idx);
+    else
+    printf("\t(update_frame_buffers)ref_frame_map[%d] %p doh:%d frame_output_done:%d showable_frame:%d ref_count:%d\n",
+           idx,
+           pbi->common.ref_frame_map[idx],
+           pbi->common.ref_frame_map[idx]->display_order_hint,
+           pbi->common.ref_frame_map[idx]->frame_output_done,
+           pbi->common.ref_frame_map[idx]->showable_frame,
+           pbi->common.ref_frame_map[idx]->ref_count);
+  }
+    printf("cm->current_frame.refresh_frame_flags: %d\n", cm->current_frame.refresh_frame_flags);
+#endif
 
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+    
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT && !CONFIG_F281_OUTPUT
     if (cm->seq_params.enable_frame_output_order) pbi->num_output_frames = 0;
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
     // In ext-tile decoding, the camera frame header is only decoded once. So,
@@ -676,11 +810,27 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
         for (int mask = cm->current_frame.refresh_frame_flags; mask;
              mask >>= 1) {
           if (mask & 1) {
+#if CONFIG_F281_OUTPUT //[jkei] all reference points the key frame and they are showable
+            if(cm->seq_params.enable_frame_output_order &&
+               (cm->ref_frame_map[ref_index] != NULL && !cm->ref_frame_map[ref_index]->frame_output_done && cm->ref_frame_map[ref_index]->showable_frame)
+               ){
+              num_popped_frames += output_frame_buffers(pbi, ref_index);
+#if ENABLE_VERBOSE_TRACE
+              if(num_popped_frames>0){
+                printf("!!!!!!%d referece frames popped by ref_idx[%d]+doh[%d]:!!!!!!\n", num_popped_frames, ref_index, cm->ref_frame_map[ref_index]->display_order_hint);
+                for(int ii=0; ii<num_popped_frames; ii++){
+                  printf("output_frame[%d]+doh[%d] will pop out\n",ii, pbi->output_frames[ii]->display_order_hint);
+                }
+              }
+#endif
+            }
+#else
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
             if (cm->seq_params.enable_frame_output_order &&
                 is_frame_eligible_for_output(cm->ref_frame_map[ref_index]))
               output_frame_buffers(pbi, ref_index);
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+#endif
             decrease_ref_count(cm->ref_frame_map[ref_index], pool);
             cm->ref_frame_map[ref_index] = cm->cur_frame;
             ++cm->cur_frame->ref_count;
@@ -693,6 +843,34 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
       update_subgop_stats(cm, &pbi->subgop_stats, cm->cur_frame->order_hint,
                           pbi->enable_subgop_stats);
     }
+#if CONFIG_F281_OUTPUT
+    if(cm->seq_params.order_hint_info.enable_order_hint &&
+            cm->seq_params.enable_frame_output_order &&
+       pbi->num_output_frames < INITIAL_BUFFER_DELAY){
+      output_frame_buffers(pbi, -1);
+      if(pbi->num_output_frames == (INITIAL_BUFFER_DELAY))
+        pbi->initial_outputbuffer_fullness=true;
+#if ENABLE_VERBOSE_TRACE
+      for (size_t idx = 0; idx < pbi->num_output_frames; idx++) {
+        if(pbi->output_frames[idx] == NULL) printf("output_frames[%zu] NULL\n", idx);
+        else printf("(update_frame_buffers) output_frames[%zu] %p doh:%d marked:%d outputdone:%d\n", idx, pbi->output_frames[idx], pbi->output_frames[idx]->display_order_hint,
+            pbi->output_frames[idx]->marked_to_be_output,
+            pbi->output_frames[idx]->frame_output_done );
+      }
+#endif
+    }else if (cm->seq_params.order_hint_info.enable_order_hint &&
+        cm->seq_params.enable_frame_output_order &&
+            pbi->num_output_frames >= INITIAL_BUFFER_DELAY){
+      cm->error.error_code = AOM_CODEC_DPB_OVERFLOW;
+#if ENABLE_VERBOSE_TRACE
+    for (size_t idx = 0; idx < pbi->num_output_frames; idx++) {
+      if(pbi->output_frames[idx] == NULL) printf("output_frames[%zu] NULL\n", idx);
+      else printf("(update_frame_buffers) ERROR output_frames[%zu] %p doh:%d\n", idx, pbi->output_frames[idx], pbi->output_frames[idx]->display_order_hint);
+    }
+#endif
+  }
+
+#else
     if (cm->seq_params.order_hint_info.enable_order_hint &&
         cm->seq_params.enable_frame_output_order &&
         ((cm->show_frame && !cm->cur_frame->frame_output_done) ||
@@ -725,7 +903,7 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
     } else {
       decrease_ref_count(cm->cur_frame, pool);
     }
-
+#endif
     unlock_buffer_pool(pool);
   } else {
     // Nothing was decoded, so just drop this frame buffer
@@ -733,6 +911,9 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
     decrease_ref_count(cm->cur_frame, pool);
     unlock_buffer_pool(pool);
   }
+#if CONFIG_F281_OUTPUT
+  decrease_ref_count(cm->cur_frame, pool);
+#endif
   cm->cur_frame = NULL;
 
   if (!pbi->camera_frame_header_ready) {
@@ -741,6 +922,7 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
       cm->remapped_ref_idx[ref_index] = INVALID_IDX;
     }
   }
+  return num_popped_frames;
 }
 
 int av1_receive_compressed_data(AV1Decoder *pbi, size_t size,
@@ -807,7 +989,7 @@ int av1_receive_compressed_data(AV1Decoder *pbi, size_t size,
     cm->error.setjmp = 0;
     return 1;
   }
-
+      
 #if TXCOEFF_TIMER
   cm->cum_txcoeff_timer += cm->txcoeff_timer;
   fprintf(stderr,
@@ -819,6 +1001,9 @@ int av1_receive_compressed_data(AV1Decoder *pbi, size_t size,
 
   // Note: At this point, this function holds a reference to cm->cur_frame
   // in the buffer pool. This reference is consumed by update_frame_buffers().
+#if CONFIG_F281_OUTPUT
+  pbi->num_popped_frames =
+#endif
   update_frame_buffers(pbi, frame_decoded);
 
   if (frame_decoded) {
@@ -863,7 +1048,17 @@ int av1_get_raw_frame(AV1Decoder *pbi, size_t index, YV12_BUFFER_CONFIG **sd,
 // Get the highest-spatial-layer output
 // TODO(rachelbarker): What should this do?
 int av1_get_frame_to_show(AV1Decoder *pbi, YV12_BUFFER_CONFIG *frame) {
+#if ENABLE_VERBOSE_TRACE_DETAIL
+  printf("decoder(av1_get_frame_to_show):fullness:%d offset:%zu num_output_frames:%zu\n", pbi->initial_outputbuffer_fullness, pbi->output_frames_offset, pbi->num_output_frames);
+  for(size_t ii=0; ii<pbi->num_output_frames; ii++){
+    printf("decoder(av1_get_frame_to_show): output_frames[%zu]: doh %d\n", ii, pbi->output_frames[ii]->display_order_hint);
+  }
+#endif
   if (pbi->num_output_frames == 0) return -1;
+#if CONFIG_F281_OUTPUT
+  const size_t out_frame_idx = pbi->output_frames_offset;
+  *frame = pbi->output_frames[out_frame_idx]->buf;
+#else
   const size_t out_frame_idx =
       (pbi->common.seq_params.order_hint_info.enable_order_hint &&
        pbi->common.seq_params.enable_frame_output_order)
@@ -874,5 +1069,6 @@ int av1_get_frame_to_show(AV1Decoder *pbi, YV12_BUFFER_CONFIG *frame) {
     if (pbi->num_output_frames <= out_frame_idx) return -1;
   }
   *frame = pbi->output_frames[out_frame_idx]->buf;
+#endif
   return 0;
 }

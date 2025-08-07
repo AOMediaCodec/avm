@@ -85,6 +85,14 @@ static INLINE void init_ref_map_pair(AV1_COMMON *cm,
       }
     }
   }
+#if ENABLE_VERBOSE_TRACE //jkei
+    printf("<<init_ref_map_pair>>:\t");
+    for (int map_idx = 0; map_idx < cm->seq_params.ref_frames; map_idx++) {
+      printf("%d, ", ref_frame_map_pairs[map_idx].ref_frame_for_inference);
+      if(map_idx == (cm->seq_params.ref_frames-1)) printf("\n");
+    }
+#endif
+
 }
 
 /*!\cond */

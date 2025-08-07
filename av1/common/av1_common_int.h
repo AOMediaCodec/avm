@@ -351,7 +351,9 @@ typedef struct RefCntBuffer {
 #if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
   unsigned int temporal_layer_id;
 #endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
-
+#if CONFIG_F281_OUTPUT
+  unsigned int spatial_layer_id;
+#endif
 #if CONFIG_IMPROVED_GLOBAL_MOTION
   // How many ref frames did this frame use?
   // This is set to 0 for intra frames
@@ -373,6 +375,9 @@ typedef struct RefCntBuffer {
   int height;
   WarpedMotionParams global_motion[INTER_REFS_PER_FRAME];
   int showable_frame;  // frame can be used as show existing frame in future
+#if CONFIG_F281_OUTPUT
+  bool marked_to_be_output; //0. nothing 1. added to output list
+#endif
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
   bool frame_output_done;  // 0: frame is not yet output 1: frame is already
                            // output

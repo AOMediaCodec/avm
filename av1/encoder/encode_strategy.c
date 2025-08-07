@@ -1216,9 +1216,9 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     cm->txcoeff_cost_count = 0;
 #endif
   }
-
+#if !CONFIG_F281_OUTPUT_TEST
   if (frame_params.frame_type == KEY_FRAME) cm->showable_frame = 0;
-
+#endif
 #if CONFIG_MISMATCH_DEBUG
   if (has_no_stats_stage(cpi)) {
     mismatch_move_frame_idx_w(!cm->seq_params.enable_frame_output_order ||
@@ -1384,11 +1384,11 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     frame_params.refresh_frame_flags = av1_get_refresh_frame_flags(
         cpi, &frame_params, frame_update_type, cpi->gf_group.index,
 #if CONFIG_PRIMARY_REF_FRAME_OPT
-        cur_frame_disp, cm->ref_frame_map_pairs);
+        cur_frame_disp, cm->ref_frame_map_pairs
 #else
-        cur_frame_disp, ref_frame_map_pairs);
+        cur_frame_disp, ref_frame_map_pairs
 #endif  // CONFIG_PRIMARY_REF_FRAME_OPT
-
+    );
     frame_params.existing_fb_idx_to_show = INVALID_IDX;
     // Find the frame buffer to show based on display order
     if (frame_params.show_existing_frame) {

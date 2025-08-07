@@ -250,7 +250,19 @@ typedef struct {
   unsigned int ref_frame_map[MAX_SUBGOP_STATS_SIZE][REF_FRAMES];
   unsigned char stat_count;
 } SubGOPStatsDec;
-
+#if CONFIG_F281_OUTPUT
+struct output_frame_info{
+  int display_order_hint;
+  YV12_BUFFER_CONFIG buf;
+  aom_image_t img;
+  
+  uint8_t film_grain_params_present;
+  aom_film_grain_t film_grain_params;
+  aom_codec_frame_buffer_t raw_frame_buffer;
+  FrameHash raw_frame_hash;
+  FrameHash grain_frame_hash;
+};
+#endif
 typedef struct AV1Decoder {
   DecoderCodingBlock dcb;
 
@@ -281,19 +293,28 @@ typedef struct AV1Decoder {
   // Note: The saved buffers are released at the start of the next time the
   // application calls aom_codec_decode().
   int output_all_layers;
+#if CONFIG_F281_OUTPUT
+  //aom_image_t written_images[REF_FRAMES + 1]; //INTIAL_BUFFER_DELAY_FRAMES];
+  //struct output_frame_info written_outputs[REF_FRAMES + 1]; //INTIAL_BUFFER_DELAY_FRAMES];
+  //aom_image_t written_images[REF_FRAMES + 1]; //INTIAL_BUFFER_DELAY_FRAMES];
+  //RefCntBuffer* written_frames[REF_FRAMES + 1]; //INTIAL_BUFFER_DELAY_FRAMES];
+  //size_t num_written_frames;
+#endif
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
   RefCntBuffer *output_frames[REF_FRAMES + 1];  // Use only for single layer
 #else
   RefCntBuffer *output_frames[REF_FRAMES];  // Use only for single layer
 #endif
-  size_t output_frames_offset;  // Use only for single layer
+  size_t output_frames_offset;  // used only for test decoding Use only for single layer
   size_t num_output_frames;     // How many frames are queued up so far?
 
   // In order to properly support random-access decoding, we need
   // to behave slightly differently for the very first frame we decode.
   // So we track whether this is the first frame or not.
   int decoding_first_frame;
-
+#if CONFIG_F281_OUTPUT
+  int write_output_file_header;
+#endif
   int max_threads;
   int inv_tile_order;
   int need_resync;  // wait for key/intra-only frame.
@@ -384,6 +405,10 @@ typedef struct AV1Decoder {
    * Indicate if the primary reference frame is signaled.
    */
   int signal_primary_ref_frame;
+#if CONFIG_F281_OUTPUT
+  bool initial_outputbuffer_fullness;
+  unsigned int num_popped_frames;
+#endif
 } AV1Decoder;
 
 // Returns 0 on success. Sets pbi->common.error.error_code to a nonzero error
@@ -469,6 +494,12 @@ typedef void (*block_visitor_fn_t)(AV1Decoder *const pbi, ThreadData *const td,
                                    int mi_row, int mi_col, aom_reader *r,
                                    PARTITION_TYPE partition, BLOCK_SIZE bsize,
                                    PARTITION_TREE *parent, int index);
+#if CONFIG_F281_OUTPUT
+aom_image_t *decoder_get_frame_(aom_codec_alg_priv_t *ctx,
+                                aom_codec_iter_t *iter,
+                                int update_iter);
+unsigned int output_frame_buffers(AV1Decoder *pbi, int ref_idx);
+#endif
 
 /*!\endcond */
 

@@ -27,6 +27,32 @@
 // Note that when using these macros, even single line if statements should use
 // curly braces to avoid unexpected behavior because all but the
 // AV1C_POP_ERROR_HANDLER_DATA() macro consist of multiple statements.
+#if ENABLE_DECTRACE
+#define AV1C_READ_BIT_OR_RETURN_ERROR(field)                                   \
+  int field = 0;                                                               \
+  do {                                                                         \
+    field = aom_rb_read_bit(reader, #field);                                           \
+    if (result == -1) {                                                        \
+      fprintf(stderr,                                                          \
+              "av1c: Error reading bit for " #field ", value=%d result=%d.\n", \
+              field, result);                                                  \
+      return -1;                                                               \
+    }                                                                          \
+  } while (0)
+
+#define AV1C_READ_BITS_OR_RETURN_ERROR(field, length) \
+  int field = 0;                                      \
+  do {                                                \
+    field = aom_rb_read_literal(reader, (length), #field);    \
+    if (result == -1) {                               \
+      fprintf(stderr,                                 \
+              "av1c: Could not read bits for " #field \
+              ", value=%d result=%d.\n",              \
+              field, result);                         \
+      return -1;                                      \
+    }                                                 \
+  } while (0)
+#else
 #define AV1C_READ_BIT_OR_RETURN_ERROR(field)                                   \
   int field = 0;                                                               \
   do {                                                                         \
@@ -51,7 +77,7 @@
       return -1;                                      \
     }                                                 \
   } while (0)
-
+#endif
 // Helper macros for setting/restoring the error handler data in
 // aom_read_bit_buffer.
 #define AV1C_PUSH_ERROR_HANDLER_DATA(new_data)                \
@@ -90,7 +116,7 @@ static int parse_timing_info(struct aom_read_bit_buffer *reader) {
 
   AV1C_READ_BIT_OR_RETURN_ERROR(equal_picture_interval);
   if (equal_picture_interval) {
-    uint32_t num_ticks_per_picture_minus_1 = aom_rb_read_uvlc(reader);
+    uint32_t num_ticks_per_picture_minus_1 = aom_rb_read_uvlc(reader ADD_DECTRACE("num_ticks_per_picture_minus_1"));
     if (result == -1) {
       fprintf(stderr,
               "av1c: Could not read bits for "
@@ -427,25 +453,25 @@ int write_av1config(const Av1Config *config, size_t capacity,
 
   struct aom_write_bit_buffer writer = { buffer, 0 };
 
-  aom_wb_write_bit(&writer, config->marker);
-  aom_wb_write_literal(&writer, config->version, 7);
-  aom_wb_write_literal(&writer, config->seq_profile, 3);
-  aom_wb_write_literal(&writer, config->seq_level_idx_0, 5);
-  aom_wb_write_bit(&writer, config->seq_tier_0);
-  aom_wb_write_bit(&writer, config->high_bitdepth);
-  aom_wb_write_bit(&writer, config->twelve_bit);
-  aom_wb_write_bit(&writer, config->monochrome);
-  aom_wb_write_bit(&writer, config->chroma_subsampling_x);
-  aom_wb_write_bit(&writer, config->chroma_subsampling_y);
-  aom_wb_write_literal(&writer, config->chroma_sample_position, 2);
-  aom_wb_write_literal(&writer, 0, 3);  // reserved
-  aom_wb_write_bit(&writer, config->initial_presentation_delay_present);
+  aom_wb_write_bit(&writer, config->marker ADD_ENCTRACE("config->marker"));
+  aom_wb_write_literal(&writer, config->version, 7 ADD_ENCTRACE("config->version"));
+  aom_wb_write_literal(&writer, config->seq_profile, 3 ADD_ENCTRACE("config->seq_profile"));
+  aom_wb_write_literal(&writer, config->seq_level_idx_0, 5 ADD_ENCTRACE("config->seq_level_idx_0"));
+  aom_wb_write_bit(&writer, config->seq_tier_0 ADD_ENCTRACE("config->seq_tier_0"));
+  aom_wb_write_bit(&writer, config->high_bitdepth ADD_ENCTRACE("config->high_bitdepth"));
+  aom_wb_write_bit(&writer, config->twelve_bit ADD_ENCTRACE("config->twelve_bit"));
+  aom_wb_write_bit(&writer, config->monochrome ADD_ENCTRACE("config->monochrome"));
+  aom_wb_write_bit(&writer, config->chroma_subsampling_x ADD_ENCTRACE("config->chroma_subsampling_x"));
+  aom_wb_write_bit(&writer, config->chroma_subsampling_y ADD_ENCTRACE("config->chroma_subsampling_y"));
+  aom_wb_write_literal(&writer, config->chroma_sample_position, 2 ADD_ENCTRACE("config->chroma_sample_position"));
+  aom_wb_write_literal(&writer, 0, 3 ADD_ENCTRACE("0"));  // reserved
+  aom_wb_write_bit(&writer, config->initial_presentation_delay_present ADD_ENCTRACE("config->initial_presentation_delay_present"));
 
   if (config->initial_presentation_delay_present) {
     aom_wb_write_literal(&writer, config->initial_presentation_delay_minus_one,
-                         4);
+                         4 ADD_ENCTRACE("config->initial_presentation_delay_minus_one"));
   } else {
-    aom_wb_write_literal(&writer, 0, 4);  // reserved
+    aom_wb_write_literal(&writer, 0, 4 ADD_ENCTRACE("0"));  // reserved
   }
 
   *bytes_written = aom_wb_bytes_written(&writer);

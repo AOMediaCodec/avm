@@ -391,7 +391,12 @@ enum aom_dec_control_id {
 #if CONFIG_BRU
   AV1D_SET_BRU_OPT_MODE,
 #endif  // CONFIG_BRU
-
+#if CONFIG_F281_OUTPUT //control_id
+ AV1D_OUTPUT_FILETYPE,
+ AV1D_VERIFICATION,
+ AV1D_SCALING,
+ AV1D_OUTPUT_FILE,
+#endif
   AOM_DECODER_CTRL_ID_MAX,
 
   /*!\brief Codec control function to check the presence of forward key frames
@@ -445,7 +450,7 @@ enum aom_dec_control_id {
   /*!\brief Codec control function to enable subgop stats
    */
   AV1D_ENABLE_SUBGOP_STATS,
-
+  
   /*!\brief Codec control function to advance output_frames_offset by given step
    */
   AOMD_INCR_OUTPUT_FRAMES_OFFSET,
@@ -567,6 +572,21 @@ AOM_CTRL_USE_TYPE(AV1D_SET_SKIP_FILM_GRAIN, int)
 AOM_CTRL_USE_TYPE(AV1D_SET_BRU_OPT_MODE, int)
 #define AOM_CTRL_AV1D_SET_BRU_OPT_MODE
 #endif  // CONFIG_BRU
+
+#if CONFIG_F281_OUTPUT
+AOM_CTRL_USE_TYPE(AV1D_OUTPUT_FILETYPE, int)
+#define AOM_CTRL_AV1D_OUTPUT_FILETYPE
+
+AOM_CTRL_USE_TYPE(AV1D_VERIFICATION, int)
+#define AOM_CTRL_AV1D_VERIFICATION
+
+AOM_CTRL_USE_TYPE(AV1D_SCALING, int)
+#define AOM_CTRL_AV1D_SCALING
+
+AOM_CTRL_USE_TYPE(AV1D_OUTPUT_FILE, int)
+#define AOM_CTRL_AV1D_OUTPUT_FILE
+
+#endif  // CONFIG_F281_OUTPUT
 
 AOM_CTRL_USE_TYPE(AV1D_SET_IS_ANNEXB, unsigned int)
 #define AOM_CTRL_AV1D_SET_IS_ANNEXB

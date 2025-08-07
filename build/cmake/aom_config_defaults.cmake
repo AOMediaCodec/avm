@@ -61,6 +61,14 @@ set_aom_detect_var(HAVE_UNISTD_H 0
                    "Internal flag, unistd.h present for target.")
 set_aom_detect_var(HAVE_WXWIDGETS 0 "WxWidgets present.")
 
+set_aom_config_var(ENABLE_DECTRACE 0 "Enable decoder trace for reading bits.")
+set_aom_config_var(ENABLE_ENCTRACE 0 "Enable encoder trace for writing bits.")
+set_aom_config_var(ENABLE_VERBOSE_TRACE 0 "Enable verbose trace output.")
+
+set_aom_config_var(CONFIG_F281_OUTPUT 1 "Output frames based on buffer_delay(not on show_frame)")
+set_aom_config_var(CONFIG_F281_OUTPUT_TEST 1 "enable decoding v10 anchor bitstream")
+set_aom_config_var(CONFIG_F281_OUTPUT_SIGNAL 1 "not signalling show_frame from the encoder")
+
 #
 # Variables in this section can be set from the CMake command line or from
 # within the CMake GUI. The variables control libaom features.

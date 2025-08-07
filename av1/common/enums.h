@@ -28,7 +28,13 @@ extern "C" {
 /*!\cond */
 
 #undef MAX_SB_SIZE
-
+#if CONFIG_F281_OUTPUT
+#define INITIAL_BUFFER_DELAY 6
+enum {
+  ITS_SEQ=1,
+  ITS_KEY=2
+};
+#endif
 #if CONFIG_REDUCE_SYMBOL_SIZE
 // Macros related to joint shell signaling
 #define FIRST_SHELL_CLASS 8
@@ -1287,6 +1293,10 @@ typedef uint8_t INTRA_REGION_CONTEXT;
 #endif  // CONFIG_INTER_MODE_CONSOLIDATION
 #define WARP_EXTEND_CTX 3
 
+#if CONFIG_F281_OUTPUT
+#define  INTIAL_BUFFER_DELAY_FRAMES 6
+#endif
+
 #define INTER_REFS_PER_FRAME 7
 
 #define REGULAR_REF_FRAMES \
@@ -1330,8 +1340,11 @@ typedef uint8_t INTRA_REGION_CONTEXT;
 #define AOM_REFFRAME_ALL ((1 << INTER_REFS_PER_FRAME) - 1)
 
 #define REF_FRAMES_LOG2 3
+#if CONFIG_F281_OUTPUT_TEST
+#define REFRESH_FRAME_ALL (1)
+#else
 #define REFRESH_FRAME_ALL ((1 << REF_FRAMES) - 1)
-
+#endif
 // REF_FRAMES for the cm->ref_frame_map array, 1 scratch frame for the new
 // frame in cm->cur_frame, INTER_REFS_PER_FRAME for scaled references on the
 // encoder in the cpi->scaled_ref_buf array.

@@ -153,7 +153,11 @@ void process_tile_list(const TILE_LIST_INFO *tiles, int num_tiles,
     AOM_CODEC_CONTROL_TYPECHECKED(codec, AV1_SET_DECODE_TILE_COL, tc);
 
     aom_codec_err_t aom_status =
-        aom_codec_decode(codec, frame, frame_size, NULL);
+        aom_codec_decode(codec, frame, frame_size,
+#if CONFIG_F281_OUTPUT
+                         0,
+#endif
+                         NULL);
     if (aom_status) die_codec(codec, "Failed to decode tile.");
 
     AOM_CODEC_CONTROL_TYPECHECKED(codec, AV1D_GET_TILE_DATA, &tile_data);
@@ -243,7 +247,11 @@ int main(int argc, char **argv) {
     if (!aom_video_writer_write_frame(writer, frame, frame_size, pts))
       die_codec(&codec, "Failed to copy compressed anchor frame.");
 
-    if (aom_codec_decode(&codec, frame, frame_size, NULL))
+    if (aom_codec_decode(&codec, frame, frame_size,
+#if CONFIG_F281_OUTPUT
+                         0,
+#endif
+                         NULL))
       die_codec(&codec, "Failed to decode frame.");
   }
 
@@ -295,7 +303,11 @@ int main(int argc, char **argv) {
     AOM_CODEC_CONTROL_TYPECHECKED(&codec, AV1_SET_DECODE_TILE_COL, 0);
 
     aom_codec_err_t aom_status =
-        aom_codec_decode(&codec, frame, frame_size, NULL);
+        aom_codec_decode(&codec, frame, frame_size,
+#if CONFIG_F281_OUTPUT
+                         0,
+#endif
+                         NULL);
     if (aom_status) die_codec(&codec, "Failed to decode tile.");
 
     AOM_CODEC_CONTROL_TYPECHECKED(&codec, AV1D_GET_FRAME_HEADER_INFO,

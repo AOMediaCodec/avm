@@ -3566,14 +3566,25 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
           ctx->pending_cx_data_sz += length_field_size;
         }
       }
+#if CONFIG_F281_OUTPUT
+      pkt.kind = is_frame_visible_null ? AVM_CODEC_CX_FRAME_REDIRECT_PKT : AOM_CODEC_CX_FRAME_PKT;
+      //( cpi->common.show_existing_frame? AVM_CODEC_CX_FRAME_REDIRECT_PKT:AOM_CODEC_CX_FRAME_PKT);
 
+#else
       pkt.kind = is_frame_visible_null ? AOM_CODEC_CX_FRAME_NULL_PKT
                                        : AOM_CODEC_CX_FRAME_PKT;
+#endif
       pkt.data.frame.buf = ctx->pending_cx_data;
       pkt.data.frame.sz = ctx->pending_cx_data_sz;
       pkt.data.frame.partition_id = -1;
       pkt.data.frame.vis_frame_size = frame_size;
-
+#if ENABLE_VERBOSE_TRACE
+      printf(">>>(encoder_encode) &cpi->common.current_frame.display_order_hint:%d pkt.kind %d ctx->pending_cx_data_sz:%zu frame_size:%zu\n",
+                 cpi->common.current_frame.display_order_hint,
+                 pkt.kind,
+                 ctx->pending_cx_data_sz,
+                 frame_size);
+#endif
       pkt.data.frame.pts =
           ticks_to_timebase_units(timestamp_ratio, dst_time_stamp) +
           ctx->pts_offset;

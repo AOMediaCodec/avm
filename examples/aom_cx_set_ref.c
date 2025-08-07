@@ -157,7 +157,11 @@ static int encode_frame(aom_codec_ctx_t *ecodec, aom_image_t *img,
       // Decode 1 frame.
       if (test_decode) {
         if (aom_codec_decode(dcodec, pkt->data.frame.buf,
-                             (unsigned int)pkt->data.frame.sz, NULL))
+                             (unsigned int)pkt->data.frame.sz,
+#if CONFIG_F281_OUTPUT
+                         1,
+#endif
+                             NULL))
           die_codec(dcodec, "Failed to decode frame.");
 
         // Copy out first decoded frame, and use it as reference later.
@@ -173,7 +177,7 @@ static int encode_frame(aom_codec_ctx_t *ecodec, aom_image_t *img,
       printf(keyframe ? "K" : ".");
       fflush(stdout);
       got_data = 1;
-
+#if !CONFIG_F281_OUTPUT
       // Decode 1 frame.
       if (test_decode) {
         AOM_CODEC_CONTROL_TYPECHECKED(dcodec, AOMD_INCR_OUTPUT_FRAMES_OFFSET,
@@ -183,6 +187,7 @@ static int encode_frame(aom_codec_ctx_t *ecodec, aom_image_t *img,
           if (aom_codec_control(dcodec, AV1_COPY_NEW_FRAME_IMAGE, ext_ref))
             die_codec(dcodec, "Failed to get decoder new frame");
       }
+#endif
     }
   }
 

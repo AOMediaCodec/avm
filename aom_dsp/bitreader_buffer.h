@@ -16,11 +16,21 @@
 #include <limits.h>
 
 #include "aom/aom_integer.h"
-
+#include "config/aom_config.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
+#if ENABLE_DECTRACE
+#define ADD_DECTRACE(s) , s
+#define ADD_DECTRACEC(s0, s1) , (printf("%s", s0))
+#define ADD_DECTRACE2(d0, s0, s1) , (d0? s0"_"s1 : s1)
+#define ADD_DECTRACE_I2(s0, d1) , (d1==0?s0"[0]":d1==1?s0"[1]":s0"[2]")
 
+#else
+#define ADD_DECTRACE(s)
+#define ADD_DECTRACE2(d0, s0, s1)
+#define ADD_DECTRACE_I2(s0, d1)
+#endif
 typedef void (*aom_rb_error_handler)(void *data);
 
 struct aom_read_bit_buffer {
@@ -33,7 +43,22 @@ struct aom_read_bit_buffer {
 };
 
 size_t aom_rb_bytes_read(const struct aom_read_bit_buffer *rb);
+#if ENABLE_DECTRACE
+int aom_rb_read_bit(struct aom_read_bit_buffer *rb, const char* str);
 
+int aom_rb_read_literal(struct aom_read_bit_buffer *rb, int bits, const char* str);
+
+uint32_t aom_rb_read_unsigned_literal(struct aom_read_bit_buffer *rb, int bits, const char* str);
+
+int aom_rb_read_inv_signed_literal(struct aom_read_bit_buffer *rb, int bits, const char* str);
+
+uint32_t aom_rb_read_uvlc(struct aom_read_bit_buffer *rb, const char* str);
+
+int32_t aom_rb_read_svlc(struct aom_read_bit_buffer *rb, const char* str);
+
+int aom_rb_read_truncted_unary(struct aom_read_bit_buffer *rb, int max_bits, const char* str);
+
+#else
 int aom_rb_read_bit(struct aom_read_bit_buffer *rb);
 
 int aom_rb_read_literal(struct aom_read_bit_buffer *rb, int bits);
@@ -43,12 +68,16 @@ uint32_t aom_rb_read_unsigned_literal(struct aom_read_bit_buffer *rb, int bits);
 int aom_rb_read_inv_signed_literal(struct aom_read_bit_buffer *rb, int bits);
 
 uint32_t aom_rb_read_uvlc(struct aom_read_bit_buffer *rb);
-
+#endif
 int16_t aom_rb_read_signed_primitive_refsubexpfin(
     struct aom_read_bit_buffer *rb, uint16_t n, uint16_t k, int16_t ref);
-
+#if ENABLE_DECTRACE
+uint16_t aom_rb_read_primitive_quniform(struct aom_read_bit_buffer *rb,
+                                        uint16_t n, const char* str);
+#else
 uint16_t aom_rb_read_primitive_quniform(struct aom_read_bit_buffer *rb,
                                         uint16_t n);
+#endif
 #ifdef __cplusplus
 }  // extern "C"
 #endif

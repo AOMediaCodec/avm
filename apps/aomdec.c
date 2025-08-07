@@ -892,7 +892,28 @@ static int main_loop(int argc, const char **argv_) {
   cfg.path_parakit = datafilename_path;
   cfg.suffix_parakit = datafilename_suffix;
 #endif
+#if CONFIG_F281_OUTPUT
+  decoder.single_file = single_file;
+  decoder.use_y4m = use_y4m;
+  decoder.opt_yv12= opt_yv12;
+  decoder.opt_i420= opt_i420;
+  decoder.opt_raw = opt_raw;
+  decoder.flipuv = flipuv;
+  decoder.fixed_output_bit_depth = fixed_output_bit_depth;
+  decoder.do_scale = do_scale;
+  decoder.noblit = noblit;
+  decoder.progress = progress;
+  decoder.do_md5 = do_md5;
+  decoder.do_verify = do_verify;
+  decoder.outfile = outfile;
+  decoder.md5_ctx = md5_ctx;
+  decoder.aom_input_ctx_width = aom_input_ctx.width;
+  decoder.aom_input_ctx_height = aom_input_ctx.height;
+  decoder.aom_input_ctx_framerate_numerator = aom_input_ctx.framerate.numerator;
+  decoder.aom_input_ctx_framerate_denominator = aom_input_ctx.framerate.denominator;
+#endif
   dec_flags = 0;
+  //[jkei] aom_codec_dec_init_ver ctx->iface->init(ctx)  decoder_init
   if (aom_codec_dec_init(&decoder, interface, &cfg, dec_flags)) {
     fprintf(stderr, "Failed to initialize decoder: %s\n",
             aom_codec_error(&decoder));
@@ -936,6 +957,34 @@ static int main_loop(int argc, const char **argv_) {
   }
 #endif  // CONFIG_BRU
 
+#if CONFIG_F281_OUTPUT
+//  if (AOM_CODEC_CONTROL_TYPECHECKED(&decoder, AV1D_OUTPUT_FILETYPE,
+//                                    output_filetype)) {
+//    fprintf(stderr, "Failed to set bru_opt_mode: %s\n",
+//            aom_codec_error(&decoder));
+//    goto fail;
+//  }
+//  if (AOM_CODEC_CONTROL_TYPECHECKED(&decoder, AV1D_VERIFICATION,
+//                                    do_verify)) {
+//    fprintf(stderr, "Failed to set bru_opt_mode: %s\n",
+//            aom_codec_error(&decoder));
+//    goto fail;
+//  }
+//  if (AOM_CODEC_CONTROL_TYPECHECKED(&decoder, AV1D_SCALING,
+//                                    do_scale)) {
+//    fprintf(stderr, "Failed to set bru_opt_mode: %s\n",
+//            aom_codec_error(&decoder));
+//    goto fail;
+//  }
+//  if (AOM_CODEC_CONTROL_TYPECHECKED(&decoder, AV1D_OUTPUT_FILE,
+//                                    outputfile)) {
+//    fprintf(stderr, "Failed to set bru_opt_mode: %s\n",
+//            aom_codec_error(&decoder));
+//    goto fail;
+//  }
+
+#endif  // CONFIG_F281_OUTPUT
+  
   if (arg_skip) fprintf(stderr, "Skipping first %d frames.\n", arg_skip);
   while (arg_skip) {
     if (read_frame(&input, &buf, &bytes_in_buffer, &buffer_size)) break;
@@ -975,7 +1024,11 @@ static int main_loop(int argc, const char **argv_) {
 
         aom_usec_timer_start(&timer);
 
-        if (aom_codec_decode(&decoder, buf, bytes_in_buffer, NULL)) {
+        if (aom_codec_decode(&decoder, buf, bytes_in_buffer,
+#if CONFIG_F281_OUTPUT
+                             0,
+#endif
+                             NULL)) {
           const char *detail = aom_codec_error_detail(&decoder);
           warn("Failed to decode frame %d: %s", frame_in,
                aom_codec_error(&decoder));
@@ -1008,7 +1061,11 @@ static int main_loop(int argc, const char **argv_) {
 
     if (flush_decoder) {
       // Flush the decoder.
-      if (aom_codec_decode(&decoder, NULL, 0, NULL)) {
+      if (aom_codec_decode(&decoder, NULL, 0,
+#if CONFIG_F281_OUTPUT
+                             0,
+#endif
+                           NULL)) {
         warn("Failed to flush decoder: %s", aom_codec_error(&decoder));
       }
     }
@@ -1017,11 +1074,15 @@ static int main_loop(int argc, const char **argv_) {
     dx_time += aom_usec_timer_elapsed(&timer);
 
     got_data = 0;
+#if !CONFIG_F281_OUTPUT
     while ((img = aom_codec_get_frame(&decoder, &iter))) {
       ++frame_out;
       if (frame_in < frame_out) {  // No OBUs for show_existing_frame.
         frame_in = frame_out;
       }
+#if CONFIG_F281_OUTPUT
+      if(!flush_decoder) //just not to run this loop twice
+#endif
       got_data = 1;
 
       if (AOM_CODEC_CONTROL_TYPECHECKED(&decoder, AOMD_GET_FRAME_CORRUPTED,
@@ -1110,10 +1171,12 @@ static int main_loop(int argc, const char **argv_) {
 
         aom_input_ctx.width = img->d_w;
         aom_input_ctx.height = img->d_h;
-
         int num_planes = (opt_raw && img->monochrome) ? 1 : 3;
         if (single_file) {
           if (use_y4m) {
+#if ENABLE_VERBOSE_TRACE
+            printf("write_y4m[%d]\n", frame_out-1);
+#endif
             char y4m_buf[Y4M_BUFFER_SIZE] = { 0 };
             size_t len = 0;
             if (frame_out == 1) {
@@ -1196,7 +1259,8 @@ static int main_loop(int argc, const char **argv_) {
         }
       }
     }
-  }
+#endif
+  } //while (frame_avail || got_data)
 
   if (summary || progress) {
     show_progress(frame_in, frame_out, dx_time);

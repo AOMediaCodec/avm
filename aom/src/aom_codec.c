@@ -47,6 +47,10 @@ const char *aom_codec_err_to_string(aom_codec_err_t err) {
       return "Bitstream required feature not supported by this decoder";
     case AOM_CODEC_CORRUPT_FRAME: return "Corrupt frame detected";
     case AOM_CODEC_INVALID_PARAM: return "Invalid parameter";
+#if CONFIG_F281_OUTPUT
+    case AOM_CODEC_DPB_OVERFLOW: return "DPB overflow";
+    case AOM_CODEC_DPB_UNDERFLOW: return "DPB underflow";
+#endif
     case AOM_CODEC_LIST_END: return "End of iterated list";
   }
 

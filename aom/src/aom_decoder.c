@@ -38,13 +38,52 @@ aom_codec_err_t aom_codec_dec_init_ver(aom_codec_ctx_t *ctx,
   else if (!(iface->caps & AOM_CODEC_CAP_DECODER))
     res = AOM_CODEC_INCAPABLE;
   else {
+#if CONFIG_F281_OUTPUT
+    int single_file = ctx->single_file;
+    int use_y4m = ctx->use_y4m ;
+    int opt_yv12 = ctx->opt_yv12;
+    int opt_i420 = ctx->opt_i420;
+    int opt_raw = ctx->opt_raw ;
+    int flipuv = ctx->flipuv;
+    int fixed_output_bit_depth = ctx->fixed_output_bit_depth ;
+    int do_scale = ctx->do_scale;
+    int noblit = ctx->noblit;
+    int progress = ctx->progress;
+    int do_md5 = ctx->do_md5;
+    int do_verify = ctx->do_verify;
+    FILE* outfile = ctx->outfile;
+    MD5Context md5_ctx = ctx->md5_ctx;
+    int aom_input_ctx_width = ctx->aom_input_ctx_width ;
+    int aom_input_ctx_height = ctx->aom_input_ctx_height;
+    int aom_input_ctx_framerate_numerator = ctx->aom_input_ctx_framerate_numerator;
+    int aom_input_ctx_framerate_denominator = ctx->aom_input_ctx_framerate_denominator;
+#endif
     memset(ctx, 0, sizeof(*ctx));
     ctx->iface = iface;
     ctx->name = iface->name;
     ctx->priv = NULL;
     ctx->init_flags = flags;
     ctx->config.dec = cfg;
-
+#if CONFIG_F281_OUTPUT
+    ctx->single_file = single_file;
+    ctx->use_y4m = use_y4m;
+    ctx->opt_yv12= opt_yv12;
+    ctx->opt_i420= opt_i420;
+    ctx->opt_raw = opt_raw;
+    ctx->flipuv = flipuv;
+    ctx->fixed_output_bit_depth = fixed_output_bit_depth;
+    ctx->do_scale = do_scale;
+    ctx->noblit = noblit;
+    ctx->progress = progress;
+    ctx->do_md5 = do_md5;
+    ctx->do_verify = do_verify;
+    ctx->outfile = outfile;
+    ctx->md5_ctx = md5_ctx;
+    ctx->aom_input_ctx_width = aom_input_ctx_width;
+    ctx->aom_input_ctx_height = aom_input_ctx_height;
+    ctx->aom_input_ctx_framerate_numerator = aom_input_ctx_framerate_numerator;
+    ctx->aom_input_ctx_framerate_denominator = aom_input_ctx_framerate_denominator;
+#endif
     res = ctx->iface->init(ctx);
     if (res) {
       ctx->err_detail = ctx->priv ? ctx->priv->err_detail : NULL;
@@ -93,7 +132,11 @@ aom_codec_err_t aom_codec_get_stream_info(aom_codec_ctx_t *ctx,
 }
 
 aom_codec_err_t aom_codec_decode(aom_codec_ctx_t *ctx, const uint8_t *data,
-                                 size_t data_sz, void *user_priv) {
+                                 size_t data_sz,
+#if CONFIG_F281_OUTPUT
+                                 int is_test_decoder,
+#endif
+                                 void *user_priv) {
   aom_codec_err_t res;
 
   if (!ctx)
@@ -101,7 +144,11 @@ aom_codec_err_t aom_codec_decode(aom_codec_ctx_t *ctx, const uint8_t *data,
   else if (!ctx->iface || !ctx->priv)
     res = AOM_CODEC_ERROR;
   else {
-    res = ctx->iface->dec.decode(get_alg_priv(ctx), data, data_sz, user_priv);
+    res = ctx->iface->dec.decode(get_alg_priv(ctx), data, data_sz,
+#if CONFIG_F281_OUTPUT
+                                 is_test_decoder,
+#endif
+                                 user_priv);
   }
 
   return SAVE_STATUS(ctx, res);

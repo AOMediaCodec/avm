@@ -100,7 +100,11 @@ extern "C" {
 
 #include "aom/aom_image.h"
 #include "aom/aom_integer.h"
-
+#include "config/aom_config.h"
+#if CONFIG_F281_OUTPUT
+#include "common/md5_utils.h"
+#include "stdio.h"
+#endif
 /*!\brief Decorator indicating a function is deprecated */
 #ifndef AOM_DEPRECATED
 #if defined(__GNUC__) && __GNUC__
@@ -200,6 +204,10 @@ typedef enum {
    */
   AOM_CODEC_INVALID_PARAM,
 
+#if CONFIG_F281_OUTPUT
+  AOM_CODEC_DPB_OVERFLOW,
+  AOM_CODEC_DPB_UNDERFLOW,
+#endif
   /*!\brief An iterator reached the end of list.
    *
    */
@@ -312,6 +320,26 @@ typedef struct aom_codec_ctx {
     const void *raw;
   } config;               /**< Configuration pointer aliasing union */
   aom_codec_priv_t *priv; /**< Algorithm private storage */
+#if CONFIG_F281_OUTPUT
+  int single_file;
+  int use_y4m ;
+  int opt_yv12;
+  int opt_i420;
+  int opt_raw ;
+  int flipuv;
+  int fixed_output_bit_depth;
+  int noblit;
+  int progress;
+  int do_scale;
+  int do_md5;
+  int do_verify;
+  MD5Context md5_ctx;
+  int aom_input_ctx_width;
+  int aom_input_ctx_height;
+  int aom_input_ctx_framerate_numerator;
+  int aom_input_ctx_framerate_denominator;
+  FILE* outfile;
+#endif
 } aom_codec_ctx_t;
 
 /*!\brief Bit depth for codec
