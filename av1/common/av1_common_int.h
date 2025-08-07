@@ -559,7 +559,7 @@ typedef struct SequenceHeader {
                               // the compound mode
 #if CONFIG_EXTRA_DPB
 #if CONFIG_CWG_F168_DPB_HLS
-  int max_dpb_size;
+  int dpb_size;
 #else
   int num_extra_dpb;  // number of extra decoded picture buffers
 #endif  // CONFIG_CWG_F168_DPB_HLS

@@ -943,7 +943,7 @@ typedef struct {
 #endif  // CONFIG_EXT_SEG
 #if CONFIG_EXTRA_DPB
 #if CONFIG_CWG_F168_DPB_HLS
-  int max_dpb_size;
+  int dpb_size;
 #else
   int num_extra_dpb;
 #endif  // CONFIG_CWG_F168_DPB_HLS

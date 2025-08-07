@@ -505,7 +505,7 @@ const arg_def_t *av1_key_val_args[] = {
 #endif  // CONFIG_EXT_SEG
 #if CONFIG_EXTRA_DPB
 #if CONFIG_CWG_F168_DPB_HLS
-  &g_av1_codec_arg_defs.max_dpb_size,
+  &g_av1_codec_arg_defs.dpb_size,
 #else
   &g_av1_codec_arg_defs.num_extra_dpb,
 #endif  // CONFIG_CWG_F168_DPB_HLS
@@ -748,7 +748,7 @@ static void init_config(cfg_options_t *config) {
 #endif  // CONFIG_EXT_SEG
 #if CONFIG_EXTRA_DPB
 #if CONFIG_CWG_F168_DPB_HLS
-  config->max_dpb_size = 8;
+  config->dpb_size = 8;
 #else
   config->num_extra_dpb = 0;
 #endif  // CONFIG_CWG_F168_DPB_HLS

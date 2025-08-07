@@ -185,7 +185,7 @@ int parse_cfg(const char *file, cfg_options_t *config) {
 #endif  // CONFIG_EXT_SEG
 #if CONFIG_EXTRA_DPB
 #if CONFIG_CWG_F168_DPB_HLS
-    GET_PARAMS(max_dpb_size);
+    GET_PARAMS(dpb_size);
 #else
     GET_PARAMS(num_extra_dpb);
 #endif  // CONFIG_CWG_F168_DPB_HLS

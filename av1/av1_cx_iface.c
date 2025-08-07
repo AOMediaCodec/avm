@@ -254,7 +254,7 @@ struct av1_extracfg {
 #endif  // CONFIG_EXT_SEG
 #if CONFIG_EXTRA_DPB
 #if CONFIG_CWG_F168_DPB_HLS
-  int max_dpb_size;
+  int dpb_size;
 #else
   int num_extra_dpb;
 #endif  // CONFIG_CWG_F168_DPB_HLS
@@ -610,7 +610,7 @@ static struct av1_extracfg default_extra_cfg = {
 #endif  // CONFIG_EXT_SEG
 #if CONFIG_EXTRA_DPB
 #if CONFIG_CWG_F168_DPB_HLS
-  8,    // max_dpb_size
+  8,    // dpb_size
 #else
   0,    // num_extra_dpb
 #endif  // CONFIG_CWG_F168_DPB_HLS
@@ -815,7 +815,7 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
 
 #if CONFIG_EXTRA_DPB
 #if CONFIG_CWG_F168_DPB_HLS
-  RANGE_CHECK(extra_cfg, max_dpb_size, 1, 16);
+  RANGE_CHECK(extra_cfg, dpb_size, 1, 16);
 #else
   RANGE_CHECK(extra_cfg, num_extra_dpb, 0, 8);
 #endif  // CONFIG_CWG_F168_DPB_HLS
@@ -1102,7 +1102,7 @@ static void update_encoder_config(cfg_options_t *cfg,
 #endif  // CONFIG_EXT_SEG
 #if CONFIG_EXTRA_DPB
 #if CONFIG_CWG_F168_DPB_HLS
-  cfg->max_dpb_size = extra_cfg->max_dpb_size;
+  cfg->dpb_size = extra_cfg->dpb_size;
 #else
   cfg->num_extra_dpb = extra_cfg->num_extra_dpb;
 #endif
@@ -1240,7 +1240,7 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
 #endif  // CONFIG_EXT_SEG
 #if CONFIG_EXTRA_DPB
 #if CONFIG_CWG_F168_DPB_HLS
-  extra_cfg->max_dpb_size = cfg->max_dpb_size;
+  extra_cfg->dpb_size = cfg->dpb_size;
 #else
   extra_cfg->num_extra_dpb = cfg->num_extra_dpb;
 #endif
@@ -1608,7 +1608,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 #endif  // CONFIG_EXT_SEG
 #if CONFIG_EXTRA_DPB
 #if CONFIG_CWG_F168_DPB_HLS
-  tool_cfg->max_dpb_size = extra_cfg->max_dpb_size;
+  tool_cfg->dpb_size = extra_cfg->dpb_size;
 #else
   tool_cfg->num_extra_dpb = extra_cfg->num_extra_dpb;
 #endif  // CONFIG_CWG_F168_DPB_HLS
@@ -4411,9 +4411,9 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
 #endif  // CONFIG_EXT_SEG
 #if CONFIG_EXTRA_DPB
 #if CONFIG_CWG_F168_DPB_HLS
-  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.max_dpb_size, argv,
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.dpb_size, argv,
                               err_string)) {
-    extra_cfg.max_dpb_size = arg_parse_int_helper(&arg, err_string);
+    extra_cfg.dpb_size = arg_parse_int_helper(&arg, err_string);
 #else
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.num_extra_dpb, argv,
                               err_string)) {
@@ -4745,7 +4745,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #endif      // CONFIG_EXT_SEG
 #if CONFIG_EXTRA_DPB
 #if CONFIG_CWG_F168_DPB_HLS
-        8,  // max_dpb_size
+        8,  // dpb_size
 #else
         0,  // num_extra_dpb
 #endif  // CONFIG_CWG_F168_DPB_HLS

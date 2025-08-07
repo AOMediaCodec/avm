@@ -874,8 +874,8 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
 #endif  // CONFIG_EXT_SEG
 #if CONFIG_EXTRA_DPB
 #if CONFIG_CWG_F168_DPB_HLS
-  .max_dpb_size = ARG_DEF(NULL, "max-dpb-size", 1,
-                          "numbe of dpb slots (1-16), default is 8"),
+  .dpb_size = ARG_DEF(NULL, "dpb-size", 1,
+                          "number of dpb slots (1-16), default is 8"),
 #else
   .num_extra_dpb = ARG_DEF(NULL, "num-extra-dpb", 1,
                            "extra dpb number (0..8), default is 0"),
