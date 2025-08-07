@@ -194,6 +194,8 @@ set_aom_config_var(CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT 1
 # CWG-F215
 set_aom_config_var(CWG_F215_CONFIG_REMOVE_FRAME_ID 1
                    "Remove frame_id signalling")
+# CWG-E242 Chroma Format IDC
+set_aom_config_var(CONFIG_CWG_E242_CHROMA_FORMAT_IDC 1 "Chroma format idc.")
 
 set_aom_config_var(CONFIG_ACROSS_SCALE_REF_OPT 1 NUMBER
                    "Reference framework optimization based on resolutions.")

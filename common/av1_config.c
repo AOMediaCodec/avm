@@ -20,6 +20,7 @@
 #include "av1/common/obu_util.h"
 #include "common/av1_config.h"
 #include "av1/common/enums.h"
+#include "av1/common/blockd.h"
 
 // Helper macros to reduce verbosity required to check for read errors.
 //
@@ -63,6 +64,18 @@
 #define AV1C_POP_ERROR_HANDLER_DATA()                         \
   do {                                                        \
     reader->error_handler_data = original_error_handler_data; \
+  } while (0)
+
+#define AV1C_READ_UVLC_BITS_OR_RETURN_ERROR(field)                             \
+  int field = 0;                                                               \
+  do {                                                                         \
+    field = aom_rb_read_uvlc(reader);                                          \
+    if (result == -1) {                                                        \
+      fprintf(stderr,                                                          \
+              "av1c: Error reading bit for " #field ", value=%d result=%d.\n", \
+              field, result);                                                  \
+      return -1;                                                               \
+    }                                                                          \
   } while (0)
 
 static const size_t kAv1cSize = 4;
@@ -154,7 +167,12 @@ static int parse_operating_parameters_info(struct aom_read_bit_buffer *reader,
 // Parse the AV1 color_config() structure..See:
 // https://aomediacodec.github.io/av1-spec/av1-spec.pdf#page=44
 static int parse_color_config(struct aom_read_bit_buffer *reader,
-                              Av1Config *config) {
+                              Av1Config *config
+#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+                              ,
+                              int chroma_format_idc
+#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+) {
   int result = 0;
   AV1C_PUSH_ERROR_HANDLER_DATA(result);
 
@@ -170,10 +188,14 @@ static int parse_color_config(struct aom_read_bit_buffer *reader,
     bit_depth = config->high_bitdepth ? 10 : 8;
   }
 
+#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+  if (chroma_format_idc == 1) config->monochrome = 1;
+#else
   if (config->seq_profile != 1) {
     AV1C_READ_BIT_OR_RETURN_ERROR(mono_chrome);
     config->monochrome = mono_chrome;
   }
+#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
   int color_primaries = AOM_CICP_CP_UNSPECIFIED;
   int transfer_characteristics = AOM_CICP_TC_UNSPECIFIED;
@@ -200,6 +222,18 @@ static int parse_color_config(struct aom_read_bit_buffer *reader,
     config->chroma_subsampling_y = 0;
   } else {
     AV1C_READ_BIT_OR_RETURN_ERROR(color_range);
+#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+    if (chroma_format_idc == CHROMA_FORMAT_420) {
+      config->chroma_subsampling_x = 1;
+      config->chroma_subsampling_y = 1;
+    } else if (chroma_format_idc == CHROMA_FORMAT_444) {
+      config->chroma_subsampling_x = 0;
+      config->chroma_subsampling_y = 0;
+    } else if (chroma_format_idc == CHROMA_FORMAT_422) {
+      config->chroma_subsampling_x = 1;
+      config->chroma_subsampling_y = 0;
+    }
+#else
     if (config->seq_profile == 0) {
       config->chroma_subsampling_x = 1;
       config->chroma_subsampling_y = 1;
@@ -221,6 +255,7 @@ static int parse_color_config(struct aom_read_bit_buffer *reader,
         config->chroma_subsampling_y = 0;
       }
     }
+#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
     if (config->chroma_subsampling_x && !config->chroma_subsampling_y) {
       // YUV 4:2:2
@@ -272,8 +307,16 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
                                  frame_width_bits_minus_1 + 1);
   AV1C_READ_BITS_OR_RETURN_ERROR(max_frame_height_minus_1,
                                  frame_height_bits_minus_1 + 1);
+#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+  AV1C_READ_UVLC_BITS_OR_RETURN_ERROR(chroma_format_idc);
+#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
-  if (parse_color_config(reader, config) != 0) {
+  if (parse_color_config(reader, config
+#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+                         ,
+                         chroma_format_idc
+#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+                         ) != 0) {
     fprintf(stderr, "av1c: color_config() parse failed.\n");
     return -1;
   }

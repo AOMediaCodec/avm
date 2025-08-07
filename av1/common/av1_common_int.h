@@ -746,6 +746,9 @@ typedef struct SequenceHeader {
   aom_transfer_characteristics_t transfer_characteristics;
   aom_matrix_coefficients_t matrix_coefficients;
   int color_range;
+#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+  int seq_chroma_format_idc;
+#endif                // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
   int subsampling_x;  // Chroma subsampling for x
   int subsampling_y;  // Chroma subsampling for y
   aom_chroma_sample_position_t chroma_sample_position;

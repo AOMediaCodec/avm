@@ -6230,10 +6230,12 @@ void av1_read_color_config(struct aom_read_bit_buffer *rb,
                            struct aom_internal_error_info *error_info) {
   read_bitdepth(rb, seq_params, error_info);
 
+#if !CONFIG_CWG_E242_CHROMA_FORMAT_IDC
   // monochrome bit (not needed for PROFILE_1)
   const int is_monochrome =
       seq_params->profile != PROFILE_1 ? aom_rb_read_bit(rb) : 0;
   seq_params->monochrome = is_monochrome;
+#endif  // !CONFIG_CWG_E242_CHROMA_FORMAT_IDC
   int color_description_present_flag = aom_rb_read_bit(rb);
   if (color_description_present_flag) {
     seq_params->color_primaries = aom_rb_read_literal(rb, 8);
@@ -6244,7 +6246,12 @@ void av1_read_color_config(struct aom_read_bit_buffer *rb,
     seq_params->transfer_characteristics = AOM_CICP_TC_UNSPECIFIED;
     seq_params->matrix_coefficients = AOM_CICP_MC_UNSPECIFIED;
   }
-  if (is_monochrome) {
+#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+  if (seq_params->monochrome)
+#else
+  if (is_monochrome)
+#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+  {
     // [16,235] (including xvycc) vs [0,255] range
     seq_params->color_range = aom_rb_read_bit(rb);
     seq_params->subsampling_y = seq_params->subsampling_x = 1;
@@ -6265,6 +6272,18 @@ void av1_read_color_config(struct aom_read_bit_buffer *rb,
     } else {
       // [16,235] (including xvycc) vs [0,255] range
       seq_params->color_range = aom_rb_read_bit(rb);
+#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+      if (seq_params->seq_chroma_format_idc == CHROMA_FORMAT_420) {
+        seq_params->subsampling_x = 1;
+        seq_params->subsampling_y = 1;
+      } else if (seq_params->seq_chroma_format_idc == CHROMA_FORMAT_444) {
+        seq_params->subsampling_x = 0;
+        seq_params->subsampling_y = 0;
+      } else if (seq_params->seq_chroma_format_idc == CHROMA_FORMAT_422) {
+        seq_params->subsampling_x = 1;
+        seq_params->subsampling_y = 0;
+      }
+#else
       if (seq_params->profile == PROFILE_0) {
         // 420 only
         seq_params->subsampling_x = seq_params->subsampling_y = 1;
@@ -6285,6 +6304,7 @@ void av1_read_color_config(struct aom_read_bit_buffer *rb,
           seq_params->subsampling_y = 0;
         }
       }
+#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
       if (seq_params->matrix_coefficients == AOM_CICP_MC_IDENTITY &&
           (seq_params->subsampling_x || seq_params->subsampling_y)) {
         aom_internal_error(

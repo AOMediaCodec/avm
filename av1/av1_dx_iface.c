@@ -207,13 +207,22 @@ static aom_codec_err_t parse_bitdepth(struct aom_read_bit_buffer *rb,
 }
 
 static aom_codec_err_t parse_color_config(struct aom_read_bit_buffer *rb,
-                                          BITSTREAM_PROFILE profile) {
+                                          BITSTREAM_PROFILE profile
+#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+                                          ,
+                                          int chroma_format_idc
+#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+) {
   aom_bit_depth_t bit_depth;
   aom_codec_err_t err = parse_bitdepth(rb, profile, &bit_depth);
   if (err != AOM_CODEC_OK) return err;
 
+#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+  const int is_monochrome = chroma_format_idc == CHROMA_FORMAT_400;
+#else
   // monochrome bit (not needed for PROFILE_1)
   const int is_monochrome = profile != PROFILE_1 ? aom_rb_read_bit(rb) : 0;
+#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
   aom_color_primaries_t color_primaries;
   aom_transfer_characteristics_t transfer_characteristics;
   aom_matrix_coefficients_t matrix_coefficients;
@@ -244,6 +253,19 @@ static aom_codec_err_t parse_color_config(struct aom_read_bit_buffer *rb,
       int subsampling_x;
       int subsampling_y;
       aom_rb_read_bit(rb);  // color_range
+#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+      if (chroma_format_idc == CHROMA_FORMAT_420) {
+        subsampling_x = 1;
+        subsampling_y = 1;
+      } else if (chroma_format_idc == CHROMA_FORMAT_444) {
+        subsampling_x = 0;
+        subsampling_y = 0;
+      } else {
+        // 422
+        subsampling_x = 1;
+        subsampling_y = 0;
+      }
+#else
       if (profile == PROFILE_0) {
         // 420 only
         subsampling_x = subsampling_y = 1;
@@ -264,6 +286,7 @@ static aom_codec_err_t parse_color_config(struct aom_read_bit_buffer *rb,
           subsampling_y = 0;
         }
       }
+#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
       if (matrix_coefficients == AOM_CICP_MC_IDENTITY &&
           (subsampling_x || subsampling_y)) {
         // Identity CICP Matrix incompatible with non 4:4:4 color sampling
@@ -443,7 +466,16 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
       si->w = max_frame_width;
       si->h = max_frame_height;
 
-      status = parse_color_config(&rb, profile);
+#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+      int chroma_format_idc = aom_rb_read_uvlc(&rb);
+#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+
+      status = parse_color_config(&rb, profile
+#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+                                  ,
+                                  chroma_format_idc
+#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+      );
       if (status != AOM_CODEC_OK) return status;
 
       const uint8_t still_picture = aom_rb_read_bit(&rb);
