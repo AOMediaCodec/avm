@@ -3414,8 +3414,8 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
       av1_get_optflow_based_mv(
           cm, xd, plane, mi, mv_refined_sb, bw, bh, mi_x, mi_y,
           build_for_decode, mc_buf, calc_subpel_params_func, gx0, gy0, gx1, gy1,
-          vx0_sb, vy0_sb, vx1_sb, vy1_sb, dst0, dst1, opfl_dst_stride, use_4x4,
-          do_pred, best_mv_ref, pu_width, pu_height);
+          vx0_sb, vy0_sb, vx1_sb, vy1_sb, dst0, dst1, opfl_dst_stride, do_pred,
+          use_4x4, best_mv_ref, pu_width, pu_height);
       for (int i = 0; i < sb_rows; i++) {
         for (int j = 0; j < sb_cols; j++) {
           int mvidx = opfl_sb_idx + i * opfl_mv_stride + j;
@@ -3791,7 +3791,7 @@ static void build_inter_predictors_8x8_and_bigger(
       av1_get_optflow_based_mv(cm, xd, plane, mi, mv_refined, bw, bh, mi_x,
                                mi_y, build_for_decode, mc_buf,
                                calc_subpel_params_func, gx0, gy0, gx1, gy1, vx0,
-                               vy0, vx1, vy1, dst0, dst1, bw, use_4x4, do_pred,
+                               vy0, vx1, vy1, dst0, dst1, bw, do_pred, use_4x4,
                                best_mv_ref, pu_width, pu_height);
     }
   }
