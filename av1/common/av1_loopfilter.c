@@ -333,7 +333,7 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
       get_bsize_base_from_tree_type(mbmi, tree_type, plane);
 
   if (xd && xd->lossless[mbmi->segment_id]) {
-    TX_SIZE tx_size = get_lossless_tx_size(plane, xd);
+    TX_SIZE tx_size = get_lossless_tx_size(xd, mbmi, plane);
     int mi_row_start = mbmi->mi_row_start;
     int mi_col_start = mbmi->mi_col_start;
     if (plane != AOM_PLANE_Y) {
