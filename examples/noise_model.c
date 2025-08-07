@@ -274,7 +274,7 @@ static void print_variance_y(FILE *debug_file, aom_image_t *raw,
 static void print_debug_info(FILE *debug_file, aom_image_t *raw,
                              aom_image_t *denoised, uint8_t *flat_blocks,
                              int block_size, aom_noise_model_t *noise_model
-#if CONFIG_FGS_BLOCK_SIZE
+#if CONFIG_FGS_BLOCK_SIZE && CONFIG_AV1_DECODER
                              ,
                              int fgs_block_size
 #endif
@@ -444,7 +444,7 @@ int main(int argc, char *argv[]) {
       if (debug_file) {
         print_debug_info(debug_file, &raw, &denoised, flat_blocks, block_size,
                          &noise_model
-#if CONFIG_FGS_BLOCK_SIZE
+#if CONFIG_FGS_BLOCK_SIZE && CONFIG_AV1_DECODER
                          ,
                          args.fgs_block_size
 #endif
