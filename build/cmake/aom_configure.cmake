@@ -217,6 +217,9 @@ if("${AOM_TARGET_SYSTEM}" STREQUAL "Windows")
   # Tell windows.h to not define the min() and max() macros. This allows us to
   # use std::min(), std::numeric_limits<T>::max(), etc. in C++ code.
   add_compiler_flag_if_supported("-DNOMINMAX")
+endif()
+
+if(MSVC)
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:8388608")
 endif()
 
