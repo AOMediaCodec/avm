@@ -491,7 +491,20 @@ static AOM_INLINE void check_tip_edge(const MB_MODE_INFO *const mbmi,
   const bool is_tip_mode = is_tip_ref_frame(mbmi->ref_frame[0]);
   if (is_tip_mode) {
     *tip_edge = 1;
+#if CONFIG_FLEX_TIP_BLK_SIZE
+    const BLOCK_SIZE bsize = mbmi->sb_type[AOM_PLANE_Y];
+    const int bw = block_size_wide[bsize];
+    const int bh = block_size_high[bsize];
+    const int sub_pu_size_y =
+        get_unit_bsize_for_tip_ref(TIP_FRAME_AS_REF, bw, bh) == BLOCK_16X16 ? 16
+                                                                            : 8;
+    const int sub_pu_size = scale ? sub_pu_size_y >> 1 : sub_pu_size_y;
+    const int tip_ts = sub_pu_size == 16  ? TX_16X16
+                       : sub_pu_size == 8 ? TX_8X8
+                                          : TX_4X4;
+#else
     const int tip_ts = scale ? TX_4X4 : TX_8X8;
+#endif  // CONFIG_FLEX_TIP_BLK_SIZE
     *ts = tip_ts;
   }
 }
@@ -1306,8 +1319,17 @@ AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
   const uint16_t q_vert = lfi->tip_q_thr[plane][VERT_EDGE];
   const uint16_t side_vert = lfi->tip_side_thr[plane][VERT_EDGE];
   const int bit_depth = cm->seq_params.bit_depth;
+#if CONFIG_FLEX_TIP_BLK_SIZE
+  int sub_bw =
+      get_unit_bsize_for_tip_frame(cm->features.tip_frame_mode,
+                                   cm->tip_interp_filter) == BLOCK_16X16
+          ? 16
+          : 8;
+  int sub_bh = sub_bw;
+#else
   int sub_bw = 8;
   int sub_bh = 8;
+#endif  // CONFIG_FLEX_TIP_BLK_SIZE
   if (plane > 0) {
     const int subsampling_x = cm->seq_params.subsampling_x;
     const int subsampling_y = cm->seq_params.subsampling_y;
@@ -1315,8 +1337,13 @@ AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
     sub_bh >>= subsampling_y;
   }
   // select vert/horz filter lengths based on block width/height
+#if CONFIG_FLEX_TIP_BLK_SIZE
+  int filter_length_vert = (sub_bw == 16) ? 14 : sub_bw;
+  int filter_length_horz = (sub_bh == 16) ? 14 : sub_bh;
+#else
   int filter_length_vert = sub_bw;
   int filter_length_horz = sub_bh;
+#endif  // CONFIG_FLEX_TIP_BLK_SIZE
 
 // start filtering
 #if CONFIG_IMPROVE_TIP_LF

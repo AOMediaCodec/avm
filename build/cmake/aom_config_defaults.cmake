@@ -436,6 +436,8 @@ set_aom_config_var(CONFIG_ADAPT_OPFL_IN_TIP_DIRECT 1
 
 set_aom_config_var(CONFIG_NEW_CSP 1 "Enable new chroma sample positions.")
 
+set_aom_config_var(CONFIG_FLEX_TIP_BLK_SIZE 1 "Enable flexible TIP block size")
+
 set_aom_config_var(CONFIG_NEW_PART_CTX 1 "New partition context models")
 
 set_aom_config_var(CONFIG_EXT_SEG 1

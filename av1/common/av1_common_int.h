@@ -4776,6 +4776,45 @@ static INLINE int opfl_allowed_cur_pred_mode(const AV1_COMMON *cm,
   return 0;
 }
 
+#if CONFIG_FLEX_TIP_BLK_SIZE
+static AOM_INLINE bool disable_opfl_for_tip_ref(TIP_FRAME_MODE tip_frame_mode,
+                                                int bw, int bh) {
+  return (tip_frame_mode == TIP_FRAME_AS_REF && bw >= 256 && bh >= 256);
+}
+
+static AOM_INLINE bool disable_opfl_for_tip_direct(
+    TIP_FRAME_MODE tip_frame_mode, InterpFilter tip_interp_filter) {
+#if CONFIG_ADAPT_OPFL_IN_TIP_DIRECT
+  return (tip_frame_mode == TIP_FRAME_AS_OUTPUT &&
+          tip_interp_filter != MULTITAP_SHARP);
+#else
+  return false;
+#endif  // CONFIG_ADAPT_OPFL_IN_TIP_DIRECT
+}
+
+static AOM_INLINE BLOCK_SIZE get_tip_bsize_from_bw_bh(int bw, int bh) {
+  return (bw >= 16 && bh >= 16) ? BLOCK_16X16 : BLOCK_8X8;
+}
+
+static AOM_INLINE BLOCK_SIZE
+get_unit_bsize_for_tip_ref(TIP_FRAME_MODE tip_frame_mode, int bw, int bh) {
+  if (disable_opfl_for_tip_ref(tip_frame_mode, bw, bh)) {
+    return BLOCK_16X16;
+  } else {
+    return BLOCK_8X8;
+  }
+}
+
+static AOM_INLINE BLOCK_SIZE get_unit_bsize_for_tip_frame(
+    TIP_FRAME_MODE tip_frame_mode, InterpFilter tip_interp_filter) {
+  if (disable_opfl_for_tip_direct(tip_frame_mode, tip_interp_filter)) {
+    return BLOCK_16X16;
+  } else {
+    return BLOCK_8X8;
+  }
+}
+#endif  // CONFIG_FLEX_TIP_BLK_SIZE
+
 // Check if the optical flow MV refinement is enabled for a given block.
 static AOM_INLINE int is_optflow_refinement_enabled(const AV1_COMMON *cm,
 #if CONFIG_COMPOUND_4XN
@@ -4789,6 +4828,15 @@ static AOM_INLINE int is_optflow_refinement_enabled(const AV1_COMMON *cm,
     return 0;
 
   if (tip_ref_frame) {
+#if CONFIG_FLEX_TIP_BLK_SIZE
+    const int bw = block_size_wide[mi->sb_type[xd->tree_type == CHROMA_PART]];
+    const int bh = block_size_high[mi->sb_type[xd->tree_type == CHROMA_PART]];
+    bool disable_opfl =
+        disable_opfl_for_tip_ref(cm->features.tip_frame_mode, bw, bh);
+    disable_opfl |= disable_opfl_for_tip_direct(cm->features.tip_frame_mode,
+                                                cm->tip_interp_filter);
+    if (disable_opfl) return 0;
+#endif  // CONFIG_FLEX_TIP_BLK_SIZE
 #if CONFIG_TIP_ENHANCEMENT
     const int tip_wtd_index = cm->tip_global_wtd_index;
     const int8_t tip_weight = tip_weighting_factors[tip_wtd_index];

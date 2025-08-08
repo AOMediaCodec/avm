@@ -3488,8 +3488,13 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
     assert(inter_pred_params.mode != WARP_PRED);
 
     if (is_compound) {
-      inter_pred_params.sb_type =
-          tip_ref_frame ? BLOCK_8X8 : mi->sb_type[PLANE_TYPE_Y];
+      inter_pred_params.sb_type = tip_ref_frame ?
+#if CONFIG_FLEX_TIP_BLK_SIZE
+                                                get_tip_bsize_from_bw_bh(bw, bh)
+#else
+                                                BLOCK_8X8
+#endif  // CONFIG_FLEX_TIP_BLK_SIZE
+                                                : mi->sb_type[PLANE_TYPE_Y];
       inter_pred_params.mask_comp = mi->interinter_comp;
     }
 
@@ -3578,10 +3583,21 @@ static void build_inter_predictors_8x8_and_bigger(
 
   if (is_sub_block_refinemv_enabled(cm, mi, tip_ref_frame)) {
     assert(IMPLIES(mi->refinemv_flag, mi->cwp_idx == CWP_EQUAL));
+#if CONFIG_FLEX_TIP_BLK_SIZE
+    const int sub_block_width = !tip_ref_frame
+                                    ? (REFINEMV_SUBBLOCK_WIDTH >> ss_x)
+                                    : REFINEMV_SUBBLOCK_WIDTH;
+    const int sub_block_height = !tip_ref_frame
+                                     ? (REFINEMV_SUBBLOCK_HEIGHT >> ss_y)
+                                     : REFINEMV_SUBBLOCK_HEIGHT;
+    const int refinemv_sb_size_width = AOMMIN(sub_block_width, bw);
+    const int refinemv_sb_size_height = AOMMIN(sub_block_height, bh);
+#else
     int refinemv_sb_size_width =
         AOMMIN((REFINEMV_SUBBLOCK_WIDTH >> pd->subsampling_x), bw);
     int refinemv_sb_size_height =
         AOMMIN(REFINEMV_SUBBLOCK_HEIGHT >> pd->subsampling_y, bh);
+#endif  // CONFIG_FLEX_TIP_BLK_SIZE
 #if CONFIG_SUBBLK_REF_EXT
     uint16_t
         dst0_16_refinemv[2 *
@@ -3898,8 +3914,13 @@ static void build_inter_predictors_8x8_and_bigger(
     }
 
     if (is_compound) {
-      inter_pred_params.sb_type =
-          tip_ref_frame ? BLOCK_8X8 : mi->sb_type[PLANE_TYPE_Y];
+      inter_pred_params.sb_type = tip_ref_frame ?
+#if CONFIG_FLEX_TIP_BLK_SIZE
+                                                get_tip_bsize_from_bw_bh(bw, bh)
+#else
+                                                BLOCK_8X8
+#endif  // CONFIG_FLEX_TIP_BLK_SIZE
+                                                : mi->sb_type[PLANE_TYPE_Y];
       inter_pred_params.mask_comp = mi->interinter_comp;
     }
 
@@ -3974,6 +3995,15 @@ static void build_inter_predictors_8x8_and_bigger_facade(
   uint16_t *const dst = dst_buf->buf;
 
   if (tip_ref_frame) {
+#if CONFIG_FLEX_TIP_BLK_SIZE
+    const int width = xd->width << MI_SIZE_LOG2;
+    const int height = xd->height << MI_SIZE_LOG2;
+    const BLOCK_SIZE unit_bsize =
+        get_unit_bsize_for_tip_ref(TIP_FRAME_AS_REF, width, height);
+    const int unit_blk_size = block_size_wide[unit_bsize];
+    const int end_pixel_row = mi_y + height;
+    const int end_pixel_col = mi_x + width;
+#else
     // TMVP_MI_SIZE_UV is the block size in
     // luma unit for Chroma TIP interpolation,
     // will convert to the step size in TMVP
@@ -3981,6 +4011,7 @@ static void build_inter_predictors_8x8_and_bigger_facade(
     const int unit_blk_size = (plane == 0) ? TMVP_MI_SIZE : TMVP_MI_SIZE_UV;
     const int end_pixel_row = mi_y + (xd->height << MI_SIZE_LOG2);
     const int end_pixel_col = mi_x + (xd->width << MI_SIZE_LOG2);
+#endif  // CONFIG_FLEX_TIP_BLK_SIZE
 
     for (int pixel_row = mi_y; pixel_row < end_pixel_row;
          pixel_row += unit_blk_size) {
