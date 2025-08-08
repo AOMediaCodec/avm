@@ -6161,9 +6161,6 @@ static AOM_INLINE void write_uncompressed_header_obu
      OBU_TYPE obu_type,
 #endif // F106_OBU_SWITCH || F106_OBU_SEF || F106_OBU_TIP
      struct aom_write_bit_buffer *saved_wb, struct aom_write_bit_buffer *wb) {
-#if ENABLE_ENCTRACE
-  printf("(WRITE) uncompressed_header_start-------------->\n");
-#endif
   AV1_COMMON *const cm = &cpi->common;
   const SequenceHeader *const seq_params = &cm->seq_params;
   const CommonQuantParams *quant_params = &cm->quant_params;
