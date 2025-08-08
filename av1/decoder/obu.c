@@ -434,9 +434,7 @@ static uint32_t read_tilegroup_obu(AV1Decoder *pbi,
   skip_payload |= (pbi->common.features.tip_frame_mode == TIP_FRAME_AS_OUTPUT);
 #endif  // F106_OBU_TIP
 #if CONFIG_BRU
-  if (pbi->common.bru.frame_inactive_flag) {
-    skip_payload = 1;
-  }
+  skip_payload |= pbi->common.bru.frame_inactive_flag;
 #endif
   if (skip_payload) {
     if (header_size == -1 || byte_alignment(cm, rb)) return 0;

@@ -9599,7 +9599,7 @@ int32_t read_tilegroup_header(AV1Decoder *pbi, struct aom_read_bit_buffer *rb,
        pbi->common.features.tip_frame_mode != TIP_FRAME_AS_OUTPUT);
 #endif  // F106_OBU_SEF || F106_OBU_TIP
 #if CONFIG_BRU
-  send_tile_indices = !pbi->common.bru.frame_inactive_flag;
+  send_tile_indices &= !pbi->common.bru.frame_inactive_flag;
 #endif  // CONFIG_BRU
   if (send_tile_indices)
     read_tile_indices_in_tilegroup(pbi, rb, start_tile, end_tile);
