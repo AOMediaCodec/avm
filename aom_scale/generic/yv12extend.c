@@ -115,7 +115,9 @@ static void extend_frame(YV12_BUFFER_CONFIG *const ybf, int ext_size,
   }
 }
 
-void aom_extend_frame_borders_c(YV12_BUFFER_CONFIG *ybf, const int num_planes) {
+void aom_extend_frame_borders_c(YV12_BUFFER_CONFIG *ybf, const int num_planes,
+                                bool decoding) {
+  if (decoding) return;
   extend_frame(ybf, ybf->border, num_planes);
 }
 
@@ -294,7 +296,7 @@ int aom_yv12_realloc_with_new_border_c(YV12_BUFFER_CONFIG *ybf, int new_border,
     aom_yv12_copy_frame(ybf, &new_buf, num_planes);
 
     // Extend up to new border
-    aom_extend_frame_borders(&new_buf, num_planes);
+    aom_extend_frame_borders(&new_buf, num_planes, 0);
 
     // Now free the old buffer and replace with the new
     aom_free_frame_buffer(ybf);

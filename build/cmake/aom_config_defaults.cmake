@@ -269,6 +269,9 @@ set_aom_config_var(CONFIG_IMPROVED_GLOBAL_MOTION 1
 
 # CWG-F082: Extended DPB mode for AV2 in RTC
 set_aom_config_var(CONFIG_EXTRA_DPB 1 "Use extra dpb")
+# Configurable DPB extension
+set_aom_config_var(CONFIG_CWG_F168_DPB_HLS 1
+                   "signaling changes for DPB extension")
 
 set_aom_config_var(CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING 1
                    "TX partition type signalling bugfix")
@@ -344,6 +347,10 @@ set_aom_config_var(CONFIG_CFL_SIMPLIFICATION 1 "Fix issues of CfL")
 set_aom_config_var(CONFIG_BLENDING_SIMPLIFICATION 1
                    "CWG F137 simplification for blending mode")
 set_aom_config_var(CONFIG_DIV_LUT_SIMP 1 "Simplification on div_lut")
+set_aom_config_var(
+  MHCCP_DIVISION_TAYLOR 1
+  "Change the multipler calcucation function in MHCCP division handling")
+
 set_aom_config_var(CONFIG_C076_INTER_MOD_CTX 1
                    "AV2 experiment flag to simplify inter mode contexts")
 
@@ -379,6 +386,9 @@ set_aom_config_var(CONFIG_PALETTE_THREE_NEIGHBOR 1
 set_aom_config_var(CONFIG_PALETTE_CTX_REDUCTION 1
                    "Context reductions to Palette mode related syntax")
 set_aom_config_var(CONFIG_WRL_NO_PRUNING 1 "No pruning when construct WRL")
+
+set_aom_config_var(CONFIG_REDUCED_TX_SET_EXT 1
+                   "Extension to reduced transform sets.")
 
 # This is an encode-only change.
 

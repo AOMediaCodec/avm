@@ -576,17 +576,11 @@ int av1_opfl_mv_refinement_nxn_sse4_1(
     int build_for_decode, int *vx0, int *vy0, int *vx1, int *vy1) {
   assert(bw % n == 0 && bh % n == 0);
   int n_blocks = 0;
+  const int num_blocks = (n == 4) ? 2 : 1;
   for (int i = 0; i < bh; i += n) {
     for (int j = 0; j < bw; j += 8) {
       if (is_subblock_outside(mi_x + j, mi_y + i, mi_cols, mi_rows,
                               build_for_decode)) {
-        const int num_blocks = (n == 4) ? 2 : 1;
-        for (int idx = 0; idx < num_blocks; idx++) {
-          *(vx0 + n_blocks + idx) = 0;
-          *(vy0 + n_blocks + idx) = 0;
-          *(vx1 + n_blocks + idx) = 0;
-          *(vy1 + n_blocks + idx) = 0;
-        }
         n_blocks += num_blocks;
         continue;
       }
@@ -615,19 +609,16 @@ static INLINE __m128i round_power_of_two_signed_epi16(__m128i temp1,
 }
 
 static AOM_FORCE_INLINE void compute_pred_using_interp_grad_highbd_sse4_1(
-    const uint16_t *src1, const uint16_t *src2, int16_t *dst1, int16_t *dst2,
-    int bw, int bh, int d0, int d1, int bd, int centered) {
+    const uint16_t *src1, const uint16_t *src2, int src_stride, int16_t *dst1,
+    int16_t *dst2, int bw, int bh, int d0, int d1, int bd, int centered) {
   const __m128i zero = _mm_setzero_si128();
-  const __m128i mul_one = _mm_set1_epi16(1);
   const __m128i mul1 = _mm_set1_epi16(d0);
   const __m128i mul2 = _mm_sub_epi16(zero, _mm_set1_epi16(d1));
   const __m128i mul_val1 = _mm_unpacklo_epi16(mul1, mul2);
-  const __m128i mul_val2 =
-      _mm_unpacklo_epi16(mul_one, _mm_sub_epi16(zero, mul_one));
 
   for (int i = 0; i < bh; i++) {
-    const uint16_t *inp1 = src1 + i * bw;
-    const uint16_t *inp2 = src2 + i * bw;
+    const uint16_t *inp1 = src1 + i * src_stride;
+    const uint16_t *inp2 = src2 + i * src_stride;
     int16_t *out1 = dst1 + i * bw;
     int16_t *out2 = dst2 ? (dst2 + i * bw) : NULL;
     for (int j = 0; j < bw; j = j + 8) {
@@ -647,9 +638,9 @@ static AOM_FORCE_INLINE void compute_pred_using_interp_grad_highbd_sse4_1(
       xx_store_128(out1 + j, temp1);
 
       if (dst2) {
-        reg1 = _mm_madd_epi16(reg1, mul_val2);
-        reg2 = _mm_madd_epi16(reg2, mul_val2);
-        temp2 = _mm_packs_epi32(reg1, reg2);
+        // src_bufs are pixels up to 12 bits. So subtraction should not
+        // overflow.
+        temp2 = _mm_sub_epi16(src_buf1, src_buf2);
         temp2 = round_power_of_two_signed_epi16(temp2, bd - 8);
         temp2 = clamp_epi16(temp2, -OPFL_PRED_MAX, OPFL_PRED_MAX);
         xx_store_128(out2 + j, temp2);
@@ -659,9 +650,10 @@ static AOM_FORCE_INLINE void compute_pred_using_interp_grad_highbd_sse4_1(
 }
 
 void av1_copy_pred_array_highbd_sse4_1(const uint16_t *src1,
-                                       const uint16_t *src2, int16_t *dst1,
-                                       int16_t *dst2, int bw, int bh, int d0,
-                                       int d1, int bd, int centered) {
-  compute_pred_using_interp_grad_highbd_sse4_1(src1, src2, dst1, dst2, bw, bh,
-                                               d0, d1, bd, centered);
+                                       const uint16_t *src2, int src_stride,
+                                       int16_t *dst1, int16_t *dst2, int bw,
+                                       int bh, int d0, int d1, int bd,
+                                       int centered) {
+  compute_pred_using_interp_grad_highbd_sse4_1(
+      src1, src2, src_stride, dst1, dst2, bw, bh, d0, d1, bd, centered);
 }

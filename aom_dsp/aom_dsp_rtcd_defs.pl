@@ -180,19 +180,39 @@ specialize qw/aom_highbd_convolve8_vert sse2 avx2/;
 if ((aom_config("CONFIG_LF_SUB_PU") eq "yes") && (aom_config("CONFIG_IMPROVE_TIP_LF") ne "yes")){
   if (aom_config("CONFIG_ASYM_DF") eq "yes"){
     add_proto qw/void aom_highbd_lpf_horizontal_generic/, "uint16_t *s, int pitch, int filt_width_neg, int filt_width_pos, const uint16_t *q_thresh, const uint16_t *side_thresh, int bd, int count";
+
+    specialize qw/aom_highbd_lpf_horizontal_generic sse4_1/;
+
     add_proto qw/void aom_highbd_lpf_vertical_generic/, "uint16_t *s, int pitch, int filt_width_neg, int filt_width_pos, const uint16_t *q_thresh, const uint16_t *side_thresh, int bd, int count";
+
+    specialize qw/aom_highbd_lpf_vertical_generic sse4_1/;
 } else {
     add_proto qw/void aom_highbd_lpf_horizontal_generic/, "uint16_t *s, int pitch, int filt_width, const uint16_t *q_thresh, const uint16_t *side_thresh, int bd, int count";
+
+    specialize qw/aom_highbd_lpf_horizontal_generic sse4_1/;
+
     add_proto qw/void aom_highbd_lpf_vertical_generic/, "uint16_t *s, int pitch, int filt_width, const uint16_t *q_thresh, const uint16_t *side_thresh, int bd, int count";
+
+    specialize qw/aom_highbd_lpf_vertical_generic sse4_1/;
   }
 }
 else{
   if (aom_config("CONFIG_ASYM_DF") eq "yes"){
     add_proto qw/void aom_highbd_lpf_horizontal_generic/, "uint16_t *s, int pitch, int filt_width_neg, int filt_width_pos, const uint16_t *q_thresh, const uint16_t *side_thresh, int bd";
+
+    specialize qw/aom_highbd_lpf_horizontal_generic sse4_1/;
+
     add_proto qw/void aom_highbd_lpf_vertical_generic/, "uint16_t *s, int pitch, int filt_width_neg, int filt_width_pos, const uint16_t *q_thresh, const uint16_t *side_thresh, int bd";
+
+    specialize qw/aom_highbd_lpf_vertical_generic sse4_1/;
   } else {
     add_proto qw/void aom_highbd_lpf_horizontal_generic/, "uint16_t *s, int pitch, int filt_width, const uint16_t *q_thresh, const uint16_t *side_thresh, int bd";
+
+    specialize qw/aom_highbd_lpf_horizontal_generic sse4_1/;
+
     add_proto qw/void aom_highbd_lpf_vertical_generic/, "uint16_t *s, int pitch, int filt_width, const uint16_t *q_thresh, const uint16_t *side_thresh, int bd";
+
+    specialize qw/aom_highbd_lpf_vertical_generic sse4_1/;
   }
 }
 

@@ -560,11 +560,17 @@ typedef struct SequenceHeader {
   int num_same_ref_compound;  // Number of the allowed same reference frames for
                               // the compound mode
 #if CONFIG_EXTRA_DPB
-  int num_extra_dpb;    // number of extra decoded picture buffers
+  // TODO: (@hegilmez) dpb_size and ref_frames can be merged to clean up the
+  // code
+#if CONFIG_CWG_F168_DPB_HLS
+  int dpb_size;  // number of decoded picture buffer (DPB) slots
+#else
+  int num_extra_dpb;  // number of extra decoded picture buffers
+#endif                  // CONFIG_CWG_F168_DPB_HLS
 #endif                  // CONFIG_EXTRA_DPB
   int ref_frames;       // number of all decoded picture buffers
-  int ref_frames_log2;  // the log value of the number of all decoded picture
-                        // buffers
+  int ref_frames_log2;  // ceiling of the log2 value of the number of all
+                        // decoded picture buffers (ref_frames)
 
   OrderHintInfo order_hint_info;
 
@@ -819,7 +825,12 @@ typedef struct {
    * If true, the frame is restricted to a reduced subset of the full set of
    * transform types.
    */
-  bool reduced_tx_set_used;
+#if CONFIG_REDUCED_TX_SET_EXT
+  uint8_t
+#else
+  bool
+#endif  // CONFIG_REDUCED_TX_SET_EXT
+      reduced_tx_set_used;
   /*!
    * If true, error resilient mode is enabled.
    * Note: Error resilient mode allows the syntax of a frame to be parsed
@@ -1925,6 +1936,10 @@ typedef struct AV1Common {
    */
   int tmvp_sample_step;
   /*!
+   * Log 2 step size for tmvp sampling.
+   */
+  int tmvp_sample_stepl2;
+  /*!
    * The processing unit size used
    */
   int tmvp_proc_size;
@@ -2081,6 +2096,11 @@ typedef struct AV1Common {
   YV12_BUFFER_CONFIG predicted_pixels;
   YV12_BUFFER_CONFIG prefiltered_pixels;
 #endif  // CONFIG_INSPECTION
+
+  /*!
+   * True if we are in a decoding process.
+   */
+  bool decoding;
 } AV1_COMMON;
 
 /*!\cond */
@@ -3181,9 +3201,9 @@ static INLINE int get_mi_grid_idx(const CommonModeInfoParams *const mi_params,
 
 static INLINE int get_alloc_mi_idx(const CommonModeInfoParams *const mi_params,
                                    int mi_row, int mi_col) {
-  const int mi_alloc_size_1d = mi_size_wide[mi_params->mi_alloc_bsize];
-  const int mi_alloc_row = mi_row / mi_alloc_size_1d;
-  const int mi_alloc_col = mi_col / mi_alloc_size_1d;
+  const int mi_alloc_size_1dl = mi_size_wide_log2[mi_params->mi_alloc_bsize];
+  const int mi_alloc_row = mi_row >> mi_alloc_size_1dl;
+  const int mi_alloc_col = mi_col >> mi_alloc_size_1dl;
 
   return mi_alloc_row * mi_params->mi_alloc_stride + mi_alloc_col;
 }
@@ -5030,9 +5050,15 @@ static INLINE unsigned int av1_compute_allowed_tiles_log2(
 
 static INLINE int is_reduced_tx_set_used(const AV1_COMMON *const cm,
                                          const PLANE_TYPE plane_type) {
-  const bool reduced_tx_set_used = plane_type == PLANE_TYPE_Y
-                                       ? cm->features.reduced_tx_set_used
-                                       : cm->seq_params.enable_chroma_dctonly;
+  const
+#if CONFIG_REDUCED_TX_SET_EXT
+      uint8_t
+#else
+      bool
+#endif  // CONFIG_REDUCED_TX_SET_EXT
+          reduced_tx_set_used =
+              plane_type == PLANE_TYPE_Y ? cm->features.reduced_tx_set_used
+                                         : cm->seq_params.enable_chroma_dctonly;
   return reduced_tx_set_used;
 }
 

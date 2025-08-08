@@ -633,10 +633,17 @@ typedef struct cfg_options {
 #endif  // CONFIG_EXT_SEG
 
 #if CONFIG_EXTRA_DPB
+#if CONFIG_CWG_F168_DPB_HLS
+  /*!\brief number of decoded picture buffer (DPB) slots
+   *
+   */
+  int dpb_size;
+#else
   /*!\brief number of extra decoded picture buffers
    *
    */
   int num_extra_dpb;
+#endif  // CONFIG_CWG_F168_DPB_HLS
 #endif  // CONFIG_EXTRA_DPB
 #if CONFIG_BRU
   /*!\brief enable bru

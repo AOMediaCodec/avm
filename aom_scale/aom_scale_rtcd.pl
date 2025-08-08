@@ -47,7 +47,7 @@ add_proto qw/void aom_yv12_partial_coloc_copy_u/, "const struct yv12_buffer_conf
 add_proto qw/void aom_yv12_partial_copy_v/, "const struct yv12_buffer_config *src_bc, int hstart1, int hend1, int vstart1, int vend1, struct yv12_buffer_config *dst_bc, int hstart2, int vstart2";
 add_proto qw/void aom_yv12_partial_coloc_copy_v/, "const struct yv12_buffer_config *src_bc, struct yv12_buffer_config *dst_bc, int hstart, int hend, int vstart, int vend";
 
-add_proto qw/void aom_extend_frame_borders/, "struct yv12_buffer_config *ybf, const int num_planes";
+add_proto qw/void aom_extend_frame_borders/, "struct yv12_buffer_config *ybf, const int num_planes, bool decoding";
 specialize qw/aom_extend_frame_borders dspr2/;
 
 add_proto qw/void aom_extend_frame_inner_borders/, "struct yv12_buffer_config *ybf, const int num_planes";

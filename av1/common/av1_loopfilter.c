@@ -1090,7 +1090,7 @@ void av1_filter_block_plane_vert(const AV1_COMMON *const cm,
 #else
       if (params.filter_length) {
 #endif  // CONFIG_ASYM_DF
-        aom_highbd_lpf_vertical_generic_c(
+        aom_highbd_lpf_vertical_generic(
             p, dst_stride,
 #if CONFIG_ASYM_DF
             params.filter_length_neg, params.filter_length_pos,
@@ -1172,7 +1172,7 @@ void av1_filter_block_plane_horz(const AV1_COMMON *const cm,
 #else
       if (params.filter_length) {
 #endif  // CONFIG_ASYM_DF
-        aom_highbd_lpf_horizontal_generic_c(
+        aom_highbd_lpf_horizontal_generic(
             p, dst_stride,
 #if CONFIG_ASYM_DF
             params.filter_length_neg, params.filter_length_pos,
@@ -1325,7 +1325,7 @@ AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
     for (int i = 0; i <= w; i += sub_bw) {
       // filter vertical boundary
       if (i > 0) {
-        aom_highbd_lpf_vertical_generic_c(
+        aom_highbd_lpf_vertical_generic(
 #if CONFIG_IMPROVE_TIP_LF
             p
 #else
@@ -1354,7 +1354,7 @@ AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
 #endif  // CONFIG_IMPROVE_TIP_LF
       // filter horizontal boundary
       if (j > 0) {
-        aom_highbd_lpf_horizontal_generic_c(
+        aom_highbd_lpf_horizontal_generic(
 #if CONFIG_IMPROVE_TIP_LF
             p
 #else

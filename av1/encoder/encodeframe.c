@@ -1779,11 +1779,13 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
 #endif
 
   cm->tmvp_sample_step = 1;
+  cm->tmvp_sample_stepl2 = 0;
   if (features->allow_ref_frame_mvs) {
     cm->tmvp_sample_step = -1;
     av1_setup_motion_field(cm);
     if (cm->tmvp_sample_step < 0) {
       cm->tmvp_sample_step = 1;
+      cm->tmvp_sample_stepl2 = 0;
     }
   } else {
     av1_setup_ref_frame_sides(cm);

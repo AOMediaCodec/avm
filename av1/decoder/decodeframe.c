@@ -351,7 +351,13 @@ static AOM_INLINE void predict_and_reconstruct_intra_block(
       recon_with_cctx = eob_data_c1->eob > 0;
     }
     if (eob_data->eob || recon_with_cctx) {
-      const bool reduced_tx_set_used = is_reduced_tx_set_used(cm, plane_type);
+      const
+#if CONFIG_REDUCED_TX_SET_EXT
+          uint8_t
+#else
+          bool
+#endif  // CONFIG_REDUCED_TX_SET_EXT
+              reduced_tx_set_used = is_reduced_tx_set_used(cm, plane_type);
       // tx_type was read out in av1_read_coeffs_txb.
       const TX_TYPE tx_type = av1_get_tx_type(xd, plane_type, row, col, tx_size,
                                               reduced_tx_set_used);
@@ -416,7 +422,13 @@ static AOM_INLINE void inverse_transform_inter_block(
   MACROBLOCKD *const xd = &dcb->xd;
   PLANE_TYPE plane_type = get_plane_type(plane);
   const struct macroblockd_plane *const pd = &xd->plane[plane];
-  const bool reduced_tx_set_used = is_reduced_tx_set_used(cm, plane_type);
+  const
+#if CONFIG_REDUCED_TX_SET_EXT
+      uint8_t
+#else
+      bool
+#endif  // CONFIG_REDUCED_TX_SET_EXT
+          reduced_tx_set_used = is_reduced_tx_set_used(cm, plane_type);
   // tx_type was read out in av1_read_coeffs_txb.
   const TX_TYPE tx_type = av1_get_tx_type(xd, plane_type, blk_row, blk_col,
                                           tx_size, reduced_tx_set_used);
@@ -708,7 +720,6 @@ static void av1_dec_setup_tip_frame(AV1_COMMON *cm, MACROBLOCKD *xd,
   if (cm->seq_params.enable_lf_sub_pu && cm->features.allow_lf_sub_pu) {
     init_tip_lf_parameter(cm, 0, av1_num_planes(cm));
     loop_filter_tip_frame(cm, 0, av1_num_planes(cm));
-    aom_extend_frame_borders(&cm->tip_ref.tip_frame->buf, av1_num_planes(cm));
   }
 #endif  // CONFIG_LF_SUB_PU
 }
@@ -6544,6 +6555,23 @@ void av1_read_sequence_header_beyond_av1(
   seq_params->explicit_ref_frame_map = aom_rb_read_bit(rb);
   // 0 : use show_existing_frame, 1: use implicit derivation
   seq_params->enable_frame_output_order = aom_rb_read_bit(rb);
+
+#if CONFIG_CWG_F168_DPB_HLS
+  if (aom_rb_read_bit(rb)) {
+    seq_params->ref_frames =
+        aom_rb_read_literal(rb, 4) + 1;  // explicitly signaled DPB size
+  } else {
+    seq_params->ref_frames = 8;  // default DPB size: 8
+  }
+  seq_params->ref_frames_log2 = aom_ceil_log2(seq_params->ref_frames);
+
+  // TODO: (@hegilmez) dpb_size and ref_frames can be merged to clean up the
+  // code
+  seq_params->dpb_size = seq_params->ref_frames;
+
+  seq_params->max_reference_frames =
+      AOMMIN(seq_params->ref_frames - 1, INTER_REFS_PER_FRAME);
+#else
   // A bit is sent here to indicate if the max number of references is 7. If
   // this bit is 0, then two more bits are sent to indicate the exact number
   // of references allowed (range: 3 to 6).
@@ -6571,6 +6599,7 @@ void av1_read_sequence_header_beyond_av1(
   seq_params->ref_frames = REF_FRAMES;
   seq_params->ref_frames_log2 = REF_FRAMES_LOG2;
 #endif  // CONFIG_EXTRA_DPB
+#endif  // CONFIG_CWG_F168_DPB_HLS
 
   seq_params->num_same_ref_compound = aom_rb_read_literal(rb, 2);
   seq_params->enable_sdp = seq_params->monochrome ? 0 : aom_rb_read_bit(rb);
@@ -8001,8 +8030,10 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       ) {
         // Get the TMVP sampling mode
         cm->tmvp_sample_step = aom_rb_read_bit(rb) + 1;
+        cm->tmvp_sample_stepl2 = cm->tmvp_sample_step == 1 ? 0 : 1;
       } else {
         cm->tmvp_sample_step = 1;
+        cm->tmvp_sample_stepl2 = 0;
       }
 
 #if CONFIG_LF_SUB_PU
@@ -8598,7 +8629,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
   features->enable_imp_msk_bld = seq_params->enable_imp_msk_bld;
 
-  features->reduced_tx_set_used = aom_rb_read_bit(rb);
+  features->reduced_tx_set_used =
+#if CONFIG_REDUCED_TX_SET_EXT
+      aom_rb_read_literal(rb, 2);
+#else
+      aom_rb_read_bit(rb);
+#endif  // CONFIG_REDUCED_TX_SET_EXT
 
   if (features->allow_ref_frame_mvs && !frame_might_allow_ref_frame_mvs(cm)) {
     aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,

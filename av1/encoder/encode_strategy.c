@@ -849,7 +849,7 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
     const int code_arf =
         av1_temporal_filter(cpi, arf_src_index, &show_existing_alt_ref);
     if (code_arf) {
-      aom_extend_frame_borders(&cpi->alt_ref_buffer, av1_num_planes(cm));
+      aom_extend_frame_borders(&cpi->alt_ref_buffer, av1_num_planes(cm), 0);
       frame_input->source = &cpi->alt_ref_buffer;
       aom_copy_metadata_to_frame_buffer(frame_input->source,
                                         source_buffer->metadata);

@@ -333,7 +333,12 @@ typedef struct {
    * Flag to indicate whether or not to use a default reduced set for ext-tx
    * rather than the potential full set of 16 transforms.
    */
-  bool reduced_tx_type_set;
+#if CONFIG_REDUCED_TX_SET_EXT
+  uint8_t
+#else
+  bool
+#endif  // CONFIG_REDUCED_TX_SET_EXT
+      reduced_tx_type_set;
   /*!
    * Flag to indicate if transform type for intra blocks should be limited to
    * DCT_DCT.
@@ -939,7 +944,11 @@ typedef struct {
   bool enable_ext_seg;
 #endif  // CONFIG_EXT_SEG
 #if CONFIG_EXTRA_DPB
+#if CONFIG_CWG_F168_DPB_HLS
+  int dpb_size;
+#else
   int num_extra_dpb;
+#endif  // CONFIG_CWG_F168_DPB_HLS
 #endif  // CONFIG_EXTRA_DPB
   // Indicates what frame hash metadata to write
   unsigned int frame_hash_metadata;
