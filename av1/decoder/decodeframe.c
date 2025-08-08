@@ -8186,9 +8186,12 @@ int read_uncompressed_header(AV1Decoder *pbi,
       // Read all ref frame base_qindex
       for (int ref_idx = 0; ref_idx < seq_params->ref_frames; ref_idx++) {
         RefCntBuffer *buf = cm->ref_frame_map[ref_idx];
-        buf->base_qindex = aom_rb_read_literal(
-            rb, cm->seq_params.bit_depth == AOM_BITS_8 ? QINDEX_BITS_UNEXT
-                                                       : QINDEX_BITS);
+#if 1
+        if (buf != NULL)
+#endif
+          buf->base_qindex = aom_rb_read_literal(
+              rb, cm->seq_params.bit_depth == AOM_BITS_8 ? QINDEX_BITS_UNEXT
+                                                         : QINDEX_BITS);
       }
     }
   }
