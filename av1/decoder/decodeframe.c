@@ -7915,11 +7915,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         // Check whether num_total_refs read is valid
         if (cm->ref_frames_info.num_total_refs <= 0 ||
             cm->ref_frames_info.num_total_refs >
-#if CONFIG_CWG_F168_DPB_HLS
-                AOMMIN(seq_params->ref_frames - 1, INTER_REFS_PER_FRAME))
-#else
                 seq_params->max_reference_frames)
-#endif  // CONFIG_CWG_F168_DPB_HLS
           aom_internal_error(&cm->error, AOM_CODEC_ERROR,
                              "Invalid num_total_refs");
       }
