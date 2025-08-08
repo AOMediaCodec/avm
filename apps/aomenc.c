@@ -469,7 +469,9 @@ const arg_def_t *av1_key_val_args[] = {
   &g_av1_codec_arg_defs.enable_cctx,
   &g_av1_codec_arg_defs.enable_ibp,
   &g_av1_codec_arg_defs.explicit_ref_frame_map,
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
   &g_av1_codec_arg_defs.enable_frame_output_order,
+#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
   &g_av1_codec_arg_defs.max_drl_refmvs,
 #if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
   &g_av1_codec_arg_defs.max_drl_refbvs,
@@ -732,7 +734,9 @@ static void init_config(cfg_options_t *config) {
   config->enable_angle_delta = 1;
   config->enable_opfl_refine = 1;
   config->explicit_ref_frame_map = 0;
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
   config->enable_frame_output_order = 1;
+#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
   config->enable_intra_edge_filter = 1;
   config->enable_tx64 = 1;
   config->enable_smooth_interintra = 1;

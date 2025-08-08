@@ -326,7 +326,9 @@ class TileGroupTestLarge
                        tile_group_config_params_.num_tile_cols);
       encoder->Control(AV1E_SET_TILE_ROWS,
                        tile_group_config_params_.num_tile_rows);
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
       encoder->Control(AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, 1);
+#endif
     }
   }
 

@@ -267,7 +267,9 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t max_reference_frames;
   arg_def_t reduced_reference_set;
   arg_def_t explicit_ref_frame_map;
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
   arg_def_t enable_frame_output_order;
+#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
   arg_def_t target_seq_level_idx;
   arg_def_t set_min_cr;
   arg_def_t input_color_primaries;

@@ -6083,8 +6083,11 @@ static AOM_INLINE void read_film_grain(AV1_COMMON *cm,
                                        struct aom_read_bit_buffer *rb) {
   if (cm->seq_params.film_grain_params_present &&
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
-      (cm->seq_params.enable_frame_output_order || cm->show_frame ||
-       cm->showable_frame)) {
+      (
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
+          cm->seq_params.enable_frame_output_order ||
+#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
+          cm->show_frame || cm->showable_frame)) {
 #else
       (cm->show_frame || cm->showable_frame)) {
 #endif
@@ -6523,8 +6526,10 @@ void av1_read_sequence_header_beyond_av1(
     seq_params->avg_cdf_type = aom_rb_read_bit(rb);
   }
   seq_params->explicit_ref_frame_map = aom_rb_read_bit(rb);
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
   // 0 : use show_existing_frame, 1: use implicit derivation
   seq_params->enable_frame_output_order = aom_rb_read_bit(rb);
+#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
 
 #if CONFIG_CWG_F168_DPB_HLS
   if (aom_rb_read_bit(rb)) {
@@ -7334,12 +7339,18 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       // show_existing_frame is used to show a previous frame with
       // RefFrameType[ frame_to_show_map_idx ] equal to KEY_FRAME, that the
       // frame is output via the show_existing_frame mechanism at most once.
-      if ((seq_params->enable_frame_output_order &&
-           frame_to_show->frame_type == KEY_FRAME &&
-           !frame_to_show->showable_frame &&
-           frame_to_show->frame_output_done) ||
-          (!seq_params->enable_frame_output_order &&
-           !frame_to_show->showable_frame)) {
+      if ((
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
+              seq_params->enable_frame_output_order &&
+#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
+              frame_to_show->frame_type == KEY_FRAME &&
+              !frame_to_show->showable_frame &&
+              frame_to_show->frame_output_done) ||
+          (
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
+              !seq_params->enable_frame_output_order &&
+#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
+              !frame_to_show->showable_frame)) {
         aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                            "Buffer does not contain a showable frame");
       }
@@ -7414,20 +7425,31 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       cm->showable_frame = aom_rb_read_bit(rb);
     }
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
-    if (seq_params->enable_frame_output_order &&
+    if (
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
+        seq_params->enable_frame_output_order &&
+#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
         current_frame->frame_type == KEY_FRAME && cm->showable_frame) {
       aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                          "showable_frame should be equal to 0"
+#if CONFIG_F253_REMOVE_OUTPUTFLAG
+                         "Frame "
+#else
                          "when enable_frame_output_order is enabled and frame "
+#endif  // CONFIG_F253_REMOVE_OUTPUTFLAG
                          "type is KEY_FRAME.");
     }
 #endif
     cm->cur_frame->showable_frame = cm->showable_frame;
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
     if (cm->seq_params.enable_frame_output_order)
+#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
       cm->cur_frame->frame_output_done = 0;
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
     else
       cm->cur_frame->frame_output_done = 1;
+#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
     features->error_resilient_mode =
         frame_is_sframe(cm) ||

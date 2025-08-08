@@ -744,10 +744,12 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       ARG_DEF(NULL, "explicit-ref-frame-map", 1,
               "Explicitly signal the reference frame mapping (0: off "
               "(default), 1: on)"),
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
   .enable_frame_output_order =
       ARG_DEF(NULL, "enable-frame-output-order", 1,
               "Enable frame output order derivation based on order hint"
               "(0: off, 1: on (default))"),
+#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
   .target_seq_level_idx = ARG_DEF(
       NULL, "target-seq-level-idx", 1,
       "Target sequence level index. "

@@ -408,10 +408,12 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_bru = tool_cfg->enable_bru;
 #endif  // CONFIG_BRU
   seq->explicit_ref_frame_map = oxcf->ref_frm_cfg.explicit_ref_frame_map;
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
   // Set 0 for multi-layer coding
   seq->enable_frame_output_order =
       oxcf->ref_frm_cfg.enable_frame_output_order &&
       seq->order_hint_info.enable_order_hint;
+#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
   seq->max_reference_frames = oxcf->ref_frm_cfg.max_reference_frames;
   seq->num_same_ref_compound = SAME_REF_COMPOUND_PRUNE;
 

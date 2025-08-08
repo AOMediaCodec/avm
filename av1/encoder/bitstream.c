@@ -5773,8 +5773,10 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
     aom_wb_write_bit(wb, seq_params->avg_cdf_type);
   }
   aom_wb_write_bit(wb, seq_params->explicit_ref_frame_map);
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
   // 0 : show_existing_frame, 1: implicit derviation
   aom_wb_write_bit(wb, seq_params->enable_frame_output_order);
+#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
 
 #if CONFIG_CWG_F168_DPB_HLS
   const int signal_dpb_explicit =
@@ -6671,8 +6673,11 @@ static AOM_INLINE void write_uncompressed_header_obu(
     }
     if (seq_params->film_grain_params_present &&
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
-        (cm->seq_params.enable_frame_output_order || cm->show_frame ||
-         cm->showable_frame))
+        (
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
+            cm->seq_params.enable_frame_output_order ||
+#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
+            cm->show_frame || cm->showable_frame))
 #else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
         (cm->show_frame || cm->showable_frame))
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
@@ -6837,8 +6842,11 @@ static AOM_INLINE void write_uncompressed_header_obu(
 
   if (seq_params->film_grain_params_present &&
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
-      (cm->seq_params.enable_frame_output_order || cm->show_frame ||
-       cm->showable_frame))
+      (
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
+          cm->seq_params.enable_frame_output_order ||
+#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
+          cm->show_frame || cm->showable_frame))
 #else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
       (cm->show_frame || cm->showable_frame))
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
@@ -7734,8 +7742,11 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
   const int write_frame_header =
       (cpi->num_tg > 1 ||
        (encode_show_existing_frame(cm) &&
-        (!cm->seq_params.order_hint_info.enable_order_hint ||
-         !cm->seq_params.enable_frame_output_order)) ||
+        (!cm->seq_params.order_hint_info.enable_order_hint
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
+         || !cm->seq_params.enable_frame_output_order
+#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
+         )) ||
        (encode_show_existing_frame(cm) &&
         cm->cur_frame->frame_type == KEY_FRAME) ||
 #if CONFIG_BRU
@@ -7769,14 +7780,24 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
     }
   }
 #endif  // CONFIG_BRU
+
+#if CONFIG_F253_REMOVE_OUTPUTFLAG
+  // The OBU packet of show_existing_frame
+#else
   // When enable_frame_output_order == 1, the OBU packet of show_existing_frame
+#endif  // CONFIG_F253_REMOVE_OUTPUTFLAG
   // is not signaled for non-error-resilient mode.
   // For error-resilienet mode, still an OBU is signaled.
   if ((cm->seq_params.order_hint_info.enable_order_hint &&
-       cm->seq_params.enable_frame_output_order && cm->show_existing_frame &&
-       !cm->features.error_resilient_mode) ||
-      ((!cm->seq_params.order_hint_info.enable_order_hint ||
-        !cm->seq_params.enable_frame_output_order) &&
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
+       cm->seq_params.enable_frame_output_order &&
+#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
+       cm->show_existing_frame && !cm->features.error_resilient_mode) ||
+      ((!cm->seq_params.order_hint_info.enable_order_hint
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
+        || !cm->seq_params.enable_frame_output_order
+#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
+        ) &&
        encode_show_existing_frame(cm)) ||
 #if CONFIG_BRU
       cm->bru.frame_inactive_flag ||

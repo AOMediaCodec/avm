@@ -275,11 +275,19 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
                               seq_params->quantizer_matrix_4x8 };
   av1_qm_init_dequant_only(&cm->quant_params, num_planes, fund_mat);
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
-  if (!seq_params->order_hint_info.enable_order_hint &&
-      seq_params->enable_frame_output_order) {
+  if (!seq_params->order_hint_info.enable_order_hint
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
+      && seq_params->enable_frame_output_order
+#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
+  ) {
     aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+#if CONFIG_F253_REMOVE_OUTPUTFLAG
+                       "enable_order_hint needs to be enabled"
+#else
                        "enable_frame_output_order cannot be enabled"
-                       "when enable_order_hint is disabled.");
+                       "when enable_order_hint is disabled."
+#endif  // CONFIG_F253_REMOVE_OUTPUTFLAG
+    );
   }
 #endif
 

@@ -192,7 +192,11 @@ static int process_subgop_config(char *str, SubGOPCfg *config) {
 }
 // frames with show_frame = 1, showable_frame = 1
 // and show_existing_frame = 1 are handled as
+#if CONFIG_F253_REMOVE_OUTPUTFLAG
+// 'visible' frames
+#else
 // 'visible' frames when enable_frame_output_order = 1
+#endif  // CONFIG_F253_REMOVE_OUTPUTFLAG
 static int is_visible(FRAME_TYPE_CODE code) {
   switch (code) {
     case FRAME_TYPE_INO_VISIBLE:

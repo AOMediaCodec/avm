@@ -89,8 +89,10 @@ class SEFTestLarge
       encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
       encoder->Control(AOME_SET_ARNR_MAXFRAMES, 7);
       encoder->Control(AOME_SET_ARNR_STRENGTH, 5);
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
       encoder->Control(AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION,
                        enable_frame_output_order_derivation_);
+#endif
     }
   }
 

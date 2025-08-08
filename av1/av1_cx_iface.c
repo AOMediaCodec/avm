@@ -176,9 +176,11 @@ struct av1_extracfg {
   int enable_flip_idtx;          // enable flip and identity transform types
   int max_reference_frames;      // maximum number of references per frame
   int enable_reduced_reference_set;  // enable reduced set of references
-  int explicit_ref_frame_map;     // explicitly signal reference frame mapping
+  int explicit_ref_frame_map;  // explicitly signal reference frame mapping
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
   int enable_frame_output_order;  // enable frame output order derivation based
                                   // on order hint value
+#endif                            // !CONFIG_F253_REMOVE_OUTPUTFLAG
   int enable_ref_frame_mvs;       // sequence level
 #if CONFIG_REDUCED_REF_FRAME_MVS_MODE
   int reduced_ref_frame_mvs_mode;  // use reduced reference frame combinations
@@ -535,7 +537,9 @@ static struct av1_extracfg default_extra_cfg = {
   7,  // max_reference_frames
   0,  // enable_reduced_reference_set
   0,  // explicit_ref_frame_map
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
   1,  // enable frame output order derivation based on order hint value
+#endif // !CONFIG_F253_REMOVE_OUTPUTFLAG
   1,  // enable_ref_frame_mvs sequence level
 #if CONFIG_REDUCED_REF_FRAME_MVS_MODE
   0,    // reduced_ref_frame_mvs_mode sequence level
@@ -894,7 +898,9 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
 #endif  // CONFIG_REDUCED_REF_FRAME_MVS_MODE
   RANGE_CHECK(extra_cfg, enable_reduced_reference_set, 0, 1);
   RANGE_CHECK(extra_cfg, explicit_ref_frame_map, 0, 1);
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
   RANGE_CHECK(extra_cfg, enable_frame_output_order, 0, 1);
+#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
   RANGE_CHECK_HI(extra_cfg, chroma_subsampling_x, 1);
   RANGE_CHECK_HI(extra_cfg, chroma_subsampling_y, 1);
 
@@ -1093,7 +1099,9 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_bru = extra_cfg->enable_bru;
 #endif  // CONFIG_BRU
   cfg->explicit_ref_frame_map = extra_cfg->explicit_ref_frame_map;
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
   cfg->enable_frame_output_order = extra_cfg->enable_frame_output_order;
+#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
   cfg->reduced_tx_type_set = extra_cfg->reduced_tx_type_set;
   cfg->max_drl_refmvs = extra_cfg->max_drl_refmvs;
 #if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
@@ -1234,7 +1242,9 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_bru = cfg->enable_bru;
 #endif  // CONFIG_BRU
   extra_cfg->explicit_ref_frame_map = cfg->explicit_ref_frame_map;
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
   extra_cfg->enable_frame_output_order = cfg->enable_frame_output_order;
+#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
   extra_cfg->reduced_tx_type_set = cfg->reduced_tx_type_set;
   extra_cfg->max_drl_refmvs = cfg->max_drl_refmvs;
 #if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
@@ -1815,7 +1825,11 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
       (!tool_cfg->enable_order_hint || kf_cfg->enable_sframe ||
        tool_cfg->error_resilient_mode)
           ? 0
+#if CONFIG_F253_REMOVE_OUTPUTFLAG
+          : 1;
+#else   // CONFIG_F253_REMOVE_OUTPUTFLAG
           : extra_cfg->enable_frame_output_order;
+#endif  // CONFIG_F253_REMOVE_OUTPUTFLAG
 
   oxcf->row_mt = extra_cfg->row_mt;
 
@@ -2911,7 +2925,7 @@ static aom_codec_err_t ctrl_enable_subgop_stats(aom_codec_alg_priv_t *ctx,
   return update_extra_cfg(ctx, &extra_cfg);
   return AOM_CODEC_OK;
 }
-
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
 static aom_codec_err_t ctrl_set_frame_output_order(aom_codec_alg_priv_t *ctx,
                                                    va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
@@ -2919,7 +2933,7 @@ static aom_codec_err_t ctrl_set_frame_output_order(aom_codec_alg_priv_t *ctx,
       CAST(AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
-
+#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
 #if CONFIG_BRU
 static aom_codec_err_t ctrl_set_enable_bru(aom_codec_alg_priv_t *ctx,
                                            va_list args) {
@@ -4251,11 +4265,13 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                               &g_av1_codec_arg_defs.explicit_ref_frame_map,
                               argv, err_string)) {
     extra_cfg.explicit_ref_frame_map = arg_parse_int_helper(&arg, err_string);
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
   } else if (arg_match_helper(&arg,
                               &g_av1_codec_arg_defs.enable_frame_output_order,
                               argv, err_string)) {
     extra_cfg.enable_frame_output_order =
         arg_parse_int_helper(&arg, err_string);
+#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_ref_frame_mvs,
                               argv, err_string)) {
     extra_cfg.enable_ref_frame_mvs = arg_parse_int_helper(&arg, err_string);
@@ -4631,7 +4647,9 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_VBR_CORPUS_COMPLEXITY_LAP, ctrl_set_vbr_corpus_complexity_lap },
   { AV1E_ENABLE_SB_MULTIPASS_UNIT_TEST, ctrl_enable_sb_multipass_unit_test },
   { AV1E_ENABLE_SUBGOP_STATS, ctrl_enable_subgop_stats },
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
   { AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, ctrl_set_frame_output_order },
+#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
 #if CONFIG_BRU
   { AV1E_SET_ENABLE_BRU, ctrl_set_enable_bru },
   { AV1E_GET_ENABLE_BRU, ctrl_get_enable_bru },
@@ -4778,13 +4796,19 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         1,   1, 1, 1,
         3,   1,
 #if CONFIG_REDUCED_REF_FRAME_MVS_MODE
-        0,
-#endif  // CONFIG_REDUCED_REF_FRAME_MVS_MODE
-        1,   0, 1, 0,
-        0,
+        0,  // reduced_ref_frame_mvs_mode
+#endif      // CONFIG_REDUCED_REF_FRAME_MVS_MODE
+        1,  // enable_reduced_reference_set
+        0,  // explicit_ref_frame_map
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
+        1,  // enable_frame_output_order
+#endif
+        0,  // reduced_tx_type_set
+        0,  // max_drl_refmvs
+
 #if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
-        0,
-#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+        0,  // max_drl_refbvs
+#endif      // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
         1,   1, 1,
         1,  // enable_avg_cdf
         1,  // avg_cdf_type
