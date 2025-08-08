@@ -92,13 +92,13 @@ bool ValidObuType(int obu_type) {
     case OBU_TEMPORAL_DELIMITER:
 #if F106_OBU_SWITCH
     case OBU_SWITCH:
-#endif
+#endif // F106_OBU_SWITCH
 #if F106_OBU_SEF
     case OBU_SEF:
-#endif
+#endif // F106_OBU_SEF
 #if F106_OBU_TIP
     case OBU_TIP:
-#endif
+#endif // F106_OBU_TIP
 #if F106_OBU_TILEGROUP
     case OBU_TILEGROUP:
     case OBU_METADATA:
@@ -109,7 +109,7 @@ bool ValidObuType(int obu_type) {
     case OBU_FRAME:
     case OBU_REDUNDANT_FRAME_HEADER:
     case OBU_TILE_LIST:
-#endif
+#endif // F106_OBU_TILEGROUP
     case OBU_PADDING: return true;
   }
   return false;

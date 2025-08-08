@@ -65,7 +65,7 @@ int32_t read_tilegroup_header(struct AV1Decoder *pbi,
                               const uint8_t *data, const uint8_t **p_data_end,
                               int *first_tile_group_in_frame, int *start_tile,
                               int *end_tile, OBU_TYPE obu_type);
-#endif
+#endif // F106_OBU_TILEGROUP
 // On success, returns the frame header size. On failure, calls
 // aom_internal_error and does not return.
 // TODO(wtc): Figure out and document the p_data_end parameter.
@@ -81,7 +81,7 @@ uint32_t av1_decode_frame_headers_and_setup(struct AV1Decoder *pbi,
                                             const uint8_t *data,
                                             const uint8_t **p_data_end,
                                             int trailing_bits_present);
-#endif
+#endif // F106_OBU_SWITCH || F106_OBU_SEF || F106_OBU_TIP
 void av1_decode_tg_tiles_and_wrapup(struct AV1Decoder *pbi, const uint8_t *data,
                                     const uint8_t *data_end,
                                     const uint8_t **p_data_end, int start_tile,

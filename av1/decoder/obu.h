@@ -27,7 +27,7 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
 #if F106_OBU_TILEGROUP
 int read_uncompressed_header(AV1Decoder *pbi, OBU_TYPE obu_type,
                              struct aom_read_bit_buffer *rb);
-#endif
+#endif // F106_OBU_TILEGROUP
 aom_codec_err_t aom_get_num_layers_from_operating_point_idc(
     int operating_point_idc, unsigned int *number_spatial_layers,
     unsigned int *number_temporal_layers);

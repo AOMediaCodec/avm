@@ -159,13 +159,13 @@ const char *aom_obu_type_to_string(OBU_TYPE type) {
     case OBU_TEMPORAL_DELIMITER: return "OBU_TEMPORAL_DELIMITER";
 #if F106_OBU_SWITCH
     case OBU_SWITCH: return "OBU_SWITCH";
-#endif
+#endif // F106_OBU_SWITCH
 #if F106_OBU_SEF
     case OBU_SEF: return "OBU_SEF";
-#endif
+#endif // F106_OBU_SEF
 #if F106_OBU_TIP
     case OBU_TIP: return "OBU_TIP";
-#endif
+#endif //F106_OBU_TIP
 #if F106_OBU_TILEGROUP
     case OBU_TILEGROUP: return "OBU_TILEGROUP";
     case OBU_METADATA: return "OBU_METADATA";
@@ -176,7 +176,7 @@ const char *aom_obu_type_to_string(OBU_TYPE type) {
     case OBU_TILE_GROUP: return "OBU_TILE_GROUP";
     case OBU_METADATA: return "OBU_METADATA";
     case OBU_TILE_LIST: return "OBU_TILE_LIST";
-#endif
+#endif // F106_OBU_TILEGROUP
     case OBU_PADDING: return "OBU_PADDING";
     default: break;
   }
