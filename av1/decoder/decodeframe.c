@@ -6567,7 +6567,7 @@ void av1_read_sequence_header_beyond_av1(
   seq_params->dpb_size = seq_params->ref_frames;
 
   seq_params->max_reference_frames =
-      AOMMIN(seq_params->ref_frames - 1, INTER_REFS_PER_FRAME);
+      AOMMIN(seq_params->ref_frames, INTER_REFS_PER_FRAME);
 #else
   // A bit is sent here to indicate if the max number of references is 7. If
   // this bit is 0, then two more bits are sent to indicate the exact number
