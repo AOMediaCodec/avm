@@ -1274,10 +1274,9 @@ enum aome_enc_control_id {
 #endif  // CONFIG_GDF
 
 #if CONFIG_FGS_BLOCK_SIZE
-  /*!\brief Control to enable large blocks for film grain synthesis, int
-   * parameter
+  /*!\brief Control to select block size in film grain synthesis
    *
-   * Valid range: 0..1, 0 is off (default), 1 is on
+   * Valid range: 0..1, 0 is 16x16 block size (default), 1 is 32x32 block size
    */
   AV1E_SET_FILM_GRAIN_BLOCK_SIZE = 173,
 #endif
