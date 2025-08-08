@@ -5390,19 +5390,19 @@ unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
 #endif  // CONFIG_CWG_193_WARP_CAUSAL_THRESHOLD_REMOVAL
 
 #if CONFIG_COMPOUND_WARP_CAUSAL
-        if (!av1_find_projection(
-                mbmi->num_proj_ref[ref], pts, pts_inref, bsize, this_mv,
-                &mbmi->wm_params[ref], mi_row,
+        if (!av1_find_projection(mbmi->num_proj_ref[ref], pts, pts_inref, bsize,
+                                 this_mv, &mbmi->wm_params[ref], mi_row,
 #else
         if (!av1_find_projection(mbmi->num_proj_ref, pts, pts_inref, bsize,
                                  this_mv, &mbmi->wm_params[0], mi_row,
 #endif  // CONFIG_COMPOUND_WARP_CAUSAL
-                mi_col
+                                 mi_col
 #if CONFIG_ACROSS_SCALE_WARP
-                ,
-                get_ref_scale_factors((AV1_COMMON *const)cm, mbmi->ref_frame[0])
+                                 ,
+                                 get_ref_scale_factors((AV1_COMMON *const)cm,
+                                                       mbmi->ref_frame[ref])
 #endif  // CONFIG_ACROSS_SCALE_WARP
-                    )) {
+                                     )) {
           thismse = compute_motion_cost(xd, cm, ms_params, bsize, &this_mv, 1);
 
           if (thismse < bestmse) {
