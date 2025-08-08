@@ -477,7 +477,7 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
 #else
     else if (obu_header.type == OBU_FRAME_HEADER ||
              obu_header.type == OBU_FRAME)
-#endif // F106_OBU_TILEGROUP
+#endif  // F106_OBU_TILEGROUP
     {
       if (got_sequence_header && reduced_still_picture_hdr) {
         found_keyframe = 1;
@@ -492,11 +492,11 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
         if (!first_tile_group_in_frame) {
           aom_rb_read_bit(&rb);
         }
-#endif // F106_OBU_TILEGROUP
+#endif  // F106_OBU_TILEGROUP
 #if !F106_OBU_SEF
         const int show_existing_frame = aom_rb_read_bit(&rb);
         if (!show_existing_frame) {
-#endif // !F106_OBU_SEF
+#endif  // !F106_OBU_SEF
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
           FRAME_TYPE frame_type = KEY_FRAME;
           if (aom_rb_read_bit(&rb)) {
@@ -509,7 +509,7 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
               frame_type = INTRA_ONLY_FRAME;
 #else
               frame_type = aom_rb_read_bit(&rb) ? INTRA_ONLY_FRAME : S_FRAME;
-#endif // F106_OBU_SWITCH
+#endif  // F106_OBU_SWITCH
             }
           }
 #else
@@ -523,7 +523,7 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
           }
 #if !F106_OBU_SEF
         }
-#endif // !F106_OBU_SEF
+#endif  // !F106_OBU_SEF
       }
     }
     // skip past any unread OBU header data
@@ -1567,7 +1567,7 @@ static aom_codec_err_t ctrl_get_frame_header_info(aom_codec_alg_priv_t *ctx,
       frame_header_info->coded_tile_data = pbi->obu_size_hdr.data;
 #if !F106_OBU_TILEGROUP
       frame_header_info->extra_size = pbi->frame_header_size;
-#endif // !F106_OBU_TILEGROUP
+#endif  // !F106_OBU_TILEGROUP
     } else {
       return AOM_CODEC_ERROR;
     }
