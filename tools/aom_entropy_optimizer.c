@@ -975,6 +975,9 @@ int main(int argc, const char **argv) {
     INTER_TX_SET1,
     INTER_TX_SET2,
     INTER_TX_SET3,
+#if CONFIG_REDUCED_TX_SET_EXT
+    INTER_TX_SET4,
+#endif  // CONFIG_REDUCED_TX_SET_EXT
   };
   optimize_cdf_table_var_modes_4d(
       &fc.inter_ext_tx[0][0][0][0], probsfile, 4, cts_each_dim,

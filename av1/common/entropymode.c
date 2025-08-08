@@ -4926,6 +4926,28 @@ static const aom_cdf_prob default_inter_ext_tx_cdf
               { AOM_CDF2(31447), 50 },
           },
       },
+#if CONFIG_REDUCED_TX_SET_EXT
+      {
+          {
+              { AOM_CDF4(8192, 16384, 24576), 0 },
+              { AOM_CDF4(8192, 16384, 24576), 0 },
+              { AOM_CDF4(8192, 16384, 24576), 0 },
+              { AOM_CDF4(8192, 16384, 24576), 0 },
+          },
+          {
+              { AOM_CDF4(8192, 16384, 24576), 0 },
+              { AOM_CDF4(8192, 16384, 24576), 0 },
+              { AOM_CDF4(8192, 16384, 24576), 0 },
+              { AOM_CDF4(8192, 16384, 24576), 0 },
+          },
+          {
+              { AOM_CDF4(8192, 16384, 24576), 0 },
+              { AOM_CDF4(8192, 16384, 24576), 0 },
+              { AOM_CDF4(8192, 16384, 24576), 0 },
+              { AOM_CDF4(8192, 16384, 24576), 0 },
+          },
+      },
+#endif  // CONFIG_REDUCED_TX_SET_EXT
     };
 
 #if CONFIG_REDUCE_CCTX_CTX
@@ -7781,6 +7803,11 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
   CUMULATIVE_AVG_CDF_STRIDE(ctx_left->inter_ext_tx_cdf[3],
                             ctx_tr->inter_ext_tx_cdf[3], INTER_TX_SET3,
                             CDF_SIZE(TX_TYPES));
+#if CONFIG_REDUCED_TX_SET_EXT
+  CUMULATIVE_AVG_CDF_STRIDE(ctx_left->inter_ext_tx_cdf[4],
+                            ctx_tr->inter_ext_tx_cdf[4], INTER_TX_SET4,
+                            CDF_SIZE(TX_TYPES));
+#endif  // CONFIG_REDUCED_TX_SET_EXT
   CUMULATIVE_AVERAGE_CDF(ctx_left->cfl_sign_cdf, ctx_tr->cfl_sign_cdf,
                          CFL_JOINT_SIGNS);
   CUMULATIVE_AVERAGE_CDF(ctx_left->cfl_alpha_cdf, ctx_tr->cfl_alpha_cdf,
@@ -8137,6 +8164,10 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
                    CDF_SIZE(TX_TYPES));
   SHIFT_CDF_STRIDE(ctx_ptr->inter_ext_tx_cdf[3], INTER_TX_SET3,
                    CDF_SIZE(TX_TYPES));
+#if CONFIG_REDUCED_TX_SET_EXT
+  SHIFT_CDF_STRIDE(ctx_ptr->inter_ext_tx_cdf[4], INTER_TX_SET4,
+                   CDF_SIZE(TX_TYPES));
+#endif  // CONFIG_REDUCED_TX_SET_EXT
   SHIFT_CDF(ctx_ptr->cfl_sign_cdf, CFL_JOINT_SIGNS);
   SHIFT_CDF(ctx_ptr->cfl_alpha_cdf, CFL_ALPHABET_SIZE);
   SHIFT_CDF(ctx_ptr->stx_cdf, STX_TYPES);
@@ -8581,6 +8612,10 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
                  INTER_TX_SET2, CDF_SIZE(TX_TYPES));
   AVG_CDF_STRIDE(ctx_left->inter_ext_tx_cdf[3], ctx_tr->inter_ext_tx_cdf[3],
                  INTER_TX_SET3, CDF_SIZE(TX_TYPES));
+#if CONFIG_REDUCED_TX_SET_EXT
+  AVG_CDF_STRIDE(ctx_left->inter_ext_tx_cdf[4], ctx_tr->inter_ext_tx_cdf[4],
+                 INTER_TX_SET4, CDF_SIZE(TX_TYPES));
+#endif  // CONFIG_REDUCED_TX_SET_EXT
   AVERAGE_CDF(ctx_left->cfl_sign_cdf, ctx_tr->cfl_sign_cdf, CFL_JOINT_SIGNS);
   AVERAGE_CDF(ctx_left->cfl_alpha_cdf, ctx_tr->cfl_alpha_cdf,
               CFL_ALPHABET_SIZE);

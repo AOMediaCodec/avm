@@ -2485,14 +2485,32 @@ static INLINE int block_signals_txsize(BLOCK_SIZE bsize) {
 }
 
 // Number of transform types in each set type for intra blocks
-static const int av1_num_ext_tx_set_intra[EXT_TX_SET_TYPES] = { 1,  1,  7,
-                                                                12, 4,  6,
-                                                                11, 15, 7 };
+static const int av1_num_ext_tx_set_intra[EXT_TX_SET_TYPES] = { 1,
+                                                                1,
+                                                                7,
+                                                                12,
+                                                                4,
+                                                                6,
+                                                                11,
+                                                                15,
+                                                                7
+#if CONFIG_REDUCED_TX_SET_EXT
+                                                                ,
+                                                                3
+#endif  // CONFIG_REDUCED_TX_SET_EXT
+};
+#if CONFIG_REDUCED_TX_SET_EXT
+static const int av1_num_reduced_tx_set[EXT_TX_SETS_INTRA] = { 2, 1, 2 };
+#else
 static const int av1_num_reduced_tx_set = 2;
+#endif  // CONFIG_REDUCED_TX_SET_EXT
 
 // Number of transform types in each set type
-static const int av1_num_ext_tx_set[EXT_TX_SET_TYPES] = {
-  1, 2, 7, 12, 5, 7, 12, 16,
+static const int av1_num_ext_tx_set[EXT_TX_SET_TYPES] = { 1,  2, 7,  12,
+                                                          5,  7, 12, 16,
+#if CONFIG_REDUCED_TX_SET_EXT
+                                                          -1, 4
+#endif  // CONFIG_REDUCED_TX_SET_EXT
 };
 
 static const int av1_ext_tx_used[EXT_TX_SET_TYPES][TX_TYPES] = {
@@ -2505,6 +2523,9 @@ static const int av1_ext_tx_used[EXT_TX_SET_TYPES][TX_TYPES] = {
   { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0 },
   { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
   { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+#if CONFIG_REDUCED_TX_SET_EXT
+  { 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0 },
+#endif  // CONFIG_REDUCED_TX_SET_EXT
 };
 
 static const int av1_mdtx_used_flag[EXT_TX_SIZES][INTRA_MODES][TX_TYPES] = {
@@ -2596,6 +2617,9 @@ static const uint16_t av1_ext_tx_used_flag[EXT_TX_SET_TYPES] = {
   0x0FFF,  // 0000 1111 1111 1111
   0xFFFF,  // 1111 1111 1111 1111
   0xFFFF,  // 1111 1111 1111 1111
+#if CONFIG_REDUCED_TX_SET_EXT
+  0x0E01,  // 0000 1110 0000 0001
+#endif     // CONFIG_REDUCED_TX_SET_EXT
 };
 
 static const uint16_t av1_md_trfm_used_flag[EXT_TX_SIZES][INTRA_MODES] = {
@@ -2679,7 +2703,16 @@ static INLINE TxSetType av1_get_ext_tx_set_type(TX_SIZE tx_size, int is_inter,
     return (tx_size_sqr == TX_32X32) ? EXT_TX_SET_DCT_IDTX
                                      : EXT_TX_SET_LONG_SIDE_32;
   }
+#if CONFIG_REDUCED_TX_SET_EXT
+  const int reduced_set_map[2][3] = {
+    { EXT_NEW_TX_SET, EXT_TX_SET_DCT_IDTX, EXT_NEW_TX_SET },
+    { EXT_TX_SET_DCT_IDTX, EXT_TX_SET_DCT_IDTX, EXT_TX_SET_DCT_IDTX_IDDCT },
+  };
+  if (use_reduced_set)
+    return reduced_set_map[is_inter ? 1 : 0][use_reduced_set - 1];
+#else
   if (use_reduced_set) return is_inter ? EXT_TX_SET_DCT_IDTX : EXT_NEW_TX_SET;
+#endif  // CONFIG_REDUCED_TX_SET_EXT
   if (is_inter) {
     return av1_ext_tx_set_lookup[is_inter][tx_size_sqr == TX_16X16];
   } else {
@@ -2690,9 +2723,19 @@ static INLINE TxSetType av1_get_ext_tx_set_type(TX_SIZE tx_size, int is_inter,
 // Maps tx set types to the indices.
 static const int ext_tx_set_index[2][EXT_TX_SET_TYPES] = {
   { // Intra
-    0, -1, 2, 3, -1, -1, -1, -1, 1 },
+    0, -1, 2, 3, -1, -1, -1, -1, 1
+#if CONFIG_REDUCED_TX_SET_EXT
+    ,
+    1
+#endif  // CONFIG_REDUCED_TX_SET_EXT
+  },
   { // Inter
-    0, 3, 4, 5, -1, -1, 2, 1 },
+    0, 3, 4, 5, -1, -1, 2, 1
+#if CONFIG_REDUCED_TX_SET_EXT
+    ,
+    1, 4
+#endif  // CONFIG_REDUCED_TX_SET_EXT
+  },
 };
 
 static INLINE int get_ext_tx_set(TX_SIZE tx_size, int is_inter,

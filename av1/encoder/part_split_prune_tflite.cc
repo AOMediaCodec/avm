@@ -153,13 +153,13 @@ const ModelDef models[] = {
   MODELDEF_NORM(sms_part_none_prune_tflite_model_bs4_135,
                 MODEL_INTER_NONE_BS4_135, PT_NONE, 66, 6),
   MODELDEF(sms_part_split_prune_tflite_model_bs12, MODEL_INTER_SPLIT_64X64,
-           PT_SPLIT, 64, 0),
+           PT_SPLIT, 31, 0),
   MODELDEF(sms_part_split_prune_tflite_model_bs9, MODEL_INTER_SPLIT_32X32,
-           PT_SPLIT, 64, 0),
+           PT_SPLIT, 31, 0),
   MODELDEF(sms_part_split_prune_tflite_model_bs6, MODEL_INTER_SPLIT_16X16,
-           PT_SPLIT, 64, 0),
+           PT_SPLIT, 31, 0),
   MODELDEF(sms_part_split_prune_tflite_model_bs3, MODEL_INTER_SPLIT_8X8,
-           PT_SPLIT, 64, 0),
+           PT_SPLIT, 31, 0),
 };
 
 static void get_input_order(tflite::Interpreter *interpreter, uint8_t *order) {

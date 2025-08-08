@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (c) 2021, Alliance for Open Media. All rights reserved
  *
  * This source code is subject to the terms of the BSD 3-Clause Clear License
@@ -1947,15 +1947,38 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
         av1_md_trfm_used_flag[av1_size_class[tx_size]]
                              [is_inter ? 0 : av1_md_class[intra_dir]];
     ext_tx_used_flag &= mdtx_mask;
+#if CONFIG_REDUCED_TX_SET_EXT
+    if (cm->features.reduced_tx_set_used == 1) {
+      ext_tx_used_flag &=
+          (1 << DCT_DCT) | (1 << ADST_ADST);  // DCT_DCT, ADST_ADST
+    } else if (cm->features.reduced_tx_set_used == 2) {
+      ext_tx_used_flag &= (1 << DCT_DCT) | (1 << IDTX);  // DCT_DCT, IDTX
+    } else if (cm->features.reduced_tx_set_used == 3) {
+      ext_tx_used_flag &=
+          (1 << DCT_DCT) | (1 << ADST_ADST);  // DCT_DCT, ADST_ADST
+    }
+#else
     if (cm->features.reduced_tx_set_used) {
       ext_tx_used_flag &=
           (1 << DCT_DCT) | (1 << ADST_ADST);  // DCT_DCT, ADST_ADST
     }
+#endif  // CONFIG_REDUCED_TX_SET_EXT
     if (txsize_sqr_up_map[tx_size] == TX_32X32) ext_tx_used_flag |= (1 << IDTX);
   } else {
+#if CONFIG_REDUCED_TX_SET_EXT
+    if (cm->features.reduced_tx_set_used == 1) {
+      ext_tx_used_flag &= (1 << DCT_DCT) | (1 << IDTX);  // DCT_DCT, IDTX
+    } else if (cm->features.reduced_tx_set_used == 2) {
+      ext_tx_used_flag &= (1 << DCT_DCT) | (1 << IDTX);  // DCT_DCT, IDTX
+    } else if (cm->features.reduced_tx_set_used == 3) {
+      ext_tx_used_flag &= (1 << DCT_DCT) | (1 << IDTX) | (1 << V_DCT) |
+                          (1 << H_DCT);  // DCT_DCT, IDTX, H_DCT, V_DCT
+    }
+#else
     if (cm->features.reduced_tx_set_used) {
       ext_tx_used_flag &= (1 << DCT_DCT) | (1 << IDTX);  // DCT_DCT, IDTX
     }
+#endif  // CONFIG_REDUCED_TX_SET_EXT
   }
 
   if (cpi->oxcf.txfm_cfg.enable_flip_idtx == 0)

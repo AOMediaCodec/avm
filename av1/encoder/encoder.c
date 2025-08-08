@@ -576,11 +576,17 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_ext_seg = tool_cfg->enable_ext_seg;
 #endif  // CONFIG_EXT_SEG
 #if CONFIG_EXTRA_DPB
+#if CONFIG_CWG_F168_DPB_HLS
+  seq->dpb_size = tool_cfg->dpb_size;
+  seq->ref_frames = seq->dpb_size;
+  seq->ref_frames_log2 = aom_ceil_log2(seq->dpb_size);
+#else
   seq->num_extra_dpb = tool_cfg->num_extra_dpb;
   seq->ref_frames = seq->num_extra_dpb ? REGULAR_REF_FRAMES + seq->num_extra_dpb
                                        : REGULAR_REF_FRAMES;
   seq->ref_frames_log2 =
       seq->num_extra_dpb ? REF_FRAMES_LOG2 + 1 : REF_FRAMES_LOG2;
+#endif  // CONFIG_CWG_F168_DPB_HLS
 #else
   seq->ref_frames = REF_FRAMES;
   seq->ref_frames_log2 = REF_FRAMES_LOG2;
@@ -2314,7 +2320,7 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
       av1_setup_scale_factors_for_frame(sf, buf->buf.y_crop_width,
                                         buf->buf.y_crop_height, cm->width,
                                         cm->height);
-      if (av1_is_scaled(sf)) aom_extend_frame_borders(&buf->buf, num_planes);
+      if (av1_is_scaled(sf)) aom_extend_frame_borders(&buf->buf, num_planes, 0);
     }
   }
 
@@ -2327,7 +2333,7 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
       av1_setup_scale_factors_for_frame(sf, buf->buf.y_crop_width,
                                         buf->buf.y_crop_height, cm->width,
                                         cm->height);
-      if (av1_is_scaled(sf)) aom_extend_frame_borders(&buf->buf, num_planes);
+      if (av1_is_scaled(sf)) aom_extend_frame_borders(&buf->buf, num_planes, 0);
     }
   }
 
@@ -3511,7 +3517,8 @@ static INLINE int compute_tip_direct_output_mode_RD(AV1_COMP *cpi,
         cm->cur_frame->base_qindex = cm->quant_params.base_qindex =
             base_qindex_backup;
       }
-      aom_extend_frame_borders(&cm->tip_ref.tip_frame->buf, av1_num_planes(cm));
+      aom_extend_frame_borders(&cm->tip_ref.tip_frame->buf, av1_num_planes(cm),
+                               0);
     }
 #endif  // CONFIG_LF_SUB_PU
 
@@ -3733,7 +3740,8 @@ static INLINE int finalize_tip_mode(AV1_COMP *cpi, uint8_t *dest, size_t *size,
     if (cm->seq_params.enable_lf_sub_pu && cm->features.allow_lf_sub_pu) {
       init_tip_lf_parameter(cm, 0, av1_num_planes(cm));
       loop_filter_tip_frame(cm, 0, av1_num_planes(cm));
-      aom_extend_frame_borders(&cm->tip_ref.tip_frame->buf, av1_num_planes(cm));
+      aom_extend_frame_borders(&cm->tip_ref.tip_frame->buf, av1_num_planes(cm),
+                               0);
     }
 #endif  // CONFIG_LF_SUB_PU
     aom_yv12_copy_frame(&cm->tip_ref.tip_frame->buf, &cm->cur_frame->buf,
@@ -3962,7 +3970,7 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
 
   // TODO(debargha): Fix mv search range on encoder side
   // aom_extend_frame_inner_borders(&cm->cur_frame->buf, av1_num_planes(cm));
-  aom_extend_frame_borders(&cm->cur_frame->buf, av1_num_planes(cm));
+  aom_extend_frame_borders(&cm->cur_frame->buf, av1_num_planes(cm), 0);
 
 #ifdef OUTPUT_YUV_REC
   aom_write_one_yuv_frame(cm, &cm->cur_frame->buf);

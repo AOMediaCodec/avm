@@ -1840,13 +1840,6 @@ int av1_opfl_mv_refinement_nxn_avx2(
       for (int j = 0; j < bw; j += 16) {
         if (is_subblock_outside(mi_x + j, mi_y + i, mi_cols, mi_rows,
                                 build_for_decode)) {
-          const int num_blocks = 2;
-          for (int idx = 0; idx < num_blocks; idx++) {
-            *(vx0 + n_blocks + idx) = 0;
-            *(vy0 + n_blocks + idx) = 0;
-            *(vx1 + n_blocks + idx) = 0;
-            *(vy1 + n_blocks + idx) = 0;
-          }
           n_blocks += 2;
           continue;
         }
@@ -1860,4 +1853,152 @@ int av1_opfl_mv_refinement_nxn_avx2(
     }
   }
   return n_blocks;
+}
+
+// This round shift function has only been tested for the case d0 = 1, d1 = -1
+// that is used in CONFIG_OPFL_MV_SEARCH. To use centered=1 option for more
+// general d0 and d1, this function needs to be extended.
+static INLINE __m256i round_power_of_two_signed_epi16(__m256i temp1,
+                                                      const int bits) {
+  __m256i ones = _mm256_set1_epi16(1);
+  __m256i v_sign_d = _mm256_sign_epi16(ones, temp1);
+  __m256i v_bias_d = _mm256_set1_epi16((1 << bits) >> 1);
+  __m256i reg = _mm256_mullo_epi16(temp1, v_sign_d);
+  reg = _mm256_srli_epi16(_mm256_add_epi16(reg, v_bias_d), bits);
+  return _mm256_mullo_epi16(reg, v_sign_d);
+}
+
+static AOM_FORCE_INLINE void compute_pred_using_interp_grad_highbd_bw8_avx2(
+    const uint16_t *src1, const uint16_t *src2, int src_stride, int16_t *dst1,
+    int16_t *dst2, int bw, int bh, int d0, int d1, int bd, int centered) {
+  assert(bw == 8);
+  const __m256i zero = _mm256_setzero_si256();
+  const __m256i mul1 = _mm256_set1_epi16(d0);
+  const __m256i mul2 = _mm256_sub_epi16(zero, _mm256_set1_epi16(d1));
+  const __m256i mul_val1 = _mm256_unpacklo_epi16(mul1, mul2);
+
+  for (int i = 0; i < bh; i += 2) {
+    int16_t *out1 = dst1 + i * bw;
+    int16_t *out2 = dst2 ? (dst2 + i * bw) : NULL;
+
+    __m256i src_buf1, src_buf2;
+
+    if (src_stride == 8) {
+      const uint16_t *inp1 = src1 + i * src_stride;
+      const uint16_t *inp2 = src2 + i * src_stride;
+
+      src_buf1 = _mm256_load_si256((const __m256i *)inp1);
+      src_buf2 = _mm256_load_si256((const __m256i *)inp2);
+    } else {
+      const uint16_t *inp11 = src1 + i * src_stride;
+      const uint16_t *inp12 = inp11 + src_stride;
+      const uint16_t *inp21 = src2 + i * src_stride;
+      const uint16_t *inp22 = inp21 + src_stride;
+
+      const __m128i src_buf11 = _mm_loadu_si128((const __m128i *)inp11);
+      const __m128i src_buf12 = _mm_loadu_si128((const __m128i *)inp12);
+      const __m128i src_buf21 = _mm_loadu_si128((const __m128i *)inp21);
+      const __m128i src_buf22 = _mm_loadu_si128((const __m128i *)inp22);
+
+      src_buf1 = _mm256_set_m128i(src_buf12, src_buf11);
+      src_buf2 = _mm256_set_m128i(src_buf22, src_buf21);
+    }
+
+    __m256i temp1, temp2;
+    __m256i reg1 = _mm256_unpacklo_epi16(src_buf1, src_buf2);
+    __m256i reg2 = _mm256_unpackhi_epi16(src_buf1, src_buf2);
+
+    temp1 = _mm256_madd_epi16(reg1, mul_val1);
+    temp2 = _mm256_madd_epi16(reg2, mul_val1);
+    temp1 = _mm256_packs_epi32(temp1, temp2);
+    if (centered) temp1 = round_power_of_two_signed_epi16(temp1, 1);
+    temp1 = round_power_of_two_signed_epi16(temp1, bd - 8);
+    temp1 = clamp_epi16(temp1, -OPFL_PRED_MAX, OPFL_PRED_MAX);
+    _mm256_store_si256((__m256i *)out1, temp1);
+
+    if (dst2) {
+      // src_bufs are pixels up to 12 bits. So subtraction should not overflow.
+      temp2 = _mm256_sub_epi16(src_buf1, src_buf2);
+      temp2 = round_power_of_two_signed_epi16(temp2, bd - 8);
+      temp2 = clamp_epi16(temp2, -OPFL_PRED_MAX, OPFL_PRED_MAX);
+      _mm256_store_si256((__m256i *)out2, temp2);
+    }
+  }
+}
+
+static AOM_FORCE_INLINE void compute_pred_using_interp_grad_highbd_bwlt8_avx2(
+    const uint16_t *src1, const uint16_t *src2, int src_stride, int16_t *dst1,
+    int16_t *dst2, int dst_stride, int bw, int bh, int d0, int d1, int bd,
+    int centered) {
+  const __m256i zero = _mm256_setzero_si256();
+  const __m256i mul1 = _mm256_set1_epi16(d0);
+  const __m256i mul2 = _mm256_sub_epi16(zero, _mm256_set1_epi16(d1));
+  const __m256i mul_val1 = _mm256_unpacklo_epi16(mul1, mul2);
+
+  for (int i = 0; i < bh; i++) {
+    const uint16_t *inp1 = src1 + i * src_stride;
+    const uint16_t *inp2 = src2 + i * src_stride;
+    int16_t *out1 = dst1 + i * dst_stride;
+    int16_t *out2 = dst2 ? (dst2 + i * dst_stride) : NULL;
+
+    for (int j = 0; j < bw; j = j + 16) {
+      const __m256i src_buf1 = _mm256_loadu_si256((const __m256i *)(inp1 + j));
+      const __m256i src_buf2 = _mm256_loadu_si256((const __m256i *)(inp2 + j));
+
+      __m256i temp1, temp2;
+      __m256i reg1 = _mm256_unpacklo_epi16(src_buf1, src_buf2);
+      __m256i reg2 = _mm256_unpackhi_epi16(src_buf1, src_buf2);
+
+      temp1 = _mm256_madd_epi16(reg1, mul_val1);
+      temp2 = _mm256_madd_epi16(reg2, mul_val1);
+      temp1 = _mm256_packs_epi32(temp1, temp2);
+      if (centered) temp1 = round_power_of_two_signed_epi16(temp1, 1);
+      temp1 = round_power_of_two_signed_epi16(temp1, bd - 8);
+      temp1 = clamp_epi16(temp1, -OPFL_PRED_MAX, OPFL_PRED_MAX);
+      _mm256_store_si256((__m256i *)(out1 + j), temp1);
+
+      if (dst2) {
+        // src_bufs are pixels up to 12 bits. So subtraction should not
+        // overflow.
+        temp2 = _mm256_sub_epi16(src_buf1, src_buf2);
+        temp2 = round_power_of_two_signed_epi16(temp2, bd - 8);
+        temp2 = clamp_epi16(temp2, -OPFL_PRED_MAX, OPFL_PRED_MAX);
+        _mm256_store_si256((__m256i *)(out2 + j), temp2);
+      }
+    }
+  }
+}
+
+static AOM_FORCE_INLINE void compute_pred_using_interp_grad_highbd_avx2(
+    const uint16_t *src1, const uint16_t *src2, int src_stride, int16_t *dst1,
+    int16_t *dst2, int bw, int bh, int d0, int d1, int bd, int centered) {
+  const int h_size = bh >= 16 ? 16 : bh;
+  const int w_size = 16;
+  for (int h = 0; h < bh; h += h_size) {
+    for (int w = 0; w < bw; w += w_size) {
+      const int src_offset = h * src_stride + w;
+      const int dst_offset = h * bw + w;
+      compute_pred_using_interp_grad_highbd_bwlt8_avx2(
+          src1 + src_offset, src2 + src_offset, src_stride, dst1 + dst_offset,
+          dst2 + dst_offset, bw, w_size, h_size, d0, d1, bd, centered);
+    }
+  }
+}
+
+void av1_copy_pred_array_highbd_avx2(const uint16_t *src1, const uint16_t *src2,
+                                     int src_stride, int16_t *dst1,
+                                     int16_t *dst2, int bw, int bh, int d0,
+                                     int d1, int bd, int centered) {
+  if (bw == 8) {
+    compute_pred_using_interp_grad_highbd_bw8_avx2(
+        src1, src2, src_stride, dst1, dst2, bw, bh, d0, d1, bd, centered);
+  } else if (bw == 16) {
+    compute_pred_using_interp_grad_highbd_avx2(
+        src1, src2, src_stride, dst1, dst2, bw, bh, d0, d1, bd, centered);
+  } else {
+    // Using avx2 with bw > 16 results in neutral or even slower performance
+    // than SSE4. May need further improvements here.
+    av1_copy_pred_array_highbd_sse4_1(src1, src2, src_stride, dst1, dst2, bw,
+                                      bh, d0, d1, bd, centered);
+  }
 }

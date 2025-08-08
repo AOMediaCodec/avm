@@ -96,6 +96,9 @@ static const int av1_ext_tx_set_idx_to_type[2][AOMMAX(EXT_TX_SETS_INTRA,
       EXT_TX_SET_ALL16,
       EXT_TX_SET_DTT9_IDTX_1DDCT,
       EXT_TX_SET_DCT_IDTX,
+#if CONFIG_REDUCED_TX_SET_EXT
+      EXT_TX_SET_DCT_IDTX_IDDCT,
+#endif  // CONFIG_REDUCED_TX_SET_EXT
   },
 };
 
@@ -365,10 +368,17 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
     }
 
     for (s = 1; s < EXT_TX_SETS_INTRA; ++s) {
+#if !CONFIG_REDUCED_TX_SET_EXT
       const int cdf_offset = cm->features.reduced_tx_set_used ? 1 : 0;
+#endif  // !CONFIG_REDUCED_TX_SET_EXT
       if (use_intra_ext_tx_for_txsize[s][i]) {
+#if CONFIG_REDUCED_TX_SET_EXT
+        av1_cost_tokens_from_cdf(mode_costs->intra_tx_type_costs[s][i],
+                                 fc->intra_ext_tx_cdf[s][i], NULL);
+#else
         av1_cost_tokens_from_cdf(mode_costs->intra_tx_type_costs[s][i],
                                  fc->intra_ext_tx_cdf[s + cdf_offset][i], NULL);
+#endif  // CONFIG_REDUCED_TX_SET_EXT
       }
     }
   }

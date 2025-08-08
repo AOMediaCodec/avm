@@ -697,15 +697,27 @@ enum {
   // Discrete Trig transforms w/ flip (9) + Identity (1) + 1D Hor/Ver (6)
   EXT_TX_SET_ALL16,
   EXT_NEW_TX_SET,
+#if CONFIG_REDUCED_TX_SET_EXT
+  // DCT + Identity (1) + 1D Hor/vert DCT (2)
+  EXT_TX_SET_DCT_IDTX_IDDCT,
+#endif  // CONFIG_REDUCED_TX_SET_EXT
   EXT_TX_SET_TYPES
 } UENUM1BYTE(TxSetType);
 
 #define EOB_TX_CTXS 3
-#define EXT_TX_SIZES 4       // number of sizes that use extended transforms
+#define EXT_TX_SIZES 4  // number of sizes that use extended transforms
+
+#if CONFIG_REDUCED_TX_SET_EXT
+#define EXT_TX_SETS_INTER 5  // Sets of transform selections for INTER
+#else
 #define EXT_TX_SETS_INTER 4  // Sets of transform selections for INTER
+#endif                       // CONFIG_REDUCED_TX_SET_EXT
 #define INTER_TX_SET1 16
 #define INTER_TX_SET2 12
 #define INTER_TX_SET3 2
+#if CONFIG_REDUCED_TX_SET_EXT
+#define INTER_TX_SET4 4
+#endif  // CONFIG_REDUCED_TX_SET_EXT
 
 #define EXT_TX_SETS_INTRA 3  // Sets of transform selections for INTRA
 #define INTRA_TX_SET1 7

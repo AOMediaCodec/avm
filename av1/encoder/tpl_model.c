@@ -1314,7 +1314,7 @@ void av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
     }
 
     aom_extend_frame_borders(tpl_data->tpl_frame[frame_idx].rec_picture,
-                             av1_num_planes(cm));
+                             av1_num_planes(cm), 0);
   }
 
   for (int frame_idx = tpl_gf_group_frames - 1; frame_idx >= gf_group->index;
