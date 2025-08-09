@@ -530,7 +530,7 @@ static void update_palette_cdf(MACROBLOCKD *xd, const MB_MODE_INFO *const mbmi,
           n - PALETTE_MIN_SIZE, PALETTE_SIZES);
     }
   }
-#endif
+#endif  // !CONFIG_DISABLE_PALC
 }
 
 static INLINE void update_fsc_cdf(const AV1_COMMON *const cm, MACROBLOCKD *xd,

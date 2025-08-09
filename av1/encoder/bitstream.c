@@ -1369,7 +1369,7 @@ static AOM_INLINE void write_palette_mode_info(const AV1_COMMON *cm,
       write_palette_colors_uv(xd, pmi, cm->seq_params.bit_depth, w);
     }
   }
-#endif
+#endif  // !CONFIG_DISABLE_PALC
 }
 
 void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,

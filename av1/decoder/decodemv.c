@@ -1245,6 +1245,7 @@ static void read_palette_colors_y(MACROBLOCKD *const xd, int bit_depth,
 #endif  // CONFIG_PALETTE_IMPROVEMENTS
 }
 
+#if !CONFIG_DISABLE_PALC
 static void read_palette_colors_uv(MACROBLOCKD *const xd, int bit_depth,
                                    PALETTE_MODE_INFO *const pmi,
                                    aom_reader *r) {
@@ -1343,10 +1344,10 @@ static void read_palette_colors_uv(MACROBLOCKD *const xd, int bit_depth,
     }
   }
 }
+#endif  // !CONFIG_DISABLE_PALC
 
 static void read_palette_mode_info(AV1_COMMON *const cm, MACROBLOCKD *const xd,
                                    aom_reader *r) {
-  const int num_planes = av1_num_planes(cm);
   MB_MODE_INFO *const mbmi = xd->mi[0];
   const BLOCK_SIZE bsize = mbmi->sb_type[xd->tree_type == CHROMA_PART];
   assert(av1_allow_palette(PLANE_TYPE_Y,
@@ -1385,6 +1386,7 @@ static void read_palette_mode_info(AV1_COMMON *const cm, MACROBLOCKD *const xd,
     }
   }
 #if !CONFIG_DISABLE_PALC
+  const int num_planes = av1_num_planes(cm);
   if (num_planes > 1 && xd->tree_type != LUMA_PART &&
       mbmi->uv_mode == UV_DC_PRED && xd->is_chroma_ref) {
 #if !CONFIG_PALETTE_CTX_REDUCTION
@@ -1413,7 +1415,7 @@ static void read_palette_mode_info(AV1_COMMON *const cm, MACROBLOCKD *const xd,
       read_palette_colors_uv(xd, cm->seq_params.bit_depth, pmi, r);
     }
   }
-#endif
+#endif  // !CONFIG_DISABLE_PALC
 }
 
 static void read_intra_dip_mode_info(const AV1_COMMON *const cm,

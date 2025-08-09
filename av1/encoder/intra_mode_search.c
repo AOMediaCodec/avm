@@ -870,7 +870,7 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
         &best_mbmi, tmp_cctx_type_map, &best_rd, rate, rate_tokenonly,
         distortion, skippable, ctx->num_4x4_blk_chroma);
   }
-#endif
+#endif  // !CONFIG_DISABLE_PALC
 
   *mbmi = best_mbmi;
 #if CONFIG_SDP_CFL_LATENCY_FIX

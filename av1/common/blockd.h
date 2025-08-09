@@ -3733,7 +3733,7 @@ static INLINE int av1_allow_palette(int plane_type,
   return
 #if CONFIG_DISABLE_PALC
       plane_type == PLANE_TYPE_Y &&
-#endif
+#endif  // CONFIG_DISABLE_PALC
       allow_screen_content_tools && block_size_wide[sb_type] <= 64 &&
       block_size_high[sb_type] <= 64 && sb_type >= BLOCK_8X8;
 }
