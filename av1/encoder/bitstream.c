@@ -7146,6 +7146,27 @@ static AOM_INLINE void write_bitstream_level(AV1_LEVEL seq_level_idx,
   aom_wb_write_literal(wb, seq_level_idx, LEVEL_BITS);
 }
 
+#if CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
+static void aom_write_tlayer_dependency_info(struct aom_write_bit_buffer *wb, const SequenceHeader *const seq) {
+  const int max_layer_id = seq->max_tlayer_id;
+  for (int curr_layer_id = 1; curr_layer_id <= max_layer_id; curr_layer_id++ ) {
+    for (int ref_layer_id = curr_layer_id; ref_layer_id >= 0; ref_layer_id--) {
+      aom_wb_write_bit(wb, seq->tlayer_dependency_map[curr_layer_id][ref_layer_id]);
+    }
+  }
+}
+
+static void aom_write_mlayer_dependency_info(struct aom_write_bit_buffer *wb, const SequenceHeader *const seq) {
+  const int max_layer_id = seq->max_mlayer_id;
+  for (int curr_layer_id = 1; curr_layer_id <= max_layer_id; curr_layer_id++ ) {
+    for (int ref_layer_id = curr_layer_id; ref_layer_id >= 0; ref_layer_id--) {
+      aom_wb_write_bit(wb, seq->mlayer_dependency_map[curr_layer_id][ref_layer_id]);
+    }
+  }
+}
+#endif  // CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
+
+
 uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
                                        uint8_t *const dst) {
   struct aom_write_bit_buffer wb = { dst, 0 };
@@ -7218,6 +7239,28 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
       }
     }
   }
+#if CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
+  if (!seq_params->reduced_still_picture_hdr) {
+    aom_wb_write_literal(&wb, seq_params->max_tlayer_id, TLAYER_BITS);
+    aom_wb_write_literal(&wb, seq_params->max_mlayer_id, MLAYER_BITS);
+  }
+  
+  // tlayer dependency description
+  if(seq_params->max_tlayer_id > 0) {
+    aom_wb_write_bit(&wb, seq_params->tlayer_dependency_present_flag);
+  }
+  if (seq_params->tlayer_dependency_present_flag) {
+    aom_write_tlayer_dependency_info(&wb, seq_params);
+  }
+  
+  // mlayer dependency description
+  if(seq_params->max_mlayer_id > 0) {
+    aom_wb_write_bit(&wb, seq_params->mlayer_dependency_present_flag);
+  }
+  if (seq_params->mlayer_dependency_present_flag) {
+    aom_write_mlayer_dependency_info(&wb, seq_params);
+  }
+#endif  // CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
   write_sequence_header(seq_params, &wb);
 
   aom_wb_write_bit(&wb, seq_params->film_grain_params_present);
