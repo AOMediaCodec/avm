@@ -7345,12 +7345,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
               frame_to_show->frame_type == KEY_FRAME &&
               !frame_to_show->showable_frame &&
-              frame_to_show->frame_output_done) ||
-          (
+              frame_to_show->frame_output_done)
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
-              !seq_params->enable_frame_output_order &&
+          || (!seq_params->enable_frame_output_order &&
+              !frame_to_show->showable_frame)
 #endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
-              !frame_to_show->showable_frame)) {
+      ) {
         aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                            "Buffer does not contain a showable frame");
       }
