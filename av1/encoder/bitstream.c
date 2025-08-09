@@ -1307,7 +1307,6 @@ static AOM_INLINE void write_palette_mode_info(const AV1_COMMON *cm,
                                                const MACROBLOCKD *xd,
                                                const MB_MODE_INFO *const mbmi,
                                                aom_writer *w) {
-  const int num_planes = av1_num_planes(cm);
   const BLOCK_SIZE bsize = mbmi->sb_type[xd->tree_type == CHROMA_PART];
   assert(av1_allow_palette(PLANE_TYPE_Y,
                            cm->features.allow_screen_content_tools, bsize));
@@ -1344,6 +1343,7 @@ static AOM_INLINE void write_palette_mode_info(const AV1_COMMON *cm,
   }
 
 #if !CONFIG_DISABLE_PALC
+  const int num_planes = av1_num_planes(cm);
   const int uv_dc_pred = num_planes > 1 && xd->tree_type != LUMA_PART &&
                          mbmi->uv_mode == UV_DC_PRED && xd->is_chroma_ref;
   if (uv_dc_pred) {

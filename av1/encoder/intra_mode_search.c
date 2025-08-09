@@ -630,7 +630,6 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
   assert(!is_inter_block(mbmi, xd->tree_type));
   MB_MODE_INFO best_mbmi = *mbmi;
   int64_t best_rd = INT64_MAX, this_rd;
-  const ModeCosts *mode_costs = &x->mode_costs;
   const IntraModeCfg *const intra_mode_cfg = &cpi->oxcf.intra_mode_cfg;
   // Temporary buffer to hold the best cross-chroma txfm type corresponds
   // to best chroma mode of a given partition block.
@@ -862,6 +861,7 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
                         cpi->common.features.allow_screen_content_tools,
                         mbmi->sb_type[PLANE_TYPE_UV]);
   if (try_palette) {
+    const ModeCosts *mode_costs = &x->mode_costs;
     uint8_t *best_palette_color_map = x->palette_buffer->best_palette_color_map;
     av1_rd_pick_palette_intra_sbuv(
         cpi, x,
