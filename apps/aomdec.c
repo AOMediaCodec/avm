@@ -685,7 +685,7 @@ static int main_loop(int argc, const char **argv_) {
   input.webm_ctx = &webm_ctx;
 #endif
 #if CONFIG_NEW_OBU_HEADER
-  struct ObuDecInputContext obu_ctx = { NULL, NULL, 0, 0, /*is_annexb=*/1 };
+  struct ObuDecInputContext obu_ctx = { NULL, NULL, 0, 0, /*is_annexb=*/1, 0 };
 #else
   struct ObuDecInputContext obu_ctx = { NULL, NULL, 0, 0, /*is_annexb=*/0 };
 #endif  // CONFIG_NEW_OBU_HEADER
