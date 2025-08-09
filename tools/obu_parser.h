@@ -23,6 +23,8 @@ namespace aom_tools {
 // pointer is non-null.
 bool DumpObu(const uint8_t *data, int length, int *obu_overhead_bytes);
 
+void PrintObuHeader(const ObuHeader *header);
+
 }  // namespace aom_tools
 
 #endif  // AOM_TOOLS_OBU_PARSER_H_

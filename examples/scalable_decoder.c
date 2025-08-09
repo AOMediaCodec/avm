@@ -154,7 +154,7 @@ int main(int argc, char **argv) {
   }
 
   while (!obudec_read_temporal_unit(&obu_ctx, &buf, &bytes_in_buffer,
-                                    &buffer_size)) {
+                                    &buffer_size, NULL, NULL)) {
     aom_codec_iter_t iter = NULL;
     aom_image_t *img = NULL;
     if (aom_codec_decode(&codec, buf, bytes_in_buffer, NULL))
