@@ -824,8 +824,15 @@ void av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
         start_mv.col += sub_mv_offset.col;
         start_mv.row += sub_mv_offset.row;
       }
-      bestsme = cpi->mv_search_params.find_fractional_mv_step(
-          xd, cm, &ms_params, start_mv, &best_mv.as_mv, &dis, &sse, NULL);
+      // `start_mv` can go out of range after adding `sub_mv_offset`.
+      if (!av1_is_subpelmv_in_range(&ms_params.mv_limits, start_mv)) {
+        cur_mv[id].as_int = INVALID_MV;
+        *rate_mv = INT_MAX;
+        return;
+      } else {
+        bestsme = cpi->mv_search_params.find_fractional_mv_step(
+            xd, cm, &ms_params, start_mv, &best_mv.as_mv, &dis, &sse, NULL);
+      }
     }
 
     // Restore the pointer to the first prediction buffer.

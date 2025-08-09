@@ -1370,6 +1370,10 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
                                          rate_mv);
           else
             av1_joint_motion_search(cpi, x, bsize, cur_mv, NULL, 0, rate_mv);
+          if (cur_mv[0].as_int == INVALID_MV ||
+              cur_mv[1].as_int == INVALID_MV) {
+            return INT64_MAX;
+          }
         } else {
           *rate_mv = 0;
           for (int i = 0; i < 2; ++i) {
