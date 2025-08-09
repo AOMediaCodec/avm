@@ -23,10 +23,13 @@ void compute_residual_stats(AV1_COMP *const cpi, ThreadData *td, MACROBLOCK *x,
   AV1_COMMON *cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
   TX_SIZE tx_size = max_txsize_rect_lookup[bsize];
-  const int plane = 0;
+  const int plane = AOM_PLANE_Y;
   const int block = 0;
   struct macroblock_plane *const p = &x->plane[plane];
   struct macroblockd_plane *const pd = &xd->plane[plane];
+
+  int old_tree_type = xd->tree_type;
+  xd->tree_type = LUMA_PART;
 
   memset(out, 0, sizeof(ResidualStats));
 
@@ -99,6 +102,7 @@ void compute_residual_stats(AV1_COMP *const cpi, ThreadData *td, MACROBLOCK *x,
   p->bobs = NULL;
   aom_free(p->txb_entropy_ctx);
   p->txb_entropy_ctx = NULL;
+  xd->tree_type = old_tree_type;
 }
 
 #define ZERO_ARRAY(arr) memset(arr, 0, sizeof(arr))
