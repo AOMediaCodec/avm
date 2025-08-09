@@ -7569,13 +7569,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   const int short_refresh_frame_flags =
       cm->seq_params.enable_short_refresh_frame_flags &&
       !cm->features.error_resilient_mode;
-  const int refresh_frame_flags_bits =
-#if CONFIG_CWG_F168_DPB_HLS
-      short_refresh_frame_flags ? seq_params->ref_frames_log2
-                                : seq_params->ref_frames;
-#else
-      short_refresh_frame_flags ? 3 : seq_params->ref_frames;
-#endif
+  const int refresh_frame_flags_bits = short_refresh_frame_flags
+                                           ? seq_params->ref_frames_log2
+                                           : seq_params->ref_frames;
 
 #endif  // CONFIG_REFRESH_FLAG
   if (current_frame->frame_type == KEY_FRAME) {
