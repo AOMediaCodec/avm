@@ -7168,14 +7168,17 @@ static INLINE int get_disp_order_hint(AV1_COMMON *const cm) {
 #if CONFIG_MULTILAYER_CORE && !CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
   int max_layer_id = 0;
   int ref_order_hint = 0;
-#endif  // CONFIG_MULTILAYER_CORE && !CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
+#endif  // CONFIG_MULTILAYER_CORE &&
+        // !CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
   for (int map_idx = 0; map_idx < cm->seq_params.ref_frames; map_idx++) {
     // Get reference frame buffer
     const RefCntBuffer *const buf = cm->ref_frame_map[map_idx];
     if (buf == NULL
 #if CONFIG_MULTILAYER_CORE && CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
-        || !is_tlayer_scalable(&cm->seq_params, cm->temporal_layer_id, buf->temporal_layer_id)
-        || !is_mlayer_scalable(&cm->seq_params, current_frame->layer_id, buf->layer_id)
+        || !is_tlayer_scalable(&cm->seq_params, cm->temporal_layer_id,
+                               buf->temporal_layer_id) ||
+        !is_mlayer_scalable(&cm->seq_params, current_frame->layer_id,
+                            buf->layer_id)
 #else
 #if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
 #if CONFIG_NEW_OBU_HEADER
@@ -7203,7 +7206,8 @@ static INLINE int get_disp_order_hint(AV1_COMMON *const cm) {
 #else
     if ((int)buf->display_order_hint > max_disp_order_hint)
       max_disp_order_hint = buf->display_order_hint;
-#endif  // CONFIG_MULTILAYER_CORE && !CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
+#endif  // CONFIG_MULTILAYER_CORE &&
+        // !CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
   }
 
   int cur_disp_order_hint = current_frame->order_hint;
@@ -7212,7 +7216,8 @@ static INLINE int get_disp_order_hint(AV1_COMMON *const cm) {
       cur_disp_order_hint == ref_order_hint) {
     return max_disp_order_hint;
   }
-#endif  // CONFIG_MULTILAYER_CORE && !CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
+#endif  // CONFIG_MULTILAYER_CORE &&
+        // !CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
 
   int display_order_hint_factor =
       1 << (cm->seq_params.order_hint_info.order_hint_bits_minus_1 + 1);
@@ -7239,13 +7244,16 @@ static INLINE int get_ref_frame_disp_order_hint(AV1_COMMON *const cm,
 #if CONFIG_MULTILAYER_CORE && !CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
   int max_layer_id = 0;
   int ref_order_hint = 0;
-#endif  // CONFIG_MULTILAYER_CORE && !CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
+#endif  // CONFIG_MULTILAYER_CORE &&
+        // !CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
   for (int map_idx = 0; map_idx < INTER_REFS_PER_FRAME; map_idx++) {
 #if CONFIG_MULTILAYER_CORE && CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
-    if (!is_tlayer_scalable(&cm->seq_params, cm->temporal_layer_id, buf->temporal_layer_id) ||
-        !is_mlayer_scalable(&cm->seq_params, cm->current_frame.layer_id, buf->layer_id))
+    if (!is_tlayer_scalable(&cm->seq_params, cm->temporal_layer_id,
+                            buf->temporal_layer_id) ||
+        !is_mlayer_scalable(&cm->seq_params, cm->current_frame.layer_id,
+                            buf->layer_id))
       continue;
-    
+
 #else
 #if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
 #if CONFIG_NEW_OBU_HEADER
@@ -7278,7 +7286,8 @@ static INLINE int get_ref_frame_disp_order_hint(AV1_COMMON *const cm,
   if (max_layer_id < buf->layer_id && disp_order_hint == ref_order_hint) {
     return max_disp_order_hint;
   }
-#endif  // CONFIG_MULTILAYER_CORE && !CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
+#endif  // CONFIG_MULTILAYER_CORE &&
+        // !CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
 
   while (abs(max_disp_order_hint - disp_order_hint) >=
          (display_order_hint_factor >> 1)) {

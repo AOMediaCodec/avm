@@ -767,7 +767,6 @@ typedef struct SequenceHeader {
   int mlayer_dependency_map[MAX_NUM_MLAYERS][MAX_NUM_MLAYERS];
 #endif  // CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
 
-
   uint8_t df_par_bits_minus2;
 
   // IMPORTANT: the op_params member must be at the end of the struct so that
@@ -2369,29 +2368,31 @@ static INLINE int get_ref_frame_map_idx(const AV1_COMMON *const cm,
 }
 
 #if CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
-static INLINE void aom_setup_default_temporal_layer_dependency_structure(SequenceHeader *const seq) {
+static INLINE void aom_setup_default_temporal_layer_dependency_structure(
+    SequenceHeader *const seq) {
   const int max_layer_id = seq->max_tlayer_id;
   memset(seq->tlayer_dependency_map, 0, sizeof seq->tlayer_dependency_map);
-  for (int curr_layer_id = 0; curr_layer_id <= max_layer_id; curr_layer_id++ ) {
-    for (int ref_layer_id = 0; ref_layer_id <= curr_layer_id; ref_layer_id++ ) {
+  for (int curr_layer_id = 0; curr_layer_id <= max_layer_id; curr_layer_id++) {
+    for (int ref_layer_id = 0; ref_layer_id <= curr_layer_id; ref_layer_id++) {
       seq->tlayer_dependency_map[curr_layer_id][ref_layer_id] = 1;
     }
   }
 }
 
-static INLINE int is_tlayer_scalable(const SequenceHeader *const seq, const int curr_layer_id, const int ref_layer_id) {
-  assert(seq->max_tlayer_id >= curr_layer_id && seq->max_tlayer_id >= ref_layer_id);
+static INLINE int is_tlayer_scalable(const SequenceHeader *const seq,
+                                     const int curr_layer_id,
+                                     const int ref_layer_id) {
+  assert(seq->max_tlayer_id >= curr_layer_id &&
+         seq->max_tlayer_id >= ref_layer_id);
   /*
-  The additional conditional check based on 'tlayer_dependency_present_flag' is redundant,
-  since tlayer_dependency_map[][] equivalently implements `curr_layer_id <= ref_layer_id`.
-  For example, if max_tlayer_id is equal to 3, tlayer_dependency_map[4][4] shall be equal to
-        tlayer_dependency_map[4][4] = { { 1, 0, 0, 0 },
-                                        { 1, 1, 0, 0 },
-                                        { 1, 1, 1, 0 },
-                                        { 1, 1, 1, 1 },
+  The additional conditional check based on 'tlayer_dependency_present_flag' is
+  redundant, since tlayer_dependency_map[][] equivalently implements
+  `curr_layer_id <= ref_layer_id`. For example, if max_tlayer_id is equal to 3,
+  tlayer_dependency_map[4][4] shall be equal to tlayer_dependency_map[4][4] = {
+  { 1, 0, 0, 0 }, { 1, 1, 0, 0 }, { 1, 1, 1, 0 }, { 1, 1, 1, 1 },
                                       };
   The reference software implementation is done this way to be more descriptive.
-   
+
   The following lines can be replaced with a single line of code:
        `return seq->tlayer_dependency_map[curr_layer_id][ref_layer_id];`
   */
@@ -2402,26 +2403,28 @@ static INLINE int is_tlayer_scalable(const SequenceHeader *const seq, const int 
   }
 }
 
-static INLINE void aom_setup_default_embedded_layer_dependency_structure(SequenceHeader *const seq) {
+static INLINE void aom_setup_default_embedded_layer_dependency_structure(
+    SequenceHeader *const seq) {
   const int max_layer_id = seq->max_mlayer_id;
   memset(seq->mlayer_dependency_map, 0, sizeof seq->mlayer_dependency_map);
-  for (int curr_layer_id = 0; curr_layer_id <= max_layer_id; curr_layer_id++ ) {
-    for (int ref_layer_id = 0; ref_layer_id <= curr_layer_id; ref_layer_id++ ) {
+  for (int curr_layer_id = 0; curr_layer_id <= max_layer_id; curr_layer_id++) {
+    for (int ref_layer_id = 0; ref_layer_id <= curr_layer_id; ref_layer_id++) {
       seq->mlayer_dependency_map[curr_layer_id][ref_layer_id] = 1;
     }
   }
 }
 
-static INLINE int is_mlayer_scalable(const SequenceHeader *const seq, const int curr_layer_id, const int ref_layer_id) {
-  assert(seq->max_mlayer_id >= curr_layer_id && seq->max_mlayer_id >= ref_layer_id);
+static INLINE int is_mlayer_scalable(const SequenceHeader *const seq,
+                                     const int curr_layer_id,
+                                     const int ref_layer_id) {
+  assert(seq->max_mlayer_id >= curr_layer_id &&
+         seq->max_mlayer_id >= ref_layer_id);
   /*
-  The additional conditional check based on 'mlayer_dependency_present_flag' is redundant,
-  since mlayer_dependency_map[][] equivalently implements `curr_layer_id >= ref_layer_id`.
-  For example, if max_mlayer_id is equal to 3, mlayer_dependency_map[4][4] shall be equal to
-        mlayer_dependency_map[4][4] = { { 1, 0, 0, 0 },
-                                        { 1, 1, 0, 0 },
-                                        { 1, 1, 1, 0 },
-                                        { 1, 1, 1, 1 },
+  The additional conditional check based on 'mlayer_dependency_present_flag' is
+  redundant, since mlayer_dependency_map[][] equivalently implements
+  `curr_layer_id >= ref_layer_id`. For example, if max_mlayer_id is equal to 3,
+  mlayer_dependency_map[4][4] shall be equal to mlayer_dependency_map[4][4] = {
+  { 1, 0, 0, 0 }, { 1, 1, 0, 0 }, { 1, 1, 1, 0 }, { 1, 1, 1, 1 },
                                       };
   The reference software implementation is done this way to be more descriptive.
   The following lines can be replaced with a single line of code:
@@ -2435,7 +2438,6 @@ static INLINE int is_mlayer_scalable(const SequenceHeader *const seq, const int 
 }
 
 #endif  // CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
-
 
 static INLINE void get_secondary_reference_frame_idx(const AV1_COMMON *const cm,
                                                      int *ref_frame_used,

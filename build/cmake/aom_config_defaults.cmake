@@ -146,9 +146,8 @@ set_aom_config_var(
   CONFIG_MULTILAYER_CORE 1
   "Core changes in the codebase for multilayer coding support.")
 
-set_aom_config_var(
-  CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING 1
-  "Dependency structure signaling in sequence header.")
+set_aom_config_var(CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING 1
+                   "Dependency structure signaling in sequence header.")
 
 set_aom_config_var(CONFIG_PARAKIT_COLLECT_DATA 0
                    "enables data collection for ParaKit training.")

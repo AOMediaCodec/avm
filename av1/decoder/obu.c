@@ -120,20 +120,24 @@ static int read_bitstream_level(AV1_LEVEL *seq_level_idx,
 }
 
 #if CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
-static void aom_read_tlayer_dependency_info(SequenceHeader *const seq, struct aom_read_bit_buffer *rb) {
+static void aom_read_tlayer_dependency_info(SequenceHeader *const seq,
+                                            struct aom_read_bit_buffer *rb) {
   const int max_layer_id = seq->max_tlayer_id;
-  for (int curr_layer_id = 1; curr_layer_id <= max_layer_id; curr_layer_id++ ) {
+  for (int curr_layer_id = 1; curr_layer_id <= max_layer_id; curr_layer_id++) {
     for (int ref_layer_id = curr_layer_id; ref_layer_id >= 0; ref_layer_id--) {
-      seq->tlayer_dependency_map[curr_layer_id][ref_layer_id] = aom_rb_read_bit(rb);
+      seq->tlayer_dependency_map[curr_layer_id][ref_layer_id] =
+          aom_rb_read_bit(rb);
     }
   }
 }
 
-static void aom_read_mlayer_dependency_info(SequenceHeader *const seq, struct aom_read_bit_buffer *rb) {
+static void aom_read_mlayer_dependency_info(SequenceHeader *const seq,
+                                            struct aom_read_bit_buffer *rb) {
   const int max_layer_id = seq->max_mlayer_id;
-  for (int curr_layer_id = 1; curr_layer_id <= max_layer_id; curr_layer_id++ ) {
+  for (int curr_layer_id = 1; curr_layer_id <= max_layer_id; curr_layer_id++) {
     for (int ref_layer_id = curr_layer_id; ref_layer_id >= 0; ref_layer_id--) {
-      seq->mlayer_dependency_map[curr_layer_id][ref_layer_id] = aom_rb_read_bit(rb);
+      seq->mlayer_dependency_map[curr_layer_id][ref_layer_id] =
+          aom_rb_read_bit(rb);
     }
   }
 }
@@ -324,24 +328,24 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
     seq_params->max_tlayer_id = aom_rb_read_literal(rb, TLAYER_BITS);
     seq_params->max_mlayer_id = aom_rb_read_literal(rb, MLAYER_BITS);
   }
-  
+
   // setup default temporal layer dependency
   aom_setup_default_temporal_layer_dependency_structure(seq_params);
   // setup default embedded layer dependency
   aom_setup_default_embedded_layer_dependency_structure(seq_params);
-  
+
   // tlayer dependency description
   seq_params->tlayer_dependency_present_flag = 0;
-  if(seq_params->max_tlayer_id > 0) {
+  if (seq_params->max_tlayer_id > 0) {
     seq_params->tlayer_dependency_present_flag = aom_rb_read_bit(rb);
   }
   if (seq_params->tlayer_dependency_present_flag) {
     aom_read_tlayer_dependency_info(seq_params, rb);
   }
-  
+
   // mlayer dependency description
   seq_params->mlayer_dependency_present_flag = 0;
-  if(seq_params->max_mlayer_id > 0) {
+  if (seq_params->max_mlayer_id > 0) {
     seq_params->mlayer_dependency_present_flag = aom_rb_read_bit(rb);
   }
   if (seq_params->mlayer_dependency_present_flag) {

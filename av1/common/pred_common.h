@@ -53,8 +53,11 @@ static INLINE void init_ref_map_pair(AV1_COMMON *cm,
     ref_frame_map_pairs[map_idx].ref_frame_for_inference = 1;
     if (buf == NULL
 #if CONFIG_MULTILAYER_CORE && CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
-        || !is_tlayer_scalable(&cm->seq_params, cm->current_frame.temporal_layer_id, buf->temporal_layer_id)
-        || !is_mlayer_scalable(&cm->seq_params, cm->current_frame.layer_id, buf->layer_id)
+        || !is_tlayer_scalable(&cm->seq_params,
+                               cm->current_frame.temporal_layer_id,
+                               buf->temporal_layer_id) ||
+        !is_mlayer_scalable(&cm->seq_params, cm->current_frame.layer_id,
+                            buf->layer_id)
 #else
 #if CONFIG_MULTILAYER_CORE
         || buf->layer_id > cm->current_frame.layer_id

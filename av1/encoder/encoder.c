@@ -575,7 +575,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
       }
     }
   }
-  
+
 #if CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
   seq->max_tlayer_id = 0;
   seq->max_mlayer_id = 0;

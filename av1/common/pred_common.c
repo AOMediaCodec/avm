@@ -183,7 +183,8 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
     const int cur_temporal_id = cm->current_frame.temporal_layer_id;
     const int ref_temporal_id = cur_ref.temporal_layer_id;
 #if CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
-    if (!is_tlayer_scalable(&cm->seq_params, cur_temporal_id, ref_temporal_id) ||
+    if (!is_tlayer_scalable(&cm->seq_params, cur_temporal_id,
+                            ref_temporal_id) ||
         !is_mlayer_scalable(&cm->seq_params, cur_layer_id, ref_layer_id))
       continue;
 #else
