@@ -372,7 +372,8 @@ set_aom_config_var(CONFIG_NEW_CONTEXT_MODELING 1
                    "Enable to improve the context modeling")
 
 set_aom_config_var(CONFIG_BRU 1 "enable BRU update")
-set_aom_config_var(CONFIG_BRU_TILE_FLAG 1 "move BRU tile active flag to tile_group_header")
+set_aom_config_var(CONFIG_BRU_TILE_FLAG 1
+                   "move BRU tile active flag to tile_group_header")
 set_aom_config_var(CONFIG_SDP_CFL_LATENCY_FIX 1 "Reduce SDP-CFL latency")
 set_aom_config_var(CONFIG_CHROMA_MERGE_LATENCY_FIX 1
                    "Fix the latency issue in chroma merge region")
