@@ -273,12 +273,18 @@ int file_is_obu(struct ObuDecInputContext *obu_ctx) {
 }
 int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
                               uint8_t **buffer, size_t *bytes_read,
-                              size_t *buffer_size) {
+                              size_t *buffer_size, ObuHeader *obu_header_list,
+                              int *obu_idx) {
   FILE *f = obu_ctx->avx_ctx->file;
   if (!f) return -1;
 
   *buffer_size = 0;
   *bytes_read = 0;
+#if CONFIG_NEW_OBU_HEADER
+  if (obu_idx) {
+    *obu_idx = 0;
+  }
+#endif
 
   if (feof(f)) {
     printf("end of file\n");
@@ -367,6 +373,13 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
         // end of file
         return 1;
       }
+#if CONFIG_NEW_OBU_HEADER
+      if (obu_header_list) {
+        obu_header_list[*obu_idx] = obu_header;
+        *obu_idx += 1;
+      }
+#endif
+
 #if !CONFIG_NEW_OBU_HEADER
       uint64_t obu_total_size =
           (obu_header_total_size + obu_payload_size_bytelength +

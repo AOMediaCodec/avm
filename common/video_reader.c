@@ -90,8 +90,8 @@ int aom_video_reader_read_frame(AvxVideoReader *reader) {
                            &reader->pts);
   } else if (reader->input_ctx.file_type == FILE_TYPE_OBU) {
     return !obudec_read_temporal_unit(&reader->obu_ctx, &reader->buffer,
-                                      &reader->frame_size,
-                                      &reader->buffer_size);
+                                      &reader->frame_size, &reader->buffer_size,
+                                      NULL, NULL);
 #if CONFIG_WEBM_IO
   } else if (reader->input_ctx.file_type == FILE_TYPE_WEBM) {
     return !webm_read_frame(&reader->webm_ctx, &reader->buffer,

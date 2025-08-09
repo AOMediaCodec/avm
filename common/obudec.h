@@ -12,8 +12,10 @@
 #ifndef AOM_COMMON_OBUDEC_H_
 #define AOM_COMMON_OBUDEC_H_
 
+#include "av1/common/obu_util.h"
 #include "common/tools_common.h"
 #include "config/aom_config.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -41,7 +43,8 @@ int file_is_obu(struct ObuDecInputContext *obu_ctx);
 // via 'bytes_read'.
 int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
                               uint8_t **buffer, size_t *bytes_read,
-                              size_t *buffer_size);
+                              size_t *buffer_size, ObuHeader *obu_header_list,
+                              int *obu_idx);
 
 void obudec_free(struct ObuDecInputContext *obu_ctx);
 
