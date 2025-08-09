@@ -6252,8 +6252,11 @@ static AOM_INLINE void read_temporal_point_info(
       rb, cm->seq_params.decoder_model_info.frame_presentation_time_length);
 }
 
-void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
-                              SequenceHeader *seq_params) {
+void av1_read_sequence_header(
+#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
+    AV1_COMMON *cm,
+#endif
+    struct aom_read_bit_buffer *rb, SequenceHeader *seq_params) {
 #if !CWG_F215_CONFIG_REMOVE_FRAME_ID
   if (seq_params->reduced_still_picture_hdr) {
     seq_params->frame_id_numbers_present_flag = 0;

@@ -551,7 +551,7 @@ typedef struct SequenceHeader {
   uint8_t frame_id_numbers_present_flag;
   int frame_id_length;
   int delta_frame_id_length;
-#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
+#endif                         // !CWG_F215_CONFIG_REMOVE_FRAME_ID
   BLOCK_SIZE sb_size;          // Size of the superblock used for this frame
   int mib_size;                // Size of the superblock in units of MI blocks
   int mib_size_log2;           // Log 2 of above.

@@ -36,8 +36,11 @@ struct ThreadData;
 // Reads the middle part of the sequence header OBU (from
 // frame_width_bits_minus_1 to enable_restoration) into seq_params.
 // Reports errors by calling rb->error_handler() or aom_internal_error().
-void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
-                              SequenceHeader *seq_params);
+void av1_read_sequence_header(
+#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
+    AV1_COMMON *cm,
+#endif
+    struct aom_read_bit_buffer *rb, SequenceHeader *seq_params);
 
 // Reads additional sequence header for coding tools beyond AV1
 void av1_read_sequence_header_beyond_av1(
