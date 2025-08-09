@@ -638,6 +638,30 @@ void av1_single_motion_search_high_precision(const AV1_COMP *const cpi,
                              mv_costs, MV_COST_WEIGHT, is_adaptive_mvd);
 }
 
+// Clamp `mv` to be within subpel MV limits, while also keeping it at the
+// desired precision.
+// Assume that input `mv` is already at the desired precision.
+static void clamp_mv_to_range_and_precision(
+    MV *mv, const SubpelMvLimits *const mv_limits,
+    MvSubpelPrecision precision) {
+  // Compute the step size based on the precision.
+  const int radix = (1 << (MV_PRECISION_ONE_EIGHTH_PEL - precision));
+  // Clamp MV to within MV limits by incrementing/decrementing it one step size
+  // at a time.
+  while (mv->row < mv_limits->row_min) {
+    mv->row += radix;
+  }
+  while (mv->row > mv_limits->row_max) {
+    mv->row -= radix;
+  }
+  while (mv->col < mv_limits->col_min) {
+    mv->col += radix;
+  }
+  while (mv->col > mv_limits->col_max) {
+    mv->col -= radix;
+  }
+}
+
 void av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
                              BLOCK_SIZE bsize, int_mv *cur_mv,
                              const uint8_t *mask, int mask_stride,
@@ -823,6 +847,11 @@ void av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
       if (pb_mv_precision >= MV_PRECISION_HALF_PEL) {
         start_mv.col += sub_mv_offset.col;
         start_mv.row += sub_mv_offset.row;
+        if (!av1_is_subpelmv_in_range(&ms_params.mv_limits, start_mv)) {
+          clamp_mv_to_range_and_precision(&start_mv, &ms_params.mv_limits,
+                                          pb_mv_precision);
+          assert(av1_is_subpelmv_in_range(&ms_params.mv_limits, start_mv));
+        }
       }
       bestsme = cpi->mv_search_params.find_fractional_mv_step(
           xd, cm, &ms_params, start_mv, &best_mv.as_mv, &dis, &sse, NULL);
