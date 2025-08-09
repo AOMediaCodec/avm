@@ -570,7 +570,13 @@ static void av1_ml_part_split_features_inter(
     }
   }
 
-  if (subsize_hor != BLOCK_INVALID) {
+  // The horizontal and vertical features are only used by the partition NONE
+  // pruning models. When partition NONE is disabled, do not calculate them
+  // this is because the SMS will cache the block statistics the first time
+  // it encounters it, and the partitions below introduce a different order
+  // of iterating those blocks, which creates the occasional stats mismatch
+  // when the NONE partitions are turned off.
+  if (subsize_hor != BLOCK_INVALID && cpi->sf.part_sf.prune_none_with_ml) {
     int h_sub_mi = mi_size_high[subsize_hor];
     SimpleMotionData *blk_hor_0 = av1_get_sms_data(
         cpi, tile_info, x, mi_row, mi_col, subsize_hor, td, true, 1);
@@ -588,7 +594,7 @@ static void av1_ml_part_split_features_inter(
     }
   }
 
-  if (subsize_ver != BLOCK_INVALID) {
+  if (subsize_ver != BLOCK_INVALID && cpi->sf.part_sf.prune_none_with_ml) {
     int w_sub_mi = mi_size_wide[subsize_ver];
     SimpleMotionData *blk_ver_0 = av1_get_sms_data(
         cpi, tile_info, x, mi_row, mi_col, subsize_ver, td, true, 1);
