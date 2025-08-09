@@ -1241,6 +1241,7 @@ static AOM_INLINE void write_palette_colors_y(
   delta_encode_palette_colors(out_cache_colors, n_out_cache, bit_depth, 1, w);
 }
 
+#if !CONFIG_DISABLE_PALC
 // Write chroma palette color values. U channel is handled similarly to the luma
 // channel. For v channel, either use delta encoding or transmit raw values
 // directly, whichever costs less.
@@ -1302,6 +1303,7 @@ static AOM_INLINE void write_palette_colors_uv(
     }
   }
 }
+#endif  // !CONFIG_DISABLE_PALC
 
 static AOM_INLINE void write_palette_mode_info(const AV1_COMMON *cm,
                                                const MACROBLOCKD *xd,
