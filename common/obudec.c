@@ -373,7 +373,7 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
         return 1;
       }
 #if CONFIG_NEW_OBU_HEADER
-      if (obu_header_list) {
+      if (obu_header_list && obu_idx) {
         obu_header_list[*obu_idx] = obu_header;
         *obu_idx += 1;
       }
