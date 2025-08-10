@@ -1160,7 +1160,7 @@ typedef struct AV1EncoderConfig {
 #if CONFIG_NEW_OBU_HEADER
   // Bit mask to specify which tier each of the 64 possible operating points
   // conforms to.
-  int64_t tier_mask;
+  uint64_t tier_mask;
 #else
   // Bit mask to specify which tier each of the 32 possible operating points
   // conforms to.
