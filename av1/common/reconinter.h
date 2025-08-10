@@ -41,6 +41,10 @@ extern "C" {
 #define MAX_WEDGE_SIZE (1 << MAX_WEDGE_SIZE_LOG2)
 #define MAX_WEDGE_SQUARE (MAX_WEDGE_SIZE * MAX_WEDGE_SIZE)
 
+#if WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
+#define MAX_WEDGE_BOUNDARY_TYPES 2
+#endif  // WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
+
 #define WEDGE_WEIGHT_BITS 6
 
 #define WEDGE_NONE -1
@@ -125,15 +129,25 @@ typedef struct {
   int x_offset;
   int y_offset;
 } wedge_code_type;
-
+#if WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
+typedef uint8_t
+    *all_wedge_masks_type[MAX_WEDGE_TYPES][MAX_WEDGE_BOUNDARY_TYPES];
+typedef uint8_t
+    *wedge_decisions_type[MAX_WEDGE_TYPES][MAX_WEDGE_BOUNDARY_TYPES];
+#else
 typedef uint8_t *wedge_masks_type[MAX_WEDGE_TYPES];
 typedef uint8_t *wedge_decisions_type[MAX_WEDGE_TYPES];
+#endif  // WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
 
 typedef struct {
   int wedge_types;
   const wedge_code_type *codebook;
   uint8_t *signflip;
+#if WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
+  all_wedge_masks_type *all_masks;
+#else
   wedge_masks_type *masks;
+#endif  // WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
   wedge_decisions_type *tmvp_mv_decisions;
 } wedge_params_type;
 
@@ -1140,17 +1154,45 @@ static INLINE int av1_is_interp_needed(const AV1_COMMON *const cm,
 
 void av1_init_wedge_masks();
 
+#if WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
+static INLINE const uint8_t *av1_get_all_contiguous_soft_mask(
+    int8_t wedge_index, int8_t wedge_sign, BLOCK_SIZE sb_type,
+    int boundary_index) {
+  return av1_wedge_params_lookup[sb_type]
+      .all_masks[wedge_sign][wedge_index][boundary_index];
+}
+#else
 static INLINE const uint8_t *av1_get_contiguous_soft_mask(int8_t wedge_index,
                                                           int8_t wedge_sign,
                                                           BLOCK_SIZE sb_type) {
   return av1_wedge_params_lookup[sb_type].masks[wedge_sign][wedge_index];
 }
+#endif  // WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
 
+#if WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
+static INLINE int8_t get_wedge_boundary_type(BLOCK_SIZE bsize) {
+  int8_t boundary_type = 1;  // smooth mask
+  if (bsize <= BLOCK_16X16) {
+    boundary_type = 0;  // sharp mask
+  }
+  return boundary_type;
+}
+#endif
+
+#if WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
+static INLINE const uint8_t *av1_get_contiguous_soft_mask_decision(
+    int8_t wedge_index, int8_t wedge_sign, int boundary_index,
+    BLOCK_SIZE sb_type) {
+  return av1_wedge_params_lookup[sb_type]
+      .tmvp_mv_decisions[wedge_sign][wedge_index][boundary_index];
+}
+#else
 static INLINE const uint8_t *av1_get_contiguous_soft_mask_decision(
     int8_t wedge_index, int8_t wedge_sign, BLOCK_SIZE sb_type) {
   return av1_wedge_params_lookup[sb_type]
       .tmvp_mv_decisions[wedge_sign][wedge_index];
 }
+#endif  // WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
 
 const uint8_t *av1_get_compound_type_mask(
     const INTERINTER_COMPOUND_DATA *const comp_data, BLOCK_SIZE sb_type);

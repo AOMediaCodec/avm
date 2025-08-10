@@ -832,6 +832,9 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
           mbmi->interintra_wedge_index =
               read_wedge_mode(r, xd->tile_ctx, bsize);
           assert(mbmi->interintra_wedge_index != -1);
+#if WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
+          mbmi->wedge_boundary_index = get_wedge_boundary_type(bsize);
+#endif  // WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
         }
       }
       return INTERINTRA;
@@ -3925,6 +3928,9 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
           mbmi->interintra_wedge_index =
               read_wedge_mode(r, xd->tile_ctx, bsize);
           assert(mbmi->interintra_wedge_index != -1);
+#if WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
+          mbmi->wedge_boundary_index = get_wedge_boundary_type(bsize);
+#endif  // WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
         }
       }
     }  // if (mbmi->warp_inter_intra)
@@ -3994,6 +4000,10 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
         assert(is_interinter_compound_used(COMPOUND_WEDGE, bsize));
         mbmi->interinter_comp.wedge_index = read_wedge_mode(r, ec_ctx, bsize);
         assert(mbmi->interinter_comp.wedge_index != -1);
+#if WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
+        mbmi->interinter_comp.wedge_boundary_index =
+            get_wedge_boundary_type(bsize);
+#endif  //  WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
         mbmi->interinter_comp.wedge_sign =
             (int8_t)aom_read_bit(r, ACCT_INFO("wedge_sign"));
       } else {

@@ -294,6 +294,9 @@ typedef struct {
   uint8_t *seg_mask;
   int8_t wedge_index;
   int8_t wedge_sign;
+#if WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
+  int8_t wedge_boundary_index;
+#endif  // WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
   DIFFWTD_MASK_TYPE mask_type;
   COMPOUND_TYPE type;
 } INTERINTER_COMPOUND_DATA;
@@ -475,6 +478,11 @@ typedef struct MB_MODE_INFO {
   INTERINTRA_MODE interintra_mode;
   /*! \brief The type of wedge used in interintra mode. */
   int8_t interintra_wedge_index;
+#if WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
+  /*! \brief The type of boundary used in interintra mode.
+     0: the sharp boundary, 1: the smooth boundary*/
+  int8_t wedge_boundary_index;
+#endif  // WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
   /*! \brief Struct that stores the data used in interinter compound mode. */
   INTERINTER_COMPOUND_DATA interinter_comp;
 

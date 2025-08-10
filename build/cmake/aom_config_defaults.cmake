@@ -493,6 +493,10 @@ set_aom_config_var(CONFIG_CWG_F243_ORDER_HINT_BITDEPTH 1
 set_aom_config_var(
   CONFIG_FSC_RES_HLS 1
   "add high level flag to switch fsc residual and regular residual.")
+
+set_aom_config_var(CONFIG_ADAPTIVE_WEDGE_BOUNDARY 1
+                   "Adaptive wedge boundary based on block size.")
+
 #
 # Variables in this section control optional features of the build system.
 #
