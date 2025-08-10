@@ -1285,6 +1285,9 @@ static int64_t masked_compound_type_rd(
     if (wedge_newmv_search) {
       *out_rate_mv = av1_interinter_compound_motion_search(cpi, x, cur_mv,
                                                            bsize, this_mode);
+      if (*out_rate_mv == INT_MAX) {
+        return INT64_MAX;
+      }
       const int mi_row = xd->mi_row;
       const int mi_col = xd->mi_col;
       av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, ctx, bsize,
@@ -1292,6 +1295,9 @@ static int64_t masked_compound_type_rd(
     } else if (diffwtd_newmv_search) {
       *out_rate_mv = av1_interinter_compound_motion_search(cpi, x, cur_mv,
                                                            bsize, this_mode);
+      if (*out_rate_mv == INT_MAX) {
+        return INT64_MAX;
+      }
       // we need to update the mask according to the new motion vector
       CompoundTypeRdBuffers tmp_buf;
       int64_t tmp_rd = INT64_MAX;
