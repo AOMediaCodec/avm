@@ -100,7 +100,7 @@ int main(int argc, char **argv) {
   size_t buffer_size = 0;
   struct AvxInputContext aom_input_ctx;
 #if CONFIG_NEW_OBU_HEADER
-  struct ObuDecInputContext obu_ctx = { NULL, NULL, 0, 0, /*is_annexb=*/1, 0 };
+  struct ObuDecInputContext obu_ctx = { &aom_input_ctx, NULL, 0, 0, /*is_annexb=*/1, 0 };
 #else
   struct ObuDecInputContext obu_ctx = { &aom_input_ctx, NULL, 0, 0, 0 };
 #endif  // CONFIG_NEW_OBU_HEADER
