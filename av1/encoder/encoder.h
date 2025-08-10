@@ -1185,8 +1185,9 @@ typedef struct AV1EncoderConfig {
 #else
   // Bit mask to specify which tier each of the 32 possible operating points
   // conforms to.
-  int tier_mask;
-#endif
+  unsigned int tier_mask;
+#endif  // CONFIG_NEW_OBU_HEADER
+
   // Indicates the number of pixels off the edge of a reference frame we're
   // allowed to go when forming an inter prediction.
   int border_in_pixels;

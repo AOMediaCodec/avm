@@ -83,11 +83,7 @@ extern "C" {
 #define MAX_NUM_TLAYERS 8
 #define MAX_NUM_MLAYERS 8
 #define MAX_NUM_XLAYERS 32
-/* clang-format off */
-// clang-format seems to think this is a pointer dereference and not a
-// multiplication.
-#define MAX_NUM_OPERATING_POINTS \
-  (MAX_NUM_TLAYERS * MAX_NUM_MLAYERS)
+#define MAX_NUM_OPERATING_POINTS (MAX_NUM_TLAYERS * MAX_NUM_MLAYERS)
 #else
 #define MAX_NUM_TEMPORAL_LAYERS 8
 #define MAX_NUM_SPATIAL_LAYERS 4
@@ -97,8 +93,8 @@ extern "C" {
 // multiplication.
 #define MAX_NUM_OPERATING_POINTS \
   (MAX_NUM_TEMPORAL_LAYERS * MAX_NUM_SPATIAL_LAYERS)
-#endif  // CONFIG_NEW_OBU_HEADER
 /* clang-format on */
+#endif  // CONFIG_NEW_OBU_HEADER
 
 // TODO(jingning): Turning this on to set up transform coefficient
 // processing timer.
