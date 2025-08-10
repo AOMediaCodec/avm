@@ -193,10 +193,6 @@ bool DumpObu(const uint8_t *data, int length, int *obu_overhead_bytes) {
 
     memset(&obu_header, 0, sizeof(obu_header));
 #if CONFIG_NEW_OBU_HEADER
-    uint8_t obu_byte[2];
-    obu_byte[0] = *(data + consumed);
-    obu_byte[1] = *(data + consumed + 1);
-
     uint16_t obu_header_bytes = 0;
     obu_header_bytes |= ((uint16_t) * (data + consumed)) << 8;
     obu_header_bytes |= ((uint16_t) * (data + consumed + 1));
