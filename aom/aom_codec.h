@@ -101,9 +101,11 @@ extern "C" {
 #include "aom/aom_image.h"
 #include "aom/aom_integer.h"
 
+/*!\brief Maximum OBU header size in bytes. */
 #if CONFIG_NEW_OBU_HEADER
 #define OBU_HEADER_SIZE 2
 #endif  // CONFIG_NEW_OBU_HEADER
+
 /*!\brief Decorator indicating a function is deprecated */
 #ifndef AOM_DEPRECATED
 #if defined(__GNUC__) && __GNUC__
