@@ -239,7 +239,6 @@ int file_is_obu(struct ObuDecInputContext *obu_ctx) {
           break;
         }
         obu_payload_size -= OBU_HEADER_SIZE;
-        assert(obu_payload_size >= 0);
       } else {
         fprintf(stderr, "file_type: OBU size is required\n");
         rewind(f);
