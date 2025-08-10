@@ -4777,11 +4777,15 @@ static INLINE int opfl_allowed_cur_pred_mode(const AV1_COMMON *cm,
 }
 
 #if CONFIG_FLEX_TIP_BLK_SIZE
+// Check if the optical flow MV refinement is disabled in the TIP-ref block
+// case.
 static AOM_INLINE bool disable_opfl_for_tip_ref(TIP_FRAME_MODE tip_frame_mode,
                                                 int bw, int bh) {
   return (tip_frame_mode == TIP_FRAME_AS_REF && bw >= 256 && bh >= 256);
 }
 
+// Check if the optical flow MV refinement is disabled in the TIP-direct block
+// case.
 static AOM_INLINE bool disable_opfl_for_tip_direct(
     TIP_FRAME_MODE tip_frame_mode, InterpFilter tip_interp_filter) {
 #if CONFIG_ADAPT_OPFL_IN_TIP_DIRECT
@@ -4792,10 +4796,12 @@ static AOM_INLINE bool disable_opfl_for_tip_direct(
 #endif  // CONFIG_ADAPT_OPFL_IN_TIP_DIRECT
 }
 
+// Obtain the tip block size based on block width and height.
 static AOM_INLINE BLOCK_SIZE get_tip_bsize_from_bw_bh(int bw, int bh) {
   return (bw >= 16 && bh >= 16) ? BLOCK_16X16 : BLOCK_8X8;
 }
 
+// Obtain the tip block size of a TIP-ref block.
 static AOM_INLINE BLOCK_SIZE
 get_unit_bsize_for_tip_ref(TIP_FRAME_MODE tip_frame_mode, int bw, int bh) {
   if (disable_opfl_for_tip_ref(tip_frame_mode, bw, bh)) {
@@ -4805,6 +4811,7 @@ get_unit_bsize_for_tip_ref(TIP_FRAME_MODE tip_frame_mode, int bw, int bh) {
   }
 }
 
+// Obtain the tip block size of a TIP-direct block.
 static AOM_INLINE BLOCK_SIZE get_unit_bsize_for_tip_frame(
     TIP_FRAME_MODE tip_frame_mode, InterpFilter tip_interp_filter) {
   if (disable_opfl_for_tip_direct(tip_frame_mode, tip_interp_filter)) {
