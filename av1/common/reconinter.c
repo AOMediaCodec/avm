@@ -4011,13 +4011,6 @@ static void build_inter_predictors_8x8_and_bigger_facade(
 
         get_tip_mv(cm, &mi->mv[0].as_mv, tpl_col, tpl_row, tip_mv_tmp);
 
-#if CONFIG_ACROSS_SCALE_TPL_MVS
-        clamp_mv_ref(&tip_mv_tmp[0].as_mv, xd->width << MI_SIZE_LOG2,
-                     xd->height << MI_SIZE_LOG2, xd);
-        clamp_mv_ref(&tip_mv_tmp[1].as_mv, xd->width << MI_SIZE_LOG2,
-                     xd->height << MI_SIZE_LOG2, xd);
-#endif  // CONFIG_ACROSS_SCALE_TPL_MVS
-
         tip_mv[0] = tip_mv_tmp[0].as_mv;
         tip_mv[1] = tip_mv_tmp[1].as_mv;
         if (plane == 0) {

@@ -285,14 +285,8 @@ static void tip_motion_field_within_frame(AV1_COMMON *cm) {
   assert(mvs_rows * mvs_stride <= cm->tpl_mvs_mem_size);
   av1_zero_array(cm->tip_ref.mf_need_clamp, mvs_rows * mvs_stride);
 
-#if CONFIG_ACROSS_SCALE_TPL_MVS
-  const int width = cm->width;
-  const int height = cm->height;
-#else
   const int width = (mvs_cols << TMVP_MI_SZ_LOG2);
   const int height = (mvs_rows << TMVP_MI_SZ_LOG2);
-#endif  // CONFIG_ACROSS_SCALE_TPL_MVS
-
   int *mf_need_clamp = cm->tip_ref.mf_need_clamp;
   for (int i = 0; i < mvs_rows; i++) {
     for (int j = 0; j < mvs_cols; j++) {

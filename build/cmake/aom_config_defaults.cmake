@@ -220,9 +220,6 @@ set_aom_config_var(CONFIG_LOSSLESS_CHROMA_IDTX 1
 set_aom_config_var(
   CONFIG_LOSSLESS_LARGER_IDTX 1
   "AV2 replace 8x8 IDTX with larger IDTX for luma in lossless mode")
-set_aom_config_var(
-  CONFIG_ACROSS_SCALE_TPL_MVS 0 NUMBER
-  "AV2 experiment flag to enable across scale temporal mv projection")
 
 set_aom_config_var(CONFIG_ACROSS_SCALE_WARP 1 NUMBER
                    "AV2 experiment flag to enable across scale warp modes.")

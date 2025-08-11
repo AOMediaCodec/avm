@@ -1611,9 +1611,7 @@ static INLINE int is_ref_motion_field_eligible(
   if (start_frame_buf->frame_type == KEY_FRAME ||
       start_frame_buf->frame_type == INTRA_ONLY_FRAME)
     return 0;
-#if CONFIG_ACROSS_SCALE_TPL_MVS
-  (void)cm;
-#else
+
   if (start_frame_buf->mi_rows != cm->mi_params.mi_rows ||
       start_frame_buf->mi_cols != cm->mi_params.mi_cols)
     return 0;
@@ -1621,7 +1619,7 @@ static INLINE int is_ref_motion_field_eligible(
   if (start_frame_buf->width != cm->width ||
       start_frame_buf->height != cm->height)
     return 0;
-#endif  // CONFIG_ACROSS_SCALE_TPL_MVS
+
   return 1;
 }
 

@@ -63,7 +63,7 @@ static int unscaled_value(int val, const struct scale_factors *sf) {
   return val * (1 << SCALE_EXTRA_BITS);
 }
 
-#if CONFIG_ACROSS_SCALE_TPL_MVS || CONFIG_ACROSS_SCALE_WARP
+#if CONFIG_ACROSS_SCALE_WARP
 static INLINE int scaled_x_gen(int val, const struct scale_factors *sf) {
   const int64_t tval = (int64_t)val * sf->x_scale_fp;
   return (int)ROUND_POWER_OF_TWO_SIGNED_64(tval, REF_SCALE_SHIFT);
@@ -78,7 +78,7 @@ static int unscaled_value_gen(int val, const struct scale_factors *sf) {
   (void)sf;
   return val;
 }
-#endif  // CONFIG_ACROSS_SCALE_TPL_MVS || CONFIG_ACROSS_SCALE_WARP
+#endif  // CONFIG_ACROSS_SCALE_WARP
 
 static int get_fixed_point_scale_factor(int other_size, int this_size) {
   // Calculate scaling factor once for each reference frame
@@ -124,22 +124,17 @@ void av1_setup_scale_factors_for_frame(struct scale_factors *sf, int other_w,
 #if CONFIG_ACROSS_SCALE_WARP
     sf->scale_value_warp_x = scaled_warp_x;
     sf->scale_value_warp_y = scaled_warp_y;
-#endif  // CONFIG_ACROSS_SCALE_WARP
-
-#if CONFIG_ACROSS_SCALE_TPL_MVS || CONFIG_ACROSS_SCALE_WARP
     sf->scale_value_x_gen = scaled_x_gen;
     sf->scale_value_y_gen = scaled_y_gen;
-#endif  // CONFIG_ACROSS_SCALE_TPL_MVS || CONFIG_ACROSS_SCALE_WARP
+#endif  //  CONFIG_ACROSS_SCALE_WARP
   } else {
     sf->scale_value_x = unscaled_value;
     sf->scale_value_y = unscaled_value;
 #if CONFIG_ACROSS_SCALE_WARP
     sf->scale_value_warp_x = un_scaled_warp;
     sf->scale_value_warp_y = un_scaled_warp;
-#endif  // CONFIG_ACROSS_SCALE_WARP
-#if CONFIG_ACROSS_SCALE_TPL_MVS || CONFIG_ACROSS_SCALE_WARP
     sf->scale_value_x_gen = unscaled_value_gen;
     sf->scale_value_y_gen = unscaled_value_gen;
-#endif  // CONFIG_ACROSS_SCALE_TPL_MVS || CONFIG_ACROSS_SCALE_WARP
+#endif  // CONFIG_ACROSS_SCALE_WARP
   }
 }
