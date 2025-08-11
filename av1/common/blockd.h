@@ -1847,7 +1847,6 @@ struct scale_factors;
 /*!\endcond */
 
 #define REF_MV_BANK_SIZE 4
-#if CONFIG_LC_REF_MV_BANK
 // In total, 9 refmv bank lists are required:
 // 1) Single inter with reference frames 0~5, each has its own refmv bank list.
 // 2) Compound inter with reference frame pairs [0, 0] and [0, 1],
@@ -1856,9 +1855,6 @@ struct scale_factors;
 #define REF_MV_BANK_LIST_NUM 9
 // Refmv bank list index for the remaining inter reference frames
 #define REF_MV_BANK_LIST_FOR_ALL_OTHERS (REF_MV_BANK_LIST_NUM - 1)
-#else
-#define REF_MV_BANK_LIST_NUM MODE_CTX_REF_FRAMES
-#endif  // CONFIG_LC_REF_MV_BANK
 
 /*! \brief Variables related to reference MV bank. */
 typedef struct {
@@ -1874,7 +1870,6 @@ typedef struct {
    * Circular buffer storing the ref MVs.
    */
   CANDIDATE_MV rmb_buffer[REF_MV_BANK_LIST_NUM][REF_MV_BANK_SIZE];
-#if CONFIG_LC_REF_MV_BANK
   /*!
    * Single inter with 0~5 has its own ref mv bank list;
    * Compound inter with [0, 0] and [0, 1] has its own ref mv bank list;
@@ -1882,12 +1877,11 @@ typedef struct {
    * needs to store the ref frames.
    */
   MV_REFERENCE_FRAME rmb_ref_frame[REF_MV_BANK_SIZE];
-#endif  // CONFIG_LC_REF_MV_BANK
   /*!
    * Total number of mbmi updates conducted in SB
    */
   int rmb_sb_hits;
-#if CONFIG_BANK_IMPROVE
+
   /*!
    * Remain hits for current refmv bank updating unit.
    * Unit size is SB size divide 8
@@ -1898,7 +1892,7 @@ typedef struct {
    * Unit size is SB size divide 8
    */
   int rmb_unit_hits;
-#endif  // CONFIG_BANK_IMPROVE
+
 } REF_MV_BANK;
 
 #define WARP_PARAM_BANK_SIZE 4

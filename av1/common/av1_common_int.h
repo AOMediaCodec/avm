@@ -3263,7 +3263,6 @@ static INLINE void set_blk_offsets(const CommonModeInfoParams *const mi_params,
   xd->cctx_type_map_stride = mi_params->mi_stride;
 }
 
-#if CONFIG_BANK_IMPROVE
 #define MAX_RMB_SB_HITS 64
 #define BANK_SB_ABOVE_ROW_MAX_HITS 4
 void av1_update_ref_mv_bank(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
@@ -3322,7 +3321,6 @@ static INLINE void av1_reset_refmv_bank(const AV1_COMMON *const cm,
     }
   }
 }
-#endif  // CONFIG_BANK_IMPROVE
 
 static AOM_INLINE int is_sdp_enabled_in_keyframe(const AV1_COMMON *const cm) {
   return (frame_is_intra_only(cm) && !cm->seq_params.monochrome &&

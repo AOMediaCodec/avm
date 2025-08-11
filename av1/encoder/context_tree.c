@@ -458,10 +458,8 @@ void av1_copy_pc_tree_recursive(MACROBLOCKD *xd, const AV1_COMMON *cm,
         av1_copy_tree_context(dst->none[cur_region_type],
                               src->none[cur_region_type], num_planes);
         if (is_inter_block(&src->none[cur_region_type]->mic, xd->tree_type)) {
-#if CONFIG_BANK_IMPROVE
           xd->mi_row = mi_row;
           xd->mi_col = mi_col;
-#endif  // CONFIG_BANK_IMPROVE
 #if WARP_CU_BANK
           av1_update_warp_param_bank(cm, xd,
 #if CONFIG_COMPOUND_WARP_CAUSAL && COMPOUND_WARP_LINE_BUFFER_REDUCTION
@@ -470,21 +468,14 @@ void av1_copy_pc_tree_recursive(MACROBLOCKD *xd, const AV1_COMMON *cm,
                                      &dst->none[cur_region_type]->mic);
 #endif  // WARP_CU_BANK
           if (cm->seq_params.enable_refmvbank) {
-            av1_update_ref_mv_bank(cm, xd,
-#if CONFIG_BANK_IMPROVE
-                                   1,
-#endif  // CONFIG_BANK_IMPROVE
-                                   &dst->none[cur_region_type]->mic);
+            av1_update_ref_mv_bank(cm, xd, 1, &dst->none[cur_region_type]->mic);
           }
-        }
-#if CONFIG_BANK_IMPROVE
-        else {
+        } else {
           xd->mi_row = mi_row;
           xd->mi_col = mi_col;
           decide_rmb_unit_update_count(cm, xd,
                                        &dst->none[cur_region_type]->mic);
         }
-#endif  // CONFIG_BANK_IMPROVE
       }
       break;
     // PARTITION_SPLIT

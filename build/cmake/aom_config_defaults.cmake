@@ -289,8 +289,6 @@ set_aom_config_var(CONFIG_WARP_CAUSAL_PARSING_DEPENDENCY_REDUCTION 1
                    "reduce warp causal parsing dependency")
 set_aom_config_var(CONFIG_CWG_193_WARP_CAUSAL_THRESHOLD_REMOVAL 1
                    "Removes threshold based selection stratergy in warp causal")
-set_aom_config_var(CONFIG_BANK_IMPROVE 1
-                   "Enable to improve refmv bank and warp parameter bank")
 set_aom_config_var(CONFIG_PARTITION_CONTEXT_REDUCE 1
                    "Enable to reduce partition contexts")
 set_aom_config_var(CONFIG_OPT_INTER_MODE_CTX 1
@@ -372,9 +370,6 @@ set_aom_config_var(CONFIG_CHROMA_MERGE_LATENCY_FIX 1
 
 set_aom_config_var(CONFIG_COMPOUND_4XN 1
                    "Enable compound modes for 4XN/Nx4 blocks")
-
-set_aom_config_var(CONFIG_LC_REF_MV_BANK 1
-                   "Enable low complexity refmv bank design")
 
 set_aom_config_var(
   CONFIG_FRAME_HEADER_SIGNAL_OPT 1

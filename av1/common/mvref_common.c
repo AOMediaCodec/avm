@@ -2248,7 +2248,6 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   return 1;
 }
 
-#if CONFIG_LC_REF_MV_BANK
 // This function determines which refmv bank list should be used for the
 // given input reference frame.
 // In total, 9 refmv bank lists are required:
@@ -2280,7 +2279,6 @@ static AOM_INLINE int get_rmb_list_index(const MV_REFERENCE_FRAME ref_frame) {
     return 8;
   }
 }
-#endif  // CONFIG_LC_REF_MV_BANK
 
 static AOM_INLINE bool check_rmb_cand(
     CANDIDATE_MV cand_mv, CANDIDATE_MV *ref_mv_stack, uint16_t *ref_mv_weight,
@@ -2517,15 +2515,9 @@ static AOM_INLINE void add_ref_mv_bank_candidates(
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
   ) {
     const REF_MV_BANK *ref_mv_bank = &xd->ref_mv_bank;
-#if CONFIG_LC_REF_MV_BANK
     const int rmb_list_index = get_rmb_list_index(ref_frame);
-#else
-    const int rmb_list_index = ref_frame;
-#endif  // CONFIG_LC_REF_MV_BANK
     const CANDIDATE_MV *queue = ref_mv_bank->rmb_buffer[rmb_list_index];
-#if CONFIG_LC_REF_MV_BANK
     const MV_REFERENCE_FRAME *rmb_ref_frame = ref_mv_bank->rmb_ref_frame;
-#endif  // CONFIG_LC_REF_MV_BANK
     const int count = ref_mv_bank->rmb_count[rmb_list_index];
     const int start_idx = ref_mv_bank->rmb_start_idx[rmb_list_index];
     const int is_comp = is_inter_ref_frame(rf[1]);
@@ -2535,11 +2527,10 @@ static AOM_INLINE void add_ref_mv_bank_candidates(
          ++idx_bank) {
       const int idx = (start_idx + count - 1 - idx_bank) % REF_MV_BANK_SIZE;
       const CANDIDATE_MV cand_mv = queue[idx];
-#if CONFIG_LC_REF_MV_BANK
       if (rmb_list_index == REF_MV_BANK_LIST_FOR_ALL_OTHERS &&
           rmb_ref_frame[idx] != ref_frame)
         continue;
-#endif  // CONFIG_LC_REF_MV_BANK
+
 #if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
       bool rmb_candi_exist =
 #endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
@@ -5520,7 +5511,6 @@ void av1_setup_skip_mode_allowed(AV1_COMMON *cm) {
   }
 }
 
-#if CONFIG_BANK_IMPROVE
 #define SB_TO_RMB_UNITS_LOG2 3
 #define SB_TO_RMB_UNITS (1 << SB_TO_RMB_UNITS_LOG2)
 #define BANK_1ST_UNIT_UPDATE_COUNT 4
@@ -5558,14 +5548,11 @@ void decide_rmb_unit_update_count(const AV1_COMMON *const cm,
     xd->ref_mv_bank.rmb_unit_hits = 0;
   }
 }
-#endif  // CONFIG_BANK_IMPROVE
 
-static INLINE void update_ref_mv_bank(
-#if CONFIG_BANK_IMPROVE
-    const AV1_COMMON *const cm, MACROBLOCKD *const xd, int from_within_sb,
-#endif  // CONFIG_BANK_IMPROVE
-    const MB_MODE_INFO *const mbmi, REF_MV_BANK *ref_mv_bank) {
-#if CONFIG_BANK_IMPROVE
+static INLINE void update_ref_mv_bank(const AV1_COMMON *const cm,
+                                      MACROBLOCKD *const xd, int from_within_sb,
+                                      const MB_MODE_INFO *const mbmi,
+                                      REF_MV_BANK *ref_mv_bank) {
   if (from_within_sb) {
     decide_rmb_unit_update_count(cm, xd, mbmi);
 
@@ -5581,23 +5568,15 @@ static INLINE void update_ref_mv_bank(
     // If max hits have been reached return.
     if (ref_mv_bank->rmb_sb_hits >= MAX_RMB_SB_HITS) return;
   }
-#else
-  // If max hits have been reached return.
-  if (ref_mv_bank->rmb_sb_hits >= MAX_RMB_SB_HITS) return;
-#endif  // CONFIG_BANK_IMPROVE
-        // else increment count and proceed with updating.
+
+  // else increment count and proceed with updating.
   ++ref_mv_bank->rmb_sb_hits;
 
   const MV_REFERENCE_FRAME ref_frame = av1_ref_frame_type(mbmi->ref_frame);
-#if CONFIG_LC_REF_MV_BANK
   const int rmb_list_index = get_rmb_list_index(ref_frame);
-#else
-  const int rmb_list_index = ref_frame;
-#endif  // CONFIG_LC_REF_MV_BANK
   CANDIDATE_MV *queue = ref_mv_bank->rmb_buffer[rmb_list_index];
-#if CONFIG_LC_REF_MV_BANK
   MV_REFERENCE_FRAME *rmb_ref_frame = ref_mv_bank->rmb_ref_frame;
-#endif  // CONFIG_LC_REF_MV_BANK
+
   const int is_comp = has_second_ref(mbmi);
   const int start_idx = ref_mv_bank->rmb_start_idx[rmb_list_index];
   const int count = ref_mv_bank->rmb_count[rmb_list_index];
@@ -5606,11 +5585,8 @@ static INLINE void update_ref_mv_bank(
   // Check if current MV is already existing in the buffer.
   for (int i = 0; i < count; ++i) {
     const int idx = (start_idx + i) % REF_MV_BANK_SIZE;
-    if (
-#if CONFIG_LC_REF_MV_BANK
-        (rmb_list_index != REF_MV_BANK_LIST_FOR_ALL_OTHERS ||
+    if ((rmb_list_index != REF_MV_BANK_LIST_FOR_ALL_OTHERS ||
          rmb_ref_frame[idx] == ref_frame) &&
-#endif  // CONFIG_LC_REF_MV_BANK
         mbmi->mv[0].as_int == queue[idx].this_mv.as_int &&
         (!is_comp || mbmi->mv[1].as_int == queue[idx].comp_mv.as_int)) {
       found = i;
@@ -5626,19 +5602,15 @@ static INLINE void update_ref_mv_bank(
       const int idx0 = (start_idx + i) % REF_MV_BANK_SIZE;
       const int idx1 = (start_idx + i + 1) % REF_MV_BANK_SIZE;
       queue[idx0] = queue[idx1];
-#if CONFIG_LC_REF_MV_BANK
       if (rmb_list_index == REF_MV_BANK_LIST_FOR_ALL_OTHERS) {
         rmb_ref_frame[idx0] = rmb_ref_frame[idx1];
       }
-#endif  // CONFIG_LC_REF_MV_BANK
     }
     const int tail = (start_idx + count - 1) % REF_MV_BANK_SIZE;
     queue[tail] = cand;
-#if CONFIG_LC_REF_MV_BANK
     if (rmb_list_index == REF_MV_BANK_LIST_FOR_ALL_OTHERS) {
       rmb_ref_frame[tail] = ref_frame;
     }
-#endif  // CONFIG_LC_REF_MV_BANK
     return;
   }
 
@@ -5647,11 +5619,9 @@ static INLINE void update_ref_mv_bank(
   const int idx = (start_idx + count) % REF_MV_BANK_SIZE;
   queue[idx].this_mv = mbmi->mv[0];
   if (is_comp) queue[idx].comp_mv = mbmi->mv[1];
-#if CONFIG_LC_REF_MV_BANK
   if (rmb_list_index == REF_MV_BANK_LIST_FOR_ALL_OTHERS) {
     rmb_ref_frame[idx] = ref_frame;
   }
-#endif  // CONFIG_LC_REF_MV_BANK
   queue[idx].cwp_idx = mbmi->cwp_idx;
   if (count < REF_MV_BANK_SIZE) {
     ++ref_mv_bank->rmb_count[rmb_list_index];
@@ -5661,15 +5631,9 @@ static INLINE void update_ref_mv_bank(
 }
 
 void av1_update_ref_mv_bank(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
-#if CONFIG_BANK_IMPROVE
                             int from_within_sb,
-#endif  // CONFIG_BANK_IMPROVE
                             const MB_MODE_INFO *const mbmi) {
-  update_ref_mv_bank(
-#if CONFIG_BANK_IMPROVE
-      cm, xd, from_within_sb,
-#endif  // CONFIG_BANK_IMPROVE
-      mbmi, &xd->ref_mv_bank);
+  update_ref_mv_bank(cm, xd, from_within_sb, mbmi, &xd->ref_mv_bank);
   (void)cm;
 }
 

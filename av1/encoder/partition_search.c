@@ -616,17 +616,10 @@ static void pick_sb_modes(AV1_COMP *const cpi, ThreadData *td,
 #else
     if (cm->seq_params.enable_refmvbank && is_inter) {
 #endif  // CONFIG_IBC_SR_EXT && !CONFIG_IBC_BV_IMPROVEMENT
-      av1_update_ref_mv_bank(cm, xd,
-#if CONFIG_BANK_IMPROVE
-                             1,
-#endif  // CONFIG_BANK_IMPROVE
-                             &ctx->mic);
-    }
-#if CONFIG_BANK_IMPROVE
-    else {
+      av1_update_ref_mv_bank(cm, xd, 1, &ctx->mic);
+    } else {
       decide_rmb_unit_update_count(cm, xd, &ctx->mic);
     }
-#endif  // CONFIG_BANK_IMPROVE
 #if WARP_CU_BANK
     if (is_inter)
       av1_update_warp_param_bank(cm, xd,
@@ -733,17 +726,10 @@ static void pick_sb_modes(AV1_COMP *const cpi, ThreadData *td,
 #else
   if (cm->seq_params.enable_refmvbank && is_inter) {
 #endif  // CONFIG_IBC_SR_EXT && !CONFIG_IBC_BV_IMPROVEMENT
-    av1_update_ref_mv_bank(cm, xd,
-#if CONFIG_BANK_IMPROVE
-                           1,
-#endif  // CONFIG_BANK_IMPROVE
-                           mbmi);
-  }
-#if CONFIG_BANK_IMPROVE
-  else {
+    av1_update_ref_mv_bank(cm, xd, 1, mbmi);
+  } else {
     decide_rmb_unit_update_count(cm, xd, mbmi);
   }
-#endif  // CONFIG_BANK_IMPROVE
 
 #if WARP_CU_BANK
   if (is_inter)
