@@ -1318,7 +1318,7 @@ static double get_modeled_qp_offset(int qp, int level, int bit_depth,
     76, 60, 30, 15, 8, 4
   };
 #if CONFIG_ADJ_PYR_Q_OFFSET
-  static const int percents[FIXED_QP_OFFSET_COUNT] = { 76, 62, 38, 20, 10, 4 };
+  static const int percents[FIXED_QP_OFFSET_COUNT] = { 76, 61, 38, 20, 10, 4 };
 #else
   static const int percents[FIXED_QP_OFFSET_COUNT] = { 76, 60, 30, 15, 8, 4 };
 #endif  // CONFIG_ADJ_PYR_Q_OFFSET

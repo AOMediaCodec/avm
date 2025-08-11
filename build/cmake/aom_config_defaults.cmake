@@ -461,7 +461,7 @@ set_aom_config_var(CONFIG_IMPROVE_TIP_LF 1 "Enable improved LF for TIP frame.")
 set_aom_config_var(CONFIG_SIMPLIFY_MV_FIELD 1
                    "Fixes and simplifications to motion field generation.")
 
-set_aom_config_var(CONFIG_ADJ_PYR_Q_OFFSET 0
+set_aom_config_var(CONFIG_ADJ_PYR_Q_OFFSET 1
                    "Encoder-only config to adjust pyr qp offsets from nominal.")
 
 set_aom_config_var(CONFIG_CCSO_CLEANUP 1
