@@ -8934,6 +8934,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       cm->cur_frame->v_ac_delta_q = cm->quant_params.v_ac_delta_q;
     }
     features->refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+    if (cm->seq_params.disable_loopfilters_across_tiles) {
+      read_tile_info(pbi, rb);
+    }
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
     features->disable_cdf_update = 1;
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
