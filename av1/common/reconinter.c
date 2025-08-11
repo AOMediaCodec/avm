@@ -888,8 +888,9 @@ void av1_bicubic_grad_interpolation_highbd_c(const int16_t *pred_src,
              coeffs_bicubic[SUBPEL_GRAD_DELTA_BITS][1][is_boundary] *
                  (int32_t)(pred_src[i * stride + id_next2] -
                            pred_src[i * stride + id_prev2]);
-      x_grad[i * bw + j] = clamp(ROUND_POWER_OF_TWO_SIGNED(temp, bicubic_bits),
-                                 -OPFL_GRAD_CLAMP_VAL, OPFL_GRAD_CLAMP_VAL);
+      x_grad[i * stride + j] =
+          clamp(ROUND_POWER_OF_TWO_SIGNED(temp, bicubic_bits),
+                -OPFL_GRAD_CLAMP_VAL, OPFL_GRAD_CLAMP_VAL);
 
       // Subtract interpolated pixel at (i+delta, j) by the one at (i-delta, j)
       id_prev = AOMMAX(i - 1, 0);
@@ -903,8 +904,9 @@ void av1_bicubic_grad_interpolation_highbd_c(const int16_t *pred_src,
              coeffs_bicubic[SUBPEL_GRAD_DELTA_BITS][1][is_boundary] *
                  (int32_t)(pred_src[id_next2 * stride + j] -
                            pred_src[id_prev2 * stride + j]);
-      y_grad[i * bw + j] = clamp(ROUND_POWER_OF_TWO_SIGNED(temp, bicubic_bits),
-                                 -OPFL_GRAD_CLAMP_VAL, OPFL_GRAD_CLAMP_VAL);
+      y_grad[i * stride + j] =
+          clamp(ROUND_POWER_OF_TWO_SIGNED(temp, bicubic_bits),
+                -OPFL_GRAD_CLAMP_VAL, OPFL_GRAD_CLAMP_VAL);
     }
   }
 #else
@@ -1049,12 +1051,12 @@ void calc_mv_process(int32_t su2, int32_t sv2, int32_t suv, int32_t suw,
 
   divide_and_round_array(sol, det, 2, shifts);
 
-  *vx0 = -sol[0];
-  *vy0 = -sol[1];
-  *vx1 = (*vx0) * d1;
-  *vy1 = (*vy0) * d1;
-  *vx0 = (*vx0) * d0;
-  *vy0 = (*vy0) * d0;
+  const int tmp_vx0 = -sol[0];
+  const int tmp_vy0 = -sol[1];
+  *vx0 = tmp_vx0 * d0;
+  *vy0 = tmp_vy0 * d0;
+  *vx1 = tmp_vx0 * d1;
+  *vy1 = tmp_vy0 * d1;
 }
 
 // Solve vx and vy given pdiff = P0 - P1 and the gradients gx/gy of
