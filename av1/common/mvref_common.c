@@ -5904,6 +5904,15 @@ static int is_same_ref_frame(const MB_MODE_INFO *neighbor_mi,
          (is_inter_ref_frame(neighbor_mi->ref_frame[1]) &&
           neighbor_mi->ref_frame[1] == mbmi->ref_frame[0]);
 }
+#if CONFIG_WARP_CAUSAL_PARSING_DEPENDENCY_REDUCTION
+static int is_same_ref_frame_for_this_ref_frame(
+    const MB_MODE_INFO *neighbor_mi, const MV_REFERENCE_FRAME ref_frame) {
+  return (is_inter_ref_frame(neighbor_mi->ref_frame[0]) &&
+          neighbor_mi->ref_frame[0] == ref_frame) ||
+         (is_inter_ref_frame(neighbor_mi->ref_frame[1]) &&
+          neighbor_mi->ref_frame[1] == ref_frame);
+}
+#endif  // CONFIG_WARP_CAUSAL_PARSING_DEPENDENCY_REDUCTION
 
 int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                     const MB_MODE_INFO *mbmi, int *p_num_of_warp_neighbors) {
@@ -6037,10 +6046,9 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 }
 
 #if CONFIG_WARP_CAUSAL_PARSING_DEPENDENCY_REDUCTION
-uint8_t av1_is_warp_causal_allowed(const AV1_COMMON *cm,
-                                   const MACROBLOCKD *xd) {
+uint8_t av1_is_warp_causal_allowed(const AV1_COMMON *cm, const MACROBLOCKD *xd,
+                                   const MV_REFERENCE_FRAME ref_frame) {
   const TileInfo *const tile = &xd->tile;
-  const MB_MODE_INFO *const mbmi = xd->mi[0];
 
   POSITION mi_pos;
   MVP_UNIT_STATUS row_smvp_state[4] = { 0 };
@@ -6052,7 +6060,7 @@ uint8_t av1_is_warp_causal_allowed(const AV1_COMMON *cm,
   if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && xd->left_available) {
     const MB_MODE_INFO *neighbor_mi =
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
-    if (neighbor_mi->skip_mode == 0 && is_same_ref_frame(neighbor_mi, mbmi)) {
+    if (is_same_ref_frame_for_this_ref_frame(neighbor_mi, ref_frame)) {
       return 1;
     }
   }
@@ -6064,7 +6072,7 @@ uint8_t av1_is_warp_causal_allowed(const AV1_COMMON *cm,
       row_smvp_state[0].is_available) {
     const MB_MODE_INFO *neighbor_mi =
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
-    if (neighbor_mi->skip_mode == 0 && is_same_ref_frame(neighbor_mi, mbmi)) {
+    if (is_same_ref_frame_for_this_ref_frame(neighbor_mi, ref_frame)) {
       return 1;
     }
   }
@@ -6075,7 +6083,7 @@ uint8_t av1_is_warp_causal_allowed(const AV1_COMMON *cm,
   if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && xd->left_available) {
     const MB_MODE_INFO *neighbor_mi =
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
-    if (neighbor_mi->skip_mode == 0 && is_same_ref_frame(neighbor_mi, mbmi)) {
+    if (is_same_ref_frame_for_this_ref_frame(neighbor_mi, ref_frame)) {
       return 1;
     }
   }
@@ -6087,7 +6095,7 @@ uint8_t av1_is_warp_causal_allowed(const AV1_COMMON *cm,
       row_smvp_state[1].is_available) {
     const MB_MODE_INFO *neighbor_mi =
         xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
-    if (neighbor_mi->skip_mode == 0 && is_same_ref_frame(neighbor_mi, mbmi)) {
+    if (is_same_ref_frame_for_this_ref_frame(neighbor_mi, ref_frame)) {
       return 1;
     }
   }
