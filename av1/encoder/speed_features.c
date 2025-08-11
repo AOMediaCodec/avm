@@ -911,13 +911,13 @@ static AOM_INLINE void set_erp_speed_features_framesize_dependent(
         sf->part_sf.prune_split_ml_level = 1;
       } else if (is_720p_or_larger) {
         sf->part_sf.prune_split_ml_level = 0;
-        sf->part_sf.prune_split_ml_level_inter = 0;
         sf->part_sf.prune_none_with_ml = 0;
       } else {
         sf->part_sf.prune_split_with_ml = 1;
-        sf->part_sf.prune_split_ml_level_inter = 0;
         sf->part_sf.prune_none_with_ml = 0;
       }
+      sf->part_sf.prune_split_ml_level_inter =
+          sf->part_sf.prune_none_with_ml ? -1 : 0;
 #endif  // CONFIG_ML_PART_SPLIT
       AOM_FALLTHROUGH_INTENDED;
     case 4: AOM_FALLTHROUGH_INTENDED;
