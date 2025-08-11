@@ -195,12 +195,19 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
                            NULL);
   for (i = 0; i < Y_MODE_CONTEXTS; ++i) {
     // y mode costs
-    av1_cost_tokens_from_cdf(mode_costs->y_first_mode_costs[i],
+#if CONFIG_REDUCE_SYMBOL_SIZE
+    av1_cost_tokens_from_cdf(mode_costs->y_mode_idx_costs[i],
+                             fc->y_mode_idx_cdf[i], NULL);
+    av1_cost_tokens_from_cdf(mode_costs->y_mode_idx_offset_costs[i],
+                             fc->y_mode_idx_offset_cdf[i], NULL);
+#else
+    av1_cost_tokens_from_cdf(mode_costs->y_mode_idx_0_costs[i],
                              fc->y_mode_idx_cdf_0[i], NULL);
 #if !CONFIG_CTX_Y_SECOND_MODE
     av1_cost_tokens_from_cdf(mode_costs->y_second_mode_costs[i],
                              fc->y_mode_idx_cdf_1[i], NULL);
 #endif  // !CONFIG_CTX_Y_SECOND_MODE
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   }
 
   for (j = 0; j < UV_MODE_CONTEXTS; ++j)
@@ -352,6 +359,29 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
     av1_cost_tokens_from_cdf(mode_costs->intra_ext_tx_short_side_costs[i],
                              fc->intra_ext_tx_short_side_cdf[i], NULL);
   }
+
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  for (i = TX_4X4; i < EXT_TX_SIZES; ++i) {
+    int s;
+    int k;
+    for (k = 0; k < EOB_TX_CTXS; ++k) {
+      for (s = 0; s < 2; ++s) {
+        av1_cost_tokens_from_cdf(mode_costs->inter_tx_type_set_cost[s][k][i],
+                                 fc->inter_tx_type_set[s][k][i], NULL);
+      }
+    }
+  }
+  for (int k = 0; k < EOB_TX_CTXS; ++k) {
+    for (int s = 0; s < 2; ++s) {
+      av1_cost_tokens_from_cdf(mode_costs->inter_tx_type_idx_cost[s][k],
+                               fc->inter_tx_type_idx[s][k], NULL);
+    }
+    av1_cost_tokens_from_cdf(mode_costs->inter_tx_type_offset_1_cost[k],
+                             fc->inter_tx_type_offset_1[k], NULL);
+    av1_cost_tokens_from_cdf(mode_costs->inter_tx_type_offset_2_cost[k],
+                             fc->inter_tx_type_offset_2[k], NULL);
+  }
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
 
   for (i = TX_4X4; i < EXT_TX_SIZES; ++i) {
     int s;

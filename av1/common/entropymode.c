@@ -127,6 +127,26 @@ static const aom_cdf_prob default_y_mode_set_cdf[CDF_SIZE(INTRA_MODE_SETS)] = {
   AOM_CDF4(28618, 30909, 31555), 118
 };
 
+#if CONFIG_REDUCE_SYMBOL_SIZE
+static const aom_cdf_prob default_y_mode_idx_cdf[Y_MODE_CONTEXTS][CDF_SIZE(
+    LUMA_INTRA_MODE_INDEX_COUNT)] = {
+  { AOM_CDF8(14967, 20223, 22467, 24775, 26294, 27253, 28348), 75 },
+  { AOM_CDF8(10399, 14457, 16589, 18447, 19804, 24728, 26455), 75 },
+  { AOM_CDF8(5342, 7123, 8352, 9283, 9845, 17570, 23158), 75 },
+};
+static const aom_cdf_prob
+    default_y_mode_idx_offset_cdf[Y_MODE_CONTEXTS][CDF_SIZE(
+        LUMA_INTRA_MODE_OFFSET_COUNT)] = {
+      { AOM_CDF6(15256, 19609, 22218, 25531, 27739), 75 },
+      { AOM_CDF6(11526, 16924, 21400, 25152, 28399), 75 },
+      { AOM_CDF6(11465, 16384, 21089, 26781, 29709), 75 },
+    };
+static const aom_cdf_prob default_uv_mode_cdf[UV_MODE_CONTEXTS][CDF_SIZE(
+    CHROMA_INTRA_MODE_INDEX_COUNT)] = {
+  { AOM_CDF8(13848, 18930, 20641, 22133, 23986, 25450, 28075), 0 },
+  { AOM_CDF8(19268, 22648, 25651, 26449, 27288, 28840, 29451), 0 },
+};
+#else
 static const aom_cdf_prob
     default_y_first_mode_cdf[Y_MODE_CONTEXTS][CDF_SIZE(FIRST_MODE_COUNT)] = {
       { AOM_CDF13(14967, 20223, 22467, 24775, 26294, 27253, 28348, 30404, 30994,
@@ -162,6 +182,7 @@ static const aom_cdf_prob
                   31606, 31844, 32144),
         0 },
     };
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
 static const aom_cdf_prob default_cfl_cdf[CFL_CONTEXTS][CDF_SIZE(2)] = {
   { AOM_CDF2(18484), 6 },
   { AOM_CDF2(8591), 6 },
@@ -4807,6 +4828,83 @@ static const aom_cdf_prob
       },
     };
 
+#if CONFIG_REDUCE_SYMBOL_SIZE
+static const aom_cdf_prob
+    default_inter_tx_type_set_cdf[2][EOB_TX_CTXS][EXT_TX_SIZES][CDF_SIZE(2)] = {
+      {
+          {
+              { AOM_CDF2(20576), 0 },
+              { AOM_CDF2(16541), 0 },
+              { AOM_CDF2(16384), 0 },
+              { AOM_CDF2(16384), 0 },
+          },
+          {
+              { AOM_CDF2(16147), 0 },
+              { AOM_CDF2(30302), 0 },
+              { AOM_CDF2(16384), 0 },
+              { AOM_CDF2(16384), 0 },
+          },
+          {
+              { AOM_CDF2(25522), 0 },
+              { AOM_CDF2(23776), 0 },
+              { AOM_CDF2(16384), 0 },
+              { AOM_CDF2(16384), 0 },
+          },
+      },
+      {
+          {
+              { AOM_CDF2(16384), 0 },
+              { AOM_CDF2(16384), 0 },
+              { AOM_CDF2(22866), 0 },
+              { AOM_CDF2(16384), 0 },
+          },
+          {
+              { AOM_CDF2(16384), 0 },
+              { AOM_CDF2(16384), 0 },
+              { AOM_CDF2(32277), 0 },
+              { AOM_CDF2(16384), 0 },
+          },
+          {
+              { AOM_CDF2(16384), 0 },
+              { AOM_CDF2(16384), 0 },
+              { AOM_CDF2(29701), 0 },
+              { AOM_CDF2(16384), 0 },
+          },
+      },
+    };
+
+static const aom_cdf_prob
+    default_inter_tx_type_idx_cdf[2][EOB_TX_CTXS][CDF_SIZE(
+        INTER_TX_TYPE_INDEX_COUNT)] = {
+      {
+          { AOM_CDF8(14380, 16658, 18988, 22077, 25194, 27959, 30950), 0 },
+          { AOM_CDF8(442, 561, 737, 1131, 1214, 1494, 1624), 0 },
+          { AOM_CDF8(18414, 19897, 21481, 23996, 27098, 29474, 32457), 0 },
+      },
+      {
+          { AOM_CDF8(3612, 5799, 8468, 16149, 20607, 25655, 29211), 0 },
+          { AOM_CDF8(135, 279, 923, 31785, 32279, 32421, 32564), 0 },
+          { AOM_CDF8(26230, 26927, 28614, 29682, 30095, 30901, 31759), 0 },
+      },
+    };
+
+static const aom_cdf_prob
+    default_inter_tx_type_offset_1_cdf[EOB_TX_CTXS][CDF_SIZE(
+        INTER_TX_TYPE_OFFSET1_COUNT)] = {
+      { AOM_CDF8(2787, 6375, 8620, 11630, 17688, 22228, 27481), 0 },
+      { AOM_CDF8(401, 499, 693, 829, 2141, 2356, 2791), 0 },
+      { AOM_CDF8(1984, 5908, 7465, 10371, 17345, 21585, 26968), 0 },
+    };
+
+static const aom_cdf_prob
+    default_inter_tx_type_offset_2_cdf[EOB_TX_CTXS][CDF_SIZE(
+        INTER_TX_TYPE_OFFSET2_COUNT)] = {
+      { AOM_CDF4(10244, 16768, 25390), 0 },
+      { AOM_CDF4(10230, 16432, 24377), 0 },
+      { AOM_CDF4(8301, 19386, 25851), 0 },
+    };
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
+
 static const aom_cdf_prob default_inter_ext_tx_cdf
     [EXT_TX_SETS_INTER][EOB_TX_CTXS][EXT_TX_SIZES][CDF_SIZE(TX_TYPES)] = {
       {
@@ -7339,10 +7437,15 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   av1_copy(fc->merged_param_cdf, default_merged_param_cdf);
 #endif  // CONFIG_MERGE_PARA_CTX
   av1_copy(fc->y_mode_set_cdf, default_y_mode_set_cdf);
-  av1_copy(fc->y_mode_idx_cdf_0, default_y_first_mode_cdf);
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  av1_copy(fc->y_mode_idx_cdf, default_y_mode_idx_cdf);
+  av1_copy(fc->y_mode_idx_offset_cdf, default_y_mode_idx_offset_cdf);
+#else
+  av1_copy(fc->y_mode_idx_cdf_0, default_y_mode_idx_cdf_0);
 #if !CONFIG_CTX_Y_SECOND_MODE
   av1_copy(fc->y_mode_idx_cdf_1, default_y_second_mode_cdf);
 #endif  // !CONFIG_CTX_Y_SECOND_MODE
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   av1_copy(fc->uv_mode_cdf, default_uv_mode_cdf);
   av1_copy(fc->cfl_cdf, default_cfl_cdf);
   av1_copy(fc->mrl_index_cdf, default_mrl_index_cdf);
@@ -7378,6 +7481,12 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   av1_copy(fc->lossless_inter_tx_type_cdf, default_lossless_inter_tx_type_cdf);
   av1_copy(fc->intra_ext_tx_cdf, default_intra_ext_tx_cdf);
   av1_copy(fc->inter_ext_tx_cdf, default_inter_ext_tx_cdf);
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  av1_copy(fc->inter_tx_type_set, default_inter_tx_type_set_cdf);
+  av1_copy(fc->inter_tx_type_idx, default_inter_tx_type_idx_cdf);
+  av1_copy(fc->inter_tx_type_offset_1, default_inter_tx_type_offset_1_cdf);
+  av1_copy(fc->inter_tx_type_offset_2, default_inter_tx_type_offset_2_cdf);
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
 #if CONFIG_BRU
   av1_copy(fc->bru_mode_cdf, default_bru_mode_cdf);
 #endif  // CONFIG_BRU
@@ -7597,12 +7706,21 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
                          EOB_MAX_SYMS - 4);
   CUMULATIVE_AVERAGE_CDF(ctx_left->eob_flag_cdf128, ctx_tr->eob_flag_cdf128,
                          EOB_MAX_SYMS - 3);
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  CUMULATIVE_AVERAGE_CDF(ctx_left->eob_flag_cdf256, ctx_tr->eob_flag_cdf256,
+                         EOB_MAX_SYMS - 3);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->eob_flag_cdf512, ctx_tr->eob_flag_cdf512,
+                         EOB_MAX_SYMS - 3);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->eob_flag_cdf1024, ctx_tr->eob_flag_cdf1024,
+                         EOB_MAX_SYMS - 3);
+#else
   CUMULATIVE_AVERAGE_CDF(ctx_left->eob_flag_cdf256, ctx_tr->eob_flag_cdf256,
                          EOB_MAX_SYMS - 2);
   CUMULATIVE_AVERAGE_CDF(ctx_left->eob_flag_cdf512, ctx_tr->eob_flag_cdf512,
                          EOB_MAX_SYMS - 1);
   CUMULATIVE_AVERAGE_CDF(ctx_left->eob_flag_cdf1024, ctx_tr->eob_flag_cdf1024,
                          EOB_MAX_SYMS);
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   CUMULATIVE_AVERAGE_CDF(ctx_left->coeff_base_eob_cdf,
                          ctx_tr->coeff_base_eob_cdf, 3);
   CUMULATIVE_AVERAGE_CDF(ctx_left->coeff_base_bob_cdf,
@@ -7880,6 +7998,15 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
                          CFL_TYPE_COUNT - 1);
   CUMULATIVE_AVERAGE_CDF(ctx_left->y_mode_set_cdf, ctx_tr->y_mode_set_cdf,
                          INTRA_MODE_SETS);
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  CUMULATIVE_AVERAGE_CDF(ctx_left->y_mode_idx_cdf, ctx_tr->y_mode_idx_cdf,
+                         LUMA_INTRA_MODE_INDEX_COUNT);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->y_mode_idx_offset_cdf,
+                         ctx_tr->y_mode_idx_offset_cdf,
+                         LUMA_INTRA_MODE_OFFSET_COUNT);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->uv_mode_cdf, ctx_tr->uv_mode_cdf,
+                         CHROMA_INTRA_MODE_INDEX_COUNT);
+#else
   CUMULATIVE_AVERAGE_CDF(ctx_left->y_mode_idx_cdf_0, ctx_tr->y_mode_idx_cdf_0,
                          FIRST_MODE_COUNT);
 #if !CONFIG_CTX_Y_SECOND_MODE
@@ -7888,7 +8015,7 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
 #endif  // !CONFIG_CTX_Y_SECOND_MODE
   CUMULATIVE_AVERAGE_CDF(ctx_left->uv_mode_cdf, ctx_tr->uv_mode_cdf,
                          UV_INTRA_MODES - 1);
-
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   CUMULATIVE_AVERAGE_CDF(ctx_left->region_type_cdf, ctx_tr->region_type_cdf,
                          REGION_TYPES);
 
@@ -7938,6 +8065,18 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
                             ctx_tr->inter_ext_tx_cdf[4], INTER_TX_SET4,
                             CDF_SIZE(TX_TYPES));
 #endif  // CONFIG_REDUCED_TX_SET_EXT
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  CUMULATIVE_AVERAGE_CDF(ctx_left->inter_tx_type_set, ctx_tr->inter_tx_type_set,
+                         2);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->inter_tx_type_idx, ctx_tr->inter_tx_type_idx,
+                         INTER_TX_TYPE_INDEX_COUNT);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->inter_tx_type_offset_1,
+                         ctx_tr->inter_tx_type_offset_1,
+                         INTER_TX_TYPE_OFFSET1_COUNT);
+  CUMULATIVE_AVERAGE_CDF(ctx_left->inter_tx_type_offset_2,
+                         ctx_tr->inter_tx_type_offset_2,
+                         INTER_TX_TYPE_OFFSET2_COUNT);
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   CUMULATIVE_AVERAGE_CDF(ctx_left->cfl_sign_cdf, ctx_tr->cfl_sign_cdf,
                          CFL_JOINT_SIGNS);
   CUMULATIVE_AVERAGE_CDF(ctx_left->cfl_alpha_cdf, ctx_tr->cfl_alpha_cdf,
@@ -8089,9 +8228,15 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
   SHIFT_CDF(ctx_ptr->eob_flag_cdf32, EOB_MAX_SYMS - 5);
   SHIFT_CDF(ctx_ptr->eob_flag_cdf64, EOB_MAX_SYMS - 4);
   SHIFT_CDF(ctx_ptr->eob_flag_cdf128, EOB_MAX_SYMS - 3);
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  SHIFT_CDF(ctx_ptr->eob_flag_cdf256, EOB_MAX_SYMS - 3);
+  SHIFT_CDF(ctx_ptr->eob_flag_cdf512, EOB_MAX_SYMS - 3);
+  SHIFT_CDF(ctx_ptr->eob_flag_cdf1024, EOB_MAX_SYMS - 3);
+#else
   SHIFT_CDF(ctx_ptr->eob_flag_cdf256, EOB_MAX_SYMS - 2);
   SHIFT_CDF(ctx_ptr->eob_flag_cdf512, EOB_MAX_SYMS - 1);
   SHIFT_CDF(ctx_ptr->eob_flag_cdf1024, EOB_MAX_SYMS);
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   SHIFT_CDF(ctx_ptr->coeff_base_eob_cdf, 3);
   SHIFT_CDF(ctx_ptr->coeff_base_bob_cdf, 3);
   SHIFT_CDF(ctx_ptr->intra_dip_cdf, 2);
@@ -8270,12 +8415,17 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
 #endif  // MHCCP_RUNTIME_FLAG
   SHIFT_CDF(ctx_ptr->cfl_index_cdf, CFL_TYPE_COUNT - 1);
   SHIFT_CDF(ctx_ptr->y_mode_set_cdf, INTRA_MODE_SETS);
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  SHIFT_CDF(ctx_ptr->y_mode_idx_cdf, LUMA_INTRA_MODE_INDEX_COUNT);
+  SHIFT_CDF(ctx_ptr->y_mode_idx_offset_cdf, LUMA_INTRA_MODE_OFFSET_COUNT);
+  SHIFT_CDF(ctx_ptr->uv_mode_cdf, CHROMA_INTRA_MODE_INDEX_COUNT);
+#else
   SHIFT_CDF(ctx_ptr->y_mode_idx_cdf_0, FIRST_MODE_COUNT);
 #if !CONFIG_CTX_Y_SECOND_MODE
   SHIFT_CDF(ctx_ptr->y_mode_idx_cdf_1, SECOND_MODE_COUNT);
 #endif  // !CONFIG_CTX_Y_SECOND_MODE
   SHIFT_CDF(ctx_ptr->uv_mode_cdf, UV_INTRA_MODES - 1);
-
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   SHIFT_CDF(ctx_ptr->region_type_cdf, REGION_TYPES);
 
   SHIFT_CDF(ctx_ptr->do_split_cdf, 2);
@@ -8307,6 +8457,12 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
   SHIFT_CDF_STRIDE(ctx_ptr->inter_ext_tx_cdf[4], INTER_TX_SET4,
                    CDF_SIZE(TX_TYPES));
 #endif  // CONFIG_REDUCED_TX_SET_EXT
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  SHIFT_CDF(ctx_ptr->inter_tx_type_set, 2);
+  SHIFT_CDF(ctx_ptr->inter_tx_type_idx, INTER_TX_TYPE_INDEX_COUNT);
+  SHIFT_CDF(ctx_ptr->inter_tx_type_offset_1, INTER_TX_TYPE_OFFSET1_COUNT);
+  SHIFT_CDF(ctx_ptr->inter_tx_type_offset_2, INTER_TX_TYPE_OFFSET2_COUNT);
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   SHIFT_CDF(ctx_ptr->cfl_sign_cdf, CFL_JOINT_SIGNS);
   SHIFT_CDF(ctx_ptr->cfl_alpha_cdf, CFL_ALPHABET_SIZE);
   SHIFT_CDF(ctx_ptr->stx_cdf, STX_TYPES);
@@ -8487,12 +8643,21 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
               EOB_MAX_SYMS - 4);
   AVERAGE_CDF(ctx_left->eob_flag_cdf128, ctx_tr->eob_flag_cdf128,
               EOB_MAX_SYMS - 3);
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  AVERAGE_CDF(ctx_left->eob_flag_cdf256, ctx_tr->eob_flag_cdf256,
+              EOB_MAX_SYMS - 3);
+  AVERAGE_CDF(ctx_left->eob_flag_cdf512, ctx_tr->eob_flag_cdf512,
+              EOB_MAX_SYMS - 3);
+  AVERAGE_CDF(ctx_left->eob_flag_cdf1024, ctx_tr->eob_flag_cdf1024,
+              EOB_MAX_SYMS - 3);
+#else
   AVERAGE_CDF(ctx_left->eob_flag_cdf256, ctx_tr->eob_flag_cdf256,
               EOB_MAX_SYMS - 2);
   AVERAGE_CDF(ctx_left->eob_flag_cdf512, ctx_tr->eob_flag_cdf512,
               EOB_MAX_SYMS - 1);
   AVERAGE_CDF(ctx_left->eob_flag_cdf1024, ctx_tr->eob_flag_cdf1024,
               EOB_MAX_SYMS);
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   AVERAGE_CDF(ctx_left->coeff_base_eob_cdf, ctx_tr->coeff_base_eob_cdf, 3);
   AVERAGE_CDF(ctx_left->coeff_base_bob_cdf, ctx_tr->coeff_base_bob_cdf, 3);
   AVERAGE_CDF(ctx_left->intra_dip_cdf, ctx_tr->intra_dip_cdf, 2);
@@ -8724,6 +8889,14 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
               CFL_TYPE_COUNT - 1);
   AVERAGE_CDF(ctx_left->y_mode_set_cdf, ctx_tr->y_mode_set_cdf,
               INTRA_MODE_SETS);
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  AVERAGE_CDF(ctx_left->y_mode_idx_cdf, ctx_tr->y_mode_idx_cdf,
+              LUMA_INTRA_MODE_INDEX_COUNT);
+  AVERAGE_CDF(ctx_left->y_mode_idx_offset_cdf, ctx_tr->y_mode_idx_offset_cdf,
+              LUMA_INTRA_MODE_OFFSET_COUNT);
+  AVERAGE_CDF(ctx_left->uv_mode_cdf, ctx_tr->uv_mode_cdf,
+              CHROMA_INTRA_MODE_INDEX_COUNT);
+#else
   AVERAGE_CDF(ctx_left->y_mode_idx_cdf_0, ctx_tr->y_mode_idx_cdf_0,
               FIRST_MODE_COUNT);
 #if !CONFIG_CTX_Y_SECOND_MODE
@@ -8731,6 +8904,7 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
               SECOND_MODE_COUNT);
 #endif  // !CONFIG_CTX_Y_SECOND_MODE
   AVERAGE_CDF(ctx_left->uv_mode_cdf, ctx_tr->uv_mode_cdf, UV_INTRA_MODES - 1);
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   AVERAGE_CDF(ctx_left->region_type_cdf, ctx_tr->region_type_cdf, REGION_TYPES);
 
   AVERAGE_CDF(ctx_left->do_split_cdf, ctx_tr->do_split_cdf, 2);
@@ -8768,6 +8942,15 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVG_CDF_STRIDE(ctx_left->inter_ext_tx_cdf[4], ctx_tr->inter_ext_tx_cdf[4],
                  INTER_TX_SET4, CDF_SIZE(TX_TYPES));
 #endif  // CONFIG_REDUCED_TX_SET_EXT
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  AVERAGE_CDF(ctx_left->inter_tx_type_set, ctx_tr->inter_tx_type_set, 2);
+  AVERAGE_CDF(ctx_left->inter_tx_type_idx, ctx_tr->inter_tx_type_idx,
+              INTER_TX_TYPE_INDEX_COUNT);
+  AVERAGE_CDF(ctx_left->inter_tx_type_offset_1, ctx_tr->inter_tx_type_offset_1,
+              INTER_TX_TYPE_OFFSET1_COUNT);
+  AVERAGE_CDF(ctx_left->inter_tx_type_offset_2, ctx_tr->inter_tx_type_offset_2,
+              INTER_TX_TYPE_OFFSET2_COUNT);
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   AVERAGE_CDF(ctx_left->cfl_sign_cdf, ctx_tr->cfl_sign_cdf, CFL_JOINT_SIGNS);
   AVERAGE_CDF(ctx_left->cfl_alpha_cdf, ctx_tr->cfl_alpha_cdf,
               CFL_ALPHABET_SIZE);

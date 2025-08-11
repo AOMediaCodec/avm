@@ -440,6 +440,36 @@ static INLINE void decode_eob(DecoderCodingBlock *dcb, aom_reader *const r,
                           ACCT_INFO("eob_pt", "eob_multi_size:3")) +
           1;
       break;
+#if CONFIG_REDUCE_SYMBOL_SIZE
+    case 4:
+      eob_pt =
+          aom_read_symbol(r, ec_ctx->eob_flag_cdf256[pl_ctx], EOB_MAX_SYMS - 3,
+                          ACCT_INFO("eob_pt", "eob_multi_size:4"));
+      if (eob_pt == EOB_PT_INDEX_COUNT - 1)
+        eob_pt +=
+            aom_read_literal(r, 1, ACCT_INFO("eob_pt", "eob_multi_size:4"));
+      eob_pt += 1;
+      break;
+    case 5:
+      eob_pt =
+          aom_read_symbol(r, ec_ctx->eob_flag_cdf512[pl_ctx], EOB_MAX_SYMS - 3,
+                          ACCT_INFO("eob_pt", "eob_multi_size:5"));
+      if (eob_pt == EOB_PT_INDEX_COUNT - 1)
+        eob_pt +=
+            aom_read_literal(r, 2, ACCT_INFO("eob_pt", "eob_multi_size:5"));
+      eob_pt += 1;
+      break;
+    case 6:
+    default:
+      eob_pt =
+          aom_read_symbol(r, ec_ctx->eob_flag_cdf1024[pl_ctx], EOB_MAX_SYMS - 3,
+                          ACCT_INFO("eob_pt", "eob_multi_size:6"));
+      if (eob_pt == EOB_PT_INDEX_COUNT - 1)
+        eob_pt +=
+            aom_read_literal(r, 2, ACCT_INFO("eob_pt", "eob_multi_size:6"));
+      eob_pt += 1;
+      break;
+#else
     case 4:
       eob_pt =
           aom_read_symbol(r, ec_ctx->eob_flag_cdf256[pl_ctx], EOB_MAX_SYMS - 2,
@@ -459,6 +489,7 @@ static INLINE void decode_eob(DecoderCodingBlock *dcb, aom_reader *const r,
                           ACCT_INFO("eob_pt", "eob_multi_size:6")) +
           1;
       break;
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   }
 
   const int eob_offset_bits = av1_eob_offset_bits[eob_pt];

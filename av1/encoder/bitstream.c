@@ -1442,10 +1442,40 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
       const int eob_tx_ctx = get_lp2tx_ctx(tx_size, get_txb_bwl(tx_size), eob);
       if (tx_set_type != EXT_TX_SET_LONG_SIDE_64 &&
           tx_set_type != EXT_TX_SET_LONG_SIDE_32) {
+#if CONFIG_REDUCE_SYMBOL_SIZE
+        int tx_type_idx =
+            av1_ext_tx_ind[tx_set_type][get_primary_tx_type(tx_type)];
+        if (eset == 1 || eset == 2) {
+          int tx_set = tx_type_idx < INTER_TX_TYPE_INDEX_COUNT ? 0 : 1;
+          aom_write_symbol(
+              w, tx_set,
+              ec_ctx->inter_tx_type_set[eset - 1][eob_tx_ctx][square_tx_size],
+              2);
+          if (tx_set == 0) {
+            aom_write_symbol(w, tx_type_idx,
+                             ec_ctx->inter_tx_type_idx[eset - 1][eob_tx_ctx],
+                             INTER_TX_TYPE_INDEX_COUNT);
+          } else {
+            (eset == 1)
+                ? aom_write_symbol(w, tx_type_idx - INTER_TX_TYPE_INDEX_COUNT,
+                                   ec_ctx->inter_tx_type_offset_1[eob_tx_ctx],
+                                   INTER_TX_TYPE_OFFSET1_COUNT)
+                : aom_write_symbol(w, tx_type_idx - INTER_TX_TYPE_INDEX_COUNT,
+                                   ec_ctx->inter_tx_type_offset_2[eob_tx_ctx],
+                                   INTER_TX_TYPE_OFFSET2_COUNT);
+          }
+        } else {
+          aom_write_symbol(
+              w, tx_type_idx,
+              ec_ctx->inter_ext_tx_cdf[eset][eob_tx_ctx][square_tx_size],
+              av1_num_ext_tx_set[tx_set_type]);
+        }
+#else
         aom_write_symbol(
             w, av1_ext_tx_ind[tx_set_type][get_primary_tx_type(tx_type)],
             ec_ctx->inter_ext_tx_cdf[eset][eob_tx_ctx][square_tx_size],
             av1_num_ext_tx_set[tx_set_type]);
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
       } else {
         bool is_long_side_dct =
             is_dct_type(tx_size, get_primary_tx_type(tx_type));
@@ -1918,10 +1948,20 @@ static AOM_INLINE void write_intra_luma_mode(MACROBLOCKD *const xd,
   mode_set_index += ((mode_idx - FIRST_MODE_COUNT) / SECOND_MODE_COUNT);
   aom_write_symbol(w, mode_set_index, ec_ctx->y_mode_set_cdf, INTRA_MODE_SETS);
   if (mode_set_index == 0) {
+#if CONFIG_REDUCE_SYMBOL_SIZE
+    int mode_set_low = AOMMIN(mode_idx, LUMA_INTRA_MODE_INDEX_COUNT - 1);
+    aom_write_symbol(w, mode_set_low, ec_ctx->y_mode_idx_cdf[context],
+                     LUMA_INTRA_MODE_INDEX_COUNT);
+    if (mode_set_low == (LUMA_INTRA_MODE_INDEX_COUNT - 1))
+      aom_write_symbol(w, mode_idx - mode_set_low,
+                       ec_ctx->y_mode_idx_offset_cdf[context],
+                       LUMA_INTRA_MODE_OFFSET_COUNT);
+#else
     aom_write_symbol(w, mode_idx, ec_ctx->y_mode_idx_cdf_0[context],
                      FIRST_MODE_COUNT);
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   } else {
-#if CONFIG_CTX_Y_SECOND_MODE
+#if CONFIG_CTX_Y_SECOND_MODE || CONFIG_REDUCE_SYMBOL_SIZE
     aom_write_literal(
         w,
         mode_idx - FIRST_MODE_COUNT - (mode_set_index - 1) * SECOND_MODE_COUNT,
@@ -1931,7 +1971,7 @@ static AOM_INLINE void write_intra_luma_mode(MACROBLOCKD *const xd,
         w,
         mode_idx - FIRST_MODE_COUNT - (mode_set_index - 1) * SECOND_MODE_COUNT,
         ec_ctx->y_mode_idx_cdf_1[context], SECOND_MODE_COUNT);
-#endif  // !CONFIG_CTX_Y_SECOND_MODE
+#endif  // CONFIG_CTX_Y_SECOND_MODE || CONFIG_REDUCE_SYMBOL_SIZE
   }
   if (mbmi->joint_y_mode_delta_angle < NON_DIRECTIONAL_MODES_COUNT)
     assert(mbmi->joint_y_mode_delta_angle == mbmi->y_mode_idx);
@@ -1952,8 +1992,16 @@ static AOM_INLINE void write_intra_uv_mode(MACROBLOCKD *const xd,
   const int uv_mode_idx = mbmi->uv_mode_idx;
   assert(uv_mode_idx >= 0 && uv_mode_idx < UV_INTRA_MODES);
   const int context = av1_is_directional_mode(mbmi->mode) ? 1 : 0;
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  int mode_set_low = AOMMIN(uv_mode_idx, CHROMA_INTRA_MODE_INDEX_COUNT - 1);
+  aom_write_symbol(w, mode_set_low, ec_ctx->uv_mode_cdf[context],
+                   CHROMA_INTRA_MODE_INDEX_COUNT);
+  if (mode_set_low == (CHROMA_INTRA_MODE_INDEX_COUNT - 1))
+    aom_write_literal(w, uv_mode_idx - mode_set_low, 3);
+#else
   aom_write_symbol(w, uv_mode_idx, ec_ctx->uv_mode_cdf[context],
                    UV_INTRA_MODES - 1);
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
 }
 
 static AOM_INLINE void write_intra_prediction_modes(AV1_COMP *cpi,

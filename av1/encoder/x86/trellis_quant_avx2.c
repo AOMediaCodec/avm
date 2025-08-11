@@ -1141,7 +1141,16 @@ void av1_calc_block_eob_rate_avx2(struct macroblock *x, int plane,
   int scan_pos = 32;
   int n_offset_bits = 4;
   while (scan_pos < eob) {
+#if CONFIG_REDUCE_SYMBOL_SIZE
+    int eob_pt_low = AOMMIN(2 + n_offset_bits, EOB_PT_INDEX_COUNT - 1);
+    int eob_pt_rate = tbl_eob_cost[eob_pt_low];
+    if (eob_multi_size == 4 && (eob_pt_low == EOB_PT_INDEX_COUNT - 1))
+      eob_pt_rate += av1_cost_literal(1);
+    else if (eob_multi_size > 4 && (eob_pt_low == EOB_PT_INDEX_COUNT - 1))
+      eob_pt_rate += av1_cost_literal(2);
+#else
     int eob_pt_rate = tbl_eob_cost[2 + n_offset_bits];
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
     for (int bit = 0; bit < 2; bit++) {
       int eob_ctx = n_offset_bits;
       int extra_bit_rate = tbl_eob_extra[eob_ctx][bit];

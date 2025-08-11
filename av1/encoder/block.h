@@ -947,6 +947,14 @@ typedef struct {
 
   //! y primary flag cost
   int y_primary_flag_cost[INTRA_MODE_SETS];
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  //! y first mode index cost
+  int y_mode_idx_costs[Y_MODE_CONTEXTS][LUMA_INTRA_MODE_INDEX_COUNT];
+  //! y first mode offset cost
+  int y_mode_idx_offset_costs[Y_MODE_CONTEXTS][LUMA_INTRA_MODE_OFFSET_COUNT];
+  //! uv mode cost
+  int intra_uv_mode_cost[UV_MODE_CONTEXTS][CHROMA_INTRA_MODE_INDEX_COUNT];
+#else
   //! y first mode cost
   int y_first_mode_costs[Y_MODE_CONTEXTS][FIRST_MODE_COUNT];
   //! y second mode cost
@@ -955,6 +963,7 @@ typedef struct {
 #endif  // !CONFIG_CTX_Y_SECOND_MODE
   //! uv mode cost
   int intra_uv_mode_cost[UV_MODE_CONTEXTS][UV_INTRA_MODES - 1];
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   //! CFL mode cost
   int cfl_mode_cost[CFL_CONTEXTS][2];
 
@@ -1268,6 +1277,16 @@ typedef struct {
   /*! Cost of signaling lossless transform type for inter blocks (WHT or IDTX)
    */
   int lossless_inter_tx_type_cost[2];
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  //! inter_tx_type_set_costs
+  int inter_tx_type_set_cost[2][EOB_TX_CTXS][EXT_TX_SIZES][2];
+  //! inter_tx_type_idx_costs (INTER_TX_TYPE_INDEX_COUNT)
+  int inter_tx_type_idx_cost[2][EOB_TX_CTXS][INTER_TX_TYPE_INDEX_COUNT];
+  //! inter_tx_type_offset_1_costs (INTER_TX_TYPE_OFFSET1_COUNT)
+  int inter_tx_type_offset_1_cost[EOB_TX_CTXS][INTER_TX_TYPE_OFFSET1_COUNT];
+  //! inter_tx_type_offset_2_costs (INTER_TX_TYPE_OFFSET2_COUNT)
+  int inter_tx_type_offset_2_cost[EOB_TX_CTXS][INTER_TX_TYPE_OFFSET2_COUNT];
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   //! inter_tx_type_costs
   int inter_tx_type_costs[EXT_TX_SETS_INTER][EOB_TX_CTXS][EXT_TX_SIZES]
                          [TX_TYPES];

@@ -574,12 +574,28 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
 #endif
         update_cdf(fc->y_mode_set_cdf, mode_set_index, INTRA_MODE_SETS);
         if (mode_set_index == 0) {
-#if CONFIG_ENTROPY_STATS
+#if CONFIG_ENTROPY_STATS && !CONFIG_REDUCE_SYMBOL_SIZE
           ++counts->y_mode_idx_0[context][mode_idx];
+#endif  // CONFIG_ENTROPY_STATS && !CONFIG_REDUCE_SYMBOL_SIZE
+#if CONFIG_REDUCE_SYMBOL_SIZE
+          int mode_set_low = AOMMIN(mode_idx, LUMA_INTRA_MODE_INDEX_COUNT - 1);
+#if CONFIG_ENTROPY_STATS
+          ++counts->y_mode_idx[context][mode_set_low];
 #endif
+          update_cdf(fc->y_mode_idx_cdf[context], mode_set_low,
+                     LUMA_INTRA_MODE_INDEX_COUNT);
+          if (mode_set_low == (LUMA_INTRA_MODE_INDEX_COUNT - 1)) {
+#if CONFIG_ENTROPY_STATS
+            ++counts->y_mode_idx_offset[context][mode_idx - mode_set_low];
+#endif
+            update_cdf(fc->y_mode_idx_offset_cdf[context],
+                       mode_idx - mode_set_low, LUMA_INTRA_MODE_OFFSET_COUNT);
+          }
+#else
           update_cdf(fc->y_mode_idx_cdf_0[context], mode_idx, FIRST_MODE_COUNT);
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
         }
-#if !CONFIG_CTX_Y_SECOND_MODE
+#if !CONFIG_CTX_Y_SECOND_MODE && !CONFIG_REDUCE_SYMBOL_SIZE
         else {
           const int mode_idx_in_set = mode_idx - FIRST_MODE_COUNT -
                                       SECOND_MODE_COUNT * (mode_set_index - 1);
@@ -589,7 +605,7 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
           update_cdf(fc->y_mode_idx_cdf_1[context], mode_idx_in_set,
                      SECOND_MODE_COUNT);
         }
-#endif  // !CONFIG_CTX_Y_SECOND_MODE
+#endif  // !CONFIG_CTX_Y_SECOND_MODE && !CONFIG_REDUCE_SYMBOL_SIZE
       } else {
         update_cdf(fc->dpcm_vert_horz_cdf, mbmi->dpcm_mode_y, 2);
       }
@@ -603,12 +619,28 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
 #endif
       update_cdf(fc->y_mode_set_cdf, mode_set_index, INTRA_MODE_SETS);
       if (mode_set_index == 0) {
-#if CONFIG_ENTROPY_STATS
+#if CONFIG_ENTROPY_STATS && !CONFIG_REDUCE_SYMBOL_SIZE
         ++counts->y_mode_idx_0[context][mode_idx];
+#endif  // CONFIG_ENTROPY_STATS && !CONFIG_REDUCE_SYMBOL_SIZE
+#if CONFIG_REDUCE_SYMBOL_SIZE
+        int mode_set_low = AOMMIN(mode_idx, LUMA_INTRA_MODE_INDEX_COUNT - 1);
+#if CONFIG_ENTROPY_STATS
+        ++counts->y_mode_idx[context][mode_set_low];
 #endif
+        update_cdf(fc->y_mode_idx_cdf[context], mode_set_low,
+                   LUMA_INTRA_MODE_INDEX_COUNT);
+        if (mode_set_low == (LUMA_INTRA_MODE_INDEX_COUNT - 1)) {
+#if CONFIG_ENTROPY_STATS
+          ++counts->y_mode_idx_offset[context][mode_idx - mode_set_low];
+#endif
+          update_cdf(fc->y_mode_idx_offset_cdf[context],
+                     mode_idx - mode_set_low, LUMA_INTRA_MODE_OFFSET_COUNT);
+        }
+#else
         update_cdf(fc->y_mode_idx_cdf_0[context], mode_idx, FIRST_MODE_COUNT);
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
       }
-#if !CONFIG_CTX_Y_SECOND_MODE
+#if !CONFIG_CTX_Y_SECOND_MODE && !CONFIG_REDUCE_SYMBOL_SIZE
       else {
         const int mode_idx_in_set = mode_idx - FIRST_MODE_COUNT -
                                     SECOND_MODE_COUNT * (mode_set_index - 1);
@@ -618,7 +650,7 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
         update_cdf(fc->y_mode_idx_cdf_1[context], mode_idx_in_set,
                    SECOND_MODE_COUNT);
       }
-#endif  // !CONFIG_CTX_Y_SECOND_MODE
+#endif  // !CONFIG_CTX_Y_SECOND_MODE && !CONFIG_REDUCE_SYMBOL_SIZE
     }
 
     update_fsc_cdf(cm, xd,
@@ -709,28 +741,68 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
         if (xd->lossless[mbmi->segment_id]) {
           update_cdf(fc->dpcm_uv_cdf, mbmi->use_dpcm_uv, 2);
           if (mbmi->use_dpcm_uv == 0) {
+#if CONFIG_REDUCE_SYMBOL_SIZE
+            int mode_set_low =
+                AOMMIN(mbmi->uv_mode_idx, CHROMA_INTRA_MODE_INDEX_COUNT - 1);
+#if CONFIG_ENTROPY_STATS
+            ++counts->uv_mode[uv_context][mode_set_low];
+#endif
+            update_cdf(fc->uv_mode_cdf[uv_context], mode_set_low,
+                       CHROMA_INTRA_MODE_INDEX_COUNT);
+#else
             update_cdf(fc->uv_mode_cdf[uv_context], mbmi->uv_mode_idx,
                        UV_INTRA_MODES - 1);
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
           } else {
             update_cdf(fc->dpcm_uv_vert_horz_cdf, mbmi->dpcm_mode_uv, 2);
           }
         } else {
+#if CONFIG_REDUCE_SYMBOL_SIZE
+          int mode_set_low =
+              AOMMIN(mbmi->uv_mode_idx, CHROMA_INTRA_MODE_INDEX_COUNT - 1);
+#if CONFIG_ENTROPY_STATS
+          ++counts->uv_mode[uv_context][mode_set_low];
+#endif
+          update_cdf(fc->uv_mode_cdf[uv_context], mode_set_low,
+                     CHROMA_INTRA_MODE_INDEX_COUNT);
+#else
           update_cdf(fc->uv_mode_cdf[uv_context], mbmi->uv_mode_idx,
                      UV_INTRA_MODES - 1);
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
         }
       }
     } else {
       if (xd->lossless[mbmi->segment_id]) {
         update_cdf(fc->dpcm_uv_cdf, mbmi->use_dpcm_uv, 2);
         if (mbmi->use_dpcm_uv == 0) {
+#if CONFIG_REDUCE_SYMBOL_SIZE
+          int mode_set_low =
+              AOMMIN(mbmi->uv_mode_idx, CHROMA_INTRA_MODE_INDEX_COUNT - 1);
+#if CONFIG_ENTROPY_STATS
+          ++counts->uv_mode[uv_context][mode_set_low];
+#endif
+          update_cdf(fc->uv_mode_cdf[uv_context], mode_set_low,
+                     CHROMA_INTRA_MODE_INDEX_COUNT);
+#else
           update_cdf(fc->uv_mode_cdf[uv_context], mbmi->uv_mode_idx,
                      UV_INTRA_MODES - 1);
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
         } else {
           update_cdf(fc->dpcm_uv_vert_horz_cdf, mbmi->dpcm_mode_uv, 2);
         }
       } else {
+#if CONFIG_REDUCE_SYMBOL_SIZE
+        int mode_set_low =
+            AOMMIN(mbmi->uv_mode_idx, CHROMA_INTRA_MODE_INDEX_COUNT - 1);
+#if CONFIG_ENTROPY_STATS
+        ++counts->uv_mode[uv_context][mode_set_low];
+#endif
+        update_cdf(fc->uv_mode_cdf[uv_context], mode_set_low,
+                   CHROMA_INTRA_MODE_INDEX_COUNT);
+#else
         update_cdf(fc->uv_mode_cdf[uv_context], mbmi->uv_mode_idx,
                    UV_INTRA_MODES - 1);
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
       }
     }
     if (mbmi->uv_mode == UV_CFL_PRED) {

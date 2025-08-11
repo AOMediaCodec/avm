@@ -488,12 +488,29 @@ int main(int argc, const char **argv) {
                      0, &total_count, 0, mem_wanted, "Intra");
 
   cts_each_dim[0] = Y_MODE_CONTEXTS;
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  cts_each_dim[1] = LUMA_INTRA_MODE_INDEX_COUNT;
+  optimize_cdf_table(&fc.y_mode_idx[0][0], probsfile, 2, cts_each_dim,
+                     "const aom_cdf_prob "
+                     "default_y_mode_idx_cdf[Y_MODE_CONTEXTS][CDF_SIZE(LUMA_"
+                     "INTRA_MODE_INDEX_COUNT)]",
+                     0, &total_count, 0, mem_wanted, "Intra");
+
+  cts_each_dim[1] = LUMA_INTRA_MODE_OFFSET_COUNT;
+  optimize_cdf_table(
+      &fc.y_mode_idx_offset[0][0], probsfile, 2, cts_each_dim,
+      "const aom_cdf_prob "
+      "default_y_mode_idx_offset_cdf[Y_MODE_CONTEXTS][CDF_SIZE(LUMA_"
+      "INTRA_MODE_OFFSET)]",
+      0, &total_count, 0, mem_wanted, "Intra");
+#else
   cts_each_dim[1] = FIRST_MODE_COUNT;
   optimize_cdf_table(
       &fc.y_mode_idx_0[0][0], probsfile, 2, cts_each_dim,
       "const aom_cdf_prob "
       "default_y_first_mode_cdf[Y_MODE_CONTEXTS][CDF_SIZE(FIRST_MODE_COUNT)]",
       0, &total_count, 0, mem_wanted, "Intra");
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
 
 #if !CONFIG_CTX_Y_SECOND_MODE
   cts_each_dim[0] = Y_MODE_CONTEXTS;
@@ -507,12 +524,21 @@ int main(int argc, const char **argv) {
   /* Intra mode (chroma) */
 
   cts_each_dim[0] = UV_MODE_CONTEXTS;
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  cts_each_dim[1] = CHROMA_INTRA_MODE_INDEX_COUNT;
+  optimize_cdf_table(&fc.uv_mode[0][0], probsfile, 2, cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "default_uv_mode_cdf[UV_MODE_CONTEXTS]"
+                     "[CDF_SIZE(CHROMA_INTRA_MODE_INDEX_COUNT)]",
+                     0, &total_count, 0, mem_wanted, "Intra");
+#else
   cts_each_dim[1] = UV_INTRA_MODES - 1;
   optimize_cdf_table(&fc.uv_mode[0][0], probsfile, 2, cts_each_dim,
                      "static const aom_cdf_prob "
                      "default_uv_mode_cdf[UV_MODE_CONTEXTS]"
                      "[CDF_SIZE(UV_INTRA_MODES - 1)]",
                      0, &total_count, 0, mem_wanted, "Intra");
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
 
   cts_each_dim[0] = CFL_CONTEXTS;
   cts_each_dim[1] = 2;
@@ -987,6 +1013,42 @@ int main(int argc, const char **argv) {
       "[EXT_TX_SIZES][CDF_SIZE(TX_TYPES)]",
       0, &total_count, mem_wanted, "Transforms");
 
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  cts_each_dim[0] = 2;
+  cts_each_dim[1] = EOB_TX_CTXS;
+  cts_each_dim[2] = EXT_TX_SIZES;
+  cts_each_dim[3] = 2;
+  optimize_cdf_table(&fc.inter_tx_type_set[0][0][0][0], probsfile, 4,
+                     cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "default_inter_tx_type_set_cdf[2][EOB_TX_CTXS][EXT_TX_"
+                     "SIZES][CDF_SIZE(2)]",
+                     0, &total_count, 0, mem_wanted, "Transforms");
+  cts_each_dim[0] = 2;
+  cts_each_dim[1] = EOB_TX_CTXS;
+  cts_each_dim[2] = INTER_TX_TYPE_INDEX_COUNT;
+  optimize_cdf_table(&fc.inter_tx_type_idx[0][0][0], probsfile, 3, cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "default_inter_tx_type_idx_cdf[2][EOB_TX_CTXS][CDF_SIZE("
+                     "INTER_TX_TYPE_INDEX_COUNT)]",
+                     0, &total_count, 0, mem_wanted, "Transforms");
+  cts_each_dim[0] = EOB_TX_CTXS;
+  cts_each_dim[1] = INTER_TX_TYPE_OFFSET1_COUNT;
+  optimize_cdf_table(&fc.inter_tx_type_offset_1[0][0], probsfile, 2,
+                     cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "default_inter_tx_type_offset_1_cdf[EOB_TX_CTXS][CDF_SIZE("
+                     "INTER_TX_TYPE_OFFSET1_COUNT)]",
+                     0, &total_count, 0, mem_wanted, "Transforms");
+  cts_each_dim[0] = EOB_TX_CTXS;
+  cts_each_dim[1] = INTER_TX_TYPE_OFFSET2_COUNT;
+  optimize_cdf_table(&fc.inter_tx_type_offset_2[0][0], probsfile, 2,
+                     cts_each_dim,
+                     "static const aom_cdf_prob "
+                     "default_inter_tx_type_offset_2_cdf[EOB_TX_CTXS][CDF_SIZE("
+                     "INTER_TX_TYPE_OFFSET1_COUNT)]",
+                     0, &total_count, 0, mem_wanted, "Transforms");
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   /* Chroma from Luma */
   cts_each_dim[0] = CFL_TYPE_COUNT;
   optimize_cdf_table(&fc.cfl_index[0], probsfile, 1, cts_each_dim,
@@ -1284,7 +1346,7 @@ int main(int argc, const char **argv) {
                      "static const aom_cdf_prob "
                      "default_wedge_angle_1_cdf[CDF_SIZE(H_WEDGE_ANGLES)]",
                      0, &total_count, 0, mem_wanted, "Inter");
-#endif
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   cts_each_dim[0] = NUM_WEDGE_DIST;
   optimize_cdf_table(&fc.wedge_dist_cnt[0], probsfile, 1, cts_each_dim,
                      "static const aom_cdf_prob "

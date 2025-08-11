@@ -573,10 +573,25 @@ int get_uv_mode_cost(MB_MODE_INFO *mbmi, const ModeCosts mode_costs,
       return mode_costs.cfl_mode_cost[cfl_ctx][1];
     }
     int cost = mode_costs.cfl_mode_cost[cfl_ctx][0];
+#if CONFIG_REDUCE_SYMBOL_SIZE
+    int mode_set_low = AOMMIN(mode_index, CHROMA_INTRA_MODE_INDEX_COUNT - 1);
+    cost += mode_costs.intra_uv_mode_cost[uv_context][mode_set_low];
+    if (mode_set_low == (CHROMA_INTRA_MODE_INDEX_COUNT - 1))
+      cost += av1_cost_literal(3);
+#else
     cost += mode_costs.intra_uv_mode_cost[uv_context][mode_index];
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
     return cost;
   }
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  int mode_set_low = AOMMIN(mode_index, CHROMA_INTRA_MODE_INDEX_COUNT - 1);
+  int cost = mode_costs.intra_uv_mode_cost[uv_context][mode_set_low];
+  if (mode_set_low == (CHROMA_INTRA_MODE_INDEX_COUNT - 1))
+    cost += av1_cost_literal(3);
+  return cost;
+#else
   return mode_costs.intra_uv_mode_cost[uv_context][mode_index];
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
 }
 
 // For a given chroma (UV) mode, compute a specific index and use the same to
@@ -1209,10 +1224,20 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
           ((mbmi->y_mode_idx - FIRST_MODE_COUNT) / SECOND_MODE_COUNT);
       mode_cost += x->mode_costs.y_primary_flag_cost[mode_set_index];
       if (mbmi->y_mode_idx < FIRST_MODE_COUNT) {
+#if CONFIG_REDUCE_SYMBOL_SIZE
+        int mode_set_low =
+            AOMMIN(mbmi->y_mode_idx, LUMA_INTRA_MODE_INDEX_COUNT - 1);
+        mode_cost += x->mode_costs.y_mode_idx_costs[context][mode_set_low];
+        if (mode_set_low == (LUMA_INTRA_MODE_INDEX_COUNT - 1))
+          mode_cost +=
+              x->mode_costs.y_mode_idx_offset_costs[context][mbmi->y_mode_idx -
+                                                             mode_set_low];
+#else
         mode_cost +=
             x->mode_costs.y_first_mode_costs[context][mbmi->y_mode_idx];
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
       } else {
-#if CONFIG_CTX_Y_SECOND_MODE
+#if CONFIG_CTX_Y_SECOND_MODE || CONFIG_REDUCE_SYMBOL_SIZE
         mode_cost += av1_cost_literal(4);
 #else
         mode_cost +=
@@ -1220,7 +1245,7 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
                 .y_second_mode_costs[context]
                                     [mbmi->y_mode_idx - FIRST_MODE_COUNT -
                                      SECOND_MODE_COUNT * (mode_set_index - 1)];
-#endif  // CONFIG_CTX_Y_SECOND_MODE
+#endif  // CONFIG_CTX_Y_SECOND_MODE || CONFIG_REDUCE_SYMBOL_SIZE
       }
       mode_cost += ref_frame_cost;
       mode_cost += mrl_idx_cost;
@@ -1234,9 +1259,19 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
         ((mbmi->y_mode_idx - FIRST_MODE_COUNT) / SECOND_MODE_COUNT);
     mode_cost += x->mode_costs.y_primary_flag_cost[mode_set_index];
     if (mbmi->y_mode_idx < FIRST_MODE_COUNT) {
+#if CONFIG_REDUCE_SYMBOL_SIZE
+      int mode_set_low =
+          AOMMIN(mbmi->y_mode_idx, LUMA_INTRA_MODE_INDEX_COUNT - 1);
+      mode_cost += x->mode_costs.y_mode_idx_costs[context][mode_set_low];
+      if (mode_set_low == (LUMA_INTRA_MODE_INDEX_COUNT - 1))
+        mode_cost +=
+            x->mode_costs.y_mode_idx_offset_costs[context][mbmi->y_mode_idx -
+                                                           mode_set_low];
+#else
       mode_cost += x->mode_costs.y_first_mode_costs[context][mbmi->y_mode_idx];
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
     } else {
-#if CONFIG_CTX_Y_SECOND_MODE
+#if CONFIG_CTX_Y_SECOND_MODE || CONFIG_REDUCE_SYMBOL_SIZE
       mode_cost += av1_cost_literal(4);
 #else
       mode_cost +=
@@ -1244,7 +1279,7 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
               .y_second_mode_costs[context]
                                   [mbmi->y_mode_idx - FIRST_MODE_COUNT -
                                    SECOND_MODE_COUNT * (mode_set_index - 1)];
-#endif  // CONFIG_CTX_Y_SECOND_MODE
+#endif  // CONFIG_CTX_Y_SECOND_MODE || CONFIG_REDUCE_SYMBOL_SIZE
     }
     mode_cost += ref_frame_cost;
     mode_cost += mrl_idx_cost;
@@ -1502,9 +1537,21 @@ void search_fsc_mode(const AV1_COMP *const cpi, MACROBLOCK *x, int *rate,
                 ((mbmi->y_mode_idx - FIRST_MODE_COUNT) / SECOND_MODE_COUNT);
             mode_costs += x->mode_costs.y_primary_flag_cost[mode_set_index];
             if (mode_idx < FIRST_MODE_COUNT) {
+#if CONFIG_REDUCE_SYMBOL_SIZE
+              int mode_set_low =
+                  AOMMIN(mode_idx, LUMA_INTRA_MODE_INDEX_COUNT - 1);
+              mode_costs +=
+                  x->mode_costs.y_mode_idx_costs[context][mode_set_low];
+              if (mode_set_low == (LUMA_INTRA_MODE_INDEX_COUNT - 1))
+                mode_costs +=
+                    x->mode_costs
+                        .y_mode_idx_offset_costs[context]
+                                                [mode_idx - mode_set_low];
+#else
               mode_costs += x->mode_costs.y_first_mode_costs[context][mode_idx];
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
             } else {
-#if CONFIG_CTX_Y_SECOND_MODE
+#if CONFIG_CTX_Y_SECOND_MODE || CONFIG_REDUCE_SYMBOL_SIZE
               mode_costs += av1_cost_literal(4);
 #else
               mode_costs +=
@@ -1512,7 +1559,7 @@ void search_fsc_mode(const AV1_COMP *const cpi, MACROBLOCK *x, int *rate,
                       [context][mbmi->y_mode_idx - FIRST_MODE_COUNT -
                                 SECOND_MODE_COUNT * (mode_set_index - 1)];
 
-#endif  // CONFIG_CTX_Y_SECOND_MODE
+#endif  // CONFIG_CTX_Y_SECOND_MODE || CONFIG_REDUCE_SYMBOL_SIZE
             }
           } else {
             int dpcm_dir_cost =
@@ -1749,16 +1796,28 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, ThreadData *td,
                 ((mbmi->y_mode_idx - FIRST_MODE_COUNT) / SECOND_MODE_COUNT);
             mode_costs += x->mode_costs.y_primary_flag_cost[mode_set_index];
             if (mode_idx < FIRST_MODE_COUNT) {
+#if CONFIG_REDUCE_SYMBOL_SIZE
+              int mode_set_low =
+                  AOMMIN(mode_idx, LUMA_INTRA_MODE_INDEX_COUNT - 1);
+              mode_costs +=
+                  x->mode_costs.y_mode_idx_costs[context][mode_set_low];
+              if (mode_set_low == (LUMA_INTRA_MODE_INDEX_COUNT - 1))
+                mode_costs +=
+                    x->mode_costs
+                        .y_mode_idx_offset_costs[context]
+                                                [mode_idx - mode_set_low];
+#else
               mode_costs += x->mode_costs.y_first_mode_costs[context][mode_idx];
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
             } else {
-#if CONFIG_CTX_Y_SECOND_MODE
+#if CONFIG_CTX_Y_SECOND_MODE || CONFIG_REDUCE_SYMBOL_SIZE
               mode_costs += av1_cost_literal(4);
 #else
               mode_costs +=
                   x->mode_costs.y_second_mode_costs
                       [context][mbmi->y_mode_idx - FIRST_MODE_COUNT -
                                 SECOND_MODE_COUNT * (mode_set_index - 1)];
-#endif  // CONFIG_CTX_Y_SECOND_MODE
+#endif  // CONFIG_CTX_Y_SECOND_MODE || CONFIG_REDUCE_SYMBOL_SIZE
             }
           } else {
             int dpcm_dir_cost =
@@ -1874,7 +1933,11 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, ThreadData *td,
 
   // Searches palette
   mode_costs = x->mode_costs.y_primary_flag_cost[DC_PRED];
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  mode_costs += x->mode_costs.y_mode_idx_costs[context][DC_PRED];
+#else
   mode_costs += x->mode_costs.y_first_mode_costs[context][DC_PRED];
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   if (try_palette) {
     av1_rd_pick_palette_intra_sby(
         cpi, x, bsize, mode_costs, &best_mbmi, best_palette_color_map, &best_rd,

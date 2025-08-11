@@ -1520,9 +1520,38 @@ void av1_read_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd, int blk_row,
       const int eob_tx_ctx = get_lp2tx_ctx(tx_size, get_txb_bwl(tx_size), eob);
       if (tx_set_type != EXT_TX_SET_LONG_SIDE_64 &&
           tx_set_type != EXT_TX_SET_LONG_SIDE_32) {
+#if CONFIG_REDUCE_SYMBOL_SIZE
+        int tx_type_idx = 0;
+        if (eset == 1 || eset == 2) {
+          int tx_set = aom_read_symbol(
+              r,
+              ec_ctx->inter_tx_type_set[eset - 1][eob_tx_ctx][square_tx_size],
+              2, ACCT_INFO("tx_type"));
+          if (tx_set == 0) {
+            tx_type_idx = aom_read_symbol(
+                r, ec_ctx->inter_tx_type_idx[eset - 1][eob_tx_ctx],
+                INTER_TX_TYPE_INDEX_COUNT, ACCT_INFO("tx_type"));
+          } else {
+            tx_type_idx =
+                INTER_TX_TYPE_INDEX_COUNT +
+                (eset == 1
+                     ? aom_read_symbol(
+                           r, ec_ctx->inter_tx_type_offset_1[eob_tx_ctx],
+                           INTER_TX_TYPE_OFFSET1_COUNT, ACCT_INFO("tx_type"))
+                     : aom_read_symbol(
+                           r, ec_ctx->inter_tx_type_offset_2[eob_tx_ctx],
+                           INTER_TX_TYPE_OFFSET2_COUNT, ACCT_INFO("tx_type")));
+          }
+        } else {
+          tx_type_idx = aom_read_symbol(
+              r, ec_ctx->inter_ext_tx_cdf[eset][eob_tx_ctx][square_tx_size],
+              av1_num_ext_tx_set[tx_set_type], ACCT_INFO("tx_type"));
+        }
+#else
         int tx_type_idx = aom_read_symbol(
             r, ec_ctx->inter_ext_tx_cdf[eset][eob_tx_ctx][square_tx_size],
             av1_num_ext_tx_set[tx_set_type], ACCT_INFO("tx_type"));
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
         *tx_type = av1_ext_tx_inv[tx_set_type][tx_type_idx];
       } else {
         int is_long_side_dct = 1;
@@ -2033,18 +2062,29 @@ static void read_intra_luma_mode(MACROBLOCKD *const xd, aom_reader *r) {
       aom_read_symbol(r, ec_ctx->y_mode_set_cdf, INTRA_MODE_SETS,
                       ACCT_INFO("mode_set_index", "y_mode_set_cdf"));
   if (mode_set_index == 0) {
+#if CONFIG_REDUCE_SYMBOL_SIZE
+    mode_idx = aom_read_symbol(r, ec_ctx->y_mode_idx_cdf[context],
+                               LUMA_INTRA_MODE_INDEX_COUNT,
+                               ACCT_INFO("mode_idx", "y_mode_idx_cdf"));
+    if (mode_idx == (LUMA_INTRA_MODE_INDEX_COUNT - 1))
+      mode_idx +=
+          aom_read_symbol(r, ec_ctx->y_mode_idx_offset_cdf[context],
+                          LUMA_INTRA_MODE_OFFSET_COUNT,
+                          ACCT_INFO("mode_idx", "y_mode_idx_offset_cdf"));
+#else
     mode_idx =
         aom_read_symbol(r, ec_ctx->y_mode_idx_cdf_0[context], FIRST_MODE_COUNT,
                         ACCT_INFO("mode_idx", "y_mode_idx_cdf_0"));
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   } else {
     mode_idx = FIRST_MODE_COUNT + (mode_set_index - 1) * SECOND_MODE_COUNT +
-#if CONFIG_CTX_Y_SECOND_MODE
+#if CONFIG_CTX_Y_SECOND_MODE || CONFIG_REDUCE_SYMBOL_SIZE
                aom_read_literal(r, 4, ACCT_INFO("mode_idx"));
 #else
                aom_read_symbol(r, ec_ctx->y_mode_idx_cdf_1[context],
                                SECOND_MODE_COUNT,
                                ACCT_INFO("mode_idx", "y_mode_idx_cdf_1"));
-#endif  // CONFIG_CTX_Y_SECOND_MODE
+#endif  // CONFIG_CTX_Y_SECOND_MODE || CONFIG_REDUCE_SYMBOL_SIZE
   }
   assert(mode_idx < LUMA_MODE_COUNT);
   get_y_intra_mode_set(mbmi, xd);
@@ -2076,9 +2116,17 @@ static void read_intra_uv_mode(MACROBLOCKD *const xd,
   }
 
   const int context = av1_is_directional_mode(mbmi->mode) ? 1 : 0;
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  int uv_mode_idx =
+      aom_read_symbol(r, ec_ctx->uv_mode_cdf[context],
+                      CHROMA_INTRA_MODE_INDEX_COUNT, ACCT_INFO("uv_mode_idx"));
+  if (uv_mode_idx == (CHROMA_INTRA_MODE_INDEX_COUNT - 1))
+    uv_mode_idx += aom_read_literal(r, 3, ACCT_INFO("uv_mode_idx"));
+#else
   const int uv_mode_idx =
       aom_read_symbol(r, ec_ctx->uv_mode_cdf[context], UV_INTRA_MODES - 1,
                       ACCT_INFO("uv_mode_idx"));
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   assert(uv_mode_idx >= 0 && uv_mode_idx < UV_INTRA_MODES);
   get_uv_intra_mode_set(mbmi);
   mbmi->uv_mode = mbmi->uv_intra_mode_list[uv_mode_idx];

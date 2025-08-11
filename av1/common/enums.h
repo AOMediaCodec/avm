@@ -42,6 +42,16 @@ extern "C" {
 // Macros related to wedge angle signaling
 #define WEDGE_QUADS 4
 #define QUAD_WEDGE_ANGLES 5
+// Macros related to luma and chroma intra mode signaling
+#define LUMA_INTRA_MODE_INDEX_COUNT 8
+#define LUMA_INTRA_MODE_OFFSET_COUNT 6
+#define CHROMA_INTRA_MODE_INDEX_COUNT 8
+// Macro related to EOB position token signaling
+#define EOB_PT_INDEX_COUNT 8
+// Macros related Inter tx type signaling
+#define INTER_TX_TYPE_INDEX_COUNT 8
+#define INTER_TX_TYPE_OFFSET1_COUNT 8
+#define INTER_TX_TYPE_OFFSET2_COUNT 4
 #endif  // CONFIG_REDUCE_SYMBOL_SIZE
 
 #define ADJUST_SUPER_RES_Q 1

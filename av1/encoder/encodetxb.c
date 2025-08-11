@@ -286,30 +286,57 @@ void av1_update_eob_context(int eob, TX_SIZE tx_size, int is_inter,
       }
       break;
     case 4:
-#if CONFIG_ENTROPY_STATS
+#if CONFIG_ENTROPY_STATS && !CONFIG_REDUCE_SYMBOL_SIZE
       ++counts->eob_multi256[cdf_idx][pl_ctx][eob_pt - 1];
-#endif
+#endif  // CONFIG_ENTROPY_STATS && !CONFIG_REDUCE_SYMBOL_SIZE
       if (allow_update_cdf) {
+#if CONFIG_REDUCE_SYMBOL_SIZE
+        int eob_pt_low = AOMMIN(eob_pt - 1, EOB_PT_INDEX_COUNT - 1);
+        update_cdf(ec_ctx->eob_flag_cdf256[pl_ctx], eob_pt_low,
+                   EOB_MAX_SYMS - 3);
+#if CONFIG_ENTROPY_STATS
+        ++counts->eob_multi256[cdf_idx][pl_ctx][eob_pt_low];
+#endif
+#else
         update_cdf(ec_ctx->eob_flag_cdf256[pl_ctx], eob_pt - 1,
                    EOB_MAX_SYMS - 2);
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
       }
       break;
     case 5:
-#if CONFIG_ENTROPY_STATS
+#if CONFIG_ENTROPY_STATS && !CONFIG_REDUCE_SYMBOL_SIZE
       ++counts->eob_multi512[cdf_idx][pl_ctx][eob_pt - 1];
-#endif
+#endif  // CONFIG_ENTROPY_STATS && !CONFIG_REDUCE_SYMBOL_SIZE
       if (allow_update_cdf) {
+#if CONFIG_REDUCE_SYMBOL_SIZE
+        int eob_pt_low = AOMMIN(eob_pt - 1, EOB_PT_INDEX_COUNT - 1);
+        update_cdf(ec_ctx->eob_flag_cdf512[pl_ctx], eob_pt_low,
+                   EOB_MAX_SYMS - 3);
+#if CONFIG_ENTROPY_STATS
+        ++counts->eob_multi512[cdf_idx][pl_ctx][eob_pt_low];
+#endif
+#else
         update_cdf(ec_ctx->eob_flag_cdf512[pl_ctx], eob_pt - 1,
                    EOB_MAX_SYMS - 1);
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
       }
       break;
     case 6:
     default:
-#if CONFIG_ENTROPY_STATS
+#if CONFIG_ENTROPY_STATS && !CONFIG_REDUCE_SYMBOL_SIZE
       ++counts->eob_multi1024[cdf_idx][pl_ctx][eob_pt - 1];
-#endif
+#endif  // CONFIG_ENTROPY_STATS && !CONFIG_REDUCE_SYMBOL_SIZE
       if (allow_update_cdf) {
+#if CONFIG_REDUCE_SYMBOL_SIZE
+        int eob_pt_low = AOMMIN(eob_pt - 1, EOB_PT_INDEX_COUNT - 1);
+        update_cdf(ec_ctx->eob_flag_cdf1024[pl_ctx], eob_pt_low,
+                   EOB_MAX_SYMS - 3);
+#if CONFIG_ENTROPY_STATS
+        ++counts->eob_multi1024[cdf_idx][pl_ctx][eob_pt_low];
+#endif
+#else
         update_cdf(ec_ctx->eob_flag_cdf1024[pl_ctx], eob_pt - 1, EOB_MAX_SYMS);
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
       }
       break;
   }
@@ -338,12 +365,26 @@ void av1_update_eob_context(int eob, TX_SIZE tx_size, int is_inter,
 }
 
 static int get_eob_cost(int eob, const LV_MAP_EOB_COST *txb_eob_costs,
-                        const LV_MAP_COEFF_COST *txb_costs,
-                        const int is_inter) {
+                        const LV_MAP_COEFF_COST *txb_costs, const int is_inter
+#if CONFIG_REDUCE_SYMBOL_SIZE
+                        ,
+                        TX_SIZE tx_size
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
+) {
   int eob_cost = 0;
   int eob_extra;
   const int eob_pt = get_eob_pos_token(eob, &eob_extra);
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  int eob_multi_size = txsize_log2_minus4[tx_size];
+  int eob_pt_low = AOMMIN(eob_pt - 1, EOB_PT_INDEX_COUNT - 1);
+  eob_cost += txb_eob_costs->eob_cost[is_inter][eob_pt_low];
+  if (eob_multi_size == 4 && (eob_pt_low == EOB_PT_INDEX_COUNT - 1))
+    eob_cost += av1_cost_literal(1);
+  else if (eob_multi_size > 4 && (eob_pt_low == EOB_PT_INDEX_COUNT - 1))
+    eob_cost += av1_cost_literal(2);
+#else
   eob_cost += txb_eob_costs->eob_cost[is_inter][eob_pt - 1];
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   const int eob_offset_bits = av1_eob_offset_bits[eob_pt];
   if (eob_offset_bits > 0) {
     const int eob_ctx = eob_pt - 3;
@@ -672,6 +713,9 @@ static INLINE void code_eob(MACROBLOCK *const x, aom_writer *w, int plane,
   int eob_multi_size = txsize_log2_minus4[tx_size];
   int eob_extra;
   const int eob_pt = get_eob_pos_token(eob, &eob_extra);
+#if CONFIG_REDUCE_SYMBOL_SIZE
+  int eob_pt_low = AOMMIN(eob_pt - 1, EOB_PT_INDEX_COUNT - 1);
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
   switch (eob_multi_size) {
     case 0:
       aom_write_symbol(w, eob_pt - 1, ec_ctx->eob_flag_cdf16[pl_ctx],
@@ -689,6 +733,25 @@ static INLINE void code_eob(MACROBLOCK *const x, aom_writer *w, int plane,
       aom_write_symbol(w, eob_pt - 1, ec_ctx->eob_flag_cdf128[pl_ctx],
                        EOB_MAX_SYMS - 3);
       break;
+#if CONFIG_REDUCE_SYMBOL_SIZE
+    case 4:
+      aom_write_symbol(w, eob_pt_low, ec_ctx->eob_flag_cdf256[pl_ctx],
+                       EOB_MAX_SYMS - 3);
+      if (eob_pt_low == EOB_PT_INDEX_COUNT - 1)
+        aom_write_literal(w, eob_pt - 1 - eob_pt_low, 1);
+      break;
+    case 5:
+      aom_write_symbol(w, eob_pt_low, ec_ctx->eob_flag_cdf512[pl_ctx],
+                       EOB_MAX_SYMS - 3);
+      if (eob_pt_low == EOB_PT_INDEX_COUNT - 1)
+        aom_write_literal(w, eob_pt - 1 - eob_pt_low, 2);
+      break;
+    default:
+      aom_write_symbol(w, eob_pt_low, ec_ctx->eob_flag_cdf1024[pl_ctx],
+                       EOB_MAX_SYMS - 3);
+      if (eob_pt_low == EOB_PT_INDEX_COUNT - 1)
+        aom_write_literal(w, eob_pt - 1 - eob_pt_low, 2);
+#else
     case 4:
       aom_write_symbol(w, eob_pt - 1, ec_ctx->eob_flag_cdf256[pl_ctx],
                        EOB_MAX_SYMS - 2);
@@ -700,6 +763,7 @@ static INLINE void code_eob(MACROBLOCK *const x, aom_writer *w, int plane,
     default:
       aom_write_symbol(w, eob_pt - 1, ec_ctx->eob_flag_cdf1024[pl_ctx],
                        EOB_MAX_SYMS);
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
       break;
   }
   const int eob_offset_bits = av1_eob_offset_bits[eob_pt];
@@ -1637,10 +1701,40 @@ int get_tx_type_cost(const MACROBLOCK *x, const MACROBLOCKD *xd, int plane,
         int tx_type_cost = 0;
         if (tx_set_type != EXT_TX_SET_LONG_SIDE_64 &&
             tx_set_type != EXT_TX_SET_LONG_SIDE_32) {
+#if CONFIG_REDUCE_SYMBOL_SIZE
+          int tx_type_idx =
+              av1_ext_tx_ind[tx_set_type][get_primary_tx_type(tx_type)];
+          if (ext_tx_set == 1 || ext_tx_set == 2) {
+            int tx_set = tx_type_idx < INTER_TX_TYPE_INDEX_COUNT ? 0 : 1;
+            tx_type_cost +=
+                x->mode_costs.inter_tx_type_set_cost[ext_tx_set - 1][eob_tx_ctx]
+                                                    [square_tx_size][tx_set];
+            if (tx_set == 0) {
+              tx_type_cost +=
+                  x->mode_costs.inter_tx_type_idx_cost[ext_tx_set - 1]
+                                                      [eob_tx_ctx][tx_type_idx];
+            } else {
+              tx_type_cost +=
+                  ((ext_tx_set == 1)
+                       ? x->mode_costs.inter_tx_type_offset_1_cost
+                             [eob_tx_ctx]
+                             [tx_type_idx - INTER_TX_TYPE_INDEX_COUNT]
+                       : x->mode_costs.inter_tx_type_offset_2_cost
+                             [eob_tx_ctx]
+                             [tx_type_idx - INTER_TX_TYPE_INDEX_COUNT]);
+            }
+          } else {
+            tx_type_cost =
+                x->mode_costs
+                    .inter_tx_type_costs[ext_tx_set][eob_tx_ctx][square_tx_size]
+                                        [get_primary_tx_type(tx_type)];
+          }
+#else
           tx_type_cost =
               x->mode_costs
                   .inter_tx_type_costs[ext_tx_set][eob_tx_ctx][square_tx_size]
                                       [get_primary_tx_type(tx_type)];
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
         } else {
           bool is_long_side_dct =
               is_dct_type(tx_size, get_primary_tx_type(tx_type));
@@ -1807,7 +1901,12 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb_skip(
   const int eob_multi_size = txsize_log2_minus4[tx_size];
   const LV_MAP_EOB_COST *const eob_costs =
       &x->coeff_costs.eob_costs[eob_multi_size][PLANE_TYPE_Y];
-  cost += get_eob_cost(bob_code, eob_costs, coeff_costs, is_inter);
+  cost += get_eob_cost(bob_code, eob_costs, coeff_costs, is_inter
+#if CONFIG_REDUCE_SYMBOL_SIZE
+                       ,
+                       tx_size
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
+  );
 
   cost += get_cctx_type_cost(cm, x, xd, plane, tx_size, block, cctx_type);
   DECLARE_ALIGNED(16, int8_t, coeff_contexts[MAX_TX_SQUARE]);
@@ -1909,7 +2008,12 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
   cost += get_tx_type_cost(x, xd, plane, tx_size, tx_type, reduced_tx_set_used,
                            eob, bob_code, is_fsc);
   cost += get_cctx_type_cost(cm, x, xd, plane, tx_size, block, cctx_type);
-  cost += get_eob_cost(eob, eob_costs, coeff_costs, is_inter);
+  cost += get_eob_cost(eob, eob_costs, coeff_costs, is_inter
+#if CONFIG_REDUCE_SYMBOL_SIZE
+                       ,
+                       tx_size
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
+  );
 
   av1_get_nz_map_contexts(levels, scan, eob, tx_size, tx_class, coeff_contexts,
                           plane);
@@ -2298,7 +2402,12 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb_laplacian(
     cost +=
         av1_cost_coeffs_txb_skip_estimate(x, plane, block, tx_size, tx_type);
   } else {
-    cost += get_eob_cost(eob, eob_costs, coeff_costs, is_inter);
+    cost += get_eob_cost(eob, eob_costs, coeff_costs, is_inter
+#if CONFIG_REDUCE_SYMBOL_SIZE
+                         ,
+                         tx_size
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
+    );
     cost += av1_cost_coeffs_txb_estimate(x, plane, block, tx_size, tx_type);
   }
   return cost;
@@ -3163,7 +3272,12 @@ static AOM_FORCE_INLINE void update_coeff_bob(
     const int new_bob_code = av1_get_max_eob(tx_size) - new_bob;
     const int coeff_ctx_new_eob = get_lower_levels_ctx_bob(bwl, height, si);
     const int new_bob_cost =
-        get_eob_cost(new_bob_code, txb_eob_costs, txb_costs, is_inter);
+        get_eob_cost(new_bob_code, txb_eob_costs, txb_costs, is_inter
+#if CONFIG_REDUCE_SYMBOL_SIZE
+                     ,
+                     tx_size
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
+        );
     int rate_coeff_bob =
         new_bob_cost + get_coeff_cost_bob(pos, abs_qc, sign, coeff_ctx_new_eob,
                                           txb_costs, bwl, levels, signs);
@@ -3367,7 +3481,12 @@ static AOM_FORCE_INLINE void update_coeff_eob(
     const int new_eob = si + 1;
     const int coeff_ctx_new_eob = get_lower_levels_ctx_eob(bwl, height, si);
     const int new_eob_cost =
-        get_eob_cost(new_eob, txb_eob_costs, txb_costs, is_inter);
+        get_eob_cost(new_eob, txb_eob_costs, txb_costs, is_inter
+#if CONFIG_REDUCE_SYMBOL_SIZE
+                     ,
+                     tx_size
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
+        );
     int rate_coeff_eob =
         new_eob_cost + get_coeff_cost_eob(ci, abs_qc, sign, coeff_ctx_new_eob,
                                           dc_sign_ctx, txb_costs, bwl, tx_class
@@ -3866,8 +3985,12 @@ int av1_optimize_fsc_block(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
       (is_inter || mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) ? 1 : 0;
   int non_skip_cost = txb_costs->txb_skip_cost[pred_mode_ctx][txb_skip_ctx][0];
   int skip_cost = txb_costs->txb_skip_cost[pred_mode_ctx][txb_skip_ctx][1];
-  const int bob_cost =
-      get_eob_cost(bob_code, txb_eob_costs, txb_costs, is_inter);
+  const int bob_cost = get_eob_cost(bob_code, txb_eob_costs, txb_costs, is_inter
+#if CONFIG_REDUCE_SYMBOL_SIZE
+                                    ,
+                                    tx_size
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
+  );
   int accu_rate = bob_cost;
   int64_t accu_dist = 0;
   int si = bob;
@@ -4034,7 +4157,12 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
   const int non_skip_cost = txb_costs->txb_skip_cost[txb_ctx->txb_skip_ctx][0];
   const int skip_cost = txb_costs->txb_skip_cost[txb_ctx->txb_skip_ctx][1];
 #endif  // CONFIG_CONTEXT_DERIVATION
-  const int eob_cost = get_eob_cost(eob, txb_eob_costs, txb_costs, is_inter);
+  const int eob_cost = get_eob_cost(eob, txb_eob_costs, txb_costs, is_inter
+#if CONFIG_REDUCE_SYMBOL_SIZE
+                                    ,
+                                    tx_size
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
+  );
   int accu_rate = eob_cost;
   int64_t accu_dist = 0;
   int si = eob - 1;
@@ -4266,16 +4394,65 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
         if (tx_set_type != EXT_TX_SET_LONG_SIDE_64 &&
             tx_set_type != EXT_TX_SET_LONG_SIDE_32) {
           if (allow_update_cdf) {
+#if CONFIG_REDUCE_SYMBOL_SIZE
+            int tx_type_idx =
+                av1_ext_tx_ind[tx_set_type][get_primary_tx_type(tx_type)];
+            if (eset == 1 || eset == 2) {
+              int tx_set = tx_type_idx < INTER_TX_TYPE_INDEX_COUNT ? 0 : 1;
+              update_cdf(fc->inter_tx_type_set[eset - 1][eob_tx_ctx]
+                                              [txsize_sqr_map[tx_size]],
+                         tx_set, 2);
+#if CONFIG_ENTROPY_STATS
+              ++counts->inter_tx_type_set[eset - 1][eob_tx_ctx]
+                                         [txsize_sqr_map[tx_size]][tx_set];
+#endif
+              if (tx_set == 0) {
+                update_cdf(fc->inter_tx_type_idx[eset - 1][eob_tx_ctx],
+                           tx_type_idx, INTER_TX_TYPE_INDEX_COUNT);
+#if CONFIG_ENTROPY_STATS
+                ++counts->inter_tx_type_idx[eset - 1][eob_tx_ctx][tx_type_idx];
+#endif
+              } else {
+                (eset == 1)
+                    ? update_cdf(fc->inter_tx_type_offset_1[eob_tx_ctx],
+                                 tx_type_idx - INTER_TX_TYPE_INDEX_COUNT,
+                                 INTER_TX_TYPE_OFFSET1_COUNT)
+                    : update_cdf(fc->inter_tx_type_offset_2[eob_tx_ctx],
+                                 tx_type_idx - INTER_TX_TYPE_INDEX_COUNT,
+                                 INTER_TX_TYPE_OFFSET2_COUNT);
+#if CONFIG_ENTROPY_STATS
+                (eset == 1)
+                    ? ++counts
+                            ->inter_tx_type_offset_1[eob_tx_ctx]
+                                                    [tx_type_idx -
+                                                     INTER_TX_TYPE_INDEX_COUNT]
+                    : ++counts
+                            ->inter_tx_type_offset_2[eob_tx_ctx]
+                                                    [tx_type_idx -
+                                                     INTER_TX_TYPE_INDEX_COUNT];
+#endif
+              }
+            } else {
+              update_cdf(fc->inter_ext_tx_cdf[eset][eob_tx_ctx]
+                                             [txsize_sqr_map[tx_size]],
+                         tx_type_idx, av1_num_ext_tx_set[tx_set_type]);
+#if CONFIG_ENTROPY_STATS
+              ++counts->inter_ext_tx[eset][eob_tx_ctx][txsize_sqr_map[tx_size]]
+                                    [tx_type_idx];
+#endif
+            }
+#else
             update_cdf(
                 fc->inter_ext_tx_cdf[eset][eob_tx_ctx][txsize_sqr_map[tx_size]],
                 av1_ext_tx_ind[tx_set_type][get_primary_tx_type(tx_type)],
                 av1_num_ext_tx_set[tx_set_type]);
+#endif  // CONFIG_REDUCE_SYMBOL_SIZE
           }
-#if CONFIG_ENTROPY_STATS
+#if CONFIG_ENTROPY_STATS && !CONFIG_REDUCE_SYMBOL_SIZE
           ++counts->inter_ext_tx[eset][eob_tx_ctx][txsize_sqr_map[tx_size]]
                                 [av1_ext_tx_ind[tx_set_type]
                                                [get_primary_tx_type(tx_type)]];
-#endif  // CONFIG_ENTROPY_STATS
+#endif  // CONFIG_ENTROPY_STATS && !CONFIG_REDUCE_SYMBOL_SIZE
         } else {
           bool is_long_side_dct =
               is_dct_type(tx_size, get_primary_tx_type(tx_type));
