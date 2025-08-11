@@ -22,14 +22,6 @@
 #include "aom_dsp/grain_synthesis.h"
 #include "aom_mem/aom_mem.h"
 
-#define PRINT_OFFSETS 1
-
-#if PRINT_OFFSETS
-static int frame_num = 0;
-static FILE *ver_offsets_file;
-static FILE *hor_offsets_file;
-#endif
-
 // Samples with Gaussian distribution in the range of [-2048, 2047] (12 bits)
 // with zero mean and standard deviation of about 512.
 // should be divided by 4 for 10-bit range and 16 for 8-bit range.
@@ -1032,24 +1024,9 @@ int av1_add_film_grain(const aom_film_grain_t *params, const aom_image_t *src,
   luma_stride = dst->stride[AOM_PLANE_Y] >> use_high_bit_depth;
   chroma_stride = dst->stride[AOM_PLANE_U] >> use_high_bit_depth;
 
-#if PRINT_OFFSETS
-  ver_offsets_file =
-      fopen("/Users/anorkin/work/AV2/deblock/ver_offsets.txt", "a");
-  hor_offsets_file =
-      fopen("/Users/anorkin/work/AV2/deblock/hor_offsets.txt", "a");
-  fprintf(ver_offsets_file, "\nFrame %d\n", frame_num);
-  fprintf(hor_offsets_file, "\nFrame %d\n", frame_num);
-  frame_num++;
-#endif
-
   return av1_add_film_grain_run(
       params, luma, cb, cr, height, width, luma_stride, chroma_stride,
       use_high_bit_depth, chroma_subsamp_y, chroma_subsamp_x, mc_identity);
-
-#if PRINT_OFFSETS
-  fclose(ver_offsets_file);
-  fclose(hor_offsets_file);
-#endif
 }
 
 int av1_add_film_grain_run(const aom_film_grain_t *params, uint8_t *luma,
@@ -1173,11 +1150,6 @@ int av1_add_film_grain_run(const aom_film_grain_t *params, uint8_t *luma,
                           scaling_lut_cr);
   }
   for (int y = 0; y < height / 2; y += (luma_subblock_size_y >> 1)) {
-#if PRINT_OFFSETS
-    fprintf(ver_offsets_file, " \n");
-    fprintf(hor_offsets_file, " \n");
-#endif
-
 #if CONFIG_FGS_BLOCK_SIZE
     init_random_generator(y << 2, params->random_seed);
 #else
@@ -1198,11 +1170,6 @@ int av1_add_film_grain_run(const aom_film_grain_t *params, uint8_t *luma,
       int offset_y = get_random_number(8);
       int offset_x = (offset_y >> 4) & 15;
       offset_y &= 15;
-#endif
-
-#if PRINT_OFFSETS
-      fprintf(ver_offsets_file, " %d", offset_y);
-      fprintf(hor_offsets_file, " %d", offset_x);
 #endif
 
       int luma_offset_y = left_pad + 2 * ar_padding + (offset_y << 1);
