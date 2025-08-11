@@ -1208,9 +1208,7 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
 
   cm->current_frame.frame_number = 0;
   cm->current_frame.key_frame_number = 0;
-#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
   cm->current_frame_id = -1;
-#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
   cpi->seq_params_locked = 0;
   cpi->partition_search_skippable_frame = 0;
   cpi->tile_data = NULL;

@@ -262,7 +262,7 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
   av1_read_sequence_header(
 #if !CWG_F215_CONFIG_REMOVE_FRAME_ID
       cm,
-#endif
+#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
       rb, seq_params);
 
   seq_params->film_grain_params_present = aom_rb_read_bit(rb);

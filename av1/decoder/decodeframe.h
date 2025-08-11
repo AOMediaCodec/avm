@@ -39,7 +39,7 @@ struct ThreadData;
 void av1_read_sequence_header(
 #if !CWG_F215_CONFIG_REMOVE_FRAME_ID
     AV1_COMMON *cm,
-#endif
+#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
     struct aom_read_bit_buffer *rb, SequenceHeader *seq_params);
 
 // Reads additional sequence header for coding tools beyond AV1
