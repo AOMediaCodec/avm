@@ -54,6 +54,29 @@ void extend_ccso_border(uint16_t *buf, const int d, MACROBLOCKD *xd) {
   }
 }
 
+void extend_ccso_tile_border(const int tile_height, const int tile_width,
+                             const int tile_stride, uint16_t *buf,
+                             const int d) {
+  uint16_t *p = &buf[d * tile_stride + d];
+  for (int y = 0; y < tile_height; y++) {
+    for (int x = 0; x < d; x++) {
+      *(p - d + x) = p[0];
+      p[tile_width + x] = p[tile_width - 1];
+    }
+    p += tile_stride;
+  }
+  p -= (tile_stride + d);
+  for (int y = 0; y < d; y++) {
+    memcpy(p + (y + 1) * tile_stride, p,
+           sizeof(uint16_t) * (tile_width + (d << 1)));
+  }
+  p -= ((tile_height - 1) * tile_stride);
+  for (int y = 0; y < d; y++) {
+    memcpy(p - (y + 1) * tile_stride, p,
+           sizeof(uint16_t) * (tile_width + (d << 1)));
+  }
+}
+
 /* Derive the quantized index, later it can be used for retriving offset values
  * from the look-up table */
 void cal_filter_support(int *rec_luma_idx, const uint16_t *rec_y,
@@ -111,6 +134,38 @@ void derive_ccso_sample_pos(int *rec_idx, const int ccso_stride,
     rec_idx[1] = -2;
   }
 }
+
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+INLINE static AV1PixelRect av1_get_tile_rect_ccso(const TileInfo *tile_info,
+                                                  const AV1_COMMON *cm,
+                                                  MACROBLOCKD *xd, int is_uv) {
+  AV1PixelRect r;
+
+  // Calculate position in the Y plane
+  r.left = tile_info->mi_col_start * MI_SIZE;
+  r.right = tile_info->mi_col_end * MI_SIZE;
+  r.top = tile_info->mi_row_start * MI_SIZE;
+  r.bottom = tile_info->mi_row_end * MI_SIZE;
+
+  const int frame_w = xd->plane[0].dst.width;
+  const int frame_h = xd->plane[0].dst.height;
+
+  // Make sure we don't fall off the bottom-right of the frame.
+  r.right = AOMMIN(r.right, frame_w);
+  r.bottom = AOMMIN(r.bottom, frame_h);
+
+  // Convert to coordinates in the appropriate plane
+  const int ss_x = is_uv && cm->seq_params.subsampling_x;
+  const int ss_y = is_uv && cm->seq_params.subsampling_y;
+
+  r.left = ROUND_POWER_OF_TWO(r.left, ss_x);
+  r.right = ROUND_POWER_OF_TWO(r.right, ss_x);
+  r.top = ROUND_POWER_OF_TWO(r.top, ss_y);
+  r.bottom = ROUND_POWER_OF_TWO(r.bottom, ss_y);
+
+  return r;
+}
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 
 void ccso_filter_block_hbd_wo_buf_c(
     const uint16_t *src_y, uint16_t *dst_yuv, const int x, const int y,
@@ -176,6 +231,122 @@ void ccso_apply_luma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
   int unit_log2 = proc_unit_log2 > blk_log2 ? blk_log2 : proc_unit_log2;
   const int unit_size = 1 << (unit_log2);
 #endif  // CCSO_REFACTORING
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  if (cm->seq_params.disable_loopfilters_across_tiles) {
+    int tile_rows = cm->tiles.rows;
+    int tile_cols = cm->tiles.cols;
+    TileInfo tile_info_y;
+    AV1PixelRect tile_rect_y;
+    for (int tile_row = 0; tile_row < tile_rows; ++tile_row) {
+      int tile_height = 0;
+      for (int tile_col = 0; tile_col < tile_cols; ++tile_col) {
+        av1_tile_init(&tile_info_y, cm, tile_row, tile_col);
+        tile_rect_y = av1_get_tile_rect_ccso(&tile_info_y, cm, xd, 0);
+
+        int tile_row_start = tile_rect_y.top;
+        int tile_col_start = tile_rect_y.left;
+        int tile_row_end = tile_rect_y.bottom;
+        int tile_col_end = tile_rect_y.right;
+
+        int tile_width = tile_col_end - tile_col_start;
+        tile_height = tile_row_end - tile_row_start;
+        const int ccso_ext_tile_stride = tile_width + (CCSO_PADDING_SIZE << 1);
+        derive_ccso_sample_pos(src_loc, ccso_ext_tile_stride, filter_sup);
+        uint16_t *dst_tile_yuv = dst_yuv + tile_col_start;
+
+        uint16_t *ext_rec_tile_y = NULL;
+        // const uint16_t *rec_y = cm->cur_frame->buf.y_buffer;
+        ext_rec_tile_y = aom_malloc(sizeof(*ext_rec_tile_y) *
+                                    (tile_height + (CCSO_PADDING_SIZE << 1)) *
+                                    (tile_width + (CCSO_PADDING_SIZE << 1)));
+        for (int r = 0; r < tile_height; ++r) {
+          for (int c = 0; c < tile_width; ++c) {
+            ext_rec_tile_y[(r + CCSO_PADDING_SIZE) * ccso_ext_tile_stride + c +
+                           CCSO_PADDING_SIZE] =
+                src_y[(r + tile_row_start) * ccso_ext_stride +
+                      (c + tile_col_start)];
+          }
+        }
+        extend_ccso_tile_border(tile_height, tile_width, ccso_ext_tile_stride,
+                                ext_rec_tile_y, CCSO_PADDING_SIZE);
+
+        uint16_t *src_tile_y = ext_rec_tile_y;
+        src_tile_y +=
+            CCSO_PADDING_SIZE * ccso_ext_tile_stride + CCSO_PADDING_SIZE;
+
+        for (int frame_pxl_y = tile_row_start; frame_pxl_y < tile_row_end;
+             frame_pxl_y += blk_size) {
+          for (int frame_pxl_x = tile_col_start; frame_pxl_x < tile_col_end;
+               frame_pxl_x += blk_size) {
+            // int x = frame_pxl_x;
+            // int y = frame_pxl_y;
+            int tile_pxl_x = frame_pxl_x - tile_col_start;
+            int tile_pxl_y = frame_pxl_y - tile_row_start;
+
+            const int ccso_blk_idx =
+                (blk_size >> MI_SIZE_LOG2) * (frame_pxl_y >> blk_log2) *
+                    mi_params->mi_stride +
+                (blk_size >> MI_SIZE_LOG2) * (frame_pxl_x >> blk_log2);
+            const bool use_ccso =
+                mi_params->mi_grid_base[ccso_blk_idx]->ccso_blk_y;
+            if (!use_ccso) continue;
+            const uint16_t *src_unit_y = src_tile_y;
+            uint16_t *dst_unit_yuv = dst_tile_yuv;
+            const int y_end = AOMMIN(tile_row_end - frame_pxl_y, blk_size);
+            const int x_end = AOMMIN(tile_col_end - frame_pxl_x, blk_size);
+            for (int unit_y = 0; unit_y < y_end; unit_y += unit_size) {
+              for (int unit_x = 0; unit_x < x_end; unit_x += unit_size) {
+#if CONFIG_BRU
+                // FPU level skip
+                const int mbmi_idx = get_mi_grid_idx(
+                    mi_params, (frame_pxl_y + unit_y) >> MI_SIZE_LOG2,
+                    (frame_pxl_x + unit_x) >> MI_SIZE_LOG2);
+                const int use_ccso_local =
+                    mi_params->mi_grid_base[mbmi_idx]->local_ccso_blk_flag;
+                if (!use_ccso_local) {
+                  continue;
+                }
+                if (cm->bru.enabled &&
+                    mi_params->mi_grid_base[mbmi_idx]->sb_active_mode !=
+                        BRU_ACTIVE_SB) {
+                  aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+                                     "Invalid BRU activity in CCSO: only "
+                                     "active SB can be filtered");
+                  return;
+                }
+#endif  // CONFIG_BRU
+                if (cm->ccso_info.ccso_bo_only[plane]) {
+                  ccso_filter_block_hbd_wo_buf_c(
+                      src_unit_y, dst_unit_yuv, tile_pxl_x + unit_x,
+                      tile_pxl_y + unit_y, tile_width, tile_height, src_cls,
+                      cm->ccso_info.filter_offset[plane], ccso_ext_tile_stride,
+                      dst_stride, 0, 0, thr, neg_thr, src_loc, max_val,
+                      unit_size, unit_size, false, shift_bits, edge_clf,
+                      cm->ccso_info.ccso_bo_only[plane]);
+                } else {
+                  ccso_filter_block_hbd_wo_buf(
+                      src_unit_y, dst_unit_yuv, tile_pxl_x + unit_x,
+                      tile_pxl_y + unit_y, tile_width, tile_height, src_cls,
+                      cm->ccso_info.filter_offset[plane], ccso_ext_tile_stride,
+                      dst_stride, 0, 0, thr, neg_thr, src_loc, max_val,
+                      unit_size, unit_size, false, shift_bits, edge_clf, 0);
+                }
+              }
+              dst_unit_yuv += (dst_stride << unit_log2);
+              src_unit_y += (ccso_ext_tile_stride << unit_log2);
+            }
+          }
+          dst_tile_yuv += (dst_stride << blk_log2);
+          src_tile_y += (ccso_ext_tile_stride << (blk_log2));
+        }
+        aom_free(ext_rec_tile_y);
+      }
+      dst_yuv += (dst_stride * tile_height);
+      // src_y += (ccso_ext_stride * (cm->tiles.height << (MI_SIZE_LOG2)));
+    }
+    return;
+  }
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   for (int y = 0; y < pic_height; y += blk_size) {
     for (int x = 0; x < pic_width; x += blk_size) {
       const int ccso_blk_idx =
@@ -277,6 +448,123 @@ void ccso_apply_luma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
   int unit_log2 = proc_unit_log2 > blk_log2 ? blk_log2 : proc_unit_log2;
   const int unit_size = 1 << (unit_log2);
 #endif  // CCSO_REFACTORING
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  if (cm->seq_params.disable_loopfilters_across_tiles) {
+    int tile_rows = cm->tiles.rows;
+    int tile_cols = cm->tiles.cols;
+    TileInfo tile_info_y;
+    AV1PixelRect tile_rect_y;
+
+    for (int tile_row = 0; tile_row < tile_rows; ++tile_row) {
+      int tile_height = 0;
+      for (int tile_col = 0; tile_col < tile_cols; ++tile_col) {
+        av1_tile_init(&tile_info_y, cm, tile_row, tile_col);
+        tile_rect_y = av1_get_tile_rect_ccso(&tile_info_y, cm, xd, 0);
+
+        int tile_row_start = tile_rect_y.top;
+        int tile_col_start = tile_rect_y.left;
+        int tile_row_end = tile_rect_y.bottom;
+        int tile_col_end = tile_rect_y.right;
+
+        int tile_width = tile_col_end - tile_col_start;
+        tile_height = tile_row_end - tile_row_start;
+        const int ccso_ext_tile_stride = tile_width + (CCSO_PADDING_SIZE << 1);
+        derive_ccso_sample_pos(src_loc, ccso_ext_tile_stride, filter_sup);
+        uint16_t *dst_tile_yuv = dst_yuv + tile_col_start;
+
+        uint16_t *ext_rec_tile_y = NULL;
+        // const uint16_t *rec_y = cm->cur_frame->buf.y_buffer;
+        ext_rec_tile_y = aom_malloc(sizeof(*ext_rec_tile_y) *
+                                    (tile_height + (CCSO_PADDING_SIZE << 1)) *
+                                    (tile_width + (CCSO_PADDING_SIZE << 1)));
+        for (int r = 0; r < tile_height; ++r) {
+          for (int c = 0; c < tile_width; ++c) {
+            ext_rec_tile_y[(r + CCSO_PADDING_SIZE) * ccso_ext_tile_stride + c +
+                           CCSO_PADDING_SIZE] =
+                src_y[(r + tile_row_start) * ccso_ext_stride +
+                      (c + tile_col_start)];
+          }
+        }
+        extend_ccso_tile_border(tile_height, tile_width, ccso_ext_tile_stride,
+                                ext_rec_tile_y, CCSO_PADDING_SIZE);
+
+        uint16_t *src_tile_y = ext_rec_tile_y;
+        src_tile_y +=
+            CCSO_PADDING_SIZE * ccso_ext_tile_stride + CCSO_PADDING_SIZE;
+
+        for (int frame_pxl_y = tile_row_start; frame_pxl_y < tile_row_end;
+             frame_pxl_y += blk_size) {
+          for (int frame_pxl_x = tile_col_start; frame_pxl_x < tile_col_end;
+               frame_pxl_x += blk_size) {
+            // int x = frame_pxl_x;
+            // int y = frame_pxl_y;
+            int tile_pxl_x = frame_pxl_x - tile_col_start;
+            int tile_pxl_y = frame_pxl_y - tile_row_start;
+
+            const int ccso_blk_idx =
+                (blk_size >> MI_SIZE_LOG2) * (frame_pxl_y >> blk_log2) *
+                    mi_params->mi_stride +
+                (blk_size >> MI_SIZE_LOG2) * (frame_pxl_x >> blk_log2);
+            const bool use_ccso =
+                mi_params->mi_grid_base[ccso_blk_idx]->ccso_blk_y;
+            if (!use_ccso) continue;
+            const uint16_t *src_unit_y = src_tile_y;
+            uint16_t *dst_unit_yuv = dst_tile_yuv;
+            const int y_end = AOMMIN(tile_row_end - frame_pxl_y, blk_size);
+            const int x_end = AOMMIN(tile_col_end - frame_pxl_x, blk_size);
+            for (int unit_y = 0; unit_y < y_end; unit_y += unit_size) {
+              for (int unit_x = 0; unit_x < x_end; unit_x += unit_size) {
+#if CONFIG_BRU
+                // FPU level skip
+                const int mbmi_idx = get_mi_grid_idx(
+                    mi_params, (frame_pxl_y + unit_y) >> MI_SIZE_LOG2,
+                    (frame_pxl_x + unit_x) >> MI_SIZE_LOG2);
+                const int use_ccso_local =
+                    mi_params->mi_grid_base[mbmi_idx]->local_ccso_blk_flag;
+                if (!use_ccso_local) {
+                  continue;
+                }
+                if (cm->bru.enabled &&
+                    mi_params->mi_grid_base[mbmi_idx]->sb_active_mode !=
+                        BRU_ACTIVE_SB) {
+                  aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+                                     "Invalid BRU activity in CCSO: only "
+                                     "active SB can be filtered");
+                  return;
+                }
+#endif  // CONFIG_BRU
+                if (cm->ccso_info.ccso_bo_only[plane]) {
+                  ccso_filter_block_hbd_wo_buf_c(
+                      src_unit_y, dst_unit_yuv, tile_pxl_x + unit_x,
+                      tile_pxl_y + unit_y, tile_width, tile_height, src_cls,
+                      cm->ccso_info.filter_offset[plane], ccso_ext_tile_stride,
+                      dst_stride, 0, 0, thr, neg_thr, src_loc, max_val,
+                      unit_size, unit_size, true, shift_bits, edge_clf,
+                      cm->ccso_info.ccso_bo_only[plane]);
+                } else {
+                  ccso_filter_block_hbd_wo_buf(
+                      src_unit_y, dst_unit_yuv, tile_pxl_x + unit_x,
+                      tile_pxl_y + unit_y, tile_width, tile_height, src_cls,
+                      cm->ccso_info.filter_offset[plane], ccso_ext_tile_stride,
+                      dst_stride, 0, 0, thr, neg_thr, src_loc, max_val,
+                      unit_size, unit_size, true, shift_bits, edge_clf, 0);
+                }
+              }
+              dst_unit_yuv += (dst_stride << unit_log2);
+              src_unit_y += (ccso_ext_tile_stride << unit_log2);
+            }
+          }
+          dst_tile_yuv += (dst_stride << blk_log2);
+          src_tile_y += (ccso_ext_tile_stride << (blk_log2));
+        }
+        aom_free(ext_rec_tile_y);
+      }
+      dst_yuv += (dst_stride * tile_height);
+      // src_y += (ccso_ext_stride * (cm->tiles.height << (MI_SIZE_LOG2)));
+    }
+    return;
+  }
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   for (int y = 0; y < pic_height; y += blk_size) {
     for (int x = 0; x < pic_width; x += blk_size) {
       const int ccso_blk_idx =
@@ -386,6 +674,141 @@ void ccso_apply_chroma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
       proc_unit_log2 > blk_log2_y ? blk_log2_y : proc_unit_log2;
   const int unit_size_y = 1 << (unit_log2_y);
 #endif  // CCSO_REFACTORING
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  if (cm->seq_params.disable_loopfilters_across_tiles) {
+    int tile_rows = cm->tiles.rows;
+    int tile_cols = cm->tiles.cols;
+    TileInfo tile_info_y;
+    AV1PixelRect tile_rect_y;
+    TileInfo tile_info_uv;
+    AV1PixelRect tile_rect_uv;
+    for (int tile_row = 0; tile_row < tile_rows; ++tile_row) {
+      int tile_height_uv = 0;
+      for (int tile_col = 0; tile_col < tile_cols; ++tile_col) {
+        av1_tile_init(&tile_info_y, cm, tile_row, tile_col);
+        tile_rect_y = av1_get_tile_rect_ccso(&tile_info_y, cm, xd, 0);
+        av1_tile_init(&tile_info_uv, cm, tile_row, tile_col);
+        tile_rect_uv = av1_get_tile_rect_ccso(&tile_info_uv, cm, xd, 1);
+
+        int tile_y_row_start = tile_rect_y.top;
+        int tile_y_col_start = tile_rect_y.left;
+        int tile_y_row_end = tile_rect_y.bottom;
+        int tile_y_col_end = tile_rect_y.right;
+        int tile_width_y = tile_y_col_end - tile_y_col_start;
+        int tile_height_y = tile_y_row_end - tile_y_row_start;
+        const int ccso_ext_tile_y_stride =
+            tile_width_y + (CCSO_PADDING_SIZE << 1);
+        // const int recon_y_frame_stride = xd->plane[0].dst.stride;
+        derive_ccso_sample_pos(src_loc, ccso_ext_tile_y_stride, filter_sup);
+        uint16_t *ext_rec_tile_y = NULL;
+        // const uint16_t *rec_y = cm->cur_frame->buf.y_buffer;
+        ext_rec_tile_y = aom_malloc(sizeof(*ext_rec_tile_y) *
+                                    (tile_height_y + (CCSO_PADDING_SIZE << 1)) *
+                                    (tile_width_y + (CCSO_PADDING_SIZE << 1)));
+        for (int r = 0; r < tile_height_y; ++r) {
+          for (int c = 0; c < tile_width_y; ++c) {
+            ext_rec_tile_y[(r + CCSO_PADDING_SIZE) * ccso_ext_tile_y_stride +
+                           c + CCSO_PADDING_SIZE] =
+                src_y[(r + tile_y_row_start) * ccso_ext_stride +
+                      (c + tile_y_col_start)];
+          }
+        }
+        extend_ccso_tile_border(tile_height_y, tile_width_y,
+                                ccso_ext_tile_y_stride, ext_rec_tile_y,
+                                CCSO_PADDING_SIZE);
+
+        uint16_t *src_tile_y = ext_rec_tile_y;
+        src_tile_y +=
+            CCSO_PADDING_SIZE * ccso_ext_tile_y_stride + CCSO_PADDING_SIZE;
+
+        int tile_uv_row_start = tile_rect_uv.top;
+        int tile_uv_col_start = tile_rect_uv.left;
+        int tile_uv_row_end = tile_rect_uv.bottom;
+        int tile_uv_col_end = tile_rect_uv.right;
+        int tile_width_uv = tile_uv_col_end - tile_uv_col_start;
+        tile_height_uv = tile_uv_row_end - tile_uv_row_start;
+
+        uint16_t *dst_tile_yuv = dst_yuv + tile_uv_col_start;
+
+        for (int frame_pxl_y = tile_uv_row_start; frame_pxl_y < tile_uv_row_end;
+             frame_pxl_y += blk_size_y) {
+          for (int frame_pxl_x = tile_uv_col_start;
+               frame_pxl_x < tile_uv_col_end; frame_pxl_x += blk_size_x) {
+            // int x = frame_pxl_x;
+            // int y = frame_pxl_y;
+            int tile_pxl_x = frame_pxl_x - tile_uv_col_start;
+            int tile_pxl_y = frame_pxl_y - tile_uv_row_start;
+
+            const int ccso_blk_idx =
+                (blk_size >> MI_SIZE_LOG2) * (frame_pxl_y >> blk_log2_y) *
+                    mi_params->mi_stride +
+                (blk_size >> MI_SIZE_LOG2) * (frame_pxl_x >> blk_log2_x);
+            const bool use_ccso =
+                (plane == 1)
+                    ? mi_params->mi_grid_base[ccso_blk_idx]->ccso_blk_u
+                    : mi_params->mi_grid_base[ccso_blk_idx]->ccso_blk_v;
+            if (!use_ccso) continue;
+            const uint16_t *src_unit_y = src_tile_y;
+            uint16_t *dst_unit_yuv = dst_tile_yuv;
+            const int y_end = AOMMIN(tile_uv_row_end - frame_pxl_y, blk_size_y);
+            const int x_end = AOMMIN(tile_uv_col_end - frame_pxl_x, blk_size_x);
+            for (int unit_y = 0; unit_y < y_end; unit_y += unit_size_y) {
+              for (int unit_x = 0; unit_x < x_end; unit_x += unit_size_x) {
+#if CONFIG_BRU
+                // FPU level skip
+                const int mbmi_idx = get_mi_grid_idx(
+                    mi_params,
+                    (frame_pxl_y + unit_y) >> (MI_SIZE_LOG2 - y_uv_vscale),
+                    (frame_pxl_x + unit_x) >> (MI_SIZE_LOG2 - y_uv_hscale));
+                const int use_ccso_local =
+                    mi_params->mi_grid_base[mbmi_idx]->local_ccso_blk_flag;
+                if (!use_ccso_local) {
+                  continue;
+                }
+                if (cm->bru.enabled &&
+                    mi_params->mi_grid_base[mbmi_idx]->sb_active_mode !=
+                        BRU_ACTIVE_SB) {
+                  aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+                                     "Invalid BRU activity in CCSO: only "
+                                     "active SB can be filtered");
+                  return;
+                }
+#endif  // CONFIG_BRU
+                if (cm->ccso_info.ccso_bo_only[plane]) {
+                  ccso_filter_block_hbd_wo_buf_c(
+                      src_unit_y, dst_unit_yuv, tile_pxl_x + unit_x,
+                      tile_pxl_y + unit_y, tile_width_uv, tile_height_uv,
+                      src_cls, cm->ccso_info.filter_offset[plane],
+                      ccso_ext_tile_y_stride, dst_stride, y_uv_hscale,
+                      y_uv_vscale, thr, neg_thr, src_loc, max_val, unit_size_x,
+                      unit_size_y, false, shift_bits, edge_clf,
+                      cm->ccso_info.ccso_bo_only[plane]);
+                } else {
+                  ccso_filter_block_hbd_wo_buf(
+                      src_unit_y, dst_unit_yuv, tile_pxl_x + unit_x,
+                      tile_pxl_y + unit_y, tile_width_uv, tile_height_uv,
+                      src_cls, cm->ccso_info.filter_offset[plane],
+                      ccso_ext_tile_y_stride, dst_stride, y_uv_hscale,
+                      y_uv_vscale, thr, neg_thr, src_loc, max_val, unit_size_x,
+                      unit_size_y, false, shift_bits, edge_clf, 0);
+                }
+              }
+              dst_unit_yuv += (dst_stride << unit_log2_y);
+              src_unit_y +=
+                  (ccso_ext_tile_y_stride << (unit_log2_y + y_uv_vscale));
+            }
+          }
+          dst_tile_yuv += (dst_stride << blk_log2_y);
+          src_tile_y += (ccso_ext_tile_y_stride << (blk_log2_y + y_uv_vscale));
+        }
+        aom_free(ext_rec_tile_y);
+      }
+      dst_yuv += (dst_stride * tile_height_uv);
+      // src_y += (ccso_ext_stride * (cm->tiles.height << (MI_SIZE_LOG2)));
+    }
+    return;
+  }
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   for (int y = 0; y < pic_height; y += blk_size_y) {
     for (int x = 0; x < pic_width; x += blk_size_x) {
       const int ccso_blk_idx = (blk_size >> MI_SIZE_LOG2) * (y >> blk_log2_y) *
@@ -500,6 +923,141 @@ void ccso_apply_chroma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
       proc_unit_log2 > blk_log2_y ? blk_log2_y : proc_unit_log2;
   const int unit_size_y = 1 << (unit_log2_y);
 #endif  // CCSO_REFACTORING
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  if (cm->seq_params.disable_loopfilters_across_tiles) {
+    int tile_rows = cm->tiles.rows;
+    int tile_cols = cm->tiles.cols;
+    TileInfo tile_info_y;
+    AV1PixelRect tile_rect_y;
+    TileInfo tile_info_uv;
+    AV1PixelRect tile_rect_uv;
+    for (int tile_row = 0; tile_row < tile_rows; ++tile_row) {
+      int tile_height_uv = 0;
+      for (int tile_col = 0; tile_col < tile_cols; ++tile_col) {
+        av1_tile_init(&tile_info_y, cm, tile_row, tile_col);
+        tile_rect_y = av1_get_tile_rect_ccso(&tile_info_y, cm, xd, 0);
+        av1_tile_init(&tile_info_uv, cm, tile_row, tile_col);
+        tile_rect_uv = av1_get_tile_rect_ccso(&tile_info_uv, cm, xd, 1);
+
+        int tile_y_row_start = tile_rect_y.top;
+        int tile_y_col_start = tile_rect_y.left;
+        int tile_y_row_end = tile_rect_y.bottom;
+        int tile_y_col_end = tile_rect_y.right;
+        int tile_width_y = tile_y_col_end - tile_y_col_start;
+        int tile_height_y = tile_y_row_end - tile_y_row_start;
+        const int ccso_ext_tile_y_stride =
+            tile_width_y + (CCSO_PADDING_SIZE << 1);
+        // const int recon_y_frame_stride = xd->plane[0].dst.stride;
+        derive_ccso_sample_pos(src_loc, ccso_ext_tile_y_stride, filter_sup);
+        uint16_t *ext_rec_tile_y = NULL;
+        // const uint16_t *rec_y = cm->cur_frame->buf.y_buffer;
+        ext_rec_tile_y = aom_malloc(sizeof(*ext_rec_tile_y) *
+                                    (tile_height_y + (CCSO_PADDING_SIZE << 1)) *
+                                    (tile_width_y + (CCSO_PADDING_SIZE << 1)));
+        for (int r = 0; r < tile_height_y; ++r) {
+          for (int c = 0; c < tile_width_y; ++c) {
+            ext_rec_tile_y[(r + CCSO_PADDING_SIZE) * ccso_ext_tile_y_stride +
+                           c + CCSO_PADDING_SIZE] =
+                src_y[(r + tile_y_row_start) * ccso_ext_stride +
+                      (c + tile_y_col_start)];
+          }
+        }
+        extend_ccso_tile_border(tile_height_y, tile_width_y,
+                                ccso_ext_tile_y_stride, ext_rec_tile_y,
+                                CCSO_PADDING_SIZE);
+
+        uint16_t *src_tile_y = ext_rec_tile_y;
+        src_tile_y +=
+            CCSO_PADDING_SIZE * ccso_ext_tile_y_stride + CCSO_PADDING_SIZE;
+
+        int tile_uv_row_start = tile_rect_uv.top;
+        int tile_uv_col_start = tile_rect_uv.left;
+        int tile_uv_row_end = tile_rect_uv.bottom;
+        int tile_uv_col_end = tile_rect_uv.right;
+        int tile_width_uv = tile_uv_col_end - tile_uv_col_start;
+        tile_height_uv = tile_uv_row_end - tile_uv_row_start;
+
+        uint16_t *dst_tile_yuv = dst_yuv + tile_uv_col_start;
+
+        for (int frame_pxl_y = tile_uv_row_start; frame_pxl_y < tile_uv_row_end;
+             frame_pxl_y += blk_size_y) {
+          for (int frame_pxl_x = tile_uv_col_start;
+               frame_pxl_x < tile_uv_col_end; frame_pxl_x += blk_size_x) {
+            // int x = frame_pxl_x;
+            // int y = frame_pxl_y;
+            int tile_pxl_x = frame_pxl_x - tile_uv_col_start;
+            int tile_pxl_y = frame_pxl_y - tile_uv_row_start;
+
+            const int ccso_blk_idx =
+                (blk_size >> MI_SIZE_LOG2) * (frame_pxl_y >> blk_log2_y) *
+                    mi_params->mi_stride +
+                (blk_size >> MI_SIZE_LOG2) * (frame_pxl_x >> blk_log2_x);
+            const bool use_ccso =
+                (plane == 1)
+                    ? mi_params->mi_grid_base[ccso_blk_idx]->ccso_blk_u
+                    : mi_params->mi_grid_base[ccso_blk_idx]->ccso_blk_v;
+            if (!use_ccso) continue;
+            const uint16_t *src_unit_y = src_tile_y;
+            uint16_t *dst_unit_yuv = dst_tile_yuv;
+            const int y_end = AOMMIN(tile_uv_row_end - frame_pxl_y, blk_size_y);
+            const int x_end = AOMMIN(tile_uv_col_end - frame_pxl_x, blk_size_x);
+            for (int unit_y = 0; unit_y < y_end; unit_y += unit_size_y) {
+              for (int unit_x = 0; unit_x < x_end; unit_x += unit_size_x) {
+#if CONFIG_BRU
+                // FPU level skip
+                const int mbmi_idx = get_mi_grid_idx(
+                    mi_params,
+                    (frame_pxl_y + unit_y) >> (MI_SIZE_LOG2 - y_uv_vscale),
+                    (frame_pxl_x + unit_x) >> (MI_SIZE_LOG2 - y_uv_hscale));
+                const int use_ccso_local =
+                    mi_params->mi_grid_base[mbmi_idx]->local_ccso_blk_flag;
+                if (!use_ccso_local) {
+                  continue;
+                }
+                if (cm->bru.enabled &&
+                    mi_params->mi_grid_base[mbmi_idx]->sb_active_mode !=
+                        BRU_ACTIVE_SB) {
+                  aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+                                     "Invalid BRU activity in CCSO: only "
+                                     "active SB can be filtered");
+                  return;
+                }
+#endif  // CONFIG_BRU
+                if (cm->ccso_info.ccso_bo_only[plane]) {
+                  ccso_filter_block_hbd_wo_buf_c(
+                      src_unit_y, dst_unit_yuv, tile_pxl_x + unit_x,
+                      tile_pxl_y + unit_y, tile_width_uv, tile_height_uv,
+                      src_cls, cm->ccso_info.filter_offset[plane],
+                      ccso_ext_tile_y_stride, dst_stride, y_uv_hscale,
+                      y_uv_vscale, thr, neg_thr, src_loc, max_val, unit_size_x,
+                      unit_size_y, true, shift_bits, edge_clf,
+                      cm->ccso_info.ccso_bo_only[plane]);
+                } else {
+                  ccso_filter_block_hbd_wo_buf(
+                      src_unit_y, dst_unit_yuv, tile_pxl_x + unit_x,
+                      tile_pxl_y + unit_y, tile_width_uv, tile_height_uv,
+                      src_cls, cm->ccso_info.filter_offset[plane],
+                      ccso_ext_tile_y_stride, dst_stride, y_uv_hscale,
+                      y_uv_vscale, thr, neg_thr, src_loc, max_val, unit_size_x,
+                      unit_size_y, true, shift_bits, edge_clf, 0);
+                }
+              }
+              dst_unit_yuv += (dst_stride << unit_log2_y);
+              src_unit_y +=
+                  (ccso_ext_tile_y_stride << (unit_log2_y + y_uv_vscale));
+            }
+          }
+          dst_tile_yuv += (dst_stride << blk_log2_y);
+          src_tile_y += (ccso_ext_tile_y_stride << (blk_log2_y + y_uv_vscale));
+        }
+        aom_free(ext_rec_tile_y);
+      }
+      dst_yuv += (dst_stride * tile_height_uv);
+      // src_y += (ccso_ext_stride * (cm->tiles.height << (MI_SIZE_LOG2)));
+    }
+    return;
+  }
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   for (int y = 0; y < pic_height; y += blk_size_y) {
     for (int x = 0; x < pic_width; x += blk_size_x) {
       const int ccso_blk_idx = (blk_size >> MI_SIZE_LOG2) * (y >> blk_log2_y) *
