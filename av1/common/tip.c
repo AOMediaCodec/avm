@@ -63,8 +63,9 @@ static void compute_tmvp_mi_info(const AV1_COMMON *cm, int *mvs_rows,
 
   const SequenceHeader *const seq_params = &cm->seq_params;
   const int mf_sb_size_log2 =
-      AOMMIN(seq_params->mib_size_log2, mi_size_high_log2[BLOCK_128X128]) +
-      MI_SIZE_LOG2;
+      get_mf_sb_size_log2(block_size_high[seq_params->sb_size],
+                          cm->mib_size_log2, cm->tmvp_sample_step);
+
   const int mf_sb_size = (1 << mf_sb_size_log2);
   *sb_tmvp_size = (mf_sb_size >> TMVP_MI_SZ_LOG2);
 }
