@@ -371,14 +371,18 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->reduced_still_picture_hdr &= !tool_cfg->full_still_picture_hdr;
   seq->force_screen_content_tools = 2;
   seq->force_integer_mv = 2;
+#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   seq->order_hint_info.enable_order_hint = tool_cfg->enable_order_hint;
+#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
 #if !CWG_F215_CONFIG_REMOVE_FRAME_ID
   seq->frame_id_numbers_present_flag =
       !(seq->still_picture && seq->reduced_still_picture_hdr) &&
       !oxcf->tile_cfg.enable_large_scale_tile && tool_cfg->error_resilient_mode;
 #endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
   if (seq->still_picture && seq->reduced_still_picture_hdr) {
+#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
     seq->order_hint_info.enable_order_hint = 0;
+#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
     seq->force_screen_content_tools = 2;
     seq->force_integer_mv = 2;
   }
@@ -400,10 +404,14 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   }
 #else
   seq->order_hint_info.order_hint_bits_minus_1 =
+#if CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+      DEFAULT_EXPLICIT_ORDER_HINT_BITS - 1;
+#else
       seq->order_hint_info.enable_order_hint
           ? DEFAULT_EXPLICIT_ORDER_HINT_BITS - 1
           : -1;
 #endif  // CONFIG_CWG_F243_ORDER_HINT_BITDEPTH
+#endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
 #if CONFIG_BRU
   seq->enable_bru = tool_cfg->enable_bru;
 #endif  // CONFIG_BRU
@@ -411,8 +419,11 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
   // Set 0 for multi-layer coding
   seq->enable_frame_output_order =
-      oxcf->ref_frm_cfg.enable_frame_output_order &&
-      seq->order_hint_info.enable_order_hint;
+      oxcf->ref_frm_cfg.enable_frame_output_order 
+#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+      && seq->order_hint_info.enable_order_hint
+#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+      ;
 #endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
   seq->max_reference_frames = oxcf->ref_frm_cfg.max_reference_frames;
 #if CONFIG_SEQ_MAX_DRL_BITS
@@ -454,8 +465,10 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
 
   seq->order_hint_info.enable_ref_frame_mvs = tool_cfg->ref_frame_mvs_present;
+#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   seq->order_hint_info.enable_ref_frame_mvs &=
       seq->order_hint_info.enable_order_hint;
+#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
 #if CONFIG_REDUCED_REF_FRAME_MVS_MODE
   seq->order_hint_info.reduced_ref_frame_mvs_mode =
       tool_cfg->reduced_ref_frame_mvs_mode;
@@ -5221,9 +5234,13 @@ void enc_bru_swap_ref(AV1_COMMON *const cm) {
             scores[replaced_bru_ref_idx].index;
         cm->ref_frames_info
             .ref_frame_distance[cm->ref_frames_info.num_total_refs - 1] =
+#if CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+            scores[replaced_bru_ref_idx].distance;
+#else
             cm->seq_params.order_hint_info.enable_order_hint
                 ? scores[replaced_bru_ref_idx].distance
                 : 1;
+#endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
         RefScoreData tmp_score = scores[cm->ref_frames_info.num_total_refs - 1];
         scores[cm->ref_frames_info.num_total_refs - 1] =
             scores[replaced_bru_ref_idx];

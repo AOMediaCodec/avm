@@ -514,9 +514,11 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .enable_intra_edge_filter = ARG_DEF(NULL, "enable-intra-edge-filter", 1,
                                       "Enable intra edge filtering "
                                       "(0: false, 1: true (default))"),
+#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   .enable_order_hint = ARG_DEF(NULL, "enable-order-hint", 1,
                                "Enable order hint "
                                "(0: false, 1: true (default))"),
+#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   .enable_tx64 =
       ARG_DEF(NULL, "enable-tx64", 1,
               "Enable 64-pt transform (0: false, 1: true (default))"),

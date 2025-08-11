@@ -1040,7 +1040,9 @@ void av1_opfl_build_inter_predictor(
     InterPredParams *inter_pred_params,
     CalcSubpelParamsFunc calc_subpel_params_func, int ref, uint16_t *pred_dst,
     const MV *const src_mv, int pu_width, int pu_height) {
+#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   assert(cm->seq_params.order_hint_info.enable_order_hint);
+#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   const int is_intrabc = is_intrabc_block(mi, xd->tree_type);
   const int is_tip = mi->ref_frame[0] == TIP_FRAME;
 

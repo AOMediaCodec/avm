@@ -9451,8 +9451,12 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
         // Initialize compound average type for optical flow refinement
         mbmi->interinter_comp.type = COMPOUND_AVERAGE;
 
-        // Optical flow compound modes are only enabled with enable_order_hint
-        // and when prediction is bi-directional
+        // Optical flow compound modes are only enabled with
+#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+        // enable_order_hint
+        // and
+#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+        //when prediction is bi-directional
         if (this_mode >= NEAR_NEARMV_OPTFLOW &&
             (!opfl_allowed_cur_refs_bsize(cm,
 #if CONFIG_COMPOUND_4XN

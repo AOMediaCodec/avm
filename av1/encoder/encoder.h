@@ -910,8 +910,10 @@ typedef struct {
   // When disabled, a reduced header is used for still pictures.
   bool full_still_picture_hdr;
   int enable_tcq;
+#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   // Indicates if frame order hint should be enabled or not.
   bool enable_order_hint;
+#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   // Indicates if ref_frame_mvs should be enabled at the sequence level.
   bool ref_frame_mvs_present;
   // Indicates if ref_frame_mvs should be enabled at the frame level.

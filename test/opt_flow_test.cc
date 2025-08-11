@@ -498,7 +498,9 @@ class AV1OptFlowRefineTest : public AV1OptFlowTest<opfl_mv_refinement> {
     const int numIter = is_speed ? 1 : 16384 / (bw_log2 * bh_log2);
     const int oh_start_bits = is_speed ? kMaxOrderHintBits : 1;
 
+#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
     oh_info.enable_order_hint = 1;
+#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
     for (int oh_bits = oh_start_bits; oh_bits <= kMaxOrderHintBits; oh_bits++) {
       for (int count = 0; count < numIter;) {
         const int cur_frm_idx = RandomFrameIdx(oh_bits);
@@ -726,7 +728,9 @@ class AV1OptFlowCopyPredHighbdTest
     const int numIter = is_speed ? 1 : 16384 / (bw_log2 * bh_log2);
     const int oh_start_bits = is_speed ? kMaxOrderHintBits : 1;
 
+#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
     oh_info.enable_order_hint = 1;
+#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
     for (int oh_bits = oh_start_bits; oh_bits <= kMaxOrderHintBits; oh_bits++) {
       for (int count = 0; count < numIter;) {
         const int cur_frm_idx = RandomFrameIdx(oh_bits);

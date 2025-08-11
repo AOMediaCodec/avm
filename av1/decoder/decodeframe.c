@@ -6365,7 +6365,9 @@ void av1_read_sequence_header(
   if (seq_params->reduced_still_picture_hdr) {
     seq_params->seq_enabled_motion_modes = (1 << SIMPLE_TRANSLATION);
     seq_params->enable_masked_compound = 0;
+#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
     seq_params->order_hint_info.enable_order_hint = 0;
+#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
     seq_params->order_hint_info.enable_ref_frame_mvs = 0;
     seq_params->force_screen_content_tools = 2;  // SELECT_SCREEN_CONTENT_TOOLS
     seq_params->force_integer_mv = 2;            // SELECT_INTEGER_MV
@@ -6387,9 +6389,15 @@ void av1_read_sequence_header(
 
     seq_params->seq_enabled_motion_modes = seq_enabled_motion_modes;
     seq_params->enable_masked_compound = aom_rb_read_bit(rb);
+#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
     seq_params->order_hint_info.enable_order_hint = aom_rb_read_bit(rb);
+#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
     seq_params->order_hint_info.enable_ref_frame_mvs =
+#if CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+        aom_rb_read_bit(rb);
+#else
         seq_params->order_hint_info.enable_order_hint ? aom_rb_read_bit(rb) : 0;
+#endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
 #if CONFIG_REDUCED_REF_FRAME_MVS_MODE
     seq_params->order_hint_info.reduced_ref_frame_mvs_mode =
         seq_params->order_hint_info.enable_ref_frame_mvs ? aom_rb_read_bit(rb)
@@ -6413,9 +6421,13 @@ void av1_read_sequence_header(
       seq_params->force_integer_mv = 2;  // SELECT_INTEGER_MV
     }
     seq_params->order_hint_info.order_hint_bits_minus_1 =
+#if CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+        aom_rb_read_literal(rb, 3);
+#else
         seq_params->order_hint_info.enable_order_hint
             ? aom_rb_read_literal(rb, 3)
             : -1;
+#endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   }
 
   seq_params->enable_cdef = aom_rb_read_bit(rb);
@@ -6722,9 +6734,13 @@ void av1_read_sequence_header_beyond_av1(
     seq_params->enable_tip_explicit_qp = 0;
   }
   seq_params->enable_orip = aom_rb_read_bit(rb);
+#if CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+  seq_params->enable_opfl_refine = aom_rb_read_literal(rb, 2);
+#else
   seq_params->enable_opfl_refine = seq_params->order_hint_info.enable_order_hint
                                        ? aom_rb_read_literal(rb, 2)
                                        : AOM_OPFL_REFINE_NONE;
+#endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   seq_params->enable_ibp = aom_rb_read_bit(rb);
   seq_params->enable_adaptive_mvd = aom_rb_read_bit(rb);
 
@@ -6952,7 +6968,9 @@ static AOM_INLINE void read_global_motion(AV1_COMMON *cm,
   for (int frame = 0; frame < cm->ref_frames_info.num_total_refs; ++frame) {
 #if CONFIG_IMPROVED_GLOBAL_MOTION
     int temporal_distance;
+#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
     if (seq_params->order_hint_info.enable_order_hint) {
+#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
       const RefCntBuffer *const ref_buf = get_ref_frame_buf(cm, frame);
 #if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
       const int ref_order_hint = ref_buf->display_order_hint;
@@ -6963,9 +6981,11 @@ static AOM_INLINE void read_global_motion(AV1_COMMON *cm,
 #endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
       temporal_distance = get_relative_dist(&seq_params->order_hint_info,
                                             cur_order_hint, ref_order_hint);
+#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
     } else {
       temporal_distance = 1;
     }
+#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
 
     if (temporal_distance == 0) {
       // Don't code global motion for frames at the same temporal instant
@@ -7877,8 +7897,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       current_frame->refresh_frame_flags != REFRESH_FRAME_ALL) {
 #endif  // CONFIG_EXTRA_DPB
     // Read all ref frame order hints if error_resilient_mode == 1
-    if (features->error_resilient_mode &&
-        seq_params->order_hint_info.enable_order_hint) {
+    if (features->error_resilient_mode
+#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+        &&
+        seq_params->order_hint_info.enable_order_hint
+#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+        ) {
       for (int ref_idx = 0; ref_idx < seq_params->ref_frames; ref_idx++) {
         // Read order hint from bit stream
         unsigned int order_hint = aom_rb_read_literal(
@@ -8053,8 +8077,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       // is unavailable.
       const int explicit_ref_frame_map =
           cm->features.error_resilient_mode || frame_is_sframe(cm) ||
-          seq_params->explicit_ref_frame_map ||
-          !seq_params->order_hint_info.enable_order_hint;
+          seq_params->explicit_ref_frame_map
+#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+      ||
+          !seq_params->order_hint_info.enable_order_hint
+#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+      ;
       if (explicit_ref_frame_map) {
 #if CONFIG_EXTRA_DPB
         cm->ref_frames_info.num_total_refs =
@@ -8188,12 +8216,19 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           scores[i].score = i;
           int ref = cm->remapped_ref_idx[i];
           scores[i].distance =
+#if CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+          get_relative_dist(
+                &seq_params->order_hint_info,
+                (int)current_frame->display_order_hint,
+                (int)cm->ref_frame_map_pairs[ref].disp_order);
+#else
               seq_params->order_hint_info.enable_order_hint
                   ? get_relative_dist(
                         &seq_params->order_hint_info,
                         (int)current_frame->display_order_hint,
                         (int)cm->ref_frame_map_pairs[ref].disp_order)
                   : 1;
+#endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
 #if CONFIG_MULTILAYER_CORE
           if (scores[i].distance == 0 &&
               current_frame->layer_id !=
@@ -8221,8 +8256,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         features->allow_ref_frame_mvs = 0;
 
       if (features->allow_ref_frame_mvs &&
-          cm->ref_frames_info.num_total_refs > 1 &&
-          seq_params->order_hint_info.enable_order_hint) {
+          cm->ref_frames_info.num_total_refs > 1
+#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+          &&
+          seq_params->order_hint_info.enable_order_hint
+#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+          ) {
         // Get the TMVP sampling mode
         cm->tmvp_sample_step = aom_rb_read_bit(rb) + 1;
         cm->tmvp_sample_stepl2 = cm->tmvp_sample_step == 1 ? 0 : 1;

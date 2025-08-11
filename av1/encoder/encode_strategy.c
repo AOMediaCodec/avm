@@ -1173,7 +1173,11 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     cm->bru.enabled = cpi->oxcf.tool_cfg.enable_bru > 0 &&
                       (frame_params.frame_type == INTER_FRAME);
     cm->bru.frame_inactive_flag = 0;
-    if (cm->bru.enabled && cm->seq_params.order_hint_info.enable_order_hint) {
+    if (cm->bru.enabled
+#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+        && cm->seq_params.order_hint_info.enable_order_hint
+#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+        ) {
       int n_future = 0;
       for (int i = 0; i < REF_FRAMES; i++) {
         const RefCntBuffer *const buf = cm->ref_frame_map[i];

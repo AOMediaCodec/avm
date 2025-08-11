@@ -313,6 +313,7 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
                               seq_params->quantizer_matrix_4x8 };
   av1_qm_init_dequant_only(&cm->quant_params, num_planes, fund_mat);
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   if (!seq_params->order_hint_info.enable_order_hint &&
       !seq_params->reduced_still_picture_hdr
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
@@ -328,6 +329,7 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
 #endif  // CONFIG_F253_REMOVE_OUTPUTFLAG
     );
   }
+#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
 #endif
 
   if (av1_check_trailing_bits(pbi, rb) != 0) {

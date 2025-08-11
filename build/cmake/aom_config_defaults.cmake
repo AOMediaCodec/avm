@@ -194,6 +194,10 @@ set_aom_config_var(CONFIG_DMVR_OFF_IN_TIP_DIRECT 1
 
 set_aom_config_var(CONFIG_ORIP_DC_DISABLED 1
                    "AV2 experiment flag to disable ORIP for DC mode.")
+
+set_aom_config_var(CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT 1
+                   "Remove enable order hint flag.")
+
 set_aom_config_var(
   CONFIG_CONTEXT_DERIVATION 1
   "AV2 experiment flag to enable modified context derivation : CWG-B065.")
