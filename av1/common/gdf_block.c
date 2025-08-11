@@ -900,7 +900,8 @@ void gdf_inference_unit_c(const int i_min, const int i_max, const int j_min,
         int gdf_rec_coordinates_fwd =
             (gdf_guided_sample_coordinates_fwd[k][0] <
              vertical_spatial_support_min)
-                ? -gdf_guided_sample_coordinates_fwd[k][0]
+                ? 2 * vertical_spatial_support_min -
+                      gdf_guided_sample_coordinates_fwd[k][0]
                 : gdf_guided_sample_coordinates_fwd[k][0];
         s_pos_fwd = rec_ptr + (gdf_rec_coordinates_fwd * rec_stride) +
                     gdf_guided_sample_coordinates_fwd[k][1];
@@ -914,7 +915,8 @@ void gdf_inference_unit_c(const int i_min, const int i_max, const int j_min,
         int gdf_rec_coordinates_bwd =
             (gdf_guided_sample_coordinates_bwd[k][0] >
              vertical_spatial_support_max)
-                ? -gdf_guided_sample_coordinates_bwd[k][0]
+                ? 2 * vertical_spatial_support_max -
+                      gdf_guided_sample_coordinates_bwd[k][0]
                 : gdf_guided_sample_coordinates_bwd[k][0];
         s_pos_bwd = rec_ptr + (gdf_rec_coordinates_bwd * rec_stride) +
                     gdf_guided_sample_coordinates_bwd[k][1];
