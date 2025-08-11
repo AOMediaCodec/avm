@@ -275,8 +275,6 @@ set_aom_config_var(CONFIG_CWG_F260_REFRESH_FLAG 0
 
 set_aom_config_var(CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING 1
                    "TX partition type signalling bugfix")
-set_aom_config_var(CONFIG_INTERINTRA_IMPROVEMENT 1
-                   "Enable additional inter-intra block sizes")
 set_aom_config_var(CONFIG_REFRESH_FLAG 0
                    "Experiment flag to signal refresh frame flag using index")
 
@@ -423,9 +421,6 @@ set_aom_config_var(CONFIG_ML_PART_SPLIT 1
                    "Partition SPLIT pruning/forcing as predicted by ML.")
 set_aom_config_var(CONFIG_MV_TRAJECTORY 1
                    "Enables TMVP MV trajectory tracking.")
-
-set_aom_config_var(CONFIG_WARP_INTER_INTRA 1
-                   "Enable inter-intra mode for warp block.")
 
 set_aom_config_var(CONFIG_ADAPT_OPFL_IN_TIP_DIRECT 1
                    "Enable adaptive OPFL MV refinement in TIP-direct mode")

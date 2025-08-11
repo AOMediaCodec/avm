@@ -220,15 +220,11 @@ void av1_enc_build_inter_predictor(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                xd->plane[plane].width, xd->plane[plane].height,
                                mi_x, mi_y);
 
-#if CONFIG_INTERINTRA_IMPROVEMENT
     assert(IMPLIES(!is_interintra_allowed(xd->mi[0]),
                    xd->mi[0]->motion_mode != INTERINTRA));
-#endif  // CONFIG_INTERINTRA_IMPROVEMENT
 
-#if CONFIG_WARP_INTER_INTRA
     assert(IMPLIES(!allow_warp_inter_intra(cm, mbmi, mbmi->motion_mode),
                    !xd->mi[0]->warp_inter_intra));
-#endif  // CONFIG_WARP_INTER_INTRA
 
 #if CONFIG_CHROMA_MERGE_LATENCY_FIX
     int is_intra_inter_allowed = 1;

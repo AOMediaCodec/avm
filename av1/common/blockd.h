@@ -623,10 +623,8 @@ typedef struct MB_MODE_INFO {
   /*! \brief warp model type used for this mbmi. */
   uint8_t six_param_warp_model_flag;
 
-#if CONFIG_WARP_INTER_INTRA
   /*! \brief warp inter intra enable or not. */
   uint8_t warp_inter_intra;
-#endif  // CONFIG_WARP_INTER_INTRA
 
   /*! \brief warp_precision_idx this mbmi. */
   uint8_t warp_precision_idx;
@@ -3622,18 +3620,10 @@ void av1_mark_block_as_coded(MACROBLOCKD *xd, BLOCK_SIZE bsize,
                              BLOCK_SIZE sb_size);
 void av1_mark_block_as_not_coded(MACROBLOCKD *xd, int mi_row, int mi_col,
                                  BLOCK_SIZE bsize, BLOCK_SIZE sb_size);
-#if CONFIG_INTERINTRA_IMPROVEMENT
 #define MAX_INTERINTRA_SB_SQUARE 64 * 64
-#else
-#define MAX_INTERINTRA_SB_SQUARE 32 * 32
-#endif  // CONFIG_INTERINTRA_IMPROVEMENT
 static INLINE int is_interintra_mode(const MB_MODE_INFO *mbmi) {
-  return
-#if CONFIG_WARP_INTER_INTRA
-      (mbmi->motion_mode >= WARP_CAUSAL && mbmi->warp_inter_intra) ||
-#endif  // CONFIG_WARP_INTER_INTRA
-
-      (mbmi->motion_mode == INTERINTRA);
+  return (mbmi->motion_mode >= WARP_CAUSAL && mbmi->warp_inter_intra) ||
+         (mbmi->motion_mode == INTERINTRA);
 }
 
 static INLINE int is_tip_allowed_bsize(const MB_MODE_INFO *mbmi) {
@@ -3649,11 +3639,7 @@ static INLINE int is_tip_allowed_bsize(const MB_MODE_INFO *mbmi) {
 
 static INLINE int is_interintra_allowed_bsize(const BLOCK_SIZE bsize) {
   return bsize >= BLOCK_8X8 &&
-#if CONFIG_INTERINTRA_IMPROVEMENT
          AOMMAX(block_size_wide[bsize], block_size_high[bsize]) <= 64;
-#else
-         (bsize <= BLOCK_32X32);
-#endif  // CONFIG_INTERINTRA_IMPROVEMENT
 }
 
 static INLINE int is_interintra_allowed_mode(const PREDICTION_MODE mode) {
@@ -3685,9 +3671,7 @@ static INLINE int is_interintra_allowed_bsize_group(int group) {
 }
 
 static INLINE int is_interintra_pred(const MB_MODE_INFO *mbmi) {
-#if CONFIG_INTERINTRA_IMPROVEMENT
   assert(IMPLIES(is_interintra_mode(mbmi), mbmi->ref_frame[1] == NONE_FRAME));
-#endif  // CONFIG_INTERINTRA_IMPROVEMENT
   return is_interintra_mode(mbmi);
 }
 

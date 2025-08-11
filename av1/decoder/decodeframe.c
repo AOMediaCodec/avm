@@ -832,11 +832,6 @@ static AOM_INLINE void dec_build_inter_predictor(const AV1_COMMON *cm,
                                xd->plane[plane].width, xd->plane[plane].height,
                                mi_x, mi_y, 0);
 
-#if !CONFIG_WARP_INTER_INTRA
-    assert(IMPLIES(!is_interintra_allowed(xd->mi[0]),
-                   !is_interintra_mode(xd->mi[0])));
-#endif  // CONFIG_WARP_INTER_INTRA
-
 #if CONFIG_CHROMA_MERGE_LATENCY_FIX
     int is_intra_inter_allowed = 1;
     if (mbmi->tree_type == SHARED_PART &&

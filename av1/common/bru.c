@@ -243,9 +243,7 @@ void bru_set_default_inter_mb_mode_info(const AV1_COMMON *const cm,
   mbmi->mv[0].as_int = 0;
   mbmi->mv[1].as_int = 0;
   assert(cm->bru.update_ref_idx >= 0);
-#if CONFIG_WARP_INTER_INTRA
   mbmi->warp_inter_intra = 0;
-#endif
   mbmi->morph_pred = 0;
   mbmi->use_intra_dip = 0;
   mbmi->seg_id_predicted = 0;

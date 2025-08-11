@@ -811,10 +811,6 @@ static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
       const INTERINTRA_MODE interintra_mode =
           read_interintra_mode(xd, r, bsize_group);
 
-#if !CONFIG_INTERINTRA_IMPROVEMENT
-      mbmi->ref_frame[1] = INTRA_FRAME;
-#endif  // !CONFIG_INTERINTRA_IMPROVEMENT
-
       mbmi->interintra_mode = interintra_mode;
       mbmi->angle_delta[PLANE_TYPE_Y] = 0;
       mbmi->angle_delta[PLANE_TYPE_UV] = 0;
@@ -3627,9 +3623,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   mbmi->six_param_warp_model_flag = 0;
 
   mbmi->warp_precision_idx = 0;
-#if CONFIG_WARP_INTER_INTRA
   mbmi->warp_inter_intra = 0;
-#endif  // CONFIG_WARP_INTER_INTRA
   if (mbmi->skip_mode) {
 #if CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
     assert(is_compound);
@@ -3859,7 +3853,6 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
     read_warp_delta(cm, xd, mbmi, r, warp_param_stack);
   }
 
-#if CONFIG_WARP_INTER_INTRA
   mbmi->warp_inter_intra = 0;
   if (allow_warp_inter_intra(cm, mbmi, mbmi->motion_mode)) {
     const int bsize_group = size_group_lookup[bsize];
@@ -3870,10 +3863,6 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
     if (mbmi->warp_inter_intra) {
       const INTERINTRA_MODE interintra_mode =
           read_interintra_mode(xd, r, bsize_group);
-#if !CONFIG_INTERINTRA_IMPROVEMENT
-      mbmi->ref_frame[1] = INTRA_FRAME;
-#endif  // !CONFIG_INTERINTRA_IMPROVEMENT
-
       mbmi->interintra_mode = interintra_mode;
       mbmi->angle_delta[PLANE_TYPE_Y] = 0;
       mbmi->angle_delta[PLANE_TYPE_UV] = 0;
@@ -3900,7 +3889,6 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       }
     }  // if (mbmi->warp_inter_intra)
   }
-#endif  // CONFIG_WARP_INTER_INTRA
 
   if (!mbmi->skip_mode) {
     read_refinemv_flag(cm, xd, r, bsize);
@@ -4252,9 +4240,7 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
   mbmi->six_param_warp_model_flag = 0;
 
   mbmi->warp_precision_idx = 0;
-#if CONFIG_WARP_INTER_INTRA
   mbmi->warp_inter_intra = 0;
-#endif  // CONFIG_WARP_INTER_INTRA
 
   if (!cm->seg.segid_preskip && xd->tree_type != CHROMA_PART)
     mbmi->segment_id = read_inter_segment_id(cm, xd, 0, r);

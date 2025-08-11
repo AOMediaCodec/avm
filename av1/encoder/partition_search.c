@@ -1464,7 +1464,6 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
         // continue_motion_mode_signaling = false;
       }
 
-#if CONFIG_WARP_INTER_INTRA
       if (allow_warp_inter_intra(cm, mbmi, motion_mode)) {
         const int bsize_group = size_group_lookup[bsize];
         update_cdf(fc->warp_interintra_cdf[bsize_group], mbmi->warp_inter_intra,
@@ -1500,7 +1499,6 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
           }
         }
       }
-#endif  // CONFIG_WARP_INTER_INTRA
 
       if (allow_warpmv_with_mvd_coding(cm, mbmi)) {
 #if CONFIG_D149_CTX_MODELING_OPT

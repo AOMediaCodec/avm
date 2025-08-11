@@ -297,7 +297,6 @@ static INLINE int get_default_six_param_flag(const AV1_COMMON *const cm,
              : 0;
 }
 
-#if CONFIG_WARP_INTER_INTRA
 static INLINE int allow_warp_inter_intra(const AV1_COMMON *const cm,
                                          const MB_MODE_INFO *mbmi,
                                          const int motion_mode) {
@@ -307,7 +306,6 @@ static INLINE int allow_warp_inter_intra(const AV1_COMMON *const cm,
          is_interintra_allowed_mode(mbmi->mode) &&
          is_interintra_allowed_ref(mbmi->ref_frame) && mbmi->bawp_flag[0] == 0;
 }
-#endif  // CONFIG_WARP_INTER_INTRA
 
 // Check if the signaling of the warp delta parameters are allowed
 static INLINE int allow_warp_parameter_signaling(const AV1_COMMON *const cm,

@@ -599,13 +599,6 @@ static AOM_INLINE void write_motion_mode(
 
   MOTION_MODE motion_mode = mbmi->motion_mode;
 
-  // Note(rachelbarker): Both of the conditions in brackets here are used in
-  // various places to mean "is this block interintra?". This assertion is a
-  // quick check to ensure these conditions can't get out of sync.
-#if !CONFIG_INTERINTRA_IMPROVEMENT
-  assert((mbmi->ref_frame[1] == INTRA_FRAME) == (motion_mode == INTERINTRA));
-#endif  // !CONFIG_INTERINTRA_IMPROVEMENT
-
   if (mbmi->mode == WARPMV) {
 #if CONFIG_WARPMV_WARP_CAUSAL_REMOVAL
     assert(mbmi->motion_mode == WARP_DELTA);
@@ -2558,7 +2551,6 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
       write_warp_delta(cm, xd, mbmi, mbmi_ext_frame, w);
     }
 
-#if CONFIG_WARP_INTER_INTRA
     if (allow_warp_inter_intra(cm, mbmi, mbmi->motion_mode)) {
       const int bsize_group = size_group_lookup[bsize];
       aom_write_symbol(w, mbmi->warp_inter_intra,
@@ -2584,7 +2576,6 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 
       }  // if (mbmi->warp_inter_intra) {
     }
-#endif  // CONFIG_WARP_INTER_INTRA
 
     if (!mbmi->skip_mode) {
       write_refinemv_flag(cm, xd, w, bsize);

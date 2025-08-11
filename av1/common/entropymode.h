@@ -302,9 +302,7 @@ typedef struct frame_contexts {
   aom_cdf_prob wedge_dist_cdf2[BLOCK_SIZES_ALL][CDF_SIZE(NUM_WEDGE_DIST - 1)];
 #endif  // CONFIG_D149_CTX_MODELING_OPT
 
-#if CONFIG_WARP_INTER_INTRA
   aom_cdf_prob warp_interintra_cdf[BLOCK_SIZE_GROUPS][CDF_SIZE(2)];
-#endif  // CONFIG_WARP_INTER_INTRA
   aom_cdf_prob interintra_cdf[BLOCK_SIZE_GROUPS][CDF_SIZE(2)];
 #if CONFIG_D149_CTX_MODELING_OPT
   aom_cdf_prob wedge_interintra_cdf[CDF_SIZE(2)];

@@ -631,10 +631,8 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
                                fc->interintra_cdf[i], NULL);
       av1_cost_tokens_from_cdf(mode_costs->interintra_mode_cost[i],
                                fc->interintra_mode_cdf[i], NULL);
-#if CONFIG_WARP_INTER_INTRA
       av1_cost_tokens_from_cdf(mode_costs->warp_interintra_cost[i],
                                fc->warp_interintra_cdf[i], NULL);
-#endif  // CONFIG_WARP_INTER_INTRA
     }
 #if CONFIG_D149_CTX_MODELING_OPT
     av1_cost_tokens_from_cdf(mode_costs->wedge_interintra_cost,
