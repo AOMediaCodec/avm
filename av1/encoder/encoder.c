@@ -380,10 +380,28 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
     seq->force_screen_content_tools = 2;
     seq->force_integer_mv = 2;
   }
+#if CONFIG_CWG_F243_ORDER_HINT_BITDEPTH
+  if (seq->order_hint_info.enable_order_hint) {
+    if (oxcf->kf_cfg.key_freq_min == 9999 && oxcf->kf_cfg.key_freq_max == 9999)
+      seq->order_hint_info.order_hint_bits_minus_1 =
+          DEFAULT_EXPLICIT_ORDER_HINT_BITS - 4;
+    else if (oxcf->kf_cfg.key_freq_min == 65 && oxcf->kf_cfg.key_freq_max == 65)
+      seq->order_hint_info.order_hint_bits_minus_1 =
+          DEFAULT_EXPLICIT_ORDER_HINT_BITS - 1;  // 7
+    else if (oxcf->kf_cfg.key_freq_min == 0 && oxcf->kf_cfg.key_freq_max == 0)
+      seq->order_hint_info.order_hint_bits_minus_1 = 0;  // 1 bit
+    else
+      seq->order_hint_info.order_hint_bits_minus_1 =
+          DEFAULT_EXPLICIT_ORDER_HINT_BITS - 1;
+  } else {
+    seq->order_hint_info.order_hint_bits_minus_1 = -1;
+  }
+#else
   seq->order_hint_info.order_hint_bits_minus_1 =
       seq->order_hint_info.enable_order_hint
           ? DEFAULT_EXPLICIT_ORDER_HINT_BITS - 1
           : -1;
+#endif  // CONFIG_CWG_F243_ORDER_HINT_BITDEPTH
 #if CONFIG_BRU
   seq->enable_bru = tool_cfg->enable_bru;
 #endif  // CONFIG_BRU

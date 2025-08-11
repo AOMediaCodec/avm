@@ -470,6 +470,10 @@ set_aom_config_var(CONFIG_COEFF_PARSING 1
 
 set_aom_config_var(CONFIG_FGS_BLOCK_SIZE 1 "Choice of FGS blocks size.")
 
+# CWG-F243
+set_aom_config_var(CONFIG_CWG_F243_ORDER_HINT_BITDEPTH 1
+                   "Encoder-only reduce order hint bitdepth.")
+
 #
 # Variables in this section control optional features of the build system.
 #
