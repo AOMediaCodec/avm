@@ -3992,13 +3992,24 @@ static AOM_INLINE void setup_frame_size_with_refs(
   // valid dimensions.
   for (int i = 0; i < cm->ref_frames_info.num_total_refs; ++i) {
     const RefCntBuffer *const ref_frame = get_ref_frame_buf(cm, i);
+#if CONFIG_ACROSS_SCALE_REF_OPT
     valid_ref_frame =
         valid_ref_frame_size(ref_frame->buf.y_crop_width,
                              ref_frame->buf.y_crop_height, width, height);
     if (!valid_ref_frame)
       aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                          "Referenced frame has invalid size");
+#else
+    valid_ref_frame |=
+        valid_ref_frame_size(ref_frame->buf.y_crop_width,
+                             ref_frame->buf.y_crop_height, width, height);
+#endif  // CONFIG_ACROSS_SCALE_REF_OPT
   }
+#if !CONFIG_ACROSS_SCALE_REF_OPT
+  if (!valid_ref_frame)
+    aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                       "Referenced frame has invalid size");
+#endif  // !CONFIG_ACROSS_SCALE_REF_OPT
   for (int i = 0; i < cm->ref_frames_info.num_total_refs; ++i) {
     const RefCntBuffer *const ref_frame = get_ref_frame_buf(cm, i);
     if (!valid_ref_frame_img_fmt(
@@ -7912,9 +7923,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         cm->ref_frames_info.num_total_refs =
             aom_rb_read_literal(rb, REF_FRAMES_LOG2);
 #endif
-        // Check whether num_total_refs read is valid and not greater than
-        // n_ranked (using a reference frame more than once is not allowed).
+        // Check whether num_total_refs read is valid
+#if CONFIG_ACROSS_SCALE_REF_OPT
         if (cm->ref_frames_info.num_total_refs < 0 ||
+#else
+        if (cm->ref_frames_info.num_total_refs <= 0 ||
+#endif  // CONFIG_ACROSS_SCALE_REF_OPT
             cm->ref_frames_info.num_total_refs >
                 seq_params->max_reference_frames)
           aom_internal_error(&cm->error, AOM_CODEC_ERROR,

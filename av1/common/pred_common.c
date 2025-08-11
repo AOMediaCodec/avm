@@ -165,11 +165,13 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
     RefFrameMapPair cur_ref = ref_frame_map_pairs[i];
     if (cur_ref.ref_frame_for_inference == -1) continue;
 
+#if CONFIG_ACROSS_SCALE_REF_OPT
     // In resize mode, only frames within 1/16 to 2 times the current frame in
     // each dimension can be used as references.
     if (!valid_ref_frame_size(cur_ref.width, cur_ref.height, cm->width,
                               cm->height))
       continue;
+#endif  // CONFIG_ACROSS_SCALE_REF_OPT
 
     const int ref_disp = cur_ref.disp_order;
 #if CONFIG_MULTILAYER_CORE

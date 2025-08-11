@@ -137,8 +137,10 @@ void av1_make_inter_predictor(const uint16_t *src, int src_stride,
                               const SubpelParams *subpel_params) {
   assert(IMPLIES(inter_pred_params->conv_params.is_compound,
                  inter_pred_params->conv_params.dst != NULL));
+#if CONFIG_ACROSS_SCALE_REF_OPT
   assert(IMPLIES(av1_is_scaled(inter_pred_params->scale_factors),
                  av1_is_valid_scale(inter_pred_params->scale_factors)));
+#endif  // CONFIG_ACROSS_SCALE_REF_OPT
   // TODO(jingning): av1_warp_plane() can be further cleaned up.
   if (inter_pred_params->mode == WARP_PRED) {
     av1_warp_plane(
