@@ -261,9 +261,6 @@ set_aom_config_var(CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY 1
 set_aom_config_var(CONFIG_DISPLAY_ORDER_HINT_FIX 1
                    "Bug fix on display order hints of key frames")
 
-set_aom_config_var(CONFIG_BAWP_ACROSS_SCALES 0 NUMBER
-                   "Enable BAWP across scales prediction")
-
 set_aom_config_var(CONFIG_EXPLICIT_TEMPORAL_DIST_CALC 1
                    "Enable to explicit temporal distance calculation")
 set_aom_config_var(CONFIG_IMPROVED_GLOBAL_MOTION 1

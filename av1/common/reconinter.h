@@ -1186,9 +1186,6 @@ static INLINE int av1_allow_bawp(const AV1_COMMON *const cm,
                                  int mi_col) {
   if (mbmi->mode == WARPMV) return 0;
   if (mbmi->mode == GLOBALMV) return 0;
-#if CONFIG_BAWP_ACROSS_SCALES
-  (void)cm;
-#else
   // If one of the reference frame is different resolution than the current
   // frame, bawp is disabled.
   const struct scale_factors *const sf0 =
@@ -1199,7 +1196,6 @@ static INLINE int av1_allow_bawp(const AV1_COMMON *const cm,
       (sf1 != NULL && av1_is_scaled(sf1))) {
     return 0;
   }
-#endif  // !CONFIG_BAWP_ACROSS_SCALES
   if (mbmi->mode == WARP_NEWMV) return 0;
   if (is_tip_ref_frame(mbmi->ref_frame[0])) return 0;
   if (is_motion_variation_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y], mi_row,

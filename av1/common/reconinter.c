@@ -1703,29 +1703,6 @@ void av1_build_one_inter_predictor(
   }
 }
 
-#if CONFIG_BAWP_ACROSS_SCALES
-// The below functions are used for scaling X,
-// Y position for BAWP with across scale
-// prediction In future, more generalized
-// implementations for all inter-coding tools
-// are required for supporting across scale
-// prediction
-static INLINE int scaled_x_gen(int val, const struct scale_factors *sf) {
-  const int64_t tval = (int64_t)val * sf->x_scale_fp;
-  return (int)ROUND_POWER_OF_TWO_SIGNED_64(tval, REF_SCALE_SHIFT);
-}
-
-static INLINE int scaled_y_gen(int val, const struct scale_factors *sf) {
-  const int64_t tval = (int64_t)val * sf->y_scale_fp;
-  return (int)ROUND_POWER_OF_TWO_SIGNED_64(tval, REF_SCALE_SHIFT);
-}
-#endif  // CONFIG_BAWP_ACROSS_SCALES
-        // Derive the scaling factor and offset of
-        // block adaptive weighted prediction mode.
-        // One row from the top boundary and one
-        // column from the left boundary are used in
-        // the less square error process.
-
 // The bellow arrays are used to map the
 // number of BAWP reference samples to a 2^N
 // number for each side (left or above).
@@ -1788,16 +1765,16 @@ static void derive_number_ref_samples_bawp(bool above_valid, bool left_valid,
   }
 }
 
+// Derive the scaling factor and offset of
+// block adaptive weighted prediction mode.
+// One row from the top boundary and one
+// column from the left boundary are used in
+// the less square error process.
 static void derive_bawp_parameters(MACROBLOCKD *xd, uint16_t *recon_top,
                                    uint16_t *recon_left, int rec_stride,
                                    uint16_t *ref_top, uint16_t *ref_left,
                                    int ref_stride, int ref, int plane, int bw,
-#if CONFIG_BAWP_ACROSS_SCALES
-                                   int bh, const struct scale_factors *sf)
-#else   // CONFIG_BAWP_ACROSS_SCALES
-                                   int bh)
-#endif  // CONFIG_BAWP_ACROSS_SCALES
-{
+                                   int bh) {
   MB_MODE_INFO *mbmi = xd->mi[0];
   if (!mbmi->morph_pred) assert(mbmi->bawp_flag[0] >= 1);
   // only integer position of reference, may
@@ -1837,23 +1814,11 @@ static void derive_bawp_parameters(MACROBLOCKD *xd, uint16_t *recon_top,
     const int start = step == 1 ? 0 : step >> 1;
     const int delta_w = width - bw;
 
-#if CONFIG_BAWP_ACROSS_SCALES
-    if (sf != NULL && sf->x_scale_fp != REF_NO_SCALE) {
-      for (int i = 0; i < bw; i++) {
-        int idx = scaled_x_gen(i, sf);
-        ref_pad[i] = ref_top[idx];
-        recon_pad[i] = recon_top[i];
-      }
-    } else {
-#endif  // CONFIG_BAWP_ACROSS_SCALES
-      for (int i = 0; i < bw; ++i) {
-        ref_pad[i] = ref_top[i];
-        recon_pad[i] = recon_top[i];
-      }
-#if CONFIG_BAWP_ACROSS_SCALES
+    for (int i = 0; i < bw; ++i) {
+      ref_pad[i] = ref_top[i];
+      recon_pad[i] = recon_top[i];
     }
-#endif  // CONFIG_BAWP_ACROSS_SCALES
-        // Padding
+    // Padding
     if (delta_w > 0) {
       for (int i = 0; i < delta_w; i++) {
         ref_pad[i + bw] = ref_pad[i];
@@ -1875,28 +1840,14 @@ static void derive_bawp_parameters(MACROBLOCKD *xd, uint16_t *recon_top,
     const int start_left = step_left == 1 ? 0 : step_left >> 1;
     const int delta = height - bh;
 
-#if CONFIG_BAWP_ACROSS_SCALES
-    if (sf != NULL && sf->y_scale_fp != REF_NO_SCALE) {
-      for (int i = 0; i < bh; i++) {
-        int ref_left_tmp_idx = scaled_y_gen(i, sf) * ref_stride;
-        ref_pad[i] = ref_left[ref_left_tmp_idx];
-        recon_pad[i] = recon_left[0];
+    for (int i = 0; i < bh; ++i) {
+      ref_pad[i] = ref_left[0];
+      recon_pad[i] = recon_left[0];
 
-        recon_left += rec_stride;
-      }
-    } else {
-#endif  // CONFIG_BAWP_ACROSS_SCALES
-      for (int i = 0; i < bh; ++i) {
-        ref_pad[i] = ref_left[0];
-        recon_pad[i] = recon_left[0];
-
-        recon_left += rec_stride;
-        ref_left += ref_stride;
-      }
-#if CONFIG_BAWP_ACROSS_SCALES
+      recon_left += rec_stride;
+      ref_left += ref_stride;
     }
-#endif  // CONFIG_BAWP_ACROSS_SCALES
-        // Padding
+    // Padding
     if (delta > 0) {
       for (int i = 0; i < delta; i++) {
         ref_pad[i + bh] = ref_pad[i];
@@ -1980,33 +1931,6 @@ void av1_build_one_bawp_inter_predictor(
   const int shift = 8;
   MB_MODE_INFO *mbmi = xd->mi[0];
   struct macroblockd_plane *const pd = &xd->plane[plane];
-#if CONFIG_BAWP_ACROSS_SCALES
-  const struct scale_factors *sf = inter_pred_params->scale_factors;
-
-  const int x_off = scaled_x_gen(mbmi->mv[ref].as_mv.col, sf) >> 3;
-  const int y_off = scaled_y_gen(mbmi->mv[ref].as_mv.row, sf) >> 3;
-
-  const int x_off_p = x_off >> inter_pred_params->subsampling_x;
-  const int y_off_p = y_off >> inter_pred_params->subsampling_y;
-
-  const int mi_x_p = scaled_x_gen(mi_x, sf) >> inter_pred_params->subsampling_x;
-  const int mi_y_p = scaled_y_gen(mi_y, sf) >> inter_pred_params->subsampling_y;
-
-  const int width_p =
-      (sf->x_scale_fp != REF_NO_SCALE)
-          ? pd->pre[ref].width >> inter_pred_params->subsampling_x
-          : cm->width >> inter_pred_params->subsampling_x;
-  const int height_p =
-      (sf->y_scale_fp != REF_NO_SCALE)
-          ? pd->pre[ref].height >> inter_pred_params->subsampling_y
-          : cm->height >> inter_pred_params->subsampling_y;
-
-  int ref_w = scaled_x_gen(bw, sf);
-  if ((mi_x_p + ref_w) >= width_p) ref_w = width_p - mi_x_p;
-
-  int ref_h = scaled_y_gen(bh, sf);
-  if ((mi_y_p + ref_h) >= height_p) ref_h = height_p - mi_y_p;
-#else  // CONFIG_BAWP_ACROSS_SCALES
   const int x_off = GET_MV_RAWPEL(mbmi->mv[ref].as_mv.col);
   const int y_off = GET_MV_RAWPEL(mbmi->mv[ref].as_mv.row);
 
@@ -2029,15 +1953,9 @@ void av1_build_one_bawp_inter_predictor(
 
   int ref_h = bh;
   if ((mi_y_p + bh) >= height_p) ref_h = height_p - mi_y_p;
-#endif  // CONFIG_BAWP_ACROSS_SCALES
-#if CONFIG_BAWP_ACROSS_SCALES
-  if ((mi_x_p + x_off_p - scaled_x_gen(BAWP_REF_LINES, sf)) < 0 ||
-      (mi_y_p + y_off_p - scaled_y_gen(BAWP_REF_LINES, sf)) < 0 ||
-#else   // CONFIG_BAWP_ACROSS_SCALES
   if ((mi_x_p + x_off_p - BAWP_REF_LINES) < 0 ||
-      (mi_y_p + y_off_p - BAWP_REF_LINES) < 0 ||
-#endif  // CONFIG_BAWP_ACROSS_SCALES
-      ref_w <= 0 || ref_h <= 0 || (mi_x_p + ref_w + x_off_p) >= width_p ||
+      (mi_y_p + y_off_p - BAWP_REF_LINES) < 0 || ref_w <= 0 || ref_h <= 0 ||
+      (mi_x_p + ref_w + x_off_p) >= width_p ||
       (mi_y_p + ref_h + y_off_p) >= height_p) {
     mbmi->bawp_alpha[plane][ref] = 1 << shift;
     mbmi->bawp_beta[plane][ref] = -(1 << shift);
@@ -2054,35 +1972,10 @@ void av1_build_one_bawp_inter_predictor(
 
     // the picture boundary limitation to be
     // checked.
-#if CONFIG_BAWP_ACROSS_SCALES
-    int ref_stride = pd->pre[ref].stride;
-    uint16_t *ref_buf = pd->pre[ref].buf + y_off_p * ref_stride + x_off_p;
-    if (sf->x_scale_fp != REF_NO_SCALE || sf->y_scale_fp != REF_NO_SCALE) {
-      const int mi_x_p_unscaled = mi_x >> inter_pred_params->subsampling_x;
-      const int mi_y_p_unscaled = mi_y >> inter_pred_params->subsampling_y;
-      const int width_p_unscaled =
-          cm->width >> inter_pred_params->subsampling_x;
-      const int height_p_unscaled =
-          cm->height >> inter_pred_params->subsampling_y;
-      ref_w = bw;
-      if ((mi_x_p_unscaled + bw) >= width_p_unscaled)
-        ref_w = width_p_unscaled - mi_x_p_unscaled;
-      ref_h = bh;
-      if ((mi_y_p_unscaled + bh) >= height_p_unscaled)
-        ref_h = height_p_unscaled - mi_y_p_unscaled;
-
-      calc_subpel_params_func(&mbmi->mv[ref].as_mv, inter_pred_params, xd, mi_x,
-                              mi_y, ref, 0, mc_buf, &ref_buf, &subpel_params,
-                              &ref_stride);
-    }
-    uint16_t *ref_top = ref_buf - ref_stride * scaled_y_gen(BAWP_REF_LINES, sf);
-    uint16_t *ref_left = ref_buf - scaled_x_gen(BAWP_REF_LINES, sf);
-#else   // CONFIG_BAWP_ACROSS_SCALES
     const int ref_stride = pd->pre[ref].stride;
     uint16_t *ref_buf = pd->pre[ref].buf + y_off_p * ref_stride + x_off_p;
     uint16_t *ref_top = ref_buf - BAWP_REF_LINES * ref_stride;
     uint16_t *ref_left = ref_buf - BAWP_REF_LINES;
-#endif  // CONFIG_BAWP_ACROSS_SCALES
     if (mbmi->bawp_flag[0] > 1 && plane == 0) {
       const int first_ref_dist =
           cm->ref_frame_relative_dist[mbmi->ref_frame[0]];
@@ -2102,11 +1995,7 @@ void av1_build_one_bawp_inter_predictor(
     }
 
     derive_bawp_parameters(xd, recon_top, recon_left, recon_stride, ref_top,
-#if CONFIG_BAWP_ACROSS_SCALES
-                           ref_left, ref_stride, ref, plane, ref_w, ref_h, sf);
-#else   // CONFIG_BAWP_ACROSS_SCALES
                            ref_left, ref_stride, ref, plane, ref_w, ref_h);
-#endif  // CONFIG_BAWP_ACROSS_SCALES
   }
 
   int16_t alpha = mbmi->bawp_alpha[plane][ref];
@@ -4584,16 +4473,9 @@ bool av1_build_morph_pred(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
   uint16_t *ref_buf = recon_buf + dv.row * dst_stride + dv.col;
   uint16_t *ref_top = ref_buf - BAWP_REF_LINES * dst_stride;
   uint16_t *ref_left = ref_buf - BAWP_REF_LINES;
-#if CONFIG_BAWP_ACROSS_SCALES
-  derive_bawp_parameters(xd, recon_top, recon_left, dst_stride, ref_top,
-                         ref_left, dst_stride,
-                         /*ref=*/0, /*plane=*/0, ref_w, ref_h,
-                         /*sf=*/NULL);
-#else   // CONFIG_BAWP_ACROSS_SCALES
   derive_bawp_parameters(xd, recon_top, recon_left, dst_stride, ref_top,
                          ref_left, dst_stride, /*ref=*/0, /*plane=*/0, ref_w,
                          ref_h);
-#endif  // CONFIG_BAWP_ACROSS_SCALES
   int16_t alpha = mbmi->bawp_alpha[0][0];
   int32_t beta = mbmi->bawp_beta[0][0];
   const int shift = 8;
