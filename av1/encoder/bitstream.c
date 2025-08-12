@@ -1442,27 +1442,29 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
 #endif  // CONFIG_REDUCED_TX_SET_EXT
       if (tx_set_type != EXT_TX_SET_LONG_SIDE_64 &&
           tx_set_type != EXT_TX_SET_LONG_SIDE_32) {
+#if CONFIG_REDUCED_TX_SET_EXT
         aom_write_symbol(
             w,
             av1_tx_type_to_idx(get_primary_tx_type(tx_type), tx_set_type,
                                intra_dir, size_info),
             ec_ctx->intra_ext_tx_cdf[eset +
-#if CONFIG_REDUCED_TX_SET_EXT
-                                             features->reduced_tx_set_used
+                                     (features->reduced_tx_set_used ? 1 : 0)]
+                                    [square_tx_size],
+            features->reduced_tx_set_used
+                ? av1_num_reduced_tx_set[features->reduced_tx_set_used - 1]
+                : av1_num_ext_tx_set_intra[tx_set_type]);
 #else
-                                                 features
-                                                     ->reduced_tx_set_used ==
-                                             1
-#endif  // CONFIG_REDUCED_TX_SET_EXT
+        aom_write_symbol(
+            w,
+            av1_tx_type_to_idx(get_primary_tx_type(tx_type), tx_set_type,
+                               intra_dir, size_info),
+            ec_ctx->intra_ext_tx_cdf[eset + features->reduced_tx_set_used == 1
                                          ? 1
                                          : 0][square_tx_size],
             features->reduced_tx_set_used
-#if CONFIG_REDUCED_TX_SET_EXT
-                ? av1_num_reduced_tx_set[features->reduced_tx_set_used - 1]
-#else
                 ? av1_num_reduced_tx_set
-#endif  // CONFIG_REDUCED_TX_SET_EXT
                 : av1_num_ext_tx_set_intra[tx_set_type]);
+#endif
       } else {
         int is_long_side_dct =
             is_dct_type(tx_size, get_primary_tx_type(tx_type));

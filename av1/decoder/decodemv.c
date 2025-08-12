@@ -1525,25 +1525,26 @@ void av1_read_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd, int blk_row,
           tx_set_type != EXT_TX_SET_LONG_SIDE_32) {
         const PREDICTION_MODE intra_mode = get_intra_mode(mbmi, PLANE_TYPE_Y);
         const int size_info = av1_size_class[tx_size];
+#if CONFIG_REDUCED_TX_SET_EXT
         int tx_type_idx = aom_read_symbol(
             r,
             ec_ctx->intra_ext_tx_cdf[eset +
-#if CONFIG_REDUCED_TX_SET_EXT
-                                             cm->features.reduced_tx_set_used
-                                         ? 1
-                                         : 0
-#else
-                                     cm->features.reduced_tx_set_used
-#endif  // CONFIG_REDUCED_TX_SET_EXT
-        ][square_tx_size],
+                                     (cm->features.reduced_tx_set_used ? 1 : 0)]
+                                    [square_tx_size],
             cm->features.reduced_tx_set_used
-#if CONFIG_REDUCED_TX_SET_EXT
                 ? av1_num_reduced_tx_set[cm->features.reduced_tx_set_used - 1]
-#else
-                ? av1_num_reduced_tx_set
-#endif  // CONFIG_REDUCED_TX_SET_EXT
                 : av1_num_ext_tx_set_intra[tx_set_type],
             ACCT_INFO("tx_type"));
+#else
+        int tx_type_idx = aom_read_symbol(
+            r,
+            ec_ctx->intra_ext_tx_cdf[eset + cm->features.reduced_tx_set_used]
+                                    [square_tx_size],
+            cm->features.reduced_tx_set_used
+                ? av1_num_reduced_tx_set
+                : av1_num_ext_tx_set_intra[tx_set_type],
+            ACCT_INFO("tx_type"));
+#endif
         *tx_type =
             av1_tx_idx_to_type(tx_type_idx, tx_set_type, intra_mode, size_info);
       } else {

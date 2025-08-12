@@ -4318,14 +4318,15 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
             update_cdf(
                 fc->intra_ext_tx_cdf[eset +
 #if CONFIG_REDUCED_TX_SET_EXT
-                                             cm->features.reduced_tx_set_used
+                                     (cm->features.reduced_tx_set_used ? 1 : 0)
 #else
                                                  cm->features
                                                      .reduced_tx_set_used ==
                                              1
-#endif  // CONFIG_REDUCED_TX_SET_EXT
                                          ? 1
-                                         : 0][txsize_sqr_map[tx_size]],
+                                         : 0
+#endif  // CONFIG_REDUCED_TX_SET_EXT
+            ][txsize_sqr_map[tx_size]],
                 av1_tx_type_to_idx(get_primary_tx_type(tx_type), tx_set_type,
                                    intra_dir, av1_size_class[tx_size]),
                 cm->features.reduced_tx_set_used
