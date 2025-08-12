@@ -1059,6 +1059,8 @@ static int get_q_using_fixed_offsets(const AV1EncoderConfig *const oxcf,
 // Adjust qindex for better RDO since tcq is always on.
 // This is an encoder-only adjustment. No implicit offset at the decoder side.
 static int apply_tcq_qp_offset(const AV1_COMP *cpi, int qp_tcq) {
+  // No qindex adjustment for lossless encoding
+  if (qp_tcq == 0) return qp_tcq;
   int tcq_qp_offset_shift = 0;
   const int bit_depth = cpi->common.seq_params.bit_depth;
   if (frame_is_intra_only(&cpi->common)) {
