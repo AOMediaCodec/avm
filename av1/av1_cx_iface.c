@@ -3437,7 +3437,6 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 #if CONFIG_NEW_OBU_HEADER
         const int write_temporal_delimiter =
             !cpi->common.mlayer_id && !ctx->pending_frame_count;
-
 #else
         const int write_temporal_delimiter =
             !cpi->common.spatial_layer_id && !ctx->pending_frame_count;
@@ -4694,7 +4693,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
     2,  // enable_tcq
 #endif
 #if CONFIG_NEW_OBU_HEADER
-    1,  // save_as_annexb (0. external mean)
+    1,  // save_as_annexb (0: external means)
 #else
     0,  // save_as_annexb
 #endif                           // CONFIG_NEW_OBU_HEADER

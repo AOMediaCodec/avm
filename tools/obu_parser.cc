@@ -21,13 +21,14 @@
 #include "tools/obu_parser.h"
 
 namespace aom_tools {
+
 #if CONFIG_NEW_OBU_HEADER
 // obu_type 4-bit
 const uint32_t kObuTypeBitsMask = 0xF;
 const uint32_t kObuTypeBitsShift = 12;
-// obu_reserved_bit 1-bit
-const uint32_t kObuReservedBitMask = 0x1;
-const uint32_t kObuReservedBitShift = 11;
+// obu_extension_flag 1-bit
+const uint32_t kObuExtensionFlagBitMask = 0x1;
+const uint32_t kObuExtensionFlagBitShift = 11;
 // obu_tlayer_id 3-bit
 const uint32_t kObuTemporalIdBitsMask = 0x7;
 const uint32_t kObuTemporalIdBitsShift = 8;
@@ -87,14 +88,16 @@ bool ValidObuType(int obu_type) {
   }
   return false;
 }
+
 #if CONFIG_NEW_OBU_HEADER
 bool ParseObuHeader(uint16_t obu_header_bytes, ObuHeader *obu_header) {
   // obu_type
   obu_header->type = static_cast<OBU_TYPE>(
       (obu_header_bytes >> kObuTypeBitsShift) & kObuTypeBitsMask);
-  // obu_reserved_bit
+  // obu_extension_flag
   obu_header->obu_extension_flag =
-      (obu_header_bytes >> kObuReservedBitShift) & kObuReservedBitMask;
+      (obu_header_bytes >> kObuExtensionFlagBitShift) &
+      kObuExtensionFlagBitMask;
   // obu_tlayer_id
   obu_header->obu_tlayer_id =
       (obu_header_bytes >> kObuTemporalIdBitsShift) & kObuTemporalIdBitsMask;

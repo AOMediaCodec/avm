@@ -791,11 +791,10 @@ static int adjust_boost_bits_for_target_level(const AV1_COMP *const cpi,
        ++index) {
     if (!is_in_operating_point(seq_params->operating_point_idc[index],
 #if CONFIG_NEW_OBU_HEADER
-                               tlayer_id, mlayer_id))
+                               tlayer_id, mlayer_id)) {
 #else
-                               temporal_layer_id, spatial_layer_id))
+                               temporal_layer_id, spatial_layer_id)) {
 #endif  // CONFIG_NEW_OBU_HEADER
-    {
       continue;
     }
 

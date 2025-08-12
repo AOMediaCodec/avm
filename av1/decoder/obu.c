@@ -30,7 +30,7 @@
 aom_codec_err_t aom_get_num_layers_from_operating_point_idc(
     int operating_point_idc, unsigned int *number_mlayers,
     unsigned int *number_tlayers) {
-  // derive number of spatial/temporal layers from operating_point_idc
+  // derive number of embedded/temporal layers from operating_point_idc
   if (!number_mlayers || !number_tlayers) return AOM_CODEC_INVALID_PARAM;
 
   if (operating_point_idc == 0) {
@@ -84,12 +84,15 @@ static int is_obu_in_current_operating_point(AV1Decoder *pbi,
 
 #if CONFIG_NEW_OBU_HEADER
   if ((pbi->current_operating_point >> obu_header.obu_tlayer_id) & 0x1 &&
-      (pbi->current_operating_point >> (obu_header.obu_mlayer_id + 8)) & 0x1)
+      (pbi->current_operating_point >>
+       (obu_header.obu_mlayer_id + MAX_NUM_TLAYERS)) &
+          0x1) {
 #else
   if ((pbi->current_operating_point >> obu_header.temporal_layer_id) & 0x1 &&
-      (pbi->current_operating_point >> (obu_header.spatial_layer_id + 8)) & 0x1)
+      (pbi->current_operating_point >>
+       (obu_header.spatial_layer_id + MAX_NUM_TEMPORAL_LAYERS)) &
+          0x1) {
 #endif  // CONFIG_NEW_OBU_HEADER
-  {
     return 1;
   }
   return 0;
@@ -284,13 +287,12 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
 #if CONFIG_NEW_OBU_HEADER
   if (aom_get_num_layers_from_operating_point_idc(
           pbi->current_operating_point, &cm->number_mlayers,
-          &cm->number_tlayers) != AOM_CODEC_OK)
+          &cm->number_tlayers) != AOM_CODEC_OK) {
 #else
   if (aom_get_num_layers_from_operating_point_idc(
           pbi->current_operating_point, &cm->number_spatial_layers,
-          &cm->number_temporal_layers) != AOM_CODEC_OK)
+          &cm->number_temporal_layers) != AOM_CODEC_OK) {
 #endif  // CONFIG_NEW_OBU_HEADER
-  {
     cm->error.error_code = AOM_CODEC_ERROR;
     return 0;
   }

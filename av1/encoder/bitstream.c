@@ -6154,12 +6154,12 @@ static AOM_INLINE void write_uncompressed_header_obu(
                 cm->tlayer_id) &
                    0x1 &&
                (seq_params->operating_point_idc[op_num] >>
-                (cm->mlayer_id + 8)) &
+                (cm->mlayer_id + MAX_NUM_TLAYERS)) &
 #else
                 cm->temporal_layer_id) &
                    0x1 &&
                (seq_params->operating_point_idc[op_num] >>
-                (cm->spatial_layer_id + 8)) &
+                (cm->spatial_layer_id + MAX_NUM_TEMPORAL_LAYERS)) &
 #endif  // CONFIG_NEW_OBU_HEADER
                    0x1) ||
               seq_params->operating_point_idc[op_num] == 0) {
@@ -7596,10 +7596,10 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 #if CONFIG_NEW_OBU_HEADER
   const int obu_temporal = cm->tlayer_id;
   const int obu_mlayer = cm->mlayer_id;
-  const int obu_xlayer = 0;
+  const int obu_xlayer = cm->xlayer_id;
   const int obu_layer =
       obu_mlayer << 5 |
-      obu_xlayer;  // obu_layer byte ( mlayer (3-bit) | xlayer (5-bit))
+      obu_xlayer;  // obu_layer byte (mlayer (3-bit) | xlayer (5-bit))
 #else
   const uint8_t obu_extension_header =
       cm->temporal_layer_id << 5 | cm->spatial_layer_id << 3 | 0;

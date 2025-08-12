@@ -15,6 +15,12 @@
 
 #include <cstdint>
 
+#include "config/aom_config.h"
+
+#if CONFIG_NEW_OBU_HEADER
+#include "av1/common/obu_util.h"
+#endif  // CONFIG_NEW_OBU_HEADER
+
 namespace aom_tools {
 
 // Print information obtained from OBU(s) in data until data is exhausted or an
@@ -23,7 +29,9 @@ namespace aom_tools {
 // pointer is non-null.
 bool DumpObu(const uint8_t *data, int length, int *obu_overhead_bytes);
 
+#if CONFIG_NEW_OBU_HEADER
 void PrintObuHeader(const ObuHeader *header);
+#endif  // CONFIG_NEW_OBU_HEADER
 
 }  // namespace aom_tools
 

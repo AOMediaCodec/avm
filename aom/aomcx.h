@@ -170,8 +170,8 @@ enum aome_enc_control_id {
   AOME_SET_SCALEMODE = 11,
 
 #if CONFIG_NEW_OBU_HEADER
-  /*!\brief Codec control function to set encoder layer id, unsigned int
-   * parameter.
+  /*!\brief Codec control function to set encoder embedded layer id, unsigned
+   * int parameter.
    */
   AOME_SET_MLAYER_ID = 12,
 #else
@@ -266,7 +266,7 @@ enum aome_enc_control_id {
   AOME_SET_MAX_INTRA_BITRATE_PCT = 26,
 
 #if CONFIG_NEW_OBU_HEADER
-  /*!\brief Codec control function to set number of layers, int
+  /*!\brief Codec control function to set number of embedded layers, int
    * parameter
    */
   AOME_SET_NUMBER_MLAYERS = 27,

@@ -392,12 +392,11 @@ static aom_codec_err_t parse_operating_points(struct aom_read_bit_buffer *rb,
   if (aom_get_num_layers_from_operating_point_idc(
 #if CONFIG_NEW_OBU_HEADER
           operating_point_idc0, &si->number_mlayers, &si->number_tlayers) !=
-      AOM_CODEC_OK)
+      AOM_CODEC_OK) {
 #else
           operating_point_idc0, &si->number_spatial_layers,
-          &si->number_temporal_layers) != AOM_CODEC_OK)
+          &si->number_temporal_layers) != AOM_CODEC_OK) {
 #endif  // CONFIG_NEW_OBU_HEADER
-  {
     return AOM_CODEC_ERROR;
   }
 

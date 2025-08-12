@@ -7457,13 +7457,13 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           if ((((seq_params->operating_point_idc[op_num] >> cm->tlayer_id) &
                 0x1) &&
                ((seq_params->operating_point_idc[op_num] >>
-                 (cm->mlayer_id + 8)) &
+                 (cm->mlayer_id + MAX_NUM_TLAYERS)) &
 #else
           if ((((seq_params->operating_point_idc[op_num] >>
                  cm->temporal_layer_id) &
                 0x1) &&
                ((seq_params->operating_point_idc[op_num] >>
-                 (cm->spatial_layer_id + 8)) &
+                 (cm->spatial_layer_id + MAX_NUM_TEMPORAL_LAYERS)) &
 #endif  // CONFIG_NEW_OBU_HEADER
                 0x1)) ||
               seq_params->operating_point_idc[op_num] == 0) {
