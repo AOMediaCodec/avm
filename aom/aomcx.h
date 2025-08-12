@@ -1278,7 +1278,7 @@ enum aome_enc_control_id {
    *
    * Valid range: 0..1, 0 is 16x16 block size (default), 1 is 32x32 block size
    */
-  AV1E_SET_FILM_GRAIN_BLOCK_SIZE = 173,
+  AV1E_SET_FILM_GRAIN_BLOCK_SIZE = 174,
 #endif
 
 };
