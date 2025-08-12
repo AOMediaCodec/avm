@@ -836,7 +836,11 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
   if ((plane == AOM_PLANE_Y) &&
       (is_inter_block(mbmi, xd->tree_type)
            ? (*eob > 3 && cm->seq_params.enable_inter_ist)
-           : (*eob != 1 && cm->seq_params.enable_ist))) {
+           : (*eob != 1 && cm->seq_params.enable_ist
+#if CONFIG_FSC_RES_HLS
+              && !xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART]
+#endif  // CONFIG_FSC_RES_HLS
+              ))) {
     av1_read_sec_tx_type(cm, xd, blk_row, blk_col, tx_size, eob, r);
   }
 
@@ -1197,7 +1201,11 @@ void av1_read_coeffs_txb_facade(const AV1_COMMON *const cm,
   TXB_CTX txb_ctx;
   get_txb_ctx(plane_bsize, tx_size, plane, pd->above_entropy_context + col,
               pd->left_entropy_context + row, &txb_ctx,
-              mbmi->fsc_mode[xd->tree_type == CHROMA_PART]);
+              mbmi->fsc_mode[xd->tree_type == CHROMA_PART]
+#if CONFIG_FSC_RES_HLS
+                  && cm->seq_params.enable_fsc_residual
+#endif  // CONFIG_FSC_RES_HLS
+  );
 
   const uint8_t decode_rest =
       av1_read_sig_txtype(cm, dcb, r, row, col, plane, &txb_ctx, tx_size);

@@ -1040,7 +1040,11 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
   if ((plane == AOM_PLANE_Y) &&
       (is_inter_block(xd->mi[0], xd->tree_type)
            ? (eob > 3 && cm->seq_params.enable_inter_ist)
-           : (eob != 1 && cm->seq_params.enable_ist))) {
+           : (eob != 1 && cm->seq_params.enable_ist
+#if CONFIG_FSC_RES_HLS
+              && !xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART]
+#endif  // CONFIG_FSC_RES_HLS
+              ))) {
     av1_write_sec_tx_type(cm, xd, tx_type, tx_size, eob, w);
   }
 
@@ -4418,7 +4422,11 @@ void av1_update_and_record_txb_skip_context(int plane, int block, int blk_row,
     get_txb_ctx(plane_bsize, tx_size, plane,
                 pd->above_entropy_context + blk_col,
                 pd->left_entropy_context + blk_row, &txb_ctx,
-                mbmi->fsc_mode[xd->tree_type == CHROMA_PART]);
+                mbmi->fsc_mode[xd->tree_type == CHROMA_PART]
+#if CONFIG_FSC_RES_HLS
+                    && cm->seq_params.enable_fsc_residual
+#endif  // CONFIG_FSC_RES_HLS
+    );
     const int bwl = get_txb_bwl(tx_size);
     const int width = get_txb_wide(tx_size);
     const int height = get_txb_high(tx_size);
@@ -4640,7 +4648,8 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
                 pd->above_entropy_context + blk_col,
                 pd->left_entropy_context + blk_row, &txb_ctx,
 #if CONFIG_FSC_RES_HLS
-                xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART]
+                xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
+                    cm->seq_params.enable_fsc_residual
 #else
                 0
 #endif  // CONFIG_FSC_RES_HLS

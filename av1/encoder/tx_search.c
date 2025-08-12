@@ -332,7 +332,12 @@ static int predict_skip_txfm(const AV1_COMMON *cm, MACROBLOCK *x,
 
 // Used to set proper context for early termination with skip = 1.
 static AOM_INLINE void set_skip_txfm(MACROBLOCK *x, RD_STATS *rd_stats,
-                                     BLOCK_SIZE bsize, int64_t dist) {
+                                     BLOCK_SIZE bsize, int64_t dist
+#if CONFIG_FSC_RES_HLS
+                                     ,
+                                     const AV1_COMMON *cm
+#endif  // CONFIG_FSC_RES_HLS
+) {
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
   const int n4 = bsize_to_num_blk(bsize);
@@ -370,7 +375,11 @@ static AOM_INLINE void set_skip_txfm(MACROBLOCK *x, RD_STATS *rd_stats,
   const TX_SIZE txs_ctx = get_txsize_entropy_ctx(tx_size);
   TXB_CTX txb_ctx;
   get_txb_ctx(bsize, tx_size, 0, ta, tl, &txb_ctx,
-              mbmi->fsc_mode[xd->tree_type == CHROMA_PART]);
+              mbmi->fsc_mode[xd->tree_type == CHROMA_PART]
+#if CONFIG_FSC_RES_HLS
+                  && cm->seq_params.enable_fsc_residual
+#endif  // CONFIG_FSC_RES_HLS
+  );
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
   const int pred_mode_ctx =
       (is_inter || mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) ? 1 : 0;
@@ -2225,7 +2234,12 @@ static INLINE void predict_dc_only_block(
     MACROBLOCK *x, int plane, BLOCK_SIZE plane_bsize, TX_SIZE tx_size,
     int block, int blk_row, int blk_col, RD_STATS *best_rd_stats,
     int64_t *block_sse, unsigned int *block_mse_q8, int64_t *per_px_mean,
-    int *dc_only_blk) {
+    int *dc_only_blk
+#if CONFIG_FSC_RES_HLS
+    ,
+    const AV1_COMMON *cm
+#endif  // CONFIG_FSC_RES_HLS
+) {
   MACROBLOCKD *xd = &x->e_mbd;
   MB_MODE_INFO *mbmi = xd->mi[0];
   const int dequant_shift = xd->bd - 5;
@@ -2271,7 +2285,11 @@ static INLINE void predict_dc_only_block(
     TXB_CTX txb_ctx_tmp;
     const PLANE_TYPE plane_type = get_plane_type(plane);
     get_txb_ctx(plane_bsize, tx_size, plane, ta, tl, &txb_ctx_tmp,
-                mbmi->fsc_mode[xd->tree_type == CHROMA_PART]);
+                mbmi->fsc_mode[xd->tree_type == CHROMA_PART]
+#if CONFIG_FSC_RES_HLS
+                    && cm->seq_params.enable_fsc_residual
+#endif  // CONFIG_FSC_RES_HLS
+    );
 #if CONFIG_CONTEXT_DERIVATION
     int zero_blk_rate = 0;
     if (plane == AOM_PLANE_Y || plane == AOM_PLANE_U) {
@@ -2420,7 +2438,12 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
   if (predict_dc_block) {
     predict_dc_only_block(x, plane, plane_bsize, tx_size, block, blk_row,
                           blk_col, best_rd_stats, &block_sse, &block_mse_q8,
-                          &per_px_mean, &dc_only_blk);
+                          &per_px_mean, &dc_only_blk
+#if CONFIG_FSC_RES_HLS
+                          ,
+                          cm
+#endif  // CONFIG_FSC_RES_HLS
+    );
     if (best_rd_stats->skip_txfm == 1) {
       // Ensure that xd->tx_type_map is initialized.
       if (plane == 0) update_txk_array(xd, blk_row, blk_col, tx_size, DCT_DCT);
@@ -3211,7 +3234,12 @@ static AOM_INLINE void try_tx_block_no_split(
     const ENTROPY_CONTEXT *ta, const ENTROPY_CONTEXT *tl,
     int txfm_partition_ctx, RD_STATS *rd_stats, int64_t ref_best_rd,
     FAST_TX_SEARCH_MODE ftxs_mode, TXB_RD_INFO_NODE *rd_info_node,
-    TxCandidateInfo *no_split) {
+    TxCandidateInfo *no_split
+#if CONFIG_FSC_RES_HLS
+    ,
+    const AV1_COMMON *cm
+#endif  // CONFIG_FSC_RES_HLS
+) {
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
   struct macroblock_plane *const p = &x->plane[0];
@@ -3221,7 +3249,11 @@ static AOM_INLINE void try_tx_block_no_split(
   const TX_SIZE txs_ctx = get_txsize_entropy_ctx(tx_size);
   TXB_CTX txb_ctx;
   get_txb_ctx(plane_bsize, tx_size, 0, pta, ptl, &txb_ctx,
-              mbmi->fsc_mode[xd->tree_type == CHROMA_PART]);
+              mbmi->fsc_mode[xd->tree_type == CHROMA_PART]
+#if CONFIG_FSC_RES_HLS
+                  && cm->seq_params.enable_fsc_residual
+#endif  // CONFIG_FSC_RES_HLS
+  );
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
   const int pred_mode_ctx =
       (is_inter || mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) ? 1 : 0;
@@ -3460,7 +3492,12 @@ static void select_tx_partition_type(
       try_tx_block_no_split(cpi, x, offsetr, offsetc, cur_block, sub_tx, 0,
                             plane_bsize, cur_ta, cur_tl, -1, &this_rd_stats,
                             ref_best_rd - tmp_rd, ftxs_mode, rd_info_node,
-                            &no_split);
+                            &no_split
+#if CONFIG_FSC_RES_HLS
+                            ,
+                            &cpi->common
+#endif  // CONFIG_FSC_RES_HLS
+      );
       partition_entropy_ctxs[txb_idx] = no_split.txb_entropy_ctx;
       partition_tx_types[txb_idx] = no_split.tx_type;
       this_blk_skip[txb_idx] = this_rd_stats.skip_txfm;
@@ -3853,7 +3890,11 @@ static AOM_INLINE void block_rd_txfm(int plane, int block, int blk_row,
 
   TXB_CTX txb_ctx;
   get_txb_ctx(plane_bsize, tx_size, plane, a, l, &txb_ctx,
-              xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART]);
+              xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART]
+#if CONFIG_FSC_RES_HLS
+                  && cm->seq_params.enable_fsc_residual
+#endif  // CONFIG_FSC_RES_HLS
+  );
   int dummy = 0;
   search_tx_type(cpi, x, plane, block, blk_row, blk_col, plane_bsize, tx_size,
                  &dummy, &txb_ctx, args->ftxs_mode, args->skip_trellis,
@@ -4023,7 +4064,11 @@ static AOM_INLINE void block_rd_txfm_joint_uv(int dummy_plane, int block,
     ENTROPY_CONTEXT *l = args->t_left + blk_row;
 
     get_txb_ctx(plane_bsize, tx_size, plane, a, l, txb_ctx,
-                xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART]);
+                xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART]
+#if CONFIG_FSC_RES_HLS
+                    && cm->seq_params.enable_fsc_residual
+#endif  // CONFIG_FSC_RES_HLS
+    );
 
     // Obtain stats for CCTX_NONE
     search_tx_type(cpi, x, plane, block, blk_row, blk_col, plane_bsize, tx_size,
@@ -4280,7 +4325,12 @@ void av1_pick_recursive_tx_size_type_yrd(const AV1_COMP *cpi, MACROBLOCK *x,
   if (txfm_params->skip_txfm_level && !xd->lossless[mbmi->segment_id] &&
       predict_skip_txfm(&cpi->common, x, bsize, &dist,
                         cpi->common.features.reduced_tx_set_used)) {
-    set_skip_txfm(x, rd_stats, bsize, dist);
+    set_skip_txfm(x, rd_stats, bsize, dist
+#if CONFIG_FSC_RES_HLS
+                  ,
+                  &cpi->common
+#endif  // CONFIG_FSC_RES_HLS
+    );
     // Save the RD search results into tx_rd_record.
     if (is_mb_rd_hash_enabled)
       save_tx_rd_info(n4, hash, x, rd_stats, mb_rd_record);
@@ -4361,7 +4411,12 @@ void av1_pick_uniform_tx_size_type_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
       predict_skip_txfm(&cpi->common, x, bs, &dist,
                         cpi->common.features.reduced_tx_set_used)) {
     // Populate rdstats as per skip decision
-    set_skip_txfm(x, rd_stats, bs, dist);
+    set_skip_txfm(x, rd_stats, bs, dist
+#if CONFIG_FSC_RES_HLS
+                  ,
+                  &cpi->common
+#endif  // CONFIG_FSC_RES_HLS
+    );
     // Save the RD search results into tx_rd_record.
     if (mb_rd_record) {
       save_tx_rd_info(num_blks, hash, x, rd_stats, mb_rd_record);

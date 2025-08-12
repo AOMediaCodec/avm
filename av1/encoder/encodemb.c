@@ -976,7 +976,11 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
     if (quant_param.use_optimize_b && do_trellis) {
       TXB_CTX txb_ctx;
       get_txb_ctx(plane_bsize, tx_size, plane, a, l, &txb_ctx,
-                  mbmi->fsc_mode[xd->tree_type == CHROMA_PART]);
+                  mbmi->fsc_mode[xd->tree_type == CHROMA_PART]
+#if CONFIG_FSC_RES_HLS
+                      && cm->seq_params.enable_fsc_residual
+#endif  // CONFIG_FSC_RES_HLS
+      );
       if (fsc_mode)
         av1_optimize_fsc(args->cpi, x, plane, block, tx_size, tx_type, &txb_ctx,
                          &dummy_rate_cost);
@@ -1533,7 +1537,11 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
     if (quant_param.use_optimize_b && do_trellis) {
       TXB_CTX txb_ctx;
       get_txb_ctx(plane_bsize, tx_size, plane, a, l, &txb_ctx,
-                  mbmi->fsc_mode[xd->tree_type == CHROMA_PART]);
+                  mbmi->fsc_mode[xd->tree_type == CHROMA_PART]
+#if CONFIG_FSC_RES_HLS
+                      && cm->seq_params.enable_fsc_residual
+#endif  // CONFIG_FSC_RES_HLS
+      );
       if (fsc_mode)
         av1_optimize_fsc(args->cpi, x, plane, block, tx_size, tx_type, &txb_ctx,
                          &dummy_rate_cost);
@@ -1563,7 +1571,11 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
       if (quant_param.use_optimize_b && do_trellis) {
         TXB_CTX txb_ctx;
         get_txb_ctx(plane_bsize, tx_size, plane, a, l, &txb_ctx,
-                    mbmi->fsc_mode[xd->tree_type == CHROMA_PART]);
+                    mbmi->fsc_mode[xd->tree_type == CHROMA_PART]
+#if CONFIG_FSC_RES_HLS
+                        && cm->seq_params.enable_fsc_residual
+#endif  // CONFIG_FSC_RES_HLS
+        );
         if (fsc_mode)
           av1_optimize_fsc(args->cpi, x, plane, block, tx_size, tx_type,
                            &txb_ctx, &dummy_rate_cost);
@@ -1876,7 +1888,11 @@ void av1_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
           &args->tl[blk_row + (plane - AOM_PLANE_U) * MAX_MIB_SIZE];
       TXB_CTX txb_ctx;
       get_txb_ctx(plane_bsize, tx_size, plane, a, l, &txb_ctx,
-                  xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART]);
+                  xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART]
+#if CONFIG_FSC_RES_HLS
+                      && cm->seq_params.enable_fsc_residual
+#endif  // CONFIG_FSC_RES_HLS
+      );
       if (fsc_mode)
         av1_optimize_fsc(args->cpi, x, plane, block, tx_size, tx_type, &txb_ctx,
                          &dummy_rate_cost);
@@ -1904,7 +1920,11 @@ void av1_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
             &args->tl[blk_row + (plane - AOM_PLANE_U) * MAX_MIB_SIZE];
         TXB_CTX txb_ctx;
         get_txb_ctx(plane_bsize, tx_size, plane, a, l, &txb_ctx,
-                    xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART]);
+                    xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART]
+#if CONFIG_FSC_RES_HLS
+                        && cm->seq_params.enable_fsc_residual
+#endif  // CONFIG_FSC_RES_HLS
+        );
         if (fsc_mode)
           av1_optimize_fsc(args->cpi, x, plane, block, tx_size, tx_type,
                            &txb_ctx, &dummy_rate_cost);
