@@ -84,7 +84,7 @@ bool ReadTemporalUnit(InputContext *ctx, size_t *unit_size) {
     case FILE_TYPE_OBU: {
 #if CONFIG_NEW_OBU_HEADER
       if (obudec_read_temporal_unit(ctx->obu_ctx, &ctx->unit_buffer, unit_size,
-                                    &ctx->unit_buffer_size, &obu_list[0],
+                                    &ctx->unit_buffer_size, obu_list,
                                     &obu_count)) {
         return false;
       }
@@ -171,8 +171,8 @@ int main(int argc, const char *argv[]) {
   int64_t obu_overhead_bytes_total = 0;
 #if CONFIG_NEW_OBU_HEADER
   // This implementation performs the OBU parsing within the ReadTemporalUnit()
-  // function due to simplicity. The code can be refactored to handled within
-  // DumpObu() in a future version.
+  // function for simplicity. The code can be fixed/refactored to be handled
+  // within DumpObu() in a future version.
   printf("------------------------------------------\n");
 #endif  // CONFIG_NEW_OBU_HEADER
   while (ReadTemporalUnit(&input_ctx, &unit_size)) {

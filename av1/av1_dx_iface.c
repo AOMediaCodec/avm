@@ -392,12 +392,11 @@ static aom_codec_err_t parse_operating_points(struct aom_read_bit_buffer *rb,
   if (aom_get_num_layers_from_operating_point_idc(
 #if CONFIG_NEW_OBU_HEADER
           operating_point_idc0, &si->number_mlayers, &si->number_tlayers) !=
-      AOM_CODEC_OK)
+      AOM_CODEC_OK) {
 #else
           operating_point_idc0, &si->number_spatial_layers,
-          &si->number_temporal_layers) != AOM_CODEC_OK)
+          &si->number_temporal_layers) != AOM_CODEC_OK) {
 #endif  // CONFIG_NEW_OBU_HEADER
-  {
     return AOM_CODEC_ERROR;
   }
 
@@ -755,13 +754,14 @@ static aom_codec_err_t decoder_inspect(aom_codec_alg_priv_t *ctx,
 
   if (ctx->frame_worker->had_error)
     return update_error_state(ctx, &frame_worker_data->pbi->common.error);
-
+#if !CONFIG_NEW_OBU_HEADER
   // Allow extra zero bytes after the frame end
   while (data < data_end) {
     const uint8_t marker = data[0];
     if (marker) break;
     ++data;
   }
+#endif
 
   data2->idx = -1;
 

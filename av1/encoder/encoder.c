@@ -539,7 +539,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
     for (unsigned int sl = 0; sl < cm->number_mlayers; sl++) {
       for (unsigned int tl = 0; tl < cm->number_tlayers; tl++) {
         seq->operating_point_idc[i] =
-            (~(~0u << (cm->number_mlayers - sl)) << 8) |
+            (~(~0u << (cm->number_mlayers - sl)) << MAX_NUM_TLAYERS) |
             ~(~0u << (cm->number_tlayers - tl));
 #else
     assert(seq->operating_points_cnt_minus_1 ==
@@ -547,7 +547,8 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
     for (unsigned int sl = 0; sl < cm->number_spatial_layers; sl++) {
       for (unsigned int tl = 0; tl < cm->number_temporal_layers; tl++) {
         seq->operating_point_idc[i] =
-            (~(~0u << (cm->number_spatial_layers - sl)) << 8) |
+            (~(~0u << (cm->number_spatial_layers - sl))
+             << MAX_NUM_TEMPORAL_LAYERS) |
             ~(~0u << (cm->number_temporal_layers - tl));
 #endif  // CONFIG_NEW_OBU_HEADER
         i++;
@@ -732,16 +733,15 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   // Single thread case: use counts in common.
   cpi->td.counts = &cpi->counts;
 
-#if CONFIG_NEW_OBU_HEADER
   // Set init SVC parameters.
+#if CONFIG_NEW_OBU_HEADER
   cm->number_tlayers = 1;
   cm->number_mlayers = 1;
-  cm->number_xlayers = 0;
+  cm->number_xlayers = 1;
   cm->tlayer_id = 0;
   cm->mlayer_id = 0;
   cm->xlayer_id = 0;
 #else
-  // Set init SVC parameters.
   cm->number_spatial_layers = 1;
   cm->number_temporal_layers = 1;
   cm->spatial_layer_id = 0;

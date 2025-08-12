@@ -43,9 +43,11 @@ typedef struct {
 #endif  // CONFIG_NEW_OBU_HEADER
 } ObuHeader;
 
+#if !CONFIG_NEW_OBU_HEADER
 aom_codec_err_t aom_read_obu_header(uint8_t *buffer, size_t buffer_length,
                                     size_t *consumed, ObuHeader *header,
                                     int is_annexb);
+#endif  // !CONFIG_NEW_OBU_HEADER
 
 aom_codec_err_t aom_read_obu_header_and_size(const uint8_t *data,
                                              size_t bytes_available,

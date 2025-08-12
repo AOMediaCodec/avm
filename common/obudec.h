@@ -12,9 +12,12 @@
 #ifndef AOM_COMMON_OBUDEC_H_
 #define AOM_COMMON_OBUDEC_H_
 
-#include "av1/common/obu_util.h"
-#include "common/tools_common.h"
 #include "config/aom_config.h"
+
+#if CONFIG_NEW_OBU_HEADER
+#include "av1/common/obu_util.h"
+#endif  // CONFIG_NEW_OBU_HEADER
+#include "common/tools_common.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -41,10 +44,16 @@ int file_is_obu(struct ObuDecInputContext *obu_ctx);
 // error occurs. Stores TU data in 'buffer'. Reallocs buffer to match TU size,
 // returns buffer capacity via 'buffer_size', and returns size of buffered data
 // via 'bytes_read'.
+#if CONFIG_NEW_OBU_HEADER
 int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
                               uint8_t **buffer, size_t *bytes_read,
                               size_t *buffer_size, ObuHeader *obu_header_list,
                               int *obu_idx);
+#else
+int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
+                              uint8_t **buffer, size_t *bytes_read,
+                              size_t *buffer_size);
+#endif  // CONFIG_NEW_OBU_HEADER
 
 void obudec_free(struct ObuDecInputContext *obu_ctx);
 

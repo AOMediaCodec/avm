@@ -111,10 +111,9 @@ void process_tile_list(const TILE_LIST_INFO *tiles, int num_tiles,
   int i;
 
 #if CONFIG_NEW_OBU_HEADER
-  aom_wb_write_literal(&wb, 8, 4);  // obu_type (tile list obu)
-  aom_wb_write_literal(&wb, 0, 1);  // reserved bit
-  aom_wb_write_literal(&wb, 0, 3);  // obu_temporal
-  aom_wb_write_literal(&wb, 0, 8);  // obu_layer
+  aom_wb_write_literal(&wb, 8, 4);  // obu_type (tile list OBU)
+  aom_wb_write_literal(&wb, 0, 1);  // obu_extension_flag
+  aom_wb_write_literal(&wb, 0, 3);  // obu_tlayer_id
 #else
   // Write the tile list OBU header that is 1 byte long.
   aom_wb_write_literal(&wb, 0, 1);  // forbidden bit.

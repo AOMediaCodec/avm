@@ -287,6 +287,7 @@ enum {
 #define OP_POINTS_CNT_MINUS_1_BITS 5
 #define OP_POINTS_IDC_BITS 12
 #endif  // CONFIG_NEW_OBU_HEADER
+
 // Note: Some enums use the attribute 'packed' to use smallest possible integer
 // type, so that we can save memory when they are used in structs/arrays.
 

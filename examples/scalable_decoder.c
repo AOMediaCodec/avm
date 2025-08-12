@@ -75,6 +75,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "config/aom_config.h"
+
 #include "aom/aom_decoder.h"
 #include "aom/aomdx.h"
 #include "common/obudec.h"
@@ -148,18 +150,22 @@ int main(int argc, char **argv) {
 
     // open any enhancement layer output yuv files
 #if CONFIG_NEW_OBU_HEADER
-  for (i = 1; i < si.number_mlayers; i++)
+  for (i = 1; i < si.number_mlayers; i++) {
 #else
-  for (i = 1; i < si.number_spatial_layers; i++)
+  for (i = 1; i < si.number_spatial_layers; i++) {
 #endif  // CONFIG_NEW_OBU_HEADER
-  {
     snprintf(filename, sizeof(filename), "out_lyr%u.yuv", i);
     if (!(outfile[i] = fopen(filename, "wb")))
       die("Failed to open output for writing.");
   }
 
+#if CONFIG_NEW_OBU_HEADER
   while (!obudec_read_temporal_unit(&obu_ctx, &buf, &bytes_in_buffer,
                                     &buffer_size, NULL, NULL)) {
+#else
+  while (!obudec_read_temporal_unit(&obu_ctx, &buf, &bytes_in_buffer,
+                                    &buffer_size)) {
+#endif  // CONFIG_NEW_OBU_HEADER
     aom_codec_iter_t iter = NULL;
     aom_image_t *img = NULL;
     if (aom_codec_decode(&codec, buf, bytes_in_buffer, NULL))
