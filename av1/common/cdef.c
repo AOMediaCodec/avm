@@ -201,6 +201,29 @@ void av1_cdef_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
       else
         frame_right = 1;
 
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+      int tile_top = frame_top;
+      int tile_left = frame_left;
+      int tile_bottom = frame_bottom;
+      int tile_right = frame_right;
+
+      if (cm->seq_params.disable_loopfilters_across_tiles) {
+        if (is_horz_tile_boundary(&cm->tiles, mi_row)) tile_top = 1;
+
+        if (is_vert_tile_boundary(&cm->tiles, mi_col)) tile_left = 1;
+
+        if (is_horz_tile_boundary(&cm->tiles, mi_row + MI_SIZE_64X64))
+          tile_bottom = 1;
+
+        if (is_vert_tile_boundary(&cm->tiles, mi_col + MI_SIZE_64X64))
+          tile_right = 1;
+
+        if (tile_left) {
+          cdef_left = 1;
+          cstart = 0;
+        }
+      }
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
       const int mbmi_cdef_strength =
           mi_params
               ->mi_grid_base[MI_SIZE_64X64 * fbr * mi_params->mi_stride +
@@ -333,6 +356,26 @@ void av1_cdef_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
             (MI_SIZE_64X64 << mi_high_l2[pli]) * (fbr + 1) - CDEF_VBORDER,
             coffset, xd->plane[pli].dst.stride, CDEF_VBORDER, hsize);
 
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+        // if (!cm->seq_params.disable_loopfilters_across_tiles)
+        // tile boundary is set to frame boundary
+        if (tile_top) {
+          fill_rect(src, CDEF_BSTRIDE, CDEF_VBORDER, hsize + 2 * CDEF_HBORDER,
+                    CDEF_VERY_LARGE);
+        }
+        if (tile_left) {
+          fill_rect(src, CDEF_BSTRIDE, vsize + 2 * CDEF_VBORDER, CDEF_HBORDER,
+                    CDEF_VERY_LARGE);
+        }
+        if (tile_bottom) {
+          fill_rect(&src[(vsize + CDEF_VBORDER) * CDEF_BSTRIDE], CDEF_BSTRIDE,
+                    CDEF_VBORDER, hsize + 2 * CDEF_HBORDER, CDEF_VERY_LARGE);
+        }
+        if (tile_right) {
+          fill_rect(&src[hsize + CDEF_HBORDER], CDEF_BSTRIDE,
+                    vsize + 2 * CDEF_VBORDER, CDEF_HBORDER, CDEF_VERY_LARGE);
+        }
+#else
         if (frame_top) {
           fill_rect(src, CDEF_BSTRIDE, CDEF_VBORDER, hsize + 2 * CDEF_HBORDER,
                     CDEF_VERY_LARGE);
@@ -349,6 +392,7 @@ void av1_cdef_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
           fill_rect(&src[hsize + CDEF_HBORDER], CDEF_BSTRIDE,
                     vsize + 2 * CDEF_VBORDER, CDEF_HBORDER, CDEF_VERY_LARGE);
         }
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 
         av1_cdef_filter_fb(
             NULL,
