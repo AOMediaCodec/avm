@@ -39,10 +39,12 @@ struct ThreadData;
 void av1_read_sequence_header(AV1_COMMON *cm, struct aom_read_bit_buffer *rb,
                               SequenceHeader *seq_params);
 
-// Reads additional sequence header for coding tools beyond AV1
+// #if !CONFIG_CWG_E242_REORDER_SEQ_ENABLE_FLAGS
+//  Reads additional sequence header for coding tools beyond AV1
 void av1_read_sequence_header_beyond_av1(
     struct aom_read_bit_buffer *rb, SequenceHeader *seq_params,
     struct aom_internal_error_info *error_info);
+// #endif  // !CONFIG_CWG_E242_REORDER_SEQ_ENABLE_FLAGS
 
 void av1_read_frame_size(struct aom_read_bit_buffer *rb, int num_bits_width,
                          int num_bits_height, int *width, int *height);

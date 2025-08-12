@@ -5552,6 +5552,277 @@ static AOM_INLINE void write_sb_size(const SequenceHeader *const seq_params,
   aom_wb_write_bit(wb, seq_params->sb_size == BLOCK_128X128);
 }
 
+#if CONFIG_CWG_E242_REORDER_SEQ_ENABLE_FLAGS
+void write_sequence_intra_tool_flags(const SequenceHeader *seq_params,
+                                     struct aom_write_bit_buffer *wb) {
+  aom_wb_write_bit(wb, seq_params->enable_intra_dip);
+  aom_wb_write_bit(wb, seq_params->enable_orip);
+  aom_wb_write_bit(wb, seq_params->enable_ibp);
+  aom_wb_write_bit(wb, seq_params->enable_intra_edge_filter);
+  aom_wb_write_bit(wb, seq_params->enable_mrls);
+}
+
+void write_sequence_inter_tool_flags(const SequenceHeader *seq_params,
+                                     struct aom_write_bit_buffer *wb) {
+  if (!seq_params->reduced_still_picture_hdr) {
+    aom_wb_write_bit(wb, seq_params->order_hint_info.enable_order_hint);
+    if (seq_params->order_hint_info.enable_order_hint) {
+      aom_wb_write_bit(wb, seq_params->order_hint_info.enable_ref_frame_mvs);
+    }
+#if CONFIG_REDUCED_REF_FRAME_MVS_MODE
+    if (seq_params->order_hint_info.enable_ref_frame_mvs) {
+      assert(seq_params->order_hint_info.reduced_ref_frame_mvs_mode >= 0 &&
+             seq_params->order_hint_info.reduced_ref_frame_mvs_mode <= 1);
+      aom_wb_write_bit(wb,
+                       seq_params->order_hint_info.reduced_ref_frame_mvs_mode);
+    }
+#endif  // CONFIG_REDUCED_REF_FRAME_MVS_MODE
+
+    if (seq_params->order_hint_info.enable_order_hint)
+      aom_wb_write_literal(
+          wb, seq_params->order_hint_info.order_hint_bits_minus_1, 3);
+  }
+
+  const int is_drl_reorder_disable =
+      (seq_params->enable_drl_reorder == DRL_REORDER_DISABLED);
+  aom_wb_write_bit(wb, is_drl_reorder_disable);
+  if (!is_drl_reorder_disable) {
+    aom_wb_write_bit(wb,
+                     seq_params->enable_drl_reorder == DRL_REORDER_CONSTRAINT);
+  }
+
+  // Encode allowed motion modes
+  // Skip SIMPLE_TRANSLATION, as that is always enabled
+  int seq_enabled_motion_modes = seq_params->seq_enabled_motion_modes;
+  assert((seq_enabled_motion_modes & (1 << SIMPLE_TRANSLATION)) != 0);
+  for (int motion_mode = INTERINTRA; motion_mode < MOTION_MODES;
+       motion_mode++) {
+    int enabled = (seq_enabled_motion_modes & (1 << motion_mode)) != 0 ? 1 : 0;
+    aom_wb_write_bit(wb, enabled);
+  }
+  const int is_cdef_on_skip_txfm_always_on =
+      (seq_params->enable_cdef_on_skip_txfm == CDEF_ON_SKIP_TXFM_ALWAYS_ON);
+  aom_wb_write_bit(wb, is_cdef_on_skip_txfm_always_on);
+  if (!is_cdef_on_skip_txfm_always_on) {
+    aom_wb_write_bit(
+        wb, seq_params->enable_cdef_on_skip_txfm == CDEF_ON_SKIP_TXFM_DISABLED);
+  }
+  aom_wb_write_bit(wb, seq_params->enable_avg_cdf);
+  if (seq_params->enable_avg_cdf) {
+    aom_wb_write_bit(wb, seq_params->avg_cdf_type);
+  }
+  aom_wb_write_bit(wb, seq_params->enable_six_param_warp_delta);
+  aom_wb_write_bit(wb, seq_params->enable_masked_compound);
+  aom_wb_write_bit(wb, seq_params->enable_refmvbank);
+  aom_wb_write_bit(wb, seq_params->explicit_ref_frame_map);
+  aom_wb_write_bit(wb, seq_params->enable_frame_output_order);
+  aom_wb_write_bit(wb, seq_params->max_reference_frames < 7);
+  if (seq_params->max_reference_frames < 7)
+    aom_wb_write_literal(wb, seq_params->max_reference_frames - 3, 2);
+#if CONFIG_EXTRA_DPB
+  if (seq_params->num_extra_dpb) {
+    aom_wb_write_literal(wb, 1, 1);
+    aom_wb_write_literal(wb, seq_params->num_extra_dpb - 1, 3);
+  } else {
+    aom_wb_write_literal(wb, 0, 1);
+  }
+#endif  // CONFIG_EXTRA_DPB
+  aom_wb_write_literal(wb, seq_params->num_same_ref_compound, 2);
+#if CONFIG_LF_SUB_PU
+  aom_wb_write_bit(wb, seq_params->enable_lf_sub_pu);
+#endif  // CONFIG_LF_SUB_PU
+  aom_wb_write_bit(wb, seq_params->enable_tip != 0);
+  if (seq_params->enable_tip) {
+    aom_wb_write_bit(wb, seq_params->enable_tip != 1);
+  }
+  if (seq_params->enable_tip) {
+    aom_wb_write_bit(wb, seq_params->enable_tip_hole_fill);
+  }
+  if (seq_params->enable_tip == 1 &&
+#if CONFIG_LF_SUB_PU
+      seq_params->enable_lf_sub_pu
+#endif  // CONFIG_LF_SUB_PU
+  ) {
+    aom_wb_write_bit(wb, seq_params->enable_tip_explicit_qp);
+  }
+
+  aom_wb_write_bit(wb, seq_params->enable_mv_traj);
+  aom_wb_write_bit(wb, seq_params->enable_bawp);
+  aom_wb_write_bit(wb, seq_params->enable_cwp);
+  aom_wb_write_bit(wb, seq_params->enable_imp_msk_bld);
+  aom_wb_write_bit(wb, seq_params->enable_fsc);
+
+  if (seq_params->order_hint_info.enable_order_hint) {
+    aom_wb_write_literal(wb, seq_params->enable_opfl_refine, 2);
+  }
+  aom_wb_write_bit(wb, seq_params->enable_adaptive_mvd);
+
+  aom_wb_write_bit(wb, seq_params->enable_refinemv);
+#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+  if (seq_params->enable_tip != 0 &&
+      (seq_params->enable_opfl_refine != 0 || seq_params->enable_refinemv)) {
+    aom_wb_write_bit(wb, seq_params->enable_tip_refinemv);
+  }
+#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+#if CONFIG_BRU
+  aom_wb_write_bit(wb, (int)(seq_params->enable_bru > 0));
+#endif  // CONFIG_BRU
+#if CONFIG_DERIVED_MVD_SIGN
+  aom_wb_write_bit(wb, seq_params->enable_mvd_sign_derive);
+#endif  // CONFIG_DERIVED_MVD_SIGN
+
+  aom_wb_write_bit(wb, seq_params->enable_flex_mvres);
+#if CONFIG_IMPROVED_GLOBAL_MOTION
+  if (seq_params->reduced_still_picture_hdr) {
+    assert(seq_params->enable_global_motion == 0);
+  } else {
+    aom_wb_write_bit(wb, seq_params->enable_global_motion);
+  }
+#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
+
+  aom_wb_write_literal(wb, seq_params->df_par_bits_minus2, 2);
+
+#if CONFIG_REFRESH_FLAG
+  aom_wb_write_bit(wb, seq_params->enable_short_refresh_frame_flags);
+#endif  // CONFIG_REFRESH_FLAG
+#if CONFIG_EXT_SEG
+  aom_wb_write_bit(wb, seq_params->enable_ext_seg);
+#endif  // CONFIG_EXT_SEG
+}  // write_sequence_inter_tool_flags
+
+void write_quant_matrix(const SequenceHeader *seq_params,
+                        struct aom_write_bit_buffer *wb) {
+#if CONFIG_QM_DEBUG
+  printf("[ENC-SEQ] user_defined_qmatrix=%d\n",
+         seq_params->user_defined_qmatrix);
+#endif
+  aom_wb_write_bit(wb, seq_params->user_defined_qmatrix);
+  if (seq_params->user_defined_qmatrix) {
+    int num_planes = seq_params->monochrome ? 1 : MAX_MB_PLANE;
+    code_user_defined_qm(wb, seq_params, num_planes);
+  }
+}
+
+void write_sequence_filter_flags(const SequenceHeader *seq_params,
+                                 struct aom_write_bit_buffer *wb) {
+  aom_wb_write_bit(wb, seq_params->enable_cdef);
+#if CONFIG_GDF
+  aom_wb_write_bit(wb, seq_params->enable_gdf);
+#endif  // CONFIG_GDF
+  aom_wb_write_bit(wb, seq_params->enable_restoration);
+  aom_wb_write_bit(wb, seq_params->enable_ccso);
+  if (!seq_params->monochrome)
+    aom_wb_write_literal(wb, seq_params->cfl_ds_filter_index, 2);
+
+  if (seq_params->enable_restoration) {
+    for (int i = 1; i < RESTORE_SWITCHABLE_TYPES; ++i) {
+      aom_wb_write_bit(wb, (seq_params->lr_tools_disable_mask[0] >> i) & 1);
+    }
+    const int uv_neq_y =
+        (seq_params->lr_tools_disable_mask[1] !=
+         (seq_params->lr_tools_disable_mask[0] | DEF_UV_LR_TOOLS_DISABLE_MASK));
+    aom_wb_write_bit(wb, uv_neq_y);
+    if (uv_neq_y) {
+      for (int i = 1; i < RESTORE_SWITCHABLE_TYPES; ++i) {
+        if (DEF_UV_LR_TOOLS_DISABLE_MASK & (1 << i)) continue;
+        aom_wb_write_bit(wb, (seq_params->lr_tools_disable_mask[1] >> i) & 1);
+      }
+    }
+  }
+
+  int enable_tcq = seq_params->enable_tcq;
+  aom_wb_write_bit(wb, enable_tcq != 0);
+  if (enable_tcq) {
+    aom_wb_write_literal(wb, enable_tcq - 1, 1);
+  }
+  if (enable_tcq == TCQ_DISABLE || enable_tcq >= TCQ_8ST_FR) {
+    // Signal whether parity hiding is used if TCQ is
+    // disabled, or enabled/disabled at frame level.
+    aom_wb_write_bit(wb, seq_params->enable_parity_hiding);
+  }
+}
+
+void write_sequence_transform_flags(const SequenceHeader *seq_params,
+                                    struct aom_write_bit_buffer *wb) {
+  if (!seq_params->monochrome) aom_wb_write_bit(wb, seq_params->enable_sdp);
+  if (seq_params->enable_sdp)
+    aom_wb_write_bit(wb, seq_params->enable_extended_sdp);
+  aom_wb_write_bit(wb, seq_params->enable_ist);
+  aom_wb_write_bit(wb, seq_params->enable_inter_ist);
+
+  if (!seq_params->monochrome)
+    aom_wb_write_bit(wb, seq_params->enable_chroma_dctonly);
+  aom_wb_write_bit(wb, seq_params->enable_inter_ddt);
+  if (!seq_params->monochrome) aom_wb_write_bit(wb, seq_params->enable_cctx);
+  aom_wb_write_bit(wb, seq_params->enable_ext_partitions);
+  if (seq_params->enable_ext_partitions)
+    aom_wb_write_bit(wb, seq_params->enable_uneven_4way_partitions);
+#if CONFIG_MAX_PB_RATIO
+  aom_wb_write_bit(wb, seq_params->max_pb_aspect_ratio_log2_m1 < 2);
+  if (seq_params->max_pb_aspect_ratio_log2_m1 < 2) {
+    aom_wb_write_bit(wb, seq_params->max_pb_aspect_ratio_log2_m1);
+  }
+#endif  // CONFIG_MAX_PB_RATIO
+}
+
+void write_screen_content_tools(const SequenceHeader *seq_params,
+                                struct aom_write_bit_buffer *wb) {
+  if (seq_params->force_screen_content_tools == 2) {
+    aom_wb_write_bit(wb, 1);
+  } else {
+    aom_wb_write_bit(wb, 0);
+    aom_wb_write_bit(wb, seq_params->force_screen_content_tools);
+  }
+  if (seq_params->force_screen_content_tools > 0) {
+    if (seq_params->force_integer_mv == 2) {
+      aom_wb_write_bit(wb, 1);
+    } else {
+      aom_wb_write_bit(wb, 0);
+      aom_wb_write_bit(wb, seq_params->force_integer_mv);
+    }
+  } else {
+    assert(seq_params->force_integer_mv == 2);
+  }
+}
+
+static AOM_INLINE void write_delta_q_indices(
+    const struct SequenceHeader *const seq_params,
+    struct aom_write_bit_buffer *wb) {
+  const int is_monochrome = seq_params->monochrome;
+  if (!is_monochrome) {
+    aom_wb_write_bit(wb, seq_params->separate_uv_delta_q);
+  }
+  aom_wb_write_bit(wb, seq_params->equal_ac_dc_q);
+  if (!seq_params->equal_ac_dc_q) {
+    assert(seq_params->base_y_dc_delta_q <= DELTA_DCQUANT_MAX);
+    aom_wb_write_unsigned_literal(
+        wb, seq_params->base_y_dc_delta_q - DELTA_DCQUANT_MIN,
+        DELTA_DCQUANT_BITS);
+    aom_wb_write_bit(wb, seq_params->y_dc_delta_q_enabled);
+  } else {
+    assert(seq_params->base_y_dc_delta_q == 0 &&
+           seq_params->y_dc_delta_q_enabled == 0);
+  }
+  if (!is_monochrome) {
+    if (!seq_params->equal_ac_dc_q) {
+      assert(seq_params->base_uv_dc_delta_q >= DELTA_DCQUANT_MIN);
+      aom_wb_write_unsigned_literal(
+          wb, seq_params->base_uv_dc_delta_q - DELTA_DCQUANT_MIN,
+          DELTA_DCQUANT_BITS);
+      aom_wb_write_bit(wb, seq_params->uv_dc_delta_q_enabled);
+    } else {
+      assert(seq_params->base_uv_dc_delta_q == seq_params->base_uv_ac_delta_q &&
+             seq_params->uv_dc_delta_q_enabled == 0);
+    }
+    assert(seq_params->base_uv_ac_delta_q >= DELTA_DCQUANT_MIN);
+    aom_wb_write_unsigned_literal(
+        wb, seq_params->base_uv_ac_delta_q - DELTA_DCQUANT_MIN,
+        DELTA_DCQUANT_BITS);
+    aom_wb_write_bit(wb, seq_params->uv_ac_delta_q_enabled);
+  }
+}
+#endif  // CONFIG_CWG_E242_REORDER_SEQ_ENABLE_FLAGS
+
 static AOM_INLINE void write_sequence_header(
     const SequenceHeader *const seq_params, struct aom_write_bit_buffer *wb) {
   if (!seq_params->reduced_still_picture_hdr) {
@@ -5569,6 +5840,16 @@ static AOM_INLINE void write_sequence_header(
   }
 
   write_sb_size(seq_params, wb);
+
+#if CONFIG_CWG_E242_REORDER_SEQ_ENABLE_FLAGS
+  write_sequence_intra_tool_flags(seq_params, wb);
+  write_sequence_inter_tool_flags(seq_params, wb);
+  write_sequence_filter_flags(seq_params, wb);
+  write_sequence_transform_flags(seq_params, wb);
+  write_screen_content_tools(seq_params, wb);
+  write_delta_q_indices(seq_params, wb);
+  write_quant_matrix(seq_params, wb);
+#else  // CONFIG_CWG_E242_REORDER_SEQ_ENABLE_FLAGS
   aom_wb_write_bit(wb, seq_params->enable_intra_dip);
   aom_wb_write_bit(wb, seq_params->enable_intra_edge_filter);
   if (!seq_params->reduced_still_picture_hdr) {
@@ -5674,12 +5955,12 @@ static AOM_INLINE void write_sequence_header(
         DELTA_DCQUANT_BITS);
     aom_wb_write_bit(wb, seq_params->uv_ac_delta_q_enabled);
   }
+#endif  // !CONFIG_CWG_E242_REORDER_SEQ_ENABLE_FLAGS
 }
 
+#if !CONFIG_CWG_E242_REORDER_SEQ_ENABLE_FLAGS
 static AOM_INLINE void write_sequence_header_beyond_av1(
     const SequenceHeader *const seq_params, struct aom_write_bit_buffer *wb) {
-  aom_wb_write_bit(wb, seq_params->enable_refmvbank);
-
   const int is_drl_reorder_disable =
       (seq_params->enable_drl_reorder == DRL_REORDER_DISABLED);
   aom_wb_write_bit(wb, is_drl_reorder_disable);
@@ -5820,6 +6101,7 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
     code_user_defined_qm(wb, seq_params, num_planes);
   }
 }
+#endif  // !CONFIG_CWG_E242_REORDER_SEQ_ENABLE_FLAGS
 
 static AOM_INLINE void write_global_motion_params(
     const WarpedMotionParams *params, const WarpedMotionParams *ref_params,
@@ -7014,8 +7296,10 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
 
   aom_wb_write_bit(&wb, seq_params->film_grain_params_present);
 
+#if !CONFIG_CWG_E242_REORDER_SEQ_ENABLE_FLAGS
   // Sequence header for coding tools beyond AV1
   write_sequence_header_beyond_av1(seq_params, &wb);
+#endif  // !CONFIG_CWG_E242_REORDER_SEQ_ENABLE_FLAGS
 
   add_trailing_bits(&wb);
 

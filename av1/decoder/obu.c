@@ -263,6 +263,7 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
 
   seq_params->film_grain_params_present = aom_rb_read_bit(rb);
 
+#if !CONFIG_CWG_E242_REORDER_SEQ_ENABLE_FLAGS
   // Sequence header for coding tools beyond AV1
   av1_read_sequence_header_beyond_av1(rb, seq_params, &cm->error);
   int num_planes = seq_params->monochrome ? 1 : MAX_MB_PLANE;
@@ -270,6 +271,7 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
                               seq_params->quantizer_matrix_8x4,
                               seq_params->quantizer_matrix_4x8 };
   av1_qm_init_dequant_only(&cm->quant_params, num_planes, fund_mat);
+#endif  // !CONFIG_CWG_E242_REORDER_SEQ_ENABLE_FLAGS
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
   if (!seq_params->order_hint_info.enable_order_hint &&
       seq_params->enable_frame_output_order) {
