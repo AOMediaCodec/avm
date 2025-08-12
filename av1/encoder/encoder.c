@@ -4643,8 +4643,8 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
   cm->tlayer_id = 0;
   current_frame->temporal_layer_id = cm->tlayer_id;
 #else
-    cm->temporal_layer_id = 0;
-    current_frame->temporal_layer_id = cm->temporal_layer_id;
+  cm->temporal_layer_id = 0;
+  current_frame->temporal_layer_id = cm->temporal_layer_id;
 #endif
 
   const int order_offset = cpi->gf_group.arf_src_offset[cpi->gf_group.index];
