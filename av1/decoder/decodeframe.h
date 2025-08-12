@@ -33,6 +33,24 @@ struct AV1Decoder;
 struct aom_read_bit_buffer;
 struct ThreadData;
 
+#if CONFIG_MULTILAYER_HLS
+uint32_t read_layer_configuration_record_obsp(struct AV1Decoder *pbi,
+                                              int obu_xlayer_id,
+                                              struct aom_read_bit_buffer *rb);
+
+uint32_t read_operating_point_set_obsp(struct AV1Decoder *pbi,
+                                       int obu_xlayer_id,
+                                       struct aom_read_bit_buffer *rb);
+
+uint32_t read_atlas_segment_info_obsp(struct AV1Decoder *pbi, int obu_xLayer_id,
+                                      struct aom_read_bit_buffer *rb);
+
+int read_obu_extension_bits(struct ObuExtension *ext_params,
+                            struct aom_read_bit_buffer *rb);
+
+uint32_t read_data_size(struct aom_read_bit_buffer *rb);
+#endif  // CONFIG_MULTILAYER_HLS
+
 // Reads the middle part of the sequence header OBU (from
 // frame_width_bits_minus_1 to enable_restoration) into seq_params.
 // Reports errors by calling rb->error_handler() or aom_internal_error().

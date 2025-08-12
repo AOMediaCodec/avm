@@ -169,10 +169,17 @@ enum aome_enc_control_id {
    */
   AOME_SET_SCALEMODE = 11,
 
+#if CONFIG_NEW_OBU_HEADER
+  /*!\brief Codec control function to set encoder embedded layer id, unsigned
+   * int parameter.
+   */
+  AOME_SET_MLAYER_ID = 12,
+#else
   /*!\brief Codec control function to set encoder spatial layer id, unsigned int
    * parameter.
    */
   AOME_SET_SPATIAL_LAYER_ID = 12,
+#endif  // CONFIG_NEW_OBU_HEADER
 
   /*!\brief Codec control function to set encoder internal speed settings,
    * int parameter
@@ -258,10 +265,17 @@ enum aome_enc_control_id {
    */
   AOME_SET_MAX_INTRA_BITRATE_PCT = 26,
 
+#if CONFIG_NEW_OBU_HEADER
+  /*!\brief Codec control function to set number of embedded layers, int
+   * parameter
+   */
+  AOME_SET_NUMBER_MLAYERS = 27,
+#else
   /*!\brief Codec control function to set number of spatial layers, int
    * parameter
    */
   AOME_SET_NUMBER_SPATIAL_LAYERS = 27,
+#endif  // CONFIG_NEW_OBU_HEADER
 
   /*!\brief Codec control function to set max data rate for inter frames,
    * unsigned int parameter
@@ -1140,12 +1154,21 @@ enum aome_enc_control_id {
    */
   AV1E_SET_MV_COST_UPD_FREQ = 142,
 
-  /*!\brief Control to set bit mask that specifies which tier each of the 32
-   * possible operating points conforms to, unsigned int parameter
-   *
-   * - 0 = main tier (default)
-   * - 1 = high tier
-   */
+#if CONFIG_NEW_OBU_HEADER
+/*!\brief Control to set bit mask that specifies which tier each of the 64
+ * possible operating points conforms to, uint64_t parameter
+ *
+ * - 0 = main tier (default)
+ * - 1 = high tier
+ */
+#else
+/*!\brief Control to set bit mask that specifies which tier each of the 32
+ * possible operating points conforms to, unsigned int parameter
+ *
+ * - 0 = main tier (default)
+ * - 1 = high tier
+ */
+#endif  // CONFIG_NEW_OBU_HEADER
   AV1E_SET_TIER_MASK = 143,
 
   /*!\brief Control to set minimum compression ratio, unsigned int parameter
@@ -1417,8 +1440,13 @@ AOM_CTRL_USE_TYPE(AOME_SET_ACTIVEMAP, aom_active_map_t *)
 AOM_CTRL_USE_TYPE(AOME_SET_SCALEMODE, aom_scaling_mode_t *)
 #define AOM_CTRL_AOME_SET_SCALEMODE
 
+#if CONFIG_NEW_OBU_HEADER
+AOM_CTRL_USE_TYPE(AOME_SET_MLAYER_ID, unsigned int)
+#define AOM_CTRL_AOME_SET_MLAYER_ID
+#else
 AOM_CTRL_USE_TYPE(AOME_SET_SPATIAL_LAYER_ID, unsigned int)
 #define AOM_CTRL_AOME_SET_SPATIAL_LAYER_ID
+#endif  // CONFIG_NEW_OBU_HEADER
 
 AOM_CTRL_USE_TYPE(AOME_SET_CPUUSED, int)
 #define AOM_CTRL_AOME_SET_CPUUSED
@@ -1471,8 +1499,13 @@ AOM_CTRL_USE_TYPE(AOME_SET_MAX_INTRA_BITRATE_PCT, unsigned int)
 AOM_CTRL_USE_TYPE(AOME_SET_MAX_INTER_BITRATE_PCT, unsigned int)
 #define AOM_CTRL_AOME_SET_MAX_INTER_BITRATE_PCT
 
+#if CONFIG_NEW_OBU_HEADER
+AOM_CTRL_USE_TYPE(AOME_SET_NUMBER_MLAYERS, int)
+#define AOME_CTRL_AOME_SET_NUMBER_MLAYERS
+#else
 AOM_CTRL_USE_TYPE(AOME_SET_NUMBER_SPATIAL_LAYERS, int)
 #define AOME_CTRL_AOME_SET_NUMBER_SPATIAL_LAYERS
+#endif  // CONFIG_NEW_OBU_HEADER
 
 AOM_CTRL_USE_TYPE(AV1E_SET_GF_CBR_BOOST_PCT, unsigned int)
 #define AOM_CTRL_AV1E_SET_GF_CBR_BOOST_PCT
@@ -1778,7 +1811,11 @@ AOM_CTRL_USE_TYPE(AV1E_SET_MV_COST_UPD_FREQ, unsigned int)
 AOM_CTRL_USE_TYPE(AV1E_SET_TARGET_SEQ_LEVEL_IDX, int)
 #define AOM_CTRL_AV1E_SET_TARGET_SEQ_LEVEL_IDX
 
+#if CONFIG_NEW_OBU_HEADER
+AOM_CTRL_USE_TYPE(AV1E_SET_TIER_MASK, uint64_t)
+#else
 AOM_CTRL_USE_TYPE(AV1E_SET_TIER_MASK, unsigned int)
+#endif  // CONFIG_NEW_OBU_HEADER
 #define AOM_CTRL_AV1E_SET_TIER_MASK
 
 AOM_CTRL_USE_TYPE(AV1E_SET_MIN_CR, unsigned int)

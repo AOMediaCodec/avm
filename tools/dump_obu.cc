@@ -24,6 +24,10 @@
 #include "common/webmdec.h"
 #include "tools/obu_parser.h"
 
+#if CONFIG_NEW_OBU_HEADER
+#define MAX_NUM_OBUS_PARSED 10000
+#endif  // CONFIG_NEW_OBU_HEADER
+
 namespace {
 
 const size_t kInitialBufferSize = 100 * 1024;
@@ -65,6 +69,10 @@ VideoFileType GetFileType(InputContext *ctx) {
 
 bool ReadTemporalUnit(InputContext *ctx, size_t *unit_size) {
   const VideoFileType file_type = ctx->avx_ctx->file_type;
+#if CONFIG_NEW_OBU_HEADER
+  ObuHeader obu_list[MAX_NUM_OBUS_PARSED];
+  int obu_count = 0;
+#endif  // CONFIG_NEW_OBU_HEADER
   switch (file_type) {
     case FILE_TYPE_IVF: {
       if (ivf_read_frame(ctx->avx_ctx->file, &ctx->unit_buffer, unit_size,
@@ -74,10 +82,18 @@ bool ReadTemporalUnit(InputContext *ctx, size_t *unit_size) {
       break;
     }
     case FILE_TYPE_OBU: {
+#if CONFIG_NEW_OBU_HEADER
+      if (obudec_read_temporal_unit(ctx->obu_ctx, &ctx->unit_buffer, unit_size,
+                                    &ctx->unit_buffer_size, obu_list,
+                                    &obu_count)) {
+        return false;
+      }
+#else
       if (obudec_read_temporal_unit(ctx->obu_ctx, &ctx->unit_buffer, unit_size,
                                     &ctx->unit_buffer_size)) {
         return false;
       }
+#endif  // CONFIG_NEW_OBU_HEADER
       break;
     }
 #if CONFIG_WEBM_IO
@@ -94,7 +110,10 @@ bool ReadTemporalUnit(InputContext *ctx, size_t *unit_size) {
       fprintf(stderr, "Error: Unsupported file type.\n");
       return false;
   }
-
+#if CONFIG_NEW_OBU_HEADER
+  for (int obu_idx = 0; obu_idx < obu_count; obu_idx++)
+    aom_tools::PrintObuHeader(&obu_list[obu_idx]);
+#endif  // CONFIG_NEW_OBU_HEADER
   return true;
 }
 
@@ -131,6 +150,9 @@ int main(int argc, const char *argv[]) {
 
   input_ctx.Init();
   avx_ctx.file = input_file.get();
+#if CONFIG_NEW_OBU_HEADER
+  input_ctx.obu_ctx->is_annexb = 1;
+#endif  // CONFIG_NEW_OBU_HEADER
   avx_ctx.file_type = GetFileType(&input_ctx);
 
   // Note: the reader utilities will realloc the buffer using realloc() etc.
@@ -147,9 +169,19 @@ int main(int argc, const char *argv[]) {
   size_t unit_size = 0;
   int unit_number = 0;
   int64_t obu_overhead_bytes_total = 0;
+#if CONFIG_NEW_OBU_HEADER
+  // This implementation performs the OBU parsing within the ReadTemporalUnit()
+  // function for simplicity. The code can be fixed/refactored to be handled
+  // within DumpObu() in a future version.
+  printf("------------------------------------------\n");
+#endif  // CONFIG_NEW_OBU_HEADER
   while (ReadTemporalUnit(&input_ctx, &unit_size)) {
     printf("Temporal unit %d\n", unit_number);
-
+#if CONFIG_NEW_OBU_HEADER
+    printf("------------------------------------------\n");
+    ++unit_number;
+    obu_overhead_bytes_total += unit_size;
+#else
     int obu_overhead_current_unit = 0;
     if (!aom_tools::DumpObu(input_ctx.unit_buffer, static_cast<int>(unit_size),
                             &obu_overhead_current_unit)) {
@@ -160,6 +192,7 @@ int main(int argc, const char *argv[]) {
     printf("  OBU overhead:    %d\n", obu_overhead_current_unit);
     ++unit_number;
     obu_overhead_bytes_total += obu_overhead_current_unit;
+#endif  // CONFIG_NEW_OBU_HEADER
   }
 
   printf("File total OBU overhead: %" PRId64 "\n", obu_overhead_bytes_total);

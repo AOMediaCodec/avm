@@ -77,6 +77,12 @@ extern "C" {
 #endif  // CONFIG_EXTRA_DPB
 #define PRIMARY_REF_NONE INTER_REFS_PER_FRAME
 
+#if CONFIG_NEW_OBU_HEADER
+#define MAX_NUM_TLAYERS 8
+#define MAX_NUM_MLAYERS 8
+#define MAX_NUM_XLAYERS 32
+#define MAX_NUM_OPERATING_POINTS (MAX_NUM_TLAYERS * MAX_NUM_MLAYERS)
+#else
 #define MAX_NUM_TEMPORAL_LAYERS 8
 #define MAX_NUM_SPATIAL_LAYERS 4
 
@@ -86,6 +92,7 @@ extern "C" {
 #define MAX_NUM_OPERATING_POINTS \
   (MAX_NUM_TEMPORAL_LAYERS * MAX_NUM_SPATIAL_LAYERS)
 /* clang-format on */
+#endif  // CONFIG_NEW_OBU_HEADER
 
 // TODO(jingning): Turning this on to set up transform coefficient
 // processing timer.
@@ -529,6 +536,186 @@ typedef struct {
                                    // for temporal mv prediction.
 #endif                             // CONFIG_REDUCED_REF_FRAME_MVS_MODE
 } OrderHintInfo;
+
+#if CONFIG_MULTILAYER_HLS
+typedef struct ObuExtension {
+  bool extension_present_flag;
+  int extension_data;
+} ObuExtension;
+
+typedef struct CroppingWindow {
+  int crop_window_present_flag;
+  int crop_win_left_offset;
+  int crop_win_right_offset;
+  int crop_win_top_offset;
+  int crop_win_bottom_offset;
+
+  // Additional params for the embedded layer
+  // NB: removed the lcr prefix so that it can be reused in SCR
+  int crop_info_in_scr_flag;
+  int crop_max_width;
+  int crop_max_height;
+} CroppingWindow;
+
+typedef struct RepInfo {
+  int lcr_max_pic_width;
+  int lcr_max_pic_height;
+  int lcr_format_info_present_flag;
+  int lcr_bit_depth_idc;
+  int lcr_chroma_format_idc;
+} RepInfo;
+
+typedef struct EmbeddedLayerInfo {
+  int lcr_mlayer_map[MAX_LCR_TYPES][MAX_XLAYER_CNT];
+  int lcr_tlayer_map[MAX_LCR_TYPES][MAX_XLAYER_CNT][8];
+  int lcr_layer_type[MAX_LCR_TYPES][MAX_XLAYER_CNT][8];
+  int lcr_auxiliary_type[MAX_LCR_TYPES][MAX_XLAYER_CNT][8];
+  int lcr_view_type[MAX_LCR_TYPES][MAX_XLAYER_CNT][8];
+  int lcr_view_id[MAX_LCR_TYPES][MAX_XLAYER_CNT][8];
+  int lcr_dependent_layer_map[MAX_LCR_TYPES][MAX_XLAYER_CNT][8];
+  int lcr_atlas_segments_info_present_flag[MAX_XLAYER_CNT][MAX_XLAYER_CNT][8];
+  int lcr_layer_atlas_segment_id[MAX_XLAYER_CNT][MAX_XLAYER_CNT][8];
+  int lcr_overlay_method[MAX_XLAYER_CNT][MAX_XLAYER_CNT][8];
+  int lcr_priority_weight[MAX_XLAYER_CNT][MAX_XLAYER_CNT][8];
+  int LcrMlayerID[MAX_LCR_TYPES][MAX_XLAYER_CNT][8];
+  int TLayerCount[MAX_LCR_TYPES][MAX_XLAYER_CNT][8];
+  int LcrTlayerID[MAX_LCR_TYPES][MAX_XLAYER_CNT][8];
+  int MLayerCount[MAX_LCR_TYPES][MAX_XLAYER_CNT];
+} EmbeddedLayerInfo;
+
+typedef struct LayerConfigurationRecord {
+  int lcr_global_config_record_id;
+  int lcr_max_num_extended_layers_minus_1;
+  int lcr_max_profile_tier_level_info_present_flag;
+  int lcr_global_atlas_id_present_flag;
+  int dependent_atlas_id_present_flag;
+  int lcr_reserved_zero_2bits;
+  int lcr_global_atlas_id;
+  int lcr_reserved_zero_3bits;
+  int lcr_data_size_present_flag;
+  int lcr_global_purpose_id;
+
+  int long lcr_data_size[MAX_XLAYER_CNT];
+  int lcr_xLayer_id[MAX_XLAYER_CNT];
+  int lcr_num_dependent_xlayer_map[MAX_XLAYER_CNT];
+  int lcr_dependent_xlayers_flag;
+  int lcr_global_id[MAX_XLAYER_CNT];
+  int lcr_local_id[MAX_XLAYER_CNT];
+  int lcr_local_atlas_id_present_flag[MAX_XLAYER_CNT];
+  int lcr_local_atlas_id[MAX_XLAYER_CNT];
+  int lcr_reserved_zero_6bits;
+
+  int lcr_rep_info_present_flag[MAX_LCR_TYPES][MAX_XLAYER_CNT];
+  int lcr_xlayer_purpose_present_flag[MAX_LCR_TYPES][MAX_XLAYER_CNT];
+  int lcr_xlayer_color_info_present_flag[MAX_LCR_TYPES][MAX_XLAYER_CNT];
+  int lcr_embedded_layer_info_present_flag[MAX_LCR_TYPES][MAX_XLAYER_CNT];
+  int lcr_xlayer_purpose_id[MAX_LCR_TYPES][MAX_XLAYER_CNT];
+  int lcr_xlayer_atlas_segment_id[MAX_XLAYER_CNT];
+  int lcr_xlayer_priority_order[MAX_XLAYER_CNT];
+  int lcr_xlayer_rendering_method[MAX_XLAYER_CNT];
+
+  struct CroppingWindow lcr_crop;
+  struct CroppingWindow crop_win_list[MAX_XLAYER_CNT][MAX_XLAYER_CNT];
+  struct RepInfo rep_params;
+  struct RepInfo rep_list[MAX_LCR_TYPES][MAX_XLAYER_CNT];
+  struct EmbeddedLayerInfo mlayer_params;
+
+  // Extension related SE
+  struct ObuExtension lcr_extension;
+} LayerConfigurationRecord;
+
+typedef struct AtlasLabelSegmentInfo {
+  int ats_signalled_atlas_segment_ids_flag[MAX_XLAYER_CNT][8];
+  int ats_atlas_segment_id[MAX_XLAYER_CNT];
+  int AtlasSegmentIDToIndex[MAX_XLAYER_CNT][8][MAX_ATLAS_SEG_ID];
+  int AtlasSegmentIndexToID[MAX_XLAYER_CNT][8][MAX_ATLAS_SEG_ID];
+} AtlasLabelSegmentInfo;
+
+typedef struct AtlasRegionToSegmentMapping {
+  int ats_single_region_per_atlas_segment_flag[MAX_XLAYER_CNT][8];
+  int ats_num_atlas_segments_minus_1[MAX_XLAYER_CNT][8];
+  int ats_top_left_region_column[MAX_XLAYER_CNT][8][MAX_REGIONS];
+  int ats_top_left_region_row[MAX_XLAYER_CNT][8][MAX_REGIONS];
+  int ats_bottom_right_region_column_off[MAX_XLAYER_CNT][8][MAX_REGIONS];
+  int ats_bottom_right_region_row_off[MAX_XLAYER_CNT][8][MAX_REGIONS];
+} AtlasRegionToSegmentMapping;
+
+typedef struct AtlasRegionInfo {
+  int ats_num_region_columns_minus_1[MAX_XLAYER_CNT][8];
+  int ats_num_region_rows_minus_1[MAX_XLAYER_CNT][8];
+  int ats_column_width_minus_1[MAX_XLAYER_CNT][8][MAX_REGIONS];
+  int ats_uniform_spacing_flag[MAX_XLAYER_CNT][8];
+  int ats_row_height_minus_1[MAX_XLAYER_CNT][8][MAX_REGIONS];
+  int ats_region_width_minus_1[MAX_XLAYER_CNT][8];
+  int ats_region_height_minus_1[MAX_XLAYER_CNT][8];
+  int NumRegionsInAtlas[MAX_XLAYER_CNT][8];
+  int AtlasWidth[MAX_XLAYER_CNT][8];
+  int AtlasHeight[MAX_XLAYER_CNT][8];
+} AtlasRegionInfo;
+
+typedef struct AtlasBasicAtlasInfo {
+  int ats_atlas_width[MAX_XLAYER_CNT][8];
+  int ats_atlas_height[MAX_XLAYER_CNT][8];
+  int ats_num_atlas_segments_minus_1[MAX_XLAYER_CNT][8];
+  int AtlasWidth[MAX_XLAYER_CNT][8];
+  int AtlasHeight[MAX_XLAYER_CNT][8];
+  int ats_segment_top_left_pos_x[MAX_XLAYER_CNT][8][8];
+  int ats_segment_top_left_pos_y[MAX_XLAYER_CNT][8][8];
+  int ats_segment_width[MAX_XLAYER_CNT][8][8];
+  int ats_segment_height[MAX_XLAYER_CNT][8][8];
+} AtlasBasicAtlasInfo;
+
+typedef struct AtlasSegmentInfo {
+  int atlas_segment_id[MAX_XLAYER_CNT];
+  int atlas_segment_mode_idc[MAX_XLAYER_CNT][8];
+  int ats_nominal_width_minus1[MAX_XLAYER_CNT][8];
+  int ats_nominal_height_minus1[MAX_XLAYER_CNT][8];
+
+  struct AtlasRegionInfo ats_reg_params;
+  struct AtlasBasicAtlasInfo *ats_basic_atlas_info;
+  struct AtlasRegionToSegmentMapping ats_reg_seg_map;
+  struct AtlasLabelSegmentInfo ats_label_seg;
+} AtlasSegmentInfo;
+
+typedef struct OPSMLayerInfo {
+  int ops_mlayer_map[MAX_XLAYER_CNT][MAX_OPS_CNT][MAX_OPS_CNT][MAX_OPS_CNT];
+  int OPMLayerCount[MAX_XLAYER_CNT][MAX_OPS_CNT][MAX_OPS_CNT][MAX_OPS_CNT];
+  int ops_tlayer_map[MAX_XLAYER_CNT][MAX_OPS_CNT][MAX_OPS_CNT][MAX_OPS_CNT]
+                    [MAX_NUM_TLAYERS];
+  int OpsTlayerID[MAX_XLAYER_CNT][MAX_OPS_CNT][MAX_OPS_CNT][MAX_OPS_CNT]
+                 [MAX_NUM_TLAYERS];
+  int OPTLayerCount[MAX_XLAYER_CNT][MAX_OPS_CNT][MAX_OPS_CNT][MAX_OPS_CNT]
+                   [MAX_NUM_TLAYERS];
+} OPSMLayerInfo;
+
+typedef struct OperatingPointSet {
+  int ops_reset_flag[MAX_XLAYER_CNT];
+  int ops_id[MAX_XLAYER_CNT];
+  int ops_cnt[MAX_XLAYER_CNT][MAX_OPS_CNT];
+  int ops_priority[MAX_XLAYER_CNT][MAX_OPS_CNT];
+  int ops_intent[MAX_XLAYER_CNT][MAX_OPS_CNT];
+  int ops_intent_present_flag[MAX_XLAYER_CNT][MAX_OPS_CNT];
+  int ops_operational_ptl_present_flag[MAX_XLAYER_CNT][MAX_OPS_CNT];
+  int ops_color_info_present_flag[MAX_XLAYER_CNT][MAX_OPS_CNT];
+
+  int ops_mlayer_info_present_flag[MAX_XLAYER_CNT][MAX_OPS_CNT];
+  int ops_reserved_2bits[MAX_XLAYER_CNT][MAX_OPS_CNT];
+  int ops_reserved_3bits[MAX_XLAYER_CNT][MAX_OPS_CNT];
+  int ops_data_size[MAX_XLAYER_CNT][MAX_OPS_CNT][MAX_OPS_CNT];
+  int ops_intent_op[MAX_XLAYER_CNT][MAX_OPS_CNT][MAX_OPS_CNT];
+  int ops_operational_profile_id[MAX_XLAYER_CNT][MAX_OPS_CNT][MAX_OPS_CNT];
+  int ops_operational_level_id[MAX_XLAYER_CNT][MAX_OPS_CNT][MAX_OPS_CNT];
+  int ops_operational_tier_id[MAX_XLAYER_CNT][MAX_OPS_CNT][MAX_OPS_CNT];
+  int ops_xlayer_map[MAX_XLAYER_CNT][MAX_OPS_CNT][MAX_OPS_CNT];
+  int OpsxLayerId[MAX_XLAYER_CNT][MAX_OPS_CNT][MAX_OPS_CNT][MAX_OPS_CNT];
+  int XCount[MAX_XLAYER_CNT][MAX_OPS_CNT][MAX_OPS_CNT];
+
+  // Extension related params
+  int ops_padding_bits;
+  struct ObuExtension ops_extension;
+  struct OPSMLayerInfo *ops_mlayer_info;
+} OperatingPointSet;
+#endif  // CONFIG_MULTILAYER_HLS
 
 // Sequence header structure.
 // Note: All syntax elements of sequence_header_obu that need to be
@@ -1880,6 +2067,23 @@ typedef struct AV1Common {
   int8_t tip_global_wtd_index;
 #endif  // CONFIG_TIP_ENHANCEMENT
 
+#if CONFIG_MULTILAYER_HLS
+  /*!
+   * Elements part of the layer configuration record
+   */
+  LayerConfigurationRecord lcr_params;
+
+  /*!
+   * Elements part of the atlas segment
+   */
+  AtlasSegmentInfo atlas_params;
+
+  /*!
+   * Operating Point Set part of the operating point set
+   */
+  OperatingPointSet ops_params;
+#endif  // CONFIG_MULTILAYER_HLS
+
   /*!
    * Elements part of the sequence header, that are applicable for all the
    * frames in the video.
@@ -1983,8 +2187,38 @@ typedef struct AV1Common {
    * relative distance between reference 'k' and current frame.
    */
   int ref_frame_relative_dist[INTER_REFS_PER_FRAME];
+
+#if CONFIG_NEW_OBU_HEADER
   /*!
-   * Number of temporal layers: may be > 1 for SVC (scalable vector coding).
+   * Number of temporal layers: may be > 1 for SVC (scalable video coding).
+   */
+  unsigned int number_tlayers;
+  /*!
+   * Temporal layer ID of this frame
+   * (in the range 0 ... (number_tlayers - 1)).
+   */
+  int tlayer_id;
+  /*!
+   * Number of embedded layers: may be > 1 for SVC (scalable video coding).
+   */
+  unsigned int number_mlayers;
+  /*!
+   * Embedded layer ID of this frame
+   * (in the range 0 ... (number_mlayers - 1)).
+   */
+  int mlayer_id;
+  /*!
+   * Number of extended layers: may be > 1 for SVC (scalable video coding).
+   */
+  unsigned int number_xlayers;
+  /*!
+   * Extended layer ID of this frame
+   * (in the range 0 ... (number_xlayers - 1)).
+   */
+  int xlayer_id;
+#else
+  /*!
+   * Number of temporal layers: may be > 1 for SVC (scalable video coding).
    */
   unsigned int number_temporal_layers;
   /*!
@@ -1994,7 +2228,7 @@ typedef struct AV1Common {
   int temporal_layer_id;
 
   /*!
-   * Number of spatial layers: may be > 1 for SVC (scalable vector coding).
+   * Number of spatial layers: may be > 1 for SVC (scalable video coding).
    */
   unsigned int number_spatial_layers;
   /*!
@@ -2002,6 +2236,7 @@ typedef struct AV1Common {
    * (in the range 0 ... (number_spatial_layers - 1)).
    */
   int spatial_layer_id;
+#endif  // CONFIG_NEW_OBU_HEADER
 
 #if CONFIG_MULTILAYER_CORE
   /*!
@@ -2102,6 +2337,33 @@ typedef struct AV1Common {
    * True if we are in a decoding process.
    */
   bool decoding;
+
+#if CONFIG_MULTILAYER_HLS
+  /*!
+   * Layer config record (LCR) id.
+   */
+  int lcr_id;
+  /*!
+   * Layer config record (LCR) structure.
+   */
+  struct LayerConfigurationRecord *cm_lcr;
+  /*!
+   * Atlas id.
+   */
+  int atlas_id;
+  /*!
+   * Atlas structure.
+   */
+  struct AtlasSegmentInfo *cm_atlas;
+  /*!
+   * Operating point set (OPS) id.
+   */
+  int ops_id;
+  /*!
+   * Operating point set (OPS) structure.
+   */
+  struct OperatingPointSet *cm_ops;
+#endif  // CONFIG_MULTILAYER_HLS
 } AV1_COMMON;
 
 /*!\cond */

@@ -30,11 +30,41 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
 // Writes the OBU header byte, and the OBU header extension byte when
 // 'obu_extension' is non-zero. Returns number of bytes written to 'dst'.
 uint32_t av1_write_obu_header(AV1LevelParams *const level_params,
-                              OBU_TYPE obu_type, int obu_extension,
+                              OBU_TYPE obu_type,
+#if CONFIG_NEW_OBU_HEADER
+                              int obu_temporal, int obu_layer,
+#else
+                              int obu_extension,
+#endif  // CONFIG_NEW_OBU_HEADER
                               uint8_t *const dst);
 
 int av1_write_uleb_obu_size(size_t obu_header_size, size_t obu_payload_size,
                             uint8_t *dest);
+
+#if CONFIG_MULTILAYER_HLS
+uint32_t write_layer_configuration_record_obsp(
+    AV1_COMP *const cpi, struct LayerConfigurationRecord *lcr_params,
+    int layer_id, uint8_t *dst);
+uint32_t write_atlas_segment_info_obsp(AV1_COMP *const cpi, int obu_xLayer_id,
+                                       uint8_t *const dst);
+uint32_t write_operating_point_set_obsp(AV1_COMP *const cpi, int obu_xlayer_id,
+                                        uint8_t *dst);
+void add_trailing_bits(struct aom_write_bit_buffer *wb);
+
+uint32_t write_operating_point_set_obsp(AV1_COMP *const cpi, int obu_xlayer_id,
+                                        uint8_t *const dst);
+
+int set_lcr_params(AV1_COMP *cpi, struct LayerConfigurationRecord *lcr,
+                   int global_id, int layer_id);
+
+int set_atlas_segment_info_params(AV1_COMP *cpi, struct AtlasSegmentInfo *atlas,
+                                  int layer_id);
+
+int set_ops_params(AV1_COMP *cpi, struct OperatingPointSet *ops, int layer_id);
+
+int write_obu_extension_bits(struct ObuExtension *ext_params,
+                             struct aom_write_bit_buffer *wb);
+#endif  // CONFIG_MULTILAYER_HLS
 
 /*!\brief Pack the bitstream for one frame
  *

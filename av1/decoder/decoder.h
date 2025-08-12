@@ -382,6 +382,14 @@ typedef struct AV1Decoder {
    * Indicate if the primary reference frame is signaled.
    */
   int signal_primary_ref_frame;
+#if CONFIG_MULTILAYER_HLS
+  struct LayerConfigurationRecord lcr_list[MAX_LCR_CNT];
+  int dec_lcr_counter;
+  struct AtlasSegmentInfo atlas_list[MAX_ATLAS_CNT];
+  int dec_atlas_counter;
+  struct OperatingPointSet ops_list[MAX_OPS_CNT];
+  int dec_ops_counter;
+#endif  // CONFIG_MULTILAYER_HLS
 } AV1Decoder;
 
 // Returns 0 on success. Sets pbi->common.error.error_code to a nonzero error

@@ -156,3 +156,16 @@ void aom_wb_write_signed_primitive_refsubexpfin(struct aom_write_bit_buffer *wb,
   const uint16_t scaled_n = (n << 1) - 1;
   wb_write_primitive_refsubexpfin(wb, scaled_n, k, ref + offset, v + offset);
 }
+
+#if CONFIG_MULTILAYER_HLS
+void aom_wb_write_uleb(struct aom_write_bit_buffer *wb, uint64_t value) {
+  uint64_t enc_val = value;
+  const size_t leb_size = aom_uleb_size_in_bytes(enc_val);
+  for (size_t i = 0; i < leb_size; ++i) {
+    uint8_t encoded_byte = enc_val & 0x7f;
+    enc_val >>= 7;
+    if (enc_val != 0) encoded_byte |= 0x80;  // Signal that more bytes follow.
+    aom_wb_write_literal(wb, encoded_byte, 8);
+  }
+}
+#endif  // CONFIG_MULTILAYER_HLS

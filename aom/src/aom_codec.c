@@ -155,6 +155,12 @@ void aom_merge_corrupted_flag(int *corrupted, int value) {
 
 const char *aom_obu_type_to_string(OBU_TYPE type) {
   switch (type) {
+#if CONFIG_MULTILAYER_HLS
+    case OBU_LAYER_CONFIGURATION_RECORD:
+      return "OBU_LAYER_CONFIGURATION_RECORD";
+    case OBU_ATLAS_SEGMENT: return "OBU_ATLAS_SEGMENT";
+    case OBU_OPERATING_POINT_SET: return "OBU_OPERATING_POINT_SET";
+#endif  // CONFIG_MULTILAYER_HLS
     case OBU_SEQUENCE_HEADER: return "OBU_SEQUENCE_HEADER";
     case OBU_TEMPORAL_DELIMITER: return "OBU_TEMPORAL_DELIMITER";
     case OBU_FRAME_HEADER: return "OBU_FRAME_HEADER";

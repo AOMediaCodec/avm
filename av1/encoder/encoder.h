@@ -1170,9 +1170,15 @@ typedef struct AV1EncoderConfig {
   int noise_block_size;
 #endif
 
+#if CONFIG_NEW_OBU_HEADER
+  // Bit mask to specify which tier each of the 64 possible operating points
+  // conforms to.
+  uint64_t tier_mask;
+#else
   // Bit mask to specify which tier each of the 32 possible operating points
   // conforms to.
   unsigned int tier_mask;
+#endif  // CONFIG_NEW_OBU_HEADER
 
   // Indicates the number of pixels off the edge of a reference frame we're
   // allowed to go when forming an inter prediction.
@@ -3207,6 +3213,14 @@ typedef struct AV1_COMP {
    */
   int tip_mode_count[INTER_REFS_PER_FRAME];
 #endif  // CONFIG_TIP_LD
+#if CONFIG_MULTILAYER_HLS
+  int write_lcr;
+  int write_ops;
+  int write_atlas;
+  struct OperatingPointSet ops_list[MAX_OPS_CNT];
+  struct LayerConfigurationRecord lcr_list[MAX_LCR_CNT];
+  struct AtlasSegmentInfo atlas_list[MAX_ATLAS_CNT];
+#endif  // CONFIG_MULTILAYER_HLS
 } AV1_COMP;
 
 /*!

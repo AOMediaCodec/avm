@@ -218,7 +218,11 @@ int main(int argc, char **argv) {
   if (aom_codec_control(&codec, AV1E_SET_NUM_TG, 3))
     die_codec(&codec, "Failed to set num of tile groups to 3");
 
+#if CONFIG_NEW_OBU_HEADER
+  if (aom_codec_control(&codec, AOME_SET_NUMBER_MLAYERS, 2))
+#else
   if (aom_codec_control(&codec, AOME_SET_NUMBER_SPATIAL_LAYERS, 2))
+#endif  // CONFIG_NEW_OBU_HEADER
     die_codec(&codec, "Failed to set number of spatial layers to 2");
 
   // Encode frames.
@@ -241,7 +245,11 @@ int main(int argc, char **argv) {
     cfg.g_h = info.frame_height;
     if (aom_codec_enc_config_set(&codec, &cfg))
       die_codec(&codec, "Failed to set enc cfg for layer 0");
+#if CONFIG_NEW_OBU_HEADER
+    if (aom_codec_control(&codec, AOME_SET_MLAYER_ID, 0))
+#else
     if (aom_codec_control(&codec, AOME_SET_SPATIAL_LAYER_ID, 0))
+#endif  // CONFIG_NEW_OBU_HEADER
       die_codec(&codec, "Failed to set layer id to 0");
     if (aom_codec_control(&codec, AOME_SET_QP, 62))
       die_codec(&codec, "Failed to set cq level");
@@ -259,7 +267,11 @@ int main(int argc, char **argv) {
     aom_img_read(&raw1, infile1);
     if (aom_codec_enc_config_set(&codec, &cfg))
       die_codec(&codec, "Failed to set enc cfg for layer 1");
+#if CONFIG_NEW_OBU_HEADER
+    if (aom_codec_control(&codec, AOME_SET_MLAYER_ID, 1))
+#else
     if (aom_codec_control(&codec, AOME_SET_SPATIAL_LAYER_ID, 1))
+#endif  // CONFIG_NEW_OBU_HEADER
       die_codec(&codec, "Failed to set layer id to 1");
     if (aom_codec_control(&codec, AOME_SET_QP, 10))
       die_codec(&codec, "Failed to set cq level");

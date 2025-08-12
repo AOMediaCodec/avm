@@ -26,6 +26,29 @@
 #include "av1/decoder/decodeframe.h"
 #include "av1/decoder/obu.h"
 
+#if CONFIG_NEW_OBU_HEADER
+aom_codec_err_t aom_get_num_layers_from_operating_point_idc(
+    int operating_point_idc, unsigned int *number_mlayers,
+    unsigned int *number_tlayers) {
+  // derive number of embedded/temporal layers from operating_point_idc
+  if (!number_mlayers || !number_tlayers) return AOM_CODEC_INVALID_PARAM;
+
+  if (operating_point_idc == 0) {
+    *number_tlayers = 1;
+    *number_mlayers = 1;
+  } else {
+    *number_mlayers = 0;
+    *number_tlayers = 0;
+    for (int j = 0; j < MAX_NUM_MLAYERS; j++) {
+      *number_mlayers += (operating_point_idc >> (j + MAX_NUM_TLAYERS)) & 0x1;
+    }
+    for (int j = 0; j < MAX_NUM_TLAYERS; j++) {
+      *number_tlayers += (operating_point_idc >> j) & 0x1;
+    }
+  }
+  return AOM_CODEC_OK;
+}
+#else
 aom_codec_err_t aom_get_num_layers_from_operating_point_idc(
     int operating_point_idc, unsigned int *number_spatial_layers,
     unsigned int *number_temporal_layers) {
@@ -51,6 +74,7 @@ aom_codec_err_t aom_get_num_layers_from_operating_point_idc(
 
   return AOM_CODEC_OK;
 }
+#endif  // CONFIG_NEW_OBU_HEADER
 
 static int is_obu_in_current_operating_point(AV1Decoder *pbi,
                                              ObuHeader obu_header) {
@@ -58,9 +82,17 @@ static int is_obu_in_current_operating_point(AV1Decoder *pbi,
     return 1;
   }
 
-  if ((pbi->current_operating_point >> obu_header.temporal_layer_id) & 0x1 &&
-      (pbi->current_operating_point >> (obu_header.spatial_layer_id + 8)) &
+#if CONFIG_NEW_OBU_HEADER
+  if ((pbi->current_operating_point >> obu_header.obu_tlayer_id) & 0x1 &&
+      (pbi->current_operating_point >>
+       (obu_header.obu_mlayer_id + MAX_NUM_TLAYERS)) &
           0x1) {
+#else
+  if ((pbi->current_operating_point >> obu_header.temporal_layer_id) & 0x1 &&
+      (pbi->current_operating_point >>
+       (obu_header.spatial_layer_id + MAX_NUM_TEMPORAL_LAYERS)) &
+          0x1) {
+#endif  // CONFIG_NEW_OBU_HEADER
     return 1;
   }
   return 0;
@@ -252,9 +284,15 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
     operating_point = 0;
   pbi->current_operating_point =
       seq_params->operating_point_idc[operating_point];
+#if CONFIG_NEW_OBU_HEADER
+  if (aom_get_num_layers_from_operating_point_idc(
+          pbi->current_operating_point, &cm->number_mlayers,
+          &cm->number_tlayers) != AOM_CODEC_OK) {
+#else
   if (aom_get_num_layers_from_operating_point_idc(
           pbi->current_operating_point, &cm->number_spatial_layers,
           &cm->number_temporal_layers) != AOM_CODEC_OK) {
+#endif  // CONFIG_NEW_OBU_HEADER
     cm->error.error_code = AOM_CODEC_ERROR;
     return 0;
   }
@@ -943,11 +981,16 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
       return -1;
     }
 
+#if CONFIG_NEW_OBU_HEADER
+    cm->tlayer_id = obu_header.obu_tlayer_id;
+    cm->mlayer_id = obu_header.obu_mlayer_id;
+#else
     cm->temporal_layer_id = obu_header.temporal_layer_id;
     cm->spatial_layer_id = obu_header.spatial_layer_id;
 #if CONFIG_MULTILAYER_CORE
     cm->layer_id = cm->spatial_layer_id;
 #endif  // CONFIG_MULTILAYER_CORE
+#endif  // CONFIG_NEW_OBU_HEADER
 
     if (obu_header.type != OBU_TEMPORAL_DELIMITER &&
         obu_header.type != OBU_SEQUENCE_HEADER &&
@@ -976,6 +1019,23 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
           return -1;
         }
         break;
+#if CONFIG_MULTILAYER_HLS
+      case OBU_LAYER_CONFIGURATION_RECORD:
+        decoded_payload_size =
+            read_layer_configuration_record_obsp(pbi, cm->xlayer_id, &rb);
+        if (cm->error.error_code != AOM_CODEC_OK) return -1;
+        break;
+      case OBU_ATLAS_SEGMENT:
+        decoded_payload_size =
+            read_atlas_segment_info_obsp(pbi, cm->xlayer_id, &rb);
+        if (cm->error.error_code != AOM_CODEC_OK) return -1;
+        break;
+      case OBU_OPERATING_POINT_SET:
+        decoded_payload_size =
+            read_operating_point_set_obsp(pbi, cm->xlayer_id, &rb);
+        if (cm->error.error_code != AOM_CODEC_OK) return -1;
+        break;
+#endif  // CONFIG_MULTILAYER_HLS
       case OBU_FRAME_HEADER:
       case OBU_REDUNDANT_FRAME_HEADER:
       case OBU_FRAME:

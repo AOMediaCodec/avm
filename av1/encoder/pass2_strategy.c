@@ -780,12 +780,21 @@ static int adjust_boost_bits_for_target_level(const AV1_COMP *const cpi,
                                               int frame_type) {
   const AV1_COMMON *const cm = &cpi->common;
   const SequenceHeader *const seq_params = &cm->seq_params;
+#if CONFIG_NEW_OBU_HEADER
+  const int tlayer_id = cm->tlayer_id;
+  const int mlayer_id = cm->mlayer_id;
+#else
   const int temporal_layer_id = cm->temporal_layer_id;
   const int spatial_layer_id = cm->spatial_layer_id;
+#endif  // CONFIG_NEW_OBU_HEADER
   for (int index = 0; index < seq_params->operating_points_cnt_minus_1 + 1;
        ++index) {
     if (!is_in_operating_point(seq_params->operating_point_idc[index],
+#if CONFIG_NEW_OBU_HEADER
+                               tlayer_id, mlayer_id)) {
+#else
                                temporal_layer_id, spatial_layer_id)) {
+#endif  // CONFIG_NEW_OBU_HEADER
       continue;
     }
 

@@ -110,12 +110,18 @@ void process_tile_list(const TILE_LIST_INFO *tiles, int num_tiles,
   int num_tiles_minus_1 = num_tiles - 1;
   int i;
 
+#if CONFIG_NEW_OBU_HEADER
+  aom_wb_write_literal(&wb, 8, 4);  // obu_type (tile list OBU)
+  aom_wb_write_literal(&wb, 0, 1);  // obu_extension_flag
+  aom_wb_write_literal(&wb, 0, 3);  // obu_tlayer_id
+#else
   // Write the tile list OBU header that is 1 byte long.
   aom_wb_write_literal(&wb, 0, 1);  // forbidden bit.
   aom_wb_write_literal(&wb, 8, 4);  // tile list OBU: "1000"
   aom_wb_write_literal(&wb, 0, 1);  // obu_extension = 0
   aom_wb_write_literal(&wb, 1, 1);  // obu_has_size_field
   aom_wb_write_literal(&wb, 0, 1);  // reserved
+#endif  // CONFIG_NEW_OBU_HEADER
   tl++;
   tile_list_obu_header_size++;
 

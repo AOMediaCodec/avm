@@ -7053,7 +7053,11 @@ static INLINE int get_disp_order_hint(AV1_COMMON *const cm) {
     const RefCntBuffer *const buf = cm->ref_frame_map[map_idx];
     if (buf == NULL
 #if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
+#if CONFIG_NEW_OBU_HEADER
+        || buf->temporal_layer_id > (unsigned int)cm->tlayer_id
+#else
         || buf->temporal_layer_id > (unsigned int)cm->temporal_layer_id
+#endif  // CONFIG_NEW_OBU_HEADER
 #endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
 #if CONFIG_MULTILAYER_CORE
         || buf->layer_id > current_frame->layer_id
@@ -7112,7 +7116,11 @@ static INLINE int get_ref_frame_disp_order_hint(AV1_COMMON *const cm,
 #endif  // CONFIG_MULTILAYER_CORE
   for (int map_idx = 0; map_idx < INTER_REFS_PER_FRAME; map_idx++) {
 #if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
+#if CONFIG_NEW_OBU_HEADER
+    if (buf->temporal_layer_id > (unsigned int)cm->tlayer_id) continue;
+#else
     if (buf->temporal_layer_id > (unsigned int)cm->temporal_layer_id) continue;
+#endif  // CONFIG_NEW_OBU_HEADER
 #endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
 #if CONFIG_MULTILAYER_CORE
     if (buf->layer_id > cm->current_frame.layer_id) continue;
@@ -7551,11 +7559,18 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       for (int op_num = 0;
            op_num < seq_params->operating_points_cnt_minus_1 + 1; op_num++) {
         if (seq_params->op_params[op_num].decoder_model_param_present_flag) {
+#if CONFIG_NEW_OBU_HEADER
+          if ((((seq_params->operating_point_idc[op_num] >> cm->tlayer_id) &
+                0x1) &&
+               ((seq_params->operating_point_idc[op_num] >>
+                 (cm->mlayer_id + MAX_NUM_TLAYERS)) &
+#else
           if ((((seq_params->operating_point_idc[op_num] >>
                  cm->temporal_layer_id) &
                 0x1) &&
                ((seq_params->operating_point_idc[op_num] >>
-                 (cm->spatial_layer_id + 8)) &
+                 (cm->spatial_layer_id + MAX_NUM_TEMPORAL_LAYERS)) &
+#endif  // CONFIG_NEW_OBU_HEADER
                 0x1)) ||
               seq_params->operating_point_idc[op_num] == 0) {
             cm->buffer_removal_times[op_num] = aom_rb_read_unsigned_literal(
@@ -7805,7 +7820,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   if (current_frame->frame_type == KEY_FRAME) {
     cm->current_frame.pyramid_level = 1;
 #if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
+#if CONFIG_NEW_OBU_HEADER
+    cm->current_frame.temporal_layer_id = cm->tlayer_id;
+#else
     cm->current_frame.temporal_layer_id = cm->temporal_layer_id;
+#endif  // CONFIG_NEW_OBU_HEADER
 #endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
     features->tip_frame_mode = TIP_FRAME_DISABLED;
     setup_frame_size(cm, frame_size_override_flag, rb);
@@ -7847,7 +7866,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // CONFIG_IMPROVED_GLOBAL_MOTION
   } else {
 #if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
+#if CONFIG_NEW_OBU_HEADER
+    cm->current_frame.temporal_layer_id = cm->tlayer_id;
+#else
     cm->current_frame.temporal_layer_id = cm->temporal_layer_id;
+#endif  // CONFIG_NEW_OBU_HEADER
 #endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
     features->allow_ref_frame_mvs = 0;
     features->tip_frame_mode = TIP_FRAME_DISABLED;

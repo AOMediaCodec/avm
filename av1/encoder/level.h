@@ -169,14 +169,25 @@ typedef struct AV1LevelParams {
   int frame_header_count;
 } AV1LevelParams;
 
+#if CONFIG_NEW_OBU_HEADER
+static INLINE int is_in_operating_point(int operating_point, int tlayer_id,
+                                        int mlayer_id) {
+  if (!operating_point) return 1;
+
+  return ((operating_point >> tlayer_id) & 1) &&
+         ((operating_point >> (mlayer_id + MAX_NUM_TLAYERS)) & 1);
+}
+#else
 static INLINE int is_in_operating_point(int operating_point,
                                         int temporal_layer_id,
                                         int spatial_layer_id) {
   if (!operating_point) return 1;
 
   return ((operating_point >> temporal_layer_id) & 1) &&
-         ((operating_point >> (spatial_layer_id + 8)) & 1);
+         ((operating_point >> (spatial_layer_id + MAX_NUM_TEMPORAL_LAYERS)) &
+          1);
 }
+#endif  // CONFIG_NEW_OBU_HEADER
 
 void av1_init_level_info(struct AV1_COMP *cpi);
 
