@@ -148,6 +148,7 @@ set_aom_config_var(
 
 # CWG-F221
 set_aom_config_var(CONFIG_MULTILAYER_HLS 1 "HLS for multilayer coding.")
+set_aom_config_var(CONFIG_MULTI_STREAM 1 "HLS for multi-stream coding.")
 
 set_aom_config_var(CONFIG_PARAKIT_COLLECT_DATA 0
                    "enables data collection for ParaKit training.")

@@ -130,6 +130,86 @@ static int are_seq_headers_consistent(const SequenceHeader *seq_params_old,
                  offsetof(SequenceHeader, op_params));
 }
 
+#if CONFIG_MULTI_STREAM
+static uint32_t read_multi_stream_header_obu(AV1Decoder *pbi,
+                                             struct aom_read_bit_buffer *rb) {
+  AV1_COMMON *const cm = &pbi->common;
+  const uint32_t saved_bit_offset = rb->bit_offset;
+
+  // Verify rb has been configured to report errors.
+  assert(rb->error_handler);
+  int num_streams = aom_rb_read_literal(rb, 3) + 1;  // read number of streams
+  if (num_streams > MAX_NUM_STREAMS) {
+    fprintf(stderr, "The number of streams cannot exceed the max value (4).\n");
+    return 0;
+  }
+  cm->num_streams = num_streams;
+
+  int multistream_profile_idx =
+      aom_rb_read_literal(rb, PROFILE_BITS);  // read profile of multistream
+  if (multistream_profile_idx > 3) {
+    fprintf(stderr,
+            "multistream_profile_idx cannot exceed the max value (3).\n");
+    return 0;
+  }
+
+  int multistream_level_idx =
+      aom_rb_read_literal(rb, LEVEL_BITS);  // read level of multistream
+  if (multistream_level_idx > SEQ_LEVEL_MAX) {
+    fprintf(
+        stderr,
+        "multistream_level_idx cannot exceed the max value (SEQ_LEVEL_MAX).\n");
+    return 0;
+  }
+
+  int multistream_tier_idx = aom_rb_read_bit(rb);  // read tier of multistream
+  if (multistream_tier_idx > 1) {
+    fprintf(stderr, "multistream_tier_idx cannot exceed the max value (1).\n");
+    return 0;
+  }
+  int multistream_even_allocation_flag =
+      aom_rb_read_bit(rb);  // read multistream_even_allocation_flag
+
+  if (!multistream_even_allocation_flag) {
+    int multistream_large_picture_idc =
+        aom_rb_read_literal(rb, 3);  // read multistream_large_picture_idc
+    if (multistream_large_picture_idc > 8) {
+      fprintf(stderr,
+              "multistream_tier_idx cannot exceed the max value (8).\n");
+      return 0;
+    }
+  }
+
+  for (int i = 0; i < num_streams; i++) {
+    cm->stream_ids[i] = aom_rb_read_literal(rb, 5);  // read stream ID
+    int substream_profile_idx =
+        aom_rb_read_literal(rb, PROFILE_BITS);  // read profile of multistream
+    if (substream_profile_idx > 7) {
+      fprintf(stderr,
+              "sub-stream_profile_idx[%d] cannot exceed the max value (7).\n",
+              i);
+      return 0;
+    }
+    int substream_level_idx =
+        aom_rb_read_literal(rb, LEVEL_BITS);  // read level of multistream
+    if (substream_level_idx > 63) {
+      fprintf(stderr,
+              "sub-stream_level_idx[%d] cannot exceed the max value (63).\n",
+              i);
+      return 0;
+    }
+    int substream_tier_idx = aom_rb_read_bit(rb);  // read tier of multistream
+    if (substream_tier_idx > 1) {
+      fprintf(stderr,
+              "sub-stream_tier_idx[%d] cannot exceed the max value (1).\n", i);
+      return 0;
+    }
+  }
+
+  return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
+}
+#endif  // CONFIG_MULTI_STREAM
+
 // On success, sets pbi->sequence_header_ready to 1 and returns the number of
 // bytes read from 'rb'.
 // On failure, sets pbi->common.error.error_code and returns 0.
@@ -1010,6 +1090,11 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
         pbi->seen_frame_header = 0;
         pbi->next_start_tile = 0;
         break;
+#if CONFIG_MULTI_STREAM
+        decoded_payload_size = read_multi_stream_header_obu(pbi, &rb);
+        if (cm->error.error_code != AOM_CODEC_OK) return -1;
+        break;
+#endif  // CONFIG_MULTI_STREAM
       case OBU_SEQUENCE_HEADER:
         decoded_payload_size = read_sequence_header_obu(pbi, &rb);
         if (cm->error.error_code != AOM_CODEC_OK) return -1;

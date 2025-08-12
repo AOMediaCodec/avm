@@ -2364,6 +2364,16 @@ typedef struct AV1Common {
    */
   struct OperatingPointSet *cm_ops;
 #endif  // CONFIG_MULTILAYER_HLS
+#if CONFIG_MULTI_STREAM
+  /*!
+   * Number of sub-streams
+   */
+  int num_streams;
+  /*!
+   * Sub-stream IDs
+   */
+  int stream_ids[MAX_NUM_STREAMS];
+#endif  // CONFIG_MULTI_STREAM
 } AV1_COMMON;
 
 /*!\cond */
