@@ -45,6 +45,7 @@ class FrameMultiQmatrixTest
     InitializeConfig();
     SetMode(encoding_mode_);
     cfg_.rc_end_usage = AOM_Q;
+    init_flags_ = AOM_CODEC_USE_PER_FRAME_STATS | AOM_CODEC_USE_PSNR;
   }
 
   void PreEncodeFrameHook(::libaom_test::VideoSource *video,
