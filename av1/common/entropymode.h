@@ -28,8 +28,8 @@ extern "C" {
 
 #define TX_SIZE_CONTEXTS 3
 
-#define INTER_OFFSET(mode) ((mode)-NEARMV)
-#define INTER_COMPOUND_OFFSET(mode) (uint8_t)((mode)-NEAR_NEARMV)
+#define INTER_OFFSET(mode) ((mode) - NEARMV)
+#define INTER_COMPOUND_OFFSET(mode) (uint8_t)((mode) - NEAR_NEARMV)
 // Number of possible contexts for a color index.
 #if CONFIG_PALETTE_IMPROVEMENTS
 // As can be seen from av1_get_palette_color_index_context(), the possible

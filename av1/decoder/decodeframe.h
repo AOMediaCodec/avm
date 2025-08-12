@@ -56,7 +56,8 @@ void read_film_grain(AV1_COMMON *cm, struct aom_read_bit_buffer *rb);
 #if CWG_F109
 void av1_read_film_grain_model(AV1_COMMON *cm,
 #if CONFIG_CWG_E242_PARSING_INDEP
-     int isMonochrome, int subsampling_x, int subsampling_y,
+                               int isMonochrome, int subsampling_x,
+                               int subsampling_y,
 #endif  // CONFIG_CWG_E242_PARSING_INDEP
                                struct aom_read_bit_buffer *rb);
 #endif
@@ -73,7 +74,8 @@ BITSTREAM_PROFILE av1_read_profile(struct aom_read_bit_buffer *rb);
 
 #if CONFIG_CWG_E242_PARSING_INDEP
 void read_segmentation_params(struct segmentation_params *seg_params,
-                              int enable_ext_seg, struct aom_read_bit_buffer *rb);
+                              int enable_ext_seg,
+                              struct aom_read_bit_buffer *rb);
 #endif  // CONFIG_CWG_E242_PARSING_INDEP
 
 // Returns 0 on success. Sets pbi->common.error.error_code and returns -1 on

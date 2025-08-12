@@ -62,7 +62,7 @@ static const nmv_context default_nmv_context = {
   {
       { AOM_CDF2(3268), 1 },
       { AOM_CDF2(17309), 75 },
-  },                        // shell_offset_low_class_cdf
+  },  // shell_offset_low_class_cdf
 
 #if CONFIG_MVD_CDF_REDUCTION
   { AOM_CDF2(16384), 75 },  //// shell_offset_class2_cdf

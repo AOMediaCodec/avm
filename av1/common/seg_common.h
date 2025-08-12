@@ -63,7 +63,7 @@ struct segmentation {
 
 #if CONFIG_CWG_E242_PARSING_INDEP
 struct segmentation_params {
-  //uint8_t enabled[MAX_SEGMENTS][SEG_LVL_MAX];
+  // uint8_t enabled[MAX_SEGMENTS][SEG_LVL_MAX];
   unsigned int feature_mask[MAX_SEGMENTS];
   uint8_t feature_enabled[MAX_SEGMENTS][SEG_LVL_MAX];
   uint8_t update_map;

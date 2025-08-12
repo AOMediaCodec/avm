@@ -40,7 +40,7 @@ DECLARE_ALIGNED(16, static const uint16_t,
 
 static const int segment_id[ENERGY_SPAN] = { 0, 1, 1, 2, 3, 4 };
 
-#define SEGMENT_ID(i) segment_id[(i)-ENERGY_MIN]
+#define SEGMENT_ID(i) segment_id[(i) - ENERGY_MIN]
 
 void av1_vaq_frame_setup(AV1_COMP *cpi) {
   AV1_COMMON *cm = &cpi->common;

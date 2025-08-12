@@ -5473,9 +5473,8 @@ static AOM_INLINE void encode_bru_active_info(AV1_COMP *cpi,
 #endif  // CONFIG_BRU
 
 #if CONFIG_CWG_E242_PARSING_INDEP
- void write_segmentation_params(AV1_COMMON *cm, int isMfh, struct
-                                aom_write_bit_buffer *wb) {
-
+void write_segmentation_params(AV1_COMMON *cm, int isMfh,
+                               struct aom_write_bit_buffer *wb) {
   struct segmentation_params seg_params;
   struct segmentation *seg = &cm->seg;
   if (isMfh)
@@ -5484,7 +5483,7 @@ static AOM_INLINE void encode_bru_active_info(AV1_COMP *cpi,
     seg_params = cm->seq_params.seq_seg;
 #if CONFIG_EXT_SEG
   const int max_seg_num =
-        seg_params.enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
+      seg_params.enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
 #else   // CONFIG_EXT_SEG
   const int max_seg_num = MAX_SEGMENTS;
 #endif  // CONFIG_EXT_SEG
@@ -6427,11 +6426,11 @@ void set_enc_mfh_chroma_format(AV1_COMMON *cm) {
     cm->mfh_params->subsampling_x = 1;
     cm->mfh_params->subsampling_y = 1;
   } else if (chroma_format_idc == CHROMA_FORMAT_400) {
-    cm->mfh_params->isMonochrome =  1;
+    cm->mfh_params->isMonochrome = 1;
     cm->mfh_params->subsampling_x = 1;
     cm->mfh_params->subsampling_y = 1;
   } else if (chroma_format_idc == CHROMA_FORMAT_444) {
-    cm->mfh_params->isMonochrome =  0;
+    cm->mfh_params->isMonochrome = 0;
     cm->mfh_params->subsampling_x = 0;
     cm->mfh_params->subsampling_y = 0;
   } else if (chroma_format_idc == CHROMA_FORMAT_422) {
@@ -6442,8 +6441,8 @@ void set_enc_mfh_chroma_format(AV1_COMMON *cm) {
     //
   }
 }
-#endif // CONFIG_CWG_E242_PARSING_INDEP
-  
+#endif  // CONFIG_CWG_E242_PARSING_INDEP
+
 #if CONFIG_MULTI_FRAME_HEADER
 static AOM_INLINE void write_multi_frame_header(
     AV1_COMP *cpi, const MultiFrameHeader *const mfh_param,
@@ -7388,16 +7387,15 @@ static AOM_INLINE void write_uncompressed_header_obu(
 #if CONFIG_MULTI_FRAME_HEADER && CONFIG_CWG_E242_PARSING_INDEP
   if (seq_params->segmentation_params_present) {
     aom_wb_write_bit(wb, cm->segmentation_params_override_flag);
-    if (cm->segmentation_params_override_flag)
-      encode_segmentation(cm, xd, wb);
+    if (cm->segmentation_params_override_flag) encode_segmentation(cm, xd, wb);
   }
 #else
 #if CONFIG_MULTI_FRAME_HEADER
-  if (seq_params->segmentation_params_present &&
-      cm->segmentation_params_override_flag)
+    if (seq_params->segmentation_params_present &&
+        cm->segmentation_params_override_flag)
 #endif
-    encode_segmentation(cm, xd, wb);
-#endif // CONFIG_MULTI_FRAME_HEADER && CONFIG_CWG_E242_PARSING_INDEP
+      encode_segmentation(cm, xd, wb);
+#endif  // CONFIG_MULTI_FRAME_HEADER && CONFIG_CWG_E242_PARSING_INDEP
 
   const DeltaQInfo *const delta_q_info = &cm->delta_q_info;
   if (delta_q_info->delta_q_present_flag) assert(quant_params->base_qindex > 0);
@@ -7809,7 +7807,7 @@ uint32_t av1_write_sequence_header_obu(AV1_COMP *cpi,
   if (seq_params->segmentation_params_present) {
     aom_wb_write_bit(&wb, seq_params->seq_segmentation_params_update_flag);
 #if CONFIG_EXT_SEG
-      aom_wb_write_bit(&wb, seq_params->enable_ext_seg);
+    aom_wb_write_bit(&wb, seq_params->enable_ext_seg);
 #endif  // CONFIG_EXT_SEG
     write_segmentation_params(cm, 0, &wb);
     if (seq_params->seq_segmentation_params_update_flag) {
@@ -7823,7 +7821,7 @@ uint32_t av1_write_sequence_header_obu(AV1_COMP *cpi,
       encode_segmentation(cm, xd, &wb);
     }
   }
-#endif // CONFIG_CWG_E242_PARSING_INDEP
+#endif  // CONFIG_CWG_E242_PARSING_INDEP
 #endif
   // Sequence header for coding tools beyond AV1
   write_sequence_header_beyond_av1(seq_params, &wb);
@@ -8438,14 +8436,14 @@ void set_sequence_header_with_keyframe(AV1_COMP *cpi,
 
 #if CONFIG_CWG_E242_PARSING_INDEP
   if (cm->seq_params.segmentation_params_present) {
-    cm->seq_params.seq_segmentation_params_update_flag = 1; // signal in SH
+    cm->seq_params.seq_segmentation_params_update_flag = 1;  // signal in SH
     cm->seq_params.seq_seg.enable_ext_seg = cm->seq_params.enable_ext_seg;
     cm->seq_params.seq_seg.update_map = 0;
     cm->seq_params.seq_seg.temporal_update = 0;
     cm->seq_params.seq_seg.update_data = 0;
 #if CONFIG_EXT_SEG
-    const int max_seg_num = cm->seq_params.seq_seg.enable_ext_seg ? MAX_SEGMENTS :
-    MAX_SEGMENTS_8;
+    const int max_seg_num =
+        cm->seq_params.seq_seg.enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
 #else   // CONFIG_EXT_SEG
     const int max_seg_num = MAX_SEGMENTS;
 #endif  // CONFIG_EXT_SEG
@@ -8492,8 +8490,8 @@ void set_multi_frame_header_with_keyframe(AV1_COMP *cpi,
     mfh_params->mfh_seg.temporal_update = 0;
     mfh_params->mfh_seg.update_data = 0;
 #if CONFIG_EXT_SEG
-    const int max_seg_num = mfh_params->mfh_seg.enable_ext_seg ? MAX_SEGMENTS :
-    MAX_SEGMENTS_8;
+    const int max_seg_num =
+        mfh_params->mfh_seg.enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
 #else   // CONFIG_EXT_SEG
     const int max_seg_num = MAX_SEGMENTS;
 #endif  // CONFIG_EXT_SEG
@@ -8514,7 +8512,8 @@ void set_multi_frame_header_with_keyframe(AV1_COMP *cpi,
       }
     }
     // Currently assigned from cm and comparing it with cm
-    if (memcmp(&cm->seq_params.seq_seg, & mfh_params->mfh_seg, sizeof (struct segmentation_params)) != 0) {
+    if (memcmp(&cm->seq_params.seq_seg, &mfh_params->mfh_seg,
+               sizeof(struct segmentation_params)) != 0) {
       mfh_params->mfh_segmentation_params_update_flag = 1;
     } else {
       mfh_params->mfh_segmentation_params_update_flag = 0;
@@ -8529,16 +8528,17 @@ void set_multi_frame_header_with_keyframe(AV1_COMP *cpi,
     mfh_params->subsampling_x = cm->seq_params.subsampling_x;
     mfh_params->subsampling_y = cm->seq_params.subsampling_y;
     aom_film_grain_t *pars = &cm->film_grain_params;
-    //memset(&mfh_params->mfh_film_grain_params, 0, sizeof (aom_film_grain_t));
-    memcpy(&mfh_params->mfh_film_grain_params, &cm->film_grain_params, sizeof
-           (aom_film_grain_t)); //TODO: Modify params here if needed
-    if (memcmp(&mfh_params->mfh_film_grain_params, &cm->film_grain_params, sizeof
-              (aom_film_grain_t)) != 0)
-      mfh_params->mfh_film_grain_model_present_flag = 1;  // need to update in MFH
+    // memset(&mfh_params->mfh_film_grain_params, 0, sizeof (aom_film_grain_t));
+    memcpy(&mfh_params->mfh_film_grain_params, &cm->film_grain_params,
+           sizeof(aom_film_grain_t));  // TODO: Modify params here if needed
+    if (memcmp(&mfh_params->mfh_film_grain_params, &cm->film_grain_params,
+               sizeof(aom_film_grain_t)) != 0)
+      mfh_params->mfh_film_grain_model_present_flag =
+          1;  // need to update in MFH
     else
       mfh_params->mfh_film_grain_model_present_flag = 0;
   } else {
-      mfh_params->mfh_film_grain_model_present_flag = 0;
+    mfh_params->mfh_film_grain_model_present_flag = 0;
   }
 #endif  // CONFIG_CWG_E242_PARSING_INDEP
 }

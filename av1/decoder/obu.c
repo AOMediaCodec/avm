@@ -310,7 +310,9 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
 #if CONFIG_CWG_E242_PARSING_INDEP
     // Read and store the model if present.  Otherwise, clear the model
     if (seq_params->seq_film_grain_model_present_flag) {
-      av1_read_film_grain_model(cm, seq_params->monochrome, seq_params->subsampling_x, seq_params->subsampling_y, rb);
+      av1_read_film_grain_model(cm, seq_params->monochrome,
+                                seq_params->subsampling_x,
+                                seq_params->subsampling_y, rb);
       memcpy(&seq_params->seq_film_grain_params, &cm->film_grain_params,
              sizeof(seq_params->seq_film_grain_params));
     } else {
@@ -336,10 +338,11 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
   if (seq_params->segmentation_params_present) {
     seq_params->seq_segmentation_params_update_flag = aom_rb_read_bit(rb);
 #if CONFIG_EXT_SEG
-      seq_params->enable_ext_seg = aom_rb_read_bit(rb);
+    seq_params->enable_ext_seg = aom_rb_read_bit(rb);
 #endif  // CONFIG_EXT_SEG
     if (seq_params->seq_segmentation_params_update_flag) {
-      read_segmentation_params(&seq_params->seq_seg, seq_params->enable_ext_seg, rb);
+      read_segmentation_params(&seq_params->seq_seg, seq_params->enable_ext_seg,
+                               rb);
     }
   }
 #else

@@ -25,7 +25,7 @@ extern "C" {
 
 #define INVALID_MV 0x80008000
 #define GET_MV_RAWPEL(x) (((x) + 3 + ((x) >= 0)) >> 3)
-#define GET_MV_SUBPEL(x) ((x)*8)
+#define GET_MV_SUBPEL(x) ((x) * 8)
 
 #define MV_IN_USE_BITS 14
 #define MV_UPP (1 << MV_IN_USE_BITS)

@@ -879,7 +879,7 @@ int main(int argc, const char **argv) {
                          "[CDF_SIZE(2)]",
                          0, &total_count, 0, mem_wanted, "Inter");
     }  // for (int mvd_comp = 0; mvd_comp < 2; mvd_comp++)
-  }    // for (int ibc = 0; ibc < 2; ibc++)
+  }  // for (int ibc = 0; ibc < 2; ibc++)
 
   cts_each_dim[0] = MAX_SEGMENTS;
   optimize_cdf_table(&fc.seg_tree_cnts[0], probsfile, 1, cts_each_dim,

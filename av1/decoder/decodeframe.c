@@ -81,9 +81,9 @@
 
 // This is needed by ext_tile related unit tests.
 #define EXT_TILE_DEBUG 1
-#define MC_TEMP_BUF_PELS                       \
-  (((MAX_SB_SIZE)*2 + (AOM_INTERP_EXTEND)*2) * \
-   ((MAX_SB_SIZE)*2 + (AOM_INTERP_EXTEND)*2))
+#define MC_TEMP_BUF_PELS                           \
+  (((MAX_SB_SIZE) * 2 + (AOM_INTERP_EXTEND) * 2) * \
+   ((MAX_SB_SIZE) * 2 + (AOM_INTERP_EXTEND) * 2))
 
 #if CONFIG_COMBINE_PC_NS_WIENER
 static void read_wienerns_framefilters(AV1_COMMON *cm, MACROBLOCKD *xd,
@@ -2910,11 +2910,11 @@ void set_dec_mfh_chroma_format(AV1_COMMON *cm) {
     cm->mfh_params->subsampling_x = 1;
     cm->mfh_params->subsampling_y = 1;
   } else if (chroma_format_idc == CHROMA_FORMAT_400) {
-    cm->mfh_params->isMonochrome =  1;
+    cm->mfh_params->isMonochrome = 1;
     cm->mfh_params->subsampling_x = 1;
     cm->mfh_params->subsampling_y = 1;
   } else if (chroma_format_idc == CHROMA_FORMAT_444) {
-    cm->mfh_params->isMonochrome =  0;
+    cm->mfh_params->isMonochrome = 0;
     cm->mfh_params->subsampling_x = 0;
     cm->mfh_params->subsampling_y = 0;
   } else if (chroma_format_idc == CHROMA_FORMAT_422) {
@@ -2925,12 +2925,12 @@ void set_dec_mfh_chroma_format(AV1_COMMON *cm) {
     //
   }
 }
-#endif // CONFIG_CWG_E242_PARSING_INDEP
+#endif  // CONFIG_CWG_E242_PARSING_INDEP
 
 #if CONFIG_CWG_E242_PARSING_INDEP
-void read_segmentation_params(struct segmentation_params *seg_params, int
-                              enable_ext_seg, struct aom_read_bit_buffer *rb) {
-
+void read_segmentation_params(struct segmentation_params *seg_params,
+                              int enable_ext_seg,
+                              struct aom_read_bit_buffer *rb) {
   // Initialize everything to be equal to 0
   seg_params->update_map = 0;
   seg_params->update_data = 0;
@@ -2949,7 +2949,7 @@ void read_segmentation_params(struct segmentation_params *seg_params, int
   const int max_seg_num = MAX_SEGMENTS;
 #endif  // CONFIG_EXT_SEG
 
-  //Read the feature enable and data
+  // Read the feature enable and data
   for (int i = 0; i < max_seg_num; i++) {
     for (int j = 0; j < SEG_LVL_MAX; j++) {
       int data = 0;
@@ -2969,13 +2969,12 @@ void read_segmentation_params(struct segmentation_params *seg_params, int
         data = clamp(data, data_min, data_max);
         seg_params->feature_data[i][j] = data;
       }
-      seg_params->feature_data[i][j] = data; // 0
+      seg_params->feature_data[i][j] = data;  // 0
     }
   }
 }
 
 void reconstruct_segmentation(AV1_COMMON *const cm, int isMfh) {
-
   struct segmentation *const seg = &cm->seg;
   struct segmentation_params *seg_params;
   if (isMfh)
@@ -2995,22 +2994,22 @@ void reconstruct_segmentation(AV1_COMMON *const cm, int isMfh) {
   seg->update_data = 1;
   av1_clearall_segfeatures(seg);
 #if CONFIG_EXT_SEG
-    const int max_seg_num =
-    seg_params->enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
+  const int max_seg_num =
+      seg_params->enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
 #else   // CONFIG_EXT_SEG
-    const int max_seg_num = MAX_SEGMENTS;
+  const int max_seg_num = MAX_SEGMENTS;
 #endif  // CONFIG_EXT_SEG
-    for (int i = 0; i < max_seg_num; i++) {
-      for (int j = 0; j < SEG_LVL_MAX; j++) {
-        int data = 0;
-        const int feature_enabled = seg_params->feature_enabled[i][j];
-        if (feature_enabled) {
-          data = seg_params->feature_data[i][j];
-        }
-        av1_set_segdata(seg, i, j, data);
+  for (int i = 0; i < max_seg_num; i++) {
+    for (int j = 0; j < SEG_LVL_MAX; j++) {
+      int data = 0;
+      const int feature_enabled = seg_params->feature_enabled[i][j];
+      if (feature_enabled) {
+        data = seg_params->feature_data[i][j];
       }
+      av1_set_segdata(seg, i, j, data);
     }
-    av1_calculate_segdata(seg);
+  }
+  av1_calculate_segdata(seg);
 }
 #endif  // CONFIG_E242_PARSING_INDEP
 
@@ -4640,7 +4639,7 @@ static AOM_INLINE void setup_frame_size(AV1_COMMON *cm,
     if (cm->mfh_params[cm->cur_mfh_id].mfh_frame_size_update_flag) {
       width = cm->mfh_params[cm->cur_mfh_id].mfh_frame_width;
       height = cm->mfh_params[cm->cur_mfh_id].mfh_frame_height;
-    } else{
+    } else {
       width = seq_params->max_frame_width;
       height = seq_params->max_frame_height;
     }
@@ -5250,7 +5249,7 @@ static INLINE int get_sync_range(int width) {
   else
     return 8;
 #else
-    (void)width;
+  (void)width;
 #endif
   return 1;
 }
@@ -6786,7 +6785,8 @@ static AOM_INLINE
 #if CWG_F109
 void av1_read_film_grain_model(AV1_COMMON *cm,
 #if CONFIG_CWG_E242_PARSING_INDEP
-     int isMonochrome, int subsampling_x, int subsampling_y,
+                               int isMonochrome, int subsampling_x,
+                               int subsampling_y,
 #endif  // CONFIG_CWG_E242_PARSING_INDEP
                                struct aom_read_bit_buffer *rb) {
   aom_film_grain_t *pars = &cm->film_grain_params;
@@ -6864,9 +6864,8 @@ void av1_read_film_grain_model(AV1_COMMON *cm,
 #else
     if ((seq_params->subsampling_x == 1) && (seq_params->subsampling_y == 1)
 #endif  // CONFIG_CWG_E242_PARSING_INDEP
-        &&
-        (((pars->num_cb_points == 0) && (pars->num_cr_points != 0)) ||
-         ((pars->num_cb_points != 0) && (pars->num_cr_points == 0))))
+        && (((pars->num_cb_points == 0) && (pars->num_cr_points != 0)) ||
+            ((pars->num_cb_points != 0) && (pars->num_cr_points == 0))))
       aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                          "In YCbCr 4:2:0, film grain shall be applied "
                          "to both chroma components or neither.");
@@ -7765,11 +7764,11 @@ void set_mfh_chroma_format(AV1_COMMON *cm) {
     cm->mfh_params->subsampling_x = 1;
     cm->mfh_params->subsampling_y = 1;
   } else if (chroma_format_idc == CHROMA_FORMAT_400) {
-    cm->mfh_params->isMonochrome =  1;
+    cm->mfh_params->isMonochrome = 1;
     cm->mfh_params->subsampling_x = 1;
     cm->mfh_params->subsampling_y = 1;
   } else if (chroma_format_idc == CHROMA_FORMAT_444) {
-    cm->mfh_params->isMonochrome =  0;
+    cm->mfh_params->isMonochrome = 0;
     cm->mfh_params->subsampling_x = 0;
     cm->mfh_params->subsampling_y = 0;
   } else if (chroma_format_idc == CHROMA_FORMAT_422) {
@@ -7780,7 +7779,7 @@ void set_mfh_chroma_format(AV1_COMMON *cm) {
     //
   }
 }
-#endif // CONFIG_CWG_E242_PARSING_INDEP
+#endif  // CONFIG_CWG_E242_PARSING_INDEP
 
 #if CONFIG_MULTI_FRAME_HEADER
 void av1_read_multi_frame_header(AV1_COMMON *cm,
@@ -7802,7 +7801,9 @@ void av1_read_multi_frame_header(AV1_COMMON *cm,
   if (mfh_param->mfh_frame_size_update_flag) {
     int num_bits_width = aom_rb_read_literal(rb, 4);
     int num_bits_height = aom_rb_read_literal(rb, 4);
-    av1_read_frame_size(rb, num_bits_width, num_bits_height, &mfh_param->mfh_frame_width, &mfh_param->mfh_frame_height);
+    av1_read_frame_size(rb, num_bits_width, num_bits_height,
+                        &mfh_param->mfh_frame_width,
+                        &mfh_param->mfh_frame_height);
   }
 #else
   bool frame_size_update_flag = aom_rb_read_bit(rb);
@@ -7858,7 +7859,9 @@ void av1_read_multi_frame_header(AV1_COMMON *cm,
     if (!mfh_param->mfh_frame_size_update_flag) {
       int num_bits_width = aom_rb_read_literal(rb, 4);
       int num_bits_height = aom_rb_read_literal(rb, 4);
-      av1_read_frame_size(rb, num_bits_width, num_bits_height, &mfh_param->mfh_frame_width, &mfh_param->mfh_frame_height);
+      av1_read_frame_size(rb, num_bits_width, num_bits_height,
+                          &mfh_param->mfh_frame_width,
+                          &mfh_param->mfh_frame_height);
     }
 #endif  // CONFIG_CWG_E242_PARSING_INDEP
     read_mfh_tile_info(cm, mfh_param, rb);
@@ -7873,26 +7876,28 @@ void av1_read_multi_frame_header(AV1_COMMON *cm,
       read_film_grain(cm, rb);
     }
 #else
-    // Check if a film grain model is included in the multi-frame header
-    mfh_param->mfh_film_grain_model_present_flag = aom_rb_read_bit(rb);
-    // Read and store the model if present.  Otherwise, clear the model
-    if (mfh_param->mfh_film_grain_model_present_flag) {
+  // Check if a film grain model is included in the multi-frame header
+  mfh_param->mfh_film_grain_model_present_flag = aom_rb_read_bit(rb);
+  // Read and store the model if present.  Otherwise, clear the model
+  if (mfh_param->mfh_film_grain_model_present_flag) {
 #if CONFIG_CWG_E242_PARSING_INDEP
-      mfh_param->mfh_chroma_format_idc = aom_rb_read_uvlc(rb);
-      set_mfh_chroma_format(cm);
-      av1_read_film_grain_model(cm, mfh_param->isMonochrome, mfh_param->subsampling_x, mfh_param->subsampling_y, rb);
-    } else {
-      memset(&(mfh_param->mfh_film_grain_model), 0,
-             sizeof(mfh_param->mfh_film_grain_model));
-    }
+    mfh_param->mfh_chroma_format_idc = aom_rb_read_uvlc(rb);
+    set_mfh_chroma_format(cm);
+    av1_read_film_grain_model(cm, mfh_param->isMonochrome,
+                              mfh_param->subsampling_x,
+                              mfh_param->subsampling_y, rb);
+  } else {
+    memset(&(mfh_param->mfh_film_grain_model), 0,
+           sizeof(mfh_param->mfh_film_grain_model));
+  }
 #else
-      av1_read_film_grain_model(cm, rb);
-      memcpy(&(mfh_param->mfh_film_grain_model), &(cm->film_grain_params),
-             sizeof(mfh_param->mfh_film_grain_model));
-    } else {
-      memcpy(&(mfh_param->mfh_film_grain_model), 0,
-             sizeof(mfh_param->mfh_film_grain_model));
-    }
+    av1_read_film_grain_model(cm, rb);
+    memcpy(&(mfh_param->mfh_film_grain_model), &(cm->film_grain_params),
+           sizeof(mfh_param->mfh_film_grain_model));
+  } else {
+    memcpy(&(mfh_param->mfh_film_grain_model), 0,
+           sizeof(mfh_param->mfh_film_grain_model));
+  }
 #endif  // CONFIG_CWG_E242_PARSING_INDEP
 #endif
 #if !CONFIG_CWG_E242_PARSING_INDEP
@@ -7902,9 +7907,10 @@ void av1_read_multi_frame_header(AV1_COMMON *cm,
 #if CONFIG_CWG_E242_PARSING_INDEP
   if (aom_rb_read_bit(rb)) {
 #if CONFIG_EXT_SEG
-      mfh_param->mfh_seg.enable_ext_seg = aom_rb_read_bit(rb);
+    mfh_param->mfh_seg.enable_ext_seg = aom_rb_read_bit(rb);
 #endif  // CONFIG_EXT_SEG
-      read_segmentation_params(&mfh_param->mfh_seg, mfh_param->mfh_seg.enable_ext_seg, rb);
+    read_segmentation_params(&mfh_param->mfh_seg,
+                             mfh_param->mfh_seg.enable_ext_seg, rb);
   }
 #else
   if (cm->seq_params.segmentation_params_present) {
