@@ -734,7 +734,10 @@ static aom_codec_err_t decoder_inspect(aom_codec_alg_priv_t *ctx,
                                        void *user_priv) {
   aom_codec_err_t res = AOM_CODEC_OK;
 
+#if !CONFIG_NEW_OBU_HEADER
   const uint8_t *const data_end = data + data_sz;
+#endif
+
   Av1DecodeReturn *data2 = (Av1DecodeReturn *)user_priv;
 
   if (ctx->frame_worker == NULL) {
