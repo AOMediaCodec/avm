@@ -28,6 +28,9 @@ static int valid_obu_type(int obu_type) {
     case OBU_FRAME:
     case OBU_REDUNDANT_FRAME_HEADER:
     case OBU_TILE_LIST:
+#if CONFIG_MULTI_STREAM
+    case OBU_MULTI_STREAM_HEADER:
+#endif  // CONFIG_MULTI_STREAM
     case OBU_PADDING: valid_type = 1; break;
     default: break;
   }

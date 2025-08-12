@@ -256,6 +256,8 @@ set_aom_config_var(
   1
   "AV2 experiment flag to enable palette line copy and transverse coding, CWG-D114."
 )
+set_aom_config_var(CONFIG_MULTI_STREAM 1
+                   "AV2 enable multi-streams.")
 set_aom_config_var(CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT 1
                    "Enable enhanced frame output order derivation")
 set_aom_config_var(CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY 1

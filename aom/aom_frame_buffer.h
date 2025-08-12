@@ -38,6 +38,9 @@ extern "C" {
 #else
 #define AOM_MAXIMUM_REF_BUFFERS 8
 #endif  // CONFIG_EXTRA_DPB
+#if CONFIG_MULTI_STREAM
+#define MAX_NUM_STREAMS 4
+#endif  // CONFIG_MULTI_STREAM
 /*!\brief External frame buffer
  *
  * This structure holds allocated frame buffers used by the decoder.

@@ -2095,6 +2095,16 @@ typedef struct AV1Common {
   YV12_BUFFER_CONFIG predicted_pixels;
   YV12_BUFFER_CONFIG prefiltered_pixels;
 #endif  // CONFIG_INSPECTION
+#if CONFIG_MULTI_STREAM
+  /*!
+   * Number of sub-strams
+   */
+  int num_streams;
+  /*!
+   * Sub-stram IDs
+   */
+  int stream_ids[MAX_NUM_STREAMS];
+#endif  // CONFIG_MULTI_STREAM
 } AV1_COMMON;
 
 /*!\cond */
