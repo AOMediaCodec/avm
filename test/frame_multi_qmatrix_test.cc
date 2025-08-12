@@ -51,6 +51,7 @@ class FrameMultiQmatrixTest
                           ::libaom_test::Encoder *encoder) override {
     if (video->frame() == 0) {
       encoder->Control(AOME_SET_CPUUSED, cpu_used_);
+      encoder->Control(AOME_SET_QP, 160);
       // Enable AQ mode based on segmentation
       encoder->Control(AV1E_SET_AQ_MODE, 1);
       // Enable quantization matrices
