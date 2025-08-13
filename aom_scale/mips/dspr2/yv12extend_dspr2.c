@@ -130,7 +130,8 @@ static void extend_frame(YV12_BUFFER_CONFIG *const ybf, int ext_size) {
 
 void aom_extend_frame_borders_dspr2(YV12_BUFFER_CONFIG *ybf,
                                     const int num_planes, bool decoding) {
-  if (decoding) return;
+  (void)decoding;
+  // if (decoding) return;
   extend_frame(ybf, ybf->border, num_planes);
 }
 
