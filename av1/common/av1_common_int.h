@@ -4707,9 +4707,11 @@ static INLINE void init_ibp_info(
 #define RELATIVE_DIST_BITS 8
 
 static INLINE int get_relative_dist(const OrderHintInfo *oh, int a, int b) {
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+#if CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+ if (oh->order_hint_bits_minus_1 < 0) return 0;
+#else
   if (!oh->enable_order_hint) return 0;
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+#endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
 
 #if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   assert(a >= 0);

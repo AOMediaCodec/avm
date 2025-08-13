@@ -5523,7 +5523,9 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
 }
 
 void av1_setup_skip_mode_allowed(AV1_COMMON *cm) {
+#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   const OrderHintInfo *const order_hint_info = &cm->seq_params.order_hint_info;
+#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   SkipModeInfo *const skip_mode_info = &cm->current_frame.skip_mode_info;
 
   skip_mode_info->skip_mode_allowed = 0;
