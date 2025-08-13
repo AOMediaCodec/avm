@@ -345,6 +345,8 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
         tx_size, edge_dir, (mi_row - mi_row_start) >> plane_ptr->subsampling_y,
         (mi_col - mi_col_start) >> plane_ptr->subsampling_x);
     assert(IMPLIES((plane != AOM_PLANE_Y), (*tu_edge == 1)));
+    tx_size = (edge_dir == VERT_EDGE) ? txsize_horz_map[tx_size]
+                                      : txsize_vert_map[tx_size];
     return tx_size;
   }
   const int plane_type = av1_get_sdp_idx(tree_type);
