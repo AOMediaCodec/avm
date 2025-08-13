@@ -206,6 +206,27 @@ static aom_codec_err_t parse_bitdepth(struct aom_read_bit_buffer *rb,
   return AOM_CODEC_OK;
 }
 
+/*#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+static aom_codec_err_t set_chroma_subsampling(int chroma_format_idc,
+                                              int *subsampling_x,
+                                              int *subsampling_y) {
+  if (chroma_format_idc == CHROMA_FORMAT_420) {
+    *subsampling_x = 1;
+    *subsampling_y = 1;
+  } else if (chroma_format_idc == CHROMA_FORMAT_444) {
+    *subsampling_x = 0;
+    *subsampling_y = 0;
+  } else if (chroma_format_idc == CHROMA_FORMAT_422) {
+    *subsampling_x = 1;
+    *subsampling_y = 0;
+  } else if (chroma_format_idc == CHROMA_FORMAT_400) {
+    *subsampling_x = 1;
+    *subsampling_y = 1;
+  }
+  return AOM_CODEC_OK;
+}
+#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC*/
+
 static aom_codec_err_t parse_color_config(struct aom_read_bit_buffer *rb,
                                           BITSTREAM_PROFILE profile
 #if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
@@ -250,22 +271,34 @@ static aom_codec_err_t parse_color_config(struct aom_read_bit_buffer *rb,
         return AOM_CODEC_UNSUP_BITSTREAM;
       }
     } else {
-      int subsampling_x;
-      int subsampling_y;
-      aom_rb_read_bit(rb);  // color_range
 #if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+      // int sampling_x = 0;
+      // int sampling_y = 0;
+      /*int *subsampling_x, *subsampling_y;
+      subsampling_x = &sampling_x;
+      subsampling_y = &sampling_y;*/
+      aom_rb_read_bit(rb);  // color_range
+      // set_chroma_subsampling(chroma_format_idc, subsampling_x,
+      // subsampling_y);
+      int subsampling_x = 0;
+      int subsampling_y = 0;
       if (chroma_format_idc == CHROMA_FORMAT_420) {
         subsampling_x = 1;
         subsampling_y = 1;
       } else if (chroma_format_idc == CHROMA_FORMAT_444) {
         subsampling_x = 0;
         subsampling_y = 0;
-      } else {
-        // 422
+      } else if (chroma_format_idc == CHROMA_FORMAT_422) {
         subsampling_x = 1;
         subsampling_y = 0;
+      } else if (chroma_format_idc == CHROMA_FORMAT_400) {
+        subsampling_x = 1;
+        subsampling_y = 1;
       }
 #else
+      int subsampling_x;
+      int subsampling_y;
+      aom_rb_read_bit(rb);  // color_range
       if (profile == PROFILE_0) {
         // 420 only
         subsampling_x = subsampling_y = 1;

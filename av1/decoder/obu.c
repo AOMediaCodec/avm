@@ -108,6 +108,30 @@ static void av1_read_mlayer_dependency_info(SequenceHeader *const seq,
 }
 #endif  // CONFIG_MULTILAYER_CORE_HLS
 
+#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+void get_chroma_format_subsampling(CHROMA_FORMAT chroma_format_idc,
+                                   int *subsampling_x, int *subsampling_y) {
+  if (chroma_format_idc == CHROMA_FORMAT_420) {
+    *subsampling_x = 1;
+    *subsampling_y = 1;
+  } else if (chroma_format_idc == CHROMA_FORMAT_444) {
+    *subsampling_x = 0;
+    *subsampling_y = 0;
+  } else if (chroma_format_idc == CHROMA_FORMAT_422) {
+    *subsampling_x = 1;
+    *subsampling_y = 0;
+  } else if (chroma_format_idc == CHROMA_FORMAT_400) {
+    *subsampling_x = 1;
+    *subsampling_y = 1;
+  }
+}
+
+static void set_seq_chroma_format(SequenceHeader *seq_params) {
+  get_chroma_format_subsampling(seq_params->seq_chroma_format_idc,
+                                &seq_params->subsampling_x,
+                                &seq_params->subsampling_y);
+}
+#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 // Returns whether two sequence headers are consistent with each other.
 // Note that the 'op_params' field is not compared per Section 7.5 in the spec:
 //   Within a particular coded video sequence, the contents of
@@ -153,19 +177,23 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
 
 #if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
   seq_params->seq_chroma_format_idc = aom_rb_read_uvlc(rb);
-  seq_params->monochrome =
-      seq_params->seq_chroma_format_idc == CHROMA_FORMAT_400;
-  // NB: bit depth to be signalled below this
+  set_seq_chroma_format(seq_params);
 #endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
   av1_read_color_config(rb, seq_params, &cm->error);
   if (!(seq_params->subsampling_x == 0 && seq_params->subsampling_y == 0) &&
       !(seq_params->subsampling_x == 1 && seq_params->subsampling_y == 1) &&
       !(seq_params->subsampling_x == 1 && seq_params->subsampling_y == 0)) {
-    aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-                       "Only 4:4:4, 4:2:2 and 4:2:0 are currently supported, "
-                       "%d %d subsampling is not supported.\n",
-                       seq_params->subsampling_x, seq_params->subsampling_y);
+    aom_internal_error(
+        &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+        "Only 4:0:0, 4:4:4, 4:2:2 and 4:2:0 are currently supported, "
+        "%d %d subsampling is not supported.\n",
+#else
+        "Only 4:4:4, 4:2:2 and 4:2:0 are currently supported, "
+        "%d %d subsampling is not supported.\n",
+#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+        seq_params->subsampling_x, seq_params->subsampling_y);
   }
 
   // Still picture or not

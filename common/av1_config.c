@@ -189,7 +189,8 @@ static int parse_color_config(struct aom_read_bit_buffer *reader,
   }
 
 #if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-  if (chroma_format_idc == 1) config->monochrome = 1;
+  if (bit_depth < 0) return 0;
+  if (chroma_format_idc == CHROMA_FORMAT_400) config->monochrome = 1;
 #else
   if (config->seq_profile != 1) {
     AV1C_READ_BIT_OR_RETURN_ERROR(mono_chrome);

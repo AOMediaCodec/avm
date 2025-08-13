@@ -734,6 +734,18 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
     }
   }
 
+#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+  if (seq_params->monochrome)
+    seq_params->seq_chroma_format_idc = CHROMA_FORMAT_400;
+  else if (seq_params->subsampling_x == 1 && seq_params->subsampling_y == 1) {
+    seq_params->seq_chroma_format_idc = CHROMA_FORMAT_420;
+  } else if (seq_params->subsampling_x == 1 && seq_params->subsampling_y == 0) {
+    seq_params->seq_chroma_format_idc = CHROMA_FORMAT_422;
+  } else if (seq_params->subsampling_x == 0 && seq_params->subsampling_y == 0) {
+    seq_params->seq_chroma_format_idc = CHROMA_FORMAT_444;
+  }
+#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+
   cm->width = oxcf->frm_dim_cfg.width;
   cm->height = oxcf->frm_dim_cfg.height;
   // set sb size before allocations

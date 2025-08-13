@@ -4985,17 +4985,7 @@ static AOM_INLINE void write_profile(BITSTREAM_PROFILE profile,
 #if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 static AOM_INLINE void write_seq_chroma_format(
     const SequenceHeader *const seq_params, struct aom_write_bit_buffer *wb) {
-  int seq_chroma_format_idc = -1;
-  if (seq_params->monochrome)
-    seq_chroma_format_idc = CHROMA_FORMAT_400;
-  else if (seq_params->subsampling_x == 1 && seq_params->subsampling_y == 1) {
-    seq_chroma_format_idc = CHROMA_FORMAT_420;
-  } else if (seq_params->subsampling_x == 1 && seq_params->subsampling_y == 0) {
-    seq_chroma_format_idc = CHROMA_FORMAT_422;
-  } else if (seq_params->subsampling_x == 0 && seq_params->subsampling_y == 0) {
-    seq_chroma_format_idc = CHROMA_FORMAT_444;
-  }
-  aom_wb_write_uvlc(wb, seq_chroma_format_idc);
+  aom_wb_write_uvlc(wb, seq_params->seq_chroma_format_idc);
 }
 #endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
