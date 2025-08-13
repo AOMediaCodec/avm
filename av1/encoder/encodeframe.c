@@ -232,7 +232,9 @@ static AOM_INLINE void setup_delta_q(AV1_COMP *const cpi, ThreadData *td,
                                      const TileInfo *const tile_info,
                                      int mi_row, int mi_col, int num_planes) {
   AV1_COMMON *const cm = &cpi->common;
+#if !CONFIG_DF_DQP
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
+#endif
   const DeltaQInfo *const delta_q_info = &cm->delta_q_info;
   assert(delta_q_info->delta_q_present_flag);
 
@@ -292,6 +294,7 @@ static AOM_INLINE void setup_delta_q(AV1_COMP *const cpi, ThreadData *td,
   // keep track of any non-zero delta-q used
   td->deltaq_used |= (x->delta_qindex != 0);
 
+#if !CONFIG_DF_DQP
   if (cpi->oxcf.tool_cfg.enable_deltalf_mode) {
     const int delta_lf_res = delta_q_info->delta_lf_res;
     const int lfmask = ~(delta_lf_res - 1);
@@ -309,12 +312,14 @@ static AOM_INLINE void setup_delta_q(AV1_COMP *const cpi, ThreadData *td,
       for (int k = 0; k < AOMMIN(mib_size, mi_params->mi_cols - mi_col); k++) {
         const int grid_idx = get_mi_grid_idx(mi_params, mi_row + j, mi_col + k);
         mi_params->mi_grid_base[grid_idx]->delta_lf_from_base = delta_lf;
+
         for (int lf_id = 0; lf_id < frame_lf_count; ++lf_id) {
           mi_params->mi_grid_base[grid_idx]->delta_lf[lf_id] = delta_lf;
         }
       }
     }
   }
+#endif
 }
 
 static void init_ref_frame_space(AV1_COMP *cpi, ThreadData *td, int mi_row,

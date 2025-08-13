@@ -490,6 +490,7 @@ set_aom_config_var(
 set_aom_config_var(CONFIG_ADAPTIVE_WEDGE_BOUNDARY 1
                    "Adaptive wedge boundary based on block size.")
 
+set_aom_config_var(CONFIG_DF_DQP 1 "Adding DQP to the deblocking filter")
 #
 # Variables in this section control optional features of the build system.
 #

@@ -62,11 +62,15 @@ static const int16_t side_thresholds[MAX_SIDE_TABLE] = {
   1589, 1599, 1608, 1618, 1628, 1638, 1648, 1658, 1668, 1678
 };
 
+#if CONFIG_DF_DQP
+static const SEG_LVL_FEATURES seg_lvl_lf = SEG_LVL_ALT_Q;
+#else
 static const SEG_LVL_FEATURES seg_lvl_lf_lut[MAX_MB_PLANE][2] = {
   { SEG_LVL_ALT_LF_Y_V, SEG_LVL_ALT_LF_Y_H },
   { SEG_LVL_ALT_LF_U, SEG_LVL_ALT_LF_U },
   { SEG_LVL_ALT_LF_V, SEG_LVL_ALT_LF_V }
 };
+#endif
 
 static const int mode_lf_lut[] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  // INTRA_MODES
@@ -101,19 +105,51 @@ int df_side_from_qindex(int q_index, int bit_depth) {
 }
 
 uint16_t av1_get_filter_q(const loop_filter_info_n *lfi_n, const int dir_idx,
-                          int plane, const MB_MODE_INFO *mbmi) {
+                          int plane, const MB_MODE_INFO *mbmi
+#if CONFIG_DF_DQP
+                          ,
+                          int bit_depth
+#endif
+) {
   const int segment_id = mbmi->segment_id;
 
+#if CONFIG_DF_DQP
+  int current_q_index = mbmi->current_qindex;
+  //  int current_q_index = cm->quant_params.base_qindex;
+
+  return df_quant_from_qindex(
+      current_q_index +
+          lfi_n->q_thr_q_offset[plane][segment_id][dir_idx][COMPACT_INDEX0_NRS(
+              mbmi->ref_frame[0])][mode_lf_lut[mbmi->mode]],
+      bit_depth);
+#else
   // TODO(Andrey): non-CTC conditions
   return lfi_n->q_thr[plane][segment_id][dir_idx][COMPACT_INDEX0_NRS(
       mbmi->ref_frame[0])][mode_lf_lut[mbmi->mode]];
+#endif
 }
 uint16_t av1_get_filter_side(const loop_filter_info_n *lfi_n, const int dir_idx,
-                             int plane, const MB_MODE_INFO *mbmi) {
+                             int plane, const MB_MODE_INFO *mbmi
+#if CONFIG_DF_DQP
+                             ,
+                             int bit_depth
+#endif
+) {
   const int segment_id = mbmi->segment_id;
+#if CONFIG_DF_DQP
+  int current_q_index = mbmi->current_qindex;
+
+  return df_side_from_qindex(
+      current_q_index +
+          lfi_n->side_thr_q_offset[plane][segment_id][dir_idx]
+                                  [COMPACT_INDEX0_NRS(mbmi->ref_frame[0])]
+                                  [mode_lf_lut[mbmi->mode]],
+      bit_depth);
+#else
   // TODO(Andrey): non-CTC conditions
   return lfi_n->side_thr[plane][segment_id][dir_idx][COMPACT_INDEX0_NRS(
       mbmi->ref_frame[0])][mode_lf_lut[mbmi->mode]];
+#endif
 }
 
 void av1_loop_filter_init(AV1_COMMON *cm) {
@@ -140,52 +176,91 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
 
 #if DF_DUAL
   q_ind[0] =
-      cm->quant_params.base_qindex + cm->lf.delta_q_luma[0] * DF_DELTA_SCALE;
+#if !CONFIG_DF_DQP
+      cm->quant_params.base_qindex +
+#endif
+      cm->lf.delta_q_luma[0] * DF_DELTA_SCALE;
   side_ind[0] =
-      cm->quant_params.base_qindex + cm->lf.delta_side_luma[0] * DF_DELTA_SCALE;
+#if !CONFIG_DF_DQP
+      cm->quant_params.base_qindex +
+#endif
+      cm->lf.delta_side_luma[0] * DF_DELTA_SCALE;
 #else
   q_ind[0] =
       cm->quant_params.base_qindex + cm->lf.delta_q_luma * DF_DELTA_SCALE;
   side_ind[0] =
       cm->quant_params.base_qindex + cm->lf.delta_side_luma * DF_DELTA_SCALE;
 #endif  // DF_DUAL
-  q_ind[1] = cm->quant_params.base_qindex + cm->quant_params.u_ac_delta_q +
-             cm->seq_params.base_uv_ac_delta_q +
-             cm->lf.delta_q_u * DF_DELTA_SCALE;
-  side_ind[1] = cm->quant_params.base_qindex + cm->quant_params.u_ac_delta_q +
-                cm->seq_params.base_uv_ac_delta_q +
-                cm->lf.delta_side_u * DF_DELTA_SCALE;
 
-  q_ind[2] = cm->quant_params.base_qindex + cm->quant_params.v_ac_delta_q +
-             cm->seq_params.base_uv_ac_delta_q +
-             cm->lf.delta_q_v * DF_DELTA_SCALE;
-  side_ind[2] = cm->quant_params.base_qindex + cm->quant_params.v_ac_delta_q +
-                cm->seq_params.base_uv_ac_delta_q +
-                cm->lf.delta_side_v * DF_DELTA_SCALE;
+  q_ind[1] =
+#if !CONFIG_DF_DQP
+      cm->quant_params.base_qindex +
+#endif
+      cm->quant_params.u_ac_delta_q + cm->seq_params.base_uv_ac_delta_q +
+      cm->lf.delta_q_u * DF_DELTA_SCALE;
+  side_ind[1] =
+#if !CONFIG_DF_DQP
+      cm->quant_params.base_qindex +
+#endif
+      +cm->quant_params.u_ac_delta_q + cm->seq_params.base_uv_ac_delta_q +
+      cm->lf.delta_side_u * DF_DELTA_SCALE;
+
+  q_ind[2] =
+#if !CONFIG_DF_DQP
+      cm->quant_params.base_qindex +
+#endif
+      cm->quant_params.v_ac_delta_q + cm->seq_params.base_uv_ac_delta_q +
+      cm->lf.delta_q_v * DF_DELTA_SCALE;
+  side_ind[2] =
+#if !CONFIG_DF_DQP
+      cm->quant_params.base_qindex +
+#endif
+      +cm->quant_params.v_ac_delta_q + cm->seq_params.base_uv_ac_delta_q +
+      cm->lf.delta_side_v * DF_DELTA_SCALE;
+
 #if DF_DUAL
   q_ind_r[0] =
-      cm->quant_params.base_qindex + cm->lf.delta_q_luma[1] * DF_DELTA_SCALE;
+#if !CONFIG_DF_DQP
+      cm->quant_params.base_qindex +
+#endif
+      cm->lf.delta_q_luma[1] * DF_DELTA_SCALE;
   side_ind_r[0] =
-      cm->quant_params.base_qindex + cm->lf.delta_side_luma[1] * DF_DELTA_SCALE;
+#if !CONFIG_DF_DQP
+      cm->quant_params.base_qindex +
+#endif
+      cm->lf.delta_side_luma[1] * DF_DELTA_SCALE;
 #else
   q_ind_r[0] =
       cm->quant_params.base_qindex + cm->lf.delta_q_luma * DF_DELTA_SCALE;
   side_ind_r[0] =
       cm->quant_params.base_qindex + cm->lf.delta_side_luma * DF_DELTA_SCALE;
 #endif  // DF_DUAL
-  q_ind_r[1] = cm->quant_params.base_qindex + cm->quant_params.u_ac_delta_q +
-               cm->seq_params.base_uv_ac_delta_q +
-               cm->lf.delta_q_u * DF_DELTA_SCALE;
-  side_ind_r[1] = cm->quant_params.base_qindex + cm->quant_params.u_ac_delta_q +
-                  cm->seq_params.base_uv_ac_delta_q +
-                  cm->lf.delta_side_u * DF_DELTA_SCALE;
 
-  q_ind_r[2] = cm->quant_params.base_qindex + cm->quant_params.v_ac_delta_q +
-               cm->seq_params.base_uv_ac_delta_q +
-               cm->lf.delta_q_v * DF_DELTA_SCALE;
-  side_ind_r[2] = cm->quant_params.base_qindex + cm->quant_params.v_ac_delta_q +
-                  cm->seq_params.base_uv_ac_delta_q +
-                  cm->lf.delta_side_v * DF_DELTA_SCALE;
+  q_ind_r[1] =
+#if !CONFIG_DF_DQP
+      cm->quant_params.base_qindex +
+#endif
+      +cm->quant_params.u_ac_delta_q + cm->seq_params.base_uv_ac_delta_q +
+      cm->lf.delta_q_u * DF_DELTA_SCALE;
+  side_ind_r[1] =
+#if !CONFIG_DF_DQP
+      cm->quant_params.base_qindex +
+#endif
+      cm->quant_params.u_ac_delta_q + cm->seq_params.base_uv_ac_delta_q +
+      cm->lf.delta_side_u * DF_DELTA_SCALE;
+
+  q_ind_r[2] =
+#if !CONFIG_DF_DQP
+      cm->quant_params.base_qindex +
+#endif
+      cm->quant_params.v_ac_delta_q + cm->seq_params.base_uv_ac_delta_q +
+      cm->lf.delta_q_v * DF_DELTA_SCALE;
+  side_ind_r[2] =
+#if !CONFIG_DF_DQP
+      cm->quant_params.base_qindex +
+#endif
+      cm->quant_params.v_ac_delta_q + cm->seq_params.base_uv_ac_delta_q +
+      cm->lf.delta_side_v * DF_DELTA_SCALE;
 
   assert(plane_start >= AOM_PLANE_Y);
   assert(plane_end <= MAX_MB_PLANE);
@@ -209,78 +284,167 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
       for (int dir = 0; dir < 2; ++dir) {
         int q_ind_seg = (dir == 0) ? q_ind[plane] : q_ind_r[plane];
         int side_ind_seg = (dir == 0) ? side_ind[plane] : side_ind_r[plane];
+#if CONFIG_DF_DQP
+        const int seg_lf_feature_id = seg_lvl_lf;
+#else
         const int seg_lf_feature_id = seg_lvl_lf_lut[plane][dir];
-
+#endif
         if (segfeature_active(seg, seg_id, seg_lf_feature_id)) {
           const int data = get_segdata(&cm->seg, seg_id, seg_lf_feature_id);
           // TODO(Andrey): add separate offsets to segments for q and side
           // thresholds // add clamp
+#if !CONFIG_DF_DQP
+          break;
+#endif
           q_ind_seg += data;
           side_ind_seg += data;
         }
 
         if (!lf->mode_ref_delta_enabled) {
+#if !CONFIG_DF_DQP
           int q_thr_seg =
-              df_quant_from_qindex(q_ind_seg, cm->seq_params.bit_depth);
+              df_quant_from_qindex(q_ind_seg
+#if CONFIG_DF_DQP
+                                       + cm->quant_params.base_qindex
+#endif
+                                   ,
+                                   cm->seq_params.bit_depth);
           int side_thr_seg =
-              df_side_from_qindex(side_ind_seg, cm->seq_params.bit_depth);
-
+              df_side_from_qindex(side_ind_seg
+#if CONFIG_DF_DQP
+                                      + cm->quant_params.base_qindex
+#endif
+                                  ,
+                                  cm->seq_params.bit_depth);
+#endif
           // we could get rid of this if we assume that deltas are set to
           // zero when not in use; encoder always uses deltas
           int ref, mode;
+#if !CONFIG_DF_DQP
           lfi->q_thr[plane][seg_id][dir][INTRA_FRAME_INDEX][0] = q_thr_seg;
           lfi->side_thr[plane][seg_id][dir][INTRA_FRAME_INDEX][0] =
               side_thr_seg;
+#endif
+#if CONFIG_DF_DQP
+          lfi->q_thr_q_offset[plane][seg_id][dir][INTRA_FRAME_INDEX][0] =
+              q_ind_seg;
+          lfi->side_thr_q_offset[plane][seg_id][dir][INTRA_FRAME_INDEX][0] =
+              side_ind_seg;
+#endif
 
           for (ref = 0; ref < INTER_REFS_PER_FRAME; ++ref) {
             for (mode = 0; mode < MAX_MODE_LF_DELTAS; ++mode) {
+#if !CONFIG_DF_DQP
               lfi->q_thr[plane][seg_id][dir][ref][mode] = q_thr_seg;
               lfi->side_thr[plane][seg_id][dir][ref][mode] = side_thr_seg;
+#endif
+#if CONFIG_DF_DQP
+              lfi->q_thr_q_offset[plane][seg_id][dir][ref][mode] = q_ind_seg;
+              lfi->side_thr_q_offset[plane][seg_id][dir][ref][mode] =
+                  side_ind_seg;
+#endif
             }
           }
           for (mode = 0; mode < MAX_MODE_LF_DELTAS; ++mode) {
+#if !CONFIG_DF_DQP
             lfi->q_thr[plane][seg_id][dir][TIP_FRAME_INDEX][mode] = q_thr_seg;
             lfi->side_thr[plane][seg_id][dir][TIP_FRAME_INDEX][mode] =
                 side_thr_seg;
+#endif
+#if CONFIG_DF_DQP
+            lfi->q_thr_q_offset[plane][seg_id][dir][TIP_FRAME_INDEX][mode] =
+                q_ind_seg;
+            lfi->side_thr_q_offset[plane][seg_id][dir][TIP_FRAME_INDEX][mode] =
+                side_ind_seg;
+#endif
           }
         } else {
           // we could get rid of this if we assume that deltas are set to
           // zero when not in use; encoder always uses deltas
           const int scale = 4;
           int ref, mode;
+#if !CONFIG_DF_DQP
           lfi->q_thr[plane][seg_id][dir][INTRA_FRAME_INDEX][0] =
               df_quant_from_qindex(
-                  q_ind_seg + lf->ref_deltas[INTRA_FRAME_INDEX] * scale,
+                  q_ind_seg
+#if CONFIG_DF_DQP
+                      + cm->quant_params.base_qindex
+#endif
+                      + lf->ref_deltas[INTRA_FRAME_INDEX] * scale,
                   cm->seq_params.bit_depth);
           lfi->side_thr[plane][seg_id][dir][INTRA_FRAME_INDEX][0] =
               df_side_from_qindex(
-                  side_ind_seg + lf->ref_deltas[INTRA_FRAME_INDEX] * scale,
+                  side_ind_seg
+#if CONFIG_DF_DQP
+                      + cm->quant_params.base_qindex
+#endif
+                      + lf->ref_deltas[INTRA_FRAME_INDEX] * scale,
                   cm->seq_params.bit_depth);  // TODO: use a different delta?
+#endif
+#if CONFIG_DF_DQP
+          lfi->q_thr_q_offset[plane][seg_id][dir][INTRA_FRAME_INDEX][0] =
+              q_ind_seg + lf->ref_deltas[INTRA_FRAME_INDEX] * scale;
+          lfi->side_thr_q_offset[plane][seg_id][dir][INTRA_FRAME_INDEX][0] =
+              side_ind_seg + lf->ref_deltas[INTRA_FRAME_INDEX] * scale;
+#endif
 
           for (ref = 0; ref < INTER_REFS_PER_FRAME; ++ref) {
             for (mode = 0; mode < MAX_MODE_LF_DELTAS; ++mode) {
+#if !CONFIG_DF_DQP
               lfi->q_thr[plane][seg_id][dir][ref][mode] =
-                  df_quant_from_qindex(q_ind_seg + lf->ref_deltas[ref] * scale +
+                  df_quant_from_qindex(q_ind_seg
+#if CONFIG_DF_DQP
+                                           + cm->quant_params.base_qindex
+#endif
+                                           + lf->ref_deltas[ref] * scale +
                                            lf->mode_deltas[mode] * scale,
                                        cm->seq_params.bit_depth);
               lfi->side_thr[plane][seg_id][dir][ref][mode] =
-                  df_side_from_qindex(side_ind_seg +
-                                          lf->ref_deltas[ref] * scale +
+                  df_side_from_qindex(side_ind_seg
+#if CONFIG_DF_DQP
+                                          + cm->quant_params.base_qindex
+#endif
+                                          + lf->ref_deltas[ref] * scale +
                                           lf->mode_deltas[mode] * scale,
                                       cm->seq_params.bit_depth);
+#endif
+#if CONFIG_DF_DQP
+              lfi->q_thr_q_offset[plane][seg_id][dir][ref][mode] =
+                  q_ind_seg + lf->ref_deltas[ref] * scale +
+                  lf->mode_deltas[mode] * scale;
+              lfi->side_thr_q_offset[plane][seg_id][dir][ref][mode] =
+                  side_ind_seg + lf->ref_deltas[ref] * scale +
+                  lf->mode_deltas[mode] * scale;
+#endif
             }
           }
 
           const int scale_ref_deltas = lf->ref_deltas[TIP_FRAME_INDEX] * scale;
           for (mode = 0; mode < MAX_MODE_LF_DELTAS; ++mode) {
+#if !CONFIG_DF_DQP
             lfi->q_thr[plane][seg_id][dir][TIP_FRAME_INDEX][mode] =
-                df_quant_from_qindex(q_ind_seg + scale_ref_deltas +
+                df_quant_from_qindex(q_ind_seg
+#if CONFIG_DF_DQP
+                                         + cm->quant_params.base_qindex
+#endif
+                                         + scale_ref_deltas +
                                          lf->mode_deltas[mode] * scale,
                                      cm->seq_params.bit_depth);
             lfi->side_thr[plane][seg_id][dir][TIP_FRAME_INDEX][mode] =
-                df_side_from_qindex(side_ind_seg + scale_ref_deltas +
+                df_side_from_qindex(side_ind_seg
+#if CONFIG_DF_DQP
+                                        + cm->quant_params.base_qindex
+#endif
+                                        + scale_ref_deltas +
                                         lf->mode_deltas[mode] * scale,
                                     cm->seq_params.bit_depth);
+#endif
+#if CONFIG_DF_DQP
+            lfi->q_thr_q_offset[plane][seg_id][dir][TIP_FRAME_INDEX][mode] =
+                q_ind_seg + scale_ref_deltas + lf->mode_deltas[mode] * scale;
+            lfi->side_thr_q_offset[plane][seg_id][dir][TIP_FRAME_INDEX][mode] =
+                side_ind_seg + scale_ref_deltas + lf->mode_deltas[mode] * scale;
+#endif
           }
         }
       }
@@ -742,9 +906,19 @@ static TX_SIZE set_lpf_parameters(
     // prepare outer edge parameters. deblock the edge if it's an edge of a TU
     {
       const uint32_t curr_q =
-          av1_get_filter_q(&cm->lf_info, edge_dir, plane, mbmi);
+          av1_get_filter_q(&cm->lf_info, edge_dir, plane, mbmi
+#if CONFIG_DF_DQP
+                           ,
+                           cm->seq_params.bit_depth
+#endif
+          );
       const uint32_t curr_side =
-          av1_get_filter_side(&cm->lf_info, edge_dir, plane, mbmi);
+          av1_get_filter_side(&cm->lf_info, edge_dir, plane, mbmi
+#if CONFIG_DF_DQP
+                              ,
+                              cm->seq_params.bit_depth
+#endif
+          );
 
       const int curr_skipped =
           mbmi->skip_txfm[plane_type] && is_inter_block(mbmi, tree_type);
@@ -790,9 +964,19 @@ static TX_SIZE set_lpf_parameters(
                             &pv_is_tx_m_partition);
 #endif  // CONFIG_LF_SUB_PU
           const uint32_t pv_q =
-              av1_get_filter_q(&cm->lf_info, edge_dir, plane, mi_prev);
+              av1_get_filter_q(&cm->lf_info, edge_dir, plane, mi_prev
+#if CONFIG_DF_DQP
+                               ,
+                               cm->seq_params.bit_depth
+#endif
+              );
           const uint32_t pv_side =
-              av1_get_filter_side(&cm->lf_info, edge_dir, plane, mi_prev);
+              av1_get_filter_side(&cm->lf_info, edge_dir, plane, mi_prev
+#if CONFIG_DF_DQP
+                                  ,
+                                  cm->seq_params.bit_depth
+#endif
+              );
 
           const int pv_skip_txfm = mi_prev->skip_txfm[plane_type] &&
                                    is_inter_block(mi_prev, tree_type);
@@ -1032,8 +1216,18 @@ static TX_SIZE set_lpf_parameters(
 
             // update the level if the current block is skipped,
             // but the previous one is not
+#if CONFIG_DF_DQP
+            params->q_threshold = (curr_q && pv_q) ? (curr_q + pv_q + 1) >> 1
+                                  : (curr_q)       ? (curr_q)
+                                                   : (pv_q);
+            params->side_threshold = curr_side && pv_side
+                                         ? (curr_side + pv_side + 1) >> 1
+                                     : (curr_side) ? (curr_side)
+                                                   : (pv_side);
+#else
             params->q_threshold = (curr_q) ? (curr_q) : (pv_q);
             params->side_threshold = (curr_side) ? (curr_side) : (pv_side);
+#endif
 #if CONFIG_LF_SUB_PU
             if (sub_pu_edge && !tu_edge) {
               params->q_threshold >>= SUB_PU_THR_SHIFT;
