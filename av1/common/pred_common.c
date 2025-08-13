@@ -466,9 +466,6 @@ int av1_get_pred_context_switchable_interp(const MACROBLOCKD *xd, int dir) {
 
 static void palette_add_to_cache(uint16_t *cache, int *n, uint16_t val) {
   // Do not add an already existing value
-#if !CONFIG_PALETTE_IMPROVEMENTS
-  if (*n > 0 && val == cache[*n - 1]) return;
-#endif  //! CONFIG_PALETTE_IMPROVEMENTS
 
   cache[(*n)++] = val;
 }
@@ -500,21 +497,10 @@ int av1_get_palette_cache(const MACROBLOCKD *const xd, int plane,
   while (above_n > 0 && left_n > 0) {
     uint16_t v_above = above_colors[above_idx];
     uint16_t v_left = left_colors[left_idx];
-#if CONFIG_PALETTE_IMPROVEMENTS
     palette_add_to_cache(cache, &n, v_above);
     ++above_idx, --above_n;
     palette_add_to_cache(cache, &n, v_left);
     ++left_idx, --left_n;
-#else
-    if (v_left < v_above) {
-      palette_add_to_cache(cache, &n, v_left);
-      ++left_idx, --left_n;
-    } else {
-      palette_add_to_cache(cache, &n, v_above);
-      ++above_idx, --above_n;
-      if (v_left == v_above) ++left_idx, --left_n;
-    }
-#endif  // CONFIG_PALETTE_IMPROVEMENTS
   }
   while (above_n-- > 0) {
     uint16_t val = above_colors[above_idx++];

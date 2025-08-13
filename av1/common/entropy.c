@@ -295,18 +295,11 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->tip_pred_mode_cdf, TIP_PRED_MODES);
   RESET_CDF_COUNTER(fc->palette_y_size_cdf, PALETTE_SIZES);
   RESET_CDF_COUNTER(fc->palette_uv_size_cdf, PALETTE_SIZES);
-#if CONFIG_PALETTE_IMPROVEMENTS
-#if CONFIG_PALETTE_LINE_COPY
   RESET_CDF_COUNTER(fc->identity_row_cdf_y, 3);
   RESET_CDF_COUNTER(fc->identity_row_cdf_uv, 3);
 #if !CONFIG_PLT_DIR_CTX
   RESET_CDF_COUNTER(fc->palette_direction_cdf, 2);
 #endif  // !CONFIG_PLT_DIR_CTX
-#else
-  RESET_CDF_COUNTER(fc->identity_row_cdf_y, 2);
-  RESET_CDF_COUNTER(fc->identity_row_cdf_uv, 2);
-#endif  // CONFIG_PALETTE_LINE_COPY
-#endif
   for (int j = 0; j < PALETTE_SIZES; j++) {
     int nsymbs = j + PALETTE_MIN_SIZE;
     RESET_CDF_COUNTER_STRIDE(fc->palette_y_color_index_cdf[j], nsymbs,

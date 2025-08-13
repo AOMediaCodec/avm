@@ -1371,15 +1371,11 @@ typedef struct FRAME_COUNTS {
   unsigned int cfl_sign[CFL_JOINT_SIGNS];
   unsigned int cfl_alpha[CFL_ALPHA_CONTEXTS][CFL_ALPHABET_SIZE];
 
-#if CONFIG_PALETTE_IMPROVEMENTS
   unsigned int identity_row_y_cnts[PALETTE_ROW_FLAG_CONTEXTS]
                                   [3];  // placeholder
   unsigned int identity_row_uv_cnts[PALETTE_ROW_FLAG_CONTEXTS]
-                                   [3];  // placeholder
-#if CONFIG_PALETTE_LINE_COPY
+                                   [3];    // placeholder
   unsigned int palette_direction_cnts[2];  // placeholder
-#endif                                     // CONFIG_PALETTE_LINE_COPY
-#endif                                     // CONFIG_PALETTE_IMPROVEMENTS
 
 #if CONFIG_PALETTE_CTX_REDUCTION
   unsigned int palette_y_mode[2];

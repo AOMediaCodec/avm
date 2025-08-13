@@ -27,13 +27,9 @@ typedef struct {
   int8_t color_map_palette_size_idx;
   int8_t color_map_ctx_idx;
   uint8_t token;
-#if CONFIG_PALETTE_IMPROVEMENTS
   uint8_t identity_row_flag;
   uint8_t identity_row_ctx;
-#if CONFIG_PALETTE_LINE_COPY
   uint8_t direction;
-#endif  // CONFIG_PALETTE_LINE_COPY
-#endif  // CONFIG_PALETTE_IMPROVEMENTS
 
 } TokenExtra;
 

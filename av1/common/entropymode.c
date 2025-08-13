@@ -6053,8 +6053,6 @@ static const aom_cdf_prob default_palette_uv_mode_cdf[PALETTE_UV_MODE_CONTEXTS]
                                                      };
 #endif  // CONFIG_PALETTE_CTX_REDUCTION
 
-#if CONFIG_PALETTE_IMPROVEMENTS
-#if CONFIG_PALETTE_LINE_COPY
 static const aom_cdf_prob
     default_identity_row_cdf_y[PALETTE_ROW_FLAG_CONTEXTS][CDF_SIZE(3)] = {
       { AOM_CDF3(10923, 21845), 25 },
@@ -6074,19 +6072,6 @@ static const aom_cdf_prob default_palette_direction_cdf[CDF_SIZE(2)] = {
   AOM_CDF2(21697), 6
 };
 #endif  // !CONFIG_PLT_DIR_CTX
-#else
-static const aom_cdf_prob default_identity_row_cdf_y[3][CDF_SIZE(2)] = {
-  { AOM_CDF2(16384), 28 },
-  { AOM_CDF2(16384), 30 },
-  { AOM_CDF2(16384), 1 },
-};
-
-static const aom_cdf_prob default_identity_row_cdf_uv[3][CDF_SIZE(2)] = {
-  { AOM_CDF2(16384), 31 },
-  { AOM_CDF2(16384), 30 },
-  { AOM_CDF2(16384), 27 },
-};
-#endif  // CONFIG_PALETTE_LINE_COPY
 
 #if CONFIG_PALETTE_CTX_REDUCTION
 static const aom_cdf_prob default_palette_y_color_index_cdf
@@ -6261,115 +6246,6 @@ static const aom_cdf_prob default_palette_uv_color_index_cdf
       },
     };
 #endif  // CONFIG_PALETTE_CTX_REDUCTION
-#else
-static const aom_cdf_prob default_palette_y_color_index_cdf
-    [PALETTE_SIZES][PALETTE_COLOR_INDEX_CONTEXTS][CDF_SIZE(PALETTE_COLORS)] = {
-      {
-          { AOM_CDF2(28710) },
-          { AOM_CDF2(16384) },
-          { AOM_CDF2(10553) },
-          { AOM_CDF2(27036) },
-          { AOM_CDF2(31603) },
-      },
-      {
-          { AOM_CDF3(27877, 30490) },
-          { AOM_CDF3(11532, 25697) },
-          { AOM_CDF3(6544, 30234) },
-          { AOM_CDF3(23018, 28072) },
-          { AOM_CDF3(31915, 32385) },
-      },
-      {
-          { AOM_CDF4(25572, 28046, 30045) },
-          { AOM_CDF4(9478, 21590, 27256) },
-          { AOM_CDF4(7248, 26837, 29824) },
-          { AOM_CDF4(19167, 24486, 28349) },
-          { AOM_CDF4(31400, 31825, 32250) },
-      },
-      {
-          { AOM_CDF5(24779, 26955, 28576, 30282) },
-          { AOM_CDF5(8669, 20364, 24073, 28093) },
-          { AOM_CDF5(4255, 27565, 29377, 31067) },
-          { AOM_CDF5(19864, 23674, 26716, 29530) },
-          { AOM_CDF5(31646, 31893, 32147, 32426) },
-      },
-      {
-          { AOM_CDF6(23132, 25407, 26970, 28435, 30073) },
-          { AOM_CDF6(7443, 17242, 20717, 24762, 27982) },
-          { AOM_CDF6(6300, 24862, 26944, 28784, 30671) },
-          { AOM_CDF6(18916, 22895, 25267, 27435, 29652) },
-          { AOM_CDF6(31270, 31550, 31808, 32059, 32353) },
-      },
-      {
-          { AOM_CDF7(23105, 25199, 26464, 27684, 28931, 30318) },
-          { AOM_CDF7(6950, 15447, 18952, 22681, 25567, 28563) },
-          { AOM_CDF7(7560, 23474, 25490, 27203, 28921, 30708) },
-          { AOM_CDF7(18544, 22373, 24457, 26195, 28119, 30045) },
-          { AOM_CDF7(31198, 31451, 31670, 31882, 32123, 32391) },
-      },
-      {
-          { AOM_CDF8(21689, 23883, 25163, 26352, 27506, 28827, 30195) },
-          { AOM_CDF8(6892, 15385, 17840, 21606, 24287, 26753, 29204) },
-          { AOM_CDF8(5651, 23182, 25042, 26518, 27982, 29392, 30900) },
-          { AOM_CDF8(19349, 22578, 24418, 25994, 27524, 29031, 30448) },
-          { AOM_CDF8(31028, 31270, 31504, 31705, 31927, 32153, 32392) },
-      },
-    };
-
-#if !CONFIG_PALETTE_CTX_REDUCTION
-static const aom_cdf_prob default_palette_uv_color_index_cdf
-    [PALETTE_SIZES][PALETTE_COLOR_INDEX_CONTEXTS][CDF_SIZE(PALETTE_COLORS)] = {
-      {
-          { AOM_CDF2(29089) },
-          { AOM_CDF2(16384) },
-          { AOM_CDF2(8713) },
-          { AOM_CDF2(29257) },
-          { AOM_CDF2(31610) },
-      },
-      {
-          { AOM_CDF3(25257, 29145) },
-          { AOM_CDF3(12287, 27293) },
-          { AOM_CDF3(7033, 27960) },
-          { AOM_CDF3(20145, 25405) },
-          { AOM_CDF3(30608, 31639) },
-      },
-      {
-          { AOM_CDF4(24210, 27175, 29903) },
-          { AOM_CDF4(9888, 22386, 27214) },
-          { AOM_CDF4(5901, 26053, 29293) },
-          { AOM_CDF4(18318, 22152, 28333) },
-          { AOM_CDF4(30459, 31136, 31926) },
-      },
-      {
-          { AOM_CDF5(22980, 25479, 27781, 29986) },
-          { AOM_CDF5(8413, 21408, 24859, 28874) },
-          { AOM_CDF5(2257, 29449, 30594, 31598) },
-          { AOM_CDF5(19189, 21202, 25915, 28620) },
-          { AOM_CDF5(31844, 32044, 32281, 32518) },
-      },
-      {
-          { AOM_CDF6(22217, 24567, 26637, 28683, 30548) },
-          { AOM_CDF6(7307, 16406, 19636, 24632, 28424) },
-          { AOM_CDF6(4441, 25064, 26879, 28942, 30919) },
-          { AOM_CDF6(17210, 20528, 23319, 26750, 29582) },
-          { AOM_CDF6(30674, 30953, 31396, 31735, 32207) },
-      },
-      {
-          { AOM_CDF7(21239, 23168, 25044, 26962, 28705, 30506) },
-          { AOM_CDF7(6545, 15012, 18004, 21817, 25503, 28701) },
-          { AOM_CDF7(3448, 26295, 27437, 28704, 30126, 31442) },
-          { AOM_CDF7(15889, 18323, 21704, 24698, 26976, 29690) },
-          { AOM_CDF7(30988, 31204, 31479, 31734, 31983, 32325) },
-      },
-      {
-          { AOM_CDF8(21442, 23288, 24758, 26246, 27649, 28980, 30563) },
-          { AOM_CDF8(5863, 14933, 17552, 20668, 23683, 26411, 29273) },
-          { AOM_CDF8(3415, 25810, 26877, 27990, 29223, 30394, 31618) },
-          { AOM_CDF8(17965, 20084, 22232, 23974, 26274, 28402, 30390) },
-          { AOM_CDF8(31190, 31329, 31516, 31679, 31825, 32026, 32322) },
-      },
-    };
-#endif
-#endif  // CONFIG_PALETTE_IMPROVEMENTS
 
 static const aom_cdf_prob
     default_txfm_do_partition_cdf[FSC_MODES][2][TXFM_SPLIT_GROUP][CDF_SIZE(
@@ -6957,16 +6833,9 @@ static const aom_cdf_prob
                                };
 
 #define MAX_COLOR_CONTEXT_HASH 8
-#if !CONFIG_PALETTE_THREE_NEIGHBOR
-// Negative values are invalid
-static const int palette_color_index_context_lookup[MAX_COLOR_CONTEXT_HASH +
-                                                    1] = { -1, -1, 0, -1, -1,
-                                                           4,  3,  2, 1 };
-#endif  // !CONFIG_PALETTE_THREE_NEIGHBOR
 
 #define NUM_PALETTE_NEIGHBORS 3  // left, top-left and top.
 
-#if CONFIG_PALETTE_THREE_NEIGHBOR
 static INLINE void swap_color_order(uint8_t *color_order,
                                     uint8_t *color_order_status, int switch_idx,
                                     int max_idx, int *color_order_cnt) {
@@ -7066,244 +6935,24 @@ static INLINE int derive_color_index_ctx(uint8_t *color_order, int *color_idx,
 int av1_get_palette_color_index_context(const uint8_t *color_map, int stride,
                                         int r, int c, uint8_t *color_order,
                                         int *color_idx
-#if CONFIG_PALETTE_IMPROVEMENTS && !CONFIG_PALETTE_CTX_REDUCTION
+#if !CONFIG_PALETTE_CTX_REDUCTION
                                         ,
                                         int row_flag, int prev_row_flag
-#endif  // CONFIG_PALETTE_IMPROVEMENTS && !CONFIG_PALETTE_CTX_REDUCTION
+#endif  // !CONFIG_PALETTE_CTX_REDUCTION
 ) {
   assert(r > 0 || c > 0);
 
   int color_index_ctx =
       derive_color_index_ctx(color_order, color_idx, color_map, stride, r, c);
-#if CONFIG_PALETTE_IMPROVEMENTS && !CONFIG_PALETTE_CTX_REDUCTION
+#if !CONFIG_PALETTE_CTX_REDUCTION
   // Special context value for the first (and only) index of an identity row
   // and when the previous row is also an identity row.
   if (c == 0 && row_flag && prev_row_flag)
     color_index_ctx = PALETTE_COLOR_INDEX_CONTEXTS - 1;
-#endif  // CONFIG_PALETTE_IMPROVEMENTS && !CONFIG_PALETTE_CTX_REDUCTION
+#endif  // !CONFIG_PALETTE_CTX_REDUCTION
   return color_index_ctx;
 }
-#else
-int av1_get_palette_color_index_context(const uint8_t *color_map, int stride,
-                                        int r, int c, int palette_size,
-                                        uint8_t *color_order, int *color_idx
-#if CONFIG_PALETTE_IMPROVEMENTS
-                                        ,
-                                        int row_flag, int prev_row_flag
-#endif  // CONFIG_PALETTE_IMPROVEMENTS
-) {
-  assert(palette_size <= PALETTE_MAX_SIZE);
-  assert(r > 0 || c > 0);
 
-  // Get color indices of neighbors.
-  int color_neighbors[NUM_PALETTE_NEIGHBORS];
-  color_neighbors[0] = (c - 1 >= 0) ? color_map[r * stride + c - 1] : -1;
-  color_neighbors[1] =
-      (c - 1 >= 0 && r - 1 >= 0) ? color_map[(r - 1) * stride + c - 1] : -1;
-  color_neighbors[2] = (r - 1 >= 0) ? color_map[(r - 1) * stride + c] : -1;
-
-  // The +10 below should not be needed. But we get a warning "array subscript
-  // is above array bounds [-Werror=array-bounds]" without it, possibly due to
-  // this (or similar) bug: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=59124
-  int scores[PALETTE_MAX_SIZE + 10] = { 0 };
-  int i;
-  static const int weights[NUM_PALETTE_NEIGHBORS] = { 2, 1, 2 };
-  for (i = 0; i < NUM_PALETTE_NEIGHBORS; ++i) {
-    if (color_neighbors[i] >= 0) {
-      scores[color_neighbors[i]] += weights[i];
-    }
-  }
-
-  int inverse_color_order[PALETTE_MAX_SIZE];
-  for (i = 0; i < PALETTE_MAX_SIZE; ++i) {
-    color_order[i] = i;
-    inverse_color_order[i] = i;
-  }
-
-  // Get the top NUM_PALETTE_NEIGHBORS scores (sorted from large to small).
-  for (i = 0; i < NUM_PALETTE_NEIGHBORS; ++i) {
-    int max = scores[i];
-    int max_idx = i;
-    for (int j = i + 1; j < palette_size; ++j) {
-      if (scores[j] > max) {
-        max = scores[j];
-        max_idx = j;
-      }
-#if CONFIG_PALETTE_CTX_REDUCTION
-      else if (scores[j] > 0 && scores[j] == max && j == color_neighbors[0]) {
-        max = scores[j];
-        max_idx = j;
-      }
-#endif  // CONFIG_PALETTE_CTX_REDUCTION
-    }
-    if (max_idx != i) {
-      // Move the score at index 'max_idx' to index 'i', and shift the scores
-      // from 'i' to 'max_idx - 1' by 1.
-      const int max_score = scores[max_idx];
-      const uint8_t max_color_order = color_order[max_idx];
-      for (int k = max_idx; k > i; --k) {
-        scores[k] = scores[k - 1];
-        color_order[k] = color_order[k - 1];
-        inverse_color_order[color_order[k]] = k;
-      }
-      scores[i] = max_score;
-      color_order[i] = max_color_order;
-      inverse_color_order[color_order[i]] = i;
-    }
-  }
-
-  if (color_idx != NULL)
-    *color_idx = inverse_color_order[color_map[r * stride + c]];
-
-#if CONFIG_PALETTE_IMPROVEMENTS && !CONFIG_PALETTE_CTX_REDUCTION
-  // Special context value for the first (and only) index of an identity row and
-  // when the previous row is also an identity row.
-  if (c == 0 && row_flag && prev_row_flag)
-    return PALETTE_COLOR_INDEX_CONTEXTS - 1;
-#endif  // CONFIG_PALETTE_IMPROVEMENTS && !CONFIG_PALETTE_CTX_REDUCTION
-
-  // Get hash value of context.
-  int color_index_ctx_hash = 0;
-  static const int hash_multipliers[NUM_PALETTE_NEIGHBORS] = { 1, 2, 2 };
-  for (i = 0; i < NUM_PALETTE_NEIGHBORS; ++i) {
-    color_index_ctx_hash += scores[i] * hash_multipliers[i];
-  }
-  assert(color_index_ctx_hash > 0);
-  assert(color_index_ctx_hash <= MAX_COLOR_CONTEXT_HASH);
-
-  // Lookup context from hash.
-  const int color_index_ctx =
-      palette_color_index_context_lookup[color_index_ctx_hash];
-  assert(color_index_ctx >= 0);
-  assert(color_index_ctx < PALETTE_COLOR_INDEX_CONTEXTS);
-  return color_index_ctx;
-}
-#endif  // CONFIG_PALETTE_THREE_NEIGHBOR
-
-#if !CONFIG_PALETTE_THREE_NEIGHBOR
-int av1_fast_palette_color_index_context(const uint8_t *color_map, int stride,
-                                         int r, int c, int *color_idx
-#if CONFIG_PALETTE_IMPROVEMENTS
-                                         ,
-                                         int row_flag, int prev_row_flag
-#endif  // CONFIG_PALETTE_IMPROVEMENTS
-) {
-  assert(r > 0 || c > 0);
-
-  // This goes in the order of left, top, and top-left. This has the advantage
-  // that unless anything here are not distinct or invalid, this will already
-  // be in sorted order. Furthermore, if either of the first two are not
-  // invalid, we know the last one is also invalid.
-  int color_neighbors[NUM_PALETTE_NEIGHBORS];
-  color_neighbors[0] = (c - 1 >= 0) ? color_map[r * stride + c - 1] : -1;
-  color_neighbors[1] = (r - 1 >= 0) ? color_map[(r - 1) * stride + c] : -1;
-  color_neighbors[2] =
-      (c - 1 >= 0 && r - 1 >= 0) ? color_map[(r - 1) * stride + c - 1] : -1;
-
-  // Since our array is so small, using a couple if statements is faster
-  int scores[NUM_PALETTE_NEIGHBORS] = { 2, 2, 1 };
-  if (color_neighbors[0] == color_neighbors[1]) {
-    scores[0] += scores[1];
-    color_neighbors[1] = -1;
-
-    if (color_neighbors[0] == color_neighbors[2]) {
-      scores[0] += scores[2];
-      color_neighbors[2] = -1;
-    }
-  } else if (color_neighbors[0] == color_neighbors[2]) {
-    scores[0] += scores[2];
-    color_neighbors[2] = -1;
-  } else if (color_neighbors[1] == color_neighbors[2]) {
-    scores[1] += scores[2];
-    color_neighbors[2] = -1;
-  }
-
-  int color_rank[NUM_PALETTE_NEIGHBORS] = { -1, -1, -1 };
-  int score_rank[NUM_PALETTE_NEIGHBORS] = { 0, 0, 0 };
-  int num_valid_colors = 0;
-  for (int idx = 0; idx < NUM_PALETTE_NEIGHBORS; idx++) {
-    if (color_neighbors[idx] != -1) {
-      score_rank[num_valid_colors] = scores[idx];
-      color_rank[num_valid_colors] = color_neighbors[idx];
-      num_valid_colors++;
-    }
-  }
-
-  // Sort everything
-  // We need to swap the first two elements if they have the same score but
-  // the color indices are not in the right order
-#if CONFIG_PALETTE_CTX_REDUCTION
-  if (score_rank[0] < score_rank[1]) {
-#else
-  if (score_rank[0] < score_rank[1] ||
-      (score_rank[0] == score_rank[1] && color_rank[0] > color_rank[1])) {
-#endif  // CONFIG_PALETTE_CTX_REDUCTION
-    const int tmp_score = score_rank[0];
-    const int tmp_color = color_rank[0];
-    score_rank[0] = score_rank[1];
-    color_rank[0] = color_rank[1];
-    score_rank[1] = tmp_score;
-    color_rank[1] = tmp_color;
-  }
-  if (score_rank[0] < score_rank[2]) {
-    const int tmp_score = score_rank[0];
-    const int tmp_color = color_rank[0];
-    score_rank[0] = score_rank[2];
-    color_rank[0] = color_rank[2];
-    score_rank[2] = tmp_score;
-    color_rank[2] = tmp_color;
-  }
-  if (score_rank[1] < score_rank[2]) {
-    const int tmp_score = score_rank[1];
-    const int tmp_color = color_rank[1];
-    score_rank[1] = score_rank[2];
-    color_rank[1] = color_rank[2];
-    score_rank[2] = tmp_score;
-    color_rank[2] = tmp_color;
-  }
-
-  if (color_idx != NULL) {
-    // If any of the neighbor color has higher index than current color index,
-    // then we move up by 1 unless the current color is the same as one of the
-    // neighbor
-    const int current_color = *color_idx = color_map[r * stride + c];
-    int same_neighbor = -1;
-    for (int idx = 0; idx < NUM_PALETTE_NEIGHBORS; idx++) {
-      if (color_rank[idx] > current_color) {
-        (*color_idx)++;
-      } else if (color_rank[idx] == current_color) {
-        same_neighbor = idx;
-      }
-    }
-    if (same_neighbor != -1) {
-      *color_idx = same_neighbor;
-    }
-  }
-
-#if CONFIG_PALETTE_IMPROVEMENTS && !CONFIG_PALETTE_CTX_REDUCTION
-  // Special context value for the first (and only) index of an identity row and
-  // when the previous row is also an identity row.
-  if (c == 0 && row_flag && prev_row_flag)
-    return PALETTE_COLOR_INDEX_CONTEXTS - 1;
-#endif  // CONFIG_PALETTE_IMPROVEMENTS && !CONFIG_PALETTE_CTX_REDUCTION
-
-  // Get hash value of context.
-  int color_index_ctx_hash = 0;
-  static const int hash_multipliers[NUM_PALETTE_NEIGHBORS] = { 1, 2, 2 };
-  for (int idx = 0; idx < NUM_PALETTE_NEIGHBORS; ++idx) {
-    color_index_ctx_hash += score_rank[idx] * hash_multipliers[idx];
-  }
-  assert(color_index_ctx_hash > 0);
-  assert(color_index_ctx_hash <= MAX_COLOR_CONTEXT_HASH);
-
-  // Lookup context from hash.
-  const int color_index_ctx =
-      palette_color_index_context_lookup[color_index_ctx_hash];
-  assert(color_index_ctx >= 0);
-  assert(color_index_ctx < PALETTE_COLOR_INDEX_CONTEXTS);
-  return color_index_ctx;
-}
-#endif  // !CONFIG_PALETTE_THREE_NEIGHBOR
 #undef NUM_PALETTE_NEIGHBORS
 #undef MAX_COLOR_CONTEXT_HASH
 
@@ -7312,15 +6961,11 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   (void)seq_params;
   av1_copy(fc->palette_y_size_cdf, default_palette_y_size_cdf);
   av1_copy(fc->palette_uv_size_cdf, default_palette_uv_size_cdf);
-#if CONFIG_PALETTE_IMPROVEMENTS
   av1_copy(fc->identity_row_cdf_y, default_identity_row_cdf_y);
   av1_copy(fc->identity_row_cdf_uv, default_identity_row_cdf_uv);
 #if !CONFIG_PLT_DIR_CTX
-#if CONFIG_PALETTE_LINE_COPY
   av1_copy(fc->palette_direction_cdf, default_palette_direction_cdf);
 #endif  // !CONFIG_PLT_DIR_CTX
-#endif  // CONFIG_PALETTE_LINE_COPY
-#endif  // CONFIG_PALETTE_IMPROVEMENTS
   av1_copy(fc->palette_y_color_index_cdf, default_palette_y_color_index_cdf);
 #if !CONFIG_PALETTE_CTX_REDUCTION
   av1_copy(fc->palette_uv_color_index_cdf, default_palette_uv_color_index_cdf);
@@ -7849,8 +7494,6 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
   CUMULATIVE_AVERAGE_CDF(ctx_left->tip_cdf, ctx_tr->tip_cdf, 2);
   CUMULATIVE_AVERAGE_CDF(ctx_left->tip_pred_mode_cdf, ctx_tr->tip_pred_mode_cdf,
                          TIP_PRED_MODES);
-#if CONFIG_PALETTE_IMPROVEMENTS
-#if CONFIG_PALETTE_LINE_COPY
   CUMULATIVE_AVERAGE_CDF(ctx_left->identity_row_cdf_y,
                          ctx_tr->identity_row_cdf_y, 3);
   CUMULATIVE_AVERAGE_CDF(ctx_left->identity_row_cdf_uv,
@@ -7859,13 +7502,6 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
   CUMULATIVE_AVERAGE_CDF(ctx_left->palette_direction_cdf,
                          ctx_tr->palette_direction_cdf, 2);
 #endif  // !CONFIG_PLT_DIR_CTX
-#else
-  CUMULATIVE_AVERAGE_CDF(ctx_left->identity_row_cdf_y,
-                         ctx_tr->identity_row_cdf_y, 2);
-  CUMULATIVE_AVERAGE_CDF(ctx_left->identity_row_cdf_uv,
-                         ctx_tr->identity_row_cdf_uv, 2);
-#endif  // CONFIG_PALETTE_LINE_COPY
-#endif  // CONFIG_PALETTE_IMPROVEMENTS
   CUMULATIVE_AVERAGE_CDF(ctx_left->cfl_cdf, ctx_tr->cfl_cdf, 2);
 
   CUMULATIVE_AVERAGE_CDF(ctx_left->palette_y_size_cdf,
@@ -8314,18 +7950,11 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
 
   SHIFT_CDF(ctx_ptr->tip_cdf, 2);
   SHIFT_CDF(ctx_ptr->tip_pred_mode_cdf, TIP_PRED_MODES);
-#if CONFIG_PALETTE_IMPROVEMENTS
-#if CONFIG_PALETTE_LINE_COPY
   SHIFT_CDF(ctx_ptr->identity_row_cdf_y, 3);
   SHIFT_CDF(ctx_ptr->identity_row_cdf_uv, 3);
 #if !CONFIG_PLT_DIR_CTX
   SHIFT_CDF(ctx_ptr->palette_direction_cdf, 2);
 #endif  // !CONFIG_PLT_DIR_CTX
-#else
-  SHIFT_CDF(ctx_ptr->identity_row_cdf_y, 2);
-  SHIFT_CDF(ctx_ptr->identity_row_cdf_uv, 2);
-#endif  // CONFIG_PALETTE_LINE_COPY
-#endif  // CONFIG_PALETTE_IMPROVEMENTS
   SHIFT_CDF(ctx_ptr->cfl_cdf, 2);
   SHIFT_CDF(ctx_ptr->palette_y_size_cdf, PALETTE_SIZES);
   SHIFT_CDF(ctx_ptr->palette_uv_size_cdf, PALETTE_SIZES);
@@ -8768,21 +8397,12 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
               PALETTE_SIZES);
   AVERAGE_CDF(ctx_left->palette_uv_size_cdf, ctx_tr->palette_uv_size_cdf,
               PALETTE_SIZES);
-#if CONFIG_PALETTE_IMPROVEMENTS
-#if CONFIG_PALETTE_LINE_COPY
   AVERAGE_CDF(ctx_left->identity_row_cdf_y, ctx_tr->identity_row_cdf_y, 3);
   AVERAGE_CDF(ctx_left->identity_row_cdf_uv, ctx_tr->identity_row_cdf_uv, 3);
 #if !CONFIG_PLT_DIR_CTX
   AVERAGE_CDF(ctx_left->palette_direction_cdf, ctx_tr->palette_direction_cdf,
               2);
 #endif  // !CONFIG_PLT_DIR_CTX
-#else
-  CUMULATIVE_AVERAGE_CDF(ctx_left->identity_row_cdf_y,
-                         ctx_tr->identity_row_cdf_y, 2);
-  CUMULATIVE_AVERAGE_CDF(ctx_left->identity_row_cdf_uv,
-                         ctx_tr->identity_row_cdf_uv, 2);
-#endif  // CONFIG_PALETTE_LINE_COPY
-#endif  // CONFIG_PALETTE_IMPROVEMENTS
   AVERAGE_CDF(ctx_left->cfl_cdf, ctx_tr->cfl_cdf, 2);
   for (int j = 0; j < PALETTE_SIZES; j++) {
     int nsymbs = j + PALETTE_MIN_SIZE;

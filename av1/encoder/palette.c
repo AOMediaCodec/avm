@@ -90,16 +90,12 @@ int av1_index_color_cache(const uint16_t *color_cache, int n_cache,
 #endif  // NDEBUG
   int in_cache_flags[PALETTE_MAX_SIZE];
   memset(in_cache_flags, 0, sizeof(in_cache_flags));
-#if CONFIG_PALETTE_IMPROVEMENTS
   for (int i = 0; i < n_cache; ++i) {
     int duplicate = 0;
     for (int j = 0; j < i; j++) {
       if (color_cache[i] == color_cache[j]) duplicate = 1;
     }
     if (duplicate) continue;
-#else
-  for (int i = 0; i < n_cache && n_in_cache < n_colors; ++i) {
-#endif  // CONFIG_PALETTE_IMPROVEMENTS
     for (int j = 0; j < n_colors; ++j) {
       if (colors[j] == color_cache[i]) {
         in_cache_flags[j] = 1;

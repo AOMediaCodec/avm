@@ -738,18 +738,13 @@ static AOM_INLINE void write_delta_lflevel(const AV1_COMMON *cm,
   }
 }
 
-#if CONFIG_PALETTE_IMPROVEMENTS
 static AOM_INLINE void pack_map_tokens(const MACROBLOCKD *xd, aom_writer *w,
                                        const TokenExtra **tp, int n, int cols,
-                                       int rows, int plane
-#if CONFIG_PALETTE_LINE_COPY
-                                       ,
+                                       int rows, int plane,
                                        const bool direction_allowed
-#endif  // CONFIG_PALETTE_LINE_COPY
 
 ) {
   const TokenExtra *p = *tp;
-#if CONFIG_PALETTE_LINE_COPY
   const int direction = (direction_allowed) ? p->direction : 0;
   if (direction_allowed) {
 #if CONFIG_PLT_DIR_CTX
@@ -758,9 +753,6 @@ static AOM_INLINE void pack_map_tokens(const MACROBLOCKD *xd, aom_writer *w,
     aom_write_symbol(w, p->direction, xd->tile_ctx->palette_direction_cdf, 2);
 #endif  // CONFIG_PLT_DIR_CTX
   }
-#else
-  const int direction = 0;
-#endif  // CONFIG_PALETTE_LINE_COPY
   const int ax1_limit = direction ? rows : cols;
   const int ax2_limit = direction ? cols : rows;
 
@@ -776,23 +768,15 @@ static AOM_INLINE void pack_map_tokens(const MACROBLOCKD *xd, aom_writer *w,
         plane ? xd->tile_ctx->identity_row_cdf_uv[ctx]
               : xd->tile_ctx->identity_row_cdf_y[ctx];
 
-#if CONFIG_PALETTE_LINE_COPY
     aom_write_symbol(w, identity_row_flag, identity_row_cdf, 3);
-#else
-    aom_write_symbol(w, identity_row_flag, identity_row_cdf, 2);
-#endif  // CONFIG_PALETTE_LINE_COPY
     // for (int x = 0; x < cols; x++) {
     for (int ax1 = 0; ax1 < ax1_limit; ax1++) {
       // if (y == 0 && x == 0) {
       if (ax2 == 0 && ax1 == 0) {
         write_uniform(w, n, p->token);
       } else {
-#if CONFIG_PALETTE_LINE_COPY
         if (!(identity_row_flag == 2) &&
             (!(identity_row_flag == 1) || ax1 == 0)) {
-#else
-        if (!identity_row_flag || ax1 == 0) {
-#endif  // CONFIG_PALETTE_LINE_COPY
           assert(p->color_map_palette_size_idx >= 0 &&
                  p->color_map_ctx_idx >= 0);
 #if CONFIG_PALETTE_CTX_REDUCTION
@@ -810,44 +794,11 @@ static AOM_INLINE void pack_map_tokens(const MACROBLOCKD *xd, aom_writer *w,
           aom_write_symbol(w, p->token, color_map_pb_cdf, n);
         }
       }
-#if CONFIG_PALETTE_LINE_COPY
       p++;
-#else
-      if (!identity_row_flag || ax1 == 0) p++;
-#endif
     }
   }
   *tp = p;
 }
-#else
-static AOM_INLINE void pack_map_tokens(const MACROBLOCKD *xd, aom_writer *w,
-                                       const TokenExtra **tp, int n, int num,
-                                       int plane) {
-  const TokenExtra *p = *tp;
-  write_uniform(w, n, p->token);  // The first color index.
-  ++p;
-  --num;
-  for (int i = 0; i < num; ++i) {
-    assert(p->color_map_palette_size_idx >= 0 && p->color_map_ctx_idx >= 0);
-#if CONFIG_PALETTE_CTX_REDUCTION
-    aom_cdf_prob *color_map_pb_cdf =
-        xd->tile_ctx->palette_y_color_index_cdf[p->color_map_palette_size_idx]
-                                               [p->color_map_ctx_idx];
-#else
-    aom_cdf_prob *color_map_pb_cdf =
-        plane ? xd->tile_ctx
-                    ->palette_uv_color_index_cdf[p->color_map_palette_size_idx]
-                                                [p->color_map_ctx_idx]
-              : xd->tile_ctx
-                    ->palette_y_color_index_cdf[p->color_map_palette_size_idx]
-                                               [p->color_map_ctx_idx];
-#endif  // CONFIG_PALETTE_CTX_REDUCTION
-    aom_write_symbol(w, p->token, color_map_pb_cdf, n);
-    ++p;
-  }
-  *tp = p;
-}
-#endif  // CONFIG_PALETTE_IMPROVEMENTS
 
 static AOM_INLINE void av1_write_coeffs_txb_facade(
     aom_writer *w, AV1_COMMON *cm, MACROBLOCK *const x, MACROBLOCKD *xd,
@@ -3262,8 +3213,6 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
                                &rows, &cols);
       assert(*tok < tok_end);
 
-#if CONFIG_PALETTE_IMPROVEMENTS
-#if CONFIG_PALETTE_LINE_COPY
       const struct macroblockd_plane *const pd = &xd->plane[plane];
       assert(IMPLIES(plane == PLANE_TYPE_Y, pd->subsampling_x == 0));
       assert(IMPLIES(plane == PLANE_TYPE_Y, pd->subsampling_y == 0));
@@ -3273,16 +3222,8 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
       const int plane_block_height = block_height >> pd->subsampling_y;
       const bool direction_allowed =
           plane_block_width < 64 && plane_block_height < 64;
-#endif  // CONFIG_PALETTE_LINE_COPY
-      pack_map_tokens(xd, w, tok, palette_size_plane, cols, rows, plane
-#if CONFIG_PALETTE_LINE_COPY
-                      ,
-                      direction_allowed
-#endif  // CONFIG_PALETTE_LINE_COPY
-      );
-#else
-      pack_map_tokens(xd, w, tok, palette_size_plane, rows * cols, plane);
-#endif  // CONFIG_PALETTE_IMPROVEMENTS
+      pack_map_tokens(xd, w, tok, palette_size_plane, cols, rows, plane,
+                      direction_allowed);
     }
   }
 

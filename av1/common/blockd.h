@@ -3825,18 +3825,11 @@ typedef const int (*ColorCost)[PALETTE_SIZES][PALETTE_COLOR_INDEX_CONTEXTS]
                               [PALETTE_COLORS];
 /* clang-format on */
 
-#if CONFIG_PALETTE_IMPROVEMENTS
-#if CONFIG_PALETTE_LINE_COPY
 typedef aom_cdf_prob(*PaletteDirectionCdf);
 typedef const int (*PaletteDirectionCost)[2];
 
 typedef aom_cdf_prob (*IdentityRowCdf)[CDF_SIZE(3)];
 typedef const int (*IdentityRowCost)[PALETTE_ROW_FLAG_CONTEXTS][3];
-#else
-typedef aom_cdf_prob (*IdentityRowCdf)[CDF_SIZE(2)];
-typedef const int (*IdentityRowCost)[PALETTE_ROW_FLAG_CONTEXTS][2];
-#endif  // CONFIG_PALETTE_LINE COPY
-#endif  // CONFIG_PALETTE_IMPROVEMENTS
 
 typedef struct {
   int rows;
@@ -3847,16 +3840,12 @@ typedef struct {
   uint8_t *color_map;
   MapCdf map_cdf;
   ColorCost color_cost;
-#if CONFIG_PALETTE_IMPROVEMENTS
-#if CONFIG_PALETTE_LINE_COPY
 #if !CONFIG_PLT_DIR_CTX
   aom_cdf_prob *direction_cdf;
   PaletteDirectionCost direction_cost;
 #endif  // !CONFIG_PLT_DIR_CTX
-#endif  // CONFIG_PALETTE_LINE_COPY
   IdentityRowCdf identity_row_cdf;
   IdentityRowCost identity_row_cost;
-#endif  // CONFIG_PALETTE_IMPROVEMENTS
 } Av1ColorMapParam;
 
 static INLINE int is_nontrans_global_motion(const MACROBLOCKD *xd,

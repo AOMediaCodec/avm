@@ -21,7 +21,6 @@
 #include "av1/common/entropy.h"
 #include "av1/common/idct.h"
 
-#if CONFIG_PALETTE_LINE_COPY && CONFIG_PALETTE_IMPROVEMENTS
 // Read direction flag, then read line flags, and palette tokens one line at at
 // a time. Returns 1 for sucess.
 static int decode_color_map_tokens(Av1ColorMapParam *param, aom_reader *r) {
@@ -87,11 +86,7 @@ static int decode_color_map_tokens(Av1ColorMapParam *param, aom_reader *r) {
         color_map[0] = av1_read_uniform(r, num_colors);
       } else {
         const int color_ctx = av1_get_palette_color_index_context(
-            color_map, plane_block_width, y, x,
-#if !CONFIG_PALETTE_THREE_NEIGHBOR
-            num_colors,
-#endif  // CONFIG_PALETTE_THREE_NEIGHBOR
-            color_order, NULL
+            color_map, plane_block_width, y, x, color_order, NULL
 #if !CONFIG_PALETTE_CTX_REDUCTION
             ,
             identity_row_flag, prev_identity_row_flag
@@ -122,90 +117,6 @@ static int decode_color_map_tokens(Av1ColorMapParam *param, aom_reader *r) {
   }
   return 1;
 }
-#else
-static int decode_color_map_tokens(Av1ColorMapParam *param, aom_reader *r) {
-  uint8_t color_order[PALETTE_MAX_SIZE];
-  const int num_colors = param->n_colors;
-  uint8_t *const color_map = param->color_map;
-  MapCdf color_map_cdf = param->map_cdf;
-  int plane_block_width = param->plane_width;
-  int plane_block_height = param->plane_height;
-  int rows = param->rows;
-  int cols = param->cols;
-
-#if CONFIG_PALETTE_IMPROVEMENTS
-  IdentityRowCdf identity_row_cdf = param->identity_row_cdf;
-  int prev_identity_row_flag = 0;
-  for (int y = 0; y < rows; y++) {
-    const int ctx = y == 0 ? 2 : prev_identity_row_flag;
-    int identity_row_flag = aom_read_symbol(r, identity_row_cdf[ctx], 2,
-                                            ACCT_INFO("identity_row_flag"));
-
-    for (int x = 0; x < cols; x++) {
-      if (identity_row_flag && x > 0) {
-        color_map[y * plane_block_width + x] =
-            color_map[y * plane_block_width + x - 1];
-      } else if (y == 0 && x == 0) {
-        color_map[0] = av1_read_uniform(r, num_colors);
-      } else {
-        const int color_ctx = av1_get_palette_color_index_context(
-            color_map, plane_block_width, y, x,
-#if !CONFIG_PALETTE_THREE_NEIGHBOR
-            num_colors,
-#endif  // CONFIG_PALETTE_THREE_NEIGHBOR
-            color_order, NULL
-#if !CONFIG_PALETTE_CTX_REDUCTION
-            ,
-            identity_row_flag, prev_identity_row_flag
-#endif  // !CONFIG_PALETTE_CTX_REDUCTION
-        );
-        const int color_idx = aom_read_symbol(
-            r, color_map_cdf[num_colors - PALETTE_MIN_SIZE][color_ctx],
-            num_colors, ACCT_INFO("color_idx"));
-        assert(color_idx >= 0 && color_idx < num_colors);
-        color_map[y * plane_block_width + x] = color_order[color_idx];
-      }
-    }
-    prev_identity_row_flag = identity_row_flag;
-  }
-#else
-  // The first color index.
-  color_map[0] = av1_read_uniform(r, num_colors);
-  assert(color_map[0] < num_colors);
-
-  // Run wavefront on the palette map index decoding.
-  for (int i = 1; i < rows + cols - 1; ++i) {
-    for (int j = AOMMIN(i, cols - 1); j >= AOMMAX(0, i - rows + 1); --j) {
-      const int color_ctx = av1_get_palette_color_index_context(
-          color_map, plane_block_width, (i - j), j,
-#if !CONFIG_PALETTE_THREE_NEIGHBOR
-          num_colors,
-#endif  // CONFIG_PALETTE_THREE_NEIGHBOR
-          color_order, NULL);
-      const int color_idx = aom_read_symbol(
-          r, color_map_cdf[num_colors - PALETTE_MIN_SIZE][color_ctx],
-          num_colors, ACCT_INFO("color_idx"));
-      assert(color_idx >= 0 && color_idx < num_colors);
-      color_map[(i - j) * plane_block_width + j] = color_order[color_idx];
-    }
-  }
-#endif  // CONFIG_PALETTE_IMPROVEMENTS
-  // Copy last column to extra columns.
-  if (cols < plane_block_width) {
-    for (int i = 0; i < rows; ++i) {
-      memset(color_map + i * plane_block_width + cols,
-             color_map[i * plane_block_width + cols - 1],
-             (plane_block_width - cols));
-    }
-  }
-  // Copy last row to extra rows.
-  for (int i = rows; i < plane_block_height; ++i) {
-    memcpy(color_map + i * plane_block_width,
-           color_map + (rows - 1) * plane_block_width, plane_block_width);
-  }
-  return 1;
-}
-#endif  // CONFIG_PALETTE_LINE_COPY
 
 void av1_decode_palette_tokens(MACROBLOCKD *const xd, int plane,
                                aom_reader *r) {
@@ -219,15 +130,11 @@ void av1_decode_palette_tokens(MACROBLOCKD *const xd, int plane,
   params.map_cdf = plane ? xd->tile_ctx->palette_uv_color_index_cdf
                          : xd->tile_ctx->palette_y_color_index_cdf;
 #endif  // CONFIG_PALETTE_CTX_REDUCTION
-#if CONFIG_PALETTE_IMPROVEMENTS
   params.identity_row_cdf = plane ? xd->tile_ctx->identity_row_cdf_uv
                                   : xd->tile_ctx->identity_row_cdf_y;
 #if !CONFIG_PLT_DIR_CTX
-#if CONFIG_PALETTE_LINE_COPY
   params.direction_cdf = xd->tile_ctx->palette_direction_cdf;
 #endif  // !CONFIG_PLT_DIR_CTX
-#endif  // CONFIG_PALETTE_LINE_COPY
-#endif  // CONFIG_PALETTE_IMPROVEMENTS
   const MB_MODE_INFO *const mbmi = xd->mi[0];
   params.n_colors = mbmi->palette_mode_info.palette_size[plane];
   av1_get_block_dimensions(mbmi->sb_type[plane > 0], plane, xd,

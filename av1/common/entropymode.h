@@ -31,7 +31,6 @@ extern "C" {
 #define INTER_OFFSET(mode) ((mode) - NEARMV)
 #define INTER_COMPOUND_OFFSET(mode) (uint8_t)((mode) - NEAR_NEARMV)
 // Number of possible contexts for a color index.
-#if CONFIG_PALETTE_IMPROVEMENTS
 // As can be seen from av1_get_palette_color_index_context(), the possible
 // contexts are (2,0,0), (2,2,1), (3,2,0), (4,1,0), (5,0,0) pluss one
 // extra case for the first element of an identity row. These are mapped to
@@ -41,17 +40,7 @@ extern "C" {
 #else
 #define PALETTE_COLOR_INDEX_CONTEXTS 6
 #endif  // CONFIG_PALETTE_CTX_REDUCTION
-#if CONFIG_PALETTE_LINE_COPY
 #define PALETTE_ROW_FLAG_CONTEXTS 4
-#else
-#define PALETTE_ROW_FLAG_CONTEXTS 3
-#endif  // CONFIG_PALETTE_LINE_COPY
-#else
-// As can be seen from av1_get_palette_color_index_context(), the possible
-// contexts are (2,0,0), (2,2,1), (3,2,0), (4,1,0), (5,0,0). These are mapped to
-// a value from 0 to 4 using 'palette_color_index_context_lookup' table.
-#define PALETTE_COLOR_INDEX_CONTEXTS 5
-#endif  // CONFIG_PALETTE_IMPROVEMENTS
 
 #if !CONFIG_PALETTE_CTX_REDUCTION
 // Palette Y mode context for a block is determined by number of neighboring
@@ -355,18 +344,11 @@ typedef struct frame_contexts {
   aom_cdf_prob palette_y_size_cdf[PALATTE_BSIZE_CTXS][CDF_SIZE(PALETTE_SIZES)];
   aom_cdf_prob palette_uv_size_cdf[PALATTE_BSIZE_CTXS][CDF_SIZE(PALETTE_SIZES)];
 #endif  // CONFIG_PALETTE_CTX_REDUCTION
-#if CONFIG_PALETTE_IMPROVEMENTS
-#if CONFIG_PALETTE_LINE_COPY
   aom_cdf_prob identity_row_cdf_y[PALETTE_ROW_FLAG_CONTEXTS][CDF_SIZE(3)];
   aom_cdf_prob identity_row_cdf_uv[PALETTE_ROW_FLAG_CONTEXTS][CDF_SIZE(3)];
 #if !CONFIG_PLT_DIR_CTX
   aom_cdf_prob palette_direction_cdf[CDF_SIZE(2)];
 #endif  // !CONFIG_PLT_DIR_CTX
-#else
-  aom_cdf_prob identity_row_cdf_y[PALETTE_ROW_FLAG_CONTEXTS][CDF_SIZE(2)];
-  aom_cdf_prob identity_row_cdf_uv[PALETTE_ROW_FLAG_CONTEXTS][CDF_SIZE(2)];
-#endif  // CONFIG_PALETTE_LINE_COPY
-#endif  // CONFIG_PALETTE_IMPROVEMENTS
   aom_cdf_prob palette_y_color_index_cdf[PALETTE_SIZES]
                                         [PALETTE_COLOR_INDEX_CONTEXTS]
                                         [CDF_SIZE(PALETTE_COLORS)];
@@ -884,27 +866,13 @@ static const int
 // along with the 'color_order' of neighbors and the 'color_idx'.
 // The 'color_map' is a 2D array with the given 'stride'.
 int av1_get_palette_color_index_context(const uint8_t *color_map, int stride,
-                                        int r, int c,
-#if !CONFIG_PALETTE_THREE_NEIGHBOR
-                                        int palette_size,
-#endif  // CONFIG_PALETTE_THREE_NEIGHBOR
-                                        uint8_t *color_order, int *color_idx
-#if CONFIG_PALETTE_IMPROVEMENTS && !CONFIG_PALETTE_CTX_REDUCTION
+                                        int r, int c, uint8_t *color_order,
+                                        int *color_idx
+#if !CONFIG_PALETTE_CTX_REDUCTION
                                         ,
                                         int row_flag, int prev_row_flag
-#endif  // CONFIG_PALETTE_IMPROVEMENTS && !CONFIG_PALETTE_CTX_REDUCTION
+#endif  // !CONFIG_PALETTE_CTX_REDUCTION
 );
-#if !CONFIG_PALETTE_THREE_NEIGHBOR
-// A faster version of av1_get_palette_color_index_context used by the encoder
-// exploiting the fact that the encoder does not need to maintain a color order.
-int av1_fast_palette_color_index_context(const uint8_t *color_map, int stride,
-                                         int r, int c, int *color_idx
-#if CONFIG_PALETTE_IMPROVEMENTS
-                                         ,
-                                         int row_flag, int prev_row_flag
-#endif
-);
-#endif  // !CONFIG_PALETTE_THREE_NEIGHBOR
 #ifdef __cplusplus
 }  // extern "C"
 #endif

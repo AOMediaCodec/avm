@@ -254,16 +254,6 @@ set_aom_config_var(CONFIG_IBC_BV_IMPROVEMENT 1
                    "Enables BV improvements for IBC")
 set_aom_config_var(CONFIG_IBC_MAX_DRL 1
                    "Enables Max DRL index signaling for IntraBC")
-set_aom_config_var(
-  CONFIG_PALETTE_IMPROVEMENTS
-  1
-  "AV2 experiment flag for palette parsing independency and improved palette color map coding."
-)
-set_aom_config_var(
-  CONFIG_PALETTE_LINE_COPY
-  1
-  "AV2 experiment flag to enable palette line copy and transverse coding, CWG-D114."
-)
 set_aom_config_var(CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT 1
                    "Enable enhanced frame output order derivation")
 set_aom_config_var(CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY 1
@@ -395,8 +385,6 @@ set_aom_config_var(CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG 1
 set_aom_config_var(CONFIG_TIP_INTERP_SMOOTH 1
                    "Enable Smooth interpolation for TIP direct output mode")
 
-set_aom_config_var(CONFIG_PALETTE_THREE_NEIGHBOR 1
-                   "Derive palette context using three neighbors")
 set_aom_config_var(CONFIG_PALETTE_CTX_REDUCTION 1
                    "Context reductions to Palette mode related syntax")
 set_aom_config_var(CONFIG_WRL_NO_PRUNING 1 "No pruning when construct WRL")

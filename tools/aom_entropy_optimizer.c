@@ -1557,8 +1557,6 @@ int main(int argc, const char **argv) {
                      "[CDF_SIZE(2)]",
                      0, &total_count, 0, mem_wanted, "Inter");
 
-#if CONFIG_PALETTE_IMPROVEMENTS
-#if CONFIG_PALETTE_LINE_COPY
   cts_each_dim[0] = PALETTE_ROW_FLAG_CONTEXTS;
   cts_each_dim[1] = 3;
   optimize_cdf_table(&fc.identity_row_y_cnts[0][0], probsfile, 2, cts_each_dim,
@@ -1579,22 +1577,6 @@ int main(int argc, const char **argv) {
                      "[CDF_SIZE(2)]",
                      0, &total_count, 0, mem_wanted, "Coefficients");
 #endif  // !CONFIG_PLT_DIR_CTX
-#else
-  cts_each_dim[0] = PALETTE_ROW_FLAG_CONTEXTS;
-  cts_each_dim[1] = 2;
-  optimize_cdf_table(&fc.identity_row_y_cnts[0][0], probsfile, 2, cts_each_dim,
-                     "const aom_cdf_prob default_identity_row_cdf_y"
-                     "[PALETTE_ROW_FLAG_CONTEXTS][CDF_SIZE(2)]",
-                     0, &total_count, 0, mem_wanted, "Coefficients");
-
-  cts_each_dim[0] = PALETTE_ROW_FLAG_CONTEXTS;
-  cts_each_dim[1] = 2;
-  optimize_cdf_table(&fc.identity_row_uv_cnts[0][0], probsfile, 2, cts_each_dim,
-                     "const aom_cdf_prob default_identity_row_cdf_uv"
-                     "[PALETTE_ROW_FLAG_CONTEXTS][CDF_SIZE(2)]",
-                     0, &total_count, 0, mem_wanted, "Coefficients");
-#endif  // CONFIG_PALETTE_LINE_COPY
-#endif  // CONFIG_PALETTE_IMPROVEMENTS
 
   /* palette */
 #if CONFIG_PALETTE_CTX_REDUCTION
