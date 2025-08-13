@@ -741,6 +741,11 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   cm->tlayer_id = 0;
   cm->mlayer_id = 0;
   cm->xlayer_id = 0;
+#if CONFIG_MULTILAYER_CORE
+  // TODO: (@hegilmez) replace layer_id with mlayer_id (current code uses
+  // layer_id variable)
+  cm->layer_id = cm->mlayer_id;
+#endif  // CONFIG_MULTILAYER_CORE
 #else
   cm->number_spatial_layers = 1;
   cm->number_temporal_layers = 1;

@@ -1000,6 +1000,12 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
 #if CONFIG_NEW_OBU_HEADER
     cm->tlayer_id = obu_header.obu_tlayer_id;
     cm->mlayer_id = obu_header.obu_mlayer_id;
+    cm->xlayer_id = obu_header.obu_xlayer_id;
+#if CONFIG_MULTILAYER_CORE
+    // TODO: (@hegilmez) replace layer_id with mlayer_id (current code uses
+    // layer_id variable)
+    cm->layer_id = cm->mlayer_id;
+#endif  // CONFIG_MULTILAYER_CORE
 #else
     cm->temporal_layer_id = obu_header.temporal_layer_id;
     cm->spatial_layer_id = obu_header.spatial_layer_id;

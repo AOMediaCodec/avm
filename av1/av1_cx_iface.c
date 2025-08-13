@@ -3835,6 +3835,11 @@ static aom_codec_err_t ctrl_set_spatial_layer_id(aom_codec_alg_priv_t *ctx,
     return AOM_CODEC_INVALID_PARAM;
 #if CONFIG_NEW_OBU_HEADER
   ctx->cpi->common.mlayer_id = mlayer_id;
+#if CONFIG_MULTILAYER_CORE
+  // TODO: (@hegilmez) replace layer_id with mlayer_id (current code uses
+  // layer_id variable)
+  ctx->cpi->common.layer_id = mlayer_id;
+#endif  // CONFIG_MULTILAYER_CORE
 #else
   ctx->cpi->common.spatial_layer_id = spatial_layer_id;
 #if CONFIG_MULTILAYER_CORE
