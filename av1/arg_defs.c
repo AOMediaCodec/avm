@@ -804,7 +804,11 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
 
   .set_tier_mask =
       ARG_DEF(NULL, "set-tier-mask", 1,
+#if CONFIG_NEW_OBU_HEADER
+              "Set bit mask to specify which tier each of the 64 possible "
+#else
               "Set bit mask to specify which tier each of the 32 possible "
+#endif  // CONFIG_NEW_OBU_HEADER
               "operating points conforms to. "
               "Bit value 0(defualt): Main Tier, 1: High Tier."),
 

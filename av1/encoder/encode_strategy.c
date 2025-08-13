@@ -1152,8 +1152,14 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
       cpi->gf_group.layer_depth[cpi->gf_group.index], cur_frame_disp,
       cpi->gf_group.max_layer_depth,
       cpi->gf_group.update_type[cpi->gf_group.index] == KFFLT_OVERLAY_UPDATE);
+
+#if CONFIG_NEW_OBU_HEADER
+  cm->tlayer_id = 0;
+  cm->current_frame.temporal_layer_id = cm->tlayer_id;
+#else
   cm->temporal_layer_id = 0;
   cm->current_frame.temporal_layer_id = cm->temporal_layer_id;
+#endif  // CONFIG_NEW_OBU_HEADER
 #endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
 
   init_ref_map_pair(&cpi->common, cm->ref_frame_map_pairs,

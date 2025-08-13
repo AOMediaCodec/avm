@@ -230,9 +230,15 @@ struct av1_extracfg {
   int quant_b_adapt;
   unsigned int vbr_corpus_complexity_lap;
   AV1_LEVEL target_seq_level_idx[MAX_NUM_OPERATING_POINTS];
+#if CONFIG_NEW_OBU_HEADER
+  // Bit mask to specify which tier each of the 64 possible operating points
+  // conforms to.
+  uint64_t tier_mask;
+#else
   // Bit mask to specify which tier each of the 32 possible operating points
   // conforms to.
   unsigned int tier_mask;
+#endif  // CONFIG_NEW_OBU_HEADER
   // min_cr / 100 is the target minimum compression ratio for each frame.
   unsigned int min_cr;
   COST_UPDATE_TYPE coeff_cost_upd_freq;
@@ -596,6 +602,15 @@ static struct av1_extracfg default_extra_cfg = {
       SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
       SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
       SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
+#if CONFIG_NEW_OBU_HEADER
+      SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
+      SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
+      SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
+      SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
+      SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
+      SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
+      SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
+#endif          // CONFIG_NEW_OBU_HEADER
   },            // target_seq_level_idx
   0,            // tier_mask
   0,            // min_cr
@@ -3308,7 +3323,11 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
   if (is_stat_generation_stage(cpi)) {
     if (ctx->cfg.kf_mode == AOM_KF_AUTO &&
         ctx->cfg.kf_min_dist == ctx->cfg.kf_max_dist) {
+#if CONFIG_NEW_OBU_HEADER
+      if (cpi->common.mlayer_id == 0 &&
+#else
       if (cpi->common.spatial_layer_id == 0 &&
+#endif  // CONFIG_NEW_OBU_HEADER
           ++ctx->fixed_kf_cntr > ctx->cfg.kf_min_dist) {
         flags |= AOM_EFLAG_FORCE_KF;
         ctx->fixed_kf_cntr = 1;
@@ -3489,11 +3508,15 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       if (frame_size) {
         if (ctx->pending_cx_data == 0) ctx->pending_cx_data = cx_data;
 
+#if CONFIG_NEW_OBU_HEADER
+        const int write_temporal_delimiter =
+            !cpi->common.mlayer_id && !ctx->pending_frame_count;
+#else
         const int write_temporal_delimiter =
             !cpi->common.spatial_layer_id && !ctx->pending_frame_count;
+#endif  // CONFIG_NEW_OBU_HEADER
 
         if (write_temporal_delimiter) {
-          uint32_t obu_header_size = 1;
           const uint32_t obu_payload_size = 0;
           const size_t length_field_size =
               aom_uleb_size_in_bytes(obu_payload_size);
@@ -3504,8 +3527,13 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
                     frame_size);
           }
           const uint32_t obu_header_offset = 0;
-          obu_header_size = av1_write_obu_header(
-              &cpi->level_params, OBU_TEMPORAL_DELIMITER, 0,
+          const uint32_t obu_header_size = av1_write_obu_header(
+              &cpi->level_params, OBU_TEMPORAL_DELIMITER,
+#if CONFIG_NEW_OBU_HEADER
+              0, 0,
+#else
+              0,
+#endif  // CONFIG_NEW_OBU_HEADER
               (uint8_t *)(ctx->pending_cx_data + obu_header_offset));
 
           // OBUs are preceded/succeeded by an unsigned leb128 coded integer.
@@ -3525,6 +3553,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
           }
           frame_size = curr_frame_size;
 
+#if !CONFIG_NEW_OBU_HEADER
           // B_PRIME (add frame size)
           const size_t length_field_size = aom_uleb_size_in_bytes(frame_size);
           if (ctx->pending_cx_data) {
@@ -3536,6 +3565,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
             aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR, NULL);
           }
           frame_size += length_field_size;
+#endif  // !CONFIG_NEW_OBU_HEADER
         }
 
         ctx->pending_frame_sizes[ctx->pending_frame_count++] = frame_size;
@@ -3562,6 +3592,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       // decrement frames_left counter
       cpi->frames_left = AOMMAX(0, cpi->frames_left - 1);
       if (!is_frame_visible_null) {
+#if !CONFIG_NEW_OBU_HEADER
         if (ctx->oxcf.save_as_annexb) {
           //  B_PRIME (add TU size)
           size_t tu_size = ctx->pending_cx_data_sz;
@@ -3577,6 +3608,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
           }
           ctx->pending_cx_data_sz += length_field_size;
         }
+#endif  // !CONFIG_NEW_OBU_HEADER
       }
 
       pkt.kind = is_frame_visible_null ? AOM_CODEC_CX_FRAME_NULL_PKT
@@ -3791,18 +3823,43 @@ static aom_codec_err_t ctrl_set_scale_mode(aom_codec_alg_priv_t *ctx,
   }
 }
 
+#if CONFIG_NEW_OBU_HEADER
+static aom_codec_err_t ctrl_set_mlayer_id(aom_codec_alg_priv_t *ctx,
+                                          va_list args) {
+  const int mlayer_id = va_arg(args, int);
+  if (mlayer_id >= MAX_NUM_MLAYERS)
+#else
 static aom_codec_err_t ctrl_set_spatial_layer_id(aom_codec_alg_priv_t *ctx,
                                                  va_list args) {
   const int spatial_layer_id = va_arg(args, int);
   if (spatial_layer_id >= MAX_NUM_SPATIAL_LAYERS)
+#endif  // CONFIG_NEW_OBU_HEADER
     return AOM_CODEC_INVALID_PARAM;
+#if CONFIG_NEW_OBU_HEADER
+  ctx->cpi->common.mlayer_id = mlayer_id;
+#if CONFIG_MULTILAYER_CORE
+  // TODO: (@hegilmez) replace layer_id with mlayer_id (current code uses
+  // layer_id variable)
+  ctx->cpi->common.layer_id = mlayer_id;
+#endif  // CONFIG_MULTILAYER_CORE
+#else
   ctx->cpi->common.spatial_layer_id = spatial_layer_id;
 #if CONFIG_MULTILAYER_CORE
   ctx->cpi->common.layer_id = spatial_layer_id;
 #endif  // CONFIG_MULTILAYER_CORE
+#endif  // CONFIG_NEW_OBU_HEADER
   return AOM_CODEC_OK;
 }
 
+#if CONFIG_NEW_OBU_HEADER
+static aom_codec_err_t ctrl_set_number_mlayers(aom_codec_alg_priv_t *ctx,
+                                               va_list args) {
+  const int number_mlayers = va_arg(args, int);
+  if (number_mlayers > MAX_NUM_MLAYERS) return AOM_CODEC_INVALID_PARAM;
+  ctx->cpi->common.number_mlayers = number_mlayers;
+  return AOM_CODEC_OK;
+}
+#else
 static aom_codec_err_t ctrl_set_number_spatial_layers(aom_codec_alg_priv_t *ctx,
                                                       va_list args) {
   const int number_spatial_layers = va_arg(args, int);
@@ -3811,6 +3868,7 @@ static aom_codec_err_t ctrl_set_number_spatial_layers(aom_codec_alg_priv_t *ctx,
   ctx->cpi->common.number_spatial_layers = number_spatial_layers;
   return AOM_CODEC_OK;
 }
+#endif  // CONFIG_NEW_OBU_HEADER
 
 static aom_codec_err_t ctrl_set_tune_content(aom_codec_alg_priv_t *ctx,
                                              va_list args) {
@@ -4389,7 +4447,11 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
         arg_parse_uint_helper(&arg, err_string);
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.set_tier_mask, argv,
                               err_string)) {
+#if CONFIG_NEW_OBU_HEADER
+    extra_cfg.tier_mask = arg_parse_uint64_helper(&arg, err_string);
+#else
     extra_cfg.tier_mask = arg_parse_uint_helper(&arg, err_string);
+#endif  // CONFIG_NEW_OBU_HEADER
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.set_min_cr, argv,
                               err_string)) {
     extra_cfg.min_cr = arg_parse_uint_helper(&arg, err_string);
@@ -4528,7 +4590,11 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AOME_SET_ROI_MAP, ctrl_set_roi_map },
   { AOME_SET_ACTIVEMAP, ctrl_set_active_map },
   { AOME_SET_SCALEMODE, ctrl_set_scale_mode },
+#if CONFIG_NEW_OBU_HEADER
+  { AOME_SET_MLAYER_ID, ctrl_set_mlayer_id },
+#else
   { AOME_SET_SPATIAL_LAYER_ID, ctrl_set_spatial_layer_id },
+#endif  // CONFIG_NEW_OBU_HEADER
   { AOME_SET_CPUUSED, ctrl_set_cpuused },
   { AOME_SET_ENABLEAUTOALTREF, ctrl_set_enable_auto_alt_ref },
   { AOME_SET_ENABLEAUTOBWDREF, ctrl_set_enable_auto_bwd_ref },
@@ -4544,7 +4610,11 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AOME_SET_TUNING, ctrl_set_tuning },
   { AOME_SET_QP, ctrl_set_qp },
   { AOME_SET_MAX_INTRA_BITRATE_PCT, ctrl_set_rc_max_intra_bitrate_pct },
+#if CONFIG_NEW_OBU_HEADER
+  { AOME_SET_NUMBER_MLAYERS, ctrl_set_number_mlayers },
+#else
   { AOME_SET_NUMBER_SPATIAL_LAYERS, ctrl_set_number_spatial_layers },
+#endif  // CONFIG_NEW_OBU_HEADER
   { AV1E_SET_MAX_INTER_BITRATE_PCT, ctrl_set_rc_max_inter_bitrate_pct },
   { AV1E_SET_GF_CBR_BOOST_PCT, ctrl_set_rc_gf_cbr_boost_pct },
   { AV1E_SET_LOSSLESS, ctrl_set_lossless },
@@ -4727,7 +4797,11 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #else
     2,  // enable_tcq
 #endif
-    0,                           // save_as_annexb
+#if CONFIG_NEW_OBU_HEADER
+    1,  // save_as_annexb (0: external means)
+#else
+    0,  // save_as_annexb
+#endif                           // CONFIG_NEW_OBU_HEADER
     0,                           // tile_width_count
     0,                           // tile_height_count
     { 0 },                       // tile_widths

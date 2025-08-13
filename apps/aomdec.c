@@ -114,8 +114,14 @@ static const arg_def_t framestatsarg =
     ARG_DEF(NULL, "framestats", 1, "Output per-frame stats (.csv format)");
 static const arg_def_t outbitdeptharg =
     ARG_DEF(NULL, "output-bit-depth", 1, "Output bit-depth for decoded frames");
+#if CONFIG_NEW_OBU_HEADER
+static const arg_def_t isannexb =
+    ARG_DEF(NULL, "annexb", 1,
+            "0: external means, 1: Bitstream is in Annex-B format (default)");
+#else
 static const arg_def_t isannexb =
     ARG_DEF(NULL, "annexb", 0, "Bitstream is in Annex-B format");
+#endif  // CONFIG_NEW_OBU_HEADER
 static const arg_def_t oppointarg = ARG_DEF(
     NULL, "oppoint", 1, "Select an operating point of a scalable bitstream");
 static const arg_def_t outallarg = ARG_DEF(
@@ -342,8 +348,13 @@ static int read_frame(struct AvxDecInputContext *input, uint8_t **buf,
       return ivf_read_frame(input->aom_input_ctx->file, buf, bytes_in_buffer,
                             buffer_size, NULL);
     case FILE_TYPE_OBU:
+#if CONFIG_NEW_OBU_HEADER
+      return obudec_read_temporal_unit(input->obu_ctx, buf, bytes_in_buffer,
+                                       buffer_size, NULL, NULL);
+#else
       return obudec_read_temporal_unit(input->obu_ctx, buf, bytes_in_buffer,
                                        buffer_size);
+#endif  // CONFIG_NEW_OBU_HEADER
     default: return 1;
   }
 }
@@ -636,7 +647,11 @@ static int main_loop(int argc, const char **argv_) {
   int opt_raw = 0;
   aom_codec_dec_cfg_t cfg = { 0, 0, 0, NULL, NULL };
   unsigned int fixed_output_bit_depth = 0;
+#if CONFIG_NEW_OBU_HEADER
+  unsigned int is_annexb = 1;
+#else
   unsigned int is_annexb = 0;
+#endif  // CONFIG_NEW_OBU_HEADER
   int frames_corrupted = 0;
   int dec_flags = 0;
   int do_scale = 0;
@@ -674,7 +689,11 @@ static int main_loop(int argc, const char **argv_) {
   memset(&webm_ctx, 0, sizeof(webm_ctx));
   input.webm_ctx = &webm_ctx;
 #endif
-  struct ObuDecInputContext obu_ctx = { NULL, NULL, 0, 0, 0 };
+#if CONFIG_NEW_OBU_HEADER
+  struct ObuDecInputContext obu_ctx = { NULL, NULL, 0, 0, /*is_annexb=*/1, 0 };
+#else
+  struct ObuDecInputContext obu_ctx = { NULL, NULL, 0, 0, /*is_annexb=*/0 };
+#endif  // CONFIG_NEW_OBU_HEADER
   int is_ivf = 0;
 
   obu_ctx.avx_ctx = &aom_input_ctx;
@@ -773,8 +792,12 @@ static int main_loop(int argc, const char **argv_) {
     } else if (arg_match(&arg, &outbitdeptharg, argi)) {
       fixed_output_bit_depth = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &isannexb, argi)) {
+#if CONFIG_NEW_OBU_HEADER
+      is_annexb = input.obu_ctx->is_annexb = arg_parse_int(&arg);
+#else
       is_annexb = 1;
       input.obu_ctx->is_annexb = 1;
+#endif  // CONFIG_NEW_OBU_HEADER
     } else if (arg_match(&arg, &oppointarg, argi)) {
       operating_point = arg_parse_int(&arg);
     } else if (arg_match(&arg, &outallarg, argi)) {

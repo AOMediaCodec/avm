@@ -1068,8 +1068,15 @@ void av1_update_level_info(AV1_COMP *cpi, size_t size, int64_t ts_start,
   aom_clear_system_state();
   const double compression_ratio = av1_get_compression_ratio(cm, size);
 
+#if CONFIG_NEW_OBU_HEADER
+  const int tlayer_id = cm->tlayer_id;
+  const int mlayer_id = cm->mlayer_id;
+  const int xlayer_id = cm->xlayer_id;
+  (void)xlayer_id;
+#else
   const int temporal_layer_id = cm->temporal_layer_id;
   const int spatial_layer_id = cm->spatial_layer_id;
+#endif  // CONFIG_NEW_OBU_HEADER
   const SequenceHeader *const seq_params = &cm->seq_params;
   const BITSTREAM_PROFILE profile = seq_params->profile;
   const int is_still_picture = seq_params->still_picture;
@@ -1077,7 +1084,11 @@ void av1_update_level_info(AV1_COMP *cpi, size_t size, int64_t ts_start,
   // TODO(kyslov@) fix the implementation according to buffer model
   for (int i = 0; i < seq_params->operating_points_cnt_minus_1 + 1; ++i) {
     if (!is_in_operating_point(seq_params->operating_point_idc[i],
+#if CONFIG_NEW_OBU_HEADER
+                               tlayer_id, mlayer_id) ||
+#else
                                temporal_layer_id, spatial_layer_id) ||
+#endif  // CONFIG_NEW_OBU_HEADER
         !((level_params->keep_level_stats >> i) & 1)) {
       continue;
     }

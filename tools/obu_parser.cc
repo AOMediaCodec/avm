@@ -22,6 +22,23 @@
 
 namespace aom_tools {
 
+#if CONFIG_NEW_OBU_HEADER
+// obu_type 4-bit
+const uint32_t kObuTypeBitsMask = 0xF;
+const uint32_t kObuTypeBitsShift = 12;
+// obu_extension_flag 1-bit
+const uint32_t kObuExtensionFlagBitMask = 0x1;
+const uint32_t kObuExtensionFlagBitShift = 11;
+// obu_tlayer_id 3-bit
+const uint32_t kObuTemporalIdBitsMask = 0x7;
+const uint32_t kObuTemporalIdBitsShift = 8;
+// obu_mlayer_id 3-bit
+const uint32_t kObuMlayerIdBitsMask = 0x7;
+const uint32_t kObuMlayerIdBitsShift = 5;
+// obu_xlayer_id 5-bit
+const uint32_t kObuXlayerIdBitsMask = 0x1F;
+const uint32_t kObuXlayerIdBitsShift = 0;
+#else
 // Basic OBU syntax
 // 8 bits: Header
 //   7
@@ -55,6 +72,7 @@ const uint32_t kObuExtTemporalIdBitsMask = 0x7;
 const uint32_t kObuExtTemporalIdBitsShift = 5;
 const uint32_t kObuExtSpatialIdBitsMask = 0x3;
 const uint32_t kObuExtSpatialIdBitsShift = 3;
+#endif  // CONFIG_NEW_OBU_HEADER
 
 bool ValidObuType(int obu_type) {
   switch (obu_type) {
@@ -71,6 +89,28 @@ bool ValidObuType(int obu_type) {
   return false;
 }
 
+#if CONFIG_NEW_OBU_HEADER
+bool ParseObuHeader(uint16_t obu_header_bytes, ObuHeader *obu_header) {
+  // obu_type
+  obu_header->type = static_cast<OBU_TYPE>(
+      (obu_header_bytes >> kObuTypeBitsShift) & kObuTypeBitsMask);
+  // obu_extension_flag
+  obu_header->obu_extension_flag =
+      (obu_header_bytes >> kObuExtensionFlagBitShift) &
+      kObuExtensionFlagBitMask;
+  // obu_tlayer_id
+  obu_header->obu_tlayer_id =
+      (obu_header_bytes >> kObuTemporalIdBitsShift) & kObuTemporalIdBitsMask;
+  // obu_mlayer_id
+  obu_header->obu_mlayer_id =
+      (obu_header_bytes >> kObuMlayerIdBitsShift) & kObuMlayerIdBitsMask;
+  // obu_xlayer_id
+  obu_header->obu_xlayer_id =
+      (obu_header_bytes >> kObuXlayerIdBitsShift) & kObuXlayerIdBitsMask;
+
+  return true;
+}
+#else
 bool ParseObuHeader(uint8_t obu_header_byte, ObuHeader *obu_header) {
   const int forbidden_bit =
       (obu_header_byte >> kObuForbiddenBitShift) & kObuForbiddenBitMask;
@@ -92,7 +132,22 @@ bool ParseObuHeader(uint8_t obu_header_byte, ObuHeader *obu_header) {
       (obu_header_byte >> kObuHasSizeFieldBitShift) & kObuHasSizeFieldBitMask;
   return true;
 }
+#endif  // CONFIG_NEW_OBU_HEADER
 
+#if CONFIG_NEW_OBU_HEADER
+void PrintObuHeader(const ObuHeader *header) {
+  printf(
+      "OBU type       :   %s\n"
+      "extension_flag :   %s\n",
+      aom_obu_type_to_string(static_cast<OBU_TYPE>(header->type)),
+      header->obu_extension_flag ? "1" : "0");
+  printf(
+      "tlayer_id   : %d\n"
+      "mlayer_id   : %d\n"
+      "xlayer_id   : %d\n\n",
+      header->obu_tlayer_id, header->obu_mlayer_id, header->obu_xlayer_id);
+}
+#else
 bool ParseObuExtensionHeader(uint8_t ext_header_byte, ObuHeader *obu_header) {
   obu_header->temporal_layer_id =
       (ext_header_byte >> kObuExtTemporalIdBitsShift) &
@@ -116,9 +171,14 @@ void PrintObuHeader(const ObuHeader *header) {
         header->temporal_layer_id, header->temporal_layer_id);
   }
 }
+#endif  // CONFIG_NEW_OBU_HEADER
 
 bool DumpObu(const uint8_t *data, int length, int *obu_overhead_bytes) {
+#if CONFIG_NEW_OBU_HEADER
+  const int kObuHeaderSizeBytes = 2;
+#else
   const int kObuHeaderSizeBytes = 1;
+#endif  // CONFIG_NEW_OBU_HEADER
   const int kMinimumBytesRequired = 1 + kObuHeaderSizeBytes;
   int consumed = 0;
   int obu_overhead = 0;
@@ -135,6 +195,17 @@ bool DumpObu(const uint8_t *data, int length, int *obu_overhead_bytes) {
     int obu_header_size = 0;
 
     memset(&obu_header, 0, sizeof(obu_header));
+#if CONFIG_NEW_OBU_HEADER
+    uint16_t obu_header_bytes = 0;
+    obu_header_bytes |= ((uint16_t) * (data + consumed)) << 8;
+    obu_header_bytes |= ((uint16_t) * (data + consumed + 1));
+    if (!ParseObuHeader(obu_header_bytes, &obu_header)) {
+      fprintf(stderr, "OBU parsing failed at offset %d.\n", consumed);
+      return false;
+    }
+    obu_overhead += 2;
+    obu_header_size += 2;
+#else
     const uint8_t obu_header_byte = *(data + consumed);
     if (!ParseObuHeader(obu_header_byte, &obu_header)) {
       fprintf(stderr, "OBU parsing failed at offset %d.\n", consumed);
@@ -156,6 +227,7 @@ bool DumpObu(const uint8_t *data, int length, int *obu_overhead_bytes) {
       ++obu_overhead;
       ++obu_header_size;
     }
+#endif  // CONFIG_NEW_OBU_HEADER
 
     PrintObuHeader(&obu_header);
 

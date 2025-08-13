@@ -75,6 +75,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "config/aom_config.h"
+
 #include "aom/aom_decoder.h"
 #include "aom/aomdx.h"
 #include "common/obudec.h"
@@ -99,7 +101,12 @@ int main(int argc, char **argv) {
   size_t bytes_in_buffer = 0;
   size_t buffer_size = 0;
   struct AvxInputContext aom_input_ctx;
+#if CONFIG_NEW_OBU_HEADER
+  struct ObuDecInputContext obu_ctx = { &aom_input_ctx,  NULL, 0, 0,
+                                        /*is_annexb=*/1, 0 };
+#else
   struct ObuDecInputContext obu_ctx = { &aom_input_ctx, NULL, 0, 0, 0 };
+#endif  // CONFIG_NEW_OBU_HEADER
   aom_codec_stream_info_t si;
   uint8_t tmpbuf[32];
   unsigned int i;
@@ -141,15 +148,24 @@ int main(int argc, char **argv) {
   if (!(outfile[0] = fopen(filename, "wb")))
     die("Failed top open output for writing.");
 
-  // open any enhancement layer output yuv files
+    // open any enhancement layer output yuv files
+#if CONFIG_NEW_OBU_HEADER
+  for (i = 1; i < si.number_mlayers; i++) {
+#else
   for (i = 1; i < si.number_spatial_layers; i++) {
+#endif  // CONFIG_NEW_OBU_HEADER
     snprintf(filename, sizeof(filename), "out_lyr%u.yuv", i);
     if (!(outfile[i] = fopen(filename, "wb")))
       die("Failed to open output for writing.");
   }
 
+#if CONFIG_NEW_OBU_HEADER
+  while (!obudec_read_temporal_unit(&obu_ctx, &buf, &bytes_in_buffer,
+                                    &buffer_size, NULL, NULL)) {
+#else
   while (!obudec_read_temporal_unit(&obu_ctx, &buf, &bytes_in_buffer,
                                     &buffer_size)) {
+#endif  // CONFIG_NEW_OBU_HEADER
     aom_codec_iter_t iter = NULL;
     aom_image_t *img = NULL;
     if (aom_codec_decode(&codec, buf, bytes_in_buffer, NULL))
@@ -162,6 +178,18 @@ int main(int argc, char **argv) {
       aom_img_downshift(img_shifted, img,
                         img->bit_depth - img_shifted->bit_depth,
                         img_shifted->bit_depth);
+#if CONFIG_NEW_OBU_HEADER
+      if (img->mlayer_id == 0) {
+        printf("Writing        base layer 0 %d\n", frame_cnt);
+        aom_img_write(img_shifted, outfile[0]);
+      } else if (img->mlayer_id <= (int)(si.number_mlayers - 1)) {
+        printf("Writing enhancement layer %d %d\n", img->mlayer_id, frame_cnt);
+        aom_img_write(img_shifted, outfile[img->mlayer_id]);
+      } else {
+        die_codec(&codec, "Invalid bitstream. Layer id exceeds layer count");
+      }
+      if (img->mlayer_id == (int)(si.number_mlayers - 1)) ++frame_cnt;
+#else
       if (img->spatial_id == 0) {
         printf("Writing        base layer 0 %d\n", frame_cnt);
         aom_img_write(img_shifted, outfile[0]);
@@ -172,13 +200,18 @@ int main(int argc, char **argv) {
         die_codec(&codec, "Invalid bitstream. Layer id exceeds layer count");
       }
       if (img->spatial_id == (int)(si.number_spatial_layers - 1)) ++frame_cnt;
+#endif  // CONFIG_NEW_OBU_HEADER
     }
   }
 
   printf("Processed %d frames.\n", frame_cnt);
   if (aom_codec_destroy(&codec)) die_codec(&codec, "Failed to destroy codec");
 
+#if CONFIG_NEW_OBU_HEADER
+  for (i = 0; i < si.number_mlayers; i++) fclose(outfile[i]);
+#else
   for (i = 0; i < si.number_spatial_layers; i++) fclose(outfile[i]);
+#endif  // CONFIG_NEW_OBU_HEADER
 
   fclose(inputfile);
 

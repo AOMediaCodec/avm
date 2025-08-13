@@ -991,8 +991,14 @@ int av1_add_film_grain(const aom_film_grain_t *params, const aom_image_t *src,
   dst->x_chroma_shift = src->x_chroma_shift;
   dst->y_chroma_shift = src->y_chroma_shift;
 
+#if CONFIG_NEW_OBU_HEADER
+  dst->tlayer_id = src->tlayer_id;
+  dst->mlayer_id = src->mlayer_id;
+  dst->xlayer_id = src->xlayer_id;
+#else
   dst->temporal_id = src->temporal_id;
   dst->spatial_id = src->spatial_id;
+#endif  // CONFIG_NEW_OBU_HEADER
 
   width = src->d_w % 2 ? src->d_w + 1 : src->d_w;
   height = src->d_h % 2 ? src->d_h + 1 : src->d_h;

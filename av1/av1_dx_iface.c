@@ -118,6 +118,10 @@ static aom_codec_err_t decoder_init(aom_codec_ctx_t *ctx) {
     // Turn row_mt off by default.
     priv->row_mt = 0;
 
+#if CONFIG_NEW_OBU_HEADER
+    priv->is_annexb = 1;
+#endif  // CONFIG_NEW_OBU_HEADER
+
     // Turn on normal tile coding mode by default.
     // 0 is for normal tile coding mode, and 1 is for large scale tile coding
     // mode(refer to lightfield example).
@@ -386,8 +390,13 @@ static aom_codec_err_t parse_operating_points(struct aom_read_bit_buffer *rb,
   }
 
   if (aom_get_num_layers_from_operating_point_idc(
+#if CONFIG_NEW_OBU_HEADER
+          operating_point_idc0, &si->number_mlayers, &si->number_tlayers) !=
+      AOM_CODEC_OK) {
+#else
           operating_point_idc0, &si->number_spatial_layers,
           &si->number_temporal_layers) != AOM_CODEC_OK) {
+#endif  // CONFIG_NEW_OBU_HEADER
     return AOM_CODEC_ERROR;
   }
 
@@ -725,7 +734,10 @@ static aom_codec_err_t decoder_inspect(aom_codec_alg_priv_t *ctx,
                                        void *user_priv) {
   aom_codec_err_t res = AOM_CODEC_OK;
 
+#if !CONFIG_NEW_OBU_HEADER
   const uint8_t *const data_end = data + data_sz;
+#endif  // !CONFIG_NEW_OBU_HEADER
+
   Av1DecodeReturn *data2 = (Av1DecodeReturn *)user_priv;
 
   if (ctx->frame_worker == NULL) {
@@ -746,12 +758,14 @@ static aom_codec_err_t decoder_inspect(aom_codec_alg_priv_t *ctx,
   if (ctx->frame_worker->had_error)
     return update_error_state(ctx, &frame_worker_data->pbi->common.error);
 
+#if !CONFIG_NEW_OBU_HEADER
   // Allow extra zero bytes after the frame end
   while (data < data_end) {
     const uint8_t marker = data[0];
     if (marker) break;
     ++data;
   }
+#endif  // !CONFIG_NEW_OBU_HEADER
 
   data2->idx = -1;
 
@@ -849,6 +863,7 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
   const uint8_t *data_start = data;
   const uint8_t *data_end = data + data_sz;
 
+#if !CONFIG_NEW_OBU_HEADER
   if (ctx->is_annexb) {
     // read the size of this temporal unit
     size_t length_of_size;
@@ -862,9 +877,13 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
       return AOM_CODEC_CORRUPT_FRAME;
     data_end = data_start + temporal_unit_size;
   }
+#endif  // !CONFIG_NEW_OBU_HEADER
 
   // Decode in serial mode.
   while (data_start < data_end) {
+#if CONFIG_NEW_OBU_HEADER
+    uint64_t frame_size = (uint64_t)(data_end - data_start);
+#else
     uint64_t frame_size;
     if (ctx->is_annexb) {
       // read the size of this frame unit
@@ -879,16 +898,19 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
     } else {
       frame_size = (uint64_t)(data_end - data_start);
     }
+#endif  // CONFIG_NEW_OBU_HEADER
 
     res = decode_one(ctx, &data_start, (size_t)frame_size, user_priv);
     if (res != AOM_CODEC_OK) return res;
 
+#if !CONFIG_NEW_OBU_HEADER
     // Allow extra zero bytes after the frame end
     while (data_start < data_end) {
       const uint8_t marker = data_start[0];
       if (marker) break;
       ++data_start;
     }
+#endif  // !CONFIG_NEW_OBU_HEADER
   }
 
   return res;
@@ -1060,8 +1082,14 @@ static aom_image_t *decoder_get_frame_(aom_codec_alg_priv_t *ctx,
 
         ctx->img.fb_priv = output_frame_buf->raw_frame_buffer.priv;
         img = &ctx->img;
+#if CONFIG_NEW_OBU_HEADER
+        img->tlayer_id = cm->tlayer_id;
+        img->mlayer_id = cm->mlayer_id;
+        img->xlayer_id = cm->xlayer_id;
+#else
         img->temporal_id = cm->temporal_layer_id;
         img->spatial_id = cm->spatial_layer_id;
+#endif  // CONFIG_NEW_OBU_HEADER
         if (pbi->skip_film_grain) grain_params->apply_grain = 0;
         aom_image_t *res =
             add_grain_if_needed(ctx, img, &ctx->image_with_grain, grain_params);
