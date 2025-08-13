@@ -3809,9 +3809,11 @@ static INLINE int get_dist_to_closest_interp_ref(const AV1_COMMON *const cm,
 // order_hint as the current frame).
 static INLINE int is_ref_overlay(const AV1_COMMON *const cm, int ref) {
   const OrderHintInfo *const order_hint_info = &cm->seq_params.order_hint_info;
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+#if CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+  if (order_hint_info->order_hint_bits_minus_1 < 0) return 0;
+#else
   if (!order_hint_info->enable_order_hint) return -1;
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+#endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref);
   if (buf == NULL) return -1;
 #if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
@@ -4897,9 +4899,11 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
 
   memset(cm->ref_frame_side, 0, sizeof(cm->ref_frame_side));
   memset(cm->ref_frame_relative_dist, 0, sizeof(cm->ref_frame_relative_dist));
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+#if CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+  if (order_hint_info->order_hint_bits_minus_1 < 0) return;
+#else
   if (!order_hint_info->enable_order_hint) return;
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+#endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
 
   TPL_MV_REF *tpl_mvs_base = cm->tpl_mvs;
   const int mvs_rows =
@@ -5240,9 +5244,11 @@ void av1_setup_ref_frame_sides(AV1_COMMON *cm) {
 
   memset(cm->ref_frame_side, 0, sizeof(cm->ref_frame_side));
   memset(cm->ref_frame_relative_dist, 0, sizeof(cm->ref_frame_relative_dist));
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+#if CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+  if (order_hint_info->order_hint_bits_minus_1 < 0) return;
+#else
   if (!order_hint_info->enable_order_hint) return;
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+#endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
 
 #if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   const int cur_order_hint = cm->cur_frame->display_order_hint;

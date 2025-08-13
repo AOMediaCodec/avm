@@ -2440,7 +2440,7 @@ static INLINE int frame_might_allow_ref_frame_mvs(const AV1_COMMON *cm) {
          cm->seq_params.order_hint_info.enable_ref_frame_mvs &&
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
          cm->seq_params.order_hint_info.enable_order_hint &&
-#endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
          !frame_is_intra_only(cm);
 }
 
