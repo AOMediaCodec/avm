@@ -1294,6 +1294,55 @@ void av1_loop_filter_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
                    plane_end);
 }
 #if CONFIG_LF_SUB_PU
+// Set TIP filter length
+static AOM_INLINE void set_tip_filter_length(
+    AV1_COMMON *cm, const int plane, const int subsampling_x,
+    const int subsampling_y, const int blk_sz, const int edge_dir,
+    const unsigned int coord, int *filter_length_neg, int *filter_length_pos) {
+  const BLOCK_SIZE superblock_size =
+      get_plane_block_size(cm->sb_size, subsampling_x, subsampling_y);
+  const BLOCK_SIZE block64_size =
+      get_plane_block_size(BLOCK_64X64, subsampling_x, subsampling_y);
+  const int vert_sb_mask = block_size_high[block64_size] - 1;
+  int horz_superblock_edge = (HORZ_EDGE == edge_dir) && !(coord & vert_sb_mask);
+
+  const unsigned int hor_sb_size = block_size_wide[superblock_size];
+  int vert_tile_edge = 0;
+  for (int i = 1; i < cm->tiles.cols; ++i) {
+    if ((cm->tiles.col_start_sb[i] * hor_sb_size == coord) &&
+        (VERT_EDGE == edge_dir)) {
+      vert_tile_edge = 1;
+    }
+  }
+
+  if (4 >= blk_sz) {
+    *filter_length_neg = 4;
+    *filter_length_pos = 4;
+  } else if (8 == blk_sz) {
+    if ((plane != 0) && (horz_superblock_edge || vert_tile_edge)) {
+      *filter_length_neg = 6;
+      *filter_length_pos = 8;
+    } else {
+      *filter_length_neg = 8;
+      *filter_length_pos = 8;
+    }
+  }
+#if CONFIG_FLEX_TIP_BLK_SIZE
+  else if (16 == blk_sz) {
+    *filter_length_neg = 14;
+    *filter_length_pos = 14;
+    if (plane != 0) {
+      if (horz_superblock_edge || vert_tile_edge) {
+        *filter_length_neg = 6;
+        *filter_length_pos = 10;
+      } else {
+        *filter_length_neg = 10;
+        *filter_length_pos = 10;
+      }
+    }
+  }
+#endif  // CONFIG_FLEX_TIP_BLK_SIZE
+}
 // Apply loop filtering on TIP plane
 AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
                                       uint16_t *dst, const int dst_stride,
@@ -1321,20 +1370,12 @@ AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
   int sub_bw = 8;
   int sub_bh = 8;
 #endif  // CONFIG_FLEX_TIP_BLK_SIZE
+  const int subsampling_x = cm->seq_params.subsampling_x;
+  const int subsampling_y = cm->seq_params.subsampling_y;
   if (plane > 0) {
-    const int subsampling_x = cm->seq_params.subsampling_x;
-    const int subsampling_y = cm->seq_params.subsampling_y;
     sub_bw >>= subsampling_x;
     sub_bh >>= subsampling_y;
   }
-  // select vert/horz filter lengths based on block width/height
-#if CONFIG_FLEX_TIP_BLK_SIZE
-  int filter_length_vert = (sub_bw == 16) ? 14 : sub_bw;
-  int filter_length_horz = (sub_bh == 16) ? 14 : sub_bh;
-#else
-  int filter_length_vert = sub_bw;
-  int filter_length_horz = sub_bh;
-#endif  // CONFIG_FLEX_TIP_BLK_SIZE
 
 // start filtering
 #if CONFIG_IMPROVE_TIP_LF
@@ -1355,6 +1396,11 @@ AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
     for (int i = 0; i <= w; i += sub_bw) {
       // filter vertical boundary
       if (i > 0) {
+        int filter_length_neg = 0;
+        int filter_length_pos = 0;
+        set_tip_filter_length(cm, plane, subsampling_x, subsampling_y, sub_bw,
+                              VERT_EDGE, i, &filter_length_neg,
+                              &filter_length_pos);
         aom_highbd_lpf_vertical_generic(
 #if CONFIG_IMPROVE_TIP_LF
             p
@@ -1362,11 +1408,8 @@ AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
             dst
 #endif  // CONFIG_IMPROVE_TIP_LF
             ,
-            dst_stride, filter_length_vert,
-#if CONFIG_ASYM_DF
-            filter_length_vert,
-#endif
-            &q_vert, &side_vert, bit_depth
+            dst_stride, filter_length_neg, filter_length_pos, &q_vert,
+            &side_vert, bit_depth
 #if !CONFIG_IMPROVE_TIP_LF
             ,
             sub_bh
@@ -1384,6 +1427,11 @@ AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
 #endif  // CONFIG_IMPROVE_TIP_LF
       // filter horizontal boundary
       if (j > 0) {
+        int filter_length_neg = 0;
+        int filter_length_pos = 0;
+        set_tip_filter_length(cm, plane, subsampling_x, subsampling_y, sub_bh,
+                              HORZ_EDGE, j, &filter_length_neg,
+                              &filter_length_pos);
         aom_highbd_lpf_horizontal_generic(
 #if CONFIG_IMPROVE_TIP_LF
             p
@@ -1391,11 +1439,8 @@ AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
             dst
 #endif  // CONFIG_IMPROVE_TIP_LF
             ,
-            dst_stride, filter_length_horz,
-#if CONFIG_ASYM_DF
-            filter_length_horz,
-#endif
-            &q_horz, &side_horz, bit_depth
+            dst_stride, filter_length_neg, filter_length_pos, &q_horz,
+            &side_horz, bit_depth
 #if !CONFIG_IMPROVE_TIP_LF
             ,
             sub_bw
