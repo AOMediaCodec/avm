@@ -358,6 +358,8 @@ if ($opts{config} !~ /libs-x86-win32-vs.*/) {
 # Cross-component Sample Offset
 add_proto qw/void ccso_filter_block_hbd_wo_buf/, "const uint16_t *src_y, uint16_t *dst_yuv, const int x, const int y, const int pic_width, const int pic_height, int *src_cls, const int8_t *offset_buf, const int scaled_ext_stride, const int dst_stride, const int y_uv_hscale, const int y_uv_vscale, const int thr, const int neg_thr, const int *src_loc, const int max_val, const int blk_size_x, const int blk_size_y, const bool isSingleBand, const uint8_t shift_bits, const int edge_clf, const uint8_t ccso_bo_only";
 specialize qw/ccso_filter_block_hbd_wo_buf avx2/;
+add_proto qw/void ccso_filter_block_hbd_wo_buf_bo_only/, "const uint16_t *src_y, uint16_t *dts_yuv, const int x, const int y, const int pic_width, const int pic_height, const int8_t *offset_buf, const int src_y_stride, const int dst_stride, const int y_uv_hscale, const int y_uv_vscale, const int max_val, const int blk_size_x, const int blk_size_y, const bool isSingleBand, const uint8_t shift_bits";
+specialize qw/ccso_filter_block_hbd_wo_buf_bo_only avx2/;
 
 if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   add_proto qw/void ccso_filter_block_hbd_with_buf/, "const uint16_t *src_y, uint16_t *dst_yuv, const uint8_t *src_cls0, const uint8_t *src_cls1,
