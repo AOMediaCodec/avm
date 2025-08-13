@@ -13,8 +13,6 @@
 #include <string.h>
 #include <assert.h>
 
-#include "config/aom_config.h"
-
 #include "aom_ports/mem_ops.h"
 #include "common/ivfdec.h"
 #include "common/obudec.h"
@@ -91,15 +89,9 @@ int aom_video_reader_read_frame(AvxVideoReader *reader) {
                            &reader->frame_size, &reader->buffer_size,
                            &reader->pts);
   } else if (reader->input_ctx.file_type == FILE_TYPE_OBU) {
-#if CONFIG_NEW_OBU_HEADER
-    return !obudec_read_temporal_unit(&reader->obu_ctx, &reader->buffer,
-                                      &reader->frame_size, &reader->buffer_size,
-                                      NULL, NULL);
-#else
     return !obudec_read_temporal_unit(&reader->obu_ctx, &reader->buffer,
                                       &reader->frame_size,
                                       &reader->buffer_size);
-#endif  // CONFIG_NEW_OBU_HEADER
 #if CONFIG_WEBM_IO
   } else if (reader->input_ctx.file_type == FILE_TYPE_WEBM) {
     return !webm_read_frame(&reader->webm_ctx, &reader->buffer,

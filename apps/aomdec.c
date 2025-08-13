@@ -348,13 +348,8 @@ static int read_frame(struct AvxDecInputContext *input, uint8_t **buf,
       return ivf_read_frame(input->aom_input_ctx->file, buf, bytes_in_buffer,
                             buffer_size, NULL);
     case FILE_TYPE_OBU:
-#if CONFIG_NEW_OBU_HEADER
-      return obudec_read_temporal_unit(input->obu_ctx, buf, bytes_in_buffer,
-                                       buffer_size, NULL, NULL);
-#else
       return obudec_read_temporal_unit(input->obu_ctx, buf, bytes_in_buffer,
                                        buffer_size);
-#endif  // CONFIG_NEW_OBU_HEADER
     default: return 1;
   }
 }
@@ -690,7 +685,7 @@ static int main_loop(int argc, const char **argv_) {
   input.webm_ctx = &webm_ctx;
 #endif
 #if CONFIG_NEW_OBU_HEADER
-  struct ObuDecInputContext obu_ctx = { NULL, NULL, 0, 0, /*is_annexb=*/1, 0 };
+  struct ObuDecInputContext obu_ctx = { NULL, NULL, 0, 0, /*is_annexb=*/1 };
 #else
   struct ObuDecInputContext obu_ctx = { NULL, NULL, 0, 0, /*is_annexb=*/0 };
 #endif  // CONFIG_NEW_OBU_HEADER
