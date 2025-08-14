@@ -2840,27 +2840,44 @@ static AOM_INLINE void write_tokens_b(AV1_COMP *cpi, aom_writer *w,
     mu_blocks_wide = AOMMIN(num_4x4_w, mu_blocks_wide);
     mu_blocks_high = AOMMIN(num_4x4_h, mu_blocks_high);
 
+#if CONFIG_TU64_TRAVERSED_ORDER
+    const int mu128_wide = mi_size_wide[BLOCK_128X128];
+    const int mu128_high = mi_size_high[BLOCK_128X128];
+    // Loop through each 128x128 block within the current coding block
+    for (int row128 = 0; row128 < num_4x4_h; row128 += mu128_high) {
+      for (int col128 = 0; col128 < num_4x4_w; col128 += mu128_wide) {
+        // Loop through each 64x64 block within the current 128x128 block
+        for (int row = row128; row < AOMMIN(row128 + mu128_high, num_4x4_h);
+             row += mu_blocks_high) {
+          for (int col = col128; col < AOMMIN(col128 + mu128_wide, num_4x4_w);
+               col += mu_blocks_wide) {
+#else
     for (int row = 0; row < num_4x4_h; row += mu_blocks_high) {
       for (int col = 0; col < num_4x4_w; col += mu_blocks_wide) {
-        const int plane_start = get_partition_plane_start(xd->tree_type);
-        const int plane_end =
-            get_partition_plane_end(xd->tree_type, av1_num_planes(cm));
-        for (int plane = plane_start; plane < plane_end; ++plane) {
-          if (plane && !xd->is_chroma_ref) break;
-          if (plane == AOM_PLANE_U && is_cctx_allowed(cm, xd)) continue;
+#endif  // CONFIG_TU64_TRAVERSED_ORDER
+            const int plane_start = get_partition_plane_start(xd->tree_type);
+            const int plane_end =
+                get_partition_plane_end(xd->tree_type, av1_num_planes(cm));
+            for (int plane = plane_start; plane < plane_end; ++plane) {
+              if (plane && !xd->is_chroma_ref) break;
+              if (plane == AOM_PLANE_U && is_cctx_allowed(cm, xd)) continue;
 #if CONFIG_CHROMA_LARGE_TX
-          const int ss_x = xd->plane[plane].subsampling_x;
-          const int ss_y = xd->plane[plane].subsampling_y;
-          const bool lossless = xd->lossless[mbmi->segment_id];
-          if (skip_parsing_recon(row, col, ss_x, ss_y, lossless)) {
-            continue;
-          }
+              const int ss_x = xd->plane[plane].subsampling_x;
+              const int ss_y = xd->plane[plane].subsampling_y;
+              const bool lossless = xd->lossless[mbmi->segment_id];
+              if (skip_parsing_recon(row, col, ss_x, ss_y, lossless)) {
+                continue;
+              }
 #endif  // CONFIG_CHROMA_LARGE_TX
-          write_inter_txb_coeff(cm, x, mbmi, w, tok, tok_end, &token_stats, row,
-                                col, block, plane);
+              write_inter_txb_coeff(cm, x, mbmi, w, tok, tok_end, &token_stats,
+                                    row, col, block, plane);
+            }
+          }
         }
+#if CONFIG_TU64_TRAVERSED_ORDER
       }
     }
+#endif  // CONFIG_TU64_TRAVERSED_ORDER
 #if CONFIG_RD_DEBUG
     for (int plane = 0; plane < av1_num_planes(cm); ++plane) {
       if (mbmi->sb_type[xd->tree_type == CHROMA_PART] >= BLOCK_8X8 &&

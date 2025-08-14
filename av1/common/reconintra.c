@@ -96,10 +96,21 @@ static int has_top_right(const AV1_COMMON *cm, const MACROBLOCKD *xd,
       // corner.
       const int tr_col = col_off + top_right_count_unit;
       const int plane_bh_unit_64 = mi_size_high[BLOCK_64X64] >> ss_y;
+#if CONFIG_TU64_TRAVERSED_ORDER
+      const int plane_bw_unit_128 = mi_size_wide[BLOCK_128X128] >> ss_x;
+      if (tr_col % plane_bw_unit_64 == 0 && row_off % plane_bh_unit_64 == 0) {
+        // Since 64x64 TUs are decoded in 128x128 units, the top-right reference
+        // samples of the bottom-right 64x64 transform block within a 128x128
+        // block, i.e., (row_off > 0 && (tr_col % plane_bw_unit_128)), are
+        // unavailable
+        return (tr_col % plane_bw_unit_128) ? 1 : 0;
+      }
+#else
       if (tr_col != plane_bw_unit && tr_col % plane_bw_unit_64 == 0 &&
           row_off % plane_bh_unit_64 == 0) {
         return 1;
       }
+#endif  // CONFIG_TU64_TRAVERSED_ORDER
       const int col_off_64 = col_off % plane_bw_unit_64;
       return col_off_64 + top_right_count_unit < plane_bw_unit_64;
     }
@@ -195,7 +206,20 @@ static int has_bottom_left(const AV1_COMMON *cm, const MACROBLOCKD *xd,
           AOMMIN(mi_size_high[bsize] >> ss_y, plane_bh_unit_64);
       // Check if all bottom-left pixels are in the left 64x* block (which is
       // already coded).
-      return row_off_64 + tx_size_high_unit[txsz] < plane_bh_unit;
+#if CONFIG_TU64_TRAVERSED_ORDER
+      const int plane_bw_unit_128 = mi_size_wide[BLOCK_128X128] >> ss_x;
+      const int col_off_128 = col_off % plane_bw_unit_128;
+      if (col_off_128 == 0) {
+        // Since 64x64 TUs are decoded in 128x128 units, the bottom-left
+        // reference samples of the top-left 64x64 transform block within a
+        // 128x128 block, i.e., (col_off_64 == 0 && row_off_128 +
+        // tx_size_high_unit[txsz] < plane_bh_unit_128), become available
+        const int plane_bh_unit_128 = mi_size_high[BLOCK_128X128] >> ss_y;
+        const int row_off_128 = row_off % plane_bh_unit_128;
+        return row_off_128 + tx_size_high_unit[txsz] < plane_bh_unit_128;
+      } else
+#endif  // CONFIG_TU64_TRAVERSED_ORDER
+        return row_off_64 + tx_size_high_unit[txsz] < plane_bh_unit;
     }
   }
 

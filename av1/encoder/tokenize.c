@@ -367,19 +367,36 @@ void av1_tokenize_sb_vartx(const AV1_COMP *cpi, ThreadData *td,
     mu_blocks_wide = AOMMIN(mi_width, mu_blocks_wide);
     mu_blocks_high = AOMMIN(mi_height, mu_blocks_high);
 
+#if CONFIG_TU64_TRAVERSED_ORDER
+    const int mu128_wide = mi_size_wide[BLOCK_128X128];
+    const int mu128_high = mi_size_high[BLOCK_128X128];
+    // Loop through each 128x128 block within the current coding block
+    for (int row128 = 0; row128 < mi_height; row128 += mu128_high) {
+      for (int col128 = 0; col128 < mi_width; col128 += mu128_wide) {
+        // Loop through each 64x64 block within the current 128x128 block
+        for (int idy = row128; idy < AOMMIN(row128 + mu128_high, mi_height);
+             idy += mu_blocks_high) {
+          for (int idx = col128; idx < AOMMIN(col128 + mu128_wide, mi_width);
+               idx += mu_blocks_wide) {
+#else
     for (int idy = 0; idy < mi_height; idy += mu_blocks_high) {
       for (int idx = 0; idx < mi_width; idx += mu_blocks_wide) {
-        const int unit_height = AOMMIN(mu_blocks_high + idy, mi_height);
-        const int unit_width = AOMMIN(mu_blocks_wide + idx, mi_width);
-        for (int blk_row = idy; blk_row < unit_height; blk_row += bh) {
-          for (int blk_col = idx; blk_col < unit_width; blk_col += bw) {
-            tokenize_vartx(td, max_tx_size, plane_bsize, blk_row, blk_col,
-                           block, plane, &arg);
-            block += step;
+#endif  // CONFIG_TU64_TRAVERSED_ORDER
+            const int unit_height = AOMMIN(mu_blocks_high + idy, mi_height);
+            const int unit_width = AOMMIN(mu_blocks_wide + idx, mi_width);
+            for (int blk_row = idy; blk_row < unit_height; blk_row += bh) {
+              for (int blk_col = idx; blk_col < unit_width; blk_col += bw) {
+                tokenize_vartx(td, max_tx_size, plane_bsize, blk_row, blk_col,
+                               block, plane, &arg);
+                block += step;
+              }
+            }
           }
         }
+#if CONFIG_TU64_TRAVERSED_ORDER
       }
     }
+#endif  // CONFIG_TU64_TRAVERSED_ORDER
   }
   if (rate) *rate += arg.this_rate;
 }

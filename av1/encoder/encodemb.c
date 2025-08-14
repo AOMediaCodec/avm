@@ -1212,19 +1212,37 @@ void av1_foreach_transformed_block_in_plane(
   // Keep track of the row and column of the blocks we use so that we know
   // if we are in the unrestricted motion border.
   int i = 0;
+#if CONFIG_TU64_TRAVERSED_ORDER
+  const int mu128_wide = mi_size_wide[BLOCK_128X128];
+  const int mu128_high = mi_size_high[BLOCK_128X128];
+  // Loop through each 128x128 block within the current coding block
+  for (int row128 = 0; row128 < max_blocks_high; row128 += mu128_high) {
+    for (int col128 = 0; col128 < max_blocks_wide; col128 += mu128_wide) {
+      // Loop through each 64x64 block within the current 128x128 block
+      for (int r = row128; r < AOMMIN(row128 + mu128_high, max_blocks_high);
+           r += mu_blocks_high) {
+        const int unit_height = AOMMIN(mu_blocks_high + r, max_blocks_high);
+        for (int c = col128; c < AOMMIN(col128 + mu128_wide, max_blocks_wide);
+             c += mu_blocks_wide) {
+#else
   for (int r = 0; r < max_blocks_high; r += mu_blocks_high) {
     const int unit_height = AOMMIN(mu_blocks_high + r, max_blocks_high);
     // Skip visiting the sub blocks that are wholly within the UMV.
     for (int c = 0; c < max_blocks_wide; c += mu_blocks_wide) {
-      const int unit_width = AOMMIN(mu_blocks_wide + c, max_blocks_wide);
-      for (int blk_row = r; blk_row < unit_height; blk_row += txh_unit) {
-        for (int blk_col = c; blk_col < unit_width; blk_col += txw_unit) {
-          visit(plane, i, blk_row, blk_col, plane_bsize, tx_size, arg);
-          i += step;
+#endif  // CONFIG_TU64_TRAVERSED_ORDER
+          const int unit_width = AOMMIN(mu_blocks_wide + c, max_blocks_wide);
+          for (int blk_row = r; blk_row < unit_height; blk_row += txh_unit) {
+            for (int blk_col = c; blk_col < unit_width; blk_col += txw_unit) {
+              visit(plane, i, blk_row, blk_col, plane_bsize, tx_size, arg);
+              i += step;
+            }
+          }
         }
       }
+#if CONFIG_TU64_TRAVERSED_ORDER
     }
   }
+#endif  // CONFIG_TU64_TRAVERSED_ORDER
 }
 
 typedef struct encode_block_pass1_args {
@@ -1337,21 +1355,37 @@ void av1_encode_sb(const struct AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
     int mu_blocks_high = mi_size_high[max_unit_bsize];
     mu_blocks_wide = AOMMIN(mi_width, mu_blocks_wide);
     mu_blocks_high = AOMMIN(mi_height, mu_blocks_high);
-
+#if CONFIG_TU64_TRAVERSED_ORDER
+    const int mu128_wide = mi_size_wide[BLOCK_128X128];
+    const int mu128_high = mi_size_high[BLOCK_128X128];
+    // Loop through each 128x128 block within the current coding block
+    for (int row128 = 0; row128 < mi_height; row128 += mu128_high) {
+      for (int col128 = 0; col128 < mi_width; col128 += mu128_wide) {
+        // Loop through each 64x64 block within the current 128x128 block
+        for (int idy = row128; idy < AOMMIN(row128 + mu128_high, mi_height);
+             idy += mu_blocks_high) {
+          for (int idx = col128; idx < AOMMIN(col128 + mu128_wide, mi_width);
+               idx += mu_blocks_wide) {
+#else
     for (int idy = 0; idy < mi_height; idy += mu_blocks_high) {
       for (int idx = 0; idx < mi_width; idx += mu_blocks_wide) {
-        int blk_row, blk_col;
-        const int unit_height = AOMMIN(mu_blocks_high + idy, mi_height);
-        const int unit_width = AOMMIN(mu_blocks_wide + idx, mi_width);
-        for (blk_row = idy; blk_row < unit_height; blk_row += bh) {
-          for (blk_col = idx; blk_col < unit_width; blk_col += bw) {
-            encode_block_inter(plane, block, blk_row, blk_col, plane_bsize,
-                               max_tx_size, &arg, dry_run);
-            block += step;
+#endif  // CONFIG_TU64_TRAVERSED_ORDER
+            int blk_row, blk_col;
+            const int unit_height = AOMMIN(mu_blocks_high + idy, mi_height);
+            const int unit_width = AOMMIN(mu_blocks_wide + idx, mi_width);
+            for (blk_row = idy; blk_row < unit_height; blk_row += bh) {
+              for (blk_col = idx; blk_col < unit_width; blk_col += bw) {
+                encode_block_inter(plane, block, blk_row, blk_col, plane_bsize,
+                                   max_tx_size, &arg, dry_run);
+                block += step;
+              }
+            }
           }
         }
+#if CONFIG_TU64_TRAVERSED_ORDER
       }
     }
+#endif  // CONFIG_TU64_TRAVERSED_ORDER
   }
 
   // trick to avoid reset the skip_txfm for skip mode
@@ -1686,32 +1720,51 @@ void av1_encode_intra_block_plane(const struct AV1_COMP *cpi, MACROBLOCK *x,
     // Keep track of the row and column of the blocks we use so that we know
     // if we are in the unrestricted motion border.
     int i = 0;
+#if CONFIG_TU64_TRAVERSED_ORDER
+    const int mu128_wide = mi_size_wide[BLOCK_128X128];
+    const int mu128_high = mi_size_high[BLOCK_128X128];
+    // Loop through each 128x128 block within the current coding block
+    for (int row128 = 0; row128 < max_blocks_high; row128 += mu128_high) {
+      for (int col128 = 0; col128 < max_blocks_wide; col128 += mu128_wide) {
+        // Loop through each 64x64 block within the current 128x128 block
+        for (int r = row128; r < AOMMIN(row128 + mu128_high, max_blocks_high);
+             r += mu_blocks_high) {
+          const int unit_height = AOMMIN(mu_blocks_high + r, max_blocks_high);
+          for (int c = col128; c < AOMMIN(col128 + mu128_wide, max_blocks_wide);
+               c += mu_blocks_wide) {
+#else
     for (int r = 0; r < max_blocks_high; r += mu_blocks_high) {
       const int unit_height = AOMMIN(mu_blocks_high + r, max_blocks_high);
       // Skip visiting the sub blocks that are wholly within the UMV.
       for (int c = 0; c < max_blocks_wide; c += mu_blocks_wide) {
-        const int unit_width = AOMMIN(mu_blocks_wide + c, max_blocks_wide);
+#endif  // CONFIG_TU64_TRAVERSED_ORDER
+            const int unit_width = AOMMIN(mu_blocks_wide + c, max_blocks_wide);
 
-        for (int txb_idx = 0; txb_idx < mbmi->txb_pos.n_partitions; ++txb_idx) {
-          TX_SIZE tx_size = mbmi->sub_txs[txb_idx];
-          mbmi->txb_idx = txb_idx;
+            for (int txb_idx = 0; txb_idx < mbmi->txb_pos.n_partitions;
+                 ++txb_idx) {
+              TX_SIZE tx_size = mbmi->sub_txs[txb_idx];
+              mbmi->txb_idx = txb_idx;
 
-          const uint8_t txw_unit = tx_size_wide_unit[tx_size];
-          const uint8_t txh_unit = tx_size_high_unit[tx_size];
-          const int step = txw_unit * txh_unit;
+              const uint8_t txw_unit = tx_size_wide_unit[tx_size];
+              const uint8_t txh_unit = tx_size_high_unit[tx_size];
+              const int step = txw_unit * txh_unit;
 
-          int blk_row = r + mbmi->txb_pos.row_offset[txb_idx];
-          int blk_col = c + mbmi->txb_pos.col_offset[txb_idx];
+              int blk_row = r + mbmi->txb_pos.row_offset[txb_idx];
+              int blk_col = c + mbmi->txb_pos.col_offset[txb_idx];
 
-          if (blk_row >= unit_height || blk_col >= unit_width) continue;
+              if (blk_row >= unit_height || blk_col >= unit_width) continue;
 
-          mbmi->tx_size = tx_size;
-          encode_block_intra_and_set_context(plane, i, blk_row, blk_col,
-                                             plane_bsize, tx_size, &arg);
-          i += step;
+              mbmi->tx_size = tx_size;
+              encode_block_intra_and_set_context(plane, i, blk_row, blk_col,
+                                                 plane_bsize, tx_size, &arg);
+              i += step;
+            }
+          }
         }
+#if CONFIG_TU64_TRAVERSED_ORDER
       }
     }
+#endif  // CONFIG_TU64_TRAVERSED_ORDER
   } else {
     av1_foreach_transformed_block_in_plane(
         xd, plane_bsize, plane, encode_block_intra_and_set_context, &arg);
