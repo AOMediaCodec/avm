@@ -753,7 +753,7 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
     }
     if (
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-      cm->seq_params.order_hint_info.enable_order_hint &&
+        cm->seq_params.order_hint_info.enable_order_hint &&
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
         cm->seq_params.enable_frame_output_order &&
@@ -764,15 +764,15 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
       decrease_ref_count(cm->cur_frame, pool);
     } else if (
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-      (!cm->seq_params.order_hint_info.enable_order_hint
+        (!cm->seq_params.order_hint_info.enable_order_hint
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
-                || !cm->seq_params.enable_frame_output_order
+         || !cm->seq_params.enable_frame_output_order
 #endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-                ) &&
+         ) &&
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-               (cm->show_existing_frame || cm->show_frame)) {
+        (cm->show_existing_frame || cm->show_frame)) {
       if (pbi->output_all_layers) {
         // Append this frame to the output queue
 #if CONFIG_NEW_OBU_HEADER
@@ -952,22 +952,22 @@ int av1_get_frame_to_show(AV1Decoder *pbi, YV12_BUFFER_CONFIG *frame) {
   if (pbi->num_output_frames == 0) return -1;
   const size_t out_frame_idx =
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-        (pbi->common.seq_params.order_hint_info.enable_order_hint
+      (pbi->common.seq_params.order_hint_info.enable_order_hint
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
        && pbi->common.seq_params.enable_frame_output_order
 #endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-       ) ?
+       )
+          ?
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-           pbi->output_frames_offset
+          pbi->output_frames_offset
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
           : pbi->num_output_frames - 1
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-  ;
+      ;
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-  if (
-    pbi->common.seq_params.order_hint_info.enable_order_hint
+  if (pbi->common.seq_params.order_hint_info.enable_order_hint
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
       && pbi->common.seq_params.enable_frame_output_order
 #endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG

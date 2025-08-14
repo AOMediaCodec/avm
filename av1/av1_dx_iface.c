@@ -817,9 +817,9 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
     // that have showable_frame == 1 but have not yet been output.  This is
     // useful when OBUs are lost due to channel errors or removed for temporal
     // scalability.
-    if (data == NULL && data_sz == 0 
+    if (data == NULL && data_sz == 0
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-      && pbi->common.seq_params.order_hint_info.enable_order_hint
+        && pbi->common.seq_params.order_hint_info.enable_order_hint
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
         && pbi->common.seq_params.enable_frame_output_order

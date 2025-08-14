@@ -405,7 +405,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   } else {
     seq->order_hint_info.order_hint_bits_minus_1 = -1;
   }
-#endif // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
 #else
   seq->order_hint_info.order_hint_bits_minus_1 =
 #if CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
@@ -422,10 +422,9 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->explicit_ref_frame_map = oxcf->ref_frm_cfg.explicit_ref_frame_map;
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
   // Set 0 for multi-layer coding
-  seq->enable_frame_output_order =
-      oxcf->ref_frm_cfg.enable_frame_output_order 
+  seq->enable_frame_output_order = oxcf->ref_frm_cfg.enable_frame_output_order
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-      && seq->order_hint_info.enable_order_hint
+                                   && seq->order_hint_info.enable_order_hint
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
       ;
 #endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG

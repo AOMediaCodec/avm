@@ -7922,15 +7922,15 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
       (cpi->num_tg > 1 ||
        (encode_show_existing_frame(cm)
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-         && (!cm->seq_params.order_hint_info.enable_order_hint
+        && (!cm->seq_params.order_hint_info.enable_order_hint
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
-         || !cm->seq_params.enable_frame_output_order
+            || !cm->seq_params.enable_frame_output_order
 #endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-         )
+            )
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-        ) ||
+            ) ||
        (encode_show_existing_frame(cm) &&
         cm->cur_frame->frame_type == KEY_FRAME) ||
 #if CONFIG_BRU
@@ -7979,23 +7979,23 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
   // For error-resilienet mode, still an OBU is signaled.
   if ((
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-    cm->seq_params.order_hint_info.enable_order_hint &&
+          cm->seq_params.order_hint_info.enable_order_hint &&
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
-       cm->seq_params.enable_frame_output_order &&
+          cm->seq_params.enable_frame_output_order &&
 #endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
-       cm->show_existing_frame && !cm->features.error_resilient_mode) ||
+          cm->show_existing_frame && !cm->features.error_resilient_mode) ||
       (
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-        (!cm->seq_params.order_hint_info.enable_order_hint
+          (!cm->seq_params.order_hint_info.enable_order_hint
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
-        || !cm->seq_params.enable_frame_output_order
+           || !cm->seq_params.enable_frame_output_order
 #endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-        ) &&
+           ) &&
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-       encode_show_existing_frame(cm)) ||
+          encode_show_existing_frame(cm)) ||
 #if CONFIG_BRU
       cm->bru.frame_inactive_flag ||
 #endif  // CONFIG_BRU
