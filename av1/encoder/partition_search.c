@@ -1002,11 +1002,8 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
   const int use_intrabc = is_intrabc_block(mbmi, xd->tree_type);
   if (!seg_ref_active) {
     if (!mbmi->skip_mode && !frame_is_intra_only(cm) &&
-        mbmi->region_type != INTRA_REGION
-#if CONFIG_DISABLE_4X4_INTER
-        && mbmi->sb_type[PLANE_TYPE_Y] != BLOCK_4X4
-#endif
-    ) {
+        mbmi->region_type != INTRA_REGION &&
+        mbmi->sb_type[PLANE_TYPE_Y] != BLOCK_4X4) {
       const int intra_inter_ctx = av1_get_intra_inter_context(xd);
 #if CONFIG_ENTROPY_STATS
       td->counts->intra_inter[intra_inter_ctx][inter_block]++;

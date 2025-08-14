@@ -647,11 +647,9 @@ static AOM_INLINE void estimate_ref_frame_costs(
 #if CONFIG_CHROMA_MERGE_LATENCY_FIX
     }
 #endif  // CONFIG_CHROMA_MERGE_LATENCY_FIX
-#if CONFIG_DISABLE_4X4_INTER
     if (xd->mi[0]->sb_type[PLANE_TYPE_Y] == BLOCK_4X4) {
       ref_costs_single[INTRA_FRAME_INDEX] = 0;
     }
-#endif
 
     if (is_tip_allowed(cm, xd)) {
       const int tip_ctx = get_tip_ctx(xd);
@@ -5656,7 +5654,7 @@ static int64_t handle_inter_mode(
                   restore_dst_buf(xd, orig_dst, num_planes);
                 }
               }  // bawp_chroma loop
-            }    // bawp loop
+            }  // bawp loop
           }
         }
       }
@@ -9353,11 +9351,9 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
 
       if (this_mode < INTRA_MODE_END && ref_frame != INTRA_FRAME) continue;
       if (this_mode >= INTRA_MODE_END && ref_frame == INTRA_FRAME) continue;
-#if CONFIG_DISABLE_4X4_INTER
       if (ref_frame != INTRA_FRAME && bsize == BLOCK_4X4) {
         continue;  // disable 4x4 inter blocks
       }
-#endif
       for (MV_REFERENCE_FRAME second_rf = NONE_FRAME;
            second_rf < cm->ref_frames_info.num_total_refs; ++second_rf) {
         MV_REFERENCE_FRAME second_ref_frame = second_rf;
@@ -9586,9 +9582,9 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
                                comp_pred, x->rdmult, &search_state,
                                compmode_cost);
         }  // end of use_amvd mode loop
-      }    // end of ref1 loop
-    }      // end of ref0 loop
-  }        // end of mode loop
+      }  // end of ref1 loop
+    }  // end of ref0 loop
+  }  // end of mode loop
 
   if (cpi->sf.winner_mode_sf.motion_mode_for_winner_cand) {
     // For the single ref winner candidates, evaluate other motion modes (non
@@ -10211,20 +10207,20 @@ struct calc_target_weighted_pred_ctxt {
 
 /* Use standard 3x3 Sobel matrix. Macro so it can be used for either high or
    low bit-depth arrays. */
-#define SOBEL_X(src, stride, i, j)                       \
-  ((src)[((i)-1) + (stride) * ((j)-1)] -                 \
-   (src)[((i) + 1) + (stride) * ((j)-1)] +  /* NOLINT */ \
-   2 * (src)[((i)-1) + (stride) * (j)] -    /* NOLINT */ \
-   2 * (src)[((i) + 1) + (stride) * (j)] +  /* NOLINT */ \
-   (src)[((i)-1) + (stride) * ((j) + 1)] -  /* NOLINT */ \
-   (src)[((i) + 1) + (stride) * ((j) + 1)]) /* NOLINT */
-#define SOBEL_Y(src, stride, i, j)                       \
-  ((src)[((i)-1) + (stride) * ((j)-1)] +                 \
-   2 * (src)[(i) + (stride) * ((j)-1)] +    /* NOLINT */ \
-   (src)[((i) + 1) + (stride) * ((j)-1)] -  /* NOLINT */ \
-   (src)[((i)-1) + (stride) * ((j) + 1)] -  /* NOLINT */ \
-   2 * (src)[(i) + (stride) * ((j) + 1)] -  /* NOLINT */ \
-   (src)[((i) + 1) + (stride) * ((j) + 1)]) /* NOLINT */
+#define SOBEL_X(src, stride, i, j)                        \
+  ((src)[((i) - 1) + (stride) * ((j) - 1)] -              \
+   (src)[((i) + 1) + (stride) * ((j) - 1)] + /* NOLINT */ \
+   2 * (src)[((i) - 1) + (stride) * (j)] -   /* NOLINT */ \
+   2 * (src)[((i) + 1) + (stride) * (j)] +   /* NOLINT */ \
+   (src)[((i) - 1) + (stride) * ((j) + 1)] - /* NOLINT */ \
+   (src)[((i) + 1) + (stride) * ((j) + 1)])  /* NOLINT */
+#define SOBEL_Y(src, stride, i, j)                        \
+  ((src)[((i) - 1) + (stride) * ((j) - 1)] +              \
+   2 * (src)[(i) + (stride) * ((j) - 1)] +   /* NOLINT */ \
+   (src)[((i) + 1) + (stride) * ((j) - 1)] - /* NOLINT */ \
+   (src)[((i) - 1) + (stride) * ((j) + 1)] - /* NOLINT */ \
+   2 * (src)[(i) + (stride) * ((j) + 1)] -   /* NOLINT */ \
+   (src)[((i) + 1) + (stride) * ((j) + 1)])  /* NOLINT */
 
 sobel_xy av1_sobel(const uint16_t *src, int stride, int i, int j) {
   int16_t s_x;

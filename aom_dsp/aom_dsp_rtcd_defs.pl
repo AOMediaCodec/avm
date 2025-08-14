@@ -476,11 +476,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   specialize qw/aom_highbd_sad4x8_avg     sse2/;
   specialize qw/aom_highbd_sad4x4_avg     sse2/;
   specialize qw/aom_highbd_sad4x16_avg    sse2/;
-  if (aom_config("CONFIG_COMPOUND_4XN") eq "yes") {
-   specialize qw/aom_highbd_sad16x4_avg    avx2/;
-  } else {
-   specialize qw/aom_highbd_sad16x4_avg    avx2 sse2/;
-  }
+  specialize qw/aom_highbd_sad16x4_avg    avx2/;
   specialize qw/aom_highbd_sad8x32_avg    sse2/;
   specialize qw/aom_highbd_sad32x8_avg    avx2 sse2/;
   specialize qw/aom_highbd_sad64x16_avg   avx2 sse2/;

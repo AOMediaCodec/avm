@@ -432,12 +432,10 @@ static AOM_INLINE void write_is_inter(const AV1_COMMON *cm,
                                       const MACROBLOCKD *xd, int segment_id,
                                       aom_writer *w, const int is_inter) {
   MB_MODE_INFO *const mbmi = xd->mi[0];
-#if CONFIG_DISABLE_4X4_INTER
   if (mbmi->sb_type[PLANE_TYPE_Y] == BLOCK_4X4) {
     assert(!is_inter);
     return;
   }
-#endif
   if (mbmi->region_type == INTRA_REGION) return;
   if (segfeature_active(&cm->seg, segment_id, SEG_LVL_GLOBALMV)) {
     assert(is_inter);
@@ -2188,9 +2186,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
   const int is_compound = has_second_ref(mbmi);
   int ref;
 
-#if CONFIG_DISABLE_4X4_INTER
   assert(IMPLIES(bsize == BLOCK_4X4, !is_inter && !mbmi->skip_mode));
-#endif
   if (xd->tree_type != CHROMA_PART)
     write_inter_segment_id(cpi, w, seg, segp, 0, 1);
 

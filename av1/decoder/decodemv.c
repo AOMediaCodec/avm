@@ -3427,11 +3427,9 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
 
 static int read_is_inter_block(AV1_COMMON *const cm, MACROBLOCKD *const xd,
                                int segment_id, aom_reader *r) {
-#if CONFIG_DISABLE_4X4_INTER
   if (xd->mi[0]->sb_type[PLANE_TYPE_Y] == BLOCK_4X4) {
     return 0;
   }
-#endif
   if (xd->mi[0]->region_type == INTRA_REGION) return 0;
   if (segfeature_active(&cm->seg, segment_id, SEG_LVL_GLOBALMV)) {
     return 1;

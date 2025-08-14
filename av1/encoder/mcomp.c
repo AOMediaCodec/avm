@@ -1081,20 +1081,9 @@ void av1_init_motion_compensation_bigdia(search_site_config *cfg,
   // First scale has 4-closest points, the rest have 8 points in diamond
   // shape at increasing scales
   static const int bigdia_num_candidates[MAX_PATTERN_SCALES] = {
-    4,
-    8,
-    8,
-    8,
-    8,
-    8,
-    8,
-    8,
-    8,
-    8,
-    8,
+    4, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
 #if CONFIG_MV_RANGE_EXTENSION
-    8,
-    8,
+    8, 8,
 #endif  // CONFIG_MV_RANGE_EXTENSION
   };
 
@@ -1164,20 +1153,9 @@ void av1_init_motion_compensation_square(search_site_config *cfg,
   cfg->stride = stride;
   // All scales have 8 closest points in square shape.
   static const int square_num_candidates[MAX_PATTERN_SCALES] = {
-    8,
-    8,
-    8,
-    8,
-    8,
-    8,
-    8,
-    8,
-    8,
-    8,
-    8,
+    8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
 #if CONFIG_MV_RANGE_EXTENSION
-    8,
-    8,
+    8, 8,
 #endif  // CONFIG_MV_RANGE_EXTENSION
   };
 
@@ -1248,20 +1226,9 @@ void av1_init_motion_compensation_hex(search_site_config *cfg,
   // First scale has 8-closest points, the rest have 6 points in hex shape
   // at increasing scales.
   static const int hex_num_candidates[MAX_PATTERN_SCALES] = {
-    8,
-    6,
-    6,
-    6,
-    6,
-    6,
-    6,
-    6,
-    6,
-    6,
-    6,
+    8, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
 #if CONFIG_MV_RANGE_EXTENSION
-    6,
-    6,
+    6, 6,
 #endif  // CONFIG_MV_RANGE_EXTENSION
   };
   // Note that the largest candidate step at each scale is 2^scale.
@@ -1722,20 +1689,9 @@ static int pattern_search(FULLPEL_MV start_mv,
                           int *cost_list, FULLPEL_MV *best_mv) {
   static const int search_steps[MAX_MVSEARCH_STEPS] = {
 #if CONFIG_MV_RANGE_EXTENSION
-    12,
-    11,
+    12, 11,
 #endif  // CONFIG_MV_RANGE_EXTENSION
-    10,
-    9,
-    8,
-    7,
-    6,
-    5,
-    4,
-    3,
-    2,
-    1,
-    0,
+    10, 9,  8, 7, 6, 5, 4, 3, 2, 1, 0,
   };
   int i, s, t;
 
