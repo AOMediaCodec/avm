@@ -22,15 +22,23 @@ static int gdf_num_stripes_in_tile(int stripe_size, int tile_size) {
 
 #ifndef NDEBUG
 static int gdf_get_frame_stripe_from_row(AV1_COMMON *const cm, int row) {
-  const int mi_row = row >> MI_SIZE_LOG2;
-  const int tile_row = get_tile_row_from_mi_row(&cm->tiles, mi_row);
-  int fs = 0;
-  for (int tr = 0; tr < tile_row; tr++)
-    fs += cm->gdf_info.gdf_vert_stripes_per_tile[tr];
-  const int tile_row_start = cm->tiles.row_start_sb[tile_row]
-                             << cm->tiles.mib_size_log2;
-  int rem = row - tile_row_start;
-  return fs + (rem + GDF_TEST_STRIPE_OFF) / cm->gdf_info.gdf_unit_size;
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  if (cm->seq_params.disable_loopfilters_across_tiles) {
+    const int mi_row = row >> MI_SIZE_LOG2;
+    const int tile_row = get_tile_row_from_mi_row(&cm->tiles, mi_row);
+    int fs = 0;
+    for (int tr = 0; tr < tile_row; tr++)
+      fs += cm->gdf_info.gdf_vert_stripes_per_tile[tr];
+    const int tile_row_start = cm->tiles.row_start_sb[tile_row]
+                               << cm->tiles.mib_size_log2;
+    row -= (tile_row_start << MI_SIZE_LOG2);
+    return fs + (row + GDF_TEST_STRIPE_OFF) / cm->gdf_info.gdf_unit_size;
+  } else {
+    return (row + GDF_TEST_STRIPE_OFF) / cm->gdf_info.gdf_unit_size;
+  }
+#else
+  return (row + GDF_TEST_STRIPE_OFF) / cm->gdf_info.gdf_unit_size;
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 }
 #endif  // NDEBUG
 
@@ -39,18 +47,12 @@ void init_gdf_test(GdfInfo *gi, int mib_size, int rec_height, int rec_width) {
   gi->gdf_pic_qp_idx = 0;
   gi->gdf_pic_scale_idx = 0;
   gi->gdf_block_size = AOMMAX(mib_size << MI_SIZE_LOG2, GDF_TEST_BLK_SIZE);
-#if CONFIG_GDF_IMPROVEMENT
-  gi->gdf_block_num_h = 1 + ((rec_height - 1) / gi->gdf_block_size);
-#else
-  gi->gdf_block_num_h =
-      1 + ((rec_height + GDF_TEST_STRIPE_OFF - 1) / gi->gdf_block_size);
-#endif
-  gi->gdf_vert_stripes_per_tile[0] = gi->gdf_block_num_h;
-  gi->gdf_block_num_w = 1 + ((rec_width - 1) / gi->gdf_block_size);
-  gi->gdf_horz_blks_per_tile[0] = gi->gdf_block_num_w;
-
   gi->gdf_stripe_size = GDF_TEST_STRIPE_SIZE;
   gi->gdf_unit_size = GDF_TEST_STRIPE_SIZE;
+  gi->gdf_vert_blks_per_tile[0] = 1 + ((rec_height - 1) / gi->gdf_block_size);
+  gi->gdf_block_num_h = 1 + ((rec_height - 1) / gi->gdf_block_size);
+  gi->gdf_horz_blks_per_tile[0] = 1 + ((rec_width - 1) / gi->gdf_block_size);
+  gi->gdf_block_num_w = 1 + ((rec_width - 1) / gi->gdf_block_size);
   gi->gdf_block_num = gi->gdf_block_num_h * gi->gdf_block_num_w;
   gi->gdf_vert_stripes_per_tile[0] =
       gdf_num_stripes_in_tile(gi->gdf_stripe_size, rec_height);
@@ -515,7 +517,7 @@ void gdf_copy_guided_frame(AV1_COMMON *cm) {
 void gdf_free_guided_frame(AV1_COMMON *cm) {
   aom_free(cm->gdf_info.inp_pad_ptr);
 }
-#if CONFIG_GDF_IMPROVEMENT
+
 int gdf_get_block_idx(const AV1_COMMON *cm, int y_h, int y_w) {
   int blk_idx = -1;
   if ((y_h % cm->gdf_info.gdf_block_size == 0) &&
@@ -527,23 +529,6 @@ int gdf_get_block_idx(const AV1_COMMON *cm, int y_h, int y_w) {
   blk_idx = blk_idx < cm->gdf_info.gdf_block_num ? blk_idx : -1;
   return blk_idx;
 }
-#else
-int gdf_get_block_idx(const AV1_COMMON *cm, int y_h, int y_w) {
-  int blk_idx = -1;
-  if (((y_h == 0) ||
-       ((y_h + GDF_TEST_STRIPE_OFF) % cm->gdf_info.gdf_block_size == 0)) &&
-      ((y_w == 0) || (y_w % cm->gdf_info.gdf_block_size == 0))) {
-    int blk_idx_h =
-        (y_h == 0)
-            ? 0
-            : ((y_h + GDF_TEST_STRIPE_OFF) / cm->gdf_info.gdf_block_size);
-    int blk_idx_w = (y_w == 0) ? 0 : (y_w / cm->gdf_info.gdf_block_size);
-    blk_idx = blk_idx_h * cm->gdf_info.gdf_block_num_w + blk_idx_w;
-  }
-  blk_idx = blk_idx < cm->gdf_info.gdf_block_num ? blk_idx : -1;
-  return blk_idx;
-}
-#endif
 
 static INLINE int get_ref_dst_max(const AV1_COMMON *const cm) {
   int ref_dst_max = 0;
@@ -663,7 +648,7 @@ void gdf_filter_frame(AV1_COMMON *cm) {
              x_pos += cm->gdf_info.gdf_block_size) {
           blk_stripe = 0;
           for (int v_pos = y_pos; v_pos < y_pos + cm->gdf_info.gdf_block_size &&
-                                  v_pos < (tile_height - GDF_TEST_STRIPE_OFF);
+                                  v_pos < tile_height;
                v_pos += cm->gdf_info.gdf_unit_size) {
             const int v_abs_pos = v_pos + tile_rect.top;
             int i_min =

@@ -2553,9 +2553,11 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
     const int tile_height = tile_rect.bottom - tile_rect.top;
     for (int y_pos = -GDF_TEST_STRIPE_OFF, blk_idx_h = 0; y_pos < tile_height;
          y_pos += cm->gdf_info.gdf_block_size, blk_idx_h++) {
+#if CONFIG_GDF_IMPROVEMENT
       if (blk_idx_h == cm->gdf_info.gdf_vert_blks_per_tile[tile_row]) {
         blk_idx -= cm->gdf_info.gdf_block_num_w;
       }
+#endif  // CONFIG_GDF_IMPROVEMENT
       int blk_stripe = 0;
       for (int tile_col = 0; tile_col < num_tile_cols; ++tile_col) {
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
@@ -2584,7 +2586,7 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
 #endif
           blk_stripe = 0;
           for (int v_pos = y_pos; v_pos < y_pos + cm->gdf_info.gdf_block_size &&
-                                  v_pos < (tile_height - GDF_TEST_STRIPE_OFF);
+                                  v_pos < tile_height;
                v_pos += cm->gdf_info.gdf_unit_size) {
             const int v_abs_pos = v_pos + tile_rect.top;
             int i_min =
@@ -2904,12 +2906,7 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
 #endif  // CONFIG_F054_PIC_BOUNDARY
   }
 
-  use_gdf =
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-      // TODO(any): Turn off temporarily until supported
-      !cm->seq_params.disable_loopfilters_across_tiles &&
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-      (use_gdf & is_allow_gdf(cm));
+  use_gdf = (use_gdf & is_allow_gdf(cm));
   if (!use_gdf) {
     cm->gdf_info.gdf_mode = 0;
   }
