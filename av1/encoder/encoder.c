@@ -42,6 +42,7 @@
 #endif  // CONFIG_BITSTREAM_DEBUG
 
 #include "av1/common/alloccommon.h"
+#include "av1/common/av1_common_int.h"
 #include "av1/common/filter.h"
 #include "av1/common/idct.h"
 #include "av1/common/pred_common.h"

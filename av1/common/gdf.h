@@ -29,35 +29,6 @@ enum Direction { GDF_VER, GDF_HOR, GDF_DIAG0, GDF_DIAG1, GDF_NUM_DIRS };
 #define GDF_RDO_SCALE_NUM_LOG2 2
 #define GDF_RDO_QP_NUM (1 << GDF_RDO_QP_NUM_LOG2)
 #define GDF_RDO_SCALE_NUM (1 << GDF_RDO_SCALE_NUM_LOG2)
-#if CONFIG_GDF_IMPROVEMENT
-#define GDF_TEST_INP_PREC 10
-#define GDF_TEST_FRAME_BOUNDARY_SIZE 0
-#define GDF_TEST_EXTRA_HOR_BORDER 6
-#define GDF_TEST_EXTRA_VER_BORDER 6
-#define GDF_BORDER 4
-/*
-0 : no padding, using the full reconstructed frame
-1 : padding with mirror padding, no use of LR line buffer
-2 : no mirror padding, use of LR line buffer, GDF_TEST_STRIPE_SIZE <= 2
-*/
-#define GDF_TEST_VIRTUAL_BOUNDARY 2
-#if GDF_TEST_VIRTUAL_BOUNDARY
-#define GDF_TEST_LINE_BUFFER 2
-#endif
-#else
-#define GDF_TEST_INP_PREC 12
-#define GDF_TEST_FRAME_BOUNDARY_SIZE 6
-#define GDF_TEST_VIRTUAL_BOUNDARY 1
-#if GDF_TEST_VIRTUAL_BOUNDARY
-#define GDF_TEST_LINE_BUFFER 0
-#endif
-#endif
-
-#define GDF_TEST_BLK_SIZE 128
-#define GDF_TEST_STRIPE_OFF 8  // GDF_TEST_STRIPE_OFF has to be multiple of 8
-#define GDF_ERR_STRIDE_MARGIN 16
-#define GDF_TEST_STRIPE_SIZE \
-  64  // GDF_TEST_BLK_SIZE has to be multiple of GDF_TEST_STRIPE_SIZE
 
 /*!\brief Function to initialize information of GDF
  */
