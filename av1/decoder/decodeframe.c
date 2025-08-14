@@ -3933,13 +3933,32 @@ static INLINE int valid_ref_frame_img_fmt(aom_bit_depth_t ref_bit_depth,
 }
 
 static AOM_INLINE void setup_frame_size_with_refs(
-    AV1_COMMON *cm, struct aom_read_bit_buffer *rb) {
+    AV1_COMMON *cm,
+#if CONFIG_ACROSS_SCALE_REF_OPT
+    const int explicit_ref_frame_map,
+#endif  // CONFIG_ACROSS_SCALE_REF_OPT
+    struct aom_read_bit_buffer *rb) {
   int width, height;
   int found = 0;
-  int valid_ref_frame = 0;
-  for (int i = 0; i < cm->ref_frames_info.num_total_refs; ++i) {
+#if CONFIG_ACROSS_SCALE_REF_OPT
+  // In implicit reference framework, the reference frame mapping up to this
+  // point is a preliminary, resolution independent version, in which case
+  // num_total_refs_res_indep and remapped_ref_idx_res_indep are used instead.
+  const int num_refs = explicit_ref_frame_map
+                           ? cm->ref_frames_info.num_total_refs
+                           : cm->ref_frames_info.num_total_refs_res_indep;
+#else
+  const int num_refs = cm->ref_frames_info.num_total_refs;
+#endif  // CONFIG_ACROSS_SCALE_REF_OPT
+  for (int i = 0; i < num_refs; ++i) {
     if (aom_rb_read_bit(rb)) {
+#if CONFIG_ACROSS_SCALE_REF_OPT
+      const RefCntBuffer *const ref_buf =
+          explicit_ref_frame_map ? get_ref_frame_buf(cm, i)
+                                 : get_ref_frame_buf_res_indep(cm, i);
+#else
       const RefCntBuffer *const ref_buf = get_ref_frame_buf(cm, i);
+#endif  // CONFIG_ACROSS_SCALE_REF_OPT
       // This will never be NULL in a normal stream, as streams are required to
       // have a shown keyframe before any inter frames, which would refresh all
       // the reference buffers. However, it might be null if we're starting in
@@ -3975,30 +3994,28 @@ static AOM_INLINE void setup_frame_size_with_refs(
     aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                        "Invalid frame size");
 
+#if !CONFIG_ACROSS_SCALE_REF_OPT
   // Check to make sure at least one of frames that this frame references has
   // valid dimensions.
-  for (int i = 0; i < cm->ref_frames_info.num_total_refs; ++i) {
+  int has_valid_ref_frame = 0;
+  for (int i = 0; i < num_refs; ++i) {
     const RefCntBuffer *const ref_frame = get_ref_frame_buf(cm, i);
-#if CONFIG_ACROSS_SCALE_REF_OPT
-    valid_ref_frame =
+    has_valid_ref_frame |=
         valid_ref_frame_size(ref_frame->buf.y_crop_width,
                              ref_frame->buf.y_crop_height, width, height);
-    if (!valid_ref_frame)
-      aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
-                         "Referenced frame has invalid size");
-#else
-    valid_ref_frame |=
-        valid_ref_frame_size(ref_frame->buf.y_crop_width,
-                             ref_frame->buf.y_crop_height, width, height);
-#endif  // CONFIG_ACROSS_SCALE_REF_OPT
   }
-#if !CONFIG_ACROSS_SCALE_REF_OPT
-  if (!valid_ref_frame)
+  if (!has_valid_ref_frame)
     aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                        "Referenced frame has invalid size");
 #endif  // !CONFIG_ACROSS_SCALE_REF_OPT
-  for (int i = 0; i < cm->ref_frames_info.num_total_refs; ++i) {
+  for (int i = 0; i < num_refs; ++i) {
+#if CONFIG_ACROSS_SCALE_REF_OPT
+    const RefCntBuffer *const ref_frame =
+        explicit_ref_frame_map ? get_ref_frame_buf(cm, i)
+                               : get_ref_frame_buf_res_indep(cm, i);
+#else
     const RefCntBuffer *const ref_frame = get_ref_frame_buf(cm, i);
+#endif  // CONFIG_ACROSS_SCALE_REF_OPT
     if (!valid_ref_frame_img_fmt(
             ref_frame->buf.bit_depth, ref_frame->buf.subsampling_x,
             ref_frame->buf.subsampling_y, seq_params->bit_depth,
@@ -7964,13 +7981,20 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       // Implicitly derive the reference mapping
       init_ref_map_pair(cm, cm->ref_frame_map_pairs,
                         current_frame->frame_type == KEY_FRAME);
+#if CONFIG_ACROSS_SCALE_REF_OPT
+      // For implicit reference mode, the reference mapping is derived without
+      // considering the resolution first. Later, setup_frame_size_with_refs
+      // uses the reference information to obtain the resolution.
+      av1_get_ref_frames(cm, current_frame->display_order_hint, 0,
+                         cm->ref_frame_map_pairs);
+#else
       av1_get_ref_frames(cm, current_frame->display_order_hint,
                          cm->ref_frame_map_pairs);
+#endif  // CONFIG_ACROSS_SCALE_REF_OPT
 
-      // Reference rankings have been implicitly derived in av1_get_ref_frames.
-      // However, reference indices can be overwritten if they have been
-      // signaled, which happens in error resilient mode or when order hint
-      // is unavailable.
+      // Reference rankings will be implicitly derived in av1_get_ref_frames,
+      // but if the explicit mode is used, reference indices will be signaled,
+      // which overwrites the implictly derived ones.
       const int explicit_ref_frame_map =
           cm->features.error_resilient_mode || frame_is_sframe(cm) ||
           seq_params->explicit_ref_frame_map
@@ -7991,7 +8015,46 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                 seq_params->max_reference_frames)
           aom_internal_error(&cm->error, AOM_CODEC_ERROR,
                              "Invalid num_total_refs");
+#if CONFIG_ACROSS_SCALE_REF_OPT
+        for (int i = 0; i < cm->ref_frames_info.num_total_refs; ++i) {
+          int ref = aom_rb_read_literal(rb, seq_params->ref_frames_log2);
+          // Most of the time, streams start with a keyframe. In that case,
+          // ref_frame_map will have been filled in at that point and will not
+          // contain any NULLs. However, streams are explicitly allowed to start
+          // with an intra-only frame, so long as they don't then signal a
+          // reference to a slot that hasn't been set yet. That's what we are
+          // checking here.
+          if (cm->ref_frame_map[ref] == NULL)
+            aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                               "Inter frame requests nonexistent reference");
+          cm->remapped_ref_idx[i] = ref;
+        }
+#endif  // CONFIG_ACROSS_SCALE_REF_OPT
       }
+#if CONFIG_ACROSS_SCALE_REF_OPT
+      if (!features->error_resilient_mode && frame_size_override_flag) {
+        setup_frame_size_with_refs(cm, explicit_ref_frame_map, rb);
+      } else {
+        setup_frame_size(cm, frame_size_override_flag, rb);
+      }
+
+      // Overwrite the reference mapping considering the resolution
+      if (!explicit_ref_frame_map) {
+        av1_get_ref_frames(cm, current_frame->display_order_hint, 1,
+                           cm->ref_frame_map_pairs);
+      }
+
+      // Check to make sure all reference frames have valid dimensions.
+      for (int i = 0; i < cm->ref_frames_info.num_total_refs; ++i) {
+        const RefCntBuffer *const ref_frame = get_ref_frame_buf(cm, i);
+        int valid_ref_frame = valid_ref_frame_size(ref_frame->buf.y_crop_width,
+                                                   ref_frame->buf.y_crop_height,
+                                                   cm->width, cm->height);
+        if (!valid_ref_frame)
+          aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                             "Referenced frame has invalid size");
+      }
+#endif  // CONFIG_ACROSS_SCALE_REF_OPT
 #if CONFIG_BRU
       if (current_frame->frame_type == INTER_FRAME) {
         setup_bru_active_info(cm, rb);
@@ -8003,7 +8066,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       cm->ref_frames_info.num_same_ref_compound =
           AOMMIN(cm->seq_params.num_same_ref_compound,
                  cm->ref_frames_info.num_total_refs);
-
       if (features->primary_ref_frame >= cm->ref_frames_info.num_total_refs &&
           features->primary_ref_frame != PRIMARY_REF_NONE) {
         aom_internal_error(&cm->error, AOM_CODEC_ERROR,
@@ -8017,6 +8079,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
             aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                                "Inter frame requests nonexistent reference");
         } else {
+#if CONFIG_ACROSS_SCALE_REF_OPT
+          ref = cm->remapped_ref_idx[i];
+#else
           ref = aom_rb_read_literal(rb, seq_params->ref_frames_log2);
           if (ref >= seq_params->ref_frames) {
             aom_internal_error(
@@ -8057,6 +8122,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           }
 #endif  // CONFIG_MULTILAYER_CORE_HLS
           cm->remapped_ref_idx[i] = ref;
+#endif  // CONFIG_ACROSS_SCALE_REF_OPT
         }
 #if CONFIG_BRU
         // find corresponding bru ref idx given explicit_bru_idx
@@ -8157,11 +8223,13 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       cm->cur_frame->num_ref_frames = cm->ref_frames_info.num_total_refs;
 #endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 
+#if !CONFIG_ACROSS_SCALE_REF_OPT
       if (!features->error_resilient_mode && frame_size_override_flag) {
         setup_frame_size_with_refs(cm, rb);
       } else {
         setup_frame_size(cm, frame_size_override_flag, rb);
       }
+#endif  // !CONFIG_ACROSS_SCALE_REF_OPT
 
       if (frame_might_allow_ref_frame_mvs(cm))
         features->allow_ref_frame_mvs = aom_rb_read_bit(rb);

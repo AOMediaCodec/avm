@@ -1461,6 +1461,13 @@ typedef struct {
    * Total number of reference buffers available to the current frame.
    */
   int num_total_refs;
+#if CONFIG_ACROSS_SCALE_REF_OPT
+  /*!
+   * Total number of reference buffers (with invalid resolution) available to
+   * the current frame.
+   */
+  int num_total_refs_res_indep;
+#endif  // CONFIG_ACROSS_SCALE_REF_OPT
   /*!
    * Contains the indices of the frames in ref_frame_map that are future
    * references.
@@ -1747,6 +1754,12 @@ typedef struct AV1Common {
    * have a remapped index for the same.
    */
   int remapped_ref_idx[REF_FRAMES];
+#if CONFIG_ACROSS_SCALE_REF_OPT
+  /*!
+   * Resolution independent version of the reference remapped index
+   */
+  int remapped_ref_idx_res_indep[REF_FRAMES];
+#endif  // CONFIG_ACROSS_SCALE_REF_OPT
 
   /*!
    * Scale of the current frame with respect to itself.
@@ -2497,6 +2510,22 @@ static INLINE void avg_primary_secondary_references(const AV1_COMMON *const cm,
                         AVG_CDF_WEIGHT_PRIMARY, AVG_CDF_WEIGHT_NON_PRIMARY);
   }
 }
+
+#if CONFIG_ACROSS_SCALE_REF_OPT
+static INLINE int get_ref_frame_map_idx_res_indep(const AV1_COMMON *const cm,
+                                                  const int ref_frame) {
+  return (ref_frame >= 0 && ref_frame < cm->seq_params.ref_frames)
+             ? cm->remapped_ref_idx_res_indep[ref_frame]
+             : INVALID_IDX;
+}
+
+static INLINE RefCntBuffer *get_ref_frame_buf_res_indep(
+    const AV1_COMMON *const cm, const MV_REFERENCE_FRAME ref_frame) {
+  assert(ref_frame < cm->ref_frames_info.num_total_refs_res_indep);
+  const int map_idx = get_ref_frame_map_idx_res_indep(cm, ref_frame);
+  return (map_idx != INVALID_IDX) ? cm->ref_frame_map[map_idx] : NULL;
+}
+#endif  // CONFIG_ACROSS_SCALE_REF_OPT
 
 static INLINE RefCntBuffer *get_ref_frame_buf(
     const AV1_COMMON *const cm, const MV_REFERENCE_FRAME ref_frame) {

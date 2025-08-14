@@ -145,11 +145,17 @@ static const int temp_dist_score_lookup[7] = {
 // Determine reference mapping by ranking the reference frames based on a
 // score function.
 int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
+#if CONFIG_ACROSS_SCALE_REF_OPT
+                       int resolution_available,
+#endif  // CONFIG_ACROSS_SCALE_REF_OPT
                        RefFrameMapPair *ref_frame_map_pairs) {
   RefScoreData scores[REF_FRAMES];
   memset(scores, 0, REF_FRAMES * sizeof(*scores));
   for (int i = 0; i < cm->seq_params.ref_frames; i++) {
     scores[i].score = INT_MAX;
+#if CONFIG_ACROSS_SCALE_REF_OPT
+    if (!resolution_available) cm->remapped_ref_idx_res_indep[i] = INVALID_IDX;
+#endif  // CONFIG_ACROSS_SCALE_REF_OPT
     cm->remapped_ref_idx[i] = INVALID_IDX;
   }
   int n_ranked = 0;
@@ -171,7 +177,8 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
 #if CONFIG_ACROSS_SCALE_REF_OPT
     // In resize mode, only frames within 1/16 to 2 times the current frame in
     // each dimension can be used as references.
-    if (!valid_ref_frame_size(cur_ref.width, cur_ref.height, cm->width,
+    if (resolution_available &&
+        !valid_ref_frame_size(cur_ref.width, cur_ref.height, cm->width,
                               cm->height))
       continue;
 #endif  // CONFIG_ACROSS_SCALE_REF_OPT
@@ -207,8 +214,10 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
                                             cur_frame_disp, ref_disp);
 #endif  // CONFIG_MULTILAYER_CORE
 #if CONFIG_ACROSS_SCALE_REF_OPT
-    const int res_ratio_log2 = get_msb(cm->width * cm->height) -
-                               get_msb(cur_ref.width * cur_ref.height);
+    // The log2 ratio of current and reference frame resolution is
+    // log2(num_pixel_cur) - log2(num_pixel_ref), where the first term is a
+    // constant so it can be dropped
+    const int res_ratio_log2 = -get_msb(cur_ref.width * cur_ref.height);
 #endif  // CONFIG_ACROSS_SCALE_REF_OPT
     int tdist = abs(disp_diff);
     const int score =
@@ -247,7 +256,16 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
 
   cm->ref_frames_info.num_total_refs =
       AOMMIN(n_ranked, cm->seq_params.max_reference_frames);
+#if CONFIG_ACROSS_SCALE_REF_OPT
+  if (!resolution_available)
+    cm->ref_frames_info.num_total_refs_res_indep =
+        cm->ref_frames_info.num_total_refs;
+#endif  // CONFIG_ACROSS_SCALE_REF_OPT
   for (int i = 0; i < cm->ref_frames_info.num_total_refs; i++) {
+#if CONFIG_ACROSS_SCALE_REF_OPT
+    if (!resolution_available)
+      cm->remapped_ref_idx_res_indep[i] = scores[i].index;
+#endif  // CONFIG_ACROSS_SCALE_REF_OPT
     cm->remapped_ref_idx[i] = scores[i].index;
     // The distance is not available to the decoder when order_hint is disabled.
     // In that case, set all distances to 1.
@@ -263,8 +281,13 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
   // Fill in RefFramesInfo struct according to computed mapping
   av1_get_past_future_cur_ref_lists(cm, scores);
 
-  if (n_ranked > INTER_REFS_PER_FRAME)
+  if (n_ranked > INTER_REFS_PER_FRAME) {
+#if CONFIG_ACROSS_SCALE_REF_OPT
+    if (!resolution_available)
+      cm->remapped_ref_idx_res_indep[n_ranked - 1] = scores[n_ranked - 1].index;
+#endif  // CONFIG_ACROSS_SCALE_REF_OPT
     cm->remapped_ref_idx[n_ranked - 1] = scores[n_ranked - 1].index;
+  }
 
 #if CONFIG_BRU
   cm->bru.ref_n_ranked = n_ranked;
@@ -280,6 +303,11 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
     // when some frame OBUs are dropped for scalability operations.
     if (cm->remapped_ref_idx[i] == INVALID_IDX)
       cm->remapped_ref_idx[i] = scores[0].index;
+#if CONFIG_ACROSS_SCALE_REF_OPT
+      if (!resolution_available &&
+          cm->remapped_ref_idx_res_indep[i] == INVALID_IDX)
+        cm->remapped_ref_idx_res_indep[i] = scores[0].index;
+#endif  // CONFIG_ACROSS_SCALE_REF_OPT
   }
   return n_ranked;
 }
@@ -290,8 +318,8 @@ typedef struct {
   int base_qindex;  // cur QP
   int disp_order;   // display order hint
 #if CONFIG_ACROSS_SCALE_REF_OPT
-  int res_log2;
-#endif  // CONFIG_ACROSS_SCALE_REF_OPT
+  int res_log2;  // log2 of pixel number
+#endif           // CONFIG_ACROSS_SCALE_REF_OPT
 } RefCandidate;
 
 // Check if one reference frame is better based on its distance to the current

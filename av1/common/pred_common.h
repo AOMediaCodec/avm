@@ -110,6 +110,9 @@ typedef struct {
 
 void av1_get_past_future_cur_ref_lists(AV1_COMMON *cm, RefScoreData *scores);
 int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
+#if CONFIG_ACROSS_SCALE_REF_OPT
+                       int resolution_available,
+#endif  // CONFIG_ACROSS_SCALE_REF_OPT
                        RefFrameMapPair *ref_frame_map_pairs);
 
 // Derive the primary & secondary reference frame from the reference list based

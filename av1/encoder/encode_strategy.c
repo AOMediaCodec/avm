@@ -63,7 +63,14 @@ void av1_get_ref_frames_enc(AV1_COMMON *cm, int cur_frame_disp,
   assert(cm->seq_params.explicit_ref_frame_map);
   // With explicit_ref_frame_map on, an encoder-only ranking scheme can be
   // implemented here. For now, av1_get_ref_frames is used as a placeholder.
+#if CONFIG_ACROSS_SCALE_REF_OPT
+  // Do a dry run to obtain variables in resolution independent reference
+  // mapping that will be used in write_frame_size_with_refs
+  av1_get_ref_frames(cm, cur_frame_disp, 0, ref_frame_map_pairs);
+  av1_get_ref_frames(cm, cur_frame_disp, 1, ref_frame_map_pairs);
+#else
   av1_get_ref_frames(cm, cur_frame_disp, ref_frame_map_pairs);
+#endif  // CONFIG_ACROSS_SCALE_REF_OPT
 
 #if CONFIG_BRU
   // if BRU ref frame is not in the top n_refs list, swap bru ref to the last of
@@ -1233,10 +1240,22 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
       cm->features.tip_frame_mode = TIP_FRAME_DISABLED;
     }
 #endif  // CONFIG_BRU
-    if (cm->seq_params.explicit_ref_frame_map)
+
+    if (cm->seq_params.explicit_ref_frame_map) {
       av1_get_ref_frames_enc(cm, cur_frame_disp, cm->ref_frame_map_pairs);
-    else
+    } else {
+#if CONFIG_ACROSS_SCALE_REF_OPT
+      // Derive reference mapping in a resolution independent manner, to
+      // generate parameters (num_total_refs_res_indep and
+      // remapped_ref_idx_res_indep) needed in write_frame_size_with_refs.
+      av1_get_ref_frames(cm, cur_frame_disp, 0, cm->ref_frame_map_pairs);
+      // Derive the reference mapping excluding frames of invalid resolutions
+      av1_get_ref_frames(cm, cur_frame_disp, 1, cm->ref_frame_map_pairs);
+#else
       av1_get_ref_frames(cm, cur_frame_disp, cm->ref_frame_map_pairs);
+#endif  // CONFIG_ACROSS_SCALE_REF_OPT
+    }
+
 #if CONFIG_BRU
     if (!cm->seq_params.explicit_ref_frame_map && cm->bru.enabled) {
       const int num_past_refs = cm->ref_frames_info.num_past_refs;

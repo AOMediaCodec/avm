@@ -3423,6 +3423,14 @@ static INLINE int av1_use_hash_me(const AV1_COMP *const cpi) {
           cpi->common.features.allow_local_intrabc);
 }
 
+#if CONFIG_ACROSS_SCALE_REF_OPT
+static INLINE const YV12_BUFFER_CONFIG *get_ref_frame_yv12_buf_res_indep(
+    const AV1_COMMON *const cm, MV_REFERENCE_FRAME ref_frame) {
+  const RefCntBuffer *const buf = get_ref_frame_buf_res_indep(cm, ref_frame);
+  return buf != NULL ? &buf->buf : NULL;
+}
+#endif  // CONFIG_ACROSS_SCALE_REF_OPT
+
 static INLINE const YV12_BUFFER_CONFIG *get_ref_frame_yv12_buf(
     const AV1_COMMON *const cm, MV_REFERENCE_FRAME ref_frame) {
   const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);

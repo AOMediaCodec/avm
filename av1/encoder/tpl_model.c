@@ -1102,7 +1102,11 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     if (cm->seq_params.explicit_ref_frame_map)
       av1_get_ref_frames_enc(cm, true_disp, ref_frame_map_pairs);
     else
-      av1_get_ref_frames(cm, true_disp, ref_frame_map_pairs);
+      av1_get_ref_frames(cm, true_disp,
+#if CONFIG_ACROSS_SCALE_REF_OPT
+                         1,
+#endif  // CONFIG_ACROSS_SCALE_REF_OPT
+                         ref_frame_map_pairs);
     int refresh_mask =
         av1_get_refresh_frame_flags(cpi, &frame_params, frame_update_type,
                                     gf_index, true_disp, ref_frame_map_pairs);
@@ -1141,7 +1145,11 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     if (cm->seq_params.explicit_ref_frame_map)
       av1_get_ref_frames_enc(cm, true_disp, ref_frame_map_pairs);
     else
-      av1_get_ref_frames(cm, true_disp, ref_frame_map_pairs);
+      av1_get_ref_frames(cm, true_disp,
+#if CONFIG_ACROSS_SCALE_REF_OPT
+                         1,
+#endif  // CONFIG_ACROSS_SCALE_REF_OPT
+                         ref_frame_map_pairs);
     return;
   }
 
@@ -1194,7 +1202,11 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     if (cm->seq_params.explicit_ref_frame_map)
       av1_get_ref_frames_enc(cm, true_disp, ref_frame_map_pairs);
     else
-      av1_get_ref_frames(cm, true_disp, ref_frame_map_pairs);
+      av1_get_ref_frames(cm, true_disp,
+#if CONFIG_ACROSS_SCALE_REF_OPT
+                         1,
+#endif  // CONFIG_ACROSS_SCALE_REF_OPT
+                         ref_frame_map_pairs);
     // TODO(kslu) av1_get_refresh_frame_flags()
     // will execute default behavior even when
     // subgop cfg is enabled. This should be addressed if we ever remove the
@@ -1237,7 +1249,11 @@ static AOM_INLINE void init_gop_frames_for_tpl(
   if (cm->seq_params.explicit_ref_frame_map)
     av1_get_ref_frames_enc(cm, true_disp, ref_frame_map_pairs);
   else
-    av1_get_ref_frames(cm, true_disp, ref_frame_map_pairs);
+    av1_get_ref_frames(cm, true_disp,
+#if CONFIG_ACROSS_SCALE_REF_OPT
+                       1,
+#endif  // CONFIG_ACROSS_SCALE_REF_OPT
+                       ref_frame_map_pairs);
 }
 
 void av1_init_tpl_stats(TplParams *const tpl_data) {

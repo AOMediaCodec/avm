@@ -4635,10 +4635,18 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
   init_ref_map_pair(
       &cpi->common, cm->ref_frame_map_pairs,
       cpi->gf_group.update_type[cpi->gf_group.index] == KF_UPDATE);
-  if (cm->seq_params.explicit_ref_frame_map)
+  if (cm->seq_params.explicit_ref_frame_map) {
     av1_get_ref_frames_enc(cm, cur_frame_disp, cm->ref_frame_map_pairs);
-  else
+  } else {
+#if CONFIG_ACROSS_SCALE_REF_OPT
+    // Derive reference mapping in a resolution independent manner to generate
+    // parameters needed in write_frame_size_with_refs
+    av1_get_ref_frames(cm, cur_frame_disp, 0, cm->ref_frame_map_pairs);
+    av1_get_ref_frames(cm, cur_frame_disp, 1, cm->ref_frame_map_pairs);
+#else
     av1_get_ref_frames(cm, cur_frame_disp, cm->ref_frame_map_pairs);
+#endif  // CONFIG_ACROSS_SCALE_REF_OPT
+  }
 
   current_frame->absolute_poc =
       current_frame->key_frame_number + current_frame->display_order_hint;
