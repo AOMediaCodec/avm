@@ -3258,7 +3258,8 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
     if (xd->lossless[segment_id]) {
       const int is_fsc = xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART];
 #if CONFIG_LOSSLESS_LARGER_IDTX
-      if (bsize > BLOCK_4X4 && (is_inter_tx || (!is_inter_tx && is_fsc))) {
+      if (bsize > BLOCK_4X4 && (is_inter_tx || (!is_inter_tx && is_fsc)) &&
+          !skip_txfm) {
 #else
       if (block_size_high[bsize] >= 8 && block_size_wide[bsize] >= 8 &&
           (is_inter_tx || (!is_inter_tx && is_fsc))) {

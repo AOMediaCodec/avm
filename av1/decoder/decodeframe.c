@@ -1499,7 +1499,7 @@ static TX_SIZE read_tx_size(MACROBLOCKD *xd, TX_MODE tx_mode, int is_inter,
   if (xd->lossless[xd->mi[0]->segment_id]) {
     const bool is_fsc = xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART];
 #if CONFIG_LOSSLESS_LARGER_IDTX
-    if (bsize == BLOCK_4X4 || (!is_inter && !is_fsc))
+    if (bsize == BLOCK_4X4 || (!is_inter && !is_fsc) || !allow_select_inter)
 #else
     if (block_size_wide[bsize] < 8 || block_size_high[bsize] < 8 ||
         (!is_inter && !is_fsc))
