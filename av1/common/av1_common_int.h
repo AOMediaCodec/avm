@@ -532,7 +532,7 @@ typedef struct {
 typedef struct {
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   int enable_order_hint;        // 0 - disable order hint, and related tools
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+#endif                          // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   int order_hint_bits_minus_1;  // dist_wtd_comp, ref_frame_mvs,
                                 // frame_sign_bias
                                 // if 0, enable_dist_wtd_comp and
@@ -4708,7 +4708,7 @@ static INLINE void init_ibp_info(
 
 static INLINE int get_relative_dist(const OrderHintInfo *oh, int a, int b) {
 #if CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
- if (oh->order_hint_bits_minus_1 < 0) return 0;
+  if (oh->order_hint_bits_minus_1 < 0) return 0;
 #else
   if (!oh->enable_order_hint) return 0;
 #endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT

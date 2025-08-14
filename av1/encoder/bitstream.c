@@ -6148,14 +6148,14 @@ static AOM_INLINE void write_global_motion(AV1_COMP *cpi,
     int temporal_distance;
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
     if (seq_params->order_hint_info.enable_order_hint) {
-#endif // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
       const RefCntBuffer *const ref_buf = get_ref_frame_buf(cm, frame);
 #if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
       const int ref_order_hint = ref_buf->display_order_hint;
       const int cur_order_hint = cm->cur_frame->display_order_hint;
 #else
-      const int ref_order_hint = ref_buf->order_hint;
-      const int cur_order_hint = cm->cur_frame->order_hint;
+    const int ref_order_hint = ref_buf->order_hint;
+    const int cur_order_hint = cm->cur_frame->order_hint;
 #endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
       temporal_distance = get_relative_dist(&seq_params->order_hint_info,
                                             cur_order_hint, ref_order_hint);
@@ -6436,10 +6436,9 @@ static AOM_INLINE void write_uncompressed_header_obu(
     // Write all ref frame order hints if error_resilient_mode == 1
     if (features->error_resilient_mode
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-        &&
-        seq_params->order_hint_info.enable_order_hint
+        && seq_params->order_hint_info.enable_order_hint
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-        ) {
+    ) {
       for (int ref_idx = 0; ref_idx < cm->seq_params.ref_frames; ref_idx++) {
         aom_wb_write_literal(
             wb, cm->ref_frame_map[ref_idx]->order_hint,
@@ -6535,10 +6534,9 @@ static AOM_INLINE void write_uncompressed_header_obu(
           cm->features.error_resilient_mode || frame_is_sframe(cm) ||
           seq_params->explicit_ref_frame_map
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-      ||
-          !seq_params->order_hint_info.enable_order_hint
+          || !seq_params->order_hint_info.enable_order_hint
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-      ;
+          ;
       if (explicit_ref_frame_map) {
 #if CONFIG_ACROSS_SCALE_REF_OPT
         if (cm->ref_frames_info.num_total_refs < 0 ||
@@ -6605,10 +6603,9 @@ static AOM_INLINE void write_uncompressed_header_obu(
       if (features->allow_ref_frame_mvs &&
           cm->ref_frames_info.num_total_refs > 1
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-          &&
-          seq_params->order_hint_info.enable_order_hint
+          && seq_params->order_hint_info.enable_order_hint
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-          ) {
+      ) {
         // Write TMVP sampling mode
         assert(cm->tmvp_sample_step == 1 || cm->tmvp_sample_step == 2);
         aom_wb_write_bit(wb, cm->tmvp_sample_step - 1);
@@ -7923,15 +7920,17 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 
   const int write_frame_header =
       (cpi->num_tg > 1 ||
-       (encode_show_existing_frame(cm) &&
-        (
+       (encode_show_existing_frame(cm)
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-          !cm->seq_params.order_hint_info.enable_order_hint
+         && (!cm->seq_params.order_hint_info.enable_order_hint
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
          || !cm->seq_params.enable_frame_output_order
 #endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
-         )) ||
+#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+         )
+#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+        ) ||
        (encode_show_existing_frame(cm) &&
         cm->cur_frame->frame_type == KEY_FRAME) ||
 #if CONFIG_BRU
@@ -7986,14 +7985,16 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
        cm->seq_params.enable_frame_output_order &&
 #endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
        cm->show_existing_frame && !cm->features.error_resilient_mode) ||
-      ((
+      (
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-        !cm->seq_params.order_hint_info.enable_order_hint
+        (!cm->seq_params.order_hint_info.enable_order_hint
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
         || !cm->seq_params.enable_frame_output_order
 #endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
+#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
         ) &&
+#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
        encode_show_existing_frame(cm)) ||
 #if CONFIG_BRU
       cm->bru.frame_inactive_flag ||

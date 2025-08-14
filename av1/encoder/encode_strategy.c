@@ -1177,7 +1177,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
         && cm->seq_params.order_hint_info.enable_order_hint
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-        ) {
+    ) {
       int n_future = 0;
       for (int i = 0; i < REF_FRAMES; i++) {
         const RefCntBuffer *const buf = cm->ref_frame_map[i];

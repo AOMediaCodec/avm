@@ -1222,10 +1222,9 @@ static AOM_INLINE void add_ref_mv_candidate(
 #endif  // CONFIG_IBC_SR_EXT
                  !is_tip_ref_frame(rf[0])
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-                 &&
-                 cm->seq_params.order_hint_info.enable_order_hint
+                 && cm->seq_params.order_hint_info.enable_order_hint
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-                 ) {
+      ) {
         int_mv cand_refmv;
         MV_REFERENCE_FRAME cand_ref_frame;
         if (is_tip_ref_frame(candidate->ref_frame[0])) {
@@ -2418,10 +2417,9 @@ static AOM_INLINE int assign_tmvp_high_priority(const AV1_COMMON *cm,
                                                 MV_REFERENCE_FRAME rf[2]) {
   if (cm->features.allow_ref_frame_mvs == 0
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-      ||
-      cm->seq_params.order_hint_info.enable_order_hint == 0
+      || cm->seq_params.order_hint_info.enable_order_hint == 0
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-      )
+  )
     return 0;
 
   if (cm->seq_params.enable_drl_reorder == DRL_REORDER_ALWAYS) return 0;
