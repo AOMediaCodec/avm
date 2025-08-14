@@ -3920,8 +3920,11 @@ static void build_inter_predictors_8x8_and_bigger(
           if ((x_loc & 7) == 0 && (y_loc & 7) == 0) {
 #if WARP44_FIX
             const int_mv warp_mv = get_int_warp_mv_for_fb(
-                xd, &inter_pred_params.warp_params, BLOCK_8X8,
-                sub_mi_x, sub_mi_y);
+                xd, &inter_pred_params.warp_params,
+                block_width << pd->subsampling_x,
+                block_height << pd->subsampling_y,
+                sub_mi_x << pd->subsampling_x >> MI_SIZE_LOG2,
+                sub_mi_y << pd->subsampling_y >> MI_SIZE_LOG2);
 #endif
             av1_get_reference_area_with_padding_single_warp(
                 cm, xd, plane, mi, warp_mv.as_mv, block_width, block_height,
