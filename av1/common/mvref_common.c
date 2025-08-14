@@ -1335,7 +1335,7 @@ static AOM_INLINE void add_ref_mv_candidate(
 #if MAX_DR_STACK_SIZE
                   *derived_mv_count < MAX_DR_STACK_SIZE
 #else
-              *derived_mv_count < MAX_REF_MV_STACK_SIZE
+                *derived_mv_count < MAX_REF_MV_STACK_SIZE
 #endif
               ) {
                 derived_mv_stack[index].this_mv = this_refmv;
