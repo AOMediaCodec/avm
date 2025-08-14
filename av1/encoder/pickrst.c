@@ -281,15 +281,21 @@ static AOM_INLINE void rsc_on_tile(void *priv, int idx_base, int tile_row,
                                    int tile_col) {
   RestSearchCtxt *rsc = (RestSearchCtxt *)priv;
   reset_all_banks(rsc);
+  const int is_uv = rsc->plane != AOM_PLANE_Y;
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   if (rsc->cm->seq_params.disable_loopfilters_across_tiles) {
+    TileInfo tile_info;
+    av1_tile_init(&tile_info, rsc->cm, tile_row, tile_col);
+    rsc->tile_rect = av1_get_tile_rect(&tile_info, rsc->cm, is_uv);
     rsc->tile_stripe0 = get_top_stripe_idx_in_tile(tile_row, tile_col, rsc->cm,
                                                    RESTORATION_PROC_UNIT_SIZE,
                                                    RESTORATION_UNIT_OFFSET);
   } else {
+    rsc->tile_rect = av1_whole_frame_rect(rsc->cm, is_uv);
     rsc->tile_stripe0 = 0;
   }
 #else
+  rsc->tile_rect = av1_whole_frame_rect(rsc->cm, is_uv);
   rsc->tile_stripe0 = 0;
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   rsc->ru_idx_base = idx_base;
@@ -3315,10 +3321,10 @@ static void process_one_rutile(RestSearchCtxt *rsc, int tile_row, int tile_col,
         AV1PixelRect ru_sb_rect = av1_get_rutile_rect(
             rsc->cm, is_uv, rrow0, rrow1, rcol0, rcol1, ru_size, ru_size);
         const int unit_idx0 = rrow0 * rsi->horz_units_per_frame + rcol0;
-        av1_foreach_rest_unit_in_sb(
-            &indep_tile_rect, &ru_sb_rect, unit_idx0, rcol1 - rcol0,
-            rrow1 - rrow0, rsi->horz_units_per_frame, ru_size, ss_y, rsc->plane,
-            fun, rsc, NULL, processed);
+        av1_foreach_rest_unit_in_sb(&indep_tile_rect, &ru_sb_rect, unit_idx0,
+                                    rcol1 - rcol0, rrow1 - rrow0,
+                                    rsi->horz_units_per_frame, ru_size, ss_y,
+                                    rsc->plane, fun, rsc, NULL, processed);
       }
     }
   }
@@ -3387,7 +3393,7 @@ static void copy_unit_info_visitor(const RestorationTileLimits *limits,
   RestSearchCtxt *rsc = (RestSearchCtxt *)priv;
   const RestUnitSearchInfo *rusi = &rsc->rusi[rest_unit_idx];
   const RestorationInfo *rsi = &rsc->cm->rst_info[rsc->plane];
-
+  assert(rest_unit_idx < rsi->vert_units_per_frame * rsi->horz_units_per_frame);
   copy_unit_info(rsi->frame_restoration_type, rusi,
                  &rsi->unit_info[rest_unit_idx], rsc);
 #if CONFIG_TEMP_LR
@@ -4240,6 +4246,14 @@ void av1_reset_restoration_struct(AV1_COMMON *cm, RestorationInfo *rsi,
   rsi->horz_units_per_frame = rsi->horz_units_per_tile[0];
   rsi->vert_stripes_per_frame = av1_lr_count_stripes_in_tile(tile_h, ss_y);
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  const int nunits = rsi->horz_units_per_frame * rsi->vert_units_per_frame;
+  if (nunits > rsi->nunits_alloc) {
+    aom_free(rsi->unit_info);
+    CHECK_MEM_ERROR(cm, rsi->unit_info,
+                    (RestorationUnitInfo *)aom_memalign(
+                        16, sizeof(*rsi->unit_info) * nunits));
+    rsi->nunits_alloc = nunits;
+  }
 }
 
 #if CONFIG_COMBINE_PC_NS_WIENER
@@ -4313,7 +4327,8 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
 
   int ntiles[2];
   for (int is_uv = 0; is_uv < 2; ++is_uv) {
-    cm->rst_info[is_uv].restoration_unit_size = cm->rst_info[is_uv].min_restoration_unit_size;
+    cm->rst_info[is_uv].restoration_unit_size =
+        cm->rst_info[is_uv].min_restoration_unit_size;
     av1_reset_restoration_struct(cm, &cm->rst_info[is_uv], is_uv);
     ntiles[is_uv] = rest_tiles_in_plane(cm, is_uv);
   }

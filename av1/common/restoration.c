@@ -485,11 +485,11 @@ void av1_alloc_restoration_struct(AV1_COMMON *cm, RestorationInfo *rsi,
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 
   const int nunits = rsi->horz_units_per_frame * rsi->vert_units_per_frame;
-
   aom_free(rsi->unit_info);
   CHECK_MEM_ERROR(cm, rsi->unit_info,
                   (RestorationUnitInfo *)aom_memalign(
                       16, sizeof(*rsi->unit_info) * nunits));
+  rsi->nunits_alloc = nunits;
 }
 
 void av1_free_restoration_struct(RestorationInfo *rst_info) {

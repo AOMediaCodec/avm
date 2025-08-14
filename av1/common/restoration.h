@@ -531,6 +531,11 @@ typedef struct {
   RestorationUnitInfo *unit_info;
 
   /*!
+   * Number of units allocated for unit_info
+   */
+  int nunits_alloc;
+
+  /*!
    * Restoration Stripe boundary info
    */
   RestorationStripeBoundaries boundaries;
