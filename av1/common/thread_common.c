@@ -728,7 +728,7 @@ static int loop_restoration_row_worker(void *arg1, void *arg2) {
                                                    : av1_lr_sync_write_dummy;
 
       av1_foreach_rest_unit_in_row(
-          &limits, &tile_rect, lr_ctxt->on_rest_unit, lr_unit_row,
+          &limits, &tile_rect, &tile_rect, lr_ctxt->on_rest_unit, lr_unit_row,
           ctxt[plane].rsi->restoration_unit_size, unit_idx0,
           ctxt[plane].rsi->horz_units_per_tile[tile_col],
           ctxt[plane].rsi->vert_units_per_tile[tile_row],

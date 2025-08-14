@@ -460,6 +460,11 @@ typedef struct {
    * size of stripe boundaries above and below
    */
   int stripe_boundary_size;
+
+  /*!
+   * number of stripes above and below
+   */
+  int num_stripes;
 } RestorationStripeBoundaries;
 
 /*!\brief Parameters related to Restoration Info */
@@ -793,12 +798,13 @@ void av1_loop_restoration_filter_frame_init(AV1LrStruct *lr_ctxt,
 void av1_loop_restoration_copy_planes(AV1LrStruct *loop_rest_ctxt,
                                       struct AV1Common *cm, int num_planes);
 void av1_foreach_rest_unit_in_row(
-    RestorationTileLimits *limits, const AV1PixelRect *tile_rect,
-    rest_unit_visitor_t on_rest_unit, int row_number, int unit_size,
-    int unit_idx0, int hunits_per_tile, int vunits_per_tile, int unit_stride,
-    int plane, void *priv, RestorationLineBuffers *rlbs,
-    sync_read_fn_t on_sync_read, sync_write_fn_t on_sync_write,
-    struct AV1LrSyncData *const lr_sync, int *processed);
+    RestorationTileLimits *limits, const AV1PixelRect *proc_rect,
+    const AV1PixelRect *tile_rect, rest_unit_visitor_t on_rest_unit,
+    int row_number, int unit_size, int unit_idx0, int hunits_per_tile,
+    int vunits_per_tile, int unit_stride, int plane, void *priv,
+    RestorationLineBuffers *rlbs, sync_read_fn_t on_sync_read,
+    sync_write_fn_t on_sync_write, struct AV1LrSyncData *const lr_sync,
+    int *processed);
 AV1PixelRect av1_whole_frame_rect(const struct AV1Common *cm, int is_uv);
 AV1PixelRect av1_get_rutile_rect(const struct AV1Common *cm, int is_uv,
                                  int ru_start_row, int ru_end_row,

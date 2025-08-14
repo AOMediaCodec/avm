@@ -652,6 +652,8 @@ static void setup_processing_stripe_boundary(
 
   const int data_x0 = limits->h_start - RESTORATION_EXTRA_HORZ;
 
+  assert(rsb_row < rsb->num_stripes * RESTORATION_CTX_VERT);
+
   // Replace RESTORATION_BORDER pixels above the top of the stripe
   // We expand RESTORATION_CTX_VERT=2 lines from rsb->stripe_boundary_above
   // to fill RESTORATION_BORDER=3 lines of above pixels. This is done by
@@ -681,6 +683,7 @@ static void setup_processing_stripe_boundary(
 #else
         memcpy(rlbs->tmp_save_above[i + RESTORATION_BORDER], dst, line_size);
 #endif  // ISSUE_253
+        // printf("buf_row = %d, rsb_row = %d\n", buf_row, rsb_row);
         memcpy(dst, buf, line_size);
       }
     }
@@ -2475,21 +2478,22 @@ void av1_loop_restoration_filter_frame(YV12_BUFFER_CONFIG *frame,
 }
 
 void av1_foreach_rest_unit_in_row(
-    RestorationTileLimits *limits, const AV1PixelRect *tile_rect,
-    rest_unit_visitor_t on_rest_unit, int row_number, int unit_size,
-    int unit_idx0, int hunits_per_tile, int vunits_per_tile, int unit_stride,
-    int plane, void *priv, RestorationLineBuffers *rlbs,
-    sync_read_fn_t on_sync_read, sync_write_fn_t on_sync_write,
-    struct AV1LrSyncData *const lr_sync, int *processed) {
-  const int tile_w = tile_rect->right - tile_rect->left;
+    RestorationTileLimits *limits, const AV1PixelRect *proc_rect,
+    const AV1PixelRect *tile_rect, rest_unit_visitor_t on_rest_unit,
+    int row_number, int unit_size, int unit_idx0, int hunits_per_tile,
+    int vunits_per_tile, int unit_stride, int plane, void *priv,
+    RestorationLineBuffers *rlbs, sync_read_fn_t on_sync_read,
+    sync_write_fn_t on_sync_write, struct AV1LrSyncData *const lr_sync,
+    int *processed) {
+  const int tile_w = proc_rect->right - proc_rect->left;
   int x0 = 0, j = 0;
   while (x0 < tile_w) {
     int remaining_w = tile_w - x0;
     int w = (j == hunits_per_tile - 1) ? remaining_w : unit_size;
 
-    limits->h_start = tile_rect->left + x0;
-    limits->h_end = tile_rect->left + x0 + w;
-    assert(limits->h_end <= tile_rect->right);
+    limits->h_start = proc_rect->left + x0;
+    limits->h_end = proc_rect->left + x0 + w;
+    assert(limits->h_end <= proc_rect->right);
 
     // Note that the hunits_per_tile is for the number of horz RUs in the
     // rutile, but unit_stride is the stride for RU info for the full frame.
@@ -2576,7 +2580,7 @@ void av1_foreach_rest_unit_in_tile(const AV1PixelRect *tile_rect, int unit_idx0,
 
     assert(i < vunits_per_tile);
     av1_foreach_rest_unit_in_row(
-        &limits, tile_rect, on_rest_unit, i, unit_size, unit_idx0,
+        &limits, tile_rect, tile_rect, on_rest_unit, i, unit_size, unit_idx0,
         hunits_per_tile, vunits_per_tile, unit_stride, plane, priv, rlbs,
         av1_lr_sync_read_dummy, av1_lr_sync_write_dummy, NULL, processed);
 
@@ -2619,7 +2623,7 @@ void av1_foreach_rest_unit_in_sb(const AV1PixelRect *tile_rect,
 
     assert(i < vunits_per_tile);
     av1_foreach_rest_unit_in_row(
-        &limits, sb_rect, on_rest_unit, i, unit_size, unit_idx0,
+        &limits, sb_rect, tile_rect, on_rest_unit, i, unit_size, unit_idx0,
         hunits_per_tile, vunits_per_tile, unit_stride, plane, priv, rlbs,
         av1_lr_sync_read_dummy, av1_lr_sync_write_dummy, NULL, processed);
 

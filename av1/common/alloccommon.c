@@ -122,13 +122,15 @@ void av1_alloc_restoration_boundary_buffers(struct AV1Common *cm,
     const int stride = ALIGN_POWER_OF_TWO(plane_w, 5);
     const int buf_size = num_stripes * stride * RESTORATION_CTX_VERT << 1;
     RestorationStripeBoundaries *boundaries = &cm->rst_info[p].boundaries;
+    boundaries->num_stripes = num_stripes;
 
     if (buf_size != boundaries->stripe_boundary_size ||
         boundaries->stripe_boundary_above == NULL ||
         boundaries->stripe_boundary_below == NULL) {
       aom_free(boundaries->stripe_boundary_above);
       aom_free(boundaries->stripe_boundary_below);
-
+      // printf("num_stripes %d buf_size %d, stride %d\n", num_stripes,
+      // buf_size, stride);
       CHECK_MEM_ERROR(cm, boundaries->stripe_boundary_above,
                       aom_memalign(32, buf_size));
       CHECK_MEM_ERROR(cm, boundaries->stripe_boundary_below,
