@@ -139,9 +139,7 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
                                         AV1E_SET_LOSSLESS,
                                         AV1E_SET_ENABLE_DEBLOCKING,
                                         AV1E_SET_ENABLE_CDEF,
-#if CONFIG_GDF
                                         AV1E_SET_ENABLE_GDF,
-#endif  // CONFIG_GDF
                                         AV1E_SET_ENABLE_RESTORATION,
                                         AV1E_SET_ENABLE_RECT_PARTITIONS,
                                         AV1E_SET_ENABLE_1TO4_PARTITIONS,
@@ -339,9 +337,7 @@ const arg_def_t *av1_ctrl_args[] = {
   &g_av1_codec_arg_defs.lossless,
   &g_av1_codec_arg_defs.enable_deblocking,
   &g_av1_codec_arg_defs.enable_cdef,
-#if CONFIG_GDF
   &g_av1_codec_arg_defs.enable_gdf,
-#endif  // CONFIG_GDF
   &g_av1_codec_arg_defs.enable_restoration,
   &g_av1_codec_arg_defs.enable_rect_partitions,
   &g_av1_codec_arg_defs.enable_uneven_4way_partitions,
@@ -708,9 +704,7 @@ static void init_config(cfg_options_t *config) {
   config->enable_flip_idtx = 1;
   config->enable_deblocking = 1;
   config->enable_cdef = 1;
-#if CONFIG_GDF
   config->enable_gdf = 1;
-#endif  // CONFIG_GDF
   config->enable_restoration = 1;
   config->enable_pc_wiener = 1;
   config->enable_wiener_nonsep = 1;
@@ -1696,17 +1690,12 @@ static void show_stream_config(struct stream_state *stream,
   fprintf(stdout,
           "Tool setting (Loop filter)     : Deblocking (%d), CDEF (%d), "
           "CDEF on skip_txfm = 1(%d), CCSO (%d), "
-#if CONFIG_GDF
           "GDF (%d), "
-#endif  // CONFIG_GDF
           "LoopRestoration (%d: [PC Wiener: %d, NonSep Wiener: %d])\n",
           encoder_cfg->enable_deblocking, encoder_cfg->enable_cdef,
           encoder_cfg->enable_cdef_on_skip_txfm, encoder_cfg->enable_ccso,
-#if CONFIG_GDF
-          encoder_cfg->enable_gdf,
-#endif  // CONFIG_GDF
-          encoder_cfg->enable_restoration, encoder_cfg->enable_pc_wiener,
-          encoder_cfg->enable_wiener_nonsep);
+          encoder_cfg->enable_gdf, encoder_cfg->enable_restoration,
+          encoder_cfg->enable_pc_wiener, encoder_cfg->enable_wiener_nonsep);
 
   fprintf(stdout,
           "Tool setting (Others)          : Palette (%d), "

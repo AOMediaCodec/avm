@@ -35,9 +35,7 @@
 #include "av1/common/resize.h"
 #include "av1/common/thread_common.h"
 #include "av1/common/timing.h"
-#if CONFIG_GDF
 #include "av1/common/gdf.h"
-#endif  // CONFIG_GDF
 #include "av1/encoder/aq_cyclicrefresh.h"
 #include "av1/encoder/av1_quantize.h"
 #include "av1/encoder/block.h"
@@ -847,10 +845,8 @@ typedef struct {
   bool enable_deblocking;
   // Indicates if CDEF should be enabled.
   bool enable_cdef;
-#if CONFIG_GDF
   // Indicates if GDF should be enabled.
   bool enable_gdf;
-#endif  // CONFIG_GDF
   // Indicates if loop restoration filter should be enabled.
   bool enable_restoration;
   // Indicates if pc_wiener in loop restoration filter should be enabled.

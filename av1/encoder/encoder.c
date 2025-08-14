@@ -477,9 +477,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
       tool_cfg->reduced_ref_frame_mvs_mode;
 #endif  // CONFIG_REDUCED_REF_FRAME_MVS_MODE
   seq->enable_cdef = tool_cfg->enable_cdef;
-#if CONFIG_GDF
   seq->enable_gdf = tool_cfg->enable_gdf;
-#endif  // CONFIG_GDF
   seq->enable_restoration = tool_cfg->enable_restoration;
   seq->enable_ccso = tool_cfg->enable_ccso;
 #if CONFIG_LF_SUB_PU
@@ -2442,7 +2440,6 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
 #endif  // CONFIG_BRU
 }
 
-#if CONFIG_GDF
 /*!\brief Function to perform rate-distortion optimization for GDF
  */
 void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
@@ -2486,6 +2483,7 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
 
   int *block_ids;
   block_ids = (int *)aom_calloc(cm->gdf_info.gdf_block_num, sizeof(int));
+#if CONFIG_GDF_IMPROVEMENT
   int ctx_idx = 0, sb_size = cm->mib_size << MI_SIZE_LOG2;
   for (int y_pos = 0; y_pos < rec_height; y_pos += sb_size) {
     for (int x_pos = 0; x_pos < rec_width; x_pos += sb_size) {
@@ -2501,13 +2499,37 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
       }
     }
   }
-
   int blk_idx = 0;
   for (int y_pos = -GDF_TEST_STRIPE_OFF, blk_idx_h = 0; y_pos < rec_height;
        y_pos += cm->gdf_info.gdf_block_size, blk_idx_h++) {
     if (blk_idx_h == cm->gdf_info.gdf_block_num_h) {
       blk_idx -= cm->gdf_info.gdf_block_num_w;
     }
+#else
+  int blk_idx = 0;
+  for (int y_pos = 0; y_pos < rec_height;
+       y_pos += cm->gdf_info.gdf_block_size) {
+    for (int x_pos = 0; x_pos < rec_width;
+         x_pos += cm->gdf_info.gdf_block_size) {
+      for (int v_pos = y_pos;
+           v_pos < y_pos + cm->gdf_info.gdf_block_size && v_pos < rec_height;
+           v_pos += 4) {
+        for (int u_pos = x_pos;
+             u_pos < x_pos + cm->gdf_info.gdf_block_size && u_pos < rec_width;
+             u_pos += 4) {
+          int id = gdf_get_block_idx(cm, v_pos, u_pos);
+          if (id >= 0) {
+            block_ids[blk_idx++] = id;
+          }
+        }
+      }
+    }
+  }
+  blk_idx = 0;
+  for (int y_pos = -GDF_TEST_STRIPE_OFF; y_pos < rec_height;
+       y_pos += cm->gdf_info.gdf_block_size) {
+#endif
+
     for (int x_pos = 0; x_pos < rec_width;
          x_pos += cm->gdf_info.gdf_block_size) {
 #if CONFIG_BRU
@@ -2525,7 +2547,11 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
       }
 #endif
       for (int v_pos = y_pos; v_pos < y_pos + cm->gdf_info.gdf_block_size &&
-                              v_pos < (rec_height - GDF_TEST_STRIPE_OFF);
+                              v_pos < (rec_height
+#if CONFIG_GDF_IMPROVEMENT
+                                       - GDF_TEST_STRIPE_OFF
+#endif
+                                      );
            v_pos += cm->gdf_info.gdf_unit_size) {
         int i_min = AOMMAX(v_pos, GDF_TEST_FRAME_BOUNDARY_SIZE);
         int i_max = AOMMIN(v_pos + cm->gdf_info.gdf_unit_size,
@@ -2646,6 +2672,9 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
   int gdf_enable_max_plus_1 = (cm->gdf_info.gdf_block_num <= 1) ? 2 : 3;
   int gdf_block_enable_bit = 1;
   aom_cdf_prob gdf_cdf[CDF_SIZE(2)];
+#if !CONFIG_GDF_IMPROVEMENT
+  static const aom_cdf_prob default_gdf_cdf[CDF_SIZE(2)] = { AOM_CDF2(11570) };
+#endif
 #if CONFIG_BRU
   // BRU frame does not allow mode 1
   for (int gdf_mode = cm->bru.enabled ? 2 : 1; gdf_mode < gdf_enable_max_plus_1;
@@ -2659,8 +2688,11 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
                       GDF_RDO_SCALE_NUM_LOG2)
                      << AV1_PROB_COST_SHIFT;
         slice_error = 0;
+#if CONFIG_GDF_IMPROVEMENT
         av1_copy(gdf_cdf, cm->fc->gdf_cdf);
-
+#else
+        av1_copy(gdf_cdf, default_gdf_cdf);
+#endif
         for (int ci = 0; ci < cm->gdf_info.gdf_block_num; ci++) {
           blk_idx = block_ids[ci];
           if (gdf_mode == 1) {
@@ -2744,7 +2776,6 @@ void gdf_optimize_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
     gdf_filter_frame(cm);
   }
 }
-#endif  // CONFIG_GDF
 
 /*!\brief Select and apply cdef filters and switchable restoration filters
  *
@@ -2752,12 +2783,7 @@ void gdf_optimize_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
  */
 static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
                                    MACROBLOCKD *xd, int use_restoration,
-                                   int use_cdef
-#if CONFIG_GDF
-                                   ,
-                                   int use_gdf
-#endif  // CONFIG_GDF
-) {
+                                   int use_cdef, int use_gdf) {
   uint16_t *rec_uv[CCSO_NUM_COMPONENTS];
   uint16_t *org_uv[CCSO_NUM_COMPONENTS];
   uint16_t *ext_rec_y = NULL;
@@ -2821,22 +2847,20 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
 #endif  // CONFIG_F054_PIC_BOUNDARY
   }
 
-#if CONFIG_GDF
   use_gdf = use_gdf & is_allow_gdf(cm);
   if (!use_gdf) {
     cm->gdf_info.gdf_mode = 0;
   }
-#endif  // CONFIG_GDF
 
   MultiThreadInfo *const mt_info = &cpi->mt_info;
   const int num_workers = mt_info->num_workers;
   if (use_restoration)
     av1_loop_restoration_save_boundary_lines(&cm->cur_frame->buf, cm, 0);
-#if CONFIG_GDF && CONFIG_GDF_IMPROVEMENT
+#if CONFIG_GDF_IMPROVEMENT
   else {
     if (use_gdf) save_tile_row_boundary_lines(&cm->cur_frame->buf, 0, cm, 0);
   }
-#endif  // CONFIG_GDF
+#endif
   if (use_cdef) {
 #if CONFIG_COLLECT_COMPONENT_TIMING
     start_timing(cpi, cdef_time);
@@ -2915,11 +2939,9 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
     aom_free(org_uv[pli]);
   }
 
-#if CONFIG_GDF
   if (use_gdf) {
     gdf_copy_guided_frame(cm);
   }
-#endif  // CONFIG_GDF
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, loop_restoration_time);
@@ -2927,11 +2949,11 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
 
   if (use_restoration)
     av1_loop_restoration_save_boundary_lines(&cm->cur_frame->buf, cm, 1);
-#if CONFIG_GDF && CONFIG_GDF_IMPROVEMENT
+#if CONFIG_GDF_IMPROVEMENT
   else {
     if (use_gdf) save_tile_row_boundary_lines(&cm->cur_frame->buf, 0, cm, 1);
   }
-#endif  // CONFIG_GDF
+#endif
   if (use_restoration) {
     av1_pick_filter_restoration(cpi->source, cpi);
     if (cm->rst_info[0].frame_restoration_type != RESTORE_NONE ||
@@ -2951,12 +2973,10 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
     cm->rst_info[2].frame_restoration_type = RESTORE_NONE;
   }
 
-#if CONFIG_GDF
   if (use_gdf) {
     gdf_optimize_frame(cpi, cm);
     gdf_free_guided_frame(cm);
   }
-#endif  // CONFIG_GDF
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, loop_restoration_time);
@@ -2988,13 +3008,11 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
                        !cm->bru.frame_inactive_flag &&
 #endif  // CONFIG_BRU
                        !cm->features.coded_lossless && !cm->tiles.large_scale;
-#if CONFIG_GDF
   const int use_gdf = cm->seq_params.enable_gdf &&
 #if CONFIG_BRU
                       !cm->bru.frame_inactive_flag &&
 #endif  // CONFIG_BRU
                       !cm->features.all_lossless && !cm->tiles.large_scale;
-#endif  // CONFIG_GDF
   const int use_restoration = cm->seq_params.enable_restoration &&
 #if CONFIG_BRU
                               !cm->bru.frame_inactive_flag &&
@@ -3027,12 +3045,7 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
   end_timing(cpi, loop_filter_time);
 #endif
 
-  cdef_restoration_frame(cpi, cm, xd, use_restoration, use_cdef
-#if CONFIG_GDF
-                         ,
-                         use_gdf
-#endif  // CONFIG_GDF
-  );
+  cdef_restoration_frame(cpi, cm, xd, use_restoration, use_cdef, use_gdf);
 }
 
 /*!\brief If the error resilience mode is turned on in the encoding, for frames

@@ -12,8 +12,6 @@
 
 #include "av1/common/gdf_block.h"
 
-#if CONFIG_GDF
-
 // clang-format off
 const int gdf_guided_sample_coordinates_fwd[GDF_NET_INP_REC_NUM][2] = {
                                                                 {-6,  0},
@@ -973,5 +971,3 @@ void gdf_inference_unit_c(const int i_min, const int i_max, const int j_min,
     err_pnt += res_y_stride;
   }
 }
-
-#endif  // CONFIG_GDF

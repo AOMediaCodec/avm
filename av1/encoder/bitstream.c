@@ -62,9 +62,7 @@
 #include "av1/encoder/segmentation.h"
 #include "av1/encoder/tokenize.h"
 
-#if CONFIG_GDF
 #include "av1/common/gdf.h"
-#endif  // CONFIG_GDF
 
 // Silence compiler warning for unused static functions
 static void image2yuvconfig_upshift(aom_image_t *hbd_img,
@@ -1671,7 +1669,6 @@ static AOM_INLINE void write_cfl_alphas(FRAME_CONTEXT *const ec_ctx,
   }
 }
 
-#if CONFIG_GDF
 #if CONFIG_BRU
 static AOM_INLINE void write_gdf(const AV1_COMMON *cm, MACROBLOCKD *const xd,
 #else
@@ -1695,7 +1692,6 @@ static AOM_INLINE void write_gdf(AV1_COMMON *cm, MACROBLOCKD *const xd,
     }
   }
 }
-#endif  // CONFIG_GDF
 
 #if CONFIG_BRU
 static AOM_INLINE void write_cdef(const AV1_COMMON *cm, MACROBLOCKD *const xd,
@@ -2267,9 +2263,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
   }
 #endif  // CONFIG_BRU
 
-#if CONFIG_GDF
   if (xd->tree_type != CHROMA_PART) write_gdf(cm, xd, w);
-#endif  // CONFIG_GDF
 
   if (xd->tree_type != CHROMA_PART) write_cdef(cm, xd, w, skip);
 
@@ -2875,9 +2869,7 @@ static AOM_INLINE void write_mb_modes_kf(
   if (!seg->segid_preskip && seg->update_map && xd->tree_type != CHROMA_PART)
     write_segment_id(cpi, mbmi, w, seg, segp, skip);
 
-#if CONFIG_GDF
   if (xd->tree_type != CHROMA_PART) write_gdf(cm, xd, w);
-#endif  // CONFIG_GDF
 
   if (xd->tree_type != CHROMA_PART) write_cdef(cm, xd, w, skip);
 
@@ -3187,9 +3179,7 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
       if (cm->seq_params.enable_ccso && xd->tree_type != CHROMA_PART) {
         write_ccso(cm, xd, w);
       }
-#if CONFIG_GDF
       if (xd->tree_type != CHROMA_PART) write_gdf(cm, xd, w);
-#endif
     }
     return;
   } else
@@ -4621,7 +4611,6 @@ static AOM_INLINE void encode_loopfilter(AV1_COMMON *cm,
   }
 }
 
-#if CONFIG_GDF
 static AOM_INLINE void encode_gdf(const AV1_COMMON *cm,
                                   struct aom_write_bit_buffer *wb) {
   assert(!cm->features.coded_lossless);
@@ -4641,7 +4630,6 @@ static AOM_INLINE void encode_gdf(const AV1_COMMON *cm,
                          GDF_RDO_SCALE_NUM_LOG2);
   }
 }
-#endif  // CONFIG_GDF
 
 static AOM_INLINE void encode_cdef(const AV1_COMMON *cm,
                                    struct aom_write_bit_buffer *wb) {
@@ -5740,9 +5728,7 @@ static AOM_INLINE void write_sequence_header(
   }
 
   aom_wb_write_bit(wb, seq_params->enable_cdef);
-#if CONFIG_GDF
   aom_wb_write_bit(wb, seq_params->enable_gdf);
-#endif  // CONFIG_GDF
   aom_wb_write_bit(wb, seq_params->enable_restoration);
   if (seq_params->enable_restoration) {
     for (int i = 1; i < RESTORE_SWITCHABLE_TYPES; ++i) {
@@ -6915,9 +6901,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
     if (!features->coded_lossless) {
       encode_loopfilter(cm, wb);
 
-#if CONFIG_GDF
       encode_gdf(cm, wb);
-#endif  // CONFIG_GDF
 
       encode_cdef(cm, wb);
     }

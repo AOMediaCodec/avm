@@ -15,7 +15,6 @@
 #include "av1/common/odintrin.h"
 #include "av1/common/gdf.h"
 
-#if CONFIG_GDF
 #define GDF_OPTS_INP_TOT (GDF_NET_INP_REC_NUM + GDF_NET_INP_GRD_NUM)
 
 #define GDF_BLOCK_PADDED ((GDF_OPTS_INP_TOT + 2) * 4 + GDF_TEST_BLK_SIZE * 2)
@@ -79,5 +78,4 @@ extern const int8_t gdf_inter_error_table[GDF_TRAIN_REFDST_NUM]
                                           GDF_NET_LUT_IDX_INTER_MAX *
                                           GDF_NET_LUT_IDX_INTER_MAX];
 
-#endif  // CONFIG_GDF
 #endif  // AOM_AV1_COMMON_GDF_BLOCK_H

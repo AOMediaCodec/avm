@@ -47,9 +47,7 @@
 #include "av1/common/alloccommon.h"
 #include "av1/common/cdef.h"
 
-#if CONFIG_GDF
 #include "av1/common/gdf.h"
-#endif  // CONFIG_GDF
 
 #include "av1/common/ccso.h"
 #include "av1/common/cfl.h"
@@ -770,9 +768,7 @@ static AOM_INLINE void decode_mbmi_block(AV1Decoder *const pbi,
       if (cm->seq_params.enable_ccso) {
         read_ccso(cm, r, xd);
       }
-#if CONFIG_GDF
       read_gdf(cm, r, xd);
-#endif
     }
   } else
 #endif  // CONFIG_BRU
@@ -3379,7 +3375,6 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
   lf->mode_ref_delta_enabled = 0;
 }
 
-#if CONFIG_GDF
 static AOM_INLINE void setup_gdf(AV1_COMMON *cm,
                                  struct aom_read_bit_buffer *rb) {
   cm->gdf_info.gdf_mode = 0;
@@ -3402,7 +3397,6 @@ static AOM_INLINE void setup_gdf(AV1_COMMON *cm,
         aom_rb_read_literal(rb, GDF_RDO_SCALE_NUM_LOG2);
   }
 }
-#endif  // CONFIG_GDF
 
 static AOM_INLINE void setup_cdef(AV1_COMMON *cm,
                                   struct aom_read_bit_buffer *rb) {
@@ -4160,9 +4154,7 @@ void av1_set_single_tile_decoding_mode(AV1_COMMON *const cm) {
     struct loopfilter *lf = &cm->lf;
     RestorationInfo *const rst_info = cm->rst_info;
     const CdefInfo *const cdef_info = &cm->cdef_info;
-#if CONFIG_GDF
     const GdfInfo *const gdf_info = &cm->gdf_info;
-#endif
 
     // Figure out single_tile_decoding by loopfilter_level.
     const int no_loopfilter = !(lf->filter_level[0] || lf->filter_level[1]);
@@ -4173,18 +4165,12 @@ void av1_set_single_tile_decoding_mode(AV1_COMMON *const cm) {
         rst_info[0].frame_restoration_type == RESTORE_NONE &&
         rst_info[1].frame_restoration_type == RESTORE_NONE &&
         rst_info[2].frame_restoration_type == RESTORE_NONE;
-#if CONFIG_GDF
     const int no_gdf = gdf_info->gdf_mode == 0;
     assert(IMPLIES(cm->features.coded_lossless,
                    no_loopfilter && no_cdef && no_gdf));
-#else
-    assert(IMPLIES(cm->features.coded_lossless, no_loopfilter && no_cdef));
-#endif
     assert(IMPLIES(cm->features.all_lossless, no_restoration));
-    cm->tiles.single_tile_decoding = no_loopfilter && no_cdef && no_restoration
-#if CONFIG_GDF
-                                     && no_gdf;
-#endif
+    cm->tiles.single_tile_decoding =
+        no_loopfilter && no_cdef && no_restoration && no_gdf;
     ;
   }
 }
@@ -6431,9 +6417,7 @@ void av1_read_sequence_header(
   }
 
   seq_params->enable_cdef = aom_rb_read_bit(rb);
-#if CONFIG_GDF
   seq_params->enable_gdf = aom_rb_read_bit(rb);
-#endif  // CONFIG_GDF
   seq_params->enable_restoration = aom_rb_read_bit(rb);
   seq_params->lr_tools_disable_mask[0] = 0;
   seq_params->lr_tools_disable_mask[1] = 0;
@@ -8530,9 +8514,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     lf->filter_level[0] = 0;
     lf->filter_level[1] = 0;
     cm->cdef_info.cdef_frame_enable = 0;
-#if CONFIG_GDF
     cm->gdf_info.gdf_mode = 0;
-#endif  // CONFIG_GDF
     // set cm->rst_info and copy it to cur_frame->rst_info
     for (int plane = 0; plane < av1_num_planes(cm); plane++) {
       cm->rst_info[plane].frame_restoration_type = RESTORE_NONE;
@@ -8607,9 +8589,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     lf->filter_level[0] = 0;
     lf->filter_level[1] = 0;
 
-#if CONFIG_GDF
     cm->gdf_info.gdf_mode = 0;
-#endif  // CONFIG_GDF
 
     cm->cdef_info.cdef_frame_enable = 0;
     cm->rst_info[0].frame_restoration_type = RESTORE_NONE;
@@ -8809,14 +8789,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   }
   setup_loopfilter(cm, rb);
 
-#if CONFIG_GDF
   if (!features->coded_lossless && seq_params->enable_gdf) {
     setup_gdf(cm, rb);
   } else {
     cm->gdf_info.gdf_mode = 0;
   }
-#endif  // CONFIG_GDF
-
   if (!features->coded_lossless && seq_params->enable_cdef) {
     setup_cdef(cm, rb);
   }
@@ -9196,13 +9173,13 @@ static AOM_INLINE void setup_frame_info(AV1Decoder *pbi) {
       cm->rst_info[2].frame_restoration_type != RESTORE_NONE) {
     av1_alloc_restoration_buffers(cm);
   }
-#if CONFIG_GDF && CONFIG_GDF_IMPROVEMENT
+#if CONFIG_GDF_IMPROVEMENT
   else {
     if (cm->gdf_info.gdf_mode) {
       av1_alloc_restoration_boundary_buffers(cm, 1);
     }
   }
-#endif  // CONFIG_GDF
+#endif
   const int buf_size = MC_TEMP_BUF_PELS << 1;
   if (pbi->td.mc_buf_size != buf_size) {
     av1_free_mc_tmp_buf(&pbi->td);
@@ -9234,9 +9211,7 @@ void decoder_avg_tiles_cdfs(AV1Decoder *const pbi) {
   }
 }
 
-#if CONFIG_GDF
 void av1_gdf_frame_dec(AV1_COMMON *cm) { gdf_filter_frame(cm); }
-#endif  // CONFIG_GDF
 
 void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
                                     const uint8_t *data_end,
@@ -9397,25 +9372,19 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
     const int do_cdef = !pbi->skip_loop_filter &&
                         !cm->features.coded_lossless &&
                         cm->cdef_info.cdef_frame_enable;
-#if CONFIG_GDF
     const int do_gdf = is_gdf_enabled(cm);
-#endif  // CONFIG_GDF
-    const int optimized_loop_restoration =
-#if CONFIG_GDF
-        !do_gdf &&
-#endif  // CONFIG_GDF
-        !use_ccso && !do_cdef;
+    const int optimized_loop_restoration = !do_gdf && !use_ccso && !do_cdef;
 
     if (!optimized_loop_restoration) {
       if (do_loop_restoration)
         av1_loop_restoration_save_boundary_lines(&pbi->common.cur_frame->buf,
                                                  cm, 0);
-#if CONFIG_GDF && CONFIG_GDF_IMPROVEMENT
+#if CONFIG_GDF_IMPROVEMENT
       else {
         if (do_gdf)
           save_tile_row_boundary_lines(&pbi->common.cur_frame->buf, 0, cm, 0);
       }
-#endif  // CONFIG_GDF
+#endif
 
       if (do_cdef) {
         av1_cdef_frame(&pbi->common.cur_frame->buf, cm, &pbi->dcb.xd);
@@ -9424,23 +9393,19 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
         ccso_frame(&cm->cur_frame->buf, cm, xd, ext_rec_y);
         aom_free(ext_rec_y);
       }
-
-#if CONFIG_GDF
       if (do_gdf) {
         gdf_copy_guided_frame(cm);
       }
-#endif  // CONFIG_GDF
-
       if (do_loop_restoration) {
         av1_loop_restoration_save_boundary_lines(&pbi->common.cur_frame->buf,
                                                  cm, 1);
       }
-#if CONFIG_GDF && CONFIG_GDF_IMPROVEMENT
+#if CONFIG_GDF_IMPROVEMENT
       else {
         if (do_gdf)
           save_tile_row_boundary_lines(&pbi->common.cur_frame->buf, 0, cm, 1);
       }
-#endif  // CONFIG_GDF
+#endif
       if (do_loop_restoration) {
         // HERE
 #if CONFIG_COMBINE_PC_NS_WIENER
@@ -9457,16 +9422,10 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
                                             &pbi->lr_ctxt);
         }
       }
-
-#if CONFIG_GDF
-#if GDF_VERBOSE
-      gdf_print_info(cm, "DEC", cm->current_frame.absolute_poc);
-#endif  //
       if (do_gdf) {
         av1_gdf_frame_dec(cm);
         gdf_free_guided_frame(cm);
       }
-#endif  // CONFIG_GDF
 
     } else {
       // In no cdef and no superres case. Provide an optimized version of

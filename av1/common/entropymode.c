@@ -6677,9 +6677,7 @@ static const aom_cdf_prob
       { AOM_CDF7(4681, 9362, 14043, 18725, 23406, 28087) },
     };
 
-#if CONFIG_GDF
 static const aom_cdf_prob default_gdf_cdf[CDF_SIZE(2)] = { AOM_CDF2(11570) };
-#endif  // CONFIG_GDF
 
 static const aom_cdf_prob default_wienerns_length_cdf[2][CDF_SIZE(2)] = {
   { AOM_CDF2(16384), 61 },
@@ -7070,9 +7068,7 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   }
   av1_copy(fc->cdef_strength_index0_cdf, default_cdef_strength_index0_cdf);
   av1_copy(fc->cdef_cdf, default_cdef_cdf);
-#if CONFIG_GDF
   av1_copy(fc->gdf_cdf, default_gdf_cdf);
-#endif  // CONFIG_GDF
   av1_copy(fc->wienerns_restore_cdf, default_wienerns_restore_cdf);
   av1_copy(fc->wienerns_length_cdf, default_wienerns_length_cdf);
   av1_copy(fc->wienerns_uv_sym_cdf, default_wienerns_uv_sym_cdf);
@@ -7593,9 +7589,7 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
     CUMULATIVE_AVG_CDF_STRIDE(ctx_left->cdef_cdf[j], ctx_tr->cdef_cdf[j], j + 2,
                               CDF_SIZE(CDEF_STRENGTHS_NUM));
   }
-#if CONFIG_GDF
   CUMULATIVE_AVERAGE_CDF(ctx_left->gdf_cdf, ctx_tr->gdf_cdf, 2);
-#endif
   CUMULATIVE_AVERAGE_CDF(ctx_left->wienerns_restore_cdf,
                          ctx_tr->wienerns_restore_cdf, 2);
   CUMULATIVE_AVERAGE_CDF(ctx_left->wienerns_length_cdf,
@@ -8019,9 +8013,7 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
   for (int j = 0; j < CDEF_STRENGTHS_NUM - 1; j++) {
     SHIFT_CDF_STRIDE(ctx_ptr->cdef_cdf[j], j + 2, CDF_SIZE(CDEF_STRENGTHS_NUM));
   }
-#if CONFIG_GDF
   SHIFT_CDF(ctx_ptr->gdf_cdf, 2);
-#endif
   SHIFT_CDF(ctx_ptr->wienerns_restore_cdf, 2);
   SHIFT_CDF(ctx_ptr->wienerns_length_cdf, 2);
   SHIFT_CDF(ctx_ptr->wienerns_uv_sym_cdf, 2);
@@ -8478,9 +8470,7 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
     AVG_CDF_STRIDE(ctx_left->cdef_cdf[j], ctx_tr->cdef_cdf[j], j + 2,
                    CDF_SIZE(CDEF_STRENGTHS_NUM));
   }
-#if CONFIG_GDF
   AVERAGE_CDF(ctx_left->gdf_cdf, ctx_tr->gdf_cdf, 2);
-#endif
   AVERAGE_CDF(ctx_left->wienerns_restore_cdf, ctx_tr->wienerns_restore_cdf, 2);
   AVERAGE_CDF(ctx_left->wienerns_length_cdf, ctx_tr->wienerns_length_cdf, 2);
   AVERAGE_CDF(ctx_left->wienerns_uv_sym_cdf, ctx_tr->wienerns_uv_sym_cdf, 2);

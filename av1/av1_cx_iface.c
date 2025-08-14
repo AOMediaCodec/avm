@@ -68,9 +68,7 @@ struct av1_extracfg {
   unsigned int lossless;
   unsigned int enable_deblocking;
   unsigned int enable_cdef;
-#if CONFIG_GDF
   unsigned int enable_gdf;
-#endif  // CONFIG_GDF
   unsigned int enable_restoration;
   unsigned int enable_pc_wiener;
   unsigned int enable_wiener_nonsep;
@@ -440,9 +438,7 @@ static struct av1_extracfg default_extra_cfg = {
   0,                                         // lossless
   1,                                         // enable_deblocking
   1,                                         // enable_cdef
-#if CONFIG_GDF
-  1,    // enable_gdf
-#endif  // CONFIG_GDF
+  1,                                         // enable_gdf
   1,                                         // enable_restoration
   1,                                         // enable_pc_wiener
   1,                                         // enable_wiener_nonsep
@@ -1019,9 +1015,7 @@ static void update_encoder_config(cfg_options_t *cfg,
                                   struct av1_extracfg *extra_cfg) {
   cfg->enable_deblocking = extra_cfg->enable_deblocking;
   cfg->enable_cdef = extra_cfg->enable_cdef;
-#if CONFIG_GDF
   cfg->enable_gdf = extra_cfg->enable_gdf;
-#endif  // CONFIG_GDF
   cfg->enable_restoration = extra_cfg->enable_restoration;
   cfg->enable_pc_wiener = extra_cfg->enable_pc_wiener;
   cfg->enable_wiener_nonsep = extra_cfg->enable_wiener_nonsep;
@@ -1164,9 +1158,7 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
                                           struct av1_extracfg *extra_cfg) {
   extra_cfg->enable_deblocking = cfg->enable_deblocking;
   extra_cfg->enable_cdef = cfg->enable_cdef;
-#if CONFIG_GDF
   extra_cfg->enable_gdf = cfg->enable_gdf;
-#endif  // CONFIG_GDF
   extra_cfg->enable_restoration = cfg->enable_restoration;
   extra_cfg->enable_pc_wiener = cfg->enable_pc_wiener;
   extra_cfg->enable_wiener_nonsep = cfg->enable_wiener_nonsep;
@@ -1503,9 +1495,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   tool_cfg->bit_depth = cfg->g_bit_depth;
   tool_cfg->enable_deblocking = extra_cfg->enable_deblocking;
   tool_cfg->enable_cdef = extra_cfg->enable_cdef;
-#if CONFIG_GDF
   tool_cfg->enable_gdf = extra_cfg->enable_gdf;
-#endif  // CONFIG_GDF
   tool_cfg->enable_restoration = extra_cfg->enable_restoration;
   tool_cfg->enable_pc_wiener =
       tool_cfg->enable_restoration & extra_cfg->enable_pc_wiener;
@@ -2306,14 +2296,12 @@ static aom_codec_err_t ctrl_set_enable_cdef(aom_codec_alg_priv_t *ctx,
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
-#if CONFIG_GDF
 static aom_codec_err_t ctrl_set_enable_gdf(aom_codec_alg_priv_t *ctx,
                                            va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
   extra_cfg.enable_gdf = CAST(AV1E_SET_ENABLE_GDF, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
-#endif  // CONFIG_GDF
 
 static aom_codec_err_t ctrl_set_enable_restoration(aom_codec_alg_priv_t *ctx,
                                                    va_list args) {
@@ -4096,15 +4084,11 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_cdef, argv,
                               err_string)) {
     extra_cfg.enable_cdef = arg_parse_uint_helper(&arg, err_string);
-  }
-#if CONFIG_GDF
-  else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_gdf, argv,
-                            err_string)) {
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_gdf, argv,
+                              err_string)) {
     extra_cfg.enable_gdf = arg_parse_uint_helper(&arg, err_string);
-  }
-#endif  // CONFIG_GDF
-  else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_restoration,
-                            argv, err_string)) {
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_restoration,
+                              argv, err_string)) {
     extra_cfg.enable_restoration = arg_parse_uint_helper(&arg, err_string);
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_pc_wiener,
                               argv, err_string)) {
@@ -4666,9 +4650,7 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_LOSSLESS, ctrl_set_lossless },
   { AV1E_SET_ENABLE_DEBLOCKING, ctrl_set_enable_deblocking },
   { AV1E_SET_ENABLE_CDEF, ctrl_set_enable_cdef },
-#if CONFIG_GDF
   { AV1E_SET_ENABLE_GDF, ctrl_set_enable_gdf },
-#endif  // CONFIG_GDF
   { AV1E_SET_ENABLE_RESTORATION, ctrl_set_enable_restoration },
   { AV1E_SET_FORCE_VIDEO_MODE, ctrl_set_force_video_mode },
   { AV1E_SET_ENABLE_TRELLIS_QUANT, ctrl_set_enable_trellis_quant },
@@ -4898,10 +4880,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_DERIVED_MVD_SIGN
         1,
 #endif  // CONFIG_DERIVED_MVD_SIGN
-        1,   1, 1,
-#if CONFIG_GDF
-        1,
-#endif
+        1,   1, 1, 1,
         1,   1, 1, 1,
 #if CONFIG_LF_SUB_PU
         1,

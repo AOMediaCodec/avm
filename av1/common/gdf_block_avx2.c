@@ -13,8 +13,6 @@
 #include "av1/common/gdf_block.h"
 #include <immintrin.h>
 
-#if CONFIG_GDF
-
 #define gdf_calculate_laplacian_2x2_reg(lap, lap0, lap1, y0A, y_1A, y1A, y0B, \
                                         y_1B, y1B)                            \
   lap0 = _mm256_abs_epi16(_mm256_sub_epi16(                                   \
@@ -631,5 +629,3 @@ void gdf_inference_unit_avx2(const int i_min, const int i_max, const int j_min,
     }
   }
 }
-
-#endif  // CONFIG_GDF

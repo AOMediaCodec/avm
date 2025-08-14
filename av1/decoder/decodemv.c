@@ -42,14 +42,10 @@
 #include "aom_dsp/binary_codes_reader.h"
 #endif  // CONFIG_VQ_MVD_CODING
 #include "aom_ports/bitops.h"
-
-#if CONFIG_GDF
 #include "av1/common/gdf.h"
-#endif  // CONFIG_GDF
 
 #define DEC_MISMATCH_DEBUG 0
 
-#if CONFIG_GDF
 #if CONFIG_BRU
 void read_gdf(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
 #else
@@ -83,7 +79,6 @@ static void read_gdf(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
     }
   }
 }
-#endif  // CONFIG_GDF
 
 #if CONFIG_BRU
 void read_cdef(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
@@ -2101,9 +2096,7 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
 
   mbmi->seg_id_predicted = 0;
 
-#if CONFIG_GDF
   if (xd->tree_type != CHROMA_PART) read_gdf(cm, r, xd);
-#endif  // CONFIG_GDF
 
   if (xd->tree_type != CHROMA_PART) read_cdef(cm, r, xd);
 
@@ -4254,9 +4247,7 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
   if (!cm->seg.segid_preskip && xd->tree_type != CHROMA_PART)
     mbmi->segment_id = read_inter_segment_id(cm, xd, 0, r);
 
-#if CONFIG_GDF
   if (xd->tree_type != CHROMA_PART) read_gdf(cm, r, xd);
-#endif  // CONFIG_GDF
 
   if (xd->tree_type != CHROMA_PART) read_cdef(cm, r, xd);
 

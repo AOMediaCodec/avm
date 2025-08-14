@@ -259,9 +259,7 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
 
   aom_free_frame_buffer(&cpi->last_frame_uf);
   av1_free_restoration_buffers(cm);
-#if CONFIG_GDF
   free_gdf_buffers(&cm->gdf_info);
-#endif  // CONFIG_GDF
   aom_free_frame_buffer(&cpi->trial_frame_rst);
   aom_free_frame_buffer(&cpi->scaled_source);
   aom_free_frame_buffer(&cpi->scaled_last_source);

@@ -1286,7 +1286,6 @@ enum aome_enc_control_id {
    */
   AV1E_SET_FRAME_MULTI_QMATRIX_UNIT_TEST = 172,
 
-#if CONFIG_GDF
   /*!\brief Codec control function to encode with GDF, unsigned int parameter
    *
    * GDF is the guided detail filter which is an
@@ -1296,7 +1295,6 @@ enum aome_enc_control_id {
    * - 1 = enable (default)
    */
   AV1E_SET_ENABLE_GDF = 173,
-#endif  // CONFIG_GDF
 
 #if CONFIG_FGS_BLOCK_SIZE
   /*!\brief Control to select block size in film grain synthesis
@@ -1521,10 +1519,8 @@ AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_DEBLOCKING, unsigned int)
 AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_CDEF, unsigned int)
 #define AOM_CTRL_AV1E_SET_ENABLE_CDEF
 
-#if CONFIG_GDF
 AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_GDF, unsigned int)
 #define AOM_CTRL_AV1E_SET_ENABLE_GDF
-#endif  // CONFIG_GDF
 
 AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_RESTORATION, unsigned int)
 #define AOM_CTRL_AV1E_SET_ENABLE_RESTORATION

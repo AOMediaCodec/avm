@@ -426,7 +426,6 @@ typedef struct BufferPool {
 
 /*!\endcond */
 
-#if CONFIG_GDF
 #if CONFIG_GDF_IMPROVEMENT
 
 /*!
@@ -485,7 +484,6 @@ typedef struct {
   GDFLineBuffers *glbs; /*!< Line buffers needed by Guided detail filter */
 #endif
 } GdfInfo;
-#endif  // CONFIG_GDF
 
 /*!\brief Parameters related to CDEF */
 typedef struct {
@@ -664,11 +662,9 @@ typedef struct SequenceHeader {
   aom_opfl_refine_type enable_opfl_refine;  // optical flow refinement type for
                                             // this frame
   uint8_t enable_cdef;                      // To turn on/off CDEF
-#if CONFIG_GDF
-  uint8_t enable_gdf;          // To turn on/off GDF
-#endif                         // CONFIG_GDF
-  uint8_t enable_restoration;  // To turn on/off loop restoration
-  uint8_t enable_ccso;         // To turn on/off CCSO
+  uint8_t enable_gdf;                       // To turn on/off GDF
+  uint8_t enable_restoration;               // To turn on/off loop restoration
+  uint8_t enable_ccso;                      // To turn on/off CCSO
 #if CONFIG_LF_SUB_PU
   uint8_t enable_lf_sub_pu;  // To turn on/off sub-block deblocking
 #endif                       // CONFIG_LF_SUB_PU
@@ -1845,9 +1841,10 @@ typedef struct AV1Common {
   YV12_BUFFER_CONFIG rst_frame; /*!< Stores the output of loop restoration */
   /**@}*/
 
-#if CONFIG_GDF
+  /*!
+   * GDF (Guided detail filter) parameters.
+   */
   GdfInfo gdf_info; /*!< Guided detail filter info */
-#endif              // CONFIG_GDF
 
   /*!
    * CDEF (Constrained Directional Enhancement Filter) parameters.

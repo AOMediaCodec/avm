@@ -130,9 +130,7 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t lossless;
   arg_def_t enable_deblocking;
   arg_def_t enable_cdef;
-#if CONFIG_GDF
   arg_def_t enable_gdf;
-#endif  // CONFIG_GDF
   arg_def_t enable_restoration;
   arg_def_t enable_pc_wiener;
   arg_def_t enable_wiener_nonsep;

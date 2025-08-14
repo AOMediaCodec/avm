@@ -16,7 +16,6 @@
 #if CONFIG_BRU
 #include "av1/common/bru.h"
 #endif  // CONFIG_BRU
-#if CONFIG_GDF
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -154,7 +153,5 @@ static inline int gdf_block_adjust_and_validate(int *i_min, int *i_max,
 #ifdef __cplusplus
 }  // extern "C"
 #endif
-
-#endif  // CONFIG_GDF
 
 #endif  // AOM_AV1_COMMON_GDF_H

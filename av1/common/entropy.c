@@ -379,9 +379,7 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
     RESET_CDF_COUNTER_STRIDE(fc->cdef_cdf[j], j + 2,
                              CDF_SIZE(CDEF_STRENGTHS_NUM));
   }
-#if CONFIG_GDF
   RESET_CDF_COUNTER(fc->gdf_cdf, 2);
-#endif  // CONFIG_GDF
   RESET_CDF_COUNTER(fc->wienerns_restore_cdf, 2);
   RESET_CDF_COUNTER(fc->wienerns_length_cdf, 2);
   RESET_CDF_COUNTER(fc->wienerns_uv_sym_cdf, 2);

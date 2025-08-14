@@ -448,7 +448,6 @@ set_aom_config_var(
   1
   "Call qm_params() after segmentation_params() in uncompressed_header(), CWG-F311."
 )
-set_aom_config_var(CONFIG_GDF 1 "Enable guided detail filter.")
 set_aom_config_var(CONFIG_GDF_IMPROVEMENT 1
                    "Enable guided detail filter improvement.")
 
