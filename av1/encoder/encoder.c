@@ -42,6 +42,7 @@
 #endif  // CONFIG_BITSTREAM_DEBUG
 
 #include "av1/common/alloccommon.h"
+#include "av1/common/av1_common_int.h"
 #include "av1/common/filter.h"
 #include "av1/common/idct.h"
 #include "av1/common/pred_common.h"
@@ -2588,14 +2589,13 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
           for (int v_pos = y_pos; v_pos < y_pos + cm->gdf_info.gdf_block_size &&
                                   v_pos < tile_height;
                v_pos += cm->gdf_info.gdf_unit_size) {
-            const int v_abs_pos = v_pos + tile_rect.top;
             int i_min =
                 AOMMAX(v_pos, GDF_TEST_FRAME_BOUNDARY_SIZE) + tile_rect.top;
             int i_max = AOMMIN(v_pos + cm->gdf_info.gdf_unit_size,
                                tile_height - GDF_TEST_FRAME_BOUNDARY_SIZE) +
                         tile_rect.top;
 #if CONFIG_GDF_IMPROVEMENT && (GDF_TEST_VIRTUAL_BOUNDARY == 2)
-            gdf_setup_reference_lines(cm, i_min, i_max, v_abs_pos,
+            gdf_setup_reference_lines(cm, i_min, i_max,
                                       tile_blk_stripe0 + blk_stripe);
 #endif
             for (int u_pos = x_pos;
@@ -2707,7 +2707,7 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
             }
 #if CONFIG_GDF_IMPROVEMENT && (GDF_TEST_VIRTUAL_BOUNDARY == 2)
-            gdf_unset_reference_lines(cm, i_min, i_max, v_abs_pos);
+            gdf_unset_reference_lines(cm, i_min, i_max);
 #endif
             blk_stripe++;
           }  // v_pos

@@ -378,7 +378,7 @@ void gdf_restore_processing_stripe_leftright_boundary(GdfInfo *gdf, int i_min,
 }
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 
-void gdf_setup_reference_lines(AV1_COMMON *cm, int i_min, int i_max, int v_pos,
+void gdf_setup_reference_lines(AV1_COMMON *cm, int i_min, int i_max,
                                int frame_stripe) {
   const RestorationStripeBoundaries *rsb = &cm->rst_info[0].boundaries;
   assert(frame_stripe == gdf_get_frame_stripe_from_row(cm, i_min));
@@ -387,29 +387,20 @@ void gdf_setup_reference_lines(AV1_COMMON *cm, int i_min, int i_max, int v_pos,
   const int rec_width = cm->cur_frame->buf.y_width;
   const int buf_x0_off = RESTORATION_EXTRA_HORZ;
   const int buf_stride = rsb->stripe_boundary_stride;
-  const int data_x0_off = 0;
   const int data_stride = cm->gdf_info.inp_stride;
   const int line_size = rec_width << 1;
 
-  // int copy_above = v_pos == -GDF_TEST_STRIPE_OFF ? 0 : 1;
-  // int copy_below = (v_pos + cm->gdf_info.gdf_unit_size) >= rec_height ? 0 :
-  // 1;
-  assert(IMPLIES(v_pos == -GDF_TEST_STRIPE_OFF, i_min == 0));
-  assert(
-      IMPLIES(v_pos + cm->gdf_info.gdf_unit_size >= cm->cur_frame->buf.y_height,
-              i_max == cm->cur_frame->buf.y_height));
   int copy_above = 1;
   int copy_below = 1;
   if (copy_above) {
-    uint16_t *data_tl =
-        cm->gdf_info.inp_ptr + i_min * data_stride + data_x0_off;
-    for (int i = -RESTORATION_BORDER; i < 0; ++i) {
+    uint16_t *data_tl = cm->gdf_info.inp_ptr + i_min * data_stride;
+    for (int i = -GDF_TEST_EXTRA_VER_BORDER; i < 0; ++i) {
       const int buf_row = rsb_row + AOMMAX(i + RESTORATION_CTX_VERT, 0);
       const int buf_off = buf_x0_off + buf_row * buf_stride;
       const uint16_t *buf = rsb->stripe_boundary_above + buf_off;
       uint16_t *dst = data_tl + i * data_stride;
       // Save old pixels, then replace with data from stripe_boundary_above
-      memcpy(cm->gdf_info.glbs->gdf_save_above[i + RESTORATION_BORDER],
+      memcpy(cm->gdf_info.glbs->gdf_save_above[i + GDF_TEST_EXTRA_VER_BORDER],
              dst - GDF_TEST_EXTRA_HOR_BORDER,
              line_size +
                  4 * GDF_TEST_EXTRA_HOR_BORDER);  // (sizeof(int16_t) * width +
@@ -429,9 +420,8 @@ void gdf_setup_reference_lines(AV1_COMMON *cm, int i_min, int i_max, int v_pos,
     }
   }
   if (copy_below) {
-    uint16_t *data_bl =
-        cm->gdf_info.inp_ptr + i_max * data_stride + data_x0_off;
-    for (int i = 0; i < RESTORATION_BORDER; ++i) {
+    uint16_t *data_bl = cm->gdf_info.inp_ptr + i_max * data_stride;
+    for (int i = 0; i < GDF_TEST_EXTRA_VER_BORDER; ++i) {
       const int buf_row = rsb_row + AOMMIN(i, RESTORATION_CTX_VERT - 1);
       const int buf_off = buf_x0_off + buf_row * buf_stride;
       const uint16_t *src = rsb->stripe_boundary_below + buf_off;
@@ -455,38 +445,27 @@ void gdf_setup_reference_lines(AV1_COMMON *cm, int i_min, int i_max, int v_pos,
   }
 }
 
-void gdf_unset_reference_lines(AV1_COMMON *cm, int i_min, int i_max,
-                               int v_pos) {
+void gdf_unset_reference_lines(AV1_COMMON *cm, int i_min, int i_max) {
   const int rec_width = cm->cur_frame->buf.y_width;
-  const int data_x0_off = 0;
   const int data_stride = cm->gdf_info.inp_stride;
   const int line_size = rec_width << 1;
 
-  // int copy_above = v_pos == -GDF_TEST_STRIPE_OFF ? 0 : 1;
-  // int copy_below = (v_pos + cm->gdf_info.gdf_unit_size) >= rec_height ? 0 :
-  // 1;
-  assert(IMPLIES(v_pos == -GDF_TEST_STRIPE_OFF, i_min == 0));
-  assert(
-      IMPLIES(v_pos + cm->gdf_info.gdf_unit_size >= cm->cur_frame->buf.y_height,
-              i_max == cm->cur_frame->buf.y_height));
   int copy_above = 1;
   int copy_below = 1;
   copy_above = copy_below = 1;
   if (copy_above) {
-    uint16_t *data_tl =
-        cm->gdf_info.inp_ptr + i_min * data_stride + data_x0_off;
-    for (int i = -RESTORATION_BORDER; i < 0; ++i) {
+    uint16_t *data_tl = cm->gdf_info.inp_ptr + i_min * data_stride;
+    for (int i = -GDF_TEST_EXTRA_VER_BORDER; i < 0; ++i) {
       uint16_t *dst = data_tl + i * data_stride;
       memcpy(dst - GDF_TEST_EXTRA_HOR_BORDER,
-             cm->gdf_info.glbs->gdf_save_above[i + RESTORATION_BORDER],
+             cm->gdf_info.glbs->gdf_save_above[i + GDF_TEST_EXTRA_VER_BORDER],
              line_size + 4 * GDF_TEST_EXTRA_HOR_BORDER);
     }
   }
 
   if (copy_below) {
-    uint16_t *data_bl =
-        cm->gdf_info.inp_ptr + i_max * data_stride + data_x0_off;
-    for (int i = 0; i < RESTORATION_BORDER; ++i) {
+    uint16_t *data_bl = cm->gdf_info.inp_ptr + i_max * data_stride;
+    for (int i = 0; i < GDF_TEST_EXTRA_VER_BORDER; ++i) {
       uint16_t *dst = data_bl + i * data_stride;
       memcpy(dst - GDF_TEST_EXTRA_HOR_BORDER,
              cm->gdf_info.glbs->gdf_save_below[i],
@@ -650,14 +629,13 @@ void gdf_filter_frame(AV1_COMMON *cm) {
           for (int v_pos = y_pos; v_pos < y_pos + cm->gdf_info.gdf_block_size &&
                                   v_pos < tile_height;
                v_pos += cm->gdf_info.gdf_unit_size) {
-            const int v_abs_pos = v_pos + tile_rect.top;
             int i_min =
                 AOMMAX(v_pos, GDF_TEST_FRAME_BOUNDARY_SIZE) + tile_rect.top;
             int i_max = AOMMIN(v_pos + cm->gdf_info.gdf_unit_size,
                                tile_height - GDF_TEST_FRAME_BOUNDARY_SIZE) +
                         tile_rect.top;
 #if CONFIG_GDF_IMPROVEMENT && (GDF_TEST_VIRTUAL_BOUNDARY == 2)
-            gdf_setup_reference_lines(cm, i_min, i_max, v_abs_pos,
+            gdf_setup_reference_lines(cm, i_min, i_max,
                                       tile_blk_stripe0 + blk_stripe);
 #endif
             for (int u_pos = x_pos;
@@ -748,7 +726,7 @@ void gdf_filter_frame(AV1_COMMON *cm) {
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
             }  // u_pos
 #if CONFIG_GDF_IMPROVEMENT && (GDF_TEST_VIRTUAL_BOUNDARY == 2)
-            gdf_unset_reference_lines(cm, i_min, i_max, v_abs_pos);
+            gdf_unset_reference_lines(cm, i_min, i_max);
 #endif
             blk_stripe++;
           }  // v_pos
