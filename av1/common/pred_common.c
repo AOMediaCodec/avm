@@ -204,7 +204,7 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
              : (temp_dist_score_lookup[AOMMIN(tdist, DECAY_DIST_CAP)] +
                 AOMMAX(tdist - DECAY_DIST_CAP, 0)))
 #if CONFIG_ACROSS_SCALE_REF_OPT
-        + (res_ratio_log2 << RES_RATIO_LOG2_BITS)
+        + res_ratio_log2 * (1 << RES_RATIO_LOG2_BITS)
 #endif  // CONFIG_ACROSS_SCALE_REF_OPT
         + ref_base_qindex;
     if (is_in_ref_score(scores, ref_disp,
@@ -292,8 +292,8 @@ static int is_ref_better(const OrderHintInfo *oh, int cur_disp, int ref_disp,
   const int d1 = get_relative_dist(oh, cur_disp, best_disp_so_far);
 #if CONFIG_ACROSS_SCALE_REF_OPT
   int bits = 1;
-  if ((abs(d0) - abs(d1)) + (res_ratio_log2 << bits) < 0) return 1;
-  if ((abs(d0) - abs(d1)) + (res_ratio_log2 << bits) == 0 &&
+  if ((abs(d0) - abs(d1)) + res_ratio_log2 * (1 << bits) < 0) return 1;
+  if ((abs(d0) - abs(d1)) + res_ratio_log2 * (1 << bits) == 0 &&
       get_relative_dist(oh, ref_disp, best_disp_so_far) > 0)
     return 1;
 #else
