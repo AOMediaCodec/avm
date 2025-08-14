@@ -762,6 +762,7 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
          cm->show_existing_frame)) {
       output_frame_buffers(pbi, -1);
       decrease_ref_count(cm->cur_frame, pool);
+#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT || !CONFIG_F253_REMOVE_OUTPUTFLAG
     } else if ((
 #if CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
                    false
@@ -802,6 +803,8 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
         pbi->output_frames[0] = cm->cur_frame;
         pbi->num_output_frames = 1;
       }
+#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT ||
+        // !CONFIG_F253_REMOVE_OUTPUTFLAG
     } else {
       decrease_ref_count(cm->cur_frame, pool);
     }
@@ -952,42 +955,26 @@ int av1_get_raw_frame(AV1Decoder *pbi, size_t index, YV12_BUFFER_CONFIG **sd,
 // TODO(rachelbarker): What should this do?
 int av1_get_frame_to_show(AV1Decoder *pbi, YV12_BUFFER_CONFIG *frame) {
   if (pbi->num_output_frames == 0) return -1;
-  const size_t out_frame_idx = (
 #if CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT && CONFIG_F253_REMOVE_OUTPUTFLAG
-                                   false
-#elif CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT && !CONFIG_F253_REMOVE_OUTPUTFLAG
-                                   false && pbi->common.seq_params
-                                                .enable_frame_output_order
-#elif !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT && CONFIG_F253_REMOVE_OUTPUTFLAG
-                                   false &&
-                                   pbi->common.seq_params.order_hint_info
-                                       .enable_order_hint
+  const size_t out_frame_idx = pbi->output_frames_offset;
 #else
-                                   pbi->common.seq_params.order_hint_info
-                                       .enable_order_hint &&
-                                   pbi->common.seq_params
-                                       .enable_frame_output_order
-#endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT &&
-        // CONFIG_F253_REMOVE_OUTPUTFLAG
-                                   )
+  bool output_order_enabled = true;
+#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+  output_order_enabled =
+      output_order_enabled &&
+      pbi->common.seq_params.order_hint_info.enable_order_hint;
+#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
+  output_order_enabled =
+      output_order_enabled && pbi->common.seq_params.enable_frame_output_order;
+#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
+  const size_t out_frame_idx = output_order_enabled
                                    ? pbi->output_frames_offset
                                    : pbi->num_output_frames - 1;
-
-  if (
-#if CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT && CONFIG_F253_REMOVE_OUTPUTFLAG
-      false
-#elif CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT && !CONFIG_F253_REMOVE_OUTPUTFLAG
-      false && pbi->common.seq_params.enable_frame_output_order
-#elif !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT && CONFIG_F253_REMOVE_OUTPUTFLAG
-      false && pbi->common.seq_params.order_hint_info.enable_order_hint
-#else
-      pbi->common.seq_params.order_hint_info.enable_order_hint &&
-      pbi->common.seq_params.enable_frame_output_order
+  if (output_order_enabled)
 #endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT &&
         // CONFIG_F253_REMOVE_OUTPUTFLAG
-  ) {
-    if (pbi->num_output_frames <= out_frame_idx) return -1;
-  }
+  if (pbi->num_output_frames <= out_frame_idx) return -1;
   *frame = pbi->output_frames[out_frame_idx]->buf;
   return 0;
 }

@@ -7970,36 +7970,39 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
   }
 #endif  // CONFIG_BRU
 
-#if CONFIG_F253_REMOVE_OUTPUTFLAG
-  // The OBU packet of show_existing_frame
+#if CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT && CONFIG_F253_REMOVE_OUTPUTFLAG
+  const bool non_signaled_show_existing_frame =
+      (cm->show_existing_frame && !cm->features.error_resilient_mode) ||
+      encode_show_existing_frame(cm);
+#elif !CONFIG_F253_REMOVE_OUTPUTFLAG
+  const bool non_signaled_show_existing_frame =
+      (cm->seq_params.enable_frame_output_order && cm->show_existing_frame &&
+       !cm->features.error_resilient_mode) ||
+      (!cm->seq_params.enable_frame_output_order &&
+       encode_show_existing_frame(cm));
+#elif !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+    const bool non_signaled_show_existing_frame =
+        (cm->seq_params.order_hint_info.enable_order_hint &&
+         cm->show_existing_frame && !cm->features.error_resilient_mode) ||
+        (!cm->seq_params.order_hint_info.enable_order_hint &&
+         encode_show_existing_frame(cm));
 #else
-  // When enable_frame_output_order == 1, the OBU packet of show_existing_frame
-#endif  // CONFIG_F253_REMOVE_OUTPUTFLAG
-  // is not signaled for non-error-resilient mode.
-  // For error-resilienet mode, still an OBU is signaled.
-  if ((
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-          cm->seq_params.order_hint_info.enable_order_hint &&
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-          cm->seq_params.enable_frame_output_order &&
-#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
-          cm->show_existing_frame && !cm->features.error_resilient_mode) ||
-      (
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-          (!cm->seq_params.order_hint_info.enable_order_hint
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-           || !cm->seq_params.enable_frame_output_order
-#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-           ) &&
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-          encode_show_existing_frame(cm)) ||
+    const bool non_signaled_show_existing_frame =
+        (cm->seq_params.order_hint_info.enable_order_hint &&
+         cm->seq_params.enable_frame_output_order && cm->show_existing_frame &&
+         !cm->features.error_resilient_mode) ||
+        ((!cm->seq_params.order_hint_info.enable_order_hint ||
+          !cm->seq_params.enable_frame_output_order) &&
+         encode_show_existing_frame(cm));
+#endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT &&
+        // CONFIG_F253_REMOVE_OUTPUTFLAG
+  const bool non_signaled_frame =
+      non_signaled_show_existing_frame ||
 #if CONFIG_BRU
       cm->bru.frame_inactive_flag ||
 #endif  // CONFIG_BRU
-      (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT)) {
+      (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT);
+  if (non_signaled_frame) {
     data_size = 0;
   } else {
     // Since length_field is determined adaptively after frame header

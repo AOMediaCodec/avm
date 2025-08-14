@@ -172,9 +172,9 @@ struct av1_extracfg {
   int max_partition_size;        // max partition size [4,8,16,32,64,128]
   int enable_intra_edge_filter;  // enable intra-edge filter for sequence
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-  int enable_order_hint;         // enable order hint for sequence
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-  int enable_tx64;               // enable 64-pt transform usage for sequence
+  int enable_order_hint;  // enable order hint for sequence
+#endif                    // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+  int enable_tx64;        // enable 64-pt transform usage for sequence
 #if CONFIG_REDUCED_TX_PART
   int reduced_tx_part_set;   // enable reduced transform block partition set
 #endif                       // CONFIG_REDUCED_TX_PART
