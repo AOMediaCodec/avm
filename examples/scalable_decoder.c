@@ -102,8 +102,8 @@ int main(int argc, char **argv) {
   size_t buffer_size = 0;
   struct AvxInputContext aom_input_ctx;
 #if CONFIG_NEW_OBU_HEADER
-  struct ObuDecInputContext obu_ctx = { &aom_input_ctx,  NULL, 0, 0,
-                                        /*is_annexb=*/1, 0 };
+  struct ObuDecInputContext obu_ctx = { &aom_input_ctx, NULL, 0, 0,
+                                        /*is_annexb=*/1 };
 #else
   struct ObuDecInputContext obu_ctx = { &aom_input_ctx, NULL, 0, 0, 0 };
 #endif  // CONFIG_NEW_OBU_HEADER
@@ -159,13 +159,8 @@ int main(int argc, char **argv) {
       die("Failed to open output for writing.");
   }
 
-#if CONFIG_NEW_OBU_HEADER
-  while (!obudec_read_temporal_unit(&obu_ctx, &buf, &bytes_in_buffer,
-                                    &buffer_size, NULL, NULL)) {
-#else
   while (!obudec_read_temporal_unit(&obu_ctx, &buf, &bytes_in_buffer,
                                     &buffer_size)) {
-#endif  // CONFIG_NEW_OBU_HEADER
     aom_codec_iter_t iter = NULL;
     aom_image_t *img = NULL;
     if (aom_codec_decode(&codec, buf, bytes_in_buffer, NULL))

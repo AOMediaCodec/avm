@@ -117,7 +117,6 @@ static int peek_obu_from_file(FILE *f, size_t obu_header_size, uint8_t *buffer,
 int file_is_obu(struct ObuDecInputContext *obu_ctx) {
   if (!obu_ctx || !obu_ctx->avx_ctx) return 0;
 
-  obu_ctx->has_temporal_delimiter = 0;
   struct AvxInputContext *avx_ctx = obu_ctx->avx_ctx;
   uint8_t detect_buf[OBU_DETECTION_SIZE] = { 0 };
   const int is_annexb = obu_ctx->is_annexb;
@@ -163,8 +162,6 @@ int file_is_obu(struct ObuDecInputContext *obu_ctx) {
       } else if (read_status == -1) {  // end of file
         break;
       }
-      if (obu_header.type == OBU_TEMPORAL_DELIMITER)
-        obu_ctx->has_temporal_delimiter = 1;
       fseek(f, obu_payload_size, SEEK_CUR);
     }
   }  // while
@@ -177,16 +174,12 @@ int file_is_obu(struct ObuDecInputContext *obu_ctx) {
 
 int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
                               uint8_t **buffer, size_t *bytes_read,
-                              size_t *buffer_size, ObuHeader *obu_header_list,
-                              int *obu_idx) {
+                              size_t *buffer_size) {
   FILE *f = obu_ctx->avx_ctx->file;
   if (!f) return -1;
 
   *buffer_size = 0;
   *bytes_read = 0;
-  if (obu_idx) {
-    *obu_idx = 0;
-  }
 
   if (feof(f)) {
     printf("end of file\n");
@@ -222,10 +215,6 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
       } else if (read_status == -1) {
         // end of file
         return 1;
-      }
-      if (obu_header_list && obu_idx) {
-        obu_header_list[*obu_idx] = obu_header;
-        *obu_idx += 1;
       }
 
       if ((obu_header.type == OBU_TEMPORAL_DELIMITER && first_td != 1)) {
