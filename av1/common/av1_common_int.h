@@ -4737,9 +4737,7 @@ static INLINE int get_relative_dist(const OrderHintInfo *oh, int a, int b) {
 // Check whether optical flow refinement is applicable based on the sequence
 // level flag and the signaled reference frames & block size
 static INLINE int opfl_allowed_cur_refs_bsize(const AV1_COMMON *cm,
-#if CONFIG_COMPOUND_4XN
                                               const MACROBLOCKD *xd,
-#endif  // CONFIG_COMPOUND_4XN
                                               const MB_MODE_INFO *mbmi) {
   if (cm->seq_params.enable_opfl_refine == AOM_OPFL_REFINE_NONE ||
       cm->features.opfl_refine_type == REFINE_NONE)
@@ -4750,12 +4748,10 @@ static INLINE int opfl_allowed_cur_refs_bsize(const AV1_COMMON *cm,
       is_tip_ref_frame(mbmi->ref_frame[0]))
     return 0;
 #endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
-#if CONFIG_COMPOUND_4XN
   // Optical flow is not allowed for 4xN , Nx4 blocks
   if (AOMMIN(block_size_wide[mbmi->sb_type[xd->tree_type == CHROMA_PART]],
              block_size_high[mbmi->sb_type[xd->tree_type == CHROMA_PART]]) < 8)
     return 0;
-#endif  // CONFIG_COMPOUND_4XN
 
   if (!has_second_ref(mbmi) && !is_tip_ref_frame(mbmi->ref_frame[0])) return 0;
 
@@ -4802,18 +4798,11 @@ static INLINE int opfl_allowed_cur_refs_bsize(const AV1_COMMON *cm,
 // but for the REFINE_ALL (--enable-opfl-refine=2) case, the on/off switch for
 // optical flow is completely determined by these block level mode info.
 static INLINE int opfl_allowed_cur_pred_mode(const AV1_COMMON *cm,
-#if CONFIG_COMPOUND_4XN
                                              const MACROBLOCKD *xd,
-#endif  // CONFIG_COMPOUND_4XN
                                              const MB_MODE_INFO *mbmi) {
   if (mbmi->skip_mode) return 0;
 
-  if (!opfl_allowed_cur_refs_bsize(cm,
-#if CONFIG_COMPOUND_4XN
-                                   xd,
-#endif  // CONFIG_COMPOUND_4XN
-                                   mbmi))
-    return 0;
+  if (!opfl_allowed_cur_refs_bsize(cm, xd, mbmi)) return 0;
 
   if (cm->features.opfl_refine_type == REFINE_SWITCHABLE)
     return mbmi->mode >= NEAR_NEARMV_OPTFLOW;
@@ -4877,9 +4866,7 @@ static AOM_INLINE BLOCK_SIZE get_unit_bsize_for_tip_frame(
 
 // Check if the optical flow MV refinement is enabled for a given block.
 static AOM_INLINE int is_optflow_refinement_enabled(const AV1_COMMON *cm,
-#if CONFIG_COMPOUND_4XN
                                                     const MACROBLOCKD *xd,
-#endif  // CONFIG_COMPOUND_4XN
                                                     const MB_MODE_INFO *mi,
                                                     int plane,
                                                     int tip_ref_frame) {
@@ -4902,18 +4889,9 @@ static AOM_INLINE int is_optflow_refinement_enabled(const AV1_COMMON *cm,
     const int8_t tip_weight = tip_weighting_factors[tip_wtd_index];
     if (tip_weight != TIP_EQUAL_WTD) return 0;
 #endif  // CONFIG_TIP_ENHANCEMENT
-    return (opfl_allowed_cur_refs_bsize(cm,
-#if CONFIG_COMPOUND_4XN
-                                        xd,
-#endif  // CONFIG_COMPOUND_4XN
-                                        mi) &&
-            plane == 0);
+    return (opfl_allowed_cur_refs_bsize(cm, xd, mi) && plane == 0);
   } else {
-    return (opfl_allowed_cur_pred_mode(cm,
-#if CONFIG_COMPOUND_4XN
-                                       xd,
-#endif  // CONFIG_COMPOUND_4XN
-                                       mi));
+    return (opfl_allowed_cur_pred_mode(cm, xd, mi));
   }
 }
 
@@ -4970,22 +4948,19 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 
 #if CONFIG_COMPOUND_WARP_CAUSAL
 static INLINE int is_compound_warp_causal_allowed(const AV1_COMMON *cm,
-#if CONFIG_COMPOUND_4XN
                                                   const MACROBLOCKD *xd,
-#endif  // CONFIG_COMPOUND_4XN
                                                   const MB_MODE_INFO *mbmi) {
-  return
-#if CONFIG_COMPOUND_4XN
-      (AOMMIN(block_size_wide[mbmi->sb_type[xd->tree_type == CHROMA_PART]],
+  return (AOMMIN(
+              block_size_wide[mbmi->sb_type[xd->tree_type == CHROMA_PART]],
               block_size_high[mbmi->sb_type[xd->tree_type == CHROMA_PART]]) >=
-       8) &&
-#endif  // CONFIG_COMPOUND_4XN
-      (mbmi->mode == NEW_NEWMV) && (cm->features.opfl_refine_type != REFINE_ALL)
+          8) &&
+         (mbmi->mode == NEW_NEWMV) &&
+         (cm->features.opfl_refine_type != REFINE_ALL)
 #if CONFIG_WARP_CAUSAL_PARSING_DEPENDENCY_REDUCTION
-      && av1_is_warp_causal_allowed(cm, xd, mbmi->ref_frame[0]) &&
-      av1_is_warp_causal_allowed(cm, xd, mbmi->ref_frame[1])
+         && av1_is_warp_causal_allowed(cm, xd, mbmi->ref_frame[0]) &&
+         av1_is_warp_causal_allowed(cm, xd, mbmi->ref_frame[1])
 #endif  // CONFIG_WARP_CAUSAL_PARSING_DEPENDENCY_REDUCTION
-          ;
+      ;
 }
 #endif  // CONFIG_COMPOUND_WARP_CAUSAL
 
@@ -5078,10 +5053,8 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
     return (1 << SIMPLE_TRANSLATION);
   }
 
-#if CONFIG_COMPOUND_4XN
   if (has_second_ref(mbmi) && is_thin_4xn_nx4_block(bsize))
     return (1 << SIMPLE_TRANSLATION);
-#endif
 
   if (mbmi->bawp_flag[0] > 0) {
     return (1 << SIMPLE_TRANSLATION);
@@ -5121,11 +5094,7 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
       !av1_is_scaled(xd->block_ref_scale_factors[0]) &&
 #endif  // !CONFIG_ACROSS_SCALE_WARP
       !xd->cur_frame_force_integer_mv &&
-      is_compound_warp_causal_allowed(cm,
-#if CONFIG_COMPOUND_4XN
-                                      xd,
-#endif  // CONFIG_COMPOUND_4XN
-                                      mbmi)
+      is_compound_warp_causal_allowed(cm, xd, mbmi)
 #if !CONFIG_WARP_CAUSAL_PARSING_DEPENDENCY_REDUCTION
       && mbmi->num_proj_ref[0] >= 1 && mbmi->num_proj_ref[1] >= 1
 #endif  // CONFIG_WARP_CAUSAL_PARSING_DEPENDENCY_REDUCTION

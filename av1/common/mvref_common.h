@@ -609,16 +609,10 @@ static INLINE void av1_collect_neighbors_ref_counts(MACROBLOCKD *const xd) {
 
 // Check if refined MV needs to be stored in the TMVP list.
 static INLINE int enable_refined_mvs_in_tmvp(const AV1_COMMON *cm,
-#if CONFIG_COMPOUND_4XN
                                              const MACROBLOCKD *xd,
-#endif  // CONFIG_COMPOUND_4XN
                                              const MB_MODE_INFO *mbmi) {
   return (
-      opfl_allowed_cur_pred_mode(cm,
-#if CONFIG_COMPOUND_4XN
-                                 xd,
-#endif  // CONFIG_COMPOUND_4XN
-                                 mbmi) ||
+      opfl_allowed_cur_pred_mode(cm, xd, mbmi) ||
       (mbmi->refinemv_flag && mbmi->interinter_comp.type == COMPOUND_AVERAGE) ||
       is_tip_ref_frame(mbmi->ref_frame[0]));
 }

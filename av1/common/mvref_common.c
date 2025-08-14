@@ -182,11 +182,7 @@ void av1_copy_frame_refined_mvs_tip_frame_mode(const AV1_COMMON *const cm,
   const int tip_ref_frame = is_tip_ref_frame(mi->ref_frame[0]);
   const int use_4x4 = !tip_ref_frame;
   const bool is_opfl_mode =
-      is_optflow_refinement_enabled(cm,
-#if CONFIG_COMPOUND_4XN
-                                    xd,
-#endif  // CONFIG_COMPOUND_4XN
-                                    mi, AOM_PLANE_Y, tip_ref_frame);
+      is_optflow_refinement_enabled(cm, xd, mi, AOM_PLANE_Y, tip_ref_frame);
   int n = opfl_get_subblock_size(bw, bh, AOM_PLANE_Y, use_4x4);
 
   // Pointers to hold optical flow MV offsets.
@@ -379,12 +375,7 @@ void av1_copy_frame_refined_mvs(const AV1_COMMON *const cm,
   y_inside_boundary = ROUND_POWER_OF_TWO(y_inside_boundary, 1);
   int bw = block_size_wide[mi->sb_type[xd->tree_type == CHROMA_PART]];
   int bh = block_size_high[mi->sb_type[xd->tree_type == CHROMA_PART]];
-  const bool is_opfl_mode = opfl_allowed_cur_pred_mode(cm,
-#if CONFIG_COMPOUND_4XN
-                                                       xd,
-#endif  // CONFIG_COMPOUND_4XN
-
-                                                       mi);
+  const bool is_opfl_mode = opfl_allowed_cur_pred_mode(cm, xd, mi);
   int n = opfl_get_subblock_size(bw, bh, AOM_PLANE_Y, 1);
   int w, h;
 

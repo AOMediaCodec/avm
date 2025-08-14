@@ -61,7 +61,6 @@ enum {
   FRAME_TYPES,
 } UENUM1BYTE(FRAME_TYPE);
 
-#if CONFIG_COMPOUND_4XN
 // Check if the block is 4xn or nx4 block
 static INLINE int is_thin_4xn_nx4_block(BLOCK_SIZE bsize) {
   int min_size = AOMMIN(block_size_wide[bsize], block_size_high[bsize]);
@@ -69,14 +68,10 @@ static INLINE int is_thin_4xn_nx4_block(BLOCK_SIZE bsize) {
   int max_4xn_th = 16;
   return (min_size == 4 && max_size >= max_4xn_th);
 }
-#endif  // CONFIG_COMPOUND_4XN
 
 static INLINE int is_comp_ref_allowed(BLOCK_SIZE bsize) {
-  return
-#if CONFIG_COMPOUND_4XN
-      is_thin_4xn_nx4_block(bsize) ||
-#endif  // CONFIG_COMPOUND_4XN
-      AOMMIN(block_size_wide[bsize], block_size_high[bsize]) >= 8;
+  return is_thin_4xn_nx4_block(bsize) ||
+         AOMMIN(block_size_wide[bsize], block_size_high[bsize]) >= 8;
 }
 
 static INLINE int is_inter_mode(PREDICTION_MODE mode) {

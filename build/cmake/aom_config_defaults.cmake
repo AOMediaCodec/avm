@@ -377,9 +377,6 @@ set_aom_config_var(CONFIG_SDP_CFL_LATENCY_FIX 1 "Reduce SDP-CFL latency")
 set_aom_config_var(CONFIG_CHROMA_MERGE_LATENCY_FIX 1
                    "Fix the latency issue in chroma merge region")
 
-set_aom_config_var(CONFIG_COMPOUND_4XN 1
-                   "Enable compound modes for 4XN/Nx4 blocks")
-
 set_aom_config_var(
   CONFIG_FRAME_HEADER_SIGNAL_OPT 1
   "Enable the signaling optimization for certain frame header syntax elements")

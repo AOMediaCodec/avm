@@ -2433,11 +2433,9 @@ static void build_inter_predictors_sub8x8(
       inter_pred_params.conv_params =
           get_conv_params_no_round(ref, plane, NULL, 0, is_compound, xd->bd);
 
-#if CONFIG_COMPOUND_4XN
       if (is_thin_4xn_nx4_block(bsize) && has_second_ref(this_mbmi)) {
         assert(this_mbmi->interinter_comp.type != COMPOUND_DIFFWTD);
       }
-#endif  // CONFIG_COMPOUND_4XN
 
       const MV mv_1_16th_pel = convert_mv_to_1_16th_pel(&mv);
       av1_build_one_inter_predictor(dst, dst_buf->stride, &mv_1_16th_pel,
@@ -3447,11 +3445,7 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
     mv_refined[1].as_mv = convert_mv_to_1_16th_pel(&best_mv_ref[1]);
   }
   int use_optflow_refinement =
-      is_optflow_refinement_enabled(cm,
-#if CONFIG_COMPOUND_4XN
-                                    xd,
-#endif  // CONFIG_COMPOUND_4XN
-                                    mi, plane, tip_ref_frame);
+      is_optflow_refinement_enabled(cm, xd, mi, plane, tip_ref_frame);
   assert(IMPLIES(use_optflow_refinement,
                  cm->features.opfl_refine_type != REFINE_NONE));
 
@@ -3645,23 +3639,17 @@ static void build_inter_predictors_8x8_and_bigger(
     int pu_width, int pu_height, int build_for_refine_mv_only,
     bool *ext_warp_used, int_mv *mv_refined,
     REFINEMV_SUBMB_INFO *block_refinemv_subinfo, int *opfl_vxy_bufs) {
-#if CONFIG_COMPOUND_4XN
   // In case of chroma, even for 4xN and Nx4
   // blocks, single prediction is used.
   int singleref_for_compound =
       plane && has_second_ref(mi) &&
       is_thin_4xn_nx4_block(mi->sb_type[xd->tree_type == CHROMA_PART]);
-#endif  // CONFIG_COMPOUND_4XN
 #if CONFIG_TIP_ENHANCEMENT
   const int tip_wtd_index = cm->tip_global_wtd_index;
   const int8_t tip_weight = tip_weighting_factors[tip_wtd_index];
 #endif  // CONFIG_TIP_ENHANCEMENT
   const int tip_ref_frame = is_tip_ref_frame(mi->ref_frame[0]);
-  const int is_compound = (
-#if CONFIG_COMPOUND_4XN
-                              !singleref_for_compound &&
-#endif  // CONFIG_COMPOUND_4XN
-                              has_second_ref(mi)) ||
+  const int is_compound = (!singleref_for_compound && has_second_ref(mi)) ||
 #if CONFIG_TIP_ENHANCEMENT
                           (tip_ref_frame && tip_weight != TIP_SINGLE_WTD)
 #else
@@ -3686,7 +3674,6 @@ static void build_inter_predictors_8x8_and_bigger(
   assert(IMPLIES(tip_ref_frame, mi->motion_mode == SIMPLE_TRANSLATION));
   assert(IMPLIES(tip_ref_frame, mi->interinter_comp.type == COMPOUND_AVERAGE));
 
-#if CONFIG_COMPOUND_4XN
   assert(IMPLIES(
       mi->refinemv_flag,
       !is_thin_4xn_nx4_block(mi->sb_type[xd->tree_type == CHROMA_PART])));
@@ -3694,7 +3681,6 @@ static void build_inter_predictors_8x8_and_bigger(
       has_second_ref(mi)) {
     assert(mi->interinter_comp.type != COMPOUND_DIFFWTD);
   }
-#endif  // CONFIG_COMPOUND_4XN
 
   if (is_sub_block_refinemv_enabled(cm, mi, tip_ref_frame)) {
     assert(IMPLIES(mi->refinemv_flag, mi->cwp_idx == CWP_EQUAL));
@@ -3841,11 +3827,7 @@ static void build_inter_predictors_8x8_and_bigger(
     mv_refined[1].as_mv = convert_mv_to_1_16th_pel(&best_mv_ref[1]);
   }
   int use_optflow_refinement =
-      is_optflow_refinement_enabled(cm,
-#if CONFIG_COMPOUND_4XN
-                                    xd,
-#endif  // CONFIG_COMPOUND_4XN
-                                    mi, plane, tip_ref_frame);
+      is_optflow_refinement_enabled(cm, xd, mi, plane, tip_ref_frame);
   int use_4x4 = tip_ref_frame ? 0 : 1;
   assert(IMPLIES(use_optflow_refinement,
                  cm->features.opfl_refine_type != REFINE_NONE));
@@ -3859,27 +3841,13 @@ static void build_inter_predictors_8x8_and_bigger(
   assert(IMPLIES(use_optflow_refinement && tip_ref_frame, plane == 0));
   // In REFINE_ALL mode, refinement should be
   // used whenever applicable
-#if CONFIG_COMPOUND_4XN
   assert(IMPLIES(cm->features.opfl_refine_type == REFINE_ALL &&
                      !tip_ref_frame && opfl_allowed_cur_pred_mode(cm, xd, mi),
                  use_optflow_refinement));
-#else
-  assert(IMPLIES(cm->features.opfl_refine_type == REFINE_ALL &&
-                     !tip_ref_frame && opfl_allowed_cur_pred_mode(cm, mi),
-                 use_optflow_refinement));
-#endif  // CONFIG_COMPOUND_4XN
 
-#if CONFIG_COMPOUND_4XN
   assert(IMPLIES(
       use_optflow_refinement,
       !is_thin_4xn_nx4_block(mi->sb_type[xd->tree_type == CHROMA_PART])));
-#endif  // CONFIG_COMPOUND_4XN
-
-#if CONFIG_COMPOUND_4XN
-  assert(IMPLIES(
-      use_optflow_refinement,
-      !is_thin_4xn_nx4_block(mi->sb_type[xd->tree_type == CHROMA_PART])));
-#endif  // CONFIG_COMPOUND_4XN
 
   // Pointers to gradient and dst buffers
 
@@ -3945,11 +3913,7 @@ static void build_inter_predictors_8x8_and_bigger(
                                cm->features.enable_imp_msk_bld;
 
   WarpBoundaryBox warp_bd_box_mem[MAX_WARP_BD_SQ];
-
-#if CONFIG_COMPOUND_4XN
   assert(IMPLIES(singleref_for_compound, !is_compound));
-#endif  // CONFIG_COMPOUND_4XN
-
   for (int ref = 0; ref < 1 + is_compound; ++ref) {
     const struct scale_factors *const sf =
         tip_ref_frame ? cm->tip_ref.ref_scale_factor[ref]

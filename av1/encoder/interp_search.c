@@ -92,10 +92,7 @@ static INLINE int find_interp_filter_in_stats(
 int av1_find_interp_filter_match(
     MB_MODE_INFO *const mbmi, const AV1_COMP *const cpi,
     const InterpFilter assign_filter, const int need_search,
-    INTERPOLATION_FILTER_STATS *interp_filter_stats,
-#if CONFIG_COMPOUND_4XN
-    MACROBLOCKD *xd,
-#endif  // CONFIG_COMPOUND_4XN
+    INTERPOLATION_FILTER_STATS *interp_filter_stats, MACROBLOCKD *xd,
     int interp_filter_stats_idx) {
   int match_found_idx = -1;
   if (cpi->sf.interp_sf.use_interp_filter && need_search)
@@ -104,11 +101,7 @@ int av1_find_interp_filter_match(
         cpi->sf.interp_sf.use_interp_filter);
 
   if (!need_search || match_found_idx == -1)
-    set_default_interp_filters(mbmi, &cpi->common,
-#if CONFIG_COMPOUND_4XN
-                               xd,
-#endif  // CONFIG_COMPOUND_4XN
-                               assign_filter);
+    set_default_interp_filters(mbmi, &cpi->common, xd, assign_filter);
   return match_found_idx;
 }
 
@@ -192,12 +185,8 @@ static INLINE int64_t interpolation_filter_rd(
   const InterpFilter last_best = mbmi->interp_fltr;
   mbmi->interp_fltr = filter_idx;
   const int tmp_rs =
-      (opfl_allowed_cur_pred_mode(cm,
-#if CONFIG_COMPOUND_4XN
-                                  xd,
-#endif  // CONFIG_COMPOUND_4XN
-                                  mbmi) ||
-       mbmi->refinemv_flag || is_tip_ref_frame(mbmi->ref_frame[0]))
+      (opfl_allowed_cur_pred_mode(cm, xd, mbmi) || mbmi->refinemv_flag ||
+       is_tip_ref_frame(mbmi->ref_frame[0]))
           ? 0
           : get_switchable_rate(x, mbmi->interp_fltr, switchable_ctx);
 
@@ -424,10 +413,7 @@ int64_t av1_interpolation_filter_search(
   const InterpFilter assign_filter = cm->features.interp_filter;
 
   match_found_idx = av1_find_interp_filter_match(
-      mbmi, cpi, assign_filter, need_search, args->interp_filter_stats,
-#if CONFIG_COMPOUND_4XN
-      xd,
-#endif  // CONFIG_COMPOUND_4XN
+      mbmi, cpi, assign_filter, need_search, args->interp_filter_stats, xd,
       args->interp_filter_stats_idx);
 
   if (match_found_idx != -1) {
@@ -441,12 +427,8 @@ int64_t av1_interpolation_filter_search(
   switchable_ctx[0] = av1_get_pred_context_switchable_interp(xd, 0);
   switchable_ctx[1] = av1_get_pred_context_switchable_interp(xd, 1);
   *switchable_rate =
-      (opfl_allowed_cur_pred_mode(cm,
-#if CONFIG_COMPOUND_4XN
-                                  xd,
-#endif  // CONFIG_COMPOUND_4XN
-                                  mbmi) ||
-       mbmi->refinemv_flag || is_tip_ref_frame(mbmi->ref_frame[0]))
+      (opfl_allowed_cur_pred_mode(cm, xd, mbmi) || mbmi->refinemv_flag ||
+       is_tip_ref_frame(mbmi->ref_frame[0]))
           ? 0
           : get_switchable_rate(x, mbmi->interp_fltr, switchable_ctx);
 
@@ -478,28 +460,16 @@ int64_t av1_interpolation_filter_search(
     return 0;
   }
   if (!need_search) {
-#if CONFIG_COMPOUND_4XN
     assert(mbmi->interp_fltr ==
            ((opfl_allowed_cur_pred_mode(cm, xd, mbmi) || mbmi->refinemv_flag ||
              is_tip_ref_frame(mbmi->ref_frame[0]))
                 ? MULTITAP_SHARP
                 : EIGHTTAP_REGULAR));
-#else
-    assert(mbmi->interp_fltr ==
-           ((opfl_allowed_cur_pred_mode(cm, mbmi) || mbmi->refinemv_flag ||
-             is_tip_ref_frame(mbmi->ref_frame[0]))
-                ? MULTITAP_SHARP
-                : EIGHTTAP_REGULAR));
-#endif  // CONFIG_COMPOUND_4XN
     return 0;
   }
   if (args->modelled_rd != NULL) {
     int use_default_filter = mbmi->refinemv_flag ||
-                             opfl_allowed_cur_pred_mode(cm,
-#if CONFIG_COMPOUND_4XN
-                                                        xd,
-#endif  // CONFIG_COMPOUND_4XN
-                                                        mbmi) ||
+                             opfl_allowed_cur_pred_mode(cm, xd, mbmi) ||
                              is_tip_ref_frame(mbmi->ref_frame[0]);
     if (has_second_ref(mbmi) && !use_default_filter) {
       MV_REFERENCE_FRAME *refs = mbmi->ref_frame;

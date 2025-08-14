@@ -1534,17 +1534,10 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
           (!mbmi->refinemv_flag || !is_refinemv_signaled) &&
           !is_joint_amvd_coding_mode(mbmi->mode, mbmi->use_amvd)) {
 #if CONFIG_COMPOUND_WARP_CAUSAL
-#if CONFIG_COMPOUND_4XN
         assert(current_frame->reference_mode != SINGLE_REFERENCE &&
                is_inter_compound_mode(mbmi->mode) &&
                (mbmi->motion_mode == SIMPLE_TRANSLATION ||
                 is_compound_warp_causal_allowed(cm, xd, mbmi)));
-#else
-        assert(current_frame->reference_mode != SINGLE_REFERENCE &&
-               is_inter_compound_mode(mbmi->mode) &&
-               (mbmi->motion_mode == SIMPLE_TRANSLATION ||
-                is_compound_warp_causal_allowed(cm, mbmi)));
-#endif  // CONFIG_COMPOUND_4XN
 #else
         assert(current_frame->reference_mode != SINGLE_REFERENCE &&
                is_inter_compound_mode(mbmi->mode) &&
@@ -1615,11 +1608,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
         av1_mode_context_analyzer(mbmi_ext->mode_context, mbmi->ref_frame);
     if (has_second_ref(mbmi)) {
       if (cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
-          opfl_allowed_cur_refs_bsize(cm,
-#if CONFIG_COMPOUND_4XN
-                                      xd,
-#endif  // CONFIG_COMPOUND_4XN
-                                      mbmi)) {
+          opfl_allowed_cur_refs_bsize(cm, xd, mbmi)) {
         const int use_optical_flow = mode >= NEAR_NEARMV_OPTFLOW;
 #if CONFIG_ENTROPY_STATS
         ++counts->use_optflow[mode_ctx][use_optical_flow];

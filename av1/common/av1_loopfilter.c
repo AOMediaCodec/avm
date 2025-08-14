@@ -513,18 +513,11 @@ static AOM_INLINE void check_tip_edge(const MB_MODE_INFO *const mbmi,
 
 // Check whether current block is OPFL mode
 static AOM_INLINE void check_opfl_edge(const AV1_COMMON *const cm,
-                                       const int plane,
-#if CONFIG_COMPOUND_4XN
-                                       const MACROBLOCKD *xd,
-#endif  // CONFIG_COMPOUND_4XN
+                                       const int plane, const MACROBLOCKD *xd,
                                        const MB_MODE_INFO *const mbmi,
                                        const int scale, TX_SIZE *ts,
                                        int32_t *opfl_edge) {
-  const bool is_opfl_mode = opfl_allowed_cur_pred_mode(cm,
-#if CONFIG_COMPOUND_4XN
-                                                       xd,
-#endif  // CONFIG_COMPOUND_4XN
-                                                       mbmi);
+  const bool is_opfl_mode = opfl_allowed_cur_pred_mode(cm, xd, mbmi);
   (void)scale;
   if (plane > 0) return;
   if (is_opfl_mode) {
@@ -571,11 +564,7 @@ static AOM_INLINE void check_sub_pu_edge(
   int scale = edge_dir == VERT_EDGE ? scale_horz : scale_vert;
   check_tip_edge(mbmi, scale, &temp_ts, &temp_edge);
   if (!temp_edge)
-    check_opfl_edge(cm, plane,
-#if CONFIG_COMPOUND_4XN
-                    xd,
-#endif  // CONFIG_COMPOUND_4XN
-                    mbmi, scale, &temp_ts, &temp_edge);
+    check_opfl_edge(cm, plane, xd, mbmi, scale, &temp_ts, &temp_edge);
   if (!temp_edge) check_rfmv_edge(cm, mbmi, scale, &temp_ts, &temp_edge);
 
   if (temp_edge) {

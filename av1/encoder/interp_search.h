@@ -143,10 +143,7 @@ typedef struct {
 int av1_find_interp_filter_match(
     MB_MODE_INFO *const mbmi, const AV1_COMP *const cpi,
     const InterpFilter assign_filter, const int need_search,
-    INTERPOLATION_FILTER_STATS *interp_filter_stats,
-#if CONFIG_COMPOUND_4XN
-    MACROBLOCKD *xd,
-#endif  // CONFIG_COMPOUND_4XN
+    INTERPOLATION_FILTER_STATS *interp_filter_stats, MACROBLOCKD *xd,
     int interp_filter_stats_idx);
 
 int64_t av1_interpolation_filter_search(

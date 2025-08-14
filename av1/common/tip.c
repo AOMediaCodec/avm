@@ -696,17 +696,9 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
 
 #if CONFIG_FLEX_TIP_BLK_SIZE
   int do_opfl =
-      is_optflow_refinement_enabled(cm,
-#if CONFIG_COMPOUND_4XN
-                                    xd,
-#endif  // CONFIG_COMPOUND_4XN
-                                    mbmi, plane, 1 /* tip_ref_frame */);
+      is_optflow_refinement_enabled(cm, xd, mbmi, plane, 1 /* tip_ref_frame */);
 #else
-  int do_opfl = (opfl_allowed_cur_refs_bsize(cm,
-#if CONFIG_COMPOUND_4XN
-                                             xd,
-#endif  // CONFIG_COMPOUND_4XN
-                                             mbmi) &&
+  int do_opfl = (opfl_allowed_cur_refs_bsize(cm, xd, mbmi) &&
 #if CONFIG_ADAPT_OPFL_IN_TIP_DIRECT
                  (cm->tip_interp_filter == MULTITAP_SHARP) && plane == 0);
 #else

@@ -477,15 +477,9 @@ static INLINE int is_interinter_compound_used(COMPOUND_TYPE type,
                                               BLOCK_SIZE sb_type) {
   const int comp_allowed = is_comp_ref_allowed(sb_type);
   switch (type) {
-#if CONFIG_COMPOUND_4XN
     case COMPOUND_AVERAGE: return comp_allowed;
     case COMPOUND_DIFFWTD:
       return comp_allowed && !is_thin_4xn_nx4_block(sb_type);
-#else
-    case COMPOUND_AVERAGE:
-    case COMPOUND_DIFFWTD: return comp_allowed;
-#endif  //  CONFIG_COMPOUND_4XN
-
     case COMPOUND_WEDGE:
       return comp_allowed && av1_wedge_params_lookup[sb_type].wedge_types > 0;
     default: assert(0); return 0;
@@ -638,9 +632,7 @@ int64_t stable_mult_shift(const int64_t a, const int64_t b, const int shift,
                           int *rem_shift);
 
 static INLINE int is_translational_refinement_allowed(const AV1_COMMON *cm,
-#if CONFIG_COMPOUND_4XN
                                                       BLOCK_SIZE bsize,
-#endif  // CONFIG_COMPOUND_4XN
 #if CONFIG_ACROSS_SCALE_WARP
                                                       const MACROBLOCKD *xd,
 #endif  // CONFIG_ACROSS_SCALE_WARP
@@ -648,9 +640,7 @@ static INLINE int is_translational_refinement_allowed(const AV1_COMMON *cm,
   assert(cm->seq_params.enable_opfl_refine);
   (void)cm;
   if (mode < NEAR_NEARMV_OPTFLOW) return 0;
-#if CONFIG_COMPOUND_4XN
   if (is_thin_4xn_nx4_block(bsize)) return 0;
-#endif  // CONFIG_COMPOUND_4XN
 #if CONFIG_ACROSS_SCALE_WARP
   (void)xd;
 #endif  // CONFIG_ACROSS_SCALE_WARP
@@ -714,9 +704,7 @@ void dec_calc_subpel_params(const MV *const src_mv,
 // check if the refinemv mode is allwed for a given blocksize
 static INLINE int is_refinemv_allowed_bsize(BLOCK_SIZE bsize) {
   assert(bsize < BLOCK_SIZES_ALL);
-#if CONFIG_COMPOUND_4XN
   if (AOMMIN(block_size_wide[bsize], block_size_high[bsize]) < 8) return 0;
-#endif  // CONFIG_COMPOUND_4XN
 
   return (block_size_wide[bsize] >= 16 || block_size_high[bsize] >= 16);
 }
@@ -1105,23 +1093,15 @@ static AOM_INLINE void setup_pred_planes_for_tip(const TIP *tip_ref,
 }
 
 static INLINE void set_default_interp_filters(
-    MB_MODE_INFO *const mbmi, const AV1_COMMON *cm,
-#if CONFIG_COMPOUND_4XN
-    const MACROBLOCKD *xd,
-#endif  // CONFIG_COMPOUND_4XN
+    MB_MODE_INFO *const mbmi, const AV1_COMMON *cm, const MACROBLOCKD *xd,
     InterpFilter frame_interp_filter) {
-
   if (mbmi->skip_mode) {
     mbmi->interp_fltr = MULTITAP_SHARP;
     return;
   }
   mbmi->interp_fltr =
-      (opfl_allowed_cur_pred_mode(cm,
-#if CONFIG_COMPOUND_4XN
-                                  xd,
-#endif  // CONFIG_COMPOUND_4XN
-                                  mbmi) ||
-       mbmi->refinemv_flag || is_tip_ref_frame(mbmi->ref_frame[0]))
+      (opfl_allowed_cur_pred_mode(cm, xd, mbmi) || mbmi->refinemv_flag ||
+       is_tip_ref_frame(mbmi->ref_frame[0]))
           ? MULTITAP_SHARP
           : av1_unswitchable_filter(frame_interp_filter);
 }
@@ -1134,12 +1114,7 @@ static INLINE int av1_is_interp_needed(const AV1_COMMON *const cm,
 
   if (mbmi->mode == WARPMV) return 0;
   // No interpolation filter search when optical flow MV refinement is used.
-  if (opfl_allowed_cur_pred_mode(cm,
-#if CONFIG_COMPOUND_4XN
-                                 xd,
-#endif  // CONFIG_COMPOUND_4XN
-                                 mbmi))
-    return 0;
+  if (opfl_allowed_cur_pred_mode(cm, xd, mbmi)) return 0;
 
   // No interpolation filter search when MV refinement is used.
   if (mbmi->refinemv_flag) return 0;
