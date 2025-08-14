@@ -4722,9 +4722,10 @@ void av1_fill_tpl_mvs_sample_gap(AV1_COMMON *cm) {
           if (norm_ref_offset == -1)
             norm_ref_offset = cm->tpl_mvs[offset_right].ref_frame_offset;
 
-          get_mv_projection(
+          get_mv_projection_clamp(
               &tmp_mv.as_mv, cm->tpl_mvs[offset_right].mfmv0.as_mv,
-              norm_ref_offset, cm->tpl_mvs[offset_right].ref_frame_offset);
+              norm_ref_offset, cm->tpl_mvs[offset_right].ref_frame_offset,
+              -REFMVS_LIMIT, REFMVS_LIMIT);
 
           count[0]++;
           count[2]++;
@@ -4744,9 +4745,10 @@ void av1_fill_tpl_mvs_sample_gap(AV1_COMMON *cm) {
           if (norm_ref_offset == -1)
             norm_ref_offset = cm->tpl_mvs[offset_lower].ref_frame_offset;
 
-          get_mv_projection(
+          get_mv_projection_clamp(
               &tmp_mv.as_mv, cm->tpl_mvs[offset_lower].mfmv0.as_mv,
-              norm_ref_offset, cm->tpl_mvs[offset_lower].ref_frame_offset);
+              norm_ref_offset, cm->tpl_mvs[offset_lower].ref_frame_offset,
+              -REFMVS_LIMIT, REFMVS_LIMIT);
 
           count[1]++;
           count[2]++;
@@ -4769,10 +4771,10 @@ void av1_fill_tpl_mvs_sample_gap(AV1_COMMON *cm) {
           if (norm_ref_offset == -1)
             norm_ref_offset = cm->tpl_mvs[offset_lower_right].ref_frame_offset;
 
-          get_mv_projection(&tmp_mv.as_mv,
-                            cm->tpl_mvs[offset_lower_right].mfmv0.as_mv,
-                            norm_ref_offset,
-                            cm->tpl_mvs[offset_lower_right].ref_frame_offset);
+          get_mv_projection_clamp(
+              &tmp_mv.as_mv, cm->tpl_mvs[offset_lower_right].mfmv0.as_mv,
+              norm_ref_offset, cm->tpl_mvs[offset_lower_right].ref_frame_offset,
+              -REFMVS_LIMIT, REFMVS_LIMIT);
 
           count[2]++;
 

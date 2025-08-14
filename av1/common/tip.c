@@ -41,8 +41,9 @@ static void tip_temporal_scale_motion_field(AV1_COMMON *cm,
       TPL_MV_REF *tpl_mvs = tpl_mvs_base + tpl_offset;
       if (tpl_mvs->mfmv0.as_int != INVALID_MV) {
         int_mv this_refmv;
-        get_mv_projection(&this_refmv.as_mv, tpl_mvs->mfmv0.as_mv,
-                          ref_frames_offset, tpl_mvs->ref_frame_offset);
+        get_mv_projection_clamp(&this_refmv.as_mv, tpl_mvs->mfmv0.as_mv,
+                                ref_frames_offset, tpl_mvs->ref_frame_offset,
+                                -REFMVS_LIMIT, REFMVS_LIMIT);
         tpl_mvs->mfmv0.as_int = this_refmv.as_int;
         tpl_mvs->ref_frame_offset = ref_frames_offset;
       } else {

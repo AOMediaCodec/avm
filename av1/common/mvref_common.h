@@ -562,7 +562,10 @@ static int div_mult[32] = { 0,    16384, 8192, 5461, 4096, 3276, 2730, 2340,
                             2048, 1820,  1638, 1489, 1365, 1260, 1170, 1092,
                             1024, 963,   910,  862,  819,  780,  744,  712,
                             682,  655,   630,  606,  585,  564,  546,  528 };
-static AOM_INLINE void get_mv_projection(MV *output, MV ref, int num, int den) {
+
+static AOM_INLINE void get_mv_projection_clamp(MV *output, MV ref, int num,
+                                               int den, int clamp_min,
+                                               int clamp_max) {
   den = AOMMIN(den, MAX_FRAME_DISTANCE);
   num = num > 0 ? AOMMIN(num, MAX_FRAME_DISTANCE)
                 : AOMMAX(num, -MAX_FRAME_DISTANCE);
@@ -570,10 +573,12 @@ static AOM_INLINE void get_mv_projection(MV *output, MV ref, int num, int den) {
   const int mv_row = (int)ROUND_POWER_OF_TWO_SIGNED_64(scale_mv_row, 14);
   const int64_t scale_mv_col = (int64_t)ref.col * num * div_mult[den];
   const int mv_col = (int)ROUND_POWER_OF_TWO_SIGNED_64(scale_mv_col, 14);
-  const int clamp_max = MV_UPP - 1;
-  const int clamp_min = MV_LOW + 1;
   output->row = (MV_COMP_DATA_TYPE)clamp(mv_row, clamp_min, clamp_max);
   output->col = (MV_COMP_DATA_TYPE)clamp(mv_col, clamp_min, clamp_max);
+}
+
+static AOM_INLINE void get_mv_projection(MV *output, MV ref, int num, int den) {
+  get_mv_projection_clamp(output, ref, num, den, MV_LOW + 1, MV_UPP - 1);
 }
 
 void av1_setup_frame_buf_refs(AV1_COMMON *cm);
