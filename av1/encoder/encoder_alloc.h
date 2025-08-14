@@ -235,7 +235,6 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
 
   aom_free(cm->tpl_mvs);
   cm->tpl_mvs = NULL;
-#if CONFIG_MV_TRAJECTORY
   for (int rf = 0; rf < INTER_REFS_PER_FRAME; rf++) {
     aom_free(cm->id_offset_map[rf]);
     cm->id_offset_map[rf] = NULL;
@@ -244,7 +243,6 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
       cm->blk_id_map[k][rf] = NULL;
     }
   }
-#endif  // CONFIG_MV_TRAJECTORY
 
   aom_free(cm->tip_ref.mf_need_clamp);
   cm->tip_ref.mf_need_clamp = NULL;

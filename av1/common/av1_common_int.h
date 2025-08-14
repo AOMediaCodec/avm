@@ -1981,7 +1981,6 @@ typedef struct AV1Common {
    */
   int tmvp_col_offset;
 
-#if CONFIG_MV_TRAJECTORY
   /*!
    * Mapping table from trajectory id to the offset to the current block.
    */
@@ -1990,7 +1989,6 @@ typedef struct AV1Common {
    * Mapping table from block location to trajectory id.
    */
   int *blk_id_map[3][INTER_REFS_PER_FRAME];
-#endif  // CONFIG_MV_TRAJECTORY
 
   /*!
    * Allocated size of 'tpl_mvs' array. Refer to 'ensure_mv_buffer()' function.
@@ -2504,7 +2502,6 @@ static INLINE void ensure_mv_buffer(RefCntBuffer *buf, AV1_COMMON *cm) {
     CHECK_MEM_ERROR(cm, cm->tpl_mvs,
                     (TPL_MV_REF *)aom_calloc(mem_size, sizeof(*cm->tpl_mvs)));
     cm->tpl_mvs_mem_size = mem_size;
-#if CONFIG_MV_TRAJECTORY
     for (int rf = 0; rf < INTER_REFS_PER_FRAME; rf++) {
       aom_free(cm->id_offset_map[rf]);
       cm->id_offset_map[rf] =
@@ -2517,7 +2514,6 @@ static INLINE void ensure_mv_buffer(RefCntBuffer *buf, AV1_COMMON *cm) {
             (int *)aom_malloc(mem_size * sizeof(*cm->blk_id_map[k][rf]));
       }
     }
-#endif  // CONFIG_MV_TRAJECTORY
   }
 
   realloc = cm->tip_ref.mf_need_clamp == NULL || is_tpl_mvs_mem_size_too_small;

@@ -1235,7 +1235,6 @@ static AOM_INLINE void add_ref_mv_candidate(
           cand_ref_frame = candidate->ref_frame[ref];
         }
 
-#if CONFIG_MV_TRAJECTORY
         const int frame_mvs_stride =
             ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
         int this_tpl_row = mi_row >> 1;
@@ -1301,7 +1300,6 @@ static AOM_INLINE void add_ref_mv_candidate(
           }
 #endif  // CONFIG_DRL_PR_LIM
         } else {
-#endif  // CONFIG_MV_TRAJECTORY
           const int cur_blk_ref_side = cm->ref_frame_side[rf[0]];
           const int cand_blk_ref_side = cm->ref_frame_side[cand_ref_frame];
 
@@ -1363,9 +1361,7 @@ static AOM_INLINE void add_ref_mv_candidate(
             }
 #endif  // CONFIG_DRL_PR_LIM
           }
-#if CONFIG_MV_TRAJECTORY
         }
-#endif  // CONFIG_MV_TRAJECTORY
       }
     }
   } else {
@@ -1438,7 +1434,6 @@ static AOM_INLINE void add_ref_mv_candidate(
         if (have_newmv_in_inter_mode(candidate->mode)) ++*newmv_count;
         ++*ref_match_count;
       } else if (add_more_mvs) {
-#if CONFIG_MV_TRAJECTORY
         if (cm->seq_params.enable_mv_traj &&
             cm->seq_params.order_hint_info.enable_order_hint &&
             cm->features.allow_ref_frame_mvs && rf[0] != rf[1] &&
@@ -1539,7 +1534,6 @@ static AOM_INLINE void add_ref_mv_candidate(
 #endif  // CONFIG_DRL_PR_LIM
           }
         }
-#endif  // CONFIG_MV_TRAJECTORY
 
         // Compound reference frame, but only have one reference frame
         // is the same as the reference frame of the neighboring block
@@ -2017,10 +2011,6 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   const TPL_MV_REF *prev_frame_mvs =
       cm->tpl_mvs + tpl_row * tpl_stride + tpl_col;
 
-#if !CONFIG_MV_TRAJECTORY
-  if (prev_frame_mvs->mfmv0.as_int == INVALID_MV) return 0;
-#endif  // !CONFIG_MV_TRAJECTORY
-
   MV_REFERENCE_FRAME rf[2];
   av1_set_ref_frame(rf, ref_frame);
 
@@ -2028,7 +2018,6 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
     return 0;
   }
 
-#if CONFIG_MV_TRAJECTORY
   const int tpl_mv_offset = tpl_row * tpl_stride + tpl_col;
   bool linear_available = prev_frame_mvs->mfmv0.as_int != INVALID_MV;
   bool mvtj_available[2] = { true, true };
@@ -2045,7 +2034,6 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   bool mvtj_ok = rf[1] == NONE_FRAME ? mvtj_available[0]
                                      : mvtj_available[0] && mvtj_available[1];
   if (!linear_available && !mvtj_ok) return 0;
-#endif  // CONFIG_MV_TRAJECTORY
 
 #if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   const int cur_frame_index = cm->cur_frame->display_order_hint;
@@ -2063,7 +2051,6 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   int idx;
 
   int_mv this_refmv;
-#if CONFIG_MV_TRAJECTORY
   if (mvtj_available[0]) {
     this_refmv = cm->id_offset_map[rf[0]][tpl_mv_offset];
   } else {
@@ -2071,10 +2058,6 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
     get_mv_projection(&this_refmv.as_mv, prev_frame_mvs->mfmv0.as_mv,
                       cur_offset_0, prev_frame_mvs->ref_frame_offset);
   }
-#else
-  get_mv_projection(&this_refmv.as_mv, prev_frame_mvs->mfmv0.as_mv,
-                    cur_offset_0, prev_frame_mvs->ref_frame_offset);
-#endif  // CONFIG_MV_TRAJECTORY
 
   uint16_t weight = TMVP_WEIGHT;
 
@@ -2132,7 +2115,6 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   } else {
     // Process compound inter mode
     int_mv comp_refmv;
-#if CONFIG_MV_TRAJECTORY
     if (mvtj_available[1]) {
       comp_refmv = cm->id_offset_map[rf[1]][tpl_mv_offset];
     } else {
@@ -2148,18 +2130,6 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
       get_mv_projection(&comp_refmv.as_mv, prev_frame_mvs->mfmv0.as_mv,
                         cur_offset_1, prev_frame_mvs->ref_frame_offset);
     }
-#else
-    const RefCntBuffer *const buf_1 = get_ref_frame_buf(cm, rf[1]);
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-    const int frame1_index = buf_1->display_order_hint;
-#else
-    const int frame1_index = buf_1->order_hint;
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-    const int cur_offset_1 = get_relative_dist(&cm->seq_params.order_hint_info,
-                                               cur_frame_index, frame1_index);
-    get_mv_projection(&comp_refmv.as_mv, prev_frame_mvs->mfmv0.as_mv,
-                      cur_offset_1, prev_frame_mvs->ref_frame_offset);
-#endif  // CONFIG_MV_TRAJECTORY
 
 #if !CONFIG_C076_INTER_MOD_CTX
     if (blk_row == 0 && blk_col == 0) {
@@ -3989,7 +3959,6 @@ static INLINE int get_blk_id_k(int this_col, int tmvp_proc_size) {
   return (this_col / tmvp_proc_size) % 3;
 }
 
-#if CONFIG_MV_TRAJECTORY
 // Check if the mv intersects with exisiting trajectories, and if yes, update
 // the trajectories.
 static INLINE void check_traj_intersect(AV1_COMMON *cm,
@@ -4119,7 +4088,6 @@ static INLINE void check_traj_intersect(AV1_COMMON *cm,
     }
   }
 }
-#endif  // CONFIG_MV_TRAJECTORY
 
 // Calculate the projected motion field from the TMVP mvs that points from
 // start_frame to target_frame.
@@ -4175,10 +4143,8 @@ static int motion_field_projection_start_target(
 
   const int temporal_scale_factor =
       tip_derive_scale_factor(start_to_current_frame_offset, ref_frame_offset);
-#if CONFIG_MV_TRAJECTORY
   const int ref_temporal_scale_factor = tip_derive_scale_factor(
       -ref_frame_offset + start_to_current_frame_offset, -ref_frame_offset);
-#endif  // CONFIG_MV_TRAJECTORY
 
   TPL_MV_REF *tpl_mvs_base = cm->tpl_mvs;
   const MV_REF *mv_ref_base = start_frame_buf->mvs;
@@ -4209,12 +4175,10 @@ static int motion_field_projection_start_target(
           int scaled_blk_col = blk_col;
           int scaled_blk_row = blk_row;
 
-#if CONFIG_MV_TRAJECTORY
           if (cm->seq_params.enable_mv_traj) {
             check_traj_intersect(cm, start_frame, target_frame, &ref_mv,
                                  scaled_blk_row, scaled_blk_col, mvs_cols);
           }
-#endif  // CONFIG_MV_TRAJECTORY
 
           int_mv this_mv;
           int mi_r = 0;
@@ -4240,7 +4204,6 @@ static int motion_field_projection_start_target(
           if (pos_valid) {
             const int mi_offset = mi_r * mvs_stride + mi_c;
             if (tpl_mvs_base[mi_offset].mfmv0.as_int == INVALID_MV) {
-#if CONFIG_MV_TRAJECTORY
               if (cm->seq_params.enable_mv_traj) {
                 int traj_id = mi_offset;
                 int blk_id_k = get_blk_id_k(mi_c, cm->tmvp_proc_size);
@@ -4299,7 +4262,6 @@ static int motion_field_projection_start_target(
                       traj_id;
                 }
               }
-#endif  // CONFIG_MV_TRAJECTORY
 
               if (is_backward) {
                 ref_mv.row = -ref_mv.row;
@@ -4347,9 +4309,7 @@ static int motion_field_projection_side(AV1_COMMON *cm,
   }
 
   int temporal_scale_factor[REF_FRAMES] = { 0 };
-#if CONFIG_MV_TRAJECTORY
   int ref_temporal_scale_factor[REF_FRAMES] = { 0 };
-#endif  // CONFIG_MV_TRAJECTORY
   int ref_abs_offset[REF_FRAMES] = { 0 };
 
   assert(start_frame_buf->width == cm->width &&
@@ -4369,16 +4329,13 @@ static int motion_field_projection_side(AV1_COMMON *cm,
       ref_abs_offset[rf] = abs(ref_offset[rf]);
       temporal_scale_factor[rf] = tip_derive_scale_factor(
           start_to_current_frame_offset, ref_offset[rf]);
-#if CONFIG_MV_TRAJECTORY
       int ref_to_current_frame_offset =
           -ref_offset[rf] + start_to_current_frame_offset;
       ref_temporal_scale_factor[rf] =
           tip_derive_scale_factor(ref_to_current_frame_offset, -ref_offset[rf]);
-#endif  // CONFIG_MV_TRAJECTORY
     }
   }
 
-#if CONFIG_MV_TRAJECTORY
   int start_ref_map[INTER_REFS_PER_FRAME];
   for (int k = 0; k < INTER_REFS_PER_FRAME; k++) {
 #if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
@@ -4401,7 +4358,6 @@ static int motion_field_projection_side(AV1_COMMON *cm,
       }
     }
   }
-#endif  // CONFIG_MV_TRAJECTORY
 
   MV_REF *mv_ref_base = start_frame_buf->mvs;
   const int mvs_rows =
@@ -4428,13 +4384,11 @@ static int motion_field_projection_side(AV1_COMMON *cm,
         int scaled_blk_col = blk_col;
         int scaled_blk_row = blk_row;
 
-#if CONFIG_MV_TRAJECTORY
         MV_REFERENCE_FRAME end_frame = start_ref_map[ref_frame];
         if (cm->seq_params.enable_mv_traj) {
           check_traj_intersect(cm, start_frame, end_frame, &ref_mv,
                                scaled_blk_row, scaled_blk_col, mvs_cols);
         }
-#endif  // CONFIG_MV_TRAJECTORY
 
         int ref_frame_offset = ref_offset[ref_frame];
         int pos_valid = ref_abs_offset[ref_frame] <= MAX_FRAME_DISTANCE;
@@ -4470,7 +4424,6 @@ static int motion_field_projection_side(AV1_COMMON *cm,
                         ref_abs_offset[ref_frame])
 #endif  // CONFIG_SIMPLIFY_MV_FIELD
             ) {
-#if CONFIG_MV_TRAJECTORY
               if (cm->seq_params.enable_mv_traj) {
                 int blk_id_k = get_blk_id_k(mi_c, cm->tmvp_proc_size);
                 int **blk_id_map = cm->blk_id_map[blk_id_k];
@@ -4531,7 +4484,6 @@ static int motion_field_projection_side(AV1_COMMON *cm,
                   }
                 }
               }
-#endif  // CONFIG_MV_TRAJECTORY
 
               if (side_idx == 1) {
                 ref_mv.row = -ref_mv.row;
@@ -4809,7 +4761,6 @@ void av1_fill_tpl_mvs_sample_gap(AV1_COMMON *cm) {
   }
 }
 
-#if CONFIG_MV_TRAJECTORY
 // Interpolate the sampled id_offset_map.
 static void fill_id_offset_sample_gap(AV1_COMMON *cm) {
   assert(cm->tmvp_sample_step > 0);
@@ -4928,7 +4879,6 @@ static void fill_id_offset_sample_gap(AV1_COMMON *cm) {
     }
   }
 }
-#endif  // CONFIG_MV_TRAJECTORY
 
 void av1_setup_motion_field(AV1_COMMON *cm) {
   const OrderHintInfo *const order_hint_info = &cm->seq_params.order_hint_info;
@@ -5005,7 +4955,6 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
                             (cm->ref_frames_info.num_past_refs > 0);
 
   (void)ref_buf;
-#if CONFIG_MV_TRAJECTORY
   if (cm->seq_params.enable_mv_traj) {
     for (int rf = 0; rf < INTER_REFS_PER_FRAME; rf++) {
       for (int i = 0; i < mvs_rows * mvs_cols; i++) {
@@ -5016,7 +4965,6 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
       }
     }
   }
-#endif  // CONFIG_MV_TRAJECTORY
 
   // Find the sorted map of refs.
   int sort_ref[INTER_REFS_PER_FRAME] = { 0, 1, 2, 3, 4, 5, 6 };
@@ -5268,11 +5216,9 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
     }
   }
 
-#if CONFIG_MV_TRAJECTORY
   if (cm->seq_params.enable_mv_traj) {
     fill_id_offset_sample_gap(cm);
   }
-#endif  // CONFIG_MV_TRAJECTORY
 }
 
 void av1_setup_ref_frame_sides(AV1_COMMON *cm) {
