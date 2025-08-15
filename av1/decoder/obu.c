@@ -436,9 +436,9 @@ static uint32_t read_tilegroup_obu(AV1Decoder *pbi,
 #if CONFIG_BRU
   skip_payload |= pbi->common.bru.frame_inactive_flag;
 #endif
-  
+
   if (header_size == -1 || byte_alignment(cm, rb)) return 0;
-  
+
   if (skip_payload) {
     *is_last_tg = 1;
     return header_size;
@@ -472,7 +472,7 @@ static uint32_t read_frame_header_obu(AV1Decoder *pbi,
 #else
                                             trailing_bits_present
 #endif
-                                            );
+  );
 }
 
 // On success, returns the tile group header size. On failure, calls
@@ -1248,7 +1248,7 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
         pbi->num_tile_groups++;
         break;
 
-#else // CONFIG_F106_OBU_TILEGROUP
+#else  // CONFIG_F106_OBU_TILEGROUP
         if (obu_header.type == OBU_REDUNDANT_FRAME_HEADER) {
           if (!pbi->seen_frame_header) {
             cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;

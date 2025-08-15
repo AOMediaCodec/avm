@@ -63,7 +63,7 @@ const uint8_t kMetadataObuMdcv[kMetadataObuSizeMdcv] = {
 const size_t kMetadataObuSizeCll = 8;
 const uint8_t kMetadataObuCll[kMetadataObuSizeCll] = { 0x07, 0x14, 0x01, 0xB5,
                                                        0x01, 0x02, 0x03, 0x80 };
-#else  // !CONFIG_NEW_OBU_HEADER
+#else   // !CONFIG_NEW_OBU_HEADER
 const size_t kMetadataObuSizeT35 = 28;
 const uint8_t kMetadataObuT35[kMetadataObuSizeT35] = {
   kOH0, 0x1A, 0x04, 0xB5, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06,

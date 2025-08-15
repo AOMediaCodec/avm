@@ -7648,8 +7648,7 @@ static int read_show_existing_frame(AV1Decoder *pbi,
   // show_existing_frame header, e.g. raw frame hash values before the
   // referenced coded frame and post film grain hash values before this
   // header.
-  if (raw_frame_hash.is_present)
-    cm->cur_frame->raw_frame_hash = raw_frame_hash;
+  if (raw_frame_hash.is_present) cm->cur_frame->raw_frame_hash = raw_frame_hash;
   if (grain_frame_hash.is_present)
     cm->cur_frame->grain_frame_hash = grain_frame_hash;
   unlock_buffer_pool(pool);
@@ -7667,11 +7666,10 @@ static int read_show_existing_frame(AV1Decoder *pbi,
           seq_params->enable_frame_output_order &&
 #endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
           frame_to_show->frame_type == KEY_FRAME &&
-          !frame_to_show->showable_frame &&
-          frame_to_show->frame_output_done)
+          !frame_to_show->showable_frame && frame_to_show->frame_output_done)
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
-      || (!seq_params->enable_frame_output_order &&
-          !frame_to_show->showable_frame)
+      ||
+      (!seq_params->enable_frame_output_order && !frame_to_show->showable_frame)
 #endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
   ) {
     aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
@@ -7699,14 +7697,14 @@ static int read_show_existing_frame(AV1Decoder *pbi,
   return 0;
 }  // F106_OBU_SEF
 #endif
-  
+
 // On success, returns 0. On failure, calls aom_internal_error and does not
 // return.
-  static int read_uncompressed_header(AV1Decoder *pbi,
+static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
-                             OBU_TYPE obu_type,
+                                    OBU_TYPE obu_type,
 #endif  // CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
-                             struct aom_read_bit_buffer *rb) {
+                                    struct aom_read_bit_buffer *rb) {
   AV1_COMMON *const cm = &pbi->common;
   const SequenceHeader *const seq_params = &cm->seq_params;
   CurrentFrame *const current_frame = &cm->current_frame;

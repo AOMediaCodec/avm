@@ -6131,13 +6131,14 @@ static AOM_INLINE void write_screen_content_params(
   }
 }
 #if CONFIG_F106_OBU_SEF
-static AOM_INLINE void write_show_exisiting_frame(AV1_COMP *cpi, struct aom_write_bit_buffer *wb) {
+static AOM_INLINE void write_show_exisiting_frame(
+    AV1_COMP *cpi, struct aom_write_bit_buffer *wb) {
   AV1_COMMON *const cm = &cpi->common;
   const SequenceHeader *const seq_params = &cm->seq_params;
-  
+
   aom_wb_write_literal(wb, cpi->existing_fb_idx_to_show,
                        cm->seq_params.ref_frames_log2);
-  
+
   if (seq_params->decoder_model_info_present_flag &&
       seq_params->timing_info.equal_picture_interval == 0) {
     write_tu_pts_info(cm, wb);
@@ -7078,11 +7079,13 @@ uint32_t av1_write_obu_header(AV1LevelParams *const level_params,
 #endif  // CONFIG_F106_OBU_TIP
 
   if (level_params->keep_level_stats &&
-#if CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP || CONFIG_F106_OBU_TILEGROUP
+#if CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP || \
+    CONFIG_F106_OBU_TILEGROUP
       count_header
 #else
       (obu_type == OBU_FRAME || obu_type == OBU_FRAME_HEADER)
-#endif  // CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP || CONFIG_F106_OBU_TILEGROUP
+#endif  // CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
+        // || CONFIG_F106_OBU_TILEGROUP
   )
     ++level_params->frame_header_count;
 
@@ -7585,7 +7588,8 @@ static uint32_t write_tile_indices_in_tilegroup(
 static uint32_t write_tilegroup_header(AV1_COMP *cpi,
 #if CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
                                        OBU_TYPE obu_type,
-#endif  // CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP || CONFIG_F106_OBU_TILEGROUP
+#endif  // CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
+        // || CONFIG_F106_OBU_TILEGROUP
                                        struct aom_write_bit_buffer *saved_wb,
                                        uint8_t *const dst, int num_tilegroups,
                                        int start_tile_idx, int end_tile_idx) {
@@ -8417,13 +8421,14 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 #if CONFIG_F106_OBU_SEF
   if ((encode_show_existing_frame(cm)
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT && !CONFIG_F253_REMOVE_OUTPUTFLAG
-       && (!cm->seq_params.order_hint_info.enable_order_hint || !cm->seq_params.enable_frame_output_order)
+       && (!cm->seq_params.order_hint_info.enable_order_hint ||
+           !cm->seq_params.enable_frame_output_order)
 #elif !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT && CONFIG_F253_REMOVE_OUTPUTFLAG
        && (!cm->seq_params.order_hint_info.enable_order_hint)
 #elif CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT && !CONFIG_F253_REMOVE_OUTPUTFLAG
        && (!cm->seq_params.enable_frame_output_order)
 #endif
-       ) ||
+           ) ||
       (encode_show_existing_frame(cm) &&
        cm->cur_frame->frame_type == KEY_FRAME))
     obu_type = OBU_SEF;
@@ -8438,11 +8443,11 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
   for (int tg_idx = 0; tg_idx < max_tg_num; tg_idx++) {
     obu_header_size = av1_write_obu_header(level_params, obu_type,
 #if CONFIG_NEW_OBU_HEADER
-                                       obu_temporal, obu_layer,
+                                           obu_temporal, obu_layer,
 #else
-                                       obu_extension_header,
+                                           obu_extension_header,
 #endif  // CONFIG_NEW_OBU_HEADER
-                                       data);
+                                           data);
     obu_payload_size = write_tilegroup_obu(
         cpi, obu_type, data + obu_header_size, &saved_wb_first_tg, tg_idx,
         max_tg_num, &first_saved_wb_bit_offset, largest_tile_id);

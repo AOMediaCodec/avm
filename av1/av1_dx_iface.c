@@ -447,29 +447,29 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
       if (data_sz < 2) return AOM_CODEC_CORRUPT_FRAME;
       // Read a few values from the sequence header payload
       struct aom_read_bit_buffer rb = { data, data + data_sz, 0, NULL, NULL };
-      
+
       BITSTREAM_PROFILE profile = av1_read_profile(&rb);  // profile
-      
+
       int num_bits_width = aom_rb_read_literal(&rb, 4) + 1;
       int num_bits_height = aom_rb_read_literal(&rb, 4) + 1;
       int max_frame_width = aom_rb_read_literal(&rb, num_bits_width) + 1;
       int max_frame_height = aom_rb_read_literal(&rb, num_bits_height) + 1;
       si->w = max_frame_width;
       si->h = max_frame_height;
-      
+
       status = parse_color_config(&rb, profile);
       if (status != AOM_CODEC_OK) return status;
-      
+
       const uint8_t still_picture = aom_rb_read_bit(&rb);
       reduced_still_picture_hdr = aom_rb_read_bit(&rb);
-      
+
       if (!still_picture && reduced_still_picture_hdr) {
         return AOM_CODEC_UNSUP_BITSTREAM;
       }
-      
+
       status = parse_operating_points(&rb, reduced_still_picture_hdr, si);
       if (status != AOM_CODEC_OK) return status;
-      
+
       got_sequence_header = 1;
 #if CONFIG_F106_OBU_TILEGROUP
     } else if (obu_header.type == OBU_TILEGROUP) {
@@ -488,7 +488,7 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
 #if CONFIG_F106_OBU_TILEGROUP
         int first_tile_group_in_frame = aom_rb_read_bit(&rb);
         if (!first_tile_group_in_frame) {
-          aom_rb_read_bit(&rb); // send_uncompressed_header_flag
+          aom_rb_read_bit(&rb);  // send_uncompressed_header_flag
         }
 #endif  // CONFIG_F106_OBU_TILEGROUP
 #if !CONFIG_F106_OBU_SEF

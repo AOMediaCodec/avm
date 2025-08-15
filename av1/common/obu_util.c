@@ -38,12 +38,12 @@ static int valid_obu_type(int obu_type) {
 #else
     case OBU_FRAME_HEADER:
     case OBU_TILE_GROUP:
-#endif // CONFIG_F106_OBU_TILEGROUP
+#endif  // CONFIG_F106_OBU_TILEGROUP
     case OBU_METADATA:
 #if !CONFIG_F106_OBU_TILEGROUP
     case OBU_FRAME:
     case OBU_REDUNDANT_FRAME_HEADER:
-#endif // !CONFIG_F106_OBU_TILEGROUP
+#endif  // !CONFIG_F106_OBU_TILEGROUP
     case OBU_TILE_LIST:
     case OBU_PADDING: valid_type = 1; break;
     default: break;
