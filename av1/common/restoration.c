@@ -2790,6 +2790,7 @@ static void save_deblock_boundary_lines(
     const YV12_BUFFER_CONFIG *frame, const AV1_COMMON *cm, int plane, int row,
     int stripe, int is_above, RestorationStripeBoundaries *boundaries) {
   (void)cm;
+  assert(stripe < boundaries->num_stripes);
   const int is_uv = plane > 0;
   const uint16_t *src_buf = frame->buffers[plane];
   const int src_stride = frame->strides[is_uv];
@@ -2840,6 +2841,7 @@ static void save_cdef_boundary_lines(const YV12_BUFFER_CONFIG *frame,
                                      int stripe, int is_above,
                                      RestorationStripeBoundaries *boundaries) {
   (void)cm;
+  assert(stripe < boundaries->num_stripes);
   const int is_uv = plane > 0;
   const uint16_t *src_buf = frame->buffers[plane];
   const int src_stride = frame->strides[is_uv];
