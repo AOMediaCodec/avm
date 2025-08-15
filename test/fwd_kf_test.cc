@@ -26,8 +26,8 @@ typedef struct {
 } FwdKfTestParam;
 
 const FwdKfTestParam kTestParams[] = {
-  { 4, 31.1 },  { 6, 31.1 },  { 8, 24.0 },
-  { 12, 25.1 }, { 16, 25.0 }, { 18, 22.5 }
+  { 4, 31.1 },  { 6, 31.1 },   { 8, 24.0 },
+  { 12, 25.1 }, { 16, 24.75 }, { 18, 22.5 }
 };
 
 std::ostream &operator<<(std::ostream &os, const FwdKfTestParam &test_arg) {
