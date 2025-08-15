@@ -39,9 +39,9 @@ const uint8_t kMetadataPayloadCll[kMetadataPayloadSizeCll] = { 0xB5, 0x01, 0x02,
 const uint8_t kOH0 = 8 * OBU_METADATA + 2;
 #else
 #if CONFIG_NEW_OBU_HEADER
-const uint8_t kOH0 = 0x1B
+const uint8_t kOH0 = 0x1B;
 #else
-const uint8_t kOH0 = 0x2A
+const uint8_t kOH0 = 0x2A;
 #endif
 #endif
 
