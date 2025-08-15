@@ -324,8 +324,9 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
 #if CONFIG_CWG_F307_CFL_SEQ_FLAG
                                                cm->seq_params.enable_cfl_intra,
 #endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
-                                               xd))
+                                               xd) && !is_mhccp_allowed(cm, xd)){
       mi_addr->uv_mode = UV_DC_PRED;
+    }
   }
   for (i = (xd->tree_type == CHROMA_PART); i < num_planes; ++i) {
     p[i].coeff = ctx->coeff[i];
@@ -617,7 +618,7 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
 #if CONFIG_CWG_F307_CFL_SEQ_FLAG
         cm->seq_params.enable_cfl_intra,
 #endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
-        xd);
+        xd) || is_mhccp_allowed(cm, xd);
     const int uv_context = av1_is_directional_mode(mbmi->mode) ? 1 : 0;
 #if CONFIG_ENTROPY_STATS
     if (cfl_allowed) {

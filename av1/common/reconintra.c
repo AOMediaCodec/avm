@@ -1921,15 +1921,10 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
 
   if (plane != AOM_PLANE_Y && mbmi->uv_mode == UV_CFL_PRED
 #if CONFIG_CWG_F307_CFL_SEQ_FLAG
-      && cm->seq_params.enable_cfl_intra
+      && (cm->seq_params.enable_cfl_intra || cm->seq_params.enable_mhccp)
 #endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
   ) {
 #if CONFIG_DEBUG
-    assert(is_cfl_allowed(
-#if CONFIG_CWG_F307_CFL_SEQ_FLAG
-        cm->seq_params.enable_cfl_intra,
-#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
-        xd));
     const BLOCK_SIZE plane_bsize = get_mb_plane_block_size(
         xd, mbmi, plane, pd->subsampling_x, pd->subsampling_y);
     (void)plane_bsize;
@@ -2020,7 +2015,7 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
     }
     cfl_predict_block(
 #if CONFIG_CWG_F307_CFL_SEQ_FLAG
-        cm->seq_params.enable_cfl_intra,
+        cm->seq_params.enable_cfl_intra, cm->seq_params.enable_mhccp,
 #endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
         xd, dst, dst_stride, tx_size, plane, above_lines > 0, left_lines > 0,
         above_lines, left_lines);

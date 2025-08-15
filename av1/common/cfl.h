@@ -105,6 +105,13 @@ static INLINE MHCCP_ALLOWED_TYPE is_mhccp_allowed(const AV1_COMMON *const cm,
   if (xd->tree_type == LUMA_PART) return MHCCP_DISALLOWED;
   if (!cm->seq_params.enable_mhccp) return MHCCP_DISALLOWED;
 
+  assert(xd->is_cfl_allowed_in_sdp < CFL_ALLOWED_TYPES_FOR_SDP);
+  if (xd->is_cfl_allowed_in_sdp != CFL_ALLOWED_FOR_CHROMA) {
+    assert(xd->tree_type == CHROMA_PART);
+    if (xd->is_cfl_allowed_in_sdp == CFL_DISALLOWED_FOR_CHROMA)
+      return MHCCP_DISALLOWED;
+  }
+
   const BLOCK_SIZE bsize = get_bsize_base(xd, mbmi, AOM_PLANE_U);
   assert(bsize < BLOCK_SIZES_ALL);
   const int ssx = xd->plane[AOM_PLANE_U].subsampling_x;
@@ -217,7 +224,7 @@ static INLINE CFL_PRED_TYPE get_cfl_pred_type(PLANE_TYPE plane) {
 
 void cfl_predict_block(
 #if CONFIG_CWG_F307_CFL_SEQ_FLAG
-    bool seq_enable_cfl_intra,
+    bool seq_enable_cfl_intra, bool seq_enable_mhccp,
 #endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
     MACROBLOCKD *const xd, uint16_t *dst, int dst_stride, TX_SIZE tx_size,
     int plane, bool have_top, bool have_left, int above_lines, int left_lines);

@@ -676,7 +676,7 @@ void av1_rd_pick_palette_intra_sbuv(const AV1_COMP *cpi, MACROBLOCK *x,
 #if CONFIG_CWG_F307_CFL_SEQ_FLAG
                                       cpi->common.seq_params.enable_cfl_intra,
 #endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
-                                      xd),
+                                      xd) || is_mhccp_allowed(&cpi->common, xd),
                                   mbmi->uv_mode_idx);
   assert(mbmi->uv_mode_idx >= 0 && mbmi->uv_mode_idx < UV_INTRA_MODES);
   int count_buf[1 << 12];      // Maximum (1 << 12) color levels.

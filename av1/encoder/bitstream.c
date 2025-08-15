@@ -1678,7 +1678,7 @@ static AOM_INLINE void write_intra_prediction_modes(AV1_COMP *cpi,
 #if CONFIG_CWG_F307_CFL_SEQ_FLAG
                                 cm->seq_params.enable_cfl_intra,
 #endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
-                                xd),
+                                xd) || is_mhccp_allowed(cm, xd),
                             w);
       } else {
         write_dpcm_uv_vert_horz_mode(ec_ctx, mbmi->dpcm_mode_uv, w);
@@ -1689,7 +1689,7 @@ static AOM_INLINE void write_intra_prediction_modes(AV1_COMP *cpi,
 #if CONFIG_CWG_F307_CFL_SEQ_FLAG
                               cm->seq_params.enable_cfl_intra,
 #endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
-                              xd),
+                              xd) || is_mhccp_allowed(cm, xd),
                           w);
     }
 

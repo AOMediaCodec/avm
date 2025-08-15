@@ -4046,7 +4046,7 @@ static AOM_INLINE CFL_ALLOWED_FOR_SDP_TYPE is_cfl_allowed_for_sdp(
     const PARTITION_TREE *ptree_luma, PARTITION_TYPE current_partition,
     BLOCK_SIZE bsize_luma) {
 #if CONFIG_CWG_F307_CFL_SEQ_FLAG
-  if (!cm->seq_params.enable_cfl_intra) return CFL_DISALLOWED_FOR_CHROMA;
+  if (!cm->seq_params.enable_cfl_intra && !cm->seq_params.enable_mhccp) return CFL_DISALLOWED_FOR_CHROMA;
 #endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
 
   if (!frame_is_intra_only(cm)) return CFL_ALLOWED_FOR_CHROMA;
@@ -4066,7 +4066,7 @@ static AOM_INLINE CFL_ALLOWED_FOR_SDP_TYPE is_cfl_allowed_for_sdp(
     assert(bsize_luma == BLOCK_64X64);
     return is_cfl_allowed_for_this_luma_partition(
 #if CONFIG_CWG_F307_CFL_SEQ_FLAG
-        cm->seq_params.enable_cfl_intra,
+        cm->seq_params.enable_cfl_intra || cm->seq_params.enable_mhccp,
 #endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
         ptree_luma->partition, current_partition);
   }

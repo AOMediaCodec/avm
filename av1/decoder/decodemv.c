@@ -1823,7 +1823,7 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
 #if CONFIG_CWG_F307_CFL_SEQ_FLAG
                                  cm->seq_params.enable_cfl_intra,
 #endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
-                                 xd),
+                                 xd) || is_mhccp_allowed(cm, xd),
                              r);
           mbmi->dpcm_mode_uv = 0;
         } else {
@@ -1841,7 +1841,7 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
 #if CONFIG_CWG_F307_CFL_SEQ_FLAG
                                cm->seq_params.enable_cfl_intra,
 #endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
-                               xd),
+                               xd) || is_mhccp_allowed(cm, xd),
                            r);
         mbmi->use_dpcm_uv = 0;
         mbmi->dpcm_mode_uv = 0;
@@ -2339,7 +2339,7 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
 #if CONFIG_CWG_F307_CFL_SEQ_FLAG
                                cm->seq_params.enable_cfl_intra,
 #endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
-                               xd),
+                               xd) || is_mhccp_allowed(cm, xd),
                            r);
         mbmi->dpcm_mode_uv = 0;
       } else {
@@ -2359,7 +2359,7 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
 #if CONFIG_CWG_F307_CFL_SEQ_FLAG
                              cm->seq_params.enable_cfl_intra,
 #endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
-                             xd),
+                             xd) || is_mhccp_allowed(cm, xd),
                          r);
     }
 
