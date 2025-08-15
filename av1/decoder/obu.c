@@ -653,7 +653,7 @@ static void copy_decoded_tile_to_tile_list_buffer(AV1Decoder *pbi,
     }
   }
 }
-
+#if !CONFIG_F106_OBU_TILEGROUP
 // Only called while large_scale_tile = 1.
 //
 // On success, returns the tile list OBU size. On failure, sets
@@ -739,7 +739,7 @@ static uint32_t read_and_decode_one_tile_list(AV1Decoder *pbi,
   *frame_decoding_finished = 1;
   return tile_list_payload_size;
 }
-
+#endif
 // Returns the last nonzero byte index in 'data'. If there is no nonzero byte in
 // 'data', returns -1.
 static int get_last_nonzero_byte_index(const uint8_t *data, size_t sz) {
