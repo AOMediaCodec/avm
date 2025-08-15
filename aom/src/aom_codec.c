@@ -175,7 +175,6 @@ const char *aom_obu_type_to_string(OBU_TYPE type) {
     case OBU_TILE_GROUP: return "OBU_TILE_GROUP";
 #endif  // CONFIG_F106_OBU_TILEGROUP
     case OBU_METADATA: return "OBU_METADATA";
-    case OBU_TILE_LIST: return "OBU_TILE_LIST";
     case OBU_PADDING: return "OBU_PADDING";
     default: break;
   }

@@ -110,7 +110,6 @@ bool ValidObuType(int obu_type) {
     case OBU_FRAME:
     case OBU_REDUNDANT_FRAME_HEADER:
 #endif  // CONFIG_F106_OBU_TILEGROUP
-    case OBU_TILE_LIST:
     case OBU_PADDING: return true;
   }
   return false;

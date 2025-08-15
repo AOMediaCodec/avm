@@ -1378,26 +1378,6 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
         decoded_payload_size = read_metadata(pbi, data, payload_size);
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
         break;
-      case OBU_TILE_LIST:
-        if (CONFIG_NORMAL_TILE_MODE) {
-          cm->error.error_code = AOM_CODEC_UNSUP_BITSTREAM;
-          return -1;
-        }
-
-        // This OBU type is purely for the large scale tile coding mode.
-        // The common camera frame header has to be already decoded.
-        if (!pbi->camera_frame_header_ready) {
-          cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
-          return -1;
-        }
-
-        cm->tiles.large_scale = 1;
-        av1_set_single_tile_decoding_mode(cm);
-        decoded_payload_size =
-            read_and_decode_one_tile_list(pbi, &rb, data, data + payload_size,
-                                          p_data_end, &frame_decoding_finished);
-        if (cm->error.error_code != AOM_CODEC_OK) return -1;
-        break;
       case OBU_PADDING:
         decoded_payload_size = read_padding(cm, data, payload_size);
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
