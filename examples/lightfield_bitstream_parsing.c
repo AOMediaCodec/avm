@@ -141,7 +141,11 @@ void process_tile_list(const TILE_LIST_INFO *tiles, int num_tiles,
 
   // Write each tile's data
   for (i = 0; i <= num_tiles_minus_1; i++) {
-    aom_tile_data tile_data = { 0, NULL, 0 };
+    aom_tile_data tile_data = { 0, NULL,
+#if !CONFIG_F106_OBU_TILEGROUP
+      0
+#endif
+    };
 
     int image_idx = tiles[i].image_idx;
     int ref_idx = tiles[i].reference_idx;
@@ -293,7 +297,11 @@ int main(int argc, char **argv) {
     size_t frame_size = frame_sizes[0];
     const unsigned char *frame = frames[0];
     pts = num_references;
-    aom_tile_data frame_header_info = { 0, NULL, 0 };
+    aom_tile_data frame_header_info = { 0, NULL,
+#if !CONFIG_F106_OBU_TILEGROUP
+      0
+#endif
+    };
 
     // Need to decode frame header to get camera frame header info. So, here
     // decoding 1 tile is enough.
@@ -310,8 +318,12 @@ int main(int argc, char **argv) {
     size_t obu_size_offset =
         (uint8_t *)frame_header_info.coded_tile_data - frame;
     size_t length_field_size = frame_header_info.coded_tile_data_size;
+#if CONFIG_F106_OBU_TILEGROUP
+    uint32_t frame_header_size = 0;
+#else
     // Remove ext-tile tile info.
     uint32_t frame_header_size = (uint32_t)frame_header_info.extra_size - 1;
+#endif
     size_t bytes_to_copy =
         obu_size_offset + length_field_size + frame_header_size;
 
