@@ -2383,9 +2383,9 @@ static INLINE void setup_default_temporal_layer_dependency_structure(
   }
 }
 
-static INLINE int is_tlayer_scalable(const SequenceHeader *const seq,
-                                     const int curr_layer_id,
-                                     const int ref_layer_id) {
+static INLINE int is_tlayer_scalable_and_dependent(
+    const SequenceHeader *const seq, const int curr_layer_id,
+    const int ref_layer_id) {
   assert(seq->max_tlayer_id >= curr_layer_id &&
          seq->max_tlayer_id >= ref_layer_id);
   // clang-format off
@@ -2421,9 +2421,9 @@ static INLINE void setup_default_embedded_layer_dependency_structure(
   }
 }
 
-static INLINE int is_mlayer_scalable(const SequenceHeader *const seq,
-                                     const int curr_layer_id,
-                                     const int ref_layer_id) {
+static INLINE int is_mlayer_scalable_and_dependent(
+    const SequenceHeader *const seq, const int curr_layer_id,
+    const int ref_layer_id) {
   assert(seq->max_mlayer_id >= curr_layer_id &&
          seq->max_mlayer_id >= ref_layer_id);
   // clang-format off

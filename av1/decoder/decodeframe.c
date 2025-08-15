@@ -7174,15 +7174,15 @@ static INLINE int get_disp_order_hint(AV1_COMMON *const cm) {
     const RefCntBuffer *const buf = cm->ref_frame_map[map_idx];
     if (buf == NULL
 #if CONFIG_MULTILAYER_CORE && CONFIG_MULTILAYER_CORE_HLS
-        || !is_tlayer_scalable(&cm->seq_params,
+        || !is_tlayer_scalable_and_dependent(&cm->seq_params,
 #if CONFIG_NEW_OBU_HEADER
-                               cm->tlayer_id,
+                                             cm->tlayer_id,
 #else
-                               cm->temporal_layer_id,
+                                             cm->temporal_layer_id,
 #endif  // CONFIG_NEW_OBU_HEADER
-                               buf->temporal_layer_id) ||
-        !is_mlayer_scalable(&cm->seq_params, current_frame->layer_id,
-                            buf->layer_id)
+                                             buf->temporal_layer_id) ||
+        !is_mlayer_scalable_and_dependent(
+            &cm->seq_params, current_frame->layer_id, buf->layer_id)
 #else
 #if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
 #if CONFIG_NEW_OBU_HEADER
@@ -7249,15 +7249,15 @@ static INLINE int get_ref_frame_disp_order_hint(AV1_COMMON *const cm,
 #endif  // CONFIG_MULTILAYER_CORE && !CONFIG_MULTILAYER_CORE_HLS
   for (int map_idx = 0; map_idx < INTER_REFS_PER_FRAME; map_idx++) {
 #if CONFIG_MULTILAYER_CORE && CONFIG_MULTILAYER_CORE_HLS
-    if (!is_tlayer_scalable(&cm->seq_params,
+    if (!is_tlayer_scalable_and_dependent(&cm->seq_params,
 #if CONFIG_NEW_OBU_HEADER
-                            cm->tlayer_id,
+                                          cm->tlayer_id,
 #else
-                            cm->temporal_layer_id,
+                                          cm->temporal_layer_id,
 #endif
-                            buf->temporal_layer_id) ||
-        !is_mlayer_scalable(&cm->seq_params, cm->current_frame.layer_id,
-                            buf->layer_id))
+                                          buf->temporal_layer_id) ||
+        !is_mlayer_scalable_and_dependent(
+            &cm->seq_params, cm->current_frame.layer_id, buf->layer_id))
       continue;
 #else
 #if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
@@ -8254,7 +8254,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           // explicit reference frame signaling
           const int cur_mlayer_id = current_frame->layer_id;
           const int ref_mlayer_id = cm->ref_frame_map[ref]->layer_id;
-          if (!is_mlayer_scalable(seq_params, cur_mlayer_id, ref_mlayer_id)) {
+          if (!is_mlayer_scalable_and_dependent(seq_params, cur_mlayer_id,
+                                                ref_mlayer_id)) {
             aom_internal_error(
                 &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                 "Unsupported bitstream: embedded layer scalability shall be "
@@ -8262,7 +8263,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           }
           const int cur_tlayer_id = current_frame->temporal_layer_id;
           const int ref_tlayer_id = cm->ref_frame_map[ref]->temporal_layer_id;
-          if (!is_tlayer_scalable(seq_params, cur_tlayer_id, ref_tlayer_id)) {
+          if (!is_tlayer_scalable_and_dependent(seq_params, cur_tlayer_id,
+                                                ref_tlayer_id)) {
             aom_internal_error(
                 &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                 "Unsupported bitstream: temporal layer scalability shall be "
