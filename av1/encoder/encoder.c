@@ -2537,12 +2537,8 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
         continue;
       }
 #endif
-      for (int v_pos = y_pos; v_pos < y_pos + cm->gdf_info.gdf_block_size &&
-                              v_pos < (rec_height
-#if CONFIG_GDF_IMPROVEMENT
-                                       - GDF_TEST_STRIPE_OFF
-#endif
-                                      );
+      for (int v_pos = y_pos;
+           v_pos < y_pos + cm->gdf_info.gdf_block_size && v_pos < rec_height;
            v_pos += cm->gdf_info.gdf_unit_size) {
         int i_min = AOMMAX(v_pos, GDF_TEST_FRAME_BOUNDARY_SIZE);
         int i_max = AOMMIN(v_pos + cm->gdf_info.gdf_unit_size,
