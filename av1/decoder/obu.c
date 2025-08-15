@@ -119,7 +119,7 @@ static int read_bitstream_level(AV1_LEVEL *seq_level_idx,
   return 1;
 }
 
-#if CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
+#if CONFIG_MULTILAYER_CORE_HLS
 static void aom_read_tlayer_dependency_info(SequenceHeader *const seq,
                                             struct aom_read_bit_buffer *rb) {
   const int max_layer_id = seq->max_tlayer_id;
@@ -141,7 +141,7 @@ static void aom_read_mlayer_dependency_info(SequenceHeader *const seq,
     }
   }
 }
-#endif  // CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
+#endif  // CONFIG_MULTILAYER_CORE_HLS
 
 // Returns whether two sequence headers are consistent with each other.
 // Note that the 'op_params' field is not compared per Section 7.5 in the spec:
@@ -320,7 +320,7 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
     cm->error.error_code = AOM_CODEC_ERROR;
     return 0;
   }
-#if CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
+#if CONFIG_MULTILAYER_CORE_HLS
   if (seq_params->reduced_still_picture_hdr) {
     seq_params->max_tlayer_id = 0;
     seq_params->max_mlayer_id = 0;
@@ -351,7 +351,7 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
   if (seq_params->mlayer_dependency_present_flag) {
     aom_read_mlayer_dependency_info(seq_params, rb);
   }
-#endif  // CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
+#endif  // CONFIG_MULTILAYER_CORE_HLS
 
   av1_read_sequence_header(
 #if !CWG_F215_CONFIG_REMOVE_FRAME_ID

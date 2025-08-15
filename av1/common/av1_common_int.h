@@ -84,22 +84,22 @@ extern "C" {
 #define MAX_NUM_MLAYERS 8
 #define MAX_NUM_XLAYERS 32
 #define MAX_NUM_OPERATING_POINTS (MAX_NUM_TLAYERS * MAX_NUM_MLAYERS)
-#if CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
+#if CONFIG_MULTILAYER_CORE_HLS
 // bits for temporal and embedded layers
 #define TLAYER_BITS 3  // 3 bits for MAX_NUM_TLAYERS
 #define MLAYER_BITS 3  // 3 bits for MAX_NUM_MLAYERS
-#endif                 // CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
+#endif                 // CONFIG_MULTILAYER_CORE_HLS
 #else
 #define MAX_NUM_TEMPORAL_LAYERS 8
 #define MAX_NUM_SPATIAL_LAYERS 4
-#if CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
+#if CONFIG_MULTILAYER_CORE_HLS
 // maximum number of layers
 #define MAX_NUM_TLAYERS MAX_NUM_TEMPORAL_LAYERS
 #define MAX_NUM_MLAYERS MAX_NUM_SPATIAL_LAYERS
 // bits for temporal and embedded layers
 #define TLAYER_BITS 3  // 3 bits for MAX_NUM_TEMPORAL_LAYERS
 #define MLAYER_BITS 2  // 2 bits for MAX_NUM_SPATIAL_LAYERS
-#endif                 // CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
+#endif                 // CONFIG_MULTILAYER_CORE_HLS
 /* clang-format off */
 // clang-format seems to think this is a pointer dereference and not a
 // multiplication.
@@ -759,7 +759,7 @@ typedef struct SequenceHeader {
   AV1_LEVEL seq_level_idx[MAX_NUM_OPERATING_POINTS];
   uint8_t tier[MAX_NUM_OPERATING_POINTS];  // seq_tier in spec. One bit: 0 or 1.
 
-#if CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
+#if CONFIG_MULTILAYER_CORE_HLS
   // Dependency structure descriptors
   int max_tlayer_id;
   int max_mlayer_id;
@@ -769,7 +769,7 @@ typedef struct SequenceHeader {
   // Dependency structure arrays
   int tlayer_dependency_map[MAX_NUM_TLAYERS][MAX_NUM_TLAYERS];
   int mlayer_dependency_map[MAX_NUM_MLAYERS][MAX_NUM_MLAYERS];
-#endif  // CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
+#endif  // CONFIG_MULTILAYER_CORE_HLS
 
   uint8_t df_par_bits_minus2;
 
@@ -2371,7 +2371,7 @@ static INLINE int get_ref_frame_map_idx(const AV1_COMMON *const cm,
              : INVALID_IDX;
 }
 
-#if CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
+#if CONFIG_MULTILAYER_CORE_HLS
 static INLINE void aom_setup_default_temporal_layer_dependency_structure(
     SequenceHeader *const seq) {
   const int max_layer_id = seq->max_tlayer_id;
@@ -2449,7 +2449,7 @@ static INLINE int is_mlayer_scalable(const SequenceHeader *const seq,
   // clang-format on
 }
 
-#endif  // CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
+#endif  // CONFIG_MULTILAYER_CORE_HLS
 
 static INLINE void get_secondary_reference_frame_idx(const AV1_COMMON *const cm,
                                                      int *ref_frame_used,

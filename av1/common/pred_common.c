@@ -182,7 +182,7 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
     const int ref_layer_id = cur_ref.layer_id;
     const int cur_temporal_id = cm->current_frame.temporal_layer_id;
     const int ref_temporal_id = cur_ref.temporal_layer_id;
-#if CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
+#if CONFIG_MULTILAYER_CORE_HLS
     if (!is_tlayer_scalable(&cm->seq_params, cur_temporal_id,
                             ref_temporal_id) ||
         !is_mlayer_scalable(&cm->seq_params, cur_layer_id, ref_layer_id))
@@ -191,7 +191,7 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
     if (ref_layer_id > cur_layer_id) {
       continue;
     }
-#endif  // CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
+#endif  // CONFIG_MULTILAYER_CORE_HLS
 #endif  // CONFIG_MULTILAYER_CORE
     // In error resilient mode, ref mapping must be independent of the
     // base_qindex to ensure decoding independency
