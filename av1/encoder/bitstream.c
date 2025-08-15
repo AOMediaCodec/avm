@@ -6571,10 +6571,10 @@ static AOM_INLINE void write_uncompressed_header_obu(
     if (seq_params->film_grain_params_present
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
-        && (cm->seq_params.enable_frame_output_order ||
-         cm->show_frame || cm->showable_frame)
+        && (cm->seq_params.enable_frame_output_order || cm->show_frame ||
+            cm->showable_frame)
 #endif
-        )
+    )
 #else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
         && (cm->show_frame || cm->showable_frame))
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
@@ -6733,10 +6733,10 @@ static AOM_INLINE void write_uncompressed_header_obu(
   if (seq_params->film_grain_params_present
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
-      && (cm->seq_params.enable_frame_output_order ||
-          cm->show_frame || cm->showable_frame)
+      && (cm->seq_params.enable_frame_output_order || cm->show_frame ||
+          cm->showable_frame)
 #endif
-      )
+  )
 #else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
       && (cm->show_frame || cm->showable_frame))
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
