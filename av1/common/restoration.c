@@ -29,6 +29,8 @@
 
 #include "aom_ports/mem.h"
 
+/* clang-format off */
+
 #define AOM_WIENERNS_COEFF(p, b, m, k) \
   { (b) + (p) - 6, (m) * (1 << ((p) - 6)), k }
 
@@ -109,6 +111,9 @@
     (coeff),                                                                  \
     sizeof(subset_cfg) / sizeof(subset_cfg[0]),                               \
     (subset_cfg) }
+
+/* clang-format on */
+
 ///////////////////////////////////////////////////////////////////////////
 // First filter configuration
 ///////////////////////////////////////////////////////////////////////////
