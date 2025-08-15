@@ -8334,7 +8334,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
   uint32_t obu_payload_size = 0;
 #if !F106_OBU_TILEGROUP
   FrameHeaderInfo fh_info = { NULL, 0, 0 };
-#endif // !F106_OBU_TILEGROUP
+#endif  // !F106_OBU_TILEGROUP
 #if CONFIG_NEW_OBU_HEADER
   const int obu_temporal = cm->tlayer_id;
   const int obu_mlayer = cm->mlayer_id;

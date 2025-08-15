@@ -7589,8 +7589,9 @@ static void read_frame_max_bvp_drl_bits(AV1_COMMON *const cm,
 // return.
 #if !F106_OBU_TILEGROUP
 static
-#endif // !F106_OBU_TILEGROUP
-int read_uncompressed_header(AV1Decoder *pbi,
+#endif  // !F106_OBU_TILEGROUP
+    int
+    read_uncompressed_header(AV1Decoder *pbi,
 #if F106_OBU_SWITCH || F106_OBU_SEF || F106_OBU_TIP
                              OBU_TYPE obu_type,
 #endif  // F106_OBU_SWITCH || F106_OBU_SEF || F106_OBU_TIP
@@ -9632,7 +9633,7 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
                                             int trailing_bits_present
 #endif  // F106_OBU_SWITCH || F106_OBU_SEF || F106_OBU_TIP
 ) {
- 
+
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(pbi, av1_decode_frame_headers_and_setup_time);
 #endif

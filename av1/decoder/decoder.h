@@ -421,10 +421,10 @@ typedef struct AV1Decoder {
    */
   uint64_t frame_component_time[kTimingComponents];
 #endif
-  
+
 #if F106_OBU_TILEGROUP
   uint32_t uch_size_in_bits;
-#endif // F106_OBU_TILEGROUP
+#endif  // F106_OBU_TILEGROUP
 
 } AV1Decoder;
 
