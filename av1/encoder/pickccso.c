@@ -1880,11 +1880,7 @@ void ccso_search(AV1_COMMON *cm, MACROBLOCKD *xd, int rdmult,
 ) {
   int rdmult_weight = clamp(cm->quant_params.base_qindex >> 3, 1, 37);
   int64_t rdmult_temp = (int64_t)rdmult * (int64_t)rdmult_weight;
-  if (rdmult_temp >= INT_MAX
-#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
-      || is_global_intrabc_allowed(cm)
-#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
-  ) {
+  if (rdmult_temp >= INT_MAX) {
     cm->ccso_info.ccso_frame_flag = false;
     cm->ccso_info.ccso_enable[0] = cm->ccso_info.ccso_enable[1] =
         cm->ccso_info.ccso_enable[2] = 0;

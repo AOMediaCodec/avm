@@ -1678,12 +1678,7 @@ static AOM_INLINE void write_cdef(const AV1_COMMON *cm, MACROBLOCKD *const xd,
 static AOM_INLINE void write_cdef(AV1_COMMON *cm, MACROBLOCKD *const xd,
 #endif  // CONFIG_BRU
                                   aom_writer *w, int skip) {
-  if (cm->features.coded_lossless
-#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
-      || is_global_intrabc_allowed(cm)
-#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
-  )
-    return;
+  if (cm->features.coded_lossless) return;
   if (!cm->cdef_info.cdef_frame_enable) return;
 
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
@@ -1731,9 +1726,6 @@ static AOM_INLINE void write_ccso(AV1_COMMON *cm, MACROBLOCKD *const xd,
 #endif  // CONFIG_BRU
                                   aom_writer *w) {
   if (cm->features.coded_lossless) return;
-#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
-  if (is_global_intrabc_allowed(cm)) return;
-#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
@@ -3235,12 +3227,7 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
 
   if (!mbmi->skip_txfm[xd->tree_type == CHROMA_PART]) {
     write_tokens_b(cpi, w, tok, tok_end);
-  } else if (
-#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
-      !is_global_intrabc_allowed(cm) &&
-#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
-      !cm->features.coded_lossless) {
-
+  } else if (!cm->features.coded_lossless) {
     // Assert only when LR is enabled.
     assert(1 == av1_get_txk_skip(cm, xd->mi_row, xd->mi_col, xd->tree_type,
                                  &xd->mi[0]->chroma_ref_info, 0, 0, 0));
@@ -3902,9 +3889,6 @@ static AOM_INLINE void encode_restoration_mode(
     AV1_COMMON *cm, struct aom_write_bit_buffer *wb) {
   assert(!cm->features.all_lossless);
   if (!cm->seq_params.enable_restoration) return;
-#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
-  if (is_global_intrabc_allowed(cm)) return;
-#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
 #if CONFIG_BRU
   if (cm->bru.frame_inactive_flag) return;
 #endif  // CONFIG_BRU
@@ -4408,9 +4392,6 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
 static AOM_INLINE void encode_loopfilter(AV1_COMMON *cm,
                                          struct aom_write_bit_buffer *wb) {
   assert(!cm->features.coded_lossless);
-#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
-  if (is_global_intrabc_allowed(cm)) return;
-#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
 #if CONFIG_BRU
   if (cm->bru.frame_inactive_flag) return;
 #endif  // CONFIG_BRU
@@ -4551,9 +4532,6 @@ static AOM_INLINE void encode_cdef(const AV1_COMMON *cm,
                                    struct aom_write_bit_buffer *wb) {
   assert(!cm->features.coded_lossless);
   if (!cm->seq_params.enable_cdef) return;
-#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
-  if (is_global_intrabc_allowed(cm)) return;
-#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
   const CdefInfo *const cdef_info = &cm->cdef_info;
 #if CONFIG_BRU
   if (cm->bru.frame_inactive_flag) return;
@@ -4597,9 +4575,6 @@ static AOM_INLINE void write_ccso_offset_idx(struct aom_write_bit_buffer *wb,
 }
 static AOM_INLINE void encode_ccso(const AV1_COMMON *cm,
                                    struct aom_write_bit_buffer *wb) {
-#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
-  if (is_global_intrabc_allowed(cm)) return;
-#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
 #if CONFIG_BRU
   if (cm->bru.frame_inactive_flag) return;
 #endif  // CONFIG_BRU
@@ -6743,12 +6718,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
     if (delta_q_info->delta_q_present_flag) {
       aom_wb_write_literal(wb, get_msb(delta_q_info->delta_q_res), 2);
       xd->current_base_qindex = quant_params->base_qindex;
-#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
-      if (is_global_intrabc_allowed(cm))
-        assert(delta_q_info->delta_lf_present_flag == 0);
-      else
-#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
-        aom_wb_write_bit(wb, delta_q_info->delta_lf_present_flag);
+      aom_wb_write_bit(wb, delta_q_info->delta_lf_present_flag);
       if (delta_q_info->delta_lf_present_flag) {
         aom_wb_write_literal(wb, get_msb(delta_q_info->delta_lf_res), 2);
         aom_wb_write_bit(wb, delta_q_info->delta_lf_multi);

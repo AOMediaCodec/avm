@@ -4043,35 +4043,10 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
   av1_set_lr_tools(master_lr_tools_disable_mask[1], 2, &cm->features);
 
   // Pick the loop filter level for the frame.
-#if CONFIG_ENABLE_INLOOP_FILTER_GIBC
 #if CONFIG_BRU
   if (!cm->bru.frame_inactive_flag)
 #endif  // CONFIG_BRU
     loopfilter_frame(cpi, cm);
-#else
-  if (!is_global_intrabc_allowed(cm)
-#if CONFIG_BRU
-      && !cm->bru.frame_inactive_flag
-#endif  // CONFIG_BRU
-  ) {
-    loopfilter_frame(cpi, cm);
-  } else {
-    cm->lf.filter_level[0] = 0;
-    cm->lf.filter_level[1] = 0;
-    cm->cdef_info.cdef_frame_enable = 0;
-    cm->rst_info[0].frame_restoration_type = RESTORE_NONE;
-    cm->rst_info[1].frame_restoration_type = RESTORE_NONE;
-    cm->rst_info[2].frame_restoration_type = RESTORE_NONE;
-    cm->ccso_info.ccso_frame_flag = false;
-    cm->ccso_info.ccso_enable[0] = cm->ccso_info.ccso_enable[1] =
-        cm->ccso_info.ccso_enable[2] = 0;
-    for (int plane = 0; plane < av1_num_planes(cm); plane++) {
-      cm->cur_frame->ccso_info.ccso_enable[plane] = 0;
-      cm->ccso_info.sb_reuse_ccso[plane] = false;
-      cm->ccso_info.reuse_ccso[plane] = false;
-    }
-  }
-#endif  // CONFIG_ENABLE_INLOOP_FILTER_GIBC
   int64_t tip_as_output_sse = INT64_MAX;
   int64_t tip_as_output_rate = INT64_MAX;
 

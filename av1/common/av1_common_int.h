@@ -4996,16 +4996,6 @@ static AOM_INLINE int is_optflow_refinement_enabled(const AV1_COMMON *cm,
   }
 }
 
-#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
-static INLINE int is_global_intrabc_allowed(const AV1_COMMON *const cm) {
-#if CONFIG_IBC_SR_EXT
-  return frame_is_intra_only(cm) && cm->features.allow_intrabc &&
-         cm->features.allow_global_intrabc;
-#else
-  return cm->features.allow_intrabc;
-#endif
-}
-#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
 /*!\endcond */
 
 static inline int is_this_mv_precision_compliant(

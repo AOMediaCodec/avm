@@ -1074,11 +1074,7 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
   const uint8_t *entropy_ctx = cb_coef_buff->entropy_ctx[plane] + txb_offset;
   const TX_SIZE txs_ctx = get_txsize_entropy_ctx(tx_size);
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
-  if (
-#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
-      !is_global_intrabc_allowed(cm) &&
-#endif  // CONFIG_ENABLE_INLOOP_FILTER_GIBC
-      !cm->features.coded_lossless) {
+  if (!cm->features.coded_lossless) {
     // Assert only when LR is enabled.
     assert((eob == 0) == av1_get_txk_skip(cm, xd->mi_row, xd->mi_col,
                                           xd->tree_type,

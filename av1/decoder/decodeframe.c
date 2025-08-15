@@ -2679,9 +2679,6 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
                                                struct aom_read_bit_buffer *rb) {
   assert(!cm->features.all_lossless);
   const int num_planes = av1_num_planes(cm);
-#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
-  if (is_global_intrabc_allowed(cm)) return;
-#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
   int luma_none = 1, chroma_none = 1;
   for (int p = 0; p < num_planes; ++p) {
     RestorationInfo *rsi = &cm->rst_info[p];
@@ -3166,11 +3163,7 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
                                         struct aom_read_bit_buffer *rb) {
   const int num_planes = av1_num_planes(cm);
   struct loopfilter *lf = &cm->lf;
-  if (
-#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
-      is_global_intrabc_allowed(cm) ||
-#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
-      cm->features.coded_lossless) {
+  if (cm->features.coded_lossless) {
     // write default deltas to frame buffer
     av1_set_default_ref_deltas(cm->cur_frame->ref_deltas);
     av1_set_default_mode_deltas(cm->cur_frame->mode_deltas);
@@ -3357,9 +3350,6 @@ static AOM_INLINE void setup_cdef(AV1_COMMON *cm,
                                   struct aom_read_bit_buffer *rb) {
   const int num_planes = av1_num_planes(cm);
   CdefInfo *const cdef_info = &cm->cdef_info;
-#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
-  if (is_global_intrabc_allowed(cm)) return;
-#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
 #if CONFIG_BRU
   if (cm->bru.frame_inactive_flag) return;
 #endif  // CONFIG_BRU
@@ -3413,14 +3403,6 @@ static AOM_INLINE int read_ccso_offset_idx(struct aom_read_bit_buffer *rb) {
 }
 static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
                                   struct aom_read_bit_buffer *rb) {
-#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
-  if (is_global_intrabc_allowed(cm)) {
-    cm->cur_frame->ccso_info.ccso_enable[0] = 0;
-    cm->cur_frame->ccso_info.ccso_enable[1] = 0;
-    cm->cur_frame->ccso_info.ccso_enable[2] = 0;
-    return;
-  }
-#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
 #if CONFIG_BRU
   if (cm->bru.frame_inactive_flag) {
     cm->cur_frame->ccso_info.ccso_enable[0] = 0;
@@ -8680,11 +8662,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   }
 #endif  // CONFIG_BRU
 
-  if (
-#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
-      is_global_intrabc_allowed(cm) ||
-#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
-      features->tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
+  if (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
     // Set parameters corresponding to no filtering.
     struct loopfilter *lf = &cm->lf;
     lf->filter_level[0] = 0;
@@ -8795,10 +8773,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   if (cm->delta_q_info.delta_q_present_flag) {
     xd->current_base_qindex = quant_params->base_qindex;
     cm->delta_q_info.delta_q_res = 1 << aom_rb_read_literal(rb, 2);
-#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
-    if (!is_global_intrabc_allowed(cm))
-#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
-      cm->delta_q_info.delta_lf_present_flag = aom_rb_read_bit(rb);
+    cm->delta_q_info.delta_lf_present_flag = aom_rb_read_bit(rb);
     if (cm->delta_q_info.delta_lf_present_flag) {
       cm->delta_q_info.delta_lf_res = 1 << aom_rb_read_literal(rb, 2);
       cm->delta_q_info.delta_lf_multi = aom_rb_read_bit(rb);
@@ -9395,9 +9370,6 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
 #endif  // CONFIG_BRU
 
   if (
-#if !CONFIG_ENABLE_INLOOP_FILTER_GIBC
-      !is_global_intrabc_allowed(cm) &&
-#endif  // !CONFIG_ENABLE_INLOOP_FILTER_GIBC
 #if CONFIG_BRU
       !cm->bru.frame_inactive_flag &&
 #endif  // CONFIG_BRU
