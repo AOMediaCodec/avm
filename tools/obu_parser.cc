@@ -90,26 +90,27 @@ bool ValidObuType(int obu_type) {
   switch (obu_type) {
     case OBU_SEQUENCE_HEADER:
     case OBU_TEMPORAL_DELIMITER:
-#if F106_OBU_SWITCH
+#if CONFIG_F106_OBU_SWITCH
     case OBU_SWITCH:
-#endif  // F106_OBU_SWITCH
-#if F106_OBU_SEF
+#endif  // CONFIG_F106_OBU_SWITCH
+#if CONFIG_F106_OBU_SEF
     case OBU_SEF:
-#endif  // F106_OBU_SEF
-#if F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_SEF
+#if CONFIG_F106_OBU_TIP
     case OBU_TIP:
-#endif  // F106_OBU_TIP
-#if F106_OBU_TILEGROUP
+#endif  // CONFIG_F106_OBU_TIP
+#if CONFIG_F106_OBU_TILEGROUP
     case OBU_TILEGROUP:
-    case OBU_METADATA:
 #else
     case OBU_FRAME_HEADER:
     case OBU_TILE_GROUP:
+#endif // CONFIG_F106_OBU_TILEGROUP
     case OBU_METADATA:
+#if !CONFIG_F106_OBU_TILEGROUP
     case OBU_FRAME:
     case OBU_REDUNDANT_FRAME_HEADER:
+#endif // CONFIG_F106_OBU_TILEGROUP
     case OBU_TILE_LIST:
-#endif  // F106_OBU_TILEGROUP
     case OBU_PADDING: return true;
   }
   return false;

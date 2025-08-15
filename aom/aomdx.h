@@ -100,8 +100,10 @@ typedef struct aom_tile_data {
   size_t coded_tile_data_size;
   /*! Tile's start address. */
   const void *coded_tile_data;
+#if !CONFIG_F106_OBU_TILEGROUP
   /*! Extra size information. */
   size_t extra_size;
+#endif
 } aom_tile_data;
 
 /*!\brief Max number of tile columns

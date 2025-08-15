@@ -157,26 +157,25 @@ const char *aom_obu_type_to_string(OBU_TYPE type) {
   switch (type) {
     case OBU_SEQUENCE_HEADER: return "OBU_SEQUENCE_HEADER";
     case OBU_TEMPORAL_DELIMITER: return "OBU_TEMPORAL_DELIMITER";
-#if F106_OBU_SWITCH
+#if CONFIG_F106_OBU_SWITCH
     case OBU_SWITCH: return "OBU_SWITCH";
-#endif  // F106_OBU_SWITCH
-#if F106_OBU_SEF
+#endif  // CONFIG_F106_OBU_SWITCH
+#if CONFIG_F106_OBU_SEF
     case OBU_SEF: return "OBU_SEF";
-#endif  // F106_OBU_SEF
-#if F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_SEF
+#if CONFIG_F106_OBU_TIP
     case OBU_TIP: return "OBU_TIP";
-#endif  // F106_OBU_TIP
-#if F106_OBU_TILEGROUP
+#endif  // CONFIG_F106_OBU_TIP
+#if CONFIG_F106_OBU_TILEGROUP
     case OBU_TILEGROUP: return "OBU_TILEGROUP";
-    case OBU_METADATA: return "OBU_METADATA";
 #else
     case OBU_FRAME_HEADER: return "OBU_FRAME_HEADER";
     case OBU_REDUNDANT_FRAME_HEADER: return "OBU_REDUNDANT_FRAME_HEADER";
     case OBU_FRAME: return "OBU_FRAME";
     case OBU_TILE_GROUP: return "OBU_TILE_GROUP";
+#endif  // CONFIG_F106_OBU_TILEGROUP
     case OBU_METADATA: return "OBU_METADATA";
     case OBU_TILE_LIST: return "OBU_TILE_LIST";
-#endif  // F106_OBU_TILEGROUP
     case OBU_PADDING: return "OBU_PADDING";
     default: break;
   }

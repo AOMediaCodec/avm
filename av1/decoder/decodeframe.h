@@ -56,32 +56,36 @@ BITSTREAM_PROFILE av1_read_profile(struct aom_read_bit_buffer *rb);
 // failure.
 int av1_check_trailing_bits(struct AV1Decoder *pbi,
                             struct aom_read_bit_buffer *rb);
-#if F106_OBU_TILEGROUP
-// On success, returns the frame header size. On failure, calls
+
+#if CONFIG_F106_OBU_TILEGROUP
+// On success, returns the tilegroup header size. On failure, calls
 // aom_internal_error and does not return.
-// TODO(wtc): Figure out and document the p_data_end parameter.
 int32_t read_tilegroup_header(struct AV1Decoder *pbi,
                               struct aom_read_bit_buffer *rb,
                               const uint8_t *data, const uint8_t **p_data_end,
                               int *first_tile_group_in_frame, int *start_tile,
                               int *end_tile, OBU_TYPE obu_type);
-#endif  // F106_OBU_TILEGROUP
-// On success, returns the frame header size. On failure, calls
-// aom_internal_error and does not return.
-// TODO(wtc): Figure out and document the p_data_end parameter.
-#if F106_OBU_SWITCH || F106_OBU_SEF || F106_OBU_TIP
-uint32_t av1_decode_frame_headers_and_setup(struct AV1Decoder *pbi,
-                                            struct aom_read_bit_buffer *rb,
-                                            const uint8_t *data,
-                                            const uint8_t **p_data_end,
-                                            OBU_TYPE obu_type);
+#endif  // CONFIG_F106_OBU_TILEGROUP
+
+#if CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
+// On success, returns the tilegroup header size. On failure, calls
 #else
+// On success, returns the frame header size. On failure, calls
+#endif // CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
+// aom_internal_error and does not return.
+#if !CONFIG_F106_OBU_SWITCH && !CONFIG_F106_OBU_SEF && !CONFIG_F106_OBU_TIP
+// TODO(wtc): Figure out and document the p_data_end parameter.
+#endif // !CONFIG_F106_OBU_SWITCH && !CONFIG_F106_OBU_SEF && !CONFIG_F106_OBU_TIP
 uint32_t av1_decode_frame_headers_and_setup(struct AV1Decoder *pbi,
                                             struct aom_read_bit_buffer *rb,
                                             const uint8_t *data,
                                             const uint8_t **p_data_end,
-                                            int trailing_bits_present);
-#endif  // F106_OBU_SWITCH || F106_OBU_SEF || F106_OBU_TIP
+#if CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
+                                            OBU_TYPE obu_type
+#else
+                                            int trailing_bits_present
+#endif
+                                            );
 void av1_decode_tg_tiles_and_wrapup(struct AV1Decoder *pbi, const uint8_t *data,
                                     const uint8_t *data_end,
                                     const uint8_t **p_data_end, int start_tile,

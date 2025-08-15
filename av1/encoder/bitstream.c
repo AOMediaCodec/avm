@@ -6130,36 +6130,38 @@ static AOM_INLINE void write_screen_content_params(
     assert(features->cur_frame_force_integer_mv == 0);
   }
 }
-#if F106_OBU_SEF
-static AOM_INLINE void write_show_exisiting_frame(
-    AV1_COMP *cpi, struct aom_write_bit_buffer *wb) {
+#if CONFIG_F106_OBU_SEF
+static AOM_INLINE void write_show_exisiting_frame(AV1_COMP *cpi, struct aom_write_bit_buffer *wb) {
   AV1_COMMON *const cm = &cpi->common;
   const SequenceHeader *const seq_params = &cm->seq_params;
+  
   aom_wb_write_literal(wb, cpi->existing_fb_idx_to_show,
                        cm->seq_params.ref_frames_log2);
-
+  
   if (seq_params->decoder_model_info_present_flag &&
       seq_params->timing_info.equal_picture_interval == 0) {
     write_tu_pts_info(cm, wb);
   }
+#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
   if (seq_params->frame_id_numbers_present_flag) {
     int frame_id_len = seq_params->frame_id_length;
     int display_frame_id = cm->ref_frame_id[cpi->existing_fb_idx_to_show];
     aom_wb_write_literal(wb, display_frame_id, frame_id_len);
   }
+#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
   return;
 }
-#endif  // F106_OBU_SEF
+#endif  // CONFIG_F106_OBU_SEF
 // New function based on HLS R18
-#if F106_OBU_TILEGROUP
+#if CONFIG_F106_OBU_TILEGROUP
 static AOM_INLINE void write_uncompressed_header
 #else
 static AOM_INLINE void write_uncompressed_header_obu
-#endif  // !F106_OBU_TILEGROUP
+#endif  // !CONFIG_F106_OBU_TILEGROUP
     (AV1_COMP *cpi,
-#if F106_OBU_SWITCH || F106_OBU_SEF || F106_OBU_TIP
+#if CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
      OBU_TYPE obu_type,
-#endif  // F106_OBU_SWITCH || F106_OBU_SEF || F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
      struct aom_write_bit_buffer *saved_wb, struct aom_write_bit_buffer *wb) {
   AV1_COMMON *const cm = &cpi->common;
   const SequenceHeader *const seq_params = &cm->seq_params;
@@ -6174,7 +6176,7 @@ static AOM_INLINE void write_uncompressed_header_obu
     assert(current_frame->frame_type == KEY_FRAME);
   }
   if (!seq_params->reduced_still_picture_hdr) {
-#if F106_OBU_SEF
+#if CONFIG_F106_OBU_SEF
     if (obu_type == OBU_SEF) write_show_exisiting_frame(cpi, wb);
 #else
     if (encode_show_existing_frame(cm)) {
@@ -6197,17 +6199,17 @@ static AOM_INLINE void write_uncompressed_header_obu
     } else {
       aom_wb_write_bit(wb, 0);  // show_existing_frame
     }
-#endif  // F106_OBU_SEF
-#if F106_OBU_SWITCH || F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_SEF
+#if CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_TIP
     bool frame_type_signaled = true;
-#if F106_OBU_SWITCH
+#if CONFIG_F106_OBU_SWITCH
     frame_type_signaled &= (obu_type != OBU_SWITCH);
-#endif  // F106_OBU_SWITCH
-#if F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_SWITCH
+#if CONFIG_F106_OBU_TIP
     frame_type_signaled &= (obu_type != OBU_TIP);
-#endif  // F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_TIP
     if (frame_type_signaled) {
-#endif  // F106_OBU_SWITCH || F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_TIP
 
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
       const int is_inter_frame = (current_frame->frame_type == INTER_FRAME);
@@ -6215,18 +6217,18 @@ static AOM_INLINE void write_uncompressed_header_obu
       if (!is_inter_frame) {
         const int is_key_frame = (current_frame->frame_type == KEY_FRAME);
         aom_wb_write_bit(wb, is_key_frame);
-#if !F106_OBU_SWITCH
+#if !CONFIG_F106_OBU_SWITCH
         if (!is_key_frame) {
           aom_wb_write_bit(wb, current_frame->frame_type == INTRA_ONLY_FRAME);
         }
-#endif  // !F106_OBU_SWITCH
+#endif  // !CONFIG_F106_OBU_SWITCH
       }
 #else
     aom_wb_write_literal(wb, current_frame->frame_type, 2);
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
-#if F106_OBU_SWITCH || F106_OBU_TIP
+#if CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_TIP
     }
-#endif  // F106_OBU_SWITCH || F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_TIP
     aom_wb_write_bit(wb, cm->show_frame);
     if (cm->show_frame) {
       if (seq_params->decoder_model_info_present_flag &&
@@ -6484,11 +6486,11 @@ static AOM_INLINE void write_uncompressed_header_obu
       }
 #endif  // CONFIG_ACROSS_SCALE_REF_OPT
 #if CONFIG_BRU
-#if F106_OBU_TIP
+#if CONFIG_F106_OBU_TIP
       if (obu_type != OBU_TIP && current_frame->frame_type == INTER_FRAME)
 #else
       if (current_frame->frame_type == INTER_FRAME)
-#endif  // F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_TIP
       {
         encode_bru_active_info(cpi, wb);
       }
@@ -6565,14 +6567,14 @@ static AOM_INLINE void write_uncompressed_header_obu
       ) {
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
         if (cm->seq_params.enable_tip == 1) {
-#if F106_OBU_TIP
+#if CONFIG_F106_OBU_TIP
           if (obu_type != OBU_TIP)
 #else
           const int is_tip_direct_output =
               (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT);
           aom_wb_write_bit(wb, is_tip_direct_output);
           if (!is_tip_direct_output)
-#endif  // F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_TIP
           {
             aom_wb_write_bit(wb, features->tip_frame_mode == TIP_FRAME_AS_REF);
           }
@@ -7060,27 +7062,27 @@ uint32_t av1_write_obu_header(AV1LevelParams *const level_params,
                               int obu_extension,
 #endif  // CONFIG_NEW_OBU_HEADER
                               uint8_t *const dst) {
-#if F106_OBU_TILEGROUP
+#if CONFIG_F106_OBU_TILEGROUP
   bool count_header = (obu_type == OBU_TILEGROUP);
 #else
   bool count_header = (obu_type == OBU_FRAME || obu_type == OBU_FRAME_HEADER);
-#endif  // !F106_OBU_TILEGROUP
-#if F106_OBU_SWITCH
+#endif  // !CONFIG_F106_OBU_TILEGROUP
+#if CONFIG_F106_OBU_SWITCH
   count_header |= (obu_type == OBU_SWITCH);
-#endif  // F106_OBU_SWITCH
-#if F106_OBU_SEF
+#endif  // CONFIG_F106_OBU_SWITCH
+#if CONFIG_F106_OBU_SEF
   count_header |= (obu_type == OBU_SEF);
-#endif  // F106_OBU_SEF
-#if F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_SEF
+#if CONFIG_F106_OBU_TIP
   count_header |= (obu_type == OBU_TIP);
-#endif  // F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_TIP
 
   if (level_params->keep_level_stats &&
-#if F106_OBU_SWITCH || F106_OBU_SEF || F106_OBU_TIP || F106_OBU_TILEGROUP
+#if CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP || CONFIG_F106_OBU_TILEGROUP
       count_header
 #else
       (obu_type == OBU_FRAME || obu_type == OBU_FRAME_HEADER)
-#endif  // F106_OBU_SWITCH || F106_OBU_SEF || F106_OBU_TIP || F106_OBU_TILEGROUP
+#endif  // CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP || CONFIG_F106_OBU_TILEGROUP
   )
     ++level_params->frame_header_count;
 
@@ -7281,7 +7283,7 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
   size = aom_wb_bytes_written(&wb);
   return size;
 }
-#if F106_OBU_TILEGROUP
+#if CONFIG_F106_OBU_TILEGROUP
 static uint32_t write_tilegroup_payload_large_scale(
     AV1_COMP *const cpi, uint8_t *const dst,
     struct aom_write_bit_buffer *saved_wb, int *const largest_tile_id) {
@@ -7416,7 +7418,7 @@ static uint32_t write_tilegroup_payload(AV1_COMP *const cpi, uint8_t *const dst,
   // int curr_tg_data_size = 0;
 
   *largest_tile_id = 0;
-#if F106_OBU_TILEGROUP  //[jkei] is "large_scale" defined in the spec?
+#if CONFIG_F106_OBU_TILEGROUP  //[jkei] is "large_scale" defined in the spec?
   if (tiles->large_scale) {
     return write_tilegroup_payload_large_scale(cpi, dst, saved_wb,
                                                largest_tile_id);
@@ -7468,7 +7470,7 @@ static uint32_t write_tilegroup_payload(AV1_COMP *const cpi, uint8_t *const dst,
 
     return wpos;
   }
-#endif  // F106_OBU_TILEGROUP
+#endif  // CONFIG_F106_OBU_TILEGROUP
 
   uint8_t *tile_data_start = dst + total_size;
   int tile_idx = 0;
@@ -7581,21 +7583,21 @@ static uint32_t write_tile_indices_in_tilegroup(
   return size;
 }
 static uint32_t write_tilegroup_header(AV1_COMP *cpi,
-#if F106_OBU_SWITCH || F106_OBU_SEF || F106_OBU_TIP
+#if CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
                                        OBU_TYPE obu_type,
-#endif  // F106_OBU_SWITCH || F106_OBU_SEF || F106_OBU_TIP || F106_OBU_TILEGROUP
+#endif  // CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP || CONFIG_F106_OBU_TILEGROUP
                                        struct aom_write_bit_buffer *saved_wb,
                                        uint8_t *const dst, int num_tilegroups,
                                        int start_tile_idx, int end_tile_idx) {
   struct aom_write_bit_buffer wb = { dst, 0 };
   int first_tile_group_in_frame = start_tile_idx == 0 ? 1 : 0;
   bool send_first_tile_group_indication = true;
-#if F106_OBU_SEF
+#if CONFIG_F106_OBU_SEF
   send_first_tile_group_indication &= obu_type != OBU_SEF;
-#endif  // F106_OBU_SEF
-#if F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_SEF
+#if CONFIG_F106_OBU_TIP
   send_first_tile_group_indication &= obu_type != OBU_TIP;
-#endif  // F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_TIP
   //[jkei] CONFIG_BRU: send_first_tile_group_indication cannot be derived when
   // cm->bru.frame_inactive_flag unless BRU is an obu_type
   if (send_first_tile_group_indication)
@@ -7607,9 +7609,9 @@ static uint32_t write_tilegroup_header(AV1_COMP *cpi,
   }
   if (first_tile_group_in_frame || send_uncompressed_header_flag)
     write_uncompressed_header(cpi,
-#if F106_OBU_SWITCH || F106_OBU_SEF || F106_OBU_TIP
+#if CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
                               obu_type,
-#endif  // F106_OBU_SWITCH || F106_OBU_SEF || F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
                               saved_wb, &wb);
 
   bool skip_tile_indices = false;
@@ -7617,18 +7619,18 @@ static uint32_t write_tilegroup_header(AV1_COMP *cpi,
   skip_tile_indices |= cpi->common.bru.frame_inactive_flag;
 #endif
 
-#if F106_OBU_SEF || F106_OBU_TIP
-#if F106_OBU_SEF
+#if CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
+#if CONFIG_F106_OBU_SEF
   skip_tile_indices |= obu_type == OBU_SEF;
-#endif  // F106_OBU_SEF
-#if F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_SEF
+#if CONFIG_F106_OBU_TIP
   skip_tile_indices |= obu_type == OBU_TIP;
-#endif  // F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_TIP
 #else
   skip_tile_indices |=
       (cpi->common.show_existing_frame ||
        cpi->common.features.tip_frame_mode == TIP_FRAME_AS_OUTPUT);
-#endif  // F106_OBU_SEF || F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
 
   if (!skip_tile_indices) {
     AV1_COMMON *const cm = &cpi->common;
@@ -7645,9 +7647,9 @@ static uint32_t write_tilegroup_header(AV1_COMP *cpi,
 
 static uint32_t write_tilegroup_obu(
     AV1_COMP *const cpi,
-#if F106_OBU_SWITCH || F106_OBU_SEF || F106_OBU_TIP
+#if CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
     OBU_TYPE obu_type,
-#endif  // F106_OBU_SWITCH || F106_OBU_SEF || F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
     uint8_t *const dst, struct aom_write_bit_buffer *saved_wb_first_tg,
     int tg_idx, int num_tgs, int *first_tg_bitoffset, int *largest_tile_id) {
   // int *const largest_tile_id,
@@ -7666,13 +7668,13 @@ static uint32_t write_tilegroup_obu(
   int end_tile_idx =
       AOMMIN(start_tile_idx + num_tiles_in_tg - 1, tile_cols * tile_rows - 1);
 
-#if F106_OBU_SWITCH || F106_OBU_SEF || F106_OBU_TIP
+#if CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
   curr_tg_header_size = write_tilegroup_header(
       cpi, obu_type, &saved_wb, dst, num_tgs, start_tile_idx, end_tile_idx);
 #else
   curr_tg_header_size = write_tilegroup_header(cpi, &saved_wb, dst, num_tgs,
                                                start_tile_idx, end_tile_idx);
-#endif  // F106_OBU_SWITCH || F106_OBU_SEF || F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
 
   if (tg_idx == 0) {
     *saved_wb_first_tg = saved_wb;  // saved_wb_first_tg = saved_wb;
@@ -7681,18 +7683,18 @@ static uint32_t write_tilegroup_obu(
     saved_wb_first_tg->bit_offset = *first_tg_bitoffset;
   }
   bool skip_tilegroup_payload = false;
-#if F106_OBU_SEF
+#if CONFIG_F106_OBU_SEF
   skip_tilegroup_payload |= (obu_type == OBU_SEF);
 #else
   skip_tilegroup_payload |= cm->show_existing_frame == 1;
-#endif  // F106_OBU_SEF
+#endif  // CONFIG_F106_OBU_SEF
 
-#if F106_OBU_TIP
+#if CONFIG_F106_OBU_TIP
   skip_tilegroup_payload |= (obu_type == OBU_TIP);
 #else
   skip_tilegroup_payload |=
       (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT);
-#endif  // F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_TIP
 
 #if CONFIG_BRU
   skip_tilegroup_payload |= cm->bru.frame_inactive_flag;
@@ -7708,26 +7710,26 @@ static uint32_t write_tilegroup_obu(
 static uint32_t write_frame_header_obu(AV1_COMP *cpi,
                                        struct aom_write_bit_buffer *saved_wb,
                                        uint8_t *const dst,
-#if F106_OBU_SWITCH || F106_OBU_SEF || F106_OBU_TIP
+#if CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
                                        OBU_TYPE obu_type
 #else
                                        int append_trailing_bits
-#endif  // F106_OBU_SWITCH || F106_OBU_SEF || F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
 ) {
   struct aom_write_bit_buffer wb = { dst, 0 };
-#if F106_OBU_SWITCH || F106_OBU_SEF || F106_OBU_TIP
+#if CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
   write_uncompressed_header_obu(cpi, obu_type, saved_wb, &wb);
   int append_trailing_bits =
       (obu_type != OBU_FRAME && obu_type != OBU_TILE_GROUP);
-#if F106_OBU_SWITCH
+#if CONFIG_F106_OBU_SWITCH
   append_trailing_bits &= (obu_type != OBU_SWITCH);
-#endif  // F106_OBU_SWITCH
-#if F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_SWITCH
+#if CONFIG_F106_OBU_TIP
   append_trailing_bits &= (obu_type != OBU_TIP);
-#endif  // F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_TIP
 #else
   write_uncompressed_header_obu(cpi, saved_wb, &wb);
-#endif  // F106_OBU_SWITCH || F106_OBU_SEF || F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
   if (append_trailing_bits) add_trailing_bits(&wb);
   return aom_wb_bytes_written(&wb);
 }
@@ -7828,13 +7830,13 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
                                                       data);
     data += tg_hdr_size;
 
-#if F106_OBU_SWITCH || F106_OBU_SEF || F106_OBU_TIP
+#if CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
     const uint32_t frame_header_size =
         write_frame_header_obu(cpi, saved_wb, data, obu_type);
 #else
     const uint32_t frame_header_size =
         write_frame_header_obu(cpi, saved_wb, data, 0);
-#endif  // F106_OBU_SWITCH || F106_OBU_SEF || F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
     data += frame_header_size;
     total_size += frame_header_size;
 
@@ -7994,13 +7996,13 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
         obu_header_size = curr_tg_data_size;
 
         if (num_tg_hdrs == 1) {
-#if F106_OBU_SWITCH || F106_OBU_SEF || F106_OBU_TIP
+#if CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
           curr_tg_data_size += write_frame_header_obu(
               cpi, saved_wb, data + curr_tg_data_size, obu_type);
 #else
           curr_tg_data_size += write_frame_header_obu(
               cpi, saved_wb, data + curr_tg_data_size, 0);
-#endif  // F106_OBU_SWITCH || F106_OBU_SEF || F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
         }
 #if CONFIG_BRU
         if (!cm->bru.frame_inactive_flag)
@@ -8173,7 +8175,7 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
   }
   return total_size;
 }
-#endif  // F106_OBU_TILEGROUP
+#endif  // CONFIG_F106_OBU_TILEGROUP
 static size_t av1_write_metadata_obu(const aom_metadata_t *metadata,
                                      uint8_t *const dst) {
   size_t coded_metadata_size = 0;
@@ -8325,16 +8327,16 @@ static size_t av1_write_frame_hash_metadata(
 int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
                        int *const largest_tile_id) {
   uint8_t *data = dst;
-#if !F106_OBU_TILEGROUP
+#if !CONFIG_F106_OBU_TILEGROUP
   uint32_t data_size;
-#endif  // !F106_OBU_TILEGROUP
+#endif  // !CONFIG_F106_OBU_TILEGROUP
   AV1_COMMON *const cm = &cpi->common;
   AV1LevelParams *const level_params = &cpi->level_params;
   uint32_t obu_header_size = 0;
   uint32_t obu_payload_size = 0;
-#if !F106_OBU_TILEGROUP
+#if !CONFIG_F106_OBU_TILEGROUP
   FrameHeaderInfo fh_info = { NULL, 0, 0 };
-#endif  // !F106_OBU_TILEGROUP
+#endif  // !CONFIG_F106_OBU_TILEGROUP
 #if CONFIG_NEW_OBU_HEADER
   const int obu_temporal = cm->tlayer_id;
   const int obu_mlayer = cm->mlayer_id;
@@ -8406,30 +8408,41 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
     if (write_grain_frame_hash)
       data += av1_write_frame_hash_metadata(cpi, data, grain_params);
   }
-#if F106_OBU_TILEGROUP
+#if CONFIG_F106_OBU_TILEGROUP
   //[jkei] cm->bru.frame_inactive_flag : OBU_TILEGOUP
   OBU_TYPE obu_type = OBU_TILEGROUP;
-#if F106_OBU_SWITCH
+#if CONFIG_F106_OBU_SWITCH
   if (cm->current_frame.frame_type == S_FRAME) obu_type = OBU_SWITCH;
-#endif  // F106_OBU_SWITCH
-#if F106_OBU_SEF
-  if ((encode_show_existing_frame(cm) &&
-       (!cm->seq_params.order_hint_info.enable_order_hint ||
-        !cm->seq_params.enable_frame_output_order)) ||
+#endif  // CONFIG_F106_OBU_SWITCH
+#if CONFIG_F106_OBU_SEF
+  if ((encode_show_existing_frame(cm)
+#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT && !CONFIG_F253_REMOVE_OUTPUTFLAG
+       && (!cm->seq_params.order_hint_info.enable_order_hint || !cm->seq_params.enable_frame_output_order)
+#elif !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT && CONFIG_F253_REMOVE_OUTPUTFLAG
+       && (!cm->seq_params.order_hint_info.enable_order_hint)
+#elif CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT && !CONFIG_F253_REMOVE_OUTPUTFLAG
+       && (!cm->seq_params.enable_frame_output_order)
+#endif
+       ) ||
       (encode_show_existing_frame(cm) &&
        cm->cur_frame->frame_type == KEY_FRAME))
     obu_type = OBU_SEF;
-#endif  // F106_OBU_SEF
-#if F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_SEF
+#if CONFIG_F106_OBU_TIP
   if (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT) obu_type = OBU_TIP;
-#endif  // F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_TIP
 
   int max_tg_num = AOMMIN(cpi->num_tg, cm->tiles.cols * cm->tiles.rows);
   struct aom_write_bit_buffer saved_wb_first_tg = { NULL, 0 };
   int first_saved_wb_bit_offset = 0;
   for (int tg_idx = 0; tg_idx < max_tg_num; tg_idx++) {
     obu_header_size = av1_write_obu_header(level_params, obu_type,
-                                           obu_extension_header, data);
+#if CONFIG_NEW_OBU_HEADER
+                                       obu_temporal, obu_layer,
+#else
+                                       obu_extension_header,
+#endif  // CONFIG_NEW_OBU_HEADER
+                                       data);
     obu_payload_size = write_tilegroup_obu(
         cpi, obu_type, data + obu_header_size, &saved_wb_first_tg, tg_idx,
         max_tg_num, &first_saved_wb_bit_offset, largest_tile_id);
@@ -8445,13 +8458,13 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
       saved_wb_first_tg.bit_buffer += length_field_size;
     data += obu_header_size + obu_payload_size + length_field_size;
 
-#if F106_OBU_SEF || F106_OBU_TIP
-#if F106_OBU_SEF
+#if CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
+#if CONFIG_F106_OBU_SEF
     if (obu_type == OBU_SEF) break;
-#endif  // F106_OBU_SEF
-#if F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_SEF
+#if CONFIG_F106_OBU_TIP
     if (obu_type == OBU_TIP) break;
-#endif  // F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_TIP
 #if CONFIG_BRU
     if (cm->bru.frame_inactive_flag) break;
 #endif  // CONFIG_BRU
@@ -8466,7 +8479,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 #endif  // CONFIG_BRU
         (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT))
       break;
-#endif  // F106_OBU_SEF || F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
 
   }  // tg_idx
 #else
@@ -8495,15 +8508,15 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
     // Write Frame Header OBU.
     fh_info.frame_header = data;
 
-#if F106_OBU_TIP
+#if CONFIG_F106_OBU_TIP
     if (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
       obu_header_size = av1_write_obu_header(level_params, OBU_TIP,
                                              obu_extension_header, data);
       obu_payload_size = write_frame_header_obu(
           cpi, &saved_wb, data + obu_header_size, OBU_TIP);
     } else
-#endif  // F106_OBU_TIP
-#if F106_OBU_SEF
+#endif  // CONFIG_F106_OBU_TIP
+#if CONFIG_F106_OBU_SEF
         if ((encode_show_existing_frame(cm) &&
              (!cm->seq_params.order_hint_info.enable_order_hint ||
               !cm->seq_params.enable_frame_output_order)) ||
@@ -8514,8 +8527,8 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
       obu_payload_size = write_frame_header_obu(
           cpi, &saved_wb, data + obu_header_size, OBU_SEF);
     } else
-#endif  // F106_OBU_SEF
-#if F106_OBU_SWITCH
+#endif  // CONFIG_F106_OBU_SEF
+#if CONFIG_F106_OBU_SWITCH
     {
       obu_header_size = av1_write_obu_header(level_params, OBU_FRAME_HEADER,
                                              obu_extension_header, data);
@@ -8529,7 +8542,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
       obu_payload_size =
           write_frame_header_obu(cpi, &saved_wb, data + obu_header_size, 1);
     }
-#endif  // F106_OBU_SWITCH
+#endif  // CONFIG_F106_OBU_SWITCH
     length_field = obu_memmove(obu_header_size, obu_payload_size, data);
     if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
         AOM_CODEC_OK) {
@@ -8600,7 +8613,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
                                        &fh_info, largest_tile_id);
   }
   data += data_size;
-#endif  // F106_OBU_TILEGROUP
+#endif  // CONFIG_F106_OBU_TILEGROUP
   *size = data - dst;
   return AOM_CODEC_OK;
 }

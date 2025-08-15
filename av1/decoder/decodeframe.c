@@ -7585,16 +7585,127 @@ static void read_frame_max_bvp_drl_bits(AV1_COMMON *const cm,
 #endif  // CONFIG_SEQ_MAX_DRL_BITS
 }
 
+#if CONFIG_F106_OBU_SEF
+static int read_show_existing_frame(AV1Decoder *pbi,
+                                    struct aom_read_bit_buffer *rb) {
+  AV1_COMMON *const cm = &pbi->common;
+  const SequenceHeader *const seq_params = &cm->seq_params;
+  CurrentFrame *const current_frame = &cm->current_frame;
+  BufferPool *const pool = cm->buffer_pool;
+  aom_s_frame_info *sframe_info = &pbi->sframe_info;
+  sframe_info->is_s_frame = 0;
+  sframe_info->is_s_frame_at_altref = 0;
+
+  if (pbi->sequence_header_changed) {
+    aom_internal_error(
+        &cm->error, AOM_CODEC_CORRUPT_FRAME,
+        "New sequence header starts with a show_existing_frame.");
+  }
+  // Show an existing frame directly.
+  const int existing_frame_idx =
+      aom_rb_read_literal(rb, seq_params->ref_frames_log2);
+  RefCntBuffer *const frame_to_show = cm->ref_frame_map[existing_frame_idx];
+  if (frame_to_show == NULL) {
+    aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+                       "Buffer does not contain a decoded frame");
+  }
+  if (seq_params->decoder_model_info_present_flag &&
+      seq_params->timing_info.equal_picture_interval == 0) {
+    read_temporal_point_info(cm, rb);
+  }
+#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
+  if (seq_params->frame_id_numbers_present_flag) {
+    int frame_id_length = seq_params->frame_id_length;
+    int display_frame_id = aom_rb_read_literal(rb, frame_id_length);
+    /* Compare display_frame_id with ref_frame_id and check valid for
+     * referencing */
+    if (display_frame_id != cm->ref_frame_id[existing_frame_idx] ||
+        pbi->valid_for_referencing[existing_frame_idx] == 0)
+      aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                         "Reference buffer frame ID mismatch");
+  }
+#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
+  lock_buffer_pool(pool);
+  assert(frame_to_show->ref_count > 0);
+  // cm->cur_frame should be the buffer referenced by the return value
+  // of the get_free_fb() call in assign_cur_frame_new_fb() (called by
+  // av1_receive_compressed_data()), so the ref_count should be 1.
+  assert(cm->cur_frame->ref_count == 1);
+  // assign_frame_buffer_p() decrements ref_count directly rather than
+  // call decrease_ref_count(). If cm->cur_frame->raw_frame_buffer has
+  // already been allocated, it will not be released by
+  // assign_frame_buffer_p()!
+  assert(!cm->cur_frame->raw_frame_buffer.data);
+
+  FrameHash raw_frame_hash = cm->cur_frame->raw_frame_hash;
+  FrameHash grain_frame_hash = cm->cur_frame->grain_frame_hash;
+
+  assign_frame_buffer_p(&cm->cur_frame, frame_to_show);
+  pbi->reset_decoder_state = frame_to_show->frame_type == KEY_FRAME;
+
+  // Combine any Decoded Frame Header metadata that was parsed before
+  // the referenced frame with any parsed before this
+  // show_existing_frame header, e.g. raw frame hash values before the
+  // referenced coded frame and post film grain hash values before this
+  // header.
+  if (raw_frame_hash.is_present)
+    cm->cur_frame->raw_frame_hash = raw_frame_hash;
+  if (grain_frame_hash.is_present)
+    cm->cur_frame->grain_frame_hash = grain_frame_hash;
+  unlock_buffer_pool(pool);
+
+  cm->lf.filter_level[0] = 0;
+  cm->lf.filter_level[1] = 0;
+  cm->show_frame = 1;
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+  // It is a requirement of bitstream conformance that when
+  // show_existing_frame is used to show a previous frame with
+  // RefFrameType[ frame_to_show_map_idx ] equal to KEY_FRAME, that the
+  // frame is output via the show_existing_frame mechanism at most once.
+  if ((
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
+          seq_params->enable_frame_output_order &&
+#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
+          frame_to_show->frame_type == KEY_FRAME &&
+          !frame_to_show->showable_frame &&
+          frame_to_show->frame_output_done)
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
+      || (!seq_params->enable_frame_output_order &&
+          !frame_to_show->showable_frame)
+#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
+  ) {
+    aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+                       "Buffer does not contain a showable frame");
+  }
+#else
+  // Section 6.8.2: It is a requirement of bitstream conformance that when
+  // show_existing_frame is used to show a previous frame, that the value
+  // of showable_frame for the previous frame was equal to 1.
+  if (!frame_to_show->showable_frame) {
+    aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+                       "Buffer does not contain a showable frame");
+  }
+#endif  // !CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+  if (pbi->reset_decoder_state) frame_to_show->showable_frame = 0;
+
+  cm->film_grain_params = frame_to_show->film_grain_params;
+
+  if (pbi->reset_decoder_state) {
+    show_existing_frame_reset(pbi, existing_frame_idx);
+  } else {
+    current_frame->refresh_frame_flags = 0;
+  }
+
+  return 0;
+}  // F106_OBU_SEF
+#endif
+  
 // On success, returns 0. On failure, calls aom_internal_error and does not
 // return.
-#if !F106_OBU_TILEGROUP
-static
-#endif  // !F106_OBU_TILEGROUP
-    int
-    read_uncompressed_header(AV1Decoder *pbi,
-#if F106_OBU_SWITCH || F106_OBU_SEF || F106_OBU_TIP
+  static int read_uncompressed_header(AV1Decoder *pbi,
+#if CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
                              OBU_TYPE obu_type,
-#endif  // F106_OBU_SWITCH || F106_OBU_SEF || F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
                              struct aom_read_bit_buffer *rb) {
   AV1_COMMON *const cm = &pbi->common;
   const SequenceHeader *const seq_params = &cm->seq_params;
@@ -7654,7 +7765,7 @@ static
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
 
   } else {
-#if F106_OBU_SEF
+#if CONFIG_F106_OBU_SEF
     pbi->reset_decoder_state = 0;
     if (obu_type == OBU_SEF)
       read_show_existing_frame(pbi, rb);
@@ -7773,17 +7884,17 @@ static
 
       return 0;
     }
-#endif  // F106_OBU_SEF
-#if F106_OBU_SWITCH
+#endif  // CONFIG_F106_OBU_SEF
+#if CONFIG_F106_OBU_SWITCH
     if (obu_type == OBU_SWITCH) {
       current_frame->frame_type = S_FRAME;
     } else
-#endif  // F106_OBU_SWITCH
-#if F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_SWITCH
+#if CONFIG_F106_OBU_TIP
         if (obu_type == OBU_TIP) {
       current_frame->frame_type = INTER_FRAME;
     } else
-#endif  // F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_TIP
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
         if (aom_rb_read_bit(rb)) {
       current_frame->frame_type = INTER_FRAME;
@@ -7791,12 +7902,12 @@ static
       if (aom_rb_read_bit(rb)) {
         current_frame->frame_type = KEY_FRAME;
       } else {
-#if F106_OBU_SWITCH
+#if CONFIG_F106_OBU_SWITCH
         current_frame->frame_type = INTRA_ONLY_FRAME;
 #else
         current_frame->frame_type =
             aom_rb_read_bit(rb) ? INTRA_ONLY_FRAME : S_FRAME;
-#endif  // F106_OBU_SWITCH
+#endif  // CONFIG_F106_OBU_SWITCH
       }
     }
 #else
@@ -8380,7 +8491,7 @@ static
       }
 #endif  // CONFIG_ACROSS_SCALE_REF_OPT
 #if CONFIG_BRU
-#if F106_OBU_TIP
+#if CONFIG_F106_OBU_TIP
       if (obu_type != OBU_TIP && current_frame->frame_type == INTER_FRAME)
 #else
       if (current_frame->frame_type == INTER_FRAME)
@@ -8606,8 +8717,8 @@ static
           && !cm->bru.frame_inactive_flag
 #endif  // CONFIG_BRU
       ) {
-#if CONFIG_FRAME_HEADER_SIGNAL_OPT || F106_OBU_TIP
-#if F106_OBU_TIP
+#if CONFIG_FRAME_HEADER_SIGNAL_OPT || CONFIG_F106_OBU_TIP
+#if CONFIG_F106_OBU_TIP
         if (obu_type == OBU_TIP) {
           features->tip_frame_mode = TIP_FRAME_AS_OUTPUT;
         }
@@ -8615,7 +8726,7 @@ static
         if (cm->seq_params.enable_tip == 1 && aom_rb_read_bit(rb)) {
           features->tip_frame_mode = TIP_FRAME_AS_OUTPUT;
         }
-#endif  // F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_TIP
         else {
           features->tip_frame_mode =
               aom_rb_read_bit(rb) ? TIP_FRAME_AS_REF : TIP_FRAME_DISABLED;
@@ -9345,7 +9456,7 @@ static AOM_INLINE void process_tip_mode(AV1Decoder *pbi) {
     }
   }
 }
-#if F106_OBU_TILEGROUP
+#if CONFIG_F106_OBU_TILEGROUP
 static int32_t read_tile_indices_in_tilegroup(AV1Decoder *pbi,
                                               struct aom_read_bit_buffer *rb,
                                               int *start_tile, int *end_tile) {
@@ -9417,12 +9528,12 @@ int32_t read_tilegroup_header(AV1Decoder *pbi, struct aom_read_bit_buffer *rb,
   int is_first_tile_group = 1;
   int send_uncompressed_header_flag = 1;
   bool send_first_tile_group_indication = true;
-#if F106_OBU_SEF
+#if CONFIG_F106_OBU_SEF
   send_first_tile_group_indication &= obu_type != OBU_SEF;
-#endif  // F106_OBU_SEF
-#if F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_SEF
+#if CONFIG_F106_OBU_TIP
   send_first_tile_group_indication &= obu_type != OBU_TIP;
-#endif  // F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_TIP
   if (send_first_tile_group_indication)
     is_first_tile_group = aom_rb_read_bit(rb);
   *first_tile_group_in_frame = is_first_tile_group;
@@ -9448,12 +9559,12 @@ int32_t read_tilegroup_header(AV1Decoder *pbi, struct aom_read_bit_buffer *rb,
   }
 
   if (send_uncompressed_header_flag) {
-    if (is_first_tile_group != 1) {
-      rb->bit_offset += pbi->uch_size_in_bits;
+    if (!is_first_tile_group) {
+      rb->bit_offset += pbi->uncomp_hdr_size_in_bits;
     } else {
-      pbi->uch_size_in_bits = rb->bit_offset;
+      uint32_t uncomp_hdr_start_point = rb->bit_offset;
       read_uncompressed_header(pbi, obu_type, rb);
-      pbi->uch_size_in_bits = rb->bit_offset - pbi->uch_size_in_bits;
+      pbi->uncomp_hdr_size_in_bits = rb->bit_offset - uncomp_hdr_start_point;
     }
   }
   //[jkei] maybe error checking required, if not first, uncompressed header
@@ -9483,11 +9594,11 @@ int32_t read_tilegroup_header(AV1Decoder *pbi, struct aom_read_bit_buffer *rb,
           xd->cur_buf->y_crop_height, xd->cur_buf->y_crop_width,
           xd->cur_buf->y_crop_height);
     }
-#if F106_OBU_SEF
+#if CONFIG_F106_OBU_SEF
     if (obu_type == OBU_SEF)
 #else
     if (cm->show_existing_frame)
-#endif  // F106_OBU_SEF
+#endif  // CONFIG_F106_OBU_SEF
     {
       // showing a frame directly
       *p_data_end = data + uncomp_hdr_size;
@@ -9558,11 +9669,11 @@ int32_t read_tilegroup_header(AV1Decoder *pbi, struct aom_read_bit_buffer *rb,
 #endif  // CONFIG_BRU
 
     process_tip_mode(pbi);
-#if F106_OBU_TIP
+#if CONFIG_F106_OBU_TIP
     if (obu_type == OBU_TIP)
 #else
     if (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT)
-#endif  // F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_TIP
     {
       *p_data_end = data + uncomp_hdr_size;
       // av1_check_trailing_bits(pbi, rb);
@@ -9590,18 +9701,18 @@ int32_t read_tilegroup_header(AV1Decoder *pbi, struct aom_read_bit_buffer *rb,
   }
 
   bool send_tile_indices = true;
-#if F106_OBU_SEF || F106_OBU_TIP
-#if F106_OBU_SEF
+#if CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
+#if CONFIG_F106_OBU_SEF
   send_tile_indices &= obu_type != OBU_SEF;
-#endif  // F106_OBU_SEF
-#if F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_SEF
+#if CONFIG_F106_OBU_TIP
   send_tile_indices &= obu_type != OBU_TIP;
-#endif  // F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_TIP
 #else
   send_tile_indices =
       (!pbi->common.show_existing_frame &&
        pbi->common.features.tip_frame_mode != TIP_FRAME_AS_OUTPUT);
-#endif  // F106_OBU_SEF || F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
 #if CONFIG_BRU
   send_tile_indices &= !pbi->common.bru.frame_inactive_flag;
 #endif  // CONFIG_BRU
@@ -9627,11 +9738,11 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
                                             struct aom_read_bit_buffer *rb,
                                             const uint8_t *data,
                                             const uint8_t **p_data_end,
-#if F106_OBU_SWITCH || F106_OBU_SEF || F106_OBU_TIP
+#if CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
                                             OBU_TYPE obu_type
 #else
                                             int trailing_bits_present
-#endif  // F106_OBU_SWITCH || F106_OBU_SEF || F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
 ) {
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
@@ -9641,15 +9752,15 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
   AV1_COMMON *const cm = &pbi->common;
   const int num_planes = av1_num_planes(cm);
   MACROBLOCKD *const xd = &pbi->dcb.xd;
-#if F106_OBU_SWITCH || F106_OBU_SEF || F106_OBU_TIP
+#if CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
   int trailing_bits_present = (obu_type != OBU_FRAME);
-#if F106_OBU_SWITCH
+#if CONFIG_F106_OBU_SWITCH
   trailing_bits_present &= (obu_type != OBU_SWITCH);
-#endif  // F106_OBU_SWITCH
-#if F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_SWITCH
+#if CONFIG_F106_OBU_TIP
   trailing_bits_present &= (obu_type != OBU_TIP);
-#endif  // F106_OBU_TIP
-#endif  // F106_OBU_SWITCH || F106_OBU_SEF || F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
 #if CONFIG_MISMATCH_DEBUG
   mismatch_move_frame_idx_r(1);
 #endif  // CONFIG_MISMATCH_DEBUG
@@ -9665,11 +9776,11 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
 
   xd->global_motion = cm->global_motion;
 
-#if F106_OBU_SWITCH || F106_OBU_SEF || F106_OBU_TIP
+#if CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
   read_uncompressed_header(pbi, obu_type, rb);
 #else
   read_uncompressed_header(pbi, rb);
-#endif  // F106_OBU_SWITCH || F106_OBU_SEF || F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
 
 #if CONFIG_BITSTREAM_DEBUG
   aom_bitstream_queue_set_frame_read(cm->current_frame.order_hint * 2 +
@@ -9814,7 +9925,7 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
 
   return uncomp_hdr_size;
 }
-#endif  // F106_OBU_TILEGROUP
+#endif  // CONFIG_F106_OBU_TILEGROUP
 // Once-per-frame initialization
 static AOM_INLINE void setup_frame_info(AV1Decoder *pbi) {
   AV1_COMMON *const cm = &pbi->common;

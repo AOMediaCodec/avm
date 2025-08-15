@@ -61,11 +61,6 @@ set_aom_detect_var(HAVE_UNISTD_H 0
                    "Internal flag, unistd.h present for target.")
 set_aom_detect_var(HAVE_WXWIDGETS 0 "WxWidgets present.")
 
-set_aom_config_var(F106_OBU_TILEGROUP 1
-                   "Enable decoder trace for reading bits.")
-set_aom_config_var(F106_OBU_SWITCH 1 "Use SWITCH_OBU.")
-set_aom_config_var(F106_OBU_SEF 1 "Use SEF OBU.")
-set_aom_config_var(F106_OBU_TIP 1 "Use TIP_OBU.")
 
 #
 # Variables in this section can be set from the CMake command line or from
@@ -169,6 +164,11 @@ set_aom_config_var(CONFIG_MERGE_PARA_CTX 1
 set_aom_config_var(CONFIG_CTX_Y_SECOND_MODE 1 "bypass coding FG8-Test27")
 
 # AV2 experiment flags.
+set_aom_config_var(CONFIG_F106_OBU_TILEGROUP 1
+                   "Use TILE_GROUP OBU.")
+set_aom_config_var(CONFIG_F106_OBU_SWITCH 1 "Use SWITCH_OBU.")
+set_aom_config_var(CONFIG_F106_OBU_SEF 1 "Use SEF OBU.")
+set_aom_config_var(CONFIG_F106_OBU_TIP 1 "Use TIP_OBU.")
 set_aom_config_var(CONFIG_F253_REMOVE_OUTPUTFLAG 1
                    "Remove enable_frame_output_order.")
 set_aom_config_var(CONFIG_SEQ_MAX_DRL_BITS 1

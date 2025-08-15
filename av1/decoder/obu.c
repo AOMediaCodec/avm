@@ -405,7 +405,7 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }
 
-#if F106_OBU_TILEGROUP
+#if CONFIG_F106_OBU_TILEGROUP
 static uint32_t read_tilegroup_obu(AV1Decoder *pbi,
                                    struct aom_read_bit_buffer *rb,
                                    const uint8_t *data, const uint8_t *data_end,
@@ -423,26 +423,27 @@ static uint32_t read_tilegroup_obu(AV1Decoder *pbi,
                                       &start_tile, &end_tile, obu_type);
 
   bool skip_payload = false;
-#if F106_OBU_SEF
+#if CONFIG_F106_OBU_SEF
   skip_payload |= (obu_type == OBU_SEF);
 #else
   skip_payload |= pbi->common.show_existing_frame;
-#endif  // F106_OBU_SEF
-#if F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_SEF
+#if CONFIG_F106_OBU_TIP
   skip_payload |= (obu_type == OBU_TIP);
 #else
   skip_payload |= (pbi->common.features.tip_frame_mode == TIP_FRAME_AS_OUTPUT);
-#endif  // F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_TIP
 #if CONFIG_BRU
   skip_payload |= pbi->common.bru.frame_inactive_flag;
 #endif
+  
+  if (header_size == -1 || byte_alignment(cm, rb)) return 0;
+  
   if (skip_payload) {
-    if (header_size == -1 || byte_alignment(cm, rb)) return 0;
     *is_last_tg = 1;
     return header_size;
   }
 
-  if (header_size == -1 || byte_alignment(cm, rb)) return 0;
   data += header_size;
 
   av1_decode_tg_tiles_and_wrapup(pbi, data, data_end, p_data_end, start_tile,
@@ -459,19 +460,19 @@ static uint32_t read_frame_header_obu(AV1Decoder *pbi,
                                       struct aom_read_bit_buffer *rb,
                                       const uint8_t *data,
                                       const uint8_t **p_data_end,
-#if F106_OBU_SWITCH || F106_OBU_SEF || F106_OBU_TIP
+#if CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
                                       OBU_TYPE obu_type
 #else
                                       int trailing_bits_present
-#endif  // F106_OBU_SWITCH || F106_OBU_SEF || F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
 ) {
-#if F106_OBU_SWITCH || F106_OBU_SEF || F106_OBU_TIP
   return av1_decode_frame_headers_and_setup(pbi, rb, data, p_data_end,
-                                            obu_type);
+#if CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
+                                            obu_type
 #else
-  return av1_decode_frame_headers_and_setup(pbi, rb, data, p_data_end,
-                                            trailing_bits_present);
-#endif  // F106_OBU_SWITCH || F106_OBU_SEF || F106_OBU_TIP
+                                            trailing_bits_present
+#endif
+                                            );
 }
 
 // On success, returns the tile group header size. On failure, calls
@@ -574,7 +575,7 @@ static uint32_t read_one_tile_group_obu(
   *is_last_tg = end_tile == cm->tiles.rows * cm->tiles.cols - 1;
   return header_size + tg_payload_size;
 }
-#endif  // F106_OBU_TILEGROUP
+#endif  // CONFIG_F106_OBU_TILEGROUP
 static void alloc_tile_list_buffer(AV1Decoder *pbi) {
   // The resolution of the output frame is read out from the bitstream. The data
   // are stored in the order of Y plane, U plane and V plane. As an example, for
@@ -1072,10 +1073,10 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
 #endif
   AV1_COMMON *const cm = &pbi->common;
   int frame_decoding_finished = 0;
-#if !F106_OBU_TILEGROUP
+#if !CONFIG_F106_OBU_TILEGROUP
   int is_first_tg_obu_received = 1;
   uint32_t frame_header_size = 0;
-#endif  // !F106_OBU_TILEGROUP
+#endif  // !CONFIG_F106_OBU_TILEGROUP
   ObuHeader obu_header;
   memset(&obu_header, 0, sizeof(obu_header));
   pbi->seen_frame_header = 0;
@@ -1194,23 +1195,23 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
           return -1;
         }
         break;
-#if F106_OBU_TILEGROUP
+#if CONFIG_F106_OBU_TILEGROUP
       case OBU_TILEGROUP:
 #else
       case OBU_FRAME_HEADER:
       case OBU_REDUNDANT_FRAME_HEADER:
       case OBU_FRAME:
-#endif  // F106_OBU_TILEGROUP
-#if F106_OBU_SEF
+#endif  // CONFIG_F106_OBU_TILEGROUP
+#if CONFIG_F106_OBU_SEF
       case OBU_SEF:
-#endif  // F106_OBU_SEF
-#if F106_OBU_SWITCH
+#endif  // CONFIG_F106_OBU_SEF
+#if CONFIG_F106_OBU_SWITCH
       case OBU_SWITCH:
-#endif  // F106_OBU_SWITCH
-#if F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_SWITCH
+#if CONFIG_F106_OBU_TIP
       case OBU_TIP:
-#endif  // F106_OBU_TIP
-#if F106_OBU_TILEGROUP
+#endif  // CONFIG_F106_OBU_TIP
+#if CONFIG_F106_OBU_TILEGROUP
         decoded_payload_size =
             read_tilegroup_obu(pbi, &rb, data, data + payload_size, p_data_end,
                                obu_header.type, &frame_decoding_finished);
@@ -1238,18 +1239,16 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
           *p_data_end = data_end;
           break;
         }
-
         if (obu_payload_offset > payload_size) {
           cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
           return -1;
         }
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
-
         if (frame_decoding_finished) pbi->seen_frame_header = 0;
         pbi->num_tile_groups++;
         break;
 
-#else
+#else // CONFIG_F106_OBU_TILEGROUP
         if (obu_header.type == OBU_REDUNDANT_FRAME_HEADER) {
           if (!pbi->seen_frame_header) {
             cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
@@ -1265,13 +1264,13 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
         // Only decode first frame header received
         if (!pbi->seen_frame_header ||
             (cm->tiles.large_scale && !pbi->camera_frame_header_ready)) {
-#if F106_OBU_SWITCH || F106_OBU_SEF || F106_OBU_TIP
+#if CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
           frame_header_size = read_frame_header_obu(pbi, &rb, data, p_data_end,
                                                     obu_header.type);
 #else
           frame_header_size = read_frame_header_obu(
               pbi, &rb, data, p_data_end, obu_header.type != OBU_FRAME);
-#endif  // F106_OBU_SWITCH || F106_OBU_SEF || F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
           pbi->seen_frame_header = 1;
           if (!pbi->ext_tile_debug && cm->tiles.large_scale)
             pbi->camera_frame_header_ready = 1;
@@ -1333,18 +1332,18 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
           *p_data_end = data_end;
           break;
         }
-#if F106_OBU_SWITCH || F106_OBU_TIP
+#if CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_TIP
         bool header_only = (obu_header.type != OBU_FRAME);
-#if F106_OBU_SWITCH
+#if CONFIG_F106_OBU_SWITCH
         header_only &= (obu_header.type != OBU_SWITCH);
-#endif  // F106_OBU_SWITCH
-#if F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_SWITCH
+#if CONFIG_F106_OBU_TIP
         header_only &= (obu_header.type != OBU_TIP);
 #endif
         if (header_only)
-#else   // F106_OBU_TIP
+#else   // CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_TIP
         if (obu_header.type != OBU_FRAME)
-#endif  // F106_OBU_SWITCH || F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_TIP
           break;
         obu_payload_offset = frame_header_size;
         // Byte align the reader before reading the tile group.
@@ -1363,18 +1362,18 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
         decoded_payload_size += read_one_tile_group_obu(
             pbi, &rb, is_first_tg_obu_received, data + obu_payload_offset,
             data + payload_size, p_data_end, &frame_decoding_finished,
-#if F106_OBU_SWITCH
+#if CONFIG_F106_OBU_SWITCH
             obu_header.type == OBU_FRAME || obu_header.type == OBU_SWITCH
 #else
             obu_header.type == OBU_FRAME
-#endif  // F106_OBU_SWITCH
+#endif  // CONFIG_F106_OBU_SWITCH
         );
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
         is_first_tg_obu_received = 0;
         if (frame_decoding_finished) pbi->seen_frame_header = 0;
         pbi->num_tile_groups++;
         break;
-#endif  // F106_OBU_TILEGROUP
+#endif  // CONFIG_F106_OBU_TILEGROUP
       case OBU_METADATA:
         decoded_payload_size = read_metadata(pbi, data, payload_size);
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
