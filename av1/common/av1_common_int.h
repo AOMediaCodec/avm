@@ -2000,6 +2000,10 @@ typedef struct AV1Common {
    */
   int tmvp_proc_size;
   /*!
+   * The processing unit size used, log2
+   */
+  int tmvp_proc_sizel2;
+  /*!
    * Projection range extension in row
    */
   int tmvp_row_offset;

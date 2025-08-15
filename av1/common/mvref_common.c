@@ -3913,8 +3913,8 @@ static void check_and_add_process_ref(const AV1_COMMON *cm, int max_check,
   }
 }
 
-static INLINE int get_blk_id_k(int this_col, int tmvp_proc_size) {
-  return (this_col / tmvp_proc_size) % 3;
+static INLINE int get_blk_id_k(int this_col, int tmvp_proc_sizel2) {
+  return (this_col >> tmvp_proc_sizel2) % 3;
 }
 
 // Check if the mv intersects with exisiting trajectories, and if yes, update
@@ -3946,7 +3946,7 @@ static INLINE void check_traj_intersect(AV1_COMMON *cm,
             blk_id_map_rows[start_frame][start_row][start_col].as_mv.col;
         assert(traj_row % cm->tmvp_sample_step == 0);
         assert(traj_col % cm->tmvp_sample_step == 0);
-        if (get_blk_id_k(traj_col, cm->tmvp_proc_size) != k) continue;
+        if (get_blk_id_k(traj_col, cm->tmvp_proc_sizel2) != k) continue;
         if (check_block_position(cm, start_row, start_col, traj_row,
                                  traj_col) &&
             cm->id_offset_map_rows[end_frame][traj_row][traj_col].as_int ==
@@ -4012,8 +4012,7 @@ static INLINE void check_traj_intersect(AV1_COMMON *cm,
         int traj_col = blk_id_map_rows[end_frame][end_row][end_col].as_mv.col;
         assert(traj_row % cm->tmvp_sample_step == 0);
         assert(traj_col % cm->tmvp_sample_step == 0);
-
-        if (get_blk_id_k(traj_col, cm->tmvp_proc_size) != k) continue;
+        if (get_blk_id_k(traj_col, cm->tmvp_proc_sizel2) != k) continue;
 
         if (check_block_position(cm, start_row, start_col, traj_row,
                                  traj_col) &&
@@ -4176,7 +4175,7 @@ static int motion_field_projection_start_target(
           if (pos_valid) {
             if (cm->tpl_mvs_rows[mi_r][mi_c].mfmv0.as_int == INVALID_MV) {
               if (cm->seq_params.enable_mv_traj) {
-                int blk_id_k = get_blk_id_k(mi_c, cm->tmvp_proc_size);
+                int blk_id_k = get_blk_id_k(mi_c, cm->tmvp_proc_sizel2);
                 int_mv ***blk_id_map_rows = cm->blk_id_map_rows[blk_id_k];
 #if CONFIG_SIMPLIFY_MV_FIELD
                 cm->id_offset_map_rows[start_frame][mi_r][mi_c].as_mv.row =
@@ -4395,7 +4394,7 @@ static int motion_field_projection_side(AV1_COMMON *cm,
 #endif  // CONFIG_SIMPLIFY_MV_FIELD
             ) {
               if (cm->seq_params.enable_mv_traj) {
-                int blk_id_k = get_blk_id_k(mi_c, cm->tmvp_proc_size);
+                int blk_id_k = get_blk_id_k(mi_c, cm->tmvp_proc_sizel2);
                 int_mv ***blk_id_map_rows = cm->blk_id_map_rows[blk_id_k];
 
 #if CONFIG_SIMPLIFY_MV_FIELD
@@ -5178,8 +5177,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
     determine_tmvp_sample_step(cm, checked_ref);
   }
 
-  get_proc_size_and_offset(cm, &cm->tmvp_proc_size, &cm->tmvp_row_offset,
-                           &cm->tmvp_col_offset);
+  get_proc_size_and_offset(cm);
 
 #if CONFIG_REDUCED_REF_FRAME_MVS_MODE
   assert(order_hint_info->reduced_ref_frame_mvs_mode >= 0 &&
