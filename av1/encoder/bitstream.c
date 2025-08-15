@@ -2241,13 +2241,6 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
                        "Invalid BRU inter prediction");
   }
 #endif  // CONFIG_BRU
-#if CONFIG_BRU
-  // check BRU inter prediction motion vector
-  if (is_inter && !bru_is_valid_inter(cm, xd)) {
-    aom_internal_error(&cm->error, AOM_CODEC_ERROR,
-                       "Invalid BRU inter prediction");
-  }
-#endif  // CONFIG_BRU
 
   if (xd->tree_type != CHROMA_PART) write_gdf(cm, xd, w);
 
@@ -3837,7 +3830,7 @@ static AOM_INLINE void write_modes(AV1_COMP *const cpi,
   if (cm->bru.enabled && !cm->bru.frame_inactive_flag) {
     aom_write_bit(w, tile->tile_active_mode);
   }
-#endif  // CONFIG_BRU
+#endif  // CONFIG_BRU && !CONFIG_BRU_TILE_FLAG
   for (int mi_row = mi_row_start; mi_row < mi_row_end; mi_row += cm->mib_size) {
     const int sb_row_in_tile =
         (mi_row - tile->mi_row_start) >> cm->mib_size_log2;
@@ -7251,7 +7244,7 @@ static uint32_t write_frame_header_obu(AV1_COMP *cpi,
 static uint32_t write_tile_group_header(
 #if CONFIG_BRU_TILE_FLAG
     AV1_COMMON *const cm,
-#endif
+#endif  // CONFIG_BRU_TILE_FLAG
     uint8_t *const dst, int start_tile, int end_tile, int tiles_log2,
     int tile_start_and_end_present_flag) {
   struct aom_write_bit_buffer wb = { dst, 0 };
@@ -7267,22 +7260,20 @@ static uint32_t write_tile_group_header(
   }
 #if CONFIG_BRU_TILE_FLAG
   if (cm->bru.enabled) {
-    const int num_tile = cm->tiles.cols * cm->tiles.rows;
-    if (num_tile > 1) {
-      int tile_idx = start_tile;
-      while (tile_idx <= end_tile) {
+    const int num_tiles = cm->tiles.cols * cm->tiles.rows;
+    if (num_tiles > 1) {
+      for (int tile_idx = start_tile; tile_idx <= end_tile; tile_idx++) {
         const int active_bitmap_byte = tile_idx >> 3;
-        const int active_bitmap_bit = tile_idx % 8;
+        const int active_bitmap_bit = tile_idx & 7;
         const int tile_active_mode =
             (cm->tiles.tile_active_bitmap[active_bitmap_byte] >>
              active_bitmap_bit) &
             1;
         aom_wb_write_bit(&wb, tile_active_mode);
-        tile_idx++;
       }
     }
   }
-#endif
+#endif  // CONFIG_BRU_TILE_FLAG
   size = aom_wb_bytes_written(&wb);
   return size;
 }
@@ -7479,9 +7470,9 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
   uint32_t obu_header_size = 0;
   uint8_t *tile_data_start = dst + total_size;
 #if CONFIG_BRU_TILE_FLAG
-  const int tile_num = tile_cols * tile_rows;
-  const int use_tile_active_mode = (cm->bru.enabled && (tile_num > 1));
-#endif
+  const int num_tiles = tile_cols * tile_rows;
+  const int use_tile_active_mode = (cm->bru.enabled && (num_tiles > 1));
+#endif  // CONFIG_BRU_TILE_FLAG
   for (tile_row = 0; tile_row < tile_rows; tile_row++) {
     TileInfo tile_info;
     av1_tile_set_row(&tile_info, cm, tile_row);
@@ -7518,7 +7509,7 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
           curr_tg_data_size += write_tile_group_header(
 #if CONFIG_BRU_TILE_FLAG
               cm,
-#endif
+#endif  // CONFIG_BRU_TILE_FLAG
               data + curr_tg_data_size, tile_idx,
               AOMMIN(tile_idx + tg_size - 1, tile_cols * tile_rows - 1),
               n_log2_tiles, cpi->num_tg > 1);
@@ -7546,7 +7537,7 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
       if (use_tile_active_mode) {
         tile_info.tile_active_mode = this_tile->tile_info.tile_active_mode;
       }
-#endif
+#endif  // CONFIG_BRU_TILE_FLAG
       cpi->td.mb.e_mbd.tile_ctx = &this_tile->tctx;
       mode_bc.allow_update_cdf = 1;
       mode_bc.allow_update_cdf =
@@ -7560,7 +7551,7 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
 
 #if CONFIG_BRU && !CONFIG_BRU_TILE_FLAG
       tile_info.tile_active_mode = this_tile->tile_info.tile_active_mode;
-#endif  // CONFIG_BRU
+#endif  // CONFIG_BRU && !CONFIG_BRU_TILE_FLAG
       aom_start_encode(&mode_bc, dst + total_size);
 #if CONFIG_BRU
       if (!cm->bru.frame_inactive_flag)

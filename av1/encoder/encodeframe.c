@@ -1089,16 +1089,14 @@ void av1_init_tile_data(AV1_COMP *cpi) {
   int tplist_count = 0;
 
 #if CONFIG_BRU_TILE_FLAG
-  const int num_tile = tile_rows * tile_cols;
+  const int num_tiles = tile_rows * tile_cols;
   if (cm->bru.enabled) {
-    if (num_tile > 1) {
-      memset(cm->tiles.tile_active_bitmap, 0,
-             sizeof(cm->tiles.tile_active_bitmap));
-    } else {
+    memset(cm->tiles.tile_active_bitmap, 0, (num_tiles + 7) / 8);
+    if (num_tiles == 1) {
       cm->tiles.tile_active_bitmap[0] = 1;
     }
   }
-#endif
+#endif  // CONFIG_BRU_TILE_FLAG
   for (tile_row = 0; tile_row < tile_rows; ++tile_row) {
     for (tile_col = 0; tile_col < tile_cols; ++tile_col) {
       TileDataEnc *const tile_data =
@@ -1145,10 +1143,10 @@ void av1_init_tile_data(AV1_COMP *cpi) {
 #if CONFIG_BRU_TILE_FLAG
         const int tile_idx = tile_col + tile_cols * tile_row;
         const int active_bitmap_byte = tile_idx >> 3;
-        const int active_bitmap_bit = tile_idx % 8;
+        const int active_bitmap_bit = tile_idx & 7;
         cm->tiles.tile_active_bitmap[active_bitmap_byte] +=
             (tile_info->tile_active_mode << active_bitmap_bit);
-#endif
+#endif  // CONFIG_BRU_TILE_FLAG
       }
 #endif  // CONFIG_BRU
     }

@@ -4153,15 +4153,13 @@ static AOM_INLINE void read_tile_info_max_tile(
   av1_calculate_tile_rows(cm, cm->mi_params.mi_rows, tiles);
 #if CONFIG_BRU_TILE_FLAG
   if (cm->bru.enabled) {
-    const int num_tile = tiles->rows * tiles->cols;
-    if (num_tile > 1) {
-      memset(cm->tiles.tile_active_bitmap, 0,
-             sizeof(cm->tiles.tile_active_bitmap));
-    } else {
+    const int num_tiles = tiles->rows * tiles->cols;
+    memset(cm->tiles.tile_active_bitmap, 0, (num_tiles + 7) / 8);
+    if (num_tiles == 1) {
       cm->tiles.tile_active_bitmap[0] = 1;
     }
   }
-#endif
+#endif  // CONFIG_BRU_TILE_FLAG
 }
 
 void av1_set_single_tile_decoding_mode(AV1_COMMON *const cm) {
@@ -4458,13 +4456,13 @@ static AOM_INLINE void get_tile_buffers(
         const int tile_idx = r * tile_cols + c;
         TileDataDec *const this_tile = pbi->tile_data + tile_idx;
         const int tile_active_map_byte = tile_idx >> 3;
-        const int tile_active_map_bit = tile_idx % 8;
+        const int tile_active_map_bit = tile_idx & 7;
         this_tile->tile_info.tile_active_mode =
             (cm->tiles.tile_active_bitmap[tile_active_map_byte] >>
              tile_active_map_bit) &
             1;
       }
-#endif
+#endif  // CONFIG_BRU_TILE_FLAG
     }
   }
 }
@@ -4753,7 +4751,7 @@ static AOM_INLINE void decode_tile(AV1Decoder *pbi, ThreadData *const td,
     else
       xd->tile.tile_active_mode =
           aom_read_bit(td->bit_reader, ACCT_INFO("tile_active_mode"));
-#endif
+#endif  // !CONFIG_BRU_TILE_FLAG
   }
 #endif  // CONFIG_BRU
 

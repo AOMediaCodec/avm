@@ -729,7 +729,7 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
           if (pbi->bru_opt_mode && cm->bru.enabled) {
             if (ref_index == cm->bru.explicit_ref_idx) {
               ++ref_index;
-              continue;  // skip refresh BRU ref , this is done
+              continue;  // skip refresh BRU ref
             }
           }
 #endif

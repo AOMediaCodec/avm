@@ -422,21 +422,18 @@ static int32_t read_tile_group_header(AV1Decoder *pbi,
 
 #if CONFIG_BRU_TILE_FLAG
   if (cm->bru.enabled) {
-    const int num_tile = tiles->cols * tiles->rows;
-    if (num_tile > 1) {
-      int tile_idx = *start_tile;
-      while (tile_idx <= *end_tile) {
+    if (num_tiles > 1) {
+      for (int tile_idx = *start_tile; tile_idx <= *end_tile; tile_idx++) {
         const int active_bitmap_byte = tile_idx >> 3;
-        const int active_bitmap_bit = tile_idx % 8;
+        const int active_bitmap_bit = tile_idx & 7;
         tiles->tile_active_bitmap[active_bitmap_byte] +=
             (aom_rb_read_bit(rb) << active_bitmap_bit);
-        tile_idx++;
       }
     } else {
       tiles->tile_active_bitmap[0] = 1;
     }
   }
-#endif
+#endif  // CONFIG_BRU_TILE_FLAG
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }
 
