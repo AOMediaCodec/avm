@@ -84,25 +84,29 @@ extern "C" {
 #define MAX_NUM_MLAYERS 8
 #define MAX_NUM_XLAYERS 32
 #define MAX_NUM_OPERATING_POINTS (MAX_NUM_TLAYERS * MAX_NUM_MLAYERS)
+#if CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
+// bits for temporal and embedded layers
+#define TLAYER_BITS 3  // 3 bits for MAX_NUM_TLAYERS
+#define MLAYER_BITS 3  // 3 bits for MAX_NUM_MLAYERS
+#endif                 // CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
 #else
 #define MAX_NUM_TEMPORAL_LAYERS 8
 #define MAX_NUM_SPATIAL_LAYERS 4
-
 #if CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
 // maximum number of layers
 #define MAX_NUM_TLAYERS MAX_NUM_TEMPORAL_LAYERS
 #define MAX_NUM_MLAYERS MAX_NUM_SPATIAL_LAYERS
 // bits for temporal and embedded layers
-#define TLAYER_BITS 3
-#define MLAYER_BITS 3
-#endif  // CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
+#define TLAYER_BITS 3  // 3 bits for MAX_NUM_TEMPORAL_LAYERS
+#define MLAYER_BITS 2  // 2 bits for MAX_NUM_SPATIAL_LAYERS
+#endif                 // CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
 /* clang-format off */
 // clang-format seems to think this is a pointer dereference and not a
 // multiplication.
 #define MAX_NUM_OPERATING_POINTS \
   (MAX_NUM_TEMPORAL_LAYERS * MAX_NUM_SPATIAL_LAYERS)
 /* clang-format on */
-#endif  // CONFIG_NEW_OBU_HEADER
+#endif                 // CONFIG_NEW_OBU_HEADER
 
 // TODO(jingning): Turning this on to set up transform coefficient
 // processing timer.
@@ -2384,15 +2388,17 @@ static INLINE int is_tlayer_scalable(const SequenceHeader *const seq,
                                      const int ref_layer_id) {
   assert(seq->max_tlayer_id >= curr_layer_id &&
          seq->max_tlayer_id >= ref_layer_id);
-  /*
-  The additional conditional check based on 'tlayer_dependency_present_flag' is
+  // clang-format off
+  /* The additional conditional check based on 'tlayer_dependency_present_flag' is
   redundant, since tlayer_dependency_map[][] equivalently implements
   `curr_layer_id <= ref_layer_id`. For example, if max_tlayer_id is equal to 3,
-  tlayer_dependency_map[4][4] shall be equal to tlayer_dependency_map[4][4] = {
-  { 1, 0, 0, 0 }, { 1, 1, 0, 0 }, { 1, 1, 1, 0 }, { 1, 1, 1, 1 },
-                                      };
+  tlayer_dependency_map[4][4] shall be equal to
+           tlayer_dependency_map[4][4] = { { 1, 0, 0, 0 },
+                                           { 1, 1, 0, 0 },
+                                           { 1, 1, 1, 0 },
+                                           { 1, 1, 1, 1 },
+                                         };
   The reference software implementation is done this way to be more descriptive.
-
   The following lines can be replaced with a single line of code:
        `return seq->tlayer_dependency_map[curr_layer_id][ref_layer_id];`
   */
@@ -2401,6 +2407,7 @@ static INLINE int is_tlayer_scalable(const SequenceHeader *const seq,
   } else {
     return curr_layer_id >= ref_layer_id;
   }
+  // clang-format on
 }
 
 static INLINE void aom_setup_default_embedded_layer_dependency_structure(
@@ -2419,13 +2426,17 @@ static INLINE int is_mlayer_scalable(const SequenceHeader *const seq,
                                      const int ref_layer_id) {
   assert(seq->max_mlayer_id >= curr_layer_id &&
          seq->max_mlayer_id >= ref_layer_id);
+  // clang-format off
   /*
   The additional conditional check based on 'mlayer_dependency_present_flag' is
   redundant, since mlayer_dependency_map[][] equivalently implements
   `curr_layer_id >= ref_layer_id`. For example, if max_mlayer_id is equal to 3,
-  mlayer_dependency_map[4][4] shall be equal to mlayer_dependency_map[4][4] = {
-  { 1, 0, 0, 0 }, { 1, 1, 0, 0 }, { 1, 1, 1, 0 }, { 1, 1, 1, 1 },
-                                      };
+  mlayer_dependency_map[4][4] shall be equal to
+           mlayer_dependency_map[4][4] = { { 1, 0, 0, 0 },
+                                           { 1, 1, 0, 0 },
+                                           { 1, 1, 1, 0 },
+                                           { 1, 1, 1, 1 },
+                                         };
   The reference software implementation is done this way to be more descriptive.
   The following lines can be replaced with a single line of code:
        `return seq->mlayer_dependency_map[curr_layer_id][ref_layer_id];`
@@ -2435,6 +2446,7 @@ static INLINE int is_mlayer_scalable(const SequenceHeader *const seq,
   } else {
     return curr_layer_id >= ref_layer_id;
   }
+  // clang-format on
 }
 
 #endif  // CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING

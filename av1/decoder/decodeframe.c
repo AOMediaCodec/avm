@@ -7175,7 +7175,12 @@ static INLINE int get_disp_order_hint(AV1_COMMON *const cm) {
     const RefCntBuffer *const buf = cm->ref_frame_map[map_idx];
     if (buf == NULL
 #if CONFIG_MULTILAYER_CORE && CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
-        || !is_tlayer_scalable(&cm->seq_params, cm->temporal_layer_id,
+        || !is_tlayer_scalable(&cm->seq_params,
+#if CONFIG_NEW_OBU_HEADER
+                               cm->tlayer_id,
+#else
+                               cm->temporal_layer_id,
+#endif  // CONFIG_NEW_OBU_HEADER
                                buf->temporal_layer_id) ||
         !is_mlayer_scalable(&cm->seq_params, current_frame->layer_id,
                             buf->layer_id)
@@ -7248,7 +7253,12 @@ static INLINE int get_ref_frame_disp_order_hint(AV1_COMMON *const cm,
         // !CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
   for (int map_idx = 0; map_idx < INTER_REFS_PER_FRAME; map_idx++) {
 #if CONFIG_MULTILAYER_CORE && CONFIG_MULTILAYER_CORE_DEPENDENCY_SIGNALING
-    if (!is_tlayer_scalable(&cm->seq_params, cm->temporal_layer_id,
+    if (!is_tlayer_scalable(&cm->seq_params,
+#if CONFIG_NEW_OBU_HEADER
+                            cm->tlayer_id,
+#else
+                            cm->temporal_layer_id,
+#endif
                             buf->temporal_layer_id) ||
         !is_mlayer_scalable(&cm->seq_params, cm->current_frame.layer_id,
                             buf->layer_id))
