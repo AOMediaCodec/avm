@@ -70,7 +70,7 @@ static const SEG_LVL_FEATURES seg_lvl_lf_lut[MAX_MB_PLANE][2] = {
   { SEG_LVL_ALT_LF_U, SEG_LVL_ALT_LF_U },
   { SEG_LVL_ALT_LF_V, SEG_LVL_ALT_LF_V }
 };
-#endif
+#endif  // CONFIG_DF_DQP
 
 static const int mode_lf_lut[] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  // INTRA_MODES
@@ -109,12 +109,12 @@ uint16_t av1_get_filter_q(const loop_filter_info_n *lfi_n, const int dir_idx,
 #if CONFIG_DF_DQP
                           ,
                           int bit_depth
-#endif
+#endif  // CONFIG_DF_DQP
 ) {
   const int segment_id = mbmi->segment_id;
 
 #if CONFIG_DF_DQP
-  int current_q_index = mbmi->current_qindex;
+  const int current_q_index = mbmi->current_qindex;
   //  int current_q_index = cm->quant_params.base_qindex;
 
   return df_quant_from_qindex(
@@ -126,18 +126,18 @@ uint16_t av1_get_filter_q(const loop_filter_info_n *lfi_n, const int dir_idx,
   // TODO(Andrey): non-CTC conditions
   return lfi_n->q_thr[plane][segment_id][dir_idx][COMPACT_INDEX0_NRS(
       mbmi->ref_frame[0])][mode_lf_lut[mbmi->mode]];
-#endif
+#endif  // CONFIG_DF_DQP
 }
 uint16_t av1_get_filter_side(const loop_filter_info_n *lfi_n, const int dir_idx,
                              int plane, const MB_MODE_INFO *mbmi
 #if CONFIG_DF_DQP
                              ,
                              int bit_depth
-#endif
+#endif  // CONFIG_DF_DQP
 ) {
   const int segment_id = mbmi->segment_id;
 #if CONFIG_DF_DQP
-  int current_q_index = mbmi->current_qindex;
+  const int current_q_index = mbmi->current_qindex;
 
   return df_side_from_qindex(
       current_q_index +
@@ -149,7 +149,7 @@ uint16_t av1_get_filter_side(const loop_filter_info_n *lfi_n, const int dir_idx,
   // TODO(Andrey): non-CTC conditions
   return lfi_n->side_thr[plane][segment_id][dir_idx][COMPACT_INDEX0_NRS(
       mbmi->ref_frame[0])][mode_lf_lut[mbmi->mode]];
-#endif
+#endif  // CONFIG_DF_DQP
 }
 
 void av1_loop_filter_init(AV1_COMMON *cm) {
@@ -178,12 +178,12 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
   q_ind[0] =
 #if !CONFIG_DF_DQP
       cm->quant_params.base_qindex +
-#endif
+#endif  // !CONFIG_DF_DQP
       cm->lf.delta_q_luma[0] * DF_DELTA_SCALE;
   side_ind[0] =
 #if !CONFIG_DF_DQP
       cm->quant_params.base_qindex +
-#endif
+#endif  // !CONFIG_DF_DQP
       cm->lf.delta_side_luma[0] * DF_DELTA_SCALE;
 #else
   q_ind[0] =
@@ -195,39 +195,39 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
   q_ind[1] =
 #if !CONFIG_DF_DQP
       cm->quant_params.base_qindex +
-#endif
+#endif  // !CONFIG_DF_DQP
       cm->quant_params.u_ac_delta_q + cm->seq_params.base_uv_ac_delta_q +
       cm->lf.delta_q_u * DF_DELTA_SCALE;
   side_ind[1] =
 #if !CONFIG_DF_DQP
       cm->quant_params.base_qindex +
-#endif
-      +cm->quant_params.u_ac_delta_q + cm->seq_params.base_uv_ac_delta_q +
+#endif  // !CONFIG_DF_DQP
+      cm->quant_params.u_ac_delta_q + cm->seq_params.base_uv_ac_delta_q +
       cm->lf.delta_side_u * DF_DELTA_SCALE;
 
   q_ind[2] =
 #if !CONFIG_DF_DQP
       cm->quant_params.base_qindex +
-#endif
+#endif  // !CONFIG_DF_DQP
       cm->quant_params.v_ac_delta_q + cm->seq_params.base_uv_ac_delta_q +
       cm->lf.delta_q_v * DF_DELTA_SCALE;
   side_ind[2] =
 #if !CONFIG_DF_DQP
       cm->quant_params.base_qindex +
-#endif
-      +cm->quant_params.v_ac_delta_q + cm->seq_params.base_uv_ac_delta_q +
+#endif  // !CONFIG_DF_DQP
+      cm->quant_params.v_ac_delta_q + cm->seq_params.base_uv_ac_delta_q +
       cm->lf.delta_side_v * DF_DELTA_SCALE;
 
 #if DF_DUAL
   q_ind_r[0] =
 #if !CONFIG_DF_DQP
       cm->quant_params.base_qindex +
-#endif
+#endif  // !CONFIG_DF_DQP
       cm->lf.delta_q_luma[1] * DF_DELTA_SCALE;
   side_ind_r[0] =
 #if !CONFIG_DF_DQP
       cm->quant_params.base_qindex +
-#endif
+#endif  // !CONFIG_DF_DQP
       cm->lf.delta_side_luma[1] * DF_DELTA_SCALE;
 #else
   q_ind_r[0] =
@@ -239,26 +239,26 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
   q_ind_r[1] =
 #if !CONFIG_DF_DQP
       cm->quant_params.base_qindex +
-#endif
-      +cm->quant_params.u_ac_delta_q + cm->seq_params.base_uv_ac_delta_q +
+#endif  // !CONFIG_DF_DQP
+      cm->quant_params.u_ac_delta_q + cm->seq_params.base_uv_ac_delta_q +
       cm->lf.delta_q_u * DF_DELTA_SCALE;
   side_ind_r[1] =
 #if !CONFIG_DF_DQP
       cm->quant_params.base_qindex +
-#endif
+#endif  // !CONFIG_DF_DQP
       cm->quant_params.u_ac_delta_q + cm->seq_params.base_uv_ac_delta_q +
       cm->lf.delta_side_u * DF_DELTA_SCALE;
 
   q_ind_r[2] =
 #if !CONFIG_DF_DQP
       cm->quant_params.base_qindex +
-#endif
+#endif  // !CONFIG_DF_DQP
       cm->quant_params.v_ac_delta_q + cm->seq_params.base_uv_ac_delta_q +
       cm->lf.delta_q_v * DF_DELTA_SCALE;
   side_ind_r[2] =
 #if !CONFIG_DF_DQP
       cm->quant_params.base_qindex +
-#endif
+#endif  // !CONFIG_DF_DQP
       cm->quant_params.v_ac_delta_q + cm->seq_params.base_uv_ac_delta_q +
       cm->lf.delta_side_v * DF_DELTA_SCALE;
 
@@ -288,14 +288,14 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
         const int seg_lf_feature_id = seg_lvl_lf;
 #else
         const int seg_lf_feature_id = seg_lvl_lf_lut[plane][dir];
-#endif
+#endif  // CONFIG_DF_DQP
         if (segfeature_active(seg, seg_id, seg_lf_feature_id)) {
           const int data = get_segdata(&cm->seg, seg_id, seg_lf_feature_id);
           // TODO(Andrey): add separate offsets to segments for q and side
           // thresholds // add clamp
 #if !CONFIG_DF_DQP
           break;
-#endif
+#endif  // !CONFIG_DF_DQP
           q_ind_seg += data;
           side_ind_seg += data;
         }
@@ -304,7 +304,7 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
 #if !CONFIG_DF_DQP
           int q_thr_seg =
               df_quant_from_qindex(q_ind_seg
-#if CONFIG_DF_DQP
+#if CONFIG_DF_DQP  // !CONFIG_DF_DQP
                                        + cm->quant_params.base_qindex
 #endif
                                    ,
@@ -316,33 +316,33 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
 #endif
                                   ,
                                   cm->seq_params.bit_depth);
-#endif
-          // we could get rid of this if we assume that deltas are set to
-          // zero when not in use; encoder always uses deltas
+#endif  // !CONFIG_DF_DQP
+        // we could get rid of this if we assume that deltas are set to
+        // zero when not in use; encoder always uses deltas
           int ref, mode;
 #if !CONFIG_DF_DQP
           lfi->q_thr[plane][seg_id][dir][INTRA_FRAME_INDEX][0] = q_thr_seg;
           lfi->side_thr[plane][seg_id][dir][INTRA_FRAME_INDEX][0] =
               side_thr_seg;
-#endif
+#endif  // !CONFIG_DF_DQP
 #if CONFIG_DF_DQP
           lfi->q_thr_q_offset[plane][seg_id][dir][INTRA_FRAME_INDEX][0] =
               q_ind_seg;
           lfi->side_thr_q_offset[plane][seg_id][dir][INTRA_FRAME_INDEX][0] =
               side_ind_seg;
-#endif
+#endif  // CONFIG_DF_DQP
 
           for (ref = 0; ref < INTER_REFS_PER_FRAME; ++ref) {
             for (mode = 0; mode < MAX_MODE_LF_DELTAS; ++mode) {
 #if !CONFIG_DF_DQP
               lfi->q_thr[plane][seg_id][dir][ref][mode] = q_thr_seg;
               lfi->side_thr[plane][seg_id][dir][ref][mode] = side_thr_seg;
-#endif
+#endif  // !CONFIG_DF_DQP
 #if CONFIG_DF_DQP
               lfi->q_thr_q_offset[plane][seg_id][dir][ref][mode] = q_ind_seg;
               lfi->side_thr_q_offset[plane][seg_id][dir][ref][mode] =
                   side_ind_seg;
-#endif
+#endif  // CONFIG_DF_DQP
             }
           }
           for (mode = 0; mode < MAX_MODE_LF_DELTAS; ++mode) {
@@ -350,13 +350,13 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
             lfi->q_thr[plane][seg_id][dir][TIP_FRAME_INDEX][mode] = q_thr_seg;
             lfi->side_thr[plane][seg_id][dir][TIP_FRAME_INDEX][mode] =
                 side_thr_seg;
-#endif
+#endif  // !CONFIG_DF_DQP
 #if CONFIG_DF_DQP
             lfi->q_thr_q_offset[plane][seg_id][dir][TIP_FRAME_INDEX][mode] =
                 q_ind_seg;
             lfi->side_thr_q_offset[plane][seg_id][dir][TIP_FRAME_INDEX][mode] =
                 side_ind_seg;
-#endif
+#endif  // CONFIG_DF_DQP
           }
         } else {
           // we could get rid of this if we assume that deltas are set to
@@ -366,48 +366,33 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
 #if !CONFIG_DF_DQP
           lfi->q_thr[plane][seg_id][dir][INTRA_FRAME_INDEX][0] =
               df_quant_from_qindex(
-                  q_ind_seg
-#if CONFIG_DF_DQP
-                      + cm->quant_params.base_qindex
-#endif
-                      + lf->ref_deltas[INTRA_FRAME_INDEX] * scale,
+                  q_ind_seg + lf->ref_deltas[INTRA_FRAME_INDEX] * scale,
                   cm->seq_params.bit_depth);
           lfi->side_thr[plane][seg_id][dir][INTRA_FRAME_INDEX][0] =
               df_side_from_qindex(
-                  side_ind_seg
-#if CONFIG_DF_DQP
-                      + cm->quant_params.base_qindex
-#endif
-                      + lf->ref_deltas[INTRA_FRAME_INDEX] * scale,
+                  side_ind_seg + lf->ref_deltas[INTRA_FRAME_INDEX] * scale,
                   cm->seq_params.bit_depth);  // TODO: use a different delta?
-#endif
+#endif                                        // !CONFIG_DF_DQP
 #if CONFIG_DF_DQP
           lfi->q_thr_q_offset[plane][seg_id][dir][INTRA_FRAME_INDEX][0] =
               q_ind_seg + lf->ref_deltas[INTRA_FRAME_INDEX] * scale;
           lfi->side_thr_q_offset[plane][seg_id][dir][INTRA_FRAME_INDEX][0] =
               side_ind_seg + lf->ref_deltas[INTRA_FRAME_INDEX] * scale;
-#endif
+#endif  // CONFIG_DF_DQP
 
           for (ref = 0; ref < INTER_REFS_PER_FRAME; ++ref) {
             for (mode = 0; mode < MAX_MODE_LF_DELTAS; ++mode) {
 #if !CONFIG_DF_DQP
               lfi->q_thr[plane][seg_id][dir][ref][mode] =
-                  df_quant_from_qindex(q_ind_seg
-#if CONFIG_DF_DQP
-                                           + cm->quant_params.base_qindex
-#endif
-                                           + lf->ref_deltas[ref] * scale +
+                  df_quant_from_qindex(q_ind_seg + lf->ref_deltas[ref] * scale +
                                            lf->mode_deltas[mode] * scale,
                                        cm->seq_params.bit_depth);
               lfi->side_thr[plane][seg_id][dir][ref][mode] =
-                  df_side_from_qindex(side_ind_seg
-#if CONFIG_DF_DQP
-                                          + cm->quant_params.base_qindex
-#endif
-                                          + lf->ref_deltas[ref] * scale +
+                  df_side_from_qindex(side_ind_seg +
+                                          lf->ref_deltas[ref] * scale +
                                           lf->mode_deltas[mode] * scale,
                                       cm->seq_params.bit_depth);
-#endif
+#endif  // !CONFIG_DF_DQP
 #if CONFIG_DF_DQP
               lfi->q_thr_q_offset[plane][seg_id][dir][ref][mode] =
                   q_ind_seg + lf->ref_deltas[ref] * scale +
@@ -415,7 +400,7 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
               lfi->side_thr_q_offset[plane][seg_id][dir][ref][mode] =
                   side_ind_seg + lf->ref_deltas[ref] * scale +
                   lf->mode_deltas[mode] * scale;
-#endif
+#endif  // CONFIG_DF_DQP
             }
           }
 
@@ -423,28 +408,20 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
           for (mode = 0; mode < MAX_MODE_LF_DELTAS; ++mode) {
 #if !CONFIG_DF_DQP
             lfi->q_thr[plane][seg_id][dir][TIP_FRAME_INDEX][mode] =
-                df_quant_from_qindex(q_ind_seg
-#if CONFIG_DF_DQP
-                                         + cm->quant_params.base_qindex
-#endif
-                                         + scale_ref_deltas +
+                df_quant_from_qindex(q_ind_seg + scale_ref_deltas +
                                          lf->mode_deltas[mode] * scale,
                                      cm->seq_params.bit_depth);
             lfi->side_thr[plane][seg_id][dir][TIP_FRAME_INDEX][mode] =
-                df_side_from_qindex(side_ind_seg
-#if CONFIG_DF_DQP
-                                        + cm->quant_params.base_qindex
-#endif
-                                        + scale_ref_deltas +
+                df_side_from_qindex(side_ind_seg + scale_ref_deltas +
                                         lf->mode_deltas[mode] * scale,
                                     cm->seq_params.bit_depth);
-#endif
+#endif  // !CONFIG_DF_DQP
 #if CONFIG_DF_DQP
             lfi->q_thr_q_offset[plane][seg_id][dir][TIP_FRAME_INDEX][mode] =
                 q_ind_seg + scale_ref_deltas + lf->mode_deltas[mode] * scale;
             lfi->side_thr_q_offset[plane][seg_id][dir][TIP_FRAME_INDEX][mode] =
                 side_ind_seg + scale_ref_deltas + lf->mode_deltas[mode] * scale;
-#endif
+#endif  // CONFIG_DF_DQP
           }
         }
       }
@@ -910,14 +887,14 @@ static TX_SIZE set_lpf_parameters(
 #if CONFIG_DF_DQP
                            ,
                            cm->seq_params.bit_depth
-#endif
+#endif  // CONFIG_DF_DQP
           );
       const uint32_t curr_side =
           av1_get_filter_side(&cm->lf_info, edge_dir, plane, mbmi
 #if CONFIG_DF_DQP
                               ,
                               cm->seq_params.bit_depth
-#endif
+#endif  // CONFIG_DF_DQP
           );
 
       const int curr_skipped =
