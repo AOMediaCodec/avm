@@ -29,7 +29,7 @@ extern "C" {
 #if CONFIG_MV_RANGE_EXTENSION
 #define INVALID_MV 0x2000020000
 #define MV_IN_USE_BITS 16
-// Maximum and minimum allowed 1/16th pel motion vector value sin 18bits
+// Maximum and minimum allowed 1/16th pel motion vector value in 18bits
 #define MV_1_16TH_PEL_MAX ((1 << 17) - 1)
 #define MV_1_16TH_PEL_MIN (-(1 << 17))
 #else

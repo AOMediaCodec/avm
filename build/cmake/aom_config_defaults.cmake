@@ -313,6 +313,10 @@ set_aom_config_var(CONFIG_REDUCED_TX_SET_EXT 1
 set_aom_config_var(CONFIG_FIX_OPFL_AUTO 1
                    "Fix optical flow auto mode, option 3")
 
+set_aom_config_var(
+  CONFIG_MV_VALUE_CLIP 1
+  "Clip MV value to ensure it is within the constrained range.")
+
 # This is an encode-only change.
 
 set_aom_config_var(CONFIG_FIX_RESIZE_PSNR 1
