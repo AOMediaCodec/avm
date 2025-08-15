@@ -7259,7 +7259,6 @@ static INLINE int get_ref_frame_disp_order_hint(AV1_COMMON *const cm,
         !is_mlayer_scalable(&cm->seq_params, cm->current_frame.layer_id,
                             buf->layer_id))
       continue;
-
 #else
 #if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
 #if CONFIG_NEW_OBU_HEADER

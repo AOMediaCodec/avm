@@ -2372,7 +2372,7 @@ static INLINE int get_ref_frame_map_idx(const AV1_COMMON *const cm,
 }
 
 #if CONFIG_MULTILAYER_CORE_HLS
-static INLINE void aom_setup_default_temporal_layer_dependency_structure(
+static INLINE void setup_default_temporal_layer_dependency_structure(
     SequenceHeader *const seq) {
   const int max_layer_id = seq->max_tlayer_id;
   memset(seq->tlayer_dependency_map, 0, sizeof seq->tlayer_dependency_map);
@@ -2391,7 +2391,7 @@ static INLINE int is_tlayer_scalable(const SequenceHeader *const seq,
   // clang-format off
   /* The additional conditional check based on 'tlayer_dependency_present_flag' is
   redundant, since tlayer_dependency_map[][] equivalently implements
-  `curr_layer_id <= ref_layer_id`. For example, if max_tlayer_id is equal to 3,
+  `curr_layer_id >= ref_layer_id`. For example, if max_tlayer_id is equal to 3,
   tlayer_dependency_map[4][4] shall be equal to
            tlayer_dependency_map[4][4] = { { 1, 0, 0, 0 },
                                            { 1, 1, 0, 0 },
@@ -2410,7 +2410,7 @@ static INLINE int is_tlayer_scalable(const SequenceHeader *const seq,
   // clang-format on
 }
 
-static INLINE void aom_setup_default_embedded_layer_dependency_structure(
+static INLINE void setup_default_embedded_layer_dependency_structure(
     SequenceHeader *const seq) {
   const int max_layer_id = seq->max_mlayer_id;
   memset(seq->mlayer_dependency_map, 0, sizeof seq->mlayer_dependency_map);
@@ -2448,7 +2448,6 @@ static INLINE int is_mlayer_scalable(const SequenceHeader *const seq,
   }
   // clang-format on
 }
-
 #endif  // CONFIG_MULTILAYER_CORE_HLS
 
 static INLINE void get_secondary_reference_frame_idx(const AV1_COMMON *const cm,

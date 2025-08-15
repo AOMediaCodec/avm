@@ -581,8 +581,8 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->max_mlayer_id = 0;
   seq->tlayer_dependency_present_flag = 0;
   seq->mlayer_dependency_present_flag = 0;
-  aom_setup_default_temporal_layer_dependency_structure(seq);
-  aom_setup_default_embedded_layer_dependency_structure(seq);
+  setup_default_temporal_layer_dependency_structure(seq);
+  setup_default_embedded_layer_dependency_structure(seq);
 #endif  // CONFIG_MULTILAYER_CORE_HLS
 
   seq->base_y_dc_delta_q = 0;

@@ -7147,7 +7147,7 @@ static AOM_INLINE void write_bitstream_level(AV1_LEVEL seq_level_idx,
 }
 
 #if CONFIG_MULTILAYER_CORE_HLS
-static void aom_write_tlayer_dependency_info(struct aom_write_bit_buffer *wb,
+static void av1_write_tlayer_dependency_info(struct aom_write_bit_buffer *wb,
                                              const SequenceHeader *const seq) {
   const int max_layer_id = seq->max_tlayer_id;
   for (int curr_layer_id = 1; curr_layer_id <= max_layer_id; curr_layer_id++) {
@@ -7158,7 +7158,7 @@ static void aom_write_tlayer_dependency_info(struct aom_write_bit_buffer *wb,
   }
 }
 
-static void aom_write_mlayer_dependency_info(struct aom_write_bit_buffer *wb,
+static void av1_write_mlayer_dependency_info(struct aom_write_bit_buffer *wb,
                                              const SequenceHeader *const seq) {
   const int max_layer_id = seq->max_mlayer_id;
   for (int curr_layer_id = 1; curr_layer_id <= max_layer_id; curr_layer_id++) {
@@ -7251,17 +7251,17 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
   // tlayer dependency description
   if (seq_params->max_tlayer_id > 0) {
     aom_wb_write_bit(&wb, seq_params->tlayer_dependency_present_flag);
-  }
-  if (seq_params->tlayer_dependency_present_flag) {
-    aom_write_tlayer_dependency_info(&wb, seq_params);
+    if (seq_params->tlayer_dependency_present_flag) {
+      av1_write_tlayer_dependency_info(&wb, seq_params);
+    }
   }
 
   // mlayer dependency description
   if (seq_params->max_mlayer_id > 0) {
     aom_wb_write_bit(&wb, seq_params->mlayer_dependency_present_flag);
-  }
-  if (seq_params->mlayer_dependency_present_flag) {
-    aom_write_mlayer_dependency_info(&wb, seq_params);
+    if (seq_params->mlayer_dependency_present_flag) {
+      av1_write_mlayer_dependency_info(&wb, seq_params);
+    }
   }
 #endif  // CONFIG_MULTILAYER_CORE_HLS
   write_sequence_header(seq_params, &wb);
