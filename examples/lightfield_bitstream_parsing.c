@@ -143,7 +143,7 @@ void process_tile_list(const TILE_LIST_INFO *tiles, int num_tiles,
   for (i = 0; i <= num_tiles_minus_1; i++) {
     aom_tile_data tile_data = { 0, NULL,
 #if !CONFIG_F106_OBU_TILEGROUP
-      0
+                                0
 #endif
     };
 
@@ -299,7 +299,7 @@ int main(int argc, char **argv) {
     pts = num_references;
     aom_tile_data frame_header_info = { 0, NULL,
 #if !CONFIG_F106_OBU_TILEGROUP
-      0
+                                        0
 #endif
     };
 
