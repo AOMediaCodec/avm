@@ -2450,6 +2450,35 @@ static void build_inter_predictors_sub8x8(
   xd->mb_to_right_edge = mb_to_right_edge_start;
 }
 
+// TODO(any): make a simd function for this.
+static inline void aom_memset16_optimized(uint16_t *dst, uint16_t value,
+                                          int count) {
+  while (count >= 8) {
+    dst[0] = value;
+    dst[1] = value;
+    dst[2] = value;
+    dst[3] = value;
+    dst[4] = value;
+    dst[5] = value;
+    dst[6] = value;
+    dst[7] = value;
+    dst += 8;
+    count -= 8;
+  }
+  while (count >= 4) {
+    dst[0] = value;
+    dst[1] = value;
+    dst[2] = value;
+    dst[3] = value;
+    dst += 4;
+    count -= 4;
+  }
+  while (count > 0) {
+    *dst++ = value;
+    count--;
+  }
+}
+
 #if CONFIG_BRU
 AOM_INLINE void highbd_build_mc_border(const uint16_t *src, int src_stride,
                                        uint16_t *dst, int dst_stride, int x,
@@ -2475,11 +2504,11 @@ AOM_INLINE void highbd_build_mc_border(const uint16_t *src, int src_stride,
 
     copy = b_w - left - right;
 
-    if (left) aom_memset16(dst, ref_row[0], left);
+    if (left) aom_memset16_optimized(dst, ref_row[0], left);
 
     if (copy) memcpy(dst + left, ref_row + x + left, copy * sizeof(uint16_t));
 
-    if (right) aom_memset16(dst + left + copy, ref_row[w - 1], right);
+    if (right) aom_memset16_optimized(dst + left + copy, ref_row[w - 1], right);
 
     dst += dst_stride;
     ++y;
@@ -2553,34 +2582,6 @@ void bru_extend_mc_border(const AV1_COMMON *const cm, int mi_row, int mi_col,
   }
 }
 #endif  // CONFIG_BRU
-
-static inline void aom_memset16_optimized(uint16_t *dst, uint16_t value,
-                                          int count) {
-  while (count >= 8) {
-    dst[0] = value;
-    dst[1] = value;
-    dst[2] = value;
-    dst[3] = value;
-    dst[4] = value;
-    dst[5] = value;
-    dst[6] = value;
-    dst[7] = value;
-    dst += 8;
-    count -= 8;
-  }
-  while (count >= 4) {
-    dst[0] = value;
-    dst[1] = value;
-    dst[2] = value;
-    dst[3] = value;
-    dst += 4;
-    count -= 4;
-  }
-  while (count > 0) {
-    *dst++ = value;
-    count--;
-  }
-}
 
 void refinemv_highbd_pad_mc_border(const uint16_t *src, int src_stride,
                                    uint16_t *dst, int dst_stride, int x0,
