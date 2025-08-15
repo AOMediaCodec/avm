@@ -846,6 +846,7 @@ static void setup_processing_stripe_leftright_boundary(
     uint16_t *data_tl, int w, int h, int data_stride, int border,
     int tile_boundary_left, int tile_boundary_right,
     RestorationLineBuffers *rlbs, int is_chroma) {
+  assert(rlbs != NULL);
   assert(h <= RESTORATION_PROC_UNIT_SIZE);
   assert(border <= RESTORATION_BORDER);
   if (tile_boundary_left) {
@@ -2231,8 +2232,8 @@ void av1_loop_restoration_filter_unit(
         tile_boundary_right, rlbs, rui->plane != PLANE_TYPE_Y);
     if (enable_cross_buffers)
       setup_processing_stripe_leftright_boundary(
-          (uint16_t *)tmp_rui->luma, unit_w, h, rui->luma_stride, border,
-          tile_boundary_left, tile_boundary_right, rlbs, 0);
+          (uint16_t *)tmp_rui->luma, unit_w, h, rui->luma_stride,
+          WIENERNS_UV_BRD, tile_boundary_left, tile_boundary_right, rlbs, 0);
     // pc wiener filter
     tmp_rui->tskip = enable_pcwiener_buffers
                          ? tskip_in_ru + (i >> MI_SIZE_LOG2) * rui->tskip_stride
@@ -2251,8 +2252,8 @@ void av1_loop_restoration_filter_unit(
         tile_boundary_right, rlbs, rui->plane != PLANE_TYPE_Y);
     if (enable_cross_buffers)
       restore_processing_stripe_leftright_boundary(
-          (uint16_t *)tmp_rui->luma, unit_w, h, rui->luma_stride, border,
-          tile_boundary_left, tile_boundary_right, rlbs, 0);
+          (uint16_t *)tmp_rui->luma, unit_w, h, rui->luma_stride,
+          WIENERNS_UV_BRD, tile_boundary_left, tile_boundary_right, rlbs, 0);
     restore_processing_stripe_boundary(&remaining_stripes, rlbs, h, data,
                                        stride, 1, 1, optimized_lr
 #if ISSUE_253
