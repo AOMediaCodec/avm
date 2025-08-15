@@ -163,8 +163,12 @@ void av1_loop_filter_init(AV1_COMMON *cm) {
 // av1_loop_filter_frame() calls this function directly.
 void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
                                 int plane_end) {
+#if CONFIG_DF_DQP && DF_DUAL
+  int q_ind[MAX_MB_PLANE][NUM_EDGE_DIRS], side_ind[MAX_MB_PLANE][NUM_EDGE_DIRS];
+#else
   int q_ind[MAX_MB_PLANE], q_ind_r[MAX_MB_PLANE], side_ind[MAX_MB_PLANE],
       side_ind_r[MAX_MB_PLANE];
+#endif  // CONFIG_DF_DQP && DF_DUAL
   int plane;
   int seg_id;
   // n_shift is the multiplier for lf_deltas
@@ -174,12 +178,25 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
   struct loopfilter *const lf = &cm->lf;
   const struct segmentation *const seg = &cm->seg;
 
+#if CONFIG_DF_DQP && DF_DUAL
+  for (int dir = 0; dir < NUM_EDGE_DIRS; ++dir) {
+    q_ind[0][dir] = cm->lf.delta_q_luma[dir] * DF_DELTA_SCALE;
+    side_ind[0][dir] = cm->lf.delta_side_luma[dir] * DF_DELTA_SCALE;
+  }
+#else
 #if DF_DUAL
   q_ind[0] =
 #if !CONFIG_DF_DQP
       cm->quant_params.base_qindex +
 #endif  // !CONFIG_DF_DQP
       cm->lf.delta_q_luma[0] * DF_DELTA_SCALE;
+#if DF_DUAL
+  q_ind_r[0] =
+#if !CONFIG_DF_DQP
+      cm->quant_params.base_qindex +
+#endif  // !CONFIG_DF_DQP
+      cm->lf.delta_q_luma[1] * DF_DELTA_SCALE;
+
   side_ind[0] =
 #if !CONFIG_DF_DQP
       cm->quant_params.base_qindex +
@@ -192,38 +209,6 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
       cm->quant_params.base_qindex + cm->lf.delta_side_luma * DF_DELTA_SCALE;
 #endif  // DF_DUAL
 
-  q_ind[1] =
-#if !CONFIG_DF_DQP
-      cm->quant_params.base_qindex +
-#endif  // !CONFIG_DF_DQP
-      cm->quant_params.u_ac_delta_q + cm->seq_params.base_uv_ac_delta_q +
-      cm->lf.delta_q_u * DF_DELTA_SCALE;
-  side_ind[1] =
-#if !CONFIG_DF_DQP
-      cm->quant_params.base_qindex +
-#endif  // !CONFIG_DF_DQP
-      cm->quant_params.u_ac_delta_q + cm->seq_params.base_uv_ac_delta_q +
-      cm->lf.delta_side_u * DF_DELTA_SCALE;
-
-  q_ind[2] =
-#if !CONFIG_DF_DQP
-      cm->quant_params.base_qindex +
-#endif  // !CONFIG_DF_DQP
-      cm->quant_params.v_ac_delta_q + cm->seq_params.base_uv_ac_delta_q +
-      cm->lf.delta_q_v * DF_DELTA_SCALE;
-  side_ind[2] =
-#if !CONFIG_DF_DQP
-      cm->quant_params.base_qindex +
-#endif  // !CONFIG_DF_DQP
-      cm->quant_params.v_ac_delta_q + cm->seq_params.base_uv_ac_delta_q +
-      cm->lf.delta_side_v * DF_DELTA_SCALE;
-
-#if DF_DUAL
-  q_ind_r[0] =
-#if !CONFIG_DF_DQP
-      cm->quant_params.base_qindex +
-#endif  // !CONFIG_DF_DQP
-      cm->lf.delta_q_luma[1] * DF_DELTA_SCALE;
   side_ind_r[0] =
 #if !CONFIG_DF_DQP
       cm->quant_params.base_qindex +
@@ -236,26 +221,44 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
       cm->quant_params.base_qindex + cm->lf.delta_side_luma * DF_DELTA_SCALE;
 #endif  // DF_DUAL
 
-  q_ind_r[1] =
+#endif  // CONFIG_DF_DQP && DF_DUAL
+
+#if CONFIG_DF_DQP && DF_DUAL
+  q_ind[1][0] = q_ind[1][1] =
+#else
+  q_ind[1] = q_ind_r[1] =
+#endif  // CONFIG_DF_DQP && DF_DUAL
 #if !CONFIG_DF_DQP
       cm->quant_params.base_qindex +
 #endif  // !CONFIG_DF_DQP
       cm->quant_params.u_ac_delta_q + cm->seq_params.base_uv_ac_delta_q +
       cm->lf.delta_q_u * DF_DELTA_SCALE;
-  side_ind_r[1] =
+
+#if CONFIG_DF_DQP && DF_DUAL
+  side_ind[1][0] = side_ind[1][1] =
+#else
+  side_ind[1] = side_ind_r[1] =
+#endif  // CONFIG_DF_DQP && DF_DUAL
 #if !CONFIG_DF_DQP
       cm->quant_params.base_qindex +
 #endif  // !CONFIG_DF_DQP
       cm->quant_params.u_ac_delta_q + cm->seq_params.base_uv_ac_delta_q +
       cm->lf.delta_side_u * DF_DELTA_SCALE;
-
-  q_ind_r[2] =
+#if CONFIG_DF_DQP && DF_DUAL
+  q_ind[2][0] = q_ind[2][1] =
+#else
+  q_ind[2] = q_ind_r[2] =
+#endif  // CONFIG_DF_DQP && DF_DUAL
 #if !CONFIG_DF_DQP
       cm->quant_params.base_qindex +
 #endif  // !CONFIG_DF_DQP
       cm->quant_params.v_ac_delta_q + cm->seq_params.base_uv_ac_delta_q +
       cm->lf.delta_q_v * DF_DELTA_SCALE;
-  side_ind_r[2] =
+#if CONFIG_DF_DQP && DF_DUAL
+  side_ind[2][0] = side_ind[2][1] =
+#else
+  side_ind[2] = side_ind_r[2] =
+#endif  // CONFIG_DF_DQP && DF_DUAL
 #if !CONFIG_DF_DQP
       cm->quant_params.base_qindex +
 #endif  // !CONFIG_DF_DQP
@@ -282,8 +285,13 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
 
     for (seg_id = 0; seg_id < max_seg_num; seg_id++) {
       for (int dir = 0; dir < 2; ++dir) {
+#if CONFIG_DF_DQP && DF_DUAL
+        int q_ind_seg = q_ind[plane][dir];
+        int side_ind_seg = side_ind[plane][dir];
+#else  // CONFIG_DF_DQP && DF_DUAL
         int q_ind_seg = (dir == 0) ? q_ind[plane] : q_ind_r[plane];
         int side_ind_seg = (dir == 0) ? side_ind[plane] : side_ind_r[plane];
+#endif
 #if CONFIG_DF_DQP
         const int seg_lf_feature_id = seg_lvl_lf;
 #else
