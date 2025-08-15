@@ -18,6 +18,7 @@
 #include "aom/aom_integer.h"
 #include "aom_ports/mem_ops.h"
 #include "av1/common/obu_util.h"
+#include "config/aom_config.h"
 #include "tools/obu_parser.h"
 
 namespace aom_tools {
@@ -59,6 +60,9 @@ const uint32_t kObuExtSpatialIdBitsShift = 3;
 bool ValidObuType(int obu_type) {
   switch (obu_type) {
     case OBU_SEQUENCE_HEADER:
+#if CONFIG_CWG_F270_CI_OBU
+    case OBU_CONTENT_INTERPRETATION:
+#endif  // CONFIG_CWG_F270_CI_OBU
     case OBU_TEMPORAL_DELIMITER:
     case OBU_FRAME_HEADER:
     case OBU_TILE_GROUP:

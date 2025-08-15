@@ -382,6 +382,9 @@ typedef struct AV1Decoder {
    * Indicate if the primary reference frame is signaled.
    */
   int signal_primary_ref_frame;
+#if CONFIG_CWG_F270_CI_OBU
+  int ci_params_present_flag;
+#endif  // CONFIG_CWG_F270_CI_OBU
 } AV1Decoder;
 
 // Returns 0 on success. Sets pbi->common.error.error_code to a nonzero error

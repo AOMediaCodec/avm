@@ -530,6 +530,38 @@ typedef struct {
 #endif                             // CONFIG_REDUCED_REF_FRAME_MVS_MODE
 } OrderHintInfo;
 
+#if CONFIG_CWG_F270_CI_OBU
+typedef struct color_info {
+  aom_color_primaries_t color_primaries;
+  aom_transfer_characteristics_t transfer_characteristics;
+  aom_matrix_coefficients_t matrix_coefficients;
+  int full_range_flag;
+} ColorInfo;
+
+typedef struct sar_info {
+  int sar_aspect_ratio_idc;
+  int sar_width;
+  int sar_height;
+} SarInfo;
+
+typedef struct ContentInterpretation {
+  int ci_scan_type_idc;
+  int ci_color_description_present_flag;
+  int ci_chroma_sample_position_present_flag;
+  int ci_aspect_ratio_info_present_flag;
+  int ci_timing_info_present_flag;
+  int ci_chroma_sample_location_type_top_field;
+  int ci_chroma_sample_location_type_bottom_field;
+  int ci_decoder_model_info_present_flag;
+  int ci_buffer_delay_length_minus_1;
+  int ci_num_units_in_decoding_tick;
+  int ci_extension_present_flag;
+  int ci_color_description_idc;
+  ColorInfo col_info;
+  SarInfo sar_info;
+} ContentInterpretation;
+#endif  // CONFIG_CWG_F270_CI_OBU
+
 // Sequence header structure.
 // Note: All syntax elements of sequence_header_obu that need to be
 // bit-identical across multiple sequence headers must be part of this struct,
@@ -694,6 +726,12 @@ typedef struct SequenceHeader {
   aom_transfer_characteristics_t transfer_characteristics;
   aom_matrix_coefficients_t matrix_coefficients;
   int color_range;
+#if CONFIG_CWG_F270_CI_OBU
+  int color_description_present_flag;
+#endif  // CONFIG_CWG_F270_CI_OBU
+#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+  int seq_chroma_format_idc;
+#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
   int subsampling_x;  // Chroma subsampling for x
   int subsampling_y;  // Chroma subsampling for y
   aom_chroma_sample_position_t chroma_sample_position;
@@ -1885,6 +1923,14 @@ typedef struct AV1Common {
    * frames in the video.
    */
   SequenceHeader seq_params;
+
+#if CONFIG_CWG_F270_CI_OBU
+  /*!
+   * Elements part of the content interpretation, when present, applicable for all the
+   * frames in the video.
+   */
+  ContentInterpretation ci_params;
+#endif  // CONFIG_CWG_F270_CI_OBU
 
   /*!
    * Current CDFs of all the symbols for the current frame.

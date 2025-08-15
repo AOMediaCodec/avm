@@ -206,11 +206,17 @@ static aom_codec_err_t parse_bitdepth(struct aom_read_bit_buffer *rb,
   return AOM_CODEC_OK;
 }
 
+#if !CONFIG_CWG_F270_CI_OBU
 static aom_codec_err_t parse_color_config(struct aom_read_bit_buffer *rb,
                                           BITSTREAM_PROFILE profile) {
   aom_bit_depth_t bit_depth;
+#if CONFIG_CWG_F270_CI_OBU
+  bit_depth = 8;
+#else
   aom_codec_err_t err = parse_bitdepth(rb, profile, &bit_depth);
   if (err != AOM_CODEC_OK) return err;
+#endif  // CONFIG_CWG_F270_CI_OBU
+
 
   // monochrome bit (not needed for PROFILE_1)
   const int is_monochrome = profile != PROFILE_1 ? aom_rb_read_bit(rb) : 0;
@@ -290,8 +296,10 @@ static aom_codec_err_t parse_color_config(struct aom_read_bit_buffer *rb,
 #endif  // CONFIG_NEW_CSP
     }
   }
+
   return AOM_CODEC_OK;
 }
+#endif  // !CONFIG_CWG_F270_CI_OBU
 
 static aom_codec_err_t parse_timing_info(struct aom_read_bit_buffer *rb) {
   const uint32_t num_units_in_display_tick =
@@ -441,6 +449,15 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
       struct aom_read_bit_buffer rb = { data, data + data_sz, 0, NULL, NULL };
 
       BITSTREAM_PROFILE profile = av1_read_profile(&rb);  // profile
+#if CONFIG_CWG_F270_CI_OBU
+      int tier = 0;
+      int level = aom_rb_read_literal(&rb, LEVEL_BITS);
+      reduced_still_picture_hdr = aom_rb_read_bit(&rb);
+      if (!reduced_still_picture_hdr) {
+        if (level >= SEQ_LEVEL_4_0)
+          tier = aom_rb_read_bit(&rb);
+      }
+#endif  // CONFIG_CWG_F270_CI_OBU
 
       int num_bits_width = aom_rb_read_literal(&rb, 4) + 1;
       int num_bits_height = aom_rb_read_literal(&rb, 4) + 1;
@@ -449,11 +466,21 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
       si->w = max_frame_width;
       si->h = max_frame_height;
 
+#if CONFIG_CWG_F270_CI_OBU
+      aom_bit_depth_t bit_depth;
+      aom_codec_err_t err = parse_bitdepth(&rb, profile, &bit_depth);
+      if (err != AOM_CODEC_OK) return err;
+#endif  // CONFIG_CWG_F270_CI_OBU
+
+#if !CONFIG_CWG_F270_CI_OBU
       status = parse_color_config(&rb, profile);
       if (status != AOM_CODEC_OK) return status;
+#endif  // !#if CONFIG_CWG_F270_CI_OBU
 
       const uint8_t still_picture = aom_rb_read_bit(&rb);
+#if !CONFIG_CWG_F270_CI_OBU
       reduced_still_picture_hdr = aom_rb_read_bit(&rb);
+#endif  // !ONFIG_CWG_F270_CI_OBU
 
       if (!still_picture && reduced_still_picture_hdr) {
         return AOM_CODEC_UNSUP_BITSTREAM;

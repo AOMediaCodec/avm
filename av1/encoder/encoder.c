@@ -605,6 +605,14 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   seq_params->color_primaries = color_cfg->color_primaries;
   seq_params->transfer_characteristics = color_cfg->transfer_characteristics;
   seq_params->matrix_coefficients = color_cfg->matrix_coefficients;
+#if CONFIG_CWG_F270_CI_OBU
+  if (seq_params->color_primaries == AOM_CICP_CP_UNSPECIFIED &&
+      seq_params->transfer_characteristics == AOM_CICP_TC_UNSPECIFIED &&
+      seq_params->matrix_coefficients == AOM_CICP_MC_UNSPECIFIED)
+    seq_params->color_description_present_flag = 0;
+  else
+    seq_params->color_description_present_flag = 1;
+#endif // CONFIG_CWG_F270_CI_OBU
   seq_params->monochrome = oxcf->tool_cfg.enable_monochrome;
   seq_params->chroma_sample_position = color_cfg->chroma_sample_position;
   seq_params->color_range = color_cfg->color_range;
@@ -663,6 +671,18 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
       }
     }
   }
+
+#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+  if (seq_params->monochrome)
+    seq_params->seq_chroma_format_idc = CHROMA_FORMAT_400;
+  else if (seq_params->subsampling_x == 1 && seq_params->subsampling_y == 1) {
+    seq_params->seq_chroma_format_idc = CHROMA_FORMAT_420;
+  } else if (seq_params->subsampling_x == 1 && seq_params->subsampling_y == 0) {
+    seq_params->seq_chroma_format_idc = CHROMA_FORMAT_422;
+  } else if (seq_params->subsampling_x == 0 && seq_params->subsampling_y == 0) {
+    seq_params->seq_chroma_format_idc = CHROMA_FORMAT_444;
+  }
+#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
   cm->width = oxcf->frm_dim_cfg.width;
   cm->height = oxcf->frm_dim_cfg.height;
@@ -778,6 +798,10 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   if (cpi->lap_enabled && cpi->compressor_stage == LAP_STAGE) {
     lap_lag_in_frames = cpi->oxcf.gf_cfg.lag_in_frames;
   }
+  
+#if CONFIG_CWG_F270_CI_OBU
+  cpi->write_ci_obu_flag = 1;
+#endif  // CONFIG_CWG_F270_CI_OBU
 
   if (seq_params->profile != oxcf->profile) seq_params->profile = oxcf->profile;
   seq_params->bit_depth = oxcf->tool_cfg.bit_depth;

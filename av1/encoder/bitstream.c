@@ -5141,7 +5141,10 @@ static AOM_INLINE void write_profile(BITSTREAM_PROFILE profile,
   aom_wb_write_literal(wb, profile, PROFILE_BITS);
 }
 
-static AOM_INLINE void write_bitdepth(const SequenceHeader *const seq_params,
+#if !CONFIG_CWG_F270_CI_OBU
+static AOM_INLINE
+#endif  // !CONFIG_CWG_F270_CI_OBU
+void write_bitdepth(const SequenceHeader *const seq_params,
                                       struct aom_write_bit_buffer *wb) {
   // Profile 0/1: [0] for 8 bit, [1]  10-bit
   // Profile   2: [0] for 8 bit, [10] 10-bit, [11] - 12-bit
@@ -5151,9 +5154,12 @@ static AOM_INLINE void write_bitdepth(const SequenceHeader *const seq_params,
   }
 }
 
+#if !CONFIG_CWG_F270_CI_OBU
 static AOM_INLINE void write_color_config(
     const SequenceHeader *const seq_params, struct aom_write_bit_buffer *wb) {
+#if CONFIG_CWG_F270_CI_OBU
   write_bitdepth(seq_params, wb);
+#endif  // !CONFIG_CWG_F270_CI_OBU
   const int is_monochrome = seq_params->monochrome;
   // monochrome bit
   if (seq_params->profile != PROFILE_1)
@@ -5245,6 +5251,7 @@ static AOM_INLINE void write_color_config(
     }
   }
 }
+#endif  // !CONFIG_CWG_F270_CI_OBU
 
 static AOM_INLINE void write_timing_info_header(
     const aom_timing_info_t *const timing_info,
@@ -7021,7 +7028,10 @@ static size_t obu_memmove(size_t obu_header_size, size_t obu_payload_size,
   return length_field_size;
 }
 
-static AOM_INLINE void add_trailing_bits(struct aom_write_bit_buffer *wb) {
+#if !CONFIG_CWG_F270_CI_OBU
+static AOM_INLINE
+#endif  // CONFIG_CWG_F270_CI_OBU
+    void add_trailing_bits(struct aom_write_bit_buffer *wb) {
   if (aom_wb_is_byte_aligned(wb)) {
     aom_wb_write_literal(wb, 0x80, 8);
   } else {
@@ -7030,18 +7040,42 @@ static AOM_INLINE void add_trailing_bits(struct aom_write_bit_buffer *wb) {
   }
 }
 
+#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+static AOM_INLINE void write_seq_chroma_format(
+    const SequenceHeader *const seq_params, struct aom_write_bit_buffer *wb) {
+  aom_wb_write_uvlc(wb, seq_params->seq_chroma_format_idc);
+}
+#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+    
 static AOM_INLINE void write_bitstream_level(AV1_LEVEL seq_level_idx,
                                              struct aom_write_bit_buffer *wb) {
   assert(is_valid_seq_level_idx(seq_level_idx));
   aom_wb_write_literal(wb, seq_level_idx, LEVEL_BITS);
 }
 
+#if CONFIG_CWG_F270_CI_OBU
+ void write_profile_tier_level(const SequenceHeader *const seq_params, struct
+                               aom_write_bit_buffer *wb) {
+   write_profile(seq_params->profile, wb);
+   write_bitstream_level(seq_params->seq_level_idx[0], wb);
+   aom_wb_write_bit(wb, seq_params->reduced_still_picture_hdr);
+   /*if (!seq_params->reduced_still_picture_hdr) {
+     if (seq_params->seq_level_idx[0] >= SEQ_LEVEL_4_0)
+       aom_wb_write_bit(wb, seq_params->tier[0]);
+   }*/
+ }
+#endif  // CONFIG_CWG_F270_CI_OBU
+
 uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
                                        uint8_t *const dst) {
   struct aom_write_bit_buffer wb = { dst, 0 };
   uint32_t size = 0;
 
+#if CONFIG_CWG_F270_CI_OBU
+  write_profile_tier_level(seq_params, &wb);
+#else
   write_profile(seq_params->profile, &wb);
+#endif  // CONFIG_CWG_F270_CI_OBU
 
   aom_wb_write_literal(&wb, seq_params->num_bits_width - 1, 4);
   aom_wb_write_literal(&wb, seq_params->num_bits_height - 1, 4);
@@ -7050,20 +7084,34 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
   aom_wb_write_literal(&wb, seq_params->max_frame_height - 1,
                        seq_params->num_bits_height);
 
+#if CONFIG_CWG_F270_CI_OBU
+  write_bitdepth(seq_params, &wb);
+#endif  // CONFIG_CWG_F270_CI_OBU
+
+#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+  write_seq_chroma_format(seq_params, &wb);
+#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+  
+#if !CONFIG_CWG_F270_CI_OBU
   write_color_config(seq_params, &wb);
+#endif  // !CONFIG_CWG_F270_CI_OBU
 
   // Still picture or not
   aom_wb_write_bit(&wb, seq_params->still_picture);
   assert(IMPLIES(!seq_params->still_picture,
                  !seq_params->reduced_still_picture_hdr));
+#if !CONFIG_CWG_F270_CI_OBU
   // whether to use reduced still picture header
   aom_wb_write_bit(&wb, seq_params->reduced_still_picture_hdr);
+#endif  // !CONFIG_CWG_F270_CI_OBU
 
   if (seq_params->reduced_still_picture_hdr) {
     assert(seq_params->timing_info_present == 0);
     assert(seq_params->decoder_model_info_present_flag == 0);
     assert(seq_params->display_model_info_present_flag == 0);
+#if !CONFIG_CWG_F270_CI_OBU
     write_bitstream_level(seq_params->seq_level_idx[0], &wb);
+#endif  // !CONFIG_CWG_F270_CI_OBU
   } else {
     aom_wb_write_bit(
         &wb, seq_params->timing_info_present);  // timing info present flag
@@ -7083,9 +7131,13 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
     for (i = 0; i < seq_params->operating_points_cnt_minus_1 + 1; i++) {
       aom_wb_write_literal(&wb, seq_params->operating_point_idc[i],
                            OP_POINTS_IDC_BITS);
+#if !CONFIG_CWG_F270_CI_OBU
       write_bitstream_level(seq_params->seq_level_idx[i], &wb);
+#endif  // !CONFIG_CWG_F270_CI_OBU
+#if !CONFIG_CWG_F270_CI_OBU
       if (seq_params->seq_level_idx[i] >= SEQ_LEVEL_4_0)
         aom_wb_write_bit(&wb, seq_params->tier[i]);
+#endif 
       if (seq_params->decoder_model_info_present_flag) {
         aom_wb_write_bit(
             &wb, seq_params->op_params[i].decoder_model_param_present_flag);
@@ -7678,7 +7730,25 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
   level_params->frame_header_count = 0;
 
   // The TD is now written outside the frame encode loop
+#if CONFIG_CWG_F270_CI_OBU
+  if (cm->current_frame.frame_type == KEY_FRAME && !cpi->no_show_fwd_kf && cpi->write_ci_obu_flag) {
+    set_ci_params_with_keyframe(cpi);
+    obu_header_size = av1_write_obu_header(level_params,
+                                           OBU_CONTENT_INTERPRETATION, 0,
+                                           data);
 
+    obu_payload_size =
+        write_content_interpretation_obu(&cm->ci_params, data + obu_header_size);
+    const size_t length_field_size =
+        obu_memmove(obu_header_size, obu_payload_size, data);
+    if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
+        AOM_CODEC_OK) {
+      return AOM_CODEC_ERROR;
+    }
+
+    data += obu_header_size + obu_payload_size + length_field_size;
+  }
+#endif  // CONFIG_CWG_F270_CI_OBU
   // write sequence header obu if KEY_FRAME, preceded by 4-byte size
   if (cm->current_frame.frame_type == KEY_FRAME && !cpi->no_show_fwd_kf) {
     obu_header_size =

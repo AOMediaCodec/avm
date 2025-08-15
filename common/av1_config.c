@@ -159,6 +159,9 @@ static int parse_color_config(struct aom_read_bit_buffer *reader,
   int result = 0;
   AV1C_PUSH_ERROR_HANDLER_DATA(result);
 
+#if CONFIG_CWG_F270_CI_OBU
+  int bit_depth = 8; // temp
+#else
   AV1C_READ_BIT_OR_RETURN_ERROR(high_bitdepth);
   config->high_bitdepth = high_bitdepth;
 
@@ -170,6 +173,7 @@ static int parse_color_config(struct aom_read_bit_buffer *reader,
   } else {
     bit_depth = config->high_bitdepth ? 10 : 8;
   }
+#endif  // CONFIG_CWG_F270_CI_OBU
 
   if (config->seq_profile != 1) {
     AV1C_READ_BIT_OR_RETURN_ERROR(mono_chrome);
@@ -280,6 +284,22 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
                                  frame_width_bits_minus_1 + 1);
   AV1C_READ_BITS_OR_RETURN_ERROR(max_frame_height_minus_1,
                                  frame_height_bits_minus_1 + 1);
+  
+#if CONFIG_CWG_F270_CI_OBU
+  AV1C_READ_BIT_OR_RETURN_ERROR(high_bitdepth);
+  config->high_bitdepth = high_bitdepth;
+
+  int bit_depth = 0;
+  if (config->seq_profile == 2 && config->high_bitdepth) {
+    AV1C_READ_BIT_OR_RETURN_ERROR(twelve_bit);
+    config->twelve_bit = twelve_bit;
+    bit_depth = config->twelve_bit ? 12 : 10;
+  } else {
+    bit_depth = config->high_bitdepth ? 10 : 8;
+  }
+  if(bit_depth < 0) return -1;
+#endif  // CONFIG_CWG_F270_CI_OBU
+  
 
   if (parse_color_config(reader, config) != 0) {
     fprintf(stderr, "av1c: color_config() parse failed.\n");

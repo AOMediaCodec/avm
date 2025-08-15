@@ -100,6 +100,7 @@ extern "C" {
 
 #include "aom/aom_image.h"
 #include "aom/aom_integer.h"
+#include "config/aom_config.h"
 
 /*!\brief Decorator indicating a function is deprecated */
 #ifndef AOM_DEPRECATED
@@ -550,6 +551,9 @@ typedef enum ATTRIBUTE_PACKED {
   OBU_FRAME = 6,
   OBU_REDUNDANT_FRAME_HEADER = 7,
   OBU_TILE_LIST = 8,
+#if CONFIG_CWG_F270_CI_OBU
+  OBU_CONTENT_INTERPRETATION = 9,
+#endif  // CONFIG_CWG_F270_CI_OBU
   OBU_PADDING = 15,
 } OBU_TYPE;
 

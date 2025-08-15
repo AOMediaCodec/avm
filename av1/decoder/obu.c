@@ -98,6 +98,45 @@ static int are_seq_headers_consistent(const SequenceHeader *seq_params_old,
                  offsetof(SequenceHeader, op_params));
 }
 
+#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+void set_seq_chroma_format(SequenceHeader *seq_params) {
+  if (seq_params->seq_chroma_format_idc == CHROMA_FORMAT_420) {
+    seq_params->subsampling_x = 1;
+    seq_params->subsampling_y = 1;
+  } else if (seq_params->seq_chroma_format_idc == CHROMA_FORMAT_444) {
+    seq_params->subsampling_x = 0;
+    seq_params->subsampling_y = 0;
+  } else if (seq_params->seq_chroma_format_idc == CHROMA_FORMAT_422) {
+    seq_params->subsampling_x = 1;
+    seq_params->subsampling_y = 0;
+  }
+}
+#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+
+#if CONFIG_CWG_F270_CI_OBU
+int read_profile_tier_level(AV1Decoder *pbi, struct aom_read_bit_buffer *rb) {
+  
+  AV1_COMMON *cm = &pbi->common;
+  SequenceHeader *seq_params = &cm->seq_params;
+  
+  seq_params->profile = av1_read_profile(rb);
+  if (!read_bitstream_level(&seq_params->seq_level_idx[0], rb)) {
+    cm->error.error_code = AOM_CODEC_UNSUP_BITSTREAM;
+    return 0;
+  }
+  seq_params->reduced_still_picture_hdr = aom_rb_read_bit(rb);
+  /*if (!seq_params->reduced_still_picture_hdr) {
+    if (seq_params->seq_level_idx >= SEQ_LEVEL_4_0)
+      seq_params->tier[0] = aom_rb_read_bit(rb);
+    else
+      seq_params->tier[0] = 0;
+  } else {
+    seq_params->tier[0] = 0;
+  }*/
+  return 0;
+}
+#endif  // CONFIG_CWG_F270_CI_OBU
+
 // On success, sets pbi->sequence_header_ready to 1 and returns the number of
 // bytes read from 'rb'.
 // On failure, sets pbi->common.error.error_code and returns 0.
@@ -114,7 +153,11 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
   SequenceHeader sh = cm->seq_params;
   SequenceHeader *const seq_params = &sh;
 
+#if CONFIG_CWG_F270_CI_OBU
+  read_profile_tier_level(pbi, rb);
+#else
   seq_params->profile = av1_read_profile(rb);
+#endif  // CONFIG_CWG_F270_CI_OBU
   if (seq_params->profile > CONFIG_MAX_DECODE_PROFILE) {
     cm->error.error_code = AOM_CODEC_UNSUP_BITSTREAM;
     return 0;
@@ -130,7 +173,27 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
   seq_params->max_frame_width = max_frame_width;
   seq_params->max_frame_height = max_frame_height;
 
+#if CONFIG_CWG_F270_CI_OBU
+  read_bitdepth(rb, seq_params, &cm->error);
+#endif  // CONFIG_CWG_F270_CI_OBU
+
+#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+  seq_params->seq_chroma_format_idc = aom_rb_read_uvlc(rb);
+  seq_params->monochrome =
+      seq_params->seq_chroma_format_idc == CHROMA_FORMAT_400;
+  set_seq_chroma_format(seq_params);
+
+  // Set default values for color values
+  seq_params->color_primaries = AOM_CICP_CP_UNSPECIFIED;
+  seq_params->transfer_characteristics = AOM_CICP_TC_UNSPECIFIED;
+  seq_params->matrix_coefficients = AOM_CICP_MC_UNSPECIFIED;
+  seq_params->color_range = 0;
+  seq_params->chroma_sample_position = AOM_CSP_UNSPECIFIED;
+#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+
+#if !CONFIG_CWG_F270_CI_OBU
   av1_read_color_config(rb, seq_params, &cm->error);
+#endif  // !CONFIG_CWG_F270_CI_OBU
   if (!(seq_params->subsampling_x == 0 && seq_params->subsampling_y == 0) &&
       !(seq_params->subsampling_x == 1 && seq_params->subsampling_y == 1) &&
       !(seq_params->subsampling_x == 1 && seq_params->subsampling_y == 0)) {
@@ -142,7 +205,9 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
 
   // Still picture or not
   seq_params->still_picture = aom_rb_read_bit(rb);
+#if !CONFIG_CWG_F270_CI_OBU
   seq_params->reduced_still_picture_hdr = aom_rb_read_bit(rb);
+#endif  // !CONFIG_CWG_F270_CI_OBU
   // Video must have reduced_still_picture_hdr = 0
   if (!seq_params->still_picture && seq_params->reduced_still_picture_hdr) {
     cm->error.error_code = AOM_CODEC_UNSUP_BITSTREAM;
@@ -155,10 +220,12 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
     seq_params->display_model_info_present_flag = 0;
     seq_params->operating_points_cnt_minus_1 = 0;
     seq_params->operating_point_idc[0] = 0;
+#if !CONFIG_CWG_F270_CI_OBU
     if (!read_bitstream_level(&seq_params->seq_level_idx[0], rb)) {
       cm->error.error_code = AOM_CODEC_UNSUP_BITSTREAM;
       return 0;
     }
+#endif  // !CONFIG_CWG_F270_CI_OBU
     seq_params->tier[0] = 0;
     seq_params->op_params[0].decoder_model_param_present_flag = 0;
     seq_params->op_params[0].display_model_param_present_flag = 0;
@@ -179,16 +246,20 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
     for (int i = 0; i < seq_params->operating_points_cnt_minus_1 + 1; i++) {
       seq_params->operating_point_idc[i] =
           aom_rb_read_literal(rb, OP_POINTS_IDC_BITS);
+#if !CONFIG_CWG_F270_CI_OBU
       if (!read_bitstream_level(&seq_params->seq_level_idx[i], rb)) {
         cm->error.error_code = AOM_CODEC_UNSUP_BITSTREAM;
         return 0;
       }
+#endif  // !CONFIG_CWG_F270_CI_OBU
       // This is the seq_level_idx[i] > 7 check in the spec. seq_level_idx 7
       // is equivalent to level 3.3.
+#if !CONFIG_CWG_F270_CI_OBU
       if (seq_params->seq_level_idx[i] >= SEQ_LEVEL_4_0)
         seq_params->tier[i] = aom_rb_read_bit(rb);
       else
         seq_params->tier[i] = 0;
+#endif
       if (seq_params->decoder_model_info_present_flag) {
         seq_params->op_params[i].decoder_model_param_present_flag =
             aom_rb_read_bit(rb);
@@ -976,6 +1047,13 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
           return -1;
         }
         break;
+#if CONFIG_CWG_F270_CI_OBU
+      case OBU_CONTENT_INTERPRETATION:
+        decoded_payload_size = read_content_interpretation_obu(pbi, &rb);
+        pbi->ci_params_present_flag = 1;
+        if (cm->error.error_code != AOM_CODEC_OK) return -1;
+        break;
+#endif  // CONFIG_CWG_F270_CI_OBU
       case OBU_FRAME_HEADER:
       case OBU_REDUNDANT_FRAME_HEADER:
       case OBU_FRAME:

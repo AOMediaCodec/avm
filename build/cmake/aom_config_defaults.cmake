@@ -216,6 +216,12 @@ set_aom_config_var(
   "Replace the six-tap luma downsampling filter with a two-tap filter for cross-plane non-sep wiener filter"
 )
 
+set_aom_config_var(CONFIG_CWG_F270_CI_OBU 1
+                   "Content Interpretation OBU")
+
+set_aom_config_var(CONFIG_CWG_E242_CHROMA_FORMAT_IDC 1
+                  " Chroma format idc")
+
 set_aom_config_var(CONFIG_LOSSLESS_CHROMA_IDTX 1
                    "AV2 enable IDTX for chroma blocks in lossless mode")
 set_aom_config_var(

@@ -5931,7 +5931,10 @@ static AOM_INLINE void error_handler(void *data) {
 // seq_params->bit_depth based on the values of those fields and
 // seq_params->profile. Reports errors by calling rb->error_handler() or
 // aom_internal_error().
-static AOM_INLINE void read_bitdepth(
+#if !CONFIG_CWG_F270_CI_OBU
+static AOM_INLINE
+#endif  // !CONFIG_CWG_F270_CI_OBU
+void read_bitdepth(
     struct aom_read_bit_buffer *rb, SequenceHeader *seq_params,
     struct aom_internal_error_info *error_info) {
   const int high_bitdepth = aom_rb_read_bit(rb);
@@ -6137,7 +6140,9 @@ static AOM_INLINE void read_film_grain(AV1_COMMON *cm,
 void av1_read_color_config(struct aom_read_bit_buffer *rb,
                            SequenceHeader *seq_params,
                            struct aom_internal_error_info *error_info) {
+#if !CONFIG_CWG_F270_CI_OBU
   read_bitdepth(rb, seq_params, error_info);
+#endif  // !CONFIG_CWG_F270_CI_OBU
 
   // monochrome bit (not needed for PROFILE_1)
   const int is_monochrome =
@@ -8841,6 +8846,11 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
   AV1_COMMON *const cm = &pbi->common;
   const int num_planes = av1_num_planes(cm);
   MACROBLOCKD *const xd = &pbi->dcb.xd;
+  
+#if CONFIG_CWG_F270_CI_OBU
+  SequenceHeader *seq_params = &cm->seq_params;
+  ContentInterpretation *ci_params =&cm->ci_params;
+#endif  // CONFIG_CWG_F270_CI_OBU
 
 #if CONFIG_MISMATCH_DEBUG
   mismatch_move_frame_idx_r(1);
@@ -8856,6 +8866,23 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
   }
 #endif  // CONFIG_TEMP_LR
   xd->global_motion = cm->global_motion;
+
+#if CONFIG_CWG_F270_CI_OBU
+  if (pbi->ci_params_present_flag) {
+    int color_description_present_flag = seq_params->color_primaries == AOM_CICP_CP_UNSPECIFIED &&
+    seq_params->transfer_characteristics == AOM_CICP_TC_UNSPECIFIED && seq_params->matrix_coefficients == AOM_CICP_MC_UNSPECIFIED;
+    if (color_description_present_flag == 1 && ci_params->ci_color_description_present_flag) {
+      seq_params->color_primaries = ci_params->col_info.color_primaries;
+      seq_params->matrix_coefficients = ci_params->col_info.matrix_coefficients;
+      seq_params->transfer_characteristics = ci_params->col_info.transfer_characteristics;
+      seq_params->color_range = ci_params->col_info.full_range_flag;
+    }
+    int csp_flag = seq_params->chroma_sample_position != AOM_CSP_UNSPECIFIED;
+    if (csp_flag == 1 && ci_params->ci_chroma_sample_position_present_flag == 1) {
+      seq_params->chroma_sample_position = ci_params->ci_chroma_sample_location_type_top_field;
+    }
+  }
+#endif  // CONFIG_CWG_F270_CI_OBU
 
   read_uncompressed_header(pbi, rb);
 

@@ -67,6 +67,14 @@ void av1_decode_tg_tiles_and_wrapup(struct AV1Decoder *pbi, const uint8_t *data,
                                     const uint8_t **p_data_end, int start_tile,
                                     int end_tile, int initialize_flag);
 
+#if CONFIG_CWG_F270_CI_OBU
+void read_bitdepth(
+  struct aom_read_bit_buffer *rb, SequenceHeader *seq_params,
+                   struct aom_internal_error_info *error_info);
+uint32_t read_content_interpretation_obu(struct AV1Decoder *pbi,
+                                                struct aom_read_bit_buffer *rb);
+#endif  // CONFIG_CWG_F270_CI_OBU
+
 // Implements the color_config() function in the spec. Reports errors by
 // calling rb->error_handler() or aom_internal_error().
 void av1_read_color_config(struct aom_read_bit_buffer *rb,

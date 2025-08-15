@@ -154,7 +154,8 @@ list(
   "${AOM_ROOT}/av1/decoder/detokenize.h"
   "${AOM_ROOT}/av1/decoder/dthread.h"
   "${AOM_ROOT}/av1/decoder/obu.h"
-  "${AOM_ROOT}/av1/decoder/obu.c")
+  "${AOM_ROOT}/av1/decoder/obu.c"
+  "${AOM_ROOT}/av1/decoder/obu_ci.c")
 
 list(
   APPEND
@@ -171,6 +172,7 @@ list(
   "${AOM_ROOT}/av1/encoder/av1_quantize.c"
   "${AOM_ROOT}/av1/encoder/av1_quantize.h"
   "${AOM_ROOT}/av1/encoder/bitstream.c"
+  "${AOM_ROOT}/av1/encoder/bitstream_ci.c"
   "${AOM_ROOT}/av1/encoder/bitstream.h"
   "${AOM_ROOT}/av1/encoder/block.h"
   "${AOM_ROOT}/av1/encoder/cnn.c"

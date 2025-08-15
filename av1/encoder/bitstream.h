@@ -21,6 +21,11 @@ extern "C" {
 
 struct aom_write_bit_buffer;
 
+#if CONFIG_CWG_F270_CI_OBU
+void write_bitdepth(const SequenceHeader *const seq_params,
+                    struct aom_write_bit_buffer *wb);
+#endif  // !CONFIG_CWG_F270_CI_OBU
+
 // Writes only the OBU Sequence Header payload, and returns the size of the
 // payload written to 'dst'. This function does not write the OBU header, the
 // optional extension, or the OBU size to 'dst'.
@@ -35,6 +40,14 @@ uint32_t av1_write_obu_header(AV1LevelParams *const level_params,
 
 int av1_write_uleb_obu_size(size_t obu_header_size, size_t obu_payload_size,
                             uint8_t *dest);
+
+#if CONFIG_CWG_F270_CI_OBU
+void add_trailing_bits(struct aom_write_bit_buffer *wb);
+uint32_t write_content_interpretation_obu(const ContentInterpretation
+                                                 *ci_params,
+                                          uint8_t *const dst);
+void set_ci_params_with_keyframe(AV1_COMP *const cpi);
+#endif  // CONFIG_CWG_F270_CI_OBU
 
 /*!\brief Pack the bitstream for one frame
  *

@@ -3207,6 +3207,9 @@ typedef struct AV1_COMP {
    */
   int tip_mode_count[INTER_REFS_PER_FRAME];
 #endif  // CONFIG_TIP_LD
+#if CONFIG_CWG_F270_CI_OBU
+  int write_ci_obu_flag;
+#endif  // CONFIG_CWG_F270_CI_OBU
 } AV1_COMP;
 
 /*!
