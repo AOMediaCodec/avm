@@ -1567,7 +1567,6 @@ typedef struct macroblockd_plane {
 #define LR_BANK_SIZE 4
 /*!\endcond */
 
-#if CONFIG_COMBINE_PC_NS_WIENER
 #define WIENERNS_MAX_CLASSES 16
 #define NUM_WIENERNS_CLASS_INIT_LUMA 16
 #define NUM_WIENERNS_CLASS_INIT_CHROMA 1
@@ -1704,24 +1703,6 @@ static inline int predict_within_group(int group, int c_id,
   return prediction;
 }
 
-#ifndef NDEBUG
-static inline void print_match_indices(int plane, int num_classes,
-                                       int num_ref_filters,
-                                       const int *match_indices, char enc_dec) {
-  printf("%c: plane[%1d] ", enc_dec, plane);
-  for (int i = 0; i < num_classes; ++i) {
-    printf("%3d, ", match_indices[i]);
-  }
-  printf(" (%3d)\n", num_ref_filters);
-}
-#endif  // NDEBUG
-
-#else
-#define WIENERNS_MAX_CLASSES 1
-#define NUM_WIENERNS_CLASS_INIT_LUMA 1
-#define NUM_WIENERNS_CLASS_INIT_CHROMA 1
-#endif  // CONFIG_COMBINE_PC_NS_WIENER
-
 // Need two of the WIENERNS_TAPS_MAX to store potential center taps. Adjust
 // accordingly.
 #define WIENERNS_TAPS_MAX 32
@@ -1745,7 +1726,6 @@ typedef struct {
    * Best Reference from dynamic bank for each class.
    */
   int bank_ref_for_class[WIENERNS_MAX_CLASSES];
-#if CONFIG_COMBINE_PC_NS_WIENER
   /*!
    * Indices of frame filter dictionary filters that will be used to populate
    * the first bank slot and in turn used as frame filter predictors.
@@ -1755,7 +1735,6 @@ typedef struct {
    * Number of available reference filters.
    */
   int num_ref_filters;
-#endif  // CONFIG_COMBINE_PC_NS_WIENER
 } WienerNonsepInfo;
 
 /*!\brief Parameters related to Nonseparable Wiener Filter Bank */

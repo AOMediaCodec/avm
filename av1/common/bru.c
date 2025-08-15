@@ -332,9 +332,7 @@ RefCntBuffer *bru_swap_common(AV1_COMMON *cm) {
         ref_buf->ref_display_order_hint[ref_frame] = -1;
       }
     }
-#if CONFIG_TEMP_LR
     RefCntBuffer *tmp_buf = cm->cur_frame;
-#endif
     ref_buf->order_hint = cm->cur_frame->order_hint;
     ref_buf->display_order_hint = cm->cur_frame->display_order_hint;
     ref_buf->absolute_poc = cm->cur_frame->absolute_poc;
@@ -346,14 +344,12 @@ RefCntBuffer *bru_swap_common(AV1_COMMON *cm) {
     ref_buf->frame_output_done = 0;
 #endif
     ref_buf->frame_type = cm->cur_frame->frame_type;
-#if CONFIG_TEMP_LR
     ref_buf->rst_info[0] = tmp_buf->rst_info[0];
     ref_buf->rst_info[1] = tmp_buf->rst_info[1];
     ref_buf->rst_info[2] = tmp_buf->rst_info[2];
     av1_copy_rst_frame_filters(&ref_buf->rst_info[0], &tmp_buf->rst_info[0]);
     av1_copy_rst_frame_filters(&ref_buf->rst_info[1], &tmp_buf->rst_info[1]);
     av1_copy_rst_frame_filters(&ref_buf->rst_info[2], &tmp_buf->rst_info[2]);
-#endif
     if (cm->bru.frame_inactive_flag) {
       ref_buf->ccso_info.ccso_frame_flag = 0;
     } else {

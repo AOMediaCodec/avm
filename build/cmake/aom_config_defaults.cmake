@@ -174,12 +174,8 @@ set_aom_config_var(CONFIG_CTX_Y_SECOND_MODE 1 "bypass coding FG8-Test27")
 # AV2 experiment flags.
 set_aom_config_var(CONFIG_F253_REMOVE_OUTPUTFLAG 1
                    "Remove enable_frame_output_order.")
-
 set_aom_config_var(CONFIG_SEQ_MAX_DRL_BITS 1
                    "AV2 sequence level max_drl_bits information")
-set_aom_config_var(
-  CONFIG_WIENERNS_9x9 1
-  "AV2 non-separable 16-tap Wiener filter with enlarged 9x9 diamond shape")
 set_aom_config_var(CONFIG_PARA_BD_REDUCE 1 "AV2 bitdepth reduction for PARA.")
 set_aom_config_var(CONFIG_BYPASS_IMPROVEMENT 1
                    "AV2 enable entropy bypass improvement.")
@@ -204,32 +200,6 @@ set_aom_config_var(CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT 1
 set_aom_config_var(
   CONFIG_CONTEXT_DERIVATION 1
   "AV2 experiment flag to enable modified context derivation : CWG-B065.")
-# End: CWG-C016
-set_aom_config_var(
-  CONFIG_COMBINE_PC_NS_WIENER 1 NUMBER
-  "AV2 pixel-classified, frame-level, nonsep Wiener filter experiment flag")
-
-set_aom_config_var(
-  CONFIG_TEMP_LR 1
-  "AV2 experiment flag to use temporal LR when frame-level filter is on")
-
-set_aom_config_var(
-  CONFIG_COMBINE_PC_NS_WIENER_ADD 1 NUMBER
-  "Frame-level, nonsep Wiener filter for chroma experiment flag")
-
-set_aom_config_var(
-  CONFIG_RETRAIN_PC_WIENER 1 NUMBER
-  "Precision Adjustment and Retraining for RESTORE_PC_WIENER flag")
-
-set_aom_config_var(
-  CONFIG_IMPROVED_DS_CC_WIENER 1
-  "AV2 improved luma downsampling for cross-plane non-sep wiener filter")
-
-set_aom_config_var(
-  CONFIG_REMOVE_SIX_TAP_DS_CROSS_LR
-  1
-  "Replace the six-tap luma downsampling filter with a two-tap filter for cross-plane non-sep wiener filter"
-)
 
 set_aom_config_var(CONFIG_LOSSLESS_CHROMA_IDTX 1
                    "AV2 enable IDTX for chroma blocks in lossless mode")

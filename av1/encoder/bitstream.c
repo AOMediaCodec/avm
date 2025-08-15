@@ -88,11 +88,9 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
     AV1_COMMON *cm, MACROBLOCKD *xd, const RestorationUnitInfo *rui,
     aom_writer *const w, int plane, FRAME_COUNTS *counts);
 
-#if CONFIG_COMBINE_PC_NS_WIENER
 static AOM_INLINE void write_wienerns_framefilters(AV1_COMMON *cm,
                                                    MACROBLOCKD *xd, int plane,
                                                    aom_writer *wb);
-#endif  // CONFIG_COMBINE_PC_NS_WIENER
 
 #if CONFIG_IBC_SR_EXT
 static AOM_INLINE void write_intrabc_info(
@@ -3507,12 +3505,12 @@ static AOM_INLINE void write_modes_sb(
 #endif  // CONFIG_BRU
         av1_loop_restoration_corners_in_sb(cm, plane, mi_row, mi_col, bsize,
                                            &rcol0, &rcol1, &rrow0, &rrow1)) {
-#if CONFIG_COMBINE_PC_NS_WIENER
+
       if (is_frame_filters_enabled(plane) &&
           to_readwrite_framefilters(&cm->rst_info[plane], mi_row, mi_col)) {
         write_wienerns_framefilters(cm, xd, plane, w);
       }
-#endif  // CONFIG_COMBINE_PC_NS_WIENER
+
       const int rstride = cm->rst_info[plane].horz_units_per_tile;
       for (int rrow = rrow0; rrow < rrow1; ++rrow) {
         for (int rcol = rcol0; rcol < rcol1; ++rcol) {
@@ -3914,13 +3912,9 @@ static AOM_INLINE void encode_restoration_mode(
   int luma_none = 1, chroma_none = 1;
   for (int p = 0; p < num_planes; ++p) {
     RestorationInfo *rsi = &cm->rst_info[p];
-#if CONFIG_COMBINE_PC_NS_WIENER
     rsi->frame_filters_initialized = 0;
-#if CONFIG_TEMP_LR
     cm->cur_frame->rst_info[p].frame_filters_on = 0;
     assert(IMPLIES(!rsi->frame_filters_on, !rsi->temporal_pred_flag));
-#endif  // CONFIG_TEMP_LR
-#endif  // CONFIG_COMBINE_PC_NS_WIENER
     if (rsi->frame_restoration_type != RESTORE_NONE) {
       luma_none &= p > 0;
       chroma_none &= p == 0;
@@ -3960,13 +3954,11 @@ static AOM_INLINE void encode_restoration_mode(
         rsi->frame_restoration_type == RESTORE_WIENER_NONSEP ||
         rsi->frame_restoration_type == RESTORE_SWITCHABLE;
     if (is_wiener_nonsep_possible) {
-#if CONFIG_COMBINE_PC_NS_WIENER
       rsi->frame_filters_initialized = 0;
       if (is_frame_filters_enabled(p)) {
         const int write_frame_filters_on_off = 1;
         if (write_frame_filters_on_off) {
           aom_wb_write_literal(wb, rsi->frame_filters_on, 1);
-#if CONFIG_TEMP_LR
           if (rsi->frame_filters_on) {
             const int num_ref_frames =
                 (frame_is_intra_only(cm) || cm->features.error_resilient_mode)
@@ -3980,19 +3972,16 @@ static AOM_INLINE void encode_restoration_mode(
                   aom_ceil_log2(num_ref_frames));  // write_lr_reference_idx
           }
           if (!rsi->temporal_pred_flag) {
-#endif  // CONFIG_TEMP_LR
             if (rsi->frame_filters_on && max_num_classes(p) > 1) {
               aom_wb_write_literal(
                   wb, encode_num_filter_classes(rsi->num_filter_classes),
                   NUM_FILTER_CLASSES_BITS);
             }
-#if CONFIG_TEMP_LR
           }
           if (rsi->frame_filters_on)
             av1_copy_rst_frame_filters(&cm->cur_frame->rst_info[p], rsi);
           if (rsi->temporal_pred_flag) {
             rsi->frame_filters_initialized = 1;
-#if CONFIG_COMBINE_PC_NS_WIENER_ADD
             if (!get_ref_frame_buf(cm, rsi->rst_ref_pic_idx)
                      ->rst_info[p]
                      .frame_filters_on) {
@@ -4004,26 +3993,14 @@ static AOM_INLINE void encode_restoration_mode(
                          ->rst_info[alternate_plane]
                          .frame_filters_on);
             }
-#else
-            assert(get_ref_frame_buf(cm, rsi->rst_ref_pic_idx)
-                       ->rst_info[p]
-                       .frame_filters_on);
-#endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD
           }
-#endif  // CONFIG_TEMP_LR
         }
       } else {
         assert(rsi->frame_filters_on == 0);
         assert(rsi->num_filter_classes == NUM_WIENERNS_CLASS_INIT_CHROMA);
       }
-#else
-      assert(rsi->num_filter_classes == default_num_classes(p);
-      assert(rsi->frame_filters_on == 0);
-#endif  // CONFIG_COMBINE_PC_NS_WIENER
     } else {
-#if CONFIG_COMBINE_PC_NS_WIENER && CONFIG_TEMP_LR
       rsi->temporal_pred_flag = 0;
-#endif  // CONFIG_COMBINE_PC_NS_WIENER && CONFIG_TEMP_LR
     }
   }
   int size = cm->rst_info[0].max_restoration_unit_size;
@@ -4092,8 +4069,6 @@ static int check_and_write_exact_match(
   return exact_match;
 }
 
-#if CONFIG_COMBINE_PC_NS_WIENER
-#if CONFIG_COMBINE_PC_NS_WIENER_ADD
 // Encodes match indices to be decoded via read_match_indices(). See comments
 // therein.
 static inline void write_match_indices(int plane,
@@ -4138,25 +4113,6 @@ static inline void write_match_indices(int plane,
   }
 }
 
-#else
-static inline void write_match_indices(const WienerNonsepInfo *wienerns_info,
-                                       aom_writer *wb, int nopcw) {
-  int total_bits = 0;
-  for (int c_id = 0; c_id < wienerns_info->num_classes; ++c_id) {
-    int num_bits = 0;
-    int encoded_match =
-        encode_first_match(wienerns_info->match_indices[c_id], &num_bits,
-                           wienerns_info->num_classes, nopcw);
-    aom_write_literal(wb, encoded_match, num_bits);
-    total_bits += num_bits;
-  }
-  int count_bits = count_match_indices_bits(wienerns_info->num_classes, nopcw);
-  (void)count_bits;
-  (void)total_bits;
-  assert(total_bits == count_bits);
-}
-#endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD
-
 static AOM_INLINE void write_wienerns_framefilters(AV1_COMMON *cm,
                                                    MACROBLOCKD *xd, int plane,
                                                    aom_writer *wb) {
@@ -4183,14 +4139,10 @@ static AOM_INLINE void write_wienerns_framefilters(AV1_COMMON *cm,
   const WienernsFilterParameters *nsfilter_params =
       get_wienerns_parameters(base_qindex, plane != AOM_PLANE_Y);
   int skip_filter_write_for_class[WIENERNS_MAX_CLASSES] = { 0 };
-#if CONFIG_TEMP_LR
   assert(!rsi->temporal_pred_flag);
-#endif  // CONFIG_TEMP_LR
-#if CONFIG_COMBINE_PC_NS_WIENER_ADD
+
   write_match_indices(plane, &rsi->frame_filters, wb, nopcw);
-#else
-  write_match_indices(&rsi->frame_filters, wb, nopcw);
-#endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD
+
   WienerNonsepInfoBank bank = { 0 };
   // needed to handle asserts in copy_nsfilter_taps_for_class
   bank.filter[0].num_classes = num_classes;
@@ -4286,12 +4238,9 @@ static AOM_INLINE void write_wienerns_framefilters(AV1_COMMON *cm,
     }
   }
   rsi->frame_filters_initialized = 1;
-#if CONFIG_TEMP_LR
   av1_copy_rst_frame_filters(&cm->cur_frame->rst_info[plane], rsi);
-#endif  // CONFIG_TEMP_LR
   return;
 }
-#endif  // CONFIG_COMBINE_PC_NS_WIENER
 
 static AOM_INLINE void write_wienerns_filter(
     MACROBLOCKD *xd, int plane, const RestorationInfo *rsi,
@@ -4302,9 +4251,7 @@ static AOM_INLINE void write_wienerns_filter(
       get_wienerns_parameters(xd->current_base_qindex, plane != AOM_PLANE_Y);
   int skip_filter_write_for_class[WIENERNS_MAX_CLASSES] = { 0 };
   int ref_for_class[WIENERNS_MAX_CLASSES] = { 0 };
-#if CONFIG_COMBINE_PC_NS_WIENER
   if (rsi->frame_filters_on) return;
-#endif  // CONFIG_COMBINE_PC_NS_WIENER
 
   for (int c_id = 0; c_id < wienerns_info->num_classes; ++c_id) {
     skip_filter_write_for_class[c_id] = check_and_write_merge_info(

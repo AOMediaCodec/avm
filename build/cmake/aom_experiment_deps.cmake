@@ -56,16 +56,6 @@ macro(fix_experiment_configs)
     change_config_and_warn(CONFIG_UV_CFL 0 !CONFIG_AIMC)
   endif()
 
-  if(CONFIG_TEMP_LR)
-    change_config_and_warn(CONFIG_COMBINE_PC_NS_WIENER 1 CONFIG_TEMP_LR)
-  endif()
-
-  if(CONFIG_COMBINE_PC_NS_WIENER_ADD)
-    change_config_and_warn(CONFIG_COMBINE_PC_NS_WIENER 1
-                           CONFIG_COMBINE_PC_NS_WIENER_ADD)
-    change_config_and_warn(CONFIG_TEMP_LR 1 CONFIG_COMBINE_PC_NS_WIENER_ADD)
-  endif()
-
   if(CONFIG_ML_PART_SPLIT)
     change_config_and_warn(CONFIG_TENSORFLOW_LITE 1 CONFIG_ML_PART_SPLIT)
   endif()

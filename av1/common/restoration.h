@@ -163,9 +163,7 @@ extern const WienernsFilterParameters wienerns_filter_y;
 extern const WienernsFilterParameters wienerns_filter_uv;
 
 extern const int wienerns_simd_config_y[25][3];
-#if CONFIG_WIENERNS_9x9
 extern const int wienerns_simd_large_config_y[33][3];
-#endif  // CONFIG_WIENERNS_9x9
 extern const int wienerns_simd_config_uv_from_uv[13][3];
 extern const int wienerns_simd_config_uv_from_y[13][3];
 extern const int wienerns_simd_subtract_center_config_y[24][3];
@@ -186,35 +184,9 @@ static INLINE const NonsepFilterConfig *get_wienerns_config(int qindex,
   return &base_nsfilter_params->nsfilter_config;
 }
 
-#if CONFIG_COMBINE_PC_NS_WIENER
-#ifndef NDEBUG
-static inline void print_filters(
-    int plane, const WienernsFilterParameters *nsfilter_params,
-    const WienerNonsepInfo *wienerns_info, char enc_dec, int pm) {
-  for (int c_id = 0; c_id < wienerns_info->num_classes; ++c_id) {
-    const int16_t *wienerns_info_nsfilter =
-        const_nsfilter_taps(wienerns_info, c_id);
-    printf("%c[%1d, %2d] %2d: ", enc_dec, plane, wienerns_info->num_classes,
-           c_id);
-    for (int i = 0; i < nsfilter_params->ncoeffs; ++i) {
-      if (pm) {
-        printf("%3d (%2d),", wienerns_info_nsfilter[i],
-               wienerns_info->match_indices[i]);
-      } else {
-        printf("%3d,", wienerns_info_nsfilter[i]);
-      }
-    }
-    printf(" [%2d]\n", wienerns_info->num_ref_filters);
-  }
-}
-#endif
 static inline int is_frame_filters_enabled(int plane) {
-#if CONFIG_COMBINE_PC_NS_WIENER_ADD
   (void)plane;
   return 1;
-#else
-  return plane == AOM_PLANE_Y;
-#endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD
 }
 
 // Returns the alternate plane whose reference-frame-filters can be used to
@@ -238,11 +210,6 @@ static inline int default_num_classes(int plane) {
 }
 
 const uint8_t *get_pc_wiener_sub_classifier(int num_classes, int set_index);
-
-// TODO(any): This function is deprecated and can be removed
-int wienerns_to_pcwiener_tap_config_translator(
-    const NonsepFilterConfig *nsfilter_config, int *tap_translator,
-    int max_num_taps);
 
 void fill_filter_with_match(WienerNonsepInfo *filter,
                             const int16_t *frame_filter_dictionary,
@@ -278,19 +245,6 @@ static INLINE int encode_first_match(int compound_match_index, int *num_bits,
 static INLINE int decode_first_match(int encoded_match_index) {
   return encoded_match_index;
 }
-
-#if !CONFIG_COMBINE_PC_NS_WIENER_ADD
-static INLINE int count_match_indices_bits(int num_classes, int nopcw) {
-  assert(num_classes >= 1 && num_classes <= WIENERNS_MAX_CLASSES);
-  int total_bits = 0;
-
-  for (int c_id = 0; c_id < num_classes; ++c_id) {
-    total_bits += first_match_bits(num_classes, nopcw);
-  }
-  return total_bits;
-}
-#endif  // !CONFIG_COMBINE_PC_NS_WIENER_ADD
-#endif  // CONFIG_COMBINE_PC_NS_WIENER
 
 // Max of DOMAINTXFMRF_TMPBUF_SIZE, WIENER_TMPBUF_SIZE
 #define RESTORATION_TMPBUF_SIZE (RESTORATION_UNITPELS_MAX * 2 * sizeof(int32_t))
@@ -371,7 +325,6 @@ typedef struct {
    * flag to skip accumulating txskip values
    */
   bool tskip_zero_flag;
-#if CONFIG_COMBINE_PC_NS_WIENER
   /*!
    * Whether classification needs to be computed.
    */
@@ -380,7 +333,6 @@ typedef struct {
    * Whether filtering with pre-trained filters should be skipped.
    */
   int skip_pcwiener_filtering;
-#endif  // CONFIG_COMBINE_PC_NS_WIENER
 #if CONFIG_BRU
   /*!\cond */
   MB_MODE_INFO **mbmi_ptr;
@@ -532,7 +484,6 @@ typedef struct {
    * Whether frame-level filters are initialized.
    */
   int frame_filters_initialized;
-#if CONFIG_TEMP_LR
   /*!
    * whether frame filter is predicted from a reference picture
    */
@@ -541,7 +492,6 @@ typedef struct {
    * reference picture index for frame level filter prediction
    */
   uint8_t rst_ref_pic_idx;
-#endif  // CONFIG_TEMP_LR
 } RestorationInfo;
 
 /*!\cond */
@@ -792,21 +742,16 @@ void copy_tile(int width, int height, const uint16_t *src, int src_stride,
 void set_restoration_unit_size(int width, int height, int sx, int sy,
                                RestorationInfo *rst);
 
-#if CONFIG_COMBINE_PC_NS_WIENER
 static INLINE int to_readwrite_framefilters(const RestorationInfo *rsi,
                                             int mi_row, int mi_col) {
   return ((rsi->frame_restoration_type == RESTORE_WIENER_NONSEP ||
            rsi->frame_restoration_type == RESTORE_SWITCHABLE) &&
-          rsi->frame_filters_on &&
-#if CONFIG_TEMP_LR
-          !rsi->temporal_pred_flag &&
-#endif  // CONFIG_TEMP_LR
-          mi_row == 0 && mi_col == 0);
+          rsi->frame_filters_on && !rsi->temporal_pred_flag && mi_row == 0 &&
+          mi_col == 0);
 }
 
 void av1_copy_rst_frame_filters(RestorationInfo *to,
                                 const RestorationInfo *from);
-#endif  // CONFIG_COMBINE_PC_NS_WIENER
 
 // returns 1 if sym does not need signaling because there are no asymmetric taps
 // in the config

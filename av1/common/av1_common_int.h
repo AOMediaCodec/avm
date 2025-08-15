@@ -379,9 +379,7 @@ typedef struct RefCntBuffer {
 
   FRAME_CONTEXT frame_context;
 
-#if CONFIG_TEMP_LR
   RestorationInfo rst_info[MAX_MB_PLANE];
-#endif  // CONFIG_TEMP_LR
 
   int base_qindex;
   int u_ac_delta_q;
@@ -1881,7 +1879,6 @@ typedef struct AV1Common {
    */
   CdefInfo cdef_info;
 
-#if CONFIG_COMBINE_PC_NS_WIENER
   /**
    * \name Frame filter prediction dictionary related parameters.
    */
@@ -1892,7 +1889,6 @@ typedef struct AV1Common {
   int translation_done; /*!< Whether format translation has been done. */
   int *num_ref_filters; /*!< Number of available reference filters. */
   /**@}*/
-#endif  // CONFIG_COMBINE_PC_NS_WIENER
 
   /*!
    * CCSO (Cross Component Sample Offset) parameters.
@@ -2194,9 +2190,6 @@ typedef struct AV1Common {
 } AV1_COMMON;
 
 /*!\cond */
-#if CONFIG_COMBINE_PC_NS_WIENER
-#define PRINT_LR_COSTS 0
-#define PRINT_FRAME_FILTER 0
 void translate_pcwiener_filters_to_wienerns(AV1_COMMON *cm);
 void allocate_frame_filter_dictionary(AV1_COMMON *cm);
 void free_frame_filter_dictionary(AV1_COMMON *cm);
@@ -2211,7 +2204,6 @@ int set_frame_filter_dictionary(int plane, const AV1_COMMON *cm,
                                 int num_classes,
                                 int16_t *frame_filter_dictionary,
                                 int dict_stride);
-#endif  // CONFIG_COMBINE_PC_NS_WIENER
 
 #define ILLEGAL_TXK_SKIP_VALUE 255
 void av1_alloc_txk_skip_array(CommonModeInfoParams *mi_params, AV1_COMMON *cm);
@@ -5216,7 +5208,6 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
   return (allowed_motion_modes & enabled_motion_modes);
 }
 
-#if CONFIG_COMBINE_PC_NS_WIENER
 // whether to disable use of pcwiener filters in classified frame filters,
 // depending on whether pcwiener is enabled at sequence level.
 static INLINE int disable_pcwiener_filters_in_framefilters(
@@ -5224,7 +5215,6 @@ static INLINE int disable_pcwiener_filters_in_framefilters(
   (void)seq;
   return ((seq->lr_tools_disable_mask[AOM_PLANE_Y] >> RESTORE_PC_WIENER) & 1);
 }
-#endif  // CONFIG_COMBINE_PC_NS_WIENER
 
 #if CONFIG_OPT_INTER_MODE_CTX
 static INLINE int is_new_nearmv_pred_mode_disallowed(const MB_MODE_INFO *mbmi) {

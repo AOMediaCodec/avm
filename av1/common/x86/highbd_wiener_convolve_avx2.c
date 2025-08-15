@@ -1025,7 +1025,6 @@ static AOM_INLINE void av1_convolve_symmetric_highbd_13tap_avx2(
                    _mm_bsrli_si128(out_r1r3, 8));
 }
 
-#if CONFIG_WIENERNS_9x9
 static AOM_INLINE void av1_convolve_symmetric_highbd_16tap9x9_avx2(
     const uint16_t *dgd, int stride, const NonsepFilterConfig *filter_config,
     const int16_t *filter_, uint16_t *dst, int dst_stride, int bit_depth,
@@ -1521,7 +1520,6 @@ static AOM_INLINE void av1_convolve_symmetric_highbd_16tap9x9_avx2(
   _mm_storel_epi64((__m128i *)(dst + dst_id + (3 * dst_stride)),
                    _mm_bsrli_si128(out_r1r3, 8));
 }
-#endif  // CONFIG_WIENERNS_9x9
 
 // SIMD implementation to convolve a block of pixels with origin-symmetric, pc
 // wiener filter corresponds to CONFIG_PC_WIENER loop restoration. DIAMOND shape
@@ -1545,7 +1543,6 @@ void av1_convolve_symmetric_highbd_avx2(const uint16_t *dgd, int stride,
   // and block size. If none are applicable, fall back to C
   // TODO(rachelbarker): Add plumbing logic to adjust_filter_and_config so that
   // the 6-tap branch here can actually be used for reduced-length filters
-#if CONFIG_WIENERNS_9x9
   if (num_rows == 4 && num_cols == 4 &&
       (filter_config->config == wienerns_simd_large_config_y ||
        !memcmp(wienerns_simd_large_config_y, filter_config->config,
@@ -1575,7 +1572,6 @@ void av1_convolve_symmetric_highbd_avx2(const uint16_t *dgd, int stride,
     }
     return;
   }
-#endif  // CONFIG_WIENERNS_9x9
   if (num_rows == 4 && num_cols == 4 &&
       (filter_config->config == wienerns_simd_config_y ||
        !memcmp(wienerns_simd_config_y, filter_config->config,

@@ -312,8 +312,6 @@ void av1_setup_block_planes(MACROBLOCKD *xd, int ss_x, int ss_y,
   }
 }
 
-#if CONFIG_COMBINE_PC_NS_WIENER
-
 int max_dictionary_size(int nopcw) {
   const int max_num_predictors =
       num_dictionary_slots(WIENERNS_MAX_CLASSES, nopcw);
@@ -364,15 +362,6 @@ void translate_pcwiener_filters_to_wienerns(AV1_COMMON *cm) {
       get_wienerns_parameters(base_qindex, is_uv);
   assert(nsfilter_params->ncoeffs <= MAX_NUM_DICTIONARY_TAPS);
   const int num_feat = nsfilter_params->ncoeffs;
-
-  /* Assuming the pc-wiener tap configuration is the same as the
-   * simd tap configuration, the translation below can be deprecated.
-   * int tap_translator[WIENERNS_TAPS_MAX];
-   * const int num_taps = wienerns_to_pcwiener_tap_config_translator(
-   *     &nsfilter_params->nsfilter_config, tap_translator, WIENERNS_TAPS_MAX);
-   * (void)num_taps;
-   * assert(num_taps == num_feat);
-   */
   const int set_index = 0;  // get_filter_set_index(base_qindex, qindex_offset);
 
   const int num_pc_wiener_filters = NUM_PC_WIENER_FILTERS;
@@ -453,7 +442,6 @@ int set_frame_filter_dictionary(int plane, const AV1_COMMON *cm,
 
   // Copy available reference filters to the dictionary. -----------------------
   int num_ref_filters = 0;
-#if CONFIG_TEMP_LR
   const int min_pc_wiener = plane == AOM_PLANE_Y ? (nopcw ? 0 : 16) : 0;
   assert(min_pc_wiener <= NUM_PC_WIENER_FILTERS);
   const int allowed_num_base_filters =
@@ -472,13 +460,11 @@ int set_frame_filter_dictionary(int plane, const AV1_COMMON *cm,
     }
     int planes_to_check[2] = { plane, -1 };
     int num_planes_to_check = 1;
-#if CONFIG_COMBINE_PC_NS_WIENER_ADD
     const int mix_planes = 1;
     if (plane != AOM_PLANE_Y && mix_planes) {
       num_planes_to_check = 2;
       planes_to_check[1] = (plane == AOM_PLANE_U) ? AOM_PLANE_V : AOM_PLANE_U;
     }
-#endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD
     for (int chk = 0; chk < num_planes_to_check; ++chk) {
       const int p = planes_to_check[chk];
       RestorationInfo rsi = ref_frame_buf->rst_info[p];
@@ -499,7 +485,6 @@ int set_frame_filter_dictionary(int plane, const AV1_COMMON *cm,
       }
     }
   }
-#endif  // CONFIG_TEMP_LR
   // ---------------------------------------------------------------------------
 
   // Sample from the pc-wiener filters for the remaining allowed slots. --------
@@ -562,8 +547,6 @@ void add_filter_to_dictionary(const WienerNonsepInfo *filter, int class_id,
     match_filter[i] = wienerns_filter[i];
   }
 }
-
-#endif  // CONFIG_COMBINE_PC_NS_WIENER
 
 void av1_alloc_txk_skip_array(CommonModeInfoParams *mi_params, AV1_COMMON *cm) {
   // Allocate based on the MIN_TX_SIZE, which is a 4x4 block.

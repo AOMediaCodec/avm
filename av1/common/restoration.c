@@ -32,119 +32,87 @@
 #define AOM_WIENERNS_COEFF(p, b, m, k) \
   { (b) + (p) - 6, (m) * (1 << ((p) - 6)), k }
 
-#define AOM_MAKE_WIENERNS_CONFIG(prec, config, coeff, asym, subset_cfg)          \
-  {                                                                              \
-    { (prec), sizeof(config) / sizeof(config[0]), 0, (config), NULL, 0, 0, asym, \
-      0 },                                                                       \
-        sizeof(coeff) / sizeof(coeff[0]), (coeff),                               \
-        sizeof(subset_cfg) / sizeof(subset_cfg[0]), (subset_cfg)                 \
-  }
+#define AOM_MAKE_WIENERNS_CONFIG(prec, config, coeff, asym, subset_cfg)    \
+  { { (prec), sizeof(config) / sizeof(config[0]), 0, (config), NULL, 0, 0, \
+      asym, 0 },                                                           \
+    sizeof(coeff) / sizeof(coeff[0]),                                      \
+    (coeff),                                                               \
+    sizeof(subset_cfg) / sizeof(subset_cfg[0]),                            \
+    (subset_cfg) }
 
-#define AOM_MAKE_WIENERNS_SYM_CONFIG(prec, config, coeff, subset_cfg)           \
-  {                                                                             \
-    {                                                                           \
-      (prec), sizeof(config) / sizeof(config[0]), 0, (config), NULL, 0, 0, 0, 0 \
-    },                                                                          \
-        sizeof(coeff) / sizeof(coeff[0]), (coeff),                              \
-        sizeof(subset_cfg) / sizeof(subset_cfg[0]), (subset_cfg)                \
-  }
+#define AOM_MAKE_WIENERNS_SYM_CONFIG(prec, config, coeff, subset_cfg)         \
+  { { (prec), sizeof(config) / sizeof(config[0]), 0, (config), NULL, 0, 0, 0, \
+      0 },                                                                    \
+    sizeof(coeff) / sizeof(coeff[0]),                                         \
+    (coeff),                                                                  \
+    sizeof(subset_cfg) / sizeof(subset_cfg[0]),                               \
+    (subset_cfg) }
 
 #define AOM_MAKE_WIENERNS_CONFIG2(prec, config, config2, coeff, asym, asym2, \
                                   subset_cfg)                                \
-  {                                                                          \
-    { (prec),                                                                \
-      sizeof(config) / sizeof(config[0]),                                    \
-      sizeof(config2) / sizeof(config2[0]),                                  \
-      (config),                                                              \
-      (config2),                                                             \
-      0,                                                                     \
-      0,                                                                     \
-      asym,                                                                  \
+  { { (prec), sizeof(config) / sizeof(config[0]),                            \
+      sizeof(config2) / sizeof(config2[0]), (config), (config2), 0, 0, asym, \
       asym2 },                                                               \
-        sizeof(coeff) / sizeof(coeff[0]), (coeff),                           \
-        sizeof(subset_cfg) / sizeof(subset_cfg[0]), (subset_cfg)             \
-  }
+    sizeof(coeff) / sizeof(coeff[0]),                                        \
+    (coeff),                                                                 \
+    sizeof(subset_cfg) / sizeof(subset_cfg[0]),                              \
+    (subset_cfg) }
 
-#define AOM_MAKE_WIENERNS_SYMASYM_CONFIG2(prec, config, config2, coeff, \
-                                          subset_cfg)                   \
-  {                                                                     \
-    { (prec),                                                           \
-      sizeof(config) / sizeof(config[0]),                               \
-      sizeof(config2) / sizeof(config2[0]),                             \
-      (config),                                                         \
-      (config2),                                                        \
-      0,                                                                \
-      0,                                                                \
-      0,                                                                \
-      sizeof(config2) / sizeof(config2[0]) - 1 },                       \
-        sizeof(coeff) / sizeof(coeff[0]), (coeff),                      \
-        sizeof(subset_cfg) / sizeof(subset_cfg[0]), (subset_cfg)        \
-  }
+#define AOM_MAKE_WIENERNS_SYMASYM_CONFIG2(prec, config, config2, coeff,   \
+                                          subset_cfg)                     \
+  { { (prec), sizeof(config) / sizeof(config[0]),                         \
+      sizeof(config2) / sizeof(config2[0]), (config), (config2), 0, 0, 0, \
+      sizeof(config2) / sizeof(config2[0]) - 1 },                         \
+    sizeof(coeff) / sizeof(coeff[0]),                                     \
+    (coeff),                                                              \
+    sizeof(subset_cfg) / sizeof(subset_cfg[0]),                           \
+    (subset_cfg) }
 
 // Make subtract-center config from non-subtract-center config
 // Assumes that the non-subtract center config only has the origin added at
 // the end
-#define AOM_MAKE_WIENERNS_SC_CONFIG(prec, config, coeff, asym, subset_cfg) \
-  {                                                                        \
-    { (prec), sizeof(config) / sizeof(config[0]) - 1,                      \
-      0,      (config),                                                    \
-      NULL,   0,                                                           \
-      1,      asym,                                                        \
-      0 },                                                                 \
-        sizeof(coeff) / sizeof(coeff[0]), (coeff),                         \
-        sizeof(subset_cfg) / sizeof(subset_cfg[0]), (subset_cfg)           \
-  }
+#define AOM_MAKE_WIENERNS_SC_CONFIG(prec, config, coeff, asym, subset_cfg)     \
+  { { (prec), sizeof(config) / sizeof(config[0]) - 1, 0, (config), NULL, 0, 1, \
+      asym, 0 },                                                               \
+    sizeof(coeff) / sizeof(coeff[0]),                                          \
+    (coeff),                                                                   \
+    sizeof(subset_cfg) / sizeof(subset_cfg[0]),                                \
+    (subset_cfg) }
 
-#define AOM_MAKE_WIENERNS_SC_SYM_CONFIG(prec, config, coeff, subset_cfg) \
-  {                                                                      \
-    { (prec), sizeof(config) / sizeof(config[0]) - 1,                    \
-      0,      (config),                                                  \
-      NULL,   0,                                                         \
-      1,      0,                                                         \
-      0 },                                                               \
-        sizeof(coeff) / sizeof(coeff[0]), (coeff),                       \
-        sizeof(subset_cfg) / sizeof(subset_cfg[0]), (subset_cfg)         \
-  }
+#define AOM_MAKE_WIENERNS_SC_SYM_CONFIG(prec, config, coeff, subset_cfg)       \
+  { { (prec), sizeof(config) / sizeof(config[0]) - 1, 0, (config), NULL, 0, 1, \
+      0, 0 },                                                                  \
+    sizeof(coeff) / sizeof(coeff[0]),                                          \
+    (coeff),                                                                   \
+    sizeof(subset_cfg) / sizeof(subset_cfg[0]),                                \
+    (subset_cfg) }
 
 // Make subtract-center config from non-subtract-center config
 // Assumes that the non-subtract center config has the origin added at
 // the end
-#define AOM_MAKE_WIENERNS_SC_CONFIG2(prec, config, config2, coeff, asym, \
-                                     asym2, subset_cfg)                  \
-  {                                                                      \
-    { (prec),                                                            \
-      sizeof(config) / sizeof(config[0]) - 1,                            \
-      sizeof(config2) / sizeof(config2[0]) - 1,                          \
-      (config),                                                          \
-      (config2),                                                         \
-      0,                                                                 \
-      1,                                                                 \
-      asym,                                                              \
-      asym2 },                                                           \
-        sizeof(coeff) / sizeof(coeff[0]), (coeff),                       \
-        sizeof(subset_cfg) / sizeof(subset_cfg[0]), (subset_cfg)         \
-  }
+#define AOM_MAKE_WIENERNS_SC_CONFIG2(prec, config, config2, coeff, asym,   \
+                                     asym2, subset_cfg)                    \
+  { { (prec), sizeof(config) / sizeof(config[0]) - 1,                      \
+      sizeof(config2) / sizeof(config2[0]) - 1, (config), (config2), 0, 1, \
+      asym, asym2 },                                                       \
+    sizeof(coeff) / sizeof(coeff[0]),                                      \
+    (coeff),                                                               \
+    sizeof(subset_cfg) / sizeof(subset_cfg[0]),                            \
+    (subset_cfg) }
 
-#define AOM_MAKE_WIENERNS_SC_SYMASYM_CONFIG2(prec, config, config2, coeff, \
-                                             subset_cfg)                   \
-  {                                                                        \
-    { (prec),                                                              \
-      sizeof(config) / sizeof(config[0]) - 1,                              \
-      sizeof(config2) / sizeof(config2[0]) - 1,                            \
-      (config),                                                            \
-      (config2),                                                           \
-      0,                                                                   \
-      1,                                                                   \
-      0,                                                                   \
-      sizeof(config2) / sizeof(config2[0]) - 1 },                          \
-        sizeof(coeff) / sizeof(coeff[0]), (coeff),                         \
-        sizeof(subset_cfg) / sizeof(subset_cfg[0]), (subset_cfg)           \
-  }
+#define AOM_MAKE_WIENERNS_SC_SYMASYM_CONFIG2(prec, config, config2, coeff,    \
+                                             subset_cfg)                      \
+  { { (prec), sizeof(config) / sizeof(config[0]) - 1,                         \
+      sizeof(config2) / sizeof(config2[0]) - 1, (config), (config2), 0, 1, 0, \
+      sizeof(config2) / sizeof(config2[0]) - 1 },                             \
+    sizeof(coeff) / sizeof(coeff[0]),                                         \
+    (coeff),                                                                  \
+    sizeof(subset_cfg) / sizeof(subset_cfg[0]),                               \
+    (subset_cfg) }
 ///////////////////////////////////////////////////////////////////////////
 // First filter configuration
 ///////////////////////////////////////////////////////////////////////////
 #define WIENERNS_PREC_BITS_Y 7
-#if CONFIG_WIENERNS_9x9
 #define LUMA_SHAPE_SYM_LARGEC_16                                              \
   { 1, 0, 0 }, { -1, 0, 0 }, { 0, 1, 1 }, { 0, -1, 1 }, { 2, 0, 2 },          \
       { -2, 0, 2 }, { 0, 2, 3 }, { 0, -2, 3 }, { 1, 1, 4 }, { -1, -1, 4 },    \
@@ -185,12 +153,6 @@ const int wienerns_subsetcfg_large_y[][WIENERNS_TAPS_MAX] = {
   // { 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
   { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
 };
-#else
-const int wienerns_subsetcfg_large_y[][WIENERNS_TAPS_MAX] = {
-  { 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
-};
-#endif  // CONFIG_WIENERNS_9x9
 
 const int wienerns_coeff_y[][WIENERNS_COEFCFG_LEN] = {
   AOM_WIENERNS_COEFF(WIENERNS_PREC_BITS_Y, 5, -12, 0),
@@ -273,36 +235,21 @@ const int wienerns_subsetcfg_y[][WIENERNS_TAPS_MAX] = {
   { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
 };
 
-#if CONFIG_WIENERNS_9x9
 const int wienerns_subsetcfg_uv[][WIENERNS_TAPS_MAX] = {
   { 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
   { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
   { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
 };
-#else
-const int wienerns_subsetcfg_uv[][WIENERNS_TAPS_MAX] = {
-  { 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-  { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
-};
-#endif  // CONFIG_WIENERNS_9x9
 
 // Note: if using the SIMD (non-subtract-center) configs use:
 // AOM_MAKE_WIENERNS_SC_CONFIG and AOM_MAKE_WIENERNS_SC_CONFIG2
 // to generate non-subtract center configs. Otherwise, if using
 // subtract-center configs, you should use AOM_MAKE_WIENERNS_CONFIG
 // and AOM_MAKE_WIENERNS_CONFIG2 respectively.
-
-#if CONFIG_WIENERNS_9x9
 const WienernsFilterParameters wienerns_filter_y =
     AOM_MAKE_WIENERNS_SC_SYM_CONFIG(
         WIENERNS_PREC_BITS_Y, wienerns_simd_large_config_y,
         wienerns_coeff_large_y, wienerns_subsetcfg_large_y);
-#else
-const WienernsFilterParameters wienerns_filter_y =
-    AOM_MAKE_WIENERNS_SC_SYM_CONFIG(WIENERNS_PREC_BITS_Y,
-                                    wienerns_simd_config_y, wienerns_coeff_y,
-                                    wienerns_subsetcfg_y);
-#endif  // CONFIG_WIENERNS_9x9
 
 const WienernsFilterParameters wienerns_filter_uv =
     AOM_MAKE_WIENERNS_SC_SYMASYM_CONFIG2(
@@ -1212,12 +1159,6 @@ static void pc_wiener_stripe_highbd(const RestorationUnitInfo *rui,
                                     int procunit_width, const uint16_t *src,
                                     int src_stride, uint16_t *dst,
                                     int dst_stride, int bit_depth) {
-#if !CONFIG_COMBINE_PC_NS_WIENER_ADD
-  if (rui->plane != AOM_PLANE_Y) {
-    assert(0);
-    return;
-  }
-#endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD
   (void)bit_depth;
   const int set_index =
       get_filter_set_index(rui->base_qindex, rui->qindex_offset);
@@ -1226,9 +1167,7 @@ static void pc_wiener_stripe_highbd(const RestorationUnitInfo *rui,
   const uint8_t *filter_selector = get_filter_selector(set_index);
   assert(rui->pcwiener_buffers->buffer_width > 0);
   bool classify_only = false;
-#if CONFIG_COMBINE_PC_NS_WIENER
   classify_only = rui->skip_pcwiener_filtering ? true : false;
-#endif  // CONFIG_COMBINE_PC_NS_WIENER
 
   setup_qval_tskip_lut(rui->base_qindex, rui->qindex_offset, bit_depth,
                        rui->pcwiener_buffers);
@@ -1262,7 +1201,6 @@ static void pc_wiener_stripe_highbd(const RestorationUnitInfo *rui,
   }
 }
 
-#if CONFIG_COMBINE_PC_NS_WIENER
 const uint8_t *get_pc_wiener_sub_classifier(int num_classes, int set_index) {
   const PcWienerSubClassifiers *sub_class = get_sub_classifiers(set_index);
   switch (num_classes) {
@@ -1277,7 +1215,6 @@ const uint8_t *get_pc_wiener_sub_classifier(int num_classes, int set_index) {
     default: return pc_wiener_sub_classify_to_1;
   }
 }
-#endif  // CONFIG_COMBINE_PC_NS_WIENER
 
 // Enables running of wienerns filters without the subtract-center option.
 #define ADD_CENTER_TAP_TO_WIENERNS 1
@@ -1350,33 +1287,25 @@ static bool adjust_filter_to_non_subtract_center(
 }
 #endif  // ADD_CENTER_TAP_TO_WIENERNS
 
-void apply_wienerns_class_id_highbd(
-    const uint16_t *dgd, int width, int height, int stride,
-    const WienerNonsepInfo *wienerns_info,
-    const NonsepFilterConfig *nsfilter_config, uint16_t *dst, int dst_stride,
-    int plane, const uint16_t *luma, int luma_stride, int bit_depth
-#if CONFIG_COMBINE_PC_NS_WIENER
-    ,
-    const uint8_t *class_id, int class_id_stride, int class_id_restrict,
-    int num_classes, int set_index
-#endif  // CONFIG_COMBINE_PC_NS_WIENER
-) {
+void apply_wienerns_class_id_highbd(const uint16_t *dgd, int width, int height,
+                                    int stride,
+                                    const WienerNonsepInfo *wienerns_info,
+                                    const NonsepFilterConfig *nsfilter_config,
+                                    uint16_t *dst, int dst_stride, int plane,
+                                    const uint16_t *luma, int luma_stride,
+                                    int bit_depth, const uint8_t *class_id,
+                                    int class_id_stride, int class_id_restrict,
+                                    int num_classes, int set_index) {
   (void)luma;
   (void)luma_stride;
   (void)plane;
 
   const int block_size = 4;
-#if CONFIG_COMBINE_PC_NS_WIENER
   const uint8_t *pc_wiener_sub_classify =
       get_pc_wiener_sub_classifier(num_classes, set_index);
-#endif  // CONFIG_COMBINE_PC_NS_WIENER
 
   int is_uv = (plane != AOM_PLANE_Y);
   if (is_uv && nsfilter_config->num_pixels2 != 0) {
-#if !CONFIG_COMBINE_PC_NS_WIENER_ADD
-    assert(wienerns_info->num_classes == 1);
-#endif  // !CONFIG_COMBINE_PC_NS_WIENER_ADD
-
     for (int r = 0; r < height; r += block_size) {
       const int h = AOMMIN(block_size, height - r);
       const uint16_t *dgd_row = dgd + r * stride;
@@ -1387,7 +1316,6 @@ void apply_wienerns_class_id_highbd(
         const int w = AOMMIN(block_size, width - c);
 
         int sub_class_id = 0;
-#if CONFIG_COMBINE_PC_NS_WIENER_ADD
         if (num_classes > 1) {
           const int full_class_id =
               class_id[(r >> MI_SIZE_LOG2) * class_id_stride +
@@ -1398,7 +1326,6 @@ void apply_wienerns_class_id_highbd(
             continue;
           }
         }
-#endif  // CONFIG_COMBINE_PC_NS_WIENER_ADD
         const int16_t *block_filter =
             const_nsfilter_taps(wienerns_info, sub_class_id);
 
@@ -1418,7 +1345,6 @@ void apply_wienerns_class_id_highbd(
       const int w = AOMMIN(block_size, width - c);
 
       int sub_class_id = 0;
-#if CONFIG_COMBINE_PC_NS_WIENER
       if (num_classes > 1) {
         const int full_class_id =
             class_id[(r >> MI_SIZE_LOG2) * class_id_stride +
@@ -1429,7 +1355,6 @@ void apply_wienerns_class_id_highbd(
           continue;
         }
       }
-#endif  // CONFIG_COMBINE_PC_NS_WIENER
       const int16_t *block_filter =
           const_nsfilter_taps(wienerns_info, sub_class_id);
       av1_convolve_nonsep_highbd(dgd_row + c, w, h, stride, nsfilter_config,
@@ -1447,7 +1372,6 @@ static void wiener_nsfilter_stripe_highbd(const RestorationUnitInfo *rui,
                                           uint16_t *dst, int dst_stride,
                                           int bit_depth) {
   (void)bit_depth;
-#if CONFIG_COMBINE_PC_NS_WIENER
   const int set_index =
       get_filter_set_index(rui->base_qindex, rui->qindex_offset);
   if (rui->compute_classification && rui->wienerns_info.num_classes > 1) {
@@ -1466,9 +1390,6 @@ static void wiener_nsfilter_stripe_highbd(const RestorationUnitInfo *rui,
           true, NULL, NULL, rui->pcwiener_buffers, rui->tskip_zero_flag);
     }
   }
-#else
-  assert(rui->wienerns_info.num_classes == 1);
-#endif  // CONFIG_COMBINE_PC_NS_WIENER
 
   int is_uv = rui->plane != AOM_PLANE_Y;
   const WienernsFilterParameters *nsfilter_params =
@@ -1521,13 +1442,9 @@ static void wiener_nsfilter_stripe_highbd(const RestorationUnitInfo *rui,
     apply_wienerns_class_id_highbd(
         src + j, w, stripe_height, src_stride, nsfilter_info, nsfilter_config,
         dst + j, dst_stride, rui->plane, rui->luma ? rui->luma + j : NULL,
-        rui->luma_stride, bit_depth
-#if CONFIG_COMBINE_PC_NS_WIENER
-        ,
-        rui->wiener_class_id + (j >> MI_SIZE_LOG2), rui->wiener_class_id_stride,
-        rui->wiener_class_id_restrict, rui->wienerns_info.num_classes, set_index
-#endif  // CONFIG_COMBINE_PC_NS_WIENER
-    );
+        rui->luma_stride, bit_depth, rui->wiener_class_id + (j >> MI_SIZE_LOG2),
+        rui->wiener_class_id_stride, rui->wiener_class_id_restrict,
+        rui->wienerns_info.num_classes, set_index);
   }
 }
 #if ISSUE_253
@@ -1562,11 +1479,7 @@ uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV1Common *cm,
   int resized_luma_stride = width_uv + 2 * WIENERNS_UV_BRD;
   int out_stride = resized_luma_stride;
 #if WIENERNS_CROSS_FILT_LUMA_TYPE == 2
-#if CONFIG_IMPROVED_DS_CC_WIENER
   int ds_type = cm->seq_params.cfl_ds_filter_index;
-#else
-  int ds_type = cm->seq_params.cfl_ds_filter_index == 1
-#endif
 #endif
   int first_stripe_height =
       RESTORATION_PROC_UNIT_SIZE - RESTORATION_UNIT_OFFSET;
@@ -1674,26 +1587,14 @@ uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV1Common *cm,
       assert(0 && "Invalid dimensions");
     }
 #elif WIENERNS_CROSS_FILT_LUMA_TYPE == 2
-#if CONFIG_IMPROVED_DS_CC_WIENER
     if (ss_x && ss_y) {
       if (ds_type == 1) {
         for (int r = 0; r < h_uv; ++r) {
           for (int c = 0; c < width_uv; ++c) {
             curr_luma[r * out_stride + c] =
-#if CONFIG_REMOVE_SIX_TAP_DS_CROSS_LR
                 (curr_dgd[2 * r * in_stride + 2 * c] +
                  curr_dgd[(2 * r + 1) * in_stride + 2 * c]) >>
                 1;
-#else
-                (curr_dgd[2 * r * in_stride + 2 * c - ((c == 0) ? 0 : 1)] +
-                 2 * curr_dgd[2 * r * in_stride + 2 * c] +
-                 curr_dgd[2 * r * in_stride + 2 * c + 1] +
-                 curr_dgd[(2 * r + 1) * in_stride + 2 * c -
-                          ((c == 0) ? 0 : 1)] +
-                 2 * curr_dgd[(2 * r + 1) * in_stride + 2 * c] +
-                 curr_dgd[(2 * r + 1) * in_stride + 2 * c + 1]) >>
-                3;
-#endif
           }
         }
       } else if (ds_type == 2) {
@@ -1716,18 +1617,6 @@ uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV1Common *cm,
         }
       }
     } else {
-#else
-    if (ss_x && ss_y && ds_type == 1) {
-      for (int r = 0; r < h_uv; ++r) {
-        for (int c = 0; c < width_uv; ++c) {
-          curr_luma[r * out_stride + c] =
-              (curr_dgd[2 * r * in_stride + 2 * c] +
-               curr_dgd[(2 * r + 1) * in_stride + 2 * c]) /
-              2;
-        }
-      }
-    } else {
-#endif  // CONFIG_IMPROVED_DS_CC_WIENER
       for (int r = 0; r < h_uv; ++r) {
         for (int c = 0; c < width_uv; ++c) {
           curr_luma[r * out_stride + c] =
@@ -1860,28 +1749,14 @@ uint16_t *wienerns_copy_luma_highbd(const uint16_t *dgd, int height_y,
 #elif WIENERNS_CROSS_FILT_LUMA_TYPE == 2
                  const int ss_x = (((width_y + 1) >> 1) == width_uv);
                  const int ss_y = (((height_y + 1) >> 1) == height_uv);
-#if CONFIG_IMPROVED_DS_CC_WIENER
                  if (ss_x && ss_y) {
                    if (ds_type == 1) {
                      for (int r = 0; r < height_uv; ++r) {
                        for (int c = 0; c < width_uv; ++c) {
                          (*luma)[r * out_stride + c] =
-#if CONFIG_REMOVE_SIX_TAP_DS_CROSS_LR
                              (dgd[2 * r * in_stride + 2 * c] +
                               dgd[(2 * r + 1) * in_stride + 2 * c]) >>
                              1;
-#else
-
-                             (dgd[2 * r * in_stride + 2 * c -
-                                  ((c == 0) ? 0 : 1)] +
-                              2 * dgd[2 * r * in_stride + 2 * c] +
-                              dgd[2 * r * in_stride + 2 * c + 1] +
-                              dgd[(2 * r + 1) * in_stride + 2 * c -
-                                  ((c == 0) ? 0 : 1)] +
-                              2 * dgd[(2 * r + 1) * in_stride + 2 * c] +
-                              dgd[(2 * r + 1) * in_stride + 2 * c + 1]) >>
-                             3;
-#endif
                        }
                      }
                    } else if (ds_type == 2) {
@@ -1904,19 +1779,6 @@ uint16_t *wienerns_copy_luma_highbd(const uint16_t *dgd, int height_y,
                      }
                    }
                  } else {
-#else
-                 if (ss_x && ss_y && ds_type == 1) {
-                   for (int r = 0; r < height_uv; ++r) {
-                     for (int c = 0; c < width_uv; ++c) {
-                       (*luma)[r * out_stride + c] =
-                           (dgd[2 * r * in_stride + 2 * c] +
-                            dgd[(2 * r + 1) * in_stride + 2 * c]) /
-                           2;
-                     }
-                   }
-                 } else {
-
-#endif  // CONFIG_IMPROVED_DS_CC_WIENER
                    for (int r = 0; r < height_uv; ++r) {
                      for (int c = 0; c < width_uv; ++c) {
                        (*luma)[r * out_stride + c] =
@@ -2122,10 +1984,8 @@ static void filter_frame_on_unit(const RestorationTileLimits *limits,
   rsi->unit_info[rest_unit_idx].qindex_offset = ctxt->qindex_offset;
   rsi->unit_info[rest_unit_idx].wiener_class_id_restrict = -1;
   rsi->unit_info[rest_unit_idx].tskip_zero_flag = ctxt->tskip_zero_flag;
-#if CONFIG_COMBINE_PC_NS_WIENER
   rsi->unit_info[rest_unit_idx].compute_classification = 1;
   rsi->unit_info[rest_unit_idx].skip_pcwiener_filtering = 0;
-#endif  // CONFIG_COMBINE_PC_NS_WIENER
 #if CONFIG_BRU
   const int start_mi_x = limits->h_start >> (MI_SIZE_LOG2 - ctxt->ss_x);
   const int start_mi_y = limits->v_start >> (MI_SIZE_LOG2 - ctxt->ss_y);
@@ -2257,11 +2117,7 @@ static void foreach_rest_unit_in_planes(AV1LrStruct *lr_ctxt, AV1_COMMON *cm,
       cm->seq_params.bit_depth
 #if WIENERNS_CROSS_FILT_LUMA_TYPE == 2
       ,
-#if CONFIG_IMPROVED_DS_CC_WIENER
       cm->seq_params.cfl_ds_filter_index
-#else
-      cm->seq_params.cfl_ds_filter_index == 1
-#endif  // CONFIG_IMPROVED_DS_CC_WIENER
 #endif
   );
 #endif  // ISSUE_253
@@ -2724,36 +2580,6 @@ void av1_loop_restoration_save_boundary_lines(const YV12_BUFFER_CONFIG *frame,
   }
 }
 
-#if CONFIG_COMBINE_PC_NS_WIENER
-// TODO(any): This function is deprecated and can be removed
-// Fills tap translator to account for the config diffs.
-// clang-format off
-/*
-int wienerns_to_pcwiener_tap_config_translator(
-    const NonsepFilterConfig *nsfilter_config, int *tap_translator,
-    int max_num_taps) {
-  const int num_sym_taps = nsfilter_config->num_pixels / 2;
-  (void)max_num_taps;
-  assert(num_sym_taps <= max_num_taps);
-  for (int i = 0; i < num_sym_taps; ++i) {
-    const int filter_pos_row = nsfilter_config->config[2 * i][0];
-    const int filter_pos_col = nsfilter_config->config[2 * i][1];
-    int found_index = -1;
-    for (int j = 0; j < 2 * num_sym_taps; ++j) {
-      if (pcwiener_tap_config_luma[j][0] == filter_pos_row &&
-          pcwiener_tap_config_luma[j][1] == filter_pos_col) {
-        found_index = j;
-        break;
-      }
-    }
-    assert(found_index != -1);
-    tap_translator[i] = wienerns_simd_config_y[found_index][2];
-  }
-  return num_sym_taps;
-}
-*/
-// clang-format on
-
 static inline const int16_t *get_matching_filter(
     const int16_t *frame_filter_dictionary, int dict_stride, int filter_index,
     int c_id, int num_classes, int nopcw) {
@@ -2826,13 +2652,9 @@ void fill_first_slot_of_bank_with_filter_match(
   av1_add_to_wienerns_bank(bank, &tmp_filter, class_id);
 }
 
-#endif  // CONFIG_COMBINE_PC_NS_WIENER
-
-#if CONFIG_TEMP_LR
 void av1_copy_rst_frame_filters(RestorationInfo *to,
                                 const RestorationInfo *from) {
   to->frame_filters_on = from->frame_filters_on;
   to->num_filter_classes = from->num_filter_classes;
   to->frame_filters = from->frame_filters;
 }
-#endif  // CONFIG_TEMP_LR
