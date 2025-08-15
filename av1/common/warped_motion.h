@@ -126,8 +126,16 @@ static INLINE int16_t resolve_divisor_32_CfL(int32_t N, int32_t D,
     // `1 << (DIV_LUT_PREC_BITS + DIV_LUT_BITS + 1)`
     // Hence `shift_add`below is constrained to be <= 1.
     if (shift_add <= 1) {
-      ret = (div_lut[f_d] * f_n) >>
-            (DIV_LUT_PREC_BITS + DIV_LUT_BITS + shift_add);
+      const int shift0 = DIV_LUT_PREC_BITS + DIV_LUT_BITS + shift_add;
+      ret =
+#if CONFIG_DIV_LUT_SIMP
+          shift0 >= 0 ?
+#endif  // CONFIG_DIV_LUT_SIMP
+                      (div_lut[f_d] * f_n) >> shift0
+#if CONFIG_DIV_LUT_SIMP
+                      : (2 << shift) - 1
+#endif  // CONFIG_DIV_LUT_SIMP
+          ;
     } else {
       ret = 0;
     }
