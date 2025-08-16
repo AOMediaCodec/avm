@@ -2402,12 +2402,12 @@ static INLINE int is_tlayer_scalable_and_dependent(
   The following lines can be replaced with a single line of code:
        `return seq->tlayer_dependency_map[curr_layer_id][ref_layer_id];`
   */
+  // clang-format on
   if (seq->tlayer_dependency_present_flag) {
     return seq->tlayer_dependency_map[curr_layer_id][ref_layer_id];
   } else {
     return curr_layer_id >= ref_layer_id;
   }
-  // clang-format on
 }
 
 static INLINE void setup_default_embedded_layer_dependency_structure(
@@ -2441,12 +2441,12 @@ static INLINE int is_mlayer_scalable_and_dependent(
   The following lines can be replaced with a single line of code:
        `return seq->mlayer_dependency_map[curr_layer_id][ref_layer_id];`
   */
+  // clang-format on
   if (seq->mlayer_dependency_present_flag) {
     return seq->mlayer_dependency_map[curr_layer_id][ref_layer_id];
   } else {
     return curr_layer_id >= ref_layer_id;
   }
-  // clang-format on
 }
 #endif  // CONFIG_MULTILAYER_CORE_HLS
 
