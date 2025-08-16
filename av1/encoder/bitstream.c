@@ -2186,13 +2186,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
     write_is_inter(cm, xd, mbmi->segment_id, w, is_inter);
 
 #if CONFIG_IBC_SR_EXT
-    if (!is_inter &&
-        av1_allow_intrabc(cm, xd
-#if CONFIG_ENABLE_IBC_NAT
-                          ,
-                          bsize
-#endif  // CONFIG_ENABLE_IBC_NAT
-                          ) &&
+    if (!is_inter && av1_allow_intrabc(cm, xd, bsize) &&
         xd->tree_type != CHROMA_PART) {
       const int use_intrabc = is_intrabc_block(mbmi, xd->tree_type);
       if (xd->tree_type == CHROMA_PART) assert(use_intrabc == 0);
@@ -2264,13 +2258,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
   }
 
 #if CONFIG_IBC_SR_EXT
-  if (!is_inter &&
-      av1_allow_intrabc(cm, xd
-#if CONFIG_ENABLE_IBC_NAT
-                        ,
-                        bsize
-#endif  // CONFIG_ENABLE_IBC_NAT
-                        ) &&
+  if (!is_inter && av1_allow_intrabc(cm, xd, bsize) &&
       xd->tree_type != CHROMA_PART) {
     write_intrabc_info(
 #if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
@@ -2695,15 +2683,7 @@ static AOM_INLINE void write_intrabc_info(
     assert(mbmi->mode == DC_PRED);
     assert(mbmi->motion_mode == SIMPLE_TRANSLATION);
 
-#if !CONFIG_IBC_SUBPEL_PRECISION
-    assert(mbmi->pb_mv_precision == MV_PRECISION_ONE_PEL);
-#endif  // CONFIG_IBC_SUBPEL_PRECISION
-
     int_mv dv_ref = mbmi_ext_frame->ref_mv_stack[0][0].this_mv;
-
-#if CONFIG_IBC_SUBPEL_PRECISION && !CONFIG_IBC_SUBPEL_PRECISION
-    assert(is_this_mv_precision_compliant(dv_ref.as_mv, mbmi->pb_mv_precision));
-#endif  // CONFIG_IBC_SUBPEL_PRECISION
 
 #if CONFIG_IBC_BV_IMPROVEMENT
     aom_write_symbol(w, mbmi->intrabc_mode, ec_ctx->intrabc_mode_cdf, 2);
@@ -2718,7 +2698,6 @@ static AOM_INLINE void write_intrabc_info(
 #endif  // CONFIG_BYPASS_INTRABC_DRL_IDX
         mbmi, mbmi_ext_frame, w);
 
-#if CONFIG_IBC_SUBPEL_PRECISION
     if (is_intraBC_bv_precision_active(cm, mbmi->intrabc_mode)) {
       int index = av1_intraBc_precision_to_index[mbmi->pb_mv_precision];
       assert(index < av1_intraBc_precision_sets.num_precisions);
@@ -2726,29 +2705,21 @@ static AOM_INLINE void write_intrabc_info(
       aom_write_symbol(w, index, ec_ctx->intrabc_bv_precision_cdf[0],
                        av1_intraBc_precision_sets.num_precisions);
     }
-#endif  // CONFIG_IBC_SUBPEL_PRECISION
 
     if (!mbmi->intrabc_mode)
       av1_encode_dv(w, &mbmi->mv[0].as_mv, &dv_ref.as_mv, &ec_ctx->ndvc,
                     mbmi->pb_mv_precision);
 #if CONFIG_DERIVED_MVD_SIGN
     if (!mbmi->intrabc_mode) {
-#if CONFIG_IBC_SUBPEL_PRECISION
       MV low_prec_ref_mv = dv_ref.as_mv;
       if (mbmi->pb_mv_precision < MV_PRECISION_HALF_PEL)
         lower_mv_precision(&low_prec_ref_mv, mbmi->pb_mv_precision);
       const MV diff = { mbmi->mv[0].as_mv.row - low_prec_ref_mv.row,
                         mbmi->mv[0].as_mv.col - low_prec_ref_mv.col };
-#else
-      const MV diff = { mbmi->mv[0].as_mv.row - dv_ref.as_mv.row,
-                        mbmi->mv[0].as_mv.col - dv_ref.as_mv.col };
-#endif  // CONFIG_IBC_SUBPEL_PRECISION
 
-#if CONFIG_IBC_SUBPEL_PRECISION
       assert(is_this_mv_precision_compliant(mbmi->mv[0].as_mv,
                                             mbmi->pb_mv_precision));
       assert(is_this_mv_precision_compliant(diff, mbmi->pb_mv_precision));
-#endif  // CONFIG_IBC_SUBPEL_PRECISION
       if (diff.row) {
 #if CONFIG_MVD_CDF_REDUCTION
         aom_write_literal(w, diff.row < 0, 1);
@@ -2803,12 +2774,7 @@ static AOM_INLINE void write_mb_modes_kf(
   if (seg->segid_preskip && xd->tree_type != CHROMA_PART)
     write_segment_id(cpi, mbmi, w, seg, segp, 0);
 
-  if (av1_allow_intrabc(cm, xd
-#if CONFIG_ENABLE_IBC_NAT
-                        ,
-                        mbmi->sb_type[xd->tree_type == CHROMA_PART]
-#endif  // CONFIG_ENABLE_IBC_NAT
-                        ) &&
+  if (av1_allow_intrabc(cm, xd, mbmi->sb_type[xd->tree_type == CHROMA_PART]) &&
       xd->tree_type != CHROMA_PART) {
     const int use_intrabc = is_intrabc_block(mbmi, xd->tree_type);
     if (xd->tree_type == CHROMA_PART) assert(use_intrabc == 0);
@@ -2836,12 +2802,7 @@ static AOM_INLINE void write_mb_modes_kf(
     write_ccso(cm, xd, w);
 
   write_delta_q_params(cpi, skip, w);
-  if (av1_allow_intrabc(cm, xd
-#if CONFIG_ENABLE_IBC_NAT
-                        ,
-                        mbmi->sb_type[xd->tree_type == CHROMA_PART]
-#endif  // CONFIG_ENABLE_IBC_NAT
-                        ) &&
+  if (av1_allow_intrabc(cm, xd, mbmi->sb_type[xd->tree_type == CHROMA_PART]) &&
       xd->tree_type != CHROMA_PART) {
     write_intrabc_info(
 #if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
@@ -6342,12 +6303,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
     write_screen_content_params(cm, wb);
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
-    if (
-#if !CONFIG_ENABLE_IBC_NAT
-        features->allow_screen_content_tools &&
-#endif  //! CONFIG_ENABLE_IBC_NAT
-        1)
-      aom_wb_write_bit(wb, features->allow_intrabc);
+    if (1) aom_wb_write_bit(wb, features->allow_intrabc);
 #if CONFIG_IBC_SR_EXT
     if (features->allow_intrabc) {
       aom_wb_write_bit(wb, features->allow_global_intrabc);
@@ -6371,12 +6327,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
       write_screen_content_params(cm, wb);
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
-      if (
-#if !CONFIG_ENABLE_IBC_NAT
-          features->allow_screen_content_tools &&
-#endif  //! CONFIG_ENABLE_IBC_NAT
-          1)
-        aom_wb_write_bit(wb, features->allow_intrabc);
+      if (1) aom_wb_write_bit(wb, features->allow_intrabc);
 #if CONFIG_IBC_SR_EXT
       if (features->allow_intrabc) {
         aom_wb_write_bit(wb, features->allow_global_intrabc);
@@ -6570,12 +6521,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
         write_screen_content_params(cm, wb);
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
 #if CONFIG_IBC_SR_EXT
-        if (
-#if !CONFIG_ENABLE_IBC_NAT
-            features->allow_screen_content_tools &&
-#endif  //! CONFIG_ENABLE_IBC_NAT
-            1)
-          aom_wb_write_bit(wb, features->allow_intrabc);
+        if (1) aom_wb_write_bit(wb, features->allow_intrabc);
 #endif  // CONFIG_IBC_SR_EXT
         write_frame_max_drl_bits(cm, wb);
 #if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL

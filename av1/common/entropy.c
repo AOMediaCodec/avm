@@ -338,9 +338,7 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->intrabc_drl_idx_cdf, 2);
 #endif  // !CONFIG_BYPASS_INTRABC_DRL_IDX
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
-#if CONFIG_IBC_SUBPEL_PRECISION
   RESET_CDF_COUNTER(fc->intrabc_bv_precision_cdf, NUM_ALLOWED_BV_PRECISIONS);
-#endif  // CONFIG_IBC_SUBPEL_PRECISION
   RESET_CDF_COUNTER(fc->morph_pred_cdf, 2);
   RESET_CDF_COUNTER(fc->seg.tree_cdf, MAX_SEGMENTS);
   RESET_CDF_COUNTER(fc->seg.pred_cdf, 2);

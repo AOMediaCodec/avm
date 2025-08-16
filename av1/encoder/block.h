@@ -996,11 +996,9 @@ typedef struct {
   //! intrabc_drl_idx_cost
   int intrabc_drl_idx_cost[MAX_REF_BV_STACK_SIZE - 1][2];
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
-#if CONFIG_IBC_SUBPEL_PRECISION
   //! intrabc_bv_precision_cost
   int intrabc_bv_precision_cost[NUM_BV_PRECISION_CONTEXTS]
                                [NUM_ALLOWED_BV_PRECISIONS];
-#endif  // CONFIG_IBC_SUBPEL_PRECISION
 
   //! cost for the new prediction mode
   int morph_pred_cost[3][2];
@@ -1431,7 +1429,6 @@ typedef struct {
 #endif  // CONFIG_DERIVED_MVD_SIGN && !CONFIG_VQ_MVD_CODING
 
 #if CONFIG_VQ_MVD_CODING
-#if CONFIG_IBC_SUBPEL_PRECISION
   /*! Costs for coding the shell cost of dv cost. */
   int *dv_joint_shell_cost[NUM_MV_PRECISIONS];
 
@@ -1445,21 +1442,6 @@ typedef struct {
 
   /*! Costs for coding the sign of each component. */
   int dv_sign_cost[NUM_MV_PRECISIONS][2][2];
-#else
-
-  /*! Costs for coding the shell cost of dv cost. */
-  int *dv_joint_shell_cost;
-
-  /*! Costs for coding the col mv greater flags  of dv cost. */
-  int dv_col_mv_greater_flags_costs[MAX_COL_TRUNCATED_UNARY_VAL + 1]
-                                   [MAX_COL_TRUNCATED_UNARY_VAL + 1];
-
-  /*! Costs for coding the col mv index  of dv cost. */
-  int dv_col_mv_index_cost[NUM_CTX_COL_MV_INDEX][2];
-
-  /*! Costs for coding the sign of each component. */
-  int dv_sign_cost[2][2];
-#endif  // CONFIG_IBC_SUBPEL_PRECISION
 
 #else
 
@@ -1478,7 +1460,6 @@ typedef struct {
  */
 typedef struct {
 #if CONFIG_VQ_MVD_CODING
-#if CONFIG_IBC_SUBPEL_PRECISION
   /*! Costs for coding the joint shell. */
   int dv_joint_shell_cost[NUM_MV_PRECISIONS][(2 * MV_MAX) + 1];
 
@@ -1488,16 +1469,6 @@ typedef struct {
                                    [MAX_COL_TRUNCATED_UNARY_VAL + 1];
   /*! Costs for coding the column index. */
   int dv_col_mv_index_cost[NUM_MV_PRECISIONS][NUM_CTX_COL_MV_INDEX][2];
-#else
-  /*! Costs for coding the joint shell. */
-  int dv_joint_shell_cost[(2 * MV_MAX) + 1];
-
-  /*! Costs for coding the jgreater flags. */
-  int dv_col_mv_greater_flags_costs[MAX_COL_TRUNCATED_UNARY_VAL + 1]
-                                   [MAX_COL_TRUNCATED_UNARY_VAL + 1];
-  /*! Costs for coding the column index. */
-  int dv_col_mv_index_cost[NUM_CTX_COL_MV_INDEX][2];
-#endif  // CONFIG_IBC_SUBPEL_PRECISION
 #else
   /*! Costs for coding the joint mv. */
   // TODO(huisu@google.com): we can update dv_joint_cost per SB.
@@ -1514,13 +1485,8 @@ typedef struct {
   int *dv_costs[2];
 #endif  // CONFIG_VQ_MVD_CODING
 #if CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
-#if CONFIG_IBC_SUBPEL_PRECISION
   /*! Costs for coding the sign components. */
   int dv_sign_cost[NUM_MV_PRECISIONS][2][2];
-#else
-  /*! Costs for coding the sign components. */
-  int dv_sign_cost[2][2];
-#endif  // CONFIG_IBC_SUBPEL_PRECISION
 #endif  // CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
 
 } IntraBCMvCosts;

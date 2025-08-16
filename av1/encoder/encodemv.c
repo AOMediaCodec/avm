@@ -980,24 +980,12 @@ void av1_encode_mv(AV1_COMP *cpi, aom_writer *w, MV mv,
 
 void av1_encode_dv(aom_writer *w, const MV *mv, const MV *ref,
                    nmv_context *mvctx, MvSubpelPrecision pb_mv_precision) {
-#if !CONFIG_IBC_SUBPEL_PRECISION
-  // DV and ref DV should not have sub-pel.
-  assert((mv->col & 7) == 0);
-  assert((mv->row & 7) == 0);
-  assert((ref->col & 7) == 0);
-  assert((ref->row & 7) == 0);
-#endif  // !CONFIG_IBC_SUBPEL_PRECISION
-
-#if CONFIG_IBC_SUBPEL_PRECISION
   MV low_prec_ref_mv = *ref;
   if (pb_mv_precision < MV_PRECISION_HALF_PEL)
     lower_mv_precision(&low_prec_ref_mv, pb_mv_precision);
   const MV diff = { mv->row - low_prec_ref_mv.row,
                     mv->col - low_prec_ref_mv.col };
   assert(is_this_mv_precision_compliant(diff, pb_mv_precision));
-#else
-  const MV diff = { mv->row - ref->row, mv->col - ref->col };
-#endif  // CONFIG_IBC_SUBPEL_PRECISION
 
 #if CONFIG_VQ_MVD_CODING
   const MV dummy = { 0, 0 };
@@ -1099,12 +1087,7 @@ void av1_build_vq_nmv_cost_table(MvCosts *mv_costs, const nmv_context *ctx,
 
   assert(IMPLIES(is_ibc, dv_costs != NULL));
 
-  int *shell_cost = is_ibc ?
-#if CONFIG_IBC_SUBPEL_PRECISION
-                           dv_costs->dv_joint_shell_cost[precision]
-#else
-                             dv_costs->dv_joint_shell_cost
-#endif
+  int *shell_cost = is_ibc ? dv_costs->dv_joint_shell_cost[precision]
                            : mv_costs->nmv_joint_shell_cost[precision];
 
   int start_lsb = (MV_PRECISION_ONE_EIGHTH_PEL - precision);
@@ -1160,13 +1143,9 @@ void av1_build_vq_nmv_cost_table(MvCosts *mv_costs, const nmv_context *ctx,
   }
 
   for (int i = 0; i < NUM_CTX_COL_MV_INDEX; i++) {
-    av1_cost_tokens_from_cdf(is_ibc ?
-#if CONFIG_IBC_SUBPEL_PRECISION
-                                    dv_costs->dv_col_mv_index_cost[precision][i]
-#else
-                                      dv_costs->dv_col_mv_index_cost[i]
-#endif  // CONFIG_IBC_SUBPEL_PRECISION
-                                    : mv_costs->col_mv_index_cost[precision][i],
+    av1_cost_tokens_from_cdf(is_ibc
+                                 ? dv_costs->dv_col_mv_index_cost[precision][i]
+                                 : mv_costs->col_mv_index_cost[precision][i],
                              ctx->col_mv_index_cdf[i], NULL);
   }
 
@@ -1177,13 +1156,8 @@ void av1_build_vq_nmv_cost_table(MvCosts *mv_costs, const nmv_context *ctx,
       dv_costs->dv_sign_cost[precision][i][1] = av1_cost_literal(1);
 #else
 
-        av1_cost_tokens_from_cdf(
-#if CONFIG_IBC_SUBPEL_PRECISION
-            dv_costs->dv_sign_cost[precision][i],
-#else
-            dv_costs->dv_sign_cost[i],
-#endif  // CONFIG_IBC_SUBPEL_PRECISION
-            ctx->comps[i].sign_cdf, NULL);
+        av1_cost_tokens_from_cdf(dv_costs->dv_sign_cost[precision][i],
+                                 ctx->comps[i].sign_cdf, NULL);
 #endif  // CONFIG_MVD_CDF_REDUCTION
     }
   }
@@ -1221,14 +1195,8 @@ void av1_build_vq_nmv_cost_table(MvCosts *mv_costs, const nmv_context *ctx,
         if (coded_col == bit_idx) break;
       }
       if (is_ibc) {
-#if CONFIG_IBC_SUBPEL_PRECISION
         dv_costs->dv_col_mv_greater_flags_costs[precision][max_idx_bits]
                                                [coded_col] = cost;
-#else
-          dv_costs->dv_col_mv_greater_flags_costs[max_idx_bits][coded_col] =
-              cost;
-#endif  // CONFIG_IBC_SUBPEL_PRECISION
-
       } else {
         mv_costs
             ->col_mv_greater_flags_costs[precision][max_idx_bits][coded_col] =

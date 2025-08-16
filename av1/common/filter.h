@@ -157,7 +157,6 @@ static const InterpFilterParams
       { (const int16_t *)av1_sub_pel_filters_12sharp, 12, MULTITAP_SHARP2 },
     };
 
-#if CONFIG_IBC_SUBPEL_PRECISION
 // A special 2-tap bilinear filter for IntraBC.
 DECLARE_ALIGNED(256, static const int16_t,
                 av1_intrabc_bilinear_filter[2 * SUBPEL_SHIFTS]) = {
@@ -178,15 +177,6 @@ DECLARE_ALIGNED(256, static const int16_t,
   16,  112,  // phase 14
   8,   120,  // phase 15
 };
-#else
-// A special 2-tap bilinear filter for IntraBC chroma. IntraBC uses full pixel
-// MV for luma. If sub-sampling exists, chroma may possibly use half-pel MV.
-DECLARE_ALIGNED(256, static const int16_t,
-                av1_intrabc_bilinear_filter[2 * SUBPEL_SHIFTS]) = {
-  128, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  64,  64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-};
-#endif  // CONFIG_IBC_SUBPEL_PRECISION
 
 static const InterpFilterParams av1_intrabc_filter_params = {
   av1_intrabc_bilinear_filter, 2, BILINEAR

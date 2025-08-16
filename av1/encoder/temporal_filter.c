@@ -143,11 +143,7 @@ static void subblock_motion_search(
                         NULL);
 
   av1_make_default_subpel_ms_params(ms_params, cpi, mb, subblock_size, ref_mv,
-                                    pb_mv_precision,
-#if CONFIG_IBC_SUBPEL_PRECISION
-                                    0,
-#endif  // CONFIG_IBC_SUBPEL_PRECISION
-                                    cost_list);
+                                    pb_mv_precision, 0, cost_list);
   ms_params->forced_stop = EIGHTH_PEL;
   ms_params->var_params.subpel_search_type = subpel_ms_type;
   // Since we are merely refining the result from full pixel
@@ -302,11 +298,7 @@ static void tf_motion_search(AV1_COMP *cpi,
     av1_make_default_subpel_ms_params(&ms_params, cpi, mb, block_size,
                                       &baseline_mv,
 
-                                      pb_mv_precision,
-#if CONFIG_IBC_SUBPEL_PRECISION
-                                      0,
-#endif  // CONFIG_IBC_SUBPEL_PRECISION
-                                      cost_list);
+                                      pb_mv_precision, 0, cost_list);
     ms_params.forced_stop = EIGHTH_PEL;
     ms_params.var_params.subpel_search_type = subpel_search_type;
     // Since we are merely refining the result from full pixel search, we don't

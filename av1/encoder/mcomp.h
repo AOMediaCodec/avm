@@ -105,12 +105,8 @@ int av1_mv_bit_cost(const MV *mv, const MV *ref_mv,
                     const int is_adaptive_mvd);
 
 int av1_intrabc_mv_bit_cost(const MV *mv, const MV *ref_mv,
-                            const IntraBCMvCosts *mv_costs, int weight
-#if CONFIG_IBC_SUBPEL_PRECISION
-                            ,
-                            MvSubpelPrecision precision
-#endif  // CONFIG_IBC_SUBPEL_PRECISION
-);
+                            const IntraBCMvCosts *mv_costs, int weight,
+                            MvSubpelPrecision precision);
 
 int av1_get_mvpred_sse(const MV_COST_PARAMS *mv_cost_params,
                        const FULLPEL_MV best_mv,
@@ -563,9 +559,7 @@ void av1_make_default_subpel_ms_params(SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
                                        const MACROBLOCK *x, BLOCK_SIZE bsize,
                                        const MV *ref_mv,
                                        const MvSubpelPrecision pb_mv_precision,
-#if CONFIG_IBC_SUBPEL_PRECISION
                                        const int is_ibc_cost,
-#endif  // CONFIG_IBC_SUBPEL_PRECISION
                                        const int *cost_list);
 
 typedef int(fractional_mv_step_fp)(MACROBLOCKD *xd, const AV1_COMMON *const cm,
@@ -581,7 +575,6 @@ extern fractional_mv_step_fp av1_find_best_sub_pixel_tree_pruned_evenmore;
 extern fractional_mv_step_fp av1_return_max_sub_pixel_mv;
 extern fractional_mv_step_fp av1_return_min_sub_pixel_mv;
 
-#if CONFIG_IBC_SUBPEL_PRECISION
 int upsampled_pref_error(MACROBLOCKD *xd, const AV1_COMMON *cm,
                          const MV *this_mv,
                          const SUBPEL_SEARCH_VAR_PARAMS *var_params,
@@ -597,7 +590,6 @@ int av1_refine_low_precision_intraBC_dv(
     const SUBPEL_MOTION_SEARCH_PARAMS *ms_params, MV start_mv, MV *bestmv,
     int *distortion, unsigned int *sse1, FullMvLimits *full_pel_mv_limits,
     BLOCK_SIZE bsize);
-#endif  // CONFIG_IBC_SUBPEL_PRECISION
 
 // Struct to store coding info for fast warp search
 typedef struct {
@@ -741,7 +733,6 @@ static INLINE int av1_is_subpelmv_in_range(const SubpelMvLimits *mv_limits,
          (mv.row >= mv_limits->row_min) && (mv.row <= mv_limits->row_max);
 }
 
-#if CONFIG_IBC_SUBPEL_PRECISION
 void get_default_ref_bv(int_mv *cur_ref_bv,
                         const FULLPEL_MOTION_SEARCH_PARAMS *fullms_params);
 static INLINE void init_mv_cost_params(MV_COST_PARAMS *mv_cost_params,
@@ -780,7 +771,6 @@ static INLINE int is_sub_pel_bv_valid(const MV dv, const AV1_COMMON *cm,
          av1_is_subpelmv_in_range(sub_pel_mv_limits, dv) &&
          av1_is_dv_valid(dv, cm, xd, mi_row, mi_col, bsize, cm->mib_size_log2);
 }
-#endif  // CONFIG_IBC_SUBPEL_PRECISION
 
 // Returns the cost for signaling the index of compound weighted prediction
 int av1_get_cwp_idx_cost(int8_t cwp_idx, const AV1_COMMON *const cm,

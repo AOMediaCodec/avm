@@ -2089,18 +2089,6 @@ void av1_set_downsample_filter_options(AV1_COMP *cpi) {
 
 void av1_set_screen_content_options(AV1_COMP *cpi, FeatureFlags *features) {
   const AV1_COMMON *const cm = &cpi->common;
-#if !CONFIG_ENABLE_IBC_NAT
-  if (cm->seq_params.force_screen_content_tools != 2) {
-    features->allow_screen_content_tools = features->allow_intrabc =
-        cm->seq_params.force_screen_content_tools;
-    return;
-  }
-
-  if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) {
-    features->allow_screen_content_tools = features->allow_intrabc = 1;
-    return;
-  }
-#endif  // !CONFIG_ENABLE_IBC_NAT
   // Estimate if the source frame is screen content, based on the portion of
   // blocks that have few luma colors.
   const uint16_t *src = cpi->unfiltered_source->y_buffer;
@@ -2151,7 +2139,6 @@ void av1_set_screen_content_options(AV1_COMP *cpi, FeatureFlags *features) {
       features->allow_screen_content_tools &&
       counts_2 * blk_h * blk_w * var_factor > width * height;
 
-#if CONFIG_ENABLE_IBC_NAT
   features->is_scc_content_by_detector =
       features->allow_screen_content_tools &&
       counts_2 * blk_h * blk_w * var_factor > width * height;
@@ -2171,7 +2158,6 @@ void av1_set_screen_content_options(AV1_COMP *cpi, FeatureFlags *features) {
         cm->seq_params.force_screen_content_tools;
     return;
   }
-#endif  // CONFIG_ENABLE_IBC_NAT
 
   if (frame_is_intra_only(cm) && cm->seq_params.enable_tip) {
     set_hole_fill_decision(cpi, width, height, blk_w, blk_h, counts_1,

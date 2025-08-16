@@ -79,11 +79,7 @@ TEST(IntrabcTest, DvValidation) {
       MAX_SB_SIZE / MI_SIZE,
       MAX_SB_SIZE / MI_SIZE,
       BLOCK_32X32,
-#if CONFIG_IBC_SUBPEL_PRECISION
       true },
-#else
-      false },
-#endif  // CONFIG_IBC_SUBPEL_PRECISION
     { { -33 * kSubPelScale, -32 * kSubPelScale },
       MAX_SB_SIZE / MI_SIZE,
       MAX_SB_SIZE / MI_SIZE,
@@ -93,11 +89,7 @@ TEST(IntrabcTest, DvValidation) {
       MAX_SB_SIZE / MI_SIZE,
       MAX_SB_SIZE / MI_SIZE,
       BLOCK_32X32,
-#if CONFIG_IBC_SUBPEL_PRECISION
       true },
-#else
-      false },
-#endif  // CONFIG_IBC_SUBPEL_PRECISION
     { { -32 * kSubPelScale, -33 * kSubPelScale },
       MAX_SB_SIZE / MI_SIZE,
       MAX_SB_SIZE / MI_SIZE,

@@ -131,7 +131,6 @@ static const PRECISION_SET av1_mv_precision_sets[2] = {
 };
 #endif  // CONFIG_FRAME_HALF_PRECISION
 
-#if CONFIG_IBC_SUBPEL_PRECISION
 // Precision sets defined for intra block copy mode
 static const PRECISION_SET av1_intraBc_precision_sets = {
   NUM_ALLOWED_BV_PRECISIONS,
@@ -147,7 +146,6 @@ static const int av1_intraBc_precision_to_index[NUM_MV_PRECISIONS] = {
   1,                          // MV_PRECISION_QTR_PEL
   NUM_ALLOWED_BV_PRECISIONS,  // MV_PRECISION_ONE_EIGHTH_PEL
 };
-#endif  // CONFIG_IBC_SUBPEL_PRECISION
 
 #define MAX_NUM_OF_SUPPORTED_PRECISIONS 4
 #if !CONFIG_FRAME_HALF_PRECISION

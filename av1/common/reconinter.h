@@ -1241,14 +1241,12 @@ int av1_get_mv_class_context(const MvSubpelPrecision pb_mv_precision);
 void set_mv_precision(MB_MODE_INFO *mbmi, MvSubpelPrecision precision);
 void set_amvd_mv_precision(MB_MODE_INFO *mbmi, MvSubpelPrecision precision);
 
-#if CONFIG_IBC_SUBPEL_PRECISION
 // Function to check if precision need to be signaled or not
 int is_intraBC_bv_precision_active(const AV1_COMMON *const cm,
                                    const int intrabc_mode);
 // Set max value as default precision
 void set_default_intraBC_bv_precision(const AV1_COMMON *const cm,
                                       MB_MODE_INFO *mbmi);
-#endif  // CONFIG_IBC_SUBPEL_PRECISION
 
 // set the most probable mv precision of the block
 // Currently, the most probable MV precision is same as the maximum precision of

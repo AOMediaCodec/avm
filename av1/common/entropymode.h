@@ -408,11 +408,8 @@ typedef struct frame_contexts {
   aom_cdf_prob intrabc_drl_idx_cdf[MAX_REF_BV_STACK_SIZE - 1][CDF_SIZE(2)];
 #endif  // !CONFIG_BYPASS_INTRABC_DRL_IDX
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
-#if CONFIG_IBC_SUBPEL_PRECISION
   aom_cdf_prob intrabc_bv_precision_cdf[NUM_BV_PRECISION_CONTEXTS]
                                        [CDF_SIZE(NUM_ALLOWED_BV_PRECISIONS)];
-#endif  // CONFIG_IBC_SUBPEL_PRECISION
-
   aom_cdf_prob morph_pred_cdf[3][CDF_SIZE(2)];
   struct segmentation_probs seg;
   aom_cdf_prob intra_dip_cdf[DIP_CTXS][CDF_SIZE(2)];

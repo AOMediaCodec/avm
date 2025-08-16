@@ -4413,7 +4413,6 @@ void set_mv_precision(MB_MODE_INFO *mbmi, MvSubpelPrecision precision) {
   mbmi->pb_mv_precision = precision;
 }
 
-#if CONFIG_IBC_SUBPEL_PRECISION
 // Function to check if precision need to be
 // signaled or not
 int is_intraBC_bv_precision_active(const AV1_COMMON *const cm,
@@ -4437,7 +4436,6 @@ void set_default_intraBC_bv_precision(const AV1_COMMON *const cm,
           : av1_intraBc_precision_sets
                 .precision[av1_intraBc_precision_sets.num_precisions - 1];
 }
-#endif  // CONFIG_IBC_SUBPEL_PRECISION
 
 // set the mv precision for amvd applied mode
 void set_amvd_mv_precision(MB_MODE_INFO *mbmi, MvSubpelPrecision precision) {
