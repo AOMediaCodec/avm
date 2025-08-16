@@ -2011,13 +2011,7 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
   mbmi->motion_mode = SIMPLE_TRANSLATION;
   mbmi->refinemv_flag = 0;
 
-  if (av1_allow_intrabc(cm, xd
-#if CONFIG_ENABLE_IBC_NAT
-                        ,
-                        bsize
-#endif  // CONFIG_ENABLE_IBC_NAT
-                        ) &&
-      xd->tree_type != CHROMA_PART) {
+  if (av1_allow_intrabc(cm, xd, bsize) && xd->tree_type != CHROMA_PART) {
 #if CONFIG_NEW_CONTEXT_MODELING
     mbmi->use_intrabc[0] = 0;
     mbmi->use_intrabc[1] = 0;
@@ -2067,13 +2061,7 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
     mbmi->use_intra_dip = 0;
   }
 
-  if (av1_allow_intrabc(cm, xd
-#if CONFIG_ENABLE_IBC_NAT
-                        ,
-                        bsize
-#endif  // CONFIG_ENABLE_IBC_NAT
-                        ) &&
-      xd->tree_type != CHROMA_PART) {
+  if (av1_allow_intrabc(cm, xd, bsize) && xd->tree_type != CHROMA_PART) {
     read_intrabc_info(cm, dcb, r);
     if (is_intrabc_block(mbmi, xd->tree_type)) {
       mbmi->use_dpcm_y = 0;
@@ -4136,13 +4124,7 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
 
 #if CONFIG_IBC_SR_EXT
   if (!inter_block &&
-      av1_allow_intrabc(cm, xd
-#if CONFIG_ENABLE_IBC_NAT
-                        ,
-                        mbmi->sb_type[xd->tree_type == CHROMA_PART]
-#endif  // CONFIG_ENABLE_IBC_NAT
-
-                        ) &&
+      av1_allow_intrabc(cm, xd, mbmi->sb_type[xd->tree_type == CHROMA_PART]) &&
       xd->tree_type != CHROMA_PART) {
 #if CONFIG_NEW_CONTEXT_MODELING
     mbmi->use_intrabc[0] = 0;
@@ -4196,12 +4178,7 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
 
 #if CONFIG_IBC_SR_EXT
   if (!inter_block &&
-      av1_allow_intrabc(cm, xd
-#if CONFIG_ENABLE_IBC_NAT
-                        ,
-                        mbmi->sb_type[xd->tree_type == CHROMA_PART]
-#endif  // CONFIG_ENABLE_IBC_NAT
-                        ) &&
+      av1_allow_intrabc(cm, xd, mbmi->sb_type[xd->tree_type == CHROMA_PART]) &&
       xd->tree_type != CHROMA_PART) {
     mbmi->ref_frame[0] = INTRA_FRAME;
     mbmi->ref_frame[1] = NONE_FRAME;

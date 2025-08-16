@@ -97,9 +97,9 @@
 #define DEFAULT_EXPLICIT_ORDER_HINT_BITS 7
 
 #define DEF_MAX_DRL_REFMVS 4
-#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+#if CONFIG_IBC_BV_IMPROVEMENT
 #define DEF_MAX_DRL_REFBVS 4
-#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
 #if CONFIG_ENTROPY_STATS
 FRAME_COUNTS aggregate_fc;
 #endif  // CONFIG_ENTROPY_STATS
@@ -437,7 +437,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   }
   // Disable frame by frame update for now. Can be changed later.
   seq->allow_frame_max_drl_bits = 0;
-#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+#if CONFIG_IBC_BV_IMPROVEMENT
   if (oxcf->tool_cfg.max_drl_refbvs == 0) {
     seq->def_max_bvp_drl_bits = DEF_MAX_DRL_REFBVS - 1;
   } else {
@@ -445,7 +445,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   }
   // Disable frame by frame update for now. Can be changed later.
   seq->allow_frame_max_bvp_drl_bits = 0;
-#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
 #endif  // CONFIG_SEQ_MAX_DRL_BITS
   seq->num_same_ref_compound = SAME_REF_COMPOUND_PRUNE;
 
@@ -828,7 +828,7 @@ static void set_max_drl_bits(struct AV1_COMP *cpi) {
          cm->features.max_drl_bits <= MAX_MAX_DRL_BITS);
 }
 
-#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+#if CONFIG_IBC_BV_IMPROVEMENT
 static void set_max_bvp_drl_bits(struct AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   // Add logic to choose this in the range [MIN_MAX_IBC_DRL_BITS,
@@ -849,7 +849,7 @@ static void set_max_bvp_drl_bits(struct AV1_COMP *cpi) {
   assert(cm->features.max_bvp_drl_bits >= MIN_MAX_IBC_DRL_BITS &&
          cm->features.max_bvp_drl_bits <= MAX_MAX_IBC_DRL_BITS);
 }
-#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
 
 static void set_seq_lr_tools_mask(SequenceHeader *const seq_params,
                                   const AV1EncoderConfig *oxcf) {
@@ -3338,7 +3338,7 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
   // Determine whether to use screen content tools using two fast encoding.
   av1_determine_sc_tools_with_encoding(cpi, q);
 
-#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+#if CONFIG_IBC_BV_IMPROVEMENT
   if (cm->features.allow_intrabc) {
     set_max_bvp_drl_bits(cpi);
   }
@@ -4276,9 +4276,9 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
         (oxcf->kf_cfg.enable_intrabc_ext != 2) && frame_is_intra_only(cm);
 
     cm->features.allow_local_intrabc = !!oxcf->kf_cfg.enable_intrabc_ext;
-#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+#if CONFIG_IBC_BV_IMPROVEMENT
     set_max_bvp_drl_bits(cpi);
-#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
   } else {
     cm->features.allow_global_intrabc = 0;
     cm->features.allow_local_intrabc = 0;

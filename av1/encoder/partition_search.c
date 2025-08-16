@@ -1158,15 +1158,11 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
 #if CONFIG_ENTROPY_STATS
       ++td->counts->intrabc_mode[mbmi->intrabc_mode];
 #endif  // CONFIG_ENTROPY_STATS
-#if CONFIG_IBC_MAX_DRL
       update_intrabc_drl_idx_stats(cm->features.max_bvp_drl_bits + 1,
 #if !CONFIG_BYPASS_INTRABC_DRL_IDX
                                    fc,
 #endif  // CONFIG_BYPASS_INTRABC_DRL_IDX
                                    td->counts, mbmi);
-#else
-      update_intrabc_drl_idx_stats(MAX_REF_BV_STACK_SIZE, fc, td->counts, mbmi);
-#endif  // CONFIG_IBC_MAX_DRL
 
       if (is_intraBC_bv_precision_active(cm, mbmi->intrabc_mode)) {
         int index = av1_intraBc_precision_to_index[mbmi->pb_mv_precision];

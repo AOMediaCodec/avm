@@ -99,20 +99,13 @@ static INLINE int av1_allow_intrabc_morph_pred(const AV1_COMMON *const cm) {
          cm->features.allow_screen_content_tools && frame_is_intra_only(cm);
 }
 static INLINE int av1_allow_intrabc(const AV1_COMMON *const cm,
-                                    const MACROBLOCKD *const xd
-#if CONFIG_ENABLE_IBC_NAT
-                                    ,
-                                    BLOCK_SIZE bsize
-#endif  // CONFIG_ENABLE_IBC_NAT
-) {
-
-#if CONFIG_ENABLE_IBC_NAT
+                                    const MACROBLOCKD *const xd,
+                                    BLOCK_SIZE bsize) {
   const int w = block_size_wide[bsize];
   const int h = block_size_high[bsize];
   if ((w == 64 && h == 64) || (w > 64 || h > 64)) {
     return 0;
   }
-#endif  // CONFIG_ENABLE_IBC_NAT
 
   int cur_region_type = MIXED_INTER_INTRA_REGION;
   if (xd->mi != NULL) cur_region_type = xd->mi[0]->region_type;
@@ -120,16 +113,9 @@ static INLINE int av1_allow_intrabc(const AV1_COMMON *const cm,
   return (frame_is_intra_only(cm) || cm->features.allow_local_intrabc) &&
          xd->tree_type != CHROMA_PART &&
          (frame_is_intra_only(cm) || cur_region_type != INTRA_REGION) &&
-#if !CONFIG_ENABLE_IBC_NAT
-         cm->features.allow_screen_content_tools &&
-#endif  //! CONFIG_ENABLE_IBC_NAT
          cm->features.allow_intrabc;
 #else
-  return frame_is_intra_only(cm) &&
-#if !CONFIG_ENABLE_IBC_NAT
-         cm->features.allow_screen_content_tools &&
-#endif  //! CONFIG_ENABLE_IBC_NAT
-         xd->tree_type != CHROMA_PART &&
+  return frame_is_intra_only(cm) && xd->tree_type != CHROMA_PART &&
          xd->mi[0]->region_type != INTRA_REGION && cm->features.allow_intrabc;
 #endif  // CONFIG_IBC_SR_EXT
 }

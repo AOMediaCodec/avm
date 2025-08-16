@@ -94,9 +94,9 @@ static AOM_INLINE void write_wienerns_framefilters(AV1_COMMON *cm,
 
 #if CONFIG_IBC_SR_EXT
 static AOM_INLINE void write_intrabc_info(
-#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+#if CONFIG_IBC_BV_IMPROVEMENT
     int max_bvp_drl_bits,
-#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
     const AV1_COMMON *const cm, MACROBLOCKD *xd,
     const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame, aom_writer *w);
 #endif  // CONFIG_IBC_SR_EXT
@@ -2261,9 +2261,9 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
   if (!is_inter && av1_allow_intrabc(cm, xd, bsize) &&
       xd->tree_type != CHROMA_PART) {
     write_intrabc_info(
-#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+#if CONFIG_IBC_BV_IMPROVEMENT
         cm->features.max_bvp_drl_bits,
-#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
         cm, xd, mbmi_ext_frame, w);
     if (is_intrabc_block(mbmi, xd->tree_type)) return;
   }
@@ -2669,9 +2669,9 @@ static void write_intrabc_drl_idx(int max_ref_bv_num,
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
 
 static AOM_INLINE void write_intrabc_info(
-#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+#if CONFIG_IBC_BV_IMPROVEMENT
     int max_bvp_drl_bits,
-#endif  //  CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+#endif  //  CONFIG_IBC_BV_IMPROVEMENT
     const AV1_COMMON *const cm, MACROBLOCKD *xd,
     const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame, aom_writer *w) {
   const MB_MODE_INFO *const mbmi = xd->mi[0];
@@ -2687,16 +2687,11 @@ static AOM_INLINE void write_intrabc_info(
 
 #if CONFIG_IBC_BV_IMPROVEMENT
     aom_write_symbol(w, mbmi->intrabc_mode, ec_ctx->intrabc_mode_cdf, 2);
-    write_intrabc_drl_idx(
-#if CONFIG_IBC_MAX_DRL
-        max_bvp_drl_bits + 1,
-#else
-        MAX_REF_BV_STACK_SIZE,
-#endif  // CONFIG_IBC_MAX_DRL
+    write_intrabc_drl_idx(max_bvp_drl_bits + 1,
 #if !CONFIG_BYPASS_INTRABC_DRL_IDX
-        ec_ctx,
+                          ec_ctx,
 #endif  // CONFIG_BYPASS_INTRABC_DRL_IDX
-        mbmi, mbmi_ext_frame, w);
+                          mbmi, mbmi_ext_frame, w);
 
     if (is_intraBC_bv_precision_active(cm, mbmi->intrabc_mode)) {
       int index = av1_intraBc_precision_to_index[mbmi->pb_mv_precision];
@@ -2805,9 +2800,9 @@ static AOM_INLINE void write_mb_modes_kf(
   if (av1_allow_intrabc(cm, xd, mbmi->sb_type[xd->tree_type == CHROMA_PART]) &&
       xd->tree_type != CHROMA_PART) {
     write_intrabc_info(
-#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+#if CONFIG_IBC_BV_IMPROVEMENT
         cm->features.max_bvp_drl_bits,
-#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
         cm, xd, mbmi_ext_frame, w);
     if (is_intrabc_block(mbmi, xd->tree_type)) return;
   }
@@ -5652,7 +5647,7 @@ static void write_frame_max_drl_bits(AV1_COMMON *const cm,
 #endif  // CONFIG_SEQ_MAX_DRL_BITS
 }
 
-#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+#if CONFIG_IBC_BV_IMPROVEMENT
 static void write_frame_max_bvp_drl_bits(AV1_COMMON *const cm,
                                          struct aom_write_bit_buffer *wb) {
   FeatureFlags *const features = &cm->features;
@@ -5672,7 +5667,7 @@ static void write_frame_max_bvp_drl_bits(AV1_COMMON *const cm,
       features->max_bvp_drl_bits - MIN_MAX_IBC_DRL_BITS);
 #endif  // CONFIG_SEQ_MAX_DRL_BITS
 }
-#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
 
 static AOM_INLINE void write_sequence_header_beyond_av1(
     const SequenceHeader *const seq_params, struct aom_write_bit_buffer *wb) {
@@ -5732,12 +5727,12 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
       wb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1,
       seq_params->def_max_drl_bits - MIN_MAX_DRL_BITS);
   aom_wb_write_bit(wb, seq_params->allow_frame_max_drl_bits);
-#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+#if CONFIG_IBC_BV_IMPROVEMENT
   aom_wb_write_primitive_quniform(
       wb, MAX_MAX_IBC_DRL_BITS - MIN_MAX_IBC_DRL_BITS + 1,
       seq_params->def_max_bvp_drl_bits - MIN_MAX_IBC_DRL_BITS);
   aom_wb_write_bit(wb, seq_params->allow_frame_max_bvp_drl_bits);
-#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
 #endif  // CONFIG_SEQ_MAX_DRL_BITS
 
   aom_wb_write_literal(wb, seq_params->num_same_ref_compound, 2);
@@ -6311,13 +6306,9 @@ static AOM_INLINE void write_uncompressed_header_obu(
         aom_wb_write_bit(wb, features->allow_local_intrabc);
       }
 #if CONFIG_IBC_BV_IMPROVEMENT
-#if CONFIG_IBC_MAX_DRL
       assert(features->max_bvp_drl_bits >= MIN_MAX_IBC_DRL_BITS &&
              features->max_bvp_drl_bits <= MAX_MAX_IBC_DRL_BITS);
       write_frame_max_bvp_drl_bits(cm, wb);
-#else
-      write_frame_max_drl_bits(cm, wb);
-#endif  // CONFIG_IBC_MAX_DRL
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
     }
 #endif  // CONFIG_IBC_SR_EXT
@@ -6335,13 +6326,9 @@ static AOM_INLINE void write_uncompressed_header_obu(
           aom_wb_write_bit(wb, features->allow_local_intrabc);
         }
 #if CONFIG_IBC_BV_IMPROVEMENT
-#if CONFIG_IBC_MAX_DRL
         assert(features->max_bvp_drl_bits >= MIN_MAX_IBC_DRL_BITS &&
                features->max_bvp_drl_bits <= MAX_MAX_IBC_DRL_BITS);
         write_frame_max_bvp_drl_bits(cm, wb);
-#else
-        write_frame_max_drl_bits(cm, wb);
-#endif  // CONFIG_IBC_MAX_DRL
 #endif  // CONFIG_IBC_BV_IMPROVEMENT
       }
 #endif  // CONFIG_IBC_SR_EXT
@@ -6524,13 +6511,13 @@ static AOM_INLINE void write_uncompressed_header_obu(
         if (1) aom_wb_write_bit(wb, features->allow_intrabc);
 #endif  // CONFIG_IBC_SR_EXT
         write_frame_max_drl_bits(cm, wb);
-#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+#if CONFIG_IBC_BV_IMPROVEMENT
         if (features->allow_intrabc) {
           assert(features->max_bvp_drl_bits >= MIN_MAX_IBC_DRL_BITS &&
                  features->max_bvp_drl_bits <= MAX_MAX_IBC_DRL_BITS);
           write_frame_max_bvp_drl_bits(cm, wb);
         }
-#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
         if (!features->cur_frame_force_integer_mv) {
 #if CONFIG_FRAME_HALF_PRECISION
           aom_wb_write_bit(wb,

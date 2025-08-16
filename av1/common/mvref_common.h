@@ -740,7 +740,6 @@ static INLINE void av1_find_ref_dv(int_mv *ref_dv, const TileInfo *const tile,
   convert_fullmv_to_mv(ref_dv);
 }
 
-#if CONFIG_IBC_SR_EXT == 1 || CONFIG_ENABLE_IBC_NAT
 static INLINE int av1_is_dv_in_local_range_64x64(const MV dv,
                                                  const MACROBLOCKD *xd,
                                                  int mi_row, int mi_col, int bh,
@@ -774,11 +773,11 @@ static INLINE int av1_is_dv_in_local_range_64x64(const MV dv,
 
   const int sb_size = 1 << sb_size_log2;
   const int sb_mi_size = sb_size >> MI_SIZE_LOG2;
-#if CONFIG_ENABLE_IBC_NAT && (CONFIG_IBC_SR_EXT == 2)
+#if (CONFIG_IBC_SR_EXT == 2)
   int valid_size_log2 = sb_size_log2 > 7 ? 7 : sb_size_log2;
 #else
   int valid_size_log2 = sb_size_log2 > 6 ? 6 : sb_size_log2;
-#endif  // CONFIG_ENABLE_IBC_NAT && (CONFIG_IBC_SR_EXT == 2)
+#endif  // (CONFIG_IBC_SR_EXT == 2)
   int valid =
       src_top_y >> valid_size_log2 == active_top_y >> valid_size_log2 &&
       src_left_x >> valid_size_log2 == active_left_x >> valid_size_log2 &&
@@ -809,7 +808,6 @@ static INLINE int av1_is_dv_in_local_range_64x64(const MV dv,
 
   return 0;
 }
-#endif  // CONFIG_IBC_SR_EXT == 1 || CONFIG_ENABLE_IBC_NAT
 
 #if CONFIG_IBC_SR_EXT == 2
 #if CONFIG_LOCAL_INTRABC_ALIGN_RNG
@@ -1261,14 +1259,12 @@ static INLINE int av1_is_dv_valid(const MV dv, const AV1_COMMON *cm,
       valid = av1_is_dv_in_local_range(dv, xd, tmp_row, tmp_col, tmp_bh, tmp_bw,
                                        mib_size_log2);
 #else
-#if CONFIG_ENABLE_IBC_NAT
       if (!frame_is_intra_only(
               cm))  // Inter frame: Using 128x128 but the modificantion made in
                     // av1_is_dv_in_local_range_64x64 function
         valid = av1_is_dv_in_local_range_64x64(dv, xd, tmp_row, tmp_col, tmp_bh,
                                                tmp_bw, mib_size_log2);
       else
-#endif  // CONFIG_ENABLE_IBC_NAT
         valid = av1_is_dv_in_local_range(dv, xd, tmp_row, tmp_col, tmp_bh,
                                          tmp_bw, mib_size_log2);
 #endif  // CONFIG_LOCAL_INTRABC_ALIGN_RNG

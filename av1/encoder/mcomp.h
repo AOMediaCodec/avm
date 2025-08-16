@@ -794,16 +794,16 @@ int av1_get_intrabc_drl_idx_cost(int max_ref_bv_num, int intrabc_drl_idx
 // Compute the cost for signalling the intrabc mode and intrabc DRL index. This
 // is only used during the motion search
 int av1_get_ref_bv_rate_cost(int intrabc_mode, int intrabc_drl_idx,
-#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+#if CONFIG_IBC_BV_IMPROVEMENT
                              int max_bvp_drl_bits,
-#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
                              MACROBLOCK *x, int errorperbit, int ref_bv_cnt);
 
 // Pick the best reference BV for the current BV
 int av1_pick_ref_bv(FULLPEL_MV *best_full_mv,
-#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+#if CONFIG_IBC_BV_IMPROVEMENT
                     int max_bvp_drl_bits,
-#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
                     const FULLPEL_MOTION_SEARCH_PARAMS *fullms_params);
 
 // Compute the estimated RD cost for the reference BV
