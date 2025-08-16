@@ -663,11 +663,11 @@ typedef struct SequenceHeader {
                                             // this frame
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   uint8_t disable_loopfilters_across_tiles;
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-  uint8_t enable_cdef;                      // To turn on/off CDEF
-  uint8_t enable_gdf;                       // To turn on/off GDF
-  uint8_t enable_restoration;               // To turn on/off loop restoration
-  uint8_t enable_ccso;                      // To turn on/off CCSO
+#endif                         // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  uint8_t enable_cdef;         // To turn on/off CDEF
+  uint8_t enable_gdf;          // To turn on/off GDF
+  uint8_t enable_restoration;  // To turn on/off loop restoration
+  uint8_t enable_ccso;         // To turn on/off CCSO
 #if CONFIG_LF_SUB_PU
   uint8_t enable_lf_sub_pu;  // To turn on/off sub-block deblocking
 #endif                       // CONFIG_LF_SUB_PU
