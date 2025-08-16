@@ -741,6 +741,11 @@ static INLINE int is_refinemv_allowed_reference(const AV1_COMMON *cm,
   int d0, d1;
   int is_tip = (mbmi->ref_frame[0] == TIP_FRAME);
 
+#if CONFIG_ERROR_RESILIENT_FIX
+  // In error resilient mode, whether a frame is scaled may be unknown, and the
+  // following logic for parsing is not reliable, so DMVR is disabled.
+  if (cm->features.error_resilient_mode) return 0;
+#endif  // CONFIG_ERROR_RESILIENT_FIX
   // If one of the reference frame is different resolution than the current
   // frame, refinemv is disabled.
   const struct scale_factors *const sf0 =
@@ -1203,6 +1208,11 @@ static INLINE int av1_allow_bawp(const AV1_COMMON *const cm,
                                  int mi_col) {
   if (mbmi->mode == WARPMV) return 0;
   if (mbmi->mode == GLOBALMV) return 0;
+#if CONFIG_ERROR_RESILIENT_FIX
+  // In error resilient mode, whether a frame is scaled may be unknown, and the
+  // following logic for parsing is not reliable, so we disable BAWP.
+  if (cm->features.error_resilient_mode) return 0;
+#endif  // CONFIG_ERROR_RESILIENT_FIX
   // If one of the reference frame is different resolution than the current
   // frame, bawp is disabled.
   const struct scale_factors *const sf0 =

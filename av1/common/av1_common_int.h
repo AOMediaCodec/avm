@@ -4784,6 +4784,11 @@ static INLINE int opfl_allowed_cur_refs_bsize(const AV1_COMMON *cm,
 #endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   }
 
+#if CONFIG_ERROR_RESILIENT_FIX
+  // In error resilient mode, whether a frame is scaled may be unknown, and the
+  // following logic for parsing is not reliable, so OPFL is disabled.
+  if (cm->features.error_resilient_mode) return 0;
+#endif  // CONFIG_ERROR_RESILIENT_FIX
   if (is_tip_ref_frame(mbmi->ref_frame[0])) {
     if (av1_is_scaled(cm->tip_ref.ref_scale_factor[0]) ||
         av1_is_scaled(cm->tip_ref.ref_scale_factor[1]))
@@ -4984,6 +4989,9 @@ static INLINE int is_warp_newmv_allowed(const AV1_COMMON *cm,
       is_inter_ref_frame(mbmi->ref_frame[0]) &&
       !is_tip_ref_frame(mbmi->ref_frame[0]) &&
 #if !CONFIG_ACROSS_SCALE_WARP
+#if CONFIG_ERROR_RESILIENT_FIX
+      !cm->features.error_resilient_mode &&
+#endif  // CONFIG_ERROR_RESILIENT_FIX
       !av1_is_scaled(get_ref_scale_factors_const(cm, mbmi->ref_frame[0])) &&
 #endif  // !CONFIG_ACROSS_SCALE_WARP
       !xd->cur_frame_force_integer_mv;
@@ -5097,6 +5105,9 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
       is_motion_variation_allowed_bsize(bsize, xd->mi_row, xd->mi_col) &&
       mbmi->mode == NEW_NEWMV &&
 #if !CONFIG_ACROSS_SCALE_WARP
+#if CONFIG_ERROR_RESILIENT_FIX
+      !cm->features.error_resilient_mode &&
+#endif  // CONFIG_ERROR_RESILIENT_FIX
       !av1_is_scaled(xd->block_ref_scale_factors[0]) &&
 #endif  // !CONFIG_ACROSS_SCALE_WARP
       !xd->cur_frame_force_integer_mv &&

@@ -6081,7 +6081,16 @@ static AOM_INLINE void write_global_motion(AV1_COMP *cpi,
 
   int our_ref = cpi->gm_info.base_model_our_ref;
   int their_ref = cpi->gm_info.base_model_their_ref;
+
+#if CONFIG_ERROR_RESILIENT_FIX
+  // In error resilient mode, our_ref == num_total_refs is implicitly derived
+  assert(IMPLIES(cm->features.error_resilient_mode, our_ref == num_total_refs));
+  if (!cm->features.error_resilient_mode)
+    aom_wb_write_primitive_quniform(wb, num_total_refs + 1, our_ref);
+#else
   aom_wb_write_primitive_quniform(wb, num_total_refs + 1, our_ref);
+#endif  // CONFIG_ERROR_RESILIENT_FIX
+
   if (our_ref >= num_total_refs) {
     // Special case: Use IDENTITY model
     // Nothing more to code
@@ -6289,11 +6298,23 @@ static AOM_INLINE void write_uncompressed_header_obu(
     if (!frame_is_sframe(cm)) aom_wb_write_bit(wb, frame_size_override_flag);
 
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-    if (seq_params->order_hint_info.enable_order_hint)
+    if (seq_params->order_hint_info.enable_order_hint) {
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-      aom_wb_write_literal(
-          wb, current_frame->order_hint,
-          seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
+#if CONFIG_ERROR_RESILIENT_FIX
+      const int order_hint_bits =
+          seq_params->order_hint_info.order_hint_bits_minus_1 + 1;
+      aom_wb_write_literal(wb, current_frame->order_hint, order_hint_bits);
+      if (features->error_resilient_mode)
+        aom_wb_write_uvlc(wb,
+                          current_frame->display_order_hint >> order_hint_bits);
+#else
+    aom_wb_write_literal(
+        wb, current_frame->order_hint,
+        seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
+#endif  // CONFIG_ERROR_RESILIENT_FIX
+#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+    }
+#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
 
     if (!features->error_resilient_mode && !frame_is_intra_only(cm)) {
       aom_wb_write_literal(wb, cpi->signal_primary_ref_frame, 1);
@@ -6398,9 +6419,14 @@ static AOM_INLINE void write_uncompressed_header_obu(
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
     ) {
       for (int ref_idx = 0; ref_idx < cm->seq_params.ref_frames; ref_idx++) {
+#if CONFIG_ERROR_RESILIENT_FIX
+        aom_wb_write_svlc(wb, cm->ref_frame_map[ref_idx]->display_order_hint -
+                                  current_frame->display_order_hint);
+#else
         aom_wb_write_literal(
             wb, cm->ref_frame_map[ref_idx]->order_hint,
             seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
+#endif  // CONFIG_ERROR_RESILIENT_FIX
       }
     }
     // Write all ref frame base_qindex if error_resilient_mode == 1. This is
@@ -6489,12 +6515,18 @@ static AOM_INLINE void write_uncompressed_header_obu(
       // signaling happens only when enabled by the command line flag or in
       // error resilient mode
       const int explicit_ref_frame_map =
-          cm->features.error_resilient_mode || frame_is_sframe(cm) ||
-          seq_params->explicit_ref_frame_map
+#if !CONFIG_ERROR_RESILIENT_FIX
+          cm->features.error_resilient_mode ||
+#endif  // !CONFIG_ERROR_RESILIENT_FIX
+          frame_is_sframe(cm) || seq_params->explicit_ref_frame_map
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
           || !seq_params->order_hint_info.enable_order_hint
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
           ;
+#if CONFIG_ERROR_RESILIENT_FIX
+      assert(
+          IMPLIES(cm->features.error_resilient_mode, explicit_ref_frame_map));
+#endif  // CONFIG_ERROR_RESILIENT_FIX
       if (explicit_ref_frame_map) {
 #if CONFIG_ACROSS_SCALE_REF_OPT
         if (cm->ref_frames_info.num_total_refs < 0 ||

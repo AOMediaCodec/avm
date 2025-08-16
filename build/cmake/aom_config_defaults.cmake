@@ -486,6 +486,8 @@ set_aom_config_var(CONFIG_CWG_F243_ORDER_HINT_BITDEPTH 1
 set_aom_config_var(
   CONFIG_FSC_RES_HLS 1
   "add high level flag to switch fsc residual and regular residual.")
+set_aom_config_var(CONFIG_ERROR_RESILIENT_FIX 1
+                   "Fix error resilient mode parsing")
 
 set_aom_config_var(CONFIG_ADAPTIVE_WEDGE_BOUNDARY 1
                    "Adaptive wedge boundary based on block size.")

@@ -419,7 +419,12 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #if CONFIG_BRU
   seq->enable_bru = tool_cfg->enable_bru;
 #endif  // CONFIG_BRU
-  seq->explicit_ref_frame_map = oxcf->ref_frm_cfg.explicit_ref_frame_map;
+#if CONFIG_ERROR_RESILIENT_FIX
+  if (tool_cfg->error_resilient_mode)
+    seq->explicit_ref_frame_map = 1;
+  else
+#endif  // CONFIG_ERROR_RESILIENT_FIX
+    seq->explicit_ref_frame_map = oxcf->ref_frm_cfg.explicit_ref_frame_map;
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
   // Set 0 for multi-layer coding
   seq->enable_frame_output_order = oxcf->ref_frm_cfg.enable_frame_output_order
@@ -4657,7 +4662,15 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
   cpi->unscaled_last_source = frame_input->last_source;
 
   current_frame->refresh_frame_flags = frame_params->refresh_frame_flags;
+#if CONFIG_ERROR_RESILIENT_FIX
+  cm->features.error_resilient_mode =
+      frame_is_sframe(cm) || (frame_params->frame_type == KEY_FRAME &&
+                              frame_params->show_frame)
+          ? 1
+          : frame_params->error_resilient_mode;
+#else
   cm->features.error_resilient_mode = frame_params->error_resilient_mode;
+#endif  // CONFIG_ERROR_RESILIENT_FIX
   cm->current_frame.frame_type = frame_params->frame_type;
   cm->show_frame = frame_params->show_frame;
   cm->ref_frame_flags = frame_params->ref_frame_flags;

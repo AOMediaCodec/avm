@@ -6959,7 +6959,13 @@ static AOM_INLINE void read_global_motion(AV1_COMMON *cm,
     return;
   }
 
+#if CONFIG_ERROR_RESILIENT_FIX
+  int our_ref = num_total_refs;
+  if (!cm->features.error_resilient_mode)
+    our_ref = aom_rb_read_primitive_quniform(rb, num_total_refs + 1);
+#else
   int our_ref = aom_rb_read_primitive_quniform(rb, num_total_refs + 1);
+#endif  // CONFIG_ERROR_RESILIENT_FIX
   if (our_ref == num_total_refs) {
     // Special case: Use IDENTITY model
     cm->base_global_motion_model = default_warp_params;
@@ -7226,7 +7232,7 @@ static INLINE int get_disp_order_hint(AV1_COMMON *const cm) {
   return cur_disp_order_hint;
 }
 
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+#if !CONFIG_ERROR_RESILIENT_FIX && CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
 static INLINE int get_ref_frame_disp_order_hint(AV1_COMMON *const cm,
                                                 const RefCntBuffer *const buf) {
   // Find the reference frame with the largest order_hint
@@ -7283,7 +7289,7 @@ static INLINE int get_ref_frame_disp_order_hint(AV1_COMMON *const cm,
                        "Derived display order hint is invalid");
   return disp_order_hint;
 }
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+#endif  // !CONFIG_ERROR_RESILIENT_FIX && CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
 
 static INLINE void read_screen_content_params(AV1_COMMON *const cm,
                                               struct aom_read_bit_buffer *rb) {
@@ -7732,10 +7738,30 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
     frame_size_override_flag = frame_is_sframe(cm) ? 1 : aom_rb_read_bit(rb);
 
+#if CONFIG_ERROR_RESILIENT_FIX
+    const int order_hint_bits =
+        seq_params->order_hint_info.order_hint_bits_minus_1 + 1;
+    current_frame->order_hint = aom_rb_read_literal(rb, order_hint_bits);
+    if (features->error_resilient_mode) {
+      const int display_order_hint_high_bits = (int)aom_rb_read_uvlc(rb);
+      if (display_order_hint_high_bits < 0 ||
+          display_order_hint_high_bits >=
+              (1 << (DISPLAY_ORDER_HINT_BITS - order_hint_bits))) {
+        aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                           "Invalid value of display_order_hint_high_bits");
+      }
+      current_frame->display_order_hint =
+          (display_order_hint_high_bits << order_hint_bits) +
+          current_frame->order_hint;
+    } else {
+      current_frame->display_order_hint = get_disp_order_hint(cm);
+    }
+#else
     current_frame->order_hint = aom_rb_read_literal(
         rb, seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
 
     current_frame->display_order_hint = get_disp_order_hint(cm);
+#endif  // CONFIG_ERROR_RESILIENT_FIX
     current_frame->frame_number = current_frame->order_hint;
 
     if (!features->error_resilient_mode && !frame_is_intra_only(cm)) {
@@ -7983,13 +8009,27 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         && seq_params->order_hint_info.enable_order_hint
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
     ) {
+      const int order_hint_bits =
+          seq_params->order_hint_info.order_hint_bits_minus_1 + 1;
       for (int ref_idx = 0; ref_idx < seq_params->ref_frames; ref_idx++) {
+#if CONFIG_ERROR_RESILIENT_FIX
+        // Read display order hint delta from bitstream
+        int display_order_hint_delta = (int)aom_rb_read_svlc(rb);
+        unsigned int ref_display_order_hint =
+            current_frame->display_order_hint + display_order_hint_delta;
+        unsigned int order_hint =
+            ref_display_order_hint % (1 << order_hint_bits);
+#else
         // Read order hint from bit stream
-        unsigned int order_hint = aom_rb_read_literal(
-            rb, seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
+        unsigned int order_hint = aom_rb_read_literal(rb, order_hint_bits);
+#endif  // CONFIG_ERROR_RESILIENT_FIX
         // Get buffer
         RefCntBuffer *buf = cm->ref_frame_map[ref_idx];
+#if CONFIG_ERROR_RESILIENT_FIX
+        if (buf == NULL || ref_display_order_hint != buf->display_order_hint) {
+#else
         if (buf == NULL || order_hint != buf->order_hint) {
+#endif  // CONFIG_ERROR_RESILIENT_FIX
           if (buf != NULL) {
             lock_buffer_pool(pool);
             decrease_ref_count(buf, pool);
@@ -8040,7 +8080,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           cm->ref_frame_map[ref_idx] = buf;
           buf->order_hint = order_hint;
 #if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+#if CONFIG_ERROR_RESILIENT_FIX
+          buf->display_order_hint = ref_display_order_hint;
+#else
           buf->display_order_hint = get_ref_frame_disp_order_hint(cm, buf);
+#endif  // CONFIG_ERROR_RESILIENT_FIX
 #else
           buf->display_order_hint = order_hint;
 #endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
@@ -8156,12 +8200,21 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       // signaled, which happens in error resilient mode or when order hint
       // is unavailable.
       const int explicit_ref_frame_map =
-          cm->features.error_resilient_mode || frame_is_sframe(cm) ||
-          seq_params->explicit_ref_frame_map
+#if !CONFIG_ERROR_RESILIENT_FIX
+          cm->features.error_resilient_mode ||
+#endif  // !CONFIG_ERROR_RESILIENT_FIX
+          frame_is_sframe(cm) || seq_params->explicit_ref_frame_map
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
           || !seq_params->order_hint_info.enable_order_hint
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
           ;
+#if CONFIG_ERROR_RESILIENT_FIX
+      if (cm->features.error_resilient_mode && !explicit_ref_frame_map) {
+        aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+                           "Error resilient mode must be coded with "
+                           "explicit_Ref_frame_map=1.");
+      }
+#endif  // CONFIG_ERROR_RESILIENT_FIX
       if (explicit_ref_frame_map) {
 #if CONFIG_EXTRA_DPB
         cm->ref_frames_info.num_total_refs =
