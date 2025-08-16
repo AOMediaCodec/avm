@@ -1945,9 +1945,17 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
 
   if (plane != AOM_PLANE_Y) mbmi->txb_idx = 0;
 
-  if (plane != AOM_PLANE_Y && mbmi->uv_mode == UV_CFL_PRED) {
+  if (plane != AOM_PLANE_Y && mbmi->uv_mode == UV_CFL_PRED
+#if CONFIG_CWG_F307_CFL_SEQ_FLAG
+      && cm->seq_params.enable_cfl_intra
+#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
+  ) {
 #if CONFIG_DEBUG
-    assert(is_cfl_allowed(xd));
+    assert(is_cfl_allowed(
+#if CONFIG_CWG_F307_CFL_SEQ_FLAG
+        cm->seq_params.enable_cfl_intra,
+#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
+        xd));
     const BLOCK_SIZE plane_bsize = get_mb_plane_block_size(
         xd, mbmi, plane, pd->subsampling_x, pd->subsampling_y);
     (void)plane_bsize;
@@ -1959,8 +1967,8 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
       assert(block_size_high[plane_bsize] == tx_size_high[tx_size]);
     }
 #endif
-    // chroma_bsize is the size in units of 4x4 luma samples of the chroma block
-    // represented as a BLOCK_SIZE
+    // chroma_bsize is the size in units of 4x4 luma samples of the chroma
+    // block represented as a BLOCK_SIZE
     const BLOCK_SIZE chroma_bsize = get_bsize_base(xd, mbmi, PLANE_TYPE_UV);
     // chroma_tx_size is the size in units of 4x4 luma samples of the chroma
     // block represented as a TX_SIZE
@@ -1975,8 +1983,8 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
     const int col_offset =
         mi_col - xd->mi[0]->chroma_ref_info.mi_col_chroma_base;
     struct macroblockd_plane *const luma_pd = &xd->plane[AOM_PLANE_Y];
-    // luma_dst points to the top-left luma sample corresponding to the top-left
-    // chroma sample of the chroma block
+    // luma_dst points to the top-left luma sample corresponding to the
+    // top-left chroma sample of the chroma block
     uint16_t *luma_dst = &luma_pd->dst.buf[-(
         (row_offset * luma_pd->dst.stride + col_offset) << MI_SIZE_LOG2)];
     cfl_store(xd, cfl, luma_dst, luma_pd->dst.stride, 0, 0,
@@ -2062,8 +2070,12 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                     is_top_sb_boundary);
       }
     }
-    cfl_predict_block(xd, dst, dst_stride, tx_size, plane, above_lines > 0,
-                      left_lines > 0, above_lines, left_lines);
+    cfl_predict_block(
+#if CONFIG_CWG_F307_CFL_SEQ_FLAG
+        cm->seq_params.enable_cfl_intra,
+#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
+        xd, dst, dst_stride, tx_size, plane, above_lines > 0, left_lines > 0,
+        above_lines, left_lines);
 
     return;
   }

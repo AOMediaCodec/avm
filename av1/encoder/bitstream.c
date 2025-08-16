@@ -1977,12 +1977,24 @@ static AOM_INLINE void write_intra_prediction_modes(AV1_COMP *cpi,
     if (xd->lossless[mbmi->segment_id]) {
       write_dpcm_uv_index(ec_ctx, mbmi->use_dpcm_uv, w);
       if (mbmi->use_dpcm_uv == 0) {
-        write_intra_uv_mode(xd, is_cfl_allowed(xd), w);
+        write_intra_uv_mode(xd,
+                            is_cfl_allowed(
+#if CONFIG_CWG_F307_CFL_SEQ_FLAG
+                                cm->seq_params.enable_cfl_intra,
+#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
+                                xd),
+                            w);
       } else {
         write_dpcm_uv_vert_horz_mode(ec_ctx, mbmi->dpcm_mode_uv, w);
       }
     } else {
-      write_intra_uv_mode(xd, is_cfl_allowed(xd), w);
+      write_intra_uv_mode(xd,
+                          is_cfl_allowed(
+#if CONFIG_CWG_F307_CFL_SEQ_FLAG
+                              cm->seq_params.enable_cfl_intra,
+#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
+                              xd),
+                          w);
     }
 
     if (uv_mode == UV_CFL_PRED) {
@@ -1992,11 +2004,18 @@ static AOM_INLINE void write_intra_prediction_modes(AV1_COMP *cpi,
 #else
       if (cm->seq_params.enable_mhccp) {
 #endif  // CONFIG_CHROMA_LARGE_TX
-        write_cfl_mhccp_switch(ec_ctx, mbmi->cfl_idx == CFL_MULTI_PARAM, w);
+#if CONFIG_CWG_F307_CFL_SEQ_FLAG
+        if (cm->seq_params.enable_cfl_intra)
+#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
+          write_cfl_mhccp_switch(ec_ctx, mbmi->cfl_idx == CFL_MULTI_PARAM, w);
         if (mbmi->cfl_idx != CFL_MULTI_PARAM) {
           write_cfl_index(ec_ctx, mbmi->cfl_idx, w);
         }
-      } else {
+      } else
+#if CONFIG_CWG_F307_CFL_SEQ_FLAG
+          if (cm->seq_params.enable_cfl_intra)
+#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
+      {
         write_cfl_index(ec_ctx, mbmi->cfl_idx, w);
       }
 #else
@@ -5705,6 +5724,9 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
 #endif  // CONFIG_REDUCED_TX_PART
   if (!seq_params->monochrome) aom_wb_write_bit(wb, seq_params->enable_cctx);
   aom_wb_write_bit(wb, seq_params->enable_mrls);
+#if CONFIG_CWG_F307_CFL_SEQ_FLAG
+  aom_wb_write_bit(wb, seq_params->enable_cfl_intra);
+#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
 #if MHCCP_RUNTIME_FLAG
   aom_wb_write_bit(wb, seq_params->enable_mhccp);
 #endif

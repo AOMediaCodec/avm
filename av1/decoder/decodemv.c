@@ -2114,7 +2114,13 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
       if (xd->lossless[mbmi->segment_id]) {
         mbmi->use_dpcm_uv = read_dpcm_uv_mode(ec_ctx, r);
         if (mbmi->use_dpcm_uv == 0) {
-          read_intra_uv_mode(xd, is_cfl_allowed(xd), r);
+          read_intra_uv_mode(xd,
+                             is_cfl_allowed(
+#if CONFIG_CWG_F307_CFL_SEQ_FLAG
+                                 cm->seq_params.enable_cfl_intra,
+#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
+                                 xd),
+                             r);
           mbmi->dpcm_mode_uv = 0;
         } else {
           get_uv_intra_mode_set(mbmi);
@@ -2126,7 +2132,13 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
             mbmi->angle_delta[PLANE_TYPE_UV] = 0;
         }
       } else {
-        read_intra_uv_mode(xd, is_cfl_allowed(xd), r);
+        read_intra_uv_mode(xd,
+                           is_cfl_allowed(
+#if CONFIG_CWG_F307_CFL_SEQ_FLAG
+                               cm->seq_params.enable_cfl_intra,
+#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
+                               xd),
+                           r);
         mbmi->use_dpcm_uv = 0;
         mbmi->dpcm_mode_uv = 0;
       }
@@ -2139,13 +2151,21 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
 #else
           if (cm->seq_params.enable_mhccp) {
 #endif  // CONFIG_CHROMA_LARGE_TX
-            int cfl_mhccp_switch = read_cfl_mhccp_switch(ec_ctx, r);
+            int cfl_mhccp_switch = 1;
+#if CONFIG_CWG_F307_CFL_SEQ_FLAG
+            if (cm->seq_params.enable_cfl_intra)
+#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
+              cfl_mhccp_switch = read_cfl_mhccp_switch(ec_ctx, r);
             if (cfl_mhccp_switch) {
               mbmi->cfl_idx = CFL_MULTI_PARAM;
             } else {
               mbmi->cfl_idx = read_cfl_index(ec_ctx, r);
             }
-          } else {
+          } else
+#if CONFIG_CWG_F307_CFL_SEQ_FLAG
+              if (cm->seq_params.enable_cfl_intra)
+#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
+          {
             mbmi->cfl_idx = read_cfl_index(ec_ctx, r);
           }
 #else
@@ -2649,9 +2669,9 @@ static INLINE void read_mv(aom_reader *r, MV *mv_diff, int skip_sign_coding,
 #endif
 
 #if 0
-  static int counter = 0;
-  printf(" Decoder: counter = %d shell_index = %d \n", counter, shell_index);
-  counter++;
+   static int counter = 0;
+   printf(" Decoder: counter = %d shell_index = %d \n", counter, shell_index);
+   counter++;
 #endif
 
   (void)skip_sign_coding;
@@ -2912,7 +2932,13 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
     if (xd->lossless[mbmi->segment_id]) {
       mbmi->use_dpcm_uv = read_dpcm_uv_mode(ec_ctx, r);
       if (mbmi->use_dpcm_uv == 0) {
-        read_intra_uv_mode(xd, is_cfl_allowed(xd), r);
+        read_intra_uv_mode(xd,
+                           is_cfl_allowed(
+#if CONFIG_CWG_F307_CFL_SEQ_FLAG
+                               cm->seq_params.enable_cfl_intra,
+#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
+                               xd),
+                           r);
         mbmi->dpcm_mode_uv = 0;
       } else {
         get_uv_intra_mode_set(mbmi);
@@ -2926,7 +2952,13 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
     } else {
       mbmi->use_dpcm_uv = 0;
       mbmi->dpcm_mode_uv = 0;
-      read_intra_uv_mode(xd, is_cfl_allowed(xd), r);
+      read_intra_uv_mode(xd,
+                         is_cfl_allowed(
+#if CONFIG_CWG_F307_CFL_SEQ_FLAG
+                             cm->seq_params.enable_cfl_intra,
+#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
+                             xd),
+                         r);
     }
 
     if (mbmi->uv_mode == UV_CFL_PRED) {
@@ -2937,13 +2969,21 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
 #else
         if (cm->seq_params.enable_mhccp) {
 #endif  // CONFIG_CHROMA_LARGE_TX
-          int cfl_mhccp_switch = read_cfl_mhccp_switch(ec_ctx, r);
+          int cfl_mhccp_switch = 1;
+#if CONFIG_CWG_F307_CFL_SEQ_FLAG
+          if (cm->seq_params.enable_cfl_intra)
+#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
+            cfl_mhccp_switch = read_cfl_mhccp_switch(ec_ctx, r);
           if (cfl_mhccp_switch) {
             mbmi->cfl_idx = CFL_MULTI_PARAM;
           } else {
             mbmi->cfl_idx = read_cfl_index(ec_ctx, r);
           }
-        } else {
+        } else
+#if CONFIG_CWG_F307_CFL_SEQ_FLAG
+            if (cm->seq_params.enable_cfl_intra)
+#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
+        {
           mbmi->cfl_idx = read_cfl_index(ec_ctx, r);
         }
 #else

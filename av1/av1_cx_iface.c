@@ -1510,7 +1510,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 #endif  // CONFIG_LF_SUB_PU
   tool_cfg->enable_adaptive_mvd = extra_cfg->enable_adaptive_mvd;
   tool_cfg->enable_flex_mvres = extra_cfg->enable_flex_mvres;
-
   tool_cfg->select_cfl_ds_filter = extra_cfg->select_cfl_ds_filter;
 
   tool_cfg->enable_joint_mvd = extra_cfg->enable_joint_mvd;

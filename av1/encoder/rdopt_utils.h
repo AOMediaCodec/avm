@@ -414,7 +414,12 @@ static INLINE CFL_ALLOWED_TYPE store_cfl_required_rdo(const AV1_COMMON *cm,
 
   // For chroma reference blocks, we should store data in the encoder iff we're
   // allowed to try out CfL.
-  return is_cfl_allowed(xd);
+
+  return is_cfl_allowed(
+#if CONFIG_CWG_F307_CFL_SEQ_FLAG
+      cm->seq_params.enable_cfl_intra,
+#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
+      xd);
 }
 
 static AOM_INLINE void init_sbuv_mode(MB_MODE_INFO *const mbmi) {

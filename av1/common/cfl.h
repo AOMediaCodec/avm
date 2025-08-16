@@ -42,10 +42,17 @@ static INLINE int derive_linear_parameters_beta(int sum_x, int sum_y, int count,
 }
 
 // Can we use CfL for the current block?
-static INLINE CFL_ALLOWED_TYPE is_cfl_allowed(const MACROBLOCKD *xd) {
+static INLINE CFL_ALLOWED_TYPE is_cfl_allowed(
+#if CONFIG_CWG_F307_CFL_SEQ_FLAG
+    bool seq_enable_cfl_intra,
+#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
+    const MACROBLOCKD *xd) {
+
   const MB_MODE_INFO *mbmi = xd->mi[0];
   if (xd->tree_type == LUMA_PART) return CFL_DISALLOWED;
-
+#if CONFIG_CWG_F307_CFL_SEQ_FLAG
+  if (!seq_enable_cfl_intra) return CFL_DISALLOWED;
+#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
 #if CONFIG_SDP_CFL_LATENCY_FIX
   assert(xd->is_cfl_allowed_in_sdp < CFL_ALLOWED_TYPES_FOR_SDP);
   if (xd->is_cfl_allowed_in_sdp != CFL_ALLOWED_FOR_CHROMA) {
@@ -188,9 +195,12 @@ static INLINE CFL_PRED_TYPE get_cfl_pred_type(PLANE_TYPE plane) {
   return (CFL_PRED_TYPE)(plane - 1);
 }
 
-void cfl_predict_block(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
-                       TX_SIZE tx_size, int plane, bool have_top,
-                       bool have_left, int above_lines, int left_lines);
+void cfl_predict_block(
+#if CONFIG_CWG_F307_CFL_SEQ_FLAG
+    bool seq_enable_cfl_intra,
+#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
+    MACROBLOCKD *const xd, uint16_t *dst, int dst_stride, TX_SIZE tx_size,
+    int plane, bool have_top, bool have_left, int above_lines, int left_lines);
 
 void cfl_store_block(MACROBLOCKD *const xd, BLOCK_SIZE bsize, TX_SIZE tx_size,
                      int filter_type);

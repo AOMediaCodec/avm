@@ -645,13 +645,22 @@ void cfl_derive_block_implicit_scaling_factor(uint16_t *l, const uint16_t *c,
                                           shift);
 }
 
-void cfl_predict_block(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
-                       TX_SIZE tx_size, int plane, bool have_top,
-                       bool have_left, int above_lines, int left_lines) {
+void cfl_predict_block(
+#if CONFIG_CWG_F307_CFL_SEQ_FLAG
+    bool seq_enable_cfl_intra,
+#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
+    MACROBLOCKD *const xd, uint16_t *dst, int dst_stride, TX_SIZE tx_size,
+    int plane, bool have_top, bool have_left, int above_lines, int left_lines) {
   CFL_CTX *const cfl = &xd->cfl;
   MB_MODE_INFO *mbmi = xd->mi[0];
-  assert(is_cfl_allowed(xd));
-
+#if CONFIG_CWG_F307_CFL_SEQ_FLAG
+  if (!seq_enable_cfl_intra) return;
+#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
+  assert(is_cfl_allowed(
+#if CONFIG_CWG_F307_CFL_SEQ_FLAG
+      seq_enable_cfl_intra,
+#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
+      xd));
   cfl_compute_parameters_alt(cfl, tx_size);
   int alpha_q3;
 #if MHCCP_RUNTIME_FLAG

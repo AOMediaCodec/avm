@@ -320,7 +320,12 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
                                         ctx->rd_stats.rate, ctx->rd_stats.dist,
                                         txfm_info->skip_txfm);
     }
-    if (mi_addr->uv_mode == UV_CFL_PRED && !is_cfl_allowed(xd))
+
+    if (mi_addr->uv_mode == UV_CFL_PRED && !is_cfl_allowed(
+#if CONFIG_CWG_F307_CFL_SEQ_FLAG
+                                               cm->seq_params.enable_cfl_intra,
+#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
+                                               xd))
       mi_addr->uv_mode = UV_DC_PRED;
   }
   for (i = (xd->tree_type == CHROMA_PART); i < num_planes; ++i) {
@@ -721,7 +726,11 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
   if (!xd->is_chroma_ref) return;
   if (xd->tree_type != LUMA_PART) {
     const UV_PREDICTION_MODE uv_mode = mbmi->uv_mode;
-    const CFL_ALLOWED_TYPE cfl_allowed = is_cfl_allowed(xd);
+    const CFL_ALLOWED_TYPE cfl_allowed = is_cfl_allowed(
+#if CONFIG_CWG_F307_CFL_SEQ_FLAG
+        cm->seq_params.enable_cfl_intra,
+#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
+        xd);
     const int uv_context = av1_is_directional_mode(mbmi->mode) ? 1 : 0;
 #if CONFIG_ENTROPY_STATS
     if (cfl_allowed) {
@@ -823,15 +832,24 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
         }
 #if CONFIG_CHROMA_LARGE_TX
       } else {
-        update_cdf(fc->cfl_index_cdf, mbmi->cfl_idx, CFL_TYPE_COUNT - 1);
+#if CONFIG_CWG_F307_CFL_SEQ_FLAG
+        if (cm->seq_params.enable_cfl_intra)
+#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
+          update_cdf(fc->cfl_index_cdf, mbmi->cfl_idx, CFL_TYPE_COUNT - 1);
       }
 #endif  // CONFIG_CHROMA_LARGE_TX
 #else
-      update_cdf(fc->cfl_index_cdf, mbmi->cfl_idx, CFL_TYPE_COUNT - 1);
-      if (mbmi->cfl_idx == CFL_MULTI_PARAM_V) {
-        aom_cdf_prob *filter_dir_cdf = get_mhccp_dir_cdf(xd, bsize);
-        update_cdf(filter_dir_cdf, mbmi->mh_dir, MHCCP_MODE_NUM);
+#if CONFIG_CWG_F307_CFL_SEQ_FLAG
+      if (cm->seq_params.enable_mhccp && cm->seq_params.enable_cfl_intra) {
+#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
+        update_cdf(fc->cfl_index_cdf, mbmi->cfl_idx, CFL_TYPE_COUNT - 1);
+        if (mbmi->cfl_idx == CFL_MULTI_PARAM_V) {
+          aom_cdf_prob *filter_dir_cdf = get_mhccp_dir_cdf(xd, bsize);
+          update_cdf(filter_dir_cdf, mbmi->mh_dir, MHCCP_MODE_NUM);
+        }
+#if CONFIG_CWG_F307_CFL_SEQ_FLAG
       }
+#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
 #endif  // MHCCP_RUNTIME_FLAG
     }
     if (uv_mode == UV_CFL_PRED) {
