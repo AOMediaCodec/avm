@@ -990,12 +990,10 @@ typedef struct {
 #else
   int intrabc_cost[2];
 #endif  // CONFIG_NEW_CONTEXT_MODELING
-#if CONFIG_IBC_BV_IMPROVEMENT
   //! intrabc_mode_cost
   int intrabc_mode_cost[2];
   //! intrabc_drl_idx_cost
   int intrabc_drl_idx_cost[MAX_REF_BV_STACK_SIZE - 1][2];
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
   //! intrabc_bv_precision_cost
   int intrabc_bv_precision_cost[NUM_BV_PRECISION_CONTEXTS]
                                [NUM_ALLOWED_BV_PRECISIONS];
@@ -1445,13 +1443,11 @@ typedef struct {
 
 #else
 
-#if CONFIG_IBC_BV_IMPROVEMENT
   /*! Costs for coding the zero components of dv cost. */
   int *dv_joint_cost;
 
   /*! Points to the middle of dvcost. */
   int *dv_nmv_cost[2];
-#endif
 #endif  // CONFIG_VQ_MVD_CODING
   /**@}*/
 } MvCosts;

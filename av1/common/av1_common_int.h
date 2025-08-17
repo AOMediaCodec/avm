@@ -585,11 +585,11 @@ typedef struct SequenceHeader {
 #if CONFIG_SEQ_MAX_DRL_BITS
   int def_max_drl_bits;              // default max drl bits for MVs
   uint8_t allow_frame_max_drl_bits;  // whether to allow frame level update
-#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+#if CONFIG_IBC_BV_IMPROVEMENT
   int def_max_bvp_drl_bits;              // default max ibc drl bits for MVs
   uint8_t allow_frame_max_bvp_drl_bits;  // whether to allow frame level update
-#endif                        // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
-#endif                        // CONFIG_SEQ_MAX_DRL_BITS
+#endif                                   // CONFIG_IBC_BV_IMPROVEMENT
+#endif                                   // CONFIG_SEQ_MAX_DRL_BITS
   int num_same_ref_compound;  // Number of the allowed same reference frames for
                               // the compound mode
 #if CONFIG_EXTRA_DPB
@@ -915,13 +915,13 @@ typedef struct {
    * Max_drl_bits. Note number of ref MVs allowed is max_drl_bits + 1
    */
   int max_drl_bits;
-#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+#if CONFIG_IBC_BV_IMPROVEMENT
   /*!
    * Max_bvp_drl_bits. Note number of IntraBC ref BVs allowed is
    * max_bvp_drl_bits + 1
    */
   int max_bvp_drl_bits;
-#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
   /*!
    * Ternary symbol for optical flow refinement type. 0: do not refine,
    * 1: always refine, 2: switchable at block level.

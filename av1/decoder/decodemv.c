@@ -1813,15 +1813,11 @@ static void read_intrabc_info(AV1_COMMON *const cm, DecoderCodingBlock *dcb,
 #if CONFIG_IBC_BV_IMPROVEMENT
     mbmi->intrabc_mode =
         aom_read_symbol(r, ec_ctx->intrabc_mode_cdf, 2, ACCT_INFO());
-#if CONFIG_IBC_MAX_DRL
     read_intrabc_drl_idx(cm->features.max_bvp_drl_bits + 1,
 #if !CONFIG_BYPASS_INTRABC_DRL_IDX
                          ec_ctx,
 #endif  // CONFIG_BYPASS_INTRABC_DRL_IDX
                          mbmi, r);
-#else
-    read_intrabc_drl_idx(MAX_REF_BV_STACK_SIZE, ec_ctx, mbmi, r);
-#endif  // CONFIG_IBC_MAX_DRL
     int_mv dv_ref =
         xd->ref_mv_stack[INTRA_FRAME][mbmi->intrabc_drl_idx].this_mv;
 #else

@@ -1418,11 +1418,9 @@ void av1_set_cost_upd_freq(AV1_COMP *cpi, ThreadData *td,
         break;
       av1_fill_mv_costs(xd->tile_ctx, cm->features.cur_frame_force_integer_mv,
                         cm->features.fr_mv_precision, &x->mv_costs);
-#if CONFIG_IBC_BV_IMPROVEMENT
       if (cm->features.allow_intrabc) {
         fill_dv_costs(&x->dv_costs, xd->tile_ctx, &x->mv_costs);
       }
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
       break;
     default: assert(0);
   }

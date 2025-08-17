@@ -932,9 +932,7 @@ typedef struct {
   // Indicates if palette should be enabled.
   bool enable_palette;
   unsigned int max_drl_refmvs;
-#if CONFIG_IBC_BV_IMPROVEMENT
   unsigned int max_drl_refbvs;
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
   // Indicates if ref MV Bank should be enabled.
   bool enable_refmvbank;
   // Indicates if the reorder of DRL should be enabled.
@@ -1595,10 +1593,8 @@ typedef struct FRAME_COUNTS {
 #else
   unsigned int intrabc[2];
 #endif  // CONFIG_NEW_CONTEXT_MODELING
-#if CONFIG_IBC_BV_IMPROVEMENT
   unsigned int intrabc_mode[2];
   unsigned int intrabc_drl_idx[MAX_REF_BV_STACK_SIZE - 1][2];
-#endif
   unsigned int morph_pred_count[3][2];
   unsigned int txfm_do_partition[FSC_MODES][2][TXFM_SPLIT_GROUP][2];
 #if CONFIG_BUGFIX_TX_PARTITION_TYPE_SIGNALING

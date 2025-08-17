@@ -68,11 +68,7 @@ get_faster_search_method(SEARCH_METHODS search_method) {
 void av1_make_default_fullpel_ms_params(
     FULLPEL_MOTION_SEARCH_PARAMS *ms_params, const struct AV1_COMP *cpi,
     const MACROBLOCK *x, BLOCK_SIZE bsize, const MV *ref_mv,
-    const MvSubpelPrecision pb_mv_precision,
-#if CONFIG_IBC_BV_IMPROVEMENT
-    const int is_ibc_cost,
-#endif
-
+    const MvSubpelPrecision pb_mv_precision, const int is_ibc_cost,
     const search_site_config search_sites[NUM_DISTINCT_SEARCH_METHODS],
     int fine_search_interval) {
   const MV_SPEED_FEATURES *mv_sf = &cpi->sf.mv_sf;
@@ -132,13 +128,7 @@ void av1_make_default_fullpel_ms_params(
 
   // Mvcost params
   init_mv_cost_params(&ms_params->mv_cost_params, &x->mv_costs, is_adaptive_mvd,
-                      ref_mv, pb_mv_precision
-#if CONFIG_IBC_BV_IMPROVEMENT
-                      ,
-                      is_ibc_cost
-#endif
-
-  );
+                      ref_mv, pb_mv_precision, is_ibc_cost);
 }
 
 void av1_make_default_subpel_ms_params(SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
@@ -165,13 +155,7 @@ void av1_make_default_subpel_ms_params(SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
 
   // Mvcost params
   init_mv_cost_params(&ms_params->mv_cost_params, &x->mv_costs, is_adaptive_mvd,
-                      ref_mv, pb_mv_precision
-
-#if CONFIG_IBC_BV_IMPROVEMENT
-                      ,
-                      is_ibc_cost
-#endif
-  );
+                      ref_mv, pb_mv_precision, is_ibc_cost);
 
   // Subpel variance params
   ms_params->var_params.vfp = &cpi->fn_ptr[bsize];
@@ -570,12 +554,8 @@ static INLINE int get_vq_mvd_cost(const MV mv_diff,
 #endif  // CONFIG_VQ_MVD_CODING
 static INLINE int get_mv_cost_with_precision(
     const MV mv, const MV ref_mv, const MvSubpelPrecision pb_mv_precision,
-    const int is_adaptive_mvd,
-#if CONFIG_IBC_BV_IMPROVEMENT
-    const int is_ibc_cost,
-#endif
-    const MvCosts *mv_costs, int weight, int round_bits) {
-
+    const int is_adaptive_mvd, const int is_ibc_cost, const MvCosts *mv_costs,
+    int weight, int round_bits) {
   MV low_prec_ref_mv = ref_mv;
   if (!is_adaptive_mvd && pb_mv_precision < MV_PRECISION_HALF_PEL)
     lower_mv_precision(&low_prec_ref_mv, pb_mv_precision);
@@ -598,21 +578,13 @@ static INLINE int get_mv_cost_with_precision(
   const int *mvjcost =
       is_adaptive_mvd
           ? mv_costs->amvd_nmv_joint_cost
-#if CONFIG_IBC_BV_IMPROVEMENT
           : (is_ibc_cost ? mv_costs->dv_joint_cost : mv_costs->nmv_joint_cost);
-#else
-          : mv_costs->nmv_joint_cost;
-#endif
   const int *const *mvcost =
       is_adaptive_mvd
           ? CONVERT_TO_CONST_MVCOST(mv_costs->amvd_nmv_cost)
-#if CONFIG_IBC_BV_IMPROVEMENT
           : (is_ibc_cost ? CONVERT_TO_CONST_MVCOST(mv_costs->dv_nmv_cost)
                          : CONVERT_TO_CONST_MVCOST(
                                mv_costs->nmv_costs[pb_mv_precision]));
-#else
-          : CONVERT_TO_CONST_MVCOST(mv_costs->nmv_costs[pb_mv_precision]);
-#endif
 
   if (mvcost) {
     return (int)ROUND_POWER_OF_TWO_64(
@@ -677,17 +649,12 @@ int av1_mv_bit_cost(const MV *mv, const MV *ref_mv,
                     const MvSubpelPrecision pb_mv_precision,
                     const MvCosts *mv_costs, int weight,
                     const int is_adaptive_mvd) {
-#if CONFIG_IBC_BV_IMPROVEMENT
   // For ibc block this function should not be called
   const int is_ibc_cost = 0;
-#endif
 
   return get_mv_cost_with_precision(*mv, *ref_mv, pb_mv_precision,
-                                    is_adaptive_mvd,
-#if CONFIG_IBC_BV_IMPROVEMENT
-                                    is_ibc_cost,
-#endif
-                                    mv_costs, weight, 7);
+                                    is_adaptive_mvd, is_ibc_cost, mv_costs,
+                                    weight, 7);
 }
 
 int av1_intrabc_mv_bit_cost(const MV *mv, const MV *ref_mv,
@@ -725,10 +692,7 @@ static INLINE int mv_err_cost(const MV mv,
     case MV_COST_ENTROPY:
       return get_mv_cost_with_precision(
           mv, ref_mv, mv_cost_params->pb_mv_precision,
-          mv_cost_params->is_adaptive_mvd,
-#if CONFIG_IBC_BV_IMPROVEMENT
-          mv_cost_params->is_ibc_cost,
-#endif
+          mv_cost_params->is_adaptive_mvd, mv_cost_params->is_ibc_cost,
           mv_costs, mv_costs->errorperbit,
           RDDIV_BITS + AV1_PROB_COST_SHIFT - RD_EPB_SHIFT +
               PIXEL_TRANSFORM_ERROR_SCALE);
@@ -765,7 +729,6 @@ static INLINE int mvsad_err_cost(const FULLPEL_MV mv,
   const MvCosts *mv_costs = mv_cost_params->mv_costs;
 
 #if !CONFIG_VQ_MVD_CODING
-#if CONFIG_IBC_BV_IMPROVEMENT
   const int *mvjcost =
 #if !CONFIG_VQ_MVD_CODING
       mv_cost_params->is_ibc_cost ? mv_costs->dv_joint_cost :
@@ -783,15 +746,6 @@ static INLINE int mvsad_err_cost(const FULLPEL_MV mv,
           (mv_cost_params->is_adaptive_mvd
                ? CONVERT_TO_CONST_MVCOST(mv_costs->amvd_nmv_cost)
                : CONVERT_TO_CONST_MVCOST(mv_costs->nmv_costs[pb_mv_precision]));
-#else
-  const int *mvjcost = mv_cost_params->is_adaptive_mvd
-                           ? mv_costs->amvd_nmv_joint_cost
-                           : mv_costs->nmv_joint_cost;
-  const int *const *mvcost =
-      mv_cost_params->is_adaptive_mvd
-          ? CONVERT_TO_CONST_MVCOST(mv_costs->amvd_nmv_cost)
-          : CONVERT_TO_CONST_MVCOST(mv_costs->nmv_costs[pb_mv_precision]);
-#endif
 #endif  // !CONFIG_VQ_MVD_CODING
 
   const int sad_per_bit = mv_costs->sadperbit;
@@ -1212,11 +1166,9 @@ static INLINE int check_bounds(const FullMvLimits *mv_limits, int row, int col,
          ((col + range) <= mv_limits->col_max);
 }
 
-#if CONFIG_IBC_BV_IMPROVEMENT
 int av1_get_mv_err_cost(const MV *mv, const MV_COST_PARAMS *mv_cost_params) {
   return mv_err_cost(*mv, mv_cost_params);
 }
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
 
 static INLINE int get_mvpred_var_cost(
     const FULLPEL_MOTION_SEARCH_PARAMS *ms_params, const FULLPEL_MV *this_mv) {
@@ -2829,7 +2781,6 @@ int av1_get_cwp_idx_cost(int8_t cwp_idx, const AV1_COMMON *const cm,
   return cost;
 }
 
-#if CONFIG_IBC_BV_IMPROVEMENT
 int av1_get_ref_mvpred_var_cost(const AV1_COMP *cpi, const MACROBLOCKD *xd,
                                 const FULLPEL_MOTION_SEARCH_PARAMS *ms_params) {
   const BLOCK_SIZE bsize = ms_params->bsize;
@@ -2898,24 +2849,18 @@ int av1_get_intrabc_drl_idx_cost(int max_ref_bv_num, int intrabc_drl_idx
 }
 
 int av1_get_ref_bv_rate_cost(int intrabc_mode, int intrabc_drl_idx,
-#if CONFIG_IBC_BV_IMPROVEMENT
-                             int max_bvp_drl_bits,
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
-                             MACROBLOCK *x, int errorperbit, int ref_bv_cnt) {
+                             int max_bvp_drl_bits, MACROBLOCK *x,
+                             int errorperbit, int ref_bv_cnt) {
   (void)ref_bv_cnt;
   int ref_bv_cost = 0;
   ref_bv_cost += x->mode_costs.intrabc_mode_cost[intrabc_mode];
   ref_bv_cost +=
-#if CONFIG_IBC_BV_IMPROVEMENT
       av1_get_intrabc_drl_idx_cost(max_bvp_drl_bits + 1, intrabc_drl_idx
 #if !CONFIG_BYPASS_INTRABC_DRL_IDX
                                    ,
                                    x
 #endif  // CONFIG_BYPASS_INTRABC_DRL_IDX
       );
-#else
-      av1_get_intrabc_drl_idx_cost(MAX_REF_BV_STACK_SIZE, intrabc_drl_idx, x);
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
   ref_bv_cost = (int)ROUND_POWER_OF_TWO_64(
       (int64_t)ref_bv_cost * errorperbit,
       RDDIV_BITS + AV1_PROB_COST_SHIFT - RD_EPB_SHIFT + 4);
@@ -2923,10 +2868,7 @@ int av1_get_ref_bv_rate_cost(int intrabc_mode, int intrabc_drl_idx,
   return ref_bv_cost;
 }
 
-int av1_pick_ref_bv(FULLPEL_MV *best_full_mv,
-#if CONFIG_IBC_BV_IMPROVEMENT
-                    int max_bvp_drl_bits,
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
+int av1_pick_ref_bv(FULLPEL_MV *best_full_mv, int max_bvp_drl_bits,
                     const FULLPEL_MOTION_SEARCH_PARAMS *fullms_params) {
   MACROBLOCK *x = fullms_params->x;
   const MACROBLOCKD *const xd = fullms_params->xd;
@@ -2942,11 +2884,7 @@ int av1_pick_ref_bv(FULLPEL_MV *best_full_mv,
 
   for (cur_intrabc_drl_idx = 0; cur_intrabc_drl_idx < ref_bv_cnt;
        cur_intrabc_drl_idx++) {
-#if CONFIG_IBC_BV_IMPROVEMENT
     if (cur_intrabc_drl_idx > max_bvp_drl_bits) break;
-#else
-    if (cur_intrabc_drl_idx > MAX_REF_BV_STACK_SIZE - 1) break;
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
     cur_ref_bv = xd->ref_mv_stack[INTRA_FRAME][cur_intrabc_drl_idx].this_mv;
     get_default_ref_bv(&cur_ref_bv, fullms_params);
 
@@ -2962,12 +2900,8 @@ int av1_pick_ref_bv(FULLPEL_MV *best_full_mv,
 
     cur_ref_bv_cost =
         av1_get_ref_bv_rate_cost(
-            0, cur_intrabc_drl_idx,
-#if CONFIG_IBC_BV_IMPROVEMENT
-            max_bvp_drl_bits,
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
-            x, ref_bv_ms_params.mv_cost_params.mv_costs->errorperbit,
-            ref_bv_cnt) +
+            0, cur_intrabc_drl_idx, max_bvp_drl_bits, x,
+            ref_bv_ms_params.mv_cost_params.mv_costs->errorperbit, ref_bv_cnt) +
         av1_get_mv_err_cost(&best_mv, &ref_bv_ms_params.mv_cost_params);
 
     if (cur_ref_bv_cost < best_ref_bv_cost) {
@@ -2984,7 +2918,6 @@ int av1_pick_ref_bv(FULLPEL_MV *best_full_mv,
   }
   return INT_MAX;
 }
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
 
 int av1_intrabc_hash_search(const AV1_COMP *cpi, const MACROBLOCKD *xd,
                             const FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
@@ -3011,13 +2944,11 @@ int av1_intrabc_hash_search(const AV1_COMP *cpi, const MACROBLOCKD *xd,
 
   uint32_t hash_value1, hash_value2;
   int best_hash_cost = INT_MAX;
-#if CONFIG_IBC_BV_IMPROVEMENT
   int best_intrabc_mode = 0;
   int best_intrabc_drl_idx = 0;
   int_mv best_ref_bv;
   best_ref_bv.as_mv = *ms_params->mv_cost_params.ref_mv;
   MB_MODE_INFO *mbmi = xd->mi[0];
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
 
   // for the hashMap
   hash_table *ref_frame_hash = &intrabc_hash_info->intrabc_hash_table;
@@ -3051,7 +2982,6 @@ int av1_intrabc_hash_search(const AV1_COMP *cpi, const MACROBLOCKD *xd,
 
                                   ))
         continue;
-#if CONFIG_IBC_BV_IMPROVEMENT
       int refCost = get_mvpred_var_cost(ms_params, &hash_mv);
       int cur_intrabc_mode = 0;
       int cur_intrabc_drl_idx = 0;
@@ -3062,11 +2992,8 @@ int av1_intrabc_hash_search(const AV1_COMP *cpi, const MACROBLOCKD *xd,
 
       int cur_dist = refCost - av1_get_mv_err_cost(&cur_bv.as_mv,
                                                    &ms_params->mv_cost_params);
-      int cur_rate = av1_pick_ref_bv(&hash_mv,
-#if CONFIG_IBC_BV_IMPROVEMENT
-                                     cpi->common.features.max_bvp_drl_bits,
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
-                                     ms_params);
+      int cur_rate = av1_pick_ref_bv(
+          &hash_mv, cpi->common.features.max_bvp_drl_bits, ms_params);
       if (cur_rate != INT_MAX) {
         cur_ref_bv.as_mv = mbmi->ref_bv.as_mv;
         cur_intrabc_drl_idx = mbmi->intrabc_drl_idx;
@@ -3074,27 +3001,18 @@ int av1_intrabc_hash_search(const AV1_COMP *cpi, const MACROBLOCKD *xd,
         assert(cur_intrabc_mode == 0);
         refCost = cur_dist + cur_rate;
       }
-#else
-      const int refCost = get_mvpred_var_cost(ms_params, &hash_mv);
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
       if (refCost < best_hash_cost) {
         best_hash_cost = refCost;
         *best_mv = hash_mv;
-#if CONFIG_IBC_BV_IMPROVEMENT
         best_intrabc_mode = cur_intrabc_mode;
         best_intrabc_drl_idx = cur_intrabc_drl_idx;
         best_ref_bv = cur_ref_bv;
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
       }
     }
   }
-
-#if CONFIG_IBC_BV_IMPROVEMENT
   mbmi->ref_bv = best_ref_bv;
   mbmi->intrabc_drl_idx = best_intrabc_drl_idx;
   mbmi->intrabc_mode = best_intrabc_mode;
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
-
   return best_hash_cost;
 }
 
@@ -4013,20 +3931,12 @@ void av1_amvd_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
       xd->block_ref_scale_factors[0] = xd->block_ref_scale_factors[id];
       xd->block_ref_scale_factors[id] = tmp_sf;
     }
-
-#if CONFIG_IBC_BV_IMPROVEMENT
     const int is_ibc_cost = 0;
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
-
     // Make motion search params
     FULLPEL_MOTION_SEARCH_PARAMS full_ms_params;
     av1_make_default_fullpel_ms_params(&full_ms_params, cpi, x, bsize,
                                        &ref_mv[id].as_mv, pb_mv_precision,
-#if CONFIG_IBC_BV_IMPROVEMENT
-                                       is_ibc_cost,
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
-
-                                       NULL,
+                                       is_ibc_cost, NULL,
                                        /*fine_search_interval=*/0);
 
     av1_set_ms_compound_refs(&full_ms_params.ms_buffers, second_pred, mask,

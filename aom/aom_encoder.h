@@ -597,12 +597,12 @@ typedef struct cfg_options {
    *
    */
   unsigned int max_drl_refmvs;
-#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+#if CONFIG_IBC_BV_IMPROVEMENT
   /*!\brief Max number of reference bvs in IntraBC ref bv list
    *
    */
   unsigned int max_drl_refbvs;
-#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
   /*!\brief enable reference MV Bank
    *
    */

@@ -2444,11 +2444,11 @@ static AOM_INLINE void add_derived_smvp_candidates(
 #endif  // CONFIG_DRL_PR_LIM
 ) {
   const int max_ref_mv_count =
-#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+#if CONFIG_IBC_BV_IMPROVEMENT
       xd->mi[0]->use_intrabc[xd->tree_type == CHROMA_PART]
           ? AOMMIN(cm->features.max_bvp_drl_bits + 1, MAX_REF_BV_STACK_SIZE)
           :
-#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
           AOMMIN(cm->features.max_drl_bits + 1, MAX_REF_MV_STACK_SIZE);
 #if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
   if (xd->mi[0]->skip_mode) derived_mv_count = 0;
@@ -2483,11 +2483,11 @@ static AOM_INLINE void add_ref_mv_bank_candidates(
 #endif  // CONFIG_DRL_PR_LIM
 ) {
   const int ref_mv_limit =
-#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+#if CONFIG_IBC_BV_IMPROVEMENT
       xd->mi[0]->use_intrabc[xd->tree_type == CHROMA_PART]
           ? AOMMIN(cm->features.max_bvp_drl_bits + 1, MAX_REF_BV_STACK_SIZE)
           :
-#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
           AOMMIN(cm->features.max_drl_bits + 1, MAX_REF_MV_STACK_SIZE);
   // If open slots are available, fetch reference MVs from the ref mv banks.
   if (*refmv_count < ref_mv_limit
@@ -3440,14 +3440,14 @@ static AOM_INLINE void setup_ref_mv_list(
       { 0, -h },
       { -w, 0 },
     };
-#if CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+#if CONFIG_IBC_BV_IMPROVEMENT
     const int max_bvp_size = cm->features.max_bvp_drl_bits + 1;
     for (int i = 0; i < max_bvp_size; ++i) {
       if (*refmv_count >= max_bvp_size) break;
 #else
     for (int i = 0; i < MAX_REF_BV_STACK_SIZE; ++i) {
       if (*refmv_count >= MAX_REF_BV_STACK_SIZE) break;
-#endif  // CONFIG_IBC_BV_IMPROVEMENT && CONFIG_IBC_MAX_DRL
+#endif  // CONFIG_IBC_BV_IMPROVEMENT
       CANDIDATE_MV tmp_mv;
       tmp_mv.this_mv.as_mv.col =
           (MV_COMP_DATA_TYPE)GET_MV_SUBPEL(default_ref_bv_list[i][0]);
@@ -3637,12 +3637,8 @@ void av1_find_mv_refs(
       gm_mv[1].as_int = 0;
     }
     if (ref_frame == INTRA_FRAME) {
-#if CONFIG_IBC_MAX_DRL
       av1_initialize_ref_mv_stack(ref_mv_stack[rf[0]],
                                   cm->features.max_bvp_drl_bits + 1);
-#else
-      av1_initialize_ref_mv_stack(ref_mv_stack[rf[0]], MAX_REF_BV_STACK_SIZE);
-#endif  // CONFIG_IBC_MAX_DRL
     } else {
       av1_initialize_ref_mv_stack(ref_mv_stack[rf[0]], MAX_REF_MV_STACK_SIZE);
     }

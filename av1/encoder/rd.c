@@ -418,7 +418,6 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
 #else
   av1_cost_tokens_from_cdf(mode_costs->intrabc_cost, fc->intrabc_cdf, NULL);
 #endif  // CONFIG_NEW_CONTEXT_MODELING
-#if CONFIG_IBC_BV_IMPROVEMENT
   av1_cost_tokens_from_cdf(mode_costs->intrabc_mode_cost, fc->intrabc_mode_cdf,
                            NULL);
 #if !CONFIG_BYPASS_INTRABC_DRL_IDX
@@ -427,7 +426,6 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
                              fc->intrabc_drl_idx_cdf[i], NULL);
   }
 #endif
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
   for (i = 0; i < NUM_BV_PRECISION_CONTEXTS; ++i) {
     av1_cost_tokens_from_cdf(mode_costs->intrabc_bv_precision_cost[i],
                              fc->intrabc_bv_precision_cdf[i], NULL);
@@ -1502,14 +1500,10 @@ void fill_dv_costs(IntraBCMvCosts *dv_costs, const FRAME_CONTEXT *fc,
 #endif  // CONFIG_DERIVED_MVD_SIGN
     );
 
-#if CONFIG_IBC_BV_IMPROVEMENT
     // Copy the pointer of the dv cost to the mvcost
     mv_costs->dv_joint_cost = &dv_costs->joint_mv[0];
     mv_costs->dv_nmv_cost[0] = dv_costs->dv_costs[0];
     mv_costs->dv_nmv_cost[1] = dv_costs->dv_costs[1];
-#else
-    (void)mv_costs;
-#endif
 #endif  // CONFIG_VQ_MVD_CODING
   }
 }
@@ -1592,11 +1586,7 @@ void av1_initialize_rd_consts(AV1_COMP *cpi) {
     av1_fill_mv_costs(cm->fc, cm->features.cur_frame_force_integer_mv,
                       cm->features.fr_mv_precision, mv_costs);
 
-  if (cm->features.allow_intrabc &&
-#if !CONFIG_IBC_BV_IMPROVEMENT
-      frame_is_intra_only(cm) &&
-#endif  // !CONFIG_IBC_BV_IMPROVEMENT
-      !is_stat_generation_stage(cpi)) {
+  if (cm->features.allow_intrabc && !is_stat_generation_stage(cpi)) {
     fill_dv_costs(&x->dv_costs, cm->fc, mv_costs);
   }
 }

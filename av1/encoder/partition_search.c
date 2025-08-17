@@ -631,12 +631,7 @@ static void pick_sb_modes(AV1_COMP *const cpi, ThreadData *td,
     rd_cost->dist = ctx->rd_stats.dist;
     rd_cost->rdcost = ctx->rd_stats.rdcost;
     const int is_inter = is_inter_block(&ctx->mic, xd->tree_type);
-#if CONFIG_IBC_SR_EXT && !CONFIG_IBC_BV_IMPROVEMENT
-    if (cm->seq_params.enable_refmvbank && is_inter &&
-        !is_intrabc_block(&ctx->mic, xd->tree_type)) {
-#else
     if (cm->seq_params.enable_refmvbank && is_inter) {
-#endif  // CONFIG_IBC_SR_EXT && !CONFIG_IBC_BV_IMPROVEMENT
       av1_update_ref_mv_bank(cm, xd, 1, &ctx->mic);
     } else {
       decide_rmb_unit_update_count(cm, xd, &ctx->mic);
@@ -741,12 +736,7 @@ static void pick_sb_modes(AV1_COMP *const cpi, ThreadData *td,
   }
 
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
-#if CONFIG_IBC_SR_EXT && !CONFIG_IBC_BV_IMPROVEMENT
-  if (cm->seq_params.enable_refmvbank && is_inter &&
-      !is_intrabc_block(mbmi, xd->tree_type)) {
-#else
   if (cm->seq_params.enable_refmvbank && is_inter) {
-#endif  // CONFIG_IBC_SR_EXT && !CONFIG_IBC_BV_IMPROVEMENT
     av1_update_ref_mv_bank(cm, xd, 1, mbmi);
   } else {
     decide_rmb_unit_update_count(cm, xd, mbmi);
@@ -853,7 +843,6 @@ static void update_drl_index_stats(int max_drl_bits, const int16_t mode_ctx,
   }
 }
 
-#if CONFIG_IBC_BV_IMPROVEMENT
 static void update_intrabc_drl_idx_stats(int max_ref_bv_num,
 #if !CONFIG_BYPASS_INTRABC_DRL_IDX
                                          FRAME_CONTEXT *fc,
@@ -881,7 +870,6 @@ static void update_intrabc_drl_idx_stats(int max_ref_bv_num,
 #endif  // CONFIG_BYPASS_INTRABC_DRL_IDX
   }
 }
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
 
 // Update the stats for compound weighted prediction
 static void update_cwp_idx_stats(FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
@@ -1111,7 +1099,6 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
     av1_sum_intra_stats(cm, td->counts, xd, mbmi);
   }
   if (av1_allow_intrabc(cm, xd, bsize) && xd->tree_type != CHROMA_PART) {
-#if CONFIG_IBC_BV_IMPROVEMENT
     if (use_intrabc) {
       const int_mv ref_mv = mbmi_ext->ref_mv_stack[INTRA_FRAME][0].this_mv;
 #if CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
@@ -1151,8 +1138,6 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
           &fc->ndvc, 0, MV_PRECISION_ONE_PEL);
 #endif  // CONFIG_VQ_MVD_CODING
     }
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
-#if CONFIG_IBC_BV_IMPROVEMENT
     if (use_intrabc) {
       update_cdf(fc->intrabc_mode_cdf, mbmi->intrabc_mode, 2);
 #if CONFIG_ENTROPY_STATS
@@ -1183,7 +1168,6 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
         assert(mbmi->morph_pred == 0);
       }
     }
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
   }
 
   if (mbmi->skip_mode && have_drl_index(mbmi->mode)) {

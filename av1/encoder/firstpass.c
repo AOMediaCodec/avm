@@ -231,16 +231,11 @@ static AOM_INLINE void first_pass_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
     av1_set_speed_features_framesize_independent(cpi, cpi->oxcf.speed);
   }
   const MvSubpelPrecision pb_mv_precision = cm->features.fr_mv_precision;
-#if CONFIG_IBC_BV_IMPROVEMENT
   const int is_ibc_cost = 0;
-#endif
 
   FULLPEL_MOTION_SEARCH_PARAMS ms_params;
   av1_make_default_fullpel_ms_params(
-      &ms_params, cpi, x, bsize, ref_mv, pb_mv_precision,
-#if CONFIG_IBC_BV_IMPROVEMENT
-      is_ibc_cost,
-#endif
+      &ms_params, cpi, x, bsize, ref_mv, pb_mv_precision, is_ibc_cost,
       first_pass_search_sites, fine_search_interval);
 
   av1_set_mv_search_method(&ms_params, first_pass_search_sites, NSTEP);

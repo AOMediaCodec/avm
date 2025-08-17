@@ -91,9 +91,7 @@ typedef struct {
   const MvCosts *mv_costs;
   MvSubpelPrecision pb_mv_precision;
   int is_adaptive_mvd;
-#if CONFIG_IBC_BV_IMPROVEMENT
   int is_ibc_cost;
-#endif
 } MV_COST_PARAMS;
 #if CONFIG_DERIVED_MVD_SIGN
 int av1_mv_sign_cost(const int sign, const int comp, const MvCosts *mv_costs,
@@ -206,11 +204,8 @@ typedef struct {
   int mi_row;
   int mi_col;
 #endif  // CONFIG_IBC_SR_EXT
-#if CONFIG_IBC_BV_IMPROVEMENT
   MACROBLOCK *x;
   int ref_bv_cnt;
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
-
   MSBuffers ms_buffers;
 
   // WARNING: search_method should be regarded as a private variable and should
@@ -246,10 +241,7 @@ typedef struct {
 void av1_make_default_fullpel_ms_params(
     FULLPEL_MOTION_SEARCH_PARAMS *ms_params, const struct AV1_COMP *cpi,
     const MACROBLOCK *x, BLOCK_SIZE bsize, const MV *ref_mv,
-    const MvSubpelPrecision pb_mv_precision,
-#if CONFIG_IBC_BV_IMPROVEMENT
-    const int is_ibc_cost,
-#endif
+    const MvSubpelPrecision pb_mv_precision, const int is_ibc_cost,
     const search_site_config search_sites[NUM_DISTINCT_SEARCH_METHODS],
     int fine_search_interval);
 
@@ -738,13 +730,8 @@ void get_default_ref_bv(int_mv *cur_ref_bv,
 static INLINE void init_mv_cost_params(MV_COST_PARAMS *mv_cost_params,
                                        const MvCosts *mv_costs,
                                        int is_adaptive_mvd, const MV *ref_mv,
-                                       MvSubpelPrecision pb_mv_precision
-#if CONFIG_IBC_BV_IMPROVEMENT
-                                       ,
-                                       const int is_ibc_cost
-#endif
-
-) {
+                                       MvSubpelPrecision pb_mv_precision,
+                                       const int is_ibc_cost) {
   mv_cost_params->ref_mv = ref_mv;
   mv_cost_params->full_ref_mv = get_fullmv_from_mv(ref_mv);
   mv_cost_params->mv_cost_type = MV_COST_ENTROPY;
@@ -754,9 +741,7 @@ static INLINE void init_mv_cost_params(MV_COST_PARAMS *mv_cost_params,
 
   mv_cost_params->is_adaptive_mvd = is_adaptive_mvd;
 
-#if CONFIG_IBC_BV_IMPROVEMENT
   mv_cost_params->is_ibc_cost = is_ibc_cost;
-#endif
 }
 
 // Check if the MV is valid for IBC mode
@@ -776,7 +761,6 @@ static INLINE int is_sub_pel_bv_valid(const MV dv, const AV1_COMMON *cm,
 int av1_get_cwp_idx_cost(int8_t cwp_idx, const AV1_COMMON *const cm,
                          const MACROBLOCK *x);
 
-#if CONFIG_IBC_BV_IMPROVEMENT
 // Returns the cost of using the current mv during the motion search
 int av1_get_mv_err_cost(const MV *mv, const MV_COST_PARAMS *mv_cost_params);
 
@@ -794,23 +778,17 @@ int av1_get_intrabc_drl_idx_cost(int max_ref_bv_num, int intrabc_drl_idx
 // Compute the cost for signalling the intrabc mode and intrabc DRL index. This
 // is only used during the motion search
 int av1_get_ref_bv_rate_cost(int intrabc_mode, int intrabc_drl_idx,
-#if CONFIG_IBC_BV_IMPROVEMENT
-                             int max_bvp_drl_bits,
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
-                             MACROBLOCK *x, int errorperbit, int ref_bv_cnt);
+                             int max_bvp_drl_bits, MACROBLOCK *x,
+                             int errorperbit, int ref_bv_cnt);
 
 // Pick the best reference BV for the current BV
-int av1_pick_ref_bv(FULLPEL_MV *best_full_mv,
-#if CONFIG_IBC_BV_IMPROVEMENT
-                    int max_bvp_drl_bits,
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
+int av1_pick_ref_bv(FULLPEL_MV *best_full_mv, int max_bvp_drl_bits,
                     const FULLPEL_MOTION_SEARCH_PARAMS *fullms_params);
 
 // Compute the estimated RD cost for the reference BV
 int av1_get_ref_mvpred_var_cost(const struct AV1_COMP *cpi,
                                 const MACROBLOCKD *xd,
                                 const FULLPEL_MOTION_SEARCH_PARAMS *ms_params);
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
 
 #ifdef __cplusplus
 }  // extern "C"

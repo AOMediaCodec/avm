@@ -109,9 +109,7 @@ static void subblock_motion_search(
   int cost_list[5];
 
   const AV1_COMMON *cm = &cpi->common;
-#if CONFIG_IBC_BV_IMPROVEMENT
   const int is_ibc_cost = 0;
-#endif
   assert(cm->features.fr_mv_precision == MV_PRECISION_ONE_EIGHTH_PEL);
   const MvSubpelPrecision pb_mv_precision = MV_PRECISION_ONE_EIGHTH_PEL;
 
@@ -127,10 +125,7 @@ static void subblock_motion_search(
   mb->plane[0].src.buf = frame_to_filter->y_buffer + y_offset + boffset;
   mbd->plane[0].pre[0].buf = ref_frame->y_buffer + y_offset + boffset;
   av1_make_default_fullpel_ms_params(full_ms_params, cpi, mb, subblock_size,
-                                     ref_mv, pb_mv_precision,
-#if CONFIG_IBC_BV_IMPROVEMENT
-                                     is_ibc_cost,
-#endif
+                                     ref_mv, pb_mv_precision, is_ibc_cost,
 
                                      search_site_cfg,
                                      /*fine_search_interval=*/0);
@@ -211,9 +206,7 @@ static void tf_motion_search(AV1_COMP *cpi,
 
   // Save input state.
   const AV1_COMMON *cm = &cpi->common;
-#if CONFIG_IBC_BV_IMPROVEMENT
   const int is_ibc_cost = 0;
-#endif
 
   MACROBLOCK *const mb = &cpi->td.mb;
   MACROBLOCKD *const mbd = &mb->e_mbd;
@@ -268,10 +261,7 @@ static void tf_motion_search(AV1_COMP *cpi,
   MV midblock_mvs[4] = { kZeroMv, kZeroMv, kZeroMv, kZeroMv };
 
   av1_make_default_fullpel_ms_params(&full_ms_params, cpi, mb, block_size,
-                                     &baseline_mv, pb_mv_precision,
-#if CONFIG_IBC_BV_IMPROVEMENT
-                                     is_ibc_cost,
-#endif
+                                     &baseline_mv, pb_mv_precision, is_ibc_cost,
 
                                      search_site_cfg,
                                      /*fine_search_interval=*/0);
