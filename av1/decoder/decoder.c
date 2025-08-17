@@ -768,7 +768,7 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
 #else
                    !cm->seq_params.order_hint_info.enable_order_hint
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-                   &&
+                   ||
 #if CONFIG_F253_REMOVE_OUTPUTFLAG
                    false
 #else
