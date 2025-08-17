@@ -1752,7 +1752,6 @@ int main(int argc, const char **argv) {
       "static const aom_cdf_prob default_intrabc_cdf[CDF_SIZE(2)]");
 #endif  // CONFIG_NEW_CONTEXT_MODELING
 
-#if CONFIG_IBC_BV_IMPROVEMENT
   /* intrabc mode flag*/
   cts_each_dim[0] = 2;
   optimize_cdf_table(&fc.intrabc_mode[0], probsfile, 1, cts_each_dim,
@@ -1768,7 +1767,6 @@ int main(int argc, const char **argv) {
                      "[MAX_REF_BV_STACK_SIZE - 1][CDF_SIZE(2)]",
                      0, &total_count, 0, mem_wanted, "Intra");
 #endif  // !CONFIG_BYPASS_INTRABC_DRL_IDX
-#endif
 
 #if CONFIG_MORPH_PRED
   cts_each_dim[0] = 3;

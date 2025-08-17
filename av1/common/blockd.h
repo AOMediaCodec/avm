@@ -599,14 +599,12 @@ typedef struct MB_MODE_INFO {
   int use_amvd;
   /*! \brief Whether intrabc is used. */
   uint8_t use_intrabc[PARTITION_STRUCTURE_NUM];
-#if CONFIG_IBC_BV_IMPROVEMENT
   /*! \brief Intrabc BV prediction mode. */
   uint8_t intrabc_mode;
   /*! \brief Index of ref_bv. */
   uint8_t intrabc_drl_idx;
   /*! \brief Which ref_bv to use. */
   int_mv ref_bv;
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
   /*! \brief Flag of the linear intra prediction mode. */
   int morph_pred;
   /*! \brief Scaling parameter of the linear model:

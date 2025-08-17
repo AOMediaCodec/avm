@@ -254,9 +254,7 @@ struct av1_extracfg {
   unsigned int sb_multipass_unit_test;
   unsigned int enable_subgop_stats;
   unsigned int max_drl_refmvs;
-#if CONFIG_IBC_BV_IMPROVEMENT
   unsigned int max_drl_refbvs;
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
   int enable_refmvbank;
   int enable_drl_reorder;
   int enable_cdef_on_skip_txfm;
@@ -633,9 +631,7 @@ static struct av1_extracfg default_extra_cfg = {
   0,            // sb_multipass_unit_test
   0,            // enable_subgop_stats
   0,            // max_drl_refmvs
-#if CONFIG_IBC_BV_IMPROVEMENT
   0,    // max_drl_refbvs
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
   1,    // enable_refmvbank
   1,    // enable_drl_reorder;
   1,    // enable_cdef_on_skip_txfm;
@@ -1135,9 +1131,7 @@ static void update_encoder_config(cfg_options_t *cfg,
 #endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
   cfg->reduced_tx_type_set = extra_cfg->reduced_tx_type_set;
   cfg->max_drl_refmvs = extra_cfg->max_drl_refmvs;
-#if CONFIG_IBC_BV_IMPROVEMENT
   cfg->max_drl_refbvs = extra_cfg->max_drl_refbvs;
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
   cfg->enable_refmvbank = extra_cfg->enable_refmvbank;
   cfg->enable_drl_reorder = extra_cfg->enable_drl_reorder;
   cfg->enable_cdef_on_skip_txfm = extra_cfg->enable_cdef_on_skip_txfm;
@@ -1282,9 +1276,7 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
 #endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
   extra_cfg->reduced_tx_type_set = cfg->reduced_tx_type_set;
   extra_cfg->max_drl_refmvs = cfg->max_drl_refmvs;
-#if CONFIG_IBC_BV_IMPROVEMENT
   extra_cfg->max_drl_refbvs = cfg->max_drl_refbvs;
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
   extra_cfg->enable_refmvbank = cfg->enable_refmvbank;
   extra_cfg->enable_drl_reorder = cfg->enable_drl_reorder;
   extra_cfg->enable_cdef_on_skip_txfm = cfg->enable_cdef_on_skip_txfm;
@@ -1585,9 +1577,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   tool_cfg->frame_parallel_decoding_mode =
       extra_cfg->frame_parallel_decoding_mode;
   tool_cfg->max_drl_refmvs = extra_cfg->max_drl_refmvs;
-#if CONFIG_IBC_BV_IMPROVEMENT
   tool_cfg->max_drl_refbvs = extra_cfg->max_drl_refbvs;
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
   tool_cfg->enable_refmvbank = extra_cfg->enable_refmvbank;
 
   tool_cfg->enable_drl_reorder = extra_cfg->enable_drl_reorder;
@@ -4545,11 +4535,9 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.max_drl_refmvs, argv,
                               err_string)) {
     extra_cfg.max_drl_refmvs = arg_parse_uint_helper(&arg, err_string);
-#if CONFIG_IBC_BV_IMPROVEMENT
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.max_drl_refbvs, argv,
                               err_string)) {
     extra_cfg.max_drl_refbvs = arg_parse_uint_helper(&arg, err_string);
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_refmvbank,
                               argv, err_string)) {
     extra_cfg.enable_refmvbank = arg_parse_int_helper(&arg, err_string);
@@ -4933,9 +4921,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         0,  // reduced_tx_type_set
         0,  // max_drl_refmvs
 
-#if CONFIG_IBC_BV_IMPROVEMENT
         0,  // max_drl_refbvs
-#endif      // CONFIG_IBC_BV_IMPROVEMENT
         1,   1, 1,
         1,  // enable_avg_cdf
         1,  // avg_cdf_type

@@ -773,11 +773,7 @@ static INLINE int av1_is_dv_in_local_range_64x64(const MV dv,
 
   const int sb_size = 1 << sb_size_log2;
   const int sb_mi_size = sb_size >> MI_SIZE_LOG2;
-#if (CONFIG_IBC_SR_EXT == 2)
   int valid_size_log2 = sb_size_log2 > 7 ? 7 : sb_size_log2;
-#else
-  int valid_size_log2 = sb_size_log2 > 6 ? 6 : sb_size_log2;
-#endif  // (CONFIG_IBC_SR_EXT == 2)
   int valid =
       src_top_y >> valid_size_log2 == active_top_y >> valid_size_log2 &&
       src_left_x >> valid_size_log2 == active_left_x >> valid_size_log2 &&
@@ -809,7 +805,6 @@ static INLINE int av1_is_dv_in_local_range_64x64(const MV dv,
   return 0;
 }
 
-#if CONFIG_IBC_SR_EXT == 2
 #if CONFIG_LOCAL_INTRABC_ALIGN_RNG
 static INLINE int is_two_blk_overlap(int blk1_x_left, int blk1_x_right,
                                      int blk1_y_top, int blk1_y_bottom,
@@ -1161,7 +1156,6 @@ static INLINE int av1_is_dv_in_local_range(const MV dv, const MACROBLOCKD *xd,
   return 1;
 }
 #endif  // CONFIG_LOCAL_INTRABC_ALIGN_RNG
-#endif  // CONFIG_IBC_SR_EXT == 2
 
 static INLINE int av1_is_dv_valid(const MV dv, const AV1_COMMON *cm,
                                   const MACROBLOCKD *xd, int mi_row, int mi_col,
@@ -1227,7 +1221,6 @@ static INLINE int av1_is_dv_valid(const MV dv, const AV1_COMMON *cm,
     }
   }
 
-#if CONFIG_IBC_SR_EXT
   if (cm->features.allow_local_intrabc) {
     if (bw <= 64 || bh <= 64) {
       int valid = 0;
@@ -1248,13 +1241,6 @@ static INLINE int av1_is_dv_valid(const MV dv, const AV1_COMMON *cm,
           }
         }
       }
-      // The size of local search range is determined by the value of
-      // CONFIG_IBC_SR_EXT. 0: disabled, 1: 64x64 (default), 2: 128x128.
-#if CONFIG_IBC_SR_EXT == 1
-      valid = av1_is_dv_in_local_range_64x64(dv, xd, tmp_row, tmp_col, tmp_bh,
-                                             tmp_bw, mib_size_log2);
-#endif  // CONFIG_IBC_SR_EXT == 1
-#if CONFIG_IBC_SR_EXT == 2
 #if CONFIG_LOCAL_INTRABC_ALIGN_RNG
       valid = av1_is_dv_in_local_range(dv, xd, tmp_row, tmp_col, tmp_bh, tmp_bw,
                                        mib_size_log2);
@@ -1268,14 +1254,12 @@ static INLINE int av1_is_dv_valid(const MV dv, const AV1_COMMON *cm,
         valid = av1_is_dv_in_local_range(dv, xd, tmp_row, tmp_col, tmp_bh,
                                          tmp_bw, mib_size_log2);
 #endif  // CONFIG_LOCAL_INTRABC_ALIGN_RNG
-#endif  // CONFIG_IBC_SR_EXT == 2
       if (valid) return 1;
     }
   }
   if (!frame_is_intra_only(cm)) return 0;
 
   if (!cm->features.allow_global_intrabc) return 0;
-#endif  // CONFIG_IBC_SR_EXT
 
   // Is the bottom right within an already coded SB? Also consider additional
   // constraints to facilitate HW decoder.

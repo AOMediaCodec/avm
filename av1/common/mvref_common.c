@@ -888,10 +888,7 @@ static AOM_INLINE void add_ref_mv_candidate(
 #endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
     const AV1_COMMON *cm, int add_more_mvs, SINGLE_MV_CANDIDATE *single_mv,
     uint8_t *single_mv_count, CANDIDATE_MV *derived_mv_stack,
-    uint16_t *derived_mv_weight, uint8_t *derived_mv_count,
-#if CONFIG_IBC_SR_EXT
-    uint8_t is_intrabc,
-#endif  // CONFIG_IBC_SR_EXT
+    uint16_t *derived_mv_weight, uint8_t *derived_mv_count, uint8_t is_intrabc,
     int row_offset, int col_offset, uint16_t weight
 #if CONFIG_DRL_PR_LIM
     ,
@@ -900,9 +897,7 @@ static AOM_INLINE void add_ref_mv_candidate(
 ) {
   if (!is_inter_block(candidate, SHARED_PART)) return;
 
-#if CONFIG_IBC_SR_EXT
   if (is_intrabc != is_intrabc_block(candidate, SHARED_PART)) return;
-#endif  // CONFIG_IBC_SR_EXT
 
   int index, ref;
   const TIP *tip_ref = &cm->tip_ref;
@@ -1208,10 +1203,7 @@ static AOM_INLINE void add_ref_mv_candidate(
       } else if (add_more_mvs &&
                  (is_inter_ref_frame(candidate->ref_frame[ref]) ||
                   is_tip_ref_frame(candidate->ref_frame[0])) &&
-#if CONFIG_IBC_SR_EXT
-                 rf[0] != INTRA_FRAME &&
-#endif  // CONFIG_IBC_SR_EXT
-                 !is_tip_ref_frame(rf[0])
+                 rf[0] != INTRA_FRAME && !is_tip_ref_frame(rf[0])
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
                  && cm->seq_params.order_hint_info.enable_order_hint
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
@@ -1744,9 +1736,7 @@ void check_this_warp_candidate(
     const int ref_frame, const int max_num_of_candidates,
     uint8_t *curr_num_of_candidates, const WarpProjectionType proj_type) {
   if (!is_inter_block(neighbor_mbmi, SHARED_PART)) return;
-#if CONFIG_IBC_SR_EXT
   if (is_intrabc_block(neighbor_mbmi, SHARED_PART)) return;
-#endif  // CONFIG_IBC_SR_EXT
 
   WarpedMotionParams neigh_params;
   if (*curr_num_of_candidates < max_num_of_candidates &&
@@ -1866,9 +1856,7 @@ static AOM_INLINE void scan_blk_mbmi(
 #endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                          cm, add_more_mvs, single_mv, single_mv_count,
                          derived_mv_stack, derived_mv_weight, derived_mv_count,
-#if CONFIG_IBC_SR_EXT
                          xd->mi[0]->use_intrabc[xd->tree_type == CHROMA_PART],
-#endif  // CONFIG_IBC_SR_EXT
                          row_offset, col_offset, weight
 #if CONFIG_DRL_PR_LIM
                          ,
@@ -2309,7 +2297,6 @@ static AOM_INLINE bool check_rmb_cand(
   return true;
 }
 
-#if CONFIG_IBC_BV_IMPROVEMENT
 // Add a BV candidate to ref MV stack without duplicate check
 static AOM_INLINE bool add_to_ref_bv_list(CANDIDATE_MV cand_mv,
                                           CANDIDATE_MV *ref_mv_stack,
@@ -2322,7 +2309,6 @@ static AOM_INLINE bool add_to_ref_bv_list(CANDIDATE_MV cand_mv,
 
   return true;
 }
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
 
 static AOM_INLINE void add_tmvp_candidate(
     const AV1_COMMON *cm, const MACROBLOCKD *xd, MV_REFERENCE_FRAME ref_frame,
@@ -2343,14 +2329,9 @@ static AOM_INLINE void add_tmvp_candidate(
 ) {
   MV_REFERENCE_FRAME rf[2];
   av1_set_ref_frame(rf, ref_frame);
-#if CONFIG_IBC_SR_EXT
   if (cm->features.allow_ref_frame_mvs &&
       (xd->mi[0]->skip_mode || rf[0] != rf[1]) &&
       !xd->mi[0]->use_intrabc[xd->tree_type == CHROMA_PART]) {
-#else
-  if (cm->features.allow_ref_frame_mvs &&
-      (xd->mi[0]->skip_mode || rf[0] != rf[1])) {
-#endif  // CONFIG_IBC_SR_EXT
 #if !CONFIG_C076_INTER_MOD_CTX
     int is_available = 0;
 #endif  //! CONFIG_C076_INTER_MOD_CTX
@@ -2444,12 +2425,9 @@ static AOM_INLINE void add_derived_smvp_candidates(
 #endif  // CONFIG_DRL_PR_LIM
 ) {
   const int max_ref_mv_count =
-#if CONFIG_IBC_BV_IMPROVEMENT
       xd->mi[0]->use_intrabc[xd->tree_type == CHROMA_PART]
           ? AOMMIN(cm->features.max_bvp_drl_bits + 1, MAX_REF_BV_STACK_SIZE)
-          :
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
-          AOMMIN(cm->features.max_drl_bits + 1, MAX_REF_MV_STACK_SIZE);
+          : AOMMIN(cm->features.max_drl_bits + 1, MAX_REF_MV_STACK_SIZE);
 #if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
   if (xd->mi[0]->skip_mode) derived_mv_count = 0;
 #endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
@@ -2483,18 +2461,11 @@ static AOM_INLINE void add_ref_mv_bank_candidates(
 #endif  // CONFIG_DRL_PR_LIM
 ) {
   const int ref_mv_limit =
-#if CONFIG_IBC_BV_IMPROVEMENT
       xd->mi[0]->use_intrabc[xd->tree_type == CHROMA_PART]
           ? AOMMIN(cm->features.max_bvp_drl_bits + 1, MAX_REF_BV_STACK_SIZE)
-          :
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
-          AOMMIN(cm->features.max_drl_bits + 1, MAX_REF_MV_STACK_SIZE);
+          : AOMMIN(cm->features.max_drl_bits + 1, MAX_REF_MV_STACK_SIZE);
   // If open slots are available, fetch reference MVs from the ref mv banks.
-  if (*refmv_count < ref_mv_limit
-#if !CONFIG_IBC_BV_IMPROVEMENT
-      && ref_frame != INTRA_FRAME
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
-  ) {
+  if (*refmv_count < ref_mv_limit) {
     const REF_MV_BANK *ref_mv_bank = &xd->ref_mv_bank;
     const int rmb_list_index = get_rmb_list_index(ref_frame);
     const CANDIDATE_MV *queue = ref_mv_bank->rmb_buffer[rmb_list_index];
@@ -3312,11 +3283,8 @@ static AOM_INLINE void setup_ref_mv_list(
 
   // If there is extra space in the stack, copy the GLOBALMV vector into it.
   // This also guarantees the existence of at least one vector to search.
-  if (*refmv_count < MAX_REF_MV_STACK_SIZE
-#if CONFIG_IBC_BV_IMPROVEMENT
-      && !xd->mi[0]->use_intrabc[xd->tree_type == CHROMA_PART]
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
-  ) {
+  if (*refmv_count < MAX_REF_MV_STACK_SIZE &&
+      !xd->mi[0]->use_intrabc[xd->tree_type == CHROMA_PART]) {
 #if CONFIG_DRL_PR_LIM
     if (drl_pr_count < MAX_PR_NUM) {
 #endif  // CONFIG_DRL_PR_LIM
@@ -3426,7 +3394,6 @@ static AOM_INLINE void setup_ref_mv_list(
     }
   }
 
-#if CONFIG_IBC_BV_IMPROVEMENT
   // If there are open slots in reference BV candidate list
   // fetch reference BVs from the default BVPs
   if (xd->mi[0]->use_intrabc[xd->tree_type == CHROMA_PART]) {
@@ -3440,14 +3407,9 @@ static AOM_INLINE void setup_ref_mv_list(
       { 0, -h },
       { -w, 0 },
     };
-#if CONFIG_IBC_BV_IMPROVEMENT
     const int max_bvp_size = cm->features.max_bvp_drl_bits + 1;
     for (int i = 0; i < max_bvp_size; ++i) {
       if (*refmv_count >= max_bvp_size) break;
-#else
-    for (int i = 0; i < MAX_REF_BV_STACK_SIZE; ++i) {
-      if (*refmv_count >= MAX_REF_BV_STACK_SIZE) break;
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
       CANDIDATE_MV tmp_mv;
       tmp_mv.this_mv.as_mv.col =
           (MV_COMP_DATA_TYPE)GET_MV_SUBPEL(default_ref_bv_list[i][0]);
@@ -3457,7 +3419,6 @@ static AOM_INLINE void setup_ref_mv_list(
       add_to_ref_bv_list(tmp_mv, ref_mv_stack, ref_mv_weight, refmv_count);
     }
   }
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
 }
 
 void get_skip_mode_ref_offsets(const AV1_COMMON *cm, int ref_order_hint[2]) {

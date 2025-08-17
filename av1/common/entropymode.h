@@ -402,12 +402,10 @@ typedef struct frame_contexts {
 #else
   aom_cdf_prob intrabc_cdf[CDF_SIZE(2)];
 #endif  // CONFIG_NEW_CONTEXT_MODELING
-#if CONFIG_IBC_BV_IMPROVEMENT
   aom_cdf_prob intrabc_mode_cdf[CDF_SIZE(2)];
 #if !CONFIG_BYPASS_INTRABC_DRL_IDX
   aom_cdf_prob intrabc_drl_idx_cdf[MAX_REF_BV_STACK_SIZE - 1][CDF_SIZE(2)];
 #endif  // !CONFIG_BYPASS_INTRABC_DRL_IDX
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
   aom_cdf_prob intrabc_bv_precision_cdf[NUM_BV_PRECISION_CONTEXTS]
                                        [CDF_SIZE(NUM_ALLOWED_BV_PRECISIONS)];
   aom_cdf_prob morph_pred_cdf[3][CDF_SIZE(2)];

@@ -6623,13 +6623,11 @@ void av1_read_sequence_header_beyond_av1(
                                      MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1) +
       MIN_MAX_DRL_BITS;
   seq_params->allow_frame_max_drl_bits = aom_rb_read_bit(rb);
-#if CONFIG_IBC_BV_IMPROVEMENT
   seq_params->def_max_bvp_drl_bits =
       aom_rb_read_primitive_quniform(
           rb, MAX_MAX_IBC_DRL_BITS - MIN_MAX_IBC_DRL_BITS + 1) +
       MIN_MAX_IBC_DRL_BITS;
   seq_params->allow_frame_max_bvp_drl_bits = aom_rb_read_bit(rb);
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
 #endif  // CONFIG_SEQ_MAX_DRL_BITS
 
   seq_params->num_same_ref_compound = aom_rb_read_literal(rb, 2);
@@ -7341,7 +7339,6 @@ static void read_frame_max_drl_bits(AV1_COMMON *const cm,
 #endif  // CONFIG_SEQ_MAX_DRL_BITS
 }
 
-#if CONFIG_IBC_BV_IMPROVEMENT
 static void read_frame_max_bvp_drl_bits(AV1_COMMON *const cm,
                                         struct aom_read_bit_buffer *rb) {
   FeatureFlags *const features = &cm->features;
@@ -7362,7 +7359,6 @@ static void read_frame_max_bvp_drl_bits(AV1_COMMON *const cm,
       MIN_MAX_IBC_DRL_BITS;
 #endif  // CONFIG_SEQ_MAX_DRL_BITS
 }
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
 
 // On success, returns 0. On failure, calls aom_internal_error and does not
 // return.
@@ -7627,10 +7623,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
   int frame_size_override_flag = 0;
   features->allow_intrabc = 0;
-#if CONFIG_IBC_SR_EXT
   features->allow_global_intrabc = 0;
   features->allow_local_intrabc = 0;
-#endif  // CONFIG_IBC_SR_EXT
   features->primary_ref_frame = PRIMARY_REF_NONE;
 
   int signal_primary_ref_frame = -1;
@@ -8028,16 +8022,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     read_screen_content_params(cm, rb);
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
     if (1) features->allow_intrabc = aom_rb_read_bit(rb);
-#if CONFIG_IBC_SR_EXT
     if (features->allow_intrabc) {
       features->allow_global_intrabc = aom_rb_read_bit(rb);
       features->allow_local_intrabc =
           features->allow_global_intrabc ? aom_rb_read_bit(rb) : 1;
-#if CONFIG_IBC_BV_IMPROVEMENT
       read_frame_max_bvp_drl_bits(cm, rb);
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
     }
-#endif  // CONFIG_IBC_SR_EXT
 
     features->allow_ref_frame_mvs = 0;
     cm->prev_frame = NULL;
@@ -8063,16 +8053,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       read_screen_content_params(cm, rb);
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
       if (1) features->allow_intrabc = aom_rb_read_bit(rb);
-#if CONFIG_IBC_SR_EXT
       if (features->allow_intrabc) {
         features->allow_global_intrabc = aom_rb_read_bit(rb);
         features->allow_local_intrabc =
             features->allow_global_intrabc ? aom_rb_read_bit(rb) : 1;
-#if CONFIG_IBC_BV_IMPROVEMENT
         read_frame_max_bvp_drl_bits(cm, rb);
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
       }
-#endif  // CONFIG_IBC_SR_EXT
 
 #if CONFIG_IMPROVED_GLOBAL_MOTION
       cm->cur_frame->num_ref_frames = 0;
@@ -8416,20 +8402,16 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
         read_screen_content_params(cm, rb);
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
-#if CONFIG_IBC_SR_EXT
         if (1) {
           features->allow_intrabc = aom_rb_read_bit(rb);
           features->allow_global_intrabc = 0;
           features->allow_local_intrabc = features->allow_intrabc;
         }
-#endif  // CONFIG_IBC_SR_EXT
 
         read_frame_max_drl_bits(cm, rb);
-#if CONFIG_IBC_BV_IMPROVEMENT
         if (features->allow_intrabc) {
           read_frame_max_bvp_drl_bits(cm, rb);
         }
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
 
         if (features->cur_frame_force_integer_mv) {
           features->fr_mv_precision = MV_PRECISION_ONE_PEL;

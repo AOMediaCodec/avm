@@ -3336,7 +3336,6 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
     set_max_bvp_drl_bits(cpi);
   }
 
-#if CONFIG_IBC_SR_EXT
   if (cm->features.allow_intrabc) {
     cm->features.allow_global_intrabc =
         (oxcf->kf_cfg.enable_intrabc_ext != 2) && frame_is_intra_only(cm);
@@ -3345,7 +3344,6 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
     cm->features.allow_global_intrabc = 0;
     cm->features.allow_local_intrabc = 0;
   }
-#endif  // CONFIG_IBC_SR_EXT
 
 #if CONFIG_USE_VMAF_RC
   if (oxcf->tune_cfg.tuning == AOM_TUNE_VMAF_NEG_MAX_GAIN) {
@@ -4248,7 +4246,6 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   start_timing(cpi, encode_frame_to_data_rate_time);
 #endif
 
-#if CONFIG_IBC_SR_EXT
   av1_set_screen_content_options(cpi, features);
 #if CONFIG_SCC_DETERMINATION
   if (cm->current_frame.frame_type != KEY_FRAME) {
@@ -4273,12 +4270,6 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     cm->features.allow_global_intrabc = 0;
     cm->features.allow_local_intrabc = 0;
   }
-#else
-  if (frame_is_intra_only(cm)) {
-    av1_set_screen_content_options(cpi, features);
-    cpi->is_screen_content_type = features->allow_screen_content_tools;
-  }
-#endif  // CONFIG_IBC_SR_EXT
   const bool compute_ds_filter =
       cpi->common.current_frame.frame_type == KEY_FRAME && !cpi->no_show_fwd_kf;
   if (compute_ds_filter) {

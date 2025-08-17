@@ -583,12 +583,10 @@ typedef struct SequenceHeader {
 #endif                            // !CONFIG_F253_REMOVE_OUTPUTFLAG
   int max_reference_frames;       // Number of reference frames allowed
 #if CONFIG_SEQ_MAX_DRL_BITS
-  int def_max_drl_bits;              // default max drl bits for MVs
-  uint8_t allow_frame_max_drl_bits;  // whether to allow frame level update
-#if CONFIG_IBC_BV_IMPROVEMENT
+  int def_max_drl_bits;                  // default max drl bits for MVs
+  uint8_t allow_frame_max_drl_bits;      // whether to allow frame level update
   int def_max_bvp_drl_bits;              // default max ibc drl bits for MVs
   uint8_t allow_frame_max_bvp_drl_bits;  // whether to allow frame level update
-#endif                                   // CONFIG_IBC_BV_IMPROVEMENT
 #endif                                   // CONFIG_SEQ_MAX_DRL_BITS
   int num_same_ref_compound;  // Number of the allowed same reference frames for
                               // the compound mode
@@ -849,13 +847,11 @@ typedef struct {
    * allow_screen_content_tools on key frames
    */
   bool kf_allow_sc_tools;
-#endif  // CONFIG_SCC_DETERMINATION
-#if CONFIG_IBC_SR_EXT
+#endif                       // CONFIG_SCC_DETERMINATION
   bool allow_global_intrabc; /*!< If true, intra block copy tool may use the
                                global search range. */
   bool allow_local_intrabc;  /*!< If true, intra block copy tool may use the
                               local  search range. */
-#endif                       // CONFIG_IBC_SR_EXT
 
   bool allow_warpmv_mode; /*!< If true, frame may use WARPMV mode. */
 
@@ -915,13 +911,11 @@ typedef struct {
    * Max_drl_bits. Note number of ref MVs allowed is max_drl_bits + 1
    */
   int max_drl_bits;
-#if CONFIG_IBC_BV_IMPROVEMENT
   /*!
    * Max_bvp_drl_bits. Note number of IntraBC ref BVs allowed is
    * max_bvp_drl_bits + 1
    */
   int max_bvp_drl_bits;
-#endif  // CONFIG_IBC_BV_IMPROVEMENT
   /*!
    * Ternary symbol for optical flow refinement type. 0: do not refine,
    * 1: always refine, 2: switchable at block level.

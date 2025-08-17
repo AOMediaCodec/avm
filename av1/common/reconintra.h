@@ -109,15 +109,10 @@ static INLINE int av1_allow_intrabc(const AV1_COMMON *const cm,
 
   int cur_region_type = MIXED_INTER_INTRA_REGION;
   if (xd->mi != NULL) cur_region_type = xd->mi[0]->region_type;
-#if CONFIG_IBC_SR_EXT
   return (frame_is_intra_only(cm) || cm->features.allow_local_intrabc) &&
          xd->tree_type != CHROMA_PART &&
          (frame_is_intra_only(cm) || cur_region_type != INTRA_REGION) &&
          cm->features.allow_intrabc;
-#else
-  return frame_is_intra_only(cm) && xd->tree_type != CHROMA_PART &&
-         xd->mi[0]->region_type != INTRA_REGION && cm->features.allow_intrabc;
-#endif  // CONFIG_IBC_SR_EXT
 }
 
 static INLINE int allow_fsc_intra(const AV1_COMMON *const cm, BLOCK_SIZE bs,

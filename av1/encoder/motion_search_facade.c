@@ -1350,10 +1350,8 @@ int_mv av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
   mbmi->interp_fltr = EIGHTTAP_REGULAR;
   mbmi->use_amvd = 0;
 
-#if CONFIG_IBC_SR_EXT
   mbmi->use_intrabc[0] = 0;
   mbmi->use_intrabc[1] = 0;
-#endif  // CONFIG_IBC_SR_EXT
   mbmi->morph_pred = 0;
 
   mbmi->cwp_idx = CWP_EQUAL;
@@ -1509,10 +1507,8 @@ int_mv av1_simple_motion_search_ext(AV1_COMP *const cpi,
   mbmi->motion_mode = SIMPLE_TRANSLATION;
   mbmi->interp_fltr = EIGHTTAP_REGULAR;
 
-#if CONFIG_IBC_SR_EXT
   mbmi->use_intrabc[0] = 0;
   mbmi->use_intrabc[1] = 0;
-#endif  // CONFIG_IBC_SR_EXT
   mbmi->morph_pred = 0;
 
   mbmi->cwp_idx = CWP_EQUAL;

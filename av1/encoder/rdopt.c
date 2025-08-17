@@ -5929,7 +5929,6 @@ static int is_bv_valid_for_morph(const MV sub_pel_dv, const AV1_COMMON *cm,
   return true;
 }
 #else
-#if CONFIG_IBC_SR_EXT
 // This function checks if the given motion vector "dv" is within the local
 // range of intra bc.
 // This function is partially copied from "av1_is_dv_valid" in mvref_common.h
@@ -5957,13 +5956,7 @@ static int is_local_intrabc(const MV dv, const AV1_COMMON *cm,
         }
       }
     }
-    // The size of local search range is determined by the value of
-    // CONFIG_IBC_SR_EXT. 0: disabled, 1: 64x64 (default), 2: 128x128.
-#if CONFIG_IBC_SR_EXT == 1
-    valid = av1_is_dv_in_local_range_64x64(dv, xd, tmp_row, tmp_col, tmp_bh,
-                                           tmp_bw, mib_size_log2);
-#endif  // CONFIG_IBC_SR_EXT == 1
-#if CONFIG_IBC_SR_EXT == 2
+
 #if CONFIG_LOCAL_INTRABC_ALIGN_RNG
     valid = av1_is_dv_in_local_range(dv, xd, tmp_row, tmp_col, tmp_bh, tmp_bw,
                                      mib_size_log2);
@@ -5978,12 +5971,10 @@ static int is_local_intrabc(const MV dv, const AV1_COMMON *cm,
       valid = av1_is_dv_in_local_range(dv, xd, tmp_row, tmp_col, tmp_bh, tmp_bw,
                                        mib_size_log2);
 #endif  // CONFIG_LOCAL_INTRABC_ALIGN_RNG
-#endif  // CONFIG_IBC_SR_EXT == 2
     if (valid) return 1;
   }
   return 0;
 }
-#endif  // CONFIG_IBC_SR_EXT
 #endif  // CONFIG_LOCAL_INTRABC_BAWP
 
 static int av1_pick_ref_bv_subpel(
@@ -6099,9 +6090,7 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
 
   MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
   MV_REFERENCE_FRAME ref_frame = INTRA_FRAME;
-#if CONFIG_IBC_SR_EXT
   mbmi->use_intrabc[xd->tree_type == CHROMA_PART] = 1;
-#endif  // CONFIG_IBC_SR_EXT
   av1_find_mv_refs(cm, xd, mbmi, ref_frame, mbmi_ext->ref_mv_count,
                    xd->ref_mv_stack, xd->weight, NULL, mbmi_ext->global_mvs
 #if !CONFIG_C076_INTER_MOD_CTX
@@ -6110,9 +6099,7 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
 #endif  // CONFIG_C076_INTER_MOD_CTX
                    ,
                    NULL, 0, NULL);
-#if CONFIG_IBC_SR_EXT
   mbmi->use_intrabc[xd->tree_type == CHROMA_PART] = 0;
-#endif  // CONFIG_IBC_SR_EXT
   // TODO(Ravi): Populate mbmi_ext->ref_mv_stack[ref_frame][4] and
   // mbmi_ext->weight[ref_frame][4] inside av1_find_mv_refs.
   av1_copy_usable_ref_mv_stack_and_weight(xd, mbmi_ext, ref_frame);
@@ -6166,13 +6153,11 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
                                      /*fine_search_interval=*/0);
 
   fullms_params.is_intra_mode = 1;
-#if CONFIG_IBC_SR_EXT
   fullms_params.xd = xd;
   fullms_params.cm = cm;
   fullms_params.mib_size_log2 = cm->mib_size_log2;
   fullms_params.mi_col = mi_col;
   fullms_params.mi_row = mi_row;
-#endif  // CONFIG_IBC_SR_EXT
   fullms_params.x = x;
   fullms_params.cm = cm;
   fullms_params.ref_bv_cnt = mbmi_ext->ref_mv_count[INTRA_FRAME];
@@ -6195,10 +6180,8 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
     for (enum IntrabcMotionDirection dir = IBC_MOTION_ABOVE;
          dir < IBC_MOTION_DIRECTIONS; ++dir) {
       set_default_intraBC_bv_precision(cm, mbmi);
-#if CONFIG_IBC_SR_EXT
       if (frame_is_intra_only(cm) && cm->features.allow_global_intrabc &&
           ibc_loop == 0) {
-#endif  // CONFIG_IBC_SR_EXT
         switch (dir) {
           case IBC_MOTION_ABOVE:
             fullms_params.mv_limits.col_min =
@@ -6226,7 +6209,6 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
             break;
           default: assert(0);
         }
-#if CONFIG_IBC_SR_EXT
       }
       if (cm->features.allow_local_intrabc && ibc_loop == 1) {
 #if CONFIG_LOCAL_INTRABC_ALIGN_RNG
@@ -6268,7 +6250,6 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
           default: assert(0);
         }
       }
-#endif  // CONFIG_IBC_SR_EXT
 
       assert(fullms_params.mv_limits.col_min >=
              fullms_params.mv_limits.col_min);
@@ -6567,7 +6548,6 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
         int allow_morph_pred = av1_allow_intrabc_morph_pred(cm);
         int num_modes_to_search = 1 + allow_morph_pred;
 
-#if CONFIG_IBC_SR_EXT
         if (num_modes_to_search > 1) {
 #if CONFIG_LOCAL_INTRABC_BAWP
           if (!is_bv_valid_for_morph(mbmi->mv[0].as_mv, cm, xd, mi_row, mi_col,
@@ -6580,7 +6560,6 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
 #endif  // CONFIG_LOCAL_INTRABC_BAWP
             num_modes_to_search = 1;
         }
-#endif  // CONFIG_IBC_SR_EXT
         for (int morph_idx = 0; morph_idx < num_modes_to_search; ++morph_idx) {
           if (morph_idx && !allow_morph_pred) continue;
           mbmi->morph_pred = morph_idx;
@@ -6828,9 +6807,7 @@ static AOM_INLINE void rd_pick_skip_mode(
   mbmi->ref_frame[0] = ref_frame;
   mbmi->ref_frame[1] = second_ref_frame;
   mbmi->cwp_idx = CWP_EQUAL;
-#if CONFIG_IBC_SR_EXT
   mbmi->use_intrabc[xd->tree_type == CHROMA_PART] = 0;
-#endif  // CONFIG_IBC_SR_EXT
   mbmi->warp_ref_idx = 0;
   mbmi->max_num_warp_candidates = 0;
   mbmi->warpmv_with_mvd_flag = 0;
@@ -7917,17 +7894,12 @@ static int inter_mode_search_order_independent_skip(
 
 static INLINE void init_mbmi(MB_MODE_INFO *mbmi, PREDICTION_MODE curr_mode,
                              const MV_REFERENCE_FRAME *ref_frames,
-#if CONFIG_IBC_SR_EXT
                              const AV1_COMMON *cm, MACROBLOCKD *const xd
-#else
-                             const AV1_COMMON *cm
-#endif  // CONFIG_IBC_SR_EXT
 
                              ,
                              const SB_INFO *sbi
 
 ) {
-
   PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
   mbmi->ref_mv_idx[0] = 0;
   mbmi->ref_mv_idx[1] = 0;
@@ -7950,10 +7922,8 @@ static INLINE void init_mbmi(MB_MODE_INFO *mbmi, PREDICTION_MODE curr_mode,
     mbmi->mapped_intra_mode[1][i] = DC_PRED;
   }
   set_default_interp_filters(mbmi, cm, xd, cm->features.interp_filter);
-#if CONFIG_IBC_SR_EXT
   mbmi->use_intrabc[xd->tree_type == CHROMA_PART] = 0;
   mbmi->morph_pred = 0;
-#endif  // CONFIG_IBC_SR_EXT
 #if CONFIG_BRU
   mbmi->local_rest_type = 1;
   mbmi->local_ccso_blk_flag = 1;
@@ -8852,9 +8822,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   const ModeCosts *mode_costs = &x->mode_costs;
   const int *comp_inter_cost =
       mode_costs->comp_inter_cost[av1_get_reference_mode_context(cm, xd)];
-#if CONFIG_IBC_SR_EXT
   mbmi->use_intrabc[xd->tree_type == CHROMA_PART] = 0;
-#endif  // CONFIG_IBC_SR_EXT
 #if CONFIG_BRU
   mbmi->local_rest_type = 1;
   mbmi->local_ccso_blk_flag = 1;
@@ -9203,11 +9171,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
             ref_frame != INTRA_FRAME && second_ref_frame == NONE_FRAME;
         const int comp_pred = is_inter_ref_frame(second_ref_frame);
 
-#if CONFIG_IBC_SR_EXT
         init_mbmi(mbmi, this_mode, ref_frames, cm, xd, xd->sbi);
-#else
-        init_mbmi(mbmi, this_mode, ref_frames, cm, xd->sbi);
-#endif  // CONFIG_IBC_SR_EXT
 
         if ((this_mode == WARPMV || this_mode == WARP_NEWMV) &&
             !is_warpmv_mode_allowed(cm, mbmi, bsize))
@@ -9559,11 +9523,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
 
             MV_REFERENCE_FRAME refs[2] = { INTRA_FRAME, NONE_FRAME };
 
-#if CONFIG_IBC_SR_EXT
             init_mbmi(mbmi, this_mode, refs, cm, xd, xd->sbi);
-#else
-            init_mbmi(mbmi, this_mode, refs, cm, xd->sbi);
-#endif  // CONFIG_IBC_SR_EXT
             txfm_info->skip_txfm = 0;
 
             if (mbmi->use_dpcm_y > 0 &&
@@ -9664,7 +9624,6 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
     rd_pick_skip_mode(&search_state, cpi, x, bsize, yv12_mb, ctx, rd_cost);
   }
 
-#if CONFIG_IBC_SR_EXT
   if (search_state.best_skip2 == 0) {
     const int try_intrabc = cpi->oxcf.kf_cfg.enable_intrabc &&
                             cpi->oxcf.kf_cfg.enable_intrabc_ext &&
@@ -9720,7 +9679,6 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
       }
     }
   }
-#endif  // CONFIG_IBC_SR_EXT
 
   // Make sure that the ref_mv_idx is only nonzero when we're
   // using a mode which can support ref_mv_idx

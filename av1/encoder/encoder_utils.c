@@ -1054,12 +1054,10 @@ void av1_determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
       cm->features.allow_screen_content_tools;
   const int allow_intrabc_orig_decision = cm->features.allow_intrabc;
   const int is_screen_content_type_orig_decision = cpi->is_screen_content_type;
-#if CONFIG_IBC_SR_EXT
   if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) {
     cm->features.allow_screen_content_tools = cm->features.allow_intrabc = 1;
     return;
   }
-#endif  // CONFIG_IBC_SR_EXT
 
   // Turn off the encoding trial for forward key frame and superres.
   if (oxcf->kf_cfg.fwd_kf_enabled || is_screen_content_type_orig_decision ||

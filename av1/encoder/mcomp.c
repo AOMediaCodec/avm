@@ -1351,7 +1351,6 @@ static AOM_FORCE_INLINE void calc_int_sad_list(
 
   // Refresh the costlist it does not contain valid sad
   if (!costlist_has_sad) {
-#if CONFIG_IBC_SR_EXT
     if (ms_params->is_intra_mode &&
         ms_params->cm->features.allow_local_intrabc) {
       MV sub_mv = { (MV_COMP_DATA_TYPE)GET_MV_SUBPEL(best_mv.row),
@@ -1369,16 +1368,11 @@ static AOM_FORCE_INLINE void calc_int_sad_list(
       cost_list[0] = get_mvpred_sad(
           ms_params, src, get_buf_from_fullmv(ref, &best_mv), ref_stride);
     }
-#else
-    cost_list[0] = get_mvpred_sad(
-        ms_params, src, get_buf_from_fullmv(ref, &best_mv), ref_stride);
-#endif  // CONFIG_IBC_SR_EXT
 
     if (check_bounds(&ms_params->mv_limits, br, bc, 1)) {
       for (int i = 0; i < 4; i++) {
         const FULLPEL_MV this_mv = { br + neighbors[i].row,
                                      bc + neighbors[i].col };
-#if CONFIG_IBC_SR_EXT
         if (ms_params->is_intra_mode &&
             ms_params->cm->features.allow_local_intrabc) {
           MV sub_mv = { (MV_COMP_DATA_TYPE)GET_MV_SUBPEL(this_mv.row),
@@ -1396,10 +1390,6 @@ static AOM_FORCE_INLINE void calc_int_sad_list(
           cost_list[i + 1] = get_mvpred_sad(
               ms_params, src, get_buf_from_fullmv(ref, &this_mv), ref_stride);
         }
-#else
-        cost_list[i + 1] = get_mvpred_sad(
-            ms_params, src, get_buf_from_fullmv(ref, &this_mv), ref_stride);
-#endif  // CONFIG_IBC_SR_EXT
       }
     } else {
       for (int i = 0; i < 4; i++) {
@@ -1410,7 +1400,6 @@ static AOM_FORCE_INLINE void calc_int_sad_list(
                 ms_params->mv_cost_params.pb_mv_precision)) {
           cost_list[i + 1] = INT_MAX;
         } else {
-#if CONFIG_IBC_SR_EXT
           if (ms_params->is_intra_mode &&
               ms_params->cm->features.allow_local_intrabc) {
             MV sub_mv = { (MV_COMP_DATA_TYPE)GET_MV_SUBPEL(this_mv.row),
@@ -1429,10 +1418,6 @@ static AOM_FORCE_INLINE void calc_int_sad_list(
             cost_list[i + 1] = get_mvpred_sad(
                 ms_params, src, get_buf_from_fullmv(ref, &this_mv), ref_stride);
           }
-#else
-          cost_list[i + 1] = get_mvpred_sad(
-              ms_params, src, get_buf_from_fullmv(ref, &this_mv), ref_stride);
-#endif  // CONFIG_IBC_SR_EXT
         }
       }
     }
@@ -1957,7 +1942,6 @@ static int diamond_search_sad(FULLPEL_MV start_mv,
 
   // Check the starting position
 
-#if CONFIG_IBC_SR_EXT
   if (ms_params->is_intra_mode && ms_params->cm->features.allow_local_intrabc) {
     MV sub_mv = { (MV_COMP_DATA_TYPE)GET_MV_SUBPEL(start_mv.row),
                   (MV_COMP_DATA_TYPE)GET_MV_SUBPEL(start_mv.col) };
@@ -1977,11 +1961,6 @@ static int diamond_search_sad(FULLPEL_MV start_mv,
     bestsad = get_mvpred_compound_sad(ms_params, src, best_address, ref_stride);
     bestsad += mvsad_err_cost(*best_mv, &ms_params->mv_cost_params);
   }
-#else
-  best_address = get_buf_from_fullmv(ref, &start_mv);
-  bestsad = get_mvpred_compound_sad(ms_params, src, best_address, ref_stride);
-  bestsad += mvsad_err_cost(*best_mv, &ms_params->mv_cost_params);
-#endif  // CONFIG_IBC_SR_EXT
 
   int next_step_size = tot_steps > 2 ? cfg->radius[tot_steps - 2] : 1;
   for (int step = tot_steps - 1; step >= 0; --step) {
@@ -2001,7 +1980,6 @@ static int diamond_search_sad(FULLPEL_MV start_mv,
     all_in &= best_mv->col + (site[4].mv.col * prec_multiplier) <=
               ms_params->mv_limits.col_max;
 
-#if CONFIG_IBC_SR_EXT
     if (ms_params->is_intra_mode &&
         ms_params->cm->features.allow_local_intrabc) {
       for (j = 0; j < 4; j++) {
@@ -2014,7 +1992,6 @@ static int diamond_search_sad(FULLPEL_MV start_mv,
                                   ms_params->bsize, ms_params->mib_size_log2);
       }
     }
-#endif  // CONFIG_IBC_SR_EXT
     // TODO(anyone): Implement 4 points search for msdf&sdaf
     if (all_in && !mask && !second_pred) {
       const uint16_t *src_buf = src->buf;
@@ -2023,7 +2000,6 @@ static int diamond_search_sad(FULLPEL_MV start_mv,
         uint16_t const *block_offset[4];
         unsigned int sads[4];
 
-#if CONFIG_IBC_SR_EXT
         int valid = 1;
         for (j = 0; j < 4; j++) {
           if (ms_params->is_intra_mode &&
@@ -2038,7 +2014,6 @@ static int diamond_search_sad(FULLPEL_MV start_mv,
           }
         }
         if (!valid) continue;
-#endif  // CONFIG_IBC_SR_EXT
 
         for (j = 0; j < 4; j++) {
           int row = (site[idx + j].mv.row * prec_multiplier);
@@ -2072,7 +2047,6 @@ static int diamond_search_sad(FULLPEL_MV start_mv,
 
         if (av1_is_fullmv_in_range(&ms_params->mv_limits, this_mv,
                                    ms_params->mv_cost_params.pb_mv_precision)) {
-#if CONFIG_IBC_SR_EXT
           if (ms_params->is_intra_mode &&
               ms_params->cm->features.allow_local_intrabc) {
             MV sub_mv = { (MV_COMP_DATA_TYPE)GET_MV_SUBPEL(this_mv.row),
@@ -2082,7 +2056,6 @@ static int diamond_search_sad(FULLPEL_MV start_mv,
                 ms_params->mi_col, ms_params->bsize, ms_params->mib_size_log2);
             if (!valid) continue;
           }
-#endif  // CONFIG_IBC_SR_EXT
 
           int r = (site[idx].mv.row * prec_multiplier);
           int c = (site[idx].mv.col * prec_multiplier);
@@ -2208,7 +2181,6 @@ static int exhaustive_mesh_search(FULLPEL_MV start_mv,
 
   clamp_fullmv(&start_mv, &ms_params->mv_limits);
   *best_mv = start_mv;
-#if CONFIG_IBC_SR_EXT
   if (ms_params->is_intra_mode && ms_params->cm->features.allow_local_intrabc) {
     const MV sub_mv = { (MV_COMP_DATA_TYPE)GET_MV_SUBPEL(start_mv.row),
                         (MV_COMP_DATA_TYPE)GET_MV_SUBPEL(start_mv.col) };
@@ -2227,18 +2199,12 @@ static int exhaustive_mesh_search(FULLPEL_MV start_mv,
                               get_buf_from_fullmv(ref, &start_mv), ref_stride);
     best_sad += mvsad_err_cost(start_mv, mv_cost_params);
   }
-#else
-  best_sad = get_mvpred_sad(ms_params, src, get_buf_from_fullmv(ref, &start_mv),
-                            ref_stride);
-  best_sad += mvsad_err_cost(start_mv, mv_cost_params);
-#endif  // CONFIG_IBC_SR_EXT
 
   start_row = AOMMAX(-range, ms_params->mv_limits.row_min - start_mv.row);
   start_col = AOMMAX(-range, ms_params->mv_limits.col_min - start_mv.col);
   end_row = AOMMIN(range, ms_params->mv_limits.row_max - start_mv.row);
   end_col = AOMMIN(range, ms_params->mv_limits.col_max - start_mv.col);
 
-#if CONFIG_IBC_SR_EXT
   if (ms_params->is_intra_mode && ms_params->cm->features.allow_local_intrabc) {
     int part_size = 65;
     int part_start_row;
@@ -2320,7 +2286,6 @@ static int exhaustive_mesh_search(FULLPEL_MV start_mv,
     }
     return best_sad;
   }
-#endif  // CONFIG_IBC_SR_EXT
 
   for (r = start_row; r <= end_row; r += step) {
     for (c = start_col; c <= end_col; c += col_step) {

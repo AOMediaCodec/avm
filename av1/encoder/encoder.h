@@ -474,14 +474,12 @@ typedef struct {
    */
   bool enable_intrabc;
 
-#if CONFIG_IBC_SR_EXT
   /*!
    * Indicates if search range extension for intra block copy prediction mode
    * should be enabled or not. 0: disable. 1: extend the search range to the
    * local area (default). 2: only use the local search range.
    */
   int enable_intrabc_ext;
-#endif  // CONFIG_IBC_SR_EXT
 
 } KeyFrameCfg;
 
@@ -3469,14 +3467,9 @@ static INLINE int frame_is_kf_gf_arf(const AV1_COMP *cpi) {
 // TODO(huisu@google.com, youzhou@microsoft.com): enable hash-me for HBD.
 static INLINE int av1_use_hash_me(const AV1_COMP *const cpi) {
   if (!cpi->common.features.is_scc_content_by_detector) return 0;
-#if CONFIG_IBC_SR_EXT
   return (cpi->common.features.allow_intrabc) &&
          (frame_is_intra_only(&cpi->common) ||
           cpi->common.features.allow_local_intrabc);
-#else
-  return (cpi->common.features.allow_intrabc &&
-          frame_is_intra_only(&cpi->common));
-#endif  // CONFIG_IBC_SR_EXT
 }
 
 static INLINE const YV12_BUFFER_CONFIG *get_ref_frame_yv12_buf(
