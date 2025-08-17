@@ -613,13 +613,11 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .enable_intrabc = ARG_DEF(NULL, "enable-intrabc", 1,
                             "Enable intra block copy prediction mode "
                             "(0: false, 1: true (default))"),
-#if CONFIG_IBC_SR_EXT
   .enable_intrabc_ext = ARG_DEF(
       NULL, "enable-intrabc-ext", 1,
       "Enable search range extension for intra block copy prediction mode "
       "(0: disable, 1: extend the search range to the local area (default), "
       "2: only use the local search range.)"),
-#endif  // CONFIG_IBC_SR_EXT
   .enable_angle_delta =
       ARG_DEF(NULL, "enable-angle-delta", 1,
               "Enable intra angle delta (0: false, 1: true (default))"),

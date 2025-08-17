@@ -500,12 +500,10 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_intrabc;
-#if CONFIG_IBC_SR_EXT
   /*!\brief enable search range extension for Intra Block Copy
    *
    */
   unsigned int enable_intrabc_ext;
-#endif  // CONFIG_IBC_SR_EXT
   /*!\brief enable chroma from luma
    *
    */
