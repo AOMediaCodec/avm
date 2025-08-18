@@ -7409,6 +7409,17 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       reset_frame_buffers(cm);
     }
     features->error_resilient_mode = 1;
+#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
+    if (cm->seq_params.enable_frame_output_order)
+#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
+      cm->cur_frame->frame_output_done = 0;
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
+    else
+      cm->cur_frame->frame_output_done = 1;
+#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
+#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+
   } else {
     cm->show_existing_frame = aom_rb_read_bit(rb);
     pbi->reset_decoder_state = 0;
