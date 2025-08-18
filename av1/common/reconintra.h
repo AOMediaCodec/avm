@@ -221,7 +221,7 @@ static INLINE void highbd_dc_predictor_subsampled(
     }
   }
 
-  sum = count > 0 ? (sum + count / 2) / count : 8 << (bd - 1);
+  sum = count > 0 ? (sum + count / 2) / count : 1 << (bd - 1);
 
   for (int r = 0; r < bh; r++) {
     aom_memset16(dst, sum, bw);
