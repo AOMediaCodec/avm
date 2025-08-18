@@ -216,11 +216,8 @@ int ifd_inspect(insp_frame_data *fd, void *decoder, int skip_not_transform) {
       const BLOCK_SIZE bsize = mbmi->sb_type[0];
       const int c = i % mi_size_wide[bsize];
       const int r = j % mi_size_high[bsize];
-      if (is_inter_block(mbmi, SHARED_PART) ||
-          is_intrabc_block(mbmi, SHARED_PART))
-        mi->tx_size = mbmi->inter_tx_size[av1_get_inter_tx_index(bsize, r, c)];
-      else
-        mi->tx_size = mbmi->tx_size;
+
+      mi->tx_size = mbmi->tx_size;
 
       if (skip_not_transform && mi->skip) mi->tx_size = -1;
 

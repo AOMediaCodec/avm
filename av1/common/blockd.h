@@ -2984,19 +2984,6 @@ static INLINE int av1_get_txb_size_index(BLOCK_SIZE bsize, int blk_row,
   return index;
 }
 
-static INLINE int av1_get_inter_tx_index(BLOCK_SIZE bsize, int blk_row,
-                                         int blk_col) {
-  (void)bsize;
-  int txhl = tx_size_high_log2[TX_64X64] - 2;
-  int txwl = tx_size_wide_log2[TX_64X64] - 2;
-  int stride = 4;
-
-  int index = (blk_row >> txhl) * stride + (blk_col >> txwl);
-
-  assert(index < INTER_TX_SIZE_BUF_LEN);
-  return index;
-}
-
 #if CONFIG_INSPECTION
 /*
  * Here is the logic to generate the lookup tables:
