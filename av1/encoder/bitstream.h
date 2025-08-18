@@ -41,6 +41,15 @@ uint32_t av1_write_obu_header(AV1LevelParams *const level_params,
 int av1_write_uleb_obu_size(size_t obu_header_size, size_t obu_payload_size,
                             uint8_t *dest);
 
+#if CONFIG_CWG_F293_BUFFER_TIMING
+uint32_t av2_write_buffer_timing_removal_obu(const BufferTimingRemoval
+                                             *btr_params, uint8_t *const dst);
+
+void add_trailing_bits(struct aom_write_bit_buffer *wb);
+
+void set_btr_params(AV1_COMP *const cpi);
+#endif  // CONFIG_CWG_F293_BUFFER_TIMING
+
 /*!\brief Pack the bitstream for one frame
  *
  * \ingroup high_level_algo

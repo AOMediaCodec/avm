@@ -1113,6 +1113,13 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
           return -1;
         }
         break;
+#if CONFIG_CWG_F293_BUFFER_TIMING
+      case OBU_BUFFER_TIMING_REMOVAL:
+        decoded_payload_size = read_buffer_timing_removal_obu(pbi, &rb, 0);
+        // TODO: @hilmi: xlayer_id
+        if (cm->error.error_code != AOM_CODEC_OK) return -1;
+        break;
+#endif  // CONFIG_CWG_F293_BUFFER_TIMING
       case OBU_FRAME_HEADER:
       case OBU_REDUNDANT_FRAME_HEADER:
       case OBU_FRAME:

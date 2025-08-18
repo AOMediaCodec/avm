@@ -56,6 +56,12 @@ extern "C" {
   } while (0)
 #endif
 
+#if CONFIG_CWG_F293_BUFFER_TIMING
+#define MAX_XLAYERS 32
+#define MAX_OPS_ID 16
+#define MAX_OPS_CNT 8
+#endif  // CONFIG_CWG_F293_BUFFER_TIMING
+
 #define CDEF_MAX_STRENGTHS 16
 /* Constant value specifying size of subgop stats*/
 #define MAX_SUBGOP_STATS_SIZE 32
@@ -552,6 +558,17 @@ typedef struct {
                                    // for temporal mv prediction.
 #endif                             // CONFIG_REDUCED_REF_FRAME_MVS_MODE
 } OrderHintInfo;
+
+#if CONFIG_CWG_F293_BUFFER_TIMING
+typedef struct {
+  int obu_xlayer_id;
+  int ops_id;
+  int br_ops_id[MAX_XLAYERS];
+  int br_ops_cnt[MAX_XLAYERS][MAX_OPS_ID];
+  int br_decoder_model_present_op_flag[MAX_XLAYERS][MAX_OPS_ID][MAX_OPS_CNT];
+  int br_buffer_removal_time[MAX_XLAYERS][MAX_OPS_ID][MAX_OPS_CNT];
+} BufferTimingRemoval;
+#endif  // CONFIG_CWG_F293_BUFFER_TIMING
 
 // Sequence header structure.
 // Note: All syntax elements of sequence_header_obu that need to be
@@ -1702,6 +1719,7 @@ typedef struct AV1Common {
   int render_height; /*!< Rendered frame height */
   /**@}*/
 
+#if !CONFIG_CWG_F293_BUFFER_TIMING
   /*!
    * If true, buffer removal times are present.
    */
@@ -1712,7 +1730,9 @@ typedef struct AV1Common {
    * point for operating point op_num.
    * TODO(urvang): We probably don't need the +1 here.
    */
+
   uint32_t buffer_removal_times[MAX_NUM_OPERATING_POINTS + 1];
+#endif  // !CONFIG_CWG_F293_BUFFER_TIMING
   /*!
    * Presentation time of the frame in clock ticks DispCT counted from the
    * removal time of the last random access point for the operating point that
@@ -1936,6 +1956,10 @@ typedef struct AV1Common {
    * frames in the video.
    */
   SequenceHeader seq_params;
+
+#if CONFIG_CWG_F293_BUFFER_TIMING
+  BufferTimingRemoval btr_params;
+#endif  // CONFIG_CWG_F293_BUFFER_TIMING
 
   /*!
    * Current CDFs of all the symbols for the current frame.

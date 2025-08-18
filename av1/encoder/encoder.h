@@ -3247,6 +3247,9 @@ typedef struct AV1_COMP {
    */
   int tip_mode_count[INTER_REFS_PER_FRAME];
 #endif  // CONFIG_TIP_LD
+#if CONFIG_CWG_F293_BUFFER_TIMING
+  int write_btr_obu;
+#endif  // CONFIG_CWG_F293_BUFFER_TIMING
 } AV1_COMP;
 
 /*!

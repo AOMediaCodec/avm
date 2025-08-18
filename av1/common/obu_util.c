@@ -27,6 +27,9 @@ static int valid_obu_type(int obu_type) {
     case OBU_METADATA:
     case OBU_FRAME:
     case OBU_REDUNDANT_FRAME_HEADER:
+#if CONFIG_CWG_F293_BUFFER_TIMING
+    case OBU_BUFFER_TIMING_REMOVAL:
+#endif  // CONFIG_CWG_F293_BUFFER_TIMING
     case OBU_TILE_LIST:
     case OBU_PADDING: valid_type = 1; break;
     default: break;

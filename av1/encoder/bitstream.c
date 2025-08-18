@@ -6153,6 +6153,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
     }
   }
 
+#if !CONFIG_CWG_F293_BUFFER_TIMING
   if (seq_params->decoder_model_info_present_flag) {
     aom_wb_write_bit(wb, cm->buffer_removal_time_present);
     if (cm->buffer_removal_time_present) {
@@ -6186,6 +6187,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
       }
     }
   }
+#endif  // !CONFIG_CWG_F293_BUFFER_TIMING
 
   // Shown keyframes and switch-frames automatically refreshes all reference
   // frames.  For all other frame types, we need to write refresh_frame_flags.
@@ -6938,7 +6940,10 @@ static size_t obu_memmove(size_t obu_header_size, size_t obu_payload_size,
   return length_field_size;
 }
 
-static AOM_INLINE void add_trailing_bits(struct aom_write_bit_buffer *wb) {
+#if !CONFIG_CWG_F293_BUFFER_TIMING
+static AOM_INLINE
+#endif  // !CONFIG_CWG_F293_BUFFER_TIMING
+void add_trailing_bits(struct aom_write_bit_buffer *wb) {
   if (aom_wb_is_byte_aligned(wb)) {
     aom_wb_write_literal(wb, 0x80, 8);
   } else {
@@ -7707,6 +7712,24 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
   level_params->frame_header_count = 0;
 
   // The TD is now written outside the frame encode loop
+#if CONFIG_CWG_F293_BUFFER_TIMING
+  if (cm->current_frame.frame_type == KEY_FRAME && !cpi->no_show_fwd_kf && cpi->write_btr_obu) {
+    set_btr_params(cpi);
+    obu_header_size =
+        av1_write_obu_header(level_params, OBU_BUFFER_TIMING_REMOVAL, 0, data);
+
+    obu_payload_size =
+        av2_write_buffer_timing_removal_obu(&cm->btr_params, data + obu_header_size);
+    const size_t length_field_size =
+        obu_memmove(obu_header_size, obu_payload_size, data);
+    if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
+        AOM_CODEC_OK) {
+      return AOM_CODEC_ERROR;
+    }
+
+    data += obu_header_size + obu_payload_size + length_field_size;
+  }
+#endif  // CONFIG_CWG_F293_BUFFER_TIMING
 
   // write sequence header obu if KEY_FRAME, preceded by 4-byte size
   if (cm->current_frame.frame_type == KEY_FRAME && !cpi->no_show_fwd_kf) {
