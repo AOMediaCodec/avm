@@ -1156,21 +1156,12 @@ enum aome_enc_control_id {
    */
   AV1E_SET_MV_COST_UPD_FREQ = 142,
 
-#if CONFIG_NEW_OBU_HEADER
-/*!\brief Control to set bit mask that specifies which tier each of the 64
- * possible operating points conforms to, uint64_t parameter
- *
- * - 0 = main tier (default)
- * - 1 = high tier
- */
-#else
-/*!\brief Control to set bit mask that specifies which tier each of the 32
- * possible operating points conforms to, unsigned int parameter
- *
- * - 0 = main tier (default)
- * - 1 = high tier
- */
-#endif  // CONFIG_NEW_OBU_HEADER
+  /*!\brief Control to set bit mask that specifies which tier each of the 32
+   * possible operating points conforms to, unsigned int parameter
+   *
+   * - 0 = main tier (default)
+   * - 1 = high tier
+   */
   AV1E_SET_TIER_MASK = 143,
 
   /*!\brief Control to set minimum compression ratio, unsigned int parameter
@@ -1811,11 +1802,7 @@ AOM_CTRL_USE_TYPE(AV1E_SET_MV_COST_UPD_FREQ, unsigned int)
 AOM_CTRL_USE_TYPE(AV1E_SET_TARGET_SEQ_LEVEL_IDX, int)
 #define AOM_CTRL_AV1E_SET_TARGET_SEQ_LEVEL_IDX
 
-#if CONFIG_NEW_OBU_HEADER
-AOM_CTRL_USE_TYPE(AV1E_SET_TIER_MASK, uint64_t)
-#else
 AOM_CTRL_USE_TYPE(AV1E_SET_TIER_MASK, unsigned int)
-#endif  // CONFIG_NEW_OBU_HEADER
 #define AOM_CTRL_AV1E_SET_TIER_MASK
 
 AOM_CTRL_USE_TYPE(AV1E_SET_MIN_CR, unsigned int)

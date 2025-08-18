@@ -27,15 +27,15 @@ namespace aom_tools {
 // 8 bits: Header
 //   7
 //     extension flag bit
-//   6,5,4,3
+//   6,5,4,3,2
 //     type bits
-//   2,1,0
+//   1,0
 //     tlayer ID
 const uint32_t kObuExtensionFlagBitMask = 0x1;
 const uint32_t kObuExtensionFlagBitShift = 7;
-const uint32_t kObuTypeBitsMask = 0xF;
-const uint32_t kObuTypeBitsShift = 3;
-const uint32_t kObuExtTlayerIdBitsMask = 0x7;
+const uint32_t kObuTypeBitsMask = 0x1F;
+const uint32_t kObuTypeBitsShift = 2;
+const uint32_t kObuExtTlayerIdBitsMask = 0x3;
 const uint32_t kObuExtTlayerIdBitsShift = 0;
 #else
 // Basic OBU syntax

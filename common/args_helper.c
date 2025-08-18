@@ -118,24 +118,6 @@ int arg_parse_int_helper(const struct arg *arg, char *err_msg) {
   return 0;
 }
 
-#if CONFIG_NEW_OBU_HEADER
-uint64_t arg_parse_uint64_helper(const struct arg *arg, char *err_msg) {
-  char *endptr;
-  const unsigned long long rawval = strtoull(arg->val, &endptr, 0);  // NOLINT
-
-  if (err_msg) err_msg[0] = '\0';
-
-  if (arg->val[0] != '\0' && endptr[0] == '\0') {
-    if (rawval <= UINT64_MAX) return (uint64_t)rawval;
-    SET_ERR_STRING("Option %s: Value %llu out of range for uint64_t\n",
-                   arg->name, rawval);
-    return 0;
-  }
-  SET_ERR_STRING("Option %s: Invalid character '%c'\n", arg->name, *endptr);
-  return 0;
-}
-#endif  // CONFIG_NEW_OBU_HEADER
-
 struct aom_rational arg_parse_rational_helper(const struct arg *arg,
                                               char *err_msg) {
   long rawval;  // NOLINT

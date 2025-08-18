@@ -162,11 +162,7 @@ typedef struct AV1LevelParams {
   AV1_LEVEL target_seq_level_idx[MAX_NUM_OPERATING_POINTS];
   // Bit mask to indicate whether to keep level stats for corresponding
   // operating points.
-#if CONFIG_NEW_OBU_HEADER
-  uint64_t keep_level_stats;
-#else
   uint32_t keep_level_stats;
-#endif  // CONFIG_NEW_OBU_HEADER
   // Level information for each operating point.
   AV1LevelInfo *level_info[MAX_NUM_OPERATING_POINTS];
   // Count the number of OBU_FRAME and OBU_FRAME_HEADER for level calculation.

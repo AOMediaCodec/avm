@@ -809,19 +809,12 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
 
   .superblock_size = ARG_DEF_ENUM(NULL, "sb-size", 1, "Superblock size to use",
                                   superblock_size_enum),
-#if CONFIG_NEW_OBU_HEADER
-  .set_tier_mask =
-      ARG_DEF(NULL, "set-tier-mask", 1,
-              "Set bit mask to specify which tier each of the 64 possible "
-              "operating points conforms to. "
-              "Bit value 0(defualt): Main Tier, 1: High Tier."),
-#else
+
   .set_tier_mask =
       ARG_DEF(NULL, "set-tier-mask", 1,
               "Set bit mask to specify which tier each of the 32 possible "
               "operating points conforms to. "
               "Bit value 0(defualt): Main Tier, 1: High Tier."),
-#endif  // CONFIG_NEW_OBU_HEADER
 
   .use_fixed_qp_offsets =
       ARG_DEF(NULL, "use-fixed-qp-offsets", 1,

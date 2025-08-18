@@ -234,15 +234,9 @@ struct av1_extracfg {
   int quant_b_adapt;
   unsigned int vbr_corpus_complexity_lap;
   AV1_LEVEL target_seq_level_idx[MAX_NUM_OPERATING_POINTS];
-#if CONFIG_NEW_OBU_HEADER
-  // Bit mask to specify which tier each of the 64 possible operating points
-  // conforms to.
-  uint64_t tier_mask;
-#else
   // Bit mask to specify which tier each of the 32 possible operating points
   // conforms to.
   unsigned int tier_mask;
-#endif  // CONFIG_NEW_OBU_HEADER
   // min_cr / 100 is the target minimum compression ratio for each frame.
   unsigned int min_cr;
   COST_UPDATE_TYPE coeff_cost_upd_freq;
@@ -606,15 +600,6 @@ static struct av1_extracfg default_extra_cfg = {
       SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
       SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
       SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
-#if CONFIG_NEW_OBU_HEADER
-      SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
-      SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
-      SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
-      SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
-      SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
-      SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
-      SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
-#endif          // CONFIG_NEW_OBU_HEADER
   },            // target_seq_level_idx
   0,            // tier_mask
   0,            // min_cr
@@ -4601,11 +4586,7 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
         arg_parse_uint_helper(&arg, err_string);
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.set_tier_mask, argv,
                               err_string)) {
-#if CONFIG_NEW_OBU_HEADER
-    extra_cfg.tier_mask = arg_parse_uint64_helper(&arg, err_string);
-#else
     extra_cfg.tier_mask = arg_parse_uint_helper(&arg, err_string);
-#endif  // CONFIG_NEW_OBU_HEADER
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.set_min_cr, argv,
                               err_string)) {
     extra_cfg.min_cr = arg_parse_uint_helper(&arg, err_string);

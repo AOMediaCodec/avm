@@ -64,7 +64,7 @@ static aom_codec_err_t read_obu_header(struct aom_read_bit_buffer *rb,
   header->size = 1;
 
   header->obu_extension_flag = aom_rb_read_bit(rb);
-  header->type = (OBU_TYPE)aom_rb_read_literal(rb, 4);  // obu_type
+  header->type = (OBU_TYPE)aom_rb_read_literal(rb, 5);  // obu_type
   if (!valid_obu_type(header->type)) return AOM_CODEC_CORRUPT_FRAME;
 
   header->obu_tlayer_id = aom_rb_read_literal(rb, TLAYER_BITS);

@@ -287,11 +287,11 @@ enum {
 } SENUM1BYTE(BITSTREAM_PROFILE);
 
 #if CONFIG_NEW_OBU_HEADER
-#define MAX_NUM_TLAYERS 8
+#define MAX_NUM_TLAYERS 4
 #define MAX_NUM_MLAYERS 8
 #define MAX_NUM_XLAYERS 32
 // bits for temporal, embedded, and extended layers
-#define TLAYER_BITS 3  // 3 bits for MAX_NUM_TLAYERS
+#define TLAYER_BITS 2  // 2 bits for MAX_NUM_TLAYERS
 #define MLAYER_BITS 3  // 3 bits for MAX_NUM_MLAYERS
 #define XLAYER_BITS 5  // 5 bits for MAX_NUM_XLAYERS
 #define MAX_NUM_OPERATING_POINTS (MAX_NUM_TLAYERS * MAX_NUM_MLAYERS)

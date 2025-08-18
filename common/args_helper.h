@@ -13,12 +13,6 @@
 #ifndef AOM_COMMON_ARGS_HELPER_H_
 #define AOM_COMMON_ARGS_HELPER_H_
 
-#include "config/aom_config.h"
-
-#if CONFIG_NEW_OBU_HEADER
-#include <stdint.h>
-#endif  // CONFIG_NEW_OBU_HEADER
-
 #include "aom/aom_encoder.h"
 
 #ifdef __cplusplus
@@ -68,9 +62,6 @@ int arg_match_helper(struct arg *arg_, const struct arg_def *def, char **argv,
                      char *err_msg);
 unsigned int arg_parse_uint_helper(const struct arg *arg, char *err_msg);
 int arg_parse_int_helper(const struct arg *arg, char *err_msg);
-#if CONFIG_NEW_OBU_HEADER
-uint64_t arg_parse_uint64_helper(const struct arg *arg, char *err_msg);
-#endif  // CONFIG_NEW_OBU_HEADER
 struct aom_rational arg_parse_rational_helper(const struct arg *arg,
                                               char *err_msg);
 int arg_parse_enum_helper(const struct arg *arg, char *err_msg);

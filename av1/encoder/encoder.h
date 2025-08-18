@@ -1187,15 +1187,9 @@ typedef struct AV1EncoderConfig {
   int noise_block_size;
 #endif
 
-#if CONFIG_NEW_OBU_HEADER
-  // Bit mask to specify which tier each of the 64 possible operating points
-  // conforms to.
-  uint64_t tier_mask;
-#else
   // Bit mask to specify which tier each of the 32 possible operating points
   // conforms to.
   unsigned int tier_mask;
-#endif  // CONFIG_NEW_OBU_HEADER
 
   // Indicates the number of pixels off the edge of a reference frame we're
   // allowed to go when forming an inter prediction.

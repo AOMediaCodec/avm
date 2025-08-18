@@ -936,11 +936,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   level_params->keep_level_stats = 0;
   for (int i = 0; i < MAX_NUM_OPERATING_POINTS; ++i) {
     if (level_params->target_seq_level_idx[i] <= SEQ_LEVELS) {
-#if CONFIG_NEW_OBU_HEADER
-      level_params->keep_level_stats |= 1ull << i;
-#else
       level_params->keep_level_stats |= 1u << i;
-#endif  // CONFIG_NEW_OBU_HEADER
       if (!level_params->level_info[i]) {
         CHECK_MEM_ERROR(cm, level_params->level_info[i],
                         aom_calloc(1, sizeof(*level_params->level_info[i])));

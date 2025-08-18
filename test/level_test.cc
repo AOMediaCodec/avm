@@ -24,11 +24,7 @@ namespace {
 const int kLevelMin = 0;
 const int kLevelMax = 31;
 const int kLevelKeepStats = 24;
-#if CONFIG_NEW_OBU_HEADER
-const int kOperatingPointMax = 63;
-#else
 const int kOperatingPointMax = 31;
-#endif  // CONFIG_NEW_OBU_HEADER
 // Speed settings tested
 static const int kCpuUsedVectors[] = {
   2,
