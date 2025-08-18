@@ -3298,7 +3298,7 @@ static AOM_INLINE void try_tx_block_no_split(
       x->coeff_costs.coeff_costs[txs_ctx][PLANE_TYPE_Y]
           .txb_skip_cost[pred_mode_ctx][txb_ctx.txb_skip_ctx][1];
   rd_stats->zero_rate = zero_blk_rate;
-    tx_type_rd(cpi, x, tx_size, blk_row, blk_col, block, plane_bsize, &txb_ctx,
+  tx_type_rd(cpi, x, tx_size, blk_row, blk_col, block, plane_bsize, &txb_ctx,
              rd_stats, ftxs_mode, ref_best_rd,
              rd_info_node ? rd_info_node->rd_info_array : NULL);
   assert(rd_stats->rate < INT_MAX);

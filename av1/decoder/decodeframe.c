@@ -2912,7 +2912,7 @@ static void read_wienerns_framefilters(AV1_COMMON *cm, MACROBLOCKD *xd,
   }
   const WienernsFilterParameters *nsfilter_params =
       get_wienerns_parameters(base_qindex, is_uv);
-  const int (*wienerns_coeffs)[WIENERNS_COEFCFG_LEN] = nsfilter_params->coeffs;
+  const int(*wienerns_coeffs)[WIENERNS_COEFCFG_LEN] = nsfilter_params->coeffs;
   WienerNonsepInfoBank bank = { 0 };
   bank.filter[0].num_classes = num_classes;
   for (int c_id = 0; c_id < num_classes; ++c_id) {
@@ -3012,7 +3012,7 @@ static void read_wienerns_filter(MACROBLOCKD *xd, int is_uv,
   }
   const WienernsFilterParameters *nsfilter_params =
       get_wienerns_parameters(xd->current_base_qindex, is_uv);
-  const int (*wienerns_coeffs)[WIENERNS_COEFCFG_LEN] = nsfilter_params->coeffs;
+  const int(*wienerns_coeffs)[WIENERNS_COEFCFG_LEN] = nsfilter_params->coeffs;
   for (int c_id = 0; c_id < num_classes; ++c_id) {
     if (skip_filter_read_for_class[c_id]) {
       copy_nsfilter_taps_for_class(
