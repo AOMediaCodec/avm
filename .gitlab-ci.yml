@@ -10,7 +10,7 @@ stages:
   - test
   - report
 
-image: registry.gitlab.com/aomediacodec/aom-testing/ubuntu2404:20250715040929
+image: registry.gitlab.com/aomediacodec/aom-testing/ubuntu2404:20250820001241
 
 variables:
   GET_SOURCES_ATTEMPTS: 3
