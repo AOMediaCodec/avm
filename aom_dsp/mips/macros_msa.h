@@ -614,14 +614,10 @@
   }
 #define AVER_UB2_UB(...) AVER_UB2(v16u8, __VA_ARGS__)
 
-/* clang-format off */
 #define AVER_UB4(RTYPE, in0, in1, in2, in3, in4, in5, in6, in7, out0, out1, \
                  out2, out3)                                                \
-  {                                                                         \
-    AVER_UB2(RTYPE, in0, in1, in2, in3, out0, out1)                         \
-    AVER_UB2(RTYPE, in4, in5, in6, in7, out2, out3)                         \
-  }
-/* clang-format on */
+  { AVER_UB2(RTYPE, in0, in1, in2, in3, out0, out1)                         \
+        AVER_UB2(RTYPE, in4, in5, in6, in7, out2, out3) }
 
 #define AVER_UB4_UB(...) AVER_UB4(v16u8, __VA_ARGS__)
 
@@ -1574,13 +1570,8 @@
     in1 = (RTYPE)__msa_srar_w((v4i32)in1, (v4i32)shift); \
   }
 
-/* clang-format off */
 #define SRAR_W4(RTYPE, in0, in1, in2, in3, shift) \
-  {                                               \
-    SRAR_W2(RTYPE, in0, in1, shift)               \
-    SRAR_W2(RTYPE, in2, in3, shift)               \
-  }
-/* clang-format on */
+  { SRAR_W2(RTYPE, in0, in1, shift) SRAR_W2(RTYPE, in2, in3, shift) }
 
 #define SRAR_W4_SW(...) SRAR_W4(v4i32, __VA_ARGS__)
 
