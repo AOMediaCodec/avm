@@ -32,114 +32,83 @@
 #define AOM_WIENERNS_COEFF(p, b, m, k) \
   { (b) + (p) - 6, (m) * (1 << ((p) - 6)), k }
 
-#define AOM_MAKE_WIENERNS_CONFIG(prec, config, coeff, asym, subset_cfg)          \
-  {                                                                              \
-    { (prec), sizeof(config) / sizeof(config[0]), 0, (config), NULL, 0, 0, asym, \
-      0 },                                                                       \
-        sizeof(coeff) / sizeof(coeff[0]), (coeff),                               \
-        sizeof(subset_cfg) / sizeof(subset_cfg[0]), (subset_cfg)                 \
-  }
+#define AOM_MAKE_WIENERNS_CONFIG(prec, config, coeff, asym, subset_cfg)    \
+  { { (prec), sizeof(config) / sizeof(config[0]), 0, (config), NULL, 0, 0, \
+      asym, 0 },                                                           \
+    sizeof(coeff) / sizeof(coeff[0]),                                      \
+    (coeff),                                                               \
+    sizeof(subset_cfg) / sizeof(subset_cfg[0]),                            \
+    (subset_cfg) }
 
-#define AOM_MAKE_WIENERNS_SYM_CONFIG(prec, config, coeff, subset_cfg)           \
-  {                                                                             \
-    {                                                                           \
-      (prec), sizeof(config) / sizeof(config[0]), 0, (config), NULL, 0, 0, 0, 0 \
-    },                                                                          \
-        sizeof(coeff) / sizeof(coeff[0]), (coeff),                              \
-        sizeof(subset_cfg) / sizeof(subset_cfg[0]), (subset_cfg)                \
-  }
+#define AOM_MAKE_WIENERNS_SYM_CONFIG(prec, config, coeff, subset_cfg)         \
+  { { (prec), sizeof(config) / sizeof(config[0]), 0, (config), NULL, 0, 0, 0, \
+      0 },                                                                    \
+    sizeof(coeff) / sizeof(coeff[0]),                                         \
+    (coeff),                                                                  \
+    sizeof(subset_cfg) / sizeof(subset_cfg[0]),                               \
+    (subset_cfg) }
 
 #define AOM_MAKE_WIENERNS_CONFIG2(prec, config, config2, coeff, asym, asym2, \
                                   subset_cfg)                                \
-  {                                                                          \
-    { (prec),                                                                \
-      sizeof(config) / sizeof(config[0]),                                    \
-      sizeof(config2) / sizeof(config2[0]),                                  \
-      (config),                                                              \
-      (config2),                                                             \
-      0,                                                                     \
-      0,                                                                     \
-      asym,                                                                  \
+  { { (prec), sizeof(config) / sizeof(config[0]),                            \
+      sizeof(config2) / sizeof(config2[0]), (config), (config2), 0, 0, asym, \
       asym2 },                                                               \
-        sizeof(coeff) / sizeof(coeff[0]), (coeff),                           \
-        sizeof(subset_cfg) / sizeof(subset_cfg[0]), (subset_cfg)             \
-  }
+    sizeof(coeff) / sizeof(coeff[0]),                                        \
+    (coeff),                                                                 \
+    sizeof(subset_cfg) / sizeof(subset_cfg[0]),                              \
+    (subset_cfg) }
 
-#define AOM_MAKE_WIENERNS_SYMASYM_CONFIG2(prec, config, config2, coeff, \
-                                          subset_cfg)                   \
-  {                                                                     \
-    { (prec),                                                           \
-      sizeof(config) / sizeof(config[0]),                               \
-      sizeof(config2) / sizeof(config2[0]),                             \
-      (config),                                                         \
-      (config2),                                                        \
-      0,                                                                \
-      0,                                                                \
-      0,                                                                \
-      sizeof(config2) / sizeof(config2[0]) - 1 },                       \
-        sizeof(coeff) / sizeof(coeff[0]), (coeff),                      \
-        sizeof(subset_cfg) / sizeof(subset_cfg[0]), (subset_cfg)        \
-  }
+#define AOM_MAKE_WIENERNS_SYMASYM_CONFIG2(prec, config, config2, coeff,   \
+                                          subset_cfg)                     \
+  { { (prec), sizeof(config) / sizeof(config[0]),                         \
+      sizeof(config2) / sizeof(config2[0]), (config), (config2), 0, 0, 0, \
+      sizeof(config2) / sizeof(config2[0]) - 1 },                         \
+    sizeof(coeff) / sizeof(coeff[0]),                                     \
+    (coeff),                                                              \
+    sizeof(subset_cfg) / sizeof(subset_cfg[0]),                           \
+    (subset_cfg) }
 
 // Make subtract-center config from non-subtract-center config
 // Assumes that the non-subtract center config only has the origin added at
 // the end
-#define AOM_MAKE_WIENERNS_SC_CONFIG(prec, config, coeff, asym, subset_cfg) \
-  {                                                                        \
-    { (prec), sizeof(config) / sizeof(config[0]) - 1,                      \
-      0,      (config),                                                    \
-      NULL,   0,                                                           \
-      1,      asym,                                                        \
-      0 },                                                                 \
-        sizeof(coeff) / sizeof(coeff[0]), (coeff),                         \
-        sizeof(subset_cfg) / sizeof(subset_cfg[0]), (subset_cfg)           \
-  }
+#define AOM_MAKE_WIENERNS_SC_CONFIG(prec, config, coeff, asym, subset_cfg)     \
+  { { (prec), sizeof(config) / sizeof(config[0]) - 1, 0, (config), NULL, 0, 1, \
+      asym, 0 },                                                               \
+    sizeof(coeff) / sizeof(coeff[0]),                                          \
+    (coeff),                                                                   \
+    sizeof(subset_cfg) / sizeof(subset_cfg[0]),                                \
+    (subset_cfg) }
 
-#define AOM_MAKE_WIENERNS_SC_SYM_CONFIG(prec, config, coeff, subset_cfg) \
-  {                                                                      \
-    { (prec), sizeof(config) / sizeof(config[0]) - 1,                    \
-      0,      (config),                                                  \
-      NULL,   0,                                                         \
-      1,      0,                                                         \
-      0 },                                                               \
-        sizeof(coeff) / sizeof(coeff[0]), (coeff),                       \
-        sizeof(subset_cfg) / sizeof(subset_cfg[0]), (subset_cfg)         \
-  }
+#define AOM_MAKE_WIENERNS_SC_SYM_CONFIG(prec, config, coeff, subset_cfg)       \
+  { { (prec), sizeof(config) / sizeof(config[0]) - 1, 0, (config), NULL, 0, 1, \
+      0, 0 },                                                                  \
+    sizeof(coeff) / sizeof(coeff[0]),                                          \
+    (coeff),                                                                   \
+    sizeof(subset_cfg) / sizeof(subset_cfg[0]),                                \
+    (subset_cfg) }
 
 // Make subtract-center config from non-subtract-center config
 // Assumes that the non-subtract center config has the origin added at
 // the end
-#define AOM_MAKE_WIENERNS_SC_CONFIG2(prec, config, config2, coeff, asym, \
-                                     asym2, subset_cfg)                  \
-  {                                                                      \
-    { (prec),                                                            \
-      sizeof(config) / sizeof(config[0]) - 1,                            \
-      sizeof(config2) / sizeof(config2[0]) - 1,                          \
-      (config),                                                          \
-      (config2),                                                         \
-      0,                                                                 \
-      1,                                                                 \
-      asym,                                                              \
-      asym2 },                                                           \
-        sizeof(coeff) / sizeof(coeff[0]), (coeff),                       \
-        sizeof(subset_cfg) / sizeof(subset_cfg[0]), (subset_cfg)         \
-  }
+#define AOM_MAKE_WIENERNS_SC_CONFIG2(prec, config, config2, coeff, asym,   \
+                                     asym2, subset_cfg)                    \
+  { { (prec), sizeof(config) / sizeof(config[0]) - 1,                      \
+      sizeof(config2) / sizeof(config2[0]) - 1, (config), (config2), 0, 1, \
+      asym, asym2 },                                                       \
+    sizeof(coeff) / sizeof(coeff[0]),                                      \
+    (coeff),                                                               \
+    sizeof(subset_cfg) / sizeof(subset_cfg[0]),                            \
+    (subset_cfg) }
 
-#define AOM_MAKE_WIENERNS_SC_SYMASYM_CONFIG2(prec, config, config2, coeff, \
-                                             subset_cfg)                   \
-  {                                                                        \
-    { (prec),                                                              \
-      sizeof(config) / sizeof(config[0]) - 1,                              \
-      sizeof(config2) / sizeof(config2[0]) - 1,                            \
-      (config),                                                            \
-      (config2),                                                           \
-      0,                                                                   \
-      1,                                                                   \
-      0,                                                                   \
-      sizeof(config2) / sizeof(config2[0]) - 1 },                          \
-        sizeof(coeff) / sizeof(coeff[0]), (coeff),                         \
-        sizeof(subset_cfg) / sizeof(subset_cfg[0]), (subset_cfg)           \
-  }
+#define AOM_MAKE_WIENERNS_SC_SYMASYM_CONFIG2(prec, config, config2, coeff,    \
+                                             subset_cfg)                      \
+  { { (prec), sizeof(config) / sizeof(config[0]) - 1,                         \
+      sizeof(config2) / sizeof(config2[0]) - 1, (config), (config2), 0, 1, 0, \
+      sizeof(config2) / sizeof(config2[0]) - 1 },                             \
+    sizeof(coeff) / sizeof(coeff[0]),                                         \
+    (coeff),                                                                  \
+    sizeof(subset_cfg) / sizeof(subset_cfg[0]),                               \
+    (subset_cfg) }
 ///////////////////////////////////////////////////////////////////////////
 // First filter configuration
 ///////////////////////////////////////////////////////////////////////////
