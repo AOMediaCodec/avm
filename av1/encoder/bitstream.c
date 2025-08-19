@@ -6304,7 +6304,8 @@ static AOM_INLINE void write_uncompressed_header_obu(
       const int order_hint_bits =
           seq_params->order_hint_info.order_hint_bits_minus_1 + 1;
       aom_wb_write_literal(wb, current_frame->order_hint, order_hint_bits);
-      if (features->error_resilient_mode)
+      if (features->error_resilient_mode &&
+          current_frame->frame_type != KEY_FRAME)
         aom_wb_write_uvlc(wb,
                           current_frame->display_order_hint >> order_hint_bits);
 #else
