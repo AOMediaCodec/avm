@@ -124,7 +124,7 @@ void av1_alloc_restoration_boundary_buffers(struct AV1Common *cm,
 #else
   tile_rect = av1_whole_frame_rect(cm, 0);
   const int tile_h = tile_rect.bottom - tile_rect.top;
-  num_stripes = av1_lr_count_stripes_in_tile(tile_h, ss_y);
+  num_stripes = av1_lr_count_stripes_in_tile(tile_h, 0);
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   // int num_stripes = cm->rst_info[0].vert_stripes_per_frame;
 
