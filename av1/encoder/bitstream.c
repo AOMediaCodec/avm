@@ -2980,7 +2980,8 @@ static AOM_INLINE void write_tokens_b(AV1_COMP *cpi, aom_writer *w,
 #if CONFIG_CHROMA_LARGE_TX
           const int ss_x = xd->plane[plane].subsampling_x;
           const int ss_y = xd->plane[plane].subsampling_y;
-          if (skip_parsing_recon(row, col, ss_x, ss_y)) {
+          const bool lossless = xd->lossless[mbmi->segment_id];
+          if (skip_parsing_recon(row, col, ss_x, ss_y, lossless)) {
             continue;
           }
 #endif  // CONFIG_CHROMA_LARGE_TX

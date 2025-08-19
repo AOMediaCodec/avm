@@ -1208,9 +1208,7 @@ static void encode_block_inter(int plane, int block, int blk_row, int blk_col,
 void av1_foreach_transformed_block_in_plane(
     const MACROBLOCKD *const xd, BLOCK_SIZE plane_bsize, int plane,
     foreach_transformed_block_visitor visit, void *arg) {
-#if !CONFIG_CHROMA_LARGE_TX
   const struct macroblockd_plane *const pd = &xd->plane[plane];
-#endif  // !CONFIG_CHROMA_LARGE_TX
   // block and transform sizes, in number of 4x4 blocks log 2 ("*_b")
   // 4x4=0, 8x8=2, 16x16=4, 32x32=6, 64x64=8
   // transform size varies per plane, look it up in a common way.
@@ -1225,7 +1223,11 @@ void av1_foreach_transformed_block_in_plane(
   const int max_blocks_wide = max_block_wide(xd, plane_bsize, plane);
   const int max_blocks_high = max_block_high(xd, plane_bsize, plane);
 #if CONFIG_CHROMA_LARGE_TX
-  const BLOCK_SIZE max_unit_bsize = get_plane_block_size(BLOCK_64X64, 0, 0);
+  const MB_MODE_INFO *mbmi = xd->mi[0];
+  const int lossless = xd->lossless[mbmi->segment_id];
+  const BLOCK_SIZE max_unit_bsize =
+      get_plane_block_size(BLOCK_64X64, lossless ? pd->subsampling_x : 0,
+                           lossless ? pd->subsampling_y : 0);
 #else
   const BLOCK_SIZE max_unit_bsize =
       get_plane_block_size(BLOCK_64X64, pd->subsampling_x, pd->subsampling_y);
@@ -1350,7 +1352,10 @@ void av1_encode_sb(const struct AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
     arg.tl = ctx.tl[plane];
 
 #if CONFIG_CHROMA_LARGE_TX
-    const BLOCK_SIZE max_unit_bsize = get_plane_block_size(BLOCK_64X64, 0, 0);
+    const int lossless = xd->lossless[mbmi->segment_id];
+    const BLOCK_SIZE max_unit_bsize =
+        get_plane_block_size(BLOCK_64X64, lossless ? subsampling_x : 0,
+                             lossless ? subsampling_y : 0);
 #else
     const BLOCK_SIZE max_unit_bsize =
         get_plane_block_size(BLOCK_64X64, subsampling_x, subsampling_y);

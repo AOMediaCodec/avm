@@ -1170,9 +1170,10 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
 
 #if CONFIG_CHROMA_LARGE_TX
             const bool lossless = xd->lossless[mbmi->segment_id];
-            const bool need_parsing = !skip_parsing_recon(row, col, ss_x, ss_y);
+            const bool need_parsing =
+                !skip_parsing_recon(row, col, ss_x, ss_y, lossless);
             const bool need_reconstrution =
-                mbmi->uv_mode != UV_CFL_PRED
+                mbmi->uv_mode != UV_CFL_PRED || lossless
                     ? need_parsing
                     : !((row + mu_blocks_high < max_blocks_high) ||
                         (col + mu_blocks_wide < max_blocks_wide));
@@ -1315,10 +1316,11 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
             // with four 64x64 luma TUs, the parsing and reconstruction of the
             // first 64x64 chroma TU is done once for the first 64x64 luma TU
             // and skipped for the remaining three 64x64 TUs.
-            if (skip_parsing_recon(row, col, ss_x, ss_y)) {
+            const bool lossless = xd->lossless[mbmi->segment_id];
+            if (skip_parsing_recon(row, col, ss_x, ss_y, lossless)) {
               continue;
             }
-#endif
+#endif  // CONFIG_CHROMA_LARGE_TX
 
             for (int blk_row = row >> ss_y; blk_row < plane_unit_height;
                  blk_row += bh_var_tx) {

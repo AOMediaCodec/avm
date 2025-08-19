@@ -1565,7 +1565,8 @@ void av1_write_intra_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x,
               get_plane_tx_unit_width(xd, plane_bsize, plane, col, ss_x);
 
 #if CONFIG_CHROMA_LARGE_TX
-          if (plane != AOM_PLANE_Y &&
+          const bool lossless = xd->lossless[mbmi->segment_id];
+          if (plane != AOM_PLANE_Y && !lossless &&
               ((ss_x && (col & 16)) || (ss_y && (row & 16)))) {
             continue;
           }

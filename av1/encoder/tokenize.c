@@ -354,7 +354,9 @@ void av1_tokenize_sb_vartx(const AV1_COMP *cpi, ThreadData *td,
         tx_size_wide_unit[max_tx_size] * tx_size_high_unit[max_tx_size];
 
 #if CONFIG_CHROMA_LARGE_TX
-    const BLOCK_SIZE max_unit_bsize = get_plane_block_size(BLOCK_64X64, 0, 0);
+    const int lossless = xd->lossless[mbmi->segment_id];
+    const BLOCK_SIZE max_unit_bsize = get_plane_block_size(
+        BLOCK_64X64, lossless ? ss_x : 0, lossless ? ss_y : 0);
 #else
     const BLOCK_SIZE max_unit_bsize =
         get_plane_block_size(BLOCK_64X64, ss_x, ss_y);

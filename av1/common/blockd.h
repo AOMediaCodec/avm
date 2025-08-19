@@ -2832,8 +2832,9 @@ static INLINE BLOCK_SIZE get_plane_block_size(BLOCK_SIZE bsize,
 
 #if CONFIG_CHROMA_LARGE_TX
 static INLINE int skip_parsing_recon(int row, int col, int subsampling_x,
-                                     int subsampling_y) {
-  return ((subsampling_x && (col & 16)) || (subsampling_y && (row & 16)));
+                                     int subsampling_y, bool lossless) {
+  return ((subsampling_x && (col & 16)) || (subsampling_y && (row & 16))) &&
+         !lossless;
 }
 #endif  // CONFIG_CHROMA_LARGE_TX
 
@@ -2867,10 +2868,15 @@ static INLINE int max_block_high(const MACROBLOCKD *xd, BLOCK_SIZE bsize,
 static INLINE int get_plane_tx_unit_height(const MACROBLOCKD *xd,
                                            BLOCK_SIZE plane_bsize, int plane,
                                            int row, int ss_y) {
+#if CONFIG_CHROMA_LARGE_TX
+  const MB_MODE_INFO *mbmi = xd->mi[0];
+  const bool lossless = xd->lossless[mbmi->segment_id];
+#endif  // CONFIG_CHROMA_LARGE_TX
   const int max_plane_blocks_high = max_block_high(xd, plane_bsize, plane);
   const int mu_plane_blocks_high =
 #if CONFIG_CHROMA_LARGE_TX
-      AOMMIN(mi_size_high[BLOCK_64X64], max_plane_blocks_high);
+      AOMMIN(mi_size_high[BLOCK_64X64] >> (lossless ? ss_y : 0),
+             max_plane_blocks_high);
 #else
       AOMMIN(mi_size_high[BLOCK_64X64] >> ss_y, max_plane_blocks_high);
 #endif  // CONFIG_CHROMA_LARGE_TX
@@ -2880,10 +2886,15 @@ static INLINE int get_plane_tx_unit_height(const MACROBLOCKD *xd,
 static INLINE int get_plane_tx_unit_width(const MACROBLOCKD *xd,
                                           BLOCK_SIZE plane_bsize, int plane,
                                           int col, int ss_x) {
+#if CONFIG_CHROMA_LARGE_TX
+  const MB_MODE_INFO *mbmi = xd->mi[0];
+  const bool lossless = xd->lossless[mbmi->segment_id];
+#endif  // CONFIG_CHROMA_LARGE_TX
   const int max_plane_blocks_wide = max_block_wide(xd, plane_bsize, plane);
   const int mu_plane_blocks_wide =
 #if CONFIG_CHROMA_LARGE_TX
-      AOMMIN(mi_size_wide[BLOCK_64X64], max_plane_blocks_wide);
+      AOMMIN(mi_size_wide[BLOCK_64X64] >> (lossless ? ss_x : 0),
+             max_plane_blocks_wide);
 #else
       AOMMIN(mi_size_wide[BLOCK_64X64] >> ss_x, max_plane_blocks_wide);
 #endif  // CONFIG_CHROMA_LARGE_TX
