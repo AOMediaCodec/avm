@@ -44,15 +44,17 @@ static void write_md5(void *md5, const uint8_t *buffer, unsigned int size,
 static void write_greyscale(const bool high_bitdepth, int n, WRITER writer_func,
                             void *file_or_md5
 #if CONFIG_CROP_WIN
-                            ,int LeftPosX, int RightPosX, int TopPosY, int BottomPosY
+                            ,
+                            int LeftPosX, int RightPosX, int TopPosY,
+                            int BottomPosY
 #endif  // CONFIG_CROP_WIN
-                            ) {
-  //TODO: @spaluri
+) {
+  // TODO: @spaluri
   const uint8_t *b = batched;
   if (high_bitdepth) {
     b = batched_hbd;
   }
-  
+
   const int num_batched_writes =
       high_bitdepth ? n / (BATCH_SIZE / 2) : n / BATCH_SIZE;
   for (int i = 0; i < num_batched_writes; ++i) {
@@ -94,15 +96,17 @@ static void raw_write_image_file_or_md5(const aom_image_t *img,
       w = aom_img_plane_width(img, plane);
       h = aom_img_plane_height(img, plane);
 
-     LeftPosX = (int)((img->w_conf_win_left_offset * w) / MaxFrameWidth);
-     RightPosX = (int)(w - 1 -((img->w_conf_win_right_offset * w) / MaxFrameWidth));
-     TopPosY = (int)((img->w_conf_win_top_offset * h) / MaxFrameHeight);
-     BottomPosY = (int)(h - 1 -((img->w_conf_win_bottom_offset * h) / MaxFrameHeight));
-     crop_width = RightPosX - LeftPosX + 1;
-     crop_height = BottomPosY - TopPosY + 1;
-    } else { // !img->w_confWinEnabledFlag
-       w = aom_img_plane_width(img, plane);
-       h = aom_img_plane_height(img, plane);
+      LeftPosX = (int)((img->w_conf_win_left_offset * w) / MaxFrameWidth);
+      RightPosX =
+          (int)(w - 1 - ((img->w_conf_win_right_offset * w) / MaxFrameWidth));
+      TopPosY = (int)((img->w_conf_win_top_offset * h) / MaxFrameHeight);
+      BottomPosY =
+          (int)(h - 1 - ((img->w_conf_win_bottom_offset * h) / MaxFrameHeight));
+      crop_width = RightPosX - LeftPosX + 1;
+      crop_height = BottomPosY - TopPosY + 1;
+    } else {  // !img->w_confWinEnabledFlag
+      w = aom_img_plane_width(img, plane);
+      h = aom_img_plane_height(img, plane);
     }
 #else
     const int w = aom_img_plane_width(img, plane);
@@ -113,9 +117,11 @@ static void raw_write_image_file_or_md5(const aom_image_t *img,
     if (img->monochrome && plane != AOM_PLANE_Y) {
 #if CONFIG_CROP_WIN
       if (img->w_conf_win_enabled_flag == 1) {
-        write_greyscale(high_bitdepth, w * h, writer_func, file_or_md5, LeftPosX, RightPosX, TopPosY, BottomPosY);
+        write_greyscale(high_bitdepth, w * h, writer_func, file_or_md5,
+                        LeftPosX, RightPosX, TopPosY, BottomPosY);
       } else
-        write_greyscale(high_bitdepth, w * h, writer_func, file_or_md5, LeftPosX, RightPosX, TopPosY, BottomPosY);
+        write_greyscale(high_bitdepth, w * h, writer_func, file_or_md5,
+                        LeftPosX, RightPosX, TopPosY, BottomPosY);
 #else
       write_greyscale(high_bitdepth, w * h, writer_func, file_or_md5);
 #endif  // CONFIG_CROP_WIN
@@ -131,7 +137,7 @@ static void raw_write_image_file_or_md5(const aom_image_t *img,
         for (int y = 0; y < h; ++y) {
           uint16_t *buf16 = (uint16_t *)buf;
           if (y >= TopPosY && y <= BottomPosY) {
-            for (int x = 0; x < w; ++x){
+            for (int x = 0; x < w; ++x) {
               if (x >= LeftPosX && x <= RightPosX) {
                 buf8[x] = buf16[x] & 0xff;
               }
@@ -160,7 +166,6 @@ static void raw_write_image_file_or_md5(const aom_image_t *img,
       for (int y = 0; y < h; ++y) {
         uint16_t *buf16 = (uint16_t *)buf;
         for (int x = 0; x < w; ++x) {
-          
           buf8[x] = buf16[x] & 0xff;
         }
         writer_func(file_or_md5, buf8, 1, w);
@@ -174,7 +179,7 @@ static void raw_write_image_file_or_md5(const aom_image_t *img,
         uint8_t *buf8 = (uint8_t *)malloc(sizeof(*buf8) * w);
         for (int y = 0; y < h; ++y) {
           if (y >= TopPosY && y <= BottomPosY) {
-            for (int x = 0; x < w; ++x){
+            for (int x = 0; x < w; ++x) {
               if (x >= LeftPosX && x <= RightPosX) {
                 buf8[x] = buf[x];
               }

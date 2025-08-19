@@ -453,7 +453,7 @@ void aom_shift_img(unsigned int output_bit_depth, aom_image_t **img_ptr,
       img_shifted->w_conf_win_bottom_offset = 0;
     }
     img_shifted->max_width = img->d_w;
-    img_shifted->max_height = img->d_h; // does this change during rpr
+    img_shifted->max_height = img->d_h;  // does this change during rpr
     img_shifted->x_chroma_shift = img->x_chroma_shift;
     img_shifted->y_chroma_shift = img->y_chroma_shift;
 #endif  // CONFIG_CROP_WIN

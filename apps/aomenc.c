@@ -763,7 +763,7 @@ static void init_config(cfg_options_t *config) {
 #if CLI_OPTION
   config->enable_cropping_window = 0;
 #endif  // CLI_OPTION
-  
+
 #if CONFIG_DRL_REORDER_CONTROL
   config->enable_drl_reorder = 1;
 #endif  // CONFIG_DRL_REORDER_CONTROL

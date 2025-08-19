@@ -238,11 +238,9 @@ set_aom_config_var(
 )
 
 # Cropping Window
-set_aom_config_var(CONFIG_CROP_WIN 1
-                   "Cropping Window")
+set_aom_config_var(CONFIG_CROP_WIN 1 "Cropping Window")
 
-set_aom_config_var(CLI_OPTION 1
-                   "Adding cli fo enable cropping")
+set_aom_config_var(CLI_OPTION 1 "Adding cli fo enable cropping")
 
 # CWG-D178
 set_aom_config_var(CONFIG_LOSSLESS_DPCM 1

@@ -833,7 +833,7 @@ enum aome_enc_control_id {
    */
   AV1E_SET_ENABLE_CROPPING_WINDOW = 82,
 #else
-  /* Note: enum value 82 unused */
+/* Note: enum value 82 unused */
 #endif  // CLI_OPTION
 
   /* Note: enum value 83 unused */
