@@ -2029,7 +2029,7 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
   if (cm->seq_params.enable_ccso && xd->tree_type != CHROMA_PART)
     read_ccso(cm, r, xd);
 
-  read_delta_q_params(cm, xd, r);
+  if (xd->tree_type != CHROMA_PART) read_delta_q_params(cm, xd, r);
 
   mbmi->current_qindex = xd->current_base_qindex;
 
@@ -4173,7 +4173,7 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
   if (cm->seq_params.enable_ccso && xd->tree_type != CHROMA_PART)
     read_ccso(cm, r, xd);
 
-  read_delta_q_params(cm, xd, r);
+  if (xd->tree_type != CHROMA_PART) read_delta_q_params(cm, xd, r);
 
   mbmi->current_qindex = xd->current_base_qindex;
 

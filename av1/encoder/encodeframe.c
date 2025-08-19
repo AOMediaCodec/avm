@@ -492,7 +492,7 @@ static INLINE void init_encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
   x->sb_energy_level = 0;
   x->part_search_info.cnn_output_valid = 0;
   if (gather_tpl_data) {
-    if (cm->delta_q_info.delta_q_present_flag) {
+    if (cm->delta_q_info.delta_q_present_flag && xd->tree_type != CHROMA_PART) {
       const int num_planes = av1_num_planes(cm);
       const BLOCK_SIZE sb_size = cm->sb_size;
       setup_delta_q(cpi, td, x, tile_info, mi_row, mi_col, num_planes);

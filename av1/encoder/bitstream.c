@@ -2231,7 +2231,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
   if (cm->seq_params.enable_ccso && xd->tree_type != CHROMA_PART)
     write_ccso(cm, xd, w);
 
-  write_delta_q_params(cpi, skip, w);
+  if (xd->tree_type != CHROMA_PART) write_delta_q_params(cpi, skip, w);
 
   assert(IMPLIES(mbmi->refinemv_flag,
                  mbmi->skip_mode ? is_refinemv_allowed_skip_mode(cm, mbmi)
@@ -2769,7 +2769,7 @@ static AOM_INLINE void write_mb_modes_kf(
   if (cm->seq_params.enable_ccso && xd->tree_type != CHROMA_PART)
     write_ccso(cm, xd, w);
 
-  write_delta_q_params(cpi, skip, w);
+  if (xd->tree_type != CHROMA_PART) write_delta_q_params(cpi, skip, w);
   if (av1_allow_intrabc(cm, xd, mbmi->sb_type[xd->tree_type == CHROMA_PART]) &&
       xd->tree_type != CHROMA_PART) {
     write_intrabc_info(cm->features.max_bvp_drl_bits, cm, xd, mbmi_ext_frame,
