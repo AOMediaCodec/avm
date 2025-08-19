@@ -170,27 +170,17 @@ static void cfl_compute_parameters_alt(CFL_CTX *const cfl, TX_SIZE tx_size) {
   cfl->are_parameters_computed = 1;
 }
 
-static void get_top_bottom_offsets(
-#if CONFIG_CFL_SIMPLIFICATION
-    int is_top_sb_boundary,
-#endif  // CONFIG_CFL_SIMPLIFICATION
-    int *top_offset, int *bottom_offset) {
-#if CONFIG_CFL_SIMPLIFICATION
+static void get_top_bottom_offsets(int is_top_sb_boundary, int *top_offset,
+                                   int *bottom_offset) {
   // If this is the above super block boundary, use only the above line and
   // repeated it. This can be done by changing the offset.
   *top_offset = 2 - is_top_sb_boundary;
   *bottom_offset = 1 - is_top_sb_boundary;
-#else
-  *top_offset = 2;
-  *bottom_offset = 1;
-#endif  // CONFIG_CFL_SIMPLIFICATION
 }
 
 void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
                                       MACROBLOCKD *const xd, int row, int col,
-#if CONFIG_CFL_SIMPLIFICATION
                                       int is_top_sb_boundary,
-#endif  // CONFIG_CFL_SIMPLIFICATION
 #if CONFIG_CHROMA_LARGE_TX
                                       int width, int height
 #else
@@ -232,11 +222,7 @@ void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
     int top_offset = 0;  // In the case filter_type is 2, top_offset points to
                          // the middle reference line
     int bottom_offset = 0;
-#if CONFIG_CFL_SIMPLIFICATION
     get_top_bottom_offsets(is_top_sb_boundary, &top_offset, &bottom_offset);
-#else
-    get_top_bottom_offsets(&top_offset, &bottom_offset);
-#endif  // CONFIG_CFL_SIMPLIFICATION
 
     if (sub_x && sub_y) {
       uint16_t *input = dst - top_offset * input_stride;
@@ -248,14 +234,10 @@ void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
                               input[i + 1] + input[bot + AOMMAX(-1, -i)] +
                               2 * input[bot] + input[bot + 1];
         } else if (filter_type == 2) {
-#if CONFIG_CFL_SIMPLIFICATION
           const int top =
               i - (is_top_sb_boundary ? 0 : 1) *
                       input_stride;  // If this is the top sb boundary, the top
                                      // index points to the current sample
-#else
-          const int top = i - input_stride;
-#endif  // CONFIG_CFL_SIMPLIFICATION
           output_q3[i >> 1] = input[AOMMAX(0, i - 1)] + 4 * input[i] +
                               input[i + 1] + input[top] + input[bot];
         } else {
@@ -525,7 +507,6 @@ void cfl_derive_implicit_scaling_factor(MACROBLOCKD *const xd, int plane,
   int have_top = 0, have_left = 0;
   set_have_top_and_left(&have_top, &have_left, xd, row, col, plane);
 
-#if CONFIG_CFL_SIMPLIFICATION
   // Distribute number of reference samples above and left based on the width,
   // height and the availability of the above and left. If only one side is
   // available, the number is distributed to the avalable reference side. Else,
@@ -553,13 +534,12 @@ void cfl_derive_implicit_scaling_factor(MACROBLOCKD *const xd, int plane,
   }
   numb_up = (numb_up > width) ? width : numb_up;
   numb_left = (numb_left > height) ? height : numb_left;
-#endif  // CONFIG_CFL_SIMPLIFICATION
 
   int count = 0;
   int sum_x = 0, sum_y = 0, sum_xy = 0, sum_xx = 0;
 
   uint16_t *l, *c;
-#if CONFIG_CFL_SIMPLIFICATION
+
   if (numb_up > 0) {
     l = cfl->recon_yuv_buf_above[0];
     c = cfl->recon_yuv_buf_above[plane];
@@ -591,33 +571,7 @@ void cfl_derive_implicit_scaling_factor(MACROBLOCKD *const xd, int plane,
       ++count;
     }
   }
-#else
-  if (have_top) {
-    l = cfl->recon_yuv_buf_above[0];
-    c = cfl->recon_yuv_buf_above[plane];
 
-    for (int i = 0; i < width; ++i) {
-      sum_x += l[i] >> 3;
-      sum_y += c[i];
-      sum_xy += (l[i] >> 3) * c[i];
-      sum_xx += (l[i] >> 3) * (l[i] >> 3);
-    }
-    count += width;
-  }
-
-  if (have_left) {
-    l = cfl->recon_yuv_buf_left[0];
-    c = cfl->recon_yuv_buf_left[plane];
-
-    for (int i = 0; i < height; ++i) {
-      sum_x += l[i] >> 3;
-      sum_y += c[i];
-      sum_xy += (l[i] >> 3) * c[i];
-      sum_xx += (l[i] >> 3) * (l[i] >> 3);
-    }
-    count += height;
-  }
-#endif  // CONFIG_CFL_SIMPLIFICATION
   const int shift = 3 + CFL_ADD_BITS_ALPHA;
   mbmi->cfl_implicit_alpha[plane - 1] = derive_linear_parameters_alpha(
       sum_x, sum_y, sum_xx, sum_xy, count, shift);
@@ -901,9 +855,7 @@ void cfl_store(MACROBLOCKD *const xd, CFL_CTX *cfl, const uint16_t *input,
     if (sub_x && sub_y)
       cfl_luma_subsampling_420_hbd_121_c(input, input_stride, recon_buf_q3,
                                          width, height);
-    else
-#if CONFIG_CFL_64x64
-    {
+    else {
       if (AOMMAX(width, height) > 32)
         cfl_luma_subsampling_420_hbd_c(input, input_stride, recon_buf_q3, width,
                                        height);
@@ -911,17 +863,11 @@ void cfl_store(MACROBLOCKD *const xd, CFL_CTX *cfl, const uint16_t *input,
         cfl_subsampling_hbd(tx_size, sub_x, sub_y)(input, input_stride,
                                                    recon_buf_q3);
     }
-#else
-      cfl_subsampling_hbd(tx_size, sub_x, sub_y)(input, input_stride,
-                                                 recon_buf_q3);
-#endif  // CONFIG_CFL_64x64
   } else if (filter_type == 2) {
     if (sub_x && sub_y)
       cfl_luma_subsampling_420_hbd_colocated(input, input_stride, recon_buf_q3,
                                              width, height);
-    else
-#if CONFIG_CFL_64x64
-    {
+    else {
       if (AOMMAX(width, height) > 32)
         cfl_luma_subsampling_420_hbd_c(input, input_stride, recon_buf_q3, width,
                                        height);
@@ -929,12 +875,7 @@ void cfl_store(MACROBLOCKD *const xd, CFL_CTX *cfl, const uint16_t *input,
         cfl_subsampling_hbd(tx_size, sub_x, sub_y)(input, input_stride,
                                                    recon_buf_q3);
     }
-#else
-      cfl_subsampling_hbd(tx_size, sub_x, sub_y)(input, input_stride,
-                                                 recon_buf_q3);
-#endif  // CONFIG_CFL_64x64
   } else {
-#if CONFIG_CFL_64x64
     {
       if (AOMMAX(width, height) > 32)
         cfl_luma_subsampling_420_hbd_c(input, input_stride, recon_buf_q3, width,
@@ -943,10 +884,6 @@ void cfl_store(MACROBLOCKD *const xd, CFL_CTX *cfl, const uint16_t *input,
         cfl_subsampling_hbd(tx_size, sub_x, sub_y)(input, input_stride,
                                                    recon_buf_q3);
     }
-#else
-    cfl_subsampling_hbd(tx_size, sub_x, sub_y)(input, input_stride,
-                                               recon_buf_q3);
-#endif  // CONFIG_CFL_64x64
   }
 }
 

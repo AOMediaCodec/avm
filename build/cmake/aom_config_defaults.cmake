@@ -307,13 +307,6 @@ set_aom_config_var(CONFIG_WRL_CORNER_MVS 1
 set_aom_config_var(CONFIG_WARPMV_WARP_CAUSAL_REMOVAL 1
                    "Remove the WARP_CAUSAL in WARPMV")
 
-set_aom_config_var(CONFIG_IMPROVED_CFL 1
-                   "Enable improved CfL mode from CWG-C044")
-set_aom_config_var(
-  CONFIG_CFL_64x64 1
-  "Enable cross-component prediction modes up to luma size 64x64")
-set_aom_config_var(CONFIG_CFL_SIMPLIFICATION 1 "Fix issues of CfL")
-
 set_aom_config_var(CONFIG_BLENDING_SIMPLIFICATION 1
                    "CWG F137 simplification for blending mode")
 set_aom_config_var(CONFIG_DIV_LUT_SIMP 1 "Simplification on div_lut")

@@ -83,9 +83,7 @@ extern "C" {
 #define USE_TUNED_ADST8 1
 #define USE_TUNED_ADST16 1
 
-#if CONFIG_CFL_SIMPLIFICATION
 #define NUM_REF_SAM_CFL 8
-#endif  // CONFIG_CFL_SIMPLIFICATION
 
 #define DEFAULT_IMP_MSK_WT 0  // default implict masked blending weight
 

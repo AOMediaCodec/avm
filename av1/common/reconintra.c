@@ -2015,29 +2015,24 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
     const int sub_y = cfl->subsampling_y;
     int above_lines = 0, left_lines = 0, ref_width = 0, ref_height = 0;
     {
-#if CONFIG_CFL_SIMPLIFICATION
       const int row_start = ((xd->mi[0]->chroma_ref_info.mi_row_chroma_base +
                               (blk_row << cfl->subsampling_y))
                              << MI_SIZE_LOG2);
       const int sb_height = block_size_high[cm->sb_size];
       const int is_top_sb_boundary = !(row_start % sb_height);
-#endif  // CONFIG_CFL_SIMPLIFICATION
 
 #if MHCCP_RUNTIME_FLAG
       if (mbmi->cfl_idx < CFL_MULTI_PARAM) {
 #else
       if (mbmi->cfl_idx < CFL_MULTI_PARAM_V) {
 #endif  // MHCCP_RUNTIME_FLAG
-        cfl_implicit_fetch_neighbor_luma(cm, xd, blk_row << cfl->subsampling_y,
-                                         blk_col << cfl->subsampling_x,
-#if CONFIG_CFL_SIMPLIFICATION
-                                         is_top_sb_boundary,
-#endif  // CONFIG_CFL_SIMPLIFICATION
+        cfl_implicit_fetch_neighbor_luma(
+            cm, xd, blk_row << cfl->subsampling_y,
+            blk_col << cfl->subsampling_x, is_top_sb_boundary,
 #if CONFIG_CHROMA_LARGE_TX
-                                         block_size_wide[chroma_bsize],
-                                         block_size_high[chroma_bsize]
+            block_size_wide[chroma_bsize], block_size_high[chroma_bsize]
 #else
-                                         chroma_tx_size
+            chroma_tx_size
 #endif  // CONFIG_CHROMA_LARGE_TX
         );
         cfl_calc_luma_dc(xd, blk_row, blk_col, tx_size);

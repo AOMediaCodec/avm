@@ -2177,11 +2177,7 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
           if (mbmi->cfl_idx == CFL_MULTI_PARAM_V) {
 #endif  // MHCCP_RUNTIME_FLAG
             const uint8_t mh_size_group = size_group_lookup[bsize];
-#if CONFIG_CFL_64x64
             assert(mh_size_group < MHCCP_CONTEXT_GROUP_SIZE);
-#else
-            assert(mh_size_group < FSC_BSIZE_CONTEXTS);
-#endif  // CONFIG_CFL_64x64
             aom_cdf_prob *mh_dir_cdf = ec_ctx->filter_dir_cdf[mh_size_group];
             mbmi->mh_dir = read_mh_dir(mh_dir_cdf, r);
           }

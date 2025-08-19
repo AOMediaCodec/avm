@@ -1769,12 +1769,9 @@ void copy_nsfilter_taps(WienerNonsepInfo *to_info,
 #if CONFIG_CHROMA_LARGE_TX
 #define CFL_MAX_BLOCK_SIZE (BLOCK_128X128)
 #define CFL_BUF_LINE (128)
-#elif CONFIG_CFL_64x64
+#else
 #define CFL_MAX_BLOCK_SIZE (BLOCK_64X64)
 #define CFL_BUF_LINE (64)
-#else
-#define CFL_MAX_BLOCK_SIZE (BLOCK_32X32)
-#define CFL_BUF_LINE (32)
 #endif  // CONFIG_CHROMA_LARGE_TX
 #define CFL_BUF_LINE_I128 (CFL_BUF_LINE >> 3)
 #define CFL_BUF_LINE_I256 (CFL_BUF_LINE >> 4)
