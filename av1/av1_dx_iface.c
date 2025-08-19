@@ -1127,22 +1127,26 @@ static aom_image_t *decoder_get_frame_(aom_codec_alg_priv_t *ctx,
         img->temporal_id = cm->temporal_layer_id;
         img->spatial_id = cm->spatial_layer_id;
 #if CONFIG_CROP_WIN
-        img->w_conf_win_enabled_flag =  cm->seq_params.conf.conf_win_enabled_flag;
+        img->w_conf_win_enabled_flag =
+            cm->seq_params.conf.conf_win_enabled_flag;
         if (img->w_conf_win_enabled_flag) {
-          img->w_conf_win_left_offset = cm->seq_params.conf.conf_win_left_offset;
-          img->w_conf_win_right_offset = cm->seq_params.conf.conf_win_right_offset;
-          img->w_conf_win_top_offset =  cm->seq_params.conf.conf_win_top_offset;
-          img->w_conf_win_bottom_offset = cm->seq_params.conf.conf_win_bottom_offset;
+          img->w_conf_win_left_offset =
+              cm->seq_params.conf.conf_win_left_offset;
+          img->w_conf_win_right_offset =
+              cm->seq_params.conf.conf_win_right_offset;
+          img->w_conf_win_top_offset = cm->seq_params.conf.conf_win_top_offset;
+          img->w_conf_win_bottom_offset =
+              cm->seq_params.conf.conf_win_bottom_offset;
         } else {
           img->w_conf_win_left_offset = 0;
           img->w_conf_win_right_offset = 0;
           img->w_conf_win_top_offset = 0;
           img->w_conf_win_bottom_offset = 0;
         }
-          img->x_chroma_shift = cm->seq_params.subsampling_x;
-          img->y_chroma_shift = cm->seq_params.subsampling_y;
-          img->max_width= cm->seq_params.max_frame_width;
-          img->max_height = cm->seq_params.max_frame_height;
+        img->x_chroma_shift = cm->seq_params.subsampling_x;
+        img->y_chroma_shift = cm->seq_params.subsampling_y;
+        img->max_width = cm->seq_params.max_frame_width;
+        img->max_height = cm->seq_params.max_frame_height;
 #endif  // CONFIG_CROP_WIN
         if (pbi->skip_film_grain) grain_params->apply_grain = 0;
         aom_image_t *res =

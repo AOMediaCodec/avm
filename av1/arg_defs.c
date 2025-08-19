@@ -530,8 +530,8 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
               "H_ADST, V_FLIPADST, H_FLIPADST"),
 #if CLI_OPTION
   .enable_cropping_window =
-    ARG_DEF(NULL, "enable-cropping-window", 1,
-          "Enable cropping window (0: false, 1: true (default))"),
+      ARG_DEF(NULL, "enable-cropping-window", 1,
+              "Enable cropping window (0: false, 1: true (default))"),
 #endif  // CLI_OPTION
 
   .enable_masked_comp = ARG_DEF(NULL, "enable-masked-comp", 1,

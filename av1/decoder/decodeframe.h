@@ -34,8 +34,8 @@ struct aom_read_bit_buffer;
 struct ThreadData;
 
 #if CONFIG_CROP_WIN
-void read_conformance_window(struct aom_read_bit_buffer *rb, struct SequenceHeader *
-                             seq_params);
+void read_conformance_window(struct aom_read_bit_buffer *rb,
+                             struct SequenceHeader *seq_params);
 #endif  // CONFIG_CROP_WIN
 
 // Reads the middle part of the sequence header OBU (from

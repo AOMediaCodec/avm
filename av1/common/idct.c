@@ -1488,7 +1488,7 @@ static void init_txfm_param(const MACROBLOCKD *xd, int plane, TX_SIZE tx_size,
 #if CONFIG_F105_IST_MEM_REDUCE
             : ((st_size_class == 3) ? IST_ADST_NZ_CNT : IST_8x8_HEIGHT);
 #else
-                                                            : IST_8x8_HEIGHT;
+            : IST_8x8_HEIGHT;
 #endif  // CONFIG_F105_IST_MEM_REDUCE
 #else
     // txfm_param->eob = av1_get_max_eob(tx_size);

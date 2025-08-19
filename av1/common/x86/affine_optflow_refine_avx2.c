@@ -1894,7 +1894,7 @@ void av1_bicubic_grad_interpolation_highbd_avx2(const int16_t *pred_src,
         // s10 s11 s12 s13 s14 s15 s16 s17
         src_prev2 = src_prev;
         // s10 s11 s12 s13 s14 s15 s16 s17
-        src_128_3 = _mm_loadu_si128((__m128i *)(p_src + (col)*8));
+        src_128_3 = _mm_loadu_si128((__m128i *)(p_src + (col) * 8));
         src_prev = _mm256_cvtepi16_epi32(src_128_3);
         // s40 s41 s42 s43 s44 s45 s46 s47
         src_next = src_next2;

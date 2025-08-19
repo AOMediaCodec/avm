@@ -136,7 +136,7 @@ typedef struct yv12_buffer_config {
   int w_win_bottom_offset;
   int max_width;
   int max_height;
-  //struct Window *w_conf;
+  // struct Window *w_conf;
 #endif  // CONFIG_CROP_WIN
   /*!\endcond */
 } YV12_BUFFER_CONFIG;

@@ -5788,9 +5788,8 @@ static AOM_INLINE void write_bitdepth(const SequenceHeader *const seq_params,
 }
 
 #if CONFIG_CROP_WIN
-void write_conformance_window(const SequenceHeader* seq_params,
+void write_conformance_window(const SequenceHeader *seq_params,
                               struct aom_write_bit_buffer *wb) {
-
   const struct Window *conf = &seq_params->conf;
 
   aom_wb_write_bit(wb, conf->conf_win_enabled_flag);

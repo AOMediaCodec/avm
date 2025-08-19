@@ -22,7 +22,7 @@ extern "C" {
 struct aom_write_bit_buffer;
 
 #if CONFIG_CROP_WIN
-void write_conformance_window(const SequenceHeader* seq_params,
+void write_conformance_window(const SequenceHeader *seq_params,
                               struct aom_write_bit_buffer *wb);
 #endif  // CONFIG_CROP_WIN
 

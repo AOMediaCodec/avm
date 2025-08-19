@@ -164,9 +164,9 @@ struct av1_extracfg {
   int enable_tx64;               // enable 64-pt transform usage for sequence
   int enable_flip_idtx;          // enable flip and identity transform types
 #if CLI_OPTION
-  int enable_cropping_window;    // enable cropping window
-#endif  //  CLI_OPTION
-  int max_reference_frames;      // maximum number of references per frame
+  int enable_cropping_window;        // enable cropping window
+#endif                               //  CLI_OPTION
+  int max_reference_frames;          // maximum number of references per frame
   int enable_reduced_reference_set;  // enable reduced set of references
   int explicit_ref_frame_map;     // explicitly signal reference frame mapping
   int enable_frame_output_order;  // enable frame output order derivation based
@@ -525,7 +525,7 @@ static struct av1_extracfg default_extra_cfg = {
   1,    // enable 64-pt transform usage
   1,    // enable flip and identity transform
 #if CLI_OPTION
-  0,     // enable_cropping_window
+  0,    // enable_cropping_window
 #endif  // CLI_OPTION
 
   7,  // max_reference_frames
@@ -2473,10 +2473,11 @@ static aom_codec_err_t ctrl_set_enable_flip_idtx(aom_codec_alg_priv_t *ctx,
 }
 
 #if CLI_OPTION
-static aom_codec_err_t ctrl_set_enable_cropping_window(aom_codec_alg_priv_t *ctx,
-                                                 va_list args) {
+static aom_codec_err_t ctrl_set_enable_cropping_window(
+    aom_codec_alg_priv_t *ctx, va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
-  extra_cfg.enable_cropping_window = CAST(AV1E_SET_ENABLE_CROPPING_WINDOW, args);
+  extra_cfg.enable_cropping_window =
+      CAST(AV1E_SET_ENABLE_CROPPING_WINDOW, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
 #endif  // CLI_OPTION
@@ -4243,7 +4244,8 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                               argv, err_string)) {
 #if CLI_OPTION
     extra_cfg.enable_cropping_window = arg_parse_int_helper(&arg, err_string);
-  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_cropping_window,
+  } else if (arg_match_helper(&arg,
+                              &g_av1_codec_arg_defs.enable_cropping_window,
                               argv, err_string)) {
 #endif  // CLI_OPTION
     extra_cfg.max_reference_frames = arg_parse_int_helper(&arg, err_string);
@@ -4841,8 +4843,8 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         0,  // enable_bru
 #endif      // CONFIG_BRU
 #if CLI_OPTION
-  0, // enable cropping window
-#endif  // CLI_OPTION
+        0,  // enable cropping window
+#endif      // CLI_OPTION
     },      // cfg
 } };
 
