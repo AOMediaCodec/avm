@@ -3613,11 +3613,13 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
     av1_init_inter_params(&inter_pred_params, comp_bw, comp_bh, pre_y, pre_x,
                           pd->subsampling_x, pd->subsampling_y, xd->bd,
                           mi->use_intrabc[0], sf, pre_buf, mi->interp_fltr);
-    const int refinemv_is_allowed = (apply_refinemv || use_optflow_refinement);
+    const int refinemv_is_allowed_y =
+        is_mv_refine_allowed(cm, mi, 0) ||
+        is_optflow_refinement_enabled(cm, xd, mi, 0, tip_ref_frame);
     const int use_ref_padding =
         tip_ref_frame
-            ? (refinemv_is_allowed ||
-               (plane && (comp_bw > 4 || comp_bh > 4) && refinemv_is_allowed))
+            ? ((apply_refinemv || use_optflow_refinement) ||
+               (plane && (comp_bw > 4 || comp_bh > 4) && refinemv_is_allowed_y))
             : 1;
     if (use_ref_padding) {
       inter_pred_params.use_ref_padding = 1;
