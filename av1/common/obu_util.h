@@ -27,9 +27,11 @@ typedef struct {
   size_t size;  // Size (1 or 2 bytes) of the OBU header (including the
                 // optional OBU extension header) in the bitstream.
 #endif  // CONFIG_NEW_OBU_HEADER
-  OBU_TYPE type;
 #if CONFIG_NEW_OBU_HEADER
   int obu_extension_flag;
+#endif  // CONFIG_NEW_OBU_HEADER
+  OBU_TYPE type;
+#if CONFIG_NEW_OBU_HEADER
   int obu_tlayer_id;
   int obu_mlayer_id;  // same as spatial_layer_id in the old design
   int obu_xlayer_id;

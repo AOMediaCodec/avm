@@ -5020,7 +5020,7 @@ int av1_convert_sect5obus_to_annexb(uint8_t *buffer, size_t *frame_size) {
     size_t length_of_payload_size;
     size_t length_of_obu_size;
 #if CONFIG_NEW_OBU_HEADER
-    uint32_t obu_header_size = (buff_ptr[0] >> 3) & 0x1 ? 2 : 1;
+    uint32_t obu_header_size = (buff_ptr[0] >> 7) & 0x1 ? 2 : 1;
 #else
     uint32_t obu_header_size = (buff_ptr[0] >> 2) & 0x1 ? 2 : 1;
 #endif  // CONFIG_NEW_OBU_HEADER

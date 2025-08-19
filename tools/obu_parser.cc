@@ -25,16 +25,16 @@ namespace aom_tools {
 #if CONFIG_NEW_OBU_HEADER
 // Basic OBU syntax
 // 8 bits: Header
-//   7,6,5,4
-//     type bits
-//   3
+//   7
 //     extension flag bit
+//   6,5,4,3
+//     type bits
 //   2,1,0
 //     tlayer ID
-const uint32_t kObuTypeBitsMask = 0xF;
-const uint32_t kObuTypeBitsShift = 4;
 const uint32_t kObuExtensionFlagBitMask = 0x1;
-const uint32_t kObuExtensionFlagBitShift = 3;
+const uint32_t kObuExtensionFlagBitShift = 7;
+const uint32_t kObuTypeBitsMask = 0xF;
+const uint32_t kObuTypeBitsShift = 3;
 const uint32_t kObuExtTlayerIdBitsMask = 0x7;
 const uint32_t kObuExtTlayerIdBitsShift = 0;
 #else
@@ -103,6 +103,8 @@ bool ValidObuType(int obu_type) {
 
 bool ParseObuHeader(uint8_t obu_header_byte, ObuHeader *obu_header) {
 #if CONFIG_NEW_OBU_HEADER
+  obu_header->obu_extension_flag =
+      (obu_header_byte >> kObuExtensionFlagBitShift) & kObuExtensionFlagBitMask;
   obu_header->type = static_cast<OBU_TYPE>(
       (obu_header_byte >> kObuTypeBitsShift) & kObuTypeBitsMask);
   if (!ValidObuType(obu_header->type)) {
@@ -110,8 +112,6 @@ bool ParseObuHeader(uint8_t obu_header_byte, ObuHeader *obu_header) {
     return false;
   }
 
-  obu_header->obu_extension_flag =
-      (obu_header_byte >> kObuExtensionFlagBitShift) & kObuExtensionFlagBitMask;
   obu_header->obu_tlayer_id =
       (obu_header_byte >> kObuExtTlayerIdBitsShift) & kObuExtTlayerIdBitsMask;
 #else
@@ -157,11 +157,12 @@ bool ParseObuExtensionHeader(uint8_t ext_header_byte, ObuHeader *obu_header) {
 void PrintObuHeader(const ObuHeader *header) {
 #if CONFIG_NEW_OBU_HEADER
   printf(
-      "  OBU type:      %s\n"
-      "      extension: %s\n"
+      "  OBU extension: %s\n"
+      "      type:      %s\n"
       "      tlayer_id: %d\n",
+      header->obu_extension_flag ? "yes" : "no",
       aom_obu_type_to_string(static_cast<OBU_TYPE>(header->type)),
-      header->obu_extension_flag ? "yes" : "no", header->obu_tlayer_id);
+      header->obu_tlayer_id);
   if (header->obu_extension_flag) {
     printf(
         "      mlayer_id: %d\n"

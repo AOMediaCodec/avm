@@ -81,8 +81,8 @@ static int read_nbyte_from_file(FILE *f, size_t obu_header_size,
     return -2;
   }
 
-  obu_header->type = (buffer[0] >> 4) & 15;               // obu_type
-  obu_header->obu_extension_flag = (buffer[0] >> 3) & 1;  // obu_extension_flag
+  obu_header->obu_extension_flag = (buffer[0] >> 7) & 1;  // obu_extension_flag
+  obu_header->type = (buffer[0] >> 3) & 15;               // obu_type
   obu_header->obu_tlayer_id = (buffer[0]) & 7;            // obu_temporal
   if (obu_header->obu_extension_flag) {
     obu_header->obu_mlayer_id = (buffer[1] >> 5) & 7;  // obu_layer (mlayer)
