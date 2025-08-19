@@ -6516,18 +6516,12 @@ static AOM_INLINE void write_uncompressed_header_obu(
       // signaling happens only when enabled by the command line flag or in
       // error resilient mode
       const int explicit_ref_frame_map =
-#if !CONFIG_ERROR_RESILIENT_FIX
-          cm->features.error_resilient_mode ||
-#endif  // !CONFIG_ERROR_RESILIENT_FIX
-          frame_is_sframe(cm) || seq_params->explicit_ref_frame_map
+          cm->features.error_resilient_mode || frame_is_sframe(cm) ||
+          seq_params->explicit_ref_frame_map
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
           || !seq_params->order_hint_info.enable_order_hint
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
           ;
-#if CONFIG_ERROR_RESILIENT_FIX
-      assert(
-          IMPLIES(cm->features.error_resilient_mode, explicit_ref_frame_map));
-#endif  // CONFIG_ERROR_RESILIENT_FIX
       if (explicit_ref_frame_map) {
 #if CONFIG_ACROSS_SCALE_REF_OPT
         if (cm->ref_frames_info.num_total_refs < 0 ||

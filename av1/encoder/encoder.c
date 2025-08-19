@@ -419,12 +419,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #if CONFIG_BRU
   seq->enable_bru = tool_cfg->enable_bru;
 #endif  // CONFIG_BRU
-#if CONFIG_ERROR_RESILIENT_FIX
-  if (tool_cfg->error_resilient_mode)
-    seq->explicit_ref_frame_map = 1;
-  else
-#endif  // CONFIG_ERROR_RESILIENT_FIX
-    seq->explicit_ref_frame_map = oxcf->ref_frm_cfg.explicit_ref_frame_map;
+  seq->explicit_ref_frame_map = oxcf->ref_frm_cfg.explicit_ref_frame_map;
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
   // Set 0 for multi-layer coding
   seq->enable_frame_output_order = oxcf->ref_frm_cfg.enable_frame_output_order

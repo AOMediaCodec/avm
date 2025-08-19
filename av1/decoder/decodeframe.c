@@ -8201,21 +8201,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       // signaled, which happens in error resilient mode or when order hint
       // is unavailable.
       const int explicit_ref_frame_map =
-#if !CONFIG_ERROR_RESILIENT_FIX
-          cm->features.error_resilient_mode ||
-#endif  // !CONFIG_ERROR_RESILIENT_FIX
-          frame_is_sframe(cm) || seq_params->explicit_ref_frame_map
+          cm->features.error_resilient_mode || frame_is_sframe(cm) ||
+          seq_params->explicit_ref_frame_map
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
           || !seq_params->order_hint_info.enable_order_hint
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
           ;
-#if CONFIG_ERROR_RESILIENT_FIX
-      if (cm->features.error_resilient_mode && !explicit_ref_frame_map) {
-        aom_internal_error(&cm->error, AOM_CODEC_ERROR,
-                           "Error resilient mode must be coded with "
-                           "explicit_Ref_frame_map=1.");
-      }
-#endif  // CONFIG_ERROR_RESILIENT_FIX
       if (explicit_ref_frame_map) {
 #if CONFIG_EXTRA_DPB
         cm->ref_frames_info.num_total_refs =
