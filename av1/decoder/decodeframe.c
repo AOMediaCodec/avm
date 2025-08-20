@@ -6049,13 +6049,13 @@ void av1_read_film_grain_params(AV1_COMMON *cm,
 
 static AOM_INLINE void read_film_grain(AV1_COMMON *cm,
                                        struct aom_read_bit_buffer *rb) {
-  if (cm->seq_params.film_grain_params_present &&
+  if (cm->seq_params.film_grain_params_present
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
-      (
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
-          cm->seq_params.enable_frame_output_order ||
-#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
-          cm->show_frame || cm->showable_frame)) {
+      && (cm->seq_params.enable_frame_output_order || cm->show_frame ||
+          cm->showable_frame)
+#endif
+  ) {
 #else
       (cm->show_frame || cm->showable_frame)) {
 #endif
