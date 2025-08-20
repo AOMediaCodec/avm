@@ -62,19 +62,11 @@ static INLINE void check_frame_mv_slot(const AV1_COMMON *const cm, MV_REF *mv) {
     mv->ref_frame[0] = mv->ref_frame[1];
     mv->mv[0] = mv->mv[1];
   } else if (mv->ref_frame[0] != NONE_FRAME && mv->ref_frame[1] != NONE_FRAME) {
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
     int ref_display_order[2] = {
       get_ref_frame_buf(cm, mv->ref_frame[0])->display_order_hint,
       get_ref_frame_buf(cm, mv->ref_frame[1])->display_order_hint
     };
     int cur_display_order = cm->cur_frame->display_order_hint;
-#else
-    int ref_display_order[2] = {
-      get_ref_frame_buf(cm, mv->ref_frame[0])->order_hint,
-      get_ref_frame_buf(cm, mv->ref_frame[1])->order_hint
-    };
-    int cur_display_order = cm->cur_frame->order_hint;
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
 
     const int diff_0_cur =
         get_relative_dist(&cm->seq_params.order_hint_info, ref_display_order[0],
@@ -1933,17 +1925,9 @@ static int has_bottom_left(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 
 static AOM_INLINE int compute_cur_to_ref_dist(const AV1_COMMON *cm,
                                               MV_REFERENCE_FRAME ref_frame) {
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   const int cur_frame_index = cm->cur_frame->display_order_hint;
-#else
-  const int cur_frame_index = cm->cur_frame->order_hint;
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   const int frame_index = buf->display_order_hint;
-#else
-  const int frame_index = buf->order_hint;
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   const int cur_ref_offset = get_relative_dist(&cm->seq_params.order_hint_info,
                                                cur_frame_index, frame_index);
   return cur_ref_offset;
@@ -2017,17 +2001,9 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                                      : mvtj_available[0] && mvtj_available[1];
   if (!linear_available && !mvtj_ok) return 0;
 
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   const int cur_frame_index = cm->cur_frame->display_order_hint;
-#else
-  const int cur_frame_index = cm->cur_frame->order_hint;
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   const RefCntBuffer *const buf_0 = get_ref_frame_buf(cm, rf[0]);
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   const int frame0_index = buf_0->display_order_hint;
-#else
-  const int frame0_index = buf_0->order_hint;
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   const int cur_offset_0 = get_relative_dist(&cm->seq_params.order_hint_info,
                                              cur_frame_index, frame0_index);
   int idx;
@@ -2102,11 +2078,7 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
     } else {
       assert(linear_available);
       const RefCntBuffer *const buf_1 = get_ref_frame_buf(cm, rf[1]);
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
       const int frame1_index = buf_1->display_order_hint;
-#else
-      const int frame1_index = buf_1->order_hint;
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
       const int cur_offset_1 = get_relative_dist(
           &cm->seq_params.order_hint_info, cur_frame_index, frame1_index);
       get_mv_projection(&comp_refmv.as_mv, prev_frame_mvs->mfmv0.as_mv,
@@ -3616,13 +3588,8 @@ void get_skip_mode_ref_offsets(const AV1_COMMON *cm, int ref_order_hint[2]) {
       get_ref_frame_buf(cm, skip_mode_info->ref_frame_idx_1);
   assert(buf_0 != NULL && buf_1 != NULL);
 
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   ref_order_hint[0] = buf_0->display_order_hint;
   ref_order_hint[1] = buf_1->display_order_hint;
-#else
-  ref_order_hint[0] = buf_0->order_hint;
-  ref_order_hint[1] = buf_1->order_hint;
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
 }
 
 // Initialize the warp parameter list
@@ -3900,20 +3867,11 @@ static INLINE int get_dist_to_closest_interp_ref(const AV1_COMMON *const cm,
 
   if (!is_ref_motion_field_eligible(cm, start_frame_buf)) return INT_MAX;
 
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   const int start_frame_order_hint = start_frame_buf->display_order_hint;
   const int cur_order_hint = cm->cur_frame->display_order_hint;
-#else
-  const int start_frame_order_hint = start_frame_buf->order_hint;
-  const int cur_order_hint = cm->cur_frame->order_hint;
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   int abs_closest_ref_offset = INT_MAX;
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   const int *const ref_order_hints =
       &start_frame_buf->ref_display_order_hint[0];
-#else
-  const int *const ref_order_hints = &start_frame_buf->ref_order_hints[0];
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   for (MV_REFERENCE_FRAME ref = 0; ref < INTER_REFS_PER_FRAME; ++ref) {
     if (ref_order_hints[ref] != -1) {
       const int start_to_ref_offset = get_relative_dist(
@@ -3946,7 +3904,6 @@ static INLINE int is_ref_overlay(const AV1_COMMON *const cm, int ref) {
 #endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref);
   if (buf == NULL) return -1;
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   const int ref_order_hint = buf->display_order_hint;
   for (int r = 0; r < INTER_REFS_PER_FRAME; ++r) {
     if (buf->ref_display_order_hint[r] == -1) continue;
@@ -3955,16 +3912,6 @@ static INLINE int is_ref_overlay(const AV1_COMMON *const cm, int ref) {
                           ref_ref_order_hint) == 0)
       return 1;
   }
-#else
-  const int ref_order_hint = buf->order_hint;
-  for (int r = 0; r < INTER_REFS_PER_FRAME; ++r) {
-    if (buf->ref_order_hints[r] == -1) continue;
-    const int ref_ref_order_hint = buf->ref_order_hints[r];
-    if (get_relative_dist(order_hint_info, ref_order_hint,
-                          ref_ref_order_hint) == 0)
-      return 1;
-  }
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   return 0;
 }
 
@@ -3977,19 +3924,11 @@ static void recur_topo_sort_refs(const AV1_COMMON *cm, const bool *is_overlay,
   const RefCntBuffer *const buf = get_ref_frame_buf(cm, rf);
   if (buf->frame_type == INTER_FRAME) {
     for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
       const int target_ref_hint = buf->ref_display_order_hint[i];
-#else
-      const int target_ref_hint = buf->ref_order_hints[i];
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
       if (target_ref_hint < 0) continue;
       int found_rf = -1;
       for (int j = 0; j < cm->ref_frames_info.num_total_refs; j++) {
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
         const int ref_hint = get_ref_frame_buf(cm, j)->display_order_hint;
-#else
-        const int ref_hint = get_ref_frame_buf(cm, j)->order_hint;
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
         if (get_relative_dist(&cm->seq_params.order_hint_info, ref_hint,
                               target_ref_hint) == 0) {
           if (is_overlay[j]) continue;
@@ -4012,17 +3951,9 @@ static void recur_topo_sort_refs(const AV1_COMMON *cm, const bool *is_overlay,
 static int has_future_ref(const AV1_COMMON *cm, int rf) {
   if (rf < 0) return 0;
   RefCntBuffer *buf = get_ref_frame_buf(cm, rf);
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   const int cur_hint = buf->display_order_hint;
-#else
-  const int cur_hint = buf->order_hint;
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
     const int ref_hint = buf->ref_display_order_hint[i];
-#else
-    const int ref_hint = buf->ref_order_hints[i];
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
     if (ref_hint >= 0 && get_relative_dist(&cm->seq_params.order_hint_info,
                                            ref_hint, cur_hint) > 0) {
       return 1;
@@ -4035,17 +3966,9 @@ static int has_future_ref(const AV1_COMMON *cm, int rf) {
 static int has_past_ref(const AV1_COMMON *cm, int rf) {
   if (rf < 0) return 0;
   RefCntBuffer *buf = get_ref_frame_buf(cm, rf);
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   const int cur_hint = buf->display_order_hint;
-#else
-  const int cur_hint = buf->order_hint;
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
     const int ref_hint = buf->ref_display_order_hint[i];
-#else
-    const int ref_hint = buf->ref_order_hints[i];
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
     if (ref_hint >= 0 && get_relative_dist(&cm->seq_params.order_hint_info,
                                            ref_hint, cur_hint) < 0) {
       return 1;
@@ -4253,16 +4176,10 @@ static INLINE void check_traj_intersect(AV1_COMMON *cm,
 static int motion_field_projection_start_target(
     AV1_COMMON *cm, MV_REFERENCE_FRAME start_frame,
     MV_REFERENCE_FRAME target_frame) {
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   const int cur_order_hint = cm->cur_frame->display_order_hint;
   int start_order_hint = get_ref_frame_buf(cm, start_frame)->display_order_hint;
   int target_order_hint =
       get_ref_frame_buf(cm, target_frame)->display_order_hint;
-#else
-  const int cur_order_hint = cm->cur_frame->order_hint;
-  int start_order_hint = get_ref_frame_buf(cm, start_frame)->order_hint;
-  int target_order_hint = get_ref_frame_buf(cm, target_frame)->order_hint;
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
 
   OrderHintInfo *order_hint_info = &cm->seq_params.order_hint_info;
 
@@ -4280,11 +4197,7 @@ static int motion_field_projection_start_target(
   assert(start_frame_buf->width == cm->width &&
          start_frame_buf->height == cm->height);
 
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   const int *const ref_order_hints = start_frame_buf->ref_display_order_hint;
-#else
-  const int *const ref_order_hints = &start_frame_buf->ref_order_hints[0];
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
 
   int start_to_current_frame_offset =
       get_relative_dist(order_hint_info, start_order_hint, cur_order_hint);
@@ -4451,13 +4364,8 @@ static int motion_field_projection_side(AV1_COMMON *cm,
       get_ref_frame_buf(cm, start_frame);
   if (!is_ref_motion_field_eligible(cm, start_frame_buf)) return 0;
 
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   const int start_frame_order_hint = start_frame_buf->display_order_hint;
   const int cur_order_hint = cm->cur_frame->display_order_hint;
-#else
-  const int start_frame_order_hint = start_frame_buf->order_hint;
-  const int cur_order_hint = cm->cur_frame->order_hint;
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   int start_to_current_frame_offset = get_relative_dist(
       &cm->seq_params.order_hint_info, start_frame_order_hint, cur_order_hint);
 
@@ -4472,12 +4380,8 @@ static int motion_field_projection_side(AV1_COMMON *cm,
   assert(start_frame_buf->width == cm->width &&
          start_frame_buf->height == cm->height);
 
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   const int *const ref_order_hints =
       &start_frame_buf->ref_display_order_hint[0];
-#else
-  const int *const ref_order_hints = &start_frame_buf->ref_order_hints[0];
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   for (MV_REFERENCE_FRAME rf = 0; rf < INTER_REFS_PER_FRAME; ++rf) {
     if (ref_order_hints[rf] != -1) {
       ref_offset[rf] =
@@ -4495,18 +4399,10 @@ static int motion_field_projection_side(AV1_COMMON *cm,
 
   int start_ref_map[INTER_REFS_PER_FRAME];
   for (int k = 0; k < INTER_REFS_PER_FRAME; k++) {
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
     const int ref_k_hint = start_frame_buf->ref_display_order_hint[k];
-#else
-    const int ref_k_hint = start_frame_buf->ref_order_hints[k];
-#endif
     start_ref_map[k] = NONE_FRAME;
     for (int rf = 0; rf < cm->ref_frames_info.num_total_refs; rf++) {
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
       const int rf_hint = get_ref_frame_buf(cm, rf)->display_order_hint;
-#else
-      const int rf_hint = get_ref_frame_buf(cm, rf)->order_hint;
-#endif
       if (rf_hint >= 0 && ref_k_hint >= 0 &&
           get_relative_dist(&cm->seq_params.order_hint_info, rf_hint,
                             ref_k_hint) == 0) {
@@ -4696,22 +4592,14 @@ void calc_and_set_avg_lengths(AV1_COMMON *cm, int ref, int side) {
   int64_t avg_col = 0;
   int64_t count = 0;
 
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   const int buf_hint = buf->display_order_hint;
-#else
-  const int buf_hint = buf->order_hint;
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
 
   for (int r = 0; r < mvs_rows; r += 2) {
     for (int c = 0; c < mvs_cols; c += 2) {
       const MV_REF *mv_ref = &buf->mvs[r * mvs_cols + c];
       if (mv_ref->ref_frame[side] != NONE_FRAME) {
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
         const int ref_hint =
             buf->ref_display_order_hint[mv_ref->ref_frame[side]];
-#else
-        const int ref_hint = buf->ref_order_hints[mv_ref->ref_frame[side]];
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
 
         const int dist = abs(get_relative_dist(&cm->seq_params.order_hint_info,
                                                buf_hint, ref_hint));
@@ -4743,20 +4631,12 @@ void determine_tmvp_sample_step(AV1_COMMON *cm,
   }
   int small_count = 0;
   int large_count = 0;
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   const int cur_hint = cm->cur_frame->display_order_hint;
-#else
-  const int cur_hint = cm->cur_frame->order_hint;
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
     for (int j = 0; j < 2; j++) {
       if (!checked_ref[i][j]) continue;
       const RefCntBuffer *buf = get_ref_frame_buf(cm, i);
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
       const int buf_hint = buf->display_order_hint;
-#else
-      const int buf_hint = buf->order_hint;
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
       if (!is_ref_motion_field_eligible(cm, buf)) continue;
       calc_and_set_avg_lengths(cm, i, j);
       const int dist = abs(get_relative_dist(&cm->seq_params.order_hint_info,
@@ -5085,14 +4965,9 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
     cm->ref_frame_side[ref_frame] = 0;
     const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
     ref_buf[ref_frame] = buf;
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
     const int relative_dist =
         get_relative_dist(order_hint_info, buf->display_order_hint,
                           cm->cur_frame->display_order_hint);
-#else
-    const int relative_dist = get_relative_dist(
-        order_hint_info, buf->order_hint, cm->cur_frame->order_hint);
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
     cm->ref_frame_relative_dist[ref_frame] = abs(relative_dist);
   }
   for (int index = 0; index < cm->ref_frames_info.num_future_refs; index++) {
@@ -5100,14 +4975,9 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
     cm->ref_frame_side[ref_frame] = 1;
     const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
     ref_buf[ref_frame] = buf;
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
     const int relative_dist =
         get_relative_dist(order_hint_info, buf->display_order_hint,
                           cm->cur_frame->display_order_hint);
-#else
-    const int relative_dist = get_relative_dist(
-        order_hint_info, buf->order_hint, cm->cur_frame->order_hint);
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
     cm->ref_frame_relative_dist[ref_frame] = abs(relative_dist);
   }
   for (int index = 0; index < cm->ref_frames_info.num_cur_refs; index++) {
@@ -5115,14 +4985,9 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
     cm->ref_frame_side[ref_frame] = -1;
     const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
     ref_buf[ref_frame] = buf;
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
     const int relative_dist =
         get_relative_dist(order_hint_info, buf->display_order_hint,
                           cm->cur_frame->display_order_hint);
-#else
-    const int relative_dist = get_relative_dist(
-        order_hint_info, buf->order_hint, cm->cur_frame->order_hint);
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
     cm->ref_frame_relative_dist[ref_frame] = abs(relative_dist);
   }
 
@@ -5154,11 +5019,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
   }
 
   for (int rf = 0; rf < cm->ref_frames_info.num_total_refs; rf++) {
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
     disp_order[rf] = get_ref_frame_buf(cm, rf)->display_order_hint;
-#else
-    disp_order[rf] = get_ref_frame_buf(cm, rf)->order_hint;
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   }
   // Sort the points by x.
   for (int i = 0; i < cm->ref_frames_info.num_total_refs; i++) {
@@ -5175,11 +5036,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
       }
     }
   }
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   int cur_disp_order = cm->cur_frame->display_order_hint;
-#else
-  int cur_disp_order = cm->cur_frame->order_hint;
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   // The idx of rf in sort_ref that is before current frame, and closest.
   int cur_frame_sort_idx = -1;
   for (int rf_idx = 0; rf_idx < cm->ref_frames_info.num_total_refs; rf_idx++) {
@@ -5335,12 +5192,8 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
 
   for (int ri = stack_count - 1; ri > 0; ri--) {
     int side;
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
     const int ref_hint =
         get_ref_frame_buf(cm, rf_stack[ri])->display_order_hint;
-#else
-    const int ref_hint = get_ref_frame_buf(cm, rf_stack[ri])->order_hint;
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
     if (get_relative_dist(order_hint_info, ref_hint, cur_disp_order) < 0) {
       side = 1;
     } else {
@@ -5406,11 +5259,7 @@ void av1_setup_ref_frame_sides(AV1_COMMON *cm) {
   if (!order_hint_info->enable_order_hint) return;
 #endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
 
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   const int cur_order_hint = cm->cur_frame->display_order_hint;
-#else
-  const int cur_order_hint = cm->cur_frame->order_hint;
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
 
   const int num_refs =
       AOMMIN(cm->ref_frames_info.num_total_refs, INTER_REFS_PER_FRAME);
@@ -5418,11 +5267,7 @@ void av1_setup_ref_frame_sides(AV1_COMMON *cm) {
     const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
     int order_hint = 0;
 
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
     if (buf != NULL) order_hint = buf->display_order_hint;
-#else
-    if (buf != NULL) order_hint = buf->order_hint;
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
     const int relative_dist =
         get_relative_dist(order_hint_info, order_hint, cur_order_hint);
     if (relative_dist > 0) {
@@ -5712,11 +5557,7 @@ void av1_setup_skip_mode_allowed(AV1_COMMON *cm) {
   if (cm->ref_frames_info.num_total_refs > 1) {
     skip_mode_info->ref_frame_idx_1 = 1;
     skip_mode_info->ref_frame_idx_0 = 0;
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
     const int cur_order_hint = cm->current_frame.display_order_hint;
-#else
-    const int cur_order_hint = cm->current_frame.order_hint;
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
     int ref_offset[2];
     get_skip_mode_ref_offsets(cm, ref_offset);
     const int cur_to_ref0 = abs(get_relative_dist(

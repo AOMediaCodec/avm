@@ -1428,19 +1428,13 @@ void av1_get_optflow_based_mv(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
         get_ref_frame_buf(cm, mbmi->ref_frame[0]);
     const RefCntBuffer *const r1_buf =
         get_ref_frame_buf(cm, mbmi->ref_frame[1]);
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+
     d0 = get_relative_dist(&cm->seq_params.order_hint_info,
                            cm->cur_frame->display_order_hint,
                            r0_buf->display_order_hint);
     d1 = get_relative_dist(&cm->seq_params.order_hint_info,
                            cm->cur_frame->display_order_hint,
                            r1_buf->display_order_hint);
-#else
-    d0 = get_relative_dist(&cm->seq_params.order_hint_info,
-                           cm->cur_frame->order_hint, r0_buf->order_hint);
-    d1 = get_relative_dist(&cm->seq_params.order_hint_info,
-                           cm->cur_frame->order_hint, r1_buf->order_hint);
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   }
 
   if (d0 == 0 || d1 == 0) {

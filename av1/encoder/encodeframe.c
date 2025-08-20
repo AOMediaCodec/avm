@@ -1335,13 +1335,9 @@ static int check_skip_mode_enabled(AV1_COMP *const cpi) {
   av1_setup_skip_mode_allowed(cm);
   if (!cm->current_frame.skip_mode_info.skip_mode_allowed) return 0;
 
-    // Turn off skip mode if the temporal distances of the reference pair to the
-    // current frame are different by more than 1 frame.
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
+  // Turn off skip mode if the temporal distances of the reference pair to the
+  // current frame are different by more than 1 frame.
   const int cur_offset = (int)cm->current_frame.display_order_hint;
-#else
-  const int cur_offset = (int)cm->current_frame.order_hint;
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   int ref_offset[2];
   get_skip_mode_ref_offsets(cm, ref_offset);
   const int cur_to_ref0 = abs(get_relative_dist(&cm->seq_params.order_hint_info,

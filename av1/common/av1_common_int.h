@@ -4851,17 +4851,9 @@ static INLINE int get_relative_dist(const OrderHintInfo *oh, int a, int b) {
   if (!oh->enable_order_hint) return 0;
 #endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
 
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   assert(a >= 0);
   assert(b >= 0);
   const int bits = DISPLAY_ORDER_HINT_BITS;
-#else
-  const int bits = oh->order_hint_bits_minus_1 + 1;
-
-  assert(bits >= 1);
-  assert(a >= 0 && a < (1 << bits));
-  assert(b >= 0 && b < (1 << bits));
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   int diff = a - b;
   // We cap this temporal distance to a smaller range to avoid overflows when
   // this distance is used for arithmetic operations. It also avoids an
@@ -4896,11 +4888,7 @@ static INLINE int opfl_allowed_cur_refs_bsize(const AV1_COMMON *cm,
 
   if (!has_second_ref(mbmi) && !is_tip_ref_frame(mbmi->ref_frame[0])) return 0;
 
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   const unsigned int cur_index = cm->cur_frame->display_order_hint;
-#else
-  const unsigned int cur_index = cm->cur_frame->order_hint;
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   int d0, d1;
   if (mbmi->ref_frame[0] == TIP_FRAME) {
     d0 = cm->tip_ref.ref_offset[0];
@@ -4908,15 +4896,10 @@ static INLINE int opfl_allowed_cur_refs_bsize(const AV1_COMMON *cm,
   } else {
     const RefCntBuffer *const ref0 = get_ref_frame_buf(cm, mbmi->ref_frame[0]);
     const RefCntBuffer *const ref1 = get_ref_frame_buf(cm, mbmi->ref_frame[1]);
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
     d0 = get_relative_dist(&cm->seq_params.order_hint_info, cur_index,
                            ref0->display_order_hint);
     d1 = get_relative_dist(&cm->seq_params.order_hint_info, cur_index,
                            ref1->display_order_hint);
-#else
-    d0 = (int)cur_index - (int)ref0->order_hint;
-    d1 = (int)cur_index - (int)ref1->order_hint;
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   }
 
   if (is_tip_ref_frame(mbmi->ref_frame[0])) {

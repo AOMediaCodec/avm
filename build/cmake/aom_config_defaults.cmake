@@ -224,11 +224,7 @@ set_aom_config_var(CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT 1
                    "Enable enhanced frame output order derivation")
 set_aom_config_var(CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY 1
                    "Enable temporal scalability")
-set_aom_config_var(CONFIG_DISPLAY_ORDER_HINT_FIX 1
-                   "Bug fix on display order hints of key frames")
 
-set_aom_config_var(CONFIG_EXPLICIT_TEMPORAL_DIST_CALC 1
-                   "Enable to explicit temporal distance calculation")
 set_aom_config_var(CONFIG_IMPROVED_GLOBAL_MOTION 1
                    "New global motion syntax for AV2")
 
