@@ -4144,13 +4144,11 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
 #if CONFIG_BRU
   // if bru enabled, remove the source associated with the bru_ref
   if (cm->bru.enabled) {
-    av1_lookahead_leave(cpi->lookahead, cm->bru.ref_order, ENCODE_STAGE);
+    av1_lookahead_leave(cpi->lookahead, cm->bru.ref_disp_order, ENCODE_STAGE);
     // get current frame
-    const int display_order_hint_factor =
-        1 << (cm->seq_params.order_hint_info.order_hint_bits_minus_1 + 1);
     for (int i = 0; i < cpi->lookahead->max_sz - 1; i++) {
-      if ((cpi->lookahead->buf[i].order_hint % display_order_hint_factor) ==
-          (int)cm->cur_frame->order_hint) {
+      if (cpi->lookahead->buf[i].disp_order_hint ==
+          (int)cm->cur_frame->display_order_hint) {
         cpi->unfiltered_source = &cpi->lookahead->buf[i].img;
         cpi->source = &cpi->lookahead->buf[i].img;
         break;
@@ -4737,11 +4735,9 @@ int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
 
 #if CONFIG_BRU
   const int order_offset = cpi->gf_group.arf_src_offset[cpi->gf_group.index];
-  const int final_order_hint =
-      (cm->current_frame.frame_number + order_offset) %
-      (1 << (cm->seq_params.order_hint_info.order_hint_bits_minus_1 + 1));
+  const int disp_order_hint = (cm->current_frame.frame_number + order_offset);
   if (av1_lookahead_push(cpi->lookahead, sd, time_stamp, end_time,
-                         final_order_hint, frame_flags, cpi->alloc_pyramid))
+                         disp_order_hint, frame_flags, cpi->alloc_pyramid))
 #else
   if (av1_lookahead_push(cpi->lookahead, sd, time_stamp, end_time, frame_flags,
                          cpi->alloc_pyramid))
@@ -4751,7 +4747,6 @@ int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
   aom_usec_timer_mark(&timer);
   cpi->time_receive_data += aom_usec_timer_elapsed(&timer);
 #endif
-
   // Note: Regarding profile setting, the following checks are added to help
   // choose a proper profile for the input video. The criterion is that all
   // bitstreams must be designated as the lowest profile that match its content.
@@ -5178,13 +5173,13 @@ void enc_bru_swap_ref(AV1_COMMON *const cm) {
   const int num_past_refs = cm->ref_frames_info.num_past_refs;
   if (cm->seq_params.enable_bru) {
     if (cm->bru.enabled) {
-      if (cm->bru.ref_order >= 0) {
+      if (cm->bru.ref_disp_order >= 0) {
         cm->bru.update_ref_idx = -1;
         cm->bru.explicit_ref_idx = -1;
         for (int i = 0; i < num_past_refs; i++) {
-          const int ref_list_order =
-              cm->ref_frame_map[cm->remapped_ref_idx[i]]->order_hint;
-          if (ref_list_order == cm->bru.ref_order) {
+          const int ref_list_disp_order =
+              cm->ref_frame_map[cm->remapped_ref_idx[i]]->display_order_hint;
+          if (ref_list_disp_order == cm->bru.ref_disp_order) {
             cm->bru.update_ref_idx = i;
             cm->bru.explicit_ref_idx = cm->remapped_ref_idx[i];
             break;
@@ -5193,9 +5188,9 @@ void enc_bru_swap_ref(AV1_COMMON *const cm) {
         // happend in encoder only, decoder do not know bru.ref_order yet
         if (cm->bru.update_ref_idx == -1) {
           for (int i = num_past_refs; i < REF_FRAMES; i++) {
-            const int ref_list_order =
-                cm->ref_frame_map[scores[i].index]->order_hint;
-            if (ref_list_order == cm->bru.ref_order) {
+            const int ref_list_disp_order =
+                cm->ref_frame_map[scores[i].index]->display_order_hint;
+            if (ref_list_disp_order == cm->bru.ref_disp_order) {
               replaced_bru_ref_idx = i;
               break;
             }
@@ -5259,7 +5254,7 @@ void enc_bru_swap_stage(AV1_COMP *cpi) {
       // here need to update refresh flag for all the pointer to bru ref
       int refresh_mask = 0;
       for (int idx = 0; idx < cpi->common.seq_params.ref_frames; ++idx) {
-        if (cm->ref_frame_map_pairs[idx].disp_order == cm->bru.ref_order) {
+        if (cm->ref_frame_map_pairs[idx].disp_order == cm->bru.ref_disp_order) {
           refresh_mask |= (1 << idx);
         }
       }

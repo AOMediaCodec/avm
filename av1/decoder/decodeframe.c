@@ -2463,7 +2463,7 @@ static AOM_INLINE void decode_partition_sb(AV1Decoder *const pbi,
 static AOM_INLINE void setup_bru_active_info(AV1_COMMON *const cm,
                                              struct aom_read_bit_buffer *rb) {
   cm->bru.update_ref_idx = -1;
-  cm->bru.ref_order = -1;
+  cm->bru.ref_disp_order = -1;
   cm->bru.explicit_ref_idx = -1;
   cm->bru.enabled = 0;
   cm->bru.frame_inactive_flag = 0;
@@ -7285,7 +7285,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   cm->bru.enabled = 0;
   cm->bru.update_ref_idx = -1;
   cm->bru.explicit_ref_idx = -1;
-  cm->bru.ref_order = -1;
+  cm->bru.ref_disp_order = -1;
   cm->bru.frame_inactive_flag = 0;
 #endif  // CONFIG_BRU
 #if CONFIG_PARAKIT_COLLECT_DATA
@@ -8004,7 +8004,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_BRU
         // find corresponding bru ref idx given explicit_bru_idx
         if (cm->bru.enabled && cm->bru.update_ref_idx == i) {
-          cm->bru.ref_order = cm->ref_frame_map[ref]->order_hint;
+          cm->bru.ref_disp_order = cm->ref_frame_map[ref]->display_order_hint;
           cm->bru.explicit_ref_idx = ref;
         }
 #endif  // CONFIG_BRU

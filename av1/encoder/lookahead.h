@@ -35,8 +35,8 @@ struct lookahead_entry {
   int64_t ts_end;
   aom_enc_frame_flags_t flags;
 #if CONFIG_BRU
-  int order_hint;
-#endif  // CONFIG_BRU
+  int disp_order_hint;  // display order hint of this source frame
+#endif                  // CONFIG_BRU
 };
 
 // The max of past frames we want to keep in the queue.

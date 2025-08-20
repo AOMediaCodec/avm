@@ -1649,9 +1649,9 @@ typedef struct BRU_Info {
    */
   int frame_inactive_flag;
   /*!
-   *  order_hint of bru ref idx
+   *  display_order_hint of bru ref idx
    */
-  int ref_order;  // ref idx order hint
+  int ref_disp_order;  // ref idx display order hint
   /*!
    * Store frame context of bru ref_frame
    */

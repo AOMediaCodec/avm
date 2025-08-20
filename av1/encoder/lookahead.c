@@ -102,7 +102,7 @@ fail:
 int av1_lookahead_push(struct lookahead_ctx *ctx, const YV12_BUFFER_CONFIG *src,
                        int64_t ts_start, int64_t ts_end,
 #if CONFIG_BRU
-                       int order_hint,
+                       int disp_order_hint,
 #endif  // CONFIG_BRU
                        aom_enc_frame_flags_t flags, bool alloc_pyramid) {
   struct lookahead_entry *buf;
@@ -161,22 +161,23 @@ int av1_lookahead_push(struct lookahead_ctx *ctx, const YV12_BUFFER_CONFIG *src,
   aom_remove_metadata_from_frame_buffer(&buf->img);
   aom_copy_metadata_to_frame_buffer(&buf->img, src->metadata);
 #if CONFIG_BRU
-  buf->order_hint = order_hint;
+  buf->disp_order_hint = disp_order_hint;
 #endif  // CONFIG_BRU
   return 0;
 }
 
 #if CONFIG_BRU
 struct lookahead_entry *av1_lookahead_leave(struct lookahead_ctx *ctx,
-                                            int left_order_hint,
+                                            int left_disp_order_hint,
                                             COMPRESSOR_STAGE stage) {
   // order hint must be set so that the lookahead buffer can track which entry
+  // todo: fix this use disp order
   (void)stage;
   struct lookahead_entry *buf = NULL;
   if (ctx) {
     assert(ctx->read_ctxs[stage].valid == 1);
     for (int i = 0; i < ctx->max_sz; i++) {
-      if (ctx->buf[i].order_hint == left_order_hint) {
+      if (ctx->buf[i].disp_order_hint == left_disp_order_hint) {
         break;
       }
     }
@@ -197,11 +198,11 @@ void bru_lookahead_buf_refresh(struct lookahead_ctx *ctx,
     for (int ref_frame = 0; ref_frame < REF_FRAMES; ref_frame++) {
       if (((refresh_frame_flags >> ref_frame) & 1) == 1 &&
           ref_frame_map[ref_frame]) {
-        int target_order = ref_frame_map[ref_frame]->order_hint;
+        int target_disp_order = ref_frame_map[ref_frame]->display_order_hint;
         bool use_free_fb = false;
         for (int j = 0; j < ref_frame; j++) {
           if (ref_frame_map[j] &&
-              target_order == (int)ref_frame_map[j]->order_hint) {
+              target_disp_order == (int)ref_frame_map[j]->display_order_hint) {
             use_free_fb = true;
           }
         }
@@ -210,7 +211,7 @@ void bru_lookahead_buf_refresh(struct lookahead_ctx *ctx,
         }
         int found_idx = -1;
         for (int k = 0; k < last_idx; k++) {
-          if ((int)ctx->buf[k].order_hint == target_order) {
+          if ((int)ctx->buf[k].disp_order_hint == target_disp_order) {
             found_idx = k;
             break;
           }

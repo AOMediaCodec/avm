@@ -700,10 +700,10 @@ int av1_get_refresh_frame_flags(
   // BRU frame, refresh flag is set to refresh BRU ref frame
   int free_fb_index = INVALID_IDX;
   if (cpi->common.bru.enabled) {
-    const int bru_ref_order = cpi->common.bru.ref_order;
-    assert(bru_ref_order >= 0);
+    const int bru_disp_order = cpi->common.bru.ref_disp_order;
+    assert(bru_disp_order >= 0);
     for (int idx = 0; idx < cpi->common.seq_params.ref_frames; ++idx) {
-      if (ref_frame_map_pairs[idx].disp_order == bru_ref_order) {
+      if (ref_frame_map_pairs[idx].disp_order == bru_disp_order) {
         free_fb_index = idx;  // get the first one
         break;
       }
@@ -929,7 +929,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 #if CONFIG_BRU
   cm->bru.update_ref_idx = -1;
   cm->bru.explicit_ref_idx = -1;
-  cm->bru.ref_order = -1;
+  cm->bru.ref_disp_order = -1;
 #endif  // CONFIG_BRU
 
   // Check if we need to stuff more src frames
@@ -1013,8 +1013,8 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   frame_input.bru_ref_source =
       bru_ref_source != NULL ? &bru_ref_source->img : NULL;
   if (bru_ref_source) {
-    cpi->common.bru.update_ref_idx = bru_ref_source->order_hint;
-    cpi->common.bru.ref_order = bru_ref_source->order_hint;
+    cpi->common.bru.update_ref_idx = bru_ref_source->disp_order_hint;
+    cpi->common.bru.ref_disp_order = bru_ref_source->disp_order_hint;
   }
 #endif  // CONFIG_BRU
   frame_input.ts_duration = source->ts_end - source->ts_start;
@@ -1105,7 +1105,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   }
 #if CONFIG_BRU
   if (frame_params.frame_type == KEY_FRAME) {
-    source->order_hint = 0;
+    source->disp_order_hint = 0;
   }
 #endif
   if (frame_params.frame_type == KEY_FRAME) cm->showable_frame = 0;
@@ -1240,13 +1240,13 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 #if CONFIG_BRU
     if (!cm->seq_params.explicit_ref_frame_map && cm->bru.enabled) {
       const int num_past_refs = cm->ref_frames_info.num_past_refs;
-      if (cm->bru.ref_order >= 0) {
+      if (cm->bru.ref_disp_order >= 0) {
         cm->bru.update_ref_idx = -1;
         cm->bru.explicit_ref_idx = -1;
         for (int i = 0; i < num_past_refs; i++) {
           const int ref_list_order =
-              cm->ref_frame_map[cm->remapped_ref_idx[i]]->order_hint;
-          if (ref_list_order == cm->bru.ref_order) {
+              cm->ref_frame_map[cm->remapped_ref_idx[i]]->display_order_hint;
+          if (ref_list_order == cm->bru.ref_disp_order) {
             cm->bru.update_ref_idx = i;
             cm->bru.explicit_ref_idx = cm->remapped_ref_idx[i];
             break;
