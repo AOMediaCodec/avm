@@ -49,7 +49,6 @@ static int get_q_ctx(int q) {
  *
  */
 static int read_exp_golomb(MACROBLOCKD *xd, aom_reader *r, int k) {
-#if CONFIG_BYPASS_IMPROVEMENT
   int length = aom_read_unary(r, 21, ACCT_INFO("hr"));
   if (length > 20) {
     aom_internal_error(xd->error_info, AOM_CODEC_CORRUPT_FRAME,
@@ -58,25 +57,6 @@ static int read_exp_golomb(MACROBLOCKD *xd, aom_reader *r, int k) {
   length += k;
   int x = 1 << length;
   x += aom_read_literal(r, length, ACCT_INFO("hr"));
-#else
-  int x = 1;
-  int length = 0;
-  int i = 0;
-  while (!i) {
-    i = aom_read_bit(r, ACCT_INFO("hr"));
-    ++length;
-    if (length > 20) {
-      aom_internal_error(xd->error_info, AOM_CODEC_CORRUPT_FRAME,
-                         "Invalid length in read_exp_golomb");
-      break;
-    }
-  }
-  length += k;
-  for (i = 0; i < length - 1; ++i) {
-    x <<= 1;
-    x += aom_read_bit(r, ACCT_INFO("hr"));
-  }
-#endif  // CONFIG_BYPASS_IMPROVEMENT
 
   return x - (1 << k);
 }
@@ -104,21 +84,7 @@ static int read_exp_golomb(MACROBLOCKD *xd, aom_reader *r, int k) {
  */
 static int read_truncated_rice(MACROBLOCKD *xd, aom_reader *r, int m, int k,
                                int cmax) {
-#if CONFIG_BYPASS_IMPROVEMENT
   int q = aom_read_unary(r, cmax, ACCT_INFO("hr"));
-#else
-  int q = 0;
-  int i = 0;
-  while (!i) {
-    i = aom_read_bit(r, ACCT_INFO("hr"));
-    ++q;
-    if (q > cmax - 1) {
-      aom_internal_error(xd->error_info, AOM_CODEC_CORRUPT_FRAME,
-                         "Invalid length in read_truncated_rice");
-      break;
-    }
-  }
-#endif  // CONFIG_BYPASS_IMPROVEMENT
 
   int rem = (q == cmax) ? read_exp_golomb(xd, r, k)
                         : aom_read_literal(r, m, ACCT_INFO("hr"));
@@ -508,18 +474,8 @@ static INLINE void decode_eob(DecoderCodingBlock *dcb, aom_reader *const r,
     if (bit) {
       eob_extra += (1 << (eob_offset_bits - 1));
     }
-
-#if CONFIG_BYPASS_IMPROVEMENT
     eob_extra +=
         aom_read_literal(r, eob_offset_bits - 1, ACCT_INFO("eob_extra"));
-#else
-    for (int i = 1; i < eob_offset_bits; i++) {
-      bit = aom_read_bit(r, ACCT_INFO("eob_offset_bits"));
-      if (bit) {
-        eob_extra += (1 << (eob_offset_bits - 1 - i));
-      }
-    }
-#endif  // CONFIG_BYPASS_IMPROVEMENT
   }
   *eob = rec_eob_pos(eob_pt, eob_extra);
   *bob = *eob;  // escape character

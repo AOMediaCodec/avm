@@ -50,10 +50,8 @@
 
 #define aom_read(r, prob, ACCT_INFO_NAME) \
   aom_read_(r, prob ACCT_INFO_ARG(ACCT_INFO_NAME))
-#if CONFIG_BYPASS_IMPROVEMENT
 #define aom_read_bypass(r, ACCT_INFO_NAME) \
   aom_read_bypass_(r ACCT_INFO_ARG(ACCT_INFO_NAME))
-#endif  // CONFIG_BYPASS_IMPROVEMENT
 #define aom_read_bit(r, ACCT_INFO_NAME) \
   aom_read_bit_(r ACCT_INFO_ARG(ACCT_INFO_NAME))
 #define aom_read_tree(r, tree, probs, ACCT_INFO_NAME) \
@@ -65,10 +63,8 @@
 #define aom_read_symbol(r, cdf, nsymbs, ACCT_INFO_NAME) \
   aom_read_symbol_(r, cdf, nsymbs ACCT_INFO_ARG(ACCT_INFO_NAME))
 
-#if CONFIG_BYPASS_IMPROVEMENT
 #define aom_read_unary(r, bits, ACCT_INFO_NAME) \
   aom_read_unary_(r, bits ACCT_INFO_ARG(ACCT_INFO_NAME))
-#endif  // CONFIG_BYPASS_IMPROVEMENT
 
 #define aom_read_4part(r, cdf, nsymb_bits, ACCT_INFO_NAME) \
   aom_read_4part_(r, cdf, nsymb_bits ACCT_INFO_ARG(ACCT_INFO_NAME))
@@ -239,7 +235,6 @@ static INLINE void bitstream_queue_pop_literal(int data, int bits) {
 }
 #endif  // CONFIG_BITSTREAM_DEBUG
 
-#if CONFIG_BYPASS_IMPROVEMENT
 static INLINE int aom_read_bypass_(aom_reader *r ACCT_INFO_PARAM) {
   int ret = od_ec_decode_literal_bypass(&r->ec, 1);
 #if CONFIG_BITSTREAM_DEBUG
@@ -256,15 +251,10 @@ static INLINE int aom_read_bypass_(aom_reader *r ACCT_INFO_PARAM) {
 #endif
   return ret;
 }
-#endif  // CONFIG_BYPASS_IMPROVEMENT
 
 static INLINE int aom_read_bit_(aom_reader *r ACCT_INFO_PARAM) {
   int ret;
-#if CONFIG_BYPASS_IMPROVEMENT
   ret = aom_read_bypass(r, ACCT_INFO_NAME);
-#else
-  ret = aom_read(r, 128, ACCT_INFO_NAME);  // aom_prob_half
-#endif  // CONFIG_BYPASS_IMPROVEMENT
 #if CONFIG_ACCOUNTING
   if (ACCT_INFO_NAME.c_file)
     aom_process_accounting(r, ret, SYMBOL_BIT_BYPASS, ACCT_INFO_NAME);
@@ -273,7 +263,6 @@ static INLINE int aom_read_bit_(aom_reader *r ACCT_INFO_PARAM) {
 }
 
 static INLINE int aom_read_literal_(aom_reader *r, int bits ACCT_INFO_PARAM) {
-#if CONFIG_BYPASS_IMPROVEMENT
   int literal = 0;
   int n_bits = bits;
   int n;
@@ -295,15 +284,9 @@ static INLINE int aom_read_literal_(aom_reader *r, int bits ACCT_INFO_PARAM) {
   aom_update_symb_counts(r, 1, bits);
 #endif
 #endif  // CONFIG_ACCOUNTING
-#else
-  int literal = 0, bit;
-
-  for (bit = bits - 1; bit >= 0; bit--) literal |= aom_read_bit(r, NULL) << bit;
-#endif  // CONFIG_BYPASS_IMPROVEMENT
   return literal;
 }
 
-#if CONFIG_BYPASS_IMPROVEMENT
 // Deocode unary coded symbol with truncation at max_nbits.
 static INLINE int aom_read_unary_(aom_reader *r,
                                   int max_nbits ACCT_INFO_PARAM) {
@@ -325,7 +308,6 @@ static INLINE int aom_read_unary_(aom_reader *r,
 #endif
   return ret;
 }
-#endif  // CONFIG_BYPASS_IMPROVEMENT
 
 static INLINE int aom_read_cdf_(aom_reader *r, const aom_cdf_prob *cdf,
                                 int nsymbs ACCT_INFO_PARAM) {

@@ -100,12 +100,7 @@ int od_ec_decode_bool_q15(od_ec_dec *dec, unsigned f) {
   r = dec->rng;
   assert(dif >> (OD_EC_WINDOW_SIZE - 16) < r);
   assert(32768U <= r);
-#if CONFIG_BYPASS_IMPROVEMENT
   v = od_ec_prob_scale(f, r, 0, 2);
-#else
-  v = ((r >> 8) * (uint32_t)(f >> EC_PROB_SHIFT) >> (7 - EC_PROB_SHIFT));
-  v += EC_MIN_PROB;
-#endif
   vw = (od_ec_window)v << (OD_EC_WINDOW_SIZE - 16);
   ret = 1;
   r_new = v;
@@ -117,7 +112,6 @@ int od_ec_decode_bool_q15(od_ec_dec *dec, unsigned f) {
   return od_ec_dec_normalize(dec, dif, r_new, ret);
 }
 
-#if CONFIG_BYPASS_IMPROVEMENT
 /*Decode a single binary value, with 50/50 probability.
   Return: The value decoded (0 or 1).*/
 int od_ec_decode_bool_bypass(od_ec_dec *dec) {
@@ -185,7 +179,6 @@ int od_ec_decode_unary_bypass(od_ec_dec *dec, int max_bits) {
   }
   return od_ec_dec_bypass_normalize(dec, dif, bit, ret);
 }
-#endif  // CONFIG_BYPASS_IMPROVEMENT
 
 /*Decodes a symbol given an inverse cumulative distribution function (CDF)
    table in Q15.
@@ -221,14 +214,8 @@ int od_ec_decode_cdf_q15(od_ec_dec *dec, const uint16_t *icdf, int nsyms)
   ret = -1;
   do {
     u = v;
-#if CONFIG_BYPASS_IMPROVEMENT
     ret++;
     v = od_ec_prob_scale(icdf[ret], r, ret, nsyms);
-#else
-    v = ((r >> 8) * (uint32_t)(icdf[++ret] >> EC_PROB_SHIFT) >>
-         (7 - EC_PROB_SHIFT - CDF_SHIFT));
-    v += EC_MIN_PROB * (nsyms - 1 - ret);
-#endif  // CONFIG_BYPASS_IMPROVEMENT
   } while (c < v);
   assert(v < u);
   assert(u <= r);

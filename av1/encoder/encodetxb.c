@@ -121,13 +121,8 @@ static void write_exp_golomb(aom_writer *w, int level, int k) {
   length = get_msb(x) + 1;
   assert(length > k);
 
-#if CONFIG_BYPASS_IMPROVEMENT
   aom_write_literal(w, 0, length - 1 - k);
   aom_write_literal(w, x, length);
-#else
-  for (int i = 0; i < length - 1 - k; ++i) aom_write_bit(w, 0);
-  for (int i = length - 1; i >= 0; --i) aom_write_bit(w, (x >> i) & 0x01);
-#endif  // CONFIG_BYPASS_IMPROVEMENT
 }
 
 /*!\brief Encode an input integer value using Truncated-Rice coding and write
@@ -779,17 +774,9 @@ static INLINE void code_eob(MACROBLOCK *const x, aom_writer *w, int plane,
     aom_write_symbol(w, bit,
                      ec_ctx->eob_extra_cdf[txs_ctx][plane_type][eob_ctx], 2);
 #endif  // CONFIG_EOB_PT_CTX_REDUCTION
-#if CONFIG_BYPASS_IMPROVEMENT
     // Zero out top bit; write (eob_offset_bits - 1) lsb bits.
     eob_extra &= (1 << (eob_offset_bits - 1)) - 1;
     aom_write_literal(w, eob_extra, eob_offset_bits - 1);
-#else
-    for (int i = 1; i < eob_offset_bits; i++) {
-      eob_shift = eob_offset_bits - 1 - i;
-      bit = (eob_extra & (1 << eob_shift)) ? 1 : 0;
-      aom_write_bit(w, bit);
-    }
-#endif
   }
 }
 

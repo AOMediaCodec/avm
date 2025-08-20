@@ -20,11 +20,7 @@ extern "C" {
 #endif
 
 /* Minimum # of preloaded bits to maintain in od_ec_window. */
-#if CONFIG_BYPASS_IMPROVEMENT
 #define OD_EC_MIN_BITS 8
-#else
-#define OD_EC_MIN_BITS 0
-#endif  // CONFIG_BYPASS_IMPROVEMENT
 
 typedef struct od_ec_dec od_ec_dec;
 
@@ -68,7 +64,6 @@ struct od_ec_dec {
 void od_ec_dec_init(od_ec_dec *dec, const unsigned char *buf, uint32_t storage)
     OD_ARG_NONNULL(1) OD_ARG_NONNULL(2);
 
-#if CONFIG_BYPASS_IMPROVEMENT
 OD_WARN_UNUSED_RESULT int od_ec_decode_bool_bypass(od_ec_dec *dec)
     OD_ARG_NONNULL(1);
 OD_WARN_UNUSED_RESULT int od_ec_decode_literal_bypass(od_ec_dec *dec,
@@ -77,7 +72,6 @@ OD_WARN_UNUSED_RESULT int od_ec_decode_literal_bypass(od_ec_dec *dec,
 OD_WARN_UNUSED_RESULT int od_ec_decode_unary_bypass(od_ec_dec *dec,
                                                     int max_bits)
     OD_ARG_NONNULL(1);
-#endif  // CONFIG_BYPASS_IMPROVEMENT
 OD_WARN_UNUSED_RESULT int od_ec_decode_bool_q15(od_ec_dec *dec, unsigned f)
     OD_ARG_NONNULL(1);
 #if !CONFIG_CDF_SCALE
@@ -163,7 +157,6 @@ static INLINE int od_ec_dec_normalize(od_ec_dec *dec, od_ec_window dif,
   return ret;
 }
 
-#if CONFIG_BYPASS_IMPROVEMENT
 /* This function performs renormalization after decoding bypass symbols.
    This is a simplified version of od_ec_dec_normalize(), as bypass
    symbol decoding only requires shifting in new bits, and the range
@@ -177,7 +170,6 @@ static INLINE int od_ec_dec_bypass_normalize(od_ec_dec *dec, od_ec_window dif,
   if (dec->cnt < OD_EC_MIN_BITS) od_ec_dec_refill(dec);
   return ret;
 }
-#endif  // CONFIG_BYPASS_IMPROVEMENT
 
 #ifdef __cplusplus
 }  // extern "C"
