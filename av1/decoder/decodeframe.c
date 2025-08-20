@@ -5027,7 +5027,11 @@ static const uint8_t *decode_tiles(AV1Decoder *pbi, const uint8_t *data,
 
   assert(tile_rows <= MAX_TILE_ROWS);
   assert(tile_cols <= MAX_TILE_COLS);
-
+#if CONFIG_MOVE_TILE_DATA_ALLOC
+  if (pbi->tile_data == NULL || n_tiles != pbi->allocated_tiles) {
+    decoder_alloc_tile_data(pbi, n_tiles);
+  }
+#endif 
 #if EXT_TILE_DEBUG
   if (tiles->large_scale && !pbi->ext_tile_debug)
     raw_data_end = get_ls_single_tile_buffer(pbi, data, tile_buffers);
@@ -5036,10 +5040,11 @@ static const uint8_t *decode_tiles(AV1Decoder *pbi, const uint8_t *data,
   else
 #endif  // EXT_TILE_DEBUG
     get_tile_buffers(pbi, data, data_end, tile_buffers, start_tile, end_tile);
-
+#if !CONFIG_MOVE_TILE_DATA_ALLOC
   if (pbi->tile_data == NULL || n_tiles != pbi->allocated_tiles) {
     decoder_alloc_tile_data(pbi, n_tiles);
   }
+#endif  
 #if CONFIG_ACCOUNTING
   if (pbi->acct_enabled) {
     aom_accounting_reset(&pbi->accounting);
@@ -5861,7 +5866,11 @@ static const uint8_t *decode_tiles_mt(AV1Decoder *pbi, const uint8_t *data,
   assert(start_tile >= 0 && end_tile < n_tiles);
 
   decode_mt_init(pbi);
-
+#if CONFIG_MOVE_TILE_DATA_ALLOC
+  if (pbi->tile_data == NULL || n_tiles != pbi->allocated_tiles) {
+    decoder_alloc_tile_data(pbi, n_tiles);
+  }
+#endif  
   // get tile size in tile group
 #if EXT_TILE_DEBUG
   if (tiles->large_scale) assert(pbi->ext_tile_debug == 1);
@@ -5871,9 +5880,11 @@ static const uint8_t *decode_tiles_mt(AV1Decoder *pbi, const uint8_t *data,
 #endif  // EXT_TILE_DEBUG
     get_tile_buffers(pbi, data, data_end, tile_buffers, start_tile, end_tile);
 
+#if !CONFIG_MOVE_TILE_DATA_ALLOC
   if (pbi->tile_data == NULL || n_tiles != pbi->allocated_tiles) {
     decoder_alloc_tile_data(pbi, n_tiles);
   }
+#endif  
 
   for (int row = 0; row < tile_rows; row++) {
     for (int col = 0; col < tile_cols; col++) {
@@ -6040,15 +6051,7 @@ static const uint8_t *decode_tiles_row_mt(AV1Decoder *pbi, const uint8_t *data,
 
   decode_mt_init(pbi);
 
-  // get tile size in tile group
-#if EXT_TILE_DEBUG
-  if (tiles->large_scale) assert(pbi->ext_tile_debug == 1);
-  if (tiles->large_scale)
-    raw_data_end = get_ls_tile_buffers(pbi, data, data_end, tile_buffers);
-  else
-#endif  // EXT_TILE_DEBUG
-    get_tile_buffers(pbi, data, data_end, tile_buffers, start_tile, end_tile);
-
+#if CONFIG_MOVE_TILE_DATA_ALLOC
   if (pbi->tile_data == NULL || n_tiles != pbi->allocated_tiles) {
     if (pbi->tile_data != NULL) {
       for (int i = 0; i < pbi->allocated_tiles; i++) {
@@ -6058,6 +6061,28 @@ static const uint8_t *decode_tiles_row_mt(AV1Decoder *pbi, const uint8_t *data,
     }
     decoder_alloc_tile_data(pbi, n_tiles);
   }
+#endif  
+
+  // get tile size in tile group
+#if EXT_TILE_DEBUG
+  if (tiles->large_scale) assert(pbi->ext_tile_debug == 1);
+  if (tiles->large_scale)
+    raw_data_end = get_ls_tile_buffers(pbi, data, data_end, tile_buffers);
+  else
+#endif  // EXT_TILE_DEBUG
+    get_tile_buffers(pbi, data, data_end, tile_buffers, start_tile, end_tile);
+
+#if !CONFIG_MOVE_TILE_DATA_ALLOC
+  if (pbi->tile_data == NULL || n_tiles != pbi->allocated_tiles) {
+    if (pbi->tile_data != NULL) {
+      for (int i = 0; i < pbi->allocated_tiles; i++) {
+        TileDataDec *const tile_data = pbi->tile_data + i;
+        av1_dec_row_mt_dealloc(&tile_data->dec_row_mt_sync);
+      }
+    }
+    decoder_alloc_tile_data(pbi, n_tiles);
+  }
+#endif  
 
   for (int row = 0; row < tile_rows; row++) {
     for (int col = 0; col < tile_cols; col++) {
