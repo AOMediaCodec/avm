@@ -1582,9 +1582,9 @@ static void handle_edge_cases(uint8_t *mask, int mask_stride, int block_width,
   }
 }
 
-static void handle_general_cases(uint8_t *mask, int mask_stride, int block_width,
-                                 int block_height, int frame_width,
-                                 int frame_height,
+static void handle_general_cases(uint8_t *mask, int mask_stride,
+                                 int block_width, int block_height,
+                                 int frame_width, int frame_height,
                                  const BacpBlockData *b_data_0,
                                  const BacpBlockData *b_data_1) {
   int p0_x_start = b_data_0->x0 < 0 ? 0 : frame_width - b_data_0->x0;
@@ -1618,14 +1618,12 @@ static void handle_general_cases(uint8_t *mask, int mask_stride, int block_width
 
   // Initialize the mask block
   for (int idy = 0; idy < block_height; ++idy)
-    memset(mask + mask_stride * idy, AOM_BLEND_A64_MAX_ALPHA >> 1,
-           block_width);
+    memset(mask + mask_stride * idy, AOM_BLEND_A64_MAX_ALPHA >> 1, block_width);
 
   int line_start = (p1_x_start == 0) ? p1_x_end : 0;
   int line_end = (p1_x_start == 0) ? block_width : p1_x_start;
   int mem_width = line_end - line_start;
-  int row_start =
-      (p1_y_start == 0) ? AOMMAX(p0_y_start, p1_y_end) : p0_y_start;
+  int row_start = (p1_y_start == 0) ? AOMMAX(p0_y_start, p1_y_end) : p0_y_start;
   int row_end = (p1_y_start == 0) ? p0_y_end : AOMMIN(p0_y_end, p1_y_start);
 
   if (mem_width > 0) {
@@ -1648,8 +1646,7 @@ static void handle_general_cases(uint8_t *mask, int mask_stride, int block_width
     }
   }
 
-  int start_idx =
-      (p1_x_start == 0) ? AOMMAX(p0_x_start, p1_x_end) : p0_x_start;
+  int start_idx = (p1_x_start == 0) ? AOMMAX(p0_x_start, p1_x_end) : p0_x_start;
   int end_idx = (p1_x_start == 0) ? p0_x_end : AOMMIN(p0_x_end, p1_x_start);
   int len = end_idx - start_idx;
   if (len > 0) {
