@@ -793,7 +793,12 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
 
 #if CONFIG_FLEX_TIP_BLK_SIZE
   BLOCK_SIZE unit_bsize = get_unit_bsize_for_tip_frame(
-      cm->features.tip_frame_mode, cm->tip_interp_filter);
+      cm->features.tip_frame_mode, cm->tip_interp_filter
+#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+      ,
+      cm->seq_params.enable_tip_refinemv
+#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+  );
   int unit_bw = block_size_wide[unit_bsize];
   int unit_bh = block_size_high[unit_bsize];
 #endif  // CONFIG_FLEX_TIP_BLK_SIZE
@@ -1239,11 +1244,15 @@ static AOM_INLINE void tip_setup_tip_frame_planes(
     CONV_BUF_TYPE *tmp_conv_dst, CalcSubpelParamsFunc calc_subpel_params_func,
     int copy_refined_mvs) {
 #if CONFIG_FLEX_TIP_BLK_SIZE
-  int unit_blk_size =
-      (get_unit_bsize_for_tip_frame(cm->features.tip_frame_mode,
-                                    cm->tip_interp_filter) == BLOCK_16X16)
-          ? 16
-          : 8;
+  int unit_blk_size = (get_unit_bsize_for_tip_frame(
+                           cm->features.tip_frame_mode, cm->tip_interp_filter
+#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+                           ,
+                           cm->seq_params.enable_tip_refinemv
+#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+                           ) == BLOCK_16X16)
+                          ? 16
+                          : 8;
 #endif  // CONFIG_FLEX_TIP_BLK_SIZE
   tip_setup_tip_frame_plane(cm, xd, blk_row_start, blk_col_start, blk_row_end,
                             blk_col_end, mvs_stride,

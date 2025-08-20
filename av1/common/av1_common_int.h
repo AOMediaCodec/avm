@@ -4956,14 +4956,33 @@ static INLINE int opfl_allowed_cur_pred_mode(const AV1_COMMON *cm,
 // Check if the optical flow MV refinement is disabled in the TIP-ref block
 // case.
 static AOM_INLINE bool disable_opfl_for_tip_ref(TIP_FRAME_MODE tip_frame_mode,
-                                                int bw, int bh) {
+                                                int bw, int bh
+#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+                                                ,
+                                                int enable_tip_refinemv
+#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+) {
+#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+  if (!enable_tip_refinemv && tip_frame_mode == TIP_FRAME_AS_REF && bw >= 16 &&
+      bh >= 16)
+    return true;
+#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
   return (tip_frame_mode == TIP_FRAME_AS_REF && bw >= 256 && bh >= 256);
 }
 
 // Check if the optical flow MV refinement is disabled in the TIP-direct block
 // case.
 static AOM_INLINE bool disable_opfl_for_tip_direct(
-    TIP_FRAME_MODE tip_frame_mode, InterpFilter tip_interp_filter) {
+    TIP_FRAME_MODE tip_frame_mode, InterpFilter tip_interp_filter
+#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+    ,
+    int enable_tip_refinemv
+#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+) {
+#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+  if (!enable_tip_refinemv && tip_frame_mode == TIP_FRAME_AS_OUTPUT)
+    return true;
+#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
 #if CONFIG_ADAPT_OPFL_IN_TIP_DIRECT
   return (tip_frame_mode == TIP_FRAME_AS_OUTPUT &&
           tip_interp_filter != MULTITAP_SHARP);
@@ -4978,9 +4997,19 @@ static AOM_INLINE BLOCK_SIZE get_tip_bsize_from_bw_bh(int bw, int bh) {
 }
 
 // Obtain the tip block size of a TIP-ref block.
-static AOM_INLINE BLOCK_SIZE
-get_unit_bsize_for_tip_ref(TIP_FRAME_MODE tip_frame_mode, int bw, int bh) {
-  if (disable_opfl_for_tip_ref(tip_frame_mode, bw, bh)) {
+static AOM_INLINE BLOCK_SIZE get_unit_bsize_for_tip_ref(
+    TIP_FRAME_MODE tip_frame_mode, int bw, int bh
+#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+    ,
+    int enable_tip_refinemv
+#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+) {
+  if (disable_opfl_for_tip_ref(tip_frame_mode, bw, bh
+#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+                               ,
+                               enable_tip_refinemv
+#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+                               )) {
     return BLOCK_16X16;
   } else {
     return BLOCK_8X8;
@@ -4989,8 +5018,18 @@ get_unit_bsize_for_tip_ref(TIP_FRAME_MODE tip_frame_mode, int bw, int bh) {
 
 // Obtain the tip block size of a TIP-direct block.
 static AOM_INLINE BLOCK_SIZE get_unit_bsize_for_tip_frame(
-    TIP_FRAME_MODE tip_frame_mode, InterpFilter tip_interp_filter) {
-  if (disable_opfl_for_tip_direct(tip_frame_mode, tip_interp_filter)) {
+    TIP_FRAME_MODE tip_frame_mode, InterpFilter tip_interp_filter
+#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+    ,
+    int enable_tip_refinemv
+#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+) {
+  if (disable_opfl_for_tip_direct(tip_frame_mode, tip_interp_filter
+#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+                                  ,
+                                  enable_tip_refinemv
+#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+                                  )) {
     return BLOCK_16X16;
   } else {
     return BLOCK_8X8;
@@ -5013,9 +5052,19 @@ static AOM_INLINE int is_optflow_refinement_enabled(const AV1_COMMON *cm,
     const int bw = block_size_wide[mi->sb_type[xd->tree_type == CHROMA_PART]];
     const int bh = block_size_high[mi->sb_type[xd->tree_type == CHROMA_PART]];
     bool disable_opfl =
-        disable_opfl_for_tip_ref(cm->features.tip_frame_mode, bw, bh);
-    disable_opfl |= disable_opfl_for_tip_direct(cm->features.tip_frame_mode,
-                                                cm->tip_interp_filter);
+        disable_opfl_for_tip_ref(cm->features.tip_frame_mode, bw, bh
+#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+                                 ,
+                                 cm->seq_params.enable_tip_refinemv
+#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+        );
+    disable_opfl |= disable_opfl_for_tip_direct(
+        cm->features.tip_frame_mode, cm->tip_interp_filter
+#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+        ,
+        cm->seq_params.enable_tip_refinemv
+#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+    );
     if (disable_opfl) return 0;
 #endif  // CONFIG_FLEX_TIP_BLK_SIZE
 #if CONFIG_TIP_ENHANCEMENT

@@ -4123,7 +4123,12 @@ static void build_inter_predictors_8x8_and_bigger_facade(
     const int width = xd->width << MI_SIZE_LOG2;
     const int height = xd->height << MI_SIZE_LOG2;
     const BLOCK_SIZE unit_bsize =
-        get_unit_bsize_for_tip_ref(TIP_FRAME_AS_REF, width, height);
+        get_unit_bsize_for_tip_ref(TIP_FRAME_AS_REF, width, height
+#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+                                   ,
+                                   cm->seq_params.enable_tip_refinemv
+#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+        );
     const int unit_blk_size = block_size_wide[unit_bsize];
     const int end_pixel_row = mi_y + height;
     const int end_pixel_col = mi_x + width;
