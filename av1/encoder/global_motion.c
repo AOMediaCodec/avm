@@ -28,6 +28,9 @@
 
 // Border over which to compute the global motion
 #define ERRORADV_BORDER 0
+#if !CONFIG_IMPROVED_GLOBAL_MOTION
+#define MIN_TRANS_THRESH (1 * GM_TRANS_DECODE_FACTOR)
+#endif  // !CONFIG_IMPROVED_GLOBAL_MOTION
 
 int av1_is_enough_erroradvantage(double best_erroradvantage, int params_cost) {
   return best_erroradvantage < erroradv_tr &&

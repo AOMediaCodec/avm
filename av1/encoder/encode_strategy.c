@@ -1296,9 +1296,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     cm->ref_frames_info.num_same_ref_compound =
         AOMMIN(cm->seq_params.num_same_ref_compound,
                cm->ref_frames_info.num_total_refs);
-#if CONFIG_IMPROVED_GLOBAL_MOTION
     cm->cur_frame->num_ref_frames = cm->ref_frames_info.num_total_refs;
-#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 
     // ref_frame_flags is defined based on the external flag
     // max-reference-frames.

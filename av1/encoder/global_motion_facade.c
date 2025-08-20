@@ -204,7 +204,7 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
       if (!av1_is_enough_erroradvantage(
               erroradvantage,
               gm_get_params_cost(&tmp_wm_params, ref_params,
-                                 cm->features.allow_high_precision_mv))) {
+                                 cm->features.fr_mv_precision))) {
         continue;
       }
 #endif  // !CONFIG_IMPROVED_GLOBAL_MOTION

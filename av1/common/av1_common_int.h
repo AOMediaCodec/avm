@@ -303,11 +303,8 @@ typedef struct RefCntBuffer {
   unsigned int pyramid_level;
   unsigned int temporal_layer_id;
 
-#if CONFIG_IMPROVED_GLOBAL_MOTION
-  // How many ref frames did this frame use?
-  // This is set to 0 for intra frames
+  // How many ref frames did this frame use? This is set to 0 for intra frames
   int num_ref_frames;
-#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 
   MV_REF *mvs;
   int64_t avg_row[2];

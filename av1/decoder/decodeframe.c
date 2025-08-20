@@ -7947,9 +7947,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     features->allow_ref_frame_mvs = 0;
     cm->prev_frame = NULL;
 
-#if CONFIG_IMPROVED_GLOBAL_MOTION
     cm->cur_frame->num_ref_frames = 0;
-#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
   } else {
 #if CONFIG_NEW_OBU_HEADER
     cm->current_frame.temporal_layer_id = cm->tlayer_id;
@@ -7973,9 +7971,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         read_frame_max_bvp_drl_bits(cm, rb);
       }
 
-#if CONFIG_IMPROVED_GLOBAL_MOTION
       cm->cur_frame->num_ref_frames = 0;
-#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 
     } else if (pbi->need_resync != 1) { /* Skip if need resync */
       // Implicitly derive the reference mapping
@@ -8219,9 +8215,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         }
         av1_get_past_future_cur_ref_lists(cm, scores);
       }
-#if CONFIG_IMPROVED_GLOBAL_MOTION
       cm->cur_frame->num_ref_frames = cm->ref_frames_info.num_total_refs;
-#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 
 #if !CONFIG_ACROSS_SCALE_REF_OPT
       if (!features->error_resilient_mode && frame_size_override_flag) {

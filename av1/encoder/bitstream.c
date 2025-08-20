@@ -5790,9 +5790,7 @@ static AOM_INLINE void write_global_motion(AV1_COMP *cpi,
                                            struct aom_write_bit_buffer *wb) {
   AV1_COMMON *const cm = &cpi->common;
   int num_total_refs = cm->ref_frames_info.num_total_refs;
-#if CONFIG_IMPROVED_GLOBAL_MOTION
   assert(cm->cur_frame->num_ref_frames == num_total_refs);
-#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
   int frame;
 
 #if CONFIG_IMPROVED_GLOBAL_MOTION
