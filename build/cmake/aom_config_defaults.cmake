@@ -171,8 +171,6 @@ set_aom_config_var(CONFIG_F253_REMOVE_OUTPUTFLAG 1
 set_aom_config_var(CONFIG_SEQ_MAX_DRL_BITS 1
                    "AV2 sequence level max_drl_bits information")
 set_aom_config_var(CONFIG_EXT_MVPRED 1 "AV2 ext-mvpred.")
-set_aom_config_var(CONFIG_CDF_SCALE 1
-                   "AV2 enable entropy cdf scaling improvement.")
 set_aom_config_var(CONFIG_INTRA_SDP_SIMPLIFICATION 1 NUMBER
                    "Simplify intra sdp logic")
 set_aom_config_var(CONFIG_DIP_EXT_PRUNING 1 "AV2 DIP TFLite pruning.")

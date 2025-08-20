@@ -34,9 +34,7 @@ typedef uint64_t od_ec_window;
 
 #define OD_ICDF AOM_ICDF
 
-#if CONFIG_CDF_SCALE
 extern const uint16_t av1_prob_inc_tbl[15][16];
-#endif
 
 /*See entcode.c for further documentation.*/
 

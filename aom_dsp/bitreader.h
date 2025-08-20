@@ -17,9 +17,7 @@
 #include <limits.h>
 
 #include "config/aom_config.h"
-#if CONFIG_CDF_SCALE
 #include "config/aom_dsp_rtcd.h"
-#endif
 
 #include "aom/aomdx.h"
 #include "aom/aom_integer.h"

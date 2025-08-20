@@ -74,11 +74,6 @@ OD_WARN_UNUSED_RESULT int od_ec_decode_unary_bypass(od_ec_dec *dec,
     OD_ARG_NONNULL(1);
 OD_WARN_UNUSED_RESULT int od_ec_decode_bool_q15(od_ec_dec *dec, unsigned f)
     OD_ARG_NONNULL(1);
-#if !CONFIG_CDF_SCALE
-OD_WARN_UNUSED_RESULT int od_ec_decode_cdf_q15(od_ec_dec *dec,
-                                               const uint16_t *cdf, int nsyms)
-    OD_ARG_NONNULL(1) OD_ARG_NONNULL(2);
-#endif
 
 OD_WARN_UNUSED_RESULT uint32_t od_ec_dec_bits_(od_ec_dec *dec, unsigned ftb)
     OD_ARG_NONNULL(1);

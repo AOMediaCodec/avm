@@ -189,12 +189,7 @@ int od_ec_decode_unary_bypass(od_ec_dec *dec, int max_bits) {
   nsyms: The number of symbols in the alphabet.
          This should be at most 16.
   Return: The decoded symbol s.*/
-#if CONFIG_CDF_SCALE
-int od_ec_decode_cdf_q15_c(od_ec_dec *dec, const uint16_t *icdf, int nsyms)
-#else
-int od_ec_decode_cdf_q15(od_ec_dec *dec, const uint16_t *icdf, int nsyms)
-#endif
-{
+int od_ec_decode_cdf_q15_c(od_ec_dec *dec, const uint16_t *icdf, int nsyms) {
   od_ec_window dif;
   unsigned r;
   unsigned c;

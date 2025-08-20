@@ -12,7 +12,6 @@
 
 #include "aom_dsp/entcode.h"
 
-#if CONFIG_CDF_SCALE
 const uint16_t av1_prob_inc_tbl[15][16] = {
   { 8, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 },
   { 10, 5, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 },
@@ -30,7 +29,6 @@ const uint16_t av1_prob_inc_tbl[15][16] = {
   { 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, -1 },
   { 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0 }
 };
-#endif
 
 /*Given the current total integer number of bits used and the current value of
    rng, computes the fraction number of bits used to OD_BITRES precision.

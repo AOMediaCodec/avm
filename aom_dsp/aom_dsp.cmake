@@ -113,10 +113,7 @@ list(
   "${AOM_ROOT}/aom_dsp/x86/avg_intrin_avx2.c"
   "${AOM_ROOT}/aom_dsp/x86/bitdepth_conversion_avx2.h")
 
-if(CONFIG_CDF_SCALE)
-  list(APPEND AOM_DSP_DECODER_INTRIN_AVX2
-       "${AOM_ROOT}/aom_dsp/x86/entdec_avx2.c")
-endif()
+list(APPEND AOM_DSP_DECODER_INTRIN_AVX2 "${AOM_ROOT}/aom_dsp/x86/entdec_avx2.c")
 
 list(
   APPEND

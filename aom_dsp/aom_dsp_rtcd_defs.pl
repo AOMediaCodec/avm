@@ -16,9 +16,7 @@ print <<EOF
 
 #include "aom/aom_integer.h"
 #include "aom_dsp/aom_dsp_common.h"
-#if CONFIG_CDF_SCALE
 #include "aom_dsp/entdec.h"
-#endif
 #include "av1/common/enums.h"
 #include "av1/common/blockd.h"
 
@@ -219,11 +217,9 @@ else{
 #
 # Entropy
 #
-if (aom_config("CONFIG_CDF_SCALE") eq "yes") {
-  add_proto qw/int od_ec_decode_cdf_q15/, "od_ec_dec *dec, const uint16_t *icdf, int nsyms";
-  if (aom_config("CONFIG_AV1_DECODER") eq "yes") {
-    specialize qw/od_ec_decode_cdf_q15 avx2/;
-  }
+add_proto qw/int od_ec_decode_cdf_q15/, "od_ec_dec *dec, const uint16_t *icdf, int nsyms";
+if (aom_config("CONFIG_AV1_DECODER") eq "yes") {
+  specialize qw/od_ec_decode_cdf_q15 avx2/;
 }
 
 #
