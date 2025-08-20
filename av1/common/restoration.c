@@ -1324,15 +1324,13 @@ static bool adjust_filter_to_non_subtract_center(
 }
 #endif  // ADD_CENTER_TAP_TO_WIENERNS
 
-void apply_wienerns_class_id_highbd(const uint16_t *dgd, int width, int height,
-                                    int stride,
-                                    const WienerNonsepInfo *wienerns_info,
-                                    const NonsepFilterConfig *nsfilter_config,
-                                    uint16_t *dst, int dst_stride, int plane,
-                                    const uint16_t *luma, int luma_stride,
-                                    int bit_depth, const uint8_t *class_id,
-                                    int class_id_stride, int class_id_restrict,
-                                    int num_classes, int set_index
+void apply_wienerns_class_id_highbd(
+    const uint16_t *dgd, int width, int height, int stride,
+    const WienerNonsepInfo *wienerns_info,
+    const NonsepFilterConfig *nsfilter_config, uint16_t *dst, int dst_stride,
+    int plane, const uint16_t *luma, int luma_stride, int bit_depth,
+    const uint8_t *class_id, int class_id_stride, int class_id_restrict,
+    int num_classes, int set_index
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
     ,
     MB_MODE_INFO **mbmi_ptr_procunit, int mi_stride, int ss_x, int ss_y,
@@ -1517,13 +1515,13 @@ static void wiener_nsfilter_stripe_highbd(const RestorationUnitInfo *rui,
         rui->luma_stride, bit_depth, rui->wiener_class_id + (j >> MI_SIZE_LOG2),
         rui->wiener_class_id_stride, rui->wiener_class_id_restrict,
         rui->wienerns_info.num_classes, set_index
- #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
         ,
         mbmi_ptr_procunit, rui->mi_stride, rui->ss_x, rui->ss_y,
         rui->lossless_segment
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 
-        );
+    );
   }
 }
 #if ISSUE_253
