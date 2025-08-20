@@ -52,6 +52,8 @@ const nonUniformTileConfigParam nonUniformTileConfigParams[] = {
   { 64, 1, { 3 }, 1, { 3 } },          { 64, 2, { 1, 2 }, 2, { 1, 2 } },
   { 64, 3, { 2, 3, 4 }, 2, { 2, 3 } }, { 128, 1, { 3 }, 1, { 3 } },
   { 128, 2, { 1, 2 }, 2, { 1, 2 } },   { 128, 3, { 2, 3, 4 }, 2, { 2, 3 } },
+  { 256, 1, { 3 }, 1, { 2 } },         { 256, 2, { 1, 2 }, 2, { 1, 2 } },
+  { 256, 3, { 2, 2, 1 }, 2, { 2, 1 } }
 };
 
 // Find smallest k>=0 such that (blk_size << k) >= target
@@ -195,16 +197,30 @@ class NonUniformTileConfigTestLarge
 
       // check validity of tile cols
       int tile_col_idx, tile_col = 0;
+      int frame_flags = 0;
+      // Get frame flags
+      AOM_CODEC_CONTROL_TYPECHECKED(ctx_dec, AOMD_GET_FRAME_FLAGS,
+                                    &frame_flags);
+      const bool is_intra_frame =
+          (frame_flags & AOM_FRAME_IS_INTRAONLY) ==
+          static_cast<aom_codec_frame_flags_t>(AOM_FRAME_IS_INTRAONLY);
+
+      // Intra frame force to use SB size as 128x128 when encoder is configured
+      // with max SB size as 256x256. Hence, adjust the tile size with a scale
+      // factor.
+      const int sb_size_scale =
+          is_intra_frame && tile_config_param_.sb_size == 256 ? 2 : 1;
+
       for (tile_col_idx = 0; tile_col_idx < tile_info.tile_columns - 1;
            tile_col_idx++) {
-        if (tile_config_param_.tile_widths[tile_col] !=
+        if (tile_config_param_.tile_widths[tile_col] * sb_size_scale !=
             tile_info.tile_widths[tile_col_idx])
           tile_config_violated_ = true;
         tile_col = (tile_col + 1) % (int)tile_config_param_.tile_width_count;
       }
       // last column may not be able to accommodate config, but if it is
       // greater than what is configured, there is a violation.
-      if (tile_config_param_.tile_widths[tile_col] <
+      if (tile_config_param_.tile_widths[tile_col] * sb_size_scale <
           tile_info.tile_widths[tile_col_idx])
         tile_config_violated_ = true;
 
@@ -212,14 +228,14 @@ class NonUniformTileConfigTestLarge
       int tile_row_idx, tile_row = 0;
       for (tile_row_idx = 0; tile_row_idx < tile_info.tile_rows - 1;
            tile_row_idx++) {
-        if (tile_config_param_.tile_heights[tile_row] !=
+        if (tile_config_param_.tile_heights[tile_row] * sb_size_scale !=
             tile_info.tile_heights[tile_row_idx])
           tile_config_violated_ = true;
         tile_row = (tile_row + 1) % (int)tile_config_param_.tile_height_count;
       }
       // last row may not be able to accommodate config, but if it is
       // greater than what is configured, there is a violation.
-      if (tile_config_param_.tile_heights[tile_row] <
+      if (tile_config_param_.tile_heights[tile_row] * sb_size_scale <
           tile_info.tile_heights[tile_row_idx])
         tile_config_violated_ = true;
     }
@@ -259,7 +275,7 @@ TEST_P(UniformTileConfigTestLarge, UniformTileConfigTestLowRes) {
 }
 
 TEST_P(NonUniformTileConfigTestLarge, NonUniformTileConfigTest) {
-  ::libaom_test::Y4mVideoSource video("niklas_1280_720_30.y4m", 0, 1);
+  ::libaom_test::Y4mVideoSource video("niklas_1280_720_30.y4m", 0, 2);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   ASSERT_EQ(tile_config_violated_, false);
 }

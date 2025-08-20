@@ -1014,6 +1014,16 @@ static AOM_INLINE void av1_set_tile_info(AV1_COMMON *const cm,
 
   av1_get_tile_limits(cm);
 
+  int sb_size_scale = 1;
+  // Intra frame force to use SB size as 128x128 when encoder is configured with
+  // max SB size as 256x256. Since in non-uniform tile spacing tile size is
+  // calculated based on the SB size, the tile size of intra and inter frames do
+  // not match. Hence, this scaling factor is used to adjust tile configuration
+  // for intra frames to be identical with inter frames.
+  if (frame_is_intra_only(cm) && cm->seq_params.sb_size == BLOCK_256X256 &&
+      cm->sb_size == BLOCK_128X128)
+    sb_size_scale = 2;
+
   // configure tile columns
   if (tile_cfg->tile_width_count == 0 || tile_cfg->tile_height_count == 0) {
     tiles->uniform_spacing = 1;
@@ -1026,7 +1036,7 @@ static AOM_INLINE void av1_set_tile_info(AV1_COMMON *const cm,
     tiles->uniform_spacing = 0;
     for (i = 0, start_sb = 0; start_sb < sb_cols && i < MAX_TILE_COLS; i++) {
       tiles->col_start_sb[i] = start_sb;
-      size_sb = tile_cfg->tile_widths[j++];
+      size_sb = tile_cfg->tile_widths[j++] * sb_size_scale;
       if (j >= tile_cfg->tile_width_count) j = 0;
       start_sb += AOMMIN(size_sb, tiles->max_width_sb);
     }
@@ -1045,7 +1055,7 @@ static AOM_INLINE void av1_set_tile_info(AV1_COMMON *const cm,
     int size_sb, j = 0;
     for (i = 0, start_sb = 0; start_sb < sb_rows && i < MAX_TILE_ROWS; i++) {
       tiles->row_start_sb[i] = start_sb;
-      size_sb = tile_cfg->tile_heights[j++];
+      size_sb = tile_cfg->tile_heights[j++] * sb_size_scale;
       if (j >= tile_cfg->tile_height_count) j = 0;
       start_sb += AOMMIN(size_sb, tiles->max_height_sb);
     }
