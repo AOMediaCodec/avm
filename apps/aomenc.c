@@ -516,13 +516,11 @@ const arg_def_t *av1_key_val_args[] = {
 #if CONFIG_EXT_SEG
   &g_av1_codec_arg_defs.enable_ext_seg,
 #endif  // CONFIG_EXT_SEG
-#if CONFIG_EXTRA_DPB
 #if CONFIG_CWG_F168_DPB_HLS
   &g_av1_codec_arg_defs.dpb_size,
 #else
   &g_av1_codec_arg_defs.num_extra_dpb,
 #endif  // CONFIG_CWG_F168_DPB_HLS
-#endif  // CONFIG_EXTRA_DPB
 #if CONFIG_BRU
   &g_av1_codec_arg_defs.enable_bru,
 #endif  // CONFIG_BRU
@@ -769,13 +767,11 @@ static void init_config(cfg_options_t *config) {
 #if CONFIG_EXT_SEG
   config->enable_ext_seg = 0;
 #endif  // CONFIG_EXT_SEG
-#if CONFIG_EXTRA_DPB
 #if CONFIG_CWG_F168_DPB_HLS
   config->dpb_size = 8;
 #else
   config->num_extra_dpb = 0;
 #endif  // CONFIG_CWG_F168_DPB_HLS
-#endif  // CONFIG_EXTRA_DPB
 #if CONFIG_BRU
   config->enable_bru = 0;
 #endif  // CONFIG_BRU

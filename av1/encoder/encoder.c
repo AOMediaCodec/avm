@@ -647,7 +647,6 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #if CONFIG_EXT_SEG
   seq->enable_ext_seg = tool_cfg->enable_ext_seg;
 #endif  // CONFIG_EXT_SEG
-#if CONFIG_EXTRA_DPB
 #if CONFIG_CWG_F168_DPB_HLS
   seq->ref_frames = tool_cfg->dpb_size;
   seq->ref_frames_log2 = aom_ceil_log2(seq->ref_frames);
@@ -658,10 +657,6 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->ref_frames_log2 =
       seq->num_extra_dpb ? REF_FRAMES_LOG2 + 1 : REF_FRAMES_LOG2;
 #endif  // CONFIG_CWG_F168_DPB_HLS
-#else
-  seq->ref_frames = REF_FRAMES;
-  seq->ref_frames_log2 = REF_FRAMES_LOG2;
-#endif  // CONFIG_EXTRA_DPB
   const QuantizationCfg *const q_cfg = &oxcf->q_cfg;
   seq->user_defined_qmatrix = q_cfg->using_qm && q_cfg->user_defined_qmatrix;
 #if CONFIG_QM_DEBUG

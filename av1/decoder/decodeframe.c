@@ -5929,14 +5929,12 @@ void av1_read_film_grain_params(AV1_COMMON *cm,
     // inherit parameters from a previous reference frame
     int film_grain_params_ref_idx =
         aom_rb_read_literal(rb, cm->seq_params.ref_frames_log2);
-#if CONFIG_EXTRA_DPB
     if (film_grain_params_ref_idx >= cm->seq_params.ref_frames) {
       aom_internal_error(
           &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
           "Film grain reference idx must be less than %d but is set to %d",
           cm->seq_params.ref_frames, film_grain_params_ref_idx);
     }
-#endif  // CONFIG_EXTRA_DPB
     // Section 6.8.20: It is a requirement of bitstream conformance that
     // film_grain_params_ref_idx is equal to ref_frame_idx[ j ] for some value
     // of j in the range 0 to INTER_REFS_PER_FRAME - 1.
@@ -6566,7 +6564,6 @@ void av1_read_sequence_header_beyond_av1(
   } else {
     seq_params->max_reference_frames = 7;
   }
-#if CONFIG_EXTRA_DPB
   const bool use_extra_dpb = aom_rb_read_literal(rb, 1);
 
   if (use_extra_dpb) {
@@ -6581,10 +6578,6 @@ void av1_read_sequence_header_beyond_av1(
 
   seq_params->ref_frames_log2 =
       seq_params->num_extra_dpb ? REF_FRAMES_LOG2 + 1 : REF_FRAMES_LOG2;
-#else
-  seq_params->ref_frames = REF_FRAMES;
-  seq_params->ref_frames_log2 = REF_FRAMES_LOG2;
-#endif  // CONFIG_EXTRA_DPB
 #endif  // CONFIG_CWG_F168_DPB_HLS
 
 #if CONFIG_SEQ_MAX_DRL_BITS
@@ -6987,11 +6980,7 @@ static AOM_INLINE void show_existing_frame_reset(AV1Decoder *const pbi,
   assert(cm->show_existing_frame);
 
   cm->current_frame.frame_type = KEY_FRAME;
-#if CONFIG_EXTRA_DPB
   cm->current_frame.refresh_frame_flags = (1 << cm->seq_params.ref_frames) - 1;
-#else
-  cm->current_frame.refresh_frame_flags = REFRESH_FRAME_ALL;
-#endif  // CONFIG_EXTRA_DPB
 
   for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
     cm->remapped_ref_idx[i] = INVALID_IDX;
@@ -7386,14 +7375,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       // Show an existing frame directly.
       const int existing_frame_idx =
           aom_rb_read_literal(rb, seq_params->ref_frames_log2);
-#if CONFIG_EXTRA_DPB
       if (existing_frame_idx >= seq_params->ref_frames) {
         aom_internal_error(
             &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
             "Existing frame idx must be less than %d but is set to %d",
             seq_params->ref_frames, existing_frame_idx);
       }
-#endif  // CONFIG_EXTRA_DPB
       RefCntBuffer *const frame_to_show = cm->ref_frame_map[existing_frame_idx];
       if (frame_to_show == NULL) {
         aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
@@ -7705,14 +7692,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         if (has_refresh_frame_flags) {
           const int refresh_idx =
               aom_rb_read_literal(rb, refresh_frame_flags_bits);
-#if CONFIG_EXTRA_DPB
           if (refresh_idx >= seq_params->ref_frames) {
             aom_internal_error(
                 &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                 "refresh_idx must be less than %d but is set to %d",
                 seq_params->ref_frames, refresh_idx);
           }
-#endif  // CONFIG_EXTRA_DPB
           current_frame->refresh_frame_flags = 1 << refresh_idx;
         } else {
           current_frame->refresh_frame_flags = 0;
@@ -7720,14 +7705,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #else
         const int refresh_idx =
             aom_rb_read_literal(rb, refresh_frame_flags_bits);
-#if CONFIG_EXTRA_DPB
         if (refresh_idx >= seq_params->ref_frames) {
           aom_internal_error(
               &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
               "refresh_idx must be less than %d but is set to %d",
               seq_params->ref_frames, refresh_idx);
         }
-#endif  // CONFIG_EXTRA_DPB
         if (refresh_idx == 0) {
           const bool has_refresh_frame_flags = aom_rb_read_literal(rb, 1);
           current_frame->refresh_frame_flags = has_refresh_frame_flags ? 1 : 0;
@@ -7744,11 +7727,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           aom_rb_read_literal(rb, seq_params->ref_frames);
 #endif        // CONFIG_REFRESH_FLAG
     } else {  // shown keyframe
-#if CONFIG_EXTRA_DPB
       current_frame->refresh_frame_flags = (1 << seq_params->ref_frames) - 1;
-#else
-      current_frame->refresh_frame_flags = REFRESH_FRAME_ALL;
-#endif  // CONFIG_EXTRA_DPB
     }
 
     for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
@@ -7767,14 +7746,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         if (has_refresh_frame_flags) {
           const int refresh_idx =
               aom_rb_read_literal(rb, refresh_frame_flags_bits);
-#if CONFIG_EXTRA_DPB
           if (refresh_idx >= seq_params->ref_frames) {
             aom_internal_error(
                 &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                 "refresh_idx must be less than %d but is set to %d",
                 seq_params->ref_frames, refresh_idx);
           }
-#endif  // CONFIG_EXTRA_DPB
           current_frame->refresh_frame_flags = 1 << refresh_idx;
         } else {
           current_frame->refresh_frame_flags = 0;
@@ -7782,14 +7759,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #else
         const int refresh_idx =
             aom_rb_read_literal(rb, refresh_frame_flags_bits);
-#if CONFIG_EXTRA_DPB
         if (refresh_idx >= seq_params->ref_frames) {
           aom_internal_error(
               &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
               "refresh_idx must be less than %d but is set to %d",
               seq_params->ref_frames, refresh_idx);
         }
-#endif  // CONFIG_EXTRA_DPB
         if (refresh_idx == 0) {
           const bool has_refresh_frame_flags = aom_rb_read_literal(rb, 1);
           current_frame->refresh_frame_flags = has_refresh_frame_flags ? 1 : 0;
@@ -7806,12 +7781,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           aom_rb_read_literal(rb, seq_params->ref_frames);
 
 #endif  // CONFIG_REFRESH_FLAG
-#if CONFIG_EXTRA_DPB
       if (current_frame->refresh_frame_flags ==
           ((1 << seq_params->ref_frames) - 1)) {
-#else
-      if (current_frame->refresh_frame_flags == REFRESH_FRAME_ALL) {
-#endif  // CONFIG_EXTRA_DPB
         aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                            "Intra only frames cannot have refresh flags 0xFF");
       }
@@ -7822,7 +7793,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     } else if (pbi->need_resync != 1) { /* Skip if need resync */
 #if CONFIG_REFRESH_FLAG
       if (frame_is_sframe(cm)) {
-        current_frame->refresh_frame_flags = REFRESH_FRAME_ALL;
+        current_frame->refresh_frame_flags =
+            ((1 << seq_params->ref_frames) - 1);
       } else {
         if (short_refresh_frame_flags) {
 #if CONFIG_CWG_F260_REFRESH_FLAG
@@ -7830,14 +7802,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           if (has_refresh_frame_flags) {
             const int refresh_idx =
                 aom_rb_read_literal(rb, refresh_frame_flags_bits);
-#if CONFIG_EXTRA_DPB
             if (refresh_idx >= seq_params->ref_frames) {
               aom_internal_error(
                   &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                   "refresh_idx must be less than %d but is set to %d",
                   seq_params->ref_frames, refresh_idx);
             }
-#endif  // CONFIG_EXTRA_DPB
             current_frame->refresh_frame_flags = 1 << refresh_idx;
           } else {
             current_frame->refresh_frame_flags = 0;
@@ -7845,14 +7815,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #else
           const int refresh_idx =
               aom_rb_read_literal(rb, refresh_frame_flags_bits);
-#if CONFIG_EXTRA_DPB
           if (refresh_idx >= seq_params->ref_frames) {
             aom_internal_error(
                 &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                 "refresh_idx must be less than %d but is set to %d",
                 seq_params->ref_frames, refresh_idx);
           }
-#endif  // CONFIG_EXTRA_DPB
           if (refresh_idx == 0) {
             const bool has_refresh_frame_flags = aom_rb_read_literal(rb, 1);
             current_frame->refresh_frame_flags =
@@ -7867,26 +7835,15 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         }
       }
 #else
-#if CONFIG_EXTRA_DPB
       current_frame->refresh_frame_flags =
           frame_is_sframe(cm) ? ((1 << seq_params->ref_frames) - 1)
                               : aom_rb_read_literal(rb, seq_params->ref_frames);
-#else
-      current_frame->refresh_frame_flags =
-          frame_is_sframe(cm) ? REFRESH_FRAME_ALL
-                              : aom_rb_read_literal(rb, REF_FRAMES);
-#endif  // CONFIG_EXTRA_DPB
 #endif  // CONFIG_REFRESH_FLAG
     }
   }
 
-  if (!frame_is_intra_only(cm) ||
-#if CONFIG_EXTRA_DPB
-      current_frame->refresh_frame_flags !=
-          ((1 << seq_params->ref_frames) - 1)) {
-#else
-      current_frame->refresh_frame_flags != REFRESH_FRAME_ALL) {
-#endif  // CONFIG_EXTRA_DPB
+  if (!frame_is_intra_only(cm) || current_frame->refresh_frame_flags !=
+                                      ((1 << seq_params->ref_frames) - 1)) {
     // Read all ref frame order hints if error_resilient_mode == 1
     if (features->error_resilient_mode
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
@@ -8039,13 +7996,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
           ;
       if (explicit_ref_frame_map) {
-#if CONFIG_EXTRA_DPB
         cm->ref_frames_info.num_total_refs =
             aom_rb_read_literal(rb, MAX_REFS_PER_FRAME_LOG2);
-#else
-        cm->ref_frames_info.num_total_refs =
-            aom_rb_read_literal(rb, REF_FRAMES_LOG2);
-#endif
         // Check whether num_total_refs read is valid
 #if CONFIG_ACROSS_SCALE_REF_OPT
         if (cm->ref_frames_info.num_total_refs < 0 ||
@@ -8083,14 +8035,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                                "Inter frame requests nonexistent reference");
         } else {
           ref = aom_rb_read_literal(rb, seq_params->ref_frames_log2);
-#if CONFIG_EXTRA_DPB
           if (ref >= seq_params->ref_frames) {
             aom_internal_error(
                 &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                 "Explicit ref frame idx must be less than %d but is set to %d",
                 seq_params->ref_frames, ref);
           }
-#endif  // CONFIG_EXTRA_DPB
 
           // Most of the time, streams start with a keyframe. In that case,
           // ref_frame_map will have been filled in at that point and will not
@@ -8169,11 +8119,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       if (cm->bru.enabled) {
         int n_future = 0;
         int cur_frame_disp = (int)current_frame->display_order_hint;
-#if CONFIG_EXTRA_DPB
         for (int i = 0; i < cm->seq_params.ref_frames; i++) {
-#else
-        for (int i = 0; i < REF_FRAMES; i++) {
-#endif
           const RefCntBuffer *const buf = cm->ref_frame_map[i];
           if (buf) {
             int ref_disp = (int)buf->display_order_hint;

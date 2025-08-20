@@ -5156,11 +5156,7 @@ static AOM_INLINE void write_film_grain_params(
         break;
       }
     }
-#if CONFIG_EXTRA_DPB
     assert(ref_frame < MAX_COMPOUND_REF_INDEX);
-#else
-    assert(ref_frame < REF_FRAMES);
-#endif  // CONFIG_EXTRA_DPB
     assert(ref_idx != INVALID_IDX);
     aom_wb_write_literal(wb, ref_idx, cm->seq_params.ref_frames_log2);
     return;
@@ -5681,14 +5677,6 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
   aom_wb_write_bit(wb, seq_params->max_reference_frames < 7);
   if (seq_params->max_reference_frames < 7)
     aom_wb_write_literal(wb, seq_params->max_reference_frames - 3, 2);
-#if CONFIG_EXTRA_DPB
-  if (seq_params->num_extra_dpb) {
-    aom_wb_write_literal(wb, 1, 1);
-    aom_wb_write_literal(wb, seq_params->num_extra_dpb - 1, 3);
-  } else {
-    aom_wb_write_literal(wb, 0, 1);
-  }
-#endif  // CONFIG_EXTRA_DPB
 #endif  // CONFIG_CWG_F168_DPB_HLS
 
 #if CONFIG_SEQ_MAX_DRL_BITS
@@ -6227,13 +6215,8 @@ static AOM_INLINE void write_uncompressed_header_obu(
 #endif  // CONFIG_REFRESH_FLAG
   }
 
-  if (!frame_is_intra_only(cm) ||
-#if CONFIG_EXTRA_DPB
-      current_frame->refresh_frame_flags !=
-          ((1 << cm->seq_params.ref_frames) - 1)) {
-#else
-      current_frame->refresh_frame_flags != REFRESH_FRAME_ALL) {
-#endif  // CONFIG_EXTRA_DPB
+  if (!frame_is_intra_only(cm) || current_frame->refresh_frame_flags !=
+                                      ((1 << cm->seq_params.ref_frames) - 1)) {
     // Write all ref frame order hints if error_resilient_mode == 1
     if (features->error_resilient_mode
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
@@ -6323,11 +6306,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
           aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR,
                              "Invalid num_total_refs");
         aom_wb_write_literal(wb, cm->ref_frames_info.num_total_refs,
-#if CONFIG_EXTRA_DPB
                              MAX_REFS_PER_FRAME_LOG2);
-#else
-                             REF_FRAMES_LOG2);
-#endif  // CONFIG_EXTRA_DPB
       }
 #if CONFIG_BRU
       if (current_frame->frame_type == INTER_FRAME) {
@@ -7814,19 +7793,21 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
       (!cm->seq_params.enable_frame_output_order &&
        encode_show_existing_frame(cm));
 #elif !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-    const bool non_signaled_show_existing_frame =
-        (cm->seq_params.order_hint_info.enable_order_hint &&
-         cm->show_existing_frame && !cm->features.error_resilient_mode) ||
-        (!cm->seq_params.order_hint_info.enable_order_hint &&
-         encode_show_existing_frame(cm));
+                  const bool non_signaled_show_existing_frame =
+                      (cm->seq_params.order_hint_info.enable_order_hint &&
+                       cm->show_existing_frame &&
+                       !cm->features.error_resilient_mode) ||
+                      (!cm->seq_params.order_hint_info.enable_order_hint &&
+                       encode_show_existing_frame(cm));
 #else
-    const bool non_signaled_show_existing_frame =
-        (cm->seq_params.order_hint_info.enable_order_hint &&
-         cm->seq_params.enable_frame_output_order && cm->show_existing_frame &&
-         !cm->features.error_resilient_mode) ||
-        ((!cm->seq_params.order_hint_info.enable_order_hint ||
-          !cm->seq_params.enable_frame_output_order) &&
-         encode_show_existing_frame(cm));
+                  const bool non_signaled_show_existing_frame =
+                      (cm->seq_params.order_hint_info.enable_order_hint &&
+                       cm->seq_params.enable_frame_output_order &&
+                       cm->show_existing_frame &&
+                       !cm->features.error_resilient_mode) ||
+                      ((!cm->seq_params.order_hint_info.enable_order_hint ||
+                        !cm->seq_params.enable_frame_output_order) &&
+                       encode_show_existing_frame(cm));
 #endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT &&
         // CONFIG_F253_REMOVE_OUTPUTFLAG
   const bool non_signaled_frame =

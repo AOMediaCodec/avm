@@ -675,11 +675,7 @@ int av1_get_refresh_frame_flags(
   // Switch frames and shown key-frames overwrite all reference slots
   if ((frame_params->frame_type == KEY_FRAME && !cpi->no_show_fwd_kf) ||
       frame_params->frame_type == S_FRAME) {
-#if CONFIG_EXTRA_DPB
     return (1 << cpi->common.seq_params.ref_frames) - 1;
-#else
-    return REFRESH_FRAME_ALL;
-#endif  // CONFIG_EXTRA_DPB
   }
 
   // show_existing_frames don't actually send refresh_frame_flags so set the

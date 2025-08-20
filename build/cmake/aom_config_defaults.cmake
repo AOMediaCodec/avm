@@ -227,8 +227,6 @@ set_aom_config_var(CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT 1
 set_aom_config_var(CONFIG_IMPROVED_GLOBAL_MOTION 1
                    "New global motion syntax for AV2")
 
-# CWG-F082: Extended DPB mode for AV2 in RTC
-set_aom_config_var(CONFIG_EXTRA_DPB 1 "Use extra dpb")
 # Configurable DPB extension
 set_aom_config_var(CONFIG_CWG_F168_DPB_HLS 1
                    "signaling changes for DPB extension")

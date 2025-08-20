@@ -1157,20 +1157,17 @@ typedef uint8_t INTRA_REGION_CONTEXT;
 
 #define INTER_REFS_PER_FRAME 7
 
-#if CONFIG_EXTRA_DPB
 // log 2 of max 8 references per-frame (7 inter + 1 intra)
 // log2(INTER_REFS_PER_FRAME + 1)
 #define MAX_REFS_PER_FRAME_LOG2 3
-#endif  // CONFIG_EXTRA_DPB
 
+#if !CONFIG_CWG_F168_DPB_HLS
 #define REGULAR_REF_FRAMES \
   (INTER_REFS_PER_FRAME +  \
-   1)  //  the original size of the decoded picture buffers
-#if CONFIG_EXTRA_DPB
+   1)   //  the original size of the decoded picture buffers
+#endif  //  !CONFIG_CWG_F168_DPB_HLS
+
 #define REF_FRAMES 16
-#else
-#define REF_FRAMES (INTER_REFS_PER_FRAME + 1)
-#endif  // CONFIG_EXTRA_DPB
 
 // NOTE: A limited number of unidirectional reference pairs can be signalled for
 //       compound prediction. The use of skip mode, on the other hand, makes it
@@ -1192,8 +1189,9 @@ typedef uint8_t INTRA_REGION_CONTEXT;
 #define NONE_FRAME INVALID_IDX
 #define AOM_REFFRAME_ALL ((1 << INTER_REFS_PER_FRAME) - 1)
 
+#if !CONFIG_CWG_F168_DPB_HLS
 #define REF_FRAMES_LOG2 3
-#define REFRESH_FRAME_ALL ((1 << REF_FRAMES) - 1)
+#endif  //  !CONFIG_CWG_F168_DPB_HLS
 
 // REF_FRAMES for the cm->ref_frame_map array, 1 scratch frame for the new
 // frame in cm->cur_frame, INTER_REFS_PER_FRAME for scaled references on the
@@ -1209,13 +1207,8 @@ typedef uint8_t INTRA_REGION_CONTEXT;
 
 #define TIP_FRAME (MODE_CTX_REF_FRAMES - 1)
 #define TIP_FRAME_INDEX (INTER_REFS_PER_FRAME + 1)
-#if CONFIG_EXTRA_DPB
 #define SINGLE_REF_FRAMES (INTER_REFS_PER_FRAME + 2)
 #define MAX_COMPOUND_REF_INDEX (SINGLE_REF_FRAMES - 1)
-#else
-#define EXTREF_FRAMES (REF_FRAMES + 1)
-#define SINGLE_REF_FRAMES EXTREF_FRAMES
-#endif  // CONFIG_EXTRA_DPB
 
 // Note: It includes single and compound references. So, it can take values from
 // NONE_FRAME to (MODE_CTX_REF_FRAMES - 1). Hence, it is not defined as an enum.

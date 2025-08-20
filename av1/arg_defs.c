@@ -896,7 +896,6 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
                             "Enable extended # of segments "
                             "(0: false (default), 1: true)"),
 #endif  // CONFIG_EXT_SEG
-#if CONFIG_EXTRA_DPB
 #if CONFIG_CWG_F168_DPB_HLS
   .dpb_size =
       ARG_DEF(NULL, "dpb-size", 1, "number of dpb slots (1-16), default is 8"),
@@ -904,7 +903,6 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .num_extra_dpb = ARG_DEF(NULL, "num-extra-dpb", 1,
                            "extra dpb number (0..8), default is 0"),
 #endif  // CONFIG_CWG_F168_DPB_HLS
-#endif  // CONFIG_EXTRA_DPB
 #if CONFIG_BRU
   .enable_bru = ARG_DEF(NULL, "enable-bru", 1,
                         "Enable Backward Reference Update "
