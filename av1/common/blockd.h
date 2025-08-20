@@ -3045,23 +3045,6 @@ static INLINE void update_txk_array(MACROBLOCKD *const xd, int blk_row,
   }
 }
 
-#if CCTX_C2_DROPPED
-// Determine whether or not to keep the second chroma channel (C2).
-static INLINE int keep_chroma_c2(CctxType cctx_type) {
-  return
-#if !CCTX_DROP_45
-      cctx_type == CCTX_MINUS45 || cctx_type == CCTX_45 ||
-#endif  // !CCTX_DROP_45
-#if !CCTX_DROP_30
-      cctx_type == CCTX_MINUS30 || cctx_type == CCTX_30 ||
-#endif  // !CCTX_DROP_30
-#if !CCTX_DROP_60
-      cctx_type == CCTX_MINUS60 || cctx_type == CCTX_60 ||
-#endif  // !CCTX_DROP_60
-      cctx_type == CCTX_NONE;
-}
-#endif
-
 // When the current block is chroma reference, obtain amounts of mi offsets to
 // its corresponding luma region. Otherwise set the offsets to 0.
 static INLINE void get_chroma_mi_offsets(MACROBLOCKD *const xd, int *row_offset,

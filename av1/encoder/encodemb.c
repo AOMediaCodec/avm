@@ -909,14 +909,8 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
   if (!is_blk_skip(x->txfm_search_info.blk_skip[plane],
                    blk_row * bw + blk_col) &&
       (plane < AOM_PLANE_V || !is_cctx_allowed(cm, xd) ||
-#if CCTX_C2_DROPPED
-       ((cctx_type == CCTX_NONE || x->plane[AOM_PLANE_U].eobs[block]) &&
-        keep_chroma_c2(cctx_type))) &&
-#else
        cctx_type == CCTX_NONE || x->plane[AOM_PLANE_U].eobs[block]) &&
-#endif  // CCTX_C2_DROPPED
       !(mbmi->skip_mode == 1)) {
-
     TxfmParam txfm_param;
     QUANT_PARAM quant_param;
     const int is_inter = is_inter_block(mbmi, xd->tree_type);
@@ -1024,14 +1018,6 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
                         CCTX_NONE);
     }
   } else {
-#if CCTX_C2_DROPPED
-    // Reset coeffs and dqcoeffs
-    if (plane == AOM_PLANE_V && !keep_chroma_c2(cctx_type) &&
-        is_cctx_allowed(cm, xd))
-      av1_quantize_skip(av1_get_max_eob(tx_size),
-                        p->coeff + BLOCK_OFFSET(block), dqcoeff,
-                        &p->eobs[block]);
-#endif  // CCTX_C2_DROPPED
     p->eobs[block] = 0;
     p->bobs[block] = 0;
     p->txb_entropy_ctx[block] = 0;
@@ -1855,12 +1841,7 @@ void av1_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
       update_cctx_array(xd, blk_row, blk_col, 0, 0,
                         args->dry_run ? TX_4X4 : tx_size, CCTX_NONE);
     }
-#if CCTX_C2_DROPPED
-    if (plane == AOM_PLANE_V && (!keep_chroma_c2(cctx_type) ||
-                                 (*eob_c1 == 0 && cctx_type > CCTX_NONE))) {
-#else
     if (plane == AOM_PLANE_V && *eob_c1 == 0 && cctx_type > CCTX_NONE) {
-#endif  // CCTX_C2_DROPPED
       av1_quantize_skip(av1_get_max_eob(tx_size),
                         p_c2->qcoeff + BLOCK_OFFSET(block), dqcoeff_c2, eob_c2);
       break;

@@ -501,13 +501,6 @@ uint8_t av1_read_sig_txtype(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
   *max_scan_line = 0;
   *eob = 0;
 
-#if CCTX_C2_DROPPED
-  if (plane == AOM_PLANE_V && is_cctx_allowed(cm, xd)) {
-    CctxType cctx_type = av1_get_cctx_type(xd, blk_row, blk_col);
-    if (!keep_chroma_c2(cctx_type)) return 0;
-  }
-#endif  // CCTX_C2_DROPPED
-
   if (plane == AOM_PLANE_U) {
     xd->eob_u = 0;
   }

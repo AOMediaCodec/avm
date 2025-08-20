@@ -3090,16 +3090,6 @@ static void search_cctx_type(const AV1_COMP *cpi, MACROBLOCK *x, int block,
 
     int skip_cctx_eval = 0;
     for (int plane = AOM_PLANE_U; plane <= AOM_PLANE_V; plane++) {
-#if CCTX_C2_DROPPED
-      if (plane == AOM_PLANE_V && !keep_chroma_c2(cctx_type)) {
-        av1_quantize_skip(max_eob, p_c2->qcoeff + BLOCK_OFFSET(block),
-                          p_c2->dqcoeff + BLOCK_OFFSET(block),
-                          &eobs_ptr_c2[block]);
-        rate_cost[1] = 0;
-        break;
-      }
-#endif
-
       if (av1_use_qmatrix(&cm->quant_params, xd, mbmi->segment_id))
         av1_setup_qmatrix(&cm->quant_params, xd, plane, tx_size, tx_type,
                           &quant_param);
@@ -3207,9 +3197,6 @@ static void search_cctx_type(const AV1_COMP *cpi, MACROBLOCK *x, int block,
   p_c2->eobs[block] = best_eob_c2;
 
   assert(IMPLIES(best_cctx_type > CCTX_NONE, best_eob_c1 > 0));
-#if CCTX_C2_DROPPED
-  assert(IMPLIES(!keep_chroma_c2(best_cctx_type), best_eob_c2 == 0));
-#endif
 
   // Point dqcoeff to the quantized coefficients corresponding to the best
   // transform type, then we can skip transform and quantization, e.g. in the

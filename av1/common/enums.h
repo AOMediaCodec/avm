@@ -660,14 +660,6 @@ enum {
 #define CCTX_CONTEXTS 3
 #endif  // !CONFIG_REDUCE_CCTX_CTX
 
-// Drop C2 channel for some cctx_types.
-#define CCTX_C2_DROPPED 0
-#if CCTX_C2_DROPPED
-#define CCTX_DROP_30 1
-#define CCTX_DROP_60 1
-#define CCTX_DROP_45 1
-#endif  // CCTX_C2_DROPPED
-
 enum {
   CCTX_NONE,     // No cross chroma transform
   CCTX_45,       // 45 degrees rotation (Haar transform)
