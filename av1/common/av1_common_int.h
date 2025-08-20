@@ -2018,9 +2018,15 @@ typedef struct AV1Common {
    */
   int_mv **blk_id_map_rows[3][INTER_REFS_PER_FRAME];
   /*!
-   * Allocated size of 'tpl_mvs' array. Refer to 'ensure_mv_buffer()' function.
+   * Allocated row size of 'tpl_mvs' array. Refer to 'ensure_mv_buffer()'
+   * function.
    */
-  int tpl_mvs_mem_size;
+  int tpl_mvs_mem_size_row;
+  /*!
+   * Allocated col size of 'tpl_mvs' array. Refer to 'ensure_mv_buffer()'
+   * function.
+   */
+  int tpl_mvs_mem_size_col;
   /*!
    * ref_frame_sign_bias[k] is 1 if relative distance between reference 'k' and
    * current frame is positive; and 0 otherwise.
@@ -2599,8 +2605,10 @@ static INLINE void ensure_mv_buffer(RefCntBuffer *buf, AV1_COMMON *cm) {
     }
   }
 
-  const int is_tpl_mvs_mem_size_too_small = (cm->tpl_mvs_mem_size < mem_size);
-  int realloc = cm->tpl_mvs == NULL || is_tpl_mvs_mem_size_too_small;
+  const int is_tpl_mvs_mem_size_changed =
+      (cm->tpl_mvs_mem_size_row != tpl_rows ||
+       cm->tpl_mvs_mem_size_col != tpl_cols);
+  int realloc = cm->tpl_mvs == NULL || is_tpl_mvs_mem_size_changed;
   if (realloc) {
     aom_free(cm->tpl_mvs);
     aom_free(cm->tpl_mvs_rows);
@@ -2613,7 +2621,8 @@ static INLINE void ensure_mv_buffer(RefCntBuffer *buf, AV1_COMMON *cm) {
       cm->tpl_mvs_rows[r] = cm->tpl_mvs + r * tpl_cols;
     }
 
-    cm->tpl_mvs_mem_size = mem_size;
+    cm->tpl_mvs_mem_size_row = tpl_rows;
+    cm->tpl_mvs_mem_size_col = tpl_cols;
     for (int rf = 0; rf < INTER_REFS_PER_FRAME; rf++) {
       aom_free(cm->id_offset_map[rf]);
       aom_free(cm->id_offset_map_rows[rf]);
@@ -2640,7 +2649,7 @@ static INLINE void ensure_mv_buffer(RefCntBuffer *buf, AV1_COMMON *cm) {
     }
   }
 
-  realloc = cm->tip_ref.mf_need_clamp == NULL || is_tpl_mvs_mem_size_too_small;
+  realloc = cm->tip_ref.mf_need_clamp == NULL || is_tpl_mvs_mem_size_changed;
   if (realloc) {
     aom_free(cm->tip_ref.mf_need_clamp);
     CHECK_MEM_ERROR(
