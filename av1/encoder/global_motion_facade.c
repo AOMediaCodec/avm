@@ -477,13 +477,8 @@ static AOM_INLINE void pick_base_gm_params(AV1_COMP *cpi) {
         continue;
       }
 
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
       const int our_ref_order_hint = buf->display_order_hint;
       const int their_ref_order_hint = buf->ref_display_order_hint[their_ref];
-#else
-      const int our_ref_order_hint = buf->order_hint;
-      const int their_ref_order_hint = buf->ref_order_hints[their_ref];
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
       int base_temporal_distance =
           get_relative_dist(&seq_params->order_hint_info, our_ref_order_hint,
                             their_ref_order_hint);
@@ -504,13 +499,8 @@ static AOM_INLINE void pick_base_gm_params(AV1_COMP *cpi) {
         if (seq_params->order_hint_info.enable_order_hint) {
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
           const RefCntBuffer *const ref_buf = get_ref_frame_buf(cm, frame);
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
           const int ref_order_hint = ref_buf->display_order_hint;
           const int cur_order_hint = cm->cur_frame->display_order_hint;
-#else
-        const int ref_order_hint = ref_buf->order_hint;
-        const int cur_order_hint = cm->cur_frame->order_hint;
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
           temporal_distance = get_relative_dist(&seq_params->order_hint_info,
                                                 cur_order_hint, ref_order_hint);
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT

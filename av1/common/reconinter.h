@@ -733,11 +733,7 @@ static INLINE int default_refinemv_modes(const MB_MODE_INFO *mbmi) {
 static INLINE int is_refinemv_allowed_reference(const AV1_COMMON *cm,
                                                 const MB_MODE_INFO *mbmi) {
   if (!cm->seq_params.enable_refinemv) return 0;
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   const unsigned int cur_index = cm->cur_frame->display_order_hint;
-#else
-  const unsigned int cur_index = cm->cur_frame->order_hint;
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   int d0, d1;
   int is_tip = (mbmi->ref_frame[0] == TIP_FRAME);
 
@@ -760,15 +756,10 @@ static INLINE int is_refinemv_allowed_reference(const AV1_COMMON *cm,
     if (!has_second_ref(mbmi)) return 0;
     const RefCntBuffer *const ref0 = get_ref_frame_buf(cm, mbmi->ref_frame[0]);
     const RefCntBuffer *const ref1 = get_ref_frame_buf(cm, mbmi->ref_frame[1]);
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
     d0 = get_relative_dist(&cm->seq_params.order_hint_info, cur_index,
                            ref0->display_order_hint);
     d1 = get_relative_dist(&cm->seq_params.order_hint_info, cur_index,
                            ref1->display_order_hint);
-#else
-    d0 = (int)cur_index - (int)ref0->order_hint;
-    d1 = (int)cur_index - (int)ref1->order_hint;
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   }
 
   // reference frame has to be both sides to apply dmvr

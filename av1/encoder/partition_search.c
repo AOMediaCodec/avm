@@ -314,13 +314,8 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
                           pd->subsampling_x, pd->subsampling_y);
         }
         mismatch_record_block_pre(pd->dst.buf, pd->dst.stride,
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-                                  cm->current_frame.display_order_hint,
-#else
-                                  cm->current_frame.order_hint,
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-                                  plane, pixel_c, pixel_r, pd->width,
-                                  pd->height);
+                                  cm->current_frame.display_order_hint, plane,
+                                  pixel_c, pixel_r, pd->width, pd->height);
       }
     }
 #else
@@ -7045,12 +7040,8 @@ BEGIN_PARTITION_SEARCH:
       pc_tree->partitioning != template_tree->partition) {
     assert(0);
     printf("Mismatch with template at fr: %d, mi: (%d, %d), BLOCK_%dX%d\n",
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-           cm->current_frame.display_order_hint,
-#else
-           cm->current_frame.order_hint,
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
-           mi_row, mi_col, block_size_wide[bsize], block_size_high[bsize]);
+           cm->current_frame.display_order_hint, mi_row, mi_col,
+           block_size_wide[bsize], block_size_high[bsize]);
   }
 #endif  // !defined(NDEBUG)
 

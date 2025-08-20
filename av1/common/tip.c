@@ -302,30 +302,18 @@ static void tip_motion_field_within_frame(AV1_COMMON *cm) {
 static void tip_config_tip_parameter(AV1_COMMON *cm) {
   TIP *tip_ref = &cm->tip_ref;
   const OrderHintInfo *const order_hint_info = &cm->seq_params.order_hint_info;
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   const int cur_order_hint = cm->cur_frame->display_order_hint;
-#else
-  const int cur_order_hint = cm->cur_frame->order_hint;
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
 
   MV_REFERENCE_FRAME nearest_rf[2] = { tip_ref->ref_frame[0],
                                        tip_ref->ref_frame[1] };
 
   RefCntBuffer *ref0_frame_buf = get_ref_frame_buf(cm, nearest_rf[0]);
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   const int ref0_frame_order_hint = ref0_frame_buf->display_order_hint;
-#else
-  const int ref0_frame_order_hint = ref0_frame_buf->order_hint;
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   const int cur_to_ref0_offset =
       get_relative_dist(order_hint_info, cur_order_hint, ref0_frame_order_hint);
 
   RefCntBuffer *ref1_frame_buf = get_ref_frame_buf(cm, nearest_rf[1]);
-#if CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   const int ref1_frame_order_hint = ref1_frame_buf->display_order_hint;
-#else
-  const int ref1_frame_order_hint = ref1_frame_buf->order_hint;
-#endif  // CONFIG_EXPLICIT_TEMPORAL_DIST_CALC
   const int cur_to_ref1_offset =
       get_relative_dist(order_hint_info, cur_order_hint, ref1_frame_order_hint);
 
