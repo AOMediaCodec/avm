@@ -171,7 +171,6 @@ set_aom_config_var(CONFIG_F253_REMOVE_OUTPUTFLAG 1
 set_aom_config_var(CONFIG_SEQ_MAX_DRL_BITS 1
                    "AV2 sequence level max_drl_bits information")
 set_aom_config_var(CONFIG_EXT_MVPRED 1 "AV2 ext-mvpred.")
-set_aom_config_var(CONFIG_PARA_BD_REDUCE 1 "AV2 bitdepth reduction for PARA.")
 set_aom_config_var(CONFIG_BYPASS_IMPROVEMENT 1
                    "AV2 enable entropy bypass improvement.")
 set_aom_config_var(CONFIG_CDF_SCALE 1
