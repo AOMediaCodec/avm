@@ -334,9 +334,7 @@ typedef struct RefCntBuffer {
   unsigned int absolute_poc;
   // Frame's level within the hierarchical structure
   unsigned int pyramid_level;
-#if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
   unsigned int temporal_layer_id;
-#endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
 
 #if CONFIG_IMPROVED_GLOBAL_MOTION
   // How many ref frames did this frame use?
@@ -398,9 +396,7 @@ typedef struct {
   // a repeated reference frame)
   int ref_frame_for_inference;
   int pyr_level;
-#if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
   int temporal_layer_id;
-#endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
   int disp_order;
   int base_qindex;
 #if CONFIG_MULTILAYER_CORE
@@ -793,9 +789,7 @@ typedef struct {
   unsigned int display_order_hint;
   // Frame's level within the hierarchical structure
   unsigned int pyramid_level;
-#if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
   unsigned int temporal_layer_id;
-#endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
   unsigned int absolute_poc;
   unsigned int key_frame_number;
   unsigned int frame_number;

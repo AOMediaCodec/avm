@@ -1021,11 +1021,8 @@ static AOM_INLINE void init_gop_frames_for_tpl(
   int ref_picture_map[REF_FRAMES];
   assert(cm->seq_params.ref_frames > 0);
   for (int i = 0; i < cm->seq_params.ref_frames; ++i) {
-    if (frame_params.frame_type == KEY_FRAME || gop_eval
-#if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
-        || cm->ref_frame_map[i] == NULL
-#endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
-    ) {
+    if (frame_params.frame_type == KEY_FRAME || gop_eval ||
+        cm->ref_frame_map[i] == NULL) {
       tpl_data->tpl_frame[-i - 1].gf_picture = NULL;
       tpl_data->tpl_frame[-1 - 1].rec_picture = NULL;
       tpl_data->tpl_frame[-i - 1].frame_display_index = 0;

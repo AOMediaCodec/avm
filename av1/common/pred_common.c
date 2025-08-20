@@ -274,16 +274,12 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
 
   // Fill any slots that are empty (should only happen for the first 7 frames)
   for (int i = 0; i < cm->seq_params.ref_frames; i++) {
-#if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
     // Instead of filling empty slots (remapped_ref_idx[i]) with zero,
     // the empty slots are filled with the first index (scores[0].index),
     // because the zero index may indicate an invalid slot,
     // when some frame OBUs are dropped for scalability operations.
     if (cm->remapped_ref_idx[i] == INVALID_IDX)
       cm->remapped_ref_idx[i] = scores[0].index;
-#else   // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
-    if (cm->remapped_ref_idx[i] == INVALID_IDX) cm->remapped_ref_idx[i] = 0;
-#endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
   }
   return n_ranked;
 }

@@ -4630,7 +4630,6 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
       current_frame->display_order_hint, cpi->gf_group.max_layer_depth,
       cpi->gf_group.update_type[cpi->gf_group.index] == KFFLT_OVERLAY_UPDATE);
 
-#if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
 #if CONFIG_NEW_OBU_HEADER
   cm->tlayer_id = 0;
   current_frame->temporal_layer_id = cm->tlayer_id;
@@ -4650,7 +4649,6 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
     av1_get_ref_frames_enc(cm, cur_frame_disp, cm->ref_frame_map_pairs);
   else
     av1_get_ref_frames(cm, cur_frame_disp, cm->ref_frame_map_pairs);
-#endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
 
   current_frame->absolute_poc =
       current_frame->key_frame_number + current_frame->display_order_hint;

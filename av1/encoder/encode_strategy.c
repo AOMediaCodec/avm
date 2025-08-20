@@ -1140,7 +1140,6 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   const int cur_frame_disp =
       cpi->common.current_frame.frame_number + order_offset;
 
-#if CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
   // Here, if temporal_layer_id is set to a non-zero value (pry_level),
   // temporal_layer_id is signaled in obu extension,
   // and affect reference list construction in both encoder and decoder.
@@ -1160,7 +1159,6 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   cm->temporal_layer_id = 0;
   cm->current_frame.temporal_layer_id = cm->temporal_layer_id;
 #endif  // CONFIG_NEW_OBU_HEADER
-#endif  // CONFIG_REF_LIST_DERIVATION_FOR_TEMPORAL_SCALABILITY
 
   init_ref_map_pair(&cpi->common, cm->ref_frame_map_pairs,
                     gf_group->update_type[gf_group->index] == KF_UPDATE);
