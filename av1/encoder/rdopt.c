@@ -4705,6 +4705,9 @@ static int64_t handle_inter_mode(
     int64_t *best_est_rd, const int do_tx_search,
     InterModesInfo *inter_modes_info, motion_mode_candidate *motion_mode_cand,
     int64_t *skip_rd, PREDICTION_MODE best_ref_mode,
+#if CONFIG_FAST_INTER_RDO
+    int64_t top_motion_mode_model_rd[],
+#endif  // CONFIG_FAST_INTER_RDO
     PruneInfoFromTpl *inter_cost_info_from_tpl) {
   const AV1_COMMON *cm = &cpi->common;
   const int num_planes = av1_num_planes(cm);
@@ -4903,6 +4906,7 @@ static int64_t handle_inter_mode(
     }
   }
 
+#if !CONFIG_FAST_INTER_RDO
   int64_t top_motion_mode_model_rd[MAXIMUM_NUM_OF_TX_MODES];
   uint8_t enable_tx_prune = do_tx_search;
   if (enable_tx_prune) {
@@ -4910,7 +4914,7 @@ static int64_t handle_inter_mode(
       top_motion_mode_model_rd[k] = INT64_MAX;
     }
   }
-
+#endif  //! CONFIG_FAST_INTER_RDO
   // Main loop of this function. This will  iterate over all of the ref mvs
   // in the dynamic reference list and do the following:
   //    1.) Get the current MV. Create newmv MV if necessary
@@ -5425,7 +5429,14 @@ static int64_t handle_inter_mode(
                       cpi, tile_data, x, bsize, rd_stats, rd_stats_y,
                       rd_stats_uv, args, ref_best_rd, skip_rd, &tmp_rate_mv,
                       &orig_dst, best_est_rd, do_tx_search, inter_modes_info,
-                      enable_tx_prune ? top_motion_mode_model_rd : NULL, 0);
+#if CONFIG_FAST_INTER_RDO
+                      top_motion_mode_model_rd,
+#else
+
+                      enable_tx_prune ? top_motion_mode_model_rd : NULL,
+#endif  // CONFIG_FAST_INTER_RDO
+
+                      0);
 #if CONFIG_COLLECT_COMPONENT_TIMING
                   end_timing(cpi, motion_mode_rd_time);
 #endif
@@ -7334,7 +7345,7 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
             !is_ref_frame_used_by_compound_ref(ref_frame,
                                                skip_ref_frame_mask) &&
             !(should_reuse_mode(x, REUSE_INTER_MODE_IN_INTERFRAME_FLAG) &&
-              is_ref_frame_used_in_cache(ref_frame, x->inter_mode_cache))) {
+              is_ref_frame_used_in_cache(ref_frame, x->inter_mode_cache[0]))) {
           continue;
         }
       }
@@ -7370,7 +7381,7 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
           mbmi->partition != PARTITION_SPLIT) {
         if (skip_ref_frame_mask & ((uint64_t)1 << ref_frame) &&
             !(should_reuse_mode(x, REUSE_INTER_MODE_IN_INTERFRAME_FLAG) &&
-              is_ref_frame_used_in_cache(ref_frame, x->inter_mode_cache))) {
+              is_ref_frame_used_in_cache(ref_frame, x->inter_mode_cache[0]))) {
           continue;
         }
       }
@@ -7573,7 +7584,7 @@ static INLINE int is_mode_intra(PREDICTION_MODE mode) {
 static INLINE int skip_inter_mode_with_cached_mode(
     const AV1_COMMON *cm, const MACROBLOCK *x, PREDICTION_MODE mode,
     const MV_REFERENCE_FRAME *ref_frame) {
-  const MB_MODE_INFO *cached_mi = x->inter_mode_cache;
+  const MB_MODE_INFO *cached_mi = x->inter_mode_cache[0];
 
   // If there is no cache, then no pruning is possible.
   // Returns 0 here if we are not reusing inter_modes
@@ -7581,6 +7592,32 @@ static INLINE int skip_inter_mode_with_cached_mode(
       !cached_mi) {
     return 0;
   }
+
+#if CONFIG_FAST_INTER_RDO
+  if (should_reuse_mode(x, REUSE_INTER_MODE_IN_INTERFRAME_FLAG)) {
+    const int this_mode_is_single = is_inter_singleref_mode(mode);
+    for (int k = 0; k < NUMBER_OF_CACHED_MODES; k++) {
+      const MB_MODE_INFO *cached_mi2 = x->inter_mode_cache[k];
+      if (cached_mi2 && !is_mode_intra(cached_mi2->mode)) {
+        const int cached_mode_is_single =
+            is_inter_singleref_mode(cached_mi2->mode);
+        if (mode == cached_mi2->mode) return 0;
+        // if (mode == cached_mi2->mode) {
+        if (ref_frame[0] == cached_mi2->ref_frame[0]) return 0;
+        if (!cached_mode_is_single &&
+            (ref_frame[0] == cached_mi2->ref_frame[1]))
+          return 0;
+        if (!this_mode_is_single) {
+          if (ref_frame[1] == cached_mi2->ref_frame[0]) return 0;
+          if (!cached_mode_is_single &&
+              (ref_frame[1] == cached_mi2->ref_frame[1]))
+            return 0;
+        }
+        //}
+      }
+    }
+  }
+#endif  // CONFIG_FAST_INTER_RDO
 
   const PREDICTION_MODE cached_mode = cached_mi->mode;
   const MV_REFERENCE_FRAME *cached_frame = cached_mi->ref_frame;
@@ -7636,7 +7673,7 @@ static INLINE int skip_inter_mode_with_cached_mode(
 // Case 3: return 2, means skip compound only, but still try single motion
 // modes
 static int inter_mode_search_order_independent_skip(
-    const AV1_COMP *cpi, const MACROBLOCK *x, mode_skip_mask_t *mode_skip_mask,
+    const AV1_COMP *cpi, MACROBLOCK *x, mode_skip_mask_t *mode_skip_mask,
     InterModeSearchState *search_state, uint64_t skip_ref_frame_mask,
     PREDICTION_MODE mode, const MV_REFERENCE_FRAME *ref_frame) {
   if (mask_says_skip(mode_skip_mask, ref_frame, mode)) {
@@ -7668,7 +7705,7 @@ static int inter_mode_search_order_independent_skip(
     return 0;
 
   int skip_motion_mode = 0;
-  if (!x->inter_mode_cache && skip_ref_frame_mask) {
+  if (!x->inter_mode_cache[0] && skip_ref_frame_mask) {
     assert(ref_type <
            (INTER_REFS_PER_FRAME * (INTER_REFS_PER_FRAME + 3) / 2 + 2));
     int skip_ref = (int)(skip_ref_frame_mask & ((uint64_t)1 << ref_type));
@@ -7695,13 +7732,13 @@ static int inter_mode_search_order_independent_skip(
     // If we are reusing the prediction from cache, and the current frame is
     // required by the cache, then we cannot prune it.
     if (should_reuse_mode(x, REUSE_INTER_MODE_IN_INTERFRAME_FLAG) &&
-        is_ref_frame_used_in_cache(ref_type, x->inter_mode_cache)) {
+        is_ref_frame_used_in_cache(ref_type, x->inter_mode_cache[0])) {
       skip_ref = 0;
       // If the cache only needs the current reference type for compound
       // prediction, then we can skip motion mode search.
-      assert(x->inter_mode_cache->ref_frame);
+      assert(x->inter_mode_cache[0]->ref_frame);
       skip_motion_mode = (ref_type < INTER_REFS_PER_FRAME &&
-                          x->inter_mode_cache->ref_frame[1] != INTRA_FRAME);
+                          x->inter_mode_cache[0]->ref_frame[1] != INTRA_FRAME);
     }
     if (skip_ref) return 1;
   }
@@ -8688,7 +8725,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
 
   // Ref frames that are selected by square partition blocks.
   uint64_t picked_ref_frames_mask = 0;
-  if (cpi->sf.inter_sf.prune_ref_frames && !x->inter_mode_cache) {
+  if (cpi->sf.inter_sf.prune_ref_frames && !x->inter_mode_cache[0]) {
     bool prune_ref_frames = false;
     assert(should_reuse_mode(x, REUSE_PARTITION_MODE_FLAG));
 
@@ -8899,6 +8936,16 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   // can be used with av1_mode_defs to get the prediction mode and the ref
   // frames.
   for (PREDICTION_MODE this_mode = 0; this_mode < MB_MODE_COUNT; ++this_mode) {
+#if CONFIG_FAST_INTER_RDO
+    int64_t top_motion_mode_model_rd[MAXIMUM_NUM_OF_TX_MODES];
+    uint8_t enable_tx_prune = do_tx_search;
+    if (enable_tx_prune) {
+      for (int k = 0; k < MAXIMUM_NUM_OF_TX_MODES; k++) {
+        top_motion_mode_model_rd[k] = INT64_MAX;
+      }
+    }
+#endif  // CONFIG_FAST_INTER_RDO
+
     for (MV_REFERENCE_FRAME rf = NONE_FRAME;
          rf < cm->ref_frames_info.num_total_refs + 1; ++rf) {
       const MV_REFERENCE_FRAME ref_frame =
@@ -9080,7 +9127,12 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
               cpi, tile_data, x, bsize, &rd_stats, &rd_stats_y, &rd_stats_uv,
               &args, ref_best_rd, tmp_buf, &x->comp_rd_buffer, &best_est_rd,
               do_tx_search, inter_modes_info, &motion_mode_cand, skip_rd,
-              search_state.best_mbmode.mode, &inter_cost_info_from_tpl);
+              search_state.best_mbmode.mode,
+#if CONFIG_FAST_INTER_RDO
+              enable_tx_prune ? top_motion_mode_model_rd : NULL,
+#endif  // CONFIG_FAST_INTER_RDO
+
+              &inter_cost_info_from_tpl);
 
           if (sf->inter_sf.prune_comp_search_by_single_result > 0 &&
               is_inter_singleref_mode(this_mode)) {
@@ -9275,7 +9327,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
                 mbmi->mrl_index > 1 && mbmi->multi_line_mrl) {
               continue;
             }
-            const MB_MODE_INFO *cached_mi = x->inter_mode_cache;
+            const MB_MODE_INFO *cached_mi = x->inter_mode_cache[0];
             if (cached_mi) {
               const PREDICTION_MODE cached_mode = cached_mi->mode;
               if (should_reuse_mode(x, REUSE_INTRA_MODE_IN_INTERFRAME_FLAG) &&
@@ -9362,7 +9414,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
                         mbmi->sb_type[PLANE_TYPE_Y]) &&
       !is_inter_mode(search_state.best_mbmode.mode) && rd_cost->rate < INT_MAX;
   int search_palette_mode = try_palette;
-  const MB_MODE_INFO *cached_mode = x->inter_mode_cache;
+  const MB_MODE_INFO *cached_mode = x->inter_mode_cache[0];
   if (should_reuse_mode(x, REUSE_INTRA_MODE_IN_INTERFRAME_FLAG) &&
       cached_mode &&
       !(cached_mode->mode == DC_PRED &&

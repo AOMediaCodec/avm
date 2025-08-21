@@ -135,6 +135,34 @@ SimpleMotionData *av1_get_sms_data(AV1_COMP *const cpi,
 #endif  // CONFIG_ML_PART_SPLIT
                                    ,
                                    int8_t region_type);
+
+#if CONFIG_FAST_INTER_RDO
+static AOM_INLINE void av1_add_mode_search_context_to_cache(
+    SimpleMotionData *sms_data, PICK_MODE_CONTEXT *ctx) {
+  for (int i = 0; i < NUMBER_OF_CACHED_MODES; i++) {
+    if (!sms_data->mode_cache[i] ||
+        sms_data->mode_cache[i]->rd_stats.rdcost > ctx->rd_stats.rdcost) {
+      for (int j = NUMBER_OF_CACHED_MODES - 1; j > i; j--) {
+        sms_data->mode_cache[j] = sms_data->mode_cache[j - 1];
+      }
+      sms_data->mode_cache[i] = ctx;
+      break;
+    }
+  }
+}
+static INLINE void av1_set_best_mode_cache(MACROBLOCK *x,
+                                           PICK_MODE_CONTEXT *mode_cache[1]) {
+  int i = 0;
+  for (int j = 0; j < NUMBER_OF_CACHED_MODES; j++) {
+    if (mode_cache[j] && mode_cache[j]->rd_stats.rate != INT_MAX) {
+      x->inter_mode_cache[i++] = &mode_cache[j]->mic;
+    }
+  }
+  for (int j = i; j < NUMBER_OF_CACHED_MODES; j++) {
+    x->inter_mode_cache[j] = NULL;
+  }
+}
+#else
 static AOM_INLINE void av1_add_mode_search_context_to_cache(
     SimpleMotionData *sms_data, PICK_MODE_CONTEXT *ctx) {
   if (!sms_data->mode_cache[0] ||
@@ -146,12 +174,12 @@ static AOM_INLINE void av1_add_mode_search_context_to_cache(
 static INLINE void av1_set_best_mode_cache(MACROBLOCK *x,
                                            PICK_MODE_CONTEXT *mode_cache[1]) {
   if (mode_cache[0] && mode_cache[0]->rd_stats.rate != INT_MAX) {
-    x->inter_mode_cache = &mode_cache[0]->mic;
+    x->inter_mode_cache[0] = &mode_cache[0]->mic;
   } else {
-    x->inter_mode_cache = NULL;
+    x->inter_mode_cache[0] = NULL;
   }
 }
-
+#endif  // CONFIG_FAST_INTER_RDO
 void av1_cache_best_partition(SimpleMotionDataBufs *sms_bufs, int mi_row,
                               int mi_col, BLOCK_SIZE bsize, BLOCK_SIZE sb_size,
                               PARTITION_TYPE partition, int8_t region_type);

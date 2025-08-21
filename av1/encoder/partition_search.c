@@ -3991,7 +3991,10 @@ static void none_partition_search(
                 pc_tree->sb_root_partition_info,
 #endif  // CONFIG_LOCAL_INTRABC_ALIGN_RNG
                 bsize, ctx_none, best_remain_rdcost);
-  x->inter_mode_cache = NULL;
+
+  for (int k = 0; k < NUMBER_OF_CACHED_MODES; k++) {
+    x->inter_mode_cache[k] = NULL;
+  }
   if (this_rdc->rate != INT_MAX &&
       !is_inter_sdp_chroma(cm, cur_region_type, x->e_mbd.tree_type)) {
     av1_add_mode_search_context_to_cache(sms_data,

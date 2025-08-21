@@ -535,29 +535,35 @@ typedef struct {
 } ResidualStats;
 #endif  // CONFIG_ML_PART_SPLIT
 
+#if CONFIG_FAST_INTER_RDO
+#define NUMBER_OF_CACHED_MODES 2
+#else
+#define NUMBER_OF_CACHED_MODES 1
+#endif  // CONFIG_FAST_INTER_RDO
 /*! \brief Contains data for simple motion
  */
 typedef struct SimpleMotionData {
-  MV mv_ref;                               /*!< mv reference */
-  MV fullmv;                               /*!< mv full */
-  MV submv;                                /*!< mv subpel */
-  unsigned int sse;                        /*!< sse */
-  unsigned int var;                        /*!< variance */
-  int64_t dist;                            /*!< distortion */
-  int rate;                                /*!< rate */
-  int64_t rdcost;                          /*!< rdcost */
-  int valid;                               /*!< whether valid */
-  BLOCK_SIZE bsize;                        /*!< blocksize */
-  int mi_row;                              /*!< row position in mi units */
-  int mi_col;                              /*!< col position in mi units */
-  MV_COST_TYPE mv_cost_type;               /*!< mv cost type */
-  int sadpb;                               /*!< sad per bit */
-  int errorperbit;                         /*!< error per bit */
-  MV start_mv_list[kSMSMaxStartMVs];       /*!< start mv list */
-  int num_start_mvs;                       /*!< number of start mvs */
-  int has_prev_partition;                  /*!< has previous partition */
-  PARTITION_TYPE prev_partition;           /*!< previous partition */
-  struct PICK_MODE_CONTEXT *mode_cache[1]; /*!< mode cache */
+  MV mv_ref;                         /*!< mv reference */
+  MV fullmv;                         /*!< mv full */
+  MV submv;                          /*!< mv subpel */
+  unsigned int sse;                  /*!< sse */
+  unsigned int var;                  /*!< variance */
+  int64_t dist;                      /*!< distortion */
+  int rate;                          /*!< rate */
+  int64_t rdcost;                    /*!< rdcost */
+  int valid;                         /*!< whether valid */
+  BLOCK_SIZE bsize;                  /*!< blocksize */
+  int mi_row;                        /*!< row position in mi units */
+  int mi_col;                        /*!< col position in mi units */
+  MV_COST_TYPE mv_cost_type;         /*!< mv cost type */
+  int sadpb;                         /*!< sad per bit */
+  int errorperbit;                   /*!< error per bit */
+  MV start_mv_list[kSMSMaxStartMVs]; /*!< start mv list */
+  int num_start_mvs;                 /*!< number of start mvs */
+  int has_prev_partition;            /*!< has previous partition */
+  PARTITION_TYPE prev_partition;     /*!< previous partition */
+  struct PICK_MODE_CONTEXT
+      *mode_cache[NUMBER_OF_CACHED_MODES]; /*!< mode cache */
   struct SIMPLE_MOTION_DATA_TREE *old_sms; /*!< old sms */
 
   int ref_frame; /*!< ref frame used */
@@ -1776,7 +1782,7 @@ typedef struct macroblock {
   /*! \brief Determines what encoding decision should be reused. */
   int reuse_inter_mode_cache_type;
   /*! \brief The mode to reuse during \ref av1_rd_pick_inter_mode_sb. */
-  MB_MODE_INFO *inter_mode_cache;
+  MB_MODE_INFO *inter_mode_cache[NUMBER_OF_CACHED_MODES];
   /*! \brief Whether the whole superblock is inside the frame boudnary */
   bool is_whole_sb;
   /**@}*/
