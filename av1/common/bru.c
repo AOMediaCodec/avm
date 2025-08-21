@@ -210,6 +210,12 @@ void bru_set_default_inter_mb_mode_info(const AV1_COMMON *const cm,
                                         BLOCK_SIZE bsize) {
   // think reuse init_mbmi() here
   mbmi->segment_id = 0;
+#if CONFIG_BRU_LOSSLESS_CONFORMANCE
+  if (xd->lossless[mbmi->segment_id]) {
+    aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+                       "Lossless super block must be active");
+  }
+#endif
   mbmi->skip_mode = 0;
   xd->tree_type = SHARED_PART;
   mbmi->skip_txfm[xd->tree_type == CHROMA_PART] = 1;
