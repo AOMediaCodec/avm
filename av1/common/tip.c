@@ -271,7 +271,8 @@ static void tip_motion_field_within_frame(AV1_COMMON *cm) {
   const int mvs_cols =
       ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
   const int mvs_stride = mvs_cols;
-  assert(mvs_rows * mvs_stride <= cm->tpl_mvs_mem_size);
+  assert(mvs_rows * mvs_stride <=
+         cm->tpl_mvs_mem_size_row * cm->tpl_mvs_mem_size_row);
   av1_zero_array(cm->tip_ref.mf_need_clamp, mvs_rows * mvs_stride);
 
   const int width = (mvs_cols << TMVP_MI_SZ_LOG2);
