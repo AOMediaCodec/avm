@@ -966,6 +966,11 @@ void aom_highbd_lpf_horizontal_generic_sse4_1(
     int is_lossless_neg, int is_lossless_pos
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 ) {
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+  (void)is_lossless_neg;
+  (void)is_lossless_pos;
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+
 #if !CONFIG_LF_SUB_PU || CONFIG_IMPROVE_TIP_LF
   int count = 4;
 #endif  // !CONFIG_LF_SUB_PU || CONFIG_IMPROVE_TIP_LF
@@ -1032,6 +1037,12 @@ void aom_highbd_lpf_vertical_generic_sse4_1(uint16_t *s, int pitch,
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 ) {
   int i;
+
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+  (void)is_lossless_neg;
+  (void)is_lossless_pos;
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+
 #if !CONFIG_LF_SUB_PU || CONFIG_IMPROVE_TIP_LF
   int count = 4;
 #endif  // CONFIG_LF_SUB_PU
