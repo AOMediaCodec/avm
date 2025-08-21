@@ -9545,11 +9545,11 @@ int32_t read_tilegroup_header(AV1Decoder *pbi, struct aom_read_bit_buffer *rb,
       cm->global_motion[i] = default_warp_params;
       cm->cur_frame->global_motion[i] = default_warp_params;
     }
-#if CONFIG_TEMP_LR
+
     for (int p = 0; p < num_planes; ++p) {
       cm->cur_frame->rst_info[p].frame_filters_on = 0;
     }
-#endif  // CONFIG_TEMP_LR
+
     xd->global_motion = cm->global_motion;
   }  // first_tile_group_in_frame
   else {
@@ -9580,12 +9580,7 @@ int32_t read_tilegroup_header(AV1Decoder *pbi, struct aom_read_bit_buffer *rb,
         (uint32_t)aom_rb_bytes_read(rb);  // Size of the uncompressed header
     YV12_BUFFER_CONFIG *new_fb = &cm->cur_frame->buf;
     xd->cur_buf = new_fb;
-    if (av1_allow_intrabc(cm, xd
-#if CONFIG_ENABLE_IBC_NAT
-                          ,
-                          BLOCK_4X4
-#endif
-                          ) &&
+    if (av1_allow_intrabc(cm, xd, BLOCK_4X4) &&
         xd->tree_type != CHROMA_PART) {
       av1_setup_scale_factors_for_frame(
           &cm->sf_identity, xd->cur_buf->y_crop_width,
