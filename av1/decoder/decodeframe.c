@@ -7639,58 +7639,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       }
     }
   }
-#if CONFIG_REFRESH_FLAG
-  const int short_refresh_frame_flags =
-      cm->seq_params.enable_short_refresh_frame_flags &&
-      !cm->features.error_resilient_mode;
-  const int refresh_frame_flags_bits = short_refresh_frame_flags
-                                           ? seq_params->ref_frames_log2
-                                           : seq_params->ref_frames;
 
-#endif  // CONFIG_REFRESH_FLAG
   if (current_frame->frame_type == KEY_FRAME) {
     if (!cm->show_frame) {  // unshown keyframe (forward keyframe)
-#if CONFIG_REFRESH_FLAG
-      if (short_refresh_frame_flags) {
-#if CONFIG_CWG_F260_REFRESH_FLAG
-        const bool has_refresh_frame_flags = aom_rb_read_literal(rb, 1);
-        if (has_refresh_frame_flags) {
-          const int refresh_idx =
-              aom_rb_read_literal(rb, refresh_frame_flags_bits);
-          if (refresh_idx >= seq_params->ref_frames) {
-            aom_internal_error(
-                &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-                "refresh_idx must be less than %d but is set to %d",
-                seq_params->ref_frames, refresh_idx);
-          }
-          current_frame->refresh_frame_flags = 1 << refresh_idx;
-        } else {
-          current_frame->refresh_frame_flags = 0;
-        }
-#else
-        const int refresh_idx =
-            aom_rb_read_literal(rb, refresh_frame_flags_bits);
-        if (refresh_idx >= seq_params->ref_frames) {
-          aom_internal_error(
-              &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-              "refresh_idx must be less than %d but is set to %d",
-              seq_params->ref_frames, refresh_idx);
-        }
-        if (refresh_idx == 0) {
-          const bool has_refresh_frame_flags = aom_rb_read_literal(rb, 1);
-          current_frame->refresh_frame_flags = has_refresh_frame_flags ? 1 : 0;
-        } else {
-          current_frame->refresh_frame_flags = 1 << refresh_idx;
-        }
-#endif  // CONFIG_CWG_F260_REFRESH_FLAG
-      } else {
-        current_frame->refresh_frame_flags =
-            aom_rb_read_literal(rb, refresh_frame_flags_bits);
-      }
-#else
       current_frame->refresh_frame_flags =
           aom_rb_read_literal(rb, seq_params->ref_frames);
-#endif        // CONFIG_REFRESH_FLAG
     } else {  // shown keyframe
       current_frame->refresh_frame_flags = (1 << seq_params->ref_frames) - 1;
     }
@@ -7703,6 +7656,15 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       pbi->need_resync = 0;
     }
   } else {
+#if CONFIG_REFRESH_FLAG
+    const int short_refresh_frame_flags =
+        cm->seq_params.enable_short_refresh_frame_flags &&
+        !cm->features.error_resilient_mode;
+    const int refresh_frame_flags_bits = short_refresh_frame_flags
+                                             ? seq_params->ref_frames_log2
+                                             : seq_params->ref_frames;
+#endif  // CONFIG_REFRESH_FLAG
+
     if (current_frame->frame_type == INTRA_ONLY_FRAME) {
 #if CONFIG_REFRESH_FLAG
       if (short_refresh_frame_flags) {
@@ -7744,7 +7706,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #else
       current_frame->refresh_frame_flags =
           aom_rb_read_literal(rb, seq_params->ref_frames);
-
 #endif  // CONFIG_REFRESH_FLAG
       if (current_frame->refresh_frame_flags ==
           ((1 << seq_params->ref_frames) - 1)) {

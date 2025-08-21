@@ -6044,6 +6044,7 @@ static AOM_INLINE void write_uncompressed_header_obu(
       current_frame->frame_type == INTRA_ONLY_FRAME) {
 #if CONFIG_REFRESH_FLAG
     if (cm->seq_params.enable_short_refresh_frame_flags &&
+        !(current_frame->frame_type == KEY_FRAME && !cm->show_frame) &&
         !cm->features.error_resilient_mode) {
       const bool has_refresh_frame_flags =
           current_frame->refresh_frame_flags != 0;
