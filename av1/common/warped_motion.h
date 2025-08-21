@@ -328,14 +328,32 @@ static INLINE void av1_scale_warp_model(const WarpedMotionParams *in_params,
     in_distance = -in_distance;
     out_distance = -out_distance;
   }
+#if CONFIG_DIV_LUT_SIMP
+  int input_max = (1 << 23) - 1;
+#endif  // CONFIG_DIV_LUT_SIMP
 
   out_params->wmtype = in_params->wmtype;
   for (int param = 0; param < MAX_PARAMDIM; param++) {
     int center = default_warp_params.wmmat[param];
 
+#if CONFIG_DIV_LUT_SIMP
+    int input = clamp(in_params->wmmat[param] - center, -input_max, input_max);
+    int16_t shift = 0;
+    int16_t inv_divisor =
+        resolve_divisor_32((uint32_t)abs(in_distance), &shift) *
+        (in_distance < 0 ? -1 : 1);
+    // input: 24 bits, in/out_distance: 8 bits (get_relative_dist output limit)
+    // Intermediate result is in 32 bits (input: 24 bits, inv_divisor: 8 bits).
+    // output is in 24 bits because abs(inv_divisor) < (1<<shift)
+    int output = ROUND_POWER_OF_TWO_SIGNED(input * (int)inv_divisor, shift);
+    // Intermediate result is in 32 bits (24 bits * 8 bits)
+    output =
+        ROUND_POWER_OF_TWO_SIGNED(output * out_distance, param_shift[param]);
+#else
     int input = in_params->wmmat[param] - center;
     int divisor = in_distance * (1 << param_shift[param]);
     int output = (int)(((int64_t)input * out_distance + divisor / 2) / divisor);
+#endif  // CONFIG_DIV_LUT_SIMP
     output = clamp(output, param_min[param], param_max[param]) *
              (1 << param_shift[param]);
 
