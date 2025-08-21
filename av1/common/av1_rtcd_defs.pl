@@ -445,7 +445,11 @@ add_proto qw/void av1_upsample_intra_edge_high/, "uint16_t *p, int sz, int bd";
 specialize qw/av1_upsample_intra_edge_high sse4_1/;
 
 # CFL
-add_proto qw/void mhccp_predict_hv_hbd/, "const uint16_t *input, uint16_t *dst, bool have_top, bool have_left, int dst_stride, int64_t *alpha_q3, int bit_depth, int width, int height, int dir";
+if (aom_config("CONFIG_MHCCP_SOLVER_BITS") eq "yes") {
+  add_proto qw/void mhccp_predict_hv_hbd/, "const uint16_t *input, uint16_t *dst, bool have_top, bool have_left, int dst_stride, int *alpha_q3, int bit_depth, int width, int height, int dir";
+} else {
+  add_proto qw/void mhccp_predict_hv_hbd/, "const uint16_t *input, uint16_t *dst, bool have_top, bool have_left, int dst_stride, int64_t *alpha_q3, int bit_depth, int width, int height, int dir";
+}
 # Temporarily disable the sse4 function since it might overflow.
 if ((aom_config("MHCCP_CONVOLVE_SIMPLIFY") eq "yes") && 0) {
   specialize qw/mhccp_predict_hv_hbd sse4_1/;

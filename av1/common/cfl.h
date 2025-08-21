@@ -164,16 +164,34 @@ void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
                                  int ref_height, int dir,
                                  int is_top_sb_boundary);
 // Apply the back substitution process to generate the MHCCP parameters
+#if CONFIG_MHCCP_SOLVER_BITS
+void gauss_back_substitute(int32_t *x,
+                           int32_t C[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS + 1],
+                           int numEq, int col, int round, int bits);
+#else
 void gauss_back_substitute(int64_t *x,
                            int64_t C[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS + 1],
                            int numEq, int col, int round, int bits);
+#endif  // CONFIG_MHCCP_SOLVER_BITS
 // Use gaussian elimination approach to derive the parameters for MHCCP mode
+#if CONFIG_MHCCP_SOLVER_BITS
+void gauss_elimination_mhccp(int32_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
+                             int32_t C[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS + 1],
+                             int32_t *y0, int32_t *x0, int numEq, int bd);
+#else
 void gauss_elimination_mhccp(int64_t A[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS],
                              int64_t C[MHCCP_NUM_PARAMS][MHCCP_NUM_PARAMS + 1],
                              int64_t *y0, int64_t *x0, int numEq, int bd);
+#endif  // CONFIG_MHCCP_SOLVER_BITS
 // Get the number of shifted bits for denominator and the scaling factors
+
+#if CONFIG_MHCCP_SOLVER_BITS
+void get_division_scale_shift(uint32_t denom, int *scale, int32_t *round,
+                              int *shift);
+#else
 void get_division_scale_shift(uint64_t denom, int *scale, int64_t *round,
                               int *shift);
+#endif  // CONFIG_MHCCP_SOLVER_BITS
 
 static INLINE int get_scaled_luma_q0(int alpha_q3, int16_t pred_buf_q3) {
   int scaled_luma_q6 = alpha_q3 * pred_buf_q3;
