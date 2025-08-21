@@ -214,7 +214,7 @@ set_aom_config_var(CONFIG_IMPROVED_GLOBAL_MOTION 1
 # Configurable DPB extension
 set_aom_config_var(CONFIG_CWG_F168_DPB_HLS 1
                    "signaling changes for DPB extension")
-set_aom_config_var(CONFIG_CWG_F260_REFRESH_FLAG 0
+set_aom_config_var(CONFIG_CWG_F260_REFRESH_FLAG 1
                    "refresh frame flag signaling in CWG-F260 method 2")
 
 set_aom_config_var(CONFIG_CHROMA_LARGE_TX 1 "Large transform for chroma")
@@ -223,7 +223,7 @@ set_aom_config_var(
   CONFIG_TX64_SEQ_FLAG 1
   "Sequence level flag to switch between Tx64 and Tx32 with resampling")
 
-set_aom_config_var(CONFIG_REFRESH_FLAG 0
+set_aom_config_var(CONFIG_REFRESH_FLAG 1
                    "Experiment flag to signal refresh frame flag using index")
 
 set_aom_config_var(
