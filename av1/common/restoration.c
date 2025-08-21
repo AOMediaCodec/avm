@@ -1480,6 +1480,64 @@ static bool adjust_filter_to_non_subtract_center(
 }
 #endif  // ADD_CENTER_TAP_TO_WIENERNS
 
+static AOM_INLINE void apply_wienerns_single_class_highbd(
+    const uint16_t *dgd, int width, int height, int stride,
+    const WienerNonsepInfo *wienerns_info,
+    const NonsepFilterConfig *filter_config, uint16_t *dst, int dst_stride,
+    int bit_depth) {
+  const int block_size = 8;
+  const int16_t *block_filter = const_nsfilter_taps(wienerns_info, 0);
+
+  for (int r = 0; r < height; r += block_size) {
+    const int h = AOMMIN(block_size, height - r);
+    const uint16_t *dgd_row = dgd + r * stride;
+    uint16_t *dst_row = dst + r * dst_stride;
+    for (int c = 0; c < width; c += block_size) {
+      const int w = AOMMIN(block_size, width - c);
+      av1_convolve_nonsep_blk8x8_highbd(dgd_row + c, w, h, stride,
+                                        filter_config, block_filter,
+                                        dst_row + c, dst_stride, bit_depth);
+    }
+  }
+}
+
+static AOM_INLINE void apply_wienerns_multi_class_highbd(
+    const uint16_t *dgd, int width, int height, int stride,
+    const WienerNonsepInfo *wienerns_info,
+    const NonsepFilterConfig *nsfilter_config, uint16_t *dst, int dst_stride,
+    int bit_depth, const uint8_t *class_id, int class_id_stride,
+    int class_id_restrict, int num_classes, int set_index) {
+  const int block_size = 4;
+  const uint8_t *pc_wiener_sub_classify =
+      get_pc_wiener_sub_classifier(num_classes, set_index);
+
+  for (int r = 0; r < height; r += block_size) {
+    const int h = AOMMIN(block_size, height - r);
+    const uint16_t *dgd_row = dgd + r * stride;
+    uint16_t *dst_row = dst + r * dst_stride;
+    for (int c = 0; c < width; c += block_size) {
+      const int w = AOMMIN(block_size, width - c);
+
+      int sub_class_id = 0;
+      if (num_classes > 1) {
+        const int full_class_id =
+            class_id[(r >> MI_SIZE_LOG2) * class_id_stride +
+                     (c >> MI_SIZE_LOG2)];
+        sub_class_id = pc_wiener_sub_classify[full_class_id];
+
+        if (class_id_restrict >= 0 && sub_class_id != class_id_restrict) {
+          continue;
+        }
+      }
+      const int16_t *block_filter =
+          const_nsfilter_taps(wienerns_info, sub_class_id);
+      av1_convolve_nonsep_blk4x4_highbd(dgd_row + c, w, h, stride,
+                                        nsfilter_config, block_filter,
+                                        dst_row + c, dst_stride, bit_depth);
+    }
+  }
+}
+
 void apply_wienerns_class_id_highbd(
     const uint16_t *dgd, int width, int height, int stride,
     const WienerNonsepInfo *wienerns_info,
@@ -1493,17 +1551,15 @@ void apply_wienerns_class_id_highbd(
     const bool *lossless_segment
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 ) {
-
   (void)luma;
   (void)luma_stride;
   (void)plane;
 
   const int block_size = 4;
-  const uint8_t *pc_wiener_sub_classify =
-      get_pc_wiener_sub_classifier(num_classes, set_index);
-
   int is_uv = (plane != AOM_PLANE_Y);
   if (is_uv && nsfilter_config->num_pixels2 != 0) {
+    const uint8_t *pc_wiener_sub_classify =
+        get_pc_wiener_sub_classifier(num_classes, set_index);
     for (int r = 0; r < height; r += block_size) {
       const int h = AOMMIN(block_size, height - r);
       const uint16_t *dgd_row = dgd + r * stride;
@@ -1544,42 +1600,35 @@ void apply_wienerns_class_id_highbd(
     }
     return;
   }
-
-  for (int r = 0; r < height; r += block_size) {
-    const int h = AOMMIN(block_size, height - r);
-    const uint16_t *dgd_row = dgd + r * stride;
-    uint16_t *dst_row = dst + r * dst_stride;
-    for (int c = 0; c < width; c += block_size) {
-      const int w = AOMMIN(block_size, width - c);
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-      const int start_mi_x = c >> (MI_SIZE_LOG2 - ss_x);
-      const int start_mi_y = r >> (MI_SIZE_LOG2 - ss_y);
-      MB_MODE_INFO **this_mbmi_ptr =
-          mbmi_ptr_procunit + start_mi_y * mi_stride + start_mi_x;
-
-      if (lossless_segment[this_mbmi_ptr[0]->segment_id]) {
-        copy_tile(w, h, dgd_row + c, stride, dst_row + c, dst_stride);
-        continue;
+  if (num_classes == 1) {
+    const int is_sym = (nsfilter_config->asymmetric == 0);
+    if (!nsfilter_config->strict_bounds && is_sym &&
+        !nsfilter_config->subtract_center) {
+      // TODO(any): Add 8x8 SIMD support for convolve symmetric for subtract
+      // center and mixed symmetric functions
+      const bool is_wienerns_simd_large_config_y =
+          (nsfilter_config->config == wienerns_simd_large_config_y ||
+           !memcmp(wienerns_simd_large_config_y, nsfilter_config->config,
+                   nsfilter_config->num_pixels * 3 *
+                       sizeof(nsfilter_config->config[0][0])));
+      const bool is_wienerns_simd_config_y =
+          (nsfilter_config->config == wienerns_simd_config_y ||
+           !memcmp(wienerns_simd_config_y, nsfilter_config->config,
+                   nsfilter_config->num_pixels * 3 *
+                       sizeof(nsfilter_config->config[0][0])));
+      if (is_wienerns_simd_large_config_y || is_wienerns_simd_config_y) {
+        apply_wienerns_single_class_highbd(dgd, width, height, stride,
+                                           wienerns_info, nsfilter_config, dst,
+                                           dst_stride, bit_depth);
+        return;
       }
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-      int sub_class_id = 0;
-      if (num_classes > 1) {
-        const int full_class_id =
-            class_id[(r >> MI_SIZE_LOG2) * class_id_stride +
-                     (c >> MI_SIZE_LOG2)];
-        sub_class_id = pc_wiener_sub_classify[full_class_id];
-
-        if (class_id_restrict >= 0 && sub_class_id != class_id_restrict) {
-          continue;
-        }
-      }
-      const int16_t *block_filter =
-          const_nsfilter_taps(wienerns_info, sub_class_id);
-      av1_convolve_nonsep_highbd(dgd_row + c, w, h, stride, nsfilter_config,
-                                 block_filter, dst_row + c, dst_stride,
-                                 bit_depth);
     }
   }
+  apply_wienerns_multi_class_highbd(dgd, width, height, stride, wienerns_info,
+                                    nsfilter_config, dst, dst_stride, bit_depth,
+                                    class_id, class_id_stride,
+                                    class_id_restrict, num_classes, set_index);
+
   return;
 }
 

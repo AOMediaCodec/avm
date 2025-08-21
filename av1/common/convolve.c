@@ -903,10 +903,82 @@ void av1_convolve_symmetric_subtract_center_highbd_c(
   }
 }
 
-void av1_convolve_nonsep_highbd(const uint16_t *dgd, int width, int height,
-                                int stride, const NonsepFilterConfig *nsfilter,
-                                const int16_t *filter, uint16_t *dst,
-                                int dst_stride, int bit_depth) {
+void av1_convolve_symmetric_blk8x8_highbd_c(
+    const uint16_t *dgd, int stride, const NonsepFilterConfig *filter_config,
+    const int16_t *filter, uint16_t *dst, int dst_stride, int bit_depth,
+    int block_row_begin, int block_row_end, int block_col_begin,
+    int block_col_end) {
+  av1_convolve_symmetric_highbd_c(
+      dgd, stride, filter_config, filter, dst, dst_stride, bit_depth,
+      block_row_begin, block_row_end, block_col_begin, block_col_end);
+}
+
+void av1_convolve_nonsep_blk8x8_highbd(const uint16_t *dgd, int width,
+                                       int height, int stride,
+                                       const NonsepFilterConfig *nsfilter,
+                                       const int16_t *filter, uint16_t *dst,
+                                       int dst_stride, int bit_depth) {
+  assert(width <= 8 && height <= 8);
+  const int is_sym = (nsfilter->asymmetric == 0);
+  if (USE_CONV_SYM_VERSIONS && !nsfilter->strict_bounds && is_sym) {
+    if (nsfilter->subtract_center)
+      av1_convolve_symmetric_subtract_center_highbd_c(
+          dgd, stride, nsfilter, filter, dst, dst_stride, bit_depth, 0, height,
+          0, width);
+    else
+      av1_convolve_symmetric_blk8x8_highbd(dgd, stride, nsfilter, filter, dst,
+                                           dst_stride, bit_depth, 0, height, 0,
+                                           width);
+    return;
+  }
+  if (!is_sym && !nsfilter->strict_bounds) {
+    if (!nsfilter->subtract_center) {
+      av1_convolve_mixedsymmetric_highbd_c(dgd, stride, nsfilter, filter, dst,
+                                           dst_stride, bit_depth, 0, height, 0,
+                                           width);
+      return;
+    }
+  }
+  for (int i = 0; i < height; ++i) {
+    for (int j = 0; j < width; ++j) {
+      int dgd_id = i * stride + j;
+      int dst_id = i * dst_stride + j;
+      int32_t tmp = (int32_t)dgd[dgd_id] * (1 << nsfilter->prec_bits);
+      for (int k = 0; k < nsfilter->num_pixels; ++k) {
+        const int pos = nsfilter->config[k][NONSEP_BUF_POS];
+        const int r = nsfilter->config[k][NONSEP_ROW_ID];
+        const int c = nsfilter->config[k][NONSEP_COL_ID];
+        if (nsfilter->subtract_center && r == 0 && c == 0) {
+          tmp += filter[pos];
+          continue;
+        }
+        const int ir = nsfilter->strict_bounds
+                           ? AOMMAX(AOMMIN(i + r, height - 1), 0)
+                           : i + r;
+        const int jc = nsfilter->strict_bounds
+                           ? AOMMAX(AOMMIN(j + c, width - 1), 0)
+                           : j + c;
+        int16_t sample;
+        if (nsfilter->subtract_center) {
+          sample =
+              clip_base((int16_t)dgd[(ir)*stride + (jc)] - (int16_t)dgd[dgd_id],
+                        bit_depth);
+        } else {
+          sample = (int16_t)dgd[(ir)*stride + (jc)];
+        }
+        tmp += filter[pos] * sample;
+      }
+      tmp = ROUND_POWER_OF_TWO_SIGNED(tmp, nsfilter->prec_bits);
+      dst[dst_id] = (uint16_t)clip_pixel_highbd(tmp, bit_depth);
+    }
+  }
+}
+
+void av1_convolve_nonsep_blk4x4_highbd(const uint16_t *dgd, int width,
+                                       int height, int stride,
+                                       const NonsepFilterConfig *nsfilter,
+                                       const int16_t *filter, uint16_t *dst,
+                                       int dst_stride, int bit_depth) {
   const int is_sym = (nsfilter->asymmetric == 0);
   if (USE_CONV_SYM_VERSIONS && !nsfilter->strict_bounds && is_sym) {
     if (nsfilter->subtract_center)

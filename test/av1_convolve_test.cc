@@ -1249,6 +1249,21 @@ class AV1ConvolveNonSep2DHighbdTest
     1
   };
 
+  const NonsepFilterConfig UnconstrainedSumFilterConfigLarge_ = {
+    kMaxPrecisionBeforeOverflow,
+    sizeof(wienerns_simd_large_config_y) /
+        sizeof(wienerns_simd_large_config_y[0]),
+    0,
+    wienerns_simd_large_config_y,
+    NULL,
+    0,
+    0,
+    sizeof(wienerns_simd_large_config_y) /
+            sizeof(wienerns_simd_large_config_y[0]) -
+        1,
+    0
+  };
+
   const NonsepFilterConfig PcWienerNonsepFilterConfigChroma_ = {
     kMaxPrecisionBeforeOverflow,
     sizeof(wienerns_simd_config_uv_from_uvonly) /
@@ -1319,6 +1334,22 @@ TEST_P(AV1ConvolveWienerNonSep2DHighbdTest, DISABLED_Speed) {
 INSTANTIATE_TEST_SUITE_P(
     AVX2, AV1ConvolveWienerNonSep2DHighbdTest,
     BuildHighbdParams(av1_convolve_symmetric_subtract_center_highbd_avx2));
+#endif
+
+class AV1ConvolveNonSepBlk8x82DHighbdTest
+    : public AV1ConvolveNonSep2DHighbdTest {};
+
+TEST_P(AV1ConvolveNonSepBlk8x82DHighbdTest, RunTest) {
+  RunTest(RESTORE_PC_WIENER);
+}
+TEST_P(AV1ConvolveNonSepBlk8x82DHighbdTest, DISABLED_Speed) {
+  RunSpeedTest(RESTORE_PC_WIENER);
+}
+
+#if HAVE_AVX2
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, AV1ConvolveNonSepBlk8x82DHighbdTest,
+    BuildHighbdParams(av1_convolve_symmetric_blk8x8_highbd_avx2));
 #endif
 
 //////////////////////////////////////////////////////////

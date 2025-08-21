@@ -95,10 +95,16 @@ static INLINE int config2ncoeffs_select(const NonsepFilterConfig *config,
 }
 
 // Nonseparable convolution.
-void av1_convolve_nonsep_highbd(const uint16_t *dgd, int width, int height,
-                                int stride, const NonsepFilterConfig *config,
-                                const int16_t *filter, uint16_t *dst,
-                                int dst_stride, int bit_depth);
+void av1_convolve_nonsep_blk4x4_highbd(const uint16_t *dgd, int width,
+                                       int height, int stride,
+                                       const NonsepFilterConfig *config,
+                                       const int16_t *filter, uint16_t *dst,
+                                       int dst_stride, int bit_depth);
+void av1_convolve_nonsep_blk8x8_highbd(const uint16_t *dgd, int width,
+                                       int height, int stride,
+                                       const NonsepFilterConfig *config,
+                                       const int16_t *filter, uint16_t *dst,
+                                       int dst_stride, int bit_depth);
 
 // Nonseparable convolution with dual input planes - used for cross component
 // filtering.

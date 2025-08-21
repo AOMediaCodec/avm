@@ -1025,6 +1025,765 @@ static AOM_INLINE void av1_convolve_symmetric_highbd_13tap_avx2(
                    _mm_bsrli_si128(out_r1r3, 8));
 }
 
+static AOM_INLINE void av1_convolve_symmetric_highbd_13tap_blk8x8_avx2(
+    const uint16_t *dgd, int stride, const NonsepFilterConfig *filter_config,
+    const int16_t *filter_, uint16_t *dst, int dst_stride, int bit_depth,
+    int block_row_begin, int block_col_begin) {
+  /*
+  Note the original SIMD code here was designed for the configuration below,
+  but is being changed to the one in config_13tap_avx2 above to align
+  pc_wiener and wienerns configurations. However a permute of the coefficients
+  is now necessary before the rest of the code can be used.
+  { -3, 0, 0 },  { 3, 0, 0 },  { -2, -1, 1 }, { 2, 1, 1 },   { -2, 0, 2 },
+  { 2, 0, 2 },   { -2, 1, 3 }, { 2, -1, 3 },  { -1, -2, 4 }, { 1, 2, 4 },
+  { -1, -1, 5 }, { 1, 1, 5 },  { -1, 0, 6 },  { 1, 0, 6 },   { -1, 1, 7 },
+  { 1, -1, 7 },  { -1, 2, 8 }, { 1, -2, 8 },  { 0, -3, 9 },  { 0, 3, 9 },
+  { 0, -2, 10 }, { 0, 2, 10 }, { 0, -1, 11 }, { 0, 1, 11 },  { 0, 0, 12 },
+  */
+  // Begin permute
+  int16_t filter[WIENERNS_TAPS_MAX];
+  filter[6] = filter_[0];
+  filter[11] = filter_[1];
+  filter[2] = filter_[2];
+  filter[10] = filter_[3];
+  filter[5] = filter_[4];
+  filter[7] = filter_[5];
+  filter[1] = filter_[6];
+  filter[3] = filter_[7];
+  filter[4] = filter_[8];
+  filter[8] = filter_[9];
+  filter[0] = filter_[10];
+  filter[9] = filter_[11];
+  filter[12] = filter_[12];
+  // End permute
+
+  // Derive singleton_tap.
+  // TODO(rachelbarker): Set up the singleton tap fully in
+  // adjust_filter_and_config, so that we don't have to modify it here
+  int32_t singleton_tap = 1 << filter_config->prec_bits;
+  if (filter_config->num_pixels % 2) {
+    const int singleton_tap_index =
+        filter_config->config[filter_config->num_pixels - 1][NONSEP_BUF_POS];
+    singleton_tap += filter[singleton_tap_index];
+  }
+
+  // Load source data.
+  int src_index_start = block_row_begin * stride + block_col_begin;
+  const uint16_t *src_ptr = dgd + src_index_start - 3 * stride - 3;
+  const __m256i src_a0 = _mm256_loadu_si256((__m256i const *)(src_ptr));
+  const __m256i src_b0 =
+      _mm256_loadu_si256((__m256i const *)(src_ptr + stride));
+  const __m256i src_c0 =
+      _mm256_loadu_si256((__m256i const *)(src_ptr + 2 * stride));
+  const __m256i src_d0 =
+      _mm256_loadu_si256((__m256i const *)(src_ptr + 3 * stride));
+  const __m256i src_e0 =
+      _mm256_loadu_si256((__m256i const *)(src_ptr + 4 * stride));
+  const __m256i src_f0 =
+      _mm256_loadu_si256((__m256i const *)(src_ptr + 5 * stride));
+  const __m256i src_g0 =
+      _mm256_loadu_si256((__m256i const *)(src_ptr + 6 * stride));
+  const __m256i src_h0 =
+      _mm256_loadu_si256((__m256i const *)(src_ptr + 7 * stride));
+  const __m256i src_i0 =
+      _mm256_loadu_si256((__m256i const *)(src_ptr + 8 * stride));
+  const __m256i src_j0 =
+      _mm256_loadu_si256((__m256i const *)(src_ptr + 9 * stride));
+  const __m256i src_k0 =
+      _mm256_loadu_si256((__m256i const *)(src_ptr + 10 * stride));
+  const __m256i src_l0 =
+      _mm256_loadu_si256((__m256i const *)(src_ptr + 11 * stride));
+  const __m256i src_m0 =
+      _mm256_loadu_si256((__m256i const *)(src_ptr + 12 * stride));
+  const __m256i src_n0 =
+      _mm256_loadu_si256((__m256i const *)(src_ptr + 13 * stride));
+
+  // Load filter tap values.
+  // fc0 fc1 fc2 fc3 fc4 fc5 fc6 fc7
+  const __m128i filt_coeff_0 = _mm_loadu_si128((__m128i const *)(filter));
+  // fc5 fc6 fc7 fc8 fc9 fc10 fc11 fc12
+  __m128i temp = _mm_loadu_si128((__m128i const *)(filter + 5));
+  // Replace the fc12 with derived singleton_tap.
+  const __m128i center_tap = _mm_set1_epi16(singleton_tap);
+  const __m128i filt_coeff_1 = _mm_blend_epi16(temp, center_tap, 0x80);
+
+  // Form 256bit source registers.
+  // c0 c1 c2 c3 c4 c5 c6 c7 | d0 d1 d2 d3 d4 d5 d6 d7
+  const __m256i cd0 = _mm256_permute2x128_si256(src_c0, src_d0, 0x20);
+  // c8 c9 c10 c11 c12 c13 c14 c15 | d8 d9 d10 d11 d12 d13 d14 d15
+  const __m256i cd8 = _mm256_permute2x128_si256(src_c0, src_d0, 0x31);
+
+  // e0 e1 e2 e3 e4 e5 e6 e7 | f0 f1 f2 f3 f4 f5 f6 f7
+  const __m256i ef0 = _mm256_permute2x128_si256(src_e0, src_f0, 0x20);
+  // e8 e9 e10 e11 e12 e13 e14 e15 | f8 f9 f10 f11 f12 f13 f14 f15
+  const __m256i ef8 = _mm256_permute2x128_si256(src_e0, src_f0, 0x31);
+
+  // g0 g1 g2 g3 g4 g5 g6 g7 | h0 h1 h2 h3 h4 h5 h6 h7
+  const __m256i gh0 = _mm256_permute2x128_si256(src_g0, src_h0, 0x20);
+  // g8 g9 g10 g11 g12 g13 g14 g15 | h8 h9 h10 h11 h12 h13 h14 h15
+  const __m256i gh8 = _mm256_permute2x128_si256(src_g0, src_h0, 0x31);
+
+  // i0 i1 i2 i3 i4 i5 i6 i7 | j0 j1 j2 j3 j4 j5 j6 j7
+  const __m256i ij0 = _mm256_permute2x128_si256(src_i0, src_j0, 0x20);
+  // i8 i9 i10 i11 i12 i13 i14 i15 | j8 j9 j10 j11 j12 j13 j14 j15
+  const __m256i ij8 = _mm256_permute2x128_si256(src_i0, src_j0, 0x31);
+
+  // k0 k1 k2 k3 k4 k5 k6 k7 | l0 l1 l2 l3 l4 l5 l6 l7
+  const __m256i kl0 = _mm256_permute2x128_si256(src_k0, src_l0, 0x20);
+  // k8 k9 k10 k11 k12 k13 k14 k15 | l8 l9 l10 l11 l12 l13 l14 l15
+  const __m256i kl8 = _mm256_permute2x128_si256(src_k0, src_l0, 0x31);
+
+  // m0 m1 m2 m3 m4 m5 m6 m7 | n0 n1 n2 n3 n4 n5 n6 n7
+  const __m256i mn0 = _mm256_permute2x128_si256(src_m0, src_n0, 0x20);
+  // m8 m9 m10 m11 m12 m13 m14 m15 | n8 n9 n10 n11 n12 n13 n14 n15
+  const __m256i mn8 = _mm256_permute2x128_si256(src_m0, src_n0, 0x31);
+
+  // c0 e0 c1 e1 c2 e2 c3 e3 | d0 f0 d1 f1 d2 f2 d3 f3
+  const __m256i c0e0 = _mm256_unpacklo_epi16(cd0, ef0);
+  // c4 e4 c5 e5 c6 e6 c7 e7 | d4 f4 d5 f5 d6 f6 d7 f7
+  const __m256i c4e4 = _mm256_unpackhi_epi16(cd0, ef0);
+  // c8 e8 c9 e9 c10 e10 c11 e11 | d8 f8 d9 f9 d10 f10 d11 f11
+  const __m256i c8e8 = _mm256_unpacklo_epi16(cd8, ef8);
+  // c12 e12 c13 e13 c14 e14 c15 e15 | d12 f12 d13 f13 d14 f14 d15 f15
+  const __m256i c12e12 = _mm256_unpackhi_epi16(cd8, ef8);
+
+  // e0 g0 e1 g1 e2 g2 e3 g3 | f0 h0 f1 h1 f2 h2 f3 h3
+  const __m256i e0g0 = _mm256_unpacklo_epi16(ef0, gh0);
+  // e4 g4 e5 g5 e6 g6 e7 g7 | f4 h4 f5 h5 f6 h6 f7 h7
+  const __m256i e4g4 = _mm256_unpackhi_epi16(ef0, gh0);
+  // e8 g8 e9 g9 e10 g10 e11 g11 | f8 h8 f9 h9 f10 h10 f11 h11
+  const __m256i e8g8 = _mm256_unpacklo_epi16(ef8, gh8);
+  // e12 g12 e13 g13 e14 g14 e15 g15 | f12 h12 f13 h13 f14 h14 f15 h15
+  const __m256i e12g12 = _mm256_unpackhi_epi16(ef8, gh8);
+
+  // g0 i0 g1 i1 g2 i2 g3 i3 | h0 j0 h1 j1 h2 j2 h3 j3
+  const __m256i g0i0 = _mm256_unpacklo_epi16(gh0, ij0);
+  // g4 i4 g5 i5 g6 i6 g7 i7 | h4 j4 h5 j5 h6 j6 h7 j7
+  const __m256i g4i4 = _mm256_unpackhi_epi16(gh0, ij0);
+  // g8 i8 g9 i9 g10 i10 g11 i11 | h8 j8 h9 j9 h10 j10 h11 j11
+  const __m256i g8i8 = _mm256_unpacklo_epi16(gh8, ij8);
+  // g12 i12 g13 i13 g14 i14 g15 i15 | h12 j12 h13 j13 h14 j14 h15 j15
+  const __m256i g12i12 = _mm256_unpackhi_epi16(gh8, ij8);
+
+  // i0 k0 i1 k1 i2 k2 i3 k3 | j0 l0 j1 l1 j2 l2 j3 l3
+  const __m256i i0k0 = _mm256_unpacklo_epi16(ij0, kl0);
+  // i4 k4 i5 k5 i6 k6 i7 k7 | j4 l4 j5 l5 j6 l6 j7 l7
+  const __m256i i4k4 = _mm256_unpackhi_epi16(ij0, kl0);
+  // i8 k8 i9 k9 i10 k10 i11 k11 | j8 l8 j9 l9 j10 l10 j11 l11
+  const __m256i i8k8 = _mm256_unpacklo_epi16(ij8, kl8);
+  // i12 k12 i13 k13 i14 k14 i15 k15 | j12 l12 j13 l13 j14 l14 j15 l15
+  const __m256i i12k12 = _mm256_unpackhi_epi16(ij8, kl8);
+
+  // Pixel values for filter coeff 4 and 8
+  // c1 e1 c2 e2 c3 e3 c4 e4 | d1 f1 d2 f2 d3 f3 d4 f4
+  const __m256i c1e1_c4e4 = _mm256_alignr_epi8(c4e4, c0e0, 4);
+  // e1 g1 e2 g2 e3 g3 e4 g4 | f1 h1 f2 h2 f3 h3 f4 h4
+  const __m256i e1g1_e4g4 = _mm256_alignr_epi8(e4g4, e0g0, 4);
+  // g1 i1 g2 i2 g3 i3 g4 i4 | h1 j1 h2 j2 h3 j3 h4 j4
+  const __m256i g1i1_g4i4 = _mm256_alignr_epi8(g4i4, g0i0, 4);
+  // i1 k1 i2 k2 i3 k3 i4 k4 | j1 l1 j2 l2 j3 l3 j4 l4
+  const __m256i i1k1_i4k4 = _mm256_alignr_epi8(i4k4, i0k0, 4);
+
+  // Pixel values for filter coeff 5 and 7
+  // c2 e2 c3 e3 c4 e4 c5 e5 | d2 f2 d3 f3 d4 f4 d5 f5
+  const __m256i c2e2_c5e5 = _mm256_alignr_epi8(c4e4, c0e0, 8);
+  // c6 e6 c7 e7 c8 e8 c9 e9 | d6 f6 d7 f7 d8 f8 d9 f9
+  const __m256i c6e6_c9e9 = _mm256_alignr_epi8(c8e8, c4e4, 8);
+  // e2 g2 e3 g3 e4 g4 e5 g5 | f2 h2 f3 h3 f4 h4 f5 h5
+  const __m256i e2g2_e5g5 = _mm256_alignr_epi8(e4g4, e0g0, 8);
+  // e6 g6 e7 g7 e8 g8 e9 g9 | f6 h6 f7 h7 f8 h8 f9 h9
+  const __m256i e6g6_e9g9 = _mm256_alignr_epi8(e8g8, e4g4, 8);
+  // g2 i2 g3 i3 g4 i4 g5 i5 | h2 j2 h3 j3 h4 j4 h5 j5
+  const __m256i g2i2_g5i5 = _mm256_alignr_epi8(g4i4, g0i0, 8);
+  // g6 i6 g7 i7 g8 i8 g9 i9 | h6 j6 h7 j7 h8 j8 h9 j9
+  const __m256i g6i6_g9i9 = _mm256_alignr_epi8(g8i8, g4i4, 8);
+  // i2 k2 i3 k3 i4 k4 i5 k5 | j2 l2 j3 l3 j4 l4 j5 l5
+  const __m256i i2k2_i5k5 = _mm256_alignr_epi8(i4k4, i0k0, 8);
+  // i6 k6 i7 k7 i8 k8 i9 k9 | j6 l6 j7 l7 j8 l8 j9 l9
+  const __m256i i6k6_i9k9 = _mm256_alignr_epi8(i8k8, i4k4, 8);
+
+  // Pixel values for filter coeff 6
+  // c3 e3 c4 e4 c5 e5 c6 e6 | d3 f3 d4 f4 d5 f5 d6 f6
+  const __m256i c3e3_c6e6 = _mm256_alignr_epi8(c4e4, c0e0, 12);
+  // c7 e7 c8 e8 c9 e9 c10 e10 | d7 f7 d8 f8 d9 f9 d10 f10
+  const __m256i c7e7_c10e10 = _mm256_alignr_epi8(c8e8, c4e4, 12);
+  // e3 g3 e4 g4 e5 g5 e6 g6 | f3 h3 f4 h4 f5 h5 f6 h6
+  const __m256i e3g3_e6g6 = _mm256_alignr_epi8(e4g4, e0g0, 12);
+  // e7 g7 e8 g8 e9 g9 e10 g10 | f7 h7 f8 h8 f9 h9 f10 h10
+  const __m256i e7g7_e10g10 = _mm256_alignr_epi8(e8g8, e4g4, 12);
+  // g3 i3 g4 i4 g5 i5 g6 i6 | h3 j3 h4 j4 h5 j5 h6 j6
+  const __m256i g3i3_g6i6 = _mm256_alignr_epi8(g4i4, g0i0, 12);
+  // g7 i7 g8 i8 g9 i9 g10 i10 | h7 j7 h8 j8 h9 j9 h10 j10
+  const __m256i g7i7_g10i10 = _mm256_alignr_epi8(g8i8, g4i4, 12);
+  // i3 k3 i4 k4 i5 k5 i6 k6 | j3 l3 j4 l4 j5 l5 j6 l6
+  const __m256i i3k3_i6k6 = _mm256_alignr_epi8(i4k4, i0k0, 12);
+  // i7 k7 i8 k8 i9 k9 i10 k10 | j7 l7 j8 l8 j9 l9 j10 l10
+  const __m256i i7k7_i10k10 = _mm256_alignr_epi8(i8k8, i4k4, 12);
+
+  // Pixel values for filter coeff 4 and 8
+  // c5 e5 c6 e6 c7 e7 c8 e8 | d5 f5 d6 f6 d7 f7 d8 f8
+  const __m256i c5e5_c8e8 = _mm256_alignr_epi8(c8e8, c4e4, 4);
+  // c9 e9 c10 e10 c11 e11 c12 e12 | d9 f9 d10 f10 d11 f11 d12 f12
+  const __m256i c9e9_c12e12 = _mm256_alignr_epi8(c12e12, c8e8, 4);
+  // e5 g5 e6 g6 e7 g7 e8 g8 | f5 h5 f6 h6 f7 h7 f8 h8
+  const __m256i e5g5_e8g8 = _mm256_alignr_epi8(e8g8, e4g4, 4);
+  // e9 g9 e10 g10 e11 g11 e12 g12 | f9 h9 f10 h10 f11 h11 f12 h12
+  const __m256i e9g9_e12g12 = _mm256_alignr_epi8(e12g12, e8g8, 4);
+  // g5 i5 g6 i6 g7 i7 g8 i8 | h5 j5 h6 j6 h7 j7 h8 j8
+  const __m256i g5i5_g8i8 = _mm256_alignr_epi8(g8i8, g4i4, 4);
+  // g9 i9 g10 i10 g11 i11 g12 i12 | h9 j9 h10 j10 h11 j11 h12 j12
+  const __m256i g9i9_g12i12 = _mm256_alignr_epi8(g12i12, g8i8, 4);
+  // i5 k5 i6 k6 i7 k7 i8 k8 | j5 l5 j6 l6 j7 l7 j8 l8
+  const __m256i i5k5_i8k8 = _mm256_alignr_epi8(i8k8, i4k4, 4);
+  // i9 k9 i10 k10 i11 k11 i12 k12 | j9 l9 j10 l10 j11 l11 j12 l12
+  const __m256i i9k9_i12k12 = _mm256_alignr_epi8(i12k12, i8k8, 4);
+
+  // 0 fc5 fc6 fc7 fc8 fc9 fc10 fc11
+  __m128i temp1 = _mm_bslli_si128(filt_coeff_1, 2);
+  // fc4 fc8 fc5 fc9 fc6 fc10 fc7 fc11
+  temp = _mm_unpackhi_epi16(filt_coeff_0, temp1);
+  // fc4 fc8 fc4 fc8 fc4 fc8 fc4 fc8 | fc4 fc8 fc4 fc8 fc4 fc8 fc4 fc8
+  const __m256i filt48 = _mm256_broadcastd_epi32(temp);
+  // fc5 fc7 fc5 fc7 fc5 fc7 fc5 fc7 | fc5 fc7 fc5 fc7 fc5 fc7 fc5 fc7
+  const __m256i filt57 =
+      _mm256_broadcastd_epi32(_mm_shufflelo_epi16(filt_coeff_1, 0x08));
+  // fc6 fc6 fc6 fc6 fc6 fc6 fc6 fc6 | fc6 fc6 fc6 fc6 fc6 fc6 fc6 fc6
+  const __m256i filt66 =
+      _mm256_broadcastd_epi32(_mm_shufflelo_epi16(filt_coeff_1, 0x55));
+  // fc7 fc5 fc7 fc5 fc7 fc5 fc7 fc5 | fc7 fc5 fc7 fc5 fc7 fc5 fc7 fc5
+  const __m256i filt75 =
+      _mm256_broadcastd_epi32(_mm_shufflelo_epi16(filt_coeff_1, 0x22));
+  // fc8 fc4 fc9 fc5 fc10 fc6 fc11 fc7
+  __m128i temp2 = _mm_unpackhi_epi16(temp1, filt_coeff_0);
+  // fc8 fc4 fc8 fc4 fc8 fc4 fc8 fc4 | fc8 fc4 fc8 fc4 fc8 fc4 fc8 fc4
+  const __m256i filt84 = _mm256_broadcastd_epi32(temp2);
+
+  __m256i res_0 = _mm256_madd_epi16(c1e1_c4e4, filt48);
+  __m256i res_1 = _mm256_madd_epi16(c5e5_c8e8, filt48);
+  __m256i res_2 = _mm256_madd_epi16(e1g1_e4g4, filt48);
+  __m256i res_3 = _mm256_madd_epi16(e5g5_e8g8, filt48);
+  __m256i res_4 = _mm256_madd_epi16(g1i1_g4i4, filt48);
+  __m256i res_5 = _mm256_madd_epi16(g5i5_g8i8, filt48);
+  __m256i res_6 = _mm256_madd_epi16(i1k1_i4k4, filt48);
+  __m256i res_7 = _mm256_madd_epi16(i5k5_i8k8, filt48);
+
+  __m256i res_8 = _mm256_madd_epi16(c2e2_c5e5, filt57);
+  __m256i res_9 = _mm256_madd_epi16(c6e6_c9e9, filt57);
+  __m256i res_10 = _mm256_madd_epi16(e2g2_e5g5, filt57);
+  __m256i res_11 = _mm256_madd_epi16(e6g6_e9g9, filt57);
+  __m256i res_12 = _mm256_madd_epi16(g2i2_g5i5, filt57);
+  __m256i res_13 = _mm256_madd_epi16(g6i6_g9i9, filt57);
+  __m256i res_14 = _mm256_madd_epi16(i2k2_i5k5, filt57);
+  __m256i res_15 = _mm256_madd_epi16(i6k6_i9k9, filt57);
+
+  __m256i res_16 = _mm256_madd_epi16(c3e3_c6e6, filt66);
+  __m256i res_17 = _mm256_madd_epi16(c7e7_c10e10, filt66);
+  __m256i res_18 = _mm256_madd_epi16(e3g3_e6g6, filt66);
+  __m256i res_19 = _mm256_madd_epi16(e7g7_e10g10, filt66);
+  __m256i res_20 = _mm256_madd_epi16(g3i3_g6i6, filt66);
+  __m256i res_21 = _mm256_madd_epi16(g7i7_g10i10, filt66);
+  __m256i res_22 = _mm256_madd_epi16(i3k3_i6k6, filt66);
+  __m256i res_23 = _mm256_madd_epi16(i7k7_i10k10, filt66);
+
+  __m256i res_24 = _mm256_madd_epi16(c4e4, filt75);
+  __m256i res_25 = _mm256_madd_epi16(c8e8, filt75);
+  __m256i res_26 = _mm256_madd_epi16(e4g4, filt75);
+  __m256i res_27 = _mm256_madd_epi16(e8g8, filt75);
+  __m256i res_28 = _mm256_madd_epi16(g4i4, filt75);
+  __m256i res_29 = _mm256_madd_epi16(g8i8, filt75);
+  __m256i res_30 = _mm256_madd_epi16(i4k4, filt75);
+  __m256i res_31 = _mm256_madd_epi16(i8k8, filt75);
+
+  __m256i res_32 = _mm256_madd_epi16(c5e5_c8e8, filt84);
+  __m256i res_33 = _mm256_madd_epi16(c9e9_c12e12, filt84);
+  __m256i res_34 = _mm256_madd_epi16(e5g5_e8g8, filt84);
+  __m256i res_35 = _mm256_madd_epi16(e9g9_e12g12, filt84);
+  __m256i res_36 = _mm256_madd_epi16(g5i5_g8i8, filt84);
+  __m256i res_37 = _mm256_madd_epi16(g9i9_g12i12, filt84);
+  __m256i res_38 = _mm256_madd_epi16(i5k5_i8k8, filt84);
+  __m256i res_39 = _mm256_madd_epi16(i9k9_i12k12, filt84);
+
+  __m256i accum_out_r0_r1_1 =
+      _mm256_add_epi32(_mm256_add_epi32(_mm256_add_epi32(res_0, res_8),
+                                        _mm256_add_epi32(res_16, res_24)),
+                       res_32);
+
+  __m256i accum_out_r0_r1_2 =
+      _mm256_add_epi32(_mm256_add_epi32(_mm256_add_epi32(res_1, res_9),
+                                        _mm256_add_epi32(res_17, res_25)),
+                       res_33);
+
+  __m256i accum_out_r2_r3_1 =
+      _mm256_add_epi32(_mm256_add_epi32(_mm256_add_epi32(res_2, res_10),
+                                        _mm256_add_epi32(res_18, res_26)),
+                       res_34);
+
+  __m256i accum_out_r2_r3_2 =
+      _mm256_add_epi32(_mm256_add_epi32(_mm256_add_epi32(res_3, res_11),
+                                        _mm256_add_epi32(res_19, res_27)),
+                       res_35);
+
+  __m256i accum_out_r4_r5_1 =
+      _mm256_add_epi32(_mm256_add_epi32(_mm256_add_epi32(res_4, res_12),
+                                        _mm256_add_epi32(res_20, res_28)),
+                       res_36);
+
+  __m256i accum_out_r4_r5_2 =
+      _mm256_add_epi32(_mm256_add_epi32(_mm256_add_epi32(res_5, res_13),
+                                        _mm256_add_epi32(res_21, res_29)),
+                       res_37);
+
+  __m256i accum_out_r6_r7_1 =
+      _mm256_add_epi32(_mm256_add_epi32(_mm256_add_epi32(res_6, res_14),
+                                        _mm256_add_epi32(res_22, res_30)),
+                       res_38);
+
+  __m256i accum_out_r6_r7_2 =
+      _mm256_add_epi32(_mm256_add_epi32(_mm256_add_epi32(res_7, res_15),
+                                        _mm256_add_epi32(res_23, res_31)),
+                       res_39);
+
+  // fc2 fc2 fc2 fc2 fc2 fc2 fc2 fc2 | fc2 fc2 fc2 fc2 fc2 fc2 fc2 fc2
+  const __m256i filt22 =
+      _mm256_broadcastd_epi32(_mm_shufflelo_epi16(filt_coeff_0, 0xAA));
+  // fc1 fc3 fc1 fc3 fc1 fc3 fc1 fc3 | fc1 fc3 fc1 fc3 fc1 fc3 fc1 fc3
+  const __m256i filt13 =
+      _mm256_broadcastd_epi32(_mm_shufflelo_epi16(filt_coeff_0, 0x5D));
+  // fc3 fc1 fc3 fc1 fc3 fc1 fc3 fc1 | fc3 fc1 fc3 fc1 fc3 fc1 fc3 fc1
+  const __m256i filt31 =
+      _mm256_broadcastd_epi32(_mm_shufflelo_epi16(filt_coeff_0, 0xF7));
+
+  // b0 b1 b2 b3 b4 b5 b6 b7 | c0 c1 c2 c3 c4 c5 c6 c7
+  const __m256i bc0 = _mm256_permute2x128_si256(src_b0, src_c0, 0x20);
+  // b8 b9 b10 b11 b12 b13 b14 b15 | c8 c9 c10 c11 c12 c13 c14 c15
+  const __m256i bc8 = _mm256_permute2x128_si256(src_b0, src_c0, 0x31);
+  // d0 d1 d2 d3 d4 d5 d6 d7 | e0 e1 e2 e3 e4 e5 e6 e7
+  const __m256i de0 = _mm256_permute2x128_si256(src_d0, src_e0, 0x20);
+  // d8 d9 d10 d11 d12 d13 d14 d15 | e0 e1 e2 e3 e4 e5 e6 e7
+  const __m256i de8 = _mm256_permute2x128_si256(src_d0, src_e0, 0x31);
+  // f0 f1 f2 f3 f4 f5 f6 f7 | g0 g1 g2 g3 g4 g5 g6 g7
+  const __m256i fg0 = _mm256_permute2x128_si256(src_f0, src_g0, 0x20);
+  // f8 f9 f10 f11 f12 f13 f14 f15 | g8 g9 g10 g11 g12 g13 g14 g15
+  const __m256i fg8 = _mm256_permute2x128_si256(src_f0, src_g0, 0x31);
+  // h0 h1 h2 h3 h4 h5 h6 h7 | i0 i1 i2 i3 i4 i5 i6 i7
+  const __m256i hi0 = _mm256_permute2x128_si256(src_h0, src_i0, 0x20);
+  // h8 h9 h10 h11 h12 h13 h14 h15 | i0 i1 i2 i3 i4 i5 i6 i7
+  const __m256i hi8 = _mm256_permute2x128_si256(src_h0, src_i0, 0x31);
+  // j0 j1 j2 j3 j4 j5 j6 j7 | k0 k1 k2 k3 k4 k5 k6 k7
+  const __m256i jk0 = _mm256_permute2x128_si256(src_j0, src_k0, 0x20);
+  // j8 j9 j10 j11 j12 j13 j14 j15 | k0 k1 k2 k3 k4 k5 k6 k7
+  const __m256i jk8 = _mm256_permute2x128_si256(src_j0, src_k0, 0x31);
+  // l0 l1 l2 l3 l4 l5 l6 l7 | m0 m1 m2 m3 m4 m5 m6 m7
+  const __m256i lm0 = _mm256_permute2x128_si256(src_l0, src_m0, 0x20);
+  // l8 l9 l10 l11 l12 l13 l14 l15 | m0 m1 m2 m3 m4 m5 m6 m7
+  const __m256i lm8 = _mm256_permute2x128_si256(src_l0, src_m0, 0x31);
+
+  // b0 f0 b1 f1 b2 f2 b3 f3 | c0 g0 c1 g1 c2 g2 c3 g3
+  const __m256i b0f0 = _mm256_unpacklo_epi16(bc0, fg0);
+  // b4 f4 b5 f5 b6 f6 b7 f7 | c4 g4 c5 g5 c6 g6 c7 g7
+  const __m256i b4f4 = _mm256_unpackhi_epi16(bc0, fg0);
+  // b8 f8 b9 f9 b10 f10 b11 f11 | c8 g8 c9 g9 c10 g10 c11 g11
+  const __m256i b8f8 = _mm256_unpacklo_epi16(bc8, fg8);
+
+  // d0 h0 d1 h1 d2 h2 d3 h3 | e0 i0 e1 i1 e2 i2 e3 i3
+  const __m256i d0h0 = _mm256_unpacklo_epi16(de0, hi0);
+  // d4 h4 d5 h5 d6 h6 d7 h7 | e4 i4 e5 i5 e6 i6 e7 i7
+  const __m256i d4h4 = _mm256_unpackhi_epi16(de0, hi0);
+  // d8 h8 d9 h9 d10 h10 d11 h11 | e8 i8 e9 i9 e10 i10 e11 i11
+  const __m256i d8h8 = _mm256_unpacklo_epi16(de8, hi8);
+
+  // f0 j0 f1 j1 f2 j2 f3 j3 | g0 k0 g1 k1 g2 k2 g3 k3
+  const __m256i f0j0 = _mm256_unpacklo_epi16(fg0, jk0);
+  // f4 j4 f5 j5 f6 j6 f7 j7 | g4 k4 g5 k5 g6 k6 g7 k7
+  const __m256i f4j4 = _mm256_unpackhi_epi16(fg0, jk0);
+  // f8 j8 f9 j9 f10 j10 f11 j11 | g8 k8 g9 k9 g10 k10 g11 k11
+  const __m256i f8j8 = _mm256_unpacklo_epi16(fg8, jk8);
+
+  // h0 l0 h1 l1 h2 l2 h3 l3 | i0 m0 i1 m1 i2 m2 i3 m3
+  const __m256i h0l0 = _mm256_unpacklo_epi16(hi0, lm0);
+  // h4 l4 h5 l5 h6 l6 h7 l7 | i4 m4 i5 m5 i6 m6 i7 m7
+  const __m256i h4l4 = _mm256_unpackhi_epi16(hi0, lm0);
+  // h8 l8 h9 l9 h10 l10 h11 l11 | i8 m8 i9 m9 i10 m10 i11 m11
+  const __m256i h8l8 = _mm256_unpacklo_epi16(hi8, lm8);
+
+  // Pixel values for filter coeff 1 and 3
+  // b2 f2 b3 f3 b4 f4 b5 f5 | c2 g2 c3 g3 c4 g4 c5 g5
+  const __m256i b2f2_b5f5 = _mm256_alignr_epi8(b4f4, b0f0, 8);
+  // b6 f6 b7 f7 b8 f8 b9 f9 | c6 g6 c7 g7 c8 g8 c9 g9
+  const __m256i b6f6_b9f9 = _mm256_alignr_epi8(b8f8, b4f4, 8);
+  // d2 h2 d3 h3 d4 h4 d5 h5 | e2 i2 e3 i3 e4 i4 e5 i5
+  const __m256i d2h2_d5h5 = _mm256_alignr_epi8(d4h4, d0h0, 8);
+  // d6 h6 d7 h7 d8 h8 d9 h9 | e6 i6 e7 i7 e8 i8 e9 i9
+  const __m256i d6h6_d9h9 = _mm256_alignr_epi8(d8h8, d4h4, 8);
+  // f2 j2 f3 j3 f4 j4 f5 j5 | g2 k2 g3 k3 g4 k4 g5 k5
+  const __m256i f2j2_f5j5 = _mm256_alignr_epi8(f4j4, f0j0, 8);
+  // f6 j6 f7 j7 f8 j8 f9 j9 | g6 k6 g7 k7 g8 k8 g9 k9
+  const __m256i f6j6_f9j9 = _mm256_alignr_epi8(f8j8, f4j4, 8);
+  // h2 l2 h3 l3 h4 l4 h5 l5 | i2 m2 i3 m3 i4 m4 i5 m5
+  const __m256i h2l2_h5l5 = _mm256_alignr_epi8(h4l4, h0l0, 8);
+  // h6 l6 h7 l7 h8 l8 h9 l9 | i6 m6 i7 m7 i8 m8 i9 m9
+  const __m256i h6l6_h9l9 = _mm256_alignr_epi8(h8l8, h4l4, 8);
+
+  // b3 f3 b4 f4 b5 f5 b6 f6 | c3 g3 c4 g4 c5 g5 c6 g6
+  const __m256i b3f3_b6f6 = _mm256_alignr_epi8(b4f4, b0f0, 12);
+  // b7 f7 b8 f8 b9 f9 b10 f10 | c7 g7 c8 g8 c9 g9 c10 g10
+  const __m256i b7f7_b10f10 = _mm256_alignr_epi8(b8f8, b4f4, 12);
+  // d3 h3 d4 h4 d5 h5 d6 h6 | e3 i3 e4 i4 e5 i5 e6 i6
+  const __m256i d3h3_d6h6 = _mm256_alignr_epi8(d4h4, d0h0, 12);
+  // d7 h7 d8 h8 d9 h9 d10 h10 | e7 i7 e8 i8 e9 i9 e10 i10
+  const __m256i d7h7_d10h10 = _mm256_alignr_epi8(d8h8, d4h4, 12);
+  // f3 j3 f4 j4 f5 j5 f6 j6 | g3 k3 g4 k4 g5 k5 g6 k6
+  const __m256i f3j3_f6j6 = _mm256_alignr_epi8(f4j4, f0j0, 12);
+  // f7 j7 f8 j8 f9 j9 f10 j10 | g7 k7 g8 k8 g9 k9 g10 k10
+  const __m256i f7j7_f10j10 = _mm256_alignr_epi8(f8j8, f4j4, 12);
+  // h3 l3 h4 l4 h5 l5 h6 l6 | i3 m3 i4 m4 i5 m5 i6 m6
+  const __m256i h3l3_h6l6 = _mm256_alignr_epi8(h4l4, h0l0, 12);
+  // h7 l7 h8 l8 h9 l9 h10 l10 | i7 m7 i8 m8 i9 m9 i10 m10
+  const __m256i h7l7_h10l10 = _mm256_alignr_epi8(h8l8, h4l4, 12);
+
+  __m256i res_40 = _mm256_madd_epi16(b2f2_b5f5, filt13);
+  __m256i res_41 = _mm256_madd_epi16(b6f6_b9f9, filt13);
+  __m256i res_42 = _mm256_madd_epi16(d2h2_d5h5, filt13);
+  __m256i res_43 = _mm256_madd_epi16(d6h6_d9h9, filt13);
+  __m256i res_44 = _mm256_madd_epi16(f2j2_f5j5, filt13);
+  __m256i res_45 = _mm256_madd_epi16(f6j6_f9j9, filt13);
+  __m256i res_46 = _mm256_madd_epi16(h2l2_h5l5, filt13);
+  __m256i res_47 = _mm256_madd_epi16(h6l6_h9l9, filt13);
+
+  __m256i res_48 = _mm256_madd_epi16(b3f3_b6f6, filt22);
+  __m256i res_49 = _mm256_madd_epi16(b7f7_b10f10, filt22);
+  __m256i res_50 = _mm256_madd_epi16(d3h3_d6h6, filt22);
+  __m256i res_51 = _mm256_madd_epi16(d7h7_d10h10, filt22);
+  __m256i res_52 = _mm256_madd_epi16(f3j3_f6j6, filt22);
+  __m256i res_53 = _mm256_madd_epi16(f7j7_f10j10, filt22);
+  __m256i res_54 = _mm256_madd_epi16(h3l3_h6l6, filt22);
+  __m256i res_55 = _mm256_madd_epi16(h7l7_h10l10, filt22);
+
+  __m256i res_56 = _mm256_madd_epi16(b4f4, filt31);
+  __m256i res_57 = _mm256_madd_epi16(b8f8, filt31);
+  __m256i res_58 = _mm256_madd_epi16(d4h4, filt31);
+  __m256i res_59 = _mm256_madd_epi16(d8h8, filt31);
+  __m256i res_60 = _mm256_madd_epi16(f4j4, filt31);
+  __m256i res_61 = _mm256_madd_epi16(f8j8, filt31);
+  __m256i res_62 = _mm256_madd_epi16(h4l4, filt31);
+  __m256i res_63 = _mm256_madd_epi16(h8l8, filt31);
+
+  accum_out_r0_r1_1 = _mm256_add_epi32(
+      accum_out_r0_r1_1,
+      _mm256_add_epi32(_mm256_add_epi32(res_40, res_48), res_56));
+  accum_out_r0_r1_2 = _mm256_add_epi32(
+      accum_out_r0_r1_2,
+      _mm256_add_epi32(_mm256_add_epi32(res_41, res_49), res_57));
+  accum_out_r2_r3_1 = _mm256_add_epi32(
+      accum_out_r2_r3_1,
+      _mm256_add_epi32(_mm256_add_epi32(res_42, res_50), res_58));
+  accum_out_r2_r3_2 = _mm256_add_epi32(
+      accum_out_r2_r3_2,
+      _mm256_add_epi32(_mm256_add_epi32(res_43, res_51), res_59));
+  accum_out_r4_r5_1 = _mm256_add_epi32(
+      accum_out_r4_r5_1,
+      _mm256_add_epi32(_mm256_add_epi32(res_44, res_52), res_60));
+  accum_out_r4_r5_2 = _mm256_add_epi32(
+      accum_out_r4_r5_2,
+      _mm256_add_epi32(_mm256_add_epi32(res_45, res_53), res_61));
+  accum_out_r6_r7_1 = _mm256_add_epi32(
+      accum_out_r6_r7_1,
+      _mm256_add_epi32(_mm256_add_epi32(res_46, res_54), res_62));
+  accum_out_r6_r7_2 = _mm256_add_epi32(
+      accum_out_r6_r7_2,
+      _mm256_add_epi32(_mm256_add_epi32(res_47, res_55), res_63));
+
+  // f0 f0 f0 f0 f0 f0 f0 f0 | f0 f0 f0 f0 f0 f0 f0 f0
+  const __m256i fc0 = _mm256_broadcastw_epi16(filt_coeff_0);
+
+  // a0 a1 a2 a3 a4 a5 a6 a7 | b0 b1 b2 b3 b4 b5 b6 b7
+  const __m256i ab0 = _mm256_permute2x128_si256(src_a0, src_b0, 0x20);
+  // a8 a9 a10 a11 a12 a13 a14 a15 | b8 b9 b10 b11 b12 b13 b14 b15
+  const __m256i ab8 = _mm256_permute2x128_si256(src_a0, src_b0, 0x31);
+
+  // a0 g0 a1 g1 a2 g2 a3 g3 | b0 h0 b1 h1 b2 h2 b3 h3
+  const __m256i a0g0 = _mm256_unpacklo_epi16(ab0, gh0);
+  // a4 g4 a5 g5 a6 g6 a7 g7 | b4 h4 b5 h5 b6 h6 b7 h7
+  const __m256i a4g4 = _mm256_unpackhi_epi16(ab0, gh0);
+  // a8 g8 a9 g9 a10 g10 a11 g11 | b8 h8 b9 h9 b10 h10 b11 h11
+  const __m256i a8g8 = _mm256_unpacklo_epi16(ab8, gh8);
+
+  // c0 i0 c1 i1 c2 i2 c3 i3 | d0 j0 d1 j1 d2 j2 d3 j3
+  const __m256i c0i0 = _mm256_unpacklo_epi16(cd0, ij0);
+  // c4 i4 c5 i5 c6 i6 c7 i7 | d4 j4 d5 j5 d6 j6 d7 j7
+  const __m256i c4i4 = _mm256_unpackhi_epi16(cd0, ij0);
+  // c8 i8 c9 i9 c10 i10 c11 i11 | d8 j8 d9 j9 d10 j10 d11 j11
+  const __m256i c8i8 = _mm256_unpacklo_epi16(cd8, ij8);
+
+  // e0 k0 e1 k1 e2 k2 e3 k3 | f0 l0 f1 l1 f2 l2 f3 l3
+  const __m256i e0k0 = _mm256_unpacklo_epi16(ef0, kl0);
+  // e4 k4 e5 k5 e6 k6 e7 k7 | f4 l4 f5 l5 f6 l6 f7 l7
+  const __m256i e4k4 = _mm256_unpackhi_epi16(ef0, kl0);
+  // e8 k8 e9 k9 e10 k10 e11 k11 | f8 l8 f9 l9 f10 l10 f11 l11
+  const __m256i e8k8 = _mm256_unpacklo_epi16(ef8, kl8);
+
+  // g0 m0 g1 m1 g2 m2 g3 m3 | h0 n0 h1 n1 h2 n2 h3 n3
+  const __m256i g0m0 = _mm256_unpacklo_epi16(gh0, mn0);
+  // g4 m4 g5 m5 g6 m6 g7 m7 | h4 n4 h5 n5 h6 n6 h7 n7
+  const __m256i g4m4 = _mm256_unpackhi_epi16(gh0, mn0);
+  // g8 m8 g9 m9 g10 m10 g11 m11 | h8 n8 h9 n9 h10 n10 h11 n11
+  const __m256i g8m8 = _mm256_unpacklo_epi16(gh8, mn8);
+
+  // a3 g3 a4 g4 a5 g5 a6 g6 | b3 h3 b4 h4 b5 h5 b6 h6
+  const __m256i a3g3_a6g6 = _mm256_alignr_epi8(a4g4, a0g0, 12);
+  // a7 g7 a8 g8 a9 g9 a10 g10 | b7 h7 b8 h8 b9 h9 b10 h10
+  const __m256i a7g7_a10g10 = _mm256_alignr_epi8(a8g8, a4g4, 12);
+  // c3 i3 c4 i4 c5 i5 c6 i6 | d3 j3 d4 j4 d5 j5 d6 j6
+  const __m256i c3i3_c6i6 = _mm256_alignr_epi8(c4i4, c0i0, 12);
+  // c7 i7 c8 i8 c9 i9 c10 i10 | d7 j7 d8 j8 d9 j9 d10 j10
+  const __m256i c7i7_c10i10 = _mm256_alignr_epi8(c8i8, c4i4, 12);
+
+  // e3 k3 e4 k4 e5 k5 e6 k6 | f3 l3 f4 l4 f5 l5 f6 l6
+  const __m256i e3k3_e6k6 = _mm256_alignr_epi8(e4k4, e0k0, 12);
+  // e7 k7 e8 k8 e9 k9 e10 k10 | f7 l7 f8 l8 f9 l9 f10 l10
+  const __m256i e7k7_e10k10 = _mm256_alignr_epi8(e8k8, e4k4, 12);
+  // g3 m3 g4 m4 g5 m5 g6 m6 | h3 n3 h4 n4 h5 n5 h6 n6
+  const __m256i g3m3_g6m6 = _mm256_alignr_epi8(g4m4, g0m0, 12);
+  // g7 m7 g8 m8 g9 m9 g10 m10 | h7 n7 h8 n8 h9 n9 h10 n10
+  const __m256i g7m7_g10m10 = _mm256_alignr_epi8(g8m8, g4m4, 12);
+
+  const __m256i res_64 = _mm256_madd_epi16(a3g3_a6g6, fc0);
+  const __m256i res_65 = _mm256_madd_epi16(a7g7_a10g10, fc0);
+  const __m256i res_66 = _mm256_madd_epi16(c3i3_c6i6, fc0);
+  const __m256i res_67 = _mm256_madd_epi16(c7i7_c10i10, fc0);
+  const __m256i res_68 = _mm256_madd_epi16(e3k3_e6k6, fc0);
+  const __m256i res_69 = _mm256_madd_epi16(e7k7_e10k10, fc0);
+  const __m256i res_70 = _mm256_madd_epi16(g3m3_g6m6, fc0);
+  const __m256i res_71 = _mm256_madd_epi16(g7m7_g10m10, fc0);
+
+  accum_out_r0_r1_1 = _mm256_add_epi32(accum_out_r0_r1_1, res_64);
+  accum_out_r0_r1_2 = _mm256_add_epi32(accum_out_r0_r1_2, res_65);
+  accum_out_r2_r3_1 = _mm256_add_epi32(accum_out_r2_r3_1, res_66);
+  accum_out_r2_r3_2 = _mm256_add_epi32(accum_out_r2_r3_2, res_67);
+  accum_out_r4_r5_1 = _mm256_add_epi32(accum_out_r4_r5_1, res_68);
+  accum_out_r4_r5_2 = _mm256_add_epi32(accum_out_r4_r5_2, res_69);
+  accum_out_r6_r7_1 = _mm256_add_epi32(accum_out_r6_r7_1, res_70);
+  accum_out_r6_r7_2 = _mm256_add_epi32(accum_out_r6_r7_2, res_71);
+
+  // fc9 fc10 - - - - - - | fc9 fc10 - - - - - -
+  const __m256i fc910 =
+      _mm256_broadcastd_epi32(_mm_bsrli_si128(filt_coeff_1, 8));
+  // fc11 fc12 - - - - - - | fc11 fc12 - - - - - -
+  const __m256i fc1112 =
+      _mm256_broadcastd_epi32(_mm_bsrli_si128(filt_coeff_1, 12));
+  // fc11 fc10  - - - - - - | fc11 fc10 - - - - - -
+  const __m256i fc1110 = _mm256_broadcastd_epi32(
+      _mm_bsrli_si128(_mm_shufflehi_epi16(filt_coeff_1, 0x06), 8));
+  const __m128i zero = _mm_set1_epi16(0x0);
+  const __m256i fc9_z = _mm256_broadcastd_epi32(
+      _mm_unpacklo_epi16(_mm_bsrli_si128(filt_coeff_1, 8), zero));
+
+  // d0 d0 d1 d1 d2 d2 d3 d3 | e0 e0 e1 e1 e2 e2 e3 e3
+  const __m256i d0d0 = _mm256_unpacklo_epi16(de0, de0);
+  // d4 d4 d5 d5 d6 d6 d7 d7 | e4 e4 e5 e5 e6 e6 e7 e7
+  const __m256i d4d4 = _mm256_unpackhi_epi16(de0, de0);
+  // d8 d8 d9 d9 d10 d10 d11 d11 | e8 e8 e9 e9 e10 e10 e11 e11
+  const __m256i d8d8 = _mm256_unpacklo_epi16(de8, de8);
+  // d12 d12 d13 d13 d14 d14 d15 d15 | e12 e12 e13 e13 e14 e14 e15 e15
+  const __m256i d12d12 = _mm256_unpackhi_epi16(de8, de8);
+
+  // f0 f0 f1 f1 f2 f2 f3 f3 | g0 g0 g1 g1 g2 g2 g3 g3
+  const __m256i f0f0 = _mm256_unpacklo_epi16(fg0, fg0);
+  // f4 f4 f5 f5 f6 f6 f7 f7 | g4 g4 g5 g5 g6 g6 g7 g7
+  const __m256i f4f4 = _mm256_unpackhi_epi16(fg0, fg0);
+  // f8 f8 f9 f9 f10 f10 f11 f11 | g8 g8 g9 g9 g10 g10 g11 g11
+  const __m256i f8f8 = _mm256_unpacklo_epi16(fg8, fg8);
+  // f12 f12 f13 f13 f14 f14 f15 f15 | g12 g12 g13 g13 g14 g14 g15 g15
+  const __m256i f12f12 = _mm256_unpackhi_epi16(fg8, fg8);
+
+  // h0 h0 h1 h1 h2 h2 h3 h3 | i0 i0 i1 i1 i2 i2 i3 i3
+  const __m256i h0h0 = _mm256_unpacklo_epi16(hi0, hi0);
+  // h4 h4 h5 h5 h6 h6 h7 h7 | i4 i4 i5 i5 i6 i6 i7 i7
+  const __m256i h4h4 = _mm256_unpackhi_epi16(hi0, hi0);
+  // h8 h8 h9 h9 h10 h10 h11 h11 | i8 i8 i9 i9 i10 i10 i11 i11
+  const __m256i h8h8 = _mm256_unpacklo_epi16(hi8, hi8);
+  // h12 h12 h13 h13 h14 h14 h15 h15 | i12 i12 i13 i13 i14 i14 i15 i15
+  const __m256i h12h12 = _mm256_unpackhi_epi16(hi8, hi8);
+
+  // j0 j0 j1 j1 j2 j2 j3 j3 | k0 k0 k1 k1 k2 k2 k3 k3
+  const __m256i j0j0 = _mm256_unpacklo_epi16(jk0, jk0);
+  // j4 j4 j5 j5 j6 j6 j7 j7 | k4 k4 k5 k5 k6 k6 k7 k7
+  const __m256i j4j4 = _mm256_unpackhi_epi16(jk0, jk0);
+  // j8 j8 j9 j9 j10 j10 j11 j11 | k8 k8 k9 k9 k10 k10 k11 k11
+  const __m256i j8j8 = _mm256_unpacklo_epi16(jk8, jk8);
+  // j12 j12 j13 j13 j14 j14 j15 j15 | k12 k12 k13 k13 k14 k14 k15 k15
+  const __m256i j12j12 = _mm256_unpackhi_epi16(jk8, jk8);
+
+  // d0 d1 d1 d2 d2 d3 d3 d4 | e0 e1 e1 e2 e2 e3 e3 e4
+  __m256i d0d1 = _mm256_alignr_epi8(d4d4, d0d0, 2);
+  // f0 f1 f1 f2 f2 f3 f3 f4 | g0 g1 g1 g2 g2 g3 g3 g4
+  __m256i f0f1 = _mm256_alignr_epi8(f4f4, f0f0, 2);
+  // h0 h1 h1 h2 h2 h3 h3 h4 | i0 i1 i1 i2 i2 i3 i3 i4
+  __m256i h0h1 = _mm256_alignr_epi8(h4h4, h0h0, 2);
+  // j0 j1 j1 j2 j2 j3 j3 j4 | k0 k1 k1 k2 k2 k3 k3 k4
+  __m256i j0j1 = _mm256_alignr_epi8(j4j4, j0j0, 2);
+
+  // d2 d3 d3 d4 d4 d5 d5 d6 | e2 e3 e3 e4 e4 e5 e5 e6
+  __m256i d2d3 = _mm256_alignr_epi8(d4d4, d0d0, 10);
+  // f2 f3 f3 f4 f4 f5 f5 f6 | g2 g3 g3 g4 g4 g5 g5 g6
+  __m256i f2f3 = _mm256_alignr_epi8(f4f4, f0f0, 10);
+  // h2 h3 h3 h4 h4 h5 h5 h6 | i2 i3 i3 i4 i4 i5 i5 i6
+  __m256i h2h3 = _mm256_alignr_epi8(h4h4, h0h0, 10);
+  // j2 j3 j3 j4 j4 j5 j5 j6 | k2 k3 k3 k4 k4 k5 k5 k6
+  __m256i j2j3 = _mm256_alignr_epi8(j4j4, j0j0, 10);
+
+  // d4 d5 d5 d6 d6 d7 d7 d8 | e4 e5 e5 e6 e6 e7 e7 e8
+  __m256i d4d5 = _mm256_alignr_epi8(d8d8, d4d4, 2);
+  // f4 f5 f5 f6 f6 f7 f7 f8 | g4 g5 g5 g6 g6 g7 g7 g8
+  __m256i f4f5 = _mm256_alignr_epi8(f8f8, f4f4, 2);
+  // h4 h5 h5 h6 h6 h7 h7 h8 | i4 i5 i5 i6 i6 i7 i7 i8
+  __m256i h4h5 = _mm256_alignr_epi8(h8h8, h4h4, 2);
+  // j4 j5 j5 j6 j6 j7 j7 j8 | k4 k5 k5 k6 k6 k7 k7 k8
+  __m256i j4j5 = _mm256_alignr_epi8(j8j8, j4j4, 2);
+
+  // d6 d7 d7 d8 d8 d9 d9 d10 | e6 e7 e7 e8 e8 e9 e9 e10
+  __m256i d6d7 = _mm256_alignr_epi8(d8d8, d4d4, 10);
+  // f6 f7 f7 f8 f8 f9 f9 f10 | g6 g7 g7 g8 g8 g9 g9 g10
+  __m256i f6f7 = _mm256_alignr_epi8(f8f8, f4f4, 10);
+  // h6 h7 h7 h8 h8 h9 h9 h10 | i6 i7 i7 i8 i8 i9 i9 i10
+  __m256i h6h7 = _mm256_alignr_epi8(h8h8, h4h4, 10);
+  // j6 j7 j7 j8 j8 j9 j9 j10 | k6 k7 k7 k8 k8 k9 k9 k10
+  __m256i j6j7 = _mm256_alignr_epi8(j8j8, j4j4, 10);
+
+  // d8 d9 d9 d10 d10 d11 d11 d12 | e8 e9 e9 e10 e10 e11 e11 e12
+  __m256i d8d9 = _mm256_alignr_epi8(d12d12, d8d8, 2);
+  // f8 f9 f9 f10 f10 f11 f11 f12 | g8 g9 g9 g10 g10 g11 g11 g12
+  __m256i f8f9 = _mm256_alignr_epi8(f12f12, f8f8, 2);
+  // h8 h9 h9 h10 h10 h11 h11 h12 | i8 i9 i9 i10 i10 i11 i11 i12
+  __m256i h8h9 = _mm256_alignr_epi8(h12h12, h8h8, 2);
+  // j8 j9 j9 j10 j10 j11 j11 j12 | k8 k9 k9 k10 k10 k11 k11 k12
+  __m256i j8j9 = _mm256_alignr_epi8(j12j12, j8j8, 2);
+
+  // d10 d11 d11 d12 d12 d13 d13 d14 | e10 e11 e11 e12 e12 e13 e13 e14
+  __m256i d10d11 = _mm256_alignr_epi8(d12d12, d8d8, 10);
+  // f10 f11 f11 f12 f12 f13 f13 f14 | g10 g11 g11 g12 g12 g13 g13 g14
+  __m256i f10f11 = _mm256_alignr_epi8(f12f12, f8f8, 10);
+  // h10 h11 h11 h12 h12 h13 h13 h14 | i10 i11 i11 i12 i12 i13 i13 i14
+  __m256i h10h11 = _mm256_alignr_epi8(h12h12, h8h8, 10);
+  // j10 j11 j11 j12 j12 j13 j13 j14 | k10 k11 k11 k12 k12 k13 k13 k14
+  __m256i j10j11 = _mm256_alignr_epi8(j12j12, j8j8, 10);
+
+  __m256i res_72 = _mm256_madd_epi16(d0d1, fc910);
+  __m256i res_73 = _mm256_madd_epi16(d4d5, fc910);
+  __m256i res_74 = _mm256_madd_epi16(f0f1, fc910);
+  __m256i res_75 = _mm256_madd_epi16(f4f5, fc910);
+  __m256i res_76 = _mm256_madd_epi16(h0h1, fc910);
+  __m256i res_77 = _mm256_madd_epi16(h4h5, fc910);
+  __m256i res_78 = _mm256_madd_epi16(j0j1, fc910);
+  __m256i res_79 = _mm256_madd_epi16(j4j5, fc910);
+
+  __m256i res_80 = _mm256_madd_epi16(d2d3, fc1112);
+  __m256i res_81 = _mm256_madd_epi16(d6d7, fc1112);
+  __m256i res_82 = _mm256_madd_epi16(f2f3, fc1112);
+  __m256i res_83 = _mm256_madd_epi16(f6f7, fc1112);
+  __m256i res_84 = _mm256_madd_epi16(h2h3, fc1112);
+  __m256i res_85 = _mm256_madd_epi16(h6h7, fc1112);
+  __m256i res_86 = _mm256_madd_epi16(j2j3, fc1112);
+  __m256i res_87 = _mm256_madd_epi16(j6j7, fc1112);
+
+  __m256i res_88 = _mm256_madd_epi16(d4d5, fc1110);
+  __m256i res_89 = _mm256_madd_epi16(d8d9, fc1110);
+  __m256i res_90 = _mm256_madd_epi16(f4f5, fc1110);
+  __m256i res_91 = _mm256_madd_epi16(f8f9, fc1110);
+  __m256i res_92 = _mm256_madd_epi16(h4h5, fc1110);
+  __m256i res_93 = _mm256_madd_epi16(h8h9, fc1110);
+  __m256i res_94 = _mm256_madd_epi16(j4j5, fc1110);
+  __m256i res_95 = _mm256_madd_epi16(j8j9, fc1110);
+
+  __m256i res_96 = _mm256_madd_epi16(d6d7, fc9_z);
+  __m256i res_97 = _mm256_madd_epi16(d10d11, fc9_z);
+  __m256i res_98 = _mm256_madd_epi16(f6f7, fc9_z);
+  __m256i res_99 = _mm256_madd_epi16(f10f11, fc9_z);
+  __m256i res_100 = _mm256_madd_epi16(h6h7, fc9_z);
+  __m256i res_101 = _mm256_madd_epi16(h10h11, fc9_z);
+  __m256i res_102 = _mm256_madd_epi16(j6j7, fc9_z);
+  __m256i res_103 = _mm256_madd_epi16(j10j11, fc9_z);
+
+  accum_out_r0_r1_1 = _mm256_add_epi32(
+      accum_out_r0_r1_1,
+      _mm256_add_epi32(
+          _mm256_add_epi32(_mm256_add_epi32(res_72, res_80), res_88), res_96));
+  accum_out_r0_r1_2 = _mm256_add_epi32(
+      accum_out_r0_r1_2,
+      _mm256_add_epi32(
+          _mm256_add_epi32(_mm256_add_epi32(res_73, res_81), res_89), res_97));
+  accum_out_r2_r3_1 = _mm256_add_epi32(
+      accum_out_r2_r3_1,
+      _mm256_add_epi32(
+          _mm256_add_epi32(_mm256_add_epi32(res_74, res_82), res_90), res_98));
+  accum_out_r2_r3_2 = _mm256_add_epi32(
+      accum_out_r2_r3_2,
+      _mm256_add_epi32(
+          _mm256_add_epi32(_mm256_add_epi32(res_75, res_83), res_91), res_99));
+  accum_out_r4_r5_1 = _mm256_add_epi32(
+      accum_out_r4_r5_1,
+      _mm256_add_epi32(
+          _mm256_add_epi32(_mm256_add_epi32(res_76, res_84), res_92), res_100));
+  accum_out_r4_r5_2 = _mm256_add_epi32(
+      accum_out_r4_r5_2,
+      _mm256_add_epi32(
+          _mm256_add_epi32(_mm256_add_epi32(res_77, res_85), res_93), res_101));
+  accum_out_r6_r7_1 = _mm256_add_epi32(
+      accum_out_r6_r7_1,
+      _mm256_add_epi32(
+          _mm256_add_epi32(_mm256_add_epi32(res_78, res_86), res_94), res_102));
+  accum_out_r6_r7_2 = _mm256_add_epi32(
+      accum_out_r6_r7_2,
+      _mm256_add_epi32(
+          _mm256_add_epi32(_mm256_add_epi32(res_79, res_87), res_95), res_103));
+  // Rounding and clipping.
+  accum_out_r0_r1_1 = round_power_of_two_signed_avx2(accum_out_r0_r1_1,
+                                                     filter_config->prec_bits);
+  accum_out_r0_r1_2 = round_power_of_two_signed_avx2(accum_out_r0_r1_2,
+                                                     filter_config->prec_bits);
+  accum_out_r2_r3_1 = round_power_of_two_signed_avx2(accum_out_r2_r3_1,
+                                                     filter_config->prec_bits);
+  accum_out_r2_r3_2 = round_power_of_two_signed_avx2(accum_out_r2_r3_2,
+                                                     filter_config->prec_bits);
+  accum_out_r4_r5_1 = round_power_of_two_signed_avx2(accum_out_r4_r5_1,
+                                                     filter_config->prec_bits);
+  accum_out_r4_r5_2 = round_power_of_two_signed_avx2(accum_out_r4_r5_2,
+                                                     filter_config->prec_bits);
+  accum_out_r6_r7_1 = round_power_of_two_signed_avx2(accum_out_r6_r7_1,
+                                                     filter_config->prec_bits);
+  accum_out_r6_r7_2 = round_power_of_two_signed_avx2(accum_out_r6_r7_2,
+                                                     filter_config->prec_bits);
+
+  // ######
+  const __m256i max = _mm256_set1_epi16((1 << bit_depth) - 1);
+  const __m256i zero_256 = _mm256_setzero_si256();
+
+  __m256i accum_out_r0_r1 =
+      _mm256_packs_epi32(accum_out_r0_r1_1, accum_out_r0_r1_2);
+  __m256i accum_out_r2_r3 =
+      _mm256_packs_epi32(accum_out_r2_r3_1, accum_out_r2_r3_2);
+  __m256i accum_out_r4_r5 =
+      _mm256_packs_epi32(accum_out_r4_r5_1, accum_out_r4_r5_2);
+  __m256i accum_out_r6_r7 =
+      _mm256_packs_epi32(accum_out_r6_r7_1, accum_out_r6_r7_2);
+
+  __m256i out_r0_r1 = highbd_clamp_epi16(accum_out_r0_r1, zero_256, max);
+  __m256i out_r2_r3 = highbd_clamp_epi16(accum_out_r2_r3, zero_256, max);
+  __m256i out_r4_r5 = highbd_clamp_epi16(accum_out_r4_r5, zero_256, max);
+  __m256i out_r6_r7 = highbd_clamp_epi16(accum_out_r6_r7, zero_256, max);
+
+  // Store the output.
+  const int dst_id = block_row_begin * dst_stride + block_col_begin;
+  _mm256_storeu2_m128i((__m128i *)(dst + dst_id + (1 * dst_stride)),
+                       (__m128i *)(dst + dst_id), out_r0_r1);
+  _mm256_storeu2_m128i((__m128i *)(dst + dst_id + (3 * dst_stride)),
+                       (__m128i *)(dst + dst_id + (2 * dst_stride)), out_r2_r3);
+  _mm256_storeu2_m128i((__m128i *)(dst + dst_id + (5 * dst_stride)),
+                       (__m128i *)(dst + dst_id + (4 * dst_stride)), out_r4_r5);
+  _mm256_storeu2_m128i((__m128i *)(dst + dst_id + (7 * dst_stride)),
+                       (__m128i *)(dst + dst_id + (6 * dst_stride)), out_r6_r7);
+}
+
 static AOM_INLINE void av1_convolve_symmetric_highbd_16tap9x9_avx2(
     const uint16_t *dgd, int stride, const NonsepFilterConfig *filter_config,
     const int16_t *filter_, uint16_t *dst, int dst_stride, int bit_depth,
@@ -1521,6 +2280,929 @@ static AOM_INLINE void av1_convolve_symmetric_highbd_16tap9x9_avx2(
                    _mm_bsrli_si128(out_r1r3, 8));
 }
 
+static AOM_INLINE void av1_convolve_symmetric_highbd_16tap9x9_blk8x8_avx2(
+    const uint16_t *dgd, int stride, const NonsepFilterConfig *filter_config,
+    const int16_t *filter_, uint16_t *dst, int dst_stride, int bit_depth,
+    int block_row_begin, int block_col_begin) {
+  // Begin permute
+  int16_t filter[WIENERNS_TAPS_MAX];
+  filter[6] = filter_[0];
+  filter[11] = filter_[1];
+  filter[2] = filter_[2];
+  filter[10] = filter_[3];
+  filter[5] = filter_[4];
+  filter[7] = filter_[5];
+  filter[1] = filter_[6];
+  filter[3] = filter_[7];
+  filter[4] = filter_[8];
+  filter[8] = filter_[9];
+  filter[0] = filter_[10];
+  filter[9] = filter_[11];
+  filter[12] = filter_[12];
+  filter[13] = filter_[13];
+  filter[14] = filter_[14];
+  filter[15] = filter_[15];
+  filter[16] = filter_[16];
+  // End permute
+
+  // Derive singleton_tap.
+  // TODO(rachelbarker): Set up the singleton tap fully in
+  // adjust_filter_and_config, so that we don't have to modify it here
+  int32_t singleton_tap = 1 << filter_config->prec_bits;
+  if (filter_config->num_pixels % 2) {
+    const int singleton_tap_index =
+        filter_config->config[filter_config->num_pixels - 1][NONSEP_BUF_POS];
+    singleton_tap += filter[singleton_tap_index];
+  }
+  // filter[12] = singleton_tap;
+
+  // Load source data.
+  int src_index_start = block_row_begin * stride + block_col_begin;
+  const uint16_t *src_ptr = dgd + src_index_start - 4 * stride - 4;
+  const __m256i src_a0 = _mm256_loadu_si256((__m256i const *)(src_ptr));
+  const __m256i src_b0 =
+      _mm256_loadu_si256((__m256i const *)(src_ptr + stride));
+  const __m256i src_c0 =
+      _mm256_loadu_si256((__m256i const *)(src_ptr + 2 * stride));
+  const __m256i src_d0 =
+      _mm256_loadu_si256((__m256i const *)(src_ptr + 3 * stride));
+  const __m256i src_e0 =
+      _mm256_loadu_si256((__m256i const *)(src_ptr + 4 * stride));
+  const __m256i src_f0 =
+      _mm256_loadu_si256((__m256i const *)(src_ptr + 5 * stride));
+  const __m256i src_g0 =
+      _mm256_loadu_si256((__m256i const *)(src_ptr + 6 * stride));
+  const __m256i src_h0 =
+      _mm256_loadu_si256((__m256i const *)(src_ptr + 7 * stride));
+  const __m256i src_i0 =
+      _mm256_loadu_si256((__m256i const *)(src_ptr + 8 * stride));
+  const __m256i src_j0 =
+      _mm256_loadu_si256((__m256i const *)(src_ptr + 9 * stride));
+  const __m256i src_k0 =
+      _mm256_loadu_si256((__m256i const *)(src_ptr + 10 * stride));
+  const __m256i src_l0 =
+      _mm256_loadu_si256((__m256i const *)(src_ptr + 11 * stride));
+  const __m256i src_m0 =
+      _mm256_loadu_si256((__m256i const *)(src_ptr + 12 * stride));
+  const __m256i src_n0 =
+      _mm256_loadu_si256((__m256i const *)(src_ptr + 13 * stride));
+  const __m256i src_o0 =
+      _mm256_loadu_si256((__m256i const *)(src_ptr + 14 * stride));
+  const __m256i src_p0 =
+      _mm256_loadu_si256((__m256i const *)(src_ptr + 15 * stride));
+
+  // Load filter tap values.
+  // fc0 fc1 fc2 fc3 fc4 fc5 fc6 fc7
+  const __m128i filt_coeff_0 = _mm_loadu_si128((__m128i const *)(filter));
+  // fc5 fc6 fc7 fc8 fc9 fc10 fc11 fc12
+  __m128i temp = _mm_loadu_si128((__m128i const *)(filter + 5));
+  // Replace the fc16 with derived singleton_tap.
+  const __m128i center_tap = _mm_set1_epi16(singleton_tap);
+  // fc5 fc6 fc7 fc8 fc9 fc10 fc11 fc16
+  const __m128i filt_coeff_1 = _mm_blend_epi16(temp, center_tap, 0x80);
+
+  // fc12 fc13 fc14 fc15 fc16 x x x
+  const __m128i filt_coeff_2 = _mm_loadu_si128((__m128i const *)(filter + 12));
+
+  // d0 d1 d2 d3 d4 d5 d6 d7 | e0 e1 e2 e3 e4 e5 e6 e7
+  const __m256i de0 = _mm256_permute2x128_si256(src_d0, src_e0, 0x20);
+  // d8 d9 d10 d11 d12 d13 d14 d15 | e0 e1 e2 e3 e4 e5 e6 e7
+  const __m256i de8 = _mm256_permute2x128_si256(src_d0, src_e0, 0x31);
+  // f0 f1 f2 f3 f4 f5 f6 f7 | g0 g1 g2 g3 g4 g5 g6 g7
+  const __m256i fg0 = _mm256_permute2x128_si256(src_f0, src_g0, 0x20);
+  // f8 f9 f10 f11 f12 f13 f14 f15 | g8 g9 g10 g11 g12 g13 g14 g15
+  const __m256i fg8 = _mm256_permute2x128_si256(src_f0, src_g0, 0x31);
+  // h0 h1 h2 h3 h4 h5 h6 h7 | i0 i1 i2 i3 i4 i5 i6 i7
+  const __m256i hi0 = _mm256_permute2x128_si256(src_h0, src_i0, 0x20);
+  // h8 h9 h10 h11 h12 h13 h14 h15 | i0 i1 i2 i3 i4 i5 i6 i7
+  const __m256i hi8 = _mm256_permute2x128_si256(src_h0, src_i0, 0x31);
+  // j0 j1 j2 j3 j4 j5 j6 j7 | k0 k1 k2 k3 k4 k5 k6 k7
+  const __m256i jk0 = _mm256_permute2x128_si256(src_j0, src_k0, 0x20);
+  // j8 j9 j10 j11 j12 j13 j14 j15 | k0 k1 k2 k3 k4 k5 k6 k7
+  const __m256i jk8 = _mm256_permute2x128_si256(src_j0, src_k0, 0x31);
+  // l0 l1 l2 l3 l4 l5 l6 l7 | m0 m1 m2 m3 m4 m5 m6 m7
+  const __m256i lm0 = _mm256_permute2x128_si256(src_l0, src_m0, 0x20);
+  // l8 l9 l10 l11 l12 l13 l14 l15 | m0 m1 m2 m3 m4 m5 m6 m7
+  const __m256i lm8 = _mm256_permute2x128_si256(src_l0, src_m0, 0x31);
+
+  // Packing the source rows.
+  // d0 f0 d1 f1 d2 f2 d3 f3 | e0 g0 e1 g1 e2 g2 e3 g3
+  const __m256i d0f0 = _mm256_unpacklo_epi16(de0, fg0);
+  // d4 f4 d5 f5 d6 f6 d7 f7 | e4 g4 e5 g5 e6 g6 e7 g7
+  const __m256i d4f4 = _mm256_unpackhi_epi16(de0, fg0);
+  // d8 f8 d9 f9 d10 f10 d11 f11 | e8 g8 e9 g9 e10 g10 e11 g11
+  const __m256i d8f8 = _mm256_unpacklo_epi16(de8, fg8);
+  // d12 f12 d13 f13 d14 f14 d15 f15 | e12 g12 e13 g13 e14 g14 e15 g15
+  const __m256i d12f12 = _mm256_unpackhi_epi16(de8, fg8);
+
+  // f0 h0 f1 h1 f2 h2 f3 h3 | g0 i0 g1 i1 g2 i2 g3 i3
+  const __m256i f0h0 = _mm256_unpacklo_epi16(fg0, hi0);
+  // f4 h4 f5 h5 f6 h6 f7 h7 | g4 i4 g5 i5 g6 i6 g7 i7
+  const __m256i f4h4 = _mm256_unpackhi_epi16(fg0, hi0);
+  // f8 h8 f9 h9 f10 h10 f11 h11 | g8 i8 g9 i9 g10 i10 g11 i11
+  const __m256i f8h8 = _mm256_unpacklo_epi16(fg8, hi8);
+  // f12 h12 f13 h13 f14 h14 f15 h15 | g12 i12 g13 i13 g14 i14 g15 i15
+  const __m256i f12h12 = _mm256_unpackhi_epi16(fg8, hi8);
+
+  // h0 j0 h1 j1 h2 j2 h3 j3 | i0 k0 i1 k1 i2 k2 i3 k3
+  const __m256i h0j0 = _mm256_unpacklo_epi16(hi0, jk0);
+  // h4 j4 h5 j5 h6 j6 h7 j7 | i4 k4 i5 k5 i6 k6 i7 k7
+  const __m256i h4j4 = _mm256_unpackhi_epi16(hi0, jk0);
+  // h8 j8 h9 j9 h10 j10 h11 j11 | i8 k8 i9 k9 i10 k10 i11 k11
+  const __m256i h8j8 = _mm256_unpacklo_epi16(hi8, jk8);
+  // h12 j12 h13 j13 h14 j14 h15 j15 | i12 k12 i13 k13 i14 k14 i15 k15
+  const __m256i h12j12 = _mm256_unpackhi_epi16(hi8, jk8);
+
+  // j0 l0 j1 l1 j2 l2 j3 l3 | k0 m0 k1 m1 k2 m2 k3 m3
+  const __m256i j0l0 = _mm256_unpacklo_epi16(jk0, lm0);
+  // j4 l4 j5 l5 j6 l6 j7 l7 | k4 m4 k5 m5 k6 m6 k7 m7
+  const __m256i j4l4 = _mm256_unpackhi_epi16(jk0, lm0);
+  // j8 l8 j9 l9 j10 l10 j11 l11 | k8 m8 k9 m9 k10 m10 k11 m11
+  const __m256i j8l8 = _mm256_unpacklo_epi16(jk8, lm8);
+  // j12 l12 j13 l13 j14 l14 j15 l15 | k12 m12 k13 m13 k14 m14 k15 m15
+  const __m256i j12l12 = _mm256_unpackhi_epi16(jk8, lm8);
+
+  // Pixel values for filter coeff 4 and 8
+  // d2 f2 d3 f3 d4 f4 d5 f5 | e2 g2 e3 g3 e4 g4 e5 g5
+  const __m256i d2f2_d5f5 = _mm256_alignr_epi8(d4f4, d0f0, 8);
+  // d6 f6 d7 f7 d8 f8 d9 f9 | e6 g6 e7 g7 e8 g8 e9 g9
+  const __m256i d6f6_d9f9 = _mm256_alignr_epi8(d8f8, d4f4, 8);
+  // f2 h2 f3 h3 f4 h4 f5 h5 | g2 i2 g3 i3 g4 i4 g5 i5
+  const __m256i f2h2_f5h5 = _mm256_alignr_epi8(f4h4, f0h0, 8);
+  // f6 h6 f7 h7 f8 h8 f9 h9 | g6 i6 g7 i7 g8 i8 g9 i9
+  const __m256i f6h6_f9h9 = _mm256_alignr_epi8(f8h8, f4h4, 8);
+  // h2 j2 h3 j3 h4 j4 h5 j5 | i2 k2 i3 k3 i4 k4 i5 k5
+  const __m256i h2j2_h5j5 = _mm256_alignr_epi8(h4j4, h0j0, 8);
+  // h6 j6 h7 j7 h8 j8 h9 j9 | i6 k6 i7 k7 i8 k8 i9 k9
+  const __m256i h6j6_h9j9 = _mm256_alignr_epi8(h8j8, h4j4, 8);
+  // j2 l2 j3 l3 j4 l4 j5 l5 | k2 m2 k3 m3 k4 m4 k5 m5
+  const __m256i j2l2_j5l5 = _mm256_alignr_epi8(j4l4, j0l0, 8);
+  // j6 l6 j7 l7 j8 l8 j9 l9 | k6 m6 k7 m7 k8 m8 k9 m9
+  const __m256i j6l6_j9l9 = _mm256_alignr_epi8(j8l8, j4l4, 8);
+
+  // Pixel values for filter coeff 5 and 7
+  // d3 f3 d4 f4 d5 f5 d6 f6 | e3 g3 e4 g4 e5 g5 e6 g6
+  const __m256i d3f3_d6f6 = _mm256_alignr_epi8(d4f4, d0f0, 12);
+  // d7 f7 d8 f8 d9 f9 d10 f10 | e7 g7 e8 g8 e9 g9 e10 g10
+  const __m256i d7f7_d10f10 = _mm256_alignr_epi8(d8f8, d4f4, 12);
+  // f3 h3 f4 h4 f5 h5 f6 g6 | g3 i3 g4 i4 g5 i5 g6 i6
+  const __m256i f3h3_f6h6 = _mm256_alignr_epi8(f4h4, f0h0, 12);
+  // f7 h7 f8 h8 f9 h9 f10 h10 | g7 i7 g8 i8 g9 i9 g10 i10
+  const __m256i f7h7_f10h10 = _mm256_alignr_epi8(f8h8, f4h4, 12);
+  // h3 j3 h4 j4 h5 j5 h6 j6 | i3 k3 i4 k4 i5 k5 i6 k6
+  const __m256i h3j3_h6j6 = _mm256_alignr_epi8(h4j4, h0j0, 12);
+  // h7 j7 h8 j8 h9 j9 h10 j10 |i7 k7 i8 k8 i9 k9 i10 k10
+  const __m256i h7j7_h10j10 = _mm256_alignr_epi8(h8j8, h4j4, 12);
+  // j3 l3 j4 l4 j5 l5 j6 l6 | k3 m3 k4 m4 k5 m5 k6 m6
+  const __m256i j3l3_j6l6 = _mm256_alignr_epi8(j4l4, j0l0, 12);
+  // j7 l7 j8 l8 j9 l9 j10 k10 | k7 m7 k8 m8 k9 m9 k10 m10
+  const __m256i j7l7_j10l10 = _mm256_alignr_epi8(j8l8, j4l4, 12);
+
+  // Pixel values for filter coeff 7 and 5
+  // d5 f5 d6 f6  d7 f7 d8 f8 | e5 g5 e6 g6 e7 g7 e8 g8
+  const __m256i d5f5_d8f8 = _mm256_alignr_epi8(d8f8, d4f4, 4);
+  // d9 f9 d10 f10 d11 f11 d12 f12 | e9 g9 e10 g10 e11 g11 e12 g12
+  const __m256i d9f9_d12f12 = _mm256_alignr_epi8(d12f12, d8f8, 4);
+  // f5 h5 f6 h6  f7 h7 f8 h8 | g5 i5 g6 i6 g7 i7 g8 i8
+  const __m256i f5h5_f8h8 = _mm256_alignr_epi8(f8h8, f4h4, 4);
+  // f9 h9 f10 h10 f11 h11 f12 h12 | g9 i9 g10 i10 g11 i11 g12 i12
+  const __m256i f9h9_f12h12 = _mm256_alignr_epi8(f12h12, f8h8, 4);
+  // h5 j5 h6 j6  h7 j7 h8 j8 | i5 k5 i6 k6 i7 k7 i8 k8
+  const __m256i h5j5_h8j8 = _mm256_alignr_epi8(h8j8, h4j4, 4);
+  // h9 j9 h10 j10 h11 j11 h12 j12 | i9 k9 i10 k10 i11 k11 i12 k12
+  const __m256i h9j9_h12j12 = _mm256_alignr_epi8(h12j12, h8j8, 4);
+  // j5 l5 j6 l6  j7 l7 j8 l8 | k5 m5 k6 m6 k7 m7 k8 m8
+  const __m256i j5l5_j8l8 = _mm256_alignr_epi8(j8l8, j4l4, 4);
+  // j9 l9 j10 l10 j11 l11 j12 l12 | k9 m9 k10 m10 k11 m11 k12 m12
+  const __m256i j9l9_j12l12 = _mm256_alignr_epi8(j12l12, j8l8, 4);
+
+  // Pixel values for filter coeff 4 and 8
+  // d10 f10 d11 f11 d12 f12 d13 f13 | e10 g10 e11 g11 e12 g12 e13 g13
+  const __m256i d10f10_d13f13 = _mm256_alignr_epi8(d12f12, d8f8, 8);
+  // f10 h10 f11 h11 f12 h12 f13 h13 | g10 i10 g11 i11 g12 i12 g13 i13
+  const __m256i f10h10_f13h13 = _mm256_alignr_epi8(f12h12, f8h8, 8);
+  // h10 j10 h11 j11 h12 j12 h13 j13 | i10 k10 i11 k11 i12 k12 i13 k13
+  const __m256i h10j10_h13j13 = _mm256_alignr_epi8(h12j12, h8j8, 8);
+  // j10 l10 j11 l11 j12 l12 j13 l13 | k10 m10 k11 m11 k12 m12 k13 m13
+  const __m256i j10l10_j13l12 = _mm256_alignr_epi8(j12l12, j8l8, 8);
+
+  // 0 fc5 fc6 fc7 fc8 fc9 fc10 fc11
+  __m128i temp1 = _mm_bslli_si128(filt_coeff_1, 2);
+  // fc4 fc8 fc5 fc9 fc6 fc10 fc7 fc11
+  temp = _mm_unpackhi_epi16(filt_coeff_0, temp1);
+  // fc4 fc8 fc4 fc8 fc4 fc8 fc4 fc8 | fc4 fc8 fc4 fc8 fc4 fc8 fc4 fc8
+  const __m256i filt48 = _mm256_broadcastd_epi32(temp);
+  // fc5 fc7 fc5 fc7 fc5 fc7 fc5 fc7 | fc5 fc7 fc5 fc7 fc5 fc7 fc5 fc7
+  const __m256i filt57 =
+      _mm256_broadcastd_epi32(_mm_shufflelo_epi16(filt_coeff_1, 0x08));
+  // fc6 fc6 fc6 fc6 fc6 fc6 fc6 fc6 | fc6 fc6 fc6 fc6 fc6 fc6 fc6 fc6
+  const __m256i filt66 =
+      _mm256_broadcastd_epi32(_mm_shufflelo_epi16(filt_coeff_1, 0x55));
+  // fc7 fc5 fc7 fc5 fc7 fc5 fc7 fc5 | fc7 fc5 fc7 fc5 fc7 fc5 fc7 fc5
+  const __m256i filt75 =
+      _mm256_broadcastd_epi32(_mm_shufflelo_epi16(filt_coeff_1, 0x22));
+  // fc8 fc4 fc9 fc5 fc10 fc6 fc11 fc7
+  __m128i temp2 = _mm_unpackhi_epi16(temp1, filt_coeff_0);
+  // fc8 fc4 fc8 fc4 fc8 fc4 fc8 fc4 | fc8 fc4 fc8 fc4 fc8 fc4 fc8 fc4
+  const __m256i filt84 = _mm256_broadcastd_epi32(temp2);
+
+  __m256i res_0 = _mm256_madd_epi16(d2f2_d5f5, filt48);
+  __m256i res_1 = _mm256_madd_epi16(d6f6_d9f9, filt48);
+  __m256i res_2 = _mm256_madd_epi16(f2h2_f5h5, filt48);
+  __m256i res_3 = _mm256_madd_epi16(f6h6_f9h9, filt48);
+  __m256i res_4 = _mm256_madd_epi16(h2j2_h5j5, filt48);
+  __m256i res_5 = _mm256_madd_epi16(h6j6_h9j9, filt48);
+  __m256i res_6 = _mm256_madd_epi16(j2l2_j5l5, filt48);
+  __m256i res_7 = _mm256_madd_epi16(j6l6_j9l9, filt48);
+
+  __m256i res_8 = _mm256_madd_epi16(d3f3_d6f6, filt57);
+  __m256i res_9 = _mm256_madd_epi16(d7f7_d10f10, filt57);
+  __m256i res_10 = _mm256_madd_epi16(f3h3_f6h6, filt57);
+  __m256i res_11 = _mm256_madd_epi16(f7h7_f10h10, filt57);
+  __m256i res_12 = _mm256_madd_epi16(h3j3_h6j6, filt57);
+  __m256i res_13 = _mm256_madd_epi16(h7j7_h10j10, filt57);
+  __m256i res_14 = _mm256_madd_epi16(j3l3_j6l6, filt57);
+  __m256i res_15 = _mm256_madd_epi16(j7l7_j10l10, filt57);
+
+  __m256i res_16 = _mm256_madd_epi16(d4f4, filt66);
+  __m256i res_17 = _mm256_madd_epi16(d8f8, filt66);
+  __m256i res_18 = _mm256_madd_epi16(f4h4, filt66);
+  __m256i res_19 = _mm256_madd_epi16(f8h8, filt66);
+  __m256i res_20 = _mm256_madd_epi16(h4j4, filt66);
+  __m256i res_21 = _mm256_madd_epi16(h8j8, filt66);
+  __m256i res_22 = _mm256_madd_epi16(j4l4, filt66);
+  __m256i res_23 = _mm256_madd_epi16(j8l8, filt66);
+
+  __m256i res_24 = _mm256_madd_epi16(d5f5_d8f8, filt75);
+  __m256i res_25 = _mm256_madd_epi16(d9f9_d12f12, filt75);
+  __m256i res_26 = _mm256_madd_epi16(f5h5_f8h8, filt75);
+  __m256i res_27 = _mm256_madd_epi16(f9h9_f12h12, filt75);
+  __m256i res_28 = _mm256_madd_epi16(h5j5_h8j8, filt75);
+  __m256i res_29 = _mm256_madd_epi16(h9j9_h12j12, filt75);
+  __m256i res_30 = _mm256_madd_epi16(j5l5_j8l8, filt75);
+  __m256i res_31 = _mm256_madd_epi16(j9l9_j12l12, filt75);
+
+  __m256i res_65 = _mm256_madd_epi16(d6f6_d9f9, filt84);
+  __m256i res_66 = _mm256_madd_epi16(d10f10_d13f13, filt84);
+  __m256i res_67 = _mm256_madd_epi16(f6h6_f9h9, filt84);
+  __m256i res_68 = _mm256_madd_epi16(f10h10_f13h13, filt84);
+  __m256i res_69 = _mm256_madd_epi16(h6j6_h9j9, filt84);
+  __m256i res_70 = _mm256_madd_epi16(h10j10_h13j13, filt84);
+  __m256i res_71 = _mm256_madd_epi16(j6l6_j9l9, filt84);
+  __m256i res_72 = _mm256_madd_epi16(j10l10_j13l12, filt84);
+
+  __m256i accum_out_r0_r1_1 =
+      _mm256_add_epi32(_mm256_add_epi32(_mm256_add_epi32(res_0, res_8),
+                                        _mm256_add_epi32(res_16, res_24)),
+                       res_65);
+
+  __m256i accum_out_r0_r1_2 =
+      _mm256_add_epi32(_mm256_add_epi32(_mm256_add_epi32(res_1, res_9),
+                                        _mm256_add_epi32(res_17, res_25)),
+                       res_66);
+
+  __m256i accum_out_r2_r3_1 =
+      _mm256_add_epi32(_mm256_add_epi32(_mm256_add_epi32(res_2, res_10),
+                                        _mm256_add_epi32(res_18, res_26)),
+                       res_67);
+
+  __m256i accum_out_r2_r3_2 =
+      _mm256_add_epi32(_mm256_add_epi32(_mm256_add_epi32(res_3, res_11),
+                                        _mm256_add_epi32(res_19, res_27)),
+                       res_68);
+
+  __m256i accum_out_r4_r5_1 =
+      _mm256_add_epi32(_mm256_add_epi32(_mm256_add_epi32(res_4, res_12),
+                                        _mm256_add_epi32(res_20, res_28)),
+                       res_69);
+
+  __m256i accum_out_r4_r5_2 =
+      _mm256_add_epi32(_mm256_add_epi32(_mm256_add_epi32(res_5, res_13),
+                                        _mm256_add_epi32(res_21, res_29)),
+                       res_70);
+
+  __m256i accum_out_r6_r7_1 =
+      _mm256_add_epi32(_mm256_add_epi32(_mm256_add_epi32(res_6, res_14),
+                                        _mm256_add_epi32(res_22, res_30)),
+                       res_71);
+
+  __m256i accum_out_r6_r7_2 =
+      _mm256_add_epi32(_mm256_add_epi32(_mm256_add_epi32(res_7, res_15),
+                                        _mm256_add_epi32(res_23, res_31)),
+                       res_72);
+
+  // Filter coeff 14, 15, 0
+  const __m128i tmp_fc14_15 = _mm_bsrli_si128(filt_coeff_2, 4);
+  // f14 f15 f14 f15 f14 f15 f14 f15 | f14 f15 f14 f15 f14 f15 f14 f15
+  const __m256i fc14_15 = _mm256_broadcastd_epi32(tmp_fc14_15);
+  // f15 f14 f15 f14 f15 f14 f15 f14 | f15 f14 f15 f14 f15 f14 f15 f14
+  const __m256i fc15_14 =
+      _mm256_broadcastd_epi32(_mm_shufflelo_epi16(tmp_fc14_15, 0x01));
+  // f0 f0 f0 f0 f0 f0 f0 f0 | f0 f0 f0 f0 f0 f0 f0 f0
+  const __m256i fc0 = _mm256_broadcastw_epi16(filt_coeff_0);
+
+  // b0 b1 b2 b3 b4 b5 b6 b7 | c0 c1 c2 c3 c4 c5 c6 c7
+  const __m256i bc0 = _mm256_permute2x128_si256(src_b0, src_c0, 0x20);
+  // b8 b9 b10 b11 b12 b13 b14 b15 | c8 c9 c10 c11 c12 c13 c14 c15
+  const __m256i bc8 = _mm256_permute2x128_si256(src_b0, src_c0, 0x31);
+
+  // n0 n1 n2 n3 n4 n5 n6 n7 | o0 o1 o2 o3 o4 o5 o6 o7
+  const __m256i no0 = _mm256_permute2x128_si256(src_n0, src_o0, 0x20);
+  // n8 n9 n10 n11 n12 n13 n14 n15 | o8 o9 o10 o11 o12 o13 o14 o15
+  const __m256i no8 = _mm256_permute2x128_si256(src_n0, src_o0, 0x31);
+
+  // Packing the source rows.
+  // b0 h0 b1 h1 b2 h2 b3 h3 | c0 i0 c1 i1 c2 i2 c3 i3
+  const __m256i b0h0 = _mm256_unpacklo_epi16(bc0, hi0);
+  // b4 h4 b5 h5 b6 h6 b7 h7 | c4 i4 c5 i5 c6 i6 c7 i7
+  const __m256i b4h4 = _mm256_unpackhi_epi16(bc0, hi0);
+  // b8 h8 b9 h9 b10 h10 b11 h11 | c8 i8 c9 i9 c10 i10 c11 i11
+  const __m256i b8h8 = _mm256_unpacklo_epi16(bc8, hi8);
+  // b12 h12 b13 h13 b14 h14 b15 h15 | c12 i12 c13 i13 c14 i14 c15 i15
+  const __m256i b12h12 = _mm256_unpackhi_epi16(bc8, hi8);
+
+  // d0 j0 d1 j1 d2 j2 d3 j3 | e0 k0 e1 k1 e2 k2 e3 k3
+  const __m256i d0j0 = _mm256_unpacklo_epi16(de0, jk0);
+  // d4 j4 d5 j5 d6 j6 d7 j7 | e4 k4 e5 k5 e6 k6 e7 k7
+  const __m256i d4j4 = _mm256_unpackhi_epi16(de0, jk0);
+  // d8 j8 d9 j9 d10 j10 d11 j11 | e8 k8 e9 k9 e10 k10 e11 k11
+  const __m256i d8j8 = _mm256_unpacklo_epi16(de8, jk8);
+  // d12 j12 d13 j13 d14 j14 d15 j15 | e12 k12 e13 k13 e14 k14 e15 k15
+  const __m256i d12j12 = _mm256_unpackhi_epi16(de8, jk8);
+
+  // f0 l0 f1 l1 f2 l2 f3 l3 | g0 m0 g1 m1 g2 m2 g3 m3
+  const __m256i f0l0 = _mm256_unpacklo_epi16(fg0, lm0);
+  // f4 l4 f5 l5 f6 l6 f7 l7 | g4 m4 g5 m5 g6 m6 g7 m7
+  const __m256i f4l4 = _mm256_unpackhi_epi16(fg0, lm0);
+  // f8 l8 f9 l9 f10 l10 f11 l11 | g8 m8 g9 m9 g10 m10 g11 m11
+  const __m256i f8l8 = _mm256_unpacklo_epi16(fg8, lm8);
+  // f12 l12 f13 l13 f14 l14 f15 l15 | g12 m12 g13 m13 g14 m14 g15 m15
+  const __m256i f12l12 = _mm256_unpackhi_epi16(fg8, lm8);
+
+  // h0 n0 h1 n1 h2 n2 h3 n3 | i0 o0 i1 o1 i2 o2 i3 o3
+  const __m256i h0n0 = _mm256_unpacklo_epi16(hi0, no0);
+  // h4 n4 h5 n5 h6 n6 h7 n7 | i4 o4 i5 o5 i6 o6 i7 o7
+  const __m256i h4n4 = _mm256_unpackhi_epi16(hi0, no0);
+  // h8 n8 h9 n9 h10 n10 h11 n11 | i8 o8 i9 o9 i10 o10 i11 o11
+  const __m256i h8n8 = _mm256_unpacklo_epi16(hi8, no8);
+  // h12 n12 h13 n13 h14 n14 h15 n15 | i12 o12 i13 o13 i14 o14 i15 o15
+  const __m256i h12n12 = _mm256_unpackhi_epi16(hi8, no8);
+
+  //  b1 h1 b2 h2 b3 h3 b4 h4 |c1 i1 c2 i2 c3 i3 c4 i4
+  const __m256i b1h1_b4h4 = _mm256_alignr_epi8(b4h4, b0h0, 4);
+  //  b5 h5 b6 h6 b7 h7 b8 h8 | c5 i5 c6 i6 c7 i7 c8 i8
+  const __m256i b5h5_b8h8 = _mm256_alignr_epi8(b8h8, b4h4, 4);
+  //  d1 j1 d2 j2 d3 j3 d4 j4 | e1 k1 e2 k2 e3 k3 e4 k4
+  const __m256i d1j1_d4j4 = _mm256_alignr_epi8(d4j4, d0j0, 4);
+  //  d5 j5 d6 j6 d7 j7 d8 j8 | e5 k5 e6 k6 e7 k7 e8 k8
+  const __m256i d5j5_d8j8 = _mm256_alignr_epi8(d8j8, d4j4, 4);
+  //  f1 l1 f2 l2 f3 l3 f4 l4 | g1 m1 g2 m2 g3 m3 g4 m4
+  const __m256i f1l1_f4l4 = _mm256_alignr_epi8(f4l4, f0l0, 4);
+  //  f5 l5 f6 l6 f7 l7 f8 l8 | g5 m5 g6 m6 g7 m7 g8 m8
+  const __m256i f5l5_f8l8 = _mm256_alignr_epi8(f8l8, f4l4, 4);
+  //  h1 n1 h2 n2 h3 n3 h4 n4 |  i1 o1 i2 o2 i3 o3
+  const __m256i h1n1_h4n4 = _mm256_alignr_epi8(h4n4, h0n0, 4);
+  //  h5 n5 h6 n6 h7 n7 h8 n8| i5 o5 i6 o6 i7 o7 i8 o8
+  const __m256i h5n5_h8n8 = _mm256_alignr_epi8(h8n8, h4n4, 4);
+
+  // b7 h7 b8 h8 b9 h9 b10 h10 | c7 i7 c8 i8 c9 i9 c10 i10
+  const __m256i b7h7_b10h10 = _mm256_alignr_epi8(b8h8, b4h4, 12);
+  // b11 h11 b12 h12 b13 h13 b14 h14 | c11 i11 c12 i12 c13 i13 c14 i14
+  const __m256i b11h11_b14h14 = _mm256_alignr_epi8(b12h12, b8h8, 12);
+  // d7 j7 d8 j8 d9 j9 d10 j10 | e7 k7 e8 k8 e9 k9 e10 k10
+  const __m256i d7j7_d10j10 = _mm256_alignr_epi8(d8j8, d4j4, 12);
+  // d11 j11 d12 j12 d13 j13 d14 j14 | e11 k11 e12 k12 e13 k13 e14 k14
+  const __m256i d11j11_d14j14 = _mm256_alignr_epi8(d12j12, d8j8, 12);
+  // f7 l7 f8 l8 f9 l9 f10 l10 | g7 m7 g8 m8 g9 m9 g10 m10
+  const __m256i f7l7_f10l10 = _mm256_alignr_epi8(f8l8, f4l4, 12);
+  // f11 l11 f12 l12 f13 l13 f14 l14 | g11 m11 g12 m12 g13 m13 g14 m14
+  const __m256i f11l11_f13l13 = _mm256_alignr_epi8(f12l12, f8l8, 12);
+  // h7 n7 h8 n8 h9 n9 h10 n10 | i7 o7 i8 o8 i9 o9 i10 o10
+  const __m256i h7n7_h10n10 = _mm256_alignr_epi8(h8n8, h4n4, 12);
+  // h11 n11 h12 n12 h13 n13 h14 n14 | i11 o11 i12 o12 i13 o13 i14 o14
+  const __m256i h11n11_h14n14 = _mm256_alignr_epi8(h12n12, h8n8, 12);
+
+  const __m256i res_33 = _mm256_madd_epi16(b1h1_b4h4, fc14_15);
+  const __m256i res_34 = _mm256_madd_epi16(b5h5_b8h8, fc14_15);
+  const __m256i res_35 = _mm256_madd_epi16(d1j1_d4j4, fc14_15);
+  const __m256i res_36 = _mm256_madd_epi16(d5j5_d8j8, fc14_15);
+  const __m256i res_37 = _mm256_madd_epi16(f1l1_f4l4, fc14_15);
+  const __m256i res_38 = _mm256_madd_epi16(f5l5_f8l8, fc14_15);
+  const __m256i res_39 = _mm256_madd_epi16(h1n1_h4n4, fc14_15);
+  const __m256i res_40 = _mm256_madd_epi16(h5n5_h8n8, fc14_15);
+
+  const __m256i res_41 = _mm256_madd_epi16(b4h4, fc0);
+  const __m256i res_42 = _mm256_madd_epi16(b8h8, fc0);
+  const __m256i res_43 = _mm256_madd_epi16(d4j4, fc0);
+  const __m256i res_44 = _mm256_madd_epi16(d8j8, fc0);
+  const __m256i res_45 = _mm256_madd_epi16(f4l4, fc0);
+  const __m256i res_46 = _mm256_madd_epi16(f8l8, fc0);
+  const __m256i res_47 = _mm256_madd_epi16(h4n4, fc0);
+  const __m256i res_48 = _mm256_madd_epi16(h8n8, fc0);
+
+  const __m256i res_49 = _mm256_madd_epi16(b7h7_b10h10, fc15_14);
+  const __m256i res_50 = _mm256_madd_epi16(b11h11_b14h14, fc15_14);
+  const __m256i res_51 = _mm256_madd_epi16(d7j7_d10j10, fc15_14);
+  const __m256i res_52 = _mm256_madd_epi16(d11j11_d14j14, fc15_14);
+  const __m256i res_53 = _mm256_madd_epi16(f7l7_f10l10, fc15_14);
+  const __m256i res_54 = _mm256_madd_epi16(f11l11_f13l13, fc15_14);
+  const __m256i res_55 = _mm256_madd_epi16(h7n7_h10n10, fc15_14);
+  const __m256i res_56 = _mm256_madd_epi16(h11n11_h14n14, fc15_14);
+
+  accum_out_r0_r1_1 = _mm256_add_epi32(
+      accum_out_r0_r1_1,
+      _mm256_add_epi32(_mm256_add_epi32(res_33, res_41), res_49));
+  accum_out_r0_r1_2 = _mm256_add_epi32(
+      accum_out_r0_r1_2,
+      _mm256_add_epi32(_mm256_add_epi32(res_34, res_42), res_50));
+  accum_out_r2_r3_1 = _mm256_add_epi32(
+      accum_out_r2_r3_1,
+      _mm256_add_epi32(_mm256_add_epi32(res_35, res_43), res_51));
+  accum_out_r2_r3_2 = _mm256_add_epi32(
+      accum_out_r2_r3_2,
+      _mm256_add_epi32(_mm256_add_epi32(res_36, res_44), res_52));
+  accum_out_r4_r5_1 = _mm256_add_epi32(
+      accum_out_r4_r5_1,
+      _mm256_add_epi32(_mm256_add_epi32(res_37, res_45), res_53));
+  accum_out_r4_r5_2 = _mm256_add_epi32(
+      accum_out_r4_r5_2,
+      _mm256_add_epi32(_mm256_add_epi32(res_38, res_46), res_54));
+  accum_out_r6_r7_1 = _mm256_add_epi32(
+      accum_out_r6_r7_1,
+      _mm256_add_epi32(_mm256_add_epi32(res_39, res_47), res_55));
+  accum_out_r6_r7_2 = _mm256_add_epi32(
+      accum_out_r6_r7_2,
+      _mm256_add_epi32(_mm256_add_epi32(res_40, res_48), res_56));
+
+  // f12 f12 f12 f12 f12 f12 f12 f12 | f12 f12 f12 f12 f12 f12 f12 f12
+  const __m256i fc_12 = _mm256_broadcastw_epi16(filt_coeff_2);
+
+  // a0 a1 a2 a3 a4 a5 a6 a7 | b0 b1 b2 b3 b4 b5 b6 b7
+  const __m256i ab0 = _mm256_permute2x128_si256(src_a0, src_b0, 0x20);
+  // a8 a9 a10 a11 a12 a13 a14 a15 | b8 b9 b10 b11 b12 b13 b14 b15
+  const __m256i ab8 = _mm256_permute2x128_si256(src_a0, src_b0, 0x31);
+
+  // c0 c1 c2 c3 c4 c5 c6 c7 | d0 d1 d2 d3 d4 d5 d6 d7
+  const __m256i cd0 = _mm256_permute2x128_si256(src_c0, src_d0, 0x20);
+  // c8 c9 c10 c11 c12 c13 c14 c15 | d8 d9 d10 d11 d12 d13 d14 d15
+  const __m256i cd8 = _mm256_permute2x128_si256(src_c0, src_d0, 0x31);
+
+  // e0 e1 e2 e3 e4 e5 e6 e7 | f0 f1 f2 f3 f4 f5 f6 f7
+  const __m256i ef0 = _mm256_permute2x128_si256(src_e0, src_f0, 0x20);
+  // e8 e9 e10 e11 e12 e13 e14 e15 | f8 f9 f10 f11 f12 f13 f14 f15
+  const __m256i ef8 = _mm256_permute2x128_si256(src_e0, src_f0, 0x31);
+
+  // g0 g1 g2 g3 g4 g5 g6 g7 | h0 h1 h2 h3 h4 h5 h6 h7
+  const __m256i gh0 = _mm256_permute2x128_si256(src_g0, src_h0, 0x20);
+  // g8 g9 g10 g11 g12 g13 g14 g15 | h8 h9 h10 h11 h12 h13 h14 h15
+  const __m256i gh8 = _mm256_permute2x128_si256(src_g0, src_h0, 0x31);
+
+  // i0 i1 i2 i3 i4 i5 i6 i7 | j0 j1 j2 j3 j4 j5 j6 j7
+  const __m256i ij0 = _mm256_permute2x128_si256(src_i0, src_j0, 0x20);
+  // i8 i9 i10 i11 i12 i13 i14 i15 | j8 j9 j10 j11 j12 j13 j14 j15
+  const __m256i ij8 = _mm256_permute2x128_si256(src_i0, src_j0, 0x31);
+
+  // k0 k1 k2 k3 k4 k5 k6 k7 | l0 l1 l2 l3 l4 l5 l6 l7
+  const __m256i kl0 = _mm256_permute2x128_si256(src_k0, src_l0, 0x20);
+  // k8 k9 k10 k11 k12 k13 k14 k15 | l8 l9 l10 l11 l12 l13 l14 l15
+  const __m256i kl8 = _mm256_permute2x128_si256(src_k0, src_l0, 0x31);
+
+  // m0 m1 m2 m3 m4 m5 m6 m7 | n0 n1 n2 n3 n4 n5 n6 n7
+  const __m256i mn0 = _mm256_permute2x128_si256(src_m0, src_n0, 0x20);
+  // m8 m9 m10 m11 m12 m13 m14 m15 | n8 n9 n10 n11 n12 n13 n14 n15
+  const __m256i mn8 = _mm256_permute2x128_si256(src_m0, src_n0, 0x31);
+
+  // o0 o1 o2 o3 o4 o5 o6 o7 | p0 p1 p2 p3 p4 p5 p6 p7
+  const __m256i op0 = _mm256_permute2x128_si256(src_o0, src_p0, 0x20);
+  // o8 o9 o10 o11 o12 o13 o14 o15 | p8 p9 p10 p11 p12 p13 p14 p15
+  const __m256i op8 = _mm256_permute2x128_si256(src_o0, src_p0, 0x31);
+
+  // a4 i4 a5 i5 a6 i6 a7 i7 | b4 j4 b5 j5 b6 j6 b7 j7
+  const __m256i a4i4 = _mm256_unpackhi_epi16(ab0, ij0);
+  // a8 i8 a9 i9 a10 i10 a11 i11 | b8 j8 b9 j9 b10 j10 b11 j11
+  const __m256i a8i8 = _mm256_unpacklo_epi16(ab8, ij8);
+  // c4 k4 c5 k5 c6 k6 c7 k7 | d4 l4 d5 l5 d6 l6 d7 l7
+  const __m256i c4k4 = _mm256_unpackhi_epi16(cd0, kl0);
+  // c8 k8 c9 k9 c10 k10 c11 k11 | d8 l8 d9 l9 d10 l10 d11 l11
+  const __m256i c8k8 = _mm256_unpacklo_epi16(cd8, kl8);
+  // e4 m4 e5 m5 e6 m6 e7 m7 | f4 n4 f5 n5 f6 n6 f7 n7
+  const __m256i e4m4 = _mm256_unpackhi_epi16(ef0, mn0);
+  // e8 m8 e9 m9 e10 m10 e11 m11 | f8 n8 f9 n9 f10 n10 f11 n11
+  const __m256i e8m8 = _mm256_unpacklo_epi16(ef8, mn8);
+  // g4 o4 g5 o5 g6 o6 g7 o7 | h4 p4 h5 p5 h6 p6 h7 p7
+  const __m256i g4o4 = _mm256_unpackhi_epi16(gh0, op0);
+  // g8 o8 g9 o9 g10 o10 g11 o11 | h8 p8 h9 p9 h10 p10 h11 p11
+  const __m256i g8o8 = _mm256_unpacklo_epi16(gh8, op8);
+
+  const __m256i res_57 = _mm256_madd_epi16(a4i4, fc_12);
+  const __m256i res_58 = _mm256_madd_epi16(a8i8, fc_12);
+  const __m256i res_59 = _mm256_madd_epi16(c4k4, fc_12);
+  const __m256i res_60 = _mm256_madd_epi16(c8k8, fc_12);
+  const __m256i res_61 = _mm256_madd_epi16(e4m4, fc_12);
+  const __m256i res_62 = _mm256_madd_epi16(e8m8, fc_12);
+  const __m256i res_63 = _mm256_madd_epi16(g4o4, fc_12);
+  const __m256i res_64 = _mm256_madd_epi16(g8o8, fc_12);
+
+  accum_out_r0_r1_1 = _mm256_add_epi32(accum_out_r0_r1_1, res_57);
+  accum_out_r0_r1_2 = _mm256_add_epi32(accum_out_r0_r1_2, res_58);
+  accum_out_r2_r3_1 = _mm256_add_epi32(accum_out_r2_r3_1, res_59);
+  accum_out_r2_r3_2 = _mm256_add_epi32(accum_out_r2_r3_2, res_60);
+  accum_out_r4_r5_1 = _mm256_add_epi32(accum_out_r4_r5_1, res_61);
+  accum_out_r4_r5_2 = _mm256_add_epi32(accum_out_r4_r5_2, res_62);
+  accum_out_r6_r7_1 = _mm256_add_epi32(accum_out_r6_r7_1, res_63);
+  accum_out_r6_r7_2 = _mm256_add_epi32(accum_out_r6_r7_2, res_64);
+
+  // fc2 fc2 fc2 fc2 fc2 fc2 fc2 fc2 | fc2 fc2 fc2 fc2 fc2 fc2 fc2 fc2
+  const __m256i filt22 =
+      _mm256_broadcastd_epi32(_mm_shufflelo_epi16(filt_coeff_0, 0xAA));
+  // fc1 fc3 fc1 fc3 fc1 fc3 fc1 fc3 | fc1 fc3 fc1 fc3 fc1 fc3 fc1 fc3
+  const __m256i filt13 =
+      _mm256_broadcastd_epi32(_mm_shufflelo_epi16(filt_coeff_0, 0x5D));
+  // fc3 fc1 fc3 fc1 fc3 fc1 fc3 fc1 | fc3 fc1 fc3 fc1 fc3 fc1 fc3 fc1
+  const __m256i filt31 =
+      _mm256_broadcastd_epi32(_mm_shufflelo_epi16(filt_coeff_0, 0xF7));
+
+  // c0 g0 c1 g1 c2 g2 c3 g3 | d0 h0 d1 h1 d2 h2 d3 h3
+  const __m256i c0g0 = _mm256_unpacklo_epi16(cd0, gh0);
+  // c4 g4 c5 g5 c6 g6 c7 g7 | d4 h4 d5 h5 d6 h6 d7 h7
+  const __m256i c4g4 = _mm256_unpackhi_epi16(cd0, gh0);
+  // c8 g8 c9 g9 c10 g10 c11 g11 | d8 h8 d9 h9 d10 h10 d11 h11
+  const __m256i c8g8 = _mm256_unpacklo_epi16(cd8, gh8);
+  // c12 g12 c13 g13 c14 g14 c15 g15 | d12 h12 d13 h13 d14 h14 d15 h15
+  const __m256i c12g12 = _mm256_unpackhi_epi16(cd8, gh8);
+
+  // e0 i0 e1 i1 e2 i2 e3 i3 | f0 j0 f1 j1 f2 j2 f3 j3
+  const __m256i e0i0 = _mm256_unpacklo_epi16(ef0, ij0);
+  // e4 i4 e5 i5 e6 i6 e7 i7 | f4 j4 f5 j5 f6 j6 f7 j7
+  const __m256i e4i4 = _mm256_unpackhi_epi16(ef0, ij0);
+  // e8 i8 e9 i9 e10 i10 e11 i11 | f8 j8 f9 j9 f10 j10 f11 j11
+  const __m256i e8i8 = _mm256_unpacklo_epi16(ef8, ij8);
+  // e12 i12 e13 i13 e14 i14 e15 i15 | f12 j12 f13 j13 f14 j14 f15 j15
+  const __m256i e12i12 = _mm256_unpackhi_epi16(ef8, ij8);
+
+  // g0 k0 g1 k1 g2 k2 g3 k3 | h0 l0 h1 l1 h2 l2 h3 l3
+  const __m256i g0k0 = _mm256_unpacklo_epi16(gh0, kl0);
+  // g4 k4 g5 k5 g6 k6 g7 k7 | h4 l4 h5 l5 h6 l6 h7 l7
+  const __m256i g4k4 = _mm256_unpackhi_epi16(gh0, kl0);
+  // g8 k8 g9 k9 g10 k10 g11 k11 | h8 l8 h9 l9 h10 l10 h11 l11
+  const __m256i g8k8 = _mm256_unpacklo_epi16(gh8, kl8);
+  // g12 k12 g13 k13 g14 k14 g15 k15 | h12 l12 h13 l13 h14 l14 h15 l15
+  const __m256i g12k12 = _mm256_unpackhi_epi16(gh8, kl8);
+
+  // i0 m0 i1 m1 i2 m2 i3 m3 | j0 n0 j1 n1 j2 n2 j3 n3
+  const __m256i i0m0 = _mm256_unpacklo_epi16(ij0, mn0);
+  // i4 m4 i5 m5 i6 m6 i7 m7 | j4 n4 j5 n5 j6 n6 j7 n7
+  const __m256i i4m4 = _mm256_unpackhi_epi16(ij0, mn0);
+  // i8 m8 i9 m9 i10 m10 i11 m11 | j8 n8 j9 n9 j10 n10 j11 n11
+  const __m256i i8m8 = _mm256_unpacklo_epi16(ij8, mn8);
+  // i12 m12 i13 m13 i14 m14 i15 m15 | j12 n12 j13 n13 j14 n14 j15 n15
+  const __m256i i12m12 = _mm256_unpackhi_epi16(ij8, mn8);
+
+  // c3 g3 c4 g4 c5 g5 c6 g6 | d3 h3 d4 h4 d5 h5 d6 h6
+  const __m256i c3g3_c6g6 = _mm256_alignr_epi8(c4g4, c0g0, 12);
+  // c7 g7 c8 g8 c9 g9 c10 g10 | d7 h7 d8 h8 d9 h9 d10 h10
+  const __m256i c7g7_c10g10 = _mm256_alignr_epi8(c8g8, c4g4, 12);
+  // e3 i3 e4 i4 e5 i5 e6 i6 | f3 j3 f4 j4 f5 j5 f6 j6
+  const __m256i e3i3_e6i6 = _mm256_alignr_epi8(e4i4, e0i0, 12);
+  // e7 i7 e8 i8 e9 i9 e10 i10 | f7 j7 f8 j8 f9 j9 f10 j10
+  const __m256i e7i7_e10i10 = _mm256_alignr_epi8(e8i8, e4i4, 12);
+  // g3 k3 g4 k4 g5 k5 g6 k6 | h3 l3 h4 l4 h5 l5 h6 l6
+  const __m256i g3k3_g6k6 = _mm256_alignr_epi8(g4k4, g0k0, 12);
+  // g7 k7 g8 k8 g9 k9 g10 k10 | h7 l7 h8 l8 h9 l9 h10 l10
+  const __m256i g7k7_g10k10 = _mm256_alignr_epi8(g8k8, g4k4, 12);
+  // i3 m3 i4 m4 i5 m5 i6 m6 | j3 n3 j4 n4 j5 n5 j6 n6
+  const __m256i i3m3_i6m6 = _mm256_alignr_epi8(i4m4, i0m0, 12);
+  // i7 m7 i8 m8 i9 m9 i10 m10 | j7 n7 j8 n8 j9 n9 j10 n10
+  const __m256i i7m7_i10m10 = _mm256_alignr_epi8(i8m8, i4m4, 12);
+
+  // c5 g5 c6 g6 c7 g7 c8 g8 | d5 h5 d6 h6 d7 h7 d8 h8
+  const __m256i c5g5_c8g8 = _mm256_alignr_epi8(c8g8, c4g4, 4);
+  //  c9 g9 c10 g10 c11 g11 c12 g12 | d9 h9 d10 h10 d11 h11 d12 h12
+  const __m256i c9g9_c12g12 = _mm256_alignr_epi8(c12g12, c8g8, 4);
+  // e5 i5 e6 i6 e7 i7 e8 i8 | f5 j5 f6 j6 f7 j7 f8 j8
+  const __m256i e5i5_e8i8 = _mm256_alignr_epi8(e8i8, e4i4, 4);
+  // e9 i9 e10 i10 e11 i11 e12 i12 | f9 j9 f10 j10 f11 j11 f12 j12
+  const __m256i e9i9_e12i12 = _mm256_alignr_epi8(e12i12, e8i8, 4);
+  // g5 k5 g6 k6 g7 k7 g8 k8 | h5 l5 h6 l6 h7 l7 h8 l8
+  const __m256i g5k5_g8k8 = _mm256_alignr_epi8(g8k8, g4k4, 4);
+  // g9 k9 g10 k10 g11 k11 g12 k12 | h9 l9 h10 l10 h11 l11 h12 l12
+  const __m256i g9k9_g12k12 = _mm256_alignr_epi8(g12k12, g8k8, 4);
+  // i5 m5 i6 m6 i7 m7 i8 m8 | j5 n5 j6 n6 j7 n7 j8 n8
+  const __m256i i5m5_i8m8 = _mm256_alignr_epi8(i8m8, i4m4, 4);
+  // i9 m9 i10 m10 i11 m11 i12 m12 | j9 n9 j10 n10 j11 n11 j12 n12
+  const __m256i i9m9_i12m12 = _mm256_alignr_epi8(i12m12, i8m8, 4);
+
+  __m256i res_73 = _mm256_madd_epi16(c3g3_c6g6, filt13);
+  __m256i res_74 = _mm256_madd_epi16(c7g7_c10g10, filt13);
+  __m256i res_75 = _mm256_madd_epi16(e3i3_e6i6, filt13);
+  __m256i res_76 = _mm256_madd_epi16(e7i7_e10i10, filt13);
+  __m256i res_77 = _mm256_madd_epi16(g3k3_g6k6, filt13);
+  __m256i res_78 = _mm256_madd_epi16(g7k7_g10k10, filt13);
+  __m256i res_79 = _mm256_madd_epi16(i3m3_i6m6, filt13);
+  __m256i res_80 = _mm256_madd_epi16(i7m7_i10m10, filt13);
+
+  __m256i res_81 = _mm256_madd_epi16(c4g4, filt22);
+  __m256i res_82 = _mm256_madd_epi16(c8g8, filt22);
+  __m256i res_83 = _mm256_madd_epi16(e4i4, filt22);
+  __m256i res_84 = _mm256_madd_epi16(e8i8, filt22);
+  __m256i res_85 = _mm256_madd_epi16(g4k4, filt22);
+  __m256i res_86 = _mm256_madd_epi16(g8k8, filt22);
+  __m256i res_87 = _mm256_madd_epi16(i4m4, filt22);
+  __m256i res_88 = _mm256_madd_epi16(i8m8, filt22);
+
+  __m256i res_89 = _mm256_madd_epi16(c5g5_c8g8, filt31);
+  __m256i res_90 = _mm256_madd_epi16(c9g9_c12g12, filt31);
+  __m256i res_91 = _mm256_madd_epi16(e5i5_e8i8, filt31);
+  __m256i res_92 = _mm256_madd_epi16(e9i9_e12i12, filt31);
+  __m256i res_93 = _mm256_madd_epi16(g5k5_g8k8, filt31);
+  __m256i res_94 = _mm256_madd_epi16(g9k9_g12k12, filt31);
+  __m256i res_95 = _mm256_madd_epi16(i5m5_i8m8, filt31);
+  __m256i res_96 = _mm256_madd_epi16(i9m9_i12m12, filt31);
+
+  accum_out_r0_r1_1 = _mm256_add_epi32(
+      accum_out_r0_r1_1,
+      _mm256_add_epi32(_mm256_add_epi32(res_73, res_81), res_89));
+  accum_out_r0_r1_2 = _mm256_add_epi32(
+      accum_out_r0_r1_2,
+      _mm256_add_epi32(_mm256_add_epi32(res_74, res_82), res_90));
+  accum_out_r2_r3_1 = _mm256_add_epi32(
+      accum_out_r2_r3_1,
+      _mm256_add_epi32(_mm256_add_epi32(res_75, res_83), res_91));
+  accum_out_r2_r3_2 = _mm256_add_epi32(
+      accum_out_r2_r3_2,
+      _mm256_add_epi32(_mm256_add_epi32(res_76, res_84), res_92));
+  accum_out_r4_r5_1 = _mm256_add_epi32(
+      accum_out_r4_r5_1,
+      _mm256_add_epi32(_mm256_add_epi32(res_77, res_85), res_93));
+  accum_out_r4_r5_2 = _mm256_add_epi32(
+      accum_out_r4_r5_2,
+      _mm256_add_epi32(_mm256_add_epi32(res_78, res_86), res_94));
+  accum_out_r6_r7_1 = _mm256_add_epi32(
+      accum_out_r6_r7_1,
+      _mm256_add_epi32(_mm256_add_epi32(res_79, res_87), res_95));
+  accum_out_r6_r7_2 = _mm256_add_epi32(
+      accum_out_r6_r7_2,
+      _mm256_add_epi32(_mm256_add_epi32(res_80, res_88), res_96));
+
+  const __m256i fc13_9 = _mm256_broadcastd_epi32(_mm_unpacklo_epi16(
+      _mm_bsrli_si128(filt_coeff_2, 2), _mm_bsrli_si128(filt_coeff_1, 8)));
+  // fc10 fc11 - - - - - - | fc10 fc11 - - - - - -
+  const __m256i fc10_11 =
+      _mm256_broadcastd_epi32(_mm_bsrli_si128(filt_coeff_1, 10));
+  // fc16 fc11 - - - - - - | fc16 fc11 - - - - - -
+  const __m256i fc16_11 = _mm256_broadcastd_epi32(
+      _mm_bsrli_si128(_mm_shufflehi_epi16(filt_coeff_1, 0x1B), 8));
+  // fc10 fc9  - - - - - - | fc10 fc9 - - - - - -
+  const __m256i fc10_9 = _mm256_broadcastd_epi32(
+      _mm_bsrli_si128(_mm_shufflehi_epi16(filt_coeff_1, 0xE1), 8));
+
+  const __m128i zero = _mm_set1_epi16(0x0);
+  const __m256i fc13_z = _mm256_broadcastd_epi32(
+      _mm_unpacklo_epi16(_mm_bsrli_si128(filt_coeff_2, 2), zero));
+
+  // e0 e0 e1 e1 e2 e2 e3 e3 | f0 f0 f1 f1 f2 f2 f3 f3
+  const __m256i e0e0 = _mm256_unpacklo_epi16(ef0, ef0);
+  // e4 e4 e5 e5 e6 e6 e7 e7 | f4 f4 f5 f5 f6 f6 f7 f7
+  const __m256i e4e4 = _mm256_unpackhi_epi16(ef0, ef0);
+  // e8 e8 e9 e9 e10 e10 e11 e11 | f8 f8 f9 f9 f10 f10 f11 f11
+  const __m256i e8e8 = _mm256_unpacklo_epi16(ef8, ef8);
+  // e12 e12 e13 e13 e14 e14 e15 e15 | f12 f12 f13 f13 f14 f14 f15 f15
+  const __m256i e12e12 = _mm256_unpackhi_epi16(ef8, ef8);
+
+  // g0 g0 g1 g1 g2 g2 g3 g3 | h0 h0 h1 h1 h2 h2 h3 h3
+  const __m256i g0g0 = _mm256_unpacklo_epi16(gh0, gh0);
+  // g4 g4 g5 g5 g6 g6 g7 g7 | h4 h4 h5 h5 h6 h6 h7 h7
+  const __m256i g4g4 = _mm256_unpackhi_epi16(gh0, gh0);
+  // g8 g8 g9 g9 g10 g10 g11 g11 | h8 h8 h9 h9 h10 h10 h11 h11
+  const __m256i g8g8 = _mm256_unpacklo_epi16(gh8, gh8);
+  // g12 g12 g13 g13 g14 g14 g15 g15 | h12 h12 h13 h13 h14 h14 h15 h15
+  const __m256i g12g12 = _mm256_unpackhi_epi16(gh8, gh8);
+
+  // i0 i0 i1 i1 i2 i2 i3 i3 | j0 j0 j1 j1 j2 j2 j3 j3
+  const __m256i i0i0 = _mm256_unpacklo_epi16(ij0, ij0);
+  // i4 i4 i5 i5 i6 i6 i7 i7 | j4 j4 j5 j5 j6 j6 j7 j7
+  const __m256i i4i4 = _mm256_unpackhi_epi16(ij0, ij0);
+  // i8 i8 i9 i9 i10 i10 i11 i11 | j8 j8 j9 j9 j10 j10 j11 j11
+  const __m256i i8i8 = _mm256_unpacklo_epi16(ij8, ij8);
+  // i12 i12 i13 i13 i14 i14 i15 i15 | j12 j12 j13 j13 j14 j14 j15 j15
+  const __m256i i12i12 = _mm256_unpackhi_epi16(ij8, ij8);
+
+  // k0 k0 k1 k1 k2 k2 k3 k3 | l0 l0 l1 l1 l2 l2 l3 l3
+  const __m256i k0k0 = _mm256_unpacklo_epi16(kl0, kl0);
+  // k4 k4 k5 k5 k6 k6 k7 k7 | l4 l4 l5 l5 l6 l6 l7 l7
+  const __m256i k4k4 = _mm256_unpackhi_epi16(kl0, kl0);
+  // k8 k8 k9 k9 k10 k10 k11 k11 | l8 l8 l9 l9 l10 l10 l11 l11
+  const __m256i k8k8 = _mm256_unpacklo_epi16(kl8, kl8);
+  // k12 k12 k13 k13 k14 k14 k15 k15 | l12 l12 l13 l13 l14 l14 l15 l15
+  const __m256i k12k12 = _mm256_unpackhi_epi16(kl8, kl8);
+
+  // Pixel value corresponding filter coeff f13 and f9
+  // e0 e1 e1 e2 e2 e3 e3 e4 | f0 f1 f1 f2 f2 f3 f3 f4
+  __m256i e0e1 = _mm256_alignr_epi8(e4e4, e0e0, 2);
+  // g0 g1 g1 g2 g2 g3 g3 g4 | h0 h1 h1 h2 h2 h3 h3 h4
+  __m256i g0g1 = _mm256_alignr_epi8(g4g4, g0g0, 2);
+  // i0 i1 i1 i2 i2 i3 i3 i4 | j0 j1 j1 j2 j2 j3 j3 j4
+  __m256i i0i1 = _mm256_alignr_epi8(i4i4, i0i0, 2);
+  // k0 k1 k1 k2 k2 k3 k3 k4 | l0 l1 l1 l2 l2 l3 l3 l4
+  __m256i k0k1 = _mm256_alignr_epi8(k4k4, k0k0, 2);
+
+  // Pixel value corresponding filter coeff f10 and f11
+  // e2 e3 e3 e4 e4 e5 e5 e6 | f2 f3 f3 f4 f4 f5 f5 f6
+  __m256i e2e3 = _mm256_alignr_epi8(e4e4, e0e0, 10);
+  // g2 g3 g3 g4 g4 g5 g5 g6 | h2 h3 h3 h4 h4 h5 h5 h6
+  __m256i g2g3 = _mm256_alignr_epi8(g4g4, g0g0, 10);
+  // i2 i3 i3 i4 i4 i5 i5 i6 | j2 j3 j3 j4 j4 j5 j5 j6
+  __m256i i2i3 = _mm256_alignr_epi8(i4i4, i0i0, 10);
+  // k2 k3 k3 k4 k4 k5 k5 k6 | l2 l3 l3 l4 l4 l5 l5 l6
+  __m256i k2k3 = _mm256_alignr_epi8(k4k4, k0k0, 10);
+
+  // Pixel value corresponding filter coeff f16 and f11
+  // e4 e5 e5 e6 e6 e7 e7 e8 | f4 f5 f5 f6 f6 f7 f7 f8
+  __m256i e4e5 = _mm256_alignr_epi8(e8e8, e4e4, 2);
+  // g4 g5 g5 g6 g6 g7 g7 g8 | h4 h5 h5 h6 h6 h7 h7 h8
+  __m256i g4g5 = _mm256_alignr_epi8(g8g8, g4g4, 2);
+  // i4 i5 i5 i6 i6 i7 i7 i8 | j4 j5 j5 j6 j6 j7 j7 j8
+  __m256i i4i5 = _mm256_alignr_epi8(i8i8, i4i4, 2);
+  // k4 k5 k5 k6 k6 k7 k7 k8 | l4 l5 l5 l6 l6 l7 l7 l8
+  __m256i k4k5 = _mm256_alignr_epi8(k8k8, k4k4, 2);
+
+  // Pixel value corresponding filter coeff f10 and f9
+  // e6 e7 e7 e8 e8 e9 e9 e10 | f6 f7 f7 f8 f8 f9 f9 f10
+  __m256i e6e7 = _mm256_alignr_epi8(e8e8, e4e4, 10);
+  // g6 g7 g7 g8 g8 g9 g9 g10 | h6 h7 h7 h8 h8 h9 h9 h10
+  __m256i g6g7 = _mm256_alignr_epi8(g8g8, g4g4, 10);
+  // i6 i7 i7 i8 i8 i9 i9 i10 | j6 j7 j7 j8 j8 j9 j9 j10
+  __m256i i6i7 = _mm256_alignr_epi8(i8i8, i4i4, 10);
+  // k6 k7 k7 k8 k8 k9 k9 k10 | l6 l7 l7 l8 l8 l9 l9 l10
+  __m256i k6k7 = _mm256_alignr_epi8(k8k8, k4k4, 10);
+
+  // e8 e9 e9 e10 e10 e11 e11 e12 | f8 f9 f9 f10 f10 f11 f11 f12
+  __m256i e8e9 = _mm256_alignr_epi8(e12e12, e8e8, 2);
+  // g8 g9 g9 g10 g10 g11 g11 g12 | h8 h9 h9 h10 h10 h11 h11 h12
+  __m256i g8g9 = _mm256_alignr_epi8(g12g12, g8g8, 2);
+  // i8 i9 i9 i10 i10 i11 i11 i12 | j8 j9 j9 j10 j10 j11 j11 j12
+  __m256i i8i9 = _mm256_alignr_epi8(i12i12, i8i8, 2);
+  // k8 k9 k9 k10 k10 k11 k11 k12 | l8 l9 l9 l10 l10 l11 l11 l12
+  __m256i k8k9 = _mm256_alignr_epi8(k12k12, k8k8, 2);
+
+  // e10 e11 e11 e12 e12 e13 e13 e14 | f10 f11 f11 f12 f12 f13 f13 f14
+  __m256i e10e11 = _mm256_alignr_epi8(e12e12, e8e8, 10);
+  // g10 g11 g11 g12 g12 g13 g13 g14 | h10 h11 h11 h12 h12 h13 h13 h14
+  __m256i g10g11 = _mm256_alignr_epi8(g12g12, g8g8, 10);
+  // i10 i11 i11 i12 i12 i13 i13 i14 | j10 j11 j11 j12 j12 j13 j13 j14
+  __m256i i10i11 = _mm256_alignr_epi8(i12i12, i8i8, 10);
+  // k10 k11 k11 k12 k12 k13 k13 k14 | l10 l11 l11 l12 l12 l13 l13 l14
+  __m256i k10k11 = _mm256_alignr_epi8(k12k12, k8k8, 10);
+
+  __m256i res_97 = _mm256_madd_epi16(e0e1, fc13_9);
+  __m256i res_98 = _mm256_madd_epi16(e4e5, fc13_9);
+  __m256i res_99 = _mm256_madd_epi16(g0g1, fc13_9);
+  __m256i res_100 = _mm256_madd_epi16(g4g5, fc13_9);
+  __m256i res_101 = _mm256_madd_epi16(i0i1, fc13_9);
+  __m256i res_102 = _mm256_madd_epi16(i4i5, fc13_9);
+  __m256i res_103 = _mm256_madd_epi16(k0k1, fc13_9);
+  __m256i res_104 = _mm256_madd_epi16(k4k5, fc13_9);
+
+  __m256i res_105 = _mm256_madd_epi16(e2e3, fc10_11);
+  __m256i res_106 = _mm256_madd_epi16(e6e7, fc10_11);
+  __m256i res_107 = _mm256_madd_epi16(g2g3, fc10_11);
+  __m256i res_108 = _mm256_madd_epi16(g6g7, fc10_11);
+  __m256i res_109 = _mm256_madd_epi16(i2i3, fc10_11);
+  __m256i res_110 = _mm256_madd_epi16(i6i7, fc10_11);
+  __m256i res_111 = _mm256_madd_epi16(k2k3, fc10_11);
+  __m256i res_112 = _mm256_madd_epi16(k6k7, fc10_11);
+
+  __m256i res_113 = _mm256_madd_epi16(e4e5, fc16_11);
+  __m256i res_114 = _mm256_madd_epi16(e8e9, fc16_11);
+  __m256i res_115 = _mm256_madd_epi16(g4g5, fc16_11);
+  __m256i res_116 = _mm256_madd_epi16(g8g9, fc16_11);
+  __m256i res_117 = _mm256_madd_epi16(i4i5, fc16_11);
+  __m256i res_118 = _mm256_madd_epi16(i8i9, fc16_11);
+  __m256i res_119 = _mm256_madd_epi16(k4k5, fc16_11);
+  __m256i res_120 = _mm256_madd_epi16(k8k9, fc16_11);
+
+  __m256i res_121 = _mm256_madd_epi16(e6e7, fc10_9);
+  __m256i res_122 = _mm256_madd_epi16(e10e11, fc10_9);
+  __m256i res_123 = _mm256_madd_epi16(g6g7, fc10_9);
+  __m256i res_124 = _mm256_madd_epi16(g10g11, fc10_9);
+  __m256i res_125 = _mm256_madd_epi16(i6i7, fc10_9);
+  __m256i res_126 = _mm256_madd_epi16(i10i11, fc10_9);
+  __m256i res_127 = _mm256_madd_epi16(k6k7, fc10_9);
+  __m256i res_128 = _mm256_madd_epi16(k10k11, fc10_9);
+
+  __m256i res_129 = _mm256_madd_epi16(e8e8, fc13_z);
+  __m256i res_130 = _mm256_madd_epi16(e12e12, fc13_z);
+  __m256i res_131 = _mm256_madd_epi16(g8g8, fc13_z);
+  __m256i res_132 = _mm256_madd_epi16(g12g12, fc13_z);
+  __m256i res_133 = _mm256_madd_epi16(i8i8, fc13_z);
+  __m256i res_134 = _mm256_madd_epi16(i12i12, fc13_z);
+  __m256i res_135 = _mm256_madd_epi16(k8k8, fc13_z);
+  __m256i res_136 = _mm256_madd_epi16(k12k12, fc13_z);
+
+  accum_out_r0_r1_1 = _mm256_add_epi32(
+      accum_out_r0_r1_1,
+      _mm256_add_epi32(
+          _mm256_add_epi32(
+              _mm256_add_epi32(_mm256_add_epi32(res_97, res_105), res_113),
+              res_121),
+          res_129));
+  accum_out_r0_r1_2 = _mm256_add_epi32(
+      accum_out_r0_r1_2,
+      _mm256_add_epi32(
+          _mm256_add_epi32(
+              _mm256_add_epi32(_mm256_add_epi32(res_98, res_106), res_114),
+              res_122),
+          res_130));
+  accum_out_r2_r3_1 = _mm256_add_epi32(
+      accum_out_r2_r3_1,
+      _mm256_add_epi32(
+          _mm256_add_epi32(
+              _mm256_add_epi32(_mm256_add_epi32(res_99, res_107), res_115),
+              res_123),
+          res_131));
+  accum_out_r2_r3_2 = _mm256_add_epi32(
+      accum_out_r2_r3_2,
+      _mm256_add_epi32(
+          _mm256_add_epi32(
+              _mm256_add_epi32(_mm256_add_epi32(res_100, res_108), res_116),
+              res_124),
+          res_132));
+  accum_out_r4_r5_1 = _mm256_add_epi32(
+      accum_out_r4_r5_1,
+      _mm256_add_epi32(
+          _mm256_add_epi32(
+              _mm256_add_epi32(_mm256_add_epi32(res_101, res_109), res_117),
+              res_125),
+          res_133));
+  accum_out_r4_r5_2 = _mm256_add_epi32(
+      accum_out_r4_r5_2,
+      _mm256_add_epi32(
+          _mm256_add_epi32(
+              _mm256_add_epi32(_mm256_add_epi32(res_102, res_110), res_118),
+              res_126),
+          res_134));
+  accum_out_r6_r7_1 = _mm256_add_epi32(
+      accum_out_r6_r7_1,
+      _mm256_add_epi32(
+          _mm256_add_epi32(
+              _mm256_add_epi32(_mm256_add_epi32(res_103, res_111), res_119),
+              res_127),
+          res_135));
+  accum_out_r6_r7_2 = _mm256_add_epi32(
+      accum_out_r6_r7_2,
+      _mm256_add_epi32(
+          _mm256_add_epi32(
+              _mm256_add_epi32(_mm256_add_epi32(res_104, res_112), res_120),
+              res_128),
+          res_136));
+
+  // Rounding and clipping.
+  accum_out_r0_r1_1 = round_power_of_two_signed_avx2(accum_out_r0_r1_1,
+                                                     filter_config->prec_bits);
+  accum_out_r0_r1_2 = round_power_of_two_signed_avx2(accum_out_r0_r1_2,
+                                                     filter_config->prec_bits);
+  accum_out_r2_r3_1 = round_power_of_two_signed_avx2(accum_out_r2_r3_1,
+                                                     filter_config->prec_bits);
+  accum_out_r2_r3_2 = round_power_of_two_signed_avx2(accum_out_r2_r3_2,
+                                                     filter_config->prec_bits);
+  accum_out_r4_r5_1 = round_power_of_two_signed_avx2(accum_out_r4_r5_1,
+                                                     filter_config->prec_bits);
+  accum_out_r4_r5_2 = round_power_of_two_signed_avx2(accum_out_r4_r5_2,
+                                                     filter_config->prec_bits);
+  accum_out_r6_r7_1 = round_power_of_two_signed_avx2(accum_out_r6_r7_1,
+                                                     filter_config->prec_bits);
+  accum_out_r6_r7_2 = round_power_of_two_signed_avx2(accum_out_r6_r7_2,
+                                                     filter_config->prec_bits);
+
+  const __m256i max = _mm256_set1_epi16((1 << bit_depth) - 1);
+  const __m256i zero_256 = _mm256_setzero_si256();
+
+  __m256i accum_out_r0_r1 =
+      _mm256_packs_epi32(accum_out_r0_r1_1, accum_out_r0_r1_2);
+  __m256i accum_out_r2_r3 =
+      _mm256_packs_epi32(accum_out_r2_r3_1, accum_out_r2_r3_2);
+  __m256i accum_out_r4_r5 =
+      _mm256_packs_epi32(accum_out_r4_r5_1, accum_out_r4_r5_2);
+  __m256i accum_out_r6_r7 =
+      _mm256_packs_epi32(accum_out_r6_r7_1, accum_out_r6_r7_2);
+
+  __m256i out_r0_r1 = highbd_clamp_epi16(accum_out_r0_r1, zero_256, max);
+  __m256i out_r2_r3 = highbd_clamp_epi16(accum_out_r2_r3, zero_256, max);
+  __m256i out_r4_r5 = highbd_clamp_epi16(accum_out_r4_r5, zero_256, max);
+  __m256i out_r6_r7 = highbd_clamp_epi16(accum_out_r6_r7, zero_256, max);
+
+  // Store the output.
+  const int dst_id = block_row_begin * dst_stride + block_col_begin;
+  _mm256_storeu2_m128i((__m128i *)(dst + dst_id + (1 * dst_stride)),
+                       (__m128i *)(dst + dst_id), out_r0_r1);
+  _mm256_storeu2_m128i((__m128i *)(dst + dst_id + (3 * dst_stride)),
+                       (__m128i *)(dst + dst_id + (2 * dst_stride)), out_r2_r3);
+  _mm256_storeu2_m128i((__m128i *)(dst + dst_id + (5 * dst_stride)),
+                       (__m128i *)(dst + dst_id + (4 * dst_stride)), out_r4_r5);
+  _mm256_storeu2_m128i((__m128i *)(dst + dst_id + (7 * dst_stride)),
+                       (__m128i *)(dst + dst_id + (6 * dst_stride)), out_r6_r7);
+}
+
 // SIMD implementation to convolve a block of pixels with origin-symmetric, pc
 // wiener filter corresponds to CONFIG_PC_WIENER loop restoration. DIAMOND shape
 // with 13-tap (12 symmetric+1) or 7-tap (6 symmetric + 1) filter is used for
@@ -1591,6 +3273,59 @@ void av1_convolve_symmetric_highbd_avx2(const uint16_t *dgd, int stride,
                                             block_row_begin, block_col_begin);
   } else {
     av1_convolve_symmetric_highbd_c(
+        dgd, stride, filter_config, filter, dst, dst_stride, bit_depth,
+        block_row_begin, block_row_end, block_col_begin, block_col_end);
+  }
+}
+
+void av1_convolve_symmetric_blk8x8_highbd_avx2(
+    const uint16_t *dgd, int stride, const NonsepFilterConfig *filter_config,
+    const int16_t *filter, uint16_t *dst, int dst_stride, int bit_depth,
+    int block_row_begin, int block_row_end, int block_col_begin,
+    int block_col_end) {
+  assert(!filter_config->subtract_center);
+
+  const int num_rows = block_row_end - block_row_begin;
+  const int num_cols = block_col_end - block_col_begin;
+
+  if (num_rows == 8 && num_cols == 8 &&
+      (filter_config->config == wienerns_simd_large_config_y ||
+       !memcmp(wienerns_simd_large_config_y, filter_config->config,
+               filter_config->num_pixels * 3 *
+                   sizeof(filter_config->config[0][0])))) {
+    if (filter[12] == 0 && filter[13] == 0 && filter[14] == 0 &&
+        filter[15] == 0) {
+      int16_t filter_[13];
+      memcpy(filter_, filter, 13 * sizeof(filter[0]));
+      filter_[12] = filter[16];
+      const NonsepFilterConfig filter_config_ = { filter_config->prec_bits,
+                                                  25,
+                                                  0,
+                                                  wienerns_simd_config_y,
+                                                  NULL,
+                                                  0,
+                                                  0,
+                                                  0,
+                                                  0 };
+      av1_convolve_symmetric_highbd_13tap_blk8x8_avx2(
+          dgd, stride, &filter_config_, filter_, dst, dst_stride, bit_depth, 0,
+          0);
+    } else {
+      av1_convolve_symmetric_highbd_16tap9x9_blk8x8_avx2(
+          dgd, stride, filter_config, filter, dst, dst_stride, bit_depth, 0, 0);
+    }
+    return;
+  }
+  if (num_rows == 8 && num_cols == 8 &&
+      (filter_config->config == wienerns_simd_config_y ||
+       !memcmp(wienerns_simd_config_y, filter_config->config,
+               filter_config->num_pixels * 3 *
+                   sizeof(filter_config->config[0][0])))) {
+    av1_convolve_symmetric_highbd_13tap_blk8x8_avx2(
+        dgd, stride, filter_config, filter, dst, dst_stride, bit_depth,
+        block_row_begin, block_col_begin);
+  } else {
+    av1_convolve_symmetric_highbd(
         dgd, stride, filter_config, filter, dst, dst_stride, bit_depth,
         block_row_begin, block_row_end, block_col_begin, block_col_end);
   }
