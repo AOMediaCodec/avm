@@ -1303,17 +1303,21 @@ void av1_filter_block_plane_vert(const AV1_COMMON *const cm,
           get_lossless_flag(cm, curr_x, curr_y, scale_horz, scale_vert);
       bool is_lossless_prev_block =
           get_lossless_flag(cm, prev_x, curr_y, scale_horz, scale_vert);
-      if (is_lossless_current_block) params.filter_length_pos = 0;
-      if (is_lossless_prev_block) params.filter_length_neg = 0;
+      bool skip_deblock_lossless =
+          is_lossless_current_block && is_lossless_prev_block;
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 #if CONFIG_ASYM_DF
-      if (params.filter_length_neg || params.filter_length_pos) {
+      if (
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+          !skip_deblock_lossless &&
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+          (params.filter_length_neg || params.filter_length_pos)) {
 #else
       if (params.filter_length) {
 #endif  // CONFIG_ASYM_DF
 
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-        if (params.filter_length_neg && params.filter_length_pos) {
+        if (!(is_lossless_prev_block || is_lossless_current_block)) {
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 
           aom_highbd_lpf_vertical_generic(
@@ -1328,6 +1332,10 @@ void av1_filter_block_plane_vert(const AV1_COMMON *const cm,
               ,
               4
 #endif  // CONFIG_LF_SUB_PU  && !CONFIG_IMPROVE_TIP_LF
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+              ,
+              is_lossless_prev_block, is_lossless_current_block
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
           );
 
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
@@ -1344,6 +1352,10 @@ void av1_filter_block_plane_vert(const AV1_COMMON *const cm,
               ,
               4
 #endif  // CONFIG_LF_SUB_PU  && !CONFIG_IMPROVE_TIP_LF
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+              ,
+              is_lossless_prev_block, is_lossless_current_block
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
           );
         }
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
@@ -1415,18 +1427,22 @@ void av1_filter_block_plane_horz(const AV1_COMMON *const cm,
           get_lossless_flag(cm, curr_x, curr_y, scale_horz, scale_vert);
       bool is_lossless_prev_block =
           get_lossless_flag(cm, curr_x, prev_y, scale_horz, scale_vert);
-      if (is_lossless_current_block) params.filter_length_pos = 0;
-      if (is_lossless_prev_block) params.filter_length_neg = 0;
+      bool skip_deblock_lossless =
+          is_lossless_current_block && is_lossless_prev_block;
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 
 #if CONFIG_ASYM_DF
-      if (params.filter_length_neg || params.filter_length_pos) {
+      if (
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+          !skip_deblock_lossless &&
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+          (params.filter_length_neg || params.filter_length_pos)) {
 #else
       if (params.filter_length) {
 #endif  // CONFIG_ASYM_DF
 
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-        if (params.filter_length_neg && params.filter_length_pos) {
+        if (!(is_lossless_current_block || is_lossless_prev_block)) {
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 
           aom_highbd_lpf_horizontal_generic(
@@ -1441,6 +1457,10 @@ void av1_filter_block_plane_horz(const AV1_COMMON *const cm,
               ,
               4
 #endif  // CONFIG_LF_SUB_PU && !CONFIG_IMPROVE_TIP_LF
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+              ,
+              is_lossless_prev_block, is_lossless_current_block
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
           );
 
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
@@ -1457,6 +1477,10 @@ void av1_filter_block_plane_horz(const AV1_COMMON *const cm,
               ,
               4
 #endif  // CONFIG_LF_SUB_PU && !CONFIG_IMPROVE_TIP_LF
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+              ,
+              is_lossless_prev_block, is_lossless_current_block
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
           );
         }
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
@@ -1674,6 +1698,10 @@ AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
             ,
             sub_bh
 #endif  //! CONFIG_IMPROVE_TIP_LF
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+            ,
+            0, 0
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
         );
       }
 #if CONFIG_IMPROVE_TIP_LF
@@ -1705,6 +1733,10 @@ AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
             ,
             sub_bw
 #endif  //! CONFIG_IMPROVE_TIP_LF
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+            ,
+            0, 0
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
         );
       }
 #if CONFIG_IMPROVE_TIP_LF
