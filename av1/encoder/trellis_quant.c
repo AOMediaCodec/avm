@@ -11,7 +11,7 @@
  */
 
 #include "av1/encoder/trellis_quant.h"
-
+#include "av1/encoder/encodetxb.h"
 #include "aom_ports/mem.h"
 #include "av1/common/blockd.h"
 #include "av1/common/cost.h"
@@ -1320,10 +1320,8 @@ int av1_trellis_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
                 cm->delta_q_info.delta_q_present_flag && x->sb_energy_level < 0
             ? (3 - x->sb_energy_level)
             : 0));
-  int64_t rdmult = (((int64_t)x->rdmult * (plane_rd_mult[is_inter][plane_type]
-                                           << (2 * (xd->bd - 8)))) +
-                    2) >>
-                   rshift;
+  int64_t rdmult = av1_compute_rdmult_for_plane(
+      x->rdmult, plane_rd_mult[is_inter][plane_type], xd->bd, rshift);
 
   int si = eob - 1;
   // populate trellis

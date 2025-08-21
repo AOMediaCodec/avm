@@ -11,7 +11,6 @@
  */
 
 #include "av1/encoder/encodetxb.h"
-
 #include "aom_ports/mem.h"
 #include "av1/common/blockd.h"
 #include "av1/common/hr_coding.h"
@@ -3807,11 +3806,8 @@ int av1_optimize_fsc_block(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
                 cm->delta_q_info.delta_q_present_flag && x->sb_energy_level < 0
             ? (3 - x->sb_energy_level)
             : 0));
-  const int64_t rdmult =
-      (((int64_t)x->rdmult *
-        (plane_rd_mult[is_inter][plane_type] << (2 * (xd->bd - 8)))) +
-       2) >>
-      rshift;
+  int64_t rdmult = av1_compute_rdmult_for_plane(
+      x->rdmult, plane_rd_mult[is_inter][plane_type], xd->bd, rshift);
   uint8_t levels_buf[TX_PAD_2D];
   int8_t signs_buf[TX_PAD_2D];
   uint8_t *const levels = set_levels(levels_buf, width);
@@ -3962,12 +3958,8 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
                 cm->delta_q_info.delta_q_present_flag && x->sb_energy_level < 0
             ? (3 - x->sb_energy_level)
             : 0));
-  const int64_t rdmult =
-      (((int64_t)x->rdmult *
-        (plane_rd_mult[is_inter][plane_type] << (2 * (xd->bd - 8)))) +
-       2) >>
-      rshift;
-
+  int64_t rdmult = av1_compute_rdmult_for_plane(
+      x->rdmult, plane_rd_mult[is_inter][plane_type], xd->bd, rshift);
   uint8_t levels_buf[TX_PAD_2D];
   uint8_t *const levels = set_levels(levels_buf, width);
 

@@ -614,6 +614,18 @@ static const int plane_rd_mult[REF_TYPES][PLANE_TYPES] = {
 };
 /*!\endcond */
 
+// Calculate lambda for current transform block. The lambda is used by both the
+// new TCQ and legacy trellis quant in RDO
+static INLINE int64_t av1_compute_rdmult_for_plane(int64_t base_rdmult,
+                                                   int plane_rdmult,
+                                                   int bit_depth, int rshift) {
+  const int plane_rdmult_factor = plane_rdmult << (2 * (bit_depth - 8));
+  int64_t rdmult = base_rdmult * plane_rdmult_factor + 2;
+  rdmult = rdmult >> rshift;
+  rdmult = clamp64(rdmult, 0, (1LL << 32) - 1);
+  return rdmult;
+}
+
 int get_tx_type_cost(const MACROBLOCK *x, const MACROBLOCKD *xd, int plane,
                      TX_SIZE tx_size, TX_TYPE tx_type, int reduced_tx_set_used,
                      int eob, int bob_code, int is_fsc);
