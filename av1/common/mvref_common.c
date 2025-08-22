@@ -1204,10 +1204,7 @@ static AOM_INLINE void add_ref_mv_candidate(
           cand_refmv.as_int = cand_tip_mvs[ref].as_int;
           cand_ref_frame = cand_tip_ref_frames[ref];
         } else {
-          const int is_gm_block = is_global_mv_block(
-              candidate, gm_params[candidate->ref_frame[ref]].wmtype);
-          cand_refmv = is_gm_block ? gm_mv_candidates[0]
-                                   : get_block_mv(candidate, submi, ref);
+          cand_refmv = get_block_mv(candidate, submi, ref);
           cand_ref_frame = candidate->ref_frame[ref];
         }
 
@@ -1423,11 +1420,7 @@ static AOM_INLINE void add_ref_mv_candidate(
             if (!is_inter_ref_frame(candidate->ref_frame[ref]) ||
                 is_tip_ref_frame(candidate->ref_frame[ref]))
               continue;
-            const int is_gm_block = is_global_mv_block(
-                candidate, gm_params[candidate->ref_frame[ref]].wmtype);
-            const int_mv cand_refmv = is_gm_block
-                                          ? gm_mv_candidates[ref]
-                                          : get_block_mv(candidate, submi, ref);
+            const int_mv cand_refmv = get_block_mv(candidate, submi, ref);
 
             int this_tpl_row = mi_row >> 1;
             int this_tpl_col = mi_col >> 1;
