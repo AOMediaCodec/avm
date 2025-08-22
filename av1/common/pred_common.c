@@ -304,9 +304,9 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
     if (cm->remapped_ref_idx[i] == INVALID_IDX)
       cm->remapped_ref_idx[i] = scores[0].index;
 #if CONFIG_ACROSS_SCALE_REF_OPT
-      if (!resolution_available &&
-          cm->remapped_ref_idx_res_indep[i] == INVALID_IDX)
-        cm->remapped_ref_idx_res_indep[i] = scores[0].index;
+    if (!resolution_available &&
+        cm->remapped_ref_idx_res_indep[i] == INVALID_IDX)
+      cm->remapped_ref_idx_res_indep[i] = scores[0].index;
 #endif  // CONFIG_ACROSS_SCALE_REF_OPT
   }
   return n_ranked;
