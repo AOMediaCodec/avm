@@ -362,13 +362,12 @@ static int cfl_rd_pick_alpha(MACROBLOCK *const x, const AV1_COMP *const cpi,
   assert(xd->tree_type != LUMA_PART);
   const BLOCK_SIZE plane_bsize = get_mb_plane_block_size(
       xd, mbmi, PLANE_TYPE_UV, pd->subsampling_x, pd->subsampling_y);
-
-  assert(is_cfl_allowed(
 #if CONFIG_CWG_F307_CFL_SEQ_FLAG
-             cpi->oxcf.intra_mode_cfg.enable_cfl_intra,
-#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
-             xd) &&
+  assert(is_cfl_allowed(cpi->oxcf.intra_mode_cfg.enable_cfl_intra, xd) &&
          cpi->oxcf.intra_mode_cfg.enable_cfl_intra);
+#else
+  assert(is_cfl_allowed(xd) && cpi->oxcf.intra_mode_cfg.enable_cfl_intra);
+#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
 
   assert(plane_bsize < BLOCK_SIZES_ALL);
   if (!xd->lossless[mbmi->segment_id]) {
@@ -815,12 +814,12 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
           && cm->seq_params.enable_cfl_intra
 #endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
       ) {
-        assert(is_cfl_allowed(
 #if CONFIG_CWG_F307_CFL_SEQ_FLAG
-                   cm->seq_params.enable_cfl_intra,
-#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
-                   xd) &&
+        assert(is_cfl_allowed(cm->seq_params.enable_cfl_intra, xd) &&
                intra_mode_cfg->enable_cfl_intra);
+#else
+        assert(is_cfl_allowed(xd) && intra_mode_cfg->enable_cfl_intra);
+#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
       }
       this_rd = RDCOST(x->rdmult, this_rate, tokenonly_rd_stats.dist);
 
@@ -870,13 +869,15 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
 #if CONFIG_CWG_F307_CFL_SEQ_FLAG
   if (cm->seq_params.enable_cfl_intra)
 #endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
-    assert(IMPLIES(xd->tree_type == CHROMA_PART && mbmi->uv_mode == UV_CFL_PRED,
-                   is_cfl_allowed(
 #if CONFIG_CWG_F307_CFL_SEQ_FLAG
-                       cm->seq_params.enable_cfl_intra,
-#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
-                       xd) &&
+    assert(IMPLIES(xd->tree_type == CHROMA_PART && mbmi->uv_mode == UV_CFL_PRED,
+                   is_cfl_allowed(cm->seq_params.enable_cfl_intra, xd) &&
                        xd->is_cfl_allowed_in_sdp == CFL_ALLOWED_FOR_CHROMA));
+#else
+  assert(IMPLIES(xd->tree_type == CHROMA_PART && mbmi->uv_mode == UV_CFL_PRED,
+                 is_cfl_allowed(xd) &&
+                     xd->is_cfl_allowed_in_sdp == CFL_ALLOWED_FOR_CHROMA));
+#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
 #endif  // CONFIG_SDP_CFL_LATENCY_FIX
   // Copy back the best cross-chroma txfm type (tmp_cctx_type_map)
   // to xd->cctx_type_map.

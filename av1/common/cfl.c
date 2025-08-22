@@ -610,11 +610,11 @@ void cfl_predict_block(
 #if CONFIG_CWG_F307_CFL_SEQ_FLAG
   if (!seq_enable_cfl_intra) return;
 #endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
-  assert(is_cfl_allowed(
 #if CONFIG_CWG_F307_CFL_SEQ_FLAG
-      seq_enable_cfl_intra,
+  assert(is_cfl_allowed(seq_enable_cfl_intra, xd));
+#else
+  assert(is_cfl_allowed(xd));
 #endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
-      xd));
   cfl_compute_parameters_alt(cfl, tx_size);
   int alpha_q3;
 #if MHCCP_RUNTIME_FLAG
