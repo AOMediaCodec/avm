@@ -329,7 +329,7 @@ static INLINE void av1_scale_warp_model(const WarpedMotionParams *in_params,
     out_distance = -out_distance;
   }
 #if CONFIG_DIV_LUT_SIMP
-  const int input_max = (1 << 23) - 1;
+  const int input_max = (1 << 22) - 1;
 #endif  // CONFIG_DIV_LUT_SIMP
 
   out_params->wmtype = in_params->wmtype;
@@ -343,11 +343,11 @@ static INLINE void av1_scale_warp_model(const WarpedMotionParams *in_params,
     const int16_t inv_divisor =
         resolve_divisor_32((uint32_t)abs(in_distance), &shift) *
         (in_distance < 0 ? -1 : 1);
-    // input: 24 bits, in/out_distance: 8 bits (get_relative_dist output limit)
-    // Intermediate result is in 32 bits (input: 24 bits, inv_divisor: 8 bits).
-    // output is in 24 bits because abs(inv_divisor) < (1<<shift)
+    // input: 23 bits, in/out_distance: 8 bits (get_relative_dist output limit)
+    // Intermediate result is in 32 bits (input: 23 bits, inv_divisor: 9 bits).
+    // output is in 23 bits because abs(inv_divisor) < (1<<shift)
     int output = ROUND_POWER_OF_TWO_SIGNED(input * inv_divisor, shift);
-    // Intermediate result is in 32 bits (24 bits * 8 bits)
+    // Intermediate result is in 31 bits (23 bits * 8 bits)
     output =
         ROUND_POWER_OF_TWO_SIGNED(output * out_distance, param_shift[param]);
 #else
