@@ -375,11 +375,29 @@ static int64_t intra_model_yrd(const AV1_COMP *const cpi, MACROBLOCK *const x,
   mbmi->txb_idx = 0;
 
   // Prediction.
+#if CONFIG_TU64_TRAVERSED_ORDER
+  int row128, col128;
+  int mu128_wide = mi_size_wide[BLOCK_128X128];
+  int mu128_high = mi_size_high[BLOCK_128X128];
+  // Loop through each 128x128 block within the current coding block
+  for (row128 = 0; row128 < max_blocks_high; row128 += mu128_high) {
+    for (col128 = 0; col128 < max_blocks_wide; col128 += mu128_wide) {
+      // Loop through each 64x64 block within the current 128x128 block
+      for (row = row128; row < AOMMIN(row128 + mu128_high, max_blocks_high);
+           row += stepr) {
+        for (col = col128; col < AOMMIN(col128 + mu128_wide, max_blocks_wide);
+             col += stepc) {
+#else
   for (row = 0; row < max_blocks_high; row += stepr) {
     for (col = 0; col < max_blocks_wide; col += stepc) {
-      av1_predict_intra_block_facade(cm, xd, 0, col, row, tx_size);
+#endif  // CONFIG_TU64_TRAVERSED_ORDER
+          av1_predict_intra_block_facade(cm, xd, 0, col, row, tx_size);
+        }
+      }
+#if CONFIG_TU64_TRAVERSED_ORDER
     }
   }
+#endif  // CONFIG_TU64_TRAVERSED_ORDER
   // RD estimation.
   model_rd_sb_fn[MODELRD_TYPE_INTRA](
       cpi, bsize, x, xd, 0, 0, &this_rd_stats.rate, &this_rd_stats.dist,

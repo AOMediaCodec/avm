@@ -1103,6 +1103,15 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
     mu_blocks_high = AOMMIN(max_blocks_high, mu_blocks_high);
 
 #if CONFIG_TU64_TRAVERSED_ORDER
+    // For 256x256 and 256x128 coding blocks, the coefficents/resdiuals are
+    // divided into 64x* blocks, and each 64x64 block is coded in 128x128 unit.
+    // For example, for a 256x256 coding block, the coding order of 64x64
+    // residual blocks are following:
+    // A B E F
+    // C D G H
+    // I J M N
+    // K L O P
+
     // Loop through each 128x128 block within the current coding block
     for (int row128 = 0; row128 < max_blocks_high; row128 += mu128_high) {
       for (int col128 = 0; col128 < max_blocks_wide; col128 += mu128_wide) {

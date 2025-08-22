@@ -92,25 +92,29 @@ static int has_top_right(const AV1_COMMON *cm, const MACROBLOCKD *xd,
     if (block_size_wide[bsize] > block_size_wide[BLOCK_64X64]) {
       // Special case: For 256 and 128 blocks, if the tx unit's top right center
       // is aligned with 64x64 boundary and we are not at the right most column,
+#if CONFIG_TU64_TRAVERSED_ORDER
+      // then the tx unit may have pixels available at its top-right corner.
+#else
       // then the tx unit does in fact have pixels available at its top-right
       // corner.
+#endif  // CONFIG_TU64_TRAVERSED_ORDER
       const int tr_col = col_off + top_right_count_unit;
       const int plane_bh_unit_64 = mi_size_high[BLOCK_64X64] >> ss_y;
-#if CONFIG_TU64_TRAVERSED_ORDER
-      const int plane_bw_unit_128 = mi_size_wide[BLOCK_128X128] >> ss_x;
-      if (tr_col % plane_bw_unit_64 == 0 && row_off % plane_bh_unit_64 == 0) {
-        // Since 64x64 TUs are decoded in 128x128 units, the top-right reference
-        // samples of the bottom-right 64x64 transform block within a 128x128
-        // block, i.e., (row_off > 0 && (tr_col % plane_bw_unit_128)), are
-        // unavailable
-        return (tr_col % plane_bw_unit_128) ? 1 : 0;
-      }
-#else
       if (tr_col != plane_bw_unit && tr_col % plane_bw_unit_64 == 0 &&
           row_off % plane_bh_unit_64 == 0) {
+#if CONFIG_TU64_TRAVERSED_ORDER
+        const int plane_bw_unit_128 = mi_size_wide[BLOCK_128X128] >> ss_x;
+        // Since 64x64 TUs are decoded in 128x128 units, the top-right reference
+        // samples of the top-right transform block in the bottom-right 64x64
+        // transform block within a 128x128 block, i.e., ((row_off %
+        // plane_bw_unit_128) && !(tr_col % plane_bw_unit_128)), are unavailable
+        return ((row_off % plane_bw_unit_128) && !(tr_col % plane_bw_unit_128))
+                   ? 0
+                   : 1;
+#else
         return 1;
-      }
 #endif  // CONFIG_TU64_TRAVERSED_ORDER
+      }
       const int col_off_64 = col_off % plane_bw_unit_64;
       return col_off_64 + top_right_count_unit < plane_bw_unit_64;
     }
@@ -192,9 +196,20 @@ static int has_bottom_left(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   }
   *px_bottom_left = px_bl_common;
 
+#if CONFIG_TU64_TRAVERSED_ORDER
+  // Special case for 256x* and 128x* coding blocks. This is needed because
+  // 256x* and 128x* coding blocks are divided into 64x* blocks, and each 64x*
+  // block is coded in 128x* unit. For example, for a 256x256 coding block, the
+  // coding order of 64x64 residual blocks are following
+  // A B E F
+  // C D G H
+  // I J M N
+  // K L O P
+#else
   // Special case for 128x* blocks, when col_off is half the block width.
   // This is needed because 128x* superblocks are divided into 64x* blocks in
   // raster order
+#endif  // CONFIG_TU64_TRAVERSED_ORDER
   if (block_size_wide[bsize] > block_size_wide[BLOCK_64X64] && col_off > 0) {
     const int plane_bw_unit_64 = mi_size_wide[BLOCK_64X64] >> ss_x;
     const int col_off_64 = col_off % plane_bw_unit_64;
