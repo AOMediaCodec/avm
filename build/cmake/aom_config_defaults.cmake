@@ -258,6 +258,8 @@ set_aom_config_var(
   CONFIG_QM_DEBUG 0
   "Enable debug information for extension to AV1 quantization matrices.")
 
+set_aom_config_var(CONFIG_CWG_F248_RENDER_SIZE 1 "Remove render size.")
+
 set_aom_config_var(CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION 1
                    "Enable to reduce context model line buffer size")
 
