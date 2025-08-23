@@ -9580,8 +9580,7 @@ int32_t read_tilegroup_header(AV1Decoder *pbi, struct aom_read_bit_buffer *rb,
         (uint32_t)aom_rb_bytes_read(rb);  // Size of the uncompressed header
     YV12_BUFFER_CONFIG *new_fb = &cm->cur_frame->buf;
     xd->cur_buf = new_fb;
-    if (av1_allow_intrabc(cm, xd, BLOCK_4X4) &&
-        xd->tree_type != CHROMA_PART) {
+    if (av1_allow_intrabc(cm, xd, BLOCK_4X4) && xd->tree_type != CHROMA_PART) {
       av1_setup_scale_factors_for_frame(
           &cm->sf_identity, xd->cur_buf->y_crop_width,
           xd->cur_buf->y_crop_height, xd->cur_buf->y_crop_width,

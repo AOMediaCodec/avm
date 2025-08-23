@@ -7728,10 +7728,10 @@ static uint32_t write_frame_header_obu(AV1_COMP *cpi,
 
 static uint32_t write_tile_group_header(
 #if CONFIG_BRU_TILE_FLAG
-                                            AV1_COMMON *const cm,
+    AV1_COMMON *const cm,
 #endif  // CONFIG_BRU_TILE_FLAG
-                                            uint8_t *const dst, int start_tile, int end_tile, int tiles_log2,
-                                            int tile_start_and_end_present_flag){
+    uint8_t *const dst, int start_tile, int end_tile, int tiles_log2,
+    int tile_start_and_end_present_flag) {
   struct aom_write_bit_buffer wb = { dst, 0 };
   uint32_t size = 0;
 
@@ -8572,14 +8572,13 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
                       (!cm->seq_params.order_hint_info.enable_order_hint &&
                        encode_show_existing_frame(cm));
 #else
-                  const bool non_signaled_show_existing_frame =
-                      (cm->seq_params.order_hint_info.enable_order_hint &&
-                       cm->seq_params.enable_frame_output_order &&
-                       cm->show_existing_frame &&
-                       !cm->features.error_resilient_mode) ||
-                      ((!cm->seq_params.order_hint_info.enable_order_hint ||
-                        !cm->seq_params.enable_frame_output_order) &&
-                       encode_show_existing_frame(cm));
+  const bool non_signaled_show_existing_frame =
+      (cm->seq_params.order_hint_info.enable_order_hint &&
+       cm->seq_params.enable_frame_output_order && cm->show_existing_frame &&
+       !cm->features.error_resilient_mode) ||
+      ((!cm->seq_params.order_hint_info.enable_order_hint ||
+        !cm->seq_params.enable_frame_output_order) &&
+       encode_show_existing_frame(cm));
 #endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT &&
         // CONFIG_F253_REMOVE_OUTPUTFLAG
   const bool non_signaled_frame =
