@@ -3103,11 +3103,29 @@ typedef struct AV1_COMP {
   int tip_mode_count[INTER_REFS_PER_FRAME];
 #endif  // CONFIG_TIP_LD
 #if CONFIG_MULTILAYER_HLS
+  /*!
+   * flag to write Layer Config Record (LCR) OBU
+   */
   int write_lcr;
-  int write_ops;
-  int write_atlas;
-  struct OperatingPointSet ops_list[MAX_NUM_OPS_ID];
+  /*!
+   * list for Layer Config Record (LCR) information
+   */
   struct LayerConfigurationRecord lcr_list[MAX_NUM_LCR];
+  /*!
+   * flag to write Operating Point Set (OPS) OBU
+   */
+  int write_ops;
+  /*!
+   * list for Operating Point Set (OPS) information
+   */
+  struct OperatingPointSet ops_list[MAX_NUM_OPS_ID];
+  /*!
+   * flag to write Atlas OBU
+   */
+  int write_atlas;
+  /*!
+   * list for Atlas information
+   */
   struct AtlasSegmentInfo atlas_list[MAX_NUM_ATLAS_SEG_ID];
 #endif  // CONFIG_MULTILAYER_HLS
 } AV1_COMP;
