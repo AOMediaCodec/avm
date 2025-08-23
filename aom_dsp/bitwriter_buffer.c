@@ -223,3 +223,16 @@ int aom_wb_count_primitive_refsubexpfin(uint16_t n, uint16_t k, int16_t ref,
   return wb_count_primitive_subexpfin(n, k, recenter_finite_nonneg(n, ref, v));
 }
 #endif  // CONFIG_LR_FRAMEFILTERS_IN_HEADER
+
+#if CONFIG_MULTILAYER_HLS
+void aom_wb_write_uleb(struct aom_write_bit_buffer *wb, uint64_t value) {
+  uint64_t enc_val = value;
+  const size_t leb_size = aom_uleb_size_in_bytes(enc_val);
+  for (size_t i = 0; i < leb_size; ++i) {
+    uint8_t encoded_byte = enc_val & 0x7f;
+    enc_val >>= 7;
+    if (enc_val != 0) encoded_byte |= 0x80;  // Signal that more bytes follow.
+    aom_wb_write_literal(wb, encoded_byte, 8);
+  }
+}
+#endif  // CONFIG_MULTILAYER_HLS

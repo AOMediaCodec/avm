@@ -43,6 +43,27 @@ void set_sequence_header_with_keyframe(AV1_COMP *cpi,
                                        struct SequenceHeader *seq_params);
 #endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 
+#if CONFIG_MULTILAYER_HLS
+uint32_t write_layer_configuration_record_obsp(AV1_COMP *const cpi,
+                                               int layer_id, uint8_t *dst);
+uint32_t write_atlas_segment_info_obsp(AV1_COMP *const cpi, int obu_xLayer_id,
+                                       uint8_t *const dst);
+uint32_t write_operating_point_set_obsp(AV1_COMP *const cpi, int obu_xlayer_id,
+                                        uint8_t *dst);
+void add_trailing_bits(struct aom_write_bit_buffer *wb);
+
+uint32_t write_operating_point_set_obsp(AV1_COMP *const cpi, int obu_xlayer_id,
+                                        uint8_t *const dst);
+
+int set_lcr_params(AV1_COMP *cpi, struct LayerConfigurationRecord *lcr,
+                   int global_id, int layer_id);
+
+int set_atlas_segment_info_params(AV1_COMP *cpi, struct AtlasSegmentInfo *atlas,
+                                  int layer_id);
+
+int set_ops_params(AV1_COMP *cpi, struct OperatingPointSet *ops, int layer_id);
+#endif  // CONFIG_MULTILAYER_HLS
+
 /*!\brief Pack the bitstream for one frame
  *
  * \ingroup high_level_algo

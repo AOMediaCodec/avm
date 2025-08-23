@@ -3102,6 +3102,14 @@ typedef struct AV1_COMP {
    */
   int tip_mode_count[INTER_REFS_PER_FRAME];
 #endif  // CONFIG_TIP_LD
+#if CONFIG_MULTILAYER_HLS
+  int write_lcr;
+  int write_ops;
+  int write_atlas;
+  struct OperatingPointSet ops_list[MAX_NUM_OPS_ID];
+  struct LayerConfigurationRecord lcr_list[MAX_NUM_LCR];
+  struct AtlasSegmentInfo atlas_list[MAX_NUM_ATLAS_SEG_ID];
+#endif  // CONFIG_MULTILAYER_HLS
 } AV1_COMP;
 
 /*!

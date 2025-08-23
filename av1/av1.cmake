@@ -150,6 +150,9 @@ list(
   "${AOM_ROOT}/av1/decoder/detokenize.c"
   "${AOM_ROOT}/av1/decoder/detokenize.h"
   "${AOM_ROOT}/av1/decoder/dthread.h"
+  "${AOM_ROOT}/av1/decoder/obu_atlas.c"
+  "${AOM_ROOT}/av1/decoder/obu_lcr.c"
+  "${AOM_ROOT}/av1/decoder/obu_ops.c"
   "${AOM_ROOT}/av1/decoder/obu.h"
   "${AOM_ROOT}/av1/decoder/obu.c")
 
@@ -169,6 +172,9 @@ list(
   "${AOM_ROOT}/av1/encoder/av1_quantize.h"
   "${AOM_ROOT}/av1/encoder/bitstream.c"
   "${AOM_ROOT}/av1/encoder/bitstream.h"
+  "${AOM_ROOT}/av1/encoder/bitstream_atlas.c"
+  "${AOM_ROOT}/av1/encoder/bitstream_lcr.c"
+  "${AOM_ROOT}/av1/encoder/bitstream_ops.c"
   "${AOM_ROOT}/av1/encoder/block.h"
   "${AOM_ROOT}/av1/encoder/cnn.c"
   "${AOM_ROOT}/av1/encoder/cnn.h"

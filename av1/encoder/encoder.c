@@ -666,6 +666,28 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   const ColorCfg *const color_cfg = &oxcf->color_cfg;
   cpi->oxcf = *oxcf;
   cpi->framerate = oxcf->input_cfg.init_framerate;
+
+#if CONFIG_MULTILAYER_HLS
+  //  Initialize LCRs and load an "active" set into cm
+  cpi->write_lcr = 1;
+  for (int i = 0; i < MAX_NUM_LCR; i++)
+    memset(&cpi->lcr_list[i], 0, sizeof(struct LayerConfigurationRecord));
+  cm->cm_lcr = &cpi->lcr_list[0];
+
+  // Initialize Atlas segment info
+  cpi->write_atlas = 1;
+  cpi->write_atlas = cpi->write_lcr && cpi->write_atlas;
+  for (int i = 0; i < MAX_NUM_ATLAS_SEG_ID; i++)
+    memset(&cpi->atlas_list[i], 0, sizeof(struct AtlasSegmentInfo));
+  cm->cm_atlas = &cpi->atlas_list[0];
+
+  // Initialize OPS in
+  cpi->write_ops = 1;
+  for (int i = 0; i < MAX_NUM_OPS_ID; i++)
+    memset(&cpi->ops_list[i], 0, sizeof(struct OperatingPointSet));
+  cm->cm_ops = &cpi->ops_list[0];
+#endif  // CONFIG_MULTILAYER_HLS
+
   seq_params->profile = oxcf->profile;
   seq_params->bit_depth = oxcf->tool_cfg.bit_depth;
   seq_params->color_primaries = color_cfg->color_primaries;

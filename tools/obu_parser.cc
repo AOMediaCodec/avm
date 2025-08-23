@@ -74,6 +74,11 @@ bool ValidObuType(int obu_type) {
     case OBU_REDUNDANT_FRAME_HEADER:
 #endif  // !CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER
 #endif  // CONFIG_F106_OBU_TILEGROUP
+#if CONFIG_MULTILAYER_HLS
+    case OBU_LAYER_CONFIGURATION_RECORD:
+    case OBU_ATLAS_SEGMENT:
+    case OBU_OPERATING_POINT_SET:
+#endif  // CONFIG_MULTILAYER_HLS
     case OBU_PADDING: return true;
   }
   return false;

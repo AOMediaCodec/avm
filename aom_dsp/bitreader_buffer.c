@@ -137,3 +137,17 @@ int16_t aom_rb_read_signed_primitive_refsubexpfin(
   return aom_rb_read_primitive_refsubexpfin(rb, scaled_n, k, ref + offset) -
          offset;
 }
+
+#if CONFIG_MULTILAYER_HLS
+uint32_t aom_rb_read_uleb(struct aom_read_bit_buffer *rb) {
+  uint32_t value = 0;
+  for (size_t i = 0; i < 8; ++i) {
+    uint8_t byte = aom_rb_read_literal(rb, 8);
+    value |= ((byte & 0x7f) << (i * 7));
+    if (!(byte & 0x80)) {
+      break;
+    }
+  }
+  return value;
+}
+#endif  // CONFIG_MULTILAYER_HLS

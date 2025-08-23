@@ -140,6 +140,9 @@ set_aom_config_var(
 set_aom_config_var(CONFIG_MULTILAYER_CORE_HLS 1
                    "Dependency structure signaling in sequence header.")
 
+# CWG-F221
+set_aom_config_var(CONFIG_MULTILAYER_HLS 1 "HLS for multilayer coding.")
+
 set_aom_config_var(CONFIG_PARAKIT_COLLECT_DATA 0
                    "enables data collection for ParaKit training.")
 

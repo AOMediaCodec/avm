@@ -604,6 +604,236 @@ typedef struct {
 } TileInfoSyntax;
 #endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 
+#if CONFIG_MULTILAYER_HLS
+typedef struct CroppingWindow {
+  int crop_window_present_flag;
+  int crop_win_left_offset;
+  int crop_win_right_offset;
+  int crop_win_top_offset;
+  int crop_win_bottom_offset;
+
+  int crop_info_in_scr_flag;
+  int crop_max_width;
+  int crop_max_height;
+} CroppingWindow;
+
+typedef struct RepInfo {
+  int lcr_max_pic_width;
+  int lcr_max_pic_height;
+  int lcr_format_info_present_flag;
+  int lcr_bit_depth_idc;
+  int lcr_chroma_format_idc;
+} RepInfo;
+
+typedef struct XLayerColorInfo {
+  int layer_color_description_idc[MAX_LCR_TYPES][MAX_NUM_XLAYERS];
+  int layer_color_primaries[MAX_LCR_TYPES][MAX_NUM_XLAYERS];
+  int layer_transfer_characteristics[MAX_LCR_TYPES][MAX_NUM_XLAYERS];
+  int layer_matrix_coefficients[MAX_LCR_TYPES][MAX_NUM_XLAYERS];
+  int layer_full_range_flag[MAX_LCR_TYPES][MAX_NUM_XLAYERS];
+} XLayerColorInfo;
+
+typedef struct EmbeddedLayerInfo {
+  int lcr_mlayer_map[MAX_LCR_TYPES][MAX_NUM_XLAYERS];
+  int lcr_tlayer_map[MAX_LCR_TYPES][MAX_NUM_XLAYERS][MAX_NUM_MLAYERS];
+  int lcr_layer_type[MAX_LCR_TYPES][MAX_NUM_XLAYERS][8];
+  int lcr_auxiliary_type[MAX_LCR_TYPES][MAX_NUM_XLAYERS][8];
+  int lcr_view_type[MAX_LCR_TYPES][MAX_NUM_XLAYERS][8];
+  int lcr_view_id[MAX_LCR_TYPES][MAX_NUM_XLAYERS][8];
+  int lcr_dependent_layer_map[MAX_LCR_TYPES][MAX_NUM_XLAYERS][8];
+  int lcr_atlas_segments_info_present_flag[MAX_NUM_XLAYERS][MAX_NUM_XLAYERS][8];
+  int lcr_layer_atlas_segment_id[MAX_NUM_XLAYERS][MAX_NUM_XLAYERS][8];
+  int lcr_priority_weight[MAX_NUM_XLAYERS][MAX_NUM_XLAYERS][8];
+  int lcr_rendering_method[MAX_NUM_XLAYERS][MAX_NUM_XLAYERS][8];
+  int LcrMlayerID[MAX_LCR_TYPES][MAX_NUM_XLAYERS][MAX_NUM_MLAYERS];
+  int TLayerCount[MAX_LCR_TYPES][MAX_NUM_XLAYERS][MAX_NUM_MLAYERS];
+  int LcrTlayerID[MAX_LCR_TYPES][MAX_NUM_XLAYERS][MAX_NUM_TLAYERS];
+  int MLayerCount[MAX_LCR_TYPES][MAX_NUM_XLAYERS];
+} EmbeddedLayerInfo;
+
+typedef struct LayerConfigurationRecord {
+  int lcr_global_config_record_id;
+  int lcr_max_num_extended_layers_minus_1;
+  int lcr_max_profile_tier_level_info_present_flag;
+  int lcr_global_atlas_id_present_flag;
+  int dependent_atlas_id_present_flag;
+  int lcr_reserved_zero_2bits;
+  int lcr_global_atlas_id;
+  int lcr_reserved_zero_3bits;
+  int lcr_data_size_present_flag;
+  int lcr_global_purpose_id;
+
+  int long lcr_data_size[MAX_NUM_XLAYERS];
+  int lcr_xLayer_id[MAX_NUM_XLAYERS];
+  int lcr_num_dependent_xlayer_map[MAX_NUM_XLAYERS];
+  int lcr_dependent_xlayers_flag;
+  int lcr_global_id[MAX_NUM_XLAYERS];
+  int lcr_local_id[MAX_NUM_XLAYERS];
+  int lcr_local_atlas_id_present_flag[MAX_NUM_XLAYERS];
+  int lcr_local_atlas_id[MAX_NUM_XLAYERS];
+  int lcr_reserved_zero_6bits;
+
+  int lcr_rep_info_present_flag[MAX_LCR_TYPES][MAX_NUM_XLAYERS];
+  int lcr_xlayer_purpose_present_flag[MAX_LCR_TYPES][MAX_NUM_XLAYERS];
+  int lcr_xlayer_color_info_present_flag[MAX_LCR_TYPES][MAX_NUM_XLAYERS];
+  int lcr_embedded_layer_info_present_flag[MAX_LCR_TYPES][MAX_NUM_XLAYERS];
+  int lcr_xlayer_purpose_id[MAX_LCR_TYPES][MAX_NUM_XLAYERS];
+  int lcr_xlayer_atlas_segment_id[MAX_NUM_XLAYERS];
+  int lcr_xlayer_priority_order[MAX_NUM_XLAYERS];
+  int lcr_xlayer_rendering_method[MAX_NUM_XLAYERS];
+
+  struct CroppingWindow lcr_crop;
+  struct CroppingWindow crop_win_list[MAX_NUM_XLAYERS][MAX_NUM_XLAYERS];
+  struct RepInfo rep_params;
+  struct RepInfo rep_list[MAX_LCR_TYPES][MAX_NUM_XLAYERS];
+  struct XLayerColorInfo xlayer_col_params;
+  struct EmbeddedLayerInfo mlayer_params;
+} LayerConfigurationRecord;
+
+typedef struct AtlasLabelSegmentInfo {
+  int ats_signalled_atlas_segment_ids_flag[MAX_NUM_XLAYERS]
+                                          [MAX_NUM_ATLAS_SEG_ID];
+  int ats_atlas_segment_id[MAX_NUM_XLAYERS];
+  int AtlasSegmentIDToIndex[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID]
+                           [MAX_NUM_ATLAS_SEGMENTS];
+  int AtlasSegmentIndexToID[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID]
+                           [MAX_NUM_ATLAS_SEGMENTS];
+} AtlasLabelSegmentInfo;
+
+typedef struct AtlasRegionToSegmentMapping {
+  int ats_single_region_per_atlas_segment_flag[MAX_NUM_XLAYERS]
+                                              [MAX_NUM_ATLAS_SEG_ID];
+  int ats_num_atlas_segments_minus_1[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
+  int ats_top_left_region_column[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID]
+                                [MAX_NUM_ATLAS_SEGMENTS];
+  int ats_top_left_region_row[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID]
+                             [MAX_NUM_ATLAS_SEGMENTS];
+  int ats_bottom_right_region_column_off[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID]
+                                        [MAX_NUM_ATLAS_SEGMENTS];
+  int ats_bottom_right_region_row_off[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID]
+                                     [MAX_NUM_ATLAS_SEGMENTS];
+} AtlasRegionToSegmentMapping;
+
+typedef struct AtlasRegionInfo {
+  int ats_num_region_columns_minus_1[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
+  int ats_num_region_rows_minus_1[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
+  int ats_column_width_minus_1[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID]
+                              [MAX_ATLAS_REGIONS];
+  int ats_uniform_spacing_flag[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
+  int ats_row_height_minus_1[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID]
+                            [MAX_ATLAS_REGIONS];
+  int ats_region_width_minus_1[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
+  int ats_region_height_minus_1[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
+  int NumRegionsInAtlas[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
+  int AtlasWidth[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
+  int AtlasHeight[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
+} AtlasRegionInfo;
+
+typedef struct AtlasBasicAtlasInfo {
+  int ats_atlas_width[MAX_NUM_XLAYERS][8];
+  int ats_atlas_height[MAX_NUM_XLAYERS][8];
+  int ats_num_atlas_segments_minus_1[MAX_NUM_XLAYERS][8];
+  int AtlasWidth[MAX_NUM_XLAYERS][8];
+  int AtlasHeight[MAX_NUM_XLAYERS][8];
+  int ats_segment_top_left_pos_x[MAX_NUM_XLAYERS][8][8];
+  int ats_segment_top_left_pos_y[MAX_NUM_XLAYERS][8][8];
+  int ats_segment_width[MAX_NUM_XLAYERS][8][8];
+  int ats_segment_height[MAX_NUM_XLAYERS][8][8];
+} AtlasBasicAtlasInfo;
+
+typedef struct AtlasSegmentInfo {
+  int atlas_segment_id[MAX_NUM_XLAYERS];
+  int atlas_segment_mode_idc[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
+  int ats_nominal_width_minus1[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
+  int ats_nominal_height_minus1[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
+
+  struct AtlasRegionInfo ats_reg_params;
+  struct AtlasBasicAtlasInfo *ats_basic_atlas_info;
+  struct AtlasRegionToSegmentMapping ats_reg_seg_map;
+  struct AtlasLabelSegmentInfo ats_label_seg;
+} AtlasSegmentInfo;
+
+typedef struct OpsColorInfo {
+  int ops_color_description_idc[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID]
+                               [MAX_NUM_OPS_COUNT];
+  int ops_color_primaries[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_NUM_OPS_COUNT];
+  int ops_transfer_characteristics[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID]
+                                  [MAX_NUM_OPS_COUNT];
+  int ops_matrix_coefficients[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID]
+                             [MAX_NUM_OPS_COUNT];
+  int ops_full_range_flag[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_NUM_OPS_COUNT];
+} OpsColorInfo;
+
+typedef struct OpsDelayInfo {
+  int ops_decoder_buffer_delay[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID]
+                              [MAX_NUM_OPS_COUNT];
+  int ops_encoder_buffer_delay[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID]
+                              [MAX_NUM_OPS_COUNT];
+  int ops_low_delay_mode_flag[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID]
+                             [MAX_NUM_OPS_COUNT];
+} OpsDelayInfo;
+
+typedef struct OpsDecModelInfo {
+  uint32_t ops_num_units_in_decoder_tick[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID]
+                                        [MAX_NUM_OPS_COUNT];
+} OpsDecModelInfo;
+
+typedef struct OPSMLayerInfo {
+  // mlayer
+  int ops_mlayer_map[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_NUM_OPS_COUNT]
+                    [MAX_NUM_XLAYERS];
+  int OpsMlayerID[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_NUM_OPS_COUNT]
+                 [MAX_NUM_XLAYERS][MAX_NUM_MLAYERS];
+  int OPMLayerCount[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_NUM_OPS_COUNT]
+                   [MAX_NUM_XLAYERS];
+  // tlayer
+  int ops_tlayer_map[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_NUM_OPS_COUNT]
+                    [MAX_NUM_XLAYERS][MAX_NUM_MLAYERS];
+  int OpsTlayerID[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_NUM_OPS_COUNT]
+                 [MAX_NUM_XLAYERS][MAX_NUM_TLAYERS];
+  int OPTLayerCount[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_NUM_OPS_COUNT]
+                   [MAX_NUM_XLAYERS][MAX_NUM_MLAYERS];
+} OPSMLayerInfo;
+
+typedef struct OperatingPointSet {
+  int ops_reset_flag[MAX_NUM_XLAYERS];
+  int ops_id[MAX_NUM_XLAYERS];
+  int ops_cnt[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
+  int ops_priority[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
+  int ops_intent[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
+  int ops_intent_present_flag[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
+  int ops_operational_ptl_present_flag[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
+  int ops_color_info_present_flag[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
+  int ops_decoder_model_info_present_flag[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
+
+  int ops_mlayer_info_present_idc[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
+  int ops_reserved_2bits[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
+  int ops_reserved_3bits[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
+  int ops_data_size[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_NUM_OPS_COUNT];
+  int ops_intent_op[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_NUM_OPS_COUNT];
+  int ops_operational_profile_id[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID]
+                                [MAX_NUM_OPS_COUNT];
+  int ops_operational_level_id[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID]
+                              [MAX_NUM_OPS_COUNT];
+  int ops_operational_tier_id[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID]
+                             [MAX_NUM_OPS_COUNT];
+
+  int ops_xlayer_map[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_NUM_OPS_COUNT];
+  int ops_embedded_mapping[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_NUM_OPS_COUNT]
+                          [MAX_NUM_XLAYERS];
+  int ops_embedded_op_id[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_NUM_OPS_COUNT]
+                        [MAX_NUM_XLAYERS];
+  int OpsxLayerId[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_NUM_OPS_COUNT]
+                 [MAX_NUM_XLAYERS];
+  int XCount[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_NUM_OPS_COUNT];
+  // mlayer, color, delay and model information
+  struct OPSMLayerInfo *ops_mlayer_info;
+  struct OpsColorInfo *ops_col_info;
+  struct OpsDelayInfo *ops_delay_info;
+  struct OpsDecModelInfo *ops_dec_model_info;
+} OperatingPointSet;
+#endif  // CONFIG_MULTILAYER_HLS
+
 // Sequence header structure.
 // Note: All syntax elements of sequence_header_obu that need to be
 // bit-identical across multiple sequence headers must be part of this struct,
@@ -2019,6 +2249,23 @@ typedef struct AV1Common {
   int8_t tip_global_wtd_index;
 #endif  // CONFIG_TIP_ENHANCEMENT
 
+#if CONFIG_MULTILAYER_HLS
+  /*!
+   * Elements part of the layer configuration record
+   */
+  LayerConfigurationRecord lcr_params;
+
+  /*!
+   * Elements part of the atlas segment
+   */
+  AtlasSegmentInfo atlas_params;
+
+  /*!
+   * Operating Point Set part of the operating point set
+   */
+  OperatingPointSet ops_params;
+#endif  // CONFIG_MULTILAYER_HLS
+
   /*!
    * Elements part of the sequence header, that are applicable for all the
    * frames in the video.
@@ -2273,6 +2520,33 @@ typedef struct AV1Common {
    * So we only need to initialized it for inter frames only once.
    */
   bool wedge_mask_initialized;
+
+#if CONFIG_MULTILAYER_HLS
+  /*!
+   * Layer config record (LCR) id.
+   */
+  int lcr_id;
+  /*!
+   * Layer config record (LCR) structure.
+   */
+  struct LayerConfigurationRecord *cm_lcr;
+  /*!
+   * Atlas id.
+   */
+  int atlas_id;
+  /*!
+   * Atlas structure.
+   */
+  struct AtlasSegmentInfo *cm_atlas;
+  /*!
+   * Operating point set (OPS) id.
+   */
+  int ops_id;
+  /*!
+   * Operating point set (OPS) structure.
+   */
+  struct OperatingPointSet *cm_ops;
+#endif  // CONFIG_MULTILAYER_HLS
 } AV1_COMMON;
 
 /*!\cond */

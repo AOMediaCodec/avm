@@ -177,6 +177,12 @@ const char *aom_obu_type_to_string(OBU_TYPE type) {
     case OBU_TILE_GROUP: return "OBU_TILE_GROUP";
 #endif  // CONFIG_F106_OBU_TILEGROUP
     case OBU_METADATA: return "OBU_METADATA";
+#if CONFIG_MULTILAYER_HLS
+    case OBU_LAYER_CONFIGURATION_RECORD:
+      return "OBU_LAYER_CONFIGURATION_RECORD";
+    case OBU_ATLAS_SEGMENT: return "OBU_ATLAS_SEGMENT";
+    case OBU_OPERATING_POINT_SET: return "OBU_OPERATING_POINT_SET";
+#endif  // CONFIG_MULTILAYER_HLS
     case OBU_PADDING: return "OBU_PADDING";
     default: break;
   }

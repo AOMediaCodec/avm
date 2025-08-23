@@ -7004,7 +7004,11 @@ static size_t obu_memmove(size_t obu_header_size, size_t obu_payload_size,
   return length_field_size;
 }
 
-static AOM_INLINE void add_trailing_bits(struct aom_write_bit_buffer *wb) {
+#if !CONFIG_MULTILAYER_HLS
+static AOM_INLINE
+#endif  // !CONFIG_MULTILAYER_HLS
+    void
+    add_trailing_bits(struct aom_write_bit_buffer *wb) {
   if (aom_wb_is_byte_aligned(wb)) {
     aom_wb_write_literal(wb, 0x80, 8);
   } else {
@@ -8189,6 +8193,81 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
   level_params->frame_header_count = 0;
 
   // The TD is now written outside the frame encode loop
+
+#if CONFIG_MULTILAYER_HLS && CONFIG_MULTILAYER_HLS_ENABLE_SIGNALING
+  if (cm->current_frame.frame_type == KEY_FRAME && !cpi->no_show_fwd_kf) {
+    // Layer Configuration Record
+    if (cpi->write_lcr) {
+      struct LayerConfigurationRecord *lcr = &cpi->lcr_list[0];
+      set_lcr_params(cpi, lcr, 0, 0);
+      obu_header_size =
+          av1_write_obu_header(level_params, OBU_LAYER_CONFIGURATION_RECORD,
+#if CONFIG_NEW_OBU_HEADER
+                               0, 0,
+#else
+                               0,
+#endif  // CONFIG_NEW_OBU_HEADER
+                               data);
+      int xlayer_id = 0;
+      obu_payload_size = write_layer_configuration_record_obsp(
+          cpi, xlayer_id, data + obu_header_size);
+      const size_t length_field_size =
+          obu_memmove(obu_header_size, obu_payload_size, data);
+      if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
+          AOM_CODEC_OK) {
+        return AOM_CODEC_ERROR;
+      }
+      data += obu_header_size + obu_payload_size + length_field_size;
+    }
+
+    // Atlas Segment Info
+    if (cpi->write_atlas) {
+      int xlayer_id = 0;
+      struct AtlasSegmentInfo *atlas_params = &cpi->atlas_list[0];
+      set_atlas_segment_info_params(cpi, atlas_params, xlayer_id);
+      obu_header_size = av1_write_obu_header(level_params, OBU_ATLAS_SEGMENT,
+#if CONFIG_NEW_OBU_HEADER
+                                             0, 0,
+#else
+                                             0,
+#endif  // CONFIG_NEW_OBU_HEADER
+                                             data);
+      obu_payload_size =
+          write_atlas_segment_info_obsp(cpi, xlayer_id, data + obu_header_size);
+      const size_t length_field_size =
+          obu_memmove(obu_header_size, obu_payload_size, data);
+      if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
+          AOM_CODEC_OK) {
+        return AOM_CODEC_ERROR;
+      }
+      data += obu_header_size + obu_payload_size + length_field_size;
+    }
+
+    // Operating Point Info
+    if (cpi->write_ops) {
+      int xlayer_id = 0;
+      struct OperatingPointSet *ops = &cpi->ops_list[0];
+      set_ops_params(cpi, ops, xlayer_id);
+      obu_header_size =
+          av1_write_obu_header(level_params, OBU_OPERATING_POINT_SET,
+#if CONFIG_NEW_OBU_HEADER
+                               0, 0,
+#else
+                               0,
+#endif  // CONFIG_NEW_OBU_HEADER
+                               data);
+      obu_payload_size = write_operating_point_set_obsp(cpi, xlayer_id,
+                                                        data + obu_header_size);
+      const size_t length_field_size =
+          obu_memmove(obu_header_size, obu_payload_size, data);
+      if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
+          AOM_CODEC_OK) {
+        return AOM_CODEC_ERROR;
+      }
+      data += obu_header_size + obu_payload_size + length_field_size;
+    }
+  }
+#endif  // CONFIG_MULTILAYER_HLS && CONFIG_MULTILAYER_HLS_ENABLE_SIGNALING
 
   // write sequence header obu if KEY_FRAME, preceded by 4-byte size
   if (cm->current_frame.frame_type == KEY_FRAME && !cpi->no_show_fwd_kf) {
