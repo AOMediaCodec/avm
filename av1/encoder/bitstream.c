@@ -7064,7 +7064,7 @@ uint32_t av1_write_obu_header(AV1LevelParams *const level_params,
 #endif  // CONFIG_NEW_OBU_HEADER
                               uint8_t *const dst) {
 #if CONFIG_F106_OBU_TILEGROUP
-  bool count_header = (obu_type == OBU_TILEGROUP);
+  bool count_header = (obu_type == OBU_TILE_GROUP);
 #else
   bool count_header = (obu_type == OBU_FRAME || obu_type == OBU_FRAME_HEADER);
 #endif  // !CONFIG_F106_OBU_TILEGROUP
@@ -8402,7 +8402,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
   }
 #if CONFIG_F106_OBU_TILEGROUP
   //[jkei] cm->bru.frame_inactive_flag : OBU_TILEGOUP
-  OBU_TYPE obu_type = OBU_TILEGROUP;
+  OBU_TYPE obu_type = OBU_TILE_GROUP;
 #if CONFIG_F106_OBU_SWITCH
   if (cm->current_frame.frame_type == S_FRAME) obu_type = OBU_SWITCH;
 #endif  // CONFIG_F106_OBU_SWITCH

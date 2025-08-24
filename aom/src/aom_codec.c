@@ -167,7 +167,7 @@ const char *aom_obu_type_to_string(OBU_TYPE type) {
     case OBU_TIP: return "OBU_TIP";
 #endif  // CONFIG_F106_OBU_TIP
 #if CONFIG_F106_OBU_TILEGROUP
-    case OBU_TILEGROUP: return "OBU_TILEGROUP";
+    case OBU_TILE_GROUP: return "OBU_TILE_GROUP";
 #else
     case OBU_FRAME_HEADER: return "OBU_FRAME_HEADER";
     case OBU_REDUNDANT_FRAME_HEADER: return "OBU_REDUNDANT_FRAME_HEADER";

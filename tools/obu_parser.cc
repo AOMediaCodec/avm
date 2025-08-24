@@ -100,7 +100,7 @@ bool ValidObuType(int obu_type) {
     case OBU_TIP:
 #endif  // CONFIG_F106_OBU_TIP
 #if CONFIG_F106_OBU_TILEGROUP
-    case OBU_TILEGROUP:
+    case OBU_TILE_GROUP:
 #else
     case OBU_FRAME_HEADER:
     case OBU_TILE_GROUP:

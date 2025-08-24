@@ -1033,7 +1033,7 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
         }
         break;
 #if CONFIG_F106_OBU_TILEGROUP
-      case OBU_TILEGROUP:
+      case OBU_TILE_GROUP:
 #else
       case OBU_FRAME_HEADER:
       case OBU_REDUNDANT_FRAME_HEADER:

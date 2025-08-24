@@ -472,7 +472,7 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
 
       got_sequence_header = 1;
 #if CONFIG_F106_OBU_TILEGROUP
-    } else if (obu_header.type == OBU_TILEGROUP) {
+    } else if (obu_header.type == OBU_TILE_GROUP) {
 #else
     } else if (obu_header.type == OBU_FRAME_HEADER ||
                obu_header.type == OBU_FRAME) {
