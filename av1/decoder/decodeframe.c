@@ -3743,10 +3743,12 @@ static AOM_INLINE void setup_render_size(AV1_COMMON *cm,
                                          struct aom_read_bit_buffer *rb) {
   cm->render_width = cm->width;
   cm->render_height = cm->height;
-#if !CONFIG_CWG_F248_RENDER_SIZE
+#if CONFIG_CWG_F248_RENDER_SIZE
+  (void)rb;
+#else
   if (aom_rb_read_bit(rb))
     av1_read_frame_size(rb, 16, 16, &cm->render_width, &cm->render_height);
-#endif // CONFIG_CWG_F248_RENDER_SIZE
+#endif  // CONFIG_CWG_F248_RENDER_SIZE
 }
 
 static AOM_INLINE void resize_context_buffers(AV1_COMMON *cm, int width,

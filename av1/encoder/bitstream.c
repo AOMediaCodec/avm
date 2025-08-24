@@ -4843,7 +4843,7 @@ static AOM_INLINE void write_frame_size(const AV1_COMMON *cm,
   }
 #if !CONFIG_CWG_F248_RENDER_SIZE
   write_render_size(cm, wb);
-#endif // !CONFIG_CWG_F248_RENDER_SIZE
+#endif  // !CONFIG_CWG_F248_RENDER_SIZE
 }
 
 static AOM_INLINE void write_frame_size_with_refs(
