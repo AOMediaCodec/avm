@@ -104,11 +104,12 @@ static int has_top_right(const AV1_COMMON *cm, const MACROBLOCKD *xd,
           row_off % plane_bh_unit_64 == 0) {
 #if CONFIG_TU64_TRAVERSED_ORDER
         const int plane_bw_unit_128 = mi_size_wide[BLOCK_128X128] >> ss_x;
+        const int plane_bh_unit_128 = mi_size_high[BLOCK_128X128] >> ss_y;
         // Since 64x64 TUs are decoded in 128x128 units, the top-right reference
         // samples of the top-right transform block in the bottom-right 64x64
         // transform block within a 128x128 block, i.e., ((row_off %
-        // plane_bw_unit_128) && !(tr_col % plane_bw_unit_128)), are unavailable
-        return ((row_off % plane_bw_unit_128) && !(tr_col % plane_bw_unit_128))
+        // plane_bh_unit_128) && !(tr_col % plane_bw_unit_128)), are unavailable
+        return ((row_off % plane_bh_unit_128) && !(tr_col % plane_bw_unit_128))
                    ? 0
                    : 1;
 #else
