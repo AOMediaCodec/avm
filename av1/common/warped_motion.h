@@ -346,7 +346,8 @@ static INLINE void av1_scale_warp_model(const WarpedMotionParams *in_params,
       inv_divisor >>= 1;
       shift--;
     }
-    inv_divisor *= in_distance < 0 ? -1 : 1;
+    int sign = in_distance < 0 ? -1 : 1;
+    inv_divisor *= sign;
     // input: 23 bits, in/out_distance: 8 bits (get_relative_dist output limit)
     // Intermediate result is in 32 bits (input: 23 bits, inv_divisor: 9 bits).
     // output is in 23 bits because abs(inv_divisor) < (1<<shift)
