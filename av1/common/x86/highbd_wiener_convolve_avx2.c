@@ -602,7 +602,7 @@ static INLINE void round_and_store_avx2(const uint16_t *dst, int dst_stride,
 // order of filter taps needed is shown below.
 // Filter Coefficients: fc0 fc1 fc2 fc3 fc4 fc5 fc
 // Here, 'fc0-fc5' corresponds to symmetric taps and 'fc' is the center tap.
-static AOM_INLINE void av1_convolve_symmetric_highbd_7tap_avx2(
+static AOM_INLINE void convolve_symmetric_highbd_7tap_avx2(
     const uint16_t *dgd, int stride, const NonsepFilterConfig *filter_config,
     const int16_t *filter, uint16_t *dst, int dst_stride, int bit_depth,
     int block_row_begin, int block_col_begin) {
@@ -671,7 +671,7 @@ static AOM_INLINE void av1_convolve_symmetric_highbd_7tap_avx2(
 //  __m256i out_f0_0 = _mm256_madd_epi16(src_rag3, filter_0);
 //                   = (a3*f0+g3*f0) (a4*f0+g4*f0) .. | (b3*f0+h3*f0) . .
 // Here, out_f0_0 contains partial output of rows 1 and 2 corresponding to fc0.
-static AOM_INLINE void av1_convolve_symmetric_highbd_13tap_avx2(
+static AOM_INLINE void convolve_symmetric_highbd_13tap_avx2(
     const uint16_t *dgd, int stride, const NonsepFilterConfig *filter_config,
     const int16_t *filter_, uint16_t *dst, int dst_stride, int bit_depth,
     int block_row_begin, int block_col_begin) {
@@ -1025,7 +1025,7 @@ static AOM_INLINE void av1_convolve_symmetric_highbd_13tap_avx2(
                    _mm_bsrli_si128(out_r1r3, 8));
 }
 
-static AOM_INLINE void av1_convolve_symmetric_highbd_13tap_blk8x8_avx2(
+static AOM_INLINE void convolve_symmetric_highbd_13tap_blk8x8_avx2(
     const uint16_t *dgd, int stride, const NonsepFilterConfig *filter_config,
     const int16_t *filter_, uint16_t *dst, int dst_stride, int bit_depth,
     int block_row_begin, int block_col_begin) {
@@ -1784,7 +1784,7 @@ static AOM_INLINE void av1_convolve_symmetric_highbd_13tap_blk8x8_avx2(
                        (__m128i *)(dst + dst_id + (6 * dst_stride)), out_r6_r7);
 }
 
-static AOM_INLINE void av1_convolve_symmetric_highbd_16tap9x9_avx2(
+static AOM_INLINE void convolve_symmetric_highbd_16tap9x9_avx2(
     const uint16_t *dgd, int stride, const NonsepFilterConfig *filter_config,
     const int16_t *filter_, uint16_t *dst, int dst_stride, int bit_depth,
     int block_row_begin, int block_col_begin) {
@@ -2280,7 +2280,7 @@ static AOM_INLINE void av1_convolve_symmetric_highbd_16tap9x9_avx2(
                    _mm_bsrli_si128(out_r1r3, 8));
 }
 
-static AOM_INLINE void av1_convolve_symmetric_highbd_16tap9x9_blk8x8_avx2(
+static AOM_INLINE void convolve_symmetric_highbd_16tap9x9_blk8x8_avx2(
     const uint16_t *dgd, int stride, const NonsepFilterConfig *filter_config,
     const int16_t *filter_, uint16_t *dst, int dst_stride, int bit_depth,
     int block_row_begin, int block_col_begin) {
@@ -3244,11 +3244,11 @@ void av1_convolve_symmetric_highbd_avx2(const uint16_t *dgd, int stride,
                                                   0,
                                                   0,
                                                   0 };
-      av1_convolve_symmetric_highbd_13tap_avx2(
-          dgd, stride, &filter_config_, filter_, dst, dst_stride, bit_depth,
-          block_row_begin, block_col_begin);
+      convolve_symmetric_highbd_13tap_avx2(dgd, stride, &filter_config_,
+                                           filter_, dst, dst_stride, bit_depth,
+                                           block_row_begin, block_col_begin);
     } else {
-      av1_convolve_symmetric_highbd_16tap9x9_avx2(
+      convolve_symmetric_highbd_16tap9x9_avx2(
           dgd, stride, filter_config, filter, dst, dst_stride, bit_depth,
           block_row_begin, block_col_begin);
     }
@@ -3259,18 +3259,18 @@ void av1_convolve_symmetric_highbd_avx2(const uint16_t *dgd, int stride,
        !memcmp(wienerns_simd_config_y, filter_config->config,
                filter_config->num_pixels * 3 *
                    sizeof(filter_config->config[0][0])))) {
-    av1_convolve_symmetric_highbd_13tap_avx2(dgd, stride, filter_config, filter,
-                                             dst, dst_stride, bit_depth,
-                                             block_row_begin, block_col_begin);
+    convolve_symmetric_highbd_13tap_avx2(dgd, stride, filter_config, filter,
+                                         dst, dst_stride, bit_depth,
+                                         block_row_begin, block_col_begin);
   } else if (num_rows == 4 && num_cols == 4 && num_sym_taps == 6 &&
              (filter_config->config == wienerns_simd_config_uv_from_uvonly ||
               !memcmp(wienerns_simd_config_uv_from_uvonly,
                       filter_config->config,
                       filter_config->num_pixels * 3 *
                           sizeof(filter_config->config[0][0])))) {
-    av1_convolve_symmetric_highbd_7tap_avx2(dgd, stride, filter_config, filter,
-                                            dst, dst_stride, bit_depth,
-                                            block_row_begin, block_col_begin);
+    convolve_symmetric_highbd_7tap_avx2(dgd, stride, filter_config, filter, dst,
+                                        dst_stride, bit_depth, block_row_begin,
+                                        block_col_begin);
   } else {
     av1_convolve_symmetric_highbd_c(
         dgd, stride, filter_config, filter, dst, dst_stride, bit_depth,
@@ -3307,11 +3307,11 @@ void av1_convolve_symmetric_blk8x8_highbd_avx2(
                                                   0,
                                                   0,
                                                   0 };
-      av1_convolve_symmetric_highbd_13tap_blk8x8_avx2(
-          dgd, stride, &filter_config_, filter_, dst, dst_stride, bit_depth, 0,
-          0);
+      convolve_symmetric_highbd_13tap_blk8x8_avx2(dgd, stride, &filter_config_,
+                                                  filter_, dst, dst_stride,
+                                                  bit_depth, 0, 0);
     } else {
-      av1_convolve_symmetric_highbd_16tap9x9_blk8x8_avx2(
+      convolve_symmetric_highbd_16tap9x9_blk8x8_avx2(
           dgd, stride, filter_config, filter, dst, dst_stride, bit_depth, 0, 0);
     }
     return;
@@ -3321,7 +3321,7 @@ void av1_convolve_symmetric_blk8x8_highbd_avx2(
        !memcmp(wienerns_simd_config_y, filter_config->config,
                filter_config->num_pixels * 3 *
                    sizeof(filter_config->config[0][0])))) {
-    av1_convolve_symmetric_highbd_13tap_blk8x8_avx2(
+    convolve_symmetric_highbd_13tap_blk8x8_avx2(
         dgd, stride, filter_config, filter, dst, dst_stride, bit_depth,
         block_row_begin, block_col_begin);
   } else {
