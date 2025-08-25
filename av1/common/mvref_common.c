@@ -3705,7 +3705,6 @@ void av1_setup_frame_buf_refs(AV1_COMMON *cm) {
   cm->cur_frame->absolute_poc = cm->current_frame.absolute_poc;
   cm->cur_frame->pyramid_level = cm->current_frame.pyramid_level;
   cm->cur_frame->temporal_layer_id = cm->current_frame.temporal_layer_id;
-
 #if CONFIG_MULTILAYER_CORE
   cm->cur_frame->layer_id = cm->current_frame.layer_id;
 #endif  // CONFIG_MULTILAYER_CORE

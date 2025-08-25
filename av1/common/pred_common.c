@@ -241,6 +241,9 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
     scores[n_ranked].distance = disp_diff;
     scores[n_ranked].disp_order = ref_disp;
     scores[n_ranked].base_qindex = ref_base_qindex;
+#if CONFIG_MULTILAYER_CORE
+    scores[n_ranked].layer_id = ref_layer_id;
+#endif  // CONFIG_MULTILAYER_CORE
 #if CONFIG_ACROSS_SCALE_REF_OPT
     scores[n_ranked].res_ratio_log2 = res_ratio_log2;
 #endif  // CONFIG_ACROSS_SCALE_REF_OPT

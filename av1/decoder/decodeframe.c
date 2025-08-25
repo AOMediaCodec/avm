@@ -7285,8 +7285,8 @@ static INLINE int get_disp_order_hint(AV1_COMMON *const cm) {
                                              cm->temporal_layer_id,
 #endif  // CONFIG_NEW_OBU_HEADER
                                              buf->temporal_layer_id) ||
-        !is_mlayer_scalable_and_dependent(
-            &cm->seq_params, current_frame->layer_id, buf->layer_id)
+        !is_mlayer_scalable_and_dependent(&cm->seq_params, cm->mlayer_id,
+                                          buf->layer_id)
 #else
 #if CONFIG_NEW_OBU_HEADER
         || buf->temporal_layer_id > (unsigned int)cm->tlayer_id
@@ -8122,6 +8122,14 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #else
     cm->current_frame.temporal_layer_id = cm->temporal_layer_id;
 #endif  // CONFIG_NEW_OBU_HEADER
+#if CONFIG_MULTILAYER_CORE
+#if CONFIG_NEW_OBU_HEADER
+    cm->current_frame.layer_id = cm->mlayer_id;
+#else
+    cm->current_frame.layer_id = cm->spatial_layer_id;
+#endif  // CONFIG_NEW_OBU_HEADER
+#endif  // CONFIG_MULTILAYER_CORE
+
     features->tip_frame_mode = TIP_FRAME_DISABLED;
     setup_frame_size(cm, frame_size_override_flag, rb);
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
@@ -8145,6 +8153,13 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #else
     cm->current_frame.temporal_layer_id = cm->temporal_layer_id;
 #endif  // CONFIG_NEW_OBU_HEADER
+#if CONFIG_MULTILAYER_CORE
+#if CONFIG_NEW_OBU_HEADER
+    cm->current_frame.layer_id = cm->mlayer_id;
+#else
+    cm->current_frame.layer_id = cm->spatial_layer_id;
+#endif  // CONFIG_NEW_OBU_HEADER
+#endif  // CONFIG_MULTILAYER_CORE
     features->allow_ref_frame_mvs = 0;
     features->tip_frame_mode = TIP_FRAME_DISABLED;
     if (current_frame->frame_type == INTRA_ONLY_FRAME) {

@@ -1162,6 +1162,15 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   cm->temporal_layer_id = 0;
   cm->current_frame.temporal_layer_id = cm->temporal_layer_id;
 #endif  // CONFIG_NEW_OBU_HEADER
+#if CONFIG_MULTILAYER_CORE
+#if CONFIG_NEW_OBU_HEADER
+  cm->mlayer_id = 0;
+  cm->current_frame.layer_id = cm->mlayer_id;
+#else
+  cm->spatial_layer_id = 0;
+  cm->current_frame.layer_id = cm->spatial_layer_id;
+#endif  // CONFIG_NEW_OBU_HEADER
+#endif  // CONFIG_MULTILAYER_CORE
 
   init_ref_map_pair(&cpi->common, cm->ref_frame_map_pairs,
                     gf_group->update_type[gf_group->index] == KF_UPDATE);
