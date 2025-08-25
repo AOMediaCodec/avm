@@ -600,6 +600,10 @@ typedef enum ATTRIBUTE_PACKED {
 #if CONFIG_CWG_F317
   OBU_BRIDGE_FRAME,
 #endif  // CONFIG_CWG_F317
+#if CONFIG_MULTI_STREAM
+  // Multi-stream decoder operation OBU
+  OBU_MSDO,
+#endif  // CONFIG_MULTI_STREAM
   OBU_PADDING,
 } OBU_TYPE;
 

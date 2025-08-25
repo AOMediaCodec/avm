@@ -174,11 +174,35 @@ static uint32_t read_ats_label_segment_info(struct AV1Decoder *pbi,
 }
 
 static uint32_t read_ats_multistream_atlas_info(
-    struct AV1Decoder *pbi, struct aom_read_bit_buffer *rb) {
-  aom_internal_error(
-      &pbi->common.error, AOM_CODEC_UNSUP_FEATURE,
-      "Implementation not avaialbe for read_ats_multistream_atlas_info()");
-  (void)rb;
+    struct AtlasBasicInfo *ats_basic_atlas_info, int obu_xLayer_id, int xAId,
+    struct aom_read_bit_buffer *rb) {
+  ats_basic_atlas_info->ats_atlas_width[obu_xLayer_id][xAId] =
+      aom_rb_read_uvlc(rb);
+  ats_basic_atlas_info->ats_atlas_height[obu_xLayer_id][xAId] =
+      aom_rb_read_uvlc(rb);
+  ats_basic_atlas_info->ats_num_atlas_segments_minus_1[obu_xLayer_id][xAId] =
+      aom_rb_read_uvlc(rb);
+
+  ats_basic_atlas_info->AtlasWidth[obu_xLayer_id][xAId] =
+      ats_basic_atlas_info->ats_atlas_width[obu_xLayer_id][xAId];
+  ats_basic_atlas_info->AtlasHeight[obu_xLayer_id][xAId] =
+      ats_basic_atlas_info->ats_atlas_height[obu_xLayer_id][xAId];
+
+  int NumSegments = ats_basic_atlas_info
+                        ->ats_num_atlas_segments_minus_1[obu_xLayer_id][xAId] +
+                    1;
+  for (int i = 0; i < NumSegments; i++) {
+    ats_basic_atlas_info->ats_input_stream_id[obu_xLayer_id][xAId][i] =
+        aom_rb_read_literal(rb, 5);
+    ats_basic_atlas_info->ats_segment_top_left_pos_x[obu_xLayer_id][xAId][i] =
+        aom_rb_read_uvlc(rb);
+    ats_basic_atlas_info->ats_segment_top_left_pos_y[obu_xLayer_id][xAId][i] =
+        aom_rb_read_uvlc(rb);
+    ats_basic_atlas_info->ats_segment_width[obu_xLayer_id][xAId][i] =
+        aom_rb_read_uvlc(rb);
+    ats_basic_atlas_info->ats_segment_height[obu_xLayer_id][xAId][i] =
+        aom_rb_read_uvlc(rb);
+  }
   return 0;
 }
 
@@ -242,7 +266,8 @@ uint32_t av1_read_atlas_segment_info_obu(struct AV1Decoder *pbi,
         aom_rb_read_uvlc(rb);
   } else if (atlas_params->atlas_segment_mode_idc[obu_xLayer_id][xAId] ==
              MULTISTREAM_ATLAS) {
-    read_ats_multistream_atlas_info(pbi, rb);
+    read_ats_multistream_atlas_info(atlas_params->ats_basic_atlas_info,
+                                    obu_xLayer_id, xAId, rb);
   }
   // Label each atlas segment
   read_ats_label_segment_info(pbi, obu_xLayer_id, xAId, rb);

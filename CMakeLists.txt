@@ -813,6 +813,28 @@ if(ENABLE_TOOLS)
     list(APPEND AOM_TOOL_TARGETS dump_obu)
     list(APPEND AOM_APP_TARGETS dump_obu)
 
+    add_executable(
+      stream_multiplexer
+      "${AOM_GEN_SRC_DIR}/usage_exit.cc"
+      "${AOM_ROOT}/tools/stream_mux.h"
+      "${AOM_ROOT}/tools/stream_multiplexer.cc"
+      $<TARGET_OBJECTS:aom_common_app_util>
+      $<TARGET_OBJECTS:aom_decoder_app_util>)
+
+    list(APPEND AOM_TOOL_TARGETS stream_multiplexer)
+    list(APPEND AOM_APP_TARGETS stream_multiplexer)
+
+    add_executable(
+      stream_demuxer
+      "${AOM_GEN_SRC_DIR}/usage_exit.cc"
+      "${AOM_ROOT}/tools/stream_mux.h"
+      "${AOM_ROOT}/tools/stream_demuxer.cc"
+      $<TARGET_OBJECTS:aom_common_app_util>
+      $<TARGET_OBJECTS:aom_decoder_app_util>)
+
+    list(APPEND AOM_TOOL_TARGETS stream_demuxer)
+    list(APPEND AOM_APP_TARGETS stream_demuxer)
+
     # Maintain a separate variable listing only the examples to facilitate
     # installation of example programs into an tools sub directory of
     # $AOM_DIST_DIR/bin when building the dist target.

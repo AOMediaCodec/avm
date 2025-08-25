@@ -60,6 +60,9 @@ static int valid_obu_type(int obu_type) {
 #if CONFIG_CWG_F317
     case OBU_BRIDGE_FRAME:
 #endif  // CONFIG_CWG_F317
+#if CONFIG_MULTI_STREAM
+    case OBU_MSDO:
+#endif  // CONFIG_MULTI_STREAM
     case OBU_PADDING: valid_type = 1; break;
     default: break;
   }

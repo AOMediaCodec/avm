@@ -67,6 +67,39 @@ static uint32_t write_ats_region_info(struct AtlasRegionInfo *atlas_reg_params,
   return 0;
 }
 
+static uint32_t write_ats_multistream_atlas_info(
+    struct AtlasBasicInfo *ats_basic_atlas_info, int obu_xLayer_id, int xAId,
+    struct aom_write_bit_buffer *wb) {
+  aom_wb_write_uvlc(wb,
+                    ats_basic_atlas_info->ats_atlas_width[obu_xLayer_id][xAId]);
+  aom_wb_write_uvlc(
+      wb, ats_basic_atlas_info->ats_atlas_height[obu_xLayer_id][xAId]);
+  aom_wb_write_uvlc(wb,
+                    ats_basic_atlas_info
+                        ->ats_num_atlas_segments_minus_1[obu_xLayer_id][xAId]);
+
+  const int NumSegments =
+      ats_basic_atlas_info
+          ->ats_num_atlas_segments_minus_1[obu_xLayer_id][xAId] +
+      1;
+  for (int i = 0; i < NumSegments; i++) {
+    aom_wb_write_literal(
+        wb, ats_basic_atlas_info->ats_input_stream_id[obu_xLayer_id][xAId][i],
+        5);
+    aom_wb_write_uvlc(wb,
+                      ats_basic_atlas_info
+                          ->ats_segment_top_left_pos_x[obu_xLayer_id][xAId][i]);
+    aom_wb_write_uvlc(wb,
+                      ats_basic_atlas_info
+                          ->ats_segment_top_left_pos_y[obu_xLayer_id][xAId][i]);
+    aom_wb_write_uvlc(
+        wb, ats_basic_atlas_info->ats_segment_width[obu_xLayer_id][xAId][i]);
+    aom_wb_write_uvlc(
+        wb, ats_basic_atlas_info->ats_segment_height[obu_xLayer_id][xAId][i]);
+  }
+  return 0;
+}
+
 static uint32_t write_ats_basic_atlas_info(
     struct AtlasBasicInfo *ats_basic_atlas_info, int obu_xLayer_id, int xAId,
     struct aom_write_bit_buffer *wb) {
@@ -190,6 +223,10 @@ uint32_t av1_write_atlas_segment_info_obu(AV1_COMP *cpi, int obu_xLayer_id,
         &wb, atlas_params->ats_nominal_width_minus1[obu_xLayer_id][xAId]);
     aom_wb_write_uvlc(
         &wb, atlas_params->ats_nominal_height_minus1[obu_xLayer_id][xAId]);
+  } else if (atlas_params->atlas_segment_mode_idc[obu_xLayer_id][xAId] ==
+             MULTISTREAM_ATLAS) {
+    write_ats_multistream_atlas_info(atlas_params->ats_basic_atlas_info,
+                                     obu_xLayer_id, xAId, &wb);
   }
   // Label each atlas segment
   write_ats_label_segment_info(cpi, obu_xLayer_id, xAId, &wb);

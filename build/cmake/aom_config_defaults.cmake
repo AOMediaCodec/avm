@@ -219,6 +219,8 @@ set_aom_config_var(CONFIG_CWG_E242_MFH_ID_UVLC 1
                    "Signaling multi-frame header ID in UVLC")
 set_aom_config_var(CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER 1
                    "Remove redundant frame header OBU from OBU types")
+set_aom_config_var(CONFIG_MULTI_STREAM 1 "AV2 enable multi-streams.")
+
 set_aom_config_var(CONFIG_IMPROVED_GLOBAL_MOTION 1
                    "New global motion syntax for AV2")
 

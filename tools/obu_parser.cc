@@ -85,6 +85,9 @@ bool ValidObuType(int obu_type) {
     case OBU_ATLAS_SEGMENT:
     case OBU_OPERATING_POINT_SET:
 #endif  // CONFIG_MULTILAYER_HLS
+#if CONFIG_MULTI_STREAM
+    case OBU_MSDO:
+#endif  // CONFIG_MULTI_STREAM
     case OBU_PADDING: return true;
   }
   return false;

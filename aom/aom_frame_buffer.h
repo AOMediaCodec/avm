@@ -24,6 +24,12 @@ extern "C" {
 #include "config/aom_config.h"
 #include "aom/aom_integer.h"
 
+/*!\brief The maximum number of sub-streams.
+ */
+#if CONFIG_MULTI_STREAM
+#define AOM_MAX_NUM_STREAMS 4
+#endif  // CONFIG_MULTI_STREAM
+
 /*!\brief The maximum number of work buffers used by libaom.
  *  Support maximum 4 threads to decode video in parallel.
  *  Each thread will use one work buffer.
