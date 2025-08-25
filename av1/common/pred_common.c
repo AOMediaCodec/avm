@@ -412,7 +412,7 @@ void choose_primary_secondary_ref_frame(const AV1_COMMON *const cm,
                (qp_diff == secondary_cand.qp_diff &&
                 is_ref_better(oh, cur_frame_disp, cur_ref.disp_order,
 #if CONFIG_ACROSS_SCALE_REF_OPT
-                              primary_cand.res_log2 - res_log2,
+                              secondary_cand.res_log2 - res_log2,
 #endif  // CONFIG_ACROSS_SCALE_REF_OPT
                               secondary_cand.disp_order))) {
 #if CONFIG_ACROSS_SCALE_REF_OPT
