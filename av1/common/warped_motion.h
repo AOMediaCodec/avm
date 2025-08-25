@@ -340,9 +340,13 @@ static INLINE void av1_scale_warp_model(const WarpedMotionParams *in_params,
     const int input =
         clamp(in_params->wmmat[param] - center, -input_max, input_max);
     int16_t shift = 0;
-    const int16_t inv_divisor =
-        resolve_divisor_32((uint32_t)abs(in_distance), &shift) *
-        (in_distance < 0 ? -1 : 1);
+    int16_t inv_divisor =
+        resolve_divisor_32((uint32_t)abs(in_distance), &shift);
+    if (inv_divisor >= 512) {
+      inv_divisor >>= 1;
+      shift--;
+    }
+    inv_divisor *= in_distance < 0 ? -1 : 1;
     // input: 23 bits, in/out_distance: 8 bits (get_relative_dist output limit)
     // Intermediate result is in 32 bits (input: 23 bits, inv_divisor: 9 bits).
     // output is in 23 bits because abs(inv_divisor) < (1<<shift)
