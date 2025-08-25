@@ -1258,12 +1258,20 @@ static TX_SIZE set_lpf_parameters(
 
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 // Extract if the block is lossless or not based on the mbmi map of the frame
-static uint8_t get_lossless_flag(AV1_COMMON *const cm, uint32_t x, uint32_t y,
-                                 uint32_t scale_horz, uint32_t scale_vert) {
-  const int this_mi_row = (y << scale_vert) >> MI_SIZE_LOG2;
-  const int this_mi_col = (x << scale_horz) >> MI_SIZE_LOG2;
-  MB_MODE_INFO **this_mi = cm->mi_params.mi_grid_base +
-                           this_mi_row * cm->mi_params.mi_stride + this_mi_col;
+static uint8_t get_lossless_flag(
+    AV1_COMMON *const cm, uint32_t x, uint32_t y, uint32_t scale_horz,
+    uint32_t scale_vert, int plane,
+    const struct macroblockd_plane *const plane_ptr) {
+  const uint32_t width = plane_ptr->dst.width;
+  const uint32_t height = plane_ptr->dst.height;
+  if ((width <= x) || (height <= y)) {
+    return 0;
+  }
+
+  int mi_row;
+  int mi_col;
+  MB_MODE_INFO **this_mi = get_mi_location(cm, scale_horz, scale_vert, x, y,
+                                           plane, &mi_row, &mi_col);
   return this_mi[0] ? cm->features.lossless_segment[this_mi[0]->segment_id] : 0;
 }
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
@@ -1322,10 +1330,10 @@ void av1_filter_block_plane_vert(const AV1_COMMON *const cm,
 
       const aom_bit_depth_t bit_depth = cm->seq_params.bit_depth;
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-      bool is_lossless_current_block =
-          get_lossless_flag(cm, curr_x, curr_y, scale_horz, scale_vert);
-      bool is_lossless_prev_block =
-          get_lossless_flag(cm, prev_x, curr_y, scale_horz, scale_vert);
+      bool is_lossless_current_block = get_lossless_flag(
+          cm, curr_x, curr_y, scale_horz, scale_vert, plane, plane_ptr);
+      bool is_lossless_prev_block = get_lossless_flag(
+          cm, prev_x, curr_y, scale_horz, scale_vert, plane, plane_ptr);
       bool skip_deblock_lossless =
           is_lossless_current_block && is_lossless_prev_block;
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
@@ -1454,10 +1462,10 @@ void av1_filter_block_plane_horz(const AV1_COMMON *const cm,
         tx_size = TX_4X4;
       }
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-      bool is_lossless_current_block =
-          get_lossless_flag(cm, curr_x, curr_y, scale_horz, scale_vert);
-      bool is_lossless_prev_block =
-          get_lossless_flag(cm, curr_x, prev_y, scale_horz, scale_vert);
+      bool is_lossless_current_block = get_lossless_flag(
+          cm, curr_x, curr_y, scale_horz, scale_vert, plane, plane_ptr);
+      bool is_lossless_prev_block = get_lossless_flag(
+          cm, curr_x, prev_y, scale_horz, scale_vert, plane, plane_ptr);
       bool skip_deblock_lossless =
           is_lossless_current_block && is_lossless_prev_block;
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
