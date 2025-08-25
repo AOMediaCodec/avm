@@ -223,6 +223,8 @@ set_aom_config_var(CONFIG_CWG_E242_MFH_ID_UVLC 1
                    "Signaling multi-frame header ID in UVLC")
 set_aom_config_var(CONFIG_RANDOM_ACCESS_SWITCH_FRAME 1
                    "Enable random access switch (RAS) frame")
+set_aom_config_var(CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME 1
+                   "Enable temporal unit based on showable frame")
 set_aom_config_var(CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER 1
                    "Remove redundant frame header OBU from OBU types")
 set_aom_config_var(CONFIG_MULTI_STREAM 1 "AV2 enable multi-streams.")

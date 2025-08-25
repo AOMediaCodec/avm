@@ -6455,9 +6455,11 @@ static AOM_INLINE void write_uncompressed_header_obu
     }
 #endif  // CONFIG_CWG_F317
     if (cm->show_frame) {
+#if !CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
       if (seq_params->decoder_model_info_present_flag &&
           seq_params->timing_info.equal_picture_interval == 0)
         write_tu_pts_info(cm, wb);
+#endif  // !CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
     } else {
 #if CONFIG_CWG_F317
       if (cm->bridge_frame_info.is_bridge_frame) {
@@ -6472,6 +6474,13 @@ static AOM_INLINE void write_uncompressed_header_obu
       }
 #endif  // CONFIG_CWG_F317
     }
+
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+    if ((cm->show_frame || cm->showable_frame) &&
+        seq_params->decoder_model_info_present_flag &&
+        seq_params->timing_info.equal_picture_interval == 0)
+      write_tu_pts_info(cm, wb);
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     if (!((frame_is_sframe(cm) && cpi->switch_frame_mode != 1) ||
           (current_frame->frame_type == KEY_FRAME && cm->show_frame))) {
@@ -8335,12 +8344,7 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
                 : OBU_TILE_GROUP;
         curr_tg_data_size = av1_write_obu_header(level_params, obu_type,
-#if CONFIG_NEW_OBU_HEADER
-                                                 obu_temporal, obu_layer,
-#else
-                                                 obu_extension_header,
-#endif  // CONFIG_NEW_OBU_HEADER
-                                                 data);
+                                                 obu_temporal, obu_layer, data);
         obu_header_size = curr_tg_data_size;
 
         if (num_tg_hdrs == 1) {
@@ -8986,12 +8990,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
         level_params,
         (cpi->common.bridge_frame_info.is_bridge_frame ? OBU_BRIDGE_FRAME
                                                        : OBU_FRAME_HEADER),
-#if CONFIG_NEW_OBU_HEADER
-        obu_temporal, obu_layer,
-#else
-        obu_extension_header,
-#endif  // CONFIG_NEW_OBU_HEADER
-        data);
+        obu_temporal, obu_layer, data);
     obu_payload_size =
         write_frame_header_obu(cpi, &saved_wb, data + obu_header_size, 1);
 #else
