@@ -771,7 +771,7 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
       av1_opfl_rebuild_inter_predictor(
           dst, dst_stride, plane, mv_refined, &inter_pred_params, xd, mi_x,
           mi_y, 0 /* build_for_decode */, cm, bw, ref, mc_buf,
-          calc_subpel_params_func, use_4x4);
+          calc_subpel_params_func, use_4x4, mbmi, bh, mv, 0);
     } else {
       const MV mv_1_16th_pel = convert_mv_to_1_16th_pel(&best_mv_ref[ref]);
       av1_build_one_inter_predictor(dst, dst_stride, &mv_1_16th_pel,

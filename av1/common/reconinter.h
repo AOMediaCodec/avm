@@ -579,7 +579,8 @@ void av1_opfl_rebuild_inter_predictor(
     InterPredParams *inter_pred_params, MACROBLOCKD *xd, int mi_x, int mi_y,
     int build_for_decode, const AV1_COMMON *cm, int pu_width, int ref,
     uint16_t **mc_buf, CalcSubpelParamsFunc calc_subpel_params_func,
-    int use_4x4);
+    int use_4x4, MB_MODE_INFO *mi, int pu_height, const MV mi_mv[2],
+    int use_sub_pad);
 
 // We consider this tunable number K=MAX_LS_BITS-1 (sign bit excluded)
 // as the target maximum bit depth of all intermediate results for LS problem.

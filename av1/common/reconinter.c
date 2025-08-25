@@ -1753,14 +1753,13 @@ void make_masked_inter_predictor(const uint16_t *pre, int pre_stride,
 // Makes the interpredictor for the region by
 // dividing it up into nxn blocks and running
 // the interpredictor code on each one.
-void make_inter_pred_of_nxn(uint16_t *dst, int dst_stride,
-                            int_mv *const mv_refined,
-                            InterPredParams *inter_pred_params, MACROBLOCKD *xd,
-                            int mi_x, int mi_y, int build_for_decode,
-                            const AV1_COMMON *cm, int pu_width, int plane,
-                            int ref, uint16_t **mc_buf,
-                            CalcSubpelParamsFunc calc_subpel_params_func,
-                            int use_4x4, SubpelParams *subpel_params) {
+void make_inter_pred_of_nxn(
+    uint16_t *dst, int dst_stride, int_mv *const mv_refined,
+    InterPredParams *inter_pred_params, MACROBLOCKD *xd, int mi_x, int mi_y,
+    int build_for_decode, const AV1_COMMON *cm, int pu_width, int plane,
+    int ref, uint16_t **mc_buf, CalcSubpelParamsFunc calc_subpel_params_func,
+    int use_4x4, SubpelParams *subpel_params, MB_MODE_INFO *mi, int pu_height,
+    const MV mi_mv[2], int use_sub_pad) {
   int opfl_sub_bw = OF_BSIZE;
   int opfl_sub_bh = OF_BSIZE;
   opfl_subblock_size_plane(xd, plane, use_4x4, &opfl_sub_bw, &opfl_sub_bh);
@@ -1785,6 +1784,14 @@ void make_inter_pred_of_nxn(uint16_t *dst, int dst_stride,
   for (int j = 0; j < bh; j += sub_bh) {
     for (int i = 0; i < bw; i += sub_bw) {
       int delta_idx = (j / sub_bh) * (pu_width / sub_bw) + (i / sub_bw);
+      ReferenceArea ref_area_opfl;
+      if (sub_bh >= 8 && sub_bw >= 8 && use_sub_pad) {
+        av1_get_reference_area_with_padding_single(
+            cm, xd, plane, mi, mi_mv[ref], sub_bw, sub_bh, mi_x + i, mi_y + j,
+            &ref_area_opfl, pu_width, pu_height, ref);
+        inter_pred_params->use_ref_padding = 1;
+        inter_pred_params->ref_area = &ref_area_opfl;
+      }
       const int x = mi_x + i * (1 << inter_pred_params->subsampling_x);
       const int y = mi_y + j * (1 << inter_pred_params->subsampling_y);
       if (is_subblock_outside(x, y, cm->mi_params.mi_cols,
@@ -1911,13 +1918,14 @@ void av1_opfl_rebuild_inter_predictor(
     InterPredParams *inter_pred_params, MACROBLOCKD *xd, int mi_x, int mi_y,
     int build_for_decode, const AV1_COMMON *cm, int pu_width, int ref,
     uint16_t **mc_buf, CalcSubpelParamsFunc calc_subpel_params_func,
-    int use_4x4) {
+    int use_4x4, MB_MODE_INFO *mi, int pu_height, const MV mi_mv[2],
+    int use_sub_pad) {
   SubpelParams subpel_params;
 
   make_inter_pred_of_nxn(dst, dst_stride, mv_refined, inter_pred_params, xd,
                          mi_x, mi_y, build_for_decode, cm, pu_width, plane, ref,
                          mc_buf, calc_subpel_params_func, use_4x4,
-                         &subpel_params);
+                         &subpel_params, mi, pu_height, mi_mv, use_sub_pad);
 }
 
 void av1_build_one_inter_predictor(
@@ -3664,7 +3672,7 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
       av1_opfl_rebuild_inter_predictor(
           dst, dst_stride, plane, mv_refined_sb, &inter_pred_params, xd, mi_x,
           mi_y, build_for_decode, cm, pu_width, ref, mc_buf,
-          calc_subpel_params_func, use_4x4);
+          calc_subpel_params_func, use_4x4, mi, pu_height, mi_mv, 0);
       continue;
     }
     const MV mv_1_16th_pel = (tip_ref_frame && plane)
@@ -4077,7 +4085,7 @@ static void build_inter_predictors_8x8_and_bigger(
       av1_opfl_rebuild_inter_predictor(
           dst, dst_stride, plane, mv_refined, &inter_pred_params, xd, mi_x,
           mi_y, build_for_decode, cm, pu_width, ref, mc_buf,
-          calc_subpel_params_func, use_4x4);
+          calc_subpel_params_func, use_4x4, mi, pu_height, mi_mv, 1);
       continue;
     }
     if (mi->bawp_flag[0] > 0 && (plane == 0 || mi->bawp_flag[1])) {
