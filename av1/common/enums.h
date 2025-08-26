@@ -29,8 +29,6 @@ extern "C" {
 
 #undef MAX_SB_SIZE
 
-#define WARP44_FIX 1
-
 #if CONFIG_DRL_PR_LIM
 #define MAX_PR_NUM 16
 #define MAX_DR_STACK_SIZE 4

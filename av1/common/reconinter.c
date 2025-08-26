@@ -3897,7 +3897,7 @@ static void build_inter_predictors_8x8_and_bigger(
       *ext_warp_used = true;
       inter_pred_params.use_warp_bd_box = 1;
       inter_pred_params.warp_bd_box = &warp_bd_box_mem[0];
-#if !WARP44_FIX
+#if !CONFIG_4X4_WARP_FIX
       const BLOCK_SIZE bsize = xd->mi[0]->sb_type[PLANE_TYPE_Y];
       const int_mv warp_mv = get_int_warp_mv_for_fb(
           xd, &inter_pred_params.warp_params, bsize, (mi_x >> MI_SIZE_LOG2),
@@ -3918,7 +3918,7 @@ static void build_inter_predictors_8x8_and_bigger(
           int block_width = AOMMIN(8, comp_bw);
           int block_height = AOMMIN(8, comp_bh);
           if ((x_loc & 7) == 0 && (y_loc & 7) == 0) {
-#if WARP44_FIX
+#if CONFIG_4X4_WARP_FIX
             const int_mv warp_mv = get_int_warp_mv_for_fb(
                 xd, &inter_pred_params.warp_params,
                 block_width << pd->subsampling_x,
