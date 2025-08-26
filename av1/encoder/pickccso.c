@@ -1202,8 +1202,10 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
        (1 << log2_filter_unit_size_x >> 2) - 1) /
       (1 << log2_filter_unit_size_x >> 2);
   const int sb_count = ccso_nvfb * ccso_nhfb;
-  const int pic_height_c = xd->plane[plane].dst.height;
-  const int pic_width_c = xd->plane[plane].dst.width;
+  // Use cropped height for derivation of ccso filter coefficients at encoder
+  const int pic_height_c = xd->plane[plane].dst.crop_height;
+  // Use cropped width for derivation of ccso filter coefficients at encoder
+  const int pic_width_c = xd->plane[plane].dst.crop_width;
   uint16_t *temp_rec_uv_buf;
   ctx->unfiltered_dist_frame = 0;
   ctx->unfiltered_dist_block =

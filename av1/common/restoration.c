@@ -345,13 +345,10 @@ AV1PixelRect av1_get_rutile_rect(const AV1_COMMON *cm, int plane,
 
   int ss_x = plane && cm->seq_params.subsampling_x;
   int ss_y = plane && cm->seq_params.subsampling_y;
-#if CONFIG_F054_PIC_BOUNDARY
-  const int plane_height = cm->mi_params.mi_rows * MI_SIZE >> ss_y;
-  const int plane_width = cm->mi_params.mi_cols * MI_SIZE >> ss_x;
-#else
+  // Use cropped height for sse calculation at encoder
   const int plane_height = ROUND_POWER_OF_TWO(cm->height, ss_y);
+  // Use cropped width for sse calculation at encoder
   const int plane_width = ROUND_POWER_OF_TWO(cm->width, ss_x);
-#endif  // CONFIG_F054_PIC_BOUNDARY
 
   const int runit_offset = RESTORATION_UNIT_OFFSET >> ss_y;
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES

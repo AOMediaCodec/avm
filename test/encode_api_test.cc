@@ -95,7 +95,7 @@ TEST(EncodeAPI, EncodeOddWidthHeight420) {
 }
 
 // A test that reproduces https://gitlab.com/AOMediaCodec/avm/-/issues/717.
-TEST(EncodeAPI, DISABLED_AvmIssue717Width2) {
+TEST(EncodeAPI, AvmIssue717Width2) {
   constexpr unsigned int kWidth = 2;
   constexpr unsigned int kHeight = 34;
   constexpr unsigned int kChromaWidth = kWidth / 2;
@@ -168,7 +168,7 @@ TEST(EncodeAPI, DISABLED_AvmIssue717Width2) {
 }
 
 // A test that reproduces https://gitlab.com/AOMediaCodec/avm/-/issues/717.
-TEST(EncodeAPI, DISABLED_AvmIssue717Width4) {
+TEST(EncodeAPI, AvmIssue717Width4) {
   constexpr unsigned int kWidth = 4;
   constexpr unsigned int kHeight = 34;
   constexpr unsigned int kChromaWidth = kWidth / 2;
