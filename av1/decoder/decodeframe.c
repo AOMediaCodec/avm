@@ -8297,9 +8297,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       // Read all ref frame base_qindex
       for (int ref_idx = 0; ref_idx < seq_params->ref_frames; ref_idx++) {
         RefCntBuffer *buf = cm->ref_frame_map[ref_idx];
-          buf->base_qindex = aom_rb_read_literal(
-              rb, cm->seq_params.bit_depth == AOM_BITS_8 ? QINDEX_BITS_UNEXT
-                                                         : QINDEX_BITS);
+        buf->base_qindex = aom_rb_read_literal(
+            rb, cm->seq_params.bit_depth == AOM_BITS_8 ? QINDEX_BITS_UNEXT
+                                                       : QINDEX_BITS);
       }
     }
   }
@@ -9502,7 +9502,7 @@ static int32_t read_tile_indices_in_tilegroup(AV1Decoder *pbi,
     return -1;
   }
   pbi->next_start_tile = (*end_tile == num_tiles - 1) ? 0 : *end_tile + 1;
-  
+
 #if CONFIG_BRU_TILE_FLAG
   if (cm->bru.enabled) {
     if (num_tiles > 1) {
