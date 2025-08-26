@@ -1835,13 +1835,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 
   // Set reference frame related configuration.
 #if CONFIG_CWG_F168_DPB_HLS
+  // If max_reference_frames is set to be larger than dpb_size, set
+  // max_reference_frames to dpb_size.
   if (extra_cfg->max_reference_frames > extra_cfg->dpb_size) {
-    fprintf(stderr,
-            "Warning: --max_reference_frames is set to %d, which should not be "
-            "larger than --dpb_size==%d. ",
-            extra_cfg->max_reference_frames, extra_cfg->dpb_size);
-    fprintf(stderr, "Setting --max_reference_frames to %d.\n",
-            extra_cfg->dpb_size);
     extra_cfg->max_reference_frames = extra_cfg->dpb_size;
   }
 #endif
