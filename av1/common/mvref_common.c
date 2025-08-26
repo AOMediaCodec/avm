@@ -2716,11 +2716,12 @@ static AOM_INLINE int generate_points_from_corners(
 static int insert_mvp_candidate(
 #if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
     const MACROBLOCKD *xd, MV_REFERENCE_FRAME *ref_frame_idx0,
-    MV_REFERENCE_FRAME *ref_frame_idx1, MV_REFERENCE_FRAME rf[2],
+    MV_REFERENCE_FRAME *ref_frame_idx1,
 #endif  // #if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-    CANDIDATE_MV ref_mv_stack[MAX_REF_MV_STACK_SIZE],
-    uint16_t ref_mv_weight[MAX_REF_MV_STACK_SIZE], int16_t this_mv_col,
-    int16_t this_mv_row, int16_t comp_mv_col, int16_t comp_mv_row,
+    MV_REFERENCE_FRAME rf[2], CANDIDATE_MV ref_mv_stack[MAX_REF_MV_STACK_SIZE],
+    uint16_t ref_mv_weight[MAX_REF_MV_STACK_SIZE],
+    MV_COMP_DATA_TYPE this_mv_col, MV_COMP_DATA_TYPE this_mv_row,
+    MV_COMP_DATA_TYPE comp_mv_col, MV_COMP_DATA_TYPE comp_mv_row,
     uint16_t weight, uint8_t *refmv_count, int *drl_pr_count) {
   CANDIDATE_MV ext_mv;
   ext_mv.this_mv.as_mv.col = this_mv_col;
@@ -2736,14 +2737,12 @@ static int insert_mvp_candidate(
 #if CONFIG_DRL_PR_LIM
       ++(*drl_pr_count);
 #endif
-#if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
       if ((ref_mv_stack[idx].this_mv.as_int == ext_mv.this_mv.as_int) &&
           (rf[1] == NONE_FRAME ||
            (rf[1] > NONE_FRAME &&
             ref_mv_stack[idx].comp_mv.as_int == ext_mv.comp_mv.as_int))) {
         break;
       }
-#endif  // #if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
     }
     // Add a new item to the list.
     if (idx == *refmv_count) {
@@ -3313,10 +3312,10 @@ static AOM_INLINE void setup_ref_mv_list(
       max_ext_stack_size = 6;
 
     if (max_ext_stack_size) {
-      int16_t row = 0;
-      int16_t col = 0;
-      int16_t comp_mv_row = 0;
-      int16_t comp_mv_col = 0;
+      MV_COMP_DATA_TYPE row = 0;
+      MV_COMP_DATA_TYPE col = 0;
+      MV_COMP_DATA_TYPE comp_mv_row = 0;
+      MV_COMP_DATA_TYPE comp_mv_col = 0;
       uint16_t curr_mv_weight = 1;
       if (*refmv_count < MAX_REF_MV_STACK_SIZE && original_mv_count > 1 &&
           added_ext_cnt < max_ext_stack_size) {
@@ -3328,9 +3327,9 @@ static AOM_INLINE void setup_ref_mv_list(
         curr_mv_weight = (ref_mv_weight[0] + ref_mv_weight[1] + 1) / 2;
         added_ext_cnt += insert_mvp_candidate(
 #if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-            xd, ref_frame_idx0, ref_frame_idx1, rf,
+            xd, ref_frame_idx0, ref_frame_idx1,
 #endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-            ref_mv_stack, ref_mv_weight, col, row, comp_mv_col, comp_mv_row,
+            rf, ref_mv_stack, ref_mv_weight, col, row, comp_mv_col, comp_mv_row,
             curr_mv_weight, refmv_count, &drl_pr_count);
         if (*refmv_count < MAX_REF_MV_STACK_SIZE &&
             added_ext_cnt < max_ext_stack_size) {
@@ -3342,10 +3341,10 @@ static AOM_INLINE void setup_ref_mv_list(
           curr_mv_weight = (ref_mv_weight[0] + ref_mv_weight[1] + 1) / 2;
           added_ext_cnt += insert_mvp_candidate(
 #if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-              xd, ref_frame_idx0, ref_frame_idx1, rf,
+              xd, ref_frame_idx0, ref_frame_idx1,
 #endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-              ref_mv_stack, ref_mv_weight, col, row, comp_mv_col, comp_mv_row,
-              curr_mv_weight, refmv_count, &drl_pr_count);
+              rf, ref_mv_stack, ref_mv_weight, col, row, comp_mv_col,
+              comp_mv_row, curr_mv_weight, refmv_count, &drl_pr_count);
         }
       }
       if (*refmv_count < MAX_REF_MV_STACK_SIZE && original_mv_count > 2 &&
@@ -3358,9 +3357,9 @@ static AOM_INLINE void setup_ref_mv_list(
         curr_mv_weight = (ref_mv_weight[0] + ref_mv_weight[2] + 1) / 2;
         added_ext_cnt += insert_mvp_candidate(
 #if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-            xd, ref_frame_idx0, ref_frame_idx1, rf,
+            xd, ref_frame_idx0, ref_frame_idx1,
 #endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-            ref_mv_stack, ref_mv_weight, col, row, comp_mv_col, comp_mv_row,
+            rf, ref_mv_stack, ref_mv_weight, col, row, comp_mv_col, comp_mv_row,
             curr_mv_weight, refmv_count, &drl_pr_count);
 
         if (*refmv_count < MAX_REF_MV_STACK_SIZE &&
@@ -3373,10 +3372,10 @@ static AOM_INLINE void setup_ref_mv_list(
           curr_mv_weight = (ref_mv_weight[0] + ref_mv_weight[2] + 1) / 2;
           added_ext_cnt += insert_mvp_candidate(
 #if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-              xd, ref_frame_idx0, ref_frame_idx1, rf,
+              xd, ref_frame_idx0, ref_frame_idx1,
 #endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-              ref_mv_stack, ref_mv_weight, col, row, comp_mv_col, comp_mv_row,
-              curr_mv_weight, refmv_count, &drl_pr_count);
+              rf, ref_mv_stack, ref_mv_weight, col, row, comp_mv_col,
+              comp_mv_row, curr_mv_weight, refmv_count, &drl_pr_count);
         }
 
         if (*refmv_count < MAX_REF_MV_STACK_SIZE &&
@@ -3389,10 +3388,10 @@ static AOM_INLINE void setup_ref_mv_list(
           curr_mv_weight = (ref_mv_weight[1] + ref_mv_weight[2] + 1) / 2;
           added_ext_cnt += insert_mvp_candidate(
 #if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-              xd, ref_frame_idx0, ref_frame_idx1, rf,
+              xd, ref_frame_idx0, ref_frame_idx1,
 #endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-              ref_mv_stack, ref_mv_weight, col, row, comp_mv_col, comp_mv_row,
-              curr_mv_weight, refmv_count, &drl_pr_count);
+              rf, ref_mv_stack, ref_mv_weight, col, row, comp_mv_col,
+              comp_mv_row, curr_mv_weight, refmv_count, &drl_pr_count);
         }
         // Add (2_y, 1_x)
         if (*refmv_count < MAX_REF_MV_STACK_SIZE &&
@@ -3404,10 +3403,10 @@ static AOM_INLINE void setup_ref_mv_list(
           curr_mv_weight = (ref_mv_weight[1] + ref_mv_weight[2] + 1) / 2;
           added_ext_cnt += insert_mvp_candidate(
 #if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-              xd, ref_frame_idx0, ref_frame_idx1, rf,
+              xd, ref_frame_idx0, ref_frame_idx1,
 #endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-              ref_mv_stack, ref_mv_weight, col, row, comp_mv_col, comp_mv_row,
-              curr_mv_weight, refmv_count, &drl_pr_count);
+              rf, ref_mv_stack, ref_mv_weight, col, row, comp_mv_col,
+              comp_mv_row, curr_mv_weight, refmv_count, &drl_pr_count);
           (void)added_ext_cnt;
         }
       }
