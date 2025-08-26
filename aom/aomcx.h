@@ -1116,13 +1116,13 @@ enum aome_enc_control_id {
 /*!\brief Control to select maximum reference frames allowed per frame, int
  * parameter
  *
- * Valid range: 3..7
+ * Valid range: 1..7
  */
 #else
 /*!\brief Control to select maximum reference frames allowed per frame, int
  * parameter
  *
- * Valid range: 1..7
+ * Valid range: 3..7
  */
 #endif  // CONFIG_CWG_F168_DPB_HLS
   AV1E_SET_MAX_REFERENCE_FRAMES = 124,
