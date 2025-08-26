@@ -580,7 +580,9 @@ typedef struct SequenceHeader {
   int enable_frame_output_order;  // Enable frame output order derivation based
                                   // on order hint value
 #endif                            // !CONFIG_F253_REMOVE_OUTPUTFLAG
-  int max_reference_frames;       // Number of reference frames allowed
+#if !CONFIG_CWG_F168_DPB_HLS
+  int max_reference_frames;  // Number of reference frames allowed
+#endif                       // !CONFIG_CWG_F168_DPB_HLS
 #if CONFIG_SEQ_MAX_DRL_BITS
   int def_max_drl_bits;                  // default max drl bits for MVs
   uint8_t allow_frame_max_drl_bits;      // whether to allow frame level update

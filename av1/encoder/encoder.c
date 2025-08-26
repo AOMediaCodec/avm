@@ -427,7 +427,9 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
       ;
 #endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
+#if !CONFIG_CWG_F168_DPB_HLS
   seq->max_reference_frames = oxcf->ref_frm_cfg.max_reference_frames;
+#endif  // !CONFIG_CWG_F168_DPB_HLS
 #if CONFIG_SEQ_MAX_DRL_BITS
   if (oxcf->tool_cfg.max_drl_refmvs == 0) {
     seq->def_max_drl_bits = DEF_MAX_DRL_REFMVS - 1;

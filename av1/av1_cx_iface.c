@@ -895,8 +895,11 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
     if (extra_cfg->enable_chroma_deltaq)
       ERROR("Only --enable_chroma_deltaq=0 can be used with --lossless=1.");
   }
-
+#if CONFIG_CWG_F168_DPB_HLS
+  RANGE_CHECK(extra_cfg, max_reference_frames, 1, 7);
+#else
   RANGE_CHECK(extra_cfg, max_reference_frames, 3, 7);
+#endif  // CONFIG_CWG_F168_DPB_HLS
 #if CONFIG_REDUCED_REF_FRAME_MVS_MODE
   RANGE_CHECK(extra_cfg, reduced_ref_frame_mvs_mode, 0, 1);
 #endif  // CONFIG_REDUCED_REF_FRAME_MVS_MODE
@@ -1831,6 +1834,17 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   }
 
   // Set reference frame related configuration.
+#if CONFIG_CWG_F168_DPB_HLS
+  if (extra_cfg->max_reference_frames > extra_cfg->dpb_size) {
+    fprintf(stdout,
+            "Warning: --max_reference_frames is set to %d, which should not be "
+            "larger than --dpb_size==%d. ",
+            extra_cfg->max_reference_frames, extra_cfg->dpb_size);
+    fprintf(stdout, "Setting --max_reference_frames to %d.\n",
+            extra_cfg->dpb_size);
+    extra_cfg->max_reference_frames = extra_cfg->dpb_size;
+  }
+#endif
   oxcf->ref_frm_cfg.max_reference_frames = extra_cfg->max_reference_frames;
   oxcf->ref_frm_cfg.enable_reduced_reference_set =
       extra_cfg->enable_reduced_reference_set;

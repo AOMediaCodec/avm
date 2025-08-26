@@ -3669,7 +3669,14 @@ static AOM_INLINE void enforce_max_ref_frames(AV1_COMP *cpi,
       get_max_allowed_ref_frames(cpi->sf.inter_sf.selective_ref_frame,
                                  cpi->oxcf.ref_frm_cfg.max_reference_frames);
 
+#if CONFIG_CWG_F168_DPB_HLS
+  const int max_num_refs_to_disable = INTER_REFS_PER_FRAME - max_allowed_refs;
+  for (int i = 0;
+       i < max_num_refs_to_disable && total_valid_refs > max_allowed_refs;
+       ++i) {
+#else
   for (int i = 0; i < 4 && total_valid_refs > max_allowed_refs; ++i) {
+#endif  // CONFIG_CWG_F168_DPB_HLS
     const MV_REFERENCE_FRAME ref_frame_to_disable =
         INTER_REFS_PER_FRAME - i - 1;
 

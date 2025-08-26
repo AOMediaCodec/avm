@@ -743,7 +743,11 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       "maximum height for GF group pyramid structure (0 to 5 (default))"),
   .max_reference_frames = ARG_DEF(NULL, "max-reference-frames", 1,
                                   "maximum number of reference frames allowed "
+#if CONFIG_CWG_F168_DPB_HLS
+                                  "per frame (1 to 7 (default))"),
+#else
                                   "per frame (3 to 7 (default))"),
+#endif  // CONFIG_CWG_F168_DPB_HLS
   .reduced_reference_set =
       ARG_DEF(NULL, "reduced-reference-set", 1,
               "Use reduced set of single and compound references (0: off "

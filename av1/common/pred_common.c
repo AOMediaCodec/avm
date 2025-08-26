@@ -257,8 +257,14 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
   // Sort the references according to their score
   bubble_sort_ref_scores(scores, n_ranked);
 
+#if CONFIG_CWG_F168_DPB_HLS
+  const int max_num_ref_frames =
+      AOMMIN(cm->seq_params.ref_frames, INTER_REFS_PER_FRAME);
+  cm->ref_frames_info.num_total_refs = AOMMIN(n_ranked, max_num_ref_frames);
+#else
   cm->ref_frames_info.num_total_refs =
       AOMMIN(n_ranked, cm->seq_params.max_reference_frames);
+#endif  // CONFIG_CWG_F168_DPB_HLS
 #if CONFIG_ACROSS_SCALE_REF_OPT
   if (!resolution_available)
     cm->ref_frames_info.num_total_refs_res_indep =

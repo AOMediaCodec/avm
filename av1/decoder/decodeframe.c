@@ -6807,9 +6807,6 @@ void av1_read_sequence_header_beyond_av1(
     seq_params->ref_frames = 8;  // default DPB size: 8
   }
   seq_params->ref_frames_log2 = aom_ceil_log2(seq_params->ref_frames);
-
-  seq_params->max_reference_frames =
-      AOMMIN(seq_params->ref_frames, INTER_REFS_PER_FRAME);
 #else
   // A bit is sent here to indicate if the max number of references is 7. If
   // this bit is 0, then two more bits are sent to indicate the exact number
@@ -8232,6 +8229,10 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       if (explicit_ref_frame_map) {
         cm->ref_frames_info.num_total_refs =
             aom_rb_read_literal(rb, MAX_REFS_PER_FRAME_LOG2);
+#if CONFIG_CWG_F168_DPB_HLS
+        const int max_num_ref_frames =
+            AOMMIN(seq_params->ref_frames, INTER_REFS_PER_FRAME);
+#endif  // CONFIG_CWG_F168_DPB_HLS
         // Check whether num_total_refs read is valid
 #if CONFIG_ACROSS_SCALE_REF_OPT
         if (cm->ref_frames_info.num_total_refs < 0 ||
@@ -8239,7 +8240,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         if (cm->ref_frames_info.num_total_refs <= 0 ||
 #endif  // CONFIG_ACROSS_SCALE_REF_OPT
             cm->ref_frames_info.num_total_refs >
+#if CONFIG_CWG_F168_DPB_HLS
+                max_num_ref_frames)
+#else
                 seq_params->max_reference_frames)
+#endif  // CONFIG_CWG_F168_DPB_HLS
           aom_internal_error(&cm->error, AOM_CODEC_ERROR,
                              "Invalid num_total_refs");
 #if CONFIG_ACROSS_SCALE_REF_OPT
