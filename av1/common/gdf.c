@@ -385,7 +385,7 @@ void gdf_setup_reference_lines(AV1_COMMON *cm, int i_min, int i_max,
   const int rsb_row = frame_stripe * RESTORATION_CTX_VERT;
 
   const int rec_width = cm->cur_frame->buf.y_width;
-  const int buf_x0_off = RESTORATION_EXTRA_HORZ;
+  const int buf_x0_off = RESTORATION_BORDER_HORZ;
   const int buf_stride = rsb->stripe_boundary_stride;
   const int data_stride = cm->gdf_info.inp_stride;
   const int line_size = rec_width << 1;

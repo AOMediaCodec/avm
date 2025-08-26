@@ -638,9 +638,9 @@ static void enqueue_lr_jobs(AV1LrSync *lr_sync, AV1LrStruct *lr_ctxt,
 
           if ((i & 1) == 0) {
             lr_job_queue[lr_job_counter[i & 1]].v_copy_start =
-                limits.v_start + RESTORATION_BORDER;
+                limits.v_start + RESTORATION_BORDER_VERT;
             lr_job_queue[lr_job_counter[i & 1]].v_copy_end =
-                limits.v_end - RESTORATION_BORDER;
+                limits.v_end - RESTORATION_BORDER_VERT;
             if (i == 0) {
               assert(limits.v_start == tile_rect.top);
               lr_job_queue[lr_job_counter[i & 1]].v_copy_start = tile_rect.top;
@@ -651,9 +651,9 @@ static void enqueue_lr_jobs(AV1LrSync *lr_sync, AV1LrStruct *lr_ctxt,
             }
           } else {
             lr_job_queue[lr_job_counter[i & 1]].v_copy_start =
-                AOMMAX(limits.v_start - RESTORATION_BORDER, tile_rect.top);
-            lr_job_queue[lr_job_counter[i & 1]].v_copy_end =
-                AOMMIN(limits.v_end + RESTORATION_BORDER, tile_rect.bottom);
+                AOMMAX(limits.v_start - RESTORATION_BORDER_VERT, tile_rect.top);
+            lr_job_queue[lr_job_counter[i & 1]].v_copy_end = AOMMIN(
+                limits.v_end + RESTORATION_BORDER_VERT, tile_rect.bottom);
           }
           lr_job_counter[i & 1]++;
           lr_sync->jobs_enqueued++;

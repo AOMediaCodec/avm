@@ -124,7 +124,8 @@ void av1_alloc_restoration_boundary_buffers(struct AV1Common *cm,
   for (int p = 0; p < num_planes; ++p) {
     const int is_uv = p > 0;
     const int ss_x = is_uv && cm->seq_params.subsampling_x;
-    const int plane_w = ((frame_w + ss_x) >> ss_x) + 2 * RESTORATION_EXTRA_HORZ;
+    const int plane_w =
+        ((frame_w + ss_x) >> ss_x) + 2 * RESTORATION_BORDER_HORZ;
     const int stride = ALIGN_POWER_OF_TWO(plane_w, 5);
     const int buf_size = num_stripes * stride * RESTORATION_CTX_VERT << 1;
     RestorationStripeBoundaries *boundaries = &cm->rst_info[p].boundaries;

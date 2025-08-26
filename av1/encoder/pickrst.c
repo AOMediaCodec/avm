@@ -4284,8 +4284,8 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
       av1_reset_restoration_struct(cm, rsi, plane > 0);
       if (!cpi->sf.lpf_sf.disable_loop_restoration_chroma || !plane) {
         av1_extend_frame(rsc.dgd_buffer, rsc.plane_width, rsc.plane_height,
-                         rsc.dgd_stride, RESTORATION_BORDER,
-                         RESTORATION_BORDER);
+                         rsc.dgd_stride, RESTORATION_BORDER_HORZ,
+                         RESTORATION_BORDER_VERT);
 
         assert(rsc.adjust_switchable_for_frame_filters == 0);
         for (RestorationType r = 0; r < num_rtypes; ++r) {
