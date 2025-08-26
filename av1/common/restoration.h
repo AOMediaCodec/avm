@@ -29,9 +29,6 @@ extern "C" {
 
 /*!\cond */
 
-#define ISSUE_253 \
-  1  // enable virtual line buffer for cross-component wienerNS filter
-
 // Border for Loop restoration buffer
 #define AOM_RESTORATION_FRAME_BORDER 32
 #define CLIP(x, lo, hi) ((x) < (lo) ? (lo) : (x) > (hi) ? (hi) : (x))
@@ -53,18 +50,11 @@ extern "C" {
 // RESTORATION_BORDER_VERT determines line buffer requirement for LR.
 // Note the line buffer needed is twice the value of this macro.
 #define RESTORATION_BORDER_VERT 4
-#define RESTORATION_BORDER_HORZ_ 4
-// Additional pixels to the left and right in above/below buffers
-// It is RESTORATION_BORDER_HORZ_ rounded up to get nicer buffer alignment
-#define RESTORATION_BORDER_HORZ (((RESTORATION_BORDER_HORZ_ + 3) >> 2) << 2)
+#define RESTORATION_BORDER_HORZ 4
 
 // How many border pixels do we need for each processing unit?
-#if ISSUE_253
 #define RESTORATION_BORDER \
-  4  // 4 rows/columns are needed for only cross-component wienerns filter,
-#else
-#define RESTORATION_BORDER 3
-#endif  // ISSUE_253
+  (AOMMAX(RESTORATION_BORDER_VERT, RESTORATION_BORDER_HORZ))
 
 // How many rows of deblocked pixels do we save above/below each processing
 // stripe.
@@ -342,17 +332,12 @@ typedef struct {
 
 // A restoration line buffer needs space for two lines plus a horizontal filter
 // margin of RESTORATION_BORDER_HORZ on each side.
-#if ISSUE_253
 // The maximum picture width is 8192 * 8 for LR to work properly in this
 // software implementation. This is one quick implementation, the buffer size
 // should be allocated based on picture width
 #define MAX_SUPPORTED_PIC_WIDTH_IN_CCALF_IMP (8192 * 8)
 #define RESTORATION_LINEBUFFER_WIDTH \
   (MAX_SUPPORTED_PIC_WIDTH_IN_CCALF_IMP * 3 / 2 + 2 * RESTORATION_BORDER_HORZ)
-#else
-#define RESTORATION_LINEBUFFER_WIDTH \
-  (RESTORATION_UNITSIZE_MAX * 3 / 2 + 2 * RESTORATION_BORDER_HORZ)
-#endif  // ISSUE_253
 
 // Similarly, the column buffers (used when we're at a vertical tile edge
 // that we can't filter across) need space for one processing unit's worth
@@ -363,15 +348,10 @@ typedef struct {
 typedef struct {
   // Temporary buffers to save/restore 3 lines above/below the restoration
   // stripe.
-#if ISSUE_253
   uint16_t tmp_save_above[2][RESTORATION_BORDER_VERT]
                          [RESTORATION_LINEBUFFER_WIDTH];
   uint16_t tmp_save_below[2][RESTORATION_BORDER_VERT]
                          [RESTORATION_LINEBUFFER_WIDTH];
-#else
-  uint16_t tmp_save_above[RESTORATION_BORDER][RESTORATION_LINEBUFFER_WIDTH];
-  uint16_t tmp_save_below[RESTORATION_BORDER][RESTORATION_LINEBUFFER_WIDTH];
-#endif  // ISSUE_253
   uint16_t tmp_save_left[2][RESTORATION_COLBUFFER_HEIGHT]
                         [RESTORATION_BORDER_HORZ];
   uint16_t tmp_save_right[2][RESTORATION_COLBUFFER_HEIGHT]
@@ -620,10 +600,8 @@ typedef struct AV1LrStruct {
   struct CommonTileParams *tiles;
 } AV1LrStruct;
 
-#if ISSUE_253
 uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV1Common *cm,
                                                 uint16_t **luma_hbd);
-#endif  // ISSUE_253
 
 void av1_alloc_restoration_struct(struct AV1Common *cm, RestorationInfo *rsi,
                                   int is_uv);

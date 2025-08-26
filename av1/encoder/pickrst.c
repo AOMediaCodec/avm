@@ -154,9 +154,7 @@ typedef struct {
   int num_wiener_nonsep;  // debug: number of RESTORE_WIENER_NONSEP RUs.
 
   const uint16_t *luma;
-#if ISSUE_253
   const uint16_t *luma_stat;
-#endif  // ISSUE_253
 
   int luma_stride;
 
@@ -363,13 +361,9 @@ static int64_t try_restoration_unit(const RestSearchCtxt *rsc,
   const int plane = rsc->plane;
   const int is_uv = plane > 0;
   const RestorationInfo *rsi = &cm->rst_info[plane];
-#if ISSUE_253
   RestorationLineBuffers *rlbs = aom_malloc(sizeof(RestorationLineBuffers));
   if (rlbs == NULL)
     fprintf(stderr, "rlbs buffer does not allocate successfully\n");
-#else
-  RestorationLineBuffers rlbs;
-#endif
   const int bit_depth = cm->seq_params.bit_depth;
 
   const YV12_BUFFER_CONFIG *fts = &cm->cur_frame->buf;
@@ -377,20 +371,13 @@ static int64_t try_restoration_unit(const RestSearchCtxt *rsc,
   // also used in encoder.
   const int optimized_lr = 0;
   av1_loop_restoration_filter_unit(
-      limits, rui, &rsi->boundaries,
-#if ISSUE_253
-      rlbs,
-#else
-      &rlbs,
-#endif
-      tile_rect, rsc->tile_stripe0, is_uv && cm->seq_params.subsampling_x,
+      limits, rui, &rsi->boundaries, rlbs, tile_rect, rsc->tile_stripe0,
+      is_uv && cm->seq_params.subsampling_x,
       is_uv && cm->seq_params.subsampling_y, bit_depth, fts->buffers[plane],
       fts->strides[is_uv], rsc->dst->buffers[plane], rsc->dst->strides[is_uv],
       optimized_lr);
 
-#if ISSUE_253
   if (rlbs != NULL) aom_free(rlbs);
-#endif
   return sse_restoration_unit(limits, rsc->src, rsc->dst, plane);
 }
 
@@ -2329,9 +2316,7 @@ static void gather_stats_wienerns(const RestorationTileLimits *limits,
 
   RestorationUnitInfo rui;
   initialize_rui_for_nonsep_search(rsc, &rui);
-#if ISSUE_253
   rui.luma = rsc->luma_stat;
-#endif  // ISSUE_253
   rui.restoration_type = RESTORE_WIENER_NONSEP;
   const WienernsFilterParameters *nsfilter_params = get_wienerns_parameters(
       rsc->cm->quant_params.base_qindex, rsc->plane != AOM_PLANE_Y);
@@ -4232,7 +4217,6 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
   );
   assert(luma_buf != NULL);
 
-#if ISSUE_253
   rsc.luma_stat = luma;
 
   uint16_t *luma_virtual = NULL;
@@ -4240,9 +4224,6 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
 
   luma_virtual_buf = wienerns_copy_luma_with_virtual_lines(cm, &luma_virtual);
   rsc.luma = luma_virtual;
-#else
-  rsc.luma = luma;
-#endif  // ISSUE_253
 
   rsc.wienerns_tmpbuf =
       (double *)aom_malloc(WIENERNS_TMPBUF_SIZE * sizeof(*rsc.wienerns_tmpbuf));
@@ -4407,9 +4388,7 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
 
   aom_free(rusi);
   free(luma_buf);
-#if ISSUE_253
   free(luma_virtual_buf);
-#endif  // ISSUE_253
   aom_free(rsc.wienerns_tmpbuf);
   aom_vector_destroy(&wienerns_stats);
   aom_vector_destroy(&unit_stack);
