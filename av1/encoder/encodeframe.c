@@ -1951,6 +1951,8 @@ void av1_encode_frame(AV1_COMP *cpi) {
 #if CONFIG_BRU_LOSSLESS_CONFORMANCE
   if (cm->bru.enabled && features->all_lossless) {
     cm->bru.enabled = 0;
+    cm->bru.frame_inactive_flag = 0;
+    memset(cm->bru.active_mode_map, 2, sizeof(uint8_t) * cm->bru.total_units);
   }
 #endif
   // Make sure segment_id is no larger than last_active_segid.

@@ -307,7 +307,7 @@ void bru_copy_sb(const struct AV1Common *cm, const int mi_col,
                  const int mi_row);
 void bru_update_sb(const struct AV1Common *cm, const int mi_col,
                    const int mi_row);
-void bru_set_default_inter_mb_mode_info(const AV1_COMMON *const cm,
+void bru_set_default_inter_mb_mode_info(AV1_COMMON *const cm,
                                         MACROBLOCKD *const xd,
                                         MB_MODE_INFO *const mbmi,
                                         BLOCK_SIZE bsize);
