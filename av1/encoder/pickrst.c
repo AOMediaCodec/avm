@@ -203,9 +203,6 @@ typedef struct RstUnitSnapshot {
   int64_t merge_bits;
   int64_t merge_sse_cand;
   int64_t merge_bits_cand;
-  // Wiener filter info
-  int64_t M[WIENER_WIN2];
-  int64_t H[WIENER_WIN2 * WIENER_WIN2];
   // Pointers to respective stats in RstUnitStats.
   const double *A;
   const double *b;
@@ -514,58 +511,6 @@ static AOM_INLINE void search_pc_wiener_visitor(
   rsc->sse += rusi->sse[rtype];
   rsc->bits += (cost_pc_wiener < cost_none) ? bits_pc_wiener : bits_none;
   // No side-information for now to copy to info.
-}
-
-void av1_compute_stats_highbd_c(int wiener_win, const uint16_t *dgd,
-                                const uint16_t *src, int h_start, int h_end,
-                                int v_start, int v_end, int dgd_stride,
-                                int src_stride, int64_t *M, int64_t *H,
-                                aom_bit_depth_t bit_depth) {
-  int i, j, k, l;
-  int32_t Y[WIENER_WIN2];
-  const int wiener_win2 = wiener_win * wiener_win;
-  const int wiener_halfwin = (wiener_win >> 1);
-  uint16_t avg =
-      find_average_highbd(dgd, h_start, h_end, v_start, v_end, dgd_stride);
-
-  uint8_t bit_depth_divider = 1;
-  if (bit_depth == AOM_BITS_12)
-    bit_depth_divider = 16;
-  else if (bit_depth == AOM_BITS_10)
-    bit_depth_divider = 4;
-
-  memset(M, 0, sizeof(*M) * wiener_win2);
-  memset(H, 0, sizeof(*H) * wiener_win2 * wiener_win2);
-  for (i = v_start; i < v_end; i++) {
-    for (j = h_start; j < h_end; j++) {
-      const int32_t X = (int32_t)src[i * src_stride + j] - (int32_t)avg;
-      int idx = 0;
-      for (k = -wiener_halfwin; k <= wiener_halfwin; k++) {
-        for (l = -wiener_halfwin; l <= wiener_halfwin; l++) {
-          Y[idx] = (int32_t)dgd[(i + l) * dgd_stride + (j + k)] - (int32_t)avg;
-          idx++;
-        }
-      }
-      assert(idx == wiener_win2);
-      for (k = 0; k < wiener_win2; ++k) {
-        M[k] += (int64_t)Y[k] * X;
-        for (l = k; l < wiener_win2; ++l) {
-          // H is a symmetric matrix, so we only need to fill out the upper
-          // triangle here. We can copy it down to the lower triangle outside
-          // the (i, j) loops.
-          H[k * wiener_win2 + l] += (int64_t)Y[k] * Y[l];
-        }
-      }
-    }
-  }
-  for (k = 0; k < wiener_win2; ++k) {
-    M[k] /= bit_depth_divider;
-    H[k * wiener_win2 + k] /= bit_depth_divider;
-    for (l = k + 1; l < wiener_win2; ++l) {
-      H[k * wiener_win2 + l] /= bit_depth_divider;
-      H[l * wiener_win2 + k] = H[k * wiener_win2 + l];
-    }
-  }
 }
 
 // If limits != NULL, calculates error for current restoration unit.

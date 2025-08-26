@@ -210,7 +210,6 @@ if(NOT BUILD_SHARED_LIBS)
     "${AOM_ROOT}/test/sum_squares_test.cc"
     "${AOM_ROOT}/test/sse_sum_test.cc"
     "${AOM_ROOT}/test/variance_test.cc"
-    "${AOM_ROOT}/test/wiener_test.cc"
     "${AOM_ROOT}/test/warp_filter_test.cc"
     "${AOM_ROOT}/test/warp_filter_test_util.cc"
     "${AOM_ROOT}/test/warp_filter_test_util.h"

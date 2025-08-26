@@ -51,8 +51,7 @@ extern "C" {
 #define RESTORATION_UNIT_OFFSET 8
 
 #define WIENER_BORDER_VERT 2  // Vertical border used for Wiener
-#define WIENER_HALFWIN 3
-#define WIENER_BORDER_HORZ (WIENER_HALFWIN)  // Horizontal border for Wiener
+#define WIENER_BORDER_HORZ 4  // Horizontal border for Wiener
 
 // RESTORATION_BORDER_VERT determines line buffer requirement for LR.
 // Note the line buffer needed is twice the value of this macro.
@@ -98,9 +97,6 @@ extern "C" {
 #define RESTORATION_UNITPELS_MAX \
   (RESTORATION_UNITPELS_HORZ_MAX * RESTORATION_UNITPELS_VERT_MAX)
 
-#define WIENER_HALFWIN1 (WIENER_HALFWIN + 1)
-#define WIENER_WIN (2 * WIENER_HALFWIN + 1)
-#define WIENER_WIN2 ((WIENER_WIN) * (WIENER_WIN))
 #define WIENER_TMPBUF_SIZE (0)
 #define WIENER_EXTBUF_SIZE (0)
 
@@ -109,9 +105,6 @@ extern "C" {
 #define WIENER_WIN_CHROMA (WIENER_WIN - 2)
 #define WIENER_WIN_REDUCED (WIENER_WIN - 2)
 #define WIENER_WIN2_CHROMA ((WIENER_WIN_CHROMA) * (WIENER_WIN_CHROMA))
-
-#define WIENER_FILT_PREC_BITS 7
-#define WIENER_FILT_STEP (1 << WIENER_FILT_PREC_BITS)
 
 // Central values for the taps
 #define WIENER_FILT_TAP0_MIDV (3)
@@ -259,14 +252,6 @@ static INLINE int decode_first_match(int encoded_match_index) {
 
 // Max of WIENER_EXTBUF_SIZE
 #define RESTORATION_EXTBUF_SIZE (WIENER_EXTBUF_SIZE)
-
-// Check the assumptions of the existing code
-#if SUBPEL_TAPS != WIENER_WIN + 1
-#error "Wiener filter currently only works if SUBPEL_TAPS == WIENER_WIN + 1"
-#endif
-#if WIENER_FILT_PREC_BITS != 7
-#error "Wiener filter currently only works if WIENER_FILT_PREC_BITS == 7"
-#endif
 
 #define LR_TILE_ROW 0
 #define LR_TILE_COL 0
