@@ -3751,6 +3751,16 @@ static AOM_INLINE void choose_lossless_tx_size(const AV1_COMP *const cpi,
           mode_costs.lossless_tx_size_cost[bsize_group][is_inter][1];
     }
   }
+
+  // If the final decision is a skip, we don't signal the tx_size,
+  // and the implicit tx_size is TX_4X4.
+  if (rd_stats->skip_txfm) {
+    if (rd_stats->rate != INT_MAX)
+      rd_stats->rate -=
+          mode_costs.lossless_tx_size_cost[bsize_group][is_inter]
+                                          [mbmi->tx_size != TX_4X4];
+    mbmi->tx_size = TX_4X4;
+  }
 }
 
 // Search for the best uniform transform size and type for current coding block.
