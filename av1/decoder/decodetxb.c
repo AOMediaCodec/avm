@@ -423,6 +423,10 @@ static INLINE void decode_eob(DecoderCodingBlock *dcb, aom_reader *const r,
       if (eob_pt == EOB_PT_INDEX_COUNT - 1)
         eob_pt +=
             aom_read_literal(r, 2, ACCT_INFO("eob_pt", "eob_multi_size:5"));
+      if (eob_pt >= EOB_MAX_SYMS - 1) {
+        aom_internal_error(xd->error_info, AOM_CODEC_CORRUPT_FRAME,
+                           "Invalid value for EOB position token");
+      }
       eob_pt += 1;
       break;
     case 6:

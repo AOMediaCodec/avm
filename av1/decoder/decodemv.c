@@ -1892,6 +1892,10 @@ static void read_intra_uv_mode(MACROBLOCKD *const xd,
                       CHROMA_INTRA_MODE_INDEX_COUNT, ACCT_INFO("uv_mode_idx"));
   if (uv_mode_idx == (CHROMA_INTRA_MODE_INDEX_COUNT - 1))
     uv_mode_idx += aom_read_literal(r, 3, ACCT_INFO("uv_mode_idx"));
+  if (uv_mode_idx >= UV_INTRA_MODES - 1) {
+    aom_internal_error(xd->error_info, AOM_CODEC_CORRUPT_FRAME,
+                       "Invalid value for chroma intra mode index");
+  }
 #else
   const int uv_mode_idx =
       aom_read_symbol(r, ec_ctx->uv_mode_cdf[context], UV_INTRA_MODES - 1,
