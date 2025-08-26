@@ -6402,11 +6402,11 @@ static AOM_INLINE void write_uncompressed_header_obu(
           || !seq_params->order_hint_info.enable_order_hint
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
           ;
-#if CONFIG_CWG_F168_DPB_HLS
-      const int max_num_ref_frames =
-          AOMMIN(seq_params->ref_frames, INTER_REFS_PER_FRAME);
-#endif  // CONFIG_CWG_F168_DPB_HLS
       if (explicit_ref_frame_map) {
+#if CONFIG_CWG_F168_DPB_HLS
+        const int max_num_ref_frames =
+            AOMMIN(seq_params->ref_frames, INTER_REFS_PER_FRAME);
+#endif  // CONFIG_CWG_F168_DPB_HLS
 #if CONFIG_ACROSS_SCALE_REF_OPT
         if (cm->ref_frames_info.num_total_refs < 0 ||
 #else
