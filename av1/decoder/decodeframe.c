@@ -7595,7 +7595,7 @@ static int read_show_existing_frame(AV1Decoder *pbi,
   aom_s_frame_info *sframe_info = &pbi->sframe_info;
   sframe_info->is_s_frame = 0;
   sframe_info->is_s_frame_at_altref = 0;
-
+  cm->show_existing_frame = 1;
   if (pbi->sequence_header_changed) {
     aom_internal_error(
         &cm->error, AOM_CODEC_CORRUPT_FRAME,
@@ -8163,6 +8163,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       current_frame->refresh_frame_flags =
           aom_rb_read_literal(rb, seq_params->ref_frames);
 #endif  // CONFIG_REFRESH_FLAG
+      assert(seq_params->ref_frames >= 1);
       if (current_frame->refresh_frame_flags ==
           ((1 << seq_params->ref_frames) - 1)) {
         aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
@@ -8296,9 +8297,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       // Read all ref frame base_qindex
       for (int ref_idx = 0; ref_idx < seq_params->ref_frames; ref_idx++) {
         RefCntBuffer *buf = cm->ref_frame_map[ref_idx];
-#if 1
-        if (buf != NULL)
-#endif
           buf->base_qindex = aom_rb_read_literal(
               rb, cm->seq_params.bit_depth == AOM_BITS_8 ? QINDEX_BITS_UNEXT
                                                          : QINDEX_BITS);
@@ -8715,7 +8713,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           && !cm->bru.frame_inactive_flag
 #endif  // CONFIG_BRU
       ) {
-#if CONFIG_FRAME_HEADER_SIGNAL_OPT || CONFIG_F106_OBU_TIP
+#if CONFIG_FRAME_HEADER_SIGNAL_OPT
 #if CONFIG_F106_OBU_TIP
         if (obu_type == OBU_TIP) {
           features->tip_frame_mode = TIP_FRAME_AS_OUTPUT;
@@ -8730,7 +8728,15 @@ static int read_uncompressed_header(AV1Decoder *pbi,
               aom_rb_read_bit(rb) ? TIP_FRAME_AS_REF : TIP_FRAME_DISABLED;
         }
 #else
+#if CONFIG_F106_OBU_TIP
+        if (obu_type == OBU_TIP) {
+          features->tip_frame_mode = TIP_FRAME_AS_OUTPUT;
+        } else {
+          features->tip_frame_mode = aom_rb_read_literal(rb, 1);
+        }
+#else
         features->tip_frame_mode = aom_rb_read_literal(rb, 2);
+#endif
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
 #if !CONFIG_TIP_LD
         features->use_optflow_tip = 1;
@@ -9463,22 +9469,9 @@ static int32_t read_tile_indices_in_tilegroup(AV1Decoder *pbi,
   uint32_t saved_bit_offset = rb->bit_offset;
   int tile_start_and_end_present_flag = 0;
   const int num_tiles = tiles->rows * tiles->cols;
-#if CONFIG_BRU
-  if (cm->bru.frame_inactive_flag) {
-    *start_tile = 0;
-    *end_tile = num_tiles - 1;
-    return 0;
-  }
-#endif  // CONFIG_BRU
+
   if (!tiles->large_scale && num_tiles > 1) {
     tile_start_and_end_present_flag = aom_rb_read_bit(rb);
-    //    if (tile_start_implicit && tile_start_and_end_present_flag) {
-    //      aom_internal_error(
-    //          &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-    //          "For OBU_FRAME type obu tile_start_and_end_present_flag must be
-    //          0");
-    //      return -1;
-    //    }
   }
   if (tiles->large_scale || num_tiles == 1 ||
       !tile_start_and_end_present_flag) {
@@ -9509,7 +9502,21 @@ static int32_t read_tile_indices_in_tilegroup(AV1Decoder *pbi,
     return -1;
   }
   pbi->next_start_tile = (*end_tile == num_tiles - 1) ? 0 : *end_tile + 1;
-
+  
+#if CONFIG_BRU_TILE_FLAG
+  if (cm->bru.enabled) {
+    if (num_tiles > 1) {
+      for (int tile_idx = *start_tile; tile_idx <= *end_tile; tile_idx++) {
+        const int active_bitmap_byte = tile_idx >> 3;
+        const int active_bitmap_bit = tile_idx & 7;
+        tiles->tile_active_bitmap[active_bitmap_byte] +=
+            (aom_rb_read_bit(rb) << active_bitmap_bit);
+      }
+    } else {
+      tiles->tile_active_bitmap[0] = 1;
+    }
+  }
+#endif  // CONFIG_BRU_TILE_FLAG
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }
 
@@ -9540,7 +9547,7 @@ int32_t read_tilegroup_header(AV1Decoder *pbi, struct aom_read_bit_buffer *rb,
 #if CONFIG_MISMATCH_DEBUG
     mismatch_move_frame_idx_r(1);
 #endif  // CONFIG_MISMATCH_DEBUG
-
+    pbi->seen_frame_header = 1;
     for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
       cm->global_motion[i] = default_warp_params;
       cm->cur_frame->global_motion[i] = default_warp_params;
@@ -9600,7 +9607,7 @@ int32_t read_tilegroup_header(AV1Decoder *pbi, struct aom_read_bit_buffer *rb,
                              "Uninitialized entropy context.");
       }
       // av1_check_trailing_bits(pbi, rb);
-      return uncomp_hdr_size;  //((rb->bit_offset - saved_bit_offset + 7) >> 3)
+      return uncomp_hdr_size;
     }
 
     cm->mi_params.setup_mi(&cm->mi_params);
@@ -9667,7 +9674,7 @@ int32_t read_tilegroup_header(AV1Decoder *pbi, struct aom_read_bit_buffer *rb,
     {
       *p_data_end = data + uncomp_hdr_size;
       // av1_check_trailing_bits(pbi, rb);
-      return uncomp_hdr_size;  //((rb->bit_offset - saved_bit_offset + 7) >> 3)
+      return uncomp_hdr_size;
     }
 
     av1_setup_block_planes(xd, cm->seq_params.subsampling_x,
@@ -9690,37 +9697,25 @@ int32_t read_tilegroup_header(AV1Decoder *pbi, struct aom_read_bit_buffer *rb,
     pbi->dcb.corrupted = 0;
   }
 
-  bool send_tile_indices = true;
+  bool tile_indices_present_flag = true;
 #if CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
 #if CONFIG_F106_OBU_SEF
-  send_tile_indices &= obu_type != OBU_SEF;
+  tile_indices_present_flag &= obu_type != OBU_SEF;
 #endif  // CONFIG_F106_OBU_SEF
 #if CONFIG_F106_OBU_TIP
-  send_tile_indices &= obu_type != OBU_TIP;
+  tile_indices_present_flag &= obu_type != OBU_TIP;
 #endif  // CONFIG_F106_OBU_TIP
 #else
-  send_tile_indices =
+  tile_indices_present_flag =
       (!pbi->common.show_existing_frame &&
        pbi->common.features.tip_frame_mode != TIP_FRAME_AS_OUTPUT);
 #endif  // CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
 #if CONFIG_BRU
-  send_tile_indices &= !pbi->common.bru.frame_inactive_flag;
+  tile_indices_present_flag &= !pbi->common.bru.frame_inactive_flag;
 #endif  // CONFIG_BRU
-  if (send_tile_indices)
+  if (tile_indices_present_flag)
     read_tile_indices_in_tilegroup(pbi, rb, start_tile, end_tile);
 
-#if CONFIG_BRU
-  if (pbi->common.bru.frame_inactive_flag) {
-    //      pbi->seen_frame_header = 0;
-    // frame_decoding_finished = 1;
-    *start_tile = 0;
-    *end_tile = pbi->common.tiles.rows * pbi->common.tiles.cols - 1;
-  }
-#endif  // CONFIG_BRU
-
-  // error checking?
-
-  pbi->seen_frame_header = 1;
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }
 #else
@@ -9750,6 +9745,9 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
 #if CONFIG_F106_OBU_TIP
   trailing_bits_present &= (obu_type != OBU_TIP);
 #endif  // CONFIG_F106_OBU_TIP
+#if CONFIG_F106_OBU_SEF
+  trailing_bits_present &= (obu_type != OBU_SEF);
+#endif  // CONFIG_F106_OBU_SEF
 #endif  // CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
 #if CONFIG_MISMATCH_DEBUG
   mismatch_move_frame_idx_r(1);

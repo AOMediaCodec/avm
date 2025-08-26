@@ -163,7 +163,7 @@ set_aom_config_var(CONFIG_MERGE_PARA_CTX 1
 set_aom_config_var(CONFIG_CTX_Y_SECOND_MODE 1 "bypass coding FG8-Test27")
 
 # AV2 experiment flags.
-set_aom_config_var(CONFIG_F106_OBU_TILEGROUP 1 "Use TILE_GROUP OBU.")
+set_aom_config_var(CONFIG_F106_OBU_TILEGROUP 1 "Consolidate FRAME, FRAM_EHEADER, TILE_GROUP OBUs into TILE_GROUP OBU.")
 set_aom_config_var(CONFIG_F106_OBU_SWITCH 1 "Use SWITCH_OBU.")
 set_aom_config_var(CONFIG_F106_OBU_SEF 1 "Use SEF OBU.")
 set_aom_config_var(CONFIG_F106_OBU_TIP 1 "Use TIP_OBU.")

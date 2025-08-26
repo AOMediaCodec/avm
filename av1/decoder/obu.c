@@ -1174,9 +1174,6 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
 #if CONFIG_F106_OBU_SWITCH
         header_only &= (obu_header.type != OBU_SWITCH);
 #endif  // CONFIG_F106_OBU_SWITCH
-#if CONFIG_F106_OBU_TIP
-        header_only &= (obu_header.type != OBU_TIP);
-#endif
         if (header_only)
 #else   // CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_TIP
         if (obu_header.type != OBU_FRAME)
