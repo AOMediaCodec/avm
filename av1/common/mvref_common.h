@@ -1398,13 +1398,23 @@ int16_t inter_warpmv_mode_ctx(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 
 void av1_fill_tpl_mvs_sample_gap(AV1_COMMON *cm);
 
-static INLINE int is_ref_motion_field_eligible(
-    const AV1_COMMON *const cm, const RefCntBuffer *const start_frame_buf) {
+// Check if motion field is eligible based on reference frame type.
+static INLINE int is_ref_motion_field_eligible_by_frame_type(
+    const RefCntBuffer *const start_frame_buf) {
   if (start_frame_buf == NULL) return 0;
 
   if (start_frame_buf->frame_type == KEY_FRAME ||
       start_frame_buf->frame_type == INTRA_ONLY_FRAME)
     return 0;
+
+  return 1;
+}
+
+// Check if motion field is eligible based on reference frame size and current
+// frame size.
+static INLINE int is_ref_motion_field_eligible_by_frame_size(
+    const AV1_COMMON *const cm, const RefCntBuffer *const start_frame_buf) {
+  if (start_frame_buf == NULL) return 0;
 
   if (start_frame_buf->mi_rows != cm->mi_params.mi_rows ||
       start_frame_buf->mi_cols != cm->mi_params.mi_cols)
@@ -1415,6 +1425,14 @@ static INLINE int is_ref_motion_field_eligible(
     return 0;
 
   return 1;
+}
+
+// Check if motion field is eligible based on frame type and frame size
+// information.
+static INLINE int is_ref_motion_field_eligible(
+    const AV1_COMMON *const cm, const RefCntBuffer *const start_frame_buf) {
+  return is_ref_motion_field_eligible_by_frame_type(start_frame_buf) &&
+         is_ref_motion_field_eligible_by_frame_size(cm, start_frame_buf);
 }
 
 // Temporal scaling the motion vector

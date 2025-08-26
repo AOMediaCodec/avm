@@ -411,10 +411,17 @@ static void enc_decide_tip_mode(AV1_COMMON *cm) {
   MV_REFERENCE_FRAME nearest_rf[2] = { tip_ref->ref_frame[0],
                                        tip_ref->ref_frame[1] };
 
-  if (nearest_rf[0] != NONE_FRAME && nearest_rf[1] != NONE_FRAME &&
-      (is_ref_motion_field_eligible(cm, get_ref_frame_buf(cm, nearest_rf[0])) &&
-       is_ref_motion_field_eligible(cm,
-                                    get_ref_frame_buf(cm, nearest_rf[1])))) {
+  const int tip_mode_allowed = nearest_rf[0] != NONE_FRAME &&
+                               nearest_rf[1] != NONE_FRAME &&
+                               is_ref_motion_field_eligible_by_frame_size(
+                                   cm, get_ref_frame_buf(cm, nearest_rf[0])) &&
+                               is_ref_motion_field_eligible_by_frame_size(
+                                   cm, get_ref_frame_buf(cm, nearest_rf[1]));
+
+  if (tip_mode_allowed && (is_ref_motion_field_eligible_by_frame_type(
+                               get_ref_frame_buf(cm, nearest_rf[0])) ||
+                           is_ref_motion_field_eligible_by_frame_type(
+                               get_ref_frame_buf(cm, nearest_rf[1])))) {
     enc_check_enable_tip_mode(cm);
 
     if (cm->features.tip_frame_mode) {
