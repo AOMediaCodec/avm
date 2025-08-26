@@ -45,6 +45,7 @@ void av1_read_sequence_header(
 // Reads additional sequence header for coding tools beyond AV1
 void av1_read_sequence_header_beyond_av1(
     struct aom_read_bit_buffer *rb, SequenceHeader *seq_params,
+    CommonQuantParams *quant_params,
     struct aom_internal_error_info *error_info);
 
 void av1_read_frame_size(struct aom_read_bit_buffer *rb, int num_bits_width,

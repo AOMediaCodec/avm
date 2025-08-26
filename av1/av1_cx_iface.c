@@ -2372,6 +2372,25 @@ static aom_codec_err_t ctrl_set_user_defined_qmatrix(aom_codec_alg_priv_t *ctx,
 
   AV1_COMP *cpi = ctx->cpi;
   SequenceHeader *seq_params = &cpi->common.seq_params;
+  if (num_planes != av1_num_planes(&cpi->common)) {
+    return AOM_CODEC_INVALID_PARAM;
+  }
+  if (!cpi->common.quant_params.qmatrix_allocated) {
+    seq_params->quantizer_matrix_8x8 = av1_alloc_qm(8, 8);
+    seq_params->quantizer_matrix_8x4 = av1_alloc_qm(8, 4);
+    seq_params->quantizer_matrix_4x8 = av1_alloc_qm(4, 8);
+    cpi->common.quant_params.qmatrix_allocated = true;
+  }
+  if (!cpi->common.quant_params.qmatrix_initialized) {
+    av1_init_qmatrix(seq_params->quantizer_matrix_8x8,
+                     seq_params->quantizer_matrix_8x4,
+                     seq_params->quantizer_matrix_4x8, num_planes);
+    qm_val_t ***fund_mat[3] = { cpi->common.seq_params.quantizer_matrix_8x8,
+                                cpi->common.seq_params.quantizer_matrix_8x4,
+                                cpi->common.seq_params.quantizer_matrix_4x8 };
+    av1_qm_init(&cpi->common.quant_params, num_planes, fund_mat);
+    cpi->common.quant_params.qmatrix_initialized = true;
+  }
   // Copy user-defined QMs for level.
   for (int c = 0; c < num_planes; c++) {
     if (!user_defined_qm->qm_8x8[c]) {

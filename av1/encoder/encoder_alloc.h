@@ -317,9 +317,11 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
   cpi->alloc_height = 0;
   cpi->alloc_sb_size = 0;
 
-  av1_free_qm(cm->seq_params.quantizer_matrix_8x8);
-  av1_free_qm(cm->seq_params.quantizer_matrix_8x4);
-  av1_free_qm(cm->seq_params.quantizer_matrix_4x8);
+  if (cm->quant_params.qmatrix_allocated) {
+    av1_free_qm(cm->seq_params.quantizer_matrix_8x8);
+    av1_free_qm(cm->seq_params.quantizer_matrix_8x4);
+    av1_free_qm(cm->seq_params.quantizer_matrix_4x8);
+  }
 }
 
 static AOM_INLINE void alloc_altref_frame_buffer(AV1_COMP *cpi) {

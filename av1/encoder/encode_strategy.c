@@ -1360,6 +1360,24 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     av1_set_lr_tools(cm->seq_params.lr_tools_disable_mask[1], 1, &cm->features);
     av1_set_lr_tools(cm->seq_params.lr_tools_disable_mask[1], 2, &cm->features);
   }
+  if (cm->quant_params.using_qmatrix) {
+    if (!cm->quant_params.qmatrix_allocated) {
+      cm->seq_params.quantizer_matrix_8x8 = av1_alloc_qm(8, 8);
+      cm->seq_params.quantizer_matrix_8x4 = av1_alloc_qm(8, 4);
+      cm->seq_params.quantizer_matrix_4x8 = av1_alloc_qm(4, 8);
+      cm->quant_params.qmatrix_allocated = true;
+    }
+    if (!cm->quant_params.qmatrix_initialized) {
+      av1_init_qmatrix(cm->seq_params.quantizer_matrix_8x8,
+                       cm->seq_params.quantizer_matrix_8x4,
+                       cm->seq_params.quantizer_matrix_4x8, av1_num_planes(cm));
+      qm_val_t ***fund_mat[3] = { cm->seq_params.quantizer_matrix_8x8,
+                                  cm->seq_params.quantizer_matrix_8x4,
+                                  cm->seq_params.quantizer_matrix_4x8 };
+      av1_qm_init(&cm->quant_params, av1_num_planes(cm), fund_mat);
+      cm->quant_params.qmatrix_initialized = true;
+    }
+  }
   if (denoise_and_encode(cpi, dest, &frame_input, &frame_params,
                          &frame_results) != AOM_CODEC_OK) {
     return AOM_CODEC_ERROR;

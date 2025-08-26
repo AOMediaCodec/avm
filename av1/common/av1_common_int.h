@@ -1402,6 +1402,19 @@ struct CommonQuantParams {
    * matrix tables.
    */
 
+  /*!
+   * Flag indicating whether quantization matrices are allocated.
+   */
+  bool qmatrix_allocated;
+
+  /*!
+   * Flag indicating whether quantization matrices are initialized.
+   * To avoid unnecessary computation, for the decoder we want to initialize
+   * quantization matrices only when they are used.
+   * Note that when sequence header OBUs change, we should reset the parameter.
+   */
+  bool qmatrix_initialized;
+
   /**@{*/
   /*!
    * Number of QM levels available for use by the segments in the frame.

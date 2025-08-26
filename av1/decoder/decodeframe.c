@@ -3778,13 +3778,34 @@ static AOM_INLINE void setup_quantization(CommonQuantParams *quant_params,
   }
 }
 
-static AOM_INLINE void setup_qm_params(CommonQuantParams *quant_params,
+static AOM_INLINE void setup_qm_params(SequenceHeader *seq_params,
+                                       CommonQuantParams *quant_params,
 #if CONFIG_F311_QM_PARAMS
                                        bool segmentation_enabled,
 #endif  // CONFIG_F311_QM_PARAMS
-                                       int num_planes, bool separate_uv_delta_q,
+                                       int num_planes,
                                        struct aom_read_bit_buffer *rb) {
   quant_params->using_qmatrix = aom_rb_read_bit(rb);
+  if (quant_params->using_qmatrix) {
+    if (!quant_params->qmatrix_allocated) {
+      seq_params->quantizer_matrix_8x8 = av1_alloc_qm(8, 8);
+      seq_params->quantizer_matrix_8x4 = av1_alloc_qm(8, 4);
+      seq_params->quantizer_matrix_4x8 = av1_alloc_qm(4, 8);
+      quant_params->qmatrix_allocated = true;
+    }
+    if (!quant_params->qmatrix_initialized) {
+      if (!seq_params->user_defined_qmatrix) {
+        av1_init_qmatrix(seq_params->quantizer_matrix_8x8,
+                         seq_params->quantizer_matrix_8x4,
+                         seq_params->quantizer_matrix_4x8, num_planes);
+      }
+      qm_val_t ***fund_mat[3] = { seq_params->quantizer_matrix_8x8,
+                                  seq_params->quantizer_matrix_8x4,
+                                  seq_params->quantizer_matrix_4x8 };
+      av1_qm_init_dequant_only(quant_params, num_planes, fund_mat);
+      quant_params->qmatrix_initialized = true;
+    }
+  }
 #if CONFIG_QM_DEBUG
   printf("[DEC-FRM] using_qmatrix: %d\n", quant_params->using_qmatrix);
 #endif
@@ -3814,7 +3835,7 @@ static AOM_INLINE void setup_qm_params(CommonQuantParams *quant_params,
           quant_params->qm_v[i] = quant_params->qm_y[i];
         } else {
           quant_params->qm_u[i] = aom_rb_read_literal(rb, QM_LEVEL_BITS);
-          if (!separate_uv_delta_q) {
+          if (!seq_params->separate_uv_delta_q) {
             quant_params->qm_v[i] = quant_params->qm_u[i];
           } else {
             quant_params->qm_v[i] = aom_rb_read_literal(rb, QM_LEVEL_BITS);
@@ -6775,6 +6796,7 @@ static AOM_INLINE void decode_user_defined_qm(
 
 void av1_read_sequence_header_beyond_av1(
     struct aom_read_bit_buffer *rb, SequenceHeader *seq_params,
+    CommonQuantParams *quant_params,
     struct aom_internal_error_info *error_info) {
   // printf("print sps\n");
   seq_params->enable_refmvbank = aom_rb_read_bit(rb);
@@ -6972,16 +6994,22 @@ void av1_read_sequence_header_beyond_av1(
 #if CONFIG_EXT_SEG
   seq_params->enable_ext_seg = aom_rb_read_bit(rb);
 #endif  // CONFIG_EXT_SEG
-  int num_planes = seq_params->monochrome ? 1 : MAX_MB_PLANE;
-  av1_init_qmatrix(seq_params->quantizer_matrix_8x8,
-                   seq_params->quantizer_matrix_8x4,
-                   seq_params->quantizer_matrix_4x8, num_planes);
   seq_params->user_defined_qmatrix = aom_rb_read_bit(rb);
 #if CONFIG_QM_DEBUG
   printf("[DEC-SEQ] user_defined_qmatrix=%d\n",
          seq_params->user_defined_qmatrix);
 #endif
   if (seq_params->user_defined_qmatrix) {
+    int num_planes = seq_params->monochrome ? 1 : MAX_MB_PLANE;
+    if (!quant_params->qmatrix_allocated) {
+      seq_params->quantizer_matrix_8x8 = av1_alloc_qm(8, 8);
+      seq_params->quantizer_matrix_8x4 = av1_alloc_qm(8, 4);
+      seq_params->quantizer_matrix_4x8 = av1_alloc_qm(4, 8);
+      quant_params->qmatrix_allocated = true;
+    }
+    av1_init_qmatrix(seq_params->quantizer_matrix_8x8,
+                     seq_params->quantizer_matrix_8x4,
+                     seq_params->quantizer_matrix_4x8, num_planes);
     decode_user_defined_qm(seq_params, rb, num_planes, error_info);
   } else {
     for (uint16_t i = 0; i < NUM_CUSTOM_QMS; i++) {
@@ -8934,8 +8962,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   CommonQuantParams *const quant_params = &cm->quant_params;
   setup_quantization(quant_params, av1_num_planes(cm), &cm->seq_params, rb);
 #if !CONFIG_F311_QM_PARAMS
-  setup_qm_params(quant_params, av1_num_planes(cm),
-                  cm->seq_params.separate_uv_delta_q, rb);
+  setup_qm_params(&cm->seq_params, quant_params, av1_num_planes(cm), rb);
 #endif  // !CONFIG_F311_QM_PARAMS
   cm->cur_frame->base_qindex = quant_params->base_qindex;
   cm->cur_frame->u_ac_delta_q = quant_params->u_ac_delta_q;
@@ -8960,8 +8987,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   setup_segmentation(cm, rb);
 
 #if CONFIG_F311_QM_PARAMS
-  setup_qm_params(quant_params, cm->seg.enabled, av1_num_planes(cm),
-                  cm->seq_params.separate_uv_delta_q, rb);
+  setup_qm_params(&cm->seq_params, quant_params, cm->seg.enabled,
+                  av1_num_planes(cm), rb);
 #endif  // CONFIG_F311_QM_PARAMS
 
   cm->delta_q_info.delta_q_res = 1;

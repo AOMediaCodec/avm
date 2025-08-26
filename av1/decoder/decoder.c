@@ -231,13 +231,9 @@ AV1Decoder *av1_decoder_create(BufferPool *const pool) {
 
   av1_loop_filter_init(cm);
 
-  SequenceHeader *seq_params = &cm->seq_params;
-  // Allocate memory for fundamental QM arrays, in case the coded video
-  // sequence requires custom QMs (i.e. seq->user_defined_qmatrix == 1)
-  // av1_qm_init_dequant_only() is called when we process a sequence header OBU.
-  seq_params->quantizer_matrix_8x8 = av1_alloc_qm(8, 8);
-  seq_params->quantizer_matrix_8x4 = av1_alloc_qm(8, 4);
-  seq_params->quantizer_matrix_4x8 = av1_alloc_qm(4, 8);
+  cm->quant_params.qmatrix_allocated = false;
+  cm->quant_params.qmatrix_initialized = false;
+
 #if CONFIG_ACCOUNTING
   pbi->acct_enabled = 1;
   aom_accounting_init(&pbi->accounting);
@@ -452,9 +448,11 @@ void av1_decoder_remove(AV1Decoder *pbi) {
   }
 #endif
 
-  av1_free_qm(pbi->common.seq_params.quantizer_matrix_8x8);
-  av1_free_qm(pbi->common.seq_params.quantizer_matrix_8x4);
-  av1_free_qm(pbi->common.seq_params.quantizer_matrix_4x8);
+  if (pbi->common.quant_params.qmatrix_allocated) {
+    av1_free_qm(pbi->common.seq_params.quantizer_matrix_8x8);
+    av1_free_qm(pbi->common.seq_params.quantizer_matrix_8x4);
+    av1_free_qm(pbi->common.seq_params.quantizer_matrix_4x8);
+  }
 
   aom_free(pbi);
 }

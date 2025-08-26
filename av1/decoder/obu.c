@@ -362,12 +362,8 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
   seq_params->film_grain_params_present = aom_rb_read_bit(rb);
 
   // Sequence header for coding tools beyond AV1
-  av1_read_sequence_header_beyond_av1(rb, seq_params, &cm->error);
-  int num_planes = seq_params->monochrome ? 1 : MAX_MB_PLANE;
-  qm_val_t ***fund_mat[3] = { seq_params->quantizer_matrix_8x8,
-                              seq_params->quantizer_matrix_8x4,
-                              seq_params->quantizer_matrix_4x8 };
-  av1_qm_init_dequant_only(&cm->quant_params, num_planes, fund_mat);
+  av1_read_sequence_header_beyond_av1(rb, seq_params, &cm->quant_params,
+                                      &cm->error);
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   if (!seq_params->order_hint_info.enable_order_hint &&
@@ -396,8 +392,10 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
   // If a sequence header has been decoded before, we check if the new
   // one is consistent with the old one.
   if (pbi->sequence_header_ready) {
-    if (!are_seq_headers_consistent(&cm->seq_params, seq_params))
+    if (!are_seq_headers_consistent(&cm->seq_params, seq_params)) {
       pbi->sequence_header_changed = 1;
+      cm->quant_params.qmatrix_initialized = false;
+    }
   }
 
   cm->seq_params = *seq_params;

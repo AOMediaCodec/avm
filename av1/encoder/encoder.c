@@ -1462,19 +1462,8 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
     seq->qm_data_present[i] = false;
   }
 
-  // Allocate memory for fundamental QM arrays, in case the coded video
-  // sequence requires custom QMs (i.e. seq->user_defined_qmatrix == 1)
-  seq->quantizer_matrix_8x8 = av1_alloc_qm(8, 8);
-  seq->quantizer_matrix_8x4 = av1_alloc_qm(8, 4);
-  seq->quantizer_matrix_4x8 = av1_alloc_qm(4, 8);
-
-  // Initialize QMs with default fundamental matrices.
-  av1_init_qmatrix(seq->quantizer_matrix_8x8, seq->quantizer_matrix_8x4,
-                   seq->quantizer_matrix_4x8, av1_num_planes(cm));
-  qm_val_t ***fund_mat[3] = { seq->quantizer_matrix_8x8,
-                              seq->quantizer_matrix_8x4,
-                              seq->quantizer_matrix_4x8 };
-  av1_qm_init(&cm->quant_params, av1_num_planes(cm), fund_mat);
+  cm->quant_params.qmatrix_allocated = false;
+  cm->quant_params.qmatrix_initialized = false;
 
   cm->seq_params.df_par_bits_minus2 = DF_PAR_BITS - 2;
   av1_loop_filter_init(cm);
