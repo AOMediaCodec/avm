@@ -9172,7 +9172,7 @@ static AOM_INLINE void tip_mode_legal_check(AV1Decoder *const pbi) {
   if (tip_ref->ref_frame[0] != NONE_FRAME &&
       tip_ref->ref_frame[1] != NONE_FRAME &&
       (!is_ref_motion_field_eligible(
-           cm, get_ref_frame_buf(cm, tip_ref->ref_frame[0])) &&
+           cm, get_ref_frame_buf(cm, tip_ref->ref_frame[0])) ||
        !is_ref_motion_field_eligible(
            cm, get_ref_frame_buf(cm, tip_ref->ref_frame[1])))) {
     aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
