@@ -7496,8 +7496,7 @@ static uint32_t write_tilegroup_payload(AV1_COMP *const cpi, uint8_t *const dst,
       tile_info.tile_active_mode = this_tile->tile_info.tile_active_mode;
 #endif  // CONFIG_BRU
       aom_start_encode(&mode_bc, dst + total_size);
-#if CONFIG_BRU  //[jkei] Do we need this here? when bru.frame_inactive_flag=1,
-                // this function is not called.
+#if CONFIG_BRU
       if (!cm->bru.frame_inactive_flag)
 #endif  // CONFIG_BRU
         write_modes(cpi, &tile_info, &mode_bc, tile_row, tile_col);
@@ -7510,10 +7509,8 @@ static uint32_t write_tilegroup_payload(AV1_COMP *const cpi, uint8_t *const dst,
       if (tile_size > max_tile_size) {
         *largest_tile_id = tile_cols * tile_row + tile_col;
         max_tile_size = tile_size;
-      }  //[jkei] max_tile_size starts with 0. max size is  updated.
-         // largest_tile_id is tile_id with the max size
+      }
 
-      //[jkei]write tile size: le32? or le(TileSizeBytes)?
       if (tile_idx < end_tile_idx) {
         mem_put_le32(buf->data, tile_size - AV1_MIN_TILE_SIZE_BYTES);
       }
@@ -7590,8 +7587,7 @@ static uint32_t write_tilegroup_header(AV1_COMP *cpi,
 #if CONFIG_F106_OBU_TIP
   send_first_tile_group_indication &= obu_type != OBU_TIP;
 #endif  // CONFIG_F106_OBU_TIP
-  //[jkei] CONFIG_BRU: send_first_tile_group_indication cannot be derived when
-  // cm->bru.frame_inactive_flag unless BRU is an obu_type
+
   if (send_first_tile_group_indication)
     aom_wb_write_bit(&wb, first_tile_group_in_frame);
 
@@ -7607,7 +7603,7 @@ static uint32_t write_tilegroup_header(AV1_COMP *cpi,
                               saved_wb, &wb);
 
   bool skip_tile_indices = false;
-#if CONFIG_BRU  //[jkei] BRU.inactive_flag
+#if CONFIG_BRU
   skip_tile_indices |= cpi->common.bru.frame_inactive_flag;
 #endif
 
@@ -8401,7 +8397,6 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
       data += av1_write_frame_hash_metadata(cpi, data, grain_params);
   }
 #if CONFIG_F106_OBU_TILEGROUP
-  //[jkei] cm->bru.frame_inactive_flag : OBU_TILEGOUP
   OBU_TYPE obu_type = OBU_TILE_GROUP;
 #if CONFIG_F106_OBU_SWITCH
   if (cm->current_frame.frame_type == S_FRAME) obu_type = OBU_SWITCH;

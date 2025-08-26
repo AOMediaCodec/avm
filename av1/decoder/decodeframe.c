@@ -9565,9 +9565,7 @@ int32_t read_tilegroup_header(AV1Decoder *pbi, struct aom_read_bit_buffer *rb,
       pbi->uncomp_hdr_size_in_bits = rb->bit_offset - uncomp_hdr_start_point;
     }
   }
-  //[jkei] maybe error checking required, if not first, uncompressed header
-  // should be the same as the previous [jkei] setting up happens only for the
-  // first tg
+
   if (is_first_tile_group) {
     if (!cm->tiles.single_tile_decoding &&
         (pbi->dec_tile_row >= 0 || pbi->dec_tile_col >= 0)) {

@@ -126,12 +126,6 @@ int file_is_obu(struct ObuDecInputContext *obu_ctx) {
     return 0;
   }
 
-  //[jkei] if is_annexb, jump over temporal units and check obu_types are valid
-  // till the end of file if !annexb, jump over obus and check obu_types are
-  // valid till the end of file if there is no temporal unit, but annexb, jump
-  // over obus and check obu_types are valid till the end of file [jkei] to
-  // avoid using ftell() in the case of very big file whose size cannot be
-  // contained in long.
   while (1) {
     {
       size_t obu_payload_size_bytelength = 0;
@@ -192,7 +186,7 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
   while (1) {
     ObuHeader obu_header;
     memset(&obu_header, 0, sizeof(obu_header));
-    uint64_t obu_size = 0;  //[jkei] obu_size includes header size
+    uint64_t obu_size = 0;
     size_t obu_size_bytelength = 0;
     if (obu_ctx->is_annexb) {
       if (obudec_read_leb128(f, &detect_buf[0], &obu_size_bytelength,
