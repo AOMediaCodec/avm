@@ -192,6 +192,8 @@ static void cdef_filter_block_internal(uint16_t *const dst16, int dstride,
   }
 }
 
+/* Wrapper function which invokes cdef_filter_block_internal() when both primary
+ * and secondary strengths are non-zero. */
 void cdef_filter_16_0_c(uint16_t *const dst16, int dstride, const uint16_t *in,
                         int pri_strength, int sec_strength, int dir,
                         int pri_damping, int sec_damping, int coeff_shift,
@@ -202,6 +204,8 @@ void cdef_filter_16_0_c(uint16_t *const dst16, int dstride, const uint16_t *in,
                              /*enable_primary=*/1, /*enable_secondary=*/1);
 }
 
+/* Wrapper function which invokes cdef_filter_block_internal() when primary
+ * strength is non-zero and secondary strength is zero. */
 void cdef_filter_16_1_c(uint16_t *const dst16, int dstride, const uint16_t *in,
                         int pri_strength, int sec_strength, int dir,
                         int pri_damping, int sec_damping, int coeff_shift,
@@ -212,6 +216,8 @@ void cdef_filter_16_1_c(uint16_t *const dst16, int dstride, const uint16_t *in,
                              /*enable_primary=*/1, /*enable_secondary=*/0);
 }
 
+/* Wrapper function which invokes cdef_filter_block_internal() when primary
+ * strength is zero and secondary strength is non-zero. */
 void cdef_filter_16_2_c(uint16_t *const dst16, int dstride, const uint16_t *in,
                         int pri_strength, int sec_strength, int dir,
                         int pri_damping, int sec_damping, int coeff_shift,
@@ -222,6 +228,8 @@ void cdef_filter_16_2_c(uint16_t *const dst16, int dstride, const uint16_t *in,
                              /*enable_primary=*/0, /*enable_secondary=*/1);
 }
 
+/* Wrapper function which invokes cdef_filter_block_internal() when both primary
+ * and secondary strengths are zero. */
 void cdef_filter_16_3_c(uint16_t *const dst16, int dstride, const uint16_t *in,
                         int pri_strength, int sec_strength, int dir,
                         int pri_damping, int sec_damping, int coeff_shift,

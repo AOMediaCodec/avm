@@ -209,6 +209,7 @@ SIMD_INLINE v256 constrain16(v256 a, v256 b, unsigned int threshold,
   return v256_xor(v256_add_16(sign, v256_min_s16(diff, s)), sign);
 }
 
+/* Computes the maximum pixel value used during primary CDEF filtering. */
 SIMD_INLINE v256 get_max_primary(const v256 *const tap, v256 max,
                                  v256 cdef_large_value_mask) {
   /* Convert CDEF_VERY_LARGE to 0 before calculating max. */
@@ -219,6 +220,7 @@ SIMD_INLINE v256 get_max_primary(const v256 *const tap, v256 max,
   return max;
 }
 
+/* Computes the maximum pixel value used during secondary CDEF filtering. */
 SIMD_INLINE v256 get_max_secondary(const v256 *const tap, v256 max,
                                    v256 cdef_large_value_mask) {
   /* Convert CDEF_VERY_LARGE to 0 before calculating max. */
@@ -233,6 +235,7 @@ SIMD_INLINE v256 get_max_secondary(const v256 *const tap, v256 max,
   return max;
 }
 
+/* Applies CDEF filtering for block width equals 4. */
 SIMD_INLINE void filter_block_4x4(uint16_t *const dest, int dstride,
                                   const uint16_t *in, int pri_strength,
                                   int sec_strength, int dir, int pri_damping,
@@ -410,6 +413,7 @@ SIMD_INLINE void filter_block_4x4(uint16_t *const dest, int dstride,
   }
 }
 
+/* Applies CDEF filtering for block width equals 8. */
 SIMD_INLINE void filter_block_8x8(uint16_t *const dest, int dstride,
                                   const uint16_t *in, int pri_strength,
                                   int sec_strength, int dir, int pri_damping,
@@ -555,6 +559,8 @@ SIMD_INLINE void filter_block_8x8(uint16_t *const dest, int dstride,
   }
 }
 
+/* Copy function specialized for block width equals 4, invoked when both primary
+ * and secondary strengths are zero. */
 SIMD_INLINE void copy_block_4xh(uint16_t *const dest, int dstride,
                                 const uint16_t *in, int height) {
   int i;
@@ -572,6 +578,8 @@ SIMD_INLINE void copy_block_4xh(uint16_t *const dest, int dstride,
   }
 }
 
+/* Copy function specialized for block width equals 8, invoked when both primary
+ * and secondary strengths are zero. */
 SIMD_INLINE void copy_block_8xh(uint16_t *const dest, int dstride,
                                 const uint16_t *in, int height) {
   int i;
@@ -583,6 +591,8 @@ SIMD_INLINE void copy_block_8xh(uint16_t *const dest, int dstride,
   }
 }
 
+/* Wrapper function which invokes block width specific CDEF SIMD functions when
+ * primary and secondary strengths are non-zero. */
 void SIMD_FUNC(cdef_filter_16_0)(uint16_t *const dest, int dstride,
                                  const uint16_t *in, int pri_strength,
                                  int sec_strength, int dir, int pri_damping,
@@ -601,6 +611,8 @@ void SIMD_FUNC(cdef_filter_16_0)(uint16_t *const dest, int dstride,
   }
 }
 
+/* Wrapper function which invokes block width specific CDEF SIMD functions when
+ * primary strength is non-zero and secondary strength is zero. */
 void SIMD_FUNC(cdef_filter_16_1)(uint16_t *const dest, int dstride,
                                  const uint16_t *in, int pri_strength,
                                  int sec_strength, int dir, int pri_damping,
@@ -619,6 +631,8 @@ void SIMD_FUNC(cdef_filter_16_1)(uint16_t *const dest, int dstride,
   }
 }
 
+/* Wrapper function which invokes block width specific CDEF SIMD functions when
+ * primary strength is zero and secondary strength is non-zero. */
 void SIMD_FUNC(cdef_filter_16_2)(uint16_t *const dest, int dstride,
                                  const uint16_t *in, int pri_strength,
                                  int sec_strength, int dir, int pri_damping,
@@ -637,6 +651,8 @@ void SIMD_FUNC(cdef_filter_16_2)(uint16_t *const dest, int dstride,
   }
 }
 
+/* Wrapper function which invokes block width specific CDEF SIMD functions when
+ * both primary and secondary strengths are zero. */
 void SIMD_FUNC(cdef_filter_16_3)(uint16_t *const dest, int dstride,
                                  const uint16_t *in, int pri_strength,
                                  int sec_strength, int dir, int pri_damping,
