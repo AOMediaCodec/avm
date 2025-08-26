@@ -1025,6 +1025,11 @@ static AOM_INLINE void convolve_symmetric_highbd_13tap_avx2(
                    _mm_bsrli_si128(out_r1r3, 8));
 }
 
+// AVX2 intrinsic function to convolve an 8x8 block with a origin-symmetric
+// non-separable filter. The output for a particular pixel in an 8x8 block is
+// calculated with DIAMOND shaped filter considering a 11x11 grid surrounded by
+// that pixel. DIAMOND shape uses 13-tap filter for convolution. The filter taps
+// are expected to be passed as symmetric taps followed by a center tap.
 static AOM_INLINE void convolve_symmetric_highbd_13tap_blk8x8_avx2(
     const uint16_t *dgd, int stride, const NonsepFilterConfig *filter_config,
     const int16_t *filter_, uint16_t *dst, int dst_stride, int bit_depth,
@@ -1784,6 +1789,11 @@ static AOM_INLINE void convolve_symmetric_highbd_13tap_blk8x8_avx2(
                        (__m128i *)(dst + dst_id + (6 * dst_stride)), out_r6_r7);
 }
 
+// AVX2 intrinsic function to convolve a 4x4 block with a origin-symmetric
+// non-separable filter. The output for a particular pixel in a 4x4 block is
+// calculated with DIAMOND shaped filter considering a 8x8 grid surrounded by
+// that pixel. DIAMOND shape uses 16-tap filter for convolution. The filter taps
+// are expected to be passed as symmetric taps followed by a center tap.
 static AOM_INLINE void convolve_symmetric_highbd_16tap9x9_avx2(
     const uint16_t *dgd, int stride, const NonsepFilterConfig *filter_config,
     const int16_t *filter_, uint16_t *dst, int dst_stride, int bit_depth,
@@ -2280,6 +2290,11 @@ static AOM_INLINE void convolve_symmetric_highbd_16tap9x9_avx2(
                    _mm_bsrli_si128(out_r1r3, 8));
 }
 
+// AVX2 intrinsic function to convolve an 8x8 block with a origin-symmetric
+// non-separable filter. The output for a particular pixel in an 8x8 block is
+// calculated with DIAMOND shaped filter considering a 12x12 grid surrounded by
+// that pixel. DIAMOND shape uses 16-tap filter for convolution. The filter taps
+// are expected to be passed as symmetric taps followed by a center tap.
 static AOM_INLINE void convolve_symmetric_highbd_16tap9x9_blk8x8_avx2(
     const uint16_t *dgd, int stride, const NonsepFilterConfig *filter_config,
     const int16_t *filter_, uint16_t *dst, int dst_stride, int bit_depth,
@@ -3205,8 +3220,8 @@ static AOM_INLINE void convolve_symmetric_highbd_16tap9x9_blk8x8_avx2(
 
 // SIMD implementation to convolve a block of pixels with origin-symmetric, pc
 // wiener filter corresponds to CONFIG_PC_WIENER loop restoration. DIAMOND shape
-// with 13-tap (12 symmetric+1) or 7-tap (6 symmetric + 1) filter is used for
-// convolution.
+// with 16-tap (16 symmetric+1) or 13-tap (12 symmetric+1) or 7-tap (6 symmetric
+// + 1) filter is used for convolution.
 void av1_convolve_symmetric_highbd_avx2(const uint16_t *dgd, int stride,
                                         const NonsepFilterConfig *filter_config,
                                         const int16_t *filter, uint16_t *dst,
@@ -3278,6 +3293,10 @@ void av1_convolve_symmetric_highbd_avx2(const uint16_t *dgd, int stride,
   }
 }
 
+// AVX2 intrinsic function to convolve an 8x8 block with a origin-symmetric
+// non-separable filter. For an 8x8 block, the convolution is
+// performed with a DIAMOND-shaped filter, using either a 16-tap (16 symmetric +
+// 1) or a 13-tap (12 symmetric + 1) filter.
 void av1_convolve_symmetric_blk8x8_highbd_avx2(
     const uint16_t *dgd, int stride, const NonsepFilterConfig *filter_config,
     const int16_t *filter, uint16_t *dst, int dst_stride, int bit_depth,

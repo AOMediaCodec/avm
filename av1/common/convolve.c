@@ -903,6 +903,7 @@ void av1_convolve_symmetric_subtract_center_highbd_c(
   }
 }
 
+// Symmetric convolution filtering for an 8x8 block.
 void av1_convolve_symmetric_blk8x8_highbd_c(
     const uint16_t *dgd, int stride, const NonsepFilterConfig *filter_config,
     const int16_t *filter, uint16_t *dst, int dst_stride, int bit_depth,
@@ -913,6 +914,8 @@ void av1_convolve_symmetric_blk8x8_highbd_c(
       block_row_begin, block_row_end, block_col_begin, block_col_end);
 }
 
+// The function provides support for non-separable convolution filtering for an
+// 8x8 block.
 void av1_convolve_nonsep_blk8x8_highbd(const uint16_t *dgd, int width,
                                        int height, int stride,
                                        const NonsepFilterConfig *nsfilter,
@@ -974,6 +977,8 @@ void av1_convolve_nonsep_blk8x8_highbd(const uint16_t *dgd, int width,
   }
 }
 
+// The function provides support for non-separable convolution filtering for a
+// 4x4 block.
 void av1_convolve_nonsep_blk4x4_highbd(const uint16_t *dgd, int width,
                                        int height, int stride,
                                        const NonsepFilterConfig *nsfilter,

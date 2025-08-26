@@ -1480,6 +1480,8 @@ static bool adjust_filter_to_non_subtract_center(
 }
 #endif  // ADD_CENTER_TAP_TO_WIENERNS
 
+// The function applies Non-separable Wiener filter at 8x8 level for the given
+// LR unit when number of class used is 1.
 static AOM_INLINE void apply_wienerns_single_class_highbd(
     const uint16_t *dgd, int width, int height, int stride,
     const WienerNonsepInfo *wienerns_info,
@@ -1501,6 +1503,8 @@ static AOM_INLINE void apply_wienerns_single_class_highbd(
   }
 }
 
+// The function applies Non-separable Wiener filter at 4x4 level for the given
+// LR unit when multiple class is used.
 static AOM_INLINE void apply_wienerns_multi_class_highbd(
     const uint16_t *dgd, int width, int height, int stride,
     const WienerNonsepInfo *wienerns_info,
