@@ -86,13 +86,14 @@ static int is_obu_in_current_operating_point(AV1Decoder *pbi,
   if ((pbi->current_operating_point >> obu_header.obu_tlayer_id) & 0x1 &&
       (pbi->current_operating_point >>
        (obu_header.obu_mlayer_id + MAX_NUM_TLAYERS)) &
-          0x1) {
+          0x1)
 #else
   if ((pbi->current_operating_point >> obu_header.temporal_layer_id) & 0x1 &&
       (pbi->current_operating_point >>
        (obu_header.spatial_layer_id + MAX_NUM_TEMPORAL_LAYERS)) &
-          0x1) {
+          0x1)
 #endif  // CONFIG_NEW_OBU_HEADER
+  {
     return 1;
   }
   return 0;
@@ -311,12 +312,13 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
 #if CONFIG_NEW_OBU_HEADER
   if (aom_get_num_layers_from_operating_point_idc(
           pbi->current_operating_point, &cm->number_mlayers,
-          &cm->number_tlayers) != AOM_CODEC_OK) {
+          &cm->number_tlayers) != AOM_CODEC_OK)
 #else
   if (aom_get_num_layers_from_operating_point_idc(
           pbi->current_operating_point, &cm->number_spatial_layers,
-          &cm->number_temporal_layers) != AOM_CODEC_OK) {
+          &cm->number_temporal_layers) != AOM_CODEC_OK)
 #endif  // CONFIG_NEW_OBU_HEADER
+  {
     cm->error.error_code = AOM_CODEC_ERROR;
     return 0;
   }
@@ -436,21 +438,20 @@ static uint32_t read_tilegroup_obu(AV1Decoder *pbi,
 #if CONFIG_BRU
   skip_payload |= pbi->common.bru.frame_inactive_flag;
 #endif
-
-  if (header_size == -1 || byte_alignment(cm, rb)) return 0;
-
+  if (header_size == -1) return 0;
   if (skip_payload) {
     *is_last_tg = 1;
-    return header_size;
+    tg_payload_size = 0;
+  }else {
+    byte_alignment(cm, rb);
+    data += header_size;
+    
+    av1_decode_tg_tiles_and_wrapup(pbi, data, data_end, p_data_end, start_tile,
+                                   end_tile, is_first_tg);
+    
+    tg_payload_size = (uint32_t)(*p_data_end - data);
+    *is_last_tg = end_tile == cm->tiles.rows * cm->tiles.cols - 1;
   }
-
-  data += header_size;
-
-  av1_decode_tg_tiles_and_wrapup(pbi, data, data_end, p_data_end, start_tile,
-                                 end_tile, is_first_tg);
-
-  tg_payload_size = (uint32_t)(*p_data_end - data);
-  *is_last_tg = end_tile == cm->tiles.rows * cm->tiles.cols - 1;
   return header_size + tg_payload_size;
 }
 #else
