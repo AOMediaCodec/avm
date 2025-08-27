@@ -98,10 +98,11 @@
 extern "C" {
 #endif
 
+#include "config/aom_config.h"
+
 #include "aom/aom_image.h"
 #include "aom/aom_integer.h"
 
-#include "config/aom_config.h"
 /*!\brief Decorator indicating a function is deprecated */
 #ifndef AOM_DEPRECATED
 #if defined(__GNUC__) && __GNUC__

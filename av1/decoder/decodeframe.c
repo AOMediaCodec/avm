@@ -7592,9 +7592,6 @@ static int read_show_existing_frame(AV1Decoder *pbi,
   const SequenceHeader *const seq_params = &cm->seq_params;
   CurrentFrame *const current_frame = &cm->current_frame;
   BufferPool *const pool = cm->buffer_pool;
-  aom_s_frame_info *sframe_info = &pbi->sframe_info;
-  sframe_info->is_s_frame = 0;
-  sframe_info->is_s_frame_at_altref = 0;
   cm->show_existing_frame = 1;
   if (pbi->sequence_header_changed) {
     aom_internal_error(
@@ -7604,6 +7601,14 @@ static int read_show_existing_frame(AV1Decoder *pbi,
   // Show an existing frame directly.
   const int existing_frame_idx =
       aom_rb_read_literal(rb, seq_params->ref_frames_log2);
+#if CONFIG_EXTRA_DPB
+  if (existing_frame_idx >= seq_params->ref_frames) {
+    aom_internal_error(
+        &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+        "Existing frame idx must be less than %d but is set to %d",
+        seq_params->ref_frames, existing_frame_idx);
+  }
+#endif  // CONFIG_EXTRA_DPB
   RefCntBuffer *const frame_to_show = cm->ref_frame_map[existing_frame_idx];
   if (frame_to_show == NULL) {
     aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
@@ -7852,12 +7857,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
               frame_to_show->frame_type == KEY_FRAME &&
               !frame_to_show->showable_frame &&
-              frame_to_show->frame_output_done)
+           frame_to_show->frame_output_done)) {
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
           || (!seq_params->enable_frame_output_order &&
-              !frame_to_show->showable_frame)
+              !frame_to_show->showable_frame)) {
 #endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
-      ) {
         aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                            "Buffer does not contain a showable frame");
       }
@@ -8413,7 +8417,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_CWG_F168_DPB_HLS
                 max_num_ref_frames)
 #else
-                seq_params->max_reference_frames)
+                  seq_params->max_reference_frames)
 #endif  // CONFIG_CWG_F168_DPB_HLS
           aom_internal_error(&cm->error, AOM_CODEC_ERROR,
                              "Invalid num_total_refs");
@@ -9520,7 +9524,7 @@ static int32_t read_tile_indices_in_tilegroup(AV1Decoder *pbi,
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }
 
-int32_t read_tilegroup_header(AV1Decoder *pbi, struct aom_read_bit_buffer *rb,
+int32_t av1_read_tilegroup_header(AV1Decoder *pbi, struct aom_read_bit_buffer *rb,
                               const uint8_t *data, const uint8_t **p_data_end,
                               int *first_tile_group_in_frame, int *start_tile,
                               int *end_tile, OBU_TYPE obu_type) {
@@ -9698,27 +9702,25 @@ int32_t read_tilegroup_header(AV1Decoder *pbi, struct aom_read_bit_buffer *rb,
   }
 
   bool tile_indices_present_flag = true;
-#if CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
 #if CONFIG_F106_OBU_SEF
   tile_indices_present_flag &= obu_type != OBU_SEF;
+#else
+  tile_indices_present_flag &= !cm->show_existing_frame;
 #endif  // CONFIG_F106_OBU_SEF
 #if CONFIG_F106_OBU_TIP
   tile_indices_present_flag &= obu_type != OBU_TIP;
-#endif  // CONFIG_F106_OBU_TIP
 #else
-  tile_indices_present_flag =
-      (!pbi->common.show_existing_frame &&
-       pbi->common.features.tip_frame_mode != TIP_FRAME_AS_OUTPUT);
-#endif  // CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
+  tile_indices_present_flag &= (cm->features.tip_frame_mode != TIP_FRAME_AS_OUTPUT);
+#endif  // CONFIG_F106_OBU_TIP
 #if CONFIG_BRU
-  tile_indices_present_flag &= !pbi->common.bru.frame_inactive_flag;
+  tile_indices_present_flag &= !cm->bru.frame_inactive_flag;
 #endif  // CONFIG_BRU
   if (tile_indices_present_flag)
     read_tile_indices_in_tilegroup(pbi, rb, start_tile, end_tile);
 
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }
-#else
+#else // CONFIG_F106_OBU_TILEGROUP
 uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
                                             struct aom_read_bit_buffer *rb,
                                             const uint8_t *data,

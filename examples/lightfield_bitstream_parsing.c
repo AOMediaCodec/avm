@@ -141,11 +141,7 @@ void process_tile_list(const TILE_LIST_INFO *tiles, int num_tiles,
 
   // Write each tile's data
   for (i = 0; i <= num_tiles_minus_1; i++) {
-    aom_tile_data tile_data = { 0, NULL,
-#if !CONFIG_F106_OBU_TILEGROUP
-                                0
-#endif
-    };
+    aom_tile_data tile_data = { 0, NULL, 0 };
 
     int image_idx = tiles[i].image_idx;
     int ref_idx = tiles[i].reference_idx;
@@ -297,11 +293,7 @@ int main(int argc, char **argv) {
     size_t frame_size = frame_sizes[0];
     const unsigned char *frame = frames[0];
     pts = num_references;
-    aom_tile_data frame_header_info = { 0, NULL,
-#if !CONFIG_F106_OBU_TILEGROUP
-                                        0
-#endif
-    };
+    aom_tile_data frame_header_info = { 0, NULL, 0 };
 
     // Need to decode frame header to get camera frame header info. So, here
     // decoding 1 tile is enough.

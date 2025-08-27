@@ -8468,9 +8468,8 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
         (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT))
       break;
 #endif  // CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
-
   }  // tg_idx
-#else
+#else // CONFIG_F106_OBU_TILEGROUP
   const int write_frame_header =
       (cpi->num_tg > 1 ||
        (encode_show_existing_frame(cm)
@@ -8499,34 +8498,61 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 #if CONFIG_F106_OBU_TIP
     if (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
       obu_header_size = av1_write_obu_header(level_params, OBU_TIP,
-                                             obu_extension_header, data);
+#if CONFIG_NEW_OBU_HEADER
+                                             obu_temporal, obu_layer,
+#else
+                                             obu_extension_header,
+#endif  // CONFIG_NEW_OBU_HEADER
+                                             data);
       obu_payload_size = write_frame_header_obu(
           cpi, &saved_wb, data + obu_header_size, OBU_TIP);
     } else
 #endif  // CONFIG_F106_OBU_TIP
 #if CONFIG_F106_OBU_SEF
-        if ((encode_show_existing_frame(cm) &&
-             (!cm->seq_params.order_hint_info.enable_order_hint ||
-              !cm->seq_params.enable_frame_output_order)) ||
+        if ((encode_show_existing_frame(cm)
+#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT && !CONFIG_F253_REMOVE_OUTPUTFLAG
+             && (!cm->seq_params.order_hint_info.enable_order_hint ||
+                 !cm->seq_params.enable_frame_output_order)
+#elif !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT && CONFIG_F253_REMOVE_OUTPUTFLAG
+             && (!cm->seq_params.order_hint_info.enable_order_hint)
+#elif CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT && !CONFIG_F253_REMOVE_OUTPUTFLAG
+             && (!cm->seq_params.enable_frame_output_order)
+#endif
+                 ) ||
             (encode_show_existing_frame(cm) &&
              cm->cur_frame->frame_type == KEY_FRAME)) {
       obu_header_size = av1_write_obu_header(level_params, OBU_SEF,
-                                             obu_extension_header, data);
-      obu_payload_size = write_frame_header_obu(
+#if CONFIG_NEW_OBU_HEADER
+                                             obu_temporal, obu_layer,
+#else
+                                             obu_extension_header,
+#endif  // CONFIG_NEW_OBU_HEADER
+                                             data);
+          obu_payload_size = write_frame_header_obu(
           cpi, &saved_wb, data + obu_header_size, OBU_SEF);
     } else
 #endif  // CONFIG_F106_OBU_SEF
 #if CONFIG_F106_OBU_SWITCH
     {
       obu_header_size = av1_write_obu_header(level_params, OBU_FRAME_HEADER,
-                                             obu_extension_header, data);
+#if CONFIG_NEW_OBU_HEADER
+                                             obu_temporal, obu_layer,
+#else
+                                             obu_extension_header,
+#endif  // CONFIG_NEW_OBU_HEADER
+                                             data);
       obu_payload_size = write_frame_header_obu(
           cpi, &saved_wb, data + obu_header_size, OBU_FRAME_HEADER);
     }
 #else
     {
       obu_header_size = av1_write_obu_header(level_params, OBU_FRAME_HEADER,
-                                             obu_extension_header, data);
+#if CONFIG_NEW_OBU_HEADER
+                                             obu_temporal, obu_layer,
+#else
+                                             obu_extension_header,
+#endif  // CONFIG_NEW_OBU_HEADER
+                                             data);
       obu_payload_size =
           write_frame_header_obu(cpi, &saved_wb, data + obu_header_size, 1);
     }
