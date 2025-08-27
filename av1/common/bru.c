@@ -268,6 +268,7 @@ void bru_set_default_inter_mb_mode_info(const AV1_COMMON *const cm,
   mbmi->local_rest_type = 0;
   mbmi->local_ccso_blk_flag = 0;
   mbmi->local_gdf_mode = 0;
+  mbmi->current_qindex = xd->current_base_qindex;
   set_default_max_mv_precision(mbmi, xd->sbi->sb_mv_precision);
   /// bru use only pixel precision
   set_mv_precision(mbmi, MV_PRECISION_ONE_PEL);
