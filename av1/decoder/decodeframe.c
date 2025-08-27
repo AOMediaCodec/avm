@@ -2556,6 +2556,10 @@ static AOM_INLINE void setup_bru_active_info(AV1_COMMON *const cm,
       if (cm->bru.frame_inactive_flag) {
         cm->features.disable_cdf_update = 1;
       }
+      if (!cm->show_frame) {
+        aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+                           "Invalid show_frame: BRU frame must be show_frame");
+      }
     }
   }
 }
@@ -8319,6 +8323,20 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_BRU
       if (current_frame->frame_type == INTER_FRAME) {
         setup_bru_active_info(cm, rb);
+        if (cm->bru.enabled) {
+          const RefCntBuffer *const bru_ref =
+              get_ref_frame_buf(cm, cm->bru.update_ref_idx);
+          if (bru_ref == NULL) {
+            aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                               "Invalid BRU Ref: invalid reference buffer");
+          } else {
+            if (bru_ref->width != cm->width || bru_ref->height != cm->height) {
+              aom_internal_error(
+                  &cm->error, AOM_CODEC_CORRUPT_FRAME,
+                  "BRU reference frame size is not the same as current frame");
+            }
+          }
+        }
       }
       if (cm->bru.frame_inactive_flag) {
         cm->features.disable_cdf_update = 1;
@@ -9377,6 +9395,17 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
 #else
     av1_setup_past_independence(cm);
 #endif  // CONFIG_TIP_LD
+    cm->seg.enabled = 0;
+    if (cm->cur_frame->seg_map) {
+      memset(cm->cur_frame->seg_map, 0,
+             (cm->cur_frame->mi_rows * cm->cur_frame->mi_cols));
+    }
+    memset(&cm->seg, 0, sizeof(cm->seg));
+#if CONFIG_EXT_SEG
+    cm->seg.enable_ext_seg = cm->seq_params.enable_ext_seg;
+#endif  // CONFIG_EXT_SEG
+    segfeatures_copy(&cm->cur_frame->seg, &cm->seg);
+
     if (cm->features.primary_ref_frame == PRIMARY_REF_NONE) {
       // use the default frame context values
       *cm->fc = *cm->default_frame_context;

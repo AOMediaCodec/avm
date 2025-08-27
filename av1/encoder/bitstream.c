@@ -4806,6 +4806,10 @@ static AOM_INLINE void encode_bru_active_info(AV1_COMP *cpi,
       aom_wb_write_literal(wb, cm->bru.update_ref_idx,
                            aom_ceil_log2(cm->ref_frames_info.num_total_refs));
       aom_wb_write_bit(wb, cm->bru.frame_inactive_flag);
+      if (!cm->show_frame) {
+        aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+                           "Invalid show_frame: BRU frame must be show_frame");
+      }
     }
   }
   return;
