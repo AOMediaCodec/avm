@@ -342,7 +342,7 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
     aom_internal_error(
         &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
         "Inconsistent mlayer_id information: OBU header indicates mlayer_id is "
-        "%d, yet  max_mlayer_id in the sequence header is %d.",
+        "%d, yet max_mlayer_id in the sequence header is %d.",
         cm->mlayer_id, seq_params->max_mlayer_id);
   }
 
