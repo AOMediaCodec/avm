@@ -660,9 +660,11 @@ void gdf_filter_frame(AV1_COMMON *cm) {
 #if CONFIG_BRU
               // FU level skip
               if (cm->bru.enabled) {
-                const int mbmi_idx =
-                    get_mi_grid_idx(&cm->mi_params, i_min >> MI_SIZE_LOG2,
-                                    j_min >> MI_SIZE_LOG2);
+                const int mbmi_idx = get_mi_grid_idx(
+                    &cm->mi_params,
+                    AOMMIN(i_max - 1, (i_min + GDF_TEST_STRIPE_OFF)) >>
+                        MI_SIZE_LOG2,
+                    j_min >> MI_SIZE_LOG2);
                 use_gdf_local =
                     cm->mi_params.mi_grid_base[mbmi_idx]->local_gdf_mode;
               }
@@ -674,7 +676,9 @@ void gdf_filter_frame(AV1_COMMON *cm) {
                   use_gdf_local) {
 #if CONFIG_BRU
                 const int bru_blk_skip = !bru_is_sb_active(
-                    cm, j_min >> MI_SIZE_LOG2, i_min >> MI_SIZE_LOG2);
+                    cm, j_min >> MI_SIZE_LOG2,
+                    AOMMIN(i_max - 1, (i_min + GDF_TEST_STRIPE_OFF)) >>
+                        MI_SIZE_LOG2);
                 if (cm->bru.enabled && bru_blk_skip) {
                   aom_internal_error(&cm->error, AOM_CODEC_ERROR,
                                      "GDF on not active SB");
