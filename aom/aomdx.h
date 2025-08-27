@@ -106,7 +106,7 @@ typedef struct aom_tile_data {
   size_t extra_size;
 #endif
 } aom_tile_data;
-#endif // !CONFIG_F106_OBU_TILEGROUP
+#endif  // !CONFIG_F106_OBU_TILEGROUP
 
 /*!\brief Max number of tile columns
  *
@@ -328,7 +328,7 @@ enum aom_dec_control_id {
    * tile in the coded bitstream, aom_tile_data* parameter.
    */
   AV1D_GET_TILE_DATA,
-#endif // !CONFIG_F106_OBU_TILEGROUP
+#endif  // !CONFIG_F106_OBU_TILEGROUP
 
   /*!\brief Codec control function to set the external references' pointers in
    * the decoder, av1_ext_ref_frame_t* parameter.
@@ -557,7 +557,7 @@ AOM_CTRL_USE_TYPE(AV1D_GET_FRAME_HEADER_INFO, aom_tile_data *)
 
 AOM_CTRL_USE_TYPE(AV1D_GET_TILE_DATA, aom_tile_data *)
 #define AOM_CTRL_AV1D_GET_TILE_DATA
-#endif //CONFIG_F106_OBU_TILEGROUP
+#endif  // CONFIG_F106_OBU_TILEGROUP
 
 AOM_CTRL_USE_TYPE(AV1D_SET_EXT_REF_PTR, av1_ext_ref_frame_t *)
 #define AOM_CTRL_AV1D_SET_EXT_REF_PTR

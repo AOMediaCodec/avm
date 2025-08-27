@@ -7857,14 +7857,14 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
               frame_to_show->frame_type == KEY_FRAME &&
               !frame_to_show->showable_frame &&
-           frame_to_show->frame_output_done)) {
+              frame_to_show->frame_output_done)) {
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
           || (!seq_params->enable_frame_output_order &&
               !frame_to_show->showable_frame)) {
 #endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
-        aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-                           "Buffer does not contain a showable frame");
-      }
+            aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+                               "Buffer does not contain a showable frame");
+          }
 #else
       // Section 6.8.2: It is a requirement of bitstream conformance that when
       // show_existing_frame is used to show a previous frame, that the value
@@ -7874,18 +7874,18 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                            "Buffer does not contain a showable frame");
       }
 #endif  // !CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
-      if (pbi->reset_decoder_state) frame_to_show->showable_frame = 0;
+          if (pbi->reset_decoder_state) frame_to_show->showable_frame = 0;
 
-      cm->film_grain_params = frame_to_show->film_grain_params;
+          cm->film_grain_params = frame_to_show->film_grain_params;
 
-      if (pbi->reset_decoder_state) {
-        show_existing_frame_reset(pbi, existing_frame_idx);
-      } else {
-        current_frame->refresh_frame_flags = 0;
+          if (pbi->reset_decoder_state) {
+            show_existing_frame_reset(pbi, existing_frame_idx);
+          } else {
+            current_frame->refresh_frame_flags = 0;
+          }
+
+          return 0;
       }
-
-      return 0;
-    }
 #endif  // CONFIG_F106_OBU_SEF
 #if CONFIG_F106_OBU_SWITCH
     if (obu_type == OBU_SWITCH) {
@@ -7913,7 +7913,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       }
     }
 #else
-    current_frame->frame_type = (FRAME_TYPE)aom_rb_read_literal(rb, 2);
+      current_frame->frame_type = (FRAME_TYPE)aom_rb_read_literal(rb, 2);
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
     if (pbi->sequence_header_changed) {
       if (current_frame->frame_type == KEY_FRAME) {
@@ -8080,11 +8080,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                ((seq_params->operating_point_idc[op_num] >>
                  (cm->mlayer_id + MAX_NUM_TLAYERS)) &
 #else
-          if ((((seq_params->operating_point_idc[op_num] >>
-                 cm->temporal_layer_id) &
-                0x1) &&
-               ((seq_params->operating_point_idc[op_num] >>
-                 (cm->spatial_layer_id + MAX_NUM_TEMPORAL_LAYERS)) &
+            if ((((seq_params->operating_point_idc[op_num] >>
+                   cm->temporal_layer_id) &
+                  0x1) &&
+                 ((seq_params->operating_point_idc[op_num] >>
+                   (cm->spatial_layer_id + MAX_NUM_TEMPORAL_LAYERS)) &
 #endif  // CONFIG_NEW_OBU_HEADER
                 0x1)) ||
               seq_params->operating_point_idc[op_num] == 0) {
@@ -8164,8 +8164,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
             aom_rb_read_literal(rb, refresh_frame_flags_bits);
       }
 #else
-      current_frame->refresh_frame_flags =
-          aom_rb_read_literal(rb, seq_params->ref_frames);
+        current_frame->refresh_frame_flags =
+            aom_rb_read_literal(rb, seq_params->ref_frames);
 #endif  // CONFIG_REFRESH_FLAG
       assert(seq_params->ref_frames >= 1);
       if (current_frame->refresh_frame_flags ==
@@ -8222,9 +8222,10 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         }
       }
 #else
-      current_frame->refresh_frame_flags =
-          frame_is_sframe(cm) ? ((1 << seq_params->ref_frames) - 1)
-                              : aom_rb_read_literal(rb, seq_params->ref_frames);
+        current_frame->refresh_frame_flags =
+            frame_is_sframe(cm)
+                ? ((1 << seq_params->ref_frames) - 1)
+                : aom_rb_read_literal(rb, seq_params->ref_frames);
 #endif  // CONFIG_REFRESH_FLAG
     }
   }
@@ -8316,7 +8317,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_NEW_OBU_HEADER
     cm->current_frame.temporal_layer_id = cm->tlayer_id;
 #else
-    cm->current_frame.temporal_layer_id = cm->temporal_layer_id;
+      cm->current_frame.temporal_layer_id = cm->temporal_layer_id;
 #endif  // CONFIG_NEW_OBU_HEADER
 #if CONFIG_MULTILAYER_CORE
 #if CONFIG_NEW_OBU_HEADER
@@ -8347,7 +8348,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_NEW_OBU_HEADER
     cm->current_frame.temporal_layer_id = cm->tlayer_id;
 #else
-    cm->current_frame.temporal_layer_id = cm->temporal_layer_id;
+      cm->current_frame.temporal_layer_id = cm->temporal_layer_id;
 #endif  // CONFIG_NEW_OBU_HEADER
 #if CONFIG_MULTILAYER_CORE
 #if CONFIG_NEW_OBU_HEADER
@@ -8386,8 +8387,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       av1_get_ref_frames(cm, current_frame->display_order_hint, 0,
                          cm->ref_frame_map_pairs);
 #else
-      av1_get_ref_frames(cm, current_frame->display_order_hint,
-                         cm->ref_frame_map_pairs);
+        av1_get_ref_frames(cm, current_frame->display_order_hint,
+                           cm->ref_frame_map_pairs);
 #endif  // CONFIG_ACROSS_SCALE_REF_OPT
 
       // Reference rankings will be implicitly derived in av1_get_ref_frames,
@@ -8411,7 +8412,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_ACROSS_SCALE_REF_OPT
         if (cm->ref_frames_info.num_total_refs < 0 ||
 #else
-        if (cm->ref_frames_info.num_total_refs <= 0 ||
+          if (cm->ref_frames_info.num_total_refs <= 0 ||
 #endif  // CONFIG_ACROSS_SCALE_REF_OPT
             cm->ref_frames_info.num_total_refs >
 #if CONFIG_CWG_F168_DPB_HLS
@@ -8536,46 +8537,46 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_ACROSS_SCALE_REF_OPT
           ref = cm->remapped_ref_idx[i];
 #else
-          ref = aom_rb_read_literal(rb, seq_params->ref_frames_log2);
-          if (ref >= seq_params->ref_frames) {
-            aom_internal_error(
-                &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-                "Explicit ref frame idx must be less than %d but is set to %d",
-                seq_params->ref_frames, ref);
-          }
+            ref = aom_rb_read_literal(rb, seq_params->ref_frames_log2);
+            if (ref >= seq_params->ref_frames) {
+              aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+                                 "Explicit ref frame idx must be less than %d "
+                                 "but is set to %d",
+                                 seq_params->ref_frames, ref);
+            }
 
-          // Most of the time, streams start with a keyframe. In that case,
-          // ref_frame_map will have been filled in at that point and will not
-          // contain any NULLs. However, streams are explicitly allowed to start
-          // with an intra-only frame, so long as they don't then signal a
-          // reference to a slot that hasn't been set yet. That's what we are
-          // checking here.
-          if (cm->ref_frame_map[ref] == NULL)
-            aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
-                               "Inter frame requests nonexistent reference");
+            // Most of the time, streams start with a keyframe. In that case,
+            // ref_frame_map will have been filled in at that point and will not
+            // contain any NULLs. However, streams are explicitly allowed to
+            // start with an intra-only frame, so long as they don't then signal
+            // a reference to a slot that hasn't been set yet. That's what we
+            // are checking here.
+            if (cm->ref_frame_map[ref] == NULL)
+              aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                                 "Inter frame requests nonexistent reference");
 #if CONFIG_MULTILAYER_CORE_HLS
-          // mlayer and tlayer scalability related bitstream constraints for the
-          // explicit reference frame signaling
-          const int cur_mlayer_id = current_frame->layer_id;
-          const int ref_mlayer_id = cm->ref_frame_map[ref]->layer_id;
-          if (!is_mlayer_scalable_and_dependent(seq_params, cur_mlayer_id,
-                                                ref_mlayer_id)) {
-            aom_internal_error(
-                &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-                "Unsupported bitstream: embedded layer scalability shall be "
-                "maintained in explicit reference map signaling.");
-          }
-          const int cur_tlayer_id = current_frame->temporal_layer_id;
-          const int ref_tlayer_id = cm->ref_frame_map[ref]->temporal_layer_id;
-          if (!is_tlayer_scalable_and_dependent(seq_params, cur_tlayer_id,
-                                                ref_tlayer_id)) {
-            aom_internal_error(
-                &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-                "Unsupported bitstream: temporal layer scalability shall be "
-                "maintained in explicit reference map signaling.");
-          }
+            // mlayer and tlayer scalability related bitstream constraints for
+            // the explicit reference frame signaling
+            const int cur_mlayer_id = current_frame->layer_id;
+            const int ref_mlayer_id = cm->ref_frame_map[ref]->layer_id;
+            if (!is_mlayer_scalable_and_dependent(seq_params, cur_mlayer_id,
+                                                  ref_mlayer_id)) {
+              aom_internal_error(
+                  &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+                  "Unsupported bitstream: embedded layer scalability shall be "
+                  "maintained in explicit reference map signaling.");
+            }
+            const int cur_tlayer_id = current_frame->temporal_layer_id;
+            const int ref_tlayer_id = cm->ref_frame_map[ref]->temporal_layer_id;
+            if (!is_tlayer_scalable_and_dependent(seq_params, cur_tlayer_id,
+                                                  ref_tlayer_id)) {
+              aom_internal_error(
+                  &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+                  "Unsupported bitstream: temporal layer scalability shall be "
+                  "maintained in explicit reference map signaling.");
+            }
 #endif  // CONFIG_MULTILAYER_CORE_HLS
-          cm->remapped_ref_idx[i] = ref;
+            cm->remapped_ref_idx[i] = ref;
 #endif  // CONFIG_ACROSS_SCALE_REF_OPT
         }
 #if CONFIG_BRU
@@ -8655,12 +8656,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                                 (int)current_frame->display_order_hint,
                                 (int)cm->ref_frame_map_pairs[ref].disp_order);
 #else
-              seq_params->order_hint_info.enable_order_hint
-                  ? get_relative_dist(
-                        &seq_params->order_hint_info,
-                        (int)current_frame->display_order_hint,
-                        (int)cm->ref_frame_map_pairs[ref].disp_order)
-                  : 1;
+                seq_params->order_hint_info.enable_order_hint
+                    ? get_relative_dist(
+                          &seq_params->order_hint_info,
+                          (int)current_frame->display_order_hint,
+                          (int)cm->ref_frame_map_pairs[ref].disp_order)
+                    : 1;
 #endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
           cm->ref_frames_info.ref_frame_distance[i] = scores[i].distance;
         }
@@ -8733,11 +8734,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         }
 #else
 #if CONFIG_F106_OBU_TIP
-        if (obu_type == OBU_TIP) {
-          features->tip_frame_mode = TIP_FRAME_AS_OUTPUT;
-        } else {
-          features->tip_frame_mode = aom_rb_read_literal(rb, 1);
-        }
+          if (obu_type == OBU_TIP) {
+            features->tip_frame_mode = TIP_FRAME_AS_OUTPUT;
+          } else {
+            features->tip_frame_mode = aom_rb_read_literal(rb, 1);
+          }
 #else
         features->tip_frame_mode = aom_rb_read_literal(rb, 2);
 #endif
@@ -8799,8 +8800,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
             cm->tip_interp_filter = EIGHTTAP_SMOOTH;
           }
 #else
-          cm->tip_interp_filter =
-              aom_rb_read_bit(rb) ? MULTITAP_SHARP : EIGHTTAP_REGULAR;
+            cm->tip_interp_filter =
+                aom_rb_read_bit(rb) ? MULTITAP_SHARP : EIGHTTAP_REGULAR;
 #endif  // CONFIG_TIP_INTERP_SMOOTH
         }
       } else {
@@ -8838,9 +8839,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                                             : MV_PRECISION_HALF_PEL;
           }
 #else
-          features->fr_mv_precision = aom_rb_read_bit(rb)
-                                          ? MV_PRECISION_ONE_EIGHTH_PEL
-                                          : MV_PRECISION_QTR_PEL;
+            features->fr_mv_precision = aom_rb_read_bit(rb)
+                                            ? MV_PRECISION_ONE_EIGHTH_PEL
+                                            : MV_PRECISION_QTR_PEL;
 
 #endif  //  CONFIG_FRAME_HALF_PRECISION
 
@@ -8874,10 +8875,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                 aom_rb_read_bit(rb) ? REFINE_ALL : REFINE_NONE;
           }
 #else
-          features->opfl_refine_type = aom_rb_read_literal(rb, 2);
-          if (features->opfl_refine_type == AOM_OPFL_REFINE_AUTO)
-            aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
-                               "Invalid frame level optical flow refine type");
+            features->opfl_refine_type = aom_rb_read_literal(rb, 2);
+            if (features->opfl_refine_type == AOM_OPFL_REFINE_AUTO)
+              aom_internal_error(
+                  &cm->error, AOM_CODEC_CORRUPT_FRAME,
+                  "Invalid frame level optical flow refine type");
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
         } else {
           features->opfl_refine_type = cm->seq_params.enable_opfl_refine;
@@ -9076,9 +9078,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     }
 #else
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-    if (cm->seq_params.disable_loopfilters_across_tiles) {
-      read_tile_info(pbi, rb);
-    }
+      if (cm->seq_params.disable_loopfilters_across_tiles) {
+        read_tile_info(pbi, rb);
+      }
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 #endif  // CONFIG_LF_SUB_PU
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
@@ -9178,7 +9180,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   const int max_seg_num =
       cm->seg.enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
 #else   // CONFIG_EXT_SEG
-  const int max_seg_num = MAX_SEGMENTS;
+    const int max_seg_num = MAX_SEGMENTS;
 #endif  // CONFIG_EXT_SEG
   for (int i = 0; i < max_seg_num; i++) {
     const int qindex = av1_get_qindex(&cm->seg, i, quant_params->base_qindex,
@@ -9297,7 +9299,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_REDUCED_TX_SET_EXT
       aom_rb_read_literal(rb, 2);
 #else
-      aom_rb_read_bit(rb);
+        aom_rb_read_bit(rb);
 #endif  // CONFIG_REDUCED_TX_SET_EXT
 
   if (features->allow_ref_frame_mvs && !frame_might_allow_ref_frame_mvs(cm)) {
@@ -9453,11 +9455,11 @@ static AOM_INLINE void process_tip_mode(AV1Decoder *pbi) {
 #endif  // CONFIG_EXT_SEG
     segfeatures_copy(&cm->cur_frame->seg, &cm->seg);
 #else  // CONFIG_TIP_LD
-    av1_setup_past_independence(cm);
+      av1_setup_past_independence(cm);
 #if CONFIG_EXT_SEG
-    cm->seg.enable_ext_seg = cm->seq_params.enable_ext_seg;
+      cm->seg.enable_ext_seg = cm->seq_params.enable_ext_seg;
 #endif  // CONFIG_EXT_SEG
-    segfeatures_copy(&cm->cur_frame->seg, &cm->seg);
+      segfeatures_copy(&cm->cur_frame->seg, &cm->seg);
 #endif  // CONFIG_TIP_LD
     if (!cm->tiles.large_scale) {
       cm->cur_frame->frame_context = *cm->fc;
@@ -9524,10 +9526,10 @@ static int32_t read_tile_indices_in_tilegroup(AV1Decoder *pbi,
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }
 
-int32_t av1_read_tilegroup_header(AV1Decoder *pbi, struct aom_read_bit_buffer *rb,
-                              const uint8_t *data, const uint8_t **p_data_end,
-                              int *first_tile_group_in_frame, int *start_tile,
-                              int *end_tile, OBU_TYPE obu_type) {
+int32_t av1_read_tilegroup_header(
+    AV1Decoder *pbi, struct aom_read_bit_buffer *rb, const uint8_t *data,
+    const uint8_t **p_data_end, int *first_tile_group_in_frame, int *start_tile,
+    int *end_tile, OBU_TYPE obu_type) {
   uint32_t saved_bit_offset = rb->bit_offset;
 
   AV1_COMMON *const cm = &pbi->common;
@@ -9710,7 +9712,8 @@ int32_t av1_read_tilegroup_header(AV1Decoder *pbi, struct aom_read_bit_buffer *r
 #if CONFIG_F106_OBU_TIP
   tile_indices_present_flag &= obu_type != OBU_TIP;
 #else
-  tile_indices_present_flag &= (cm->features.tip_frame_mode != TIP_FRAME_AS_OUTPUT);
+  tile_indices_present_flag &=
+      (cm->features.tip_frame_mode != TIP_FRAME_AS_OUTPUT);
 #endif  // CONFIG_F106_OBU_TIP
 #if CONFIG_BRU
   tile_indices_present_flag &= !cm->bru.frame_inactive_flag;
@@ -9720,39 +9723,38 @@ int32_t av1_read_tilegroup_header(AV1Decoder *pbi, struct aom_read_bit_buffer *r
 
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }
-#else // CONFIG_F106_OBU_TILEGROUP
-uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
-                                            struct aom_read_bit_buffer *rb,
-                                            const uint8_t *data,
-                                            const uint8_t **p_data_end,
+#else  // CONFIG_F106_OBU_TILEGROUP
+  uint32_t av1_decode_frame_headers_and_setup(
+      AV1Decoder * pbi, struct aom_read_bit_buffer * rb, const uint8_t *data,
+      const uint8_t **p_data_end,
 #if CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
-                                            OBU_TYPE obu_type
+      OBU_TYPE obu_type
 #else
-                                            int trailing_bits_present
+    int trailing_bits_present
 #endif  // CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
-) {
+  ) {
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
-  start_timing(pbi, av1_decode_frame_headers_and_setup_time);
+    start_timing(pbi, av1_decode_frame_headers_and_setup_time);
 #endif
 
-  AV1_COMMON *const cm = &pbi->common;
-  const int num_planes = av1_num_planes(cm);
-  MACROBLOCKD *const xd = &pbi->dcb.xd;
+    AV1_COMMON *const cm = &pbi->common;
+    const int num_planes = av1_num_planes(cm);
+    MACROBLOCKD *const xd = &pbi->dcb.xd;
 #if CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
-  int trailing_bits_present = (obu_type != OBU_FRAME);
+    int trailing_bits_present = (obu_type != OBU_FRAME);
 #if CONFIG_F106_OBU_SWITCH
-  trailing_bits_present &= (obu_type != OBU_SWITCH);
+    trailing_bits_present &= (obu_type != OBU_SWITCH);
 #endif  // CONFIG_F106_OBU_SWITCH
 #if CONFIG_F106_OBU_TIP
-  trailing_bits_present &= (obu_type != OBU_TIP);
+    trailing_bits_present &= (obu_type != OBU_TIP);
 #endif  // CONFIG_F106_OBU_TIP
 #if CONFIG_F106_OBU_SEF
-  trailing_bits_present &= (obu_type != OBU_SEF);
+    trailing_bits_present &= (obu_type != OBU_SEF);
 #endif  // CONFIG_F106_OBU_SEF
 #endif  // CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
 #if CONFIG_MISMATCH_DEBUG
-  mismatch_move_frame_idx_r(1);
+    mismatch_move_frame_idx_r(1);
 #endif  // CONFIG_MISMATCH_DEBUG
 
   for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
@@ -9767,7 +9769,7 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
   xd->global_motion = cm->global_motion;
 
 #if CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
-  read_uncompressed_header(pbi, obu_type, rb);
+    read_uncompressed_header(pbi, obu_type, rb);
 #else
   read_uncompressed_header(pbi, rb);
 #endif  // CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
@@ -10091,31 +10093,31 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
       }
       extend_ccso_border(&cm->cur_frame->buf, ext_rec_y, CCSO_PADDING_SIZE);
 #else
-      av1_setup_dst_planes(xd->plane, &cm->cur_frame->buf, 0, 0, 0, num_planes,
-                           NULL);
-      const int ccso_stride_ext =
-          xd->plane[0].dst.width + (CCSO_PADDING_SIZE << 1);
-      ext_rec_y =
-          aom_malloc(sizeof(*ext_rec_y) *
-                     (xd->plane[0].dst.height + (CCSO_PADDING_SIZE << 1)) *
-                     (xd->plane[0].dst.width + (CCSO_PADDING_SIZE << 1)));
-      for (int pli = 0; pli < 1; pli++) {
-        int pic_height = xd->plane[pli].dst.height;
-        int pic_width = xd->plane[pli].dst.width;
-        const int dst_stride = xd->plane[pli].dst.stride;
-        ext_rec_y += CCSO_PADDING_SIZE * ccso_stride_ext + CCSO_PADDING_SIZE;
-        for (int r = 0; r < pic_height; ++r) {
-          for (int c = 0; c < pic_width; ++c) {
-            ext_rec_y[c] = xd->plane[pli].dst.buf[c];
+        av1_setup_dst_planes(xd->plane, &cm->cur_frame->buf, 0, 0, 0,
+                             num_planes, NULL);
+        const int ccso_stride_ext =
+            xd->plane[0].dst.width + (CCSO_PADDING_SIZE << 1);
+        ext_rec_y =
+            aom_malloc(sizeof(*ext_rec_y) *
+                       (xd->plane[0].dst.height + (CCSO_PADDING_SIZE << 1)) *
+                       (xd->plane[0].dst.width + (CCSO_PADDING_SIZE << 1)));
+        for (int pli = 0; pli < 1; pli++) {
+          int pic_height = xd->plane[pli].dst.height;
+          int pic_width = xd->plane[pli].dst.width;
+          const int dst_stride = xd->plane[pli].dst.stride;
+          ext_rec_y += CCSO_PADDING_SIZE * ccso_stride_ext + CCSO_PADDING_SIZE;
+          for (int r = 0; r < pic_height; ++r) {
+            for (int c = 0; c < pic_width; ++c) {
+              ext_rec_y[c] = xd->plane[pli].dst.buf[c];
+            }
+            ext_rec_y += ccso_stride_ext;
+            xd->plane[0].dst.buf += dst_stride;
           }
-          ext_rec_y += ccso_stride_ext;
-          xd->plane[0].dst.buf += dst_stride;
+          ext_rec_y -= CCSO_PADDING_SIZE * ccso_stride_ext + CCSO_PADDING_SIZE;
+          ext_rec_y -= pic_height * ccso_stride_ext;
+          xd->plane[0].dst.buf -= pic_height * ccso_stride_ext;
         }
-        ext_rec_y -= CCSO_PADDING_SIZE * ccso_stride_ext + CCSO_PADDING_SIZE;
-        ext_rec_y -= pic_height * ccso_stride_ext;
-        xd->plane[0].dst.buf -= pic_height * ccso_stride_ext;
-      }
-      extend_ccso_border(ext_rec_y, CCSO_PADDING_SIZE, xd);
+        extend_ccso_border(ext_rec_y, CCSO_PADDING_SIZE, xd);
 #endif  // CONFIG_F054_PIC_BOUNDARY
     }
 

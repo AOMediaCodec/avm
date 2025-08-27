@@ -1597,7 +1597,7 @@ static aom_codec_err_t ctrl_get_tile_data(aom_codec_alg_priv_t *ctx,
 
   return AOM_CODEC_INVALID_PARAM;
 }
-#endif // !CONFIG_F106_OBU_TILEGROUP
+#endif  // !CONFIG_F106_OBU_TILEGROUP
 
 static aom_codec_err_t ctrl_set_ext_ref_ptr(aom_codec_alg_priv_t *ctx,
                                             va_list args) {
@@ -1924,7 +1924,7 @@ static aom_codec_ctrl_fn_map_t decoder_ctrl_maps[] = {
 #if !CONFIG_F106_OBU_TILEGROUP
   { AV1D_GET_FRAME_HEADER_INFO, ctrl_get_frame_header_info },
   { AV1D_GET_TILE_DATA, ctrl_get_tile_data },
-#endif // !CONFIG_F106_OBU_TILEGROUP
+#endif  // !CONFIG_F106_OBU_TILEGROUP
   { AOMD_GET_FWD_KF_PRESENT, ctrl_get_fwd_kf_value },
   { AOMD_GET_ALTREF_PRESENT, ctrl_get_altref_present },
   { AOMD_GET_FRAME_FLAGS, ctrl_get_frame_flags },

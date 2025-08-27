@@ -60,11 +60,10 @@ int av1_check_trailing_bits(struct AV1Decoder *pbi,
 #if CONFIG_F106_OBU_TILEGROUP
 // On success, returns the tilegroup header size. On failure, calls
 // aom_internal_error and does not return.
-int32_t av1_read_tilegroup_header(struct AV1Decoder *pbi,
-                              struct aom_read_bit_buffer *rb,
-                              const uint8_t *data, const uint8_t **p_data_end,
-                              int *first_tile_group_in_frame, int *start_tile,
-                              int *end_tile, OBU_TYPE obu_type);
+int32_t av1_read_tilegroup_header(
+    struct AV1Decoder *pbi, struct aom_read_bit_buffer *rb, const uint8_t *data,
+    const uint8_t **p_data_end, int *first_tile_group_in_frame, int *start_tile,
+    int *end_tile, OBU_TYPE obu_type);
 #endif  // CONFIG_F106_OBU_TILEGROUP
 
 #if CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP

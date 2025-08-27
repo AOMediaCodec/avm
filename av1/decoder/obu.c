@@ -421,8 +421,9 @@ static uint32_t read_tilegroup_obu(AV1Decoder *pbi,
   assert(rb->bit_buffer + aom_rb_bytes_read(rb) == data);
 
   int is_first_tg = 1;  // return from av1_read_tilegroup_header
-  header_size = av1_read_tilegroup_header(pbi, rb, data, p_data_end, &is_first_tg,
-                                      &start_tile, &end_tile, obu_type);
+  header_size =
+      av1_read_tilegroup_header(pbi, rb, data, p_data_end, &is_first_tg,
+                                &start_tile, &end_tile, obu_type);
 
   bool skip_payload = false;
 #if CONFIG_F106_OBU_SEF

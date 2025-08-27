@@ -8469,7 +8469,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
       break;
 #endif  // CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
   }  // tg_idx
-#else // CONFIG_F106_OBU_TILEGROUP
+#else  // CONFIG_F106_OBU_TILEGROUP
   const int write_frame_header =
       (cpi->num_tg > 1 ||
        (encode_show_existing_frame(cm)
@@ -8528,7 +8528,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
                                              obu_extension_header,
 #endif  // CONFIG_NEW_OBU_HEADER
                                              data);
-          obu_payload_size = write_frame_header_obu(
+      obu_payload_size = write_frame_header_obu(
           cpi, &saved_wb, data + obu_header_size, OBU_SEF);
     } else
 #endif  // CONFIG_F106_OBU_SEF
