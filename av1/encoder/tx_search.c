@@ -3683,27 +3683,27 @@ static AOM_INLINE void choose_lossless_tx_size(const AV1_COMP *const cpi,
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
   const int skip_trellis = 0;
-
   const bool is_fsc = mbmi->fsc_mode[xd->tree_type == CHROMA_PART];
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
-  ModeCosts mode_costs = x->mode_costs;
-  const int bsize_group = size_group_lookup[bs];
-  int rate_larger_than_4x4 = INT_MAX;
+  int rate_tx_large = INT_MAX, rate_tx_4x4 = INT_MAX;
 
 #if CONFIG_LOSSLESS_LARGER_IDTX
-  if (bs > BLOCK_4X4 && (is_inter || (!is_inter && is_fsc))) {
-    mbmi->tx_size = lossless_max_txsize_lookup[bs];
+  bool allow_large_tx = bs > BLOCK_4X4 && (is_inter || (!is_inter && is_fsc));
+  TX_SIZE large_tx_size = lossless_max_txsize_lookup[bs];
 #else
-  if (block_size_wide[bs] >= 8 && block_size_high[bs] >= 8 &&
-      (is_inter || (!is_inter && is_fsc))) {
-    mbmi->tx_size = TX_8X8;
+  bool allow_large_tx = block_size_wide[bs] >= 8 && block_size_high[bs] >= 8 &&
+                        (is_inter || (!is_inter && is_fsc));
+  TX_SIZE large_tx_size = TX_8X8;
 #endif  // CONFIG_LOSSLESS_LARGER_IDTX
+
+  if (allow_large_tx) {
+    mbmi->tx_size = large_tx_size;
     memset(mbmi->tx_partition_type, TX_PARTITION_NONE,
            sizeof(mbmi->tx_partition_type));
     // TODO(any) : Pass this_rd based on skip/non-skip cost
     av1_txfm_rd_in_plane(x, cpi, rd_stats, ref_best_rd, 0, 0, bs, mbmi->tx_size,
                          FTXS_NONE, skip_trellis);
-    rate_larger_than_4x4 = rd_stats->rate;
+    rate_tx_large = rd_stats->rate;
   }
 
   mbmi->tx_size = TX_4X4;
@@ -3712,53 +3712,40 @@ static AOM_INLINE void choose_lossless_tx_size(const AV1_COMP *const cpi,
   // TODO(any) : Pass this_rd based on skip/non-skip cost
   av1_txfm_rd_in_plane(x, cpi, rd_stats, ref_best_rd, 0, 0, bs, mbmi->tx_size,
                        FTXS_NONE, skip_trellis);
+  rate_tx_4x4 = rd_stats->rate;
 
-#if CONFIG_LOSSLESS_LARGER_IDTX
-  if (bs > BLOCK_4X4 && (is_inter || (!is_inter && is_fsc))) {
-#else
-  if (block_size_wide[bs] >= 8 && block_size_high[bs] >= 8 &&
-      (is_inter || (!is_inter && is_fsc))) {
-#endif  // CONFIG_LOSSLESS_LARGER_IDTX
-    int rate_4x4 = rd_stats->rate;
-    bool not_max_flag =
-        (rate_4x4 != INT_MAX && rate_larger_than_4x4 != INT_MAX);
-    if (not_max_flag) {
-      rate_4x4 += mode_costs.lossless_tx_size_cost[bsize_group][is_inter][0];
-      rate_larger_than_4x4 +=
-          mode_costs.lossless_tx_size_cost[bsize_group][is_inter][1];
+  const int bsize_group = size_group_lookup[bs];
+  const int *const tx_size_costs =
+      x->mode_costs.lossless_tx_size_cost[bsize_group][is_inter];
+
+  if (allow_large_tx) {
+    if (rate_tx_4x4 != INT_MAX && rate_tx_large != INT_MAX) {
+      // Add signaling costs for comparison if both modes are valid
+      rate_tx_4x4 += tx_size_costs[0];
+      rate_tx_large += tx_size_costs[1];
     }
-    if (rate_larger_than_4x4 == INT_MAX ||
-        (not_max_flag && (rate_4x4 < rate_larger_than_4x4))) {
-      // Add cost of signaling tx_size 4x4
-      if (rate_4x4 != INT_MAX)
-        rd_stats->rate +=
-            mode_costs.lossless_tx_size_cost[bsize_group][is_inter][0];
+    if (rate_tx_large == INT_MAX ||
+        (rate_tx_4x4 != INT_MAX && rate_tx_large != INT_MAX &&
+         (rate_tx_4x4 < rate_tx_large))) {
+      // TX_4X4 has lower rate or is the only valid option
+      if (rd_stats->rate != INT_MAX) rd_stats->rate += tx_size_costs[0];
     } else {
-      assert((rate_4x4 == INT_MAX && rate_larger_than_4x4 != INT_MAX) ||
-             (not_max_flag && (rate_4x4 >= rate_larger_than_4x4)));
-#if CONFIG_LOSSLESS_LARGER_IDTX
-      mbmi->tx_size = lossless_max_txsize_lookup[bs];
-#else
-      mbmi->tx_size = TX_8X8;
-#endif  // CONFIG_LOSSLESS_LARGER_IDTX
+      // Larger TX size has lower rate
+      mbmi->tx_size = large_tx_size;
       memset(mbmi->tx_partition_type, TX_PARTITION_NONE,
              sizeof(mbmi->tx_partition_type));
       // TODO(any) : Pass this_rd based on skip/non-skip cost
       av1_txfm_rd_in_plane(x, cpi, rd_stats, ref_best_rd, 0, 0, bs,
                            mbmi->tx_size, FTXS_NONE, skip_trellis);
-      // Add cost of signaling tx_size 8x8
-      rd_stats->rate +=
-          mode_costs.lossless_tx_size_cost[bsize_group][is_inter][1];
+      rd_stats->rate += tx_size_costs[1];
     }
   }
 
-  // If the final decision is a skip, we don't signal the tx_size,
+  // If the final decision is a skip, we do not signal the tx_size,
   // and the implicit tx_size is TX_4X4.
   if (rd_stats->skip_txfm) {
     if (rd_stats->rate != INT_MAX)
-      rd_stats->rate -=
-          mode_costs.lossless_tx_size_cost[bsize_group][is_inter]
-                                          [mbmi->tx_size != TX_4X4];
+      rd_stats->rate -= tx_size_costs[mbmi->tx_size != TX_4X4];
     mbmi->tx_size = TX_4X4;
   }
 }

@@ -1194,7 +1194,7 @@ typedef struct {
                                        [TX_PARTITION_TYPE_NUM_VERT_OR_HORZ - 1]
                                        [2];
 
-  /*! Cost of signaling lossless transform size (4x4 or 8x8) */
+  /*! Cost of signaling lossless transform size (4x4 or larger) */
   int lossless_tx_size_cost[BLOCK_SIZE_GROUPS][2][2];
   /*! Cost of signaling lossless transform type for inter blocks (WHT or IDTX)
    */

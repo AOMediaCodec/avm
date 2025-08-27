@@ -1520,16 +1520,15 @@ static TX_SIZE read_tx_size(MACROBLOCKD *xd, TX_MODE tx_mode, int is_inter,
       return TX_4X4;
     else {
       const int bsize_group = size_group_lookup[bsize];
-      TX_SIZE cur_tx_size = (TX_SIZE)aom_read_symbol(
+      int is_tx_size_large = aom_read_symbol(
           r, xd->tile_ctx->lossless_tx_size_cdf[bsize_group][is_inter], 2,
           ACCT_INFO("lossless_tx_size"));
-      assert(cur_tx_size == TX_4X4 || cur_tx_size == TX_8X8);
 #if CONFIG_LOSSLESS_LARGER_IDTX
-      if (cur_tx_size == TX_8X8) {
-        cur_tx_size = lossless_max_txsize_lookup[bsize];
+      if (is_tx_size_large) {
+        return lossless_max_txsize_lookup[bsize];
       }
 #endif  // CONFIG_LOSSLESS_LARGER_IDTX
-      return cur_tx_size;
+      return TX_4X4;
     }
   }
 
