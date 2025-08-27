@@ -329,6 +329,23 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
     seq_params->max_mlayer_id = aom_rb_read_literal(rb, MLAYER_BITS);
   }
 
+  // bitstream constraint for tlayer_id
+  if (cm->tlayer_id > seq_params->max_tlayer_id) {
+    aom_internal_error(
+        &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+        "Inconsistent tlayer_id information: OBU header indicates tlayer_id is "
+        "%d, yet max_tlayer_id in the sequence header is %d.",
+        cm->tlayer_id, seq_params->max_tlayer_id);
+  }
+  // bitstream constraint for mlayer_id
+  if (cm->mlayer_id > seq_params->max_mlayer_id) {
+    aom_internal_error(
+        &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+        "Inconsistent mlayer_id information: OBU header indicates mlayer_id is "
+        "%d, yet  max_mlayer_id in the sequence header is %d.",
+        cm->mlayer_id, seq_params->max_mlayer_id);
+  }
+
   // setup default temporal layer dependency
   setup_default_temporal_layer_dependency_structure(seq_params);
   // setup default embedded layer dependency
