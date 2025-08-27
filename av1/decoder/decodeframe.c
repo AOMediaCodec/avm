@@ -8171,11 +8171,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
             aom_rb_read_literal(rb, seq_params->ref_frames);
 #endif  // CONFIG_REFRESH_FLAG
       assert(seq_params->ref_frames >= 1);
-      if (current_frame->refresh_frame_flags ==
-          ((1 << seq_params->ref_frames) - 1)) {
-        aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-                           "Intra only frames cannot have refresh flags 0xFF");
-      }
       if (pbi->need_resync) {
         reset_ref_frame_map(cm);
         pbi->need_resync = 0;
