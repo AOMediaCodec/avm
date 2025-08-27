@@ -438,17 +438,17 @@ static uint32_t read_tilegroup_obu(AV1Decoder *pbi,
 #if CONFIG_BRU
   skip_payload |= pbi->common.bru.frame_inactive_flag;
 #endif
-  if (header_size == -1) return 0;
+
   if (skip_payload) {
     *is_last_tg = 1;
     tg_payload_size = 0;
-  }else {
-    byte_alignment(cm, rb);
+  } else {
+    if (byte_alignment(cm, rb)) return 0;
     data += header_size;
-    
+
     av1_decode_tg_tiles_and_wrapup(pbi, data, data_end, p_data_end, start_tile,
                                    end_tile, is_first_tg);
-    
+
     tg_payload_size = (uint32_t)(*p_data_end - data);
     *is_last_tg = end_tile == cm->tiles.rows * cm->tiles.cols - 1;
   }
