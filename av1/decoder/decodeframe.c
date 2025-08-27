@@ -8469,13 +8469,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                         (int)cm->ref_frame_map_pairs[ref].disp_order)
                   : 1;
 #endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-#if CONFIG_MULTILAYER_CORE
-          if (scores[i].distance == 0 &&
-              current_frame->layer_id !=
-                  cm->ref_frame_map_pairs[ref].layer_id) {
-            scores[i].distance = 1;
-          }
-#endif  // CONFIG_MULTILAYER_CORE
           cm->ref_frames_info.ref_frame_distance[i] = scores[i].distance;
         }
         av1_get_past_future_cur_ref_lists(cm, scores);

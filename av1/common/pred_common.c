@@ -204,22 +204,24 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
     // In error resilient mode, ref mapping must be independent of the
     // base_qindex to ensure decoding independency
     const int ref_base_qindex = cur_ref.base_qindex;
-#if CONFIG_MULTILAYER_CORE
-    const int layer_diff = cur_layer_id - ref_layer_id;
-    const int disp_diff = get_relative_dist(&cm->seq_params.order_hint_info,
-                                            cur_frame_disp, ref_disp) +
-                          layer_diff;
-#else
     const int disp_diff = get_relative_dist(&cm->seq_params.order_hint_info,
                                             cur_frame_disp, ref_disp);
-#endif  // CONFIG_MULTILAYER_CORE
 #if CONFIG_ACROSS_SCALE_REF_OPT
     // The log2 ratio of current and reference frame resolution is
     // log2(num_pixel_cur) - log2(num_pixel_ref), where the first term is a
     // constant so it can be dropped
     const int res_ratio_log2 = -get_msb(cur_ref.width * cur_ref.height);
 #endif  // CONFIG_ACROSS_SCALE_REF_OPT
+#if CONFIG_MULTILAYER_CORE
+    // The current frame can only refer to a reference with the same layer id or
+    // a reference with lower layer ids. The continue statement above makes sure
+    // that 'ref_layer_id <= cur_layer_id' is always true
+    const int layer_diff = cur_layer_id - ref_layer_id;
+    assert(layer_diff >= 0);
+    int tdist = abs(disp_diff) + layer_diff;
+#else
     int tdist = abs(disp_diff);
+#endif
     const int score =
         (max_disp > cur_frame_disp
              ? (tdist << DIST_WEIGHT_BITS)
