@@ -1249,21 +1249,6 @@ class AV1ConvolveNonSep2DHighbdTest
     1
   };
 
-  const NonsepFilterConfig UnconstrainedSumFilterConfigLarge_ = {
-    kMaxPrecisionBeforeOverflow,
-    sizeof(wienerns_simd_large_config_y) /
-        sizeof(wienerns_simd_large_config_y[0]),
-    0,
-    wienerns_simd_large_config_y,
-    NULL,
-    0,
-    0,
-    sizeof(wienerns_simd_large_config_y) /
-            sizeof(wienerns_simd_large_config_y[0]) -
-        1,
-    0
-  };
-
   const NonsepFilterConfig PcWienerNonsepFilterConfigChroma_ = {
     kMaxPrecisionBeforeOverflow,
     sizeof(wienerns_simd_config_uv_from_uvonly) /

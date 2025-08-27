@@ -1610,17 +1610,18 @@ void apply_wienerns_class_id_highbd(
         !nsfilter_config->subtract_center) {
       // TODO(any): Add 8x8 SIMD support for convolve symmetric for subtract
       // center and mixed symmetric functions
-      const bool is_wienerns_simd_large_config_y =
-          (nsfilter_config->config == wienerns_simd_large_config_y ||
-           !memcmp(wienerns_simd_large_config_y, nsfilter_config->config,
-                   nsfilter_config->num_pixels * 3 *
-                       sizeof(nsfilter_config->config[0][0])));
-      const bool is_wienerns_simd_config_y =
-          (nsfilter_config->config == wienerns_simd_config_y ||
-           !memcmp(wienerns_simd_config_y, nsfilter_config->config,
-                   nsfilter_config->num_pixels * 3 *
-                       sizeof(nsfilter_config->config[0][0])));
-      if (is_wienerns_simd_large_config_y || is_wienerns_simd_config_y) {
+      if (nsfilter_config->config == wienerns_simd_large_config_y ||
+          !memcmp(wienerns_simd_large_config_y, nsfilter_config->config,
+                  nsfilter_config->num_pixels * 3 *
+                      sizeof(nsfilter_config->config[0][0]))) {
+        apply_wienerns_single_class_highbd(dgd, width, height, stride,
+                                           wienerns_info, nsfilter_config, dst,
+                                           dst_stride, bit_depth);
+        return;
+      } else if (nsfilter_config->config == wienerns_simd_config_y ||
+                 !memcmp(wienerns_simd_config_y, nsfilter_config->config,
+                         nsfilter_config->num_pixels * 3 *
+                             sizeof(nsfilter_config->config[0][0]))) {
         apply_wienerns_single_class_highbd(dgd, width, height, stride,
                                            wienerns_info, nsfilter_config, dst,
                                            dst_stride, bit_depth);
