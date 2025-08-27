@@ -7593,6 +7593,7 @@ static int read_show_existing_frame(AV1Decoder *pbi,
   CurrentFrame *const current_frame = &cm->current_frame;
   BufferPool *const pool = cm->buffer_pool;
   cm->show_existing_frame = 1;
+
   if (pbi->sequence_header_changed) {
     aom_internal_error(
         &cm->error, AOM_CODEC_CORRUPT_FRAME,
@@ -7601,14 +7602,12 @@ static int read_show_existing_frame(AV1Decoder *pbi,
   // Show an existing frame directly.
   const int existing_frame_idx =
       aom_rb_read_literal(rb, seq_params->ref_frames_log2);
-#if CONFIG_EXTRA_DPB
   if (existing_frame_idx >= seq_params->ref_frames) {
     aom_internal_error(
         &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
         "Existing frame idx must be less than %d but is set to %d",
         seq_params->ref_frames, existing_frame_idx);
   }
-#endif  // CONFIG_EXTRA_DPB
   RefCntBuffer *const frame_to_show = cm->ref_frame_map[existing_frame_idx];
   if (frame_to_show == NULL) {
     aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
@@ -7700,8 +7699,8 @@ static int read_show_existing_frame(AV1Decoder *pbi,
   }
 
   return 0;
-}  // F106_OBU_SEF
-#endif
+}
+#endif  // CONFIG_F106_OBU_SEF
 
 // On success, returns 0. On failure, calls aom_internal_error and does not
 // return.

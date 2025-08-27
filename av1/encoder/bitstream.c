@@ -6135,7 +6135,6 @@ static AOM_INLINE void write_show_exisiting_frame(
     AV1_COMP *cpi, struct aom_write_bit_buffer *wb) {
   AV1_COMMON *const cm = &cpi->common;
   const SequenceHeader *const seq_params = &cm->seq_params;
-
   aom_wb_write_literal(wb, cpi->existing_fb_idx_to_show,
                        cm->seq_params.ref_frames_log2);
 
