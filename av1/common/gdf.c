@@ -140,11 +140,11 @@ void alloc_gdf_buffers(GdfInfo *gi) {
 #endif
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   gi->tmp_save_left = (uint16_t *)aom_malloc(
-      (gi->gdf_unit_size + 2 * GDF_TEST_EXTRA_HOR_BORDER) *
-      GDF_TEST_EXTRA_VER_BORDER * sizeof(*gi->tmp_save_left));
+      (gi->gdf_unit_size + 2 * GDF_TEST_EXTRA_VER_BORDER) *
+      GDF_TEST_EXTRA_HOR_BORDER * sizeof(*gi->tmp_save_left));
   gi->tmp_save_right = (uint16_t *)aom_malloc(
-      (gi->gdf_unit_size + 2 * GDF_TEST_EXTRA_HOR_BORDER) *
-      GDF_TEST_EXTRA_VER_BORDER * sizeof(*gi->tmp_save_right));
+      (gi->gdf_unit_size + 2 * GDF_TEST_EXTRA_VER_BORDER) *
+      GDF_TEST_EXTRA_HOR_BORDER * sizeof(*gi->tmp_save_right));
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 }
 

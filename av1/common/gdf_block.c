@@ -547,6 +547,12 @@ void gdf_set_lap_and_cls_unit_c(const int i_min, const int i_max,
   const int16_t *std_pos1;
   const int16_t *std_pos2;
   if ((i_max + GDF_TEST_STRIPE_OFF) % stripe_size == 0) {
+#if GDF_TEST_REPLICATE_PADDING
+    std_pos_1 = std_pos - 3 * rec_stride;
+    std_pos0 = std_pos_1 + rec_stride;
+    std_pos1 = std_pos0 + rec_stride;
+    std_pos2 = std_pos1 + rec_stride;
+#else
 #if (GDF_TEST_LINE_BUFFER >= 3)
     std_pos_1 = std_pos - rec_stride;
     std_pos0 = std_pos;
@@ -567,6 +573,7 @@ void gdf_set_lap_and_cls_unit_c(const int i_min, const int i_max,
     std_pos0 = std_pos_1 - rec_stride;
     std_pos1 = std_pos0 - rec_stride;
     std_pos2 = std_pos1 - rec_stride;
+#endif
 #endif
   } else {
     std_pos_1 = std_pos - rec_stride;
@@ -884,17 +891,19 @@ void gdf_inference_unit_c(const int i_min, const int i_max, const int j_min,
   const int16_t *rec_ptr = (const int16_t *)(rec_y);
   const int16_t *s_pos_fwd = 0, *s_pos_bwd = 0;
   for (int i = 0; i < blk_height; i++) {
+#if GDF_TEST_VIRTUAL_BOUNDARY && !GDF_TEST_REPLICATE_PADDING
     int vertical_spatial_support_min =
         -GDF_TEST_LINE_BUFFER -
         ((i + i_min + GDF_TEST_STRIPE_OFF) % stripe_size);
     int vertical_spatial_support_max =
         (stripe_size - 1 + GDF_TEST_LINE_BUFFER) -
         ((i + i_min + GDF_TEST_STRIPE_OFF) % stripe_size);
+#endif
 
     int32_t gdf_idx[GDF_BLOCK_PADDED][GDF_NET_LUT_IDX_NUM] = { 0 };
     for (int k = 0; k < GDF_OPTS_INP_TOT; k++) {
       if (k < GDF_NET_INP_REC_NUM) {
-#if GDF_TEST_VIRTUAL_BOUNDARY
+#if GDF_TEST_VIRTUAL_BOUNDARY && !GDF_TEST_REPLICATE_PADDING
         int gdf_rec_coordinates_fwd =
             (gdf_guided_sample_coordinates_fwd[k][0] <
              vertical_spatial_support_min)
@@ -902,13 +911,6 @@ void gdf_inference_unit_c(const int i_min, const int i_max, const int j_min,
                 : gdf_guided_sample_coordinates_fwd[k][0];
         s_pos_fwd = rec_ptr + (gdf_rec_coordinates_fwd * rec_stride) +
                     gdf_guided_sample_coordinates_fwd[k][1];
-#else   //
-        s_pos_fwd = rec_ptr +
-                    (gdf_guided_sample_coordinates_fwd[k][0] * rec_stride) +
-                    gdf_guided_sample_coordinates_fwd[k][1];
-#endif  //
-
-#if GDF_TEST_VIRTUAL_BOUNDARY
         int gdf_rec_coordinates_bwd =
             (gdf_guided_sample_coordinates_bwd[k][0] >
              vertical_spatial_support_max)
@@ -916,11 +918,14 @@ void gdf_inference_unit_c(const int i_min, const int i_max, const int j_min,
                 : gdf_guided_sample_coordinates_bwd[k][0];
         s_pos_bwd = rec_ptr + (gdf_rec_coordinates_bwd * rec_stride) +
                     gdf_guided_sample_coordinates_bwd[k][1];
-#else   //
+#else
+        s_pos_fwd = rec_ptr +
+                    (gdf_guided_sample_coordinates_fwd[k][0] * rec_stride) +
+                    gdf_guided_sample_coordinates_fwd[k][1];
         s_pos_bwd = rec_ptr +
                     (gdf_guided_sample_coordinates_bwd[k][0] * rec_stride) +
                     gdf_guided_sample_coordinates_bwd[k][1];
-#endif  //
+#endif
       }
       for (int j = 0; j < blk_width; j++) {
         uint32_t cls_idx = cls_line[j >> 1];

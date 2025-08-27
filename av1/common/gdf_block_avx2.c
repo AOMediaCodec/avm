@@ -58,6 +58,12 @@ void gdf_set_lap_and_cls_unit_avx2(
     const uint16_t *std_pos2;
 
     if ((i_max + GDF_TEST_STRIPE_OFF) % stripe_size == 0) {
+#if GDF_TEST_REPLICATE_PADDING
+      std_pos_1 = std_pos - 3 * rec_stride;
+      std_pos0 = std_pos_1 + rec_stride;
+      std_pos1 = std_pos0 + rec_stride;
+      std_pos2 = std_pos1 + rec_stride;
+#else
 #if (GDF_TEST_LINE_BUFFER >= 3)
       std_pos_1 = std_pos - rec_stride;
       std_pos0 = std_pos;
@@ -78,6 +84,7 @@ void gdf_set_lap_and_cls_unit_avx2(
       std_pos0 = std_pos_1 - rec_stride;
       std_pos1 = std_pos0 - rec_stride;
       std_pos2 = std_pos1 - rec_stride;
+#endif
 #endif
     } else {
       std_pos_1 = std_pos - rec_stride;
@@ -437,12 +444,14 @@ void gdf_inference_unit_avx2(const int i_min, const int i_max, const int j_min,
   __m256 m256_tmp_reg, m256_tmp_reg_02;
 
   for (int i = 0; i < (i_max - i_min); i++) {
+#if GDF_TEST_VIRTUAL_BOUNDARY && !GDF_TEST_REPLICATE_PADDING
     int vertical_spatial_support_min =
         -GDF_TEST_LINE_BUFFER -
         ((i + i_min + GDF_TEST_STRIPE_OFF) % stripe_size);
     int vertical_spatial_support_max =
         (stripe_size - 1 + GDF_TEST_LINE_BUFFER) -
         ((i + i_min + GDF_TEST_STRIPE_OFF) % stripe_size);
+#endif
     for (int j = 0; j < (j_max - j_min); j += 16) {
       __m256i cls_idx =
           _mm256_load_si256((const __m256i *)(gdf_cls_pnt + (j >> 1)));
@@ -457,7 +466,7 @@ void gdf_inference_unit_avx2(const int i_min, const int i_max, const int j_min,
 
       for (int k = 0; k < GDF_NET_INP_REC_NUM; k++) {
         __m256i input_reg1 = _mm256_loadu_si256((const __m256i *)(rec_ptr + j));
-#if GDF_TEST_VIRTUAL_BOUNDARY
+#if GDF_TEST_VIRTUAL_BOUNDARY && !GDF_TEST_REPLICATE_PADDING
         int gdf_rec_coordinates_fwd =
             (gdf_guided_sample_coordinates_fwd[k][0] <
              vertical_spatial_support_min)
@@ -466,17 +475,17 @@ void gdf_inference_unit_avx2(const int i_min, const int i_max, const int j_min,
         const uint16_t *s_pos_fwd = rec_ptr + j +
                                     (gdf_rec_coordinates_fwd * rec_stride) +
                                     gdf_guided_sample_coordinates_fwd[k][1];
-#else   //
+#else
         const uint16_t *s_pos_fwd =
             rec_ptr + j +
             (gdf_guided_sample_coordinates_fwd[k][0] * rec_stride) +
             gdf_guided_sample_coordinates_fwd[k][1];
-#endif  //
+#endif
         m256i_tmp_reg_01 = _mm256_loadu_si256((const __m256i *)(s_pos_fwd));
         m256i_tmp_reg_02 = _mm256_sub_epi16(m256i_tmp_reg_01, input_reg1);
         __m256i sample_reg0 = _mm256_slli_epi16(m256i_tmp_reg_02, pxl_shift);
 
-#if GDF_TEST_VIRTUAL_BOUNDARY
+#if GDF_TEST_VIRTUAL_BOUNDARY && !GDF_TEST_REPLICATE_PADDING
         int gdf_rec_coordinates_bwd =
             (gdf_guided_sample_coordinates_bwd[k][0] >
              vertical_spatial_support_max)
@@ -485,12 +494,12 @@ void gdf_inference_unit_avx2(const int i_min, const int i_max, const int j_min,
         const uint16_t *s_pos_bwd = rec_ptr + j +
                                     (gdf_rec_coordinates_bwd * rec_stride) +
                                     gdf_guided_sample_coordinates_bwd[k][1];
-#else   //
+#else
         const uint16_t *s_pos_bwd =
             rec_ptr + j +
             (gdf_guided_sample_coordinates_bwd[k][0] * rec_stride) +
             gdf_guided_sample_coordinates_bwd[k][1];
-#endif  //
+#endif
         m256i_tmp_reg_01 = _mm256_loadu_si256((const __m256i *)(s_pos_bwd));
         m256i_tmp_reg_02 = _mm256_sub_epi16(m256i_tmp_reg_01, input_reg1);
         __m256i sample_reg1 = _mm256_slli_epi16(m256i_tmp_reg_02, pxl_shift);
