@@ -8250,6 +8250,13 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_ACROSS_SCALE_REF_OPT
         for (int i = 0; i < cm->ref_frames_info.num_total_refs; ++i) {
           int ref = aom_rb_read_literal(rb, seq_params->ref_frames_log2);
+          if (ref >= seq_params->ref_frames) {
+            aom_internal_error(
+                &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+                "Explicit ref frame idx must be less than %d but is set to %d",
+                seq_params->ref_frames, ref);
+          }
+
           // Most of the time, streams start with a keyframe. In that case,
           // ref_frame_map will have been filled in at that point and will not
           // contain any NULLs. However, streams are explicitly allowed to start
@@ -8259,6 +8266,28 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           if (cm->ref_frame_map[ref] == NULL)
             aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                                "Inter frame requests nonexistent reference");
+#if CONFIG_MULTILAYER_CORE_HLS
+          // mlayer and tlayer scalability related bitstream constraints for the
+          // explicit reference frame signaling
+          const int cur_mlayer_id = current_frame->layer_id;
+          const int ref_mlayer_id = cm->ref_frame_map[ref]->layer_id;
+          if (!is_mlayer_scalable_and_dependent(seq_params, cur_mlayer_id,
+                                                ref_mlayer_id)) {
+            aom_internal_error(
+                &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+                "Unsupported bitstream: embedded layer scalability shall be "
+                "maintained in explicit reference map signaling.");
+          }
+          const int cur_tlayer_id = current_frame->temporal_layer_id;
+          const int ref_tlayer_id = cm->ref_frame_map[ref]->temporal_layer_id;
+          if (!is_tlayer_scalable_and_dependent(seq_params, cur_tlayer_id,
+                                                ref_tlayer_id)) {
+            aom_internal_error(
+                &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+                "Unsupported bitstream: temporal layer scalability shall be "
+                "maintained in explicit reference map signaling.");
+          }
+#endif  // CONFIG_MULTILAYER_CORE_HLS
           cm->remapped_ref_idx[i] = ref;
         }
 #endif  // CONFIG_ACROSS_SCALE_REF_OPT
