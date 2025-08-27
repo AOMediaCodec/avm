@@ -1353,12 +1353,16 @@ static void pc_wiener_stripe_highbd(const RestorationUnitInfo *rui,
     int w = AOMMIN(procunit_width, stripe_width - j);
 #if CONFIG_BRU
     const int mi_offset_x = j >> (MI_SIZE_LOG2 - rui->ss_x);
-    const int mi_offset_y = AOMMIN(stripe_height - 1, RESTORATION_UNIT_OFFSET) >>  (MI_SIZE_LOG2 - rui->ss_y);
-    if (rui->mbmi_ptr[mi_offset_x + mi_offset_y * rui->mi_stride ]->local_rest_type == RESTORE_NONE) {
+    const int mi_offset_y =
+        AOMMIN(stripe_height - 1, RESTORATION_UNIT_OFFSET) >>
+        (MI_SIZE_LOG2 - rui->ss_y);
+    if (rui->mbmi_ptr[mi_offset_x + mi_offset_y * rui->mi_stride]
+            ->local_rest_type == RESTORE_NONE) {
       copy_tile(w, stripe_height, src + j, src_stride, dst + j, dst_stride);
       continue;
     }
-    if (rui->mbmi_ptr[mi_offset_x + mi_offset_y * rui->mi_stride]->sb_active_mode != BRU_ACTIVE_SB) {
+    if (rui->mbmi_ptr[mi_offset_x + mi_offset_y * rui->mi_stride]
+            ->sb_active_mode != BRU_ACTIVE_SB) {
       aom_internal_error(
           rui->error, AOM_CODEC_ERROR,
           "Invalid BRU activity in LR: only active SB can be filtered");
@@ -1647,12 +1651,16 @@ static void wiener_nsfilter_stripe_highbd(const RestorationUnitInfo *rui,
     int w = AOMMIN(procunit_width, stripe_width - j);
 #if CONFIG_BRU
     const int mi_offset_x = j >> (MI_SIZE_LOG2 - rui->ss_x);
-    const int mi_offset_y = AOMMIN(stripe_height - 1 , RESTORATION_UNIT_OFFSET) >>  (MI_SIZE_LOG2 - rui->ss_y);
-    if (rui->mbmi_ptr[mi_offset_x + mi_offset_y * rui->mi_stride]->local_rest_type == RESTORE_NONE) {
+    const int mi_offset_y =
+        AOMMIN(stripe_height - 1, RESTORATION_UNIT_OFFSET) >>
+        (MI_SIZE_LOG2 - rui->ss_y);
+    if (rui->mbmi_ptr[mi_offset_x + mi_offset_y * rui->mi_stride]
+            ->local_rest_type == RESTORE_NONE) {
       copy_tile(w, stripe_height, src + j, src_stride, dst + j, dst_stride);
       continue;
     }
-    if (rui->mbmi_ptr[mi_offset_x + mi_offset_y * rui->mi_stride]->sb_active_mode != BRU_ACTIVE_SB) {
+    if (rui->mbmi_ptr[mi_offset_x + mi_offset_y * rui->mi_stride]
+            ->sb_active_mode != BRU_ACTIVE_SB) {
       aom_internal_error(
           rui->error, AOM_CODEC_ERROR,
           "Invalid BRU activity in LR: only active SB can be filtered");
