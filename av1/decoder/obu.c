@@ -1089,18 +1089,20 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
       // bitstream constraint for tlayer_id
       if (cm->tlayer_id > cm->seq_params.max_tlayer_id) {
         aom_internal_error(
-                           &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-                           "Inconsistent tlayer_id information: OBU header indicates tlayer_id is "
-                           "%d, yet max_tlayer_id in the sequence header is %d.",
-                           cm->tlayer_id, cm->seq_params.max_tlayer_id);
+            &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+            "Inconsistent tlayer_id information: OBU header indicates "
+            "tlayer_id is "
+            "%d, yet max_tlayer_id in the sequence header is %d.",
+            cm->tlayer_id, cm->seq_params.max_tlayer_id);
       }
       // bitstream constraint for mlayer_id
       if (cm->mlayer_id > cm->seq_params.max_mlayer_id) {
         aom_internal_error(
-                           &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-                           "Inconsistent mlayer_id information: OBU header indicates mlayer_id is "
-                           "%d, yet max_mlayer_id in the sequence header is %d.",
-                           cm->mlayer_id, cm->seq_params.max_mlayer_id);
+            &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+            "Inconsistent mlayer_id information: OBU header indicates "
+            "mlayer_id is "
+            "%d, yet max_mlayer_id in the sequence header is %d.",
+            cm->mlayer_id, cm->seq_params.max_mlayer_id);
       }
     }
 #endif  // CONFIG_MULTILAYER_CORE_HLS
@@ -1114,7 +1116,7 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
         continue;
       }
     }
-    
+
     av1_init_read_bit_buffer(pbi, &rb, data, data + payload_size);
 
     switch (obu_header.type) {
