@@ -7598,6 +7598,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   if (seq_params->reduced_still_picture_hdr) {
     cm->show_existing_frame = 0;
     cm->show_frame = 1;
+    cm->cur_frame->showable_frame = 0;
     current_frame->frame_type = KEY_FRAME;
     if (pbi->sequence_header_changed) {
       // This is the start of a new coded video sequence.
