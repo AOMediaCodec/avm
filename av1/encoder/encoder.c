@@ -2996,20 +2996,18 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
   assert(IMPLIES(is_lossless_requested(&cpi->oxcf.rc_cfg),
                  cm->features.coded_lossless && cm->features.all_lossless));
 
-  const int use_loopfilter = !cm->features.coded_lossless &&
-                             !cm->bru.frame_inactive_flag &&
-                             !cm->tiles.large_scale &&
-                             cpi->oxcf.tool_cfg.enable_deblocking;
+  const int use_loopfilter =
+      !cm->features.coded_lossless && !cm->bru.frame_inactive_flag &&
+      !cm->tiles.large_scale && cpi->oxcf.tool_cfg.enable_deblocking;
   const int use_cdef = cm->seq_params.enable_cdef &&
                        !cm->bru.frame_inactive_flag &&
                        !cm->features.coded_lossless && !cm->tiles.large_scale;
   const int use_gdf = cm->seq_params.enable_gdf &&
                       !cm->bru.frame_inactive_flag &&
                       !cm->features.all_lossless && !cm->tiles.large_scale;
-  const int use_restoration = cm->seq_params.enable_restoration &&
-                              !cm->bru.frame_inactive_flag &&
-                              !cm->features.all_lossless &&
-                              !cm->tiles.large_scale;
+  const int use_restoration =
+      cm->seq_params.enable_restoration && !cm->bru.frame_inactive_flag &&
+      !cm->features.all_lossless && !cm->tiles.large_scale;
 
   struct loopfilter *lf = &cm->lf;
 
@@ -3543,9 +3541,8 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 
 static INLINE bool allow_tip_direct_output(AV1_COMMON *const cm) {
   if (!frame_is_intra_only(cm) && !encode_show_existing_frame(cm) &&
-      cm->seq_params.enable_tip == 1 && cm->features.tip_frame_mode
-      && !cm->bru.enabled
-  ) {
+      cm->seq_params.enable_tip == 1 && cm->features.tip_frame_mode &&
+      !cm->bru.enabled) {
     return true;
   }
 
@@ -4013,8 +4010,7 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
   av1_set_lr_tools(master_lr_tools_disable_mask[1], 2, &cm->features);
 
   // Pick the loop filter level for the frame.
-  if (!cm->bru.frame_inactive_flag)
-    loopfilter_frame(cpi, cm);
+  if (!cm->bru.frame_inactive_flag) loopfilter_frame(cpi, cm);
   int64_t tip_as_output_sse = INT64_MAX;
   int64_t tip_as_output_rate = INT64_MAX;
 
@@ -4511,8 +4507,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     } else {
       *cm->fc = cpi->tile_data[largest_tile_id].tctx;
     }
-    if (!cm->bru.frame_inactive_flag)
-      av1_reset_cdf_symbol_counters(cm->fc);
+    if (!cm->bru.frame_inactive_flag) av1_reset_cdf_symbol_counters(cm->fc);
   }
   if (!cm->tiles.large_scale) {
     cm->cur_frame->frame_context = *cm->fc;

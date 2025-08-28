@@ -979,8 +979,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   } else {
     source = choose_frame_source(cpi, &flush, &last_source,
                                  -(BRU_ENC_LOOKAHEAD_DIST_MINUS_1 + 1),
-                                 &bru_ref_source,
-                                 &frame_params);
+                                 &bru_ref_source, &frame_params);
   }
 
   if (source == NULL) {  // If no source was found, we can't encode a frame.

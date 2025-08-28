@@ -95,11 +95,10 @@ void ccso_derive_src_block_c(const uint16_t *src_y, uint8_t *const src_cls0,
 /* Derive CCSO filter support information */
 static void ccso_derive_src_info(AV1_COMMON *cm, MACROBLOCKD *xd,
                                  const int plane, const uint16_t *src_y,
-                                 const int proc_unit_log2,
-                                 const uint16_t qstep, const uint8_t filter_sup,
-                                 uint8_t *src_cls0, uint8_t *src_cls1,
-                                 int edge_clf, int ccso_stride,
-                                 int ccso_stride_ext) {
+                                 const int proc_unit_log2, const uint16_t qstep,
+                                 const uint8_t filter_sup, uint8_t *src_cls0,
+                                 uint8_t *src_cls1, int edge_clf,
+                                 int ccso_stride, int ccso_stride_ext) {
   const int pic_height = xd->plane[plane].dst.height;
   const int pic_width = xd->plane[plane].dst.width;
   const int y_uv_hscale = xd->plane[plane].subsampling_x;
@@ -164,8 +163,7 @@ static void ccso_derive_src_info(AV1_COMMON *cm, MACROBLOCKD *xd,
 /* Compute the aggregated residual between original and reconstructed sample for
  * each entry of the LUT */
 static void ccso_pre_compute_class_err(CcsoCtx *ctx, MACROBLOCKD *xd,
-                                       const int plane,
-                                       const AV1_COMMON *cm,
+                                       const int plane, const AV1_COMMON *cm,
                                        const int proc_unit_log2,
                                        const uint16_t *src_y,
                                        const uint16_t *ref, const uint16_t *dst,
@@ -261,14 +259,10 @@ static void ccso_pre_compute_class_err(CcsoCtx *ctx, MACROBLOCKD *xd,
 }
 
 // pre compute classes for band offset only option
-static void ccso_pre_compute_class_err_bo(CcsoCtx *ctx, MACROBLOCKD *xd,
-                                          const int plane,
-                                          const AV1_COMMON *cm,
-                                          const int proc_unit_log2,
-                                          const uint16_t *src_y,
-                                          const uint16_t *ref,
-                                          const uint16_t *dst,
-                                          const uint8_t shift_bits) {
+static void ccso_pre_compute_class_err_bo(
+    CcsoCtx *ctx, MACROBLOCKD *xd, const int plane, const AV1_COMMON *cm,
+    const int proc_unit_log2, const uint16_t *src_y, const uint16_t *ref,
+    const uint16_t *dst, const uint8_t shift_bits) {
   const int pic_height = xd->plane[plane].dst.height;
   const int pic_width = xd->plane[plane].dst.width;
   const int y_uv_hscale = xd->plane[plane].subsampling_x;
@@ -603,8 +597,7 @@ uint64_t compute_distortion_block_c(const uint16_t *org, const int org_stride,
 static void compute_distortion(
     const uint16_t *org, const int org_stride, const uint16_t *rec16,
     const int rec_stride, const int log2_filter_unit_size_y,
-    const int log2_filter_unit_size_x,
-    const int log2_proc_unit_size,
+    const int log2_filter_unit_size_x, const int log2_proc_unit_size,
     const AV1_COMMON *cm, const int subsampling_y, const int subsampling_x,
     const int height, const int width, uint64_t *distortion_buf,
     const int distortion_buf_stride, uint64_t *total_distortion) {
@@ -647,7 +640,7 @@ static void compute_distortion(
                   BRU_ACTIVE_SB) {
             continue;
           }
-        // skip if unit skip
+          // skip if unit skip
           sb_ssd += compute_distortion_block(
               org_unit, org_stride, rec_unit, rec_stride, x + unit_x,
               y + unit_y, unit_log2_y, unit_log2_x, height, width);
@@ -1097,8 +1090,8 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
 
   compute_distortion(org_uv, ctx->ccso_stride, rec_uv, ctx->ccso_stride,
                      log2_filter_unit_size_y, log2_filter_unit_size_x,
-                     cm->mib_size_log2 - AOMMAX(ss_x, ss_y) + MI_SIZE_LOG2,
-                     cm, ss_y, ss_x, pic_height_c, pic_width_c,
+                     cm->mib_size_log2 - AOMMAX(ss_x, ss_y) + MI_SIZE_LOG2, cm,
+                     ss_y, ss_x, pic_height_c, pic_width_c,
                      ctx->unfiltered_dist_block, ccso_nhfb,
                      &ctx->unfiltered_dist_frame);
 

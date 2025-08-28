@@ -3226,8 +3226,7 @@ static AOM_INLINE PARTITION_TYPE get_forced_partition_type(
 
 static AOM_INLINE void init_allowed_partitions(
     PartitionSearchState *part_search_state, const PartitionCfg *part_cfg,
-    const int bru_skip,
-    const bool *partition_allowed) {
+    const int bru_skip, const bool *partition_allowed) {
   const PartitionBlkParams *blk_params = &part_search_state->part_blk_params;
   const BLOCK_SIZE bsize = blk_params->bsize;
   if (bru_skip) {
@@ -6327,7 +6326,7 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
 #if CONFIG_SDP_CFL_LATENCY_FIX
                     (xd->tree_type == CHROMA_PART) ? ptree_luma : NULL,
 #else
-                  NULL,
+                    NULL,
 #endif  // CONFIG_SDP_CFL_LATENCY_FIX
                     NULL);
         }
@@ -6389,9 +6388,8 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
 
   bool search_none_after_split = false;
   bool search_none_after_rect = false;
-  if (part_search_state.forced_partition == PARTITION_INVALID
-      && bru_is_sb_active(cm, mi_col, mi_row)
-  ) {
+  if (part_search_state.forced_partition == PARTITION_INVALID &&
+      bru_is_sb_active(cm, mi_col, mi_row)) {
     if (cpi->sf.part_sf.adaptive_partition_search_order) {
       search_none_after_rect =
           try_none_after_rect(xd, &cm->mi_params, bsize, mi_row, mi_col);

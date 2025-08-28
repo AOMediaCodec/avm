@@ -130,37 +130,17 @@ static const arg_def_t skipfilmgrain =
     ARG_DEF(NULL, "skip-film-grain", 0, "Skip film grain application");
 static const arg_def_t bruoptmodearg =
     ARG_DEF(NULL, "bru-opt-mode", 0, "Use BRU optimized decode mode");
-static const arg_def_t *all_args[] = { &help,
-                                       &codecarg,
-                                       &use_yv12,
-                                       &use_i420,
-                                       &flipuvarg,
-                                       &rawvideo,
-                                       &noblitarg,
-                                       &progressarg,
-                                       &limitarg,
-                                       &skiparg,
-                                       &summaryarg,
-                                       &outputfile,
+static const arg_def_t *all_args[] = {
+  &help,           &codecarg,      &use_yv12,      &use_i420,       &flipuvarg,
+  &rawvideo,       &noblitarg,     &progressarg,   &limitarg,       &skiparg,
+  &summaryarg,     &outputfile,
 #if CONFIG_PARAKIT_COLLECT_DATA
-                                       &datafilesuffix,
-                                       &datafilepath,
+  &datafilesuffix, &datafilepath,
 #endif
-                                       &threadsarg,
-                                       &verbosearg,
-                                       &scalearg,
-                                       &fb_arg,
-                                       &md5arg,
-                                       &verifyarg,
-                                       &framestatsarg,
-                                       &continuearg,
-                                       &outbitdeptharg,
-                                       &isannexb,
-                                       &oppointarg,
-                                       &outallarg,
-                                       &skipfilmgrain,
-                                       &bruoptmodearg,
-                                       NULL };
+  &threadsarg,     &verbosearg,    &scalearg,      &fb_arg,         &md5arg,
+  &verifyarg,      &framestatsarg, &continuearg,   &outbitdeptharg, &isannexb,
+  &oppointarg,     &outallarg,     &skipfilmgrain, &bruoptmodearg,  NULL
+};
 
 #if CONFIG_LANCZOS_RESAMPLE
 

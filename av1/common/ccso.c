@@ -301,8 +301,7 @@ void ccso_filter_block_hbd_wo_buf_4x4_c(
 /* Apply CCSO on luma component when multiple bands are applied */
 void ccso_apply_luma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
                                const uint16_t *src_y, uint16_t *dst_yuv,
-                               const int dst_stride,
-                               const int proc_unit_log2,
+                               const int dst_stride, const int proc_unit_log2,
                                const uint16_t thr, const uint8_t filter_sup,
                                const uint8_t max_band_log2,
                                const int edge_clf) {
@@ -524,8 +523,7 @@ void ccso_apply_luma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
 /* Apply CCSO on luma component when single band is applied */
 void ccso_apply_luma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
                                const uint16_t *src_y, uint16_t *dst_yuv,
-                               const int dst_stride,
-                               const int proc_unit_log2,
+                               const int dst_stride, const int proc_unit_log2,
                                const uint16_t thr, const uint8_t filter_sup,
                                const uint8_t max_band_log2,
                                const int edge_clf) {
@@ -747,8 +745,8 @@ void ccso_apply_luma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
 void ccso_apply_chroma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
                                  const int plane, const uint16_t *src_y,
                                  uint16_t *dst_yuv, const int dst_stride,
-                                 const int proc_unit_log2,
-                                 const uint16_t thr, const uint8_t filter_sup,
+                                 const int proc_unit_log2, const uint16_t thr,
+                                 const uint8_t filter_sup,
                                  const uint8_t max_band_log2,
                                  const int edge_clf) {
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
@@ -999,8 +997,8 @@ void ccso_apply_chroma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
 void ccso_apply_chroma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
                                  const int plane, const uint16_t *src_y,
                                  uint16_t *dst_yuv, const int dst_stride,
-                                 const int proc_unit_log2,
-                                 const uint16_t thr, const uint8_t filter_sup,
+                                 const int proc_unit_log2, const uint16_t thr,
+                                 const uint8_t filter_sup,
                                  const uint8_t max_band_log2,
                                  const int edge_clf) {
   (void)max_band_log2;

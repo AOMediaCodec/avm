@@ -54,8 +54,8 @@ struct lookahead_ctx {
   int write_idx;                         /* Write index */
   struct read_ctx read_ctxs[MAX_STAGES]; /* Read context */
   struct lookahead_entry *buf;           /* Buffer list */
-  int extra_sz;    /* Num of extra buffer used by bru*/
-  int updated_idx; /* idx of active buffer used by bru*/
+  int extra_sz;                          /* Num of extra buffer used by bru*/
+  int updated_idx;                       /* idx of active buffer used by bru*/
 };
 /*!\endcond */
 
@@ -64,13 +64,10 @@ struct lookahead_ctx {
  * The lookahead stage is a queue of frame buffers on which some analysis
  * may be done when buffers are enqueued.
  */
-struct lookahead_ctx *av1_lookahead_init(int width, int height,
-                                         int subsampling_x, int subsampling_y,
-                                         int depth, const int border_in_pixels,
-                                         int byte_alignment,
-                                         int num_lap_buffers,
-                                         int num_extra_buffers,
-                                         bool alloc_pyramid);
+struct lookahead_ctx *av1_lookahead_init(
+    int width, int height, int subsampling_x, int subsampling_y, int depth,
+    const int border_in_pixels, int byte_alignment, int num_lap_buffers,
+    int num_extra_buffers, bool alloc_pyramid);
 
 /**\brief Destroys the lookahead stage
  */

@@ -680,7 +680,7 @@ static AOM_INLINE void estimate_ref_frame_costs(
             if (cm->bru.enabled && j == cm->bru.update_ref_idx) {
               continue;
             }
-        // Keep track of the cost to encode the first reference
+            // Keep track of the cost to encode the first reference
             aom_cdf_prob ctx = av1_get_ref_pred_context(xd, j, n_refs);
             const int bit = i == j;
             if (!implicit_ref0_bit && !implicit_ref0_ref1_bits)

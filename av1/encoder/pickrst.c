@@ -2472,9 +2472,8 @@ static void search_wienerns_visitor(const RestorationTileLimits *limits,
   assert(unit_stats->plane == rsc->plane);
   assert(rusi->sse[RESTORE_NONE] == unit_stats->real_sse);
 
-  if (rsc->frame_filters_on && is_frame_filters_enabled(rsc->plane)
-      && !rusi->bru_unit_skipped
-  ) {
+  if (rsc->frame_filters_on && is_frame_filters_enabled(rsc->plane) &&
+      !rusi->bru_unit_skipped) {
     // Pick the best filter for this RU.
     rusi->sse[RESTORE_WIENER_NONSEP] = evaluate_frame_filter(rsc, limits, &rui);
 
@@ -2627,7 +2626,7 @@ static void search_wienerns_visitor(const RestorationTileLimits *limits,
       // Only check the best reference for the solved filter.
       if (bank_ref_cand != ns_bank_ref_base[c_id]) continue;
 #else
-              (void)ns_bank_ref_base;
+      (void)ns_bank_ref_base;
 #endif
 
       // Needed to track the set of merge candidate RUs.
@@ -4227,8 +4226,7 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
             rsc.num_filter_classes = default_num_classes(rsc.plane);
           }
 
-          if (r == RESTORE_WIENER_NONSEP &&
-              !cm->bru.enabled &&
+          if (r == RESTORE_WIENER_NONSEP && !cm->bru.enabled &&
               is_frame_filters_enabled(rsc.plane) && frame_filters_configured) {
             // Find RDO-num_classes and frame-level filters. After this call
             // multiclass stats collapse to a single class. If that is not
@@ -4259,8 +4257,8 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
           double cost = search_rest_type(&rsc, r);
           int real_r = r;
           if (r == RESTORE_SWITCHABLE && is_frame_filters_enabled(plane) &&
-              !cm->bru.enabled &&
-              frame_filters_configured && cost > rsc.frame_filters_total_cost &&
+              !cm->bru.enabled && frame_filters_configured &&
+              cost > rsc.frame_filters_total_cost &&
               best_cost > rsc.frame_filters_total_cost) {
             real_r = replace_with_frame_filters(&rsc, &cost);
           }

@@ -181,7 +181,6 @@ int main(int argc, char **argv) {
   if (aom_codec_control(&codec, AOME_SET_CPUUSED, 2))
     die_codec(&codec, "Failed to set cpu-used");
 
-    // aom_codec_set_option(&codec, "qp", "110");
   if (aom_codec_control(&codec, AV1E_SET_ENABLE_BRU, bru_enable))
     die_codec(&codec, "Failed to set enable_bru");
 

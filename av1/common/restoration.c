@@ -535,8 +535,8 @@ void av1_extend_frame(uint16_t *data, int width, int height, int stride,
   extend_frame_highbd(data, width, height, stride, border_horz, border_vert);
 }
 
-void copy_tile(int width, int height, const uint16_t *src,
-               int src_stride, uint16_t *dst, int dst_stride) {
+void copy_tile(int width, int height, const uint16_t *src, int src_stride,
+               uint16_t *dst, int dst_stride) {
   copy_tile_highbd(width, height, src, src_stride, dst, dst_stride);
 }
 
@@ -1866,50 +1866,46 @@ uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV1Common *cm,
         assert(0 && "Invalid dimensions");
       }
 #elif WIENERNS_CROSS_FILT_LUMA_TYPE == 2
-                     if (ss_x && ss_y) {
-                       if (ds_type == 1) {
-                         for (int r = 0; r < h_uv; ++r) {
-                           for (int c = 0; c < width_uv; ++c) {
-                             curr_luma[r * out_stride + c] =
-                                 (curr_dgd[2 * r * in_stride + 2 * c] +
-                                  curr_dgd[(2 * r + 1) * in_stride + 2 * c]) >>
-                                 1;
-                           }
-                         }
-                       } else if (ds_type == 2) {
-                         for (int r = 0; r < h_uv; ++r) {
-                           for (int c = 0; c < width_uv; ++c) {
-                             curr_luma[r * out_stride + c] =
-                                 curr_dgd[(1 + ss_y) * r * in_stride +
-                                          (1 + ss_x) * c];
-                           }
-                         }
-                       } else {
-                         for (int r = 0; r < h_uv; ++r) {
-                           for (int c = 0; c < width_uv; ++c) {
-                             curr_luma[r * out_stride + c] =
-                                 (curr_dgd[2 * r * in_stride + 2 * c] +
-                                  curr_dgd[2 * r * in_stride + 2 * c + 1] +
-                                  curr_dgd[(2 * r + 1) * in_stride + 2 * c] +
-                                  curr_dgd[(2 * r + 1) * in_stride + 2 * c +
-                                           1]) >>
-                                 2;
-                           }
-                         }
-                       }
-                     } else {
-                       for (int r = 0; r < h_uv; ++r) {
-                         for (int c = 0; c < width_uv; ++c) {
-                           curr_luma[r * out_stride + c] =
-                               curr_dgd[(1 + ss_y) * r * in_stride +
-                                        (1 + ss_x) * c];
-                         }
-                       }
-                     }
+      if (ss_x && ss_y) {
+        if (ds_type == 1) {
+          for (int r = 0; r < h_uv; ++r) {
+            for (int c = 0; c < width_uv; ++c) {
+              curr_luma[r * out_stride + c] =
+                  (curr_dgd[2 * r * in_stride + 2 * c] +
+                   curr_dgd[(2 * r + 1) * in_stride + 2 * c]) >>
+                  1;
+            }
+          }
+        } else if (ds_type == 2) {
+          for (int r = 0; r < h_uv; ++r) {
+            for (int c = 0; c < width_uv; ++c) {
+              curr_luma[r * out_stride + c] =
+                  curr_dgd[(1 + ss_y) * r * in_stride + (1 + ss_x) * c];
+            }
+          }
+        } else {
+          for (int r = 0; r < h_uv; ++r) {
+            for (int c = 0; c < width_uv; ++c) {
+              curr_luma[r * out_stride + c] =
+                  (curr_dgd[2 * r * in_stride + 2 * c] +
+                   curr_dgd[2 * r * in_stride + 2 * c + 1] +
+                   curr_dgd[(2 * r + 1) * in_stride + 2 * c] +
+                   curr_dgd[(2 * r + 1) * in_stride + 2 * c + 1]) >>
+                  2;
+            }
+          }
+        }
+      } else {
+        for (int r = 0; r < h_uv; ++r) {
+          for (int c = 0; c < width_uv; ++c) {
+            curr_luma[r * out_stride + c] =
+                curr_dgd[(1 + ss_y) * r * in_stride + (1 + ss_x) * c];
+          }
+        }
+      }
 #else
-                     av1_highbd_resize_plane(dgd, height_y, width_y, in_stride,
-                                             *luma, height_uv, width_uv,
-                                             out_stride, bd);
+      av1_highbd_resize_plane(dgd, height_y, width_y, in_stride, *luma,
+                              height_uv, width_uv, out_stride, bd);
 #endif  // WIENERNS_CROSS_FILT_LUMA_TYPE
 
       restore_processing_stripe_boundary(&remaining_stripes, cm->rlbs, h, dgd,
@@ -2032,49 +2028,48 @@ uint16_t *wienerns_copy_luma_highbd(const uint16_t *dgd, int height_y,
     assert(0 && "Invalid dimensions");
   }
 #elif WIENERNS_CROSS_FILT_LUMA_TYPE == 2
-                 const int ss_x = (((width_y + 1) >> 1) == width_uv);
-                 const int ss_y = (((height_y + 1) >> 1) == height_uv);
-                 if (ss_x && ss_y) {
-                   if (ds_type == 1) {
-                     for (int r = 0; r < height_uv; ++r) {
-                       for (int c = 0; c < width_uv; ++c) {
-                         (*luma)[r * out_stride + c] =
-                             (dgd[2 * r * in_stride + 2 * c] +
-                              dgd[(2 * r + 1) * in_stride + 2 * c]) >>
-                             1;
-                       }
-                     }
-                   } else if (ds_type == 2) {
-                     for (int r = 0; r < height_uv; ++r) {
-                       for (int c = 0; c < width_uv; ++c) {
-                         (*luma)[r * out_stride + c] =
-                             dgd[(1 + ss_y) * r * in_stride + (1 + ss_x) * c];
-                       }
-                     }
-                   } else {
-                     for (int r = 0; r < height_uv; ++r) {
-                       for (int c = 0; c < width_uv; ++c) {
-                         (*luma)[r * out_stride + c] =
-                             (dgd[2 * r * in_stride + 2 * c] +
-                              dgd[2 * r * in_stride + 2 * c + 1] +
-                              dgd[(2 * r + 1) * in_stride + 2 * c] +
-                              dgd[(2 * r + 1) * in_stride + 2 * c + 1]) >>
-                             2;
-                       }
-                     }
-                   }
-                 } else {
-                   for (int r = 0; r < height_uv; ++r) {
-                     for (int c = 0; c < width_uv; ++c) {
-                       (*luma)[r * out_stride + c] =
-                           dgd[(1 + ss_y) * r * in_stride + (1 + ss_x) * c];
-                     }
-                   }
-                 }
+  const int ss_x = (((width_y + 1) >> 1) == width_uv);
+  const int ss_y = (((height_y + 1) >> 1) == height_uv);
+  if (ss_x && ss_y) {
+    if (ds_type == 1) {
+      for (int r = 0; r < height_uv; ++r) {
+        for (int c = 0; c < width_uv; ++c) {
+          (*luma)[r * out_stride + c] =
+              (dgd[2 * r * in_stride + 2 * c] +
+               dgd[(2 * r + 1) * in_stride + 2 * c]) >>
+              1;
+        }
+      }
+    } else if (ds_type == 2) {
+      for (int r = 0; r < height_uv; ++r) {
+        for (int c = 0; c < width_uv; ++c) {
+          (*luma)[r * out_stride + c] =
+              dgd[(1 + ss_y) * r * in_stride + (1 + ss_x) * c];
+        }
+      }
+    } else {
+      for (int r = 0; r < height_uv; ++r) {
+        for (int c = 0; c < width_uv; ++c) {
+          (*luma)[r * out_stride + c] =
+              (dgd[2 * r * in_stride + 2 * c] +
+               dgd[2 * r * in_stride + 2 * c + 1] +
+               dgd[(2 * r + 1) * in_stride + 2 * c] +
+               dgd[(2 * r + 1) * in_stride + 2 * c + 1]) >>
+              2;
+        }
+      }
+    }
+  } else {
+    for (int r = 0; r < height_uv; ++r) {
+      for (int c = 0; c < width_uv; ++c) {
+        (*luma)[r * out_stride + c] =
+            dgd[(1 + ss_y) * r * in_stride + (1 + ss_x) * c];
+      }
+    }
+  }
 #else
-                 av1_highbd_resize_plane(dgd, height_y, width_y, in_stride,
-                                         *luma, height_uv, width_uv, out_stride,
-                                         bd);
+  av1_highbd_resize_plane(dgd, height_y, width_y, in_stride, *luma, height_uv,
+                          width_uv, out_stride, bd);
 
 #endif  // WIENERNS_CROSS_FILT_LUMA_TYPE
 

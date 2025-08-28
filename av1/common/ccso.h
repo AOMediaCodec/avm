@@ -59,8 +59,8 @@ void derive_ccso_sample_pos(int *rec_idx, const int ccso_stride,
 typedef void (*CCSO_FILTER_FUNC)(AV1_COMMON *cm, MACROBLOCKD *xd,
                                  const int plane, const uint16_t *src_y,
                                  uint16_t *dst_yuv, const int dst_stride,
-                                 const int proc_unit_log2,
-                                 const uint16_t thr, const uint8_t filter_sup,
+                                 const int proc_unit_log2, const uint16_t thr,
+                                 const uint8_t filter_sup,
                                  const uint8_t max_band_log2,
                                  const int edge_clf);
 

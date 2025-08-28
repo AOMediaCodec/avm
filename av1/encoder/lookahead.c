@@ -43,13 +43,10 @@ void av1_lookahead_destroy(struct lookahead_ctx *ctx) {
   }
 }
 
-struct lookahead_ctx *av1_lookahead_init(int width, int height,
-                                         int subsampling_x, int subsampling_y,
-                                         int depth, const int border_in_pixels,
-                                         int byte_alignment,
-                                         int num_lap_buffers,
-                                         int num_extra_buffers,
-                                         bool alloc_pyramid) {
+struct lookahead_ctx *av1_lookahead_init(
+    int width, int height, int subsampling_x, int subsampling_y, int depth,
+    const int border_in_pixels, int byte_alignment, int num_lap_buffers,
+    int num_extra_buffers, bool alloc_pyramid) {
   struct lookahead_ctx *ctx = NULL;
   int lag_in_frames = AOMMAX(1, depth);
 
@@ -91,8 +88,7 @@ fail:
 }
 
 int av1_lookahead_push(struct lookahead_ctx *ctx, const YV12_BUFFER_CONFIG *src,
-                       int64_t ts_start, int64_t ts_end,
-                       int disp_order_hint,
+                       int64_t ts_start, int64_t ts_end, int disp_order_hint,
                        aom_enc_frame_flags_t flags, bool alloc_pyramid) {
   struct lookahead_entry *buf;
   int width = src->y_crop_width;

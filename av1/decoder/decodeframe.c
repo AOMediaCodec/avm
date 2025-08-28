@@ -1830,8 +1830,8 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
       do_split = aom_read_symbol(r, ec_ctx->do_split_cdf[plane][ctx], 2,
                                  ACCT_INFO("do_split"));
 #else
-    do_split = aom_read_symbol(r, ec_ctx->do_split_cdf[plane][ctx], 2,
-                               ACCT_INFO("do_split"));
+      do_split = aom_read_symbol(r, ec_ctx->do_split_cdf[plane][ctx], 2,
+                                 ACCT_INFO("do_split"));
 #endif  // CONFIG_NEW_PART_CTX
     }
   }
@@ -4843,10 +4843,10 @@ static AOM_INLINE void decode_tile(AV1Decoder *pbi, ThreadData *const td,
     }
   }
 
-  int corrupted =
-      cm->bru.frame_inactive_flag ? 0 :
-      (check_trailing_bits_after_symbol_coder(td->bit_reader)) ? 1
-                                                               : 0;
+  int corrupted = cm->bru.frame_inactive_flag ? 0
+                  : (check_trailing_bits_after_symbol_coder(td->bit_reader))
+                      ? 1
+                      : 0;
   aom_merge_corrupted_flag(&dcb->corrupted, corrupted);
 }
 
@@ -8606,8 +8606,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           && features->allow_ref_frame_mvs &&
           cm->ref_frames_info.num_total_refs >= 2
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
-          && !cm->bru.frame_inactive_flag
-      ) {
+          && !cm->bru.frame_inactive_flag) {
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
 #if CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_TIP
         if (obu_type == OBU_TIP) {
@@ -8698,9 +8697,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         features->tip_frame_mode = TIP_FRAME_DISABLED;
       }
 
-      if (features->tip_frame_mode != TIP_FRAME_AS_OUTPUT
-          && !cm->bru.frame_inactive_flag
-      ) {
+      if (features->tip_frame_mode != TIP_FRAME_AS_OUTPUT &&
+          !cm->bru.frame_inactive_flag) {
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
         read_screen_content_params(cm, rb);
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
@@ -9939,9 +9937,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
     }
   }
 
-  if (
-      !cm->bru.frame_inactive_flag &&
-      !tiles->single_tile_decoding) {
+  if (!cm->bru.frame_inactive_flag && !tiles->single_tile_decoding) {
     if (cm->lf.filter_level[0] || cm->lf.filter_level[1]) {
       if (pbi->num_workers > 1) {
         av1_loop_filter_frame_mt(&cm->cur_frame->buf, cm, &pbi->dcb.xd, 0,

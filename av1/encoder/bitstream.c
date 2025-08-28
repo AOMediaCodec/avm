@@ -1033,9 +1033,9 @@ static AOM_INLINE void write_mb_interp_filter(AV1_COMMON *const cm,
 #if CONFIG_DEBUG
     // Sharp filter is always used whenever optical flow refinement is applied.
     int mb_interp_filter =
-        (opfl_allowed_cur_pred_mode(cm, xd, mbmi) || mbmi->refinemv_flag
-         || (cm->bru.enabled && xd->sbi->sb_active_mode != BRU_ACTIVE_SB)
-         || is_tip_ref_frame(mbmi->ref_frame[0]))
+        (opfl_allowed_cur_pred_mode(cm, xd, mbmi) || mbmi->refinemv_flag ||
+         (cm->bru.enabled && xd->sbi->sb_active_mode != BRU_ACTIVE_SB) ||
+         is_tip_ref_frame(mbmi->ref_frame[0]))
             ? MULTITAP_SHARP
             : cm->features.interp_filter;
     assert(mbmi->interp_fltr == av1_unswitchable_filter(mb_interp_filter));
@@ -3041,11 +3041,10 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
 
   av1_mark_block_as_coded(xd, bsize, cm->sb_size);
 }
-static AOM_INLINE PARTITION_TYPE
-write_partition(const AV1_COMMON *const cm,
-                const MACROBLOCKD *const xd, int mi_row, int mi_col,
-                PARTITION_TYPE p, BLOCK_SIZE bsize, const PARTITION_TREE *ptree,
-                const PARTITION_TREE *ptree_luma, aom_writer *w) {
+static AOM_INLINE PARTITION_TYPE write_partition(
+    const AV1_COMMON *const cm, const MACROBLOCKD *const xd, int mi_row,
+    int mi_col, PARTITION_TYPE p, BLOCK_SIZE bsize, const PARTITION_TREE *ptree,
+    const PARTITION_TREE *ptree_luma, aom_writer *w) {
   const int plane = xd->tree_type == CHROMA_PART;
 
   const int ssx = cm->seq_params.subsampling_x;
@@ -3097,7 +3096,7 @@ write_partition(const AV1_COMMON *const cm,
           partition_plane_context(xd, mi_row, mi_col, bsize, 0, SPLIT_CTX_MODE);
       aom_write_symbol(w, do_split, ec_ctx->do_split_cdf[plane][ctx], 2);
 #else
-    aom_write_symbol(w, do_split, ec_ctx->do_split_cdf[plane][ctx], 2);
+      aom_write_symbol(w, do_split, ec_ctx->do_split_cdf[plane][ctx], 2);
 #endif  // CONFIG_NEW_PART_CTX
     }
   }
@@ -6475,8 +6474,7 @@ static AOM_INLINE void write_uncompressed_header_obu
           && features->allow_ref_frame_mvs &&
           cm->ref_frames_info.num_total_refs >= 2
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
-          && !cm->bru.frame_inactive_flag
-      ) {
+          && !cm->bru.frame_inactive_flag) {
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
         if (cm->seq_params.enable_tip == 1) {
 #if CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_TIP
@@ -6536,8 +6534,7 @@ static AOM_INLINE void write_uncompressed_header_obu
 
       if (!cm->bru.frame_inactive_flag &&
           (!cm->seq_params.enable_tip ||
-           features->tip_frame_mode != TIP_FRAME_AS_OUTPUT)
-      ) {
+           features->tip_frame_mode != TIP_FRAME_AS_OUTPUT)) {
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
         write_screen_content_params(cm, wb);
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
@@ -8404,8 +8401,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 #endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT &&
         // CONFIG_F253_REMOVE_OUTPUTFLAG
   const bool non_signaled_frame =
-      non_signaled_show_existing_frame ||
-      cm->bru.frame_inactive_flag ||
+      non_signaled_show_existing_frame || cm->bru.frame_inactive_flag ||
       (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT);
   if (non_signaled_frame) {
     data_size = 0;
