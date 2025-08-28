@@ -8419,7 +8419,9 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
     obu_type = OBU_SEF;
 #endif  // CONFIG_F106_OBU_SEF
 #if CONFIG_F106_OBU_TIP
-  if (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT) obu_type = OBU_TIP;
+  if (cm->current_frame.frame_type == INTER_FRAME &&
+      cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT)
+    obu_type = OBU_TIP;
 #endif  // CONFIG_F106_OBU_TIP
 
   int max_tg_num = AOMMIN(cpi->num_tg, cm->tiles.cols * cm->tiles.rows);
