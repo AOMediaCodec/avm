@@ -7651,13 +7651,13 @@ static uint32_t write_tilegroup_obu(
   const CommonTileParams *const tiles = &cm->tiles;
   const int tile_cols = tiles->cols;
   const int tile_rows = tiles->rows;
-  const int num_tiles_in_tg =
-      (tiles->large_scale) ? 1
-                           : (tile_rows * tile_cols + num_tgs - 1) / num_tgs;
+  const int num_tiles = tile_cols * tile_rows;
+  const int num_tiles_in_tg = num_tiles / num_tgs;
   int start_tile_idx = num_tiles_in_tg * tg_idx;
-  int end_tile_idx =
-      AOMMIN(start_tile_idx + num_tiles_in_tg - 1, tile_cols * tile_rows - 1);
-
+  int end_tile_idx = (tg_idx < num_tgs - 1)
+                         ? (start_tile_idx + num_tiles_in_tg - 1)
+                         : (num_tiles - 1);
+  assert(tiles->large_scale == 0);
 #if CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
   curr_tg_header_size = write_tilegroup_header(
       cpi, obu_type, &saved_wb, dst, num_tgs, start_tile_idx, end_tile_idx);
