@@ -9064,12 +9064,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   }
   features->coded_lossless = is_coded_lossless(cm, xd);
   features->all_lossless = features->coded_lossless;
-#if CONFIG_BRU_LOSSLESS_CONFORMANCE
-  if (features->all_lossless && cm->bru.enabled) {
-    aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
-                       "Frame lossless should not coded as BRU enabled");
-  }
-#endif
+
   // Decode frame-level TCQ flag, if applicable.
   if (features->coded_lossless) {
     features->tcq_mode = 0;

@@ -1948,7 +1948,8 @@ void av1_encode_frame(AV1_COMP *cpi) {
   // Indicates whether or not to use a default reduced set for ext-tx
   // rather than the potential full set of 16 transforms
   features->reduced_tx_set_used = cpi->oxcf.txfm_cfg.reduced_tx_type_set;
-#if CONFIG_BRU_LOSSLESS_CONFORMANCE
+
+#if CONFIG_BRU
   if (cm->bru.enabled && features->all_lossless) {
     cm->bru.enabled = 0;
     cm->bru.frame_inactive_flag = 0;
