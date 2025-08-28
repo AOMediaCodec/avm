@@ -91,23 +91,6 @@ typedef struct {
   int show_existing;
 } Av1DecodeReturn;
 
-#if !CONFIG_F106_OBU_TILEGROUP
-/*!\brief Structure to hold a tile's start address and size in the bitstream.
- *
- * Defines a structure to hold a tile's start address and size in the bitstream.
- */
-typedef struct aom_tile_data {
-  /*! Tile data size. */
-  size_t coded_tile_data_size;
-  /*! Tile's start address. */
-  const void *coded_tile_data;
-#if !CONFIG_F106_OBU_TILEGROUP
-  /*! Extra size information. */
-  size_t extra_size;
-#endif
-} aom_tile_data;
-#endif  // !CONFIG_F106_OBU_TILEGROUP
-
 /*!\brief Max number of tile columns
  *
  * This is the limit of number of tile columns allowed within a frame.
@@ -317,18 +300,6 @@ enum aom_dec_control_id {
    * - 1 = tiles are coded in large-scale tile mode
    */
   AV1_SET_TILE_MODE,
-
-#if !CONFIG_F106_OBU_TILEGROUP
-  /*!\brief Codec control function to get the frame header information of an
-   * encoded frame, unsigned int* parameter
-   */
-  AV1D_GET_FRAME_HEADER_INFO,
-
-  /*!\brief Codec control function to get the start address and size of a
-   * tile in the coded bitstream, aom_tile_data* parameter.
-   */
-  AV1D_GET_TILE_DATA,
-#endif  // !CONFIG_F106_OBU_TILEGROUP
 
   /*!\brief Codec control function to set the external references' pointers in
    * the decoder, av1_ext_ref_frame_t* parameter.
@@ -550,14 +521,6 @@ AOM_CTRL_USE_TYPE(AV1_SET_DECODE_TILE_COL, int)
 
 AOM_CTRL_USE_TYPE(AV1_SET_TILE_MODE, unsigned int)
 #define AOM_CTRL_AV1_SET_TILE_MODE
-
-#if !CONFIG_F106_OBU_TILEGROUP
-AOM_CTRL_USE_TYPE(AV1D_GET_FRAME_HEADER_INFO, aom_tile_data *)
-#define AOM_CTRL_AV1D_GET_FRAME_HEADER_INFO
-
-AOM_CTRL_USE_TYPE(AV1D_GET_TILE_DATA, aom_tile_data *)
-#define AOM_CTRL_AV1D_GET_TILE_DATA
-#endif  // CONFIG_F106_OBU_TILEGROUP
 
 AOM_CTRL_USE_TYPE(AV1D_SET_EXT_REF_PTR, av1_ext_ref_frame_t *)
 #define AOM_CTRL_AV1D_SET_EXT_REF_PTR
