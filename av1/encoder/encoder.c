@@ -501,8 +501,19 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_imp_msk_bld = tool_cfg->enable_imp_msk_bld;
   seq->seq_enabled_motion_modes =
       oxcf->motion_mode_cfg.seq_enabled_motion_modes;
+
+#if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
+  uint8_t warp_delta_enabled =
+      (seq->seq_enabled_motion_modes & (1 << WARP_DELTA)) != 0 ? 1 : 0;
+  ;
+  seq->seq_frame_motion_modes_present_flag = 0;  // in CTC set that flag to 0
+  seq->enable_six_param_warp_delta =
+      warp_delta_enabled ? oxcf->motion_mode_cfg.enable_six_param_warp_delta
+                         : 0;
+#else
   seq->enable_six_param_warp_delta =
       oxcf->motion_mode_cfg.enable_six_param_warp_delta;
+#endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
 
   seq->enable_ext_partitions = oxcf->part_cfg.enable_ext_partitions;
   seq->enable_uneven_4way_partitions =

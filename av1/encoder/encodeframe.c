@@ -2155,17 +2155,29 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
 
   // Decide which motion modes to scan this frame
   // TODO(rachelbarker): Rework pruning into something more unified in phase 2
-  int enabled_motion_modes = cm->seq_params.seq_enabled_motion_modes;
 
-  if ((enabled_motion_modes & (1 << WARP_CAUSAL)) != 0 &&
-      cpi->sf.inter_sf.prune_warped_prob_thresh > 0) {
-    const FRAME_UPDATE_TYPE update_type = get_frame_update_type(&cpi->gf_group);
-    if (frame_probs->warped_probs[update_type] <
-        cpi->sf.inter_sf.prune_warped_prob_thresh)
-      enabled_motion_modes &= ~(1 << WARP_CAUSAL);
+#if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
+  if (cm->seq_params.seq_frame_motion_modes_present_flag) {
+#endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
+
+    int enabled_motion_modes = cm->seq_params.seq_enabled_motion_modes;
+
+    if ((enabled_motion_modes & (1 << WARP_CAUSAL)) != 0 &&
+        cpi->sf.inter_sf.prune_warped_prob_thresh > 0) {
+      const FRAME_UPDATE_TYPE update_type =
+          get_frame_update_type(&cpi->gf_group);
+      if (frame_probs->warped_probs[update_type] <
+          cpi->sf.inter_sf.prune_warped_prob_thresh)
+        enabled_motion_modes &= ~(1 << WARP_CAUSAL);
+    }
+
+    features->enabled_motion_modes = enabled_motion_modes;
+
+#if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
+  } else {
+    features->enabled_motion_modes = cm->seq_params.seq_enabled_motion_modes;
   }
-
-  features->enabled_motion_modes = enabled_motion_modes;
+#endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
 
   features->allow_warpmv_mode =
       (features->enabled_motion_modes & (1 << WARP_DELTA)) != 0;

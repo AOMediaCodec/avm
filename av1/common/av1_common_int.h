@@ -1019,6 +1019,12 @@ typedef struct SequenceHeader {
   int seq_enabled_motion_modes;  // Bit mask of enabled motion modes for
                                  // sequence
 
+#if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
+  uint8_t
+      seq_frame_motion_modes_present_flag;  // Flag to enable signaling of
+                                            // motion modes in the frame header
+#endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
+
   int enable_six_param_warp_delta;  // enables/disables six parameter warp delta
 
   uint8_t enable_masked_compound;           // enables/disables masked compound

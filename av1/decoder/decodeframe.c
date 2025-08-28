@@ -6976,17 +6976,38 @@ void av1_read_sequence_header(
     seq_params->order_hint_info.order_hint_bits_minus_1 = -1;
     seq_params->enable_opfl_refine = AOM_OPFL_REFINE_NONE;
     seq_params->enable_six_param_warp_delta = 0;
+#if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
+    seq_params->seq_frame_motion_modes_present_flag = 0;
+#endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
+
   } else {
     int seq_enabled_motion_modes = (1 << SIMPLE_TRANSLATION);
+#if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
+    uint8_t motion_mode_enabled = 0;
+    uint8_t warp_delta_enabled = 0;
+#endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
     for (int motion_mode = INTERINTRA; motion_mode < MOTION_MODES;
          motion_mode++) {
       int enabled = aom_rb_read_bit(rb);
+#if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
+      motion_mode_enabled |= enabled;
+      if (motion_mode == WARP_DELTA && enabled) {
+        warp_delta_enabled = 1;
+      }
+#endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
       if (enabled) {
         seq_enabled_motion_modes |= (1 << motion_mode);
       }
     }
 
+#if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
+    seq_params->seq_frame_motion_modes_present_flag =
+        motion_mode_enabled ? aom_rb_read_bit(rb) : 0;
+    seq_params->enable_six_param_warp_delta =
+        warp_delta_enabled ? aom_rb_read_bit(rb) : 0;
+#else
     seq_params->enable_six_param_warp_delta = aom_rb_read_bit(rb);
+#endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
 
     seq_params->seq_enabled_motion_modes = seq_enabled_motion_modes;
     seq_params->enable_masked_compound = aom_rb_read_bit(rb);
@@ -9332,17 +9353,28 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
         features->interp_filter = read_frame_interp_filter(rb);
         int seq_enabled_motion_modes = cm->seq_params.seq_enabled_motion_modes;
-        int frame_enabled_motion_modes = (1 << SIMPLE_TRANSLATION);
-        for (int motion_mode = INTERINTRA; motion_mode < MOTION_MODES;
-             motion_mode++) {
-          if (seq_enabled_motion_modes & (1 << motion_mode)) {
-            int enabled = aom_rb_read_bit(rb);
-            if (enabled) {
-              frame_enabled_motion_modes |= (1 << motion_mode);
+
+#if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
+        if (cm->seq_params.seq_frame_motion_modes_present_flag) {
+#endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
+          int frame_enabled_motion_modes = (1 << SIMPLE_TRANSLATION);
+          for (int motion_mode = INTERINTRA; motion_mode < MOTION_MODES;
+               motion_mode++) {
+            if (seq_enabled_motion_modes & (1 << motion_mode)) {
+              int enabled = aom_rb_read_bit(rb);
+              if (enabled) {
+                frame_enabled_motion_modes |= (1 << motion_mode);
+              }
             }
           }
+          features->enabled_motion_modes = frame_enabled_motion_modes;
+#if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
+        } else {
+          features->enabled_motion_modes =
+              cm->seq_params.seq_enabled_motion_modes;
         }
-        features->enabled_motion_modes = frame_enabled_motion_modes;
+#endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
+
 #if !CONFIG_FIX_OPFL_AUTO
         if (cm->seq_params.enable_opfl_refine == AOM_OPFL_REFINE_AUTO) {
           if (aom_rb_read_bit(rb)) {

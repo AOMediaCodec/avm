@@ -5663,14 +5663,37 @@ static AOM_INLINE void write_sequence_header(
     // Skip SIMPLE_TRANSLATION, as that is always enabled
     int seq_enabled_motion_modes = seq_params->seq_enabled_motion_modes;
     assert((seq_enabled_motion_modes & (1 << SIMPLE_TRANSLATION)) != 0);
+#if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
+    uint8_t motion_mode_enabled = 0;
+    uint8_t warp_delta_enabled = 0;
+#endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
     for (int motion_mode = INTERINTRA; motion_mode < MOTION_MODES;
          motion_mode++) {
       int enabled =
           (seq_enabled_motion_modes & (1 << motion_mode)) != 0 ? 1 : 0;
       aom_wb_write_bit(wb, enabled);
+#if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
+      motion_mode_enabled |= enabled;
+      if (motion_mode == WARP_DELTA && enabled) {
+        warp_delta_enabled = 1;
+      }
+#endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
     }
 
+#if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
+    if (motion_mode_enabled) {
+      aom_wb_write_bit(wb, seq_params->seq_frame_motion_modes_present_flag);
+    }
+    assert(IMPLIES(!motion_mode_enabled,
+                   !seq_params->seq_frame_motion_modes_present_flag));
+    if (warp_delta_enabled) {
+      aom_wb_write_bit(wb, seq_params->enable_six_param_warp_delta);
+    }
+    assert(
+        IMPLIES(!warp_delta_enabled, !seq_params->enable_six_param_warp_delta));
+#else
     aom_wb_write_bit(wb, seq_params->enable_six_param_warp_delta);
+#endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
 
     aom_wb_write_bit(wb, seq_params->enable_masked_compound);
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
@@ -6890,16 +6913,28 @@ static AOM_INLINE void write_uncompressed_header_obu
         int seq_enabled_motion_modes = seq_params->seq_enabled_motion_modes;
         int frame_enabled_motion_modes = features->enabled_motion_modes;
         assert((frame_enabled_motion_modes & (1 << SIMPLE_TRANSLATION)) != 0);
-        for (int motion_mode = INTERINTRA; motion_mode < MOTION_MODES;
-             motion_mode++) {
-          if (seq_enabled_motion_modes & (1 << motion_mode)) {
-            int enabled =
-                (frame_enabled_motion_modes & (1 << motion_mode)) != 0 ? 1 : 0;
-            aom_wb_write_bit(wb, enabled);
-          } else {
-            assert((frame_enabled_motion_modes & (1 << motion_mode)) == 0);
+
+#if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
+        if (cm->seq_params.seq_frame_motion_modes_present_flag) {
+#endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
+
+          for (int motion_mode = INTERINTRA; motion_mode < MOTION_MODES;
+               motion_mode++) {
+            if (seq_enabled_motion_modes & (1 << motion_mode)) {
+              int enabled =
+                  (frame_enabled_motion_modes & (1 << motion_mode)) != 0 ? 1
+                                                                         : 0;
+              aom_wb_write_bit(wb, enabled);
+            } else {
+              assert((frame_enabled_motion_modes & (1 << motion_mode)) == 0);
+            }
           }
+#if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
         }
+        assert(IMPLIES(!cm->seq_params.seq_frame_motion_modes_present_flag,
+                       features->enabled_motion_modes ==
+                           cm->seq_params.seq_enabled_motion_modes));
+#endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
 #if !CONFIG_FIX_OPFL_AUTO
         if (cm->seq_params.enable_opfl_refine == AOM_OPFL_REFINE_AUTO) {
           const int is_opfl_switchable =
