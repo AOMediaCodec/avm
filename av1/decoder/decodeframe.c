@@ -9611,7 +9611,6 @@ int32_t av1_read_tilegroup_header(
           aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                              "Uninitialized entropy context.");
       }
-      // av1_check_trailing_bits(pbi, rb);
       return uncomp_hdr_size;
     }
 
@@ -9678,7 +9677,6 @@ int32_t av1_read_tilegroup_header(
 #endif  // CONFIG_F106_OBU_TIP
     {
       *p_data_end = data + uncomp_hdr_size;
-      // av1_check_trailing_bits(pbi, rb);
       return uncomp_hdr_size;
     }
 

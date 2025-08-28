@@ -417,8 +417,8 @@ static uint32_t read_tilegroup_obu(AV1Decoder *pbi,
   int start_tile, end_tile;
   int32_t header_size, tg_payload_size;
 
-  assert((rb->bit_offset & 7) == 0);
-  assert(rb->bit_buffer + aom_rb_bytes_read(rb) == data);
+  assert(rb->bit_offset == 0);
+  assert(rb->bit_buffer == data);
 
   int is_first_tg = 1;  // return from av1_read_tilegroup_header
   header_size =
