@@ -307,34 +307,29 @@ void av1_cdef_filter_fb(uint8_t *dst8, uint16_t *dst16, int dstride,
     }
   }
 
+  const int block_width = 8 >> xdec;
+  const int block_height = 8 >> ydec;
+  /*
+   * strength_index == 0 : enable_primary = 1, enable_secondary = 1
+   * strength_index == 1 : enable_primary = 1, enable_secondary = 0
+   * strength_index == 2 : enable_primary = 0, enable_secondary = 1
+   * strength_index == 3 : enable_primary = 0, enable_secondary = 0
+   */
+  const cdef_filter_block_func cdef_filter_fn[4] = {
+    cdef_filter_16_0, cdef_filter_16_1, cdef_filter_16_2, cdef_filter_16_3
+  };
   for (bi = 0; bi < cdef_count; bi++) {
     by = dlist[bi].by;
     bx = dlist[bi].bx;
-
-    const int block_width = 8 >> xdec;
-    const int block_height = 8 >> ydec;
-    /*
-     * strength_index == 0 : enable_primary = 1, enable_secondary = 1
-     * strength_index == 1 : enable_primary = 1, enable_secondary = 0
-     * strength_index == 2 : enable_primary = 0, enable_secondary = 1
-     * strength_index == 3 : enable_primary = 0, enable_secondary = 0
-     */
-    const cdef_filter_block_func cdef_filter_fn[4] = {
-      cdef_filter_16_0, cdef_filter_16_1, cdef_filter_16_2, cdef_filter_16_3
-    };
-    for (bi = 0; bi < cdef_count; bi++) {
-      by = dlist[bi].by;
-      bx = dlist[bi].bx;
-      const int t =
-          (pli ? pri_strength : adjust_strength(pri_strength, var[by][bx]));
-      const int strength_index = (sec_strength == 0) | ((t == 0) << 1);
-      cdef_filter_fn[strength_index](
-          &dst16[dirinit ? bi << (bw_log2 + bh_log2)
-                         : (by << bh_log2) * dstride + (bx << bw_log2)],
-          dirinit ? 1 << bw_log2 : dstride,
-          &in[(by * CDEF_BSTRIDE << bh_log2) + (bx << bw_log2)], t,
-          sec_strength, pri_strength ? dir[by][bx] : 0, damping, damping,
-          coeff_shift, block_width, block_height);
-    }
+    const int t =
+        (pli ? pri_strength : adjust_strength(pri_strength, var[by][bx]));
+    const int strength_index = (sec_strength == 0) | ((t == 0) << 1);
+    cdef_filter_fn[strength_index](
+        &dst16[dirinit ? bi << (bw_log2 + bh_log2)
+                       : (by << bh_log2) * dstride + (bx << bw_log2)],
+        dirinit ? 1 << bw_log2 : dstride,
+        &in[(by * CDEF_BSTRIDE << bh_log2) + (bx << bw_log2)], t, sec_strength,
+        pri_strength ? dir[by][bx] : 0, damping, damping, coeff_shift,
+        block_width, block_height);
   }
 }
