@@ -3685,15 +3685,18 @@ static AOM_INLINE void choose_lossless_tx_size(const AV1_COMP *const cpi,
   const int skip_trellis = 0;
   const bool is_fsc = mbmi->fsc_mode[xd->tree_type == CHROMA_PART];
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
-  int rate_tx_large = INT_MAX, rate_tx_4x4 = INT_MAX;
+  int rate_tx_large = INT_MAX;
+  int rate_tx_4x4 = INT_MAX;
 
 #if CONFIG_LOSSLESS_LARGER_IDTX
-  bool allow_large_tx = bs > BLOCK_4X4 && (is_inter || (!is_inter && is_fsc));
-  TX_SIZE large_tx_size = lossless_max_txsize_lookup[bs];
+  const bool allow_large_tx =
+      bs > BLOCK_4X4 && (is_inter || (!is_inter && is_fsc));
+  const TX_SIZE large_tx_size = lossless_max_txsize_lookup[bs];
 #else
-  bool allow_large_tx = block_size_wide[bs] >= 8 && block_size_high[bs] >= 8 &&
-                        (is_inter || (!is_inter && is_fsc));
-  TX_SIZE large_tx_size = TX_8X8;
+  const bool allow_large_tx = block_size_wide[bs] >= 8 &&
+                              block_size_high[bs] >= 8 &&
+                              (is_inter || (!is_inter && is_fsc));
+  const TX_SIZE large_tx_size = TX_8X8;
 #endif  // CONFIG_LOSSLESS_LARGER_IDTX
 
   if (allow_large_tx) {
