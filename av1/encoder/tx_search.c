@@ -3722,14 +3722,15 @@ static AOM_INLINE void choose_lossless_tx_size(const AV1_COMP *const cpi,
       x->mode_costs.lossless_tx_size_cost[bsize_group][is_inter];
 
   if (allow_large_tx) {
-    if (rate_tx_4x4 != INT_MAX && rate_tx_large != INT_MAX) {
+    const bool both_rates_valid =
+        (rate_tx_4x4 != INT_MAX) && (rate_tx_large != INT_MAX);
+    if (both_rates_valid) {
       // Add signaling costs for comparison if both modes are valid
       rate_tx_4x4 += tx_size_costs[0];
       rate_tx_large += tx_size_costs[1];
     }
     if (rate_tx_large == INT_MAX ||
-        (rate_tx_4x4 != INT_MAX && rate_tx_large != INT_MAX &&
-         (rate_tx_4x4 < rate_tx_large))) {
+        (both_rates_valid && (rate_tx_4x4 < rate_tx_large))) {
       // TX_4X4 has lower rate or is the only valid option
       if (rd_stats->rate != INT_MAX) rd_stats->rate += tx_size_costs[0];
     } else {
