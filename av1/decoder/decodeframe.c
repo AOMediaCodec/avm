@@ -9579,6 +9579,10 @@ int32_t av1_read_tilegroup_header(
   }
 
   if (is_first_tile_group) {
+#if CONFIG_BITSTREAM_DEBUG
+    aom_bitstream_queue_set_frame_read(cm->current_frame.order_hint * 2 +
+                                       cm->show_frame);
+#endif
     if (!cm->tiles.single_tile_decoding &&
         (pbi->dec_tile_row >= 0 || pbi->dec_tile_col >= 0)) {
       pbi->dec_tile_row = -1;
@@ -9611,6 +9615,9 @@ int32_t av1_read_tilegroup_header(
           aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                              "Uninitialized entropy context.");
       }
+#if CONFIG_COLLECT_COMPONENT_TIMING
+      end_timing(pbi, av1_read_tilegroup_header);
+#endif
       return uncomp_hdr_size;
     }
 
@@ -9665,6 +9672,9 @@ int32_t av1_read_tilegroup_header(
         avg_primary_secondary_references(cm, ref_frame_used, map_idx);
       }
       *p_data_end = data + uncomp_hdr_size;
+#if CONFIG_COLLECT_COMPONENT_TIMING
+      end_timing(pbi, av1_read_tilegroup_header);
+#endif
       return uncomp_hdr_size;
     }
 #endif  // CONFIG_BRU
@@ -9677,6 +9687,9 @@ int32_t av1_read_tilegroup_header(
 #endif  // CONFIG_F106_OBU_TIP
     {
       *p_data_end = data + uncomp_hdr_size;
+#if CONFIG_COLLECT_COMPONENT_TIMING
+      end_timing(pbi, av1_read_tilegroup_header);
+#endif
       return uncomp_hdr_size;
     }
 
@@ -9717,7 +9730,9 @@ int32_t av1_read_tilegroup_header(
 #endif  // CONFIG_BRU
   if (tile_indices_present_flag)
     read_tile_indices_in_tilegroup(pbi, rb, start_tile, end_tile);
-
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  end_timing(pbi, av1_read_tilegroup_header);
+#endif
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }
 #else  // CONFIG_F106_OBU_TILEGROUP
