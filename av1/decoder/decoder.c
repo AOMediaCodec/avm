@@ -682,7 +682,7 @@ void output_trailing_frames(AV1Decoder *pbi) {
       output_candidate = trigger_frame;
       for (int i = 0; i < REF_FRAMES; i++) {
         if (is_frame_eligible_for_output(cm->ref_frame_map[i]) &&
-            cm->ref_frame_map[i]->display_order_hint <
+            cm->ref_frame_map[i]->display_order_hint <=
                 output_candidate->display_order_hint) {
           output_candidate = cm->ref_frame_map[i];
         }
@@ -711,7 +711,8 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
 
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
     if (cm->current_frame.frame_type == KEY_FRAME && cm->show_frame &&
-        cm->current_frame.refresh_frame_flags == ((1 << cm->seq_params.ref_frames) - 1))
+        cm->current_frame.refresh_frame_flags ==
+            ((1 << cm->seq_params.ref_frames) - 1))
       output_trailing_frames(pbi);
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
 
