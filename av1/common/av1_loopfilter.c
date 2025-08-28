@@ -300,9 +300,6 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
         if (segfeature_active(seg, seg_id, seg_lf_feature_id)) {
           // TODO(Andrey): add separate offsets to segments for q and side
           // thresholds // add clamp
-#if !CONFIG_DF_DQP
-          break;
-#endif  // !CONFIG_DF_DQP
           const int data = get_segdata(&cm->seg, seg_id, seg_lf_feature_id);
           q_ind_seg += data;
           side_ind_seg += data;
