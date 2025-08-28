@@ -7769,9 +7769,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   } else {
 #if CONFIG_F106_OBU_SEF
     pbi->reset_decoder_state = 0;
-    if (obu_type == OBU_SEF)
-      read_show_existing_frame(pbi, rb);
-    else
+    if (obu_type == OBU_SEF) {
+      return read_show_existing_frame(pbi, rb);
+    } else
       cm->show_existing_frame = 0;
 #else
     cm->show_existing_frame = aom_rb_read_bit(rb);

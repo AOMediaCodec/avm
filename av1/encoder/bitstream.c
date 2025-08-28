@@ -6177,7 +6177,10 @@ static AOM_INLINE void write_uncompressed_header_obu
   }
   if (!seq_params->reduced_still_picture_hdr) {
 #if CONFIG_F106_OBU_SEF
-    if (obu_type == OBU_SEF) write_show_exisiting_frame(cpi, wb);
+    if (obu_type == OBU_SEF) {
+      write_show_exisiting_frame(cpi, wb);
+      return;
+    }
 #else
     if (encode_show_existing_frame(cm)) {
       aom_wb_write_bit(wb, 1);  // show_existing_frame
