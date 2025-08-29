@@ -808,6 +808,9 @@ void inv_txfm_c(const tran_low_t *input, uint16_t *dest, int stride,
   const int log2height = tx_size_high_log2[tx_size];
   const int sqrt2 = ((log2width + log2height) & 1) ? 1 : 0;
 
+  // This assert is required to silence the static analyzer warnings.
+  assert(width * height > 0);
+
   if (sqrt2) {
     for (int i = 0; i < AOMMIN(1024, width * height); i++) {
       tmp[i] = round_shift((int64_t)input[i] * NewInvSqrt2, NewSqrt2Bits);

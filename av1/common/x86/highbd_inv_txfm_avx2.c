@@ -5017,6 +5017,9 @@ void inv_txfm_avx2(const tran_low_t *input, uint16_t *dest, int stride,
   const int log2height = tx_size_high_log2[tx_size];
   const int sqrt2 = ((log2width + log2height) & 1) ? 1 : 0;
 
+  // This assert is required to silence the static analyzer warnings.
+  assert(width * height > 0);
+
   // Load clamp boundaries into SIMD registers
   __m256i vcoefmin = _mm256_set1_epi32(-(1 << (txfm_param->bd + 7)));
   __m256i vcoefmax = _mm256_set1_epi32((1 << (txfm_param->bd + 7)) - 1);
