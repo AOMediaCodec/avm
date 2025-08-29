@@ -65,4 +65,9 @@ macro(fix_experiment_configs)
                            CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES)
   endif()
 
+  if(CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES)
+    change_config_and_warn(CONFIG_MINIMUM_LR_UNIT_SIZE_64x64 1
+                           CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES)
+  endif()
+
 endmacro()

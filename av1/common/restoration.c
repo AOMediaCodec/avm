@@ -476,6 +476,48 @@ void av1_free_restoration_struct(RestorationInfo *rst_info) {
 }
 
 // set up the Minimum and maximum RU size for enacoder search
+
+#if CONFIG_MINIMUM_LR_UNIT_SIZE_64x64
+// minimum RU size is equal to RESTORATION_UNITSIZE_MAX >> 3,
+// maximum RU size is equal to RESTORATION_UNITSIZE_MAX
+// The setting here is only for encoder search.
+void set_restoration_unit_size(
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+    struct AV1Common *cm,
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+    int width, int height, int sx, int sy, RestorationInfo *rst) {
+  int s = AOMMAX(sx, sy);
+
+  rst[0].max_restoration_unit_size = RESTORATION_UNITSIZE_MAX >> 0;
+  rst[0].min_restoration_unit_size = RESTORATION_UNITSIZE_MAX >> 3;
+
+  // For large resolution, the minimum RU size is set to
+  // RESTORATION_UNITSIZE_MAX >> 1 to reduce the encode complexity.
+  // This special setting is only for encoder
+  if (width * height > 1920 * 1080 * 2)
+    rst[0].min_restoration_unit_size = RESTORATION_UNITSIZE_MAX >> 2;
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  // impose the bitstream constraint: RU size shall be an integer divisor of any
+  // tile width or height when disable-loopfilters-across-tiles=1.
+  for (int tile_row = 0; tile_row < cm->tiles.rows - 1; tile_row++) {
+    for (int tile_col = 0; tile_col < cm->tiles.cols - 1; tile_col++) {
+      int tile_w = (cm->tiles.col_start_sb[tile_col + 1] -
+                    cm->tiles.col_start_sb[tile_col])
+                   << (cm->mib_size_log2 + MI_SIZE_LOG2);
+      int tile_h = (cm->tiles.row_start_sb[tile_row + 1] -
+                    cm->tiles.row_start_sb[tile_row])
+                   << (cm->mib_size_log2 + MI_SIZE_LOG2);
+
+      while (tile_w % rst[0].max_restoration_unit_size ||
+             tile_h % rst[0].max_restoration_unit_size) {
+        rst[0].max_restoration_unit_size >>= 1;
+      }
+      if (rst[0].min_restoration_unit_size > rst[0].max_restoration_unit_size)
+        rst[0].min_restoration_unit_size = rst[0].max_restoration_unit_size;
+    }
+  }
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+#else
 // As normative regulation:
 // minimum RU size is equal to RESTORATION_UNITSIZE_MAX >> 2,
 // maximum RU size is equal to RESTORATION_UNITSIZE_MAX
@@ -495,6 +537,7 @@ void set_restoration_unit_size(
   // This special setting is only for encoder
   if (width * height > 1920 * 1080 * 2)
     rst[0].min_restoration_unit_size = RESTORATION_UNITSIZE_MAX >> 1;
+#endif  // CONFIG_MINIMUM_LR_UNIT_SIZE_64x64
 
 #if CONFIG_RU_SIZE_RESTRICTION
   if (rst[0].min_restoration_unit_size < cm->mib_size * 4)

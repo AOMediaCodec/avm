@@ -749,9 +749,11 @@ void copy_tile(int width, int height, const uint16_t *src, int src_stride,
                uint16_t *dst, int dst_stride);
 
 void set_restoration_unit_size(
-#if CONFIG_RU_SIZE_RESTRICTION
+#if CONFIG_RU_SIZE_RESTRICTION || (CONFIG_MINIMUM_LR_UNIT_SIZE_64x64 && \
+                                   CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES)
     struct AV1Common *cm,
-#endif  // CONFIG_RU_SIZE_RESTRICTION
+#endif  // CONFIG_RU_SIZE_RESTRICTION || (CONFIG_MINIMUM_LR_UNIT_SIZE_64x64 &&
+        // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES)
     int width, int height, int sx, int sy, RestorationInfo *rst);
 
 static INLINE int to_readwrite_framefilters(const RestorationInfo *rsi,

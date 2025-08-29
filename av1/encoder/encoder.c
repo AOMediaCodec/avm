@@ -2401,9 +2401,11 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
   const int frame_width = cm->width;
   const int frame_height = cm->height;
   set_restoration_unit_size(
-#if CONFIG_RU_SIZE_RESTRICTION
+#if CONFIG_RU_SIZE_RESTRICTION || (CONFIG_MINIMUM_LR_UNIT_SIZE_64x64 && \
+                                   CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES)
       cm,
-#endif  // CONFIG_RU_SIZE_RESTRICTION
+#endif  // CONFIG_RU_SIZE_RESTRICTION || (CONFIG_MINIMUM_LR_UNIT_SIZE_64x64 &&
+        // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES)
       frame_width, frame_height, seq_params->subsampling_x,
       seq_params->subsampling_y, cm->rst_info);
   for (int i = 0; i < num_planes; ++i)
