@@ -2790,6 +2790,84 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
     }
     assert(IMPLIES(!rsi->frame_filters_on, !rsi->temporal_pred_flag));
   }
+#if CONFIG_MINIMUM_LR_UNIT_SIZE_64x64
+  int s = AOMMAX(cm->seq_params.subsampling_x, cm->seq_params.subsampling_y);
+
+  cm->rst_info[0].restoration_unit_size = RESTORATION_UNITSIZE_MAX >> 3;
+  cm->rst_info[1].restoration_unit_size = RESTORATION_UNITSIZE_MAX >> (3 + s);
+  cm->rst_info[2].restoration_unit_size = cm->rst_info[1].restoration_unit_size;
+
+#if CONFIG_BRU
+  if (cm->bru.frame_inactive_flag) {
+    if (num_planes > 1) {
+      cm->rst_info[1].restoration_unit_size =
+          RESTORATION_UNITSIZE_MAX >> (3 + s);
+      cm->rst_info[2].restoration_unit_size =
+          cm->rst_info[1].restoration_unit_size;
+    }
+    return;
+  }
+#endif  // CONFIG_BRU
+  if (!luma_none) {
+    int size = RESTORATION_UNITSIZE_MAX;
+    if (aom_rb_read_bit(rb))
+      cm->rst_info[0].restoration_unit_size = size >> 1;
+    else {
+      if (aom_rb_read_bit(rb))
+        cm->rst_info[0].restoration_unit_size = size;
+      else {
+        if (aom_rb_read_bit(rb))
+          cm->rst_info[0].restoration_unit_size = size >> 2;
+        else
+          cm->rst_info[0].restoration_unit_size = size >> 3;
+      }
+    }
+  }
+  if (num_planes > 1) {
+    if (!chroma_none) {
+      int size = RESTORATION_UNITSIZE_MAX >> s;
+      if (aom_rb_read_bit(rb))
+        cm->rst_info[1].restoration_unit_size = size >> 1;
+      else {
+        if (aom_rb_read_bit(rb))
+          cm->rst_info[1].restoration_unit_size = size;
+        else {
+          if (aom_rb_read_bit(rb))
+            cm->rst_info[1].restoration_unit_size = size >> 2;
+          else
+            cm->rst_info[1].restoration_unit_size = size >> 3;
+        }
+      }
+    }
+    cm->rst_info[2].restoration_unit_size =
+        cm->rst_info[1].restoration_unit_size;
+  }
+
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  // add the normative restriction of ru size when
+  // disable_loopfilters_across_tiles == 1
+  int max_plane_ru_size = AOMMAX(cm->rst_info[0].restoration_unit_size,
+                                 cm->rst_info[1].restoration_unit_size << s);
+  for (int tile_row = 0; tile_row < cm->tiles.rows - 1; tile_row++) {
+    for (int tile_col = 0; tile_col < cm->tiles.cols - 1; tile_col++) {
+      int tile_w = (cm->tiles.col_start_sb[tile_col + 1] -
+                    cm->tiles.col_start_sb[tile_col])
+                   << (cm->mib_size_log2 + MI_SIZE_LOG2);
+      int tile_h = (cm->tiles.row_start_sb[tile_row + 1] -
+                    cm->tiles.row_start_sb[tile_row])
+                   << (cm->mib_size_log2 + MI_SIZE_LOG2);
+
+      if (tile_w % max_plane_ru_size || tile_h % max_plane_ru_size) {
+        aom_internal_error(
+            &cm->error, AOM_CODEC_ERROR,
+            "Invalid RU size, RU size shall be an integer divisor of any tile "
+            "width or height when disable-loopfilters-across-tiles=1.");
+        return;
+      }
+    }
+  }
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+#else
   const int frame_width = cm->width;
   const int frame_height = cm->height;
   set_restoration_unit_size(frame_width, frame_height,
@@ -2837,6 +2915,7 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
     cm->rst_info[2].restoration_unit_size =
         cm->rst_info[1].restoration_unit_size;
   }
+#endif  // CONFIG_MINIMUM_LR_UNIT_SIZE_64x64
 #if CONFIG_LR_FRAMEFILTERS_IN_HEADER
   for (int p = 0; p < num_planes; ++p) {
     if (is_frame_filters_enabled(p) &&
