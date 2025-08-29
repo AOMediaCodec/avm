@@ -8138,33 +8138,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     }
   }
 
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
-  if (
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-      seq_params->enable_frame_output_order &&
-#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
-      current_frame->frame_type != KEY_FRAME) {
-    for (int i = 0; i < seq_params->ref_frames; i++) {
-      if (is_frame_eligible_for_output(cm->ref_frame_map[i]) &&
-          ((current_frame->display_order_hint ==
-            cm->ref_frame_map[i]->display_order_hint)
-#if CONFIG_MULTILAYER_CORE
-           && (cm->mlayer_id == cm->ref_frame_map[i]->layer_id)
-#endif  // CONFIG_MULTILAYER_CORE
-               )) {
-        aom_internal_error(
-            &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-            "If frame_type is not equal to KEY_FRAME and "
-            "is_frame_eligible_for_output(i) is equal to 1 and obu_mlayer_id "
-            "is equal to RefMLayerId[i], it is a requirement of bitstream "
-            "conformance that the value returned from get_disp_order_hint is "
-            "not equal to RefOrderHint[ i ] for any i in the range "
-            "0..NumRefFrames-1.");
-      }
-    }
-  }
-#endif
-
 #if CONFIG_LF_SUB_PU
   features->allow_lf_sub_pu = 0;
 #endif  // CONFIG_LF_SUB_PU
