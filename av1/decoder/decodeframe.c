@@ -6697,7 +6697,7 @@ static AOM_INLINE void decode_qm_data(
           continue;
         }
       }
-      bool qm_8x8_is_symmetric;
+      bool qm_8x8_is_symmetric = false;
       if (tsize == TX_8X8) {
         qm_8x8_is_symmetric = aom_rb_read_bit(rb);
       } else if (tsize == TX_4X8) {

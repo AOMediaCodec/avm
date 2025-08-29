@@ -1434,8 +1434,8 @@ static int compute_wienerns_filter_select_sym(
           nsfilter_params->nsfilter_config.asymmetric2 ==
       0)
     return 0;
-  double sym_A[WIENERNS_A_SIZE];
-  double sym_b[WIENERNS_b_SIZE];
+  double sym_A[WIENERNS_A_SIZE] = { 0 };
+  double sym_b[WIENERNS_b_SIZE] = { 0 };
   int stridep = n;
   int ip = 0;
   for (int i = 0; i < n; ++i) {
@@ -1537,8 +1537,8 @@ static int compute_wienerns_filter_select(
     int n, const int *select, const double *A, int stride, const double *b,
     double *tmpbuf, int16_t *nsfilter,
     const WienernsFilterParameters *nsfilter_params) {
-  double sel_A[WIENERNS_A_SIZE];
-  double sel_b[WIENERNS_b_SIZE];
+  double sel_A[WIENERNS_A_SIZE] = { 0 };
+  double sel_b[WIENERNS_b_SIZE] = { 0 };
   int stridep = n;
   int ip = 0;
   for (int i = 0; i < n; ++i) {
@@ -1600,8 +1600,8 @@ static int compute_wienerns_filter_sym(
           nsfilter_params->nsfilter_config.asymmetric2 ==
       0)
     return 0;
-  double sym_A[WIENERNS_A_SIZE];
-  double sym_b[WIENERNS_b_SIZE];
+  double sym_A[WIENERNS_A_SIZE] = { 0 };
+  double sym_b[WIENERNS_b_SIZE] = { 0 };
   int stridep = n;
   int ip = 0;
   for (int i = 0; i < n; ++i) {
