@@ -7585,7 +7585,7 @@ static void read_frame_max_bvp_drl_bits(AV1_COMMON *const cm,
 #endif  // CONFIG_SEQ_MAX_DRL_BITS
 }
 
-#if CONFIG_F106_OBU_SEF
+#if CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_SEF
 static int read_show_existing_frame(AV1Decoder *pbi,
                                     struct aom_read_bit_buffer *rb) {
   AV1_COMMON *const cm = &pbi->common;
@@ -7700,14 +7700,16 @@ static int read_show_existing_frame(AV1Decoder *pbi,
 
   return 0;
 }
-#endif  // CONFIG_F106_OBU_SEF
+#endif  // CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_SEF
 
 // On success, returns 0. On failure, calls aom_internal_error and does not
 // return.
 static int read_uncompressed_header(AV1Decoder *pbi,
-#if CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
+#if CONFIG_F106_OBU_TILEGROUP && \
+    (CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP)
                                     OBU_TYPE obu_type,
-#endif  // CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_TILEGROUP && (CONFIG_F106_OBU_SWITCH ||
+        // CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP)
                                     struct aom_read_bit_buffer *rb) {
   AV1_COMMON *const cm = &pbi->common;
   const SequenceHeader *const seq_params = &cm->seq_params;
@@ -7767,13 +7769,13 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
 
   } else {
-#if CONFIG_F106_OBU_SEF
+#if CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_SEF
     pbi->reset_decoder_state = 0;
     if (obu_type == OBU_SEF) {
       return read_show_existing_frame(pbi, rb);
     } else
       cm->show_existing_frame = 0;
-#else
+#else  // CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_SEF
     cm->show_existing_frame = aom_rb_read_bit(rb);
     pbi->reset_decoder_state = 0;
 
@@ -7885,7 +7887,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
           return 0;
       }
-#endif  // CONFIG_F106_OBU_SEF
+#endif  // CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_SEF
+#if CONFIG_F106_OBU_TILEGROUP
 #if CONFIG_F106_OBU_SWITCH
     if (obu_type == OBU_SWITCH) {
       current_frame->frame_type = S_FRAME;
@@ -7896,6 +7899,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       current_frame->frame_type = INTER_FRAME;
     } else
 #endif  // CONFIG_F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_TILEGROUP
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
         if (aom_rb_read_bit(rb)) {
       current_frame->frame_type = INTER_FRAME;
@@ -7903,12 +7907,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       if (aom_rb_read_bit(rb)) {
         current_frame->frame_type = KEY_FRAME;
       } else {
-#if CONFIG_F106_OBU_SWITCH
+#if CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_SWITCH
         current_frame->frame_type = INTRA_ONLY_FRAME;
 #else
         current_frame->frame_type =
             aom_rb_read_bit(rb) ? INTRA_ONLY_FRAME : S_FRAME;
-#endif  // CONFIG_F106_OBU_SWITCH
+#endif  // CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_SWITCH
       }
     }
 #else
@@ -8491,7 +8495,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       }
 #endif  // CONFIG_ACROSS_SCALE_REF_OPT
 #if CONFIG_BRU
-#if CONFIG_F106_OBU_TIP
+#if CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_TIP
       if (obu_type != OBU_TIP && current_frame->frame_type == INTER_FRAME)
 #else
       if (current_frame->frame_type == INTER_FRAME)
@@ -8718,7 +8722,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // CONFIG_BRU
       ) {
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
-#if CONFIG_F106_OBU_TIP
+#if CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_TIP
         if (obu_type == OBU_TIP) {
           features->tip_frame_mode = TIP_FRAME_AS_OUTPUT;
         }
@@ -8726,13 +8730,13 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         if (cm->seq_params.enable_tip == 1 && aom_rb_read_bit(rb)) {
           features->tip_frame_mode = TIP_FRAME_AS_OUTPUT;
         }
-#endif  // CONFIG_F106_OBU_TIP
+#endif  // CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_TIP
         else {
           features->tip_frame_mode =
               aom_rb_read_bit(rb) ? TIP_FRAME_AS_REF : TIP_FRAME_DISABLED;
         }
 #else
-#if CONFIG_F106_OBU_TIP
+#if CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_TIP
           if (obu_type == OBU_TIP) {
             features->tip_frame_mode = TIP_FRAME_AS_OUTPUT;
           } else {
@@ -8740,7 +8744,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           }
 #else
         features->tip_frame_mode = aom_rb_read_literal(rb, 2);
-#endif
+#endif  // CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_TIP
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
 #if !CONFIG_TIP_LD
         features->use_optflow_tip = 1;
@@ -9746,14 +9750,7 @@ int32_t av1_read_tilegroup_header(
 #else  // CONFIG_F106_OBU_TILEGROUP
   uint32_t av1_decode_frame_headers_and_setup(
       AV1Decoder * pbi, struct aom_read_bit_buffer * rb, const uint8_t *data,
-      const uint8_t **p_data_end,
-#if CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
-      OBU_TYPE obu_type
-#else
-    int trailing_bits_present
-#endif  // CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
-  ) {
-
+      const uint8_t **p_data_end, int trailing_bits_present) {
 #if CONFIG_COLLECT_COMPONENT_TIMING
     start_timing(pbi, av1_decode_frame_headers_and_setup_time);
 #endif
@@ -9761,18 +9758,7 @@ int32_t av1_read_tilegroup_header(
     AV1_COMMON *const cm = &pbi->common;
     const int num_planes = av1_num_planes(cm);
     MACROBLOCKD *const xd = &pbi->dcb.xd;
-#if CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
-    int trailing_bits_present = (obu_type != OBU_FRAME);
-#if CONFIG_F106_OBU_SWITCH
-    trailing_bits_present &= (obu_type != OBU_SWITCH);
-#endif  // CONFIG_F106_OBU_SWITCH
-#if CONFIG_F106_OBU_TIP
-    trailing_bits_present &= (obu_type != OBU_TIP);
-#endif  // CONFIG_F106_OBU_TIP
-#if CONFIG_F106_OBU_SEF
-    trailing_bits_present &= (obu_type != OBU_SEF);
-#endif  // CONFIG_F106_OBU_SEF
-#endif  // CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
+
 #if CONFIG_MISMATCH_DEBUG
     mismatch_move_frame_idx_r(1);
 #endif  // CONFIG_MISMATCH_DEBUG
@@ -9788,11 +9774,7 @@ int32_t av1_read_tilegroup_header(
 
     xd->global_motion = cm->global_motion;
 
-#if CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
-    read_uncompressed_header(pbi, obu_type, rb);
-#else
-  read_uncompressed_header(pbi, rb);
-#endif  // CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
+    read_uncompressed_header(pbi, rb);
 
 #if CONFIG_BITSTREAM_DEBUG
     aom_bitstream_queue_set_frame_read(cm->current_frame.order_hint * 2 +

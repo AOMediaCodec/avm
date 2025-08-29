@@ -157,6 +157,7 @@ const char *aom_obu_type_to_string(OBU_TYPE type) {
   switch (type) {
     case OBU_SEQUENCE_HEADER: return "OBU_SEQUENCE_HEADER";
     case OBU_TEMPORAL_DELIMITER: return "OBU_TEMPORAL_DELIMITER";
+#if CONFIG_F106_OBU_TILEGROUP
 #if CONFIG_F106_OBU_SWITCH
     case OBU_SWITCH: return "OBU_SWITCH";
 #endif  // CONFIG_F106_OBU_SWITCH
@@ -166,7 +167,6 @@ const char *aom_obu_type_to_string(OBU_TYPE type) {
 #if CONFIG_F106_OBU_TIP
     case OBU_TIP: return "OBU_TIP";
 #endif  // CONFIG_F106_OBU_TIP
-#if CONFIG_F106_OBU_TILEGROUP
     case OBU_TILE_GROUP: return "OBU_TILE_GROUP";
 #else
     case OBU_FRAME_HEADER: return "OBU_FRAME_HEADER";

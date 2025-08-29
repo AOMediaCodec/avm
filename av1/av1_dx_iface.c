@@ -491,10 +491,10 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
           aom_rb_read_bit(&rb);  // send_uncompressed_header_flag
         }
 #endif  // CONFIG_F106_OBU_TILEGROUP
-#if !CONFIG_F106_OBU_SEF
+#if !CONFIG_F106_OBU_TILEGROUP || !CONFIG_F106_OBU_SEF
         const int show_existing_frame = aom_rb_read_bit(&rb);
         if (!show_existing_frame) {
-#endif  // !CONFIG_F106_OBU_SEF
+#endif  // !CONFIG_F106_OBU_TILEGROUP || !CONFIG_F106_OBU_SEF
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
           FRAME_TYPE frame_type = KEY_FRAME;
           if (aom_rb_read_bit(&rb)) {
@@ -503,11 +503,11 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
             if (aom_rb_read_bit(&rb)) {
               frame_type = KEY_FRAME;
             } else {
-#if CONFIG_F106_OBU_SWITCH
+#if CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_SWITCH
               frame_type = INTRA_ONLY_FRAME;
 #else
               frame_type = aom_rb_read_bit(&rb) ? INTRA_ONLY_FRAME : S_FRAME;
-#endif  // CONFIG_F106_OBU_SWITCH
+#endif  // CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_SWITCH
             }
           }
 #else
@@ -519,9 +519,9 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
           } else if (frame_type == INTRA_ONLY_FRAME) {
             intra_only_flag = 1;
           }
-#if !CONFIG_F106_OBU_SEF
+#if !CONFIG_F106_OBU_TILEGROUP || !CONFIG_F106_OBU_SEF
         }
-#endif  // !CONFIG_F106_OBU_SEF
+#endif  // !CONFIG_F106_OBU_TILEGROUP || !CONFIG_F106_OBU_SEF
       }
     }
     // skip past any unread OBU header data

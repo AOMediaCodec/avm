@@ -90,6 +90,7 @@ bool ValidObuType(int obu_type) {
   switch (obu_type) {
     case OBU_SEQUENCE_HEADER:
     case OBU_TEMPORAL_DELIMITER:
+#if CONFIG_F106_OBU_TILEGROUP
 #if CONFIG_F106_OBU_SWITCH
     case OBU_SWITCH:
 #endif  // CONFIG_F106_OBU_SWITCH
@@ -99,7 +100,6 @@ bool ValidObuType(int obu_type) {
 #if CONFIG_F106_OBU_TIP
     case OBU_TIP:
 #endif  // CONFIG_F106_OBU_TIP
-#if CONFIG_F106_OBU_TILEGROUP
     case OBU_TILE_GROUP:
 #else
     case OBU_FRAME_HEADER:
