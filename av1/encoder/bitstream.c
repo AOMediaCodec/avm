@@ -6205,8 +6205,7 @@ static AOM_INLINE void write_uncompressed_header_obu
       aom_wb_write_bit(wb, 0);  // show_existing_frame
     }
 #endif  // CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_SEF
-#if CONFIG_F106_OBU_TILEGROUP
-#if CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_TIP
+#if CONFIG_F106_OBU_TILEGROUP && (CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_TIP)
     bool frame_type_signaled = true;
 #if CONFIG_F106_OBU_SWITCH
     frame_type_signaled &= (obu_type != OBU_SWITCH);
@@ -6215,19 +6214,19 @@ static AOM_INLINE void write_uncompressed_header_obu
     frame_type_signaled &= (obu_type != OBU_TIP);
 #endif  // CONFIG_F106_OBU_TIP
     if (frame_type_signaled) {
-#endif  // CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_TIP
-#endif  // CONFIG_F106_OBU_TILEGROUP
+#endif  // CONFIG_F106_OBU_TILEGROUP && (CONFIG_F106_OBU_SWITCH ||
+        // CONFIG_F106_OBU_TIP)
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
       const int is_inter_frame = (current_frame->frame_type == INTER_FRAME);
       aom_wb_write_bit(wb, is_inter_frame);
       if (!is_inter_frame) {
         const int is_key_frame = (current_frame->frame_type == KEY_FRAME);
         aom_wb_write_bit(wb, is_key_frame);
-#if !CONFIG_F106_OBU_SWITCH
+#if !CONFIG_F106_OBU_TILEGROUP || !CONFIG_F106_OBU_SWITCH
         if (!is_key_frame) {
           aom_wb_write_bit(wb, current_frame->frame_type == INTRA_ONLY_FRAME);
         }
-#endif  // !CONFIG_F106_OBU_SWITCH
+#endif  // !CONFIG_F106_OBU_TILEGROUP || !CONFIG_F106_OBU_SWITCH
       }
 #else
     aom_wb_write_literal(wb, current_frame->frame_type, 2);
@@ -6360,13 +6359,13 @@ static AOM_INLINE void write_uncompressed_header_obu
 #if CONFIG_CWG_F260_REFRESH_FLAG
       }
 #else
-      if (refresh_idx == 0) {
-        aom_wb_write_literal(wb, 1, 1);
+        if (refresh_idx == 0) {
+          aom_wb_write_literal(wb, 1, 1);
+        }
+      } else {
+        aom_wb_write_literal(wb, 0, seq_params->ref_frames_log2);
+        aom_wb_write_literal(wb, 0, 1);
       }
-    } else {
-      aom_wb_write_literal(wb, 0, seq_params->ref_frames_log2);
-      aom_wb_write_literal(wb, 0, 1);
-    }
 #endif  // CONFIG_CWG_F260_REFRESH_FLAG
     } else {
       aom_wb_write_literal(wb, current_frame->refresh_frame_flags,
@@ -6496,7 +6495,7 @@ static AOM_INLINE void write_uncompressed_header_obu
 #if CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_TIP
       if (obu_type != OBU_TIP && current_frame->frame_type == INTER_FRAME)
 #else
-    if (current_frame->frame_type == INTER_FRAME)
+      if (current_frame->frame_type == INTER_FRAME)
 #endif  // CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_TIP
       {
         encode_bru_active_info(cpi, wb);
@@ -6577,10 +6576,10 @@ static AOM_INLINE void write_uncompressed_header_obu
 #if CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_TIP
           if (obu_type != OBU_TIP)
 #else
-        const int is_tip_direct_output =
-            (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT);
-        aom_wb_write_bit(wb, is_tip_direct_output);
-        if (!is_tip_direct_output)
+          const int is_tip_direct_output =
+              (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT);
+          aom_wb_write_bit(wb, is_tip_direct_output);
+          if (!is_tip_direct_output)
 #endif  // CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_TIP
           {
             aom_wb_write_bit(wb, features->tip_frame_mode == TIP_FRAME_AS_REF);
@@ -7080,16 +7079,14 @@ uint32_t av1_write_obu_header(AV1LevelParams *const level_params,
 #if CONFIG_F106_OBU_TIP
   count_header |= (obu_type == OBU_TIP);
 #endif  // CONFIG_F106_OBU_TIP
-#endif  // !CONFIG_F106_OBU_TILEGROUP
+#endif  // CONFIG_F106_OBU_TILEGROUP
 
   if (level_params->keep_level_stats &&
-#if CONFIG_F106_OBU_TILEGROUP && \
-    (CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP)
+#if CONFIG_F106_OBU_TILEGROUP
       count_header
 #else
       (obu_type == OBU_FRAME || obu_type == OBU_FRAME_HEADER)
-#endif  // CONFIG_F106_OBU_TILEGROUP && (CONFIG_F106_OBU_SWITCH ||
-        // CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP)
+#endif  // CONFIG_F106_OBU_TILEGROUP
   )
     ++level_params->frame_header_count;
 

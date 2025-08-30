@@ -9533,6 +9533,10 @@ int32_t av1_read_tilegroup_header(
     AV1Decoder *pbi, struct aom_read_bit_buffer *rb, const uint8_t *data,
     const uint8_t **p_data_end, int *first_tile_group_in_frame, int *start_tile,
     int *end_tile, OBU_TYPE obu_type) {
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  start_timing(pbi, av1_read_tilegroup_header);
+#endif
+
   uint32_t saved_bit_offset = rb->bit_offset;
 
   AV1_COMMON *const cm = &pbi->common;

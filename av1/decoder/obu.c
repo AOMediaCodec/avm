@@ -1135,16 +1135,6 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
           break;
         }
 #endif  // CONFIG_BRU
-        // In large scale tile coding, decode the common camera frame header
-        // before any tile list OBU.
-        if (!pbi->ext_tile_debug && pbi->camera_frame_header_ready) {
-          frame_decoding_finished = 1;
-          // Skip the rest of the frame data.
-          decoded_payload_size = payload_size;
-          // Update data_end.
-          *p_data_end = data_end;
-          break;
-        }
 
         if (obu_header.type != OBU_FRAME) break;
         obu_payload_offset = frame_header_size;
