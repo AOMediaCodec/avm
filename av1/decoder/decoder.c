@@ -575,6 +575,15 @@ static void release_current_frame(AV1Decoder *pbi) {
   cm->cur_frame = NULL;
 }
 
+#if CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
+unsigned int derive_output_order_idx(int display_order, int max_mlayer_id,
+                                     int mlayer_id) {
+  assert(max_mlayer_id >= 0);
+  assert((mlayer_id >= 0) && (mlayer_id <= max_mlayer_id));
+  return ((max_mlayer_id + 1) * display_order) + mlayer_id;
+}
+#endif  // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
+
 // This function outputs frames that are ready to be output.
 // The output frames may be the output trigger frame along with
 // past frames that have not yet been output,
@@ -598,8 +607,17 @@ void output_frame_buffers(AV1Decoder *pbi, int ref_idx) {
     output_candidate = trigger_frame;
     for (int i = 0; i < cm->seq_params.ref_frames; i++) {
       if (is_frame_eligible_for_output(cm->ref_frame_map[i]) &&
+#if CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
+          derive_output_order_idx(cm->ref_frame_map[i]->display_order_hint,
+                                  cm->seq_params.max_mlayer_id,
+                                  cm->ref_frame_map[i]->layer_id) <
+              derive_output_order_idx(output_candidate->display_order_hint,
+                                      cm->seq_params.max_mlayer_id,
+                                      output_candidate->layer_id)) {
+#else   // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
           cm->ref_frame_map[i]->display_order_hint <
               output_candidate->display_order_hint) {
+#endif  // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
         output_candidate = cm->ref_frame_map[i];
       }
     }
@@ -631,21 +649,37 @@ void output_frame_buffers(AV1Decoder *pbi, int ref_idx) {
     mismatch_move_frame_idx_r(0);
 #endif  // CONFIG_MISMATCH_DEBUG
 
-  // Add the next frames (showable_frame == 1) into the output queue.
+    // Add the next frames (showable_frame == 1) into the output queue.
+#if CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
+  unsigned int trigger_frame_output_order = derive_output_order_idx(
+      trigger_frame->display_order_hint, cm->seq_params.max_mlayer_id,
+      trigger_frame->layer_id);
+#endif  // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
   int successive_output = 1;
   for (int k = 1; k <= cm->seq_params.ref_frames && successive_output > 0;
        k++) {
+#if CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
+    unsigned int next_frame_output_order = trigger_frame_output_order + k;
+#else   // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
     unsigned int next_disp_order = trigger_frame->display_order_hint + k;
+#endif  // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
     successive_output = 0;
     for (int i = 0; i < cm->seq_params.ref_frames; i++) {
       if (is_frame_eligible_for_output(cm->ref_frame_map[i]) &&
+#if CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
+          derive_output_order_idx(cm->ref_frame_map[i]->display_order_hint,
+                                  cm->seq_params.max_mlayer_id,
+                                  cm->ref_frame_map[i]->layer_id) ==
+              next_frame_output_order) {
+#else   // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
           cm->ref_frame_map[i]->display_order_hint == next_disp_order) {
+#endif  // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYE
         assign_output_frame_buffer_p(
             &pbi->output_frames[pbi->num_output_frames++],
             cm->ref_frame_map[i]);
         cm->ref_frame_map[i]->frame_output_done = 1;
         successive_output++;
-#if CONFIG_BITSTREAM_DEBUG
+#if CONFIG_BITSTREAM_DEBUG && !CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
         aom_bitstream_queue_set_frame_read(next_disp_order * 2 + 1);
 #endif  // CONFIG_BITSTREAM_DEBUG
 #if CONFIG_MISMATCH_DEBUG

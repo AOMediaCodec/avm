@@ -211,7 +211,8 @@ set_aom_config_var(
   "Reduce the number of neighbors used in warp extend mode to four")
 set_aom_config_var(CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT 1
                    "Enable enhanced frame output order derivation")
-
+set_aom_config_var(CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID 1
+                   "Enable frame output order derivation with layer ID")
 set_aom_config_var(CONFIG_IMPROVED_GLOBAL_MOTION 1
                    "New global motion syntax for AV2")
 
