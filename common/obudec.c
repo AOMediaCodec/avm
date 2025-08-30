@@ -21,6 +21,7 @@
 #include "aom_ports/mem_ops.h"
 #include "av1/common/common.h"
 #include "av1/common/obu_util.h"
+#include "av1/common/enums.h"
 
 #define OBU_BUFFER_SIZE (500 * 1024)
 
@@ -89,7 +90,7 @@ static int read_nbyte_from_file(FILE *f, size_t obu_header_size,
     obu_header->obu_xlayer_id = (buffer[1]) & 31;      // obu_layer (xlayer)
   } else {
     obu_header->obu_mlayer_id = 0;  // obu_layer (mlayer)
-    obu_header->obu_xlayer_id = 0;  // obu_layer (xlayer)
+    obu_header->obu_xlayer_id = MAX_NUM_XLAYERS - 1; // obu_layer (xlayer)
   }
 
   return 0;

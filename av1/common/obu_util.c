@@ -77,7 +77,7 @@ static aom_codec_err_t read_obu_header(struct aom_read_bit_buffer *rb,
     header->obu_xlayer_id = aom_rb_read_literal(rb, XLAYER_BITS);
   } else {
     header->obu_mlayer_id = 0;
-    header->obu_xlayer_id = 0;
+    header->obu_xlayer_id = MAX_NUM_XLAYERS - 1;
   }
 #else   // !CONFIG_NEW_OBU_HEADER
   if (bit_buffer_byte_length < 1) return AOM_CODEC_CORRUPT_FRAME;
