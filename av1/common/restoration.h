@@ -573,6 +573,8 @@ typedef struct FilterFrameCtxt {
   int data_stride, dst_stride;
   AV1PixelRect tile_rect;
   int plane;
+  int plane_width;
+  int plane_height;
   int base_qindex;
   const uint16_t *luma;
   int luma_stride;
@@ -590,6 +592,9 @@ typedef struct FilterFrameCtxt {
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
   const bool *lossless_segment;
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  int disable_loopfilters_across_tiles;
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 } FilterFrameCtxt;
 
 typedef struct AV1LrStruct {
@@ -645,6 +650,9 @@ void av1_loop_restoration_filter_unit(
     const RestorationStripeBoundaries *rsb, RestorationLineBuffers *rlbs,
     const AV1PixelRect *tile_rect, int tile_stripe0, int ss_x, int ss_y,
     int bit_depth, uint16_t *data, int stride, uint16_t *dst, int dst_stride,
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+    int plane_width, int disable_loopfilters_across_tiles,
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
     int optimized_lr);
 
 /*!\brief Function for applying loop restoration filter to a frame
