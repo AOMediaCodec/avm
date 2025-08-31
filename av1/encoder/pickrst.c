@@ -270,17 +270,12 @@ static AOM_INLINE void rsc_on_tile(void *priv, int idx_base, int tile_row,
   reset_all_banks(rsc);
   const int is_uv = rsc->plane != AOM_PLANE_Y;
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-  if (rsc->cm->seq_params.disable_loopfilters_across_tiles) {
-    TileInfo tile_info;
-    av1_tile_init(&tile_info, rsc->cm, tile_row, tile_col);
-    rsc->tile_rect = av1_get_tile_rect(&tile_info, rsc->cm, is_uv);
-    rsc->tile_stripe0 = get_top_stripe_idx_in_tile(tile_row, tile_col, rsc->cm,
-                                                   RESTORATION_PROC_UNIT_SIZE,
-                                                   RESTORATION_UNIT_OFFSET);
-  } else {
-    rsc->tile_rect = av1_whole_frame_rect(rsc->cm, is_uv);
-    rsc->tile_stripe0 = 0;
-  }
+  TileInfo tile_info;
+  av1_tile_init(&tile_info, rsc->cm, tile_row, tile_col);
+  rsc->tile_rect = av1_get_tile_rect(&tile_info, rsc->cm, is_uv);
+  rsc->tile_stripe0 = get_top_stripe_idx_in_tile(tile_row, tile_col, rsc->cm,
+                                                 RESTORATION_PROC_UNIT_SIZE,
+                                                 RESTORATION_UNIT_OFFSET);
 #else
   rsc->tile_rect = av1_whole_frame_rect(rsc->cm, is_uv);
   rsc->tile_stripe0 = 0;
@@ -371,6 +366,9 @@ static int64_t try_restoration_unit(const RestSearchCtxt *rsc,
       is_uv && cm->seq_params.subsampling_x,
       is_uv && cm->seq_params.subsampling_y, bit_depth, fts->buffers[plane],
       fts->strides[is_uv], rsc->dst->buffers[plane], rsc->dst->strides[is_uv],
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+      rsc->plane_width, cm->seq_params.disable_loopfilters_across_tiles,
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
       optimized_lr);
 
   if (rlbs != NULL) aom_free(rlbs);
@@ -3118,10 +3116,7 @@ static void process_one_rutile(RestSearchCtxt *rsc, int tile_row, int tile_col,
   assert(tile_info.mi_col_start < tile_info.mi_col_end);
   AV1PixelRect indep_tile_rect;
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-  if (rsc->cm->seq_params.disable_loopfilters_across_tiles)
-    indep_tile_rect = av1_get_tile_rect(&tile_info, rsc->cm, is_uv);
-  else
-    indep_tile_rect = av1_whole_frame_rect(rsc->cm, is_uv);
+  indep_tile_rect = av1_get_tile_rect(&tile_info, rsc->cm, is_uv);
 #else
   indep_tile_rect = av1_whole_frame_rect(rsc->cm, is_uv);
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
@@ -3989,37 +3984,26 @@ void av1_reset_restoration_struct(AV1_COMMON *cm, RestorationInfo *rsi,
   const int ss_y = is_uv && cm->seq_params.subsampling_y;
   AV1PixelRect tile_rect;
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-  if (cm->seq_params.disable_loopfilters_across_tiles) {
-    TileInfo tile_info;
-    rsi->vert_units_per_frame = 0;
-    rsi->vert_stripes_per_frame = 0;
-    for (int tr = 0; tr < cm->tiles.rows; ++tr) {
-      av1_tile_init(&tile_info, cm, tr, 0);
-      tile_rect = av1_get_tile_rect(&tile_info, cm, is_uv);
-      const int tile_h = tile_rect.bottom - tile_rect.top;
-      rsi->vert_units_per_tile[tr] =
-          av1_lr_count_units_in_tile(unit_size, tile_h);
-      rsi->vert_units_per_frame += rsi->vert_units_per_tile[tr];
-      rsi->vert_stripes_per_frame += av1_lr_count_stripes_in_tile(tile_h, ss_y);
-    }
-    rsi->horz_units_per_frame = 0;
-    for (int tc = 0; tc < cm->tiles.cols; ++tc) {
-      av1_tile_init(&tile_info, cm, 0, tc);
-      tile_rect = av1_get_tile_rect(&tile_info, cm, is_uv);
-      const int tile_w = tile_rect.right - tile_rect.left;
-      rsi->horz_units_per_tile[tc] =
-          av1_lr_count_units_in_tile(unit_size, tile_w);
-      rsi->horz_units_per_frame += rsi->horz_units_per_tile[tc];
-    }
-  } else {
-    tile_rect = av1_whole_frame_rect(cm, is_uv);
-    const int tile_w = tile_rect.right - tile_rect.left;
+  TileInfo tile_info;
+  rsi->vert_units_per_frame = 0;
+  rsi->vert_stripes_per_frame = 0;
+  for (int tr = 0; tr < cm->tiles.rows; ++tr) {
+    av1_tile_init(&tile_info, cm, tr, 0);
+    tile_rect = av1_get_tile_rect(&tile_info, cm, is_uv);
     const int tile_h = tile_rect.bottom - tile_rect.top;
-    rsi->vert_units_per_tile[0] = av1_lr_count_units_in_tile(unit_size, tile_h);
-    rsi->vert_units_per_frame = rsi->vert_units_per_tile[0];
-    rsi->horz_units_per_tile[0] = av1_lr_count_units_in_tile(unit_size, tile_w);
-    rsi->horz_units_per_frame = rsi->horz_units_per_tile[0];
-    rsi->vert_stripes_per_frame = av1_lr_count_stripes_in_tile(tile_h, ss_y);
+    rsi->vert_units_per_tile[tr] =
+        av1_lr_count_units_in_tile(unit_size, tile_h);
+    rsi->vert_units_per_frame += rsi->vert_units_per_tile[tr];
+    rsi->vert_stripes_per_frame += av1_lr_count_stripes_in_tile(tile_h, ss_y);
+  }
+  rsi->horz_units_per_frame = 0;
+  for (int tc = 0; tc < cm->tiles.cols; ++tc) {
+    av1_tile_init(&tile_info, cm, 0, tc);
+    tile_rect = av1_get_tile_rect(&tile_info, cm, is_uv);
+    const int tile_w = tile_rect.right - tile_rect.left;
+    rsi->horz_units_per_tile[tc] =
+        av1_lr_count_units_in_tile(unit_size, tile_w);
+    rsi->horz_units_per_frame += rsi->horz_units_per_tile[tc];
   }
 #else
   tile_rect = av1_whole_frame_rect(cm, is_uv);

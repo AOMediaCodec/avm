@@ -350,46 +350,41 @@ AV1PixelRect av1_get_rutile_rect(const AV1_COMMON *cm, int plane,
 
   const int runit_offset = RESTORATION_UNIT_OFFSET >> ss_y;
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-  if (cm->seq_params.disable_loopfilters_across_tiles) {
-    int ru_start_tile_row;
-    int ru_start_tile_col;
-    int tr =
-        get_tile_row_from_ru_row(cm, rsi, ru_start_row, &ru_start_tile_row);
-    int tc =
-        get_tile_col_from_ru_col(cm, rsi, ru_start_col, &ru_start_tile_col);
+  int ru_start_tile_row;
+  int ru_start_tile_col;
+  int tr = get_tile_row_from_ru_row(cm, rsi, ru_start_row, &ru_start_tile_row);
+  int tc = get_tile_col_from_ru_col(cm, rsi, ru_start_col, &ru_start_tile_col);
 
-    TileInfo tile_info;
-    av1_tile_init(&tile_info, cm, tr, tc);
-    AV1PixelRect tile_rect = av1_get_tile_rect(&tile_info, cm, plane > 0);
+  TileInfo tile_info;
+  av1_tile_init(&tile_info, cm, tr, tc);
+  AV1PixelRect tile_rect = av1_get_tile_rect(&tile_info, cm, plane > 0);
 
-    // start and end must belong to same tile
-    const int ru_start_row_rem = (ru_start_row - ru_start_tile_row);
-    const int ru_end_row_rem = (ru_end_row - ru_start_tile_row);
-    rect.top =
-        tile_rect.top + AOMMAX(ru_start_row_rem * ru_height - runit_offset, 0);
-    if (tr == cm->tiles.rows - 1 &&
-        ru_end_row_rem == rsi->vert_units_per_tile[tr])
-      rect.bottom = plane_height;
-    else if (ru_end_row_rem == rsi->vert_units_per_tile[tr])
-      rect.bottom = tile_rect.bottom;
-    else
-      rect.bottom =
-          tile_rect.top + AOMMAX(ru_end_row_rem * ru_height - runit_offset, 0);
+  // start and end must belong to same tile
+  const int ru_start_row_rem = (ru_start_row - ru_start_tile_row);
+  const int ru_end_row_rem = (ru_end_row - ru_start_tile_row);
+  rect.top =
+      tile_rect.top + AOMMAX(ru_start_row_rem * ru_height - runit_offset, 0);
+  if (tr == cm->tiles.rows - 1 &&
+      ru_end_row_rem == rsi->vert_units_per_tile[tr])
+    rect.bottom = plane_height;
+  else if (ru_end_row_rem == rsi->vert_units_per_tile[tr])
+    rect.bottom = tile_rect.bottom;
+  else
+    rect.bottom =
+        tile_rect.top + AOMMAX(ru_end_row_rem * ru_height - runit_offset, 0);
 
-    // start and end must belong to same tile
-    const int ru_start_col_rem = (ru_start_col - ru_start_tile_col);
-    const int ru_end_col_rem = (ru_end_col - ru_start_tile_col);
-    rect.left = tile_rect.left + ru_start_col_rem * ru_width;
-    if (tc == cm->tiles.cols - 1 &&
-        ru_end_col_rem == rsi->horz_units_per_tile[tc])
-      rect.right = plane_width;
-    else if (ru_end_col_rem == rsi->horz_units_per_tile[tc])
-      rect.right = tile_rect.right;
-    else
-      rect.right = tile_rect.left + ru_end_col_rem * ru_width;
-    return rect;
-  }
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  // start and end must belong to same tile
+  const int ru_start_col_rem = (ru_start_col - ru_start_tile_col);
+  const int ru_end_col_rem = (ru_end_col - ru_start_tile_col);
+  rect.left = tile_rect.left + ru_start_col_rem * ru_width;
+  if (tc == cm->tiles.cols - 1 &&
+      ru_end_col_rem == rsi->horz_units_per_tile[tc])
+    rect.right = plane_width;
+  else if (ru_end_col_rem == rsi->horz_units_per_tile[tc])
+    rect.right = tile_rect.right;
+  else
+    rect.right = tile_rect.left + ru_end_col_rem * ru_width;
+#else
   // Top limit is a multiple of RU height minus the offset, clamped to be
   // non-negative. So the first RU vertically is shorter than the rest.
   // The bottom limit is similar except for the apecial case for the last RU.
@@ -404,6 +399,7 @@ AV1PixelRect av1_get_rutile_rect(const AV1_COMMON *cm, int plane,
   rect.right = rsi->horz_units_per_tile[0] == ru_end_col
                    ? plane_width
                    : ru_end_col * ru_width;
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   return rect;
 }
 
@@ -419,37 +415,26 @@ void av1_alloc_restoration_struct(AV1_COMMON *cm, RestorationInfo *rsi,
   const int ss_y = is_uv && cm->seq_params.subsampling_y;
   AV1PixelRect tile_rect;
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-  if (cm->seq_params.disable_loopfilters_across_tiles) {
-    TileInfo tile_info;
-    rsi->vert_units_per_frame = 0;
-    rsi->vert_stripes_per_frame = 0;
-    for (int tr = 0; tr < cm->tiles.rows; ++tr) {
-      av1_tile_init(&tile_info, cm, tr, 0);
-      tile_rect = av1_get_tile_rect(&tile_info, cm, is_uv);
-      const int tile_h = tile_rect.bottom - tile_rect.top;
-      rsi->vert_units_per_tile[tr] =
-          av1_lr_count_units_in_tile(unit_size, tile_h);
-      rsi->vert_units_per_frame += rsi->vert_units_per_tile[tr];
-      rsi->vert_stripes_per_frame += av1_lr_count_stripes_in_tile(tile_h, ss_y);
-    }
-    rsi->horz_units_per_frame = 0;
-    for (int tc = 0; tc < cm->tiles.cols; ++tc) {
-      av1_tile_init(&tile_info, cm, 0, tc);
-      tile_rect = av1_get_tile_rect(&tile_info, cm, is_uv);
-      const int tile_w = tile_rect.right - tile_rect.left;
-      rsi->horz_units_per_tile[tc] =
-          av1_lr_count_units_in_tile(unit_size, tile_w);
-      rsi->horz_units_per_frame += rsi->horz_units_per_tile[tc];
-    }
-  } else {
-    tile_rect = av1_whole_frame_rect(cm, is_uv);
-    const int tile_w = tile_rect.right - tile_rect.left;
+  TileInfo tile_info;
+  rsi->vert_units_per_frame = 0;
+  rsi->vert_stripes_per_frame = 0;
+  for (int tr = 0; tr < cm->tiles.rows; ++tr) {
+    av1_tile_init(&tile_info, cm, tr, 0);
+    tile_rect = av1_get_tile_rect(&tile_info, cm, is_uv);
     const int tile_h = tile_rect.bottom - tile_rect.top;
-    rsi->vert_units_per_tile[0] = av1_lr_count_units_in_tile(unit_size, tile_h);
-    rsi->vert_units_per_frame = rsi->vert_units_per_tile[0];
-    rsi->horz_units_per_tile[0] = av1_lr_count_units_in_tile(unit_size, tile_w);
-    rsi->horz_units_per_frame = rsi->horz_units_per_tile[0];
-    rsi->vert_stripes_per_frame = av1_lr_count_stripes_in_tile(tile_h, ss_y);
+    rsi->vert_units_per_tile[tr] =
+        av1_lr_count_units_in_tile(unit_size, tile_h);
+    rsi->vert_units_per_frame += rsi->vert_units_per_tile[tr];
+    rsi->vert_stripes_per_frame += av1_lr_count_stripes_in_tile(tile_h, ss_y);
+  }
+  rsi->horz_units_per_frame = 0;
+  for (int tc = 0; tc < cm->tiles.cols; ++tc) {
+    av1_tile_init(&tile_info, cm, 0, tc);
+    tile_rect = av1_get_tile_rect(&tile_info, cm, is_uv);
+    const int tile_w = tile_rect.right - tile_rect.left;
+    rsi->horz_units_per_tile[tc] =
+        av1_lr_count_units_in_tile(unit_size, tile_w);
+    rsi->horz_units_per_frame += rsi->horz_units_per_tile[tc];
   }
 #else
   tile_rect = av1_whole_frame_rect(cm, is_uv);
@@ -1901,8 +1886,7 @@ uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV1Common *cm,
   const int ss_x = cm->seq_params.subsampling_x;
   const int ss_y = cm->seq_params.subsampling_y;
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-  const int num_tile_rows =
-      cm->seq_params.disable_loopfilters_across_tiles ? cm->tiles.rows : 1;
+  const int num_tile_rows = cm->tiles.rows;
 #else
   const int num_tile_rows = 1;
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
@@ -1912,13 +1896,9 @@ uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV1Common *cm,
   for (int tile_row = 0; tile_row < num_tile_rows; ++tile_row) {
     AV1PixelRect tile_rect;
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-    if (cm->seq_params.disable_loopfilters_across_tiles) {
-      TileInfo tile_info;
-      av1_tile_init(&tile_info, cm, tile_row, 0);
-      tile_rect = av1_get_tile_rect(&tile_info, cm, 0);
-    } else {
-      tile_rect = av1_whole_frame_rect(cm, 0);
-    }
+    TileInfo tile_info;
+    av1_tile_init(&tile_info, cm, tile_row, 0);
+    tile_rect = av1_get_tile_rect(&tile_info, cm, 0);
 #else
     tile_rect = av1_whole_frame_rect(cm, 0);
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
@@ -2231,6 +2211,9 @@ void av1_loop_restoration_filter_unit(
     const RestorationStripeBoundaries *rsb, RestorationLineBuffers *rlbs,
     const AV1PixelRect *tile_rect, int tile_stripe0, int ss_x, int ss_y,
     int bit_depth, uint16_t *data, int stride, uint16_t *dst, int dst_stride,
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+    int plane_width, int disable_loopfilters_across_tiles,
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
     int optimized_lr) {
   RestorationType unit_rtype = rui->restoration_type;
 
@@ -2415,7 +2398,11 @@ static void filter_frame_on_unit(const RestorationTileLimits *limits,
   av1_loop_restoration_filter_unit(
       limits, &rsi->unit_info[rest_unit_idx], &rsi->boundaries, rlbs, tile_rect,
       ctxt->tile_stripe0, ctxt->ss_x, ctxt->ss_y, ctxt->bit_depth, ctxt->data8,
-      ctxt->data_stride, ctxt->dst8, ctxt->dst_stride, rsi->optimized_lr);
+      ctxt->data_stride, ctxt->dst8, ctxt->dst_stride,
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+      ctxt->plane_width, ctxt->disable_loopfilters_across_tiles,
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+      rsi->optimized_lr);
 }
 
 void av1_loop_restoration_filter_frame_init(AV1LrStruct *lr_ctxt,
@@ -2484,6 +2471,10 @@ void av1_loop_restoration_filter_frame_init(AV1LrStruct *lr_ctxt,
     lr_plane_ctxt->lossless_segment = &cm->features.lossless_segment[0];
     lr_plane_ctxt->cm = cm;
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+    lr_plane_ctxt->disable_loopfilters_across_tiles =
+        seq_params->disable_loopfilters_across_tiles;
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   }
 }
 
@@ -2722,6 +2713,7 @@ void av1_foreach_rest_unit_in_plane(const struct AV1Common *cm, int plane,
                                     rest_unit_visitor_t on_rest_unit,
                                     void *priv, AV1PixelRect *tile_rect,
                                     RestorationLineBuffers *rlbs) {
+  (void)tile_rect;
   const int is_uv = plane > 0;
   const int ss_y = is_uv && cm->seq_params.subsampling_y;
 
@@ -2730,25 +2722,22 @@ void av1_foreach_rest_unit_in_plane(const struct AV1Common *cm, int plane,
   int processed = 0;
   FilterFrameCtxt *ctxt = (FilterFrameCtxt *)priv;
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-  if (cm->seq_params.disable_loopfilters_across_tiles) {
-    TileInfo tile_info;
-    for (int tile_row = 0; tile_row < cm->tiles.rows; ++tile_row) {
-      ctxt->tile_stripe0 = get_top_stripe_idx_in_tile(
-          tile_row, 0, cm, RESTORATION_PROC_UNIT_SIZE, RESTORATION_UNIT_OFFSET);
-      for (int tile_col = 0; tile_col < cm->tiles.cols; ++tile_col) {
-        av1_tile_init(&tile_info, cm, tile_row, tile_col);
-        AV1PixelRect this_tile_rect = av1_get_tile_rect(&tile_info, cm, is_uv);
-        unit_idx0 = get_ru_index_for_tile_start(rsi, tile_row, tile_col);
-        av1_foreach_rest_unit_in_tile(
-            &this_tile_rect, unit_idx0, rsi->horz_units_per_tile[tile_col],
-            rsi->vert_units_per_tile[tile_row], rsi->horz_units_per_frame,
-            rsi->restoration_unit_size, ss_y, plane, on_rest_unit, priv, rlbs,
-            &processed);
-      }
+  TileInfo tile_info;
+  for (int tile_row = 0; tile_row < cm->tiles.rows; ++tile_row) {
+    ctxt->tile_stripe0 = get_top_stripe_idx_in_tile(
+        tile_row, 0, cm, RESTORATION_PROC_UNIT_SIZE, RESTORATION_UNIT_OFFSET);
+    for (int tile_col = 0; tile_col < cm->tiles.cols; ++tile_col) {
+      av1_tile_init(&tile_info, cm, tile_row, tile_col);
+      AV1PixelRect this_tile_rect = av1_get_tile_rect(&tile_info, cm, is_uv);
+      unit_idx0 = get_ru_index_for_tile_start(rsi, tile_row, tile_col);
+      av1_foreach_rest_unit_in_tile(
+          &this_tile_rect, unit_idx0, rsi->horz_units_per_tile[tile_col],
+          rsi->vert_units_per_tile[tile_row], rsi->horz_units_per_frame,
+          rsi->restoration_unit_size, ss_y, plane, on_rest_unit, priv, rlbs,
+          &processed);
     }
-    return;
   }
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+#else
   unit_idx0 = (LR_TILE_ROW * LR_TILE_COLS + LR_TILE_COL);
   ctxt->tile_stripe0 = get_top_stripe_idx_in_tile(LR_TILE_ROW, LR_TILE_COL, cm,
                                                   RESTORATION_PROC_UNIT_SIZE,
@@ -2758,6 +2747,7 @@ void av1_foreach_rest_unit_in_plane(const struct AV1Common *cm, int plane,
       rsi->vert_units_per_tile[0], rsi->horz_units_per_frame,
       rsi->restoration_unit_size, ss_y, plane, on_rest_unit, priv, rlbs,
       &processed);
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 }
 
 int av1_loop_restoration_corners_in_sb(const struct AV1Common *cm, int plane,
@@ -2776,17 +2766,13 @@ int av1_loop_restoration_corners_in_sb(const struct AV1Common *cm, int plane,
   int mi_top = 0, mi_left = 0;
   int tile_row = 0, tile_col = 0;
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-  if (cm->seq_params.disable_loopfilters_across_tiles) {
-    tile_row = get_tile_row_from_mi_row(&cm->tiles, mi_row);
-    tile_col = get_tile_col_from_mi_col(&cm->tiles, mi_col);
-    TileInfo tile_info;
-    av1_tile_init(&tile_info, cm, tile_row, tile_col);
-    tile_rect = av1_get_tile_rect(&tile_info, cm, is_uv);
-    mi_top = cm->tiles.row_start_sb[tile_row] << cm->mib_size_log2;
-    mi_left = cm->tiles.col_start_sb[tile_col] << cm->mib_size_log2;
-  } else {
-    tile_rect = av1_whole_frame_rect(cm, is_uv);
-  }
+  tile_row = get_tile_row_from_mi_row(&cm->tiles, mi_row);
+  tile_col = get_tile_col_from_mi_col(&cm->tiles, mi_col);
+  TileInfo tile_info;
+  av1_tile_init(&tile_info, cm, tile_row, tile_col);
+  tile_rect = av1_get_tile_rect(&tile_info, cm, is_uv);
+  mi_top = cm->tiles.row_start_sb[tile_row] << cm->mib_size_log2;
+  mi_left = cm->tiles.col_start_sb[tile_col] << cm->mib_size_log2;
 #else
   tile_rect = av1_whole_frame_rect(cm, is_uv);
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
@@ -2971,8 +2957,7 @@ void save_tile_row_boundary_lines(const YV12_BUFFER_CONFIG *frame, int plane,
 #endif  // CONFIG_F054_PIC_BOUNDARY
   (void)plane_height;
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-  const int num_tile_rows =
-      cm->seq_params.disable_loopfilters_across_tiles ? cm->tiles.rows : 1;
+  const int num_tile_rows = cm->tiles.rows;
 #else
   const int num_tile_rows = 1;
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
@@ -2982,13 +2967,9 @@ void save_tile_row_boundary_lines(const YV12_BUFFER_CONFIG *frame, int plane,
   for (int tile_row = 0; tile_row < num_tile_rows; ++tile_row) {
     AV1PixelRect tile_rect;
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-    if (cm->seq_params.disable_loopfilters_across_tiles) {
-      TileInfo tile_info;
-      av1_tile_init(&tile_info, cm, tile_row, 0);
-      tile_rect = av1_get_tile_rect(&tile_info, cm, is_uv);
-    } else {
-      tile_rect = av1_whole_frame_rect(cm, is_uv);
-    }
+    TileInfo tile_info;
+    av1_tile_init(&tile_info, cm, tile_row, 0);
+    tile_rect = av1_get_tile_rect(&tile_info, cm, is_uv);
 #else
     tile_rect = av1_whole_frame_rect(cm, is_uv);
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
@@ -3004,11 +2985,26 @@ void save_tile_row_boundary_lines(const YV12_BUFFER_CONFIG *frame, int plane,
       const int rel_y1 = (rel_tile_stripe + 1) * stripe_height - stripe_off;
       const int y1 = AOMMIN(tile_rect.top + rel_y1, tile_rect.bottom);
 
-      // In this case, we should only use CDEF pixels at the top
-      // and bottom of the frame as a whole; internal tile boundaries
+      // If disable_loopfilters_across_tiles = 0, we should only use CDEF pixels
+      // at the top and bottom of the frame as a whole; internal tile boundaries
       // can use deblocked pixels from adjacent tiles for context.
+      // If disable_loopfilters_across_tiles = 1, we should only use CDEF pixels
+      // at the top and bottom of each tile in a frame;
+      // Stripe boundaries that are not tile boundaries always use deblocked
+      // pixels.
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+      const int use_deblock_above =
+          cm->seq_params.disable_loopfilters_across_tiles
+              ? (rel_tile_stripe > 0)
+              : (frame_stripe > 0);
+      const int use_deblock_below =
+          cm->seq_params.disable_loopfilters_across_tiles
+              ? (y1 < tile_rect.bottom)
+              : (y1 < plane_height);
+#else
       const int use_deblock_above = (rel_tile_stripe > 0);
       const int use_deblock_below = (y1 < tile_rect.bottom);
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 
       if (!after_cdef) {
         // Save deblocked context where needed.

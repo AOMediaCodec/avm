@@ -879,10 +879,8 @@ static void enqueue_lr_jobs(AV1LrSync *lr_sync, AV1LrStruct *lr_ctxt,
   lr_sync->jobs_dequeued = 0;
 
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-  const int num_tile_rows =
-      cm->seq_params.disable_loopfilters_across_tiles ? cm->tiles.rows : 1;
-  const int num_tile_cols =
-      cm->seq_params.disable_loopfilters_across_tiles ? cm->tiles.cols : 1;
+  const int num_tile_rows = cm->tiles.rows;
+  const int num_tile_cols = cm->tiles.cols;
 #else
   const int num_tile_rows = 1;
   const int num_tile_cols = 1;
@@ -908,13 +906,9 @@ static void enqueue_lr_jobs(AV1LrSync *lr_sync, AV1LrStruct *lr_ctxt,
       for (int tile_col = 0; tile_col < num_tile_cols; ++tile_col) {
         AV1PixelRect tile_rect;
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-        if (cm->seq_params.disable_loopfilters_across_tiles) {
-          TileInfo tile_info;
-          av1_tile_init(&tile_info, cm, tile_row, tile_col);
-          tile_rect = av1_get_tile_rect(&tile_info, cm, is_uv);
-        } else {
-          tile_rect = av1_whole_frame_rect(cm, is_uv);
-        }
+        TileInfo tile_info;
+        av1_tile_init(&tile_info, cm, tile_row, tile_col);
+        tile_rect = av1_get_tile_rect(&tile_info, cm, is_uv);
 #else
         tile_rect = av1_whole_frame_rect(cm, is_uv);
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
@@ -1076,8 +1070,7 @@ static void foreach_rest_unit_in_planes_mt(AV1LrStruct *lr_ctxt,
   const int num_planes = av1_num_planes(cm);
 
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-  const int num_tile_cols =
-      cm->seq_params.disable_loopfilters_across_tiles ? cm->tiles.cols : 1;
+  const int num_tile_cols = cm->tiles.cols;
 #else
   const int num_tile_cols = 1;
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
