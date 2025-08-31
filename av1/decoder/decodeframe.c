@@ -9691,6 +9691,9 @@ int32_t av1_read_tilegroup_header(
         avg_primary_secondary_references(cm, ref_frame_used, map_idx);
       }
       *p_data_end = data + uncomp_hdr_size;
+#if CONFIG_COLLECT_COMPONENT_TIMING
+      end_timing(pbi, av1_read_tilegroup_header);
+#endif
       return uncomp_hdr_size;
     }
 #endif  // CONFIG_BRU
