@@ -38,6 +38,8 @@ void av1_init_mi_buffers(struct CommonModeInfoParams *mi_params);
 void av1_free_context_buffers(struct AV1Common *cm);
 
 void av1_free_ref_frame_buffers(struct BufferPool *pool);
+void av1_alloc_cdef_linebuf(struct AV1Common *const cm);
+void av1_free_cdef_linebuf(struct AV1Common *const cm);
 void av1_alloc_restoration_buffers(struct AV1Common *cm);
 void av1_alloc_restoration_boundary_buffers(struct AV1Common *cm,
                                             int num_planes);

@@ -2339,6 +2339,8 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
           cm->features.byte_alignment, NULL, NULL, NULL, cpi->alloc_pyramid))
     aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate frame buffer");
+  const int use_cdef = cm->seq_params.enable_cdef && !cm->tiles.large_scale;
+  if (!is_stat_generation_stage(cpi) && use_cdef) av1_alloc_cdef_linebuf(cm);
 
   const int frame_width = cm->width;
   const int frame_height = cm->height;

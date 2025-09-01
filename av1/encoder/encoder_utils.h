@@ -836,6 +836,16 @@ static AOM_INLINE void copy_frame_prob_info(AV1_COMP *cpi) {
   }
 }
 
+// Restores CDEF coding context.
+static AOM_INLINE void restore_cdef_coding_context(CdefInfo *const dst,
+                                                   const CdefInfo *const src) {
+  dst->cdef_bits = src->cdef_bits;
+  dst->cdef_damping = src->cdef_damping;
+  av1_copy(dst->cdef_strengths, src->cdef_strengths);
+  av1_copy(dst->cdef_uv_strengths, src->cdef_uv_strengths);
+  dst->nb_cdef_strengths = src->nb_cdef_strengths;
+}
+
 // Coding context that only needs to be restored when recode loop includes
 // filtering (deblocking, CDEF, superres post-encode upscale and/or loop
 // restoraton).
@@ -844,6 +854,7 @@ static AOM_INLINE void restore_extra_coding_context(AV1_COMP *cpi) {
   AV1_COMMON *cm = &cpi->common;
   cm->lf = cc->lf;
   cm->cdef_info = cc->cdef_info;
+  restore_cdef_coding_context(&cm->cdef_info, &cc->cdef_info);
   cpi->rc = cc->rc;
   cpi->mv_stats = cc->mv_stats;
   cm->features = cc->features;
