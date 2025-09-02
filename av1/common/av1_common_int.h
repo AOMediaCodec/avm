@@ -2245,6 +2245,13 @@ typedef struct AV1Common {
    * True if we are in a decoding process.
    */
   bool decoding;
+
+  /*!
+   * Flag to indicate whether wedge masks are initialized.
+   * Wedge masks are only needed for inter prediction.
+   * So we only need to initialized it for inter frames only once.
+   */
+  bool wedge_mask_initialized;
 } AV1_COMMON;
 
 /*!\cond */

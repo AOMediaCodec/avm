@@ -9548,6 +9548,11 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
   MACROBLOCKD *const xd = &pbi->dcb.xd;
   const int tile_count_tg = end_tile - start_tile + 1;
 
+  if (!cm->wedge_mask_initialized &&
+      cm->current_frame.frame_type != KEY_FRAME) {
+    av1_init_wedge_masks();
+    cm->wedge_mask_initialized = true;
+  }
   if (initialize_flag) setup_frame_info(pbi);
   const int num_planes = av1_num_planes(cm);
 #if CONFIG_INSPECTION

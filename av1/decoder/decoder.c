@@ -56,7 +56,6 @@ static void initialize_dec(void) {
   aom_dsp_rtcd();
   aom_scale_rtcd();
   av1_init_intra_predictors();
-  av1_init_wedge_masks();
   av1_init_stxfm_kernels();
 }
 
