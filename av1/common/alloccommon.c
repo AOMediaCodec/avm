@@ -97,9 +97,10 @@ void av1_alloc_cdef_linebuf(AV1_COMMON *const cm) {
   const int is_large_scale_tile_changed =
       cdef_info->prev_large_scale_tile_flag != cm->tiles.large_scale;
   const int is_num_planes_changed = cdef_info->prev_num_planes != num_planes;
-  // num-bufs=2 represents ping-pong buffers for top linebuf.
-  // this is to avoid linebuf over-write by consecutive row.
-  int num_bufs = 2;
+  // num-bufs=3 represents ping-pong buffers for top linebuf,
+  // followed by bottom linebuf.
+  // ping-pong is to avoid top linebuf over-write by consecutive row.
+  int num_bufs = 3;
 
   if (is_frame_scaled || is_sub_sampling_changed || is_cdef_flag_changed ||
       is_large_scale_tile_changed || is_num_planes_changed)

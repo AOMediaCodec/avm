@@ -28,6 +28,7 @@ enum { TOP, LEFT, BOTTOM, RIGHT, BOUNDARIES } UENUM1BYTE(BOUNDARY);
 typedef struct {
   uint16_t *src;
   uint16_t *top_linebuf[MAX_MB_PLANE];
+  uint16_t *bot_linebuf[MAX_MB_PLANE];
   uint16_t *dst;
   cdef_list dlist[MI_SIZE_64X64 * MI_SIZE_64X64];
 
@@ -217,6 +218,8 @@ static void cdef_prepare_fb(AV1_COMMON *cm, CdefBlockInfo *fb_info,
   int hsize = nhb << fb_info->mi_wide_l2;
   int vsize = nvb << fb_info->mi_high_l2;
   const uint16_t *top_linebuf = fb_info->top_linebuf[plane];
+  const uint16_t *bot_linebuf = fb_info->bot_linebuf[plane];
+  const int bot_offset = (vsize + CDEF_VBORDER) * CDEF_BSTRIDE;
   const int stride =
       luma_stride >> (plane == AOM_PLANE_Y ? 0 : cm->seq_params.subsampling_x);
 
@@ -254,18 +257,37 @@ static void cdef_prepare_fb(AV1_COMMON *cm, CdefBlockInfo *fb_info,
   }
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 
-  if (fbr == nvfb - 1) {
-    /* On the last superblock row, fill in the bottom border with
-    CDEF_VERY_LARGE to avoid filtering with the outside. */
-    fill_rect(&src[(rend + CDEF_VBORDER) * CDEF_BSTRIDE], CDEF_BSTRIDE,
-              CDEF_VBORDER, hsize + 2 * CDEF_HBORDER, CDEF_VERY_LARGE);
-  }
   /* Copy in the pixels we need from the current superblock for
   deringing.*/
   copy_sb8_16(cm, &src[CDEF_VBORDER * CDEF_BSTRIDE + CDEF_HBORDER + cstart],
               CDEF_BSTRIDE, fb_info->dst, fb_info->roffset,
-              fb_info->coffset + cstart, fb_info->dst_stride, rend,
+              fb_info->coffset + cstart, fb_info->dst_stride, vsize,
               cend - cstart);
+  /* Copy in the pixels we need for the current superblock from bottom buffer.*/
+  if (fbr < nvfb - 1) {
+    copy_rect(&src[bot_offset + CDEF_HBORDER], CDEF_BSTRIDE,
+              &bot_linebuf[fb_info->coffset], stride, CDEF_VBORDER, hsize);
+  } else {
+    fill_rect(&src[bot_offset + CDEF_HBORDER], CDEF_BSTRIDE, CDEF_VBORDER,
+              hsize, CDEF_VERY_LARGE);
+  }
+  if (fbr < nvfb - 1 && fbc > 0) {
+    copy_rect(&src[bot_offset], CDEF_BSTRIDE,
+              &bot_linebuf[fb_info->coffset - CDEF_HBORDER], stride,
+              CDEF_VBORDER, CDEF_HBORDER);
+  } else {
+    fill_rect(&src[bot_offset], CDEF_BSTRIDE, CDEF_VBORDER, CDEF_HBORDER,
+              CDEF_VERY_LARGE);
+  }
+  if (fbr < nvfb - 1 && fbc < nhfb - 1) {
+    copy_rect(&src[bot_offset + hsize + CDEF_HBORDER], CDEF_BSTRIDE,
+              &bot_linebuf[fb_info->coffset + hsize], stride, CDEF_VBORDER,
+              CDEF_HBORDER);
+  } else {
+    fill_rect(&src[bot_offset + hsize + CDEF_HBORDER], CDEF_BSTRIDE,
+              CDEF_VBORDER, CDEF_HBORDER, CDEF_VERY_LARGE);
+  }
+
   /* Copy in the pixels we need from the current superblock from top buffer.*/
   if (fbr > 0) {
     copy_rect(&src[CDEF_HBORDER], CDEF_BSTRIDE, &top_linebuf[fb_info->coffset],
@@ -460,6 +482,7 @@ static INLINE void cdef_init_fb_row(AV1_COMMON *cm, MACROBLOCKD *const xd,
     // to avoid linebuf over-write by consecutive row.
     uint16_t *const top_linebuf =
         &linebuf[plane][ping_pong * CDEF_VBORDER * stride];
+    fb_info->bot_linebuf[plane] = &linebuf[plane][(CDEF_VBORDER << 1) * stride];
 
     if (fbr != nvfb - 1)  // top line buffer copy
       copy_sb8_16(cm, top_linebuf, stride, xd->plane[plane].dst.buf,
@@ -467,6 +490,11 @@ static INLINE void cdef_init_fb_row(AV1_COMMON *cm, MACROBLOCKD *const xd,
                   CDEF_VBORDER, stride);
     fb_info->top_linebuf[plane] =
         &linebuf[plane][(!ping_pong) * CDEF_VBORDER * stride];
+
+    if (fbr != nvfb - 1)  // bottom line buffer copy
+      copy_sb8_16(cm, fb_info->bot_linebuf[plane], stride,
+                  xd->plane[plane].dst.buf, offset, 0,
+                  xd->plane[plane].dst.stride, CDEF_VBORDER, stride);
   }
 }
 
