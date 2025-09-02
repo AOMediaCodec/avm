@@ -8384,6 +8384,8 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
        && (!cm->seq_params.order_hint_info.enable_order_hint)
 #elif CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT && !CONFIG_F253_REMOVE_OUTPUTFLAG
        && (!cm->seq_params.enable_frame_output_order)
+#else
+       && false
 #endif
            ) ||
       (encode_show_existing_frame(cm) &&
