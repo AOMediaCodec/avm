@@ -1726,7 +1726,12 @@ AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
         // filter vertical boundary
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
       if (cm->seq_params.disable_loopfilters_across_tiles) {
-        if (is_vert_tile_boundary(&cm->tiles, i << subsampling_x)) continue;
+        if (is_vert_tile_boundary(&cm->tiles, i << subsampling_x)) {
+#if CONFIG_IMPROVE_TIP_LF
+          p += sub_bw;
+#endif  // CONFIG_IMPROVE_TIP_LF
+          continue;
+        }
       }
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
       if (i > 0) {
@@ -1766,7 +1771,12 @@ AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
         // filter horizontal boundary
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
       if (cm->seq_params.disable_loopfilters_across_tiles) {
-        if (is_horz_tile_boundary(&cm->tiles, j << subsampling_y)) continue;
+        if (is_horz_tile_boundary(&cm->tiles, j << subsampling_y)) {
+#if CONFIG_IMPROVE_TIP_LF
+          p += sub_bh * dst_stride;
+#endif  // CONFIG_IMPROVE_TIP_LF
+          continue;
+        }
       }
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
       if (j > 0) {
