@@ -661,34 +661,22 @@ void output_frame_buffers(AV1Decoder *pbi, int ref_idx) {
 void output_trailing_frames(AV1Decoder *pbi) {
   AV1_COMMON *const cm = &pbi->common;
   RefCntBuffer *output_candidate = NULL;
-  RefCntBuffer *trigger_frame = NULL;
-  int display_order = -1;
-  int target_idx = -1;
-
-  for (int i = 0; i < REF_FRAMES; i++) {
-    if (is_frame_eligible_for_output(cm->ref_frame_map[i]) &&
-        ((int)cm->ref_frame_map[i]->display_order_hint > display_order)) {
-      display_order = cm->ref_frame_map[i]->display_order_hint;
-      target_idx = i;
-    }
-  }
-
-  if (target_idx >= 0) {
-    trigger_frame = cm->ref_frame_map[target_idx];
-    do {
-      output_candidate = trigger_frame;
-      for (int i = 0; i < REF_FRAMES; i++) {
-        if (is_frame_eligible_for_output(cm->ref_frame_map[i]) &&
-            cm->ref_frame_map[i]->display_order_hint <=
-                output_candidate->display_order_hint) {
-          output_candidate = cm->ref_frame_map[i];
-        }
+  do {
+    output_candidate = NULL;
+    for (int i = 0; i < REF_FRAMES; i++) {
+      if (is_frame_eligible_for_output(cm->ref_frame_map[i]) &&
+          (output_candidate == NULL ||
+           cm->ref_frame_map[i]->display_order_hint <=
+               output_candidate->display_order_hint)) {
+        output_candidate = cm->ref_frame_map[i];
       }
+    }
+    if (output_candidate != NULL) {
       assign_output_frame_buffer_p(
           &pbi->output_frames[pbi->num_output_frames++], output_candidate);
       output_candidate->frame_output_done = 1;
-    } while (output_candidate != trigger_frame);
-  }
+    }
+  } while (output_candidate != NULL);
 }
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
 
