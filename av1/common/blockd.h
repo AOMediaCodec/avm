@@ -427,8 +427,21 @@ typedef struct MB_MODE_INFO {
   uint8_t fsc_mode[2];
   /*! \brief The UV mode when intra is used */
   UV_PREDICTION_MODE uv_mode;
-  /*! \brief The q index for the current coding block. */
+  /*! \brief The q index for the current super block. It only related when
+   * cm->delta_q_info.delta_q_present_flag is true. This current_qindex does not
+   * consider delta for each segment. */
   int current_qindex;
+#if CONFIG_STORE_BLOCK_QINDEX
+  /*! \brief The final qindex of the dc component for the current block after
+   * adding all deltas including segment delta. It is  the final qindex value
+   * used for quantization.*/
+  int final_qindex_dc[3];
+  /*! \brief The final qindex of the ac component for the current block after
+   * adding all deltas including segment delta. It is  the final qindex value
+   * used for quantization.*/
+  int final_qindex_ac[3];
+#endif  // CONFIG_STORE_BLOCK_QINDEX
+
   /**@}*/
 
   /*****************************************************************************
@@ -2204,6 +2217,8 @@ typedef struct macroblockd {
 
   /*!
    * Quantizer index for each segment (base qindex + delta for each segment).
+   * This qindex does not consider delta values when
+   * cm->delta_q_info.delta_q_present_flag is true.
    */
   int qindex[MAX_SEGMENTS];
   /*!
@@ -2218,7 +2233,9 @@ typedef struct macroblockd {
    * Precisely, this is the latest qindex used by the first coding block of a
    * non-skip superblock in the current tile; OR
    * same as cm->quant_params.base_qindex (if not explicitly set yet).
-   * Note: This is 'CurrentQIndex' in the AV1 spec.
+   * For a frame, initially current_base_qindex is set to the frame base qindex
+   * and then updated after adding delta of each superblock. Note: This is
+   * 'CurrentQIndex' in the AV1 spec.
    */
   int current_base_qindex;
 

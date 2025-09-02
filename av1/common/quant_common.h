@@ -100,6 +100,12 @@ int32_t av1_dc_quant_QTX(int qindex, int delta, int base_dc_delta_q,
                          aom_bit_depth_t bit_depth);
 int32_t av1_ac_quant_QTX(int qindex, int delta, int base_ac_delta_q,
                          aom_bit_depth_t bit_depth);
+#if CONFIG_STORE_BLOCK_QINDEX
+int av1_q_clamped(int qindex, int delta, int base_dc_delta_q,
+                  aom_bit_depth_t bit_depth);
+void get_qindex_with_offsets(const struct AV1Common *cm, int current_qindex,
+                             int final_qindex_dc[3], int final_qindex_ac[3]);
+#endif  // CONFIG_STORE_BLOCK_QINDEX
 
 int av1_get_qindex(const struct segmentation *seg, int segment_id,
                    int base_qindex, aom_bit_depth_t bit_depth);

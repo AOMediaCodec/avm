@@ -1875,6 +1875,14 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
 
   mbmi->current_qindex = xd->current_base_qindex;
 
+#if CONFIG_STORE_BLOCK_QINDEX
+  int seg_qindex =
+      av1_get_qindex(&cm->seg, mbmi->segment_id, xd->current_base_qindex,
+                     cm->seq_params.bit_depth);
+  get_qindex_with_offsets(cm, seg_qindex, mbmi->final_qindex_dc,
+                          mbmi->final_qindex_ac);
+#endif  // CONFIG_STORE_BLOCK_QINDEX
+
   mbmi->ref_frame[0] = INTRA_FRAME;
   mbmi->ref_frame[1] = NONE_FRAME;
   if (xd->tree_type != CHROMA_PART) mbmi->palette_mode_info.palette_size[0] = 0;
@@ -3838,6 +3846,14 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
   if (xd->tree_type != CHROMA_PART) read_delta_q_params(cm, xd, r);
 
   mbmi->current_qindex = xd->current_base_qindex;
+
+#if CONFIG_STORE_BLOCK_QINDEX
+  int seg_qindex =
+      av1_get_qindex(&cm->seg, mbmi->segment_id, xd->current_base_qindex,
+                     cm->seq_params.bit_depth);
+  get_qindex_with_offsets(cm, seg_qindex, mbmi->final_qindex_dc,
+                          mbmi->final_qindex_ac);
+#endif  // CONFIG_STORE_BLOCK_QINDEX
 
   if (!inter_block &&
       av1_allow_intrabc(cm, xd, mbmi->sb_type[xd->tree_type == CHROMA_PART]) &&
