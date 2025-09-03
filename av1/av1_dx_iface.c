@@ -161,7 +161,10 @@ static aom_codec_err_t decoder_destroy(aom_codec_alg_priv_t *ctx) {
       }
     }
     av1_remove_common(&frame_worker_data->pbi->common);
-    av1_free_cdef_linebuf(&frame_worker_data->pbi->common);
+    AV1Decoder *const pbi = frame_worker_data->pbi;
+    av1_free_cdef_buffers(&pbi->common, &pbi->cdef_worker, &pbi->cdef_sync,
+                          pbi->num_workers);
+    av1_free_cdef_sync(&pbi->cdef_sync);
     av1_free_restoration_buffers(&frame_worker_data->pbi->common);
     free_gdf_buffers(&frame_worker_data->pbi->common.gdf_info);
     av1_decoder_remove(frame_worker_data->pbi);

@@ -255,7 +255,12 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
   av1_free_restoration_buffers(cm);
   free_gdf_buffers(&cm->gdf_info);
   const int use_cdef = cm->seq_params.enable_cdef && !cm->tiles.large_scale;
-  if (!is_stat_generation_stage(cpi) && use_cdef) av1_free_cdef_linebuf(cm);
+  if (!is_stat_generation_stage(cpi) && use_cdef) {
+    AV1CdefWorkerData *cdef_worker = NULL;
+    AV1CdefSync cdef_sync = { 0 };
+    av1_free_cdef_buffers(cm, &cdef_worker /* dummy */, &cdef_sync /* dummy */,
+                          1);
+  }
   aom_free_frame_buffer(&cpi->trial_frame_rst);
   aom_free_frame_buffer(&cpi->scaled_source);
   aom_free_frame_buffer(&cpi->scaled_last_source);

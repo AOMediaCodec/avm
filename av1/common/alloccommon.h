@@ -25,6 +25,8 @@ struct AV1Common;
 struct BufferPool;
 struct CommonContexts;
 struct CommonModeInfoParams;
+struct AV1CdefWorker;
+struct AV1CdefSyncData;
 
 void av1_remove_common(struct AV1Common *cm);
 
@@ -38,11 +40,17 @@ void av1_init_mi_buffers(struct CommonModeInfoParams *mi_params);
 void av1_free_context_buffers(struct AV1Common *cm);
 
 void av1_free_ref_frame_buffers(struct BufferPool *pool);
-// Allocates the line buffers of CDEF for all planes and frees old buffers
+
+// Allocates the line buffers of CDEF for all planes and reallocates the buffer
 // if frame size, subsampling, flags, or plane count changed.
-void av1_alloc_cdef_linebuf(struct AV1Common *const cm);
-// Frees the line buffers of CDEF for all planes.
-void av1_free_cdef_linebuf(struct AV1Common *const cm);
+void av1_alloc_cdef_buffers(struct AV1Common *const cm,
+                            struct AV1CdefWorker **cdef_worker,
+                            struct AV1CdefSyncData *cdef_sync, int num_workers);
+// Free all CDEF-related buffers, worker data, and sync objects.
+void av1_free_cdef_buffers(struct AV1Common *const cm,
+                           struct AV1CdefWorker **cdef_worker,
+                           struct AV1CdefSyncData *cdef_sync, int num_workers);
+
 void av1_alloc_restoration_buffers(struct AV1Common *cm);
 void av1_alloc_restoration_boundary_buffers(struct AV1Common *cm,
                                             int num_planes);

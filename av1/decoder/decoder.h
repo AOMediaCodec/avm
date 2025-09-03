@@ -286,6 +286,8 @@ typedef struct AV1Decoder {
   AV1LfSync lf_row_sync;
   AV1LrSync lr_row_sync;
   AV1LrStruct lr_ctxt;
+  AV1CdefSync cdef_sync;
+  AV1CdefWorkerData *cdef_worker;
   AVxWorker *tile_workers;
   int num_workers;
   DecWorkerData *thread_data;

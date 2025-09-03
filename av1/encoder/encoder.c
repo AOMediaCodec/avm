@@ -2351,7 +2351,12 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
     aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate frame buffer");
   const int use_cdef = cm->seq_params.enable_cdef && !cm->tiles.large_scale;
-  if (!is_stat_generation_stage(cpi) && use_cdef) av1_alloc_cdef_linebuf(cm);
+  if (!is_stat_generation_stage(cpi) && use_cdef) {
+    AV1CdefWorkerData *cdef_worker = NULL;
+    AV1CdefSync cdef_sync = { 0 };
+    av1_alloc_cdef_buffers(cm, &cdef_worker /* dummy */, &cdef_sync /* dummy */,
+                           1);
+  }
 
   const int frame_width = cm->width;
   const int frame_height = cm->height;
@@ -2862,7 +2867,7 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
 
     // Apply the filter
     if (cm->cdef_info.cdef_frame_enable)
-      av1_cdef_frame(&cm->cur_frame->buf, cm, xd);
+      av1_cdef_frame(&cm->cur_frame->buf, cm, xd, av1_cdef_init_fb_row);
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
     end_timing(cpi, cdef_time);

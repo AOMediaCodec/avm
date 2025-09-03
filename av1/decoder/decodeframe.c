@@ -9674,7 +9674,6 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
 // Once-per-frame initialization
 static AOM_INLINE void setup_frame_info(AV1Decoder *pbi) {
   AV1_COMMON *const cm = &pbi->common;
-  av1_alloc_cdef_linebuf(cm);
 
   if (cm->rst_info[0].frame_restoration_type != RESTORE_NONE ||
       cm->rst_info[1].frame_restoration_type != RESTORE_NONE ||
@@ -9776,6 +9775,11 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
   if (end_tile != tiles->rows * tiles->cols - 1) {
     return;
   }
+
+  av1_alloc_cdef_buffers(cm, &pbi->cdef_worker, &pbi->cdef_sync,
+                         pbi->num_workers);
+  av1_alloc_cdef_sync(cm, &pbi->cdef_sync, pbi->num_workers);
+
   // verify active region
   if (!bru_active_map_validation(cm)) {
     aom_internal_error(&cm->error, AOM_CODEC_ERROR, "Invalid active region");
@@ -9895,7 +9899,14 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
 #endif
 
       if (do_cdef) {
-        av1_cdef_frame(&pbi->common.cur_frame->buf, cm, &pbi->dcb.xd);
+        if (pbi->num_workers > 1) {
+          av1_cdef_frame_mt(cm, &pbi->dcb.xd, pbi->cdef_worker,
+                            pbi->tile_workers, &pbi->cdef_sync,
+                            pbi->num_workers, av1_cdef_init_fb_row_mt);
+        } else {
+          av1_cdef_frame(&pbi->common.cur_frame->buf, cm, &pbi->dcb.xd,
+                         av1_cdef_init_fb_row);
+        }
       }
       if (use_ccso) {
         ccso_frame(&cm->cur_frame->buf, cm, xd, ext_rec_y);
