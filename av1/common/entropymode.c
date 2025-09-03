@@ -5053,7 +5053,6 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
 #endif  // !CONFIG_BYPASS_INTRABC_DRL_IDX
   SHIFT_CDF(ctx_ptr->intrabc_bv_precision_cdf, NUM_ALLOWED_BV_PRECISIONS);
   SHIFT_CDF(ctx_ptr->morph_pred_cdf, 2);
-  SHIFT_CDF(ctx_ptr->seg.tree_cdf, MAX_SEGMENTS);
   SHIFT_CDF(ctx_ptr->seg.pred_cdf, 2);
 #if CONFIG_EXT_SEG
   SHIFT_CDF(ctx_ptr->seg.tree_cdf, MAX_SEGMENTS_8);
@@ -5483,7 +5482,6 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->intrabc_bv_precision_cdf,
               ctx_tr->intrabc_bv_precision_cdf, NUM_ALLOWED_BV_PRECISIONS);
   AVERAGE_CDF(ctx_left->morph_pred_cdf, ctx_tr->morph_pred_cdf, 2);
-  AVERAGE_CDF(ctx_left->seg.tree_cdf, ctx_tr->seg.tree_cdf, MAX_SEGMENTS);
   AVERAGE_CDF(ctx_left->seg.pred_cdf, ctx_tr->seg.pred_cdf, 2);
 #if CONFIG_EXT_SEG
   AVERAGE_CDF(ctx_left->seg.tree_cdf, ctx_tr->seg.tree_cdf, MAX_SEGMENTS_8);
