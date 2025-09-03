@@ -7621,7 +7621,9 @@ static uint32_t write_tilegroup_header(AV1_COMP *cpi,
        cpi->common.features.tip_frame_mode == TIP_FRAME_AS_OUTPUT);
 #endif  // CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
 
-  if (!skip_tile_indices) {
+  if (skip_tile_indices) {
+    add_trailing_bits(&wb);
+  } else {
     AV1_COMMON *const cm = &cpi->common;
     const CommonTileParams *const tiles = &cm->tiles;
     const int n_log2_tiles = tiles->log2_rows + tiles->log2_cols;

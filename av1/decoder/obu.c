@@ -443,6 +443,11 @@ static uint32_t read_tilegroup_obu(AV1Decoder *pbi,
   if (skip_payload) {
     *is_last_tg = 1;
     tg_payload_size = 0;
+    if (av1_check_trailing_bits(pbi, rb) != 0) {
+      // cm->error.error_code is already set.
+      return 0;
+    }
+    header_size = (int)aom_rb_bytes_read(rb);
   } else {
     if (byte_alignment(cm, rb)) return 0;
     data += header_size;
