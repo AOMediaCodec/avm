@@ -880,14 +880,6 @@ static TX_SIZE set_lpf_parameters(
   const TX_SIZE ts = get_transform_size(xd, mi[0], edge_dir, mi_row, mi_col,
                                         plane, tree_type, plane_ptr, &tu_edge);
 #endif  // CONFIG_LF_SUB_PU
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-  if (cm->seq_params.disable_loopfilters_across_tiles) {
-    if (edge_dir == VERT_EDGE)
-      if (is_vert_tile_boundary(&cm->tiles, mi_col)) return ts;
-    if (edge_dir == HORZ_EDGE)
-      if (is_horz_tile_boundary(&cm->tiles, mi_row)) return ts;
-  }
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   {
     const uint32_t coord = (VERT_EDGE == edge_dir) ? (x) : (y);
 
@@ -900,6 +892,14 @@ static TX_SIZE set_lpf_parameters(
     if (!tu_edge)
 #endif  // CONFIG_LF_SUB_PU
       return ts;
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+    if (cm->seq_params.disable_loopfilters_across_tiles) {
+      if (edge_dir == VERT_EDGE)
+        if (is_vert_tile_boundary(&cm->tiles, mi_col)) return ts;
+      if (edge_dir == HORZ_EDGE)
+        if (is_horz_tile_boundary(&cm->tiles, mi_row)) return ts;
+    }
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 #if CONFIG_BRU
     if (cm->bru.enabled) {
       if (mbmi->sb_active_mode != BRU_ACTIVE_SB) {
@@ -1726,7 +1726,8 @@ AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
         // filter vertical boundary
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
       if (cm->seq_params.disable_loopfilters_across_tiles) {
-        if (is_vert_tile_boundary(&cm->tiles, i << subsampling_x)) {
+        if (is_vert_tile_boundary(&cm->tiles,
+                                  (i << subsampling_x) >> MI_SIZE_LOG2)) {
 #if CONFIG_IMPROVE_TIP_LF
           p += sub_bw;
 #endif  // CONFIG_IMPROVE_TIP_LF
@@ -1771,7 +1772,8 @@ AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
         // filter horizontal boundary
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
       if (cm->seq_params.disable_loopfilters_across_tiles) {
-        if (is_horz_tile_boundary(&cm->tiles, j << subsampling_y)) {
+        if (is_horz_tile_boundary(&cm->tiles,
+                                  (j << subsampling_y) >> MI_SIZE_LOG2)) {
 #if CONFIG_IMPROVE_TIP_LF
           p += sub_bh * dst_stride;
 #endif  // CONFIG_IMPROVE_TIP_LF
