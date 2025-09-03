@@ -10,6 +10,7 @@
  */
 
 #include <immintrin.h> /* AVX2 */
+#include <tmmintrin.h> /* SSSE3 */
 
 #include "aom_dsp/aom_dsp_common.h"
 #include "av1/common/intra_matrix.h"
@@ -58,5 +59,176 @@ void av1_dip_matrix_multiplication_avx2(const uint16_t *A, const uint16_t *B,
     sum1 = _mm_max_epi32(sum1, zero);
     __m128i out0 = _mm_packus_epi32(sum1, sum1);
     _mm_storeu_si64(&C[i], out0);
+  }
+}
+
+// Processes 8 pixels at a time using SSSE3.
+static INLINE void resample_vert_w8_ssse3(uint16_t *dst, const uint16_t *p0_row,
+                                          const uint16_t *p1_row, const int w0,
+                                          const int w1, const int upy_log2) {
+  const __m128i p0 = _mm_loadu_si128((const __m128i *)p0_row);
+  const __m128i p1 = _mm_loadu_si128((const __m128i *)p1_row);
+
+  const __m128i p0p1_lo = _mm_unpacklo_epi16(p0, p1);
+  const __m128i p0p1_hi = _mm_unpackhi_epi16(p0, p1);
+
+  const __m128i weights = _mm_set_epi16(w1, w0, w1, w0, w1, w0, w1, w0);
+
+  const __m128i res_lo = _mm_madd_epi16(p0p1_lo, weights);
+  const __m128i res_hi = _mm_madd_epi16(p0p1_hi, weights);
+
+  const __m128i shift = _mm_cvtsi32_si128(upy_log2);
+  const __m128i shifted_lo = _mm_sra_epi32(res_lo, shift);
+  const __m128i shifted_hi = _mm_sra_epi32(res_hi, shift);
+
+  const __m128i result = _mm_packus_epi32(shifted_lo, shifted_hi);
+
+  _mm_storeu_si128((__m128i *)dst, result);
+}
+
+// Processes 16 pixels at a time using AVX2.
+static INLINE void resample_vert_w16_avx2(uint16_t *dst, const uint16_t *p0_row,
+                                          const uint16_t *p1_row, const int w0,
+                                          const int w1, const int upy_log2) {
+  const __m256i p0 = _mm256_loadu_si256((const __m256i *)p0_row);
+  const __m256i p1 = _mm256_loadu_si256((const __m256i *)p1_row);
+
+  const __m256i p0p1_lo = _mm256_unpacklo_epi16(p0, p1);
+  const __m256i p0p1_hi = _mm256_unpackhi_epi16(p0, p1);
+
+  const __m256i weights = _mm256_set_epi16(w1, w0, w1, w0, w1, w0, w1, w0, w1,
+                                           w0, w1, w0, w1, w0, w1, w0);
+
+  const __m256i res_lo = _mm256_madd_epi16(p0p1_lo, weights);
+  const __m256i res_hi = _mm256_madd_epi16(p0p1_hi, weights);
+
+  const __m128i shift = _mm_cvtsi32_si128(upy_log2);
+
+  const __m256i shifted_lo = _mm256_sra_epi32(res_lo, shift);
+  const __m256i shifted_hi = _mm256_sra_epi32(res_hi, shift);
+
+  const __m256i result = _mm256_packus_epi32(shifted_lo, shifted_hi);
+
+  _mm256_storeu_si256((__m256i *)dst, result);
+}
+
+// Processes 32 pixels at a time using AVX2.
+static INLINE void resample_vert_w32_avx2(uint16_t *dst, const uint16_t *p0_row,
+                                          const uint16_t *p1_row, const int w0,
+                                          const int w1, const int upy_log2) {
+  resample_vert_w16_avx2(dst, p0_row, p1_row, w0, w1, upy_log2);
+  resample_vert_w16_avx2(dst + 16, p0_row + 16, p1_row + 16, w0, w1, upy_log2);
+}
+
+// Processes 64 pixels at a time using AVX2.
+static INLINE void resample_vert_w64_avx2(uint16_t *dst, const uint16_t *p0_row,
+                                          const uint16_t *p1_row, const int w0,
+                                          const int w1, const int upy_log2) {
+  resample_vert_w32_avx2(dst, p0_row, p1_row, w0, w1, upy_log2);
+  resample_vert_w32_avx2(dst + 32, p0_row + 32, p1_row + 32, w0, w1, upy_log2);
+}
+
+void resample_output_avx2(uint16_t *dst, int dst_stride,
+                          const uint16_t *above_row, const uint16_t *left_col,
+                          uint16_t *ml_output, int bw_log2, int bh_log2,
+                          int transpose) {
+  // AOM_SIMD_CONV_FN_W_FN
+  typedef void (*resample_vert_fn)(uint16_t *dst, const uint16_t *p0_row,
+                                   const uint16_t *p1_row, const int w0,
+                                   const int w1, const int upy_log2);
+  // up/down sampling factors
+  int pred_x = 8;
+  int pred_y = 8;
+  int upx_log2 = bw_log2 - 3;
+  int upy_log2 = bh_log2 - 3;
+  int downx_log2 = 0;
+  int downy_log2 = 0;
+  if (upx_log2 < 0) {
+    downx_log2 = -upx_log2;
+    upx_log2 = 0;
+  }
+  if (upy_log2 < 0) {
+    downy_log2 = -upy_log2;
+    upy_log2 = 0;
+  }
+  int mx = 1 << upx_log2;
+  int my = 1 << upy_log2;
+  int downx = 1 << downx_log2;
+  int downy = 1 << downy_log2;
+  int bw = 1 << bw_log2;
+  // Copy ml_output[] into dst[]
+  for (int i = 0; i < pred_y >> downy_log2; i++) {
+    for (int j = 0; j < pred_x >> downx_log2; j++) {
+      int x = j * mx + (mx - 1);
+      int y = i * my + (my - 1);
+      int i1 = i * downy;
+      int j1 = j * downx;
+      int ii = transpose ? j1 : i1;
+      int jj = transpose ? i1 : j1;
+      dst[y * dst_stride + x] = ml_output[ii * pred_x + jj];
+    }
+  }
+  // Interpolate horizontally.
+  for (int i = 0; i < pred_y >> downy_log2; i++) {
+    int y = i * my + (my - 1);
+    int p0 = 0;
+    int p1 = left_col[y];
+    for (int j = 0; j < pred_x >> downx_log2; j++) {
+      int x = j * mx;
+      p0 = p1;
+      p1 = dst[y * dst_stride + x + mx - 1];
+      for (int k = 0; k < mx - 1; k++) {
+        int k1 = k + 1;
+        dst[y * dst_stride + x + k] = (p0 * (mx - k1) + (p1 * k1)) >> upx_log2;
+      }
+    }
+  }
+
+  // OPTIMIZED Interpolate vertically.
+  // A function pointer is used to select the SIMD level just once.
+  resample_vert_fn fn = NULL;
+  switch (bw) {
+    case 64: fn = resample_vert_w64_avx2; break;
+    case 32: fn = resample_vert_w32_avx2; break;
+    case 16: fn = resample_vert_w16_avx2; break;
+    case 8: fn = resample_vert_w8_ssse3; break;
+  }
+
+  if (fn) {
+    for (int i = 0; i < pred_y >> downy_log2; i++) {
+      const int y = i * my;
+      const uint16_t *p0_row =
+          (y == 0) ? above_row : &dst[(y - 1) * dst_stride];
+      const uint16_t *p1_row = &dst[(y + my - 1) * dst_stride];
+      for (int k = 0; k < my - 1; k++) {
+        const int k1 = k + 1;
+        const int w0 = my - k1;
+        const int w1 = k1;
+        uint16_t *dst_row = &dst[(y + k) * dst_stride];
+        fn(dst_row, p0_row, p1_row, w0, w1, upy_log2);
+      }
+    }
+  } else {
+    // C fallback for other widths.
+    // This loop is restructured to be more cache-friendly.
+    // The original C code loops column by column. Here we change it to
+    // row by row to make it friendly for SIMD.
+    for (int i = 0; i < pred_y >> downy_log2; i++) {
+      const int y = i * my;
+      const uint16_t *p0_row =
+          (y == 0) ? above_row : &dst[(y - 1) * dst_stride];
+      const uint16_t *p1_row = &dst[(y + my - 1) * dst_stride];
+      for (int k = 0; k < my - 1; k++) {
+        const int k1 = k + 1;
+        const int w0 = my - k1;
+        const int w1 = k1;
+        uint16_t *dst_row = &dst[(y + k) * dst_stride];
+        for (int x = 0; x < bw; x++) {
+          const int p0 = p0_row[x];
+          const int p1 = p1_row[x];
+          dst_row[x] = (uint16_t)((p0 * w0 + p1 * w1) >> upy_log2);
+        }
+      }
+    }
   }
 }

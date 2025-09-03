@@ -27,10 +27,9 @@ extern "C" {
 // block size. This is some by upsampling if dimension is > 8, or
 // downsampling/decimation if dimension is < 8. Resampling is done
 // in the horizontal dimension first followed by vertical.
-static void resample_output(uint16_t *dst, int dst_stride,
-                            const uint16_t *above_row, const uint16_t *left_col,
-                            uint16_t *ml_output, int bw_log2, int bh_log2,
-                            int transpose) {
+void resample_output_c(uint16_t *dst, int dst_stride, const uint16_t *above_row,
+                       const uint16_t *left_col, uint16_t *ml_output,
+                       int bw_log2, int bh_log2, int transpose) {
   // up/down sampling factors
   int pred_x = 8;
   int pred_y = 8;
