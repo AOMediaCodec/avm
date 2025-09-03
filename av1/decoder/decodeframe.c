@@ -8908,19 +8908,10 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     }
     features->refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
 #if CONFIG_LF_SUB_PU
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-    // this condition needs to be further checked @Yeqing, @Yixin
-    if (cm->seq_params.disable_loopfilters_across_tiles &&
-        cm->seq_params.enable_lf_sub_pu && cm->features.allow_lf_sub_pu &&
-        cm->lf.tip_filter_level) {
-      read_tile_info(pbi, rb);
-    }
-#else
     if (cm->seq_params.enable_lf_sub_pu && cm->features.allow_lf_sub_pu &&
         cm->lf.tip_filter_level) {
       read_tile_info(pbi, rb);
     }
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 #else
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
     if (cm->seq_params.disable_loopfilters_across_tiles) {
