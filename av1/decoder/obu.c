@@ -109,27 +109,22 @@ static void av1_read_mlayer_dependency_info(SequenceHeader *const seq,
 #endif  // CONFIG_MULTILAYER_CORE_HLS
 
 #if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-void get_chroma_format_subsampling(CHROMA_FORMAT chroma_format_idc,
-                                   int *subsampling_x, int *subsampling_y) {
-  if (chroma_format_idc == CHROMA_FORMAT_420) {
-    *subsampling_x = 1;
-    *subsampling_y = 1;
-  } else if (chroma_format_idc == CHROMA_FORMAT_444) {
-    *subsampling_x = 0;
-    *subsampling_y = 0;
-  } else if (chroma_format_idc == CHROMA_FORMAT_422) {
-    *subsampling_x = 1;
-    *subsampling_y = 0;
-  } else if (chroma_format_idc == CHROMA_FORMAT_400) {
-    *subsampling_x = 1;
-    *subsampling_y = 1;
-  }
-}
-
 static void set_seq_chroma_format(SequenceHeader *seq_params) {
-  get_chroma_format_subsampling(seq_params->seq_chroma_format_idc,
-                                &seq_params->subsampling_x,
-                                &seq_params->subsampling_y);
+  seq_params->monochrome =
+      (seq_params->seq_chroma_format_idc == CHROMA_FORMAT_400) ? 1 : 0;
+  if (seq_params->seq_chroma_format_idc == CHROMA_FORMAT_420) {
+    seq_params->subsampling_x = 1;
+    seq_params->subsampling_y = 1;
+  } else if (seq_params->seq_chroma_format_idc == CHROMA_FORMAT_444) {
+    seq_params->subsampling_x = 0;
+    seq_params->subsampling_y = 0;
+  } else if (seq_params->seq_chroma_format_idc == CHROMA_FORMAT_422) {
+    seq_params->subsampling_x = 1;
+    seq_params->subsampling_y = 0;
+  } else if (seq_params->seq_chroma_format_idc == CHROMA_FORMAT_400) {
+    seq_params->subsampling_x = 1;
+    seq_params->subsampling_y = 1;
+  }
 }
 #endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 // Returns whether two sequence headers are consistent with each other.
