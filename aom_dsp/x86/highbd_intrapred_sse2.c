@@ -13,6 +13,9 @@
 #include <emmintrin.h>
 
 #include "config/aom_dsp_rtcd.h"
+#if CONFIG_DC_DIV_UNIFY
+#include "av1/common/warped_motion.h"
+#endif  // CONFIG_DC_DIV_UNIFY
 
 // -----------------------------------------------------------------------------
 // H_PRED
@@ -824,8 +827,15 @@ void aom_highbd_dc_predictor_4x8_sse2(uint16_t *dst, ptrdiff_t stride,
   const __m128i sum = _mm_add_epi16(sum_above, sum_left);
   uint32_t sum32 = _mm_cvtsi128_si32(sum);
   sum32 >>= 16;
+#if CONFIG_DC_DIV_UNIFY
+  int16_t shift = 0;
+  uint16_t scale = resolve_divisor_32(12, &shift);
+  uint16_t rounding = 1 << shift >> 1;
+  sum32 = (sum32 * scale + rounding) >> shift;
+#else
   sum32 += 6;
   sum32 /= 12;
+#endif  // CONFIG_DC_DIV_UNIFY
   const __m128i row = _mm_set1_epi16((uint16_t)sum32);
   int i;
   for (i = 0; i < 4; ++i) {
@@ -845,8 +855,15 @@ void aom_highbd_dc_predictor_8x4_sse2(uint16_t *dst, ptrdiff_t stride,
   const __m128i sum = _mm_add_epi16(sum_above, sum_left);
   uint32_t sum32 = _mm_cvtsi128_si32(sum);
   sum32 >>= 16;
+#if CONFIG_DC_DIV_UNIFY
+  int16_t shift = 0;
+  uint16_t scale = resolve_divisor_32(12, &shift);
+  uint16_t rounding = 1 << shift >> 1;
+  sum32 = (sum32 * scale + rounding) >> shift;
+#else
   sum32 += 6;
   sum32 /= 12;
+#endif  // CONFIG_DC_DIV_UNIFY
   const __m128i row = _mm_set1_epi16((uint16_t)sum32);
 
   _mm_storeu_si128((__m128i *)dst, row);
@@ -869,8 +886,15 @@ void aom_highbd_dc_predictor_8x16_sse2(uint16_t *dst, ptrdiff_t stride,
   sum_above = _mm_unpacklo_epi16(sum_above, zero);
   const __m128i sum = _mm_add_epi32(sum_left, sum_above);
   uint32_t sum32 = _mm_cvtsi128_si32(sum);
+#if CONFIG_DC_DIV_UNIFY
+  int16_t shift = 0;
+  uint16_t scale = resolve_divisor_32(24, &shift);
+  uint16_t rounding = 1 << shift >> 1;
+  sum32 = (sum32 * scale + rounding) >> shift;
+#else
   sum32 += 12;
   sum32 /= 24;
+#endif  // CONFIG_DC_DIV_UNIFY
   const __m128i row = _mm_set1_epi16((uint16_t)sum32);
   int i;
   for (i = 0; i < 4; ++i) {
@@ -896,8 +920,15 @@ void aom_highbd_dc_predictor_16x8_sse2(uint16_t *dst, ptrdiff_t stride,
   sum_above = _mm_unpacklo_epi16(sum_above, zero);
   const __m128i sum = _mm_add_epi32(sum_left, sum_above);
   uint32_t sum32 = _mm_cvtsi128_si32(sum);
+#if CONFIG_DC_DIV_UNIFY
+  int16_t shift = 0;
+  uint16_t scale = resolve_divisor_32(24, &shift);
+  uint16_t rounding = 1 << shift >> 1;
+  sum32 = (sum32 * scale + rounding) >> shift;
+#else
   sum32 += 12;
   sum32 /= 24;
+#endif  // CONFIG_DC_DIV_UNIFY
   const __m128i row = _mm_set1_epi16((uint16_t)sum32);
   int i;
   for (i = 0; i < 2; ++i) {
@@ -926,8 +957,15 @@ void aom_highbd_dc_predictor_16x32_sse2(uint16_t *dst, ptrdiff_t stride,
   sum_above = _mm_unpacklo_epi16(sum_above, zero);
   const __m128i sum = _mm_add_epi32(sum_left, sum_above);
   uint32_t sum32 = _mm_cvtsi128_si32(sum);
+#if CONFIG_DC_DIV_UNIFY
+  int16_t shift = 0;
+  uint16_t scale = resolve_divisor_32(48, &shift);
+  uint16_t rounding = 1 << shift >> 1;
+  sum32 = (sum32 * scale + rounding) >> shift;
+#else
   sum32 += 24;
   sum32 /= 48;
+#endif  // CONFIG_DC_DIV_UNIFY
   const __m128i row = _mm_set1_epi16((uint16_t)sum32);
   int i;
   for (i = 0; i < 8; ++i) {
@@ -956,8 +994,15 @@ void aom_highbd_dc_predictor_32x16_sse2(uint16_t *dst, ptrdiff_t stride,
   sum_left = _mm_unpacklo_epi16(sum_left, zero);
   const __m128i sum = _mm_add_epi32(sum_left, sum_above);
   uint32_t sum32 = _mm_cvtsi128_si32(sum);
+#if CONFIG_DC_DIV_UNIFY
+  int16_t shift = 0;
+  uint16_t scale = resolve_divisor_32(48, &shift);
+  uint16_t rounding = 1 << shift >> 1;
+  sum32 = (sum32 * scale + rounding) >> shift;
+#else
   sum32 += 24;
   sum32 /= 48;
+#endif  // CONFIG_DC_DIV_UNIFY
   const __m128i row = _mm_set1_epi16((uint16_t)sum32);
   int i;
   for (i = 0; i < 4; ++i) {

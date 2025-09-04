@@ -209,7 +209,18 @@ static INLINE void highbd_dc_predictor_subsampled(
     }
   }
 
+#if CONFIG_DC_DIV_UNIFY
+  if (count > 0) {
+    int16_t shift = 0;
+    uint16_t scale = resolve_divisor_32(count, &shift);
+    uint16_t rounding = 1 << shift >> 1;
+    sum = (sum * scale + rounding) >> shift;
+  } else {
+    sum = 1 << (bd - 1);
+  }
+#else
   sum = count > 0 ? (sum + count / 2) / count : 1 << (bd - 1);
+#endif  // CONFIG_DC_DIV_UNIFY
 
   for (int r = 0; r < bh; r++) {
     aom_memset16(dst, sum, bw);

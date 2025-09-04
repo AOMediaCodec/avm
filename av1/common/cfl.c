@@ -364,7 +364,14 @@ void cfl_calc_luma_dc(MACROBLOCKD *const xd, int row, int col,
   }
 
   if (count > 0) {
+#if CONFIG_DC_DIV_UNIFY
+    int16_t shift = 0;
+    uint16_t scale = resolve_divisor_32(count, &shift);
+    uint16_t rounding = 1 << shift >> 1;
+    cfl->avg_l = (sum_x * scale + rounding) >> shift;
+#else
     cfl->avg_l = (sum_x + count / 2) / count;
+#endif  // CONFIG_DC_DIV_UNIFY
   } else {
     cfl->avg_l = 8 << (xd->bd - 1);
   }

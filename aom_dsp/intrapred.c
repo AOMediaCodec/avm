@@ -20,6 +20,9 @@
 #include "aom_dsp/intrapred_common.h"
 #include "aom_mem/aom_mem.h"
 #include "aom_ports/bitops.h"
+#if CONFIG_DC_DIV_UNIFY
+#include "av1/common/warped_motion.h"
+#endif  // CONFIG_DC_DIV_UNIFY
 
 static INLINE void v_predictor(uint8_t *dst, ptrdiff_t stride, int bw, int bh,
                                const uint8_t *above, const uint8_t *left) {
@@ -234,11 +237,13 @@ static INLINE void dc_predictor(uint8_t *dst, ptrdiff_t stride, int bw, int bh,
   }
 }
 
+#if !CONFIG_DC_DIV_UNIFY
 static INLINE int divide_using_multiply_shift(int num, int shift1,
                                               int multiplier, int shift2) {
   const int interm = num >> shift1;
   return (int)((int64_t)interm * multiplier >> shift2);
 }
+#endif  // !CONFIG_DC_DIV_UNIFY
 
 static INLINE void highbd_v_predictor(uint16_t *dst, ptrdiff_t stride, int bw,
                                       int bh, const uint16_t *above,
@@ -697,8 +702,12 @@ static INLINE void ibp_dc_predictor(uint8_t *dst, ptrdiff_t stride, int bw,
 static INLINE void highbd_dc_predictor_rect(uint16_t *dst, ptrdiff_t stride,
                                             int bw, int bh,
                                             const uint16_t *above,
-                                            const uint16_t *left, int bd,
-                                            int shift1, uint32_t multiplier) {
+                                            const uint16_t *left, int bd
+#if !CONFIG_DC_DIV_UNIFY
+                                            ,
+                                            int shift1, uint32_t multiplier
+#endif  // !CONFIG_DC_DIV_UNIFY
+) {
   int sum = 0;
   (void)bd;
 
@@ -709,9 +718,16 @@ static INLINE void highbd_dc_predictor_rect(uint16_t *dst, ptrdiff_t stride,
     sum += left[i];
   }
 
+#if CONFIG_DC_DIV_UNIFY
+  int16_t shift = 0;
+  uint16_t scale = resolve_divisor_32(bw + bh, &shift);
+  uint16_t rounding = 1 << shift >> 1;
+  const int expected_dc = (sum * scale + rounding) >> shift;
+#else
   const int expected_dc = divide_using_multiply_shift(
       sum + ((bw + bh) >> 1), shift1, multiplier, HIGHBD_DC_SHIFT2);
   assert(expected_dc < (1 << bd));
+#endif  // CONFIG_DC_DIV_UNIFY
 
   for (int r = 0; r < bh; r++) {
     aom_memset16(dst, expected_dc, bw);
@@ -724,147 +740,229 @@ static INLINE void highbd_dc_predictor_rect(uint16_t *dst, ptrdiff_t stride,
 void aom_highbd_dc_predictor_4x8_c(uint16_t *dst, ptrdiff_t stride,
                                    const uint16_t *above, const uint16_t *left,
                                    int bd) {
-  highbd_dc_predictor_rect(dst, stride, 4, 8, above, left, bd, 2,
-                           HIGHBD_DC_MULTIPLIER_1X2);
+  highbd_dc_predictor_rect(dst, stride, 4, 8, above, left, bd
+#if !CONFIG_DC_DIV_UNIFY
+                           ,
+                           2, HIGHBD_DC_MULTIPLIER_1X2
+#endif  // !CONFIG_DC_DIV_UNIFY
+  );
 }
 
 void aom_highbd_dc_predictor_8x4_c(uint16_t *dst, ptrdiff_t stride,
                                    const uint16_t *above, const uint16_t *left,
                                    int bd) {
-  highbd_dc_predictor_rect(dst, stride, 8, 4, above, left, bd, 2,
-                           HIGHBD_DC_MULTIPLIER_1X2);
+  highbd_dc_predictor_rect(dst, stride, 8, 4, above, left, bd
+#if !CONFIG_DC_DIV_UNIFY
+                           ,
+                           2, HIGHBD_DC_MULTIPLIER_1X2
+#endif  // !CONFIG_DC_DIV_UNIFY
+  );
 }
 
 void aom_highbd_dc_predictor_4x16_c(uint16_t *dst, ptrdiff_t stride,
                                     const uint16_t *above, const uint16_t *left,
                                     int bd) {
-  highbd_dc_predictor_rect(dst, stride, 4, 16, above, left, bd, 2,
-                           HIGHBD_DC_MULTIPLIER_1X4);
+  highbd_dc_predictor_rect(dst, stride, 4, 16, above, left, bd
+#if !CONFIG_DC_DIV_UNIFY
+                           ,
+                           2, HIGHBD_DC_MULTIPLIER_1X4
+#endif  // !CONFIG_DC_DIV_UNIFY
+  );
 }
 
 void aom_highbd_dc_predictor_16x4_c(uint16_t *dst, ptrdiff_t stride,
                                     const uint16_t *above, const uint16_t *left,
                                     int bd) {
-  highbd_dc_predictor_rect(dst, stride, 16, 4, above, left, bd, 2,
-                           HIGHBD_DC_MULTIPLIER_1X4);
+  highbd_dc_predictor_rect(dst, stride, 16, 4, above, left, bd
+#if !CONFIG_DC_DIV_UNIFY
+                           ,
+                           2, HIGHBD_DC_MULTIPLIER_1X4
+#endif  // !CONFIG_DC_DIV_UNIFY
+  );
 }
 
 void aom_highbd_dc_predictor_8x16_c(uint16_t *dst, ptrdiff_t stride,
                                     const uint16_t *above, const uint16_t *left,
                                     int bd) {
-  highbd_dc_predictor_rect(dst, stride, 8, 16, above, left, bd, 3,
-                           HIGHBD_DC_MULTIPLIER_1X2);
+  highbd_dc_predictor_rect(dst, stride, 8, 16, above, left, bd
+#if !CONFIG_DC_DIV_UNIFY
+                           ,
+                           3, HIGHBD_DC_MULTIPLIER_1X2
+#endif  // !CONFIG_DC_DIV_UNIFY
+  );
 }
 
 void aom_highbd_dc_predictor_16x8_c(uint16_t *dst, ptrdiff_t stride,
                                     const uint16_t *above, const uint16_t *left,
                                     int bd) {
-  highbd_dc_predictor_rect(dst, stride, 16, 8, above, left, bd, 3,
-                           HIGHBD_DC_MULTIPLIER_1X2);
+  highbd_dc_predictor_rect(dst, stride, 16, 8, above, left, bd
+#if !CONFIG_DC_DIV_UNIFY
+                           ,
+                           3, HIGHBD_DC_MULTIPLIER_1X2
+#endif  // !CONFIG_DC_DIV_UNIFY
+  );
 }
 
 void aom_highbd_dc_predictor_8x32_c(uint16_t *dst, ptrdiff_t stride,
                                     const uint16_t *above, const uint16_t *left,
                                     int bd) {
-  highbd_dc_predictor_rect(dst, stride, 8, 32, above, left, bd, 3,
-                           HIGHBD_DC_MULTIPLIER_1X4);
+  highbd_dc_predictor_rect(dst, stride, 8, 32, above, left, bd
+#if !CONFIG_DC_DIV_UNIFY
+                           ,
+                           3, HIGHBD_DC_MULTIPLIER_1X4
+#endif  // !CONFIG_DC_DIV_UNIFY
+  );
 }
 
 void aom_highbd_dc_predictor_32x8_c(uint16_t *dst, ptrdiff_t stride,
                                     const uint16_t *above, const uint16_t *left,
                                     int bd) {
-  highbd_dc_predictor_rect(dst, stride, 32, 8, above, left, bd, 3,
-                           HIGHBD_DC_MULTIPLIER_1X4);
+  highbd_dc_predictor_rect(dst, stride, 32, 8, above, left, bd
+#if !CONFIG_DC_DIV_UNIFY
+                           ,
+                           3, HIGHBD_DC_MULTIPLIER_1X4
+#endif  // !CONFIG_DC_DIV_UNIFY
+  );
 }
 
 void aom_highbd_dc_predictor_16x32_c(uint16_t *dst, ptrdiff_t stride,
                                      const uint16_t *above,
                                      const uint16_t *left, int bd) {
-  highbd_dc_predictor_rect(dst, stride, 16, 32, above, left, bd, 4,
-                           HIGHBD_DC_MULTIPLIER_1X2);
+  highbd_dc_predictor_rect(dst, stride, 16, 32, above, left, bd
+#if !CONFIG_DC_DIV_UNIFY
+                           ,
+                           4, HIGHBD_DC_MULTIPLIER_1X2
+#endif  // !CONFIG_DC_DIV_UNIFY
+  );
 }
 
 void aom_highbd_dc_predictor_32x16_c(uint16_t *dst, ptrdiff_t stride,
                                      const uint16_t *above,
                                      const uint16_t *left, int bd) {
-  highbd_dc_predictor_rect(dst, stride, 32, 16, above, left, bd, 4,
-                           HIGHBD_DC_MULTIPLIER_1X2);
+  highbd_dc_predictor_rect(dst, stride, 32, 16, above, left, bd
+#if !CONFIG_DC_DIV_UNIFY
+                           ,
+                           4, HIGHBD_DC_MULTIPLIER_1X2
+#endif  // !CONFIG_DC_DIV_UNIFY
+  );
 }
 
 void aom_highbd_dc_predictor_16x64_c(uint16_t *dst, ptrdiff_t stride,
                                      const uint16_t *above,
                                      const uint16_t *left, int bd) {
-  highbd_dc_predictor_rect(dst, stride, 16, 64, above, left, bd, 4,
-                           HIGHBD_DC_MULTIPLIER_1X4);
+  highbd_dc_predictor_rect(dst, stride, 16, 64, above, left, bd
+#if !CONFIG_DC_DIV_UNIFY
+                           ,
+                           4, HIGHBD_DC_MULTIPLIER_1X4
+#endif  // !CONFIG_DC_DIV_UNIFY
+  );
 }
 
 void aom_highbd_dc_predictor_64x16_c(uint16_t *dst, ptrdiff_t stride,
                                      const uint16_t *above,
                                      const uint16_t *left, int bd) {
-  highbd_dc_predictor_rect(dst, stride, 64, 16, above, left, bd, 4,
-                           HIGHBD_DC_MULTIPLIER_1X4);
+  highbd_dc_predictor_rect(dst, stride, 64, 16, above, left, bd
+#if !CONFIG_DC_DIV_UNIFY
+                           ,
+                           4, HIGHBD_DC_MULTIPLIER_1X4
+#endif  // !CONFIG_DC_DIV_UNIFY
+  );
 }
 
 void aom_highbd_dc_predictor_32x64_c(uint16_t *dst, ptrdiff_t stride,
                                      const uint16_t *above,
                                      const uint16_t *left, int bd) {
-  highbd_dc_predictor_rect(dst, stride, 32, 64, above, left, bd, 5,
-                           HIGHBD_DC_MULTIPLIER_1X2);
+  highbd_dc_predictor_rect(dst, stride, 32, 64, above, left, bd
+#if !CONFIG_DC_DIV_UNIFY
+                           ,
+                           5, HIGHBD_DC_MULTIPLIER_1X2
+#endif  // !CONFIG_DC_DIV_UNIFY
+  );
 }
 
 void aom_highbd_dc_predictor_64x32_c(uint16_t *dst, ptrdiff_t stride,
                                      const uint16_t *above,
                                      const uint16_t *left, int bd) {
-  highbd_dc_predictor_rect(dst, stride, 64, 32, above, left, bd, 5,
-                           HIGHBD_DC_MULTIPLIER_1X2);
+  highbd_dc_predictor_rect(dst, stride, 64, 32, above, left, bd
+#if !CONFIG_DC_DIV_UNIFY
+                           ,
+                           5, HIGHBD_DC_MULTIPLIER_1X2
+#endif  // !CONFIG_DC_DIV_UNIFY
+  );
 }
 
 void aom_highbd_dc_predictor_4x32_c(uint16_t *dst, ptrdiff_t stride,
                                     const uint16_t *above, const uint16_t *left,
                                     int bd) {
-  highbd_dc_predictor_rect(dst, stride, 4, 32, above, left, bd, 2,
-                           HIGHBD_DC_MULTIPLIER_1X8);
+  highbd_dc_predictor_rect(dst, stride, 4, 32, above, left, bd
+#if !CONFIG_DC_DIV_UNIFY
+                           ,
+                           2, HIGHBD_DC_MULTIPLIER_1X8
+#endif  // !CONFIG_DC_DIV_UNIFY
+  );
 }
 
 void aom_highbd_dc_predictor_32x4_c(uint16_t *dst, ptrdiff_t stride,
                                     const uint16_t *above, const uint16_t *left,
                                     int bd) {
-  highbd_dc_predictor_rect(dst, stride, 32, 4, above, left, bd, 2,
-                           HIGHBD_DC_MULTIPLIER_1X8);
+  highbd_dc_predictor_rect(dst, stride, 32, 4, above, left, bd
+#if !CONFIG_DC_DIV_UNIFY
+                           ,
+                           2, HIGHBD_DC_MULTIPLIER_1X8
+#endif  // !CONFIG_DC_DIV_UNIFY
+  );
 }
 
 void aom_highbd_dc_predictor_8x64_c(uint16_t *dst, ptrdiff_t stride,
                                     const uint16_t *above, const uint16_t *left,
                                     int bd) {
-  highbd_dc_predictor_rect(dst, stride, 8, 64, above, left, bd, 3,
-                           HIGHBD_DC_MULTIPLIER_1X8);
+  highbd_dc_predictor_rect(dst, stride, 8, 64, above, left, bd
+#if !CONFIG_DC_DIV_UNIFY
+                           ,
+                           3, HIGHBD_DC_MULTIPLIER_1X8
+#endif  // !CONFIG_DC_DIV_UNIFY
+  );
 }
 
 void aom_highbd_dc_predictor_64x8_c(uint16_t *dst, ptrdiff_t stride,
                                     const uint16_t *above, const uint16_t *left,
                                     int bd) {
-  highbd_dc_predictor_rect(dst, stride, 64, 8, above, left, bd, 3,
-                           HIGHBD_DC_MULTIPLIER_1X8);
+  highbd_dc_predictor_rect(dst, stride, 64, 8, above, left, bd
+#if !CONFIG_DC_DIV_UNIFY
+                           ,
+                           3, HIGHBD_DC_MULTIPLIER_1X8
+#endif  // !CONFIG_DC_DIV_UNIFY
+  );
 }
 
 void aom_highbd_dc_predictor_4x64_c(uint16_t *dst, ptrdiff_t stride,
                                     const uint16_t *above, const uint16_t *left,
                                     int bd) {
-  highbd_dc_predictor_rect(dst, stride, 4, 64, above, left, bd, 2,
-                           HIGHBD_DC_MULTIPLIER_1X16);
+  highbd_dc_predictor_rect(dst, stride, 4, 64, above, left, bd
+#if !CONFIG_DC_DIV_UNIFY
+                           ,
+                           2, HIGHBD_DC_MULTIPLIER_1X16
+#endif  // !CONFIG_DC_DIV_UNIFY
+  );
 }
 
 void aom_highbd_dc_predictor_64x4_c(uint16_t *dst, ptrdiff_t stride,
                                     const uint16_t *above, const uint16_t *left,
                                     int bd) {
-  highbd_dc_predictor_rect(dst, stride, 64, 4, above, left, bd, 2,
-                           HIGHBD_DC_MULTIPLIER_1X16);
+  highbd_dc_predictor_rect(dst, stride, 64, 4, above, left, bd
+#if !CONFIG_DC_DIV_UNIFY
+                           ,
+                           2, HIGHBD_DC_MULTIPLIER_1X16
+#endif  // !CONFIG_DC_DIV_UNIFY
+  );
 }
 
+#if !CONFIG_DC_DIV_UNIFY
 #undef HIGHBD_DC_MULTIPLIER_1X2
 #undef HIGHBD_DC_MULTIPLIER_1X4
 #undef HIGHBD_DC_MULTIPLIER_1X8
 #undef HIGHBD_DC_MULTIPLIER_1X16
+#endif  // !CONFIG_DC_DIV_UNIFY
 
 // This serves as a wrapper function, so that all the prediction functions
 // can be unified and accessed as a pointer array. Note that the boundary

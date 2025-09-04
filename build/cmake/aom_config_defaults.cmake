@@ -270,6 +270,7 @@ set_aom_config_var(CONFIG_WARPMV_WARP_CAUSAL_REMOVAL 1
 
 set_aom_config_var(CONFIG_BLENDING_SIMPLIFICATION 1
                    "CWG F137 simplification for blending mode")
+set_aom_config_var(CONFIG_DC_DIV_UNIFY 1 "Unify DC division")
 
 set_aom_config_var(CONFIG_MHCCP_BLK_SIZE 1
                    "Add block size constraint for MHCCP")
