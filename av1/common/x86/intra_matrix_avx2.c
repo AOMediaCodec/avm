@@ -169,17 +169,56 @@ void resample_output_avx2(uint16_t *dst, int dst_stride,
     }
   }
   // Interpolate horizontally.
-  for (int i = 0; i < pred_y >> downy_log2; i++) {
-    int y = i * my + (my - 1);
-    int p0 = 0;
-    int p1 = left_col[y];
-    for (int j = 0; j < pred_x >> downx_log2; j++) {
-      int x = j * mx;
-      p0 = p1;
-      p1 = dst[y * dst_stride + x + mx - 1];
-      for (int k = 0; k < mx - 1; k++) {
-        int k1 = k + 1;
-        dst[y * dst_stride + x + k] = (p0 * (mx - k1) + (p1 * k1)) >> upx_log2;
+  if (upx_log2 > 2) {  // For width > 32
+    for (int i = 0; i < pred_y >> downy_log2; i++) {
+      int y = i * my + (my - 1);
+      int p0 = 0;
+      int p1 = left_col[y];
+      for (int j = 0; j < pred_x >> downx_log2; j++) {
+        int x = j * mx;
+        p0 = p1;
+        p1 = dst[y * dst_stride + x + mx - 1];
+        const __m256i p0_32 = _mm256_set1_epi32(p0);
+        const __m256i p1_32 = _mm256_set1_epi32(p1);
+        const __m256i mx_32 = _mm256_set1_epi32(mx);
+        const __m128i shift = _mm_cvtsi32_si128(upx_log2);
+        int k = 0;
+        for (; k <= mx - 1 - 8; k += 8) {
+          const __m256i k1_32 = _mm256_setr_epi32(k + 1, k + 2, k + 3, k + 4,
+                                                  k + 5, k + 6, k + 7, k + 8);
+          const __m256i w1_32 = k1_32;
+          const __m256i w0_32 = _mm256_sub_epi32(mx_32, w1_32);
+          const __m256i p0w0 = _mm256_mullo_epi32(p0_32, w0_32);
+          const __m256i p1w1 = _mm256_mullo_epi32(p1_32, w1_32);
+          const __m256i sum = _mm256_add_epi32(p0w0, p1w1);
+          const __m256i shifted = _mm256_sra_epi32(sum, shift);
+
+          const __m128i lo = _mm256_castsi256_si128(shifted);
+          const __m128i hi = _mm256_extracti128_si256(shifted, 1);
+          const __m128i packed = _mm_packus_epi32(lo, hi);
+          _mm_storeu_si128((__m128i *)(dst + y * dst_stride + x + k), packed);
+        }
+        // Remainder loop
+        for (; k < mx - 1; ++k) {
+          const int k1 = k + 1;
+          dst[y * dst_stride + x + k] = (p0 * (mx - k1) + p1 * k1) >> upx_log2;
+        }
+      }
+    }
+  } else {  // For width <= 32
+    for (int i = 0; i < pred_y >> downy_log2; i++) {
+      int y = i * my + (my - 1);
+      int p0 = 0;
+      int p1 = left_col[y];
+      for (int j = 0; j < pred_x >> downx_log2; j++) {
+        int x = j * mx;
+        p0 = p1;
+        p1 = dst[y * dst_stride + x + mx - 1];
+        for (int k = 0; k < mx - 1; k++) {
+          int k1 = k + 1;
+          dst[y * dst_stride + x + k] =
+              (p0 * (mx - k1) + (p1 * k1)) >> upx_log2;
+        }
       }
     }
   }
