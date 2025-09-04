@@ -227,7 +227,7 @@ set_aom_config_var(
   CONFIG_TX64_SEQ_FLAG 1
   "Sequence level flag to switch between Tx64 and Tx32 with resampling")
 
-set_aom_config_var(CONFIG_TU64_TRAVERSED_ORDER 0
+set_aom_config_var(CONFIG_TU64_TRAVERSED_ORDER 1
                    "Coding order of TU 64x64 traversed as 128x128 blocks")
 
 set_aom_config_var(CONFIG_REFRESH_FLAG 1
