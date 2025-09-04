@@ -447,7 +447,7 @@ static uint32_t read_tilegroup_obu(AV1Decoder *pbi,
       // cm->error.error_code is already set.
       return 0;
     }
-    header_size = (int)aom_rb_bytes_read(rb);
+    header_size = (int32_t)aom_rb_bytes_read(rb);
   } else {
     if (byte_alignment(cm, rb)) return 0;
     data += header_size;

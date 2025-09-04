@@ -9537,7 +9537,7 @@ int32_t av1_read_tilegroup_header(
   start_timing(pbi, av1_read_tilegroup_header);
 #endif
 
-  uint32_t saved_bit_offset = rb->bit_offset;
+  assert(rb->bit_offset == 0);
 
   AV1_COMMON *const cm = &pbi->common;
   const int num_planes = av1_num_planes(cm);
@@ -9752,158 +9752,131 @@ int32_t av1_read_tilegroup_header(
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(pbi, av1_read_tilegroup_header);
 #endif
-  return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
+  return (int32_t)aom_rb_bytes_read(rb);
 }
-#else  // CONFIG_F106_OBU_TILEGROUP
-  uint32_t av1_decode_frame_headers_and_setup(
-      AV1Decoder * pbi, struct aom_read_bit_buffer * rb, const uint8_t *data,
-      const uint8_t **p_data_end, int trailing_bits_present) {
+#endif  // CONFIG_F106_OBU_TILEGROUP
+#if !CONFIG_F106_OBU_TILEGROUP
+uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
+                                            struct aom_read_bit_buffer *rb,
+                                            const uint8_t *data,
+                                            const uint8_t **p_data_end,
+                                            int trailing_bits_present) {
 #if CONFIG_COLLECT_COMPONENT_TIMING
-    start_timing(pbi, av1_decode_frame_headers_and_setup_time);
+  start_timing(pbi, av1_decode_frame_headers_and_setup_time);
 #endif
 
-    AV1_COMMON *const cm = &pbi->common;
-    const int num_planes = av1_num_planes(cm);
-    MACROBLOCKD *const xd = &pbi->dcb.xd;
+  AV1_COMMON *const cm = &pbi->common;
+  const int num_planes = av1_num_planes(cm);
+  MACROBLOCKD *const xd = &pbi->dcb.xd;
 
 #if CONFIG_MISMATCH_DEBUG
-    mismatch_move_frame_idx_r(1);
+  mismatch_move_frame_idx_r(1);
 #endif  // CONFIG_MISMATCH_DEBUG
 
+  for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
+    cm->global_motion[i] = default_warp_params;
+    cm->cur_frame->global_motion[i] = default_warp_params;
+  }
+
+  for (int p = 0; p < num_planes; ++p) {
+    cm->cur_frame->rst_info[p].frame_filters_on = 0;
+  }
+
+  xd->global_motion = cm->global_motion;
+
+  read_uncompressed_header(pbi, rb);
+
+#if CONFIG_BITSTREAM_DEBUG
+  aom_bitstream_queue_set_frame_read(cm->current_frame.order_hint * 2 +
+                                     cm->show_frame);
+#endif
+
+  if (trailing_bits_present) av1_check_trailing_bits(pbi, rb);
+
+  if (!cm->tiles.single_tile_decoding &&
+      (pbi->dec_tile_row >= 0 || pbi->dec_tile_col >= 0)) {
+    pbi->dec_tile_row = -1;
+    pbi->dec_tile_col = -1;
+  }
+
+  const uint32_t uncomp_hdr_size =
+      (uint32_t)aom_rb_bytes_read(rb);  // Size of the uncompressed header
+  YV12_BUFFER_CONFIG *new_fb = &cm->cur_frame->buf;
+  xd->cur_buf = new_fb;
+  if (av1_allow_intrabc(cm, xd, BLOCK_4X4) && xd->tree_type != CHROMA_PART) {
+    av1_setup_scale_factors_for_frame(
+        &cm->sf_identity, xd->cur_buf->y_crop_width, xd->cur_buf->y_crop_height,
+        xd->cur_buf->y_crop_width, xd->cur_buf->y_crop_height);
+  }
+
+  if (cm->show_existing_frame) {
+    // showing a frame directly
+    *p_data_end = data + uncomp_hdr_size;
+    if (pbi->reset_decoder_state) {
+      // Use the default frame context values.
+      *cm->fc = *cm->default_frame_context;
+      if (!cm->fc->initialized)
+        aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                           "Uninitialized entropy context.");
+    }
+
+#if CONFIG_COLLECT_COMPONENT_TIMING
+    end_timing(pbi, av1_decode_frame_headers_and_setup_time);
+#endif
+
+    return uncomp_hdr_size;
+  }
+
+  cm->mi_params.setup_mi(&cm->mi_params);
+
+  if (cm->features.allow_ref_frame_mvs)
+    av1_setup_motion_field(cm);
+  else
+    av1_setup_ref_frame_sides(cm);
+
+#if CONFIG_BRU
+  if (cm->bru.frame_inactive_flag) {
+    for (int plane = 0; plane < av1_num_planes(cm); plane++) {
+      cm->cur_frame->ccso_info.ccso_enable[plane] = 0;
+    }
+    MV_REF *frame_mvs = cm->cur_frame->mvs;
+    const int mvs_rows =
+        ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, TMVP_SHIFT_BITS);
+    const int mvs_cols =
+        ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
+    const int mvs_stride = mvs_cols;
+
+    for (int h = 0; h < mvs_rows; h++) {
+      MV_REF *mv = frame_mvs;
+      for (int w = 0; w < mvs_cols; w++) {
+        mv->ref_frame[0] = cm->bru.update_ref_idx;
+        mv->ref_frame[1] = NONE_FRAME;
+        mv->mv[0].as_int = 0;
+        mv->mv[1].as_int = 0;
+        mv++;
+      }
+      frame_mvs += mvs_stride;
+    }
     for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
       cm->global_motion[i] = default_warp_params;
       cm->cur_frame->global_motion[i] = default_warp_params;
     }
-
-    for (int p = 0; p < num_planes; ++p) {
-      cm->cur_frame->rst_info[p].frame_filters_on = 0;
-    }
-
-    xd->global_motion = cm->global_motion;
-
-    read_uncompressed_header(pbi, rb);
-
-#if CONFIG_BITSTREAM_DEBUG
-    aom_bitstream_queue_set_frame_read(cm->current_frame.order_hint * 2 +
-                                       cm->show_frame);
-#endif
-
-    if (trailing_bits_present) av1_check_trailing_bits(pbi, rb);
-
-    if (!cm->tiles.single_tile_decoding &&
-        (pbi->dec_tile_row >= 0 || pbi->dec_tile_col >= 0)) {
-      pbi->dec_tile_row = -1;
-      pbi->dec_tile_col = -1;
-    }
-
-    const uint32_t uncomp_hdr_size =
-        (uint32_t)aom_rb_bytes_read(rb);  // Size of the uncompressed header
-    YV12_BUFFER_CONFIG *new_fb = &cm->cur_frame->buf;
-    xd->cur_buf = new_fb;
-    if (av1_allow_intrabc(cm, xd, BLOCK_4X4) && xd->tree_type != CHROMA_PART) {
-      av1_setup_scale_factors_for_frame(
-          &cm->sf_identity, xd->cur_buf->y_crop_width,
-          xd->cur_buf->y_crop_height, xd->cur_buf->y_crop_width,
-          xd->cur_buf->y_crop_height);
-    }
-
-    if (cm->show_existing_frame) {
-      // showing a frame directly
-      *p_data_end = data + uncomp_hdr_size;
-      if (pbi->reset_decoder_state) {
-        // Use the default frame context values.
-        *cm->fc = *cm->default_frame_context;
-        if (!cm->fc->initialized)
-          aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
-                             "Uninitialized entropy context.");
-      }
-
-#if CONFIG_COLLECT_COMPONENT_TIMING
-      end_timing(pbi, av1_decode_frame_headers_and_setup_time);
-#endif
-
-      return uncomp_hdr_size;
-    }
-
-    cm->mi_params.setup_mi(&cm->mi_params);
-
-    if (cm->features.allow_ref_frame_mvs)
-      av1_setup_motion_field(cm);
-    else
-      av1_setup_ref_frame_sides(cm);
-
-#if CONFIG_BRU
-    if (cm->bru.frame_inactive_flag) {
-      for (int plane = 0; plane < av1_num_planes(cm); plane++) {
-        cm->cur_frame->ccso_info.ccso_enable[plane] = 0;
-      }
-      MV_REF *frame_mvs = cm->cur_frame->mvs;
-      const int mvs_rows =
-          ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, TMVP_SHIFT_BITS);
-      const int mvs_cols =
-          ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
-      const int mvs_stride = mvs_cols;
-
-      for (int h = 0; h < mvs_rows; h++) {
-        MV_REF *mv = frame_mvs;
-        for (int w = 0; w < mvs_cols; w++) {
-          mv->ref_frame[0] = cm->bru.update_ref_idx;
-          mv->ref_frame[1] = NONE_FRAME;
-          mv->mv[0].as_int = 0;
-          mv->mv[1].as_int = 0;
-          mv++;
-        }
-        frame_mvs += mvs_stride;
-      }
-      for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
-        cm->global_motion[i] = default_warp_params;
-        cm->cur_frame->global_motion[i] = default_warp_params;
-      }
 #if CONFIG_TIP_LD
-      set_primary_ref_frame_and_ctx(pbi);
+    set_primary_ref_frame_and_ctx(pbi);
 #else
     av1_setup_past_independence(cm);
 #endif  // CONFIG_TIP_LD
-      cm->seg.enabled = 0;
-      if (cm->cur_frame->seg_map) {
-        memset(cm->cur_frame->seg_map, 0,
-               (cm->cur_frame->mi_rows * cm->cur_frame->mi_cols));
-      }
-      memset(&cm->seg, 0, sizeof(cm->seg));
+    cm->seg.enabled = 0;
+    if (cm->cur_frame->seg_map) {
+      memset(cm->cur_frame->seg_map, 0,
+             (cm->cur_frame->mi_rows * cm->cur_frame->mi_cols));
+    }
+    memset(&cm->seg, 0, sizeof(cm->seg));
 #if CONFIG_EXT_SEG
-      cm->seg.enable_ext_seg = cm->seq_params.enable_ext_seg;
+    cm->seg.enable_ext_seg = cm->seq_params.enable_ext_seg;
 #endif  // CONFIG_EXT_SEG
-      segfeatures_copy(&cm->cur_frame->seg, &cm->seg);
+    segfeatures_copy(&cm->cur_frame->seg, &cm->seg);
 
-      if (cm->features.primary_ref_frame == PRIMARY_REF_NONE) {
-        // use the default frame context values
-        *cm->fc = *cm->default_frame_context;
-      } else {
-        *cm->fc = get_primary_ref_frame_buf(cm, cm->features.primary_ref_frame)
-                      ->frame_context;
-        int ref_frame_used = PRIMARY_REF_NONE;
-        int map_idx = INVALID_IDX;
-        get_secondary_reference_frame_idx(cm, &ref_frame_used, &map_idx);
-        avg_primary_secondary_references(cm, ref_frame_used, map_idx);
-      }
-      *p_data_end = data + uncomp_hdr_size;
-      return uncomp_hdr_size;
-    }
-#endif  // CONFIG_BRU
-
-    process_tip_mode(pbi);
-    if (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
-      *p_data_end = data + uncomp_hdr_size;
-
-#if CONFIG_COLLECT_COMPONENT_TIMING
-      end_timing(pbi, av1_decode_frame_headers_and_setup_time);
-#endif
-
-      return uncomp_hdr_size;
-    }
-
-    av1_setup_block_planes(xd, cm->seq_params.subsampling_x,
-                           cm->seq_params.subsampling_y, num_planes);
     if (cm->features.primary_ref_frame == PRIMARY_REF_NONE) {
       // use the default frame context values
       *cm->fc = *cm->default_frame_context;
@@ -9915,11 +9888,14 @@ int32_t av1_read_tilegroup_header(
       get_secondary_reference_frame_idx(cm, &ref_frame_used, &map_idx);
       avg_primary_secondary_references(cm, ref_frame_used, map_idx);
     }
-    if (!cm->fc->initialized)
-      aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
-                         "Uninitialized entropy context.");
+    *p_data_end = data + uncomp_hdr_size;
+    return uncomp_hdr_size;
+  }
+#endif  // CONFIG_BRU
 
-    pbi->dcb.corrupted = 0;
+  process_tip_mode(pbi);
+  if (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
+    *p_data_end = data + uncomp_hdr_size;
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
     end_timing(pbi, av1_decode_frame_headers_and_setup_time);
@@ -9927,7 +9903,33 @@ int32_t av1_read_tilegroup_header(
 
     return uncomp_hdr_size;
   }
-#endif  // CONFIG_F106_OBU_TILEGROUP
+
+  av1_setup_block_planes(xd, cm->seq_params.subsampling_x,
+                         cm->seq_params.subsampling_y, num_planes);
+  if (cm->features.primary_ref_frame == PRIMARY_REF_NONE) {
+    // use the default frame context values
+    *cm->fc = *cm->default_frame_context;
+  } else {
+    *cm->fc = get_primary_ref_frame_buf(cm, cm->features.primary_ref_frame)
+                  ->frame_context;
+    int ref_frame_used = PRIMARY_REF_NONE;
+    int map_idx = INVALID_IDX;
+    get_secondary_reference_frame_idx(cm, &ref_frame_used, &map_idx);
+    avg_primary_secondary_references(cm, ref_frame_used, map_idx);
+  }
+  if (!cm->fc->initialized)
+    aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                       "Uninitialized entropy context.");
+
+  pbi->dcb.corrupted = 0;
+
+#if CONFIG_COLLECT_COMPONENT_TIMING
+  end_timing(pbi, av1_decode_frame_headers_and_setup_time);
+#endif
+
+  return uncomp_hdr_size;
+}
+#endif  // !CONFIG_F106_OBU_TILEGROUP
 // Once-per-frame initialization
 static AOM_INLINE void setup_frame_info(AV1Decoder *pbi) {
   AV1_COMMON *const cm = &pbi->common;
