@@ -43,7 +43,7 @@ static INLINE int av1_cost_symbol(aom_cdf_prob p15) {
 }
 
 void av1_cost_tokens_from_cdf(int *costs, const aom_cdf_prob *cdf,
-                              const int *inv_map);
+                              const int nsym, const int *inv_map);
 
 #ifdef __cplusplus
 }  // extern "C"

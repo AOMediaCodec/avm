@@ -977,10 +977,12 @@ void av1_build_vq_amvd_nmv_cost_table(MvCosts *mv_costs,
   int amvd_joints_costs[MV_JOINTS];
   int amvd_indices_costs[2][MAX_AMVD_INDEX];
 
-  av1_cost_tokens_from_cdf(amvd_joints_costs, ctx->amvd_joints_cdf, NULL);
+  av1_cost_tokens_from_cdf(amvd_joints_costs, ctx->amvd_joints_cdf, MV_JOINTS,
+                           NULL);
   for (int i = 0; i < 2; i++) {
     av1_cost_tokens_from_cdf(amvd_indices_costs[i],
-                             ctx->comps[i].amvd_indices_cdf, NULL);
+                             ctx->comps[i].amvd_indices_cdf, MAX_AMVD_INDEX,
+                             NULL);
     mv_costs->amvd_index_sign_cost[i][0] = av1_cost_literal(1);
     mv_costs->amvd_index_sign_cost[i][1] = av1_cost_literal(1);
   }
@@ -1056,12 +1058,14 @@ void av1_build_vq_nmv_cost_table(MvCosts *mv_costs, const nmv_context *ctx,
 
   // Symbols related to shell index
 #if CONFIG_REDUCE_SYMBOL_SIZE
-  av1_cost_tokens_from_cdf(joint_shell_set_cost, ctx->joint_shell_set_cdf,
+  av1_cost_tokens_from_cdf(joint_shell_set_cost, ctx->joint_shell_set_cdf, 2,
                            NULL);
   av1_cost_tokens_from_cdf(joint_shell_class_cost_0,
-                           ctx->joint_shell_class_cdf_0[precision], NULL);
+                           ctx->joint_shell_class_cdf_0[precision],
+                           FIRST_SHELL_CLASS, NULL);
   av1_cost_tokens_from_cdf(joint_shell_class_cost_1,
-                           ctx->joint_shell_class_cdf_1[precision], NULL);
+                           ctx->joint_shell_class_cdf_1[precision],
+                           SECOND_SHELL_CLASS, NULL);
 #else
   av1_cost_tokens_from_cdf(joint_shell_class_cost,
                            ctx->joint_shell_class_cdf[precision], NULL);
@@ -1070,33 +1074,34 @@ void av1_build_vq_nmv_cost_table(MvCosts *mv_costs, const nmv_context *ctx,
 #if CONFIG_MV_RANGE_EXTENSION
   if (precision == MV_PRECISION_ONE_EIGHTH_PEL) {
     av1_cost_tokens_from_cdf(joint_shell_last_two_classes_cost,
-                             ctx->joint_shell_last_two_classes_cdf, NULL);
+                             ctx->joint_shell_last_two_classes_cdf, 2, NULL);
   }
 #endif  // CONFIG_MV_RANGE_EXTENSION
 
   for (int i = 0; i < 2; i++) {
     av1_cost_tokens_from_cdf(shell_offset_low_class_cost[i],
-                             ctx->shell_offset_low_class_cdf[i], NULL);
+                             ctx->shell_offset_low_class_cdf[i], 2, NULL);
   }
   av1_cost_tokens_from_cdf(shell_offset_class2_cost,
-                           ctx->shell_offset_class2_cdf, NULL);
+                           ctx->shell_offset_class2_cdf, 2, NULL);
   for (int j = 0; j < NUM_CTX_CLASS_OFFSETS; j++) {
     for (int i = 0; i < SHELL_INT_OFFSET_BIT; i++) {
       av1_cost_tokens_from_cdf(shell_offset_other_class_cost[j][i],
-                               ctx->shell_offset_other_class_cdf[j][i], NULL);
+                               ctx->shell_offset_other_class_cdf[j][i], 2,
+                               NULL);
     }
   }
   int col_mv_greater_flags_cost[NUM_CTX_COL_MV_GTX][2];
   for (int i = 0; i < NUM_CTX_COL_MV_GTX; i++) {
     av1_cost_tokens_from_cdf(col_mv_greater_flags_cost[i],
-                             ctx->col_mv_greater_flags_cdf[i], NULL);
+                             ctx->col_mv_greater_flags_cdf[i], 2, NULL);
   }
 
   for (int i = 0; i < NUM_CTX_COL_MV_INDEX; i++) {
     av1_cost_tokens_from_cdf(is_ibc
                                  ? dv_costs->dv_col_mv_index_cost[precision][i]
                                  : mv_costs->col_mv_index_cost[precision][i],
-                             ctx->col_mv_index_cdf[i], NULL);
+                             ctx->col_mv_index_cdf[i], 2, NULL);
   }
 
   if (is_ibc) {

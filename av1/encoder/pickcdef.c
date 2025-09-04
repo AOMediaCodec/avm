@@ -664,11 +664,12 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
         if (nb_strengths >= 2) {
           for (int ctx = 0; ctx < CDEF_STRENGTH_INDEX0_CTX; ++ctx) {
             av1_cost_tokens_from_cdf(strength_index0_cost_from_cdf[ctx],
-                                     cdef_strength_index0_cdf[ctx], NULL);
+                                     cdef_strength_index0_cdf[ctx], 2, NULL);
           }
           if (nb_strengths > 2) {
             av1_cost_tokens_from_cdf(cost_from_cdf[nb_strengths - 3],
-                                     cdef_cdf[nb_strengths - 3], NULL);
+                                     cdef_cdf[nb_strengths - 3],
+                                     CDEF_STRENGTHS_NUM, NULL);
           }
         }
         const int strength_index0_ctx =
@@ -770,11 +771,12 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
     if (best_nb_strength >= 2) {
       for (int ctx = 0; ctx < CDEF_STRENGTH_INDEX0_CTX; ++ctx) {
         av1_cost_tokens_from_cdf(strength_index0_cost_from_cdf[ctx],
-                                 cdef_strength_index0_cdf[ctx], NULL);
+                                 cdef_strength_index0_cdf[ctx], 2, NULL);
       }
       if (best_nb_strength > 2) {
         av1_cost_tokens_from_cdf(cost_from_cdf[best_nb_strength - 3],
-                                 cdef_cdf[best_nb_strength - 3], NULL);
+                                 cdef_cdf[best_nb_strength - 3],
+                                 CDEF_STRENGTHS_NUM, NULL);
       }
     }
     const int strength_index0_ctx = get_cdef_context(cm, sb_index[i]);

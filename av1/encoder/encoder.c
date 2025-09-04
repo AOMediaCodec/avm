@@ -2736,7 +2736,7 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
             int best_block_rate = 0;
             int64_t best_block_error = 0;
             int cost_from_cdf[2];
-            av1_cost_tokens_from_cdf(cost_from_cdf, gdf_cdf, NULL);
+            av1_cost_tokens_from_cdf(cost_from_cdf, gdf_cdf, 2, NULL);
 #if CONFIG_BRU
             // if bru_skip_blk[blk_idx] is set to 1, no need to check filter on
             // case.

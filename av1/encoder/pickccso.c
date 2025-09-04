@@ -925,7 +925,7 @@ static void derive_blk_md(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
 
           int cost_from_cdf[CCSO_CONTEXT][2];
           av1_cost_tokens_from_cdf(cost_from_cdf[ccso_ctx], ccso_cdf[ccso_ctx],
-                                   NULL);
+                                   2, NULL);
 #if CONFIG_BRU
           // check BRU skip in entire CCSO FU
           if (bru_is_fu_skipped_mbmi(cm, mi_col, mi_row, sb_unit_size_x,
