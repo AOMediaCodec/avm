@@ -349,6 +349,9 @@ RefCntBuffer *bru_swap_common(AV1_COMMON *cm) {
     RefCntBuffer *tmp_buf = cm->cur_frame;
     ref_buf->order_hint = cm->cur_frame->order_hint;
     ref_buf->display_order_hint = cm->cur_frame->display_order_hint;
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+    ref_buf->long_term_id = cm->cur_frame->long_term_id;
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     ref_buf->absolute_poc = cm->cur_frame->absolute_poc;
     ref_buf->pyramid_level = cm->cur_frame->pyramid_level;
     if (!cm->bru.frame_inactive_flag)

@@ -65,11 +65,21 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 void av1_configure_buffer_updates(AV1_COMP *const cpi,
                                   const FRAME_UPDATE_TYPE type);
 // Encoder-only version for the reference mapping
+
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+void av1_get_ref_frames_enc(AV1_COMP *const cpi, int cur_frame_disp,
+                            RefFrameMapPair *ref_frame_map_pairs);
+#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 void av1_get_ref_frames_enc(AV1_COMMON *cm, int cur_frame_disp,
                             RefFrameMapPair *ref_frame_map_pairs);
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 
 int av1_get_refresh_frame_flags(
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+    AV1_COMP *const cpi, const EncodeFrameParams *const frame_params,
+#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     const AV1_COMP *const cpi, const EncodeFrameParams *const frame_params,
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     FRAME_UPDATE_TYPE frame_update_type, int gf_index, int cur_frame_disp,
     RefFrameMapPair ref_frame_map_pairs[REF_FRAMES]);
 

@@ -24,7 +24,11 @@ extern "C" {
 
 static INLINE void init_ref_map_pair(AV1_COMMON *cm,
                                      RefFrameMapPair *ref_frame_map_pairs,
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                                     int is_key, int is_ras) {
+#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
                                      int is_key) {
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   if (is_key) {
     memset(ref_frame_map_pairs, -1, sizeof(*ref_frame_map_pairs) * REF_FRAMES);
     return;
@@ -65,6 +69,9 @@ static INLINE void init_ref_map_pair(AV1_COMMON *cm,
         // is not included into the list of ref_frame_map_pairs[].
         || buf->temporal_layer_id > cm->current_frame.temporal_layer_id
 #endif  // CONFIG_MULTILAYER_CORE && CONFIG_MULTILAYER_CORE_HLS
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+        || (is_ras && buf->frame_type != KEY_FRAME)
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     ) {
       ref_frame_map_pairs[map_idx].ref_frame_for_inference = -1;
       continue;
@@ -120,6 +127,9 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
 #if CONFIG_ACROSS_SCALE_REF_OPT
                        int resolution_available,
 #endif  // CONFIG_ACROSS_SCALE_REF_OPT
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                       int key_frame_only,
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
                        RefFrameMapPair *ref_frame_map_pairs);
 
 // Derive the primary & secondary reference frame from the reference list based

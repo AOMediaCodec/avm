@@ -1003,7 +1003,7 @@ typedef struct aom_codec_enc_cfg {
 
   /*!\brief sframe insertion mode
    *
-   * This value must be set to 1 or 2, and tells the encoder how to insert
+   * This value must be set to 1 or 2 and tells the encoder how to insert
    * S-Frames. It will only have an effect if sframe_dist != 0.
    *
    * If altref is enabled:

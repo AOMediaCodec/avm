@@ -640,6 +640,9 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
       tool_cfg->enable_global_motion && !seq->single_picture_hdr_flag;
   seq->enable_short_refresh_frame_flags =
       tool_cfg->enable_short_refresh_frame_flags;
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+  seq->number_of_bits_for_lt_frame_id = 3;
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 #if CONFIG_EXT_SEG
   seq->enable_ext_seg = tool_cfg->enable_ext_seg;
 #endif  // CONFIG_EXT_SEG
@@ -1297,6 +1300,10 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
   }
 
   cpi->frames_left = cpi->oxcf.input_cfg.limit;
+
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+  cpi->num_coded_longterm_ref = 0;
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 
   av1_rc_init(&cpi->oxcf, 0, &cpi->rc);
 
@@ -4646,25 +4653,58 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
   const int cur_frame_disp =
       cpi->common.current_frame.frame_number + order_offset;
 
-  init_ref_map_pair(
-      &cpi->common, cm->ref_frame_map_pairs,
-      cpi->gf_group.update_type[cpi->gf_group.index] == KF_UPDATE);
-  if (cm->seq_params.explicit_ref_frame_map) {
+  init_ref_map_pair(&cpi->common, cm->ref_frame_map_pairs,
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                    current_frame->frame_type == KEY_FRAME,
+                    cpi->switch_frame_mode == 1);
+#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                    cpi->gf_group.update_type[cpi->gf_group.index] ==
+                        KF_UPDATE);
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+  if (cm->seq_params.explicit_ref_frame_map
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+      || cm->features.error_resilient_mode || cpi->switch_frame_mode == 1
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+  ) {
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+    av1_get_ref_frames_enc(cpi, cur_frame_disp, cm->ref_frame_map_pairs);
+#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     av1_get_ref_frames_enc(cm, cur_frame_disp, cm->ref_frame_map_pairs);
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   } else {
 #if CONFIG_ACROSS_SCALE_REF_OPT
     // Derive reference mapping in a resolution independent manner to generate
     // parameters needed in write_frame_size_with_refs
-    av1_get_ref_frames(cm, cur_frame_disp, 0, cm->ref_frame_map_pairs);
-    av1_get_ref_frames(cm, cur_frame_disp, 1, cm->ref_frame_map_pairs);
+    av1_get_ref_frames(cm, cur_frame_disp, 0,
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                       0,
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                       cm->ref_frame_map_pairs);
+    av1_get_ref_frames(cm, cur_frame_disp, 1,
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                       0,
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                       cm->ref_frame_map_pairs);
 #else
-    av1_get_ref_frames(cm, cur_frame_disp, cm->ref_frame_map_pairs);
+    av1_get_ref_frames(cm, cur_frame_disp,
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                       0,
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                       cm->ref_frame_map_pairs);
 #endif  // CONFIG_ACROSS_SCALE_REF_OPT
   }
 
   current_frame->absolute_poc =
       current_frame->key_frame_number + current_frame->display_order_hint;
-
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+  if (current_frame->frame_type == KEY_FRAME) {
+    current_frame->long_term_id =
+        cpi->num_coded_longterm_ref % MAX_NUM_LONG_TERM_FRAMES;
+    cpi->num_coded_longterm_ref++;
+  } else {
+    current_frame->long_term_id = -1;
+  }
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   current_frame->order_hint %=
       (1 << (cm->seq_params.order_hint_info.order_hint_bits_minus_1 + 1));
 

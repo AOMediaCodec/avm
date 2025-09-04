@@ -88,6 +88,9 @@ bool ValidObuType(int obu_type) {
 #if CONFIG_MULTI_STREAM
     case OBU_MSDO:
 #endif  // CONFIG_MULTI_STREAM
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+    case OBU_RAS_FRAME:
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     case OBU_PADDING: return true;
   }
   return false;

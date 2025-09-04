@@ -148,6 +148,9 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
 #if CONFIG_ACROSS_SCALE_REF_OPT
                        int resolution_available,
 #endif  // CONFIG_ACROSS_SCALE_REF_OPT
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                       int key_frame_only,
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
                        RefFrameMapPair *ref_frame_map_pairs) {
   RefScoreData scores[REF_FRAMES];
   memset(scores, 0, REF_FRAMES * sizeof(*scores));
@@ -173,7 +176,9 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
     // Get reference frame buffer
     RefFrameMapPair cur_ref = ref_frame_map_pairs[i];
     if (cur_ref.ref_frame_for_inference == -1) continue;
-
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+    if (key_frame_only && cur_ref.frame_type != KEY_FRAME) continue;
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 #if CONFIG_ACROSS_SCALE_REF_OPT
     // In resize mode, only frames within 1/16 to 2 times the current frame in
     // each dimension can be used as references.

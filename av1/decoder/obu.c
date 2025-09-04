@@ -1003,6 +1003,9 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
     // Record obu size header information.
     pbi->obu_size_hdr.data = data + obu_header.size;
     pbi->obu_size_hdr.size = bytes_read - obu_header.size;
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+    pbi->obu_type = obu_header.type;
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 
     // Note: aom_read_obu_header_and_size() takes care of checking that this
     // doesn't cause 'data' to advance past 'data_end'.
@@ -1130,12 +1133,18 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
 #if CONFIG_F106_OBU_TIP
       case OBU_TIP:
 #endif  // CONFIG_F106_OBU_TIP
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+      case OBU_RAS_FRAME:
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 #else
       case OBU_FRAME_HEADER:
 #if !CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER
       case OBU_REDUNDANT_FRAME_HEADER:
 #endif  // !CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER
       case OBU_FRAME:
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+      case OBU_RAS_FRAME:
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 #endif  // CONFIG_F106_OBU_TILEGROUP
 #if CONFIG_CWG_F317
       case OBU_BRIDGE_FRAME:
@@ -1209,7 +1218,14 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
                                                     trailing_bits_present);
 #else
           frame_header_size = read_frame_header_obu(
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+              pbi, &rb, data, p_data_end,
+              obu_header.type != OBU_FRAME &&
+                  obu_header.type != OBU_RAS_FRAME &&
+                  obu_header.type != OBU_SWITCH);
+#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
               pbi, &rb, data, p_data_end, obu_header.type != OBU_FRAME);
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 #endif  // CONFIG_CWG_F317
           pbi->seen_frame_header = 1;
           if (!pbi->ext_tile_debug && cm->tiles.large_scale)
@@ -1231,7 +1247,13 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
 
         if (cm->show_existing_frame ||
             cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+          if (obu_header.type == OBU_FRAME ||
+              obu_header.type == OBU_RAS_FRAME ||
+              obu_header.type == OBU_SWITCH) {
+#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
           if (obu_header.type == OBU_FRAME) {
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
             cm->error.error_code = AOM_CODEC_UNSUP_BITSTREAM;
             return -1;
           }
@@ -1271,7 +1293,14 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
 #endif  // CONFIG_CWG_F317
           break;
         }
+
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+        if (obu_header.type != OBU_FRAME && obu_header.type != OBU_RAS_FRAME &&
+            obu_header.type != OBU_SWITCH)
+          break;
+#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
         if (obu_header.type != OBU_FRAME) break;
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
         obu_payload_offset = frame_header_size;
         // Byte align the reader before reading the tile group.
         // av1_check_byte_alignment() has set cm->error.error_code if it returns
@@ -1290,7 +1319,10 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
         decoded_payload_size += read_one_tile_group_obu(
             pbi, &rb, is_first_tg_obu_received, data + obu_payload_offset,
             data + payload_size, p_data_end, &frame_decoding_finished,
-            obu_header.type == OBU_FRAME);
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+            obu_header.type == OBU_RAS_FRAME || obu_header.type == OBU_SWITCH ||
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                obu_header.type == OBU_FRAME);
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
         is_first_tg_obu_received = 0;
         if (frame_decoding_finished) pbi->seen_frame_header = 0;

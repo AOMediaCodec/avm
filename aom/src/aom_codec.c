@@ -195,6 +195,9 @@ const char *aom_obu_type_to_string(OBU_TYPE type) {
 #if CONFIG_MULTI_STREAM
     case OBU_MSDO: return "OBU_MSDO";
 #endif  // CONFIG_MULTI_STREAM
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+    case OBU_RAS_FRAME: return "OBU_RAS_FRAME";
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     case OBU_PADDING: return "OBU_PADDING";
     default: break;
   }

@@ -996,9 +996,14 @@ static AOM_INLINE void init_gop_frames_for_tpl(
   int cur_frame_idx = gf_group->index;
   *pframe_qindex = 0;
   RefFrameMapPair ref_frame_map_pairs[REF_FRAMES];
-  init_ref_map_pair(
-      cm, ref_frame_map_pairs,
-      cpi->gf_group.update_type[cpi->gf_group.index] == KF_UPDATE);
+  init_ref_map_pair(cm, ref_frame_map_pairs,
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                    init_frame_params->frame_type == KEY_FRAME,
+                    cpi->switch_frame_mode == 1);
+#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                    cpi->gf_group.update_type[cpi->gf_group.index] ==
+                        KF_UPDATE);
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 
   EncodeFrameParams frame_params = *init_frame_params;
   TplParams *const tpl_data = &cpi->tpl_data;
@@ -1084,13 +1089,24 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     const int true_disp =
         (int)(tpl_frame->frame_display_index) -
         (gf_group->subgop_cfg != NULL && frame_params.show_frame);
-    if (cm->seq_params.explicit_ref_frame_map)
+    if (cm->seq_params.explicit_ref_frame_map
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+        || cm->features.error_resilient_mode || cpi->switch_frame_mode == 1
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+    )
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+      av1_get_ref_frames_enc(cpi, true_disp, ref_frame_map_pairs);
+#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
       av1_get_ref_frames_enc(cm, true_disp, ref_frame_map_pairs);
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     else
       av1_get_ref_frames(cm, true_disp,
 #if CONFIG_ACROSS_SCALE_REF_OPT
                          1,
 #endif  // CONFIG_ACROSS_SCALE_REF_OPT
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                         0,
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
                          ref_frame_map_pairs);
     int refresh_mask =
         av1_get_refresh_frame_flags(cpi, &frame_params, frame_update_type,
@@ -1124,16 +1140,32 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     const int true_disp =
         (int)(tpl_frame->frame_display_index) -
         (gf_group->subgop_cfg != NULL && init_frame_params->show_frame);
-    init_ref_map_pair(
-        cm, ref_frame_map_pairs,
-        cpi->gf_group.update_type[cpi->gf_group.index] == KEY_FRAME);
-    if (cm->seq_params.explicit_ref_frame_map)
+    init_ref_map_pair(cm, ref_frame_map_pairs,
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                      init_frame_params->frame_type == KEY_FRAME,
+                      cpi->switch_frame_mode == 1);
+#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                      cpi->gf_group.update_type[cpi->gf_group.index] ==
+                          KF_UPDATE);
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+    if (cm->seq_params.explicit_ref_frame_map
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+        || cm->features.error_resilient_mode || cpi->switch_frame_mode == 1
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+    )
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+      av1_get_ref_frames_enc(cpi, true_disp, ref_frame_map_pairs);
+#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
       av1_get_ref_frames_enc(cm, true_disp, ref_frame_map_pairs);
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     else
       av1_get_ref_frames(cm, true_disp,
 #if CONFIG_ACROSS_SCALE_REF_OPT
                          1,
 #endif  // CONFIG_ACROSS_SCALE_REF_OPT
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                         0,
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
                          ref_frame_map_pairs);
     return;
   }
@@ -1184,13 +1216,24 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     const int true_disp =
         (int)(tpl_frame->frame_display_index) -
         (gf_group->subgop_cfg != NULL && frame_params.show_frame);
-    if (cm->seq_params.explicit_ref_frame_map)
+    if (cm->seq_params.explicit_ref_frame_map
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+        || cm->features.error_resilient_mode || cpi->switch_frame_mode == 1
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+    )
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+      av1_get_ref_frames_enc(cpi, true_disp, ref_frame_map_pairs);
+#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
       av1_get_ref_frames_enc(cm, true_disp, ref_frame_map_pairs);
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     else
       av1_get_ref_frames(cm, true_disp,
 #if CONFIG_ACROSS_SCALE_REF_OPT
                          1,
 #endif  // CONFIG_ACROSS_SCALE_REF_OPT
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                         0,
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
                          ref_frame_map_pairs);
     // TODO(kslu) av1_get_refresh_frame_flags()
     // will execute default behavior even when
@@ -1228,16 +1271,32 @@ static AOM_INLINE void init_gop_frames_for_tpl(
   const int true_disp =
       (int)(tpl_frame->frame_display_index) -
       (gf_group->subgop_cfg != NULL && init_frame_params->show_frame);
-  init_ref_map_pair(
-      cm, ref_frame_map_pairs,
-      cpi->gf_group.update_type[cpi->gf_group.index] == KF_UPDATE);
-  if (cm->seq_params.explicit_ref_frame_map)
+  init_ref_map_pair(cm, ref_frame_map_pairs,
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                    init_frame_params->frame_type == KEY_FRAME,
+                    cpi->switch_frame_mode == 1);
+#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                    cpi->gf_group.update_type[cpi->gf_group.index] ==
+                        KF_UPDATE);
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+  if (cm->seq_params.explicit_ref_frame_map
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+      || cm->features.error_resilient_mode || cpi->switch_frame_mode == 1
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+  )
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+    av1_get_ref_frames_enc(cpi, true_disp, ref_frame_map_pairs);
+#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     av1_get_ref_frames_enc(cm, true_disp, ref_frame_map_pairs);
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   else
     av1_get_ref_frames(cm, true_disp,
 #if CONFIG_ACROSS_SCALE_REF_OPT
                        1,
 #endif  // CONFIG_ACROSS_SCALE_REF_OPT
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                       0,
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
                        ref_frame_map_pairs);
 }
 

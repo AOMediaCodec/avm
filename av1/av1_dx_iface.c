@@ -496,10 +496,18 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
 #else
 #if CONFIG_CWG_F317
     } else if (obu_header.type == OBU_FRAME_HEADER ||
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+               obu_header.type == OBU_RAS_FRAME ||
+               obu_header.type == OBU_SWITCH ||
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
                obu_header.type == OBU_FRAME ||
                obu_header.type == OBU_BRIDGE_FRAME) {
 #else
     } else if (obu_header.type == OBU_FRAME_HEADER ||
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+               obu_header.type == OBU_RAS_FRAME ||
+               obu_header.type == OBU_SWITCH ||
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
                obu_header.type == OBU_FRAME) {
 #endif  // CONFIG_CWG_F317
 #endif  // CONFIG_F106_OBU_TILEGROUP
@@ -532,19 +540,28 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
         if (!show_existing_frame) {
 #endif  // !CONFIG_F106_OBU_TILEGROUP || !CONFIG_F106_OBU_SEF
           FRAME_TYPE frame_type = KEY_FRAME;
-          if (aom_rb_read_bit(&rb)) {
-            frame_type = INTER_FRAME;
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+          if (obu_header.type == OBU_RAS_FRAME ||
+              obu_header.type == OBU_SWITCH) {
+            frame_type = S_FRAME;
           } else {
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
             if (aom_rb_read_bit(&rb)) {
-              frame_type = KEY_FRAME;
+              frame_type = INTER_FRAME;
             } else {
+              if (aom_rb_read_bit(&rb)) {
+                frame_type = KEY_FRAME;
+              } else {
 #if CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_SWITCH
-              frame_type = INTRA_ONLY_FRAME;
+                frame_type = INTRA_ONLY_FRAME;
 #else
             frame_type = aom_rb_read_bit(&rb) ? INTRA_ONLY_FRAME : S_FRAME;
 #endif  // CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_SWITCH
+              }
             }
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
           }
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
           if (frame_type == KEY_FRAME) {
             found_keyframe = 1;
             break;  // Stop here as no further OBUs will change the outcome.

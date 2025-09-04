@@ -302,6 +302,9 @@ typedef struct RefCntBuffer {
   // distance when a very old frame is used as a reference.
   unsigned int display_order_hint;
   unsigned int absolute_poc;
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+  int long_term_id;
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   // Frame's level within the hierarchical structure
   unsigned int pyramid_level;
   unsigned int temporal_layer_id;
@@ -1061,6 +1064,9 @@ typedef struct SequenceHeader {
   uint8_t max_pb_aspect_ratio_log2_m1;    // Can be 0, 1, or 2.
   bool enable_global_motion;
   uint8_t enable_short_refresh_frame_flags;
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+  uint8_t number_of_bits_for_lt_frame_id;
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 #if CONFIG_EXT_SEG
   uint8_t enable_ext_seg;
 #endif                                   // CONFIG_EXT_SEG
@@ -1147,6 +1153,9 @@ typedef struct {
 
   unsigned int order_hint;
   unsigned int display_order_hint;
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+  int long_term_id;
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   // Frame's level within the hierarchical structure
   unsigned int pyramid_level;
   unsigned int temporal_layer_id;
@@ -2380,6 +2389,18 @@ typedef struct AV1Common {
   int current_frame_id;         /*!< frame ID for the current frame. */
   int ref_frame_id[REF_FRAMES]; /*!< frame IDs for the reference frames. */
   /**@}*/
+
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+  /*!
+   * number of referenced key frames
+   */
+  int num_ref_key_frames;
+
+  /*!
+   * long-term IDs of reference key frames
+   */
+  int ref_long_term_ids[MAX_NUM_LONG_TERM_FRAMES];
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 
   /*!
    * Motion vectors provided by motion field estimation.

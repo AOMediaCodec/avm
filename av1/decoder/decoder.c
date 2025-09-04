@@ -785,6 +785,21 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
   }
 }
 
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+// If the refresh_frame_flags bitmask is set, update long-term frame id values
+// and mark frames as valid for reference.
+static AOM_INLINE void update_long_term_frame_id(AV1Decoder *const pbi) {
+  AV1_COMMON *const cm = &pbi->common;
+  int refresh_frame_flags = cm->current_frame.refresh_frame_flags;
+  for (int i = 0; i < cm->seq_params.ref_frames; i++) {
+    if ((refresh_frame_flags >> i) & 1) {
+      pbi->long_term_ids_in_buffer[i] = cm->current_frame.long_term_id;
+      pbi->valid_for_referencing[i] = 1;
+    }
+  }
+}
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+
 int av1_receive_compressed_data(AV1Decoder *pbi, size_t size,
                                 const uint8_t **psource) {
   AV1_COMMON *volatile const cm = &pbi->common;
@@ -868,6 +883,10 @@ int av1_receive_compressed_data(AV1Decoder *pbi, size_t size,
   check_ref_count_status_dec(pbi);
   update_frame_buffers(pbi, frame_decoded);
   check_ref_count_status_dec(pbi);
+
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+  update_long_term_frame_id(pbi);
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 
   if (frame_decoded) {
     pbi->decoding_first_frame = 0;

@@ -7394,6 +7394,9 @@ void av1_read_sequence_header_beyond_av1(
   }
   seq_params->df_par_bits_minus2 = aom_rb_read_literal(rb, 2);
   seq_params->enable_short_refresh_frame_flags = aom_rb_read_bit(rb);
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+  seq_params->number_of_bits_for_lt_frame_id = aom_rb_read_literal(rb, 3);
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 #if CONFIG_EXT_SEG
   seq_params->enable_ext_seg = aom_rb_read_bit(rb);
 #endif  // CONFIG_EXT_SEG
@@ -8120,6 +8123,32 @@ static void read_frame_opfl_refine_type(AV1_COMMON *const cm,
 }
 #endif  // CONFIG_FIX_OPFL_AUTO
 
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+int ras_frame_refresh_frame_flags_derivation(AV1Decoder *pbi) {
+  AV1_COMMON *const cm = &pbi->common;
+  int refresh_frame_flags = (1 << cm->seq_params.ref_frames) - 1;
+  for (int i = 0; i < cm->seq_params.ref_frames; i++) {
+    for (int j = 0; j < cm->num_ref_key_frames; j++) {
+      if (cm->ref_long_term_ids[j] == pbi->long_term_ids_in_buffer[i]) {
+        refresh_frame_flags &= ~(1 << i);
+      }
+    }
+  }
+  return refresh_frame_flags;
+}
+
+void mark_reference_frames_with_long_term_ids(AV1Decoder *pbi) {
+  AV1_COMMON *const cm = &pbi->common;
+  for (int i = 0; i < cm->seq_params.ref_frames; i++) {
+    pbi->valid_for_referencing[i] = 0;
+    for (int j = 0; j < cm->num_ref_key_frames; j++) {
+      if (cm->ref_long_term_ids[j] == pbi->long_term_ids_in_buffer[i])
+        pbi->valid_for_referencing[i] = 1;
+    }
+  }
+}
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+
 // On success, returns 0. On failure, calls aom_internal_error and does not
 // return.
 static int read_uncompressed_header(AV1Decoder *pbi,
@@ -8321,7 +8350,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_SEF
 #if CONFIG_F106_OBU_TILEGROUP
 #if CONFIG_F106_OBU_SWITCH
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+    if (obu_type == OBU_RAS_FRAME || obu_type == OBU_SWITCH) {
+#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     if (obu_type == OBU_SWITCH) {
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
       current_frame->frame_type = S_FRAME;
     } else
 #endif  // CONFIG_F106_OBU_SWITCH
@@ -8353,6 +8386,19 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_CWG_F317
     }
 #endif  // CONFIG_CWG_F317
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+    current_frame->long_term_id = -1;
+    if (current_frame->frame_type == KEY_FRAME) {
+      current_frame->long_term_id =
+          aom_rb_read_literal(rb, seq_params->number_of_bits_for_lt_frame_id);
+    } else if (obu_type == OBU_RAS_FRAME) {
+      cm->num_ref_key_frames = aom_rb_read_literal(rb, 3);
+      for (int i = 0; i < cm->num_ref_key_frames; i++) {
+        cm->ref_long_term_ids[i] =
+            aom_rb_read_literal(rb, seq_params->number_of_bits_for_lt_frame_id);
+      }
+    }
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     if (pbi->sequence_header_changed) {
       if (current_frame->frame_type == KEY_FRAME) {
         // This is the start of a new coded video sequence.
@@ -8437,11 +8483,20 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       features->error_resilient_mode = 0;
     } else {
 #endif  // CONFIG_CWG_F317
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+      if ((frame_is_sframe(cm) && pbi->obu_type != OBU_RAS_FRAME) ||
+          (current_frame->frame_type == KEY_FRAME && cm->show_frame)) {
+        features->error_resilient_mode = 1;
+      } else {
+        features->error_resilient_mode = aom_rb_read_bit(rb);
+      }
+#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
       features->error_resilient_mode =
           frame_is_sframe(cm) ||
                   (current_frame->frame_type == KEY_FRAME && cm->show_frame)
               ? 1
               : aom_rb_read_bit(rb);
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 #if CONFIG_CWG_F317
     }
 #endif  // CONFIG_CWG_F317
@@ -8453,6 +8508,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     /* All frames need to be marked as not valid for referencing */
     for (int i = 0; i < seq_params->ref_frames; i++) {
       pbi->valid_for_referencing[i] = 0;
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+      pbi->long_term_ids_in_buffer[i] = -1;
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     }
   }
 
@@ -8662,10 +8720,20 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         pbi->need_resync = 0;
       }
     } else if (pbi->need_resync != 1) { /* Skip if need resync */
-      if (frame_is_sframe(cm)) {
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+      if (pbi->obu_type == OBU_RAS_FRAME) {
         current_frame->refresh_frame_flags =
-            ((1 << seq_params->ref_frames) - 1);
+            ras_frame_refresh_frame_flags_derivation(pbi);
+      } else if (frame_is_sframe(cm)) {
+        current_frame->refresh_frame_flags =
+            aom_rb_read_literal(rb, seq_params->ref_frames);
       } else {
+#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+        if (frame_is_sframe(cm)) {
+          current_frame->refresh_frame_flags =
+              ((1 << seq_params->ref_frames) - 1);
+        } else {
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 #if CONFIG_CWG_F317
         if (cm->bridge_frame_info.is_bridge_frame) {
           cm->bridge_frame_info.bridge_frame_overwrite_flag =
@@ -8723,8 +8791,16 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     }
   }
 
-  if (!frame_is_intra_only(cm) || current_frame->refresh_frame_flags !=
-                                      ((1 << seq_params->ref_frames) - 1)) {
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+  if (pbi->obu_type == OBU_RAS_FRAME) {
+    mark_reference_frames_with_long_term_ids(pbi);
+  } else if (!frame_is_intra_only(cm) ||
+             current_frame->refresh_frame_flags !=
+                 ((1 << seq_params->ref_frames) - 1)) {
+#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+    if (!frame_is_intra_only(cm) || current_frame->refresh_frame_flags !=
+                                        ((1 << seq_params->ref_frames) - 1)) {
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     // Read all ref frame order hints if error_resilient_mode == 1
     if (features->error_resilient_mode
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
@@ -8786,6 +8862,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           cm->ref_frame_map[ref_idx] = buf;
           buf->order_hint = order_hint;
           buf->display_order_hint = get_ref_frame_disp_order_hint(cm, buf);
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+          buf->long_term_id = -1;
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
         }
       }
     }
@@ -8848,15 +8927,31 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     } else if (pbi->need_resync != 1) { /* Skip if need resync */
       // Implicitly derive the reference mapping
       init_ref_map_pair(cm, cm->ref_frame_map_pairs,
-                        current_frame->frame_type == KEY_FRAME);
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                        current_frame->frame_type == KEY_FRAME,
+                        pbi->obu_type == OBU_RAS_FRAME);
+#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                          current_frame->frame_type == KEY_FRAME);
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 #if CONFIG_ACROSS_SCALE_REF_OPT
       // For implicit reference mode, the reference mapping is derived without
       // considering the resolution first. Later, setup_frame_size_with_refs
       // uses the reference information to obtain the resolution.
       av1_get_ref_frames(cm, current_frame->display_order_hint, 0,
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                         0,
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                         cm->ref_frame_map_pairs);
+      av1_get_ref_frames(cm, current_frame->display_order_hint, 1,
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                         0,
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
                          cm->ref_frame_map_pairs);
 #else
         av1_get_ref_frames(cm, current_frame->display_order_hint,
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                           0,
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
                            cm->ref_frame_map_pairs);
 #endif  // CONFIG_ACROSS_SCALE_REF_OPT
 
@@ -8877,6 +8972,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           (
 #endif  // CONFIG_CWG_F317
               cm->features.error_resilient_mode || frame_is_sframe(cm) ||
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+              pbi->obu_type == OBU_RAS_FRAME ||
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
               seq_params->explicit_ref_frame_map
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
               || !seq_params->order_hint_info.enable_order_hint
@@ -8894,19 +8992,22 @@ static int read_uncompressed_header(AV1Decoder *pbi,
             AOMMIN(seq_params->ref_frames, INTER_REFS_PER_FRAME);
 #endif  // CONFIG_CWG_F168_DPB_HLS
         // Check whether num_total_refs read is valid
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+        if (current_frame->frame_type != S_FRAME)
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 #if CONFIG_ACROSS_SCALE_REF_OPT
-        if (cm->ref_frames_info.num_total_refs < 0 ||
+          if (cm->ref_frames_info.num_total_refs < 0 ||
 #else
           if (cm->ref_frames_info.num_total_refs <= 0 ||
 #endif  // CONFIG_ACROSS_SCALE_REF_OPT
-            cm->ref_frames_info.num_total_refs >
+              cm->ref_frames_info.num_total_refs >
 #if CONFIG_CWG_F168_DPB_HLS
-                max_num_ref_frames)
+                  max_num_ref_frames)
 #else
                   seq_params->max_reference_frames)
 #endif  // CONFIG_CWG_F168_DPB_HLS
-          aom_internal_error(&cm->error, AOM_CODEC_ERROR,
-                             "Invalid num_total_refs");
+            aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+                               "Invalid num_total_refs");
 #if CONFIG_ACROSS_SCALE_REF_OPT
         for (int i = 0; i < cm->ref_frames_info.num_total_refs; ++i) {
           int ref = aom_rb_read_literal(rb, seq_params->ref_frames_log2);
@@ -8967,6 +9068,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       // Overwrite the reference mapping considering the resolution
       if (!explicit_ref_frame_map) {
         av1_get_ref_frames(cm, current_frame->display_order_hint, 1,
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                           0,
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
                            cm->ref_frame_map_pairs);
       }
 

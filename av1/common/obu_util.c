@@ -63,6 +63,9 @@ static int valid_obu_type(int obu_type) {
 #if CONFIG_MULTI_STREAM
     case OBU_MSDO:
 #endif  // CONFIG_MULTI_STREAM
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+    case OBU_RAS_FRAME:
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     case OBU_PADDING: valid_type = 1; break;
     default: break;
   }

@@ -3691,6 +3691,9 @@ void av1_find_best_ref_mvs(int_mv *mvlist, int_mv *nearest_mv, int_mv *near_mv,
 void av1_setup_frame_buf_refs(AV1_COMMON *cm) {
   cm->cur_frame->order_hint = cm->current_frame.order_hint;
   cm->cur_frame->display_order_hint = cm->current_frame.display_order_hint;
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+  cm->cur_frame->long_term_id = cm->current_frame.long_term_id;
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   cm->cur_frame->absolute_poc = cm->current_frame.absolute_poc;
   cm->cur_frame->pyramid_level = cm->current_frame.pyramid_level;
   cm->cur_frame->temporal_layer_id = cm->current_frame.temporal_layer_id;

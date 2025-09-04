@@ -357,6 +357,9 @@ typedef struct AV1Decoder {
   size_t frame_header_size;
 #endif  // CONFIG_F106_OBU_TILEGROUP
   DataBuffer obu_size_hdr;
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+  OBU_TYPE obu_type;
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   int output_frame_width_in_tiles_minus_1;
   int output_frame_height_in_tiles_minus_1;
   int tile_count_minus_1;
@@ -398,6 +401,9 @@ typedef struct AV1Decoder {
   int bru_opt_mode;
   int is_annexb;
   int valid_for_referencing[REF_FRAMES];
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+  int long_term_ids_in_buffer[REF_FRAMES];
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   int is_fwd_kf_present;
   int is_arf_frame_present;
   int num_tile_groups;
