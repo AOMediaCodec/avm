@@ -496,27 +496,36 @@ typedef struct {
 
 /*!\brief Parameters related to CDEF */
 typedef struct {
-  uint16_t *colbuf[MAX_MB_PLANE];         /*!< CDEF column line buffer */
-  uint16_t *linebuf[MAX_MB_PLANE];        /*!< CDEF top & bottom line buffer */
-  uint16_t *srcbuf;                       /*!< CDEF intermediate buffer */
-  int cdef_damping;                       /*!< CDEF damping factor */
-  int nb_cdef_strengths;                  /*!< Number of CDEF strength values */
-  int cdef_strengths[CDEF_MAX_STRENGTHS]; /*!< CDEF strength values for luma */
-  int cdef_uv_strengths[CDEF_MAX_STRENGTHS]; /*!< CDEF strength values for
-                                                chroma */
-  int cdef_on_skip_txfm_frame_enable; /*!< Frame level flag to on or off CDEF on
-                                         skip_txfm = 1 */
-  int cdef_frame_enable;              /*!< CDEF on/off for current frame */
-
-  int cdef_bits;                 /*!< Number of CDEF strength values in bits */
-  int allocated_mi_cols;         /*!< Number of cols in the frame in 4 pixel */
-  int allocated_mi_rows;         /*!< Number of rows in the frame in 4 pixel */
-  int allocated_subsampling_x;   /*!< Chroma subsampling for x */
-  int allocated_subsampling_y;   /*!< Chroma subsampling for y */
-  int allocated_num_workers;     /*!< Number of CDEF workers */
-  uint8_t prev_cdef_enable_flag; /*!< CDEF on/off flag */
-  unsigned int prev_large_scale_tile_flag; /*!< Large scale tile on/off flag */
-  int prev_num_planes;                     /*!< Number of planes */
+  //! CDEF column line buffer
+  uint16_t *colbuf[MAX_MB_PLANE];
+  //! CDEF top & bottom line buffer
+  uint16_t *linebuf[MAX_MB_PLANE];
+  //! CDEF intermediate buffer
+  uint16_t *srcbuf;
+  //! CDEF column line buffer sizes
+  size_t allocated_colbuf_size[MAX_MB_PLANE];
+  //! CDEF top and bottom line buffer sizes
+  size_t allocated_linebuf_size[MAX_MB_PLANE];
+  //! CDEF intermediate buffer size
+  size_t allocated_srcbuf_size;
+  //! CDEF damping factor
+  int cdef_damping;
+  //! Number of CDEF strength values
+  int nb_cdef_strengths;
+  //! CDEF strength values for luma
+  int cdef_strengths[CDEF_MAX_STRENGTHS];
+  //! CDEF strength values for chroma
+  int cdef_uv_strengths[CDEF_MAX_STRENGTHS];
+  //! Frame level flag to on or off CDEF on skip_txfm = 1
+  int cdef_on_skip_txfm_frame_enable;
+  //! CDEF on/off for current frame
+  int cdef_frame_enable;
+  //! Number of CDEF strength values in bits
+  int cdef_bits;
+  //! Number of rows in the frame in 4 pixel
+  int allocated_mi_rows;
+  //! Number of CDEF workers
+  int allocated_num_workers;
 } CdefInfo;
 
 enum {
