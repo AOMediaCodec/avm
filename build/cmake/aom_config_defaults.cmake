@@ -185,7 +185,7 @@ set_aom_config_var(CONFIG_MINIMUM_LR_UNIT_SIZE_64x64 0
                    "Support minimum LR Unit size ")
 set_aom_config_var(CONFIG_LR_FRAMEFILTERS_IN_HEADER 0
                    "AV2 expt to move frame filters to frame header.")
-set_aom_config_var(CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES 0
+set_aom_config_var(CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES 1
                    "AV2 control to allow loopfilters across tiles or not")
 set_aom_config_var(CONFIG_DIP_EXT_PRUNING 1 "AV2 DIP TFLite pruning.")
 set_aom_config_var(CONFIG_DISABLE_PALC 1 "Disable palette mode for chroma.")
