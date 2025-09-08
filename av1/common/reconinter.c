@@ -891,7 +891,6 @@ static AOM_INLINE void init_smooth_interintra_masks() {
   }
 }
 
-#if CONFIG_SUBBLK_REF_DS
 unsigned int get_highbd_sad_ds(const uint16_t *src_ptr, int source_stride,
                                const uint16_t *ref_ptr, int ref_stride, int bd,
                                int bw, int bh) {
@@ -949,24 +948,15 @@ unsigned int get_highbd_sad_ds(const uint16_t *src_ptr, int source_stride,
     return 0;
   }
 }
-#endif  // CONFIG_SUBBLK_REF_DS
 
 // Compute the SAD values for refineMV modes
 int get_refinemv_sad(uint16_t *src1, uint16_t *src2, int stride, int width,
                      int height, int bd) {
 #if CONFIG_SUBBLK_REF_EXT
   (void)bd;
-#if CONFIG_SUBBLK_REF_DS
   return get_highbd_sad_ds(src1, stride, src2, stride, 8, width, height);
 #else
-  return get_highbd_sad(src1, stride, src2, stride, 8, width, height);
-#endif
-#else
-#if CONFIG_SUBBLK_REF_DS
   return get_highbd_sad_ds(src1, stride, src2, stride, bd, width, height);
-#else
-  return get_highbd_sad(src1, stride, src2, stride, bd, width, height);
-#endif  // CONFIG_SUBBLK_REF_DS
 #endif  // CONFIG_SUBBLK_REF_EXT
 }
 

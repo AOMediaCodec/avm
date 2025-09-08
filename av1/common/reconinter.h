@@ -923,11 +923,9 @@ unsigned int get_highbd_sad(const uint16_t *src_ptr, int source_stride,
                             const uint16_t *ref_ptr, int ref_stride, int bd,
                             int bw, int bh);
 
-#if CONFIG_SUBBLK_REF_DS
 unsigned int get_highbd_sad_ds(const uint16_t *src_ptr, int source_stride,
                                const uint16_t *ref_ptr, int ref_stride, int bd,
                                int bw, int bh);
-#endif  // CONFIG_SUBBLK_REF_DS
 
 void calc_mv_process(int32_t su2, int32_t sv2, int32_t suv, int32_t suw,
                      int32_t svw, const int d0, const int d1, const int bits,
