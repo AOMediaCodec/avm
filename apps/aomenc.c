@@ -1140,16 +1140,15 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
   int webm_forced = 0;
 
   // Handle codec specific options
-  if (0) {
 #if CONFIG_AV1_ENCODER
-  } else if (strcmp(get_short_name_by_aom_encoder(global->codec), "av1") == 0) {
+  if (strcmp(get_short_name_by_aom_encoder(global->codec), "av1") == 0) {
     // TODO(jingning): Reuse AV1 specific encoder configuration parameters.
     // Consider to expand this set for AV1 encoder control.
     ctrl_args = av1_ctrl_args;
     ctrl_args_map = av1_arg_ctrl_map;
     key_val_args = av1_key_val_args;
-#endif
   }
+#endif
 
   for (argi = argj = argv; (*argj = *argi); argi += arg.argv_step) {
     arg.argv_step = 1;

@@ -8339,7 +8339,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
     read_screen_content_params(cm, rb);
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
-    if (1) features->allow_intrabc = aom_rb_read_bit(rb);
+    features->allow_intrabc = aom_rb_read_bit(rb);
     if (features->allow_intrabc) {
       features->allow_global_intrabc = aom_rb_read_bit(rb);
       features->allow_local_intrabc =
@@ -8373,7 +8373,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
       read_screen_content_params(cm, rb);
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
-      if (1) features->allow_intrabc = aom_rb_read_bit(rb);
+      features->allow_intrabc = aom_rb_read_bit(rb);
       if (features->allow_intrabc) {
         features->allow_global_intrabc = aom_rb_read_bit(rb);
         features->allow_local_intrabc =
@@ -8823,11 +8823,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
         read_screen_content_params(cm, rb);
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
-        if (1) {
-          features->allow_intrabc = aom_rb_read_bit(rb);
-          features->allow_global_intrabc = 0;
-          features->allow_local_intrabc = features->allow_intrabc;
-        }
+        features->allow_intrabc = aom_rb_read_bit(rb);
+        features->allow_global_intrabc = 0;
+        features->allow_local_intrabc = features->allow_intrabc;
 
         read_frame_max_drl_bits(cm, rb);
         if (features->allow_intrabc) {

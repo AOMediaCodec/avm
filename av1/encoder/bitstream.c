@@ -6409,7 +6409,7 @@ static AOM_INLINE void write_uncompressed_header_obu
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
     write_screen_content_params(cm, wb);
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
-    if (1) aom_wb_write_bit(wb, features->allow_intrabc);
+    aom_wb_write_bit(wb, features->allow_intrabc);
     if (features->allow_intrabc) {
       aom_wb_write_bit(wb, features->allow_global_intrabc);
       if (features->allow_global_intrabc) {
@@ -6425,7 +6425,7 @@ static AOM_INLINE void write_uncompressed_header_obu
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
       write_screen_content_params(cm, wb);
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
-      if (1) aom_wb_write_bit(wb, features->allow_intrabc);
+      aom_wb_write_bit(wb, features->allow_intrabc);
       if (features->allow_intrabc) {
         aom_wb_write_bit(wb, features->allow_global_intrabc);
         if (features->allow_global_intrabc) {
@@ -6640,7 +6640,7 @@ static AOM_INLINE void write_uncompressed_header_obu
 #if CONFIG_FRAME_HEADER_SIGNAL_OPT
         write_screen_content_params(cm, wb);
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
-        if (1) aom_wb_write_bit(wb, features->allow_intrabc);
+        aom_wb_write_bit(wb, features->allow_intrabc);
         write_frame_max_drl_bits(cm, wb);
         if (features->allow_intrabc) {
           assert(features->max_bvp_drl_bits >= MIN_MAX_IBC_DRL_BITS &&

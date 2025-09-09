@@ -142,41 +142,37 @@ void av1_caq_select_segment(const AV1_COMP *cpi, MACROBLOCK *mb, BLOCK_SIZE bs,
   int i;
   unsigned char segment;
 
-  if (0) {
-    segment = DEFAULT_AQ2_SEG;
-  } else {
-    // Rate depends on fraction of a SB64 in frame (xmis * ymis / bw * bh).
-    // It is converted to bits << AV1_PROB_COST_SHIFT units.
-    const int64_t num = (int64_t)(cpi->rc.sb64_target_rate * xmis * ymis)
-                        << AV1_PROB_COST_SHIFT;
-    const int denom = cm->mib_size * cm->mib_size;
-    const int target_rate = (int)(num / denom);
-    double logvar;
-    double low_var_thresh;
-    const int aq_strength = get_aq_c_strength(cm->quant_params.base_qindex,
-                                              cm->seq_params.bit_depth);
+  // Rate depends on fraction of a SB64 in frame (xmis * ymis / bw * bh).
+  // It is converted to bits << AV1_PROB_COST_SHIFT units.
+  const int64_t num = (int64_t)(cpi->rc.sb64_target_rate * xmis * ymis)
+                      << AV1_PROB_COST_SHIFT;
+  const int denom = cm->mib_size * cm->mib_size;
+  const int target_rate = (int)(num / denom);
+  double logvar;
+  double low_var_thresh;
+  const int aq_strength =
+      get_aq_c_strength(cm->quant_params.base_qindex, cm->seq_params.bit_depth);
 
-    aom_clear_system_state();
-    low_var_thresh = DEFAULT_LV_THRESH;
+  aom_clear_system_state();
+  low_var_thresh = DEFAULT_LV_THRESH;
 
-    av1_setup_src_planes(mb, cpi->source, mi_row, mi_col, num_planes,
-                         &mb->e_mbd.mi[0]->chroma_ref_info);
-    logvar = av1_log_block_var(cpi, mb, bs
+  av1_setup_src_planes(mb, cpi->source, mi_row, mi_col, num_planes,
+                       &mb->e_mbd.mi[0]->chroma_ref_info);
+  logvar = av1_log_block_var(cpi, mb, bs
 #if CONFIG_MIXED_LOSSLESS_ENCODE
-                               ,
-                               mi_row, mi_col
+                             ,
+                             mi_row, mi_col
 #endif  // CONFIG_MIXED_LOSSLESS_ENCODE
-    );
+  );
 
-    segment = AQ_C_SEGMENTS - 1;  // Just in case no break out below.
-    for (i = 0; i < AQ_C_SEGMENTS; ++i) {
-      // Test rate against a threshold value and variance against a threshold.
-      // Increasing segment number (higher variance and complexity) = higher Q.
-      if ((projected_rate < target_rate * aq_c_transitions[aq_strength][i]) &&
-          (logvar < (low_var_thresh + aq_c_var_thresholds[aq_strength][i]))) {
-        segment = i;
-        break;
-      }
+  segment = AQ_C_SEGMENTS - 1;  // Just in case no break out below.
+  for (i = 0; i < AQ_C_SEGMENTS; ++i) {
+    // Test rate against a threshold value and variance against a threshold.
+    // Increasing segment number (higher variance and complexity) = higher Q.
+    if ((projected_rate < target_rate * aq_c_transitions[aq_strength][i]) &&
+        (logvar < (low_var_thresh + aq_c_var_thresholds[aq_strength][i]))) {
+      segment = i;
+      break;
     }
   }
 
