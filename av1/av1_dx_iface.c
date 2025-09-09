@@ -275,8 +275,7 @@ static aom_codec_err_t parse_color_config(struct aom_read_bit_buffer *rb,
       aom_rb_read_bit(rb);  // color_range
       int *subsampling_x = NULL;
       int *subsampling_y = NULL;
-      set_chroma_subsampling(chroma_format_idc, subsampling_x,
-                             subsampling_y);
+      set_chroma_subsampling(chroma_format_idc, subsampling_x, subsampling_y);
 #else
       int subsampling_x;
       int subsampling_y;

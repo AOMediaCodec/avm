@@ -744,9 +744,8 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   } else if (seq_params->subsampling_x == 0 && seq_params->subsampling_y == 0) {
     seq_params->seq_chroma_format_idc = CHROMA_FORMAT_444;
   } else {
-    aom_internal_error(
-        &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-        "Unsupported chroma format idc.");
+    aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+                       "Unsupported chroma format idc.");
   }
 #endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
