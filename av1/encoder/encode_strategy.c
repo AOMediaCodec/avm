@@ -1060,7 +1060,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 
   // Work out some encoding parameters specific to the pass:
   if (has_no_stats_stage(cpi) && oxcf->q_cfg.aq_mode == CYCLIC_REFRESH_AQ) {
-    av1_cyclic_refresh_update_parameters(cpi);
+    av1_cyclic_refresh_update_parameters(cpi, &frame_params);
   } else if (is_stat_generation_stage(cpi)) {
     cpi->td.mb.e_mbd.lossless[0] = is_lossless_requested(&oxcf->rc_cfg);
     const int kf_requested = (cm->current_frame.frame_number == 0 ||

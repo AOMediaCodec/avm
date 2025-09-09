@@ -336,7 +336,8 @@ static void cyclic_refresh_update_map(AV1_COMP *const cpi) {
 }
 
 // Set cyclic refresh parameters.
-void av1_cyclic_refresh_update_parameters(AV1_COMP *const cpi) {
+void av1_cyclic_refresh_update_parameters(
+    AV1_COMP *const cpi, EncodeFrameParams *const frame_params) {
   // TODO(marpan): Parameters need to be tuned.
   const RATE_CONTROL *const rc = &cpi->rc;
   const AV1_COMMON *const cm = &cpi->common;
@@ -348,7 +349,9 @@ void av1_cyclic_refresh_update_parameters(AV1_COMP *const cpi) {
   int qp_thresh = AOMMIN(20, rc->best_quality << 1);
   int qp_max_thresh = 118 * MAXQ >> 7;
   cr->apply_cyclic_refresh = 1;
-  if (frame_is_intra_only(cm) || is_lossless_requested(&cpi->oxcf.rc_cfg) ||
+  if (frame_params->frame_type == KEY_FRAME ||
+      frame_params->frame_type == INTRA_ONLY_FRAME ||
+      is_lossless_requested(&cpi->oxcf.rc_cfg) ||
       rc->avg_frame_qindex[INTER_FRAME] < qp_thresh ||
       (rc->frames_since_key > 20 &&
        rc->avg_frame_qindex[INTER_FRAME] > qp_max_thresh) ||

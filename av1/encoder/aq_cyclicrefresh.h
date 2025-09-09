@@ -113,6 +113,7 @@ struct CYCLIC_REFRESH {
 };
 
 struct AV1_COMP;
+struct EncodeFrameParams;
 
 typedef struct CYCLIC_REFRESH CYCLIC_REFRESH;
 
@@ -229,7 +230,8 @@ void av1_cyclic_refresh_set_golden_update(struct AV1_COMP *const cpi);
  *
  * Updates the \c cpi->cyclic_refresh with the settings.
  */
-void av1_cyclic_refresh_update_parameters(struct AV1_COMP *const cpi);
+void av1_cyclic_refresh_update_parameters(
+    struct AV1_COMP *const cpi, struct EncodeFrameParams *const frame_params);
 
 /*!\brief Setup the cyclic background refresh.
  *
