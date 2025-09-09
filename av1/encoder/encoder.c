@@ -735,14 +735,18 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   }
 
 #if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-  if (seq_params->monochrome)
+  if (seq_params->monochrome) {
     seq_params->seq_chroma_format_idc = CHROMA_FORMAT_400;
-  else if (seq_params->subsampling_x == 1 && seq_params->subsampling_y == 1) {
+  } else if (seq_params->subsampling_x == 1 && seq_params->subsampling_y == 1) {
     seq_params->seq_chroma_format_idc = CHROMA_FORMAT_420;
   } else if (seq_params->subsampling_x == 1 && seq_params->subsampling_y == 0) {
     seq_params->seq_chroma_format_idc = CHROMA_FORMAT_422;
   } else if (seq_params->subsampling_x == 0 && seq_params->subsampling_y == 0) {
     seq_params->seq_chroma_format_idc = CHROMA_FORMAT_444;
+  } else {
+    aom_internal_error(
+        &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+        "Unsupported chroma format idc.");
   }
 #endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 

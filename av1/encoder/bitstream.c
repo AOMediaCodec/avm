@@ -5022,11 +5022,10 @@ static AOM_INLINE void write_color_config(
     aom_wb_write_literal(wb, seq_params->matrix_coefficients, 8);
   }
 #if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-  if (seq_params->monochrome)
+      if (seq_params->monochrome) {
 #else
-  if (is_monochrome)
+        if (is_monochrome) {
 #endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-  {
     // 0: [16, 235] (i.e. xvYCC), 1: [0, 255]
     aom_wb_write_bit(wb, seq_params->color_range);
   } else {
@@ -5048,9 +5047,7 @@ static AOM_INLINE void write_color_config(
         // 444 only
         assert(seq_params->subsampling_x == 0 &&
                seq_params->subsampling_y == 0);
-      }
-
-      else if (seq_params->profile == PROFILE_2) {
+      } else if (seq_params->profile == PROFILE_2) {
         if (seq_params->bit_depth == AOM_BITS_12) {
           // 420, 444 or 422
           aom_wb_write_bit(wb, seq_params->subsampling_x);
@@ -5087,11 +5084,10 @@ static AOM_INLINE void write_color_config(
         }
       }
 #if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-      if (seq_params->seq_chroma_format_idc == CHROMA_FORMAT_420)
+      if (seq_params->seq_chroma_format_idc == CHROMA_FORMAT_420) {
 #else
-      else if (seq_params->subsampling_x == 1 && seq_params->subsampling_y == 1)
+        else if (seq_params->subsampling_x == 1 && seq_params->subsampling_y == 1) {
 #endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-      {
         // YUV 4:2:0
         assert(seq_params->chroma_sample_position == AOM_CSP_UNSPECIFIED ||
                (seq_params->chroma_sample_position >= AOM_CSP_LEFT &&

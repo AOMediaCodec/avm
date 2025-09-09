@@ -6299,13 +6299,9 @@ void av1_read_color_config(struct aom_read_bit_buffer *rb,
             error_info, AOM_CODEC_UNSUP_BITSTREAM,
             "Identity CICP Matrix incompatible with non 4:4:4 color sampling");
       }
-<<<<<<< HEAD
-=======
-#if CONFIG_NEW_CSP
 #if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
       if (seq_params->seq_chroma_format_idc == CHROMA_FORMAT_422) {
 #else
->>>>>>> 690c172182 (CWG-E242: Chroma format idc. STATS_CHANGED)
       if (seq_params->subsampling_x && !seq_params->subsampling_y) {
 #endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
         // YUV 4:2:2

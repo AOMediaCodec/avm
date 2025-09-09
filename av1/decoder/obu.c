@@ -109,7 +109,7 @@ static void av1_read_mlayer_dependency_info(SequenceHeader *const seq,
 #endif  // CONFIG_MULTILAYER_CORE_HLS
 
 #if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-static void set_seq_chroma_format(SequenceHeader *seq_params) {
+static void set_seq_chroma_format(SequenceHeader *seq_params, struct aom_internal_error_info *error_info) {
   seq_params->monochrome =
       (seq_params->seq_chroma_format_idc == CHROMA_FORMAT_400) ? 1 : 0;
   if (seq_params->seq_chroma_format_idc == CHROMA_FORMAT_420) {
@@ -124,6 +124,12 @@ static void set_seq_chroma_format(SequenceHeader *seq_params) {
   } else if (seq_params->seq_chroma_format_idc == CHROMA_FORMAT_400) {
     seq_params->subsampling_x = 1;
     seq_params->subsampling_y = 1;
+  } else {
+    aom_internal_error(
+        error_info, AOM_CODEC_UNSUP_BITSTREAM,
+                       "Only 4:0:0, 4:4:4, 4:2:2 and 4:2:0 are currently supported, "
+                       "%d %d subsampling is not supported.\n",
+                       seq_params->subsampling_x, seq_params->subsampling_y);
   }
 }
 #endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
@@ -172,7 +178,7 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
 
 #if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
   seq_params->seq_chroma_format_idc = aom_rb_read_uvlc(rb);
-  set_seq_chroma_format(seq_params);
+  set_seq_chroma_format(seq_params, &cm->error);
 #endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
   av1_read_color_config(rb, seq_params, &cm->error);

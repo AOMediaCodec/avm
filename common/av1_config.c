@@ -233,6 +233,9 @@ static int parse_color_config(struct aom_read_bit_buffer *reader,
     } else if (chroma_format_idc == CHROMA_FORMAT_422) {
       config->chroma_subsampling_x = 1;
       config->chroma_subsampling_y = 0;
+    } else {
+      fprintf(stderr, "chroma format not supported.\n");
+      return -1;
     }
 #else
     if (config->seq_profile == 0) {
