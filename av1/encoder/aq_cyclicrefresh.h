@@ -227,6 +227,7 @@ void av1_cyclic_refresh_set_golden_update(struct AV1_COMP *const cpi);
  * \callergraph
  *
  * \param[in]       cpi          Top level encoder structure
+ * \param[in]       frame_params Encoding parameters per frame
  *
  * Updates the \c cpi->cyclic_refresh with the settings.
  */
