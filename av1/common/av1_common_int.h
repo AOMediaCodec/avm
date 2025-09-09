@@ -5348,6 +5348,59 @@ static INLINE int is_reduced_tx_set_used(const AV1_COMMON *const cm,
   return reduced_tx_set_used;
 }
 
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+// This function is required because, for chroma plane in particular,
+// the actual 'mi' location maybe at an offset from the mi_row/mi_col.
+static INLINE MB_MODE_INFO **get_mi_location_from_collocated_mi(
+    const AV1_COMMON *const cm, MB_MODE_INFO **this_mi, int plane) {
+  if (plane > 0) {  // Chroma plane.
+    // Two possible cases:
+    // 1. Decoupled luma/chroma tree OR
+    // 2. Shared luma/chroma tree.
+    // Need to get appropriate 'mi' location differently for each case.
+    const bool is_sdp_eligible = cm->seq_params.enable_sdp &&
+                                 !cm->seq_params.monochrome &&
+                                 this_mi[0]->region_type == INTRA_REGION;
+    if (is_sdp_eligible) {
+      // 1. Decoupled luma/chroma tree:
+      // Get top-left mi location using chroma_mi_row_start/chroma_mi_col_start.
+      MB_MODE_INFO **top_left_mi =
+          cm->mi_params.mi_grid_base +
+          this_mi[0]->chroma_mi_row_start * cm->mi_params.mi_stride +
+          this_mi[0]->chroma_mi_col_start;
+      assert(top_left_mi[0]->region_type == INTRA_REGION);
+      return top_left_mi;
+    } else {
+      // 2. Shared luma/chroma tree.
+      // Get bottom-right mi location using chroma_ref_info.
+      const CHROMA_REF_INFO *chroma_ref_info = &this_mi[0]->chroma_ref_info;
+      if (!chroma_ref_info->is_chroma_ref) {
+        // For sub8x8 block, if this mi is NOT a chroma ref, then chroma
+        // prediction mode is obtained from the bottom/right mi. So, for chroma
+        // plane, mi_row and mi_col should map to the bottom/right mi structure.
+        // Also, mi_grid_base array is only filled in for on-screen mi's, even
+        // though chroma block can extend over the edge. So, make sure we stay
+        // within mi_grid_base array's bottom and right limits.
+        const int bottom_mi_row =
+            AOMMIN(chroma_ref_info->mi_row_chroma_base +
+                       mi_size_high[chroma_ref_info->bsize_base] - 1,
+                   cm->mi_params.mi_rows - 1);
+        const int right_mi_col =
+            AOMMIN(chroma_ref_info->mi_col_chroma_base +
+                       mi_size_wide[chroma_ref_info->bsize_base] - 1,
+                   cm->mi_params.mi_cols - 1);
+        MB_MODE_INFO **bottom_right_mi =
+            cm->mi_params.mi_grid_base +
+            bottom_mi_row * cm->mi_params.mi_stride + right_mi_col;
+        assert(bottom_right_mi[0]->chroma_ref_info.is_chroma_ref);
+        return bottom_right_mi;
+      }
+    }
+  }
+  return this_mi;
+}
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

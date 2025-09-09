@@ -4032,10 +4032,6 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
 
   mbmi->current_qindex = xd->current_base_qindex;
 
-#if CONFIG_MIXED_LOSSLESS_ENCODE
-  assert(IMPLIES(mbmi->segment_id, xd->lossless[mbmi->segment_id]));
-#endif  // CONFIG_MIXED_LOSSLESS_ENCODE
-
   if (!inter_block &&
       av1_allow_intrabc(cm, xd, mbmi->sb_type[xd->tree_type == CHROMA_PART]) &&
       xd->tree_type != CHROMA_PART) {

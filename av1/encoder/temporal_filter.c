@@ -1327,10 +1327,12 @@ int av1_temporal_filter(AV1_COMP *cpi, const int filter_frame_lookahead_idx,
 
     if (!is_second_arf) {
       *show_existing_arf = 0;
+#if !CONFIG_MIXED_LOSSLESS_ENCODE
       if (!is_lossless_requested(&cpi->oxcf.rc_cfg) && mean < threshold &&
           std < mean * 1.2) {
         *show_existing_arf = 1;
       }
+#endif  //! CONFIG_MIXED_LOSSLESS_ENCODE
       cpi->common.showable_frame |= *show_existing_arf;
     } else {
       if (show_existing_arf) *show_existing_arf = 0;

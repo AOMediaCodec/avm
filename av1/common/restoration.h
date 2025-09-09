@@ -322,7 +322,14 @@ typedef struct {
   struct aom_internal_error_info *error;
   /*!\endcond */
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+  /*!
+   * Pointer to point lossless_segment array in cm.
+   */
   const bool *lossless_segment;
+  /*!
+   * Pointer to cm.
+   */
+  const struct AV1Common *cm;
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 } RestorationUnitInfo;
 
@@ -585,6 +592,7 @@ typedef struct FilterFrameCtxt {
   struct aom_internal_error_info *error;
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
   const bool *lossless_segment;
+  const struct AV1Common *cm;
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 } FilterFrameCtxt;
 

@@ -770,6 +770,10 @@ MB_MODE_INFO **get_mi_location(const AV1_COMMON *const cm, int scale_horz,
                            this_mi_row * cm->mi_params.mi_stride + this_mi_col;
   *mi_row = this_mi_row;
   *mi_col = this_mi_col;
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+  return get_mi_location_from_collocated_mi(cm, this_mi, plane);
+#else
+
   if (plane > 0) {  // Chroma plane.
     // Two possible cases:
     // 1. Decoupled luma/chroma tree OR
@@ -815,6 +819,7 @@ MB_MODE_INFO **get_mi_location(const AV1_COMMON *const cm, int scale_horz,
     }
   }
   return this_mi;
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 }
 
 // Return TX_SIZE from get_transform_size(), so it is plane and direction

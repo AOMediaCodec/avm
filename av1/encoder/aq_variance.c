@@ -83,12 +83,10 @@ void av1_vaq_frame_setup(AV1_COMP *cpi) {
     for (i = 0; i < max_seg_num; ++i) {
       // Set up avg segment id to be 1.0 and adjust the other segments around
       // it.
-      int qindex_delta = av1_compute_qdelta_by_rate(
-          &cpi->rc, cm->current_frame.frame_type, base_qindex,
-          rate_ratio[i] / avg_ratio, cpi->is_screen_content_type,
-          cm->seq_params.bit_depth);
 
 #if CONFIG_MIXED_LOSSLESS_ENCODE
+      (void)avg_ratio;
+      int qindex_delta;
       // Assume base QP in command line 100
       if (i > 0) {
         qindex_delta = -base_qindex;
@@ -97,6 +95,10 @@ void av1_vaq_frame_setup(AV1_COMP *cpi) {
       }
 
 #else
+      int qindex_delta = av1_compute_qdelta_by_rate(
+          &cpi->rc, cm->current_frame.frame_type, base_qindex,
+          rate_ratio[i] / avg_ratio, cpi->is_screen_content_type,
+          cm->seq_params.bit_depth);
       // We don't allow qindex 0 in a segment if the base value is not 0.
       // Q index 0 (lossless) implies 4x4 encoding only and in AQ mode a segment
       // Q delta is sometimes applied without going back around the rd loop.

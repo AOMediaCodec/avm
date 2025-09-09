@@ -460,6 +460,7 @@ static AOM_INLINE void search_pc_wiener_visitor(
   rui.mi_stride = rsc->cm->mi_params.mi_stride;
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
   rui.lossless_segment = rsc->cm->features.lossless_segment;
+  rui.cm = rsc->cm;
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
   // Only need the classification if running for frame filters.
   rui.skip_pcwiener_filtering = pcwiener_disabled ? 1 : 0;
@@ -512,6 +513,7 @@ static int64_t calc_finer_tile_search_error(const RestSearchCtxt *rsc,
     rui->mi_stride = rsc->cm->mi_params.mi_stride;
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
     rui->lossless_segment = rsc->cm->features.lossless_segment;
+    rui->cm = rsc->cm;
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
     err = try_restoration_unit(rsc, limits, tile, rui);
   } else {
@@ -536,6 +538,7 @@ static int64_t calc_finer_tile_search_error(const RestSearchCtxt *rsc,
         rui->mi_stride = rsc->cm->mi_params.mi_stride;
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
         rui->lossless_segment = rsc->cm->features.lossless_segment;
+        rui->cm = rsc->cm;
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
         err += try_restoration_unit(rsc, &old_unit->limits, tile, rui);
         n++;
@@ -591,6 +594,7 @@ static int64_t reset_unit_stack_dst_buffers(const RestSearchCtxt *rsc,
         rui->mi_stride = rsc->cm->mi_params.mi_stride;
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
         rui->lossless_segment = rsc->cm->features.lossless_segment;
+        rui->cm = rsc->cm;
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
         err += try_restoration_unit(rsc, &old_unit->limits, tile, rui);
         n++;
@@ -2309,6 +2313,7 @@ static void gather_stats_wienerns(const RestorationTileLimits *limits,
   rui.mi_stride = rsc->cm->mi_params.mi_stride;
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
   rui.lossless_segment = rsc->cm->features.lossless_segment;
+  rui.cm = rsc->cm;
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
   // Calculate and save this RU's stats.
   RstUnitStats unit_stats;
@@ -2449,6 +2454,7 @@ static void search_wienerns_visitor(const RestorationTileLimits *limits,
   rui.mi_stride = rsc->cm->mi_params.mi_stride;
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
   rui.lossless_segment = rsc->cm->features.lossless_segment;
+  rui.cm = rsc->cm;
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 
   // Classification has already been calculated by search_pc_wiener_visitor().
@@ -3566,6 +3572,7 @@ static RdResults update_cost_and_weights_wienerns(RestSearchCtxt *rsc,
           get_mi_grid_idx(&rsc->cm->mi_params, start_mi_y, start_mi_x);
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
       rui->lossless_segment = rsc->cm->features.lossless_segment;
+      rui->cm = rsc->cm;
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
       rui->mbmi_ptr = rsc->cm->mi_params.mi_grid_base + mbmi_idx;
       rui->ss_x = ss_x;

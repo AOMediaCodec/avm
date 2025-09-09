@@ -1107,12 +1107,14 @@ void apply_pc_wiener_highbd(
     bool tskip_zero_flag
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
     ,
-    MB_MODE_INFO **mbmi_ptr_procunit, int mi_stride, int ss_x, int ss_y,
-    const bool *lossless_segment
+    const struct AV1Common *cm, MB_MODE_INFO **mbmi_ptr_procunit, int mi_stride,
+    int ss_x, int ss_y, const bool *lossless_segment
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 
 ) {
+#if !CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
   (void)is_uv;
+#endif  //! CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
   const bool skip_filtering = classify_only;
   assert(!is_uv || skip_filtering);
   const int pc_filter_num_taps =
@@ -1256,8 +1258,10 @@ void apply_pc_wiener_highbd(
         const int start_mi_y = block_row_begin >> (MI_SIZE_LOG2 - ss_y);
         MB_MODE_INFO **this_mbmi_ptr =
             mbmi_ptr_procunit + start_mi_y * mi_stride + start_mi_x;
+        MB_MODE_INFO **this_mbmi =
+            get_mi_location_from_collocated_mi(cm, this_mbmi_ptr, is_uv);
 
-        if (lossless_segment[this_mbmi_ptr[0]->segment_id]) {
+        if (lossless_segment[this_mbmi[0]->segment_id]) {
           // Copy the data
           for (int r = block_row_begin; r < block_row_end; ++r) {
             for (int c = block_col_begin; c < block_col_end; ++c) {
@@ -1379,7 +1383,7 @@ static void pc_wiener_stripe_highbd(const RestorationUnitInfo *rui,
         rui->tskip_zero_flag
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
         ,
-        mbmi_ptr_procunit, rui->mi_stride, rui->ss_x, rui->ss_y,
+        rui->cm, mbmi_ptr_procunit, rui->mi_stride, rui->ss_x, rui->ss_y,
         rui->lossless_segment
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
     );
@@ -1504,9 +1508,9 @@ static AOM_INLINE void apply_wienerns_multi_class_highbd(
     int bit_depth, const uint8_t *class_id, int class_id_stride,
     int class_id_restrict, int num_classes, int set_index
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-    ,
+    , const struct AV1Common *cm,
     MB_MODE_INFO **mbmi_ptr_procunit, int mi_stride, int ss_x, int ss_y,
-    const bool *lossless_segment
+    const bool *lossless_segment, int plane
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 ) {
   const int block_size = 4;
@@ -1525,7 +1529,9 @@ static AOM_INLINE void apply_wienerns_multi_class_highbd(
       const int start_mi_y = r >> (MI_SIZE_LOG2 - ss_y);
       MB_MODE_INFO **this_mbmi_ptr =
           mbmi_ptr_procunit + start_mi_y * mi_stride + start_mi_x;
-      if (lossless_segment[this_mbmi_ptr[0]->segment_id]) {
+      MB_MODE_INFO **this_mbmi =
+                 get_mi_location_from_collocated_mi(cm, this_mbmi_ptr, plane);
+      if (lossless_segment[this_mbmi[0]->segment_id]) {
         copy_tile(w, h, dgd_row + c, stride, dst_row + c, dst_stride);
         continue;
       }
@@ -1551,10 +1557,10 @@ static AOM_INLINE void apply_wienerns_multi_class_highbd(
 }
 
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-static AOM_INLINE int check_lossless(MB_MODE_INFO **mbmi_ptr_procunit,
+static AOM_INLINE int check_lossless(const struct AV1Common *cm, MB_MODE_INFO **mbmi_ptr_procunit,
                                      const bool *lossless_segment, int width,
                                      int height, int mi_stride, int ss_x,
-                                     int ss_y) {
+                                     int ss_y, int plane) {
   const int block_size = 4;
   for (int r = 0; r < height; r += block_size) {
     const int start_mi_y = r >> (MI_SIZE_LOG2 - ss_y);
@@ -1562,7 +1568,9 @@ static AOM_INLINE int check_lossless(MB_MODE_INFO **mbmi_ptr_procunit,
       const int start_mi_x = c >> (MI_SIZE_LOG2 - ss_x);
       MB_MODE_INFO **this_mbmi_ptr =
           mbmi_ptr_procunit + start_mi_y * mi_stride + start_mi_x;
-      if (lossless_segment[this_mbmi_ptr[0]->segment_id]) {
+      MB_MODE_INFO **this_mbmi =
+            get_mi_location_from_collocated_mi(cm, this_mbmi_ptr, plane);
+      if (lossless_segment[this_mbmi[0]->segment_id]) {
         return 1;
       }
     }
@@ -1580,19 +1588,27 @@ void apply_wienerns_class_id_highbd(
     int num_classes, int set_index
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
     ,
-    MB_MODE_INFO **mbmi_ptr_procunit, int mi_stride, int ss_x, int ss_y,
-    const bool *lossless_segment
+    const struct AV1Common *cm, MB_MODE_INFO **mbmi_ptr_procunit, int mi_stride,
+    int ss_x, int ss_y, const bool *lossless_segment
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 ) {
   (void)luma;
   (void)luma_stride;
+#if !CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
   (void)plane;
+#endif  // !CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+  const uint8_t *pc_wiener_sub_classify =
+      get_pc_wiener_sub_classifier(num_classes, set_index);
+#endif
 
   const int block_size = 4;
   int is_uv = (plane != AOM_PLANE_Y);
   if (is_uv && nsfilter_config->num_pixels2 != 0) {
+#if !CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
     const uint8_t *pc_wiener_sub_classify =
         get_pc_wiener_sub_classifier(num_classes, set_index);
+#endif
     for (int r = 0; r < height; r += block_size) {
       const int h = AOMMIN(block_size, height - r);
       const uint16_t *dgd_row = dgd + r * stride;
@@ -1607,7 +1623,9 @@ void apply_wienerns_class_id_highbd(
         const int start_mi_y = r >> (MI_SIZE_LOG2 - ss_y);
         MB_MODE_INFO **this_mbmi_ptr =
             mbmi_ptr_procunit + start_mi_y * mi_stride + start_mi_x;
-        if (lossless_segment[this_mbmi_ptr[0]->segment_id]) {
+        MB_MODE_INFO **this_mbmi =
+            get_mi_location_from_collocated_mi(cm, this_mbmi_ptr, plane);
+        if (lossless_segment[this_mbmi[0]->segment_id]) {
           copy_tile(w, h, dgd_row + c, stride, dst_row + c, dst_stride);
           continue;
         }
@@ -1636,8 +1654,8 @@ void apply_wienerns_class_id_highbd(
   if (num_classes == 1) {
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
     const int is_lossless_block =
-        check_lossless(mbmi_ptr_procunit, lossless_segment, width, height,
-                       mi_stride, ss_x, ss_y);
+        check_lossless(cm, mbmi_ptr_procunit, lossless_segment, width, height,
+                       mi_stride, ss_x, ss_y, plane);
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
     const int is_sym = (nsfilter_config->asymmetric == 0);
     if (!nsfilter_config->strict_bounds && is_sym &&
@@ -1672,8 +1690,8 @@ void apply_wienerns_class_id_highbd(
       dst_stride, bit_depth, class_id, class_id_stride, class_id_restrict,
       num_classes, set_index
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-      ,
-      mbmi_ptr_procunit, mi_stride, ss_x, ss_y, lossless_segment
+      , cm,
+      mbmi_ptr_procunit, mi_stride, ss_x, ss_y, lossless_segment, plane
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
   );
 
@@ -1705,7 +1723,8 @@ static void wiener_nsfilter_stripe_highbd(const RestorationUnitInfo *rui,
           true, NULL, NULL, rui->pcwiener_buffers, rui->tskip_zero_flag
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
           ,
-          NULL, rui->mi_stride, rui->ss_x, rui->ss_y, rui->lossless_segment
+          rui->cm, NULL, rui->mi_stride, rui->ss_x, rui->ss_y,
+          rui->lossless_segment
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
       );
     }
@@ -1773,7 +1792,7 @@ static void wiener_nsfilter_stripe_highbd(const RestorationUnitInfo *rui,
         rui->wienerns_info.num_classes, set_index
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
         ,
-        mbmi_ptr_procunit, rui->mi_stride, rui->ss_x, rui->ss_y,
+        rui->cm, mbmi_ptr_procunit, rui->mi_stride, rui->ss_x, rui->ss_y,
         rui->lossless_segment
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 
@@ -2338,6 +2357,7 @@ static void filter_frame_on_unit(const RestorationTileLimits *limits,
 
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
   rsi->unit_info[rest_unit_idx].lossless_segment = ctxt->lossless_segment;
+  rsi->unit_info[rest_unit_idx].cm = ctxt->cm;
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 
   av1_loop_restoration_filter_unit(
@@ -2410,6 +2430,7 @@ void av1_loop_restoration_filter_frame_init(AV1LrStruct *lr_ctxt,
     lr_plane_ctxt->error = &cm->error;
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
     lr_plane_ctxt->lossless_segment = &cm->features.lossless_segment[0];
+    lr_plane_ctxt->cm = cm;
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
   }
 }

@@ -86,7 +86,8 @@ void ccso_filter_block_hbd_wo_buf_4x4_c(
     const int dst_stride, const int y_uv_hscale, const int y_uv_vscale,
     const int thr, const int neg_thr, const int *src_loc, const int max_val,
     const int blk_size_x, const int blk_size_y, const bool isSingleBand,
-    const uint8_t shift_bits, const int edge_clf, const uint8_t ccso_bo_only);
+    const uint8_t shift_bits, const int edge_clf, const uint8_t ccso_bo_only,
+    int plane);
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 
 #ifdef __cplusplus

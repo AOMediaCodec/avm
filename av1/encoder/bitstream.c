@@ -833,9 +833,6 @@ static AOM_INLINE void write_segment_id(AV1_COMP *cpi,
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
 
-#if CONFIG_MIXED_LOSSLESS_ENCODE
-  assert(IMPLIES(mbmi->segment_id, xd->lossless[mbmi->segment_id]));
-#endif  // CONFIG_MIXED_LOSSLESS_ENCODE
   // Avoid change of segment_id for a lossless segment, as well as change
   // to a lossless segment as this could lead to invalid tx_size.
   // In other words, lossless segments remain pure. No lossless
