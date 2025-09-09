@@ -8392,7 +8392,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_TIP
       if (obu_type != OBU_TIP && current_frame->frame_type == INTER_FRAME)
 #else
-      if (current_frame->frame_type == INTER_FRAME)
+        if (current_frame->frame_type == INTER_FRAME)
 #endif
       {
         setup_bru_active_info(cm, rb);

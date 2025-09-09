@@ -6399,7 +6399,7 @@ static AOM_INLINE void write_uncompressed_header_obu
       } else {
         write_frame_size(cm, frame_size_override_flag, wb);
       }
-#endif      
+#endif
 #if CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_TIP
       if (obu_type != OBU_TIP && current_frame->frame_type == INTER_FRAME)
 #else
