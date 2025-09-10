@@ -6093,6 +6093,21 @@ static AOM_INLINE void write_show_exisiting_frame(
   return;
 }
 #endif  // CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_SEF
+
+#if CONFIG_FIX_OPFL_AUTO
+static AOM_INLINE void write_frame_opfl_refine_type(
+    AV1_COMMON *const cm, struct aom_write_bit_buffer *wb) {
+  if (cm->seq_params.enable_opfl_refine == AOM_OPFL_REFINE_AUTO) {
+    const int is_opfl_switchable =
+        cm->features.opfl_refine_type == REFINE_SWITCHABLE;
+    aom_wb_write_bit(wb, is_opfl_switchable);
+    if (!is_opfl_switchable) {
+      aom_wb_write_bit(wb, cm->features.opfl_refine_type == REFINE_ALL);
+    }
+  }
+}
+#endif  // CONFIG_FIX_OPFL_AUTO
+
 // New function based on HLS R18
 #if CONFIG_F106_OBU_TILEGROUP
 static AOM_INLINE void write_uncompressed_header
@@ -6497,6 +6512,9 @@ static AOM_INLINE void write_uncompressed_header_obu
         } else {
           aom_wb_write_bit(wb, features->tip_frame_mode == TIP_FRAME_AS_REF);
         }
+#if CONFIG_FIX_OPFL_AUTO
+        write_frame_opfl_refine_type(cm, wb);
+#endif  // CONFIG_FIX_OPFL_AUTO
         if (features->tip_frame_mode && cm->seq_params.enable_tip_hole_fill) {
           aom_wb_write_bit(wb, features->allow_tip_hole_fill);
         }
@@ -6533,6 +6551,10 @@ static AOM_INLINE void write_uncompressed_header_obu
           }
 #endif  // CONFIG_TIP_INTERP_SMOOTH
         }
+#if CONFIG_FIX_OPFL_AUTO
+      } else {
+        if (!cm->bru.frame_inactive_flag) write_frame_opfl_refine_type(cm, wb);
+#endif  // CONFIG_FIX_OPFL_AUTO
       }
 
       if (!cm->bru.frame_inactive_flag &&
@@ -6587,6 +6609,7 @@ static AOM_INLINE void write_uncompressed_header_obu
             assert((frame_enabled_motion_modes & (1 << motion_mode)) == 0);
           }
         }
+#if !CONFIG_FIX_OPFL_AUTO
         if (cm->seq_params.enable_opfl_refine == AOM_OPFL_REFINE_AUTO) {
           const int is_opfl_switchable =
               (features->opfl_refine_type == REFINE_SWITCHABLE);
@@ -6595,6 +6618,7 @@ static AOM_INLINE void write_uncompressed_header_obu
             aom_wb_write_bit(wb, features->opfl_refine_type == REFINE_ALL);
           }
         }
+#endif  // !CONFIG_FIX_OPFL_AUTO
       }
     }
   }

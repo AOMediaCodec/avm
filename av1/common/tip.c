@@ -707,11 +707,16 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
 #endif  // CONFIG_TIP_LD
 
   ReferenceArea ref_area[2];
-  const int do_opfl = cm->seq_params.enable_opfl_refine &&
+  const int do_opfl =
+#if CONFIG_FIX_OPFL_AUTO
+      cm->features.opfl_refine_type != REFINE_NONE &&
+#else
+      cm->seq_params.enable_opfl_refine &&
+#endif  // CONFIG_FIX_OPFL_AUTO
 #if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
-                      cm->seq_params.enable_tip_refinemv &&
+      cm->seq_params.enable_tip_refinemv &&
 #endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
-                      cm->features.use_optflow_tip && plane == 0;
+      cm->features.use_optflow_tip && plane == 0;
   int is_tip_mv_refine_disabled_for_unit_size_16x16 =
       is_tip_mv_refinement_disabled_for_unit_size_16x16(
           unit_bh,

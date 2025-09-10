@@ -791,8 +791,14 @@ static INLINE int is_refinemv_allowed(const AV1_COMMON *const cm,
 static INLINE int is_any_mv_refinement_allowed(const AV1_COMMON *const cm) {
   if (!cm->has_both_sides_refs) return 0;
 
+#if CONFIG_FIX_OPFL_AUTO
+  if (cm->features.opfl_refine_type == REFINE_NONE &&
+      !cm->seq_params.enable_refinemv)
+    return 0;
+#else
   if (!cm->seq_params.enable_opfl_refine && !cm->seq_params.enable_refinemv)
     return 0;
+#endif  // CONFIG_FIX_OPFL_AUTO
 
   const int tip_wtd_index = cm->tip_global_wtd_index;
   const int8_t tip_weight = tip_weighting_factors[tip_wtd_index];
@@ -805,8 +811,14 @@ static INLINE int is_any_mv_refinement_allowed(const AV1_COMMON *const cm) {
 static INLINE int is_unequal_weighted_tip_allowed(const AV1_COMMON *const cm) {
   if (!cm->has_both_sides_refs) return 1;
 
+#if CONFIG_FIX_OPFL_AUTO
+  if (cm->features.opfl_refine_type == REFINE_NONE &&
+      !cm->seq_params.enable_refinemv)
+    return 1;
+#else
   if (!cm->seq_params.enable_opfl_refine && !cm->seq_params.enable_refinemv)
     return 1;
+#endif  // CONFIG_FIX_OPFL_AUTO
 
   return 0;
 }

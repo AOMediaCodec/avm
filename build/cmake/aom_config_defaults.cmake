@@ -313,6 +313,8 @@ set_aom_config_var(CONFIG_WRL_NO_PRUNING 1 "No pruning when construct WRL")
 
 set_aom_config_var(CONFIG_REDUCED_TX_SET_EXT 1
                    "Extension to reduced transform sets.")
+set_aom_config_var(CONFIG_FIX_OPFL_AUTO 1
+                   "Fix optical flow auto mode, option 3")
 
 # This is an encode-only change.
 

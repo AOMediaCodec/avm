@@ -7669,6 +7669,29 @@ static int read_show_existing_frame(AV1Decoder *pbi,
 }
 #endif  // CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_SEF
 
+#if CONFIG_FIX_OPFL_AUTO
+static void read_frame_opfl_refine_type(AV1_COMMON *const cm,
+                                        struct aom_read_bit_buffer *rb) {
+  if (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
+    cm->features.opfl_refine_type =
+        cm->seq_params.enable_opfl_refine == AOM_OPFL_REFINE_NONE ? REFINE_NONE
+                                                                  : REFINE_ALL;
+    return;
+  }
+
+  if (cm->seq_params.enable_opfl_refine == AOM_OPFL_REFINE_AUTO) {
+    if (aom_rb_read_bit(rb)) {
+      cm->features.opfl_refine_type = REFINE_SWITCHABLE;
+    } else {
+      cm->features.opfl_refine_type =
+          aom_rb_read_bit(rb) ? REFINE_ALL : REFINE_NONE;
+    }
+  } else {
+    cm->features.opfl_refine_type = cm->seq_params.enable_opfl_refine;
+  }
+}
+#endif  // CONFIG_FIX_OPFL_AUTO
+
 // On success, returns 0. On failure, calls aom_internal_error and does not
 // return.
 static int read_uncompressed_header(AV1Decoder *pbi,
@@ -8657,6 +8680,10 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                              "Invalid TIP mode.");
         }
 
+#if CONFIG_FIX_OPFL_AUTO
+        read_frame_opfl_refine_type(cm, rb);
+#endif  // CONFIG_FIX_OPFL_AUTO
+
         if (features->tip_frame_mode && cm->seq_params.enable_tip_hole_fill) {
           features->allow_tip_hole_fill = aom_rb_read_bit(rb);
         } else {
@@ -8712,6 +8739,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         }
       } else {
         features->tip_frame_mode = TIP_FRAME_DISABLED;
+#if CONFIG_FIX_OPFL_AUTO
+        if (!cm->bru.frame_inactive_flag) read_frame_opfl_refine_type(cm, rb);
+#endif  // CONFIG_FIX_OPFL_AUTO
       }
 
       if (features->tip_frame_mode != TIP_FRAME_AS_OUTPUT &&
@@ -8765,6 +8795,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           }
         }
         features->enabled_motion_modes = frame_enabled_motion_modes;
+#if !CONFIG_FIX_OPFL_AUTO
         if (cm->seq_params.enable_opfl_refine == AOM_OPFL_REFINE_AUTO) {
           if (aom_rb_read_bit(rb)) {
             features->opfl_refine_type = REFINE_SWITCHABLE;
@@ -8781,6 +8812,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         } else {
           features->opfl_refine_type = REFINE_ALL;
         }
+#endif  // !CONFIG_FIX_OPFL_AUTO
       }
     }
 
