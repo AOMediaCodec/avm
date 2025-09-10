@@ -183,6 +183,7 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
 #endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
   av1_read_color_config(rb, seq_params, &cm->error);
+#if !CONFIG_CWG_E242_CHROMA_FORMAT_IDC
   if (!(seq_params->subsampling_x == 0 && seq_params->subsampling_y == 0) &&
       !(seq_params->subsampling_x == 1 && seq_params->subsampling_y == 1) &&
       !(seq_params->subsampling_x == 1 && seq_params->subsampling_y == 0)) {
@@ -197,6 +198,7 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
 #endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
         seq_params->subsampling_x, seq_params->subsampling_y);
   }
+#endif  // !CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
   // Still picture or not
   seq_params->still_picture = aom_rb_read_bit(rb);
