@@ -43,7 +43,16 @@ using libaom_test::ACMRandom;
       make_tuple(static_cast<TX_SIZE>(TX_32X4), &function),  \
       make_tuple(static_cast<TX_SIZE>(TX_32X8), &function),  \
       make_tuple(static_cast<TX_SIZE>(TX_32X16), &function), \
-      make_tuple(static_cast<TX_SIZE>(TX_32X32), &function)
+      make_tuple(static_cast<TX_SIZE>(TX_32X32), &function), \
+      make_tuple(static_cast<TX_SIZE>(TX_64X64), &function), \
+      make_tuple(static_cast<TX_SIZE>(TX_32X64), &function), \
+      make_tuple(static_cast<TX_SIZE>(TX_64X32), &function), \
+      make_tuple(static_cast<TX_SIZE>(TX_16X64), &function), \
+      make_tuple(static_cast<TX_SIZE>(TX_64X16), &function), \
+      make_tuple(static_cast<TX_SIZE>(TX_8X64), &function),  \
+      make_tuple(static_cast<TX_SIZE>(TX_64X8), &function),  \
+      make_tuple(static_cast<TX_SIZE>(TX_4X64), &function),  \
+      make_tuple(static_cast<TX_SIZE>(TX_64X4), &function)
 
 #define ALL_CFL_TX_SIZES_SUBSAMPLE(fun420, fun422, fun444)                   \
   make_tuple(static_cast<TX_SIZE>(TX_4X4), &fun420, &fun422, &fun444),       \
@@ -61,7 +70,16 @@ using libaom_test::ACMRandom;
       make_tuple(static_cast<TX_SIZE>(TX_32X4), &fun420, &fun422, &fun444),  \
       make_tuple(static_cast<TX_SIZE>(TX_32X8), &fun420, &fun422, &fun444),  \
       make_tuple(static_cast<TX_SIZE>(TX_32X16), &fun420, &fun422, &fun444), \
-      make_tuple(static_cast<TX_SIZE>(TX_32X32), &fun420, &fun422, &fun444)
+      make_tuple(static_cast<TX_SIZE>(TX_32X32), &fun420, &fun422, &fun444), \
+      make_tuple(static_cast<TX_SIZE>(TX_64X64), &fun420, &fun422, &fun444), \
+      make_tuple(static_cast<TX_SIZE>(TX_32X64), &fun420, &fun422, &fun444), \
+      make_tuple(static_cast<TX_SIZE>(TX_64X32), &fun420, &fun422, &fun444), \
+      make_tuple(static_cast<TX_SIZE>(TX_16X64), &fun420, &fun422, &fun444), \
+      make_tuple(static_cast<TX_SIZE>(TX_64X16), &fun420, &fun422, &fun444), \
+      make_tuple(static_cast<TX_SIZE>(TX_8X64), &fun420, &fun422, &fun444),  \
+      make_tuple(static_cast<TX_SIZE>(TX_64X8), &fun420, &fun422, &fun444),  \
+      make_tuple(static_cast<TX_SIZE>(TX_4X64), &fun420, &fun422, &fun444),  \
+      make_tuple(static_cast<TX_SIZE>(TX_64X4), &fun420, &fun422, &fun444)
 
 namespace {
 

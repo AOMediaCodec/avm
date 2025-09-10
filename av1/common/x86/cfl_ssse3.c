@@ -71,6 +71,42 @@ static INLINE void cfl_luma_subsampling_420_hbd_ssse3(const uint16_t *input,
           __m128i next_sum = _mm_hadd_epi16(sum_2, sum_3);
           _mm_storeu_si128(((__m128i *)pred_buf_q3) + 1,
                            _mm_add_epi16(next_sum, next_sum));
+        } else if (width == 64) {
+          const __m128i top_2 = _mm_loadu_si128(((__m128i *)input) + 2);
+          const __m128i bot_2 =
+              _mm_loadu_si128(((__m128i *)(input + input_stride)) + 2);
+          const __m128i top_3 = _mm_loadu_si128(((__m128i *)input) + 3);
+          const __m128i bot_3 =
+              _mm_loadu_si128(((__m128i *)(input + input_stride)) + 3);
+          const __m128i sum_2 = _mm_add_epi16(top_2, bot_2);
+          const __m128i sum_3 = _mm_add_epi16(top_3, bot_3);
+          __m128i next_sum = _mm_hadd_epi16(sum_2, sum_3);
+          _mm_storeu_si128(((__m128i *)pred_buf_q3) + 1,
+                           _mm_add_epi16(next_sum, next_sum));
+
+          const __m128i top_4 = _mm_loadu_si128(((__m128i *)input) + 4);
+          const __m128i bot_4 =
+              _mm_loadu_si128(((__m128i *)(input + input_stride)) + 4);
+          const __m128i top_5 = _mm_loadu_si128(((__m128i *)input) + 5);
+          const __m128i bot_5 =
+              _mm_loadu_si128(((__m128i *)(input + input_stride)) + 5);
+          const __m128i sum_4 = _mm_add_epi16(top_4, bot_4);
+          const __m128i sum_5 = _mm_add_epi16(top_5, bot_5);
+          __m128i next_sum_2 = _mm_hadd_epi16(sum_4, sum_5);
+          _mm_storeu_si128(((__m128i *)pred_buf_q3) + 2,
+                           _mm_add_epi16(next_sum_2, next_sum_2));
+
+          const __m128i top_6 = _mm_loadu_si128(((__m128i *)input) + 6);
+          const __m128i bot_6 =
+              _mm_loadu_si128(((__m128i *)(input + input_stride)) + 6);
+          const __m128i top_7 = _mm_loadu_si128(((__m128i *)input) + 7);
+          const __m128i bot_7 =
+              _mm_loadu_si128(((__m128i *)(input + input_stride)) + 7);
+          const __m128i sum_6 = _mm_add_epi16(top_6, bot_6);
+          const __m128i sum_7 = _mm_add_epi16(top_7, bot_7);
+          __m128i next_sum_3 = _mm_hadd_epi16(sum_6, sum_7);
+          _mm_storeu_si128(((__m128i *)pred_buf_q3) + 3,
+                           _mm_add_epi16(next_sum_3, next_sum_3));
         }
       }
     }
@@ -113,6 +149,19 @@ static INLINE void cfl_luma_subsampling_422_hbd_ssse3(const uint16_t *input,
           const __m128i top_3 = _mm_loadu_si128(((__m128i *)input) + 3);
           const __m128i sum_1 = _mm_slli_epi16(_mm_hadd_epi16(top_2, top_3), 2);
           _mm_storeu_si128(pred_buf_m128i + 1, sum_1);
+        } else if (width == 64) {
+          const __m128i top_2 = _mm_loadu_si128(((__m128i *)input) + 2);
+          const __m128i top_3 = _mm_loadu_si128(((__m128i *)input) + 3);
+          const __m128i sum_1 = _mm_slli_epi16(_mm_hadd_epi16(top_2, top_3), 2);
+          _mm_storeu_si128(pred_buf_m128i + 1, sum_1);
+          const __m128i top_4 = _mm_loadu_si128(((__m128i *)input) + 4);
+          const __m128i top_5 = _mm_loadu_si128(((__m128i *)input) + 5);
+          const __m128i sum_2 = _mm_slli_epi16(_mm_hadd_epi16(top_4, top_5), 2);
+          _mm_storeu_si128(pred_buf_m128i + 2, sum_2);
+          const __m128i top_6 = _mm_loadu_si128(((__m128i *)input) + 6);
+          const __m128i top_7 = _mm_loadu_si128(((__m128i *)input) + 7);
+          const __m128i sum_3 = _mm_slli_epi16(_mm_hadd_epi16(top_6, top_7), 2);
+          _mm_storeu_si128(pred_buf_m128i + 3, sum_3);
         }
       }
     }
@@ -144,6 +193,25 @@ static INLINE void cfl_luma_subsampling_444_hbd_ssse3(const uint16_t *input,
           __m128i row_3 = _mm_loadu_si128(((__m128i *)input) + 3);
           row_3 = _mm_slli_epi16(row_3, 3);
           _mm_storeu_si128(((__m128i *)pred_buf_q3) + 3, row_3);
+        } else if (width == 64) {
+          __m128i row_2 = _mm_loadu_si128(((__m128i *)input) + 2);
+          row_2 = _mm_slli_epi16(row_2, 3);
+          _mm_storeu_si128(((__m128i *)pred_buf_q3) + 2, row_2);
+          __m128i row_3 = _mm_loadu_si128(((__m128i *)input) + 3);
+          row_3 = _mm_slli_epi16(row_3, 3);
+          _mm_storeu_si128(((__m128i *)pred_buf_q3) + 3, row_3);
+          __m128i row_4 = _mm_loadu_si128(((__m128i *)input) + 4);
+          row_4 = _mm_slli_epi16(row_4, 3);
+          _mm_storeu_si128(((__m128i *)pred_buf_q3) + 4, row_4);
+          __m128i row_5 = _mm_loadu_si128(((__m128i *)input) + 5);
+          row_5 = _mm_slli_epi16(row_5, 3);
+          _mm_storeu_si128(((__m128i *)pred_buf_q3) + 5, row_5);
+          __m128i row_6 = _mm_loadu_si128(((__m128i *)input) + 6);
+          row_6 = _mm_slli_epi16(row_6, 3);
+          _mm_storeu_si128(((__m128i *)pred_buf_q3) + 6, row_6);
+          __m128i row_7 = _mm_loadu_si128(((__m128i *)input) + 7);
+          row_7 = _mm_slli_epi16(row_7, 3);
+          _mm_storeu_si128(((__m128i *)pred_buf_q3) + 7, row_7);
         }
       }
     }

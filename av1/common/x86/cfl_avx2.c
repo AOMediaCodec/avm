@@ -17,41 +17,47 @@
 
 #include "av1/common/x86/cfl_simd.h"
 
-#define CFL_GET_SUBSAMPLE_FUNCTION_AVX2(sub, bd)                               \
-  CFL_SUBSAMPLE(avx2, sub, bd, 32, 32)                                         \
-  CFL_SUBSAMPLE(avx2, sub, bd, 32, 16)                                         \
-  CFL_SUBSAMPLE(avx2, sub, bd, 32, 8)                                          \
-  CFL_SUBSAMPLE(avx2, sub, bd, 32, 4)                                          \
-  cfl_subsample_##bd##_fn cfl_get_luma_subsampling_##sub##_##bd##_avx2(        \
-      TX_SIZE tx_size) {                                                       \
-    static const cfl_subsample_##bd##_fn subfn_##sub[TX_SIZES_ALL] = {         \
-      cfl_subsample_##bd##_##sub##_4x4_ssse3,   /* 4x4 */                      \
-      cfl_subsample_##bd##_##sub##_8x8_ssse3,   /* 8x8 */                      \
-      cfl_subsample_##bd##_##sub##_16x16_ssse3, /* 16x16 */                    \
-      cfl_subsample_##bd##_##sub##_32x32_avx2,  /* 32x32 */                    \
-      NULL,                                     /* 64x64 (invalid CFL size) */ \
-      cfl_subsample_##bd##_##sub##_4x8_ssse3,   /* 4x8 */                      \
-      cfl_subsample_##bd##_##sub##_8x4_ssse3,   /* 8x4 */                      \
-      cfl_subsample_##bd##_##sub##_8x16_ssse3,  /* 8x16 */                     \
-      cfl_subsample_##bd##_##sub##_16x8_ssse3,  /* 16x8 */                     \
-      cfl_subsample_##bd##_##sub##_16x32_ssse3, /* 16x32 */                    \
-      cfl_subsample_##bd##_##sub##_32x16_avx2,  /* 32x16 */                    \
-      NULL,                                     /* 32x64 (invalid CFL size) */ \
-      NULL,                                     /* 64x32 (invalid CFL size) */ \
-      cfl_subsample_##bd##_##sub##_4x16_ssse3,  /* 4x16  */                    \
-      cfl_subsample_##bd##_##sub##_16x4_ssse3,  /* 16x4  */                    \
-      cfl_subsample_##bd##_##sub##_8x32_ssse3,  /* 8x32  */                    \
-      cfl_subsample_##bd##_##sub##_32x8_avx2,   /* 32x8  */                    \
-      NULL,                                     /* 16x64 (invalid CFL size) */ \
-      NULL,                                     /* 64x16 (invalid CFL size) */ \
-      cfl_subsample_##bd##_##sub##_4x32_ssse3,  /* 4x32  */                    \
-      cfl_subsample_##bd##_##sub##_32x4_avx2,   /* 32x4  */                    \
-      NULL,                                     /* 8x64 (invalid CFL size) */  \
-      NULL,                                     /* 64x8 (invalid CFL size) */  \
-      NULL,                                     /* 4x64 (invalid CFL size) */  \
-      NULL,                                     /* 64x4 (invalid CFL size) */  \
-    };                                                                         \
-    return subfn_##sub[tx_size];                                               \
+#define CFL_GET_SUBSAMPLE_FUNCTION_AVX2(sub, bd)                        \
+  CFL_SUBSAMPLE(avx2, sub, bd, 32, 32)                                  \
+  CFL_SUBSAMPLE(avx2, sub, bd, 32, 16)                                  \
+  CFL_SUBSAMPLE(avx2, sub, bd, 32, 8)                                   \
+  CFL_SUBSAMPLE(avx2, sub, bd, 32, 4)                                   \
+  CFL_SUBSAMPLE(avx2, sub, bd, 64, 64)                                  \
+  CFL_SUBSAMPLE(avx2, sub, bd, 64, 32)                                  \
+  CFL_SUBSAMPLE(avx2, sub, bd, 32, 64)                                  \
+  CFL_SUBSAMPLE(avx2, sub, bd, 64, 4)                                   \
+  CFL_SUBSAMPLE(avx2, sub, bd, 64, 8)                                   \
+  CFL_SUBSAMPLE(avx2, sub, bd, 64, 16)                                  \
+  cfl_subsample_##bd##_fn cfl_get_luma_subsampling_##sub##_##bd##_avx2( \
+      TX_SIZE tx_size) {                                                \
+    static const cfl_subsample_##bd##_fn subfn_##sub[TX_SIZES_ALL] = {  \
+      cfl_subsample_##bd##_##sub##_4x4_ssse3,   /* 4x4 */               \
+      cfl_subsample_##bd##_##sub##_8x8_ssse3,   /* 8x8 */               \
+      cfl_subsample_##bd##_##sub##_16x16_ssse3, /* 16x16 */             \
+      cfl_subsample_##bd##_##sub##_32x32_avx2,  /* 32x32 */             \
+      cfl_subsample_##bd##_##sub##_64x64_avx2,  /* 64x64 */             \
+      cfl_subsample_##bd##_##sub##_4x8_ssse3,   /* 4x8 */               \
+      cfl_subsample_##bd##_##sub##_8x4_ssse3,   /* 8x4 */               \
+      cfl_subsample_##bd##_##sub##_8x16_ssse3,  /* 8x16 */              \
+      cfl_subsample_##bd##_##sub##_16x8_ssse3,  /* 16x8 */              \
+      cfl_subsample_##bd##_##sub##_16x32_ssse3, /* 16x32 */             \
+      cfl_subsample_##bd##_##sub##_32x16_avx2,  /* 32x16 */             \
+      cfl_subsample_##bd##_##sub##_32x64_avx2,  /* 32x64 */             \
+      cfl_subsample_##bd##_##sub##_64x32_avx2,  /* 64x32 */             \
+      cfl_subsample_##bd##_##sub##_4x16_ssse3,  /* 4x16  */             \
+      cfl_subsample_##bd##_##sub##_16x4_ssse3,  /* 16x4  */             \
+      cfl_subsample_##bd##_##sub##_8x32_ssse3,  /* 8x32  */             \
+      cfl_subsample_##bd##_##sub##_32x8_avx2,   /* 32x8  */             \
+      cfl_subsample_##bd##_##sub##_16x64_ssse3, /* 16x64 */             \
+      cfl_subsample_##bd##_##sub##_64x16_avx2,  /* 64x16 */             \
+      cfl_subsample_##bd##_##sub##_4x32_ssse3,  /* 4x32  */             \
+      cfl_subsample_##bd##_##sub##_32x4_avx2,   /* 32x4  */             \
+      cfl_subsample_##bd##_##sub##_8x64_ssse3,  /* 8x64 */              \
+      cfl_subsample_##bd##_##sub##_64x8_avx2,   /* 64x8 */              \
+      cfl_subsample_##bd##_##sub##_4x64_ssse3,  /* 4x64 */              \
+      cfl_subsample_##bd##_##sub##_64x4_avx2,   /* 64x4 */              \
+    };                                                                  \
+    return subfn_##sub[tx_size];                                        \
   }
 
 /**
@@ -70,25 +76,54 @@ static void cfl_luma_subsampling_420_hbd_avx2(const uint16_t *input,
                                               int input_stride,
                                               uint16_t *pred_buf_q3, int width,
                                               int height) {
-  (void)width;  // Forever 32
   const int luma_stride = input_stride << 1;
   __m256i *row = (__m256i *)pred_buf_q3;
   const __m256i *row_end = row + (height >> 1) * CFL_BUF_LINE_I256;
   do {
-    __m256i top = _mm256_loadu_si256((__m256i *)input);
-    __m256i bot = _mm256_loadu_si256((__m256i *)(input + input_stride));
-    __m256i sum = _mm256_add_epi16(top, bot);
+    if (width == 32) {
+      __m256i top = _mm256_loadu_si256((__m256i *)input);
+      __m256i bot = _mm256_loadu_si256((__m256i *)(input + input_stride));
+      __m256i sum = _mm256_add_epi16(top, bot);
 
-    __m256i top_1 = _mm256_loadu_si256((__m256i *)(input + 16));
-    __m256i bot_1 = _mm256_loadu_si256((__m256i *)(input + 16 + input_stride));
-    __m256i sum_1 = _mm256_add_epi16(top_1, bot_1);
+      __m256i top_1 = _mm256_loadu_si256((__m256i *)(input + 16));
+      __m256i bot_1 =
+          _mm256_loadu_si256((__m256i *)(input + 16 + input_stride));
+      __m256i sum_1 = _mm256_add_epi16(top_1, bot_1);
 
-    __m256i hsum = _mm256_hadd_epi16(sum, sum_1);
-    hsum = _mm256_permute4x64_epi64(hsum, _MM_SHUFFLE(3, 1, 2, 0));
-    hsum = _mm256_add_epi16(hsum, hsum);
+      __m256i hsum = _mm256_hadd_epi16(sum, sum_1);
+      hsum = _mm256_permute4x64_epi64(hsum, _MM_SHUFFLE(3, 1, 2, 0));
+      hsum = _mm256_add_epi16(hsum, hsum);
+      _mm256_storeu_si256(row, hsum);
+    } else {  // width == 64
+      __m256i top = _mm256_loadu_si256((__m256i *)input);
+      __m256i bot = _mm256_loadu_si256((__m256i *)(input + input_stride));
+      __m256i sum = _mm256_add_epi16(top, bot);
 
-    _mm256_storeu_si256(row, hsum);
+      __m256i top_1 = _mm256_loadu_si256((__m256i *)(input + 16));
+      __m256i bot_1 =
+          _mm256_loadu_si256((__m256i *)(input + 16 + input_stride));
+      __m256i sum_1 = _mm256_add_epi16(top_1, bot_1);
 
+      __m256i hsum = _mm256_hadd_epi16(sum, sum_1);
+      hsum = _mm256_permute4x64_epi64(hsum, _MM_SHUFFLE(3, 1, 2, 0));
+      hsum = _mm256_add_epi16(hsum, hsum);
+      _mm256_storeu_si256(row, hsum);
+
+      __m256i top_2 = _mm256_loadu_si256((__m256i *)(input + 32));
+      __m256i bot_2 =
+          _mm256_loadu_si256((__m256i *)(input + 32 + input_stride));
+      __m256i sum_2 = _mm256_add_epi16(top_2, bot_2);
+
+      __m256i top_3 = _mm256_loadu_si256((__m256i *)(input + 48));
+      __m256i bot_3 =
+          _mm256_loadu_si256((__m256i *)(input + 48 + input_stride));
+      __m256i sum_3 = _mm256_add_epi16(top_3, bot_3);
+
+      __m256i hsum_1 = _mm256_hadd_epi16(sum_2, sum_3);
+      hsum_1 = _mm256_permute4x64_epi64(hsum_1, _MM_SHUFFLE(3, 1, 2, 0));
+      hsum_1 = _mm256_add_epi16(hsum_1, hsum_1);
+      _mm256_storeu_si256(row + 1, hsum_1);
+    }
     input += luma_stride;
   } while ((row += CFL_BUF_LINE_I256) < row_end);
 }
@@ -110,18 +145,31 @@ static void cfl_luma_subsampling_422_hbd_avx2(const uint16_t *input,
                                               int input_stride,
                                               uint16_t *pred_buf_q3, int width,
                                               int height) {
-  (void)width;  // Forever 32
   __m256i *row = (__m256i *)pred_buf_q3;
   const __m256i *row_end = row + height * CFL_BUF_LINE_I256;
   do {
-    __m256i top = _mm256_loadu_si256((__m256i *)input);
-    __m256i top_1 = _mm256_loadu_si256((__m256i *)(input + 16));
-    __m256i hsum = _mm256_hadd_epi16(top, top_1);
-    hsum = _mm256_permute4x64_epi64(hsum, _MM_SHUFFLE(3, 1, 2, 0));
-    hsum = _mm256_slli_epi16(hsum, 2);
+    if (width == 32) {
+      __m256i top = _mm256_loadu_si256((__m256i *)input);
+      __m256i top_1 = _mm256_loadu_si256((__m256i *)(input + 16));
+      __m256i hsum = _mm256_hadd_epi16(top, top_1);
+      hsum = _mm256_permute4x64_epi64(hsum, _MM_SHUFFLE(3, 1, 2, 0));
+      hsum = _mm256_slli_epi16(hsum, 2);
+      _mm256_storeu_si256(row, hsum);
+    } else {  // width == 64
+      __m256i top = _mm256_loadu_si256((__m256i *)input);
+      __m256i top_1 = _mm256_loadu_si256((__m256i *)(input + 16));
+      __m256i hsum = _mm256_hadd_epi16(top, top_1);
+      hsum = _mm256_permute4x64_epi64(hsum, _MM_SHUFFLE(3, 1, 2, 0));
+      hsum = _mm256_slli_epi16(hsum, 2);
+      _mm256_storeu_si256(row, hsum);
 
-    _mm256_storeu_si256(row, hsum);
-
+      __m256i top_2 = _mm256_loadu_si256((__m256i *)(input + 32));
+      __m256i top_3 = _mm256_loadu_si256((__m256i *)(input + 48));
+      __m256i hsum_1 = _mm256_hadd_epi16(top_2, top_3);
+      hsum_1 = _mm256_permute4x64_epi64(hsum_1, _MM_SHUFFLE(3, 1, 2, 0));
+      hsum_1 = _mm256_slli_epi16(hsum_1, 2);
+      _mm256_storeu_si256(row + 1, hsum_1);
+    }
     input += input_stride;
   } while ((row += CFL_BUF_LINE_I256) < row_end);
 }
@@ -132,14 +180,24 @@ static void cfl_luma_subsampling_444_hbd_avx2(const uint16_t *input,
                                               int input_stride,
                                               uint16_t *pred_buf_q3, int width,
                                               int height) {
-  (void)width;  // Forever 32
   __m256i *row = (__m256i *)pred_buf_q3;
   const __m256i *row_end = row + height * CFL_BUF_LINE_I256;
   do {
-    __m256i top = _mm256_loadu_si256((__m256i *)input);
-    __m256i top_1 = _mm256_loadu_si256((__m256i *)(input + 16));
-    _mm256_storeu_si256(row, _mm256_slli_epi16(top, 3));
-    _mm256_storeu_si256(row + 1, _mm256_slli_epi16(top_1, 3));
+    if (width == 32) {
+      __m256i top = _mm256_loadu_si256((__m256i *)input);
+      __m256i top_1 = _mm256_loadu_si256((__m256i *)(input + 16));
+      _mm256_storeu_si256(row, _mm256_slli_epi16(top, 3));
+      _mm256_storeu_si256(row + 1, _mm256_slli_epi16(top_1, 3));
+    } else {  // width == 64
+      __m256i top = _mm256_loadu_si256((__m256i *)input);
+      __m256i top_1 = _mm256_loadu_si256((__m256i *)(input + 16));
+      _mm256_storeu_si256(row, _mm256_slli_epi16(top, 3));
+      _mm256_storeu_si256(row + 1, _mm256_slli_epi16(top_1, 3));
+      __m256i top_2 = _mm256_loadu_si256((__m256i *)(input + 32));
+      __m256i top_3 = _mm256_loadu_si256((__m256i *)(input + 48));
+      _mm256_storeu_si256(row + 2, _mm256_slli_epi16(top_2, 3));
+      _mm256_storeu_si256(row + 3, _mm256_slli_epi16(top_3, 3));
+    }
     input += input_stride;
   } while ((row += CFL_BUF_LINE_I256) < row_end);
 }
