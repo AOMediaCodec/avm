@@ -128,6 +128,313 @@ static void cfl_luma_subsampling_420_hbd_avx2(const uint16_t *input,
   } while ((row += CFL_BUF_LINE_I256) < row_end);
 }
 
+static void cfl_luma_subsampling_420_hbd_121_avx2_w4(const uint16_t *input,
+                                                     int input_stride,
+                                                     uint16_t *output_q3,
+                                                     int height) {
+  // Shuffle mask to get {p2, p0} from a 4-element vector.
+  const __m128i center_mask =
+      _mm_set_epi8(-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 5, 4, 1, 0);
+  // Shuffle mask for left taps {p1, p0}, handling the i=0 boundary.
+  const __m128i left_mask =
+      _mm_set_epi8(-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 3, 2, 1, 0);
+  // Shuffle mask for right taps {p3, p1}.
+  const __m128i right_mask =
+      _mm_set_epi8(-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 7, 6, 3, 2);
+
+  for (int j = 0; j < height; j += 2) {
+    const __m128i top = _mm_loadl_epi64((const __m128i *)input);
+    const __m128i bot =
+        _mm_loadl_epi64((const __m128i *)(input + input_stride));
+
+    const __m128i top_center = _mm_shuffle_epi8(top, center_mask);
+    const __m128i top_left = _mm_shuffle_epi8(top, left_mask);
+    const __m128i top_right = _mm_shuffle_epi8(top, right_mask);
+    __m128i top_sum = _mm_add_epi16(top_left, top_right);
+    top_sum = _mm_add_epi16(top_sum, _mm_add_epi16(top_center, top_center));
+
+    const __m128i bot_center = _mm_shuffle_epi8(bot, center_mask);
+    const __m128i bot_left = _mm_shuffle_epi8(bot, left_mask);
+    const __m128i bot_right = _mm_shuffle_epi8(bot, right_mask);
+    __m128i bot_sum = _mm_add_epi16(bot_left, bot_right);
+    bot_sum = _mm_add_epi16(bot_sum, _mm_add_epi16(bot_center, bot_center));
+
+    const __m128i final_sum = _mm_add_epi16(top_sum, bot_sum);
+
+    _mm_storeu_si32((void *)output_q3, final_sum);
+
+    input += input_stride << 1;
+    output_q3 += CFL_BUF_LINE;
+  }
+}
+
+static void cfl_luma_subsampling_420_hbd_121_avx2_w8(const uint16_t *input,
+                                                     int input_stride,
+                                                     uint16_t *output_q3,
+                                                     int height) {
+  // Shuffle mask to select {p6, p4, p2, p0} from a 128-bit vector.
+  const __m128i subsample_mask =
+      _mm_set_epi8(-1, -1, -1, -1, -1, -1, -1, -1, 13, 12, 9, 8, 5, 4, 1, 0);
+
+  for (int j = 0; j < height; j += 2) {
+    const uint16_t *top = input;
+    const uint16_t *bot = input + input_stride;
+
+    // 1. Load 8 pixels for left, center, and right taps.
+    const __m128i top_left = _mm_loadu_si128((const __m128i *)(top - 1));
+    const __m128i top_center = _mm_loadu_si128((const __m128i *)top);
+    const __m128i top_right = _mm_loadu_si128((const __m128i *)(top + 1));
+
+    const __m128i bot_left = _mm_loadu_si128((const __m128i *)(bot - 1));
+    const __m128i bot_center = _mm_loadu_si128((const __m128i *)bot);
+    const __m128i bot_right = _mm_loadu_si128((const __m128i *)(bot + 1));
+
+    // 2. Apply the horizontal 1-2-1 filter.
+    const __m128i center_2x = _mm_add_epi16(top_center, top_center);
+    const __m128i top_sum_unpacked =
+        _mm_add_epi16(_mm_add_epi16(top_left, top_right), center_2x);
+
+    const __m128i bot_center_2x = _mm_add_epi16(bot_center, bot_center);
+    const __m128i bot_sum_unpacked =
+        _mm_add_epi16(_mm_add_epi16(bot_left, bot_right), bot_center_2x);
+
+    // 3. Apply the vertical filter.
+    const __m128i sum_unpacked =
+        _mm_add_epi16(top_sum_unpacked, bot_sum_unpacked);
+
+    // 4. Subsample: Select every other pixel.
+    const __m128i final_sum = _mm_shuffle_epi8(sum_unpacked, subsample_mask);
+
+    // 5. Store the final 4 subsampled pixels (64 bits).
+    _mm_storel_epi64((__m128i *)output_q3, final_sum);
+
+    // 6. Correct the first pixel for the boundary condition.
+    output_q3[0] = 3 * top[0] + top[1] + 3 * bot[0] + bot[1];
+
+    input += input_stride << 1;
+    output_q3 += CFL_BUF_LINE;
+  }
+}
+
+static void cfl_luma_subsampling_420_hbd_121_avx2_w16(const uint16_t *input,
+                                                      int input_stride,
+                                                      uint16_t *output_q3,
+                                                      int height) {
+  // SSSE3 shuffle mask to select {p6, p4, p2, p0} from a 128-bit lane.
+  const __m128i subsample_mask =
+      _mm_set_epi8(-1, -1, -1, -1, -1, -1, -1, -1, 13, 12, 9, 8, 5, 4, 1, 0);
+
+  for (int j = 0; j < height; j += 2) {
+    const uint16_t *top = input;
+    const uint16_t *bot = input + input_stride;
+
+    // 1. Load 16 pixels for left, center, and right taps for top and bottom.
+    // Using 256-bit registers allows us to process the entire width at once.
+    const __m256i top_left = _mm256_loadu_si256((const __m256i *)(top - 1));
+    const __m256i top_center = _mm256_loadu_si256((const __m256i *)top);
+    const __m256i top_right = _mm256_loadu_si256((const __m256i *)(top + 1));
+
+    const __m256i bot_left = _mm256_loadu_si256((const __m256i *)(bot - 1));
+    const __m256i bot_center = _mm256_loadu_si256((const __m256i *)bot);
+    const __m256i bot_right = _mm256_loadu_si256((const __m256i *)(bot + 1));
+
+    // 2. Apply the horizontal 1-2-1 filter (left + 2*center + right).
+    const __m256i center_2x = _mm256_add_epi16(top_center, top_center);
+    const __m256i top_sum_unpacked =
+        _mm256_add_epi16(_mm256_add_epi16(top_left, top_right), center_2x);
+
+    const __m256i bot_center_2x = _mm256_add_epi16(bot_center, bot_center);
+    const __m256i bot_sum_unpacked =
+        _mm256_add_epi16(_mm256_add_epi16(bot_left, bot_right), bot_center_2x);
+
+    // 3. Apply the vertical filter by adding the top and bottom results.
+    const __m256i sum_unpacked =
+        _mm256_add_epi16(top_sum_unpacked, bot_sum_unpacked);
+
+    // 4. Subsample: Select every other pixel from the 16 results.
+    // Extract the low and high 128-bit lanes from the 256-bit result.
+    const __m128i sum_lo = _mm256_extracti128_si256(sum_unpacked, 0);
+    const __m128i sum_hi = _mm256_extracti128_si256(sum_unpacked, 1);
+
+    // Shuffle each lane to select the even-indexed elements.
+    const __m128i subsampled_lo = _mm_shuffle_epi8(sum_lo, subsample_mask);
+    const __m128i subsampled_hi = _mm_shuffle_epi8(sum_hi, subsample_mask);
+
+    // Combine the two 64-bit results into one 128-bit vector.
+    const __m128i final_sum = _mm_unpacklo_epi64(subsampled_lo, subsampled_hi);
+
+    // 5. Store the final 8 subsampled pixels.
+    _mm_storeu_si128((__m128i *)output_q3, final_sum);
+
+    // 6. Correct the first pixel to handle the boundary condition, just as
+    // the C code does.
+    output_q3[0] = 3 * top[0] + top[1] + 3 * bot[0] + bot[1];
+
+    input += input_stride << 1;
+    output_q3 += CFL_BUF_LINE;
+  }
+}
+
+static void cfl_luma_subsampling_420_hbd_121_avx2_w32(const uint16_t *input,
+                                                      int input_stride,
+                                                      uint16_t *output_q3,
+                                                      int height) {
+  const __m128i subsample_mask =
+      _mm_set_epi8(-1, -1, -1, -1, -1, -1, -1, -1, 13, 12, 9, 8, 5, 4, 1, 0);
+
+  for (int j = 0; j < height; j += 2) {
+    const uint16_t *top = input;
+    const uint16_t *bot = input + input_stride;
+
+    // Process first 16 pixels
+    {
+      const __m256i top_left = _mm256_loadu_si256((const __m256i *)(top - 1));
+      const __m256i top_center = _mm256_loadu_si256((const __m256i *)top);
+      const __m256i top_right = _mm256_loadu_si256((const __m256i *)(top + 1));
+      const __m256i bot_left = _mm256_loadu_si256((const __m256i *)(bot - 1));
+      const __m256i bot_center = _mm256_loadu_si256((const __m256i *)bot);
+      const __m256i bot_right = _mm256_loadu_si256((const __m256i *)(bot + 1));
+
+      const __m256i top_sum_unpacked =
+          _mm256_add_epi16(_mm256_add_epi16(top_left, top_right),
+                           _mm256_add_epi16(top_center, top_center));
+      const __m256i bot_sum_unpacked =
+          _mm256_add_epi16(_mm256_add_epi16(bot_left, bot_right),
+                           _mm256_add_epi16(bot_center, bot_center));
+      const __m256i sum_unpacked =
+          _mm256_add_epi16(top_sum_unpacked, bot_sum_unpacked);
+
+      const __m128i sum_lo = _mm256_extracti128_si256(sum_unpacked, 0);
+      const __m128i sum_hi = _mm256_extracti128_si256(sum_unpacked, 1);
+      const __m128i subsampled_lo = _mm_shuffle_epi8(sum_lo, subsample_mask);
+      const __m128i subsampled_hi = _mm_shuffle_epi8(sum_hi, subsample_mask);
+      const __m128i final_sum =
+          _mm_unpacklo_epi64(subsampled_lo, subsampled_hi);
+
+      _mm_storeu_si128((__m128i *)output_q3, final_sum);
+    }
+
+    // Process second 16 pixels
+    {
+      const __m256i top_left = _mm256_loadu_si256((const __m256i *)(top + 15));
+      const __m256i top_center =
+          _mm256_loadu_si256((const __m256i *)(top + 16));
+      const __m256i top_right = _mm256_loadu_si256((const __m256i *)(top + 17));
+      const __m256i bot_left = _mm256_loadu_si256((const __m256i *)(bot + 15));
+      const __m256i bot_center =
+          _mm256_loadu_si256((const __m256i *)(bot + 16));
+      const __m256i bot_right = _mm256_loadu_si256((const __m256i *)(bot + 17));
+
+      const __m256i top_sum_unpacked =
+          _mm256_add_epi16(_mm256_add_epi16(top_left, top_right),
+                           _mm256_add_epi16(top_center, top_center));
+      const __m256i bot_sum_unpacked =
+          _mm256_add_epi16(_mm256_add_epi16(bot_left, bot_right),
+                           _mm256_add_epi16(bot_center, bot_center));
+      const __m256i sum_unpacked =
+          _mm256_add_epi16(top_sum_unpacked, bot_sum_unpacked);
+
+      const __m128i sum_lo = _mm256_extracti128_si256(sum_unpacked, 0);
+      const __m128i sum_hi = _mm256_extracti128_si256(sum_unpacked, 1);
+      const __m128i subsampled_lo = _mm_shuffle_epi8(sum_lo, subsample_mask);
+      const __m128i subsampled_hi = _mm_shuffle_epi8(sum_hi, subsample_mask);
+      const __m128i final_sum =
+          _mm_unpacklo_epi64(subsampled_lo, subsampled_hi);
+
+      _mm_storeu_si128((__m128i *)(output_q3 + 8), final_sum);
+    }
+
+    // Correct the first pixel for the boundary condition.
+    output_q3[0] = 3 * top[0] + top[1] + 3 * bot[0] + bot[1];
+
+    input += input_stride << 1;
+    output_q3 += CFL_BUF_LINE;
+  }
+}
+
+static void cfl_luma_subsampling_420_hbd_121_avx2_w64(const uint16_t *input,
+                                                      int input_stride,
+                                                      uint16_t *output_q3,
+                                                      int height) {
+  const __m128i subsample_mask =
+      _mm_set_epi8(-1, -1, -1, -1, -1, -1, -1, -1, 13, 12, 9, 8, 5, 4, 1, 0);
+
+  for (int j = 0; j < height; j += 2) {
+    const uint16_t *top = input;
+    const uint16_t *bot = input + input_stride;
+
+    // Process four 16-pixel chunks
+    for (int i = 0; i < 4; ++i) {
+      const int offset = i * 16;
+      const __m256i top_left =
+          _mm256_loadu_si256((const __m256i *)(top + offset - 1));
+      const __m256i top_center =
+          _mm256_loadu_si256((const __m256i *)(top + offset));
+      const __m256i top_right =
+          _mm256_loadu_si256((const __m256i *)(top + offset + 1));
+      const __m256i bot_left =
+          _mm256_loadu_si256((const __m256i *)(bot + offset - 1));
+      const __m256i bot_center =
+          _mm256_loadu_si256((const __m256i *)(bot + offset));
+      const __m256i bot_right =
+          _mm256_loadu_si256((const __m256i *)(bot + offset + 1));
+
+      const __m256i top_sum_unpacked =
+          _mm256_add_epi16(_mm256_add_epi16(top_left, top_right),
+                           _mm256_add_epi16(top_center, top_center));
+      const __m256i bot_sum_unpacked =
+          _mm256_add_epi16(_mm256_add_epi16(bot_left, bot_right),
+                           _mm256_add_epi16(bot_center, bot_center));
+      const __m256i sum_unpacked =
+          _mm256_add_epi16(top_sum_unpacked, bot_sum_unpacked);
+
+      const __m128i sum_lo = _mm256_extracti128_si256(sum_unpacked, 0);
+      const __m128i sum_hi = _mm256_extracti128_si256(sum_unpacked, 1);
+      const __m128i subsampled_lo = _mm_shuffle_epi8(sum_lo, subsample_mask);
+      const __m128i subsampled_hi = _mm_shuffle_epi8(sum_hi, subsample_mask);
+      const __m128i final_sum =
+          _mm_unpacklo_epi64(subsampled_lo, subsampled_hi);
+
+      _mm_storeu_si128((__m128i *)(output_q3 + (i * 8)), final_sum);
+    }
+
+    // Correct the first pixel for the boundary condition.
+    output_q3[0] = 3 * top[0] + top[1] + 3 * bot[0] + bot[1];
+
+    input += input_stride << 1;
+    output_q3 += CFL_BUF_LINE;
+  }
+}
+
+static void cfl_luma_subsampling_420_hbd_121_avx2(const uint16_t *input,
+                                                  int input_stride,
+                                                  uint16_t *output_q3,
+                                                  int width, int height) {
+  switch (width) {
+    case 4:
+      cfl_luma_subsampling_420_hbd_121_avx2_w4(input, input_stride, output_q3,
+                                               height);
+      break;
+    case 8:
+      cfl_luma_subsampling_420_hbd_121_avx2_w8(input, input_stride, output_q3,
+                                               height);
+      break;
+    case 16:
+      cfl_luma_subsampling_420_hbd_121_avx2_w16(input, input_stride, output_q3,
+                                                height);
+      break;
+    case 32:
+      cfl_luma_subsampling_420_hbd_121_avx2_w32(input, input_stride, output_q3,
+                                                height);
+      break;
+    case 64:
+      cfl_luma_subsampling_420_hbd_121_avx2_w64(input, input_stride, output_q3,
+                                                height);
+      break;
+    default: assert(0 && "Invalid width.");
+  }
+}
+
 CFL_GET_SUBSAMPLE_FUNCTION_AVX2(420, hbd)
 
 /**
@@ -203,6 +510,8 @@ static void cfl_luma_subsampling_444_hbd_avx2(const uint16_t *input,
 }
 
 CFL_GET_SUBSAMPLE_FUNCTION_AVX2(444, hbd)
+
+CFL_GET_SUBSAMPLE_121_FUNCTION(avx2)
 
 static INLINE __m256i predict_unclipped(const __m256i *input, __m256i alpha_q12,
                                         __m256i alpha_sign, __m256i dc_q0) {

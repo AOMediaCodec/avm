@@ -454,6 +454,9 @@ specialize qw/cfl_get_subtract_average_fn sse2 avx2 neon vsx/;
 add_proto qw/cfl_subsample_hbd_fn cfl_get_luma_subsampling_420_hbd/, "TX_SIZE tx_size";
 specialize qw/cfl_get_luma_subsampling_420_hbd ssse3 avx2 neon/;
 
+add_proto qw/cfl_subsample_hbd_fn cfl_get_luma_subsampling_420_hbd_121/, "TX_SIZE tx_size";
+specialize qw/cfl_get_luma_subsampling_420_hbd_121 avx2/;
+
 add_proto qw/cfl_subsample_hbd_fn cfl_get_luma_subsampling_422_hbd/, "TX_SIZE tx_size";
 specialize qw/cfl_get_luma_subsampling_422_hbd ssse3 avx2 neon/;
 

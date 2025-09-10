@@ -16,6 +16,8 @@
 
 #include "config/av1_rtcd.h"
 
+#include "av1/common/cfl.h"
+
 #include "aom_ports/aom_timer.h"
 #include "test/util.h"
 #include "test/acm_random.h"
@@ -384,6 +386,99 @@ TEST_P(CFLPredictHBDTest, DISABLED_PredictHBDSpeedTest) {
   printSpeed(ref_elapsed_time, elapsed_time, width, height);
   assertFaster(ref_elapsed_time, elapsed_time);
 }
+
+#define ALL_CFL_TX_SIZES_121(function)                       \
+  make_tuple(static_cast<TX_SIZE>(TX_4X4), &function),       \
+      make_tuple(static_cast<TX_SIZE>(TX_4X8), &function),   \
+      make_tuple(static_cast<TX_SIZE>(TX_4X16), &function),  \
+      make_tuple(static_cast<TX_SIZE>(TX_4X32), &function),  \
+      make_tuple(static_cast<TX_SIZE>(TX_8X4), &function),   \
+      make_tuple(static_cast<TX_SIZE>(TX_8X8), &function),   \
+      make_tuple(static_cast<TX_SIZE>(TX_8X16), &function),  \
+      make_tuple(static_cast<TX_SIZE>(TX_8X32), &function),  \
+      make_tuple(static_cast<TX_SIZE>(TX_16X4), &function),  \
+      make_tuple(static_cast<TX_SIZE>(TX_16X8), &function),  \
+      make_tuple(static_cast<TX_SIZE>(TX_16X16), &function), \
+      make_tuple(static_cast<TX_SIZE>(TX_16X32), &function), \
+      make_tuple(static_cast<TX_SIZE>(TX_32X4), &function),  \
+      make_tuple(static_cast<TX_SIZE>(TX_32X8), &function),  \
+      make_tuple(static_cast<TX_SIZE>(TX_32X16), &function), \
+      make_tuple(static_cast<TX_SIZE>(TX_32X32), &function), \
+      make_tuple(static_cast<TX_SIZE>(TX_64X64), &function), \
+      make_tuple(static_cast<TX_SIZE>(TX_32X64), &function), \
+      make_tuple(static_cast<TX_SIZE>(TX_64X32), &function), \
+      make_tuple(static_cast<TX_SIZE>(TX_16X64), &function), \
+      make_tuple(static_cast<TX_SIZE>(TX_64X16), &function), \
+      make_tuple(static_cast<TX_SIZE>(TX_8X64), &function),  \
+      make_tuple(static_cast<TX_SIZE>(TX_64X8), &function),  \
+      make_tuple(static_cast<TX_SIZE>(TX_4X64), &function),  \
+      make_tuple(static_cast<TX_SIZE>(TX_64X4), &function)
+
+typedef cfl_subsample_hbd_fn (*get_subsample_hbd_fn)(TX_SIZE tx_size);
+typedef std::tuple<TX_SIZE, get_subsample_hbd_fn> CflSubsample121HbdParam;
+
+class CflSubsample121HBDTest
+    : public ::testing::TestWithParam<CflSubsample121HbdParam>,
+      public CFLTestWithData<uint16_t> {
+ public:
+  virtual ~CflSubsample121HBDTest() {}
+  virtual void SetUp() {
+    CFLTest::init(std::get<0>(GetParam()));
+    get_subsample_hbd_fn tgt_getter = std::get<1>(GetParam());
+    tgt_fn_ = tgt_getter(tx_size);
+    ref_fn_ = cfl_get_luma_subsampling_420_hbd_121_c(tx_size);
+  }
+
+ protected:
+  cfl_subsample_hbd_fn ref_fn_;
+  cfl_subsample_hbd_fn tgt_fn_;
+};
+
+TEST_P(CflSubsample121HBDTest, Match) {
+  uint16_t ref_output[CFL_BUF_SQUARE];
+  uint16_t tgt_output[CFL_BUF_SQUARE];
+  for (int it = 0; it < NUM_ITERATIONS; it++) {
+    randData(&ACMRandom::Rand12);
+    ref_fn_(data_ref, CFL_BUF_LINE, ref_output);
+    tgt_fn_(data, CFL_BUF_LINE, tgt_output);
+    assert_eq<uint16_t>(ref_output, tgt_output, width >> 1, height >> 1);
+  }
+}
+
+TEST_P(CflSubsample121HBDTest, DISABLED_Speed) {
+  uint16_t ref_output[CFL_BUF_SQUARE];
+  uint16_t tgt_output[CFL_BUF_SQUARE];
+  aom_usec_timer ref_timer;
+  aom_usec_timer timer;
+
+  randData(&ACMRandom::Rand12);
+
+  aom_usec_timer_start(&ref_timer);
+  for (int k = 0; k < NUM_ITERATIONS_SPEED; k++) {
+    ref_fn_(data_ref, CFL_BUF_LINE, ref_output);
+  }
+  aom_usec_timer_mark(&ref_timer);
+  const int ref_elapsed_time = (int)aom_usec_timer_elapsed(&ref_timer);
+
+  aom_usec_timer_start(&timer);
+  for (int k = 0; k < NUM_ITERATIONS_SPEED; k++) {
+    tgt_fn_(data, CFL_BUF_LINE, tgt_output);
+  }
+  aom_usec_timer_mark(&timer);
+  const int elapsed_time = (int)aom_usec_timer_elapsed(&timer);
+
+  printSpeed(ref_elapsed_time, elapsed_time, width, height);
+  assertFaster(ref_elapsed_time, elapsed_time);
+}
+
+#if HAVE_AVX2
+const CflSubsample121HbdParam cfl_subsample_121_hbd_avx2_params[] = {
+  ALL_CFL_TX_SIZES_121(cfl_get_luma_subsampling_420_hbd_121_avx2)
+};
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, CflSubsample121HBDTest,
+    ::testing::ValuesIn(cfl_subsample_121_hbd_avx2_params));
+#endif
 
 // Temporarily disable the sse4 function since it might overflow.
 // Re-enable the test when the parameter range is restricted to 32 bits,

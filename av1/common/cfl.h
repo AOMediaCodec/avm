@@ -351,6 +351,76 @@ void cfl_load_dc_pred(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
   CFL_SUBSAMPLE_FUNCTIONS(arch, 422, hbd) \
   CFL_SUBSAMPLE_FUNCTIONS(arch, 444, hbd)
 
+#define CFL_SUBSAMPLE_121(arch, width, height)                              \
+  void cfl_subsample_hbd_420_121_##width##x##height##_##arch(               \
+      const uint16_t *input, int input_stride, uint16_t *output_q3) {       \
+    cfl_luma_subsampling_420_hbd_121_##arch(input, input_stride, output_q3, \
+                                            width, height);                 \
+  }
+
+#define CFL_SUBSAMPLE_121_FUNCTIONS(arch)                           \
+  CFL_SUBSAMPLE_121(arch, 4, 4)                                     \
+  CFL_SUBSAMPLE_121(arch, 8, 8)                                     \
+  CFL_SUBSAMPLE_121(arch, 16, 16)                                   \
+  CFL_SUBSAMPLE_121(arch, 32, 32)                                   \
+  CFL_SUBSAMPLE_121(arch, 64, 64)                                   \
+  CFL_SUBSAMPLE_121(arch, 4, 8)                                     \
+  CFL_SUBSAMPLE_121(arch, 8, 4)                                     \
+  CFL_SUBSAMPLE_121(arch, 8, 16)                                    \
+  CFL_SUBSAMPLE_121(arch, 16, 8)                                    \
+  CFL_SUBSAMPLE_121(arch, 16, 32)                                   \
+  CFL_SUBSAMPLE_121(arch, 32, 16)                                   \
+  CFL_SUBSAMPLE_121(arch, 32, 64)                                   \
+  CFL_SUBSAMPLE_121(arch, 64, 32)                                   \
+  CFL_SUBSAMPLE_121(arch, 4, 16)                                    \
+  CFL_SUBSAMPLE_121(arch, 16, 4)                                    \
+  CFL_SUBSAMPLE_121(arch, 8, 32)                                    \
+  CFL_SUBSAMPLE_121(arch, 32, 8)                                    \
+  CFL_SUBSAMPLE_121(arch, 16, 64)                                   \
+  CFL_SUBSAMPLE_121(arch, 64, 16)                                   \
+  CFL_SUBSAMPLE_121(arch, 4, 32)                                    \
+  CFL_SUBSAMPLE_121(arch, 32, 4)                                    \
+  CFL_SUBSAMPLE_121(arch, 8, 64)                                    \
+  CFL_SUBSAMPLE_121(arch, 64, 8)                                    \
+  CFL_SUBSAMPLE_121(arch, 4, 64)                                    \
+  CFL_SUBSAMPLE_121(arch, 64, 4)                                    \
+  cfl_subsample_hbd_fn cfl_get_luma_subsampling_420_hbd_121_##arch( \
+      TX_SIZE tx_size) {                                            \
+    CFL_SUBSAMPLE_121_FUNCTION_ARRAY(arch)                          \
+    return subfn_420_121[tx_size];                                  \
+  }
+
+#define CFL_SUBSAMPLE_121_FUNCTION_ARRAY(arch)                      \
+  static const cfl_subsample_hbd_fn subfn_420_121[TX_SIZES_ALL] = { \
+    cfl_subsample_hbd_420_121_4x4_##arch,   /* 4x4 */               \
+    cfl_subsample_hbd_420_121_8x8_##arch,   /* 8x8 */               \
+    cfl_subsample_hbd_420_121_16x16_##arch, /* 16x16 */             \
+    cfl_subsample_hbd_420_121_32x32_##arch, /* 32x32 */             \
+    cfl_subsample_hbd_420_121_64x64_##arch, /* 64x64 */             \
+    cfl_subsample_hbd_420_121_4x8_##arch,   /* 4x8 */               \
+    cfl_subsample_hbd_420_121_8x4_##arch,   /* 8x4 */               \
+    cfl_subsample_hbd_420_121_8x16_##arch,  /* 8x16 */              \
+    cfl_subsample_hbd_420_121_16x8_##arch,  /* 16x8 */              \
+    cfl_subsample_hbd_420_121_16x32_##arch, /* 16x32 */             \
+    cfl_subsample_hbd_420_121_32x16_##arch, /* 32x16 */             \
+    cfl_subsample_hbd_420_121_32x64_##arch, /* 32x64 */             \
+    cfl_subsample_hbd_420_121_64x32_##arch, /* 64x32 */             \
+    cfl_subsample_hbd_420_121_4x16_##arch,  /* 4x16  */             \
+    cfl_subsample_hbd_420_121_16x4_##arch,  /* 16x4  */             \
+    cfl_subsample_hbd_420_121_8x32_##arch,  /* 8x32  */             \
+    cfl_subsample_hbd_420_121_32x8_##arch,  /* 32x8  */             \
+    cfl_subsample_hbd_420_121_16x64_##arch, /* 16x64 */             \
+    cfl_subsample_hbd_420_121_64x16_##arch, /* 64x16 */             \
+    cfl_subsample_hbd_420_121_4x32_##arch,  /* 4x32 */              \
+    cfl_subsample_hbd_420_121_32x4_##arch,  /* 32x4 */              \
+    cfl_subsample_hbd_420_121_8x64_##arch,  /* 8x64 */              \
+    cfl_subsample_hbd_420_121_64x8_##arch,  /* 64x8 */              \
+    cfl_subsample_hbd_420_121_4x64_##arch,  /* 4x64 */              \
+    cfl_subsample_hbd_420_121_64x4_##arch,  /* 64x4 */              \
+  };
+
+#define CFL_GET_SUBSAMPLE_121_FUNCTION(arch) CFL_SUBSAMPLE_121_FUNCTIONS(arch)
+
 // Declare a size-specific wrapper for the size-generic function. The compiler
 // will inline the size generic function in here, the advantage is that the size
 // will be constant allowing for loop unrolling and other constant propagated
