@@ -8304,9 +8304,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
              !cm->seq_params.enable_frame_output_order ||
 #endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
              cm->cur_frame->frame_type == KEY_FRAME)) ||
-#if CONFIG_BRU
         cm->bru.frame_inactive_flag ||
-#endif  // CONFIG_BRU
         (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT))
       break;
 #endif  // CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
