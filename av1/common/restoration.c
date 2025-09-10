@@ -818,80 +818,49 @@ static void restore_processing_stripe_boundary(
 }
 
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-static void setup_processing_stripe_leftright_boundary(
-    uint16_t *data_tl, int w, int h, int data_stride, int border,
+static uint16_t *alloc_processing_stripe_leftright_boundary(
+    uint16_t *data_tl, int w, int h, int *data_stride, int border,
     int tile_boundary_left, int tile_boundary_right,
-    RestorationLineBuffers *rlbs, int is_chroma) {
-  assert(rlbs != NULL);
-  assert(h <= RESTORATION_PROC_UNIT_SIZE);
-  assert(border <= RESTORATION_BORDER_HORZ);
+    RestorationLineBuffers *rlbs) {
+  (void)rlbs;
+  if (!tile_boundary_left && !tile_boundary_right) return data_tl;
+  int new_data_w = (w + 2 * border);
+  int new_data_stride = new_data_w;
+  uint16_t *new_data = (uint16_t *)aom_malloc(
+      (h + 2 * border) * new_data_stride * sizeof(*data_tl));
+  uint16_t *new_data_tl = new_data + border * new_data_stride + border;
+  for (int i = -border; i < h + border; ++i)
+    memcpy(new_data_tl + new_data_stride * i - border,
+           data_tl + data_stride[0] * i - border,
+           new_data_w * sizeof(*data_tl));
   if (tile_boundary_left) {
-    uint16_t *d = data_tl - border * data_stride - border;
-    for (int i = 0; i < border; ++i) {
-      memcpy(rlbs->tmp_save_left[is_chroma][i], d + i * data_stride,
-             border * sizeof(*d));
+    uint16_t *d = new_data_tl - border * new_data_stride - border;
+    for (int i = 0; i < h + 2 * border; ++i) {
       // Replicate
-      aom_memset16(d + i * data_stride, *(d + i * data_stride + border),
-                   border);
-    }
-    for (int i = border; i < h + border; ++i) {
-      memcpy(rlbs->tmp_save_left[is_chroma][i], d + i * data_stride,
-             border * sizeof(*d));
-      // Replicate
-      aom_memset16(d + i * data_stride, *(d + i * data_stride + border),
-                   border);
-    }
-    for (int i = h + border; i < h + 2 * border; ++i) {
-      memcpy(rlbs->tmp_save_left[is_chroma][i], d + i * data_stride,
-             border * sizeof(*d));
-      // Replicate
-      aom_memset16(d + i * data_stride, *(d + i * data_stride + border),
+      aom_memset16(d + i * new_data_stride, *(d + i * new_data_stride + border),
                    border);
     }
   }
   if (tile_boundary_right) {
-    uint16_t *d = data_tl + w - border * data_stride;
-    for (int i = 0; i < border; ++i) {
-      memcpy(rlbs->tmp_save_right[is_chroma][i], d + i * data_stride,
-             border * sizeof(*d));
+    uint16_t *d = new_data_tl + w - border * new_data_stride;
+    for (int i = 0; i < h + 2 * border; ++i) {
       // Replicate
-      aom_memset16(d + i * data_stride, *(d + i * data_stride - 1), border);
-    }
-    for (int i = border; i < h + border; ++i) {
-      memcpy(rlbs->tmp_save_right[is_chroma][i], d + i * data_stride,
-             border * sizeof(*d));
-      // Replicate
-      aom_memset16(d + i * data_stride, *(d + i * data_stride - 1), border);
-    }
-    for (int i = h + border; i < h + 2 * border; ++i) {
-      memcpy(rlbs->tmp_save_right[is_chroma][i], d + i * data_stride,
-             border * sizeof(*d));
-      // Replicate
-      aom_memset16(d + i * data_stride, *(d + i * data_stride - 1), border);
+      aom_memset16(d + i * new_data_stride, *(d + i * new_data_stride - 1),
+                   border);
     }
   }
+  *data_stride = new_data_stride;
+  return new_data_tl;
 }
 
-static void restore_processing_stripe_leftright_boundary(
-    uint16_t *data_tl, int w, int h, int data_stride, int border,
+static void dealloc_processing_stripe_leftright_boundary(
+    uint16_t *new_data_tl, int new_data_stride, int border,
     int tile_boundary_left, int tile_boundary_right,
-    RestorationLineBuffers *rlbs, int is_chroma) {
-  assert(h <= RESTORATION_PROC_UNIT_SIZE);
+    RestorationLineBuffers *rlbs) {
+  (void)rlbs;
   assert(border <= RESTORATION_BORDER_HORZ);
-  if (tile_boundary_left) {
-    uint16_t *d = data_tl - border * data_stride - border;
-    for (int i = 0; i < h + 2 * border; ++i) {
-      memcpy(d + i * data_stride, rlbs->tmp_save_left[is_chroma][i],
-             border * sizeof(*d));
-    }
-  }
-  if (tile_boundary_right) {
-    uint16_t *d = data_tl + w - border * data_stride;
-    for (int i = 0; i < h + 2 * border; ++i) {
-      memcpy(d + i * data_stride, rlbs->tmp_save_right[is_chroma][i],
-             border * sizeof(*d));
-    }
-  }
+  if (!tile_boundary_left && !tile_boundary_right) return;
+  aom_free(new_data_tl - border * new_data_stride - border);
 }
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 
@@ -2311,17 +2280,34 @@ void av1_loop_restoration_filter_unit(
     uint16_t *data_stripe_tl = data_tl + i * stride;
     uint16_t *dst_stripe_tl = dst_tl + i * dst_stride;
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-    int tile_boundary_left = (remaining_stripes.h_start == tile_rect->left);
-    int tile_boundary_right = (remaining_stripes.h_end == tile_rect->right);
+    int tile_boundary_left =
+        disable_loopfilters_across_tiles
+            ? (remaining_stripes.h_start == tile_rect->left)
+            : (remaining_stripes.h_start == 0);
+    int tile_boundary_right =
+        disable_loopfilters_across_tiles
+            ? (remaining_stripes.h_end == tile_rect->right)
+            : (remaining_stripes.h_end == plane_width);
     const int border = RESTORATION_BORDER_HORZ >> ss_x;
+    int backup_data_stride = 0;
+    uint16_t *backup_luma = NULL;
+    int backup_luma_stride = 0;
     if (tile_boundary_left || tile_boundary_right) {
-      setup_processing_stripe_leftright_boundary(
-          data_stripe_tl, unit_w, h, stride, border, tile_boundary_left,
-          tile_boundary_right, rlbs, rui->plane != PLANE_TYPE_Y);
+      backup_data_stride = stride;
+      // Note the alloc functions below do temporary buffer allocations and
+      // change the buffer data_stripe_tl and its stride, as well as
+      // tmp_rui->luma and its stride in the cross filter case.
+      // So we need to keep a backup and restore them after the corresponding
+      // dealloc functions.
+      data_stripe_tl = alloc_processing_stripe_leftright_boundary(
+          data_stripe_tl, unit_w, h, &stride, border, tile_boundary_left,
+          tile_boundary_right, rlbs);
       if (enable_cross_buffers) {
-        setup_processing_stripe_leftright_boundary(
-            (uint16_t *)tmp_rui->luma, unit_w, h, rui->luma_stride,
-            WIENERNS_UV_BRD, tile_boundary_left, tile_boundary_right, rlbs, 0);
+        backup_luma = (uint16_t *)tmp_rui->luma;
+        backup_luma_stride = tmp_rui->luma_stride;
+        tmp_rui->luma = alloc_processing_stripe_leftright_boundary(
+            (uint16_t *)tmp_rui->luma, unit_w, h, &tmp_rui->luma_stride,
+            WIENERNS_UV_BRD, tile_boundary_left, tile_boundary_right, rlbs);
       }
     }
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
@@ -2340,13 +2326,17 @@ void av1_loop_restoration_filter_unit(
 
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
     if (tile_boundary_left || tile_boundary_right) {
-      restore_processing_stripe_leftright_boundary(
-          data_stripe_tl, unit_w, h, stride, border, tile_boundary_left,
-          tile_boundary_right, rlbs, rui->plane != PLANE_TYPE_Y);
+      // Deallocate the allocated tmp buffers and reassign from backup
+      dealloc_processing_stripe_leftright_boundary(data_stripe_tl, stride,
+                                                   border, tile_boundary_left,
+                                                   tile_boundary_right, rlbs);
+      stride = backup_data_stride;
       if (enable_cross_buffers) {
-        restore_processing_stripe_leftright_boundary(
-            (uint16_t *)tmp_rui->luma, unit_w, h, rui->luma_stride,
-            WIENERNS_UV_BRD, tile_boundary_left, tile_boundary_right, rlbs, 0);
+        dealloc_processing_stripe_leftright_boundary(
+            (uint16_t *)tmp_rui->luma, tmp_rui->luma_stride, WIENERNS_UV_BRD,
+            tile_boundary_left, tile_boundary_right, rlbs);
+        tmp_rui->luma = backup_luma;
+        tmp_rui->luma_stride = backup_luma_stride;
       }
     }
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
