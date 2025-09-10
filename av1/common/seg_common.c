@@ -47,7 +47,7 @@ void av1_calculate_segdata(struct segmentation *seg) {
   for (int i = 0; i < max_seg_num; i++) {
     for (int j = 0; j < SEG_LVL_MAX; j++) {
       if (seg->feature_mask[i] & (1 << j)) {
-        seg->segid_preskip |= (j >= SEG_LVL_ALT_LF_V);
+        seg->segid_preskip |= (j >= SEG_LVL_SKIP);
         seg->last_active_segid = i;
       }
     }
