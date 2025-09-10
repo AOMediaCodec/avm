@@ -1100,12 +1100,10 @@ typedef struct CommonTileParams {
    * is allowed.
    */
   unsigned int single_tile_decoding;
-#if CONFIG_BRU_TILE_FLAG
   /*!
    * Used when BRU is on, each bit indicates active mode of a tile
    */
   uint8_t tile_active_bitmap[(MAX_TILE_ROWS * MAX_TILE_COLS + 7) / 8];
-#endif  // CONFIG_BRU_TILE_FLAG
 } CommonTileParams;
 
 typedef struct CommonModeInfoParams CommonModeInfoParams;

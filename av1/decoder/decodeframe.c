@@ -4215,7 +4215,6 @@ static AOM_INLINE void read_tile_info_max_tile(
     tiles->row_start_sb[i] = start_sb + height_sb;
   }
   av1_calculate_tile_rows(cm, cm->mi_params.mi_rows, tiles);
-#if CONFIG_BRU_TILE_FLAG
   if (cm->bru.enabled) {
     const int num_tiles = tiles->rows * tiles->cols;
     memset(cm->tiles.tile_active_bitmap, 0, (num_tiles + 7) / 8);
@@ -4223,7 +4222,6 @@ static AOM_INLINE void read_tile_info_max_tile(
       cm->tiles.tile_active_bitmap[0] = 1;
     }
   }
-#endif  // CONFIG_BRU_TILE_FLAG
 }
 
 void av1_set_single_tile_decoding_mode(AV1_COMMON *const cm) {
@@ -4510,7 +4508,6 @@ static AOM_INLINE void get_tile_buffers(
       data += hdr_offset;
       get_tile_buffer(data_end, pbi->tile_size_bytes, is_last,
                       &pbi->common.error, &data, buf);
-#if CONFIG_BRU_TILE_FLAG
       if (cm->bru.enabled) {
         const int tile_idx = r * tile_cols + c;
         TileDataDec *const this_tile = pbi->tile_data + tile_idx;
@@ -4521,7 +4518,6 @@ static AOM_INLINE void get_tile_buffers(
              tile_active_map_bit) &
             1;
       }
-#endif  // CONFIG_BRU_TILE_FLAG
     }
   }
 }
@@ -4805,11 +4801,6 @@ static AOM_INLINE void decode_tile(AV1Decoder *pbi, ThreadData *const td,
   av1_reset_loop_restoration(xd, 0, num_planes, num_filter_classes);
   if (cm->bru.enabled) {
     if (cm->bru.frame_inactive_flag) xd->tile.tile_active_mode = 0;
-#if !CONFIG_BRU_TILE_FLAG
-    else
-      xd->tile.tile_active_mode =
-          aom_read_bit(td->bit_reader, ACCT_INFO("tile_active_mode"));
-#endif  // !CONFIG_BRU_TILE_FLAG
   }
 
   for (int mi_row = tile_info.mi_row_start; mi_row < tile_info.mi_row_end;
@@ -4953,11 +4944,9 @@ static const uint8_t *decode_tiles(AV1Decoder *pbi, const uint8_t *data,
 
   assert(tile_rows <= MAX_TILE_ROWS);
   assert(tile_cols <= MAX_TILE_COLS);
-#if CONFIG_MOVE_TILE_DATA_ALLOC
   if (pbi->tile_data == NULL || n_tiles != pbi->allocated_tiles) {
     decoder_alloc_tile_data(pbi, n_tiles);
   }
-#endif
 #if EXT_TILE_DEBUG
   if (tiles->large_scale && !pbi->ext_tile_debug)
     raw_data_end = get_ls_single_tile_buffer(pbi, data, tile_buffers);
@@ -4966,11 +4955,6 @@ static const uint8_t *decode_tiles(AV1Decoder *pbi, const uint8_t *data,
   else
 #endif  // EXT_TILE_DEBUG
     get_tile_buffers(pbi, data, data_end, tile_buffers, start_tile, end_tile);
-#if !CONFIG_MOVE_TILE_DATA_ALLOC
-  if (pbi->tile_data == NULL || n_tiles != pbi->allocated_tiles) {
-    decoder_alloc_tile_data(pbi, n_tiles);
-  }
-#endif
 #if CONFIG_ACCOUNTING
   if (pbi->acct_enabled) {
     aom_accounting_reset(&pbi->accounting);
@@ -5786,11 +5770,9 @@ static const uint8_t *decode_tiles_mt(AV1Decoder *pbi, const uint8_t *data,
   assert(start_tile >= 0 && end_tile < n_tiles);
 
   decode_mt_init(pbi);
-#if CONFIG_MOVE_TILE_DATA_ALLOC
   if (pbi->tile_data == NULL || n_tiles != pbi->allocated_tiles) {
     decoder_alloc_tile_data(pbi, n_tiles);
   }
-#endif
   // get tile size in tile group
 #if EXT_TILE_DEBUG
   if (tiles->large_scale) assert(pbi->ext_tile_debug == 1);
@@ -5799,12 +5781,6 @@ static const uint8_t *decode_tiles_mt(AV1Decoder *pbi, const uint8_t *data,
   else
 #endif  // EXT_TILE_DEBUG
     get_tile_buffers(pbi, data, data_end, tile_buffers, start_tile, end_tile);
-
-#if !CONFIG_MOVE_TILE_DATA_ALLOC
-  if (pbi->tile_data == NULL || n_tiles != pbi->allocated_tiles) {
-    decoder_alloc_tile_data(pbi, n_tiles);
-  }
-#endif
 
   for (int row = 0; row < tile_rows; row++) {
     for (int col = 0; col < tile_cols; col++) {
@@ -5971,7 +5947,6 @@ static const uint8_t *decode_tiles_row_mt(AV1Decoder *pbi, const uint8_t *data,
 
   decode_mt_init(pbi);
 
-#if CONFIG_MOVE_TILE_DATA_ALLOC
   if (pbi->tile_data == NULL || n_tiles != pbi->allocated_tiles) {
     if (pbi->tile_data != NULL) {
       for (int i = 0; i < pbi->allocated_tiles; i++) {
@@ -5981,7 +5956,6 @@ static const uint8_t *decode_tiles_row_mt(AV1Decoder *pbi, const uint8_t *data,
     }
     decoder_alloc_tile_data(pbi, n_tiles);
   }
-#endif
 
   // get tile size in tile group
 #if EXT_TILE_DEBUG
@@ -5991,18 +5965,6 @@ static const uint8_t *decode_tiles_row_mt(AV1Decoder *pbi, const uint8_t *data,
   else
 #endif  // EXT_TILE_DEBUG
     get_tile_buffers(pbi, data, data_end, tile_buffers, start_tile, end_tile);
-
-#if !CONFIG_MOVE_TILE_DATA_ALLOC
-  if (pbi->tile_data == NULL || n_tiles != pbi->allocated_tiles) {
-    if (pbi->tile_data != NULL) {
-      for (int i = 0; i < pbi->allocated_tiles; i++) {
-        TileDataDec *const tile_data = pbi->tile_data + i;
-        av1_dec_row_mt_dealloc(&tile_data->dec_row_mt_sync);
-      }
-    }
-    decoder_alloc_tile_data(pbi, n_tiles);
-  }
-#endif
 
   for (int row = 0; row < tile_rows; row++) {
     for (int col = 0; col < tile_cols; col++) {
@@ -9391,7 +9353,6 @@ static int32_t read_tile_indices_in_tilegroup(AV1Decoder *pbi,
   }
   pbi->next_start_tile = (*end_tile == num_tiles - 1) ? 0 : *end_tile + 1;
 
-#if CONFIG_BRU_TILE_FLAG
   if (cm->bru.enabled) {
     if (num_tiles > 1) {
       for (int tile_idx = *start_tile; tile_idx <= *end_tile; tile_idx++) {
@@ -9404,7 +9365,6 @@ static int32_t read_tile_indices_in_tilegroup(AV1Decoder *pbi,
       tiles->tile_active_bitmap[0] = 1;
     }
   }
-#endif  // CONFIG_BRU_TILE_FLAG
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }
 

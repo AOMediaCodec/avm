@@ -3561,11 +3561,6 @@ static AOM_INLINE void write_modes(AV1_COMP *const cpi,
     }
   }
 
-#if !CONFIG_BRU_TILE_FLAG
-  if (cm->bru.enabled && !cm->bru.frame_inactive_flag) {
-    aom_write_bit(w, tile->tile_active_mode);
-  }
-#endif  // !CONFIG_BRU_TILE_FLAG
   for (int mi_row = mi_row_start; mi_row < mi_row_end; mi_row += cm->mib_size) {
     const int sb_row_in_tile =
         (mi_row - tile->mi_row_start) >> cm->mib_size_log2;
@@ -7596,12 +7591,10 @@ static uint32_t write_frame_header_obu(AV1_COMP *cpi,
   return aom_wb_bytes_written(&wb);
 }
 
-static uint32_t write_tile_group_header(
-#if CONFIG_BRU_TILE_FLAG
-    AV1_COMMON *const cm,
-#endif  // CONFIG_BRU_TILE_FLAG
-    uint8_t *const dst, int start_tile, int end_tile, int tiles_log2,
-    int tile_start_and_end_present_flag) {
+static uint32_t write_tile_group_header(AV1_COMMON *const cm,
+                                        uint8_t *const dst, int start_tile,
+                                        int end_tile, int tiles_log2,
+                                        int tile_start_and_end_present_flag) {
   struct aom_write_bit_buffer wb = { dst, 0 };
   uint32_t size = 0;
 
@@ -7613,7 +7606,6 @@ static uint32_t write_tile_group_header(
     aom_wb_write_literal(&wb, start_tile, tiles_log2);
     aom_wb_write_literal(&wb, end_tile, tiles_log2);
   }
-#if CONFIG_BRU_TILE_FLAG
   if (cm->bru.enabled) {
     const int num_tiles = cm->tiles.cols * cm->tiles.rows;
     if (num_tiles > 1) {
@@ -7628,7 +7620,6 @@ static uint32_t write_tile_group_header(
       }
     }
   }
-#endif  // CONFIG_BRU_TILE_FLAG
   size = aom_wb_bytes_written(&wb);
   return size;
 }
@@ -7823,9 +7814,7 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
 
   uint32_t obu_header_size = 0;
   uint8_t *tile_data_start = dst + total_size;
-#if CONFIG_BRU_TILE_FLAG
   const int use_tile_active_mode = (cm->bru.enabled && have_tiles);
-#endif  // CONFIG_BRU_TILE_FLAG
   for (tile_row = 0; tile_row < tile_rows; tile_row++) {
     TileInfo tile_info;
     av1_tile_set_row(&tile_info, cm, tile_row);
@@ -7858,10 +7847,7 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
         }
         if (!cm->bru.frame_inactive_flag)
           curr_tg_data_size += write_tile_group_header(
-#if CONFIG_BRU_TILE_FLAG
-              cm,
-#endif  // CONFIG_BRU_TILE_FLAG
-              data + curr_tg_data_size, tile_idx,
+              cm, data + curr_tg_data_size, tile_idx,
               AOMMIN(tile_idx + tg_size - 1, num_tiles - 1), n_log2_tiles,
               cpi->num_tg > 1);
         total_size += curr_tg_data_size;
@@ -7883,12 +7869,10 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
 
       // The last tile of the tile group does not have a header.
       if (!is_last_tile_in_tg) total_size += 4;
-#if CONFIG_BRU_TILE_FLAG
       tile_info.tile_active_mode = 1;
       if (use_tile_active_mode) {
         tile_info.tile_active_mode = this_tile->tile_info.tile_active_mode;
       }
-#endif  // CONFIG_BRU_TILE_FLAG
       cpi->td.mb.e_mbd.tile_ctx = &this_tile->tctx;
       mode_bc.allow_update_cdf = 1;
       mode_bc.allow_update_cdf =
@@ -7900,9 +7884,6 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
       av1_reset_loop_restoration(&cpi->td.mb.e_mbd, 0, num_planes,
                                  num_filter_classes);
 
-#if !CONFIG_BRU_TILE_FLAG
-      tile_info.tile_active_mode = this_tile->tile_info.tile_active_mode;
-#endif  // !CONFIG_BRU_TILE_FLAG
       aom_start_encode(&mode_bc, dst + total_size);
       if (!cm->bru.frame_inactive_flag)
         write_modes(cpi, &tile_info, &mode_bc, tile_row, tile_col);
