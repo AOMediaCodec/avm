@@ -180,7 +180,10 @@ int main(int argc, char **argv) {
 
   if (aom_codec_control(&codec, AOME_SET_CPUUSED, 2))
     die_codec(&codec, "Failed to set cpu-used");
-
+  if (aom_codec_control(&codec, AV1E_SET_TILE_COLUMNS, 1))
+    die_codec(&codec, "Failed to set tile columns to 1");
+  if (aom_codec_control(&codec, AV1E_SET_TILE_ROWS, 1))
+    die_codec(&codec, "Failed to set tile rows to 1");
   if (aom_codec_control(&codec, AV1E_SET_ENABLE_BRU, bru_enable))
     die_codec(&codec, "Failed to set enable_bru");
 
