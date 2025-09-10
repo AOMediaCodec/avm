@@ -85,7 +85,7 @@ void av1_lookahead_destroy(struct lookahead_ctx *ctx);
  * \param[in] src               Pointer to the image to enqueue
  * \param[in] ts_start          Timestamp for the start of this frame
  * \param[in] ts_end            Timestamp for the end of this frame
- * \param[in] order_hint        Order hint of this frame
+ * \param[in] disp_order_hint        Display order hint of this frame
  * \param[in] flags             Flags set on this frame
  * \param[in] alloc_pyramid     Whether to allocate a downsampling pyramid
  *                              for each frame buffer

@@ -865,8 +865,7 @@ endif()
 
 if((ENABLE_EXAMPLES OR ENABLE_TESTS)
    AND CONFIG_AV1_ENCODER
-   AND CONFIG_AV1_DECODER
-   AND CONFIG_BRU)
+   AND CONFIG_AV1_DECODER)
   add_executable(
     bru_encoder_decoder
     "${AOM_ROOT}/examples/bru_encoder_decoder.c"
