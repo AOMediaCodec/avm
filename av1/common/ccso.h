@@ -77,11 +77,14 @@ typedef void (*ccso_filter_block_func)(
 
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 void ccso_filter_block_hbd_wo_buf_4x4_c(
-    AV1_COMMON *cm, const uint16_t *src_y, uint16_t *dst_yuv, const int x,
-    const int y, const int pic_width, const int pic_height, int *src_cls,
-    const int8_t *offset_buf, const int src_y_stride, const int dst_stride,
-    const int y_uv_hscale, const int y_uv_vscale, const int thr,
-    const int neg_thr, const int *src_loc, const int max_val,
+    AV1_COMMON *cm, const uint16_t *src_y, uint16_t *dst_yuv,
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+    int tile_col_start, int tile_row_start,
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+    const int x, const int y, const int pic_width, const int pic_height,
+    int *src_cls, const int8_t *offset_buf, const int src_y_stride,
+    const int dst_stride, const int y_uv_hscale, const int y_uv_vscale,
+    const int thr, const int neg_thr, const int *src_loc, const int max_val,
     const int blk_size_x, const int blk_size_y, const bool isSingleBand,
     const uint8_t shift_bits, const int edge_clf, const uint8_t ccso_bo_only);
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS

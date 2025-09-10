@@ -240,11 +240,14 @@ void ccso_filter_block_hbd_wo_buf_c(
 // processing, however, for software optimization purpose we have
 // used  full block processing for whole lossy frame.
 void ccso_filter_block_hbd_wo_buf_4x4_c(
-    AV1_COMMON *cm, const uint16_t *src_y, uint16_t *dst_yuv, const int x,
-    const int y, const int pic_width, const int pic_height, int *src_cls,
-    const int8_t *offset_buf, const int src_y_stride, const int dst_stride,
-    const int y_uv_hscale, const int y_uv_vscale, const int thr,
-    const int neg_thr, const int *src_loc, const int max_val,
+    AV1_COMMON *cm, const uint16_t *src_y, uint16_t *dst_yuv,
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+    int tile_col_start, int tile_row_start,
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+    const int x, const int y, const int pic_width, const int pic_height,
+    int *src_cls, const int8_t *offset_buf, const int src_y_stride,
+    const int dst_stride, const int y_uv_hscale, const int y_uv_vscale,
+    const int thr, const int neg_thr, const int *src_loc, const int max_val,
     const int blk_size_x, const int blk_size_y, const bool isSingleBand,
     const uint8_t shift_bits, const int edge_clf, const uint8_t ccso_bo_only) {
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
@@ -257,10 +260,16 @@ void ccso_filter_block_hbd_wo_buf_4x4_c(
     const int y_pos = y_start;
     for (int x_start = 0; x_start < x_end; x_start += min_b_size_x) {
       const int x_pos = x + x_start;
-
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+      const int mbmi_idx = get_mi_grid_idx(
+          mi_params,
+          (tile_row_start + y_pos + y) >> (MI_SIZE_LOG2 - y_uv_vscale),
+          (tile_col_start + x_pos) >> (MI_SIZE_LOG2 - y_uv_hscale));
+#else
       const int mbmi_idx = get_mi_grid_idx(
           mi_params, (y_pos + y) >> (MI_SIZE_LOG2 - y_uv_vscale),
           (x_pos) >> (MI_SIZE_LOG2 - y_uv_hscale));
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
       const int is_lossless =
           cm->features
               .lossless_segment[mi_params->mi_grid_base[mbmi_idx]->segment_id];
@@ -406,8 +415,9 @@ void ccso_apply_luma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
                 if (cm->features.has_lossless_segment) {
                   ccso_filter_block_hbd_wo_buf_4x4_c(
-                      cm, src_unit_y, dst_unit_yuv, tile_pxl_x + unit_x,
-                      tile_pxl_y + unit_y, tile_width, tile_height, src_cls,
+                      cm, src_unit_y, dst_unit_yuv, tile_col_start,
+                      tile_row_start, tile_pxl_x + unit_x, tile_pxl_y + unit_y,
+                      tile_width, tile_height, src_cls,
                       cm->ccso_info.filter_offset[plane], ccso_ext_tile_stride,
                       dst_stride, 0, 0, thr, neg_thr, src_loc, max_val,
                       unit_size, unit_size, false, shift_bits, edge_clf,
@@ -485,11 +495,14 @@ void ccso_apply_luma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
           if (cm->features.has_lossless_segment) {
             ccso_filter_block_hbd_wo_buf_4x4_c(
-                cm, src_unit_y, dst_unit_yuv, x + unit_x, y + unit_y, pic_width,
-                pic_height, src_cls, cm->ccso_info.filter_offset[plane],
-                ccso_ext_stride, dst_stride, 0, 0, thr, neg_thr, src_loc,
-                max_val, unit_size, unit_size, false, shift_bits, edge_clf,
-                cm->ccso_info.ccso_bo_only[plane]);
+                cm, src_unit_y, dst_unit_yuv,
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+                0, 0,
+#endif  // CCONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+                x + unit_x, y + unit_y, pic_width, pic_height, src_cls,
+                cm->ccso_info.filter_offset[plane], ccso_ext_stride, dst_stride,
+                0, 0, thr, neg_thr, src_loc, max_val, unit_size, unit_size,
+                false, shift_bits, edge_clf, cm->ccso_info.ccso_bo_only[plane]);
           } else {
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 
@@ -630,8 +643,9 @@ void ccso_apply_luma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
                 if (cm->features.has_lossless_segment) {
                   ccso_filter_block_hbd_wo_buf_4x4_c(
-                      cm, src_unit_y, dst_unit_yuv, tile_pxl_x + unit_x,
-                      tile_pxl_y + unit_y, tile_width, tile_height, src_cls,
+                      cm, src_unit_y, dst_unit_yuv, tile_col_start,
+                      tile_row_start, tile_pxl_x + unit_x, tile_pxl_y + unit_y,
+                      tile_width, tile_height, src_cls,
                       cm->ccso_info.filter_offset[plane], ccso_ext_tile_stride,
                       dst_stride, 0, 0, thr, neg_thr, src_loc, max_val,
                       unit_size, unit_size, true, shift_bits, edge_clf,
@@ -708,11 +722,14 @@ void ccso_apply_luma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
           if (cm->features.has_lossless_segment) {
             ccso_filter_block_hbd_wo_buf_4x4_c(
-                cm, src_unit_y, dst_unit_yuv, x + unit_x, y + unit_y, pic_width,
-                pic_height, src_cls, cm->ccso_info.filter_offset[plane],
-                ccso_ext_stride, dst_stride, 0, 0, thr, neg_thr, src_loc,
-                max_val, unit_size, unit_size, true, shift_bits, edge_clf,
-                cm->ccso_info.ccso_bo_only[plane]);
+                cm, src_unit_y, dst_unit_yuv,
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+                0, 0,
+#endif  // CCONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+                x + unit_x, y + unit_y, pic_width, pic_height, src_cls,
+                cm->ccso_info.filter_offset[plane], ccso_ext_stride, dst_stride,
+                0, 0, thr, neg_thr, src_loc, max_val, unit_size, unit_size,
+                true, shift_bits, edge_clf, cm->ccso_info.ccso_bo_only[plane]);
           } else {
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
             if (cm->ccso_info.ccso_bo_only[plane]) {
@@ -875,7 +892,8 @@ void ccso_apply_chroma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
                 if (cm->features.has_lossless_segment) {
                   ccso_filter_block_hbd_wo_buf_4x4_c(
-                      cm, src_unit_y, dst_unit_yuv, tile_pxl_x + unit_x,
+                      cm, src_unit_y, dst_unit_yuv, tile_uv_col_start,
+                      tile_uv_row_start, tile_pxl_x + unit_x,
                       tile_pxl_y + unit_y, tile_width_uv, tile_height_uv,
                       src_cls, cm->ccso_info.filter_offset[plane],
                       ccso_ext_tile_y_stride, dst_stride, y_uv_hscale,
@@ -959,11 +977,15 @@ void ccso_apply_chroma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
           if (cm->features.has_lossless_segment) {
             ccso_filter_block_hbd_wo_buf_4x4_c(
-                cm, src_unit_y, dst_unit_yuv, x + unit_x, y + unit_y, pic_width,
-                pic_height, src_cls, cm->ccso_info.filter_offset[plane],
-                ccso_ext_stride, dst_stride, y_uv_hscale, y_uv_vscale, thr,
-                neg_thr, src_loc, max_val, unit_size_x, unit_size_y, false,
-                shift_bits, edge_clf, cm->ccso_info.ccso_bo_only[plane]);
+                cm, src_unit_y, dst_unit_yuv,
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+                0, 0,
+#endif  // CCONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+                x + unit_x, y + unit_y, pic_width, pic_height, src_cls,
+                cm->ccso_info.filter_offset[plane], ccso_ext_stride, dst_stride,
+                y_uv_hscale, y_uv_vscale, thr, neg_thr, src_loc, max_val,
+                unit_size_x, unit_size_y, false, shift_bits, edge_clf,
+                cm->ccso_info.ccso_bo_only[plane]);
           } else {
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
             if (cm->ccso_info.ccso_bo_only[plane]) {
@@ -1128,7 +1150,8 @@ void ccso_apply_chroma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
                 if (cm->features.has_lossless_segment) {
                   ccso_filter_block_hbd_wo_buf_4x4_c(
-                      cm, src_unit_y, dst_unit_yuv, tile_pxl_x + unit_x,
+                      cm, src_unit_y, dst_unit_yuv, tile_uv_col_start,
+                      tile_uv_row_start, tile_pxl_x + unit_x,
                       tile_pxl_y + unit_y, tile_width_uv, tile_height_uv,
                       src_cls, cm->ccso_info.filter_offset[plane],
                       ccso_ext_tile_y_stride, dst_stride, y_uv_hscale,
@@ -1212,11 +1235,15 @@ void ccso_apply_chroma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
           if (cm->features.has_lossless_segment) {
             ccso_filter_block_hbd_wo_buf_4x4_c(
-                cm, src_unit_y, dst_unit_yuv, x + unit_x, y + unit_y, pic_width,
-                pic_height, src_cls, cm->ccso_info.filter_offset[plane],
-                ccso_ext_stride, dst_stride, y_uv_hscale, y_uv_vscale, thr,
-                neg_thr, src_loc, max_val, unit_size_x, unit_size_y, true,
-                shift_bits, edge_clf, cm->ccso_info.ccso_bo_only[plane]);
+                cm, src_unit_y, dst_unit_yuv,
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+                0, 0,
+#endif  // CCONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+                x + unit_x, y + unit_y, pic_width, pic_height, src_cls,
+                cm->ccso_info.filter_offset[plane], ccso_ext_stride, dst_stride,
+                y_uv_hscale, y_uv_vscale, thr, neg_thr, src_loc, max_val,
+                unit_size_x, unit_size_y, true, shift_bits, edge_clf,
+                cm->ccso_info.ccso_bo_only[plane]);
           } else {
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
             if (cm->ccso_info.ccso_bo_only[plane]) {
