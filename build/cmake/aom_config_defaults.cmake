@@ -65,6 +65,9 @@ set_aom_config_var(CONFIG_F322_OBUER_EXPLICIT_REFLIST 1
                    "Signal explit_ref_frame_map in uncompressed_headr")
 set_aom_config_var(CONFIG_F322_OBUER_ERM 1
                    "Infer error_resilient_mode without signalling.")
+
+set_aom_config_var(CONFIG_F160_TD 1 "Signal temporal delimiter optionally")
+
 #
 # Variables in this section can be set from the CMake command line or from
 # within the CMake GUI. The variables control libaom features.

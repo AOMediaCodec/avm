@@ -1818,6 +1818,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   }
 
   oxcf->save_as_annexb = cfg->save_as_annexb;
+#if CONFIG_F160_TD
+  oxcf->use_td = cfg->use_td;
+#endif  // CONFIG_F160_TD
 
   // Set unit test related configuration.
   oxcf->unit_test_cfg.motion_vector_unit_test =
@@ -3428,11 +3431,21 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 
 #if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
         const int write_temporal_delimiter =
-            !cpi->common.mlayer_id &&
-            (cpi->common.show_frame || cpi->common.showable_frame);
-#else   // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+#if CONFIG_F160_TD
+            !(ctx->oxcf.use_td)
+                ? 0
+                :
+#endif
+                (!cpi->common.mlayer_id &&
+                 (cpi->common.show_frame || cpi->common.showable_frame));
+#else  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
         const int write_temporal_delimiter =
-            !cpi->common.mlayer_id && !ctx->pending_frame_count;
+#if CONFIG_F160_TD
+            !(ctx->oxcf.use_td)
+                ? 0
+                :
+#endif
+                (!cpi->common.mlayer_id && !ctx->pending_frame_count);
 #endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
         if (write_temporal_delimiter) {
           const uint32_t obu_payload_size = 0;
@@ -4682,17 +4695,20 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
     2000,  // rc_two_pass_vbrmax_section
 
     // keyframing settings (kf)
-    0,                           // fwd_kf_enabled
-    AOM_KF_AUTO,                 // kf_mode
-    0,                           // kf_min_dist
-    9999,                        // kf_max_dist
-    0,                           // sframe_dist
-    1,                           // sframe_mode
-    0,                           // large_scale_tile
-    0,                           // monochrome
-    0,                           // full_still_picture_hdr
-    1,                           // enable_tcq
-    1,                           // save_as_annexb (0: external means)
+    0,            // fwd_kf_enabled
+    AOM_KF_AUTO,  // kf_mode
+    0,            // kf_min_dist
+    9999,         // kf_max_dist
+    0,            // sframe_dist
+    1,            // sframe_mode
+    0,            // large_scale_tile
+    0,            // monochrome
+    0,            // full_still_picture_hdr
+    1,            // enable_tcq
+    1,            // save_as_annexb (0: external means)
+#if CONFIG_F160_TD
+    0,                           // use_td (0. temporal delimiter is not used)
+#endif                           // CONFIG_F160_TD
     0,                           // tile_width_count
     0,                           // tile_height_count
     { 0 },                       // tile_widths

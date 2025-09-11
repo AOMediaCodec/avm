@@ -285,6 +285,9 @@ const arg_def_t *global_args[] = {
   &g_av1_codec_arg_defs.full_still_picture_hdr,
   &g_av1_codec_arg_defs.enable_tcq,
   &g_av1_codec_arg_defs.save_as_annexb,
+#if CONFIG_F160_TD
+  &g_av1_codec_arg_defs.use_td,
+#endif  // CONFIG_F160_TD
   NULL
 };
 
@@ -1272,6 +1275,10 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
       config->cfg.sframe_mode = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.save_as_annexb, argi)) {
       config->cfg.save_as_annexb = arg_parse_uint(&arg);
+#if CONFIG_F160_TD
+    } else if (arg_match(&arg, &g_av1_codec_arg_defs.use_td, argi)) {
+      config->cfg.use_td = arg_parse_uint(&arg);
+#endif  // CONFIG_F160_TD
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.tile_width, argi)) {
       config->cfg.tile_width_count =
           arg_parse_list(&arg, config->cfg.tile_widths, MAX_TILE_WIDTHS);

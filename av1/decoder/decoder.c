@@ -716,6 +716,7 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
   BufferPool *const pool = cm->buffer_pool;
 
   pbi->output_frames_offset = 0;
+
   if (frame_decoded) {
     lock_buffer_pool(pool);
 
@@ -769,7 +770,9 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
         ((cm->show_frame && !cm->cur_frame->frame_output_done) ||
          cm->show_existing_frame)) {
       output_frame_buffers(pbi, -1);
+#if !CONFIG_F160_TD
       decrease_ref_count(cm->cur_frame, pool);
+#endif  // !CONFIG_F160_TD
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT || !CONFIG_F253_REMOVE_OUTPUTFLAG
     } else if ((
 #if CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
@@ -809,15 +812,22 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT ||
         // !CONFIG_F253_REMOVE_OUTPUTFLAG
     } else {
+#if !CONFIG_F160_TD
       decrease_ref_count(cm->cur_frame, pool);
+#endif  // !CONFIG_F160_TD
     }
     unlock_buffer_pool(pool);
   } else {
     // Nothing was decoded, so just drop this frame buffer
     lock_buffer_pool(pool);
+#if !CONFIG_F160_TD
     decrease_ref_count(cm->cur_frame, pool);
+#endif  // !CONFIG_F160_TD
     unlock_buffer_pool(pool);
   }
+#if CONFIG_F160_TD
+  decrease_ref_count(cm->cur_frame, pool);
+#endif  // CONFIG_F160_TD
   cm->cur_frame = NULL;
 
   if (!pbi->camera_frame_header_ready) {

@@ -1055,6 +1055,13 @@ typedef struct aom_codec_enc_cfg {
    */
   unsigned int save_as_annexb;
 
+#if CONFIG_F160_TD
+  /*!\brief Use temporal delimiters
+   *
+   * This value indicates temporal delimiter is used
+   */
+  unsigned int use_td;
+#endif  // CONFIG_F160_TD
   /*!\brief Number of explicit tile widths specified
    *
    * This value indicates the number of tile widths specified

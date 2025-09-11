@@ -98,7 +98,12 @@ static int read_nbyte_from_file(FILE *f, size_t obu_header_size,
 }
 
 static int peek_obu_from_file(FILE *f, size_t obu_header_size, uint8_t *buffer,
-                              ObuHeader *obu_header) {
+                              ObuHeader *obu_header
+#if CONFIG_F160_TD && CONFIG_F106_OBU_TILEGROUP
+                              ,
+                              uint8_t *first_tile_group
+#endif
+) {
   if (!f) {
     return -2;
   }
@@ -112,13 +117,23 @@ static int peek_obu_from_file(FILE *f, size_t obu_header_size, uint8_t *buffer,
     // bytes_read is already 0
     return -1;
   }
+#if CONFIG_F160_TD && CONFIG_F106_OBU_TILEGROUP
+  if (obu_header->type == OBU_TILE_GROUP) {
+    *first_tile_group = buffer[1];
+    // fread(test, sizeof(uint8_t), 1, f);
+  } else {
+    *first_tile_group = 0;
+  }
+#endif
   fseek(f, fpos, SEEK_SET);
   return 0;
 }
 
 int file_is_obu(struct ObuDecInputContext *obu_ctx) {
   if (!obu_ctx || !obu_ctx->avx_ctx) return 0;
-
+#if CONFIG_F160_TD
+  obu_ctx->has_temporal_delimiter = 0;
+#endif  // CONFIG_F160_TD
   struct AvxInputContext *avx_ctx = obu_ctx->avx_ctx;
   uint8_t detect_buf[OBU_DETECTION_SIZE] = { 0 };
   const int is_annexb = obu_ctx->is_annexb;
@@ -158,6 +173,10 @@ int file_is_obu(struct ObuDecInputContext *obu_ctx) {
       } else if (read_status == -1) {  // end of file
         break;
       }
+#if CONFIG_F160_TD
+      if (obu_header.type == OBU_TEMPORAL_DELIMITER)
+        obu_ctx->has_temporal_delimiter = 1;
+#endif  // CONFIG_F160_TD
       fseek(f, obu_payload_size, SEEK_CUR);
     }
   }  // while
@@ -185,6 +204,14 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
   unsigned long fpos = ftell(f);
   uint8_t detect_buf[OBU_DETECTION_SIZE] = { 0 };
   int first_td = 1;
+#if OBU_ORDER_IN_TU
+  OBU_TYPE prev_obu_type = 0;
+  OBU_TYPE curr_obu_type = 0;
+#endif  // OBU_ORDER_IN_TU
+#if CONFIG_F160_TD
+  int vcl_obu_count = 0;
+#endif  // CONFIG_F160_TD
+
   while (1) {
     ObuHeader obu_header;
     memset(&obu_header, 0, sizeof(obu_header));
@@ -201,9 +228,16 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
           break;
       }
     }
-
+#if CONFIG_F160_TD && CONFIG_F106_OBU_TILEGROUP
+    uint8_t first_tile_group = 0;
+#endif
     const int read_status =
-        peek_obu_from_file(f, OBU_HEADER_SIZE, &detect_buf[0], &obu_header);
+        peek_obu_from_file(f, OBU_HEADER_SIZE, &detect_buf[0], &obu_header
+#if CONFIG_F160_TD && CONFIG_F106_OBU_TILEGROUP
+                           ,
+                           &first_tile_group
+#endif
+        );
     if (read_status == -2) {
       return -1;
     } else if (read_status == -1) {
@@ -211,10 +245,49 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
       return 1;
     }
 
-    if ((obu_header.type == OBU_TEMPORAL_DELIMITER && first_td != 1)) {
+#if CONFIG_F160_TD
+    int decoding_unit_token =
+        (obu_header.type == OBU_TEMPORAL_DELIMITER && first_td != 1);
+    if (obu_ctx->has_temporal_delimiter == 0) {
+      decoding_unit_token =
+          ((vcl_obu_count > 0 && obu_header.type == OBU_TILE_GROUP
+#if CONFIG_F106_OBU_TILEGROUP
+            && (first_tile_group >> 7)
+#endif
+                )
+#if !CONFIG_F106_OBU_TILEGROUP
+           || (vcl_obu_count > 0 && obu_header.type == OBU_FRAME_HEADER)
+#endif
+           || (vcl_obu_count > 0 && obu_header.type == OBU_SEQUENCE_HEADER));
+    }
+    if (decoding_unit_token)
+#else
+    if ((obu_header.type == OBU_TEMPORAL_DELIMITER && first_td != 1))
+#endif  // CONFIG_F160_TD
+    {
+#if 0
+      printf("<<obudec_read_temporal_unit>> (break) obu_header.type: %s\n",
+             aom_obu_type_to_string(obu_header.type));
+#endif
       break;
     } else {
       if (obu_header.type == OBU_TEMPORAL_DELIMITER) first_td = 0;
+#if CONFIG_F160_TD
+#if CONFIG_F106_OBU_TILEGROUP
+      if (obu_header.type == OBU_TILE_GROUP || obu_header.type == OBU_SEF ||
+          obu_header.type == OBU_TIP || obu_header.type == OBU_SWITCH)
+#else
+      if (obu_header.type == OBU_FRAME || obu_header.type == OBU_FRAME_HEADER ||
+          obu_header.type ==
+              OBU_REDUNDANT_FRAME_HEADER)  //[jkei] obu_total_size needed?
+#endif  // CONFIG_F106_OBU_TILEGROUP
+        vcl_obu_count++;
+#endif  // CONFIG_F160_TD
+#if 0
+      printf("<<obudec_read_temporal_unit>> obu_header.type: %s\n",
+             aom_obu_type_to_string(obu_header.type));
+#endif
+
       fseek(f, obu_size, SEEK_CUR);
       tu_size += (obu_size + obu_size_bytelength);
     }

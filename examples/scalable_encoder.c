@@ -199,7 +199,9 @@ int main(int argc, char **argv) {
   cfg.g_lag_in_frames = 0;
   cfg.rc_end_usage = AOM_Q;
   cfg.save_as_annexb = 0;
-
+#if CONFIG_F160_TD
+  cfg.use_td = 0;
+#endif  // CONFIG_F160_TD
   outfile = fopen(outfile_arg, "wb");
   if (!outfile) die("Failed to open %s for writing.", outfile_arg);
 

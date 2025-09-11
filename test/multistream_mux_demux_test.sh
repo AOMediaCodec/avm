@@ -48,6 +48,7 @@ encode_bitstream_0() {
     $(aomenc_encode_test_fast_params) \
     $(yuv_raw_input) \
     --obu \
+    --use-temporal-delimiter=1 \
     --output=${BITSTREAM_0} \
     ${devnull} || return 1
 
@@ -67,6 +68,7 @@ encode_bitstream_1() {
     $(aomenc_encode_test_fast_params) \
     $(yuv_raw_input) \
     --obu \
+    --use-temporal-delimiter=1 \
     --output=${BITSTREAM_1} \
     ${devnull} || return 1
 

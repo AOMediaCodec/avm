@@ -108,6 +108,9 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t sframe_dist;
   arg_def_t sframe_mode;
   arg_def_t save_as_annexb;
+#if CONFIG_F160_TD
+  arg_def_t use_td;
+#endif  // CONFIG_F160_TD
   arg_def_t noise_sens;
   arg_def_t sharpness;
   arg_def_t static_thresh;

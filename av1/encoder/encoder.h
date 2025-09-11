@@ -1204,6 +1204,12 @@ typedef struct AV1EncoderConfig {
   // format.
   bool save_as_annexb;
 
+#if CONFIG_F160_TD
+  // Indicates the temporal delimiter is used. 0 indicates temporal delimeters
+  // are not used.
+  bool use_td;
+#endif  // CONFIG_F160_TD
+
   /*!\endcond */
 } AV1EncoderConfig;
 

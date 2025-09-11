@@ -24,6 +24,9 @@ struct ObuDecInputContext {
   size_t buffer_capacity;
   size_t bytes_buffered;
   int is_annexb;
+#if CONFIG_F160_TD
+  int has_temporal_delimiter;
+#endif  // CONFIG_F160_TD
 };
 
 // Returns 1 when file data starts (if Annex B stream, after reading the
