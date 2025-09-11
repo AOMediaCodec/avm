@@ -440,74 +440,14 @@ void av1_enc_setup_tip_motion_field(AV1_COMMON *cm) {
   av1_setup_tip_motion_field(cm);
 }
 
-#define MAKE_BFP_SAD_WRAPPER_COMMON8x8(fnname)                                \
-  static unsigned int fnname##_8(const uint16_t *src_ptr, int source_stride,  \
-                                 const uint16_t *ref_ptr, int ref_stride) {   \
-    return fnname(src_ptr, source_stride, ref_ptr, ref_stride);               \
-  }                                                                           \
-  static unsigned int fnname##_10(const uint16_t *src_ptr, int source_stride, \
-                                  const uint16_t *ref_ptr, int ref_stride) {  \
-    return fnname(src_ptr, source_stride, ref_ptr, ref_stride) >> 2;          \
-  }                                                                           \
-  static unsigned int fnname##_12(const uint16_t *src_ptr, int source_stride, \
-                                  const uint16_t *ref_ptr, int ref_stride) {  \
-    return fnname(src_ptr, source_stride, ref_ptr, ref_stride) >> 4;          \
-  }
+MAKE_BFP_SAD_WRAPPER_COMMON(aom_highbd_sad8x8)
+MAKE_BFP_SAD_WRAPPER_COMMON(aom_highbd_sad16x8)
+MAKE_BFP_SAD_WRAPPER_COMMON(aom_highbd_sad8x16)
+MAKE_BFP_SAD_WRAPPER_COMMON(aom_highbd_sad16x16)
 
-MAKE_BFP_SAD_WRAPPER_COMMON8x8(aom_highbd_sad8x8)
-#define MAKE_BFP_SAD_WRAPPER_COMMON16x8(fnname)                               \
-  static unsigned int fnname##_8(const uint16_t *src_ptr, int source_stride,  \
-                                 const uint16_t *ref_ptr, int ref_stride) {   \
-    return fnname(src_ptr, source_stride, ref_ptr, ref_stride);               \
-  }                                                                           \
-  static unsigned int fnname##_10(const uint16_t *src_ptr, int source_stride, \
-                                  const uint16_t *ref_ptr, int ref_stride) {  \
-    return fnname(src_ptr, source_stride, ref_ptr, ref_stride) >> 2;          \
-  }                                                                           \
-  static unsigned int fnname##_12(const uint16_t *src_ptr, int source_stride, \
-                                  const uint16_t *ref_ptr, int ref_stride) {  \
-    return fnname(src_ptr, source_stride, ref_ptr, ref_stride) >> 4;          \
-  }
-
-    MAKE_BFP_SAD_WRAPPER_COMMON16x8(aom_highbd_sad16x8)
-
-#define MAKE_BFP_SAD_WRAPPER_COMMON8x16(fnname)                               \
-  static unsigned int fnname##_8(const uint16_t *src_ptr, int source_stride,  \
-                                 const uint16_t *ref_ptr, int ref_stride) {   \
-    return fnname(src_ptr, source_stride, ref_ptr, ref_stride);               \
-  }                                                                           \
-  static unsigned int fnname##_10(const uint16_t *src_ptr, int source_stride, \
-                                  const uint16_t *ref_ptr, int ref_stride) {  \
-    return fnname(src_ptr, source_stride, ref_ptr, ref_stride) >> 2;          \
-  }                                                                           \
-  static unsigned int fnname##_12(const uint16_t *src_ptr, int source_stride, \
-                                  const uint16_t *ref_ptr, int ref_stride) {  \
-    return fnname(src_ptr, source_stride, ref_ptr, ref_stride) >> 4;          \
-  }
-
-        MAKE_BFP_SAD_WRAPPER_COMMON8x16(aom_highbd_sad8x16)
-
-#define MAKE_BFP_SAD_WRAPPER_COMMON16x16(fnname)                              \
-  static unsigned int fnname##_8(const uint16_t *src_ptr, int source_stride,  \
-                                 const uint16_t *ref_ptr, int ref_stride) {   \
-    return fnname(src_ptr, source_stride, ref_ptr, ref_stride);               \
-  }                                                                           \
-  static unsigned int fnname##_10(const uint16_t *src_ptr, int source_stride, \
-                                  const uint16_t *ref_ptr, int ref_stride) {  \
-    return fnname(src_ptr, source_stride, ref_ptr, ref_stride) >> 2;          \
-  }                                                                           \
-  static unsigned int fnname##_12(const uint16_t *src_ptr, int source_stride, \
-                                  const uint16_t *ref_ptr, int ref_stride) {  \
-    return fnname(src_ptr, source_stride, ref_ptr, ref_stride) >> 4;          \
-  }
-
-            MAKE_BFP_SAD_WRAPPER_COMMON16x16(aom_highbd_sad16x16)
-
-                unsigned int get_highbd_sad(const uint16_t *src_ptr,
-                                            int source_stride,
-                                            const uint16_t *ref_ptr,
-                                            int ref_stride, int bd, int bw,
-                                            int bh) {
+unsigned int get_highbd_sad(const uint16_t *src_ptr, int source_stride,
+                            const uint16_t *ref_ptr, int ref_stride, int bd,
+                            int bw, int bh) {
   if (bd == 8) {
     if (bw == 8 && bh == 8)
       return aom_highbd_sad8x8_8(src_ptr, source_stride, ref_ptr, ref_stride);

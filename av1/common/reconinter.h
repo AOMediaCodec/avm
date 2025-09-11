@@ -917,6 +917,20 @@ void common_calc_subpel_params_and_extend(
     int use_optflow_refinement, uint16_t **mc_buf, uint16_t **pre,
     SubpelParams *subpel_params, int *src_stride);
 
+#define MAKE_BFP_SAD_WRAPPER_COMMON(fnname)                                   \
+  static unsigned int fnname##_8(const uint16_t *src_ptr, int source_stride,  \
+                                 const uint16_t *ref_ptr, int ref_stride) {   \
+    return fnname(src_ptr, source_stride, ref_ptr, ref_stride);               \
+  }                                                                           \
+  static unsigned int fnname##_10(const uint16_t *src_ptr, int source_stride, \
+                                  const uint16_t *ref_ptr, int ref_stride) {  \
+    return fnname(src_ptr, source_stride, ref_ptr, ref_stride) >> 2;          \
+  }                                                                           \
+  static unsigned int fnname##_12(const uint16_t *src_ptr, int source_stride, \
+                                  const uint16_t *ref_ptr, int ref_stride) {  \
+    return fnname(src_ptr, source_stride, ref_ptr, ref_stride) >> 4;          \
+  }
+
 unsigned int get_highbd_sad(const uint16_t *src_ptr, int source_stride,
                             const uint16_t *ref_ptr, int ref_stride, int bd,
                             int bw, int bh);

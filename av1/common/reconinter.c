@@ -891,32 +891,46 @@ static AOM_INLINE void init_smooth_interintra_masks() {
   }
 }
 
+MAKE_BFP_SAD_WRAPPER_COMMON(aom_highbd_sad8x8_ds)
+MAKE_BFP_SAD_WRAPPER_COMMON(aom_highbd_sad16x8_ds)
+MAKE_BFP_SAD_WRAPPER_COMMON(aom_highbd_sad8x16_ds)
+MAKE_BFP_SAD_WRAPPER_COMMON(aom_highbd_sad16x16_ds)
+#if CONFIG_SUBBLK_REF_EXT
+MAKE_BFP_SAD_WRAPPER_COMMON(aom_highbd_sad12x12_ds)
+MAKE_BFP_SAD_WRAPPER_COMMON(aom_highbd_sad20x12_ds)
+MAKE_BFP_SAD_WRAPPER_COMMON(aom_highbd_sad12x20_ds)
+MAKE_BFP_SAD_WRAPPER_COMMON(aom_highbd_sad20x20_ds)
+#endif  // CONFIG_SUBBLK_REF_EXT
+
 unsigned int get_highbd_sad_ds(const uint16_t *src_ptr, int source_stride,
                                const uint16_t *ref_ptr, int ref_stride, int bd,
                                int bw, int bh) {
   if (bd == 8) {
     if (bw == 16 && bh == 8)
-      return aom_highbd_sad16x8_ds(src_ptr, source_stride, ref_ptr, ref_stride);
+      return aom_highbd_sad16x8_ds_8(src_ptr, source_stride, ref_ptr,
+                                     ref_stride);
     else if (bw == 16 && bh == 16)
-      return aom_highbd_sad16x16_ds(src_ptr, source_stride, ref_ptr,
-                                    ref_stride);
+      return aom_highbd_sad16x16_ds_8(src_ptr, source_stride, ref_ptr,
+                                      ref_stride);
     else if (bw == 8 && bh == 8)
-      return aom_highbd_sad8x8_ds(src_ptr, source_stride, ref_ptr, ref_stride);
+      return aom_highbd_sad8x8_ds_8(src_ptr, source_stride, ref_ptr,
+                                    ref_stride);
     else if (bw == 8 && bh == 16)
-      return aom_highbd_sad8x16_ds(src_ptr, source_stride, ref_ptr, ref_stride);
+      return aom_highbd_sad8x16_ds_8(src_ptr, source_stride, ref_ptr,
+                                     ref_stride);
 #if CONFIG_SUBBLK_REF_EXT
     else if (bw == 12 && bh == 12)
-      return aom_highbd_sad12x12_ds(src_ptr, source_stride, ref_ptr,
-                                    ref_stride);
+      return aom_highbd_sad12x12_ds_8(src_ptr, source_stride, ref_ptr,
+                                      ref_stride);
     else if (bw == 20 && bh == 12)
-      return aom_highbd_sad20x12_ds(src_ptr, source_stride, ref_ptr,
-                                    ref_stride);
+      return aom_highbd_sad20x12_ds_8(src_ptr, source_stride, ref_ptr,
+                                      ref_stride);
     else if (bw == 12 && bh == 20)
-      return aom_highbd_sad12x20_ds(src_ptr, source_stride, ref_ptr,
-                                    ref_stride);
+      return aom_highbd_sad12x20_ds_8(src_ptr, source_stride, ref_ptr,
+                                      ref_stride);
     else if (bw == 20 && bh == 20)
-      return aom_highbd_sad20x20_ds(src_ptr, source_stride, ref_ptr,
-                                    ref_stride);
+      return aom_highbd_sad20x20_ds_8(src_ptr, source_stride, ref_ptr,
+                                      ref_stride);
 #endif  // CONFIG_SUBBLK_REF_EXT
     else {
       assert(0);
@@ -924,21 +938,62 @@ unsigned int get_highbd_sad_ds(const uint16_t *src_ptr, int source_stride,
     }
   } else if (bd == 10) {
     if (bw == 16 && bh == 8)
-      return (
-          aom_highbd_sad16x8_ds(src_ptr, source_stride, ref_ptr, ref_stride) >>
-          2);
+      return aom_highbd_sad16x8_ds_10(src_ptr, source_stride, ref_ptr,
+                                      ref_stride);
     else if (bw == 16 && bh == 16)
-      return (
-          aom_highbd_sad16x16_ds(src_ptr, source_stride, ref_ptr, ref_stride) >>
-          2);
+      return aom_highbd_sad16x16_ds_10(src_ptr, source_stride, ref_ptr,
+                                       ref_stride);
     else if (bw == 8 && bh == 8)
-      return (
-          aom_highbd_sad8x8_ds(src_ptr, source_stride, ref_ptr, ref_stride) >>
-          2);
+      return aom_highbd_sad8x8_ds_10(src_ptr, source_stride, ref_ptr,
+                                     ref_stride);
     else if (bw == 8 && bh == 16)
-      return (
-          aom_highbd_sad8x16_ds(src_ptr, source_stride, ref_ptr, ref_stride) >>
-          2);
+      return aom_highbd_sad8x16_ds_10(src_ptr, source_stride, ref_ptr,
+                                      ref_stride);
+#if CONFIG_SUBBLK_REF_EXT
+    else if (bw == 12 && bh == 12)
+      return aom_highbd_sad12x12_ds_10(src_ptr, source_stride, ref_ptr,
+                                       ref_stride);
+    else if (bw == 20 && bh == 12)
+      return aom_highbd_sad20x12_ds_10(src_ptr, source_stride, ref_ptr,
+                                       ref_stride);
+    else if (bw == 12 && bh == 20)
+      return aom_highbd_sad12x20_ds_10(src_ptr, source_stride, ref_ptr,
+                                       ref_stride);
+    else if (bw == 20 && bh == 20)
+      return aom_highbd_sad20x20_ds_10(src_ptr, source_stride, ref_ptr,
+                                       ref_stride);
+#endif  // CONFIG_SUBBLK_REF_EXT
+    else {
+      assert(0);
+      return 0;
+    }
+  } else if (bd == 12) {
+    if (bw == 16 && bh == 8)
+      return aom_highbd_sad16x8_ds_12(src_ptr, source_stride, ref_ptr,
+                                      ref_stride);
+    else if (bw == 16 && bh == 16)
+      return aom_highbd_sad16x16_ds_12(src_ptr, source_stride, ref_ptr,
+                                       ref_stride);
+    else if (bw == 8 && bh == 8)
+      return aom_highbd_sad8x8_ds_12(src_ptr, source_stride, ref_ptr,
+                                     ref_stride);
+    else if (bw == 8 && bh == 16)
+      return aom_highbd_sad8x16_ds_12(src_ptr, source_stride, ref_ptr,
+                                      ref_stride);
+#if CONFIG_SUBBLK_REF_EXT
+    else if (bw == 12 && bh == 12)
+      return aom_highbd_sad12x12_ds_12(src_ptr, source_stride, ref_ptr,
+                                       ref_stride);
+    else if (bw == 20 && bh == 12)
+      return aom_highbd_sad20x12_ds_12(src_ptr, source_stride, ref_ptr,
+                                       ref_stride);
+    else if (bw == 12 && bh == 20)
+      return aom_highbd_sad12x20_ds_12(src_ptr, source_stride, ref_ptr,
+                                       ref_stride);
+    else if (bw == 20 && bh == 20)
+      return aom_highbd_sad20x20_ds_12(src_ptr, source_stride, ref_ptr,
+                                       ref_stride);
+#endif  // CONFIG_SUBBLK_REF_EXT
     else {
       assert(0);
       return 0;
@@ -952,12 +1007,7 @@ unsigned int get_highbd_sad_ds(const uint16_t *src_ptr, int source_stride,
 // Compute the SAD values for refineMV modes
 int get_refinemv_sad(uint16_t *src1, uint16_t *src2, int stride, int width,
                      int height, int bd) {
-#if CONFIG_SUBBLK_REF_EXT
-  (void)bd;
-  return get_highbd_sad_ds(src1, stride, src2, stride, 8, width, height);
-#else
   return get_highbd_sad_ds(src1, stride, src2, stride, bd, width, height);
-#endif  // CONFIG_SUBBLK_REF_EXT
 }
 
 int64_t stable_mult_shift(const int64_t a, const int64_t b, const int shift,
