@@ -7442,11 +7442,8 @@ static uint32_t write_tilegroup_payload(AV1_COMP *const cpi, uint8_t *const dst,
 }
 
 static uint32_t write_tile_indices_in_tilegroup(
-#if CONFIG_BRU_TILE_FLAG
-    const AV1_COMMON *const cm,
-#endif
-    struct aom_write_bit_buffer *wb, int start_tile, int end_tile,
-    int tiles_log2, int tile_start_and_end_present_flag) {
+    const AV1_COMMON *const cm, struct aom_write_bit_buffer *wb, int start_tile,
+    int end_tile, int tiles_log2, int tile_start_and_end_present_flag) {
   uint32_t size = 0;
 
   if (!tiles_log2) return size;
@@ -7457,7 +7454,6 @@ static uint32_t write_tile_indices_in_tilegroup(
     aom_wb_write_literal(wb, start_tile, tiles_log2);
     aom_wb_write_literal(wb, end_tile, tiles_log2);
   }
-#if CONFIG_BRU_TILE_FLAG
   if (cm->bru.enabled) {
     const int num_tiles = cm->tiles.cols * cm->tiles.rows;
     if (num_tiles > 1) {
@@ -7472,7 +7468,6 @@ static uint32_t write_tile_indices_in_tilegroup(
       }
     }
   }
-#endif  // CONFIG_BRU_TILE_FLAG
   size = aom_wb_bytes_written(wb);
   return size;
 }
@@ -7531,11 +7526,7 @@ static uint32_t write_tilegroup_header(AV1_COMP *cpi,
     const CommonTileParams *const tiles = &cm->tiles;
     const int n_log2_tiles = tiles->log2_rows + tiles->log2_cols;
     int tile_start_and_end_present_flag = (num_tilegroups > 1);
-#if CONFIG_BRU_TILE_FLAG
     write_tile_indices_in_tilegroup(cm, &wb, start_tile_idx, end_tile_idx,
-#else
-    write_tile_indices_in_tilegroup(&wb, start_tile_idx, end_tile_idx,
-#endif
                                     n_log2_tiles,
                                     tile_start_and_end_present_flag);
   }
