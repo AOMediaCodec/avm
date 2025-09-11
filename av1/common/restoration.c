@@ -480,8 +480,11 @@ void av1_free_restoration_struct(RestorationInfo *rst_info) {
 // minimum RU size is equal to RESTORATION_UNITSIZE_MAX >> 2,
 // maximum RU size is equal to RESTORATION_UNITSIZE_MAX
 // The setting here is also for encoder search.
-void set_restoration_unit_size(int width, int height, int sx, int sy,
-                               RestorationInfo *rst) {
+void set_restoration_unit_size(
+#if CONFIG_RU_SIZE_RESTRICTION
+    struct AV1Common *cm,
+#endif  // CONFIG_RU_SIZE_RESTRICTION
+    int width, int height, int sx, int sy, RestorationInfo *rst) {
   int s = AOMMIN(sx, sy);
 
   rst[0].max_restoration_unit_size = RESTORATION_UNITSIZE_MAX >> 0;
@@ -492,6 +495,11 @@ void set_restoration_unit_size(int width, int height, int sx, int sy,
   // This special setting is only for encoder
   if (width * height > 1920 * 1080 * 2)
     rst[0].min_restoration_unit_size = RESTORATION_UNITSIZE_MAX >> 1;
+
+#if CONFIG_RU_SIZE_RESTRICTION
+  if (rst[0].min_restoration_unit_size < cm->mib_size * 4)
+    rst[0].min_restoration_unit_size = cm->mib_size * 4;
+#endif  // CONFIG_RU_SIZE_RESTRICTION
 
   rst[1].max_restoration_unit_size = rst[0].max_restoration_unit_size >> s;
   rst[1].min_restoration_unit_size = rst[0].min_restoration_unit_size >> s;

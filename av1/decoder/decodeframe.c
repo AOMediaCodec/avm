@@ -2675,9 +2675,12 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
   }
   const int frame_width = cm->width;
   const int frame_height = cm->height;
-  set_restoration_unit_size(frame_width, frame_height,
-                            cm->seq_params.subsampling_x,
-                            cm->seq_params.subsampling_y, cm->rst_info);
+  set_restoration_unit_size(
+#if CONFIG_RU_SIZE_RESTRICTION
+      cm,
+#endif  // CONFIG_RU_SIZE_RESTRICTION
+      frame_width, frame_height, cm->seq_params.subsampling_x,
+      cm->seq_params.subsampling_y, cm->rst_info);
   int size = cm->rst_info[0].max_restoration_unit_size;
 
   cm->rst_info[0].restoration_unit_size =
@@ -2692,14 +2695,24 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
     return;
   }
   if (!luma_none) {
-    if (aom_rb_read_bit(rb))
-      cm->rst_info[0].restoration_unit_size = size >> 1;
+    if (aom_rb_read_bit(rb)) cm->rst_info[0].restoration_unit_size = size >> 1;
+#if CONFIG_RU_SIZE_RESTRICTION
+    else if (cm->mib_size != 64) {
+      if (aom_rb_read_bit(rb))
+        cm->rst_info[0].restoration_unit_size = size;
+      else
+        cm->rst_info[0].restoration_unit_size = size >> 2;
+    } else {
+      cm->rst_info[0].restoration_unit_size = size;
+    }
+#else
     else {
       if (aom_rb_read_bit(rb))
         cm->rst_info[0].restoration_unit_size = size;
       else
         cm->rst_info[0].restoration_unit_size = size >> 2;
     }
+#endif  // CONFIG_RU_SIZE_RESTRICTION
   }
   if (num_planes > 1) {
     cm->rst_info[1].restoration_unit_size =
@@ -2708,12 +2721,23 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
       size = cm->rst_info[1].max_restoration_unit_size;
       if (aom_rb_read_bit(rb))
         cm->rst_info[1].restoration_unit_size = size >> 1;
+#if CONFIG_RU_SIZE_RESTRICTION
+      else if (cm->mib_size != 64) {
+        if (aom_rb_read_bit(rb))
+          cm->rst_info[1].restoration_unit_size = size;
+        else
+          cm->rst_info[1].restoration_unit_size = size >> 2;
+      } else {
+        cm->rst_info[1].restoration_unit_size = size;
+      }
+#else
       else {
         if (aom_rb_read_bit(rb))
           cm->rst_info[1].restoration_unit_size = size;
         else
           cm->rst_info[1].restoration_unit_size = size >> 2;
       }
+#endif  // CONFIG_RU_SIZE_RESTRICTION
     }
     cm->rst_info[2].restoration_unit_size =
         cm->rst_info[1].restoration_unit_size;

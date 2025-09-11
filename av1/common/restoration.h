@@ -748,8 +748,11 @@ void av1_lr_sync_write_dummy(void *const lr_sync, int r, int c,
 void copy_tile(int width, int height, const uint16_t *src, int src_stride,
                uint16_t *dst, int dst_stride);
 
-void set_restoration_unit_size(int width, int height, int sx, int sy,
-                               RestorationInfo *rst);
+void set_restoration_unit_size(
+#if CONFIG_RU_SIZE_RESTRICTION
+    struct AV1Common *cm,
+#endif  // CONFIG_RU_SIZE_RESTRICTION
+    int width, int height, int sx, int sy, RestorationInfo *rst);
 
 static INLINE int to_readwrite_framefilters(const RestorationInfo *rsi,
                                             int mi_row, int mi_col) {

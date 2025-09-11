@@ -3704,13 +3704,21 @@ static AOM_INLINE void encode_restoration_mode(
   int size = cm->rst_info[0].max_restoration_unit_size;
   if (!luma_none) {
     aom_wb_write_bit(wb, cm->rst_info[0].restoration_unit_size == size >> 1);
-    if (cm->rst_info[0].restoration_unit_size != size >> 1)
+    if (cm->rst_info[0].restoration_unit_size != size >> 1
+#if CONFIG_RU_SIZE_RESTRICTION
+        && cm->mib_size != 64
+#endif  // CONFIG_RU_SIZE_RESTRICTION
+    )
       aom_wb_write_bit(wb, cm->rst_info[0].restoration_unit_size == size);
   }
   if (!chroma_none) {
     size = cm->rst_info[1].max_restoration_unit_size;
     aom_wb_write_bit(wb, cm->rst_info[1].restoration_unit_size == size >> 1);
-    if (cm->rst_info[1].restoration_unit_size != size >> 1)
+    if (cm->rst_info[1].restoration_unit_size != size >> 1
+#if CONFIG_RU_SIZE_RESTRICTION
+        && cm->mib_size != 64
+#endif  // CONFIG_RU_SIZE_RESTRICTION
+    )
       aom_wb_write_bit(wb, cm->rst_info[1].restoration_unit_size == size);
     assert(cm->rst_info[2].restoration_unit_size ==
            cm->rst_info[1].restoration_unit_size);
