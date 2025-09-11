@@ -644,6 +644,9 @@ void av1_extend_frame(uint16_t *data, int width, int height, int stride,
  *                           \c data, \c dst should point at the top-left
  *                           corner of the frame
  * \param[in]  dst_stride    Stride of \c dst
+ * \param[in]  plane_width   Picture width of the current plane
+ * \param[in] disable_loopfilters_across_tiles Whether loop filter can across
+ *                           tile boundary
  * \param[in]  optimized_lr  Whether to use fast optimized Loop Restoration
  *
  * Nothing is returned. Instead, the filtered unit is output in \c dst
