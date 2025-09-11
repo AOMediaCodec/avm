@@ -2513,15 +2513,15 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
 #else
   const int num_tile_rows = 1;
   const int num_tile_cols = 1;
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   AV1PixelRect tile_rect = av1_whole_frame_rect(cm, 0);
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   int blk_idx = 0;
   int tile_blk_stripe0 = 0;
   for (int tile_row = 0; tile_row < num_tile_rows; ++tile_row) {
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
     TileInfo tile_info;
     av1_tile_init(&tile_info, cm, tile_row, 0);
-    tile_rect = av1_get_tile_rect(&tile_info, cm, 0);
+    AV1PixelRect tile_rect = av1_get_tile_rect(&tile_info, cm, 0);
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
     const int tile_height = tile_rect.bottom - tile_rect.top;
     for (int y_pos = -GDF_TEST_STRIPE_OFF, blk_idx_h = 0; y_pos < tile_height;
