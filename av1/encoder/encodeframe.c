@@ -1516,7 +1516,7 @@ void av1_set_lossless(AV1_COMP *cpi) {
                                          cm->seq_params.bit_depth)
                         : quant_params->base_qindex;
     xd->lossless[i] =
-        qindex == 0 && cm->delta_q_info.delta_q_present_flag == 0 &&
+        qindex == 0 &&
         (quant_params->y_dc_delta_q + cm->seq_params.base_y_dc_delta_q <= 0) &&
         (quant_params->u_dc_delta_q + cm->seq_params.base_uv_dc_delta_q <= 0) &&
         (quant_params->v_dc_delta_q + cm->seq_params.base_uv_dc_delta_q <= 0) &&
@@ -1930,8 +1930,7 @@ void av1_encode_frame(AV1_COMP *cpi) {
   features->reduced_tx_set_used = cpi->oxcf.txfm_cfg.reduced_tx_type_set;
 
   if (cm->bru.enabled && features->all_lossless) {
-    cm->bru.enabled = 0;
-    cm->bru.frame_inactive_flag = 0;
+    init_bru_params(cm);
     memset(cm->bru.active_mode_map, 2, sizeof(uint8_t) * cm->bru.total_units);
   }
   // Make sure segment_id is no larger than last_active_segid.

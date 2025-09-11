@@ -297,6 +297,15 @@ static AOM_INLINE int bru_get_num_of_active_region(const AV1_COMMON *const cm) {
   }
   return 1;
 }
+/* Init BRU off status*/
+static INLINE void init_bru_params(AV1_COMMON *cm) {
+  cm->bru.enabled = 0;
+  cm->bru.update_ref_idx = -1;
+  cm->bru.explicit_ref_idx = -1;
+  cm->bru.ref_disp_order = -1;
+  cm->bru.frame_inactive_flag = 0;
+}
+
 void bru_extend_mc_border(const AV1_COMMON *const cm, int mi_row, int mi_col,
                           BLOCK_SIZE bsize, YV12_BUFFER_CONFIG *src);
 BruActiveMode set_sb_mbmi_bru_mode(const AV1_COMMON *cm, MACROBLOCKD *const xd,

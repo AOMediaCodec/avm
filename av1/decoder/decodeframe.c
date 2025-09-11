@@ -2467,11 +2467,7 @@ static AOM_INLINE void decode_partition_sb(AV1Decoder *const pbi,
 }
 static AOM_INLINE void setup_bru_active_info(AV1_COMMON *const cm,
                                              struct aom_read_bit_buffer *rb) {
-  cm->bru.update_ref_idx = -1;
-  cm->bru.ref_disp_order = -1;
-  cm->bru.explicit_ref_idx = -1;
-  cm->bru.enabled = 0;
-  cm->bru.frame_inactive_flag = 0;
+  init_bru_params(cm);
   if (cm->current_frame.frame_type != INTER_FRAME) {
     return;
   }
@@ -7449,11 +7445,7 @@ static int read_show_existing_frame(AV1Decoder *pbi,
   CurrentFrame *const current_frame = &cm->current_frame;
   BufferPool *const pool = cm->buffer_pool;
   cm->show_existing_frame = 1;
-  cm->bru.enabled = 0;
-  cm->bru.update_ref_idx = -1;
-  cm->bru.explicit_ref_idx = -1;
-  cm->bru.ref_disp_order = -1;
-  cm->bru.frame_inactive_flag = 0;
+  init_bru_params(cm);
   if (pbi->sequence_header_changed) {
     aom_internal_error(
         &cm->error, AOM_CODEC_CORRUPT_FRAME,
@@ -7581,11 +7573,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   aom_s_frame_info *sframe_info = &pbi->sframe_info;
   sframe_info->is_s_frame = 0;
   sframe_info->is_s_frame_at_altref = 0;
-  cm->bru.enabled = 0;
-  cm->bru.update_ref_idx = -1;
-  cm->bru.explicit_ref_idx = -1;
-  cm->bru.ref_disp_order = -1;
-  cm->bru.frame_inactive_flag = 0;
+  init_bru_params(cm);
 #if CONFIG_PARAKIT_COLLECT_DATA
   for (int i = 0; i < MAX_NUM_CTX_GROUPS; i++) {
     cm->prob_models[i].frameNumber = current_frame->frame_number;

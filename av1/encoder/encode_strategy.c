@@ -1252,8 +1252,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
         }
       }
       if (cm->bru.update_ref_idx < 0) {
-        cm->bru.enabled = 0;
-        cm->bru.frame_inactive_flag = 0;
+        init_bru_params(cm);
       }
     }
     if (cm->bru.frame_inactive_flag) {

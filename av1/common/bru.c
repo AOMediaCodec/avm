@@ -243,7 +243,6 @@ void bru_set_default_inter_mb_mode_info(const AV1_COMMON *const cm,
   mbmi->seg_id_predicted = 0;
   mbmi->use_amvd = 0;
   mbmi->mrl_index = 0;
-  // todo find del idx
   mbmi->ref_frame[0] = cm->bru.update_ref_idx;
   mbmi->ref_frame[1] = NONE_FRAME;
   mbmi->skip_mode = 0;
@@ -258,6 +257,7 @@ void bru_set_default_inter_mb_mode_info(const AV1_COMMON *const cm,
   xd->mi[0]->mi_row_start = xd->mi_row;
   xd->mi[0]->chroma_ref_info.mi_col_chroma_base = xd->mi_col;
   xd->mi[0]->chroma_ref_info.mi_row_chroma_base = xd->mi_row;
+  xd->current_base_qindex = cm->quant_params.base_qindex;
   xd->ccso_blk_y = 0;
   xd->ccso_blk_u = 0;
   xd->ccso_blk_v = 0;
@@ -268,7 +268,6 @@ void bru_set_default_inter_mb_mode_info(const AV1_COMMON *const cm,
   mbmi->local_rest_type = 0;
   mbmi->local_ccso_blk_flag = 0;
   mbmi->local_gdf_mode = 0;
-  xd->current_base_qindex = cm->quant_params.base_qindex;
   mbmi->current_qindex = xd->current_base_qindex;
   set_default_max_mv_precision(mbmi, xd->sbi->sb_mv_precision);
   /// bru use only pixel precision
