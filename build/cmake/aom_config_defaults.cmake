@@ -305,6 +305,10 @@ set_aom_config_var(
   CONFIG_MV_VALUE_CLIP 1
   "Clip MV value to ensure it is within the constrained range.")
 
+set_aom_config_var(
+  CONFIG_INTER_BAWP_CONSTRAINT 1
+  "Inter BAWP template cannot outside the valid reference range")
+
 # This is an encode-only change.
 set_aom_config_var(CONFIG_FAST_INTER_RDO 1 "Fast inter mode selection")
 

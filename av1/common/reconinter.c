@@ -2239,8 +2239,14 @@ void av1_build_one_bawp_inter_predictor(
       (mi_y_p + y_off_p - BAWP_REF_LINES) < 0 || ref_w <= 0 || ref_h <= 0 ||
       (mi_x_p + ref_w + x_off_p) >= width_p ||
       (mi_y_p + ref_h + y_off_p) >= height_p) {
+#if CONFIG_INTER_BAWP_CONSTRAINT
+    aom_internal_error(
+        &cm->error, AOM_CODEC_ERROR,
+        "Inter BAWP template cannot outside the valid reference range");
+#else
     mbmi->bawp_alpha[plane][ref] = 1 << shift;
     mbmi->bawp_beta[plane][ref] = -(1 << shift);
+#endif  // CONFIG_INTER_BAWP_CONSTRAINT
     return;
   } else {
     uint16_t *recon_buf = xd->plane[plane].dst.buf;

@@ -180,6 +180,47 @@ void av1_enc_build_inter_predictor(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                    int plane_from, int plane_to) {
   MB_MODE_INFO *mbmi = xd->mi[0];
 
+#if CONFIG_INTER_BAWP_CONSTRAINT
+  const int mi_luma_x = mi_col * MI_SIZE;
+  const int mi_luma_y = mi_row * MI_SIZE;
+  for (int plane = plane_from; plane <= plane_to; ++plane) {
+    if (plane && !xd->is_chroma_ref) break;
+    if (mbmi->bawp_flag[0] && (plane == 0 || mbmi->bawp_flag[1])) {
+      struct macroblockd_plane *const pd = &xd->plane[plane];
+      const int x_off = GET_MV_RAWPEL(mbmi->mv[0].as_mv.col);
+      const int y_off = GET_MV_RAWPEL(mbmi->mv[0].as_mv.row);
+
+      const int x_off_p = x_off >> pd->subsampling_x;
+      const int y_off_p = y_off >> pd->subsampling_y;
+
+      const int mi_x_p = mi_luma_x >> pd->subsampling_x;
+      const int mi_y_p = mi_luma_y >> pd->subsampling_y;
+
+#if CONFIG_F054_PIC_BOUNDARY
+      const int width_p = pd->dst.width;
+      const int height_p = pd->dst.height;
+#else
+      const int width_p = cm->width >> pd->subsampling_x;
+      const int height_p = cm->height >> pd->subsampling_y;
+#endif  // CONFIG_F054_PIC_BOUNDARY
+
+      const int bw = xd->plane[plane].width;
+      const int bh = xd->plane[plane].height;
+      int ref_w = bw;
+      if ((mi_x_p + bw) >= width_p) ref_w = width_p - mi_x_p;
+
+      int ref_h = bh;
+      if ((mi_y_p + bh) >= height_p) ref_h = height_p - mi_y_p;
+      if ((mi_x_p + x_off_p - BAWP_REF_LINES) < 0 ||
+          (mi_y_p + y_off_p - BAWP_REF_LINES) < 0 || ref_w <= 0 || ref_h <= 0 ||
+          (mi_x_p + ref_w + x_off_p) >= width_p ||
+          (mi_y_p + ref_h + y_off_p) >= height_p) {
+        mbmi->bawp_flag[plane ? 1 : 0] = 0;
+      }
+    }
+  }
+#endif  // CONFIG_INTER_BAWP_CONSTRAINT
+
   int is_refinemv_supported =
       mbmi->refinemv_flag && !is_intrabc_block(mbmi, xd->tree_type);
 
