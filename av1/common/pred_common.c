@@ -597,11 +597,21 @@ int av1_get_intra_inter_context(const MACROBLOCKD *xd) {
 // This funtion is to check if the 1st mbmi of the current ccso unit is inside
 // the current tile. The 1st mbmi is used to signal the ccso block control flag
 // for the current ccso unit.
-bool av1_check_ccso_mbmi_inside_tile(const MACROBLOCKD *xd,
+bool av1_check_ccso_mbmi_inside_tile(const AV1_COMMON *cm,
+                                     const MACROBLOCKD *xd,
                                      const MB_MODE_INFO *const mbmi) {
   const TileInfo *const tile = &xd->tile;
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  const int ccso_blk_size =
+      get_lf_unit_size_log2_adaptive_tile(cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
+  const int blk_log2 = ccso_blk_size;
+  const int blk_size_y = (1 << (blk_log2 - MI_SIZE_LOG2)) - 1;
+  const int blk_size_x = (1 << (blk_log2 - MI_SIZE_LOG2)) - 1;
+#else
+  void(cm);
   const int blk_size_y = (1 << (CCSO_BLK_SIZE - MI_SIZE_LOG2)) - 1;
   const int blk_size_x = (1 << (CCSO_BLK_SIZE - MI_SIZE_LOG2)) - 1;
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 
   return (((mbmi->mi_row_start & ~blk_size_y) >= tile->mi_row_start) &&
           ((mbmi->mi_col_start & ~blk_size_x) >= tile->mi_col_start) &&
@@ -618,7 +628,8 @@ bool av1_check_ccso_mbmi_inside_tile(const MACROBLOCKD *xd,
 // neighbor0_ccso_unit==neighbor1_ccso_unit 3 -
 // neighbor0_ccso_true/neighbor1_ccso_true &&
 // neighbor0_ccso_unit!=neighbor1_ccso_unit
-int av1_get_ccso_context(const MACROBLOCKD *xd, int plane) {
+int av1_get_ccso_context(const AV1_COMMON *cm, const MACROBLOCKD *xd,
+                         int plane) {
   const MB_MODE_INFO *const neighbor0 = xd->neighbors[0];
   const MB_MODE_INFO *const neighbor1 = xd->neighbors[1];
 
@@ -626,15 +637,26 @@ int av1_get_ccso_context(const MACROBLOCKD *xd, int plane) {
   bool neighbor1_ccso_available = 0;
 
   if (neighbor0) {
-    neighbor0_ccso_available = av1_check_ccso_mbmi_inside_tile(xd, neighbor0);
+    neighbor0_ccso_available =
+        av1_check_ccso_mbmi_inside_tile(cm, xd, neighbor0);
   }
 
   if (neighbor1) {
-    neighbor1_ccso_available = av1_check_ccso_mbmi_inside_tile(xd, neighbor1);
+    neighbor1_ccso_available =
+        av1_check_ccso_mbmi_inside_tile(cm, xd, neighbor1);
   }
 
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  const int ccso_blk_size =
+      get_lf_unit_size_log2_adaptive_tile(cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
+  const int blk_log2 = ccso_blk_size;
+  const int blk_size_y = (1 << (blk_log2 - MI_SIZE_LOG2)) - 1;
+  const int blk_size_x = (1 << (blk_log2 - MI_SIZE_LOG2)) - 1;
+#else
+  void(cm);
   const int blk_size_y = (1 << (CCSO_BLK_SIZE - MI_SIZE_LOG2)) - 1;
   const int blk_size_x = (1 << (CCSO_BLK_SIZE - MI_SIZE_LOG2)) - 1;
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 
   if (neighbor0_ccso_available && neighbor1_ccso_available) {
     int is_neighbor0_ccso = 0;

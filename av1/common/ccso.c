@@ -19,6 +19,39 @@
 #include "aom/aom_integer.h"
 #include "av1/common/ccso.h"
 #include "av1/common/reconinter.h"
+#include "av1/common/av1_common_int.h"
+
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+int get_lf_unit_size_log2_adaptive_tile(const AV1_COMMON *cm, int sb_size_log2,
+                                        int unit_size_log2) {
+  if (cm->tiles.cols == 1 && cm->tiles.rows == 1) return unit_size_log2;
+  int unit_size = unit_size_log2;
+  if (sb_size_log2 < unit_size_log2) {
+    int e2 = 0, e4 = 0;
+    for (int i = 0; i < cm->tiles.cols - 1; ++i) {
+      const int size =
+          cm->tiles.col_start_sb[i + 1] - cm->tiles.col_start_sb[i];
+      e2 += size & 1;
+      e4 += size & 3;
+    }
+    for (int i = 0; i < cm->tiles.rows - 1; ++i) {
+      const int size =
+          cm->tiles.row_start_sb[i + 1] - cm->tiles.row_start_sb[i];
+      e2 += size & 1;
+      e4 += size & 3;
+    }
+    if (e4 == 0)
+      unit_size = AOMMIN(sb_size_log2 + 2, unit_size_log2);
+    else if (e2 == 0)
+      unit_size = AOMMIN(sb_size_log2 + 1, unit_size_log2);
+    else
+      unit_size = AOMMIN(sb_size_log2, unit_size_log2);
+  } else {
+    unit_size = sb_size_log2;
+  }
+  return unit_size;
+}
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 
 /* Pad the border of a frame */
 #if CONFIG_F054_PIC_BOUNDARY
@@ -424,10 +457,19 @@ void apply_ccso_filter(AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
   const int y_uv_hscale = xd->plane[plane].subsampling_x;
   const int y_uv_vscale = xd->plane[plane].subsampling_y;
   derive_ccso_sample_pos(src_loc, ccso_ext_stride, filter_sup);
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  const int ccso_blk_size =
+      get_lf_unit_size_log2_adaptive_tile(cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
+  const int blk_log2 = ccso_blk_size;
+  const int blk_size = 1 << blk_log2;
+  const int blk_log2_x = blk_log2 - y_uv_hscale;
+  const int blk_log2_y = blk_log2 - y_uv_vscale;
+#else
   const int blk_log2 = CCSO_BLK_SIZE;
   const int blk_size = 1 << blk_log2;
   const int blk_log2_x = CCSO_BLK_SIZE - y_uv_hscale;
   const int blk_log2_y = CCSO_BLK_SIZE - y_uv_vscale;
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   src_y += CCSO_PADDING_SIZE * ccso_ext_stride + CCSO_PADDING_SIZE;
   const int unit_log2_x = AOMMIN(proc_unit_log2, blk_log2_x);
   const int unit_log2_y = AOMMIN(proc_unit_log2, blk_log2_y);

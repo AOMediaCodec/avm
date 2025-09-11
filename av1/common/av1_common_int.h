@@ -268,6 +268,9 @@ typedef struct {
   unsigned int
       reuse_root_ref[CCSO_NUM_COMPONENTS];  // only used in encoder-side for rdo
                                             // speedup
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  int ccso_blk_size;
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 } CcsoInfo;
 
 typedef struct RefCntBuffer {
@@ -2694,6 +2697,11 @@ void av1_set_class_id_array_stride(CommonModeInfoParams *mi_params,
                                    AV1_COMMON *cm, int height);
 void av1_dealloc_class_id_array(CommonModeInfoParams *mi_params);
 
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+int get_lf_unit_size_log2_adaptive_tile(const AV1_COMMON *cm, int sb_size_log2,
+                                        int unit_size_log2);
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+
 // TODO(hkuang): Don't need to lock the whole pool after implementing atomic
 // frame reference count.
 static void lock_buffer_pool(BufferPool *const pool) {
@@ -3055,12 +3063,23 @@ static INLINE void ensure_mv_buffer(RefCntBuffer *buf, AV1_COMMON *cm) {
       if (buf->ccso_info.sb_filter_control[pli]) {
         aom_free(buf->ccso_info.sb_filter_control[pli]);
       }
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+      const int ccso_blk_size = get_lf_unit_size_log2_adaptive_tile(
+          cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
+      const int log2_filter_unit_size_y =
+          pli == 0 ? ccso_blk_size
+                   : ccso_blk_size - cm->seq_params.subsampling_y;
+      const int log2_filter_unit_size_x =
+          pli == 0 ? ccso_blk_size
+                   : ccso_blk_size - cm->seq_params.subsampling_x;
+#else
       const int log2_filter_unit_size_y =
           pli == 0 ? CCSO_BLK_SIZE
                    : CCSO_BLK_SIZE - cm->seq_params.subsampling_y;
       const int log2_filter_unit_size_x =
           pli == 0 ? CCSO_BLK_SIZE
                    : CCSO_BLK_SIZE - cm->seq_params.subsampling_x;
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 
       const int ccso_nvfb =
           ((cm->mi_params.mi_rows >> (pli ? cm->seq_params.subsampling_y : 0)) +

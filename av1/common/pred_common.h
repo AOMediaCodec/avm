@@ -581,9 +581,11 @@ static INLINE int av1_get_palette_mode_ctx(const MACROBLOCKD *xd) {
 
 int av1_get_intra_inter_context(const MACROBLOCKD *xd);
 
-bool av1_check_ccso_mbmi_inside_tile(const MACROBLOCKD *xd,
+bool av1_check_ccso_mbmi_inside_tile(const AV1_COMMON *cm,
+                                     const MACROBLOCKD *xd,
                                      const MB_MODE_INFO *const mbmi);
-int av1_get_ccso_context(const MACROBLOCKD *xd, int plane);
+int av1_get_ccso_context(const AV1_COMMON *cm, const MACROBLOCKD *xd,
+                         int plane);
 
 int av1_get_cdef_context(const AV1_COMMON *const cm,
                          const MACROBLOCKD *const xd);

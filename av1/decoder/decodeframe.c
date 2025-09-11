@@ -3725,6 +3725,12 @@ static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
   }
 #endif  // CONFIG_CWG_F317
   if (cm->ccso_info.ccso_frame_flag) {
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+    const int ccso_blk_size = get_lf_unit_size_log2_adaptive_tile(
+        cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
+    cm->ccso_info.ccso_blk_size = ccso_blk_size;
+    cm->cur_frame->ccso_info.ccso_blk_size = ccso_blk_size;
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
     for (int plane = 0; plane < av1_num_planes(cm); plane++) {
       CcsoInfo *ref_frame_ccso_info = NULL;
       cm->cur_frame->ccso_info.subsampling_y[plane] =
@@ -3763,6 +3769,14 @@ static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
             aom_internal_error(&cm->error, AOM_CODEC_ERROR,
                                "Invalid ccso_ref_idx: ref frame ccso disabled");
           }
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+          if (cm->ccso_info.sb_reuse_ccso[plane] &&
+              (cm->ccso_info.ccso_blk_size !=
+                  ref_frame_ccso_info->ccso_blk_size || cm->ccso_info.ccso_blk_size != CCSO_BLK_SIZE)) {
+            aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+                               "Invalid ccso_reuse: ccso_blk_size mismatch");
+          }
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
         }
 
         if (cm->ccso_info.sb_reuse_ccso[plane] &&

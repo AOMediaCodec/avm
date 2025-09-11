@@ -147,8 +147,15 @@ static void span_ccso(AV1_COMMON *cm, MACROBLOCKD *const xd, int pli,
   const BLOCK_SIZE bsize = xd->mi[0]->sb_type[PLANE_TYPE_Y];
   const int bw = mi_size_wide[bsize];
   const int bh = mi_size_high[bsize];
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  const int ccso_blk_size =
+      get_lf_unit_size_log2_adaptive_tile(cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
+  const int log2_w = ccso_blk_size;
+  const int log2_h = ccso_blk_size;
+#else
   const int log2_w = CCSO_BLK_SIZE;
   const int log2_h = CCSO_BLK_SIZE;
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   const int f_w = 1 << log2_w >> MI_SIZE_LOG2;
   const int f_h = 1 << log2_h >> MI_SIZE_LOG2;
   const int ccso_nhfb = (mi_params->mi_cols + f_w - 1) / f_w;
@@ -165,12 +172,23 @@ void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  const int ccso_blk_size =
+      get_lf_unit_size_log2_adaptive_tile(cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
+  const int blk_size_y = (1 << (ccso_blk_size - MI_SIZE_LOG2)) - 1;
+  const int blk_size_x = (1 << (ccso_blk_size - MI_SIZE_LOG2)) - 1;
+#else
   const int blk_size_y = (1 << (CCSO_BLK_SIZE - MI_SIZE_LOG2)) - 1;
   const int blk_size_x = (1 << (CCSO_BLK_SIZE - MI_SIZE_LOG2)) - 1;
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   int blk_idc;
   if (!(mi_row & blk_size_y) && !(mi_col & blk_size_x) &&
       cm->ccso_info.ccso_enable[0]) {
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+    const int log2_filter_unit_size = ccso_blk_size;
+#else
     const int log2_filter_unit_size = CCSO_BLK_SIZE;
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
     const int ccso_nhfb = ((mi_params->mi_cols >> xd->plane[0].subsampling_x) +
                            (1 << log2_filter_unit_size >> 2) - 1) /
                           (1 << log2_filter_unit_size >> 2);
@@ -178,7 +196,7 @@ void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
         (mi_row / (blk_size_y + 1)) * ccso_nhfb + (mi_col / (blk_size_x + 1));
 
     if (!cm->ccso_info.sb_reuse_ccso[0]) {
-      const int ccso_ctx = av1_get_ccso_context(xd, 0);
+      const int ccso_ctx = av1_get_ccso_context(cm, xd, 0);
       blk_idc = aom_read_symbol(r, xd->tile_ctx->ccso_cdf[0][ccso_ctx], 2,
                                 ACCT_INFO("blk_idc"));
     } else {
@@ -193,7 +211,7 @@ void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
         ->ccso_blk_y = blk_idc;
     span_ccso(cm, xd, 0, blk_idc);
   } else if (cm->ccso_info.ccso_enable[0] &&
-             av1_check_ccso_mbmi_inside_tile(xd, xd->mi[0])) {
+             av1_check_ccso_mbmi_inside_tile(cm, xd, xd->mi[0])) {
     mi_params->mi_grid_base[mi_row * mi_params->mi_stride + mi_col]
         ->ccso_blk_y =
         mi_params
@@ -204,8 +222,13 @@ void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
 
   if (!(mi_row & blk_size_y) && !(mi_col & blk_size_x) &&
       cm->ccso_info.ccso_enable[1]) {
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+    const int log2_filter_unit_size =
+        (ccso_blk_size - xd->plane[1].subsampling_x);
+#else
     const int log2_filter_unit_size =
         (CCSO_BLK_SIZE - xd->plane[1].subsampling_x);
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
     const int ccso_nhfb = ((mi_params->mi_cols >> xd->plane[1].subsampling_x) +
                            (1 << log2_filter_unit_size >> 2) - 1) /
                           (1 << log2_filter_unit_size >> 2);
@@ -213,7 +236,7 @@ void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
         (mi_row / (blk_size_y + 1)) * ccso_nhfb + (mi_col / (blk_size_x + 1));
 
     if (!cm->ccso_info.sb_reuse_ccso[1]) {
-      const int ccso_ctx = av1_get_ccso_context(xd, 1);
+      const int ccso_ctx = av1_get_ccso_context(cm, xd, 1);
       blk_idc = aom_read_symbol(r, xd->tile_ctx->ccso_cdf[1][ccso_ctx], 2,
                                 ACCT_INFO("blk_idc"));
     } else {
@@ -228,7 +251,7 @@ void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
         ->ccso_blk_u = blk_idc;
     span_ccso(cm, xd, 1, blk_idc);
   } else if (cm->ccso_info.ccso_enable[1] &&
-             av1_check_ccso_mbmi_inside_tile(xd, xd->mi[0])) {
+             av1_check_ccso_mbmi_inside_tile(cm, xd, xd->mi[0])) {
     mi_params->mi_grid_base[mi_row * mi_params->mi_stride + mi_col]
         ->ccso_blk_u =
         mi_params
@@ -239,8 +262,13 @@ void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
 
   if (!(mi_row & blk_size_y) && !(mi_col & blk_size_x) &&
       cm->ccso_info.ccso_enable[2]) {
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+    const int log2_filter_unit_size =
+        (ccso_blk_size - xd->plane[2].subsampling_x);
+#else
     const int log2_filter_unit_size =
         (CCSO_BLK_SIZE - xd->plane[2].subsampling_x);
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
     const int ccso_nhfb = ((mi_params->mi_cols >> xd->plane[2].subsampling_x) +
                            (1 << log2_filter_unit_size >> 2) - 1) /
                           (1 << log2_filter_unit_size >> 2);
@@ -248,7 +276,7 @@ void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
         (mi_row / (blk_size_y + 1)) * ccso_nhfb + (mi_col / (blk_size_x + 1));
 
     if (!cm->ccso_info.sb_reuse_ccso[2]) {
-      const int ccso_ctx = av1_get_ccso_context(xd, 2);
+      const int ccso_ctx = av1_get_ccso_context(cm, xd, 2);
       blk_idc = aom_read_symbol(r, xd->tile_ctx->ccso_cdf[2][ccso_ctx], 2,
                                 ACCT_INFO("blk_idc"));
     } else {
@@ -263,7 +291,7 @@ void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
         ->ccso_blk_v = blk_idc;
     span_ccso(cm, xd, 2, blk_idc);
   } else if (cm->ccso_info.ccso_enable[2] &&
-             av1_check_ccso_mbmi_inside_tile(xd, xd->mi[0])) {
+             av1_check_ccso_mbmi_inside_tile(cm, xd, xd->mi[0])) {
     mi_params->mi_grid_base[mi_row * mi_params->mi_stride + mi_col]
         ->ccso_blk_v =
         mi_params
