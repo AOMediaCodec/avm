@@ -32,6 +32,10 @@ typedef unsigned int (*SadMxNFunc)(const uint16_t *src_ptr, int src_stride,
                                    const uint16_t *ref_ptr, int ref_stride);
 typedef std::tuple<int, int, SadMxNFunc, int> SadMxNParam;
 
+typedef unsigned int (*SadDSMxNFunc)(const uint16_t *src_ptr, int src_stride,
+                                     const uint16_t *ref_ptr, int ref_stride);
+typedef std::tuple<int, int, SadDSMxNFunc, int> SadDSMxNParam;
+
 typedef unsigned int (*SadSkipMxNFunc)(const uint16_t *src_ptr, int src_stride,
                                        const uint16_t *ref_ptr, int ref_stride);
 typedef std::tuple<int, int, SadSkipMxNFunc, int> SadSkipMxNParam;
@@ -145,6 +149,20 @@ class SADTestBase : public ::testing::Test {
     const uint16_t *const reference16 = GetReference(block_idx);
     const uint16_t *const source16 = source_data_;
     for (int h = 0; h < height_; ++h) {
+      for (int w = 0; w < width_; ++w) {
+        sad += abs(source16[h * source_stride_ + w] -
+                   reference16[h * reference_stride_ + w]);
+      }
+    }
+    return sad;
+  }
+
+  // Sum of Absolute Differences of Downsampled rows.
+  unsigned int ReferenceSADDS(int block_idx) {
+    unsigned int sad = 0;
+    const uint16_t *const reference16 = GetReference(block_idx);
+    const uint16_t *const source16 = source_data_;
+    for (int h = 0; h < height_; h += 2) {
       for (int w = 0; w < width_; ++w) {
         sad += abs(source16[h * source_stride_ + w] -
                    reference16[h * reference_stride_ + w]);
@@ -417,6 +435,37 @@ class SADTest : public ::testing::WithParamInterface<SadMxNParam>,
   }
 };
 
+class SADDSTest : public ::testing::WithParamInterface<SadDSMxNParam>,
+                  public SADTestBase {
+ public:
+  SADDSTest() : SADTestBase(GET_PARAM(0), GET_PARAM(1), GET_PARAM(3)) {}
+
+ protected:
+  unsigned int SAD_ds(int block_idx) {
+    unsigned int ret;
+    const uint16_t *const reference = GetReference(block_idx);
+
+    ASM_REGISTER_STATE_CHECK(ret = GET_PARAM(2)(source_data_, source_stride_,
+                                                reference, reference_stride_));
+    return ret;
+  }
+
+  void CheckSAD() {
+    const unsigned int reference_sad = ReferenceSADDS(0);
+    const unsigned int exp_sad = SAD_ds(0);
+
+    ASSERT_EQ(reference_sad, exp_sad);
+  }
+
+  void SpeedSAD() {
+    int test_count = 20000000;
+    while (test_count > 0) {
+      SAD_ds(0);
+      test_count -= 1;
+    }
+  }
+};
+
 class SADSkipTest : public ::testing::WithParamInterface<SadMxNParam>,
                     public SADTestBase {
  public:
@@ -630,6 +679,60 @@ TEST_P(SADTest, ShortSrc) {
 }
 
 TEST_P(SADTest, DISABLED_Speed) {
+  const int tmp_stride = source_stride_;
+  source_stride_ >>= 1;
+  FillRandom(source_data_, source_stride_);
+  FillRandom(reference_data_, reference_stride_);
+  SpeedSAD();
+  source_stride_ = tmp_stride;
+}
+
+TEST_P(SADDSTest, MaxRef) {
+  FillConstant(source_data_, source_stride_, 0);
+  FillConstant(reference_data_, reference_stride_, mask_);
+  CheckSAD();
+}
+
+TEST_P(SADDSTest, MaxSrc) {
+  FillConstant(source_data_, source_stride_, mask_);
+  FillConstant(reference_data_, reference_stride_, 0);
+  CheckSAD();
+}
+
+TEST_P(SADDSTest, ShortRef) {
+  const int tmp_stride = reference_stride_;
+  reference_stride_ >>= 1;
+  FillRandom(source_data_, source_stride_);
+  FillRandom(reference_data_, reference_stride_);
+  CheckSAD();
+  reference_stride_ = tmp_stride;
+}
+
+TEST_P(SADDSTest, UnalignedRef) {
+  // The reference frame, but not the source frame, may be unaligned for
+  // certain types of searches.
+  const int tmp_stride = reference_stride_;
+  reference_stride_ -= 1;
+  FillRandom(source_data_, source_stride_);
+  FillRandom(reference_data_, reference_stride_);
+  CheckSAD();
+  reference_stride_ = tmp_stride;
+}
+
+TEST_P(SADDSTest, ShortSrc) {
+  const int tmp_stride = source_stride_;
+  source_stride_ >>= 1;
+  int test_count = 2000;
+  while (test_count > 0) {
+    FillRandom(source_data_, source_stride_);
+    FillRandom(reference_data_, reference_stride_);
+    CheckSAD();
+    test_count -= 1;
+  }
+  source_stride_ = tmp_stride;
+}
+
+TEST_P(SADDSTest, DISABLED_Speed) {
   const int tmp_stride = source_stride_;
   source_stride_ >>= 1;
   FillRandom(source_data_, source_stride_);
@@ -1209,6 +1312,18 @@ const SadMxNParam c_tests[] = {
   make_tuple(4, 64, &aom_highbd_sad4x64_c, 12),
 };
 INSTANTIATE_TEST_SUITE_P(C, SADTest, ::testing::ValuesIn(c_tests));
+
+const SadDSMxNParam ds_c_tests[] = {
+  make_tuple(8, 8, &aom_highbd_sad8x8_ds_c, 8),
+  make_tuple(8, 16, &aom_highbd_sad8x16_ds_c, 8),
+  make_tuple(16, 8, &aom_highbd_sad16x8_ds_c, 8),
+  make_tuple(16, 16, &aom_highbd_sad16x16_ds_c, 8),
+  make_tuple(12, 12, &aom_highbd_sad12x12_ds_c, 8),
+  make_tuple(12, 20, &aom_highbd_sad12x20_ds_c, 8),
+  make_tuple(20, 12, &aom_highbd_sad20x12_ds_c, 8),
+  make_tuple(20, 20, &aom_highbd_sad20x20_ds_c, 8),
+};
+INSTANTIATE_TEST_SUITE_P(C, SADDSTest, ::testing::ValuesIn(ds_c_tests));
 
 const SadSkipMxNParam skip_c_tests[] = {
   make_tuple(256, 256, &aom_highbd_sad_skip_256x256_c, 8),
@@ -2056,6 +2171,18 @@ const SadMxNParam avx2_tests[] = {
   make_tuple(32, 4, &aom_highbd_sad32x4_avx2, 12),
 };
 INSTANTIATE_TEST_SUITE_P(AVX2, SADTest, ::testing::ValuesIn(avx2_tests));
+
+const SadDSMxNParam ds_avx2_tests[] = {
+  make_tuple(8, 8, &aom_highbd_sad8x8_ds_avx2, 8),
+  make_tuple(8, 16, &aom_highbd_sad8x16_ds_avx2, 8),
+  make_tuple(16, 8, &aom_highbd_sad16x8_ds_avx2, 8),
+  make_tuple(16, 16, &aom_highbd_sad16x16_ds_avx2, 8),
+  make_tuple(12, 12, &aom_highbd_sad12x12_ds_avx2, 8),
+  make_tuple(12, 20, &aom_highbd_sad12x20_ds_avx2, 8),
+  make_tuple(20, 12, &aom_highbd_sad20x12_ds_avx2, 8),
+  make_tuple(20, 20, &aom_highbd_sad20x20_ds_avx2, 8),
+};
+INSTANTIATE_TEST_SUITE_P(AVX2, SADDSTest, ::testing::ValuesIn(ds_avx2_tests));
 
 const SadSkipMxNParam skip_avx2_tests[] = {
   make_tuple(256, 256, &aom_highbd_sad_skip_256x256_avx2, 8),
