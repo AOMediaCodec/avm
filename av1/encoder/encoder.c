@@ -773,6 +773,11 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
 
   av1_update_film_grain_parameters(cpi, oxcf);
 
+#if CONFIG_MULTI_FRAME_HEADER
+  cm->cur_mfh_id = 0;
+  cpi->cur_mfh_params.mfh_loop_filter_update_flag = 0;
+#endif  // CONFIG_MULTI_FRAME_HEADER
+
   // Single thread case: use counts in common.
   cpi->td.counts = &cpi->counts;
 
@@ -3031,7 +3036,12 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
     lf->filter_level[0] = 0;
     lf->filter_level[1] = 0;
   }
-
+#if CONFIG_MULTI_FRAME_HEADER
+  cpi->cur_mfh_params.mfh_loop_filter_level[0] = lf->filter_level[0];
+  cpi->cur_mfh_params.mfh_loop_filter_level[1] = lf->filter_level[1];
+  cpi->cur_mfh_params.mfh_loop_filter_level[2] = lf->filter_level_u;
+  cpi->cur_mfh_params.mfh_loop_filter_level[3] = lf->filter_level_v;
+#endif  // CONFIG_MULTI_FRAME_HEADER
   if (lf->filter_level[0] || lf->filter_level[1]) {
     if (num_workers > 1)
       av1_loop_filter_frame_mt(&cm->cur_frame->buf, cm, xd, 0, num_planes, 0,
@@ -4848,6 +4858,9 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
                             const aom_rational64_t *timestamp_ratio) {
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   AV1_COMMON *const cm = &cpi->common;
+#if CONFIG_MULTI_FRAME_HEADER
+  cm->cur_mfh_id = 0;
+#endif  // CONFIG_MULTI_FRAME_HEADER
   cm->showable_frame = 0;
   *size = 0;
 #if CONFIG_INTERNAL_STATS

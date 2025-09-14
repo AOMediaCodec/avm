@@ -3242,17 +3242,40 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
     av1_set_default_ref_deltas(lf->ref_deltas);
     av1_set_default_mode_deltas(lf->mode_deltas);
   }
-
-  lf->filter_level[0] = aom_rb_read_bit(rb);
+#if CONFIG_MULTI_FRAME_HEADER
+  assert(cm->mfh_valid[cm->cur_mfh_id]);
+  if (cm->mfh_params[cm->cur_mfh_id].mfh_loop_filter_update_flag)
+    lf->filter_level[0] =
+        cm->mfh_params[cm->cur_mfh_id].mfh_loop_filter_level[0];
+  else
+#endif  // CONFIG_MULTI_FRAME_HEADER
+    lf->filter_level[0] = aom_rb_read_bit(rb);
 #if DF_DUAL
-  lf->filter_level[1] = aom_rb_read_bit(rb);
+#if CONFIG_MULTI_FRAME_HEADER
+  if (cm->mfh_params[cm->cur_mfh_id].mfh_loop_filter_update_flag)
+    lf->filter_level[1] =
+        cm->mfh_params[cm->cur_mfh_id].mfh_loop_filter_level[1];
+  else
+#endif  // CONFIG_MULTI_FRAME_HEADER
+    lf->filter_level[1] = aom_rb_read_bit(rb);
 #else
   lf->filter_level[1] = lf->filter_level[0];
 #endif  // DF_DUAL
   if (num_planes > 1) {
     if (lf->filter_level[0] || lf->filter_level[1]) {
-      lf->filter_level_u = aom_rb_read_bit(rb);
-      lf->filter_level_v = aom_rb_read_bit(rb);
+#if CONFIG_MULTI_FRAME_HEADER
+      if (cm->mfh_params[cm->cur_mfh_id].mfh_loop_filter_update_flag) {
+        lf->filter_level_u =
+            cm->mfh_params[cm->cur_mfh_id].mfh_loop_filter_level[2];
+        lf->filter_level_v =
+            cm->mfh_params[cm->cur_mfh_id].mfh_loop_filter_level[3];
+      } else {
+#endif  // CONFIG_MULTI_FRAME_HEADER
+        lf->filter_level_u = aom_rb_read_bit(rb);
+        lf->filter_level_v = aom_rb_read_bit(rb);
+#if CONFIG_MULTI_FRAME_HEADER
+      }
+#endif  // CONFIG_MULTI_FRAME_HEADER
     } else {
       lf->filter_level_u = lf->filter_level_v = 0;
     }
@@ -3804,8 +3827,14 @@ static InterpFilter read_frame_interp_filter(struct aom_read_bit_buffer *rb) {
 
 static AOM_INLINE void setup_render_size(AV1_COMMON *cm,
                                          struct aom_read_bit_buffer *rb) {
+#if CONFIG_MULTI_FRAME_HEADER
+  assert(cm->mfh_valid[cm->cur_mfh_id]);
+  cm->render_width = cm->mfh_params[cm->cur_mfh_id].mfh_render_width;
+  cm->render_height = cm->mfh_params[cm->cur_mfh_id].mfh_render_height;
+#else   // CONFIG_MULTI_FRAME_HEADER
   cm->render_width = cm->width;
   cm->render_height = cm->height;
+#endif  // CONFIG_MULTI_FRAME_HEADER
   if (aom_rb_read_bit(rb))
     av1_read_frame_size(rb, 16, 16, &cm->render_width, &cm->render_height);
 }
@@ -3956,8 +3985,14 @@ static AOM_INLINE void setup_frame_size(AV1_COMMON *cm,
                          "Frame dimensions are larger than the maximum values");
     }
   } else {
+#if CONFIG_MULTI_FRAME_HEADER
+    assert(cm->mfh_valid[cm->cur_mfh_id]);
+    width = cm->mfh_params[cm->cur_mfh_id].mfh_frame_width;
+    height = cm->mfh_params[cm->cur_mfh_id].mfh_frame_height;
+#else   // CONFIG_MULTI_FRAME_HEADER
     width = seq_params->max_frame_width;
     height = seq_params->max_frame_height;
+#endif  // CONFIG_MULTI_FRAME_HEADER
   }
 
   resize_context_buffers(cm, width, height);
@@ -6967,6 +7002,53 @@ void av1_read_sequence_header_beyond_av1(
   }
 }
 
+#if CONFIG_MULTI_FRAME_HEADER
+void av1_read_multi_frame_header(AV1_COMMON *cm,
+                                 struct aom_read_bit_buffer *rb) {
+  // TO DO: Adding a read seq_header_id_in_multi_frame_header here
+  int cur_mfh_id = aom_rb_read_literal(rb, 4);
+
+  MultiFrameHeader *mfh_param = &cm->mfh_params[cur_mfh_id];
+
+  bool frame_size_update_flag = aom_rb_read_bit(rb);
+
+  int width = cm->seq_params.max_frame_width;
+  int height = cm->seq_params.max_frame_height;
+  if (frame_size_update_flag) {
+    int num_bits_width = cm->seq_params.num_bits_width;
+    int num_bits_height = cm->seq_params.num_bits_height;
+    av1_read_frame_size(rb, num_bits_width, num_bits_height, &width, &height);
+    if (width > cm->seq_params.max_frame_width ||
+        height > cm->seq_params.max_frame_height) {
+      aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                         "Frame dimensions are larger than the maximum values");
+    }
+  }
+  mfh_param->mfh_frame_width = width;
+  mfh_param->mfh_frame_height = height;
+
+  if (aom_rb_read_bit(rb)) {
+    av1_read_frame_size(rb, 16, 16, &mfh_param->mfh_render_width,
+                        &mfh_param->mfh_render_height);
+  } else {
+    mfh_param->mfh_render_width = mfh_param->mfh_frame_width;
+    mfh_param->mfh_render_height = mfh_param->mfh_frame_height;
+  }
+
+  mfh_param->mfh_loop_filter_update_flag = aom_rb_read_bit(rb);
+  if (mfh_param->mfh_loop_filter_update_flag) {
+    for (int i = 0; i < 4; i++) {
+      mfh_param->mfh_loop_filter_level[i] = aom_rb_read_bit(rb);
+    }
+  } else {
+    for (int i = 0; i < 4; i++) {
+      mfh_param->mfh_loop_filter_level[i] = 0;
+    }
+  }
+  cm->mfh_valid[cur_mfh_id] = true;
+}
+#endif  // CONFIG_MULTI_FRAME_HEADER
+
 static int read_global_motion_params(WarpedMotionParams *params,
                                      const WarpedMotionParams *ref_params,
                                      struct aom_read_bit_buffer *rb,
@@ -7692,6 +7774,14 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                        "No sequence header");
   }
+
+#if CONFIG_MULTI_FRAME_HEADER
+  cm->cur_mfh_id = aom_rb_read_literal(rb, 4);
+  if (!cm->mfh_valid[cm->cur_mfh_id]) {
+    aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                       "No multi-frame header with mfh_id %d", cm->cur_mfh_id);
+  }
+#endif  // CONFIG_MULTI_FRAME_HEADER
 
   if (seq_params->single_picture_hdr_flag) {
     cm->show_existing_frame = 0;

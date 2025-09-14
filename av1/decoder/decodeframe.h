@@ -66,6 +66,11 @@ void av1_read_sequence_header_beyond_av1(
     struct aom_read_bit_buffer *rb, SequenceHeader *seq_params,
     CommonQuantParams *quant_params,
     struct aom_internal_error_info *error_info);
+#if CONFIG_MULTI_FRAME_HEADER
+// Reads multi-frame header
+void av1_read_multi_frame_header(AV1_COMMON *cm,
+                                 struct aom_read_bit_buffer *rb);
+#endif  // CONFIG_MULTI_FRAME_HEADER
 
 void av1_read_frame_size(struct aom_read_bit_buffer *rb, int num_bits_width,
                          int num_bits_height, int *width, int *height);

@@ -4302,16 +4302,22 @@ static AOM_INLINE void encode_loopfilter(AV1_COMMON *cm,
   struct loopfilter *lf = &cm->lf;
 
   // Encode the loop filter level and type
-  aom_wb_write_bit(wb, lf->filter_level[0]);
+#if CONFIG_MULTI_FRAME_HEADER
+  if (!cm->mfh_params[cm->cur_mfh_id].mfh_loop_filter_update_flag) {
+#endif  // CONFIG_MULTI_FRAME_HEADER
+    aom_wb_write_bit(wb, lf->filter_level[0]);
 #if DF_DUAL
-  aom_wb_write_bit(wb, lf->filter_level[1]);
+    aom_wb_write_bit(wb, lf->filter_level[1]);
 #endif
-  if (num_planes > 1) {
-    if (lf->filter_level[0] || lf->filter_level[1]) {
-      aom_wb_write_bit(wb, lf->filter_level_u);
-      aom_wb_write_bit(wb, lf->filter_level_v);
+    if (num_planes > 1) {
+      if (lf->filter_level[0] || lf->filter_level[1]) {
+        aom_wb_write_bit(wb, lf->filter_level_u);
+        aom_wb_write_bit(wb, lf->filter_level_v);
+      }
     }
+#if CONFIG_MULTI_FRAME_HEADER
   }
+#endif  // CONFIG_MULTI_FRAME_HEADER
   const uint8_t df_par_bits = cm->seq_params.df_par_bits_minus2 + 2;
   const uint8_t df_par_offset = 1 << (df_par_bits - 1);
 #if DF_DUAL
@@ -5869,6 +5875,46 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
   }
 }
 
+#if CONFIG_MULTI_FRAME_HEADER
+static AOM_INLINE void write_multi_frame_header(
+    AV1_COMP *cpi, const MultiFrameHeader *const mfh_param,
+    struct aom_write_bit_buffer *wb) {
+  AV1_COMMON *const cm = &cpi->common;
+  aom_wb_write_literal(wb, cm->cur_mfh_id, 4);
+
+  bool mfh_frame_size_update_flag =
+      cm->width != cm->seq_params.max_frame_width ||
+      cm->height != cm->seq_params.max_frame_height;
+
+  aom_wb_write_bit(wb, mfh_frame_size_update_flag);
+
+  if (mfh_frame_size_update_flag) {
+    const int coded_width = cm->width - 1;
+    const int coded_height = cm->height - 1;
+    int num_bits_width = cm->seq_params.num_bits_width;
+    int num_bits_height = cm->seq_params.num_bits_height;
+    aom_wb_write_literal(wb, coded_width, num_bits_width);
+    aom_wb_write_literal(wb, coded_height, num_bits_height);
+  }
+  bool mfh_render_size_update_flag =
+      mfh_frame_size_update_flag &&
+      (cm->width != cm->render_width || cm->height != cm->render_height);
+  aom_wb_write_bit(wb, mfh_render_size_update_flag);
+
+  if (mfh_render_size_update_flag) {
+    aom_wb_write_literal(wb, cm->render_width - 1, 16);
+    aom_wb_write_literal(wb, cm->render_height - 1, 16);
+  }
+
+  aom_wb_write_bit(wb, mfh_param->mfh_loop_filter_update_flag);
+  if (mfh_param->mfh_loop_filter_update_flag) {
+    for (int i = 0; i < 4; i++) {
+      aom_wb_write_bit(wb, mfh_param->mfh_loop_filter_level[i]);
+    }
+  }
+}
+#endif  // CONFIG_MULTI_FRAME_HEADER
+
 static AOM_INLINE void write_global_motion_params(
     const WarpedMotionParams *params, const WarpedMotionParams *ref_params,
     struct aom_write_bit_buffer *wb, MvSubpelPrecision precision) {
@@ -6127,6 +6173,10 @@ static AOM_INLINE void write_uncompressed_header_obu
   MACROBLOCKD *const xd = &cpi->td.mb.e_mbd;
   CurrentFrame *const current_frame = &cm->current_frame;
   FeatureFlags *const features = &cm->features;
+
+#if CONFIG_MULTI_FRAME_HEADER
+  aom_wb_write_literal(wb, cm->cur_mfh_id, 4);
+#endif  // CONFIG_MULTI_FRAME_HEADER
 
   if (seq_params->still_picture) {
     assert(cm->show_existing_frame == 0);
@@ -7180,6 +7230,23 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
   size = aom_wb_bytes_written(&wb);
   return size;
 }
+
+#if CONFIG_MULTI_FRAME_HEADER
+uint32_t write_multi_frame_header_obu(AV1_COMP *cpi,
+                                      const MultiFrameHeader *mfh_param,
+                                      uint8_t *const dst) {
+  struct aom_write_bit_buffer wb = { dst, 0 };
+  uint32_t size = 0;
+
+  write_multi_frame_header(cpi, mfh_param, &wb);
+
+  av1_add_trailing_bits(&wb);
+
+  size = aom_wb_bytes_written(&wb);
+  return size;
+}
+#endif  // CONFIG_MULTI_FRAME_HEADER
+
 #if CONFIG_F106_OBU_TILEGROUP
 extern void av1_print_uncompressed_frame_header(const uint8_t *data, int size,
                                                 const char *filename);
@@ -8282,14 +8349,34 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 
     obu_payload_size =
         av1_write_sequence_header_obu(&cm->seq_params, data + obu_header_size);
+#if CONFIG_MULTI_FRAME_HEADER
+    size_t length_field_size =
+        obu_memmove(obu_header_size, obu_payload_size, data);
+#else   // CONFIG_MULTI_FRAME_HEADER
     const size_t length_field_size =
         obu_memmove(obu_header_size, obu_payload_size, data);
+#endif  // CONFIG_MULTI_FRAME_HEADER
     if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
         AOM_CODEC_OK) {
       return AOM_CODEC_ERROR;
     }
 
     data += obu_header_size + obu_payload_size + length_field_size;
+#if CONFIG_MULTI_FRAME_HEADER
+    // write multi-frame header if KEY_FRAME
+    obu_header_size =
+        av1_write_obu_header(level_params, OBU_MULTI_FRAME_HEADER, 0, 0, data);
+
+    obu_payload_size = write_multi_frame_header_obu(
+        cpi, &cm->mfh_params[cm->cur_mfh_id], data + obu_header_size);
+    length_field_size = obu_memmove(obu_header_size, obu_payload_size, data);
+    if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
+        AOM_CODEC_OK) {
+      return AOM_CODEC_ERROR;
+    }
+
+    data += obu_header_size + obu_payload_size + length_field_size;
+#endif  // CONFIG_MULTI_FRAME_HEADER
   }
 
   // write metadata obus before the frame obu that has the show_frame flag set

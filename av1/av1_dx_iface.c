@@ -494,6 +494,12 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
           aom_rb_read_bit(&rb);  // send_uncompressed_header_flag
         }
 #endif  // CONFIG_F106_OBU_TILEGROUP
+
+#if CONFIG_MULTI_FRAME_HEADER
+        int mfh_id = aom_rb_read_literal(&rb, 4);
+        (void)mfh_id;
+#endif  // CONFIG_MULTI_FRAME_HEADER
+
 #if !CONFIG_F106_OBU_TILEGROUP || !CONFIG_F106_OBU_SEF
         const int show_existing_frame = aom_rb_read_bit(&rb);
         if (!show_existing_frame) {
@@ -683,6 +689,11 @@ static aom_codec_err_t init_decoder(aom_codec_alg_priv_t *ctx) {
     frame_worker_data->pbi->common.ref_frame_map[i] = NULL;
   }
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+#if CONFIG_MULTI_FRAME_HEADER
+  for (int i = 0; i < MAX_MFH_NUM; i++) {
+    frame_worker_data->pbi->common.mfh_valid[i] = false;
+  }
+#endif  // CONFIG_MULTI_FRAME_HEADER
   return AOM_CODEC_OK;
 }
 

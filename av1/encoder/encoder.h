@@ -3092,6 +3092,12 @@ typedef struct AV1_COMP {
    * allocation sb_size
    */
   int alloc_sb_size;
+#if CONFIG_MULTI_FRAME_HEADER
+  /*!
+   * Record the current multi-frame header parameters
+   */
+  MultiFrameHeader cur_mfh_params;
+#endif  // CONFIG_MULTI_FRAME_HEADER
 #if CONFIG_TIP_LD
   /*!
    * TIP mode selected count for first INTER_REFS_PER_FRAME frames

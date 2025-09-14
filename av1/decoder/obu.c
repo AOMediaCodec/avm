@@ -118,6 +118,14 @@ static int are_seq_headers_consistent(const SequenceHeader *seq_params_old,
                  offsetof(SequenceHeader, op_params));
 }
 
+#if CONFIG_MULTI_FRAME_HEADER
+static INLINE void reset_mfh_valid(AV1_COMMON *cm) {
+  for (int i = 0; i < MAX_MFH_NUM; i++) {
+    cm->mfh_valid[i] = false;
+  }
+}
+#endif  // CONFIG_MULTI_FRAME_HEADER
+
 // On success, sets pbi->sequence_header_ready to 1 and returns the number of
 // bytes read from 'rb'.
 // On failure, sets pbi->common.error.error_code and returns 0.
@@ -362,6 +370,9 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
     if (!are_seq_headers_consistent(&cm->seq_params, seq_params)) {
       pbi->sequence_header_changed = 1;
       cm->quant_params.qmatrix_initialized = false;
+#if CONFIG_MULTI_FRAME_HEADER
+      reset_mfh_valid(cm);
+#endif  // CONFIG_MULTI_FRAME_HEADER
     }
   }
 
@@ -371,6 +382,23 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
 
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }
+
+#if CONFIG_MULTI_FRAME_HEADER
+static uint32_t read_multi_frame_header_obu(AV1Decoder *pbi,
+                                            struct aom_read_bit_buffer *rb) {
+  AV1_COMMON *const cm = &pbi->common;
+  const uint32_t saved_bit_offset = rb->bit_offset;
+
+  av1_read_multi_frame_header(cm, rb);
+
+  if (av1_check_trailing_bits(pbi, rb) != 0) {
+    // cm->error.error_code is already set.
+    return 0;
+  }
+
+  return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
+}
+#endif  // CONFIG_MULTI_FRAME_HEADER
 
 #if CONFIG_F106_OBU_TILEGROUP
 static uint32_t read_tilegroup_obu(AV1Decoder *pbi,
@@ -997,6 +1025,12 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
         break;
 #endif  // CONFIG_MULTILAYER_HLS
+#if CONFIG_MULTI_FRAME_HEADER
+      case OBU_MULTI_FRAME_HEADER:
+        decoded_payload_size = read_multi_frame_header_obu(pbi, &rb);
+        if (cm->error.error_code != AOM_CODEC_OK) return -1;
+        break;
+#endif  // CONFIG_MULTI_FRAME_HEADER
 #if CONFIG_F106_OBU_TILEGROUP
       case OBU_TILE_GROUP:
 #if CONFIG_F106_OBU_SWITCH

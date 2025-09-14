@@ -1394,6 +1394,38 @@ typedef struct CommonTileParams {
   uint8_t tile_active_bitmap[(MAX_TILE_ROWS * MAX_TILE_COLS + 7) / 8];
 } CommonTileParams;
 
+/*!
+ * \brief Multi-frame level parameters.
+ */
+#if CONFIG_MULTI_FRAME_HEADER
+typedef struct MultiFrameHeader {
+  /*!
+   * Frame Width of frames that reference this multi-frame header
+   */
+  int mfh_frame_width;
+  /*!
+   * Frame Height of frames that reference this multi-frame header
+   */
+  int mfh_frame_height;
+  /*!
+   * Render Width of frames that reference this multi-frame header
+   */
+  int mfh_render_width;
+  /*!
+   * Render Height of frames that reference this multi-frame header
+   */
+  int mfh_render_height;
+  /*!
+   * Presence of loop filter levels in this multi-frame header
+   */
+  int mfh_loop_filter_update_flag;
+  /*!
+   * loop filter levels of frames that reference this multi-frame header
+   */
+  int mfh_loop_filter_level[4];
+} MultiFrameHeader;
+#endif  // CONFIG_MULTI_FRAME_HEADER
+
 typedef struct CommonModeInfoParams CommonModeInfoParams;
 /*!
  * \brief Params related to MB_MODE_INFO arrays and related info.
@@ -2274,6 +2306,17 @@ typedef struct AV1Common {
    */
   SequenceHeader seq_params;
 
+#if CONFIG_MULTI_FRAME_HEADER
+  /*!
+   * Elements part of the multi-frame header, that are applicable for multiple
+   * frames in the video.
+   */
+  MultiFrameHeader mfh_params[MAX_MFH_NUM];
+  /*!
+   * Array of booleans to indicate whether mfh_params[i] has been received.
+   */
+  bool mfh_valid[MAX_MFH_NUM];
+#endif  // CONFIG_MULTI_FRAME_HEADER
   /*!
    * Current CDFs of all the symbols for the current frame.
    */
@@ -2515,6 +2558,12 @@ typedef struct AV1Common {
    * True if we are in a decoding process.
    */
   bool decoding;
+#if CONFIG_MULTI_FRAME_HEADER
+  /*!
+   * Identifier to indicate mult-frame header.
+   */
+  int cur_mfh_id;
+#endif  // CONFIG_MULTI_FRAME_HEADER
 
   /*!
    * Flag to indicate whether wedge masks are initialized.
