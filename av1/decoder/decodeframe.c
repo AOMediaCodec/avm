@@ -700,16 +700,35 @@ static AOM_INLINE void decode_mbmi_block(AV1Decoder *const pbi,
       1;  // set non zero default type, it is only matter 1 or 0 in SW
   xd->mi[0]->local_gdf_mode =
       1;  // set non zero default type, it is only matter 1 or 0 in SW
+#if CONFIG_CWG_F317
+  if (!bru_is_sb_active(cm, mi_col, mi_row) || cm->bridge_frame_info.is_bridge_frame) {
+#else
   if (!bru_is_sb_active(cm, mi_col, mi_row)) {
+#endif // CONFIG_CWG_F317
     xd->mi[0]->sb_active_mode = xd->sbi->sb_active_mode;
     bru_set_default_inter_mb_mode_info(cm, xd, xd->mi[0], bsize);
     const int w = mi_size_wide[cm->seq_params.sb_size];
     const int h = mi_size_high[cm->seq_params.sb_size];
     const int x_inside_boundary = AOMMIN(w, cm->mi_params.mi_cols - mi_col);
     const int y_inside_boundary = AOMMIN(h, cm->mi_params.mi_rows - mi_row);
+#if CONFIG_CWG_F317
+    if (cm->bridge_frame_info.is_bridge_frame) {
+      bru_zero_sb_mvs(cm, -1, mi_row, mi_col,
+        x_inside_boundary, y_inside_boundary);
+    }
+    else {
+      bru_zero_sb_mvs(cm, cm->bru.update_ref_idx, mi_row, mi_col,
+        x_inside_boundary, y_inside_boundary);
+    }
+#else
     bru_zero_sb_mvs(cm, cm->bru.update_ref_idx, mi_row, mi_col,
                     x_inside_boundary, y_inside_boundary);
+#endif // CONFIG_CWG_F317
+#if CONFIG_CWG_F317
+    if (!cm->bru.frame_inactive_flag && !cm->bridge_frame_info.is_bridge_frame) {
+#else
     if (!cm->bru.frame_inactive_flag) {
+#endif // CONFIG_CWG_F317
       if (xd->tree_type != CHROMA_PART) {
         read_gdf(cm, r, xd);
       }
@@ -1008,6 +1027,24 @@ void dec_bru_swap_stage(AV1_COMMON *cm, MACROBLOCKD *const xd) {
   }
 }
 
+#if CONFIG_CWG_F317
+static AOM_INLINE int bridge_frame_is_valid_inter(const AV1_COMMON* const cm,
+  MACROBLOCKD* const xd) {
+  if (!cm->bridge_frame_info.is_bridge_frame) return 1;
+  const MB_MODE_INFO* const mbmi = xd->mi[0];
+  const int tip_ref_frame = is_tip_ref_frame(mbmi->ref_frame[0]);
+  const int is_compound = has_second_ref(mbmi);
+  if (tip_ref_frame || is_compound) return 0;
+  if (mbmi->ref_frame[0] != cm->bridge_frame_info.bridge_frame_ref_idx) return 0;
+  const int_mv mi_mv = mbmi->mv[0];
+  // MV must be (0,0)
+  if (mi_mv.as_int != 0) {
+    return 0;
+  }
+  return 1;
+}
+
+#endif // CONFIG_CWG_F317
 static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
                                                 ThreadData *const td,
                                                 aom_reader *r,
@@ -1037,6 +1074,13 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
           &cm->error, AOM_CODEC_ERROR,
           "Invalid BRU activte: only active SB can be predicted by intra");
     }
+#if CONFIG_CWG_F317
+    if (cm->bridge_frame_info.is_bridge_frame) {
+      aom_internal_error(
+        &cm->error, AOM_CODEC_ERROR,
+        "Invalid Bridge frame activate: can not be predicted by intra");
+    }
+#endif // CONFIG_CWG_F317
     if (td->read_coeffs_tx_intra_block_visit != decode_block_void)
       av1_init_txk_skip_array(cm, xd->mi_row, xd->mi_col, bsize, 0,
                               xd->tree_type, &mbmi->chroma_ref_info,
@@ -1226,6 +1270,12 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
       aom_internal_error(&cm->error, AOM_CODEC_ERROR,
                          "Invalid BRU inter prediction");
     }
+#if CONFIG_CWG_F317
+    if (!bridge_frame_is_valid_inter(cm, xd)) {
+      aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+        "Invalid Bridge frame inter prediction");
+    }
+#endif // CONFIG_CWG_F317
     if (td->read_coeffs_tx_inter_block_visit != decode_block_void)
       av1_init_txk_skip_array(cm, xd->mi_row, xd->mi_col, bsize, 0,
                               xd->tree_type, &mbmi->chroma_ref_info,
@@ -1239,6 +1289,13 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
             &cm->error, AOM_CODEC_ERROR,
             "Invalid BRU skip_txfm: only active SB has transform");
       }
+#if CONFIG_CWG_F317
+      if (cm->bridge_frame_info.is_bridge_frame) {
+        aom_internal_error(
+            &cm->error, AOM_CODEC_ERROR,
+            "Invalid Bridge frame skip_txfm: can not have transform");
+      }
+#endif // CONFIG_CWG_F317
       const int max_blocks_wide = max_block_wide(xd, bsize, 0);
       const int max_blocks_high = max_block_high(xd, bsize, 0);
       int row, col;
@@ -1781,13 +1838,21 @@ static PARTITION_TYPE read_partition(const AV1_COMMON *const cm,
   // use BRU to set do split to false
   if (is_do_split_implied(partition_allowed, &implied_do_split)) {
     // BRU inactive won't go futher implied partition
+#if CONFIG_CWG_F317
+    if (!bru_is_sb_active(cm, mi_col, mi_row) || cm->bridge_frame_info.is_bridge_frame) {
+#else
     if (!bru_is_sb_active(cm, mi_col, mi_row)) {
+#endif // CONFIG_CWG_F317
       do_split = false;
     } else
       do_split = implied_do_split;
   } else {
     // if not derived partition, based on inactive/support set do_split to false
+#if CONFIG_CWG_F317
+    if (!bru_is_sb_active(cm, mi_col, mi_row) || cm->bridge_frame_info.is_bridge_frame) {
+#else
     if (!bru_is_sb_active(cm, mi_col, mi_row)) {
+#endif  // CONFIG_CWG_F317
       do_split = false;
     } else {
 #if CONFIG_NEW_PART_CTX
@@ -1969,7 +2034,11 @@ static AOM_INLINE void decode_partition(
 
   if (parse_decode_flag & 1) {
     if (is_sb_root) {
+#if CONFIG_CWG_F317
+      if (cm->bru.enabled || cm->bridge_frame_info.is_bridge_frame) {
+#else
       if (cm->bru.enabled) {
+#endif  // CONFIG_CWG_F317
         const int mi_grid_idx = get_mi_grid_idx(&cm->mi_params, mi_row, mi_col);
         const int mi_alloc_idx =
             get_alloc_mi_idx(&cm->mi_params, mi_row, mi_col);
@@ -1980,8 +2049,14 @@ static AOM_INLINE void decode_partition(
         xd->mi[0]->sb_type[xd->tree_type == CHROMA_PART] = bsize;
         xd->mi_row = mi_row;
         xd->mi_col = mi_col;
+#if CONFIG_CWG_F317
+        if (!cm->bridge_frame_info.is_bridge_frame) {
+#endif // CONFIG_CWG_F317
         xd->sbi->sb_active_mode = read_bru_mode(cm, xd, reader);
         set_active_map(cm, mi_col, mi_row, xd->sbi->sb_active_mode);
+#if CONFIG_CWG_F317
+        } // CONFIG_CWG_F317
+#endif
       }
       set_sb_mv_precision(sbi, pbi);
     }
@@ -2051,6 +2126,9 @@ static AOM_INLINE void decode_partition(
           parent->region_type != INTRA_REGION &&
           ptree->extended_sdp_allowed_flag &&
           bru_is_sb_active(cm, mi_col, mi_row) &&
+#if CONFIG_CWG_F317
+        !cm->bridge_frame_info.is_bridge_frame &&
+#endif  // CONFIG_CWG_F317
           is_bsize_allowed_for_extended_sdp(bsize, ptree->partition)) {
         const int ctx = get_intra_region_context(bsize);
         ptree->region_type =
@@ -2385,8 +2463,13 @@ static AOM_INLINE void decode_partition_sb(AV1Decoder *const pbi,
       (is_intra_sdp_enabled ? td->dcb.xd.sbi->ptree_root[1] : NULL),
       parse_decode_flag);
 
+#if CONFIG_CWG_F317
+  if ((cm->bru.enabled && cm->current_frame.frame_type != KEY_FRAME) || cm->bridge_frame_info.is_bridge_frame) {
+    if (pbi->bru_opt_mode && !cm->bridge_frame_info.is_bridge_frame) {
+#else
   if (cm->bru.enabled && cm->current_frame.frame_type != KEY_FRAME) {
     if (pbi->bru_opt_mode) {
+#endif // CONFIG_CWG_F317
       if (bru_is_sb_available(cm, mi_col, mi_row)) {
 #ifndef NDEBUG
         RefCntBuffer *ref_buf = get_ref_frame_buf(cm, cm->bru.update_ref_idx);
@@ -2400,7 +2483,11 @@ static AOM_INLINE void decode_partition_sb(AV1Decoder *const pbi,
           bru_copy_sb(cm, mi_col, mi_row);
       }
     } else {
+#if CONFIG_CWG_F317
+      if (!bru_is_sb_active(cm, mi_col, mi_row) || cm->bridge_frame_info.is_bridge_frame) {
+#else
       if (!bru_is_sb_active(cm, mi_col, mi_row)) {
+#endif
         if (cm->seq_params.order_hint_info.enable_ref_frame_mvs) {
           const int sb_size = cm->seq_params.sb_size;
           // set cur_frame mvs to 0
@@ -2579,7 +2666,11 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
     cm->cur_frame->rst_info[p].frame_filters_on = 0;
     rsi->temporal_pred_flag = 0;
     cm->cur_frame->rst_info[p].temporal_pred_flag = 0;
+#if CONFIG_CWG_F317
+    if (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame) {
+#else
     if (cm->bru.frame_inactive_flag) {
+#endif // CONFIG_CWG_F317
       rsi->frame_restoration_type = RESTORE_NONE;
       continue;
     }
@@ -2685,7 +2776,11 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
 
   cm->rst_info[0].restoration_unit_size =
       cm->rst_info[0].max_restoration_unit_size;
+#if CONFIG_CWG_F317
+  if (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame) {
+#else
   if (cm->bru.frame_inactive_flag) {
+#endif // CONFIG_CWG_F317
     if (num_planes > 1) {
       cm->rst_info[1].restoration_unit_size =
           cm->rst_info[1].max_restoration_unit_size;
@@ -3255,7 +3350,11 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
     return;
   }
   assert(!cm->features.coded_lossless);
+#if CONFIG_CWG_F317
+  if (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame) return;
+#else
   if (cm->bru.frame_inactive_flag) return;
+#endif // CONFIG_CWG_F317
   if (cm->prev_frame) {
     // write deltas to frame buffer
     memcpy(lf->ref_deltas, cm->prev_frame->ref_deltas, SINGLE_REF_FRAMES);
@@ -3433,7 +3532,11 @@ static AOM_INLINE void setup_gdf(AV1_COMMON *cm,
                                  struct aom_read_bit_buffer *rb) {
   cm->gdf_info.gdf_mode = 0;
   if (!is_allow_gdf(cm)) return;
+#if CONFIG_CWG_F317
+  if (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame) {
+#else
   if (cm->bru.frame_inactive_flag) {
+#endif // CONFIG_CWG_F317
     return;
   }
   init_gdf(cm);
@@ -3453,6 +3556,12 @@ static AOM_INLINE void setup_cdef(AV1_COMMON *cm,
                                   struct aom_read_bit_buffer *rb) {
   const int num_planes = av1_num_planes(cm);
   CdefInfo *const cdef_info = &cm->cdef_info;
+#if CONFIG_CWG_F317
+  if (cm->bridge_frame_info.is_bridge_frame) {
+    cdef_info->cdef_frame_enable = 0;
+    return;
+  }
+#endif // CONFIG_CWG_F317
   if (cm->bru.frame_inactive_flag) return;
   cdef_info->cdef_frame_enable = aom_rb_read_bit(rb);
   if (!cdef_info->cdef_frame_enable) {
@@ -3504,7 +3613,11 @@ static AOM_INLINE int read_ccso_offset_idx(struct aom_read_bit_buffer *rb) {
 }
 static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
                                   struct aom_read_bit_buffer *rb) {
+#if CONFIG_CWG_F317
+  if (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame) {
+#else
   if (cm->bru.frame_inactive_flag) {
+#endif // CONFIG_CWG_F317
     cm->cur_frame->ccso_info.ccso_enable[0] = 0;
     cm->cur_frame->ccso_info.ccso_enable[1] = 0;
     cm->cur_frame->ccso_info.ccso_enable[2] = 0;
@@ -3516,7 +3629,16 @@ static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
       (frame_is_intra_only(cm) || cm->features.error_resilient_mode)
           ? 0
           : cm->ref_frames_info.num_total_refs;
+#if CONFIG_CWG_F317
+  if (cm->bridge_frame_info.is_bridge_frame) {
+    cm->ccso_info.ccso_frame_flag = 0;
+  }
+  else {
+#endif // CONFIG_CWG_F317
   cm->ccso_info.ccso_frame_flag = aom_rb_read_literal(rb, 1);
+#if CONFIG_CWG_F317
+  }
+#endif // CONFIG_CWG_F317
   if (cm->ccso_info.ccso_frame_flag) {
     for (int plane = 0; plane < av1_num_planes(cm); plane++) {
       CcsoInfo *ref_frame_ccso_info = NULL;
@@ -3849,6 +3971,11 @@ static InterpFilter read_frame_interp_filter(struct aom_read_bit_buffer *rb) {
 
 static AOM_INLINE void setup_render_size(AV1_COMMON *cm,
                                          struct aom_read_bit_buffer *rb) {
+#if CONFIG_CWG_F317
+  if (cm->bridge_frame_info.is_bridge_frame) {
+    return;
+  }
+#endif // CONFIG_CWG_F317
 #if CONFIG_MULTI_FRAME_HEADER
   assert(cm->mfh_valid[cm->cur_mfh_id]);
   cm->render_width = cm->mfh_params[cm->cur_mfh_id].mfh_render_width;
@@ -3997,9 +4124,24 @@ static AOM_INLINE void setup_frame_size(AV1_COMMON *cm,
   const SequenceHeader *const seq_params = &cm->seq_params;
   int width, height;
 
+#if CONFIG_CWG_F317
+  int num_bits_width = seq_params->num_bits_width;
+  int num_bits_height = seq_params->num_bits_height;
+  if (cm->bridge_frame_info.is_bridge_frame) {
+    cm->bridge_frame_info.bridge_frame_max_width = aom_rb_read_literal(rb, num_bits_width) + 1;
+    cm->bridge_frame_info.bridge_frame_max_height = aom_rb_read_literal(rb, num_bits_height) + 1;
+    const RefCntBuffer* ref_buf = get_ref_frame_buf(cm, cm->bridge_frame_info.bridge_frame_ref_idx);
+    width = AOMMIN(cm->bridge_frame_info.bridge_frame_max_width, ref_buf->width);
+    height = AOMMIN(cm->bridge_frame_info.bridge_frame_max_height, ref_buf->height);
+  }
+  else{
+#endif // CONFIG_CWG_F317
   if (frame_size_override_flag) {
+#if !CONFIG_CWG_F317
     int num_bits_width = seq_params->num_bits_width;
     int num_bits_height = seq_params->num_bits_height;
+#endif // CONFIG_CWG_F317
+
     av1_read_frame_size(rb, num_bits_width, num_bits_height, &width, &height);
     if (width > seq_params->max_frame_width ||
         height > seq_params->max_frame_height) {
@@ -4016,6 +4158,9 @@ static AOM_INLINE void setup_frame_size(AV1_COMMON *cm,
     height = seq_params->max_frame_height;
 #endif  // CONFIG_MULTI_FRAME_HEADER
   }
+#if CONFIG_CWG_F317
+  }
+#endif // CONFIG_CWG_F317
 
   resize_context_buffers(cm, width, height);
   setup_render_size(cm, rb);
@@ -4292,6 +4437,11 @@ void av1_set_single_tile_decoding_mode(AV1_COMMON *const cm) {
 static AOM_INLINE void read_tile_info(AV1Decoder *const pbi,
                                       struct aom_read_bit_buffer *const rb) {
   AV1_COMMON *const cm = &pbi->common;
+#if CONFIG_CWG_F317
+  if (cm->bridge_frame_info.is_bridge_frame) {
+    return;
+  }
+#endif // CONFIG_CWG_F317
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO
   cm->current_frame.tile_info_present_in_frame_header = aom_rb_read_bit(rb);
   if (cm->current_frame.tile_info_present_in_frame_header) {
@@ -4536,7 +4686,11 @@ static AOM_INLINE void get_tile_buffers(
   AV1_COMMON *const cm = &pbi->common;
   int tile_cols = cm->tiles.cols;
   int tile_rows = cm->tiles.rows;
+#if CONFIG_CWG_F317
+  if (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame) {
+#else
   if (cm->bru.frame_inactive_flag) {
+#endif // CONFIG_CWG_F317
     tile_cols = 1;
     tile_rows = 1;
     end_tile = 0;
@@ -4849,8 +5003,13 @@ static AOM_INLINE void decode_tile(AV1Decoder *pbi, ThreadData *const td,
   for (int p = 0; p < num_planes; ++p)
     num_filter_classes[p] = cm->rst_info[p].num_filter_classes;
   av1_reset_loop_restoration(xd, 0, num_planes, num_filter_classes);
+#if CONFIG_CWG_F317
+  if (cm->bru.enabled || cm->bridge_frame_info.is_bridge_frame) {
+    if (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame) xd->tile.tile_active_mode = 0;
+#else
   if (cm->bru.enabled) {
     if (cm->bru.frame_inactive_flag) xd->tile.tile_active_mode = 0;
+#endif // CONFIG_CWG_F317
   }
 
   for (int mi_row = tile_info.mi_row_start; mi_row < tile_info.mi_row_end;
@@ -4883,8 +5042,11 @@ static AOM_INLINE void decode_tile(AV1Decoder *pbi, ThreadData *const td,
       }
     }
   }
-
+#if CONFIG_CWG_F317
+  int corrupted = (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame) ? 0
+#else
   int corrupted = cm->bru.frame_inactive_flag ? 0
+#endif // CONFIG_CWG_F317
                   : (check_trailing_bits_after_symbol_coder(td->bit_reader))
                       ? 1
                       : 0;
@@ -7791,6 +7953,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                        "No sequence header");
   }
 
+#if CONFIG_CWG_F317
+  cm->bridge_frame_info.bridge_frame_ref_idx = INVALID_IDX;
+  if (cm->bridge_frame_info.is_bridge_frame) {
+    cm->bridge_frame_info.bridge_frame_ref_idx = aom_rb_read_literal(rb, seq_params->ref_frames_log2);
+  } else {
+#endif // CONFIG_CWG_F317
 #if CONFIG_MULTI_FRAME_HEADER
   cm->cur_mfh_id = aom_rb_read_literal(rb, 4);
   if (!cm->mfh_valid[cm->cur_mfh_id]) {
@@ -7798,7 +7966,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                        "No multi-frame header with mfh_id %d", cm->cur_mfh_id);
   }
 #endif  // CONFIG_MULTI_FRAME_HEADER
-
+#if CONFIG_CWG_F317
+  }
+#endif  // CONFIG_CWG_F317
   if (seq_params->single_picture_hdr_flag) {
     cm->show_existing_frame = 0;
     cm->show_frame = 1;
@@ -7830,7 +8000,16 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     } else
       cm->show_existing_frame = 0;
 #else  // CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_SEF
+#if CONFIG_CWG_F317
+    if (cm->bridge_frame_info.is_bridge_frame) {
+      cm->show_existing_frame = 0;
+    }
+    else {
+#endif // CONFIG_CWG_F317
     cm->show_existing_frame = aom_rb_read_bit(rb);
+#if CONFIG_CWG_F317
+    }
+#endif // CONFIG_CWG_F317
     pbi->reset_decoder_state = 0;
 
     if (cm->show_existing_frame) {
@@ -7954,6 +8133,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     } else
 #endif  // CONFIG_F106_OBU_TIP
 #endif  // CONFIG_F106_OBU_TILEGROUP
+#if CONFIG_CWG_F317
+      if (cm->bridge_frame_info.is_bridge_frame) {
+        current_frame->frame_type = INTER_FRAME;
+      }
+      else {
+#endif // CONFIG_CWG_F317
       if (aom_rb_read_bit(rb)) {
         current_frame->frame_type = INTER_FRAME;
       } else {
@@ -7968,6 +8153,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_SWITCH
         }
       }
+#if CONFIG_CWG_F317
+    }
+#endif // CONFIG_CWG_F317
     if (pbi->sequence_header_changed) {
       if (current_frame->frame_type == KEY_FRAME) {
         // This is the start of a new coded video sequence.
@@ -7980,7 +8168,16 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       }
     }
 
+#if CONFIG_CWG_F317
+    if (cm->bridge_frame_info.is_bridge_frame) {
+      cm->show_frame = 0;
+    }
+    else {
+#endif // CONFIG_CWG_F317
     cm->show_frame = aom_rb_read_bit(rb);
+#if CONFIG_CWG_F317
+    }
+#endif // CONFIG_CWG_F317
     if (cm->show_frame == 0) pbi->is_arf_frame_present = 1;
     if (cm->show_frame == 0 && cm->current_frame.frame_type == KEY_FRAME)
       pbi->is_fwd_kf_present = 1;
@@ -7999,8 +8196,17 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           seq_params->timing_info.equal_picture_interval == 0)
         read_temporal_point_info(cm, rb);
     } else {
+#if CONFIG_CWG_F317
+      if (cm->bridge_frame_info.is_bridge_frame) {
+        cm->showable_frame = 0;
+      }
+      else {
+#endif // CONFIG_CWG_F317
       // See if this frame can be used as show_existing_frame in future
       cm->showable_frame = aom_rb_read_bit(rb);
+#if CONFIG_CWG_F317
+      }
+#endif // CONFIG_CWG_F317
     }
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
     if (
@@ -8029,11 +8235,20 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       cm->cur_frame->frame_output_done = 1;
 #endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
+#if CONFIG_CWG_F317
+    if (cm->bridge_frame_info.is_bridge_frame) {
+      features->error_resilient_mode = 0;
+    }
+    else {
+#endif // CONFIG_CWG_F317
     features->error_resilient_mode =
         frame_is_sframe(cm) ||
                 (current_frame->frame_type == KEY_FRAME && cm->show_frame)
             ? 1
             : aom_rb_read_bit(rb);
+#if CONFIG_CWG_F317
+    }
+#endif // CONFIG_CWG_F317
   }
 
   av1_set_frame_sb_size(cm, cm->seq_params.sb_size);
@@ -8067,7 +8282,19 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       if (have_prev_frame_id) {
         prev_frame_id = cm->current_frame_id;
       }
+#if CONFIG_CWG_F317
+      if (cm->bridge_frame_info.is_bridge_frame) {
+        const int ref_frame = cm->bridge_frame_info.bridge_frame_ref_idx;
+        assert(!is_tip_ref_frame(ref_frame)); // TIP frame reference is not allowed
+        const int map_idx = get_ref_frame_map_idx(cm, ref_frame);
+        cm->current_frame_id = cm->ref_frame_id[map_idx];
+      }
+      else {
+#endif // CONFIG_CWG_F317
       cm->current_frame_id = aom_rb_read_literal(rb, frame_id_length);
+#if CONFIG_CWG_F317
+      }
+#endif // CONFIG_CWG_F317
 
       if (have_prev_frame_id) {
         int diff_frame_id;
@@ -8100,23 +8327,47 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     }
 #endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
 
+#if CONFIG_CWG_F317
+    if (cm->bridge_frame_info.is_bridge_frame) {
+      frame_size_override_flag = 1;
+    }
+    else {
+#endif // CONFIG_CWG_F317
     frame_size_override_flag = frame_is_sframe(cm) ? 1 : aom_rb_read_bit(rb);
     current_frame->order_hint = aom_rb_read_literal(
         rb, seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
 
     current_frame->display_order_hint = get_disp_order_hint(cm);
     current_frame->frame_number = current_frame->order_hint;
+#if CONFIG_CWG_F317
+    }
+#endif // CONFIG_CWG_F317
 
     if (!features->error_resilient_mode && !frame_is_intra_only(cm)) {
+#if CONFIG_CWG_F317
+      if (!cm->bridge_frame_info.is_bridge_frame) {
+#endif // CONFIG_CWG_F317
       signal_primary_ref_frame = aom_rb_read_literal(rb, 1);
       pbi->signal_primary_ref_frame = signal_primary_ref_frame;
       if (signal_primary_ref_frame)
         features->primary_ref_frame = aom_rb_read_literal(rb, PRIMARY_REF_BITS);
+#if CONFIG_CWG_F317
+      }
+#endif // CONFIG_CWG_F317
     }
   }
 
   if (seq_params->decoder_model_info_present_flag) {
+#if CONFIG_CWG_F317
+    if (cm->bridge_frame_info.is_bridge_frame) {
+      cm->buffer_removal_time_present = 0;
+    }
+    else {
+#endif // CONFIG_CWG_F317
     cm->buffer_removal_time_present = aom_rb_read_bit(rb);
+#if CONFIG_CWG_F317
+    }
+#endif // CONFIG_CWG_F317
     if (cm->buffer_removal_time_present) {
       for (int op_num = 0;
            op_num < seq_params->operating_points_cnt_minus_1 + 1; op_num++) {
@@ -8226,6 +8477,16 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         current_frame->refresh_frame_flags =
             ((1 << seq_params->ref_frames) - 1);
       } else {
+#if CONFIG_CWG_F317
+        if (cm->bridge_frame_info.is_bridge_frame) {
+          cm->bridge_frame_info.bridge_frame_overwrite_flag = aom_rb_read_literal(rb, 1);
+          if (!cm->bridge_frame_info.bridge_frame_overwrite_flag) {
+            current_frame->refresh_frame_flags = 1 << cm->bridge_frame_info.bridge_frame_ref_idx;
+          }
+        }
+
+        if (!cm->bridge_frame_info.is_bridge_frame || cm->bridge_frame_info.bridge_frame_overwrite_flag) {
+#endif // CONFIG_CWG_F317
         if (short_refresh_frame_flags) {
 #if CONFIG_CWG_F260_REFRESH_FLAG
           const bool has_refresh_frame_flags = aom_rb_read_literal(rb, 1);
@@ -8263,12 +8524,30 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           current_frame->refresh_frame_flags =
               aom_rb_read_literal(rb, refresh_frame_flags_bits);
         }
+#if CONFIG_CWG_F317
+        } // CONFIG_CWG_F317
+#endif
       }
 #else
+#if CONFIG_CWG_F317
+      if (cm->bridge_frame_info.is_bridge_frame) {
+        cm->bridge_frame_info.bridge_frame_overwrite_flag = aom_rb_read_literal(rb, 1);
+        if (cm->bridge_frame_info.bridge_frame_overwrite_flag) {
+          current_frame->refresh_frame_flags = aom_rb_read_literal(rb, seq_params->ref_frames);
+        }
+        else {
+          current_frame->refresh_frame_flags = 1 << cm->bridge_frame_info.bridge_frame_ref_idx;
+        }
+      }
+      else {
+#endif // CONFIG_CWG_F317
         current_frame->refresh_frame_flags =
             frame_is_sframe(cm)
                 ? ((1 << seq_params->ref_frames) - 1)
                 : aom_rb_read_literal(rb, seq_params->ref_frames);
+#if CONFIG_CWG_F317
+    }
+#endif // CONFIG_CWG_F317
 #endif  // CONFIG_REFRESH_FLAG
     }
   }
@@ -8412,15 +8691,29 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                            cm->ref_frame_map_pairs);
 #endif  // CONFIG_ACROSS_SCALE_REF_OPT
 
+#if CONFIG_CWG_F317
+      if (cm->bridge_frame_info.is_bridge_frame) {
+        const RefCntBuffer* ref_buf = get_ref_frame_buf(cm, cm->bridge_frame_info.bridge_frame_ref_idx);
+        current_frame->order_hint = ref_buf->order_hint;
+        current_frame->display_order_hint = ref_buf->display_order_hint;
+        current_frame->frame_number = ref_buf->order_hint;
+      }
+#endif // CONFIG_CWG_F317
       // Reference rankings will be implicitly derived in av1_get_ref_frames,
       // but if the explicit mode is used, reference indices will be signaled,
       // which overwrites the implictly derived ones.
       const int explicit_ref_frame_map =
+#if CONFIG_CWG_F317
+          (
+#endif // CONFIG_CWG_F317
           cm->features.error_resilient_mode || frame_is_sframe(cm) ||
           seq_params->explicit_ref_frame_map
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
           || !seq_params->order_hint_info.enable_order_hint
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+#if CONFIG_CWG_F317
+          ) && !cm->bridge_frame_info.is_bridge_frame
+#endif // CONFIG_CWG_F317
           ;
       if (explicit_ref_frame_map) {
         cm->ref_frames_info.num_total_refs =
@@ -8489,7 +8782,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // CONFIG_ACROSS_SCALE_REF_OPT
       }
 #if CONFIG_ACROSS_SCALE_REF_OPT
+#if CONFIG_CWG_F317
+      if (!features->error_resilient_mode && frame_size_override_flag && !cm->bridge_frame_info.is_bridge_frame) {
+#else
       if (!features->error_resilient_mode && frame_size_override_flag) {
+#endif // CONFIG_CWG_F317
         setup_frame_size_with_refs(cm, explicit_ref_frame_map, rb);
       } else {
         setup_frame_size(cm, frame_size_override_flag, rb);
@@ -8511,6 +8808,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                              "Referenced frame has invalid size");
       }
+#if CONFIG_CWG_F317
+      if (cm->bridge_frame_info.is_bridge_frame) {
+        assert(cm->ref_frames_info.num_total_refs == 1);
+      }
+#endif // CONFIG_CWG_F317
 #endif  // CONFIG_ACROSS_SCALE_REF_OPT
 #if CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_TIP
       if (obu_type != OBU_TIP && current_frame->frame_type == INTER_FRAME)
@@ -8534,7 +8836,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           }
         }
       }
+#if CONFIG_CWG_F317
+      if (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame) {
+#else
       if (cm->bru.frame_inactive_flag) {
+#endif // CONFIG_CWG_F317
         cm->features.disable_cdf_update = 1;
       }
       cm->ref_frames_info.num_same_ref_compound =
@@ -8548,10 +8854,21 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       for (int i = 0; i < cm->ref_frames_info.num_total_refs; ++i) {
         int ref = 0;
         if (!explicit_ref_frame_map) {
+#if CONFIG_CWG_F317
+          if (cm->bridge_frame_info.is_bridge_frame) {
+            const int ref_frame = cm->bridge_frame_info.bridge_frame_ref_idx;
+            assert(!is_tip_ref_frame(ref_frame)); // TIP frame reference is not allowed
+            ref = get_ref_frame_map_idx(cm, ref_frame);
+          }
+          else {
+#endif // CONFIG_CWG_F317
           ref = cm->remapped_ref_idx[i];
           if (cm->ref_frame_map[ref] == NULL)
             aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                                "Inter frame requests nonexistent reference");
+#if CONFIG_CWG_F317
+          }
+#endif // CONFIG_CWG_F317
         } else {
 #if CONFIG_ACROSS_SCALE_REF_OPT
           ref = cm->remapped_ref_idx[i];
@@ -8609,7 +8926,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                              "Reference frame not valid for referencing");
 
 #if !CWG_F215_CONFIG_REMOVE_FRAME_ID
+#if CONFIG_CWG_F317
+        if (seq_params->frame_id_numbers_present_flag && !cm->bridge_frame_info.is_bridge_frame) {
+#else
         if (seq_params->frame_id_numbers_present_flag) {
+#endif // CONFIG_CWG_F317
           int frame_id_length = seq_params->frame_id_length;
           int diff_len = seq_params->delta_frame_id_length;
           int delta_frame_id_minus_1 = aom_rb_read_literal(rb, diff_len);
@@ -8685,7 +9006,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       cm->cur_frame->num_ref_frames = cm->ref_frames_info.num_total_refs;
 
 #if !CONFIG_ACROSS_SCALE_REF_OPT
+#if CONFIG_CWG_F317
+      if (!features->error_resilient_mode && frame_size_override_flag && !cm->bridge_frame_info.is_bridge_frame) {
+#else
       if (!features->error_resilient_mode && frame_size_override_flag) {
+#endif // CONFIG_CWG_F317
         setup_frame_size_with_refs(cm, rb);
       } else {
         setup_frame_size(cm, frame_size_override_flag, rb);
@@ -8712,7 +9037,16 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       }
 
       if (cm->seq_params.enable_lf_sub_pu) {
+#if CONFIG_CWG_F317
+        if (cm->bridge_frame_info.is_bridge_frame) {
+          features->allow_lf_sub_pu = 0;
+        }
+        else {
+#endif // CONFIG_CWG_F317
         features->allow_lf_sub_pu = aom_rb_read_bit(rb);
+#if CONFIG_CWG_F317
+        }
+#endif // CONFIG_CWG_F317
       }
 
       cm->tip_global_motion.as_int = 0;
@@ -8724,6 +9058,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // CONFIG_TIP_ENHANCEMENT
       if (cm->seq_params.enable_tip && features->allow_ref_frame_mvs &&
           cm->ref_frames_info.num_total_refs >= 2 &&
+#if CONFIG_CWG_F317
+          !cm->bridge_frame_info.is_bridge_frame &&
+#endif // CONFIG_CWG_F317
           !cm->bru.frame_inactive_flag) {
 #if CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_TIP
         if (obu_type == OBU_TIP) {
@@ -8809,6 +9146,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       }
 
       if (features->tip_frame_mode != TIP_FRAME_AS_OUTPUT &&
+#if CONFIG_CWG_F317
+          !cm->bridge_frame_info.is_bridge_frame &&
+#endif // CONFIG_CWG_F317
           !cm->bru.frame_inactive_flag) {
         read_screen_content_params(cm, rb);
         features->allow_intrabc = aom_rb_read_bit(rb);
@@ -8948,7 +9288,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                        "Keyframe / intra-only frame required to reset decoder"
                        " state");
   }
+#if CONFIG_CWG_F317
+  if (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame) {
+#else
   if (cm->bru.frame_inactive_flag) {
+#endif // CONFIG_CWG_F317
     // Set parameters corresponding to no filtering.
     struct loopfilter *lf = &cm->lf;
     lf->filter_level[0] = 0;
@@ -8967,13 +9311,27 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     }
     features->refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
     features->disable_cdf_update = 1;
+#if CONFIG_CWG_F317
+    const RefCntBuffer* ref_buf;
+    if (cm->bridge_frame_info.is_bridge_frame) {
+      ref_buf = get_ref_frame_buf(cm, cm->bridge_frame_info.bridge_frame_ref_idx);
+    }
+    else {
+      ref_buf = get_ref_frame_buf(cm, cm->bru.update_ref_idx);
+    }
+#else
     const RefCntBuffer *bru_ref_buf =
         get_ref_frame_buf(cm, cm->bru.update_ref_idx);
+#endif // CONFIG_CWG_F317
     // set cm->ccso_info and copy to cur_frame->ccso_info
     // doing once in uncompred header
     cm->ccso_info.ccso_frame_flag = 0;
     for (int plane = 0; plane < CCSO_NUM_COMPONENTS; plane++) {
+#if CONFIG_CWG_F317
+      if (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame) {
+#else
       if (cm->bru.frame_inactive_flag) {
+#endif // CONFIG_CWG_F317
         cm->ccso_info.reuse_ccso[plane] = 0;
         cm->ccso_info.sb_reuse_ccso[plane] = 0;
         cm->ccso_info.ccso_ref_idx[plane] = UINT8_MAX;
@@ -8983,10 +9341,17 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         continue;
       }
     }
+#if CONFIG_CWG_F317
+    cm->quant_params.base_qindex = ref_buf->base_qindex;
+    if (av1_num_planes(cm) > 1) {
+      cm->quant_params.u_ac_delta_q = ref_buf->u_ac_delta_q;
+      cm->quant_params.v_ac_delta_q = ref_buf->v_ac_delta_q;
+#else // CONFIG_CWG_F317
     cm->quant_params.base_qindex = bru_ref_buf->base_qindex;
     if (av1_num_planes(cm) > 1) {
       cm->quant_params.u_ac_delta_q = bru_ref_buf->u_ac_delta_q;
       cm->quant_params.v_ac_delta_q = bru_ref_buf->v_ac_delta_q;
+#endif
     } else {
       cm->quant_params.v_ac_delta_q = cm->quant_params.u_ac_delta_q = 0;
     }
@@ -9066,9 +9431,21 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     // No futher processing needed
     return 0;
   }
-
+#if CONFIG_CWG_F317
+  if (!cm->bridge_frame_info.is_bridge_frame) {
+#endif // CONFIG_CWG_F317
   features->disable_cdf_update = aom_rb_read_bit(rb);
+#if CONFIG_CWG_F317
+  }
+  else {
+    features->disable_cdf_update = 1;
+  }
+#endif // CONFIG_CWG_F317
 
+
+#if CONFIG_CWG_F317
+  if (!cm->bridge_frame_info.is_bridge_frame) {
+#endif // CONFIG_CWG_F317
   const int might_bwd_adapt =
       !(seq_params->single_picture_hdr_flag) && !(features->disable_cdf_update);
   if (might_bwd_adapt) {
@@ -9078,6 +9455,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   } else {
     features->refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
   }
+#if CONFIG_CWG_F317
+  }
+#endif // CONFIG_CWG_F317
 
   read_tile_info(pbi, rb);
   if (!av1_is_min_tile_width_satisfied(cm)) {
@@ -9783,7 +10163,11 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
   else
     av1_setup_ref_frame_sides(cm);
 
+#if CONFIG_CWG_F317
+  if (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame) {
+#else
   if (cm->bru.frame_inactive_flag) {
+#endif // CONFIG_CWG_F317
     for (int plane = 0; plane < av1_num_planes(cm); plane++) {
       cm->cur_frame->ccso_info.ccso_enable[plane] = 0;
     }
@@ -9797,7 +10181,16 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
     for (int h = 0; h < mvs_rows; h++) {
       MV_REF *mv = frame_mvs;
       for (int w = 0; w < mvs_cols; w++) {
+#if CONFIG_CWG_F317
+        if (cm->bridge_frame_info.is_bridge_frame) {
+          mv->ref_frame[0] = cm->bridge_frame_info.is_bridge_frame;
+        }
+        else {
+          mv->ref_frame[0] = cm->bru.update_ref_idx;
+        }
+#else
         mv->ref_frame[0] = cm->bru.update_ref_idx;
+#endif // CONFIG_CWG_F317
         mv->ref_frame[1] = NONE_FRAME;
         mv->mv[0].as_int = 0;
         mv->mv[1].as_int = 0;
@@ -10213,6 +10606,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
               beginningFrameFlag[i][j][k][l][h] = 1;
 #endif
   }
+
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(pbi, av1_decode_tg_tiles_and_wrapup_time);

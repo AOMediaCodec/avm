@@ -54,6 +54,9 @@ static int valid_obu_type(int obu_type) {
     case OBU_ATLAS_SEGMENT:
     case OBU_OPERATING_POINT_SET:
 #endif  // CONFIG_MULTILAYER_HLS
+#if CONFIG_CWG_F317
+    case OBU_BRIDGE_FRAME:
+#endif  // CONFIG_CWG_F317
     case OBU_PADDING: valid_type = 1; break;
     default: break;
   }

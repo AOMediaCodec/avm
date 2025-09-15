@@ -186,6 +186,9 @@ const char *aom_obu_type_to_string(OBU_TYPE type) {
     case OBU_ATLAS_SEGMENT: return "OBU_ATLAS_SEGMENT";
     case OBU_OPERATING_POINT_SET: return "OBU_OPERATING_POINT_SET";
 #endif  // CONFIG_MULTILAYER_HLS
+#if CONFIG_CWG_F317
+    case OBU_BRIDGE_FRAME: return "OBU_BRIDGE_FRAME";
+#endif  // CONFIG_CWG_F317
     case OBU_PADDING: return "OBU_PADDING";
     default: break;
   }

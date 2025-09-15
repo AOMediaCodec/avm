@@ -1500,6 +1500,11 @@ static void loop_filter_rows(YV12_BUFFER_CONFIG *frame_buffer, AV1_COMMON *cm,
 void av1_loop_filter_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
                            MACROBLOCKD *xd, int plane_start, int plane_end,
                            int partial_frame) {
+#if CONFIG_CWG_F317
+  if (cm->bridge_frame_info.is_bridge_frame) {
+    return;
+  }
+#endif
   int start_mi_row, end_mi_row, mi_rows_to_filter;
   start_mi_row = 0;
   mi_rows_to_filter = cm->mi_params.mi_rows;

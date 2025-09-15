@@ -433,6 +433,12 @@ void av1_loop_filter_frame_mt(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
                               MACROBLOCKD *xd, int plane_start, int plane_end,
                               int partial_frame, AVxWorker *workers,
                               int num_workers, AV1LfSync *lf_sync) {
+#if CONFIG_CWG_F317
+  if (cm->bridge_frame_info.is_bridge_frame) {
+    return;
+  }
+#endif
+
   int start_mi_row, end_mi_row, mi_rows_to_filter;
 
   start_mi_row = 0;

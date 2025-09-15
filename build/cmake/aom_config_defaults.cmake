@@ -391,6 +391,9 @@ set_aom_config_var(
   CONFIG_MIXED_LOSSLESS_ENCODE 0
   "Encoder only flag to configure encoder to enable mixed lossy/lossless coding"
 )
+set_aom_config_var(CONFIG_CWG_F317 1
+                   "Bridge frame")
+
 #
 # Variables in this section control optional features of the build system.
 #
