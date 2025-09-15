@@ -263,17 +263,17 @@ void ccso_filter_block_hbd_wo_buf_4x4_c(
       const int x_pos = x + x_start;
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
       const int this_mi_row = (tile_row_start + y_pos + y) << y_uv_vscale) >> MI_SIZE_LOG2;
-      const int this_mi_col = ((tile_col_start + x_pos) << y_uv_hscale) >> MI_SIZE_LOG2;
-
+      const int this_mi_col =
+          ((tile_col_start + x_pos) << y_uv_hscale) >> MI_SIZE_LOG2;
 
 #else
       const int this_mi_row = ((y_pos + y) << y_uv_vscale) >> MI_SIZE_LOG2;
       const int this_mi_col = (x_pos << y_uv_hscale) >> MI_SIZE_LOG2;
 
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-  MB_MODE_INFO **this_mbmi_ptr = mi_params->mi_grid_base +
-                                 this_mi_row * mi_params->mi_stride +
-                                 this_mi_col;
+      MB_MODE_INFO **this_mbmi_ptr = mi_params->mi_grid_base +
+                                     this_mi_row * mi_params->mi_stride +
+                                     this_mi_col;
       MB_MODE_INFO **this_mbmi =
           get_mi_location_from_collocated_mi(cm, this_mbmi_ptr, plane);
 
@@ -508,7 +508,8 @@ void ccso_apply_luma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
                 x + unit_x, y + unit_y, pic_width, pic_height, src_cls,
                 cm->ccso_info.filter_offset[plane], ccso_ext_stride, dst_stride,
                 0, 0, thr, neg_thr, src_loc, max_val, unit_size, unit_size,
-                false, shift_bits, edge_clf, cm->ccso_info.ccso_bo_only[plane], plane);
+                false, shift_bits, edge_clf, cm->ccso_info.ccso_bo_only[plane],
+                plane);
           } else {
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 
@@ -735,7 +736,8 @@ void ccso_apply_luma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
                 x + unit_x, y + unit_y, pic_width, pic_height, src_cls,
                 cm->ccso_info.filter_offset[plane], ccso_ext_stride, dst_stride,
                 0, 0, thr, neg_thr, src_loc, max_val, unit_size, unit_size,
-                true, shift_bits, edge_clf, cm->ccso_info.ccso_bo_only[plane], plane);
+                true, shift_bits, edge_clf, cm->ccso_info.ccso_bo_only[plane],
+                plane);
           } else {
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
             if (cm->ccso_info.ccso_bo_only[plane]) {

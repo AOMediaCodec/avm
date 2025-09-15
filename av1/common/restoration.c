@@ -1508,9 +1508,9 @@ static AOM_INLINE void apply_wienerns_multi_class_highbd(
     int bit_depth, const uint8_t *class_id, int class_id_stride,
     int class_id_restrict, int num_classes, int set_index
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-    , const struct AV1Common *cm,
-    MB_MODE_INFO **mbmi_ptr_procunit, int mi_stride, int ss_x, int ss_y,
-    const bool *lossless_segment, int plane
+    ,
+    const struct AV1Common *cm, MB_MODE_INFO **mbmi_ptr_procunit, int mi_stride,
+    int ss_x, int ss_y, const bool *lossless_segment, int plane
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 ) {
   const int block_size = 4;
@@ -1530,7 +1530,7 @@ static AOM_INLINE void apply_wienerns_multi_class_highbd(
       MB_MODE_INFO **this_mbmi_ptr =
           mbmi_ptr_procunit + start_mi_y * mi_stride + start_mi_x;
       MB_MODE_INFO **this_mbmi =
-                 get_mi_location_from_collocated_mi(cm, this_mbmi_ptr, plane);
+          get_mi_location_from_collocated_mi(cm, this_mbmi_ptr, plane);
       if (lossless_segment[this_mbmi[0]->segment_id]) {
         copy_tile(w, h, dgd_row + c, stride, dst_row + c, dst_stride);
         continue;
@@ -1557,7 +1557,8 @@ static AOM_INLINE void apply_wienerns_multi_class_highbd(
 }
 
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-static AOM_INLINE int check_lossless(const struct AV1Common *cm, MB_MODE_INFO **mbmi_ptr_procunit,
+static AOM_INLINE int check_lossless(const struct AV1Common *cm,
+                                     MB_MODE_INFO **mbmi_ptr_procunit,
                                      const bool *lossless_segment, int width,
                                      int height, int mi_stride, int ss_x,
                                      int ss_y, int plane) {
@@ -1569,7 +1570,7 @@ static AOM_INLINE int check_lossless(const struct AV1Common *cm, MB_MODE_INFO **
       MB_MODE_INFO **this_mbmi_ptr =
           mbmi_ptr_procunit + start_mi_y * mi_stride + start_mi_x;
       MB_MODE_INFO **this_mbmi =
-            get_mi_location_from_collocated_mi(cm, this_mbmi_ptr, plane);
+          get_mi_location_from_collocated_mi(cm, this_mbmi_ptr, plane);
       if (lossless_segment[this_mbmi[0]->segment_id]) {
         return 1;
       }
@@ -1690,8 +1691,8 @@ void apply_wienerns_class_id_highbd(
       dst_stride, bit_depth, class_id, class_id_stride, class_id_restrict,
       num_classes, set_index
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-      , cm,
-      mbmi_ptr_procunit, mi_stride, ss_x, ss_y, lossless_segment, plane
+      ,
+      cm, mbmi_ptr_procunit, mi_stride, ss_x, ss_y, lossless_segment, plane
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
   );
 
