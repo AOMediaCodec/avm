@@ -67,6 +67,22 @@ void init_gdf(AV1_COMMON *cm) {
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   const int num_tile_rows = cm->tiles.rows;
   const int num_tile_cols = cm->tiles.cols;
+
+  // if super_block size is 64x64
+  if (cm->mib_size == 16) {
+    int e2 = 0;
+    for (int i = 0; i < cm->tiles.cols - 1; ++i) {
+      const int size =
+          cm->tiles.col_start_sb[i + 1] - cm->tiles.col_start_sb[i];
+      e2 += size & 1;
+    }
+    for (int i = 0; i < cm->tiles.rows - 1; ++i) {
+      const int size =
+          cm->tiles.row_start_sb[i + 1] - cm->tiles.row_start_sb[i];
+      e2 += size & 1;
+    }
+    if (e2) gi->gdf_block_size = 64;
+  }
 #else
   const int num_tile_rows = 1;
   const int num_tile_cols = 1;
