@@ -1172,7 +1172,7 @@ void av1_finalize_encoded_frame(AV1_COMP *const cpi) {
   AV1_COMMON *const cm = &cpi->common;
   CurrentFrame *const current_frame = &cm->current_frame;
 
-  if (!cm->seq_params.reduced_still_picture_hdr &&
+  if (!cm->seq_params.single_picture_hdr_flag &&
       (encode_show_existing_frame(cm) || cm->show_existing_frame)) {
     RefCntBuffer *const frame_to_show =
         cm->ref_frame_map[cpi->existing_fb_idx_to_show];

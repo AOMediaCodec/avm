@@ -6388,7 +6388,7 @@ void av1_read_sequence_header(
 #endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
     struct aom_read_bit_buffer *rb, SequenceHeader *seq_params) {
 #if !CWG_F215_CONFIG_REMOVE_FRAME_ID
-  if (seq_params->reduced_still_picture_hdr) {
+  if (seq_params->single_picture_hdr_flag) {
     seq_params->frame_id_numbers_present_flag = 0;
   } else {
     seq_params->frame_id_numbers_present_flag = aom_rb_read_bit(rb);
@@ -6410,7 +6410,7 @@ void av1_read_sequence_header(
 
   seq_params->enable_intra_dip = aom_rb_read_bit(rb);
   seq_params->enable_intra_edge_filter = aom_rb_read_bit(rb);
-  if (seq_params->reduced_still_picture_hdr) {
+  if (seq_params->single_picture_hdr_flag) {
     seq_params->seq_enabled_motion_modes = (1 << SIMPLE_TRANSLATION);
     seq_params->enable_masked_compound = 0;
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
@@ -6827,7 +6827,7 @@ void av1_read_sequence_header_beyond_av1(
   }
 #endif  // CONFIG_MAX_PB_RATIO
 #if CONFIG_IMPROVED_GLOBAL_MOTION
-  if (seq_params->reduced_still_picture_hdr) {
+  if (seq_params->single_picture_hdr_flag) {
     seq_params->enable_global_motion = 0;
   } else {
     seq_params->enable_global_motion = aom_rb_read_bit(rb);
@@ -7335,7 +7335,7 @@ static void set_primary_ref_frame_and_ctx(AV1Decoder *pbi) {
   CurrentFrame *const current_frame = &cm->current_frame;
   FeatureFlags *const features = &cm->features;
 
-  if (!seq_params->reduced_still_picture_hdr) {
+  if (!seq_params->single_picture_hdr_flag) {
     int tmp_ref_frame[2] = { 0 };
     choose_primary_secondary_ref_frame(cm, tmp_ref_frame);
     features->derived_primary_ref_frame = tmp_ref_frame[0];
@@ -7585,7 +7585,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                        "No sequence header");
   }
 
-  if (seq_params->reduced_still_picture_hdr) {
+  if (seq_params->single_picture_hdr_flag) {
     cm->show_existing_frame = 0;
     cm->show_frame = 1;
     cm->cur_frame->showable_frame = 0;
@@ -7850,7 +7850,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   features->derived_primary_ref_frame = PRIMARY_REF_NONE;
   pbi->signal_primary_ref_frame = -1;
 
-  if (!seq_params->reduced_still_picture_hdr) {
+  if (!seq_params->single_picture_hdr_flag) {
 #if !CWG_F215_CONFIG_REMOVE_FRAME_ID
     if (seq_params->frame_id_numbers_present_flag) {
       int frame_id_length = seq_params->frame_id_length;
@@ -8928,8 +8928,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   features->disable_cdf_update = aom_rb_read_bit(rb);
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
 
-  const int might_bwd_adapt = !(seq_params->reduced_still_picture_hdr) &&
-                              !(features->disable_cdf_update);
+  const int might_bwd_adapt =
+      !(seq_params->single_picture_hdr_flag) && !(features->disable_cdf_update);
   if (might_bwd_adapt) {
     features->refresh_frame_context = aom_rb_read_bit(rb)
                                           ? REFRESH_FRAME_CONTEXT_DISABLED

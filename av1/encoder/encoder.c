@@ -364,8 +364,8 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 
   seq->still_picture =
       (tool_cfg->force_video_mode == 0) && (oxcf->input_cfg.limit == 1);
-  seq->reduced_still_picture_hdr = seq->still_picture;
-  seq->reduced_still_picture_hdr &= !tool_cfg->full_still_picture_hdr;
+  seq->single_picture_hdr_flag = seq->still_picture;
+  seq->single_picture_hdr_flag &= !tool_cfg->full_still_picture_hdr;
   seq->force_screen_content_tools = 2;
   seq->force_integer_mv = 2;
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
@@ -373,10 +373,10 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
 #if !CWG_F215_CONFIG_REMOVE_FRAME_ID
   seq->frame_id_numbers_present_flag =
-      !(seq->still_picture && seq->reduced_still_picture_hdr) &&
+      !(seq->still_picture && seq->single_picture_hdr_flag) &&
       !oxcf->tile_cfg.enable_large_scale_tile && tool_cfg->error_resilient_mode;
 #endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
-  if (seq->still_picture && seq->reduced_still_picture_hdr) {
+  if (seq->still_picture && seq->single_picture_hdr_flag) {
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
     seq->order_hint_info.enable_order_hint = 0;
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
@@ -641,7 +641,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   // point, and set to 0 if cpi->sf.gm_sf.gm_search_type == GM_DISABLE_SEARCH
   // if possible
   seq->enable_global_motion =
-      tool_cfg->enable_global_motion && !seq->reduced_still_picture_hdr;
+      tool_cfg->enable_global_motion && !seq->single_picture_hdr_flag;
 #endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 #if CONFIG_REFRESH_FLAG
   seq->enable_short_refresh_frame_flags =
@@ -4442,7 +4442,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
           (frame_is_intra_only(cm) || !cm->show_frame) ? 0 : 1;
       break;
   }
-  seq_params->timing_info_present &= !seq_params->reduced_still_picture_hdr;
+  seq_params->timing_info_present &= !seq_params->single_picture_hdr_flag;
 
   if (cpi->oxcf.tool_cfg.enable_global_motion && !frame_is_intra_only(cm)) {
     // Flush any stale global motion information, which may be left over

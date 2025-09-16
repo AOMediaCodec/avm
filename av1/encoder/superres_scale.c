@@ -58,7 +58,7 @@ static uint8_t calculate_next_resize_scale(const AV1_COMP *cpi) {
   const int display_order_hint = cpi->common.current_frame.display_order_hint;
   const uint8_t is_low_delay_enc = (cpi->oxcf.gf_cfg.lag_in_frames == 0);
 
-  if (cpi->common.seq_params.reduced_still_picture_hdr) return SCALE_NUMERATOR;
+  if (cpi->common.seq_params.single_picture_hdr_flag) return SCALE_NUMERATOR;
   switch (resize_cfg->resize_mode) {
     case RESIZE_NONE: new_denom = SCALE_NUMERATOR; break;
     case RESIZE_FIXED:

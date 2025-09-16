@@ -199,14 +199,14 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
 
   // Still picture or not
   seq_params->still_picture = aom_rb_read_bit(rb);
-  seq_params->reduced_still_picture_hdr = aom_rb_read_bit(rb);
-  // Video must have reduced_still_picture_hdr = 0
-  if (!seq_params->still_picture && seq_params->reduced_still_picture_hdr) {
+  seq_params->single_picture_hdr_flag = aom_rb_read_bit(rb);
+  // Video must have single_picture_hdr_flag = 0
+  if (!seq_params->still_picture && seq_params->single_picture_hdr_flag) {
     cm->error.error_code = AOM_CODEC_UNSUP_BITSTREAM;
     return 0;
   }
 
-  if (seq_params->reduced_still_picture_hdr) {
+  if (seq_params->single_picture_hdr_flag) {
     seq_params->timing_info_present = 0;
     seq_params->decoder_model_info_present_flag = 0;
     seq_params->display_model_info_present_flag = 0;
@@ -323,7 +323,7 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
     return 0;
   }
 #if CONFIG_MULTILAYER_CORE_HLS
-  if (seq_params->reduced_still_picture_hdr) {
+  if (seq_params->single_picture_hdr_flag) {
     seq_params->max_tlayer_id = 0;
     seq_params->max_mlayer_id = 0;
   } else {
@@ -369,7 +369,7 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   if (!seq_params->order_hint_info.enable_order_hint &&
-      !seq_params->reduced_still_picture_hdr
+      !seq_params->single_picture_hdr_flag
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
       && seq_params->enable_frame_output_order
 #endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG

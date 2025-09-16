@@ -5479,7 +5479,7 @@ static AOM_INLINE void write_sb_size(const SequenceHeader *const seq_params,
 static AOM_INLINE void write_sequence_header(
     const SequenceHeader *const seq_params, struct aom_write_bit_buffer *wb) {
 #if !CWG_F215_CONFIG_REMOVE_FRAME_ID
-  if (!seq_params->reduced_still_picture_hdr) {
+  if (!seq_params->single_picture_hdr_flag) {
     aom_wb_write_bit(wb, seq_params->frame_id_numbers_present_flag);
     if (seq_params->frame_id_numbers_present_flag) {
       // We must always have delta_frame_id_length < frame_id_length,
@@ -5497,7 +5497,7 @@ static AOM_INLINE void write_sequence_header(
   write_sb_size(seq_params, wb);
   aom_wb_write_bit(wb, seq_params->enable_intra_dip);
   aom_wb_write_bit(wb, seq_params->enable_intra_edge_filter);
-  if (!seq_params->reduced_still_picture_hdr) {
+  if (!seq_params->single_picture_hdr_flag) {
     // Encode allowed motion modes
     // Skip SIMPLE_TRANSLATION, as that is always enabled
     int seq_enabled_motion_modes = seq_params->seq_enabled_motion_modes;
@@ -5803,7 +5803,7 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
   }
 #endif  // CONFIG_MAX_PB_RATIO
 #if CONFIG_IMPROVED_GLOBAL_MOTION
-  if (seq_params->reduced_still_picture_hdr) {
+  if (seq_params->single_picture_hdr_flag) {
     assert(seq_params->enable_global_motion == 0);
   } else {
     aom_wb_write_bit(wb, seq_params->enable_global_motion);
@@ -6077,7 +6077,7 @@ static AOM_INLINE void write_uncompressed_header_obu
     assert(cm->show_frame == 1);
     assert(current_frame->frame_type == KEY_FRAME);
   }
-  if (!seq_params->reduced_still_picture_hdr) {
+  if (!seq_params->single_picture_hdr_flag) {
 #if CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_SEF
     if (obu_type == OBU_SEF) {
       write_show_exisiting_frame(cpi, wb);
@@ -6158,7 +6158,7 @@ static AOM_INLINE void write_uncompressed_header_obu
 
   int frame_size_override_flag = 0;
 
-  if (seq_params->reduced_still_picture_hdr) {
+  if (seq_params->single_picture_hdr_flag) {
     assert(cm->width == seq_params->max_frame_width &&
            cm->height == seq_params->max_frame_height);
   } else {
@@ -6653,8 +6653,8 @@ static AOM_INLINE void write_uncompressed_header_obu
   aom_wb_write_bit(wb, features->disable_cdf_update);
 #endif  // CONFIG_FRAME_HEADER_SIGNAL_OPT
 
-  const int might_bwd_adapt = !(seq_params->reduced_still_picture_hdr) &&
-                              !(features->disable_cdf_update);
+  const int might_bwd_adapt =
+      !(seq_params->single_picture_hdr_flag) && !(features->disable_cdf_update);
   if (cm->tiles.large_scale)
     assert(features->refresh_frame_context == REFRESH_FRAME_CONTEXT_DISABLED);
 
@@ -7075,11 +7075,11 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
   // Still picture or not
   aom_wb_write_bit(&wb, seq_params->still_picture);
   assert(IMPLIES(!seq_params->still_picture,
-                 !seq_params->reduced_still_picture_hdr));
+                 !seq_params->single_picture_hdr_flag));
   // whether to use reduced still picture header
-  aom_wb_write_bit(&wb, seq_params->reduced_still_picture_hdr);
+  aom_wb_write_bit(&wb, seq_params->single_picture_hdr_flag);
 
-  if (seq_params->reduced_still_picture_hdr) {
+  if (seq_params->single_picture_hdr_flag) {
     assert(seq_params->timing_info_present == 0);
     assert(seq_params->decoder_model_info_present_flag == 0);
     assert(seq_params->display_model_info_present_flag == 0);
@@ -7129,7 +7129,7 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
     }
   }
 #if CONFIG_MULTILAYER_CORE_HLS
-  if (!seq_params->reduced_still_picture_hdr) {
+  if (!seq_params->single_picture_hdr_flag) {
     aom_wb_write_literal(&wb, seq_params->max_tlayer_id, TLAYER_BITS);
     aom_wb_write_literal(&wb, seq_params->max_mlayer_id, MLAYER_BITS);
   }
