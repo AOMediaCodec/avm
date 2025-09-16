@@ -42,7 +42,9 @@ static int valid_obu_type(int obu_type) {
     case OBU_METADATA:
 #if !CONFIG_F106_OBU_TILEGROUP
     case OBU_FRAME:
+#if !CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER
     case OBU_REDUNDANT_FRAME_HEADER:
+#endif  // !CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER
 #endif  // !CONFIG_F106_OBU_TILEGROUP
     case OBU_PADDING: valid_type = 1; break;
     default: break;

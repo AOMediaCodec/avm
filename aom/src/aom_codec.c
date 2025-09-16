@@ -170,7 +170,9 @@ const char *aom_obu_type_to_string(OBU_TYPE type) {
     case OBU_TILE_GROUP: return "OBU_TILE_GROUP";
 #else
     case OBU_FRAME_HEADER: return "OBU_FRAME_HEADER";
+#if !CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER
     case OBU_REDUNDANT_FRAME_HEADER: return "OBU_REDUNDANT_FRAME_HEADER";
+#endif  // !CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER
     case OBU_FRAME: return "OBU_FRAME";
     case OBU_TILE_GROUP: return "OBU_TILE_GROUP";
 #endif  // CONFIG_F106_OBU_TILEGROUP

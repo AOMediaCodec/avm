@@ -7627,7 +7627,9 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
 #else
                                        uint8_t obu_extension_header,
 #endif  // CONFIG_NEW_OBU_HEADER
+#if !CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER
                                        const FrameHeaderInfo *fh_info,
+#endif  // !CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER
                                        int *const largest_tile_id) {
   AV1_COMMON *const cm = &cpi->common;
   const CommonTileParams *const tiles = &cm->tiles;
@@ -7653,7 +7655,9 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
   uint8_t *data = dst;
   int new_tg = 1;
   const int have_tiles = num_tiles > 1;
+#if !CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER
   int first_tg = 1;
+#endif  // !CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER
 
   *largest_tile_id = 0;
 
@@ -7905,7 +7909,7 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
           // frame header base offset accroding to length field size
           saved_wb->bit_buffer += length_field_size;
         }
-
+#if !CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER
         if (!first_tg && cm->features.error_resilient_mode) {
           // Make room for a duplicate Frame Header OBU.
           memmove(data + fh_info->total_length, data, curr_tg_data_size);
@@ -7934,6 +7938,7 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
           total_size += (uint32_t)(fh_info->total_length);
         }
         first_tg = 0;
+#endif  // !CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER
       }
 
       total_size += tile_size;
@@ -8394,7 +8399,10 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 #else
                                        obu_extension_header,
 #endif  // CONFIG_NEW_OBU_HEADER
-                                       &fh_info, largest_tile_id);
+#if !CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER
+                                       &fh_info,
+#endif  // !CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER
+                                       largest_tile_id);
   }
   data += data_size;
 #endif  // CONFIG_F106_OBU_TILEGROUP

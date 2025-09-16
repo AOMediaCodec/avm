@@ -1036,7 +1036,9 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
 #endif  // CONFIG_F106_OBU_TIP
 #else
       case OBU_FRAME_HEADER:
+#if !CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER
       case OBU_REDUNDANT_FRAME_HEADER:
+#endif  // !CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER
       case OBU_FRAME:
 #endif  // CONFIG_F106_OBU_TILEGROUP
 #if CONFIG_F106_OBU_TILEGROUP
@@ -1063,19 +1065,23 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
         if (frame_decoding_finished) pbi->seen_frame_header = 0;
         pbi->num_tile_groups++;
         break;
-#else   // CONFIG_F106_OBU_TILEGROUP
+#else  // CONFIG_F106_OBU_TILEGROUP
+#if !CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER
         if (obu_header.type == OBU_REDUNDANT_FRAME_HEADER) {
           if (!pbi->seen_frame_header) {
             cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
             return -1;
           }
         } else {
-          // OBU_FRAME_HEADER or OBU_FRAME.
+#endif  // !CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER
+        // OBU_FRAME_HEADER or OBU_FRAME.
           if (pbi->seen_frame_header) {
             cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
             return -1;
           }
+#if !CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER
         }
+#endif  // !CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER
         // Only decode first frame header received
         if (!pbi->seen_frame_header ||
             (cm->tiles.large_scale && !pbi->camera_frame_header_ready)) {
