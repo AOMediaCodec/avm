@@ -262,7 +262,8 @@ void ccso_filter_block_hbd_wo_buf_4x4_c(
     for (int x_start = 0; x_start < x_end; x_start += min_b_size_x) {
       const int x_pos = x + x_start;
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-      const int this_mi_row = (tile_row_start + y_pos + y) << y_uv_vscale) >> MI_SIZE_LOG2;
+      const int this_mi_row =
+          ((tile_row_start + y_pos + y) << y_uv_vscale) >> MI_SIZE_LOG2;
       const int this_mi_col =
           ((tile_col_start + x_pos) << y_uv_hscale) >> MI_SIZE_LOG2;
 
