@@ -438,9 +438,8 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
   aom_cdf_prob cdef_cdf[CDEF_STRENGTHS_NUM - 1][CDF_SIZE(CDEF_STRENGTHS_NUM)];
   av1_copy(cdef_strength_index0_cdf, cm->fc->cdef_strength_index0_cdf);
   av1_copy(cdef_cdf, cm->fc->cdef_cdf);
-#if !CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+
   cdef_list dlist[MI_SIZE_256X256 * MI_SIZE_256X256];
-#endif  //! CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
   int dir[CDEF_NBLOCKS][CDEF_NBLOCKS] = { { 0 } };
   int var[CDEF_NBLOCKS][CDEF_NBLOCKS] = { { 0 } };
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
@@ -550,22 +549,13 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
         bs = BLOCK_64X64;
       }
 
-#if !CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
       const int cdef_count = av1_cdef_compute_sb_list(
           cm, mi_params, fbr * MI_SIZE_64X64, fbc * MI_SIZE_64X64, dlist, bs);
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 
       const int yoff = CDEF_VBORDER * (fbr != 0);
       const int xoff = CDEF_HBORDER * (fbc != 0);
       int dirinit = 0;
       for (int pli = 0; pli < num_planes; pli++) {
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-        cdef_list dlist[MI_SIZE_256X256 * MI_SIZE_256X256];
-        const int cdef_count =
-            av1_cdef_compute_sb_list(cm, mi_params, fbr * MI_SIZE_64X64,
-                                     fbc * MI_SIZE_64X64, dlist, bs, pli);
-#endif  //! CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-
         for (int i = 0; i < CDEF_INBUF_SIZE; i++) inbuf[i] = CDEF_VERY_LARGE;
         /* We avoid filtering the pixels for which some of the pixels to
            average are outside the frame. We could change the filter instead,

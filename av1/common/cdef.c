@@ -22,24 +22,6 @@
 #include "av1/common/cdef_block.h"
 #include "av1/common/reconinter.h"
 
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-// Check any 4x4 sub-block of the entire block is lossless or not.
-// If one of the 4x4 sub-block is lossless, filter of full block will be
-// skipped.
-static int contains_lossless_8x8(const AV1_COMMON *const cm,
-                                 MB_MODE_INFO **grid, int mi_row, int mi_col,
-                                 int mi_stride, int plane) {
-  for (int r = 0; r < mi_size_high[BLOCK_8X8]; ++r) {
-    for (int c = 0; c < mi_size_wide[BLOCK_8X8]; ++c) {
-      MB_MODE_INFO **mbmi = grid + (mi_row + r) * mi_stride + (mi_col + c);
-      MB_MODE_INFO **this_mbmi =
-          get_mi_location_from_collocated_mi(cm, mbmi, plane);
-      if (cm->features.lossless_segment[this_mbmi[0]->segment_id]) return 1;
-    }
-  }
-  return 0;
-}
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 static int is_8x8_block_skip(MB_MODE_INFO **grid, int mi_row, int mi_col,
                              int mi_stride) {
   MB_MODE_INFO **mbmi = grid + mi_row * mi_stride + mi_col;
@@ -48,18 +30,31 @@ static int is_8x8_block_skip(MB_MODE_INFO **grid, int mi_row, int mi_col,
       if (!mbmi[c]->skip_txfm[PLANE_TYPE_Y]) return 0;
     }
   }
+
   return 1;
 }
+
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+// Check any 4x4 sub-block of the entire block is lossless or not.
+// If one of the 4x4 sub-block is lossless, filter of full block will be
+// skipped.
+static int contains_lossless_8x8(const AV1_COMMON *const cm,
+                                 MB_MODE_INFO **grid, int mi_row, int mi_col,
+                                 int mi_stride) {
+  MB_MODE_INFO **mbmi = grid + mi_row * mi_stride + mi_col;
+  for (int r = 0; r < mi_size_high[BLOCK_8X8]; ++r, mbmi += mi_stride) {
+    for (int c = 0; c < mi_size_wide[BLOCK_8X8]; ++c) {
+      if (cm->features.lossless_segment[mbmi[c]->segment_id]) return 1;
+    }
+  }
+  return 0;
+}
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 
 int av1_cdef_compute_sb_list(const AV1_COMMON *const cm,
                              const CommonModeInfoParams *const mi_params,
                              int mi_row, int mi_col, cdef_list *dlist,
-                             BLOCK_SIZE bs
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-                             ,
-                             int plane
-#endif  // #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-) {
+                             BLOCK_SIZE bs) {
   MB_MODE_INFO **grid = mi_params->mi_grid_base;
   int maxc = mi_params->mi_cols - mi_col;
   int maxr = mi_params->mi_rows - mi_row;
@@ -86,7 +81,7 @@ int av1_cdef_compute_sb_list(const AV1_COMMON *const cm,
     for (int c = 0; c < maxc; c += c_step) {
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
       bool contains_lossless = contains_lossless_8x8(
-          cm, grid, mi_row + r, mi_col + c, mi_params->mi_stride, plane);
+          cm, grid, mi_row + r, mi_col + c, mi_params->mi_stride);
       if ((cm->cdef_info.cdef_on_skip_txfm_frame_enable == 1 ||
            !is_8x8_block_skip(grid, mi_row + r, mi_col + c,
                               mi_params->mi_stride)) &&
@@ -149,15 +144,9 @@ void av1_cdef_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
   DECLARE_ALIGNED(16, uint16_t, src[CDEF_INBUF_SIZE]);
   uint16_t *linebuf[3];
   uint16_t *colbuf[3];
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-  cdef_list dlist[3][MI_SIZE_64X64 * MI_SIZE_64X64];
-  int cdef_count[3];
-#else
   cdef_list dlist[MI_SIZE_64X64 * MI_SIZE_64X64];
-  int cdef_count;
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
   unsigned char *row_cdef, *prev_row_cdef, *curr_row_cdef;
-
+  int cdef_count;
   int dir[CDEF_NBLOCKS][CDEF_NBLOCKS] = { { 0 } };
   int var[CDEF_NBLOCKS][CDEF_NBLOCKS] = { { 0 } };
   int mi_wide_l2[3];
@@ -276,24 +265,6 @@ void av1_cdef_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
       uv_sec_strength =
           cdef_info->cdef_uv_strengths[mbmi_cdef_strength] % CDEF_SEC_STRENGTHS;
       uv_sec_strength += uv_sec_strength == 3;
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-      if (level == 0 && sec_strength == 0 && uv_level == 0 &&
-          uv_sec_strength == 0) {
-        cdef_left = 0;
-        continue;
-      }
-      int total_cdef_count = 0;
-      for (int pli = 0; pli < num_planes; pli++) {
-        cdef_count[pli] = av1_cdef_compute_sb_list(
-            cm, mi_params, fbr * MI_SIZE_64X64, fbc * MI_SIZE_64X64, dlist[pli],
-            BLOCK_64X64, pli);
-        total_cdef_count += cdef_count[pli];
-      }
-      if (total_cdef_count == 0) {
-        cdef_left = 0;
-        continue;
-      }
-#else
       if ((level == 0 && sec_strength == 0 && uv_level == 0 &&
            uv_sec_strength == 0) ||
           (cdef_count = av1_cdef_compute_sb_list(
@@ -302,7 +273,6 @@ void av1_cdef_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
         cdef_left = 0;
         continue;
       }
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
       if (cm->bru.enabled) {
         if (mi_params
                 ->mi_grid_base[MI_SIZE_64X64 * fbr * mi_params->mi_stride +
@@ -456,13 +426,8 @@ void av1_cdef_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
                           (fbc * MI_SIZE_64X64 << mi_wide_l2[pli])],
             xd->plane[pli].dst.stride,
             &src[CDEF_VBORDER * CDEF_BSTRIDE + CDEF_HBORDER], xdec[pli],
-            ydec[pli], dir, NULL, var, pli,
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-            dlist[pli], cdef_count[pli],
-#else
-            dlist, cdef_count,
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-            level, sec_strength, damping, coeff_shift);
+            ydec[pli], dir, NULL, var, pli, dlist, cdef_count, level,
+            sec_strength, damping, coeff_shift);
       }
       cdef_left = 1;
     }
