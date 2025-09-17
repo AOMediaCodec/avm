@@ -5348,7 +5348,6 @@ static INLINE int is_reduced_tx_set_used(const AV1_COMMON *const cm,
   return reduced_tx_set_used;
 }
 
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 // This function is required because, for chroma plane in particular,
 // the actual 'mi' location maybe at an offset from the mi_row/mi_col.
 static INLINE MB_MODE_INFO **get_mi_location_from_collocated_mi(
@@ -5399,7 +5398,6 @@ static INLINE MB_MODE_INFO **get_mi_location_from_collocated_mi(
   }
   return this_mi;
 }
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 
 #ifdef __cplusplus
 }  // extern "C"
