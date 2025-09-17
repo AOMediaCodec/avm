@@ -458,8 +458,8 @@ void apply_ccso_filter(AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
   const int y_uv_vscale = xd->plane[plane].subsampling_y;
   derive_ccso_sample_pos(src_loc, ccso_ext_stride, filter_sup);
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-  const int ccso_blk_size =
-      get_lf_unit_size_log2_adaptive_tile(cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
+  const int ccso_blk_size = get_lf_unit_size_log2_adaptive_tile(
+      cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
   const int blk_log2 = ccso_blk_size;
   const int blk_size = 1 << blk_log2;
   const int blk_log2_x = blk_log2 - y_uv_hscale;
