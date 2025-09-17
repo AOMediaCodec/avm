@@ -3724,7 +3724,8 @@ static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
           if (cm->ccso_info.sb_reuse_ccso[plane] &&
               (cm->ccso_info.ccso_blk_size !=
-                  ref_frame_ccso_info->ccso_blk_size || cm->ccso_info.ccso_blk_size != CCSO_BLK_SIZE)) {
+                   ref_frame_ccso_info->ccso_blk_size ||
+               cm->ccso_info.ccso_blk_size != CCSO_BLK_SIZE)) {
             aom_internal_error(&cm->error, AOM_CODEC_ERROR,
                                "Invalid ccso_reuse: ccso_blk_size mismatch");
           }

@@ -499,10 +499,10 @@ void set_restoration_unit_size(
              tile_h % rst[0].max_restoration_unit_size) {
         rst[0].max_restoration_unit_size >>= 1;
       }
-      if (rst[0].min_restoration_unit_size > rst[0].max_restoration_unit_size)
-        rst[0].min_restoration_unit_size = rst[0].max_restoration_unit_size;
     }
   }
+  if (rst[0].min_restoration_unit_size > rst[0].max_restoration_unit_size)
+    rst[0].min_restoration_unit_size = rst[0].max_restoration_unit_size;
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 #else
 // As normative regulation:

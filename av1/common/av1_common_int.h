@@ -2658,8 +2658,12 @@ static INLINE void ensure_mv_buffer(RefCntBuffer *buf, AV1_COMMON *cm) {
         aom_free(buf->ccso_info.sb_filter_control[pli]);
       }
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-      const int ccso_blk_size = get_lf_unit_size_log2_adaptive_tile(
-          cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
+      // this function is called before tile information is signalled, therefore
+      // the temporal ccso block size is set as the minimum possible value to
+      // allocate sufficient buffer for ccso bock level on/off flag
+      const int ccso_blk_size = 6;
+      //          get_lf_unit_size_log2_adaptive_tile(
+      //          cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
       const int log2_filter_unit_size_y =
           pli == 0 ? ccso_blk_size
                    : ccso_blk_size - cm->seq_params.subsampling_y;

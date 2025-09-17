@@ -327,8 +327,8 @@ void ccso_apply_luma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
   derive_ccso_sample_pos(src_loc, ccso_ext_stride, filter_sup);
   assert(plane == 0);  // function must only be called for plane == 0
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-  const int ccso_blk_size =
-      get_lf_unit_size_log2_adaptive_tile(cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
+  const int ccso_blk_size = get_lf_unit_size_log2_adaptive_tile(
+      cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
   const int blk_log2 = ccso_blk_size;
 #else
   const int blk_log2 = CCSO_BLK_SIZE;
@@ -566,8 +566,8 @@ void ccso_apply_luma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
   derive_ccso_sample_pos(src_loc, ccso_ext_stride, filter_sup);
   assert(plane == 0);  // function must only be called for plane == 0
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-  const int ccso_blk_size =
-      get_lf_unit_size_log2_adaptive_tile(cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
+  const int ccso_blk_size = get_lf_unit_size_log2_adaptive_tile(
+      cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
   const int blk_log2 = ccso_blk_size;
 #else
   const int blk_log2 = CCSO_BLK_SIZE;
@@ -804,8 +804,8 @@ void ccso_apply_chroma_mb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
   derive_ccso_sample_pos(src_loc, ccso_ext_stride, filter_sup);
   assert(plane > 0);  // function must only be called for plane > 0
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-  const int ccso_blk_size =
-      get_lf_unit_size_log2_adaptive_tile(cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
+  const int ccso_blk_size = get_lf_unit_size_log2_adaptive_tile(
+      cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
   const int blk_size = 1 << ccso_blk_size;
   const int blk_log2_y = ccso_blk_size - cm->seq_params.subsampling_y;
   const int blk_log2_x = ccso_blk_size - cm->seq_params.subsampling_x;
@@ -1075,8 +1075,8 @@ void ccso_apply_chroma_sb_filter(AV1_COMMON *cm, MACROBLOCKD *xd,
   derive_ccso_sample_pos(src_loc, ccso_ext_stride, filter_sup);
   assert(plane > 0);  // function must only be called for plane > 0
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-  const int ccso_blk_size =
-      get_lf_unit_size_log2_adaptive_tile(cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
+  const int ccso_blk_size = get_lf_unit_size_log2_adaptive_tile(
+      cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
   const int blk_size = 1 << ccso_blk_size;
   const int blk_log2_y = ccso_blk_size - cm->seq_params.subsampling_y;
   const int blk_log2_x = ccso_blk_size - cm->seq_params.subsampling_x;

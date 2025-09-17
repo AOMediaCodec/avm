@@ -110,8 +110,8 @@ static void ccso_derive_src_info(AV1_COMMON *cm, MACROBLOCKD *xd,
   int src_loc[2];
   derive_ccso_sample_pos(src_loc, ccso_stride_ext, filter_sup);
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-  const int ccso_blk_size =
-      get_lf_unit_size_log2_adaptive_tile(cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
+  const int ccso_blk_size = get_lf_unit_size_log2_adaptive_tile(
+      cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
   const int blk_log2_y = ccso_blk_size - xd->plane[plane].subsampling_y;
   const int blk_log2_x = ccso_blk_size - xd->plane[plane].subsampling_x;
 #else
@@ -205,8 +205,8 @@ static void ccso_pre_compute_class_err(CcsoCtx *ctx, MACROBLOCKD *xd,
   uint8_t cur_src_cls0;
   uint8_t cur_src_cls1;
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-  const int ccso_blk_size =
-      get_lf_unit_size_log2_adaptive_tile(cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
+  const int ccso_blk_size = get_lf_unit_size_log2_adaptive_tile(
+      cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
   const int blk_log2_y = ccso_blk_size - xd->plane[plane].subsampling_y;
   const int blk_log2_x = ccso_blk_size - xd->plane[plane].subsampling_x;
 #else
@@ -343,8 +343,8 @@ static void ccso_pre_compute_class_err_bo(CcsoCtx *ctx, MACROBLOCKD *xd,
   const int y_uv_vscale = xd->plane[plane].subsampling_y;
   int fb_idx = 0;
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-  const int ccso_blk_size =
-      get_lf_unit_size_log2_adaptive_tile(cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
+  const int ccso_blk_size = get_lf_unit_size_log2_adaptive_tile(
+      cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
   const int blk_log2_y = ccso_blk_size - xd->plane[plane].subsampling_y;
   const int blk_log2_x = ccso_blk_size - xd->plane[plane].subsampling_x;
 #else
@@ -529,8 +529,8 @@ void ccso_try_luma_filter(
   const int pic_width = xd->plane[plane].dst.width;
   const int max_val = (1 << cm->seq_params.bit_depth) - 1;
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-  const int ccso_blk_size =
-      get_lf_unit_size_log2_adaptive_tile(cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
+  const int ccso_blk_size = get_lf_unit_size_log2_adaptive_tile(
+      cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
   const int blk_log2 = ccso_blk_size - xd->plane[plane].subsampling_y;
 #else
   const int blk_log2 = CCSO_BLK_SIZE - xd->plane[plane].subsampling_y;
@@ -638,8 +638,8 @@ static void ccso_try_chroma_filter(
   const int y_uv_vscale = xd->plane[plane].subsampling_y;
   const int max_val = (1 << cm->seq_params.bit_depth) - 1;
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-  const int ccso_blk_size =
-      get_lf_unit_size_log2_adaptive_tile(cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
+  const int ccso_blk_size = get_lf_unit_size_log2_adaptive_tile(
+      cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
   const int blk_log2_y = ccso_blk_size - xd->plane[plane].subsampling_y;
   const int blk_log2_x = ccso_blk_size - xd->plane[plane].subsampling_x;
 #else
@@ -900,8 +900,8 @@ static void derive_blk_md(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
                           bool *filter_enable, const int rdmult) {
   aom_cdf_prob ccso_cdf[CCSO_CONTEXT][CDF_SIZE(2)];
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-  const int ccso_blk_size =
-      get_lf_unit_size_log2_adaptive_tile(cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
+  const int ccso_blk_size = get_lf_unit_size_log2_adaptive_tile(
+      cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
   const int log2_filter_unit_size =
       ccso_blk_size - xd->plane[plane].subsampling_x;
 #else
@@ -1029,8 +1029,8 @@ static void get_sb_reuse_dist(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
                               bool *filter_enable, const int rdmult) {
   (void)rdmult;
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-  const int ccso_blk_size =
-      get_lf_unit_size_log2_adaptive_tile(cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
+  const int ccso_blk_size = get_lf_unit_size_log2_adaptive_tile(
+      cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
   const int log2_filter_unit_size =
       ccso_blk_size - xd->plane[plane].subsampling_x;
 #else
@@ -1126,8 +1126,8 @@ static void ccso_compute_class_err(CcsoCtx *ctx, AV1_COMMON *cm,
                                    const uint8_t ccso_bo_only) {
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-  const int ccso_blk_size =
-      get_lf_unit_size_log2_adaptive_tile(cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
+  const int ccso_blk_size = get_lf_unit_size_log2_adaptive_tile(
+      cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
   const int blk_log2 = ccso_blk_size - xd->plane[plane].subsampling_y;
 #else
   const int blk_log2 = CCSO_BLK_SIZE - xd->plane[plane].subsampling_y;
@@ -1253,8 +1253,8 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
 ) {
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-  const int ccso_blk_size =
-      get_lf_unit_size_log2_adaptive_tile(cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
+  const int ccso_blk_size = get_lf_unit_size_log2_adaptive_tile(
+      cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
   const int log2_filter_unit_size_y =
       ccso_blk_size - xd->plane[plane].subsampling_y;
   const int log2_filter_unit_size_x =
@@ -1547,7 +1547,9 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
                       (xd->plane[plane].subsampling_x ==
                        ref_frame_ccso_info->subsampling_x[plane])
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-                      && (ccso_blk_size == ref_frame_ccso_info->ccso_blk_size) && (ccso_blk_size == CCSO_BLK_SIZE)
+                      &&
+                      (ccso_blk_size == ref_frame_ccso_info->ccso_blk_size) &&
+                      (ccso_blk_size == CCSO_BLK_SIZE)
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
                       ;
 
