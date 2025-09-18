@@ -712,10 +712,10 @@ static AOM_INLINE void decode_mbmi_block(AV1Decoder *const pbi,
     bru_zero_sb_mvs(cm, cm->bru.update_ref_idx, mi_row, mi_col,
                     x_inside_boundary, y_inside_boundary);
     if (!cm->bru.frame_inactive_flag) {
+      read_gdf(cm, r, xd);
       if (cm->seq_params.enable_ccso) {
         read_ccso(cm, r, xd);
       }
-      read_gdf(cm, r, xd);
     }
   } else
     av1_read_mode_info(pbi, dcb, r, x_mis, y_mis);

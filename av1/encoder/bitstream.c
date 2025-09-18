@@ -2939,10 +2939,10 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
                          "BRU: intra prediction on inactive/support SB");
     }
     if (!cm->bru.frame_inactive_flag) {
+      if (xd->tree_type != CHROMA_PART) write_gdf(cm, xd, w);
       if (cm->seq_params.enable_ccso && xd->tree_type != CHROMA_PART) {
         write_ccso(cm, xd, w);
       }
-      if (xd->tree_type != CHROMA_PART) write_gdf(cm, xd, w);
     }
     return;
   } else
