@@ -1124,8 +1124,8 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
           CommonTileParams *const tiles = &cm->tiles;
           av1_get_tile_limits(cm);
           tiles->uniform_spacing = 1;
-          tiles->log2_cols = tiles->min_log2_cols;
-          tiles->log2_rows = tiles->min_log2_rows;
+          tiles->log2_cols = 0;
+          tiles->log2_rows = 0;
           av1_calculate_tile_cols(cm, cm->mi_params.mi_rows,
                                   cm->mi_params.mi_cols, tiles);
           av1_calculate_tile_rows(cm, cm->mi_params.mi_rows, tiles);

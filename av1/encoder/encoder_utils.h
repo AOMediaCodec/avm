@@ -1017,7 +1017,12 @@ static AOM_INLINE void av1_set_tile_info(AV1_COMMON *const cm,
     sb_size_scale = 2;
 
   // configure tile columns
-  if (tile_cfg->tile_width_count == 0 || tile_cfg->tile_height_count == 0) {
+  if (cm->bru.enabled && cm->bru.frame_inactive_flag) {
+    tiles->uniform_spacing = 1;
+    tiles->log2_cols = 0;
+    tiles->log2_rows = 0;
+  } else if (tile_cfg->tile_width_count == 0 ||
+             tile_cfg->tile_height_count == 0) {
     tiles->uniform_spacing = 1;
     tiles->log2_cols = AOMMAX(tile_cfg->tile_columns, tiles->min_log2_cols);
     tiles->log2_cols = AOMMIN(tiles->log2_cols, tiles->max_log2_cols);
