@@ -292,6 +292,10 @@ set_aom_config_var(CONFIG_ML_PART_SPLIT 1
 set_aom_config_var(CONFIG_UNIFORM_TILE 1
                    "Enable better uniform tile distribution")
 
+set_aom_config_var(
+  CONFIG_ADJ_PYR_Q_OFFSET_LD 1
+  "Encoder-only config to adjust pyr qp offsets for LD from nominal.")
+
 set_aom_config_var(CONFIG_MOTION_MODE_FRAME_HEADERS_OPT 1
                    "Frame header optimzation of motion modes.")
 

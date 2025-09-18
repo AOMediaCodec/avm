@@ -1174,7 +1174,11 @@ static double get_modeled_qp_offset(int qp, int level, int bit_depth,
   // 60% similar to rc_pick_q_and_bounds_one_pass_vbr() for Q mode ARF.
   // Rest derived similar to rc_pick_q_and_bounds_two_pass()
   static const int percents_ld[FIXED_QP_OFFSET_COUNT] = {
-    76, 60, 30, 15, 8, 4
+#if CONFIG_ADJ_PYR_Q_OFFSET_LD
+    78, 60, 32, 15, 8, 4,
+#else
+    76, 60, 30, 15, 8, 4,
+#endif  // CONFIG_ADJ_PYR_Q_OFFSET_LD
   };
   static const int percents[FIXED_QP_OFFSET_COUNT] = { 76, 61, 38, 20, 10, 4 };
   const double q_val = av1_convert_qindex_to_q(qp, bit_depth);
