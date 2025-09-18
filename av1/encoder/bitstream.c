@@ -4490,6 +4490,7 @@ static AOM_INLINE void encode_loopfilter(AV1_COMMON *cm,
     }
 #if CONFIG_MULTI_FRAME_HEADER
   }
+#endif
   const uint8_t df_par_bits = cm->seq_params.df_par_bits_minus2 + 2;
   const uint8_t df_par_offset = 1 << (df_par_bits - 1);
 #if DF_DUAL
@@ -4532,7 +4533,7 @@ static AOM_INLINE void encode_loopfilter(AV1_COMMON *cm,
     assert(lf->delta_q_luma[1] == lf->delta_side_luma[1]);
 #endif  // DF_TWO_PARAM
   }
-#else
+#else  // DF_DUAL
   if (lf->filter_level[0] || lf->filter_level[1]) {
     int luma_delta_q_flag = lf->delta_q_luma != 0;
 
@@ -6856,8 +6857,8 @@ static AOM_INLINE void write_uncompressed_header_obu(
 #if !CONFIG_CWG_F109
       if (cm->film_grain_params_override_flag)
 #endif
-        write_film_grain_params(cpi, wb);
 #endif
+        write_film_grain_params(cpi, wb);
     return;
   }
 
@@ -6881,7 +6882,8 @@ static AOM_INLINE void write_uncompressed_header_obu(
   encode_segmentation(cm, xd, wb);
 #if !CONFIG_F311_QM_PARAMS
   encode_qm_params(cm, wb);
-#endif  // !CONFIG_F311_QM_PARAMS#if CONFIG_MULTI_FRAME_HEADER
+#endif  // !CONFIG_F311_QM_PARAMS
+#if CONFIG_MULTI_FRAME_HEADER
   if (seq_params->segmentation_params_present &&
       cm->segmentation_params_override_flag)
 #endif
