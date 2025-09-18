@@ -5075,12 +5075,24 @@ static AOM_INLINE void write_seq_chroma_format(
 
 static AOM_INLINE void write_bitdepth(const SequenceHeader *const seq_params,
                                       struct aom_write_bit_buffer *wb) {
+#if CONFIG_CWG_E242_BITDEPTH
+  // LUT [0] 10bits, [1] for 8bits, [2+] for Reserved
+  int bitdepth_lut_idx = 0;
+  if (seq_params->bit_depth == 10)
+    bitdepth_lut_idx = 0;
+  else if (seq_params->bit_depth == 8)
+    bitdepth_lut_idx = 1;
+  else
+    bitdepth_lut_idx = 2;
+  aom_wb_write_uvlc(wb, bitdepth_lut_idx);
+#else
   // Profile 0/1: [0] for 8 bit, [1]  10-bit
   // Profile   2: [0] for 8 bit, [10] 10-bit, [11] - 12-bit
   aom_wb_write_bit(wb, seq_params->bit_depth == AOM_BITS_8 ? 0 : 1);
   if (seq_params->profile == PROFILE_2 && seq_params->bit_depth != AOM_BITS_8) {
     aom_wb_write_bit(wb, seq_params->bit_depth == AOM_BITS_10 ? 0 : 1);
   }
+#endif // CONFIG_CWG_E242_BITDEPTH
 }
 
 static AOM_INLINE void write_color_config(

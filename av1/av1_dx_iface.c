@@ -196,6 +196,17 @@ static aom_codec_err_t decoder_destroy(aom_codec_alg_priv_t *ctx) {
 static aom_codec_err_t parse_bitdepth(struct aom_read_bit_buffer *rb,
                                       BITSTREAM_PROFILE profile,
                                       aom_bit_depth_t *bit_depth) {
+#if CONFIG_CWG_E242_BITDEPTH
+  (void) profile;
+  int bitdepth_lut_idx = aom_rb_read_uvlc(rb);
+  if (bitdepth_lut_idx == 0)
+    *bit_depth = AOM_BITS_10;
+  else if (bitdepth_lut_idx == 1)
+    *bit_depth = AOM_BITS_8;
+  else
+    // unsupported bit_depth
+    return AOM_CODEC_UNSUP_BITSTREAM;
+#else
   const int high_bitdepth = aom_rb_read_bit(rb);
   if (profile == PROFILE_2 && high_bitdepth) {
     const int twelve_bit = aom_rb_read_bit(rb);
@@ -206,6 +217,7 @@ static aom_codec_err_t parse_bitdepth(struct aom_read_bit_buffer *rb,
     // Unsupported profile/bit-depth combination
     return AOM_CODEC_UNSUP_BITSTREAM;
   }
+#endif // CONFIG_CWG_E242_BITDEPTH
   return AOM_CODEC_OK;
 }
 

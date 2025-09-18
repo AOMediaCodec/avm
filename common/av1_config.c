@@ -53,6 +53,20 @@
     }                                                 \
   } while (0)
 
+#if CONFIG_CWG_E242_BITDEPTH
+#define AV1C_UVLC_READ_BITS_OR_RETURN_ERROR(field)                             \
+  int field = 0;                                                               \
+  do {                                                                         \
+    field = aom_rb_read_uvlc(reader);                                          \
+    if (result == -1) {                                                        \
+      fprintf(stderr,                                                          \
+              "av1c: Error reading bit for " #field ", value=%d result=%d.\n", \
+              field, result);                                                  \
+      return -1;                                                               \
+    }                                                                          \
+  } while (0)
+#endif  // CONFIG_CWG_E242_BITDEPTH
+
 // Helper macros for setting/restoring the error handler data in
 // aom_read_bit_buffer.
 #define AV1C_PUSH_ERROR_HANDLER_DATA(new_data)                \
@@ -176,6 +190,15 @@ static int parse_color_config(struct aom_read_bit_buffer *reader,
   AV1C_READ_UVLC_BITS_OR_RETURN_ERROR(chroma_format_idc);
 #endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
+#if CONFIG_CWG_E242_BITDEPTH
+  int bit_depth = 0;
+  if (config->bitdepth_idx == 0)
+    bit_depth = AOM_BITS_10;
+  else if (config->bitdepth_idx == 1)
+    bit_depth = AOM_BITS_8;
+  else
+    return AOM_CODEC_UNSUP_BITSTREAM;
+#else
   AV1C_READ_BIT_OR_RETURN_ERROR(high_bitdepth);
   config->high_bitdepth = high_bitdepth;
 
@@ -187,6 +210,7 @@ static int parse_color_config(struct aom_read_bit_buffer *reader,
   } else {
     bit_depth = config->high_bitdepth ? 10 : 8;
   }
+#endif  // CONFIG_CWG_E242_BITDEPTH
 
 #if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
   (void)bit_depth;
@@ -444,12 +468,17 @@ int read_av1config(const uint8_t *buffer, size_t buffer_length,
 
   AV1C_READ_BIT_OR_RETURN_ERROR(seq_tier_0);
   config->seq_tier_0 = seq_tier_0;
-
+  
+#if CONFIG_CWG_E242_BITDEPTH
+  AV1C_UVLC_READ_BITS_OR_RETURN_ERROR(bitdepth_idx);
+  config->bitdepth_idx = bitdepth_idx;
+#else
   AV1C_READ_BIT_OR_RETURN_ERROR(high_bitdepth);
   config->high_bitdepth = high_bitdepth;
 
   AV1C_READ_BIT_OR_RETURN_ERROR(twelve_bit);
   config->twelve_bit = twelve_bit;
+#endif // CONFIG_CWG_E242_BITDEPTH
 
   AV1C_READ_BIT_OR_RETURN_ERROR(monochrome);
   config->monochrome = monochrome;
@@ -492,8 +521,12 @@ int write_av1config(const Av1Config *config, size_t capacity,
   aom_wb_write_literal(&writer, config->seq_profile, 3);
   aom_wb_write_literal(&writer, config->seq_level_idx_0, 5);
   aom_wb_write_bit(&writer, config->seq_tier_0);
+#if CONFIG_CWG_E242_BITDEPTH
+  aom_wb_write_uvlc(&writer, config->bitdepth_idx);
+#else
   aom_wb_write_bit(&writer, config->high_bitdepth);
   aom_wb_write_bit(&writer, config->twelve_bit);
+#endif  // CONFIG_CWG_E242_BITDEPTH
   aom_wb_write_bit(&writer, config->monochrome);
   aom_wb_write_bit(&writer, config->chroma_subsampling_x);
   aom_wb_write_bit(&writer, config->chroma_subsampling_y);

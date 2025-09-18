@@ -6253,13 +6253,22 @@ static AOM_INLINE void error_handler(void *data) {
 static AOM_INLINE void read_bitdepth(
     struct aom_read_bit_buffer *rb, SequenceHeader *seq_params,
     struct aom_internal_error_info *error_info) {
+#if CONFIG_CWG_E242_BITDEPTH
+  int bitdepth_lut_idx = aom_rb_read_uvlc(rb);
+  if (bitdepth_lut_idx == 0)
+    seq_params->bit_depth = AOM_BITS_10;
+  else if (bitdepth_lut_idx == 1)
+    seq_params->bit_depth = AOM_BITS_8;
+#else
   const int high_bitdepth = aom_rb_read_bit(rb);
   if (seq_params->profile == PROFILE_2 && high_bitdepth) {
     const int twelve_bit = aom_rb_read_bit(rb);
     seq_params->bit_depth = twelve_bit ? AOM_BITS_12 : AOM_BITS_10;
   } else if (seq_params->profile <= PROFILE_2) {
     seq_params->bit_depth = high_bitdepth ? AOM_BITS_10 : AOM_BITS_8;
-  } else {
+  }
+#endif // CONFIG_CWG_E242_BITDEPTH
+  else {
     aom_internal_error(error_info, AOM_CODEC_UNSUP_BITSTREAM,
                        "Unsupported profile/bit-depth combination");
   }
