@@ -1209,7 +1209,6 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
                             cm, dcb, r, AOM_PLANE_V, blk_row & 0xf0,
                             blk_col & 0xf0, tx_size);
                       }
-
                       if (need_reconstrution) {
                         set_cb_buffer_offsets(dcb, tx_size, AOM_PLANE_U);
                         set_cb_buffer_offsets(dcb, tx_size, AOM_PLANE_V);
@@ -1377,7 +1376,6 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
                  col < AOMMIN(col128 + mu128_wide, max_blocks_wide);
                  col += mu_blocks_wide) {
 #else
-
       for (int row = 0; row < max_blocks_high; row += mu_blocks_high) {
         for (int col = 0; col < max_blocks_wide; col += mu_blocks_wide) {
 #endif  // CONFIG_TU64_TRAVERSED_ORDER
@@ -3950,6 +3948,9 @@ static AOM_INLINE void setup_quantization(CommonQuantParams *quant_params,
 }
 
 static AOM_INLINE void setup_qm_params(SequenceHeader *seq_params,
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+                                       SequenceHeader *active_seq,
+#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
                                        CommonQuantParams *quant_params,
                                        bool segmentation_enabled,
                                        int num_planes,
@@ -3960,6 +3961,15 @@ static AOM_INLINE void setup_qm_params(SequenceHeader *seq_params,
       seq_params->quantizer_matrix_8x8 = av1_alloc_qm(8, 8);
       seq_params->quantizer_matrix_8x4 = av1_alloc_qm(8, 4);
       seq_params->quantizer_matrix_4x8 = av1_alloc_qm(4, 8);
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+      // seq_params is &cm->seq_params and active_seq is pbi->active_seq.
+      // cm->seq_params is a copy of *pbi->active_seq. If we modify
+      // cm->seq_params here, keep *pbi->active_seq in sync.
+      active_seq->quantizer_matrix_8x8 = seq_params->quantizer_matrix_8x8;
+      active_seq->quantizer_matrix_8x4 = seq_params->quantizer_matrix_8x4;
+      active_seq->quantizer_matrix_4x8 = seq_params->quantizer_matrix_4x8;
+#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
+
       quant_params->qmatrix_allocated = true;
     }
     if (!quant_params->qmatrix_initialized) {
@@ -7493,7 +7503,13 @@ static AOM_INLINE void read_mfh_sb_size(MultiFrameHeader *mfh_params,
 #if CONFIG_MULTI_FRAME_HEADER
 void av1_read_multi_frame_header(AV1_COMMON *cm,
                                  struct aom_read_bit_buffer *rb) {
-  // TO DO: Adding a read seq_header_id_in_multi_frame_header here
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+  const uint32_t mfh_seq_header_id = aom_rb_read_uvlc(rb);
+  if (mfh_seq_header_id >= MAX_SEQ_NUM) {
+    aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                       "Unsupported Sequence Header ID in MFH");
+  }
+#endif  // #if CONFIG_CWG_E242_SEQ_HDR_ID
 #if CONFIG_CWG_E242_MFH_ID_UVLC
   uint32_t cur_mfh_id = aom_rb_read_uvlc(rb) + 1;
 #else
@@ -7506,7 +7522,9 @@ void av1_read_multi_frame_header(AV1_COMMON *cm,
   }
 
   MultiFrameHeader *mfh_param = &cm->mfh_params[cur_mfh_id];
-
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+  mfh_param->mfh_seq_header_id = (int)mfh_seq_header_id;
+#endif  // #if CONFIG_CWG_E242_SEQ_HDR_ID
 #if CONFIG_CWG_E242_PARSING_INDEP
   mfh_param->mfh_frame_size_present_flag = aom_rb_read_bit(rb);
 #if CONFIG_MFH_SIGNAL_TILE_INFO
@@ -8290,14 +8308,22 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   }
 #endif
 
-  if (!pbi->sequence_header_ready) {
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+  if (pbi->seq_header_count == 0) {
     aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                        "No sequence header");
   }
+#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
 
 #if CONFIG_CWG_F317
   cm->bridge_frame_info.bridge_frame_ref_idx = INVALID_IDX;
   if (cm->bridge_frame_info.is_bridge_frame) {
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+    // TODO(wtc): read seq_header_id_in_frame_header from the bitstream.
+    // For now, always use the first sequence header.
+    pbi->active_seq = &pbi->seq_list[0];
+    cm->seq_params = *pbi->active_seq;
+#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
     cm->bridge_frame_info.bridge_frame_ref_idx =
         aom_rb_read_literal(rb, seq_params->ref_frames_log2);
   } else {
@@ -8316,7 +8342,25 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // CONFIG_CWG_E242_MFH_ID_UVLC
     if (cm->cur_mfh_id == 0) {
       uint32_t seq_header_id_in_frame_header = aom_rb_read_uvlc(rb);
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+      bool seq_header_found = false;
+      int cm_seq_header_id = (int)seq_header_id_in_frame_header;
+      for (int i = 0; i < pbi->seq_header_count; i++) {
+        if (pbi->seq_list[i].seq_header_id == cm_seq_header_id) {
+          pbi->active_seq = &pbi->seq_list[i];
+          seq_header_found = true;
+          break;
+        }
+      }
+      if (!seq_header_found) {
+        aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                           "No sequence header found with id = %d",
+                           cm_seq_header_id);
+      }
+      cm->seq_params = *pbi->active_seq;
+#else
       (void)seq_header_id_in_frame_header;
+#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
       cm->mfh_params[cm->cur_mfh_id].mfh_frame_width =
           seq_params->max_frame_width;
       cm->mfh_params[cm->cur_mfh_id].mfh_frame_height =
@@ -8338,6 +8382,32 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                            "No multi-frame header with mfh_id %d",
                            cm->cur_mfh_id);
       }
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+      if (pbi->seq_header_count == 0) {
+        aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                           "No sequence header");
+      }
+      bool seq_header_found = false;
+      int cm_seq_header_id =
+#if CONFIG_MULTI_FRAME_HEADER
+          cm->mfh_params[cm->cur_mfh_id].mfh_seq_header_id;
+#else
+          0;
+#endif
+      for (int i = 0; i < pbi->seq_header_count; i++) {
+        if (pbi->seq_list[i].seq_header_id == cm_seq_header_id) {
+          pbi->active_seq = &pbi->seq_list[i];
+          seq_header_found = true;
+          break;
+        }
+      }
+      if (!seq_header_found) {
+        aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                           "No sequence header found with id = %d",
+                           cm_seq_header_id);
+      }
+      cm->seq_params = *pbi->active_seq;
+#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
     }
 #endif  // CONFIG_MULTI_FRAME_HEADER
 #if CONFIG_CWG_F317
@@ -9900,8 +9970,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
   setup_segmentation(cm, rb);
 
-  setup_qm_params(&cm->seq_params, quant_params, cm->seg.enabled,
-                  av1_num_planes(cm), rb);
+  setup_qm_params(&cm->seq_params,
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+                  pbi->active_seq,
+#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
+                  quant_params, cm->seg.enabled, av1_num_planes(cm), rb);
 
   cm->delta_q_info.delta_q_res = 1;
   cm->delta_q_info.delta_lf_res = 1;

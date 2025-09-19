@@ -33,6 +33,10 @@ extern "C" {
 #define MAX_DR_STACK_SIZE 4
 #define MAX_DR_PR_NUM 2
 
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+#define MAX_SEQ_NUM 16
+#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
+
 #if CONFIG_REDUCE_SYMBOL_SIZE
 // Macros related to joint shell signaling
 #define FIRST_SHELL_CLASS 8

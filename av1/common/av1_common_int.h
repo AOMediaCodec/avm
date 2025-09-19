@@ -905,6 +905,9 @@ typedef struct OperatingPointSet {
 // One exception is the last member 'op_params' that is ignored by
 // are_seq_headers_consistent() function.
 typedef struct SequenceHeader {
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+  int seq_header_id;
+#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
   int num_bits_width;
   int num_bits_height;
   int max_frame_width;
@@ -1365,6 +1368,12 @@ typedef struct {
  */
 #if CONFIG_MULTI_FRAME_HEADER
 typedef struct MultiFrameHeader {
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+  /*!
+   * Seq header id in multi frame header
+   */
+  int mfh_seq_header_id;
+#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
 #if CONFIG_CWG_E242_PARSING_INDEP
   /*!
    * Frame size present flag

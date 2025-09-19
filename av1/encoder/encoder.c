@@ -700,6 +700,11 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   cm->ops = &cpi->ops_list[0];
 #endif  // CONFIG_MULTILAYER_HLS
 
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+  seq_params->seq_header_id =
+      0;  // intentionally 0 for a single sequence bitstream
+#endif    // CONFIG_CWG_E242_SEQ_HDR_ID
+
   seq_params->profile = oxcf->profile;
   seq_params->bit_depth = oxcf->tool_cfg.bit_depth;
   seq_params->color_primaries = color_cfg->color_primaries;

@@ -6020,6 +6020,9 @@ static AOM_INLINE void write_multi_frame_header(
     AV1_COMP *cpi, const MultiFrameHeader *const mfh_param,
     struct aom_write_bit_buffer *wb) {
   AV1_COMMON *const cm = &cpi->common;
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+  aom_wb_write_uvlc(wb, mfh_param->mfh_seq_header_id);
+#endif  // #if CONFIG_CWG_E242_SEQ_HDR_ID
 #if CONFIG_CWG_E242_MFH_ID_UVLC
   aom_wb_write_uvlc(wb, cm->cur_mfh_id - 1);
 #else
@@ -7552,6 +7555,9 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
   struct aom_write_bit_buffer wb = { dst, 0 };
   uint32_t size = 0;
 
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+  aom_wb_write_uvlc(&wb, seq_params->seq_header_id);
+#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
   write_profile(seq_params->profile, &wb);
 
   aom_wb_write_literal(&wb, seq_params->num_bits_width - 1, 4);
@@ -8757,6 +8763,9 @@ static void set_multi_frame_header_with_keyframe(AV1_COMP *cpi,
   TileInfoSyntax *tile_params = &mfh_params->mfh_tile_params;
 #endif  // CONFIG_MFH_SIGNAL_TILE_INFO
 
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+  mfh_params->mfh_seq_header_id = 0;
+#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
   mfh_params->mfh_frame_size_present_flag =
       cm->width != cm->seq_params.max_frame_width ||
       cm->height != cm->seq_params.max_frame_height;

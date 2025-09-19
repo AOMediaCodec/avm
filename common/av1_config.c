@@ -335,6 +335,15 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
                                                  bitreader_error_handler };
   struct aom_read_bit_buffer *reader = &reader_instance;
 
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+  uint32_t seq_header_id = aom_rb_read_uvlc(reader);
+  if (seq_header_id >= MAX_SEQ_NUM) {
+    fprintf(stderr, "av1c: unsupported seq_header_id.\n");
+    return -1;
+  }
+  config->seq_header_id = seq_header_id;
+#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
+
   AV1C_READ_BITS_OR_RETURN_ERROR(seq_profile, 3);
   config->seq_profile = seq_profile;
 

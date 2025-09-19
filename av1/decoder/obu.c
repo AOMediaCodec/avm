@@ -194,11 +194,34 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
   // Verify rb has been configured to report errors.
   assert(rb->error_handler);
 
-  // Use a local variable to store the information as we decode. At the end,
-  // if no errors have occurred, cm->seq_params is updated.
+  // Use an element in the pbi->seq_list array to store the information as we
+  // decode. At the end, if no errors have occurred, cm->seq_params is updated.
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+  uint32_t seq_header_id = aom_rb_read_uvlc(rb);
+  if (seq_header_id >= MAX_SEQ_NUM) {
+    cm->error.error_code = AOM_CODEC_UNSUP_BITSTREAM;
+    return 0;
+  }
+  struct SequenceHeader *seq_params;
+  int seq_header_pos = -1;
+  for (int i = 0; i < pbi->seq_header_count; i++) {
+    if (pbi->seq_list[i].seq_header_id == (int)seq_header_id) {
+      seq_header_pos = i;
+      break;
+    }
+  }
+  if (seq_header_pos != -1) {
+    seq_params = &pbi->seq_list[seq_header_pos];
+  } else {
+    assert(pbi->seq_header_count < MAX_SEQ_NUM);
+    seq_params = &pbi->seq_list[pbi->seq_header_count];
+    pbi->seq_header_count++;
+  }
+  seq_params->seq_header_id = seq_header_id;
+#else
   SequenceHeader sh = cm->seq_params;
   SequenceHeader *const seq_params = &sh;
-
+#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
   seq_params->profile = av1_read_profile(rb);
   if (seq_params->profile > CONFIG_MAX_DECODE_PROFILE) {
     cm->error.error_code = AOM_CODEC_UNSUP_BITSTREAM;

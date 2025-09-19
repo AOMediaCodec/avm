@@ -435,6 +435,22 @@ typedef struct AV1Decoder {
   struct OperatingPointSet ops_list[MAX_NUM_OPS_ID];
   int ops_counter;
 #endif  // CONFIG_MULTILAYER_HLS
+
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+  /*!
+   * list of sequence headers
+   */
+  struct SequenceHeader seq_list[MAX_SEQ_NUM];
+  /*!
+   * counter for sequence headers
+   */
+  int seq_header_count;
+  /*!
+   * active sequence header for the frame
+   */
+  struct SequenceHeader *active_seq;
+#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
+
 } AV1Decoder;
 
 // Returns 0 on success. Sets pbi->common.error.error_code to a nonzero error
