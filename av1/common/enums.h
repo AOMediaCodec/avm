@@ -146,7 +146,7 @@ enum {
 // Cross-Component Sample Offset (CCSO)
 #define CCSO_BLK_SIZE MAX_SB_SIZE_LOG2
 #define CCSO_PADDING_SIZE 5
-#define CCSO_BAND_NUM 128
+#define CCSO_BAND_NUM 64
 #define CCSO_NUM_COMPONENTS 3
 
 #if MHCCP_RUNTIME_FLAG
