@@ -4532,7 +4532,8 @@ static AOM_INLINE void encode_ccso(const AV1_COMMON *cm,
           aom_wb_write_literal(wb, cm->ccso_info.ccso_bo_only[plane], 1);
           aom_wb_write_literal(wb, cm->ccso_info.scale_idx[plane], 2);
           if (cm->ccso_info.ccso_bo_only[plane]) {
-            assert(cm->ccso_info.max_band_log2[plane] <= compute_log2(CCSO_BAND_NUM));
+            assert(cm->ccso_info.max_band_log2[plane] <=
+                   compute_log2(CCSO_BAND_NUM));
             aom_wb_write_literal(wb, cm->ccso_info.max_band_log2[plane], 3);
           } else {
             aom_wb_write_literal(wb, cm->ccso_info.quant_idx[plane], 2);
