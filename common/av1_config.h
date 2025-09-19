@@ -58,7 +58,7 @@ typedef struct _Av1Config {
 #else
   uint8_t high_bitdepth;
   uint8_t twelve_bit;
-#endif // CONFIG_CWG_E242_BITDEPTH
+#endif  // CONFIG_CWG_E242_BITDEPTH
   uint8_t monochrome;
   uint8_t chroma_subsampling_x;
   uint8_t chroma_subsampling_y;

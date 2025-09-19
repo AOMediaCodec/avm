@@ -6267,7 +6267,7 @@ static AOM_INLINE void read_bitdepth(
   } else if (seq_params->profile <= PROFILE_2) {
     seq_params->bit_depth = high_bitdepth ? AOM_BITS_10 : AOM_BITS_8;
   }
-#endif // CONFIG_CWG_E242_BITDEPTH
+#endif  // CONFIG_CWG_E242_BITDEPTH
   else {
     aom_internal_error(error_info, AOM_CODEC_UNSUP_BITSTREAM,
                        "Unsupported profile/bit-depth combination");

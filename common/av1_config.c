@@ -468,7 +468,7 @@ int read_av1config(const uint8_t *buffer, size_t buffer_length,
 
   AV1C_READ_BIT_OR_RETURN_ERROR(seq_tier_0);
   config->seq_tier_0 = seq_tier_0;
-  
+
 #if CONFIG_CWG_E242_BITDEPTH
   AV1C_UVLC_READ_BITS_OR_RETURN_ERROR(bitdepth_idx);
   config->bitdepth_idx = bitdepth_idx;
@@ -478,7 +478,7 @@ int read_av1config(const uint8_t *buffer, size_t buffer_length,
 
   AV1C_READ_BIT_OR_RETURN_ERROR(twelve_bit);
   config->twelve_bit = twelve_bit;
-#endif // CONFIG_CWG_E242_BITDEPTH
+#endif  // CONFIG_CWG_E242_BITDEPTH
 
   AV1C_READ_BIT_OR_RETURN_ERROR(monochrome);
   config->monochrome = monochrome;

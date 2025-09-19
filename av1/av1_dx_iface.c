@@ -197,7 +197,7 @@ static aom_codec_err_t parse_bitdepth(struct aom_read_bit_buffer *rb,
                                       BITSTREAM_PROFILE profile,
                                       aom_bit_depth_t *bit_depth) {
 #if CONFIG_CWG_E242_BITDEPTH
-  (void) profile;
+  (void)profile;
   int bitdepth_lut_idx = aom_rb_read_uvlc(rb);
   if (bitdepth_lut_idx == 0)
     *bit_depth = AOM_BITS_10;
@@ -217,7 +217,7 @@ static aom_codec_err_t parse_bitdepth(struct aom_read_bit_buffer *rb,
     // Unsupported profile/bit-depth combination
     return AOM_CODEC_UNSUP_BITSTREAM;
   }
-#endif // CONFIG_CWG_E242_BITDEPTH
+#endif  // CONFIG_CWG_E242_BITDEPTH
   return AOM_CODEC_OK;
 }
 

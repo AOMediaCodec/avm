@@ -5092,7 +5092,7 @@ static AOM_INLINE void write_bitdepth(const SequenceHeader *const seq_params,
   if (seq_params->profile == PROFILE_2 && seq_params->bit_depth != AOM_BITS_8) {
     aom_wb_write_bit(wb, seq_params->bit_depth == AOM_BITS_10 ? 0 : 1);
   }
-#endif // CONFIG_CWG_E242_BITDEPTH
+#endif  // CONFIG_CWG_E242_BITDEPTH
 }
 
 static AOM_INLINE void write_color_config(
