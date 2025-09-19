@@ -67,7 +67,12 @@ extern "C" {
 int av1_cdef_compute_sb_list(const AV1_COMMON *const cm,
                              const CommonModeInfoParams *const mi_params,
                              int mi_row, int mi_col, cdef_list *dlist,
-                             BLOCK_SIZE bsize);
+                             BLOCK_SIZE bsize
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+                             ,
+                             int num_planes
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+);
 
 static INLINE int fetch_cdef_mi_grid_index(const AV1_COMMON *const cm,
                                            const MACROBLOCKD *const xd) {

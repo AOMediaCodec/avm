@@ -42,6 +42,9 @@ extern const int (*const cdef_directions)[2];
 typedef struct {
   uint8_t by;
   uint8_t bx;
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+  uint8_t chroma_lossless;
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 } cdef_list;
 
 typedef void (*cdef_filter_block_func)(uint16_t *const dest, int dstride,
