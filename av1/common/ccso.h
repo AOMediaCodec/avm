@@ -55,15 +55,6 @@ void cal_filter_support(int *rec_luma_idx, const uint16_t *rec_y,
 void derive_ccso_sample_pos(int *rec_idx, const int ccso_stride,
                             const uint8_t ext_filter_support);
 
-/* Apply CCSO on one color component */
-typedef void (*CCSO_FILTER_FUNC)(AV1_COMMON *cm, MACROBLOCKD *xd,
-                                 const int plane, const uint16_t *src_y,
-                                 uint16_t *dst_yuv, const int dst_stride,
-                                 const int proc_unit_log2, const uint16_t thr,
-                                 const uint8_t filter_sup,
-                                 const uint8_t max_band_log2,
-                                 const int edge_clf);
-
 void ccso_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm, MACROBLOCKD *xd,
                 uint16_t *ext_rec_y);
 
