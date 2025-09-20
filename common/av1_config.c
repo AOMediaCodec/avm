@@ -191,12 +191,14 @@ static int parse_color_config(struct aom_read_bit_buffer *reader,
 #endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
 #if CONFIG_CWG_E242_BITDEPTH
-  int bit_depth = 0;
-  if (config->bitdepth_idx == 0)
-    bit_depth = AOM_BITS_10;
-  else if (config->bitdepth_idx == 1)
-    bit_depth = AOM_BITS_8;
-  else
+  AV1C_UVLC_READ_BITS_OR_RETURN_ERROR(bitdepth_idx);
+  config->bitdepth_idx = bitdepth_idx;
+  int bit_depth;
+  if (bitdepth_idx == 0) {
+    bit_depth = 10;
+  } else if (bitdepth_idx == 1) {
+    bit_depth = 8;
+  } else
     return AOM_CODEC_UNSUP_BITSTREAM;
 #else
   AV1C_READ_BIT_OR_RETURN_ERROR(high_bitdepth);
