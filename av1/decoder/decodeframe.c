@@ -6250,15 +6250,26 @@ static AOM_INLINE void error_handler(void *data) {
 // seq_params->bit_depth based on the values of those fields and
 // seq_params->profile. Reports errors by calling rb->error_handler() or
 // aom_internal_error().
+#if CONFIG_CWG_E242_BITDEPTH
+int av1_get_bitdepth(int bitdepth_lut_idx) {
+  int bitdepth = -1;
+  switch (bitdepth_lut_idx) {
+    case AOM_BITDEPTH_0: bitdepth = AOM_BITS_10; break;
+    case AOM_BITDEPTH_1: bitdepth = AOM_BITS_8; break;
+    case AOM_BITDEPTH_2: bitdepth = AOM_BITS_12; break;
+    case AOM_BITDEPTH_3: bitdepth = AOM_BITS_16; break;
+    default: break;
+  }
+  return bitdepth;
+}
+#endif  // CONFIG_CWG_E242_BITDEPTH
 static AOM_INLINE void read_bitdepth(
     struct aom_read_bit_buffer *rb, SequenceHeader *seq_params,
     struct aom_internal_error_info *error_info) {
 #if CONFIG_CWG_E242_BITDEPTH
   int bitdepth_lut_idx = aom_rb_read_uvlc(rb);
-  if (bitdepth_lut_idx == 0)
-    seq_params->bit_depth = AOM_BITS_10;
-  else if (bitdepth_lut_idx == 1)
-    seq_params->bit_depth = AOM_BITS_8;
+  int bitdepth = av1_get_bitdepth(bitdepth_lut_idx);
+  if (bitdepth >= 0) seq_params->bit_depth = bitdepth;
 #else
   const int high_bitdepth = aom_rb_read_bit(rb);
   if (seq_params->profile == PROFILE_2 && high_bitdepth) {

@@ -324,8 +324,29 @@ typedef enum aom_bit_depth {
   AOM_BITS_8 = 8,   /**<  8 bits */
   AOM_BITS_10 = 10, /**< 10 bits */
   AOM_BITS_12 = 12, /**< 12 bits */
+#if CONFIG_CWG_E242_BITDEPTH
+  AOM_BITS_16 = 16, /**< 16 bits */
+#endif              // CONFIG_CWG_E242_BITDEPTH
 } aom_bit_depth_t;
 
+#if CONFIG_CWG_E242_BITDEPTH
+/*!\brief Bit depth index
+ * *
+ * The index correponds with each bitepth
+ */
+enum {
+  AOM_BITDEPTH_0 = 0, /**< 10 bits */
+  AOM_BITDEPTH_1 = 1, /**< 8 bits */
+  AOM_BITDEPTH_2 = 2, /**< 12 bits */
+  AOM_BITDEPTH_3 = 3, /**< 16 bits */
+};
+
+/*!\brief Return the bitdepth
+ *
+ * Return the bitdepth corresponding to index
+ */
+int av1_get_bitdepth(int bitdepth_lut_idx);
+#endif  // CONFIG_CWG_E242_BITDEPTH
 /*!\brief Superblock size selection.
  *
  * Defines the superblock size used for encoding. The superblock size can

@@ -199,13 +199,11 @@ static aom_codec_err_t parse_bitdepth(struct aom_read_bit_buffer *rb,
 #if CONFIG_CWG_E242_BITDEPTH
   (void)profile;
   int bitdepth_lut_idx = aom_rb_read_uvlc(rb);
-  if (bitdepth_lut_idx == 0)
-    *bit_depth = AOM_BITS_10;
-  else if (bitdepth_lut_idx == 1)
-    *bit_depth = AOM_BITS_8;
-  else
-    // unsupported bit_depth
+  int bitdepth = av1_get_bitdepth(bitdepth_lut_idx);
+  if (bitdepth < 0)
     return AOM_CODEC_UNSUP_BITSTREAM;
+  else
+    *bit_depth = (aom_bit_depth_t)bitdepth;
 #else
   const int high_bitdepth = aom_rb_read_bit(rb);
   if (profile == PROFILE_2 && high_bitdepth) {
