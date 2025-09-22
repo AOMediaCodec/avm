@@ -178,7 +178,19 @@ static int parse_operating_parameters_info(struct aom_read_bit_buffer *reader,
   AV1C_POP_ERROR_HANDLER_DATA();
   return result;
 }
-
+#if CONFIG_CWG_E242_BITDEPTH
+static int get_bitdepth(int bitdepth_lut_idx) {
+  int bitdepth = -1;
+  switch (bitdepth_lut_idx) {
+    case AOM_BITDEPTH_0: bitdepth = AOM_BITS_10; break;
+    case AOM_BITDEPTH_1: bitdepth = AOM_BITS_8; break;
+    case AOM_BITDEPTH_2: bitdepth = AOM_BITS_12; break;
+    case AOM_BITDEPTH_3: bitdepth = AOM_BITS_16; break;
+    default: break;
+  }
+  return bitdepth;
+}
+#endif  // CONFIG_CWG_E242_BITDEPTH
 // Parse the AV1 color_config() structure..See:
 // https://aomediacodec.github.io/av1-spec/av1-spec.pdf#page=44
 static int parse_color_config(struct aom_read_bit_buffer *reader,
@@ -193,7 +205,7 @@ static int parse_color_config(struct aom_read_bit_buffer *reader,
 #if CONFIG_CWG_E242_BITDEPTH
   AV1C_UVLC_READ_BITS_OR_RETURN_ERROR(bitdepth_idx);
   config->bitdepth_idx = bitdepth_idx;
-  int bit_depth = av1_get_bitdepth((int)config->bitdepth_idx);
+  int bit_depth = get_bitdepth((int)config->bitdepth_idx);
   if (bit_depth < 0) return AOM_CODEC_UNSUP_BITSTREAM;
 #else
   AV1C_READ_BIT_OR_RETURN_ERROR(high_bitdepth);
