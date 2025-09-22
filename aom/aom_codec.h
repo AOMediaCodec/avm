@@ -568,7 +568,7 @@ typedef enum ATTRIBUTE_PACKED {
 #endif  // !CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER
 #endif  // !CONFIG_F106_OBU_TILEGROUP
 #if CONFIG_MULTILAYER_HLS
-  // TODO: (@hegilmez) order can change in the final design
+  // TODO(hegilmez) order can change in the final design
   OBU_LAYER_CONFIGURATION_RECORD = 9,
   OBU_ATLAS_SEGMENT = 10,
   OBU_OPERATING_POINT_SET = 11,

@@ -42,7 +42,7 @@ int set_lcr_params(AV1_COMP *cpi, struct LayerConfigurationRecord *lcr,
   return 0;
 }
 
-// TODO: (@hegilmez) to be specified, depending on profile, tier definitions
+// TODO(hegilmez) to be specified, depending on profile, tier definitions
 int write_lcr_profile_tier_level(int isGlobal, int xId) {
 #if CONFIG_MULTILAYER_HLS_REMOVE_LOGS
   (void)isGlobal;

@@ -22,7 +22,7 @@
 #include "av1/decoder/obu.h"
 #include "av1/common/enums.h"
 
-// TODO: (@hegilmez) to be specified, depending on profile, tier definitions
+// TODO(hegilmez) to be specified, depending on profile, tier definitions
 int read_lcr_profile_tier_level(int isGlobal, int xId) {
 #if CONFIG_MULTILAYER_HLS_REMOVE_LOGS
   (void)isGlobal;
