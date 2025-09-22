@@ -5017,7 +5017,7 @@ static AOM_INLINE void write_render_size(const AV1_COMMON *cm,
     aom_wb_write_literal(wb, cm->render_height - 1, 16);
   }
 }
-#endif
+#endif  // !CONFIG_CWG_F248_RENDER_SIZE
 static AOM_INLINE void write_frame_size(const AV1_COMMON *cm,
                                         int frame_size_override,
                                         struct aom_write_bit_buffer *wb) {
