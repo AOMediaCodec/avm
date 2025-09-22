@@ -936,13 +936,9 @@ typedef struct SequenceHeader {
   uint8_t enable_cfl_intra;  // enables/disables CFL
 #endif                       // CONFIG_CWG_F307_CFL_SEQ_FLAG
 #if MHCCP_RUNTIME_FLAG
-  uint8_t enable_mhccp;  // enables/disables MHCCP
-#endif                   // MHCCP_RUNTIME_FLAG
-#if CONFIG_TX64_SEQ_FLAG
-  uint8_t
-      enable_t64_resample;   // enables/disables t64 based on t32 w/ resampling
-#endif                       // CONFIG_TX64_SEQ_FLAG
-  uint8_t enable_inter_ddt;  // enables/disables inter data-driven transform
+  uint8_t enable_mhccp;         // enables/disables MHCCP
+#endif                          // MHCCP_RUNTIME_FLAG
+  uint8_t enable_inter_ddt;     // enables/disables inter data-driven transform
   uint8_t reduced_tx_part_set;  // use reduced transform block partition set
   uint8_t enable_cctx;  // enables/disables cross-chroma component transform
   uint8_t enable_ibp;   // enables/disables intra bi-prediction(IBP)

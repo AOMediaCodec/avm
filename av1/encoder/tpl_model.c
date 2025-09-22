@@ -175,12 +175,7 @@ static AOM_INLINE void txfm_quant_rdcost(
     const MACROBLOCK *x, int16_t *src_diff, int diff_stride, uint16_t *src,
     int src_stride, uint16_t *dst, int dst_stride, tran_low_t *coeff,
     tran_low_t *qcoeff, tran_low_t *dqcoeff, int bw, int bh, TX_SIZE tx_size,
-    int *rate_cost, int64_t *recon_error, int64_t *sse
-#if CONFIG_TX64_SEQ_FLAG
-    ,
-    int enable_t64_resample
-#endif  // CONFIG_TX64_SEQ_FLAG
-) {
+    int *rate_cost, int64_t *recon_error, int64_t *sse) {
   const MACROBLOCKD *xd = &x->e_mbd;
   uint16_t eob;
   tpl_subtract_block(xd, bh, bw, src_diff, diff_stride, src, src_stride, dst,
@@ -193,12 +188,7 @@ static AOM_INLINE void txfm_quant_rdcost(
   *rate_cost = rate_estimator(qcoeff, eob, tx_size);
 
   av1_inverse_transform_block(xd, dqcoeff, 0, DCT_DCT, tx_size, dst, dst_stride,
-                              eob, 0, 0
-#if CONFIG_TX64_SEQ_FLAG
-                              ,
-                              enable_t64_resample
-#endif  // CONFIG_TX64_SEQ_FLAG
-  );
+                              eob, 0, 0);
 }
 
 static uint32_t motion_estimation(AV1_COMP *cpi, MACROBLOCK *x,
@@ -584,12 +574,7 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
   int rate_cost;
   txfm_quant_rdcost(x, src_diff, bw, src_mb_buffer, src_stride, dst_buffer,
                     dst_buffer_stride, coeff, qcoeff, dqcoeff, bw, bh, tx_size,
-                    &rate_cost, &recon_error, &sse
-#if CONFIG_TX64_SEQ_FLAG
-                    ,
-                    cm->seq_params.enable_t64_resample
-#endif  // CONFIG_TX64_SEQ_FLAG
-  );
+                    &rate_cost, &recon_error, &sse);
 
   tpl_stats->recrf_dist = recon_error << (TPL_DEP_COST_SCALE_LOG2);
   tpl_stats->recrf_rate = rate_cost << TPL_DEP_COST_SCALE_LOG2;

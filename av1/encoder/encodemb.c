@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (c) 2021, Alliance for Open Media. All rights reserved
  *
  * This source code is subject to the terms of the BSD 3-Clause Clear License
@@ -777,12 +777,9 @@ void av1_setup_xform(const AV1_COMMON *cm, MACROBLOCK *x, int plane,
   MB_MODE_INFO *const mbmi = xd->mi[0];
 
   txfm_param->tx_type = get_primary_tx_type(tx_type);
-#if CONFIG_CHROMA_LARGE_TX && (!CONFIG_TX64 || CONFIG_TX64_SEQ_FLAG)
+#if CONFIG_CHROMA_LARGE_TX && !CONFIG_TX64
   txfm_param->plane_type = get_plane_type(plane);
-#if CONFIG_TX64_SEQ_FLAG
-  txfm_param->t64resample = cm->seq_params.enable_t64_resample;
-#endif  // CONFIG_TX64_SEQ_FLAG
-#endif  // CONFIG_CHROMA_LARGE_TX && (!CONFIG_TX64 || CONFIG_TX64_SEQ_FLAG)
+#endif  // CONFIG_CHROMA_LARGE_TX && !CONFIG_TX64
   txfm_param->sec_tx_set = 0;
   txfm_param->sec_tx_set_idx = 0;
   txfm_param->sec_tx_type = 0;
@@ -1055,12 +1052,7 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
           pd_c1->dst.stride, max_chroma_eob,
           replace_adst_by_ddt(cm->seq_params.enable_inter_ddt,
                               cm->features.allow_screen_content_tools, xd),
-          cm->features.reduced_tx_set_used
-#if CONFIG_TX64_SEQ_FLAG
-          ,
-          cm->seq_params.enable_t64_resample
-#endif  // CONFIG_TX64_SEQ_FLAG
-      );
+          cm->features.reduced_tx_set_used);
     }
   }
 
@@ -1073,12 +1065,7 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
             : max_chroma_eob,
         replace_adst_by_ddt(cm->seq_params.enable_inter_ddt,
                             cm->features.allow_screen_content_tools, xd),
-        cm->features.reduced_tx_set_used
-#if CONFIG_TX64_SEQ_FLAG
-        ,
-        cm->seq_params.enable_t64_resample
-#endif  // CONFIG_TX64_SEQ_FLAG
-    );
+        cm->features.reduced_tx_set_used);
   }
 
   // TODO(debargha, jingning): Temporarily disable txk_type check for eob=0
@@ -1623,12 +1610,7 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
         xd, dqcoeff, plane, tx_type, tx_size, dst, dst_stride, *eob,
         replace_adst_by_ddt(cm->seq_params.enable_inter_ddt,
                             cm->features.allow_screen_content_tools, xd),
-        cm->features.reduced_tx_set_used
-#if CONFIG_TX64_SEQ_FLAG
-        ,
-        cm->seq_params.enable_t64_resample
-#endif  // CONFIG_TX64_SEQ_FLAG
-    );
+        cm->features.reduced_tx_set_used);
   }
 
   // TODO(jingning): Temporarily disable txk_type check for eob=0 case.
@@ -1977,23 +1959,13 @@ void av1_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
         AOMMAX(*eob_c1, *eob_c2),
         replace_adst_by_ddt(cm->seq_params.enable_inter_ddt,
                             cm->features.allow_screen_content_tools, xd),
-        cm->features.reduced_tx_set_used
-#if CONFIG_TX64_SEQ_FLAG
-        ,
-        cm->seq_params.enable_t64_resample
-#endif  // CONFIG_TX64_SEQ_FLAG
-    );
+        cm->features.reduced_tx_set_used);
     av1_inverse_transform_block(
         xd, dqcoeff_c2, AOM_PLANE_V, tx_type, tx_size, dst_c2, dst_stride,
         AOMMAX(*eob_c1, *eob_c2),
         replace_adst_by_ddt(cm->seq_params.enable_inter_ddt,
                             cm->features.allow_screen_content_tools, xd),
-        cm->features.reduced_tx_set_used
-#if CONFIG_TX64_SEQ_FLAG
-        ,
-        cm->seq_params.enable_t64_resample
-#endif  // CONFIG_TX64_SEQ_FLAG
-    );
+        cm->features.reduced_tx_set_used);
   }
 
   if (args->dry_run == OUTPUT_ENABLED) {

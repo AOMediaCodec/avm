@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (c) 2021, Alliance for Open Media. All rights reserved
  *
  * This source code is subject to the terms of the BSD 3-Clause Clear License
@@ -909,12 +909,7 @@ static AOM_INLINE void PrintPredictionUnitStats(const AV1_COMP *const cpi,
 
 static AOM_INLINE void inverse_transform_block_facade(
     MACROBLOCK *const x, int plane, int block, int blk_row, int blk_col,
-    int eob, TX_SIZE tx_size, int use_ddt, int reduced_tx_set
-#if CONFIG_TX64_SEQ_FLAG
-    ,
-    int enable_t64_resample
-#endif  // CONFIG_TX64_SEQ_FLAG
-) {
+    int eob, TX_SIZE tx_size, int use_ddt, int reduced_tx_set) {
   if (!eob) return;
   struct macroblock_plane *const p = &x->plane[plane];
   MACROBLOCKD *const xd = &x->e_mbd;
@@ -928,12 +923,7 @@ static AOM_INLINE void inverse_transform_block_facade(
   uint16_t *dst =
       &pd->dst.buf[(blk_row * dst_stride + blk_col) << MI_SIZE_LOG2];
   av1_inverse_transform_block(xd, dqcoeff, plane, tx_type, tx_size, dst,
-                              dst_stride, eob, use_ddt, reduced_tx_set
-#if CONFIG_TX64_SEQ_FLAG
-                              ,
-                              enable_t64_resample
-#endif  // CONFIG_TX64_SEQ_FLAG
-  );
+                              dst_stride, eob, use_ddt, reduced_tx_set);
 }
 
 static INLINE void recon_intra(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
@@ -1012,34 +1002,19 @@ static INLINE void recon_intra(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
           x, AOM_PLANE_U, block, blk_row, blk_col, max_chroma_eob, tx_size,
           replace_adst_by_ddt(cm->seq_params.enable_inter_ddt,
                               cm->features.allow_screen_content_tools, xd),
-          cm->features.reduced_tx_set_used
-#if CONFIG_TX64_SEQ_FLAG
-          ,
-          cm->seq_params.enable_t64_resample
-#endif  // CONFIG_TX64_SEQ_FLAG
-      );
+          cm->features.reduced_tx_set_used);
       inverse_transform_block_facade(
           x, AOM_PLANE_V, block, blk_row, blk_col, max_chroma_eob, tx_size,
           replace_adst_by_ddt(cm->seq_params.enable_inter_ddt,
                               cm->features.allow_screen_content_tools, xd),
-          cm->features.reduced_tx_set_used
-#if CONFIG_TX64_SEQ_FLAG
-          ,
-          cm->seq_params.enable_t64_resample
-#endif  // CONFIG_TX64_SEQ_FLAG
-      );
+          cm->features.reduced_tx_set_used);
     } else if (plane == AOM_PLANE_Y) {
       inverse_transform_block_facade(
           x, plane, block, blk_row, blk_col, x->plane[plane].eobs[block],
           tx_size,
           replace_adst_by_ddt(cm->seq_params.enable_inter_ddt,
                               cm->features.allow_screen_content_tools, xd),
-          cm->features.reduced_tx_set_used
-#if CONFIG_TX64_SEQ_FLAG
-          ,
-          cm->seq_params.enable_t64_resample
-#endif  // CONFIG_TX64_SEQ_FLAG
-      );
+          cm->features.reduced_tx_set_used);
     }
 
     // This may happen because of hash collision. The eob stored in the hash
@@ -1134,12 +1109,7 @@ static INLINE int64_t dist_block_px_domain(const AV1_COMP *cpi, MACROBLOCK *x,
       xd, dqcoeff, plane, tx_type, tx_size, recon, MAX_TX_SIZE, eob,
       replace_adst_by_ddt(cpi->common.seq_params.enable_inter_ddt,
                           cpi->common.features.allow_screen_content_tools, xd),
-      cpi->common.features.reduced_tx_set_used
-#if CONFIG_TX64_SEQ_FLAG
-      ,
-      cpi->common.seq_params.enable_t64_resample
-#endif  // CONFIG_TX64_SEQ_FLAG
-  );
+      cpi->common.features.reduced_tx_set_used);
 
   return 16 * pixel_dist(cpi, x, plane, src, src_stride, recon, MAX_TX_SIZE,
                          blk_row, blk_col, tx_bsize);
@@ -1206,23 +1176,13 @@ static INLINE int64_t joint_uv_dist_block_px_domain(const AV1_COMP *cpi,
       max_chroma_eob,
       replace_adst_by_ddt(cpi->common.seq_params.enable_inter_ddt,
                           cpi->common.features.allow_screen_content_tools, xd),
-      cpi->common.features.reduced_tx_set_used
-#if CONFIG_TX64_SEQ_FLAG
-      ,
-      cpi->common.seq_params.enable_t64_resample
-#endif  // CONFIG_TX64_SEQ_FLAG
-  );
+      cpi->common.features.reduced_tx_set_used);
   av1_inverse_transform_block(
       xd, tmp_dqcoeff_c2, AOM_PLANE_V, tx_type, tx_size, recon_c2, MAX_TX_SIZE,
       max_chroma_eob,
       replace_adst_by_ddt(cpi->common.seq_params.enable_inter_ddt,
                           cpi->common.features.allow_screen_content_tools, xd),
-      cpi->common.features.reduced_tx_set_used
-#if CONFIG_TX64_SEQ_FLAG
-      ,
-      cpi->common.seq_params.enable_t64_resample
-#endif  // CONFIG_TX64_SEQ_FLAG
-  );
+      cpi->common.features.reduced_tx_set_used);
   aom_free(tmp_dqcoeff_c1);
   aom_free(tmp_dqcoeff_c2);
 

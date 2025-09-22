@@ -108,9 +108,6 @@ int parse_cfg(const char *file, cfg_options_t *config) {
     GET_PARAMS(enable_ist);
     GET_PARAMS(enable_inter_ist);
     GET_PARAMS(enable_chroma_dctonly);
-#if CONFIG_TX64_SEQ_FLAG
-    GET_PARAMS(enable_t64_resample);
-#endif  // CONFIG_TX64_SEQ_FLAG
     GET_PARAMS(enable_inter_ddt);
     GET_PARAMS(enable_cctx);
     GET_PARAMS(enable_ibp);

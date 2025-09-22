@@ -453,11 +453,6 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .enable_chroma_dctonly = ARG_DEF(NULL, "enable-chroma-dctonly", 1,
                                    "Enable only DCT for chroma"
                                    "(0: false (default), 1: true)"),
-#if CONFIG_TX64_SEQ_FLAG
-  .enable_t64_resample = ARG_DEF(NULL, "enable-t64-resample", 1,
-                                 "Enable T64 based on T32 w/ resampling"
-                                 "(0: false (default), 1: true)"),
-#endif  // CONFIG_TX64_SEQ_FLAG
   .enable_inter_ddt = ARG_DEF(NULL, "enable-inter-ddt", 1,
                               "Enable inter data-driven transform"
                               "(0: false, 1: true (default))"),

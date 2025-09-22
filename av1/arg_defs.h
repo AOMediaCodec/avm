@@ -167,9 +167,6 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t enable_ist;
   arg_def_t enable_inter_ist;
   arg_def_t enable_chroma_dctonly;
-#if CONFIG_TX64_SEQ_FLAG
-  arg_def_t enable_t64_resample;
-#endif  // CONFIG_TX64_SEQ_FLAG
   arg_def_t enable_inter_ddt;
   arg_def_t enable_cctx;
   arg_def_t enable_ibp;

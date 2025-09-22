@@ -149,14 +149,11 @@ struct av1_extracfg {
   int enable_ist;             // enable intra secondary transform
   int enable_inter_ist;       // enable inter secondary transform
   int enable_chroma_dctonly;  // enable dct only for chroma
-#if CONFIG_TX64_SEQ_FLAG
-  int enable_t64_resample;  // enable t64 based on t32 w/ resampling
-#endif                      // CONFIG_TX64_SEQ_FLAG
-  int enable_inter_ddt;     // enable inter data-driven transform
-  int enable_cctx;          // enable cross-chroma component transform
-  int enable_ibp;           // enable intra bi-prediction
-  int enable_adaptive_mvd;  // enable adaptive MVD resolution
-  int enable_flex_mvres;    // enable flexible MV resolution
+  int enable_inter_ddt;       // enable inter data-driven transform
+  int enable_cctx;            // enable cross-chroma component transform
+  int enable_ibp;             // enable intra bi-prediction
+  int enable_adaptive_mvd;    // enable adaptive MVD resolution
+  int enable_flex_mvres;      // enable flexible MV resolution
 
   int select_cfl_ds_filter;  // select adaptive downsample filter
 
@@ -496,9 +493,6 @@ static struct av1_extracfg default_extra_cfg = {
   1,    // enable intra secondary transform
   1,    // enable inter secondary transform
   0,    // enable DCT only for chroma
-#if CONFIG_TX64_SEQ_FLAG
-  0,    // enable T64 based on T32 w/ resampling
-#endif  // CONFIG_TX64_SEQ_FLAG
   1,    // enable inter data-driven transform
   1,    // enable cross-chroma component transform
   1,    // enable intra bi-prediction
@@ -1013,9 +1007,6 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_ist = extra_cfg->enable_ist;
   cfg->enable_inter_ist = extra_cfg->enable_inter_ist;
   cfg->enable_chroma_dctonly = extra_cfg->enable_chroma_dctonly;
-#if CONFIG_TX64_SEQ_FLAG
-  cfg->enable_t64_resample = extra_cfg->enable_t64_resample;
-#endif  // CONFIG_TX64_SEQ_FLAG
   cfg->enable_inter_ddt = extra_cfg->enable_inter_ddt;
   cfg->enable_cctx = extra_cfg->enable_cctx;
   cfg->enable_ibp = extra_cfg->enable_ibp;
@@ -1144,9 +1135,6 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_ist = cfg->enable_ist;
   extra_cfg->enable_inter_ist = cfg->enable_inter_ist;
   extra_cfg->enable_chroma_dctonly = cfg->enable_chroma_dctonly;
-#if CONFIG_TX64_SEQ_FLAG
-  extra_cfg->enable_t64_resample = cfg->enable_t64_resample;
-#endif  // CONFIG_TX64_SEQ_FLAG
   extra_cfg->enable_inter_ddt = cfg->enable_inter_ddt;
   extra_cfg->enable_cctx = cfg->enable_cctx;
   extra_cfg->enable_ibp = cfg->enable_ibp;
@@ -1831,9 +1819,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
       extra_cfg->enable_inter_ist && !extra_cfg->lossless;
   txfm_cfg->enable_chroma_dctonly =
       extra_cfg->enable_chroma_dctonly && !extra_cfg->lossless;
-#if CONFIG_TX64_SEQ_FLAG
-  txfm_cfg->enable_t64_resample = extra_cfg->enable_t64_resample;
-#endif  // CONFIG_TX64_SEQ_FLAG
   txfm_cfg->enable_inter_ddt =
       extra_cfg->enable_inter_ddt && !extra_cfg->lossless;
   txfm_cfg->enable_cctx =
@@ -4181,11 +4166,6 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_chroma_dctonly,
                               argv, err_string)) {
     extra_cfg.enable_chroma_dctonly = arg_parse_int_helper(&arg, err_string);
-#if CONFIG_TX64_SEQ_FLAG
-  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_t64_resample,
-                              argv, err_string)) {
-    extra_cfg.enable_t64_resample = arg_parse_int_helper(&arg, err_string);
-#endif  // CONFIG_TX64_SEQ_FLAG
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_inter_ddt,
                               argv, err_string)) {
     extra_cfg.enable_inter_ddt = arg_parse_int_helper(&arg, err_string);
@@ -4740,9 +4720,6 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         1,  // IST
         1,  // inter IST
         0,  // chroma DCT only
-#if CONFIG_TX64_SEQ_FLAG
-        0,  // enable_t64_resample
-#endif      // CONFIG_TX64_SEQ_FLAG
         1,  // inter DDT
         1,  // enable_cctx
         1,   1, 1,
