@@ -193,7 +193,7 @@ static int parse_color_config(struct aom_read_bit_buffer *reader,
 #if CONFIG_CWG_E242_BITDEPTH
   AV1C_UVLC_READ_BITS_OR_RETURN_ERROR(bitdepth_idx);
   config->bitdepth_idx = bitdepth_idx;
-  int bit_depth = av1_get_bitdepth(config->bitdepth_idx);
+  int bit_depth = av1_get_bitdepth((int)config->bitdepth_idx);
   if (bit_depth < 0) return AOM_CODEC_UNSUP_BITSTREAM;
 #else
   AV1C_READ_BIT_OR_RETURN_ERROR(high_bitdepth);
