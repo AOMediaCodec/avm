@@ -472,7 +472,6 @@ static const TX_SIZE max_txsize_rect_lookup[BLOCK_SIZES_ALL] = {
       TX_4X64,   TX_64X4
 };
 
-#if CONFIG_LOSSLESS_LARGER_IDTX
 static const TX_SIZE lossless_max_txsize_lookup[BLOCK_SIZES_ALL] = {
       // 4X4
       TX_4X4,
@@ -503,7 +502,6 @@ static const TX_SIZE lossless_max_txsize_lookup[BLOCK_SIZES_ALL] = {
       // 4x64,   64x4
       TX_4X32,   TX_32X4
 };
-#endif  // CONFIG_LOSSLESS_LARGER_IDTX
 
 static const TX_TYPE_1D vtx_tab[TX_TYPES] = {
   DCT_1D,      ADST_1D, DCT_1D,      ADST_1D,

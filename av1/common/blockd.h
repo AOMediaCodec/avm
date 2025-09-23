@@ -3338,21 +3338,13 @@ static INLINE TX_TYPE av1_get_tx_type(const MACROBLOCKD *xd,
       else
         return DCT_DCT;
     } else if (is_inter && plane_type == PLANE_TYPE_Y) {
-#if CONFIG_LOSSLESS_LARGER_IDTX
       if (tx_size != TX_4X4) {
-#else
-      if (tx_size == TX_8X8) {
-#endif  // CONFIG_LOSSLESS_LARGER_IDTX
         return IDTX;
       } else {
         return xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col];
       }
     } else if (is_inter && plane_type == PLANE_TYPE_UV) {
-#if CONFIG_LOSSLESS_LARGER_IDTX
       if (mbmi->tx_size != TX_4X4) {
-#else
-      if (mbmi->tx_size == TX_8X8) {
-#endif  // CONFIG_LOSSLESS_LARGER_IDTX
         return IDTX;
       } else {
         const struct macroblockd_plane *const pd = &xd->plane[plane_type];
@@ -3495,13 +3487,7 @@ static INLINE TX_SIZE get_lossless_tx_size(const MACROBLOCKD *xd,
   const bool is_fsc = mbmi->fsc_mode[xd->tree_type == CHROMA_PART] && !plane;
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
   const BLOCK_SIZE bsize_base = get_bsize_base(xd, mbmi, plane);
-
-#if CONFIG_LOSSLESS_LARGER_IDTX
   if (bsize_base == BLOCK_4X4 || plane || (!is_inter && !is_fsc))
-#else
-  if (block_size_wide[bsize_base] < 8 || block_size_high[bsize_base] < 8 ||
-      plane || (!is_inter && !is_fsc))
-#endif  // CONFIG_LOSSLESS_LARGER_IDTX
     return TX_4X4;
   else
     return mbmi->tx_size;

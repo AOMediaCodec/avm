@@ -3005,24 +3005,11 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
     }
     if (xd->lossless[segment_id]) {
       const int is_fsc = xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART];
-#if CONFIG_LOSSLESS_LARGER_IDTX
       if (bsize > BLOCK_4X4 && (is_inter_tx || (!is_inter_tx && is_fsc)) &&
           !skip_txfm) {
-#else
-      if (block_size_high[bsize] >= 8 && block_size_wide[bsize] >= 8 &&
-          (is_inter_tx || (!is_inter_tx && is_fsc))) {
-#endif  // CONFIG_LOSSLESS_LARGER_IDTX
         const int bsize_group = size_group_lookup[bsize];
-#if !CONFIG_LOSSLESS_LARGER_IDTX
-        assert(mbmi->tx_size == TX_4X4 || mbmi->tx_size == TX_8X8);
-#endif  // !CONFIG_LOSSLESS_LARGER_IDTX
         aom_write_symbol(
-            w,
-#if CONFIG_LOSSLESS_LARGER_IDTX
-            mbmi->tx_size != TX_4X4,
-#else
-            mbmi->tx_size,
-#endif  // CONFIG_LOSSLESS_LARGER_IDTX
+            w, mbmi->tx_size != TX_4X4,
             xd->tile_ctx->lossless_tx_size_cdf[bsize_group][is_inter_tx], 2);
       }
     }

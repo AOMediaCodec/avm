@@ -2144,11 +2144,7 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
         allowed_tx_mask = 1 << txk_allowed;
       }
     } else if (is_inter) {
-#if CONFIG_LOSSLESS_LARGER_IDTX
       if (tx_size != TX_4X4) {
-#else
-      if (tx_size == TX_8X8) {
-#endif  // CONFIG_LOSSLESS_LARGER_IDTX
         assert(!plane);
         txk_allowed = IDTX;
         allowed_tx_mask = 1 << txk_allowed;
@@ -3674,16 +3670,9 @@ static AOM_INLINE void choose_lossless_tx_size(const AV1_COMP *const cpi,
   int rate_tx_large = INT_MAX;
   int rate_tx_4x4 = INT_MAX;
 
-#if CONFIG_LOSSLESS_LARGER_IDTX
   const bool allow_large_tx =
       bs > BLOCK_4X4 && (is_inter || (!is_inter && is_fsc));
   const TX_SIZE large_tx_size = lossless_max_txsize_lookup[bs];
-#else
-  const bool allow_large_tx = block_size_wide[bs] >= 8 &&
-                              block_size_high[bs] >= 8 &&
-                              (is_inter || (!is_inter && is_fsc));
-  const TX_SIZE large_tx_size = TX_8X8;
-#endif  // CONFIG_LOSSLESS_LARGER_IDTX
 
   if (allow_large_tx) {
     mbmi->tx_size = large_tx_size;
