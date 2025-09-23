@@ -197,6 +197,142 @@ static INLINE BruActiveMode set_active_map(const AV1_COMMON *cm,
   return (BruActiveMode)sb_active_mode;
 }
 
+/*!
+ * \brief structure store active sb locaitons in queue
+ */
+typedef struct {
+  int x;
+  int y;
+} ARD_Coordinate;
+
+/*!
+ * \brief queue structure for ARD BFS.
+ */
+typedef struct ARD_QueueNode {
+  ARD_Coordinate item;
+  struct ARD_QueueNode *next;
+} ARD_QueueNode;
+
+/*!
+ * \brief queue node for ARD BFS
+ */
+typedef struct {
+  ARD_QueueNode *front;
+  ARD_QueueNode *rear;
+} ARD_Queue;
+
+static INLINE ARD_Queue *ard_create_queue() {
+  ARD_Queue *q = (ARD_Queue *)malloc(sizeof(ARD_Queue));
+  q->front = NULL;
+  q->rear = NULL;
+  return q;
+}
+// Function to check if the queue is empty
+static INLINE bool ard_is_queue_empty(ARD_Queue *q) { return q->front == NULL; }
+
+// Function to enqueue an item
+static INLINE void ard_enqueue(ARD_Queue *q, ARD_Coordinate item) {
+  ARD_QueueNode *newNode = (ARD_QueueNode *)malloc(sizeof(ARD_QueueNode));
+  newNode->item = item;
+  newNode->next = NULL;
+  if (ard_is_queue_empty(q)) {
+    q->front = newNode;
+    q->rear = newNode;
+  } else {
+    q->rear->next = newNode;
+    q->rear = newNode;
+  }
+}
+
+// Function to dequeue an item
+static INLINE ARD_Coordinate ard_dequeue(ARD_Queue *q) {
+  if (ard_is_queue_empty(q)) {
+    ARD_Coordinate item = { -1, -1 };
+    return item;
+  }
+  ARD_QueueNode *temp = q->front;
+  ARD_Coordinate item = temp->item;
+  q->front = q->front->next;
+  if (q->front == NULL) {
+    q->rear = NULL;
+  }
+  free(temp);
+  return item;
+}
+
+// Function to check if a coordinate is valid
+static INLINE bool is_valid_ard_location(int x, int y, int width, int height) {
+  return (x >= 0 && x < width && y >= 0 && y < height);
+}
+// Check if two rect region overlap
+static bool bru_is_rect_overlap(AV1PixelRect *rect1, AV1PixelRect *rect2) {
+  int left = AOMMAX(rect1->left, rect2->left);
+  int right = AOMMIN(rect1->right, rect2->right);
+  int top = AOMMAX(rect1->top, rect2->top);
+  int bottom = AOMMIN(rect1->bottom, rect2->bottom);
+  if (left < right && bottom > top)
+    return true;
+  else
+    return false;
+}
+
+/* Helper function to check if a cluster forms a perfect rectangle using BFS */
+static INLINE bool bru_check_rect_cluster(const uint8_t *map, int width,
+                                          int height, int start_x, int start_y,
+                                          uint8_t *visited,
+                                          AV1PixelRect *rect) {
+  ARD_Queue *q = ard_create_queue();
+  ARD_Coordinate start = { start_x, start_y };
+  int count = 0;
+  int x_min = start_x, x_max = start_x;
+  int y_min = start_y, y_max = start_y;
+
+  // BFS to find all connected active blocks and their bounding box
+  ard_enqueue(q, start);
+  visited[start_y * width + start_x] = 1;
+
+  while (!ard_is_queue_empty(q)) {
+    ARD_Coordinate current = ard_dequeue(q);
+    count++;
+
+    // Update bounding box
+    if (current.x < x_min) x_min = current.x;
+    if (current.x > x_max) x_max = current.x;
+    if (current.y < y_min) y_min = current.y;
+    if (current.y > y_max) y_max = current.y;
+
+    // Check 4-connected neighbors (up, down, left, right)
+    int dx[] = { 0, 0, -1, 1 };
+    int dy[] = { -1, 1, 0, 0 };
+
+    for (int i = 0; i < 4; i++) {
+      int nx = current.x + dx[i];
+      int ny = current.y + dy[i];
+
+      if (is_valid_ard_location(nx, ny, width, height) &&
+          !visited[ny * width + nx] && map[ny * width + nx] == BRU_ACTIVE_SB) {
+        ARD_Coordinate next = { nx, ny };
+        ard_enqueue(q, next);
+        visited[ny * width + nx] = 1;
+      }
+    }
+  }
+
+  free(q);
+
+  // Store rectangle bounds
+  if (rect) {
+    rect->left = x_min;
+    rect->top = y_min;
+    rect->right = x_max + 1;
+    rect->bottom = y_max + 1;
+  }
+
+  // Check if this cluster forms a perfect rectangle
+  int expected_count = (x_max - x_min + 1) * (y_max - y_min + 1);
+  return count == expected_count;
+}
+
 /* Validate active map, for each active SB, it cannot has any inactive neighbor
  */
 static INLINE int bru_active_map_validation(const AV1_COMMON *cm) {
@@ -205,6 +341,58 @@ static INLINE int bru_active_map_validation(const AV1_COMMON *cm) {
   if (cm->bru.frame_inactive_flag) return 1;
   const uint8_t *act = cm->bru.active_mode_map;
   const int stride = cm->bru.unit_cols;
+  const int max_regions = cm->bru.unit_rows * cm->bru.unit_rows;
+  // Create visited array for BFS rectangle checking
+  uint8_t *visited = (uint8_t *)calloc(max_regions, sizeof(uint8_t));
+  if (!visited) return 0;
+
+  // Dynamically allocate rectangles array based on grid dimensions
+  // Maximum possible rectangles is width * height (worst case: all 1x1
+  // rectangles)
+  AV1PixelRect *rectangles =
+      (AV1PixelRect *)malloc(max_regions * sizeof(AV1PixelRect));
+  if (!rectangles) {
+    free(visited);
+    return 0;
+  }
+  int num_rectangles = 0;
+
+  // First pass: Check if all active regions form rectangles and collect their
+  // bounds
+  for (unsigned int row = 0; row < cm->bru.unit_rows; row++) {
+    for (unsigned int col = 0; col < cm->bru.unit_cols; col++) {
+      if (act[row * stride + col] == BRU_ACTIVE_SB &&
+          !visited[row * cm->bru.unit_cols + col]) {
+        // Found unvisited active block, check if its cluster is rectangular
+        AV1PixelRect rect;
+        if (!bru_check_rect_cluster(act, cm->bru.unit_cols, cm->bru.unit_rows,
+                                    col, row, visited, &rect)) {
+          free(visited);
+          free(rectangles);
+          return 0;  // Found non-rectangular cluster
+        }
+
+        // Check if this rectangle overlaps with any existing rectangle
+        for (int i = 0; i < num_rectangles; i++) {
+          if (bru_is_rect_overlap(&rect, &rectangles[i])) {
+            free(visited);
+            free(rectangles);
+            return 0;  // Found overlapping rectangles
+          }
+        }
+
+        // Store this rectangle
+        if (num_rectangles < max_regions) {
+          rectangles[num_rectangles] = rect;
+          num_rectangles++;
+        }
+      }
+    }
+  }
+
+  free(visited);
+  free(rectangles);
+  // Second pass: check neighboring constraints
   for (unsigned int row = 0; row < cm->bru.unit_rows; row++) {
     for (unsigned int col = 0; col < cm->bru.unit_cols; col++) {
       // if active must surrounded by active/support

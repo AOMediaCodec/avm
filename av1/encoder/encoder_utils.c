@@ -396,19 +396,6 @@ ARD_Queue *ARD_BFS(unsigned char *map, int width, int height, int x, int y,
   *count = active_count;
   return q_sd;
 }
-
-// Check if two rect region overlap
-static bool is_rect_overlap(AV1PixelRect *rect1, AV1PixelRect *rect2) {
-  int left = AOMMAX(rect1->left, rect2->left);
-  int right = AOMMIN(rect1->right, rect2->right);
-  int top = AOMMAX(rect1->top, rect2->top);
-  int bottom = AOMMIN(rect1->bottom, rect2->bottom);
-  if (left < right && bottom > top)
-    return true;
-  else
-    return false;
-}
-
 // Function to find clusters and their bounding boxes
 AV1PixelRect *cluster_active_regions(unsigned char *map, AV1PixelRect *regions,
                                      uint32_t *act_sb_in_region,
@@ -452,7 +439,7 @@ AV1PixelRect *cluster_active_regions(unsigned char *map, AV1PixelRect *regions,
       r1e.right = AOMMIN(r1->right + 1, width);
       r1e.bottom = AOMMIN(r1->bottom + 1, height);
       // is overlap with extened
-      if (is_rect_overlap(&r0e, &r1e)) {
+      if (bru_is_rect_overlap(&r0e, &r1e)) {
         r1->left = AOMMIN(r0->left, r1->left);
         r1->top = AOMMIN(r0->top, r1->top);
         r1->bottom = AOMMAX(r0->bottom, r1->bottom);
