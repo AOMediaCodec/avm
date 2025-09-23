@@ -4806,11 +4806,10 @@ static AOM_INLINE void write_tile_info(const AV1_COMMON *const cm,
                                        struct aom_write_bit_buffer *saved_wb,
                                        struct aom_write_bit_buffer *wb) {
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO
-  bool
-      tile_info_present_in_frame_header =
+  bool tile_info_present_in_frame_header =
 #if CONFIG_MULTI_FRAME_HEADER
-  !cm->mfh_params[cm->cur_mfh_id].mfh_tiles_info_present_flag &&
-#endif // CONFIG_MULTI_FRAME_HEADER
+      !cm->mfh_params[cm->cur_mfh_id].mfh_tiles_info_present_flag &&
+#endif  // CONFIG_MULTI_FRAME_HEADER
       !cm->seq_params.seq_tile_info_present_flag;
   aom_wb_write_bit(wb, tile_info_present_in_frame_header);
   if (tile_info_present_in_frame_header) {

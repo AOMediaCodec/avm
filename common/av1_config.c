@@ -492,12 +492,8 @@ int write_av1config(const Av1Config *config, size_t capacity,
   aom_wb_write_literal(&writer, config->seq_profile, 3);
   aom_wb_write_literal(&writer, config->seq_level_idx_0, 5);
   aom_wb_write_bit(&writer, config->seq_tier_0);
-#if CONFIG_CWG_E242_BITDEPTH
-  aom_wb_write_uvlc(&writer, config->bitdepth_idx);
-#else
   aom_wb_write_bit(&writer, config->high_bitdepth);
   aom_wb_write_bit(&writer, config->twelve_bit);
-#endif  // CONFIG_CWG_E242_BITDEPTH
   aom_wb_write_bit(&writer, config->monochrome);
   aom_wb_write_bit(&writer, config->chroma_subsampling_x);
   aom_wb_write_bit(&writer, config->chroma_subsampling_y);

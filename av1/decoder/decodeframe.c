@@ -4161,9 +4161,9 @@ static AOM_INLINE void reconstruct_tile_info_max_tile(
     int i;
     int start_sb;
     for (i = 0, start_sb = 0; height_sb > 0 && i < MAX_TILE_ROWS; i++) {
-      tiles->row_start_sb[i] = tile_params->col_start_sb[i];
-      start_sb += tile_params->col_start_sb[i];
-      height_sb -= tile_params->col_start_sb[i];
+      tiles->row_start_sb[i] = tile_params->row_start_sb[i];
+      start_sb += tile_params->row_start_sb[i];
+      height_sb -= tile_params->row_start_sb[i];
     }
     tiles->rows = i;
     tiles->row_start_sb[i] = start_sb + height_sb;
@@ -4281,7 +4281,7 @@ static AOM_INLINE void read_tile_info(AV1Decoder *const pbi,
           cm, &cm->mfh_params[cm->cur_mfh_id].tile_params);
     } else
 #endif
-    if (cm->seq_params.seq_tile_info_present_flag) {
+        if (cm->seq_params.seq_tile_info_present_flag) {
       reconstruct_tile_info_max_tile(cm, &cm->seq_params.tile_params);
     } else {
       aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,

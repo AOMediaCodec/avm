@@ -170,8 +170,9 @@ set_aom_config_var(CONFIG_F253_REMOVE_OUTPUTFLAG 1
                    "Remove enable_frame_output_order.")
 # CWG-E242
 set_aom_config_var(CONFIG_MULTI_FRAME_HEADER 0 "Enable multi-frame header.")
-set_aom_config_var(CONFIG_CWG_E242_SIGNAL_TILE_INFO 1
-                   "Signal tile information at sequence and multi-frame-header.")
+set_aom_config_var(
+  CONFIG_CWG_E242_SIGNAL_TILE_INFO 1
+  "Signal tile information at sequence and multi-frame-header.")
 
 set_aom_config_var(CONFIG_CWG_E242_MFH_ID_UVLC 0
                    "Reorder sequence level flags.")
