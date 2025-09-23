@@ -3329,7 +3329,6 @@ static INLINE TX_TYPE av1_get_tx_type(const MACROBLOCKD *xd,
   }
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
   if (xd->lossless[mbmi->segment_id]) {
-#if CONFIG_LOSSLESS_CHROMA_IDTX
     const bool fsc_flag = xd->mi[0]->fsc_mode[PLANE_TYPE_Y];
     if (!is_inter && plane_type == PLANE_TYPE_Y) {
       return DCT_DCT;
@@ -3373,16 +3372,6 @@ static INLINE TX_TYPE av1_get_tx_type(const MACROBLOCKD *xd,
         return tx_type;
       }
     }
-#else
-    if (is_inter && tx_size == TX_8X8) {
-      assert(plane_type == PLANE_TYPE_Y);
-      return IDTX;
-    } else if (is_inter && plane_type == PLANE_TYPE_Y) {
-      return xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col];
-    } else {
-      return DCT_DCT;
-    }
-#endif  // CONFIG_LOSSLESS_CHROMA_IDTX
   }
 
   TX_TYPE tx_type;

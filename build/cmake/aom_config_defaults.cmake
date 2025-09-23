@@ -191,8 +191,6 @@ set_aom_config_var(CONFIG_ORIP_DC_DISABLED 1
 set_aom_config_var(CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT 1
                    "Remove enable order hint flag.")
 
-set_aom_config_var(CONFIG_LOSSLESS_CHROMA_IDTX 1
-                   "AV2 enable IDTX for chroma blocks in lossless mode")
 # CWG-F215
 set_aom_config_var(CWG_F215_CONFIG_REMOVE_FRAME_ID 1
                    "Remove frame_id signalling")
