@@ -4043,12 +4043,13 @@ static AOM_INLINE CFL_ALLOWED_FOR_SDP_TYPE is_cfl_allowed_for_sdp(
 
   if (!frame_is_intra_only(cm)) return CFL_ALLOWED_FOR_CHROMA;
   if (xd->tree_type != CHROMA_PART) return CFL_ALLOWED_FOR_CHROMA;
-
+  if ((bsize_luma > BLOCK_64X64 && bsize_luma <= BLOCK_MAX)) {
+    if (current_partition == PARTITION_NONE) return CFL_ALLOWED_FOR_CHROMA;
+  }
   if ((bsize_luma != BLOCK_64X64)) {
     return CFL_DISALLOWED_FOR_CHROMA;
   }
   if (current_partition == PARTITION_NONE) return CFL_ALLOWED_FOR_CHROMA;
-
   if (ptree_luma && is_luma_chroma_share_same_partition(xd->tree_type,
                                                         ptree_luma, bsize_luma))
     return CFL_ALLOWED_FOR_CHROMA;
