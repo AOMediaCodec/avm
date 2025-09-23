@@ -712,8 +712,10 @@ static AOM_INLINE void decode_mbmi_block(AV1Decoder *const pbi,
     bru_zero_sb_mvs(cm, cm->bru.update_ref_idx, mi_row, mi_col,
                     x_inside_boundary, y_inside_boundary);
     if (!cm->bru.frame_inactive_flag) {
-      read_gdf(cm, r, xd);
-      if (cm->seq_params.enable_ccso) {
+      if (xd->tree_type != CHROMA_PART) {
+        read_gdf(cm, r, xd);
+      }
+      if (cm->seq_params.enable_ccso && xd->tree_type != CHROMA_PART) {
         read_ccso(cm, r, xd);
       }
     }
