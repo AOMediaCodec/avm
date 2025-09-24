@@ -569,7 +569,7 @@ typedef struct {
   int enable_ref_frame_mvs;     // 0 - disable ref frame mvs
                                 // 1 - enable it
 #if CONFIG_REDUCED_REF_FRAME_MVS_MODE
-  int reduced_ref_frame_mvs_mode;  // use reduced reference frame combinations
+  int reduced_ref_frame_mvs_mode;  // use 1 reference frame combination
                                    // for temporal mv prediction.
 #endif                             // CONFIG_REDUCED_REF_FRAME_MVS_MODE
 } OrderHintInfo;

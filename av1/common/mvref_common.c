@@ -5106,8 +5106,8 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
   assert(order_hint_info->reduced_ref_frame_mvs_mode >= 0 &&
          order_hint_info->reduced_ref_frame_mvs_mode <= 1);
   if (order_hint_info->reduced_ref_frame_mvs_mode > 0) {
-    // Cap the reference combinations to 2 for reduced_ref_frame_mvs_mode.
-    process_count = AOMMIN(2, process_count);
+    // Cap the reference frame combination to 1 for reduced_ref_frame_mvs_mode.
+    process_count = AOMMIN(1, process_count);
   }
 #endif  // CONFIG_REDUCED_REF_FRAME_MVS_MODE
   for (int pi = 0; pi < process_count; pi++) {

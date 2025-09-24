@@ -189,7 +189,7 @@ struct av1_extracfg {
 #endif                            // !CONFIG_F253_REMOVE_OUTPUTFLAG
   int enable_ref_frame_mvs;       // sequence level
 #if CONFIG_REDUCED_REF_FRAME_MVS_MODE
-  int reduced_ref_frame_mvs_mode;  // use reduced reference frame combinations
+  int reduced_ref_frame_mvs_mode;  // use 1 reference frame combination
                                    // for temporal mv prediction
 #endif                             // CONFIG_REDUCED_REF_FRAME_MVS_MODE
   int allow_ref_frame_mvs;         // frame level

@@ -917,8 +917,8 @@ typedef struct {
   // Indicates if ref_frame_mvs should be enabled at the frame level.
   bool enable_ref_frame_mvs;
 #if CONFIG_REDUCED_REF_FRAME_MVS_MODE
-  // Indicates if reduced number of reference frame combinations for
-  // temporal mv prediction is used.
+  // Indicates if 1 reference frame combination is used for temporal mv
+  // prediction.
   int reduced_ref_frame_mvs_mode;
 #endif  // CONFIG_REDUCED_REF_FRAME_MVS_MODE
   // Indicates if global motion should be enabled.
