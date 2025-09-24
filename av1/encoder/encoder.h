@@ -886,7 +886,9 @@ typedef struct {
   // When enabled, video mode should be used even for single frame input.
   bool force_video_mode;
   // Indicates if the error resiliency features should be enabled.
+#if !CONFIG_F322_OBUER_ERM
   bool error_resilient_mode;
+#endif // !CONFIG_F322_OBUER_ERM
   // Indicates if frame parallel decoding feature should be enabled.
   bool frame_parallel_decoding_mode;
   // Indicates if the input should be encoded as monochrome.
@@ -2349,8 +2351,9 @@ typedef struct {
   /*!
    * Indicates whether the current frame is to be coded as error resilient.
    */
+#if !CONFIG_F322_OBUER_ERM
   bool use_error_resilient;
-
+#endif  // !CONFIG_F322_OBUER_ERM
   /*!
    * Indicates whether the current frame is to be coded as s-frame.
    */
@@ -3141,10 +3144,12 @@ typedef struct EncodeFrameInput {
  * av1_encode_strategy() and passed down to av1_encode().
  */
 typedef struct EncodeFrameParams {
+#if !CONFIG_F322_OBUER_ERM
   /*!
    * Is error resilient mode enabled
    */
   int error_resilient_mode;
+#endif  // !CONFIG_F322_OBUER_ERM
   /*!
    * Frame type (eg KF vs inter frame etc)
    */
@@ -3509,12 +3514,22 @@ static INLINE int encode_show_existing_frame(const AV1_COMMON *cm) {
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
   if (cm->seq_params.enable_frame_output_order)
 #endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
-    return (!cm->features.error_resilient_mode &&
-            cm->current_frame.frame_type == KEY_FRAME);
+    return (
+#if CONFIG_F322_OBUER_ERM
+        !frame_is_sframe(cm) &&
+#else
+      !cm->features.error_resilient_mode &&
+#endif  // CONFIG_F322_OBUER_ERM
+        cm->current_frame.frame_type == KEY_FRAME);
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
   else
-    return (!cm->features.error_resilient_mode ||
-            cm->current_frame.frame_type == KEY_FRAME);
+    return (
+#if CONFIG_F322_OBUER_ERM
+        !frame_is_sframe(cm) ||
+#else
+        !cm->features.error_resilient_mode ||
+#endif
+        cm->current_frame.frame_type == KEY_FRAME);
 #endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
 }
 

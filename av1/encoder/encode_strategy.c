@@ -66,7 +66,12 @@ void av1_get_ref_frames_enc(AV1_COMMON *cm, int cur_frame_disp,
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   AV1_COMMON *const cm = &cpi->common;
   assert(cm->seq_params.explicit_ref_frame_map ||
-         cm->features.error_resilient_mode || cpi->switch_frame_mode == 1);
+#if CONFIG_F322_OBUER_ERM
+         frame_is_sframe(cm)
+#else
+         cm->features.error_resilient_mode || cpi->switch_frame_mode == 1
+#endif
+  );
 #else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   assert(cm->seq_params.explicit_ref_frame_map);
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
@@ -144,9 +149,11 @@ static void set_additional_frame_flags(const AV1_COMMON *const cm,
   if (frame_is_sframe(cm)) {
     *frame_flags |= FRAMEFLAGS_SWITCH;
   }
+#if !CONFIG_F322_OBUER_ERM
   if (cm->features.error_resilient_mode) {
     *frame_flags |= FRAMEFLAGS_ERROR_RESILIENT;
   }
+#endif  // !CONFIG_F322_OBUER_ERM
   if (cm->film_grain_params.apply_grain) {
     *frame_flags |= FRAMEFLAGS_HAS_FILM_GRAIN_PARAMS;
   }
@@ -239,7 +246,7 @@ static void set_ext_overrides(AV1_COMMON *const cm,
     ext_flags->refresh_frame_context_pending = 0;
   }
   cm->features.allow_ref_frame_mvs = ext_flags->use_ref_frame_mvs;
-
+#if !CONFIG_F322_OBUER_ERM
   frame_params->error_resilient_mode = ext_flags->use_error_resilient;
   // A keyframe is already error resilient and keyframes with
   // error_resilient_mode interferes with the use of show_existing_frame
@@ -247,6 +254,7 @@ static void set_ext_overrides(AV1_COMMON *const cm,
   frame_params->error_resilient_mode &= frame_params->frame_type != KEY_FRAME;
   // For bitstream conformance, s-frames must be error-resilient
   frame_params->error_resilient_mode |= frame_params->frame_type == S_FRAME;
+#endif  // !CONFIG_F322_OBUER_ERM
 }
 
 // Map the subgop cfg reference list to actual reference buffers. Disable
@@ -518,7 +526,9 @@ static int allow_show_existing(const AV1_COMP *const cpi,
   if (lookahead_src == NULL) return 1;
 
   const int is_error_resilient =
+#if !CONFIG_F322_OBUER_ERM
       cpi->oxcf.tool_cfg.error_resilient_mode ||
+#endif // !CONFIG_F322_OBUER_ERM
       (lookahead_src->flags & AOM_EFLAG_ERROR_RESILIENT);
   const int is_s_frame = cpi->oxcf.kf_cfg.enable_sframe ||
                          (lookahead_src->flags & AOM_EFLAG_SET_S_FRAME);
@@ -754,8 +764,13 @@ int av1_get_refresh_frame_flags(
   // show_existing_frames don't actually send refresh_frame_flags so set the
   // flags to 0 to keep things consistent.
   if (frame_params->show_existing_frame &&
-      (!frame_params->error_resilient_mode ||
-       frame_params->frame_type == KEY_FRAME)) {
+      (
+#if CONFIG_F322_OBUER_ERM
+          frame_params->frame_type != S_FRAME ||
+#else
+          !frame_params->error_resilient_mode ||
+#endif
+          frame_params->frame_type == KEY_FRAME)) {
     return 0;
   }
 
@@ -1219,7 +1234,9 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 
   if (!is_stat_generation_stage(cpi)) {
     cm->current_frame.frame_type = frame_params.frame_type;
+#if !CONFIG_F322_OBUER_ERM
     cm->features.error_resilient_mode = frame_params.error_resilient_mode;
+#endif  // CONFIG_F322_OBUER_ERM
     // get last frame idx as bru frame
     cm->bru.enabled = cpi->oxcf.tool_cfg.enable_bru > 0 &&
                       (frame_params.frame_type == INTER_FRAME);
@@ -1291,7 +1308,11 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     }
     if (cm->seq_params.explicit_ref_frame_map
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+#if CONFIG_F322_OBUER_ERM
+        || frame_is_sframe(cm)
+#else
         || cm->features.error_resilient_mode || cpi->switch_frame_mode == 1
+#endif  // CONFIG_F322_OBUER_ERM
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     ) {
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
@@ -1323,7 +1344,6 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
                          cm->ref_frame_map_pairs);
 #endif  // CONFIG_ACROSS_SCALE_REF_OPT
     }
-
     if (!cm->seq_params.explicit_ref_frame_map && cm->bru.enabled) {
       const int num_past_refs = cm->ref_frames_info.num_past_refs;
       if (cm->bru.ref_disp_order >= 0) {

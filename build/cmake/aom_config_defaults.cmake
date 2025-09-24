@@ -61,6 +61,10 @@ set_aom_detect_var(HAVE_UNISTD_H 0
                    "Internal flag, unistd.h present for target.")
 set_aom_detect_var(HAVE_WXWIDGETS 0 "WxWidgets present.")
 
+set_aom_config_var(CONFIG_F322_OBUER_EXPLICIT_REFLIST 1
+                   "Signal explit_ref_frame_map in uncompressed_headr")
+set_aom_config_var(CONFIG_F322_OBUER_ERM 1
+                   "Infer error_resilient_mode without signalling.")
 #
 # Variables in this section can be set from the CMake command line or from
 # within the CMake GUI. The variables control libaom features.

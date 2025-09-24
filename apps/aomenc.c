@@ -379,7 +379,9 @@ const arg_def_t *av1_ctrl_args[] = {
   &g_av1_codec_arg_defs.mode_cost_upd_freq,
   &g_av1_codec_arg_defs.mv_cost_upd_freq,
   &g_av1_codec_arg_defs.frame_parallel_decoding,
+#if !CONFIG_F322_OBUER_ERM
   &g_av1_codec_arg_defs.error_resilient_mode,
+#endif  // !CONFIG_F322_OBUER_ERM
   &g_av1_codec_arg_defs.aq_mode,
   &g_av1_codec_arg_defs.deltaq_mode,
   &g_av1_codec_arg_defs.deltalf_mode,

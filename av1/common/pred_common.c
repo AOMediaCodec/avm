@@ -384,7 +384,13 @@ void choose_primary_secondary_ref_frame(const AV1_COMMON *const cm,
                                         int *ref_frame) {
   const int intra_only = cm->current_frame.frame_type == KEY_FRAME ||
                          cm->current_frame.frame_type == INTRA_ONLY_FRAME;
-  if (intra_only || cm->features.error_resilient_mode) {
+  if (intra_only ||
+#if CONFIG_F322_OBUER_ERM
+      frame_is_sframe(cm)
+#else
+      cm->features.error_resilient_mode
+#endif
+  ) {
     ref_frame[0] = PRIMARY_REF_NONE;
     ref_frame[1] = PRIMARY_REF_NONE;
     return;

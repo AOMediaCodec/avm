@@ -1433,8 +1433,10 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
       ;
   tool_cfg->enable_global_motion = extra_cfg->enable_global_motion;
   tool_cfg->enable_skip_mode = extra_cfg->enable_skip_mode;
+#if !CONFIG_F322_OBUER_ERM
   tool_cfg->error_resilient_mode =
       cfg->g_error_resilient | extra_cfg->error_resilient_mode;
+#endif // !CONFIG_F322_OBUER_ERM
   tool_cfg->frame_hash_metadata = cfg->frame_hash_metadata;
   tool_cfg->frame_hash_per_plane = cfg->frame_hash_per_plane;
   tool_cfg->frame_parallel_decoding_mode =
@@ -1706,7 +1708,11 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
           !tool_cfg->enable_order_hint ||
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-          kf_cfg->enable_sframe || tool_cfg->error_resilient_mode)
+          kf_cfg->enable_sframe
+#if !CONFIG_F322_OBUER_ERM
+          || tool_cfg->error_resilient_mode
+#endif // !CONFIG_F322_OBUER_ERM
+          )
           ? 0
           : extra_cfg->enable_frame_output_order;
 #endif  // CONFIG_F253_REMOVE_OUTPUTFLAG
@@ -4055,8 +4061,10 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.superblock_size, argv,
                               err_string)) {
     extra_cfg.superblock_size = arg_parse_enum_helper(&arg, err_string);
+#if !CONFIG_F322_OBUER_ERM
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.error_resilient_mode,
                               argv, err_string)) {
+#endif // !CONFIG_F322_OBUER_ERM
     extra_cfg.error_resilient_mode = arg_parse_int_helper(&arg, err_string);
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.sframe_mode, argv,
                               err_string)) {
