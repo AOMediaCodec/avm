@@ -135,7 +135,7 @@ static void update_txfm_count(MACROBLOCK *x, MACROBLOCKD *xd,
   (void)depth;
   int num_txfm_blocks =
       get_tx_partition_sizes(mbmi->tx_partition_type[txb_size_index], tx_size,
-                             &mbmi->txb_pos, mbmi->sub_txs);
+                             &mbmi->txb_pos, mbmi->sub_txs, xd->error_info);
   TX_SIZE this_size = mbmi->sub_txs[num_txfm_blocks - 1];
   if (mbmi->tx_partition_type[txb_size_index] != TX_PARTITION_NONE)
     ++x->txfm_search_info.txb_split_count;

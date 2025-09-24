@@ -536,7 +536,9 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
 #endif  // CONFIG_LF_SUB_PU
       TXB_POS_INFO txb_pos;
       TX_SIZE sub_txs[MAX_TX_PARTITIONS] = { 0 };
-      get_tx_partition_sizes(partition, max_tx_size, &txb_pos, sub_txs);
+      assert(xd != NULL);
+      get_tx_partition_sizes(partition, max_tx_size, &txb_pos, sub_txs,
+                             xd->error_info);
 
       int mi_blk_row = blk_row & 0xf;
       int mi_blk_col = blk_col & 0xf;

@@ -1161,7 +1161,7 @@ static void encode_block_inter(int plane, int block, int blk_row, int blk_col,
                  dry_run);
   } else {
     get_tx_partition_sizes(mbmi->tx_partition_type[index], tx_size,
-                           &mbmi->txb_pos, mbmi->sub_txs);
+                           &mbmi->txb_pos, mbmi->sub_txs, xd->error_info);
     for (int txb_idx = 0; txb_idx < mbmi->txb_pos.n_partitions; ++txb_idx) {
       const TX_SIZE sub_tx = mbmi->sub_txs[txb_idx];
       int bsw = tx_size_wide_unit[sub_tx];
@@ -1704,7 +1704,7 @@ void av1_encode_intra_block_plane(const struct AV1_COMP *cpi, MACROBLOCK *x,
     MB_MODE_INFO *mbmi = xd->mi[0];
     const TX_SIZE max_tx_size = max_txsize_rect_lookup[plane_bsize];
     get_tx_partition_sizes(mbmi->tx_partition_type[0], max_tx_size,
-                           &mbmi->txb_pos, mbmi->sub_txs);
+                           &mbmi->txb_pos, mbmi->sub_txs, xd->error_info);
     // If mb_to_right_edge is < 0 we are in a situation in which
     // the current block size extends into the UMV and we won't
     // visit the sub blocks that are wholly within the UMV.

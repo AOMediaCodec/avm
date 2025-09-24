@@ -510,7 +510,7 @@ static AOM_INLINE void decode_reconstruct_tx(
     }
   } else {
     get_tx_partition_sizes(mbmi->tx_partition_type[txp_index], tx_size,
-                           &mbmi->txb_pos, mbmi->sub_txs);
+                           &mbmi->txb_pos, mbmi->sub_txs, xd->error_info);
 
     for (int txb_idx = 0; txb_idx < mbmi->txb_pos.n_partitions; ++txb_idx) {
       mbmi->txb_idx = 0;
@@ -1100,7 +1100,8 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
 
                 const TX_SIZE max_tx_size = max_txsize_rect_lookup[plane_bsize];
                 get_tx_partition_sizes(mbmi->tx_partition_type[0], max_tx_size,
-                                       &mbmi->txb_pos, mbmi->sub_txs);
+                                       &mbmi->txb_pos, mbmi->sub_txs,
+                                       xd->error_info);
 
                 for (int txb_idx = 0; txb_idx < mbmi->txb_pos.n_partitions;
                      ++txb_idx) {
@@ -1449,8 +1450,8 @@ static TX_SIZE read_tx_partition(MACROBLOCKD *xd, MB_MODE_INFO *mbmi,
   }
 
   TX_SIZE sub_txs[MAX_TX_PARTITIONS] = { 0 };
-  int num_txfm_blocks =
-      get_tx_partition_sizes(partition, max_tx_size, &mbmi->txb_pos, sub_txs);
+  int num_txfm_blocks = get_tx_partition_sizes(
+      partition, max_tx_size, &mbmi->txb_pos, sub_txs, xd->error_info);
   mbmi->tx_size = sub_txs[num_txfm_blocks - 1];
   int index = is_inter ? av1_get_txb_size_index(bsize, blk_row, blk_col) : 0;
   mbmi->tx_partition_type[index] = partition;

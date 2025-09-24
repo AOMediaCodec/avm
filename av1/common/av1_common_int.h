@@ -4394,10 +4394,10 @@ static const TX_PARTITION_BIT_SHIFT partition_shift_bits[TX_PARTITION_TYPES] = {
 
 // Get txfm sub_txs information, # of txfm partitions with a given partition
 // type within max_tx_size.
-static INLINE int get_tx_partition_sizes(TX_PARTITION_TYPE partition,
-                                         TX_SIZE max_tx_size,
-                                         TXB_POS_INFO *txb_pos,
-                                         TX_SIZE sub_txs[MAX_TX_PARTITIONS]) {
+static INLINE int get_tx_partition_sizes(
+    TX_PARTITION_TYPE partition, TX_SIZE max_tx_size, TXB_POS_INFO *txb_pos,
+    TX_SIZE sub_txs[MAX_TX_PARTITIONS],
+    struct aom_internal_error_info *error_info) {
   const int txw = tx_size_wide[max_tx_size];
   const int txh = tx_size_high[max_tx_size];
   int sub_txw = 0, sub_txh = 0;
@@ -4424,7 +4424,9 @@ static INLINE int get_tx_partition_sizes(TX_PARTITION_TYPE partition,
 
     txb_pos->row_offset[i] = subtx_shift.row_offsets[i] * txh_step;
     txb_pos->col_offset[i] = subtx_shift.col_offsets[i] * txw_step;
-    assert(sub_txs[i] != TX_INVALID);
+    if (sub_txs[i] == TX_INVALID) {
+      aom_internal_error(error_info, AOM_CODEC_ERROR, "Invalid sub_txs.");
+    }
   }
   return n_partitions;
 }

@@ -756,7 +756,7 @@ static AOM_INLINE void pack_txb_tokens(
     TX_SIZE sub_txs[MAX_TX_PARTITIONS] = { 0 };
     TXB_POS_INFO txb_pos;
     get_tx_partition_sizes(mbmi->tx_partition_type[index], tx_size, &txb_pos,
-                           sub_txs);
+                           sub_txs, xd->error_info);
     for (int txb_idx = 0; txb_idx < txb_pos.n_partitions; ++txb_idx) {
       const TX_SIZE sub_tx = sub_txs[txb_idx];
       const int bsw = tx_size_wide_unit[sub_tx];

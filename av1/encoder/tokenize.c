@@ -291,7 +291,7 @@ static void tokenize_vartx(ThreadData *td, TX_SIZE tx_size,
     TXB_POS_INFO txb_pos;
     TX_SIZE sub_txs[MAX_TX_PARTITIONS] = { 0 };
     get_tx_partition_sizes(mbmi->tx_partition_type[index], tx_size, &txb_pos,
-                           sub_txs);
+                           sub_txs, xd->error_info);
     plane_bsize =
         get_plane_block_size(mbmi->sb_type[xd->tree_type == CHROMA_PART],
                              pd->subsampling_x, pd->subsampling_y);

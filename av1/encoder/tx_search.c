@@ -3469,7 +3469,8 @@ static void select_tx_partition_type(
 
     // Get transform sizes created by this partition type
     TXB_POS_INFO txb_pos;
-    get_tx_partition_sizes(type, max_tx_size, &txb_pos, sub_txs);
+    get_tx_partition_sizes(type, max_tx_size, &txb_pos, sub_txs,
+                           xd->error_info);
     uint8_t this_blk_skip[MAX_TX_PARTITIONS] = { 0 };
     uint8_t partition_entropy_ctxs[MAX_TX_PARTITIONS] = { 0 };
     TX_TYPE partition_tx_types[MAX_TX_PARTITIONS] = { 0 };
@@ -3572,7 +3573,8 @@ static void select_tx_partition_type(
   int index = av1_get_txb_size_index(plane_bsize, blk_row, blk_col);
   mbmi->tx_partition_type[index] = best_tx_partition;
   TXB_POS_INFO txb_pos;
-  get_tx_partition_sizes(best_tx_partition, max_tx_size, &txb_pos, sub_txs);
+  get_tx_partition_sizes(best_tx_partition, max_tx_size, &txb_pos, sub_txs,
+                         xd->error_info);
 
   for (int txb_idx = 0; txb_idx < txb_pos.n_partitions; ++txb_idx) {
     const TX_SIZE sub_tx = sub_txs[txb_idx];
@@ -3768,7 +3770,8 @@ static void choose_tx_size_type_from_rd(const AV1_COMP *const cpi,
     if (cpi->sf.tx_sf.enable_tx_partition == false && type) continue;
 
     mbmi->tx_partition_type[0] = type;
-    get_tx_partition_sizes(type, max_tx_size, &mbmi->txb_pos, mbmi->sub_txs);
+    get_tx_partition_sizes(type, max_tx_size, &mbmi->txb_pos, mbmi->sub_txs,
+                           xd->error_info);
     TX_SIZE cur_tx_size = mbmi->sub_txs[mbmi->txb_pos.n_partitions - 1];
     if (!tx_select && cur_tx_size != chosen_tx_size) continue;
 #if CONFIG_DIST_8X8
@@ -3975,11 +3978,11 @@ int64_t av1_uniform_txfm_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
       is_inter ? RDCOST(x->rdmult, no_skip_txfm_rate + tx_size_rate, 0) : 0;
   if (xd->lossless[mbmi->segment_id]) {
     get_tx_partition_sizes(mbmi->tx_partition_type[0], TX_4X4, &mbmi->txb_pos,
-                           mbmi->sub_txs);
+                           mbmi->sub_txs, xd->error_info);
   } else {
     get_tx_partition_sizes(mbmi->tx_partition_type[0],
                            max_txsize_rect_lookup[bs], &mbmi->txb_pos,
-                           mbmi->sub_txs);
+                           mbmi->sub_txs, xd->error_info);
   }
 
   mbmi->tx_size = mbmi->sub_txs[mbmi->txb_pos.n_partitions - 1];
@@ -4545,7 +4548,7 @@ void av1_txfm_rd_in_plane(MACROBLOCK *x, const AV1_COMP *cpi,
     MB_MODE_INFO *mbmi = xd->mi[0];
     const TX_SIZE max_tx_size = max_txsize_rect_lookup[plane_bsize];
     get_tx_partition_sizes(mbmi->tx_partition_type[0], max_tx_size,
-                           &mbmi->txb_pos, mbmi->sub_txs);
+                           &mbmi->txb_pos, mbmi->sub_txs, xd->error_info);
     // If mb_to_right_edge is < 0 we are in a situation in which
     // the current block size extends into the UMV and we won't
     // visit the sub blocks that are wholly within the UMV.

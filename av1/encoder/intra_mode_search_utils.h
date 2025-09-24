@@ -364,7 +364,7 @@ static int64_t intra_model_yrd(const AV1_COMP *const cpi, MACROBLOCK *const x,
 
   mbmi->tx_partition_type[0] = TX_PARTITION_NONE;
   get_tx_partition_sizes(mbmi->tx_partition_type[0], tx_size, &mbmi->txb_pos,
-                         mbmi->sub_txs);
+                         mbmi->sub_txs, xd->error_info);
   mbmi->txb_idx = 0;
 
   // Prediction.

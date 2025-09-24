@@ -1474,7 +1474,7 @@ void av1_write_intra_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x,
               TXB_POS_INFO txb_pos;
               TX_SIZE sub_txs[MAX_TX_PARTITIONS];
               get_tx_partition_sizes(mbmi->tx_partition_type[0], max_tx_size,
-                                     &txb_pos, sub_txs);
+                                     &txb_pos, sub_txs, xd->error_info);
               for (int txb_idx = 0; txb_idx < txb_pos.n_partitions; ++txb_idx) {
                 TX_SIZE tx_size = sub_txs[txb_idx];
                 const int stepr = tx_size_high_unit[tx_size];
@@ -5255,7 +5255,7 @@ void av1_update_intra_mb_txb_context(const AV1_COMP *cpi, ThreadData *td,
     if (plane == AOM_PLANE_Y && !xd->lossless[mbmi->segment_id]) {
       const TX_SIZE max_tx_size = max_txsize_rect_lookup[plane_bsize];
       get_tx_partition_sizes(mbmi->tx_partition_type[0], max_tx_size,
-                             &mbmi->txb_pos, mbmi->sub_txs);
+                             &mbmi->txb_pos, mbmi->sub_txs, xd->error_info);
       // If mb_to_right_edge is < 0 we are in a situation in which
       // the current block size extends into the UMV and we won't
       // visit the sub blocks that are wholly within the UMV.
