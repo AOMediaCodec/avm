@@ -64,7 +64,6 @@ void av1_free_ref_frame_buffers(BufferPool *pool) {
   }
 }
 
-// Frees the line buffers of CDEF for all planes.
 void av1_free_cdef_linebuf(AV1_COMMON *const cm) {
   if (cm->cdef_info.srcbuf != NULL) aom_free(cm->cdef_info.srcbuf);
   cm->cdef_info.srcbuf = NULL;
@@ -79,8 +78,6 @@ void av1_free_cdef_linebuf(AV1_COMMON *const cm) {
   }
 }
 
-// Allocates the line buffers of CDEF for all planes
-// Frees old buffers if frame size, subsampling, flags, or plane count changed.
 void av1_alloc_cdef_linebuf(AV1_COMMON *const cm) {
   CdefInfo *cdef_info = &cm->cdef_info;
   const int num_planes = av1_num_planes(cm);

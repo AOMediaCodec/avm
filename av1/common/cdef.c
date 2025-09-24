@@ -24,32 +24,36 @@
 
 enum { TOP, LEFT, BOTTOM, RIGHT, BOUNDARIES } UENUM1BYTE(BOUNDARY);
 
-/*!\brief Parameters related to CDEF Block */
+// Brief Parameters related to CDEF Block
+// Stores buffers and parameters used while filtering a block. Unlike CdefInfo
+// (frame-level data), this is a temporary structure and only used during block
+// processing.
 typedef struct {
-  uint16_t *src;
-  uint16_t *top_linebuf[MAX_MB_PLANE];
-  uint16_t *bot_linebuf[MAX_MB_PLANE];
-  uint16_t *dst;
-  cdef_list dlist[MI_SIZE_64X64 * MI_SIZE_64X64];
+  uint16_t *src;                        // CDEF intermediate source buffer
+  uint16_t *top_linebuf[MAX_MB_PLANE];  // CDEF top line buffer
+  uint16_t *bot_linebuf[MAX_MB_PLANE];  // CDEF bottom line buffer
+  uint16_t *dst;                        // CDEF destination buffer
+  cdef_list dlist[MI_SIZE_64X64 * MI_SIZE_64X64];  // CDEF 8x8 block positions
 
-  int xdec;
-  int ydec;
-  int mi_wide_l2;
-  int mi_high_l2;
-  int frame_boundary[BOUNDARIES];
+  int xdec;                        // Sub-sampling X
+  int ydec;                        // Sub-sampling Y
+  int mi_wide_l2;                  // Pixels per mi unit in width
+  int mi_high_l2;                  // Pixels per mi unit in height
+  int frame_boundary[BOUNDARIES];  // Flags to indicate if the block is at a
+                                   // frame boundary
+  int damping;                     // CDEF damping factor
+  int coeff_shift;     // Bit-depth based shift for calculating filter strength
+  int level;           // CDEF filtering level
+  int sec_strength;    // CDEF secondary filter strength
+  int cdef_count;      // Number of CDEF sub-blocks in a filter block unit
+  bool is_zero_level;  // CDEF filtering level ON/OFF
+  int dir[CDEF_NBLOCKS]
+         [CDEF_NBLOCKS];  // CDEF filter direction for all 8x8 sub-blocks
+  int var[CDEF_NBLOCKS][CDEF_NBLOCKS];  // variance of all 8x8 sub-blocks
 
-  int damping;
-  int coeff_shift;
-  int level;
-  int sec_strength;
-  int cdef_count;
-  bool is_zero_level;
-  int dir[CDEF_NBLOCKS][CDEF_NBLOCKS];
-  int var[CDEF_NBLOCKS][CDEF_NBLOCKS];
-
-  int dst_stride;
-  int coffset;
-  int roffset;
+  int dst_stride;  // CDEF destination buffer stride
+  int coffset;     // current filter block offset in a row
+  int roffset;     // current filter block row offset
 } CdefBlockInfo;
 
 static int is_8x8_block_skip(MB_MODE_INFO **grid, int mi_row, int mi_col,
@@ -154,7 +158,7 @@ void cdef_copy_rect8_16bit_to_16bit_c(uint16_t *dst, int dstride,
   }
 }
 
-static void copy_sb8_16(AV1_COMMON *cm, uint16_t *dst, int dstride,
+static void copy_sb8_16(AV1_COMMON *const cm, uint16_t *const dst, int dstride,
                         const uint16_t *src, int src_voffset, int src_hoffset,
                         int sstride, int vsize, int hsize) {
   (void)cm;
@@ -181,8 +185,8 @@ static INLINE void copy_rect(uint16_t *dst, int dstride, const uint16_t *src,
 }
 
 // Apply CDEF filtering on a filter block for the given plane.
-static INLINE void cdef_filter_fb(CdefBlockInfo *fb_info, int plane) {
-  int offset = fb_info->dst_stride * fb_info->roffset + fb_info->coffset;
+static INLINE void cdef_filter_fb(CdefBlockInfo *const fb_info, int plane) {
+  const int offset = fb_info->dst_stride * fb_info->roffset + fb_info->coffset;
   av1_cdef_filter_fb(NULL, fb_info->dst + offset, fb_info->dst_stride,
                      &fb_info->src[CDEF_VBORDER * CDEF_BSTRIDE + CDEF_HBORDER],
                      fb_info->xdec, fb_info->ydec, fb_info->dir, NULL,
@@ -201,7 +205,7 @@ static INLINE void cdef_filter_fb(CdefBlockInfo *fb_info, int plane) {
 //   plane: plane index Y/CB/CR.
 // Returns:
 //   Nothing will be returned.
-static void cdef_prepare_fb(AV1_COMMON *cm, CdefBlockInfo *fb_info,
+static void cdef_prepare_fb(AV1_COMMON *const cm, CdefBlockInfo *const fb_info,
                             uint16_t **const colbuf, const int *cdef_left,
                             int fbc, int fbr, int plane) {
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
@@ -213,10 +217,12 @@ static void cdef_prepare_fb(AV1_COMMON *cm, CdefBlockInfo *fb_info,
   int cstart = 0;
   if (!*cdef_left) cstart = -CDEF_HBORDER;
   int rend, cend;
-  int nhb = AOMMIN(MI_SIZE_64X64, mi_params->mi_cols - MI_SIZE_64X64 * fbc);
-  int nvb = AOMMIN(MI_SIZE_64X64, mi_params->mi_rows - MI_SIZE_64X64 * fbr);
-  int hsize = nhb << fb_info->mi_wide_l2;
-  int vsize = nvb << fb_info->mi_high_l2;
+  const int nhb =
+      AOMMIN(MI_SIZE_64X64, mi_params->mi_cols - MI_SIZE_64X64 * fbc);
+  const int nvb =
+      AOMMIN(MI_SIZE_64X64, mi_params->mi_rows - MI_SIZE_64X64 * fbr);
+  const int hsize = nhb << fb_info->mi_wide_l2;
+  const int vsize = nvb << fb_info->mi_high_l2;
   const uint16_t *top_linebuf = fb_info->top_linebuf[plane];
   const uint16_t *bot_linebuf = fb_info->bot_linebuf[plane];
   const int bot_offset = (vsize + CDEF_VBORDER) * CDEF_BSTRIDE;
@@ -353,9 +359,9 @@ static void cdef_prepare_fb(AV1_COMMON *cm, CdefBlockInfo *fb_info,
 }
 
 // Initializes block-level parameters for CDEF.
-static INLINE void cdef_init_fb_col(MACROBLOCKD *xd,
+static INLINE void cdef_init_fb_col(MACROBLOCKD *const xd,
                                     const CdefInfo *const cdef_info,
-                                    CdefBlockInfo *fb_info,
+                                    CdefBlockInfo *const fb_info,
                                     const int mbmi_cdef_strength, int fbc,
                                     int fbr, int plane) {
   if (plane == AOM_PLANE_Y) {
@@ -392,9 +398,9 @@ static INLINE void cdef_init_fb_col(MACROBLOCKD *xd,
 
 // Process filter block with CDEF for all planes.
 // Returns true if filtering was applied, false if skipped.
-static void cdef_fb_col(AV1_COMMON *cm, MACROBLOCKD *xd, CdefBlockInfo *fb_info,
-                        uint16_t **const colbuf, int *cdef_left, int fbc,
-                        int fbr) {
+static void cdef_fb_col(AV1_COMMON *const cm, MACROBLOCKD *const xd,
+                        CdefBlockInfo *const fb_info, uint16_t **const colbuf,
+                        int *const cdef_left, int fbc, int fbr) {
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   const int mbmi_cdef_strength =
       mi_params
@@ -442,8 +448,8 @@ static void cdef_fb_col(AV1_COMMON *cm, MACROBLOCKD *xd, CdefBlockInfo *fb_info,
 
 // Initialize frame boundary flags (TOP/BOTTOM) for the given
 // filter block row.
-static INLINE void cdef_init_fb_row(AV1_COMMON *cm, MACROBLOCKD *const xd,
-                                    CdefBlockInfo *fb_info,
+static INLINE void cdef_init_fb_row(AV1_COMMON *const cm, MACROBLOCKD *const xd,
+                                    CdefBlockInfo *const fb_info,
                                     uint16_t **const linebuf,
                                     uint16_t *const src, int fbr) {
   const int num_planes = av1_num_planes(cm);
@@ -500,7 +506,7 @@ static INLINE void cdef_init_fb_row(AV1_COMMON *cm, MACROBLOCKD *const xd,
 
 // Apply CDEF filtering for one row of 64X64 filter blocks.
 // Sets frame boundaries (LEFT/RIGHT) and calls cdef_fb_col() per block.
-static void cdef_fb_row(AV1_COMMON *cm, MACROBLOCKD *xd,
+static void cdef_fb_row(AV1_COMMON *const cm, MACROBLOCKD *const xd,
                         uint16_t **const linebuf, uint16_t **const colbuf,
                         uint16_t *const src, int fbr) {
   CdefBlockInfo fb_info;
