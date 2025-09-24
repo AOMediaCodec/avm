@@ -1320,6 +1320,12 @@ void av1_read_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd, int blk_row,
 
   const int inter_block = is_inter_block(mbmi, xd->tree_type);
 
+  if (mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) {
+    assert(!inter_block);
+    *tx_type = IDTX;
+    return;
+  }
+
   if (get_ext_tx_types(tx_size, inter_block, cm->features.reduced_tx_set_used) >
       1) {
     const TxSetType tx_set_type = av1_get_ext_tx_set_type(
@@ -1384,11 +1390,6 @@ void av1_read_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd, int blk_row,
             tx_size, tx_set_type, short_side_idx, is_long_side_dct);
       }
     } else {
-      if (mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) {
-        *tx_type = IDTX;
-        return;
-      }
-
 #if CONFIG_REDUCED_TX_SET_EXT
       if (cm->features.reduced_tx_set_used == 2) {
         *tx_type = DCT_DCT;

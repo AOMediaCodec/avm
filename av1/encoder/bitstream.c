@@ -1260,6 +1260,10 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
     }
     return;
   }
+  if (mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) {
+    assert(!is_inter);
+    return;
+  }
   if (get_ext_tx_types(tx_size, is_inter, features->reduced_tx_set_used) > 1 &&
       !mbmi->skip_txfm[xd->tree_type == CHROMA_PART] &&
       !segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP)) {
@@ -1333,9 +1337,6 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
             ec_ctx->inter_ext_tx_short_side_cdf[eob_tx_ctx][square_tx_size], 4);
       }
     } else {
-      if (mbmi->fsc_mode[xd->tree_type == CHROMA_PART]) {
-        return;
-      }
 #if CONFIG_REDUCED_TX_SET_EXT
       if (cm->features.reduced_tx_set_used == 2) {
         assert(get_primary_tx_type(tx_type) == DCT_DCT);
