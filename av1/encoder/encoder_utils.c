@@ -636,16 +636,33 @@ void av1_set_size_dependent_vars(AV1_COMP *cpi, int *q, int *bottom_index,
 }
 
 static void reset_film_grain_chroma_params(aom_film_grain_t *pars) {
+#if CONFIG_CWG_F298_REC11
+  pars->fgm_points[2] = 0;
+#else
   pars->num_cr_points = 0;
+#endif
   pars->cr_mult = 0;
   pars->cr_luma_mult = 0;
+#if CONFIG_CWG_F298_REC11
+  memset(pars->fgm_scaling_points_2, 0, sizeof(pars->fgm_scaling_points_2));
+#else
   memset(pars->scaling_points_cr, 0, sizeof(pars->scaling_points_cr));
+#endif
   memset(pars->ar_coeffs_cr, 0, sizeof(pars->ar_coeffs_cr));
+#if CONFIG_CWG_F298_REC11
+  pars->fgm_points[1] = 0;
+#else
   pars->num_cb_points = 0;
+#endif
   pars->cb_mult = 0;
   pars->cb_luma_mult = 0;
+#if CONFIG_CWG_F298_REC11
+  pars->fgm_scale_from_channel0_flag = 0;
+  memset(pars->fgm_scaling_points_1, 0, sizeof(pars->fgm_scaling_points_1));
+#else
   pars->chroma_scaling_from_luma = 0;
   memset(pars->scaling_points_cb, 0, sizeof(pars->scaling_points_cb));
+#endif
   memset(pars->ar_coeffs_cb, 0, sizeof(pars->ar_coeffs_cb));
 }
 

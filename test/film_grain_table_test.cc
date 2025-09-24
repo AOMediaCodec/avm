@@ -22,9 +22,29 @@ void grain_equal(const aom_film_grain_t *expected,
   EXPECT_EQ(expected->apply_grain, actual->apply_grain);
   EXPECT_EQ(expected->update_parameters, actual->update_parameters);
   if (!expected->update_parameters) return;
+#if CONFIG_CWG_F298_REC11
+  EXPECT_EQ(expected->fgm_points[0], actual->fgm_points[0]);
+  EXPECT_EQ(expected->fgm_points[1], actual->fgm_points[1]);
+  EXPECT_EQ(expected->fgm_points[2], actual->fgm_points[2]);
+#else
   EXPECT_EQ(expected->num_y_points, actual->num_y_points);
   EXPECT_EQ(expected->num_cb_points, actual->num_cb_points);
   EXPECT_EQ(expected->num_cr_points, actual->num_cr_points);
+#endif
+#if CONFIG_CWG_F298_REC11
+  EXPECT_EQ(0,
+            memcmp(expected->fgm_scaling_points_0, actual->fgm_scaling_points_0,
+                   expected->fgm_points[0] *
+                       sizeof(expected->fgm_scaling_points_0[0])));
+  EXPECT_EQ(0,
+            memcmp(expected->fgm_scaling_points_1, actual->fgm_scaling_points_1,
+                   expected->fgm_points[1] *
+                       sizeof(expected->fgm_scaling_points_1[0])));
+  EXPECT_EQ(0,
+            memcmp(expected->fgm_scaling_points_2, actual->fgm_scaling_points_2,
+                   expected->fgm_points[2] *
+                       sizeof(expected->fgm_scaling_points_2[0])));
+#else
   EXPECT_EQ(0, memcmp(expected->scaling_points_y, actual->scaling_points_y,
                       expected->num_y_points *
                           sizeof(expected->scaling_points_y[0])));
@@ -34,6 +54,7 @@ void grain_equal(const aom_film_grain_t *expected,
   EXPECT_EQ(0, memcmp(expected->scaling_points_cr, actual->scaling_points_cr,
                       expected->num_cr_points *
                           sizeof(expected->scaling_points_cr[0])));
+#endif
   EXPECT_EQ(expected->scaling_shift, actual->scaling_shift);
   EXPECT_EQ(expected->ar_coeff_lag, actual->ar_coeff_lag);
   EXPECT_EQ(expected->ar_coeff_shift, actual->ar_coeff_shift);
@@ -43,6 +64,16 @@ void grain_equal(const aom_film_grain_t *expected,
   const int num_pos_chroma = num_pos_luma;
   EXPECT_EQ(0, memcmp(expected->ar_coeffs_y, actual->ar_coeffs_y,
                       sizeof(expected->ar_coeffs_y[0]) * num_pos_luma));
+#if CONFIG_CWG_F298_REC11
+  if (actual->fgm_points[1] || actual->fgm_scale_from_channel0_flag) {
+    EXPECT_EQ(0, memcmp(expected->ar_coeffs_cb, actual->ar_coeffs_cb,
+                        sizeof(expected->ar_coeffs_cb[0]) * num_pos_chroma));
+  }
+  if (actual->fgm_points[2] || actual->fgm_scale_from_channel0_flag) {
+    EXPECT_EQ(0, memcmp(expected->ar_coeffs_cr, actual->ar_coeffs_cr,
+                        sizeof(expected->ar_coeffs_cr[0]) * num_pos_chroma));
+  }
+#else
   if (actual->num_cb_points || actual->chroma_scaling_from_luma) {
     EXPECT_EQ(0, memcmp(expected->ar_coeffs_cb, actual->ar_coeffs_cb,
                         sizeof(expected->ar_coeffs_cb[0]) * num_pos_chroma));
@@ -51,19 +82,34 @@ void grain_equal(const aom_film_grain_t *expected,
     EXPECT_EQ(0, memcmp(expected->ar_coeffs_cr, actual->ar_coeffs_cr,
                         sizeof(expected->ar_coeffs_cr[0]) * num_pos_chroma));
   }
+
+#endif
   EXPECT_EQ(expected->overlap_flag, actual->overlap_flag);
+#if CONFIG_CWG_F298_REC11
+  EXPECT_EQ(expected->fgm_scale_from_channel0_flag,
+            actual->fgm_scale_from_channel0_flag);
+#else
   EXPECT_EQ(expected->chroma_scaling_from_luma,
             actual->chroma_scaling_from_luma);
+#endif
   EXPECT_EQ(expected->grain_scale_shift, actual->grain_scale_shift);
   // EXPECT_EQ(expected->random_seed, actual->random_seed);
 
   // clip_to_restricted and bit_depth aren't written
+#if CONFIG_CWG_F298_REC11
+  if (expected->fgm_points[1]) {
+#else
   if (expected->num_cb_points) {
+#endif
     EXPECT_EQ(expected->cb_mult, actual->cb_mult);
     EXPECT_EQ(expected->cb_luma_mult, actual->cb_luma_mult);
     EXPECT_EQ(expected->cb_offset, actual->cb_offset);
   }
+#if CONFIG_CWG_F298_REC11
+  if (expected->fgm_points[2]) {
+#else
   if (expected->num_cr_points) {
+#endif
     EXPECT_EQ(expected->cr_mult, actual->cr_mult);
     EXPECT_EQ(expected->cr_luma_mult, actual->cr_luma_mult);
     EXPECT_EQ(expected->cr_offset, actual->cr_offset);

@@ -207,6 +207,9 @@ set_aom_config_var(CONFIG_ACROSS_SCALE_REF_OPT 1 NUMBER
 set_aom_config_var(CONFIG_ACROSS_SCALE_WARP 1 NUMBER
                    "AV2 experiment flag to enable across scale warp modes.")
 
+set_aom_config_var(CONFIG_CWG_F298_REC11 1 NUMBER
+                   "Scaling function improvements for film grain synthesis.")
+
 # Source of throughput analysis : CWG-B065
 set_aom_config_var(CONFIG_THROUGHPUT_ANALYSIS 0
                    "AV2 experiment flag to measure throughput.")

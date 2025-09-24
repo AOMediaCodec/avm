@@ -63,7 +63,12 @@ static void grain_table_entry_read(FILE *file,
 #endif
                       &pars->ar_coeff_lag, &pars->ar_coeff_shift,
                       &pars->grain_scale_shift, &pars->scaling_shift,
+#if CONFIG_CWG_F298_REC11
+                      &pars->fgm_scale_from_channel0_flag, &pars->overlap_flag,
+#else
                       &pars->chroma_scaling_from_luma, &pars->overlap_flag,
+#endif
+
                       &pars->cb_mult, &pars->cb_luma_mult, &pars->cb_offset,
 #if CONFIG_FGS_BLOCK_SIZE
                       &pars->cr_mult, &pars->cr_luma_mult, &pars->cr_offset,
@@ -83,11 +88,25 @@ static void grain_table_entry_read(FILE *file,
                          num_read);
       return;
     }
+#if CONFIG_CWG_F298_REC11
+    if (!fscanf(file, "\tsY %d ", &pars->fgm_points[0])) {
+#else
     if (!fscanf(file, "\tsY %d ", &pars->num_y_points)) {
+#endif
       aom_internal_error(error_info, AOM_CODEC_ERROR,
                          "Unable to read num y points");
       return;
     }
+#if CONFIG_CWG_F298_REC11
+    for (int i = 0; i < pars->fgm_points[0]; ++i) {
+      if (2 != fscanf(file, "%d %d", &pars->fgm_scaling_points_0[i][0],
+                      &pars->fgm_scaling_points_0[i][1])) {
+        aom_internal_error(error_info, AOM_CODEC_ERROR,
+                           "Unable to read y scaling points");
+        return;
+      }
+    }
+#else
     for (int i = 0; i < pars->num_y_points; ++i) {
       if (2 != fscanf(file, "%d %d", &pars->scaling_points_y[i][0],
                       &pars->scaling_points_y[i][1])) {
@@ -96,6 +115,22 @@ static void grain_table_entry_read(FILE *file,
         return;
       }
     }
+#endif
+#if CONFIG_CWG_F298_REC11
+    if (!fscanf(file, "\n\tsCb %d", &pars->fgm_points[1])) {
+      aom_internal_error(error_info, AOM_CODEC_ERROR,
+                         "Unable to read num cb points");
+      return;
+    }
+    for (int i = 0; i < pars->fgm_points[1]; ++i) {
+      if (2 != fscanf(file, "%d %d", &pars->fgm_scaling_points_1[i][0],
+                      &pars->fgm_scaling_points_1[i][1])) {
+        aom_internal_error(error_info, AOM_CODEC_ERROR,
+                           "Unable to read cb scaling points");
+        return;
+      }
+    }
+#else
     if (!fscanf(file, "\n\tsCb %d", &pars->num_cb_points)) {
       aom_internal_error(error_info, AOM_CODEC_ERROR,
                          "Unable to read num cb points");
@@ -109,6 +144,22 @@ static void grain_table_entry_read(FILE *file,
         return;
       }
     }
+#endif
+#if CONFIG_CWG_F298_REC11
+    if (!fscanf(file, "\n\tsCr %d", &pars->fgm_points[2])) {
+      aom_internal_error(error_info, AOM_CODEC_ERROR,
+                         "Unable to read num cr points");
+      return;
+    }
+    for (int i = 0; i < pars->fgm_points[2]; ++i) {
+      if (2 != fscanf(file, "%d %d", &pars->fgm_scaling_points_2[i][0],
+                      &pars->fgm_scaling_points_2[i][1])) {
+        aom_internal_error(error_info, AOM_CODEC_ERROR,
+                           "Unable to read cr scaling points");
+        return;
+      }
+    }
+#else
     if (!fscanf(file, "\n\tsCr %d", &pars->num_cr_points)) {
       aom_internal_error(error_info, AOM_CODEC_ERROR,
                          "Unable to read num cr points");
@@ -122,6 +173,7 @@ static void grain_table_entry_read(FILE *file,
         return;
       }
     }
+#endif
 
     fscanf(file, "\n\tcY");
     const int n = 2 * pars->ar_coeff_lag * (pars->ar_coeff_lag + 1);
@@ -165,7 +217,12 @@ static void grain_table_entry_write(FILE *file,
     fprintf(file, "\tp %d %d %d %d %d %d %d %d %d %d %d %d\n",
 #endif
             pars->ar_coeff_lag, pars->ar_coeff_shift, pars->grain_scale_shift,
+#if CONFIG_CWG_F298_REC11
+            pars->scaling_shift, pars->fgm_scale_from_channel0_flag,
+#else
             pars->scaling_shift, pars->chroma_scaling_from_luma,
+#endif
+
             pars->overlap_flag, pars->cb_mult, pars->cb_luma_mult,
             pars->cb_offset, pars->cr_mult, pars->cr_luma_mult,
 #if CONFIG_FGS_BLOCK_SIZE
@@ -173,11 +230,30 @@ static void grain_table_entry_write(FILE *file,
 #else
             pars->cr_offset);
 #endif
+#if CONFIG_CWG_F298_REC11
+    fprintf(file, "\tsY %d ", pars->fgm_points[0]);
+    for (int i = 0; i < pars->fgm_points[0]; ++i) {
+      fprintf(file, " %d %d", pars->fgm_scaling_points_0[i][0],
+              pars->fgm_scaling_points_0[i][1]);
+#else
     fprintf(file, "\tsY %d ", pars->num_y_points);
     for (int i = 0; i < pars->num_y_points; ++i) {
       fprintf(file, " %d %d", pars->scaling_points_y[i][0],
               pars->scaling_points_y[i][1]);
+#endif
     }
+#if CONFIG_CWG_F298_REC11
+    fprintf(file, "\n\tsCb %d", pars->fgm_points[1]);
+    for (int i = 0; i < pars->fgm_points[1]; ++i) {
+      fprintf(file, " %d %d", pars->fgm_scaling_points_1[i][0],
+              pars->fgm_scaling_points_1[i][1]);
+    }
+    fprintf(file, "\n\tsCr %d", pars->fgm_points[2]);
+    for (int i = 0; i < pars->fgm_points[2]; ++i) {
+      fprintf(file, " %d %d", pars->fgm_scaling_points_2[i][0],
+              pars->fgm_scaling_points_2[i][1]);
+    }
+#else
     fprintf(file, "\n\tsCb %d", pars->num_cb_points);
     for (int i = 0; i < pars->num_cb_points; ++i) {
       fprintf(file, " %d %d", pars->scaling_points_cb[i][0],
@@ -188,6 +264,7 @@ static void grain_table_entry_write(FILE *file,
       fprintf(file, " %d %d", pars->scaling_points_cr[i][0],
               pars->scaling_points_cr[i][1]);
     }
+#endif
     fprintf(file, "\n\tcY");
     const int n = 2 * pars->ar_coeff_lag * (pars->ar_coeff_lag + 1);
     for (int i = 0; i < n; ++i) {
