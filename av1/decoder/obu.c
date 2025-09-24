@@ -999,6 +999,14 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
         if (cm->bru.frame_inactive_flag) {
           pbi->seen_frame_header = 0;
           frame_decoding_finished = 1;
+          CommonTileParams *const tiles = &cm->tiles;
+          av1_get_tile_limits(cm);
+          tiles->uniform_spacing = 1;
+          tiles->log2_cols = 0;
+          tiles->log2_rows = 0;
+          av1_calculate_tile_cols(cm, cm->mi_params.mi_rows,
+                                  cm->mi_params.mi_cols, tiles);
+          av1_calculate_tile_rows(cm, cm->mi_params.mi_rows, tiles);
           const int num_tiles = cm->tiles.cols * cm->tiles.rows;
           const int end_tile = num_tiles - 1;
           // skip parsing and go directly to decode
