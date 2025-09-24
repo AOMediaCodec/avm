@@ -626,15 +626,13 @@ void av1_set_size_dependent_vars(AV1_COMP *cpi, int *q, int *bottom_index,
   }
 
 #if CONFIG_CWG_F317
-  if (cm->bridge_frame_info.is_bridge_frame)
-  {
+  if (cm->bridge_frame_info.is_bridge_frame) {
     *q = cm->quant_params.base_qindex;
-  }
-  else
-#endif // CONFIG_CWG_F317_TEST_PATTERN
-  // Decide q and q bounds.
-  *q = av1_rc_pick_q_and_bounds(cpi, &cpi->rc, cm->width, cm->height,
-                                cpi->gf_group.index, bottom_index, top_index);
+  } else
+#endif  // CONFIG_CWG_F317_TEST_PATTERN
+    // Decide q and q bounds.
+    *q = av1_rc_pick_q_and_bounds(cpi, &cpi->rc, cm->width, cm->height,
+                                  cpi->gf_group.index, bottom_index, top_index);
 }
 
 static void reset_film_grain_chroma_params(aom_film_grain_t *pars) {

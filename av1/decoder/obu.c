@@ -478,7 +478,7 @@ static int32_t read_tile_group_header(AV1Decoder *pbi,
   if (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame) {
 #else
   if (cm->bru.frame_inactive_flag) {
-#endif // CONFIG_CWG_F317
+#endif  // CONFIG_CWG_F317
     *start_tile = 0;
     *end_tile = num_tiles - 1;
     return 0;
@@ -989,8 +989,7 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
     // Set is_bridge_frame flag based on OBU type
     if (obu_header.type == OBU_BRIDGE_FRAME) {
       cm->bridge_frame_info.is_bridge_frame = 1;
-    }
-    else {
+    } else {
       cm->bridge_frame_info.is_bridge_frame = 0;
     }
 #endif  // CONFIG_CWG_F317
@@ -1120,12 +1119,12 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
             (cm->tiles.large_scale && !pbi->camera_frame_header_ready)) {
 #if CONFIG_CWG_F317
           int trailing_bits_present = (obu_header.type != OBU_FRAME) ? 1 : 0;
-          frame_header_size = read_frame_header_obu(
-              pbi, &rb, data, p_data_end, trailing_bits_present);
+          frame_header_size = read_frame_header_obu(pbi, &rb, data, p_data_end,
+                                                    trailing_bits_present);
 #else
           frame_header_size = read_frame_header_obu(
               pbi, &rb, data, p_data_end, obu_header.type != OBU_FRAME);
-#endif // CONFIG_CWG_F317
+#endif  // CONFIG_CWG_F317
           pbi->seen_frame_header = 1;
           if (!pbi->ext_tile_debug && cm->tiles.large_scale)
             pbi->camera_frame_header_ready = 1;

@@ -2819,7 +2819,7 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
                        !cm->bru.frame_inactive_flag &&
 #if CONFIG_CWG_F317
                        !cm->bridge_frame_info.is_bridge_frame &&
-#endif // CONFIG_CWG_F317
+#endif  // CONFIG_CWG_F317
                        cm->seq_params.enable_ccso;
   const int num_planes = av1_num_planes(cm);
   av1_setup_dst_planes(xd->plane, &cm->cur_frame->buf, 0, 0, 0, num_planes,
@@ -4042,10 +4042,11 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
 
   // Pick the loop filter level for the frame.
 #if CONFIG_CWG_F317
-  if (!cm->bru.frame_inactive_flag && !cm->bridge_frame_info.is_bridge_frame) loopfilter_frame(cpi, cm);
+  if (!cm->bru.frame_inactive_flag && !cm->bridge_frame_info.is_bridge_frame)
+    loopfilter_frame(cpi, cm);
 #else
   if (!cm->bru.frame_inactive_flag) loopfilter_frame(cpi, cm);
-#endif // CONFIG_CWG_F317
+#endif  // CONFIG_CWG_F317
   int64_t tip_as_output_sse = INT64_MAX;
   int64_t tip_as_output_rate = INT64_MAX;
 
@@ -4144,7 +4145,7 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
           (!cm->bru.frame_inactive_flag) &&
 #if CONFIG_CWG_F317
           (!cm->bridge_frame_info.is_bridge_frame) &&
-#endif // CONFIG_CWG_F317
+#endif  // CONFIG_CWG_F317
           (cm->seq_params.enable_avg_cdf && !cm->seq_params.avg_cdf_type) &&
           !(cm->features.error_resilient_mode || frame_is_sframe(cm)) &&
           (ref_frame_used != PRIMARY_REF_NONE)) {
@@ -4546,10 +4547,11 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
       *cm->fc = cpi->tile_data[largest_tile_id].tctx;
     }
 #if CONFIG_CWG_F317
-    if (!cm->bru.frame_inactive_flag && !cm->bridge_frame_info.is_bridge_frame) av1_reset_cdf_symbol_counters(cm->fc);
+    if (!cm->bru.frame_inactive_flag && !cm->bridge_frame_info.is_bridge_frame)
+      av1_reset_cdf_symbol_counters(cm->fc);
 #else
     if (!cm->bru.frame_inactive_flag) av1_reset_cdf_symbol_counters(cm->fc);
-#endif // CONFIG_CWG_F317
+#endif  // CONFIG_CWG_F317
   }
   if (!cm->tiles.large_scale) {
     cm->cur_frame->frame_context = *cm->fc;

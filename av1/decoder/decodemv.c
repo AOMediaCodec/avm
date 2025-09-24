@@ -53,9 +53,9 @@ void read_gdf(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
 #if CONFIG_CWG_F317
   if (cm->bridge_frame_info.is_bridge_frame && cm->gdf_info.gdf_mode) {
     aom_internal_error(&cm->error, AOM_CODEC_ERROR,
-      "Bridge frame cannot use gdf");
+                       "Bridge frame cannot use gdf");
   }
-#endif // CONFIG_CWG_F317
+#endif  // CONFIG_CWG_F317
   if (cm->bru.frame_inactive_flag) return;
   if (cm->bru.enabled && cm->gdf_info.gdf_mode == 1) {
     aom_internal_error(&cm->error, AOM_CODEC_ERROR,

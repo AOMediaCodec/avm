@@ -2929,7 +2929,8 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
   // enc need to update part ctx on inactive and ext
   // but only inactive need to return.
 #if CONFIG_CWG_F317
-  if (!bru_is_sb_active(cm, mi_col, mi_row) || cm->bridge_frame_info.is_bridge_frame) {
+  if (!bru_is_sb_active(cm, mi_col, mi_row) ||
+      cm->bridge_frame_info.is_bridge_frame) {
 #else
   if (!bru_is_sb_active(cm, mi_col, mi_row)) {
 #endif
@@ -2938,7 +2939,8 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
                          "BRU: intra prediction on inactive/support SB");
     }
 #if CONFIG_CWG_F317
-    if (!cm->bru.frame_inactive_flag && !cm->bridge_frame_info.is_bridge_frame) {
+    if (!cm->bru.frame_inactive_flag &&
+        !cm->bridge_frame_info.is_bridge_frame) {
 #else
     if (!cm->bru.frame_inactive_flag) {
 #endif
@@ -3046,10 +3048,13 @@ static AOM_INLINE PARTITION_TYPE write_partition(
   if (derived_partition != PARTITION_INVALID &&
       partition_allowed[derived_partition]) {
 #if CONFIG_CWG_F317
-    assert((bru_is_sb_active(cm, mi_col, mi_row) && !cm->bridge_frame_info.is_bridge_frame) ? p == derived_partition : 1);
+    assert((bru_is_sb_active(cm, mi_col, mi_row) &&
+            !cm->bridge_frame_info.is_bridge_frame)
+               ? p == derived_partition
+               : 1);
 #else
     assert(bru_is_sb_active(cm, mi_col, mi_row) ? p == derived_partition : 1);
-#endif // CONFIG_CWG_F317
+#endif  // CONFIG_CWG_F317
     return derived_partition;
   }
 
@@ -3235,7 +3240,7 @@ static AOM_INLINE void write_modes_sb(
     if (cm->rst_info[plane].frame_restoration_type != RESTORE_NONE &&
         !cm->bru.frame_inactive_flag &&
 #if CONFIG_CWG_F317
-      !cm->bridge_frame_info.is_bridge_frame &&
+        !cm->bridge_frame_info.is_bridge_frame &&
 #endif  // CONFIG_CWG_F317
         av1_loop_restoration_corners_in_sb(cm, plane, mi_row, mi_col, bsize,
                                            &rcol0, &rcol1, &rrow0, &rrow1)) {
@@ -3622,7 +3627,7 @@ static AOM_INLINE void encode_restoration_mode(
   if (!cm->seq_params.enable_restoration) return;
 #if CONFIG_CWG_F317
   if (cm->bridge_frame_info.is_bridge_frame) return;
-#endif // CONFIG_CWG_F317
+#endif  // CONFIG_CWG_F317
   if (cm->bru.frame_inactive_flag) return;
   const int num_planes = av1_num_planes(cm);
   int luma_none = 1, chroma_none = 1;
@@ -4324,10 +4329,11 @@ static AOM_INLINE void encode_loopfilter(AV1_COMMON *cm,
                                          struct aom_write_bit_buffer *wb) {
   assert(!cm->features.coded_lossless);
 #if CONFIG_CWG_F317
-  if (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame) return;
+  if (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame)
+    return;
 #else
   if (cm->bru.frame_inactive_flag) return;
-#endif // CONFIG_CWG_F317
+#endif  // CONFIG_CWG_F317
   const int num_planes = av1_num_planes(cm);
   struct loopfilter *lf = &cm->lf;
 
@@ -4455,7 +4461,7 @@ static AOM_INLINE void encode_gdf(const AV1_COMMON *cm,
   if (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame) {
 #else
   if (cm->bru.frame_inactive_flag) {
-#endif // CONFIG_CWG_F317
+#endif  // CONFIG_CWG_F317
     return;
   }
   aom_wb_write_bit(wb, cm->gdf_info.gdf_mode == 0 ? 0 : 1);
@@ -4476,7 +4482,7 @@ static AOM_INLINE void encode_cdef(const AV1_COMMON *cm,
   const CdefInfo *const cdef_info = &cm->cdef_info;
 #if CONFIG_CWG_F317
   if (cm->bridge_frame_info.is_bridge_frame) return;
-#endif // CONFIG_CWG_F317
+#endif  // CONFIG_CWG_F317
   if (cm->bru.frame_inactive_flag) return;
   aom_wb_write_bit(wb, cdef_info->cdef_frame_enable);
   if (!cdef_info->cdef_frame_enable) return;
@@ -4519,7 +4525,7 @@ static AOM_INLINE void encode_ccso(const AV1_COMMON *cm,
                                    struct aom_write_bit_buffer *wb) {
 #if CONFIG_CWG_F317
   if (cm->bridge_frame_info.is_bridge_frame) return;
-#endif // CONFIG_CWG_F317
+#endif  // CONFIG_CWG_F317
   if (cm->bru.frame_inactive_flag) return;
   const int ccso_offset[8] = { 0, 1, -1, 3, -3, 7, -7, -10 };
   const int ccso_scale[4] = { 1, 2, 3, 4 };
@@ -4529,11 +4535,11 @@ static AOM_INLINE void encode_ccso(const AV1_COMMON *cm,
           : cm->ref_frames_info.num_total_refs;
 #if CONFIG_CWG_F317
   if (!cm->bridge_frame_info.is_bridge_frame) {
-#endif // CONFIG_CWG_F317
-  aom_wb_write_literal(wb, cm->ccso_info.ccso_frame_flag, 1);
+#endif  // CONFIG_CWG_F317
+    aom_wb_write_literal(wb, cm->ccso_info.ccso_frame_flag, 1);
 #if CONFIG_CWG_F317
   }
-#endif // CONFIG_CWG_F317
+#endif  // CONFIG_CWG_F317
   if (cm->ccso_info.ccso_frame_flag) {
     for (int plane = 0; plane < av1_num_planes(cm); plane++) {
       aom_wb_write_literal(wb, cm->ccso_info.ccso_enable[plane], 1);
@@ -4731,7 +4737,7 @@ static AOM_INLINE void encode_bru_active_info(AV1_COMP *cpi,
   if (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame) {
 #else
   if (cm->bru.frame_inactive_flag) {
-#endif // CONFIG_CWG_F317
+#endif  // CONFIG_CWG_F317
     cm->features.disable_cdf_update = 1;
   }
   if (cm->seq_params.enable_bru) {
@@ -4981,22 +4987,24 @@ static AOM_INLINE void write_frame_size(const AV1_COMMON *cm,
   const int coded_width = cm->width - 1;
   const int coded_height = cm->height - 1;
 #if CONFIG_CWG_F317
-  const SequenceHeader* seq_params = &cm->seq_params;
+  const SequenceHeader *seq_params = &cm->seq_params;
   int num_bits_width = seq_params->num_bits_width;
   int num_bits_height = seq_params->num_bits_height;
   if (cm->bridge_frame_info.is_bridge_frame) {
-    aom_wb_write_literal(wb, cm->bridge_frame_info.bridge_frame_max_width - 1, num_bits_width);
-    aom_wb_write_literal(wb, cm->bridge_frame_info.bridge_frame_max_height - 1, num_bits_height);
+    aom_wb_write_literal(wb, cm->bridge_frame_info.bridge_frame_max_width - 1,
+                         num_bits_width);
+    aom_wb_write_literal(wb, cm->bridge_frame_info.bridge_frame_max_height - 1,
+                         num_bits_height);
     return;
   }
-#endif // CONFIG_CWG_F317
+#endif  // CONFIG_CWG_F317
 
   if (frame_size_override) {
 #if !CONFIG_CWG_F317
     const SequenceHeader *seq_params = &cm->seq_params;
     int num_bits_width = seq_params->num_bits_width;
     int num_bits_height = seq_params->num_bits_height;
-#endif // CONFIG_CWG_F317
+#endif  // CONFIG_CWG_F317
     aom_wb_write_literal(wb, coded_width, num_bits_width);
     aom_wb_write_literal(wb, coded_height, num_bits_height);
   }
@@ -6280,9 +6288,9 @@ static AOM_INLINE void write_uncompressed_header_obu
     } else {
 #if CONFIG_CWG_F317
       if (!cm->bridge_frame_info.is_bridge_frame) {
-#endif // CONFIG_CWG_F317
-      aom_wb_write_bit(wb, 0);  // show_existing_frame
-    }
+#endif  // CONFIG_CWG_F317
+        aom_wb_write_bit(wb, 0);  // show_existing_frame
+      }
 #endif  // CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_SEF
 #if CONFIG_F106_OBU_TILEGROUP && (CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_TIP)
     bool frame_type_signaled = true;
@@ -6314,15 +6322,14 @@ static AOM_INLINE void write_uncompressed_header_obu
     if (cm->bridge_frame_info.is_bridge_frame) {
       if (cm->show_frame) {
         aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-          "Bridge frame show_frame is 1");
+                           "Bridge frame show_frame is 1");
       }
-    }
-    else {
-#endif // CONFIG_CWG_F317
-    aom_wb_write_bit(wb, cm->show_frame);
+    } else {
+#endif  // CONFIG_CWG_F317
+      aom_wb_write_bit(wb, cm->show_frame);
 #if CONFIG_CWG_F317
     }
-#endif // CONFIG_CWG_F317
+#endif  // CONFIG_CWG_F317
     if (cm->show_frame) {
       if (seq_params->decoder_model_info_present_flag &&
           seq_params->timing_info.equal_picture_interval == 0)
@@ -6332,15 +6339,14 @@ static AOM_INLINE void write_uncompressed_header_obu
       if (cm->bridge_frame_info.is_bridge_frame) {
         if (cm->showable_frame) {
           aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-            "Bridge frame showable_frame is not 0");
+                             "Bridge frame showable_frame is not 0");
         }
-      }
-      else {
-#endif // CONFIG_CWG_F317
-      aom_wb_write_bit(wb, cm->showable_frame);
+      } else {
+#endif  // CONFIG_CWG_F317
+        aom_wb_write_bit(wb, cm->showable_frame);
 #if CONFIG_CWG_F317
       }
-#endif // CONFIG_CWG_F317
+#endif  // CONFIG_CWG_F317
     }
     if (frame_is_sframe(cm)) {
       assert(features->error_resilient_mode);
@@ -6349,15 +6355,14 @@ static AOM_INLINE void write_uncompressed_header_obu
       if (cm->bridge_frame_info.is_bridge_frame) {
         if (features->error_resilient_mode) {
           aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-            "Bridge frame error_resilient_mode is not 0");
+                             "Bridge frame error_resilient_mode is not 0");
         }
-      }
-      else {
+      } else {
 #endif
-      aom_wb_write_bit(wb, features->error_resilient_mode);
+        aom_wb_write_bit(wb, features->error_resilient_mode);
 #if CONFIG_CWG_F317
       }
-#endif // CONFIG_CWG_F317
+#endif  // CONFIG_CWG_F317
     }
   }
 
@@ -6372,20 +6377,21 @@ static AOM_INLINE void write_uncompressed_header_obu
 #if CONFIG_CWG_F317
       if (cm->bridge_frame_info.is_bridge_frame) {
         const int ref_frame = cm->bridge_frame_info.bridge_frame_ref_idx;
-        assert(!is_tip_ref_frame(ref_frame)); // TIP frame reference is not allowed
+        assert(!is_tip_ref_frame(
+            ref_frame));  // TIP frame reference is not allowed
         const int map_idx = get_ref_frame_map_idx(cm, ref_frame);
         if (cm->current_frame_id != cm->ref_frame_id[map_idx]) {
-          aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-            "Bridge frame current_frame_id is not equal to ref_frame_id");
+          aom_internal_error(
+              &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+              "Bridge frame current_frame_id is not equal to ref_frame_id");
         }
-      }
-      else {
-#endif // CONFIG_CWG_F317
-      int frame_id_len = seq_params->frame_id_length;
-      aom_wb_write_literal(wb, cm->current_frame_id, frame_id_len);
+      } else {
+#endif  // CONFIG_CWG_F317
+        int frame_id_len = seq_params->frame_id_length;
+        aom_wb_write_literal(wb, cm->current_frame_id, frame_id_len);
 #if CONFIG_CWG_F317
       }
-#endif // CONFIG_CWG_F317
+#endif  // CONFIG_CWG_F317
     }
 #endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
 
@@ -6397,58 +6403,61 @@ static AOM_INLINE void write_uncompressed_header_obu
 
 #if CONFIG_CWG_F317
     if (cm->bridge_frame_info.is_bridge_frame) {
-      const RefCntBuffer* ref_buf = get_ref_frame_buf(cm, cm->bridge_frame_info.bridge_frame_ref_idx);
+      const RefCntBuffer *ref_buf =
+          get_ref_frame_buf(cm, cm->bridge_frame_info.bridge_frame_ref_idx);
       if (current_frame->order_hint != ref_buf->order_hint) {
-        aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-          "Bridge frame order_hint is not equal to ref_buf order_hint");
+        aom_internal_error(
+            &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+            "Bridge frame order_hint is not equal to ref_buf order_hint");
       }
       if (current_frame->display_order_hint != ref_buf->display_order_hint) {
         aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-          "Bridge frame display_order_hint is not equal to ref_buf display_order_hint");
+                           "Bridge frame display_order_hint is not equal to "
+                           "ref_buf display_order_hint");
       }
       if (current_frame->frame_number != ref_buf->order_hint) {
-        aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-          "Bridge frame frame_number is not equal to ref_buf order_hint");
+        aom_internal_error(
+            &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+            "Bridge frame frame_number is not equal to ref_buf order_hint");
       }
-    }
-    else {
-#endif // CONFIG_CWG_F317
-    frame_size_override_flag =
-        frame_is_sframe(cm) ? 1
-                            : (cm->width != seq_params->max_frame_width ||
-                               cm->height != seq_params->max_frame_height);
-    if (!frame_is_sframe(cm)) aom_wb_write_bit(wb, frame_size_override_flag);
+    } else {
+#endif  // CONFIG_CWG_F317
+      frame_size_override_flag =
+          frame_is_sframe(cm) ? 1
+                              : (cm->width != seq_params->max_frame_width ||
+                                 cm->height != seq_params->max_frame_height);
+      if (!frame_is_sframe(cm)) aom_wb_write_bit(wb, frame_size_override_flag);
 
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-    if (seq_params->order_hint_info.enable_order_hint)
+      if (seq_params->order_hint_info.enable_order_hint)
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-      aom_wb_write_literal(
-          wb, current_frame->order_hint,
-          seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
+        aom_wb_write_literal(
+            wb, current_frame->order_hint,
+            seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
 #if CONFIG_CWG_F317
     }
-#endif // CONFIG_CWG_F317
+#endif  // CONFIG_CWG_F317
 
     if (!features->error_resilient_mode && !frame_is_intra_only(cm)) {
 #if CONFIG_CWG_F317
       if (cm->bridge_frame_info.is_bridge_frame) {
         if (cpi->signal_primary_ref_frame != 0) {
           aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-            "Bridge frame signal_primary_ref_frame is not 0");
+                             "Bridge frame signal_primary_ref_frame is not 0");
         }
-      }
-      else {
-#endif // CONFIG_CWG_F317
-      aom_wb_write_literal(wb, cpi->signal_primary_ref_frame, 1);
-      if (cpi->signal_primary_ref_frame)
-        aom_wb_write_literal(wb, features->primary_ref_frame, PRIMARY_REF_BITS);
-      if (features->primary_ref_frame >= cm->ref_frames_info.num_total_refs &&
-          features->primary_ref_frame != PRIMARY_REF_NONE)
-        aom_internal_error(&cm->error, AOM_CODEC_ERROR,
-                           "Invalid primary_ref_frame");
+      } else {
+#endif  // CONFIG_CWG_F317
+        aom_wb_write_literal(wb, cpi->signal_primary_ref_frame, 1);
+        if (cpi->signal_primary_ref_frame)
+          aom_wb_write_literal(wb, features->primary_ref_frame,
+                               PRIMARY_REF_BITS);
+        if (features->primary_ref_frame >= cm->ref_frames_info.num_total_refs &&
+            features->primary_ref_frame != PRIMARY_REF_NONE)
+          aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+                             "Invalid primary_ref_frame");
 #if CONFIG_CWG_F317
       }
-#endif // CONFIG_CWG_F317
+#endif  // CONFIG_CWG_F317
     }
   }
 
@@ -6457,120 +6466,123 @@ static AOM_INLINE void write_uncompressed_header_obu
     if (cm->bridge_frame_info.is_bridge_frame) {
       if (cm->buffer_removal_time_present != 0) {
         aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-          "Bridge frame buffer_removal_time_present is not 0");
+                           "Bridge frame buffer_removal_time_present is not 0");
       }
-    }
-    else {
-#endif // CONFIG_CWG_F317
-    aom_wb_write_bit(wb, cm->buffer_removal_time_present);
-    if (cm->buffer_removal_time_present) {
-      for (int op_num = 0;
-           op_num < seq_params->operating_points_cnt_minus_1 + 1; op_num++) {
-        if (seq_params->op_params[op_num].decoder_model_param_present_flag) {
-          if (((seq_params->operating_point_idc[op_num] >> cm->tlayer_id) &
-                   0x1 &&
-               (seq_params->operating_point_idc[op_num] >>
-                (cm->mlayer_id + MAX_NUM_TLAYERS)) &
-                   0x1) ||
-              seq_params->operating_point_idc[op_num] == 0) {
-            aom_wb_write_unsigned_literal(
-                wb, cm->buffer_removal_times[op_num],
-                seq_params->decoder_model_info.buffer_removal_time_length);
-            cm->buffer_removal_times[op_num]++;
-            if (cm->buffer_removal_times[op_num] == 0) {
-              aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-                                 "buffer_removal_time overflowed");
+    } else {
+#endif  // CONFIG_CWG_F317
+      aom_wb_write_bit(wb, cm->buffer_removal_time_present);
+      if (cm->buffer_removal_time_present) {
+        for (int op_num = 0;
+             op_num < seq_params->operating_points_cnt_minus_1 + 1; op_num++) {
+          if (seq_params->op_params[op_num].decoder_model_param_present_flag) {
+            if (((seq_params->operating_point_idc[op_num] >> cm->tlayer_id) &
+                     0x1 &&
+                 (seq_params->operating_point_idc[op_num] >>
+                  (cm->mlayer_id + MAX_NUM_TLAYERS)) &
+                     0x1) ||
+                seq_params->operating_point_idc[op_num] == 0) {
+              aom_wb_write_unsigned_literal(
+                  wb, cm->buffer_removal_times[op_num],
+                  seq_params->decoder_model_info.buffer_removal_time_length);
+              cm->buffer_removal_times[op_num]++;
+              if (cm->buffer_removal_times[op_num] == 0) {
+                aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+                                   "buffer_removal_time overflowed");
+              }
             }
           }
         }
       }
-    }
 #if CONFIG_CWG_F317
     }
-#endif // CONFIG_CWG_F317
+#endif  // CONFIG_CWG_F317
   }
 
 #if CONFIG_CWG_F317
   if (cm->bridge_frame_info.is_bridge_frame) {
-    aom_wb_write_literal(wb, cm->bridge_frame_info.bridge_frame_overwrite_flag, 1);
+    aom_wb_write_literal(wb, cm->bridge_frame_info.bridge_frame_overwrite_flag,
+                         1);
 
     if (!cm->bridge_frame_info.bridge_frame_overwrite_flag) {
-      if (current_frame->refresh_frame_flags != (1 << cm->bridge_frame_info.bridge_frame_ref_idx)) {
+      if (current_frame->refresh_frame_flags !=
+          (1 << cm->bridge_frame_info.bridge_frame_ref_idx)) {
         aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-          "Bridge frame refresh_frame_flags is not equal to 1 << bridge_frame_ref_idx");
+                           "Bridge frame refresh_frame_flags is not equal to 1 "
+                           "<< bridge_frame_ref_idx");
       }
     }
   }
 
-  if (!cm->bridge_frame_info.is_bridge_frame || cm->bridge_frame_info.bridge_frame_overwrite_flag) {
-#endif // CONFIG_CWG_F317
-  // Shown keyframes and switch-frames automatically refreshes all reference
-  // frames.  For all other frame types, we need to write refresh_frame_flags.
-  if ((current_frame->frame_type == KEY_FRAME && !cm->show_frame) ||
-      current_frame->frame_type == INTER_FRAME ||
-      current_frame->frame_type == INTRA_ONLY_FRAME) {
+  if (!cm->bridge_frame_info.is_bridge_frame ||
+      cm->bridge_frame_info.bridge_frame_overwrite_flag) {
+#endif  // CONFIG_CWG_F317
+    // Shown keyframes and switch-frames automatically refreshes all reference
+    // frames.  For all other frame types, we need to write refresh_frame_flags.
+    if ((current_frame->frame_type == KEY_FRAME && !cm->show_frame) ||
+        current_frame->frame_type == INTER_FRAME ||
+        current_frame->frame_type == INTRA_ONLY_FRAME) {
 #if CONFIG_REFRESH_FLAG
-    if (cm->seq_params.enable_short_refresh_frame_flags &&
-        !(current_frame->frame_type == KEY_FRAME && !cm->show_frame) &&
-        !cm->features.error_resilient_mode) {
-      const bool has_refresh_frame_flags =
-          current_frame->refresh_frame_flags != 0;
+      if (cm->seq_params.enable_short_refresh_frame_flags &&
+          !(current_frame->frame_type == KEY_FRAME && !cm->show_frame) &&
+          !cm->features.error_resilient_mode) {
+        const bool has_refresh_frame_flags =
+            current_frame->refresh_frame_flags != 0;
 #if CONFIG_CWG_F260_REFRESH_FLAG
-      aom_wb_write_literal(wb, has_refresh_frame_flags, 1);
+        aom_wb_write_literal(wb, has_refresh_frame_flags, 1);
 #endif  // CONFIG_CWG_F260_REFRESH_FLAG
-      if (has_refresh_frame_flags) {
-        int refresh_idx = 0;
-        for (int i = 0; i < cm->seq_params.ref_frames; ++i) {
-          if ((current_frame->refresh_frame_flags >> i) & 1) {
-            refresh_idx = i;
-            break;
+        if (has_refresh_frame_flags) {
+          int refresh_idx = 0;
+          for (int i = 0; i < cm->seq_params.ref_frames; ++i) {
+            if ((current_frame->refresh_frame_flags >> i) & 1) {
+              refresh_idx = i;
+              break;
+            }
+          }
+          aom_wb_write_literal(wb, refresh_idx, seq_params->ref_frames_log2);
+#if CONFIG_CWG_F260_REFRESH_FLAG
+        }
+#else
+          if (refresh_idx == 0) {
+            aom_wb_write_literal(wb, 1, 1);
+          }
+        } else {
+          aom_wb_write_literal(wb, 0, seq_params->ref_frames_log2);
+          aom_wb_write_literal(wb, 0, 1);
+        }
+#endif  // CONFIG_CWG_F260_REFRESH_FLAG
+      } else {
+        aom_wb_write_literal(wb, current_frame->refresh_frame_flags,
+                             cm->seq_params.ref_frames);
+      }
+#else
+#if CONFIG_CWG_F317
+      if (cm->bridge_frame_info.is_bridge_frame) {
+        aom_wb_write_literal(
+            wb, cm->bridge_frame_info.bridge_frame_overwrite_flag, 1);
+        if (cm->bridge_frame_info.bridge_frame_overwrite_flag) {
+          aom_wb_write_literal(wb, current_frame->refresh_frame_flags,
+                               cm->seq_params.ref_frames);
+        } else {
+          if (current_frame->refresh_frame_flags !=
+              (1 << cm->bridge_frame_info.bridge_frame_ref_idx)) {
+            aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+                               "Bridge frame refresh_frame_flags is not equal "
+                               "to 1 << bridge_frame_ref_idx");
           }
         }
-        aom_wb_write_literal(wb, refresh_idx, seq_params->ref_frames_log2);
-#if CONFIG_CWG_F260_REFRESH_FLAG
-      }
-#else
-        if (refresh_idx == 0) {
-          aom_wb_write_literal(wb, 1, 1);
-        }
       } else {
-        aom_wb_write_literal(wb, 0, seq_params->ref_frames_log2);
-        aom_wb_write_literal(wb, 0, 1);
-      }
-#endif  // CONFIG_CWG_F260_REFRESH_FLAG
-    } else {
-      aom_wb_write_literal(wb, current_frame->refresh_frame_flags,
-                           cm->seq_params.ref_frames);
-    }
-#else
-#if CONFIG_CWG_F317
-    if (cm->bridge_frame_info.is_bridge_frame) {
-      aom_wb_write_literal(wb, cm->bridge_frame_info.bridge_frame_overwrite_flag, 1);
-      if (cm->bridge_frame_info.bridge_frame_overwrite_flag) {
-        aom_wb_write_literal(wb, current_frame->refresh_frame_flags, cm->seq_params.ref_frames);
-      }
-      else {
-        if (current_frame->refresh_frame_flags != (1 << cm->bridge_frame_info.bridge_frame_ref_idx)) {
-          aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-            "Bridge frame refresh_frame_flags is not equal to 1 << bridge_frame_ref_idx");
-        }
-      }
-    }
-    else {
-#endif // CONFIG_CWG_F317
-    aom_wb_write_literal(wb, current_frame->refresh_frame_flags,
-                         cm->seq_params.ref_frames);
+#endif  // CONFIG_CWG_F317
+        aom_wb_write_literal(wb, current_frame->refresh_frame_flags,
+                             cm->seq_params.ref_frames);
 
 #if CONFIG_CWG_F317
-    }
-#endif // CONFIG_CWG_F317
+      }
+#endif  // CONFIG_CWG_F317
 #endif  // CONFIG_REFRESH_FLAG
-  }
+    }
 #if CONFIG_CWG_F317
   }
-#endif // CONFIG_CWG_F317
-
-
+#endif  // CONFIG_CWG_F317
 
   if (!frame_is_intra_only(cm) || current_frame->refresh_frame_flags !=
                                       ((1 << cm->seq_params.ref_frames) - 1)) {
@@ -6644,16 +6656,17 @@ static AOM_INLINE void write_uncompressed_header_obu
       const int explicit_ref_frame_map =
 #if CONFIG_CWG_F317
           (
-#endif // CONFIG_CWG_F317
-          cm->features.error_resilient_mode || frame_is_sframe(cm) ||
-          seq_params->explicit_ref_frame_map
+#endif  // CONFIG_CWG_F317
+              cm->features.error_resilient_mode || frame_is_sframe(cm) ||
+              seq_params->explicit_ref_frame_map
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-          || !seq_params->order_hint_info.enable_order_hint
+              || !seq_params->order_hint_info.enable_order_hint
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
 #if CONFIG_CWG_F317
-          ) && !cm->bridge_frame_info.is_bridge_frame;
-#endif // CONFIG_CWG_F317
-          ;
+              ) &&
+          !cm->bridge_frame_info.is_bridge_frame;
+#endif  // CONFIG_CWG_F317
+      ;
       if (explicit_ref_frame_map) {
 #if CONFIG_CWG_F168_DPB_HLS
         const int max_num_ref_frames =
@@ -6662,13 +6675,13 @@ static AOM_INLINE void write_uncompressed_header_obu
 #if CONFIG_ACROSS_SCALE_REF_OPT
         if (cm->ref_frames_info.num_total_refs < 0 ||
 #else
-        if (cm->ref_frames_info.num_total_refs <= 0 ||
+          if (cm->ref_frames_info.num_total_refs <= 0 ||
 #endif  // CONFIG_ACROSS_SCALE_REF_OPT
             cm->ref_frames_info.num_total_refs >
 #if CONFIG_CWG_F168_DPB_HLS
                 max_num_ref_frames)
 #else
-                seq_params->max_reference_frames)
+                  seq_params->max_reference_frames)
 #endif  // CONFIG_CWG_F168_DPB_HLS
           aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR,
                              "Invalid num_total_refs");
@@ -6682,10 +6695,11 @@ static AOM_INLINE void write_uncompressed_header_obu
       }
 #if CONFIG_ACROSS_SCALE_REF_OPT
 #if CONFIG_CWG_F317
-      if (!features->error_resilient_mode && frame_size_override_flag && !cm->bridge_frame_info.is_bridge_frame) {
+      if (!features->error_resilient_mode && frame_size_override_flag &&
+          !cm->bridge_frame_info.is_bridge_frame) {
 #else
       if (!features->error_resilient_mode && frame_size_override_flag) {
-#endif // CONFIG_CWG_F317
+#endif  // CONFIG_CWG_F317
         write_frame_size_with_refs(cm, explicit_ref_frame_map, wb);
       } else {
         write_frame_size(cm, frame_size_override_flag, wb);
@@ -6694,16 +6708,17 @@ static AOM_INLINE void write_uncompressed_header_obu
 #if CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_TIP
       if (obu_type != OBU_TIP && current_frame->frame_type == INTER_FRAME)
 #else
-      if (current_frame->frame_type == INTER_FRAME)
+        if (current_frame->frame_type == INTER_FRAME)
 #endif  // CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_TIP
       {
         encode_bru_active_info(cpi, wb);
       }
 #if CONFIG_CWG_F317
-      if (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame) {
+      if (cm->bru.frame_inactive_flag ||
+          cm->bridge_frame_info.is_bridge_frame) {
 #else
-      if (cm->bru.frame_inactive_flag) {
-#endif // CONFIG_CWG_F317
+        if (cm->bru.frame_inactive_flag) {
+#endif  // CONFIG_CWG_F317
         cm->features.disable_cdf_update = 1;
       }
       for (ref_frame = 0; ref_frame < cm->ref_frames_info.num_total_refs;
@@ -6716,10 +6731,11 @@ static AOM_INLINE void write_uncompressed_header_obu
 #endif  // !CONFIG_ACROSS_SCALE_REF_OPT
 #if !CWG_F215_CONFIG_REMOVE_FRAME_ID
 #if CONFIG_CWG_F317
-        if (seq_params->frame_id_numbers_present_flag && !cm->bridge_frame_info.is_bridge_frame) {
+        if (seq_params->frame_id_numbers_present_flag &&
+            !cm->bridge_frame_info.is_bridge_frame) {
 #else
         if (seq_params->frame_id_numbers_present_flag) {
-#endif // CONFIG_CWG_F317
+#endif  // CONFIG_CWG_F317
           int i = get_ref_frame_map_idx(cm, ref_frame);
           int frame_id_len = seq_params->frame_id_length;
           int diff_len = seq_params->delta_frame_id_length;
@@ -6740,10 +6756,11 @@ static AOM_INLINE void write_uncompressed_header_obu
 
 #if !CONFIG_ACROSS_SCALE_REF_OPT
 #if CONFIG_CWG_F317
-      if (!features->error_resilient_mode && frame_size_override_flag && !cm->bridge_frame_info.is_bridge_frame) {
+      if (!features->error_resilient_mode && frame_size_override_flag &&
+          !cm->bridge_frame_info.is_bridge_frame) {
 #else
       if (!features->error_resilient_mode && frame_size_override_flag) {
-#endif // CONFIG_CWG_F317
+#endif  // CONFIG_CWG_F317
         write_frame_size_with_refs(cm, wb);
       } else {
         write_frame_size(cm, frame_size_override_flag, wb);
@@ -6770,26 +6787,26 @@ static AOM_INLINE void write_uncompressed_header_obu
       if (cm->seq_params.enable_lf_sub_pu) {
 #if CONFIG_CWG_F317
         if (!cm->bridge_frame_info.is_bridge_frame) {
-#endif // CONFIG_CWG_F317
-        aom_wb_write_bit(wb, features->allow_lf_sub_pu);
+#endif  // CONFIG_CWG_F317
+          aom_wb_write_bit(wb, features->allow_lf_sub_pu);
 #if CONFIG_CWG_F317
         }
-#endif // CONFIG_CWG_F317
+#endif  // CONFIG_CWG_F317
       }
       if (cm->seq_params.enable_tip && features->allow_ref_frame_mvs &&
           cm->ref_frames_info.num_total_refs >= 2 &&
 #if CONFIG_CWG_F317
           !cm->bridge_frame_info.is_bridge_frame &&
-#endif // CONFIG_CWG_F317
+#endif  // CONFIG_CWG_F317
           !cm->bru.frame_inactive_flag) {
         if (cm->seq_params.enable_tip == 1) {
 #if CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_TIP
           if (obu_type != OBU_TIP)
 #else
-          const int is_tip_direct_output =
-              (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT);
-          aom_wb_write_bit(wb, is_tip_direct_output);
-          if (!is_tip_direct_output)
+            const int is_tip_direct_output =
+                (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT);
+            aom_wb_write_bit(wb, is_tip_direct_output);
+            if (!is_tip_direct_output)
 #endif  // CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_TIP
           {
             aom_wb_write_bit(wb, features->tip_frame_mode == TIP_FRAME_AS_REF);
@@ -6843,7 +6860,7 @@ static AOM_INLINE void write_uncompressed_header_obu
       if (!cm->bru.frame_inactive_flag &&
 #if CONFIG_CWG_F317
           !cm->bridge_frame_info.is_bridge_frame &&
-#endif // CONFIG_CWG_F317
+#endif  // CONFIG_CWG_F317
           (!cm->seq_params.enable_tip ||
            features->tip_frame_mode != TIP_FRAME_AS_OUTPUT)) {
         write_screen_content_params(cm, wb);
@@ -6866,8 +6883,8 @@ static AOM_INLINE void write_uncompressed_header_obu
           }
 #else
 
-          aom_wb_write_bit(wb,
-                           features->fr_mv_precision > MV_PRECISION_QTR_PEL);
+            aom_wb_write_bit(wb,
+                             features->fr_mv_precision > MV_PRECISION_QTR_PEL);
 #endif  // CONFIG_FRAME_HALF_PRECISION
 
           assert(features->fr_mv_precision ==
@@ -6912,8 +6929,8 @@ static AOM_INLINE void write_uncompressed_header_obu
 #if CONFIG_CWG_F317
   if (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame) {
 #else
-  if (cm->bru.frame_inactive_flag) {
-#endif // CONFIG_CWG_F317
+    if (cm->bru.frame_inactive_flag) {
+#endif  // CONFIG_CWG_F317
     if (seq_params->film_grain_params_present &&
         (cm->show_frame || cm->showable_frame))
       write_film_grain_params(cpi, wb);
@@ -6955,7 +6972,7 @@ static AOM_INLINE void write_uncompressed_header_obu
 #endif
     )
 #else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
-        && (cm->show_frame || cm->showable_frame))
+          && (cm->show_frame || cm->showable_frame))
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
       write_film_grain_params(cpi, wb);
     return;
@@ -6964,19 +6981,19 @@ static AOM_INLINE void write_uncompressed_header_obu
   aom_wb_write_bit(wb, features->disable_cdf_update);
 #if CONFIG_CWG_F317
   if (!cm->bridge_frame_info.is_bridge_frame) {
-#endif // CONFIG_CWG_F317
-  const int might_bwd_adapt =
-      !(seq_params->single_picture_hdr_flag) && !(features->disable_cdf_update);
-  if (cm->tiles.large_scale)
-    assert(features->refresh_frame_context == REFRESH_FRAME_CONTEXT_DISABLED);
+#endif  // CONFIG_CWG_F317
+    const int might_bwd_adapt = !(seq_params->single_picture_hdr_flag) &&
+                                !(features->disable_cdf_update);
+    if (cm->tiles.large_scale)
+      assert(features->refresh_frame_context == REFRESH_FRAME_CONTEXT_DISABLED);
 
-  if (might_bwd_adapt) {
-    aom_wb_write_bit(
-        wb, features->refresh_frame_context == REFRESH_FRAME_CONTEXT_DISABLED);
-  }
+    if (might_bwd_adapt) {
+      aom_wb_write_bit(wb, features->refresh_frame_context ==
+                               REFRESH_FRAME_CONTEXT_DISABLED);
+    }
 #if CONFIG_CWG_F317
   }
-#endif // CONFIG_CWG_F317
+#endif  // CONFIG_CWG_F317
 
   write_tile_info(cm, saved_wb, wb);
 
@@ -7005,7 +7022,7 @@ static AOM_INLINE void write_uncompressed_header_obu
 #if CONFIG_EXT_SEG
     const int max_seg_num = seg->enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
 #else   // CONFIG_EXT_SEG
-    const int max_seg_num = MAX_SEGMENTS;
+      const int max_seg_num = MAX_SEGMENTS;
 #endif  // CONFIG_EXT_SEG
     for (int i = 0; i < max_seg_num; i++) {
       const int qindex = av1_get_qindex(seg, i, quant_params->base_qindex,
@@ -7095,7 +7112,7 @@ static AOM_INLINE void write_uncompressed_header_obu
 #if CONFIG_REDUCED_TX_SET_EXT
   aom_wb_write_literal(wb, features->reduced_tx_set_used, 2);
 #else
-  aom_wb_write_bit(wb, features->reduced_tx_set_used);
+    aom_wb_write_bit(wb, features->reduced_tx_set_used);
 #endif  // CONFIG_REDUCED_TX_SET_EXT
 
   if (!frame_is_intra_only(cm)) write_global_motion(cpi, wb);
@@ -7108,7 +7125,7 @@ static AOM_INLINE void write_uncompressed_header_obu
 #endif
   )
 #else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
-      && (cm->show_frame || cm->showable_frame))
+        && (cm->show_frame || cm->showable_frame))
 #endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
     write_film_grain_params(cpi, wb);
 
@@ -7270,7 +7287,7 @@ uint32_t av1_write_obu_header(AV1LevelParams *const level_params,
 #if CONFIG_F106_OBU_TILEGROUP
       count_header
 #else
-      (obu_type == OBU_FRAME || obu_type == OBU_FRAME_HEADER)
+        (obu_type == OBU_FRAME || obu_type == OBU_FRAME_HEADER)
 #endif  // CONFIG_F106_OBU_TILEGROUP
   )
     ++level_params->frame_header_count;
@@ -7900,99 +7917,100 @@ static uint32_t write_frame_header_obu(AV1_COMP *cpi,
   return aom_wb_bytes_written(&wb);
 }
 
-static uint32_t write_tile_group_header(AV1_COMMON *const cm,
-                                        uint8_t *const dst, int start_tile,
-                                        int end_tile, int tiles_log2,
-                                        int tile_start_and_end_present_flag) {
-  struct aom_write_bit_buffer wb = { dst, 0 };
-  uint32_t size = 0;
+  static uint32_t write_tile_group_header(
+      AV1_COMMON *const cm, uint8_t *const dst, int start_tile, int end_tile,
+      int tiles_log2, int tile_start_and_end_present_flag) {
+    struct aom_write_bit_buffer wb = { dst, 0 };
+    uint32_t size = 0;
 
-  if (!tiles_log2) return size;
+    if (!tiles_log2) return size;
 
-  aom_wb_write_bit(&wb, tile_start_and_end_present_flag);
+    aom_wb_write_bit(&wb, tile_start_and_end_present_flag);
 
-  if (tile_start_and_end_present_flag) {
-    aom_wb_write_literal(&wb, start_tile, tiles_log2);
-    aom_wb_write_literal(&wb, end_tile, tiles_log2);
-  }
-  if (cm->bru.enabled) {
-    const int num_tiles = cm->tiles.cols * cm->tiles.rows;
-    if (num_tiles > 1) {
-      for (int tile_idx = start_tile; tile_idx <= end_tile; tile_idx++) {
-        const int active_bitmap_byte = tile_idx >> 3;
-        const int active_bitmap_bit = tile_idx & 7;
-        const int tile_active_mode =
-            (cm->tiles.tile_active_bitmap[active_bitmap_byte] >>
-             active_bitmap_bit) &
-            1;
-        aom_wb_write_bit(&wb, tile_active_mode);
+    if (tile_start_and_end_present_flag) {
+      aom_wb_write_literal(&wb, start_tile, tiles_log2);
+      aom_wb_write_literal(&wb, end_tile, tiles_log2);
+    }
+    if (cm->bru.enabled) {
+      const int num_tiles = cm->tiles.cols * cm->tiles.rows;
+      if (num_tiles > 1) {
+        for (int tile_idx = start_tile; tile_idx <= end_tile; tile_idx++) {
+          const int active_bitmap_byte = tile_idx >> 3;
+          const int active_bitmap_bit = tile_idx & 7;
+          const int tile_active_mode =
+              (cm->tiles.tile_active_bitmap[active_bitmap_byte] >>
+               active_bitmap_bit) &
+              1;
+          aom_wb_write_bit(&wb, tile_active_mode);
+        }
       }
     }
+    size = aom_wb_bytes_written(&wb);
+    return size;
   }
-  size = aom_wb_bytes_written(&wb);
-  return size;
-}
 
-typedef struct {
-  uint8_t *frame_header;
-  size_t obu_header_byte_offset;
-  size_t total_length;
-} FrameHeaderInfo;
+  typedef struct {
+    uint8_t *frame_header;
+    size_t obu_header_byte_offset;
+    size_t total_length;
+  } FrameHeaderInfo;
 
-extern void av1_print_uncompressed_frame_header(const uint8_t *data, int size,
-                                                const char *filename);
+  extern void av1_print_uncompressed_frame_header(const uint8_t *data, int size,
+                                                  const char *filename);
 
-static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
-                                       struct aom_write_bit_buffer *saved_wb,
-                                       int obu_temporal, int obu_layer,
+  static uint32_t write_tiles_in_tg_obus(
+      AV1_COMP *const cpi, uint8_t *const dst,
+      struct aom_write_bit_buffer *saved_wb, int obu_temporal, int obu_layer,
 #if !CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER
-                                       const FrameHeaderInfo *fh_info,
+      const FrameHeaderInfo *fh_info,
 #endif  // !CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER
-                                       int *const largest_tile_id) {
-  AV1_COMMON *const cm = &cpi->common;
-  const CommonTileParams *const tiles = &cm->tiles;
-  AV1LevelParams *const level_params = &cpi->level_params;
-  aom_writer mode_bc;
-  int tile_row, tile_col;
-  // Store the location and size of each tile's data in the bitstream:
-  TileBufferEnc tile_buffers[MAX_TILE_ROWS][MAX_TILE_COLS];
-  uint32_t total_size = 0;
-  const int tile_cols = tiles->cols;
-  const int tile_rows = tiles->rows;
-  const int num_tiles = tile_cols * tile_rows;
-  unsigned int tile_size = 0;
-  unsigned int max_tile_size = 0;
-  unsigned int max_tile_col_size = 0;
-  const int n_log2_tiles = tiles->log2_rows + tiles->log2_cols;
-  // Fixed size tile groups for the moment
-  const int num_tg_hdrs = cpi->num_tg;
-  const int tg_size =
-      tiles->large_scale ? 1 : (num_tiles + num_tg_hdrs - 1) / num_tg_hdrs;
-  int tile_count = 0;
-  int curr_tg_data_size = 0;
-  uint8_t *data = dst;
-  int new_tg = 1;
-  const int have_tiles = num_tiles > 1;
+      int *const largest_tile_id) {
+    AV1_COMMON *const cm = &cpi->common;
+    const CommonTileParams *const tiles = &cm->tiles;
+    AV1LevelParams *const level_params = &cpi->level_params;
+    aom_writer mode_bc;
+    int tile_row, tile_col;
+    // Store the location and size of each tile's data in the bitstream:
+    TileBufferEnc tile_buffers[MAX_TILE_ROWS][MAX_TILE_COLS];
+    uint32_t total_size = 0;
+    const int tile_cols = tiles->cols;
+    const int tile_rows = tiles->rows;
+    const int num_tiles = tile_cols * tile_rows;
+    unsigned int tile_size = 0;
+    unsigned int max_tile_size = 0;
+    unsigned int max_tile_col_size = 0;
+    const int n_log2_tiles = tiles->log2_rows + tiles->log2_cols;
+    // Fixed size tile groups for the moment
+    const int num_tg_hdrs = cpi->num_tg;
+    const int tg_size =
+        tiles->large_scale ? 1 : (num_tiles + num_tg_hdrs - 1) / num_tg_hdrs;
+    int tile_count = 0;
+    int curr_tg_data_size = 0;
+    uint8_t *data = dst;
+    int new_tg = 1;
+    const int have_tiles = num_tiles > 1;
 #if !CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER
-  int first_tg = 1;
+    int first_tg = 1;
 #endif  // !CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER
 
-  *largest_tile_id = 0;
+    *largest_tile_id = 0;
 
-  if (tiles->large_scale) {
-    // For large_scale_tile case, we always have only one tile group, so it can
-    // be written as an OBU_FRAME.
+    if (tiles->large_scale) {
+      // For large_scale_tile case, we always have only one tile group, so it
+      // can be written as an OBU_FRAME.
 #if CONFIG_CWG_F317
-    const OBU_TYPE obu_type =
-      cpi->common.bridge_frame_info.is_bridge_frame ? OBU_BRIDGE_FRAME : OBU_FRAME;
-    const uint32_t tg_hdr_size =
-        av1_write_obu_header(level_params, obu_type, 0, 0, data);
-    data += tg_hdr_size;
+      const OBU_TYPE obu_type = cpi->common.bridge_frame_info.is_bridge_frame
+                                    ? OBU_BRIDGE_FRAME
+                                    : OBU_FRAME;
+      const uint32_t tg_hdr_size =
+          av1_write_obu_header(level_params, obu_type, 0, 0, data);
+      data += tg_hdr_size;
 
-    const uint32_t frame_header_size =
-        write_frame_header_obu(cpi, saved_wb, data, cpi->common.bridge_frame_info.is_bridge_frame ? 1 : 0);
-    data += frame_header_size;
-    total_size += frame_header_size;
+      const uint32_t frame_header_size = write_frame_header_obu(
+          cpi, saved_wb, data,
+          cpi->common.bridge_frame_info.is_bridge_frame ? 1 : 0);
+      data += frame_header_size;
+      total_size += frame_header_size;
 #else
     const OBU_TYPE obu_type = OBU_FRAME;
     const uint32_t tg_hdr_size =
@@ -8003,166 +8021,171 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
         write_frame_header_obu(cpi, saved_wb, data, 0);
     data += frame_header_size;
     total_size += frame_header_size;
-#endif // CONFIG_CWG_F317
+#endif  // CONFIG_CWG_F317
 
-    // (yunqing) This test ensures the correctness of large scale tile coding.
-    if (cpi->oxcf.tile_cfg.enable_ext_tile_debug) {
-      char fn[20] = "./fh";
-      fn[4] = cm->current_frame.frame_number / 100 + '0';
-      fn[5] = (cm->current_frame.frame_number % 100) / 10 + '0';
-      fn[6] = (cm->current_frame.frame_number % 10) + '0';
-      fn[7] = '\0';
-      av1_print_uncompressed_frame_header(data - frame_header_size,
-                                          frame_header_size, fn);
-    }
+      // (yunqing) This test ensures the correctness of large scale tile coding.
+      if (cpi->oxcf.tile_cfg.enable_ext_tile_debug) {
+        char fn[20] = "./fh";
+        fn[4] = cm->current_frame.frame_number / 100 + '0';
+        fn[5] = (cm->current_frame.frame_number % 100) / 10 + '0';
+        fn[6] = (cm->current_frame.frame_number % 10) + '0';
+        fn[7] = '\0';
+        av1_print_uncompressed_frame_header(data - frame_header_size,
+                                            frame_header_size, fn);
+      }
 
-    int tile_size_bytes = 0;
-    int tile_col_size_bytes = 0;
+      int tile_size_bytes = 0;
+      int tile_col_size_bytes = 0;
 
-    for (tile_col = 0; tile_col < tile_cols; tile_col++) {
-      TileInfo tile_info;
-      const int is_last_col = (tile_col == tile_cols - 1);
-      const uint32_t col_offset = total_size;
+      for (tile_col = 0; tile_col < tile_cols; tile_col++) {
+        TileInfo tile_info;
+        const int is_last_col = (tile_col == tile_cols - 1);
+        const uint32_t col_offset = total_size;
 
-      av1_tile_set_col(&tile_info, cm, tile_col);
+        av1_tile_set_col(&tile_info, cm, tile_col);
 
-      // The last column does not have a column header
-      if (!is_last_col) total_size += 4;
+        // The last column does not have a column header
+        if (!is_last_col) total_size += 4;
 
-      for (tile_row = 0; tile_row < tile_rows; tile_row++) {
-        TileBufferEnc *const buf = &tile_buffers[tile_row][tile_col];
-        const int data_offset = have_tiles ? 4 : 0;
-        const int tile_idx = tile_row * tile_cols + tile_col;
-        TileDataEnc *this_tile = &cpi->tile_data[tile_idx];
-        av1_tile_set_row(&tile_info, cm, tile_row);
+        for (tile_row = 0; tile_row < tile_rows; tile_row++) {
+          TileBufferEnc *const buf = &tile_buffers[tile_row][tile_col];
+          const int data_offset = have_tiles ? 4 : 0;
+          const int tile_idx = tile_row * tile_cols + tile_col;
+          TileDataEnc *this_tile = &cpi->tile_data[tile_idx];
+          av1_tile_set_row(&tile_info, cm, tile_row);
 
-        buf->data = dst + total_size + tg_hdr_size;
+          buf->data = dst + total_size + tg_hdr_size;
 
-        // Is CONFIG_EXT_TILE = 1, every tile in the row has a header,
-        // even for the last one, unless no tiling is used at all.
-        total_size += data_offset;
-        cpi->td.mb.e_mbd.tile_ctx = &this_tile->tctx;
-        mode_bc.allow_update_cdf = !tiles->large_scale;
-        mode_bc.allow_update_cdf =
-            mode_bc.allow_update_cdf && !cm->features.disable_cdf_update;
-        aom_start_encode(&mode_bc, buf->data + data_offset);
-        write_modes(cpi, &tile_info, &mode_bc, tile_row, tile_col);
-        aom_stop_encode(&mode_bc);
-        tile_size = mode_bc.pos;
-        buf->size = tile_size;
+          // Is CONFIG_EXT_TILE = 1, every tile in the row has a header,
+          // even for the last one, unless no tiling is used at all.
+          total_size += data_offset;
+          cpi->td.mb.e_mbd.tile_ctx = &this_tile->tctx;
+          mode_bc.allow_update_cdf = !tiles->large_scale;
+          mode_bc.allow_update_cdf =
+              mode_bc.allow_update_cdf && !cm->features.disable_cdf_update;
+          aom_start_encode(&mode_bc, buf->data + data_offset);
+          write_modes(cpi, &tile_info, &mode_bc, tile_row, tile_col);
+          aom_stop_encode(&mode_bc);
+          tile_size = mode_bc.pos;
+          buf->size = tile_size;
 
-        // Record the maximum tile size we see, so we can compact headers later.
-        if (tile_size > max_tile_size) {
-          max_tile_size = tile_size;
-          *largest_tile_id = tile_cols * tile_row + tile_col;
-        }
-
-        if (have_tiles) {
-          // tile header: size of this tile, or copy offset
-          uint32_t tile_header = tile_size - AV1_MIN_TILE_SIZE_BYTES;
-          const int tile_copy_mode =
-              ((AOMMAX(tiles->width, tiles->height) << MI_SIZE_LOG2) <= 256)
-                  ? 1
-                  : 0;
-
-          // If tile_copy_mode = 1, check if this tile is a copy tile.
-          // Very low chances to have copy tiles on the key frames, so don't
-          // search on key frames to reduce unnecessary search.
-          if (cm->current_frame.frame_type != KEY_FRAME && tile_copy_mode) {
-            const int identical_tile_offset =
-                find_identical_tile(tile_row, tile_col, tile_buffers);
-
-            // Indicate a copy-tile by setting the most significant bit.
-            // The row-offset to copy from is stored in the highest byte.
-            // remux_tiles will move these around later
-            if (identical_tile_offset > 0) {
-              tile_size = 0;
-              tile_header = identical_tile_offset | 0x80;
-              tile_header <<= 24;
-            }
+          // Record the maximum tile size we see, so we can compact headers
+          // later.
+          if (tile_size > max_tile_size) {
+            max_tile_size = tile_size;
+            *largest_tile_id = tile_cols * tile_row + tile_col;
           }
 
-          mem_put_le32(buf->data, tile_header);
+          if (have_tiles) {
+            // tile header: size of this tile, or copy offset
+            uint32_t tile_header = tile_size - AV1_MIN_TILE_SIZE_BYTES;
+            const int tile_copy_mode =
+                ((AOMMAX(tiles->width, tiles->height) << MI_SIZE_LOG2) <= 256)
+                    ? 1
+                    : 0;
+
+            // If tile_copy_mode = 1, check if this tile is a copy tile.
+            // Very low chances to have copy tiles on the key frames, so don't
+            // search on key frames to reduce unnecessary search.
+            if (cm->current_frame.frame_type != KEY_FRAME && tile_copy_mode) {
+              const int identical_tile_offset =
+                  find_identical_tile(tile_row, tile_col, tile_buffers);
+
+              // Indicate a copy-tile by setting the most significant bit.
+              // The row-offset to copy from is stored in the highest byte.
+              // remux_tiles will move these around later
+              if (identical_tile_offset > 0) {
+                tile_size = 0;
+                tile_header = identical_tile_offset | 0x80;
+                tile_header <<= 24;
+              }
+            }
+
+            mem_put_le32(buf->data, tile_header);
+          }
+
+          total_size += tile_size;
         }
 
-        total_size += tile_size;
+        if (!is_last_col) {
+          uint32_t col_size = total_size - col_offset - 4;
+          mem_put_le32(dst + col_offset + tg_hdr_size, col_size);
+
+          // Record the maximum tile column size we see.
+          max_tile_col_size = AOMMAX(max_tile_col_size, col_size);
+        }
       }
 
-      if (!is_last_col) {
-        uint32_t col_size = total_size - col_offset - 4;
-        mem_put_le32(dst + col_offset + tg_hdr_size, col_size);
-
-        // Record the maximum tile column size we see.
-        max_tile_col_size = AOMMAX(max_tile_col_size, col_size);
+      if (have_tiles) {
+        total_size = remux_tiles(tiles, data, total_size - frame_header_size,
+                                 max_tile_size, max_tile_col_size,
+                                 &tile_size_bytes, &tile_col_size_bytes);
+        total_size += frame_header_size;
       }
+
+      // In EXT_TILE case, only use 1 tile group. Follow the obu syntax, write
+      // current tile group size before tile data(include tile column header).
+      // Tile group size doesn't include the bytes storing tg size.
+      total_size += tg_hdr_size;
+      const uint32_t obu_payload_size = total_size - tg_hdr_size;
+      const size_t length_field_size =
+          obu_memmove(tg_hdr_size, obu_payload_size, dst);
+      if (av1_write_uleb_obu_size(tg_hdr_size, obu_payload_size, dst) !=
+          AOM_CODEC_OK) {
+        assert(0);
+      }
+      total_size += (uint32_t)length_field_size;
+      saved_wb->bit_buffer += length_field_size;
+
+      // Now fill in the gaps in the uncompressed header.
+      if (have_tiles) {
+        assert(tile_col_size_bytes >= 1 && tile_col_size_bytes <= 4);
+        aom_wb_overwrite_literal(saved_wb, tile_col_size_bytes - 1, 2);
+
+        assert(tile_size_bytes >= 1 && tile_size_bytes <= 4);
+        aom_wb_overwrite_literal(saved_wb, tile_size_bytes - 1, 2);
+      }
+      return total_size;
     }
 
-    if (have_tiles) {
-      total_size = remux_tiles(tiles, data, total_size - frame_header_size,
-                               max_tile_size, max_tile_col_size,
-                               &tile_size_bytes, &tile_col_size_bytes);
-      total_size += frame_header_size;
-    }
+    uint32_t obu_header_size = 0;
+    uint8_t *tile_data_start = dst + total_size;
+    const int use_tile_active_mode = (cm->bru.enabled && have_tiles);
+    for (tile_row = 0; tile_row < tile_rows; tile_row++) {
+      TileInfo tile_info;
+      av1_tile_set_row(&tile_info, cm, tile_row);
 
-    // In EXT_TILE case, only use 1 tile group. Follow the obu syntax, write
-    // current tile group size before tile data(include tile column header).
-    // Tile group size doesn't include the bytes storing tg size.
-    total_size += tg_hdr_size;
-    const uint32_t obu_payload_size = total_size - tg_hdr_size;
-    const size_t length_field_size =
-        obu_memmove(tg_hdr_size, obu_payload_size, dst);
-    if (av1_write_uleb_obu_size(tg_hdr_size, obu_payload_size, dst) !=
-        AOM_CODEC_OK) {
-      assert(0);
-    }
-    total_size += (uint32_t)length_field_size;
-    saved_wb->bit_buffer += length_field_size;
+      for (tile_col = 0; tile_col < tile_cols; tile_col++) {
+        const int tile_idx = tile_row * tile_cols + tile_col;
+        TileBufferEnc *const buf = &tile_buffers[tile_row][tile_col];
+        TileDataEnc *this_tile = &cpi->tile_data[tile_idx];
+        int is_last_tile_in_tg = 0;
 
-    // Now fill in the gaps in the uncompressed header.
-    if (have_tiles) {
-      assert(tile_col_size_bytes >= 1 && tile_col_size_bytes <= 4);
-      aom_wb_overwrite_literal(saved_wb, tile_col_size_bytes - 1, 2);
+        if (new_tg) {
+          data = dst + total_size;
 
-      assert(tile_size_bytes >= 1 && tile_size_bytes <= 4);
-      aom_wb_overwrite_literal(saved_wb, tile_size_bytes - 1, 2);
-    }
-    return total_size;
-  }
-
-  uint32_t obu_header_size = 0;
-  uint8_t *tile_data_start = dst + total_size;
-  const int use_tile_active_mode = (cm->bru.enabled && have_tiles);
-  for (tile_row = 0; tile_row < tile_rows; tile_row++) {
-    TileInfo tile_info;
-    av1_tile_set_row(&tile_info, cm, tile_row);
-
-    for (tile_col = 0; tile_col < tile_cols; tile_col++) {
-      const int tile_idx = tile_row * tile_cols + tile_col;
-      TileBufferEnc *const buf = &tile_buffers[tile_row][tile_col];
-      TileDataEnc *this_tile = &cpi->tile_data[tile_idx];
-      int is_last_tile_in_tg = 0;
-
-      if (new_tg) {
-        data = dst + total_size;
-
-        // A new tile group begins at this tile.  Write the obu header and
-        // tile group header
+          // A new tile group begins at this tile.  Write the obu header and
+          // tile group header
 #if CONFIG_CWG_F317
-        const OBU_TYPE obu_type =
-          (num_tg_hdrs == 1) ? (cm->bridge_frame_info.is_bridge_frame ? OBU_BRIDGE_FRAME : OBU_FRAME) : OBU_TILE_GROUP;
-        curr_tg_data_size = av1_write_obu_header(level_params, obu_type,
+          const OBU_TYPE obu_type =
+              (num_tg_hdrs == 1)
+                  ? (cm->bridge_frame_info.is_bridge_frame ? OBU_BRIDGE_FRAME
+                                                           : OBU_FRAME)
+                  : OBU_TILE_GROUP;
+          curr_tg_data_size = av1_write_obu_header(level_params, obu_type,
 #if CONFIG_NEW_OBU_HEADER
-                                                 obu_temporal, obu_layer,
+                                                   obu_temporal, obu_layer,
 #else
-                                                 obu_extension_header,
+                                                   obu_extension_header,
 #endif  // CONFIG_NEW_OBU_HEADER
-                                                 data);
-        obu_header_size = curr_tg_data_size;
+                                                   data);
+          obu_header_size = curr_tg_data_size;
 
-        if (num_tg_hdrs == 1) {
-          curr_tg_data_size += write_frame_header_obu(
-              cpi, saved_wb, data + curr_tg_data_size, cpi->common.bridge_frame_info.is_bridge_frame ? 1 : 0);
-        }
+          if (num_tg_hdrs == 1) {
+            curr_tg_data_size += write_frame_header_obu(
+                cpi, saved_wb, data + curr_tg_data_size,
+                cpi->common.bridge_frame_info.is_bridge_frame ? 1 : 0);
+          }
 #else
         const OBU_TYPE obu_type =
             (num_tg_hdrs == 1) ? OBU_FRAME : OBU_TILE_GROUP;
@@ -8174,171 +8197,173 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
           curr_tg_data_size += write_frame_header_obu(
               cpi, saved_wb, data + curr_tg_data_size, 0);
         }
-#endif // CONFIG_CWG_F317
+#endif  // CONFIG_CWG_F317
 #if CONFIG_CWG_F317
-        if (!cm->bru.frame_inactive_flag && !cm->bridge_frame_info.is_bridge_frame)
+          if (!cm->bru.frame_inactive_flag &&
+              !cm->bridge_frame_info.is_bridge_frame)
 #else
         if (!cm->bru.frame_inactive_flag)
-#endif // CONFIG_CWG_F317
-          curr_tg_data_size += write_tile_group_header(
-              cm, data + curr_tg_data_size, tile_idx,
-              AOMMIN(tile_idx + tg_size - 1, num_tiles - 1), n_log2_tiles,
-              cpi->num_tg > 1);
-        total_size += curr_tg_data_size;
-        tile_data_start += curr_tg_data_size;
-        new_tg = 0;
-        tile_count = 0;
-      }
-      tile_count++;
-      av1_tile_set_col(&tile_info, cm, tile_col);
+#endif  // CONFIG_CWG_F317
+            curr_tg_data_size += write_tile_group_header(
+                cm, data + curr_tg_data_size, tile_idx,
+                AOMMIN(tile_idx + tg_size - 1, num_tiles - 1), n_log2_tiles,
+                cpi->num_tg > 1);
+          total_size += curr_tg_data_size;
+          tile_data_start += curr_tg_data_size;
+          new_tg = 0;
+          tile_count = 0;
+        }
+        tile_count++;
+        av1_tile_set_col(&tile_info, cm, tile_col);
 
-      if (tile_count == tg_size || tile_idx == (num_tiles - 1)) {
-        is_last_tile_in_tg = 1;
-        new_tg = 1;
-      } else {
-        is_last_tile_in_tg = 0;
-      }
+        if (tile_count == tg_size || tile_idx == (num_tiles - 1)) {
+          is_last_tile_in_tg = 1;
+          new_tg = 1;
+        } else {
+          is_last_tile_in_tg = 0;
+        }
 
-      buf->data = dst + total_size;
+        buf->data = dst + total_size;
 
-      // The last tile of the tile group does not have a header.
-      if (!is_last_tile_in_tg) total_size += 4;
-      tile_info.tile_active_mode = 1;
-      if (use_tile_active_mode) {
-        tile_info.tile_active_mode = this_tile->tile_info.tile_active_mode;
-      }
-      cpi->td.mb.e_mbd.tile_ctx = &this_tile->tctx;
-      mode_bc.allow_update_cdf = 1;
-      mode_bc.allow_update_cdf =
-          mode_bc.allow_update_cdf && !cm->features.disable_cdf_update;
-      const int num_planes = av1_num_planes(cm);
-      int num_filter_classes[MAX_MB_PLANE];
-      for (int p = 0; p < num_planes; ++p)
-        num_filter_classes[p] = cm->rst_info[p].num_filter_classes;
-      av1_reset_loop_restoration(&cpi->td.mb.e_mbd, 0, num_planes,
-                                 num_filter_classes);
+        // The last tile of the tile group does not have a header.
+        if (!is_last_tile_in_tg) total_size += 4;
+        tile_info.tile_active_mode = 1;
+        if (use_tile_active_mode) {
+          tile_info.tile_active_mode = this_tile->tile_info.tile_active_mode;
+        }
+        cpi->td.mb.e_mbd.tile_ctx = &this_tile->tctx;
+        mode_bc.allow_update_cdf = 1;
+        mode_bc.allow_update_cdf =
+            mode_bc.allow_update_cdf && !cm->features.disable_cdf_update;
+        const int num_planes = av1_num_planes(cm);
+        int num_filter_classes[MAX_MB_PLANE];
+        for (int p = 0; p < num_planes; ++p)
+          num_filter_classes[p] = cm->rst_info[p].num_filter_classes;
+        av1_reset_loop_restoration(&cpi->td.mb.e_mbd, 0, num_planes,
+                                   num_filter_classes);
 
-      aom_start_encode(&mode_bc, dst + total_size);
+        aom_start_encode(&mode_bc, dst + total_size);
 #if CONFIG_CWG_F317
-      if (!cm->bru.frame_inactive_flag && !cm->bridge_frame_info.is_bridge_frame)
+        if (!cm->bru.frame_inactive_flag &&
+            !cm->bridge_frame_info.is_bridge_frame)
 #else
       if (!cm->bru.frame_inactive_flag)
-#endif // CONFIG_CWG_F317
-        write_modes(cpi, &tile_info, &mode_bc, tile_row, tile_col);
-      aom_stop_encode(&mode_bc);
-      tile_size = mode_bc.pos;
-      assert(tile_size >= AV1_MIN_TILE_SIZE_BYTES);
+#endif  // CONFIG_CWG_F317
+          write_modes(cpi, &tile_info, &mode_bc, tile_row, tile_col);
+        aom_stop_encode(&mode_bc);
+        tile_size = mode_bc.pos;
+        assert(tile_size >= AV1_MIN_TILE_SIZE_BYTES);
 
-      curr_tg_data_size += (tile_size + (is_last_tile_in_tg ? 0 : 4));
-      buf->size = tile_size;
-      if (tile_size > max_tile_size) {
-        *largest_tile_id = tile_cols * tile_row + tile_col;
-        max_tile_size = tile_size;
-      }
+        curr_tg_data_size += (tile_size + (is_last_tile_in_tg ? 0 : 4));
+        buf->size = tile_size;
+        if (tile_size > max_tile_size) {
+          *largest_tile_id = tile_cols * tile_row + tile_col;
+          max_tile_size = tile_size;
+        }
 
-      if (!is_last_tile_in_tg) {
-        // size of this tile
-        mem_put_le32(buf->data, tile_size - AV1_MIN_TILE_SIZE_BYTES);
-      } else {
-        // write current tile group size
-        const uint32_t obu_payload_size = curr_tg_data_size - obu_header_size;
-        const size_t length_field_size =
-            obu_memmove(obu_header_size, obu_payload_size, data);
-        if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
-            AOM_CODEC_OK) {
-          assert(0);
-        }
-        curr_tg_data_size += (int)length_field_size;
-        total_size += (uint32_t)length_field_size;
-        tile_data_start += length_field_size;
-        if (num_tg_hdrs == 1) {
-          // if this tg is combined with the frame header then update saved
-          // frame header base offset accroding to length field size
-          saved_wb->bit_buffer += length_field_size;
-        }
+        if (!is_last_tile_in_tg) {
+          // size of this tile
+          mem_put_le32(buf->data, tile_size - AV1_MIN_TILE_SIZE_BYTES);
+        } else {
+          // write current tile group size
+          const uint32_t obu_payload_size = curr_tg_data_size - obu_header_size;
+          const size_t length_field_size =
+              obu_memmove(obu_header_size, obu_payload_size, data);
+          if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size,
+                                      data) != AOM_CODEC_OK) {
+            assert(0);
+          }
+          curr_tg_data_size += (int)length_field_size;
+          total_size += (uint32_t)length_field_size;
+          tile_data_start += length_field_size;
+          if (num_tg_hdrs == 1) {
+            // if this tg is combined with the frame header then update saved
+            // frame header base offset accroding to length field size
+            saved_wb->bit_buffer += length_field_size;
+          }
 #if !CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER
-        if (!first_tg && cm->features.error_resilient_mode) {
-          // Make room for a duplicate Frame Header OBU.
-          memmove(data + fh_info->total_length, data, curr_tg_data_size);
+          if (!first_tg && cm->features.error_resilient_mode) {
+            // Make room for a duplicate Frame Header OBU.
+            memmove(data + fh_info->total_length, data, curr_tg_data_size);
 
-          // Insert a copy of the Frame Header OBU.
-          memcpy(data, fh_info->frame_header, fh_info->total_length);
+            // Insert a copy of the Frame Header OBU.
+            memcpy(data, fh_info->frame_header, fh_info->total_length);
 
-          // Force context update tile to be the first tile in error
-          // resiliant mode as the duplicate frame headers will have
-          // context_update_tile_id set to 0
-          *largest_tile_id = 0;
+            // Force context update tile to be the first tile in error
+            // resiliant mode as the duplicate frame headers will have
+            // context_update_tile_id set to 0
+            *largest_tile_id = 0;
 
-          // Rewrite the OBU header to change the OBU type to Redundant Frame
-          // Header.
-          av1_write_obu_header(level_params, OBU_REDUNDANT_FRAME_HEADER,
-                               obu_temporal, obu_layer,
-                               &data[fh_info->obu_header_byte_offset]);
+            // Rewrite the OBU header to change the OBU type to Redundant Frame
+            // Header.
+            av1_write_obu_header(level_params, OBU_REDUNDANT_FRAME_HEADER,
+                                 obu_temporal, obu_layer,
+                                 &data[fh_info->obu_header_byte_offset]);
 
-          data += fh_info->total_length;
+            data += fh_info->total_length;
 
-          curr_tg_data_size += (int)(fh_info->total_length);
-          total_size += (uint32_t)(fh_info->total_length);
-        }
-        first_tg = 0;
+            curr_tg_data_size += (int)(fh_info->total_length);
+            total_size += (uint32_t)(fh_info->total_length);
+          }
+          first_tg = 0;
 #endif  // !CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER
+        }
+
+        total_size += tile_size;
       }
-
-      total_size += tile_size;
     }
-  }
 
-  if (have_tiles) {
-    if (!cm->seq_params.enable_avg_cdf || !cm->seq_params.avg_cdf_type) {
-      // Fill in context_update_tile_id indicating the tile to use for the
-      // cdf update. The encoder currently sets it to the largest tile
-      // (but is up to the encoder)
-      aom_wb_overwrite_literal(saved_wb, *largest_tile_id,
-                               tiles->log2_cols + tiles->log2_rows);
-    }
-    // If more than one tile group. tile_size_bytes takes the default value 4
-    // and does not need to be set. For a single tile group it is set in the
-    // section below.
-    if (num_tg_hdrs == 1) {
-      int tile_size_bytes = 4, unused;
-      const uint32_t tile_data_offset = (uint32_t)(tile_data_start - dst);
-      const uint32_t tile_data_size = total_size - tile_data_offset;
+    if (have_tiles) {
+      if (!cm->seq_params.enable_avg_cdf || !cm->seq_params.avg_cdf_type) {
+        // Fill in context_update_tile_id indicating the tile to use for the
+        // cdf update. The encoder currently sets it to the largest tile
+        // (but is up to the encoder)
+        aom_wb_overwrite_literal(saved_wb, *largest_tile_id,
+                                 tiles->log2_cols + tiles->log2_rows);
+      }
+      // If more than one tile group. tile_size_bytes takes the default value 4
+      // and does not need to be set. For a single tile group it is set in the
+      // section below.
+      if (num_tg_hdrs == 1) {
+        int tile_size_bytes = 4, unused;
+        const uint32_t tile_data_offset = (uint32_t)(tile_data_start - dst);
+        const uint32_t tile_data_size = total_size - tile_data_offset;
 
-      total_size =
-          remux_tiles(tiles, tile_data_start, tile_data_size, max_tile_size,
-                      max_tile_col_size, &tile_size_bytes, &unused);
-      total_size += tile_data_offset;
-      assert(tile_size_bytes >= 1 && tile_size_bytes <= 4);
+        total_size =
+            remux_tiles(tiles, tile_data_start, tile_data_size, max_tile_size,
+                        max_tile_col_size, &tile_size_bytes, &unused);
+        total_size += tile_data_offset;
+        assert(tile_size_bytes >= 1 && tile_size_bytes <= 4);
 
-      aom_wb_overwrite_literal(saved_wb, tile_size_bytes - 1, 2);
+        aom_wb_overwrite_literal(saved_wb, tile_size_bytes - 1, 2);
 
-      // Update the OBU length if remux_tiles() reduced the size.
-      uint64_t payload_size;
-      size_t length_field_size;
-      int res =
-          aom_uleb_decode(dst + obu_header_size, total_size - obu_header_size,
-                          &payload_size, &length_field_size);
-      assert(res == 0);
-      (void)res;
-
-      const uint64_t new_payload_size =
-          total_size - obu_header_size - length_field_size;
-      if (new_payload_size != payload_size) {
-        size_t new_length_field_size;
-        res = aom_uleb_encode(new_payload_size, length_field_size,
-                              dst + obu_header_size, &new_length_field_size);
+        // Update the OBU length if remux_tiles() reduced the size.
+        uint64_t payload_size;
+        size_t length_field_size;
+        int res =
+            aom_uleb_decode(dst + obu_header_size, total_size - obu_header_size,
+                            &payload_size, &length_field_size);
         assert(res == 0);
-        if (new_length_field_size < length_field_size) {
-          const size_t src_offset = obu_header_size + length_field_size;
-          const size_t dst_offset = obu_header_size + new_length_field_size;
-          memmove(dst + dst_offset, dst + src_offset, (size_t)payload_size);
-          total_size -= (int)(length_field_size - new_length_field_size);
+        (void)res;
+
+        const uint64_t new_payload_size =
+            total_size - obu_header_size - length_field_size;
+        if (new_payload_size != payload_size) {
+          size_t new_length_field_size;
+          res = aom_uleb_encode(new_payload_size, length_field_size,
+                                dst + obu_header_size, &new_length_field_size);
+          assert(res == 0);
+          if (new_length_field_size < length_field_size) {
+            const size_t src_offset = obu_header_size + length_field_size;
+            const size_t dst_offset = obu_header_size + new_length_field_size;
+            memmove(dst + dst_offset, dst + src_offset, (size_t)payload_size);
+            total_size -= (int)(length_field_size - new_length_field_size);
+          }
         }
       }
     }
+    return total_size;
   }
-  return total_size;
-}
 #endif  // CONFIG_F106_OBU_TILEGROUP
 static size_t av1_write_metadata_obu(const aom_metadata_t *metadata,
                                      uint8_t *const dst) {
@@ -8757,64 +8782,67 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 #endif  // CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
   }  // tg_idx
 #else  // CONFIG_F106_OBU_TILEGROUP
-  const int write_frame_header =
-      (cpi->num_tg > 1 ||
-       (encode_show_existing_frame(cm) &&
-        (
+    const int write_frame_header =
+        (cpi->num_tg > 1 ||
+         (encode_show_existing_frame(cm) &&
+          (
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-            !cm->seq_params.order_hint_info.enable_order_hint ||
+              !cm->seq_params.order_hint_info.enable_order_hint ||
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
-            !cm->seq_params.enable_frame_output_order ||
+              !cm->seq_params.enable_frame_output_order ||
 #endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
-            cm->cur_frame->frame_type == KEY_FRAME)) ||
-       cm->bru.frame_inactive_flag ||
+              cm->cur_frame->frame_type == KEY_FRAME)) ||
+         cm->bru.frame_inactive_flag ||
 #if CONFIG_CWG_F317
-       cm->bridge_frame_info.is_bridge_frame ||
+         cm->bridge_frame_info.is_bridge_frame ||
 #endif  // CONFIG_CWG_F317
-       (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT));
-  struct aom_write_bit_buffer saved_wb = { NULL, 0 };
-  size_t length_field = 0;
-  if (write_frame_header) {
-    // Write Frame Header OBU.
-    fh_info.frame_header = data;
+         (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT));
+    struct aom_write_bit_buffer saved_wb = { NULL, 0 };
+    size_t length_field = 0;
+    if (write_frame_header) {
+      // Write Frame Header OBU.
+      fh_info.frame_header = data;
 #if CONFIG_CWG_F317
-    obu_header_size = av1_write_obu_header(level_params, (cpi->common.bridge_frame_info.is_bridge_frame ? OBU_BRIDGE_FRAME : OBU_FRAME_HEADER),
+      obu_header_size = av1_write_obu_header(
+          level_params,
+          (cpi->common.bridge_frame_info.is_bridge_frame ? OBU_BRIDGE_FRAME
+                                                         : OBU_FRAME_HEADER),
 #if CONFIG_NEW_OBU_HEADER
-                                           obu_temporal, obu_layer,
+          obu_temporal, obu_layer,
 #else
-                                           obu_extension_header,
+          obu_extension_header,
 #endif  // CONFIG_NEW_OBU_HEADER
-                                           data);
-    obu_payload_size =
-        write_frame_header_obu(cpi, &saved_wb, data + obu_header_size, 1);
+          data);
+      obu_payload_size =
+          write_frame_header_obu(cpi, &saved_wb, data + obu_header_size, 1);
 #else
     obu_header_size = av1_write_obu_header(level_params, OBU_FRAME_HEADER,
                                            obu_temporal, obu_layer, data);
     obu_payload_size =
         write_frame_header_obu(cpi, &saved_wb, data + obu_header_size, 1);
-#endif // CONFIG_CWG_F317
+#endif  // CONFIG_CWG_F317
 
+      length_field = obu_memmove(obu_header_size, obu_payload_size, data);
+      if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
+          AOM_CODEC_OK) {
+        return AOM_CODEC_ERROR;
+      }
 
-    length_field = obu_memmove(obu_header_size, obu_payload_size, data);
-    if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
-        AOM_CODEC_OK) {
-      return AOM_CODEC_ERROR;
+      fh_info.obu_header_byte_offset = 0;
+      fh_info.total_length = obu_header_size + obu_payload_size + length_field;
+      data += fh_info.total_length;
     }
-
-    fh_info.obu_header_byte_offset = 0;
-    fh_info.total_length = obu_header_size + obu_payload_size + length_field;
-    data += fh_info.total_length;
-  }
-  if (cm->bru.enabled && cm->current_frame.frame_type != KEY_FRAME) {
-    if (!bru_active_map_validation(cm)) {
-      aom_internal_error(&cm->error, AOM_CODEC_ERROR, "Invalid active region");
+    if (cm->bru.enabled && cm->current_frame.frame_type != KEY_FRAME) {
+      if (!bru_active_map_validation(cm)) {
+        aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+                           "Invalid active region");
+      }
     }
-  }
 
 #if CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT && CONFIG_F253_REMOVE_OUTPUTFLAG
-  const bool non_signaled_show_existing_frame =
-      (cm->show_existing_frame && !cm->features.error_resilient_mode);
+    const bool non_signaled_show_existing_frame =
+        (cm->show_existing_frame && !cm->features.error_resilient_mode);
 #elif CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT && !CONFIG_F253_REMOVE_OUTPUTFLAG
   const bool non_signaled_show_existing_frame =
       (cm->seq_params.enable_frame_output_order && cm->show_existing_frame &&
@@ -8837,29 +8865,29 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
        encode_show_existing_frame(cm));
 #endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT &&
         // CONFIG_F253_REMOVE_OUTPUTFLAG
-  const bool non_signaled_frame =
-      non_signaled_show_existing_frame || cm->bru.frame_inactive_flag ||
+    const bool non_signaled_frame =
+        non_signaled_show_existing_frame || cm->bru.frame_inactive_flag ||
 #if CONFIG_CWG_F317
-      cm->bridge_frame_info.is_bridge_frame ||
-#endif // CONFIG_CWG_F317
-      (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT);
-  if (non_signaled_frame) {
-    data_size = 0;
-  } else {
-    // Since length_field is determined adaptively after frame header
-    // encoding, saved_wb must be adjusted accordingly.
-    if (saved_wb.bit_buffer) saved_wb.bit_buffer += length_field;
+        cm->bridge_frame_info.is_bridge_frame ||
+#endif  // CONFIG_CWG_F317
+        (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT);
+    if (non_signaled_frame) {
+      data_size = 0;
+    } else {
+      // Since length_field is determined adaptively after frame header
+      // encoding, saved_wb must be adjusted accordingly.
+      if (saved_wb.bit_buffer) saved_wb.bit_buffer += length_field;
 
-    //  Each tile group obu will be preceded by 4-byte size of the tile group
-    //  obu
-    data_size =
-        write_tiles_in_tg_obus(cpi, data, &saved_wb, obu_temporal, obu_layer,
+      //  Each tile group obu will be preceded by 4-byte size of the tile group
+      //  obu
+      data_size =
+          write_tiles_in_tg_obus(cpi, data, &saved_wb, obu_temporal, obu_layer,
 #if !CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER
-                               &fh_info,
+                                 &fh_info,
 #endif  // !CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER
-                               largest_tile_id);
-  }
-  data += data_size;
+                                 largest_tile_id);
+    }
+    data += data_size;
 #endif  // CONFIG_F106_OBU_TILEGROUP
   *size = data - dst;
   return AOM_CODEC_OK;

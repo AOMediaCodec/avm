@@ -892,13 +892,12 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
 static AOM_INLINE void bridge_frame_set_offsets(
     AV1_COMMON *const cm, MACROBLOCKD *const xd, BLOCK_SIZE bsize, int mi_row,
     int mi_col, PARTITION_TREE *parent, int index, PARTITION_TYPE partition) {
-
   const int bw = mi_size_wide[bsize];
   const int bh = mi_size_high[bsize];
 
   const int num_planes = av1_num_planes(cm);
-  const CommonModeInfoParams* const mi_params = &cm->mi_params;
-  const TileInfo* const tile = &xd->tile;
+  const CommonModeInfoParams *const mi_params = &cm->mi_params;
+  const TileInfo *const tile = &xd->tile;
 
   const int mi_grid_idx = get_mi_grid_idx(mi_params, mi_row, mi_col);
   xd->mi = mi_params->mi_grid_base + mi_grid_idx;
@@ -910,25 +909,25 @@ static AOM_INLINE void bridge_frame_set_offsets(
   xd->mi_row = mi_row;
   xd->mi_col = mi_col;
 
-  CHROMA_REF_INFO* chroma_ref_info = &xd->mi[0]->chroma_ref_info;
+  CHROMA_REF_INFO *chroma_ref_info = &xd->mi[0]->chroma_ref_info;
   set_chroma_ref_info(xd->tree_type, mi_row, mi_col, index, bsize,
-    chroma_ref_info, parent ? &parent->chroma_ref_info : NULL,
-    parent ? parent->bsize : BLOCK_INVALID,
-    parent ? parent->partition : PARTITION_NONE,
-    xd->plane[1].subsampling_x, xd->plane[1].subsampling_y);
+                      chroma_ref_info, parent ? &parent->chroma_ref_info : NULL,
+                      parent ? parent->bsize : BLOCK_INVALID,
+                      parent ? parent->partition : PARTITION_NONE,
+                      xd->plane[1].subsampling_x, xd->plane[1].subsampling_y);
   set_plane_n4(xd, bw, bh, num_planes, chroma_ref_info);
 
   // Distance of Mb to the various image edges. These are specified to 8th pel
   // as they are always compared to values that are in 1/8th pel units
   set_mi_row_col(
 #if CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
-    cm,
+      cm,
 #endif  // CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
-    xd, tile, mi_row, bh, mi_col, bw, mi_params->mi_rows, mi_params->mi_cols,
-    chroma_ref_info);
+      xd, tile, mi_row, bh, mi_col, bw, mi_params->mi_rows, mi_params->mi_cols,
+      chroma_ref_info);
 
   av1_setup_dst_planes(xd->plane, &cm->cur_frame->buf, mi_row, mi_col, 0,
-    num_planes, chroma_ref_info);
+                       num_planes, chroma_ref_info);
 
   xd->mi[0]->partition = partition;
   // set region_type for each mbmi
@@ -939,29 +938,29 @@ static AOM_INLINE void bridge_frame_set_offsets(
   xd->mi[0]->sb_root_partition_info = (parent == NULL) ? -1 : parent->sb_root_partition_info;
 #endif  // CONFIG_LOCAL_INTRABC_ALIGN_RNG
   xd->mi[0]->local_rest_type =
-    1;  // set non zero default type, it is only matter 1 or 0 in SW
+      1;  // set non zero default type, it is only matter 1 or 0 in SW
   xd->mi[0]->local_ccso_blk_flag =
-    1;  // set non zero default type, it is only matter 1 or 0 in SW
+      1;  // set non zero default type, it is only matter 1 or 0 in SW
   xd->mi[0]->local_gdf_mode =
-    1;  // set non zero default type, it is only matter 1 or 0 in SW
+      1;  // set non zero default type, it is only matter 1 or 0 in SW
 
   if (xd->tree_type != LUMA_PART) {
-    const struct macroblockd_plane* const pd_u = &xd->plane[1];
+    const struct macroblockd_plane *const pd_u = &xd->plane[1];
     const BLOCK_SIZE chroma_bsize_base =
-      get_bsize_base(xd, xd->mi[0], AOM_PLANE_U);
+        get_bsize_base(xd, xd->mi[0], AOM_PLANE_U);
     assert(chroma_bsize_base < BLOCK_SIZES_ALL);
     if (get_plane_block_size(chroma_bsize_base, pd_u->subsampling_x,
-      pd_u->subsampling_y) == BLOCK_INVALID) {
+                             pd_u->subsampling_y) == BLOCK_INVALID) {
       aom_internal_error(xd->error_info, AOM_CODEC_CORRUPT_FRAME,
-        "Block size %dx%d invalid with this subsampling mode",
-        block_size_wide[chroma_bsize_base],
-        block_size_high[chroma_bsize_base]);
+                         "Block size %dx%d invalid with this subsampling mode",
+                         block_size_wide[chroma_bsize_base],
+                         block_size_high[chroma_bsize_base]);
     }
   }
 }
 
 static AOM_INLINE void bridge_frame_predict_inter_block(AV1_COMMON *const cm,
-                                                        MACROBLOCKD* const xd) {
+                                                        MACROBLOCKD *const xd) {
   MB_MODE_INFO *mbmi = xd->mi[0];
   const int num_planes = av1_num_planes(cm);
   const int mi_row = xd->mi_row;
@@ -977,11 +976,10 @@ static AOM_INLINE void bridge_frame_predict_inter_block(AV1_COMMON *const cm,
 
     xd->block_ref_scale_factors[ref] = ref_scale_factors;
     av1_setup_pre_planes(xd, ref, &ref_buf->buf, mi_row, mi_col,
-                          ref_scale_factors, num_planes,
-                          &mbmi->chroma_ref_info);
+                         ref_scale_factors, num_planes, &mbmi->chroma_ref_info);
   }
 
-  struct macroblockd_plane* p = xd->plane;
+  struct macroblockd_plane *p = xd->plane;
   const BUFFER_SET orig_dst = {
     { p[0].dst.buf, p[1].dst.buf, p[2].dst.buf },
     { p[0].dst.stride, p[1].dst.stride, p[2].dst.stride },
@@ -993,17 +991,15 @@ static AOM_INLINE void bridge_frame_predict_inter_block(AV1_COMMON *const cm,
     const int mi_y = mi_row * MI_SIZE;
 
     enc_build_inter_predictors(cm, xd, plane, xd->mi[0], &orig_dst, 0,
-      xd->plane[plane].width, xd->plane[plane].height,
-      mi_x, mi_y);
+                               xd->plane[plane].width, xd->plane[plane].height,
+                               mi_x, mi_y);
   }
 }
 
-static PARTITION_TYPE bridge_frame_read_partition(const AV1_COMMON *const cm,
-                                     MACROBLOCKD *xd, int mi_row, int mi_col,
-                                     int has_rows, int has_cols,
-                                     const PARTITION_TREE *ptree,
-                                     const PARTITION_TREE *ptree_luma,
-                                     BLOCK_SIZE bsize) {
+static PARTITION_TYPE bridge_frame_read_partition(
+    const AV1_COMMON *const cm, MACROBLOCKD *xd, int mi_row, int mi_col,
+    int has_rows, int has_cols, const PARTITION_TREE *ptree,
+    const PARTITION_TREE *ptree_luma, BLOCK_SIZE bsize) {
 #if !CONFIG_NEW_PART_CTX
 #if CONFIG_PARTITION_CONTEXT_REDUCE
   const int ctx = partition_plane_context(xd, mi_row, mi_col, bsize, 1);
@@ -1043,15 +1039,14 @@ static PARTITION_TYPE bridge_frame_read_partition(const AV1_COMMON *const cm,
   return PARTITION_NONE;
 }
 
-
 static AOM_INLINE void bridge_frame_decode_partition(
-    AV1_COMP* cpi, ThreadData *const td, const TileInfo *const tile, int mi_row, int mi_col,
-    BLOCK_SIZE bsize, SB_INFO *sbi, PARTITION_TREE *ptree,
+    AV1_COMP *cpi, ThreadData *const td, const TileInfo *const tile, int mi_row,
+    int mi_col, BLOCK_SIZE bsize, SB_INFO *sbi, PARTITION_TREE *ptree,
     PARTITION_TREE *ptree_luma) {
   assert(bsize < BLOCK_SIZES_ALL);
   AV1_COMMON *const cm = &cpi->common;
-  MACROBLOCK* const x = &td->mb;
-  MACROBLOCKD* const xd = &x->e_mbd;
+  MACROBLOCK *const x = &td->mb;
+  MACROBLOCKD *const xd = &x->e_mbd;
   const int ss_x = xd->plane[1].subsampling_x;
   const int ss_y = xd->plane[1].subsampling_y;
   // Half block width/height.
@@ -1080,139 +1075,138 @@ static AOM_INLINE void bridge_frame_decode_partition(
     ptree->extended_sdp_allowed_flag = cm->seq_params.enable_extended_sdp;
   }
 
-    if (is_sb_root) {
-      const int mi_grid_idx = get_mi_grid_idx(&cm->mi_params, mi_row, mi_col);
-      const int mi_alloc_idx =
-          get_alloc_mi_idx(&cm->mi_params, mi_row, mi_col);
-      cm->mi_params.mi_grid_base[mi_grid_idx] =
-          &cm->mi_params.mi_alloc[mi_alloc_idx];
-      // 'xd->mi' should point to an offset in 'mi_grid_base';
-      xd->mi = cm->mi_params.mi_grid_base + mi_grid_idx;
-      xd->mi[0]->sb_type[xd->tree_type == CHROMA_PART] = bsize;
-      xd->mi_row = mi_row;
-      xd->mi_col = mi_col;
-      //set_sb_mv_precision(sbi, cpi);
-    }
+  if (is_sb_root) {
+    const int mi_grid_idx = get_mi_grid_idx(&cm->mi_params, mi_row, mi_col);
+    const int mi_alloc_idx = get_alloc_mi_idx(&cm->mi_params, mi_row, mi_col);
+    cm->mi_params.mi_grid_base[mi_grid_idx] =
+        &cm->mi_params.mi_alloc[mi_alloc_idx];
+    // 'xd->mi' should point to an offset in 'mi_grid_base';
+    xd->mi = cm->mi_params.mi_grid_base + mi_grid_idx;
+    xd->mi[0]->sb_type[xd->tree_type == CHROMA_PART] = bsize;
+    xd->mi_row = mi_row;
+    xd->mi_col = mi_col;
+    // set_sb_mv_precision(sbi, cpi);
+  }
 
-    ptree->bsize = bsize;
-    ptree->mi_row = mi_row;
-    ptree->mi_col = mi_col;
-    ptree->is_settled = 1;
+  ptree->bsize = bsize;
+  ptree->mi_row = mi_row;
+  ptree->mi_col = mi_col;
+  ptree->is_settled = 1;
 
-    if (is_intra_sdp_enabled && xd->tree_type == SHARED_PART) {
-      ptree_luma->bsize = bsize;
-      ptree_luma->mi_row = mi_row;
-      ptree_luma->mi_col = mi_col;
-      ptree_luma->is_settled = 1;
+  if (is_intra_sdp_enabled && xd->tree_type == SHARED_PART) {
+    ptree_luma->bsize = bsize;
+    ptree_luma->mi_row = mi_row;
+    ptree_luma->mi_col = mi_col;
+    ptree_luma->is_settled = 1;
 #if CONFIG_SDP_CFL_LATENCY_FIX
-      ptree_luma->is_cfl_allowed_for_this_chroma_partition =
-          CFL_DISALLOWED_FOR_CHROMA;
+    ptree_luma->is_cfl_allowed_for_this_chroma_partition =
+        CFL_DISALLOWED_FOR_CHROMA;
 #endif  // CONFIG_SDP_CFL_LATENCY_FIX
-    }
+  }
 
-    PARTITION_TREE *parent = ptree->parent;
-    set_chroma_ref_info(
-        xd->tree_type, mi_row, mi_col, ptree->index, bsize,
-        &ptree->chroma_ref_info, parent ? &parent->chroma_ref_info : NULL,
-        parent ? parent->bsize : BLOCK_INVALID,
-        parent ? parent->partition : PARTITION_NONE, ss_x, ss_y);
+  PARTITION_TREE *parent = ptree->parent;
+  set_chroma_ref_info(xd->tree_type, mi_row, mi_col, ptree->index, bsize,
+                      &ptree->chroma_ref_info,
+                      parent ? &parent->chroma_ref_info : NULL,
+                      parent ? parent->bsize : BLOCK_INVALID,
+                      parent ? parent->partition : PARTITION_NONE, ss_x, ss_y);
 
-    partition = !is_partition_point(bsize)
-                    ? PARTITION_NONE
-                    : bridge_frame_read_partition(cm, xd, mi_row, mi_col, has_rows,
-                                     has_cols, ptree, ptree_luma, bsize);
+  partition =
+      !is_partition_point(bsize)
+          ? PARTITION_NONE
+          : bridge_frame_read_partition(cm, xd, mi_row, mi_col, has_rows,
+                                        has_cols, ptree, ptree_luma, bsize);
 #if CONFIG_SDP_CFL_LATENCY_FIX
-    ptree->is_cfl_allowed_for_this_chroma_partition |=
-        is_cfl_allowed_for_sdp(cm, xd, ptree_luma, partition, bsize);
-    CFL_ALLOWED_FOR_SDP_TYPE is_cfl_allowed_in_sdp =
-        ptree->is_cfl_allowed_for_this_chroma_partition;
+  ptree->is_cfl_allowed_for_this_chroma_partition |=
+      is_cfl_allowed_for_sdp(cm, xd, ptree_luma, partition, bsize);
+  CFL_ALLOWED_FOR_SDP_TYPE is_cfl_allowed_in_sdp =
+      ptree->is_cfl_allowed_for_this_chroma_partition;
 #endif  // CONFIG_SDP_CFL_LATENCY_FIX
-    ptree->partition = partition;
+  ptree->partition = partition;
 
-    if (!is_sb_root && parent) {
-      if (parent->extended_sdp_allowed_flag)
-        ptree->extended_sdp_allowed_flag =
-            is_extended_sdp_allowed(cm->seq_params.enable_extended_sdp,
-                                    parent->bsize, parent->partition);
-      else
-        ptree->extended_sdp_allowed_flag = 0;
+  if (!is_sb_root && parent) {
+    if (parent->extended_sdp_allowed_flag)
+      ptree->extended_sdp_allowed_flag = is_extended_sdp_allowed(
+          cm->seq_params.enable_extended_sdp, parent->bsize, parent->partition);
+    else
+      ptree->extended_sdp_allowed_flag = 0;
 
-      ptree->region_type = parent->region_type;
-    }
+    ptree->region_type = parent->region_type;
+  }
 
-    switch (partition) {
-      case PARTITION_HORZ_4A:
-      case PARTITION_HORZ_4B:
-      case PARTITION_VERT_4A:
-      case PARTITION_VERT_4B:
-      case PARTITION_SPLIT:
-        ptree->sub_tree[0] = av1_alloc_ptree_node(ptree, 0);
-        ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 1);
-        ptree->sub_tree[2] = av1_alloc_ptree_node(ptree, 2);
-        ptree->sub_tree[3] = av1_alloc_ptree_node(ptree, 3);
-        if (is_intra_sdp_enabled && xd->tree_type == SHARED_PART) {
-          ptree_luma->sub_tree[0] = av1_alloc_ptree_node(ptree_luma, 0);
-          ptree_luma->sub_tree[1] = av1_alloc_ptree_node(ptree_luma, 1);
-          ptree_luma->sub_tree[2] = av1_alloc_ptree_node(ptree_luma, 2);
-          ptree_luma->sub_tree[3] = av1_alloc_ptree_node(ptree_luma, 3);
-        }
-        break;
-      case PARTITION_HORZ:
-      case PARTITION_VERT:
-        ptree->sub_tree[0] = av1_alloc_ptree_node(ptree, 0);
-        ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 1);
+  switch (partition) {
+    case PARTITION_HORZ_4A:
+    case PARTITION_HORZ_4B:
+    case PARTITION_VERT_4A:
+    case PARTITION_VERT_4B:
+    case PARTITION_SPLIT:
+      ptree->sub_tree[0] = av1_alloc_ptree_node(ptree, 0);
+      ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 1);
+      ptree->sub_tree[2] = av1_alloc_ptree_node(ptree, 2);
+      ptree->sub_tree[3] = av1_alloc_ptree_node(ptree, 3);
+      if (is_intra_sdp_enabled && xd->tree_type == SHARED_PART) {
+        ptree_luma->sub_tree[0] = av1_alloc_ptree_node(ptree_luma, 0);
+        ptree_luma->sub_tree[1] = av1_alloc_ptree_node(ptree_luma, 1);
+        ptree_luma->sub_tree[2] = av1_alloc_ptree_node(ptree_luma, 2);
+        ptree_luma->sub_tree[3] = av1_alloc_ptree_node(ptree_luma, 3);
+      }
+      break;
+    case PARTITION_HORZ:
+    case PARTITION_VERT:
+      ptree->sub_tree[0] = av1_alloc_ptree_node(ptree, 0);
+      ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 1);
 
-        if (is_intra_sdp_enabled && xd->tree_type == SHARED_PART) {
-          ptree_luma->sub_tree[0] = av1_alloc_ptree_node(ptree_luma, 0);
-          ptree_luma->sub_tree[1] = av1_alloc_ptree_node(ptree_luma, 1);
-        }
-        break;
-      case PARTITION_HORZ_3:
-      case PARTITION_VERT_3:
-        ptree->sub_tree[0] = av1_alloc_ptree_node(ptree, 0);
-        ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 1);
-        ptree->sub_tree[2] = av1_alloc_ptree_node(ptree, 2);
-        ptree->sub_tree[3] = av1_alloc_ptree_node(ptree, 3);
+      if (is_intra_sdp_enabled && xd->tree_type == SHARED_PART) {
+        ptree_luma->sub_tree[0] = av1_alloc_ptree_node(ptree_luma, 0);
+        ptree_luma->sub_tree[1] = av1_alloc_ptree_node(ptree_luma, 1);
+      }
+      break;
+    case PARTITION_HORZ_3:
+    case PARTITION_VERT_3:
+      ptree->sub_tree[0] = av1_alloc_ptree_node(ptree, 0);
+      ptree->sub_tree[1] = av1_alloc_ptree_node(ptree, 1);
+      ptree->sub_tree[2] = av1_alloc_ptree_node(ptree, 2);
+      ptree->sub_tree[3] = av1_alloc_ptree_node(ptree, 3);
 
-        if (is_intra_sdp_enabled && xd->tree_type == SHARED_PART) {
-          ptree_luma->sub_tree[0] = av1_alloc_ptree_node(ptree_luma, 0);
-          ptree_luma->sub_tree[1] = av1_alloc_ptree_node(ptree_luma, 1);
-          ptree_luma->sub_tree[2] = av1_alloc_ptree_node(ptree_luma, 2);
-          ptree_luma->sub_tree[3] = av1_alloc_ptree_node(ptree_luma, 3);
-        }
-        break;
-      default: break;
-    }
+      if (is_intra_sdp_enabled && xd->tree_type == SHARED_PART) {
+        ptree_luma->sub_tree[0] = av1_alloc_ptree_node(ptree_luma, 0);
+        ptree_luma->sub_tree[1] = av1_alloc_ptree_node(ptree_luma, 1);
+        ptree_luma->sub_tree[2] = av1_alloc_ptree_node(ptree_luma, 2);
+        ptree_luma->sub_tree[3] = av1_alloc_ptree_node(ptree_luma, 3);
+      }
+      break;
+    default: break;
+  }
 #if CONFIG_SDP_CFL_LATENCY_FIX
-    switch (partition) {
-      case PARTITION_NONE:
-        xd->is_cfl_allowed_in_sdp = is_cfl_allowed_in_sdp;
-        break;
-      case PARTITION_HORZ_4A:
-      case PARTITION_HORZ_4B:
-      case PARTITION_VERT_4A:
-      case PARTITION_VERT_4B:
-      case PARTITION_HORZ_3:
-      case PARTITION_VERT_3:
-      case PARTITION_SPLIT:
-        ptree->sub_tree[0]->is_cfl_allowed_for_this_chroma_partition =
-            is_cfl_allowed_in_sdp;
-        ptree->sub_tree[1]->is_cfl_allowed_for_this_chroma_partition =
-            is_cfl_allowed_in_sdp;
-        ptree->sub_tree[2]->is_cfl_allowed_for_this_chroma_partition =
-            is_cfl_allowed_in_sdp;
-        ptree->sub_tree[3]->is_cfl_allowed_for_this_chroma_partition =
-            is_cfl_allowed_in_sdp;
-        break;
-      case PARTITION_HORZ:
-      case PARTITION_VERT:
-        ptree->sub_tree[0]->is_cfl_allowed_for_this_chroma_partition =
-            is_cfl_allowed_in_sdp;
-        ptree->sub_tree[1]->is_cfl_allowed_for_this_chroma_partition =
-            is_cfl_allowed_in_sdp;
-        break;
-      default: break;
-    }
+  switch (partition) {
+    case PARTITION_NONE:
+      xd->is_cfl_allowed_in_sdp = is_cfl_allowed_in_sdp;
+      break;
+    case PARTITION_HORZ_4A:
+    case PARTITION_HORZ_4B:
+    case PARTITION_VERT_4A:
+    case PARTITION_VERT_4B:
+    case PARTITION_HORZ_3:
+    case PARTITION_VERT_3:
+    case PARTITION_SPLIT:
+      ptree->sub_tree[0]->is_cfl_allowed_for_this_chroma_partition =
+          is_cfl_allowed_in_sdp;
+      ptree->sub_tree[1]->is_cfl_allowed_for_this_chroma_partition =
+          is_cfl_allowed_in_sdp;
+      ptree->sub_tree[2]->is_cfl_allowed_for_this_chroma_partition =
+          is_cfl_allowed_in_sdp;
+      ptree->sub_tree[3]->is_cfl_allowed_for_this_chroma_partition =
+          is_cfl_allowed_in_sdp;
+      break;
+    case PARTITION_HORZ:
+    case PARTITION_VERT:
+      ptree->sub_tree[0]->is_cfl_allowed_for_this_chroma_partition =
+          is_cfl_allowed_in_sdp;
+      ptree->sub_tree[1]->is_cfl_allowed_for_this_chroma_partition =
+          is_cfl_allowed_in_sdp;
+      break;
+    default: break;
+  }
 #endif  // CONFIG_SDP_CFL_LATENCY_FIX
 
   const BLOCK_SIZE subsize = get_partition_subsize(bsize, partition);
@@ -1262,17 +1256,20 @@ static AOM_INLINE void bridge_frame_decode_partition(
 
 #define BRIDGE_FRAME_DEC_BLOCK_STX_ARG
 #define BRIDGE_FRAME_DEC_BLOCK_EPT_ARG partition,
-#define BRIDGE_FRAME_DEC_BLOCK(db_r, db_c, db_subsize, index)      \
+#define BRIDGE_FRAME_DEC_BLOCK(db_r, db_c, db_subsize, index) \
   bridge_frame_predict_inter_block(cm, xd)
-#define BRIDGE_FRAME_DEC_PARTITION(db_r, db_c, db_subsize, index)                 \
-  bridge_frame_decode_partition(cpi, td, tile, BRIDGE_FRAME_DEC_BLOCK_STX_ARG(db_r), (db_c), \
-                   (db_subsize), sbi, ptree->sub_tree[(index)],      \
-                   get_partition_subtree_const(ptree_luma, index))
+#define BRIDGE_FRAME_DEC_PARTITION(db_r, db_c, db_subsize, index)  \
+  bridge_frame_decode_partition(                                   \
+      cpi, td, tile, BRIDGE_FRAME_DEC_BLOCK_STX_ARG(db_r), (db_c), \
+      (db_subsize), sbi, ptree->sub_tree[(index)],                 \
+      get_partition_subtree_const(ptree_luma, index))
 
   switch (partition) {
     case PARTITION_NONE:
-      bridge_frame_set_offsets(cm, xd, subsize, mi_row, mi_col, parent, 0, partition);
-      BRIDGE_FRAME_DEC_BLOCK(mi_row, mi_col, subsize, 0); break;
+      bridge_frame_set_offsets(cm, xd, subsize, mi_row, mi_col, parent, 0,
+                               partition);
+      BRIDGE_FRAME_DEC_BLOCK(mi_row, mi_col, subsize, 0);
+      break;
     case PARTITION_HORZ:
       BRIDGE_FRAME_DEC_PARTITION(mi_row, mi_col, subsize, 0);
       if ((mi_row + hbs_h) < cm->mi_params.mi_rows)
@@ -1389,7 +1386,8 @@ static AOM_INLINE void bridge_frame_decode_partition(
         ptree->region_type == INTRA_REGION) {
       // decode chroma part in one intra region
       xd->tree_type = CHROMA_PART;
-      bridge_frame_set_offsets(cm, xd, bsize, mi_row, mi_col, parent, 0, partition);
+      bridge_frame_set_offsets(cm, xd, bsize, mi_row, mi_col, parent, 0,
+                               partition);
       BRIDGE_FRAME_DEC_BLOCK(mi_row, mi_col, bsize, 0);
       // reset back to shared part
       xd->tree_type = SHARED_PART;
@@ -1402,15 +1400,13 @@ static AOM_INLINE void bridge_frame_decode_partition(
 #undef BRIDGE_FRAME_DEC_BLOCK_STX_ARG
 }
 
-
-static AOM_INLINE void bridge_frame_decode_partition_sb(AV1_COMP* cpi,
-                                           ThreadData *const td, const TileInfo *const tile, int mi_row,
-                                           int mi_col,
-                                           BLOCK_SIZE bsize) {
+static AOM_INLINE void bridge_frame_decode_partition_sb(
+    AV1_COMP *cpi, ThreadData *const td, const TileInfo *const tile, int mi_row,
+    int mi_col, BLOCK_SIZE bsize) {
   assert(bsize < BLOCK_SIZES_ALL);
   AV1_COMMON *const cm = &cpi->common;
-  MACROBLOCK* const x = &td->mb;
-  MACROBLOCKD* const xd = &x->e_mbd;
+  MACROBLOCK *const x = &td->mb;
+  MACROBLOCKD *const xd = &x->e_mbd;
   xd->tree_type = SHARED_PART;
   const int is_intra_sdp_enabled = is_sdp_enabled_in_keyframe(cm);
 
@@ -1419,7 +1415,7 @@ static AOM_INLINE void bridge_frame_decode_partition_sb(AV1_COMP* cpi,
       xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)],
       (is_intra_sdp_enabled ? xd->sbi->ptree_root[1] : NULL));
 }
-#endif // CONFIG_CWG_F317
+#endif  // CONFIG_CWG_F317
 
 /*!\brief Encode a superblock row by breaking it into superblocks
  *
@@ -1542,51 +1538,54 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
       const int h = mi_size_high[sb_size];
       const int x_inside_boundary = AOMMIN(w, cm->mi_params.mi_cols - mi_col);
       const int y_inside_boundary = AOMMIN(h, cm->mi_params.mi_rows - mi_row);
-      bru_zero_sb_mvs(cm, -1, mi_row, mi_col,
-                      x_inside_boundary, y_inside_boundary);
+      bru_zero_sb_mvs(cm, -1, mi_row, mi_col, x_inside_boundary,
+                      y_inside_boundary);
       av1_reset_entropy_context(xd, cm->seq_params.sb_size, av1_num_planes(cm));
-      bridge_frame_decode_partition_sb(cpi, td, &tile_data->tile_info, mi_row, mi_col, cm->seq_params.sb_size);
-    }
-    else
-#endif // CONFIG_CWG_F317
-    // use for lpf only, use causal restriction only
-    if (cm->bru.enabled && (cur_sb_active_mode != BRU_ACTIVE_SB)) {
-      CHROMA_REF_INFO chroma_ref_info;
-      // xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)]
-      av1_reset_ptree_in_sbi(xd->sbi, xd->tree_type);
-      xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)]->partition =
-          PARTITION_NONE;
-      set_chroma_ref_info(
-          xd->tree_type, mi_row, mi_col, 0, cm->seq_params.sb_size,
-          &chroma_ref_info,
-          &xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)]->chroma_ref_info,
-          BLOCK_INVALID, PARTITION_NONE, xd->plane[1].subsampling_x,
-          xd->plane[1].subsampling_y);
-      av1_set_offsets_without_segment_id(cpi, &tile_data->tile_info, &td->mb,
-                                         mi_row, mi_col, cm->seq_params.sb_size,
-                                         NULL);
-      set_sb_mbmi_bru_mode(cm, xd, mi_col, mi_row, cm->seq_params.sb_size,
-                           cur_sb_active_mode);
-      initialize_chroma_ref_info(mi_row, mi_col, cm->seq_params.sb_size,
-                                 &xd->mi[0]->chroma_ref_info);
-      bru_set_default_inter_mb_mode_info(cm, xd, xd->mi[0],
-                                         cm->seq_params.sb_size);
-      const int w = mi_size_wide[sb_size];
-      const int h = mi_size_high[sb_size];
-      const int x_inside_boundary = AOMMIN(w, cm->mi_params.mi_cols - mi_col);
-      const int y_inside_boundary = AOMMIN(h, cm->mi_params.mi_rows - mi_row);
-      // set to bru ref mvs to 0
-      bru_zero_sb_mvs(cm, cm->bru.update_ref_idx, mi_row, mi_col,
-                      x_inside_boundary, y_inside_boundary);
-      // only support need to be copied
-      // no even support do not eed to copy
-      if (cur_sb_active_mode == BRU_SUPPORT_SB) {
-        bru_copy_sb(cm, mi_col, mi_row);
-      }
-      av1_reset_entropy_context(xd, cm->seq_params.sb_size, av1_num_planes(cm));
+      bridge_frame_decode_partition_sb(cpi, td, &tile_data->tile_info, mi_row,
+                                       mi_col, cm->seq_params.sb_size);
     } else
-      // encode the superblock
-      encode_rd_sb(cpi, td, tile_data, tp, tp_chroma, mi_row, mi_col, seg_skip);
+#endif  // CONFIG_CWG_F317
+      // use for lpf only, use causal restriction only
+      if (cm->bru.enabled && (cur_sb_active_mode != BRU_ACTIVE_SB)) {
+        CHROMA_REF_INFO chroma_ref_info;
+        // xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)]
+        av1_reset_ptree_in_sbi(xd->sbi, xd->tree_type);
+        xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)]->partition =
+            PARTITION_NONE;
+        set_chroma_ref_info(xd->tree_type, mi_row, mi_col, 0,
+                            cm->seq_params.sb_size, &chroma_ref_info,
+                            &xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)]
+                                 ->chroma_ref_info,
+                            BLOCK_INVALID, PARTITION_NONE,
+                            xd->plane[1].subsampling_x,
+                            xd->plane[1].subsampling_y);
+        av1_set_offsets_without_segment_id(cpi, &tile_data->tile_info, &td->mb,
+                                           mi_row, mi_col,
+                                           cm->seq_params.sb_size, NULL);
+        set_sb_mbmi_bru_mode(cm, xd, mi_col, mi_row, cm->seq_params.sb_size,
+                             cur_sb_active_mode);
+        initialize_chroma_ref_info(mi_row, mi_col, cm->seq_params.sb_size,
+                                   &xd->mi[0]->chroma_ref_info);
+        bru_set_default_inter_mb_mode_info(cm, xd, xd->mi[0],
+                                           cm->seq_params.sb_size);
+        const int w = mi_size_wide[sb_size];
+        const int h = mi_size_high[sb_size];
+        const int x_inside_boundary = AOMMIN(w, cm->mi_params.mi_cols - mi_col);
+        const int y_inside_boundary = AOMMIN(h, cm->mi_params.mi_rows - mi_row);
+        // set to bru ref mvs to 0
+        bru_zero_sb_mvs(cm, cm->bru.update_ref_idx, mi_row, mi_col,
+                        x_inside_boundary, y_inside_boundary);
+        // only support need to be copied
+        // no even support do not eed to copy
+        if (cur_sb_active_mode == BRU_SUPPORT_SB) {
+          bru_copy_sb(cm, mi_col, mi_row);
+        }
+        av1_reset_entropy_context(xd, cm->seq_params.sb_size,
+                                  av1_num_planes(cm));
+      } else
+        // encode the superblock
+        encode_rd_sb(cpi, td, tile_data, tp, tp_chroma, mi_row, mi_col,
+                     seg_skip);
 
     // Update the top-right context in row_mt coding
     if (tile_data->allow_update_cdf && row_mt_enabled &&

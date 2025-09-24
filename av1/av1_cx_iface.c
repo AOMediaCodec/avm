@@ -3123,7 +3123,7 @@ static void report_stats(AV1_COMP *cpi, size_t frame_size, uint64_t cx_time) {
       ref_poc[ref_idx] =
           ((ref_poc[ref_idx] == (int)cm->cur_frame->absolute_poc) &&
 #if CONFIG_CWG_F317
-            !valid_ref_case && !cm->bridge_frame_info.is_bridge_frame)
+           !valid_ref_case && !cm->bridge_frame_info.is_bridge_frame)
 #else
            !valid_ref_case)
 #endif
@@ -3193,12 +3193,12 @@ static void report_stats(AV1_COMP *cpi, size_t frame_size, uint64_t cx_time) {
     if (cpi->common.bridge_frame_info.is_bridge_frame)
       fprintf(stdout, "] BRIDGE_FRAME\n");
     else
-#endif // CONFIG_CWG_F317
-    if (cpi->oxcf.tool_cfg.enable_bru)
-      fprintf(stdout, "] SB skipped %d/%d\n", cm->bru.blocks_skipped,
-              cm->bru.total_units);
-    else
-      fprintf(stdout, "]\n");
+#endif  // CONFIG_CWG_F317
+      if (cpi->oxcf.tool_cfg.enable_bru)
+        fprintf(stdout, "] SB skipped %d/%d\n", cm->bru.blocks_skipped,
+                cm->bru.total_units);
+      else
+        fprintf(stdout, "]\n");
   }
 }
 
