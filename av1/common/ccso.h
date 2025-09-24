@@ -17,6 +17,7 @@
 #define max_ccf(X, Y) (((X) > (Y)) ? (X) : (Y))
 
 #define CCSO_INPUT_INTERVAL 3
+#define CCSO_PROC_BLK_LOG2 5
 
 #include <float.h>
 #include "config/aom_config.h"
