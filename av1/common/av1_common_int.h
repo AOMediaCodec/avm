@@ -2575,6 +2575,9 @@ typedef struct AV1Common {
    */
   BruInfo bru;
 #if CONFIG_CWG_F317
+  /*!
+   * Structure contain bridge frame parameters
+   */
   BridgeFrameInfo bridge_frame_info;
 #endif  // CONFIG_CWG_F317
 #if CONFIG_INSPECTION
