@@ -383,8 +383,15 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   else
     seq->order_hint_info.order_hint_bits_minus_1 =
         DEFAULT_EXPLICIT_ORDER_HINT_BITS - 1;
+#if CONFIG_CWG_F377_STILL_PICTURE
+  seq->enable_bru = seq->single_picture_hdr_flag ? 0 : tool_cfg->enable_bru;
+  seq->explicit_ref_frame_map = seq->single_picture_hdr_flag
+                                    ? 0
+                                    : oxcf->ref_frm_cfg.explicit_ref_frame_map;
+#else
   seq->enable_bru = tool_cfg->enable_bru;
   seq->explicit_ref_frame_map = oxcf->ref_frm_cfg.explicit_ref_frame_map;
+#endif  // CONFIG_CWG_F377_STILL_PICTURE
   if (oxcf->tool_cfg.max_drl_refmvs == 0) {
     seq->def_max_drl_bits = DEF_MAX_DRL_REFMVS - 1;
   } else {
@@ -392,6 +399,12 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   }
   // Disable frame by frame update for now. Can be changed later.
   seq->allow_frame_max_drl_bits = 0;
+#if CONFIG_CWG_F377_STILL_PICTURE
+  if (seq->single_picture_hdr_flag) {
+    seq->def_max_drl_bits = MIN_MAX_DRL_BITS;
+    seq->allow_frame_max_drl_bits = 0;
+  }
+#endif  // CONFIG_CWG_F377_STILL_PICTURE
   if (oxcf->tool_cfg.max_drl_refbvs == 0) {
     seq->def_max_bvp_drl_bits = DEF_MAX_DRL_REFBVS - 1;
   } else {
@@ -399,7 +412,12 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   }
   // Disable frame by frame update for now. Can be changed later.
   seq->allow_frame_max_bvp_drl_bits = 0;
+#if CONFIG_CWG_F377_STILL_PICTURE
+  seq->num_same_ref_compound =
+      seq->single_picture_hdr_flag ? 0 : SAME_REF_COMPOUND_PRUNE;
+#else
   seq->num_same_ref_compound = SAME_REF_COMPOUND_PRUNE;
+#endif  // CONFIG_CWG_F377_STILL_PICTURE
 
   seq->max_frame_width = frm_dim_cfg->forced_max_frame_width
                              ? frm_dim_cfg->forced_max_frame_width
@@ -437,15 +455,28 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_gdf = tool_cfg->enable_gdf;
   seq->enable_restoration = tool_cfg->enable_restoration;
   seq->enable_ccso = tool_cfg->enable_ccso;
+#if CONFIG_CWG_F377_STILL_PICTURE
+  seq->enable_lf_sub_pu =
+      seq->single_picture_hdr_flag ? 0 : tool_cfg->enable_lf_sub_pu;
+  seq->enable_opfl_refine = seq->single_picture_hdr_flag
+                                ? AOM_OPFL_REFINE_NONE
+                                : tool_cfg->enable_opfl_refine;
+  seq->enable_tip = seq->single_picture_hdr_flag ? 0 : tool_cfg->enable_tip;
+#else
   seq->enable_lf_sub_pu = tool_cfg->enable_lf_sub_pu;
   seq->enable_opfl_refine = tool_cfg->enable_opfl_refine;
   seq->enable_tip = tool_cfg->enable_tip;
+#endif  // CONFIG_CWG_F377_STILL_PICTURE
   seq->enable_tip_refinemv = tool_cfg->enable_tip_refinemv;
   seq->enable_tip_hole_fill = seq->enable_tip != 0;
   seq->enable_tip_explicit_qp = 0;
   seq->enable_mv_traj = tool_cfg->enable_mv_traj;
   seq->enable_bawp = tool_cfg->enable_bawp;
+#if CONFIG_CWG_F377_STILL_PICTURE
+  seq->enable_cwp = seq->single_picture_hdr_flag ? 0 : tool_cfg->enable_cwp;
+#else
   seq->enable_cwp = tool_cfg->enable_cwp;
+#endif  // CONFIG_CWG_F377_STILL_PICTURE
   seq->enable_imp_msk_bld = tool_cfg->enable_imp_msk_bld;
   seq->seq_enabled_motion_modes =
       oxcf->motion_mode_cfg.seq_enabled_motion_modes;
@@ -474,7 +505,12 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_intra_dip = oxcf->intra_mode_cfg.enable_intra_dip;
 
   seq->enable_sdp = oxcf->part_cfg.enable_sdp;
+#if CONFIG_CWG_F377_STILL_PICTURE
+  seq->enable_extended_sdp =
+      seq->single_picture_hdr_flag ? 0 : oxcf->part_cfg.enable_extended_sdp;
+#else
   seq->enable_extended_sdp = oxcf->part_cfg.enable_extended_sdp;
+#endif  // CONFIG_CWG_F377_STILL_PICTURE
   seq->enable_mrls = oxcf->intra_mode_cfg.enable_mrls;
   seq->enable_fsc = oxcf->intra_mode_cfg.enable_fsc;
 #if CONFIG_FSC_RES_HLS
@@ -492,16 +528,35 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_cfl_intra = oxcf->intra_mode_cfg.enable_cfl_intra;
 #endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
   seq->enable_mhccp = oxcf->intra_mode_cfg.enable_mhccp;
+#if CONFIG_CWG_F377_STILL_PICTURE
+  seq->enable_inter_ddt =
+      seq->single_picture_hdr_flag ? 0 : oxcf->txfm_cfg.enable_inter_ddt;
+#else
   seq->enable_inter_ddt = oxcf->txfm_cfg.enable_inter_ddt;
+#endif  // CONFIG_CWG_F377_STILL_PICTURE
   seq->reduced_tx_part_set = oxcf->txfm_cfg.reduced_tx_part_set;
   seq->enable_cctx = oxcf->txfm_cfg.enable_cctx;
   seq->enable_ibp = oxcf->intra_mode_cfg.enable_ibp;
+#if CONFIG_CWG_F377_STILL_PICTURE
+  seq->enable_adaptive_mvd =
+      seq->single_picture_hdr_flag ? 0 : tool_cfg->enable_adaptive_mvd;
+  seq->enable_flex_mvres =
+      seq->single_picture_hdr_flag ? 0 : tool_cfg->enable_flex_mvres;
+#else
   seq->enable_adaptive_mvd = tool_cfg->enable_adaptive_mvd;
   seq->enable_flex_mvres = tool_cfg->enable_flex_mvres;
+#endif  // CONFIG_CWG_F377_STILL_PICTURE
   seq->cfl_ds_filter_index = tool_cfg->select_cfl_ds_filter;
   seq->enable_joint_mvd = tool_cfg->enable_joint_mvd;
+#if CONFIG_CWG_F377_STILL_PICTURE
+  seq->enable_refinemv =
+      seq->single_picture_hdr_flag ? 0 : tool_cfg->enable_refinemv;
+  seq->enable_mvd_sign_derive =
+      seq->single_picture_hdr_flag ? 0 : tool_cfg->enable_mvd_sign_derive;
+#else
   seq->enable_refinemv = tool_cfg->enable_refinemv;
   seq->enable_mvd_sign_derive = tool_cfg->enable_mvd_sign_derive;
+#endif  // CONFIG_CWG_F377_STILL_PICTURE
   set_bitstream_level_tier(seq, cm, frm_dim_cfg->width, frm_dim_cfg->height,
                            oxcf->input_cfg.init_framerate);
 
@@ -571,9 +626,21 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 
   seq->enable_refmvbank = tool_cfg->enable_refmvbank;
   seq->enable_drl_reorder = tool_cfg->enable_drl_reorder;
+#if CONFIG_CWG_F377_STILL_PICTURE
+  seq->enable_cdef_on_skip_txfm = seq->single_picture_hdr_flag
+                                      ? CDEF_ON_SKIP_TXFM_ADAPTIVE
+                                      : tool_cfg->enable_cdef_on_skip_txfm;
+  // If seq->single_picture_hdr_flag is equal to 1, setting both enable_avg_cdf
+  // and avg_cdf_type to 1 allows us to omit the context_update_tile_id syntax
+  // element in tile_info(), which is part of uncompressed_header().
+  seq->enable_avg_cdf =
+      seq->single_picture_hdr_flag ? 1 : tool_cfg->enable_avg_cdf;
+  seq->avg_cdf_type = seq->single_picture_hdr_flag ? 1 : tool_cfg->avg_cdf_type;
+#else
   seq->enable_cdef_on_skip_txfm = tool_cfg->enable_cdef_on_skip_txfm;
   seq->enable_avg_cdf = tool_cfg->enable_avg_cdf;
   seq->avg_cdf_type = tool_cfg->avg_cdf_type;
+#endif  // CONFIG_CWG_F377_STILL_PICTURE
   seq->enable_tcq =
       is_lossless_requested(&oxcf->rc_cfg) ? 0 : tool_cfg->enable_tcq;
   if (seq->enable_tcq == TCQ_DISABLE || seq->enable_tcq >= TCQ_8ST_FR) {
@@ -588,13 +655,23 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   // if possible
   seq->enable_global_motion =
       tool_cfg->enable_global_motion && !seq->single_picture_hdr_flag;
+#if CONFIG_CWG_F377_STILL_PICTURE
+  seq->enable_short_refresh_frame_flags =
+      seq->single_picture_hdr_flag ? 0
+                                   : tool_cfg->enable_short_refresh_frame_flags;
+#else
   seq->enable_short_refresh_frame_flags =
       tool_cfg->enable_short_refresh_frame_flags;
+#endif  // CONFIG_CWG_F377_STILL_PICTURE
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   seq->number_of_bits_for_lt_frame_id = 3;
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   seq->enable_ext_seg = tool_cfg->enable_ext_seg;
+#if CONFIG_CWG_F377_STILL_PICTURE
+  seq->ref_frames = seq->single_picture_hdr_flag ? 2 : tool_cfg->dpb_size;
+#else
   seq->ref_frames = tool_cfg->dpb_size;
+#endif  // CONFIG_CWG_F377_STILL_PICTURE
   seq->ref_frames_log2 = aom_ceil_log2(seq->ref_frames);
   const QuantizationCfg *const q_cfg = &oxcf->q_cfg;
   seq->user_defined_qmatrix = q_cfg->using_qm && q_cfg->user_defined_qmatrix;

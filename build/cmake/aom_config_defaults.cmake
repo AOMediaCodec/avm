@@ -289,6 +289,8 @@ set_aom_config_var(CONFIG_MOTION_MODE_FRAME_HEADERS_OPT 1
 
 set_aom_config_var(CONFIG_CWG_F362 1
                    "Implicit frame tool flags for single picture headers.")
+set_aom_config_var(CONFIG_CWG_F377_STILL_PICTURE 1
+                   "Sequence header OBU changes for single_picture_hdr_flag.")
 
 set_aom_config_var(
   CONFIG_FSC_RES_HLS 1
