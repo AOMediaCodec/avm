@@ -206,7 +206,7 @@ static INLINE void cdef_filter_fb(CdefBlockInfo *const fb_info, int plane) {
 // Returns:
 //   Nothing will be returned.
 static void cdef_prepare_fb(AV1_COMMON *const cm, CdefBlockInfo *const fb_info,
-                            uint16_t **const colbuf, const int *cdef_left,
+                            uint16_t **const colbuf, int *const cdef_left,
                             int fbc, int fbr, int plane) {
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   uint16_t *src = fb_info->src;
@@ -257,7 +257,7 @@ static void cdef_prepare_fb(AV1_COMMON *const cm, CdefBlockInfo *const fb_info,
       tile_right = 1;
 
     if (tile_left) {
-      cdef_left = 1;
+      *cdef_left = 1;
       cstart = 0;
     }
   }
