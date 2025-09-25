@@ -4983,9 +4983,18 @@ static AOM_INLINE void write_profile(BITSTREAM_PROFILE profile,
 }
 
 #if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+
 static AOM_INLINE void write_seq_chroma_format(
     const SequenceHeader *const seq_params, struct aom_write_bit_buffer *wb) {
-  aom_wb_write_uvlc(wb, seq_params->seq_chroma_format_idc);
+  uint32_t seq_chroma_format_idc;
+  aom_codec_err_t err =
+      av1_get_chroma_format_idc(seq_params, &seq_chroma_format_idc);
+  if (err != AOM_CODEC_OK) {
+    aom_internal_error(&cm->error, err,
+                       "Unsupported subsampling_x = %d, subsampling_y = %d.",
+                       seq_params->subsampling_x, seq_params->subsampling_y);
+  }
+  aom_wb_write_uvlc(wb, seq_chroma_format_idc);
 }
 #endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
@@ -5008,8 +5017,8 @@ static AOM_INLINE void write_color_config(
 
   write_bitdepth(seq_params, wb);
 
-#if !CONFIG_CWG_E242_CHROMA_FORMAT_IDC
   const int is_monochrome = seq_params->monochrome;
+#if !CONFIG_CWG_E242_CHROMA_FORMAT_IDC
   // monochrome bit
   if (seq_params->profile != PROFILE_1)
     aom_wb_write_bit(wb, is_monochrome);
@@ -5026,11 +5035,7 @@ static AOM_INLINE void write_color_config(
     aom_wb_write_literal(wb, seq_params->transfer_characteristics, 8);
     aom_wb_write_literal(wb, seq_params->matrix_coefficients, 8);
   }
-#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-  if (seq_params->monochrome) {
-#else
   if (is_monochrome) {
-#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
     // 0: [16, 235] (i.e. xvYCC), 1: [0, 255]
     aom_wb_write_bit(wb, seq_params->color_range);
   } else {
@@ -5072,11 +5077,7 @@ static AOM_INLINE void write_color_config(
         assert(seq_params->subsampling_x == 0 &&
                seq_params->subsampling_y == 0);
       }
-#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-      if (seq_params->seq_chroma_format_idc == CHROMA_FORMAT_422) {
-#else
       if (seq_params->subsampling_x == 1 && seq_params->subsampling_y == 0) {
-#endif  //  CONFIG_CWG_E242_CHROMA_FORMAT_IDC
         // YUV 4:2:2
         assert(seq_params->chroma_sample_position == AOM_CSP_UNSPECIFIED ||
                seq_params->chroma_sample_position == AOM_CSP_LEFT ||
@@ -5087,12 +5088,8 @@ static AOM_INLINE void write_color_config(
         if (csp_present_flag) {
           aom_wb_write_bit(wb, seq_params->chroma_sample_position);
         }
-#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-      } else if (seq_params->seq_chroma_format_idc == CHROMA_FORMAT_420) {
-#else
       } else if (seq_params->subsampling_x == 1 &&
                  seq_params->subsampling_y == 1) {
-#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
         // YUV 4:2:0
         assert(seq_params->chroma_sample_position == AOM_CSP_UNSPECIFIED ||
                (seq_params->chroma_sample_position >= AOM_CSP_LEFT &&
@@ -7023,6 +7020,7 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
                        seq_params->num_bits_width);
   aom_wb_write_literal(&wb, seq_params->max_frame_height - 1,
                        seq_params->num_bits_height);
+
   write_color_config(seq_params, &wb);
 
   // Still picture or not

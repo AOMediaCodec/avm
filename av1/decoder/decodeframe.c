@@ -6226,19 +6226,18 @@ static AOM_INLINE void read_film_grain(AV1_COMMON *cm,
 }
 
 #if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-static void set_seq_chroma_format(SequenceHeader *seq_params,
+static void set_seq_chroma_format(uint32_t seq_chroma_format_idc,
+                                  SequenceHeader *seq_params,
                                   struct aom_internal_error_info *error_info) {
-  seq_params->monochrome =
-      (seq_params->seq_chroma_format_idc == CHROMA_FORMAT_400);
-  aom_codec_err_t err = av1_get_chroma_subsampling(
-      seq_params->seq_chroma_format_idc, &seq_params->subsampling_x,
-      &seq_params->subsampling_y);
+  aom_codec_err_t err = av1_get_chroma_subsampling(seq_chroma_format_idc,
+                                                   &seq_params->subsampling_x,
+                                                   &seq_params->subsampling_y);
   if (err != AOM_CODEC_OK) {
     aom_internal_error(
         error_info, AOM_CODEC_UNSUP_BITSTREAM,
         "Only 4:0:0, 4:4:4, 4:2:2 and 4:2:0 are currently supported. "
         "Invalid chroma_format_idc value: %d.\n",
-        seq_params->seq_chroma_format_idc);
+        seq_chroma_format_idc);
   }
 }
 #endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
@@ -6247,18 +6246,20 @@ void av1_read_color_config(struct aom_read_bit_buffer *rb,
                            SequenceHeader *seq_params,
                            struct aom_internal_error_info *error_info) {
 #if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-  seq_params->seq_chroma_format_idc = aom_rb_read_uvlc(rb);
-  set_seq_chroma_format(seq_params, error_info);
+  const uint32_t seq_chroma_format_idc = aom_rb_read_uvlc(rb);
+  set_seq_chroma_format(seq_chroma_format_idc, seq_params, error_info);
 #endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
   read_bitdepth(rb, seq_params, error_info);
 
-#if !CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+  const int monochrome = (seq_chroma_format_idc == CHROMA_FORMAT_400);
+#else
   // monochrome bit (not needed for PROFILE_1)
   const int is_monochrome =
       seq_params->profile != PROFILE_1 ? aom_rb_read_bit(rb) : 0;
+#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
   seq_params->monochrome = is_monochrome;
-#endif  // !CONFIG_CWG_E242_CHROMA_FORMAT_IDC
   int color_description_present_flag = aom_rb_read_bit(rb);
   if (color_description_present_flag) {
     seq_params->color_primaries = aom_rb_read_literal(rb, 8);
@@ -6269,11 +6270,7 @@ void av1_read_color_config(struct aom_read_bit_buffer *rb,
     seq_params->transfer_characteristics = AOM_CICP_TC_UNSPECIFIED;
     seq_params->matrix_coefficients = AOM_CICP_MC_UNSPECIFIED;
   }
-#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-  if (seq_params->monochrome) {
-#else
   if (is_monochrome) {
-#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
     // [16,235] (including xvycc) vs [0,255] range
     seq_params->color_range = aom_rb_read_bit(rb);
     seq_params->subsampling_y = seq_params->subsampling_x = 1;
@@ -6322,11 +6319,7 @@ void av1_read_color_config(struct aom_read_bit_buffer *rb,
             error_info, AOM_CODEC_UNSUP_BITSTREAM,
             "Identity CICP Matrix incompatible with non 4:4:4 color sampling");
       }
-#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-      if (seq_params->seq_chroma_format_idc == CHROMA_FORMAT_422) {
-#else
       if (seq_params->subsampling_x && !seq_params->subsampling_y) {
-#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
         // YUV 4:2:2
         seq_params->chroma_sample_position = AOM_CSP_UNSPECIFIED;
         const int csp_present_flag = aom_rb_read_bit(rb);
