@@ -5001,6 +5001,11 @@ static AOM_INLINE void write_bitdepth(const SequenceHeader *const seq_params,
 
 static AOM_INLINE void write_color_config(
     const SequenceHeader *const seq_params, struct aom_write_bit_buffer *wb) {
+#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+  write_seq_chroma_format(seq_params, wb);
+  // NB: the bitdepth will be signalled after the chroma format
+#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+
   write_bitdepth(seq_params, wb);
 
 #if !CONFIG_CWG_E242_CHROMA_FORMAT_IDC
@@ -5070,23 +5075,23 @@ static AOM_INLINE void write_color_config(
 #if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
       if (seq_params->seq_chroma_format_idc == CHROMA_FORMAT_422) {
 #else
-        if (seq_params->subsampling_x == 1 && seq_params->subsampling_y == 0) {
+      if (seq_params->subsampling_x == 1 && seq_params->subsampling_y == 0) {
 #endif  //  CONFIG_CWG_E242_CHROMA_FORMAT_IDC
         // YUV 4:2:2
-          assert(seq_params->chroma_sample_position == AOM_CSP_UNSPECIFIED ||
-                 seq_params->chroma_sample_position == AOM_CSP_LEFT ||
-                 seq_params->chroma_sample_position == AOM_CSP_CENTER);
-          const int csp_present_flag =
-          seq_params->chroma_sample_position != AOM_CSP_UNSPECIFIED;
-          aom_wb_write_bit(wb, csp_present_flag);
-          if (csp_present_flag) {
-            aom_wb_write_bit(wb, seq_params->chroma_sample_position);
-          }
+        assert(seq_params->chroma_sample_position == AOM_CSP_UNSPECIFIED ||
+               seq_params->chroma_sample_position == AOM_CSP_LEFT ||
+               seq_params->chroma_sample_position == AOM_CSP_CENTER);
+        const int csp_present_flag =
+            seq_params->chroma_sample_position != AOM_CSP_UNSPECIFIED;
+        aom_wb_write_bit(wb, csp_present_flag);
+        if (csp_present_flag) {
+          aom_wb_write_bit(wb, seq_params->chroma_sample_position);
+        }
 #if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-        } else if (seq_params->seq_chroma_format_idc == CHROMA_FORMAT_420) {
+      } else if (seq_params->seq_chroma_format_idc == CHROMA_FORMAT_420) {
 #else
-        } else if (seq_params->subsampling_x == 1 &&
-               seq_params->subsampling_y == 1) {
+      } else if (seq_params->subsampling_x == 1 &&
+                 seq_params->subsampling_y == 1) {
 #endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
         // YUV 4:2:0
         assert(seq_params->chroma_sample_position == AOM_CSP_UNSPECIFIED ||
@@ -7018,12 +7023,6 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
                        seq_params->num_bits_width);
   aom_wb_write_literal(&wb, seq_params->max_frame_height - 1,
                        seq_params->num_bits_height);
-
-#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-  write_seq_chroma_format(seq_params, &wb);
-  // NB: the bitdepth will be signalled after the chroma format
-#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-
   write_color_config(seq_params, &wb);
 
   // Still picture or not

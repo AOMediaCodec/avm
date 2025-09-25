@@ -167,14 +167,13 @@ static int parse_operating_parameters_info(struct aom_read_bit_buffer *reader,
 // Parse the AV1 color_config() structure..See:
 // https://aomediacodec.github.io/av1-spec/av1-spec.pdf#page=44
 static int parse_color_config(struct aom_read_bit_buffer *reader,
-                              Av1Config *config
-#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-                              ,
-                              int chroma_format_idc
-#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-) {
+                              Av1Config *config) {
   int result = 0;
   AV1C_PUSH_ERROR_HANDLER_DATA(result);
+
+#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+  AV1C_READ_UVLC_BITS_OR_RETURN_ERROR(chroma_format_idc);
+#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
   AV1C_READ_BIT_OR_RETURN_ERROR(high_bitdepth);
   config->high_bitdepth = high_bitdepth;
@@ -311,16 +310,8 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
                                  frame_width_bits_minus_1 + 1);
   AV1C_READ_BITS_OR_RETURN_ERROR(max_frame_height_minus_1,
                                  frame_height_bits_minus_1 + 1);
-#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-  AV1C_READ_UVLC_BITS_OR_RETURN_ERROR(chroma_format_idc);
-#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
-  if (parse_color_config(reader, config
-#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-                         ,
-                         chroma_format_idc
-#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-                         ) != 0) {
+  if (parse_color_config(reader, config) != 0) {
     fprintf(stderr, "av1c: color_config() parse failed.\n");
     return -1;
   }

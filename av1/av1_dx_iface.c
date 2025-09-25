@@ -228,18 +228,17 @@ static aom_codec_err_t set_chroma_subsampling(CHROMA_FORMAT chroma_format_idc,
 #endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
 static aom_codec_err_t parse_color_config(struct aom_read_bit_buffer *rb,
-                                          BITSTREAM_PROFILE profile
+                                          BITSTREAM_PROFILE profile) {
 #if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-                                          ,
-                                          int chroma_format_idc
+  const uint32_t chroma_format_idc = aom_rb_read_uvlc(rb);
 #endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-) {
+
   aom_bit_depth_t bit_depth;
   aom_codec_err_t err = parse_bitdepth(rb, profile, &bit_depth);
   if (err != AOM_CODEC_OK) return err;
 
 #if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-  const int is_monochrome = chroma_format_idc == CHROMA_FORMAT_400;
+  const int is_monochrome = (chroma_format_idc == CHROMA_FORMAT_400);
 #else
   // monochrome bit (not needed for PROFILE_1)
   const int is_monochrome = profile != PROFILE_1 ? aom_rb_read_bit(rb) : 0;
@@ -271,15 +270,12 @@ static aom_codec_err_t parse_color_config(struct aom_read_bit_buffer *rb,
         return AOM_CODEC_UNSUP_BITSTREAM;
       }
     } else {
-#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-      aom_rb_read_bit(rb);  // color_range
-      int *subsampling_x = NULL;
-      int *subsampling_y = NULL;
-      set_chroma_subsampling(chroma_format_idc, subsampling_x, subsampling_y);
-#else
       int subsampling_x;
       int subsampling_y;
       aom_rb_read_bit(rb);  // color_range
+#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+      set_chroma_subsampling(chroma_format_idc, &subsampling_x, &subsampling_y);
+#else
       if (profile == PROFILE_0) {
         // 420 only
         subsampling_x = subsampling_y = 1;
@@ -480,16 +476,7 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
       si->w = max_frame_width;
       si->h = max_frame_height;
 
-#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-      int chroma_format_idc = aom_rb_read_uvlc(&rb);
-#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-
-      status = parse_color_config(&rb, profile
-#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-                                  ,
-                                  chroma_format_idc
-#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-      );
+      status = parse_color_config(&rb, profile);
       if (status != AOM_CODEC_OK) return status;
 
       const uint8_t still_picture = aom_rb_read_bit(&rb);
