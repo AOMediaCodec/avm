@@ -5140,7 +5140,7 @@ static AOM_INLINE void write_tu_pts_info(AV1_COMMON *const cm,
 }
 
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO
- // Writes tile syntax
+// Writes tile syntax
 void write_tile_syntax_info(const TileInfoSyntax *tiles,
                             struct aom_write_bit_buffer *wb) {
   int size_sb, i;

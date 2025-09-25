@@ -598,7 +598,7 @@ typedef struct {
   int width_sb;
   int min_log2;
   int size_sb;
-} TileInfoSyntax ;
+} TileInfoSyntax;
 #endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 
 // Sequence header structure.

@@ -4126,8 +4126,8 @@ static AOM_INLINE void setup_frame_size_with_refs(
 
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO
 // Reconstructs the tile information
-static void reconstruct_tile_info_max_tile(
-    AV1_COMMON *const cm, TileInfoSyntax *tile_params) {
+static void reconstruct_tile_info_max_tile(AV1_COMMON *const cm,
+                                           TileInfoSyntax *tile_params) {
   CommonTileParams *const tiles = &cm->tiles;
 
   int width_mi = ALIGN_POWER_OF_TWO(cm->mi_params.mi_cols, cm->mib_size_log2);

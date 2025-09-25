@@ -169,9 +169,8 @@ set_aom_config_var(CONFIG_F106_OBU_TIP 1 "Use TIP_OBU.")
 set_aom_config_var(CONFIG_F253_REMOVE_OUTPUTFLAG 1
                    "Remove enable_frame_output_order.")
 # CWG-E242
-set_aom_config_var(
-  CONFIG_CWG_E242_SIGNAL_TILE_INFO 1
-  "Signal tile information at sequence header.")
+set_aom_config_var(CONFIG_CWG_E242_SIGNAL_TILE_INFO 1
+                   "Signal tile information at sequence header.")
 
 set_aom_config_var(CONFIG_CWG_E242_BITDEPTH 0
                    "Enable bitdepth signalling using a LUT.")

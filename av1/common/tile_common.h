@@ -79,10 +79,10 @@ int is_vert_tile_boundary(struct CommonTileParams *const tiles, int mi_col);
 
 // Find smallest k>=0 such that (blk_size << k) >= target
 static INLINE int tile_log2(int blk_size, int target) {
- int k;
- for (k = 0; (blk_size << k) < target; k++) {
- }
-return k;
+  int k;
+  for (k = 0; (blk_size << k) < target; k++) {
+  }
+  return k;
 }
 
 #ifdef __cplusplus
