@@ -56,6 +56,8 @@ void av1_write_cctx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
                          CctxType cctx_type, TX_SIZE tx_size, aom_writer *w);
 
 #if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+// Given subsampling x/y and monochrome values in `seq_params`, outputs the
+// chroma format idc. Returns error in case of invalid subsampling format.
 static aom_codec_err_t av1_get_chroma_format_idc(
     const SequenceHeader *const seq_params, uint32_t *seq_chroma_format_idc) {
   if (seq_params->monochrome) {

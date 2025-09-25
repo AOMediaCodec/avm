@@ -4983,7 +4983,7 @@ static AOM_INLINE void write_profile(BITSTREAM_PROFILE profile,
 }
 
 #if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-
+// Write sequence chroma format idc to the bitstream.
 static AOM_INLINE void write_seq_chroma_format(
     const SequenceHeader *const seq_params, struct aom_write_bit_buffer *wb) {
   uint32_t seq_chroma_format_idc;

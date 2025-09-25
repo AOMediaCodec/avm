@@ -5391,6 +5391,8 @@ static INLINE MB_MODE_INFO **get_mi_location_from_collocated_mi(
 }
 
 #if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+// Given chroma_format_idc, outputs the subsampling_x/y.
+// Returns error in case of invalid chroma_format_idc.
 static aom_codec_err_t av1_get_chroma_subsampling(
     CHROMA_FORMAT chroma_format_idc, int *subsampling_x, int *subsampling_y) {
   if (chroma_format_idc == CHROMA_FORMAT_420) {

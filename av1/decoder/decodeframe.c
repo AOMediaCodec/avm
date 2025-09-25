@@ -6226,6 +6226,8 @@ static AOM_INLINE void read_film_grain(AV1_COMMON *cm,
 }
 
 #if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+// Given chroma_format_idc, set the subsampling_x/y values in `seq_params`.
+// Calls `aom_internal_error` in case of invalid chroma_format_idc.
 static void set_seq_chroma_format(uint32_t seq_chroma_format_idc,
                                   SequenceHeader *seq_params,
                                   struct aom_internal_error_info *error_info) {

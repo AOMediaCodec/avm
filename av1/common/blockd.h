@@ -62,6 +62,7 @@ enum {
 } UENUM1BYTE(FRAME_TYPE);
 
 #if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+// Enum for valid chroma subsampling formats.
 enum {
   CHROMA_FORMAT_420 = 0,
   CHROMA_FORMAT_400 = 1,
