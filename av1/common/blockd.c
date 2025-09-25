@@ -79,6 +79,33 @@ void av1_mark_block_as_not_coded(MACROBLOCKD *xd, int mi_row, int mi_col,
   }
 }
 
+void av1_mark_block_as_pseudo_coded(MACROBLOCKD *xd, int mi_row, int mi_col,
+                                    BLOCK_SIZE bsize, BLOCK_SIZE sb_size) {
+  // for a superblock partly outside the frame boundary,
+  // if a block in the superblock is outside the frame boundary and hence not
+  // coded, but it should have been visited before the current CU according to
+  // decoding/partitioning order, mark it as 'pseudo coded' to help determine
+  // local intraBC range
+  const int sb_mi_size = mi_size_wide[sb_size];
+  const int mi_row_offset = mi_row & (sb_mi_size - 1);
+  const int mi_col_offset = mi_col & (sb_mi_size - 1);
+
+  for (int r = 0; r < mi_size_high[bsize]; ++r)
+    for (int c = 0; c < mi_size_wide[bsize]; ++c) {
+      const int pos =
+          (mi_row_offset + r) * xd->is_mi_coded_stride + mi_col_offset + c;
+      switch (xd->tree_type) {
+        case SHARED_PART:
+          xd->is_mi_coded[0][pos] = 2;
+          xd->is_mi_coded[1][pos] = 2;
+          break;
+        case LUMA_PART: xd->is_mi_coded[0][pos] = 2; break;
+        case CHROMA_PART: xd->is_mi_coded[1][pos] = 2; break;
+        default: assert(0 && "Invalid tree type");
+      }
+    }
+}
+
 PARTITION_TREE *av1_alloc_ptree_node(PARTITION_TREE *parent, int index) {
   PARTITION_TREE *ptree = NULL;
   struct aom_internal_error_info error;

@@ -143,7 +143,8 @@ static int has_top_right(const AV1_COMMON *cm, const MACROBLOCKD *xd,
     } else {  // Handle the general case: the top_right mi is in the same SB
       const int tr_offset = tr_mask_row * xd->is_mi_coded_stride + tr_mask_col;
       // As long as the first mi is available, we determine tr is available
-      int has_tr = xd->is_mi_coded[av1_get_sdp_idx(xd->tree_type)][tr_offset];
+      int has_tr =
+          (xd->is_mi_coded[av1_get_sdp_idx(xd->tree_type)][tr_offset] == 1);
 
       // Calculate px_top_right: how many top-right pixels are available. If it
       // is less than tx_size_wide[txsz], px_top_right will be used to
@@ -153,7 +154,8 @@ static int has_top_right(const AV1_COMMON *cm, const MACROBLOCKD *xd,
         int mi_tr = 0;
         for (int i = 0; i < top_right_count_unit << ss_x; ++i) {
           if ((tr_mask_col + i) >= sb_mi_size ||
-              !xd->is_mi_coded[av1_get_sdp_idx(xd->tree_type)][tr_offset + i]) {
+              xd->is_mi_coded[av1_get_sdp_idx(xd->tree_type)][tr_offset + i] !=
+                  1) {
             break;
           } else {
             mi_tr++;
@@ -277,7 +279,8 @@ static int has_bottom_left(const AV1_COMMON *cm, const MACROBLOCKD *xd,
       const int bl_offset = bl_mask_row * xd->is_mi_coded_stride + bl_mask_col;
       // As long as there is one bottom-left mi available, we determine bl is
       // available
-      int has_bl = xd->is_mi_coded[av1_get_sdp_idx(xd->tree_type)][bl_offset];
+      int has_bl =
+          (xd->is_mi_coded[av1_get_sdp_idx(xd->tree_type)][bl_offset] == 1);
 
       // Calculate px_bottom_left: how many bottom-left pixels are available. If
       // it is less than tx_size_high[txsz], px_bottom_left will be used to
@@ -287,8 +290,8 @@ static int has_bottom_left(const AV1_COMMON *cm, const MACROBLOCKD *xd,
         int mi_bl = 0;
         for (int i = 0; i < bottom_left_count_unit << ss_y; ++i) {
           if ((bl_mask_row + i) >= sb_mi_size ||
-              !xd->is_mi_coded[av1_get_sdp_idx(xd->tree_type)]
-                              [bl_offset + i * xd->is_mi_coded_stride]) {
+              xd->is_mi_coded[av1_get_sdp_idx(xd->tree_type)]
+                             [bl_offset + i * xd->is_mi_coded_stride] != 1) {
             break;
           } else {
             mi_bl++;

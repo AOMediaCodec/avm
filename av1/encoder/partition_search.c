@@ -2036,11 +2036,14 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
   assert(bsize < BLOCK_SIZES_ALL);
   const AV1_COMMON *const cm = &cpi->common;
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
-
-  if (mi_row >= mi_params->mi_rows || mi_col >= mi_params->mi_cols) return;
-
   MACROBLOCK *const x = &td->mb;
   MACROBLOCKD *const xd = &x->e_mbd;
+
+  if (mi_row >= mi_params->mi_rows || mi_col >= mi_params->mi_cols) {
+    av1_mark_block_as_pseudo_coded(xd, mi_row, mi_col, bsize, cm->sb_size);
+    return;
+  }
+
   assert(bsize < BLOCK_SIZES_ALL);
   const int hbs_w = mi_size_wide[bsize] / 2;
   const int hbs_h = mi_size_high[bsize] / 2;
@@ -2217,23 +2220,19 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, dry_run, subsize,
                 pc_tree->vertical[pc_tree->region_type][0], sub_tree[0],
                 track_ptree_luma ? ptree_luma->sub_tree[0] : NULL, rate);
-      if (mi_col + hbs_w < cm->mi_params.mi_cols) {
-        encode_sb(cpi, td, tile_data, tp, mi_row, mi_col + hbs_w, dry_run,
-                  subsize, pc_tree->vertical[pc_tree->region_type][1],
-                  sub_tree[1],
-                  track_ptree_luma ? ptree_luma->sub_tree[1] : NULL, rate);
-      }
+      encode_sb(cpi, td, tile_data, tp, mi_row, mi_col + hbs_w, dry_run,
+                subsize, pc_tree->vertical[pc_tree->region_type][1],
+                sub_tree[1], track_ptree_luma ? ptree_luma->sub_tree[1] : NULL,
+                rate);
       break;
     case PARTITION_HORZ:
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, dry_run, subsize,
                 pc_tree->horizontal[pc_tree->region_type][0], sub_tree[0],
                 track_ptree_luma ? ptree_luma->sub_tree[0] : NULL, rate);
-      if (mi_row + hbs_h < cm->mi_params.mi_rows) {
-        encode_sb(cpi, td, tile_data, tp, mi_row + hbs_h, mi_col, dry_run,
-                  subsize, pc_tree->horizontal[pc_tree->region_type][1],
-                  sub_tree[1],
-                  track_ptree_luma ? ptree_luma->sub_tree[1] : NULL, rate);
-      }
+      encode_sb(cpi, td, tile_data, tp, mi_row + hbs_h, mi_col, dry_run,
+                subsize, pc_tree->horizontal[pc_tree->region_type][1],
+                sub_tree[1], track_ptree_luma ? ptree_luma->sub_tree[1] : NULL,
+                rate);
       break;
     case PARTITION_HORZ_4A: {
       const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_HORZ);
@@ -2242,17 +2241,14 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, dry_run, subsize,
                 pc_tree->horizontal4a[pc_tree->region_type][0], sub_tree[0],
                 track_ptree_luma ? ptree_luma->sub_tree[0] : NULL, rate);
-      if (mi_row + ebs_h >= cm->mi_params.mi_rows) break;
       encode_sb(cpi, td, tile_data, tp, mi_row + ebs_h, mi_col, dry_run,
                 bsize_med, pc_tree->horizontal4a[pc_tree->region_type][1],
                 sub_tree[1], track_ptree_luma ? ptree_luma->sub_tree[1] : NULL,
                 rate);
-      if (mi_row + 3 * ebs_h >= cm->mi_params.mi_rows) break;
       encode_sb(cpi, td, tile_data, tp, mi_row + 3 * ebs_h, mi_col, dry_run,
                 bsize_big, pc_tree->horizontal4a[pc_tree->region_type][2],
                 sub_tree[2], track_ptree_luma ? ptree_luma->sub_tree[2] : NULL,
                 rate);
-      if (mi_row + 7 * ebs_h >= cm->mi_params.mi_rows) break;
       encode_sb(cpi, td, tile_data, tp, mi_row + 7 * ebs_h, mi_col, dry_run,
                 subsize, pc_tree->horizontal4a[pc_tree->region_type][3],
                 sub_tree[3], track_ptree_luma ? ptree_luma->sub_tree[3] : NULL,
@@ -2266,17 +2262,14 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, dry_run, subsize,
                 pc_tree->horizontal4b[pc_tree->region_type][0], sub_tree[0],
                 track_ptree_luma ? ptree_luma->sub_tree[0] : NULL, rate);
-      if (mi_row + ebs_h >= cm->mi_params.mi_rows) break;
       encode_sb(cpi, td, tile_data, tp, mi_row + ebs_h, mi_col, dry_run,
                 bsize_big, pc_tree->horizontal4b[pc_tree->region_type][1],
                 sub_tree[1], track_ptree_luma ? ptree_luma->sub_tree[1] : NULL,
                 rate);
-      if (mi_row + 5 * ebs_h >= cm->mi_params.mi_rows) break;
       encode_sb(cpi, td, tile_data, tp, mi_row + 5 * ebs_h, mi_col, dry_run,
                 bsize_med, pc_tree->horizontal4b[pc_tree->region_type][2],
                 sub_tree[2], track_ptree_luma ? ptree_luma->sub_tree[2] : NULL,
                 rate);
-      if (mi_row + 7 * ebs_h >= cm->mi_params.mi_rows) break;
       encode_sb(cpi, td, tile_data, tp, mi_row + 7 * ebs_h, mi_col, dry_run,
                 subsize, pc_tree->horizontal4b[pc_tree->region_type][3],
                 sub_tree[3], track_ptree_luma ? ptree_luma->sub_tree[3] : NULL,
@@ -2290,17 +2283,14 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, dry_run, subsize,
                 pc_tree->vertical4a[pc_tree->region_type][0], sub_tree[0],
                 track_ptree_luma ? ptree_luma->sub_tree[0] : NULL, rate);
-      if (mi_col + ebs_w >= cm->mi_params.mi_cols) break;
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col + ebs_w, dry_run,
                 bsize_med, pc_tree->vertical4a[pc_tree->region_type][1],
                 sub_tree[1], track_ptree_luma ? ptree_luma->sub_tree[1] : NULL,
                 rate);
-      if (mi_col + 3 * ebs_w >= cm->mi_params.mi_cols) break;
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col + 3 * ebs_w, dry_run,
                 bsize_big, pc_tree->vertical4a[pc_tree->region_type][2],
                 sub_tree[2], track_ptree_luma ? ptree_luma->sub_tree[2] : NULL,
                 rate);
-      if (mi_col + 7 * ebs_w >= cm->mi_params.mi_cols) break;
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col + 7 * ebs_w, dry_run,
                 subsize, pc_tree->vertical4a[pc_tree->region_type][3],
                 sub_tree[3], track_ptree_luma ? ptree_luma->sub_tree[3] : NULL,
@@ -2314,17 +2304,14 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, dry_run, subsize,
                 pc_tree->vertical4b[pc_tree->region_type][0], sub_tree[0],
                 track_ptree_luma ? ptree_luma->sub_tree[0] : NULL, rate);
-      if (mi_col + ebs_w >= cm->mi_params.mi_cols) break;
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col + ebs_w, dry_run,
                 bsize_big, pc_tree->vertical4b[pc_tree->region_type][1],
                 sub_tree[1], track_ptree_luma ? ptree_luma->sub_tree[1] : NULL,
                 rate);
-      if (mi_col + 5 * ebs_w >= cm->mi_params.mi_cols) break;
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col + 5 * ebs_w, dry_run,
                 bsize_med, pc_tree->vertical4b[pc_tree->region_type][2],
                 sub_tree[2], track_ptree_luma ? ptree_luma->sub_tree[2] : NULL,
                 rate);
-      if (mi_col + 7 * ebs_w >= cm->mi_params.mi_cols) break;
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col + 7 * ebs_w, dry_run,
                 subsize, pc_tree->vertical4b[pc_tree->region_type][3],
                 sub_tree[3], track_ptree_luma ? ptree_luma->sub_tree[3] : NULL,
@@ -2346,9 +2333,17 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
                 : pc_tree->vertical3[pc_tree->region_type][i];
 
         if (partition == PARTITION_HORZ_3) {
-          if (this_mi_row >= cm->mi_params.mi_rows) break;
+          if (this_mi_row >= cm->mi_params.mi_rows) {
+            av1_mark_block_as_pseudo_coded(xd, this_mi_row, this_mi_col,
+                                           this_bsize, cm->sb_size);
+            continue;
+          }
         } else {
-          if (this_mi_col >= cm->mi_params.mi_cols) break;
+          if (this_mi_col >= cm->mi_params.mi_cols) {
+            av1_mark_block_as_pseudo_coded(xd, this_mi_row, this_mi_col,
+                                           this_bsize, cm->sb_size);
+            continue;
+          }
         }
         encode_sb(cpi, td, tile_data, tp, this_mi_row, this_mi_col, dry_run,
                   this_bsize, this_pc_tree, sub_tree[i],

@@ -1867,7 +1867,7 @@ static int has_top_right(const AV1_COMMON *cm, const MACROBLOCKD *xd,
     // to figure out the availability.
     const int tr_offset = tr_mask_row * xd->is_mi_coded_stride + tr_mask_col;
 
-    has_tr = xd->is_mi_coded[av1_get_sdp_idx(xd->tree_type)][tr_offset];
+    has_tr = (xd->is_mi_coded[av1_get_sdp_idx(xd->tree_type)][tr_offset] == 1);
   }
 
   return has_tr;
@@ -1899,7 +1899,7 @@ static int has_bottom_left(const AV1_COMMON *cm, const MACROBLOCKD *xd,
     // to figure out the availability.
     const int bl_offset = bl_mask_row * xd->is_mi_coded_stride + bl_mask_col;
 
-    return xd->is_mi_coded[av1_get_sdp_idx(xd->tree_type)][bl_offset];
+    return xd->is_mi_coded[av1_get_sdp_idx(xd->tree_type)][bl_offset] == 1;
   }
 }
 

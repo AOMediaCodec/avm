@@ -771,7 +771,6 @@ static INLINE int av1_is_dv_in_local_range(const AV1_COMMON *cm, const MV dv,
   if ((src_bottom_y >> sb_size_log2) > (act_top_y >> sb_size_log2)) return 0;
   // reference blk must be in the same sb row
   int numLeftSB = (1 << (8 - sb_size_log2)) - ((sb_size_log2 < 8) ? 1 : 0);
-#if CONFIG_LOCAL_INTRABC_ALIGN_RNG
   if (sb_size_log2 == 6) {
     if (cm->bru.enabled) {
       numLeftSB = 1;
@@ -792,7 +791,6 @@ static INLINE int av1_is_dv_in_local_range(const AV1_COMMON *cm, const MV dv,
     } else
       numLeftSB = 4;
   }
-#endif  // CONFIG_LOCAL_INTRABC_ALIGN_RNG
   const int valid_SB =
       ((src_right_x >> sb_size_log2) <= (act_left_x >> sb_size_log2)) &&
       ((src_left_x >> sb_size_log2) >=
@@ -959,30 +957,20 @@ static INLINE int av1_is_dv_in_local_range(const AV1_COMMON *cm, const MV dv,
   const int sb_mi_size = sb_size >> MI_SIZE_LOG2;
   const int is_chroma_tree = xd->tree_type == CHROMA_PART;
   const unsigned char *is_mi_coded_map = xd->is_mi_coded[is_chroma_tree];
+  const int LT_mi_col_offset =
+      (src_colo_left_x >> MI_SIZE_LOG2) & (sb_mi_size - 1);
+  const int LT_mi_row_offset =
+      (src_colo_top_y >> MI_SIZE_LOG2) & (sb_mi_size - 1);
+  const int LT_pos =
+      LT_mi_row_offset * xd->is_mi_coded_stride + LT_mi_col_offset;
   if (TL_same_ref == 1) {
-    const int LT_mi_col_offset =
-        (src_colo_left_x >> MI_SIZE_LOG2) & (sb_mi_size - 1);
-    const int LT_mi_row_offset =
-        (src_colo_top_y >> MI_SIZE_LOG2) & (sb_mi_size - 1);
-    const int LT_pos =
-        LT_mi_row_offset * xd->is_mi_coded_stride + LT_mi_col_offset;
     if (is_mi_coded_map[LT_pos] == 0) return 0;
   } else if (TL_same_ref == 0) {
-#if CONFIG_LOCAL_INTRABC_ALIGN_RNG
-    const int LT_mi_col_offset =
-        (src_colo_left_x >> MI_SIZE_LOG2) & (sb_mi_size - 1);
-    const int LT_mi_row_offset =
-        (src_colo_top_y >> MI_SIZE_LOG2) & (sb_mi_size - 1);
-#endif  // CONFIG_LOCAL_INTRABC_ALIGN_RNG
-    const int LT_pos =
-        LT_mi_row_offset * xd->is_mi_coded_stride + LT_mi_col_offset;
-    if (is_mi_coded_map[LT_pos] == 1) return 0;
-#if CONFIG_LOCAL_INTRABC_ALIGN_RNG
+    if (is_mi_coded_map[LT_pos] == 1 || is_mi_coded_map[LT_pos] == 2) return 0;
     if (is_two_blk_overlap(src_colo_left_x, src_colo_right_x, src_colo_top_y,
                            src_colo_bottom_y, act_left_x, act_right_x,
                            act_top_y, act_bottom_y))
       return 0;
-#endif  // CONFIG_LOCAL_INTRABC_ALIGN_RNG
   }
   if (BR_same_ref == 1) {
     const int BR_mi_col_offset =

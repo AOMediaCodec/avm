@@ -1958,8 +1958,10 @@ static AOM_INLINE void decode_partition(
   const int has_rows = (mi_row + hbs_h) < cm->mi_params.mi_rows;
   const int has_cols = (mi_col + hbs_w) < cm->mi_params.mi_cols;
 
-  if (mi_row >= cm->mi_params.mi_rows || mi_col >= cm->mi_params.mi_cols)
+  if (mi_row >= cm->mi_params.mi_rows || mi_col >= cm->mi_params.mi_cols) {
+    av1_mark_block_as_pseudo_coded(xd, mi_row, mi_col, bsize, cm->sb_size);
     return;
+  }
 
   const int is_intra_sdp_enabled = is_sdp_enabled_in_keyframe(cm);
   const int total_loop_num =
@@ -2268,13 +2270,11 @@ static AOM_INLINE void decode_partition(
     case PARTITION_NONE: DEC_BLOCK(mi_row, mi_col, subsize, 0); break;
     case PARTITION_HORZ:
       DEC_PARTITION(mi_row, mi_col, subsize, 0);
-      if ((mi_row + hbs_h) < cm->mi_params.mi_rows)
-        DEC_PARTITION(mi_row + hbs_h, mi_col, subsize, 1);
+      DEC_PARTITION(mi_row + hbs_h, mi_col, subsize, 1);
       break;
     case PARTITION_VERT:
       DEC_PARTITION(mi_row, mi_col, subsize, 0);
-      if ((mi_col + hbs_w) < cm->mi_params.mi_cols)
-        DEC_PARTITION(mi_row, mi_col + hbs_w, subsize, 1);
+      DEC_PARTITION(mi_row, mi_col + hbs_w, subsize, 1);
       break;
     case PARTITION_HORZ_4A: {
       const BLOCK_SIZE bsize_big = get_partition_subsize(bsize, PARTITION_HORZ);
@@ -2283,13 +2283,10 @@ static AOM_INLINE void decode_partition(
       int this_mi_row = mi_row;
       DEC_PARTITION(this_mi_row, mi_col, subsize, 0);
       this_mi_row += ebs_h;
-      if (this_mi_row >= cm->mi_params.mi_rows) break;
       DEC_PARTITION(this_mi_row, mi_col, bsize_med, 1);
       this_mi_row += 2 * ebs_h;
-      if (this_mi_row >= cm->mi_params.mi_rows) break;
       DEC_PARTITION(this_mi_row, mi_col, bsize_big, 2);
       this_mi_row += 4 * ebs_h;
-      if (this_mi_row >= cm->mi_params.mi_rows) break;
       DEC_PARTITION(this_mi_row, mi_col, subsize, 3);
       break;
     }
@@ -2300,13 +2297,10 @@ static AOM_INLINE void decode_partition(
       int this_mi_row = mi_row;
       DEC_PARTITION(this_mi_row, mi_col, subsize, 0);
       this_mi_row += ebs_h;
-      if (this_mi_row >= cm->mi_params.mi_rows) break;
       DEC_PARTITION(this_mi_row, mi_col, bsize_big, 1);
       this_mi_row += 4 * ebs_h;
-      if (this_mi_row >= cm->mi_params.mi_rows) break;
       DEC_PARTITION(this_mi_row, mi_col, bsize_med, 2);
       this_mi_row += 2 * ebs_h;
-      if (this_mi_row >= cm->mi_params.mi_rows) break;
       DEC_PARTITION(this_mi_row, mi_col, subsize, 3);
       break;
     }
@@ -2317,13 +2311,10 @@ static AOM_INLINE void decode_partition(
       int this_mi_col = mi_col;
       DEC_PARTITION(mi_row, this_mi_col, subsize, 0);
       this_mi_col += ebs_w;
-      if (this_mi_col >= cm->mi_params.mi_cols) break;
       DEC_PARTITION(mi_row, this_mi_col, bsize_med, 1);
       this_mi_col += 2 * ebs_w;
-      if (this_mi_col >= cm->mi_params.mi_cols) break;
       DEC_PARTITION(mi_row, this_mi_col, bsize_big, 2);
       this_mi_col += 4 * ebs_w;
-      if (this_mi_col >= cm->mi_params.mi_cols) break;
       DEC_PARTITION(mi_row, this_mi_col, subsize, 3);
       break;
     }
@@ -2334,13 +2325,10 @@ static AOM_INLINE void decode_partition(
       int this_mi_col = mi_col;
       DEC_PARTITION(mi_row, this_mi_col, subsize, 0);
       this_mi_col += ebs_w;
-      if (this_mi_col >= cm->mi_params.mi_cols) break;
       DEC_PARTITION(mi_row, this_mi_col, bsize_big, 1);
       this_mi_col += 4 * ebs_w;
-      if (this_mi_col >= cm->mi_params.mi_cols) break;
       DEC_PARTITION(mi_row, this_mi_col, bsize_med, 2);
       this_mi_col += 2 * ebs_w;
-      if (this_mi_col >= cm->mi_params.mi_cols) break;
       DEC_PARTITION(mi_row, this_mi_col, subsize, 3);
       break;
     }
@@ -2357,9 +2345,17 @@ static AOM_INLINE void decode_partition(
         const int this_mi_row = mi_row + offset_r;
         const int this_mi_col = mi_col + offset_c;
         if (partition == PARTITION_HORZ_3) {
-          if (this_mi_row >= cm->mi_params.mi_rows) break;
+          if (this_mi_row >= cm->mi_params.mi_rows) {
+            av1_mark_block_as_pseudo_coded(xd, this_mi_row, this_mi_col,
+                                           this_bsize, cm->sb_size);
+            continue;
+          }
         } else {
-          if (this_mi_col >= cm->mi_params.mi_cols) break;
+          if (this_mi_col >= cm->mi_params.mi_cols) {
+            av1_mark_block_as_pseudo_coded(xd, this_mi_row, this_mi_col,
+                                           this_bsize, cm->sb_size);
+            continue;
+          }
         }
 
         DEC_PARTITION(this_mi_row, this_mi_col, this_bsize, i);

@@ -3550,6 +3550,8 @@ void av1_mark_block_as_coded(MACROBLOCKD *xd, BLOCK_SIZE bsize,
                              BLOCK_SIZE sb_size);
 void av1_mark_block_as_not_coded(MACROBLOCKD *xd, int mi_row, int mi_col,
                                  BLOCK_SIZE bsize, BLOCK_SIZE sb_size);
+void av1_mark_block_as_pseudo_coded(MACROBLOCKD *xd, int mi_row, int mi_col,
+                                    BLOCK_SIZE bsize, BLOCK_SIZE sb_size);
 #define MAX_INTERINTRA_SB_SQUARE 64 * 64
 static INLINE int is_interintra_mode(const MB_MODE_INFO *mbmi) {
   return (mbmi->motion_mode >= WARP_CAUSAL && mbmi->warp_inter_intra) ||
