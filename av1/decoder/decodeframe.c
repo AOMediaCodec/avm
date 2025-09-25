@@ -6255,7 +6255,7 @@ void av1_read_color_config(struct aom_read_bit_buffer *rb,
   read_bitdepth(rb, seq_params, error_info);
 
 #if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-  const int monochrome = (seq_chroma_format_idc == CHROMA_FORMAT_400);
+  const int is_monochrome = (seq_chroma_format_idc == CHROMA_FORMAT_400);
 #else
   // monochrome bit (not needed for PROFILE_1)
   const int is_monochrome =

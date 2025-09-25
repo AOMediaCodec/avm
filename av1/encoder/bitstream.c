@@ -4986,14 +4986,11 @@ static AOM_INLINE void write_profile(BITSTREAM_PROFILE profile,
 // Write sequence chroma format idc to the bitstream.
 static AOM_INLINE void write_seq_chroma_format(
     const SequenceHeader *const seq_params, struct aom_write_bit_buffer *wb) {
-  uint32_t seq_chroma_format_idc;
+  uint32_t seq_chroma_format_idc = CHROMA_FORMAT_420;
   aom_codec_err_t err =
       av1_get_chroma_format_idc(seq_params, &seq_chroma_format_idc);
-  if (err != AOM_CODEC_OK) {
-    aom_internal_error(&cm->error, err,
-                       "Unsupported subsampling_x = %d, subsampling_y = %d.",
-                       seq_params->subsampling_x, seq_params->subsampling_y);
-  }
+  assert(err == AOM_CODEC_OK);
+  (void)err;
   aom_wb_write_uvlc(wb, seq_chroma_format_idc);
 }
 #endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
