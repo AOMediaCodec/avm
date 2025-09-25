@@ -499,42 +499,32 @@ static INLINE void init_bru_params(AV1_COMMON *cm) {
   cm->bru.frame_inactive_flag = 0;
 }
 #if CONFIG_LOCAL_INTRABC_ALIGN_RNG
-static INLINE int bru_is_dv_availalbe(const AV1_COMMON *cm, const MV dv,
-                                      int mi_col, int mi_row,
-                                      BLOCK_SIZE bsize) {
+/* Check SB 64x64 case is DV within current active region*/
+static INLINE int bru_is_dv_in_active_region(const AV1_COMMON *cm, const MV dv,
+                                             int mi_col, int mi_row) {
   if (!cm->bru.enabled) return 1;
   const int sb_size_log2 = cm->mib_size_log2 + MI_SIZE_LOG2;
   if (sb_size_log2 > 6) return 1;  // only need to check 64x64 case
-  const int bw = block_size_wide[bsize];
-  const int bh = block_size_high[bsize];
+  int num_left_sb = 1;
+  const int sb_col = mi_col >> cm->mib_size_log2;
+  const int sb_row = mi_row >> cm->mib_size_log2;
   const int SCALE_PX_TO_MV = 8;
   int has_col_offset = dv.col & 7;  // sub-pel col
-  int has_row_offset = dv.row & 7;  // sub-pel col
-  int left_interp_border = has_col_offset ? IBC_LEFT_INTERP_BORDER : 0;
-  int right_interp_border = has_col_offset ? IBC_RIGHT_INTERP_BORDER : 0;
-  int top_interp_border = has_row_offset ? IBC_TOP_INTERP_BORDER : 0;
-  int bottom_interp_border = has_row_offset ? IBC_BOTTOM_INTERP_BORDER : 0;
-  const int src_top_edge = (mi_row * MI_SIZE) * SCALE_PX_TO_MV + dv.row;
-  const int src_left_edge = (mi_col * MI_SIZE) * SCALE_PX_TO_MV + dv.col;
-  const int src_bottom_edge = (mi_row * MI_SIZE + bh) * SCALE_PX_TO_MV + dv.row;
-  const int src_right_edge = (mi_col * MI_SIZE + bw) * SCALE_PX_TO_MV + dv.col;
-  const int src_top_y = (src_top_edge >> 3) - top_interp_border;
-  const int src_left_x = (src_left_edge >> 3) - left_interp_border;
-  const int src_bottom_y = (src_bottom_edge >> 3) - 1 + bottom_interp_border;
-  const int src_right_x = (src_right_edge >> 3) - 1 + right_interp_border;
-  const int sb_x_start = src_left_x >> sb_size_log2;
-  const int sb_y_start = src_top_y >> sb_size_log2;
-  const int sb_x_end = src_right_x >> sb_size_log2;
-  const int sb_y_end = src_bottom_y >> sb_size_log2;
-  const int map_stride = cm->bru.unit_cols;
-  const uint8_t *map = cm->bru.active_mode_map + (sb_y_start * map_stride);
-  for (int sb_y = sb_y_start; sb_y <= sb_y_end; sb_y++) {
-    for (int sb_x = sb_x_start; sb_x <= sb_x_end; sb_x++) {
-      if (*(map + sb_x) == 0) {
-        return 0;
-      }
+  // check SB activity, once inactive, stop
+  while (num_left_sb < 4) {
+    if (!bru_is_sb_available(cm, (sb_col - num_left_sb - 1) * cm->mib_size,
+                             sb_row * cm->mib_size)) {
+      break;
     }
-    map += map_stride;
+    num_left_sb++;
+  }
+  const int left_coded_sb = AOMMAX(sb_col - num_left_sb, 0);
+  const int left_interp_border = has_col_offset ? IBC_LEFT_INTERP_BORDER : 0;
+  const int src_left_edge = (mi_col * MI_SIZE) * SCALE_PX_TO_MV + dv.col;
+  const int src_left_x = (src_left_edge >> 3) - left_interp_border;
+  const int sb_x_start = src_left_x >> sb_size_log2;
+  if (sb_x_start < left_coded_sb) {
+    return 0;
   }
   return 1;
 }

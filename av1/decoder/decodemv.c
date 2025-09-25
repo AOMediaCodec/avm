@@ -1664,8 +1664,8 @@ static void read_intrabc_info(AV1_COMMON *const cm, DecoderCodingBlock *dcb,
     valid_dv = valid_dv && assign_dv(cm, xd, &mbmi->mv[0], &dv_ref, xd->mi_row,
                                      xd->mi_col, bsize, r);
     if (cm->bru.enabled && valid_dv) {
-      valid_dv = valid_dv && bru_is_dv_availalbe(cm, mbmi->mv[0].as_mv,
-                                                 xd->mi_col, xd->mi_row, bsize);
+      valid_dv = valid_dv && bru_is_dv_in_active_region(cm, mbmi->mv[0].as_mv,
+                                                        xd->mi_col, xd->mi_row);
     }
     if (!valid_dv) {
       // Intra bc motion vectors are not valid - signal corrupt frame
