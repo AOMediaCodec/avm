@@ -8352,11 +8352,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     if (!features->error_resilient_mode && !frame_is_intra_only(cm)) {
 #if CONFIG_CWG_F317
       if (!cm->bridge_frame_info.is_bridge_frame) {
-#endif // CONFIG_CWG_F317
-      signal_primary_ref_frame = aom_rb_read_literal(rb, 1);
-      pbi->signal_primary_ref_frame = signal_primary_ref_frame;
-      if (signal_primary_ref_frame)
-        features->primary_ref_frame = aom_rb_read_literal(rb, PRIMARY_REF_BITS);
+#endif  // CONFIG_CWG_F317
+        signal_primary_ref_frame = aom_rb_read_literal(rb, 1);
+        pbi->signal_primary_ref_frame = signal_primary_ref_frame;
+        if (signal_primary_ref_frame)
+          features->primary_ref_frame =
+              aom_rb_read_literal(rb, PRIMARY_REF_BITS);
 #if CONFIG_CWG_F317
       }
 #endif  // CONFIG_CWG_F317

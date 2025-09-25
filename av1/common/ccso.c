@@ -367,8 +367,8 @@ void av1_apply_ccso_filter_for_row(AV1_COMMON *cm, MACROBLOCKD *xd,
 #if CONFIG_CWG_F317
     if (cm->bridge_frame_info.is_bridge_frame) {
       aom_internal_error(
-        &cm->error, AOM_CODEC_ERROR,
-        "Invalid Bridge frame activity in CCSO: can not be filtered");
+          &cm->error, AOM_CODEC_ERROR,
+          "Invalid Bridge frame activity in CCSO: can not be filtered");
       return;
     }
 #endif  // CONFIG_CWG_F317

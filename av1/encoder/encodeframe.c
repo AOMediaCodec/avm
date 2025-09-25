@@ -931,11 +931,13 @@ static AOM_INLINE void bridge_frame_set_offsets(
 
   xd->mi[0]->partition = partition;
   // set region_type for each mbmi
-  xd->mi[0]->region_type = (parent == NULL) ? MIXED_INTER_INTRA_REGION : parent->region_type;
+  xd->mi[0]->region_type =
+      (parent == NULL) ? MIXED_INTER_INTRA_REGION : parent->region_type;
   // set tree_type for each mbmi
   xd->mi[0]->tree_type = xd->tree_type;
 #if CONFIG_LOCAL_INTRABC_ALIGN_RNG
-  xd->mi[0]->sb_root_partition_info = (parent == NULL) ? -1 : parent->sb_root_partition_info;
+  xd->mi[0]->sb_root_partition_info =
+      (parent == NULL) ? -1 : parent->sb_root_partition_info;
 #endif  // CONFIG_LOCAL_INTRABC_ALIGN_RNG
   xd->mi[0]->local_rest_type =
       1;  // set non zero default type, it is only matter 1 or 0 in SW
