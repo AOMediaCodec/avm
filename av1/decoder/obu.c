@@ -984,17 +984,17 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
 #if CONFIG_MULTILAYER_HLS
       case OBU_LAYER_CONFIGURATION_RECORD:
         decoded_payload_size =
-            read_layer_configuration_record_obsp(pbi, cm->xlayer_id, &rb);
+            read_layer_configuration_record_obu(pbi, cm->xlayer_id, &rb);
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
         break;
       case OBU_ATLAS_SEGMENT:
         decoded_payload_size =
-            read_atlas_segment_info_obsp(pbi, cm->xlayer_id, &rb);
+            read_atlas_segment_info_obu(pbi, cm->xlayer_id, &rb);
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
         break;
       case OBU_OPERATING_POINT_SET:
         decoded_payload_size =
-            read_operating_point_set_obsp(pbi, cm->xlayer_id, &rb);
+            read_operating_point_set_obu(pbi, cm->xlayer_id, &rb);
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
         break;
 #endif  // CONFIG_MULTILAYER_HLS

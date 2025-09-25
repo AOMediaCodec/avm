@@ -37,7 +37,7 @@
 int set_ops_params(AV1_COMP *cpi, struct OperatingPointSet *ops, int layer_id) {
   (void)layer_id;
   AV1_COMMON *const cm = &cpi->common;
-  memcpy(ops, cm->cm_ops, sizeof(struct OperatingPointSet));
+  memcpy(ops, cm->ops, sizeof(struct OperatingPointSet));
   return 0;
 }
 
@@ -80,7 +80,7 @@ void write_ops_color_info(struct OpsColorInfo *opsColInfo, int obuXLId,
         wb, opsColInfo->ops_matrix_coefficients[obuXLId][opsID][opIndex], 8);
   }
   aom_wb_write_literal(
-      wb, opsColInfo->ops_full_range_flag[obuXLId][opsID][opIndex], 8);
+      wb, opsColInfo->ops_full_range_flag[obuXLId][opsID][opIndex], 1);
 }
 
 void write_ops_decoder_model_info(struct OpsDecModelInfo *ops_dec_model_info,
@@ -102,8 +102,8 @@ void write_ops_delay_info(struct OpsDelayInfo *ops_delay_info, int obuXLId,
       wb, ops_delay_info->ops_low_delay_mode_flag[obuXLId][opsID][opIndex]);
 }
 
-uint32_t write_operating_point_set_obsp(AV1_COMP *cpi, int obu_xlayer_id,
-                                        uint8_t *const dst) {
+uint32_t write_operating_point_set_obu(AV1_COMP *cpi, int obu_xlayer_id,
+                                       uint8_t *const dst) {
   struct aom_write_bit_buffer wb = { dst, 0 };
   uint32_t size = 0;
 

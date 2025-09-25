@@ -7004,11 +7004,7 @@ static size_t obu_memmove(size_t obu_header_size, size_t obu_payload_size,
   return length_field_size;
 }
 
-#if !CONFIG_MULTILAYER_HLS
-static AOM_INLINE
-#endif  // !CONFIG_MULTILAYER_HLS
-    void
-    add_trailing_bits(struct aom_write_bit_buffer *wb) {
+void add_trailing_bits(struct aom_write_bit_buffer *wb) {
   if (aom_wb_is_byte_aligned(wb)) {
     aom_wb_write_literal(wb, 0x80, 8);
   } else {
@@ -8209,7 +8205,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 #endif  // CONFIG_NEW_OBU_HEADER
                                data);
       int xlayer_id = 0;
-      obu_payload_size = write_layer_configuration_record_obsp(
+      obu_payload_size = write_layer_configuration_record_obu(
           cpi, xlayer_id, data + obu_header_size);
       const size_t length_field_size =
           obu_memmove(obu_header_size, obu_payload_size, data);
@@ -8233,7 +8229,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 #endif  // CONFIG_NEW_OBU_HEADER
                                              data);
       obu_payload_size =
-          write_atlas_segment_info_obsp(cpi, xlayer_id, data + obu_header_size);
+          write_atlas_segment_info_obu(cpi, xlayer_id, data + obu_header_size);
       const size_t length_field_size =
           obu_memmove(obu_header_size, obu_payload_size, data);
       if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
@@ -8256,8 +8252,8 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
                                0,
 #endif  // CONFIG_NEW_OBU_HEADER
                                data);
-      obu_payload_size = write_operating_point_set_obsp(cpi, xlayer_id,
-                                                        data + obu_header_size);
+      obu_payload_size =
+          write_operating_point_set_obu(cpi, xlayer_id, data + obu_header_size);
       const size_t length_field_size =
           obu_memmove(obu_header_size, obu_payload_size, data);
       if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=

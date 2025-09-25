@@ -37,7 +37,7 @@
 int set_lcr_params(AV1_COMP *cpi, struct LayerConfigurationRecord *lcr,
                    int global_id, int xlayer_id) {
   AV1_COMMON *cm = &cpi->common;
-  memcpy(lcr, cm->cm_lcr, sizeof(struct LayerConfigurationRecord));
+  memcpy(lcr, cm->lcr, sizeof(struct LayerConfigurationRecord));
   lcr->lcr_global_id[xlayer_id] = global_id;
   return 0;
 }
@@ -60,13 +60,14 @@ int write_lcr_xlayer_color_info(struct AV1_COMP *cpi, int isGlobal, int xId,
                                 struct aom_write_bit_buffer *wb) {
   struct XLayerColorInfo *xlayer = &cpi->common.lcr_params.xlayer_col_params;
   aom_wb_write_uvlc(wb, xlayer->layer_color_description_idc[isGlobal][xId]);
-  bool is_color_description_present_flag =
+  int is_color_description_present_flag =
       xlayer->layer_color_description_idc[isGlobal][xId];
   if (is_color_description_present_flag) {
-    aom_wb_write_uvlc(wb, xlayer->layer_color_primaries[isGlobal][xId]);
-    aom_wb_write_uvlc(wb, xlayer->layer_matrix_coefficients[isGlobal][xId]);
-    aom_wb_write_uvlc(wb,
-                      xlayer->layer_transfer_characteristics[isGlobal][xId]);
+    aom_wb_write_literal(wb, xlayer->layer_color_primaries[isGlobal][xId], 8);
+    aom_wb_write_literal(wb, xlayer->layer_matrix_coefficients[isGlobal][xId],
+                         8);
+    aom_wb_write_literal(
+        wb, xlayer->layer_transfer_characteristics[isGlobal][xId], 8);
   }
   aom_wb_write_bit(wb, xlayer->layer_full_range_flag[isGlobal][xId]);
 
@@ -95,7 +96,7 @@ int write_lcr_embedded_layer_info(AV1_COMP *cpi, int isGlobal, int xId,
             wb, mlayer_params->lcr_layer_atlas_segment_id[isGlobal][xId][j], 8);
 
         aom_wb_write_literal(
-            wb, mlayer_params->lcr_priority_weight[isGlobal][xId][j], 8);
+            wb, mlayer_params->lcr_priority_order[isGlobal][xId][j], 8);
 
         aom_wb_write_literal(
             wb, mlayer_params->lcr_rendering_method[isGlobal][xId][j], 8);
@@ -112,7 +113,7 @@ int write_lcr_embedded_layer_info(AV1_COMP *cpi, int isGlobal, int xId,
                              8);
       if (j > 0)
         aom_wb_write_literal(
-            wb, mlayer_params->lcr_dependent_layer_map[isGlobal][xId][j], 8);
+            wb, mlayer_params->lcr_dependent_layer_map[isGlobal][xId][j], j);
 
       // Resolution and cropping info.
       // If the information is the same as what is in the SCR, then no need to
@@ -137,7 +138,7 @@ int write_lcr_rep_info(struct LayerConfigurationRecord *lcr_params,
 
   aom_wb_write_uvlc(wb, rep_params->lcr_max_pic_width);
   aom_wb_write_uvlc(wb, rep_params->lcr_max_pic_height);
-  aom_wb_write_uvlc(wb, rep_params->lcr_format_info_present_flag);
+  aom_wb_write_bit(wb, rep_params->lcr_format_info_present_flag);
   aom_wb_write_bit(wb, crop_win->crop_window_present_flag);
   if (rep_params->lcr_format_info_present_flag) {
     aom_wb_write_uvlc(wb, rep_params->lcr_bit_depth_idc);
@@ -262,8 +263,8 @@ int write_lcr_local_info(AV1_COMP *cpi, int xlayerId,
   return 0;
 }
 
-uint32_t write_layer_configuration_record_obsp(AV1_COMP *cpi, int xlayer_id,
-                                               uint8_t *dst) {
+uint32_t write_layer_configuration_record_obu(AV1_COMP *cpi, int xlayer_id,
+                                              uint8_t *dst) {
   struct aom_write_bit_buffer wb = { dst, 0 };
   uint32_t size = 0;
 

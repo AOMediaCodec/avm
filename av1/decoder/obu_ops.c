@@ -66,7 +66,7 @@ void read_ops_color_info(struct OpsColorInfo *opsColInfo, int obu_xlayer_id,
         aom_rb_read_literal(rb, 8);
   }
   opsColInfo->ops_full_range_flag[obu_xlayer_id][ops_id][ops_idx] =
-      aom_rb_read_literal(rb, 8);
+      aom_rb_read_literal(rb, 1);
 }
 
 void read_ops_decoder_model_info(struct OpsDecModelInfo *ops_dec_model_info,
@@ -88,9 +88,8 @@ void read_ops_delay_info(struct OpsDelayInfo *ops_delay_info, int obu_xlayer_id,
       aom_rb_read_bit(rb);
 }
 
-uint32_t read_operating_point_set_obsp(struct AV1Decoder *pbi,
-                                       int obu_xlayer_id,
-                                       struct aom_read_bit_buffer *rb) {
+uint32_t read_operating_point_set_obu(struct AV1Decoder *pbi, int obu_xlayer_id,
+                                      struct aom_read_bit_buffer *rb) {
   const uint32_t saved_bit_offset = rb->bit_offset;
 
   int ops_reset_flag = aom_rb_read_bit(rb);

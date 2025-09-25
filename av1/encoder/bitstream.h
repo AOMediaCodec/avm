@@ -36,24 +36,24 @@ uint32_t av1_write_obu_header(AV1LevelParams *const level_params,
 int av1_write_uleb_obu_size(size_t obu_header_size, size_t obu_payload_size,
                             uint8_t *dest);
 
-#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
-/*!\brief Derive sequence header from a keyframe
- */
-void set_sequence_header_with_keyframe(AV1_COMP *cpi,
-                                       struct SequenceHeader *seq_params);
-#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
-
-#if CONFIG_MULTILAYER_HLS
-uint32_t write_layer_configuration_record_obsp(AV1_COMP *const cpi,
-                                               int layer_id, uint8_t *dst);
-uint32_t write_atlas_segment_info_obsp(AV1_COMP *const cpi, int obu_xLayer_id,
-                                       uint8_t *const dst);
-uint32_t write_operating_point_set_obsp(AV1_COMP *const cpi, int obu_xlayer_id,
-                                        uint8_t *dst);
 void add_trailing_bits(struct aom_write_bit_buffer *wb);
 
-uint32_t write_operating_point_set_obsp(AV1_COMP *const cpi, int obu_xlayer_id,
-                                        uint8_t *const dst);
+#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
+    /*!\brief Derive sequence header from a keyframe
+     */
+    void set_sequence_header_with_keyframe(AV1_COMP *cpi,
+                                           struct SequenceHeader *seq_params);
+#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
+    
+#if CONFIG_MULTILAYER_HLS
+uint32_t write_layer_configuration_record_obu(AV1_COMP *const cpi, int layer_id,
+                                              uint8_t *dst);
+uint32_t write_atlas_segment_info_obu(AV1_COMP *const cpi, int obu_xLayer_id,
+                                      uint8_t *const dst);
+uint32_t write_operating_point_set_obu(AV1_COMP *const cpi, int obu_xlayer_id,
+                                       uint8_t *dst);
+uint32_t write_operating_point_set_obu(AV1_COMP *const cpi, int obu_xlayer_id,
+                                       uint8_t *const dst);
 
 int set_lcr_params(AV1_COMP *cpi, struct LayerConfigurationRecord *lcr,
                    int global_id, int layer_id);

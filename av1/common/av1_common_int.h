@@ -643,7 +643,7 @@ typedef struct EmbeddedLayerInfo {
   int lcr_dependent_layer_map[MAX_LCR_TYPES][MAX_NUM_XLAYERS][8];
   int lcr_atlas_segments_info_present_flag[MAX_NUM_XLAYERS][MAX_NUM_XLAYERS][8];
   int lcr_layer_atlas_segment_id[MAX_NUM_XLAYERS][MAX_NUM_XLAYERS][8];
-  int lcr_priority_weight[MAX_NUM_XLAYERS][MAX_NUM_XLAYERS][8];
+  int lcr_priority_order[MAX_NUM_XLAYERS][MAX_NUM_XLAYERS][8];
   int lcr_rendering_method[MAX_NUM_XLAYERS][MAX_NUM_XLAYERS][8];
   int LcrMlayerID[MAX_LCR_TYPES][MAX_NUM_XLAYERS][MAX_NUM_MLAYERS];
   int TLayerCount[MAX_LCR_TYPES][MAX_NUM_XLAYERS][MAX_NUM_MLAYERS];
@@ -729,7 +729,7 @@ typedef struct AtlasRegionInfo {
   int AtlasHeight[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
 } AtlasRegionInfo;
 
-typedef struct AtlasBasicAtlasInfo {
+typedef struct AtlasBasicInfo {
   int ats_atlas_width[MAX_NUM_XLAYERS][8];
   int ats_atlas_height[MAX_NUM_XLAYERS][8];
   int ats_num_atlas_segments_minus_1[MAX_NUM_XLAYERS][8];
@@ -739,7 +739,7 @@ typedef struct AtlasBasicAtlasInfo {
   int ats_segment_top_left_pos_y[MAX_NUM_XLAYERS][8][8];
   int ats_segment_width[MAX_NUM_XLAYERS][8][8];
   int ats_segment_height[MAX_NUM_XLAYERS][8][8];
-} AtlasBasicAtlasInfo;
+} AtlasBasicInfo;
 
 typedef struct AtlasSegmentInfo {
   int atlas_segment_id[MAX_NUM_XLAYERS];
@@ -748,7 +748,7 @@ typedef struct AtlasSegmentInfo {
   int ats_nominal_height_minus1[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
 
   struct AtlasRegionInfo ats_reg_params;
-  struct AtlasBasicAtlasInfo *ats_basic_atlas_info;
+  struct AtlasBasicInfo *ats_basic_atlas_info;
   struct AtlasRegionToSegmentMapping ats_reg_seg_map;
   struct AtlasLabelSegmentInfo ats_label_seg;
 } AtlasSegmentInfo;
@@ -2529,7 +2529,7 @@ typedef struct AV1Common {
   /*!
    * Layer config record (LCR) structure.
    */
-  struct LayerConfigurationRecord *cm_lcr;
+  struct LayerConfigurationRecord *lcr;
   /*!
    * Atlas id.
    */
@@ -2537,7 +2537,7 @@ typedef struct AV1Common {
   /*!
    * Atlas structure.
    */
-  struct AtlasSegmentInfo *cm_atlas;
+  struct AtlasSegmentInfo *atlas;
   /*!
    * Operating point set (OPS) id.
    */
@@ -2545,7 +2545,7 @@ typedef struct AV1Common {
   /*!
    * Operating point set (OPS) structure.
    */
-  struct OperatingPointSet *cm_ops;
+  struct OperatingPointSet *ops;
 #endif  // CONFIG_MULTILAYER_HLS
 } AV1_COMMON;
 

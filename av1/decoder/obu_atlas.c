@@ -71,9 +71,9 @@ uint32_t read_ats_region_info(struct AtlasRegionInfo *atlas_reg_params,
   return 0;
 }
 
-uint32_t read_ats_basic_atlas_info(
-    struct AtlasBasicAtlasInfo *ats_basic_atlas_info, int obu_xLayer_id,
-    int xAId, struct aom_read_bit_buffer *rb) {
+uint32_t read_ats_basic_atlas_info(struct AtlasBasicInfo *ats_basic_atlas_info,
+                                   int obu_xLayer_id, int xAId,
+                                   struct aom_read_bit_buffer *rb) {
   ats_basic_atlas_info->ats_atlas_width[obu_xLayer_id][xAId] =
       aom_rb_read_uvlc(rb);
   ats_basic_atlas_info->ats_atlas_height[obu_xLayer_id][xAId] =
@@ -86,9 +86,10 @@ uint32_t read_ats_basic_atlas_info(
   ats_basic_atlas_info->AtlasHeight[obu_xLayer_id][xAId] =
       ats_basic_atlas_info->ats_atlas_height[obu_xLayer_id][xAId];
 
-  int NumSegments =
-      ats_basic_atlas_info->ats_num_atlas_segments_minus_1[obu_xLayer_id][xAId];
-  for (int i = 0; i < NumSegments + 1; i++) {
+  int NumSegments = ats_basic_atlas_info
+                        ->ats_num_atlas_segments_minus_1[obu_xLayer_id][xAId] +
+                    1;
+  for (int i = 0; i < NumSegments; i++) {
     ats_basic_atlas_info->ats_segment_top_left_pos_x[obu_xLayer_id][xAId][i] =
         aom_rb_read_uvlc(rb);
     ats_basic_atlas_info->ats_segment_top_left_pos_y[obu_xLayer_id][xAId][i] =
@@ -112,11 +113,10 @@ uint32_t read_ats_region_to_segment_mapping(
            ->ats_single_region_per_atlas_segment_flag[obu_xLayer_id][xAId]) {
     ats_reg_seg_map->ats_num_atlas_segments_minus_1[obu_xLayer_id][xAId] =
         aom_rb_read_uvlc(rb);
-    for (int i = 0;
-         i <
-         ats_reg_seg_map->ats_num_atlas_segments_minus_1[obu_xLayer_id][xAId] +
-             1;
-         i++) {
+    int NumSegments =
+        ats_reg_seg_map->ats_num_atlas_segments_minus_1[obu_xLayer_id][xAId] +
+        1;
+    for (int i = 0; i < NumSegments; i++) {
       ats_reg_seg_map->ats_top_left_region_column[obu_xLayer_id][xAId][i] =
           aom_rb_read_uvlc(rb);
       ats_reg_seg_map->ats_top_left_region_row[obu_xLayer_id][xAId][i] =
@@ -144,8 +144,9 @@ uint32_t read_ats_label_segment_info(struct AV1Decoder *pbi, int xLayerId,
   ats_label->ats_signalled_atlas_segment_ids_flag[xLayerId][xAId] =
       aom_rb_read_bit(rb);
   if (ats_label->ats_signalled_atlas_segment_ids_flag[xLayerId][xAId]) {
-    for (int i = 0;
-         i < ats_reg->ats_num_atlas_segments_minus_1[xLayerId][xAId] + 1; i++) {
+    int NumSegments =
+        ats_reg->ats_num_atlas_segments_minus_1[xLayerId][xAId] + 1;
+    for (int i = 0; i < NumSegments; i++) {
       ats_label->ats_atlas_segment_id[i] =
           aom_rb_read_literal(rb, ATLAS_LABEL_SEG_ID_BITS);
       ats_label->AtlasSegmentIDToIndex[xLayerId][xAId]
@@ -165,8 +166,8 @@ uint32_t read_ats_label_segment_info(struct AV1Decoder *pbi, int xLayerId,
   return 0;
 }
 
-uint32_t read_atlas_segment_info_obsp(struct AV1Decoder *pbi, int obu_xLayer_id,
-                                      struct aom_read_bit_buffer *rb) {
+uint32_t read_atlas_segment_info_obu(struct AV1Decoder *pbi, int obu_xLayer_id,
+                                     struct aom_read_bit_buffer *rb) {
   const uint32_t saved_bit_offset = rb->bit_offset;
   assert(rb->error_handler);
 
