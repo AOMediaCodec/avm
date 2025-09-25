@@ -156,16 +156,10 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
   if (!(seq_params->subsampling_x == 0 && seq_params->subsampling_y == 0) &&
       !(seq_params->subsampling_x == 1 && seq_params->subsampling_y == 1) &&
       !(seq_params->subsampling_x == 1 && seq_params->subsampling_y == 0)) {
-    aom_internal_error(
-        &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-        "Only 4:0:0, 4:4:4, 4:2:2 and 4:2:0 are currently supported, "
-        "%d %d subsampling is not supported.\n",
-#else
-        "Only 4:4:4, 4:2:2 and 4:2:0 are currently supported, "
-        "%d %d subsampling is not supported.\n",
-#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-        seq_params->subsampling_x, seq_params->subsampling_y);
+    aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+                       "Only 4:4:4, 4:2:2 and 4:2:0 are currently supported, "
+                       "%d %d subsampling is not supported.\n",
+                       seq_params->subsampling_x, seq_params->subsampling_y);
   }
 #endif  // !CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
