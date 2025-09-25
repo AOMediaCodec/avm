@@ -19,8 +19,9 @@
 #include "aom_dsp/bitwriter_buffer.h"
 #include "av1/common/obu_util.h"
 #include "common/av1_config.h"
-#include "av1/common/enums.h"
+#include "av1/common/av1_common_int.h"
 #include "av1/common/blockd.h"
+#include "av1/common/enums.h"
 
 // Helper macros to reduce verbosity required to check for read errors.
 //
@@ -223,19 +224,17 @@ static int parse_color_config(struct aom_read_bit_buffer *reader,
   } else {
     AV1C_READ_BIT_OR_RETURN_ERROR(color_range);
 #if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-    if (chroma_format_idc == CHROMA_FORMAT_420) {
-      config->chroma_subsampling_x = 1;
-      config->chroma_subsampling_y = 1;
-    } else if (chroma_format_idc == CHROMA_FORMAT_444) {
-      config->chroma_subsampling_x = 0;
-      config->chroma_subsampling_y = 0;
-    } else if (chroma_format_idc == CHROMA_FORMAT_422) {
-      config->chroma_subsampling_x = 1;
-      config->chroma_subsampling_y = 0;
-    } else {
-      fprintf(stderr, "chroma format not supported.\n");
+    int subsampling_x;
+    int subsampling_y;
+    aom_codec_err_t err = av1_get_chroma_subsampling(
+        chroma_format_idc, &subsampling_x, &subsampling_y);
+    if (err != AOM_CODEC_OK) {
+      fprintf(stderr, "chroma format idc %d not supported.\n",
+              chroma_format_idc);
       return -1;
     }
+    config->chroma_subsampling_x = (uint8_t)subsampling_x;
+    config->chroma_subsampling_y = (uint8_t)subsampling_y;
 #else
     if (config->seq_profile == 0) {
       config->chroma_subsampling_x = 1;

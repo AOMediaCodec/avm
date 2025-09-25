@@ -108,32 +108,6 @@ static void av1_read_mlayer_dependency_info(SequenceHeader *const seq,
 }
 #endif  // CONFIG_MULTILAYER_CORE_HLS
 
-#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-static void set_seq_chroma_format(SequenceHeader *seq_params,
-                                  struct aom_internal_error_info *error_info) {
-  seq_params->monochrome =
-      (seq_params->seq_chroma_format_idc == CHROMA_FORMAT_400) ? 1 : 0;
-  if (seq_params->seq_chroma_format_idc == CHROMA_FORMAT_420) {
-    seq_params->subsampling_x = 1;
-    seq_params->subsampling_y = 1;
-  } else if (seq_params->seq_chroma_format_idc == CHROMA_FORMAT_444) {
-    seq_params->subsampling_x = 0;
-    seq_params->subsampling_y = 0;
-  } else if (seq_params->seq_chroma_format_idc == CHROMA_FORMAT_422) {
-    seq_params->subsampling_x = 1;
-    seq_params->subsampling_y = 0;
-  } else if (seq_params->seq_chroma_format_idc == CHROMA_FORMAT_400) {
-    seq_params->subsampling_x = 1;
-    seq_params->subsampling_y = 1;
-  } else {
-    aom_internal_error(
-        error_info, AOM_CODEC_UNSUP_BITSTREAM,
-        "Only 4:0:0, 4:4:4, 4:2:2 and 4:2:0 are currently supported, "
-        "%d %d subsampling is not supported.\n",
-        seq_params->subsampling_x, seq_params->subsampling_y);
-  }
-}
-#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 // Returns whether two sequence headers are consistent with each other.
 // Note that the 'op_params' field is not compared per Section 7.5 in the spec:
 //   Within a particular coded video sequence, the contents of
@@ -176,11 +150,6 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
   seq_params->num_bits_height = num_bits_height;
   seq_params->max_frame_width = max_frame_width;
   seq_params->max_frame_height = max_frame_height;
-
-#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-  seq_params->seq_chroma_format_idc = aom_rb_read_uvlc(rb);
-  set_seq_chroma_format(seq_params, &cm->error);
-#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
   av1_read_color_config(rb, seq_params, &cm->error);
 #if !CONFIG_CWG_E242_CHROMA_FORMAT_IDC

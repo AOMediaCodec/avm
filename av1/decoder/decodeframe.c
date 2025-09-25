@@ -6225,9 +6225,32 @@ static AOM_INLINE void read_film_grain(AV1_COMMON *cm,
          sizeof(aom_film_grain_t));
 }
 
+#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+static void set_seq_chroma_format(SequenceHeader *seq_params,
+                                  struct aom_internal_error_info *error_info) {
+  seq_params->monochrome =
+      (seq_params->seq_chroma_format_idc == CHROMA_FORMAT_400);
+  aom_codec_err_t err = av1_get_chroma_subsampling(
+      seq_params->seq_chroma_format_idc, &seq_params->subsampling_x,
+      &seq_params->subsampling_y);
+  if (err != AOM_CODEC_OK) {
+    aom_internal_error(
+        error_info, AOM_CODEC_UNSUP_BITSTREAM,
+        "Only 4:0:0, 4:4:4, 4:2:2 and 4:2:0 are currently supported. "
+        "Invalid chroma_format_idc value: %d.\n",
+        seq_params->seq_chroma_format_idc);
+  }
+}
+#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+
 void av1_read_color_config(struct aom_read_bit_buffer *rb,
                            SequenceHeader *seq_params,
                            struct aom_internal_error_info *error_info) {
+#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+  seq_params->seq_chroma_format_idc = aom_rb_read_uvlc(rb);
+  set_seq_chroma_format(seq_params, error_info);
+#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+
   read_bitdepth(rb, seq_params, error_info);
 
 #if !CONFIG_CWG_E242_CHROMA_FORMAT_IDC

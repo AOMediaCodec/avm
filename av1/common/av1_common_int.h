@@ -5393,6 +5393,28 @@ static INLINE MB_MODE_INFO **get_mi_location_from_collocated_mi(
   return this_mi;
 }
 
+#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+static aom_codec_err_t av1_get_chroma_subsampling(
+    CHROMA_FORMAT chroma_format_idc, int *subsampling_x, int *subsampling_y) {
+  if (chroma_format_idc == CHROMA_FORMAT_420) {
+    *subsampling_x = 1;
+    *subsampling_y = 1;
+  } else if (chroma_format_idc == CHROMA_FORMAT_444) {
+    *subsampling_x = 0;
+    *subsampling_y = 0;
+  } else if (chroma_format_idc == CHROMA_FORMAT_422) {
+    *subsampling_x = 1;
+    *subsampling_y = 0;
+  } else if (chroma_format_idc == CHROMA_FORMAT_400) {
+    *subsampling_x = 1;
+    *subsampling_y = 1;
+  } else {
+    return AOM_CODEC_UNSUP_BITSTREAM;
+  }
+  return AOM_CODEC_OK;
+}
+#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
