@@ -17,10 +17,12 @@
 #include "aom_mem/aom_mem.h"
 #include "av1/common/av1_loopfilter.h"
 #include "av1/common/entropymode.h"
+#include "av1/common/av1_common_int.h"
 #include "av1/common/thread_common.h"
 #include "av1/common/reconinter.h"
 #include "av1/common/resize.h"
 #include "av1/common/restoration.h"
+#include "av1/common/ccso.h"
 
 // Set up nsync by width.
 static INLINE int get_sync_range(int width) {
@@ -445,6 +447,255 @@ void av1_loop_filter_frame_mt(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
 
   loop_filter_rows_mt(frame, cm, xd, start_mi_row, end_mi_row, plane_start,
                       plane_end, workers, num_workers, lf_sync);
+}
+
+// Initialize ccso worker data
+static INLINE void ccso_data_reset(CCSOWorkerData *ccsoworkerdata,
+                                   AV1_COMMON *cm, MACROBLOCKD *xd,
+                                   uint16_t *ext_rec_y) {
+  ccsoworkerdata->cm = cm;
+  ccsoworkerdata->xd = xd;
+  ccsoworkerdata->src_y = ext_rec_y;
+}
+
+// Allocate memory for ccso row synchronization
+static void ccso_filter_alloc(AV1CcsoSync *ccso_sync, AV1_COMMON *cm, int rows,
+                              int num_workers) {
+  ccso_sync->rows = rows;
+#if CONFIG_MULTITHREAD
+  CHECK_MEM_ERROR(cm, ccso_sync->job_mutex,
+                  aom_malloc(sizeof(*(ccso_sync->job_mutex))));
+  if (ccso_sync->job_mutex) {
+    pthread_mutex_init(ccso_sync->job_mutex, NULL);
+  }
+#endif  // CONFIG_MULTITHREAD
+  CHECK_MEM_ERROR(
+      cm, ccso_sync->ccsoworkerdata,
+      aom_malloc(num_workers * sizeof(*(ccso_sync->ccsoworkerdata))));
+  ccso_sync->num_workers = num_workers;
+
+  CHECK_MEM_ERROR(cm, ccso_sync->job_queue,
+                  aom_malloc(sizeof(*(ccso_sync->job_queue)) * rows));
+}
+
+// Deallocate ccso synchronization related mutex and data
+void av1_ccso_filter_dealloc(AV1CcsoSync *ccso_sync) {
+  if (ccso_sync != NULL) {
+#if CONFIG_MULTITHREAD
+    if (ccso_sync->job_mutex != NULL) {
+      pthread_mutex_destroy(ccso_sync->job_mutex);
+      aom_free(ccso_sync->job_mutex);
+    }
+#endif  // CONFIG_MULTITHREAD
+    aom_free(ccso_sync->ccsoworkerdata);
+
+    aom_free(ccso_sync->job_queue);
+    // clear the structure as the source of this call may be a resize in which
+    // case this call will be followed by an _alloc() which may fail.
+    av1_zero(*ccso_sync);
+  }
+}
+
+// Compares the number of CCSO blocks processed between two rows used for job
+// sorting
+static int compare_ccso_blk_proc(const void *a, const void *b) {
+  const AV1CCSOMTInfo *structA = (const AV1CCSOMTInfo *)a;
+  const AV1CCSOMTInfo *structB = (const AV1CCSOMTInfo *)b;
+
+  if (structA->blk_proc < structB->blk_proc) {
+    return 1;  // structA comes after structB
+  } else if (structA->blk_proc > structB->blk_proc) {
+    return -1;  // structA comes before structB
+  } else {
+    return 0;  // Elements are equal
+  }
+}
+
+// Generates job list for ccso filter
+static void enqueue_ccso_jobs(AV1CcsoSync *ccso_sync, AV1_COMMON *cm,
+                              MACROBLOCKD *xd) {
+  AV1CCSOMTInfo *ccso_job_queue = ccso_sync->job_queue;
+  ccso_sync->jobs_enqueued = 0;
+  ccso_sync->jobs_dequeued = 0;
+  const int num_planes = av1_num_planes(cm);
+  const int inc_row = 1 << CCSO_PROC_BLK_LOG2;
+  const int blk_size = 1 << CCSO_BLK_SIZE;
+  const CommonModeInfoParams *const mi_params = &cm->mi_params;
+
+  for (int plane = 0; plane < num_planes; plane++) {
+    const int pic_height = xd->plane[plane].dst.height;
+    const int pic_width = xd->plane[plane].dst.width;
+    int blk_log2_x = CCSO_BLK_SIZE;
+    int blk_log2_y = CCSO_BLK_SIZE;
+    if (plane != 0) {
+      blk_log2_x = CCSO_BLK_SIZE - cm->seq_params.subsampling_x;
+      blk_log2_y = CCSO_BLK_SIZE - cm->seq_params.subsampling_y;
+    }
+    if (cm->ccso_info.ccso_enable[plane]) {
+      for (int row = 0; row < pic_height; row += inc_row) {
+        int blk_processed = 0;
+        const int ccso_blk_idx_y = (blk_size >> MI_SIZE_LOG2) *
+                                   (row >> blk_log2_y) * mi_params->mi_stride;
+        for (int col = 0; col < pic_width; col += inc_row) {
+          const int ccso_blk_idx =
+              ccso_blk_idx_y + (blk_size >> MI_SIZE_LOG2) * (col >> blk_log2_x);
+          const bool use_ccso =
+              (plane == 0) ? mi_params->mi_grid_base[ccso_blk_idx]->ccso_blk_y
+              : (plane == 1)
+                  ? mi_params->mi_grid_base[ccso_blk_idx]->ccso_blk_u
+                  : mi_params->mi_grid_base[ccso_blk_idx]->ccso_blk_v;
+          if (use_ccso) blk_processed++;
+        }
+        // No block is available for CCSO processing, skip this job
+        if (blk_processed == 0) continue;
+
+        ccso_job_queue->row = row;
+        ccso_job_queue->plane = plane;
+        ccso_job_queue->blk_proc = blk_processed;
+        ccso_job_queue++;
+        ccso_sync->jobs_enqueued++;
+      }
+    }
+  }
+  qsort(ccso_sync->job_queue, ccso_sync->jobs_enqueued,
+        sizeof(ccso_sync->job_queue[0]), compare_ccso_blk_proc);
+}
+
+// Returns job info for each thread
+static AV1CCSOMTInfo *get_ccso_job_info(AV1CcsoSync *ccso_sync) {
+  AV1CCSOMTInfo *cur_job_info = NULL;
+
+#if CONFIG_MULTITHREAD
+  pthread_mutex_lock(ccso_sync->job_mutex);
+  if (ccso_sync->jobs_dequeued < ccso_sync->jobs_enqueued) {
+    cur_job_info = ccso_sync->job_queue + ccso_sync->jobs_dequeued;
+    ccso_sync->jobs_dequeued++;
+  }
+  pthread_mutex_unlock(ccso_sync->job_mutex);
+#else
+  (void)ccso_sync;
+#endif
+  return cur_job_info;
+}
+
+// Implement row ccso for each thread.
+static INLINE void process_ccso_rows(AV1_COMMON *const cm, MACROBLOCKD *xd,
+                                     uint16_t *src_y,
+                                     AV1CcsoSync *const ccso_sync) {
+  int src_cls[2];
+  int src_loc[2];
+  const int ccso_ext_stride = xd->plane[0].dst.width + (CCSO_PADDING_SIZE << 1);
+  const int blk_log2 = CCSO_BLK_SIZE;
+
+  while (1) {
+    AV1CCSOMTInfo *cur_job_info = get_ccso_job_info(ccso_sync);
+    // Break the while loop if no job is available
+    if (cur_job_info == NULL) break;
+
+    int blk_log2_x = CCSO_BLK_SIZE;
+    int blk_log2_y = CCSO_BLK_SIZE;
+    const int row = cur_job_info->row;
+    const int plane = cur_job_info->plane;
+    uint16_t *dst_yuv = xd->plane[plane].dst.buf;
+    const uint16_t thr = quant_sz[cm->ccso_info.scale_idx[plane]]
+                                 [cm->ccso_info.quant_idx[plane]];
+    const uint8_t filter_sup = cm->ccso_info.ext_filter_support[plane];
+    const int dst_stride = xd->plane[plane].dst.stride;
+    const int proc_unit_log2 =
+        cm->mib_size_log2 -
+        AOMMAX(xd->plane[plane].subsampling_x, xd->plane[plane].subsampling_y) +
+        MI_SIZE_LOG2;
+    const int y_uv_vscale = xd->plane[plane].subsampling_y;
+    derive_ccso_sample_pos(src_loc, ccso_ext_stride, filter_sup);
+    if (plane != 0) {
+      blk_log2_x = CCSO_BLK_SIZE - cm->seq_params.subsampling_x;
+      blk_log2_y = CCSO_BLK_SIZE - cm->seq_params.subsampling_y;
+    }
+    const int unit_log2_x = AOMMIN(proc_unit_log2, blk_log2_x);
+    const int unit_log2_y = AOMMIN(proc_unit_log2, blk_log2_y);
+    const int blk_size = 1 << blk_log2;
+    const int blk_log2_proc = CCSO_PROC_BLK_LOG2;
+    const int blk_size_proc = 1 << blk_log2_proc;
+    const uint16_t *src_y_temp =
+        src_y + (CCSO_PADDING_SIZE * ccso_ext_stride + CCSO_PADDING_SIZE) +
+        (row >> CCSO_PROC_BLK_LOG2) *
+            (ccso_ext_stride << (blk_log2_proc + y_uv_vscale));
+    uint16_t *dst_yuv_temp =
+        dst_yuv + (row >> CCSO_PROC_BLK_LOG2) * (dst_stride << blk_log2_proc);
+
+    av1_apply_ccso_filter_for_row(
+        cm, xd, src_y_temp, dst_yuv_temp, src_loc, src_cls, row, thr, blk_size,
+        blk_size_proc, blk_log2_x, blk_log2_y, unit_log2_x, unit_log2_y, plane);
+  }
+}
+
+// Row based processing of ccso worker
+static int ccso_row_worker(void *arg1, void *arg2) {
+  AV1CcsoSync *ccso_sync = (AV1CcsoSync *)arg1;
+  CCSOWorkerData *ccso_data = (CCSOWorkerData *)arg2;
+  process_ccso_rows(ccso_data->cm, ccso_data->xd, ccso_data->src_y, ccso_sync);
+  return 1;
+}
+
+// Apply CCSO filter for frame with multithread support
+static void apply_ccso_filter_mt(AVxWorker *workers, int nworkers,
+                                 AV1_COMMON *const cm, MACROBLOCKD *const xd,
+                                 uint16_t *ext_rec_y, AV1CcsoSync *ccso_sync) {
+  const int num_planes = av1_num_planes(cm);
+  const AVxWorkerInterface *const winterface = aom_get_worker_interface();
+  int num_proc_blk_rows = 0;
+  const int num_workers = nworkers;
+  const int round_offset = (1 << CCSO_PROC_BLK_LOG2) - 1;
+
+  for (int plane = 0; plane < num_planes; plane++) {
+    const int pic_height = xd->plane[plane].dst.height;
+    if (cm->ccso_info.ccso_enable[plane])
+      num_proc_blk_rows +=
+          (pic_height + round_offset) & ~round_offset >> CCSO_PROC_BLK_LOG2;
+  }
+
+  if (num_proc_blk_rows != ccso_sync->rows ||
+      num_workers > ccso_sync->num_workers) {
+    av1_ccso_filter_dealloc(ccso_sync);
+    ccso_filter_alloc(ccso_sync, cm, num_proc_blk_rows, num_workers);
+  }
+
+  enqueue_ccso_jobs(ccso_sync, cm, xd);
+  // return if no blocks in frame are to be filtered
+  if (ccso_sync->jobs_enqueued == 0) return;
+
+  // Setup ccso worker data and execute
+  for (int i = 0; i < num_workers; ++i) {
+    AVxWorker *const worker = &workers[i];
+    CCSOWorkerData *const ccso_data = &ccso_sync->ccsoworkerdata[i];
+    worker->hook = ccso_row_worker;
+    worker->data1 = ccso_sync;
+    worker->data2 = ccso_data;
+
+    // ccso data
+    ccso_data_reset(ccso_data, cm, xd, ext_rec_y);
+
+    // Start the workers
+    if (i == num_workers - 1) {
+      winterface->execute(worker);
+    } else {
+      winterface->launch(worker);
+    }
+  }
+
+  // Wait till all workers are finished
+  for (int i = 0; i < num_workers; ++i) {
+    winterface->sync(&workers[i]);
+  }
+}
+
+void av1_ccso_frame_mt(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
+                       MACROBLOCKD *xd, AVxWorker *workers, int num_workers,
+                       uint16_t *ext_rec_y, AV1CcsoSync *ccso_sync) {
+  const int num_planes = av1_num_planes(cm);
+  av1_setup_dst_planes(xd->plane, frame, 0, 0, 0, num_planes, NULL);
+
+  apply_ccso_filter_mt(workers, num_workers, cm, xd, ext_rec_y, ccso_sync);
 }
 
 static INLINE void lr_sync_read(void *const lr_sync, int r, int c, int plane) {

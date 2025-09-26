@@ -59,13 +59,13 @@ void derive_ccso_sample_pos(int *rec_idx, const int ccso_stride,
 void ccso_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm, MACROBLOCKD *xd,
                 uint16_t *ext_rec_y);
 
-typedef void (*ccso_filter_block_func)(
-    const uint16_t *src_y, uint16_t *dst_yuv, const int x, const int y,
-    const int pic_width, const int pic_height, int *src_cls,
-    const int8_t *offset_buf, const int scaled_ext_stride, const int dst_stride,
-    const int y_uv_hscale, const int y_uv_vscale, const int thr,
-    const int neg_thr, const int *src_loc, const int max_val,
-    const int blk_size);
+// Apply CCSO for each process block row
+void av1_apply_ccso_filter_for_row(AV1_COMMON *cm, MACROBLOCKD *xd,
+                                   const uint16_t *src_y, uint16_t *dst_yuv,
+                                   int *src_loc, int *src_cls, int blk_row,
+                                   int thr, int blk_size, int blk_size_proc,
+                                   int blk_log2_x, int blk_log2_y,
+                                   int unit_log2_x, int unit_log2_y, int plane);
 
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 void ccso_filter_block_hbd_wo_buf_4x4_c(

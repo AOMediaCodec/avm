@@ -56,6 +56,35 @@ typedef struct AV1LfSyncData {
   int jobs_dequeued;
 } AV1LfSync;
 
+// ccso data for job
+typedef struct AV1CCSOMTInfo {
+  int row;       // row number within a frame
+  int plane;     // plane info
+  int blk_proc;  // number of process blocks within a row
+} AV1CCSOMTInfo;
+
+// Row-based parallel ccso data
+typedef struct CCSOWorkerData {
+  AV1_COMMON *cm;
+  MACROBLOCKD *xd;
+  uint16_t *src_y;
+} CCSOWorkerData;
+
+// ccso row synchronization
+typedef struct AV1CcsoSync {
+  int rows;
+  int num_workers;
+#if CONFIG_MULTITHREAD
+  pthread_mutex_t *job_mutex;
+#endif
+  // Row-based parallel ccso data
+  CCSOWorkerData *ccsoworkerdata;
+  // Job info
+  AV1CCSOMTInfo *job_queue;
+  int jobs_enqueued;
+  int jobs_dequeued;
+} AV1CcsoSync;
+
 typedef struct AV1LrMTInfo {
   int v_start;
   int v_end;
@@ -185,6 +214,14 @@ void av1_loop_restoration_filter_frame_mt(YV12_BUFFER_CONFIG *frame,
                                           int num_workers, AV1LrSync *lr_sync,
                                           void *lr_ctxt);
 void av1_loop_restoration_dealloc(AV1LrSync *lr_sync, int num_workers);
+
+// Deallocate ccsofilter synchronization related mutex and data.
+void av1_ccso_filter_dealloc(AV1CcsoSync *ccso_sync);
+
+// MT implementation of ccso_frame
+void av1_ccso_frame_mt(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
+                       MACROBLOCKD *xd, AVxWorker *workers, int num_workers,
+                       uint16_t *ext_rec_y, AV1CcsoSync *ccso_sync);
 
 #ifdef __cplusplus
 }  // extern "C"

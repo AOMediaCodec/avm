@@ -9909,7 +9909,16 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
         }
       }
       if (use_ccso) {
-        ccso_frame(&cm->cur_frame->buf, cm, xd, ext_rec_y);
+        if (pbi->num_workers > 1
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+            && !cm->seq_params.disable_loopfilters_across_tiles
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+        ) {
+          av1_ccso_frame_mt(&cm->cur_frame->buf, cm, xd, pbi->tile_workers,
+                            pbi->num_workers, ext_rec_y, &pbi->ccso_sync);
+        } else {
+          ccso_frame(&cm->cur_frame->buf, cm, xd, ext_rec_y);
+        }
         aom_free(ext_rec_y);
       }
       if (do_gdf) {
