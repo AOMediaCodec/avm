@@ -225,6 +225,8 @@ int aom_wb_count_primitive_refsubexpfin(uint16_t n, uint16_t k, int16_t ref,
 #endif  // CONFIG_LR_FRAMEFILTERS_IN_HEADER
 
 #if CONFIG_MULTILAYER_HLS
+// implementation of leb128() signaling in the specification using
+// aom_write_bit_buffer
 void aom_wb_write_uleb(struct aom_write_bit_buffer *wb, uint64_t value) {
   uint64_t enc_val = value;
   const size_t leb_size = aom_uleb_size_in_bytes(enc_val);

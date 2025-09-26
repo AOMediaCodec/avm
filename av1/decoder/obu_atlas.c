@@ -175,7 +175,7 @@ uint32_t read_atlas_segment_info_obu(struct AV1Decoder *pbi, int obu_xLayer_id,
 
   struct AtlasSegmentInfo *atlas_params = NULL;
   int atlas_pos = -1;
-  for (int i = 0; i < pbi->dec_atlas_counter; i++) {
+  for (int i = 0; i < pbi->atlas_counter; i++) {
     if (pbi->atlas_list[i].atlas_segment_id[obu_xLayer_id] ==
         atlas_segment_id) {
       atlas_pos = i;
@@ -185,8 +185,8 @@ uint32_t read_atlas_segment_info_obu(struct AV1Decoder *pbi, int obu_xLayer_id,
   if (atlas_pos != -1)
     atlas_params = &pbi->atlas_list[atlas_pos];
   else
-    atlas_params = &pbi->atlas_list[pbi->dec_atlas_counter];
-  pbi->dec_atlas_counter++;
+    atlas_params = &pbi->atlas_list[pbi->atlas_counter];
+  pbi->atlas_counter++;
 
   atlas_params->atlas_segment_id[obu_xLayer_id] = atlas_segment_id;
   int xAId = atlas_params->atlas_segment_id[obu_xLayer_id];
@@ -215,5 +215,8 @@ uint32_t read_atlas_segment_info_obu(struct AV1Decoder *pbi, int obu_xLayer_id,
   // Label each atlas segment
   read_ats_label_segment_info(pbi, obu_xLayer_id, xAId, rb);
 
+  if (av1_check_trailing_bits(pbi, rb) != 0) {
+    return 0;
+  }
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }

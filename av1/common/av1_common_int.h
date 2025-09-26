@@ -617,13 +617,13 @@ typedef struct CroppingWindow {
   int crop_max_height;
 } CroppingWindow;
 
-typedef struct RepInfo {
+typedef struct RepresentationInfo {
   int lcr_max_pic_width;
   int lcr_max_pic_height;
   int lcr_format_info_present_flag;
   int lcr_bit_depth_idc;
   int lcr_chroma_format_idc;
-} RepInfo;
+} RepresentationInfo;
 
 typedef struct XLayerColorInfo {
   int layer_color_description_idc[MAX_LCR_TYPES][MAX_NUM_XLAYERS];
@@ -684,8 +684,8 @@ typedef struct LayerConfigurationRecord {
 
   struct CroppingWindow lcr_crop;
   struct CroppingWindow crop_win_list[MAX_NUM_XLAYERS][MAX_NUM_XLAYERS];
-  struct RepInfo rep_params;
-  struct RepInfo rep_list[MAX_LCR_TYPES][MAX_NUM_XLAYERS];
+  struct RepresentationInfo rep_params;
+  struct RepresentationInfo rep_list[MAX_LCR_TYPES][MAX_NUM_XLAYERS];
   struct XLayerColorInfo xlayer_col_params;
   struct EmbeddedLayerInfo mlayer_params;
 } LayerConfigurationRecord;

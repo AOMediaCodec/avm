@@ -47,11 +47,9 @@ void add_trailing_bits(struct aom_write_bit_buffer *wb);
     
 #if CONFIG_MULTILAYER_HLS
 uint32_t write_layer_configuration_record_obu(AV1_COMP *const cpi, int layer_id,
-                                              uint8_t *dst);
+                                              uint8_t *const dst);
 uint32_t write_atlas_segment_info_obu(AV1_COMP *const cpi, int obu_xLayer_id,
                                       uint8_t *const dst);
-uint32_t write_operating_point_set_obu(AV1_COMP *const cpi, int obu_xlayer_id,
-                                       uint8_t *dst);
 uint32_t write_operating_point_set_obu(AV1_COMP *const cpi, int obu_xlayer_id,
                                        uint8_t *const dst);
 

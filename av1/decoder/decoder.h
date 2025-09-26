@@ -427,11 +427,11 @@ typedef struct AV1Decoder {
 
 #if CONFIG_MULTILAYER_HLS
   struct LayerConfigurationRecord lcr_list[MAX_NUM_LCR];
-  int dec_lcr_counter;
+  int lcr_counter;
   struct AtlasSegmentInfo atlas_list[MAX_NUM_ATLAS_SEG_ID];
-  int dec_atlas_counter;
+  int atlas_counter;
   struct OperatingPointSet ops_list[MAX_NUM_OPS_ID];
-  int dec_ops_counter;
+  int ops_counter;
 #endif  // CONFIG_MULTILAYER_HLS
 } AV1Decoder;
 

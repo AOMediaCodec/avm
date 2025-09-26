@@ -97,7 +97,7 @@ uint32_t read_operating_point_set_obu(struct AV1Decoder *pbi, int obu_xlayer_id,
 
   struct OperatingPointSet *ops_params = NULL;
   int ops_pos = -1;
-  for (int i = 0; i < pbi->dec_ops_counter; i++) {
+  for (int i = 0; i < pbi->ops_counter; i++) {
     if (pbi->ops_list[i].ops_id[obu_xlayer_id] == ops_id) {
       ops_pos = i;
       break;
@@ -106,8 +106,8 @@ uint32_t read_operating_point_set_obu(struct AV1Decoder *pbi, int obu_xlayer_id,
   if (ops_pos != -1)
     ops_params = &pbi->ops_list[ops_pos];
   else
-    ops_params = &pbi->ops_list[pbi->dec_ops_counter];
-  pbi->dec_ops_counter++;
+    ops_params = &pbi->ops_list[pbi->ops_counter];
+  pbi->ops_counter++;
 
   ops_params->ops_reset_flag[obu_xlayer_id] = ops_reset_flag;
   ops_params->ops_id[obu_xlayer_id] = ops_id;

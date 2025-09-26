@@ -133,7 +133,7 @@ int write_lcr_embedded_layer_info(AV1_COMP *cpi, int isGlobal, int xId,
 
 int write_lcr_rep_info(struct LayerConfigurationRecord *lcr_params,
                        int isGlobal, int xId, struct aom_write_bit_buffer *wb) {
-  struct RepInfo *rep_params = &lcr_params->rep_list[isGlobal][xId];
+  struct RepresentationInfo *rep_params = &lcr_params->rep_list[isGlobal][xId];
   struct CroppingWindow *crop_win = &lcr_params->crop_win_list[isGlobal][xId];
 
   aom_wb_write_uvlc(wb, rep_params->lcr_max_pic_width);
@@ -176,7 +176,7 @@ int write_lcr_xlayer_info(AV1_COMP *cpi, int isGlobal, int xId,
   if (lcr_params->lcr_xlayer_color_info_present_flag[isGlobal][xId])
     write_lcr_xlayer_color_info(cpi, isGlobal, xId, wb);
 
-  // byte alignment
+  // reserved zero bits - byte alignment
   aom_wb_write_literal(wb, 0, (8 - wb->bit_offset % CHAR_BIT));
 
   // Add embedded layer information if desired
@@ -264,7 +264,7 @@ int write_lcr_local_info(AV1_COMP *cpi, int xlayerId,
 }
 
 uint32_t write_layer_configuration_record_obu(AV1_COMP *cpi, int xlayer_id,
-                                              uint8_t *dst) {
+                                              uint8_t *const dst) {
   struct aom_write_bit_buffer wb = { dst, 0 };
   uint32_t size = 0;
 

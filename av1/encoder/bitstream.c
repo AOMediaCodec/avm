@@ -8196,14 +8196,8 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
     if (cpi->write_lcr) {
       struct LayerConfigurationRecord *lcr = &cpi->lcr_list[0];
       set_lcr_params(cpi, lcr, 0, 0);
-      obu_header_size =
-          av1_write_obu_header(level_params, OBU_LAYER_CONFIGURATION_RECORD,
-#if CONFIG_NEW_OBU_HEADER
-                               0, 0,
-#else
-                               0,
-#endif  // CONFIG_NEW_OBU_HEADER
-                               data);
+      obu_header_size = av1_write_obu_header(
+          level_params, OBU_LAYER_CONFIGURATION_RECORD, 0, 0, data);
       int xlayer_id = 0;
       obu_payload_size = write_layer_configuration_record_obu(
           cpi, xlayer_id, data + obu_header_size);
@@ -8221,13 +8215,8 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
       int xlayer_id = 0;
       struct AtlasSegmentInfo *atlas_params = &cpi->atlas_list[0];
       set_atlas_segment_info_params(cpi, atlas_params, xlayer_id);
-      obu_header_size = av1_write_obu_header(level_params, OBU_ATLAS_SEGMENT,
-#if CONFIG_NEW_OBU_HEADER
-                                             0, 0,
-#else
-                                             0,
-#endif  // CONFIG_NEW_OBU_HEADER
-                                             data);
+      obu_header_size =
+          av1_write_obu_header(level_params, OBU_ATLAS_SEGMENT, 0, 0, data);
       obu_payload_size =
           write_atlas_segment_info_obu(cpi, xlayer_id, data + obu_header_size);
       const size_t length_field_size =
@@ -8244,14 +8233,8 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
       int xlayer_id = 0;
       struct OperatingPointSet *ops = &cpi->ops_list[0];
       set_ops_params(cpi, ops, xlayer_id);
-      obu_header_size =
-          av1_write_obu_header(level_params, OBU_OPERATING_POINT_SET,
-#if CONFIG_NEW_OBU_HEADER
-                               0, 0,
-#else
-                               0,
-#endif  // CONFIG_NEW_OBU_HEADER
-                               data);
+      obu_header_size = av1_write_obu_header(
+          level_params, OBU_OPERATING_POINT_SET, 0, 0, data);
       obu_payload_size =
           write_operating_point_set_obu(cpi, xlayer_id, data + obu_header_size);
       const size_t length_field_size =

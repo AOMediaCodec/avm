@@ -139,6 +139,8 @@ int16_t aom_rb_read_signed_primitive_refsubexpfin(
 }
 
 #if CONFIG_MULTILAYER_HLS
+// implementation of leb128() signaling in the specification using
+// aom_read_bit_buffer
 uint32_t aom_rb_read_uleb(struct aom_read_bit_buffer *rb) {
   uint32_t value = 0;
   for (size_t i = 0; i < 8; ++i) {

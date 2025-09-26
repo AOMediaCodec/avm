@@ -194,6 +194,7 @@ uint32_t write_atlas_segment_info_obu(AV1_COMP *cpi, int obu_xLayer_id,
   // Label each atlas segment
   write_ats_label_segment_info(cpi, obu_xLayer_id, xAId, &wb);
 
+  add_trailing_bits(&wb);
   size = aom_wb_bytes_written(&wb);
   return size;
 }
