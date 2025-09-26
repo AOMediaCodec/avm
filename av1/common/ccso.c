@@ -431,6 +431,8 @@ void apply_ccso_filter(AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
   const int neg_thr = thr * -1;
   const int unit_size_x = 1 << unit_log2_x;
   const int unit_size_y = 1 << unit_log2_y;
+  const int blk_size_x = 1 << blk_log2_x;
+  const int blk_size_y = 1 << blk_log2_y;
   if (cm->seq_params.disable_loopfilters_across_tiles) {
     int tile_rows = cm->tiles.rows;
     int tile_cols = cm->tiles.cols;
@@ -484,31 +486,35 @@ void apply_ccso_filter(AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
         }
         uint16_t *dst_tile_yuv = dst_yuv + tile_col_start;
         for (int frame_pxl_y = tile_row_start; frame_pxl_y < tile_row_end;
-             frame_pxl_y += blk_size) {
+             frame_pxl_y += blk_size_y) {
           for (int frame_pxl_x = tile_col_start; frame_pxl_x < tile_col_end;
-               frame_pxl_x += blk_size) {
+               frame_pxl_x += blk_size_x) {
             // int x = frame_pxl_x;
             // int y = frame_pxl_y;
             int tile_pxl_x = frame_pxl_x - tile_col_start;
             int tile_pxl_y = frame_pxl_y - tile_row_start;
 
             const int ccso_blk_idx =
-                (blk_size >> MI_SIZE_LOG2) * (frame_pxl_y >> blk_log2) *
+                (blk_size >> MI_SIZE_LOG2) * (frame_pxl_y >> blk_log2_y) *
                     mi_params->mi_stride +
-                (blk_size >> MI_SIZE_LOG2) * (frame_pxl_x >> blk_log2);
+                (blk_size >> MI_SIZE_LOG2) * (frame_pxl_x >> blk_log2_x);
             const bool use_ccso =
-                mi_params->mi_grid_base[ccso_blk_idx]->ccso_blk_y;
+                (plane == 0) ? mi_params->mi_grid_base[ccso_blk_idx]->ccso_blk_y
+                : (plane == 1)
+                    ? mi_params->mi_grid_base[ccso_blk_idx]->ccso_blk_u
+                    : mi_params->mi_grid_base[ccso_blk_idx]->ccso_blk_v;
             if (!use_ccso) continue;
             const uint16_t *src_unit_y = src_tile_y;
             uint16_t *dst_unit_yuv = dst_tile_yuv;
-            const int y_end = AOMMIN(tile_row_end - frame_pxl_y, blk_size);
-            const int x_end = AOMMIN(tile_col_end - frame_pxl_x, blk_size);
+            const int y_end = AOMMIN(tile_row_end - frame_pxl_y, blk_size_y);
+            const int x_end = AOMMIN(tile_col_end - frame_pxl_x, blk_size_x);
             for (int unit_y = 0; unit_y < y_end; unit_y += unit_size_y) {
               for (int unit_x = 0; unit_x < x_end; unit_x += unit_size_x) {
                 // FPU level skip
                 const int mbmi_idx = get_mi_grid_idx(
-                    mi_params, (frame_pxl_y + unit_y) >> MI_SIZE_LOG2,
-                    (frame_pxl_x + unit_x) >> MI_SIZE_LOG2);
+                    mi_params,
+                    (frame_pxl_y + unit_y) >> (MI_SIZE_LOG2 - y_uv_vscale),
+                    (frame_pxl_x + unit_x) >> (MI_SIZE_LOG2 - y_uv_hscale));
                 const int use_ccso_local =
                     mi_params->mi_grid_base[mbmi_idx]->local_ccso_blk_flag;
                 if (!use_ccso_local) {
