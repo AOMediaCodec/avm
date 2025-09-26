@@ -350,6 +350,10 @@ set_aom_config_var(
   CONFIG_FSC_RES_HLS 1
   "add high level flag to switch fsc residual and regular residual.")
 
+set_aom_config_var(
+  CONFIG_FSC_RES_HLS2 1
+  "add high level flag to switch fsc residual and regular residual.")
+
 set_aom_config_var(CONFIG_ADAPTIVE_WEDGE_BOUNDARY 1
                    "Adaptive wedge boundary based on block size.")
 

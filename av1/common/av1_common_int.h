@@ -965,7 +965,11 @@ typedef struct SequenceHeader {
 
   uint8_t enable_fsc;  // enables/disables forward skip coding
 #if CONFIG_FSC_RES_HLS
+#if CONFIG_FSC_RES_HLS2
+  uint8_t enable_idtx_intra; // enables/disables idtx for intra
+#else
   uint8_t enable_fsc_residual;  // enables/disables forward skip coding residual
+#endif
 #endif                          // CONFIG_FSC_RES_HLS
   uint8_t enable_intra_dip;     // enables/disables intra_dip
   uint8_t enable_intra_edge_filter;  // enables/disables edge upsampling

@@ -825,10 +825,14 @@ int av1_write_sig_txtype(const AV1_COMMON *const cm, MACROBLOCK *const x,
       av1_get_tx_type(xd, plane_type, blk_row, blk_col, tx_size,
                       is_reduced_tx_set_used(cm, plane_type));
   const int is_inter = is_inter_block(xd->mi[0], xd->tree_type);
-  const int is_fsc = ((xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
-                       plane == PLANE_TYPE_Y) ||
+  const int is_fsc = ((
+#if CONFIG_FSC_RES_HLS2
+                          cm->seq_params.enable_fsc &&
+#endif
+                          xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
+                          plane == PLANE_TYPE_Y) ||
                       use_inter_fsc(cm, plane, tx_type, is_inter))
-#if CONFIG_FSC_RES_HLS
+#if CONFIG_FSC_RES_HLS && !CONFIG_FSC_RES_HLS2
                      && cm->seq_params.enable_fsc_residual
 #endif  // CONFIG_FSC_RES_HLS
       ;
@@ -1073,6 +1077,9 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
            : (eob != 1 && cm->seq_params.enable_ist
 #if CONFIG_FSC_RES_HLS
               && !xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART]
+#if CONFIG_FSC_RES_HLS2
+              && !cm->seq_params.enable_fsc
+#endif
 #endif  // CONFIG_FSC_RES_HLS
               ))) {
     av1_write_sec_tx_type(cm, xd, tx_type, tx_size, eob, w);
@@ -1492,11 +1499,15 @@ void av1_write_intra_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x,
                     xd, get_plane_type(plane), blk_row, blk_col, tx_size,
                     is_reduced_tx_set_used(cm, get_plane_type(plane)));
                 if (code_rest) {
-                  if (((mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
-                        get_primary_tx_type(tx_type) == IDTX &&
-                        plane == PLANE_TYPE_Y) ||
+                  if (((
+#if CONFIG_FSC_RES_HLS2
+                           cm->seq_params.enable_fsc &&
+#endif
+                           mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
+                           get_primary_tx_type(tx_type) == IDTX &&
+                           plane == PLANE_TYPE_Y) ||
                        use_inter_fsc(cm, plane, tx_type, is_inter))
-#if CONFIG_FSC_RES_HLS
+#if CONFIG_FSC_RES_HLS && !CONFIG_FSC_RES_HLS2
                       && cm->seq_params.enable_fsc_residual
 #endif  // CONFIG_FSC_RES_HLS
                   ) {
@@ -1556,11 +1567,15 @@ void av1_write_intra_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x,
                       xd, get_plane_type(plane), blk_row, blk_col, tx_size,
                       is_reduced_tx_set_used(cm, get_plane_type(plane)));
                   if (code_rest) {
-                    if (((mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
-                          get_primary_tx_type(tx_type) == IDTX &&
-                          plane == PLANE_TYPE_Y) ||
+                    if (((
+#if CONFIG_FSC_RES_HLS2
+                             cm->seq_params.enable_fsc &&
+#endif
+                             mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
+                             get_primary_tx_type(tx_type) == IDTX &&
+                             plane == PLANE_TYPE_Y) ||
                          use_inter_fsc(cm, plane, tx_type, is_inter))
-#if CONFIG_FSC_RES_HLS
+#if CONFIG_FSC_RES_HLS && !CONFIG_FSC_RES_HLS2
                         && cm->seq_params.enable_fsc_residual
 #endif  // CONFIG_FSC_RES_HLS
                     ) {
@@ -1847,10 +1862,14 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb_skip(
   av1_txb_init_levels_signs(qcoeff, width, height, levels_buf, signs_buf);
   const int bob_code = p->bobs[block];
   const int bob = av1_get_max_eob(tx_size) - bob_code;
-  const int is_fsc = ((xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
-                       plane == PLANE_TYPE_Y) ||
+  const int is_fsc = ((
+#if CONFIG_FSC_RES_HLS2
+                          cm->seq_params.enable_fsc &&
+#endif
+                          xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
+                          plane == PLANE_TYPE_Y) ||
                       use_inter_fsc(cm, plane, tx_type, is_inter))
-#if CONFIG_FSC_RES_HLS
+#if CONFIG_FSC_RES_HLS && !CONFIG_FSC_RES_HLS2
                      && cm->seq_params.enable_fsc_residual
 #endif  // CONFIG_FSC_RES_HLS
       ;
@@ -1948,10 +1967,14 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
 
   const int bob_code = p->bobs[block];
   const int is_inter = is_inter_block(xd->mi[0], xd->tree_type);
-  const int is_fsc = ((xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
-                       plane == PLANE_TYPE_Y) ||
+  const int is_fsc = ((
+#if CONFIG_FSC_RES_HLS2
+                          cm->seq_params.enable_fsc &&
+#endif
+                          xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
+                          plane == PLANE_TYPE_Y) ||
                       use_inter_fsc(cm, plane, tx_type, is_inter))
-#if CONFIG_FSC_RES_HLS
+#if CONFIG_FSC_RES_HLS && !CONFIG_FSC_RES_HLS2
                      && cm->seq_params.enable_fsc_residual
 #endif  // CONFIG_FSC_RES_HLS
       ;
@@ -2303,10 +2326,14 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb_laplacian(
 
   const int bob_code = x->plane[plane].bobs[block];
   const int is_inter = is_inter_block(xd->mi[0], xd->tree_type);
-  const int is_fsc = ((xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
-                       plane == PLANE_TYPE_Y) ||
+  const int is_fsc = ((
+#if CONFIG_FSC_RES_HLS2
+                          cm->seq_params.enable_fsc &&
+#endif
+                          xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
+                          plane == PLANE_TYPE_Y) ||
                       use_inter_fsc(cm, plane, tx_type, is_inter))
-#if CONFIG_FSC_RES_HLS
+#if CONFIG_FSC_RES_HLS && !CONFIG_FSC_RES_HLS2
                      && cm->seq_params.enable_fsc_residual
 #endif  // CONFIG_FSC_RES_HLS
       ;
@@ -2316,10 +2343,14 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb_laplacian(
   cost += get_cctx_type_cost(cm, x, xd, plane, tx_size, block, cctx_type);
 
   const MB_MODE_INFO *mbmi = xd->mi[0];
-  if (((mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
-        get_primary_tx_type(tx_type) == IDTX && plane == PLANE_TYPE_Y) ||
+  if (((
+#if CONFIG_FSC_RES_HLS2
+           cm->seq_params.enable_fsc &&
+#endif
+           mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
+           get_primary_tx_type(tx_type) == IDTX && plane == PLANE_TYPE_Y) ||
        use_inter_fsc(cm, plane, tx_type, is_inter_block(mbmi, xd->tree_type)))
-#if CONFIG_FSC_RES_HLS
+#if CONFIG_FSC_RES_HLS && !CONFIG_FSC_RES_HLS2
       && cm->seq_params.enable_fsc_residual
 #endif  // CONFIG_FSC_RES_HLS
   ) {
@@ -2439,10 +2470,14 @@ int av1_cost_coeffs_txb(const AV1_COMMON *cm, const MACROBLOCK *x,
       ph_allowed_tx_types[get_primary_tx_type(tx_type)] && (eob > PHTHRESH);
 
   const MB_MODE_INFO *mbmi = xd->mi[0];
-  if (((mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
-        get_primary_tx_type(tx_type) == IDTX && plane == PLANE_TYPE_Y) ||
+  if (((
+#if CONFIG_FSC_RES_HLS2
+           cm->seq_params.enable_fsc &&
+#endif
+           mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
+           get_primary_tx_type(tx_type) == IDTX && plane == PLANE_TYPE_Y) ||
        use_inter_fsc(cm, plane, tx_type, is_inter_block(mbmi, xd->tree_type)))
-#if CONFIG_FSC_RES_HLS
+#if CONFIG_FSC_RES_HLS && !CONFIG_FSC_RES_HLS2
       && cm->seq_params.enable_fsc_residual
 #endif  // CONFIG_FSC_RES_HLS
   ) {
@@ -3778,10 +3813,14 @@ int av1_optimize_fsc_block(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
   const int width = get_txb_wide(tx_size);
   const int height = get_txb_high(tx_size);
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
-  const int is_fsc = ((xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
-                       plane == PLANE_TYPE_Y) ||
+  const int is_fsc = ((
+#if CONFIG_FSC_RES_HLS2
+                          cm->seq_params.enable_fsc &&
+#endif
+                          xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
+                          plane == PLANE_TYPE_Y) ||
                       use_inter_fsc(&cpi->common, plane, tx_type, is_inter))
-#if CONFIG_FSC_RES_HLS
+#if CONFIG_FSC_RES_HLS && !CONFIG_FSC_RES_HLS2
                      && cm->seq_params.enable_fsc_residual
 #endif  // CONFIG_FSC_RES_HLS
       ;
@@ -3917,10 +3956,14 @@ int av1_optimize_txb_new(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
   const int bob_code = p->bobs[block];
   int hr_level_avg = 0;
-  const int is_fsc = ((xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
-                       plane == PLANE_TYPE_Y) ||
+  const int is_fsc = ((
+#if CONFIG_FSC_RES_HLS2
+                          cm->seq_params.enable_fsc &&
+#endif
+                          xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
+                          plane == PLANE_TYPE_Y) ||
                       use_inter_fsc(&cpi->common, plane, tx_type, is_inter))
-#if CONFIG_FSC_RES_HLS
+#if CONFIG_FSC_RES_HLS && !CONFIG_FSC_RES_HLS2
                      && cm->seq_params.enable_fsc_residual
 #endif  // CONFIG_FSC_RES_HLS
       ;
@@ -4413,7 +4456,11 @@ void av1_update_and_record_txb_skip_context(int plane, int block, int blk_row,
                 pd->left_entropy_context + blk_row, &txb_ctx,
                 mbmi->fsc_mode[xd->tree_type == CHROMA_PART]
 #if CONFIG_FSC_RES_HLS
+#if CONFIG_FSC_RES_HLS2
+                    && cm->seq_params.enable_fsc
+#else
                     && cm->seq_params.enable_fsc_residual
+#endif
 #endif  // CONFIG_FSC_RES_HLS
     );
     const int bwl = get_txb_bwl(tx_size);
@@ -4615,11 +4662,15 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
   const TX_TYPE tx_type =
       av1_get_tx_type(xd, plane_type, blk_row, blk_col, tx_size,
                       is_reduced_tx_set_used(cm, plane_type));
-  if (((xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
-        get_primary_tx_type(tx_type) == IDTX && plane == PLANE_TYPE_Y) ||
+  if (((
+#if CONFIG_FSC_RES_HLS2
+           cm->seq_params.enable_fsc &&
+#endif
+           xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
+           get_primary_tx_type(tx_type) == IDTX && plane == PLANE_TYPE_Y) ||
        use_inter_fsc(cm, plane, tx_type,
                      is_inter_block(xd->mi[0], xd->tree_type)))
-#if CONFIG_FSC_RES_HLS
+#if CONFIG_FSC_RES_HLS && !CONFIG_FSC_RES_HLS2
       && cm->seq_params.enable_fsc_residual
 #endif  // CONFIG_FSC_RES_HLS
   ) {
@@ -4638,7 +4689,11 @@ void av1_update_and_record_txb_context(int plane, int block, int blk_row,
                 pd->left_entropy_context + blk_row, &txb_ctx,
 #if CONFIG_FSC_RES_HLS
                 xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
+#if CONFIG_FSC_RES_HLS2
+                    cm->seq_params.enable_fsc
+#else
                     cm->seq_params.enable_fsc_residual
+#endif
 #else
                 0
 #endif  // CONFIG_FSC_RES_HLS
