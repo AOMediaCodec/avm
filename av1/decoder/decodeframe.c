@@ -6812,19 +6812,29 @@ void read_sequence_inter_group_tool_flags(struct SequenceHeader *seq_params,
 #if CONFIG_CWG_F377_STILL_PICTURE
   seq_params->num_same_ref_compound =
       seq_params->single_picture_header_flag ? 0 : aom_rb_read_literal(rb, 2);
-
-  uint8_t enable_tip =
+#if CONFIG_F106_OBU_TIP_SYNTAX
+  seq_params->enable_tip =
       seq_params->single_picture_header_flag ? 0 : aom_rb_read_bit(rb);
 #else
+  uint8_t enable_tip =
+      seq_params->single_picture_header_flag ? 0 : aom_rb_read_bit(rb);
+#endif  // CONFIG_F106_OBU_TIP_SYNTAX
+#else
   seq_params->num_same_ref_compound = aom_rb_read_literal(rb, 2);
-
+#if CONFIG_F106_OBU_TIP_SYNTAX
+  seq_params->enable_tip =
+      seq_params->single_picture_header_flag ? 0 : aom_rb_read_bit(rb);
+#else
   uint8_t enable_tip = aom_rb_read_bit(rb);
+#endif  // CONFIG_F106_OBU_TIP_SYNTAX
 #endif  // CONFIG_CWG_F377_STILL_PICTURE
+#if !CONFIG_F106_OBU_TIP_SYNTAX
   if (enable_tip) {
     seq_params->enable_tip = 1 + aom_rb_read_bit(rb);
   } else {
     seq_params->enable_tip = 0;
   }
+#endif  // !CONFIG_F106_OBU_TIP_SYNTAX
   if (seq_params->enable_tip) {
     seq_params->enable_tip_hole_fill = aom_rb_read_bit(rb);
   } else {
@@ -7381,6 +7391,10 @@ void av1_read_sequence_header_beyond_av1(
   seq_params->enable_mrls = aom_rb_read_bit(rb);
   seq_params->enable_cfl_intra = aom_rb_read_bit(rb);
   seq_params->enable_mhccp = aom_rb_read_bit(rb);
+#if CONFIG_F106_OBU_TIP_SYNTAX
+  seq_params->enable_tip =
+      seq_params->single_picture_header_flag ? 0 : aom_rb_read_bit(rb);
+#else
 #if CONFIG_CWG_F377_STILL_PICTURE
   uint8_t enable_tip =
       seq_params->single_picture_header_flag ? 0 : aom_rb_read_bit(rb);
@@ -7392,6 +7406,7 @@ void av1_read_sequence_header_beyond_av1(
   } else {
     seq_params->enable_tip = 0;
   }
+#endif  // CONFIG_F106_OBU_TIP_SYNTAX
   if (seq_params->enable_tip) {
     seq_params->enable_tip_hole_fill = aom_rb_read_bit(rb);
   } else {
@@ -9327,10 +9342,15 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       }
       cm->cur_frame->num_ref_frames = cm->ref_frames_info.num_total_refs;
 
-      if (frame_might_allow_ref_frame_mvs(cm))
-        features->allow_ref_frame_mvs = aom_rb_read_bit(rb);
+#if CONFIG_F106_OBU_TIP_SYNTAX
+      if (obu_type == OBU_TIP)
+        features->allow_ref_frame_mvs = 1;
       else
-        features->allow_ref_frame_mvs = 0;
+#endif  // CONFIG_F106_OBU_TIP_SYNTAX
+        if (frame_might_allow_ref_frame_mvs(cm))
+          features->allow_ref_frame_mvs = aom_rb_read_bit(rb);
+        else
+          features->allow_ref_frame_mvs = 0;
 
       if (features->allow_ref_frame_mvs &&
           cm->ref_frames_info.num_total_refs > 1 &&
@@ -9360,12 +9380,34 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       cm->tip_global_wtd_index = 0;
       cm->has_both_sides_refs = (cm->ref_frames_info.num_future_refs > 0) &&
                                 (cm->ref_frames_info.num_past_refs > 0);
+
+#if CONFIG_F106_OBU_TIP_SYNTAX
+      if (obu_type == OBU_TIP)
+        features->tip_frame_mode = TIP_FRAME_AS_OUTPUT;
+      else if (cm->seq_params.enable_tip && features->allow_ref_frame_mvs &&
+               cm->ref_frames_info.num_total_refs >= 2 &&
+#if CONFIG_CWG_F317
+               !cm->bridge_frame_info.is_bridge_frame &&
+#endif  // CONFIG_CWG_F317
+               !cm->bru.frame_inactive_flag) {
+        features->tip_frame_mode =
+            aom_rb_read_bit(rb) ? TIP_FRAME_AS_REF : TIP_FRAME_DISABLED;
+      }
+#endif  // CONFIG_F106_OBU_TIP_SYNTAX
+
+#if CONFIG_F106_OBU_TIP_SYNTAX
+      features->allow_tip_hole_fill = false;
+      if (features->tip_frame_mode)
+#else
       if (cm->seq_params.enable_tip && features->allow_ref_frame_mvs &&
           cm->ref_frames_info.num_total_refs >= 2 &&
 #if CONFIG_CWG_F317
           !cm->bridge_frame_info.is_bridge_frame &&
 #endif  // CONFIG_CWG_F317
-          !cm->bru.frame_inactive_flag) {
+          !cm->bru.frame_inactive_flag)
+#endif  // CONFIG_F106_OBU_TIP_SYNTAX
+      {
+#if !CONFIG_F106_OBU_TIP_SYNTAX
 #if CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_TIP
         if (obu_type == OBU_TIP) {
           features->tip_frame_mode = TIP_FRAME_AS_OUTPUT;
@@ -9379,7 +9421,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           features->tip_frame_mode =
               aom_rb_read_bit(rb) ? TIP_FRAME_AS_REF : TIP_FRAME_DISABLED;
         }
-
+#endif  // !CONFIG_F106_OBU_TIP_SYNTAX
         if (features->tip_frame_mode >= TIP_FRAME_MODES) {
           aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                              "Invalid TIP mode.");
@@ -9391,10 +9433,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
         if (features->tip_frame_mode && cm->seq_params.enable_tip_hole_fill) {
           features->allow_tip_hole_fill = aom_rb_read_bit(rb);
-        } else {
+        }
+#if CONFIG_F106_OBU_TIP_SYNTAX
+        else {
           features->allow_tip_hole_fill = false;
         }
-
+#endif  // CONFIG_F106_OBU_TIP_SYNTAX
         if (features->tip_frame_mode && is_unequal_weighted_tip_allowed(cm)) {
           cm->tip_global_wtd_index = aom_rb_read_literal(rb, 3);
         }

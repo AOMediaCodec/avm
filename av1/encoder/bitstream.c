@@ -5502,9 +5502,11 @@ void write_sequence_inter_group_tool_flags(
 #if CONFIG_CWG_F377_STILL_PICTURE
   }
 #endif  // CONFIG_CWG_F377_STILL_PICTURE
+#if !CONFIG_F106_OBU_TIP_SYNTAX
   if (seq_params->enable_tip) {
     aom_wb_write_bit(wb, seq_params->enable_tip != 1);
   }
+#endif  // !CONFIG_F106_OBU_TIP_SYNTAX
   if (seq_params->enable_tip) {
     aom_wb_write_bit(wb, seq_params->enable_tip_hole_fill);
   }
@@ -5971,9 +5973,11 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
 #else
   aom_wb_write_bit(wb, seq_params->enable_tip != 0);
 #endif  // CONFIG_CWG_F377_STILL_PICTURE
+#if !CONFIG_F106_OBU_TIP_SYNTAX
   if (seq_params->enable_tip) {
     aom_wb_write_bit(wb, seq_params->enable_tip != 1);
   }
+#endif  //! CONFIG_F106_OBU_TIP_SYNTAX
   if (seq_params->enable_tip) {
     aom_wb_write_bit(wb, seq_params->enable_tip_hole_fill);
   }
@@ -6928,12 +6932,16 @@ static AOM_INLINE void write_uncompressed_header_obu
            ++ref_frame) {
         assert(get_ref_frame_map_idx(cm, ref_frame) != INVALID_IDX);
       }  // for(ref_frame)
-
-      if (frame_might_allow_ref_frame_mvs(cm)) {
-        aom_wb_write_bit(wb, features->allow_ref_frame_mvs);
-      } else {
-        assert(features->allow_ref_frame_mvs == 0);
-      }
+#if CONFIG_F106_OBU_TIP_SYNTAX
+      if (obu_type == OBU_TIP) {
+        assert(features->allow_ref_frame_mvs == 1);
+      } else
+#endif  // CONFIG_F106_OBU_TIP_SYNTAX
+        if (frame_might_allow_ref_frame_mvs(cm)) {
+          aom_wb_write_bit(wb, features->allow_ref_frame_mvs);
+        } else {
+          assert(features->allow_ref_frame_mvs == 0);
+        }
 
       if (features->allow_ref_frame_mvs &&
           cm->ref_frames_info.num_total_refs > 1) {
@@ -6952,12 +6960,29 @@ static AOM_INLINE void write_uncompressed_header_obu
 #endif  // CONFIG_CWG_F317
           aom_wb_write_bit(wb, features->allow_lf_sub_pu);
       }
+#if CONFIG_F106_OBU_TIP_SYNTAX
+      if ((obu_type != OBU_TIP) &&
+          (cm->seq_params.enable_tip && features->allow_ref_frame_mvs &&
+           cm->ref_frames_info.num_total_refs >= 2 &&
+#if CONFIG_CWG_F317
+           !cm->bridge_frame_info.is_bridge_frame &&
+#endif  // CONFIG_CWG_F317
+           !cm->bru.frame_inactive_flag)) {
+        aom_wb_write_bit(wb, features->tip_frame_mode == TIP_FRAME_AS_REF);
+      }
+#endif  // CONFIG_F106_OBU_TIP_SYNTAX
+#if CONFIG_F106_OBU_TIP_SYNTAX
+      if (features->tip_frame_mode)
+#else
       if (cm->seq_params.enable_tip && features->allow_ref_frame_mvs &&
           cm->ref_frames_info.num_total_refs >= 2 &&
 #if CONFIG_CWG_F317
           !cm->bridge_frame_info.is_bridge_frame &&
 #endif  // CONFIG_CWG_F317
-          !cm->bru.frame_inactive_flag) {
+          !cm->bru.frame_inactive_flag)
+#endif  // CONFIG_F106_OBU_TIP_SYNTAX
+      {
+#if !CONFIG_F106_OBU_TIP_SYNTAX
         if (cm->seq_params.enable_tip == 1) {
 #if CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_TIP
           if (obu_type != OBU_TIP)
@@ -6973,6 +6998,7 @@ static AOM_INLINE void write_uncompressed_header_obu
         } else {
           aom_wb_write_bit(wb, features->tip_frame_mode == TIP_FRAME_AS_REF);
         }
+#endif  // !CONFIG_F106_OBU_TIP_SYNTAX
 #if CONFIG_FIX_OPFL_AUTO
         write_frame_opfl_refine_type(cm, wb);
 #endif  // CONFIG_FIX_OPFL_AUTO
