@@ -3571,8 +3571,11 @@ static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
             cm->ccso_info.ext_filter_support[plane] = 0;
             cm->ccso_info.edge_clf[plane] = 0;
             cm->ccso_info.max_band_log2[plane] = aom_rb_read_literal(rb, 3);
-            assert(cm->ccso_info.max_band_log2[plane] <=
-                   compute_log2(CCSO_BAND_NUM));
+            if (cm->ccso_info.max_band_log2[plane] >
+                compute_log2(CCSO_BAND_NUM)) {
+              aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+                                 "Invalid CCSO Band number");
+            }
           } else {
             cm->ccso_info.quant_idx[plane] = aom_rb_read_literal(rb, 2);
             cm->ccso_info.ext_filter_support[plane] =
