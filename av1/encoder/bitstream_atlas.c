@@ -79,6 +79,9 @@ uint32_t write_ats_region_info(struct AtlasRegionInfo *atlas_reg_params,
 uint32_t write_ats_basic_atlas_info(struct AtlasBasicInfo *ats_basic_atlas_info,
                                     int obu_xLayer_id, int xAId,
                                     struct aom_write_bit_buffer *wb) {
+  aom_wb_write_bit(
+      wb, ats_basic_atlas_info->ats_stream_id_present[obu_xLayer_id][xAId]);
+
   aom_wb_write_uvlc(wb,
                     ats_basic_atlas_info->ats_atlas_width[obu_xLayer_id][xAId]);
   aom_wb_write_uvlc(
@@ -92,6 +95,11 @@ uint32_t write_ats_basic_atlas_info(struct AtlasBasicInfo *ats_basic_atlas_info,
           ->ats_num_atlas_segments_minus_1[obu_xLayer_id][xAId] +
       1;
   for (int i = 0; i < NumSegments; i++) {
+    if (ats_basic_atlas_info->ats_stream_id_present[obu_xLayer_id][xAId]) {
+      aom_wb_write_literal(
+          wb, ats_basic_atlas_info->ats_input_stream_id[obu_xLayer_id][xAId][i],
+          5);
+    }
     aom_wb_write_uvlc(wb,
                       ats_basic_atlas_info
                           ->ats_segment_top_left_pos_x[obu_xLayer_id][xAId][i]);

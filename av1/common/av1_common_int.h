@@ -730,11 +730,13 @@ typedef struct AtlasRegionInfo {
 } AtlasRegionInfo;
 
 typedef struct AtlasBasicInfo {
+  int ats_stream_id_present[MAX_NUM_XLAYERS][8];
   int ats_atlas_width[MAX_NUM_XLAYERS][8];
   int ats_atlas_height[MAX_NUM_XLAYERS][8];
   int ats_num_atlas_segments_minus_1[MAX_NUM_XLAYERS][8];
   int AtlasWidth[MAX_NUM_XLAYERS][8];
   int AtlasHeight[MAX_NUM_XLAYERS][8];
+  int ats_input_stream_id[MAX_NUM_XLAYERS][8][8];
   int ats_segment_top_left_pos_x[MAX_NUM_XLAYERS][8][8];
   int ats_segment_top_left_pos_y[MAX_NUM_XLAYERS][8][8];
   int ats_segment_width[MAX_NUM_XLAYERS][8][8];

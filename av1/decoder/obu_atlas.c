@@ -74,6 +74,8 @@ uint32_t read_ats_region_info(struct AtlasRegionInfo *atlas_reg_params,
 uint32_t read_ats_basic_atlas_info(struct AtlasBasicInfo *ats_basic_atlas_info,
                                    int obu_xLayer_id, int xAId,
                                    struct aom_read_bit_buffer *rb) {
+  ats_basic_atlas_info->ats_stream_id_present[obu_xLayer_id][xAId] =
+      aom_rb_read_bit(rb);
   ats_basic_atlas_info->ats_atlas_width[obu_xLayer_id][xAId] =
       aom_rb_read_uvlc(rb);
   ats_basic_atlas_info->ats_atlas_height[obu_xLayer_id][xAId] =
@@ -90,6 +92,10 @@ uint32_t read_ats_basic_atlas_info(struct AtlasBasicInfo *ats_basic_atlas_info,
                         ->ats_num_atlas_segments_minus_1[obu_xLayer_id][xAId] +
                     1;
   for (int i = 0; i < NumSegments; i++) {
+    if (ats_basic_atlas_info->ats_stream_id_present[obu_xLayer_id][xAId]) {
+      ats_basic_atlas_info->ats_input_stream_id[obu_xLayer_id][xAId][i] =
+          aom_rb_read_literal(rb, 5);
+    }
     ats_basic_atlas_info->ats_segment_top_left_pos_x[obu_xLayer_id][xAId][i] =
         aom_rb_read_uvlc(rb);
     ats_basic_atlas_info->ats_segment_top_left_pos_y[obu_xLayer_id][xAId][i] =
