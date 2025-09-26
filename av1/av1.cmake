@@ -130,6 +130,12 @@ list(APPEND AOM_AV1_ENCODER_SOURCES "${AOM_ROOT}/av1/encoder/pickccso.c"
 list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/bru.c"
      "${AOM_ROOT}/av1/common/bru.h")
 
+if(CONFIG_BAND_METADATA)
+  list(APPEND AOM_AV1_COMMON_SOURCES
+       "${AOM_ROOT}/av1/common/banding_metadata.c"
+       "${AOM_ROOT}/av1/common/banding_metadata.h")
+endif()
+
 list(APPEND AOM_AV1_ENCODER_SOURCES "${AOM_ROOT}/av1/encoder/trellis_quant.c"
      "${AOM_ROOT}/av1/encoder/trellis_quant.h")
 list(APPEND AOM_AV1_ENCODER_INTRIN_AVX2

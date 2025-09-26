@@ -17,6 +17,9 @@
 
 #include "aom/aom_encoder.h"
 #include "aom_dsp/aom_dsp_common.h"
+#if CONFIG_BAND_METADATA
+#include "av1/common/banding_metadata.h"
+#endif  // CONFIG_BAND_METADATA
 #include "aom_dsp/binary_codes_writer.h"
 #include "aom_dsp/bitwriter_buffer.h"
 #include "aom_mem/aom_mem.h"
@@ -8702,6 +8705,53 @@ static void set_multi_frame_header_with_keyframe(AV1_COMP *cpi,
   }
 }
 #endif  // CONFIG_CWG_E242_PARSING_INDEP
+
+#if CONFIG_BAND_METADATA
+size_t av1_write_banding_hints_metadata(
+    AV1_COMP *const cpi, uint8_t *dst,
+    const aom_banding_hints_metadata_t *const banding_metadata) {
+  if (!cpi->source || !banding_metadata) return 0;
+
+  // Encode the banding metadata to payload
+  uint8_t payload[256];  // Should be sufficient for banding metadata
+  size_t payload_size = sizeof(payload);
+
+  if (aom_encode_banding_hints_metadata(banding_metadata, payload,
+                                        &payload_size) != 0) {
+    aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR,
+                       "Error encoding banding hints metadata");
+    return 0;
+  }
+
+  aom_metadata_t *metadata =
+      aom_img_metadata_alloc(OBU_METADATA_TYPE_BANDING_HINTS, payload,
+                             payload_size, AOM_MIF_ANY_FRAME);
+  if (!metadata) {
+    aom_internal_error(&cpi->common.error, AOM_CODEC_MEM_ERROR,
+                       "Error allocating banding hints metadata");
+    return 0;
+  }
+
+  size_t total_bytes_written = 0;
+  size_t obu_header_size =
+      av1_write_obu_header(&cpi->level_params, OBU_METADATA, 0, 0, dst);
+  size_t obu_payload_size =
+      av1_write_metadata_obu(metadata, dst + obu_header_size);
+  size_t length_field_size =
+      obu_memmove(obu_header_size, obu_payload_size, dst);
+  if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size, dst) ==
+      AOM_CODEC_OK) {
+    const size_t obu_size = obu_header_size + obu_payload_size;
+    total_bytes_written += obu_size + length_field_size;
+  } else {
+    aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR,
+                       "Error writing banding hints metadata OBU size");
+  }
+  aom_img_metadata_free(metadata);
+
+  return total_bytes_written;
+}
+#endif  // CONFIG_BAND_METADATA
 
 int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
                        int *const largest_tile_id) {

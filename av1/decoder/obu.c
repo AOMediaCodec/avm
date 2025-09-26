@@ -13,10 +13,14 @@
 #include <assert.h>
 
 #include "config/aom_config.h"
+#if CONFIG_BAND_METADATA
+#include "av1/common/banding_metadata.h"
+#endif  // CONFIG_BAND_METADATA
 #include "config/aom_scale_rtcd.h"
 
 #include "aom/aom_codec.h"
 #include "aom_dsp/bitreader_buffer.h"
+#include "aom_mem/aom_mem.h"
 #include "aom_ports/mem_ops.h"
 
 #include "av1/common/common.h"
@@ -717,6 +721,27 @@ static size_t read_metadata_hdr_mdcv(AV1Decoder *const pbi, const uint8_t *data,
   return kMdcvPayloadSize;
 }
 
+#if CONFIG_BAND_METADATA
+// On success, returns the number of bytes read from 'data'. On failure, calls
+// aom_internal_error() and does not return.
+static size_t read_metadata_banding_hints(AV1Decoder *const pbi,
+                                          const uint8_t *data, size_t sz) {
+  AV1_COMMON *const cm = &pbi->common;
+
+  // Validate minimum payload size (at least 3 bits for basic flags)
+  if (sz == 0) {
+    aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                       "Empty banding hints metadata payload");
+  }
+
+  // Store the raw payload in the generic metadata array
+  alloc_read_metadata(pbi, OBU_METADATA_TYPE_BANDING_HINTS, data, sz,
+                      AOM_MIF_ANY_FRAME);
+
+  return sz;
+}
+#endif  // CONFIG_BAND_METADATA
+
 static int read_metadata_frame_hash(AV1Decoder *const pbi,
                                     struct aom_read_bit_buffer *rb) {
   AV1_COMMON *const cm = &pbi->common;
@@ -854,7 +879,11 @@ static size_t read_metadata(AV1Decoder *pbi, const uint8_t *data, size_t sz) {
     return 0;
   }
   const OBU_METADATA_TYPE metadata_type = (OBU_METADATA_TYPE)type_value;
+#if CONFIG_BAND_METADATA
+  if (metadata_type == 0 || metadata_type >= 8) {
+#else
   if (metadata_type == 0 || metadata_type >= 7) {
+#endif  // CONFIG_BAND_METADATA
     // If metadata_type is reserved for future use or a user private value,
     // ignore the entire OBU and just check trailing bits.
     if (get_last_nonzero_byte(data + type_length, sz - type_length) == 0) {
@@ -885,6 +914,17 @@ static size_t read_metadata(AV1Decoder *pbi, const uint8_t *data, size_t sz) {
       return 0;
     }
     return sz;
+#if CONFIG_BAND_METADATA
+  } else if (metadata_type == OBU_METADATA_TYPE_BANDING_HINTS) {
+    size_t bytes_read =
+        type_length +
+        read_metadata_banding_hints(pbi, data + type_length, sz - type_length);
+    if (get_last_nonzero_byte(data + bytes_read, sz - bytes_read) != 0x80) {
+      cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
+      return 0;
+    }
+    return sz;
+#endif  // CONFIG_BAND_METADATA
   }
 
   struct aom_read_bit_buffer rb;
