@@ -65,6 +65,11 @@ void av1_calculate_tile_cols(const AV1_COMMON *cm, int cm_mi_rows,
   if (tiles->uniform_spacing) {
     int start_sb;
     int size_sb = ALIGN_POWER_OF_TWO(sb_cols, tiles->log2_cols);
+    if (frame_is_intra_only(cm) && cm->seq_params.sb_size == BLOCK_256X256 &&
+        cm->sb_size == BLOCK_128X128) {
+      size_sb = ALIGN_POWER_OF_TWO(sb_cols, tiles->log2_cols + 1);
+    }
+
     size_sb >>= tiles->log2_cols;
     assert(size_sb > 0);
     for (i = 0, start_sb = 0; start_sb < sb_cols; i++) {
@@ -111,6 +116,11 @@ void av1_calculate_tile_rows(const AV1_COMMON *cm, int cm_mi_rows,
 
   if (tiles->uniform_spacing) {
     size_sb = ALIGN_POWER_OF_TWO(sb_rows, tiles->log2_rows);
+    if (frame_is_intra_only(cm) && cm->seq_params.sb_size == BLOCK_256X256 &&
+        cm->sb_size == BLOCK_128X128) {
+      size_sb = ALIGN_POWER_OF_TWO(sb_rows, tiles->log2_rows + 1);
+    }
+
     size_sb >>= tiles->log2_rows;
     assert(size_sb > 0);
     for (i = 0, start_sb = 0; start_sb < sb_rows; i++) {
