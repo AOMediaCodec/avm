@@ -905,6 +905,38 @@ typedef struct OperatingPointSet {
 } OperatingPointSet;
 #endif  // CONFIG_MULTILAYER_HLS
 
+#if CONFIG_CWG_F270_CI_OBU
+// This structure specifies the color info params
+typedef struct color_info {
+  int color_description_idc;
+  aom_color_primaries_t color_primaries;
+  aom_transfer_characteristics_t transfer_characteristics;
+  aom_matrix_coefficients_t matrix_coefficients;
+  int full_range_flag;
+} ColorInfo;
+
+// Specifies the Sample Aspect Ratios
+typedef struct sar_info {
+  int sar_aspect_ratio_idc;
+  int sar_width;
+  int sar_height;
+} SarInfo;
+
+// Specifies the params related to the content in the sequence
+typedef struct ContentInterpretation {
+  aom_pic_scan_type_t ci_scan_type_idc;
+  int ci_color_description_present_flag;
+  int ci_chroma_sample_position_present_flag;
+  int ci_aspect_ratio_info_present_flag;
+  int ci_timing_info_present_flag;
+  int ci_extension_present_flag;
+  int ci_chroma_sample_position[2];
+
+  ColorInfo color_info;
+  SarInfo sar_info;
+  aom_timing_info_t timing_info;
+} ContentInterpretation;
+#endif  // CONFIG_CWG_F270_CI_OBU
 // Sequence header structure.
 // Note: All syntax elements of sequence_header_obu that need to be
 // bit-identical across multiple sequence headers must be part of this struct,
@@ -1059,13 +1091,17 @@ typedef struct SequenceHeader {
   aom_bit_depth_t bit_depth;  // AOM_BITS_8 in profile 0 or 1,
                               // AOM_BITS_10 or AOM_BITS_12 in profile 2 or 3.
   uint8_t monochrome;         // Monochorme video
+#if !CONFIG_CWG_F270_CI_OBU
   aom_color_primaries_t color_primaries;
   aom_transfer_characteristics_t transfer_characteristics;
   aom_matrix_coefficients_t matrix_coefficients;
   int color_range;
+#endif                // !CONFIG_CWG_F270_CI_OBU
   int subsampling_x;  // Chroma subsampling for x
   int subsampling_y;  // Chroma subsampling for y
+#if !CONFIG_CWG_F270_CI_OBU
   aom_chroma_sample_position_t chroma_sample_position;
+#endif                    // !CONFIG_CWG_F270_CI_OBU
   uint8_t equal_ac_dc_q;  // force ac, dc quantizers in each plane to be equal
   uint8_t separate_uv_delta_q;
   int8_t base_y_dc_delta_q;
@@ -1084,8 +1120,10 @@ typedef struct SequenceHeader {
   // Operating point info.
   int operating_points_cnt_minus_1;
   int operating_point_idc[MAX_NUM_OPERATING_POINTS];
+#if !CONFIG_CWG_F270_CI_OBU
   int timing_info_present;
   aom_timing_info_t timing_info;
+#endif  // !CONFIG_CWG_F270_CI_OBU
   uint8_t decoder_model_info_present_flag;
   aom_dec_model_info_t decoder_model_info;
   uint8_t display_model_info_present_flag;
@@ -1112,11 +1150,13 @@ typedef struct SequenceHeader {
   CropWindow conf;
 #endif  // CONFIG_CROP_WIN_CWG_F220
 #if CONFIG_SCAN_TYPE_METADATA
+#if !CONFIG_CWG_F270_CI_OBU
   // NOTE these syntax elements will move to the CI Obu
   int scan_type_info_present_flag;
   aom_pic_scan_type_t scan_type_idc;
   int fixed_cvs_pic_rate_flag;
   int elemental_ct_duration_minus_1;
+#endif  // !CONFIG_CWG_F270_CI_OBU
 #endif  // CONFIG_SCAN_TYPE_METADATA
 
 #if CONFIG_MULTI_LEVEL_SEGMENTATION
@@ -2638,6 +2678,15 @@ typedef struct AV1Common {
    */
   bool mfh_valid[MAX_MFH_NUM];
 #endif  // CONFIG_MULTI_FRAME_HEADER
+
+#if CONFIG_CWG_F270_CI_OBU
+  /*!
+   * Elements part of the content interpretation, when present, applicable for
+   * all the frames in the video.
+   */
+  ContentInterpretation ci_params;
+#endif  // CONFIG_CWG_F270_CI_OBU
+
   /*!
    * Current CDFs of all the symbols for the current frame.
    */

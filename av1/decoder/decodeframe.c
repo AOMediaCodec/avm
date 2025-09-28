@@ -4252,6 +4252,9 @@ static AOM_INLINE void resize_context_buffers(AV1_COMMON *cm, int width,
 
 static AOM_INLINE void setup_tip_frame_size(AV1_COMMON *cm) {
   const SequenceHeader *const seq_params = &cm->seq_params;
+#if CONFIG_CWG_F270_CI_OBU
+  const ColorInfo *const color_info = &cm->ci_params.color_info;
+#endif  // CONFIG_CWG_F270_CI_OBU
   YV12_BUFFER_CONFIG *tip_frame_buf = &cm->tip_ref.tip_frame->buf;
   if (aom_realloc_frame_buffer(
           tip_frame_buf, cm->width, cm->height, seq_params->subsampling_x,
@@ -4263,13 +4266,29 @@ static AOM_INLINE void setup_tip_frame_size(AV1_COMMON *cm) {
 
   if (tip_frame_buf) {
     tip_frame_buf->bit_depth = (unsigned int)seq_params->bit_depth;
+#if CONFIG_CWG_F270_CI_OBU
+    tip_frame_buf->color_primaries = color_info->color_primaries;
+    tip_frame_buf->transfer_characteristics =
+        color_info->transfer_characteristics;
+    tip_frame_buf->matrix_coefficients = color_info->matrix_coefficients;
+#else
     tip_frame_buf->color_primaries = seq_params->color_primaries;
     tip_frame_buf->transfer_characteristics =
         seq_params->transfer_characteristics;
     tip_frame_buf->matrix_coefficients = seq_params->matrix_coefficients;
+#endif  // CONFIG_CWG_F270_CI_OBU
     tip_frame_buf->monochrome = seq_params->monochrome;
+#if CONFIG_CWG_F270_CI_OBU
+    if (cm->ci_params.ci_chroma_sample_position_present_flag)
+      tip_frame_buf->chroma_sample_position =
+          cm->ci_params.ci_chroma_sample_position[0];
+    else
+      tip_frame_buf->chroma_sample_position = AOM_CSP_UNSPECIFIED;
+    tip_frame_buf->color_range = color_info->full_range_flag;
+#else
     tip_frame_buf->chroma_sample_position = seq_params->chroma_sample_position;
     tip_frame_buf->color_range = seq_params->color_range;
+#endif  // CONFIG_CWG_F270_CI_OBU
     tip_frame_buf->render_width = cm->render_width;
     tip_frame_buf->render_height = cm->render_height;
   }
@@ -4285,13 +4304,29 @@ static AOM_INLINE void setup_tip_frame_size(AV1_COMMON *cm) {
 
   if (tip_frame_buf) {
     tip_frame_buf->bit_depth = (unsigned int)seq_params->bit_depth;
+#if CONFIG_CWG_F270_CI_OBU
+    tip_frame_buf->color_primaries = color_info->color_primaries;
+    tip_frame_buf->transfer_characteristics =
+        color_info->transfer_characteristics;
+    tip_frame_buf->matrix_coefficients = color_info->matrix_coefficients;
+#else
     tip_frame_buf->color_primaries = seq_params->color_primaries;
     tip_frame_buf->transfer_characteristics =
         seq_params->transfer_characteristics;
     tip_frame_buf->matrix_coefficients = seq_params->matrix_coefficients;
+#endif  // CONFIG_CWG_F270_CI_OBU
     tip_frame_buf->monochrome = seq_params->monochrome;
+#if CONFIG_CWG_F270_CI_OBU
+    if (cm->ci_params.ci_chroma_sample_position_present_flag)
+      tip_frame_buf->chroma_sample_position =
+          cm->ci_params.ci_chroma_sample_position[0];
+    else
+      tip_frame_buf->chroma_sample_position = AOM_CSP_UNSPECIFIED;
+    tip_frame_buf->color_range = color_info->full_range_flag;
+#else
     tip_frame_buf->chroma_sample_position = seq_params->chroma_sample_position;
     tip_frame_buf->color_range = seq_params->color_range;
+#endif  // CONFIG_CWG_F270_CI_OBU
     tip_frame_buf->render_width = cm->render_width;
     tip_frame_buf->render_height = cm->render_height;
   }
@@ -4300,6 +4335,9 @@ static AOM_INLINE void setup_tip_frame_size(AV1_COMMON *cm) {
 static AOM_INLINE void setup_buffer_pool(AV1_COMMON *cm) {
   BufferPool *const pool = cm->buffer_pool;
   const SequenceHeader *const seq_params = &cm->seq_params;
+#if CONFIG_CWG_F270_CI_OBU
+  const ColorInfo *const color_info = &cm->ci_params.color_info;
+#endif  // CONFIG_CWG_F270_CI_OBU
 
   lock_buffer_pool(pool);
   if (aom_realloc_frame_buffer(
@@ -4314,14 +4352,30 @@ static AOM_INLINE void setup_buffer_pool(AV1_COMMON *cm) {
   unlock_buffer_pool(pool);
 
   cm->cur_frame->buf.bit_depth = (unsigned int)seq_params->bit_depth;
+#if CONFIG_CWG_F270_CI_OBU
+  cm->cur_frame->buf.color_primaries = color_info->color_primaries;
+  cm->cur_frame->buf.transfer_characteristics =
+      color_info->transfer_characteristics;
+  cm->cur_frame->buf.matrix_coefficients = color_info->matrix_coefficients;
+#else
   cm->cur_frame->buf.color_primaries = seq_params->color_primaries;
   cm->cur_frame->buf.transfer_characteristics =
       seq_params->transfer_characteristics;
   cm->cur_frame->buf.matrix_coefficients = seq_params->matrix_coefficients;
+#endif  // CONFIG_CWG_F270_CI_OBU
   cm->cur_frame->buf.monochrome = seq_params->monochrome;
+#if CONFIG_CWG_F270_CI_OBU
+  if (cm->ci_params.ci_chroma_sample_position_present_flag)
+    cm->cur_frame->buf.chroma_sample_position =
+        cm->ci_params.ci_chroma_sample_position[0];
+  else
+    cm->cur_frame->buf.chroma_sample_position = AOM_CSP_UNSPECIFIED;
+  cm->cur_frame->buf.color_range = color_info->full_range_flag;
+#else
   cm->cur_frame->buf.chroma_sample_position =
       seq_params->chroma_sample_position;
   cm->cur_frame->buf.color_range = seq_params->color_range;
+#endif  // CONFIG_CWG_F270_CI_OBU
   cm->cur_frame->buf.render_width = cm->render_width;
   cm->cur_frame->buf.render_height = cm->render_height;
 #if CONFIG_CROP_WIN_CWG_F220
@@ -6668,9 +6722,14 @@ static void set_seq_chroma_format(uint32_t seq_chroma_format_idc,
 }
 #endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
-void av1_read_color_config(struct aom_read_bit_buffer *rb,
-                           SequenceHeader *seq_params,
-                           struct aom_internal_error_info *error_info) {
+#if CONFIG_CWG_F270_CI_OBU
+void av1_read_chroma_format_bitdepth(
+    struct aom_read_bit_buffer *rb,
+#else
+void av1_read_color_config(
+    struct aom_read_bit_buffer *rb,
+#endif  // CONFIG_CWG_F270_CI_OBU
+    SequenceHeader *seq_params, struct aom_internal_error_info *error_info) {
 #if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
   const uint32_t seq_chroma_format_idc = aom_rb_read_uvlc(rb);
   set_seq_chroma_format(seq_chroma_format_idc, seq_params, error_info);
@@ -6686,6 +6745,7 @@ void av1_read_color_config(struct aom_read_bit_buffer *rb,
       seq_params->profile != PROFILE_1 ? aom_rb_read_bit(rb) : 0;
 #endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
   seq_params->monochrome = is_monochrome;
+#if !CONFIG_CWG_F270_CI_OBU
   int color_description_present_flag = aom_rb_read_bit(rb);
   if (color_description_present_flag) {
     seq_params->color_primaries = aom_rb_read_literal(rb, 8);
@@ -6767,6 +6827,7 @@ void av1_read_color_config(struct aom_read_bit_buffer *rb,
       }
     }
   }
+#endif  // !CONFIG_CWG_F270_CI_OBU
 }
 
 void av1_read_timing_info_header(aom_timing_info_t *timing_info,
@@ -6782,16 +6843,27 @@ void av1_read_timing_info_header(aom_timing_info_t *timing_info,
         error, AOM_CODEC_UNSUP_BITSTREAM,
         "num_units_in_display_tick and time_scale must be greater than 0.");
   }
+#if CONFIG_CWG_F270_CI_OBU
+  timing_info->equal_elemental_interval =
+      aom_rb_read_bit(rb);  // Equal picture interval bit
+  if (timing_info->equal_elemental_interval) {
+#else
   timing_info->equal_picture_interval =
       aom_rb_read_bit(rb);  // Equal picture interval bit
   if (timing_info->equal_picture_interval) {
+#endif  // CONFIG_CWG_F270_CI_OBU
     const uint32_t num_ticks_per_picture_minus_1 = aom_rb_read_uvlc(rb);
     if (num_ticks_per_picture_minus_1 == UINT32_MAX) {
       aom_internal_error(
           error, AOM_CODEC_UNSUP_BITSTREAM,
           "num_ticks_per_picture_minus_1 cannot be (1 << 32) − 1.");
     }
+#if CONFIG_CWG_F270_CI_OBU
+    timing_info->num_ticks_per_elemental_duration =
+        num_ticks_per_picture_minus_1 + 1;
+#else
     timing_info->num_ticks_per_picture = num_ticks_per_picture_minus_1 + 1;
+#endif  // CONFIG_CWG_F270_CI_OBU
   }
 }
 
@@ -8519,7 +8591,13 @@ static int read_show_existing_frame(AV1Decoder *pbi,
                        "Buffer does not contain a decoded frame");
   }
   if (seq_params->decoder_model_info_present_flag &&
-      seq_params->timing_info.equal_picture_interval == 0) {
+#if CONFIG_CWG_F270_CI_OBU
+      (cm->ci_params.ci_timing_info_present_flag == 1) &&
+      cm->ci_params.timing_info.equal_elemental_interval == 0
+#else
+      seq_params->timing_info.equal_picture_interval == 0
+#endif  // CONFIG_CWG_F270_CI_OBU
+  ) {
     read_temporal_point_info(cm, rb);
   }
   lock_buffer_pool(pool);
@@ -8698,6 +8776,26 @@ static void activate_sequence_header(AV1Decoder *pbi,
                        "No sequence header found with id = %d", seq_header_id);
   }
 
+#if CONFIG_CWG_F270_CI_OBU
+  if (!pbi->ci_params_received) {
+    cm->ci_params.color_info.color_description_idc = 0;
+    cm->ci_params.color_info.color_primaries = AOM_CICP_CP_UNSPECIFIED;
+    cm->ci_params.color_info.matrix_coefficients = AOM_CICP_MC_UNSPECIFIED;
+    cm->ci_params.color_info.transfer_characteristics = AOM_CICP_TC_UNSPECIFIED;
+    cm->ci_params.color_info.full_range_flag = 0;
+
+    cm->ci_params.ci_chroma_sample_position[0] = AOM_CSP_UNSPECIFIED;
+    cm->ci_params.ci_chroma_sample_position[1] = AOM_CSP_UNSPECIFIED;
+
+    cm->ci_params.ci_scan_type_idc = 0;
+    cm->ci_params.ci_color_description_present_flag = 0;
+    cm->ci_params.ci_chroma_sample_position_present_flag = 0;
+    cm->ci_params.ci_aspect_ratio_info_present_flag = 0;
+    cm->ci_params.ci_timing_info_present_flag = 0;
+    cm->ci_params.ci_extension_present_flag = 0;
+  }
+#endif  // CONFIG_CWG_F270_CI_OBU
+
 #if CONFIG_F255_QMOBU
   av1_copy_predefined_qmatrices_to_list(pbi, cm->seq_params.monochrome ? 1 : 3,
                                         false);
@@ -8797,6 +8895,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                                     struct aom_read_bit_buffer *rb) {
   AV1_COMMON *const cm = &pbi->common;
   const SequenceHeader *const seq_params = &cm->seq_params;
+#if CONFIG_CWG_F270_CI_OBU
+  const ColorInfo *const color_info = &cm->ci_params.color_info;
+#endif  // CONFIG_CWG_F270_CI_OBU
   CurrentFrame *const current_frame = &cm->current_frame;
   FeatureFlags *const features = &cm->features;
   MACROBLOCKD *const xd = &pbi->dcb.xd;
@@ -8922,6 +9023,13 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     }
   }
 #endif  // CONFIG_LCR_ID_IN_SH
+#if CONFIG_CWG_F270_CI_OBU
+  if (cm->ci_params.color_info.matrix_coefficients == AOM_CICP_MC_IDENTITY &&
+      (cm->seq_params.subsampling_x || cm->seq_params.subsampling_y)) {
+    // Identity CICP Matrix incompatible with non 4:4:4 color sampling
+    return AOM_CODEC_UNSUP_BITSTREAM;
+  }
+#endif  // CONFIG_CWG_F270_CI_OBU
 
   if (seq_params->single_picture_header_flag) {
     cm->show_existing_frame = 0;
@@ -9217,7 +9325,13 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
     if ((cm->show_frame || cm->showable_frame) &&
         seq_params->decoder_model_info_present_flag &&
-        seq_params->timing_info.equal_picture_interval == 0)
+#if CONFIG_CWG_F270_CI_OBU
+        (cm->ci_params.ci_timing_info_present_flag == 1) &&
+        cm->ci_params.timing_info.equal_elemental_interval == 0
+#else
+        seq_params->timing_info.equal_picture_interval == 0
+#endif  // CONFIG_CWG_F270_CI_OBU
+    )
       read_temporal_point_info(cm, rb);
 #endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
 #if !CONFIG_F024_KEYOBU
@@ -10209,26 +10323,58 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   validate_refereces(pbi);
 
   cm->cur_frame->buf.bit_depth = seq_params->bit_depth;
+#if CONFIG_CWG_F270_CI_OBU
+  cm->cur_frame->buf.color_primaries = color_info->color_primaries;
+  cm->cur_frame->buf.transfer_characteristics =
+      color_info->transfer_characteristics;
+  cm->cur_frame->buf.matrix_coefficients = color_info->matrix_coefficients;
+#else
   cm->cur_frame->buf.color_primaries = seq_params->color_primaries;
   cm->cur_frame->buf.transfer_characteristics =
       seq_params->transfer_characteristics;
   cm->cur_frame->buf.matrix_coefficients = seq_params->matrix_coefficients;
+#endif  // CONFIG_CWG_F270_CI_OBU
   cm->cur_frame->buf.monochrome = seq_params->monochrome;
+#if CONFIG_CWG_F270_CI_OBU
+  if (cm->ci_params.ci_chroma_sample_position_present_flag)
+    cm->cur_frame->buf.chroma_sample_position =
+        cm->ci_params.ci_chroma_sample_position[0];
+  else
+    cm->cur_frame->buf.chroma_sample_position = AOM_CSP_UNSPECIFIED;
+  cm->cur_frame->buf.color_range = color_info->full_range_flag;
+#else
   cm->cur_frame->buf.chroma_sample_position =
       seq_params->chroma_sample_position;
   cm->cur_frame->buf.color_range = seq_params->color_range;
+#endif  // CONFIG_CWG_F270_CI_OBU
   cm->cur_frame->buf.render_width = cm->render_width;
   cm->cur_frame->buf.render_height = cm->render_height;
 
   YV12_BUFFER_CONFIG *tip_frame_buf = &cm->tip_ref.tmp_tip_frame->buf;
   tip_frame_buf->bit_depth = seq_params->bit_depth;
+#if CONFIG_CWG_F270_CI_OBU
+  tip_frame_buf->color_primaries = color_info->color_primaries;
+  tip_frame_buf->transfer_characteristics =
+      color_info->transfer_characteristics;
+  tip_frame_buf->matrix_coefficients = color_info->matrix_coefficients;
+#else
   tip_frame_buf->color_primaries = seq_params->color_primaries;
   tip_frame_buf->transfer_characteristics =
       seq_params->transfer_characteristics;
   tip_frame_buf->matrix_coefficients = seq_params->matrix_coefficients;
+#endif  // CONFIG_CWG_F270_CI_OBU
   tip_frame_buf->monochrome = seq_params->monochrome;
+#if CONFIG_CWG_F270_CI_OBU
+  if (cm->ci_params.ci_chroma_sample_position_present_flag)
+    tip_frame_buf->chroma_sample_position =
+        cm->ci_params.ci_chroma_sample_position[0];
+  else
+    tip_frame_buf->chroma_sample_position = AOM_CSP_UNSPECIFIED;
+  tip_frame_buf->color_range = color_info->full_range_flag;
+#else
   tip_frame_buf->chroma_sample_position = seq_params->chroma_sample_position;
   tip_frame_buf->color_range = seq_params->color_range;
+#endif  // CONFIG_CWG_F270_CI_OBU
   tip_frame_buf->render_width = cm->render_width;
   tip_frame_buf->render_height = cm->render_height;
 
@@ -10636,12 +10782,10 @@ void av1_read_frame_size(struct aom_read_bit_buffer *rb, int num_bits_width,
   *width = aom_rb_read_literal(rb, num_bits_width) + 1;
   *height = aom_rb_read_literal(rb, num_bits_height) + 1;
 }
-
 BITSTREAM_PROFILE av1_read_profile(struct aom_read_bit_buffer *rb) {
   int profile = aom_rb_read_literal(rb, PROFILE_BITS);
   return (BITSTREAM_PROFILE)profile;
 }
-
 static AOM_INLINE void tip_mode_legal_check(AV1Decoder *const pbi) {
   AV1_COMMON *const cm = &pbi->common;
   if (cm->features.tip_frame_mode == TIP_FRAME_DISABLED) return;

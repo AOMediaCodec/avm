@@ -173,3 +173,31 @@ uint32_t aom_rb_read_uleb(struct aom_read_bit_buffer *rb) {
   return 0;
 }
 #endif  // CONFIG_MULTILAYER_HLS
+
+#if CONFIG_CWG_F270_CI_OBU
+uint32_t aom_rb_read_rice_golomb(struct aom_read_bit_buffer *rb, int k) {
+  // The maximum of k is related to the maximum of quotient.
+  assert(k <= 26);
+  uint32_t value = 0;
+  uint32_t quotient = 0;
+  uint32_t remainder = 0;
+  uint32_t M = 1 << k;
+
+  // To defend against invalid inputs, impose a maximum of 31 on quotient. The
+  // maximum of 31 (= 2^5 - 1) is somewhat arbitrary. In general it is
+  // convenient to choose a maximum that is 2^q - 1 for some q < 31. Then we can
+  // require k <= 31 - q.
+  while (quotient < 32 && aom_rb_read_bit(rb) != 0) quotient++;
+  if (quotient == 32) {
+    if (rb->error_handler) {
+      rb->error_handler(rb->error_handler_data, AOM_CODEC_CORRUPT_FRAME,
+                        "Rice Golomb coding too long (quotient >= 32)");
+    }
+    return UINT32_MAX;  // Error.
+  }
+  remainder = aom_rb_read_unsigned_literal(rb, k);
+  // value <= 2^31 - 1 if k <= 26, so there is no risk of overflow.
+  value = quotient * M + remainder;
+  return value;
+}
+#endif  // CONFIG_CWG_F270_CI_OBU

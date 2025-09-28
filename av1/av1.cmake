@@ -157,7 +157,8 @@ list(
   "${AOM_ROOT}/av1/decoder/obu.h"
   "${AOM_ROOT}/av1/decoder/obu_qm.c"
   "${AOM_ROOT}/av1/decoder/obu_fgm.c"
-  "${AOM_ROOT}/av1/decoder/obu.c")
+  "${AOM_ROOT}/av1/decoder/obu.c"
+  "${AOM_ROOT}/av1/decoder/obu_ci.c")
 
 if(CONFIG_MULTILAYER_HLS)
   list(APPEND AOM_AV1_DECODER_SOURCES "${AOM_ROOT}/av1/decoder/obu_atlas.c"
@@ -185,6 +186,7 @@ list(
   "${AOM_ROOT}/av1/encoder/bitstream.c"
   "${AOM_ROOT}/av1/encoder/bitstream_qm.c"
   "${AOM_ROOT}/av1/encoder/bitstream_fgm.c"
+  "${AOM_ROOT}/av1/encoder/bitstream_ci.c"
   "${AOM_ROOT}/av1/encoder/bitstream.h"
   "${AOM_ROOT}/av1/encoder/block.h"
   "${AOM_ROOT}/av1/encoder/cnn.c"

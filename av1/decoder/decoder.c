@@ -214,7 +214,15 @@ AV1Decoder *av1_decoder_create(BufferPool *const pool) {
   pbi->common.buffer_pool = pool;
 
   cm->seq_params.bit_depth = AOM_BITS_8;
+#if CONFIG_CWG_F270_CI_OBU
+  cm->ci_params.ci_chroma_sample_position_present_flag = 0;
+  if (!cm->ci_params.ci_chroma_sample_position_present_flag) {
+    cm->ci_params.ci_chroma_sample_position[0] = AOM_CSP_UNSPECIFIED;
+    cm->ci_params.ci_chroma_sample_position[1] = AOM_CSP_UNSPECIFIED;
+  }
+#else
   cm->seq_params.chroma_sample_position = AOM_CSP_UNSPECIFIED;
+#endif  // CONFIG_CWG_F270_CI_OBU
 
   cm->mi_params.free_mi = dec_free_mi;
   cm->mi_params.setup_mi = dec_setup_mi;
@@ -261,6 +269,26 @@ AV1Decoder *av1_decoder_create(BufferPool *const pool) {
 
   aom_get_worker_interface()->init(&pbi->lf_worker);
   pbi->lf_worker.thread_name = "aom lf worker";
+
+#if CONFIG_CWG_F270_CI_OBU
+  // Initialize the Content Interpretation parameters
+  pbi->ci_params_received = 0;
+  cm->ci_params.color_info.color_description_idc = 0;
+  cm->ci_params.color_info.color_primaries = AOM_CICP_CP_UNSPECIFIED;
+  cm->ci_params.color_info.matrix_coefficients = AOM_CICP_MC_UNSPECIFIED;
+  cm->ci_params.color_info.transfer_characteristics = AOM_CICP_TC_UNSPECIFIED;
+  cm->ci_params.color_info.full_range_flag = 0;
+
+  cm->ci_params.ci_chroma_sample_position[0] = AOM_CSP_UNSPECIFIED;
+  cm->ci_params.ci_chroma_sample_position[1] = AOM_CSP_UNSPECIFIED;
+
+  cm->ci_params.ci_scan_type_idc = AOM_SCAN_TYPE_UNSPECIFIED;
+  cm->ci_params.ci_color_description_present_flag = 0;
+  cm->ci_params.ci_chroma_sample_position_present_flag = 0;
+  cm->ci_params.ci_aspect_ratio_info_present_flag = 0;
+  cm->ci_params.ci_timing_info_present_flag = 0;
+  cm->ci_params.ci_extension_present_flag = 0;
+#endif  // CONFIG_CWG_F270_CI_OBU
 
 #if DEBUG_EXTQUANT
   cm->fDecCoeffLog = fopen("DecCoeffLog.txt", "wt");

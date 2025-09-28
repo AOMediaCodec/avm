@@ -2900,6 +2900,12 @@ typedef struct AV1_COMP {
    * for future frames
    */
   int tip_mode_count[INTER_REFS_PER_FRAME];
+#if CONFIG_CWG_F270_CI_OBU
+  /*!
+   * write ci obu
+   */
+  int write_ci_obu_flag;
+#endif  // CONFIG_CWG_F270_CI_OBU
 #if CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
   /*!
    * Write the Buffer Removal Timing OBU
@@ -2981,6 +2987,14 @@ typedef struct AV1_COMP {
 
   struct film_grain_model *fgm;
 #endif  // CONFIG_F153_FGM_OBU
+
+#if CONFIG_CWG_F270_CI_OBU
+  /*!
+   * Indicates that scan type info is present
+   */
+
+  int scan_type_info_present_flag;
+#endif  // CONFIG_CWG_F270_CI_OBU
 } AV1_COMP;
 
 /*!

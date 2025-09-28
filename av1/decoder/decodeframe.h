@@ -91,7 +91,6 @@ void av1_read_multi_frame_header(AV1_COMMON *cm,
 void av1_read_frame_size(struct aom_read_bit_buffer *rb, int num_bits_width,
                          int num_bits_height, int *width, int *height);
 BITSTREAM_PROFILE av1_read_profile(struct aom_read_bit_buffer *rb);
-
 int av1_check_byte_alignment(AV1_COMMON *const cm,
                              struct aom_read_bit_buffer *const rb);
 
@@ -125,11 +124,24 @@ void av1_decode_tg_tiles_and_wrapup(struct AV1Decoder *pbi, const uint8_t *data,
                                     const uint8_t **p_data_end, int start_tile,
                                     int end_tile, int initialize_flag);
 
+#if CONFIG_CWG_F270_CI_OBU
+uint32_t av1_read_content_interpretation_obu(struct AV1Decoder *pbi,
+                                             struct aom_read_bit_buffer *rb);
+#endif  // CONFIG_CWG_F270_CI_OBU
+
+#if CONFIG_CWG_F270_CI_OBU
+// Reads the chroma format and bitdepth in the sequence header. Reports errors
+// by calling rb->error_handler() or aom_internal_error().
+void av1_read_chroma_format_bitdepth(
+    struct aom_read_bit_buffer *rb, SequenceHeader *seq_params,
+    struct aom_internal_error_info *error_info);
+#else
 // Implements the color_config() function in the spec. Reports errors by
 // calling rb->error_handler() or aom_internal_error().
 void av1_read_color_config(struct aom_read_bit_buffer *rb,
                            SequenceHeader *seq_params,
                            struct aom_internal_error_info *error_info);
+#endif  // CONFIG_CWG_F270_CI_OBU
 
 // Implements the timing_info() function in the spec. Reports errors by calling
 // rb->error_handler() or aom_internal_error().

@@ -158,6 +158,41 @@ typedef enum aom_chroma_sample_position {
                                  */
 // clang-format on
 
+#if CONFIG_CWG_F270_CI_OBU
+/*!\brief List of Sample aspect ratio.
+ This list is specified in H.273 8.6 Sample aspect ratio indicator*/
+typedef enum aom_sample_aspect_ratio {
+  AOM_SAR_IDC_UNSPECIFIED = 0,  // Unspecified
+  AOM_SAR_IDC_1_TO_1 = 1,       // 1:1
+  AOM_SAR_IDC_12_TO_11 = 2,     // 12:11
+  AOM_SAR_IDC_10_TO_11 = 3,     // 10:11
+  AOM_SAR_IDC_16_TO_11 = 4,     // 16:11
+  AOM_SAR_IDC_40_TO_33 = 5,     // 40:33
+  AOM_SAR_IDC_24_TO_11 = 6,     // 24:11
+  AOM_SAR_IDC_20_TO_11 = 7,     // 20:11
+  AOM_SAR_IDC_32_TO_11 = 8,     // 32:11
+  AOM_SAR_IDC_80_TO_33 = 9,     // 80:33
+  AOM_SAR_IDC_18_TO_11 = 10,    // 18:11
+  AOM_SAR_IDC_15_TO_11 = 11,    // 15:11
+  AOM_SAR_IDC_64_TO_33 = 12,    // 64:33
+  AOM_SAR_IDC_160_TO_99 = 13,   // 160:99
+  AOM_SAR_IDC_4_TO_3 = 14,      // 4:3
+  AOM_SAR_IDC_3_TO_2 = 15,      // 3:2
+  AOM_SAR_IDC_2_TO_1 = 16,      // 2:1
+  AOM_SAR_IDC_255 = 255         //  EXPLICIT_SAR
+} aom_sample_aspect_ratio_t;
+
+/*!\brief List of Color description idc */
+typedef enum aom_color_description {
+  AOM_COLOR_DESC_IDC_EXPLICIT = 0,   // Explicitly signaled
+  AOM_COLOR_DESC_IDC_BT709SDR = 1,   // CP=1, TC=1, MC=5
+  AOM_COLOR_DESC_IDC_BT2100PQ = 2,   // CP=9, TC=16, MC=9
+  AOM_COLOR_DESC_IDC_BT2100HLG = 3,  // CP=9, TC=14, MC=9
+  AOM_COLOR_DESC_IDC_SRGB = 4,       // CP=1, TC=13, MC=0
+  AOM_COLOR_DESC_IDC_SRGBSYCC = 5,   // CP=1, TC=13, MC=5
+} aom_color_description_t;
+#endif  // CONFIG_CWG_F270_CI_OBU
+
 /*!\brief List of insert flags for Metadata
  *
  * These flags control how the library treats metadata during encode.

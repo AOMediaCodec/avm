@@ -59,6 +59,15 @@ uint32_t aom_rb_read_uvlc(struct aom_read_bit_buffer *rb);
 // aom_internal_error(), the function does a long jump and does not return.
 int32_t aom_rb_read_svlc(struct aom_read_bit_buffer *rb);
 
+#if CONFIG_CWG_F270_CI_OBU
+// Reads a Rice Golomb descriptor with a parameter k. k must be <= 26. Valid
+// range is 0..2^(k + 5) - 1. Returns UINT32_MAX if the quotient part of the
+// coding is too long (has 32 or more leading one bits); if rb->error_handler
+// is not null, rb->error_handler() is invoked. If rb->error_handler() calls
+// aom_internal_error(), the function does a long jump and does not return.
+uint32_t aom_rb_read_rice_golomb(struct aom_read_bit_buffer *rb, int k);
+#endif  // CONFIG_CWG_F270_CI_OBU
+
 uint16_t aom_rb_read_primitive_refsubexpfin(struct aom_read_bit_buffer *rb,
                                             uint16_t n, uint16_t k,
                                             uint16_t ref);

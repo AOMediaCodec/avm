@@ -475,7 +475,6 @@ void av1_decoder_model_print_status(const DECODER_MODEL *const decoder_model) {
 void av1_decoder_model_init(const AV1_COMP *const cpi, AV1_LEVEL level,
                             int op_index, DECODER_MODEL *const decoder_model) {
   aom_clear_system_state();
-
   decoder_model->status = DECODER_MODEL_OK;
   decoder_model->level = level;
 
@@ -514,12 +513,23 @@ void av1_decoder_model_init(const AV1_COMP *const cpi, AV1_LEVEL level,
   dfg_interval_queue->head = 0;
   dfg_interval_queue->size = 0;
 
+#if CONFIG_CWG_F270_CI_OBU
+  if (cm->ci_params.ci_timing_info_present_flag) {
+    decoder_model->num_ticks_per_picture =
+        cm->ci_params.timing_info.num_ticks_per_elemental_duration;
+#else
   if (seq_params->timing_info_present) {
     decoder_model->num_ticks_per_picture =
         seq_params->timing_info.num_ticks_per_picture;
+#endif  // CONFIG_CWG_F270_CI_OBU
     decoder_model->display_clock_tick =
+#if CONFIG_CWG_F270_CI_OBU
+        cm->ci_params.timing_info.num_ticks_per_elemental_duration /
+        cm->ci_params.timing_info.time_scale;
+#else
         seq_params->timing_info.num_units_in_display_tick /
         seq_params->timing_info.time_scale;
+#endif  // CONFIG_CWG_F270_CI_OBU
   } else {
     decoder_model->num_ticks_per_picture = 1;
     decoder_model->display_clock_tick = 1.0 / cpi->framerate;

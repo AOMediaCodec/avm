@@ -110,6 +110,13 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
 void av1_write_cctx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
                          CctxType cctx_type, TX_SIZE tx_size, aom_writer *w);
 
+#if CONFIG_CWG_F270_CI_OBU
+void av1_write_timing_info_header(const aom_timing_info_t *const timing_info,
+                                  struct aom_write_bit_buffer *wb);
+uint32_t av1_write_content_interpretation_obu(
+    const ContentInterpretation *ci_params, uint8_t *const dst);
+#endif  // CONFIG_CWG_F270_CI_OBU
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

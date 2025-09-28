@@ -205,8 +205,13 @@ static aom_codec_err_t parse_bitdepth(struct aom_read_bit_buffer *rb,
   return AOM_CODEC_OK;
 }
 
+#if CONFIG_CWG_F270_CI_OBU
+static aom_codec_err_t parse_chroma_format_bitdepth(
+    struct aom_read_bit_buffer *rb, BITSTREAM_PROFILE profile) {
+#else
 static aom_codec_err_t parse_color_config(struct aom_read_bit_buffer *rb,
                                           BITSTREAM_PROFILE profile) {
+#endif  // CONFIG_CWG_F270_CI_OBU
 #if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
   const uint32_t chroma_format_idc = aom_rb_read_uvlc(rb);
 #endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
@@ -215,6 +220,7 @@ static aom_codec_err_t parse_color_config(struct aom_read_bit_buffer *rb,
   aom_codec_err_t err = parse_bitdepth(rb, profile, &bit_depth);
   if (err != AOM_CODEC_OK) return err;
 
+#if !CONFIG_CWG_F270_CI_OBU
 #if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
   const int is_monochrome = (chroma_format_idc == CHROMA_FORMAT_400);
 #else
@@ -248,35 +254,39 @@ static aom_codec_err_t parse_color_config(struct aom_read_bit_buffer *rb,
         return AOM_CODEC_UNSUP_BITSTREAM;
       }
     } else {
+#endif  // !CONFIG_CWG_F270_CI_OBU
       int subsampling_x;
       int subsampling_y;
+#if !CONFIG_CWG_F270_CI_OBU
       aom_rb_read_bit(rb);  // color_range
+#endif                      // !CONFIG_CWG_F270_CI_OBU
 #if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
       err = av1_get_chroma_subsampling(chroma_format_idc, &subsampling_x,
                                        &subsampling_y);
       if (err != AOM_CODEC_OK) return err;
 #else
-      if (profile == PROFILE_0) {
-        // 420 only
-        subsampling_x = subsampling_y = 1;
-      } else if (profile == PROFILE_1) {
-        // 444 only
-        subsampling_x = subsampling_y = 0;
-      } else {
-        assert(profile == PROFILE_2);
-        if (bit_depth == AOM_BITS_12) {
-          subsampling_x = aom_rb_read_bit(rb);
-          if (subsampling_x)
-            subsampling_y = aom_rb_read_bit(rb);  // 422 or 420
-          else
-            subsampling_y = 0;  // 444
-        } else {
-          // 422
-          subsampling_x = 1;
-          subsampling_y = 0;
-        }
-      }
+  if (profile == PROFILE_0) {
+    // 420 only
+    subsampling_x = subsampling_y = 1;
+  } else if (profile == PROFILE_1) {
+    // 444 only
+    subsampling_x = subsampling_y = 0;
+  } else {
+    assert(profile == PROFILE_2);
+    if (bit_depth == AOM_BITS_12) {
+      subsampling_x = aom_rb_read_bit(rb);
+      if (subsampling_x)
+        subsampling_y = aom_rb_read_bit(rb);  // 422 or 420
+      else
+        subsampling_y = 0;  // 444
+    } else {
+      // 422
+      subsampling_x = 1;
+      subsampling_y = 0;
+    }
+  }
 #endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+#if !CONFIG_CWG_F270_CI_OBU
       if (matrix_coefficients == AOM_CICP_MC_IDENTITY &&
           (subsampling_x || subsampling_y)) {
         // Identity CICP Matrix incompatible with non 4:4:4 color sampling
@@ -297,9 +307,11 @@ static aom_codec_err_t parse_color_config(struct aom_read_bit_buffer *rb,
       }
     }
   }
+#endif  // !CONFIG_CWG_F270_CI_OBU
   return AOM_CODEC_OK;
 }
 
+#if !CONFIG_CWG_F270_CI_OBU
 static aom_codec_err_t parse_timing_info(struct aom_read_bit_buffer *rb) {
   const uint32_t num_units_in_display_tick =
       aom_rb_read_unsigned_literal(rb, 32);
@@ -316,6 +328,7 @@ static aom_codec_err_t parse_timing_info(struct aom_read_bit_buffer *rb) {
   }
   return AOM_CODEC_OK;
 }
+#endif  // !CONFIG_CWG_F270_CI_OBU
 
 static aom_codec_err_t parse_decoder_model_info(
     struct aom_read_bit_buffer *rb, int *buffer_delay_length_minus_1) {
@@ -360,16 +373,20 @@ static aom_codec_err_t parse_operating_points(struct aom_read_bit_buffer *rb,
     uint8_t decoder_model_info_present_flag = 0;
     int buffer_delay_length_minus_1 = 0;
     aom_codec_err_t status;
+#if !CONFIG_CWG_F270_CI_OBU
     const uint8_t timing_info_present_flag = aom_rb_read_bit(rb);
     if (timing_info_present_flag) {
       if ((status = parse_timing_info(rb)) != AOM_CODEC_OK) return status;
+#endif  //  !CONFIG_CWG_F270_CI_OBU
       decoder_model_info_present_flag = aom_rb_read_bit(rb);
       if (decoder_model_info_present_flag) {
         if ((status = parse_decoder_model_info(
                  rb, &buffer_delay_length_minus_1)) != AOM_CODEC_OK)
           return status;
       }
+#if !CONFIG_CWG_F270_CI_OBU
     }
+#endif  // !CONFIG_CWG_F270_CI_OBU
     const uint8_t initial_display_delay_present_flag = aom_rb_read_bit(rb);
     const uint8_t operating_points_cnt_minus_1 =
         aom_rb_read_literal(rb, OP_POINTS_CNT_MINUS_1_BITS);
@@ -460,7 +477,6 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
 #endif  // CONFIG_LCR_ID_IN_SH
 
       BITSTREAM_PROFILE profile = av1_read_profile(&rb);  // profile
-
       int num_bits_width = aom_rb_read_literal(&rb, 4) + 1;
       int num_bits_height = aom_rb_read_literal(&rb, 4) + 1;
       int max_frame_width = aom_rb_read_literal(&rb, num_bits_width) + 1;
@@ -478,7 +494,11 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
       }
 #endif  // CONFIG_CROP_WIN_CWG_F220
 
+#if CONFIG_CWG_F270_CI_OBU
+      status = parse_chroma_format_bitdepth(&rb, profile);
+#else
       status = parse_color_config(&rb, profile);
+#endif  // CONFIG_CWG_F270_CI_OBU
       if (status != AOM_CODEC_OK) return status;
 
       const uint8_t still_picture = aom_rb_read_bit(&rb);

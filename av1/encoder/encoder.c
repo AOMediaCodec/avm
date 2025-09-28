@@ -346,6 +346,7 @@ static void set_bitstream_level_tier(SequenceHeader *seq, AV1_COMMON *cm,
     // level, and tier
     seq_params->op_params[i].bitrate = av1_max_level_bitrate(
         cm->seq_params.profile, seq->seq_level_idx[i], seq->tier[i]);
+
     // Level with seq_level_idx = 31 returns a high "dummy" bitrate to pass the
     // check
     if (seq_params->op_params[i].bitrate == 0)
@@ -650,12 +651,14 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #endif  // CONFIG_CROP_WIN_CWG_F220
 
 #if CONFIG_SCAN_TYPE_METADATA
+#if !CONFIG_CWG_F270_CI_OBU
   seq->scan_type_info_present_flag = oxcf->tool_cfg.scan_type_info_present_flag;
   if (seq->scan_type_info_present_flag) {
     seq->scan_type_idc = AOM_SCAN_TYPE_UNSPECIFIED;
     seq->fixed_cvs_pic_rate_flag = 0;
     seq->elemental_ct_duration_minus_1 = -1;
   }
+#endif  // !CONFIG_CWG_F270_CI_OBU
 #endif  // CONFIG_SCAN_TYPE_METADATA
 
 #if CONFIG_CWG_F377_STILL_PICTURE
@@ -722,6 +725,161 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   }
 #endif  // !CONFIG_F255_QMOBU
 }
+#if CONFIG_CWG_F270_CI_OBU
+static void set_content_interpreation_params(struct AV1_COMP *cpi,
+                                             const AV1EncoderConfig *oxcf,
+                                             CHROMA_FORMAT chroma_format_idc) {
+  const DecoderModelCfg *const dec_model_cfg = &oxcf->dec_model_cfg;
+  const ColorCfg *const color_cfg = &oxcf->color_cfg;
+  cpi->oxcf = *oxcf;
+  ContentInterpretation *ci_params = &cpi->common.ci_params;
+
+  // Scan type information
+  cpi->scan_type_info_present_flag = oxcf->tool_cfg.scan_type_info_present_flag;
+  ci_params->ci_scan_type_idc = AOM_SCAN_TYPE_UNSPECIFIED;
+
+  // Set color info
+  ci_params->color_info.color_primaries = color_cfg->color_primaries;
+  ci_params->color_info.matrix_coefficients = color_cfg->matrix_coefficients;
+  ci_params->color_info.transfer_characteristics =
+      color_cfg->transfer_characteristics;
+
+  ci_params->color_info.color_description_idc = AOM_COLOR_DESC_IDC_EXPLICIT;
+  if (ci_params->color_info.color_primaries == AOM_CICP_CP_BT_709 &&
+      ci_params->color_info.transfer_characteristics == AOM_CICP_TC_BT_709 &&
+      ci_params->color_info.matrix_coefficients == AOM_CICP_MC_BT_470_B_G) {
+    ci_params->color_info.color_description_idc = AOM_COLOR_DESC_IDC_BT709SDR;
+  } else if (ci_params->color_info.color_primaries == AOM_CICP_CP_BT_709 &&
+             ci_params->color_info.transfer_characteristics ==
+                 AOM_CICP_TC_SRGB &&
+             ci_params->color_info.matrix_coefficients ==
+                 AOM_CICP_MC_IDENTITY) {
+    ci_params->color_info.color_description_idc = AOM_COLOR_DESC_IDC_SRGB;
+  } else if (ci_params->color_info.color_primaries == AOM_CICP_CP_BT_709 &&
+             ci_params->color_info.transfer_characteristics ==
+                 AOM_CICP_TC_SRGB &&
+             ci_params->color_info.matrix_coefficients ==
+                 AOM_CICP_MC_BT_470_B_G) {
+    ci_params->color_info.color_description_idc = AOM_COLOR_DESC_IDC_SRGBSYCC;
+  } else if (ci_params->color_info.color_primaries == AOM_CICP_CP_BT_2020 &&
+             ci_params->color_info.transfer_characteristics ==
+                 AOM_CICP_TC_SMPTE_2084 &&
+             ci_params->color_info.matrix_coefficients ==
+                 AOM_CICP_MC_BT_2020_NCL) {
+    ci_params->color_info.color_description_idc = AOM_COLOR_DESC_IDC_BT2100PQ;
+  } else if (ci_params->color_info.color_primaries == AOM_CICP_CP_BT_2020 &&
+             ci_params->color_info.transfer_characteristics ==
+                 AOM_CICP_TC_BT_2020_10_BIT &&
+             ci_params->color_info.matrix_coefficients ==
+                 AOM_CICP_MC_BT_2020_NCL) {
+    ci_params->color_info.color_description_idc = AOM_COLOR_DESC_IDC_BT2100HLG;
+  }
+  ci_params->color_info.full_range_flag = color_cfg->color_range;
+
+  if ((ci_params->color_info.color_description_idc ==
+       AOM_COLOR_DESC_IDC_EXPLICIT) ||
+      (ci_params->color_info.color_description_idc ==
+       AOM_COLOR_DESC_IDC_BT709SDR) ||
+      (ci_params->color_info.color_description_idc ==
+       AOM_COLOR_DESC_IDC_SRGB) ||
+      (ci_params->color_info.color_description_idc ==
+       AOM_COLOR_DESC_IDC_SRGBSYCC) ||
+      (ci_params->color_info.color_description_idc ==
+       AOM_CICP_TC_BT_2020_10_BIT) ||
+      (ci_params->color_info.color_description_idc ==
+       AOM_COLOR_DESC_IDC_BT2100HLG) ||
+      (ci_params->color_info.full_range_flag != 0))
+    ci_params->ci_color_description_present_flag = 1;
+  else
+    ci_params->ci_color_description_present_flag = 0;
+  ci_params->ci_chroma_sample_position_present_flag = 0;
+  if (chroma_format_idc == CHROMA_FORMAT_422 ||
+      chroma_format_idc == CHROMA_FORMAT_420) {
+    ci_params->ci_chroma_sample_position_present_flag =
+        color_cfg->chroma_sample_position != AOM_CSP_UNSPECIFIED;
+    ci_params->ci_chroma_sample_position[0] = color_cfg->chroma_sample_position;
+    if (ci_params->ci_scan_type_idc != 1)
+      ci_params->ci_chroma_sample_position[1] =
+          color_cfg->chroma_sample_position;
+  }
+
+  // SAR information
+  ci_params->sar_info.sar_aspect_ratio_idc = AOM_SAR_IDC_UNSPECIFIED;
+  ci_params->sar_info.sar_width = 0;
+  ci_params->sar_info.sar_height = 0;
+  if (ci_params->sar_info.sar_width == 1 && ci_params->sar_info.sar_height == 1)
+    ci_params->sar_info.sar_aspect_ratio_idc = AOM_SAR_IDC_1_TO_1;
+  else if (ci_params->sar_info.sar_width == 12 &&
+           ci_params->sar_info.sar_height == 11)
+    ci_params->sar_info.sar_aspect_ratio_idc = AOM_SAR_IDC_12_TO_11;
+  else if (ci_params->sar_info.sar_width == 10 &&
+           ci_params->sar_info.sar_height == 11)
+    ci_params->sar_info.sar_aspect_ratio_idc = AOM_SAR_IDC_10_TO_11;
+  else if (ci_params->sar_info.sar_width == 16 &&
+           ci_params->sar_info.sar_height == 11)
+    ci_params->sar_info.sar_aspect_ratio_idc = AOM_SAR_IDC_16_TO_11;
+  else if (ci_params->sar_info.sar_width == 40 &&
+           ci_params->sar_info.sar_height == 33)
+    ci_params->sar_info.sar_aspect_ratio_idc = AOM_SAR_IDC_40_TO_33;
+  else if (ci_params->sar_info.sar_width == 24 &&
+           ci_params->sar_info.sar_height == 11)
+    ci_params->sar_info.sar_aspect_ratio_idc = AOM_SAR_IDC_24_TO_11;
+  else if (ci_params->sar_info.sar_width == 20 &&
+           ci_params->sar_info.sar_height == 11)
+    ci_params->sar_info.sar_aspect_ratio_idc = AOM_SAR_IDC_20_TO_11;
+  else if (ci_params->sar_info.sar_width == 32 &&
+           ci_params->sar_info.sar_height == 11)
+    ci_params->sar_info.sar_aspect_ratio_idc = AOM_SAR_IDC_32_TO_11;
+  else if (ci_params->sar_info.sar_width == 80 &&
+           ci_params->sar_info.sar_height == 33)
+    ci_params->sar_info.sar_aspect_ratio_idc = AOM_SAR_IDC_80_TO_33;
+  else if (ci_params->sar_info.sar_width == 18 &&
+           ci_params->sar_info.sar_height == 11)
+    ci_params->sar_info.sar_aspect_ratio_idc = AOM_SAR_IDC_18_TO_11;
+  else if (ci_params->sar_info.sar_width == 15 &&
+           ci_params->sar_info.sar_height == 11)
+    ci_params->sar_info.sar_aspect_ratio_idc = AOM_SAR_IDC_15_TO_11;
+  else if (ci_params->sar_info.sar_width == 64 &&
+           ci_params->sar_info.sar_height == 33)
+    ci_params->sar_info.sar_aspect_ratio_idc = AOM_SAR_IDC_64_TO_33;
+  else if (ci_params->sar_info.sar_width == 160 &&
+           ci_params->sar_info.sar_height == 99)
+    ci_params->sar_info.sar_aspect_ratio_idc = AOM_SAR_IDC_160_TO_99;
+  else if (ci_params->sar_info.sar_width == 4 &&
+           ci_params->sar_info.sar_height == 3)
+    ci_params->sar_info.sar_aspect_ratio_idc = AOM_SAR_IDC_4_TO_3;
+  else if (ci_params->sar_info.sar_width == 3 &&
+           ci_params->sar_info.sar_height == 2)
+    ci_params->sar_info.sar_aspect_ratio_idc = AOM_SAR_IDC_3_TO_2;
+  else if (ci_params->sar_info.sar_width == 2 &&
+           ci_params->sar_info.sar_height == 1)
+    ci_params->sar_info.sar_aspect_ratio_idc = AOM_SAR_IDC_2_TO_1;
+  ci_params->ci_aspect_ratio_info_present_flag = 0;
+
+  // timing information
+  ci_params->ci_timing_info_present_flag = dec_model_cfg->timing_info_present;
+  if (ci_params->ci_timing_info_present_flag) {
+    // TODO
+    ci_params->timing_info.equal_elemental_interval =
+        dec_model_cfg->timing_info.equal_elemental_interval;
+    ci_params->timing_info.num_ticks_per_elemental_duration =
+        dec_model_cfg->timing_info.num_ticks_per_elemental_duration;
+    ci_params->timing_info.num_units_in_display_tick =
+        dec_model_cfg->timing_info.num_units_in_display_tick;
+    ci_params->timing_info.time_scale = dec_model_cfg->timing_info.time_scale;
+  }
+  ci_params->ci_extension_present_flag = 0;
+
+  if (ci_params->ci_color_description_present_flag ||
+      ci_params->ci_chroma_sample_position_present_flag ||
+      ci_params->ci_aspect_ratio_info_present_flag ||
+      ci_params->ci_timing_info_present_flag ||
+      cpi->scan_type_info_present_flag)
+    cpi->write_ci_obu_flag = 1;
+  else
+    cpi->write_ci_obu_flag = 0;
+}
+#endif  // CONFIG_CWG_F270_CI_OBU
 
 static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   AV1_COMMON *const cm = &cpi->common;
@@ -765,10 +923,13 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
 
   seq_params->profile = oxcf->profile;
   seq_params->bit_depth = oxcf->tool_cfg.bit_depth;
+#if !CONFIG_CWG_F270_CI_OBU
   seq_params->color_primaries = color_cfg->color_primaries;
   seq_params->transfer_characteristics = color_cfg->transfer_characteristics;
   seq_params->matrix_coefficients = color_cfg->matrix_coefficients;
+#endif  // !CONFIG_CWG_F270_CI_OBU
   seq_params->monochrome = oxcf->tool_cfg.enable_monochrome;
+#if !CONFIG_CWG_F270_CI_OBU
   seq_params->chroma_sample_position = color_cfg->chroma_sample_position;
   seq_params->color_range = color_cfg->color_range;
   seq_params->timing_info_present = dec_model_cfg->timing_info_present;
@@ -779,6 +940,7 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
       dec_model_cfg->timing_info.equal_picture_interval;
   seq_params->timing_info.num_ticks_per_picture =
       dec_model_cfg->timing_info.num_ticks_per_picture;
+#endif  // !CONFIG_CWG_F270_CI_OBU
 
   seq_params->display_model_info_present_flag =
       dec_model_cfg->display_model_info_present_flag;
@@ -793,9 +955,15 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
 #endif  // !CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
     av1_set_aom_dec_model_info(&seq_params->decoder_model_info);
     av1_set_dec_model_op_parameters(&seq_params->op_params[0]);
+#if CONFIG_CWG_F270_CI_OBU
+  } else if (dec_model_cfg->timing_info_present &&
+             dec_model_cfg->timing_info.equal_elemental_interval &&
+             !dec_model_cfg->decoder_model_info_present_flag) {
+#else
   } else if (seq_params->timing_info_present &&
              seq_params->timing_info.equal_picture_interval &&
              !seq_params->decoder_model_info_present_flag) {
+#endif  // CONFIG_CWG_F270_CI_OBU
     // set the decoder model parameters in resource availability mode
     av1_set_resource_availability_parameters(&seq_params->op_params[0]);
   } else {
@@ -806,9 +974,15 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   if (seq_params->monochrome) {
     seq_params->subsampling_x = 1;
     seq_params->subsampling_y = 1;
+#if CONFIG_CWG_F270_CI_OBU
+  } else if (color_cfg->color_primaries == AOM_CICP_CP_BT_709 &&
+             color_cfg->transfer_characteristics == AOM_CICP_TC_SRGB &&
+             color_cfg->matrix_coefficients == AOM_CICP_MC_IDENTITY) {
+#else
   } else if (seq_params->color_primaries == AOM_CICP_CP_BT_709 &&
              seq_params->transfer_characteristics == AOM_CICP_TC_SRGB &&
              seq_params->matrix_coefficients == AOM_CICP_MC_IDENTITY) {
+#endif  // CONFIG_CWG_F270_CI_OBU
     seq_params->subsampling_x = 0;
     seq_params->subsampling_y = 0;
   } else {
@@ -830,7 +1004,11 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   }
 
 #if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+#if CONFIG_CWG_F270_CI_OBU
+  uint32_t seq_chroma_format_idc = 0;
+#else
   uint32_t seq_chroma_format_idc;
+#endif  // CONFIG_CWG_F270_CI_OBU
   aom_codec_err_t err =
       av1_get_chroma_format_idc(seq_params, &seq_chroma_format_idc);
   if (err != AOM_CODEC_OK) {
@@ -839,6 +1017,10 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
                        seq_params->subsampling_x, seq_params->subsampling_y);
   }
 #endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+
+#if CONFIG_CWG_F270_CI_OBU
+  set_content_interpreation_params(cpi, oxcf, seq_chroma_format_idc);
+#endif  // CONFIG_CWG_F270_CI_OBU
 
   cm->width = oxcf->frm_dim_cfg.width;
   cm->height = oxcf->frm_dim_cfg.height;
@@ -964,7 +1146,9 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   InitialDimensions *const initial_dimensions = &cpi->initial_dimensions;
   const FrameDimensionCfg *const frm_dim_cfg = &cpi->oxcf.frm_dim_cfg;
   const DecoderModelCfg *const dec_model_cfg = &oxcf->dec_model_cfg;
+#if !CONFIG_CWG_F270_CI_OBU
   const ColorCfg *const color_cfg = &oxcf->color_cfg;
+#endif  // !CONFIG_CWG_F270_CI_OBU
   const RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
   // in case of LAP, lag in frames is set according to number of lap buffers
   // calculated at init time. This stores and restores LAP's lag in frames to
@@ -980,16 +1164,31 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
 
   if (seq_params->profile != oxcf->profile) seq_params->profile = oxcf->profile;
   seq_params->bit_depth = oxcf->tool_cfg.bit_depth;
+#if !CONFIG_CWG_F270_CI_OBU
   seq_params->color_primaries = color_cfg->color_primaries;
   seq_params->transfer_characteristics = color_cfg->transfer_characteristics;
   seq_params->matrix_coefficients = color_cfg->matrix_coefficients;
   seq_params->monochrome = oxcf->tool_cfg.enable_monochrome;
   seq_params->chroma_sample_position = color_cfg->chroma_sample_position;
+
   seq_params->color_range = color_cfg->color_range;
+
+#else
+  uint32_t chroma_format_idc = 0;
+  aom_codec_err_t err =
+      av1_get_chroma_format_idc(seq_params, &chroma_format_idc);
+  if (err != AOM_CODEC_OK) {
+    aom_internal_error(&cm->error, err,
+                       "Unsupported subsampling_x = %d, subsampling_y = %d.",
+                       seq_params->subsampling_x, seq_params->subsampling_y);
+  }
+  set_content_interpreation_params(cpi, oxcf, chroma_format_idc);
+#endif  // CONFIG_CWG_F270_CI_OBU
 
   assert(IMPLIES(seq_params->profile <= PROFILE_1,
                  seq_params->bit_depth <= AOM_BITS_10));
 
+#if !CONFIG_CWG_F270_CI_OBU
   seq_params->timing_info_present = dec_model_cfg->timing_info_present;
   seq_params->timing_info.num_units_in_display_tick =
       dec_model_cfg->timing_info.num_units_in_display_tick;
@@ -998,6 +1197,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
       dec_model_cfg->timing_info.equal_picture_interval;
   seq_params->timing_info.num_ticks_per_picture =
       dec_model_cfg->timing_info.num_ticks_per_picture;
+#endif  // !CONFIG_CWG_F270_CI_OBU
 
   seq_params->display_model_info_present_flag =
       dec_model_cfg->display_model_info_present_flag;
@@ -1012,9 +1212,15 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
 #endif  // !CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
     av1_set_aom_dec_model_info(&seq_params->decoder_model_info);
     av1_set_dec_model_op_parameters(&seq_params->op_params[0]);
+#if CONFIG_CWG_F270_CI_OBU
+  } else if (dec_model_cfg->timing_info_present &&
+             dec_model_cfg->timing_info.equal_elemental_interval &&
+             !dec_model_cfg->decoder_model_info_present_flag) {
+#else
   } else if (seq_params->timing_info_present &&
              seq_params->timing_info.equal_picture_interval &&
              !seq_params->decoder_model_info_present_flag) {
+#endif  // CONFIG_CWG_F270_CI_OBU
     // set the decoder model parameters in resource availability mode
     av1_set_resource_availability_parameters(&seq_params->op_params[0]);
   } else {
@@ -4017,6 +4223,9 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
   }
 
   SequenceHeader *const seq_params = &cm->seq_params;
+#if CONFIG_CWG_F270_CI_OBU
+  ColorInfo *const color_info = &cm->ci_params.color_info;
+#endif  // CONFIG_CWG_F270_CI_OBU
   if (cm->bru.enabled && cm->current_frame.frame_type != KEY_FRAME) {
     enc_bru_swap_stage(cpi);
   }
@@ -4033,14 +4242,27 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
     cpi->ambient_err = aom_highbd_get_y_sse(cpi->source, &cm->cur_frame->buf);
   }
 
+#if CONFIG_CWG_F270_CI_OBU
+  cm->cur_frame->buf.color_primaries = color_info->color_primaries;
+  cm->cur_frame->buf.transfer_characteristics =
+      color_info->transfer_characteristics;
+  cm->cur_frame->buf.matrix_coefficients = color_info->matrix_coefficients;
+#else
   cm->cur_frame->buf.color_primaries = seq_params->color_primaries;
   cm->cur_frame->buf.transfer_characteristics =
       seq_params->transfer_characteristics;
   cm->cur_frame->buf.matrix_coefficients = seq_params->matrix_coefficients;
+#endif  // CONFIG_CWG_F270_CI_OBU
   cm->cur_frame->buf.monochrome = seq_params->monochrome;
+#if CONFIG_CWG_F270_CI_OBU
+  cm->cur_frame->buf.chroma_sample_position =
+      cm->ci_params.ci_chroma_sample_position[0];
+  cm->cur_frame->buf.color_range = color_info->full_range_flag;
+#else
   cm->cur_frame->buf.chroma_sample_position =
       seq_params->chroma_sample_position;
   cm->cur_frame->buf.color_range = seq_params->color_range;
+#endif  // CONFIG_CWG_F270_CI_OBU
   cm->cur_frame->buf.render_width = cm->render_width;
   cm->cur_frame->buf.render_height = cm->render_height;
   cm->cur_frame->buf.bit_depth = (unsigned int)seq_params->bit_depth;
@@ -4549,7 +4771,12 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
           (frame_is_intra_only(cm) || !cm->show_frame) ? 0 : 1;
       break;
   }
+#if CONFIG_CWG_F270_CI_OBU
+  cm->ci_params.ci_timing_info_present_flag &=
+      !seq_params->single_picture_header_flag;
+#else
   seq_params->timing_info_present &= !seq_params->single_picture_header_flag;
+#endif  // CONFIG_CWG_F270_CI_OBU
 
   if (cpi->oxcf.tool_cfg.enable_global_motion && !frame_is_intra_only(cm)) {
     // Flush any stale global motion information, which may be left over

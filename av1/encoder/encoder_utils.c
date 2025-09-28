@@ -539,7 +539,11 @@ void av1_update_film_grain_parameters(struct AV1_COMP *cpi,
       if (oxcf->tool_cfg.enable_monochrome)
         reset_film_grain_chroma_params(&cm->film_grain_params);
       cm->film_grain_params.bit_depth = cm->seq_params.bit_depth;
+#if CONFIG_CWG_F270_CI_OBU
+      if (cm->ci_params.color_info.full_range_flag == AOM_CR_FULL_RANGE) {
+#else
       if (cm->seq_params.color_range == AOM_CR_FULL_RANGE) {
+#endif  // CONFIG_CWG_F270_CI_OBU
         cm->film_grain_params.clip_to_restricted_range = 0;
       }
     }

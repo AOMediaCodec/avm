@@ -82,6 +82,26 @@ typedef struct _Av1Config {
   uint8_t chroma_sample_position;
   uint8_t initial_presentation_delay_present;
   uint8_t initial_presentation_delay_minus_one;
+#if CONFIG_CWG_F270_CI_OBU
+  // Content interpretation OBU parameters
+  uint8_t ci_present;
+  uint8_t ci_scan_type_idc;
+  uint8_t ci_color_description_present_flag;
+  uint8_t ci_chroma_sample_position_present_flag;
+  uint8_t ci_aspect_ratio_info_present_flag;
+  uint8_t ci_timing_info_present_flag;
+  // Color information
+  uint8_t ci_color_primaries;
+  uint8_t ci_matrix_coefficients;
+  uint8_t ci_transfer_characteristics;
+  uint8_t ci_full_range_flag;
+  // Chroma sample position from CI
+  uint8_t ci_chroma_sample_position_1;
+  // Sample aspect ratio
+  uint8_t ci_sar_aspect_ratio_idc;
+  uint8_t ci_sar_width;
+  uint8_t ci_sar_height;
+#endif  // CONFIG_CWG_F270_CI_OBU
 } Av1Config;
 
 // Attempts to parse a Sequence Header OBU and set the paramenters of 'config'.

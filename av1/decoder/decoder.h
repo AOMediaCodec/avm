@@ -487,6 +487,13 @@ typedef struct AV1Decoder {
 
   struct film_grain_model fgm_list[MAX_FGM_NUM];
 #endif  // CONFIG_F153_FGM_OBU
+#if CONFIG_CWG_F270_CI_OBU
+  /*!
+   * indicates if content interpretation params (in cm->ci_params) were received
+   * and are valid
+   */
+  int ci_params_received;
+#endif  // CONFIG_CWG_F270_CI_OBU
 } AV1Decoder;
 
 // Returns 0 on success. Sets pbi->common.error.error_code to a nonzero error

@@ -279,7 +279,6 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
     cm->error.error_code = AOM_CODEC_UNSUP_BITSTREAM;
     return 0;
   }
-
   const int num_bits_width = aom_rb_read_literal(rb, 4) + 1;
   const int num_bits_height = aom_rb_read_literal(rb, 4) + 1;
   const int max_frame_width = aom_rb_read_literal(rb, num_bits_width) + 1;
@@ -295,7 +294,12 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
   av1_validate_seq_conformance_window(seq_params, &cm->error);
 #endif  // CONFIG_CROP_WIN_CWG_F220
 
+#if CONFIG_CWG_F270_CI_OBU
+  av1_read_chroma_format_bitdepth(rb, seq_params, &cm->error);
+#else
   av1_read_color_config(rb, seq_params, &cm->error);
+#endif  // CONFIG_CWG_F270_CI_OBU
+
 #if !CONFIG_CWG_E242_CHROMA_FORMAT_IDC
   if (!(seq_params->subsampling_x == 0 && seq_params->subsampling_y == 0) &&
       !(seq_params->subsampling_x == 1 && seq_params->subsampling_y == 1) &&
@@ -317,7 +321,9 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
   }
 
   if (seq_params->single_picture_header_flag) {
+#if !CONFIG_CWG_F270_CI_OBU
     seq_params->timing_info_present = 0;
+#endif  // !CONFIG_CWG_F270_CI_OBU
     seq_params->decoder_model_info_present_flag = 0;
     seq_params->display_model_info_present_flag = 0;
     seq_params->operating_points_cnt_minus_1 = 0;
@@ -330,16 +336,19 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
     seq_params->op_params[0].decoder_model_param_present_flag = 0;
     seq_params->op_params[0].display_model_param_present_flag = 0;
   } else {
+#if !CONFIG_CWG_F270_CI_OBU
     seq_params->timing_info_present = aom_rb_read_bit(rb);
     if (seq_params->timing_info_present) {
       av1_read_timing_info_header(&seq_params->timing_info, &cm->error, rb);
-
+#endif  // !CONFIG_CWG_F270_CI_OBU
       seq_params->decoder_model_info_present_flag = aom_rb_read_bit(rb);
       if (seq_params->decoder_model_info_present_flag)
         av1_read_decoder_model_info(&seq_params->decoder_model_info, rb);
+#if !CONFIG_CWG_F270_CI_OBU
     } else {
       seq_params->decoder_model_info_present_flag = 0;
     }
+#endif  // !CONFIG_CWG_F270_CI_OBU
     seq_params->display_model_info_present_flag = aom_rb_read_bit(rb);
     seq_params->operating_points_cnt_minus_1 =
         aom_rb_read_literal(rb, OP_POINTS_CNT_MINUS_1_BITS);
@@ -367,9 +376,13 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
       } else {
         seq_params->op_params[i].decoder_model_param_present_flag = 0;
       }
+#if CONFIG_CWG_F270_CI_OBU
+      if (seq_params->op_params[i].decoder_model_param_present_flag) {
+#else
       if (seq_params->timing_info_present &&
           (seq_params->timing_info.equal_picture_interval ||
            seq_params->op_params[i].decoder_model_param_present_flag)) {
+#endif  // CONFIG_CWG_F270_CI_OBU
         seq_params->op_params[i].bitrate = av1_max_level_bitrate(
             seq_params->profile, seq_params->seq_level_idx[i],
             seq_params->tier[i]);
@@ -382,8 +395,11 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
         // Buffer size in bits/s is bitrate in bits/s * 1 s
         seq_params->op_params[i].buffer_size = seq_params->op_params[i].bitrate;
       }
-      if (seq_params->timing_info_present &&
+      if (
+#if !CONFIG_CWG_F270_CI_OBU
+          seq_params->timing_info_present &&
           seq_params->timing_info.equal_picture_interval &&
+#endif  // !CONFIG_CWG_F270_CI_OBU
           !seq_params->op_params[i].decoder_model_param_present_flag) {
         // When the decoder_model_parameters are not sent for this op, set
         // the default ones that can be used with the resource availability mode
@@ -469,8 +485,8 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
 #endif  // !CONFIG_F255_QMOBU
   );
 
+#if !CONFIG_CWG_F270_CI_OBU
 #if CONFIG_SCAN_TYPE_METADATA
-  // TODO(seethalpaluri): Move these to the CI OBU
   seq_params->scan_type_info_present_flag = aom_rb_read_bit(rb);
   if (seq_params->scan_type_info_present_flag) {
     seq_params->scan_type_idc = aom_rb_read_literal(rb, 2);
@@ -492,6 +508,7 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
                        seq_params->elemental_ct_duration_minus_1);
   }
 #endif  // CONFIG_SCAN_TYPE_METADATA
+#endif  // !CONFIG_CWG_F270_CI_OBU
 
   if (av1_check_trailing_bits(pbi, rb) != 0) {
     // cm->error.error_code is already set.
@@ -509,6 +526,9 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
 #if CONFIG_MULTI_FRAME_HEADER
       reset_mfh_valid(cm);
 #endif  // CONFIG_MULTI_FRAME_HEADER
+#if CONFIG_CWG_F270_CI_OBU
+      pbi->ci_params_received = 0;
+#endif  // CONFIG_CWG_F270_CI_OBU
     }
   }
 #if CONFIG_F024_KEYOBU
@@ -1571,6 +1591,9 @@ static int check_obu_order(OBU_TYPE prev_obu_type, OBU_TYPE curr_obu_type) {
            curr_obu_type == OBU_ATLAS_SEGMENT ||
            curr_obu_type == OBU_OPERATING_POINT_SET ||
            curr_obu_type == OBU_SEQUENCE_HEADER ||
+#if CONFIG_CWG_F270_CI_OBU
+           curr_obu_type == OBU_CONTENT_INTERPRETATION ||
+#endif  // CONFIG_CWG_F270_CI_OBU
            curr_obu_type == OBU_MULTI_FRAME_HEADER ||
            is_coded_frame(curr_obu_type) || curr_obu_type == OBU_METADATA
 #if CONFIG_SHORT_METADATA
@@ -1583,6 +1606,9 @@ static int check_obu_order(OBU_TYPE prev_obu_type, OBU_TYPE curr_obu_type) {
               curr_obu_type == OBU_ATLAS_SEGMENT ||
               curr_obu_type == OBU_OPERATING_POINT_SET ||
               curr_obu_type == OBU_SEQUENCE_HEADER ||
+#if CONFIG_CWG_F270_CI_OBU
+              curr_obu_type == OBU_CONTENT_INTERPRETATION ||
+#endif  // CONFIG_CWG_F270_CI_OBU
               curr_obu_type == OBU_MULTI_FRAME_HEADER ||
               is_coded_frame(curr_obu_type) || curr_obu_type == OBU_METADATA
 #if CONFIG_SHORT_METADATA
@@ -1595,6 +1621,9 @@ static int check_obu_order(OBU_TYPE prev_obu_type, OBU_TYPE curr_obu_type) {
               curr_obu_type == OBU_ATLAS_SEGMENT ||
               curr_obu_type == OBU_OPERATING_POINT_SET ||
               curr_obu_type == OBU_SEQUENCE_HEADER ||
+#if CONFIG_CWG_F270_CI_OBU
+              curr_obu_type == OBU_CONTENT_INTERPRETATION ||
+#endif  // CONFIG_CWG_F270_CI_OBU
               curr_obu_type == OBU_MULTI_FRAME_HEADER ||
               is_coded_frame(curr_obu_type) || curr_obu_type == OBU_METADATA
 #if CONFIG_SHORT_METADATA
@@ -1606,6 +1635,9 @@ static int check_obu_order(OBU_TYPE prev_obu_type, OBU_TYPE curr_obu_type) {
              (curr_obu_type == OBU_OPERATING_POINT_SET ||
               curr_obu_type == OBU_ATLAS_SEGMENT ||
               curr_obu_type == OBU_SEQUENCE_HEADER ||
+#if CONFIG_CWG_F270_CI_OBU
+              curr_obu_type == OBU_CONTENT_INTERPRETATION ||
+#endif  // CONFIG_CWG_F270_CI_OBU
               curr_obu_type == OBU_MULTI_FRAME_HEADER ||
               is_coded_frame(curr_obu_type) || curr_obu_type == OBU_METADATA
 #if CONFIG_SHORT_METADATA
@@ -1616,6 +1648,9 @@ static int check_obu_order(OBU_TYPE prev_obu_type, OBU_TYPE curr_obu_type) {
   } else if ((prev_obu_type == OBU_ATLAS_SEGMENT) &&
              (curr_obu_type == OBU_ATLAS_SEGMENT ||
               curr_obu_type == OBU_SEQUENCE_HEADER ||
+#if CONFIG_CWG_F270_CI_OBU
+              curr_obu_type == OBU_CONTENT_INTERPRETATION ||
+#endif  // CONFIG_CWG_F270_CI_OBU
               curr_obu_type == OBU_MULTI_FRAME_HEADER ||
               is_coded_frame(curr_obu_type) || curr_obu_type == OBU_METADATA
 #if CONFIG_SHORT_METADATA
@@ -1625,6 +1660,9 @@ static int check_obu_order(OBU_TYPE prev_obu_type, OBU_TYPE curr_obu_type) {
     return 0;
   } else if ((prev_obu_type == OBU_SEQUENCE_HEADER) &&
              (curr_obu_type == OBU_SEQUENCE_HEADER ||
+#if CONFIG_CWG_F270_CI_OBU
+              curr_obu_type == OBU_CONTENT_INTERPRETATION ||
+#endif  // CONFIG_CWG_F270_CI_OBU
               curr_obu_type == OBU_MULTI_FRAME_HEADER ||
               curr_obu_type == OBU_BUFFER_REMOVAL_TIMING ||
               is_coded_frame(curr_obu_type) || curr_obu_type == OBU_METADATA
@@ -1633,6 +1671,17 @@ static int check_obu_order(OBU_TYPE prev_obu_type, OBU_TYPE curr_obu_type) {
 #endif  // CONFIG_SHORT_METADATA
               )) {
     return 0;
+#if CONFIG_CWG_F270_CI_OBU
+  } else if ((prev_obu_type == OBU_CONTENT_INTERPRETATION) &&
+             (curr_obu_type == OBU_MULTI_FRAME_HEADER ||
+              curr_obu_type == OBU_BUFFER_REMOVAL_TIMING ||
+              is_coded_frame(curr_obu_type) || curr_obu_type == OBU_METADATA
+#if CONFIG_SHORT_METADATA
+              || curr_obu_type == OBU_METADATA_GROUP
+#endif  // CONFIG_SHORT_METADATA
+              )) {
+    return 0;
+#endif  // CONFIG_CWG_F270_CI_OBU
   } else if ((prev_obu_type == OBU_BUFFER_REMOVAL_TIMING) &&
              (curr_obu_type == OBU_MULTI_FRAME_HEADER ||
               is_coded_frame(curr_obu_type) || curr_obu_type == OBU_METADATA
@@ -1937,6 +1986,16 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
         break;
 #endif  // CONFIG_MULTILAYER_HLS
+#if CONFIG_CWG_F270_CI_OBU
+      case OBU_CONTENT_INTERPRETATION:
+        if (!pbi->sequence_header_ready) {
+          cm->error.error_code = AOM_CODEC_UNSUP_BITSTREAM;
+          return -1;
+        }
+        decoded_payload_size = av1_read_content_interpretation_obu(pbi, &rb);
+        if (cm->error.error_code != AOM_CODEC_OK) return -1;
+        break;
+#endif  // CONFIG_CWG_F270_CI_OBU
 #if CONFIG_MULTI_FRAME_HEADER
       case OBU_MULTI_FRAME_HEADER:
         decoded_payload_size = read_multi_frame_header_obu(pbi, &rb);

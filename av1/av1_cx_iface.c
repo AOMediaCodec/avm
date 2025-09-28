@@ -1269,12 +1269,20 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
     dec_model_cfg->timing_info_present = 1;
     dec_model_cfg->timing_info.num_units_in_display_tick = cfg->g_timebase.num;
     dec_model_cfg->timing_info.time_scale = cfg->g_timebase.den;
+#if CONFIG_CWG_F270_CI_OBU
+    dec_model_cfg->timing_info.num_ticks_per_elemental_duration = 1;
+#else
     dec_model_cfg->timing_info.num_ticks_per_picture = 1;
+#endif  // CONFIG_CWG_F270_CI_OBU
   } else {
     dec_model_cfg->timing_info_present = 0;
   }
   if (extra_cfg->timing_info_type == AOM_TIMING_EQUAL) {
+#if CONFIG_CWG_F270_CI_OBU
+    dec_model_cfg->timing_info.equal_elemental_interval = 1;
+#else
     dec_model_cfg->timing_info.equal_picture_interval = 1;
+#endif  // CONFIG_CWG_F270_CI_OBU
     dec_model_cfg->decoder_model_info_present_flag = 0;
     dec_model_cfg->display_model_info_present_flag = 1;
   } else if (extra_cfg->timing_info_type == AOM_TIMING_DEC_MODEL) {
@@ -1284,7 +1292,11 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
     //      --timing-info=model."); return AOM_CODEC_INVALID_PARAM;
     //    }
     dec_model_cfg->num_units_in_decoding_tick = cfg->g_timebase.num;
+#if CONFIG_CWG_F270_CI_OBU
+    dec_model_cfg->timing_info.equal_elemental_interval = 0;
+#else
     dec_model_cfg->timing_info.equal_picture_interval = 0;
+#endif  // CONFIG_CWG_F270_CI_OBU
     dec_model_cfg->decoder_model_info_present_flag = 1;
     dec_model_cfg->display_model_info_present_flag = 1;
   }

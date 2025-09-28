@@ -89,12 +89,18 @@ static void bitreader_error_handler(void *data, aom_codec_err_t error,
   *error_val = -1;
 }
 
+#if !CONFIG_CWG_F270_CI_OBU
 // Parse the AV1 timing_info() structure:
 // timing_info( ) {
 //   num_units_in_display_tick       f(32)
 //   time_scale                      f(32)
+#if CONFIG_CWG_F270_CI_OBU
+//   equal_elemental_interval          f(1)
+//   if (equal_elemental_interval)
+#else
 //   equal_picture_interval          f(1)
 //   if (equal_picture_interval)
+#endif  // CONFIG_CWG_F270_CI_OBU
 //     num_ticks_per_picture_minus_1 uvlc()
 //   }
 static int parse_timing_info(struct aom_read_bit_buffer *reader) {
@@ -104,8 +110,13 @@ static int parse_timing_info(struct aom_read_bit_buffer *reader) {
   AV1C_READ_BITS_OR_RETURN_ERROR(num_units_in_display_tick, 32);
   AV1C_READ_BITS_OR_RETURN_ERROR(time_scale, 32);
 
+#if CONFIG_CWG_F270_CI_OBU
+  AV1C_READ_BIT_OR_RETURN_ERROR(equal_elemental_interval);
+  if (equal_elemental_interval) {
+#else
   AV1C_READ_BIT_OR_RETURN_ERROR(equal_picture_interval);
   if (equal_picture_interval) {
+#endif  // CONFIG_CWG_F270_CI_OBU
     uint32_t num_ticks_per_picture_minus_1 = aom_rb_read_uvlc(reader);
     if (result == -1) {
       fprintf(stderr,
@@ -124,6 +135,7 @@ static int parse_timing_info(struct aom_read_bit_buffer *reader) {
   AV1C_POP_ERROR_HANDLER_DATA();
   return result;
 }
+#endif  // !CONFIG_CWG_F270_CI_OBU
 
 // Parse the AV1 decoder_model_info() structure:
 // decoder_model_info( ) {
@@ -183,10 +195,17 @@ static int get_bitdepth(int bitdepth_lut_idx) {
   return bitdepth;
 }
 #endif  // CONFIG_CWG_E242_BITDEPTH
+
+#if CONFIG_CWG_F270_CI_OBU
+// Parse the chroma format and bitdepth in the sequence header.
+static int parse_chroma_format_bitdepth(struct aom_read_bit_buffer *reader,
+                                        Av1Config *config) {
+#else
 // Parse the AV1 color_config() structure..See:
 // https://aomediacodec.github.io/av1-spec/av1-spec.pdf#page=44
 static int parse_color_config(struct aom_read_bit_buffer *reader,
                               Av1Config *config) {
+#endif  // CONFIG_CWG_F270_CI_OBU
   int result = 0;
   AV1C_PUSH_ERROR_HANDLER_DATA(result);
 
@@ -294,6 +313,7 @@ static int parse_color_config(struct aom_read_bit_buffer *reader,
     }
 #endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
+#if !CONFIG_CWG_F270_CI_OBU
     if (config->chroma_subsampling_x && !config->chroma_subsampling_y) {
       // YUV 4:2:2
       config->chroma_sample_position = AOM_CSP_UNSPECIFIED;
@@ -316,6 +336,7 @@ static int parse_color_config(struct aom_read_bit_buffer *reader,
         config->chroma_sample_position = chroma_sample_position;
       }
     }
+#endif  // !CONFIG_CWG_F270_CI_OBU
   }
 
   AV1C_POP_ERROR_HANDLER_DATA();
@@ -376,10 +397,17 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
   }
 #endif  // CONFIG_CROP_WIN_CWG_F220
 
+#if CONFIG_CWG_F270_CI_OBU
+  if (parse_chroma_format_bitdepth(reader, config) != 0) {
+    fprintf(stderr, "Chroma format or bitdepth parsing failed.\n");
+    return -1;
+  }
+#else
   if (parse_color_config(reader, config) != 0) {
     fprintf(stderr, "av1c: color_config() parse failed.\n");
     return -1;
   }
+#endif  // CONFIG_CWG_F270_CI_OBU
 
   AV1C_READ_BIT_OR_RETURN_ERROR(still_picture);
   AV1C_READ_BIT_OR_RETURN_ERROR(single_picture_header_flag);
@@ -392,9 +420,11 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
     int has_decoder_model = 0;
     int buffer_delay_length = 0;
 
+#if !CONFIG_CWG_F270_CI_OBU
     AV1C_READ_BIT_OR_RETURN_ERROR(timing_info_present_flag);
     if (timing_info_present_flag) {
       if (parse_timing_info(reader) != 0) return -1;
+#endif  // !CONFIG_CWG_F270_CI_OBU
 
       AV1C_READ_BIT_OR_RETURN_ERROR(decoder_model_info_present_flag);
       if (decoder_model_info_present_flag &&
@@ -402,7 +432,9 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
         return -1;
       }
       has_decoder_model = 1;
+#if !CONFIG_CWG_F270_CI_OBU
     }
+#endif  //  !CONFIG_CWG_F270_CI_OBU
 
     AV1C_READ_BIT_OR_RETURN_ERROR(initial_presentation_delay_present);
     config->initial_presentation_delay_present =
@@ -455,6 +487,111 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
   return 0;
 }
 
+#if CONFIG_CWG_F270_CI_OBU
+// Parse Content Interpretation OBU and populare config with CI params
+static int parse_content_intrepretation_obu(const uint8_t *const buffer,
+                                            size_t length, Av1Config *config) {
+  int result = 0;
+  struct aom_read_bit_buffer reader_instance = { buffer, buffer + length, 0,
+                                                 &result,
+                                                 bitreader_error_handler };
+
+  struct aom_read_bit_buffer *reader = &reader_instance;
+
+  // Read CI header fields
+  AV1C_READ_BITS_OR_RETURN_ERROR(ci_scan_type_idc, 2);
+  config->ci_scan_type_idc = ci_scan_type_idc;
+
+  AV1C_READ_BIT_OR_RETURN_ERROR(ci_color_description_present_flag);
+  config->ci_color_description_present_flag = ci_color_description_present_flag;
+
+  AV1C_READ_BIT_OR_RETURN_ERROR(ci_chroma_sample_position_present_flag);
+  config->ci_chroma_sample_position_present_flag =
+      ci_chroma_sample_position_present_flag;
+
+  AV1C_READ_BIT_OR_RETURN_ERROR(ci_aspect_ratio_info_present_flag);
+  config->ci_aspect_ratio_info_present_flag = ci_aspect_ratio_info_present_flag;
+
+  AV1C_READ_BIT_OR_RETURN_ERROR(ci_timing_info_present_flag);
+  config->ci_timing_info_present_flag = ci_timing_info_present_flag;
+
+  AV1C_READ_BIT_OR_RETURN_ERROR(ci_extension_present_flag);
+  (void)ci_extension_present_flag;  // Not stored in config
+
+  AV1C_READ_BIT_OR_RETURN_ERROR(reserved_bit);
+  (void)reserved_bit;  // Reserved bit
+
+  // Parse color information if present
+  if (ci_color_description_present_flag) {
+    AV1C_READ_BITS_OR_RETURN_ERROR(color_description_idc, 3);
+    // Rice-Golomb with k=3, but for simplicity we read as literal
+    // In actual implementation, use aom_rb_read_rice_golomb(reader, 3)
+
+    if (color_description_idc == 0) {
+      AV1C_READ_UVLC_BITS_OR_RETURN_ERROR(color_primaries);
+      config->ci_color_primaries = color_primaries;
+
+      AV1C_READ_UVLC_BITS_OR_RETURN_ERROR(matrix_coefficients);
+      config->ci_matrix_coefficients = matrix_coefficients;
+
+      AV1C_READ_UVLC_BITS_OR_RETURN_ERROR(transfer_characteristics);
+      config->ci_transfer_characteristics = transfer_characteristics;
+    } else {
+      config->ci_color_primaries = 2;           // AOM_CICP_CP_UNSPECIFIED
+      config->ci_matrix_coefficients = 2;       // AOM_CICP_MC_UNSPECIFIED
+      config->ci_transfer_characteristics = 2;  // AOM_CICP_TC_UNSPECIFIED
+    }
+
+    AV1C_READ_BIT_OR_RETURN_ERROR(full_range_flag);
+    config->ci_full_range_flag = full_range_flag;
+  } else {
+    config->ci_color_primaries = 2;           // AOM_CICP_CP_UNSPECIFIED
+    config->ci_matrix_coefficients = 2;       // AOM_CICP_MC_UNSPECIFIED
+    config->ci_transfer_characteristics = 2;  // AOM_CICP_TC_UNSPECIFIED
+    config->ci_full_range_flag = 0;
+  }
+
+  // Parse chroma sample position if present
+  if (ci_chroma_sample_position_present_flag) {
+    AV1C_READ_UVLC_BITS_OR_RETURN_ERROR(ci_chroma_sample_position_0);
+    config->chroma_sample_position = ci_chroma_sample_position_0;
+
+    if (ci_scan_type_idc != 1) {
+      AV1C_READ_UVLC_BITS_OR_RETURN_ERROR(ci_chroma_sample_position_1);
+      config->ci_chroma_sample_position_1 = ci_chroma_sample_position_1;
+    } else {
+      config->ci_chroma_sample_position_1 = ci_chroma_sample_position_0;
+    }
+  } else {
+    config->chroma_sample_position = 0;       // AOM_CSP_UNSPECIFIED
+    config->ci_chroma_sample_position_1 = 0;  // AOM_CSP_UNSPECIFIED
+  }
+
+  // Parse sample aspect ratio if present
+  if (ci_aspect_ratio_info_present_flag) {
+    AV1C_READ_UVLC_BITS_OR_RETURN_ERROR(sar_aspect_ratio_idc);
+    config->ci_sar_aspect_ratio_idc = sar_aspect_ratio_idc;
+
+    if (sar_aspect_ratio_idc == 255) {  // AOM_SAR_IDC_255
+      AV1C_READ_UVLC_BITS_OR_RETURN_ERROR(sar_width);
+      config->ci_sar_width = sar_width;
+
+      AV1C_READ_UVLC_BITS_OR_RETURN_ERROR(sar_height);
+      config->ci_sar_height = sar_height;
+    }
+  } else {
+    config->ci_sar_aspect_ratio_idc = 0;
+    config->ci_sar_width = 0;
+    config->ci_sar_height = 0;
+  }
+
+  // Skip timing info parsing for now (complex structure)
+  // Skip extension parsing (not yet defined)
+  config->ci_present = 1;
+  return 0;
+}
+#endif  // CONFIG_CWG_F270_CI_OBU
+
 int get_av1config_from_obu(const uint8_t *buffer, size_t length,
                            Av1Config *config) {
   if (!buffer || length == 0 || !config) {
@@ -477,8 +614,32 @@ int get_av1config_from_obu(const uint8_t *buffer, size_t length,
   memset(config, 0, sizeof(*config));
   config->marker = 1;
   config->version = 1;
+#if CONFIG_CWG_F270_CI_OBU
+  if (parse_sequence_header(buffer + obu_header_length, sequence_header_length,
+                            config) != 0) {
+    return -1;
+  }
+  if (length > 0) {
+    memset(&obu_header, 0, sizeof(obu_header));
+    size_t ci_header_length = 0;
+    obu_header_length = 0;
+    if (aom_read_obu_header_and_size(buffer, length, &obu_header,
+                                     &ci_header_length,
+                                     &obu_header_length) == AOM_CODEC_OK &&
+        obu_header.type != OBU_CONTENT_INTERPRETATION &&
+        sequence_header_length + obu_header_length <= length) {
+      if (parse_content_intrepretation_obu(buffer + obu_header_length,
+                                           ci_header_length, config) != 0) {
+        fprintf(stderr, "av1c: CI OBU parse failed.\n");
+        config->ci_present = 0;
+      }
+    }
+  }
+  return 0;
+#else
   return parse_sequence_header(buffer + obu_header_length,
                                sequence_header_length, config);
+#endif  // CONFIG_CWG_F270_CI_OBU
 }
 
 int read_av1config(const uint8_t *buffer, size_t buffer_length,

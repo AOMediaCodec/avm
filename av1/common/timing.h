@@ -19,8 +19,13 @@
 typedef struct aom_timing {
   uint32_t num_units_in_display_tick;
   uint32_t time_scale;
+#if CONFIG_CWG_F270_CI_OBU
+  int equal_elemental_interval;
+  uint32_t num_ticks_per_elemental_duration;
+#else
   int equal_picture_interval;
   uint32_t num_ticks_per_picture;
+#endif  // CONFIG_CWG_F270_CI_OBU
 } aom_timing_info_t;
 
 typedef struct aom_dec_model_info {

@@ -23,6 +23,9 @@ static int valid_obu_type(int obu_type) {
   int valid_type = 0;
   switch (obu_type) {
     case OBU_SEQUENCE_HEADER:
+#if CONFIG_CWG_F270_CI_OBU
+    case OBU_CONTENT_INTERPRETATION:
+#endif  // CONFIG_CWG_F270_CI_OBU
     case OBU_TEMPORAL_DELIMITER:
 #if CONFIG_MULTI_FRAME_HEADER
     case OBU_MULTI_FRAME_HEADER:
@@ -146,7 +149,6 @@ static aom_codec_err_t read_obu_header(struct aom_read_bit_buffer *rb,
 #endif  // CONFIG_SET_DEFAULT_VALUE_XLAYER_ID
       header->obu_xlayer_id = 0;
   }
-
   return AOM_CODEC_OK;
 }
 
