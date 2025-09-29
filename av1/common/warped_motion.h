@@ -247,7 +247,6 @@ int av1_extend_warp_model(const bool neighbor_is_above, const BLOCK_SIZE bsize,
 #endif  // CONFIG_ACROSS_SCALE_WARP
 );
 
-#if CONFIG_IMPROVED_GLOBAL_MOTION
 // Given a warp model which was initially used at a temporal distance of
 // `in_distance`, rescale it to a new temporal distance of `out_distance`.
 // Both distances are allowed to be negative, but they must be nonzero.
@@ -346,7 +345,6 @@ static INLINE void av1_scale_warp_model(const WarpedMotionParams *in_params,
     out_params->wmmat[param] = center + output;
   }
 }
-#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 
 int_mv get_warp_motion_vector_xy_pos(const MACROBLOCKD *xd,
                                      const WarpedMotionParams *model,

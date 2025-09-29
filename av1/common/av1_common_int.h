@@ -1055,9 +1055,7 @@ typedef struct SequenceHeader {
   uint8_t enable_ext_partitions;     // enable extended partitions
   uint8_t enable_uneven_4way_partitions;  // enable uneven 4way partition
   uint8_t max_pb_aspect_ratio_log2_m1;    // Can be 0, 1, or 2.
-#if CONFIG_IMPROVED_GLOBAL_MOTION
   bool enable_global_motion;
-#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
   uint8_t enable_short_refresh_frame_flags;
 #if CONFIG_EXT_SEG
   uint8_t enable_ext_seg;
@@ -2273,7 +2271,6 @@ typedef struct AV1Common {
    */
   DeltaQInfo delta_q_info;
 
-#if CONFIG_IMPROVED_GLOBAL_MOTION
   /*!
    * Base model used for delta-coding global motion parameters
    */
@@ -2283,7 +2280,6 @@ typedef struct AV1Common {
    * Temporal length of `base_global_motion_model`
    */
   int base_global_motion_distance;
-#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 
   /*!
    * Global motion parameters for each reference frame.

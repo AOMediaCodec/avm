@@ -5892,13 +5892,11 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
   if (seq_params->max_pb_aspect_ratio_log2_m1 < 2) {
     aom_wb_write_bit(wb, seq_params->max_pb_aspect_ratio_log2_m1);
   }
-#if CONFIG_IMPROVED_GLOBAL_MOTION
   if (seq_params->single_picture_hdr_flag) {
     assert(seq_params->enable_global_motion == 0);
   } else {
     aom_wb_write_bit(wb, seq_params->enable_global_motion);
   }
-#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
   aom_wb_write_literal(wb, seq_params->df_par_bits_minus2, 2);
   aom_wb_write_bit(wb, seq_params->enable_short_refresh_frame_flags);
 #if CONFIG_EXT_SEG
@@ -5964,9 +5962,7 @@ static AOM_INLINE void write_global_motion_params(
     const WarpedMotionParams *params, const WarpedMotionParams *ref_params,
     struct aom_write_bit_buffer *wb, MvSubpelPrecision precision) {
   const int precision_loss = get_gm_precision_loss(precision);
-#if CONFIG_IMPROVED_GLOBAL_MOTION
   (void)precision_loss;
-#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 
   const TransformationType type = params->wmtype;
 
@@ -5974,11 +5970,7 @@ static AOM_INLINE void write_global_motion_params(
   if (type != IDENTITY) {
     aom_wb_write_bit(wb, type == ROTZOOM);
     if (type != ROTZOOM) {
-#if CONFIG_IMPROVED_GLOBAL_MOTION
       assert(type == AFFINE);
-#else
-      aom_wb_write_bit(wb, type == TRANSLATION);
-#endif  // !CONFIG_IMPROVED_GLOBAL_MOTION
     }
   }
 
@@ -6007,18 +5999,8 @@ static AOM_INLINE void write_global_motion_params(
   }
 
   if (type >= TRANSLATION) {
-#if CONFIG_IMPROVED_GLOBAL_MOTION
     const int trans_prec_diff = GM_TRANS_PREC_DIFF;
     const int trans_max = GM_TRANS_MAX;
-#else
-    const int trans_bits = (type == TRANSLATION)
-                               ? GM_ABS_TRANS_ONLY_BITS - precision_loss
-                               : GM_ABS_TRANS_BITS;
-    const int trans_prec_diff = (type == TRANSLATION)
-                                    ? GM_TRANS_ONLY_PREC_DIFF + precision_loss
-                                    : GM_TRANS_PREC_DIFF;
-    const int trans_max = (1 << trans_bits);
-#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 
     aom_wb_write_signed_primitive_refsubexpfin(
         wb, trans_max + 1, SUBEXPFIN_K,
@@ -6038,7 +6020,6 @@ static AOM_INLINE void write_global_motion(AV1_COMP *cpi,
   assert(cm->cur_frame->num_ref_frames == num_total_refs);
   int frame;
 
-#if CONFIG_IMPROVED_GLOBAL_MOTION
   const SequenceHeader *const seq_params = &cm->seq_params;
   if (!seq_params->enable_global_motion) {
     return;
@@ -6077,10 +6058,8 @@ static AOM_INLINE void write_global_motion(AV1_COMP *cpi,
       aom_wb_write_primitive_quniform(wb, their_num_refs, their_ref);
     }
   }
-#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 
   for (frame = 0; frame < num_total_refs; ++frame) {
-#if CONFIG_IMPROVED_GLOBAL_MOTION
     int temporal_distance;
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
     if (seq_params->order_hint_info.enable_order_hint) {
@@ -6107,11 +6086,6 @@ static AOM_INLINE void write_global_motion(AV1_COMP *cpi,
                          cm->base_global_motion_distance, &ref_params_,
                          temporal_distance);
     WarpedMotionParams *ref_params = &ref_params_;
-#else
-    const WarpedMotionParams *ref_params =
-        cm->prev_frame ? &cm->prev_frame->global_motion[frame]
-                       : &default_warp_params;
-#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 
     write_global_motion_params(&cm->global_motion[frame], ref_params, wb,
                                cm->features.fr_mv_precision);

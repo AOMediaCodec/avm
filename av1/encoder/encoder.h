@@ -2125,7 +2125,6 @@ typedef struct {
   int segment_map_h; /*!< segment map height */
   /**@}*/
 
-#if CONFIG_IMPROVED_GLOBAL_MOTION
   /*!
    * \brief Error ratio for each selected global motion model
    *
@@ -2142,7 +2141,6 @@ typedef struct {
   int base_model_our_ref;   /*!< which of our ref frames to copy from */
   int base_model_their_ref; /*!< which model to copy from that frame */
   /**@}*/
-#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 } GlobalMotionInfo;
 
 /*!

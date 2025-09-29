@@ -33,23 +33,11 @@ static int gm_get_params_cost(const WarpedMotionParams *gm,
                               const WarpedMotionParams *ref_gm,
                               MvSubpelPrecision precision) {
   const int precision_loss = get_gm_precision_loss(precision);
-#if CONFIG_IMPROVED_GLOBAL_MOTION
   (void)precision_loss;
-#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
   int params_cost = 0;
-#if CONFIG_IMPROVED_GLOBAL_MOTION
   const int trans_bits = GM_ABS_TRANS_BITS;
   const int trans_prec_diff = GM_TRANS_PREC_DIFF;
   const int trans_max = (1 << trans_bits) - 1;
-#else
-  const int trans_bits = (gm->wmtype == TRANSLATION)
-                             ? GM_ABS_TRANS_ONLY_BITS - precision_loss
-                             : GM_ABS_TRANS_BITS;
-  const int trans_prec_diff = (gm->wmtype == TRANSLATION)
-                                  ? GM_TRANS_ONLY_PREC_DIFF + precision_loss
-                                  : GM_TRANS_PREC_DIFF;
-  const int trans_max = (1 << trans_bits);
-#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 
   switch (gm->wmtype) {
     case AFFINE:
@@ -88,23 +76,13 @@ static int gm_get_params_cost(const WarpedMotionParams *gm,
 
 // For the given reference frame, computes the global motion parameters for
 // different motion models and finds the best.
-#if CONFIG_IMPROVED_GLOBAL_MOTION
 static AOM_INLINE void compute_global_motion_for_ref_frame(
     AV1_COMP *cpi, struct aom_internal_error_info *error_info,
     YV12_BUFFER_CONFIG *ref_buf[INTER_REFS_PER_FRAME], int frame,
     MotionModel *motion_models, uint8_t *segment_map, const int segment_map_w,
     const int segment_map_h) {
-#else
-static AOM_INLINE void compute_global_motion_for_ref_frame(
-    AV1_COMP *cpi, struct aom_internal_error_info *error_info,
-    YV12_BUFFER_CONFIG *ref_buf[INTER_REFS_PER_FRAME], int frame,
-    MotionModel *motion_models, uint8_t *segment_map, const int segment_map_w,
-    const int segment_map_h, const WarpedMotionParams *ref_params) {
-#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
   AV1_COMMON *const cm = &cpi->common;
-#if CONFIG_IMPROVED_GLOBAL_MOTION
   GlobalMotionInfo *const gm_info = &cpi->gm_info;
-#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 
   int src_width = cpi->source->y_crop_width;
   int src_height = cpi->source->y_crop_height;
@@ -199,16 +177,6 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
 
       double erroradvantage = (double)warp_error / ref_frame_error;
 
-#if !CONFIG_IMPROVED_GLOBAL_MOTION
-      // Check that the model signaling cost is not too high
-      if (!av1_is_enough_erroradvantage(
-              erroradvantage,
-              gm_get_params_cost(&tmp_wm_params, ref_params,
-                                 cm->features.fr_mv_precision))) {
-        continue;
-      }
-#endif  // !CONFIG_IMPROVED_GLOBAL_MOTION
-
       if (erroradvantage < best_erroradv) {
         best_erroradv = erroradvantage;
         // Save the wm_params modified by
@@ -219,9 +187,7 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
       }
     }
   }
-#if CONFIG_IMPROVED_GLOBAL_MOTION
   gm_info->erroradvantage[frame] = best_erroradv;
-#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
   aom_clear_system_state();
 }
 
@@ -231,20 +197,9 @@ void av1_compute_gm_for_valid_ref_frames(
     YV12_BUFFER_CONFIG *ref_buf[INTER_REFS_PER_FRAME], int frame,
     MotionModel *motion_models, uint8_t *segment_map, int segment_map_w,
     int segment_map_h) {
-#if CONFIG_IMPROVED_GLOBAL_MOTION
   compute_global_motion_for_ref_frame(cpi, error_info, ref_buf, frame,
                                       motion_models, segment_map, segment_map_w,
                                       segment_map_h);
-#else
-  AV1_COMMON *const cm = &cpi->common;
-  const WarpedMotionParams *ref_params =
-      cm->prev_frame ? &cm->prev_frame->global_motion[frame]
-                     : &default_warp_params;
-
-  compute_global_motion_for_ref_frame(cpi, error_info, ref_buf, frame,
-                                      motion_models, segment_map, segment_map_w,
-                                      segment_map_h, ref_params);
-#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 }
 
 // Loops over valid reference frames and computes global motion estimation.
@@ -408,7 +363,6 @@ static AOM_INLINE void dealloc_global_motion_data(MotionModel *motion_models,
   }
 }
 
-#if CONFIG_IMPROVED_GLOBAL_MOTION
 // Select which global motion model to use as a base
 static AOM_INLINE void pick_base_gm_params(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
@@ -556,7 +510,6 @@ static AOM_INLINE void pick_base_gm_params(AV1_COMP *cpi) {
     }
   }
 }
-#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 
 // Initializes parameters used for computing global motion.
 static AOM_INLINE void setup_global_motion_info_params(AV1_COMP *cpi) {
@@ -662,11 +615,9 @@ void av1_compute_global_motion_facade(AV1_COMP *cpi) {
     else
       global_motion_estimation(cpi);
 
-#if CONFIG_IMPROVED_GLOBAL_MOTION
     // Once we have determined the best motion model for each ref frame,
     // choose the base parameters to minimize the total encoding cost
     pick_base_gm_params(cpi);
-#endif  // CONFIG_IMPROVED_GLOBAL_MOTION
 
     update_gm_stats(cpi);
 
