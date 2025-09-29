@@ -813,9 +813,6 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
            : (*eob != 1 && cm->seq_params.enable_ist
 #if CONFIG_FSC_RES_HLS
               && !xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART]
-#if CONFIG_FSC_RES_HLS2
-              && !cm->seq_params.enable_fsc
-#endif
 #endif  // CONFIG_FSC_RES_HLS
               ))) {
     av1_read_sec_tx_type(cm, xd, blk_row, blk_col, tx_size, eob, r);

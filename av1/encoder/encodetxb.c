@@ -1077,9 +1077,6 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
            : (eob != 1 && cm->seq_params.enable_ist
 #if CONFIG_FSC_RES_HLS
               && !xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART]
-#if CONFIG_FSC_RES_HLS2
-              && !cm->seq_params.enable_fsc
-#endif
 #endif  // CONFIG_FSC_RES_HLS
               ))) {
     av1_write_sec_tx_type(cm, xd, tx_type, tx_size, eob, w);
