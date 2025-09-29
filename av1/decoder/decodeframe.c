@@ -6510,6 +6510,16 @@ void av1_read_film_grain_params(AV1_COMMON *cm,
       fgm_value_scale(i, j) = aom_rb_read_literal(rb, 8);
     }
   }
+
+  // Initialize unsignaled values to zero
+  for (int i = fgmNumScalingChannels; i < 3; i++) pars->fgm_points[i] = 0;
+
+  if ((seq_params->subsampling_x == 1) && (seq_params->subsampling_y == 1) &&
+      (((pars->fgm_points[1] == 0) && (pars->fgm_points[2] != 0)) ||
+       ((pars->fgm_points[1] != 0) && (pars->fgm_points[2] == 0))))
+    aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+                       "In YCbCr 4:2:0, film grain shall be applied "
+                       "to both chroma components or neither.");
 #else
   pars->num_y_points = aom_rb_read_literal(rb, 4);  // max 14
   if (pars->num_y_points > 14)
@@ -6531,21 +6541,13 @@ void av1_read_film_grain_params(AV1_COMMON *cm,
     pars->chroma_scaling_from_luma = 0;
 #endif
 
-#if CONFIG_CWG_F298_REC11
-  if (seq_params->monochrome || pars->fgm_scale_from_channel0_flag ||
-      ((seq_params->subsampling_x == 1) && (seq_params->subsampling_y == 1) &&
-       (pars->fgm_points[0] == 0))) {
-    pars->fgm_points[1] = 0;
-    pars->fgm_points[2] = 0;
-#else
+#if !CONFIG_CWG_F298_REC11
   if (seq_params->monochrome || pars->chroma_scaling_from_luma ||
       ((seq_params->subsampling_x == 1) && (seq_params->subsampling_y == 1) &&
        (pars->num_y_points == 0))) {
     pars->num_cb_points = 0;
     pars->num_cr_points = 0;
-#endif
   } else {
-#if !CONFIG_CWG_F298_REC11
     pars->num_cb_points = aom_rb_read_literal(rb, 4);  // max 10
     if (pars->num_cb_points > 10)
       aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
@@ -6574,21 +6576,15 @@ void av1_read_film_grain_params(AV1_COMMON *cm,
                            "shall be increasing.");
       pars->scaling_points_cr[i][1] = aom_rb_read_literal(rb, 8);
     }
-#endif
 
-#if CONFIG_CWG_F298_REC11
-    if ((seq_params->subsampling_x == 1) && (seq_params->subsampling_y == 1) &&
-        (((pars->fgm_points[1] == 0) && (pars->fgm_points[2] != 0)) ||
-         ((pars->fgm_points[1] != 0) && (pars->fgm_points[2] == 0))))
-#else
     if ((seq_params->subsampling_x == 1) && (seq_params->subsampling_y == 1) &&
         (((pars->num_cb_points == 0) && (pars->num_cr_points != 0)) ||
          ((pars->num_cb_points != 0) && (pars->num_cr_points == 0))))
-#endif
       aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                          "In YCbCr 4:2:0, film grain shall be applied "
                          "to both chroma components or neither.");
   }
+#endif
 
   pars->scaling_shift = aom_rb_read_literal(rb, 2) + 8;  // 8 + value
 
