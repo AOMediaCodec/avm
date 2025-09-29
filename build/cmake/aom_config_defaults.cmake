@@ -324,8 +324,7 @@ set_aom_config_var(
   "Clip MV value to ensure it is within the constrained range.")
 
 # This is an encode-only change.
-set_aom_config_var(CONFIG_FAST_INTER_RDO 1
-                   "Fast inter mode selection")
+set_aom_config_var(CONFIG_FAST_INTER_RDO 1 "Fast inter mode selection")
 
 set_aom_config_var(CONFIG_FIX_RESIZE_PSNR 1
                    "Fix PSNR computation of resize mode in coded resolution")
