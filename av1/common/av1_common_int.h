@@ -575,6 +575,9 @@ typedef struct {
 } OrderHintInfo;
 
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO
+// Tile Info Syntax stucture: parses the tile information
+// in the Sequence header and Multi Frame Header
+// Different from CommonTilesParams which is used to process the tiles
 typedef struct {
   int uniform_spacing;
   int mi_cols;
