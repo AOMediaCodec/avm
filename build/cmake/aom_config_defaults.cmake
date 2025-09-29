@@ -181,7 +181,6 @@ set_aom_config_var(CONFIG_CWG_E242_BITDEPTH 1 "Signal Bitdepth using a LUT.")
 
 set_aom_config_var(CONFIG_SEQ_MAX_DRL_BITS 1
                    "AV2 sequence level max_drl_bits information")
-set_aom_config_var(CONFIG_EXT_MVPRED 1 "AV2 ext-mvpred.")
 set_aom_config_var(CONFIG_LR_FRAMEFILTERS_IN_HEADER 0
                    "AV2 expt to move frame filters to frame header.")
 set_aom_config_var(CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES 0

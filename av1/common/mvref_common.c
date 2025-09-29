@@ -2721,7 +2721,6 @@ static AOM_INLINE int generate_points_from_corners(
 }
 #endif  // CONFIG_WRL_CORNER_MVS
 
-#if CONFIG_EXT_MVPRED
 static int insert_mvp_candidate(
 #if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
     const MACROBLOCKD *xd, MV_REFERENCE_FRAME *ref_frame_idx0,
@@ -2794,7 +2793,6 @@ static int insert_mvp_candidate(
 #endif
   return 0;
 }
-#endif  // CONFIG_EXT_MVPRED
 
 static AOM_INLINE void setup_ref_mv_list(
     const AV1_COMMON *cm, const MACROBLOCKD *xd, MV_REFERENCE_FRAME ref_frame,
@@ -3311,7 +3309,6 @@ static AOM_INLINE void setup_ref_mv_list(
       }
     }
 #endif
-#if CONFIG_EXT_MVPRED
     uint8_t added_ext_cnt = 0;
     int original_mv_count = *refmv_count;
     uint8_t max_ext_stack_size = 0;
@@ -3420,7 +3417,6 @@ static AOM_INLINE void setup_ref_mv_list(
         }
       }
     }
-#endif  // CONFIG_EXT_MVPRED
   }
 
   if (warp_param_stack && valid_num_warp_candidates &&
