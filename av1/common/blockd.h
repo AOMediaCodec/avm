@@ -317,25 +317,13 @@ typedef struct {
   BacpBlockData *bacp_block_data;
 } INTERINTER_COMPOUND_BORDER_DATA;
 
-#if CONFIG_SUBBLK_REF_EXT
 #define REF_BUFFER_WIDTH                                                   \
   (REFINEMV_SUBBLOCK_WIDTH + (AOM_INTERP_EXTEND - 1) + AOM_INTERP_EXTEND + \
    2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES))
-#else
-#define REF_BUFFER_WIDTH                                                   \
-  (REFINEMV_SUBBLOCK_WIDTH + (AOM_INTERP_EXTEND - 1) + AOM_INTERP_EXTEND + \
-   2 * DMVR_SEARCH_EXT_LINES)
-#endif
 
-#if CONFIG_SUBBLK_REF_EXT
 #define REF_BUFFER_HEIGHT                                                   \
   (REFINEMV_SUBBLOCK_HEIGHT + (AOM_INTERP_EXTEND - 1) + AOM_INTERP_EXTEND + \
    2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES))
-#else
-#define REF_BUFFER_HEIGHT                                                   \
-  (REFINEMV_SUBBLOCK_HEIGHT + (AOM_INTERP_EXTEND - 1) + AOM_INTERP_EXTEND + \
-   2 * DMVR_SEARCH_EXT_LINES)
-#endif  // CONFIG_SUBBLK_REF_EXT
 
 typedef struct PadBlock {
   int x0;

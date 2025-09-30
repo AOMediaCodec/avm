@@ -168,11 +168,7 @@ void av1_highbd_convolve_2d_sr_ssse3(
           _mm_storeu_si128((__m128i *)&dst[i * dst_stride + j], res_16bit0);
           _mm_storeu_si128((__m128i *)&dst[i * dst_stride + j + dst_stride],
                            res_16bit1);
-        } else if (w == 4
-#if CONFIG_SUBBLK_REF_EXT
-                   || (w - j == 4)
-#endif  // CONFIG_SUBBLK_REF_EXT
-        ) {
+        } else if (w == 4 || (w - j == 4)) {
           res_a_round0 = _mm_packs_epi32(res_a_round0, res_a_round0);
           res_a_round0 = _mm_min_epi16(res_a_round0, clip_pixel);
           res_a_round0 = _mm_max_epi16(res_a_round0, zero);

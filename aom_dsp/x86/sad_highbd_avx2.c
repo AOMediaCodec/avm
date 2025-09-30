@@ -97,7 +97,6 @@ static AOM_FORCE_INLINE void highbd_sad16x2_core_avx2(__m256i *s, __m256i *r,
   *sad_acc = _mm256_add_epi32(*sad_acc, r[0]);
 }
 
-#if CONFIG_SUBBLK_REF_EXT
 static AOM_FORCE_INLINE void highbd_sad20x4_core_ds_avx2(__m256i *s, __m256i *r,
                                                          __m256i *sad_acc) {
   const __m256i zero = _mm256_setzero_si256();
@@ -173,7 +172,6 @@ static AOM_FORCE_INLINE void highbd_sad12x4_core_avx2(__m256i *s, __m256i *r,
   r[0] = _mm256_add_epi32(r[0], r[1]);
   *sad_acc = _mm256_add_epi32(*sad_acc, r[0]);
 }
-#endif  // CONFIG_SUBBLK_REF_EXT
 
 static AOM_FORCE_INLINE void sad16x4_ds(const uint16_t *src_ptr, int src_stride,
                                         const uint16_t *ref_ptr, int ref_stride,
@@ -287,7 +285,6 @@ static AOM_FORCE_INLINE void sad16x2_4d(__m256i *s, const uint16_t *ref_ptr,
   highbd_sad16x2_core_avx2(s, r, sad_acc);
 }
 
-#if CONFIG_SUBBLK_REF_EXT
 static AOM_FORCE_INLINE void sad20x4_ds(const uint16_t *src_ptr, int src_stride,
                                         const uint16_t *ref_ptr, int ref_stride,
                                         __m256i *sad_acc) {
@@ -413,7 +410,6 @@ static AOM_FORCE_INLINE void sad12x4(const uint16_t *src_ptr, int src_stride,
 
   highbd_sad12x4_core_avx2(s, r, sad_acc);
 }
-#endif  // CONFIG_SUBBLK_REF_EXT
 
 static AOM_FORCE_INLINE unsigned int aom_highbd_sad16xN_avx2(
     int N, const uint16_t *src_ptr, int src_stride, const uint16_t *ref_ptr,
@@ -492,7 +488,6 @@ static AOM_FORCE_INLINE unsigned int aom_highbd_sad12xN_ds_avx2(
   return (unsigned int)get_sad_from_mm256_epi32(&sad);
 }
 
-#if CONFIG_SUBBLK_REF_EXT
 static AOM_FORCE_INLINE unsigned int aom_highbd_sad20xN_avx2(
     int N, const uint16_t *src_ptr, int src_stride, const uint16_t *ref_ptr,
     int ref_stride) {
@@ -518,7 +513,6 @@ static AOM_FORCE_INLINE unsigned int aom_highbd_sad12xN_avx2(
   }
   return (unsigned int)get_sad_from_mm256_epi32(&sad);
 }
-#endif  // CONFIG_SUBBLK_REF_EXT
 
 static AOM_FORCE_INLINE void sad32x4(const uint16_t *src_ptr, int src_stride,
                                      const uint16_t *ref_ptr, int ref_stride,
@@ -822,12 +816,10 @@ highbd_sadMxN_ds_avx2(20, 12);
 highbd_sadMxN_ds_avx2(12, 12);
 highbd_sadMxN_ds_avx2(20, 20);
 
-#if CONFIG_SUBBLK_REF_EXT
 highbd_sadMxN_avx2(20, 20);
 highbd_sadMxN_avx2(20, 12);
 highbd_sadMxN_avx2(12, 20);
 highbd_sadMxN_avx2(12, 12);
-#endif  // CONFIG_SUBBLK_REF_EXT
 
 highbd_sadMxN_avx2(32, 4);
 highbd_sadMxN_avx2(32, 8);

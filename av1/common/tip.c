@@ -355,7 +355,6 @@ unsigned int get_highbd_sad(const uint16_t *src_ptr, int source_stride,
       return aom_highbd_sad8x16_8(src_ptr, source_stride, ref_ptr, ref_stride);
     else if (bw == 16 && bh == 16)
       return aom_highbd_sad16x16_8(src_ptr, source_stride, ref_ptr, ref_stride);
-#if CONFIG_SUBBLK_REF_EXT
     else if (bw == 12 && bh == 12)
       return aom_highbd_sad12x12(src_ptr, source_stride, ref_ptr, ref_stride);
     else if (bw == 20 && bh == 12)
@@ -364,7 +363,6 @@ unsigned int get_highbd_sad(const uint16_t *src_ptr, int source_stride,
       return aom_highbd_sad12x20(src_ptr, source_stride, ref_ptr, ref_stride);
     else if (bw == 20 && bh == 20)
       return aom_highbd_sad20x20(src_ptr, source_stride, ref_ptr, ref_stride);
-#endif  // CONFIG_SUBBLK_REF_EXT
     else {
       assert(0);
       return 0;
@@ -507,12 +505,8 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
   if (refinemv_ref0 != NULL && refinemv_ref1 != NULL) {
     dst0 = refinemv_ref0;
     dst1 = refinemv_ref1;
-#if CONFIG_SUBBLK_REF_EXT
     opfl_dst_stride = REFINEMV_SUBBLOCK_WIDTH +
                       2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES);
-#else
-    opfl_dst_stride = REFINEMV_SUBBLOCK_WIDTH + 2 * DMVR_SEARCH_EXT_LINES;
-#endif  // CONFIG_SUBBLK_REF_EXT
     do_pred = 0;
   }
 
@@ -668,7 +662,6 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
   const int is_compound = 1;
 #endif  // CONFIG_TIP_ENHANCEMENT
 
-#if CONFIG_SUBBLK_REF_EXT
   uint16_t
       dst0_16_refinemv[2 *
                        (REFINEMV_SUBBLOCK_WIDTH +
@@ -681,16 +674,6 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
                         2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES)) *
                        (REFINEMV_SUBBLOCK_HEIGHT +
                         2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES))];
-#else
-  uint16_t
-      dst0_16_refinemv[2 *
-                       (REFINEMV_SUBBLOCK_WIDTH + 2 * DMVR_SEARCH_EXT_LINES) *
-                       (REFINEMV_SUBBLOCK_HEIGHT + 2 * DMVR_SEARCH_EXT_LINES)];
-  uint16_t
-      dst1_16_refinemv[2 *
-                       (REFINEMV_SUBBLOCK_WIDTH + 2 * DMVR_SEARCH_EXT_LINES) *
-                       (REFINEMV_SUBBLOCK_HEIGHT + 2 * DMVR_SEARCH_EXT_LINES)];
-#endif  // CONFIG_SUBBLK_REF_EXT
 
 #if CONFIG_TIP_LD
   const int apply_refinemv = (cm->seq_params.enable_refinemv &&

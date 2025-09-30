@@ -895,12 +895,10 @@ MAKE_BFP_SAD_WRAPPER_COMMON(aom_highbd_sad8x8_ds)
 MAKE_BFP_SAD_WRAPPER_COMMON(aom_highbd_sad16x8_ds)
 MAKE_BFP_SAD_WRAPPER_COMMON(aom_highbd_sad8x16_ds)
 MAKE_BFP_SAD_WRAPPER_COMMON(aom_highbd_sad16x16_ds)
-#if CONFIG_SUBBLK_REF_EXT
 MAKE_BFP_SAD_WRAPPER_COMMON(aom_highbd_sad12x12_ds)
 MAKE_BFP_SAD_WRAPPER_COMMON(aom_highbd_sad20x12_ds)
 MAKE_BFP_SAD_WRAPPER_COMMON(aom_highbd_sad12x20_ds)
 MAKE_BFP_SAD_WRAPPER_COMMON(aom_highbd_sad20x20_ds)
-#endif  // CONFIG_SUBBLK_REF_EXT
 
 unsigned int get_highbd_sad_ds(const uint16_t *src_ptr, int source_stride,
                                const uint16_t *ref_ptr, int ref_stride, int bd,
@@ -918,7 +916,6 @@ unsigned int get_highbd_sad_ds(const uint16_t *src_ptr, int source_stride,
     else if (bw == 8 && bh == 16)
       return aom_highbd_sad8x16_ds_8(src_ptr, source_stride, ref_ptr,
                                      ref_stride);
-#if CONFIG_SUBBLK_REF_EXT
     else if (bw == 12 && bh == 12)
       return aom_highbd_sad12x12_ds_8(src_ptr, source_stride, ref_ptr,
                                       ref_stride);
@@ -931,7 +928,6 @@ unsigned int get_highbd_sad_ds(const uint16_t *src_ptr, int source_stride,
     else if (bw == 20 && bh == 20)
       return aom_highbd_sad20x20_ds_8(src_ptr, source_stride, ref_ptr,
                                       ref_stride);
-#endif  // CONFIG_SUBBLK_REF_EXT
     else {
       assert(0);
       return 0;
@@ -949,7 +945,6 @@ unsigned int get_highbd_sad_ds(const uint16_t *src_ptr, int source_stride,
     else if (bw == 8 && bh == 16)
       return aom_highbd_sad8x16_ds_10(src_ptr, source_stride, ref_ptr,
                                       ref_stride);
-#if CONFIG_SUBBLK_REF_EXT
     else if (bw == 12 && bh == 12)
       return aom_highbd_sad12x12_ds_10(src_ptr, source_stride, ref_ptr,
                                        ref_stride);
@@ -962,7 +957,6 @@ unsigned int get_highbd_sad_ds(const uint16_t *src_ptr, int source_stride,
     else if (bw == 20 && bh == 20)
       return aom_highbd_sad20x20_ds_10(src_ptr, source_stride, ref_ptr,
                                        ref_stride);
-#endif  // CONFIG_SUBBLK_REF_EXT
     else {
       assert(0);
       return 0;
@@ -980,7 +974,6 @@ unsigned int get_highbd_sad_ds(const uint16_t *src_ptr, int source_stride,
     else if (bw == 8 && bh == 16)
       return aom_highbd_sad8x16_ds_12(src_ptr, source_stride, ref_ptr,
                                       ref_stride);
-#if CONFIG_SUBBLK_REF_EXT
     else if (bw == 12 && bh == 12)
       return aom_highbd_sad12x12_ds_12(src_ptr, source_stride, ref_ptr,
                                        ref_stride);
@@ -993,7 +986,6 @@ unsigned int get_highbd_sad_ds(const uint16_t *src_ptr, int source_stride,
     else if (bw == 20 && bh == 20)
       return aom_highbd_sad20x20_ds_12(src_ptr, source_stride, ref_ptr,
                                        ref_stride);
-#endif  // CONFIG_SUBBLK_REF_EXT
     else {
       assert(0);
       return 0;
@@ -3086,10 +3078,8 @@ void av1_refinemv_build_predictors(MACROBLOCKD *xd, int mi_x, int mi_y,
 
     uint16_t *dst_ref = ref == 0 ? dst_ref0 : dst_ref1;
     MV *src_mv = ref == 0 ? &mv0 : &mv1;
-#if CONFIG_SUBBLK_REF_EXT
     src_mv->row -= 8 * SUBBLK_REF_EXT_LINES;
     src_mv->col -= 8 * SUBBLK_REF_EXT_LINES;
-#endif  // CONFIG_SUBBLK_REF_EXT
     calc_subpel_params_func(src_mv, &inter_pred_params[ref], xd, mi_x, mi_y,
                             ref, 0, mc_buf, &src, &subpel_params, &src_stride);
     assert(inter_pred_params[ref].comp_mode == UNIFORM_SINGLE ||
@@ -3122,19 +3112,15 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
       int val = comp == 0 ? mv[k].row : mv[k].col;
       int min_mv_comp = val - max_sr * 8;
       int max_mv_comp = val + max_sr * 8;
-#if CONFIG_SUBBLK_REF_EXT
       min_mv_comp -= 8 * SUBBLK_REF_EXT_LINES;
-#endif  // CONFIG_SUBBLK_REF_EXT
       if (min_mv_comp < (MV_LOW + 1) || min_mv_comp > (MV_UPP - 1) ||
           max_mv_comp < (MV_LOW + 1) || max_mv_comp > (MV_UPP - 1))
         return;
     }
   }
 
-#if CONFIG_SUBBLK_REF_EXT
   bw += 2 * SUBBLK_REF_EXT_LINES;
   bh += 2 * SUBBLK_REF_EXT_LINES;
-#endif  // CONFIG_SUBBLK_REF_EXT
 
   const int dsts_offset = (REFINEMV_SUBBLOCK_WIDTH +
                            2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES)) *
@@ -3193,12 +3179,8 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
   // If we signal the refinemv_flags we do not
   // select sad0 Set sad0 a large value so
   // that it does not be selected
-#if CONFIG_SUBBLK_REF_EXT
   const int dst_stride = REFINEMV_SUBBLOCK_WIDTH +
                          2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES);
-#else
-  const int dst_stride = REFINEMV_SUBBLOCK_WIDTH + 2 * DMVR_SEARCH_EXT_LINES;
-#endif  // CONFIG_SUBBLK_REF_EXT
   int sad0 = INT32_MAX >> 1;
   if (!switchable_refinemv_flags) {
     av1_refinemv_build_predictors(
@@ -3213,9 +3195,6 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
     dst_ref0 = dsts0[dsts_cur];
     dst_ref1 = dsts1[dsts_cur];
   }
-#if !CONFIG_SUBBLK_REF_EXT
-  assert(IMPLIES(mi->ref_frame[0] == TIP_FRAME, bw == 8 && bh == 8));
-#endif  // !CONFIG_SUBBLK_REF_EXT
   if (mi->ref_frame[0] == TIP_FRAME) {
     const int tip_sad_thres = bw * bh;
     if (!switchable_refinemv_flags && sad0 < tip_sad_thres) return;
@@ -3521,12 +3500,8 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
     if (refinemv_ref0 != NULL && refinemv_ref1 != NULL) {
       dst0 = refinemv_ref0;
       dst1 = refinemv_ref1;
-#if CONFIG_SUBBLK_REF_EXT
       opfl_dst_stride = REFINEMV_SUBBLOCK_WIDTH +
                         2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES);
-#else
-      opfl_dst_stride = REFINEMV_SUBBLOCK_WIDTH + 2 * DMVR_SEARCH_EXT_LINES;
-#endif  // CONFIG_SUBBLK_REF_EXT
       do_pred = 0;
     }
 
@@ -3725,7 +3700,6 @@ static void build_inter_predictors_8x8_and_bigger(
     int refinemv_sb_size_height =
         AOMMIN(REFINEMV_SUBBLOCK_HEIGHT >> pd->subsampling_y, bh);
 #endif  // CONFIG_FLEX_TIP_BLK_SIZE
-#if CONFIG_SUBBLK_REF_EXT
     uint16_t
         dst0_16_refinemv[2 *
                          (REFINEMV_SUBBLOCK_WIDTH +
@@ -3738,14 +3712,6 @@ static void build_inter_predictors_8x8_and_bigger(
                           2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES)) *
                          (REFINEMV_SUBBLOCK_HEIGHT +
                           2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES))];
-#else
-    uint16_t dst0_16_refinemv
-        [2 * (REFINEMV_SUBBLOCK_WIDTH + 2 * DMVR_SEARCH_EXT_LINES) *
-         (REFINEMV_SUBBLOCK_HEIGHT + 2 * DMVR_SEARCH_EXT_LINES)];
-    uint16_t dst1_16_refinemv
-        [2 * (REFINEMV_SUBBLOCK_WIDTH + 2 * DMVR_SEARCH_EXT_LINES) *
-         (REFINEMV_SUBBLOCK_HEIGHT + 2 * DMVR_SEARCH_EXT_LINES)];
-#endif  // CONFIG_SUBBLK_REF_EXT
 
     ReferenceArea ref_area[2];
     CONV_BUF_TYPE *tmp_conv_dst = xd->tmp_conv_dst;

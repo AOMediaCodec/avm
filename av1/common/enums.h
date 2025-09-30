@@ -67,9 +67,7 @@ extern "C" {
 #define MAX_WARP_BD_SIZE (1 << (8 - 3))
 #define MAX_WARP_BD_SQ (MAX_WARP_BD_SIZE * MAX_WARP_BD_SIZE)
 
-#if CONFIG_SUBBLK_REF_EXT
 #define SUBBLK_REF_EXT_LINES 2
-#endif  // CONFIG_SUBBLK_REF_EXT
 
 #define DMVR_SEARCH_EXT_LINES 2
 

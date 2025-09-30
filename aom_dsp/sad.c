@@ -130,12 +130,10 @@ highbd_sadMxN(4, 8);
 // 4x4
 highbd_sadMxN(4, 4);
 
-#if CONFIG_SUBBLK_REF_EXT
 highbd_sadMxN(12, 12);
 highbd_sadMxN(12, 20);
 highbd_sadMxN(20, 12);
 highbd_sadMxN(20, 20);
-#endif  // CONFIG_SUBBLK_REF_EXT
 
 highbd_sadMxN(4, 16);
 highbd_sadMxN(16, 4);

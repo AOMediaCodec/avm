@@ -155,12 +155,6 @@ static INLINE void highbd_copy_128(const uint16_t *src, uint16_t *dst) {
 void aom_highbd_convolve_copy_avx2(const uint16_t *src, ptrdiff_t src_stride,
                                    uint16_t *dst, ptrdiff_t dst_stride, int w,
                                    int h) {
-#if !CONFIG_SUBBLK_REF_EXT
-  if (w >= 16) {
-    assert(!(dst_stride % 16));
-  }
-#endif  // !CONFIG_SUBBLK_REF_EXT
-
   if (w == 2) {
     do {
       memmove(dst, src, 2 * sizeof(*src));
@@ -197,7 +191,6 @@ void aom_highbd_convolve_copy_avx2(const uint16_t *src, ptrdiff_t src_stride,
       dst += dst_stride;
       h -= 2;
     } while (h);
-#if CONFIG_SUBBLK_REF_EXT
   } else if (w == 12) {
     do {
       __m128i s[2];
@@ -216,7 +209,6 @@ void aom_highbd_convolve_copy_avx2(const uint16_t *src, ptrdiff_t src_stride,
       dst += dst_stride;
       h -= 2;
     } while (h);
-#endif  // CONFIG_SUBBLK_REF_EXT
   } else if (w == 16) {
     do {
       __m256i s[2];
@@ -230,7 +222,6 @@ void aom_highbd_convolve_copy_avx2(const uint16_t *src, ptrdiff_t src_stride,
       dst += dst_stride;
       h -= 2;
     } while (h);
-#if CONFIG_SUBBLK_REF_EXT
   } else if (w == 20) {
     do {
       __m256i s[2];
@@ -249,7 +240,6 @@ void aom_highbd_convolve_copy_avx2(const uint16_t *src, ptrdiff_t src_stride,
       dst += dst_stride;
       h -= 2;
     } while (h);
-#endif  // CONFIG_SUBBLK_REF_EXT
   } else if (w == 24) {
     do {
       __m256i s[2];

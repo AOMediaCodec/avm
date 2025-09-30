@@ -325,8 +325,6 @@ set_aom_config_var(CONFIG_LF_SUB_PU 1 "AV2 enable LF on sub blocks")
 set_aom_config_var(CONFIG_ASYM_DF 1 "Enable asymmetric DF")
 set_aom_config_var(CONFIG_DERIVED_MVD_SIGN 1 "Enable MVD sign derivations")
 set_aom_config_var(CONFIG_VQ_MVD_CODING 1 "Enable VQ based MVD coding")
-set_aom_config_var(CONFIG_SUBBLK_REF_EXT 1
-                   "Enable extension for subblock MV refinement.")
 
 set_aom_config_var(CONFIG_ML_PART_SPLIT 1
                    "Partition SPLIT pruning/forcing as predicted by ML.")
