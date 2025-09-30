@@ -320,6 +320,13 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
 #endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
       rb, seq_params);
 
+#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
+  seq_params->seq_tile_info_present_flag = aom_rb_read_bit(rb);
+  if (seq_params->seq_tile_info_present_flag) {
+    read_sequence_tile_info(seq_params, rb);
+  }
+#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
+
   seq_params->film_grain_params_present = aom_rb_read_bit(rb);
 
   // Sequence header for coding tools beyond AV1

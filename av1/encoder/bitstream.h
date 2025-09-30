@@ -36,6 +36,13 @@ uint32_t av1_write_obu_header(AV1LevelParams *const level_params,
 int av1_write_uleb_obu_size(size_t obu_header_size, size_t obu_payload_size,
                             uint8_t *dest);
 
+#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
+/*!\brief Derive sequence header from a keyframe
+ */
+void set_sequence_header_with_keyframe(AV1_COMP *cpi,
+                                       struct SequenceHeader *seq_params);
+#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
+
 /*!\brief Pack the bitstream for one frame
  *
  * \ingroup high_level_algo

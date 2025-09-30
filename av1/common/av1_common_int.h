@@ -574,6 +574,33 @@ typedef struct {
 #endif                             // CONFIG_REDUCED_REF_FRAME_MVS_MODE
 } OrderHintInfo;
 
+#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
+struct tileinfo_syntax {
+  int uniform_spacing;
+  int mi_cols;
+  int mib_size_log2;
+  int mi_rows;
+  int log2_cols;
+  int min_log2_cols;
+  int max_log2_cols;
+  int log2_rows;
+  int min_log2_rows;
+  int max_log2_rows;
+  int cols;
+  int col_start_sb[MAX_TILES];
+  int rows;
+  int max_width_sb;
+  int row_start_sb[MAX_TILES];
+  int max_height_sb;
+  int tile_cols_sb[MAX_TILES];
+  int tile_rows_sb[MAX_TILES];
+  int height_sb;
+  int width_sb;
+  int min_log2;
+  int size_sb;
+};
+#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
+
 // Sequence header structure.
 // Note: All syntax elements of sequence_header_obu that need to be
 // bit-identical across multiple sequence headers must be part of this struct,
@@ -765,6 +792,11 @@ typedef struct SequenceHeader {
   uint8_t uv_ac_delta_q_enabled;
   uint8_t film_grain_params_present;
 
+#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
+  uint8_t seq_tile_info_present_flag;
+  struct tileinfo_syntax tile_params;
+#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
+
   // Operating point info.
   int operating_points_cnt_minus_1;
   int operating_point_idc[MAX_NUM_OPERATING_POINTS];
@@ -820,6 +852,9 @@ typedef struct {
 #endif  // CONFIG_MULTILAYER_CORE
   SkipModeInfo skip_mode_info;
   int refresh_frame_flags;  // Which ref frames are overwritten by this frame
+#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
+  bool tile_info_present_in_frame_header;
+#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 } CurrentFrame;
 
 /*!\endcond */

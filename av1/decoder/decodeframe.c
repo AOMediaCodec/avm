@@ -4124,6 +4124,54 @@ static AOM_INLINE void setup_frame_size_with_refs(
   realloc_bru_info(cm);
 }
 
+#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
+static AOM_INLINE void reconstruct_tile_info_max_tile(
+    AV1_COMMON *const cm, struct tileinfo_syntax *tile_params) {
+  CommonTileParams *const tiles = &cm->tiles;
+
+  int width_mi = ALIGN_POWER_OF_TWO(cm->mi_params.mi_cols, cm->mib_size_log2);
+  int height_mi = ALIGN_POWER_OF_TWO(cm->mi_params.mi_rows, cm->mib_size_log2);
+  int width_sb = width_mi >> cm->mib_size_log2;
+  int height_sb = height_mi >> cm->mib_size_log2;
+
+  av1_get_tile_limits(cm);
+  tiles->uniform_spacing = tile_params->uniform_spacing;
+
+  // Read tile columns
+  if (tiles->uniform_spacing) {
+    tiles->log2_cols = tile_params->log2_cols;
+  } else {
+    int i;
+    int start_sb;
+    for (i = 0, start_sb = 0; width_sb > 0 && i < MAX_TILE_COLS; i++) {
+      tiles->col_start_sb[i] = tile_params->col_start_sb[i];
+      start_sb += tile_params->col_start_sb[i];
+      width_sb -= tile_params->col_start_sb[i];
+    }
+    tiles->cols = i;
+    tiles->col_start_sb[i] = start_sb + width_sb;
+  }
+  av1_calculate_tile_cols(cm, cm->mi_params.mi_rows, cm->mi_params.mi_cols,
+                          tiles);
+  // Read tile rows
+  if (tiles->uniform_spacing) {
+    // tiles->log2_rows = tile_params->log2_rows + 1;
+    tiles->log2_rows = tile_params->log2_rows;
+  } else {
+    int i;
+    int start_sb;
+    for (i = 0, start_sb = 0; height_sb > 0 && i < MAX_TILE_ROWS; i++) {
+      tiles->row_start_sb[i] = tile_params->col_start_sb[i];
+      start_sb += tile_params->col_start_sb[i];
+      height_sb -= tile_params->col_start_sb[i];
+    }
+    tiles->rows = i;
+    tiles->row_start_sb[i] = start_sb + height_sb;
+  }
+  av1_calculate_tile_rows(cm, cm->mi_params.mi_rows, tiles);
+}
+#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
+
 static AOM_INLINE void read_tile_info_max_tile(
     AV1_COMMON *const cm, struct aom_read_bit_buffer *const rb) {
   CommonTileParams *const tiles = &cm->tiles;
@@ -4222,9 +4270,27 @@ void av1_set_single_tile_decoding_mode(AV1_COMMON *const cm) {
 static AOM_INLINE void read_tile_info(AV1Decoder *const pbi,
                                       struct aom_read_bit_buffer *const rb) {
   AV1_COMMON *const cm = &pbi->common;
-
+#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
+  cm->current_frame.tile_info_present_in_frame_header = aom_rb_read_bit(rb);
+  if (cm->current_frame.tile_info_present_in_frame_header) {
+    read_tile_info_max_tile(cm, rb);
+  } else {
+#if CONFIG_MULTI_FRAME_HEADER
+    if (cm->mfh_params[cm->cur_mfh_id].mfh_tiles_info_present_flag) {
+      reconstruct_tile_info_max_tile(
+          cm, &cm->mfh_params[cm->cur_mfh_id].tile_params);
+    } else
+#endif
+    if (cm->seq_params.seq_tile_info_present_flag) {
+      reconstruct_tile_info_max_tile(cm, &cm->seq_params.tile_params);
+    } else {
+      aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                         "No tile information present");
+    }
+  }
+#else
   read_tile_info_max_tile(cm, rb);
-
+#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
   pbi->context_update_tile_id = 0;
   if (cm->tiles.rows * cm->tiles.cols > 1) {
     if (!cm->seq_params.enable_avg_cdf || !cm->seq_params.avg_cdf_type) {
@@ -6379,6 +6445,89 @@ static AOM_INLINE void read_temporal_point_info(
   cm->frame_presentation_time = aom_rb_read_unsigned_literal(
       rb, cm->seq_params.decoder_model_info.frame_presentation_time_length);
 }
+
+#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
+void compute_tile_params(struct tileinfo_syntax *tiles, int frame_width,
+                         int frame_height) {
+  tiles->mi_cols = 2 * ((frame_width + 7) >> 3);
+  tiles->mi_rows = 2 * ((frame_height + 7) >> 3);
+  tiles->mib_size_log2 = mi_size_wide_log2[15];
+  const int mi_cols = ALIGN_POWER_OF_TWO(tiles->mi_cols, tiles->mib_size_log2);
+  const int mi_rows = ALIGN_POWER_OF_TWO(tiles->mi_rows, tiles->mib_size_log2);
+  const int sb_cols = mi_cols >> tiles->mib_size_log2;
+  const int sb_rows = mi_rows >> tiles->mib_size_log2;
+  int width_mi = ALIGN_POWER_OF_TWO(tiles->mi_cols, tiles->mib_size_log2);
+  int height_mi = ALIGN_POWER_OF_TWO(tiles->mi_rows, tiles->mib_size_log2);
+  tiles->width_sb = width_mi >> tiles->mib_size_log2;
+  tiles->height_sb = height_mi >> tiles->mib_size_log2;
+  const int sb_size_log2 = tiles->mib_size_log2 + MI_SIZE_LOG2;
+  tiles->max_width_sb = MAX_TILE_WIDTH >> sb_size_log2;
+  const int max_tile_area_sb = MAX_TILE_AREA >> (2 * sb_size_log2);
+  tiles->min_log2_cols = tile_log2(tiles->max_width_sb, sb_cols);
+  tiles->max_log2_cols = tile_log2(1, AOMMIN(sb_cols, MAX_TILE_COLS));
+  tiles->max_log2_rows = tile_log2(1, AOMMIN(sb_rows, MAX_TILE_ROWS));
+  tiles->min_log2 = tile_log2(max_tile_area_sb, sb_cols * sb_rows);
+  tiles->min_log2 = AOMMAX(tiles->min_log2, tiles->min_log2_cols);
+}
+
+void read_tile_syntax_info(struct tileinfo_syntax *tiles,
+                           struct aom_read_bit_buffer *rb) {
+  tiles->uniform_spacing = aom_rb_read_bit(rb);
+
+  // Read tile columns
+  if (tiles->uniform_spacing) {
+    tiles->log2_cols = tiles->min_log2_cols;
+    while (tiles->log2_cols < tiles->max_log2_cols) {
+      if (!aom_rb_read_bit(rb)) {
+        break;
+      }
+      tiles->log2_cols++;
+    }
+  } else {
+    int i;
+    int start_sb;
+    for (i = 0, start_sb = 0; tiles->width_sb > 0 && i < MAX_TILE_COLS; i++) {
+      const int size_sb =
+          1 + rb_read_uniform(rb, AOMMIN(tiles->width_sb, tiles->max_width_sb));
+      tiles->col_start_sb[i] = start_sb;
+      start_sb += size_sb;
+      tiles->width_sb -= size_sb;
+    }
+    tiles->cols = i;
+    tiles->col_start_sb[i] = start_sb + tiles->width_sb;
+  }
+  tiles->min_log2_rows = AOMMAX(tiles->min_log2 - tiles->log2_cols, 0);
+  // Read tile rows
+  if (tiles->uniform_spacing) {
+    tiles->log2_rows = tiles->min_log2_rows;
+    while (tiles->log2_rows < tiles->max_log2_rows) {
+      if (!aom_rb_read_bit(rb)) {
+        break;
+      }
+      tiles->log2_rows++;
+    }
+  } else {
+    int i;
+    int start_sb;
+    for (i = 0, start_sb = 0; tiles->height_sb > 0 && i < MAX_TILE_ROWS; i++) {
+      const int size_sb = 1 + rb_read_uniform(rb, AOMMIN(tiles->height_sb,
+                                                         tiles->max_height_sb));
+      tiles->row_start_sb[i] = start_sb;
+      start_sb += size_sb;
+      tiles->height_sb -= size_sb;
+    }
+    tiles->rows = i;
+    tiles->row_start_sb[i] = start_sb + tiles->height_sb;
+  }
+}
+
+void read_sequence_tile_info(struct SequenceHeader *seq_params,
+                             struct aom_read_bit_buffer *rb) {
+  compute_tile_params(&seq_params->tile_params, seq_params->max_frame_width,
+                      seq_params->max_frame_height);
+  read_tile_syntax_info(&seq_params->tile_params, rb);
+}
+#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 
 void av1_read_sequence_header(
 #if !CWG_F215_CONFIG_REMOVE_FRAME_ID

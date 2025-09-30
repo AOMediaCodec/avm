@@ -168,6 +168,19 @@ set_aom_config_var(CONFIG_F106_OBU_SEF 1 "Use SEF OBU.")
 set_aom_config_var(CONFIG_F106_OBU_TIP 1 "Use TIP_OBU.")
 set_aom_config_var(CONFIG_F253_REMOVE_OUTPUTFLAG 1
                    "Remove enable_frame_output_order.")
+# CWG-E242
+set_aom_config_var(CONFIG_MULTI_FRAME_HEADER 0 "Enable multi-frame header.")
+set_aom_config_var(CONFIG_CWG_E242_SIGNAL_TILE_INFO 1
+                   "Signal tile information at sequence and multi-frame-header.")
+
+set_aom_config_var(CONFIG_CWG_E242_MFH_ID_UVLC 0
+                   "Reorder sequence level flags.")
+
+set_aom_config_var(CONFIG_CWG_E242_BITDEPTH 0
+                   "Enable bitdepth signalling using a LUT.")
+
+set_aom_config_var(CONFIG_CWG_E242_SEQ_HDR_ID 0 "Introduce sequence header id.")
+
 set_aom_config_var(CONFIG_SEQ_MAX_DRL_BITS 1
                    "AV2 sequence level max_drl_bits information")
 set_aom_config_var(CONFIG_EXT_MVPRED 1 "AV2 ext-mvpred.")
