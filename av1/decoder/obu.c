@@ -430,6 +430,9 @@ static uint32_t read_tilegroup_obu(AV1Decoder *pbi,
   skip_payload |= (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT);
 #endif  // CONFIG_F106_OBU_TIP
   skip_payload |= cm->bru.frame_inactive_flag;
+#if CONFIG_CWG_F317
+  skip_payload |= cm->bridge_frame_info.is_bridge_frame;
+#endif  // CONFIG_CWG_F317
 
   if (skip_payload) {
     *is_last_tg = 1;
@@ -1071,7 +1074,11 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
                                obu_header.type, &frame_decoding_finished);
 
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
+#if CONFIG_CWG_F317
+        if (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame) {
+#else
         if (cm->bru.frame_inactive_flag) {
+#endif  // CONFIG_CWG_F317
           pbi->seen_frame_header = 0;
           frame_decoding_finished = 1;
           CommonTileParams *const tiles = &cm->tiles;
@@ -1087,6 +1094,11 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
           // skip parsing and go directly to decode
           av1_decode_tg_tiles_and_wrapup(pbi, data, data_end, p_data_end, 0,
                                          end_tile, 0);
+#if CONFIG_CWG_F317
+          if (cm->bridge_frame_info.is_bridge_frame) {
+            *p_data_end = data + payload_size;
+          }
+#endif  // CONFIG_CWG_F317
           break;
         }
         if (obu_payload_offset > payload_size) {
@@ -1155,30 +1167,10 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
         }
 
 #if CONFIG_CWG_F317
-        if (cm->bridge_frame_info.is_bridge_frame) {
-          pbi->seen_frame_header = 0;
-          frame_decoding_finished = 1;
-          // fill up tile data
-          // note this might be moved to tile_group when F106 is merged.
-          CommonTileParams *const tiles = &cm->tiles;
-          av1_get_tile_limits(cm);
-          tiles->uniform_spacing = 1;
-          tiles->log2_cols = 0;
-          tiles->log2_rows = 0;
-          av1_calculate_tile_cols(cm, cm->mi_params.mi_rows,
-                                  cm->mi_params.mi_cols, tiles);
-          av1_calculate_tile_rows(cm, cm->mi_params.mi_rows, tiles);
-          const int num_tiles = cm->tiles.cols * cm->tiles.rows;
-          const int end_tile = num_tiles - 1;
-          // skip parsing and go directly to decode
-          av1_decode_tg_tiles_and_wrapup(pbi, data, data_end, p_data_end, 0,
-                                         end_tile, 0);
-          *p_data_end = data + payload_size;
-          break;
-        }
-#endif  // CONFIG_CWG_F317
-
+        if (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame) {
+#else
         if (cm->bru.frame_inactive_flag) {
+#endif  // CONFIG_CWG_F317
           pbi->seen_frame_header = 0;
           frame_decoding_finished = 1;
           // fill up tile data
@@ -1196,6 +1188,11 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
           // skip parsing and go directly to decode
           av1_decode_tg_tiles_and_wrapup(pbi, data, data_end, p_data_end, 0,
                                          end_tile, 0);
+#if CONFIG_CWG_F317
+          if (cm->bridge_frame_info.is_bridge_frame) {
+            *p_data_end = data + payload_size;
+          }
+#endif  // CONFIG_CWG_F317
           break;
         }
         if (obu_header.type != OBU_FRAME) break;

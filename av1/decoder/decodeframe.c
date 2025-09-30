@@ -7981,6 +7981,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_CWG_F317
   }
 #endif  // CONFIG_CWG_F317
+
   if (seq_params->single_picture_hdr_flag) {
     cm->show_existing_frame = 0;
     cm->show_frame = 1;
@@ -8145,9 +8146,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // CONFIG_F106_OBU_TIP
 #endif  // CONFIG_F106_OBU_TILEGROUP
 #if CONFIG_CWG_F317
-        if (cm->bridge_frame_info.is_bridge_frame) {
-      current_frame->frame_type = INTER_FRAME;
-    } else {
+      if (cm->bridge_frame_info.is_bridge_frame) {
+        current_frame->frame_type = INTER_FRAME;
+      } else {
 #endif  // CONFIG_CWG_F317
       if (aom_rb_read_bit(rb)) {
         current_frame->frame_type = INTER_FRAME;

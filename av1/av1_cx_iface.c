@@ -3189,11 +3189,6 @@ static void report_stats(AV1_COMP *cpi, size_t frame_size, uint64_t cx_time) {
     for (int ref_idx = 0; ref_idx < INTER_REFS_PER_FRAME; ++ref_idx) {
       fprintf(stdout, "%3d,", ref_poc[ref_idx]);
     }
-#if CONFIG_CWG_F317
-    if (cpi->common.bridge_frame_info.is_bridge_frame)
-      fprintf(stdout, "] BRIDGE_FRAME\n");
-    else
-#endif  // CONFIG_CWG_F317
       if (cpi->oxcf.tool_cfg.enable_bru)
         fprintf(stdout, "] SB skipped %d/%d\n", cm->bru.blocks_skipped,
                 cm->bru.total_units);

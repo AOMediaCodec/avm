@@ -6290,6 +6290,9 @@ static AOM_INLINE void write_uncompressed_header_obu
       if (!cm->bridge_frame_info.is_bridge_frame) {
 #endif  // CONFIG_CWG_F317
         aom_wb_write_bit(wb, 0);  // show_existing_frame
+#if CONFIG_CWG_F317
+      }
+#endif  // CONFIG_CWG_F317
       }
 #endif  // CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_SEF
 #if CONFIG_F106_OBU_TILEGROUP && (CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_TIP)
@@ -6300,6 +6303,9 @@ static AOM_INLINE void write_uncompressed_header_obu
 #if CONFIG_F106_OBU_TIP
     frame_type_signaled &= (obu_type != OBU_TIP);
 #endif  // CONFIG_F106_OBU_TIP
+#if CONFIG_CWG_F317
+    frame_type_signaled &= (!cm->bridge_frame_info.is_bridge_frame);
+#endif
     if (frame_type_signaled) {
 #endif  // CONFIG_F106_OBU_TILEGROUP && (CONFIG_F106_OBU_SWITCH ||
         // CONFIG_F106_OBU_TIP)
@@ -6664,7 +6670,7 @@ static AOM_INLINE void write_uncompressed_header_obu
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
 #if CONFIG_CWG_F317
               ) &&
-          !cm->bridge_frame_info.is_bridge_frame;
+          !cm->bridge_frame_info.is_bridge_frame
 #endif  // CONFIG_CWG_F317
       ;
       if (explicit_ref_frame_map) {
@@ -7708,7 +7714,12 @@ static uint32_t write_tilegroup_payload(AV1_COMP *const cpi, uint8_t *const dst,
                                  num_filter_classes);
       tile_info.tile_active_mode = this_tile->tile_info.tile_active_mode;
       aom_start_encode(&mode_bc, dst + total_size);
+#if CONFIG_CWG_F317
+      if (!cm->bru.frame_inactive_flag &&
+          !cm->bridge_frame_info.is_bridge_frame)
+#else
       if (!cm->bru.frame_inactive_flag)
+#endif  // CONFIG_CWG_F317
         write_modes(cpi, &tile_info, &mode_bc, tile_row, tile_col);
       aom_stop_encode(&mode_bc);
       unsigned int tile_size = mode_bc.pos;
@@ -7827,6 +7838,9 @@ static uint32_t write_tilegroup_header(AV1_COMP *cpi,
 
   bool skip_tile_indices = false;
   skip_tile_indices |= cpi->common.bru.frame_inactive_flag;
+#if CONFIG_CWG_F317
+  skip_tile_indices |= cpi->common.bridge_frame_info.is_bridge_frame;
+#endif  // CONFIG_CWG_F317
 
 #if CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
 #if CONFIG_F106_OBU_SEF
@@ -7899,6 +7913,9 @@ static uint32_t write_tilegroup_obu(
 #endif  // CONFIG_F106_OBU_TIP
 
   skip_tilegroup_payload |= cm->bru.frame_inactive_flag;
+#if CONFIG_CWG_F317
+  skip_tilegroup_payload |= cm->bridge_frame_info.is_bridge_frame;
+#endif  // CONFIG_CWG_F317
 
   if (!skip_tilegroup_payload)
     curr_tg_data_size = write_tilegroup_payload(
@@ -8726,7 +8743,10 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
       cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT)
     obu_type = OBU_TIP;
 #endif  // CONFIG_F106_OBU_TIP
-
+#if CONFIG_CWG_F317
+  if (cm->bridge_frame_info.is_bridge_frame)
+    obu_type = OBU_BRIDGE_FRAME;
+#endif  // CONFIG_CWG_F317
   const int num_tiles = cm->tiles.cols * cm->tiles.rows;
   const int max_tg_num = AOMMIN(cpi->num_tg, num_tiles);
   assert(!cm->tiles.large_scale);
@@ -8766,6 +8786,9 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
     if (obu_type == OBU_TIP) break;
 #endif  // CONFIG_F106_OBU_TIP
     if (cm->bru.frame_inactive_flag) break;
+#if CONFIG_CWG_F317
+    if (cm->bridge_frame_info.is_bridge_frame) break;
+#endif  // CONFIG_CWG_F317
 #else
     if ((encode_show_existing_frame(cm) &&
          (
@@ -8777,6 +8800,9 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 #endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
              cm->cur_frame->frame_type == KEY_FRAME)) ||
         cm->bru.frame_inactive_flag ||
+#if CONFIG_CWG_F317
+      cm->bridge_frame_info.is_bridge_frame ||
+#endif  // CONFIG_CWG_F317
         (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT))
       break;
 #endif  // CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
