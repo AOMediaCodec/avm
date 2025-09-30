@@ -12,6 +12,7 @@
 
 #include "aom/aom_codec.h"
 #include "aom_dsp/aom_dsp_common.h"
+#include "av1/common/tile_common.h"
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 #include "test/codec_factory.h"
 #include "test/encode_test_driver.h"
@@ -56,6 +57,7 @@ const nonUniformTileConfigParam nonUniformTileConfigParams[] = {
   { 256, 3, { 2, 2, 1 }, 2, { 2, 1 } }
 };
 
+#if !CONFIG_CWG_E242_SIGNAL_TILE_INFO
 // Find smallest k>=0 such that (blk_size << k) >= target
 static INLINE int tile_log2(int blk_size, int target) {
   int k;
@@ -63,6 +65,7 @@ static INLINE int tile_log2(int blk_size, int target) {
   }
   return k;
 }
+#endif  // !CONFIG_CWG_E242_SIGNAL_TILE_INFO
 
 // This class is used to validate tile configuration for uniform spacing.
 class UniformTileConfigTestLarge

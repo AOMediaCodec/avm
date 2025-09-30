@@ -575,7 +575,7 @@ typedef struct {
 } OrderHintInfo;
 
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO
-struct tileinfo_syntax {
+typedef struct {
   int uniform_spacing;
   int mi_cols;
   int mib_size_log2;
@@ -598,7 +598,7 @@ struct tileinfo_syntax {
   int width_sb;
   int min_log2;
   int size_sb;
-};
+} TileInfoSyntax ;
 #endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 
 // Sequence header structure.
@@ -794,7 +794,7 @@ typedef struct SequenceHeader {
 
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO
   uint8_t seq_tile_info_present_flag;
-  struct tileinfo_syntax tile_params;
+  TileInfoSyntax tile_params;
 #endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 
   // Operating point info.

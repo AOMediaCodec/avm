@@ -43,6 +43,7 @@ void av1_read_sequence_header(
     struct aom_read_bit_buffer *rb, SequenceHeader *seq_params);
 
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO
+// Reads the tile information in the sequence header
 void read_sequence_tile_info(struct SequenceHeader *seq_params,
                              struct aom_read_bit_buffer *rb);
 #endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO

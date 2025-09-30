@@ -4807,9 +4807,6 @@ static AOM_INLINE void write_tile_info(const AV1_COMMON *const cm,
                                        struct aom_write_bit_buffer *wb) {
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO
   bool tile_info_present_in_frame_header =
-#if CONFIG_MULTI_FRAME_HEADER
-      !cm->mfh_params[cm->cur_mfh_id].mfh_tiles_info_present_flag &&
-#endif  // CONFIG_MULTI_FRAME_HEADER
       !cm->seq_params.seq_tile_info_present_flag;
   aom_wb_write_bit(wb, tile_info_present_in_frame_header);
   if (tile_info_present_in_frame_header) {
@@ -5143,7 +5140,8 @@ static AOM_INLINE void write_tu_pts_info(AV1_COMMON *const cm,
 }
 
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO
-void write_tile_syntax_info(const struct tileinfo_syntax *tiles,
+ // Writes tile syntax
+void write_tile_syntax_info(const TileInfoSyntax *tiles,
                             struct aom_write_bit_buffer *wb) {
   int size_sb, i;
   int tile_width_sb = tiles->width_sb;
@@ -8113,7 +8111,7 @@ static size_t av1_write_frame_hash_metadata(
 }
 
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO
-void set_tile_info(AV1_COMP *cpi, struct tileinfo_syntax *tiles) {
+void set_tile_info(AV1_COMP *cpi, TileInfoSyntax *tiles) {
   AV1_COMMON *cm = &cpi->common;
   tiles->uniform_spacing = cm->tiles.uniform_spacing;
 
@@ -8152,7 +8150,7 @@ void set_sequence_header_with_keyframe(AV1_COMP *cpi,
                                        SequenceHeader *seq_params) {
   AV1_COMMON *cm = &cpi->common;
   // Set SH tile info
-  memset(&seq_params->tile_params, 0, sizeof(struct tileinfo_syntax));
+  memset(&seq_params->tile_params, 0, sizeof(TileInfoSyntax));
   seq_params->seq_tile_info_present_flag = 0;
   if (cm->sb_size == BLOCK_128X128) seq_params->seq_tile_info_present_flag = 1;
   set_tile_info(cpi, &seq_params->tile_params);

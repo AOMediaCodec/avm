@@ -4125,8 +4125,9 @@ static AOM_INLINE void setup_frame_size_with_refs(
 }
 
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO
-static AOM_INLINE void reconstruct_tile_info_max_tile(
-    AV1_COMMON *const cm, struct tileinfo_syntax *tile_params) {
+// Reconstructs the tile information
+static void reconstruct_tile_info_max_tile(
+    AV1_COMMON *const cm, TileInfoSyntax *tile_params) {
   CommonTileParams *const tiles = &cm->tiles;
 
   int width_mi = ALIGN_POWER_OF_TWO(cm->mi_params.mi_cols, cm->mib_size_log2);
@@ -4275,13 +4276,7 @@ static AOM_INLINE void read_tile_info(AV1Decoder *const pbi,
   if (cm->current_frame.tile_info_present_in_frame_header) {
     read_tile_info_max_tile(cm, rb);
   } else {
-#if CONFIG_MULTI_FRAME_HEADER
-    if (cm->mfh_params[cm->cur_mfh_id].mfh_tiles_info_present_flag) {
-      reconstruct_tile_info_max_tile(
-          cm, &cm->mfh_params[cm->cur_mfh_id].tile_params);
-    } else
-#endif
-        if (cm->seq_params.seq_tile_info_present_flag) {
+    if (cm->seq_params.seq_tile_info_present_flag) {
       reconstruct_tile_info_max_tile(cm, &cm->seq_params.tile_params);
     } else {
       aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
@@ -6447,7 +6442,8 @@ static AOM_INLINE void read_temporal_point_info(
 }
 
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO
-void compute_tile_params(struct tileinfo_syntax *tiles, int frame_width,
+// Computes tile parameters
+void compute_tile_params(TileInfoSyntax *tiles, int frame_width,
                          int frame_height) {
   tiles->mi_cols = 2 * ((frame_width + 7) >> 3);
   tiles->mi_rows = 2 * ((frame_height + 7) >> 3);
@@ -6470,7 +6466,7 @@ void compute_tile_params(struct tileinfo_syntax *tiles, int frame_width,
   tiles->min_log2 = AOMMAX(tiles->min_log2, tiles->min_log2_cols);
 }
 
-void read_tile_syntax_info(struct tileinfo_syntax *tiles,
+void read_tile_syntax_info(TileInfoSyntax *tiles,
                            struct aom_read_bit_buffer *rb) {
   tiles->uniform_spacing = aom_rb_read_bit(rb);
 

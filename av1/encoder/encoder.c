@@ -4826,9 +4826,6 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
                             const aom_rational64_t *timestamp_ratio) {
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   AV1_COMMON *const cm = &cpi->common;
-#if CONFIG_MULTI_FRAME_HEADER
-  cm->cur_mfh_id = 0;
-#endif
   cm->showable_frame = 0;
   *size = 0;
 #if CONFIG_INTERNAL_STATS

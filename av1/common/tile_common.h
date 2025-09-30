@@ -66,10 +66,6 @@ void av1_calculate_tile_cols(const struct AV1Common *cm, int cm_mi_rows,
 void av1_calculate_tile_rows(const struct AV1Common *cm, int cm_mi_rows,
                              struct CommonTileParams *const tiles);
 
-#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
-int tile_log2(int blk_size, int target);
-#endif  // !CONFIG_CWG_E242_SIGNAL_TILE_INFO
-
 // Checks if the minimum tile_width requirement is satisfied
 int av1_is_min_tile_width_satisfied(const struct AV1Common *cm);
 
@@ -80,6 +76,15 @@ int get_tile_col_from_mi_col(const struct CommonTileParams *tiles, int mi_col);
 // Check if location of a block is on the horz or vert tile boundary
 int is_horz_tile_boundary(struct CommonTileParams *const tiles, int mi_row);
 int is_vert_tile_boundary(struct CommonTileParams *const tiles, int mi_col);
+
+// Find smallest k>=0 such that (blk_size << k) >= target
+static INLINE int tile_log2(int blk_size, int target) {
+ int k;
+ for (k = 0; (blk_size << k) < target; k++) {
+ }
+return k;
+}
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
