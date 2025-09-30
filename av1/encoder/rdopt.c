@@ -4694,6 +4694,8 @@ static void set_cwp_search_mask(const AV1_COMP *const cpi, MACROBLOCK *const x,
  * \param[in]     inter_cost_info_from_tpl A PruneInfoFromTpl struct used to
  *                                         narrow down the search based on
  * data collected in the TPL model.
+ * \param[in]     top_motion_mode_model_rd A buffer to store N number of model
+ * RD
  *
  * \return The RD cost for the mode being searched.
  */
