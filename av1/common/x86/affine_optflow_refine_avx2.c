@@ -1792,23 +1792,6 @@ static void opfl_mv_refinement_16x8_avx2(const int16_t *pdiff, int pstride,
     svw_lo += temp_lo;
     svw_hi += temp_hi;
 
-#if !CONFIG_F107_GRADIENT_SIMPLIFY
-    // For every 8 pixels, do a range check and add a downshift if range is
-    // getting close to the max allowed bit depth
-    if (get_msb_signed(
-            AOMMAX(AOMMAX(su2_lo, sv2_lo), AOMMAX(abs(suw_lo), abs(svw_lo)))) >=
-        MAX_OPFL_AUTOCORR_BITS - 2) {
-      OPFL_OUTPUT_RANGE_CHECK(su2_lo, sv2_lo, suv_lo, suw_lo, svw_lo)
-      grad_bits_lo++;
-    }
-    if (get_msb_signed(
-            AOMMAX(AOMMAX(su2_hi, sv2_hi), AOMMAX(abs(suw_hi), abs(svw_hi)))) >=
-        MAX_OPFL_AUTOCORR_BITS - 2) {
-      OPFL_OUTPUT_RANGE_CHECK(su2_hi, sv2_hi, suv_hi, suw_hi, svw_hi)
-      grad_bits_hi++;
-    }
-#endif  // !CONFIG_F107_GRADIENT_SIMPLIFY
-
     gx += gstride * step_size;
     gy += gstride * step_size;
     pdiff += pstride * step_size;

@@ -421,32 +421,6 @@ static void opfl_mv_refinement_8x4_sse4_1(const int16_t *pdiff, int pstride,
     suw_hi += (int32_t)temp;
     xx_storel_64(&temp, _mm_add_epi64(vw_hi, _mm_srli_si128(vw_hi, 8)));
     svw_hi += (int32_t)temp;
-#if !CONFIG_F107_GRADIENT_SIMPLIFY
-    // Do a range check and add a downshift if range is getting close to the bit
-    // depth cap.
-    if (bHeight % 2 == 0) {
-      if (get_msb_signed(AOMMAX(AOMMAX(su2_lo, sv2_lo),
-                                AOMMAX(abs(suw_lo), abs(svw_lo)))) >=
-          MAX_OPFL_AUTOCORR_BITS - 2) {
-        su2_lo = ROUND_POWER_OF_TWO_SIGNED(su2_lo, 1);
-        sv2_lo = ROUND_POWER_OF_TWO_SIGNED(sv2_lo, 1);
-        suv_lo = ROUND_POWER_OF_TWO_SIGNED(suv_lo, 1);
-        suw_lo = ROUND_POWER_OF_TWO_SIGNED(suw_lo, 1);
-        svw_lo = ROUND_POWER_OF_TWO_SIGNED(svw_lo, 1);
-        grad_bits_lo++;
-      }
-      if (get_msb_signed(AOMMAX(AOMMAX(su2_hi, sv2_hi),
-                                AOMMAX(abs(suw_hi), abs(svw_hi)))) >=
-          MAX_OPFL_AUTOCORR_BITS - 2) {
-        su2_hi = ROUND_POWER_OF_TWO_SIGNED(su2_hi, 1);
-        sv2_hi = ROUND_POWER_OF_TWO_SIGNED(sv2_hi, 1);
-        suv_hi = ROUND_POWER_OF_TWO_SIGNED(suv_hi, 1);
-        suw_hi = ROUND_POWER_OF_TWO_SIGNED(suw_hi, 1);
-        svw_hi = ROUND_POWER_OF_TWO_SIGNED(svw_hi, 1);
-        grad_bits_hi++;
-      }
-    }
-#endif  // !CONFIG_F107_GRADIENT_SIMPLIFY
   } while (bHeight != 0);
 
   calc_mv_process(su2_lo, sv2_lo, suv_lo, suw_lo, svw_lo, d0, d1, bits,
@@ -534,19 +508,6 @@ static void opfl_mv_refinement_8x8_sse4_1(const int16_t *pdiff, int pstride,
     suw += (int32_t)temp;
     xx_storel_64(&temp, _mm_add_epi64(vw, _mm_srli_si128(vw, 8)));
     svw += (int32_t)temp;
-#if !CONFIG_F107_GRADIENT_SIMPLIFY
-    // For every 8 pixels, do a range check and add a downshift if range is
-    // getting close to the max allowed bit depth
-    if (get_msb_signed(AOMMAX(AOMMAX(su2, sv2), AOMMAX(abs(suw), abs(svw)))) >=
-        MAX_OPFL_AUTOCORR_BITS - 2) {
-      su2 = ROUND_POWER_OF_TWO_SIGNED(su2, 1);
-      sv2 = ROUND_POWER_OF_TWO_SIGNED(sv2, 1);
-      suv = ROUND_POWER_OF_TWO_SIGNED(suv, 1);
-      suw = ROUND_POWER_OF_TWO_SIGNED(suw, 1);
-      svw = ROUND_POWER_OF_TWO_SIGNED(svw, 1);
-      grad_bits++;
-    }
-#endif  // !CONFIG_F107_GRADIENT_SIMPLIFY
   } while (bHeight != 0);
 
   calc_mv_process(su2, sv2, suv, suw, svw, d0, d1, bits, rls_alpha, vx0, vy0,

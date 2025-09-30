@@ -1344,25 +1344,6 @@ void av1_opfl_mv_refinement(const int16_t *pdiff, int pstride,
       suw += ROUND_POWER_OF_TWO_SIGNED(u * w, grad_bits);
       svw += ROUND_POWER_OF_TWO_SIGNED(v * w, grad_bits);
     }
-#if !CONFIG_F107_GRADIENT_SIMPLIFY
-    // For every 8 pixels, do a range check and add a downshift if range is
-    // getting close to the max allowed bit depth
-    if (bw >= 8 || i % 2 == 1) {
-      // Do a range check and add a downshift if range is getting close to the
-      // bit depth cap
-      int32_t max_autocorr = AOMMAX(su2, sv2);
-      int32_t max_xcorr = AOMMAX(abs(suw), abs(svw));
-      if (get_msb_signed(AOMMAX(max_autocorr, max_xcorr)) >=
-          MAX_OPFL_AUTOCORR_BITS - 2) {
-        su2 = ROUND_POWER_OF_TWO_SIGNED(su2, 1);
-        suv = ROUND_POWER_OF_TWO_SIGNED(suv, 1);
-        sv2 = ROUND_POWER_OF_TWO_SIGNED(sv2, 1);
-        suw = ROUND_POWER_OF_TWO_SIGNED(suw, 1);
-        svw = ROUND_POWER_OF_TWO_SIGNED(svw, 1);
-        grad_bits++;
-      }
-    }
-#endif  // !CONFIG_F107_GRADIENT_SIMPLIFY
   }
   const int bits = mv_prec_bits + grad_prec_bits;
   const int rls_alpha = (bw * bh >> 4) * OPFL_RLS_PARAM;
