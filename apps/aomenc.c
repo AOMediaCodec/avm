@@ -499,9 +499,7 @@ const arg_def_t *av1_key_val_args[] = {
   &g_av1_codec_arg_defs.enable_warp_delta,
   &g_av1_codec_arg_defs.enable_six_param_warp_delta,
   &g_av1_codec_arg_defs.enable_warp_extend,
-#if CONFIG_REFRESH_FLAG
   &g_av1_codec_arg_defs.enable_short_refresh_frame_flags,
-#endif  // CONFIG_REFRESH_FLAG
 #if CONFIG_EXT_SEG
   &g_av1_codec_arg_defs.enable_ext_seg,
 #endif  // CONFIG_EXT_SEG
@@ -742,9 +740,7 @@ static void init_config(cfg_options_t *config) {
   config->enable_avg_cdf = 1;
   config->avg_cdf_type = 1;
   config->enable_parity_hiding = 1;
-#if CONFIG_REFRESH_FLAG
   config->enable_short_refresh_frame_flags = 1;
-#endif  // CONFIG_REFRESH_FLAG
 #if CONFIG_EXT_SEG
   config->enable_ext_seg = 0;
 #endif  // CONFIG_EXT_SEG

@@ -945,9 +945,7 @@ typedef struct {
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   // Indicates if parity hiding should be enabled
   bool enable_parity_hiding;
-#if CONFIG_REFRESH_FLAG
   bool enable_short_refresh_frame_flags;
-#endif  // CONFIG_REFRESH_FLAG
 #if CONFIG_EXT_SEG
   bool enable_ext_seg;
 #endif  // CONFIG_EXT_SEG

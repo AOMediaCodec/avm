@@ -238,9 +238,6 @@ set_aom_config_var(
 set_aom_config_var(CONFIG_TU64_TRAVERSED_ORDER 1
                    "Coding order of TU 64x64 traversed as 128x128 blocks")
 
-set_aom_config_var(CONFIG_REFRESH_FLAG 1
-                   "Experiment flag to signal refresh frame flag using index")
-
 set_aom_config_var(
   CONFIG_COMPOUND_WARP_CAUSAL 1
   "AV2 experiment flag to enable compound new_newmv warp_causal mode")

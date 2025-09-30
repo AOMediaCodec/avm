@@ -173,9 +173,7 @@ int parse_cfg(const char *file, cfg_options_t *config) {
     GET_PARAMS(enable_avg_cdf);
     GET_PARAMS(avg_cdf_type);
     GET_PARAMS(enable_parity_hiding);
-#if CONFIG_REFRESH_FLAG
     GET_PARAMS(enable_short_refresh_frame_flags);
-#endif  // CONFIG_REFRESH_FLAG
 #if CONFIG_EXT_SEG
     GET_PARAMS(enable_ext_seg);
 #endif  // CONFIG_EXT_SEG

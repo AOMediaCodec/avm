@@ -7183,9 +7183,7 @@ void av1_read_sequence_header_beyond_av1(
   }
 #endif  // CONFIG_IMPROVED_GLOBAL_MOTION
   seq_params->df_par_bits_minus2 = aom_rb_read_literal(rb, 2);
-#if CONFIG_REFRESH_FLAG
   seq_params->enable_short_refresh_frame_flags = aom_rb_read_bit(rb);
-#endif  // CONFIG_REFRESH_FLAG
 #if CONFIG_EXT_SEG
   seq_params->enable_ext_seg = aom_rb_read_bit(rb);
 #endif  // CONFIG_EXT_SEG
@@ -8449,17 +8447,14 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       pbi->need_resync = 0;
     }
   } else {
-#if CONFIG_REFRESH_FLAG
     const int short_refresh_frame_flags =
         cm->seq_params.enable_short_refresh_frame_flags &&
         !cm->features.error_resilient_mode;
     const int refresh_frame_flags_bits = short_refresh_frame_flags
                                              ? seq_params->ref_frames_log2
                                              : seq_params->ref_frames;
-#endif  // CONFIG_REFRESH_FLAG
 
     if (current_frame->frame_type == INTRA_ONLY_FRAME) {
-#if CONFIG_REFRESH_FLAG
       if (short_refresh_frame_flags) {
 #if CONFIG_CWG_F260_REFRESH_FLAG
         const bool has_refresh_frame_flags = aom_rb_read_literal(rb, 1);
@@ -8496,10 +8491,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         current_frame->refresh_frame_flags =
             aom_rb_read_literal(rb, refresh_frame_flags_bits);
       }
-#else
-        current_frame->refresh_frame_flags =
-            aom_rb_read_literal(rb, seq_params->ref_frames);
-#endif  // CONFIG_REFRESH_FLAG
       assert(seq_params->ref_frames >= 1);
       if (seq_params->ref_frames > 1 &&
           current_frame->refresh_frame_flags ==
@@ -8515,7 +8506,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         pbi->need_resync = 0;
       }
     } else if (pbi->need_resync != 1) { /* Skip if need resync */
-#if CONFIG_REFRESH_FLAG
       if (frame_is_sframe(cm)) {
         current_frame->refresh_frame_flags =
             ((1 << seq_params->ref_frames) - 1);
@@ -8595,7 +8585,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_CWG_F317
         }
 #endif  // CONFIG_CWG_F317
-#endif  // CONFIG_REFRESH_FLAG
     }
   }
 

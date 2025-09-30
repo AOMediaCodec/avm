@@ -247,9 +247,7 @@ struct av1_extracfg {
   int enable_avg_cdf;
   int avg_cdf_type;
   int enable_parity_hiding;
-#if CONFIG_REFRESH_FLAG
   int enable_short_refresh_frame_flags;
-#endif  // CONFIG_REFRESH_FLAG
 #if CONFIG_EXT_SEG
   int enable_ext_seg;
 #endif  // CONFIG_EXT_SEG
@@ -599,9 +597,7 @@ static struct av1_extracfg default_extra_cfg = {
   1,  // enable_avg_cdf
   1,  // avg_cdf_type
   1,    // enable_parity_hiding
-#if CONFIG_REFRESH_FLAG
   1,    // enable_short_refresh_frame_flags
-#endif  // CONFIG_REFRESH_FLAG
 #if CONFIG_EXT_SEG
   0,    // enable_ext_seg
 #endif  // CONFIG_EXT_SEG
@@ -1088,10 +1084,8 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_avg_cdf = extra_cfg->enable_avg_cdf;
   cfg->avg_cdf_type = extra_cfg->avg_cdf_type;
   cfg->enable_parity_hiding = extra_cfg->enable_parity_hiding;
-#if CONFIG_REFRESH_FLAG
   cfg->enable_short_refresh_frame_flags =
       extra_cfg->enable_short_refresh_frame_flags;
-#endif  // CONFIG_REFRESH_FLAG
 #if CONFIG_EXT_SEG
   cfg->enable_ext_seg = extra_cfg->enable_ext_seg;
 #endif  // CONFIG_EXT_SEG
@@ -1222,10 +1216,8 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_avg_cdf = cfg->enable_avg_cdf;
   extra_cfg->avg_cdf_type = cfg->avg_cdf_type;
   extra_cfg->enable_parity_hiding = cfg->enable_parity_hiding;
-#if CONFIG_REFRESH_FLAG
   extra_cfg->enable_short_refresh_frame_flags =
       cfg->enable_short_refresh_frame_flags;
-#endif  // CONFIG_REFRESH_FLAG
 #if CONFIG_EXT_SEG
   extra_cfg->enable_ext_seg = cfg->enable_ext_seg;
 #endif  // CONFIG_EXT_SEG
@@ -1559,10 +1551,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
           : 0;
 #endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
   tool_cfg->enable_parity_hiding = extra_cfg->enable_parity_hiding;
-#if CONFIG_REFRESH_FLAG
   tool_cfg->enable_short_refresh_frame_flags =
       extra_cfg->enable_short_refresh_frame_flags;
-#endif  // CONFIG_REFRESH_FLAG
 #if CONFIG_EXT_SEG
   tool_cfg->enable_ext_seg = extra_cfg->enable_ext_seg;
 #endif  // CONFIG_EXT_SEG
@@ -4455,13 +4445,11 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_parity_hiding,
                               argv, err_string)) {
     extra_cfg.enable_parity_hiding = arg_parse_uint_helper(&arg, err_string);
-#if CONFIG_REFRESH_FLAG
   } else if (arg_match_helper(
                  &arg, &g_av1_codec_arg_defs.enable_short_refresh_frame_flags,
                  argv, err_string)) {
     extra_cfg.enable_short_refresh_frame_flags =
         arg_parse_uint_helper(&arg, err_string);
-#endif  // CONFIG_REFRESH_FLAG
 #if CONFIG_EXT_SEG
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_ext_seg, argv,
                               err_string)) {
@@ -4794,9 +4782,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         1,  // enable_avg_cdf
         1,  // avg_cdf_type
         1,
-#if CONFIG_REFRESH_FLAG
-        1,
-#endif  // CONFIG_REFRESH_FLAG
+        1,  // enable_short_refresh_frame_flags
 #if CONFIG_EXT_SEG
         0,  // enable_ext_seg
 #endif      // CONFIG_EXT_SEG

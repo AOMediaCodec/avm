@@ -626,10 +626,8 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_global_motion =
       tool_cfg->enable_global_motion && !seq->single_picture_hdr_flag;
 #endif  // CONFIG_IMPROVED_GLOBAL_MOTION
-#if CONFIG_REFRESH_FLAG
   seq->enable_short_refresh_frame_flags =
       tool_cfg->enable_short_refresh_frame_flags;
-#endif  // CONFIG_REFRESH_FLAG
 #if CONFIG_EXT_SEG
   seq->enable_ext_seg = tool_cfg->enable_ext_seg;
 #endif  // CONFIG_EXT_SEG

@@ -619,7 +619,6 @@ typedef struct cfg_options {
    */
   unsigned int enable_parity_hiding;
 
-#if CONFIG_REFRESH_FLAG
   /*!\brief enable signaling refresh frame flags with 3 bits.
    * If 0, signal refresh frame flags with 8 bits, which allows to refresh
    * any number of frame buffers (up to 8).
@@ -627,7 +626,6 @@ typedef struct cfg_options {
    * exactly 1 frame buffer.
    */
   unsigned int enable_short_refresh_frame_flags;
-#endif  // CONFIG_REFRESH_FLAG
 
 #if CONFIG_EXT_SEG
   /*!\brief enable extended num of segments, 16

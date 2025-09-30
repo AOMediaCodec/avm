@@ -5947,9 +5947,7 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
   }
 #endif  // CONFIG_IMPROVED_GLOBAL_MOTION
   aom_wb_write_literal(wb, seq_params->df_par_bits_minus2, 2);
-#if CONFIG_REFRESH_FLAG
   aom_wb_write_bit(wb, seq_params->enable_short_refresh_frame_flags);
-#endif  // CONFIG_REFRESH_FLAG
 #if CONFIG_EXT_SEG
   aom_wb_write_bit(wb, seq_params->enable_ext_seg);
 #endif  // CONFIG_EXT_SEG
@@ -6556,7 +6554,6 @@ static AOM_INLINE void write_uncompressed_header_obu
     if ((current_frame->frame_type == KEY_FRAME && !cm->show_frame) ||
         current_frame->frame_type == INTER_FRAME ||
         current_frame->frame_type == INTRA_ONLY_FRAME) {
-#if CONFIG_REFRESH_FLAG
       if (cm->seq_params.enable_short_refresh_frame_flags &&
           !(current_frame->frame_type == KEY_FRAME && !cm->show_frame) &&
           !cm->features.error_resilient_mode) {
@@ -6613,7 +6610,6 @@ static AOM_INLINE void write_uncompressed_header_obu
 #if CONFIG_CWG_F317
     }
 #endif  // CONFIG_CWG_F317
-#endif  // CONFIG_REFRESH_FLAG
     }
 #if CONFIG_CWG_F317
   }

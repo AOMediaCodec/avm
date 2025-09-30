@@ -985,9 +985,7 @@ typedef struct SequenceHeader {
 #if CONFIG_IMPROVED_GLOBAL_MOTION
   bool enable_global_motion;
 #endif  // CONFIG_IMPROVED_GLOBAL_MOTION
-#if CONFIG_REFRESH_FLAG
   uint8_t enable_short_refresh_frame_flags;
-#endif  // CONFIG_REFRESH_FLAG
 #if CONFIG_EXT_SEG
   uint8_t enable_ext_seg;
 #endif                                   // CONFIG_EXT_SEG
