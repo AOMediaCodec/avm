@@ -77,15 +77,11 @@ static AOM_INLINE int is_tip_mv_refinement_disabled_for_unit_size_16x16(
 #endif
     TIP_FRAME_MODE tip_frame_mode) {
   if (unit_blk_size != 16) return 0;
-#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG && CONFIG_DMVR_OFF_IN_TIP_DIRECT
+#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
   return !enable_tip_refinemv || tip_frame_mode == TIP_FRAME_AS_OUTPUT;
-#elif CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
-  return !enable_tip_refinemv;
-#elif CONFIG_DMVR_OFF_IN_TIP_DIRECT
-  return tip_frame_mode == TIP_FRAME_AS_OUTPUT;
 #else
-  return 0;
-#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG && CONFIG_DMVR_OFF_IN_TIP_DIRECT
+  return tip_frame_mode == TIP_FRAME_AS_OUTPUT;
+#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
 }
 
 // Compute scale factor for temporal scaling
