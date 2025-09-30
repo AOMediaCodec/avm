@@ -479,9 +479,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_gdf = tool_cfg->enable_gdf;
   seq->enable_restoration = tool_cfg->enable_restoration;
   seq->enable_ccso = tool_cfg->enable_ccso;
-#if CONFIG_LF_SUB_PU
   seq->enable_lf_sub_pu = tool_cfg->enable_lf_sub_pu;
-#endif  // CONFIG_LF_SUB_PU
   seq->enable_opfl_refine = tool_cfg->enable_opfl_refine;
   seq->enable_tip = tool_cfg->enable_tip;
 #if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
@@ -3586,7 +3584,6 @@ static INLINE int compute_tip_direct_output_mode_RD(AV1_COMP *cpi,
     const int64_t rdmult =
         av1_compute_rd_mult(cpi, cm->quant_params.base_qindex);
 
-#if CONFIG_LF_SUB_PU
     if (cm->seq_params.enable_lf_sub_pu && cm->features.allow_lf_sub_pu) {
       const int u_ac_delta_q_backup = cm->quant_params.u_ac_delta_q;
       const int v_ac_delta_q_backup = cm->quant_params.v_ac_delta_q;
@@ -3625,7 +3622,6 @@ static INLINE int compute_tip_direct_output_mode_RD(AV1_COMP *cpi,
       aom_extend_frame_borders(&cm->tip_ref.tip_frame->buf, av1_num_planes(cm),
                                0);
     }
-#endif  // CONFIG_LF_SUB_PU
 
     // Compute sse and rate.
     YV12_BUFFER_CONFIG *tip_frame_buf = &cm->tip_ref.tip_frame->buf;
@@ -3664,11 +3660,9 @@ static INLINE int compute_tip_direct_output_mode_RD(AV1_COMP *cpi,
         av1_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
                             av1_enc_calc_subpel_params, 0 /* copy_refined_mvs */
         );
-#if CONFIG_LF_SUB_PU
         if (cm->seq_params.enable_lf_sub_pu && cm->features.allow_lf_sub_pu) {
           loop_filter_tip_frame(cm, 0, av1_num_planes(cm));
         }
-#endif  // CONFIG_LF_SUB_PU
 
         int64_t this_sse = aom_highbd_get_y_sse(cpi->source, tip_frame_buf);
         this_sse +=
@@ -3707,11 +3701,9 @@ static INLINE int compute_tip_direct_output_mode_RD(AV1_COMP *cpi,
       av1_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
                           av1_enc_calc_subpel_params, 0 /* copy_refined_mvs */
       );
-#if CONFIG_LF_SUB_PU
       if (cm->seq_params.enable_lf_sub_pu && cm->features.allow_lf_sub_pu) {
         loop_filter_tip_frame(cm, 0, av1_num_planes(cm));
       }
-#endif  // CONFIG_LF_SUB_PU
 
       int64_t this_sse = aom_highbd_get_y_sse(cpi->source, tip_frame_buf);
       this_sse +=
@@ -3841,14 +3833,12 @@ static INLINE int finalize_tip_mode(AV1_COMP *cpi, uint8_t *dest, size_t *size,
     av1_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
                         av1_enc_calc_subpel_params, 1 /* copy_refined_mvs */
     );
-#if CONFIG_LF_SUB_PU
     if (cm->seq_params.enable_lf_sub_pu && cm->features.allow_lf_sub_pu) {
       init_tip_lf_parameter(cm, 0, av1_num_planes(cm));
       loop_filter_tip_frame(cm, 0, av1_num_planes(cm));
       aom_extend_frame_borders(&cm->tip_ref.tip_frame->buf, av1_num_planes(cm),
                                0);
     }
-#endif  // CONFIG_LF_SUB_PU
     aom_yv12_copy_frame(&cm->tip_ref.tip_frame->buf, &cm->cur_frame->buf,
                         num_planes);
 

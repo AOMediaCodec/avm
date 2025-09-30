@@ -607,7 +607,7 @@ void av1_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
 #endif  // DF_DUAL
   }
 }
-#if CONFIG_LF_SUB_PU
+
 // Try deblocking filter on TIP frame with a given filter strength
 static double try_filter_tip_frame(AV1_COMP *const cpi, int tip_delta) {
   AV1_COMMON *const cm = &cpi->common;
@@ -686,4 +686,3 @@ void search_tip_filter_level(AV1_COMP *cpi, struct AV1Common *cm) {
   }
 #endif  // CONFIG_IMPROVE_TIP_LF
 }
-#endif  // CONFIG_LF_SUB_PU

@@ -481,9 +481,7 @@ const arg_def_t *av1_key_val_args[] = {
   &g_av1_codec_arg_defs.avg_cdf_type,
   &g_av1_codec_arg_defs.enable_opfl_refine,
   &g_av1_codec_arg_defs.enable_ccso,
-#if CONFIG_LF_SUB_PU
   &g_av1_codec_arg_defs.enable_lf_sub_pu,
-#endif  // CONFIG_LF_SUB_PU
 #if CONFIG_REDUCED_REF_FRAME_MVS_MODE
   &g_av1_codec_arg_defs.reduced_ref_frame_mvs_mode,
 #endif  // CONFIG_REDUCED_REF_FRAME_MVS_MODE
@@ -699,9 +697,7 @@ static void init_config(cfg_options_t *config) {
   config->enable_pc_wiener = 1;
   config->enable_wiener_nonsep = 1;
   config->enable_ccso = 1;
-#if CONFIG_LF_SUB_PU
   config->enable_lf_sub_pu = 1;
-#endif  // CONFIG_LF_SUB_PU
   config->enable_warped_motion = 1;
   config->enable_warp_causal = 1;
   config->enable_warp_delta = 1;

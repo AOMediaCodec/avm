@@ -847,10 +847,8 @@ typedef struct {
   bool enable_wiener_nonsep;
   // Indicates if ccso should be enabled.
   bool enable_ccso;
-#if CONFIG_LF_SUB_PU
   bool enable_lf_sub_pu;
   // Indicates if deblocking on sub block should be enabled.
-#endif  // CONFIG_LF_SUB_PU
   // Indicates if adaptive MVD resolution should be enabled.
   bool enable_adaptive_mvd;
 
@@ -3510,10 +3508,10 @@ static INLINE int av1_frame_scaled(const AV1_COMMON *cm) {
 static INLINE int encode_show_existing_frame(const AV1_COMMON *cm) {
   if (!cm->show_existing_frame) return 0;
 #if CONFIG_F253_REMOVE_OUTPUTFLAG
-    // show_existing_frame can be equal to 1
+  // show_existing_frame can be equal to 1
 #else
-    // When enable_frame_output_order == 1, show_existing_frame can be equal to
-    // 1
+  // When enable_frame_output_order == 1, show_existing_frame can be equal to
+  // 1
 #endif  // CONFIG_F253_REMOVE_OUTPUTFLAG
         // only for a forward key frame
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG

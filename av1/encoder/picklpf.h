@@ -159,9 +159,7 @@ int av1_get_max_filter_level(const AV1_COMP *cpi);
  */
 void av1_pick_filter_level(const struct yv12_buffer_config *sd,
                            struct AV1_COMP *cpi, LPF_PICK_METHOD method);
-#if CONFIG_LF_SUB_PU
 void search_tip_filter_level(AV1_COMP *cpi, struct AV1Common *cm);
-#endif  // CONFIG_LF_SUB_PU
 #ifdef __cplusplus
 }  // extern "C"
 #endif

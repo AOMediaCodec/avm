@@ -43,11 +43,9 @@ extern "C" {
 
 #define SIMD_WIDTH 16
 
-#if CONFIG_LF_SUB_PU
 #define SUB_PU_THR_SHIFT 3
 #define SUB_PU_QTHR 150
 #define SUB_PU_BD_FACTOR 24
-#endif  // CONFIG_LF_SUB_PU
 
 enum lf_path {
   LF_PATH_420,
@@ -89,13 +87,11 @@ struct loopfilter {
 
   int combine_vert_horz_lf;
 
-#if CONFIG_LF_SUB_PU
   int tip_filter_level;
 #if !CONFIG_IMPROVE_TIP_LF
   int tip_delta_idx;
 #endif  // !CONFIG_IMPROVE_TIP_LF
   int tip_delta;
-#endif  // CONFIG_LF_SUB_PU
 };
 
 // Need to align this structure so when it is declared and
@@ -119,10 +115,8 @@ typedef struct {
                    [MAX_MODE_LF_DELTAS];
 #endif  // CONFIG_DF_DQP
 
-#if CONFIG_LF_SUB_PU
   uint16_t tip_q_thr[MAX_MB_PLANE][2];
   uint16_t tip_side_thr[MAX_MB_PLANE][2];
-#endif  // CONFIG_LF_SUB_PU
 } loop_filter_info_n;
 
 typedef struct LoopFilterWorkerData {
@@ -153,8 +147,6 @@ void av1_loop_filter_frame_init(struct AV1Common *cm, int plane_start,
 void av1_loop_filter_frame(YV12_BUFFER_CONFIG *frame, struct AV1Common *cm,
                            struct macroblockd *xd, int plane_start,
                            int plane_end, int partial_frame);
-
-#if CONFIG_LF_SUB_PU
 void loop_filter_tip_plane(struct AV1Common *cm, const int plane, uint16_t *dst,
                            const int dst_stride,
 #if CONFIG_IMPROVE_TIP_LF
@@ -169,7 +161,6 @@ void loop_filter_tip_frame(struct AV1Common *cm, int plane_start,
                            int plane_end);
 void init_tip_lf_parameter(struct AV1Common *cm, int plane_start,
                            int plane_end);
-#endif  // CONFIG_LF_SUB_PU
 void av1_filter_block_plane_vert(struct AV1Common *const cm,
                                  const MACROBLOCKD *const xd, const int plane,
                                  const MACROBLOCKD_PLANE *const plane_ptr,

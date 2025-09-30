@@ -73,9 +73,7 @@ struct av1_extracfg {
   unsigned int enable_pc_wiener;
   unsigned int enable_wiener_nonsep;
   unsigned int enable_ccso;
-#if CONFIG_LF_SUB_PU
   unsigned int enable_lf_sub_pu;
-#endif  // CONFIG_LF_SUB_PU
   unsigned int force_video_mode;
   unsigned int enable_trellis_quant;
   unsigned int enable_qm;
@@ -428,9 +426,7 @@ static struct av1_extracfg default_extra_cfg = {
   1,                                         // enable_pc_wiener
   1,                                         // enable_wiener_nonsep
   1,                                         // enable_ccso
-#if CONFIG_LF_SUB_PU
   1,                            // enable_lf_sub_pu
-#endif                          // CONFIG_LF_SUB_PU
   0,                            // force_video_mode
   3,                            // enable_trellis_quant
   0,                            // enable_qm
@@ -982,9 +978,7 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_pc_wiener = extra_cfg->enable_pc_wiener;
   cfg->enable_wiener_nonsep = extra_cfg->enable_wiener_nonsep;
   cfg->enable_ccso = extra_cfg->enable_ccso;
-#if CONFIG_LF_SUB_PU
   cfg->enable_lf_sub_pu = extra_cfg->enable_lf_sub_pu;
-#endif  // CONFIG_LF_SUB_PU
   cfg->superblock_size =
       (extra_cfg->superblock_size == AOM_SUPERBLOCK_SIZE_64X64)     ? 64
       : (extra_cfg->superblock_size == AOM_SUPERBLOCK_SIZE_128X128) ? 128
@@ -1117,9 +1111,7 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_pc_wiener = cfg->enable_pc_wiener;
   extra_cfg->enable_wiener_nonsep = cfg->enable_wiener_nonsep;
   extra_cfg->enable_ccso = cfg->enable_ccso;
-#if CONFIG_LF_SUB_PU
   extra_cfg->enable_lf_sub_pu = cfg->enable_lf_sub_pu;
-#endif  // CONFIG_LF_SUB_PU
   extra_cfg->superblock_size =
       (cfg->superblock_size == 64)    ? AOM_SUPERBLOCK_SIZE_64X64
       : (cfg->superblock_size == 128) ? AOM_SUPERBLOCK_SIZE_128X128
@@ -1424,14 +1416,12 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   tool_cfg->enable_restoration &=
       (tool_cfg->enable_pc_wiener | tool_cfg->enable_wiener_nonsep);
   tool_cfg->enable_ccso = extra_cfg->enable_ccso;
-#if CONFIG_LF_SUB_PU
   tool_cfg->enable_lf_sub_pu = extra_cfg->enable_lf_sub_pu;
   if (tool_cfg->enable_lf_sub_pu) {
     if (cfg->kf_max_dist == 0) {
       tool_cfg->enable_lf_sub_pu = 0;
     }
   }
-#endif  // CONFIG_LF_SUB_PU
   tool_cfg->enable_adaptive_mvd = extra_cfg->enable_adaptive_mvd;
   tool_cfg->enable_flex_mvres = extra_cfg->enable_flex_mvres;
   tool_cfg->select_cfl_ds_filter = extra_cfg->select_cfl_ds_filter;
@@ -4020,11 +4010,9 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_ccso, argv,
                               err_string)) {
     extra_cfg.enable_ccso = arg_parse_int_helper(&arg, err_string);
-#if CONFIG_LF_SUB_PU
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_lf_sub_pu,
                               argv, err_string)) {
     extra_cfg.enable_lf_sub_pu = arg_parse_uint_helper(&arg, err_string);
-#endif  // CONFIG_LF_SUB_PU
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.force_video_mode,
                               argv, err_string)) {
     extra_cfg.force_video_mode = arg_parse_uint_helper(&arg, err_string);
@@ -4777,15 +4765,12 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #endif  // CONFIG_DERIVED_MVD_SIGN
         1,   1, 1, 1,
         1,   1, 1, 1,
-#if CONFIG_LF_SUB_PU
-        1,
-#endif  // CONFIG_LF_SUB_PU
         1,   1, 1, 1,
         1,   1, 1, 1,
-        1,   1, 0, 0,
+        1,   1, 1, 0,
+        0,   1, 1, 1,
         1,   1, 1, 1,
-        1,   1, 1, 1,
-        1,   1,
+        1,   1, 1,
         0,  // reduced_tx_part_set
         1,   1, 1, 1,
         3,   1,

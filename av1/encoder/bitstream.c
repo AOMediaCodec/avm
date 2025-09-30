@@ -5794,14 +5794,8 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
   }
 #endif  // CONFIG_FSC_RES_HLS
   aom_wb_write_bit(wb, seq_params->enable_ccso);
-#if CONFIG_LF_SUB_PU
   aom_wb_write_bit(wb, seq_params->enable_lf_sub_pu);
-#endif  // CONFIG_LF_SUB_PU
-  if (seq_params->enable_tip == 1 &&
-#if CONFIG_LF_SUB_PU
-      seq_params->enable_lf_sub_pu
-#endif  // CONFIG_LF_SUB_PU
-  ) {
+  if (seq_params->enable_tip == 1 && seq_params->enable_lf_sub_pu) {
     aom_wb_write_bit(wb, seq_params->enable_tip_explicit_qp);
   }
   aom_wb_write_bit(wb, seq_params->enable_orip);
@@ -6539,11 +6533,9 @@ static AOM_INLINE void write_uncompressed_header_obu
         aom_wb_write_bit(wb, cm->tmvp_sample_step - 1);
       }
 
-#if CONFIG_LF_SUB_PU
       if (cm->seq_params.enable_lf_sub_pu) {
         aom_wb_write_bit(wb, features->allow_lf_sub_pu);
       }
-#endif  // CONFIG_LF_SUB_PU
       if (cm->seq_params.enable_tip && features->allow_ref_frame_mvs &&
           cm->ref_frames_info.num_total_refs >= 2 &&
           !cm->bru.frame_inactive_flag) {
@@ -6573,7 +6565,6 @@ static AOM_INLINE void write_uncompressed_header_obu
           aom_wb_write_literal(wb, cm->tip_global_wtd_index, 3);
         }
 #endif  // CONFIG_TIP_ENHANCEMENT
-#if CONFIG_LF_SUB_PU
         if (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT &&
             cm->seq_params.enable_lf_sub_pu && features->allow_lf_sub_pu) {
           aom_wb_write_bit(wb, cm->lf.tip_filter_level);
@@ -6582,7 +6573,6 @@ static AOM_INLINE void write_uncompressed_header_obu
             aom_wb_write_literal(wb, cm->lf.tip_delta_idx, 2);
 #endif  //! CONFIG_IMPROVE_TIP_LF
         }
-#endif  // CONFIG_LF_SUB_PU
 
         if (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
           aom_wb_write_bit(wb, cm->tip_global_motion.as_int == 0);
@@ -6702,18 +6692,10 @@ static AOM_INLINE void write_uncompressed_header_obu
       }
     }
 
-#if CONFIG_LF_SUB_PU
     if (cm->seq_params.enable_lf_sub_pu && cm->features.allow_lf_sub_pu &&
         cm->lf.tip_filter_level) {
       write_tile_info(cm, saved_wb, wb);
     }
-#else
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-    if (cm->seq_params.disable_loopfilters_across_tiles) {
-      write_tile_info(cm, saved_wb, wb);
-    }
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-#endif  // CONFIG_LF_SUB_PU
 
     if (seq_params->film_grain_params_present
 #if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT

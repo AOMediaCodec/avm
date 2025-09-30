@@ -1807,7 +1807,6 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   end_timing(cpi, av1_setup_motion_field_time);
 #endif
 
-#if CONFIG_LF_SUB_PU
   const int sub_pu_qp_thr =
       SUB_PU_QTHR + (cm->seq_params.bit_depth - AOM_BITS_8) * SUB_PU_BD_FACTOR;
   if (cm->seq_params.enable_lf_sub_pu &&
@@ -1816,7 +1815,6 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
     cm->features.allow_lf_sub_pu = 1;
   else
     cm->features.allow_lf_sub_pu = 0;
-#endif  // CONFIG_LF_SUB_PU
 
   av1_enc_setup_tip_frame(cpi);
 

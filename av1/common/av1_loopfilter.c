@@ -468,12 +468,7 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
                                   const int mi_col, const int plane,
                                   const TREE_TYPE tree_type,
                                   const struct macroblockd_plane *plane_ptr,
-                                  bool *tu_edge
-#if CONFIG_LF_SUB_PU
-                                  ,
-                                  bool *is_tx_m_partition
-#endif  // CONFIG_LF_SUB_PU
-) {
+                                  bool *tu_edge, bool *is_tx_m_partition) {
   assert(mbmi != NULL);
   const BLOCK_SIZE bsize_base =
       get_bsize_base_from_tree_type(mbmi, tree_type, plane);
@@ -525,7 +520,6 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
 
     const TX_SIZE max_tx_size = max_txsize_rect_lookup[sb_type];
     if (partition == TX_PARTITION_HORZ5 || partition == TX_PARTITION_VERT5) {
-#if CONFIG_LF_SUB_PU
       if (is_tx_m_partition != NULL) {
         *is_tx_m_partition =
             (edge_dir == VERT_EDGE && mi_size_wide[mbmi->sb_type[0]] == 4 &&
@@ -533,7 +527,6 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
             (edge_dir == HORZ_EDGE && mi_size_high[mbmi->sb_type[0]] == 4 &&
              partition == TX_PARTITION_HORZ5);
       }
-#endif  // CONFIG_LF_SUB_PU
       TXB_POS_INFO txb_pos;
       TX_SIZE sub_txs[MAX_TX_PARTITIONS] = { 0 };
       assert(xd != NULL);
@@ -631,7 +624,6 @@ static uint32_t get_pu_starting_cooord(const MB_MODE_INFO *const mbmi,
   return pu_stating_coord_luma >> scale;
 }
 
-#if CONFIG_LF_SUB_PU
 // Check whether current block is TIP mode
 static AOM_INLINE void check_tip_edge(const MB_MODE_INFO *const mbmi,
                                       const int scale, TX_SIZE *ts,
@@ -755,7 +747,6 @@ static AOM_INLINE void check_sub_pu_edge(
     }
   }
 }
-#endif  // CONFIG_LF_SUB_PU
 
 // Returns pointer to appropriate 'mi' with 'mi_grid_base', which contains
 // information about current coding block and given current 'x'/'y' location,
@@ -822,27 +813,17 @@ static TX_SIZE set_lpf_parameters(
   const int plane_type = is_sdp_eligible && plane > 0;
 
   bool tu_edge;
-#if CONFIG_LF_SUB_PU
   bool is_tx_m_partition = false;
   TX_SIZE ts =
       get_transform_size(xd, mi[0], edge_dir, mi_row, mi_col, plane, tree_type,
                          plane_ptr, &tu_edge, &is_tx_m_partition);
-#else
-  const TX_SIZE ts = get_transform_size(xd, mi[0], edge_dir, mi_row, mi_col,
-                                        plane, tree_type, plane_ptr, &tu_edge);
-#endif  // CONFIG_LF_SUB_PU
   {
     const uint32_t coord = (VERT_EDGE == edge_dir) ? (x) : (y);
 
-#if CONFIG_LF_SUB_PU
     int32_t sub_pu_edge = 0;
     check_sub_pu_edge(cm, xd, mbmi, plane, tree_type, scale_horz, scale_vert,
                       edge_dir, coord, &ts, &sub_pu_edge, &is_tx_m_partition);
-    if (!tu_edge && !sub_pu_edge)
-#else
-    if (!tu_edge)
-#endif  // CONFIG_LF_SUB_PU
-      return ts;
+    if (!tu_edge && !sub_pu_edge) return ts;
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
     if (cm->seq_params.disable_loopfilters_across_tiles) {
       if (edge_dir == VERT_EDGE)
@@ -899,25 +880,14 @@ static TX_SIZE set_lpf_parameters(
             prev_tree_type = (plane == AOM_PLANE_Y) ? LUMA_PART : CHROMA_PART;
           }
           bool prev_tu_edge;
-#if CONFIG_LF_SUB_PU
           bool pv_is_tx_m_partition = false;
-          TX_SIZE pv_ts =
-#else
-          const TX_SIZE pv_ts =
-#endif  // CONFIG_LF_SUB_PU
-              get_transform_size(xd, mi_prev, edge_dir, pv_row, pv_col, plane,
-                                 prev_tree_type, plane_ptr, &prev_tu_edge
-#if CONFIG_LF_SUB_PU
-                                 ,
-                                 &pv_is_tx_m_partition
-#endif  // CONFIG_LF_SUB_PU
-              );
-#if CONFIG_LF_SUB_PU
+          TX_SIZE pv_ts = get_transform_size(
+              xd, mi_prev, edge_dir, pv_row, pv_col, plane, prev_tree_type,
+              plane_ptr, &prev_tu_edge, &pv_is_tx_m_partition);
           int32_t pv_sub_pu_edge = 0;
           check_sub_pu_edge(cm, xd, mi_prev, plane, prev_tree_type, scale_horz,
                             scale_vert, edge_dir, 0, &pv_ts, &pv_sub_pu_edge,
                             &pv_is_tx_m_partition);
-#endif  // CONFIG_LF_SUB_PU
           const uint32_t pv_q =
               av1_get_filter_q(&cm->lf_info, edge_dir, plane, mi_prev
 #if CONFIG_DF_DQP
@@ -1022,19 +992,12 @@ static TX_SIZE set_lpf_parameters(
           }
 #endif  // DF_MVS
 
-#if CONFIG_LF_SUB_PU
           const int none_skip_txfm = (!pv_skip_txfm || !curr_skipped);
-#endif  // CONFIG_LF_SUB_PU
           if (((curr_q && curr_side) || (pv_q && pv_side)) &&
 #if DF_MVS
               (!pv_skip_txfm || !curr_skipped || diff_mvs)) {
 #else
-#if CONFIG_LF_SUB_PU
-              (none_skip_txfm || sub_pu_edge
-#else
-              (!pv_skip_txfm || !curr_skipped
-#endif  // CONFIG_LF_SUB_PU
-               || pu_edge)) {
+              (none_skip_txfm || sub_pu_edge || pu_edge)) {
 #endif
             TX_SIZE clipped_ts = ts;
             if (!plane) {
@@ -1183,12 +1146,10 @@ static TX_SIZE set_lpf_parameters(
             params->q_threshold = (curr_q) ? (curr_q) : (pv_q);
             params->side_threshold = (curr_side) ? (curr_side) : (pv_side);
 #endif
-#if CONFIG_LF_SUB_PU
             if (sub_pu_edge && !tu_edge) {
               params->q_threshold >>= SUB_PU_THR_SHIFT;
               params->side_threshold >>= SUB_PU_THR_SHIFT;
             }
-#endif  // CONFIG_LF_SUB_PU
           }
         }
       }
@@ -1303,10 +1264,10 @@ void av1_filter_block_plane_vert(AV1_COMMON *const cm,
               params.filter_length,
 #endif  // CONFIG_ASYM_DF
                 &params.q_threshold, &params.side_threshold, bit_depth
-#if CONFIG_LF_SUB_PU && !CONFIG_IMPROVE_TIP_LF
+#if !CONFIG_IMPROVE_TIP_LF
                 ,
                 4
-#endif  // CONFIG_LF_SUB_PU  && !CONFIG_IMPROVE_TIP_LF
+#endif  // !CONFIG_IMPROVE_TIP_LF
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
                 ,
                 is_lossless_prev_block, is_lossless_current_block
@@ -1323,10 +1284,10 @@ void av1_filter_block_plane_vert(AV1_COMMON *const cm,
                 params.filter_length,
 #endif  // CONFIG_ASYM_DF
                 &params.q_threshold, &params.side_threshold, bit_depth
-#if CONFIG_LF_SUB_PU && !CONFIG_IMPROVE_TIP_LF
+#if !CONFIG_IMPROVE_TIP_LF
                 ,
                 4
-#endif  // CONFIG_LF_SUB_PU  && !CONFIG_IMPROVE_TIP_LF
+#endif  // !CONFIG_IMPROVE_TIP_LF
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
                 ,
                 is_lossless_prev_block, is_lossless_current_block
@@ -1429,10 +1390,10 @@ void av1_filter_block_plane_horz(AV1_COMMON *const cm,
               params.filter_length,
 #endif  // CONFIG_ASYM_DF
                 &params.q_threshold, &params.side_threshold, bit_depth
-#if CONFIG_LF_SUB_PU && !CONFIG_IMPROVE_TIP_LF
+#if !CONFIG_IMPROVE_TIP_LF
                 ,
                 4
-#endif  // CONFIG_LF_SUB_PU && !CONFIG_IMPROVE_TIP_LF
+#endif  // !CONFIG_IMPROVE_TIP_LF
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
                 ,
                 is_lossless_prev_block, is_lossless_current_block
@@ -1448,10 +1409,10 @@ void av1_filter_block_plane_horz(AV1_COMMON *const cm,
                 params.filter_length,
 #endif  // CONFIG_ASYM_DF
                 &params.q_threshold, &params.side_threshold, bit_depth
-#if CONFIG_LF_SUB_PU && !CONFIG_IMPROVE_TIP_LF
+#if !CONFIG_IMPROVE_TIP_LF
                 ,
                 4
-#endif  // CONFIG_LF_SUB_PU && !CONFIG_IMPROVE_TIP_LF
+#endif  // !CONFIG_IMPROVE_TIP_LF
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
                 ,
                 is_lossless_prev_block, is_lossless_current_block
@@ -1552,7 +1513,7 @@ void av1_loop_filter_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
   loop_filter_rows(frame, cm, xd, start_mi_row, end_mi_row, plane_start,
                    plane_end);
 }
-#if CONFIG_LF_SUB_PU
+
 // Set TIP filter length
 static AOM_INLINE void set_tip_filter_length(
     AV1_COMMON *cm, const int plane, const int subsampling_x,
@@ -1851,4 +1812,3 @@ void loop_filter_tip_frame(struct AV1Common *cm, int plane_start,
                           dst_buf->height);
   }
 }
-#endif  // CONFIG_LF_SUB_PU

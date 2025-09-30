@@ -662,12 +662,10 @@ static void av1_dec_setup_tip_frame(AV1_COMMON *cm, MACROBLOCKD *xd,
     cm->cur_frame->v_ac_delta_q = cm->quant_params.v_ac_delta_q =
         avg_v_ac_delta_q;
   }
-#if CONFIG_LF_SUB_PU
   if (cm->seq_params.enable_lf_sub_pu && cm->features.allow_lf_sub_pu) {
     init_tip_lf_parameter(cm, 0, av1_num_planes(cm));
     loop_filter_tip_frame(cm, 0, av1_num_planes(cm));
   }
-#endif  // CONFIG_LF_SUB_PU
 }
 
 static AOM_INLINE void decode_mbmi_block(AV1Decoder *const pbi,
@@ -6903,14 +6901,8 @@ void av1_read_sequence_header_beyond_av1(
   }
 #endif  // CONFIG_FSC_RES_HLS
   seq_params->enable_ccso = aom_rb_read_bit(rb);
-#if CONFIG_LF_SUB_PU
   seq_params->enable_lf_sub_pu = aom_rb_read_bit(rb);
-#endif  // CONFIG_LF_SUB_PU
-  if (seq_params->enable_tip == 1 &&
-#if CONFIG_LF_SUB_PU
-      seq_params->enable_lf_sub_pu
-#endif  // CONFIG_LF_SUB_PU
-  ) {
+  if (seq_params->enable_tip == 1 && seq_params->enable_lf_sub_pu) {
     seq_params->enable_tip_explicit_qp = aom_rb_read_bit(rb);
   } else {
     seq_params->enable_tip_explicit_qp = 0;
@@ -8336,9 +8328,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     }
   }
 
-#if CONFIG_LF_SUB_PU
   features->allow_lf_sub_pu = 0;
-#endif  // CONFIG_LF_SUB_PU
   if (current_frame->frame_type == KEY_FRAME) {
     cm->current_frame.pyramid_level = 1;
     cm->current_frame.temporal_layer_id = cm->tlayer_id;
@@ -8697,11 +8687,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         cm->tmvp_sample_stepl2 = 0;
       }
 
-#if CONFIG_LF_SUB_PU
       if (cm->seq_params.enable_lf_sub_pu) {
         features->allow_lf_sub_pu = aom_rb_read_bit(rb);
       }
-#endif  // CONFIG_LF_SUB_PU
 
       cm->tip_global_motion.as_int = 0;
       cm->tip_interp_filter = MULTITAP_SHARP;
@@ -8748,7 +8736,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           cm->tip_global_wtd_index = aom_rb_read_literal(rb, 3);
         }
 #endif  // CONFIG_TIP_ENHANCEMENT
-#if CONFIG_LF_SUB_PU
         if (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT &&
             cm->seq_params.enable_lf_sub_pu && features->allow_lf_sub_pu) {
           cm->lf.tip_filter_level = aom_rb_read_bit(rb);
@@ -8758,11 +8745,10 @@ static int read_uncompressed_header(AV1Decoder *pbi,
             const int tip_delta_idx_to_delta[4] = { -10, 0, 6, 12 };
             cm->lf.tip_delta = tip_delta_idx_to_delta[cm->lf.tip_delta_idx];
 #else
-            cm->lf.tip_delta = 0;
+              cm->lf.tip_delta = 0;
 #endif  //! CONFIG_IMPROVE_TIP_LF
           }
         }
-#endif  // CONFIG_LF_SUB_PU
 
         if (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
           int all_zero = aom_rb_read_bit(rb);
@@ -9044,18 +9030,10 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       cm->cur_frame->v_ac_delta_q = cm->quant_params.v_ac_delta_q;
     }
     features->refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
-#if CONFIG_LF_SUB_PU
     if (cm->seq_params.enable_lf_sub_pu && cm->features.allow_lf_sub_pu &&
         cm->lf.tip_filter_level) {
       read_tile_info(pbi, rb);
     }
-#else
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-      if (cm->seq_params.disable_loopfilters_across_tiles) {
-        read_tile_info(pbi, rb);
-      }
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-#endif  // CONFIG_LF_SUB_PU
     features->disable_cdf_update = 1;
     cm->cur_frame->film_grain_params_present =
         seq_params->film_grain_params_present;

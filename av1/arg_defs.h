@@ -135,9 +135,7 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t enable_pc_wiener;
   arg_def_t enable_wiener_nonsep;
   arg_def_t enable_ccso;
-#if CONFIG_LF_SUB_PU
   arg_def_t enable_lf_sub_pu;
-#endif  // CONFIG_LF_SUB_PU
   arg_def_t disable_ml_partition_speed_features;
   arg_def_t erp_pruning_level;
   arg_def_t use_ml_erp_pruning;

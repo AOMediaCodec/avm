@@ -325,7 +325,8 @@ set_aom_config_var(CONFIG_FIX_RESIZE_PSNR 1
 set_aom_config_var(CONFIG_SCC_DETERMINATION 1
                    "Enable the screen content tools determination improvement.")
 
-set_aom_config_var(CONFIG_LF_SUB_PU 1 "AV2 enable LF on sub blocks")
+set_aom_config_var(CONFIG_F107_GRADIENT_SIMPLIFY 1
+                   "Use smaller OPFL gradient units and remove bit checks.")
 set_aom_config_var(CONFIG_ASYM_DF 1 "Enable asymmetric DF")
 set_aom_config_var(CONFIG_DERIVED_MVD_SIGN 1 "Enable MVD sign derivations")
 set_aom_config_var(CONFIG_VQ_MVD_CODING 1 "Enable VQ based MVD coding")
