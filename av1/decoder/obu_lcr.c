@@ -134,7 +134,7 @@ static int read_lcr_embedded_layer_info(struct AV1Decoder *pbi, int isGlobal,
       // byte alignment
       if (byte_alignment(&pbi->common, rb) != 0) {
         aom_internal_error(
-            &pbi->common.error, AOM_CODEC_ERROR,
+            &pbi->common.error, AOM_CODEC_CORRUPT_FRAME,
             "Byte alignment error in read_lcr_embedded_layer_info()");
       }
       mlayer_params->MLayerCount[isGlobal][xId]++;
@@ -193,7 +193,7 @@ static int read_lcr_xlayer_info(struct AV1Decoder *pbi, int isGlobal, int xId,
 
   // byte alignment
   if (byte_alignment(&pbi->common, rb) != 0) {
-    aom_internal_error(&pbi->common.error, AOM_CODEC_ERROR,
+    aom_internal_error(&pbi->common.error, AOM_CODEC_CORRUPT_FRAME,
                        "Byte alignment error in read_lcr_xlayer_info()");
   }
 
