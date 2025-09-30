@@ -35,9 +35,7 @@
 #include "av1/decoder/decodeframe.h"
 #include "av1/decoder/obu.h"
 
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
 #include "aom_dsp/bitwriter_buffer.h"
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
 
 #include "av1/av1_iface_common.h"
 
@@ -67,11 +65,7 @@ struct aom_codec_alg_priv {
   AVxWorker *frame_worker;
 
   aom_image_t image_with_grain;
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
   aom_codec_frame_buffer_t grain_image_frame_buffers[REF_FRAMES + 1];
-#else
-  aom_codec_frame_buffer_t grain_image_frame_buffers[MAX_NUM_SPATIAL_LAYERS];
-#endif
   size_t num_grain_image_frame_buffers;
   int need_resync;  // wait for key/intra-only frame
   // BufferPool that holds all reference frames. Shared by all the FrameWorkers.
@@ -709,7 +703,6 @@ static aom_codec_err_t init_decoder(aom_codec_alg_priv_t *ctx) {
   worker->hook = frame_worker_hook;
 
   init_buffer_callbacks(ctx);
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
   for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
     frame_worker_data->pbi->common.remapped_ref_idx[i] = INVALID_IDX;
   }
@@ -717,7 +710,6 @@ static aom_codec_err_t init_decoder(aom_codec_alg_priv_t *ctx) {
        i++) {
     frame_worker_data->pbi->common.ref_frame_map[i] = NULL;
   }
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
 #if CONFIG_MULTI_FRAME_HEADER
   for (int i = 0; i < MAX_MFH_NUM; i++) {
     frame_worker_data->pbi->common.mfh_valid[i] = false;
@@ -852,7 +844,6 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
       ctx->grain_image_frame_buffers[j].priv = NULL;
     }
     ctx->num_grain_image_frame_buffers = 0;
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
 #if CONFIG_F253_REMOVE_OUTPUTFLAG
     // Output any frames in the buffer
 #else
@@ -875,7 +866,6 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
       }
       return AOM_CODEC_OK;
     }
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
   }
 
   /* Sanity checks */

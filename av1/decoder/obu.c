@@ -339,7 +339,6 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
   // Sequence header for coding tools beyond AV1
   av1_read_sequence_header_beyond_av1(rb, seq_params, &cm->quant_params,
                                       &cm->error);
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   if (!seq_params->order_hint_info.enable_order_hint &&
       !seq_params->single_picture_hdr_flag
@@ -357,7 +356,6 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
     );
   }
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-#endif
 
   if (av1_check_trailing_bits(pbi, rb) != 0) {
     // cm->error.error_code is already set.

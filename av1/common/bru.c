@@ -354,9 +354,7 @@ RefCntBuffer *bru_swap_common(AV1_COMMON *cm) {
     if (!cm->bru.frame_inactive_flag)
       ref_buf->base_qindex = cm->cur_frame->base_qindex;
     ref_buf->num_ref_frames = cm->cur_frame->num_ref_frames;
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
     ref_buf->frame_output_done = 0;
-#endif
     ref_buf->frame_type = cm->cur_frame->frame_type;
     ref_buf->rst_info[0] = tmp_buf->rst_info[0];
     ref_buf->rst_info[1] = tmp_buf->rst_info[1];

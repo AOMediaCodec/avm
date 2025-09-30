@@ -201,15 +201,9 @@ static int is_visible(FRAME_TYPE_CODE code) {
   switch (code) {
     case FRAME_TYPE_INO_VISIBLE:
     case FRAME_TYPE_INO_REPEAT:
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
     case FRAME_TYPE_OOO_UNFILTERED:
     case FRAME_TYPE_INO_SHOWEXISTING: return 1;
     case FRAME_TYPE_OOO_FILTERED: return 0;
-#else   // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
-    case FRAME_TYPE_OOO_UNFILTERED: return 1;
-    case FRAME_TYPE_INO_SHOWEXISTING:
-    case FRAME_TYPE_OOO_FILTERED: return 0;
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
     default: assert(0 && "Invalid frame type code"); return 0;
   }
 }

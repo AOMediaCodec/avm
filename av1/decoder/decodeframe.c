@@ -6464,15 +6464,11 @@ void av1_read_film_grain_params(AV1_COMMON *cm,
 static AOM_INLINE void read_film_grain(AV1_COMMON *cm,
                                        struct aom_read_bit_buffer *rb) {
   if (cm->seq_params.film_grain_params_present
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
       && (cm->seq_params.enable_frame_output_order || cm->show_frame ||
           cm->showable_frame)
 #endif
   ) {
-#else
-      (cm->show_frame || cm->showable_frame)) {
-#endif
     av1_read_film_grain_params(cm, rb);
   } else {
     memset(&cm->film_grain_params, 0, sizeof(cm->film_grain_params));
@@ -7533,9 +7529,6 @@ static INLINE void reset_frame_buffers(AV1_COMMON *cm) {
   int i;
 
   lock_buffer_pool(cm->buffer_pool);
-#if !CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
-  reset_ref_frame_map(cm);
-#endif  // !CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
   assert(cm->cur_frame->ref_count == 1);
   for (i = 0; i < FRAME_BUFFERS; ++i) {
     // Reset all unreferenced frame buffers. We can also reset cm->cur_frame
@@ -7886,7 +7879,6 @@ static int read_show_existing_frame(AV1Decoder *pbi,
   cm->lf.filter_level[0] = 0;
   cm->lf.filter_level[1] = 0;
   cm->show_frame = 1;
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
   // It is a requirement of bitstream conformance that when
   // show_existing_frame is used to show a previous frame with
   // RefFrameType[ frame_to_show_map_idx ] equal to KEY_FRAME, that the
@@ -7905,15 +7897,6 @@ static int read_show_existing_frame(AV1Decoder *pbi,
     aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                        "Buffer does not contain a showable frame");
   }
-#else
-  // Section 6.8.2: It is a requirement of bitstream conformance that when
-  // show_existing_frame is used to show a previous frame, that the value
-  // of showable_frame for the previous frame was equal to 1.
-  if (!frame_to_show->showable_frame) {
-    aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-                       "Buffer does not contain a showable frame");
-  }
-#endif  // !CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
   if (pbi->reset_decoder_state) frame_to_show->showable_frame = 0;
 
   cm->film_grain_params = frame_to_show->film_grain_params;
@@ -8023,7 +8006,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       reset_frame_buffers(cm);
     }
     features->error_resilient_mode = 1;
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
     if (cm->seq_params.enable_frame_output_order)
 #endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
@@ -8032,7 +8014,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     else
       cm->cur_frame->frame_output_done = 1;
 #endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
 
   } else {
 #if CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_SEF
@@ -8121,7 +8102,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       cm->lf.filter_level[0] = 0;
       cm->lf.filter_level[1] = 0;
       cm->show_frame = 1;
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
       // It is a requirement of bitstream conformance that when
       // show_existing_frame is used to show a previous frame with
       // RefFrameType[ frame_to_show_map_idx ] equal to KEY_FRAME, that the
@@ -8140,15 +8120,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
             aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                                "Buffer does not contain a showable frame");
           }
-#else
-      // Section 6.8.2: It is a requirement of bitstream conformance that when
-      // show_existing_frame is used to show a previous frame, that the value
-      // of showable_frame for the previous frame was equal to 1.
-      if (!frame_to_show->showable_frame) {
-        aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-                           "Buffer does not contain a showable frame");
-      }
-#endif  // !CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
           if (pbi->reset_decoder_state) frame_to_show->showable_frame = 0;
 
           cm->film_grain_params = frame_to_show->film_grain_params;
@@ -8251,7 +8222,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       }
 #endif  // CONFIG_CWG_F317
     }
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
     if (
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
         seq_params->enable_frame_output_order &&
@@ -8262,13 +8232,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_F253_REMOVE_OUTPUTFLAG
                          "Frame "
 #else
-                         "when enable_frame_output_order is enabled and frame "
+                           "when enable_frame_output_order is enabled and "
+                           "frame "
 #endif  // CONFIG_F253_REMOVE_OUTPUTFLAG
                          "type is KEY_FRAME.");
     }
-#endif
     cm->cur_frame->showable_frame = cm->showable_frame;
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
     if (cm->seq_params.enable_frame_output_order)
 #endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
@@ -8277,7 +8246,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     else
       cm->cur_frame->frame_output_done = 1;
 #endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
 #if CONFIG_CWG_F317
     if (cm->bridge_frame_info.is_bridge_frame) {
       features->error_resilient_mode = 0;
@@ -8472,20 +8440,21 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           current_frame->refresh_frame_flags = 0;
         }
 #else
-        const int refresh_idx =
-            aom_rb_read_literal(rb, refresh_frame_flags_bits);
-        if (refresh_idx >= seq_params->ref_frames) {
-          aom_internal_error(
-              &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-              "refresh_idx must be less than %d but is set to %d",
-              seq_params->ref_frames, refresh_idx);
-        }
-        if (refresh_idx == 0) {
-          const bool has_refresh_frame_flags = aom_rb_read_literal(rb, 1);
-          current_frame->refresh_frame_flags = has_refresh_frame_flags ? 1 : 0;
-        } else {
-          current_frame->refresh_frame_flags = 1 << refresh_idx;
-        }
+          const int refresh_idx =
+              aom_rb_read_literal(rb, refresh_frame_flags_bits);
+          if (refresh_idx >= seq_params->ref_frames) {
+            aom_internal_error(
+                &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+                "refresh_idx must be less than %d but is set to %d",
+                seq_params->ref_frames, refresh_idx);
+          }
+          if (refresh_idx == 0) {
+            const bool has_refresh_frame_flags = aom_rb_read_literal(rb, 1);
+            current_frame->refresh_frame_flags =
+                has_refresh_frame_flags ? 1 : 0;
+          } else {
+            current_frame->refresh_frame_flags = 1 << refresh_idx;
+          }
 #endif  // CONFIG_CWG_F260_REFRESH_FLAG
       } else {
         current_frame->refresh_frame_flags =
@@ -8540,21 +8509,21 @@ static int read_uncompressed_header(AV1Decoder *pbi,
               current_frame->refresh_frame_flags = 0;
             }
 #else
-          const int refresh_idx =
-              aom_rb_read_literal(rb, refresh_frame_flags_bits);
-          if (refresh_idx >= seq_params->ref_frames) {
-            aom_internal_error(
-                &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-                "refresh_idx must be less than %d but is set to %d",
-                seq_params->ref_frames, refresh_idx);
-          }
-          if (refresh_idx == 0) {
-            const bool has_refresh_frame_flags = aom_rb_read_literal(rb, 1);
-            current_frame->refresh_frame_flags =
-                has_refresh_frame_flags ? 1 : 0;
-          } else {
-            current_frame->refresh_frame_flags = 1 << refresh_idx;
-          }
+            const int refresh_idx =
+                aom_rb_read_literal(rb, refresh_frame_flags_bits);
+            if (refresh_idx >= seq_params->ref_frames) {
+              aom_internal_error(
+                  &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+                  "refresh_idx must be less than %d but is set to %d",
+                  seq_params->ref_frames, refresh_idx);
+            }
+            if (refresh_idx == 0) {
+              const bool has_refresh_frame_flags = aom_rb_read_literal(rb, 1);
+              current_frame->refresh_frame_flags =
+                  has_refresh_frame_flags ? 1 : 0;
+            } else {
+              current_frame->refresh_frame_flags = 1 << refresh_idx;
+            }
 #endif  // CONFIG_CWG_F260_REFRESH_FLAG
           } else {
             current_frame->refresh_frame_flags =
@@ -8564,27 +8533,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         }  // CONFIG_CWG_F317
 #endif
       }
-#else
-#if CONFIG_CWG_F317
-        if (cm->bridge_frame_info.is_bridge_frame) {
-          cm->bridge_frame_info.bridge_frame_overwrite_flag =
-              aom_rb_read_literal(rb, 1);
-          if (cm->bridge_frame_info.bridge_frame_overwrite_flag) {
-            current_frame->refresh_frame_flags =
-                aom_rb_read_literal(rb, seq_params->ref_frames);
-          } else {
-            current_frame->refresh_frame_flags =
-                1 << cm->bridge_frame_info.bridge_frame_ref_idx;
-          }
-        } else {
-#endif  // CONFIG_CWG_F317
-          current_frame->refresh_frame_flags =
-              frame_is_sframe(cm)
-                  ? ((1 << seq_params->ref_frames) - 1)
-                  : aom_rb_read_literal(rb, seq_params->ref_frames);
-#if CONFIG_CWG_F317
-        }
-#endif  // CONFIG_CWG_F317
     }
   }
 
@@ -8611,9 +8559,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           }
           // If no corresponding buffer exists, allocate a new buffer with all
           // pixels set to neutral grey.
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
           check_ref_count_status_dec(pbi);
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
           int buf_idx = get_free_fb(cm);
           if (buf_idx == INVALID_IDX) {
             aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,

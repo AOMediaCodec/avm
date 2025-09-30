@@ -310,13 +310,9 @@ typedef struct AV1Decoder {
   // Note: The saved buffers are released at the start of the next time the
   // application calls aom_codec_decode().
   int output_all_layers;
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
   RefCntBuffer *output_frames[REF_FRAMES + 1];  // Use only for single layer
-#else
-  RefCntBuffer *output_frames[REF_FRAMES];  // Use only for single layer
-#endif
-  size_t output_frames_offset;  // Use only for single layer
-  size_t num_output_frames;     // How many frames are queued up so far?
+  size_t output_frames_offset;                  // Use only for single layer
+  size_t num_output_frames;  // How many frames are queued up so far?
 
   // In order to properly support random-access decoding, we need
   // to behave slightly differently for the very first frame we decode.
@@ -490,7 +486,6 @@ static INLINE void decrease_ref_count(RefCntBuffer *const buf,
   }
 }
 
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
 // Check whether the frame is ready to output or not.
 static INLINE bool is_frame_eligible_for_output(RefCntBuffer *const buf) {
   return ((buf != NULL) && !buf->frame_output_done && buf->showable_frame);
@@ -523,7 +518,6 @@ static INLINE void check_ref_count_status_dec(struct AV1Decoder *pbi) {
 }
 
 void output_trailing_frames(AV1Decoder *pbi);
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
 
 static INLINE int av1_read_uniform(aom_reader *r, int n) {
   const int l = get_unsigned_bits(n);

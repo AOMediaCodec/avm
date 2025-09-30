@@ -586,15 +586,9 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
                           "(0: false, 1: true (default))"),
   .force_video_mode = ARG_DEF(NULL, "force-video-mode", 1,
                               "Force video mode (0: false, 1: true (default))"),
-#if CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
   .enable_overlay =
       ARG_DEF(NULL, "enable-overlay", 1,
               "Enable coding overlay frames (0: false (default), 1: true)"),
-#else
-  .enable_overlay =
-      ARG_DEF(NULL, "enable-overlay", 1,
-              "Enable coding overlay frames (0: false, 1: true (default))"),
-#endif  // CONFIG_OUTPUT_FRAME_BASED_ON_ORDER_HINT_ENHANCEMENT
   .enable_palette =
       ARG_DEF(NULL, "enable-palette", 1,
               "Enable palette prediction mode (0: false, 1: true (default))"),
