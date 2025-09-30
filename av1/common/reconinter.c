@@ -3748,10 +3748,6 @@ static void build_inter_predictors_8x8_and_bigger(
 #endif  // CONFIG_SUBBLK_REF_EXT
 
     ReferenceArea ref_area[2];
-#if !CONFIG_SUBBLK_PAD
-    av1_get_reference_area_with_padding(cm, xd, plane, mi, mi_mv, bw, bh, mi_x,
-                                        mi_y, ref_area, pu_width, pu_height);
-#endif  //! CONFIG_SUBBLK_PAD
     CONV_BUF_TYPE *tmp_conv_dst = xd->tmp_conv_dst;
     assert(bw % refinemv_sb_size_width == 0);
     assert(bh % refinemv_sb_size_height == 0);
@@ -3790,7 +3786,6 @@ static void build_inter_predictors_8x8_and_bigger(
           chroma_refined_mv[0] = refinemv_subinfo->refinemv[0].as_mv;
           chroma_refined_mv[1] = refinemv_subinfo->refinemv[1].as_mv;
         }
-#if CONFIG_SUBBLK_PAD
         // sub_mi_x, and sub_mi_y are the
         // top-left position of the luma
         // samples of the sub-block
@@ -3803,7 +3798,6 @@ static void build_inter_predictors_8x8_and_bigger(
         av1_get_reference_area_with_padding(cm, xd, plane, mi, mi_mv, comp_bw,
                                             comp_bh, sub_mi_x, sub_mi_y,
                                             ref_area, pu_width, pu_height);
-#endif  // CONFIG_SUBBLK_PAD
         // mi_x, and mi_y are the top-left position of the luma samples of the
         // sub-block
         build_inter_predictors_8x8_and_bigger_refinemv(

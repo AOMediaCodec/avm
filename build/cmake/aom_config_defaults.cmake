@@ -327,8 +327,6 @@ set_aom_config_var(CONFIG_DERIVED_MVD_SIGN 1 "Enable MVD sign derivations")
 set_aom_config_var(CONFIG_VQ_MVD_CODING 1 "Enable VQ based MVD coding")
 set_aom_config_var(CONFIG_SUBBLK_REF_EXT 1
                    "Enable extension for subblock MV refinement.")
-set_aom_config_var(CONFIG_SUBBLK_PAD 1
-                   "Enable subblock padding for subblock mv refinement.")
 
 set_aom_config_var(CONFIG_ML_PART_SPLIT 1
                    "Partition SPLIT pruning/forcing as predicted by ML.")
