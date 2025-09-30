@@ -34,16 +34,8 @@
 #include "av1/encoder/bitstream.h"
 #include "av1/encoder/tokenize.h"
 
-int set_lcr_params(AV1_COMP *cpi, struct LayerConfigurationRecord *lcr,
-                   int global_id, int xlayer_id) {
-  AV1_COMMON *cm = &cpi->common;
-  memcpy(lcr, cm->lcr, sizeof(struct LayerConfigurationRecord));
-  lcr->lcr_global_id[xlayer_id] = global_id;
-  return 0;
-}
-
 // TODO(hegilmez) to be specified, depending on profile, tier definitions
-int write_lcr_profile_tier_level(int isGlobal, int xId) {
+static int write_lcr_profile_tier_level(int isGlobal, int xId) {
 #if CONFIG_MULTILAYER_HLS_REMOVE_LOGS
   (void)isGlobal;
   (void)xId;
@@ -56,13 +48,12 @@ int write_lcr_profile_tier_level(int isGlobal, int xId) {
   return 0;
 }
 
-int write_lcr_xlayer_color_info(struct AV1_COMP *cpi, int isGlobal, int xId,
-                                struct aom_write_bit_buffer *wb) {
+static int write_lcr_xlayer_color_info(struct AV1_COMP *cpi, int isGlobal,
+                                       int xId,
+                                       struct aom_write_bit_buffer *wb) {
   struct XLayerColorInfo *xlayer = &cpi->common.lcr_params.xlayer_col_params;
   aom_wb_write_uvlc(wb, xlayer->layer_color_description_idc[isGlobal][xId]);
-  int is_color_description_present_flag =
-      xlayer->layer_color_description_idc[isGlobal][xId];
-  if (is_color_description_present_flag) {
+  if (xlayer->layer_color_description_idc[isGlobal][xId] == 0) {
     aom_wb_write_literal(wb, xlayer->layer_color_primaries[isGlobal][xId], 8);
     aom_wb_write_literal(wb, xlayer->layer_matrix_coefficients[isGlobal][xId],
                          8);
@@ -125,14 +116,16 @@ int write_lcr_embedded_layer_info(AV1_COMP *cpi, int isGlobal, int xId,
         aom_wb_write_uvlc(wb, crop_params->crop_max_width);
         aom_wb_write_uvlc(wb, crop_params->crop_max_height);
       }
+      // byte alignment
+      aom_wb_write_literal(wb, 0, (8 - wb->bit_offset % CHAR_BIT));
     }
   }
-  add_trailing_bits(wb);
   return 0;
 }
 
-int write_lcr_rep_info(struct LayerConfigurationRecord *lcr_params,
-                       int isGlobal, int xId, struct aom_write_bit_buffer *wb) {
+static int write_lcr_rep_info(struct LayerConfigurationRecord *lcr_params,
+                              int isGlobal, int xId,
+                              struct aom_write_bit_buffer *wb) {
   struct RepresentationInfo *rep_params = &lcr_params->rep_list[isGlobal][xId];
   struct CroppingWindow *crop_win = &lcr_params->crop_win_list[isGlobal][xId];
 
@@ -153,8 +146,8 @@ int write_lcr_rep_info(struct LayerConfigurationRecord *lcr_params,
   return 0;
 }
 
-int write_lcr_xlayer_info(AV1_COMP *cpi, int isGlobal, int xId,
-                          struct aom_write_bit_buffer *wb) {
+static int write_lcr_xlayer_info(AV1_COMP *cpi, int isGlobal, int xId,
+                                 struct aom_write_bit_buffer *wb) {
   struct LayerConfigurationRecord *lcr_params = &cpi->common.lcr_params;
 
   aom_wb_write_bit(wb, lcr_params->lcr_rep_info_present_flag[isGlobal][xId]);
@@ -176,7 +169,7 @@ int write_lcr_xlayer_info(AV1_COMP *cpi, int isGlobal, int xId,
   if (lcr_params->lcr_xlayer_color_info_present_flag[isGlobal][xId])
     write_lcr_xlayer_color_info(cpi, isGlobal, xId, wb);
 
-  // reserved zero bits - byte alignment
+  // byte alignment
   aom_wb_write_literal(wb, 0, (8 - wb->bit_offset % CHAR_BIT));
 
   // Add embedded layer information if desired
@@ -207,7 +200,8 @@ void write_lcr_global_payload(AV1_COMP *cpi, int i, int sizePresent,
   write_lcr_xlayer_info(cpi, 1, n, wb);
 }
 
-int write_lcr_global_info(AV1_COMP *cpi, struct aom_write_bit_buffer *wb) {
+static int write_lcr_global_info(AV1_COMP *cpi,
+                                 struct aom_write_bit_buffer *wb) {
   struct LayerConfigurationRecord lcr_params = cpi->common.lcr_params;
 
   aom_wb_write_literal(wb, lcr_params.lcr_global_config_record_id, 3);
@@ -242,8 +236,8 @@ int write_lcr_global_info(AV1_COMP *cpi, struct aom_write_bit_buffer *wb) {
   return 0;
 }
 
-int write_lcr_local_info(AV1_COMP *cpi, int xlayerId,
-                         struct aom_write_bit_buffer *wb) {
+static int write_lcr_local_info(AV1_COMP *cpi, int xlayerId,
+                                struct aom_write_bit_buffer *wb) {
   AV1_COMMON *cm = &cpi->common;
   struct LayerConfigurationRecord lcr_params = cm->lcr_params;
 
@@ -263,8 +257,8 @@ int write_lcr_local_info(AV1_COMP *cpi, int xlayerId,
   return 0;
 }
 
-uint32_t write_layer_configuration_record_obu(AV1_COMP *cpi, int xlayer_id,
-                                              uint8_t *const dst) {
+uint32_t av1_write_layer_configuration_record_obu(AV1_COMP *cpi, int xlayer_id,
+                                                  uint8_t *const dst) {
   struct aom_write_bit_buffer wb = { dst, 0 };
   uint32_t size = 0;
 
@@ -273,7 +267,15 @@ uint32_t write_layer_configuration_record_obu(AV1_COMP *cpi, int xlayer_id,
   else
     write_lcr_local_info(cpi, xlayer_id, &wb);
 
-  add_trailing_bits(&wb);
+  av1_add_trailing_bits(&wb);
   size = aom_wb_bytes_written(&wb);
   return size;
+}
+
+int av1_set_lcr_params(AV1_COMP *cpi, struct LayerConfigurationRecord *lcr,
+                       int global_id, int xlayer_id) {
+  AV1_COMMON *cm = &cpi->common;
+  memcpy(lcr, cm->lcr, sizeof(struct LayerConfigurationRecord));
+  lcr->lcr_global_id[xlayer_id] = global_id;
+  return 0;
 }

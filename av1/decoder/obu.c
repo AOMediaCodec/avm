@@ -48,6 +48,16 @@ aom_codec_err_t aom_get_num_layers_from_operating_point_idc(
   return AOM_CODEC_OK;
 }
 
+int byte_alignment(AV1_COMMON *const cm, struct aom_read_bit_buffer *const rb) {
+  while (rb->bit_offset & 7) {
+    if (aom_rb_read_bit(rb)) {
+      cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
+      return -1;
+    }
+  }
+  return 0;
+}
+
 static int is_obu_in_current_operating_point(AV1Decoder *pbi,
                                              ObuHeader obu_header) {
   if (!pbi->current_operating_point) {
@@ -59,17 +69,6 @@ static int is_obu_in_current_operating_point(AV1Decoder *pbi,
        (obu_header.obu_mlayer_id + MAX_NUM_TLAYERS)) &
           0x1) {
     return 1;
-  }
-  return 0;
-}
-
-static int byte_alignment(AV1_COMMON *const cm,
-                          struct aom_read_bit_buffer *const rb) {
-  while (rb->bit_offset & 7) {
-    if (aom_rb_read_bit(rb)) {
-      cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
-      return -1;
-    }
   }
   return 0;
 }
@@ -984,17 +983,17 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
 #if CONFIG_MULTILAYER_HLS
       case OBU_LAYER_CONFIGURATION_RECORD:
         decoded_payload_size =
-            read_layer_configuration_record_obu(pbi, cm->xlayer_id, &rb);
+            av1_read_layer_configuration_record_obu(pbi, cm->xlayer_id, &rb);
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
         break;
       case OBU_ATLAS_SEGMENT:
         decoded_payload_size =
-            read_atlas_segment_info_obu(pbi, cm->xlayer_id, &rb);
+            av1_read_atlas_segment_info_obu(pbi, cm->xlayer_id, &rb);
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
         break;
       case OBU_OPERATING_POINT_SET:
         decoded_payload_size =
-            read_operating_point_set_obu(pbi, cm->xlayer_id, &rb);
+            av1_read_operating_point_set_obu(pbi, cm->xlayer_id, &rb);
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
         break;
 #endif  // CONFIG_MULTILAYER_HLS

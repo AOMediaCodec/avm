@@ -808,7 +808,7 @@ typedef struct OperatingPointSet {
   int ops_color_info_present_flag[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
   int ops_decoder_model_info_present_flag[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
 
-  int ops_mlayer_info_present_idc[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
+  int ops_mlayer_info_idc[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
   int ops_reserved_2bits[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
   int ops_reserved_3bits[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
   int ops_data_size[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_NUM_OPS_COUNT];

@@ -22,9 +22,9 @@
 #include "av1/decoder/obu.h"
 #include "av1/common/enums.h"
 
-uint32_t read_ats_region_info(struct AtlasRegionInfo *atlas_reg_params,
-                              int xlayerId, int xAId,
-                              struct aom_read_bit_buffer *rb) {
+static uint32_t read_ats_region_info(struct AtlasRegionInfo *atlas_reg_params,
+                                     int xlayerId, int xAId,
+                                     struct aom_read_bit_buffer *rb) {
   atlas_reg_params->ats_num_region_columns_minus_1[xlayerId][xAId] =
       aom_rb_read_uvlc(rb);
   atlas_reg_params->ats_num_region_rows_minus_1[xlayerId][xAId] =
@@ -71,9 +71,9 @@ uint32_t read_ats_region_info(struct AtlasRegionInfo *atlas_reg_params,
   return 0;
 }
 
-uint32_t read_ats_basic_atlas_info(struct AtlasBasicInfo *ats_basic_atlas_info,
-                                   int obu_xLayer_id, int xAId,
-                                   struct aom_read_bit_buffer *rb) {
+static uint32_t read_ats_basic_atlas_info(
+    struct AtlasBasicInfo *ats_basic_atlas_info, int obu_xLayer_id, int xAId,
+    struct aom_read_bit_buffer *rb) {
   ats_basic_atlas_info->ats_stream_id_present[obu_xLayer_id][xAId] =
       aom_rb_read_bit(rb);
   ats_basic_atlas_info->ats_atlas_width[obu_xLayer_id][xAId] =
@@ -108,7 +108,7 @@ uint32_t read_ats_basic_atlas_info(struct AtlasBasicInfo *ats_basic_atlas_info,
   return 0;
 }
 
-uint32_t read_ats_region_to_segment_mapping(
+static uint32_t read_ats_region_to_segment_mapping(
     struct AtlasRegionToSegmentMapping *ats_reg_seg_map, int obu_xLayer_id,
     int xAId, int NumRegionsInAtlas, struct aom_read_bit_buffer *rb) {
   ats_reg_seg_map
@@ -140,8 +140,9 @@ uint32_t read_ats_region_to_segment_mapping(
   return 0;
 }
 
-uint32_t read_ats_label_segment_info(struct AV1Decoder *pbi, int xLayerId,
-                                     int xAId, struct aom_read_bit_buffer *rb) {
+static uint32_t read_ats_label_segment_info(struct AV1Decoder *pbi,
+                                            int xLayerId, int xAId,
+                                            struct aom_read_bit_buffer *rb) {
   struct AtlasLabelSegmentInfo *ats_label =
       &pbi->common.atlas_params.ats_label_seg;
   struct AtlasRegionToSegmentMapping *ats_reg =
@@ -172,8 +173,9 @@ uint32_t read_ats_label_segment_info(struct AV1Decoder *pbi, int xLayerId,
   return 0;
 }
 
-uint32_t read_atlas_segment_info_obu(struct AV1Decoder *pbi, int obu_xLayer_id,
-                                     struct aom_read_bit_buffer *rb) {
+uint32_t av1_read_atlas_segment_info_obu(struct AV1Decoder *pbi,
+                                         int obu_xLayer_id,
+                                         struct aom_read_bit_buffer *rb) {
   const uint32_t saved_bit_offset = rb->bit_offset;
   assert(rb->error_handler);
 
@@ -188,16 +190,28 @@ uint32_t read_atlas_segment_info_obu(struct AV1Decoder *pbi, int obu_xLayer_id,
       break;
     }
   }
-  if (atlas_pos != -1)
+  if (atlas_pos != -1) {
     atlas_params = &pbi->atlas_list[atlas_pos];
-  else
+  } else {
+    if (pbi->atlas_counter >= MAX_NUM_ATLAS_SEG_ID) {
+      aom_internal_error(
+          &pbi->common.error, AOM_CODEC_ERROR,
+          "Failed to decode in av1_read_atlas_segment_info_obu()");
+    }
     atlas_params = &pbi->atlas_list[pbi->atlas_counter];
-  pbi->atlas_counter++;
+    pbi->atlas_counter++;
+  }
 
   atlas_params->atlas_segment_id[obu_xLayer_id] = atlas_segment_id;
   int xAId = atlas_params->atlas_segment_id[obu_xLayer_id];
   atlas_params->atlas_segment_mode_idc[obu_xLayer_id][xAId] =
       aom_rb_read_uvlc(rb);
+  if (atlas_params->atlas_segment_mode_idc[obu_xLayer_id][xAId] >=
+      ATLAS_TYPES) {
+    aom_internal_error(&pbi->common.error, AOM_CODEC_ERROR,
+                       "Unsupported atlas_segment_mode_idc, whose value should "
+                       "be smaller than ATLAS_TYPES");
+  }
   if (atlas_params->atlas_segment_mode_idc[obu_xLayer_id][xAId] == ENH_ATLAS) {
     read_ats_region_info(&atlas_params->ats_reg_params, obu_xLayer_id, xAId,
                          rb);
@@ -225,4 +239,13 @@ uint32_t read_atlas_segment_info_obu(struct AV1Decoder *pbi, int obu_xLayer_id,
     return 0;
   }
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
+}
+
+uint32_t av1_read_ats_multistream_atlas_info(struct AV1Decoder *pbi,
+                                             struct aom_read_bit_buffer *rb) {
+  aom_internal_error(
+      &pbi->common.error, AOM_CODEC_UNSUP_FEATURE,
+      "Implementation not avaialbe for av1_read_ats_multistream_atlas_info()");
+  (void)rb;
+  return 0;
 }

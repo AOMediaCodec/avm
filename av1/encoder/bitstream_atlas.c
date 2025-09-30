@@ -34,18 +34,9 @@
 #include "av1/encoder/bitstream.h"
 #include "av1/encoder/tokenize.h"
 
-int set_atlas_segment_info_params(AV1_COMP *cpi, struct AtlasSegmentInfo *atlas,
-                                  int layer_id) {
-  (void)layer_id;
-  AV1_COMMON *cm = &cpi->common;
-  memcpy(atlas, cm->atlas, sizeof(struct AtlasSegmentInfo));
-  atlas->atlas_segment_id[0] = 1;
-  return 0;
-}
-
-uint32_t write_ats_region_info(struct AtlasRegionInfo *atlas_reg_params,
-                               int xlayerId, int xAId,
-                               struct aom_write_bit_buffer *wb) {
+static uint32_t write_ats_region_info(struct AtlasRegionInfo *atlas_reg_params,
+                                      int xlayerId, int xAId,
+                                      struct aom_write_bit_buffer *wb) {
   aom_wb_write_uvlc(
       wb, atlas_reg_params->ats_num_region_columns_minus_1[xlayerId][xAId]);
   aom_wb_write_uvlc(
@@ -76,9 +67,9 @@ uint32_t write_ats_region_info(struct AtlasRegionInfo *atlas_reg_params,
   return 0;
 }
 
-uint32_t write_ats_basic_atlas_info(struct AtlasBasicInfo *ats_basic_atlas_info,
-                                    int obu_xLayer_id, int xAId,
-                                    struct aom_write_bit_buffer *wb) {
+static uint32_t write_ats_basic_atlas_info(
+    struct AtlasBasicInfo *ats_basic_atlas_info, int obu_xLayer_id, int xAId,
+    struct aom_write_bit_buffer *wb) {
   aom_wb_write_bit(
       wb, ats_basic_atlas_info->ats_stream_id_present[obu_xLayer_id][xAId]);
 
@@ -114,7 +105,7 @@ uint32_t write_ats_basic_atlas_info(struct AtlasBasicInfo *ats_basic_atlas_info,
   return 0;
 }
 
-uint32_t write_ats_region_to_segment_mapping(
+static uint32_t write_ats_region_to_segment_mapping(
     struct AtlasRegionToSegmentMapping *ats_reg_seg_map, int obu_xLayer_id,
     int xAId, int NumRegionsInAtlas, struct aom_write_bit_buffer *wb) {
   aom_wb_write_bit(
@@ -148,8 +139,9 @@ uint32_t write_ats_region_to_segment_mapping(
   return 0;
 }
 
-uint32_t write_ats_label_segment_info(AV1_COMP *cpi, int xLayerId, int xAId,
-                                      struct aom_write_bit_buffer *wb) {
+static uint32_t write_ats_label_segment_info(AV1_COMP *cpi, int xLayerId,
+                                             int xAId,
+                                             struct aom_write_bit_buffer *wb) {
   struct AtlasLabelSegmentInfo *ats_label =
       &cpi->common.atlas_params.ats_label_seg;
   struct AtlasRegionToSegmentMapping *ats_reg =
@@ -168,8 +160,8 @@ uint32_t write_ats_label_segment_info(AV1_COMP *cpi, int xLayerId, int xAId,
   return 0;
 }
 
-uint32_t write_atlas_segment_info_obu(AV1_COMP *cpi, int obu_xLayer_id,
-                                      uint8_t *const dst) {
+uint32_t av1_write_atlas_segment_info_obu(AV1_COMP *cpi, int obu_xLayer_id,
+                                          uint8_t *const dst) {
   struct aom_write_bit_buffer wb = { dst, 0 };
   uint32_t size = 0;
 
@@ -202,7 +194,17 @@ uint32_t write_atlas_segment_info_obu(AV1_COMP *cpi, int obu_xLayer_id,
   // Label each atlas segment
   write_ats_label_segment_info(cpi, obu_xLayer_id, xAId, &wb);
 
-  add_trailing_bits(&wb);
+  av1_add_trailing_bits(&wb);
   size = aom_wb_bytes_written(&wb);
   return size;
+}
+
+int av1_set_atlas_segment_info_params(AV1_COMP *cpi,
+                                      struct AtlasSegmentInfo *atlas,
+                                      int layer_id) {
+  (void)layer_id;
+  AV1_COMMON *cm = &cpi->common;
+  memcpy(atlas, cm->atlas, sizeof(struct AtlasSegmentInfo));
+  atlas->atlas_segment_id[0] = 1;
+  return 0;
 }

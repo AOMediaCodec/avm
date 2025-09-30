@@ -34,16 +34,9 @@
 #include "av1/encoder/bitstream.h"
 #include "av1/encoder/tokenize.h"
 
-int set_ops_params(AV1_COMP *cpi, struct OperatingPointSet *ops, int layer_id) {
-  (void)layer_id;
-  AV1_COMMON *const cm = &cpi->common;
-  memcpy(ops, cm->ops, sizeof(struct OperatingPointSet));
-  return 0;
-}
-
-void write_ops_mlayer_info(int obuXLId, int opsID, int opIndex, int xLId,
-                           struct OPSMLayerInfo *ops_layer_map,
-                           struct aom_write_bit_buffer *wb) {
+static void write_ops_mlayer_info(int obuXLId, int opsID, int opIndex, int xLId,
+                                  struct OPSMLayerInfo *ops_layer_map,
+                                  struct aom_write_bit_buffer *wb) {
   aom_wb_write_literal(
       wb, ops_layer_map->ops_mlayer_map[obuXLId][opsID][opIndex][xLId],
       MAX_NUM_MLAYERS);
@@ -65,9 +58,9 @@ void write_ops_mlayer_info(int obuXLId, int opsID, int opIndex, int xLId,
   assert(mCount == ops_layer_map->OPMLayerCount[obuXLId][opsID][opIndex][xLId]);
 }
 
-void write_ops_color_info(struct OpsColorInfo *opsColInfo, int obuXLId,
-                          int opsID, int opIndex,
-                          struct aom_write_bit_buffer *wb) {
+static void write_ops_color_info(struct OpsColorInfo *opsColInfo, int obuXLId,
+                                 int opsID, int opIndex,
+                                 struct aom_write_bit_buffer *wb) {
   aom_wb_write_uvlc(
       wb, opsColInfo->ops_color_description_idc[obuXLId][opsID][opIndex]);
   if (opsColInfo->ops_color_description_idc[obuXLId][opsID][opIndex] == 0) {
@@ -79,21 +72,21 @@ void write_ops_color_info(struct OpsColorInfo *opsColInfo, int obuXLId,
     aom_wb_write_literal(
         wb, opsColInfo->ops_matrix_coefficients[obuXLId][opsID][opIndex], 8);
   }
-  aom_wb_write_literal(
-      wb, opsColInfo->ops_full_range_flag[obuXLId][opsID][opIndex], 1);
+  aom_wb_write_bit(wb,
+                   opsColInfo->ops_full_range_flag[obuXLId][opsID][opIndex]);
 }
 
-void write_ops_decoder_model_info(struct OpsDecModelInfo *ops_dec_model_info,
-                                  int obuXLId, int opsID, int opIndex,
-                                  struct aom_write_bit_buffer *wb) {
+static void write_ops_decoder_model_info(
+    struct OpsDecModelInfo *ops_dec_model_info, int obuXLId, int opsID,
+    int opIndex, struct aom_write_bit_buffer *wb) {
   aom_wb_write_uvlc(
       wb, ops_dec_model_info
               ->ops_num_units_in_decoder_tick[obuXLId][opsID][opIndex]);
 }
 
-void write_ops_delay_info(struct OpsDelayInfo *ops_delay_info, int obuXLId,
-                          int opsID, int opIndex,
-                          struct aom_write_bit_buffer *wb) {
+static void write_ops_delay_info(struct OpsDelayInfo *ops_delay_info,
+                                 int obuXLId, int opsID, int opIndex,
+                                 struct aom_write_bit_buffer *wb) {
   aom_wb_write_uvlc(
       wb, ops_delay_info->ops_decoder_buffer_delay[obuXLId][opsID][opIndex]);
   aom_wb_write_uvlc(
@@ -102,8 +95,8 @@ void write_ops_delay_info(struct OpsDelayInfo *ops_delay_info, int obuXLId,
       wb, ops_delay_info->ops_low_delay_mode_flag[obuXLId][opsID][opIndex]);
 }
 
-uint32_t write_operating_point_set_obu(AV1_COMP *cpi, int obu_xlayer_id,
-                                       uint8_t *const dst) {
+uint32_t av1_write_operating_point_set_obu(AV1_COMP *cpi, int obu_xlayer_id,
+                                           uint8_t *const dst) {
   struct aom_write_bit_buffer wb = { dst, 0 };
   uint32_t size = 0;
 
@@ -129,8 +122,8 @@ uint32_t write_operating_point_set_obu(AV1_COMP *cpi, int obu_xlayer_id,
         &wb, ops->ops_decoder_model_info_present_flag[obu_xlayer_id][ops_id]);
 
     if (obu_xlayer_id == 31) {
-      aom_wb_write_literal(
-          &wb, ops->ops_mlayer_info_present_idc[obu_xlayer_id][ops_id], 2);
+      aom_wb_write_literal(&wb, ops->ops_mlayer_info_idc[obu_xlayer_id][ops_id],
+                           2);
       aom_wb_write_literal(&wb, ops->ops_reserved_2bits[obu_xlayer_id][ops_id],
                            2);
     } else {
@@ -161,11 +154,10 @@ uint32_t write_operating_point_set_obu(AV1_COMP *cpi, int obu_xlayer_id,
         aom_wb_write_literal(&wb, ops->ops_xlayer_map[obu_xlayer_id][ops_id][i],
                              MAX_NUM_XLAYERS);
         for (int j = 0; j < 31; j++) {
-          if (ops->ops_mlayer_info_present_idc[obu_xlayer_id][ops_id] == 1)
+          if (ops->ops_mlayer_info_idc[obu_xlayer_id][ops_id] == 1)
             write_ops_mlayer_info(obu_xlayer_id, ops_id, i, j,
                                   ops->ops_mlayer_info, &wb);
-          else if (ops->ops_mlayer_info_present_idc[obu_xlayer_id][ops_id] ==
-                   2) {
+          else if (ops->ops_mlayer_info_idc[obu_xlayer_id][ops_id] == 2) {
             aom_wb_write_literal(
                 &wb, ops->ops_embedded_mapping[obu_xlayer_id][ops_id][i][j], 4);
             aom_wb_write_literal(
@@ -178,13 +170,21 @@ uint32_t write_operating_point_set_obu(AV1_COMP *cpi, int obu_xlayer_id,
           }
         }
       } else {
-        if (ops->ops_mlayer_info_present_idc[obu_xlayer_id][ops_id] == 1)
+        if (ops->ops_mlayer_info_idc[obu_xlayer_id][ops_id] == 1)
           write_ops_mlayer_info(obu_xlayer_id, ops_id, i, obu_xlayer_id,
                                 ops->ops_mlayer_info, &wb);
       }
     }
   }
-  add_trailing_bits(&wb);
+  av1_add_trailing_bits(&wb);
   size = aom_wb_bytes_written(&wb);
   return size;
+}
+
+int av1_set_ops_params(AV1_COMP *cpi, struct OperatingPointSet *ops,
+                       int layer_id) {
+  (void)layer_id;
+  AV1_COMMON *const cm = &cpi->common;
+  memcpy(ops, cm->ops, sizeof(struct OperatingPointSet));
+  return 0;
 }

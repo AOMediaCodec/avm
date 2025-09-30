@@ -20,9 +20,9 @@
 #include "av1/decoder/decodeframe.h"
 #include "av1/decoder/obu.h"
 
-void read_ops_mlayer_info(int obuXLId, int opsID, int opIndex, int xLId,
-                          struct OPSMLayerInfo *ops_mlayer_info,
-                          struct aom_read_bit_buffer *rb) {
+static void read_ops_mlayer_info(int obuXLId, int opsID, int opIndex, int xLId,
+                                 struct OPSMLayerInfo *ops_mlayer_info,
+                                 struct aom_read_bit_buffer *rb) {
   // mlayer map
   ops_mlayer_info->ops_mlayer_map[obuXLId][opsID][opIndex][xLId] =
       aom_rb_read_literal(rb, MAX_NUM_MLAYERS);
@@ -51,9 +51,17 @@ void read_ops_mlayer_info(int obuXLId, int opsID, int opIndex, int xLId,
   ops_mlayer_info->OPMLayerCount[obuXLId][opsID][opIndex][xLId] = mCount;
 }
 
-void read_ops_color_info(struct OpsColorInfo *opsColInfo, int obu_xlayer_id,
-                         int ops_id, int ops_idx,
-                         struct aom_read_bit_buffer *rb) {
+static void read_ops_color_info(struct OpsColorInfo *opsColInfo,
+                                int obu_xlayer_id, int ops_id, int ops_idx,
+                                struct aom_read_bit_buffer *rb) {
+  // ops_color_description_idc: indicates the combination of color primaries,
+  // transfer characteristics and matrix coefficients as defined in CWG-F270.
+  // The value of color_description_idc shall be in the range of 0 to 15,
+  // inclusive. Values larger than 4 are reserved for future use by AOMedia and
+  // should be ignored by decoders conforming to this version of this
+  // specification.
+  // TODO(hegilmez): align with the CI OBU definitions in CWG-F270 after
+  // integrated.
   opsColInfo->ops_color_description_idc[obu_xlayer_id][ops_id][ops_idx] =
       aom_rb_read_uvlc(rb);
   if (opsColInfo->ops_color_description_idc[obu_xlayer_id][ops_id][ops_idx] ==
@@ -66,20 +74,20 @@ void read_ops_color_info(struct OpsColorInfo *opsColInfo, int obu_xlayer_id,
         aom_rb_read_literal(rb, 8);
   }
   opsColInfo->ops_full_range_flag[obu_xlayer_id][ops_id][ops_idx] =
-      aom_rb_read_literal(rb, 1);
+      aom_rb_read_bit(rb);
 }
 
-void read_ops_decoder_model_info(struct OpsDecModelInfo *ops_dec_model_info,
-                                 int obu_xlayer_id, int ops_id, int ops_idx,
-                                 struct aom_read_bit_buffer *rb) {
+static void read_ops_decoder_model_info(
+    struct OpsDecModelInfo *ops_dec_model_info, int obu_xlayer_id, int ops_id,
+    int ops_idx, struct aom_read_bit_buffer *rb) {
   ops_dec_model_info
       ->ops_num_units_in_decoder_tick[obu_xlayer_id][ops_id][ops_idx] =
       aom_rb_read_uvlc(rb);
 }
 
-void read_ops_delay_info(struct OpsDelayInfo *ops_delay_info, int obu_xlayer_id,
-                         int ops_id, int ops_idx,
-                         struct aom_read_bit_buffer *rb) {
+static void read_ops_delay_info(struct OpsDelayInfo *ops_delay_info,
+                                int obu_xlayer_id, int ops_id, int ops_idx,
+                                struct aom_read_bit_buffer *rb) {
   ops_delay_info->ops_decoder_buffer_delay[obu_xlayer_id][ops_id][ops_idx] =
       aom_rb_read_uvlc(rb);
   ops_delay_info->ops_encoder_buffer_delay[obu_xlayer_id][ops_id][ops_idx] =
@@ -88,8 +96,9 @@ void read_ops_delay_info(struct OpsDelayInfo *ops_delay_info, int obu_xlayer_id,
       aom_rb_read_bit(rb);
 }
 
-uint32_t read_operating_point_set_obu(struct AV1Decoder *pbi, int obu_xlayer_id,
-                                      struct aom_read_bit_buffer *rb) {
+uint32_t av1_read_operating_point_set_obu(struct AV1Decoder *pbi,
+                                          int obu_xlayer_id,
+                                          struct aom_read_bit_buffer *rb) {
   const uint32_t saved_bit_offset = rb->bit_offset;
 
   int ops_reset_flag = aom_rb_read_bit(rb);
@@ -103,11 +112,17 @@ uint32_t read_operating_point_set_obu(struct AV1Decoder *pbi, int obu_xlayer_id,
       break;
     }
   }
-  if (ops_pos != -1)
+  if (ops_pos != -1) {
     ops_params = &pbi->ops_list[ops_pos];
-  else
+  } else {
+    if (pbi->ops_counter >= MAX_NUM_OPS_ID) {
+      aom_internal_error(
+          &pbi->common.error, AOM_CODEC_ERROR,
+          "Failed to decode in av1_read_operating_point_set_obu()");
+    }
     ops_params = &pbi->ops_list[pbi->ops_counter];
-  pbi->ops_counter++;
+    pbi->ops_counter++;
+  }
 
   ops_params->ops_reset_flag[obu_xlayer_id] = ops_reset_flag;
   ops_params->ops_id[obu_xlayer_id] = ops_id;
@@ -124,14 +139,16 @@ uint32_t read_operating_point_set_obu(struct AV1Decoder *pbi, int obu_xlayer_id,
         aom_rb_read_bit(rb);
     ops_params->ops_color_info_present_flag[obu_xlayer_id][ops_id] =
         aom_rb_read_bit(rb);
+    ops_params->ops_decoder_model_info_present_flag[obu_xlayer_id][ops_id] =
+        aom_rb_read_bit(rb);
 
     if (obu_xlayer_id == 31) {
-      ops_params->ops_mlayer_info_present_idc[obu_xlayer_id][ops_id] =
+      ops_params->ops_mlayer_info_idc[obu_xlayer_id][ops_id] =
           aom_rb_read_literal(rb, 2);
       ops_params->ops_reserved_2bits[obu_xlayer_id][ops_id] =
           aom_rb_read_literal(rb, 2);
     } else {
-      ops_params->ops_mlayer_info_present_idc[obu_xlayer_id][ops_id] = 1;
+      ops_params->ops_mlayer_info_idc[obu_xlayer_id][ops_id] = 1;
       ops_params->ops_reserved_3bits[obu_xlayer_id][ops_id] =
           aom_rb_read_literal(rb, 3);
     }
@@ -170,12 +187,11 @@ uint32_t read_operating_point_set_obu(struct AV1Decoder *pbi, int obu_xlayer_id,
             ops_params->OpsxLayerId[obu_xlayer_id][ops_id][i][k] = j;
             k++;
           }
-          if (ops_params->ops_mlayer_info_present_idc[obu_xlayer_id][ops_id] ==
-              1) {
+          if (ops_params->ops_mlayer_info_idc[obu_xlayer_id][ops_id] == 1) {
             read_ops_mlayer_info(obu_xlayer_id, ops_id, i, j,
                                  ops_params->ops_mlayer_info, rb);
-          } else if (ops_params->ops_mlayer_info_present_idc[obu_xlayer_id]
-                                                            [ops_id] == 2) {
+          } else if (ops_params->ops_mlayer_info_idc[obu_xlayer_id][ops_id] ==
+                     2) {
             ops_params->ops_embedded_mapping[obu_xlayer_id][ops_id][i][j] =
                 aom_rb_read_literal(rb, 4);
             ops_params->ops_embedded_op_id[obu_xlayer_id][ops_id][i][j] =
@@ -186,18 +202,18 @@ uint32_t read_operating_point_set_obu(struct AV1Decoder *pbi, int obu_xlayer_id,
                 ops_params->ops_embedded_op_id[obu_xlayer_id][ops_id][i][j];
             read_ops_mlayer_info(obu_xlayer_id, opsEmbMap, opsEmbId, j,
                                  ops_params->ops_mlayer_info, rb);
-          } else if (ops_params->ops_mlayer_info_present_idc[obu_xlayer_id]
-                                                            [ops_id] == 3) {
-            assert(
-                ops_params->ops_mlayer_info_present_idc[obu_xlayer_id][ops_id] <
-                3);
+          } else if (ops_params->ops_mlayer_info_idc[obu_xlayer_id][ops_id] >=
+                     3) {
+            aom_internal_error(
+                &pbi->common.error, AOM_CODEC_ERROR,
+                "value of ops_mlayer_info_idc should be smaller than 3.");
           }
         }
         ops_params->XCount[obu_xlayer_id][ops_id][i] = k;
       } else {
         ops_params->XCount[obu_xlayer_id][ops_id][i] = 1;
         ops_params->OpsxLayerId[obu_xlayer_id][ops_id][i][0] = obu_xlayer_id;
-        if (ops_params->ops_mlayer_info_present_idc[obu_xlayer_id][ops_id] == 1)
+        if (ops_params->ops_mlayer_info_idc[obu_xlayer_id][ops_id] == 1)
           read_ops_mlayer_info(obu_xlayer_id, ops_id, i, obu_xlayer_id,
                                ops_params->ops_mlayer_info, rb);
       }

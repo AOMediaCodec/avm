@@ -23,7 +23,7 @@
 #include "av1/common/enums.h"
 
 // TODO(hegilmez) to be specified, depending on profile, tier definitions
-int read_lcr_profile_tier_level(int isGlobal, int xId) {
+static int read_lcr_profile_tier_level(int isGlobal, int xId) {
 #if CONFIG_MULTILAYER_HLS_REMOVE_LOGS
   (void)isGlobal;
   (void)xId;
@@ -36,13 +36,19 @@ int read_lcr_profile_tier_level(int isGlobal, int xId) {
   return 0;
 }
 
-int read_lcr_xlayer_color_info(struct AV1Decoder *pbi, int isGlobal, int xId,
-                               struct aom_read_bit_buffer *rb) {
+static int read_lcr_xlayer_color_info(struct AV1Decoder *pbi, int isGlobal,
+                                      int xId, struct aom_read_bit_buffer *rb) {
   struct XLayerColorInfo *xlayer = &pbi->common.lcr_params.xlayer_col_params;
+  // layer_color_description_idc: indicates the combination of color primaries,
+  // transfer characteristics and matrix coefficients as defined in CWG-F270.
+  // The value of color_description_idc shall be in the range of 0 to 15,
+  // inclusive. Values larger than 4 are reserved for future use by AOMedia and
+  // should be ignored by decoders conforming to this version of this
+  // specification.
+  // TODO(hegilmez): align with the CI OBU definitions in CWG-F270 after
+  // integrated.
   xlayer->layer_color_description_idc[isGlobal][xId] = aom_rb_read_uvlc(rb);
-  int is_color_description_present_flag =
-      xlayer->layer_color_description_idc[isGlobal][xId];
-  if (is_color_description_present_flag) {
+  if (xlayer->layer_color_description_idc[isGlobal][xId] == 0) {
     xlayer->layer_color_primaries[isGlobal][xId] = aom_rb_read_literal(rb, 8);
     xlayer->layer_matrix_coefficients[isGlobal][xId] =
         aom_rb_read_literal(rb, 8);
@@ -54,14 +60,13 @@ int read_lcr_xlayer_color_info(struct AV1Decoder *pbi, int isGlobal, int xId,
   return 0;
 }
 
-int read_lcr_embedded_layer_info(struct AV1Decoder *pbi, int isGlobal, int xId,
-                                 struct aom_read_bit_buffer *rb) {
+static int read_lcr_embedded_layer_info(struct AV1Decoder *pbi, int isGlobal,
+                                        int xId,
+                                        struct aom_read_bit_buffer *rb) {
   struct LayerConfigurationRecord *lcr_params = &pbi->common.lcr_params;
   struct EmbeddedLayerInfo *mlayer_params = &lcr_params->mlayer_params;
 
-  for (int i = 0; i < MAX_LCR_TYPES; i++)
-    for (int j = 0; j < MAX_NUM_MLAYERS; j++)
-      mlayer_params->MLayerCount[i][j] = 0;
+  mlayer_params->MLayerCount[isGlobal][xId] = 0;
 
   mlayer_params->lcr_mlayer_map[isGlobal][xId] =
       aom_rb_read_literal(rb, MAX_NUM_MLAYERS);
@@ -126,15 +131,17 @@ int read_lcr_embedded_layer_info(struct AV1Decoder *pbi, int isGlobal, int xId,
         crop_params->crop_max_width = aom_rb_read_uvlc(rb);
         crop_params->crop_max_height = aom_rb_read_uvlc(rb);
       }
-      av1_check_trailing_bits(pbi, rb);
+      // byte alignment
+      byte_alignment(&pbi->common, rb);
       mlayer_params->MLayerCount[isGlobal][xId]++;
     }
   }
   return 0;
 }
 
-int read_lcr_rep_info(struct LayerConfigurationRecord *lcr_params, int isGlobal,
-                      int xId, struct aom_read_bit_buffer *rb) {
+static int read_lcr_rep_info(struct LayerConfigurationRecord *lcr_params,
+                             int isGlobal, int xId,
+                             struct aom_read_bit_buffer *rb) {
   struct RepresentationInfo *rep_params = &lcr_params->rep_list[isGlobal][xId];
   struct CroppingWindow *crop_win = &lcr_params->crop_win_list[isGlobal][xId];
 
@@ -156,8 +163,8 @@ int read_lcr_rep_info(struct LayerConfigurationRecord *lcr_params, int isGlobal,
   return 0;
 }
 
-int read_lcr_xlayer_info(struct AV1Decoder *pbi, int isGlobal, int xId,
-                         struct aom_read_bit_buffer *rb) {
+static int read_lcr_xlayer_info(struct AV1Decoder *pbi, int isGlobal, int xId,
+                                struct aom_read_bit_buffer *rb) {
   struct LayerConfigurationRecord *lcr_params = &pbi->common.lcr_params;
 
   lcr_params->lcr_rep_info_present_flag[isGlobal][xId] = aom_rb_read_bit(rb);
@@ -180,14 +187,8 @@ int read_lcr_xlayer_info(struct AV1Decoder *pbi, int isGlobal, int xId,
   if (lcr_params->lcr_xlayer_color_info_present_flag[isGlobal][xId])
     read_lcr_xlayer_color_info(pbi, isGlobal, xId, rb);
 
-  // reserved bits - byte alignment
-  int bits_before_alignment = 8 - rb->bit_offset % 8;
-  int trailing_zeros = aom_rb_read_literal(rb, bits_before_alignment);
-  if (trailing_zeros != 0) {
-    aom_internal_error(
-        &pbi->common.error, AOM_CODEC_ERROR,
-        "reseved bits are expected to be zeros in read_lcr_xlayer_info()");
-  }
+  // byte alignment
+  byte_alignment(&pbi->common, rb);
 
   // Add embedded layer information if desired
   if (lcr_params->lcr_embedded_layer_info_present_flag[isGlobal][xId])
@@ -204,8 +205,9 @@ int read_lcr_xlayer_info(struct AV1Decoder *pbi, int isGlobal, int xId,
   return 0;
 }
 
-void read_lcr_global_payload(struct AV1Decoder *pbi, int i, int sizePresent,
-                             struct aom_read_bit_buffer *rb) {
+static void read_lcr_global_payload(struct AV1Decoder *pbi, int i,
+                                    int sizePresent,
+                                    struct aom_read_bit_buffer *rb) {
   struct LayerConfigurationRecord lcr_params = pbi->common.lcr_params;
   (void)sizePresent;
 
@@ -217,8 +219,8 @@ void read_lcr_global_payload(struct AV1Decoder *pbi, int i, int sizePresent,
   read_lcr_xlayer_info(pbi, 1, n, rb);
 }
 
-int read_lcr_global_info(struct AV1Decoder *pbi,
-                         struct aom_read_bit_buffer *rb) {
+static int read_lcr_global_info(struct AV1Decoder *pbi,
+                                struct aom_read_bit_buffer *rb) {
   int lcr_global_config_record_id = aom_rb_read_literal(rb, 3);
 
   struct LayerConfigurationRecord *lcr_params;
@@ -270,8 +272,8 @@ int read_lcr_global_info(struct AV1Decoder *pbi,
   return 0;
 }
 
-int read_lcr_local_info(struct AV1Decoder *pbi, int xlayerId,
-                        struct aom_read_bit_buffer *rb) {
+static int read_lcr_local_info(struct AV1Decoder *pbi, int xlayerId,
+                               struct aom_read_bit_buffer *rb) {
   int lcr_global_id = aom_rb_read_literal(rb, 3);
 
   struct LayerConfigurationRecord *lcr_params;
@@ -310,9 +312,8 @@ int read_lcr_local_info(struct AV1Decoder *pbi, int xlayerId,
   return 0;
 }
 
-uint32_t read_layer_configuration_record_obu(struct AV1Decoder *pbi,
-                                             int xlayer_id,
-                                             struct aom_read_bit_buffer *rb) {
+uint32_t av1_read_layer_configuration_record_obu(
+    struct AV1Decoder *pbi, int xlayer_id, struct aom_read_bit_buffer *rb) {
   const uint32_t saved_bit_offset = rb->bit_offset;
   assert(rb->error_handler);
 
