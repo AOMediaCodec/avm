@@ -44,9 +44,6 @@ uint32_t av1_read_operating_point_set_obu(struct AV1Decoder *pbi,
 uint32_t av1_read_atlas_segment_info_obu(struct AV1Decoder *pbi,
                                          int obu_xLayer_id,
                                          struct aom_read_bit_buffer *rb);
-
-uint32_t av1_read_ats_multistream_atlas_info(struct AV1Decoder *pbi,
-                                             struct aom_read_bit_buffer *rb);
 #endif  // CONFIG_MULTILAYER_HLS
 
 // Reads the middle part of the sequence header OBU (from

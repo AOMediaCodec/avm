@@ -187,6 +187,9 @@ uint32_t av1_read_operating_point_set_obu(struct AV1Decoder *pbi,
             ops_params->OpsxLayerId[obu_xlayer_id][ops_id][i][k] = j;
             k++;
           }
+          // ops_params->ops_mlayer_info_idc[obu_xlayer_id][ops_id] == 0
+          // specifies that mlayer information syntax structure is not present
+          // in the current OPS.
           if (ops_params->ops_mlayer_info_idc[obu_xlayer_id][ops_id] == 1) {
             read_ops_mlayer_info(obu_xlayer_id, ops_id, i, j,
                                  ops_params->ops_mlayer_info, rb);

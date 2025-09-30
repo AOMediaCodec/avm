@@ -173,6 +173,15 @@ static uint32_t read_ats_label_segment_info(struct AV1Decoder *pbi,
   return 0;
 }
 
+static uint32_t read_ats_multistream_atlas_info(
+    struct AV1Decoder *pbi, struct aom_read_bit_buffer *rb) {
+  aom_internal_error(
+      &pbi->common.error, AOM_CODEC_UNSUP_FEATURE,
+      "Implementation not avaialbe for read_ats_multistream_atlas_info()");
+  (void)rb;
+  return 0;
+}
+
 uint32_t av1_read_atlas_segment_info_obu(struct AV1Decoder *pbi,
                                          int obu_xLayer_id,
                                          struct aom_read_bit_buffer *rb) {
@@ -231,6 +240,9 @@ uint32_t av1_read_atlas_segment_info_obu(struct AV1Decoder *pbi,
         aom_rb_read_uvlc(rb);
     atlas_params->ats_nominal_height_minus1[obu_xLayer_id][xAId] =
         aom_rb_read_uvlc(rb);
+  } else if (atlas_params->atlas_segment_mode_idc[obu_xLayer_id][xAId] ==
+             MULTISTREAM_ATLAS) {
+    read_ats_multistream_atlas_info(pbi, rb);
   }
   // Label each atlas segment
   read_ats_label_segment_info(pbi, obu_xLayer_id, xAId, rb);
@@ -239,13 +251,4 @@ uint32_t av1_read_atlas_segment_info_obu(struct AV1Decoder *pbi,
     return 0;
   }
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
-}
-
-uint32_t av1_read_ats_multistream_atlas_info(struct AV1Decoder *pbi,
-                                             struct aom_read_bit_buffer *rb) {
-  aom_internal_error(
-      &pbi->common.error, AOM_CODEC_UNSUP_FEATURE,
-      "Implementation not avaialbe for av1_read_ats_multistream_atlas_info()");
-  (void)rb;
-  return 0;
 }
