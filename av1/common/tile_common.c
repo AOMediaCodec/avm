@@ -21,16 +21,6 @@ void av1_tile_init(TileInfo *tile, const AV1_COMMON *cm, int row, int col) {
   av1_tile_set_col(tile, cm, col);
 }
 
-// Find smallest k>=0 such that (blk_size << k) >= target
-#if !CONFIG_CWG_E242_SIGNAL_TILE_INFO
-static int tile_log2(int blk_size, int target) {
-  int k;
-  for (k = 0; (blk_size << k) < target; k++) {
-  }
-  return k;
-}
-#endif  // !CONFIG_CWG_E242_SIGNAL_TILE_INFO
-
 void av1_get_tile_limits(AV1_COMMON *const cm) {
   CommonTileParams *const tiles = &cm->tiles;
   tiles->mib_size_log2 = cm->mib_size_log2;

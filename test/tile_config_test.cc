@@ -57,16 +57,6 @@ const nonUniformTileConfigParam nonUniformTileConfigParams[] = {
   { 256, 3, { 2, 2, 1 }, 2, { 2, 1 } }
 };
 
-#if !CONFIG_CWG_E242_SIGNAL_TILE_INFO
-// Find smallest k>=0 such that (blk_size << k) >= target
-static INLINE int tile_log2(int blk_size, int target) {
-  int k;
-  for (k = 0; (blk_size << k) < target; k++) {
-  }
-  return k;
-}
-#endif  // !CONFIG_CWG_E242_SIGNAL_TILE_INFO
-
 // This class is used to validate tile configuration for uniform spacing.
 class UniformTileConfigTestLarge
     : public ::libaom_test::CodecTestWith3Params<
