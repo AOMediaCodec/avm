@@ -118,7 +118,7 @@ static INLINE int av1_allow_intrabc(const AV1_COMMON *const cm,
 static INLINE int allow_fsc_intra(const AV1_COMMON *const cm, BLOCK_SIZE bs,
                                   const MB_MODE_INFO *const mbmi) {
   bool allow_fsc =
-#if CONFIG_FSC_RES_HLS2
+#if CONFIG_FSC_RES_HLS
       cm->seq_params.enable_idtx_intra
 #else
       cm->seq_params.enable_fsc
@@ -134,12 +134,8 @@ static INLINE int allow_fsc_intra(const AV1_COMMON *const cm, BLOCK_SIZE bs,
 static INLINE int use_inter_fsc(const AV1_COMMON *const cm,
                                 PLANE_TYPE plane_type, TX_TYPE tx_type,
                                 int is_inter) {
-  bool allow_fsc =
-#if CONFIG_FSC_RES_HLS && !CONFIG_FSC_RES_HLS2
-      cm->seq_params.enable_fsc_residual &&
-#endif  // CONFIG_FSC_RES_HLS
-      cm->seq_params.enable_fsc && plane_type == PLANE_TYPE_Y && is_inter &&
-      tx_type == IDTX;
+  bool allow_fsc = cm->seq_params.enable_fsc && plane_type == PLANE_TYPE_Y &&
+                   is_inter && tx_type == IDTX;
   return allow_fsc;
 }
 

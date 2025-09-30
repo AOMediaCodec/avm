@@ -334,19 +334,10 @@ typedef struct cfg_options {
    */
   unsigned int enable_fsc;
 #if CONFIG_FSC_RES_HLS
-#if CONFIG_FSC_RES_HLS2
   /*!\brief enable IDTX intra
    *
    */
   unsigned int enable_idtx_intra;
-#else
-  /*!\brief enable Forward skip coding residual coding
-   * If 0, regular residual coding is used and fsc residual coding is disabled
-   * for IDTX. If 1, fsc residual coding is used for IDTX.
-   *
-   */
-  unsigned int enable_fsc_residual;
-#endif
 #endif
   /*!\brief enable Offset based refinement of Intra prediction
    *

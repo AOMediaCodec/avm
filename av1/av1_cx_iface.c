@@ -141,11 +141,7 @@ struct av1_extracfg {
 
   int enable_fsc;  // enable forward skip coding
 #if CONFIG_FSC_RES_HLS
-#if CONFIG_FSC_RES_HLS2
-  int enable_idtx_intra;  // enable idtx for intra
-#else
-  int enable_fsc_residual;    // enable forward skip coding residual coding
-#endif
+  int enable_idtx_intra;      // enable idtx for intra
 #endif                        // CONFIG_FSC_RES_HLS
   int enable_orip;            // enable ORIP
   int enable_ist;             // enable intra secondary transform
@@ -485,11 +481,7 @@ static struct av1_extracfg default_extra_cfg = {
   1,    // eanble implicit masked blending
   1,    // enable forward skip coding
 #if CONFIG_FSC_RES_HLS
-#if CONFIG_FSC_RES_HLS2
   1,    // enable idtx intra for fsc is disabled case
-#else
-  1,    // enable forward skip coding residual coding
-#endif
 #endif
   1,    // enable ORIP
   1,    // enable intra secondary transform
@@ -997,11 +989,7 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_imp_msk_bld = extra_cfg->enable_imp_msk_bld;
   cfg->enable_fsc = extra_cfg->enable_fsc;
 #if CONFIG_FSC_RES_HLS
-#if CONFIG_FSC_RES_HLS2
-    cfg->enable_idtx_intra = extra_cfg->enable_idtx_intra;
-#else
-  cfg->enable_fsc_residual = extra_cfg->enable_fsc_residual;
-#endif
+  cfg->enable_idtx_intra = extra_cfg->enable_idtx_intra;
 #endif  // CONFIG_FSC_RES_HLS
   cfg->enable_orip = extra_cfg->enable_orip;
   cfg->enable_ist = extra_cfg->enable_ist;
@@ -1125,11 +1113,7 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_imp_msk_bld = cfg->enable_imp_msk_bld;
   extra_cfg->enable_fsc = cfg->enable_fsc;
 #if CONFIG_FSC_RES_HLS
-#if CONFIG_FSC_RES_HLS2
   extra_cfg->enable_idtx_intra = cfg->enable_idtx_intra;
-#else
-  extra_cfg->enable_fsc_residual = cfg->enable_fsc_residual;
-#endif
 #endif  // CONFIG_FSC_RES_HLS
   extra_cfg->enable_orip = cfg->enable_orip;
   extra_cfg->enable_ist = cfg->enable_ist;
@@ -1784,11 +1768,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   intra_mode_cfg->enable_mrls = extra_cfg->enable_mrls;
   intra_mode_cfg->enable_fsc = extra_cfg->enable_fsc;
 #if CONFIG_FSC_RES_HLS
-#if CONFIG_FSC_RES_HLS2
   intra_mode_cfg->enable_idtx_intra = extra_cfg->enable_idtx_intra;
-#else
-  intra_mode_cfg->enable_fsc_residual = extra_cfg->enable_fsc_residual;
-#endif
 #endif  // CONFIG_FSC_RES_HLS
   intra_mode_cfg->enable_orip = extra_cfg->enable_orip;
   intra_mode_cfg->enable_ibp = extra_cfg->enable_ibp;
@@ -4142,15 +4122,9 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                               err_string)) {
     extra_cfg.enable_fsc = arg_parse_int_helper(&arg, err_string);
 #if CONFIG_FSC_RES_HLS
-#if CONFIG_FSC_RES_HLS2
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_idtx_intra,
                               argv, err_string)) {
     extra_cfg.enable_idtx_intra = arg_parse_int_helper(&arg, err_string);
-#else
-  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_fsc_residual,
-                              argv, err_string)) {
-    extra_cfg.enable_fsc_residual = arg_parse_int_helper(&arg, err_string);
-#endif
 #endif  // CONFIG_FSC_RES_HLS
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_orip, argv,
                               err_string)) {
@@ -4708,11 +4682,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #endif      // CONFIG_MV_RANGE_EXTENSION
         1,   1, 1, 1,
 #if CONFIG_FSC_RES_HLS
-#if CONFIG_FSC_RES_HLS2
         1,  // enable idtx intra for fsc is disabled case
-#else
-        1,  // enable forward skip coding residual coding
-#endif
 #endif
         1,
         1,  // IST

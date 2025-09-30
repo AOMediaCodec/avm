@@ -1157,11 +1157,7 @@ void av1_read_coeffs_txb_facade(const AV1_COMMON *const cm,
               pd->left_entropy_context + row, &txb_ctx,
               mbmi->fsc_mode[xd->tree_type == CHROMA_PART]
 #if CONFIG_FSC_RES_HLS
-#if CONFIG_FSC_RES_HLS2
                   && cm->seq_params.enable_fsc
-#else
-                  && cm->seq_params.enable_fsc_residual
-#endif
 #endif  // CONFIG_FSC_RES_HLS
   );
 
@@ -1176,16 +1172,12 @@ void av1_read_coeffs_txb_facade(const AV1_COMMON *const cm,
   uint8_t cul_level = 0;
   if (decode_rest) {
     if (((
-#if CONFIG_FSC_RES_HLS2
+#if CONFIG_FSC_RES_HLS
              cm->seq_params.enable_fsc &&
 #endif
              mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
              get_primary_tx_type(tx_type) == IDTX && plane == PLANE_TYPE_Y) ||
-         use_inter_fsc(cm, plane, tx_type, is_inter))
-#if CONFIG_FSC_RES_HLS && !CONFIG_FSC_RES_HLS2
-        && cm->seq_params.enable_fsc_residual
-#endif  // CONFIG_FSC_RES_HLS
-    ) {
+         use_inter_fsc(cm, plane, tx_type, is_inter))) {
       cul_level =
           av1_read_coeffs_txb_skip(cm, dcb, r, row, col, plane, tx_size);
     } else {
