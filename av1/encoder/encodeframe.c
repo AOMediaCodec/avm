@@ -1024,9 +1024,7 @@ static PARTITION_TYPE bridge_frame_read_partition(
   bool partition_allowed[ALL_PARTITION_TYPES];
   init_allowed_partitions_for_signaling(
       partition_allowed, cm, xd->tree_type,
-#if CONFIG_CHROMA_MERGE_LATENCY_FIX
       (ptree->parent ? ptree->parent->region_type : INTRA_REGION),
-#endif  // CONFIG_CHROMA_MERGE_LATENCY_FIX
       mi_row, mi_col, ssx, ssy, bsize, &ptree->chroma_ref_info);
   if (derived_partition != PARTITION_INVALID &&
       partition_allowed[derived_partition]) {
@@ -1068,11 +1066,9 @@ static AOM_INLINE void bridge_frame_decode_partition(
 
   const int is_sb_root = bsize == cm->sb_size;
   if (is_sb_root) {
-#if CONFIG_SDP_CFL_LATENCY_FIX
     xd->is_cfl_allowed_in_sdp =
         is_cfl_allowed_for_sdp(cm, xd, ptree_luma, PARTITION_NONE, bsize);
     ptree->is_cfl_allowed_for_this_chroma_partition = CFL_DISALLOWED_FOR_CHROMA;
-#endif  // CONFIG_SDP_CFL_LATENCY_FIX
     ptree->region_type = MIXED_INTER_INTRA_REGION;
     ptree->extended_sdp_allowed_flag = cm->seq_params.enable_extended_sdp;
   }
@@ -1100,10 +1096,8 @@ static AOM_INLINE void bridge_frame_decode_partition(
     ptree_luma->mi_row = mi_row;
     ptree_luma->mi_col = mi_col;
     ptree_luma->is_settled = 1;
-#if CONFIG_SDP_CFL_LATENCY_FIX
     ptree_luma->is_cfl_allowed_for_this_chroma_partition =
         CFL_DISALLOWED_FOR_CHROMA;
-#endif  // CONFIG_SDP_CFL_LATENCY_FIX
   }
 
   PARTITION_TREE *parent = ptree->parent;
@@ -1118,12 +1112,10 @@ static AOM_INLINE void bridge_frame_decode_partition(
           ? PARTITION_NONE
           : bridge_frame_read_partition(cm, xd, mi_row, mi_col, has_rows,
                                         has_cols, ptree, ptree_luma, bsize);
-#if CONFIG_SDP_CFL_LATENCY_FIX
   ptree->is_cfl_allowed_for_this_chroma_partition |=
       is_cfl_allowed_for_sdp(cm, xd, ptree_luma, partition, bsize);
   CFL_ALLOWED_FOR_SDP_TYPE is_cfl_allowed_in_sdp =
       ptree->is_cfl_allowed_for_this_chroma_partition;
-#endif  // CONFIG_SDP_CFL_LATENCY_FIX
   ptree->partition = partition;
 
   if (!is_sb_root && parent) {
@@ -1179,7 +1171,6 @@ static AOM_INLINE void bridge_frame_decode_partition(
       break;
     default: break;
   }
-#if CONFIG_SDP_CFL_LATENCY_FIX
   switch (partition) {
     case PARTITION_NONE:
       xd->is_cfl_allowed_in_sdp = is_cfl_allowed_in_sdp;
@@ -1209,7 +1200,6 @@ static AOM_INLINE void bridge_frame_decode_partition(
       break;
     default: break;
   }
-#endif  // CONFIG_SDP_CFL_LATENCY_FIX
 
   const BLOCK_SIZE subsize = get_partition_subsize(bsize, partition);
   if (subsize == BLOCK_INVALID) {

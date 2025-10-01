@@ -8200,6 +8200,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                          "Still pictures must be coded as shown keyframes");
     }
+#if CONFIG_CWG_F317
+    if (cm->bridge_frame_info.is_bridge_frame) {
+      cm->showable_frame = 0;
+    }
+    else
+#endif  // CONFIG_CWG_F317
     cm->showable_frame = current_frame->frame_type != KEY_FRAME;
     if (cm->show_frame) {
       if (seq_params->decoder_model_info_present_flag &&
@@ -9157,7 +9163,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       } else {
         features->tip_frame_mode = TIP_FRAME_DISABLED;
 #if CONFIG_FIX_OPFL_AUTO
+#if CONFIG_CWG_F317
+        if (!cm->bru.frame_inactive_flag && !cm->bridge_frame_info.is_bridge_frame) read_frame_opfl_refine_type(cm, rb);
+#else
         if (!cm->bru.frame_inactive_flag) read_frame_opfl_refine_type(cm, rb);
+#endif
 #endif  // CONFIG_FIX_OPFL_AUTO
       }
 
@@ -9984,7 +9994,11 @@ int32_t av1_read_tilegroup_header(
     else
       av1_setup_ref_frame_sides(cm);
 
+#if CONFIG_CWG_F317
+    if (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame) {
+#else
     if (cm->bru.frame_inactive_flag) {
+#endif  // CONFIG_CWG_F317
       for (int plane = 0; plane < av1_num_planes(cm); plane++) {
         cm->cur_frame->ccso_info.ccso_enable[plane] = 0;
       }
