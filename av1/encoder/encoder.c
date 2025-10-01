@@ -2998,7 +2998,11 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
     if (cm->rst_info[0].frame_restoration_type != RESTORE_NONE ||
         cm->rst_info[1].frame_restoration_type != RESTORE_NONE ||
         cm->rst_info[2].frame_restoration_type != RESTORE_NONE) {
-      if (num_workers > 1 && USE_LOOP_RESTORATION_MT)
+      if (num_workers > 1
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+          && USE_LOOP_RESTORATION_MT
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+      )
         av1_loop_restoration_filter_frame_mt(
             &cm->cur_frame->buf, cm, 0, mt_info->workers, num_workers,
             &mt_info->lr_row_sync, &cpi->lr_ctxt);

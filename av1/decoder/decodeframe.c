@@ -10589,7 +10589,11 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
 #endif
 
       if (do_cdef) {
-        if (pbi->num_workers > 1) {
+        if (pbi->num_workers > 1
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+            && USE_LOOP_RESTORATION_MT
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+        ) {
           av1_cdef_frame_mt(cm, &pbi->dcb.xd, pbi->cdef_worker,
                             pbi->tile_workers, &pbi->cdef_sync,
                             pbi->num_workers, av1_cdef_init_fb_row_mt);
@@ -10601,7 +10605,8 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
       if (use_ccso) {
         if (pbi->num_workers > 1
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-            && !cm->seq_params.disable_loopfilters_across_tiles
+            && !cm->seq_params.disable_loopfilters_across_tiles &&
+            USE_LOOP_RESTORATION_MT
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
         ) {
           av1_ccso_frame_mt(&cm->cur_frame->buf, cm, xd, pbi->tile_workers,
@@ -10627,7 +10632,11 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
       if (do_loop_restoration) {
         // HERE
         copy_frame_filters_to_runits_if_needed(cm);
-        if (pbi->num_workers > 1 && USE_LOOP_RESTORATION_MT) {
+        if (pbi->num_workers > 1
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+            && USE_LOOP_RESTORATION_MT
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+        ) {
           av1_loop_restoration_filter_frame_mt(
               (YV12_BUFFER_CONFIG *)xd->cur_buf, cm, optimized_loop_restoration,
               pbi->tile_workers, pbi->num_workers, &pbi->lr_row_sync,
@@ -10649,7 +10658,11 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
       if (do_loop_restoration) {
         // HERE
         copy_frame_filters_to_runits_if_needed(cm);
-        if (pbi->num_workers > 1 && USE_LOOP_RESTORATION_MT) {
+        if (pbi->num_workers > 1
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+            && USE_LOOP_RESTORATION_MT
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+        ) {
           av1_loop_restoration_filter_frame_mt(
               (YV12_BUFFER_CONFIG *)xd->cur_buf, cm, optimized_loop_restoration,
               pbi->tile_workers, pbi->num_workers, &pbi->lr_row_sync,
