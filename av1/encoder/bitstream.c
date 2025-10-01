@@ -6246,11 +6246,12 @@ static AOM_INLINE void write_uncompressed_header_obu
 
 #if CONFIG_CWG_F317
   if (cm->bridge_frame_info.is_bridge_frame) {
-    aom_wb_write_literal(wb, cm->bridge_frame_info.bridge_frame_ref_idx, seq_params->ref_frames_log2);
+    aom_wb_write_literal(wb, cm->bridge_frame_info.bridge_frame_ref_idx,
+                         seq_params->ref_frames_log2);
   } else {
-#endif // CONFIG_CWG_F317
+#endif  // CONFIG_CWG_F317
 #if CONFIG_MULTI_FRAME_HEADER
-  aom_wb_write_literal(wb, cm->cur_mfh_id, 4);
+    aom_wb_write_literal(wb, cm->cur_mfh_id, 4);
 #endif  // CONFIG_MULTI_FRAME_HEADER
 #if CONFIG_CWG_F317
   }

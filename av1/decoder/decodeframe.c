@@ -3981,7 +3981,7 @@ static AOM_INLINE void setup_render_size(AV1_COMMON *cm,
   if (cm->bridge_frame_info.is_bridge_frame) {
     return;
   }
-#endif // CONFIG_CWG_F317
+#endif  // CONFIG_CWG_F317
 #if CONFIG_MULTI_FRAME_HEADER
   assert(cm->mfh_valid[cm->cur_mfh_id]);
   cm->render_width = cm->mfh_params[cm->cur_mfh_id].mfh_render_width;
@@ -4152,22 +4152,23 @@ static AOM_INLINE void setup_frame_size(AV1_COMMON *cm,
       int num_bits_height = seq_params->num_bits_height;
 #endif  // CONFIG_CWG_F317
 
-    av1_read_frame_size(rb, num_bits_width, num_bits_height, &width, &height);
-    if (width > seq_params->max_frame_width ||
-        height > seq_params->max_frame_height) {
-      aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
-                         "Frame dimensions are larger than the maximum values");
-    }
-  } else {
+      av1_read_frame_size(rb, num_bits_width, num_bits_height, &width, &height);
+      if (width > seq_params->max_frame_width ||
+          height > seq_params->max_frame_height) {
+        aom_internal_error(
+            &cm->error, AOM_CODEC_CORRUPT_FRAME,
+            "Frame dimensions are larger than the maximum values");
+      }
+    } else {
 #if CONFIG_MULTI_FRAME_HEADER
-    assert(cm->mfh_valid[cm->cur_mfh_id]);
-    width = cm->mfh_params[cm->cur_mfh_id].mfh_frame_width;
-    height = cm->mfh_params[cm->cur_mfh_id].mfh_frame_height;
+      assert(cm->mfh_valid[cm->cur_mfh_id]);
+      width = cm->mfh_params[cm->cur_mfh_id].mfh_frame_width;
+      height = cm->mfh_params[cm->cur_mfh_id].mfh_frame_height;
 #else   // CONFIG_MULTI_FRAME_HEADER
     width = seq_params->max_frame_width;
     height = seq_params->max_frame_height;
 #endif  // CONFIG_MULTI_FRAME_HEADER
-  }
+    }
 #if CONFIG_CWG_F317
   }
 #endif  // CONFIG_CWG_F317
@@ -7968,15 +7969,17 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_CWG_F317
   cm->bridge_frame_info.bridge_frame_ref_idx = INVALID_IDX;
   if (cm->bridge_frame_info.is_bridge_frame) {
-    cm->bridge_frame_info.bridge_frame_ref_idx = aom_rb_read_literal(rb, seq_params->ref_frames_log2);
+    cm->bridge_frame_info.bridge_frame_ref_idx =
+        aom_rb_read_literal(rb, seq_params->ref_frames_log2);
   } else {
-#endif // CONFIG_CWG_F317
+#endif  // CONFIG_CWG_F317
 #if CONFIG_MULTI_FRAME_HEADER
-  cm->cur_mfh_id = aom_rb_read_literal(rb, 4);
-  if (!cm->mfh_valid[cm->cur_mfh_id]) {
-    aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
-                       "No multi-frame header with mfh_id %d", cm->cur_mfh_id);
-  }
+    cm->cur_mfh_id = aom_rb_read_literal(rb, 4);
+    if (!cm->mfh_valid[cm->cur_mfh_id]) {
+      aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                         "No multi-frame header with mfh_id %d",
+                         cm->cur_mfh_id);
+    }
 #endif  // CONFIG_MULTI_FRAME_HEADER
 #if CONFIG_CWG_F317
   }
