@@ -168,9 +168,9 @@ set_aom_config_var(CONFIG_F253_REMOVE_OUTPUTFLAG 1
 set_aom_config_var(CONFIG_SEQ_MAX_DRL_BITS 1
                    "AV2 sequence level max_drl_bits information")
 set_aom_config_var(CONFIG_EXT_MVPRED 1 "AV2 ext-mvpred.")
-set_aom_config_var(CONFIG_MINIMUM_LR_UNIT_SIZE_64x64 0
+set_aom_config_var(CONFIG_MINIMUM_LR_UNIT_SIZE_64x64 1
                    "Support minimum LR Unit size ")
-set_aom_config_var(CONFIG_LR_FRAMEFILTERS_IN_HEADER 0
+set_aom_config_var(CONFIG_LR_FRAMEFILTERS_IN_HEADER 1
                    "AV2 expt to move frame filters to frame header.")
 set_aom_config_var(CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES 1
                    "AV2 control to allow loopfilters across tiles or not")
