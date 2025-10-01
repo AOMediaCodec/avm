@@ -1024,8 +1024,8 @@ static PARTITION_TYPE bridge_frame_read_partition(
   bool partition_allowed[ALL_PARTITION_TYPES];
   init_allowed_partitions_for_signaling(
       partition_allowed, cm, xd->tree_type,
-      (ptree->parent ? ptree->parent->region_type : INTRA_REGION),
-      mi_row, mi_col, ssx, ssy, bsize, &ptree->chroma_ref_info);
+      (ptree->parent ? ptree->parent->region_type : INTRA_REGION), mi_row,
+      mi_col, ssx, ssy, bsize, &ptree->chroma_ref_info);
   if (derived_partition != PARTITION_INVALID &&
       partition_allowed[derived_partition]) {
     return derived_partition;

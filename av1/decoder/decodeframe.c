@@ -4451,7 +4451,7 @@ static AOM_INLINE void read_tile_info(AV1Decoder *const pbi,
   if (cm->bridge_frame_info.is_bridge_frame) {
     return;
   }
-#endif // CONFIG_CWG_F317
+#endif  // CONFIG_CWG_F317
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO
   cm->current_frame.tile_info_present_in_frame_header = aom_rb_read_bit(rb);
   if (cm->current_frame.tile_info_present_in_frame_header) {
@@ -8146,9 +8146,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // CONFIG_F106_OBU_TIP
 #endif  // CONFIG_F106_OBU_TILEGROUP
 #if CONFIG_CWG_F317
-      if (cm->bridge_frame_info.is_bridge_frame) {
-        current_frame->frame_type = INTER_FRAME;
-      } else {
+        if (cm->bridge_frame_info.is_bridge_frame) {
+      current_frame->frame_type = INTER_FRAME;
+    } else {
 #endif  // CONFIG_CWG_F317
       if (aom_rb_read_bit(rb)) {
         current_frame->frame_type = INTER_FRAME;
@@ -8203,10 +8203,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_CWG_F317
     if (cm->bridge_frame_info.is_bridge_frame) {
       cm->showable_frame = 0;
-    }
-    else
+    } else
 #endif  // CONFIG_CWG_F317
-    cm->showable_frame = current_frame->frame_type != KEY_FRAME;
+      cm->showable_frame = current_frame->frame_type != KEY_FRAME;
     if (cm->show_frame) {
       if (seq_params->decoder_model_info_present_flag &&
           seq_params->timing_info.equal_picture_interval == 0)
@@ -9164,7 +9163,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         features->tip_frame_mode = TIP_FRAME_DISABLED;
 #if CONFIG_FIX_OPFL_AUTO
 #if CONFIG_CWG_F317
-        if (!cm->bru.frame_inactive_flag && !cm->bridge_frame_info.is_bridge_frame) read_frame_opfl_refine_type(cm, rb);
+        if (!cm->bru.frame_inactive_flag &&
+            !cm->bridge_frame_info.is_bridge_frame)
+          read_frame_opfl_refine_type(cm, rb);
 #else
         if (!cm->bru.frame_inactive_flag) read_frame_opfl_refine_type(cm, rb);
 #endif

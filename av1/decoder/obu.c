@@ -1075,7 +1075,8 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
 
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
 #if CONFIG_CWG_F317
-        if (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame) {
+        if (cm->bru.frame_inactive_flag ||
+            cm->bridge_frame_info.is_bridge_frame) {
 #else
         if (cm->bru.frame_inactive_flag) {
 #endif  // CONFIG_CWG_F317
@@ -1167,7 +1168,8 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
         }
 
 #if CONFIG_CWG_F317
-        if (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame) {
+        if (cm->bru.frame_inactive_flag ||
+            cm->bridge_frame_info.is_bridge_frame) {
 #else
         if (cm->bru.frame_inactive_flag) {
 #endif  // CONFIG_CWG_F317
