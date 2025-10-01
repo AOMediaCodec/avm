@@ -374,7 +374,6 @@ TEST(MetadataTest, BandingHintsMetadata) {
   // Set up test values
   encode_metadata.coding_banding_present_flag = 1;
   encode_metadata.source_banding_present_flag = 0;
-  encode_metadata.banding_persistence_flag = 1;
   encode_metadata.banding_hints_flag = 1;
   encode_metadata.three_color_components = 1;
 
@@ -426,8 +425,6 @@ TEST(MetadataTest, BandingHintsMetadata) {
             encode_metadata.coding_banding_present_flag);
   EXPECT_EQ(decode_metadata.source_banding_present_flag,
             encode_metadata.source_banding_present_flag);
-  EXPECT_EQ(decode_metadata.banding_persistence_flag,
-            encode_metadata.banding_persistence_flag);
   EXPECT_EQ(decode_metadata.banding_hints_flag,
             encode_metadata.banding_hints_flag);
   EXPECT_EQ(decode_metadata.three_color_components,
@@ -483,7 +480,6 @@ TEST(MetadataTest, BandingHintsImageMetadata) {
   memset(&banding_metadata, 0, sizeof(banding_metadata));
   banding_metadata.coding_banding_present_flag = 1;
   banding_metadata.source_banding_present_flag = 1;
-  banding_metadata.banding_persistence_flag = 0;
   banding_metadata.banding_hints_flag = 1;
   banding_metadata.three_color_components = 0;  // Only component 0
   banding_metadata.banding_in_component_present_flag[0] = 1;
@@ -516,8 +512,6 @@ TEST(MetadataTest, BandingHintsImageMetadata) {
             banding_metadata.coding_banding_present_flag);
   EXPECT_EQ(decoded_metadata.source_banding_present_flag,
             banding_metadata.source_banding_present_flag);
-  EXPECT_EQ(decoded_metadata.banding_persistence_flag,
-            banding_metadata.banding_persistence_flag);
   EXPECT_EQ(decoded_metadata.banding_hints_flag,
             banding_metadata.banding_hints_flag);
   EXPECT_EQ(decoded_metadata.three_color_components,

@@ -31,7 +31,6 @@ int aom_encode_banding_hints_metadata(
   // Write basic flags (3 bits)
   aom_wb_write_bit(&wb, metadata->coding_banding_present_flag);
   aom_wb_write_bit(&wb, metadata->source_banding_present_flag);
-  aom_wb_write_bit(&wb, metadata->banding_persistence_flag);
 
   if (metadata->coding_banding_present_flag) {
     aom_wb_write_bit(&wb, metadata->banding_hints_flag);
@@ -112,7 +111,6 @@ int aom_decode_banding_hints_metadata(const uint8_t *payload,
   // Read basic flags (3 bits)
   metadata->coding_banding_present_flag = aom_rb_read_bit(&rb);
   metadata->source_banding_present_flag = aom_rb_read_bit(&rb);
-  metadata->banding_persistence_flag = aom_rb_read_bit(&rb);
 
   if (metadata->coding_banding_present_flag) {
     metadata->banding_hints_flag = aom_rb_read_bit(&rb);

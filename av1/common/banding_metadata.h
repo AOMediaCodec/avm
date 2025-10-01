@@ -29,7 +29,6 @@ extern "C" {
 typedef struct aom_banding_hints_metadata {
   uint8_t coding_banding_present_flag;
   uint8_t source_banding_present_flag;
-  uint8_t banding_persistence_flag;
 
   // Optional banding hints information
   uint8_t banding_hints_flag;
