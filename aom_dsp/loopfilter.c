@@ -99,7 +99,7 @@ void aom_highbd_lpf_horizontal_generic_c(uint16_t *s, int pitch,
 #if !CONFIG_IMPROVE_TIP_LF
                                          ,
                                          const int count
-#endif !CONFIG_IMPROVE_TIP_LF
+#endif  // !CONFIG_IMPROVE_TIP_LF
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
                                          ,
                                          int is_lossless_neg,
