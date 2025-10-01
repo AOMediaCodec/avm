@@ -602,6 +602,19 @@ typedef struct {
 } TileInfoSyntax;
 #endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 
+#if CONFIG_CWG_F293_BUFFER_TIMING
+typedef struct {
+  int obu_xlayer_id;
+  int ops_id;
+  int br_ops_id[MAX_NUM_XLAYERS];
+  int br_ops_cnt[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
+  int br_decoder_model_present_op_flag[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID]
+                                      [MAX_NUM_OPS_COUNT];
+  int br_buffer_removal_time[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID]
+                            [MAX_NUM_OPS_COUNT];
+} BufferTimingRemoval;
+#endif  // CONFIG_CWG_F293_BUFFER_TIMING
+
 #if CONFIG_MULTILAYER_HLS
 typedef struct CroppingWindow {
   int crop_window_present_flag;
@@ -764,14 +777,14 @@ typedef struct OpsColorInfo {
   int ops_full_range_flag[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_NUM_OPS_COUNT];
 } OpsColorInfo;
 
-typedef struct OpsDelayInfo {
+typedef struct OpsDecoderModelInfo {
   int ops_decoder_buffer_delay[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID]
                               [MAX_NUM_OPS_COUNT];
   int ops_encoder_buffer_delay[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID]
                               [MAX_NUM_OPS_COUNT];
   int ops_low_delay_mode_flag[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID]
                              [MAX_NUM_OPS_COUNT];
-} OpsDelayInfo;
+} OpsDecoderModelInfo;
 
 typedef struct OpsDecModelInfo {
   uint32_t ops_num_units_in_decoder_tick[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID]
@@ -829,8 +842,7 @@ typedef struct OperatingPointSet {
   // mlayer, color, delay and model information
   struct OPSMLayerInfo *ops_mlayer_info;
   struct OpsColorInfo *ops_col_info;
-  struct OpsDelayInfo *ops_delay_info;
-  struct OpsDecModelInfo *ops_dec_model_info;
+  struct OpsDecoderModelInfo *ops_decoder_model_info;
 } OperatingPointSet;
 #endif  // CONFIG_MULTILAYER_HLS
 
@@ -2069,6 +2081,7 @@ typedef struct AV1Common {
   int render_height; /*!< Rendered frame height */
   /**@}*/
 
+#if !CONFIG_CWG_F293_BUFFER_TIMING
   /*!
    * If true, buffer removal times are present.
    */
@@ -2079,7 +2092,9 @@ typedef struct AV1Common {
    * point for operating point op_num.
    * TODO(urvang): We probably don't need the +1 here.
    */
+
   uint32_t buffer_removal_times[MAX_NUM_OPERATING_POINTS + 1];
+#endif  // !CONFIG_CWG_F293_BUFFER_TIMING
   /*!
    * Presentation time of the frame in clock ticks DispCT counted from the
    * removal time of the last random access point for the operating point that
@@ -2326,6 +2341,14 @@ typedef struct AV1Common {
    * frames in the video.
    */
   SequenceHeader seq_params;
+
+#if CONFIG_CWG_F293_BUFFER_TIMING
+  /*!
+   * Elements part of the buffer timing removal, that are applicable for all the
+   * frames in the video.
+   */
+  BufferTimingRemoval btr_params;
+#endif  // CONFIG_CWG_F293_BUFFER_TIMING
 
 #if CONFIG_MULTI_FRAME_HEADER
   /*!

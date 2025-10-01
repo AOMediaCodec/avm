@@ -77,22 +77,17 @@ static void write_ops_color_info(struct OpsColorInfo *opsColInfo, int obuXLId,
 }
 
 static void write_ops_decoder_model_info(
-    struct OpsDecModelInfo *ops_dec_model_info, int obuXLId, int opsID,
+    struct OpsDecoderModelInfo *ops_decoder_model_info, int obuXLId, int opsID,
     int opIndex, struct aom_write_bit_buffer *wb) {
-  aom_wb_write_uvlc(
-      wb, ops_dec_model_info
-              ->ops_num_units_in_decoder_tick[obuXLId][opsID][opIndex]);
-}
-
-static void write_ops_delay_info(struct OpsDelayInfo *ops_delay_info,
-                                 int obuXLId, int opsID, int opIndex,
-                                 struct aom_write_bit_buffer *wb) {
-  aom_wb_write_uvlc(
-      wb, ops_delay_info->ops_decoder_buffer_delay[obuXLId][opsID][opIndex]);
-  aom_wb_write_uvlc(
-      wb, ops_delay_info->ops_encoder_buffer_delay[obuXLId][opsID][opIndex]);
+  aom_wb_write_uvlc(wb,
+                    ops_decoder_model_info
+                        ->ops_decoder_buffer_delay[obuXLId][opsID][opIndex]);
+  aom_wb_write_uvlc(wb,
+                    ops_decoder_model_info
+                        ->ops_encoder_buffer_delay[obuXLId][opsID][opIndex]);
   aom_wb_write_bit(
-      wb, ops_delay_info->ops_low_delay_mode_flag[obuXLId][opsID][opIndex]);
+      wb,
+      ops_decoder_model_info->ops_low_delay_mode_flag[obuXLId][opsID][opIndex]);
 }
 
 uint32_t av1_write_operating_point_set_obu(AV1_COMP *cpi, int obu_xlayer_id,
@@ -146,10 +141,10 @@ uint32_t av1_write_operating_point_set_obu(AV1_COMP *cpi, int obu_xlayer_id,
       }
       if (ops->ops_color_info_present_flag[obu_xlayer_id][ops_id])
         write_ops_color_info(opsColInfo, obu_xlayer_id, ops_id, i, &wb);
-      if (ops->ops_decoder_model_info_present_flag[obu_xlayer_id][ops_id])
-        write_ops_decoder_model_info(ops->ops_dec_model_info, obu_xlayer_id,
+      if (ops->ops_decoder_model_info_present_flag[obu_xlayer_id][ops_id]) {
+        write_ops_decoder_model_info(ops->ops_decoder_model_info, obu_xlayer_id,
                                      ops_id, i, &wb);
-      write_ops_delay_info(ops->ops_delay_info, obu_xlayer_id, ops_id, i, &wb);
+      }
       if (obu_xlayer_id == 31) {
         aom_wb_write_literal(&wb, ops->ops_xlayer_map[obu_xlayer_id][ops_id][i],
                              MAX_NUM_XLAYERS);

@@ -6494,6 +6494,7 @@ static AOM_INLINE void write_uncompressed_header_obu
     }
   }
 
+#if !CONFIG_CWG_F293_BUFFER_TIMING
   if (seq_params->decoder_model_info_present_flag) {
 #if CONFIG_CWG_F317
     if (cm->bridge_frame_info.is_bridge_frame) {
@@ -6545,6 +6546,7 @@ static AOM_INLINE void write_uncompressed_header_obu
       }
     }
   }
+#endif  // !CONFIG_CWG_F293_BUFFER_TIMING
 
   if (!cm->bridge_frame_info.is_bridge_frame ||
       cm->bridge_frame_info.bridge_frame_overwrite_flag) {
@@ -8592,6 +8594,25 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
   level_params->frame_header_count = 0;
 
   // The TD is now written outside the frame encode loop
+#if CONFIG_CWG_F293_BUFFER_TIMING
+  if (cm->current_frame.frame_type == KEY_FRAME && !cpi->no_show_fwd_kf &&
+      cpi->write_btr_obu) {
+    av1_set_btr_params(cpi);
+    obu_header_size = av1_write_obu_header(
+        level_params, OBU_BUFFER_TIMING_REMOVAL, 0, 0, data);
+
+    obu_payload_size = av1_write_buffer_timing_removal_obu(
+        &cm->btr_params, data + obu_header_size);
+    const size_t length_field_size =
+        obu_memmove(obu_header_size, obu_payload_size, data);
+    if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
+        AOM_CODEC_OK) {
+      return AOM_CODEC_ERROR;
+    }
+
+    data += obu_header_size + obu_payload_size + length_field_size;
+  }
+#endif  // CONFIG_CWG_F293_BUFFER_TIMING
 
 #if CONFIG_MULTILAYER_HLS && CONFIG_MULTILAYER_HLS_ENABLE_SIGNALING
   if (cm->current_frame.frame_type == KEY_FRAME && !cpi->no_show_fwd_kf) {

@@ -78,22 +78,17 @@ static void read_ops_color_info(struct OpsColorInfo *opsColInfo,
 }
 
 static void read_ops_decoder_model_info(
-    struct OpsDecModelInfo *ops_dec_model_info, int obu_xlayer_id, int ops_id,
-    int ops_idx, struct aom_read_bit_buffer *rb) {
-  ops_dec_model_info
-      ->ops_num_units_in_decoder_tick[obu_xlayer_id][ops_id][ops_idx] =
-      aom_rb_read_uvlc(rb);
-}
-
-static void read_ops_delay_info(struct OpsDelayInfo *ops_delay_info,
-                                int obu_xlayer_id, int ops_id, int ops_idx,
-                                struct aom_read_bit_buffer *rb) {
-  ops_delay_info->ops_decoder_buffer_delay[obu_xlayer_id][ops_id][ops_idx] =
-      aom_rb_read_uvlc(rb);
-  ops_delay_info->ops_encoder_buffer_delay[obu_xlayer_id][ops_id][ops_idx] =
-      aom_rb_read_uvlc(rb);
-  ops_delay_info->ops_low_delay_mode_flag[obu_xlayer_id][ops_id][ops_idx] =
-      aom_rb_read_bit(rb);
+    struct OpsDecoderModelInfo *ops_decoder_model_info, int obu_xlayer_id,
+    int ops_id, int ops_idx, struct aom_read_bit_buffer *rb) {
+  ops_decoder_model_info
+      ->ops_decoder_buffer_delay[obu_xlayer_id][ops_id][ops_idx] =
+      aom_rb_read_uvlc(rb);  // decoder delay
+  ops_decoder_model_info
+      ->ops_encoder_buffer_delay[obu_xlayer_id][ops_id][ops_idx] =
+      aom_rb_read_uvlc(rb);  // encoder delay
+  ops_decoder_model_info
+      ->ops_low_delay_mode_flag[obu_xlayer_id][ops_id][ops_idx] =
+      aom_rb_read_bit(rb);  // low-delay mode flag
 }
 
 uint32_t av1_read_operating_point_set_obu(struct AV1Decoder *pbi,
@@ -171,11 +166,10 @@ uint32_t av1_read_operating_point_set_obu(struct AV1Decoder *pbi,
         read_ops_color_info(ops_params->ops_col_info, obu_xlayer_id, ops_id, i,
                             rb);
       if (ops_params
-              ->ops_decoder_model_info_present_flag[obu_xlayer_id][ops_id])
-        read_ops_decoder_model_info(ops_params->ops_dec_model_info,
+              ->ops_decoder_model_info_present_flag[obu_xlayer_id][ops_id]) {
+        read_ops_decoder_model_info(ops_params->ops_decoder_model_info,
                                     obu_xlayer_id, ops_id, i, rb);
-      read_ops_delay_info(ops_params->ops_delay_info, obu_xlayer_id, ops_id, i,
-                          rb);
+      }
 
       if (obu_xlayer_id == 31) {
         ops_params->ops_xlayer_map[obu_xlayer_id][ops_id][i] =

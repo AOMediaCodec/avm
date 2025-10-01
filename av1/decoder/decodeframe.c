@@ -6631,8 +6631,10 @@ void av1_read_decoder_model_info(aom_dec_model_info_t *decoder_model_info,
   decoder_model_info->num_units_in_decoding_tick =
       aom_rb_read_unsigned_literal(rb,
                                    32);  // Number of units in a decoding tick
+#if !CONFIG_CWG_F293_BUFFER_TIMING
   decoder_model_info->buffer_removal_time_length =
       aom_rb_read_literal(rb, 5) + 1;
+#endif  // !CONFIG_CWG_F293_BUFFER_TIMING
   decoder_model_info->frame_presentation_time_length =
       aom_rb_read_literal(rb, 5) + 1;
 }
@@ -8367,6 +8369,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     }
   }
 
+#if !CONFIG_CWG_F293_BUFFER_TIMING
   if (seq_params->decoder_model_info_present_flag) {
 #if CONFIG_CWG_F317
     if (cm->bridge_frame_info.is_bridge_frame) {
@@ -8398,7 +8401,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       }
     }
   }
-
+#endif  // CONFIG_CWG_F293_BUFFER_TIMING
   if (current_frame->frame_type == KEY_FRAME) {
     if (!cm->show_frame) {  // unshown keyframe (forward keyframe)
       current_frame->refresh_frame_flags =
