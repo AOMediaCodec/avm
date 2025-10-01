@@ -2454,6 +2454,9 @@ void av1_loop_restoration_filter_frame_init(AV1LrStruct *lr_ctxt,
     lr_plane_ctxt->tile_rect = av1_whole_frame_rect(cm, is_uv);
     lr_plane_ctxt->tile_stripe0 = 0;
     lr_plane_ctxt->tskip_zero_flag = 0;
+    lr_plane_ctxt->plane = plane;
+    lr_plane_ctxt->plane_width = plane_width;
+    lr_plane_ctxt->plane_height = plane_height;
     lr_plane_ctxt->mi_params = &cm->mi_params;
     lr_plane_ctxt->order_hint = cm->current_frame.order_hint;
     lr_plane_ctxt->error = &cm->error;

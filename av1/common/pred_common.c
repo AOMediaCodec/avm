@@ -608,7 +608,7 @@ bool av1_check_ccso_mbmi_inside_tile(const AV1_COMMON *cm,
   const int blk_size_y = (1 << (blk_log2 - MI_SIZE_LOG2)) - 1;
   const int blk_size_x = (1 << (blk_log2 - MI_SIZE_LOG2)) - 1;
 #else
-  void(cm);
+  (void)cm;
   const int blk_size_y = (1 << (CCSO_BLK_SIZE - MI_SIZE_LOG2)) - 1;
   const int blk_size_x = (1 << (CCSO_BLK_SIZE - MI_SIZE_LOG2)) - 1;
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
@@ -653,7 +653,6 @@ int av1_get_ccso_context(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   const int blk_size_y = (1 << (blk_log2 - MI_SIZE_LOG2)) - 1;
   const int blk_size_x = (1 << (blk_log2 - MI_SIZE_LOG2)) - 1;
 #else
-  void(cm);
   const int blk_size_y = (1 << (CCSO_BLK_SIZE - MI_SIZE_LOG2)) - 1;
   const int blk_size_x = (1 << (CCSO_BLK_SIZE - MI_SIZE_LOG2)) - 1;
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES

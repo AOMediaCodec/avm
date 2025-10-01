@@ -1566,7 +1566,9 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
       xd->plane[plane].subsampling_x;
   if (cm->ccso_info.ccso_enable[plane]) {
     cm->cur_frame->ccso_info.ccso_enable[plane] = 1;
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
     cm->cur_frame->ccso_info.ccso_blk_size = ccso_blk_size;
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
     cm->cur_frame->ccso_info.reuse_root_ref[plane] =
         cm->current_frame.display_order_hint;
     cm->ccso_info.sb_reuse_ccso[plane] = ctx->final_sb_reuse_ccso[plane];

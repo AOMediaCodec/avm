@@ -2777,7 +2777,6 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
   cm->rst_info[1].restoration_unit_size = RESTORATION_UNITSIZE_MAX >> (3 + s);
   cm->rst_info[2].restoration_unit_size = cm->rst_info[1].restoration_unit_size;
 
-#if CONFIG_BRU
   if (cm->bru.frame_inactive_flag) {
     if (num_planes > 1) {
       cm->rst_info[1].restoration_unit_size =
@@ -2787,7 +2786,7 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
     }
     return;
   }
-#endif  // CONFIG_BRU
+
   if (!luma_none) {
     int size = RESTORATION_UNITSIZE_MAX;
     if (aom_rb_read_bit(rb))
