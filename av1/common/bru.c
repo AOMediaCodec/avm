@@ -389,7 +389,7 @@ RefCntBuffer *bru_swap_common(AV1_COMMON *cm) {
       ref_buf->ccso_info.reuse_root_ref[plane] =
           tmp_buf->ccso_info.reuse_root_ref[plane];
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-      const int ccso_blk_size = get_lf_unit_size_log2_adaptive_tile(
+      const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(
           cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
       const int log2_filter_unit_size_y =
           plane == 0 ? ccso_blk_size

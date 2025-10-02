@@ -22,8 +22,10 @@
 #include "av1/common/av1_common_int.h"
 
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-int get_lf_unit_size_log2_adaptive_tile(const AV1_COMMON *cm, int sb_size_log2,
-                                        int unit_size_log2) {
+// Derivation of CCSO unit size, ccso unit shall not across tile boundaries
+int get_ccso_unit_size_log2_adaptive_tile(const AV1_COMMON *cm,
+                                          int sb_size_log2,
+                                          int unit_size_log2) {
   if (cm->tiles.cols == 1 && cm->tiles.rows == 1) return unit_size_log2;
   int unit_size = unit_size_log2;
   if (sb_size_log2 < unit_size_log2) {
@@ -458,7 +460,7 @@ void apply_ccso_filter(AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
   const int y_uv_vscale = xd->plane[plane].subsampling_y;
   derive_ccso_sample_pos(src_loc, ccso_ext_stride, filter_sup);
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-  const int ccso_blk_size = get_lf_unit_size_log2_adaptive_tile(
+  const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(
       cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
   const int blk_log2 = ccso_blk_size;
   const int blk_size = 1 << blk_log2;

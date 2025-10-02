@@ -2771,10 +2771,12 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
     assert(IMPLIES(!rsi->frame_filters_on, !rsi->temporal_pred_flag));
   }
 #if CONFIG_MINIMUM_LR_UNIT_SIZE_64x64
-  int s = AOMMAX(cm->seq_params.subsampling_x, cm->seq_params.subsampling_y);
+  int subsampling_xy =
+      AOMMAX(cm->seq_params.subsampling_x, cm->seq_params.subsampling_y);
 
   cm->rst_info[0].restoration_unit_size = RESTORATION_UNITSIZE_MAX >> 3;
-  cm->rst_info[1].restoration_unit_size = RESTORATION_UNITSIZE_MAX >> (3 + s);
+  cm->rst_info[1].restoration_unit_size =
+      RESTORATION_UNITSIZE_MAX >> (3 + subsampling_xy);
   cm->rst_info[2].restoration_unit_size = cm->rst_info[1].restoration_unit_size;
 
 #if CONFIG_CWG_F317
@@ -2784,7 +2786,7 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
 #endif  // CONFIG_CWG_F317
     if (num_planes > 1) {
       cm->rst_info[1].restoration_unit_size =
-          RESTORATION_UNITSIZE_MAX >> (3 + s);
+          RESTORATION_UNITSIZE_MAX >> (3 + subsampling_xy);
       cm->rst_info[2].restoration_unit_size =
           cm->rst_info[1].restoration_unit_size;
     }
@@ -2827,7 +2829,7 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
   }
   if (num_planes > 1) {
     if (!chroma_none) {
-      int size = RESTORATION_UNITSIZE_MAX >> s;
+      int size = RESTORATION_UNITSIZE_MAX >> subsampling_xy;
       if (aom_rb_read_bit(rb))
         cm->rst_info[1].restoration_unit_size = size >> 1;
       else {
@@ -2867,8 +2869,9 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   // add the normative restriction of ru size when
   // disable_loopfilters_across_tiles == 1
-  int max_plane_ru_size = AOMMAX(cm->rst_info[0].restoration_unit_size,
-                                 cm->rst_info[1].restoration_unit_size << s);
+  int max_plane_ru_size =
+      AOMMAX(cm->rst_info[0].restoration_unit_size,
+             cm->rst_info[1].restoration_unit_size << subsampling_xy);
   for (int tile_row = 0; tile_row < cm->tiles.rows - 1; tile_row++) {
     for (int tile_col = 0; tile_col < cm->tiles.cols - 1; tile_col++) {
       int tile_w = (cm->tiles.col_start_sb[tile_col + 1] -
@@ -3767,7 +3770,7 @@ static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
 #endif  // CONFIG_CWG_F317
   if (cm->ccso_info.ccso_frame_flag) {
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-    const int ccso_blk_size = get_lf_unit_size_log2_adaptive_tile(
+    const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(
         cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
     cm->ccso_info.ccso_blk_size = ccso_blk_size;
     cm->cur_frame->ccso_info.ccso_blk_size = ccso_blk_size;
