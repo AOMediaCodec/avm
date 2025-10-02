@@ -175,14 +175,12 @@ struct av1_extracfg {
   int enable_reduced_reference_set;  // enable reduced set of references
   int explicit_ref_frame_map;  // explicitly signal reference frame mapping
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
-  int enable_frame_output_order;  // enable frame output order derivation based
-                                  // on order hint value
-#endif                            // !CONFIG_F253_REMOVE_OUTPUTFLAG
-  int enable_ref_frame_mvs;       // sequence level
-#if CONFIG_REDUCED_REF_FRAME_MVS_MODE
+  int enable_frame_output_order;   // enable frame output order derivation based
+                                   // on order hint value
+#endif                             // !CONFIG_F253_REMOVE_OUTPUTFLAG
+  int enable_ref_frame_mvs;        // sequence level
   int reduced_ref_frame_mvs_mode;  // use 1 reference frame combination
                                    // for temporal mv prediction
-#endif                             // CONFIG_REDUCED_REF_FRAME_MVS_MODE
   int allow_ref_frame_mvs;         // frame level
   int enable_masked_comp;          // enable masked compound for sequence
   int enable_onesided_comp;        // enable one sided compound for sequence
@@ -521,9 +519,7 @@ static struct av1_extracfg default_extra_cfg = {
   1,  // enable frame output order derivation based on order hint value
 #endif // !CONFIG_F253_REMOVE_OUTPUTFLAG
   1,  // enable_ref_frame_mvs sequence level
-#if CONFIG_REDUCED_REF_FRAME_MVS_MODE
   0,    // reduced_ref_frame_mvs_mode sequence level
-#endif  // CONFIG_REDUCED_REF_FRAME_MVS_MODE
   1,  // allow ref_frame_mvs frame level
   1,  // enable masked compound at sequence level
   1,  // enable one sided compound at sequence level
@@ -860,9 +856,7 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
 #else
   RANGE_CHECK(extra_cfg, max_reference_frames, 3, 7);
 #endif  // CONFIG_CWG_F168_DPB_HLS
-#if CONFIG_REDUCED_REF_FRAME_MVS_MODE
   RANGE_CHECK(extra_cfg, reduced_ref_frame_mvs_mode, 0, 1);
-#endif  // CONFIG_REDUCED_REF_FRAME_MVS_MODE
   RANGE_CHECK(extra_cfg, enable_reduced_reference_set, 0, 1);
   RANGE_CHECK(extra_cfg, explicit_ref_frame_map, 0, 1);
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
@@ -1048,9 +1042,7 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_trellis_quant = extra_cfg->enable_trellis_quant;
   cfg->enable_ref_frame_mvs =
       (extra_cfg->allow_ref_frame_mvs || extra_cfg->enable_ref_frame_mvs);
-#if CONFIG_REDUCED_REF_FRAME_MVS_MODE
   cfg->reduced_ref_frame_mvs_mode = extra_cfg->reduced_ref_frame_mvs_mode;
-#endif  // CONFIG_REDUCED_REF_FRAME_MVS_MODE
   cfg->enable_onesided_comp = extra_cfg->enable_onesided_comp;
   cfg->enable_reduced_reference_set = extra_cfg->enable_reduced_reference_set;
   cfg->enable_bru = extra_cfg->enable_bru;
@@ -1176,9 +1168,7 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_intrabc_ext = cfg->enable_intrabc_ext;
   extra_cfg->enable_trellis_quant = cfg->enable_trellis_quant;
   extra_cfg->enable_ref_frame_mvs = cfg->enable_ref_frame_mvs;
-#if CONFIG_REDUCED_REF_FRAME_MVS_MODE
   extra_cfg->reduced_ref_frame_mvs_mode = cfg->reduced_ref_frame_mvs_mode;
-#endif  // CONFIG_REDUCED_REF_FRAME_MVS_MODE
   extra_cfg->enable_onesided_comp = cfg->enable_onesided_comp;
   extra_cfg->enable_reduced_reference_set = cfg->enable_reduced_reference_set;
   // imply explicit_ref_frame_map = 1 when bru is on
@@ -1436,9 +1426,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   // Disallow using temporal MVs while large_scale_tile = 1.
   tool_cfg->enable_ref_frame_mvs =
       extra_cfg->allow_ref_frame_mvs && !cfg->large_scale_tile;
-#if CONFIG_REDUCED_REF_FRAME_MVS_MODE
   tool_cfg->reduced_ref_frame_mvs_mode = extra_cfg->reduced_ref_frame_mvs_mode;
-#endif  // CONFIG_REDUCED_REF_FRAME_MVS_MODE
   tool_cfg->superblock_size = extra_cfg->superblock_size;
   tool_cfg->enable_monochrome = cfg->monochrome;
   tool_cfg->full_still_picture_hdr = cfg->full_still_picture_hdr;
@@ -4243,13 +4231,11 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_ref_frame_mvs,
                               argv, err_string)) {
     extra_cfg.enable_ref_frame_mvs = arg_parse_int_helper(&arg, err_string);
-#if CONFIG_REDUCED_REF_FRAME_MVS_MODE
   } else if (arg_match_helper(&arg,
                               &g_av1_codec_arg_defs.reduced_ref_frame_mvs_mode,
                               argv, err_string)) {
     extra_cfg.reduced_ref_frame_mvs_mode =
         arg_parse_int_helper(&arg, err_string);
-#endif  // CONFIG_REDUCED_REF_FRAME_MVS_MODE
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_masked_comp,
                               argv, err_string)) {
     extra_cfg.enable_masked_comp = arg_parse_int_helper(&arg, err_string);
@@ -4739,9 +4725,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         0,  // reduced_tx_part_set
         1,   1, 1, 1,
         3,   1,
-#if CONFIG_REDUCED_REF_FRAME_MVS_MODE
         0,  // reduced_ref_frame_mvs_mode
-#endif      // CONFIG_REDUCED_REF_FRAME_MVS_MODE
         1,  // enable_reduced_reference_set
         0,  // explicit_ref_frame_map
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG

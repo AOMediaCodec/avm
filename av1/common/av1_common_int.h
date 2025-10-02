@@ -561,18 +561,16 @@ typedef struct {
 
 typedef struct {
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-  int enable_order_hint;        // 0 - disable order hint, and related tools
-#endif                          // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-  int order_hint_bits_minus_1;  // dist_wtd_comp, ref_frame_mvs,
-                                // frame_sign_bias
-                                // if 0, enable_dist_wtd_comp and
-                                // enable_ref_frame_mvs must be set as 0.
-  int enable_ref_frame_mvs;     // 0 - disable ref frame mvs
-                                // 1 - enable it
-#if CONFIG_REDUCED_REF_FRAME_MVS_MODE
+  int enable_order_hint;           // 0 - disable order hint, and related tools
+#endif                             // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+  int order_hint_bits_minus_1;     // dist_wtd_comp, ref_frame_mvs,
+                                   // frame_sign_bias
+                                   // if 0, enable_dist_wtd_comp and
+                                   // enable_ref_frame_mvs must be set as 0.
+  int enable_ref_frame_mvs;        // 0 - disable ref frame mvs
+                                   // 1 - enable it
   int reduced_ref_frame_mvs_mode;  // use 1 reference frame combination
                                    // for temporal mv prediction.
-#endif                             // CONFIG_REDUCED_REF_FRAME_MVS_MODE
 } OrderHintInfo;
 
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO

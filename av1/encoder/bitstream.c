@@ -5715,14 +5715,12 @@ static AOM_INLINE void write_sequence_header(
     if (seq_params->order_hint_info.enable_order_hint) {
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
       aom_wb_write_bit(wb, seq_params->order_hint_info.enable_ref_frame_mvs);
-#if CONFIG_REDUCED_REF_FRAME_MVS_MODE
       if (seq_params->order_hint_info.enable_ref_frame_mvs) {
         assert(seq_params->order_hint_info.reduced_ref_frame_mvs_mode >= 0 &&
                seq_params->order_hint_info.reduced_ref_frame_mvs_mode <= 1);
         aom_wb_write_bit(
             wb, seq_params->order_hint_info.reduced_ref_frame_mvs_mode);
       }
-#endif  // CONFIG_REDUCED_REF_FRAME_MVS_MODE
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
     }
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
