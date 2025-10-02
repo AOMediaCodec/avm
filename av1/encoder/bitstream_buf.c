@@ -25,9 +25,7 @@
 #include "aom_ports/system_state.h"
 #include "av1/common/av1_common_int.h"
 #include "av1/common/blockd.h"
-#if CONFIG_BRU
 #include "av1/common/bru.h"
-#endif  // CONFIG_BRU
 #include "av1/common/enums.h"
 #if CONFIG_BITSTREAM_DEBUG
 #include "aom_util/debug_util.h"
