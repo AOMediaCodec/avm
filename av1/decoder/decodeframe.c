@@ -2777,7 +2777,11 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
   cm->rst_info[1].restoration_unit_size = RESTORATION_UNITSIZE_MAX >> (3 + s);
   cm->rst_info[2].restoration_unit_size = cm->rst_info[1].restoration_unit_size;
 
+#if CONFIG_CWG_F317
+  if (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame) {
+#else
   if (cm->bru.frame_inactive_flag) {
+#endif  // CONFIG_CWG_F317
     if (num_planes > 1) {
       cm->rst_info[1].restoration_unit_size =
           RESTORATION_UNITSIZE_MAX >> (3 + s);
@@ -2792,6 +2796,24 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
     if (aom_rb_read_bit(rb))
       cm->rst_info[0].restoration_unit_size = size >> 1;
     else {
+#if CONFIG_RU_SIZE_RESTRICTION
+      if (cm->mib_size == 64) {  // sb_szie == 256
+        cm->rst_info[0].restoration_unit_size = size;
+      } else {
+        if (aom_rb_read_bit(rb))
+          cm->rst_info[0].restoration_unit_size = size;
+        else {
+          if (cm->mib_size == 32) {  // sb_szie == 128
+            cm->rst_info[0].restoration_unit_size = size >> 2;
+          } else {
+            if (aom_rb_read_bit(rb))
+              cm->rst_info[0].restoration_unit_size = size >> 2;
+            else
+              cm->rst_info[0].restoration_unit_size = size >> 3;
+          }
+        }
+      }
+#else
       if (aom_rb_read_bit(rb))
         cm->rst_info[0].restoration_unit_size = size;
       else {
@@ -2800,6 +2822,7 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
         else
           cm->rst_info[0].restoration_unit_size = size >> 3;
       }
+#endif  // CONFIG_RU_SIZE_RESTRICTION
     }
   }
   if (num_planes > 1) {
@@ -2808,6 +2831,24 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
       if (aom_rb_read_bit(rb))
         cm->rst_info[1].restoration_unit_size = size >> 1;
       else {
+#if CONFIG_RU_SIZE_RESTRICTION
+        if (cm->mib_size == 64) {  // sb_szie == 256
+          cm->rst_info[1].restoration_unit_size = size;
+        } else {
+          if (aom_rb_read_bit(rb))
+            cm->rst_info[1].restoration_unit_size = size;
+          else {
+            if (cm->mib_size == 32) {  // sb_szie == 128
+              cm->rst_info[1].restoration_unit_size = size >> 2;
+            } else {
+              if (aom_rb_read_bit(rb))
+                cm->rst_info[1].restoration_unit_size = size >> 2;
+              else
+                cm->rst_info[1].restoration_unit_size = size >> 3;
+            }
+          }
+        }
+#else
         if (aom_rb_read_bit(rb))
           cm->rst_info[1].restoration_unit_size = size;
         else {
@@ -2816,6 +2857,7 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
           else
             cm->rst_info[1].restoration_unit_size = size >> 3;
         }
+#endif  // CONFIG_RU_SIZE_RESTRICTION
       }
     }
     cm->rst_info[2].restoration_unit_size =
