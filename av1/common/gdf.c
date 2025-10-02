@@ -20,24 +20,6 @@ static int gdf_num_stripes_in_tile(int stripe_size, int tile_size) {
   return (tile_size + first_stripe_offset + stripe_size - 1) / stripe_size;
 }
 
-#ifndef NDEBUG
-static int gdf_get_frame_stripe_from_row(AV1_COMMON *const cm, int row) {
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-  const int mi_row = row >> MI_SIZE_LOG2;
-  const int tile_row = get_tile_row_from_mi_row(&cm->tiles, mi_row);
-  int fs = 0;
-  for (int tr = 0; tr < tile_row; tr++)
-    fs += cm->gdf_info.gdf_vert_stripes_per_tile[tr];
-  const int tile_row_start = cm->tiles.row_start_sb[tile_row]
-                             << cm->tiles.mib_size_log2;
-  row -= (tile_row_start << MI_SIZE_LOG2);
-  return fs + (row + GDF_TEST_STRIPE_OFF) / cm->gdf_info.gdf_unit_size;
-#else
-  return (row + GDF_TEST_STRIPE_OFF) / cm->gdf_info.gdf_unit_size;
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-}
-#endif  // NDEBUG
-
 void init_gdf_test(GdfInfo *gi, int mib_size, int rec_height, int rec_width) {
   gi->gdf_mode = 0;
   gi->gdf_pic_qp_idx = 0;
@@ -391,7 +373,6 @@ void gdf_restore_processing_stripe_leftright_boundary(GdfInfo *gdf, int i_min,
 void gdf_setup_reference_lines(AV1_COMMON *cm, int i_min, int i_max,
                                int frame_stripe) {
   const RestorationStripeBoundaries *rsb = &cm->rst_info[0].boundaries;
-  assert(frame_stripe == gdf_get_frame_stripe_from_row(cm, i_min));
   const int rsb_row = frame_stripe * RESTORATION_CTX_VERT;
 
   const int rec_width = cm->cur_frame->buf.y_width;
