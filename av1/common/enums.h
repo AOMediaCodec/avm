@@ -152,12 +152,8 @@ enum {
 #endif  // MHCCP_RUNTIME_FLAG
 #define MHCCP_MODE_NUM 3
 #define MHCCP_CONTEXT_GROUP_SIZE 4
-#if CONFIG_MHCCP_BUFFER_1LINES
 // 2 lines of the luma buffer, and 1 line for the chroma buffer
 #define LINE_NUM 1
-#else
-#define LINE_NUM 2
-#endif  // CONFIG_MHCCP_BUFFER_1LINES
 #define MHCCP_NUM_PARAMS 3
 #define MHCCP_WINDOW_SIZE 6
 #define MHCCP_MAX_REF_SAMPLES \
