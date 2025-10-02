@@ -281,9 +281,6 @@ set_aom_config_var(CONFIG_WARPMV_WARP_CAUSAL_REMOVAL 1
 
 set_aom_config_var(CONFIG_BLENDING_SIMPLIFICATION 1
                    "CWG F137 simplification for blending mode")
-set_aom_config_var(
-  MHCCP_DIVISION_TAYLOR 1
-  "Change the multipler calcucation function in MHCCP division handling")
 
 set_aom_config_var(CONFIG_MHCCP_BUFFER_IMPROVE 1
                    "Fix the buffer issue772 for MHCCP")
