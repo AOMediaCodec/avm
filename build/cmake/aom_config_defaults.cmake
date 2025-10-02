@@ -174,6 +174,7 @@ set_aom_config_var(CONFIG_F253_REMOVE_OUTPUTFLAG 1
 # CWG-E242
 set_aom_config_var(CONFIG_CWG_E242_SIGNAL_TILE_INFO 1
                    "Signal tile information at sequence header.")
+
 set_aom_config_var(CONFIG_CWG_E242_BITDEPTH 1 "Signal Bitdepth using a LUT.")
 
 set_aom_config_var(CONFIG_SEQ_MAX_DRL_BITS 1

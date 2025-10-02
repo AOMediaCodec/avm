@@ -190,16 +190,20 @@ static aom_codec_err_t decoder_destroy(aom_codec_alg_priv_t *ctx) {
   aom_free(ctx);
   return AOM_CODEC_OK;
 }
-
+#if CONFIG_CWG_E242_BITDEPTH
+// Reads the bitdepth lut index in color_config() and sets *bit_depth
+// accordingly.
+#else
 // Reads the high_bitdepth and twelve_bit fields in color_config() and sets
 // *bit_depth based on the values of those fields and profile.
+#endif
 static aom_codec_err_t parse_bitdepth(struct aom_read_bit_buffer *rb,
                                       BITSTREAM_PROFILE profile,
                                       aom_bit_depth_t *bit_depth) {
 #if CONFIG_CWG_E242_BITDEPTH
   (void)profile;
-  int bitdepth_lut_idx = aom_rb_read_uvlc(rb);
-  int bitdepth = av1_get_bitdepth(bitdepth_lut_idx);
+  const int bitdepth_lut_idx = aom_rb_read_uvlc(rb);
+  const int bitdepth = av1_get_bitdepth_from_index(bitdepth_lut_idx);
   if (bitdepth < 0)
     return AOM_CODEC_UNSUP_BITSTREAM;
   else

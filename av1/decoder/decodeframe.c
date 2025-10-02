@@ -6246,29 +6246,29 @@ static AOM_INLINE void error_handler(void *data) {
   aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME, "Truncated packet");
 }
 
+#if CONFIG_CWG_E242_BITDEPTH
+// Gets the bitdepth_lut_idx field in color_config() and returns bit_depth from
+// the bitdepth list.
+int av1_get_bitdepth_from_index(int bitdepth_lut_idx) {
+  static aom_bit_depth_t bitdepth_list[] = { AOM_BITS_10, AOM_BITS_8,
+                                             AOM_BITS_12, AOM_BITS_16 };
+  if (bitdepth_lut_idx >= AOM_NUM_SUPPORTED_BITDEPTH) return -1;
+  return bitdepth_list[bitdepth_lut_idx];
+}
+// Reads the bitdepth in color_config() and sets seq_params->bit_depth
+#else
 // Reads the high_bitdepth and twelve_bit fields in color_config() and sets
 // seq_params->bit_depth based on the values of those fields and
-// seq_params->profile. Reports errors by calling rb->error_handler() or
-// aom_internal_error().
-#if CONFIG_CWG_E242_BITDEPTH
-int av1_get_bitdepth(int bitdepth_lut_idx) {
-  int bitdepth = -1;
-  switch (bitdepth_lut_idx) {
-    case AOM_BITDEPTH_0: bitdepth = AOM_BITS_10; break;
-    case AOM_BITDEPTH_1: bitdepth = AOM_BITS_8; break;
-    case AOM_BITDEPTH_2: bitdepth = AOM_BITS_12; break;
-    case AOM_BITDEPTH_3: bitdepth = AOM_BITS_16; break;
-    default: break;
-  }
-  return bitdepth;
-}
+// seq_params->profile.
 #endif  // CONFIG_CWG_E242_BITDEPTH
+// Reports errors by calling rb->error_handler() or
+// aom_internal_error().
 static AOM_INLINE void read_bitdepth(
     struct aom_read_bit_buffer *rb, SequenceHeader *seq_params,
     struct aom_internal_error_info *error_info) {
 #if CONFIG_CWG_E242_BITDEPTH
-  int bitdepth_lut_idx = aom_rb_read_uvlc(rb);
-  int bitdepth = av1_get_bitdepth(bitdepth_lut_idx);
+  const int bitdepth_lut_idx = aom_rb_read_uvlc(rb);
+  const int bitdepth = av1_get_bitdepth_from_index(bitdepth_lut_idx);
   if (bitdepth >= 0) seq_params->bit_depth = bitdepth;
 #else
   const int high_bitdepth = aom_rb_read_bit(rb);

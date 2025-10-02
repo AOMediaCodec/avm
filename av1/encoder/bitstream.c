@@ -5074,7 +5074,7 @@ static AOM_INLINE void write_seq_chroma_format(
 #endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
 #if CONFIG_CWG_E242_BITDEPTH
-int av1_set_bitdepth_idx(int bit_depth) {
+int av1_get_index_from_bitdepth(int bit_depth) {
   int bitdepth_lut_idx = -1;
   switch (bit_depth) {
     case AOM_BITS_10: bitdepth_lut_idx = AOM_BITDEPTH_0; break;
@@ -5090,8 +5090,8 @@ int av1_set_bitdepth_idx(int bit_depth) {
 static AOM_INLINE void write_bitdepth(const SequenceHeader *const seq_params,
                                       struct aom_write_bit_buffer *wb) {
 #if CONFIG_CWG_E242_BITDEPTH
-  // LUT [0] 10bits, [1] for 8bits, [2+] for Reserved
-  int bitdepth_lut_idx = av1_set_bitdepth_idx(seq_params->bit_depth);
+  const int bitdepth_lut_idx =
+      av1_get_index_from_bitdepth(seq_params->bit_depth);
   assert(bitdepth_lut_idx >= 0);
   aom_wb_write_uvlc(wb, bitdepth_lut_idx);
 #else
