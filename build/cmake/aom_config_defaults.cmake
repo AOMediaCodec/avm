@@ -146,6 +146,8 @@ set_aom_config_var(CONFIG_MULTILAYER_HLS 1 "HLS for multilayer coding.")
 set_aom_config_var(CONFIG_PARAKIT_COLLECT_DATA 0
                    "enables data collection for ParaKit training.")
 
+set_aom_config_var(CONFIG_EXT_FRAME_BUFFER_POOL 1 "Buffer pool extension.")
+
 # FG8 context simplification tests
 set_aom_config_var(CONFIG_EOB_PT_CTX_REDUCTION 1 "FG8-Test4.")
 set_aom_config_var(CONFIG_COEFF_BR_LF_UV_BYPASS 1
