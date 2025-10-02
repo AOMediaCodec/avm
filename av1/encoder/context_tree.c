@@ -229,12 +229,12 @@ PC_TREE *av1_alloc_pc_tree_node(TREE_TYPE tree_type, int mi_row, int mi_col,
   if (parent) {
     if (parent->block_size == sb_size) {
       if (parent_partition == PARTITION_VERT)
-        pc_tree->sb_root_partition_info = 1;
+        pc_tree->sb_root_partition_info = SB_VERT_PARTITION;
       else if (parent_partition == PARTITION_HORZ ||
                parent_partition == PARTITION_SPLIT)
-        pc_tree->sb_root_partition_info = 2;
+        pc_tree->sb_root_partition_info = SB_HORZ_OR_QUAD_PARTITION;
       else
-        pc_tree->sb_root_partition_info = -1;
+        pc_tree->sb_root_partition_info = INVALID_INTRABC_SB_PARTITION;
     } else {
       pc_tree->sb_root_partition_info = pc_tree->parent->sb_root_partition_info;
     }
@@ -246,7 +246,7 @@ PC_TREE *av1_alloc_pc_tree_node(TREE_TYPE tree_type, int mi_row, int mi_col,
       pc_tree->extended_sdp_allowed_flag = 0;
   } else {
     pc_tree->extended_sdp_allowed_flag = 1;
-    pc_tree->sb_root_partition_info = 0;
+    pc_tree->sb_root_partition_info = INVALID_INTRABC_SB_PARTITION;
   }
   pc_tree->block_size = bsize;
   pc_tree->is_last_subblock = is_last;

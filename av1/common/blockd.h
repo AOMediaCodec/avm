@@ -276,6 +276,13 @@ typedef enum {
   BRU_ACTIVE_SB = 2,    //'10'
 } BruActiveMode;
 
+typedef enum {
+  INVALID_INTRABC_SB_PARTITION = 0,
+  SB_VERT_PARTITION = 1,  // Superblock partition uses vertical split
+  SB_HORZ_OR_QUAD_PARTITION =
+      2,  // Superblock partition is horizontal split or quadtree split
+} SB_ROOT_PARTITION_INFO;
+
 typedef struct RD_STATS {
   int rate;
   int64_t dist;

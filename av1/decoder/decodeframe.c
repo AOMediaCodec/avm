@@ -1951,12 +1951,12 @@ static AOM_INLINE void decode_partition(
   if (ptree->parent) {
     if (ptree->parent->bsize == cm->sb_size) {
       if (ptree->parent->partition == PARTITION_VERT)
-        ptree->sb_root_partition_info = 1;
+        ptree->sb_root_partition_info = SB_VERT_PARTITION;
       else if (ptree->parent->partition == PARTITION_HORZ ||
                ptree->parent->partition == PARTITION_SPLIT)
-        ptree->sb_root_partition_info = 2;
+        ptree->sb_root_partition_info = SB_HORZ_OR_QUAD_PARTITION;
       else
-        ptree->sb_root_partition_info = -1;
+        ptree->sb_root_partition_info = INVALID_INTRABC_SB_PARTITION;
     } else {
       ptree->sb_root_partition_info = ptree->parent->sb_root_partition_info;
     }

@@ -647,6 +647,10 @@ void av1_find_best_ref_mvs(int_mv *mvlist, int_mv *nearest_mv, int_mv *near_mv,
 uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
                         int *pts_inref, int ref_idx);
 
+// num of buffers for intraBC: left 3x64x64 + current 64x64 + partial reuse
+#define INTRABC_BUFFER_NUM 4
+// intraBC reference buffer size: INTRABC_BUFFER_NUM*64x64
+#define INTRABC_BUFFER_SIZE_LOG2 6
 #define INTRABC_DELAY_PIXELS 256  //  Delay of 256 pixels
 #define INTRABC_DELAY_SB64 (INTRABC_DELAY_PIXELS / 64)
 
@@ -735,18 +739,19 @@ static INLINE int is_two_blk_overlap(int blk1_x_left, int blk1_x_right,
   if (blk2_y_top > blk1_y_bottom || blk2_y_bottom < blk1_y_top) return 0;
   return 1;
 }
+
 static INLINE int av1_is_dv_in_local_range(const AV1_COMMON *cm, const MV dv,
                                            const MACROBLOCKD *xd, int mi_row,
                                            int mi_col, int bh, int bw,
                                            int mib_size_log2) {
-  int sb_root_partition_info = 0;
+  int sb_root_partition_info = INVALID_INTRABC_SB_PARTITION;
   if (xd->mi && xd->mi[0]) {
     sb_root_partition_info = xd->mi[0]->sb_root_partition_info;
   }
-  assert(((sb_root_partition_info == 1 || sb_root_partition_info == 2) &&
-          mib_size_log2 > 4) ||
-         mib_size_log2 == 4);
-  int ref_log2 = 7;
+  assert(((sb_root_partition_info == SB_VERT_PARTITION ||
+           sb_root_partition_info == SB_HORZ_OR_QUAD_PARTITION) &&
+          mib_size_log2 > mi_size_wide_log2[BLOCK_64X64]) ||
+         mib_size_log2 == mi_size_wide_log2[BLOCK_64X64]);
   int has_col_offset = dv.col & 7;  // sub-pel col
   int has_row_offset = dv.row & 7;  // sub-pel col
   int left_interp_border = has_col_offset ? IBC_LEFT_INTERP_BORDER : 0;
@@ -768,35 +773,35 @@ static INLINE int av1_is_dv_in_local_range(const AV1_COMMON *cm, const MV dv,
   const int act_right_x = act_left_x + bw - 1;
   const int act_bottom_y = act_top_y + bh - 1;
   const int sb_size_log2 = mib_size_log2 + MI_SIZE_LOG2;
+  // reference blk cannot be in bottom-right region (uncoded region)
   if (((dv.col >> 3) + bw + right_interp_border) > 0 &&
       ((dv.row >> 3) + bh + bottom_interp_border) > 0)
     return 0;
-  // reference blk cannot be in bottom-right region (uncoded region)
+  // reference blk must be in the same sb row
   if ((src_top_y >> sb_size_log2) < (act_top_y >> sb_size_log2)) return 0;
   if ((src_bottom_y >> sb_size_log2) > (act_top_y >> sb_size_log2)) return 0;
-  // reference blk must be in the same sb row
-  int numLeftSB = (1 << (8 - sb_size_log2)) - ((sb_size_log2 < 8) ? 1 : 0);
+  // numLeftSB=round_up(num_samples_in_IBC_ref_buffer/num_samples_in_superblock)
+  const int numLeftSB =
+      (INTRABC_BUFFER_NUM * (1 << (2 * INTRABC_BUFFER_SIZE_LOG2)) +
+       (1 << 2 * sb_size_log2) - 1) >>
+      (2 * sb_size_log2);
   int numLeftActiveSB = numLeftSB;
-  if (sb_size_log2 == 6) {
-    numLeftSB = 4;
-    if (cm->bru.enabled) {
-      numLeftActiveSB = 1;
-      const int sb_col = mi_col >> mib_size_log2;
-      const int sb_row = mi_row >> mib_size_log2;
-      while (numLeftActiveSB < 4) {
-        // treat padding region as support
-        if (sb_col - numLeftActiveSB - 1 >= 0) {
-          SB_INFO *sbi =
-              av1_get_sb_info(cm, sb_row << mib_size_log2,
-                              (sb_col - numLeftActiveSB - 1) << mib_size_log2);
-          if (sbi->sb_active_mode == BRU_INACTIVE_SB) {
-            break;
-          }
+  if (sb_size_log2 == (mi_size_wide_log2[BLOCK_64X64] + MI_SIZE_LOG2) &&
+      cm->bru.enabled) {
+    numLeftActiveSB = 1;
+    const int sb_col = mi_col >> mib_size_log2;
+    const int sb_row = mi_row >> mib_size_log2;
+    while (numLeftActiveSB < numLeftSB) {
+      // treat padding region as support
+      if (sb_col - numLeftActiveSB - 1 >= 0) {
+        SB_INFO *sbi =
+            av1_get_sb_info(cm, sb_row << mib_size_log2,
+                            (sb_col - numLeftActiveSB - 1) << mib_size_log2);
+        if (sbi->sb_active_mode == BRU_INACTIVE_SB) {
+          break;
         }
-        numLeftActiveSB++;
       }
-    } else {
-      numLeftActiveSB = numLeftSB;
+      numLeftActiveSB++;
     }
   }
   const int valid_SB =
@@ -815,7 +820,8 @@ static INLINE int av1_is_dv_in_local_range(const AV1_COMMON *cm, const MV dv,
   int src_colo_top_y = src_top_y;
   int src_colo_right_x = src_right_x;
   int src_colo_bottom_y = src_bottom_y;
-  if (sb_size_log2 == 6 || sb_size_log2 == 7) {
+  if (mib_size_log2 == mi_size_wide_log2[BLOCK_64X64] ||
+      mib_size_log2 == mi_size_wide_log2[BLOCK_128X128]) {
     const int sb_off =
         (act_left_x >> sb_size_log2) - (src_left_x >> sb_size_log2);
     if (sb_off == numLeftSB) {
@@ -834,132 +840,101 @@ static INLINE int av1_is_dv_in_local_range(const AV1_COMMON *cm, const MV dv,
       BR_same_ref =
           (src_right_x >> sb_size_log2) == (act_left_x >> sb_size_log2);
     }
-  } else if (sb_size_log2 == 8) {
+  } else if (mib_size_log2 == mi_size_wide_log2[BLOCK_256X256]) {
+    const int ref_log2 = mi_size_wide_log2[BLOCK_128X128] + MI_SIZE_LOG2;
+    const int off_128_left =
+        (act_left_x >> ref_log2) - (src_left_x >> ref_log2);
+    const int off_128_right =
+        (act_left_x >> ref_log2) - (src_right_x >> ref_log2);
+    const int off_128_top = (act_top_y >> ref_log2) - (src_top_y >> ref_log2);
+    const int off_128_bottom =
+        (act_top_y >> ref_log2) - (src_bottom_y >> ref_log2);
+    src_colo_left_x += (1 << ref_log2) * off_128_left;
+    src_colo_right_x += (1 << ref_log2) * off_128_left;
+    src_colo_top_y += (1 << ref_log2) * off_128_top;
+    src_colo_bottom_y += (1 << ref_log2) * off_128_top;
     // |R|Q0|Q1|
     //------------
     // |P|Q2|Q3|
     if ((((act_left_x >> ref_log2) & 0x01) == 0) &&
         (((act_top_y >> ref_log2) & 0x01) == 0)) {  // Q0
-      if (((src_left_x >> ref_log2) - (act_left_x >> ref_log2) == 0) &&
-          ((src_right_x >> ref_log2) - (act_left_x >> ref_log2) == 0) &&
-          ((src_top_y >> ref_log2) - (act_top_y >> ref_log2) == 0) &&
-          ((src_bottom_y >> ref_log2) - (act_top_y >> ref_log2) == 0)) {
+      if (off_128_left == 0 && off_128_right == 0 && off_128_top == 0 &&
+          off_128_bottom == 0) {
         // refer to Q0
         TL_same_ref = 1;
         BR_same_ref = 1;
-      } else if (((src_left_x >> ref_log2) - (act_left_x >> ref_log2) == -1) &&
-                 ((src_right_x >> ref_log2) - (act_left_x >> ref_log2) == -1) &&
-                 ((src_top_y >> ref_log2) - (act_top_y >> ref_log2) == 1) &&
-                 ((src_bottom_y >> ref_log2) - (act_top_y >> ref_log2) ==
-                  1)) {  // refer to P
+      } else if (off_128_left == 1 && off_128_right == 1 && off_128_top == -1 &&
+                 off_128_bottom == -1) {  // refer to P
         TL_same_ref = 0;
         BR_same_ref = 0;
-        src_colo_left_x += (1 << ref_log2);
-        src_colo_right_x += (1 << ref_log2);
-        src_colo_top_y -= (1 << ref_log2);
-        src_colo_bottom_y -= (1 << ref_log2);
       } else {
         return 0;
       }
     } else if ((((act_left_x >> ref_log2) & 0x01) == 0) &&
                (((act_top_y >> ref_log2) & 0x01) == 1)) {  // Q2
-      if (((src_left_x >> ref_log2) - (act_left_x >> ref_log2) == 0) &&
-          ((src_right_x >> ref_log2) - (act_left_x >> ref_log2) == 0) &&
-          ((src_top_y >> ref_log2) - (act_top_y >> ref_log2) == 0) &&
-          ((src_bottom_y >> ref_log2) - (act_top_y >> ref_log2) == 0)) {
+      if (off_128_left == 0 && off_128_right == 0 && off_128_top == 0 &&
+          off_128_bottom == 0) {
         // refer to Q2 itself
         TL_same_ref = 1;
         BR_same_ref = 1;
-      } else if (sb_root_partition_info == 2 &&
-                 ((src_left_x >> ref_log2) - (act_left_x >> ref_log2) == 1) &&
-                 ((src_right_x >> ref_log2) - (act_left_x >> ref_log2) == 1) &&
-                 ((src_top_y >> ref_log2) - (act_top_y >> ref_log2) == -1) &&
-                 ((src_bottom_y >> ref_log2) - (act_top_y >> ref_log2) ==
-                  -1)) {  // refer to Q1
+      } else if (sb_root_partition_info == SB_HORZ_OR_QUAD_PARTITION &&
+                 off_128_left == -1 && off_128_right == -1 &&
+                 off_128_top == 1 && off_128_bottom == 1) {  // refer to Q1
         TL_same_ref = 0;
         BR_same_ref = 0;
-        src_colo_left_x -= (1 << ref_log2);
-        src_colo_right_x -= (1 << ref_log2);
-        src_colo_top_y += (1 << ref_log2);
-        src_colo_bottom_y += (1 << ref_log2);
-      } else if (sb_root_partition_info == 1 &&
-                 ((src_left_x >> ref_log2) - (act_left_x >> ref_log2) == 0) &&
-                 ((src_right_x >> ref_log2) - (act_left_x >> ref_log2) == 0) &&
-                 ((src_top_y >> ref_log2) - (act_top_y >> ref_log2) ==
-                  -1)) {  // refer to Q0 due to vertical split of SB
+      } else if (sb_root_partition_info == SB_VERT_PARTITION &&
+                 off_128_left == 0 && off_128_right == 0 &&
+                 off_128_top == 1) {  // refer to Q0 due to vertical split of SB
         TL_same_ref = 0;
         BR_same_ref = (src_bottom_y >> ref_log2) == (act_top_y >> ref_log2);
-        src_colo_top_y += (1 << ref_log2);
-        src_colo_bottom_y += (1 << ref_log2);
       } else {
         return 0;
       }
     } else if ((((act_left_x >> ref_log2) & 0x01) == 1) &&
                (((act_top_y >> ref_log2) & 0x01) == 0)) {  // Q1
-      if (((src_left_x >> ref_log2) - (act_left_x >> ref_log2) == 0) &&
-          ((src_right_x >> ref_log2) - (act_left_x >> ref_log2) == 0) &&
-          ((src_top_y >> ref_log2) - (act_top_y >> ref_log2) == 0) &&
-          ((src_bottom_y >> ref_log2) - (act_top_y >> ref_log2) == 0)) {
+      if (off_128_left == 0 && off_128_right == 0 && off_128_top == 0 &&
+          off_128_bottom == 0) {
         // refer to Q1 itself
         TL_same_ref = 1;
         BR_same_ref = 1;
-      } else if (sb_root_partition_info == 2 &&
-                 ((src_left_x >> ref_log2) - (act_left_x >> ref_log2) == -1) &&
-                 ((src_top_y >> ref_log2) - (act_top_y >> ref_log2) == 0) &&
-                 ((src_bottom_y >> ref_log2) - (act_top_y >> ref_log2) ==
-                  0)) {  // refer to Q0 due to quad/hor split of SB
+      } else if (sb_root_partition_info == SB_HORZ_OR_QUAD_PARTITION &&
+                 off_128_left == 1 && off_128_top == 0 &&
+                 off_128_bottom ==
+                     0) {  // refer to Q0 due to quad/hor split of SB
         TL_same_ref = 0;
         BR_same_ref = (src_right_x >> ref_log2) == (act_left_x >> ref_log2);
-        src_colo_left_x += (1 << ref_log2);
-        src_colo_right_x += (1 << ref_log2);
-      } else if (sb_root_partition_info == 1 &&
-                 ((src_left_x >> ref_log2) - (act_left_x >> ref_log2) == -1) &&
-                 ((src_right_x >> ref_log2) - (act_left_x >> ref_log2) == -1) &&
-                 ((src_top_y >> ref_log2) - (act_top_y >> ref_log2) == 1) &&
-                 ((src_bottom_y >> ref_log2) - (act_top_y >> ref_log2) ==
-                  1)) {  // refer to Q2 due to ver split of SB
+      } else if (sb_root_partition_info == SB_VERT_PARTITION &&
+                 off_128_left == 1 && off_128_right == 1 && off_128_top == -1 &&
+                 off_128_bottom == -1) {  // refer to Q2 due to ver split of SB
         TL_same_ref = 0;
         BR_same_ref = 0;
-        src_colo_left_x += (1 << ref_log2);
-        src_colo_right_x += (1 << ref_log2);
-        src_colo_top_y -= (1 << ref_log2);
-        src_colo_bottom_y -= (1 << ref_log2);
       } else {
         return 0;
       }
     } else if ((((act_left_x >> ref_log2) & 0x01) == 1) &&
                (((act_top_y >> ref_log2) & 0x01) == 1)) {  // Q3
-      if (((src_left_x >> ref_log2) - (act_left_x >> ref_log2) == 0) &&
-          ((src_right_x >> ref_log2) - (act_left_x >> ref_log2) == 0) &&
-          ((src_top_y >> ref_log2) - (act_top_y >> ref_log2) == 0) &&
-          ((src_bottom_y >> ref_log2) - (act_top_y >> ref_log2) == 0)) {
+      if (off_128_left == 0 && off_128_right == 0 && off_128_top == 0 &&
+          off_128_bottom == 0) {
         // refer to Q3 itself
         TL_same_ref = 1;
         BR_same_ref = 1;
-      } else if (sb_root_partition_info == 2 &&
-                 ((src_left_x >> ref_log2) - (act_left_x >> ref_log2) == -1) &&
-                 ((src_top_y >> ref_log2) - (act_top_y >> ref_log2) == 0) &&
-                 ((src_bottom_y >> ref_log2) - (act_top_y >> ref_log2) ==
-                  0)) {  // refer to Q2 due to quad/hor split of SB
+      } else if (sb_root_partition_info == SB_HORZ_OR_QUAD_PARTITION &&
+                 off_128_left == 1 && off_128_top == 0 &&
+                 off_128_bottom ==
+                     0) {  // refer to Q2 due to quad/hor split of SB
         TL_same_ref = 0;
         BR_same_ref = (src_right_x >> ref_log2) == (act_left_x >> ref_log2);
-        src_colo_left_x += (1 << ref_log2);
-        src_colo_right_x += (1 << ref_log2);
-      } else if (sb_root_partition_info == 1 &&
-                 ((src_left_x >> ref_log2) - (act_left_x >> ref_log2) == 0) &&
-                 ((src_right_x >> ref_log2) - (act_left_x >> ref_log2) == 0) &&
-                 ((src_top_y >> ref_log2) - (act_top_y >> ref_log2) ==
-                  -1)) {  // refer to Q1 due to ver split of SB
+      } else if (sb_root_partition_info == SB_VERT_PARTITION &&
+                 off_128_left == 0 && off_128_right == 0 &&
+                 off_128_top == 1) {  // refer to Q1 due to ver split of SB
         TL_same_ref = 0;
         BR_same_ref = (src_bottom_y >> ref_log2) == (act_top_y >> ref_log2);
-        src_colo_top_y += (1 << ref_log2);
-        src_colo_bottom_y += (1 << ref_log2);
       } else {
         return 0;
       }
     }
   } else {
-    assert(0);  // other sb_size not supported
+    assert(0);  // other SB_size not supported
   }
   const int sb_size = 1 << sb_size_log2;
   const int sb_mi_size = sb_size >> MI_SIZE_LOG2;
@@ -1090,28 +1065,35 @@ static INLINE int av1_is_dv_valid(const MV dv, const AV1_COMMON *cm,
   // constraints to facilitate HW decoder.
   const int max_mib_size = 1 << mib_size_log2;
   const int active_sb_row = mi_row >> mib_size_log2;
-  const int active_sb64_col = (mi_col * MI_SIZE) >> 6;
+  const int active_sb64_col = mi_col >> mi_size_wide_log2[BLOCK_64X64];
   const int sb_size = max_mib_size * MI_SIZE;
-  const int src_sb_row = ((src_bottom_edge >> 3) - 1) / sb_size;
-  const int src_sb64_col = ((src_right_edge >> 3) - 1) >> 6;
+  const int src_sb_row =
+      ((src_bottom_edge >> 3) - 1) >> (mib_size_log2 + MI_SIZE_LOG2);
+  const int src_sb64_col = ((src_right_edge >> 3) - 1) >>
+                           (mi_size_wide_log2[BLOCK_64X64] + MI_SIZE_LOG2);
 
   // Special case for 128x128 superblock with hor/quad split.
-  const int active_sb64_row = (mi_row * MI_SIZE) >> 6;
+  const int active_sb64_row =
+      (mi_row * MI_SIZE) >> (mi_size_high_log2[BLOCK_64X64] + MI_SIZE_LOG2);
   const int is_bottom_left =
       ((active_sb64_col & 0x01) == 0 && (active_sb64_row & 0x01) == 1);
-  const int sb_64_residual = (sb_size == 128 && xd->mi && xd->mi[0] &&
-                              xd->mi[0]->sb_root_partition_info == 2)
-                                 ? (-1) * is_bottom_left
-                                 : 0;
+  const int sb_64_residual =
+      (sb_size == block_size_wide[BLOCK_128X128] && xd->mi && xd->mi[0] &&
+       xd->mi[0]->sb_root_partition_info == SB_HORZ_OR_QUAD_PARTITION)
+          ? (-1) * is_bottom_left
+          : 0;
   const int total_sb64_per_row =
-      (((tile->mi_col_end - tile->mi_col_start - 1) >> 4) + 1);
+      (((tile->mi_col_end - tile->mi_col_start - 1) >>
+        mi_size_high_log2[BLOCK_64X64]) +
+       1);
   const int active_sb64 = active_sb_row * total_sb64_per_row + active_sb64_col;
   const int src_sb64 = src_sb_row * total_sb64_per_row + src_sb64_col;
   if (src_sb64 >= active_sb64 - INTRABC_DELAY_SB64 - sb_64_residual) return 0;
 
   // Wavefront constraint: use only top left area of frame for reference.
-  const int gradient =
-      1 + INTRABC_DELAY_SB64 + (sb_size > 64) + 2 * (sb_size > 128);
+  const int gradient = 1 + INTRABC_DELAY_SB64 +
+                       (sb_size > block_size_wide[BLOCK_64X64]) +
+                       2 * (sb_size > block_size_wide[BLOCK_128X128]);
   const int wf_offset = gradient * (active_sb_row - src_sb_row);
   if (src_sb_row > active_sb_row ||
       src_sb64_col >=

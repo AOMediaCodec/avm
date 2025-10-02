@@ -5886,23 +5886,27 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
         }
       }
       if (cm->features.allow_local_intrabc && ibc_loop == 1) {
-        int num_left_sb = 1;
-        if (cm->mib_size_log2 == 4) {
-          if (cm->bru.enabled) {
-            // check SB activity, once inactive, stop
-            while (num_left_sb < 4) {
-              if (!bru_is_sb_available(
-                      cm, (sb_col - num_left_sb - 1) * cm->mib_size,
-                      sb_row * cm->mib_size)) {
-                break;
-              }
-              num_left_sb++;
+        // num_left_sb=round_up(num_samples_in_IBC_ref_buffer/num_samples_in_superblock)
+        const int num_left_sb =
+            (INTRABC_BUFFER_NUM * (1 << (2 * INTRABC_BUFFER_SIZE_LOG2)) +
+             (1 << 2 * (cm->mib_size_log2 + MI_SIZE_LOG2)) - 1) >>
+            (2 * (cm->mib_size_log2 + MI_SIZE_LOG2));
+        int num_left_active_sb = num_left_sb;
+        if (cm->mib_size_log2 == mi_size_wide_log2[BLOCK_64X64] &&
+            cm->bru.enabled) {
+          // check SB activity, once inactive, stop
+          num_left_active_sb = 1;
+          while (num_left_active_sb < num_left_sb) {
+            if (!bru_is_sb_available(
+                    cm, (sb_col - num_left_active_sb - 1) * cm->mib_size,
+                    sb_row * cm->mib_size)) {
+              break;
             }
-          } else
-            num_left_sb = 4;
+            num_left_active_sb++;
+          }
         }
-        int left_coded_mi_edge =
-            AOMMAX((sb_col - num_left_sb) * cm->mib_size, tile->mi_col_start);
+        int left_coded_mi_edge = AOMMAX(
+            (sb_col - num_left_active_sb) * cm->mib_size, tile->mi_col_start);
         int right_coded_mi_edge =
             AOMMIN((sb_col + 1) * cm->mib_size, tile->mi_col_end);
         int up_coded_mi_edge =
