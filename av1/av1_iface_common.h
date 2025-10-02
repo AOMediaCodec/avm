@@ -97,6 +97,46 @@ static void yuvconfig2image(aom_image_t *img, const YV12_BUFFER_CONFIG *yv12,
   img->sz = yv12->frame_size;
   assert(!yv12->metadata);
   img->metadata = NULL;
+#if CONFIG_CROP_WIN_CWG_F220
+  img->w_conf_win_enabled_flag = yv12->w_conf_win_enabled_flag;
+  if (img->w_conf_win_enabled_flag) {
+    img->w_conf_win_bottom_offset = yv12->w_win_bottom_offset;
+    img->w_conf_win_left_offset = yv12->w_win_left_offset;
+    img->w_conf_win_right_offset = yv12->w_win_right_offset;
+    img->w_conf_win_top_offset = yv12->w_win_top_offset;
+
+    // Determine subsampling factors
+    const int ss_x = img->monochrome ? img->x_chroma_shift : 0;
+    const int ss_y = img->monochrome ? img->y_chroma_shift : 0;
+
+    // Convert
+    const int plane_left_offset = img->w_conf_win_left_offset >> ss_x;
+    const int plane_right_offset = img->w_conf_win_right_offset >> ss_x;
+    const int plane_top_offset = img->w_conf_win_top_offset >> ss_y;
+    const int plane_bottom_offset = img->w_conf_win_bottom_offset >> ss_y;
+
+    // Calculate cropping positions
+    int left_pos_x = plane_left_offset;
+    int right_pos_x = img->d_w - 1 - plane_right_offset;
+    int top_pos_y = plane_top_offset;
+    int bottom_pos_y = img->d_h - 1 - plane_bottom_offset;
+
+    // Calculate the cropped size
+    img->crop_width = right_pos_x - left_pos_x + 1;
+    img->crop_height = bottom_pos_y - top_pos_y + 1;
+    img->w = img->d_w;
+    img->h = img->d_h;
+    img->d_w = img->crop_width;
+    img->d_h = img->crop_height;
+  } else {
+    img->w_conf_win_bottom_offset = 0;
+    img->w_conf_win_left_offset = 0;
+    img->w_conf_win_right_offset = 0;
+    img->w_conf_win_top_offset = 0;
+  }
+  img->max_width = yv12->max_width;
+  img->max_height = yv12->max_height;
+#endif  // CONFIG_CROP_WIN_CWG_F220
 }
 
 static aom_codec_err_t image2yuvconfig(const aom_image_t *img,

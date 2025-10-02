@@ -631,6 +631,28 @@ typedef struct cfg_options {
    */
   unsigned int disable_loopfilters_across_tiles;
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+#if CONFIG_CROP_WIN_CWG_F220
+  /*!\brief enable cropping window
+   *
+   */
+  int enable_cropping_window;
+  /*!\brief cropping window left offset
+   *
+   */
+  int crop_win_left_offset;
+  /*!\brief cropping window right offset
+   *
+   */
+  int crop_win_right_offset;
+  /*!\brief cropping window top offset
+   *
+   */
+  int crop_win_top_offset;
+  /*!\brief cropping window bottom offset
+   *
+   */
+  int crop_win_bottom_offset;
+#endif  // CONFIG_CROP_WIN_CWG_F220
 } cfg_options_t;
 
 /*!\brief Encoded Frame Flags
@@ -1147,6 +1169,29 @@ typedef struct aom_codec_enc_cfg {
    *
    */
   cfg_options_t encoder_cfg;
+
+#if CONFIG_CROP_WIN_CWG_F220
+  /*!\brief enable cropping window
+   *
+   */
+  int enable_cropping_window;
+  /*!\brief cropping window left offset
+   *
+   */
+  int crop_win_left_offset;
+  /*!\brief cropping window right offset
+   *
+   */
+  int crop_win_right_offset;
+  /*!\brief cropping window top offset
+   *
+   */
+  int crop_win_top_offset;
+  /*!\brief cropping window bottom offset
+   *
+   */
+  int crop_win_bottom_offset;
+#endif                 // CONFIG_CROP_WIN_CWG_F220
 } aom_codec_enc_cfg_t; /**< alias for struct aom_codec_enc_cfg */
 
 /*!\brief Initialize an encoder instance

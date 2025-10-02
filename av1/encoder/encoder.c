@@ -691,6 +691,23 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   seq_params->seq_header_id =
       0;  // intentionally 0 for a single sequence bitstream
 #endif    // CONFIG_CWG_E242_SEQ_HDR_ID
+#if CONFIG_CROP_WIN_CWG_F220
+  seq_params->conf.conf_win_enabled_flag =
+      oxcf->tool_cfg.enable_cropping_window;
+  if (seq_params->conf.conf_win_enabled_flag) {
+    seq_params->conf.conf_win_left_offset = oxcf->tool_cfg.crop_win_left_offset;
+    seq_params->conf.conf_win_top_offset = oxcf->tool_cfg.crop_win_top_offset;
+    seq_params->conf.conf_win_right_offset =
+        oxcf->tool_cfg.crop_win_right_offset;
+    seq_params->conf.conf_win_bottom_offset =
+        oxcf->tool_cfg.crop_win_bottom_offset;
+  } else {
+    seq_params->conf.conf_win_left_offset = 0;
+    seq_params->conf.conf_win_top_offset = 0;
+    seq_params->conf.conf_win_right_offset = 0;
+    seq_params->conf.conf_win_bottom_offset = 0;
+  }
+#endif  // CONFIG_CROP_WIN_CWG_F220
 
   seq_params->profile = oxcf->profile;
   seq_params->bit_depth = oxcf->tool_cfg.bit_depth;

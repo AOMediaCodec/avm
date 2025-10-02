@@ -916,6 +916,13 @@ typedef struct {
   unsigned int max_drl_refbvs;
   // Indicates if ref MV Bank should be enabled.
   bool enable_refmvbank;
+#if CONFIG_CROP_WIN_CWG_F220
+  int enable_cropping_window;
+  int crop_win_left_offset;
+  int crop_win_right_offset;
+  int crop_win_top_offset;
+  int crop_win_bottom_offset;
+#endif  // CONFIG_CROP_WIN_CWG_F220
   // Indicates if the reorder of DRL should be enabled.
   int enable_drl_reorder;
   // Indicates if the CDEF on skip_txfm = 1 blocks should be enabled.

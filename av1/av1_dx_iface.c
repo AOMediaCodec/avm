@@ -475,6 +475,16 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
       si->w = max_frame_width;
       si->h = max_frame_height;
 
+#if CONFIG_CROP_WIN_CWG_F220
+      bool conf_win_flag = aom_rb_read_bit(&rb);
+      if (conf_win_flag) {
+        si->conf_win_left_offset = aom_rb_read_uvlc(&rb);
+        si->conf_win_right_offset = aom_rb_read_uvlc(&rb);
+        si->conf_win_top_offset = aom_rb_read_uvlc(&rb);
+        si->conf_win_bottom_offset = aom_rb_read_uvlc(&rb);
+      }
+#endif  // CONFIG_CROP_WIN_CWG_F220
+
       status = parse_color_config(&rb, profile);
       if (status != AOM_CODEC_OK) return status;
 
@@ -1067,6 +1077,29 @@ static aom_image_t *decoder_get_frame_(aom_codec_alg_priv_t *ctx,
         img->tlayer_id = cm->tlayer_id;
         img->mlayer_id = cm->mlayer_id;
         img->xlayer_id = cm->xlayer_id;
+
+#if CONFIG_CROP_WIN_CWG_F220
+        img->w_conf_win_enabled_flag =
+            cm->seq_params.conf.conf_win_enabled_flag;
+        if (img->w_conf_win_enabled_flag) {
+          img->w_conf_win_left_offset =
+              cm->seq_params.conf.conf_win_left_offset;
+          img->w_conf_win_right_offset =
+              cm->seq_params.conf.conf_win_right_offset;
+          img->w_conf_win_top_offset = cm->seq_params.conf.conf_win_top_offset;
+          img->w_conf_win_bottom_offset =
+              cm->seq_params.conf.conf_win_bottom_offset;
+        } else {
+          img->w_conf_win_left_offset = 0;
+          img->w_conf_win_right_offset = 0;
+          img->w_conf_win_top_offset = 0;
+          img->w_conf_win_bottom_offset = 0;
+        }
+        img->x_chroma_shift = cm->seq_params.subsampling_x;
+        img->y_chroma_shift = cm->seq_params.subsampling_y;
+        img->max_width = cm->seq_params.max_frame_width;
+        img->max_height = cm->seq_params.max_frame_height;
+#endif  // CONFIG_CROP_WIN_CWG_F220
         if (pbi->skip_film_grain) grain_params->apply_grain = 0;
         aom_image_t *res =
             add_grain_if_needed(ctx, img, &ctx->image_with_grain, grain_params);

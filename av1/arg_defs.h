@@ -295,6 +295,13 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t frame_hash_metadata;
   arg_def_t frame_hash_per_plane;
   arg_def_t enable_short_refresh_frame_flags;
+#if CONFIG_CROP_WIN_CWG_F220
+  arg_def_t enable_cropping_window;
+  arg_def_t crop_win_left_offset;
+  arg_def_t crop_win_right_offset;
+  arg_def_t crop_win_top_offset;
+  arg_def_t crop_win_bottom_offset;
+#endif  // CONFIG_CROP_WIN_CWG_F220
 } av1_codec_arg_definitions_t;
 
 extern const av1_codec_arg_definitions_t g_av1_codec_arg_defs;

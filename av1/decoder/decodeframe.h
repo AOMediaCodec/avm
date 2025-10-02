@@ -33,6 +33,11 @@ struct AV1Decoder;
 struct aom_read_bit_buffer;
 struct ThreadData;
 
+#if CONFIG_CROP_WIN_CWG_F220
+void av1_read_conformance_window(struct aom_read_bit_buffer *rb,
+                                 struct SequenceHeader *seq_params);
+#endif  // CONFIG_CROP_WIN_CWG_F220
+
 #if CONFIG_MULTILAYER_HLS
 uint32_t av1_read_layer_configuration_record_obu(
     struct AV1Decoder *pbi, int obu_xlayer_id, struct aom_read_bit_buffer *rb);

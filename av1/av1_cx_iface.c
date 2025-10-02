@@ -244,6 +244,13 @@ struct av1_extracfg {
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   unsigned int disable_loopfilters_across_tiles;
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+#if CONFIG_CROP_WIN_CWG_F220
+  int enable_cropping_window;  // enable cropping window
+  int crop_win_left_offset;    // cropping window left offset
+  int crop_win_right_offset;   // cropping window right offset
+  int crop_win_top_offset;     // cropping window top offset
+  int crop_win_bottom_offset;  // cropping window bottom offset
+#endif                         // CONFIG_CROP_WIN_CWG_F220
 };
 
 // Example subgop configs. Currently not used by default.
@@ -496,7 +503,6 @@ static struct av1_extracfg default_extra_cfg = {
   1,    // enable 64-pt transform usage
   0,    // enable reduced transform block partition set
   1,    // enable flip and identity transform
-
   7,  // max_reference_frames
   0,  // enable_reduced_reference_set
   0,  // explicit_ref_frame_map
@@ -574,6 +580,13 @@ static struct av1_extracfg default_extra_cfg = {
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   0,
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+#if CONFIG_CROP_WIN_CWG_F220
+  0,     // enable_cropping_window
+  0,     // crop_win_left_offset
+  0,     // crop_win_right_offset
+  0,     // crop_win_top_offset
+  0,     // crop_win_bottom_offset
+#endif  // CONFIG_CROP_WIN_CWG_F220
 };
 // clang-format on
 
@@ -729,6 +742,13 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   RANGE_CHECK_HI(extra_cfg, tile_rows, 6);
 
   RANGE_CHECK_HI(cfg, monochrome, 1);
+#if CONFIG_CROP_WIN_CWG_F220
+  RANGE_CHECK(extra_cfg, enable_cropping_window, 0, 1);
+  RANGE_CHECK_HI(extra_cfg, crop_win_left_offset, 65535);
+  RANGE_CHECK_HI(extra_cfg, crop_win_right_offset, 65535);
+  RANGE_CHECK_HI(extra_cfg, crop_win_top_offset, 65535);
+  RANGE_CHECK_HI(extra_cfg, crop_win_bottom_offset, 65535);
+#endif  // CONFIG_CROP_WIN_CWG_F220
 
   if (cfg->large_scale_tile && extra_cfg->aq_mode)
     ERROR(
@@ -1029,6 +1049,13 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_parity_hiding = extra_cfg->enable_parity_hiding;
   cfg->enable_short_refresh_frame_flags =
       extra_cfg->enable_short_refresh_frame_flags;
+#if CONFIG_CROP_WIN_CWG_F220
+  cfg->enable_cropping_window = extra_cfg->enable_cropping_window;
+  cfg->crop_win_left_offset = extra_cfg->crop_win_left_offset;
+  cfg->crop_win_right_offset = extra_cfg->crop_win_right_offset;
+  cfg->crop_win_top_offset = extra_cfg->crop_win_top_offset;
+  cfg->crop_win_bottom_offset = extra_cfg->crop_win_bottom_offset;
+#endif  // CONFIG_CROP_WIN_CWG_F220
   cfg->enable_ext_seg = extra_cfg->enable_ext_seg;
   cfg->dpb_size = extra_cfg->dpb_size;
 }
@@ -1146,6 +1173,13 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_parity_hiding = cfg->enable_parity_hiding;
   extra_cfg->enable_short_refresh_frame_flags =
       cfg->enable_short_refresh_frame_flags;
+#if CONFIG_CROP_WIN_CWG_F220
+  extra_cfg->enable_cropping_window = cfg->enable_cropping_window;
+  extra_cfg->crop_win_left_offset = cfg->crop_win_left_offset;
+  extra_cfg->crop_win_right_offset = cfg->crop_win_right_offset;
+  extra_cfg->crop_win_top_offset = cfg->crop_win_top_offset;
+  extra_cfg->crop_win_bottom_offset = cfg->crop_win_bottom_offset;
+#endif  // CONFIG_CROP_WIN_CWG_F220
   extra_cfg->enable_ext_seg = cfg->enable_ext_seg;
   extra_cfg->dpb_size = cfg->dpb_size;
 }
@@ -1404,6 +1438,20 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   tool_cfg->max_drl_refmvs = extra_cfg->max_drl_refmvs;
   tool_cfg->max_drl_refbvs = extra_cfg->max_drl_refbvs;
   tool_cfg->enable_refmvbank = extra_cfg->enable_refmvbank;
+#if CONFIG_CROP_WIN_CWG_F220
+  tool_cfg->enable_cropping_window = extra_cfg->enable_cropping_window;
+  tool_cfg->crop_win_left_offset = extra_cfg->crop_win_left_offset;
+  tool_cfg->crop_win_right_offset = extra_cfg->crop_win_right_offset;
+  tool_cfg->crop_win_top_offset = extra_cfg->crop_win_top_offset;
+  tool_cfg->crop_win_bottom_offset = extra_cfg->crop_win_bottom_offset;
+  if (cfg->encoder_cfg.enable_cropping_window) {
+    tool_cfg->enable_cropping_window = cfg->encoder_cfg.enable_cropping_window;
+    tool_cfg->crop_win_left_offset = cfg->encoder_cfg.crop_win_left_offset;
+    tool_cfg->crop_win_right_offset = cfg->encoder_cfg.crop_win_right_offset;
+    tool_cfg->crop_win_top_offset = cfg->encoder_cfg.crop_win_top_offset;
+    tool_cfg->crop_win_bottom_offset = cfg->encoder_cfg.crop_win_bottom_offset;
+  }
+#endif  // CONFIG_CROP_WIN_CWG_F220
 
   tool_cfg->enable_drl_reorder = extra_cfg->enable_drl_reorder;
   if (tool_cfg->enable_drl_reorder == 1) {
@@ -2343,6 +2391,45 @@ static aom_codec_err_t ctrl_set_enable_flip_idtx(aom_codec_alg_priv_t *ctx,
   extra_cfg.enable_flip_idtx = CAST(AV1E_SET_ENABLE_FLIP_IDTX, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
+
+#if CONFIG_CROP_WIN_CWG_F220
+static aom_codec_err_t ctrl_set_enable_cropping_window(
+    aom_codec_alg_priv_t *ctx, va_list args) {
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.enable_cropping_window =
+      CAST(AV1E_SET_ENABLE_CROPPING_WINDOW, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+
+static aom_codec_err_t ctrl_set_cropping_window_left_offset(
+    aom_codec_alg_priv_t *ctx, va_list args) {
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.crop_win_left_offset = CAST(AV1E_SET_ENABLE_CROPPING_WINDOW, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+
+static aom_codec_err_t ctrl_set_cropping_window_right_offset(
+    aom_codec_alg_priv_t *ctx, va_list args) {
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.crop_win_right_offset = CAST(AV1E_SET_ENABLE_CROPPING_WINDOW, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+
+static aom_codec_err_t ctrl_set_cropping_window_top_offset(
+    aom_codec_alg_priv_t *ctx, va_list args) {
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.crop_win_top_offset = CAST(AV1E_SET_ENABLE_CROPPING_WINDOW, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+
+static aom_codec_err_t ctrl_set_cropping_window_bottom_offset(
+    aom_codec_alg_priv_t *ctx, va_list args) {
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.crop_win_bottom_offset =
+      CAST(AV1E_SET_ENABLE_CROPPING_WINDOW, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+#endif  // CONFIG_CROP_WIN_CWG_F220
 
 static aom_codec_err_t ctrl_set_max_reference_frames(aom_codec_alg_priv_t *ctx,
                                                      va_list args) {
@@ -4178,6 +4265,25 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_flip_idtx,
                               argv, err_string)) {
     extra_cfg.enable_flip_idtx = arg_parse_int_helper(&arg, err_string);
+#if CONFIG_CROP_WIN_CWG_F220
+  } else if (arg_match_helper(&arg,
+                              &g_av1_codec_arg_defs.enable_cropping_window,
+                              argv, err_string)) {
+    extra_cfg.enable_cropping_window = arg_parse_int_helper(&arg, err_string);
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.crop_win_left_offset,
+                              argv, err_string)) {
+    extra_cfg.crop_win_left_offset = arg_parse_int_helper(&arg, err_string);
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.crop_win_right_offset,
+                              argv, err_string)) {
+    extra_cfg.crop_win_right_offset = arg_parse_int_helper(&arg, err_string);
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.crop_win_top_offset,
+                              argv, err_string)) {
+    extra_cfg.crop_win_top_offset = arg_parse_int_helper(&arg, err_string);
+  } else if (arg_match_helper(&arg,
+                              &g_av1_codec_arg_defs.crop_win_bottom_offset,
+                              argv, err_string)) {
+    extra_cfg.crop_win_bottom_offset = arg_parse_int_helper(&arg, err_string);
+#endif  // CONFIG_CROP_WIN_CWG_F220
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.max_reference_frames,
                               argv, err_string)) {
     extra_cfg.max_reference_frames = arg_parse_int_helper(&arg, err_string);
@@ -4389,6 +4495,25 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_bru, argv,
                               err_string)) {
     extra_cfg.enable_bru = arg_parse_int_helper(&arg, err_string);
+#if CONFIG_CROP_WIN_CWG_F220
+  } else if (arg_match_helper(&arg,
+                              &g_av1_codec_arg_defs.enable_cropping_window,
+                              argv, err_string)) {
+    extra_cfg.enable_cropping_window = arg_parse_int_helper(&arg, err_string);
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.crop_win_left_offset,
+                              argv, err_string)) {
+    extra_cfg.crop_win_left_offset = arg_parse_int_helper(&arg, err_string);
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.crop_win_right_offset,
+                              argv, err_string)) {
+    extra_cfg.crop_win_right_offset = arg_parse_int_helper(&arg, err_string);
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.crop_win_top_offset,
+                              argv, err_string)) {
+    extra_cfg.crop_win_top_offset = arg_parse_int_helper(&arg, err_string);
+  } else if (arg_match_helper(&arg,
+                              &g_av1_codec_arg_defs.crop_win_bottom_offset,
+                              argv, err_string)) {
+    extra_cfg.crop_win_bottom_offset = arg_parse_int_helper(&arg, err_string);
+#endif  // CONFIG_CROP_WIN_CWG_F220
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   } else if (arg_match_helper(
                  &arg, &g_av1_codec_arg_defs.disable_loopfilters_across_tiles,
@@ -4561,6 +4686,17 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
 #endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
   { AV1E_SET_ENABLE_BRU, ctrl_set_enable_bru },
   { AV1E_GET_ENABLE_BRU, ctrl_get_enable_bru },
+#if CONFIG_CROP_WIN_CWG_F220
+  { AV1E_SET_ENABLE_CROPPING_WINDOW, ctrl_set_enable_cropping_window },
+  { AV1E_SET_ENABLE_CROPPING_WINDOW_LEFT_OFFSET,
+    ctrl_set_cropping_window_left_offset },
+  { AV1E_SET_ENABLE_CROPPING_WINDOW_RIGHT_OFFSET,
+    ctrl_set_cropping_window_right_offset },
+  { AV1E_SET_ENABLE_CROPPING_WINDOW_TOP_OFFSET,
+    ctrl_set_cropping_window_top_offset },
+  { AV1E_SET_ENABLE_CROPPING_WINDOW_BOTTOM_OFFSET,
+    ctrl_set_cropping_window_bottom_offset },
+#endif  // CONFIG_CROP_WIN_CWG_F220
   // Getters
   { AOME_GET_LAST_QUANTIZER, ctrl_get_quantizer },
   { AV1_GET_REFERENCE, ctrl_get_reference },
@@ -4707,7 +4843,21 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
         0,  // disable_loopfilters_across_tiles
 #endif      // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+#if CONFIG_CROP_WIN_CWG_F220
+        0,  // enable cropping window
+        0,  // crop_win_left_offset
+        0,  // crop_win_right_offset
+        0,  // crop_win_top_offset
+        0,  // crop_win_bottom_offset
+#endif      // CONFIG_CROP_WIN_CWG_F220
     },      // cfg
+#if CONFIG_CROP_WIN_CWG_F220
+    0,  // enable cropping window
+    0,  // crop_win_left_offset
+    0,  // crop_win_right_offset
+    0,  // crop_win_top_offset
+    0,  // crop_win_bottom_offset
+#endif  // CONFIG_CROP_WIN_CWG_F220
 } };
 
 // This data structure and function are exported in aom/aomcx.h

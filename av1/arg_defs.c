@@ -868,6 +868,19 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
               "Disable loopfilters across tiles "
               "(0: false (default), 1: true)"),
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+#if CONFIG_CROP_WIN_CWG_F220
+  .enable_cropping_window =
+      ARG_DEF(NULL, "enable-cropping-window", 1,
+              "Enable cropping window (0: false (default), 1: true)"),
+  .crop_win_left_offset =
+      ARG_DEF(NULL, "crop-win-left-offset", 1, "Cropping window left offset"),
+  .crop_win_right_offset =
+      ARG_DEF(NULL, "crop-win-right-offset", 1, "Cropping window right offset"),
+  .crop_win_top_offset =
+      ARG_DEF(NULL, "crop-win-top-offset", 1, "Cropping window top offset"),
+  .crop_win_bottom_offset = ARG_DEF(NULL, "crop-win-bottom-offset", 1,
+                                    "Cropping window bottom offset"),
+#endif  // CONFIG_CROP_WIN_CWG_F220
   .frame_hash_metadata = ARG_DEF_ENUM(
       NULL, "frame-hash", 1,
       "Write decoded frame hash metadata OBUs:", frame_hash_metadata_enum),

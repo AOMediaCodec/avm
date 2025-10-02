@@ -270,6 +270,19 @@ typedef struct aom_image {
   unsigned int h;         /**< Stored image height */
   unsigned int bit_depth; /**< Stored image bit-depth */
 
+#if CONFIG_CROP_WIN_CWG_F220
+  /* Cropping dimensions */
+  int w_conf_win_enabled_flag;  /**< conformance window enable flag */
+  int w_conf_win_left_offset;   /**< Conformance window left offset */
+  int w_conf_win_right_offset;  /**< Conformance window right offset  */
+  int w_conf_win_top_offset;    /**< Conformance window top offset */
+  int w_conf_win_bottom_offset; /**< Conformance window bottom offset */
+  int max_width;                /**< Conformance window max width */
+  int max_height;               /**< Conformance window max height */
+  int crop_width;               /**< Conformance window width */
+  int crop_height;              /**< Conformance window height */
+#endif                          // CONFIG_CROP_WIN_CWG_F220
+
   /* Image display dimensions */
   unsigned int d_w; /**< Displayed image width */
   unsigned int d_h; /**< Displayed image height */

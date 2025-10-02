@@ -630,6 +630,17 @@ typedef struct CommonTileParams {
 
 } CommonTileParams;
 
+#if CONFIG_CROP_WIN_CWG_F220
+// This structure specifies cropping for the SH.
+typedef struct CropWindow {
+  bool conf_win_enabled_flag;
+  int conf_win_left_offset;
+  int conf_win_right_offset;
+  int conf_win_top_offset;
+  int conf_win_bottom_offset;
+} CropWindow;
+#endif  // CONFIG_CROP_WIN_CWG_F220
+
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO
 // Tile Info Syntax stucture: parses the tile information
 // in the Sequence header and Multi Frame Header
@@ -1105,6 +1116,9 @@ typedef struct SequenceHeader {
   // are_seq_headers_consistent() can be implemented with a memcmp() call.
   // TODO(urvang): We probably don't need the +1 here.
   aom_dec_model_op_parameters_t op_params[MAX_NUM_OPERATING_POINTS + 1];
+#if CONFIG_CROP_WIN_CWG_F220
+  CropWindow conf;
+#endif  // CONFIG_CROP_WIN_CWG_F220
 } SequenceHeader;
 
 typedef struct {

@@ -4227,6 +4227,26 @@ static AOM_INLINE void setup_buffer_pool(AV1_COMMON *cm) {
   cm->cur_frame->buf.color_range = seq_params->color_range;
   cm->cur_frame->buf.render_width = cm->render_width;
   cm->cur_frame->buf.render_height = cm->render_height;
+#if CONFIG_CROP_WIN_CWG_F220
+  if (seq_params->conf.conf_win_enabled_flag) {
+    cm->cur_frame->buf.w_conf_win_enabled_flag =
+        seq_params->conf.conf_win_enabled_flag;
+    cm->cur_frame->buf.w_win_left_offset =
+        seq_params->conf.conf_win_left_offset;
+    cm->cur_frame->buf.w_win_right_offset =
+        seq_params->conf.conf_win_right_offset;
+    cm->cur_frame->buf.w_win_top_offset = seq_params->conf.conf_win_top_offset;
+    cm->cur_frame->buf.w_win_bottom_offset =
+        seq_params->conf.conf_win_bottom_offset;
+  } else {
+    cm->cur_frame->buf.w_win_left_offset = 0;
+    cm->cur_frame->buf.w_win_right_offset = 0;
+    cm->cur_frame->buf.w_win_top_offset = 0;
+    cm->cur_frame->buf.w_win_bottom_offset = 0;
+  }
+  cm->cur_frame->buf.max_width = seq_params->max_frame_width;
+  cm->cur_frame->buf.max_height = seq_params->max_frame_height;
+#endif  // CONFIG_CROP_WIN_CWG_F220
   if (cm->seq_params.enable_tip) {
     setup_tip_frame_size(cm);
   }
@@ -6652,6 +6672,27 @@ static AOM_INLINE void read_temporal_point_info(
   cm->frame_presentation_time = aom_rb_read_unsigned_literal(
       rb, cm->seq_params.decoder_model_info.frame_presentation_time_length);
 }
+
+#if CONFIG_CROP_WIN_CWG_F220
+// This function reads the parameters for the conformance window
+void av1_read_conformance_window(struct aom_read_bit_buffer *rb,
+                                 struct SequenceHeader *seq_params) {
+  struct CropWindow *conf = &seq_params->conf;
+  conf->conf_win_enabled_flag = aom_rb_read_bit(rb);
+
+  if (conf->conf_win_enabled_flag) {
+    conf->conf_win_left_offset = aom_rb_read_uvlc(rb);
+    conf->conf_win_top_offset = aom_rb_read_uvlc(rb);
+    conf->conf_win_right_offset = aom_rb_read_uvlc(rb);
+    conf->conf_win_bottom_offset = aom_rb_read_uvlc(rb);
+  } else {
+    conf->conf_win_left_offset = 0;
+    conf->conf_win_top_offset = 0;
+    conf->conf_win_right_offset = 0;
+    conf->conf_win_bottom_offset = 0;
+  }
+}
+#endif  // CONFIG_CROP_WIN_CWG_F220
 
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO
 void read_tile_syntax_info(TileInfoSyntax *tile_params,
