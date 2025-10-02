@@ -1997,8 +1997,7 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                            tx_size);
         cfl_derive_implicit_scaling_factor(xd, plane, blk_row, blk_col,
                                            tx_size);
-      }
-      else if (mbmi->cfl_idx == CFL_MULTI_PARAM) {
+      } else if (mbmi->cfl_idx == CFL_MULTI_PARAM) {
         mhccp_implicit_fetch_neighbor_luma(
             cm, xd, blk_row << cfl->subsampling_y,
             blk_col << cfl->subsampling_x, tx_size, &above_lines, &left_lines,

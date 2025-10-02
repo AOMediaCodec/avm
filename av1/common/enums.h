@@ -944,8 +944,8 @@ enum {
 enum {
   CFL_EXPLICIT,       // av1 cfl
   CFL_DERIVED_ALPHA,  // implicit CfL mode with derived scaling factor
-  CFL_MULTI_PARAM,  // multi hypothesis cross component prediction
-  CFL_TYPE_COUNT,  // CfL mode type count
+  CFL_MULTI_PARAM,    // multi hypothesis cross component prediction
+  CFL_TYPE_COUNT,     // CfL mode type count
 } UENUM1BYTE(CFL_TYPE);
 
 // Number of top model rd to store for pruning y modes in intra mode decision
