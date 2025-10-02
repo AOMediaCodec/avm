@@ -7217,7 +7217,11 @@ void av1_read_sequence_header_beyond_av1(
 void av1_read_multi_frame_header(AV1_COMMON *cm,
                                  struct aom_read_bit_buffer *rb) {
   // TO DO: Adding a read seq_header_id_in_multi_frame_header here
+#if CONFIG_CWG_E242_MFH_ID_UVLC
+  int cur_mfh_id = aom_rb_read_uvlc(rb);
+#else
   int cur_mfh_id = aom_rb_read_literal(rb, 4);
+#endif  // CONFIG_CWG_E242_MFH_ID_UVLC
 
   MultiFrameHeader *mfh_param = &cm->mfh_params[cur_mfh_id];
 
@@ -7994,7 +7998,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   } else {
 #endif  // CONFIG_CWG_F317
 #if CONFIG_MULTI_FRAME_HEADER
+#if CONFIG_CWG_E242_MFH_ID_UVLC
+    cm->cur_mfh_id = aom_rb_read_uvlc(rb);
+#else
     cm->cur_mfh_id = aom_rb_read_literal(rb, 4);
+#endif  // CONFIG_CWG_E242_MFH_ID_UVLC
     if (!cm->mfh_valid[cm->cur_mfh_id]) {
       aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                          "No multi-frame header with mfh_id %d",

@@ -5970,7 +5970,11 @@ static AOM_INLINE void write_multi_frame_header(
     AV1_COMP *cpi, const MultiFrameHeader *const mfh_param,
     struct aom_write_bit_buffer *wb) {
   AV1_COMMON *const cm = &cpi->common;
+#if CONFIG_CWG_E242_MFH_ID_UVLC
+  aom_wb_write_uvlc(wb, cm->cur_mfh_id);
+#else
   aom_wb_write_literal(wb, cm->cur_mfh_id, 4);
+#endif  // CONFIG_CWG_E242_MFH_ID_UVLC
 
   bool mfh_frame_size_update_flag =
       cm->width != cm->seq_params.max_frame_width ||
@@ -6271,7 +6275,11 @@ static AOM_INLINE void write_uncompressed_header_obu
   } else {
 #endif  // CONFIG_CWG_F317
 #if CONFIG_MULTI_FRAME_HEADER
+#if CONFIG_CWG_E242_MFH_ID_UVLC
+    aom_wb_write_uvlc(wb, cm->cur_mfh_id);
+#else
     aom_wb_write_literal(wb, cm->cur_mfh_id, 4);
+#endif  // CONFIG_CWG_E242_MFH_ID_UVLC
 #endif  // CONFIG_MULTI_FRAME_HEADER
 #if CONFIG_CWG_F317
   }
