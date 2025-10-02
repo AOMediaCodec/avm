@@ -603,6 +603,7 @@ typedef struct {
 #endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 
 #if CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
+// This structure contains Buffer removal time parameters being parsed
 typedef struct {
   int obu_xlayer_id;
   int ops_id;
@@ -2344,7 +2345,7 @@ typedef struct AV1Common {
 
 #if CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
   /*!
-   * Elements part of the buffer timing removal, that are applicable for all the
+   * Elements part of the buffer removal timing, that are applicable for all the
    * frames in the video.
    */
   BufferRemovalTimingInfo brt_info;
