@@ -3322,6 +3322,7 @@ static INLINE TX_TYPE av1_get_tx_type(const MACROBLOCKD *xd,
   }
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
   if (xd->lossless[mbmi->segment_id]) {
+    TX_TYPE lossless_inter_tx_type = TX_TYPES;
     const bool fsc_flag = xd->mi[0]->fsc_mode[PLANE_TYPE_Y];
     if (!is_inter && plane_type == PLANE_TYPE_Y) {
       return DCT_DCT;
@@ -3334,29 +3335,27 @@ static INLINE TX_TYPE av1_get_tx_type(const MACROBLOCKD *xd,
       if (tx_size != TX_4X4) {
         return IDTX;
       } else {
-        return xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col];
+        lossless_inter_tx_type =
+            xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col];
       }
     } else if (is_inter && plane_type == PLANE_TYPE_UV) {
       if (mbmi->tx_size != TX_4X4) {
         return IDTX;
       } else {
-        const struct macroblockd_plane *const pd = &xd->plane[plane_type];
-        blk_row <<= pd->subsampling_y;
-        blk_col <<= pd->subsampling_x;
-        TX_TYPE tx_type = xd->tx_type_map[0];
-        const bool is_sdp_eligible = mbmi->region_type == INTRA_REGION;
-        if (!(is_sdp_eligible ||
-              (xd->is_chroma_ref &&
-               (xd->mi_row != mbmi->chroma_ref_info.mi_row_chroma_base ||
-                xd->mi_col != mbmi->chroma_ref_info.mi_col_chroma_base)))) {
-          tx_type = xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col];
-        }
-        // Secondary transforms are disabled for chroma
-        tx_type &= 0x000F;
-        assert(tx_type == DCT_DCT || tx_type == IDTX);
-        return tx_type;
+        blk_row <<= xd->plane[plane_type].subsampling_y;
+        blk_col <<= xd->plane[plane_type].subsampling_x;
+        lossless_inter_tx_type = xd->tx_type_map[0];
+        assert(mbmi->region_type != INTRA_REGION && xd->is_chroma_ref);
+        if (xd->mi_row == mbmi->chroma_ref_info.mi_row_chroma_base &&
+            xd->mi_col == mbmi->chroma_ref_info.mi_col_chroma_base)
+          lossless_inter_tx_type =
+              xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col];
       }
     }
+    // Secondary transforms are disabled for chroma
+    lossless_inter_tx_type &= 0x000F;
+    assert(lossless_inter_tx_type == DCT_DCT || lossless_inter_tx_type == IDTX);
+    return lossless_inter_tx_type;
   }
 
   TX_TYPE tx_type;
