@@ -6251,7 +6251,7 @@ static AOM_INLINE void error_handler(void *data) {
 // the bitdepth list.
 int av1_get_bitdepth_from_index(int bitdepth_lut_idx) {
   static aom_bit_depth_t bitdepth_list[] = { AOM_BITS_10, AOM_BITS_8,
-                                             AOM_BITS_12, AOM_BITS_16 };
+                                             AOM_BITS_12 };
   if (bitdepth_lut_idx >= AOM_NUM_SUPPORTED_BITDEPTH) return -1;
   return bitdepth_list[bitdepth_lut_idx];
 }

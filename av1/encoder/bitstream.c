@@ -5080,7 +5080,6 @@ int av1_get_index_from_bitdepth(int bit_depth) {
     case AOM_BITS_10: bitdepth_lut_idx = AOM_BITDEPTH_0; break;
     case AOM_BITS_8: bitdepth_lut_idx = AOM_BITDEPTH_1; break;
     case AOM_BITS_12: bitdepth_lut_idx = AOM_BITDEPTH_2; break;
-    case AOM_BITS_16: bitdepth_lut_idx = AOM_BITDEPTH_3; break;
     default: break;
   }
   return bitdepth_lut_idx;

@@ -185,7 +185,6 @@ static int get_bitdepth(int bitdepth_lut_idx) {
     case AOM_BITDEPTH_0: bitdepth = AOM_BITS_10; break;
     case AOM_BITDEPTH_1: bitdepth = AOM_BITS_8; break;
     case AOM_BITDEPTH_2: bitdepth = AOM_BITS_12; break;
-    case AOM_BITDEPTH_3: bitdepth = AOM_BITS_16; break;
     default: break;
   }
   return bitdepth;
