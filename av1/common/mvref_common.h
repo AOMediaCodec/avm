@@ -96,11 +96,7 @@ static AOM_INLINE void get_proc_size_and_offset(AV1_COMMON *cm) {
   cm->tmvp_proc_size = sb_tmvp_size;
   cm->tmvp_proc_sizel2 = mf_sb_size_log2 - TMVP_MI_SZ_LOG2;
 
-  if (cm->tmvp_sample_step > 1
-#if !CONFIG_SIMPLIFY_MV_FIELD
-      || (sb_size < 256 && sb_size != 64)
-#endif  // CONFIG_SIMPLIFY_MV_FIELD
-  ) {
+  if (cm->tmvp_sample_step > 1) {
     cm->tmvp_row_offset = 0;
     cm->tmvp_col_offset = sb_tmvp_size;
   } else {

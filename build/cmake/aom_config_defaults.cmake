@@ -369,8 +369,6 @@ set_aom_config_var(CONFIG_TMVP_MVS_WRITING_FLOW_OPT 1
                    "Enable to only write TMVP MVs once")
 
 set_aom_config_var(CONFIG_IMPROVE_TIP_LF 1 "Enable improved LF for TIP frame.")
-set_aom_config_var(CONFIG_SIMPLIFY_MV_FIELD 1
-                   "Fixes and simplifications to motion field generation.")
 
 set_aom_config_var(CONFIG_CCSO_CLEANUP 1
                    "Clean up CCSO quant_sz and signaling.")
