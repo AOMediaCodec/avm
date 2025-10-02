@@ -67,12 +67,12 @@ int av1_set_ops_params(AV1_COMP *cpi, struct OperatingPointSet *ops,
                        int layer_id);
 #endif  // CONFIG_MULTILAYER_HLS
 
-#if CONFIG_CWG_F293_BUFFER_TIMING
-uint32_t av1_write_buffer_timing_removal_obu(
-    const BufferTimingRemoval *btr_params, uint8_t *const dst);
+#if CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
+uint32_t av1_write_buffer_removal_timing_obu(
+    const BufferRemovalTimingInfo *brt_info, uint8_t *const dst);
 
-void av1_set_btr_params(AV1_COMP *const cpi);
-#endif  // CONFIG_CWG_F293_BUFFER_TIMING
+void av1_set_buffer_removal_timing_params(AV1_COMP *const cpi);
+#endif  // CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
 
 /*!\brief Pack the bitstream for one frame
  *

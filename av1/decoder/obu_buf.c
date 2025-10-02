@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Alliance for Open Media. All rights reserved
+ * Copyright (c) 2025, Alliance for Open Media. All rights reserved
  *
  * This source code is subject to the terms of the BSD 3-Clause Clear License
  * and the Alliance for Open Media Patent License 1.0. If the BSD 3-Clause Clear
@@ -26,8 +26,8 @@
 #include "av1/decoder/decodeframe.h"
 #include "av1/decoder/obu.h"
 
-#if CONFIG_CWG_F293_BUFFER_TIMING
-uint32_t av1_read_buffer_timing_removal_obu(struct AV1Decoder *pbi,
+#if CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
+uint32_t av1_read_buffer_removal_timing_obu(struct AV1Decoder *pbi,
                                             struct aom_read_bit_buffer *rb,
                                             int xlayer_id) {
   AV1_COMMON *const cm = &pbi->common;
@@ -36,14 +36,14 @@ uint32_t av1_read_buffer_timing_removal_obu(struct AV1Decoder *pbi,
   // Verify rb has been configured to report errors.
   assert(rb->error_handler);
 
-  BufferTimingRemoval btr = cm->btr_params;
-  BufferTimingRemoval *const btr_params = &btr;
-  btr_params->obu_xlayer_id = xlayer_id;
+  BufferRemovalTimingInfo btr = cm->brt_info;
+  BufferRemovalTimingInfo *const brt_info = &btr;
+  brt_info->obu_xlayer_id = xlayer_id;
 
   // br_ops_id
-  btr_params->br_ops_id[xlayer_id] = aom_rb_read_literal(rb, 4);
-  int ops_id = btr_params->br_ops_id[xlayer_id];
-  if (btr_params->br_ops_id[xlayer_id] != cm->ops_params.ops_id[xlayer_id]) {
+  brt_info->br_ops_id[xlayer_id] = aom_rb_read_literal(rb, 4);
+  int ops_id = brt_info->br_ops_id[xlayer_id];
+  if (brt_info->br_ops_id[xlayer_id] != cm->ops_params.ops_id[xlayer_id]) {
     aom_internal_error(
         &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
         "Inconsistent values for the operating point set id: Buffer timing and "
@@ -51,9 +51,9 @@ uint32_t av1_read_buffer_timing_removal_obu(struct AV1Decoder *pbi,
         "allow different values.");
   }
   // br_ops_cnt
-  btr_params->br_ops_cnt[xlayer_id][ops_id] = aom_rb_read_literal(rb, 3);
-  int ops_cnt = btr_params->br_ops_cnt[xlayer_id][ops_id];
-  if (btr_params->br_ops_cnt[xlayer_id][ops_id] !=
+  brt_info->br_ops_cnt[xlayer_id][ops_id] = aom_rb_read_literal(rb, 3);
+  int ops_cnt = brt_info->br_ops_cnt[xlayer_id][ops_id];
+  if (brt_info->br_ops_cnt[xlayer_id][ops_id] !=
       cm->ops_params.ops_cnt[xlayer_id][ops_id]) {
     aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                        "Inconsistent values for the operating point count: "
@@ -63,14 +63,14 @@ uint32_t av1_read_buffer_timing_removal_obu(struct AV1Decoder *pbi,
   // decoder model
   int br_decoder_model_present_op_present_flag = 0;
   for (int i = 0; i < ops_cnt; i++) {
-    btr_params->br_decoder_model_present_op_flag[xlayer_id][ops_id][i] =
+    brt_info->br_decoder_model_present_op_flag[xlayer_id][ops_id][i] =
         aom_rb_read_bit(rb);
     br_decoder_model_present_op_present_flag =
-        btr_params->br_decoder_model_present_op_flag[xlayer_id][ops_id][i];
+        brt_info->br_decoder_model_present_op_flag[xlayer_id][ops_id][i];
     if (br_decoder_model_present_op_present_flag)
-      btr_params->br_buffer_removal_time[xlayer_id][ops_id][i] =
+      brt_info->br_buffer_removal_time[xlayer_id][ops_id][i] =
           aom_rb_read_uvlc(rb);
   }
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }
-#endif  // CONFIG_CWG_F293_BUFFER_TIMING
+#endif  // CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING

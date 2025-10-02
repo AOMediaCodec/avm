@@ -3102,12 +3102,12 @@ typedef struct AV1_COMP {
    */
   int tip_mode_count[INTER_REFS_PER_FRAME];
 #endif  // CONFIG_TIP_LD
-#if CONFIG_CWG_F293_BUFFER_TIMING
+#if CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
   /*!
-   * Write the BTR OBU
+   * Write the Buffer Removal Timing OBU
    */
-  int write_btr_obu;
-#endif  // CONFIG_CWG_F293_BUFFER_TIMING
+  int write_brt_obu;
+#endif  // CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
 #if CONFIG_MULTILAYER_HLS
   /*!
    * flag to write Layer Config Record (LCR) OBU

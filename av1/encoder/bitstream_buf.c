@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Alliance for Open Media. All rights reserved
+ * Copyright (c) 2025, Alliance for Open Media. All rights reserved
  *
  * This source code is subject to the terms of the BSD 3-Clause Clear License
  * and the Alliance for Open Media Patent License 1.0. If the BSD 3-Clause Clear
@@ -60,52 +60,52 @@
 #include "av1/encoder/segmentation.h"
 #include "av1/encoder/tokenize.h"
 
-#if CONFIG_CWG_F293_BUFFER_TIMING
-void av1_set_btr_params(AV1_COMP *const cpi) {
+#if CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
+void av1_set_buffer_removal_timing_params(AV1_COMP *const cpi) {
   AV1_COMMON *const cm = &cpi->common;
   struct OperatingPointSet *ops = &cm->ops_params;
-  BufferTimingRemoval *btr_params = &cm->btr_params;
+  BufferRemovalTimingInfo *brt_info = &cm->brt_info;
   // xlayer_id
-  btr_params->obu_xlayer_id = cm->xlayer_id;
-  const int xlayer_id = btr_params->obu_xlayer_id;
+  brt_info->obu_xlayer_id = cm->xlayer_id;
+  const int xlayer_id = brt_info->obu_xlayer_id;
   // ops_id
-  btr_params->br_ops_id[xlayer_id] = ops->ops_id[xlayer_id];
-  const int ops_id = btr_params->br_ops_id[xlayer_id];
+  brt_info->br_ops_id[xlayer_id] = ops->ops_id[xlayer_id];
+  const int ops_id = brt_info->br_ops_id[xlayer_id];
   // ops_cnt
-  btr_params->br_ops_cnt[xlayer_id][ops_id] = ops->ops_cnt[xlayer_id][ops_id];
-  const int ops_cnt = btr_params->br_ops_cnt[xlayer_id][ops_id];
+  brt_info->br_ops_cnt[xlayer_id][ops_id] = ops->ops_cnt[xlayer_id][ops_id];
+  const int ops_cnt = brt_info->br_ops_cnt[xlayer_id][ops_id];
   // decoder model information
   int br_decoder_model_present_op_flag = 0;
   for (int i = 0; i < ops_cnt; i++) {
-    btr_params->br_decoder_model_present_op_flag[xlayer_id][ops_id][i] = 0;
+    brt_info->br_decoder_model_present_op_flag[xlayer_id][ops_id][i] = 0;
     br_decoder_model_present_op_flag =
-        btr_params->br_decoder_model_present_op_flag[xlayer_id][ops_id][i];
+        brt_info->br_decoder_model_present_op_flag[xlayer_id][ops_id][i];
     if (br_decoder_model_present_op_flag)
-      btr_params->br_buffer_removal_time[xlayer_id][ops_id][i] = 0;
+      brt_info->br_buffer_removal_time[xlayer_id][ops_id][i] = 0;
   }
 }
 
-uint32_t av1_write_buffer_timing_removal_obu(
-    const BufferTimingRemoval *btr_params, uint8_t *const dst) {
+uint32_t av1_write_buffer_removal_timing_obu(
+    const BufferRemovalTimingInfo *brt_info, uint8_t *const dst) {
   struct aom_write_bit_buffer wb = { dst, 0 };
   uint32_t size = 0;
 
-  int xlayer_id = btr_params->obu_xlayer_id;
-  int ops_id = btr_params->ops_id;
-  int ops_cnt = btr_params->br_ops_cnt[xlayer_id][ops_id];
-  aom_wb_write_literal(&wb, btr_params->br_ops_id[xlayer_id], 4);
+  int xlayer_id = brt_info->obu_xlayer_id;
+  int ops_id = brt_info->ops_id;
+  int ops_cnt = brt_info->br_ops_cnt[xlayer_id][ops_id];
+  aom_wb_write_literal(&wb, brt_info->br_ops_id[xlayer_id], 4);
   aom_wb_write_literal(&wb, ops_cnt, 3);
   for (int i = 0; i < ops_cnt; i++) {
     aom_wb_write_bit(
         &wb,
-        btr_params->br_decoder_model_present_op_flag[xlayer_id][ops_id][i]);
-    if (btr_params->br_decoder_model_present_op_flag[xlayer_id][ops_id][i])
+        brt_info->br_decoder_model_present_op_flag[xlayer_id][ops_id][i]);
+    if (brt_info->br_decoder_model_present_op_flag[xlayer_id][ops_id][i])
       aom_wb_write_uvlc(
-          &wb, btr_params->br_buffer_removal_time[xlayer_id][ops_id][i]);
+          &wb, brt_info->br_buffer_removal_time[xlayer_id][ops_id][i]);
   }
 
   av1_add_trailing_bits(&wb);
   size = aom_wb_bytes_written(&wb);
   return size;
 }
-#endif  // CONFIG_CWG_F293_BUFFER_TIMING
+#endif  // CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING

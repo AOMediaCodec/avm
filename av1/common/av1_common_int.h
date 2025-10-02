@@ -602,7 +602,7 @@ typedef struct {
 } TileInfoSyntax;
 #endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 
-#if CONFIG_CWG_F293_BUFFER_TIMING
+#if CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
 typedef struct {
   int obu_xlayer_id;
   int ops_id;
@@ -612,8 +612,8 @@ typedef struct {
                                       [MAX_NUM_OPS_COUNT];
   int br_buffer_removal_time[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID]
                             [MAX_NUM_OPS_COUNT];
-} BufferTimingRemoval;
-#endif  // CONFIG_CWG_F293_BUFFER_TIMING
+} BufferRemovalTimingInfo;
+#endif  // CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
 
 #if CONFIG_MULTILAYER_HLS
 typedef struct CroppingWindow {
@@ -2081,7 +2081,7 @@ typedef struct AV1Common {
   int render_height; /*!< Rendered frame height */
   /**@}*/
 
-#if !CONFIG_CWG_F293_BUFFER_TIMING
+#if !CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
   /*!
    * If true, buffer removal times are present.
    */
@@ -2094,7 +2094,7 @@ typedef struct AV1Common {
    */
 
   uint32_t buffer_removal_times[MAX_NUM_OPERATING_POINTS + 1];
-#endif  // !CONFIG_CWG_F293_BUFFER_TIMING
+#endif  // !CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
   /*!
    * Presentation time of the frame in clock ticks DispCT counted from the
    * removal time of the last random access point for the operating point that
@@ -2342,13 +2342,13 @@ typedef struct AV1Common {
    */
   SequenceHeader seq_params;
 
-#if CONFIG_CWG_F293_BUFFER_TIMING
+#if CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
   /*!
    * Elements part of the buffer timing removal, that are applicable for all the
    * frames in the video.
    */
-  BufferTimingRemoval btr_params;
-#endif  // CONFIG_CWG_F293_BUFFER_TIMING
+  BufferRemovalTimingInfo brt_info;
+#endif  // CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
 
 #if CONFIG_MULTI_FRAME_HEADER
   /*!
