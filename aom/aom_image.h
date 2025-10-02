@@ -179,12 +179,79 @@ typedef enum aom_metadata_insert_flags {
 /*!\brief Array of aom_metadata structs for an image. */
 typedef struct aom_metadata_array aom_metadata_array_t;
 
+#if CONFIG_SHORT_METADATA
+/*!\brief Metadata necessity indicator
+ *
+ * Indicates the importance level of the metadata for proper decoding
+ * and display of the content.
+ */
+typedef enum aom_metadata_necessity {
+  AOM_NECESSITY_UNDEFINED = 0,
+  AOM_NECESSITY_NECESSARY = 1,
+  AOM_NECESSITY_ADVISORY = 2,
+  AOM_NECESSITY_MIXED = 3,
+} aom_metadata_necessity_t;
+
+/*!\brief Metadata application identifier
+ *
+ * Specifies the target application or device type for which the metadata
+ * is intended.
+ */
+typedef enum aom_metadata_application_id {
+  AOM_APPID_UNDEFINED = 0,
+  AOM_APPID_MOBILE_OR_TV = 1,
+  AOM_APPID_MOBILE = 2,
+  AOM_APPID_TV = 3,
+  AOM_APPID_HMD = 4,
+  AOM_APPID_WEARABLE = 5,
+  // 6-15 are reserved for AOM use
+  // 16-31 are externally defined
+} aom_metadata_application_id_t;
+
+/*!\brief Metadata persistence behavior
+ *
+ * Defines how long the metadata should remain valid and applicable
+ * to subsequent frames in the bitstream.
+ */
+typedef enum aom_metadata_persistence {
+  AOM_GLOBAL_PERSISTENCE = 0,
+  AOM_BASIC_PERSISTENCE = 1,
+  AOM_NO_PERSISTENCE = 2,
+  AOM_ENHANCED_PERSISTENCE = 3,
+  // 4-15 are reserved for AOM use
+} aom_metadata_persistence_t;
+/*!\brief Metadata layer applicability
+ *
+ * Specifies which layers or layer groups the metadata applies to
+ * in scalable video coding scenarios.
+ */
+typedef enum aom_metadata_layer {
+  AOM_LAYER_UNSPECIFIED = 0,
+  AOM_LAYER_GLOBAL = 1,
+  AOM_LAYER_CURRENT = 2,
+  AOM_LAYER_VALUES = 3,
+  // 4-15 are reserved for AOM use
+} aom_metadata_layer_t;
+#endif  // CONFIG_SHORT_METADATA
+
 /*!\brief Metadata payload. */
 typedef struct aom_metadata {
   uint32_t type;                           /**< Metadata type */
   uint8_t *payload;                        /**< Metadata payload data */
   size_t sz;                               /**< Metadata payload size */
   aom_metadata_insert_flags_t insert_flag; /**< Metadata insertion flag */
+#if CONFIG_SHORT_METADATA
+  uint8_t is_suffix;                            /**< Metadata suffix flag */
+  aom_metadata_necessity_t necessity_idc;       /**< Metadata necessity */
+  aom_metadata_application_id_t application_id; /**< Metadata application id */
+  uint8_t cancel_flag;                          /**< Metadata cancel flag */
+  uint8_t priority;                             /**< Metadata priority */
+  aom_metadata_persistence_t persistence_idc;   /**< Metadata persistence */
+  aom_metadata_layer_t layer_idc;               /**< Metadata layers mode */
+  uint32_t xlayer_map;                          /**< Extended layer map */
+  uint8_t mlayer_map[31];                       /**< Multi-layer map */
+#endif                                          // CONFIG_SHORT_METADATA
+
 } aom_metadata_t;
 
 /**\brief Image Descriptor */

@@ -308,6 +308,19 @@ aom_metadata_t *aom_img_metadata_alloc(
   memcpy(metadata->payload, data, sz);
   metadata->sz = sz;
   metadata->insert_flag = insert_flag;
+
+#if CONFIG_SHORT_METADATA
+  metadata->is_suffix = 0;
+  metadata->necessity_idc = AOM_NECESSITY_UNDEFINED;
+  metadata->application_id = AOM_APPID_UNDEFINED;
+  metadata->cancel_flag = 0;
+  metadata->priority = 0;
+  metadata->persistence_idc = AOM_GLOBAL_PERSISTENCE;
+  metadata->layer_idc = AOM_LAYER_UNSPECIFIED;
+  metadata->xlayer_map = 0;
+  memset(metadata->mlayer_map, 0, sizeof(metadata->mlayer_map));
+#endif  // CONFIG_SHORT_METADATA
+
   return metadata;
 }
 

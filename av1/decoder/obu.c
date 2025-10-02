@@ -877,11 +877,54 @@ static size_t read_metadata(AV1Decoder *pbi, const uint8_t *data, size_t sz) {
   AV1_COMMON *const cm = &pbi->common;
   size_t type_length;
   uint64_t type_value;
-  if (aom_uleb_decode(data, sz, &type_value, &type_length) < 0) {
+
+  struct aom_read_bit_buffer rb;
+#if CONFIG_SHORT_METADATA
+  av1_init_read_bit_buffer(pbi, &rb, data, data + sz);
+
+  uint8_t metadata_is_suffix = aom_rb_read_bit(&rb);
+  uint8_t muh_layer_idc = aom_rb_read_literal(&rb, 3);
+  uint8_t muh_cancel_flag = aom_rb_read_bit(&rb);
+  uint8_t muh_persistence_idc = aom_rb_read_literal(&rb, 3);
+#endif  // CONFIG_SHORT_METADATA
+  if (aom_uleb_decode(data
+#if CONFIG_SHORT_METADATA
+                          + 1  // read type from the position data + 1
+#endif                         // CONFIG_SHORT_METADATA
+                      ,
+                      sz
+#if CONFIG_SHORT_METADATA
+                          -
+                          1  // one less bytes available due to extra parameters
+#endif                       // CONFIG_SHORT_METADATA
+                      ,
+                      &type_value, &type_length) < 0) {
+
     cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
     return 0;
   }
+
   const OBU_METADATA_TYPE metadata_type = (OBU_METADATA_TYPE)type_value;
+
+#if CONFIG_SHORT_METADATA
+  // Increase the type_length by 1 byte since there is one prefix byte added
+  // before the type
+  ++type_length;
+  if (muh_cancel_flag) return sz;
+
+  // Update the metadata with the header fields we read
+  if (pbi->metadata && pbi->metadata->sz > 0) {
+    aom_metadata_t *last_metadata =
+        pbi->metadata->metadata_array[pbi->metadata->sz - 1];
+    if (last_metadata && last_metadata->type == OBU_METADATA_TYPE_ITUT_T35) {
+      last_metadata->is_suffix = metadata_is_suffix;
+      last_metadata->layer_idc = muh_layer_idc;
+      last_metadata->cancel_flag = muh_cancel_flag;
+      last_metadata->persistence_idc = muh_persistence_idc;
+    }
+  }
+#endif  // CONFIG_SHORT_METADATA
+
 #if CONFIG_BAND_METADATA
   if (metadata_type == 0 || metadata_type >= 8) {
 #else
@@ -898,6 +941,19 @@ static size_t read_metadata(AV1Decoder *pbi, const uint8_t *data, size_t sz) {
   if (metadata_type == OBU_METADATA_TYPE_ITUT_T35) {
     // read_metadata_itut_t35() checks trailing bits.
     read_metadata_itut_t35(pbi, data + type_length, sz - type_length);
+#if CONFIG_SHORT_METADATA
+    // Update the metadata with the header fields we read
+    if (pbi->metadata && pbi->metadata->sz > 0) {
+      aom_metadata_t *last_metadata =
+          pbi->metadata->metadata_array[pbi->metadata->sz - 1];
+      if (last_metadata && last_metadata->type == OBU_METADATA_TYPE_ITUT_T35) {
+        last_metadata->is_suffix = metadata_is_suffix;
+        last_metadata->layer_idc = muh_layer_idc;
+        last_metadata->cancel_flag = muh_cancel_flag;
+        last_metadata->persistence_idc = muh_persistence_idc;
+      }
+    }
+#endif  // CONFIG_SHORT_METADATA
     return sz;
   } else if (metadata_type == OBU_METADATA_TYPE_HDR_CLL) {
     size_t bytes_read =
@@ -907,6 +963,19 @@ static size_t read_metadata(AV1Decoder *pbi, const uint8_t *data, size_t sz) {
       cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
       return 0;
     }
+#if CONFIG_SHORT_METADATA
+    // Update the metadata with the header fields we read
+    if (pbi->metadata && pbi->metadata->sz > 0) {
+      aom_metadata_t *last_metadata =
+          pbi->metadata->metadata_array[pbi->metadata->sz - 1];
+      if (last_metadata && last_metadata->type == OBU_METADATA_TYPE_HDR_CLL) {
+        last_metadata->is_suffix = metadata_is_suffix;
+        last_metadata->layer_idc = muh_layer_idc;
+        last_metadata->cancel_flag = muh_cancel_flag;
+        last_metadata->persistence_idc = muh_persistence_idc;
+      }
+    }
+#endif  // CONFIG_SHORT_METADATA
     return sz;
   } else if (metadata_type == OBU_METADATA_TYPE_HDR_MDCV) {
     size_t bytes_read =
@@ -916,6 +985,19 @@ static size_t read_metadata(AV1Decoder *pbi, const uint8_t *data, size_t sz) {
       cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
       return 0;
     }
+#if CONFIG_SHORT_METADATA
+    // Update the metadata with the header fields we read
+    if (pbi->metadata && pbi->metadata->sz > 0) {
+      aom_metadata_t *last_metadata =
+          pbi->metadata->metadata_array[pbi->metadata->sz - 1];
+      if (last_metadata && last_metadata->type == OBU_METADATA_TYPE_HDR_MDCV) {
+        last_metadata->is_suffix = metadata_is_suffix;
+        last_metadata->layer_idc = muh_layer_idc;
+        last_metadata->cancel_flag = muh_cancel_flag;
+        last_metadata->persistence_idc = muh_persistence_idc;
+      }
+    }
+#endif  // CONFIG_SHORT_METADATA
     return sz;
 #if CONFIG_BAND_METADATA
   } else if (metadata_type == OBU_METADATA_TYPE_BANDING_HINTS) {
@@ -930,7 +1012,6 @@ static size_t read_metadata(AV1Decoder *pbi, const uint8_t *data, size_t sz) {
 #endif  // CONFIG_BAND_METADATA
   }
 
-  struct aom_read_bit_buffer rb;
   av1_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);
   if (metadata_type == OBU_METADATA_TYPE_SCALABILITY) {
     read_metadata_scalability(&rb);
