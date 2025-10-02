@@ -926,13 +926,10 @@ static AOM_INLINE void copy_frame_mvs_inter_block(AV1_COMMON *const cm,
     if (enable_refined_mvs_in_tmvp(cm, xd, mi)) {
       av1_copy_frame_refined_mvs(cm, xd, mi, xd->mi_row, xd->mi_col,
                                  x_inside_boundary, y_inside_boundary);
-    }
-#if CONFIG_TMVP_MVS_WRITING_FLOW_OPT
-    else {
+    } else {
       av1_copy_frame_mvs(cm, xd, mi, xd->mi_row, xd->mi_col, x_inside_boundary,
                          y_inside_boundary);
     }
-#endif  // CONFIG_TMVP_MVS_WRITING_FLOW_OPT
   }
 }
 

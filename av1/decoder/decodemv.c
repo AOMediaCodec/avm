@@ -4175,11 +4175,5 @@ void av1_read_mode_info(AV1Decoder *const pbi, DecoderCodingBlock *dcb,
                                  0,
 #endif  // CONFIG_COMPOUND_WARP_CAUSAL && COMPOUND_WARP_LINE_BUFFER_REDUCTION
                                  mbmi_tmp);
-
-#if !CONFIG_TMVP_MVS_WRITING_FLOW_OPT
-    if (cm->seq_params.order_hint_info.enable_ref_frame_mvs)
-      av1_copy_frame_mvs(cm, xd, mi, xd->mi_row, xd->mi_col, x_inside_boundary,
-                         y_inside_boundary);
-#endif  // !CONFIG_TMVP_MVS_WRITING_FLOW_OPT
   }
 }

@@ -1021,7 +1021,6 @@ static void tip_setup_tip_frame_plane(
           const int y_inside_boundary =
               AOMMIN(step << TMVP_SHIFT_BITS, (blk_row_end - blk_row)
                                                   << TMVP_SHIFT_BITS);
-#if CONFIG_TMVP_MVS_WRITING_FLOW_OPT
           if (cm->seq_params.order_hint_info.enable_ref_frame_mvs) {
             if (enable_refined_mvs_in_tmvp(cm, xd, &mbmi)) {
               av1_copy_frame_refined_mvs(cm, xd, &mbmi,
@@ -1035,16 +1034,6 @@ static void tip_setup_tip_frame_plane(
             }
           }
 #else
-          av1_copy_frame_mvs(cm, xd, &mbmi, blk_row << TMVP_SHIFT_BITS,
-                             blk_col << TMVP_SHIFT_BITS, x_inside_boundary,
-                             y_inside_boundary);
-
-          av1_copy_frame_refined_mvs(cm, xd, &mbmi, blk_row << TMVP_SHIFT_BITS,
-                                     blk_col << TMVP_SHIFT_BITS,
-                                     x_inside_boundary, y_inside_boundary);
-#endif  // CONFIG_TMVP_MVS_WRITING_FLOW_OPT
-#else
-#if CONFIG_TMVP_MVS_WRITING_FLOW_OPT
           if (cm->seq_params.order_hint_info.enable_ref_frame_mvs) {
             if (enable_refined_mvs_in_tmvp(cm, xd, &mbmi)) {
               av1_copy_frame_refined_mvs(
@@ -1058,16 +1047,6 @@ static void tip_setup_tip_frame_plane(
                                  step << TMVP_SHIFT_BITS);
             }
           }
-#else
-          av1_copy_frame_mvs(cm, xd, &mbmi, blk_row << TMVP_SHIFT_BITS,
-                             blk_col << TMVP_SHIFT_BITS,
-                             step << TMVP_SHIFT_BITS, step << TMVP_SHIFT_BITS);
-
-          av1_copy_frame_refined_mvs(cm, xd, &mbmi, blk_row << TMVP_SHIFT_BITS,
-                                     blk_col << TMVP_SHIFT_BITS,
-                                     step << TMVP_SHIFT_BITS,
-                                     step << TMVP_SHIFT_BITS);
-#endif  // CONFIG_TMVP_MVS_WRITING_FLOW_OPT
 #endif  // CONFIG_FLEX_TIP_BLK_SIZE
         }
       }

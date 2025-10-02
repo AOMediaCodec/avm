@@ -365,9 +365,6 @@ set_aom_config_var(CONFIG_GDF_IMPROVEMENT 1
 set_aom_config_var(CONFIG_REDUCE_SYMBOL_SIZE 1
                    "Symbol size reduction from 16 to 8.")
 
-set_aom_config_var(CONFIG_TMVP_MVS_WRITING_FLOW_OPT 1
-                   "Enable to only write TMVP MVs once")
-
 set_aom_config_var(CONFIG_IMPROVE_TIP_LF 1 "Enable improved LF for TIP frame.")
 
 set_aom_config_var(CONFIG_CCSO_CLEANUP 1

@@ -189,10 +189,8 @@ void av1_copy_frame_refined_mvs_tip_frame_mode(const AV1_COMMON *const cm,
     MV_REF *mv = frame_mvs;
     for (int w = 0; w < x_inside_boundary; w++) {
       for (int idx = 0; idx < 2; ++idx) {
-#if CONFIG_TMVP_MVS_WRITING_FLOW_OPT
         mv->ref_frame[idx] = NONE_FRAME;
         mv->mv[idx].as_int = 0;
-#endif  // CONFIG_TMVP_MVS_WRITING_FLOW_OPT
         MV_REFERENCE_FRAME ref_frame = mi->ref_frame[idx];
         if (!is_inter_ref_frame(ref_frame) && !tip_ref_frame) continue;
 
@@ -395,10 +393,8 @@ void av1_copy_frame_refined_mvs(const AV1_COMMON *const cm,
     MV_REF *mv = frame_mvs;
     for (w = 0; w < x_inside_boundary; w++) {
       for (int idx = 0; idx < 2; ++idx) {
-#if CONFIG_TMVP_MVS_WRITING_FLOW_OPT
         mv->ref_frame[idx] = NONE_FRAME;
         mv->mv[idx].as_int = 0;
-#endif  // CONFIG_TMVP_MVS_WRITING_FLOW_OPT
         MV_REFERENCE_FRAME ref_frame = mi->ref_frame[idx];
         if (is_inter_ref_frame(ref_frame)) {
           int_mv refined_mv;
