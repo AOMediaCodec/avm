@@ -45,10 +45,6 @@
 // two extra zeros at the end so that each kernel is 16-byte aligned
 #define EXT_WARP_STORAGE_TAPS 8
 
-#if !CONFIG_DIV_LUT_SIMP
-#define DIV_LUT_PREC_BITS 14
-#define DIV_LUT_BITS 8
-#endif  // !CONFIG_DIV_LUT_SIMP
 #define DIV_LUT_NUM (1 << DIV_LUT_BITS)
 
 extern const uint16_t div_lut[DIV_LUT_NUM + 1];
@@ -127,15 +123,7 @@ static INLINE int16_t resolve_divisor_32_CfL(int32_t N, int32_t D,
     // Hence `shift_add`below is constrained to be <= 1.
     if (shift_add <= 1) {
       const int shift0 = DIV_LUT_PREC_BITS + DIV_LUT_BITS + shift_add;
-      ret =
-#if CONFIG_DIV_LUT_SIMP
-          shift0 >= 0 ?
-#endif  // CONFIG_DIV_LUT_SIMP
-                      (div_lut[f_d] * f_n) >> shift0
-#if CONFIG_DIV_LUT_SIMP
-                      : (2 << shift) - 1
-#endif  // CONFIG_DIV_LUT_SIMP
-          ;
+      ret = shift0 >= 0 ? (div_lut[f_d] * f_n) >> shift0 : (2 << shift) - 1;
     } else {
       ret = 0;
     }
@@ -328,15 +316,12 @@ static INLINE void av1_scale_warp_model(const WarpedMotionParams *in_params,
     in_distance = -in_distance;
     out_distance = -out_distance;
   }
-#if CONFIG_DIV_LUT_SIMP
   const int input_max = (1 << 22) - 1;
-#endif  // CONFIG_DIV_LUT_SIMP
 
   out_params->wmtype = in_params->wmtype;
   for (int param = 0; param < MAX_PARAMDIM; param++) {
     int center = default_warp_params.wmmat[param];
 
-#if CONFIG_DIV_LUT_SIMP
     const int input =
         clamp(in_params->wmmat[param] - center, -input_max, input_max);
     int16_t shift = 0;
@@ -355,11 +340,6 @@ static INLINE void av1_scale_warp_model(const WarpedMotionParams *in_params,
     // Intermediate result is in 31 bits (23 bits * 8 bits)
     output =
         ROUND_POWER_OF_TWO_SIGNED(output * out_distance, param_shift[param]);
-#else
-    int input = in_params->wmmat[param] - center;
-    int divisor = in_distance * (1 << param_shift[param]);
-    int output = (int)(((int64_t)input * out_distance + divisor / 2) / divisor);
-#endif  // CONFIG_DIV_LUT_SIMP
     output = clamp(output, param_min[param], param_max[param]) *
              (1 << param_shift[param]);
 

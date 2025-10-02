@@ -495,7 +495,6 @@ static INLINE void highbd_dc_predictor(uint16_t *dst, ptrdiff_t stride, int bw,
   }
 }
 
-#if CONFIG_DIV_LUT_SIMP
 const uint8_t ibp_weights[5][16] = {
   { 96, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
   { 86, 107, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
@@ -503,16 +502,7 @@ const uint8_t ibp_weights[5][16] = {
   { 71, 78, 86, 92, 100, 107, 114, 121, 0, 0, 0, 0, 0, 0, 0, 0 },
   { 68, 72, 76, 79, 83, 87, 90, 94, 98, 102, 106, 109, 113, 117, 121, 124 }
 };
-#else
-const uint8_t ibp_weights[5][16] = {
-  { 192, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-  { 171, 213, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-  { 154, 179, 205, 230, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-  { 142, 156, 171, 185, 199, 213, 228, 242, 0, 0, 0, 0, 0, 0, 0, 0 },
-  { 136, 143, 151, 158, 166, 173, 181, 188, 196, 203, 211, 218, 226, 233, 241,
-    248 }
-};
-#endif  // CONFIG_DIV_LUT_SIMP
+
 const uint8_t size_to_weights_index[9] = { 0, 1, 2, 0, 3, 0, 0, 0, 4 };
 static INLINE void highbd_ibp_dc_left_predictor(uint16_t *dst, ptrdiff_t stride,
                                                 int bw, int bh,
