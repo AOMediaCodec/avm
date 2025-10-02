@@ -147,9 +147,7 @@ enum {
 #define CCSO_BAND_NUM 64
 #define CCSO_NUM_COMPONENTS 3
 
-#if MHCCP_RUNTIME_FLAG
 #define CFL_MHCCP_SWITCH_NUM 2
-#endif  // MHCCP_RUNTIME_FLAG
 #define MHCCP_MODE_NUM 3
 #define MHCCP_CONTEXT_GROUP_SIZE 4
 // 2 lines of the luma buffer, and 1 line for the chroma buffer
@@ -946,12 +944,7 @@ enum {
 enum {
   CFL_EXPLICIT,       // av1 cfl
   CFL_DERIVED_ALPHA,  // implicit CfL mode with derived scaling factor
-#if MHCCP_RUNTIME_FLAG
   CFL_MULTI_PARAM,  // multi hypothesis cross component prediction
-#else
-  CFL_MULTI_PARAM_V,  // multi hypothesis cross component vertical prediction
-  CFL_MULTI_PARAM_H,  // multi hypothesis cross component horizontal prediction
-#endif             // MHCCP_RUNTIME_FLAG
   CFL_TYPE_COUNT,  // CfL mode type count
 } UENUM1BYTE(CFL_TYPE);
 

@@ -80,15 +80,11 @@ static const aom_cdf_prob default_fsc_mode_cdf[FSC_MODE_CONTEXTS]
                                                 },
                                               };
 
-#if MHCCP_RUNTIME_FLAG
 static const aom_cdf_prob default_cfl_index_cdf[CDF_SIZE(
     CFL_TYPE_COUNT - 1)] = { AOM_CDF2(18000), 0 };
 static const aom_cdf_prob default_cfl_mhccp_switch_cdf[CDF_SIZE(
     CFL_MHCCP_SWITCH_NUM)] = { AOM_CDF2(18000), 0 };
-#else
-static const aom_cdf_prob default_cfl_index_cdf[CDF_SIZE(
-    CFL_TYPE_COUNT - 1)] = { AOM_CDF3(4124, 16615), 75 };
-#endif  // MHCCP_RUNTIME_FLAG
+
 static const aom_cdf_prob default_filter_dir_cdf[MHCCP_CONTEXT_GROUP_SIZE]
                                                 [CDF_SIZE(MHCCP_MODE_NUM)] = {
                                                   { AOM_CDF3(16384, 24576), 1 },
@@ -3980,9 +3976,7 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   av1_copy(fc->dpcm_uv_cdf, default_dpcm_uv_cdf);
   av1_copy(fc->dpcm_uv_vert_horz_cdf, default_dpcm_uv_vert_horz_cdf);
   av1_copy(fc->cfl_index_cdf, default_cfl_index_cdf);
-#if MHCCP_RUNTIME_FLAG
   av1_copy(fc->cfl_mhccp_cdf, default_cfl_mhccp_switch_cdf);
-#endif  // CONFIG_ENABLE_MHCCP
   av1_copy(fc->filter_dir_cdf, default_filter_dir_cdf);
   av1_copy(fc->switchable_interp_cdf, default_switchable_interp_cdf);
   av1_copy(fc->region_type_cdf, default_region_type_cdf);
@@ -4468,10 +4462,8 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
 
   CUMULATIVE_AVERAGE_CDF(ctx_left->filter_dir_cdf, ctx_tr->filter_dir_cdf,
                          MHCCP_MODE_NUM);
-#if MHCCP_RUNTIME_FLAG
   CUMULATIVE_AVERAGE_CDF(ctx_left->cfl_mhccp_cdf, ctx_tr->cfl_mhccp_cdf,
                          CFL_MHCCP_SWITCH_NUM);
-#endif  // MHCCP_RUNTIME_FLAG
   CUMULATIVE_AVERAGE_CDF(ctx_left->cfl_index_cdf, ctx_tr->cfl_index_cdf,
                          CFL_TYPE_COUNT - 1);
   CUMULATIVE_AVERAGE_CDF(ctx_left->y_mode_set_cdf, ctx_tr->y_mode_set_cdf,
@@ -4851,9 +4843,7 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
   SHIFT_CDF(ctx_ptr->dpcm_uv_vert_horz_cdf, 2);
 
   SHIFT_CDF(ctx_ptr->filter_dir_cdf, MHCCP_MODE_NUM);
-#if MHCCP_RUNTIME_FLAG
   SHIFT_CDF(ctx_ptr->cfl_mhccp_cdf, CFL_MHCCP_SWITCH_NUM);
-#endif  // MHCCP_RUNTIME_FLAG
   SHIFT_CDF(ctx_ptr->cfl_index_cdf, CFL_TYPE_COUNT - 1);
   SHIFT_CDF(ctx_ptr->y_mode_set_cdf, INTRA_MODE_SETS);
 #if CONFIG_REDUCE_SYMBOL_SIZE
@@ -5283,10 +5273,8 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
               2);
 
   AVERAGE_CDF(ctx_left->filter_dir_cdf, ctx_tr->filter_dir_cdf, MHCCP_MODE_NUM);
-#if MHCCP_RUNTIME_FLAG
   AVERAGE_CDF(ctx_left->cfl_mhccp_cdf, ctx_tr->cfl_mhccp_cdf,
               CFL_MHCCP_SWITCH_NUM);
-#endif  // CONFIG_RUNTIME_FLAG
   AVERAGE_CDF(ctx_left->cfl_index_cdf, ctx_tr->cfl_index_cdf,
               CFL_TYPE_COUNT - 1);
   AVERAGE_CDF(ctx_left->y_mode_set_cdf, ctx_tr->y_mode_set_cdf,

@@ -1395,14 +1395,12 @@ static AOM_INLINE void write_fsc_mode(uint8_t fsc_mode, aom_writer *w,
   aom_write_symbol(w, fsc_mode, fsc_cdf, FSC_MODES);
 }
 
-#if MHCCP_RUNTIME_FLAG
 static AOM_INLINE void write_cfl_mhccp_switch(FRAME_CONTEXT *ec_ctx,
                                               uint8_t cfl_mhccp_switch,
                                               aom_writer *w) {
   aom_write_symbol(w, cfl_mhccp_switch, ec_ctx->cfl_mhccp_cdf,
                    CFL_MHCCP_SWITCH_NUM);
 }
-#endif
 
 static AOM_INLINE void write_cfl_index(FRAME_CONTEXT *ec_ctx, uint8_t cfl_index,
                                        aom_writer *w) {
@@ -1780,7 +1778,6 @@ static AOM_INLINE void write_intra_prediction_modes(AV1_COMP *cpi,
     }
 
     if (uv_mode == UV_CFL_PRED) {
-#if MHCCP_RUNTIME_FLAG
       if (is_mhccp_allowed(cm, xd)) {
 #if CONFIG_CWG_F307_CFL_SEQ_FLAG
         if (cm->seq_params.enable_cfl_intra)
@@ -1796,14 +1793,7 @@ static AOM_INLINE void write_intra_prediction_modes(AV1_COMP *cpi,
       {
         write_cfl_index(ec_ctx, mbmi->cfl_idx, w);
       }
-#else
-      write_cfl_index(ec_ctx, mbmi->cfl_idx, w);
-#endif
-#if MHCCP_RUNTIME_FLAG
       if (mbmi->cfl_idx == CFL_MULTI_PARAM) {
-#else
-      if (mbmi->cfl_idx == CFL_MULTI_PARAM_V) {
-#endif  // MHCCP_RUNTIME_FLAG
         const uint8_t mh_size_group = size_group_lookup[bsize];
         aom_cdf_prob *mh_dir_cdf = ec_ctx->filter_dir_cdf[mh_size_group];
         write_mh_dir(mh_dir_cdf, mbmi->mh_dir, w);
@@ -5834,9 +5824,7 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
 #if CONFIG_CWG_F307_CFL_SEQ_FLAG
   aom_wb_write_bit(wb, seq_params->enable_cfl_intra);
 #endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
-#if MHCCP_RUNTIME_FLAG
   aom_wb_write_bit(wb, seq_params->enable_mhccp);
-#endif
   aom_wb_write_bit(wb, seq_params->enable_tip != 0);
   if (seq_params->enable_tip) {
     aom_wb_write_bit(wb, seq_params->enable_tip != 1);

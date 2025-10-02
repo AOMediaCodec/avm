@@ -330,9 +330,7 @@ void av1_reset_cdf_symbol_counters(FRAME_CONTEXT *fc) {
   RESET_CDF_COUNTER(fc->dpcm_uv_cdf, 2);
   RESET_CDF_COUNTER(fc->dpcm_uv_vert_horz_cdf, 2);
 
-#if MHCCP_RUNTIME_FLAG
   RESET_CDF_COUNTER(fc->cfl_mhccp_cdf, CFL_MHCCP_SWITCH_NUM);
-#endif  // MHCCP_RUNTIME_FLAG
   RESET_CDF_COUNTER(fc->cfl_index_cdf, CFL_TYPE_COUNT - 1);
   RESET_CDF_COUNTER(fc->filter_dir_cdf, MHCCP_MODE_NUM);
   RESET_CDF_COUNTER(fc->intra_dip_cdf, 2);

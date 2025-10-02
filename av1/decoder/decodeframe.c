@@ -7214,9 +7214,7 @@ void av1_read_sequence_header_beyond_av1(
 #if CONFIG_CWG_F307_CFL_SEQ_FLAG
   seq_params->enable_cfl_intra = aom_rb_read_bit(rb);
 #endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
-#if MHCCP_RUNTIME_FLAG
   seq_params->enable_mhccp = aom_rb_read_bit(rb);
-#endif
   uint8_t enable_tip = aom_rb_read_bit(rb);
   if (enable_tip) {
     seq_params->enable_tip = 1 + aom_rb_read_bit(rb);

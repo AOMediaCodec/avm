@@ -932,10 +932,8 @@ typedef struct {
   int multi_line_mrl_cost[MRL_INDEX_CONTEXTS][2];
   //! Cost of signaling the forward skip coding mode
   int fsc_cost[FSC_MODE_CONTEXTS][FSC_BSIZE_CONTEXTS][FSC_MODES];
-#if MHCCP_RUNTIME_FLAG
   //! Cost of signaling the cfl or mhccp selection
   int cfl_mhccp_cost[CFL_MHCCP_SWITCH_NUM];
-#endif  // MHCCP_RUNTIME_FLAG
   //! Cost of signaling the cfl mode
   int cfl_index_cost[CFL_TYPE_COUNT - 1];
   //! Cost of signaling the cfl mode when mhccp is not applicable

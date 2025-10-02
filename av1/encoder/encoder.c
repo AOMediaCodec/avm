@@ -530,9 +530,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #if CONFIG_CWG_F307_CFL_SEQ_FLAG
   seq->enable_cfl_intra = oxcf->intra_mode_cfg.enable_cfl_intra;
 #endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
-#if MHCCP_RUNTIME_FLAG
   seq->enable_mhccp = oxcf->intra_mode_cfg.enable_mhccp;
-#endif  // MHCCP_RUNTIME_FLAG
   seq->enable_inter_ddt = oxcf->txfm_cfg.enable_inter_ddt;
   seq->reduced_tx_part_set = oxcf->txfm_cfg.reduced_tx_part_set;
   seq->enable_cctx = oxcf->txfm_cfg.enable_cctx;

@@ -185,10 +185,8 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
                                fc->fsc_mode_cdf[i][j], FSC_MODES, NULL);
     }
   }
-#if MHCCP_RUNTIME_FLAG
   av1_cost_tokens_from_cdf(mode_costs->cfl_mhccp_cost, fc->cfl_mhccp_cdf,
                            CFL_MHCCP_SWITCH_NUM, NULL);
-#endif  // MHCCP_RUNTIME_FLAG
   av1_cost_tokens_from_cdf(mode_costs->cfl_index_cost, fc->cfl_index_cdf,
                            CFL_TYPE_COUNT - 1, NULL);
   av1_cost_tokens_from_cdf(mode_costs->y_primary_flag_cost, fc->y_mode_set_cdf,

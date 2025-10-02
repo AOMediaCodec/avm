@@ -731,18 +731,12 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
         assert(IMPLIES(xd->tree_type == CHROMA_PART,
                        xd->is_cfl_allowed_in_sdp == CFL_ALLOWED_FOR_CHROMA));
 
-#if MHCCP_RUNTIME_FLAG
         if (mbmi->cfl_idx == CFL_MULTI_PARAM &&
             (!is_mhccp_allowed(cm, xd) || !intra_mode_cfg->enable_mhccp))
           continue;
-#else
-        if (mbmi->cfl_idx == CFL_MULTI_PARAM_V && !intra_mode_cfg->enable_mhccp)
-          continue;
-#endif  // MHCCP_RUNTIME_FLAG
         const TX_SIZE uv_tx_size = av1_get_tx_size(AOM_PLANE_U, xd);
         if (mbmi->cfl_idx == 0)
           cfl_alpha_rate = cfl_rd_pick_alpha(x, cpi, uv_tx_size, best_rd);
-#if MHCCP_RUNTIME_FLAG
         if (is_mhccp_allowed(cm, xd)) {
 #if CONFIG_CWG_F307_CFL_SEQ_FLAG
           if (intra_mode_cfg->enable_cfl_intra)
@@ -757,14 +751,7 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
         ) {
           cfl_idx_rate += x->mode_costs.cfl_index_cost[mbmi->cfl_idx];
         }
-#else
-        cfl_idx_rate = x->mode_costs.cfl_index_cost[mbmi->cfl_idx];
-#endif  // MHCCP_RUNTIME_FLAG
-#if MHCCP_RUNTIME_FLAG
         if (mbmi->cfl_idx == CFL_MULTI_PARAM) {
-#else
-        if (mbmi->cfl_idx == CFL_MULTI_PARAM_V) {
-#endif  // MHCCP_RUNTIME_FLAG
           const uint8_t mh_size_group = size_group_lookup[bsize];
           filter_dir_rate =
               x->mode_costs.filter_dir_cost[mh_size_group][mbmi->mh_dir];
