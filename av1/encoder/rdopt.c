@@ -6396,16 +6396,6 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
           if (local_intrabc)
 #endif  // CONFIG_LOCAL_INTRABC_BAWP
             num_modes_to_search = 1;
-#if CONFIG_LOCAL_INTRABC_BAWP
-          if (cm->bru.enabled) {
-#else
-          if (cm->bru.enabled && local_intrabc) {
-#endif
-            if (!bru_is_dv_in_active_region(cm, dv, xd->mi_col, xd->mi_row)) {
-              aom_internal_error(xd->error_info, AOM_CODEC_ERROR,
-                                 "Invalid intrabc dv out side active region");
-            }
-          }
         }
         for (int morph_idx = 0; morph_idx < num_modes_to_search; ++morph_idx) {
           if (morph_idx && !allow_morph_pred) continue;

@@ -738,9 +738,12 @@ static INLINE int is_two_blk_overlap(int blk1_x_left, int blk1_x_right,
   if (blk2_y_top > blk1_y_bottom || blk2_y_bottom < blk1_y_top) return 0;
   return 1;
 }
-static INLINE int av1_is_dv_in_local_range(const MV dv, const MACROBLOCKD *xd,
-                                           int mi_row, int mi_col, int bh,
-                                           int bw, int mib_size_log2) {
+static INLINE int av1_is_dv_in_local_range(
+#if CONFIG_LOCAL_INTRABC_IN_ACTIVE_REGION
+    const AV1_COMMON *cm,
+#endif  // CONFIG_LOCAL_INTRABC_IN_ACTIVE_REGION
+    const MV dv, const MACROBLOCKD *xd, int mi_row, int mi_col, int bh, int bw,
+    int mib_size_log2) {
   int sb_root_partition_info = 0;
   if (xd->mi && xd->mi[0]) {
     sb_root_partition_info = xd->mi[0]->sb_root_partition_info;
@@ -780,7 +783,26 @@ static INLINE int av1_is_dv_in_local_range(const MV dv, const MACROBLOCKD *xd,
   int numLeftSB = (1 << (8 - sb_size_log2)) - ((sb_size_log2 < 8) ? 1 : 0);
 #if CONFIG_LOCAL_INTRABC_ALIGN_RNG
   if (sb_size_log2 == 6) {
-    numLeftSB = 4;
+#if CONFIG_LOCAL_INTRABC_IN_ACTIVE_REGION
+    if (cm->bru.enabled) {
+      numLeftSB = 1;
+      const int sb_col = mi_col >> mib_size_log2;
+      const int sb_row = mi_row >> mib_size_log2;
+      while (numLeftSB < 4) {
+        // treat padding region as support
+        if (sb_col - numLeftSB - 1 >= 0) {
+          SB_INFO *sbi =
+              av1_get_sb_info(cm, sb_row << mib_size_log2,
+                              (sb_col - numLeftSB - 1) << mib_size_log2);
+          if (sbi->sb_active_mode == BRU_INACTIVE_SB) {
+            break;
+          }
+        }
+        numLeftSB++;
+      }
+    } else
+#endif  // CONFIG_LOCAL_INTRABC_IN_ACTIVE_REGION
+      numLeftSB = 4;
   }
 #endif  // CONFIG_LOCAL_INTRABC_ALIGN_RNG
   const int valid_SB =
@@ -1166,8 +1188,11 @@ static INLINE int av1_is_dv_valid(const MV dv, const AV1_COMMON *cm,
         }
       }
 #if CONFIG_LOCAL_INTRABC_ALIGN_RNG
-      valid = av1_is_dv_in_local_range(dv, xd, tmp_row, tmp_col, tmp_bh, tmp_bw,
-                                       mib_size_log2);
+      valid = av1_is_dv_in_local_range(
+#if CONFIG_LOCAL_INTRABC_IN_ACTIVE_REGION
+          cm,
+#endif
+          dv, xd, tmp_row, tmp_col, tmp_bh, tmp_bw, mib_size_log2);
 #else
       if (!frame_is_intra_only(
               cm))  // Inter frame: Using 128x128 but the modificantion made in

@@ -250,6 +250,11 @@ set_aom_config_var(CONFIG_GLOBAL_INTRABC_DELAY_OPT 1
                    "Enable alignment of global intraBC boundary")
 set_aom_config_var(CONFIG_LOCAL_INTRABC_BAWP 1
                    "CWG-F165 Enable intraBAWP in local intraBC")
+set_aom_config_var(
+  CONFIG_LOCAL_INTRABC_IN_ACTIVE_REGION
+  1
+  "Validate CWG-F177 local intraBC always search inside active region for 64x64 SBs"
+)
 
 set_aom_config_var(CONFIG_REDUCED_REF_FRAME_MVS_MODE 1
                    "Use reduced reference frame mvs for temporal mv prediction")

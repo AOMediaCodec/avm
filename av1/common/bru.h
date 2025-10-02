@@ -498,37 +498,7 @@ static INLINE void init_bru_params(AV1_COMMON *cm) {
   cm->bru.ref_disp_order = -1;
   cm->bru.frame_inactive_flag = 0;
 }
-#if CONFIG_LOCAL_INTRABC_ALIGN_RNG
-/* Check SB 64x64 case is DV within current active region*/
-static INLINE int bru_is_dv_in_active_region(const AV1_COMMON *cm, const MV dv,
-                                             int mi_col, int mi_row) {
-  if (!cm->bru.enabled) return 1;
-  const int sb_size_log2 = cm->mib_size_log2 + MI_SIZE_LOG2;
-  if (sb_size_log2 > 6) return 1;  // only need to check 64x64 case
-  int num_left_sb = 1;
-  const int sb_col = mi_col >> cm->mib_size_log2;
-  const int sb_row = mi_row >> cm->mib_size_log2;
-  const int SCALE_PX_TO_MV = 8;
-  int has_col_offset = dv.col & 7;  // sub-pel col
-  // check SB activity, once inactive, stop
-  while (num_left_sb < 4) {
-    if (!bru_is_sb_available(cm, (sb_col - num_left_sb - 1) * cm->mib_size,
-                             sb_row * cm->mib_size)) {
-      break;
-    }
-    num_left_sb++;
-  }
-  const int left_coded_sb = AOMMAX(sb_col - num_left_sb, 0);
-  const int left_interp_border = has_col_offset ? IBC_LEFT_INTERP_BORDER : 0;
-  const int src_left_edge = (mi_col * MI_SIZE) * SCALE_PX_TO_MV + dv.col;
-  const int src_left_x = (src_left_edge >> 3) - left_interp_border;
-  const int sb_x_start = src_left_x >> sb_size_log2;
-  if (sb_x_start < left_coded_sb) {
-    return 0;
-  }
-  return 1;
-}
-#endif
+
 void bru_extend_mc_border(const AV1_COMMON *const cm, int mi_row, int mi_col,
                           BLOCK_SIZE bsize, YV12_BUFFER_CONFIG *src);
 BruActiveMode set_sb_mbmi_bru_mode(const AV1_COMMON *cm, MACROBLOCKD *const xd,
