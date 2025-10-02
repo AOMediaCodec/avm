@@ -308,6 +308,13 @@ void av1_copy_frame_mvs_tip_frame_mode(const AV1_COMMON *const cm,
         MV_REFERENCE_FRAME ref_frame = mi->ref_frame[idx];
         if (is_inter_ref_frame(ref_frame) && !is_tip_ref_frame(ref_frame)) {
           int_mv sub_block_mv;
+          if (is_wedge) {
+            const int this_decision =
+              decisions[h * TMVP_MI_SIZE * bw + w * TMVP_MI_SIZE];
+
+            if (this_decision == 0 && idx == 1) continue;
+            if (this_decision == 1 && idx == 0) continue;
+          }
           if (is_warp[idx]) {
             const int32_t pixel_x = mi_col * MI_SIZE + w * TMVP_MI_SIZE;
             const int32_t pixel_y = mi_row * MI_SIZE + h * TMVP_MI_SIZE;
@@ -315,13 +322,6 @@ void av1_copy_frame_mvs_tip_frame_mode(const AV1_COMMON *const cm,
                 get_sub_block_warp_mv(&warp_params[idx], pixel_x, pixel_y,
                                       TMVP_MI_SIZE, TMVP_MI_SIZE);
           } else {
-            if (is_wedge) {
-              const int this_decision =
-                  decisions[h * TMVP_MI_SIZE * bw + w * TMVP_MI_SIZE];
-
-              if (this_decision == 0 && idx == 1) continue;
-              if (this_decision == 1 && idx == 0) continue;
-            }
             sub_block_mv.as_mv = mi->mv[idx].as_mv;
           }
           if ((abs(sub_block_mv.as_mv.row) > REFMVS_LIMIT) ||
@@ -610,6 +610,13 @@ void av1_copy_frame_mvs(const AV1_COMMON *const cm, const MACROBLOCKD *const xd,
           MV_REFERENCE_FRAME ref_frame = mi->ref_frame[idx];
           if (is_inter_ref_frame(ref_frame)) {
             int_mv sub_block_mv;
+            if (is_wedge) {
+              const int this_decision =
+                decisions[h * TMVP_MI_SIZE * bw + w * TMVP_MI_SIZE];
+
+              if (this_decision == 0 && idx == 1) continue;
+              if (this_decision == 1 && idx == 0) continue;
+            }
             if (is_warp[idx]) {
               const int32_t pixel_x = mi_col * MI_SIZE + w * TMVP_MI_SIZE;
               const int32_t pixel_y = mi_row * MI_SIZE + h * TMVP_MI_SIZE;
@@ -617,13 +624,6 @@ void av1_copy_frame_mvs(const AV1_COMMON *const cm, const MACROBLOCKD *const xd,
                   get_sub_block_warp_mv(&warp_params[idx], pixel_x, pixel_y,
                                         TMVP_MI_SIZE, TMVP_MI_SIZE);
             } else {
-              if (is_wedge) {
-                const int this_decision =
-                    decisions[h * TMVP_MI_SIZE * bw + w * TMVP_MI_SIZE];
-
-                if (this_decision == 0 && idx == 1) continue;
-                if (this_decision == 1 && idx == 0) continue;
-              }
               sub_block_mv.as_mv = mi->mv[idx].as_mv;
             }
             if ((abs(sub_block_mv.as_mv.row) > REFMVS_LIMIT) ||
