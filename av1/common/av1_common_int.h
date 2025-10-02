@@ -573,33 +573,100 @@ typedef struct {
                                    // for temporal mv prediction.
 } OrderHintInfo;
 
+/*!
+ * \brief Params related to tiles.
+ */
+typedef struct CommonTileParams {
+  int mi_rows;       /*!< mi_rows in frame */
+  int mi_cols;       /*!< mi_cols in frame */
+  int sb_rows;       /*!< sb_rows in frame */
+  int sb_cols;       /*!< sb_cols in frame */
+  int mib_size_log2; /*!< log2 of sb size in mi_units for convenience */
+  int cols;          /*!< number of tile columns that frame is divided into */
+  int rows;          /*!< number of tile rows that frame is divided into */
+  int max_width_sb;  /*!< maximum tile width in superblock units. */
+  int max_height_sb; /*!< maximum tile height in superblock units. */
+
+  /*!
+   * Min width of non-rightmost tile in MI units. Only valid if cols > 1.
+   */
+  int min_inner_width;
+
+  /*!
+   * If true, tiles are uniformly spaced with power-of-two number of rows and
+   * columns.
+   * If false, tiles have explicitly configured widths and heights.
+   */
+  int uniform_spacing;
+
+  /**
+   * \name Members only valid when uniform_spacing == 1
+   */
+  /**@{*/
+  int log2_cols; /*!< log2 of 'cols'. */
+  int log2_rows; /*!< log2 of 'rows'. */
+  int width;     /*!< tile width in MI units */
+  int height;    /*!< tile height in MI units */
+  /**@}*/
+
+  /*!
+   * Min num of tile columns possible based on 'max_width_sb' and frame width.
+   */
+  int min_log2_cols;
+  /*!
+   * Min num of tile rows possible based on 'max_height_sb' and frame height.
+   */
+  int min_log2_rows;
+  /*!
+   * Min num of tile columns possible based on frame width.
+   */
+  int max_log2_cols;
+  /*!
+   * Max num of tile columns possible based on frame width.
+   */
+  int max_log2_rows;
+  /*!
+   * log2 of min number of tiles (same as min_log2_cols + min_log2_rows).
+   */
+  int min_log2;
+  /*!
+   * col_start_sb[i] is the start position of tile column i in superblock units.
+   * valid for 0 <= i <= cols
+   */
+  int col_start_sb[MAX_TILE_COLS + 1];
+  /*!
+   * row_start_sb[i] is the start position of tile row i in superblock units.
+   * valid for 0 <= i <= rows
+   */
+  int row_start_sb[MAX_TILE_ROWS + 1];
+  /*!
+   * If true, we are using large scale tile mode.
+   */
+  int scale_sb; /*!< whether sb size is scaled down from seq level. */
+
+  unsigned int large_scale;
+  /*!
+   * Only relevant when large_scale == 1.
+   * If true, the independent decoding of a single tile or a section of a frame
+   * is allowed.
+   */
+  unsigned int single_tile_decoding;
+  /*!
+   * Used when BRU is on, each bit indicates active mode of a tile
+   */
+  uint8_t tile_active_bitmap[(MAX_TILE_ROWS * MAX_TILE_COLS + 7) / 8];
+
+} CommonTileParams;
+
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO
 // Tile Info Syntax stucture: parses the tile information
 // in the Sequence header and Multi Frame Header
 // Different from CommonTilesParams which is used to process the tiles
-typedef struct {
-  int uniform_spacing;
-  int mi_cols;
-  int mib_size_log2;
-  int mi_rows;
-  int log2_cols;
-  int min_log2_cols;
-  int max_log2_cols;
-  int log2_rows;
-  int min_log2_rows;
-  int max_log2_rows;
-  int cols;
-  int col_start_sb[MAX_TILES];
-  int rows;
-  int max_width_sb;
-  int row_start_sb[MAX_TILES];
-  int max_height_sb;
-  int tile_cols_sb[MAX_TILES];
-  int tile_rows_sb[MAX_TILES];
-  int height_sb;
-  int width_sb;
-  int min_log2;
-  int size_sb;
+typedef struct TileInfoSyntax {
+#if CONFIG_CWG_F349_SIGNAL_TILE_INFO
+  uint8_t allow_tile_info_change; /*!< whether to allow tile info change */
+#endif
+  CommonTileParams tile_info;
 } TileInfoSyntax;
 #endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 
@@ -1317,84 +1384,6 @@ typedef struct {
   bool enable_ext_seg;
 #endif  // CONFIG_EXT_SEG
 } FeatureFlags;
-
-/*!
- * \brief Params related to tiles.
- */
-typedef struct CommonTileParams {
-  int mib_size_log2; /*!< log2 of sb size in mi_units for convenience */
-  int cols;          /*!< number of tile columns that frame is divided into */
-  int rows;          /*!< number of tile rows that frame is divided into */
-  int max_width_sb;  /*!< maximum tile width in superblock units. */
-  int max_height_sb; /*!< maximum tile height in superblock units. */
-
-  /*!
-   * Min width of non-rightmost tile in MI units. Only valid if cols > 1.
-   */
-  int min_inner_width;
-
-  /*!
-   * If true, tiles are uniformly spaced with power-of-two number of rows and
-   * columns.
-   * If false, tiles have explicitly configured widths and heights.
-   */
-  int uniform_spacing;
-
-  /**
-   * \name Members only valid when uniform_spacing == 1
-   */
-  /**@{*/
-  int log2_cols; /*!< log2 of 'cols'. */
-  int log2_rows; /*!< log2 of 'rows'. */
-  int width;     /*!< tile width in MI units */
-  int height;    /*!< tile height in MI units */
-  /**@}*/
-
-  /*!
-   * Min num of tile columns possible based on 'max_width_sb' and frame width.
-   */
-  int min_log2_cols;
-  /*!
-   * Min num of tile rows possible based on 'max_height_sb' and frame height.
-   */
-  int min_log2_rows;
-  /*!
-   * Min num of tile columns possible based on frame width.
-   */
-  int max_log2_cols;
-  /*!
-   * Max num of tile columns possible based on frame width.
-   */
-  int max_log2_rows;
-  /*!
-   * log2 of min number of tiles (same as min_log2_cols + min_log2_rows).
-   */
-  int min_log2;
-  /*!
-   * col_start_sb[i] is the start position of tile column i in superblock units.
-   * valid for 0 <= i <= cols
-   */
-  int col_start_sb[MAX_TILE_COLS + 1];
-  /*!
-   * row_start_sb[i] is the start position of tile row i in superblock units.
-   * valid for 0 <= i <= rows
-   */
-  int row_start_sb[MAX_TILE_ROWS + 1];
-  /*!
-   * If true, we are using large scale tile mode.
-   */
-  unsigned int large_scale;
-  /*!
-   * Only relevant when large_scale == 1.
-   * If true, the independent decoding of a single tile or a section of a frame
-   * is allowed.
-   */
-  unsigned int single_tile_decoding;
-  /*!
-   * Used when BRU is on, each bit indicates active mode of a tile
-   */
-  uint8_t tile_active_bitmap[(MAX_TILE_ROWS * MAX_TILE_COLS + 7) / 8];
-} CommonTileParams;
 
 /*!
  * \brief Multi-frame level parameters.
@@ -5821,6 +5810,21 @@ static INLINE aom_codec_err_t av1_get_chroma_subsampling(
   return AOM_CODEC_OK;
 }
 #endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+
+#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
+// Returns pointer to effective sequence level or multi-frame header level tile
+// info. Returns null if none exist
+static INLINE const TileInfoSyntax *find_effective_tile_params(
+    const AV1_COMMON *const cm) {
+  // TODO(any): when multiframe header tiling is implemented, this
+  // function should return the effevtive mfh tile_params if it exists,
+  // or the seq level tile_params if it exists, or NULL
+  if (cm->seq_params.seq_tile_info_present_flag)
+    return &cm->seq_params.tile_params;
+  else
+    return NULL;
+}
+#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 
 #ifdef __cplusplus
 }  // extern "C"

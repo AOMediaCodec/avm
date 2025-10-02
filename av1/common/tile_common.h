@@ -22,6 +22,7 @@ extern "C" {
 struct AV1Common;
 struct SequenceHeader;
 struct CommonTileParams;
+struct TileInfoSyntax;
 
 #define DEFAULT_MAX_NUM_TG 1
 
@@ -59,12 +60,16 @@ AV1PixelRect av1_get_tile_rect(const TileInfo *tile_info,
 #define MAX_TILE_AREA (4096 * 2304)  // Maximum tile area in pixels
 
 void av1_get_uniform_tile_size(const struct AV1Common *cm, int *w, int *h);
-void av1_get_tile_limits(struct AV1Common *const cm);
-void av1_calculate_tile_cols(const struct AV1Common *cm, int cm_mi_rows,
-                             int cm_mi_cols,
-                             struct CommonTileParams *const tiles);
-void av1_calculate_tile_rows(const struct AV1Common *cm, int cm_mi_rows,
-                             struct CommonTileParams *const tiles);
+void av1_get_tile_limits(struct CommonTileParams *const tiles, int cm_mi_rows,
+                         int cm_mi_cols, int mib_size_log2,
+                         int seq_mib_size_log2);
+#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
+void av1_get_seqmfh_tile_limits(struct TileInfoSyntax *const tiles,
+                                int frame_height, int frame_width,
+                                int mib_size_log2, int seq_mib_size_log2);
+#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
+void av1_calculate_tile_cols(struct CommonTileParams *const tiles);
+void av1_calculate_tile_rows(struct CommonTileParams *const tiles);
 
 // Checks if the minimum tile_width requirement is satisfied
 int av1_is_min_tile_width_satisfied(const struct AV1Common *cm);

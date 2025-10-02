@@ -21,17 +21,22 @@ void av1_tile_init(TileInfo *tile, const AV1_COMMON *cm, int row, int col) {
   av1_tile_set_col(tile, cm, col);
 }
 
-void av1_get_tile_limits(AV1_COMMON *const cm) {
-  CommonTileParams *const tiles = &cm->tiles;
-  tiles->mib_size_log2 = cm->mib_size_log2;
-  const int mi_cols =
-      ALIGN_POWER_OF_TWO(cm->mi_params.mi_cols, cm->mib_size_log2);
-  const int mi_rows =
-      ALIGN_POWER_OF_TWO(cm->mi_params.mi_rows, cm->mib_size_log2);
-  const int sb_cols = mi_cols >> cm->mib_size_log2;
-  const int sb_rows = mi_rows >> cm->mib_size_log2;
+void av1_get_tile_limits(CommonTileParams *const tiles, int cm_mi_rows,
+                         int cm_mi_cols, int mib_size_log2,
+                         int seq_mib_size_log2) {
+  tiles->mib_size_log2 = mib_size_log2;
+  tiles->mi_rows = cm_mi_rows;
+  tiles->mi_cols = cm_mi_cols;
+  tiles->scale_sb = seq_mib_size_log2 - mib_size_log2;
+  assert(tiles->scale_sb <= 1);
+  const int mi_cols = ALIGN_POWER_OF_TWO(tiles->mi_cols, mib_size_log2);
+  const int mi_rows = ALIGN_POWER_OF_TWO(tiles->mi_rows, mib_size_log2);
+  const int sb_cols = mi_cols >> mib_size_log2;
+  const int sb_rows = mi_rows >> mib_size_log2;
+  tiles->sb_rows = sb_rows;
+  tiles->sb_cols = sb_cols;
 
-  const int sb_size_log2 = cm->mib_size_log2 + MI_SIZE_LOG2;
+  const int sb_size_log2 = mib_size_log2 + MI_SIZE_LOG2;
   tiles->max_width_sb = MAX_TILE_WIDTH >> sb_size_log2;
   const int max_tile_area_sb = MAX_TILE_AREA >> (2 * sb_size_log2);
 
@@ -42,12 +47,23 @@ void av1_get_tile_limits(AV1_COMMON *const cm) {
   tiles->min_log2 = AOMMAX(tiles->min_log2, tiles->min_log2_cols);
 }
 
-void av1_calculate_tile_cols(const AV1_COMMON *cm, int cm_mi_rows,
-                             int cm_mi_cols, CommonTileParams *const tiles) {
-  int mi_cols = ALIGN_POWER_OF_TWO(cm_mi_cols, cm->mib_size_log2);
-  int mi_rows = ALIGN_POWER_OF_TWO(cm_mi_rows, cm->mib_size_log2);
-  int sb_cols = mi_cols >> cm->mib_size_log2;
-  int sb_rows = mi_rows >> cm->mib_size_log2;
+#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
+void av1_get_seqmfh_tile_limits(TileInfoSyntax *const tiles, int frame_height,
+                                int frame_width, int mib_size_log2,
+                                int seq_mib_size_log2) {
+  const int cm_mi_rows = ALIGN_POWER_OF_TWO(frame_height, 3) >> MI_SIZE_LOG2;
+  const int cm_mi_cols = ALIGN_POWER_OF_TWO(frame_width, 3) >> MI_SIZE_LOG2;
+  av1_get_tile_limits(&tiles->tile_info, cm_mi_rows, cm_mi_cols, mib_size_log2,
+                      seq_mib_size_log2);
+}
+#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
+
+void av1_calculate_tile_cols(CommonTileParams *const tiles) {
+  const int mib_size_log2 = tiles->mib_size_log2;
+  int mi_cols = ALIGN_POWER_OF_TWO(tiles->mi_cols, mib_size_log2);
+  int mi_rows = ALIGN_POWER_OF_TWO(tiles->mi_rows, mib_size_log2);
+  int sb_cols = mi_cols >> mib_size_log2;
+  int sb_rows = mi_rows >> mib_size_log2;
   int i;
 
   // This will be overridden if there is at least two columns of tiles
@@ -56,12 +72,8 @@ void av1_calculate_tile_cols(const AV1_COMMON *cm, int cm_mi_rows,
 
   if (tiles->uniform_spacing) {
     int start_sb;
-    int size_sb = ALIGN_POWER_OF_TWO(sb_cols, tiles->log2_cols);
-    if (frame_is_intra_only(cm) && cm->seq_params.sb_size == BLOCK_256X256 &&
-        cm->sb_size == BLOCK_128X128) {
-      size_sb = ALIGN_POWER_OF_TWO(sb_cols, tiles->log2_cols + 1);
-    }
-
+    int size_sb =
+        ALIGN_POWER_OF_TWO(sb_cols, tiles->log2_cols + tiles->scale_sb);
     size_sb >>= tiles->log2_cols;
     assert(size_sb > 0);
     for (i = 0, start_sb = 0; start_sb < sb_cols; i++) {
@@ -73,8 +85,8 @@ void av1_calculate_tile_cols(const AV1_COMMON *cm, int cm_mi_rows,
     tiles->min_log2_rows = AOMMAX(tiles->min_log2 - tiles->log2_cols, 0);
     tiles->max_height_sb = sb_rows >> tiles->min_log2_rows;
 
-    tiles->width = size_sb << cm->mib_size_log2;
-    tiles->width = AOMMIN(tiles->width, cm_mi_cols);
+    tiles->width = size_sb << mib_size_log2;
+    tiles->width = AOMMIN(tiles->width, tiles->mi_cols);
     if (tiles->cols > 1) {
       tiles->min_inner_width = tiles->width;
     }
@@ -95,24 +107,19 @@ void av1_calculate_tile_cols(const AV1_COMMON *cm, int cm_mi_rows,
     }
     tiles->max_height_sb = AOMMAX(max_tile_area_sb / widest_tile_sb, 1);
     if (tiles->cols > 1) {
-      tiles->min_inner_width = narrowest_inner_tile_sb << cm->mib_size_log2;
+      tiles->min_inner_width = narrowest_inner_tile_sb << mib_size_log2;
     }
   }
 }
 
-void av1_calculate_tile_rows(const AV1_COMMON *cm, int cm_mi_rows,
-                             CommonTileParams *const tiles) {
-  int mi_rows = ALIGN_POWER_OF_TWO(cm_mi_rows, cm->mib_size_log2);
-  int sb_rows = mi_rows >> cm->mib_size_log2;
+void av1_calculate_tile_rows(CommonTileParams *const tiles) {
+  const int mib_size_log2 = tiles->mib_size_log2;
+  int mi_rows = ALIGN_POWER_OF_TWO(tiles->mi_rows, mib_size_log2);
+  int sb_rows = mi_rows >> mib_size_log2;
   int start_sb, size_sb, i;
 
   if (tiles->uniform_spacing) {
-    size_sb = ALIGN_POWER_OF_TWO(sb_rows, tiles->log2_rows);
-    if (frame_is_intra_only(cm) && cm->seq_params.sb_size == BLOCK_256X256 &&
-        cm->sb_size == BLOCK_128X128) {
-      size_sb = ALIGN_POWER_OF_TWO(sb_rows, tiles->log2_rows + 1);
-    }
-
+    size_sb = ALIGN_POWER_OF_TWO(sb_rows, tiles->log2_rows + tiles->scale_sb);
     size_sb >>= tiles->log2_rows;
     assert(size_sb > 0);
     for (i = 0, start_sb = 0; start_sb < sb_rows; i++) {
@@ -122,8 +129,8 @@ void av1_calculate_tile_rows(const AV1_COMMON *cm, int cm_mi_rows,
     tiles->rows = i;
     tiles->row_start_sb[i] = sb_rows;
 
-    tiles->height = size_sb << cm->mib_size_log2;
-    tiles->height = AOMMIN(tiles->height, cm_mi_rows);
+    tiles->height = size_sb << mib_size_log2;
+    tiles->height = AOMMIN(tiles->height, tiles->mi_rows);
   } else {
     tiles->log2_rows = tile_log2(1, tiles->rows);
   }

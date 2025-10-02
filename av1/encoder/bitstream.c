@@ -4736,13 +4736,12 @@ static AOM_INLINE void write_frame_interp_filter(
 }
 
 static AOM_INLINE void write_tile_info_max_tile(
-    const AV1_COMMON *const cm, struct aom_write_bit_buffer *wb) {
-  int width_mi = ALIGN_POWER_OF_TWO(cm->mi_params.mi_cols, cm->mib_size_log2);
-  int height_mi = ALIGN_POWER_OF_TWO(cm->mi_params.mi_rows, cm->mib_size_log2);
-  int width_sb = width_mi >> cm->mib_size_log2;
-  int height_sb = height_mi >> cm->mib_size_log2;
+    const CommonTileParams *const tiles, struct aom_write_bit_buffer *wb) {
+  int width_mi = ALIGN_POWER_OF_TWO(tiles->mi_cols, tiles->mib_size_log2);
+  int height_mi = ALIGN_POWER_OF_TWO(tiles->mi_rows, tiles->mib_size_log2);
+  int width_sb = width_mi >> tiles->mib_size_log2;
+  int height_sb = height_mi >> tiles->mib_size_log2;
   int size_sb, i;
-  const CommonTileParams *const tiles = &cm->tiles;
 
   aom_wb_write_bit(wb, tiles->uniform_spacing);
 
@@ -4784,6 +4783,33 @@ static AOM_INLINE void write_tile_info_max_tile(
   }
 }
 
+#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
+static int check_tile_equivalence(const TileInfoSyntax *const tile_params,
+                                  const CommonTileParams *const tiles) {
+  if (tile_params->tile_info.uniform_spacing != tiles->uniform_spacing)
+    return 0;
+  if (tile_params->tile_info.uniform_spacing) {
+    if (tile_params->tile_info.log2_cols != tiles->log2_cols ||
+        tile_params->tile_info.log2_rows != tiles->log2_rows)
+      return 0;
+  } else {
+    for (int i = 0; i < tiles->cols; i++) {
+      if (tile_params->tile_info.col_start_sb[i + 1] -
+              tile_params->tile_info.col_start_sb[i] !=
+          tiles->col_start_sb[i + 1] - tiles->col_start_sb[i])
+        return 0;
+    }
+    for (int i = 0; i < tiles->rows; i++) {
+      if (tile_params->tile_info.row_start_sb[i + 1] -
+              tile_params->tile_info.row_start_sb[i] !=
+          tiles->row_start_sb[i + 1] - tiles->row_start_sb[i])
+        return 0;
+    }
+  }
+  return 1;
+}
+#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
+
 static AOM_INLINE void write_tile_info(const AV1_COMMON *const cm,
                                        struct aom_write_bit_buffer *saved_wb,
                                        struct aom_write_bit_buffer *wb) {
@@ -4793,14 +4819,16 @@ static AOM_INLINE void write_tile_info(const AV1_COMMON *const cm,
   }
 #endif  // CONFIG_CWG_F317
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO
-  bool tile_info_present_in_frame_header =
-      !cm->seq_params.seq_tile_info_present_flag;
-  aom_wb_write_bit(wb, tile_info_present_in_frame_header);
-  if (tile_info_present_in_frame_header) {
-    write_tile_info_max_tile(cm, wb);
+  const SequenceHeader *seq_params = &cm->seq_params;
+  int reuse = 0;
+  if (seq_params->seq_tile_info_present_flag) {
+    reuse = check_tile_equivalence(&seq_params->tile_params, &cm->tiles);
   }
+  bool tile_info_present_in_frame_header = !reuse;
+  aom_wb_write_bit(wb, tile_info_present_in_frame_header);
+  if (!reuse) write_tile_info_max_tile(&cm->tiles, wb);
 #else
-  write_tile_info_max_tile(cm, wb);
+  write_tile_info_max_tile(&cm->tiles, wb);
 #endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
   *saved_wb = *wb;
   if (cm->tiles.rows * cm->tiles.cols > 1) {
@@ -5162,11 +5190,12 @@ static AOM_INLINE void write_tu_pts_info(AV1_COMMON *const cm,
 
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO
 // Writes tile syntax
-void write_tile_syntax_info(const TileInfoSyntax *tiles,
+void write_tile_syntax_info(const TileInfoSyntax *tile_params,
                             struct aom_write_bit_buffer *wb) {
+  const CommonTileParams *tiles = &tile_params->tile_info;
   int size_sb, i;
-  int tile_width_sb = tiles->width_sb;
-  int tile_height_sb = tiles->height_sb;
+  int tile_width_sb = tiles->sb_cols;
+  int tile_height_sb = tiles->sb_rows;
   aom_wb_write_bit(wb, tiles->uniform_spacing);
 
   if (tiles->uniform_spacing) {
@@ -5671,6 +5700,12 @@ static AOM_INLINE void write_sequence_header(
         DELTA_DCQUANT_BITS);
     aom_wb_write_bit(wb, seq_params->uv_ac_delta_q_enabled);
   }
+#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
+  aom_wb_write_bit(wb, seq_params->seq_tile_info_present_flag);
+  if (seq_params->seq_tile_info_present_flag) {
+    write_tile_syntax_info(&seq_params->tile_params, wb);
+  }
+#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 }
 
 static void write_frame_max_drl_bits(AV1_COMMON *const cm,
@@ -7382,13 +7417,6 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
 #endif  // CONFIG_MULTILAYER_CORE_HLS
   write_sequence_header(seq_params, &wb);
 
-#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
-  aom_wb_write_bit(&wb, seq_params->seq_tile_info_present_flag);
-  if (seq_params->seq_tile_info_present_flag) {
-    write_tile_syntax_info(&seq_params->tile_params, &wb);
-  }
-#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
-
   aom_wb_write_bit(&wb, seq_params->film_grain_params_present);
 
   // Sequence header for coding tools beyond AV1
@@ -8429,53 +8457,6 @@ static size_t av1_write_frame_hash_metadata(
   return total_bytes_written;
 }
 
-#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
-void set_tile_info(AV1_COMP *cpi, TileInfoSyntax *tiles) {
-  AV1_COMMON *cm = &cpi->common;
-  tiles->uniform_spacing = cm->tiles.uniform_spacing;
-
-  const int mi_cols =
-      ALIGN_POWER_OF_TWO(cm->mi_params.mi_cols, cm->mib_size_log2);
-  const int mi_rows =
-      ALIGN_POWER_OF_TWO(cm->mi_params.mi_rows, cm->mib_size_log2);
-  tiles->mi_cols = mi_cols;
-  tiles->mib_size_log2 = cm->mib_size_log2;
-  tiles->mi_rows = mi_rows;
-  tiles->log2_cols = cm->tiles.log2_cols;
-  tiles->min_log2_cols = cm->tiles.min_log2_cols;
-  tiles->max_log2_cols = cm->tiles.max_log2_cols;
-  tiles->log2_rows = cm->tiles.log2_rows;
-  tiles->min_log2_rows = cm->tiles.min_log2_rows;
-  tiles->max_log2_rows = cm->tiles.max_log2_rows;
-  tiles->rows = cm->tiles.rows;
-  tiles->cols = cm->tiles.cols;
-  tiles->max_width_sb = cm->tiles.max_width_sb;
-  tiles->max_height_sb = cm->tiles.max_height_sb;
-  tiles->size_sb = cm->sb_size;
-
-  if (!tiles->uniform_spacing) {
-    tiles->cols = cm->tiles.cols;
-    for (int i = 0; i < tiles->cols; i++) {
-      tiles->col_start_sb[i] = cm->tiles.col_start_sb[i];
-    }
-    tiles->rows = cm->tiles.rows;
-    for (int i = 0; i < tiles->rows; i++) {
-      tiles->row_start_sb[i] = cm->tiles.row_start_sb[i];
-    }
-  }
-}
-
-void set_sequence_header_with_keyframe(AV1_COMP *cpi,
-                                       SequenceHeader *seq_params) {
-  AV1_COMMON *cm = &cpi->common;
-  // Set SH tile info
-  memset(&seq_params->tile_params, 0, sizeof(TileInfoSyntax));
-  seq_params->seq_tile_info_present_flag = 0;
-  if (cm->sb_size == BLOCK_128X128) seq_params->seq_tile_info_present_flag = 1;
-  set_tile_info(cpi, &seq_params->tile_params);
-}
-#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
-
 int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
                        int *const largest_tile_id) {
   uint8_t *data = dst;
@@ -8590,9 +8571,6 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
   if (cm->current_frame.frame_type == KEY_FRAME && !cpi->no_show_fwd_kf) {
     obu_header_size =
         av1_write_obu_header(level_params, OBU_SEQUENCE_HEADER, 0, 0, data);
-#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
-    set_sequence_header_with_keyframe(cpi, &cm->seq_params);
-#endif  // #if CONFIG_CWG_E242_SIGNAL_TILE_INFO
 
     obu_payload_size =
         av1_write_sequence_header_obu(&cm->seq_params, data + obu_header_size);

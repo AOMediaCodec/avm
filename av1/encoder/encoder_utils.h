@@ -1009,13 +1009,64 @@ void active_region_detection(AV1_COMP *cpi,
                              const YV12_BUFFER_CONFIG *cur_picture,
                              const YV12_BUFFER_CONFIG *last_picture);
 
+#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
+static AOM_INLINE void av1_set_seq_tile_info(SequenceHeader *const seq_params,
+                                             const AV1EncoderConfig *oxcf) {
+  const TileConfig *const tile_cfg = &oxcf->tile_cfg;
+  TileInfoSyntax *tile_params = &seq_params->tile_params;
+  CommonTileParams *tiles = &seq_params->tile_params.tile_info;
+  int i, start_sb;
+  av1_get_seqmfh_tile_limits(
+      tile_params, seq_params->max_frame_height, seq_params->max_frame_width,
+      seq_params->mib_size_log2, seq_params->mib_size_log2);
+
+  if (tile_cfg->tile_width_count == 0 || tile_cfg->tile_height_count == 0) {
+    tiles->uniform_spacing = 1;
+    tiles->log2_cols = AOMMAX(tile_cfg->tile_columns, tiles->min_log2_cols);
+    tiles->log2_cols = AOMMIN(tiles->log2_cols, tiles->max_log2_cols);
+  } else {
+    int sb_cols = tiles->sb_cols;
+    int size_sb, j = 0;
+    tiles->uniform_spacing = 0;
+    for (i = 0, start_sb = 0; start_sb < sb_cols && i < MAX_TILE_COLS; i++) {
+      tiles->col_start_sb[i] = start_sb;
+      size_sb = tile_cfg->tile_widths[j++];
+      if (j >= tile_cfg->tile_width_count) j = 0;
+      start_sb += AOMMIN(size_sb, tiles->max_width_sb);
+    }
+    tiles->cols = i;
+    tiles->col_start_sb[i] = sb_cols;
+  }
+  av1_calculate_tile_cols(tiles);
+
+  // configure tile rows
+  if (tiles->uniform_spacing) {
+    tiles->log2_rows = AOMMAX(tile_cfg->tile_rows, tiles->min_log2_rows);
+    tiles->log2_rows = AOMMIN(tiles->log2_rows, tiles->max_log2_rows);
+  } else {
+    int sb_rows = tiles->sb_rows;
+    int size_sb, j = 0;
+    for (i = 0, start_sb = 0; start_sb < sb_rows && i < MAX_TILE_ROWS; i++) {
+      tiles->row_start_sb[i] = start_sb;
+      size_sb = tile_cfg->tile_heights[j++];
+      if (j >= tile_cfg->tile_height_count) j = 0;
+      start_sb += AOMMIN(size_sb, tiles->max_height_sb);
+    }
+    tiles->rows = i;
+    tiles->row_start_sb[i] = sb_rows;
+  }
+  av1_calculate_tile_rows(tiles);
+}
+#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
+
 static AOM_INLINE void av1_set_tile_info(AV1_COMMON *const cm,
                                          const TileConfig *const tile_cfg) {
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   CommonTileParams *const tiles = &cm->tiles;
   int i, start_sb;
 
-  av1_get_tile_limits(cm);
+  av1_get_tile_limits(&cm->tiles, mi_params->mi_rows, mi_params->mi_cols,
+                      cm->mib_size_log2, cm->seq_params.mib_size_log2);
 
   int sb_size_scale = 1;
   // Intra frame force to use SB size as 128x128 when encoder is configured with
@@ -1056,7 +1107,7 @@ static AOM_INLINE void av1_set_tile_info(AV1_COMMON *const cm,
     tiles->cols = i;
     tiles->col_start_sb[i] = sb_cols;
   }
-  av1_calculate_tile_cols(cm, mi_params->mi_rows, mi_params->mi_cols, tiles);
+  av1_calculate_tile_cols(tiles);
 
   // configure tile rows
   if (tiles->uniform_spacing) {
@@ -1075,7 +1126,7 @@ static AOM_INLINE void av1_set_tile_info(AV1_COMMON *const cm,
     tiles->rows = i;
     tiles->row_start_sb[i] = sb_rows;
   }
-  av1_calculate_tile_rows(cm, mi_params->mi_rows, tiles);
+  av1_calculate_tile_rows(tiles);
 }
 
 void reallocate_sb_size_dependent_buffers(AV1_COMP *cpi);

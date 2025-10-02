@@ -450,6 +450,15 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->max_frame_height = frm_dim_cfg->forced_max_frame_height
                               ? frm_dim_cfg->forced_max_frame_height
                               : frm_dim_cfg->height;
+#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
+  if (!oxcf->tile_cfg.enable_large_scale_tile && !seq->still_picture &&
+      oxcf->kf_cfg.key_freq_max > 0) {
+    av1_set_seq_tile_info(seq, &oxcf->tile_cfg);
+    seq->seq_tile_info_present_flag = 1;
+  } else {
+    seq->seq_tile_info_present_flag = 0;
+  }
+#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
   seq->num_bits_width =
       (seq->max_frame_width > 1) ? get_msb(seq->max_frame_width - 1) + 1 : 1;
   seq->num_bits_height =
