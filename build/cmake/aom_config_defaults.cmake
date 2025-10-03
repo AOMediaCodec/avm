@@ -258,7 +258,7 @@ set_aom_config_var(CONFIG_REDUCED_REF_FRAME_MVS_MODE 1
                    "Use reduced reference frame mvs for temporal mv prediction")
 
 set_aom_config_var(CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING 1
-                   "Buffer timing removal timing OBU")
+                   "Buffer removal timing OBU")
 
 set_aom_config_var(
   CONFIG_QM_DEBUG 0
