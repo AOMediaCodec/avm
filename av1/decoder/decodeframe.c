@@ -4123,8 +4123,16 @@ static AOM_INLINE void setup_render_size(AV1_COMMON *cm,
   cm->render_width = cm->width;
   cm->render_height = cm->height;
 #endif  // CONFIG_MULTI_FRAME_HEADER
+#if CONFIG_CWG_F248_RENDER_SIZE
+  (void)rb;
+  if (cm->lcr_params.lcr_rep_info_present_flag) {
+    cm->render_width = cm->lcr_params.rep_params.lcr_max_pic_width;
+    cm->render_height = cm->lcr_params.rep_params.lcr_max_pic_height;
+  }
+#else
   if (aom_rb_read_bit(rb))
     av1_read_frame_size(rb, 16, 16, &cm->render_width, &cm->render_height);
+#endif  // CONFIG_CWG_F248_RENDER_SIZE
 }
 
 static AOM_INLINE void resize_context_buffers(AV1_COMMON *cm, int width,

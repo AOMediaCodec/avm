@@ -3834,6 +3834,7 @@ static aom_codec_err_t ctrl_set_color_range(aom_codec_alg_priv_t *ctx,
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
+#if !CONFIG_CWG_F248_RENDER_SIZE
 static aom_codec_err_t ctrl_set_render_size(aom_codec_alg_priv_t *ctx,
                                             va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
@@ -3842,6 +3843,7 @@ static aom_codec_err_t ctrl_set_render_size(aom_codec_alg_priv_t *ctx,
   extra_cfg.render_height = render_size[1];
   return update_extra_cfg(ctx, &extra_cfg);
 }
+#endif  // !CONFIG_CWG_F248_RENDER_SIZE
 
 static aom_codec_err_t ctrl_set_superblock_size(aom_codec_alg_priv_t *ctx,
                                                 va_list args) {
@@ -4586,7 +4588,9 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_MAX_GF_INTERVAL, ctrl_set_max_gf_interval },
   { AV1E_SET_GF_MIN_PYRAMID_HEIGHT, ctrl_set_gf_min_pyr_height },
   { AV1E_SET_GF_MAX_PYRAMID_HEIGHT, ctrl_set_gf_max_pyr_height },
+#if !CONFIG_CWG_F248_RENDER_SIZE
   { AV1E_SET_RENDER_SIZE, ctrl_set_render_size },
+#endif  // !CONFIG_CWG_F248_RENDER_SIZE
   { AV1E_SET_SUPERBLOCK_SIZE, ctrl_set_superblock_size },
   { AV1E_SET_SINGLE_TILE_DECODING, ctrl_set_single_tile_decoding },
   { AV1E_SET_VMAF_MODEL_PATH, ctrl_set_vmaf_model_path },

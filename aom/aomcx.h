@@ -552,12 +552,14 @@ enum aome_enc_control_id {
    */
   AV1E_SET_COLOR_RANGE = 52,
 
+#if !CONFIG_CWG_F248_RENDER_SIZE
   /*!\brief Codec control function to set intended rendering image size,
    * int32_t[2] parameter
    *
    * By default, this is identical to the image size in pixels.
    */
   AV1E_SET_RENDER_SIZE = 53,
+#endif  // !CONFIG_CWG_F248_RENDER_SIZE
 
   /*!\brief Control to set target sequence level index for a certain operating
    * point(OP), int parameter
@@ -1674,8 +1676,10 @@ AOM_CTRL_USE_TYPE(AV1E_GET_ACTIVEMAP, aom_active_map_t *)
 AOM_CTRL_USE_TYPE(AV1E_SET_COLOR_RANGE, int)
 #define AOM_CTRL_AV1E_SET_COLOR_RANGE
 
+#if !CONFIG_CWG_F248_RENDER_SIZE
 #define AOM_CTRL_AV1E_SET_RENDER_SIZE
 AOM_CTRL_USE_TYPE(AV1E_SET_RENDER_SIZE, int *)
+#endif  // !CONFIG_CWG_F248_RENDER_SIZE
 
 AOM_CTRL_USE_TYPE(AV1E_SET_SUPERBLOCK_SIZE, unsigned int)
 #define AOM_CTRL_AV1E_SET_SUPERBLOCK_SIZE

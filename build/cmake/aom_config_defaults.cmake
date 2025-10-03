@@ -196,6 +196,8 @@ set_aom_config_var(CONFIG_ORIP_DC_DISABLED 1
 set_aom_config_var(CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT 1
                    "Remove enable order hint flag.")
 
+set_aom_config_var(CONFIG_CWG_F248_RENDER_SIZE 1 "Remove render size parsing")
+
 # CWG-F215
 set_aom_config_var(CWG_F215_CONFIG_REMOVE_FRAME_ID 1
                    "Remove frame_id signalling")

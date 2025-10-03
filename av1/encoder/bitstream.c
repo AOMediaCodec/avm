@@ -5021,6 +5021,7 @@ static INLINE int find_identical_tile(
   return 0;
 }
 
+#if !CONFIG_CWG_F248_RENDER_SIZE
 static AOM_INLINE void write_render_size(const AV1_COMMON *cm,
                                          struct aom_write_bit_buffer *wb) {
   const int scaling_active = av1_resize_scaled(cm);
@@ -5030,6 +5031,7 @@ static AOM_INLINE void write_render_size(const AV1_COMMON *cm,
     aom_wb_write_literal(wb, cm->render_height - 1, 16);
   }
 }
+#endif  // CONFIG_CWG_F248_RENDER_SIZE
 
 static AOM_INLINE void write_frame_size(const AV1_COMMON *cm,
                                         int frame_size_override,
@@ -5058,7 +5060,9 @@ static AOM_INLINE void write_frame_size(const AV1_COMMON *cm,
     aom_wb_write_literal(wb, coded_width, num_bits_width);
     aom_wb_write_literal(wb, coded_height, num_bits_height);
   }
+#if !CONFIG_CWG_F248_RENDER_SIZE
   write_render_size(cm, wb);
+#endif  // !CONFIG_CWG_F248_RENDER_SIZE
 }
 
 static AOM_INLINE void write_frame_size_with_refs(
