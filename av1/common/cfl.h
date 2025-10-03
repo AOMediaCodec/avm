@@ -112,7 +112,7 @@ static INLINE MHCCP_ALLOWED_TYPE is_mhccp_allowed(const AV1_COMMON *const cm,
   const int ssy = xd->plane[AOM_PLANE_U].subsampling_y;
   const BLOCK_SIZE plane_bsize = get_plane_block_size(bsize, ssx, ssy);
 
-  // In lossless, CfL is available when the partition size is equal to the
+  // In lossless, MHCCP is available when the partition size is equal to the
   // transform size.
   if (xd->lossless[mbmi->segment_id]) {
     return (MHCCP_ALLOWED_TYPE)(plane_bsize == BLOCK_4X4);
@@ -143,9 +143,10 @@ static INLINE MHCCP_ALLOWED_TYPE is_mhccp_allowed(const AV1_COMMON *const cm,
     return MHCCP_DISALLOWED;
   }
 
-  // CfL is available to luma partitions CFL_BUF_LINE x CFL_BUF_LINE or smaller.
-  return (CFL_ALLOWED_TYPE)(block_size_wide[bsize] <= (CFL_BUF_LINE / 2) &&
-                            block_size_high[bsize] <= (CFL_BUF_LINE / 2));
+  // MHCCP is available to luma partitions (CFL_BUF_LINE/2) x (CFL_BUF_LINE/2)
+  // or smaller. Note: CFL_BUF_LINE is defined as 128.
+  return (MHCCP_ALLOWED_TYPE)(block_size_wide[bsize] <= (CFL_BUF_LINE / 2) &&
+                              block_size_high[bsize] <= (CFL_BUF_LINE / 2));
 }
 #endif  // CONFIG_CHROMA_LARGE_TX
 
