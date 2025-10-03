@@ -1272,11 +1272,7 @@ void av1_write_cctx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
     (void)tx_size;
     aom_write_symbol(w, cctx_type, ec_ctx->cctx_type_cdf, CCTX_TYPES);
 #else
-#if CONFIG_CHROMA_LARGE_TX
     const TX_SIZE square_tx_size = AOMMIN(TX_32X32, txsize_sqr_map[tx_size]);
-#else
-    const TX_SIZE square_tx_size = txsize_sqr_map[tx_size];
-#endif  // CONFIG_CHROMA_LARGE_TX
     int above_cctx, left_cctx;
     get_above_and_left_cctx_type(cm, xd, &above_cctx, &left_cctx);
     const int cctx_ctx = get_cctx_context(xd, &above_cctx, &left_cctx);
@@ -1785,11 +1781,7 @@ static AOM_INLINE void write_intra_prediction_modes(AV1_COMP *cpi,
 
     if (uv_mode == UV_CFL_PRED) {
 #if MHCCP_RUNTIME_FLAG
-#if CONFIG_CHROMA_LARGE_TX
       if (is_mhccp_allowed(cm, xd)) {
-#else
-      if (cm->seq_params.enable_mhccp) {
-#endif  // CONFIG_CHROMA_LARGE_TX
 #if CONFIG_CWG_F307_CFL_SEQ_FLAG
         if (cm->seq_params.enable_cfl_intra)
 #endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
@@ -2732,14 +2724,12 @@ static AOM_INLINE void write_tokens_b(AV1_COMP *cpi, aom_writer *w,
             for (int plane = plane_start; plane < plane_end; ++plane) {
               if (plane && !xd->is_chroma_ref) break;
               if (plane == AOM_PLANE_U && is_cctx_allowed(cm, xd)) continue;
-#if CONFIG_CHROMA_LARGE_TX
               const int ss_x = xd->plane[plane].subsampling_x;
               const int ss_y = xd->plane[plane].subsampling_y;
               const bool lossless = xd->lossless[mbmi->segment_id];
               if (skip_parsing_recon(row, col, ss_x, ss_y, lossless)) {
                 continue;
               }
-#endif  // CONFIG_CHROMA_LARGE_TX
               write_inter_txb_coeff(cm, x, mbmi, w, tok, tok_end, &token_stats,
                                     row, col, block, plane);
             }

@@ -1167,7 +1167,6 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
                 const int plane_unit_width =
                     get_plane_tx_unit_width(xd, plane_bsize, plane, col, ss_x);
 
-#if CONFIG_CHROMA_LARGE_TX
                 const bool lossless = xd->lossless[mbmi->segment_id];
                 const bool need_parsing =
                     !skip_parsing_recon(row, col, ss_x, ss_y, lossless);
@@ -1176,27 +1175,21 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
                         ? need_parsing
                         : !((row + mu_blocks_high < max_blocks_high) ||
                             (col + mu_blocks_wide < max_blocks_wide));
-#endif  // CONFIG_CHROMA_LARGE_TX
+
                 for (int blk_row = row >> ss_y; blk_row < plane_unit_height;
                      blk_row += stepr) {
                   for (int blk_col = col >> ss_x; blk_col < plane_unit_width;
                        blk_col += stepc) {
                     if (plane == AOM_PLANE_V && is_cctx_allowed(cm, xd)) {
-#if CONFIG_CHROMA_LARGE_TX
                       if (need_parsing) {
-#endif  // CONFIG_CHROMA_LARGE_TX
-
                         td->read_coeffs_tx_intra_block_visit(
                             cm, dcb, r, AOM_PLANE_U, blk_row, blk_col, tx_size);
                         td->read_coeffs_tx_intra_block_visit(
                             cm, dcb, r, AOM_PLANE_V, blk_row, blk_col, tx_size);
                         td->inverse_cctx_block_visit(cm, dcb, r, -1, blk_row,
                                                      blk_col, tx_size);
-#if CONFIG_CHROMA_LARGE_TX
                       }
-#endif  // CONFIG_CHROMA_LARGE_TX
 
-#if CONFIG_CHROMA_LARGE_TX
                       if (need_reconstrution) {
                         td->predict_and_recon_intra_block_visit(
                             cm, dcb, r, AOM_PLANE_U, blk_row & 0xf0,
@@ -1205,42 +1198,23 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
                             cm, dcb, r, AOM_PLANE_V, blk_row & 0xf0,
                             blk_col & 0xf0, tx_size);
                       }
-#else
-                  td->predict_and_recon_intra_block_visit(
-                      cm, dcb, r, AOM_PLANE_U, blk_row, blk_col, tx_size);
-                  td->predict_and_recon_intra_block_visit(
-                      cm, dcb, r, AOM_PLANE_V, blk_row, blk_col, tx_size);
-#endif  // CONFIG_CHROMA_LARGE_TX
 
-#if CONFIG_CHROMA_LARGE_TX
                       if (need_reconstrution) {
-#endif  // CONFIG_CHROMA_LARGE_TX
                         set_cb_buffer_offsets(dcb, tx_size, AOM_PLANE_U);
                         set_cb_buffer_offsets(dcb, tx_size, AOM_PLANE_V);
-#if CONFIG_CHROMA_LARGE_TX
                       }
-#endif  // CONFIG_CHROMA_LARGE_TX
                     } else {
                       assert(plane == AOM_PLANE_Y || !is_cctx_allowed(cm, xd));
-#if CONFIG_CHROMA_LARGE_TX
                       if (need_parsing)
-#endif  // CONFIG_CHROMA_LARGE_TX
                         td->read_coeffs_tx_intra_block_visit(
                             cm, dcb, r, plane, blk_row, blk_col, tx_size);
-#if CONFIG_CHROMA_LARGE_TX
                       if (need_reconstrution) {
                         td->predict_and_recon_intra_block_visit(
                             cm, dcb, r, plane,
                             blk_row & (lossless ? 0xff : 0xf0),
                             blk_col & (lossless ? 0xff : 0xf0), tx_size);
                       }
-#else
-                  td->predict_and_recon_intra_block_visit(
-                      cm, dcb, r, plane, blk_row, blk_col, tx_size);
-#endif  // CONFIG_CHROMA_LARGE_TX
-#if CONFIG_CHROMA_LARGE_TX
                       if (need_reconstrution)
-#endif  // CONFIG_CHROMA_LARGE_TX
                         set_cb_buffer_offsets(dcb, tx_size, plane);
                     }
                   }
@@ -1334,7 +1308,6 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
                 const int plane_unit_width =
                     get_plane_tx_unit_width(xd, plane_bsize, plane, col, ss_x);
 
-#if CONFIG_CHROMA_LARGE_TX
                 // When chroma TU is assocated with multiple luma TUs, the
                 // chroma TU is parsed/reconstructed fewer times than
                 // associated luama TUs. For example, in YUV420 format, one
@@ -1346,7 +1319,6 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
                 if (skip_parsing_recon(row, col, ss_x, ss_y, lossless)) {
                   continue;
                 }
-#endif  // CONFIG_CHROMA_LARGE_TX
                 for (int blk_row = row >> ss_y; blk_row < plane_unit_height;
                      blk_row += bh_var_tx) {
                   for (int blk_col = col >> ss_x; blk_col < plane_unit_width;

@@ -1526,13 +1526,11 @@ void av1_write_intra_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x,
               const int plane_unit_width =
                   get_plane_tx_unit_width(xd, plane_bsize, plane, col, ss_x);
 
-#if CONFIG_CHROMA_LARGE_TX
               const bool lossless = xd->lossless[mbmi->segment_id];
               if (plane != AOM_PLANE_Y && !lossless &&
                   ((ss_x && (col & 16)) || (ss_y && (row & 16)))) {
                 continue;
               }
-#endif  // CONFIG_CHROMA_LARGE_TX
 
               for (int blk_row = row >> ss_y; blk_row < plane_unit_height;
                    blk_row += stepr) {
@@ -1598,11 +1596,7 @@ int get_cctx_type_cost(const AV1_COMMON *cm, const MACROBLOCK *x,
     (void)tx_size;
     return x->mode_costs.cctx_type_cost[cctx_type];
 #else
-#if CONFIG_CHROMA_LARGE_TX
     const TX_SIZE square_tx_size = AOMMIN(TX_32X32, txsize_sqr_map[tx_size]);
-#else
-    const TX_SIZE square_tx_size = txsize_sqr_map[tx_size];
-#endif  // CONFIG_CHROMA_LARGE_TX
     int above_cctx, left_cctx;
     get_above_and_left_cctx_type(cm, xd, &above_cctx, &left_cctx);
     const int cctx_ctx = get_cctx_context(xd, &above_cctx, &left_cctx);

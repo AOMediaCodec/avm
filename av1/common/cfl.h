@@ -72,22 +72,10 @@ static INLINE CFL_ALLOWED_TYPE is_cfl_allowed(
     return (CFL_ALLOWED_TYPE)(plane_bsize == BLOCK_4X4);
   }
 
-#if CONFIG_CHROMA_LARGE_TX
   // Ensure that plane_bsize doesn't go beyond allowed max chroma TU size (which
   // is 64x64 currently as per `av1_get_max_uv_txsize`). Specifically,
   // Regardless YUV420, YUV422 and YUV444 input, the max chroma TU size allowing
   // CfL mode is 64x64.
-#else
-  // Ensure that plane_bsize doesn't go beyond allowed max chroma tx size (which
-  // is 32x32 currently as per `av1_get_max_uv_txsize`). Specifically,
-  // - For YUV 4:2:0 input, this will imply max luma tx size of 64x64.
-  // - For YUV 4:4:4 input, this will imply max luma tx size of 32x32.
-  //   This is because, for a YUV444 input, luma tx size of 64x64 must NOT be
-  //   allowed for the following reason: when luma (and chroma) coding block
-  //   size is 64x64, it will imply uv_tx_size of 32x32 . So, there will be a
-  //   mismatch between chroma prediction block size and chroma transform block
-  //   size, which is NOT allowed for intra blocks.
-#endif  // CONFIG_CHROMA_LARGE_TX
   const TX_SIZE max_uv_tx_size = av1_get_max_uv_txsize(bsize, ssx, ssy);
   if (block_size_wide[plane_bsize] > tx_size_wide[max_uv_tx_size] ||
       block_size_high[plane_bsize] > tx_size_high[max_uv_tx_size]) {
@@ -99,7 +87,6 @@ static INLINE CFL_ALLOWED_TYPE is_cfl_allowed(
                             block_size_high[bsize] <= CFL_BUF_LINE);
 }
 
-#if CONFIG_CHROMA_LARGE_TX
 static INLINE MHCCP_ALLOWED_TYPE is_mhccp_allowed(const AV1_COMMON *const cm,
                                                   const MACROBLOCKD *xd) {
   const MB_MODE_INFO *mbmi = xd->mi[0];
@@ -148,7 +135,6 @@ static INLINE MHCCP_ALLOWED_TYPE is_mhccp_allowed(const AV1_COMMON *const cm,
   return (MHCCP_ALLOWED_TYPE)(block_size_wide[bsize] <= (CFL_BUF_LINE / 2) &&
                               block_size_high[bsize] <= (CFL_BUF_LINE / 2));
 }
-#endif  // CONFIG_CHROMA_LARGE_TX
 
 // Do we need to save the luma pixels from the current block,
 // for a possible future CfL prediction?
@@ -210,12 +196,7 @@ void cfl_store_block(MACROBLOCKD *const xd, BLOCK_SIZE bsize, TX_SIZE tx_size,
                      int filter_type);
 
 void cfl_store(MACROBLOCKD *const xd, CFL_CTX *cfl, const uint16_t *input,
-               int input_stride, int row, int col,
-#if CONFIG_CHROMA_LARGE_TX
-               int width, int height,
-#else
-               TX_SIZE tx_size,
-#endif  // CONFIG_CHROMA_LARGE_TX
+               int input_stride, int row, int col, int width, int height,
                int filter_type);
 
 void cfl_adaptive_luma_subsampling_422_hbd_c(const uint16_t *input,
@@ -223,21 +204,14 @@ void cfl_adaptive_luma_subsampling_422_hbd_c(const uint16_t *input,
                                              uint16_t *output_q3, int width,
                                              int height, int filter_type);
 
-#if CONFIG_CHROMA_LARGE_TX
 void cfl_luma_subsampling_444_hbd_c(const uint16_t *input, int input_stride,
                                     uint16_t *output_q3, int width, int height);
-#endif  // CONFIG_CHROMA_LARGE_TX
 
 // Get neighbor luma reconstruction pixels
 void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
                                       MACROBLOCKD *const xd, int row, int col,
-                                      int is_top_sb_boundary,
-#if CONFIG_CHROMA_LARGE_TX
-                                      int width, int height
-#else
-                                      TX_SIZE tx_size
-#endif  // CONFIG_CHROMA_LARGE_TX
-);
+                                      int is_top_sb_boundary, int width,
+                                      int height);
 
 // Calculate luma DC
 void cfl_calc_luma_dc(MACROBLOCKD *const xd, int row, int col, TX_SIZE tx_size);

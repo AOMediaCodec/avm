@@ -203,78 +203,6 @@ void inv_txfm_dct2_size32_c(const int *src, int *dst, int shift, int line,
   }
 }
 
-#if !CONFIG_TX64
-void inv_txfm_dct2_size64_c(const int *src, int *dst, int shift, int line,
-                            int skip_line, int zero_line, const int coef_min,
-                            const int coef_max) {
-  (void)zero_line;
-  int offset = 1 << (shift - 1);
-  const int tx1d_size = 64;
-  const int *tx_mat = tx_kernel_dct2_size64[INV_TXFM][0];
-
-  int j, k;
-  int a[32], b[32];
-  int c[16], d[16];
-  int e[8], f[8];
-  int g[4], h[4];
-  int i[2], u[2];
-
-  for (j = 0; j < line - skip_line; j++) {
-    for (k = 0; k < 32; k++) {
-      b[k] = tx_mat[1 * 64 + k] * src[1] + tx_mat[3 * 64 + k] * src[3] +
-             tx_mat[5 * 64 + k] * src[5] + tx_mat[7 * 64 + k] * src[7] +
-             tx_mat[9 * 64 + k] * src[9] + tx_mat[11 * 64 + k] * src[11] +
-             tx_mat[13 * 64 + k] * src[13] + tx_mat[15 * 64 + k] * src[15] +
-             tx_mat[17 * 64 + k] * src[17] + tx_mat[19 * 64 + k] * src[19] +
-             tx_mat[21 * 64 + k] * src[21] + tx_mat[23 * 64 + k] * src[23] +
-             tx_mat[25 * 64 + k] * src[25] + tx_mat[27 * 64 + k] * src[27] +
-             tx_mat[29 * 64 + k] * src[29] + tx_mat[31 * 64 + k] * src[31];
-    }
-    for (k = 0; k < 16; k++) {
-      d[k] = tx_mat[2 * 64 + k] * src[2] + tx_mat[6 * 64 + k] * src[6] +
-             tx_mat[10 * 64 + k] * src[10] + tx_mat[14 * 64 + k] * src[14] +
-             tx_mat[18 * 64 + k] * src[18] + tx_mat[22 * 64 + k] * src[22] +
-             tx_mat[26 * 64 + k] * src[26] + tx_mat[30 * 64 + k] * src[30];
-    }
-    for (k = 0; k < 8; k++) {
-      f[k] = tx_mat[4 * 64 + k] * src[4] + tx_mat[12 * 64 + k] * src[12] +
-             tx_mat[20 * 64 + k] * src[20] + tx_mat[28 * 64 + k] * src[28];
-    }
-    for (k = 0; k < 4; k++) {
-      h[k] = tx_mat[8 * 64 + k] * src[8] + tx_mat[24 * 64 + k] * src[24];
-    }
-    u[0] = tx_mat[16 * 64 + 0] * src[16];
-    u[1] = tx_mat[16 * 64 + 1] * src[16];
-    i[0] = tx_mat[0 * 64 + 0] * src[0];
-    i[1] = tx_mat[0 * 64 + 1] * src[0];
-    for (k = 0; k < 2; k++) {
-      g[k] = i[k] + u[k];
-      g[k + 2] = i[1 - k] - u[1 - k];
-    }
-    for (k = 0; k < 4; k++) {
-      e[k] = g[k] + h[k];
-      e[k + 4] = g[3 - k] - h[3 - k];
-    }
-    for (k = 0; k < 8; k++) {
-      c[k] = e[k] + f[k];
-      c[k + 8] = e[7 - k] - f[7 - k];
-    }
-    for (k = 0; k < 16; k++) {
-      a[k] = c[k] + d[k];
-      a[k + 16] = c[15 - k] - d[15 - k];
-    }
-    for (k = 0; k < 32; k++) {
-      dst[(k)*line] =
-          clamp((a[k] + b[k] + offset) >> shift, coef_min, coef_max);
-      dst[(k + 32) * line] =
-          clamp((a[31 - k] - b[31 - k] + offset) >> shift, coef_min, coef_max);
-    }
-    src += tx1d_size;
-    dst++;
-  }
-}
-#endif  // !CONFIG_TX64
-
 // ********************************** IDTX **********************************
 void inv_txfm_idtx_size4_c(const int *src, int *dst, int shift, int line,
                            int skip_line, int zero_line, const int coef_min,
@@ -708,17 +636,6 @@ void inv_transform_1d_c(const int *src, int *dst, int shift, int line,
         default: assert(0); break;
       }
       break;
-#if !CONFIG_TX64
-    case 4:
-      switch (tx_type_index) {
-        case 0:
-          inv_txfm_dct2_size64_c(src, dst, shift, line, skip_line, zero_line,
-                                 coef_min, coef_max);
-          break;
-        default: assert(0); break;
-      }
-      break;
-#endif  // !CONFIG_TX64
     default: assert(0); break;
   }
 }
@@ -728,38 +645,19 @@ void inv_txfm_c(const tran_low_t *input, uint16_t *dest, int stride,
   const TX_SIZE tx_size = txfm_param->tx_size;
   TX_TYPE tx_type = txfm_param->tx_type;
 
-#if CONFIG_CHROMA_LARGE_TX
-#if CONFIG_TX64
   int width = AOMMIN(MAX_TX_SIZE >> 1, tx_size_wide[tx_size]);
   int height = AOMMIN(MAX_TX_SIZE >> 1, tx_size_high[tx_size]);
   const uint32_t tx_wide_index =
       AOMMIN(MAX_TX_SIZE_LOG2 - 1, tx_size_wide_log2[tx_size]) - 2;
   const uint32_t tx_high_index =
       AOMMIN(MAX_TX_SIZE_LOG2 - 1, tx_size_high_log2[tx_size]) - 2;
-#else
-  const int is_chroma = (txfm_param->plane_type == PLANE_TYPE_UV) ? 1 : 0;
-  int width = AOMMIN(MAX_TX_SIZE >> is_chroma, tx_size_wide[tx_size]);
-  int height = AOMMIN(MAX_TX_SIZE >> is_chroma, tx_size_high[tx_size]);
-  const uint32_t tx_wide_index =
-      AOMMIN(MAX_TX_SIZE_LOG2 - is_chroma, tx_size_wide_log2[tx_size]) - 2;
-  const uint32_t tx_high_index =
-      AOMMIN(MAX_TX_SIZE_LOG2 - is_chroma, tx_size_high_log2[tx_size]) - 2;
-#endif  // CONFIG_TX64
-#else
-  const int width = tx_size_wide[tx_size];
-  const int height = tx_size_high[tx_size];
-  const uint32_t tx_wide_index = tx_size_wide_log2[tx_size] - 2;
-  const uint32_t tx_high_index = tx_size_high_log2[tx_size] - 2;
-#endif  // CONFIG_CHROMA_LARGE_TX || CONFIG_TX64
 
   const int intermediate_bitdepth = txfm_param->bd + 8;
   const int rng_min = -(1 << (intermediate_bitdepth - 1));
   const int rng_max = (1 << (intermediate_bitdepth - 1)) - 1;
 
-#if CONFIG_CHROMA_LARGE_TX
   const int col_rng_min = -(1 << txfm_param->bd);
   const int col_rng_max = (1 << txfm_param->bd) - 1;
-#endif  // CONFIG_CHROMA_LARGE_TX
 
   if (txfm_param->lossless) {
     assert(tx_type == DCT_DCT);
@@ -826,17 +724,9 @@ void inv_txfm_c(const tran_low_t *input, uint16_t *dest, int stride,
   inv_transform_1d_c(block, tmp, shift_1st, height, skipHeight, skipWidth,
                      rng_min, rng_max, tx_type_row, tx_wide_index);
 
-  inv_transform_1d_c(tmp, block, shift_2nd, width, 0, skipHeight
-#if CONFIG_CHROMA_LARGE_TX
-                     ,
-                     col_rng_min, col_rng_max,
-#else
-                     ,
-                     rng_min, rng_max,
-#endif  // CONFIG_CHROMA_LARGE_TX
-                     tx_type_col, tx_high_index);
+  inv_transform_1d_c(tmp, block, shift_2nd, width, 0, skipHeight, col_rng_min,
+                     col_rng_max, tx_type_col, tx_high_index);
 
-#if CONFIG_CHROMA_LARGE_TX
   if (width < tx_size_wide[tx_size]) {
     assert(width == 32);
     memcpy(tmp, block, width * height * sizeof(*block));
@@ -859,7 +749,6 @@ void inv_txfm_c(const tran_low_t *input, uint16_t *dest, int stride,
     }
     height = tx_size_high[tx_size];
   }
-#endif  // CONFIG_CHROMA_LARGE_TX
 
   for (int y = 0; y < height; y++) {
     for (int x = 0; x < width; x++) {
@@ -990,9 +879,6 @@ static void init_txfm_param(const MACROBLOCKD *xd, int plane, TX_SIZE tx_size,
                             int use_ddt, TxfmParam *txfm_param) {
   (void)plane;
   MB_MODE_INFO *const mbmi = xd->mi[0];
-#if CONFIG_CHROMA_LARGE_TX && !CONFIG_TX64
-  txfm_param->plane_type = get_plane_type(plane);
-#endif  // CONFIG_CHROMA_LARGE_TX && !CONFIG_TX64
   txfm_param->tx_type = get_primary_tx_type(tx_type);
   txfm_param->sec_tx_set = 0;
   txfm_param->sec_tx_type = 0;

@@ -777,9 +777,6 @@ void av1_setup_xform(const AV1_COMMON *cm, MACROBLOCK *x, int plane,
   MB_MODE_INFO *const mbmi = xd->mi[0];
 
   txfm_param->tx_type = get_primary_tx_type(tx_type);
-#if CONFIG_CHROMA_LARGE_TX && !CONFIG_TX64
-  txfm_param->plane_type = get_plane_type(plane);
-#endif  // CONFIG_CHROMA_LARGE_TX && !CONFIG_TX64
   txfm_param->sec_tx_set = 0;
   txfm_param->sec_tx_set_idx = 0;
   txfm_param->sec_tx_type = 0;
@@ -1181,16 +1178,11 @@ void av1_foreach_transformed_block_in_plane(
   // visit the sub blocks that are wholly within the UMV.
   const int max_blocks_wide = max_block_wide(xd, plane_bsize, plane);
   const int max_blocks_high = max_block_high(xd, plane_bsize, plane);
-#if CONFIG_CHROMA_LARGE_TX
   const MB_MODE_INFO *mbmi = xd->mi[0];
   const int lossless = xd->lossless[mbmi->segment_id];
   const BLOCK_SIZE max_unit_bsize =
       get_plane_block_size(BLOCK_64X64, lossless ? pd->subsampling_x : 0,
                            lossless ? pd->subsampling_y : 0);
-#else
-  const BLOCK_SIZE max_unit_bsize =
-      get_plane_block_size(BLOCK_64X64, pd->subsampling_x, pd->subsampling_y);
-#endif  // CONFIG_CHROMA_LARGE_TX
   const int mu_blocks_wide =
       AOMMIN(mi_size_wide[max_unit_bsize], max_blocks_wide);
   const int mu_blocks_high =
@@ -1328,15 +1320,10 @@ void av1_encode_sb(const struct AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
     arg.ta = ctx.ta[plane];
     arg.tl = ctx.tl[plane];
 
-#if CONFIG_CHROMA_LARGE_TX
     const int lossless = xd->lossless[mbmi->segment_id];
     const BLOCK_SIZE max_unit_bsize =
         get_plane_block_size(BLOCK_64X64, lossless ? subsampling_x : 0,
                              lossless ? subsampling_y : 0);
-#else
-    const BLOCK_SIZE max_unit_bsize =
-        get_plane_block_size(BLOCK_64X64, subsampling_x, subsampling_y);
-#endif  // CONFIG_CHROMA_LARGE_TX
 
     int mu_blocks_wide = mi_size_wide[max_unit_bsize];
     int mu_blocks_high = mi_size_high[max_unit_bsize];

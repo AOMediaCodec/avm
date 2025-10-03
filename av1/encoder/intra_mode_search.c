@@ -733,14 +733,7 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
 
 #if MHCCP_RUNTIME_FLAG
         if (mbmi->cfl_idx == CFL_MULTI_PARAM &&
-#if CONFIG_CHROMA_LARGE_TX
-            (!is_mhccp_allowed(cm, xd) ||
-#endif  // CONFIG_CHROMA_LARGE_TX
-             !intra_mode_cfg->enable_mhccp
-#if CONFIG_CHROMA_LARGE_TX
-             )
-#endif  // CONFIG_CHROMA_LARGE_TX
-        )
+            (!is_mhccp_allowed(cm, xd) || !intra_mode_cfg->enable_mhccp))
           continue;
 #else
         if (mbmi->cfl_idx == CFL_MULTI_PARAM_V && !intra_mode_cfg->enable_mhccp)
@@ -750,11 +743,7 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
         if (mbmi->cfl_idx == 0)
           cfl_alpha_rate = cfl_rd_pick_alpha(x, cpi, uv_tx_size, best_rd);
 #if MHCCP_RUNTIME_FLAG
-#if CONFIG_CHROMA_LARGE_TX
         if (is_mhccp_allowed(cm, xd)) {
-#else
-        if (intra_mode_cfg->enable_mhccp) {
-#endif  // CONFIG_CHROMA_LARGE_TX
 #if CONFIG_CWG_F307_CFL_SEQ_FLAG
           if (intra_mode_cfg->enable_cfl_intra)
 #endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG

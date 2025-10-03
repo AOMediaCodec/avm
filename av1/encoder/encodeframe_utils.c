@@ -742,9 +742,7 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
       ++counts->cfl_index[mbmi->cfl_idx];
 #endif
 #if MHCCP_RUNTIME_FLAG
-#if CONFIG_CHROMA_LARGE_TX
       if (is_mhccp_allowed(cm, xd)) {
-#endif  // CONFIG_CHROMA_LARGE_TX
         update_cdf(fc->cfl_mhccp_cdf, mbmi->cfl_idx == CFL_MULTI_PARAM,
                    CFL_MHCCP_SWITCH_NUM);
         if (mbmi->cfl_idx == CFL_MULTI_PARAM) {
@@ -753,14 +751,12 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
         } else {
           update_cdf(fc->cfl_index_cdf, mbmi->cfl_idx, CFL_TYPE_COUNT - 1);
         }
-#if CONFIG_CHROMA_LARGE_TX
       } else {
 #if CONFIG_CWG_F307_CFL_SEQ_FLAG
         if (cm->seq_params.enable_cfl_intra)
 #endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
           update_cdf(fc->cfl_index_cdf, mbmi->cfl_idx, CFL_TYPE_COUNT - 1);
       }
-#endif  // CONFIG_CHROMA_LARGE_TX
 #else
 #if CONFIG_CWG_F307_CFL_SEQ_FLAG
       if (cm->seq_params.enable_mhccp && cm->seq_params.enable_cfl_intra) {

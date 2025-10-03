@@ -938,10 +938,8 @@ typedef struct {
 #endif  // MHCCP_RUNTIME_FLAG
   //! Cost of signaling the cfl mode
   int cfl_index_cost[CFL_TYPE_COUNT - 1];
-#if CONFIG_CHROMA_LARGE_TX
   //! Cost of signaling the cfl mode when mhccp is not applicable
   int cfl_index_mhccp0_cost[CFL_TYPE_COUNT - 2];
-#endif  // CONFIG_CHROMA_LARGE_TX
   //! cost of signaling filter direction
   int filter_dir_cost[MHCCP_CONTEXT_GROUP_SIZE][MHCCP_MODE_NUM];
 

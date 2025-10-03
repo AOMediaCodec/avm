@@ -2030,11 +2030,9 @@ void av1_set_downsample_filter_options(AV1_COMP *cpi) {
           if (subsampling_x == 1 && subsampling_y == 0) {
             cfl_adaptive_luma_subsampling_422_hbd_c(
                 this_src, stride, recon_buf_q3, blk_w, blk_h, filter_type);
-#if CONFIG_CHROMA_LARGE_TX
           } else if (subsampling_x == 0 && subsampling_y == 0) {
             cfl_luma_subsampling_444_hbd_c(this_src, stride, recon_buf_q3,
                                            blk_w, blk_h);
-#endif
           } else if (filter_type == 1) {
             cfl_luma_subsampling_420_hbd_121_c(this_src, stride, recon_buf_q3,
                                                blk_w, blk_h);

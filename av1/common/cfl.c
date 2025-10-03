@@ -180,14 +180,8 @@ static void get_top_bottom_offsets(int is_top_sb_boundary, int *top_offset,
 
 void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
                                       MACROBLOCKD *const xd, int row, int col,
-                                      int is_top_sb_boundary,
-#if CONFIG_CHROMA_LARGE_TX
-                                      int width, int height
-#else
-                                      TX_SIZE tx_size
-#endif  // CONFIG_CHROMA_LARGE_TX
-) {
-
+                                      int is_top_sb_boundary, int width,
+                                      int height) {
   CFL_CTX *const cfl = &xd->cfl;
   struct macroblockd_plane *const pd = &xd->plane[AOM_PLANE_Y];
   int input_stride = pd->dst.stride;
@@ -199,10 +193,6 @@ void cfl_implicit_fetch_neighbor_luma(const AV1_COMMON *cm,
   uint16_t *dst =
       &pd->dst.buf[-((-row_dst * pd->dst.stride - col_dst) << MI_SIZE_LOG2)];
 
-#if !CONFIG_CHROMA_LARGE_TX
-  const int width = tx_size_wide[tx_size];
-  const int height = tx_size_high[tx_size];
-#endif  // !CONFIG_CHROMA_LARGE_TX
   const int sub_x = cfl->subsampling_x;
   const int sub_y = cfl->subsampling_y;
   const int row_start =
@@ -347,10 +337,8 @@ void cfl_calc_luma_dc(MACROBLOCKD *const xd, int row, int col,
   CFL_CTX *const cfl = &xd->cfl;
   const int width = tx_size_wide[tx_size];
   const int height = tx_size_high[tx_size];
-#if CONFIG_CHROMA_LARGE_TX
   const int ss_hor = width > 32 ? 2 : 1;
   const int ss_ver = height > 32 ? 2 : 1;
-#endif  // CONFIG_CHROMA_LARGE_TX
 
   int have_top = 0, have_left = 0;
   set_have_top_and_left(&have_top, &have_left, xd, row, col, AOM_PLANE_U);
@@ -361,32 +349,18 @@ void cfl_calc_luma_dc(MACROBLOCKD *const xd, int row, int col,
   uint16_t *l;
   if (have_top) {
     l = cfl->recon_yuv_buf_above[0];
-#if CONFIG_CHROMA_LARGE_TX
     for (int i = 0; i < width; i += ss_hor) {
       sum_x += l[i];
       count++;
     }
-#else
-    for (int i = 0; i < width; ++i) {
-      sum_x += l[i];
-    }
-    count += width;
-#endif  // CONFIG_CHROMA_LARGE_TX
   }
 
   if (have_left) {
     l = cfl->recon_yuv_buf_left[0];
-#if CONFIG_CHROMA_LARGE_TX
     for (int i = 0; i < height; i += ss_ver) {
       sum_x += l[i];
       count++;
     }
-#else
-    for (int i = 0; i < height; ++i) {
-      sum_x += l[i];
-    }
-    count += height;
-#endif  // CONFIG_CHROMA_LARGE_TX
   }
 
   if (count > 0) {
@@ -615,14 +589,12 @@ void cfl_predict_block(
   assert((tx_size_high[tx_size] - 1) * CFL_BUF_LINE + tx_size_wide[tx_size] <=
          CFL_BUF_SQUARE);
 
-#if CONFIG_CHROMA_LARGE_TX
   const int width = tx_size_wide[tx_size];
   const int height = tx_size_high[tx_size];
   if (AOMMAX(width, height) > 32) {
     cfl_predict_hbd_c(cfl->ac_buf_q3, dst, dst_stride, alpha_q3, xd->bd, width,
                       height);
   } else
-#endif  // CONFIG_CHROMA_LARGE_TX
     cfl_get_predict_hbd_fn(tx_size)(cfl->ac_buf_q3, dst, dst_stride, alpha_q3,
                                     xd->bd);
 }
@@ -648,19 +620,10 @@ void cfl_luma_subsampling_420_hbd_colocated_c(const uint16_t *input,
                                               int height) {
   for (int j = 0; j < height; j += 2) {
     for (int i = 0; i < width; i += 2) {
-#if CONFIG_CHROMA_LARGE_TX
       const int top = ((j & 63) == 0) ? i : (i - input_stride);
-#else
-      const int top = (j == 0) ? i : (i - input_stride);
-#endif  // CONFIG_CHROMA_LARGE_TX
       const int bot = i + input_stride;
-      output_q3[i >> 1] =
-#if CONFIG_CHROMA_LARGE_TX
-          input[AOMMAX(i & (-64), i - 1)]
-#else
-          input[AOMMAX(0, i - 1)]
-#endif  // CONFIG_CHROMA_LARGE_TX
-          + 4 * input[i] + input[i + 1] + input[top] + input[bot];
+      output_q3[i >> 1] = input[AOMMAX(i & (-64), i - 1)] + 4 * input[i] +
+                          input[i + 1] + input[top] + input[bot];
     }
     input += input_stride << 1;
     output_q3 += CFL_BUF_LINE;
@@ -671,7 +634,6 @@ void cfl_luma_subsampling_420_hbd_121_c(const uint16_t *input, int input_stride,
                                         uint16_t *output_q3, int width,
                                         int height) {
   for (int j = 0; j < height; j += 2) {
-#if CONFIG_CHROMA_LARGE_TX
     for (int i = 0; i < width; i += 2) {
       const int left = AOMMAX(i & (-64), i - 1);
       output_q3[i >> 1] = input[left] + 2 * input[i] + input[i + 1] +
@@ -679,15 +641,6 @@ void cfl_luma_subsampling_420_hbd_121_c(const uint16_t *input, int input_stride,
                           2 * input[i + input_stride] +
                           input[i + input_stride + 1];
     }
-#else
-    output_q3[0] = 3 * input[0] + input[1] + 3 * input[input_stride] +
-                   input[input_stride + 1];
-    for (int i = 2; i < width; i += 2) {
-      const int bot = i + input_stride;
-      output_q3[i >> 1] = input[i - 1] + 2 * input[i] + input[i + 1] +
-                          input[bot - 1] + 2 * input[bot] + input[bot + 1];
-    }
-#endif  // CONFIG_CHROMA_LARGE_TX
     input += input_stride << 1;
     output_q3 += CFL_BUF_LINE;
   }
@@ -716,12 +669,7 @@ void cfl_adaptive_luma_subsampling_422_hbd_c(const uint16_t *input,
     for (int i = 0; i < width; i += 2) {
       if (filter_type == 1) {
         output_q3[i >> 1] =
-#if CONFIG_CHROMA_LARGE_TX
-            (input[AOMMAX(i & (-64), i - 1)]
-#else
-            (input[AOMMAX(0, i - 1)]
-#endif  // CONFIG_CHROMA_LARGE_TX
-             + 2 * input[i] + input[i + 1])
+            (input[AOMMAX(i & (-64), i - 1)] + 2 * input[i] + input[i + 1])
             << 1;
       } else if (filter_type == 2) {
         output_q3[i >> 1] = (input[i]) << 3;
@@ -734,12 +682,9 @@ void cfl_adaptive_luma_subsampling_422_hbd_c(const uint16_t *input,
   }
 }
 
-#if !CONFIG_CHROMA_LARGE_TX
-static
-#endif  // !CONFIG_CHROMA_LARGE_TX
-    void
-    cfl_luma_subsampling_444_hbd_c(const uint16_t *input, int input_stride,
-                                   uint16_t *output_q3, int width, int height) {
+void cfl_luma_subsampling_444_hbd_c(const uint16_t *input, int input_stride,
+                                    uint16_t *output_q3, int width,
+                                    int height) {
   assert((height - 1) * CFL_BUF_LINE + width <= CFL_BUF_SQUARE);
   for (int j = 0; j < height; j++) {
     for (int i = 0; i < width; i++) {
@@ -768,19 +713,9 @@ static INLINE cfl_subsample_hbd_fn cfl_subsampling_hbd(TX_SIZE tx_size,
 }
 
 void cfl_store(MACROBLOCKD *const xd, CFL_CTX *cfl, const uint16_t *input,
-               int input_stride, int row, int col,
-#if CONFIG_CHROMA_LARGE_TX
-               int width, int height,
-#else
-               TX_SIZE tx_size,
-#endif  // CONFIG_CHROMA_LARGE_TX
+               int input_stride, int row, int col, int width, int height,
                int filter_type) {
-#if CONFIG_CHROMA_LARGE_TX
   const TX_SIZE tx_size = get_tx_size(width, height);
-#else
-  const int width = tx_size_wide[tx_size];
-  const int height = tx_size_high[tx_size];
-#endif  // CONFIG_CHROMA_LARGE_TX
   const int tx_off_log2 = MI_SIZE_LOG2;
   const int sub_x = cfl->subsampling_x;
   const int sub_y = cfl->subsampling_y;
@@ -821,7 +756,6 @@ void cfl_store(MACROBLOCKD *const xd, CFL_CTX *cfl, const uint16_t *input,
   if (sub_x == 1 && sub_y == 0) {
     cfl_adaptive_luma_subsampling_422_hbd_c(input, input_stride, recon_buf_q3,
                                             width, height, filter_type);
-#if CONFIG_CHROMA_LARGE_TX
   } else if (sub_x == 0 && sub_y == 0) {
     if (AOMMAX(width, height) > 64) {
       cfl_luma_subsampling_444_hbd_c(input, input_stride, recon_buf_q3, width,
@@ -830,7 +764,6 @@ void cfl_store(MACROBLOCKD *const xd, CFL_CTX *cfl, const uint16_t *input,
       cfl_subsampling_hbd(tx_size, sub_x, sub_y)(input, input_stride,
                                                  recon_buf_q3);
     }
-#endif  // CONFIG_CHROMA_LARGE_TX
   } else if (filter_type == 1) {
     if (sub_x && sub_y) {
       if (AOMMAX(width, height) > 64) {
@@ -890,19 +823,10 @@ void cfl_store_block(MACROBLOCKD *const xd, BLOCK_SIZE bsize, TX_SIZE tx_size,
   const int row_offset = mi_row - xd->mi[0]->chroma_ref_info.mi_row_chroma_base;
   const int col_offset = mi_col - xd->mi[0]->chroma_ref_info.mi_col_chroma_base;
 
-#if CONFIG_CHROMA_LARGE_TX
   (void)tx_size;
-#else
-  tx_size = get_tx_size(width, height);
-  assert(tx_size != TX_INVALID);
-#endif  // !CONFIG_CHROMA_LARGE_TX
-  cfl_store(xd, cfl, pd->dst.buf, pd->dst.stride, row_offset, col_offset,
-#if CONFIG_CHROMA_LARGE_TX
-            width, height,
-#else
-            tx_size,
-#endif  // CONFIG_CHROMA_LARGE_TX
-            filter_type);
+
+  cfl_store(xd, cfl, pd->dst.buf, pd->dst.stride, row_offset, col_offset, width,
+            height, filter_type);
 }
 
 #define NON_LINEAR(V, M, BD) ((V * V + M) >> BD)

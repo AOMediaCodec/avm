@@ -44,9 +44,6 @@ typedef struct txfm_param {
   TX_SIZE tx_size;
   int lossless;
   int bd;
-#if CONFIG_CHROMA_LARGE_TX && !CONFIG_TX64
-  PLANE_TYPE plane_type;
-#endif  // CONFIG_CHROMA_LARGE_TX && !CONFIG_TX64
   TxSetType tx_set_type;
   // for inverse transforms only
   int eob;
