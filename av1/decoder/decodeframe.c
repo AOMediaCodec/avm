@@ -4082,14 +4082,24 @@ static AOM_INLINE void setup_render_size(AV1_COMMON *cm,
 #endif  // CONFIG_CWG_F317
 #if CONFIG_MULTI_FRAME_HEADER
   assert(cm->cur_mfh_id == 0 || cm->mfh_valid[cm->cur_mfh_id]);
+#if CONFIG_CWG_E242_PARSING_INDEP
+  if (cm->mfh_params[cm->cur_mfh_id].mfh_render_size_present_flag) {
+    cm->render_width = cm->mfh_params[cm->cur_mfh_id].mfh_render_width;
+    cm->render_height = cm->mfh_params[cm->cur_mfh_id].mfh_render_height;
+  } else {
+    cm->render_width = cm->width;
+    cm->render_height = cm->height;
+  }
+#else
   cm->render_width = cm->mfh_params[cm->cur_mfh_id].mfh_render_width;
   cm->render_height = cm->mfh_params[cm->cur_mfh_id].mfh_render_height;
+#endif  // CONFIG_CWG_E242_PARSING_INDEP
 #else   // CONFIG_MULTI_FRAME_HEADER
   cm->render_width = cm->width;
   cm->render_height = cm->height;
-#endif  // CONFIG_MULTI_FRAME_HEADER
   if (aom_rb_read_bit(rb))
     av1_read_frame_size(rb, 16, 16, &cm->render_width, &cm->render_height);
+#endif  // CONFIG_MULTI_FRAME_HEADER
 }
 
 static AOM_INLINE void resize_context_buffers(AV1_COMMON *cm, int width,
@@ -4260,8 +4270,18 @@ static AOM_INLINE void setup_frame_size(AV1_COMMON *cm,
     } else {
 #if CONFIG_MULTI_FRAME_HEADER
       assert(cm->cur_mfh_id == 0 || cm->mfh_valid[cm->cur_mfh_id]);
+#if CONFIG_CWG_E242_PARSING_INDEP
+      if (cm->mfh_params[cm->cur_mfh_id].mfh_frame_size_present_flag) {
+        width = cm->mfh_params[cm->cur_mfh_id].mfh_frame_width;
+        height = cm->mfh_params[cm->cur_mfh_id].mfh_frame_height;
+      } else {
+        width = seq_params->max_frame_width;
+        height = seq_params->max_frame_height;
+      }
+#else
       width = cm->mfh_params[cm->cur_mfh_id].mfh_frame_width;
       height = cm->mfh_params[cm->cur_mfh_id].mfh_frame_height;
+#endif  // CONFIG_CWG_E242_PARSING_INDEP
 #else   // CONFIG_MULTI_FRAME_HEADER
     width = seq_params->max_frame_width;
     height = seq_params->max_frame_height;
@@ -7424,6 +7444,16 @@ void av1_read_multi_frame_header(AV1_COMMON *cm,
 
   MultiFrameHeader *mfh_param = &cm->mfh_params[cur_mfh_id];
 
+#if CONFIG_CWG_E242_PARSING_INDEP
+  mfh_param->mfh_frame_size_present_flag = aom_rb_read_bit(rb);
+  if (mfh_param->mfh_frame_size_present_flag) {
+    mfh_param->mfh_frame_width_bits_minus1 = aom_rb_read_literal(rb, 4);
+    int num_bits_width = mfh_param->mfh_frame_width_bits_minus1 + 1;
+    mfh_param->mfh_frame_height_bits_minus1 = aom_rb_read_literal(rb, 4);
+    int num_bits_height = mfh_param->mfh_frame_height_bits_minus1 + 1;
+    av1_read_frame_size(rb, num_bits_width, num_bits_height, &mfh_param->mfh_frame_width, &mfh_param->mfh_frame_height);
+  }
+#else
   bool frame_size_update_flag = aom_rb_read_bit(rb);
 
   int width = cm->seq_params.max_frame_width;
@@ -7440,7 +7470,15 @@ void av1_read_multi_frame_header(AV1_COMMON *cm,
   }
   mfh_param->mfh_frame_width = width;
   mfh_param->mfh_frame_height = height;
+#endif  // CONFIG_CWG_E242_PARSING_INDEP
 
+#if CONFIG_CWG_E242_PARSING_INDEP
+  mfh_param->mfh_render_size_present_flag = aom_rb_read_bit(rb);
+  if (mfh_param->mfh_render_size_present_flag) {
+    av1_read_frame_size(rb, 16, 16, &mfh_param->mfh_render_width,
+                        &mfh_param->mfh_render_height);
+  }
+#else
   if (aom_rb_read_bit(rb)) {
     av1_read_frame_size(rb, 16, 16, &mfh_param->mfh_render_width,
                         &mfh_param->mfh_render_height);
@@ -7448,6 +7486,7 @@ void av1_read_multi_frame_header(AV1_COMMON *cm,
     mfh_param->mfh_render_width = mfh_param->mfh_frame_width;
     mfh_param->mfh_render_height = mfh_param->mfh_frame_height;
   }
+#endif  // CONFIG_CWG_E242_PARSING_INDEP
 
   mfh_param->mfh_loop_filter_update_flag = aom_rb_read_bit(rb);
   if (mfh_param->mfh_loop_filter_update_flag) {

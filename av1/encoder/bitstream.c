@@ -5980,6 +5980,17 @@ static AOM_INLINE void write_multi_frame_header(
   aom_wb_write_literal(wb, cm->cur_mfh_id - 1, 4);
 #endif  // CONFIG_CWG_E242_MFH_ID_UVLC
 
+#if CONFIG_CWG_E242_PARSING_INDEP
+  aom_wb_write_bit(wb, mfh_param->mfh_frame_size_present_flag);
+  if (mfh_param->mfh_frame_size_present_flag) {
+    const int coded_width = mfh_param->mfh_frame_width;
+    const int coded_height = mfh_param->mfh_frame_height;
+    aom_wb_write_literal(wb, mfh_param->mfh_frame_width_bits_minus1, 4);
+    aom_wb_write_literal(wb, mfh_param->mfh_frame_height_bits_minus1, 4);
+    aom_wb_write_literal(wb, coded_width - 1, mfh_param->mfh_frame_width_bits_minus1 + 1);
+    aom_wb_write_literal(wb, coded_height - 1, mfh_param->mfh_frame_height_bits_minus1 + 1);
+  }
+#else
   bool mfh_frame_size_update_flag =
       cm->width != cm->seq_params.max_frame_width ||
       cm->height != cm->seq_params.max_frame_height;
@@ -5994,12 +6005,19 @@ static AOM_INLINE void write_multi_frame_header(
     aom_wb_write_literal(wb, coded_width, num_bits_width);
     aom_wb_write_literal(wb, coded_height, num_bits_height);
   }
+#endif  //  CONFIG_CWG_E242_PARSING_INDEP
+
+#if CONFIG_CWG_E242_PARSING_INDEP
+  aom_wb_write_bit(wb, mfh_param->mfh_render_size_present_flag);
+  if (mfh_param->mfh_render_size_present_flag) {
+#else
   bool mfh_render_size_update_flag =
       mfh_frame_size_update_flag &&
       (cm->width != cm->render_width || cm->height != cm->render_height);
   aom_wb_write_bit(wb, mfh_render_size_update_flag);
 
   if (mfh_render_size_update_flag) {
+#endif  // CONFIG_CWG_E242_PARSING_INDEP
     aom_wb_write_literal(wb, cm->render_width - 1, 16);
     aom_wb_write_literal(wb, cm->render_height - 1, 16);
   }
@@ -8707,9 +8725,11 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 #if CONFIG_MULTI_FRAME_HEADER
     if (cm->cur_mfh_id != 0) {
       // write multi-frame header if KEY_FRAME
+#if CONFIG_CWG_E242_PARSING_INDEP
+    set_multi_frame_header_with_keyframe(cpi, &cm->mfh_params[cm->cur_mfh_id]);
+#endif  // CONFIG_CWG_E242_PARSING_INDEP
       obu_header_size = av1_write_obu_header(
           level_params, OBU_MULTI_FRAME_HEADER, 0, 0, data);
-
       obu_payload_size = write_multi_frame_header_obu(
           cpi, &cm->mfh_params[cm->cur_mfh_id], data + obu_header_size);
       length_field_size = obu_memmove(obu_header_size, obu_payload_size, data);

@@ -1374,6 +1374,20 @@ typedef struct {
  */
 #if CONFIG_MULTI_FRAME_HEADER
 typedef struct MultiFrameHeader {
+#if CONFIG_CWG_E242_PARSING_INDEP
+  /*!
+   * Frame size present flag
+   */
+  int mfh_frame_size_present_flag;
+  /*!
+   * Frame width bits
+   */
+  int mfh_frame_width_bits_minus1;
+  /*!
+   * Frame height bits
+   */
+  int mfh_frame_height_bits_minus1;
+#endif  // CONFIG_CWG_E242_PARSING_INDEP
   /*!
    * Frame Width of frames that reference this multi-frame header
    */
@@ -1382,6 +1396,13 @@ typedef struct MultiFrameHeader {
    * Frame Height of frames that reference this multi-frame header
    */
   int mfh_frame_height;
+#if CONFIG_CWG_E242_PARSING_INDEP
+  /*!
+   * Render size present flag
+   */
+  int mfh_render_size_present_flag;
+#endif  // CONFIG_CWG_E242_PARSING_INDEP
+  /*!
   /*!
    * Render Width of frames that reference this multi-frame header
    */
