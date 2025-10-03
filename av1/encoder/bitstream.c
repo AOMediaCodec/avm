@@ -6841,11 +6841,9 @@ static AOM_INLINE void write_uncompressed_header_obu
               aom_wb_write_bit(wb, cm->tip_global_motion.as_mv.col < 0);
           }
           aom_wb_write_bit(wb, cm->tip_interp_filter == MULTITAP_SHARP);
-#if CONFIG_TIP_INTERP_SMOOTH
           if (cm->tip_interp_filter != MULTITAP_SHARP) {
             aom_wb_write_bit(wb, cm->tip_interp_filter == EIGHTTAP_REGULAR);
           }
-#endif  // CONFIG_TIP_INTERP_SMOOTH
         }
 #if CONFIG_FIX_OPFL_AUTO
       } else {

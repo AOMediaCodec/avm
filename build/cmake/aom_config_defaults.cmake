@@ -295,8 +295,6 @@ set_aom_config_var(CONFIG_TIP_ENHANCEMENT 1
 set_aom_config_var(CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG 1
                    "Enable RefineMV and OPFL for TIP")
 
-set_aom_config_var(CONFIG_TIP_INTERP_SMOOTH 1
-                   "Enable Smooth interpolation for TIP direct output mode")
 set_aom_config_var(CONFIG_WRL_NO_PRUNING 1 "No pruning when construct WRL")
 
 set_aom_config_var(CONFIG_REDUCED_TX_SET_EXT 1
