@@ -149,9 +149,7 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t enable_extended_sdp;
   arg_def_t enable_mrls;
   arg_def_t enable_tip;
-#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
   arg_def_t enable_tip_refinemv;
-#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
   arg_def_t enable_mv_traj;
 #if CONFIG_MV_RANGE_EXTENSION
   arg_def_t enable_high_motion;

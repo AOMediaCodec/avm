@@ -634,12 +634,10 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
                        (REFINEMV_SUBBLOCK_HEIGHT +
                         2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES))];
 
-  const int apply_refinemv = (cm->seq_params.enable_refinemv &&
-#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
-                              cm->seq_params.enable_tip_refinemv &&
-#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
-                              plane == 0 && has_both_sides_refs &&
-                              is_compound && tip_weight == TIP_EQUAL_WTD);
+  const int apply_refinemv =
+      (cm->seq_params.enable_refinemv && cm->seq_params.enable_tip_refinemv &&
+       plane == 0 && has_both_sides_refs && is_compound &&
+       tip_weight == TIP_EQUAL_WTD);
 
   ReferenceArea ref_area[2];
   const int do_opfl =
@@ -648,23 +646,16 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
 #else
       cm->seq_params.enable_opfl_refine &&
 #endif  // CONFIG_FIX_OPFL_AUTO
-#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
-      cm->seq_params.enable_tip_refinemv &&
-#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
-      cm->features.use_optflow_tip && plane == 0;
+      cm->seq_params.enable_tip_refinemv && cm->features.use_optflow_tip &&
+      plane == 0;
   int is_tip_mv_refine_disabled_for_unit_size_16x16 =
       is_tip_mv_refinement_disabled_for_unit_size_16x16(
-          unit_bh,
-#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
-          cm->seq_params.enable_tip_refinemv,
-#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+          unit_bh, cm->seq_params.enable_tip_refinemv,
           cm->features.tip_frame_mode);
-  const int do_ref_area_pad =
-#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
-      cm->seq_params.enable_tip_refinemv &&
-#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
-      cm->has_both_sides_refs && (comp_bw > 4 || comp_bh > 4) &&
-      !is_tip_mv_refine_disabled_for_unit_size_16x16;
+  const int do_ref_area_pad = cm->seq_params.enable_tip_refinemv &&
+                              cm->has_both_sides_refs &&
+                              (comp_bw > 4 || comp_bh > 4) &&
+                              !is_tip_mv_refine_disabled_for_unit_size_16x16;
   if (do_ref_area_pad) {
     MB_MODE_INFO *mbmi = aom_calloc(1, sizeof(*mbmi));
     mbmi->mv[0].as_mv = mv[0];
@@ -820,9 +811,7 @@ static void tip_setup_tip_frame_plane(
     CalcSubpelParamsFunc calc_subpel_params_func, int copy_refined_mvs) {
   TIP *tip_ref = &cm->tip_ref;
   const TPL_MV_REF *tpl_mvs_base = cm->tpl_mvs;
-#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
   int enable_tip_refinemv = cm->seq_params.enable_tip_refinemv;
-#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
 
   MV zero_mv[2];
   memset(zero_mv, 0, sizeof(zero_mv));
@@ -838,10 +827,7 @@ static void tip_setup_tip_frame_plane(
       int blk_width = unit_blk_size;
       int blk_height = unit_blk_size;
       if (is_tip_mv_refinement_disabled_for_unit_size_16x16(
-              unit_blk_size,
-#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
-              enable_tip_refinemv,
-#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+              unit_blk_size, enable_tip_refinemv,
               cm->features.tip_frame_mode)) {
         blk_width = get_tip_block_width_with_same_mv(
             tpl_mvs, unit_blk_size, blk_col, blk_col_end, max_allow_blk_size);
@@ -939,12 +925,8 @@ static AOM_INLINE void tip_setup_tip_frame_planes(
     CONV_BUF_TYPE *tmp_conv_dst, CalcSubpelParamsFunc calc_subpel_params_func,
     int copy_refined_mvs) {
   int unit_blk_size = (get_unit_bsize_for_tip_frame(
-                           cm->features.tip_frame_mode, cm->tip_interp_filter
-#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
-                           ,
-                           cm->seq_params.enable_tip_refinemv
-#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
-                           ) == BLOCK_16X16)
+                           cm->features.tip_frame_mode, cm->tip_interp_filter,
+                           cm->seq_params.enable_tip_refinemv) == BLOCK_16X16)
                           ? 16
                           : 8;
   tip_setup_tip_frame_plane(cm, xd, blk_row_start, blk_col_start, blk_row_end,

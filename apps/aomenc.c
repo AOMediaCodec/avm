@@ -442,9 +442,7 @@ const arg_def_t *av1_key_val_args[] = {
   &g_av1_codec_arg_defs.enable_wiener_nonsep,
   &g_av1_codec_arg_defs.enable_tip,
   &g_av1_codec_arg_defs.enable_skip_mode,
-#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
   &g_av1_codec_arg_defs.enable_tip_refinemv,
-#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
   &g_av1_codec_arg_defs.enable_mv_traj,
 #if CONFIG_MV_RANGE_EXTENSION
   &g_av1_codec_arg_defs.enable_high_motion,
@@ -654,9 +652,7 @@ static void init_config(cfg_options_t *config) {
 #if CONFIG_MV_RANGE_EXTENSION
   config->enable_high_motion = 0;
 #endif  // CONFIG_MV_RANGE_EXTENSION
-#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
   config->enable_tip_refinemv = 1;
-#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
   config->enable_bawp = 1;
   config->enable_cwp = 1;
   config->enable_imp_msk_bld = 1;
@@ -1576,10 +1572,8 @@ static void show_stream_config(struct stream_state *stream,
   fprintf(stdout,
           "                               : TIP (%d),  Skip Mode (%d)\n",
           encoder_cfg->enable_tip, encoder_cfg->enable_skip_mode);
-#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
   fprintf(stdout, "                               : TIP RefineMV (%d)\n",
           encoder_cfg->enable_tip_refinemv);
-#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
   fprintf(stdout, "                               : MV traj (%d)\n",
           encoder_cfg->enable_mv_traj);
 #if CONFIG_MV_RANGE_EXTENSION

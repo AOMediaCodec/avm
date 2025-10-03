@@ -839,10 +839,7 @@ static INLINE void set_tip_interp_weight_factor(
 static INLINE int is_refinemv_allowed_tip_blocks(const AV1_COMMON *const cm,
                                                  const MB_MODE_INFO *mbmi) {
   assert(is_tip_ref_frame(mbmi->ref_frame[0]));
-  return cm->seq_params.enable_refinemv &&
-#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
-         cm->seq_params.enable_tip_refinemv &&
-#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+  return cm->seq_params.enable_refinemv && cm->seq_params.enable_tip_refinemv &&
          is_refinemv_allowed_reference(cm, mbmi) &&
          (cm->features.tip_frame_mode != TIP_FRAME_AS_OUTPUT);
 }

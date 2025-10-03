@@ -96,10 +96,6 @@ void aom_highbd_lpf_horizontal_generic_c(uint16_t *s, int pitch,
 #endif  // CONFIG_ASYM_DF
                                          const uint16_t *q_thresh,
                                          const uint16_t *side_thresh, int bd
-#if !CONFIG_IMPROVE_TIP_LF
-                                         ,
-                                         const int count
-#endif  // !CONFIG_IMPROVE_TIP_LF
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
                                          ,
                                          int is_lossless_neg,
@@ -108,9 +104,7 @@ void aom_highbd_lpf_horizontal_generic_c(uint16_t *s, int pitch,
 ) {
   int i;
 
-#if CONFIG_IMPROVE_TIP_LF
   int count = 4;
-#endif  // CONFIG_IMPROVE_TIP_LF
 
 #if EDGE_DECISION
 #if CONFIG_ASYM_DF
@@ -163,19 +157,13 @@ void aom_highbd_lpf_vertical_generic_c(uint16_t *s, int pitch,
 #endif  // CONFIG_ASYM_DF
                                        const uint16_t *q_thresh,
                                        const uint16_t *side_thresh, int bd
-#if !CONFIG_IMPROVE_TIP_LF
-                                       ,
-                                       const int count
-#endif  // !CONFIG_IMPROVE_TIP_LF
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
                                        ,
                                        int is_lossless_neg, int is_lossless_pos
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 ) {
   int i;
-#if CONFIG_IMPROVE_TIP_LF
   int count = 4;
-#endif  // CONFIG_IMPROVE_TIP_LF
 
 #if EDGE_DECISION
 #if CONFIG_ASYM_DF

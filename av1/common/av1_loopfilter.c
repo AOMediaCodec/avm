@@ -636,12 +636,8 @@ static AOM_INLINE void check_tip_edge(const MB_MODE_INFO *const mbmi,
     const int bw = block_size_wide[bsize];
     const int bh = block_size_high[bsize];
     const int sub_pu_size_y =
-        get_unit_bsize_for_tip_ref(TIP_FRAME_AS_REF, bw, bh
-#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
-                                   ,
-                                   enable_tip_refinemv
-#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
-                                   ) == BLOCK_16X16
+        get_unit_bsize_for_tip_ref(TIP_FRAME_AS_REF, bw, bh,
+                                   enable_tip_refinemv) == BLOCK_16X16
             ? 16
             : 8;
     const int sub_pu_size = scale ? sub_pu_size_y >> 1 : sub_pu_size_y;
@@ -1252,10 +1248,6 @@ void av1_filter_block_plane_vert(AV1_COMMON *const cm,
               params.filter_length,
 #endif  // CONFIG_ASYM_DF
                 &params.q_threshold, &params.side_threshold, bit_depth
-#if !CONFIG_IMPROVE_TIP_LF
-                ,
-                4
-#endif  // !CONFIG_IMPROVE_TIP_LF
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
                 ,
                 is_lossless_prev_block, is_lossless_current_block
@@ -1272,10 +1264,6 @@ void av1_filter_block_plane_vert(AV1_COMMON *const cm,
                 params.filter_length,
 #endif  // CONFIG_ASYM_DF
                 &params.q_threshold, &params.side_threshold, bit_depth
-#if !CONFIG_IMPROVE_TIP_LF
-                ,
-                4
-#endif  // !CONFIG_IMPROVE_TIP_LF
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
                 ,
                 is_lossless_prev_block, is_lossless_current_block
@@ -1378,10 +1366,6 @@ void av1_filter_block_plane_horz(AV1_COMMON *const cm,
               params.filter_length,
 #endif  // CONFIG_ASYM_DF
                 &params.q_threshold, &params.side_threshold, bit_depth
-#if !CONFIG_IMPROVE_TIP_LF
-                ,
-                4
-#endif  // !CONFIG_IMPROVE_TIP_LF
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
                 ,
                 is_lossless_prev_block, is_lossless_current_block
@@ -1397,10 +1381,6 @@ void av1_filter_block_plane_horz(AV1_COMMON *const cm,
                 params.filter_length,
 #endif  // CONFIG_ASYM_DF
                 &params.q_threshold, &params.side_threshold, bit_depth
-#if !CONFIG_IMPROVE_TIP_LF
-                ,
-                4
-#endif  // !CONFIG_IMPROVE_TIP_LF
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
                 ,
                 is_lossless_prev_block, is_lossless_current_block
@@ -1556,12 +1536,7 @@ static AOM_INLINE void set_tip_filter_length(
 // Apply loop filtering on TIP plane
 AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
                                       uint16_t *dst, const int dst_stride,
-#if CONFIG_IMPROVE_TIP_LF
-                                      const int plane_w, const int plane_h
-#else
-                                      const int bw, const int bh
-#endif  // CONFIG_IMPROVE_TIP_LF
-) {
+                                      const int plane_w, const int plane_h) {
   // retrieve filter parameters
   loop_filter_info_n *const lfi = &cm->lf_info;
   const uint16_t q_horz = lfi->tip_q_thr[plane][HORZ_EDGE];
@@ -1569,13 +1544,9 @@ AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
   const uint16_t q_vert = lfi->tip_q_thr[plane][VERT_EDGE];
   const uint16_t side_vert = lfi->tip_side_thr[plane][VERT_EDGE];
   const int bit_depth = cm->seq_params.bit_depth;
-  int sub_bw = get_unit_bsize_for_tip_frame(cm->features.tip_frame_mode,
-                                            cm->tip_interp_filter
-#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
-                                            ,
-                                            cm->seq_params.enable_tip_refinemv
-#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
-                                            ) == BLOCK_16X16
+  int sub_bw = get_unit_bsize_for_tip_frame(
+                   cm->features.tip_frame_mode, cm->tip_interp_filter,
+                   cm->seq_params.enable_tip_refinemv) == BLOCK_16X16
                    ? 16
                    : 8;
   int sub_bh = sub_bw;
@@ -1588,32 +1559,19 @@ AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
     sub_bh >>= subsampling_y;
   }
 
-// start filtering
-#if CONFIG_IMPROVE_TIP_LF
+  // start filtering
   const int h = plane_h;
   const int w = plane_w;
-#else
-  const int h = bh - sub_bh;
-  const int w = bw - sub_bw;
-  const int rw = bw - (bw % sub_bw);
-#endif  // CONFIG_IMPROVE_TIP_LF
 
-#if CONFIG_IMPROVE_TIP_LF
   for (int j = 0; j < h; j += 4) {
     uint16_t *p = dst + j * dst_stride;
     for (int i = 0; i < w; i += sub_bw) {
-#else
-  for (int j = 0; j <= h; j += sub_bh) {
-    for (int i = 0; i <= w; i += sub_bw) {
-#endif  // CONFIG_IMPROVE_TIP_LF
-        // filter vertical boundary
+      // filter vertical boundary
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
       if (cm->seq_params.disable_loopfilters_across_tiles) {
         if (is_vert_tile_boundary(&cm->tiles,
                                   (i << subsampling_x) >> MI_SIZE_LOG2)) {
-#if CONFIG_IMPROVE_TIP_LF
           p += sub_bw;
-#endif  // CONFIG_IMPROVE_TIP_LF
           continue;
         }
       }
@@ -1624,26 +1582,15 @@ AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
         set_tip_filter_length(cm, plane, subsampling_x, subsampling_y, sub_bw,
                               VERT_EDGE, i, &filter_length_neg,
                               &filter_length_pos);
-        aom_highbd_lpf_vertical_generic(
-#if CONFIG_IMPROVE_TIP_LF
-            p
-#else
-            dst
-#endif  // CONFIG_IMPROVE_TIP_LF
-            ,
-            dst_stride, filter_length_neg, filter_length_pos, &q_vert,
-            &side_vert, bit_depth
-#if !CONFIG_IMPROVE_TIP_LF
-            ,
-            sub_bh
-#endif  //! CONFIG_IMPROVE_TIP_LF
+        aom_highbd_lpf_vertical_generic(p, dst_stride, filter_length_neg,
+                                        filter_length_pos, &q_vert, &side_vert,
+                                        bit_depth
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-            ,
-            0, 0
+                                        ,
+                                        0, 0
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
         );
       }
-#if CONFIG_IMPROVE_TIP_LF
       p += sub_bw;
     }
   }
@@ -1651,15 +1598,12 @@ AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
   for (int i = 0; i < w; i += 4) {
     uint16_t *p = dst + i;
     for (int j = 0; j < h; j += sub_bh) {
-#endif  // CONFIG_IMPROVE_TIP_LF
-        // filter horizontal boundary
+      // filter horizontal boundary
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
       if (cm->seq_params.disable_loopfilters_across_tiles) {
         if (is_horz_tile_boundary(&cm->tiles,
                                   (j << subsampling_y) >> MI_SIZE_LOG2)) {
-#if CONFIG_IMPROVE_TIP_LF
           p += sub_bh * dst_stride;
-#endif  // CONFIG_IMPROVE_TIP_LF
           continue;
         }
       }
@@ -1670,34 +1614,18 @@ AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
         set_tip_filter_length(cm, plane, subsampling_x, subsampling_y, sub_bh,
                               HORZ_EDGE, j, &filter_length_neg,
                               &filter_length_pos);
-        aom_highbd_lpf_horizontal_generic(
-#if CONFIG_IMPROVE_TIP_LF
-            p
-#else
-            dst
-#endif  // CONFIG_IMPROVE_TIP_LF
-            ,
-            dst_stride, filter_length_neg, filter_length_pos, &q_horz,
-            &side_horz, bit_depth
-#if !CONFIG_IMPROVE_TIP_LF
-            ,
-            sub_bw
-#endif  //! CONFIG_IMPROVE_TIP_LF
+        aom_highbd_lpf_horizontal_generic(p, dst_stride, filter_length_neg,
+                                          filter_length_pos, &q_horz,
+                                          &side_horz, bit_depth
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-            ,
-            0, 0
+                                          ,
+                                          0, 0
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
         );
       }
-#if CONFIG_IMPROVE_TIP_LF
+
       p += sub_bh * dst_stride;
     }
-#else
-      dst += sub_bw;
-    }
-    dst -= rw;
-    dst += sub_bh * dst_stride;
-#endif  // CONFIG_IMPROVE_TIP_LF
   }
 }
 

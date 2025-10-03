@@ -71,17 +71,9 @@ static AOM_INLINE int get_tip_block_width_with_same_mv(
 
 // Check if MV refinement is disabled for TIP 16x16 blocks.
 static AOM_INLINE int is_tip_mv_refinement_disabled_for_unit_size_16x16(
-    int unit_blk_size,
-#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
-    int enable_tip_refinemv,
-#endif
-    TIP_FRAME_MODE tip_frame_mode) {
+    int unit_blk_size, int enable_tip_refinemv, TIP_FRAME_MODE tip_frame_mode) {
   if (unit_blk_size != 16) return 0;
-#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
   return !enable_tip_refinemv || tip_frame_mode == TIP_FRAME_AS_OUTPUT;
-#else
-  return tip_frame_mode == TIP_FRAME_AS_OUTPUT;
-#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
 }
 
 // Compute scale factor for temporal scaling

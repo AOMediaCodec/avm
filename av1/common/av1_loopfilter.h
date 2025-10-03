@@ -88,9 +88,6 @@ struct loopfilter {
   int combine_vert_horz_lf;
 
   int tip_filter_level;
-#if !CONFIG_IMPROVE_TIP_LF
-  int tip_delta_idx;
-#endif  // !CONFIG_IMPROVE_TIP_LF
   int tip_delta;
 };
 
@@ -148,13 +145,8 @@ void av1_loop_filter_frame(YV12_BUFFER_CONFIG *frame, struct AV1Common *cm,
                            struct macroblockd *xd, int plane_start,
                            int plane_end, int partial_frame);
 void loop_filter_tip_plane(struct AV1Common *cm, const int plane, uint16_t *dst,
-                           const int dst_stride,
-#if CONFIG_IMPROVE_TIP_LF
-                           const int plane_w, const int plane_h
-#else
-                           const int bw, const int bh
-#endif  // CONFIG_IMPROVE_TIP_LF
-);
+                           const int dst_stride, const int plane_w,
+                           const int plane_h);
 void setup_tip_dst_planes(struct AV1Common *const cm, const int plane,
                           const int tpl_row, const int tpl_col);
 void loop_filter_tip_frame(struct AV1Common *cm, int plane_start,

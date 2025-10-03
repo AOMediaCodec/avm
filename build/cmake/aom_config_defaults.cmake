@@ -289,8 +289,6 @@ set_aom_config_var(CONFIG_CWG_F307_CFL_SEQ_FLAG 1 "Sequence level flag for CfL")
 
 set_aom_config_var(CONFIG_RU_SIZE_RESTRICTION 1
                    "RU size shall be larger than or equal to sb size")
-set_aom_config_var(CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG 1
-                   "Enable RefineMV and OPFL for TIP")
 
 set_aom_config_var(CONFIG_WRL_NO_PRUNING 1 "No pruning when construct WRL")
 
@@ -335,8 +333,6 @@ set_aom_config_var(CONFIG_GDF_IMPROVEMENT 1
 
 set_aom_config_var(CONFIG_REDUCE_SYMBOL_SIZE 1
                    "Symbol size reduction from 16 to 8.")
-
-set_aom_config_var(CONFIG_IMPROVE_TIP_LF 1 "Enable improved LF for TIP frame.")
 
 set_aom_config_var(CONFIG_CCSO_CLEANUP 1
                    "Clean up CCSO quant_sz and signaling.")

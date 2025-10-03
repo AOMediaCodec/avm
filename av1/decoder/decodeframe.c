@@ -7330,13 +7330,11 @@ void av1_read_sequence_header_beyond_av1(
 
   seq_params->enable_refinemv = aom_rb_read_bit(rb);
 
-#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
   seq_params->enable_tip_refinemv =
       (seq_params->enable_tip &&
        (seq_params->enable_opfl_refine || seq_params->enable_refinemv))
           ? aom_rb_read_bit(rb)
           : 0;
-#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
   seq_params->enable_bru = aom_rb_read_bit(rb);
 #if CONFIG_DERIVED_MVD_SIGN
   seq_params->enable_mvd_sign_derive = aom_rb_read_bit(rb);
@@ -9249,13 +9247,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
             cm->seq_params.enable_lf_sub_pu && features->allow_lf_sub_pu) {
           cm->lf.tip_filter_level = aom_rb_read_bit(rb);
           if (cm->lf.tip_filter_level) {
-#if !CONFIG_IMPROVE_TIP_LF
-            cm->lf.tip_delta_idx = aom_rb_read_literal(rb, 2);
-            const int tip_delta_idx_to_delta[4] = { -10, 0, 6, 12 };
-            cm->lf.tip_delta = tip_delta_idx_to_delta[cm->lf.tip_delta_idx];
-#else
-              cm->lf.tip_delta = 0;
-#endif  //! CONFIG_IMPROVE_TIP_LF
+            cm->lf.tip_delta = 0;
           }
         }
 

@@ -3117,10 +3117,8 @@ void apply_mv_refinement(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
   const MV center_mvs[2] = { best_mv_ref[0], best_mv_ref[1] };
   assert(mi->refinemv_flag < REFINEMV_NUM_MODES);
   assert(cm->seq_params.enable_refinemv);
-#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
   assert(IMPLIES(is_tip_ref_frame(mi->ref_frame[0]),
                  cm->seq_params.enable_tip_refinemv));
-#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
 
   // Generate MV independent inter_pred_params
   // for both references
@@ -3274,9 +3272,7 @@ static AOM_INLINE int is_sub_block_refinemv_enabled(const AV1_COMMON *cm,
   if (!cm->seq_params.enable_refinemv) return 0;
 
   if (tip_ref_frame) {
-#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
     if (!cm->seq_params.enable_tip_refinemv) return 0;
-#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
     const int tip_wtd_index = cm->tip_global_wtd_index;
     const int8_t tip_weight = tip_weighting_factors[tip_wtd_index];
     return (cm->has_both_sides_refs && tip_weight == TIP_EQUAL_WTD);
@@ -4011,16 +4007,9 @@ static void build_inter_predictors_8x8_and_bigger_facade(
   if (tip_ref_frame) {
     const int width = xd->width << MI_SIZE_LOG2;
     const int height = xd->height << MI_SIZE_LOG2;
-#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
     int enable_tip_refinemv = cm->seq_params.enable_tip_refinemv;
-#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
-    const BLOCK_SIZE unit_bsize =
-        get_unit_bsize_for_tip_ref(TIP_FRAME_AS_REF, width, height
-#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
-                                   ,
-                                   enable_tip_refinemv
-#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
-        );
+    const BLOCK_SIZE unit_bsize = get_unit_bsize_for_tip_ref(
+        TIP_FRAME_AS_REF, width, height, enable_tip_refinemv);
     const int unit_blk_size = block_size_wide[unit_bsize];
     int blk_width = unit_blk_size;
     const int end_pixel_row = mi_y + height;
@@ -4054,11 +4043,7 @@ static void build_inter_predictors_8x8_and_bigger_facade(
         }
         blk_width = unit_blk_size;
         if (is_tip_mv_refinement_disabled_for_unit_size_16x16(
-                unit_blk_size,
-#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
-                enable_tip_refinemv,
-#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
-                TIP_FRAME_AS_REF)) {
+                unit_blk_size, enable_tip_refinemv, TIP_FRAME_AS_REF)) {
           const TPL_MV_REF *tpl_mvs_base = cm->tpl_mvs;
           const int mvs_stride =
               ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
