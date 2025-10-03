@@ -1087,12 +1087,10 @@ enum {
 #define CWP_WEIGHT_BITS 4
 #define MAX_CWP_CONTEXTS 2
 
-#if CONFIG_TIP_ENHANCEMENT
 // Number of supported factors for TIP weights
 #define MAX_TIP_WTD_NUM 8
 #define TIP_EQUAL_WTD 8
 #define TIP_SINGLE_WTD 16
-#endif  // CONFIG_TIP_ENHANCEMENT
 
 #if CONFIG_VQ_MVD_CODING
 #define MAX_AMVD_INDEX 8

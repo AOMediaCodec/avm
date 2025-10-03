@@ -2295,10 +2295,8 @@ typedef struct AV1Common {
    */
   InterpFilter tip_interp_filter;
 
-#if CONFIG_TIP_ENHANCEMENT
   //! Index for TIP weighted prediction parameters.
   int8_t tip_global_wtd_index;
-#endif  // CONFIG_TIP_ENHANCEMENT
 
 #if CONFIG_MULTILAYER_HLS
   /*!
@@ -5456,11 +5454,10 @@ static AOM_INLINE int is_optflow_refinement_enabled(const AV1_COMMON *cm,
 #endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
     );
     if (disable_opfl) return 0;
-#if CONFIG_TIP_ENHANCEMENT
+
     const int tip_wtd_index = cm->tip_global_wtd_index;
     const int8_t tip_weight = tip_weighting_factors[tip_wtd_index];
     if (tip_weight != TIP_EQUAL_WTD) return 0;
-#endif  // CONFIG_TIP_ENHANCEMENT
     return (opfl_allowed_cur_refs_bsize(cm, xd, mi) && plane == 0);
   } else {
     return (opfl_allowed_cur_pred_mode(cm, xd, mi));

@@ -6816,11 +6816,11 @@ static AOM_INLINE void write_uncompressed_header_obu
         if (features->tip_frame_mode && cm->seq_params.enable_tip_hole_fill) {
           aom_wb_write_bit(wb, features->allow_tip_hole_fill);
         }
-#if CONFIG_TIP_ENHANCEMENT
+
         if (features->tip_frame_mode && is_unequal_weighted_tip_allowed(cm)) {
           aom_wb_write_literal(wb, cm->tip_global_wtd_index, 3);
         }
-#endif  // CONFIG_TIP_ENHANCEMENT
+
         if (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT &&
             cm->seq_params.enable_lf_sub_pu && features->allow_lf_sub_pu) {
           aom_wb_write_bit(wb, cm->lf.tip_filter_level);

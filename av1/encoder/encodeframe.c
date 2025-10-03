@@ -23,9 +23,7 @@
 
 #include "aom_dsp/aom_dsp_common.h"
 #include "aom_dsp/binary_codes_writer.h"
-#if CONFIG_TIP_ENHANCEMENT
 #include "aom_dsp/psnr.h"
-#endif  // CONFIG_TIP_ENHANCEMENT
 #include "aom_ports/mem.h"
 #include "aom_ports/aom_timer.h"
 #include "aom_ports/system_state.h"
@@ -1935,7 +1933,6 @@ static AOM_INLINE int could_tip_mode_be_selected(AV1_COMP *const cpi) {
   return 0;
 }
 
-#if CONFIG_TIP_ENHANCEMENT
 static AOM_INLINE void decide_tip_setting_and_setup_tip_frame(AV1_COMP *cpi) {
   ThreadData *const td = &cpi->td;
   AV1_COMMON *const cm = &cpi->common;
@@ -1974,18 +1971,12 @@ static AOM_INLINE void decide_tip_setting_and_setup_tip_frame(AV1_COMP *cpi) {
     );
   }
 }
-#endif  // CONFIG_TIP_ENHANCEMENT
 
 static AOM_INLINE void av1_enc_setup_tip_frame(AV1_COMP *cpi) {
-#if !CONFIG_TIP_ENHANCEMENT
-  ThreadData *const td = &cpi->td;
-#endif  // !CONFIG_TIP_ENHANCEMENT
   AV1_COMMON *const cm = &cpi->common;
   cm->tip_global_motion.as_int = 0;
   cm->tip_interp_filter = MULTITAP_SHARP;
-#if CONFIG_TIP_ENHANCEMENT
   cm->tip_global_wtd_index = 0;
-#endif  // CONFIG_TIP_ENHANCEMENT
 
   if (cm->seq_params.enable_tip && could_tip_mode_be_selected(cpi)) {
     if (cm->features.allow_ref_frame_mvs &&
@@ -1998,13 +1989,7 @@ static AOM_INLINE void av1_enc_setup_tip_frame(AV1_COMP *cpi) {
 #endif
       av1_enc_setup_tip_motion_field(cm);
       if (cm->features.tip_frame_mode) {
-#if CONFIG_TIP_ENHANCEMENT
         decide_tip_setting_and_setup_tip_frame(cpi);
-#else
-        av1_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
-                            av1_enc_calc_subpel_params, 0 /* copy_refined_mvs */
-        );
-#endif  // CONFIG_TIP_ENHANCEMENT
       }
 #if CONFIG_COLLECT_COMPONENT_TIMING
       end_timing(cpi, av1_enc_setup_tip_frame_time);

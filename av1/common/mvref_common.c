@@ -280,13 +280,11 @@ void av1_copy_frame_mvs_tip_frame_mode(const AV1_COMMON *const cm,
   }
 
   int is_tip_two_refs = 1;
-#if CONFIG_TIP_ENHANCEMENT
   if (is_tip_ref_frame(mi->ref_frame[0])) {
     const int tip_wtd_index = cm->tip_global_wtd_index;
     const int8_t tip_weight = tip_weighting_factors[tip_wtd_index];
     is_tip_two_refs = tip_weight != TIP_SINGLE_WTD;
   }
-#endif  // CONFIG_TIP_ENHANCEMENT
 
   WarpedMotionParams warp_params[2];
   int is_warp[2] = { 0 };

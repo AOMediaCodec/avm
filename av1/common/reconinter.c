@@ -3277,13 +3277,9 @@ static AOM_INLINE int is_sub_block_refinemv_enabled(const AV1_COMMON *cm,
 #if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
     if (!cm->seq_params.enable_tip_refinemv) return 0;
 #endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
-#if CONFIG_TIP_ENHANCEMENT
     const int tip_wtd_index = cm->tip_global_wtd_index;
     const int8_t tip_weight = tip_weighting_factors[tip_wtd_index];
     return (cm->has_both_sides_refs && tip_weight == TIP_EQUAL_WTD);
-#else
-    return (cm->has_both_sides_refs);
-#endif  // CONFIG_TIP_ENHANCEMENT
   } else {
     int apply_sub_block_refinemv =
         mi->refinemv_flag && !is_tip_ref_frame(mi->ref_frame[0]);
@@ -3621,18 +3617,11 @@ static void build_inter_predictors_8x8_and_bigger(
   int singleref_for_compound =
       plane && has_second_ref(mi) &&
       is_thin_4xn_nx4_block(mi->sb_type[xd->tree_type == CHROMA_PART]);
-#if CONFIG_TIP_ENHANCEMENT
   const int tip_wtd_index = cm->tip_global_wtd_index;
   const int8_t tip_weight = tip_weighting_factors[tip_wtd_index];
-#endif  // CONFIG_TIP_ENHANCEMENT
   const int tip_ref_frame = is_tip_ref_frame(mi->ref_frame[0]);
   const int is_compound = (!singleref_for_compound && has_second_ref(mi)) ||
-#if CONFIG_TIP_ENHANCEMENT
-                          (tip_ref_frame && tip_weight != TIP_SINGLE_WTD)
-#else
-                          tip_ref_frame
-#endif  // CONFIG_TIP_ENHANCEMENT
-      ;
+                          (tip_ref_frame && tip_weight != TIP_SINGLE_WTD);
   const int is_intrabc = is_intrabc_block(mi, xd->tree_type);
   assert(IMPLIES(is_intrabc, !is_compound));
   struct macroblockd_plane *const pd = &xd->plane[plane];
@@ -3855,17 +3844,14 @@ static void build_inter_predictors_8x8_and_bigger(
   opfl_subblock_size_plane(xd, plane, use_4x4, &opfl_sub_bw, &opfl_sub_bh);
 
   BacpBlockData bacp_block_data[2 * N_OF_OFFSETS];
-  uint8_t use_bacp = tip_ref_frame
-                         ?
-#if CONFIG_TIP_ENHANCEMENT
-                         is_compound && tip_weight == TIP_EQUAL_WTD &&
-#endif  // CONFIG_TIP_ENHANCEMENT
-                             cm->features.enable_imp_msk_bld &&
-                             !av1_is_scaled(cm->tip_ref.ref_scale_factor[0]) &&
-                             !av1_is_scaled(cm->tip_ref.ref_scale_factor[1])
-                         : use_border_aware_compound(cm, xd, mi) &&
-                               mi->cwp_idx == CWP_EQUAL &&
-                               cm->features.enable_imp_msk_bld;
+  uint8_t use_bacp =
+      tip_ref_frame
+          ? is_compound && tip_weight == TIP_EQUAL_WTD &&
+                cm->features.enable_imp_msk_bld &&
+                !av1_is_scaled(cm->tip_ref.ref_scale_factor[0]) &&
+                !av1_is_scaled(cm->tip_ref.ref_scale_factor[1])
+          : use_border_aware_compound(cm, xd, mi) && mi->cwp_idx == CWP_EQUAL &&
+                cm->features.enable_imp_msk_bld;
 
   WarpBoundaryBox warp_bd_box_mem[MAX_WARP_BD_SQ];
   assert(IMPLIES(singleref_for_compound, !is_compound));
@@ -3993,11 +3979,9 @@ static void build_inter_predictors_8x8_and_bigger(
       continue;
     }
 
-#if CONFIG_TIP_ENHANCEMENT
     if (tip_ref_frame) {
       set_tip_interp_weight_factor(cm, ref, &inter_pred_params);
     }
-#endif  // CONFIG_TIP_ENHANCEMENT
 
     const MV mv_1_16th_pel = (tip_ref_frame && plane)
                                  ? mv_refined[ref].as_mv

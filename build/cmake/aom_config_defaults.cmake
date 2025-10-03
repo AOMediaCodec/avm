@@ -289,8 +289,6 @@ set_aom_config_var(CONFIG_CWG_F307_CFL_SEQ_FLAG 1 "Sequence level flag for CfL")
 
 set_aom_config_var(CONFIG_RU_SIZE_RESTRICTION 1
                    "RU size shall be larger than or equal to sb size")
-set_aom_config_var(CONFIG_TIP_ENHANCEMENT 1
-                   "Enable different weighted prediction for TIP")
 set_aom_config_var(CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG 1
                    "Enable RefineMV and OPFL for TIP")
 

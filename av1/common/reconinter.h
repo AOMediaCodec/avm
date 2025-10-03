@@ -784,7 +784,6 @@ static INLINE int is_refinemv_allowed(const AV1_COMMON *const cm,
          is_refinemv_allowed_reference(cm, mbmi);
 }
 
-#if CONFIG_TIP_ENHANCEMENT
 // check if any mv refinement mode is allowed at frame level
 static INLINE int is_any_mv_refinement_allowed(const AV1_COMMON *const cm) {
   if (!cm->has_both_sides_refs) return 0;
@@ -835,7 +834,6 @@ static INLINE void set_tip_interp_weight_factor(
         (1 << DIST_PRECISION_BITS) - tip_weight;
   }
 }
-#endif  // CONFIG_TIP_ENHANCEMENT
 
 // check if the refinemv mode is allowed for a given block for TIP mode
 static INLINE int is_refinemv_allowed_tip_blocks(const AV1_COMMON *const cm,

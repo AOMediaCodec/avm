@@ -617,13 +617,9 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
   const int comp_bh = bh >> ss_y;
 
   const int has_both_sides_refs = cm->has_both_sides_refs;
-#if CONFIG_TIP_ENHANCEMENT
   const int tip_wtd_index = cm->tip_global_wtd_index;
   const int8_t tip_weight = tip_weighting_factors[tip_wtd_index];
   const int is_compound = tip_weight != TIP_SINGLE_WTD;
-#else
-  const int is_compound = 1;
-#endif  // CONFIG_TIP_ENHANCEMENT
 
   uint16_t
       dst0_16_refinemv[2 *
@@ -642,11 +638,8 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
 #if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
                               cm->seq_params.enable_tip_refinemv &&
 #endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
-                              plane == 0 && has_both_sides_refs && is_compound
-#if CONFIG_TIP_ENHANCEMENT
-                              && tip_weight == TIP_EQUAL_WTD
-#endif  // CONFIG_TIP_ENHANCEMENT
-  );
+                              plane == 0 && has_both_sides_refs &&
+                              is_compound && tip_weight == TIP_EQUAL_WTD);
 
   ReferenceArea ref_area[2];
   const int do_opfl =
@@ -699,11 +692,8 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
 
   int dst_stride = dst_buf->stride;
   if (plane == 0 && !is_tip_mv_refine_disabled_for_unit_size_16x16 &&
-#if CONFIG_TIP_ENHANCEMENT
       is_any_mv_refinement_allowed(cm) && is_compound &&
-      tip_weight == TIP_EQUAL_WTD &&
-#endif  // CONFIG_TIP_ENHANCEMENT
-      (do_opfl || apply_refinemv)) {
+      tip_weight == TIP_EQUAL_WTD && (do_opfl || apply_refinemv)) {
     if (bw != unit_bw || bh != unit_bh) {
       for (int h = 0; h < bh; h += unit_bh) {
         for (int w = 0; w < bw; w += unit_bw) {
@@ -733,12 +723,9 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
   BacpBlockData bacp_block_data[2 * N_OF_OFFSETS];
   const struct scale_factors *const sf0 = cm->tip_ref.ref_scale_factor[0];
   const struct scale_factors *const sf1 = cm->tip_ref.ref_scale_factor[1];
-  uint8_t use_bacp =
-#if CONFIG_TIP_ENHANCEMENT
-      is_compound && tip_weight == TIP_EQUAL_WTD &&
-#endif  // CONFIG_TIP_ENHANCEMENT
-      cm->features.enable_imp_msk_bld && !av1_is_scaled(sf0) &&
-      !av1_is_scaled(sf1);
+  uint8_t use_bacp = is_compound && tip_weight == TIP_EQUAL_WTD &&
+                     cm->features.enable_imp_msk_bld && !av1_is_scaled(sf0) &&
+                     !av1_is_scaled(sf1);
 
   for (int ref = 0; ref < 1 + is_compound; ++ref) {
     const struct scale_factors *const sf = cm->tip_ref.ref_scale_factor[ref];
@@ -749,32 +736,22 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
                           comp_pixel_x, ss_x, ss_y, bd, 0, sf, pred_buf,
                           cm->tip_interp_filter);
 
-#if CONFIG_TIP_ENHANCEMENT
     if (is_compound) {
-#endif  // CONFIG_TIP_ENHANCEMENT
       inter_pred_params.comp_mode = UNIFORM_COMP;
-#if CONFIG_TIP_ENHANCEMENT
     }
-#endif  // CONFIG_TIP_ENHANCEMENT
 
     inter_pred_params.border_data.enable_bacp = use_bacp;
     inter_pred_params.border_data.bacp_block_data =
         &bacp_block_data[0];  // Always point to the first ref
     inter_pred_params.sb_type = unit_bsize;
-#if CONFIG_TIP_ENHANCEMENT
     if (is_compound) {
-#endif  // CONFIG_TIP_ENHANCEMENT
       inter_pred_params.mask_comp.type = COMPOUND_AVERAGE;
-#if CONFIG_TIP_ENHANCEMENT
     }
-#endif  // CONFIG_TIP_ENHANCEMENT
 
     inter_pred_params.conv_params = get_conv_params_no_round(
         ref, plane, tmp_conv_dst, MAX_SB_SIZE, is_compound, bd);
 
-#if CONFIG_TIP_ENHANCEMENT
     set_tip_interp_weight_factor(cm, ref, &inter_pred_params);
-#endif  // CONFIG_TIP_ENHANCEMENT
 
     if (do_ref_area_pad) {
       inter_pred_params.use_ref_padding = 1;
@@ -1003,11 +980,9 @@ void av1_copy_tip_frame_tmvp_mvs(const AV1_COMMON *const cm) {
   const int mvs_stride = mvs_cols;
 
   int is_tip_two_refs = 1;
-#if CONFIG_TIP_ENHANCEMENT
   const int tip_wtd_index = cm->tip_global_wtd_index;
   const int8_t tip_weight = tip_weighting_factors[tip_wtd_index];
   is_tip_two_refs = tip_weight != TIP_SINGLE_WTD;
-#endif  // CONFIG_TIP_ENHANCEMENT
 
   for (int h = 0; h < mvs_rows; h++) {
     MV_REF *mv = frame_mvs;
