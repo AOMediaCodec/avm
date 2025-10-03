@@ -1403,7 +1403,6 @@ typedef struct MultiFrameHeader {
   int mfh_render_size_present_flag;
 #endif  // CONFIG_CWG_E242_PARSING_INDEP
   /*!
-  /*!
    * Render Width of frames that reference this multi-frame header
    */
   int mfh_render_width;
