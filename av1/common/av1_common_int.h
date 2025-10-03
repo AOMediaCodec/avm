@@ -5368,12 +5368,8 @@ static AOM_INLINE bool disable_opfl_for_tip_direct(
   if (!enable_tip_refinemv && tip_frame_mode == TIP_FRAME_AS_OUTPUT)
     return true;
 #endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
-#if CONFIG_ADAPT_OPFL_IN_TIP_DIRECT
   return (tip_frame_mode == TIP_FRAME_AS_OUTPUT &&
           tip_interp_filter != MULTITAP_SHARP);
-#else
-  return false;
-#endif  // CONFIG_ADAPT_OPFL_IN_TIP_DIRECT
 }
 
 // Obtain the tip block size based on block width and height.
