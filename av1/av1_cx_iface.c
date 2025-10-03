@@ -4739,7 +4739,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         1,    // enable_ext_partitions
         1,    // enable_tx_partition
         8,    // max_partition_aspect_ratio
-        0,   1, 1, /*extended sdp*/ 1,
+        0,    1, 1, /*extended sdp*/ 1,
         1,
 #if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
         1,  // enable RefineMv and OPFL for TIP
@@ -4748,7 +4748,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_MV_RANGE_EXTENSION
         0,  // enable_high_motion
 #endif      // CONFIG_MV_RANGE_EXTENSION
-        1,   1, 1, 1,
+        1,    1, 1, 1,
 #if CONFIG_FSC_RES_HLS
         1,  // enable forward skip coding residual coding
 #endif
@@ -4767,17 +4767,17 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_DERIVED_MVD_SIGN
         1,
 #endif  // CONFIG_DERIVED_MVD_SIGN
-        1,   1, 1, 1,
-        1,   1, 1, 1,
-        1,   1, 1, 1,
-        1,   1, 1, 1,
-        1,   1, 1, 0,
-        0,   1, 1, 1,
-        1,   1, 1, 1,
-        1,   1, 1,
+        1,    1, 1, 1,
+        1,    1, 1, 1,
+        1,    1, 1, 1,
+        1,    1, 1, 1,
+        1,    1, 1, 0,
+        0,    1, 1, 1,
+        1,    1, 1, 1,
+        1,    1, 1,
         0,  // reduced_tx_part_set
-        1,   1, 1, 1,
-        3,   1,
+        1,    1, 1, 1,
+        3,    1,
 #if CONFIG_REDUCED_REF_FRAME_MVS_MODE
         0,  // reduced_ref_frame_mvs_mode
 #endif      // CONFIG_REDUCED_REF_FRAME_MVS_MODE

@@ -129,21 +129,40 @@ static const arg_def_t bruoptmodearg =
 static const arg_def_t icc_file =
     ARG_DEF(NULL, "icc", 1, "Output ICC profile file");
 #endif  // CONFIG_ICC_METADATA
-static const arg_def_t *all_args[] = {
-  &help,           &codecarg,      &use_yv12,      &use_i420,       &flipuvarg,
-  &rawvideo,       &noblitarg,     &progressarg,   &limitarg,       &skiparg,
-  &summaryarg,     &outputfile,
+static const arg_def_t *all_args[] = { &help,
+                                       &codecarg,
+                                       &use_yv12,
+                                       &use_i420,
+                                       &flipuvarg,
+                                       &rawvideo,
+                                       &noblitarg,
+                                       &progressarg,
+                                       &limitarg,
+                                       &skiparg,
+                                       &summaryarg,
+                                       &outputfile,
 #if CONFIG_PARAKIT_COLLECT_DATA
-  &datafilesuffix, &datafilepath,
+                                       &datafilesuffix,
+                                       &datafilepath,
 #endif
-  &threadsarg,     &verbosearg,    &scalearg,      &fb_arg,         &md5arg,
-  &verifyarg,      &framestatsarg, &continuearg,   &outbitdeptharg, &isannexb,
-  &oppointarg,     &outallarg,     &skipfilmgrain, &bruoptmodearg,
+                                       &threadsarg,
+                                       &verbosearg,
+                                       &scalearg,
+                                       &fb_arg,
+                                       &md5arg,
+                                       &verifyarg,
+                                       &framestatsarg,
+                                       &continuearg,
+                                       &outbitdeptharg,
+                                       &isannexb,
+                                       &oppointarg,
+                                       &outallarg,
+                                       &skipfilmgrain,
+                                       &bruoptmodearg,
 #if CONFIG_ICC_METADATA
-  &icc_file,
+                                       &icc_file,
 #endif  // CONFIG_ICC_METADATA
-  NULL
-};
+                                       NULL };
 
 #if CONFIG_LANCZOS_RESAMPLE
 

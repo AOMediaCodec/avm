@@ -8591,9 +8591,8 @@ static size_t av1_write_metadata_array(AV1_COMP *const cpi, uint8_t *dst
       }
     }
 
-    obu_header_size = av1_write_obu_header(&cpi->level_params, obu_header.type,
-                                           0, 0,
-                                           dst);
+    obu_header_size =
+        av1_write_obu_header(&cpi->level_params, obu_header.type, 0, 0, dst);
     obu_payload_size =
         av1_write_metadata_obsp_header(dst + obu_header_size, count, metadata);
     total_bytes_written += obu_header_size + obu_payload_size;
@@ -8982,9 +8981,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
       obu_header.obu_xlayer_id = 0;
       obu_header.type = OBU_METADATA;
       obu_header_size =
-          av1_write_obu_header(&cpi->level_params, obu_header.type,
-                               0, 0,
-                               data);
+          av1_write_obu_header(&cpi->level_params, obu_header.type, 0, 0, data);
       obu_payload_size = 0;
       obu_payload_size += av1_write_metadata_obsp_header(
           data + obu_header_size, arr.sz, &metadata_base);

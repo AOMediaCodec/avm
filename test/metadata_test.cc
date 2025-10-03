@@ -40,7 +40,7 @@ const uint8_t kMetadataPayloadT35[kMetadataPayloadSizeT35] = {
   0xB5, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B,
   0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17
 };
-#endif // CONFIG_METADATA
+#endif  // CONFIG_METADATA
 
 const size_t kMetadataPayloadSizeCll = 4;
 #if CONFIG_METADATA
@@ -62,7 +62,7 @@ const uint8_t kMetadataPayloadMdcv[kMetadataPayloadSizeMdcv] = {
 #else
 const uint8_t kMetadataPayloadCll[kMetadataPayloadSizeCll] = { 0xB5, 0x01, 0x02,
                                                                0x03 };
-#endif // CONFIG_METADATA
+#endif  // CONFIG_METADATA
 
 #if CONFIG_AV1_ENCODER
 
@@ -111,7 +111,7 @@ const uint8_t kMetadataObuMdcv[kMetadataObuSizeMdcv] = {
 const size_t kMetadataObuSizeCll = 8;
 const uint8_t kMetadataObuCll[kMetadataObuSizeCll] = { 0x07, 0x14, 0x01, 0xB5,
                                                        0x01, 0x02, 0x03, 0x80 };
-#endif // CONFIG_METADATA
+#endif  // CONFIG_METADATA
 
 class MetadataEncodeTest
     : public ::libaom_test::CodecTestWithParam<libaom_test::TestMode>,
