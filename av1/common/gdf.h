@@ -49,7 +49,6 @@ void free_gdf_buffers(GdfInfo *gi);
  */
 void gdf_print_info(AV1_COMMON *cm, char *info, int poc);
 
-#if CONFIG_GDF_IMPROVEMENT
 /*!\brief Function to extend - pad - the copy guided frame of GDF
  */
 void gdf_extend_frame_highbd(uint16_t *data, int width, int height, int stride,
@@ -63,7 +62,7 @@ void gdf_setup_reference_lines(AV1_COMMON *cm, int i_min, int i_max,
 /*!\brief Function to unset reference lines for filtering stripe
  */
 void gdf_unset_reference_lines(AV1_COMMON *cm, int i_min, int i_max);
-#endif
+
 /*!\brief Function to allocate memory and copy guided frame of GDF
  */
 void gdf_copy_guided_frame(AV1_COMMON *cm);

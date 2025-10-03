@@ -2504,7 +2504,6 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
 
   int *block_ids;
   block_ids = (int *)aom_calloc(cm->gdf_info.gdf_block_num, sizeof(int));
-#if CONFIG_GDF_IMPROVEMENT
   int ctx_idx = 0, sb_size = cm->mib_size << MI_SIZE_LOG2;
   for (int y_pos = 0; y_pos < rec_height; y_pos += sb_size) {
     for (int x_pos = 0; x_pos < rec_width; x_pos += sb_size) {
@@ -2520,27 +2519,6 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
       }
     }
   }
-#else
-  int this_blk_idx = 0;
-  for (int y_pos = 0; y_pos < rec_height;
-       y_pos += cm->gdf_info.gdf_block_size) {
-    for (int x_pos = 0; x_pos < rec_width;
-         x_pos += cm->gdf_info.gdf_block_size) {
-      for (int v_pos = y_pos;
-           v_pos < y_pos + cm->gdf_info.gdf_block_size && v_pos < rec_height;
-           v_pos += 4) {
-        for (int u_pos = x_pos;
-             u_pos < x_pos + cm->gdf_info.gdf_block_size && u_pos < rec_width;
-             u_pos += 4) {
-          int id = gdf_get_block_idx(cm, v_pos, u_pos);
-          if (id >= 0) {
-            block_ids[this_blk_idx++] = id;
-          }
-        }
-      }
-    }
-  }
-#endif
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   const int num_tile_rows = cm->tiles.rows;
   const int num_tile_cols = cm->tiles.cols;
@@ -2560,11 +2538,9 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
     const int tile_height = tile_rect.bottom - tile_rect.top;
     for (int y_pos = -GDF_TEST_STRIPE_OFF, blk_idx_h = 0; y_pos < tile_height;
          y_pos += cm->gdf_info.gdf_block_size, blk_idx_h++) {
-#if CONFIG_GDF_IMPROVEMENT
       if (blk_idx_h == cm->gdf_info.gdf_vert_blks_per_tile[tile_row]) {
         blk_idx -= cm->gdf_info.gdf_block_num_w;
       }
-#endif  // CONFIG_GDF_IMPROVEMENT
 
       int blk_stripe = 0;
       for (int tile_col = 0; tile_col < num_tile_cols; ++tile_col) {
@@ -2597,10 +2573,8 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
             int i_max = AOMMIN(v_pos + cm->gdf_info.gdf_unit_size,
                                tile_height - GDF_TEST_FRAME_BOUNDARY_SIZE) +
                         tile_rect.top;
-#if CONFIG_GDF_IMPROVEMENT && (GDF_TEST_VIRTUAL_BOUNDARY == 2)
             gdf_setup_reference_lines(cm, i_min, i_max,
                                       tile_blk_stripe0 + blk_stripe);
-#endif
             for (int u_pos = x_pos;
                  u_pos < x_pos + cm->gdf_info.gdf_block_size &&
                  u_pos < tile_width;
@@ -2633,7 +2607,6 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
               int use_gdf_local =
                   gdf_block_adjust_and_validate(&i_min, &i_max, &j_min, &j_max);
               if (use_gdf_local) {
-#if CONFIG_GDF_IMPROVEMENT
                 gdf_set_lap_and_cls_unit(
                     i_min, i_max, j_min, j_max, cm->gdf_info.gdf_stripe_size,
                     cm->gdf_info.inp_ptr + cm->gdf_info.inp_stride * i_min +
@@ -2641,20 +2614,11 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
                     cm->gdf_info.inp_stride, bit_depth, cm->gdf_info.lap_ptr,
                     cm->gdf_info.lap_stride, cm->gdf_info.cls_ptr,
                     cm->gdf_info.cls_stride);
-#else
-                gdf_set_lap_and_cls_unit(
-                    i_min, i_max, j_min, j_max, cm->gdf_info.gdf_stripe_size,
-                    cm->gdf_info.inp_ptr + rec_stride * i_min + j_min,
-                    rec_stride, bit_depth, cm->gdf_info.lap_ptr,
-                    cm->gdf_info.lap_stride, cm->gdf_info.cls_ptr,
-                    cm->gdf_info.cls_stride);
-#endif
               }
               for (int qp_idx = 0; qp_idx < GDF_RDO_QP_NUM; qp_idx++) {
                 if (use_gdf_local) {
-#if CONFIG_GDF_IMPROVEMENT
                   gdf_inference_unit(
-                      i_min, i_max, j_min, j_max, cm->gdf_info.gdf_stripe_size,
+                      i_min, i_max, j_min, j_max,
                       qp_idx + qp_idx_base,
                       cm->gdf_info.inp_ptr + cm->gdf_info.inp_stride * i_min +
                           j_min,
@@ -2662,16 +2626,6 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
                       cm->gdf_info.lap_stride, cm->gdf_info.cls_ptr,
                       cm->gdf_info.cls_stride, cm->gdf_info.err_ptr,
                       cm->gdf_info.err_stride, pxl_shift, ref_dst_idx);
-#else
-                  gdf_inference_unit(
-                      i_min, i_max, j_min, j_max, cm->gdf_info.gdf_stripe_size,
-                      qp_idx + qp_idx_base,
-                      cm->gdf_info.inp_ptr + rec_stride * i_min + j_min,
-                      rec_stride, cm->gdf_info.lap_ptr, cm->gdf_info.lap_stride,
-                      cm->gdf_info.cls_ptr, cm->gdf_info.cls_stride,
-                      cm->gdf_info.err_ptr, cm->gdf_info.err_stride, pxl_shift,
-                      ref_dst_idx);
-#endif
                 }
                 for (int i = i_min; i < i_max; i++) {
                   for (int j = j_min; j < j_max; j++) {
@@ -2714,9 +2668,7 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
                   tile_boundary_right);
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
             }
-#if CONFIG_GDF_IMPROVEMENT && (GDF_TEST_VIRTUAL_BOUNDARY == 2)
             gdf_unset_reference_lines(cm, i_min, i_max);
-#endif
             blk_stripe++;
           }  // v_pos
           blk_idx++;
@@ -2740,9 +2692,6 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
   int gdf_enable_max_plus_1 = (cm->gdf_info.gdf_block_num <= 1) ? 2 : 3;
   int gdf_block_enable_bit = 1;
   aom_cdf_prob gdf_cdf[CDF_SIZE(2)];
-#if !CONFIG_GDF_IMPROVEMENT
-  static const aom_cdf_prob default_gdf_cdf[CDF_SIZE(2)] = { AOM_CDF2(11570) };
-#endif
   // BRU frame does not allow mode 1
   for (int gdf_mode = cm->bru.enabled ? 2 : 1; gdf_mode < gdf_enable_max_plus_1;
        gdf_mode++) {
@@ -2752,11 +2701,7 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
                       GDF_RDO_SCALE_NUM_LOG2)
                      << AV1_PROB_COST_SHIFT;
         slice_error = 0;
-#if CONFIG_GDF_IMPROVEMENT
         av1_copy(gdf_cdf, cm->fc->gdf_cdf);
-#else
-        av1_copy(gdf_cdf, default_gdf_cdf);
-#endif
         for (int ci = 0; ci < cm->gdf_info.gdf_block_num; ci++) {
           blk_idx = block_ids[ci];
           if (gdf_mode == 1) {
@@ -2890,11 +2835,9 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
   const int num_workers = mt_info->num_workers;
   if (use_restoration)
     av1_loop_restoration_save_boundary_lines(&cm->cur_frame->buf, cm, 0);
-#if CONFIG_GDF_IMPROVEMENT
   else {
     if (use_gdf) save_tile_row_boundary_lines(&cm->cur_frame->buf, 0, cm, 0);
   }
-#endif
   if (use_cdef) {
 #if CONFIG_COLLECT_COMPONENT_TIMING
     start_timing(cpi, cdef_time);
@@ -2981,11 +2924,9 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
 
   if (use_restoration)
     av1_loop_restoration_save_boundary_lines(&cm->cur_frame->buf, cm, 1);
-#if CONFIG_GDF_IMPROVEMENT
   else {
     if (use_gdf) save_tile_row_boundary_lines(&cm->cur_frame->buf, 0, cm, 1);
   }
-#endif
   if (use_restoration) {
     av1_pick_filter_restoration(cpi->source, cpi);
     if (cm->rst_info[0].frame_restoration_type != RESTORE_NONE ||

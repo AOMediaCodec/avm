@@ -135,9 +135,7 @@ void alloc_gdf_buffers(GdfInfo *gi) {
   memset(gi->err_ptr, 0, gi->err_height * gi->err_stride * sizeof(int16_t));
   gi->gdf_block_flags = (int32_t *)aom_malloc(gi->gdf_block_num * sizeof(int));
   memset(gi->gdf_block_flags, 0, gi->gdf_block_num * sizeof(int));
-#if CONFIG_GDF_IMPROVEMENT
   gi->glbs = (GDFLineBuffers *)aom_malloc(sizeof(GDFLineBuffers));
-#endif
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   gi->tmp_save_left = (uint16_t *)aom_malloc(
       (gi->gdf_unit_size + 2 * GDF_TEST_EXTRA_VER_BORDER) *
@@ -169,12 +167,10 @@ void free_gdf_buffers(GdfInfo *gi) {
     aom_free(gi->gdf_block_flags);
     gi->gdf_block_flags = NULL;
   }
-#if CONFIG_GDF_IMPROVEMENT
   if (gi->glbs != NULL) {
     aom_free(gi->glbs);
     gi->glbs = NULL;
   }
-#endif
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   if (gi->tmp_save_left != NULL) {
     aom_free(gi->tmp_save_left);
@@ -219,8 +215,6 @@ void gdf_print_info(AV1_COMMON *cm, char *info, int poc) {
   printf(" ]\n");
 }
 #undef GDF_PRINT_INT
-
-#if CONFIG_GDF_IMPROVEMENT
 
 void gdf_extend_frame_highbd(uint16_t *data, int width, int height, int stride,
                              int border_horz, int border_vert) {
@@ -465,25 +459,6 @@ void gdf_unset_reference_lines(AV1_COMMON *cm, int i_min, int i_max) {
   }
 }
 
-#else
-void gdf_copy_guided_frame(AV1_COMMON *cm) {
-  int top_buf = 3, bot_buf = 3;
-  const int rec_height = cm->cur_frame->buf.y_height;
-  const int rec_stride = cm->cur_frame->buf.y_stride;
-
-  cm->gdf_info.inp_pad_ptr = (uint16_t *)aom_memalign(
-      32, (top_buf + rec_height + bot_buf) * rec_stride * sizeof(uint16_t));
-  for (int i = top_buf; i < top_buf + rec_height; i++) {
-    for (int j = 0; j < rec_stride; j++) {
-      cm->gdf_info.inp_pad_ptr[i * rec_stride + j] =
-          cm->cur_frame->buf
-              .buffers[AOM_PLANE_Y][(i - top_buf) * rec_stride + j];
-    }
-  }
-  cm->gdf_info.inp_ptr = cm->gdf_info.inp_pad_ptr + top_buf * rec_stride;
-}
-#endif
-
 void gdf_free_guided_frame(AV1_COMMON *cm) {
   aom_free(cm->gdf_info.inp_pad_ptr);
 }
@@ -620,10 +595,8 @@ void gdf_filter_frame(AV1_COMMON *cm) {
             int i_max = AOMMIN(v_pos + cm->gdf_info.gdf_unit_size,
                                tile_height - GDF_TEST_FRAME_BOUNDARY_SIZE) +
                         tile_rect.top;
-#if CONFIG_GDF_IMPROVEMENT && (GDF_TEST_VIRTUAL_BOUNDARY == 2)
             gdf_setup_reference_lines(cm, i_min, i_max,
                                       tile_blk_stripe0 + blk_stripe);
-#endif
             for (int u_pos = x_pos;
                  u_pos < x_pos + cm->gdf_info.gdf_block_size &&
                  u_pos < tile_width;
@@ -674,7 +647,6 @@ void gdf_filter_frame(AV1_COMMON *cm) {
                 }
                 for (int qp_idx = qp_idx_min; qp_idx < qp_idx_max_plus_1;
                      qp_idx++) {
-#if CONFIG_GDF_IMPROVEMENT
                   gdf_set_lap_and_cls_unit(
                       i_min, i_max, j_min, j_max, cm->gdf_info.gdf_stripe_size,
                       cm->gdf_info.inp_ptr + cm->gdf_info.inp_stride * i_min +
@@ -683,29 +655,13 @@ void gdf_filter_frame(AV1_COMMON *cm) {
                       cm->gdf_info.lap_stride, cm->gdf_info.cls_ptr,
                       cm->gdf_info.cls_stride);
                   gdf_inference_unit(
-                      i_min, i_max, j_min, j_max, cm->gdf_info.gdf_stripe_size,
-                      qp_idx,
+                      i_min, i_max, j_min, j_max, qp_idx,
                       cm->gdf_info.inp_ptr + cm->gdf_info.inp_stride * i_min +
                           j_min,
                       cm->gdf_info.inp_stride, cm->gdf_info.lap_ptr,
                       cm->gdf_info.lap_stride, cm->gdf_info.cls_ptr,
                       cm->gdf_info.cls_stride, cm->gdf_info.err_ptr,
                       cm->gdf_info.err_stride, pxl_shift, ref_dst_idx);
-#else
-                  gdf_set_lap_and_cls_unit(
-                      i_min, i_max, j_min, j_max, cm->gdf_info.gdf_stripe_size,
-                      cm->gdf_info.inp_ptr + rec_stride * i_min + j_min,
-                      rec_stride, bit_depth, cm->gdf_info.lap_ptr,
-                      cm->gdf_info.lap_stride, cm->gdf_info.cls_ptr,
-                      cm->gdf_info.cls_stride);
-                  gdf_inference_unit(
-                      i_min, i_max, j_min, j_max, cm->gdf_info.gdf_stripe_size,
-                      qp_idx, cm->gdf_info.inp_ptr + rec_stride * i_min + j_min,
-                      rec_stride, cm->gdf_info.lap_ptr, cm->gdf_info.lap_stride,
-                      cm->gdf_info.cls_ptr, cm->gdf_info.cls_stride,
-                      cm->gdf_info.err_ptr, cm->gdf_info.err_stride, pxl_shift,
-                      ref_dst_idx);
-#endif
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
                   // If there is at-least 1 segment is lossless in a frame, we
                   // have to do 4x4 processing, because minimum lossless block
@@ -767,9 +723,7 @@ void gdf_filter_frame(AV1_COMMON *cm) {
                   tile_boundary_right);
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
             }  // u_pos
-#if CONFIG_GDF_IMPROVEMENT && (GDF_TEST_VIRTUAL_BOUNDARY == 2)
             gdf_unset_reference_lines(cm, i_min, i_max);
-#endif
             blk_stripe++;
           }  // v_pos
           blk_idx++;
