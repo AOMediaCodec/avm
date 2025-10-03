@@ -6039,6 +6039,8 @@ static AOM_INLINE void write_multi_frame_header(
     aom_wb_write_literal(wb, coded_width, num_bits_width);
     aom_wb_write_literal(wb, coded_height, num_bits_height);
   }
+
+#if !CONFIG_CWG_F248_RENDER_SIZE
   bool mfh_render_size_update_flag =
       mfh_frame_size_update_flag &&
       (cm->width != cm->render_width || cm->height != cm->render_height);
@@ -6048,6 +6050,7 @@ static AOM_INLINE void write_multi_frame_header(
     aom_wb_write_literal(wb, cm->render_width - 1, 16);
     aom_wb_write_literal(wb, cm->render_height - 1, 16);
   }
+#endif  // !CONFIG_CWG_F248_RENDER_SIZE
 
   aom_wb_write_bit(wb, mfh_param->mfh_loop_filter_update_flag);
   if (mfh_param->mfh_loop_filter_update_flag) {
@@ -6598,7 +6601,6 @@ static AOM_INLINE void write_uncompressed_header_obu
       }
     }
   }
-
 
   if (!cm->bridge_frame_info.is_bridge_frame ||
       cm->bridge_frame_info.bridge_frame_overwrite_flag) {

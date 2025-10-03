@@ -1411,6 +1411,7 @@ typedef struct MultiFrameHeader {
    * Frame Height of frames that reference this multi-frame header
    */
   int mfh_frame_height;
+#if !CONFIG_CWG_F248_RENDER_SIZE
   /*!
    * Render Width of frames that reference this multi-frame header
    */
@@ -1419,6 +1420,7 @@ typedef struct MultiFrameHeader {
    * Render Height of frames that reference this multi-frame header
    */
   int mfh_render_height;
+#endif  // !CONFIG_CWG_F248_RENDER_SIZE
   /*!
    * Presence of loop filter levels in this multi-frame header
    */
