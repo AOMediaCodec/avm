@@ -1628,9 +1628,24 @@ static INLINE void read_mv(aom_reader *r, MV *mv_diff, int skip_sign_coding,
 );
 #endif  // !CONFIG_VQ_MVD_CODING
 
-#if !CONFIG_MV_VALUE_CLIP
+#if CONFIG_MV_VALUE_CLIP
+static INLINE void mv_clamp_conversion(MV *mv, int pb_mv_precision) {
+  const int shift = MV_PRECISION_ONE_EIGHTH_PEL - pb_mv_precision;
+  if (mv->row < MV_LOW + 1 || mv->row > MV_UPP - 1) {
+    mv->row = (MV_COMP_DATA_TYPE)clamp(mv->row, MV_LOW + 1, MV_UPP - 1);
+    const int abs_mv_row_conv = (abs(mv->row) >> shift) << shift;
+    mv->row = mv->row >= 0 ? abs_mv_row_conv : (-abs_mv_row_conv);
+  }
+
+  if (mv->col < MV_LOW + 1 || mv->col > MV_UPP - 1) {
+    mv->col = (MV_COMP_DATA_TYPE)clamp(mv->col, MV_LOW + 1, MV_UPP - 1);
+    const int abs_mv_col_conv = (abs(mv->col) >> shift) << shift;
+    mv->col = mv->col >= 0 ? abs_mv_col_conv : (-abs_mv_col_conv);
+  }
+}
+#else
 static INLINE int is_mv_valid(const MV *mv);
-#endif  // !CONFIG_MV_VALUE_CLIP
+#endif  // CONFIG_MV_VALUE_CLIP
 
 static INLINE int assign_dv(AV1_COMMON *cm, MACROBLOCKD *xd, int_mv *mv,
                             const int_mv *ref_mv, int mi_row, int mi_col,
@@ -1683,14 +1698,12 @@ static INLINE int assign_dv(AV1_COMMON *cm, MACROBLOCKD *xd, int_mv *mv,
 #endif  // CONFIG_DERIVED_MVD_SIGN
   }
 
-  assert(
-      is_this_mv_precision_compliant(mbmi->mv[0].as_mv, mbmi->pb_mv_precision));
+  assert(is_this_mv_precision_compliant(mv->as_mv, mbmi->pb_mv_precision));
 
 #if CONFIG_MV_VALUE_CLIP
-  mv->as_mv.row =
-      (MV_COMP_DATA_TYPE)clamp(mv->as_mv.row, MV_LOW + 1, MV_UPP - 1);
-  mv->as_mv.col =
-      (MV_COMP_DATA_TYPE)clamp(mv->as_mv.col, MV_LOW + 1, MV_UPP - 1);
+  mv_clamp_conversion(&mv->as_mv, mbmi->pb_mv_precision);
+  assert(is_this_mv_precision_compliant(mv->as_mv, mbmi->pb_mv_precision));
+
   const int valid = av1_is_dv_valid(mv->as_mv, cm, xd, mi_row, mi_col, bsize,
                                     cm->mib_size_log2);
 #else
@@ -3322,6 +3335,7 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
       (MV_COMP_DATA_TYPE)clamp(mv[0].as_mv.row, MV_LOW + 1, MV_UPP - 1);
   mv[0].as_mv.col =
       (MV_COMP_DATA_TYPE)clamp(mv[0].as_mv.col, MV_LOW + 1, MV_UPP - 1);
+
   if (is_compound) {
     mv[1].as_mv.row =
         (MV_COMP_DATA_TYPE)clamp(mv[1].as_mv.row, MV_LOW + 1, MV_UPP - 1);
