@@ -627,16 +627,11 @@ static uint32_t get_pu_starting_cooord(const MB_MODE_INFO *const mbmi,
 // Check whether current block is TIP mode
 static AOM_INLINE void check_tip_edge(const MB_MODE_INFO *const mbmi,
                                       const int scale, TX_SIZE *ts,
-                                      int32_t *tip_edge
-#if CONFIG_FLEX_TIP_BLK_SIZE && CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
-                                      ,
-                                      int enable_tip_refinemv
-#endif  // CONFIG_FLEX_TIP_BLK_SIZE && CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
-) {
+                                      int32_t *tip_edge,
+                                      int enable_tip_refinemv) {
   const bool is_tip_mode = is_tip_ref_frame(mbmi->ref_frame[0]);
   if (is_tip_mode) {
     *tip_edge = 1;
-#if CONFIG_FLEX_TIP_BLK_SIZE
     const BLOCK_SIZE bsize = mbmi->sb_type[AOM_PLANE_Y];
     const int bw = block_size_wide[bsize];
     const int bh = block_size_high[bsize];
@@ -653,9 +648,6 @@ static AOM_INLINE void check_tip_edge(const MB_MODE_INFO *const mbmi,
     const int tip_ts = sub_pu_size == 16  ? TX_16X16
                        : sub_pu_size == 8 ? TX_8X8
                                           : TX_4X4;
-#else
-    const int tip_ts = scale ? TX_4X4 : TX_8X8;
-#endif  // CONFIG_FLEX_TIP_BLK_SIZE
     *ts = tip_ts;
   }
 }
@@ -711,12 +703,8 @@ static AOM_INLINE void check_sub_pu_edge(
   TX_SIZE temp_ts = 0;
 
   int scale = edge_dir == VERT_EDGE ? scale_horz : scale_vert;
-  check_tip_edge(mbmi, scale, &temp_ts, &temp_edge
-#if CONFIG_FLEX_TIP_BLK_SIZE && CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
-                 ,
-                 cm->seq_params.enable_tip_refinemv
-#endif  // CONFIG_FLEX_TIP_BLK_SIZE && CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
-  );
+  check_tip_edge(mbmi, scale, &temp_ts, &temp_edge,
+                 cm->seq_params.enable_tip_refinemv);
   if (!temp_edge)
     check_opfl_edge(cm, plane, xd, mbmi, scale, &temp_ts, &temp_edge);
   if (!temp_edge) check_rfmv_edge(cm, mbmi, scale, &temp_ts, &temp_edge);
@@ -1551,9 +1539,7 @@ static AOM_INLINE void set_tip_filter_length(
       *filter_length_neg = 8;
       *filter_length_pos = 8;
     }
-  }
-#if CONFIG_FLEX_TIP_BLK_SIZE
-  else if (16 == blk_sz) {
+  } else if (16 == blk_sz) {
     *filter_length_neg = 14;
     *filter_length_pos = 14;
     if (plane != 0) {
@@ -1566,7 +1552,6 @@ static AOM_INLINE void set_tip_filter_length(
       }
     }
   }
-#endif  // CONFIG_FLEX_TIP_BLK_SIZE
 }
 // Apply loop filtering on TIP plane
 AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
@@ -1584,7 +1569,6 @@ AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
   const uint16_t q_vert = lfi->tip_q_thr[plane][VERT_EDGE];
   const uint16_t side_vert = lfi->tip_side_thr[plane][VERT_EDGE];
   const int bit_depth = cm->seq_params.bit_depth;
-#if CONFIG_FLEX_TIP_BLK_SIZE
   int sub_bw = get_unit_bsize_for_tip_frame(cm->features.tip_frame_mode,
                                             cm->tip_interp_filter
 #if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
@@ -1595,10 +1579,6 @@ AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
                    ? 16
                    : 8;
   int sub_bh = sub_bw;
-#else
-  int sub_bw = 8;
-  int sub_bh = 8;
-#endif  // CONFIG_FLEX_TIP_BLK_SIZE
   int subsampling_x = 0;
   int subsampling_y = 0;
   if (plane > 0) {
