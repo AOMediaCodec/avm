@@ -341,7 +341,7 @@ static INLINE int bru_active_map_validation(const AV1_COMMON *cm) {
   if (cm->bru.frame_inactive_flag) return 1;
   const uint8_t *act = cm->bru.active_mode_map;
   const int stride = cm->bru.unit_cols;
-  const int max_regions = cm->bru.unit_rows * cm->bru.unit_rows;
+  const int max_regions = cm->bru.unit_cols * cm->bru.unit_rows;
   // Create visited array for BFS rectangle checking
   uint8_t *visited = (uint8_t *)calloc(max_regions, sizeof(uint8_t));
   if (!visited) return 0;
