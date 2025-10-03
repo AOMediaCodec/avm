@@ -195,6 +195,9 @@ set_aom_config_var(CONFIG_ORIP_DC_DISABLED 1
 set_aom_config_var(CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT 1
                    "Remove enable order hint flag.")
 
+# CWG-F349
+set_aom_config_var(CONFIG_CWG_F349_SIGNAL_TILE_INFO 1
+                   "Improved tile information at sequence header.")
 # CWG-F215
 set_aom_config_var(CWG_F215_CONFIG_REMOVE_FRAME_ID 1
                    "Remove frame_id signalling")

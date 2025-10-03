@@ -1099,7 +1099,7 @@ typedef struct SequenceHeader {
   uint8_t film_grain_params_present;
 
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO
-  uint8_t seq_tile_info_present_flag;
+  uint8_t seq_tile_info_present_flag;  // whether seq level tile_info exists
   TileInfoSyntax tile_params;
 #endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 
@@ -5825,6 +5825,16 @@ static INLINE const TileInfoSyntax *find_effective_tile_params(
     return NULL;
 }
 #endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
+
+#if CONFIG_CWG_F349_SIGNAL_TILE_INFO
+static INLINE int is_frame_tile_config_reuse_eligible(
+    const TileInfoSyntax *const tile_params,
+    const CommonTileParams *const tiles) {
+  return (tile_params->tile_info.uniform_spacing ||
+          (tile_params->tile_info.sb_rows == tiles->sb_rows &&
+           tile_params->tile_info.sb_cols == tiles->sb_cols));
+}
+#endif  // CONFIG_CWG_F349_SIGNAL_TILE_INFO
 
 #ifdef __cplusplus
 }  // extern "C"

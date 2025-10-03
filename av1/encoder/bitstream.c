@@ -4810,7 +4810,7 @@ static int check_tile_equivalence(const TileInfoSyntax *const tile_params,
 }
 #endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 
-static AOM_INLINE void write_tile_info(const AV1_COMMON *const cm,
+static AOM_INLINE void write_tile_info(AV1_COMMON *const cm,
                                        struct aom_write_bit_buffer *saved_wb,
                                        struct aom_write_bit_buffer *wb) {
 #if CONFIG_CWG_F317
@@ -4819,13 +4819,26 @@ static AOM_INLINE void write_tile_info(const AV1_COMMON *const cm,
   }
 #endif  // CONFIG_CWG_F317
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO
-  const SequenceHeader *seq_params = &cm->seq_params;
+  const TileInfoSyntax *const tile_params = find_effective_tile_params(cm);
   int reuse = 0;
-  if (seq_params->seq_tile_info_present_flag) {
-    reuse = check_tile_equivalence(&seq_params->tile_params, &cm->tiles);
+#if CONFIG_CWG_F349_SIGNAL_TILE_INFO
+  if (tile_params &&
+      is_frame_tile_config_reuse_eligible(tile_params, &cm->tiles)) {
+    if (tile_params->allow_tile_info_change) {
+      reuse = check_tile_equivalence(tile_params, &cm->tiles);
+      aom_wb_write_bit(wb, reuse);
+    } else {
+      reuse = 1;
+    }
+    assert(IMPLIES(reuse, check_tile_equivalence(tile_params, &cm->tiles)));
+  }
+#else
+  if (tile_params) {
+    reuse = check_tile_equivalence(tile_params, &cm->tiles);
   }
   bool tile_info_present_in_frame_header = !reuse;
   aom_wb_write_bit(wb, tile_info_present_in_frame_header);
+#endif  // CONFIG_CWG_F349_SIGNAL_TILE_INFO
   if (!reuse) write_tile_info_max_tile(&cm->tiles, wb);
 #else
   write_tile_info_max_tile(&cm->tiles, wb);
@@ -5192,6 +5205,9 @@ static AOM_INLINE void write_tu_pts_info(AV1_COMMON *const cm,
 // Writes tile syntax
 void write_tile_syntax_info(const TileInfoSyntax *tile_params,
                             struct aom_write_bit_buffer *wb) {
+#if CONFIG_CWG_F349_SIGNAL_TILE_INFO
+  aom_wb_write_bit(wb, tile_params->allow_tile_info_change);
+#endif  // CONFIG_CWG_F349_SIGNAL_TILE_INFO
   const CommonTileParams *tiles = &tile_params->tile_info;
   int size_sb, i;
   int tile_width_sb = tiles->sb_cols;

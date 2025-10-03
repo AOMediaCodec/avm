@@ -4416,8 +4416,8 @@ static AOM_INLINE void setup_frame_size_with_refs(
 
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO
 // Reconstructs the tile information
-static void reconstruct_tile_info_max_tile(AV1_COMMON *const cm,
-                                           TileInfoSyntax *tile_params) {
+static void reconstruct_tile_info_max_tile(
+    AV1_COMMON *const cm, const TileInfoSyntax *const tile_params) {
   CommonTileParams *const tiles = &cm->tiles;
   const CommonTileParams *const tile_info = &tile_params->tile_info;
   int width_sb = tile_info->sb_cols;
@@ -4567,16 +4567,28 @@ static AOM_INLINE void read_tile_info(AV1Decoder *const pbi,
   av1_get_tile_limits(&cm->tiles, cm->mi_params.mi_rows, cm->mi_params.mi_cols,
                       cm->mib_size_log2, cm->seq_params.mib_size_log2);
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO
+  const TileInfoSyntax *const tile_params = find_effective_tile_params(cm);
+  int reuse = 0;
+#if CONFIG_CWG_F349_SIGNAL_TILE_INFO
+  if (tile_params &&
+      is_frame_tile_config_reuse_eligible(tile_params, &cm->tiles)) {
+    if (tile_params->allow_tile_info_change)
+      reuse = aom_rb_read_bit(rb);
+    else
+      reuse = 1;
+  }
+#else
   cm->current_frame.tile_info_present_in_frame_header = aom_rb_read_bit(rb);
-  if (cm->current_frame.tile_info_present_in_frame_header) {
-    read_tile_info_max_tile(cm, rb);
+  reuse = !cm->current_frame.tile_info_present_in_frame_header;
+  if (reuse && !tile_params) {
+    aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                       "No tile information present");
+  }
+#endif  // CONFIG_CWG_F349_SIGNAL_TILE_INFO
+  if (reuse) {
+    reconstruct_tile_info_max_tile(cm, tile_params);
   } else {
-    if (cm->seq_params.seq_tile_info_present_flag) {
-      reconstruct_tile_info_max_tile(cm, &cm->seq_params.tile_params);
-    } else {
-      aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
-                         "No tile information present");
-    }
+    read_tile_info_max_tile(cm, rb);
   }
 #else
   read_tile_info_max_tile(cm, rb);
@@ -6771,6 +6783,9 @@ static AOM_INLINE void read_temporal_point_info(
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO
 void read_tile_syntax_info(TileInfoSyntax *tile_params,
                            struct aom_read_bit_buffer *rb) {
+#if CONFIG_CWG_F349_SIGNAL_TILE_INFO
+  tile_params->allow_tile_info_change = aom_rb_read_bit(rb);
+#endif  // CONFIG_CWG_F349_SIGNAL_TILE_INFO
   CommonTileParams *tile_info = &tile_params->tile_info;
   tile_info->uniform_spacing = aom_rb_read_bit(rb);
 
@@ -6864,7 +6879,12 @@ void av1_read_sequence_header(
 #endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
 
   setup_seq_sb_size(seq_params, rb);
-
+#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
+  seq_params->seq_tile_info_present_flag = 0;
+#if CONFIG_CWG_F349_SIGNAL_TILE_INFO
+  seq_params->tile_params.allow_tile_info_change = 0;
+#endif  // CONFIG_CWG_F349_SIGNAL_TILE_INFO
+#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
   seq_params->enable_intra_dip = aom_rb_read_bit(rb);
   seq_params->enable_intra_edge_filter = aom_rb_read_bit(rb);
   if (seq_params->single_picture_hdr_flag) {
