@@ -100,11 +100,11 @@ static INLINE CFL_ALLOWED_TYPE is_cfl_allowed(
 }
 
 #if CONFIG_CHROMA_LARGE_TX
-static INLINE CFL_ALLOWED_TYPE is_mhccp_allowed(const AV1_COMMON *const cm,
-                                                const MACROBLOCKD *xd) {
+static INLINE MHCCP_ALLOWED_TYPE is_mhccp_allowed(const AV1_COMMON *const cm,
+                                                  const MACROBLOCKD *xd) {
   const MB_MODE_INFO *mbmi = xd->mi[0];
-  if (xd->tree_type == LUMA_PART) return CFL_DISALLOWED;
-  if (!cm->seq_params.enable_mhccp) return CFL_DISALLOWED;
+  if (xd->tree_type == LUMA_PART) return MHCCP_DISALLOWED;
+  if (!cm->seq_params.enable_mhccp) return MHCCP_DISALLOWED;
 
   const BLOCK_SIZE bsize = get_bsize_base(xd, mbmi, AOM_PLANE_U);
   assert(bsize < BLOCK_SIZES_ALL);
@@ -115,8 +115,17 @@ static INLINE CFL_ALLOWED_TYPE is_mhccp_allowed(const AV1_COMMON *const cm,
   // In lossless, CfL is available when the partition size is equal to the
   // transform size.
   if (xd->lossless[mbmi->segment_id]) {
-    return (CFL_ALLOWED_TYPE)(plane_bsize == BLOCK_4X4);
+    return (MHCCP_ALLOWED_TYPE)(plane_bsize == BLOCK_4X4);
   }
+
+#if CONFIG_MHCCP_BLK_SIZE
+  const int block_height = block_size_high[plane_bsize];
+  const int block_width = block_size_wide[plane_bsize];
+
+  if (block_height == 4 && block_width == 4) {
+    return MHCCP_DISALLOWED;
+  }
+#endif  // CONFIG_MHCCP_BLK_SIZE
 
   // Ensure that plane_bsize doesn't go beyond allowed max chroma tx size (which
   // is 32x32 currently as per `av1_get_max_uv_txsize`). Specifically,
@@ -131,7 +140,7 @@ static INLINE CFL_ALLOWED_TYPE is_mhccp_allowed(const AV1_COMMON *const cm,
       av1_get_max_uv_txsize_adjusted(bsize, ssx, ssy);
   if (block_size_wide[plane_bsize] > tx_size_wide[max_uv_tx_size] ||
       block_size_high[plane_bsize] > tx_size_high[max_uv_tx_size]) {
-    return CFL_DISALLOWED;
+    return MHCCP_DISALLOWED;
   }
 
   // CfL is available to luma partitions CFL_BUF_LINE x CFL_BUF_LINE or smaller.

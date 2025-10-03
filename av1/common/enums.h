@@ -812,6 +812,13 @@ enum {
 } UENUM1BYTE(CFL_ALLOWED_TYPE);
 // TODO Extend work to add more support SDP-CFL latency
 // reduction at transform level
+
+enum {
+  MHCCP_DISALLOWED,
+  MHCCP_ALLOWED,
+  MHCCP_ALLOWED_TYPES
+} UENUM1BYTE(MHCCP_ALLOWED_TYPE);
+
 enum {
   CFL_DISALLOWED_FOR_CHROMA,
   CFL_ALLOWED_FOR_CHROMA,
