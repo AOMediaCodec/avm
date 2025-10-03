@@ -1478,12 +1478,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
     tool_cfg->enable_tip = extra_cfg->enable_tip;
     tool_cfg->enable_mv_traj = extra_cfg->enable_mv_traj;
     if (tool_cfg->enable_tip) {
-#if !CONFIG_TIP_LD
-      if (cfg->g_lag_in_frames == 0) {
-        tool_cfg->enable_tip = 0;
-      }
-#endif  // !CONFIG_TIP_LD
-
       if (cfg->kf_max_dist == 0) {
         tool_cfg->enable_tip = 0;
       }

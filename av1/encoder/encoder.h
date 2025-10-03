@@ -3079,14 +3079,12 @@ typedef struct AV1_COMP {
    */
   MultiFrameHeader cur_mfh_params;
 #endif  // CONFIG_MULTI_FRAME_HEADER
-#if CONFIG_TIP_LD
   /*!
    * TIP mode selected count for first INTER_REFS_PER_FRAME frames
    * Encoder would use this value to decide if need to enable TIP mode
    * for future frames
    */
   int tip_mode_count[INTER_REFS_PER_FRAME];
-#endif  // CONFIG_TIP_LD
 #if CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
   /*!
    * Write the Buffer Removal Timing OBU

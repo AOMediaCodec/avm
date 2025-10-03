@@ -3282,11 +3282,7 @@ static AOM_INLINE int is_sub_block_refinemv_enabled(const AV1_COMMON *cm,
     const int8_t tip_weight = tip_weighting_factors[tip_wtd_index];
     return (cm->has_both_sides_refs && tip_weight == TIP_EQUAL_WTD);
 #else
-#if CONFIG_TIP_LD
     return (cm->has_both_sides_refs);
-#else
-    return 1;
-#endif  // CONFIG_TIP_LD
 #endif  // CONFIG_TIP_ENHANCEMENT
   } else {
     int apply_sub_block_refinemv =

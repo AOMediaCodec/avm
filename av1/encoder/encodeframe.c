@@ -1903,7 +1903,6 @@ static AOM_INLINE void set_default_interp_skip_flags(
                         : INTERP_SKIP_LUMA_SKIP_CHROMA;
 }
 
-#if CONFIG_TIP_LD
 #define TIP_COUNT_THRESHOLD 6
 // This is an encoder-only function:
 // Based on the statistics of the number of blocks coded in TIP mode in
@@ -1935,7 +1934,6 @@ static AOM_INLINE int could_tip_mode_be_selected(AV1_COMP *const cpi) {
 
   return 0;
 }
-#endif  // CONFIG_TIP_LD
 
 #if CONFIG_TIP_ENHANCEMENT
 static AOM_INLINE void decide_tip_setting_and_setup_tip_frame(AV1_COMP *cpi) {
@@ -1989,29 +1987,17 @@ static AOM_INLINE void av1_enc_setup_tip_frame(AV1_COMP *cpi) {
   cm->tip_global_wtd_index = 0;
 #endif  // CONFIG_TIP_ENHANCEMENT
 
-  if (cm->seq_params.enable_tip
-#if CONFIG_TIP_LD
-      && could_tip_mode_be_selected(cpi)
-#endif  // CONFIG_TIP_LD
-  ) {
+  if (cm->seq_params.enable_tip && could_tip_mode_be_selected(cpi)) {
     if (cm->features.allow_ref_frame_mvs &&
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
         cm->seq_params.order_hint_info.enable_order_hint &&
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-#if CONFIG_TIP_LD
-        (cm->has_both_sides_refs || cm->ref_frames_info.num_past_refs >= 2)
-#else
-        cm->has_both_sides_refs
-#endif  // CONFIG_TIP_LD
-    ) {
+        (cm->has_both_sides_refs || cm->ref_frames_info.num_past_refs >= 2)) {
 #if CONFIG_COLLECT_COMPONENT_TIMING
       start_timing(cpi, av1_enc_setup_tip_frame_time);
 #endif
       av1_enc_setup_tip_motion_field(cm);
       if (cm->features.tip_frame_mode) {
-#if !CONFIG_TIP_LD
-        cm->features.use_optflow_tip = 1;
-#endif  // !CONFIG_TIP_LD
 #if CONFIG_TIP_ENHANCEMENT
         decide_tip_setting_and_setup_tip_frame(cpi);
 #else
@@ -2037,12 +2023,10 @@ static AOM_INLINE void av1_enc_setup_tip_frame(AV1_COMP *cpi) {
     av1_fill_tpl_mvs_sample_gap(cm);
   }
 
-#if CONFIG_TIP_LD
   const int cur_order_hint = cm->current_frame.display_order_hint;
   if (!cm->has_both_sides_refs && cur_order_hint < INTER_REFS_PER_FRAME) {
     cpi->tip_mode_count[cur_order_hint] = 0;
   }
-#endif  // CONFIG_TIP_LD
 }
 
 /*!\brief Set the lossless flags for a frame before encoding it

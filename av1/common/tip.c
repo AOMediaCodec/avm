@@ -217,7 +217,6 @@ static void tip_config_tip_parameter(AV1_COMMON *cm) {
   const int cur_to_ref1_offset =
       get_relative_dist(order_hint_info, cur_order_hint, ref1_frame_order_hint);
 
-#if CONFIG_TIP_LD
   int ref_frames_offset = 0;
   if (cm->has_both_sides_refs) {
     ref_frames_offset = get_relative_dist(
@@ -226,10 +225,6 @@ static void tip_config_tip_parameter(AV1_COMMON *cm) {
     ref_frames_offset = get_relative_dist(
         order_hint_info, ref0_frame_order_hint, ref1_frame_order_hint);
   }
-#else
-  const int ref_frames_offset = get_relative_dist(
-      order_hint_info, ref1_frame_order_hint, ref0_frame_order_hint);
-#endif  // CONFIG_TIP_LD
   tip_ref->ref_frame_buffer[0] = ref0_frame_buf;
   tip_ref->ref_frame_buffer[1] = ref1_frame_buf;
   tip_ref->ref_scale_factor[0] = get_ref_scale_factors_const(cm, nearest_rf[0]);
@@ -255,10 +250,8 @@ void av1_setup_tip_motion_field(AV1_COMMON *cm) {
     }
     av1_fill_tpl_mvs_sample_gap(cm);
 
-#if CONFIG_TIP_LD
     cm->features.use_optflow_tip =
         cm->features.tip_frame_mode && cm->has_both_sides_refs;
-#endif  // CONFIG_TIP_LD
   }
 }
 
@@ -623,9 +616,7 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
   const int comp_bw = bw >> ss_x;
   const int comp_bh = bh >> ss_y;
 
-#if CONFIG_TIP_LD || CONFIG_TIP_ENHANCEMENT
   const int has_both_sides_refs = cm->has_both_sides_refs;
-#endif  // CONFIG_TIP_LD || CONFIG_TIP_ENHANCEMENT
 #if CONFIG_TIP_ENHANCEMENT
   const int tip_wtd_index = cm->tip_global_wtd_index;
   const int8_t tip_weight = tip_weighting_factors[tip_wtd_index];
@@ -647,7 +638,6 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
                        (REFINEMV_SUBBLOCK_HEIGHT +
                         2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES))];
 
-#if CONFIG_TIP_LD
   const int apply_refinemv = (cm->seq_params.enable_refinemv &&
 #if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
                               cm->seq_params.enable_tip_refinemv &&
@@ -657,9 +647,6 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
                               && tip_weight == TIP_EQUAL_WTD
 #endif  // CONFIG_TIP_ENHANCEMENT
   );
-#else
-  int apply_refinemv = (plane == 0);
-#endif  // CONFIG_TIP_LD
 
   ReferenceArea ref_area[2];
   const int do_opfl =
@@ -683,10 +670,7 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
 #if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
       cm->seq_params.enable_tip_refinemv &&
 #endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
-#if CONFIG_TIP_LD
-      cm->has_both_sides_refs &&
-#endif
-      (comp_bw > 4 || comp_bh > 4) &&
+      cm->has_both_sides_refs && (comp_bw > 4 || comp_bh > 4) &&
       !is_tip_mv_refine_disabled_for_unit_size_16x16;
   if (do_ref_area_pad) {
     MB_MODE_INFO *mbmi = aom_calloc(1, sizeof(*mbmi));

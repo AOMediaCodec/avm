@@ -4906,7 +4906,6 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
   int checked_count = 0;
 
   if (cm->seq_params.enable_tip) {
-#if CONFIG_TIP_LD
     if (cm->has_both_sides_refs || cm->ref_frames_info.num_past_refs >= 2) {
       if (cm->has_both_sides_refs) {
         cm->tip_ref.ref_frame[0] = sort_ref[cur_frame_sort_idx];
@@ -4915,12 +4914,6 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
         cm->tip_ref.ref_frame[0] = sort_ref[cur_frame_sort_idx];
         cm->tip_ref.ref_frame[1] = sort_ref[cur_frame_sort_idx - 1];
       }
-#else
-    if (cur_frame_sort_idx >= 0 &&
-        cur_frame_sort_idx < cm->ref_frames_info.num_total_refs - 1) {
-      cm->tip_ref.ref_frame[0] = sort_ref[cur_frame_sort_idx];
-      cm->tip_ref.ref_frame[1] = sort_ref[cur_frame_sort_idx + 1];
-#endif  // CONFIG_TIP_LD
       int start_frame, target_frame;
       int side;
       if (rf_topo_stack_idx[cm->tip_ref.ref_frame[0]] >
