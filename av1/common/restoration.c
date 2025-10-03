@@ -267,17 +267,9 @@ AV1PixelRect av1_whole_frame_rect(const AV1_COMMON *cm, int is_uv) {
   int ss_y = is_uv && cm->seq_params.subsampling_y;
 
   rect.top = 0;
-#if CONFIG_F054_PIC_BOUNDARY
   rect.bottom = cm->mi_params.mi_rows * MI_SIZE >> ss_y;
-#else
-  rect.bottom = ROUND_POWER_OF_TWO(cm->height, ss_y);
-#endif
   rect.left = 0;
-#if CONFIG_F054_PIC_BOUNDARY
   rect.right = cm->mi_params.mi_cols * MI_SIZE >> ss_x;
-#else
-  rect.right = ROUND_POWER_OF_TWO(cm->width, ss_x);
-#endif
   return rect;
 }
 
@@ -1814,18 +1806,10 @@ uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV1Common *cm,
   const YV12_BUFFER_CONFIG *frame_buf = &cm->cur_frame->buf;
 
   uint16_t *dgd = frame_buf->buffers[AOM_PLANE_Y];
-
-#if CONFIG_F054_PIC_BOUNDARY
   int width_y = frame_buf->widths[AOM_PLANE_Y];
   int height_y = frame_buf->heights[AOM_PLANE_Y];
   int width_uv = frame_buf->widths[1];
   int height_uv = frame_buf->heights[1];
-#else
-  int width_y = frame_buf->crop_widths[AOM_PLANE_Y];
-  int height_y = frame_buf->crop_heights[AOM_PLANE_Y];
-  int width_uv = frame_buf->crop_widths[1];
-  int height_uv = frame_buf->crop_heights[1];
-#endif  // CONFIG_F054_PIC_BOUNDARY
 
   if (width_y > RESTORATION_LINEBUFFER_WIDTH)
     aom_internal_error(
@@ -2404,14 +2388,8 @@ void av1_loop_restoration_filter_frame_init(AV1LrStruct *lr_ctxt,
   const int bit_depth = seq_params->bit_depth;
   lr_ctxt->dst = &cm->rst_frame;
   lr_ctxt->tiles = &cm->tiles;
-
-#if CONFIG_F054_PIC_BOUNDARY
   const int frame_width = frame->widths[0];
   const int frame_height = frame->heights[0];
-#else
-  const int frame_width = frame->crop_widths[0];
-  const int frame_height = frame->crop_heights[0];
-#endif  // CONFIG_F054_PIC_BOUNDARY
   if (aom_realloc_frame_buffer(
           lr_ctxt->dst, frame_width, frame_height, seq_params->subsampling_x,
           seq_params->subsampling_y, AOM_RESTORATION_FRAME_BORDER,
@@ -2431,13 +2409,8 @@ void av1_loop_restoration_filter_frame_init(AV1LrStruct *lr_ctxt,
     }
 
     const int is_uv = plane > 0;
-#if CONFIG_F054_PIC_BOUNDARY
     const int plane_width = frame->widths[is_uv];
     const int plane_height = frame->heights[is_uv];
-#else
-    const int plane_width = frame->crop_widths[is_uv];
-    const int plane_height = frame->crop_heights[is_uv];
-#endif  // CONFIG_F054_PIC_BOUNDARY
     FilterFrameCtxt *lr_plane_ctxt = &lr_ctxt->ctxt[plane];
 
     av1_extend_frame(frame->buffers[plane], plane_width, plane_height,
@@ -2496,11 +2469,7 @@ static void foreach_rest_unit_in_planes(AV1LrStruct *lr_ctxt, AV1_COMMON *cm,
   uint16_t *luma = NULL;
   uint16_t *luma_buf;
   const YV12_BUFFER_CONFIG *dgd = &cm->cur_frame->buf;
-#if CONFIG_F054_PIC_BOUNDARY
   int luma_stride = dgd->widths[1] + 2 * WIENERNS_UV_BRD;
-#else
-  int luma_stride = dgd->crop_widths[1] + 2 * WIENERNS_UV_BRD;
-#endif  // CONFIG_F054_PIC_BOUNDARY
   luma_buf = wienerns_copy_luma_with_virtual_lines(cm, &luma);
   assert(luma_buf != NULL);
 
@@ -2868,22 +2837,13 @@ static void save_deblock_boundary_lines(
   // the stripe (hence why we ended up in this function), but instead of
   // fetching 2 "below" rows we need to fetch one and duplicate it.
   // This is equivalent to clamping the sample locations against the crop border
-#if CONFIG_F054_PIC_BOUNDARY
   const int lines_to_save =
       AOMMIN(RESTORATION_CTX_VERT, frame->heights[is_uv] - row);
-#else
-  const int lines_to_save =
-      AOMMIN(RESTORATION_CTX_VERT, frame->crop_heights[is_uv] - row);
-#endif  // CONFIG_F054_PIC_BOUNDARY
   assert(lines_to_save == 1 || lines_to_save == 2);
 
   int upscaled_width;
   int line_bytes;
-#if CONFIG_F054_PIC_BOUNDARY
   upscaled_width = frame->widths[is_uv];
-#else
-  upscaled_width = frame->crop_widths[is_uv];
-#endif  // CONFIG_F054_PIC_BOUNDARY
   line_bytes = upscaled_width << 1;
   for (int i = 0; i < lines_to_save; i++) {
     memcpy(bdry_rows + i * bdry_stride, src_rows + i * src_stride, line_bytes);
@@ -2913,11 +2873,7 @@ static void save_cdef_boundary_lines(const YV12_BUFFER_CONFIG *frame,
   const int bdry_stride = boundaries->stripe_boundary_stride;
   uint16_t *bdry_rows =
       bdry_start + RESTORATION_CTX_VERT * stripe * bdry_stride;
-#if CONFIG_F054_PIC_BOUNDARY
   const int src_width = frame->widths[is_uv];
-#else
-  const int src_width = frame->crop_widths[is_uv];
-#endif  // CONFIG_F054_PIC_BOUNDARY
 
   // At the point where this function is called, we've already applied
   // superres. So we don't need to extend the lines here, we can just
@@ -2944,11 +2900,7 @@ void save_tile_row_boundary_lines(const YV12_BUFFER_CONFIG *frame, int plane,
 
   RestorationStripeBoundaries *boundaries = &cm->rst_info[plane].boundaries;
 
-#if CONFIG_F054_PIC_BOUNDARY
   const int plane_height = cm->mi_params.mi_rows * MI_SIZE >> ss_y;
-#else
-  const int plane_height = ROUND_POWER_OF_TWO(cm->height, ss_y);
-#endif  // CONFIG_F054_PIC_BOUNDARY
   (void)plane_height;
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   const int num_tile_rows = cm->tiles.rows;

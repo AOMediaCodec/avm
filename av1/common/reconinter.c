@@ -2227,13 +2227,8 @@ void av1_build_one_bawp_inter_predictor(
   const int mi_x_p = mi_x >> inter_pred_params->subsampling_x;
   const int mi_y_p = mi_y >> inter_pred_params->subsampling_y;
 
-#if CONFIG_F054_PIC_BOUNDARY
   const int width_p = pd->dst.width;
   const int height_p = pd->dst.height;
-#else
-  const int width_p = cm->width >> inter_pred_params->subsampling_x;
-  const int height_p = cm->height >> inter_pred_params->subsampling_y;
-#endif  // CONFIG_F054_PIC_BOUNDARY
 
   int ref_w = bw;
   if ((mi_x_p + bw) >= width_p) ref_w = width_p - mi_x_p;
@@ -2417,7 +2412,6 @@ static void build_inter_predictors_sub8x8(
       const struct scale_factors *ref_scale_factors =
           get_ref_scale_factors_const(cm, this_mbmi->ref_frame[ref]);
       const struct scale_factors *const sf = ref_scale_factors;
-#if CONFIG_F054_PIC_BOUNDARY
       const struct buf_2d pre_buf = {
         NULL,
         (plane == 1) ? ref_buf->buf.u_buffer : ref_buf->buf.v_buffer,
@@ -2427,17 +2421,6 @@ static void build_inter_predictors_sub8x8(
         ref_buf->buf.uv_crop_height,
         ref_buf->buf.uv_stride,
       };
-#else
-      const struct buf_2d pre_buf = {
-        NULL,
-        (plane == 1) ? ref_buf->buf.u_buffer : ref_buf->buf.v_buffer,
-        ref_buf->buf.uv_crop_width,
-        ref_buf->buf.uv_crop_height,
-        ref_buf->buf.uv_crop_width,
-        ref_buf->buf.uv_crop_height,
-        ref_buf->buf.uv_stride,
-      };
-#endif  // CONFIG_F054_PIC_BOUNDARY
 
       const MV mv = this_mbmi->mv[ref].as_mv;
       InterPredParams inter_pred_params;
@@ -2546,13 +2529,8 @@ void bru_extend_mc_border(const AV1_COMMON *const cm, int mi_row, int mi_col,
     const int s_y = is_uv ? ss_y : 0;
     PadBlock block;
     PadBlock block_cur;
-#if CONFIG_F054_PIC_BOUNDARY
     const int frame_H = is_uv ? src->uv_height : src->y_height;
     const int frame_W = is_uv ? src->uv_width : src->y_width;
-#else
-    const int frame_H = is_uv ? src->uv_crop_height : src->y_crop_height;
-    const int frame_W = is_uv ? src->uv_crop_width : src->y_crop_width;
-#endif  // CONFIG_F054_PIC_BOUNDARY
     block.x0 = mi_col << (MI_SIZE_LOG2 - s_x);
     block.y0 = mi_row << (MI_SIZE_LOG2 - s_y);
     block.x1 = block.x0 + (org_bw << (MI_SIZE_LOG2 - s_x));
@@ -4207,19 +4185,11 @@ void av1_setup_dst_planes(struct macroblockd_plane *planes,
   for (int i = plane_start; i < AOMMIN(plane_end, MAX_MB_PLANE); ++i) {
     struct macroblockd_plane *const pd = &planes[i];
     const int is_uv = i > 0;
-#if CONFIG_F054_PIC_BOUNDARY
     setup_pred_plane(&pd->dst, src->buffers[i], src->widths[is_uv],
                      src->heights[is_uv], src->crop_widths[is_uv],
                      src->crop_heights[is_uv], src->strides[is_uv], mi_row,
                      mi_col, NULL, pd->subsampling_x, pd->subsampling_y,
                      chroma_ref_info);
-#else
-    setup_pred_plane(&pd->dst, src->buffers[i], src->crop_widths[is_uv],
-                     src->crop_heights[is_uv], src->crop_widths[is_uv],
-                     src->crop_heights[is_uv], src->strides[is_uv], mi_row,
-                     mi_col, NULL, pd->subsampling_x, pd->subsampling_y,
-                     chroma_ref_info);
-#endif  // CONFIG_F054_PIC_BOUNDARY
   }
 }
 
@@ -4234,19 +4204,11 @@ void av1_setup_pre_planes(MACROBLOCKD *xd, int idx,
     for (int i = 0; i < AOMMIN(num_planes, MAX_MB_PLANE); ++i) {
       struct macroblockd_plane *const pd = &xd->plane[i];
       const int is_uv = i > 0;
-#if CONFIG_F054_PIC_BOUNDARY
       setup_pred_plane(&pd->pre[idx], src->buffers[i], src->widths[is_uv],
                        src->heights[is_uv], src->crop_widths[is_uv],
                        src->crop_heights[is_uv], src->strides[is_uv], mi_row,
                        mi_col, sf, pd->subsampling_x, pd->subsampling_y,
                        chroma_ref_info);
-#else
-      setup_pred_plane(&pd->pre[idx], src->buffers[i], src->crop_widths[is_uv],
-                       src->crop_heights[is_uv], src->crop_widths[is_uv],
-                       src->crop_heights[is_uv], src->strides[is_uv], mi_row,
-                       mi_col, sf, pd->subsampling_x, pd->subsampling_y,
-                       chroma_ref_info);
-#endif  // CONFIG_F054_PIC_BOUNDARY
     }
   }
 }
@@ -4593,11 +4555,9 @@ void fill_subblock_refine_mv(REFINEMV_SUBMB_INFO *refinemv_subinfo, int bw,
 bool av1_build_morph_pred(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
                           const BLOCK_SIZE bsize, const int mi_row,
                           const int mi_col) {
-#if CONFIG_F054_PIC_BOUNDARY
   (void)cm;
-#endif  // CONFIG_F054_PIC_BOUNDARY
-        // Predictor, i.e., the reconstructed block
-        // found from intrabc.
+  // Predictor, i.e., the reconstructed block
+  // found from intrabc.
   struct macroblockd_plane *const pd = &xd->plane[AOM_PLANE_Y];
   uint16_t *const dst = pd->dst.buf;
   const int dst_stride = pd->dst.stride;
@@ -4605,23 +4565,14 @@ bool av1_build_morph_pred(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
   FULLPEL_MV dv = get_fullmv_from_mv(&mbmi->mv[0].as_mv);
   const int cur_x = mi_col * MI_SIZE;
   const int cur_y = mi_row * MI_SIZE;
-#if CONFIG_F054_PIC_BOUNDARY
   if (cur_x >= pd->dst.width || cur_y >= pd->dst.height) return false;
-#else
-  if (cur_x >= cm->width || cur_y >= cm->height) return false;
-#endif  // CONFIG_F054_PIC_BOUNDARY
 
   const int bw = block_size_wide[bsize];
   const int bh = block_size_high[bsize];
   int ref_w = bw;
   int ref_h = bh;
-#if CONFIG_F054_PIC_BOUNDARY
   if (cur_x + bw >= pd->dst.width) ref_w = pd->dst.width - cur_x;
   if (cur_y + bh >= pd->dst.height) ref_h = pd->dst.height - cur_y;
-#else
-  if (cur_x + bw >= cm->width) ref_w = cm->width - cur_x;
-  if (cur_y + bh >= cm->height) ref_h = cm->height - cur_y;
-#endif  // CONFIG_F054_PIC_BOUNDARY
 
   const int cur_tmplt_x = cur_x - BAWP_REF_LINES;
   const int cur_tmplt_y = cur_y - BAWP_REF_LINES;
@@ -4629,17 +4580,10 @@ bool av1_build_morph_pred(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
   const int ref_y = cur_y + dv.row;
   const int ref_tmplt_x = ref_x - BAWP_REF_LINES;
   const int ref_tmplt_y = ref_y - BAWP_REF_LINES;
-#if CONFIG_F054_PIC_BOUNDARY
   assert(cur_tmplt_x + ref_w < pd->dst.width);
   assert(cur_tmplt_y + ref_h < pd->dst.height);
   if (ref_tmplt_x < 0 || ref_tmplt_y < 0 || ref_x + ref_w >= pd->dst.width ||
       ref_y + ref_h >= pd->dst.height) {
-#else
-  assert(cur_tmplt_x + ref_w < cm->width);
-  assert(cur_tmplt_y + ref_h < cm->height);
-  if (ref_tmplt_x < 0 || ref_tmplt_y < 0 || ref_x + ref_w >= cm->width ||
-      ref_y + ref_h >= cm->height) {
-#endif  // CONFIG_F054_PIC_BOUNDARY
     return false;
   }
 #if !CONFIG_LOCAL_INTRABC_BAWP

@@ -901,17 +901,10 @@ static AOM_INLINE void tip_component_setup_dst_planes(AV1_COMMON *const cm,
     subsampling_x = cm->seq_params.subsampling_x;
     subsampling_y = cm->seq_params.subsampling_y;
   }
-#if CONFIG_F054_PIC_BOUNDARY
   tip_setup_pred_plane(&pd->dst, src->buffers[plane], src->widths[is_uv],
                        src->heights[is_uv], src->crop_widths[is_uv],
                        src->crop_heights[is_uv], src->strides[is_uv], tpl_row,
                        tpl_col, NULL, subsampling_x, subsampling_y);
-#else
-  tip_setup_pred_plane(&pd->dst, src->buffers[plane], src->crop_widths[is_uv],
-                       src->crop_heights[is_uv], src->crop_widths[is_uv],
-                       src->crop_heights[is_uv], src->strides[is_uv], tpl_row,
-                       tpl_col, NULL, subsampling_x, subsampling_y);
-#endif  // CONFIG_F054_PIC_BOUNDARY
 }
 
 static void tip_setup_tip_frame_plane(

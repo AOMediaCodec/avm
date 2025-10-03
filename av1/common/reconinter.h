@@ -1081,21 +1081,12 @@ static AOM_INLINE void setup_pred_planes_for_tip(const TIP *tip_ref,
 
     for (int ref = 0; ref < 2; ++ref) {
       const YV12_BUFFER_CONFIG *ref_buf = &tip_ref->ref_frame_buffer[ref]->buf;
-#if CONFIG_F054_PIC_BOUNDARY
       setup_pred_plane(&pd->pre[ref], ref_buf->buffers[plane],
                        ref_buf->widths[is_uv], ref_buf->heights[is_uv],
                        ref_buf->crop_widths[is_uv],
                        ref_buf->crop_heights[is_uv], ref_buf->strides[is_uv],
                        mi_row, mi_col, tip_ref->ref_scale_factor[ref],
                        pd->subsampling_x, pd->subsampling_y, NULL);
-#else
-      setup_pred_plane(
-          &pd->pre[ref], ref_buf->buffers[plane], ref_buf->crop_widths[is_uv],
-          ref_buf->crop_heights[is_uv], ref_buf->crop_widths[is_uv],
-          ref_buf->crop_heights[is_uv], ref_buf->strides[is_uv], mi_row, mi_col,
-          tip_ref->ref_scale_factor[ref], pd->subsampling_x, pd->subsampling_y,
-          NULL);
-#endif  // CONFIG_F054_PIC_BOUNDARY
     }
   }
 }

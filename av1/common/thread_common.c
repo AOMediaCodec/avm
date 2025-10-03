@@ -1059,11 +1059,7 @@ static void foreach_rest_unit_in_planes_mt(AV1LrStruct *lr_ctxt,
   uint16_t *luma = NULL;
   uint16_t *luma_buf;
   const YV12_BUFFER_CONFIG *dgd = &cm->cur_frame->buf;
-#if CONFIG_F054_PIC_BOUNDARY
   int luma_stride = dgd->widths[1] + 2 * WIENERNS_UV_BRD;
-#else
-  int luma_stride = dgd->crop_widths[1] + 2 * WIENERNS_UV_BRD;
-#endif  // CONFIG_F054_PIC_BOUNDARY
   luma_buf = wienerns_copy_luma_with_virtual_lines(cm, &luma);
   assert(luma_buf != NULL);
 

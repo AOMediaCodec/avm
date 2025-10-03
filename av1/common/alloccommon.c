@@ -343,11 +343,7 @@ void av1_alloc_restoration_boundary_buffers(struct AV1Common *cm,
 
   // Now we need to allocate enough space to store the line buffers for the
   // stripes
-#if CONFIG_F054_PIC_BOUNDARY
   const int frame_w = cm->mi_params.mi_cols << MI_SIZE_LOG2;
-#else
-  const int frame_w = cm->width;
-#endif  // CONFIG_F054_PIC_BOUNDARY
 
   for (int p = 0; p < num_planes; ++p) {
     const int is_uv = p > 0;

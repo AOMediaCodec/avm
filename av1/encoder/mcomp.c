@@ -3066,14 +3066,9 @@ int upsampled_pref_error(MACROBLOCKD *xd, const AV1_COMMON *cm,
   const int subpel_y_q3 = get_subpel_part(this_mv->row);
 
   unsigned int besterr;
-#if CONFIG_F054_PIC_BOUNDARY
   const int is_scaled_ref =
       ms_buffers->src->width == ms_buffers->ref->crop_width &&
       ms_buffers->src->height == ms_buffers->ref->crop_height;
-#else
-  const int is_scaled_ref = ms_buffers->src->width == ms_buffers->ref->width &&
-                            ms_buffers->src->height == ms_buffers->ref->height;
-#endif  // CONFIG_F054_PIC_BOUNDARY
 
   if (second_pred != NULL) {
     if (mask) {

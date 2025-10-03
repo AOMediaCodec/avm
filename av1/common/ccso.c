@@ -56,21 +56,11 @@ int get_ccso_unit_size_log2_adaptive_tile(const AV1_COMMON *cm,
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 
 /* Pad the border of a frame */
-#if CONFIG_F054_PIC_BOUNDARY
 void extend_ccso_border(const YV12_BUFFER_CONFIG *frame, uint16_t *buf,
                         const int d) {
-#else
-void extend_ccso_border(uint16_t *buf, const int d, MACROBLOCKD *xd) {
-#endif  // CONFIG_F054_PIC_BOUNDARY
-#if CONFIG_F054_PIC_BOUNDARY
   int s = frame->y_width + (CCSO_PADDING_SIZE << 1);
   int h = frame->y_height;
   int w = frame->y_width;
-#else
-  int s = xd->plane[0].dst.width + (CCSO_PADDING_SIZE << 1);
-  int h = xd->plane[0].dst.height;
-  int w = xd->plane[0].dst.width;
-#endif  // CONFIG_F054_PIC_BOUNDARY
   uint16_t *p = &buf[d * s + d];
   for (int y = 0; y < h; y++) {
     for (int x = 0; x < d; x++) {

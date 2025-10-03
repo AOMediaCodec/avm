@@ -1750,15 +1750,9 @@ AOM_INLINE void setup_tip_dst_planes(AV1_COMMON *const cm, const int plane,
     subsampling_x = cm->seq_params.subsampling_x;
     subsampling_y = cm->seq_params.subsampling_y;
   }
-#if CONFIG_F054_PIC_BOUNDARY
   setup_tip_dst_plane(&pd->dst, src->buffers[plane], src->widths[is_uv],
                       src->heights[is_uv], src->strides[is_uv], tpl_row,
                       tpl_col, NULL, subsampling_x, subsampling_y);
-#else
-  setup_tip_dst_plane(&pd->dst, src->buffers[plane], src->crop_widths[is_uv],
-                      src->crop_heights[is_uv], src->strides[is_uv], tpl_row,
-                      tpl_col, NULL, subsampling_x, subsampling_y);
-#endif  // CONFIG_F054_PIC_BOUNDARY
 }
 
 // Initialize TIP lf parameters
