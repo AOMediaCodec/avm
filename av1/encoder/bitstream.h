@@ -45,10 +45,6 @@ void set_sequence_header_with_keyframe(AV1_COMP *cpi,
                                        struct SequenceHeader *seq_params);
 #endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 
-#if CONFIG_CWG_E242_PARSING_INDEP
-void set_multi_frame_header_with_keyframe(AV1_COMP *cpi,
-                                          MultiFrameHeader *mfh_params);
-#endif // CONFIG_CWG_E242_PARSING_INDEP
 
 #if CONFIG_MULTILAYER_HLS
 uint32_t av1_write_layer_configuration_record_obu(AV1_COMP *const cpi,

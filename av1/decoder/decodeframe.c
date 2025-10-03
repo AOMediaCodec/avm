@@ -7451,7 +7451,9 @@ void av1_read_multi_frame_header(AV1_COMMON *cm,
     int num_bits_width = mfh_param->mfh_frame_width_bits_minus1 + 1;
     mfh_param->mfh_frame_height_bits_minus1 = aom_rb_read_literal(rb, 4);
     int num_bits_height = mfh_param->mfh_frame_height_bits_minus1 + 1;
-    av1_read_frame_size(rb, num_bits_width, num_bits_height, &mfh_param->mfh_frame_width, &mfh_param->mfh_frame_height);
+    av1_read_frame_size(rb, num_bits_width, num_bits_height,
+                        &mfh_param->mfh_frame_width,
+                        &mfh_param->mfh_frame_height);
   }
 #else
   bool frame_size_update_flag = aom_rb_read_bit(rb);

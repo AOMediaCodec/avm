@@ -5987,8 +5987,10 @@ static AOM_INLINE void write_multi_frame_header(
     const int coded_height = mfh_param->mfh_frame_height;
     aom_wb_write_literal(wb, mfh_param->mfh_frame_width_bits_minus1, 4);
     aom_wb_write_literal(wb, mfh_param->mfh_frame_height_bits_minus1, 4);
-    aom_wb_write_literal(wb, coded_width - 1, mfh_param->mfh_frame_width_bits_minus1 + 1);
-    aom_wb_write_literal(wb, coded_height - 1, mfh_param->mfh_frame_height_bits_minus1 + 1);
+    aom_wb_write_literal(wb, coded_width - 1,
+                         mfh_param->mfh_frame_width_bits_minus1 + 1);
+    aom_wb_write_literal(wb, coded_height - 1,
+                         mfh_param->mfh_frame_height_bits_minus1 + 1);
   }
 #else
   bool mfh_frame_size_update_flag =
@@ -8591,6 +8593,34 @@ static size_t av1_write_frame_hash_metadata(
 
   return total_bytes_written;
 }
+
+#if CONFIG_CWG_E242_PARSING_INDEP
+// This function sets the variables within the MFH
+static void set_multi_frame_header_with_keyframe(AV1_COMP *cpi,
+                                          MultiFrameHeader *mfh_params) {
+  AV1_COMMON *cm = &cpi->common;
+
+  mfh_params->mfh_frame_size_present_flag =
+      cm->width != cm->seq_params.max_frame_width ||
+      cm->height != cm->seq_params.max_frame_height;
+
+  if (mfh_params->mfh_frame_size_present_flag) {
+    mfh_params->mfh_frame_width_bits_minus1 = cm->seq_params.num_bits_width - 1;
+    mfh_params->mfh_frame_height_bits_minus1 =
+        cm->seq_params.num_bits_height - 1;
+    mfh_params->mfh_frame_width = cm->width;
+    mfh_params->mfh_frame_height = cm->height;
+  }
+
+  // Set render size params for MFH
+  mfh_params->mfh_render_size_present_flag =
+      (cm->width != cm->render_width || cm->height != cm->render_height);
+  if (mfh_params->mfh_render_size_present_flag) {
+    mfh_params->mfh_render_width = cm->width;
+    mfh_params->mfh_render_height = cm->height;
+  }
+}
+#endif  // CONFIG_CWG_E242_PARSING_INDEP
 
 int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
                        int *const largest_tile_id) {
