@@ -3671,12 +3671,9 @@ static INLINE int av1_allow_palette(int plane_type,
                                     int allow_screen_content_tools,
                                     BLOCK_SIZE sb_type) {
   assert(sb_type < BLOCK_SIZES_ALL);
-  return
-#if CONFIG_DISABLE_PALC
-      plane_type == PLANE_TYPE_Y &&
-#endif  // CONFIG_DISABLE_PALC
-      allow_screen_content_tools && block_size_wide[sb_type] <= 64 &&
-      block_size_high[sb_type] <= 64 && sb_type >= BLOCK_8X8;
+  return plane_type == PLANE_TYPE_Y && allow_screen_content_tools &&
+         block_size_wide[sb_type] <= 64 && block_size_high[sb_type] <= 64 &&
+         sb_type >= BLOCK_8X8;
 }
 
 // Returns sub-sampled dimensions of the given block.

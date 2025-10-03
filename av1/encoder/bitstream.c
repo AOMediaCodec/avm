@@ -673,18 +673,10 @@ static AOM_INLINE void pack_map_tokens(const MACROBLOCKD *xd, aom_writer *w,
             (!(identity_row_flag == 1) || ax1 == 0)) {
           assert(p->color_map_palette_size_idx >= 0 &&
                  p->color_map_ctx_idx >= 0);
-#if CONFIG_PALETTE_CTX_REDUCTION
           aom_cdf_prob *color_map_pb_cdf =
               xd->tile_ctx
                   ->palette_y_color_index_cdf[p->color_map_palette_size_idx]
                                              [p->color_map_ctx_idx];
-#else
-          aom_cdf_prob *color_map_pb_cdf =
-              plane ? xd->tile_ctx->palette_uv_color_index_cdf
-                          [p->color_map_palette_size_idx][p->color_map_ctx_idx]
-                    : xd->tile_ctx->palette_y_color_index_cdf
-                          [p->color_map_palette_size_idx][p->color_map_ctx_idx];
-#endif  // CONFIG_PALETTE_CTX_REDUCTION
           aom_write_symbol(w, p->token, color_map_pb_cdf, n);
         }
       }
@@ -1104,70 +1096,6 @@ static AOM_INLINE void write_palette_colors_y(
   delta_encode_palette_colors(out_cache_colors, n_out_cache, bit_depth, 1, w);
 }
 
-#if !CONFIG_DISABLE_PALC
-// Write chroma palette color values. U channel is handled similarly to the luma
-// channel. For v channel, either use delta encoding or transmit raw values
-// directly, whichever costs less.
-static AOM_INLINE void write_palette_colors_uv(
-    const MACROBLOCKD *const xd, const PALETTE_MODE_INFO *const pmi,
-    int bit_depth, aom_writer *w) {
-  const int n = pmi->palette_size[1];
-  const uint16_t *colors_u = pmi->palette_colors + PALETTE_MAX_SIZE;
-  const uint16_t *colors_v = pmi->palette_colors + 2 * PALETTE_MAX_SIZE;
-  // U channel colors.
-  uint16_t color_cache[2 * PALETTE_MAX_SIZE];
-  const int n_cache = av1_get_palette_cache(xd, 1, color_cache);
-  int out_cache_colors[PALETTE_MAX_SIZE];
-  uint8_t cache_color_found[2 * PALETTE_MAX_SIZE];
-  const int n_out_cache = av1_index_color_cache(
-      color_cache, n_cache, colors_u, n, cache_color_found, out_cache_colors);
-  int n_in_cache = 0;
-  for (int i = 0; i < n_cache && n_in_cache < n; ++i) {
-    const int found = cache_color_found[i];
-    aom_write_bit(w, found);
-    n_in_cache += found;
-  }
-  delta_encode_palette_colors(out_cache_colors, n_out_cache, bit_depth, 0, w);
-
-  // V channel colors. Don't use color cache as the colors are not sorted.
-  const int max_val = 1 << bit_depth;
-  int zero_count = 0, min_bits_v = 0;
-  int bits_v =
-      av1_get_palette_delta_bits_v(pmi, bit_depth, &zero_count, &min_bits_v);
-  const int rate_using_delta =
-      2 + bit_depth + (bits_v + 1) * (n - 1) - zero_count;
-  const int rate_using_raw = bit_depth * n;
-  if (rate_using_delta < rate_using_raw) {  // delta encoding
-    assert(colors_v[0] < (1 << bit_depth));
-    aom_write_bit(w, 1);
-    aom_write_literal(w, bits_v - min_bits_v, 2);
-    aom_write_literal(w, colors_v[0], bit_depth);
-    for (int i = 1; i < n; ++i) {
-      assert(colors_v[i] < (1 << bit_depth));
-      if (colors_v[i] == colors_v[i - 1]) {  // No need to signal sign bit.
-        aom_write_literal(w, 0, bits_v);
-        continue;
-      }
-      const int delta = abs((int)colors_v[i] - colors_v[i - 1]);
-      const int sign_bit = colors_v[i] < colors_v[i - 1];
-      if (delta <= max_val - delta) {
-        aom_write_literal(w, delta, bits_v);
-        aom_write_bit(w, sign_bit);
-      } else {
-        aom_write_literal(w, max_val - delta, bits_v);
-        aom_write_bit(w, !sign_bit);
-      }
-    }
-  } else {  // Transmit raw values.
-    aom_write_bit(w, 0);
-    for (int i = 0; i < n; ++i) {
-      assert(colors_v[i] < (1 << bit_depth));
-      aom_write_literal(w, colors_v[i], bit_depth);
-    }
-  }
-}
-#endif  // !CONFIG_DISABLE_PALC
-
 static AOM_INLINE void write_palette_mode_info(const AV1_COMMON *cm,
                                                const MACROBLOCKD *xd,
                                                const MB_MODE_INFO *const mbmi,
@@ -1175,66 +1103,17 @@ static AOM_INLINE void write_palette_mode_info(const AV1_COMMON *cm,
   const BLOCK_SIZE bsize = mbmi->sb_type[xd->tree_type == CHROMA_PART];
   assert(av1_allow_palette(PLANE_TYPE_Y,
                            cm->features.allow_screen_content_tools, bsize));
-#if CONFIG_PALETTE_CTX_REDUCTION
   (void)bsize;
-#endif  // CONFIG_PALETTE_CTX_REDUCTION
   const PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
-#if !CONFIG_PALETTE_CTX_REDUCTION
-  const int bsize_ctx = av1_get_palette_bsize_ctx(bsize);
-#endif  // !CONFIG_PALETTE_CTX_REDUCTION
   if (mbmi->mode == DC_PRED && xd->tree_type != CHROMA_PART) {
     const int n = pmi->palette_size[0];
-#if !CONFIG_PALETTE_CTX_REDUCTION
-    const int palette_y_mode_ctx = av1_get_palette_mode_ctx(xd);
-#endif  // !CONFIG_PALETTE_CTX_REDUCTION
-#if CONFIG_PALETTE_CTX_REDUCTION
     aom_write_symbol(w, n > 0, xd->tile_ctx->palette_y_mode_cdf, 2);
-#else
-    aom_write_symbol(
-        w, n > 0,
-        xd->tile_ctx->palette_y_mode_cdf[bsize_ctx][palette_y_mode_ctx], 2);
-#endif  // CONFIG_PALETTE_CTX_REDUCTION
     if (n > 0) {
-#if CONFIG_PALETTE_CTX_REDUCTION
       aom_write_symbol(w, n - PALETTE_MIN_SIZE,
                        xd->tile_ctx->palette_y_size_cdf, PALETTE_SIZES);
-#else
-      aom_write_symbol(w, n - PALETTE_MIN_SIZE,
-                       xd->tile_ctx->palette_y_size_cdf[bsize_ctx],
-                       PALETTE_SIZES);
-#endif  // CONFIG_PALETTE_CTX_REDUCTION
       write_palette_colors_y(xd, pmi, cm->seq_params.bit_depth, w);
     }
   }
-
-#if !CONFIG_DISABLE_PALC
-  const int num_planes = av1_num_planes(cm);
-  const int uv_dc_pred = num_planes > 1 && xd->tree_type != LUMA_PART &&
-                         mbmi->uv_mode == UV_DC_PRED && xd->is_chroma_ref;
-  if (uv_dc_pred) {
-    const int n = pmi->palette_size[1];
-#if !CONFIG_PALETTE_CTX_REDUCTION
-    const int palette_uv_mode_ctx = (pmi->palette_size[0] > 0);
-#endif  // !CONFIG_PALETTE_CTX_REDUCTION
-#if CONFIG_PALETTE_CTX_REDUCTION
-    aom_write_symbol(w, n > 0, xd->tile_ctx->palette_uv_mode_cdf, 2);
-#else
-    aom_write_symbol(w, n > 0,
-                     xd->tile_ctx->palette_uv_mode_cdf[palette_uv_mode_ctx], 2);
-#endif  // CONFIG_PALETTE_CTX_REDUCTION
-    if (n > 0) {
-#if CONFIG_PALETTE_CTX_REDUCTION
-      aom_write_symbol(w, n - PALETTE_MIN_SIZE,
-                       xd->tile_ctx->palette_uv_size_cdf, PALETTE_SIZES);
-#else
-      aom_write_symbol(w, n - PALETTE_MIN_SIZE,
-                       xd->tile_ctx->palette_uv_size_cdf[bsize_ctx],
-                       PALETTE_SIZES);
-#endif  // CONFIG_PALETTE_CTX_REDUCTION
-      write_palette_colors_uv(xd, pmi, cm->seq_params.bit_depth, w);
-    }
-  }
-#endif  // !CONFIG_DISABLE_PALC
 }
 
 void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,

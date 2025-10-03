@@ -3194,7 +3194,6 @@ static const aom_cdf_prob
                            },
                          };
 
-#if CONFIG_PALETTE_CTX_REDUCTION
 static const aom_cdf_prob default_palette_y_size_cdf[CDF_SIZE(7)] = {
   AOM_CDF7(7882, 14719, 20582, 24895, 28455, 30765), 70
 };
@@ -3202,86 +3201,13 @@ static const aom_cdf_prob default_palette_y_size_cdf[CDF_SIZE(7)] = {
 static const aom_cdf_prob default_palette_uv_size_cdf[CDF_SIZE(7)] = {
   AOM_CDF7(8195, 19832, 25803, 29025, 30747, 31974), 50
 };
-#else
-static const aom_cdf_prob
-    default_palette_y_size_cdf[PALATTE_BSIZE_CTXS][CDF_SIZE(7)] = {
-      { AOM_CDF7(8980, 17001, 23975, 28227, 31080, 32391), 31 },
-      { AOM_CDF7(7869, 14161, 20649, 25333, 29368, 31714), 62 },
-      { AOM_CDF7(8692, 14565, 20188, 24407, 28613, 31377), 57 },
-      { AOM_CDF7(11733, 17824, 22892, 26328, 29474, 31560), 57 },
-      { AOM_CDF7(14858, 19966, 24263, 27042, 29636, 31578), 62 },
-      { AOM_CDF7(20123, 24904, 28760, 30353, 31536, 32374), 62 },
-      { AOM_CDF7(22538, 25895, 28878, 30477, 31436, 32342), 50 },
-    };
 
-static const aom_cdf_prob
-    default_palette_uv_size_cdf[PALATTE_BSIZE_CTXS][CDF_SIZE(7)] = {
-      { AOM_CDF7(11398, 27960, 31878, 32234, 32412, 32590), 35 },
-      { AOM_CDF7(9753, 16957, 25860, 31807, 32325, 32546), 22 },
-      { AOM_CDF7(13637, 24235, 28521, 30625, 31677, 32106), 14 },
-      { AOM_CDF7(8294, 17365, 21627, 29797, 32237, 32520), 25 },
-      { AOM_CDF7(7198, 22557, 26240, 28583, 30341, 32182), 50 },
-      { AOM_CDF7(5790, 20135, 25662, 27372, 30399, 31320), 0 },
-      { AOM_CDF7(10923, 19275, 23773, 28913, 30198, 31483), 0 },
-    };
-#endif  // CONFIG_PALETTE_CTX_REDUCTION
-
-#if CONFIG_PALETTE_CTX_REDUCTION
 const aom_cdf_prob default_palette_y_mode_cdf[CDF_SIZE(2)] = { AOM_CDF2(24488),
                                                                55 };
-#else
-const aom_cdf_prob default_palette_y_mode_cdf[PALATTE_BSIZE_CTXS]
-                                             [PALETTE_Y_MODE_CONTEXTS]
-                                             [CDF_SIZE(2)] = {
-                                               {
-                                                   { AOM_CDF2(30536), 31 },
-                                                   { AOM_CDF2(6486), 6 },
-                                                   { AOM_CDF2(1648), 79 },
-                                               },
-                                               {
-                                                   { AOM_CDF2(29901), 32 },
-                                                   { AOM_CDF2(3603), 1 },
-                                                   { AOM_CDF2(385), 94 },
-                                               },
-                                               {
-                                                   { AOM_CDF2(30493), 32 },
-                                                   { AOM_CDF2(4418), 2 },
-                                                   { AOM_CDF2(362), 24 },
-                                               },
-                                               {
-                                                   { AOM_CDF2(30056), 32 },
-                                                   { AOM_CDF2(2219), 1 },
-                                                   { AOM_CDF2(227), 104 },
-                                               },
-                                               {
-                                                   { AOM_CDF2(30645), 37 },
-                                                   { AOM_CDF2(3467), 0 },
-                                                   { AOM_CDF2(311), 110 },
-                                               },
-                                               {
-                                                   { AOM_CDF2(31958), 7 },
-                                                   { AOM_CDF2(5573), 50 },
-                                                   { AOM_CDF2(391), 100 },
-                                               },
-                                               {
-                                                   { AOM_CDF2(32285), 32 },
-                                                   { AOM_CDF2(5537), 50 },
-                                                   { AOM_CDF2(446), 0 },
-                                               },
-                                             };
-#endif  // CONFIG_PALETTE_CTX_REDUCTION
 
-#if CONFIG_PALETTE_CTX_REDUCTION
 static const aom_cdf_prob default_palette_uv_mode_cdf[CDF_SIZE(2)] = {
   AOM_CDF2(30790), 50
 };
-#else
-static const aom_cdf_prob default_palette_uv_mode_cdf[PALETTE_UV_MODE_CONTEXTS]
-                                                     [CDF_SIZE(2)] = {
-                                                       { AOM_CDF2(32725), 37 },
-                                                       { AOM_CDF2(32721), 62 },
-                                                     };
-#endif  // CONFIG_PALETTE_CTX_REDUCTION
 
 static const aom_cdf_prob
     default_identity_row_cdf_y[PALETTE_ROW_FLAG_CONTEXTS][CDF_SIZE(3)] = {
@@ -3303,7 +3229,6 @@ static const aom_cdf_prob default_palette_direction_cdf[CDF_SIZE(2)] = {
 };
 #endif  // !CONFIG_PLT_DIR_CTX
 
-#if CONFIG_PALETTE_CTX_REDUCTION
 static const aom_cdf_prob default_palette_y_color_index_cdf
     [PALETTE_SIZES][PALETTE_COLOR_INDEX_CONTEXTS][CDF_SIZE(PALETTE_COLORS)] = {
       {
@@ -3356,126 +3281,6 @@ static const aom_cdf_prob default_palette_y_color_index_cdf
           { AOM_CDF8(30626, 30964, 31219, 31444, 31661, 31956, 32318), 10 },
       },
     };
-#else
-static const aom_cdf_prob default_palette_y_color_index_cdf
-    [PALETTE_SIZES][PALETTE_COLOR_INDEX_CONTEXTS][CDF_SIZE(PALETTE_COLORS)] = {
-      {
-          { AOM_CDF2(27736), 118 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(11503), 0 },
-          { AOM_CDF2(27936), 0 },
-          { AOM_CDF2(30969), 118 },
-          { AOM_CDF2(25926), 32 },
-      },
-      {
-          { AOM_CDF3(25986, 29935), 118 },
-          { AOM_CDF3(13551, 27642), 75 },
-          { AOM_CDF3(9780, 30721), 78 },
-          { AOM_CDF3(27000, 30194), 0 },
-          { AOM_CDF3(30822, 31898), 118 },
-          { AOM_CDF3(14607, 31499), 39 },
-      },
-      {
-          { AOM_CDF4(24363, 27733, 30404), 75 },
-          { AOM_CDF4(12281, 24615, 29312), 0 },
-          { AOM_CDF4(8342, 29344, 31236), 5 },
-          { AOM_CDF4(25124, 27914, 30574), 6 },
-          { AOM_CDF4(30525, 31368, 32024), 118 },
-          { AOM_CDF4(16475, 30324, 31501), 60 },
-      },
-      {
-          { AOM_CDF5(24106, 27034, 28992, 30726), 90 },
-          { AOM_CDF5(11807, 22655, 26994, 29901), 0 },
-          { AOM_CDF5(8155, 28558, 30113, 31477), 0 },
-          { AOM_CDF5(24345, 27154, 29214, 30779), 6 },
-          { AOM_CDF5(31104, 31595, 31990, 32347), 118 },
-          { AOM_CDF5(22342, 31279, 31576, 32172), 52 },
-      },
-      {
-          { AOM_CDF6(23135, 26179, 27859, 29224, 30685), 75 },
-          { AOM_CDF6(10496, 19940, 23918, 27086, 29383), 75 },
-          { AOM_CDF6(6889, 27218, 28683, 30027, 31337), 75 },
-          { AOM_CDF6(22660, 25383, 27624, 28763, 30134), 1 },
-          { AOM_CDF6(30870, 31385, 31775, 32098, 32382), 118 },
-          { AOM_CDF6(17994, 31821, 32010, 32200, 32389), 60 },
-      },
-      {
-          { AOM_CDF7(23321, 25235, 27127, 28801, 30205, 31551), 78 },
-          { AOM_CDF7(11647, 24221, 27037, 28767, 30225, 31521), 0 },
-          { AOM_CDF7(8054, 27873, 29104, 30228, 31169, 32021), 75 },
-          { AOM_CDF7(26203, 28093, 29264, 30307, 31135, 31944), 0 },
-          { AOM_CDF7(30786, 31142, 31524, 31875, 32187, 32487), 118 },
-          { AOM_CDF7(10773, 27830, 28279, 28728, 30075, 30972), 60 },
-      },
-      {
-          { AOM_CDF8(22333, 24302, 26044, 27605, 28875, 30027, 31276), 78 },
-          { AOM_CDF8(10779, 22091, 24836, 26895, 28272, 29595, 30940), 78 },
-          { AOM_CDF8(7840, 27014, 28224, 29323, 30266, 31126, 31986), 75 },
-          { AOM_CDF8(25928, 27927, 29029, 29851, 30506, 31153, 31894), 75 },
-          { AOM_CDF8(30635, 30976, 31348, 31692, 31996, 32261, 32521), 123 },
-          { AOM_CDF8(20311, 31143, 31414, 31685, 31956, 32226, 32497), 65 },
-      },
-    };
-static const aom_cdf_prob default_palette_uv_color_index_cdf
-    [PALETTE_SIZES][PALETTE_COLOR_INDEX_CONTEXTS][CDF_SIZE(PALETTE_COLORS)] = {
-      {
-          { AOM_CDF2(27433), 20 },
-          { AOM_CDF2(16384), 0 },
-          { AOM_CDF2(12338), 29 },
-          { AOM_CDF2(25404), 49 },
-          { AOM_CDF2(30187), 118 },
-          { AOM_CDF2(28813), 0 },
-      },
-      {
-          { AOM_CDF3(25007, 29015), 119 },
-          { AOM_CDF3(17269, 26693), 29 },
-          { AOM_CDF3(8723, 28388), 26 },
-          { AOM_CDF3(20114, 23829), 5 },
-          { AOM_CDF3(30245, 31584), 90 },
-          { AOM_CDF3(28880, 29436), 0 },
-      },
-      {
-          { AOM_CDF4(19597, 24558, 29366), 82 },
-          { AOM_CDF4(14190, 23894, 28093), 37 },
-          { AOM_CDF4(9909, 27096, 29946), 32 },
-          { AOM_CDF4(25232, 27159, 30351), 64 },
-          { AOM_CDF4(30583, 31261, 32092), 76 },
-          { AOM_CDF4(4520, 22599, 25988), 0 },
-      },
-      {
-          { AOM_CDF5(16496, 22487, 26738, 29774), 80 },
-          { AOM_CDF5(14083, 19036, 23681, 32337), 37 },
-          { AOM_CDF5(9937, 26045, 28714, 30794), 6 },
-          { AOM_CDF5(28036, 29183, 29685, 31669), 67 },
-          { AOM_CDF5(29823, 31034, 32219, 32443), 76 },
-          { AOM_CDF5(6554, 13107, 19661, 26214), 50 },
-      },
-      {
-          { AOM_CDF6(14849, 17447, 21892, 24855, 28077), 1 },
-          { AOM_CDF6(10853, 17460, 21725, 23828, 29985), 11 },
-          { AOM_CDF6(7527, 24992, 27049, 28997, 30771), 82 },
-          { AOM_CDF6(20014, 21423, 22498, 27848, 31860), 25 },
-          { AOM_CDF6(30128, 30915, 31585, 31956, 32349), 106 },
-          { AOM_CDF6(5461, 10923, 16384, 21845, 27307), 0 },
-      },
-      {
-          { AOM_CDF7(21398, 22447, 23517, 25195, 27523, 29495), 15 },
-          { AOM_CDF7(7172, 14795, 20593, 23470, 26798, 30857), 0 },
-          { AOM_CDF7(8288, 24218, 25902, 28493, 29804, 31810), 2 },
-          { AOM_CDF7(17010, 19420, 20671, 23267, 27901, 32212), 0 },
-          { AOM_CDF7(30604, 30960, 31225, 31563, 32015, 32485), 75 },
-          { AOM_CDF7(4681, 9362, 14043, 18725, 23406, 28087), 0 },
-      },
-      {
-          { AOM_CDF8(19018, 20396, 21284, 23458, 26306, 28266, 30165), 90 },
-          { AOM_CDF8(7862, 14052, 17890, 21130, 23895, 27712, 30539), 7 },
-          { AOM_CDF8(7378, 23854, 25482, 27006, 28634, 30493, 31798), 7 },
-          { AOM_CDF8(18860, 22253, 25202, 27093, 29374, 30876, 31822), 77 },
-          { AOM_CDF8(27977, 28613, 29552, 30099, 30680, 31316, 32198), 76 },
-          { AOM_CDF8(4096, 8192, 12288, 16384, 20480, 24576, 28672), 0 },
-      },
-    };
-#endif  // CONFIG_PALETTE_CTX_REDUCTION
 
 static const aom_cdf_prob
     default_txfm_do_partition_cdf[FSC_MODES][2][TXFM_SPLIT_GROUP][CDF_SIZE(
@@ -3994,17 +3799,10 @@ static INLINE int derive_color_index_ctx(uint8_t *color_order, int *color_idx,
                        &color_cnt);
     } else {
       color_index_ctx = 1;
-#if CONFIG_PALETTE_CTX_REDUCTION
       swap_color_order(color_order, color_status, 0, color_neighbors[0],
                        &color_cnt);
       swap_color_order(color_order, color_status, 1, color_neighbors[2],
                        &color_cnt);
-#else
-      int min_color = AOMMIN(color_neighbors[0], color_neighbors[2]);
-      int max_color = AOMMAX(color_neighbors[0], color_neighbors[2]);
-      swap_color_order(color_order, color_status, 0, min_color, &color_cnt);
-      swap_color_order(color_order, color_status, 1, max_color, &color_cnt);
-#endif
       swap_color_order(color_order, color_status, 2, color_neighbors[1],
                        &color_cnt);
     }
@@ -4043,22 +3841,11 @@ static INLINE int derive_color_index_ctx(uint8_t *color_order, int *color_idx,
 
 int av1_get_palette_color_index_context(const uint8_t *color_map, int stride,
                                         int r, int c, uint8_t *color_order,
-                                        int *color_idx
-#if !CONFIG_PALETTE_CTX_REDUCTION
-                                        ,
-                                        int row_flag, int prev_row_flag
-#endif  // !CONFIG_PALETTE_CTX_REDUCTION
-) {
+                                        int *color_idx) {
   assert(r > 0 || c > 0);
 
   int color_index_ctx =
       derive_color_index_ctx(color_order, color_idx, color_map, stride, r, c);
-#if !CONFIG_PALETTE_CTX_REDUCTION
-  // Special context value for the first (and only) index of an identity row
-  // and when the previous row is also an identity row.
-  if (c == 0 && row_flag && prev_row_flag)
-    color_index_ctx = PALETTE_COLOR_INDEX_CONTEXTS - 1;
-#endif  // !CONFIG_PALETTE_CTX_REDUCTION
   return color_index_ctx;
 }
 
@@ -4076,9 +3863,6 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   av1_copy(fc->palette_direction_cdf, default_palette_direction_cdf);
 #endif  // !CONFIG_PLT_DIR_CTX
   av1_copy(fc->palette_y_color_index_cdf, default_palette_y_color_index_cdf);
-#if !CONFIG_PALETTE_CTX_REDUCTION
-  av1_copy(fc->palette_uv_color_index_cdf, default_palette_uv_color_index_cdf);
-#endif  // !CONFIG_PALETTE_CTX_REDUCTION
   av1_copy(fc->comp_inter_cdf, default_comp_inter_cdf);
   av1_copy(fc->tip_cdf, default_tip_cdf);
   av1_copy(fc->tip_pred_mode_cdf, default_tip_pred_mode_cdf);
@@ -4587,11 +4371,6 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
     CUMULATIVE_AVG_CDF_STRIDE(ctx_left->palette_y_color_index_cdf[j],
                               ctx_tr->palette_y_color_index_cdf[j], nsymbs,
                               CDF_SIZE(PALETTE_COLORS));
-#if !CONFIG_PALETTE_CTX_REDUCTION
-    CUMULATIVE_AVG_CDF_STRIDE(ctx_left->palette_uv_color_index_cdf[j],
-                              ctx_tr->palette_uv_color_index_cdf[j], nsymbs,
-                              CDF_SIZE(PALETTE_COLORS));
-#endif  // !CONFIG_PALETTE_CTX_REDUCTION
   }
   CUMULATIVE_AVERAGE_CDF(ctx_left->palette_y_mode_cdf,
                          ctx_tr->palette_y_mode_cdf, 2);
@@ -5011,10 +4790,6 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
     int nsymbs = j + PALETTE_MIN_SIZE;
     SHIFT_CDF_STRIDE(ctx_ptr->palette_y_color_index_cdf[j], nsymbs,
                      CDF_SIZE(PALETTE_COLORS));
-#if !CONFIG_PALETTE_CTX_REDUCTION
-    SHIFT_CDF_STRIDE(ctx_ptr->palette_uv_color_index_cdf[j], nsymbs,
-                     CDF_SIZE(PALETTE_COLORS));
-#endif  // !CONFIG_PALETTE_CTX_REDUCTION
   }
   SHIFT_CDF(ctx_ptr->palette_y_mode_cdf, 2);
   SHIFT_CDF(ctx_ptr->palette_uv_mode_cdf, 2);
@@ -5432,11 +5207,6 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
     AVG_CDF_STRIDE(ctx_left->palette_y_color_index_cdf[j],
                    ctx_tr->palette_y_color_index_cdf[j], nsymbs,
                    CDF_SIZE(PALETTE_COLORS));
-#if !CONFIG_PALETTE_CTX_REDUCTION
-    AVG_CDF_STRIDE(ctx_left->palette_uv_color_index_cdf[j],
-                   ctx_tr->palette_uv_color_index_cdf[j], nsymbs,
-                   CDF_SIZE(PALETTE_COLORS));
-#endif  // !CONFIG_PALETTE_CTX_REDUCTION
   }
   AVERAGE_CDF(ctx_left->palette_y_mode_cdf, ctx_tr->palette_y_mode_cdf, 2);
   AVERAGE_CDF(ctx_left->palette_uv_mode_cdf, ctx_tr->palette_uv_mode_cdf, 2);

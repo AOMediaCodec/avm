@@ -86,12 +86,7 @@ static int decode_color_map_tokens(Av1ColorMapParam *param, aom_reader *r) {
         color_map[0] = av1_read_uniform(r, num_colors);
       } else {
         const int color_ctx = av1_get_palette_color_index_context(
-            color_map, plane_block_width, y, x, color_order, NULL
-#if !CONFIG_PALETTE_CTX_REDUCTION
-            ,
-            identity_row_flag, prev_identity_row_flag
-#endif  // !CONFIG_PALETTE_CTX_REDUCTION
-        );
+            color_map, plane_block_width, y, x, color_order, NULL);
         const int color_idx = aom_read_symbol(
             r, color_map_cdf[num_colors - PALETTE_MIN_SIZE][color_ctx],
             num_colors, ACCT_INFO());
@@ -124,12 +119,7 @@ void av1_decode_palette_tokens(MACROBLOCKD *const xd, int plane,
   Av1ColorMapParam params;
   params.color_map =
       xd->plane[plane].color_index_map + xd->color_index_map_offset[plane];
-#if CONFIG_PALETTE_CTX_REDUCTION
   params.map_cdf = xd->tile_ctx->palette_y_color_index_cdf;
-#else
-  params.map_cdf = plane ? xd->tile_ctx->palette_uv_color_index_cdf
-                         : xd->tile_ctx->palette_y_color_index_cdf;
-#endif  // CONFIG_PALETTE_CTX_REDUCTION
   params.identity_row_cdf = plane ? xd->tile_ctx->identity_row_cdf_uv
                                   : xd->tile_ctx->identity_row_cdf_y;
 #if !CONFIG_PLT_DIR_CTX

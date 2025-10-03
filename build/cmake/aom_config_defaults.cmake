@@ -188,7 +188,6 @@ set_aom_config_var(CONFIG_LR_FRAMEFILTERS_IN_HEADER 0
 set_aom_config_var(CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES 1
                    "AV2 control to allow loopfilters across tiles or not")
 set_aom_config_var(CONFIG_DIP_EXT_PRUNING 1 "AV2 DIP TFLite pruning.")
-set_aom_config_var(CONFIG_DISABLE_PALC 1 "Disable palette mode for chroma.")
 
 set_aom_config_var(CONFIG_ORIP_DC_DISABLED 1
                    "AV2 experiment flag to disable ORIP for DC mode.")
@@ -313,9 +312,6 @@ set_aom_config_var(CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG 1
 
 set_aom_config_var(CONFIG_TIP_INTERP_SMOOTH 1
                    "Enable Smooth interpolation for TIP direct output mode")
-
-set_aom_config_var(CONFIG_PALETTE_CTX_REDUCTION 1
-                   "Context reductions to Palette mode related syntax")
 set_aom_config_var(CONFIG_WRL_NO_PRUNING 1 "No pruning when construct WRL")
 
 set_aom_config_var(CONFIG_REDUCED_TX_SET_EXT 1

@@ -843,25 +843,6 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
     }
   }
 
-  // Search palette mode
-#if !CONFIG_DISABLE_PALC
-  const int try_palette =
-      cpi->oxcf.tool_cfg.enable_palette &&
-      av1_allow_palette(PLANE_TYPE_UV,
-                        cpi->common.features.allow_screen_content_tools,
-                        mbmi->sb_type[PLANE_TYPE_UV]);
-  if (try_palette) {
-    const ModeCosts *mode_costs = &x->mode_costs;
-    uint8_t *best_palette_color_map = x->palette_buffer->best_palette_color_map;
-    av1_rd_pick_palette_intra_sbuv(
-        cpi, x,
-        // This cost is not used actually in the caller function.
-        mode_costs->intra_uv_mode_cost[0][0], best_palette_color_map,
-        &best_mbmi, tmp_cctx_type_map, &best_rd, rate, rate_tokenonly,
-        distortion, skippable, ctx->num_4x4_blk_chroma);
-  }
-#endif  // !CONFIG_DISABLE_PALC
-
   *mbmi = best_mbmi;
 #if CONFIG_CWG_F307_CFL_SEQ_FLAG
   if (cm->seq_params.enable_cfl_intra)

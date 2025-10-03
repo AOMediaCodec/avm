@@ -135,12 +135,7 @@ static int cost_and_tokenize_map(Av1ColorMapParam *param, TokenExtra **t,
         const int x = direction ? ax2 : ax1;
         uint8_t color_order[PALETTE_MAX_SIZE];
         const int color_ctx = av1_get_palette_color_index_context(
-            color_map, plane_block_width, y, x, color_order, &color_new_idx
-#if !CONFIG_PALETTE_CTX_REDUCTION
-            ,
-            identity_row_flag, prev_identity_row_flag
-#endif  // !CONFIG_PALETTE_CTX_REDUCTION
-        );
+            color_map, plane_block_width, y, x, color_order, &color_new_idx);
         assert(color_new_idx >= 0 && color_new_idx < num_colors);
         if (calc_rate) {
           if (ax1 == 0) {
@@ -192,12 +187,7 @@ static void get_palette_params(const MACROBLOCK *const x, int plane,
   const MB_MODE_INFO *const mbmi = xd->mi[0];
   const PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
   params->color_map = xd->plane[plane].color_index_map;
-#if CONFIG_PALETTE_CTX_REDUCTION
   params->map_cdf = xd->tile_ctx->palette_y_color_index_cdf;
-#else
-  params->map_cdf = plane ? xd->tile_ctx->palette_uv_color_index_cdf
-                          : xd->tile_ctx->palette_y_color_index_cdf;
-#endif  // CONFIG_PALETTE_CTX_REDUCTION
 
 #if !CONFIG_PLT_DIR_CTX
   params->direction_cdf = xd->tile_ctx->palette_direction_cdf;
@@ -207,12 +197,7 @@ static void get_palette_params(const MACROBLOCK *const x, int plane,
                                    : xd->tile_ctx->identity_row_cdf_y;
   params->identity_row_cost = plane ? &x->mode_costs.palette_uv_row_flag_cost
                                     : &x->mode_costs.palette_y_row_flag_cost;
-#if CONFIG_PALETTE_CTX_REDUCTION
   params->color_cost = &x->mode_costs.palette_y_color_cost;
-#else
-  params->color_cost = plane ? &x->mode_costs.palette_uv_color_cost
-                             : &x->mode_costs.palette_y_color_cost;
-#endif  // CONFIG_PALETTE_CTX_REDUCTION
   params->n_colors = pmi->palette_size[plane];
   av1_get_block_dimensions(bsize, plane, xd, &params->plane_width,
                            &params->plane_height, &params->rows, &params->cols);

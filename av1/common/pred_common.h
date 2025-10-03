@@ -560,24 +560,6 @@ int av1_get_pred_context_switchable_interp(const MACROBLOCKD *xd, int dir);
 // in ascending order.
 int av1_get_palette_cache(const MACROBLOCKD *const xd, int plane,
                           uint16_t *cache);
-#if !CONFIG_PALETTE_CTX_REDUCTION
-static INLINE int av1_get_palette_bsize_ctx(BLOCK_SIZE bsize) {
-  assert(bsize < BLOCK_SIZES_ALL);
-  return num_pels_log2_lookup[bsize] - num_pels_log2_lookup[BLOCK_8X8];
-}
-
-static INLINE int av1_get_palette_mode_ctx(const MACROBLOCKD *xd) {
-  int ctx = 0;
-  for (int i = 0; i < MAX_NUM_NEIGHBORS; ++i) {
-    const MB_MODE_INFO *const neighbor = xd->neighbors[i];
-    if (neighbor != NULL) {
-      ctx += (neighbor->palette_mode_info.palette_size[0] > 0);
-    }
-  }
-
-  return ctx;
-}
-#endif  // !CONFIG_PALETTE_CTX_REDUCTION
 
 int av1_get_intra_inter_context(const MACROBLOCKD *xd);
 

@@ -1345,17 +1345,10 @@ typedef struct FRAME_COUNTS {
                                    [3];    // placeholder
   unsigned int palette_direction_cnts[2];  // placeholder
 
-#if CONFIG_PALETTE_CTX_REDUCTION
   unsigned int palette_y_mode[2];
   unsigned int palette_uv_mode[2];
   unsigned int palette_y_size[PALETTE_SIZES];
   unsigned int palette_uv_size[PALETTE_SIZES];
-#else
-  unsigned int palette_y_mode[PALATTE_BSIZE_CTXS][PALETTE_Y_MODE_CONTEXTS][2];
-  unsigned int palette_uv_mode[PALETTE_UV_MODE_CONTEXTS][2];
-  unsigned int palette_y_size[PALATTE_BSIZE_CTXS][PALETTE_SIZES];
-  unsigned int palette_uv_size[PALATTE_BSIZE_CTXS][PALETTE_SIZES];
-#endif  // CONFIG_PALETTE_CTX_REDUCTION
   unsigned int palette_y_color_index[PALETTE_SIZES]
                                     [PALETTE_COLOR_INDEX_CONTEXTS]
                                     [PALETTE_COLORS];

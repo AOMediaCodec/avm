@@ -997,34 +997,17 @@ typedef struct {
   //! cost for the new prediction mode
   int morph_pred_cost[3][2];
 
-#if CONFIG_PALETTE_CTX_REDUCTION
   //! palette_y_size_cost
   int palette_y_size_cost[PALETTE_SIZES];
   //! palette_uv_size_cost
   int palette_uv_size_cost[PALETTE_SIZES];
-#else
-  //! palette_y_size_cost
-  int palette_y_size_cost[PALATTE_BSIZE_CTXS][PALETTE_SIZES];
-  //! palette_uv_size_cost
-  int palette_uv_size_cost[PALATTE_BSIZE_CTXS][PALETTE_SIZES];
-#endif  // CONFIG_PALETTE_CTX_REDUCTION
   //! palette_y_color_cost
   int palette_y_color_cost[PALETTE_SIZES][PALETTE_COLOR_INDEX_CONTEXTS]
                           [PALETTE_COLORS];
-#if CONFIG_PALETTE_CTX_REDUCTION
   //! palette_y_mode_cost
   int palette_y_mode_cost[2];
   //! palette_uv_mode_cost
   int palette_uv_mode_cost[2];
-#else
-  //! palette_uv_color_cost
-  int palette_uv_color_cost[PALETTE_SIZES][PALETTE_COLOR_INDEX_CONTEXTS]
-                           [PALETTE_COLORS];
-  //! palette_y_mode_cost
-  int palette_y_mode_cost[PALATTE_BSIZE_CTXS][PALETTE_Y_MODE_CONTEXTS][2];
-  //! palette_uv_mode_cost
-  int palette_uv_mode_cost[PALETTE_UV_MODE_CONTEXTS][2];
-#endif  // CONFIG_PALETTE_CTX_REDUCTION
 #if !CONFIG_PLT_DIR_CTX
   //! palette_direction_cost
   int palette_direction_cost[2];

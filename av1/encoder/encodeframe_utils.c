@@ -443,90 +443,22 @@ void av1_update_inter_mode_stats(FRAME_CONTEXT *fc, FRAME_COUNTS *counts,
 static void update_palette_cdf(MACROBLOCKD *xd, const MB_MODE_INFO *const mbmi,
                                FRAME_COUNTS *counts) {
   FRAME_CONTEXT *fc = xd->tile_ctx;
-#if !CONFIG_PALETTE_CTX_REDUCTION
-  const BLOCK_SIZE bsize = mbmi->sb_type[xd->tree_type == CHROMA_PART];
-#endif  // !CONFIG_PALETTE_CTX_REDUCTION
   const PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
-#if !CONFIG_PALETTE_CTX_REDUCTION
-  const int palette_bsize_ctx = av1_get_palette_bsize_ctx(bsize);
-#endif  // !CONFIG_PALETTE_CTX_REDUCTION
 
   (void)counts;
   if (mbmi->mode == DC_PRED && xd->tree_type != CHROMA_PART) {
     const int n = pmi->palette_size[0];
-#if !CONFIG_PALETTE_CTX_REDUCTION
-    const int palette_mode_ctx = av1_get_palette_mode_ctx(xd);
-#endif  // !CONFIG_PALETTE_CTX_REDUCTION
 #if CONFIG_ENTROPY_STATS
-#if CONFIG_PALETTE_CTX_REDUCTION
     ++counts->palette_y_mode[n > 0];
-#else
-    ++counts->palette_y_mode[palette_bsize_ctx][palette_mode_ctx][n > 0];
-#endif  // CONFIG_PALETTE_CTX_REDUCTION
 #endif
-    update_cdf(
-#if CONFIG_PALETTE_CTX_REDUCTION
-        fc->palette_y_mode_cdf,
-#else
-        fc->palette_y_mode_cdf[palette_bsize_ctx][palette_mode_ctx],
-#endif  // CONFIG_PALETTE_CTX_REDUCTION
-        n > 0, 2);
+    update_cdf(fc->palette_y_mode_cdf, n > 0, 2);
     if (n > 0) {
 #if CONFIG_ENTROPY_STATS
-#if CONFIG_PALETTE_CTX_REDUCTION
       ++counts->palette_y_size[n - PALETTE_MIN_SIZE];
-#else
-      ++counts->palette_y_size[palette_bsize_ctx][n - PALETTE_MIN_SIZE];
-#endif  // CONFIG_PALETTE_CTX_REDUCTION
 #endif
-      update_cdf(
-#if CONFIG_PALETTE_CTX_REDUCTION
-          fc->palette_y_size_cdf,
-#else
-          fc->palette_y_size_cdf[palette_bsize_ctx],
-#endif  // CONFIG_PALETTE_CTX_REDUCTION
-          n - PALETTE_MIN_SIZE, PALETTE_SIZES);
+      update_cdf(fc->palette_y_size_cdf, n - PALETTE_MIN_SIZE, PALETTE_SIZES);
     }
   }
-#if !CONFIG_DISABLE_PALC
-  if (mbmi->uv_mode == UV_DC_PRED && xd->tree_type != LUMA_PART) {
-    const int n = pmi->palette_size[1];
-#if !CONFIG_PALETTE_CTX_REDUCTION
-    const int palette_uv_mode_ctx = (pmi->palette_size[0] > 0);
-#endif  // !CONFIG_PALETTE_CTX_REDUCTION
-
-#if CONFIG_ENTROPY_STATS
-#if CONFIG_PALETTE_CTX_REDUCTION
-    ++counts->palette_uv_mode[n > 0];
-#else
-    ++counts->palette_uv_mode[palette_uv_mode_ctx][n > 0];
-#endif  // CONFIG_PALETTE_CTX_REDUCTION
-#endif
-    update_cdf(
-#if CONFIG_PALETTE_CTX_REDUCTION
-        fc->palette_uv_mode_cdf,
-#else
-        fc->palette_uv_mode_cdf[palette_uv_mode_ctx],
-#endif  // CONFIG_PALETTE_CTX_REDUCTION
-        n > 0, 2);
-    if (n > 0) {
-#if CONFIG_ENTROPY_STATS
-#if CONFIG_PALETTE_CTX_REDUCTION
-      ++counts->palette_uv_size[n - PALETTE_MIN_SIZE];
-#else
-      ++counts->palette_uv_size[palette_bsize_ctx][n - PALETTE_MIN_SIZE];
-#endif  // CONFIG_PALETTE_CTX_REDUCTION
-#endif
-      update_cdf(
-#if CONFIG_PALETTE_CTX_REDUCTION
-          fc->palette_uv_size_cdf,
-#else
-          fc->palette_uv_size_cdf[palette_bsize_ctx],
-#endif  // CONFIG_PALETTE_CTX_REDUCTION
-          n - PALETTE_MIN_SIZE, PALETTE_SIZES);
-    }
-  }
-#endif  // !CONFIG_DISABLE_PALC
 }
 
 static INLINE void update_fsc_cdf(const AV1_COMMON *const cm, MACROBLOCKD *xd,

@@ -1161,141 +1161,25 @@ static void read_palette_colors_y(MACROBLOCKD *const xd, int bit_depth,
   }
 }
 
-#if !CONFIG_DISABLE_PALC
-static void read_palette_colors_uv(MACROBLOCKD *const xd, int bit_depth,
-                                   PALETTE_MODE_INFO *const pmi,
-                                   aom_reader *r) {
-  const int n = pmi->palette_size[1];
-  // U channel colors.
-  uint16_t color_cache[2 * PALETTE_MAX_SIZE];
-  const int n_cache = av1_get_palette_cache(xd, 1, color_cache);
-  int idx = PALETTE_MAX_SIZE;
-  for (int i = 0; i < n_cache && idx < PALETTE_MAX_SIZE + n; ++i)
-    if (aom_read_bit(r, ACCT_INFO("color_cache")))
-      pmi->palette_colors[idx++] = color_cache[i];
-  if (idx < PALETTE_MAX_SIZE + n) {
-    pmi->palette_colors[idx++] =
-        aom_read_literal(r, bit_depth, ACCT_INFO("palette_colors"));
-    if (idx < PALETTE_MAX_SIZE + n) {
-      const int min_bits = bit_depth - 3;
-      int bits = min_bits + aom_read_literal(r, 2, ACCT_INFO("bits"));
-      int range = (1 << bit_depth) - pmi->palette_colors[idx - 1];
-      for (; idx < PALETTE_MAX_SIZE + n; ++idx) {
-        assert(range >= 0);
-        const int delta = aom_read_literal(r, bits, ACCT_INFO("delta"));
-        pmi->palette_colors[idx] = clamp(pmi->palette_colors[idx - 1] + delta,
-                                         0, (1 << bit_depth) - 1);
-        range -= (pmi->palette_colors[idx] - pmi->palette_colors[idx - 1]);
-        bits = AOMMIN(bits, aom_ceil_log2(range));
-      }
-    }
-  }
-  // Sort U palette
-  for (int i = 0; i < n; i++) {
-    for (int j = 1; j < n - i; j++) {
-      if (pmi->palette_colors[PALETTE_MAX_SIZE + j - 1] >
-          pmi->palette_colors[PALETTE_MAX_SIZE + j]) {
-        const uint16_t tmp = pmi->palette_colors[PALETTE_MAX_SIZE + j - 1];
-        pmi->palette_colors[PALETTE_MAX_SIZE + j - 1] =
-            pmi->palette_colors[PALETTE_MAX_SIZE + j];
-        pmi->palette_colors[PALETTE_MAX_SIZE + j] = tmp;
-      }
-    }
-  }
-  // V channel colors.
-  if (aom_read_bit(r, ACCT_INFO("use_delta"))) {  // Delta encoding.
-    const int min_bits_v = bit_depth - 4;
-    const int max_val = 1 << bit_depth;
-    int bits = min_bits_v + aom_read_literal(r, 2, ACCT_INFO("bits"));
-    pmi->palette_colors[2 * PALETTE_MAX_SIZE] =
-        aom_read_literal(r, bit_depth, ACCT_INFO("palette_colors"));
-    for (int i = 1; i < n; ++i) {
-      int delta = aom_read_literal(r, bits, ACCT_INFO("delta"));
-      if (delta && aom_read_bit(r, ACCT_INFO("negate"))) delta = -delta;
-      int val = (int)pmi->palette_colors[2 * PALETTE_MAX_SIZE + i - 1] + delta;
-      if (val < 0) val += max_val;
-      if (val >= max_val) val -= max_val;
-      pmi->palette_colors[2 * PALETTE_MAX_SIZE + i] = val;
-    }
-  } else {
-    for (int i = 0; i < n; ++i) {
-      pmi->palette_colors[2 * PALETTE_MAX_SIZE + i] =
-          aom_read_literal(r, bit_depth, ACCT_INFO("palette_colors"));
-    }
-  }
-}
-#endif  // !CONFIG_DISABLE_PALC
-
 static void read_palette_mode_info(AV1_COMMON *const cm, MACROBLOCKD *const xd,
                                    aom_reader *r) {
   MB_MODE_INFO *const mbmi = xd->mi[0];
   const BLOCK_SIZE bsize = mbmi->sb_type[xd->tree_type == CHROMA_PART];
   assert(av1_allow_palette(PLANE_TYPE_Y,
                            cm->features.allow_screen_content_tools, bsize));
-#if CONFIG_PALETTE_CTX_REDUCTION
   (void)bsize;
-#endif  // CONFIG_PALETTE_CTX_REDUCTION
   PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
-#if !CONFIG_PALETTE_CTX_REDUCTION
-  const int bsize_ctx = av1_get_palette_bsize_ctx(bsize);
-#endif  // !CONFIG_PALETTE_CTX_REDUCTION
   if (mbmi->mode == DC_PRED && xd->tree_type != CHROMA_PART) {
-#if !CONFIG_PALETTE_CTX_REDUCTION
-    const int palette_mode_ctx = av1_get_palette_mode_ctx(xd);
-#endif  // !CONFIG_PALETTE_CTX_REDUCTION
-#if CONFIG_PALETTE_CTX_REDUCTION
     const int modev = aom_read_symbol(r, xd->tile_ctx->palette_y_mode_cdf, 2,
                                       ACCT_INFO("modev", "luma"));
-#else
-    const int modev = aom_read_symbol(
-        r, xd->tile_ctx->palette_y_mode_cdf[bsize_ctx][palette_mode_ctx], 2,
-        ACCT_INFO("modev", "luma"));
-#endif  // CONFIG_PALETTE_CTX_REDUCTION
     if (modev) {
       pmi->palette_size[0] =
-#if CONFIG_PALETTE_CTX_REDUCTION
           aom_read_symbol(r, xd->tile_ctx->palette_y_size_cdf, PALETTE_SIZES,
                           ACCT_INFO("palette_size", "luma")) +
           2;
-#else
-          aom_read_symbol(r, xd->tile_ctx->palette_y_size_cdf[bsize_ctx],
-                          PALETTE_SIZES, ACCT_INFO("palette_size", "luma")) +
-          2;
-#endif  // CONFIG_PALETTE_CTX_REDUCTION
       read_palette_colors_y(xd, cm->seq_params.bit_depth, pmi, r);
     }
   }
-#if !CONFIG_DISABLE_PALC
-  const int num_planes = av1_num_planes(cm);
-  if (num_planes > 1 && xd->tree_type != LUMA_PART &&
-      mbmi->uv_mode == UV_DC_PRED && xd->is_chroma_ref) {
-#if !CONFIG_PALETTE_CTX_REDUCTION
-    const int palette_uv_mode_ctx = (pmi->palette_size[0] > 0);
-#endif  // !CONFIG_PALETTE_CTX_REDUCTION
-    const int modev =
-#if CONFIG_PALETTE_CTX_REDUCTION
-        aom_read_symbol(r, xd->tile_ctx->palette_uv_mode_cdf, 2,
-                        ACCT_INFO("modev", "chroma"));
-#else
-        aom_read_symbol(r,
-                        xd->tile_ctx->palette_uv_mode_cdf[palette_uv_mode_ctx],
-                        2, ACCT_INFO("modev", "chroma"));
-#endif  // CONFIG_PALETTE_CTX_REDUCTION
-    if (modev) {
-      pmi->palette_size[1] =
-#if CONFIG_PALETTE_CTX_REDUCTION
-          aom_read_symbol(r, xd->tile_ctx->palette_uv_size_cdf, PALETTE_SIZES,
-                          ACCT_INFO("palette_size", "chroma")) +
-          2;
-#else
-          aom_read_symbol(r, xd->tile_ctx->palette_uv_size_cdf[bsize_ctx],
-                          PALETTE_SIZES, ACCT_INFO("palette_size", "chroma")) +
-          2;
-#endif  // CONFIG_PALETTE_CTX_REDUCTION
-      read_palette_colors_uv(xd, cm->seq_params.bit_depth, pmi, r);
-    }
-  }
-#endif  // !CONFIG_DISABLE_PALC
 }
 
 static void read_intra_dip_mode_info(const AV1_COMMON *const cm,
