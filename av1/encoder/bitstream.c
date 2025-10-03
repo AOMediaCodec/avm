@@ -6004,9 +6004,9 @@ static AOM_INLINE void write_multi_frame_header(
     struct aom_write_bit_buffer *wb) {
   AV1_COMMON *const cm = &cpi->common;
 #if CONFIG_CWG_E242_MFH_ID_UVLC
-  aom_wb_write_uvlc(wb, cm->cur_mfh_id);
+  aom_wb_write_uvlc(wb, cm->cur_mfh_id - 1);
 #else
-  aom_wb_write_literal(wb, cm->cur_mfh_id, 4);
+  aom_wb_write_literal(wb, cm->cur_mfh_id - 1, 4);
 #endif  // CONFIG_CWG_E242_MFH_ID_UVLC
 
   bool mfh_frame_size_update_flag =
@@ -6289,6 +6289,9 @@ static AOM_INLINE void write_uncompressed_header_obu
 #else
     aom_wb_write_literal(wb, cm->cur_mfh_id, 4);
 #endif  // CONFIG_CWG_E242_MFH_ID_UVLC
+    if (cm->cur_mfh_id == 0) {
+      aom_wb_write_uvlc(wb, 0);
+    }
 #endif  // CONFIG_MULTI_FRAME_HEADER
 #if CONFIG_CWG_F317
   }
@@ -8731,19 +8734,20 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 
     data += obu_header_size + obu_payload_size + length_field_size;
 #if CONFIG_MULTI_FRAME_HEADER
-    // write multi-frame header if KEY_FRAME
-    obu_header_size =
-        av1_write_obu_header(level_params, OBU_MULTI_FRAME_HEADER, 0, 0, data);
+    if (cm->cur_mfh_id != 0) {
+      // write multi-frame header if KEY_FRAME
+      obu_header_size = av1_write_obu_header(
+          level_params, OBU_MULTI_FRAME_HEADER, 0, 0, data);
 
-    obu_payload_size = write_multi_frame_header_obu(
-        cpi, &cm->mfh_params[cm->cur_mfh_id], data + obu_header_size);
-    length_field_size = obu_memmove(obu_header_size, obu_payload_size, data);
-    if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
-        AOM_CODEC_OK) {
-      return AOM_CODEC_ERROR;
+      obu_payload_size = write_multi_frame_header_obu(
+          cpi, &cm->mfh_params[cm->cur_mfh_id], data + obu_header_size);
+      length_field_size = obu_memmove(obu_header_size, obu_payload_size, data);
+      if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
+          AOM_CODEC_OK) {
+        return AOM_CODEC_ERROR;
+      }
+      data += obu_header_size + obu_payload_size + length_field_size;
     }
-
-    data += obu_header_size + obu_payload_size + length_field_size;
 #endif  // CONFIG_MULTI_FRAME_HEADER
   }
 

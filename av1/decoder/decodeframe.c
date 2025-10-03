@@ -2518,8 +2518,8 @@ static AOM_INLINE void setup_bru_active_info(AV1_COMMON *const cm,
     }
   }
 }
-static AOM_INLINE void setup_segmentation(AV1_COMMON *const cm,
-                                          struct aom_read_bit_buffer *rb) {
+static AOM_INLINE void av1_setup_segmentation(AV1_COMMON *const cm,
+                                              struct aom_read_bit_buffer *rb) {
   struct segmentation *const seg = &cm->seg;
 
   seg->update_map = 0;
@@ -6662,8 +6662,8 @@ void av1_read_film_grain_params(AV1_COMMON *cm,
 #endif
 }
 
-static AOM_INLINE void read_film_grain(AV1_COMMON *cm,
-                                       struct aom_read_bit_buffer *rb) {
+static AOM_INLINE void av1_read_film_grain(AV1_COMMON *cm,
+                                           struct aom_read_bit_buffer *rb) {
   if (cm->seq_params.film_grain_params_present
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
       && (cm->seq_params.enable_frame_output_order || cm->show_frame ||
@@ -7429,9 +7429,9 @@ void av1_read_multi_frame_header(AV1_COMMON *cm,
                                  struct aom_read_bit_buffer *rb) {
   // TO DO: Adding a read seq_header_id_in_multi_frame_header here
 #if CONFIG_CWG_E242_MFH_ID_UVLC
-  int cur_mfh_id = aom_rb_read_uvlc(rb);
+  int cur_mfh_id = aom_rb_read_uvlc(rb) + 1;
 #else
-  int cur_mfh_id = aom_rb_read_literal(rb, 4);
+  int cur_mfh_id = aom_rb_read_literal(rb, 4) + 1;
 #endif  // CONFIG_CWG_E242_MFH_ID_UVLC
 
   MultiFrameHeader *mfh_param = &cm->mfh_params[cur_mfh_id];
@@ -8199,10 +8199,20 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #else
     cm->cur_mfh_id = aom_rb_read_literal(rb, 4);
 #endif  // CONFIG_CWG_E242_MFH_ID_UVLC
-    if (!cm->mfh_valid[cm->cur_mfh_id]) {
-      aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
-                         "No multi-frame header with mfh_id %d",
-                         cm->cur_mfh_id);
+    if (cm->cur_mfh_id == 0) {
+      int seq_header_id_in_frame_header = aom_rb_read_uvlc(rb);
+      (void)seq_header_id_in_frame_header;
+      cm->mfh_params[cm->cur_mfh_id].mfh_frame_width =
+          seq_params->max_frame_width;
+      cm->mfh_params[cm->cur_mfh_id].mfh_frame_height =
+          seq_params->max_frame_height;
+      cm->mfh_params[cm->cur_mfh_id].mfh_loop_filter_update_flag = 0;
+    } else {
+      if (!cm->mfh_valid[cm->cur_mfh_id]) {
+        aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                           "No multi-frame header with mfh_id %d",
+                           cm->cur_mfh_id);
+      }
     }
 #endif  // CONFIG_MULTI_FRAME_HEADER
 #if CONFIG_CWG_F317
@@ -9657,7 +9667,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
     cm->cur_frame->film_grain_params_present =
         seq_params->film_grain_params_present;
-    read_film_grain(cm, rb);
+    av1_read_film_grain(cm, rb);
 
     return 0;
   }
@@ -9707,7 +9717,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     features->disable_cdf_update = 1;
     cm->cur_frame->film_grain_params_present =
         seq_params->film_grain_params_present;
-    read_film_grain(cm, rb);
+    av1_read_film_grain(cm, rb);
     // TIP frame will be output for displaying
     // No futher processing needed
     return 0;
@@ -9766,7 +9776,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     }
   }
 
-  setup_segmentation(cm, rb);
+  av1_setup_segmentation(cm, rb);
 
   setup_qm_params(&cm->seq_params, quant_params, cm->seg.enabled,
                   av1_num_planes(cm), rb);
@@ -9933,7 +9943,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
   cm->cur_frame->film_grain_params_present =
       seq_params->film_grain_params_present;
-  read_film_grain(cm, rb);
+  av1_read_film_grain(cm, rb);
 
 #if EXT_TILE_DEBUG
   if (pbi->ext_tile_debug && cm->tiles.large_scale) {

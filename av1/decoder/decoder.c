@@ -809,7 +809,7 @@ int av1_receive_compressed_data(AV1Decoder *pbi, size_t size,
   cm->decoding = 1;
 
 #if CONFIG_MULTI_FRAME_HEADER
-  cm->cur_mfh_id = -1;
+  cm->cur_mfh_id = 0;
 #endif  // CONFIG_MULTI_FRAME_HEADER
   if (size == 0) {
     // This is used to signal that we are missing frames.
