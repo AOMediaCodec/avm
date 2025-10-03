@@ -97,11 +97,10 @@ uint32_t av1_write_buffer_removal_timing_obu(
   aom_wb_write_literal(&wb, ops_cnt, 3);
   for (int i = 0; i < ops_cnt; i++) {
     aom_wb_write_bit(
-        &wb,
-        brt_info->br_decoder_model_present_op_flag[xlayer_id][ops_id][i]);
+        &wb, brt_info->br_decoder_model_present_op_flag[xlayer_id][ops_id][i]);
     if (brt_info->br_decoder_model_present_op_flag[xlayer_id][ops_id][i])
-      aom_wb_write_uvlc(
-          &wb, brt_info->br_buffer_removal_time[xlayer_id][ops_id][i]);
+      aom_wb_write_uvlc(&wb,
+                        brt_info->br_buffer_removal_time[xlayer_id][ops_id][i]);
   }
 
   av1_add_trailing_bits(&wb);
