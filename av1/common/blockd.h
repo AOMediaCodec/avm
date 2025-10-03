@@ -3345,6 +3345,7 @@ static INLINE TX_TYPE av1_get_tx_type(const MACROBLOCKD *xd,
         blk_row <<= xd->plane[plane_type].subsampling_y;
         blk_col <<= xd->plane[plane_type].subsampling_x;
         lossless_inter_tx_type = xd->tx_type_map[0];
+        // This is an inter chroma block
         assert(mbmi->region_type != INTRA_REGION && xd->is_chroma_ref);
         if (xd->mi_row == mbmi->chroma_ref_info.mi_row_chroma_base &&
             xd->mi_col == mbmi->chroma_ref_info.mi_col_chroma_base)
@@ -3353,7 +3354,7 @@ static INLINE TX_TYPE av1_get_tx_type(const MACROBLOCKD *xd,
       }
     }
     // Secondary transforms are disabled for chroma
-    lossless_inter_tx_type &= 0x000F;
+    lossless_inter_tx_type = get_primary_tx_type(lossless_inter_tx_type);
     assert(lossless_inter_tx_type == DCT_DCT || lossless_inter_tx_type == IDTX);
     return lossless_inter_tx_type;
   }
