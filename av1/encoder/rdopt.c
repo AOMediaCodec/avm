@@ -6043,7 +6043,6 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
 #if CONFIG_LOCAL_INTRABC_ALIGN_RNG
         int num_left_sb = 1;
         if (cm->mib_size_log2 == 4) {
-#if CONFIG_LOCAL_INTRABC_IN_ACTIVE_REGION
           if (cm->bru.enabled) {
             // check SB activity, once inactive, stop
             while (num_left_sb < 4) {
@@ -6055,7 +6054,6 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
               num_left_sb++;
             }
           } else
-#endif
             num_left_sb = 4;
         }
 #else
