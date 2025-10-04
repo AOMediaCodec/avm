@@ -111,7 +111,7 @@ class AVxEncoderParmsGetToDecoder
       if (encode_parms.render_size[0] > 0 && encode_parms.render_size[1] > 0) {
         encoder->Control(AV1E_SET_RENDER_SIZE, encode_parms.render_size);
       }
-#endif
+#endif  // !CONFIG_CWG_F248_RENDER_SIZE
     }
   }
 
@@ -123,7 +123,7 @@ class AVxEncoderParmsGetToDecoder
       EXPECT_EQ(encode_parms.render_size[0], (int)img.r_w);
       EXPECT_EQ(encode_parms.render_size[1], (int)img.r_h);
     }
-#endif
+#endif  // !CONFIG_CWG_F248_RENDER_SIZE
     EXPECT_EQ(encode_parms.color_primaries, img.cp);
     EXPECT_EQ(encode_parms.transfer_characteristics, img.tc);
     EXPECT_EQ(encode_parms.matrix_coefficients, img.mc);

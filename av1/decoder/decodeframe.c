@@ -4109,6 +4109,7 @@ static AOM_INLINE void setup_render_size(AV1_COMMON *cm,
     return;
   }
 #endif  // CONFIG_CWG_F317
+#if !CONFIG_CWG_F248_RENDER_SIZE
 #if CONFIG_MULTI_FRAME_HEADER
   assert(cm->mfh_valid[cm->cur_mfh_id]);
 #if CONFIG_CWG_E242_PARSING_INDEP
@@ -4127,9 +4128,25 @@ static AOM_INLINE void setup_render_size(AV1_COMMON *cm,
   cm->render_width = cm->width;
   cm->render_height = cm->height;
 #endif  // CONFIG_MULTI_FRAME_HEADER
+#endif  // !CONFIG_CWG_F248_RENDER_SIZE
 
 #if CONFIG_CWG_F248_RENDER_SIZE
   (void)rb;
+  // Note: if Local LCR information is used, then the xId = xLayerId
+  // If Global LCR is used, for each extended layer, the xlayer, xlayer_inf(1,
+  // n) where n is xlayer_id[i], at the i-th extended layer. Set default to use
+  // xlayer_id 31
+  int globalLCR = cm->lcr_params.isLocalLCR == 0 ? 1 : 0;
+  int layerId = cm->lcr_params.isLocalLCR == 1 ? cm->lcr_params.xLayerId
+                                               : GLOBAL_LCR_XLAYER_ID;
+  int xId = cm->lcr_params.lcr_xLayer_id[layerId];
+  if (cm->lcr_params.lcr_rep_info_present_flag[globalLCR][xId]) {
+    cm->render_width = cm->lcr_params.rep_params.lcr_max_pic_width;
+    cm->render_height = cm->lcr_params.rep_params.lcr_max_pic_height;
+  } else {
+    cm->render_width = cm->width;
+    cm->render_height = cm->height;
+  }
 #else
   if (aom_rb_read_bit(rb))
     av1_read_frame_size(rb, 16, 16, &cm->render_width, &cm->render_height);
@@ -7523,6 +7540,7 @@ void av1_read_multi_frame_header(AV1_COMMON *cm,
                         &mfh_param->mfh_render_height);
   }
 #else
+#if !CONFIG_CWG_F248_RENDER_SIZE
   if (aom_rb_read_bit(rb)) {
     av1_read_frame_size(rb, 16, 16, &mfh_param->mfh_render_width,
                         &mfh_param->mfh_render_height);
@@ -7531,6 +7549,7 @@ void av1_read_multi_frame_header(AV1_COMMON *cm,
     mfh_param->mfh_render_height = mfh_param->mfh_frame_height;
   }
 #endif  // CONFIG_CWG_E242_PARSING_INDEP
+#endif  // !CONFIG_CWG_F248_RENDER_SIZE
 
   mfh_param->mfh_loop_filter_update_flag = aom_rb_read_bit(rb);
   if (mfh_param->mfh_loop_filter_update_flag) {

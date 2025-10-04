@@ -315,7 +315,10 @@ static int read_lcr_local_info(struct AV1Decoder *pbi, int xlayerId,
   lcr_params->lcr_reserved_zero_6bits = aom_rb_read_literal(rb, 6);
 
   read_lcr_xlayer_info(pbi, 0, xlayerId, rb);
-
+#if CONFIG_CWG_F248_RENDER_SIZE
+  lcr_params->isLocalLCR = 1;
+  lcr_params->xLayerId = xlayerId;
+#endif  // CONFIG_CWG_F248_RENDER_SIZE
   return 0;
 }
 

@@ -739,7 +739,10 @@ typedef struct LayerConfigurationRecord {
   int lcr_xlayer_atlas_segment_id[MAX_NUM_XLAYERS];
   int lcr_xlayer_priority_order[MAX_NUM_XLAYERS];
   int lcr_xlayer_rendering_method[MAX_NUM_XLAYERS];
-
+#if CONFIG_CWG_F248_RENDER_SIZE
+  int isLocalLCR;
+  int xLayerId;
+#endif
   struct CroppingWindow lcr_crop;
   struct CroppingWindow crop_win_list[MAX_NUM_XLAYERS][MAX_NUM_XLAYERS];
   struct RepresentationInfo rep_params;
@@ -1400,6 +1403,7 @@ typedef struct MultiFrameHeader {
    */
   int mfh_render_size_present_flag;
 #endif  // CONFIG_CWG_E242_PARSING_INDEP
+#if !CONFIG_CWG_F248_RENDER_SIZE
   /*!
    * Render Width of frames that reference this multi-frame header
    */
@@ -1408,6 +1412,7 @@ typedef struct MultiFrameHeader {
    * Render Height of frames that reference this multi-frame header
    */
   int mfh_render_height;
+#endif  // !CONFIG_CWG_F248_RENDER_SIZE
   /*!
    * Presence of loop filter levels in this multi-frame header
    */
