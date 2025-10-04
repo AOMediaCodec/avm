@@ -277,6 +277,9 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
     cm->ref_frames_info.num_total_refs_res_indep =
         cm->ref_frames_info.num_total_refs;
 #endif  // CONFIG_ACROSS_SCALE_REF_OPT
+#if CONFIG_CWG_F317
+  int bridge_frame_ref_idx_remapped_found = 0;
+#endif  // CONFIG_CWG_F317
   for (int i = 0; i < cm->ref_frames_info.num_total_refs; i++) {
 #if CONFIG_ACROSS_SCALE_REF_OPT
     if (!resolution_available)
@@ -292,7 +295,22 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
         cm->seq_params.order_hint_info.enable_order_hint ? scores[i].distance
                                                          : 1;
 #endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+#if CONFIG_CWG_F317
+    if (cm->bridge_frame_info.is_bridge_frame &&
+        !bridge_frame_ref_idx_remapped_found &&
+        cm->remapped_ref_idx[i] == cm->bridge_frame_info.bridge_frame_ref_idx) {
+      cm->bridge_frame_info.bridge_frame_ref_idx_remapped = i;
+      bridge_frame_ref_idx_remapped_found = 1;
+    }
+#endif  // CONFIG_CWG_F317
   }
+#if CONFIG_CWG_F317
+  if (cm->bridge_frame_info.is_bridge_frame &&
+      !bridge_frame_ref_idx_remapped_found) {
+    aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+                       "Bridge frame index into remapped not found");
+  }
+#endif  // CONFIG_CWG_F317
 
   // Fill in RefFramesInfo struct according to computed mapping
   av1_get_past_future_cur_ref_lists(cm, scores);

@@ -1994,9 +1994,14 @@ typedef struct BRU_Info {
  */
 typedef struct BridgeFrame_Info {
   /*!
-   * reference idx of reference frame used for bridge frame
+   * reference frame used for bridge frame - index for 'ref_frame_map_pairs' and
+   * 'refresh_frame_flags'
    */
   int bridge_frame_ref_idx;
+  /*!
+   * reference frame used for bridge frame - index for 'remapped_ref_idx'
+   */
+  int bridge_frame_ref_idx_remapped;
   /*!
    * maximum width for bridge frame
    */

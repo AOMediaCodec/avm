@@ -6530,7 +6530,8 @@ static AOM_INLINE void write_uncompressed_header_obu
     if (seq_params->frame_id_numbers_present_flag) {
 #if CONFIG_CWG_F317
       if (cm->bridge_frame_info.is_bridge_frame) {
-        const int ref_frame = cm->bridge_frame_info.bridge_frame_ref_idx;
+        const int ref_frame =
+            cm->bridge_frame_info.bridge_frame_ref_idx_remapped;
         assert(!is_tip_ref_frame(
             ref_frame));  // TIP frame reference is not allowed
         const int map_idx = get_ref_frame_map_idx(cm, ref_frame);
@@ -6557,8 +6558,8 @@ static AOM_INLINE void write_uncompressed_header_obu
 
 #if CONFIG_CWG_F317
     if (cm->bridge_frame_info.is_bridge_frame) {
-      const RefCntBuffer *ref_buf =
-          get_ref_frame_buf(cm, cm->bridge_frame_info.bridge_frame_ref_idx);
+      const RefCntBuffer *ref_buf = get_ref_frame_buf(
+          cm, cm->bridge_frame_info.bridge_frame_ref_idx_remapped);
       if (current_frame->order_hint != ref_buf->order_hint) {
         aom_internal_error(
             &cm->error, AOM_CODEC_UNSUP_BITSTREAM,

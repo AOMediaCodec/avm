@@ -4682,6 +4682,7 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
         cm->current_frame.order_hint = 0;
         cm->current_frame.frame_number = 0;
         cm->bridge_frame_info.bridge_frame_ref_idx = INVALID_IDX;
+        cm->bridge_frame_info.bridge_frame_ref_idx_remapped = INVALID_IDX;
         cm->bridge_frame_info.print_bridge_frame_in_log = 1;
         features->allow_lf_sub_pu = false;
         features->disable_cdf_update = true;

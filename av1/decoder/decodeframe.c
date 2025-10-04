@@ -1041,7 +1041,7 @@ static AOM_INLINE int bridge_frame_is_valid_inter(const AV1_COMMON *const cm,
   const int tip_ref_frame = is_tip_ref_frame(mbmi->ref_frame[0]);
   const int is_compound = has_second_ref(mbmi);
   if (tip_ref_frame || is_compound) return 0;
-  if (mbmi->ref_frame[0] != cm->bridge_frame_info.bridge_frame_ref_idx)
+  if (mbmi->ref_frame[0] != cm->bridge_frame_info.bridge_frame_ref_idx_remapped)
     return 0;
   const int_mv mi_mv = mbmi->mv[0];
   // MV must be (0,0)
@@ -4246,8 +4246,8 @@ static AOM_INLINE void setup_frame_size(AV1_COMMON *cm,
         aom_rb_read_literal(rb, num_bits_width) + 1;
     cm->bridge_frame_info.bridge_frame_max_height =
         aom_rb_read_literal(rb, num_bits_height) + 1;
-    const RefCntBuffer *ref_buf =
-        get_ref_frame_buf(cm, cm->bridge_frame_info.bridge_frame_ref_idx);
+    const RefCntBuffer *ref_buf = get_ref_frame_buf(
+        cm, cm->bridge_frame_info.bridge_frame_ref_idx_remapped);
     width =
         AOMMIN(cm->bridge_frame_info.bridge_frame_max_width, ref_buf->width);
     height =
@@ -8580,7 +8580,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       }
 #if CONFIG_CWG_F317
       if (cm->bridge_frame_info.is_bridge_frame) {
-        const int ref_frame = cm->bridge_frame_info.bridge_frame_ref_idx;
+        const int ref_frame =
+            cm->bridge_frame_info.bridge_frame_ref_idx_remapped;
         assert(!is_tip_ref_frame(
             ref_frame));  // TIP frame reference is not allowed
         const int map_idx = get_ref_frame_map_idx(cm, ref_frame);
@@ -8994,8 +8995,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
 #if CONFIG_CWG_F317
       if (cm->bridge_frame_info.is_bridge_frame) {
-        const RefCntBuffer *ref_buf =
-            get_ref_frame_buf(cm, cm->bridge_frame_info.bridge_frame_ref_idx);
+        const RefCntBuffer *ref_buf = get_ref_frame_buf(
+            cm, cm->bridge_frame_info.bridge_frame_ref_idx_remapped);
         current_frame->order_hint = ref_buf->order_hint;
         current_frame->display_order_hint = ref_buf->display_order_hint;
         current_frame->frame_number = ref_buf->order_hint;
@@ -9170,7 +9171,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         if (!explicit_ref_frame_map) {
 #if CONFIG_CWG_F317
           if (cm->bridge_frame_info.is_bridge_frame) {
-            const int ref_frame = cm->bridge_frame_info.bridge_frame_ref_idx;
+            const int ref_frame =
+                cm->bridge_frame_info.bridge_frame_ref_idx_remapped;
             assert(!is_tip_ref_frame(
                 ref_frame));  // TIP frame reference is not allowed
             ref = get_ref_frame_map_idx(cm, ref_frame);
@@ -9631,8 +9633,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_CWG_F317
     const RefCntBuffer *ref_buf;
     if (cm->bridge_frame_info.is_bridge_frame) {
-      ref_buf =
-          get_ref_frame_buf(cm, cm->bridge_frame_info.bridge_frame_ref_idx);
+      ref_buf = get_ref_frame_buf(
+          cm, cm->bridge_frame_info.bridge_frame_ref_idx_remapped);
     } else {
       ref_buf = get_ref_frame_buf(cm, cm->bru.update_ref_idx);
     }
@@ -10504,7 +10506,8 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
       for (int w = 0; w < mvs_cols; w++) {
 #if CONFIG_CWG_F317
         if (cm->bridge_frame_info.is_bridge_frame) {
-          mv->ref_frame[0] = cm->bridge_frame_info.bridge_frame_ref_idx;
+          mv->ref_frame[0] =
+              cm->bridge_frame_info.bridge_frame_ref_idx_remapped;
         } else {
           mv->ref_frame[0] = cm->bru.update_ref_idx;
         }
