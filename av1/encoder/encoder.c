@@ -455,6 +455,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->tile_params.allow_tile_info_change = 0;
 #endif  // CONFIG_CWG_F349_SIGNAL_TILE_INFO
   if (!oxcf->tile_cfg.enable_large_scale_tile && !seq->still_picture &&
+      !(seq->enable_bru && seq->sb_size == BLOCK_64X64) &&  // Check why needed
       oxcf->kf_cfg.key_freq_max > 0) {
     av1_set_seq_tile_info(seq, oxcf);
     seq->seq_tile_info_present_flag = 1;
