@@ -72,6 +72,14 @@ enum {
 } UENUM1BYTE(CHROMA_FORMAT);
 #endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
+#if CONFIG_MULTILAYER_HLS
+enum {
+  GLOBAL = 0,
+  LOCAL = 1,
+  NUM_LCR_TYPES = 2
+} UENUM1BYTE(LCR_TYPES);
+#endif  // CONFIG_MULTILAYER_HLS
+
 // Check if the block is 4xn or nx4 block
 static INLINE int is_thin_4xn_nx4_block(BLOCK_SIZE bsize) {
   int min_size = AOMMIN(block_size_wide[bsize], block_size_high[bsize]);

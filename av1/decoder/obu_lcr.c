@@ -276,6 +276,10 @@ static int read_lcr_global_info(struct AV1Decoder *pbi,
       lcr_params->lcr_data_size[i] = aom_rb_read_uleb(rb);
     read_lcr_global_payload(pbi, i, lcr_params->lcr_data_size_present_flag, rb);
   }
+  
+  lcr_params->isLocalLCR = 0;
+  lcr_params->xLayerId = GLOBAL_LCR_XLAYER_ID;
+
   return 0;
 }
 
@@ -316,6 +320,8 @@ static int read_lcr_local_info(struct AV1Decoder *pbi, int xlayerId,
 
   read_lcr_xlayer_info(pbi, 0, xlayerId, rb);
 
+  lcr_params->isLocalLCR = 1;
+  lcr_params->xLayerId = xlayerId;
   return 0;
 }
 
@@ -328,7 +334,7 @@ uint32_t av1_read_layer_configuration_record_obu(
     read_lcr_global_info(pbi, rb);
   else
     read_lcr_local_info(pbi, xlayer_id, rb);
-
+  
   if (av1_check_trailing_bits(pbi, rb) != 0) {
     return 0;
   }

@@ -697,6 +697,9 @@ typedef struct LayerConfigurationRecord {
   int lcr_xlayer_priority_order[MAX_NUM_XLAYERS];
   int lcr_xlayer_rendering_method[MAX_NUM_XLAYERS];
 
+  int isLocalLCR;
+  int xLayerId;
+
   struct CroppingWindow lcr_crop;
   struct CroppingWindow crop_win_list[MAX_NUM_XLAYERS][MAX_NUM_XLAYERS];
   struct RepresentationInfo rep_params;

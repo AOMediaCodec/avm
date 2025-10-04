@@ -4128,7 +4128,15 @@ static AOM_INLINE void setup_render_size(AV1_COMMON *cm,
 
 #if CONFIG_CWG_F248_RENDER_SIZE
   (void)rb;
-  if (cm->lcr_params.lcr_rep_info_present_flag) {
+  // Note: if Local LCR information is used, then the xId = xLayerId
+  // If Global LCR is used, for each extended layer, the xlayer, xlayer_inf(1,
+  // n) where n is xlayer_id[i], at the i-th extended layer. Set default to use
+  // xlayer_id 31
+  int GlobalLCR = cm->lcr_params.isLocalLCR == 0 ? 1 : 0;
+  int LayerId = cm->lcr_params.isLocalLCR == 1 ? cm->lcr_params.xLayerId
+                                               : GLOBAL_LCR_XLAYER_ID;
+  int xId = cm->lcr_params.lcr_xLayer_id[LayerId];
+  if (cm->lcr_params.lcr_rep_info_present_flag[GlobalLCR][xId]) {
     cm->render_width = cm->lcr_params.rep_params.lcr_max_pic_width;
     cm->render_height = cm->lcr_params.rep_params.lcr_max_pic_height;
   } else {
