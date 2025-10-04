@@ -10386,7 +10386,12 @@ int32_t av1_read_tilegroup_header(
   tile_indices_present_flag &=
       (cm->features.tip_frame_mode != TIP_FRAME_AS_OUTPUT);
 #endif  // CONFIG_F106_OBU_TIP
+#if CONFIG_CWG_F317
+  tile_indices_present_flag &=
+      (!cm->bru.frame_inactive_flag && !cm->bridge_frame_info.is_bridge_frame);
+#else
   tile_indices_present_flag &= !cm->bru.frame_inactive_flag;
+#endif  // CONFIG_CWG_F317
   if (tile_indices_present_flag)
     read_tile_indices_in_tilegroup(pbi, rb, start_tile, end_tile);
 #if CONFIG_COLLECT_COMPONENT_TIMING
@@ -10499,7 +10504,7 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
       for (int w = 0; w < mvs_cols; w++) {
 #if CONFIG_CWG_F317
         if (cm->bridge_frame_info.is_bridge_frame) {
-          mv->ref_frame[0] = cm->bridge_frame_info.is_bridge_frame;
+          mv->ref_frame[0] = cm->bridge_frame_info.bridge_frame_ref_idx;
         } else {
           mv->ref_frame[0] = cm->bru.update_ref_idx;
         }

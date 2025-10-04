@@ -4657,10 +4657,96 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
                                         cm->show_frame);
 #endif  // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
 #endif  // CONFIG_BITSTREAM_DEBUG
+#if CONFIG_CWG_F317_TEST_PATTERN
+    const ResizeCfg *resize_cfg = &cpi->oxcf.resize_cfg;
+    FeatureFlags *const features = &cm->features;
+    const int current_frame_frame_number = cm->current_frame.frame_number;
+    const bool current_disable_cdf_update = features->disable_cdf_update;
+    const bool current_allow_lf_sub_pu = features->allow_lf_sub_pu;
+    const bool current_allow_ref_frame_mvs = features->allow_ref_frame_mvs;
+    const bool current_all_lossless = features->all_lossless;
+    const OPTFLOW_REFINE_TYPE current_opfl_refine_type =
+        features->opfl_refine_type;
+    cm->bridge_frame_info.is_bridge_frame = 0;
+    cm->bridge_frame_info.print_bridge_frame_in_log = 0;
+    if ((resize_cfg->resize_mode == RESIZE_BRIDGE_FRAME_PATTERN) &&
+        (cpi->gf_group.update_type[cpi->gf_group.index] != OVERLAY_UPDATE)) {
+      int chunk_size = cm->bridge_frame_info.frame_count;
+      if (chunk_size == 1) {
+        cm->bridge_frame_info.is_bridge_frame = 1;
+        cm->current_frame.display_order_hint = 0;
+        cm->current_frame.absolute_poc = 0;
+        cm->show_frame = 0;
+        cm->showable_frame = 0;
+        cm->show_existing_frame = 0;
+        cm->current_frame.order_hint = 0;
+        cm->current_frame.frame_number = 0;
+        cm->bridge_frame_info.bridge_frame_ref_idx = INVALID_IDX;
+        cm->bridge_frame_info.print_bridge_frame_in_log = 1;
+        features->allow_lf_sub_pu = false;
+        features->disable_cdf_update = true;
+        features->allow_ref_frame_mvs = false;
+        features->all_lossless = false;
+        features->opfl_refine_type = REFINE_NONE;
+        for (int map_idx = 0; map_idx < cm->seq_params.ref_frames; map_idx++) {
+          // Get reference frame buffer
+          const RefCntBuffer *const buf = cm->ref_frame_map[map_idx];
+          if (buf->display_order_hint == 0) {
+            cm->bridge_frame_info.bridge_frame_ref_idx = map_idx;
+
+            cm->quant_params.base_qindex = buf->base_qindex;
+            if (av1_num_planes(cm) > 1) {
+              cm->quant_params.u_ac_delta_q = buf->u_ac_delta_q;
+              cm->quant_params.v_ac_delta_q = buf->v_ac_delta_q;
+            } else {
+              cm->quant_params.v_ac_delta_q = cm->quant_params.u_ac_delta_q = 0;
+            }
+            cm->cur_frame->base_qindex = cm->quant_params.base_qindex;
+            cm->cur_frame->u_ac_delta_q = cm->quant_params.u_ac_delta_q;
+            cm->cur_frame->v_ac_delta_q = cm->quant_params.v_ac_delta_q;
+
+            break;
+          }
+        }
+        if (cm->bridge_frame_info.bridge_frame_ref_idx == INVALID_IDX) {
+          aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                             "Cannot find bridge frame reference frame");
+          return AOM_CODEC_ERROR;
+        }
+        cm->bridge_frame_info.bridge_frame_overwrite_flag = 1;
+        cm->current_frame.refresh_frame_flags =
+            (1 << cm->bridge_frame_info.bridge_frame_ref_idx);
+
+        init_ref_map_pair(
+            &cpi->common, cm->ref_frame_map_pairs,
+            cpi->gf_group.update_type[cpi->gf_group.index] == KF_UPDATE);
+#if CONFIG_ACROSS_SCALE_REF_OPT
+        // Derive reference mapping in a resolution independent manner to
+        // generate parameters needed in write_frame_size_with_refs
+        av1_get_ref_frames(cm, cur_frame_disp, 0, cm->ref_frame_map_pairs);
+        av1_get_ref_frames(cm, cur_frame_disp, 1, cm->ref_frame_map_pairs);
+#else
+        av1_get_ref_frames(cm, cur_frame_disp, cm->ref_frame_map_pairs);
+#endif  // CONFIG_ACROSS_SCALE_REF_OP
+      }
+    }
+#endif  // CONFIG_CWG_F317_TEST_PATTERN
     if (encode_frame_to_data_rate(cpi, &frame_results->size, dest) !=
         AOM_CODEC_OK) {
       return AOM_CODEC_ERROR;
     }
+#if CONFIG_CWG_F317_TEST_PATTERN
+    cm->bridge_frame_info.frame_count++;
+    if (cm->bridge_frame_info.is_bridge_frame) {
+      features->disable_cdf_update = current_disable_cdf_update;
+      features->allow_lf_sub_pu = current_allow_lf_sub_pu;
+      features->allow_ref_frame_mvs = current_allow_ref_frame_mvs;
+      features->all_lossless = current_all_lossless;
+      features->opfl_refine_type = current_opfl_refine_type;
+      cm->current_frame.frame_number = current_frame_frame_number;
+      cm->bridge_frame_info.is_bridge_frame = 0;
+    }
+#endif  // CONFIG_CWG_F317_TEST_PATTERN
   }
   return AOM_CODEC_OK;
 }

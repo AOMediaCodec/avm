@@ -2013,6 +2013,16 @@ typedef struct BridgeFrame_Info {
    * flag indicating if refresh flags will be signaled (and not inferred)
    */
   int bridge_frame_overwrite_flag;
+#if CONFIG_CWG_F317_TEST_PATTERN
+  /*!
+   * frame count used for test pattern
+   */
+  int frame_count;
+  /*!
+   * idenitfy bridge frame in encoder log
+   */
+  int print_bridge_frame_in_log;
+#endif  // CONFIG_CWG_F317_TEST_PATTERN
 } BridgeFrameInfo;
 #endif  // CONFIG_CWG_F317
 

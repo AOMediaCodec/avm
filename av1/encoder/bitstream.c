@@ -6995,7 +6995,13 @@ static AOM_INLINE void write_uncompressed_header_obu
         }
 #if CONFIG_FIX_OPFL_AUTO
       } else {
+#if CONFIG_CWG_F317
+        if (!cm->bru.frame_inactive_flag &&
+            !cm->bridge_frame_info.is_bridge_frame)
+          write_frame_opfl_refine_type(cm, wb);
+#else
         if (!cm->bru.frame_inactive_flag) write_frame_opfl_refine_type(cm, wb);
+#endif  // CONFIG_CWG_F317
 #endif  // CONFIG_FIX_OPFL_AUTO
       }
 

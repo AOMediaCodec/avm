@@ -3130,11 +3130,25 @@ static void report_stats(AV1_COMP *cpi, size_t frame_size, uint64_t cx_time) {
     for (int ref_idx = 0; ref_idx < INTER_REFS_PER_FRAME; ++ref_idx) {
       fprintf(stdout, "%3d,", ref_poc[ref_idx]);
     }
+#if CONFIG_CWG_F317_TEST_PATTERN
+    if (cpi->common.bridge_frame_info.print_bridge_frame_in_log)
+      fprintf(stdout, "] %dx%d\n", cpi->common.cur_frame->buf.y_crop_width,
+              cpi->common.cur_frame->buf.y_crop_height);
+    else if (cpi->oxcf.tool_cfg.enable_bru)
+      fprintf(stdout, "] %dx%d SB skipped %d/%d\n",
+              cpi->common.cur_frame->buf.y_crop_width,
+              cpi->common.cur_frame->buf.y_crop_height, cm->bru.blocks_skipped,
+              cm->bru.total_units);
+    else
+      fprintf(stdout, "] %dx%d\n", cpi->common.cur_frame->buf.y_crop_width,
+              cpi->common.cur_frame->buf.y_crop_height);
+#else
     if (cpi->oxcf.tool_cfg.enable_bru)
       fprintf(stdout, "] SB skipped %d/%d\n", cm->bru.blocks_skipped,
               cm->bru.total_units);
     else
       fprintf(stdout, "]\n");
+#endif  // CONFIG_CWG_F317_TEST_PATTERN
   }
 }
 
