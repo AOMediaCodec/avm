@@ -1713,6 +1713,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
       extra_cfg->enable_reduced_reference_set;
   oxcf->ref_frm_cfg.enable_onesided_comp = extra_cfg->enable_onesided_comp;
   oxcf->ref_frm_cfg.explicit_ref_frame_map = extra_cfg->explicit_ref_frame_map;
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
   // Disable the implicit derivation of frame output order
   // when order_hint is not available, S-frame is used or error resilience mode
   // is used.
@@ -1723,9 +1724,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
           kf_cfg->enable_sframe || tool_cfg->error_resilient_mode)
           ? 0
-#if CONFIG_F253_REMOVE_OUTPUTFLAG
-          : 1;
-#else   // CONFIG_F253_REMOVE_OUTPUTFLAG
           : extra_cfg->enable_frame_output_order;
 #endif  // CONFIG_F253_REMOVE_OUTPUTFLAG
 
@@ -3406,13 +3404,17 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 
       cpi->seq_params_locked = 1;
       is_frame_visible = cpi->common.show_frame;
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
       if (cpi->oxcf.ref_frm_cfg.enable_frame_output_order) {
+#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
         if (cpi->common.current_frame.frame_type != KEY_FRAME &&
             cpi->common.show_existing_frame) {
           is_frame_visible_null = 1;
         }
         assert(IMPLIES(is_frame_visible_null, frame_size == 0));
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
       }
+#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
       if (!is_frame_visible_null && frame_size == 0) is_frame_visible = 0;
 
       if (frame_size) {
