@@ -276,6 +276,10 @@ static int read_lcr_global_info(struct AV1Decoder *pbi,
       lcr_params->lcr_data_size[i] = aom_rb_read_uleb(rb);
     read_lcr_global_payload(pbi, i, lcr_params->lcr_data_size_present_flag, rb);
   }
+#if CONFIG_CWG_F248_RENDER_SIZE
+  lcr_params->isLocalLCR = 0;
+  lcr_params->xLayerId = 31;
+#endif  // CONFIG_CWG_F248_RENDER_SIZE
   return 0;
 }
 
