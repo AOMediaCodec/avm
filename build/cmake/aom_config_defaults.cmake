@@ -190,7 +190,8 @@ set_aom_config_var(CONFIG_DIP_EXT_PRUNING 1 "AV2 DIP TFLite pruning.")
 set_aom_config_var(CONFIG_DISABLE_PALC 1 "Disable palette mode for chroma.")
 set_aom_config_var(CONFIG_METADATA 1 "F161 metadata syntax")
 set_aom_config_var(CONFIG_ICC_METADATA 1 "ICC metadata syntax")
-set_aom_config_var(CONFIG_SCAN_TYPE_METADATA 1 "CWG-F233 Scan type metadata syntax")
+set_aom_config_var(CONFIG_SCAN_TYPE_METADATA 1
+                   "CWG-F233 Scan type metadata syntax")
 
 set_aom_config_var(CONFIG_ORIP_DC_DISABLED 1
                    "AV2 experiment flag to disable ORIP for DC mode.")

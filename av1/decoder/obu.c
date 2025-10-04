@@ -717,8 +717,8 @@ static size_t read_metadata_icc_profile(AV1Decoder *const pbi,
 #if CONFIG_SCAN_TYPE_METADATA
 // On success, returns the number of bytes read from 'data'. On failure, calls
 // aom_internal_error() and does not return.
-static void read_metadata_scan_type_new(AV1Decoder *const pbi,
-                                        struct aom_read_bit_buffer *rb) {
+static void read_metadata_scan_type(AV1Decoder *const pbi,
+                                    struct aom_read_bit_buffer *rb) {
   AV1_COMMON *const cm = &pbi->common;
   cm->pic_struct_params.mps_pic_struct = aom_rb_read_literal(rb, 5);
   cm->pic_struct_params.mps_source_scan_type_idc = aom_rb_read_literal(rb, 2);
@@ -958,7 +958,7 @@ static size_t read_metadata(AV1Decoder *pbi, const uint8_t *data, size_t sz)
     }
     struct aom_read_bit_buffer rb;
     av1_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);
-    read_metadata_scan_type_new(pbi, &rb);
+    read_metadata_scan_type(pbi, &rb);
     return sz;
   }
 #endif  // CONFIG_SCAN_TYPE_METADATA
