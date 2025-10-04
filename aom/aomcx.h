@@ -1278,6 +1278,11 @@ enum aome_enc_control_id {
   AV1E_SET_FILM_GRAIN_BLOCK_SIZE = 174,
 #endif
 
+#if CONFIG_SCAN_TYPE_METADATA
+  /*!\brief Control to the scan type metadata
+   */
+  AV1E_SET_SCAN_TYPE_INFO_PRESENT_FLAG = 175,
+#endif  // CONFIG_SCAN_TYPE_METADATA
 };
 
 /*!\brief aom 1-D scaling mode
@@ -1800,6 +1805,11 @@ AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_BRU, int)
 #define AOM_CTRL_AV1E_SET_ENABLE_BRU
 AOM_CTRL_USE_TYPE(AV1E_GET_ENABLE_BRU, int *)
 #define AOM_CTRL_AV1E_GET_ENABLE_BRU
+
+#if CONFIG_SCAN_TYPE_METADATA
+AOM_CTRL_USE_TYPE(AV1E_SET_SCAN_TYPE_INFO_PRESENT_FLAG, int)
+#define AOM_CTRL_AV1E_SET_SCAN_TYPE_INFO_PRESENT_FLAG
+#endif  // CONFIG_SCAN_TYPE_METADATA
 /*!\endcond */
 /*! @} - end defgroup aom_encoder */
 #ifdef __cplusplus

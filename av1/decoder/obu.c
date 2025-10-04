@@ -359,6 +359,20 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
 #endif
 
+#if CONFIG_SCAN_TYPE_METADATA
+  seq_params->scan_type_info_present_flag = aom_rb_read_bit(rb);
+  if (seq_params->scan_type_info_present_flag) {
+    seq_params->seq_scan_type_idc = aom_rb_read_literal(rb, 2);
+    seq_params->seq_fixed_cvs_pic_rate_flag = aom_rb_read_bit(rb);
+    if (seq_params->seq_fixed_cvs_pic_rate_flag)
+      seq_params->seq_elemental_ct_duration_minus_1 = aom_rb_read_uvlc(rb);
+  } else {
+    seq_params->seq_scan_type_idc = 0;
+    seq_params->seq_fixed_cvs_pic_rate_flag = 0;
+    seq_params->seq_elemental_ct_duration_minus_1 = -1;
+  }
+#endif  // CONFIG_SCAN_TYPE_METADATA
+
   if (av1_check_trailing_bits(pbi, rb) != 0) {
     // cm->error.error_code is already set.
     return 0;
@@ -700,6 +714,18 @@ static size_t read_metadata_icc_profile(AV1Decoder *const pbi,
 }
 #endif  // CONFIG_ICC_METADATA
 
+#if CONFIG_SCAN_TYPE_METADATA
+// On success, returns the number of bytes read from 'data'. On failure, calls
+// aom_internal_error() and does not return.
+static void read_metadata_scan_type_new(AV1Decoder *const pbi,
+                                        struct aom_read_bit_buffer *rb) {
+  AV1_COMMON *const cm = &pbi->common;
+  cm->pic_struct_params.mps_pic_struct = aom_rb_read_literal(rb, 5);
+  cm->pic_struct_params.mps_source_scan_type_idc = aom_rb_read_literal(rb, 2);
+  cm->pic_struct_params.mps_duplicate_flag = aom_rb_read_bit(rb);
+}
+#endif  // CONFIG_SCAN_TYPE_METADATA
+
 static int read_metadata_frame_hash(AV1Decoder *const pbi,
                                     struct aom_read_bit_buffer *rb) {
   AV1_COMMON *const cm = &pbi->common;
@@ -857,6 +883,9 @@ static size_t read_metadata(AV1Decoder *pbi, const uint8_t *data, size_t sz)
       metadata_type >= OBU_METADATA_TYPE_HDR_CLL &&
       metadata_type <= OBU_METADATA_TYPE_DECODED_FRAME_HASH;
   known_metadata_type |= metadata_type == OBU_METADATA_TYPE_ICC_PROFILE;
+#if CONFIG_SCAN_TYPE_METADATA
+  known_metadata_type |= metadata_type == OBU_METADATA_TYPE_SCAN_TYPE;
+#endif  // CONFIG_SCAN_TYPE_METADATA
   if (!known_metadata_type) {
 #else
   if (metadata_type == 0 || metadata_type >= 7) {
@@ -919,6 +948,21 @@ static size_t read_metadata(AV1Decoder *pbi, const uint8_t *data, size_t sz)
     return sz;
 #endif  // CONFIG_ICC_METADATA
   }
+
+#if CONFIG_SCAN_TYPE_METADATA
+  else if (metadata_type == OBU_METADATA_TYPE_SCAN_TYPE) {
+    const size_t kMinScanTypeHeaderSize = 1;
+    AV1_COMMON *const cm = &pbi->common;
+    if (sz < kMinScanTypeHeaderSize) {
+      aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                         "Incorrect scan type metadata payload size");
+    }
+    struct aom_read_bit_buffer rb;
+    av1_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);
+    read_metadata_scan_type_new(pbi, &rb);
+    return sz;
+  }
+#endif  // CONFIG_SCAN_TYPE_METADATA
 
   struct aom_read_bit_buffer rb;
   av1_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);

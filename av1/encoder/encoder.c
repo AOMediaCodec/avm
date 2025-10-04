@@ -654,6 +654,15 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
       seq->qm_data_present[i] = q_cfg->qm_data_present[i];
     }
   }
+#if CONFIG_SCAN_TYPE_METADATA
+  seq->scan_type_info_present_flag = tool_cfg->scan_type_info_present_flag ||
+                                     oxcf->tool_cfg.scan_type_info_present_flag;
+  if (seq->scan_type_info_present_flag) {
+    seq->seq_scan_type_idc = UNSPECIFIED;
+    seq->seq_fixed_cvs_pic_rate_flag = 0;
+    seq->seq_elemental_ct_duration_minus_1 = -1;
+  }
+#endif  // CONFIG_SCAN_TYPE_METADATA
 }
 
 static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
@@ -778,6 +787,12 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
 
   // Single thread case: use counts in common.
   cpi->td.counts = &cpi->counts;
+
+#if CONFIG_SCAN_TYPE_METADATA
+  cm->pic_struct_params.mps_pic_struct = 10;
+  cm->pic_struct_params.mps_source_scan_type_idc = 1;
+  cm->pic_struct_params.mps_duplicate_flag = 0;
+#endif  // CONFIG_SCAN_TYPE_METADATA
 
   // Set init SVC parameters.
   cm->number_tlayers = 1;

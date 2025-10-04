@@ -72,6 +72,16 @@ enum {
 } UENUM1BYTE(CHROMA_FORMAT);
 #endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
+#if CONFIG_SCAN_TYPE_METADATA
+enum {
+  UNSPECIFIED = 0,
+  PROGRESSIVE_FRAME_PICTURE_SAMPLES = 1,
+  INTERLACE_FIELD_PICTURE_SAMPLES = 2,
+  INTERLACE_COMPLEMENTARY_FIELD_PAIR_PICTURE_SAMPLES = 3,
+  SCAN_TYPES,
+} UENUM1BYTE(SCAN_TYPE_IDC);
+#endif  // CONFIG_SCAN_TYPE_METADATA
+
 // Check if the block is 4xn or nx4 block
 static INLINE int is_thin_4xn_nx4_block(BLOCK_SIZE bsize) {
   int min_size = AOMMIN(block_size_wide[bsize], block_size_high[bsize]);

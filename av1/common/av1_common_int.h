@@ -1059,6 +1059,13 @@ typedef struct SequenceHeader {
   // are_seq_headers_consistent() can be implemented with a memcmp() call.
   // TODO(urvang): We probably don't need the +1 here.
   aom_dec_model_op_parameters_t op_params[MAX_NUM_OPERATING_POINTS + 1];
+#if CONFIG_SCAN_TYPE_METADATA
+  // NOTE these syntax elements will move to the CI Obu
+  int scan_type_info_present_flag;
+  int seq_scan_type_idc;
+  int seq_fixed_cvs_pic_rate_flag;
+  int seq_elemental_ct_duration_minus_1;
+#endif  // CONFIG_SCAN_TYPE_METADATA
 } SequenceHeader;
 
 typedef struct {
@@ -2629,6 +2636,12 @@ typedef struct AV1Common {
    */
   struct OperatingPointSet *ops;
 #endif  // CONFIG_MULTILAYER_HLS
+#if CONFIG_SCAN_TYPE_METADATA
+  /*!
+   * Pic struct parameters.
+   */
+  struct aom_pic_struct pic_struct_params;
+#endif  // CONFIG_SCAN_TYPE_METADATA
 } AV1_COMMON;
 
 /*!\cond */

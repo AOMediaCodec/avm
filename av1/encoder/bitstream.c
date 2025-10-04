@@ -7506,6 +7506,17 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
   // Sequence header for coding tools beyond AV1
   write_sequence_header_beyond_av1(seq_params, &wb);
 
+#if CONFIG_SCAN_TYPE_METADATA
+// NOTE: these will be removed when CI OBU is added
+  aom_wb_write_bit(&wb,seq_params->scan_type_info_present_flag);
+  if (seq_params->scan_type_info_present_flag) {
+    aom_wb_write_literal(&wb, seq_params->seq_scan_type_idc, 2);
+    aom_wb_write_bit(&wb, seq_params->seq_fixed_cvs_pic_rate_flag);
+    if (seq_params->seq_fixed_cvs_pic_rate_flag)
+      aom_wb_write_uvlc(&wb, seq_params->seq_elemental_ct_duration_minus_1);
+  }
+#endif  // CONFIG_SCAN_TYPE_METADATA
+
   av1_add_trailing_bits(&wb);
 
   size = aom_wb_bytes_written(&wb);
@@ -8682,6 +8693,68 @@ static void write_frame_hash(AV1_COMP *const cpi,
   }
 }
 
+#if CONFIG_SCAN_TYPE_METADATA
+static size_t write_scan_type_metadata(AV1_COMP *const cpi, uint8_t *dst
+#if CONFIG_METADATA
+                                       ,
+                                       ObuHeader *obu_header
+#endif  // CONFIG_METADATA
+) {
+  if (!cpi->source) return 0;
+  AV1_COMMON *const cm = &cpi->common;
+  unsigned char
+      payload[49];  // max three hash values per plane (48 bytes) + 1 bytes
+  struct aom_write_bit_buffer wb = { payload, 0 };
+  aom_wb_write_literal(&wb, cm->pic_struct_params.mps_pic_struct, 5);
+  aom_wb_write_literal(&wb, cm->pic_struct_params.mps_source_scan_type_idc, 2);
+  aom_wb_write_bit(&wb, cm->pic_struct_params.mps_duplicate_flag);
+  aom_metadata_t *metadata =
+      aom_img_metadata_alloc(OBU_METADATA_TYPE_SCAN_TYPE, payload,
+                             aom_wb_bytes_written(&wb), AOM_MIF_ANY_FRAME);
+  if (!metadata) {
+    aom_internal_error(&cpi->common.error, AOM_CODEC_MEM_ERROR,
+                       "Error allocating metadata");
+  }
+
+  size_t total_bytes_written = 0;
+#if CONFIG_METADATA
+  metadata->cancel_flag = 0;
+  metadata->priority = 0;
+  metadata->persistence_idc = AOM_NO_PERSISTENCE;
+  metadata->layer_idc = AOM_LAYER_CURRENT;
+  metadata->sz = aom_wb_bytes_written(&wb);
+  total_bytes_written +=
+      av1_write_metadata_unit_header(metadata, dst, obu_header);
+  total_bytes_written +=
+      av1_write_metadata_unit(metadata, dst + total_bytes_written);
+#else
+  size_t obu_header_size =
+      av1_write_obu_header(&cpi->level_params, OBU_METADATA,
+#if CONFIG_NEW_OBU_HEADER
+                           0, 0,
+#else
+                           0,
+#endif  // CONFIG_NEW_OBU_HEADER
+                           dst);
+  size_t obu_payload_size =
+      av1_write_metadata_obu(metadata, dst + obu_header_size);
+  size_t length_field_size =
+      obu_memmove(obu_header_size, obu_payload_size, dst);
+  if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size, dst) ==
+      AOM_CODEC_OK) {
+    const size_t obu_size = obu_header_size + obu_payload_size;
+    total_bytes_written += obu_size + length_field_size;
+  } else {
+    aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR,
+                       "Error writing metadata OBU size");
+  }
+#endif  // CONFIG_METADATA
+  aom_img_metadata_free(metadata);
+
+  return total_bytes_written;
+}
+#endif  // CONFIG_SCAN_TYPE_METADATA
+
 static size_t av1_write_frame_hash_metadata(
     AV1_COMP *const cpi, uint8_t *dst,
     const aom_film_grain_t *const grain_params, ObuHeader *obu_header) {
@@ -9201,6 +9274,46 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
   }
   data += data_size;
 #endif  // CONFIG_F106_OBU_TILEGROUP
+  
+#if CONFIG_SCAN_TYPE_METADATA
+  if (cpi->oxcf.tool_cfg.scan_type_info_present_flag) {
+#if CONFIG_METADATA
+    aom_metadata_array_t arr;
+    arr.sz = 1;
+    aom_metadata_t metadata_base;
+    metadata_base.is_suffix = 0;
+    metadata_base.necessity_idc = AOM_NECESSITY_ADVISORY;
+    metadata_base.application_id = AOM_APPID_UNDEFINED;
+    ObuHeader obu_header;
+    memset(&obu_header, 0, sizeof(obu_header));
+    obu_header.obu_tlayer_id = cm->tlayer_id;
+    obu_header.obu_mlayer_id = cm->mlayer_id;
+    obu_header.obu_xlayer_id = 0;
+    obu_header.type = OBU_METADATA;
+    obu_header_size = av1_write_obu_header(&cpi->level_params, obu_header.type,
+                                           0, 0, data);
+    obu_payload_size = 0;
+    obu_payload_size += av1_write_metadata_obsp_header(data + obu_header_size,
+                                                       arr.sz, &metadata_base);
+    obu_payload_size += write_scan_type_metadata(
+        cpi, data + obu_header_size + obu_payload_size, &obu_header);
+
+    // trailing bits
+    data[obu_header_size + obu_payload_size] = 0x80;
+    obu_payload_size++;
+
+    size_t length_field_size =
+        obu_memmove(obu_header_size, obu_payload_size, data);
+    if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size, data) ==
+        AOM_CODEC_OK) {
+      data += obu_header_size + length_field_size + obu_payload_size;
+    } else {
+      aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR,
+                         "Error writing metadata OBU size");
+    }
+  }
+#endif
+#endif  // CONFIG_SCAN_TYPE_METADATA
 
 #if CONFIG_METADATA
   // write suffix metadata obus after the frame obu that has the show_frame flag
