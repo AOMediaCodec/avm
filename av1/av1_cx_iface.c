@@ -4860,7 +4860,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         NULL, 0,
 #endif  // CONFIG_SCAN_TYPE_METADATA
 #if CONFIG_SCAN_TYPE_METADATA
-    0,
+        0,
 #endif  // CONFIG_SCAN_TYPE_METADATA
     },  // cfg
 #if CONFIG_SCAN_TYPE_METADATA

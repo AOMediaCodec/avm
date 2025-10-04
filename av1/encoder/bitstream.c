@@ -7507,8 +7507,8 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
   write_sequence_header_beyond_av1(seq_params, &wb);
 
 #if CONFIG_SCAN_TYPE_METADATA
-// NOTE: these will be removed when CI OBU is added
-  aom_wb_write_bit(&wb,seq_params->scan_type_info_present_flag);
+  // NOTE: these will be removed when CI OBU is added
+  aom_wb_write_bit(&wb, seq_params->scan_type_info_present_flag);
   if (seq_params->scan_type_info_present_flag) {
     aom_wb_write_literal(&wb, seq_params->seq_scan_type_idc, 2);
     aom_wb_write_bit(&wb, seq_params->seq_fixed_cvs_pic_rate_flag);
@@ -9274,7 +9274,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
   }
   data += data_size;
 #endif  // CONFIG_F106_OBU_TILEGROUP
-  
+
 #if CONFIG_SCAN_TYPE_METADATA
   if (cpi->oxcf.tool_cfg.scan_type_info_present_flag) {
 #if CONFIG_METADATA
@@ -9290,8 +9290,8 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
     obu_header.obu_mlayer_id = cm->mlayer_id;
     obu_header.obu_xlayer_id = 0;
     obu_header.type = OBU_METADATA;
-    obu_header_size = av1_write_obu_header(&cpi->level_params, obu_header.type,
-                                           0, 0, data);
+    obu_header_size =
+        av1_write_obu_header(&cpi->level_params, obu_header.type, 0, 0, data);
     obu_payload_size = 0;
     obu_payload_size += av1_write_metadata_obsp_header(data + obu_header_size,
                                                        arr.sz, &metadata_base);

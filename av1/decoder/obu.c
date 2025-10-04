@@ -948,7 +948,6 @@ static size_t read_metadata(AV1Decoder *pbi, const uint8_t *data, size_t sz)
     return sz;
 #endif  // CONFIG_ICC_METADATA
   }
-
 #if CONFIG_SCAN_TYPE_METADATA
   else if (metadata_type == OBU_METADATA_TYPE_SCAN_TYPE) {
     const size_t kMinScanTypeHeaderSize = 1;
