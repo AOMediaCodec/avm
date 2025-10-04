@@ -224,6 +224,7 @@ typedef enum aom_metadata_application_id {
 } aom_metadata_application_id_t;
 #endif  // CONFIG_METADATA
 
+/*!\brief Scan Type Metadata payload. */
 #if CONFIG_SCAN_TYPE_METADATA
 typedef struct aom_pic_struct {
   int mps_pic_struct;
