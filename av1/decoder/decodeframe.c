@@ -6503,6 +6503,10 @@ void av1_read_film_grain_params(AV1_COMMON *cm,
       fgm_scaling_points[i][j][0] =
           j ? fgm_value_increment(i, j) + fgm_scaling_points[i][j - 1][0]
             : fgm_value_increment(i, j);
+      if (j && fgm_scaling_points[i][j - 1][0] >= fgm_scaling_points[i][j][0])
+        aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+                           "First coordinate of the scaling function points "
+                           "shall be increasing.");
       if (j && fgm_scaling_points[i][j][0] > 255)
         aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                            "First coordinate of the scaling function point "
