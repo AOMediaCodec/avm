@@ -5094,6 +5094,7 @@ static AOM_INLINE void write_color_config(
     } else {
       // 0: [16, 235] (i.e. xvYCC), 1: [0, 255]
       aom_wb_write_bit(wb, seq_params->color_range);
+#if !CONFIG_CWG_E242_CHROMA_FORMAT_IDC
       if (seq_params->profile == PROFILE_0) {
         // 420 only
         assert(seq_params->subsampling_x == 1 &&
@@ -5118,6 +5119,7 @@ static AOM_INLINE void write_color_config(
                  seq_params->subsampling_y == 0);
         }
       }
+#endif  // !CONFIG_CWG_E242_CHROMA_FORMAT_IDC
       if (seq_params->matrix_coefficients == AOM_CICP_MC_IDENTITY) {
         assert(seq_params->subsampling_x == 0 &&
                seq_params->subsampling_y == 0);
