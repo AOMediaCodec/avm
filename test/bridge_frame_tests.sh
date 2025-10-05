@@ -8,10 +8,7 @@
 ## License 1.0 was not distributed with this source code in the PATENTS file, you
 ## can obtain it at aomedia.org/license/patent-license/.
 ##
-## This file tests the libaom bridge_frame_encoder_decoder example. To add new tests to this
-## file, do the following:
-##   1. Write a shell function (this is your test).
-##   2. Add the function to bridge_frame_tests (on a new line).
+## This file tests the libaom bridge frame.
 ##
 . $(dirname $0)/tools_common.sh
 
@@ -20,7 +17,7 @@ Y4M_720P_INPUT="${LIBAOM_TEST_DATA_PATH}/niklas_1280_720_30.y4m"
 #Environment check : $bridge_frame_RAW_INPUT is required.
 bridge_frame_tests_verify_environment() {
   if [ ! -e "${Y4M_720P_INPUT}" ]; then
-    echo "Libaom test data must exist in LIBAOM_TEST_DATA_PATH."
+    elog "Libaom test data must exist in LIBAOM_TEST_DATA_PATH."
     return 1
   fi
 }
@@ -62,19 +59,19 @@ bridge_frame_tests() {
 
   local first_resolution="1280x720"
   if ! grep -q "${first_resolution}" "${encoder_log}"; then
-    echo "String '${first_resolution}' not found in '${encoder_log}'."
+    elog "String '${first_resolution}' not found in '${encoder_log}'."
     return 1
   fi
 
   local second_resolution="640x360"
   if ! grep -q "${second_resolution}" "${encoder_log}"; then
-    echo "String '${second_resolution}' not found in '${encoder_log}'."
+    elog "String '${second_resolution}' not found in '${encoder_log}'."
     return 1
   fi
 
   local third_resolution="320x180"
   if ! grep -q "${third_resolution}" "${encoder_log}"; then
-    echo "String '${third_resolution}' not found in '${encoder_log}'."
+    elog "String '${third_resolution}' not found in '${encoder_log}'."
     return 1
   fi
 
@@ -89,13 +86,13 @@ bridge_frame_tests() {
 
   local decoded_frames="2 decoded frames"
   if ! grep -q "${decoded_frames}" "${decoder_log}"; then
-    echo "String '${decoded_frames}' not found in '${decoder_log}'."
+    elog "String '${decoded_frames}' not found in '${decoder_log}'."
     return 1
   fi
 
   local decoded_frames="2 showed frames"
   if ! grep -q "${decoded_frames}" "${decoder_log}"; then
-    echo "String '${decoded_frames}' not found in '${decoder_log}'."
+    elog "String '${decoded_frames}' not found in '${decoder_log}'."
     return 1
   fi
 
