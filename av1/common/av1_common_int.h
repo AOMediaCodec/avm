@@ -808,7 +808,7 @@ typedef struct AtlasSegmentInfo {
   int ats_nominal_height_minus1[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
 
   struct AtlasRegionInfo ats_reg_params;
-  struct AtlasBasicInfo *ats_basic_atlas_info;
+  struct AtlasBasicInfo *ats_basic_info;
   struct AtlasRegionToSegmentMapping ats_reg_seg_map;
   struct AtlasLabelSegmentInfo ats_label_seg;
 } AtlasSegmentInfo;
