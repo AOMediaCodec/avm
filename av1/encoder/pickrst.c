@@ -4080,9 +4080,9 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
     av1_reset_restoration_struct(cm, &cm->rst_info[is_uv], is_uv);
     ntiles[is_uv] = rest_tiles_in_plane(cm, is_uv);
   }
-  assert(ntiles[1] <= ntiles[0]);
+  int max_ntile = AOMMAX(ntiles[0], ntiles[1]);
   RestUnitSearchInfo *rusi =
-      (RestUnitSearchInfo *)aom_memalign(16, sizeof(*rusi) * ntiles[0]);
+      (RestUnitSearchInfo *)aom_memalign(16, sizeof(*rusi) * max_ntile);
 
   // If the restoration unit dimensions are not multiples of
   // rsi->restoration_unit_size then some elements of the rusi array may be
