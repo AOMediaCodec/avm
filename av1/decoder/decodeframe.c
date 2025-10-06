@@ -2344,19 +2344,6 @@ static AOM_INLINE void decode_partition(
 
         const int this_mi_row = mi_row + offset_r;
         const int this_mi_col = mi_col + offset_c;
-        if (partition == PARTITION_HORZ_3) {
-          if (this_mi_row >= cm->mi_params.mi_rows) {
-            av1_mark_block_as_pseudo_coded(xd, this_mi_row, this_mi_col,
-                                           this_bsize, cm->sb_size);
-            continue;
-          }
-        } else {
-          if (this_mi_col >= cm->mi_params.mi_cols) {
-            av1_mark_block_as_pseudo_coded(xd, this_mi_row, this_mi_col,
-                                           this_bsize, cm->sb_size);
-            continue;
-          }
-        }
 
         DEC_PARTITION(this_mi_row, this_mi_col, this_bsize, i);
       }

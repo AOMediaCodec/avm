@@ -2084,6 +2084,10 @@ typedef struct macroblockd {
    * An array for recording whether an mi(4x4) is coded. Reset at sb level.
    * For the first dimension, index == 0 corresponds to LUMA_PART and
    * SHARED_PART. Index == 1 corresponds to SHARED_PART.
+   * is_mi_coded = 0: the mi(4x4) is not coded, is_mi_coded = 1: mi is coded,
+   * is_mi_coded 2: the mi is outside frame boundary and not actually coded,
+   * but according to the decoding/partitioning order, it should be previously
+   * visited. value 2 is used to determine local intraBC reference only.
    */
   // TODO(any): Convert to bit field instead.
   uint8_t is_mi_coded[2][MAX_MIB_SQUARE];
@@ -3550,6 +3554,11 @@ void av1_mark_block_as_coded(MACROBLOCKD *xd, BLOCK_SIZE bsize,
                              BLOCK_SIZE sb_size);
 void av1_mark_block_as_not_coded(MACROBLOCKD *xd, int mi_row, int mi_col,
                                  BLOCK_SIZE bsize, BLOCK_SIZE sb_size);
+// For a superblock partly outside the frame boundary,
+// if a block in the superblock is outside the frame boundary and hence not
+// coded, but it should have been visited before the current CU according to
+// decoding/partitioning order, mark it as 'pseudo coded' to help determine
+// local intraBC range
 void av1_mark_block_as_pseudo_coded(MACROBLOCKD *xd, int mi_row, int mi_col,
                                     BLOCK_SIZE bsize, BLOCK_SIZE sb_size);
 #define MAX_INTERINTRA_SB_SQUARE 64 * 64

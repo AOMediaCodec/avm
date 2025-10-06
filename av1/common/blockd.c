@@ -81,11 +81,6 @@ void av1_mark_block_as_not_coded(MACROBLOCKD *xd, int mi_row, int mi_col,
 
 void av1_mark_block_as_pseudo_coded(MACROBLOCKD *xd, int mi_row, int mi_col,
                                     BLOCK_SIZE bsize, BLOCK_SIZE sb_size) {
-  // for a superblock partly outside the frame boundary,
-  // if a block in the superblock is outside the frame boundary and hence not
-  // coded, but it should have been visited before the current CU according to
-  // decoding/partitioning order, mark it as 'pseudo coded' to help determine
-  // local intraBC range
   const int sb_mi_size = mi_size_wide[sb_size];
   const int mi_row_offset = mi_row & (sb_mi_size - 1);
   const int mi_col_offset = mi_col & (sb_mi_size - 1);

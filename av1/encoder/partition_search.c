@@ -2332,19 +2332,6 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
                 ? pc_tree->horizontal3[pc_tree->region_type][i]
                 : pc_tree->vertical3[pc_tree->region_type][i];
 
-        if (partition == PARTITION_HORZ_3) {
-          if (this_mi_row >= cm->mi_params.mi_rows) {
-            av1_mark_block_as_pseudo_coded(xd, this_mi_row, this_mi_col,
-                                           this_bsize, cm->sb_size);
-            continue;
-          }
-        } else {
-          if (this_mi_col >= cm->mi_params.mi_cols) {
-            av1_mark_block_as_pseudo_coded(xd, this_mi_row, this_mi_col,
-                                           this_bsize, cm->sb_size);
-            continue;
-          }
-        }
         encode_sb(cpi, td, tile_data, tp, this_mi_row, this_mi_col, dry_run,
                   this_bsize, this_pc_tree, sub_tree[i],
                   track_ptree_luma ? ptree_luma->sub_tree[i] : NULL, rate);
