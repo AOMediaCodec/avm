@@ -2287,8 +2287,9 @@ static AOM_INLINE int fill_warp_corner_projected_point(
   int mv_row = 0;
   int mv_col = 0;
   int find_match_ref = 0;
-  const int is_neighbor_comp = has_second_ref(neighbor_mi);
-  for (int idx = 0; idx < 1 + is_neighbor_comp; ++idx) {
+  const int is_neighbor_nonwarp_comp =
+      has_second_ref(neighbor_mi) && !is_warp_mode(neighbor_mi->motion_mode);
+  for (int idx = 0; idx < 1 + is_neighbor_nonwarp_comp; ++idx) {
     if (!is_inter_ref_frame(neighbor_mi->ref_frame[idx])) continue;
     if (neighbor_mi->ref_frame[idx] != this_ref) continue;
     if (is_warp_mode(neighbor_mi->motion_mode)) {
