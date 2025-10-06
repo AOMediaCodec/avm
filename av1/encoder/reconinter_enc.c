@@ -196,13 +196,8 @@ void av1_enc_build_inter_predictor(const AV1_COMMON *cm, MACROBLOCKD *xd,
       const int mi_x_p = mi_luma_x >> pd->subsampling_x;
       const int mi_y_p = mi_luma_y >> pd->subsampling_y;
 
-#if CONFIG_F054_PIC_BOUNDARY
       const int width_p = pd->dst.width;
       const int height_p = pd->dst.height;
-#else
-      const int width_p = cm->width >> pd->subsampling_x;
-      const int height_p = cm->height >> pd->subsampling_y;
-#endif  // CONFIG_F054_PIC_BOUNDARY
 
       const int bw = xd->plane[plane].width;
       const int bh = xd->plane[plane].height;
