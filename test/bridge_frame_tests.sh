@@ -12,7 +12,8 @@
 ##
 . $(dirname $0)/tools_common.sh
 
-Y4M_720P_INPUT="${LIBAOM_TEST_DATA_PATH}/niklas_1280_720_30.y4m"
+Y4M_720P_INPUT_FILE="niklas_1280_720_30.y4m"
+Y4M_720P_INPUT="${LIBAOM_TEST_DATA_PATH}/${Y4M_720P_INPUT_FILE}"
 
 #Environment check : $bridge_frame_RAW_INPUT is required.
 bridge_frame_tests_verify_environment() {
