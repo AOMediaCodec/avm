@@ -6290,7 +6290,7 @@ static AOM_INLINE void write_uncompressed_header_obu
     aom_wb_write_literal(wb, cm->cur_mfh_id, 4);
 #endif  // CONFIG_CWG_E242_MFH_ID_UVLC
     if (cm->cur_mfh_id == 0) {
-      aom_wb_write_uvlc(wb, 0);
+      aom_wb_write_uvlc(wb, 0);  // seq_header_id_in_frame_header
     }
 #endif  // CONFIG_MULTI_FRAME_HEADER
 #if CONFIG_CWG_F317
