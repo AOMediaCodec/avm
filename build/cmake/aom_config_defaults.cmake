@@ -173,6 +173,8 @@ set_aom_config_var(CONFIG_CWG_E242_BITDEPTH 1 "Signal Bitdepth using a LUT.")
 
 set_aom_config_var(CONFIG_CWG_E242_SEQ_HDR_ID 1 "Signal sequence header id.")
 
+set_aom_config_var(CONFIG_REORDER_SEQ_FLAGS 1 "Group sequence header flags.")
+
 set_aom_config_var(CONFIG_MINIMUM_LR_UNIT_SIZE_64x64 0
                    "Support minimum LR Unit size ")
 set_aom_config_var(CONFIG_LR_FRAMEFILTERS_IN_HEADER 0
