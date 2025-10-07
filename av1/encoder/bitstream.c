@@ -7456,7 +7456,13 @@ uint32_t av1_write_obu_header(AV1LevelParams *const level_params,
   struct aom_write_bit_buffer wb = { dst, 0 };
   uint32_t size = 0;
 
+  assert(IMPLIES(obu_type == OBU_MSDO,
+                 obu_temporal == 0 && obu_layer == MAX_NUM_XLAYERS - 1));
+#if CONFIG_SET_DEFAULT_VALUE_XLAYER_ID
+  int obu_extension_flag = (obu_type != OBU_MSDO && obu_layer != 0);
+#else   // CONFIG_SET_DEFAULT_VALUE_XLAYER_ID
   int obu_extension_flag = obu_layer != 0;
+#endif  // CONFIG_SET_DEFAULT_VALUE_XLAYER_ID
   aom_wb_write_bit(&wb, obu_extension_flag);
   aom_wb_write_literal(&wb, (int)obu_type, 5);
   aom_wb_write_literal(&wb, obu_temporal, TLAYER_BITS);
