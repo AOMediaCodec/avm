@@ -4133,13 +4133,14 @@ static AOM_INLINE void setup_render_size(AV1_COMMON *cm,
 #if CONFIG_CWG_F248_RENDER_SIZE
   (void)rb;
 #if CONFIG_MULTILAYER_HLS && CONFIG_MULTILAYER_HLS_ENABLE_SIGNALING
-  // Note: if Local LCR information is used, then the xId = xLayerId
-  // If Global LCR is used, then for each extended layer i.e, xlayer_info(1,n)
-  // is specified, where n is xlayer_id[i] of the i-th extended layer.
-  // Set default to use xlayer_id 31 when Global LCR is being used
+  // Note: if Local LCR information is used, then the layer_id =
+  // lcr_params.xlayer_id If Global LCR is used, then for each extended layer
+  // i.e, xlayer_info(1,n) is specified, where n is xlayer_id[i] of the i-th
+  // extended layer. Set default to use xlayer_id 31 when Global LCR is being
+  // used
   const bool is_global_lcr = !cm->lcr_params.is_local_lcr;
-  int layerId = cm->lcr_params.is_local_lcr ? cm->lcr_params.xLayerId
-                                            : GLOBAL_LCR_XLAYER_ID;
+  const int layer_id =
+      is_global_lcr ? GLOBAL_LCR_XLAYER_ID : cm->lcr_params.xlayer_id;
   const int xlayer_id = cm->lcr_params.lcr_xLayer_id[layerId];
   if (cm->lcr_params.lcr_rep_info_present_flag[is_global_lcr][xlayer_id]) {
     cm->render_width = cm->lcr_params.rep_params.lcr_max_pic_width;
@@ -8287,9 +8288,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           seq_params->max_frame_width;
       cm->mfh_params[cm->cur_mfh_id].mfh_frame_height =
           seq_params->max_frame_height;
-      cm->mfh_params[cm->cur_mfh_id].mfh_render_width =
+      cm->mfh_params[cm->cur_mfh_id].mfh_frame_width =
           seq_params->max_frame_width;
-      cm->mfh_params[cm->cur_mfh_id].mfh_render_height =
+      cm->mfh_params[cm->cur_mfh_id].mfh_frame_height =
           seq_params->max_frame_height;
       cm->mfh_params[cm->cur_mfh_id].mfh_loop_filter_update_flag = 0;
       for (int i = 0; i < 4; i++) {

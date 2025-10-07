@@ -278,7 +278,10 @@ static int read_lcr_global_info(struct AV1Decoder *pbi,
   }
 #if CONFIG_CWG_F248_RENDER_SIZE
   lcr_params->is_local_lcr = 0;
-  lcr_params->xLayerId = GLOBAL_LCR_XLAYER_ID;
+  lcr_params->xlayer_id = GLOBAL_LCR_XLAYER_ID;
+  // NOTE: lcr_params->lcr_xLayer_id indicates the corresponding extended layer
+  // ID for the indicated extended layer in the Global LCR and
+  // lcr_params->xlayer_id is the obu_layer_id.
 #endif  // CONFIG_CWG_F248_RENDER_SIZE
   return 0;
 }
@@ -321,7 +324,7 @@ static int read_lcr_local_info(struct AV1Decoder *pbi, int xlayerId,
   read_lcr_xlayer_info(pbi, 0, xlayerId, rb);
 #if CONFIG_CWG_F248_RENDER_SIZE
   lcr_params->is_local_lcr = 1;
-  lcr_params->xLayerId = xlayerId;
+  lcr_params->xlayer_id = xlayerId;
 #endif  // CONFIG_CWG_F248_RENDER_SIZE
   return 0;
 }
@@ -331,7 +334,7 @@ uint32_t av1_read_layer_configuration_record_obu(
   const uint32_t saved_bit_offset = rb->bit_offset;
   assert(rb->error_handler);
 
-  if (xlayer_id == 31)
+  if (xlayer_id == GLOBAL_LCR_XLAYER_ID)
     read_lcr_global_info(pbi, rb);
   else
     read_lcr_local_info(pbi, xlayer_id, rb);
