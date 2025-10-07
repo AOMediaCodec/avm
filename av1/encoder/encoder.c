@@ -4718,14 +4718,27 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
         cm->current_frame.refresh_frame_flags =
             (1 << cm->bridge_frame_info.bridge_frame_ref_idx);
 
-        init_ref_map_pair(
-            &cpi->common, cm->ref_frame_map_pairs,
-            cpi->gf_group.update_type[cpi->gf_group.index] == KF_UPDATE);
+        init_ref_map_pair(&cpi->common, cm->ref_frame_map_pairs,
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                          current_frame->frame_type == KEY_FRAME,
+                          cpi->switch_frame_mode == 1);
+#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                          cpi->gf_group.update_type[cpi->gf_group.index] ==
+                              KF_UPDATE);
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 #if CONFIG_ACROSS_SCALE_REF_OPT
         // Derive reference mapping in a resolution independent manner to
         // generate parameters needed in write_frame_size_with_refs
-        av1_get_ref_frames(cm, cur_frame_disp, 0, cm->ref_frame_map_pairs);
-        av1_get_ref_frames(cm, cur_frame_disp, 1, cm->ref_frame_map_pairs);
+        av1_get_ref_frames(cm, cur_frame_disp, 0,
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                           0,
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                           cm->ref_frame_map_pairs);
+        av1_get_ref_frames(cm, cur_frame_disp, 1,
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                           0,
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                           cm->ref_frame_map_pairs);
 #else
         av1_get_ref_frames(cm, cur_frame_disp, cm->ref_frame_map_pairs);
 #endif  // CONFIG_ACROSS_SCALE_REF_OP
