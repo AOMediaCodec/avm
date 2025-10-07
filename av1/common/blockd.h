@@ -3320,9 +3320,9 @@ static INLINE TX_TYPE av1_get_tx_type(const MACROBLOCKD *xd,
         blk_row <<= xd->plane[plane_type].subsampling_y;
         blk_col <<= xd->plane[plane_type].subsampling_x;
         lossless_inter_tx_type = xd->tx_type_map[0];
-        // This is an inter chroma block
-        assert(mbmi->region_type != INTRA_REGION && xd->is_chroma_ref);
-        if (xd->mi_row == mbmi->chroma_ref_info.mi_row_chroma_base &&
+        assert(xd->is_chroma_ref);
+        if (mbmi->region_type != INTRA_REGION &&
+            xd->mi_row == mbmi->chroma_ref_info.mi_row_chroma_base &&
             xd->mi_col == mbmi->chroma_ref_info.mi_col_chroma_base)
           lossless_inter_tx_type =
               xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col];
