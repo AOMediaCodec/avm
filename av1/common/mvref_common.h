@@ -777,30 +777,33 @@ static INLINE int av1_is_dv_in_local_range(const AV1_COMMON *cm, const MV dv,
   if ((src_bottom_y >> sb_size_log2) > (act_top_y >> sb_size_log2)) return 0;
   // reference blk must be in the same sb row
   int numLeftSB = (1 << (8 - sb_size_log2)) - ((sb_size_log2 < 8) ? 1 : 0);
+  int numLeftActiveSB = numLeftSB;
   if (sb_size_log2 == 6) {
+    numLeftSB = 4;
     if (cm->bru.enabled) {
-      numLeftSB = 1;
+      numLeftActiveSB = 1;
       const int sb_col = mi_col >> mib_size_log2;
       const int sb_row = mi_row >> mib_size_log2;
-      while (numLeftSB < 4) {
+      while (numLeftActiveSB < 4) {
         // treat padding region as support
-        if (sb_col - numLeftSB - 1 >= 0) {
+        if (sb_col - numLeftActiveSB - 1 >= 0) {
           SB_INFO *sbi =
               av1_get_sb_info(cm, sb_row << mib_size_log2,
-                              (sb_col - numLeftSB - 1) << mib_size_log2);
+                              (sb_col - numLeftActiveSB - 1) << mib_size_log2);
           if (sbi->sb_active_mode == BRU_INACTIVE_SB) {
             break;
           }
         }
-        numLeftSB++;
+        numLeftActiveSB++;
       }
-    } else
-      numLeftSB = 4;
+    } else {
+      numLeftActiveSB = numLeftSB;
+    }
   }
   const int valid_SB =
       ((src_right_x >> sb_size_log2) <= (act_left_x >> sb_size_log2)) &&
       ((src_left_x >> sb_size_log2) >=
-       ((act_left_x >> sb_size_log2) - numLeftSB));
+       ((act_left_x >> sb_size_log2) - numLeftActiveSB));
   // reference blk must be in the current SB or left n SBs
   if (!valid_SB) return 0;
 
