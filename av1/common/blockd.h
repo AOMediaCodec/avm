@@ -460,11 +460,7 @@ typedef struct MB_MODE_INFO {
   /*! \brief The motion mode used by the inter prediction. */
   MOTION_MODE motion_mode;
   /*! \brief Number of samples used by spatial warp prediction */
-#if CONFIG_COMPOUND_WARP_CAUSAL
   uint8_t num_proj_ref[2];
-#else
-  uint8_t num_proj_ref;
-#endif  // CONFIG_COMPOUND_WARP_CAUSAL
   /*! \brief The parameters used in warp motion mode. */
   WarpedMotionParams wm_params[2];
   /*! \brief The type of intra mode used by inter-intra */

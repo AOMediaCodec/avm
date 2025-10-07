@@ -1923,11 +1923,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
   const struct segmentation *const seg = &cm->seg;
   struct segmentation_probs *const segp = &ec_ctx->seg;
-#if CONFIG_COMPOUND_WARP_CAUSAL
   MB_MODE_INFO *mbmi = xd->mi[0];
-#else
-  const MB_MODE_INFO *const mbmi = xd->mi[0];
-#endif  // CONFIG_COMPOUND_WARP_CAUSAL
   const MB_MODE_INFO_EXT_FRAME *const mbmi_ext_frame = x->mbmi_ext_frame;
   const PREDICTION_MODE mode = mbmi->mode;
   const int segment_id = mbmi->segment_id;
@@ -2080,7 +2076,6 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
         assert(mbmi->bawp_flag[1] == 0);
       }
 
-#if CONFIG_COMPOUND_WARP_CAUSAL
       if (is_motion_variation_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y],
                                             xd->mi_row, xd->mi_col) &&
           !is_tip_ref_frame(mbmi->ref_frame[0]) && !mbmi->skip_mode &&
@@ -2092,7 +2087,6 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
         if (has_second_ref(mbmi))
           mbmi->num_proj_ref[1] = av1_findSamples(cm, xd, pts, pts_inref, 1);
       }
-#endif
       write_motion_mode(cm, xd, mbmi, mbmi_ext_frame, w);
       int is_warpmv_warp_causal =
           ((mbmi->motion_mode == WARP_CAUSAL) && mbmi->mode == WARPMV);
@@ -2330,16 +2324,10 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
       if (mbmi->comp_group_idx == 0) {
         assert(mbmi->interinter_comp.type == COMPOUND_AVERAGE);
       } else {
-#if CONFIG_COMPOUND_WARP_CAUSAL
         assert(cpi->common.current_frame.reference_mode != SINGLE_REFERENCE &&
                is_inter_compound_mode(mbmi->mode) &&
                (mbmi->motion_mode == SIMPLE_TRANSLATION ||
                 is_compound_warp_causal_allowed(cm, xd, mbmi)));
-#else
-        assert(cpi->common.current_frame.reference_mode != SINGLE_REFERENCE &&
-               is_inter_compound_mode(mbmi->mode) &&
-               mbmi->motion_mode == SIMPLE_TRANSLATION);
-#endif  // CONFIG_COMPOUND_WARP_CAUSAL
         assert(masked_compound_used);
         // compound_diffwtd, wedge
         assert(mbmi->interinter_comp.type == COMPOUND_WEDGE ||

@@ -231,10 +231,6 @@ set_aom_config_var(CONFIG_CWG_F260_REFRESH_FLAG 1
 set_aom_config_var(CONFIG_TU64_TRAVERSED_ORDER 1
                    "Coding order of TU 64x64 traversed as 128x128 blocks")
 
-set_aom_config_var(
-  CONFIG_COMPOUND_WARP_CAUSAL 1
-  "AV2 experiment flag to enable compound new_newmv warp_causal mode")
-
 set_aom_config_var(CONFIG_REDUCE_CCTX_CTX 1 "Reduce CCTX contexts")
 
 set_aom_config_var(CONFIG_LOCAL_INTRABC_ALIGN_RNG 1

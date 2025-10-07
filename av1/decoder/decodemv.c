@@ -696,12 +696,7 @@ static void read_warp_delta(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   }
 
   av1_set_warp_translation(mi_row, mi_col, bsize, center_mv.as_mv, params);
-  assign_warpmv(cm, xd->submi, bsize, params, mi_row, mi_col
-#if CONFIG_COMPOUND_WARP_CAUSAL
-                ,
-                0
-#endif  // CONFIG_COMPOUND_WARP_CAUSAL
-  );
+  assign_warpmv(cm, xd->submi, bsize, params, mi_row, mi_col, 0);
 }
 
 static MOTION_MODE read_motion_mode(AV1_COMMON *cm, MACROBLOCKD *xd,
@@ -3314,12 +3309,8 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   int_mv ref_mv[2];
   int_mv ref_mvs[MODE_CTX_REF_FRAMES][MAX_MV_REF_CANDIDATES] = { { { 0 } } };
   int16_t inter_mode_ctx[MODE_CTX_REF_FRAMES];
-#if CONFIG_COMPOUND_WARP_CAUSAL
   int pts0[SAMPLES_ARRAY_SIZE], pts0_inref[SAMPLES_ARRAY_SIZE];
   int pts1[SAMPLES_ARRAY_SIZE], pts1_inref[SAMPLES_ARRAY_SIZE];
-#else
-  int pts[SAMPLES_ARRAY_SIZE], pts_inref[SAMPLES_ARRAY_SIZE];
-#endif  // CONFIG_COMPOUND_WARP_CAUSAL
   MACROBLOCKD *const xd = &dcb->xd;
 
   SB_INFO *sbi = xd->sbi;
@@ -3343,12 +3334,10 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   mbmi->bawp_flag[1] = 0;
   mbmi->refinemv_flag = 0;
 
-#if CONFIG_COMPOUND_WARP_CAUSAL
   mbmi->num_proj_ref[0] = 0;  // assume num_proj_ref >=1
   mbmi->num_proj_ref[1] = 0;  // assume num_proj_ref >=1
   mbmi->wm_params[0].invalid = 1;
   mbmi->wm_params[1].invalid = 1;
-#endif  // CONFIG_COMPOUND_WARP_CAUSAL
 
   av1_collect_neighbors_ref_counts(xd);
 
@@ -3472,18 +3461,12 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       }
       if (is_motion_variation_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y],
                                             xd->mi_row, xd->mi_col) &&
-          !is_tip_ref_frame(mbmi->ref_frame[0]) &&
-#if CONFIG_COMPOUND_WARP_CAUSAL
-          !mbmi->skip_mode &&
+          !is_tip_ref_frame(mbmi->ref_frame[0]) && !mbmi->skip_mode &&
           (!has_second_ref(mbmi) ||
            is_compound_warp_causal_allowed(cm, xd, mbmi))) {
         mbmi->num_proj_ref[0] = av1_findSamples(cm, xd, pts0, pts0_inref, 0);
         if (has_second_ref(mbmi))
           mbmi->num_proj_ref[1] = av1_findSamples(cm, xd, pts1, pts1_inref, 1);
-#else
-          !mbmi->skip_mode && !has_second_ref(mbmi)) {
-        mbmi->num_proj_ref = av1_findSamples(cm, xd, pts, pts_inref);
-#endif  // CONFIG_COMPOUND_WARP_CAUSAL
       }
       mbmi->motion_mode = read_motion_mode(cm, xd, mbmi, r);
       int is_warpmv_warp_causal =
@@ -3586,11 +3569,6 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 
   aom_merge_corrupted_flag(&dcb->corrupted, mv_corrupted_flag);
 
-#if !CONFIG_COMPOUND_WARP_CAUSAL
-  assert(IMPLIES(mbmi->motion_mode != SIMPLE_TRANSLATION,
-                 mbmi->mode >= SINGLE_INTER_MODE_START &&
-                     mbmi->mode < SINGLE_INTER_MODE_END));
-#endif  // !CONFIG_COMPOUND_WARP_CAUSAL
   if (mbmi->motion_mode == WARP_DELTA) {
     read_warp_delta(cm, xd, mbmi, r, warp_param_stack);
   }
@@ -3655,16 +3633,10 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
     if (mbmi->comp_group_idx == 0) {
       mbmi->interinter_comp.type = COMPOUND_AVERAGE;
     } else {
-#if CONFIG_COMPOUND_WARP_CAUSAL
       assert(cm->current_frame.reference_mode != SINGLE_REFERENCE &&
              is_inter_compound_mode(mbmi->mode) &&
              (mbmi->motion_mode == SIMPLE_TRANSLATION ||
               is_compound_warp_causal_allowed(cm, xd, mbmi)));
-#else
-      assert(cm->current_frame.reference_mode != SINGLE_REFERENCE &&
-             is_inter_compound_mode(mbmi->mode) &&
-             mbmi->motion_mode == SIMPLE_TRANSLATION);
-#endif  // CONFIG_COMPOUND_WARP_CAUSAL
       assert(masked_compound_used);
 
       // compound_diffwtd, wedge
@@ -3713,7 +3685,6 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 
   if (mbmi->motion_mode == WARP_CAUSAL) {
     mbmi->wm_params[0].wmtype = DEFAULT_WMTYPE;
-#if CONFIG_COMPOUND_WARP_CAUSAL
     mbmi->wm_params[1].wmtype = DEFAULT_WMTYPE;
     mbmi->wm_params[0].invalid = 1;
     mbmi->wm_params[1].invalid = 1;
@@ -3758,28 +3729,6 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
     if (!mbmi->wm_params[1].invalid)
       assign_warpmv(cm, xd->submi, bsize, &mbmi->wm_params[1], mi_row, mi_col,
                     1);
-#else
-    mbmi->wm_params[0].invalid = 1;
-    MV mv = mbmi->mv[0].as_mv;
-    if (mbmi->num_proj_ref > 0 &&
-        !av1_find_projection(mbmi->num_proj_ref, pts, pts_inref, bsize, mv,
-                             &mbmi->wm_params[0], mi_row, mi_col
-#if CONFIG_ACROSS_SCALE_WARP
-                             ,
-                             get_ref_scale_factors(cm, mbmi->ref_frame[0])
-#endif  // CONFIG_ACROSS_SCALE_WARP
-                                 )) {
-      mbmi->wm_params[0].invalid = 0;
-    }
-
-#if WARPED_MOTION_DEBUG
-    if (mbmi->wm_params[0].invalid)
-      printf("Warning: unexpected warped model from aomenc\n");
-#endif  // WARPED_MOTION_DEBUG
-
-    if (!mbmi->wm_params[0].invalid)
-      assign_warpmv(cm, xd->submi, bsize, &mbmi->wm_params[0], mi_row, mi_col);
-#endif  // CONFIG_COMPOUND_WARP_CAUSAL
   }
 
   if (mbmi->motion_mode == WARP_EXTEND) {
@@ -3796,7 +3745,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 
     if (mbmi->mode == NEARMV) {
       assert(is_warp_mode(neighbor_mi->motion_mode));
-#if CONFIG_COMPOUND_WARP_CAUSAL && !COMPOUND_WARP_LINE_BUFFER_REDUCTION
+#if !COMPOUND_WARP_LINE_BUFFER_REDUCTION
       if (mbmi->ref_frame[0] == neighbor_mi->ref_frame[1] &&
           !neighbor_mi->wm_params[1].invalid)
         mbmi->wm_params[0] = neighbor_mi->wm_params[1];
@@ -3806,7 +3755,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
         mbmi->wm_params[0] = neighbor_mi->wm_params[1];
 #else
       mbmi->wm_params[0] = neighbor_mi->wm_params[0];
-#endif  // CONFIG_COMPOUND_WARP_CAUSAL && !COMPOUND_WARP_LINE_BUFFER_REDUCTION
+#endif  // !COMPOUND_WARP_LINE_BUFFER_REDUCTION
     } else {
       assert(mbmi->mode == WARP_NEWMV);
 
@@ -3829,12 +3778,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
         mbmi->wm_params[0].invalid = 1;
       }
     }
-    assign_warpmv(cm, xd->submi, bsize, &mbmi->wm_params[0], mi_row, mi_col
-#if CONFIG_COMPOUND_WARP_CAUSAL
-                  ,
-                  0
-#endif  // CONFIG_COMPOUND_WARP_CAUSAL
-    );
+    assign_warpmv(cm, xd->submi, bsize, &mbmi->wm_params[0], mi_row, mi_col, 0);
   }
 
   if (xd->tree_type != LUMA_PART) xd->cfl.store_y = store_cfl_required(cm, xd);
@@ -3854,15 +3798,10 @@ static void read_inter_frame_mode_info(AV1Decoder *const pbi,
   mbmi->mv[0].as_int = 0;
   mbmi->mv[1].as_int = 0;
   xd->submi[0]->mv[0].as_int = xd->submi[0]->mv[1].as_int = 0;
-#if CONFIG_COMPOUND_WARP_CAUSAL
   span_submv(cm, xd->submi, xd->mi_row, xd->mi_col, mbmi->sb_type[PLANE_TYPE_Y],
              0);
   span_submv(cm, xd->submi, xd->mi_row, xd->mi_col, mbmi->sb_type[PLANE_TYPE_Y],
              1);
-#else
-  span_submv(cm, xd->submi, xd->mi_row, xd->mi_col,
-             mbmi->sb_type[PLANE_TYPE_Y]);
-#endif  // CONFIG_COMPOUND_WARP_CAUSAL
   set_default_max_mv_precision(mbmi, xd->sbi->sb_mv_precision);
   set_mv_precision(mbmi, mbmi->max_mv_precision);  // initialize to max
   set_default_precision_set(cm, mbmi, mbmi->sb_type[PLANE_TYPE_Y]);
@@ -4020,9 +3959,9 @@ void av1_read_mode_info(AV1Decoder *const pbi, DecoderCodingBlock *dcb,
     MB_MODE_INFO *const mbmi_tmp = xd->mi[0];
     if (is_inter_block(mbmi_tmp, xd->tree_type))
       av1_update_warp_param_bank(cm, xd,
-#if CONFIG_COMPOUND_WARP_CAUSAL && COMPOUND_WARP_LINE_BUFFER_REDUCTION
+#if COMPOUND_WARP_LINE_BUFFER_REDUCTION
                                  0,
-#endif  // CONFIG_COMPOUND_WARP_CAUSAL && COMPOUND_WARP_LINE_BUFFER_REDUCTION
+#endif  // COMPOUND_WARP_LINE_BUFFER_REDUCTION
                                  mbmi_tmp);
   }
 }

@@ -5083,10 +5083,7 @@ unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
                                   const SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
                                   BLOCK_SIZE bsize, const int *pts0,
                                   const int *pts_inref0, int total_samples,
-#if CONFIG_COMPOUND_WARP_CAUSAL
-                                  int8_t ref,
-#endif  // CONFIG_COMPOUND_WARP_CAUSAL
-                                  WARP_SEARCH_METHOD search_method,
+                                  int8_t ref, WARP_SEARCH_METHOD search_method,
                                   int num_iterations) {
   MB_MODE_INFO *mbmi = xd->mi[0];
 
@@ -5094,15 +5091,9 @@ unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
   const int num_neighbors = warp_search_info[search_method].num_neighbors;
   const uint8_t *neighbor_mask = warp_search_info[search_method].neighbor_mask;
 
-#if CONFIG_COMPOUND_WARP_CAUSAL
   MV *best_mv = &mbmi->mv[ref].as_mv;
   WarpedMotionParams best_wm_params = mbmi->wm_params[ref];
   int best_num_proj_ref = mbmi->num_proj_ref[ref];
-#else   // CONFIG_COMPOUND_WARP_CAUSAL
-  MV *best_mv = &mbmi->mv[0].as_mv;
-  WarpedMotionParams best_wm_params = mbmi->wm_params[0];
-  int best_num_proj_ref = mbmi->num_proj_ref;
-#endif  // CONFIG_COMPOUND_WARP_CAUSAL
   unsigned int bestmse;
   const SubpelMvLimits *mv_limits = &ms_params->mv_limits;
 
@@ -5143,22 +5134,10 @@ unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
       if (av1_is_subpelmv_in_range(mv_limits, this_mv)) {
         memcpy(pts, pts0, total_samples * 2 * sizeof(*pts0));
         memcpy(pts_inref, pts_inref0, total_samples * 2 * sizeof(*pts_inref0));
-        if (total_samples > 1)
-#if CONFIG_COMPOUND_WARP_CAUSAL
-          mbmi->num_proj_ref[ref] =
-#else
-          mbmi->num_proj_ref =
-#endif  // CONFIG_COMPOUND_WARP_CAUSAL
-              total_samples;
+        if (total_samples > 1) mbmi->num_proj_ref[ref] = total_samples;
 
-#if CONFIG_COMPOUND_WARP_CAUSAL
         if (!av1_find_projection(mbmi->num_proj_ref[ref], pts, pts_inref, bsize,
-                                 this_mv, &mbmi->wm_params[ref], mi_row,
-#else
-        if (!av1_find_projection(mbmi->num_proj_ref, pts, pts_inref, bsize,
-                                 this_mv, &mbmi->wm_params[0], mi_row,
-#endif  // CONFIG_COMPOUND_WARP_CAUSAL
-                                 mi_col
+                                 this_mv, &mbmi->wm_params[ref], mi_row, mi_col
 #if CONFIG_ACROSS_SCALE_WARP
                                  ,
                                  get_ref_scale_factors((AV1_COMMON *const)cm,
@@ -5169,13 +5148,8 @@ unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
 
           if (thismse < bestmse) {
             best_idx = idx;
-#if CONFIG_COMPOUND_WARP_CAUSAL
             best_wm_params = mbmi->wm_params[ref];
             best_num_proj_ref = mbmi->num_proj_ref[ref];
-#else
-            best_wm_params = mbmi->wm_params[0];
-            best_num_proj_ref = mbmi->num_proj_ref;
-#endif
             bestmse = thismse;
           }
         }
@@ -5191,13 +5165,8 @@ unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
     }
   }
 
-#if CONFIG_COMPOUND_WARP_CAUSAL
   mbmi->wm_params[ref] = best_wm_params;
   mbmi->num_proj_ref[ref] = best_num_proj_ref;
-#else
-  mbmi->wm_params[0] = best_wm_params;
-  mbmi->num_proj_ref = best_num_proj_ref;
-#endif
   return bestmse;
 }
 

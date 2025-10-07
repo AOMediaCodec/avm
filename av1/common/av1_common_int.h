@@ -3891,9 +3891,9 @@ void decide_rmb_unit_update_count(const AV1_COMMON *const cm,
 
 void av1_update_warp_param_bank(const AV1_COMMON *const cm,
                                 MACROBLOCKD *const xd,
-#if CONFIG_COMPOUND_WARP_CAUSAL && COMPOUND_WARP_LINE_BUFFER_REDUCTION
+#if COMPOUND_WARP_LINE_BUFFER_REDUCTION
                                 int cand_from_sb_above,
-#endif  // CONFIG_COMPOUND_WARP_CAUSAL && COMPOUND_WARP_LINE_BUFFER_REDUCTION
+#endif  // COMPOUND_WARP_LINE_BUFFER_REDUCTION
                                 const MB_MODE_INFO *const mbmi);
 
 static INLINE void av1_reset_refmv_bank(const AV1_COMMON *const cm,
@@ -3940,9 +3940,9 @@ static INLINE void av1_reset_refmv_bank(const AV1_COMMON *const cm,
           candidate->use_intrabc[0]) {
         av1_update_ref_mv_bank(cm, xd, 0, candidate);
         av1_update_warp_param_bank(cm, xd,
-#if CONFIG_COMPOUND_WARP_CAUSAL && COMPOUND_WARP_LINE_BUFFER_REDUCTION
+#if COMPOUND_WARP_LINE_BUFFER_REDUCTION
                                    1,
-#endif  // CONFIG_COMPOUND_WARP_CAUSAL && COMPOUND_WARP_LINE_BUFFER_REDUCTION
+#endif  // COMPOUND_WARP_LINE_BUFFER_REDUCTION
                                    candidate);
         row_hits++;
       }
@@ -5463,7 +5463,6 @@ uint8_t av1_is_warp_causal_allowed(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                     const MB_MODE_INFO *mbmi, int *p_num_of_warp_neighbors);
 
-#if CONFIG_COMPOUND_WARP_CAUSAL
 static INLINE int is_compound_warp_causal_allowed(const AV1_COMMON *cm,
                                                   const MACROBLOCKD *xd,
                                                   const MB_MODE_INFO *mbmi) {
@@ -5476,7 +5475,6 @@ static INLINE int is_compound_warp_causal_allowed(const AV1_COMMON *cm,
          av1_is_warp_causal_allowed(cm, xd, mbmi->ref_frame[0]) &&
          av1_is_warp_causal_allowed(cm, xd, mbmi->ref_frame[1]);
 }
-#endif  // CONFIG_COMPOUND_WARP_CAUSAL
 
 static INLINE int is_warp_newmv_allowed(const AV1_COMMON *cm,
                                         const MACROBLOCKD *xd,
@@ -5514,12 +5512,7 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
 #if !CONFIG_WARPMV_WARP_CAUSAL_REMOVAL
     int frame_warp_causal_allowed =
         cm->features.enabled_motion_modes & (1 << WARP_CAUSAL);
-#if CONFIG_COMPOUND_WARP_CAUSAL
     if (frame_warp_causal_allowed && mbmi->num_proj_ref[0] >= 1) {
-#else
-    if (frame_warp_causal_allowed &&
-        av1_is_warp_causal_allowed(cm, xd, mbmi->ref_frame[0])) {
-#endif  // CONFIG_COMPOUND_WARP_CAUSAL
       allowed_motion_mode_warpmv |= (1 << WARP_CAUSAL);
     }
 #endif  // !CONFIG_WARPMV_WARP_CAUSAL_REMOVAL
@@ -5585,7 +5578,6 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
     }
   }
 
-#if CONFIG_COMPOUND_WARP_CAUSAL
   const int allow_compound_warp_causal_motion =
       is_motion_variation_allowed_bsize(bsize, xd->mi_row, xd->mi_col) &&
       mbmi->mode == NEW_NEWMV &&
@@ -5597,7 +5589,6 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
   if (allow_compound_warp_causal_motion) {
     allowed_motion_modes |= (1 << WARP_CAUSAL);
   }
-#endif  // CONFIG_COMPOUND_WARP_CAUSAL
 
   return (allowed_motion_modes & enabled_motion_modes);
 }

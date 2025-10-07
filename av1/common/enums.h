@@ -968,9 +968,7 @@ enum {
 #define OPFL_GRAD_UNIT_LOG2 4
 #define OPFL_GRAD_UNIT (1 << OPFL_GRAD_UNIT_LOG2)
 
-#if CONFIG_COMPOUND_WARP_CAUSAL
 #define COMPOUND_WARP_LINE_BUFFER_REDUCTION 1
-#endif
 
 enum {
   II_DC_PRED,
@@ -1023,11 +1021,7 @@ enum {
 #define MAX_ANGLE_DELTA 3
 #define ANGLE_STEP 3
 
-#if CONFIG_COMPOUND_WARP_CAUSAL
 #define NO_D149_FOR_WARP_CAUSAL 1
-#else
-#define NO_D149_FOR_WARP_CAUSAL 0
-#endif  // CONFIG_COMPOUND_WARP_CAUSAL
 // Total delta angles for one nominal directional mode
 #define TOTAL_ANGLE_DELTA_COUNT 7
 

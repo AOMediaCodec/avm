@@ -316,9 +316,9 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
 #if !WARP_CU_BANK
     if (is_inter)
       av1_update_warp_param_bank(cm, xd,
-#if CONFIG_COMPOUND_WARP_CAUSAL && COMPOUND_WARP_LINE_BUFFER_REDUCTION
+#if COMPOUND_WARP_LINE_BUFFER_REDUCTION
                                  0,
-#endif  // CONFIG_COMPOUND_WARP_CAUSAL && COMPOUND_WARP_LINE_BUFFER_REDUCTION
+#endif  // COMPOUND_WARP_LINE_BUFFER_REDUCTION
                                  mbmi);
 #endif  // !WARP_CU_BANK
     if (xd->lossless[mbmi->segment_id]) {
@@ -591,9 +591,9 @@ static void pick_sb_modes(AV1_COMP *const cpi, ThreadData *td,
 #if WARP_CU_BANK
     if (is_inter)
       av1_update_warp_param_bank(cm, xd,
-#if CONFIG_COMPOUND_WARP_CAUSAL && COMPOUND_WARP_LINE_BUFFER_REDUCTION
+#if COMPOUND_WARP_LINE_BUFFER_REDUCTION
                                  0,
-#endif  // CONFIG_COMPOUND_WARP_CAUSAL && COMPOUND_WARP_LINE_BUFFER_REDUCTION
+#endif  // COMPOUND_WARP_LINE_BUFFER_REDUCTION
                                  &ctx->mic);
 #endif  // WARP_CU_BANK
     return;
@@ -697,9 +697,9 @@ static void pick_sb_modes(AV1_COMP *const cpi, ThreadData *td,
 #if WARP_CU_BANK
   if (is_inter)
     av1_update_warp_param_bank(cm, xd,
-#if CONFIG_COMPOUND_WARP_CAUSAL && COMPOUND_WARP_LINE_BUFFER_REDUCTION
+#if COMPOUND_WARP_LINE_BUFFER_REDUCTION
                                0,
-#endif  // CONFIG_COMPOUND_WARP_CAUSAL && COMPOUND_WARP_LINE_BUFFER_REDUCTION
+#endif  // COMPOUND_WARP_LINE_BUFFER_REDUCTION
                                mbmi);
 #endif  // WARP_CU_BANK
 
@@ -1395,16 +1395,10 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
       if (has_second_ref(mbmi) && mbmi->mode < NEAR_NEARMV_OPTFLOW &&
           (!mbmi->refinemv_flag || !is_refinemv_signaled) &&
           !is_joint_amvd_coding_mode(mbmi->mode, mbmi->use_amvd)) {
-#if CONFIG_COMPOUND_WARP_CAUSAL
         assert(current_frame->reference_mode != SINGLE_REFERENCE &&
                is_inter_compound_mode(mbmi->mode) &&
                (mbmi->motion_mode == SIMPLE_TRANSLATION ||
                 is_compound_warp_causal_allowed(cm, xd, mbmi)));
-#else
-        assert(current_frame->reference_mode != SINGLE_REFERENCE &&
-               is_inter_compound_mode(mbmi->mode) &&
-               mbmi->motion_mode == SIMPLE_TRANSLATION);
-#endif  // CONFIG_COMPOUND_WARP_CAUSAL
 
         const int masked_compound_used = is_any_masked_compound_used(bsize) &&
                                          cm->seq_params.enable_masked_compound;

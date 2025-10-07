@@ -639,12 +639,7 @@ void av1_find_best_ref_mvs(int_mv *mvlist, int_mv *nearest_mv, int_mv *near_mv,
                            MvSubpelPrecision precision);
 
 uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
-                        int *pts_inref
-#if CONFIG_COMPOUND_WARP_CAUSAL
-                        ,
-                        int ref_idx
-#endif  // CONFIG_COMPOUND_WARP_CAUSAL
-);
+                        int *pts_inref, int ref_idx);
 
 #define INTRABC_DELAY_PIXELS 256  //  Delay of 256 pixels
 #define INTRABC_DELAY_SB64 (INTRABC_DELAY_PIXELS / 64)
@@ -1264,21 +1259,12 @@ static INLINE int is_bv_valid_for_morph(const MV sub_pel_dv,
 
 // assign subblock mv from warp into submi
 void assign_warpmv(const AV1_COMMON *cm, SUBMB_INFO **submi, BLOCK_SIZE bsize,
-                   WarpedMotionParams *wm_params, int mi_row, int mi_col
-#if CONFIG_COMPOUND_WARP_CAUSAL
-                   ,
-                   int ref
-#endif  // CONFIG_COMPOUND_WARP_CAUSAL
-);
+                   WarpedMotionParams *wm_params, int mi_row, int mi_col,
+                   int ref);
 
 // span the first subblock info into all the rest subblocks in the same block
 void span_submv(const AV1_COMMON *cm, SUBMB_INFO **submi, int mi_row,
-                int mi_col, BLOCK_SIZE bsize
-#if CONFIG_COMPOUND_WARP_CAUSAL
-                ,
-                int ref
-#endif  // CONFIG_COMPOUND_WARP_CAUSAL
-);
+                int mi_col, BLOCK_SIZE bsize, int ref);
 
 // Decide what the base warp model should be when using WARP_DELTA.
 // The warp model to use is signalled as a delta from this.
@@ -1344,7 +1330,7 @@ static INLINE void av1_get_neighbor_warp_model(const AV1_COMMON *cm,
       &cm->global_motion[neighbor_mi->ref_frame[neighbor_ref]];
 
   if (is_warp_mode(neighbor_mi->motion_mode)) {
-#if CONFIG_COMPOUND_WARP_CAUSAL && !COMPOUND_WARP_LINE_BUFFER_REDUCTION
+#if !COMPOUND_WARP_LINE_BUFFER_REDUCTION
     if (neighbor_mi->wm_params[neighbor_ref].invalid)
       *wm_params = default_warp_params;
     else
@@ -1354,7 +1340,7 @@ static INLINE void av1_get_neighbor_warp_model(const AV1_COMMON *cm,
       *wm_params = default_warp_params;
     else
       *wm_params = neighbor_mi->wm_params[0];
-#endif  // CONFIG_COMPOUND_WARP_CAUSAL && !COMPOUND_WARP_LINE_BUFFER_REDUCTION
+#endif  // !COMPOUND_WARP_LINE_BUFFER_REDUCTION
   } else if (is_global_mv_block(neighbor_mi, gm_params->wmtype)) {
     *wm_params = *gm_params;
   } else {

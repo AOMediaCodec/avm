@@ -603,10 +603,7 @@ unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
                                   const SUBPEL_MOTION_SEARCH_PARAMS *ms_params,
                                   BLOCK_SIZE bsize, const int *pts0,
                                   const int *pts_inref0, int total_samples,
-#if CONFIG_COMPOUND_WARP_CAUSAL
-                                  int8_t ref,
-#endif  // CONFIG_COMPOUND_WARP_CAUSAL
-                                  WARP_SEARCH_METHOD search_method,
+                                  int8_t ref, WARP_SEARCH_METHOD search_method,
                                   int num_iterations);
 #if CONFIG_DERIVED_MVD_SIGN
 uint8_t need_mv_adjustment(MACROBLOCKD *xd, const AV1_COMMON *const cm,
