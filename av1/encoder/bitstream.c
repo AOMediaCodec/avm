@@ -8595,7 +8595,7 @@ static size_t av1_write_frame_hash_metadata(
 }
 
 #if CONFIG_CWG_E242_PARSING_INDEP
-// This function sets the variables within the MFH
+// This function sets paramsters for MFH
 static void set_multi_frame_header_with_keyframe(AV1_COMP *cpi,
                                           MultiFrameHeader *mfh_params) {
   AV1_COMMON *cm = &cpi->common;
