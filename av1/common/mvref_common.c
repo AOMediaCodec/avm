@@ -5788,10 +5788,6 @@ static int is_same_ref_frame_for_this_ref_frame(
 int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                     const MB_MODE_INFO *mbmi, int *p_num_of_warp_neighbors) {
   const TileInfo *const tile = &xd->tile;
-#if !CONFIG_WARP_EXTEND_SIMPLIFICATION
-  const int has_bl =
-      has_bottom_left(cm, xd, xd->mi_row, xd->mi_col, xd->height);
-#endif  // !CONFIG_WARP_EXTEND_SIMPLIFICATION
   POSITION mi_pos;
 
   int allow_new_ext = 0;
@@ -5860,48 +5856,7 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
         num_of_warp_neighbors++;
     }
   }
-#if !CONFIG_WARP_EXTEND_SIMPLIFICATION
-  mi_pos.row = xd->height;
-  mi_pos.col = -1;
-  if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) && has_bl) {
-    const MB_MODE_INFO *neighbor_mi =
-        xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
-    if (is_same_ref_frame(neighbor_mi, mbmi)) {
-      allow_new_ext |= 1;
-      allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
-      if (p_num_of_warp_neighbors && is_warp_mode(neighbor_mi->motion_mode))
-        num_of_warp_neighbors++;
-    }
-  }
 
-  mi_pos.row = row_smvp_state[2].row_offset;
-  mi_pos.col = row_smvp_state[2].col_offset;
-  if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) &&
-      row_smvp_state[2].is_available) {
-    const MB_MODE_INFO *neighbor_mi =
-        xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
-    if (is_same_ref_frame(neighbor_mi, mbmi)) {
-      allow_new_ext |= 1;
-      allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
-      if (p_num_of_warp_neighbors && is_warp_mode(neighbor_mi->motion_mode))
-        num_of_warp_neighbors++;
-    }
-  }
-
-  mi_pos.row = row_smvp_state[3].row_offset;
-  mi_pos.col = row_smvp_state[3].col_offset;
-  if (is_inside(tile, xd->mi_col, xd->mi_row, &mi_pos) &&
-      row_smvp_state[3].is_available) {
-    const MB_MODE_INFO *neighbor_mi =
-        xd->mi[mi_pos.row * xd->mi_stride + mi_pos.col];
-    if (is_same_ref_frame(neighbor_mi, mbmi)) {
-      allow_new_ext |= 1;
-      allow_near_ext |= is_warp_mode(neighbor_mi->motion_mode);
-      if (p_num_of_warp_neighbors && is_warp_mode(neighbor_mi->motion_mode))
-        num_of_warp_neighbors++;
-    }
-  }
-#endif  // !CONFIG_WARP_EXTEND_SIMPLIFICATION
   if (p_num_of_warp_neighbors) {
     *p_num_of_warp_neighbors = num_of_warp_neighbors;
     return num_of_warp_neighbors;
@@ -6094,11 +6049,8 @@ int get_extend_base_pos(const AV1_COMMON *cm, const MACROBLOCKD *xd,
       }
     }
   }
-#if CONFIG_WARP_EXTEND_SIMPLIFICATION
+
   for (int pos_idx = 1; pos_idx <= 4; pos_idx++) {
-#else
-  for (int pos_idx = 1; pos_idx <= 7; pos_idx++) {
-#endif  // CONFIG_WARP_EXTEND_SIMPLIFICATION
     if (check_pos_and_get_base_pos(cm, xd, mbmi, base_pos, pos_idx)) return 1;
   }
   return 0;

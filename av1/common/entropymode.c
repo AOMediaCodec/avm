@@ -2795,10 +2795,6 @@ static const aom_cdf_prob
       { AOM_CDF2(31021), 118 }, { AOM_CDF2(25430), 76 },
       { AOM_CDF2(22319), 76 },  { AOM_CDF2(21114), 1 },
       { AOM_CDF2(17583), 1 },
-#if !CONFIG_WARP_EXTEND_SIMPLIFICATION
-      { AOM_CDF2(14631), 1 },   { AOM_CDF2(13520), 6 },
-      { AOM_CDF2(9907), 1 },
-#endif  // !CONFIG_WARP_EXTEND_SIMPLIFICATION
     };
 
 static const aom_cdf_prob
