@@ -8976,6 +8976,19 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
                           current_frame->frame_type == KEY_FRAME);
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+#if CONFIG_CWG_F317
+      if (cm->bridge_frame_info.is_bridge_frame) {
+        current_frame->order_hint =
+            cm->ref_frame_map[cm->bridge_frame_info.bridge_frame_ref_idx]
+                ->order_hint;
+        current_frame->display_order_hint =
+            cm->ref_frame_map[cm->bridge_frame_info.bridge_frame_ref_idx]
+                ->display_order_hint;
+        current_frame->frame_number =
+            cm->ref_frame_map[cm->bridge_frame_info.bridge_frame_ref_idx]
+                ->order_hint;
+      }
+#endif  // CONFIG_CWG_F317
 #if CONFIG_ACROSS_SCALE_REF_OPT
       // For implicit reference mode, the reference mapping is derived without
       // considering the resolution first. Later, setup_frame_size_with_refs
@@ -8993,15 +9006,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                            cm->ref_frame_map_pairs);
 #endif  // CONFIG_ACROSS_SCALE_REF_OPT
 
-#if CONFIG_CWG_F317
-      if (cm->bridge_frame_info.is_bridge_frame) {
-        const RefCntBuffer *ref_buf = get_ref_frame_buf(
-            cm, cm->bridge_frame_info.bridge_frame_ref_idx_remapped);
-        current_frame->order_hint = ref_buf->order_hint;
-        current_frame->display_order_hint = ref_buf->display_order_hint;
-        current_frame->frame_number = ref_buf->order_hint;
-      }
-#endif  // CONFIG_CWG_F317
       // Reference rankings will be implicitly derived in av1_get_ref_frames,
       // but if the explicit mode is used, reference indices will be signaled,
       // which overwrites the implictly derived ones.
