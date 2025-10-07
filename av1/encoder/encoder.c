@@ -2618,8 +2618,7 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
               for (int qp_idx = 0; qp_idx < GDF_RDO_QP_NUM; qp_idx++) {
                 if (use_gdf_local) {
                   gdf_inference_unit(
-                      i_min, i_max, j_min, j_max,
-                      qp_idx + qp_idx_base,
+                      i_min, i_max, j_min, j_max, qp_idx + qp_idx_base,
                       cm->gdf_info.inp_ptr + cm->gdf_info.inp_stride * i_min +
                           j_min,
                       cm->gdf_info.inp_stride, cm->gdf_info.lap_ptr,

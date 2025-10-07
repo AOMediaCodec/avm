@@ -592,9 +592,9 @@ void gdf_compensation_unit_c(uint16_t *rec_pnt, const int rec_stride,
  *        corresponding quantized features
  */
 void gdf_inference_unit_c(const int i_min, const int i_max, const int j_min,
-                          const int j_max, 
-                          const int qp_idx, const uint16_t *rec_pnt,
-                          const int rec_stride, uint16_t *const *gdf_lap_pnt,
+                          const int j_max, const int qp_idx,
+                          const uint16_t *rec_pnt, const int rec_stride,
+                          uint16_t *const *gdf_lap_pnt,
                           const int gdf_lap_stride, const uint32_t *gdf_cls_pnt,
                           const int gdf_cls_stride, int16_t *err_pnt,
                           const int err_stride, const int pxl_shift,

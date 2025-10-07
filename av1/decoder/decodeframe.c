@@ -10542,8 +10542,7 @@ static AOM_INLINE void setup_frame_info(AV1Decoder *pbi) {
       cm->rst_info[1].frame_restoration_type != RESTORE_NONE ||
       cm->rst_info[2].frame_restoration_type != RESTORE_NONE) {
     av1_alloc_restoration_buffers(cm);
-  }
-  else {
+  } else {
     if (cm->gdf_info.gdf_mode) {
       av1_alloc_restoration_boundary_buffers(cm, 1);
     }
@@ -10763,8 +10762,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
       if (do_loop_restoration) {
         av1_loop_restoration_save_boundary_lines(&pbi->common.cur_frame->buf,
                                                  cm, 1);
-      }
-      else {
+      } else {
         if (do_gdf)
           save_tile_row_boundary_lines(&pbi->common.cur_frame->buf, 0, cm, 1);
       }

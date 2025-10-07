@@ -127,9 +127,9 @@ void gdf_set_lap_and_cls_unit_avx2(
           (__m256i *)(gdf_lap_y[GDF_HOR] + (i >> 1) * gdf_lap_y_stride + j),
           out_hor_reg);
       prev_hor_reg = cur_hor_reg;
-        y_1_1 = _mm256_loadu_si256((const __m256i *)(std_pos - offset_dia0));
-        y21 = _mm256_loadu_si256(
-            (const __m256i *)(std_pos + offset_ver + offset_dia0));
+      y_1_1 = _mm256_loadu_si256((const __m256i *)(std_pos - offset_dia0));
+      y21 = _mm256_loadu_si256(
+          (const __m256i *)(std_pos + offset_ver + offset_dia0));
       gdf_calculate_laplacian_2x2_reg(cur_dia0_reg, lap0, lap1, y00, y_1_1, y11,
                                       y10, y0_1, y21);
       gdf_calculate_laplacian_4x4_reg(out_dia0_reg, prev_dia0_reg, cur_dia0_reg,
@@ -138,9 +138,9 @@ void gdf_set_lap_and_cls_unit_avx2(
           (__m256i *)(gdf_lap_y[GDF_DIAG0] + (i >> 1) * gdf_lap_y_stride + j),
           out_dia0_reg);
       prev_dia0_reg = cur_dia0_reg;
-        y_11 = _mm256_loadu_si256((const __m256i *)(std_pos - offset_dia1));
-        y2_1 = _mm256_loadu_si256(
-            (const __m256i *)(std_pos + offset_ver + offset_dia1));
+      y_11 = _mm256_loadu_si256((const __m256i *)(std_pos - offset_dia1));
+      y2_1 = _mm256_loadu_si256(
+          (const __m256i *)(std_pos + offset_ver + offset_dia1));
       gdf_calculate_laplacian_2x2_reg(cur_dia1_reg, lap0, lap1, y00, y_11, y1_1,
                                       y10, y01, y2_1);
       gdf_calculate_laplacian_4x4_reg(out_dia1_reg, prev_dia1_reg, cur_dia1_reg,
@@ -327,15 +327,12 @@ static inline __m256i gdf_inter_get_idx(__m256i *out_reg0, __m256i *out_reg1,
  *        and then lookup for expected coding error with the
  *        corresponding quantized features
  */
-void gdf_inference_unit_avx2(const int i_min, const int i_max, const int j_min,
-                             const int j_max, 
-                             const int qp_idx, const uint16_t *rec_pnt,
-                             const int rec_stride, uint16_t *const *gdf_lap_pnt,
-                             const int gdf_lap_stride,
-                             const uint32_t *gdf_cls_pnt,
-                             const int gdf_cls_stride, int16_t *err_pnt,
-                             const int err_stride, const int pxl_shift,
-                             const int ref_dst_idx) {
+void gdf_inference_unit_avx2(
+    const int i_min, const int i_max, const int j_min, const int j_max,
+    const int qp_idx, const uint16_t *rec_pnt, const int rec_stride,
+    uint16_t *const *gdf_lap_pnt, const int gdf_lap_stride,
+    const uint32_t *gdf_cls_pnt, const int gdf_cls_stride, int16_t *err_pnt,
+    const int err_stride, const int pxl_shift, const int ref_dst_idx) {
   assert(((i_max - i_min) & 1) == 0);
   assert(((j_max - j_min) & 1) == 0);
   assert((i_min & 1) == 0);

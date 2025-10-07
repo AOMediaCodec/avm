@@ -460,8 +460,8 @@ typedef struct {
                         i.e., before LF frame */
   uint16_t *inp_pad_ptr; /*!< Pointer to padded and actually allocated data
                             into which inp_ptr points */
-  int inp_stride;       /*!< Stride of GDF memory storing guided frame */
-  GDFLineBuffers *glbs; /*!< Line buffers needed by Guided detail filter */
+  int inp_stride;        /*!< Stride of GDF memory storing guided frame */
+  GDFLineBuffers *glbs;  /*!< Line buffers needed by Guided detail filter */
   int gdf_vert_blks_per_tile[MAX_TILE_ROWS];    /*!< # vert blocks per tile */
   int gdf_horz_blks_per_tile[MAX_TILE_COLS];    /*!< # horz blocks per tile */
   int gdf_vert_stripes_per_tile[MAX_TILE_ROWS]; /*!< # stripes per tile */
