@@ -1782,13 +1782,7 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
       assert(!frame_is_intra_only(cm));
       rdc->skip_mode_used_flag = 1;
       if (cm->current_frame.reference_mode == REFERENCE_MODE_SELECT) {
-#if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-        if (has_second_ref(mbmi)) {
-#endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-          rdc->compound_ref_used_flag = 1;
-#if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-        }
-#endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+        rdc->compound_ref_used_flag = 1;
       }
       set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
     } else {

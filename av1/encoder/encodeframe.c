@@ -2533,11 +2533,9 @@ void av1_encode_frame(AV1_COMP *cpi) {
     // changed.
     SkipModeInfo *const skip_mode_info = &current_frame->skip_mode_info;
     if (frame_is_intra_only(cm)
-// This line should be added, however it will have stats change, can be enabled
-// as bug fix if confirmed.
-#if CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-//        || current_frame->reference_mode == SINGLE_REFERENCE
-#endif  // CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+        // This line should be added, however it will have stats change, can be
+        // enabled as bug fix if confirmed.
+        //        || current_frame->reference_mode == SINGLE_REFERENCE
     ) {
       skip_mode_info->skip_mode_allowed = 0;
       skip_mode_info->skip_mode_flag = 0;

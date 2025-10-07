@@ -2569,16 +2569,9 @@ static AOM_INLINE void read_compound_ref(
 }
 
 static void set_ref_frames_for_skip_mode(AV1_COMMON *const cm,
-#if CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                                          const MACROBLOCKD *const xd,
-#endif  // CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
                                          MV_REFERENCE_FRAME ref_frame[2]) {
-#if CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
   set_skip_mode_ref_frame(cm, xd, ref_frame);
-#else
-  ref_frame[0] = cm->current_frame.skip_mode_info.ref_frame_idx_0;
-  ref_frame[1] = cm->current_frame.skip_mode_info.ref_frame_idx_1;
-#endif  // CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 }
 
 // Read the reference frame
@@ -2586,11 +2579,7 @@ static void read_ref_frames(AV1_COMMON *const cm, MACROBLOCKD *const xd,
                             aom_reader *r, int segment_id,
                             MV_REFERENCE_FRAME ref_frame[2]) {
   if (xd->mi[0]->skip_mode) {
-    set_ref_frames_for_skip_mode(cm,
-#if CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-                                 xd,
-#endif  // CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-                                 ref_frame);
+    set_ref_frames_for_skip_mode(cm, xd, ref_frame);
     return;
   }
 
@@ -3370,10 +3359,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   mbmi->warp_precision_idx = 0;
   mbmi->warp_inter_intra = 0;
   if (mbmi->skip_mode) {
-#if CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
     assert(is_compound);
-#endif  // CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-
     mbmi->mode = NEAR_NEARMV;
     read_drl_idx(cm->features.max_drl_bits,
                  av1_mode_context_pristine(inter_mode_ctx, mbmi->ref_frame),
@@ -3383,19 +3369,10 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
                      xd->ref_mv_stack, xd->weight, ref_mvs, /*global_mvs=*/NULL,
                      NULL, 0, NULL);
 
-#if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-    mbmi->ref_frame[0] =
-        xd->skip_mvp_candidate_list.ref_frame0[get_ref_mv_idx(mbmi, 0)];
-    mbmi->ref_frame[1] =
-        xd->skip_mvp_candidate_list.ref_frame1[get_ref_mv_idx(mbmi, 1)];
-#endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-
     is_compound = has_second_ref(mbmi);
     if (!is_compound) {
       mbmi->mode = NEARMV;
-#if CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
       assert(0);
-#endif
     } else {
       mbmi->mode = NEAR_NEARMV;
     }
@@ -3543,24 +3520,9 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
     }
   }
 
-  if (!is_compound && mbmi->skip_mode) {
-#if CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-    assert(0);
-#endif
-    ref_mv[0] =
-        xd->skip_mvp_candidate_list.ref_mv_stack[get_ref_mv_idx(mbmi, 0)]
-            .this_mv;
-    ref_mv[1] =
-        xd->skip_mvp_candidate_list.ref_mv_stack[get_ref_mv_idx(mbmi, 1)]
-            .comp_mv;
-  }
-
   if (mbmi->skip_mode) {
-#if CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+    assert(is_compound);
     assert(mbmi->mode == NEAR_NEARMV);
-#else
-    assert(mbmi->mode == (!is_compound ? NEARMV : NEAR_NEARMV));
-#endif
   }
 
   const int mv_corrupted_flag =

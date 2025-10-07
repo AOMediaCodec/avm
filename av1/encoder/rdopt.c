@@ -3394,18 +3394,10 @@ static INLINE int build_cur_mv(int_mv *cur_mv, PREDICTION_MODE this_mode,
     cur_mv[0] = this_mv;
     ret &= clamp_and_check_mv(cur_mv, this_mv, cm, x);
 
-#if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-    if (is_comp_pred) {
-#endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-      this_mv =
-          xd->skip_mvp_candidate_list.ref_mv_stack[get_ref_mv_idx(mbmi, 1)]
-              .comp_mv;
-      cur_mv[1] = this_mv;
-      ret &= clamp_and_check_mv(cur_mv + 1, this_mv, cm, x);
-#if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-    }
-#endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-
+    this_mv = xd->skip_mvp_candidate_list.ref_mv_stack[get_ref_mv_idx(mbmi, 1)]
+                  .comp_mv;
+    cur_mv[1] = this_mv;
+    ret &= clamp_and_check_mv(cur_mv + 1, this_mv, cm, x);
     return ret;
   }
 
@@ -6480,16 +6472,11 @@ static AOM_INLINE void rd_pick_skip_mode(
     return;
   }
 
-#if CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
   MV_REFERENCE_FRAME ref_frames[2] = { skip_mode_info->ref_frame_idx_0,
                                        skip_mode_info->ref_frame_idx_1 };
   set_skip_mode_ref_frame(cm, xd, ref_frames);
   const MV_REFERENCE_FRAME ref_frame = ref_frames[0];
   const MV_REFERENCE_FRAME second_ref_frame = ref_frames[1];
-#else
-  const MV_REFERENCE_FRAME ref_frame = skip_mode_info->ref_frame_idx_0;
-  const MV_REFERENCE_FRAME second_ref_frame = skip_mode_info->ref_frame_idx_1;
-#endif  // CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 
   if (cm->bru.enabled) {
     if (ref_frame == cm->bru.update_ref_idx ||
@@ -6498,13 +6485,8 @@ static AOM_INLINE void rd_pick_skip_mode(
     }
   }
 
-#if CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
   assert(second_ref_frame != NONE_FRAME);
   const PREDICTION_MODE this_mode = NEAR_NEARMV;
-#else
-  const PREDICTION_MODE this_mode =
-      second_ref_frame != NONE_FRAME ? NEAR_NEARMV : NEARMV;
-#endif  // CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 
   if ((!cpi->oxcf.ref_frm_cfg.enable_onesided_comp ||
        cpi->sf.inter_sf.disable_onesided_comp) &&
@@ -6600,12 +6582,6 @@ static AOM_INLINE void rd_pick_skip_mode(
 
   for (int ref_mv_idx = 0; ref_mv_idx < ref_set; ref_mv_idx++) {
     mbmi->ref_mv_idx[0] = ref_mv_idx;
-#if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-    mbmi->ref_frame[0] =
-        xd->skip_mvp_candidate_list.ref_frame0[mbmi->ref_mv_idx[0]];
-    mbmi->ref_frame[1] =
-        xd->skip_mvp_candidate_list.ref_frame1[mbmi->ref_mv_idx[0]];
-#endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
 
     if (cm->bru.enabled) {
       if ((mbmi->ref_frame[0] != INVALID_IDX) &&
@@ -6621,23 +6597,10 @@ static AOM_INLINE void rd_pick_skip_mode(
     mbmi->cwp_idx =
         xd->skip_mvp_candidate_list.ref_mv_stack[mbmi->ref_mv_idx[0]].cwp_idx;
 
-#if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-    const int is_compound = has_second_ref(mbmi);
-    if (is_compound) {
-      mbmi->mode = this_mode;
-    } else {
-      mbmi->mode = NEARMV;
-    }
-#endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-
-    mbmi->refinemv_flag = (
-#if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-                              is_compound &&
-#endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-                              mbmi->cwp_idx == CWP_EQUAL &&
-                              is_refinemv_allowed_skip_mode(cm, mbmi))
-                              ? 1
-                              : 0;
+    mbmi->refinemv_flag =
+        (mbmi->cwp_idx == CWP_EQUAL && is_refinemv_allowed_skip_mode(cm, mbmi))
+            ? 1
+            : 0;
 
     if (!build_cur_mv(mbmi->mv, mbmi->mode, cm, x, 0)) {
       assert(av1_check_newmv_joint_nonzero(cm, x));
@@ -6647,14 +6610,7 @@ static AOM_INLINE void rd_pick_skip_mode(
     set_ref_ptrs(cm, xd, mbmi->ref_frame[0], mbmi->ref_frame[1]);
     for (int i = 0; i < num_planes; i++) {
       xd->plane[i].pre[0] = yv12_mb[COMPACT_INDEX0_NRS(mbmi->ref_frame[0])][i];
-#if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-      if (is_compound) {
-#endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-        xd->plane[i].pre[1] =
-            yv12_mb[COMPACT_INDEX0_NRS(mbmi->ref_frame[1])][i];
-#if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-      }
-#endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
+      xd->plane[i].pre[1] = yv12_mb[COMPACT_INDEX0_NRS(mbmi->ref_frame[1])][i];
     }
 
     BUFFER_SET orig_dst;
@@ -6704,11 +6660,7 @@ static AOM_INLINE void rd_pick_skip_mode(
 
       search_state->best_mbmode.fsc_mode[xd->tree_type == CHROMA_PART] = 0;
 
-      search_state->best_mbmode.mode =
-#if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-          !is_compound ? NEARMV :
-#endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-                       NEAR_NEARMV;
+      search_state->best_mbmode.mode = NEAR_NEARMV;
       search_state->best_mbmode.ref_frame[0] = mbmi->ref_frame[0];
       search_state->best_mbmode.ref_frame[1] = mbmi->ref_frame[1];
       search_state->best_mbmode.mv[0].as_int = mbmi->mv[0].as_int;

@@ -1880,12 +1880,6 @@ typedef struct {
 typedef struct {
   //! MV list
   CANDIDATE_MV ref_mv_stack[USABLE_REF_MV_STACK_SIZE];
-#if !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
-  //! reference list 0 reference frame index
-  MV_REFERENCE_FRAME ref_frame0[USABLE_REF_MV_STACK_SIZE];
-  //! reference list 1 reference frame index
-  MV_REFERENCE_FRAME ref_frame1[USABLE_REF_MV_STACK_SIZE];
-#endif  // !CONFIG_SKIP_MODE_ENHANCED_PARSING_DEPENDENCY_REMOVAL
   //! The weights used to compute the ref mvs.
   uint16_t weight[USABLE_REF_MV_STACK_SIZE];
   //! Number of ref mvs in the drl.
