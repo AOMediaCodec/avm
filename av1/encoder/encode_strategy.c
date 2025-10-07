@@ -65,10 +65,14 @@ void av1_get_ref_frames_enc(AV1_COMMON *cm, int cur_frame_disp,
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   AV1_COMMON *const cm = &cpi->common;
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+  assert(cm->seq_params.explicit_ref_frame_map ||
+         cm->features.error_resilient_mode || cpi->switch_frame_mode == 1);
+#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   assert(cm->seq_params.explicit_ref_frame_map);
-  // With explicit_ref_frame_map on, an encoder-only ranking scheme can be
-  // implemented here. For now, av1_get_ref_frames is used as a placeholder.
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+  // With explicit_ref_frame_map, error_resilient_mode or switch_frame_mode on,
+  // an encoder-only ranking scheme can be implemented here. For now,
+  // av1_get_ref_frames is used as a placeholder.
 #if CONFIG_ACROSS_SCALE_REF_OPT
   // Do a dry run to obtain variables in resolution independent reference
   // mapping that will be used in write_frame_size_with_refs
