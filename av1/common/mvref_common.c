@@ -5721,7 +5721,7 @@ static int is_same_ref_frame(const MB_MODE_INFO *neighbor_mi,
          (is_inter_ref_frame(neighbor_mi->ref_frame[1]) &&
           neighbor_mi->ref_frame[1] == mbmi->ref_frame[0]);
 }
-#if CONFIG_WARP_CAUSAL_PARSING_DEPENDENCY_REDUCTION
+
 static int is_same_ref_frame_for_this_ref_frame(
     const MB_MODE_INFO *neighbor_mi, const MV_REFERENCE_FRAME ref_frame) {
   return (is_inter_ref_frame(neighbor_mi->ref_frame[0]) &&
@@ -5729,7 +5729,6 @@ static int is_same_ref_frame_for_this_ref_frame(
          (is_inter_ref_frame(neighbor_mi->ref_frame[1]) &&
           neighbor_mi->ref_frame[1] == ref_frame);
 }
-#endif  // CONFIG_WARP_CAUSAL_PARSING_DEPENDENCY_REDUCTION
 
 int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                     const MB_MODE_INFO *mbmi, int *p_num_of_warp_neighbors) {
@@ -5817,7 +5816,6 @@ int allow_extend_nb(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   }
 }
 
-#if CONFIG_WARP_CAUSAL_PARSING_DEPENDENCY_REDUCTION
 uint8_t av1_is_warp_causal_allowed(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                                    const MV_REFERENCE_FRAME ref_frame) {
   const TileInfo *const tile = &xd->tile;
@@ -5874,7 +5872,6 @@ uint8_t av1_is_warp_causal_allowed(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 
   return 0;
 }
-#endif  // CONFIG_WARP_CAUSAL_PARSING_DEPENDENCY_REDUCTION
 
 static AOM_INLINE POSITION get_pos_from_pos_idx(const AV1_COMMON *cm,
                                                 const MACROBLOCKD *xd,
