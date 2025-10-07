@@ -2161,10 +2161,9 @@ static AOM_INLINE void add_ref_mv_bank_candidates(
           rmb_ref_frame[idx] != ref_frame)
         continue;
 
-          check_rmb_cand(cand_mv, ref_mv_stack, ref_mv_weight, refmv_count,
-                         is_comp, xd->mi_row, xd->mi_col, block_width,
-                         block_height, xd->plane[0].dst.width,
-                         xd->plane[0].dst.height
+      check_rmb_cand(cand_mv, ref_mv_stack, ref_mv_weight, refmv_count, is_comp,
+                     xd->mi_row, xd->mi_col, block_width, block_height,
+                     xd->plane[0].dst.width, xd->plane[0].dst.height
 #if CONFIG_DRL_PR_LIM
                      ,
                      drl_pr_count
