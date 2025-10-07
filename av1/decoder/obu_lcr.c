@@ -277,8 +277,8 @@ static int read_lcr_global_info(struct AV1Decoder *pbi,
     read_lcr_global_payload(pbi, i, lcr_params->lcr_data_size_present_flag, rb);
   }
 #if CONFIG_CWG_F248_RENDER_SIZE
-  lcr_params->isLocalLCR = 0;
-  lcr_params->xLayerId = 31;
+  lcr_params->is_local_lcr = 0;
+  lcr_params->xLayerId = GLOBAL_LCR_XLAYER_ID;
 #endif  // CONFIG_CWG_F248_RENDER_SIZE
   return 0;
 }
@@ -320,7 +320,7 @@ static int read_lcr_local_info(struct AV1Decoder *pbi, int xlayerId,
 
   read_lcr_xlayer_info(pbi, 0, xlayerId, rb);
 #if CONFIG_CWG_F248_RENDER_SIZE
-  lcr_params->isLocalLCR = 1;
+  lcr_params->is_local_lcr = 1;
   lcr_params->xLayerId = xlayerId;
 #endif  // CONFIG_CWG_F248_RENDER_SIZE
   return 0;
