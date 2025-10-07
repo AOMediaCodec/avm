@@ -5746,6 +5746,17 @@ static INLINE int is_frame_tile_config_reuse_eligible(
 }
 #endif  // CONFIG_CWG_F349_SIGNAL_TILE_INFO
 
+#if CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
+// This function derives the order of frame output with layer IDs
+static INLINE uint64_t derive_output_order_idx(AV1_COMMON *cm,
+                                               RefCntBuffer *output_candidate) {
+  uint64_t max_mlayer_id = cm->seq_params.max_mlayer_id;
+  uint64_t mlayer_id = output_candidate->layer_id;
+  uint64_t display_order = output_candidate->display_order_hint;
+  return ((max_mlayer_id + 1) * display_order) + mlayer_id;
+}
+#endif  // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

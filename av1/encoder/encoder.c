@@ -4655,8 +4655,13 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
     assert(cpi->oxcf.max_threads <= 1 &&
            "bitstream debug tool does not support multithreading");
     bitstream_queue_record_write();
+#if CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
+    aom_bitstream_queue_set_frame_write(
+        derive_output_order_idx(cm, cm->current_frame) * 2 + cm->show_frame);
+#else   // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
     aom_bitstream_queue_set_frame_write(cm->current_frame.order_hint * 2 +
                                         cm->show_frame);
+#endif  // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
 #endif  // CONFIG_BITSTREAM_DEBUG
     if (encode_frame_to_data_rate(cpi, &frame_results->size, dest) !=
         AOM_CODEC_OK) {

@@ -10211,8 +10211,13 @@ int32_t av1_read_tilegroup_header(
 
   if (is_first_tile_group) {
 #if CONFIG_BITSTREAM_DEBUG
+#if CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
+    aom_bitstream_queue_set_frame_read(
+        derive_output_order_idx(cm, cm->current_frame) * 2 + cm->show_frame);
+#else   // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
     aom_bitstream_queue_set_frame_read(cm->current_frame.order_hint * 2 +
                                        cm->show_frame);
+#endif  // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
 #endif
     if (!cm->tiles.single_tile_decoding &&
         (pbi->dec_tile_row >= 0 || pbi->dec_tile_col >= 0)) {
@@ -10407,8 +10412,13 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
   read_uncompressed_header(pbi, rb);
 
 #if CONFIG_BITSTREAM_DEBUG
+#if CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
+  aom_bitstream_queue_set_frame_read(
+      derive_output_order_idx(cm, cm->current_frame) * 2 + cm->show_frame);
+#else   // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
   aom_bitstream_queue_set_frame_read(cm->current_frame.order_hint * 2 +
                                      cm->show_frame);
+#endif  // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
 #endif
 
   if (trailing_bits_present) av1_check_trailing_bits(pbi, rb);

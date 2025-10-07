@@ -213,6 +213,8 @@ set_aom_config_var(CONFIG_CWG_F298_REC11 1 NUMBER
 # Source of throughput analysis : CWG-B065
 set_aom_config_var(CONFIG_THROUGHPUT_ANALYSIS 0
                    "AV2 experiment flag to measure throughput.")
+set_aom_config_var(CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID 1
+                   "Enable frame output order derivation with layer ID")
 set_aom_config_var(CONFIG_MULTI_FRAME_HEADER 1 "Enable multi-frame header.")
 set_aom_config_var(CONFIG_CWG_E242_MFH_ID_UVLC 1
                    "Signaling multi-frame header ID in UVLC")
