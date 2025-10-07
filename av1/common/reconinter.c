@@ -1229,12 +1229,9 @@ void av1_get_optflow_based_mv(const AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
   }
 
   if (d0 == 0 || d1 == 0) {
-    // Though OPFL is disabled when the
-    // distance from either of the reference
-    // frames is zero, the MV offset buffers
-    // are still used to update the mv_delta
-    // buffer. Hence, memset the MV offset
-    // buffers vx and vy to zero.
+    // Though OPFL is disabled when the distance from either of the reference
+    // frames is zero, the MV offset buffers are still used to update the
+    // mv_delta buffer. Hence, memset the MV offset buffers vx and vy to zero.
     av1_zero_array(vx0, n_blocks);
     av1_zero_array(vx1, n_blocks);
     av1_zero_array(vy0, n_blocks);
@@ -1567,6 +1564,13 @@ void make_inter_pred_of_nxn(
   int src_stride = 0;
   MV avg_mv;
 
+  const int mi_row = -xd->mb_to_top_edge >> MI_SUBPEL_SIZE_LOG2;
+  const int mi_col = -xd->mb_to_left_edge >> MI_SUBPEL_SIZE_LOG2;
+  const int row_start =
+      plane ? (mi->chroma_ref_info.mi_row_chroma_base - mi_row) : 0;
+  const int col_start =
+      plane ? (mi->chroma_ref_info.mi_col_chroma_base - mi_col) : 0;
+
   // Process whole nxn blocks.
   for (int j = 0; j < bh; j += sub_bh) {
     for (int i = 0; i < bw; i += sub_bw) {
@@ -1579,8 +1583,10 @@ void make_inter_pred_of_nxn(
         inter_pred_params->use_ref_padding = 1;
         inter_pred_params->ref_area = &ref_area_opfl;
       }
-      const int x = mi_x + i * (1 << inter_pred_params->subsampling_x);
-      const int y = mi_y + j * (1 << inter_pred_params->subsampling_y);
+      const int x = mi_x + MI_SIZE * col_start +
+                    i * (1 << inter_pred_params->subsampling_x);
+      const int y = mi_y + MI_SIZE * row_start +
+                    j * (1 << inter_pred_params->subsampling_y);
       if (is_subblock_outside(x, y, cm->mi_params.mi_cols,
                               cm->mi_params.mi_rows, build_for_decode)) {
         n_blocks++;
@@ -1589,7 +1595,12 @@ void make_inter_pred_of_nxn(
         inter_pred_params->pix_col += sub_bw;
         continue;
       }
-      if (bw == 4 && bh == 4 && sub_bw == 4 && sub_bh == 4) {
+      if (bw == 4 && bh == 4 && sub_bw == 4 && sub_bh == 4 &&
+          inter_pred_params->subsampling_x &&
+          inter_pred_params->subsampling_y) {
+        // In 420, a 8x8 luma block has a 4x4 colocated chroma. This 4x4 chroma
+        // block would reuse the average of 4 refined MVs in its 8x8 colocated
+        // luma region.
         avg_mv.row =
             ROUND_POWER_OF_TWO_SIGNED(mv_refined[0 * 2 + ref].as_mv.row +
                                           mv_refined[1 * 2 + ref].as_mv.row +
@@ -1603,7 +1614,12 @@ void make_inter_pred_of_nxn(
                                           mv_refined[3 * 2 + ref].as_mv.col,
                                       2);
         subblock_mv = &avg_mv;
-      } else if (bw == 4 && bh == 8 && sub_bw == 4 && sub_bh == 4) {
+      } else if (bw == 4 && bh == 8 && sub_bw == 4 && sub_bh == 4 &&
+                 inter_pred_params->subsampling_x &&
+                 !inter_pred_params->subsampling_y) {
+        // In 422, a 8x8 luma block has a 4x8 colocated chroma that consists of
+        // two 4x4 chroma subblocks. Each 4x4 chroma would reuse the average of
+        // 2 refined MVs in its 8x4 colocated luma region.
         const int sub_idx = delta_idx * 2;
         avg_mv.row = ROUND_POWER_OF_TWO_SIGNED(
             mv_refined[sub_idx * 2 + ref].as_mv.row +
@@ -3210,8 +3226,7 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
   int n = opfl_get_subblock_size(bw, bh, plane, use_4x4);
   const int n_blocks = (bw / n) * (bh / n);
 
-  // optical flow refined MVs in a subblock
-  // (16x16) unit
+  // optical flow refined MVs in a subblock (16x16) unit
   int_mv mv_refined_sb[4 * 2];
   memset(mv_refined_sb, 0, 4 * 2 * sizeof(int_mv));
   const int opfl_mv_stride = pu_width / n;
@@ -3219,6 +3234,19 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
       (subblk_start_y / n) * opfl_mv_stride + subblk_start_x / n;
   const int sb_rows = bh / n;
   const int sb_cols = bw / n;
+
+  if (use_optflow_refinement && plane) {
+    // Optical flow refined luma MVs are reused for chroma
+    assert(sb_rows <= 2 && sb_cols <= 2);
+    for (int i = 0; i < sb_rows; i++) {
+      for (int j = 0; j < sb_cols; j++) {
+        int mvidx = opfl_sb_idx + i * opfl_mv_stride + j;
+        int mvidx_sb = i * sb_cols + j;
+        mv_refined_sb[2 * mvidx_sb].as_mv = mv_refined[2 * mvidx].as_mv;
+        mv_refined_sb[2 * mvidx_sb + 1].as_mv = mv_refined[2 * mvidx + 1].as_mv;
+      }
+    }
+  }
 
   if (use_optflow_refinement && plane == 0) {
     // Pointers to hold optical flow MV
@@ -3352,7 +3380,7 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
       inter_pred_params.mask_comp = mi->interinter_comp;
     }
 
-    if (use_optflow_refinement && plane == 0) {
+    if (use_optflow_refinement) {
       inter_pred_params.interp_filter_params[0] =
           av1_get_interp_filter_params_with_block_size(mi->interp_fltr,
                                                        opfl_sub_bw);
@@ -3420,6 +3448,13 @@ static void build_inter_predictors_8x8_and_bigger(
     assert(mi->interinter_comp.type != COMPOUND_DIFFWTD);
   }
 
+  const int mi_row = -xd->mb_to_top_edge >> MI_SUBPEL_SIZE_LOG2;
+  const int mi_col = -xd->mb_to_left_edge >> MI_SUBPEL_SIZE_LOG2;
+  int row_start = plane ? (mi->chroma_ref_info.mi_row_chroma_base - mi_row) : 0;
+  int col_start = plane ? (mi->chroma_ref_info.mi_col_chroma_base - mi_col) : 0;
+  const int pre_x = (mi_x + MI_SIZE * col_start) >> pd->subsampling_x;
+  const int pre_y = (mi_y + MI_SIZE * row_start) >> pd->subsampling_y;
+
   if (is_sub_block_refinemv_enabled(cm, mi, tip_ref_frame)) {
     assert(IMPLIES(mi->refinemv_flag, mi->cwp_idx == CWP_EQUAL));
     const int sub_block_width = !tip_ref_frame
@@ -3449,8 +3484,8 @@ static void build_inter_predictors_8x8_and_bigger(
     assert(bh % refinemv_sb_size_height == 0);
     for (int h = 0; h < bh; h += refinemv_sb_size_height) {
       for (int w = 0; w < bw; w += refinemv_sb_size_width) {
-        const int x = mi_x + w * (1 << pd->subsampling_x);
-        const int y = mi_y + h * (1 << pd->subsampling_y);
+        const int x = mi_x + MI_SIZE * col_start + w * (1 << pd->subsampling_x);
+        const int y = mi_y + MI_SIZE * row_start + h * (1 << pd->subsampling_y);
         if (is_subblock_outside(x, y, cm->mi_params.mi_cols,
                                 cm->mi_params.mi_rows, build_for_decode)) {
           continue;
@@ -3458,12 +3493,6 @@ static void build_inter_predictors_8x8_and_bigger(
         uint16_t *dst_buf = dst + h * dst_stride + w;
         xd->tmp_conv_dst = tmp_conv_dst + h * MAX_SB_SIZE + w;
 
-        const int mi_row = -xd->mb_to_top_edge >> MI_SUBPEL_SIZE_LOG2;
-        const int mi_col = -xd->mb_to_left_edge >> MI_SUBPEL_SIZE_LOG2;
-        int row_start =
-            plane ? (mi->chroma_ref_info.mi_row_chroma_base - mi_row) : 0;
-        int col_start =
-            plane ? (mi->chroma_ref_info.mi_col_chroma_base - mi_col) : 0;
         MV luma_refined_mv[2] = { { mi_mv[0].row, mi_mv[0].col },
                                   { mi_mv[1].row, mi_mv[1].col } };
 
@@ -3482,11 +3511,12 @@ static void build_inter_predictors_8x8_and_bigger(
           chroma_refined_mv[0] = refinemv_subinfo->refinemv[0].as_mv;
           chroma_refined_mv[1] = refinemv_subinfo->refinemv[1].as_mv;
         }
-        // sub_mi_x, and sub_mi_y are the
-        // top-left position of the luma
-        // samples of the sub-block
-        const int sub_mi_x = mi_x + w * (1 << pd->subsampling_x);
-        const int sub_mi_y = mi_y + h * (1 << pd->subsampling_y);
+        // sub_mi_x, and sub_mi_y are the top-left position of the luma samples
+        // of the sub-block
+        const int sub_mi_x =
+            mi_x + MI_SIZE * col_start + w * (1 << pd->subsampling_x);
+        const int sub_mi_y =
+            mi_y + MI_SIZE * row_start + h * (1 << pd->subsampling_y);
         const int comp_bw = tip_ref_frame ? (refinemv_sb_size_width >> ss_x)
                                           : refinemv_sb_size_width;
         const int comp_bh = tip_ref_frame ? (refinemv_sb_size_height >> ss_y)
@@ -3529,14 +3559,6 @@ static void build_inter_predictors_8x8_and_bigger(
     }
   }
 
-  int row_start = 0;
-  int col_start = 0;
-  const int mi_row = -xd->mb_to_top_edge >> MI_SUBPEL_SIZE_LOG2;
-  const int mi_col = -xd->mb_to_left_edge >> MI_SUBPEL_SIZE_LOG2;
-  row_start = plane ? (mi->chroma_ref_info.mi_row_chroma_base - mi_row) : 0;
-  col_start = plane ? (mi->chroma_ref_info.mi_col_chroma_base - mi_col) : 0;
-  const int pre_x = (mi_x + MI_SIZE * col_start) >> pd->subsampling_x;
-  const int pre_y = (mi_y + MI_SIZE * row_start) >> pd->subsampling_y;
   MV best_mv_ref[2] = { mi_mv[0], mi_mv[1] };
   if (tip_ref_frame && plane == 0) {
     mv_refined[0].as_mv = convert_mv_to_1_16th_pel(&best_mv_ref[0]);
@@ -3548,24 +3570,19 @@ static void build_inter_predictors_8x8_and_bigger(
   assert(IMPLIES(use_optflow_refinement,
                  cm->features.opfl_refine_type != REFINE_NONE));
 
-  // Optical flow refinement with masked comp
-  // types or with non-sharp interpolation
-  // filter should only exist in REFINE_ALL.
+  // Optical flow refinement with masked comp types or with non-sharp
+  // interpolation filter should only exist in REFINE_ALL.
   assert(IMPLIES(
       use_optflow_refinement && mi->interinter_comp.type != COMPOUND_AVERAGE,
       cm->features.opfl_refine_type == REFINE_ALL));
   assert(IMPLIES(use_optflow_refinement && tip_ref_frame, plane == 0));
-  // In REFINE_ALL mode, refinement should be
-  // used whenever applicable
+  // In REFINE_ALL mode, refinement should be used whenever applicable
   assert(IMPLIES(cm->features.opfl_refine_type == REFINE_ALL &&
                      !tip_ref_frame && opfl_allowed_cur_pred_mode(cm, xd, mi),
                  use_optflow_refinement));
-
   assert(IMPLIES(
       use_optflow_refinement,
       !is_thin_4xn_nx4_block(mi->sb_type[xd->tree_type == CHROMA_PART])));
-
-  // Pointers to gradient and dst buffers
 
   if (use_optflow_refinement && plane == 0) {
     // Pointers to hold optical flow MV
@@ -3737,7 +3754,7 @@ static void build_inter_predictors_8x8_and_bigger(
       }
     }
 
-    if (use_optflow_refinement && plane == 0) {
+    if (use_optflow_refinement) {
       inter_pred_params.interp_filter_params[0] =
           av1_get_interp_filter_params_with_block_size(mi->interp_fltr,
                                                        opfl_sub_bw);
@@ -3770,9 +3787,8 @@ static void build_inter_predictors_8x8_and_bigger(
   }
 }
 
-// This function consolidates the prediction
-// process of the TIP ref mode block and the
-// non-TIP ref mode block.
+// This function consolidates the prediction process of the TIP ref mode block
+// and the non-TIP ref mode block.
 static void build_inter_predictors_8x8_and_bigger_facade(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, MB_MODE_INFO *mi,
     const BUFFER_SET *dst_orig, int build_for_decode, int bw, int bh, int mi_x,
