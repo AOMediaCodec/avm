@@ -842,7 +842,6 @@ static AOM_INLINE void write_segment_id(AV1_COMP *cpi,
                            mi_col, pred);
     /* mbmi is read only but we need to update segment_id */
     ((MB_MODE_INFO *)mbmi)->segment_id = pred;
-#if CONFIG_STORE_BLOCK_QINDEX
     int seg_qindex =
         av1_get_qindex(&cm->seg, mbmi->segment_id,
                        cpi->common.delta_q_info.delta_q_present_flag
@@ -852,7 +851,6 @@ static AOM_INLINE void write_segment_id(AV1_COMP *cpi,
     get_qindex_with_offsets(cm, seg_qindex,
                             ((MB_MODE_INFO *)mbmi)->final_qindex_dc,
                             ((MB_MODE_INFO *)mbmi)->final_qindex_ac);
-#endif  // CONFIG_STORE_BLOCK_QINDEX
     return;
   }
 
@@ -1993,7 +1991,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 
   assert(IMPLIES(xd->lossless[mbmi->segment_id],
                  !cpi->common.delta_q_info.delta_q_present_flag));
-#if CONFIG_STORE_BLOCK_QINDEX
+
 #ifndef NDEBUG
   const CommonQuantParams *const quant_params = &cm->quant_params;
   for (int k = 0; k < av1_num_planes(cm); k++) {
@@ -2032,7 +2030,6 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
     }
   }
 #endif  // NDEBUG
-#endif  // CONFIG_STORE_BLOCK_QINDEX
 
   assert(IMPLIES(mbmi->refinemv_flag,
                  mbmi->skip_mode ? is_refinemv_allowed_skip_mode(cm, mbmi)
@@ -2538,7 +2535,6 @@ static AOM_INLINE void write_mb_modes_kf(
   if (xd->tree_type != CHROMA_PART) write_delta_q_params(cpi, skip, w);
   assert(IMPLIES(xd->lossless[mbmi->segment_id],
                  !cpi->common.delta_q_info.delta_q_present_flag));
-#if CONFIG_STORE_BLOCK_QINDEX
 #ifndef NDEBUG
   const CommonQuantParams *const quant_params = &cm->quant_params;
   for (int k = 0; k < av1_num_planes(cm); k++) {
@@ -2577,7 +2573,6 @@ static AOM_INLINE void write_mb_modes_kf(
     }
   }
 #endif  // NDEBUG
-#endif  // CONFIG_STORE_BLOCK_QINDEX
 
   if (av1_allow_intrabc(cm, xd, mbmi->sb_type[xd->tree_type == CHROMA_PART]) &&
       xd->tree_type != CHROMA_PART) {

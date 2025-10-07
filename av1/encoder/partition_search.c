@@ -661,7 +661,6 @@ static void pick_sb_modes(AV1_COMP *const cpi, ThreadData *td,
   av1_set_error_per_bit(&x->mv_costs, x->rdmult);
   av1_rd_cost_update(x->rdmult, &best_rd);
 
-#if CONFIG_STORE_BLOCK_QINDEX
   const int super_block_upper_left = ((mi_row & (cm->mib_size - 1)) == 0) &&
                                      ((mi_col & (cm->mib_size - 1)) == 0);
 
@@ -670,7 +669,6 @@ static void pick_sb_modes(AV1_COMP *const cpi, ThreadData *td,
   }
   get_qindex_with_offsets(cm, x->qindex, xd->mi[0]->final_qindex_dc,
                           xd->mi[0]->final_qindex_ac);
-#endif  // CONFIG_STORE_BLOCK_QINDEX
 
   // Find best coding mode & reconstruct the MB so it is available
   // as a predictor for MBs that follow in the SB
@@ -1788,7 +1786,6 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
       }
     }
 
-#if CONFIG_STORE_BLOCK_QINDEX
     if (delta_q_info->delta_q_present_flag && super_block_upper_left &&
         bsize == cm->sb_size && mbmi->skip_txfm[xd->tree_type == CHROMA_PART]) {
       mbmi->current_qindex = xd->current_base_qindex;
@@ -1807,7 +1804,6 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
                      mbmi->final_qindex_ac[k] == xd->qindex[mbmi->segment_id]));
     }
 #endif  // NDEBUG
-#endif  // CONFIG_STORE_BLOCK_QINDEX
 
     RD_COUNTS *rdc = &td->rd_counts;
     if (mbmi->skip_mode) {

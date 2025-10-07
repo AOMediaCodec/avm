@@ -1527,14 +1527,12 @@ typedef struct macroblock {
    */
   int qindex;
 
-#if CONFIG_STORE_BLOCK_QINDEX
   /*! \brief This is the quantization index without considering deltaq of each
    * segment. This value is same for all blocks within a superblock. If
    * cm->delta_q_info.delta_q_present_flag is equal to 0, it is equal to frame
    * base index.
    */
   int qindex_without_seg_delta;
-#endif  // CONFIG_STORE_BLOCK_QINDEX
 
   /*! \brief Difference between frame-level qindex and current qindex.
    *

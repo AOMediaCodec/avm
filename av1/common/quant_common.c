@@ -122,7 +122,6 @@ int tcq_next_state(const int curState, const int absLevel) {
   return nextState;
 }
 
-#if CONFIG_STORE_BLOCK_QINDEX
 // Clamp the qindex value to minimum and maximum allowed limit
 int av1_q_clamped(int qindex, int delta, int base_dc_delta_q,
                   aom_bit_depth_t bit_depth) {
@@ -166,7 +165,6 @@ void get_qindex_with_offsets(const struct AV1Common *cm, int seg_qindex,
     }
   }
 }
-#endif  // CONFIG_STORE_BLOCK_QINDEX
 
 int32_t av1_dc_quant_QTX(int qindex, int delta, int base_dc_delta_q,
                          aom_bit_depth_t bit_depth) {

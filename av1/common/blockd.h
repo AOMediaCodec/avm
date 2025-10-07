@@ -431,7 +431,7 @@ typedef struct MB_MODE_INFO {
    * cm->delta_q_info.delta_q_present_flag is true. This current_qindex does not
    * consider delta for each segment. */
   int current_qindex;
-#if CONFIG_STORE_BLOCK_QINDEX
+
   /*! \brief The final qindex of the dc component for the current block after
    * adding all deltas including segment delta. It is  the final qindex value
    * used for quantization.*/
@@ -440,7 +440,6 @@ typedef struct MB_MODE_INFO {
    * adding all deltas including segment delta. It is  the final qindex value
    * used for quantization.*/
   int final_qindex_ac[3];
-#endif  // CONFIG_STORE_BLOCK_QINDEX
 
   /**@}*/
 
