@@ -75,6 +75,21 @@ static uint32_t write_ats_multistream_atlas_info(
   aom_wb_write_uvlc(
       wb, ats_basic_info->ats_num_atlas_segments_minus_1[obu_xLayer_id][xAId]);
 
+#if CONFIG_BACKGRND_COLOR_ATLAS
+  aom_wb_write_bit(
+      wb,
+      ats_basic_info->ats_default_background_present_flag[obu_xLayer_id][xAId]);
+  if (ats_basic_info
+          ->ats_default_background_present_flag[obu_xLayer_id][xAId] == 0) {
+    aom_wb_write_literal(
+        wb, ats_basic_info->ats_background_red_value[obu_xLayer_id][xAId], 8);
+    aom_wb_write_literal(
+        wb, ats_basic_info->ats_background_green_value[obu_xLayer_id][xAId], 8);
+    aom_wb_write_literal(
+        wb, ats_basic_info->ats_background_blue_value[obu_xLayer_id][xAId], 8);
+  }
+#endif  // CONFIG_BACKGRND_COLOR_ATLAS
+
   const int NumSegments =
       ats_basic_info->ats_num_atlas_segments_minus_1[obu_xLayer_id][xAId] + 1;
   for (int i = 0; i < NumSegments; i++) {
