@@ -3471,7 +3471,7 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
     av1_set_default_mode_deltas(lf->mode_deltas);
   }
 #if CONFIG_MULTI_FRAME_HEADER
-  assert(cm->mfh_valid[cm->cur_mfh_id]);
+  assert(cm->cur_mfh_id == 0 || cm->mfh_valid[cm->cur_mfh_id]);
   if (cm->mfh_params[cm->cur_mfh_id].mfh_loop_filter_update_flag)
     lf->filter_level[0] =
         cm->mfh_params[cm->cur_mfh_id].mfh_loop_filter_level[0];
@@ -4098,7 +4098,7 @@ static AOM_INLINE void setup_render_size(AV1_COMMON *cm,
   }
 #endif  // CONFIG_CWG_F317
 #if CONFIG_MULTI_FRAME_HEADER
-  assert(cm->mfh_valid[cm->cur_mfh_id]);
+  assert(cm->cur_mfh_id == 0 || cm->mfh_valid[cm->cur_mfh_id]);
   cm->render_width = cm->mfh_params[cm->cur_mfh_id].mfh_render_width;
   cm->render_height = cm->mfh_params[cm->cur_mfh_id].mfh_render_height;
 #else   // CONFIG_MULTI_FRAME_HEADER
@@ -4276,7 +4276,7 @@ static AOM_INLINE void setup_frame_size(AV1_COMMON *cm,
       }
     } else {
 #if CONFIG_MULTI_FRAME_HEADER
-      assert(cm->mfh_valid[cm->cur_mfh_id]);
+      assert(cm->cur_mfh_id == 0 || cm->mfh_valid[cm->cur_mfh_id]);
       width = cm->mfh_params[cm->cur_mfh_id].mfh_frame_width;
       height = cm->mfh_params[cm->cur_mfh_id].mfh_frame_height;
 #else   // CONFIG_MULTI_FRAME_HEADER
