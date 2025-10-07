@@ -8756,7 +8756,8 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
     if (cm->cur_mfh_id != 0) {
       // write multi-frame header if KEY_FRAME
 #if CONFIG_CWG_E242_PARSING_INDEP
-    set_multi_frame_header_with_keyframe(cpi, &cm->mfh_params[cm->cur_mfh_id]);
+      set_multi_frame_header_with_keyframe(cpi,
+                                           &cm->mfh_params[cm->cur_mfh_id]);
 #endif  // CONFIG_CWG_E242_PARSING_INDEP
       obu_header_size = av1_write_obu_header(
           level_params, OBU_MULTI_FRAME_HEADER, 0, 0, data);
