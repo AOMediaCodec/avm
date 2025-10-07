@@ -4097,9 +4097,9 @@ static AOM_INLINE void setup_render_size(AV1_COMMON *cm,
 #else   // CONFIG_MULTI_FRAME_HEADER
   cm->render_width = cm->width;
   cm->render_height = cm->height;
+#endif  // CONFIG_MULTI_FRAME_HEADER
   if (aom_rb_read_bit(rb))
     av1_read_frame_size(rb, 16, 16, &cm->render_width, &cm->render_height);
-#endif  // CONFIG_MULTI_FRAME_HEADER
 }
 
 static AOM_INLINE void resize_context_buffers(AV1_COMMON *cm, int width,
