@@ -236,8 +236,6 @@ set_aom_config_var(
   "AV2 experiment flag to enable compound new_newmv warp_causal mode")
 set_aom_config_var(CONFIG_WARP_CAUSAL_PARSING_DEPENDENCY_REDUCTION 1
                    "reduce warp causal parsing dependency")
-set_aom_config_var(CONFIG_CWG_193_WARP_CAUSAL_THRESHOLD_REMOVAL 1
-                   "Removes threshold based selection stratergy in warp causal")
 set_aom_config_var(CONFIG_REDUCE_CCTX_CTX 1 "Reduce CCTX contexts")
 
 set_aom_config_var(CONFIG_LOCAL_INTRABC_ALIGN_RNG 1

@@ -5149,11 +5149,7 @@ unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
 #else
           mbmi->num_proj_ref =
 #endif  // CONFIG_COMPOUND_WARP_CAUSAL
-#if CONFIG_CWG_193_WARP_CAUSAL_THRESHOLD_REMOVAL
               total_samples;
-#else
-              av1_selectSamples(&this_mv, pts, pts_inref, total_samples, bsize);
-#endif  // CONFIG_CWG_193_WARP_CAUSAL_THRESHOLD_REMOVAL
 
 #if CONFIG_COMPOUND_WARP_CAUSAL
         if (!av1_find_projection(mbmi->num_proj_ref[ref], pts, pts_inref, bsize,

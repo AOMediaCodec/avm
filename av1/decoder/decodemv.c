@@ -3725,12 +3725,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
     sf[0] = get_ref_scale_factors(cm, mbmi->ref_frame[0]);
     sf[1] = get_ref_scale_factors(cm, mbmi->ref_frame[1]);
 #endif  // CONFIG_ACROSS_SCALE_WARP
-#if !CONFIG_CWG_193_WARP_CAUSAL_THRESHOLD_REMOVAL
-    if (mbmi->num_proj_ref[0] > 1) {
-      mbmi->num_proj_ref[0] = av1_selectSamples(
-          &mbmi->mv[0].as_mv, pts0, pts0_inref, mbmi->num_proj_ref[0], bsize);
-    }
-#endif  // !CONFIG_CWG_193_WARP_CAUSAL_THRESHOLD_REMOVAL
+
     if (mbmi->num_proj_ref[0] > 0) {
       if (!av1_find_projection(mbmi->num_proj_ref[0], pts0, pts0_inref, bsize,
                                mv0, &mbmi->wm_params[0], mi_row, mi_col
@@ -3742,12 +3737,6 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
         mbmi->wm_params[0].invalid = 0;
     }
     if (has_second_ref(mbmi)) {
-#if !CONFIG_CWG_193_WARP_CAUSAL_THRESHOLD_REMOVAL
-      if (mbmi->num_proj_ref[1] > 1) {
-        mbmi->num_proj_ref[1] = av1_selectSamples(
-            &mbmi->mv[1].as_mv, pts1, pts1_inref, mbmi->num_proj_ref[1], bsize);
-      }
-#endif  // !CONFIG_CWG_193_WARP_CAUSAL_THRESHOLD_REMOVAL
       if (mbmi->num_proj_ref[1] > 0) {
         if (!av1_find_projection(mbmi->num_proj_ref[1], pts1, pts1_inref, bsize,
                                  mv1, &mbmi->wm_params[1], mi_row, mi_col
@@ -3772,12 +3761,6 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #else
     mbmi->wm_params[0].invalid = 1;
     MV mv = mbmi->mv[0].as_mv;
-#if !CONFIG_CWG_193_WARP_CAUSAL_THRESHOLD_REMOVAL
-    if (mbmi->num_proj_ref > 1) {
-      mbmi->num_proj_ref = av1_selectSamples(&mbmi->mv[0].as_mv, pts, pts_inref,
-                                             mbmi->num_proj_ref, bsize);
-    }
-#endif  // !CONFIG_CWG_193_WARP_CAUSAL_THRESHOLD_REMOVAL
     if (mbmi->num_proj_ref > 0 &&
         !av1_find_projection(mbmi->num_proj_ref, pts, pts_inref, bsize, mv,
                              &mbmi->wm_params[0], mi_row, mi_col

@@ -5093,53 +5093,6 @@ static INLINE void record_samples(const MB_MODE_INFO *mbmi, int ref, int *pts,
   pts_inref[0] = GET_MV_SUBPEL(x) + mbmi->mv[ref].as_mv.col;
   pts_inref[1] = GET_MV_SUBPEL(y) + mbmi->mv[ref].as_mv.row;
 }
-#if !CONFIG_CWG_193_WARP_CAUSAL_THRESHOLD_REMOVAL
-// Select samples according to the motion vector difference.
-uint8_t av1_selectSamples(MV *mv, int *pts, int *pts_inref, int len,
-                          BLOCK_SIZE bsize) {
-  const int bw = block_size_wide[bsize];
-  const int bh = block_size_high[bsize];
-  const int thresh = clamp(AOMMAX(bw, bh), 16, 112);
-  int pts_mvd[SAMPLES_ARRAY_SIZE] = { 0 };
-  int i, j, k, l = len;
-  uint8_t ret = 0;
-  assert(len <= LEAST_SQUARES_SAMPLES_MAX);
-
-  // Obtain the motion vector difference.
-  for (i = 0; i < len; ++i) {
-    pts_mvd[i] = abs(pts_inref[2 * i] - pts[2 * i] - mv->col) +
-                 abs(pts_inref[2 * i + 1] - pts[2 * i + 1] - mv->row);
-
-    if (pts_mvd[i] > thresh)
-      pts_mvd[i] = -1;
-    else
-      ret++;
-  }
-
-  // Keep at least 1 sample.
-  if (!ret) return 1;
-
-  i = 0;
-  j = l - 1;
-  for (k = 0; k < l - ret; k++) {
-    while (pts_mvd[i] != -1) i++;
-    while (pts_mvd[j] == -1) j--;
-    assert(i != j);
-    if (i > j) break;
-
-    // Replace the discarded samples;
-    pts_mvd[i] = pts_mvd[j];
-    pts[2 * i] = pts[2 * j];
-    pts[2 * i + 1] = pts[2 * j + 1];
-    pts_inref[2 * i] = pts_inref[2 * j];
-    pts_inref[2 * i + 1] = pts_inref[2 * j + 1];
-    i++;
-    j--;
-  }
-
-  return ret;
-}
-#endif  // !CONFIG_CWG_193_WARP_CAUSAL_THRESHOLD_REMOVAL
 // Note: Samples returned are at 1/8-pel precision
 // Sample are the neighbor block center point's coordinates relative to the
 // left-top pixel of current block.

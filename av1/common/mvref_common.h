@@ -637,10 +637,7 @@ void av1_initialize_warp_wrl_list(
 // score to use as ref motion vector
 void av1_find_best_ref_mvs(int_mv *mvlist, int_mv *nearest_mv, int_mv *near_mv,
                            MvSubpelPrecision precision);
-#if !CONFIG_CWG_193_WARP_CAUSAL_THRESHOLD_REMOVAL
-uint8_t av1_selectSamples(MV *mv, int *pts, int *pts_inref, int len,
-                          BLOCK_SIZE bsize);
-#endif  // !CONFIG_CWG_193_WARP_CAUSAL_THRESHOLD_REMOVAL
+
 uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
                         int *pts_inref
 #if CONFIG_COMPOUND_WARP_CAUSAL
