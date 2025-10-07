@@ -4139,13 +4139,13 @@ static AOM_INLINE void setup_render_size(AV1_COMMON *cm,
   // Set default to use xlayer_id 31 when Global LCR is being used
   const bool is_global_lcr = !cm->lcr_params.is_local_lcr;
   int layerId = cm->lcr_params.is_local_lcr ? cm->lcr_params.xLayerId
-                                               : GLOBAL_LCR_XLAYER_ID;
+                                            : GLOBAL_LCR_XLAYER_ID;
   const int xlayer_id = cm->lcr_params.lcr_xLayer_id[layerId];
   if (cm->lcr_params.lcr_rep_info_present_flag[is_global_lcr][xlayer_id]) {
     cm->render_width = cm->lcr_params.rep_params.lcr_max_pic_width;
     cm->render_height = cm->lcr_params.rep_params.lcr_max_pic_height;
   } else {
-#endif // CONFIG_MULTILAYER_HLS && CONFIG_MULTILAYER_HLS_ENABLE_SIGNALING
+#endif  // CONFIG_MULTILAYER_HLS && CONFIG_MULTILAYER_HLS_ENABLE_SIGNALING
     cm->render_width = cm->width;
     cm->render_height = cm->height;
 #if CONFIG_MULTILAYER_HLS && CONFIG_MULTILAYER_HLS_ENABLE_SIGNALING

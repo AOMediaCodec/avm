@@ -1093,7 +1093,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   }
 #endif  // CONFIG_CWG_F248_RENDER_SIZE
 #endif  // CONFIG_MULTILAYER_HLS && CONFIG_MULTILAYER_HLS_ENABLE_SIGNALING
-  
+
   BLOCK_SIZE sb_size = cm->sb_size;
   BLOCK_SIZE new_sb_size = av1_select_sb_size(cpi);
   // Superblock size should not be updated after the first key frame.
