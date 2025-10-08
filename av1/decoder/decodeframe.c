@@ -7539,11 +7539,13 @@ void av1_read_multi_frame_header(AV1_COMMON *cm,
 #endif  // CONFIG_CWG_E242_PARSING_INDEP
 
 #if CONFIG_CWG_E242_PARSING_INDEP
+#if !CONFIG_CWG_F248_RENDER_SIZE
   mfh_param->mfh_render_size_present_flag = aom_rb_read_bit(rb);
   if (mfh_param->mfh_render_size_present_flag) {
     av1_read_frame_size(rb, 16, 16, &mfh_param->mfh_render_width,
                         &mfh_param->mfh_render_height);
   }
+#endif  // !CONFIG_CWG_F248_RENDER_SIZE
 #else
 #if !CONFIG_CWG_F248_RENDER_SIZE
   if (aom_rb_read_bit(rb)) {
@@ -8288,10 +8290,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           seq_params->max_frame_width;
       cm->mfh_params[cm->cur_mfh_id].mfh_frame_height =
           seq_params->max_frame_height;
+#if !CONFIG_CWG_F248_RENDER_SIZE
       cm->mfh_params[cm->cur_mfh_id].mfh_render_width =
           seq_params->max_frame_width;
       cm->mfh_params[cm->cur_mfh_id].mfh_render_height =
           seq_params->max_frame_height;
+#endif  // !CONFIG_CWG_F248_RENDER_SIZE
       cm->mfh_params[cm->cur_mfh_id].mfh_loop_filter_update_flag = 0;
       for (int i = 0; i < 4; i++) {
         cm->mfh_params[cm->cur_mfh_id].mfh_loop_filter_level[i] = 0;
