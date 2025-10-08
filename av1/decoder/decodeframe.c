@@ -2482,6 +2482,11 @@ static AOM_INLINE void setup_bru_active_info(AV1_COMMON *const cm,
   if (cm->current_frame.frame_type != INTER_FRAME) {
     return;
   }
+#if CONFIG_CWG_F317
+  if (cm->bridge_frame_info.is_bridge_frame) {
+    return;
+  }
+#endif  // CONFIG_CWG_F317
   // need to reresh bru.active_mode_map every frame
   memset(cm->bru.active_mode_map, 2, sizeof(uint8_t) * cm->bru.total_units);
   if (cm->seq_params.enable_bru) {
@@ -10303,7 +10308,16 @@ int32_t av1_read_tilegroup_header(
       for (int h = 0; h < mvs_rows; h++) {
         MV_REF *mv = frame_mvs;
         for (int w = 0; w < mvs_cols; w++) {
+#if CONFIG_CWG_F317
+          if (cm->bridge_frame_info.is_bridge_frame) {
+            mv->ref_frame[0] =
+                cm->bridge_frame_info.bridge_frame_ref_idx_remapped;
+          } else {
+            mv->ref_frame[0] = cm->bru.update_ref_idx;
+          }
+#else
           mv->ref_frame[0] = cm->bru.update_ref_idx;
+#endif  // CONFIG_CWG_F317
           mv->ref_frame[1] = NONE_FRAME;
           mv->mv[0].as_int = 0;
           mv->mv[1].as_int = 0;

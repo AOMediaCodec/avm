@@ -4707,6 +4707,11 @@ static AOM_INLINE void encode_bru_active_info(AV1_COMP *cpi,
 #endif  // CONFIG_CWG_F317
     cm->features.disable_cdf_update = 1;
   }
+#if CONFIG_CWG_F317
+  if (cm->bridge_frame_info.is_bridge_frame) {
+    return;
+  }
+#endif  // CONFIG_CWG_F317
   if (cm->seq_params.enable_bru) {
     aom_wb_write_bit(wb, cm->bru.enabled);
 
