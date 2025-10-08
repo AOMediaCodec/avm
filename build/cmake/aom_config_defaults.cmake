@@ -343,7 +343,8 @@ set_aom_config_var(
   CONFIG_FSC_RES_HLS 1
   "add high level flag to switch fsc residual and regular residual.")
 
-set_aom_config_var(CONFIG_DF_DQP 0 "Adding DQP to the deblocking filter")
+
+set_aom_config_var(CONFIG_DF_DQP 1 "Adding DQP to the deblocking filter")
 
 set_aom_config_var(CONFIG_SHORT_METADATA 1
                    "Enable short metadata OBU header support")
