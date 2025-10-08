@@ -523,9 +523,9 @@ void bru_zero_sb_mvs(const AV1_COMMON *const cm, int dst_ref_idx, int mi_row,
     for (w = 0; w < x_inside_boundary; w++) {
 #if CONFIG_CWG_F317
       if (cm->bridge_frame_info.is_bridge_frame) {
-        dst_ref->ref_frame[0] = cm->bridge_frame_info.bridge_frame_ref_idx_remapped;
-      }
-      else {
+        dst_ref->ref_frame[0] =
+            cm->bridge_frame_info.bridge_frame_ref_idx_remapped;
+      } else {
         dst_ref->ref_frame[0] = cm->bru.update_ref_idx;
       }
 #else
