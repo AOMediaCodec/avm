@@ -519,18 +519,18 @@ Linux Sanitizers (x86_64-clang):
       CMAKE_FLAGS="$CMAKE_FLAGS -DAOM_EXTRA_CXX_FLAGS=${SANITIZER_BLACKLIST_FLAG}"
       echo "CMake Flags: $CMAKE_FLAGS"
     - cmake -B "aom_build/$AOM_SANITIZER_TYPE" -GNinja -DCMAKE_BUILD_TYPE=RelWithDebInfo $CMAKE_FLAGS
-    - cmake --build "aom_build/$AOM_SANITIZER_TYPE" --target test_libaom
-    # Special handling for a crash seen on `clang`.
+    # Special handling for a transient clang compiler crash.
+    - exit_code=0
+    - cmake --build "aom_build/$AOM_SANITIZER_TYPE" --target test_libaom || exit_code=$?
     - |
-      exit_code=$?
       COMPILER_CRASH_EXIT_CODE=135
-      if [ $exit_code -eq $COMPILER_CRASH_EXIT_CODE ]; then
+      if [ ${exit_code} -eq ${COMPILER_CRASH_EXIT_CODE} ]; then
         echo "Compiler crashed with exit code ${exit_code}"
         echo "Saving diagnostic files and asking gitlab to retry..."
         mkdir clang_diagnostic_files
         cp /tmp/av1_config* clang_diagnostic_files/
-        exit ${exit_code}
       fi
+      exit ${exit_code}
   needs: []
   artifacts:
     expire_in: 1 day
