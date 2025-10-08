@@ -643,24 +643,15 @@ static AOM_INLINE void fill_mvp_from_derived_smvp(
     const MV_REFERENCE_FRAME rf[2], CANDIDATE_MV *ref_mv_stack,
     uint16_t *ref_mv_weight, uint8_t *refmv_count,
     CANDIDATE_MV *derived_mv_stack, uint8_t derived_mv_count,
-    const int max_ref_mv_count
-#if CONFIG_DRL_PR_LIM
-    ,
-    int *drl_pr_count
-#endif  // CONFIG_DRL_PR_LIM
-) {
+    const int max_ref_mv_count, int *drl_pr_count) {
   int index = 0;
   int derived_idx = 0;
 
   if (rf[1] == NONE_FRAME) {
     for (derived_idx = 0; derived_idx < derived_mv_count; ++derived_idx) {
-#if CONFIG_DRL_PR_LIM
       if (*drl_pr_count < MAX_PR_NUM) {
-#endif  // CONFIG_DRL_PR_LIM
         for (index = 0; index < *refmv_count; ++index) {
-#if CONFIG_DRL_PR_LIM
           ++(*drl_pr_count);
-#endif  // CONFIG_DRL_PR_LIM
           if (ref_mv_stack[index].this_mv.as_int ==
               derived_mv_stack[derived_idx].this_mv.as_int) {
             break;
@@ -676,7 +667,6 @@ static AOM_INLINE void fill_mvp_from_derived_smvp(
           ref_mv_weight[index] = REF_CAT_LEVEL;
           ++(*refmv_count);
         }
-#if CONFIG_DRL_PR_LIM
       } else {
         if (*refmv_count < max_ref_mv_count) {
           ref_mv_stack[*refmv_count].this_mv =
@@ -688,17 +678,12 @@ static AOM_INLINE void fill_mvp_from_derived_smvp(
           ++(*refmv_count);
         }
       }
-#endif  // CONFIG_DRL_PR_LIM
     }
   } else {
     for (derived_idx = 0; derived_idx < derived_mv_count; ++derived_idx) {
-#if CONFIG_DRL_PR_LIM
       if (*drl_pr_count < MAX_PR_NUM) {
-#endif  // CONFIG_DRL_PR_LIM
         for (index = 0; index < *refmv_count; ++index) {
-#if CONFIG_DRL_PR_LIM
           ++(*drl_pr_count);
-#endif  // CONFIG_DRL_PR_LIM
           if ((ref_mv_stack[index].this_mv.as_int ==
                derived_mv_stack[derived_idx].this_mv.as_int) &&
               (ref_mv_stack[index].comp_mv.as_int ==
@@ -717,7 +702,6 @@ static AOM_INLINE void fill_mvp_from_derived_smvp(
           ref_mv_weight[index] = REF_CAT_LEVEL;
           ++(*refmv_count);
         }
-#if CONFIG_DRL_PR_LIM
       } else {
         if (*refmv_count < max_ref_mv_count) {
           ref_mv_stack[*refmv_count].this_mv =
@@ -731,7 +715,6 @@ static AOM_INLINE void fill_mvp_from_derived_smvp(
           ++(*refmv_count);
         }
       }
-#endif  // CONFIG_DRL_PR_LIM
     }
   }
 }
@@ -740,12 +723,7 @@ static AOM_INLINE void derive_ref_mv_candidate_from_tip_mode(
     const AV1_COMMON *cm, int mi_row_cand, int mi_col_cand,
     const MB_MODE_INFO *const candidate, uint8_t *refmv_count,
     uint8_t *ref_match_count, uint8_t *newmv_count, CANDIDATE_MV *ref_mv_stack,
-    uint16_t *ref_mv_weight, uint16_t weight
-#if CONFIG_DRL_PR_LIM
-    ,
-    int *drl_pr_count
-#endif  // CONFIG_DRL_PR_LIM
-) {
+    uint16_t *ref_mv_weight, uint16_t weight, int *drl_pr_count) {
   int index = 0;
 
   const int cand_tpl_row = (mi_row_cand >> TMVP_SHIFT_BITS);
@@ -754,13 +732,9 @@ static AOM_INLINE void derive_ref_mv_candidate_from_tip_mode(
   int_mv ref_mv[2];
   get_tip_mv(cm, &cand_mv.as_mv, cand_tpl_col, cand_tpl_row, ref_mv);
 
-#if CONFIG_DRL_PR_LIM
   if (*drl_pr_count < MAX_PR_NUM) {
-#endif  // CONFIG_DRL_PR_LIM
     for (index = 0; index < *refmv_count; ++index) {
-#if CONFIG_DRL_PR_LIM
       ++(*drl_pr_count);
-#endif  // CONFIG_DRL_PR_LIM
       if ((ref_mv_stack[index].this_mv.as_int == ref_mv[0].as_int) &&
           (ref_mv_stack[index].comp_mv.as_int == ref_mv[1].as_int)) {
         ref_mv_weight[index] += weight;
@@ -778,7 +752,6 @@ static AOM_INLINE void derive_ref_mv_candidate_from_tip_mode(
       ref_mv_stack[index].cwp_idx = CWP_EQUAL;
       ++(*refmv_count);
     }
-#if CONFIG_DRL_PR_LIM
   } else {
     if (*refmv_count < MAX_REF_MV_STACK_SIZE) {
       ref_mv_stack[*refmv_count].this_mv = ref_mv[0];
@@ -790,7 +763,6 @@ static AOM_INLINE void derive_ref_mv_candidate_from_tip_mode(
       ++(*refmv_count);
     }
   }
-#endif  // CONFIG_DRL_PR_LIM
 
   if (have_newmv_in_inter_mode(candidate->mode)) ++*newmv_count;
   ++*ref_match_count;
@@ -847,12 +819,8 @@ static AOM_INLINE void add_ref_mv_candidate(
     SINGLE_MV_CANDIDATE *single_mv, uint8_t *single_mv_count,
     CANDIDATE_MV *derived_mv_stack, uint16_t *derived_mv_weight,
     uint8_t *derived_mv_count, uint8_t is_intrabc, int row_offset,
-    int col_offset, uint16_t weight
-#if CONFIG_DRL_PR_LIM
-    ,
-    int *drl_pr_count, int *drl_dr_pr_count, int *drl_dr_single_pr_count
-#endif  // CONFIG_DRL_PR_LIM
-) {
+    int col_offset, uint16_t weight, int *drl_pr_count, int *drl_dr_pr_count,
+    int *drl_dr_single_pr_count) {
   if (!is_inter_block(candidate, SHARED_PART)) return;
 
   if (is_intrabc != is_intrabc_block(candidate, SHARED_PART)) return;
@@ -890,13 +858,9 @@ static AOM_INLINE void add_ref_mv_candidate(
                                    : get_block_mv(candidate, submi, ref);
         }
 
-#if CONFIG_DRL_PR_LIM
         if (*drl_pr_count < MAX_PR_NUM) {
-#endif  // CONFIG_DRL_PR_LIM
           for (index = 0; index < *refmv_count; ++index) {
-#if CONFIG_DRL_PR_LIM
             ++(*drl_pr_count);
-#endif  // CONFIG_DRL_PR_LIM
             if (ref_mv_stack[index].this_mv.as_int == this_refmv.as_int) {
               ref_mv_weight[index] += weight;
               break;
@@ -912,7 +876,6 @@ static AOM_INLINE void add_ref_mv_candidate(
             ref_mv_weight[index] = weight;
             ++(*refmv_count);
           }
-#if CONFIG_DRL_PR_LIM
         } else {
           if (*refmv_count < MAX_REF_MV_STACK_SIZE) {
             ref_mv_stack[*refmv_count].this_mv = this_refmv;
@@ -923,7 +886,6 @@ static AOM_INLINE void add_ref_mv_candidate(
             ++(*refmv_count);
           }
         }
-#endif  // CONFIG_DRL_PR_LIM
         if (ref == 0) {
           if (is_inter_mode(candidate->mode) &&
               compound_ref0_mode(candidate->mode) == NEWMV)
@@ -940,13 +902,9 @@ static AOM_INLINE void add_ref_mv_candidate(
       } else if (cand_tip_ref_frames[ref] == rf[0]) {
         int_mv this_refmv = cand_tip_mvs[ref];
 
-#if CONFIG_DRL_PR_LIM
         if (*drl_pr_count < MAX_PR_NUM) {
-#endif  // CONFIG_DRL_PR_LIM
           for (index = 0; index < *refmv_count; ++index) {
-#if CONFIG_DRL_PR_LIM
             ++(*drl_pr_count);
-#endif  // CONFIG_DRL_PR_LIM
             if (ref_mv_stack[index].this_mv.as_int == this_refmv.as_int) {
               ref_mv_weight[index] += weight;
               break;
@@ -962,7 +920,6 @@ static AOM_INLINE void add_ref_mv_candidate(
             ref_mv_weight[index] = weight;
             ++(*refmv_count);
           }
-#if CONFIG_DRL_PR_LIM
         } else {
           if (*refmv_count < MAX_REF_MV_STACK_SIZE) {
             ref_mv_stack[*refmv_count].this_mv = this_refmv;
@@ -973,7 +930,6 @@ static AOM_INLINE void add_ref_mv_candidate(
             ++(*refmv_count);
           }
         }
-#endif  // CONFIG_DRL_PR_LIM
         if (have_newmv_in_inter_mode(candidate->mode)) ++*newmv_count;
         ++*ref_match_count;
       } else if (add_more_mvs && ref == 0 && is_tip_ref_frame(rf[0]) &&
@@ -1007,13 +963,9 @@ static AOM_INLINE void add_ref_mv_candidate(
         derived_mv.as_mv.col =
             clamp(derived_mv.as_mv.col, clamp_min, clamp_max);
 
-#if CONFIG_DRL_PR_LIM
         if (*drl_dr_pr_count < MAX_DR_PR_NUM) {
-#endif  // CONFIG_DRL_PR_LIM
           for (index = 0; index < *derived_mv_count; ++index) {
-#if CONFIG_DRL_PR_LIM
             ++(*drl_dr_pr_count);
-#endif  // CONFIG_DRL_PR_LIM
             if (derived_mv_stack[index].this_mv.as_int == derived_mv.as_int) {
               derived_mv_weight[index] += weight;
               break;
@@ -1024,7 +976,7 @@ static AOM_INLINE void add_ref_mv_candidate(
 #if MAX_DR_STACK_SIZE
               *derived_mv_count < MAX_DR_STACK_SIZE
 #else
-            *derived_mv_count < MAX_REF_MV_STACK_SIZE
+              *derived_mv_count < MAX_REF_MV_STACK_SIZE
 #endif
           ) {
             derived_mv_stack[index].this_mv = derived_mv;
@@ -1032,7 +984,6 @@ static AOM_INLINE void add_ref_mv_candidate(
             derived_mv_stack[index].cwp_idx = CWP_EQUAL;
             ++(*derived_mv_count);
           }
-#if CONFIG_DRL_PR_LIM
         } else {
           if (
 #if MAX_DR_STACK_SIZE
@@ -1047,7 +998,6 @@ static AOM_INLINE void add_ref_mv_candidate(
             ++(*derived_mv_count);
           }
         }
-#endif  // CONFIG_DRL_PR_LIM
       } else if (add_more_mvs &&
                  (is_inter_ref_frame(candidate->ref_frame[ref]) ||
                   is_tip_ref_frame(candidate->ref_frame[0])) &&
@@ -1091,13 +1041,9 @@ static AOM_INLINE void add_ref_mv_candidate(
                   (mv_traj_cur_ref.as_mv.col - mv_traj_cand_ref.as_mv.col),
               clamp_min, clamp_max);
 
-#if CONFIG_DRL_PR_LIM
           if (*drl_dr_pr_count < MAX_DR_PR_NUM) {
-#endif  // CONFIG_DRL_PR_LIM
             for (index = 0; index < *derived_mv_count; ++index) {
-#if CONFIG_DRL_PR_LIM
               ++(*drl_dr_pr_count);
-#endif  // CONFIG_DRL_PR_LIM
               if (derived_mv_stack[index].this_mv.as_int == derived_mv.as_int) {
                 derived_mv_weight[index] += weight;
                 break;
@@ -1108,7 +1054,7 @@ static AOM_INLINE void add_ref_mv_candidate(
 #if MAX_DR_STACK_SIZE
                 *derived_mv_count < MAX_DR_STACK_SIZE
 #else
-              *derived_mv_count < MAX_REF_MV_STACK_SIZE
+                *derived_mv_count < MAX_REF_MV_STACK_SIZE
 #endif
             ) {
               derived_mv_stack[index].this_mv = derived_mv;
@@ -1116,7 +1062,6 @@ static AOM_INLINE void add_ref_mv_candidate(
               derived_mv_stack[index].cwp_idx = CWP_EQUAL;
               ++(*derived_mv_count);
             }
-#if CONFIG_DRL_PR_LIM
           } else {
             if (
 #if MAX_DR_STACK_SIZE
@@ -1131,7 +1076,6 @@ static AOM_INLINE void add_ref_mv_candidate(
               ++(*derived_mv_count);
             }
           }
-#endif  // CONFIG_DRL_PR_LIM
         } else {
           const int cur_blk_ref_side = cm->ref_frame_side[rf[0]];
           const int cand_blk_ref_side = cm->ref_frame_side[cand_ref_frame];
@@ -1149,13 +1093,9 @@ static AOM_INLINE void add_ref_mv_candidate(
             get_mv_projection(&this_refmv.as_mv, cand_refmv.as_mv,
                               cur_to_ref_dist, cand_to_ref_dist);
 
-#if CONFIG_DRL_PR_LIM
             if (*drl_dr_pr_count < MAX_DR_PR_NUM) {
-#endif  // CONFIG_DRL_PR_LIM
               for (index = 0; index < *derived_mv_count; ++index) {
-#if CONFIG_DRL_PR_LIM
                 ++(*drl_dr_pr_count);
-#endif  // CONFIG_DRL_PR_LIM
                 if (derived_mv_stack[index].this_mv.as_int ==
                     this_refmv.as_int) {
                   derived_mv_weight[index] += weight;
@@ -1168,7 +1108,7 @@ static AOM_INLINE void add_ref_mv_candidate(
 #if MAX_DR_STACK_SIZE
                   *derived_mv_count < MAX_DR_STACK_SIZE
 #else
-                *derived_mv_count < MAX_REF_MV_STACK_SIZE
+                  *derived_mv_count < MAX_REF_MV_STACK_SIZE
 #endif
               ) {
                 derived_mv_stack[index].this_mv = this_refmv;
@@ -1176,7 +1116,6 @@ static AOM_INLINE void add_ref_mv_candidate(
                 derived_mv_stack[index].cwp_idx = CWP_EQUAL;
                 ++(*derived_mv_count);
               }
-#if CONFIG_DRL_PR_LIM
             } else {
               if (
 #if MAX_DR_STACK_SIZE
@@ -1191,7 +1130,6 @@ static AOM_INLINE void add_ref_mv_candidate(
                 ++(*derived_mv_count);
               }
             }
-#endif  // CONFIG_DRL_PR_LIM
           }
         }
       }
@@ -1203,12 +1141,7 @@ static AOM_INLINE void add_ref_mv_candidate(
         cm->features.tip_frame_mode) {
       derive_ref_mv_candidate_from_tip_mode(
           cm, mi_row_cand, mi_col_cand, candidate, refmv_count, ref_match_count,
-          newmv_count, ref_mv_stack, ref_mv_weight, weight
-#if CONFIG_DRL_PR_LIM
-          ,
-          drl_pr_count
-#endif  // CONFIG_DRL_PR_LIM
-      );
+          newmv_count, ref_mv_stack, ref_mv_weight, weight, drl_pr_count);
     } else {
       // compound reference frame
       if (candidate->ref_frame[0] == rf[0] &&
@@ -1222,13 +1155,9 @@ static AOM_INLINE void add_ref_mv_candidate(
             this_refmv[ref] = get_block_mv(candidate, submi, ref);
         }
 
-#if CONFIG_DRL_PR_LIM
         if (*drl_pr_count < MAX_PR_NUM) {
-#endif  // CONFIG_DRL_PR_LIM
           for (index = 0; index < *refmv_count; ++index) {
-#if CONFIG_DRL_PR_LIM
             ++(*drl_pr_count);
-#endif  // CONFIG_DRL_PR_LIM
             if ((ref_mv_stack[index].this_mv.as_int == this_refmv[0].as_int) &&
                 (ref_mv_stack[index].comp_mv.as_int == this_refmv[1].as_int)) {
               ref_mv_weight[index] += weight;
@@ -1246,7 +1175,6 @@ static AOM_INLINE void add_ref_mv_candidate(
             ref_mv_stack[index].cwp_idx = candidate->cwp_idx;
             ++(*refmv_count);
           }
-#if CONFIG_DRL_PR_LIM
         } else {
           if (*refmv_count < MAX_REF_MV_STACK_SIZE) {
             ref_mv_stack[*refmv_count].this_mv = this_refmv[0];
@@ -1258,7 +1186,6 @@ static AOM_INLINE void add_ref_mv_candidate(
             ++(*refmv_count);
           }
         }
-#endif  // CONFIG_DRL_PR_LIM
         if (have_newmv_in_inter_mode(candidate->mode)) ++*newmv_count;
         ++*ref_match_count;
       } else if (add_more_mvs) {
@@ -1310,13 +1237,9 @@ static AOM_INLINE void add_ref_mv_candidate(
                 cand_refmv.as_mv.col +
                     (mv_traj_cur_ref1.as_mv.col - mv_traj_cand_ref.as_mv.col),
                 clamp_min, clamp_max);
-#if CONFIG_DRL_PR_LIM
             if (*drl_dr_pr_count < MAX_DR_PR_NUM) {
-#endif  // CONFIG_DRL_PR_LIM
               for (index = 0; index < *derived_mv_count; ++index) {
-#if CONFIG_DRL_PR_LIM
                 ++(*drl_dr_pr_count);
-#endif  // CONFIG_DRL_PR_LIM
                 if ((derived_mv_stack[index].this_mv.as_int ==
                      this_refmv[0].as_int) &&
                     (derived_mv_stack[index].comp_mv.as_int ==
@@ -1331,7 +1254,7 @@ static AOM_INLINE void add_ref_mv_candidate(
 #if MAX_DR_STACK_SIZE
                   *derived_mv_count < MAX_DR_STACK_SIZE
 #else
-                *derived_mv_count < MAX_REF_MV_STACK_SIZE
+                  *derived_mv_count < MAX_REF_MV_STACK_SIZE
 #endif
               ) {
                 derived_mv_stack[index].this_mv = this_refmv[0];
@@ -1340,7 +1263,6 @@ static AOM_INLINE void add_ref_mv_candidate(
                 derived_mv_stack[index].cwp_idx = CWP_EQUAL;
                 ++(*derived_mv_count);
               }
-#if CONFIG_DRL_PR_LIM
             } else {
               if (
 #if MAX_DR_STACK_SIZE
@@ -1356,7 +1278,6 @@ static AOM_INLINE void add_ref_mv_candidate(
                 ++(*derived_mv_count);
               }
             }
-#endif  // CONFIG_DRL_PR_LIM
           }
         }
 
@@ -1396,13 +1317,9 @@ static AOM_INLINE void add_ref_mv_candidate(
 
           // Add a new item to the list.
           if (cand_idx < *single_mv_count) {
-#if CONFIG_DRL_PR_LIM
             if (*drl_dr_pr_count < MAX_DR_PR_NUM) {
-#endif  // CONFIG_DRL_PR_LIM
               for (index = 0; index < *derived_mv_count; ++index) {
-#if CONFIG_DRL_PR_LIM
                 ++(*drl_dr_pr_count);
-#endif  // CONFIG_DRL_PR_LIM
                 if ((derived_mv_stack[index].this_mv.as_int ==
                      this_refmv[0].as_int) &&
                     (derived_mv_stack[index].comp_mv.as_int ==
@@ -1417,7 +1334,7 @@ static AOM_INLINE void add_ref_mv_candidate(
 #if MAX_DR_STACK_SIZE
                   *derived_mv_count < MAX_DR_STACK_SIZE
 #else
-                *derived_mv_count < MAX_REF_MV_STACK_SIZE
+                  *derived_mv_count < MAX_REF_MV_STACK_SIZE
 #endif
               ) {
                 derived_mv_stack[index].this_mv = this_refmv[0];
@@ -1426,7 +1343,6 @@ static AOM_INLINE void add_ref_mv_candidate(
                 derived_mv_stack[index].cwp_idx = CWP_EQUAL;
                 ++(*derived_mv_count);
               }
-#if CONFIG_DRL_PR_LIM
             } else {
               if (
 #if MAX_DR_STACK_SIZE
@@ -1442,17 +1358,12 @@ static AOM_INLINE void add_ref_mv_candidate(
                 ++(*derived_mv_count);
               }
             }
-#endif  // CONFIG_DRL_PR_LIM
           }
 
           // Add the candidate to single MV stack
-#if CONFIG_DRL_PR_LIM
           if (*drl_dr_single_pr_count < MAX_DR_PR_NUM) {
-#endif  // CONFIG_DRL_PR_LIM
             for (cand_idx = 0; cand_idx < *single_mv_count; ++cand_idx) {
-#if CONFIG_DRL_PR_LIM
               ++(*drl_dr_single_pr_count);
-#endif  // CONFIG_DRL_PR_LIM
               if (single_mv[cand_idx].ref_frame == rf[candidate_ref_idx0] &&
                   (single_mv[cand_idx].mv.as_int ==
                    this_refmv[candidate_ref_idx0].as_int)) {
@@ -1464,7 +1375,7 @@ static AOM_INLINE void add_ref_mv_candidate(
 #if MAX_DR_STACK_SIZE
                 *single_mv_count < MAX_DR_STACK_SIZE
 #else
-              *single_mv_count < MAX_REF_MV_STACK_SIZE
+                *single_mv_count < MAX_REF_MV_STACK_SIZE
 #endif
             ) {
               single_mv[cand_idx].mv.as_int =
@@ -1472,7 +1383,6 @@ static AOM_INLINE void add_ref_mv_candidate(
               single_mv[cand_idx].ref_frame = rf[candidate_ref_idx0];
               ++(*single_mv_count);
             }
-#if CONFIG_DRL_PR_LIM
           } else {
             if (
 #if MAX_DR_STACK_SIZE
@@ -1487,7 +1397,6 @@ static AOM_INLINE void add_ref_mv_candidate(
               ++(*single_mv_count);
             }
           }
-#endif  // CONFIG_DRL_PR_LIM
         }
       }
     }
@@ -1630,13 +1539,8 @@ static AOM_INLINE void scan_blk_mbmi(
     uint8_t *derived_mv_count,
     WARP_CANDIDATE warp_param_stack[MAX_WARP_REF_CANDIDATES],
     int max_num_of_warp_candidates, uint8_t *valid_num_warp_candidates,
-    MV_REFERENCE_FRAME ref_frame, uint8_t *refmv_count
-#if CONFIG_DRL_PR_LIM
-    ,
-    int *drl_pr_count, int *drl_dr_pr_count, int *drl_dr_single_pr_count
-#endif  // CONFIG_DRL_PR_LIM
-) {
-
+    MV_REFERENCE_FRAME ref_frame, uint8_t *refmv_count, int *drl_pr_count,
+    int *drl_dr_pr_count, int *drl_dr_single_pr_count) {
   const TileInfo *const tile = &xd->tile;
   POSITION mi_pos;
 
@@ -1677,12 +1581,8 @@ static AOM_INLINE void scan_blk_mbmi(
         gm_mv_candidates, cm->global_motion, cm, add_more_mvs, single_mv,
         single_mv_count, derived_mv_stack, derived_mv_weight, derived_mv_count,
         xd->mi[0]->use_intrabc[xd->tree_type == CHROMA_PART], row_offset,
-        col_offset, weight
-#if CONFIG_DRL_PR_LIM
-        ,
-        drl_pr_count, drl_dr_pr_count, drl_dr_single_pr_count
-#endif  // CONFIG_DRL_PR_LIM
-    );
+        col_offset, weight, drl_pr_count, drl_dr_pr_count,
+        drl_dr_single_pr_count);
   }  // Analyze a single 8x8 block motion information.
 }
 
@@ -1764,12 +1664,8 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                           int blk_row, int blk_col, uint8_t *const refmv_count,
                           int *added_tmvp_cnt,
                           CANDIDATE_MV ref_mv_stack[MAX_REF_MV_STACK_SIZE],
-                          uint16_t ref_mv_weight[MAX_REF_MV_STACK_SIZE]
-#if CONFIG_DRL_PR_LIM
-                          ,
-                          int *drl_pr_count
-#endif  // CONFIG_DRL_PR_LIM
-) {
+                          uint16_t ref_mv_weight[MAX_REF_MV_STACK_SIZE],
+                          int *drl_pr_count) {
   if (*refmv_count >= MAX_REF_MV_STACK_SIZE) return 0;
 
   POSITION mi_pos;
@@ -1836,13 +1732,9 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
       weight = HIGH_PRIORITY_TMVP_WEIGHT;
     }
 
-#if CONFIG_DRL_PR_LIM
     if (*drl_pr_count < MAX_PR_NUM) {
-#endif  // CONFIG_DRL_PR_LIM
       for (idx = 0; idx < *refmv_count; ++idx) {
-#if CONFIG_DRL_PR_LIM
         ++(*drl_pr_count);
-#endif  // CONFIG_DRL_PR_LIM
         if (this_refmv.as_int == ref_mv_stack[idx].this_mv.as_int) break;
       }
 
@@ -1857,7 +1749,6 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
         ++(*refmv_count);
         ++(*added_tmvp_cnt);
       }
-#if CONFIG_DRL_PR_LIM
     } else {
       if (*refmv_count < MAX_REF_MV_STACK_SIZE) {
         ref_mv_stack[*refmv_count].this_mv.as_int = this_refmv.as_int;
@@ -1869,7 +1760,6 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
         ++(*added_tmvp_cnt);
       }
     }
-#endif  // CONFIG_DRL_PR_LIM
   } else {
     // Process compound inter mode
     int_mv comp_refmv;
@@ -1885,13 +1775,9 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                         cur_offset_1, prev_frame_mvs->ref_frame_offset);
     }
 
-#if CONFIG_DRL_PR_LIM
     if (*drl_pr_count < MAX_PR_NUM) {
-#endif  // CONFIG_DRL_PR_LIM
       for (idx = 0; idx < *refmv_count; ++idx) {
-#if CONFIG_DRL_PR_LIM
         ++(*drl_pr_count);
-#endif  // CONFIG_DRL_PR_LIM
         if (this_refmv.as_int == ref_mv_stack[idx].this_mv.as_int &&
             comp_refmv.as_int == ref_mv_stack[idx].comp_mv.as_int)
           break;
@@ -1909,7 +1795,6 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
         ++(*refmv_count);
         ++(*added_tmvp_cnt);
       }
-#if CONFIG_DRL_PR_LIM
     } else {
       if (*refmv_count < MAX_REF_MV_STACK_SIZE) {
         ref_mv_stack[*refmv_count].this_mv.as_int = this_refmv.as_int;
@@ -1922,7 +1807,6 @@ static int add_tpl_ref_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
         ++(*added_tmvp_cnt);
       }
     }
-#endif  // CONFIG_DRL_PR_LIM
   }
 
   return 1;
@@ -1963,29 +1847,18 @@ static AOM_INLINE int get_rmb_list_index(const MV_REFERENCE_FRAME ref_frame) {
 static AOM_INLINE bool check_rmb_cand(
     CANDIDATE_MV cand_mv, CANDIDATE_MV *ref_mv_stack, uint16_t *ref_mv_weight,
     uint8_t *refmv_count, int is_comp, int mi_row, int mi_col, int block_width,
-    int block_height, int frame_width, int frame_height
-#if CONFIG_DRL_PR_LIM
-    ,
-    int *drl_pr_count
-#endif  // CONFIG_DRL_PR_LIM
-) {
+    int block_height, int frame_width, int frame_height, int *drl_pr_count) {
   // Check if the MV candidate is already existing in the ref MV stack.
-#if CONFIG_DRL_PR_LIM
   if (*drl_pr_count < MAX_PR_NUM) {
-#endif  // CONFIG_DRL_PR_LIM
     for (int i = 0; i < *refmv_count; ++i) {
-#if CONFIG_DRL_PR_LIM
       ++(*drl_pr_count);
-#endif  // CONFIG_DRL_PR_LIM
       if (ref_mv_stack[i].this_mv.as_int == cand_mv.this_mv.as_int &&
           (!is_comp ||
            ref_mv_stack[i].comp_mv.as_int == cand_mv.comp_mv.as_int)) {
         return false;
       }
     }
-#if CONFIG_DRL_PR_LIM
   }
-#endif  // CONFIG_DRL_PR_LIM
 
   // Check if the MV candidate is pointing to ref block inside frame boundary.
   for (int i = 0; i < 1 + is_comp; ++i) {
@@ -2028,12 +1901,8 @@ static AOM_INLINE void add_tmvp_candidate(
     const AV1_COMMON *cm, const MACROBLOCKD *xd, MV_REFERENCE_FRAME ref_frame,
     uint8_t *const refmv_count,
     CANDIDATE_MV ref_mv_stack[MAX_REF_MV_STACK_SIZE],
-    uint16_t ref_mv_weight[MAX_REF_MV_STACK_SIZE], int mi_row, int mi_col
-#if CONFIG_DRL_PR_LIM
-    ,
-    int *drl_pr_count
-#endif  // CONFIG_DRL_PR_LIM
-) {
+    uint16_t ref_mv_weight[MAX_REF_MV_STACK_SIZE], int mi_row, int mi_col,
+    int *drl_pr_count) {
   MV_REFERENCE_FRAME rf[2];
   av1_set_ref_frame(rf, ref_frame);
   if (cm->features.allow_ref_frame_mvs &&
@@ -2063,12 +1932,8 @@ static AOM_INLINE void add_tmvp_candidate(
         add_tpl_ref_mv(cm, xd, mi_row, mi_col, ref_frame,
                        tmvp_units_status[iter].row_offset,
                        tmvp_units_status[iter].col_offset, refmv_count,
-                       &added_tmvp_cnt, ref_mv_stack, ref_mv_weight
-#if CONFIG_DRL_PR_LIM
-                       ,
-                       drl_pr_count
-#endif  // CONFIG_DRL_PR_LIM
-        );
+                       &added_tmvp_cnt, ref_mv_stack, ref_mv_weight,
+                       drl_pr_count);
       }
     }
   }
@@ -2106,12 +1971,7 @@ static AOM_INLINE void add_derived_smvp_candidates(
 #else
     CANDIDATE_MV derived_mv_stack[MAX_REF_MV_STACK_SIZE],
 #endif
-    uint8_t derived_mv_count
-#if CONFIG_DRL_PR_LIM
-    ,
-    int *drl_pr_count
-#endif  // CONFIG_DRL_PR_LIM
-) {
+    uint8_t derived_mv_count, int *drl_pr_count) {
   const int max_ref_mv_count =
       xd->mi[0]->use_intrabc[xd->tree_type == CHROMA_PART]
           ? AOMMIN(cm->features.max_bvp_drl_bits + 1, MAX_REF_BV_STACK_SIZE)
@@ -2119,12 +1979,7 @@ static AOM_INLINE void add_derived_smvp_candidates(
   if (*refmv_count < max_ref_mv_count && derived_mv_count > 0) {
     fill_mvp_from_derived_smvp(rf, ref_mv_stack, ref_mv_weight, refmv_count,
                                derived_mv_stack, derived_mv_count,
-                               max_ref_mv_count
-#if CONFIG_DRL_PR_LIM
-                               ,
-                               drl_pr_count
-#endif  // CONFIG_DRL_PR_LIM
-    );
+                               max_ref_mv_count, drl_pr_count);
   }
 }
 
@@ -2132,12 +1987,7 @@ static AOM_INLINE void add_ref_mv_bank_candidates(
     const AV1_COMMON *cm, const MACROBLOCKD *xd, MV_REFERENCE_FRAME *rf,
     MV_REFERENCE_FRAME ref_frame, uint8_t *const refmv_count,
     CANDIDATE_MV ref_mv_stack[MAX_REF_MV_STACK_SIZE],
-    uint16_t ref_mv_weight[MAX_REF_MV_STACK_SIZE]
-#if CONFIG_DRL_PR_LIM
-    ,
-    int *drl_pr_count
-#endif  // CONFIG_DRL_PR_LIM
-) {
+    uint16_t ref_mv_weight[MAX_REF_MV_STACK_SIZE], int *drl_pr_count) {
   const int ref_mv_limit =
       xd->mi[0]->use_intrabc[xd->tree_type == CHROMA_PART]
           ? AOMMIN(cm->features.max_bvp_drl_bits + 1, MAX_REF_BV_STACK_SIZE)
@@ -2163,12 +2013,8 @@ static AOM_INLINE void add_ref_mv_bank_candidates(
 
       check_rmb_cand(cand_mv, ref_mv_stack, ref_mv_weight, refmv_count, is_comp,
                      xd->mi_row, xd->mi_col, block_width, block_height,
-                     xd->plane[0].dst.width, xd->plane[0].dst.height
-#if CONFIG_DRL_PR_LIM
-                     ,
-                     drl_pr_count
-#endif  // CONFIG_DRL_PR_LIM
-      );
+                     xd->plane[0].dst.width, xd->plane[0].dst.height,
+                     drl_pr_count);
     }
   }
 }
@@ -2471,14 +2317,10 @@ static int insert_mvp_candidate(
   ext_mv.comp_mv.as_mv.col = comp_mv_col;
   ext_mv.comp_mv.as_mv.row = comp_mv_row;
 
-#if CONFIG_DRL_PR_LIM
   if ((*drl_pr_count) < MAX_PR_NUM) {
-#endif
     int idx = 0;
     for (idx = 0; idx < *refmv_count; ++idx) {
-#if CONFIG_DRL_PR_LIM
       ++(*drl_pr_count);
-#endif
       if ((ref_mv_stack[idx].this_mv.as_int == ext_mv.this_mv.as_int) &&
           (rf[1] == NONE_FRAME ||
            (rf[1] > NONE_FRAME &&
@@ -2498,7 +2340,6 @@ static int insert_mvp_candidate(
       return 1;
     }
     return 0;
-#if CONFIG_DRL_PR_LIM
   } else {
     if (*refmv_count < MAX_REF_MV_STACK_SIZE) {
       ref_mv_stack[*refmv_count].this_mv.as_int = ext_mv.this_mv.as_int;
@@ -2512,7 +2353,6 @@ static int insert_mvp_candidate(
     }
     return 0;
   }
-#endif
   return 0;
 }
 
@@ -2536,11 +2376,9 @@ static AOM_INLINE void setup_ref_mv_list(
   av1_set_ref_frame(rf, ref_frame);
   *refmv_count = 0;
 
-#if CONFIG_DRL_PR_LIM
   int drl_pr_count = 0;
   int drl_dr_pr_count = 0;
   int drl_dr_single_pr_count = 0;
-#endif  // CONFIG_DRL_PR_LIM
 
   /*
    * The constuction of the DRL after CWG-E021 was adopted:
@@ -2675,12 +2513,7 @@ static AOM_INLINE void setup_ref_mv_list(
   const int is_tmvp_high_priority = assign_tmvp_high_priority(cm, rf);
   if (is_tmvp_high_priority) {
     add_tmvp_candidate(cm, xd, ref_frame, refmv_count, ref_mv_stack,
-                       ref_mv_weight, mi_row, mi_col
-#if CONFIG_DRL_PR_LIM
-                       ,
-                       &drl_pr_count
-#endif  // CONFIG_DRL_PR_LIM
-    );
+                       ref_mv_weight, mi_row, mi_col, &drl_pr_count);
   }
 
   if (xd->left_available) {
@@ -2689,12 +2522,8 @@ static AOM_INLINE void setup_ref_mv_list(
                   gm_mv_candidates, 1, single_mv, &single_mv_count,
                   derived_mv_stack, derived_mv_weight, &derived_mv_count,
                   warp_param_stack, max_num_of_warp_candidates,
-                  valid_num_warp_candidates, ref_frame, refmv_count
-#if CONFIG_DRL_PR_LIM
-                  ,
-                  &drl_pr_count, &drl_dr_pr_count, &drl_dr_single_pr_count
-#endif  // CONFIG_DRL_PR_LIM
-    );
+                  valid_num_warp_candidates, ref_frame, refmv_count,
+                  &drl_pr_count, &drl_dr_pr_count, &drl_dr_single_pr_count);
     update_processed_cols(xd, mi_row, mi_col, (xd->height - 1), -1,
                           max_col_offset, &processed_cols);
   }
@@ -2706,12 +2535,8 @@ static AOM_INLINE void setup_ref_mv_list(
                   single_mv, &single_mv_count, derived_mv_stack,
                   derived_mv_weight, &derived_mv_count, warp_param_stack,
                   max_num_of_warp_candidates, valid_num_warp_candidates,
-                  ref_frame, refmv_count
-#if CONFIG_DRL_PR_LIM
-                  ,
-                  &drl_pr_count, &drl_dr_pr_count, &drl_dr_single_pr_count
-#endif  // CONFIG_DRL_PR_LIM
-    );
+                  ref_frame, refmv_count, &drl_pr_count, &drl_dr_pr_count,
+                  &drl_dr_single_pr_count);
   }
 
   if (height_at_least_two) {
@@ -2720,12 +2545,8 @@ static AOM_INLINE void setup_ref_mv_list(
                   gm_mv_candidates, 1, single_mv, &single_mv_count,
                   derived_mv_stack, derived_mv_weight, &derived_mv_count,
                   warp_param_stack, max_num_of_warp_candidates,
-                  valid_num_warp_candidates, ref_frame, refmv_count
-#if CONFIG_DRL_PR_LIM
-                  ,
-                  &drl_pr_count, &drl_dr_pr_count, &drl_dr_single_pr_count
-#endif  // CONFIG_DRL_PR_LIM
-    );
+                  valid_num_warp_candidates, ref_frame, refmv_count,
+                  &drl_pr_count, &drl_dr_pr_count, &drl_dr_single_pr_count);
     update_processed_cols(xd, mi_row, mi_col, 0, -1, max_col_offset,
                           &processed_cols);
   }
@@ -2737,12 +2558,8 @@ static AOM_INLINE void setup_ref_mv_list(
                   single_mv, &single_mv_count, derived_mv_stack,
                   derived_mv_weight, &derived_mv_count, warp_param_stack,
                   max_num_of_warp_candidates, valid_num_warp_candidates,
-                  ref_frame, refmv_count
-#if CONFIG_DRL_PR_LIM
-                  ,
-                  &drl_pr_count, &drl_dr_pr_count, &drl_dr_single_pr_count
-#endif  // CONFIG_DRL_PR_LIM
-    );
+                  ref_frame, refmv_count, &drl_pr_count, &drl_dr_pr_count,
+                  &drl_dr_single_pr_count);
   }
   if (has_bl) {
     scan_blk_mbmi(cm, xd, mi_row, mi_col, rf, xd->height, -1, ref_mv_stack,
@@ -2750,12 +2567,8 @@ static AOM_INLINE void setup_ref_mv_list(
                   gm_mv_candidates, 1, single_mv, &single_mv_count,
                   derived_mv_stack, derived_mv_weight, &derived_mv_count,
                   warp_param_stack, max_num_of_warp_candidates,
-                  valid_num_warp_candidates, ref_frame, refmv_count
-#if CONFIG_DRL_PR_LIM
-                  ,
-                  &drl_pr_count, &drl_dr_pr_count, &drl_dr_single_pr_count
-#endif  // CONFIG_DRL_PR_LIM
-    );
+                  valid_num_warp_candidates, ref_frame, refmv_count,
+                  &drl_pr_count, &drl_dr_pr_count, &drl_dr_single_pr_count);
   }
 
   if (row_smvp_state[2].is_available) {
@@ -2765,22 +2578,13 @@ static AOM_INLINE void setup_ref_mv_list(
                   single_mv, &single_mv_count, derived_mv_stack,
                   derived_mv_weight, &derived_mv_count, warp_param_stack,
                   max_num_of_warp_candidates, valid_num_warp_candidates,
-                  ref_frame, refmv_count
-#if CONFIG_DRL_PR_LIM
-                  ,
-                  &drl_pr_count, &drl_dr_pr_count, &drl_dr_single_pr_count
-#endif  // CONFIG_DRL_PR_LIM
-    );
+                  ref_frame, refmv_count, &drl_pr_count, &drl_dr_pr_count,
+                  &drl_dr_single_pr_count);
   }
 
   if (!is_tmvp_high_priority) {
     add_tmvp_candidate(cm, xd, ref_frame, refmv_count, ref_mv_stack,
-                       ref_mv_weight, mi_row, mi_col
-#if CONFIG_DRL_PR_LIM
-                       ,
-                       &drl_pr_count
-#endif  // CONFIG_DRL_PR_LIM
-    );
+                       ref_mv_weight, mi_row, mi_col, &drl_pr_count);
   }
 
   if (row_smvp_state[3].is_available) {
@@ -2792,12 +2596,8 @@ static AOM_INLINE void setup_ref_mv_list(
                   1, single_mv, &single_mv_count, derived_mv_stack,
                   derived_mv_weight, &derived_mv_count, warp_param_stack,
                   max_num_of_warp_candidates, valid_num_warp_candidates,
-                  ref_frame, refmv_count
-#if CONFIG_DRL_PR_LIM
-                  ,
-                  &drl_pr_count, &drl_dr_pr_count, &drl_dr_single_pr_count
-#endif  // CONFIG_DRL_PR_LIM
-    );
+                  ref_frame, refmv_count, &drl_pr_count, &drl_dr_pr_count,
+                  &drl_dr_single_pr_count);
   }
 
   const uint8_t nearest_refmv_count = *refmv_count;
@@ -2813,20 +2613,16 @@ static AOM_INLINE void setup_ref_mv_list(
           abs(col_offset) > processed_cols) {
         for (int unit_idx = 0; unit_idx < SMVP_COL_SEARCH_COUNT; unit_idx++) {
           if (col_units_status[unit_idx].is_available) {
-            scan_blk_mbmi(
-                cm, xd, mi_row, mi_col, rf,
-                col_units_status[unit_idx].row_offset,
-                col_units_status[unit_idx].col_offset, ref_mv_stack,
-                ref_mv_weight, &col_match_count, &newmv_count, gm_mv_candidates,
-                1, single_mv, &single_mv_count, derived_mv_stack,
-                derived_mv_weight, &derived_mv_count, warp_param_stack,
-                max_num_of_warp_candidates, valid_num_warp_candidates,
-                ref_frame, refmv_count
-#if CONFIG_DRL_PR_LIM
-                ,
-                &drl_pr_count, &drl_dr_pr_count, &drl_dr_single_pr_count
-#endif  // CONFIG_DRL_PR_LIM
-            );
+            scan_blk_mbmi(cm, xd, mi_row, mi_col, rf,
+                          col_units_status[unit_idx].row_offset,
+                          col_units_status[unit_idx].col_offset, ref_mv_stack,
+                          ref_mv_weight, &col_match_count, &newmv_count,
+                          gm_mv_candidates, 1, single_mv, &single_mv_count,
+                          derived_mv_stack, derived_mv_weight,
+                          &derived_mv_count, warp_param_stack,
+                          max_num_of_warp_candidates, valid_num_warp_candidates,
+                          ref_frame, refmv_count, &drl_pr_count,
+                          &drl_dr_pr_count, &drl_dr_single_pr_count);
             update_processed_cols(xd, mi_row, mi_col,
                                   col_units_status[unit_idx].row_offset,
                                   col_units_status[unit_idx].col_offset,
@@ -2865,37 +2661,17 @@ static AOM_INLINE void setup_ref_mv_list(
   if (is_compound) {
     add_derived_smvp_candidates(cm, xd, rf, refmv_count, ref_mv_stack,
                                 ref_mv_weight, derived_mv_stack,
-                                derived_mv_count
-#if CONFIG_DRL_PR_LIM
-                                ,
-                                &drl_pr_count
-#endif  // CONFIG_DRL_PR_LIM
-    );
+                                derived_mv_count, &drl_pr_count);
     if (cm->seq_params.enable_refmvbank)
       add_ref_mv_bank_candidates(cm, xd, rf, ref_frame, refmv_count,
-                                 ref_mv_stack, ref_mv_weight
-#if CONFIG_DRL_PR_LIM
-                                 ,
-                                 &drl_pr_count
-#endif  // CONFIG_DRL_PR_LIM
-      );
+                                 ref_mv_stack, ref_mv_weight, &drl_pr_count);
   } else {
     if (cm->seq_params.enable_refmvbank)
       add_ref_mv_bank_candidates(cm, xd, rf, ref_frame, refmv_count,
-                                 ref_mv_stack, ref_mv_weight
-#if CONFIG_DRL_PR_LIM
-                                 ,
-                                 &drl_pr_count
-#endif  // CONFIG_DRL_PR_LIM
-      );
+                                 ref_mv_stack, ref_mv_weight, &drl_pr_count);
     add_derived_smvp_candidates(cm, xd, rf, refmv_count, ref_mv_stack,
                                 ref_mv_weight, derived_mv_stack,
-                                derived_mv_count
-#if CONFIG_DRL_PR_LIM
-                                ,
-                                &drl_pr_count
-#endif  // CONFIG_DRL_PR_LIM
-    );
+                                derived_mv_count, &drl_pr_count);
   }
 
   for (int idx = 0; idx < *refmv_count; ++idx) {
@@ -2922,14 +2698,10 @@ static AOM_INLINE void setup_ref_mv_list(
   // This also guarantees the existence of at least one vector to search.
   if (*refmv_count < MAX_REF_MV_STACK_SIZE &&
       !xd->mi[0]->use_intrabc[xd->tree_type == CHROMA_PART]) {
-#if CONFIG_DRL_PR_LIM
     if (drl_pr_count < MAX_PR_NUM) {
-#endif  // CONFIG_DRL_PR_LIM
       int idx = 0;
       for (idx = 0; idx < *refmv_count; ++idx) {
-#if CONFIG_DRL_PR_LIM
         ++(drl_pr_count);
-#endif  // CONFIG_DRL_PR_LIM
         if ((ref_mv_stack[idx].this_mv.as_int == gm_mv_candidates[0].as_int) &&
             (rf[1] == NONE_FRAME ||
              (rf[1] > NONE_FRAME && ref_mv_stack[idx].comp_mv.as_int ==
@@ -2948,7 +2720,6 @@ static AOM_INLINE void setup_ref_mv_list(
         ref_mv_weight[idx] = REF_CAT_LEVEL;
         ++(*refmv_count);
       }
-#if CONFIG_DRL_PR_LIM
     } else {
       if (*refmv_count < MAX_REF_MV_STACK_SIZE) {
         ref_mv_stack[*refmv_count].this_mv.as_int = gm_mv_candidates[0].as_int;
@@ -2960,7 +2731,6 @@ static AOM_INLINE void setup_ref_mv_list(
         ++(*refmv_count);
       }
     }
-#endif
     uint8_t added_ext_cnt = 0;
     int original_mv_count = *refmv_count;
     uint8_t max_ext_stack_size = 0;

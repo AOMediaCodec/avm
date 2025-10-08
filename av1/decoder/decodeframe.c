@@ -7286,7 +7286,6 @@ void av1_read_sequence_header_beyond_av1(
       seq_params->num_extra_dpb ? REF_FRAMES_LOG2 + 1 : REF_FRAMES_LOG2;
 #endif  // CONFIG_CWG_F168_DPB_HLS
 
-#if CONFIG_SEQ_MAX_DRL_BITS
   seq_params->def_max_drl_bits =
       aom_rb_read_primitive_quniform(rb,
                                      MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1) +
@@ -7297,7 +7296,6 @@ void av1_read_sequence_header_beyond_av1(
           rb, MAX_MAX_IBC_DRL_BITS - MIN_MAX_IBC_DRL_BITS + 1) +
       MIN_MAX_IBC_DRL_BITS;
   seq_params->allow_frame_max_bvp_drl_bits = aom_rb_read_bit(rb);
-#endif  // CONFIG_SEQ_MAX_DRL_BITS
 
   seq_params->num_same_ref_compound = aom_rb_read_literal(rb, 2);
   seq_params->enable_sdp = seq_params->monochrome ? 0 : aom_rb_read_bit(rb);
@@ -7986,7 +7984,6 @@ static void set_primary_ref_frame_and_ctx(AV1Decoder *pbi) {
 static void read_frame_max_drl_bits(AV1_COMMON *const cm,
                                     struct aom_read_bit_buffer *rb) {
   FeatureFlags *const features = &cm->features;
-#if CONFIG_SEQ_MAX_DRL_BITS
   const SequenceHeader *const seq_params = &cm->seq_params;
   features->max_drl_bits = seq_params->def_max_drl_bits;
   if (seq_params->allow_frame_max_drl_bits) {
@@ -7996,17 +7993,11 @@ static void read_frame_max_drl_bits(AV1_COMMON *const cm,
             seq_params->def_max_drl_bits - MIN_MAX_DRL_BITS) +
         MIN_MAX_DRL_BITS;
   }
-#else
-  features->max_drl_bits = aom_rb_read_primitive_quniform(
-                               rb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1) +
-                           MIN_MAX_DRL_BITS;
-#endif  // CONFIG_SEQ_MAX_DRL_BITS
 }
 
 static void read_frame_max_bvp_drl_bits(AV1_COMMON *const cm,
                                         struct aom_read_bit_buffer *rb) {
   FeatureFlags *const features = &cm->features;
-#if CONFIG_SEQ_MAX_DRL_BITS
   const SequenceHeader *const seq_params = &cm->seq_params;
   features->max_bvp_drl_bits = seq_params->def_max_bvp_drl_bits;
   if (seq_params->allow_frame_max_bvp_drl_bits) {
@@ -8016,12 +8007,6 @@ static void read_frame_max_bvp_drl_bits(AV1_COMMON *const cm,
             seq_params->def_max_bvp_drl_bits - MIN_MAX_IBC_DRL_BITS) +
         MIN_MAX_IBC_DRL_BITS;
   }
-#else
-  features->max_bvp_drl_bits =
-      aom_rb_read_primitive_quniform(
-          rb, MAX_MAX_IBC_DRL_BITS - MIN_MAX_IBC_DRL_BITS + 1) +
-      MIN_MAX_IBC_DRL_BITS;
-#endif  // CONFIG_SEQ_MAX_DRL_BITS
 }
 
 #if CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_SEF

@@ -922,14 +922,12 @@ typedef struct SequenceHeader {
                                   // on order hint value
 #endif                            // !CONFIG_F253_REMOVE_OUTPUTFLAG
 #if !CONFIG_CWG_F168_DPB_HLS
-  int max_reference_frames;  // Number of reference frames allowed
-#endif                       // !CONFIG_CWG_F168_DPB_HLS
-#if CONFIG_SEQ_MAX_DRL_BITS
+  int max_reference_frames;              // Number of reference frames allowed
+#endif                                   // !CONFIG_CWG_F168_DPB_HLS
   int def_max_drl_bits;                  // default max drl bits for MVs
   uint8_t allow_frame_max_drl_bits;      // whether to allow frame level update
   int def_max_bvp_drl_bits;              // default max ibc drl bits for MVs
   uint8_t allow_frame_max_bvp_drl_bits;  // whether to allow frame level update
-#endif                                   // CONFIG_SEQ_MAX_DRL_BITS
   int num_same_ref_compound;  // Number of the allowed same reference frames for
                               // the compound mode
 #if !CONFIG_CWG_F168_DPB_HLS

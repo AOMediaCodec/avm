@@ -495,14 +495,6 @@ static void read_drl_idx(int max_drl_bits, const int16_t mode_ctx,
   mbmi->ref_mv_idx[0] = 0;
   mbmi->ref_mv_idx[1] = 0;
 
-#if !CONFIG_DRL_SIZE_LIMIT
-  if (has_second_drl(mbmi)) {
-    if (mbmi->mode == NEAR_NEWMV)
-      max_drl_bits = AOMMIN(max_drl_bits, SEP_COMP_DRL_SIZE);
-    else
-      assert(mbmi->mode == NEAR_NEARMV);
-  }
-#endif  // !CONFIG_DRL_SIZE_LIMIT
   for (int ref = 0; ref < 1 + has_second_drl(mbmi); ref++) {
     for (int idx = 0; idx < max_drl_bits; ++idx) {
       if (ref && !mbmi->skip_mode && mbmi->ref_frame[0] == mbmi->ref_frame[1] &&

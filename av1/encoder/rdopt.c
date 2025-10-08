@@ -4065,13 +4065,8 @@ static AOM_INLINE int prune_modes_based_on_tpl_stats(
   // 'prune_index' 0, 1, 2 corresponds to ref_mv indices 0, 1 and 2.
   // prune_index 3 corresponds to GLOBALMV/GLOBAL_GLOBALMV
   static const int tpl_inter_mode_prune_mul_factor[2][MAX_REF_MV_SEARCH + 1] = {
-#if CONFIG_DRL_SIZE_LIMIT
     { 3, 3, 3, 2, 2, 2 },
     { 3, 2, 2, 2, 2, 2 },
-#else
-    { 3, 3, 3, 2, 2, 2, 2, 2 },
-    { 3, 2, 2, 2, 2, 2, 2, 2 },
-#endif  // CONFIG_DRL_SIZE_LIMIT
   };
 
   const int is_comp_pred = is_inter_ref_frame(refs[1]);
@@ -4650,15 +4645,6 @@ static int64_t handle_inter_mode(
   if (has_two_drls) {
     ref_set[1] = get_drl_refmv_count(cm->features.max_drl_bits, x,
                                      mbmi->ref_frame, this_mode, 1);
-
-#if !CONFIG_DRL_SIZE_LIMIT
-    if (mbmi->mode == NEAR_NEWMV) {
-      ref_set[0] = AOMMIN(ref_set[0], SEP_COMP_DRL_SIZE);
-      ref_set[1] = AOMMIN(ref_set[1], SEP_COMP_DRL_SIZE);
-    } else {
-      assert(mbmi->mode == NEAR_NEARMV);
-    }
-#endif  // !CONFIG_DRL_SIZE_LIMIT
   }
 
   inter_mode_info mode_info[BAWP_OPTION_CNT][NUM_MV_PRECISIONS]

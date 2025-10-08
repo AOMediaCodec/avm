@@ -426,7 +426,6 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #if !CONFIG_CWG_F168_DPB_HLS
   seq->max_reference_frames = oxcf->ref_frm_cfg.max_reference_frames;
 #endif  // !CONFIG_CWG_F168_DPB_HLS
-#if CONFIG_SEQ_MAX_DRL_BITS
   if (oxcf->tool_cfg.max_drl_refmvs == 0) {
     seq->def_max_drl_bits = DEF_MAX_DRL_REFMVS - 1;
   } else {
@@ -441,7 +440,6 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   }
   // Disable frame by frame update for now. Can be changed later.
   seq->allow_frame_max_bvp_drl_bits = 0;
-#endif  // CONFIG_SEQ_MAX_DRL_BITS
   seq->num_same_ref_compound = SAME_REF_COMPOUND_PRUNE;
 
   seq->max_frame_width = frm_dim_cfg->forced_max_frame_width
@@ -838,19 +836,15 @@ int aom_strcmp(const char *a, const char *b) {
 static void set_max_drl_bits(struct AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   // Add logic to choose this in the range [MIN_MAX_DRL_BITS, MAX_MAX_DRL_BITS]
-#if CONFIG_SEQ_MAX_DRL_BITS
   if (!cm->seq_params.allow_frame_max_drl_bits) {
     cm->features.max_drl_bits = cm->seq_params.def_max_drl_bits;
   } else {  // Can be changed with logic later
-#endif      // CONFIG_SEQ_MAX_DRL_BITS
     if (cpi->oxcf.tool_cfg.max_drl_refmvs == 0) {
       cm->features.max_drl_bits = DEF_MAX_DRL_REFMVS - 1;
     } else {
       cm->features.max_drl_bits = cpi->oxcf.tool_cfg.max_drl_refmvs - 1;
     }
-#if CONFIG_SEQ_MAX_DRL_BITS
   }
-#endif  // CONFIG_SEQ_MAX_DRL_BITS
   assert(cm->features.max_drl_bits >= MIN_MAX_DRL_BITS &&
          cm->features.max_drl_bits <= MAX_MAX_DRL_BITS);
 }
@@ -859,19 +853,15 @@ static void set_max_bvp_drl_bits(struct AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   // Add logic to choose this in the range [MIN_MAX_IBC_DRL_BITS,
   // MAX_MAX_IBC_DRL_BITS]
-#if CONFIG_SEQ_MAX_DRL_BITS
   if (!cm->seq_params.allow_frame_max_bvp_drl_bits) {
     cm->features.max_bvp_drl_bits = cm->seq_params.def_max_bvp_drl_bits;
   } else {  // Can be changed with logic later
-#endif      // CONFIG_SEQ_MAX_DRL_BITS
     if (cpi->oxcf.tool_cfg.max_drl_refbvs == 0) {
       cm->features.max_bvp_drl_bits = DEF_MAX_DRL_REFBVS - 1;
     } else {
       cm->features.max_bvp_drl_bits = cpi->oxcf.tool_cfg.max_drl_refbvs - 1;
     }
-#if CONFIG_SEQ_MAX_DRL_BITS
   }
-#endif  // CONFIG_SEQ_MAX_DRL_BITS
   assert(cm->features.max_bvp_drl_bits >= MIN_MAX_IBC_DRL_BITS &&
          cm->features.max_bvp_drl_bits <= MAX_MAX_IBC_DRL_BITS);
 }

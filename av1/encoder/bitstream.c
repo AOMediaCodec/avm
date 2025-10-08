@@ -145,14 +145,6 @@ static void write_drl_idx(int max_drl_bits, const int16_t mode_ctx,
   // 0 -> 0   10 -> 1   110 -> 2    111 -> 3
   // Also use the number of reference MVs for a frame type to reduce the
   // number of bits written if there are less than 4 valid DRL indices.
-#if !CONFIG_DRL_SIZE_LIMIT
-  if (has_second_drl(mbmi)) {
-    if (mbmi->mode == NEAR_NEWMV)
-      max_drl_bits = AOMMIN(max_drl_bits, SEP_COMP_DRL_SIZE);
-    else
-      assert(mbmi->mode == NEAR_NEARMV);
-  }
-#endif  // !CONFIG_DRL_SIZE_LIMIT
 
   if (!mbmi->skip_mode && mbmi->ref_frame[0] == mbmi->ref_frame[1] &&
       has_second_drl(mbmi) && mbmi->mode == NEAR_NEARMV)
@@ -5863,7 +5855,6 @@ static AOM_INLINE void write_sequence_header(
 static void write_frame_max_drl_bits(AV1_COMMON *const cm,
                                      struct aom_write_bit_buffer *wb) {
   FeatureFlags *const features = &cm->features;
-#if CONFIG_SEQ_MAX_DRL_BITS
   const SequenceHeader *const seq_params = &cm->seq_params;
   if (seq_params->allow_frame_max_drl_bits) {
     aom_wb_write_primitive_ref_quniform(
@@ -5873,16 +5864,11 @@ static void write_frame_max_drl_bits(AV1_COMMON *const cm,
   } else {
     assert(features->max_drl_bits == seq_params->def_max_drl_bits);
   }
-#else
-  aom_wb_write_primitive_quniform(wb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1,
-                                  features->max_drl_bits - MIN_MAX_DRL_BITS);
-#endif  // CONFIG_SEQ_MAX_DRL_BITS
 }
 
 static void write_frame_max_bvp_drl_bits(AV1_COMMON *const cm,
                                          struct aom_write_bit_buffer *wb) {
   FeatureFlags *const features = &cm->features;
-#if CONFIG_SEQ_MAX_DRL_BITS
   const SequenceHeader *const seq_params = &cm->seq_params;
   if (seq_params->allow_frame_max_bvp_drl_bits) {
     aom_wb_write_primitive_ref_quniform(
@@ -5892,11 +5878,6 @@ static void write_frame_max_bvp_drl_bits(AV1_COMMON *const cm,
   } else {
     assert(features->max_bvp_drl_bits == seq_params->def_max_bvp_drl_bits);
   }
-#else
-  aom_wb_write_primitive_quniform(
-      wb, MAX_MAX_IBC_DRL_BITS - MIN_MAX_IBC_DRL_BITS + 1,
-      features->max_bvp_drl_bits - MIN_MAX_IBC_DRL_BITS);
-#endif  // CONFIG_SEQ_MAX_DRL_BITS
 }
 
 static AOM_INLINE void write_sequence_header_beyond_av1(
@@ -5944,7 +5925,6 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
     aom_wb_write_literal(wb, seq_params->max_reference_frames - 3, 2);
 #endif  // CONFIG_CWG_F168_DPB_HLS
 
-#if CONFIG_SEQ_MAX_DRL_BITS
   aom_wb_write_primitive_quniform(
       wb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1,
       seq_params->def_max_drl_bits - MIN_MAX_DRL_BITS);
@@ -5953,7 +5933,6 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
       wb, MAX_MAX_IBC_DRL_BITS - MIN_MAX_IBC_DRL_BITS + 1,
       seq_params->def_max_bvp_drl_bits - MIN_MAX_IBC_DRL_BITS);
   aom_wb_write_bit(wb, seq_params->allow_frame_max_bvp_drl_bits);
-#endif  // CONFIG_SEQ_MAX_DRL_BITS
 
   aom_wb_write_literal(wb, seq_params->num_same_ref_compound, 2);
   if (!seq_params->monochrome) aom_wb_write_bit(wb, seq_params->enable_sdp);

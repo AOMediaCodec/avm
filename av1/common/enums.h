@@ -29,11 +29,9 @@ extern "C" {
 
 #undef MAX_SB_SIZE
 
-#if CONFIG_DRL_PR_LIM
 #define MAX_PR_NUM 16
 #define MAX_DR_STACK_SIZE 4
 #define MAX_DR_PR_NUM 2
-#endif  // DRL_PR_LIM
 
 #if CONFIG_REDUCE_SYMBOL_SIZE
 // Macros related to joint shell signaling
@@ -834,10 +832,6 @@ enum {
 #define CFL_CONTEXT_V(js) \
   (CFL_SIGN_V(js) * CFL_SIGNS + CFL_SIGN_U(js) - CFL_SIGNS)
 
-#if !CONFIG_DRL_SIZE_LIMIT
-#define SEP_COMP_DRL_SIZE 3
-#endif  // !CONFIG_DRL_SIZE_LIMIT
-
 enum {
   PALETTE_MAP,
   COLOR_MAP_TYPES,
@@ -1097,11 +1091,7 @@ enum {
 #define DEFAULT_DELTA_LF_RES 2
 
 #define MAX_MV_REF_CANDIDATES 2
-#if CONFIG_DRL_SIZE_LIMIT
 #define MAX_REF_MV_STACK_SIZE 6
-#else
-#define MAX_REF_MV_STACK_SIZE 8
-#endif  // CONFIG_DRL_SIZE_LIMIT
 #define USABLE_REF_MV_STACK_SIZE (MAX_REF_MV_STACK_SIZE)
 
 #define REF_CAT_LEVEL 0

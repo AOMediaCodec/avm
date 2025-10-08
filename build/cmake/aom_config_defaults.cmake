@@ -184,8 +184,6 @@ set_aom_config_var(CONFIG_CWG_E242_PARSING_INDEP 1
 
 set_aom_config_var(CONFIG_CWG_E242_BITDEPTH 1 "Signal Bitdepth using a LUT.")
 
-set_aom_config_var(CONFIG_SEQ_MAX_DRL_BITS 1
-                   "AV2 sequence level max_drl_bits information")
 set_aom_config_var(CONFIG_MINIMUM_LR_UNIT_SIZE_64x64 0
                    "Support minimum LR Unit size ")
 set_aom_config_var(CONFIG_LR_FRAMEFILTERS_IN_HEADER 0
@@ -333,8 +331,6 @@ set_aom_config_var(CONFIG_REDUCE_SYMBOL_SIZE 1
 set_aom_config_var(CONFIG_CCSO_CLEANUP 1
                    "Clean up CCSO quant_sz and signaling.")
 
-set_aom_config_var(CONFIG_DRL_SIZE_LIMIT 1 "F206 limit drl size to six.")
-set_aom_config_var(CONFIG_DRL_PR_LIM 1 "Limit the number of DRL pruning.")
 set_aom_config_var(CONFIG_COEFF_PARSING 1
                    "Parsing dependency removal for coefficient related syntax.")
 
