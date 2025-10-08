@@ -460,6 +460,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
     seq->seq_tile_info_present_flag = 0;
   }
 #endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
+
   seq->num_bits_width =
       (seq->max_frame_width > 1) ? get_msb(seq->max_frame_width - 1) + 1 : 1;
   seq->num_bits_height =
@@ -791,6 +792,9 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
 #if CONFIG_MULTI_FRAME_HEADER
   cm->cur_mfh_id = 0;
   cpi->cur_mfh_params.mfh_loop_filter_update_flag = 0;
+#if CONFIG_MFH_SIGNAL_TILE_INFO
+  cpi->cur_mfh_params.mfh_tile_info_present_flag = 0;
+#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 #endif  // CONFIG_MULTI_FRAME_HEADER
 
   // Single thread case: use counts in common.

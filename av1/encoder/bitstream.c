@@ -5349,6 +5349,14 @@ void write_tile_syntax_info(const TileInfoSyntax *tile_params,
 }
 #endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 
+#if CONFIG_MFH_SIGNAL_TILE_INFO && CONFIG_MULTI_FRAME_HEADER
+// Writes tile information to multi-frame header
+static AOM_INLINE void write_tile_mfh(const MultiFrameHeader *const mfh_param,
+                                      struct aom_write_bit_buffer *wb) {
+  write_tile_syntax_info(&mfh_param->mfh_tile_params, wb);
+}
+#endif  // CONFIG_MFH_SIGNAL_TILE_INFO && CONFIG_MULTI_FRAME_HEADER
+
 static AOM_INLINE void write_film_grain_params(
     const AV1_COMP *const cpi, struct aom_write_bit_buffer *wb) {
   const AV1_COMMON *const cm = &cpi->common;
@@ -6100,6 +6108,23 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
   }
 }
 
+#if CONFIG_MFH_SIGNAL_TILE_INFO
+static AOM_INLINE void write_mfh_sb_size(
+    const MultiFrameHeader *const mfh_params, struct aom_write_bit_buffer *wb) {
+  const bool is_seq_256 = mfh_params->mfh_seq_mib_sb_size_log2 == 6;
+  aom_wb_write_bit(wb, is_seq_256);
+  if (is_seq_256) {
+    // If seq level sb_size is 256, signal another bit to say if the sb_size
+    // should be scaled to 128 (i.e. whether this mfh header is only for
+    // key and intra-only frames)
+    const bool scale_sb = mfh_params->mfh_sb_size == BLOCK_128X128;
+    aom_wb_write_bit(wb, scale_sb);
+    return;
+  }
+  aom_wb_write_bit(wb, mfh_params->mfh_seq_mib_sb_size_log2 == 5);
+}
+#endif  // CONFIG_MFH_SIGNAL_TILE_INFO
+
 #if CONFIG_MULTI_FRAME_HEADER
 static AOM_INLINE void write_multi_frame_header(
     AV1_COMP *cpi, const MultiFrameHeader *const mfh_param,
@@ -6163,6 +6188,24 @@ static AOM_INLINE void write_multi_frame_header(
       aom_wb_write_bit(wb, mfh_param->mfh_loop_filter_level[i]);
     }
   }
+
+#if CONFIG_MFH_SIGNAL_TILE_INFO
+  aom_wb_write_bit(wb, mfh_param->mfh_tile_info_present_flag);
+  if (mfh_param->mfh_tile_info_present_flag) {
+    if (!mfh_param->mfh_frame_size_present_flag) {
+      const int coded_width = cm->width - 1;
+      const int coded_height = cm->height - 1;
+      int num_bits_width = cm->seq_params.num_bits_width;
+      int num_bits_height = cm->seq_params.num_bits_height;
+      aom_wb_write_literal(wb, num_bits_width, 4);
+      aom_wb_write_literal(wb, num_bits_height, 4);
+      aom_wb_write_literal(wb, coded_width, num_bits_width);
+      aom_wb_write_literal(wb, coded_height, num_bits_height);
+    }
+    write_mfh_sb_size(mfh_param, wb);
+    write_tile_mfh(mfh_param, wb);
+  }
+#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 }
 #endif  // CONFIG_MULTI_FRAME_HEADER
 
@@ -8814,6 +8857,10 @@ static size_t av1_write_frame_hash_metadata(
 static void set_multi_frame_header_with_keyframe(AV1_COMP *cpi,
                                                  MultiFrameHeader *mfh_params) {
   AV1_COMMON *cm = &cpi->common;
+#if CONFIG_MFH_SIGNAL_TILE_INFO
+  SequenceHeader *const seq_params = &cpi->common.seq_params;
+  TileInfoSyntax *tile_params = &mfh_params->mfh_tile_params;
+#endif  // CONFIG_MFH_SIGNAL_TILE_INFO
 
   mfh_params->mfh_frame_size_present_flag =
       cm->width != cm->seq_params.max_frame_width ||
@@ -8836,6 +8883,26 @@ static void set_multi_frame_header_with_keyframe(AV1_COMP *cpi,
     mfh_params->mfh_render_height = cm->height;
   }
 #endif  // !CONFIG_CWG_F248_RENDER_SIZE
+
+#if CONFIG_MFH_SIGNAL_TILE_INFO
+  // Ideally the mfh_frame_width and mfh_frame_height would be set separately
+  mfh_params->mfh_frame_height = seq_params->max_frame_height;
+  mfh_params->mfh_frame_width = seq_params->max_frame_width;
+  mfh_params->mfh_sb_size = seq_params->sb_size;
+  assert(seq_params->sb_size == BLOCK_256X256 ||
+         seq_params->sb_size == BLOCK_128X128 ||
+         seq_params->sb_size == BLOCK_64X64);
+  mfh_params->mfh_seq_mib_sb_size_log2 = seq_params->mib_size_log2;
+  // Currently copying the SH params. Encoder should ideally set different set
+  // of params in MFH to execise this functionality
+  if (seq_params->seq_tile_info_present_flag) {
+    memcpy(tile_params, &seq_params->tile_params,
+           sizeof(struct TileInfoSyntax));
+    mfh_params->mfh_tile_info_present_flag = 1;
+  } else {
+    mfh_params->mfh_tile_info_present_flag = 0;
+  }
+#endif  // CONFIG_MFH_SIGNAL_TILE_INFO
 }
 #endif  // CONFIG_CWG_E242_PARSING_INDEP
 

@@ -7010,6 +7010,18 @@ void read_sequence_tile_info(struct SequenceHeader *seq_params,
 }
 #endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 
+#if CONFIG_MFH_SIGNAL_TILE_INFO && CONFIG_MULTI_FRAME_HEADER
+// Reads tile information from multi-frame header
+static void read_multi_frame_header_tile_info(MultiFrameHeader *mfh_param,
+                                              struct aom_read_bit_buffer *rb) {
+  av1_get_seqmfh_tile_limits(
+      &mfh_param->mfh_tile_params, mfh_param->mfh_frame_height,
+      mfh_param->mfh_frame_width, mi_size_wide_log2[mfh_param->mfh_sb_size],
+      mfh_param->mfh_seq_mib_sb_size_log2);
+  read_tile_syntax_info(&mfh_param->mfh_tile_params, rb);
+}
+#endif  // CONFIG_MFH_SIGNAL_TILE_INFO && CONFIG_MULTI_FRAME_HEADER
+
 void av1_read_sequence_header(
 #if !CWG_F215_CONFIG_REMOVE_FRAME_ID
     AV1_COMMON *cm,
@@ -7506,6 +7518,30 @@ void av1_read_sequence_header_beyond_av1(
   }
 }
 
+#if CONFIG_MFH_SIGNAL_TILE_INFO
+static AOM_INLINE void read_mfh_sb_size(MultiFrameHeader *mfh_params,
+                                        struct aom_read_bit_buffer *rb) {
+  static const BLOCK_SIZE sb_sizes[] = { BLOCK_256X256, BLOCK_128X128,
+                                         BLOCK_64X64 };
+  int index = 0;
+  bool scale_sb = 0;
+  bool bit = aom_rb_read_bit(rb);
+  if (bit) {
+    scale_sb = aom_rb_read_bit(rb);
+  } else {
+    index++;
+    bit = aom_rb_read_bit(rb);
+    if (!bit) {
+      index++;
+    }
+  }
+  BLOCK_SIZE sb_size = sb_sizes[index];
+  mfh_params->mfh_seq_mib_sb_size_log2 = mi_size_wide_log2[sb_size];
+  assert(IMPLIES(scale_sb, sb_size == BLOCK_256X256));
+  mfh_params->mfh_sb_size = sb_sizes[index + scale_sb];
+}
+#endif  // CONFIG_MFH_SIGNAL_TILE_INFO
+
 #if CONFIG_MULTI_FRAME_HEADER
 void av1_read_multi_frame_header(AV1_COMMON *cm,
                                  struct aom_read_bit_buffer *rb) {
@@ -7537,8 +7573,8 @@ void av1_read_multi_frame_header(AV1_COMMON *cm,
 #else
   bool frame_size_update_flag = aom_rb_read_bit(rb);
 
-  int width = cm->seq_params.max_frame_width;
-  int height = cm->seq_params.max_frame_height;
+  int width = cm->seq_params.num_bits_width;
+  int height = cm->seq_params.num_bits_height;
   if (frame_size_update_flag) {
     int num_bits_width = cm->seq_params.num_bits_width;
     int num_bits_height = cm->seq_params.num_bits_height;
@@ -7583,6 +7619,22 @@ void av1_read_multi_frame_header(AV1_COMMON *cm,
       mfh_param->mfh_loop_filter_level[i] = 0;
     }
   }
+
+#if CONFIG_MFH_SIGNAL_TILE_INFO
+  mfh_param->mfh_tile_info_present_flag = aom_rb_read_bit(rb);
+  if (mfh_param->mfh_tile_info_present_flag) {
+    if (!mfh_param->mfh_frame_size_present_flag) {
+      int num_bits_width = aom_rb_read_literal(rb, 4);
+      int num_bits_height = aom_rb_read_literal(rb, 4);
+      av1_read_frame_size(rb, num_bits_width, num_bits_height,
+                          &mfh_param->mfh_frame_width,
+                          &mfh_param->mfh_frame_height);
+    }
+    read_mfh_sb_size(mfh_param, rb);
+    read_multi_frame_header_tile_info(mfh_param, rb);
+  }
+#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
+
   cm->mfh_valid[cur_mfh_id] = true;
 }
 #endif  // CONFIG_MULTI_FRAME_HEADER
