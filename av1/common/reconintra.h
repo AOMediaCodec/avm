@@ -215,7 +215,7 @@ static INLINE void highbd_dc_predictor_subsampled(
     int16_t shift = 0;
     uint16_t scale = resolve_divisor_32(count, &shift);
     uint16_t rounding = 1 << shift >> 1;
-    sum = (sum * scale + rounding) >> shift;
+    sum = clip_pixel_highbd((sum * scale + rounding) >> shift, bd);
   } else {
     sum = 1 << (bd - 1);
   }

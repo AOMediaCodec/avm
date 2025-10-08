@@ -709,7 +709,9 @@ static INLINE void highbd_dc_predictor_rect(uint16_t *dst, ptrdiff_t stride,
 #endif  // !CONFIG_DC_DIV_UNIFY
 ) {
   int sum = 0;
+#if !CONFIG_DC_DIV_UNIFY
   (void)bd;
+#endif  // !CONFIG_DC_DIV_UNIFY
 
   for (int i = 0; i < bw; i++) {
     sum += above[i];
@@ -722,7 +724,8 @@ static INLINE void highbd_dc_predictor_rect(uint16_t *dst, ptrdiff_t stride,
   int16_t shift = 0;
   uint16_t scale = resolve_divisor_32(bw + bh, &shift);
   uint16_t rounding = 1 << shift >> 1;
-  const int expected_dc = (sum * scale + rounding) >> shift;
+  const int expected_dc =
+      clip_pixel_highbd((sum * scale + rounding) >> shift, bd);
 #else
   const int expected_dc = divide_using_multiply_shift(
       sum + ((bw + bh) >> 1), shift1, multiplier, HIGHBD_DC_SHIFT2);

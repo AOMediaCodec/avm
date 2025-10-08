@@ -366,9 +366,13 @@ void cfl_calc_luma_dc(MACROBLOCKD *const xd, int row, int col,
   if (count > 0) {
 #if CONFIG_DC_DIV_UNIFY
     int16_t shift = 0;
-    uint16_t scale = resolve_divisor_32(count, &shift);
-    uint16_t rounding = 1 << shift >> 1;
-    cfl->avg_l = (sum_x * scale + rounding) >> shift;
+    const uint16_t scale = resolve_divisor_32(count, &shift);
+    const uint16_t rounding = 1 << shift >> 1;
+    // The clipping range is set to bd + 3, as the downsampling filter applied
+    // to luma samples uses coefficients with a total sum of 8
+    const int16_t val = (sum_x * scale + rounding) >> shift;
+    const int16_t max_v = (1 << (xd->bd + 3)) - 1;
+    cfl->avg_l = val > max_v ? max_v : val;
 #else
     cfl->avg_l = (sum_x + count / 2) / count;
 #endif  // CONFIG_DC_DIV_UNIFY
