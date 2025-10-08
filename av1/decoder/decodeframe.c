@@ -8288,9 +8288,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           seq_params->max_frame_width;
       cm->mfh_params[cm->cur_mfh_id].mfh_frame_height =
           seq_params->max_frame_height;
-      cm->mfh_params[cm->cur_mfh_id].mfh_frame_width =
+      cm->mfh_params[cm->cur_mfh_id].mfh_render_width =
           seq_params->max_frame_width;
-      cm->mfh_params[cm->cur_mfh_id].mfh_frame_height =
+      cm->mfh_params[cm->cur_mfh_id].mfh_render_height =
           seq_params->max_frame_height;
       cm->mfh_params[cm->cur_mfh_id].mfh_loop_filter_update_flag = 0;
       for (int i = 0; i < 4; i++) {
