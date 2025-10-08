@@ -78,9 +78,9 @@ static uint32_t write_ats_multistream_atlas_info(
 #if CONFIG_BACKGRND_COLOR_ATLAS
   aom_wb_write_bit(
       wb,
-      ats_basic_info->ats_default_background_present_flag[obu_xLayer_id][xAId]);
-  if (ats_basic_info
-          ->ats_default_background_present_flag[obu_xLayer_id][xAId] == 0) {
+      ats_basic_info->ats_background_info_present_flag[obu_xLayer_id][xAId]);
+  if (ats_basic_info->ats_background_info_present_flag[obu_xLayer_id][xAId] ==
+      1) {
     aom_wb_write_literal(
         wb, ats_basic_info->ats_background_red_value[obu_xLayer_id][xAId], 8);
     aom_wb_write_literal(
