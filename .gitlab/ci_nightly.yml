@@ -345,12 +345,25 @@ Linux Sanitizers (x86_64-clang) (Memory):
         -DENABLE_CCACHE=1
         -DENABLE_EXAMPLES=0
     - cmake --build "${AVM_MSAN_BUILD_DIR}" --target test_libaom
+    # Special handling for a crash seen on `clang`.
+    - |
+      exit_code=$?
+      COMPILER_CRASH_EXIT_CODE=135
+      if [ $exit_code -eq $COMPILER_CRASH_EXIT_CODE ]; then
+        echo "Compiler crashed with exit code ${exit_code}"
+        echo "Saving diagnostic files and asking gitlab to retry..."
+        mkdir clang_diagnostic_files
+        cp /tmp/av1_config* clang_diagnostic_files/
+        exit ${exit_code}
+      fi
   needs: []
   artifacts:
     expire_in: 1 day
     paths:
       - aom_build/*/test_libaom
       - llvm-project/msan_out/lib/
+      # Generated when clang crashes.
+      - clang_diagnostic_files/*
 
 Linux Sanitizer (memory) Test Nightly:
   stage: test
