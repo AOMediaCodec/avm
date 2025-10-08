@@ -181,10 +181,10 @@ static uint32_t read_ats_multistream_atlas_info(
       ats_basic_info->ats_atlas_height[obu_xLayer_id][xAId];
 
 #if CONFIG_BACKGRND_COLOR_ATLAS
-  ats_basic_info->ats_default_background_present_flag[obu_xLayer_id][xAId] =
+  ats_basic_info->ats_background_info_present_flag[obu_xLayer_id][xAId] =
       aom_rb_read_bit(rb);
-  if (ats_basic_info
-          ->ats_default_background_present_flag[obu_xLayer_id][xAId] == 0) {
+  if (ats_basic_info->ats_background_info_present_flag[obu_xLayer_id][xAId] ==
+      1) {
     ats_basic_info->ats_background_red_value[obu_xLayer_id][xAId] =
         aom_rb_read_literal(rb, 8);
     ats_basic_info->ats_background_green_value[obu_xLayer_id][xAId] =
