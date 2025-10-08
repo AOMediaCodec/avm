@@ -8976,11 +8976,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                          0,
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
                          cm->ref_frame_map_pairs);
-      av1_get_ref_frames(cm, current_frame->display_order_hint, 1,
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-                         0,
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-                         cm->ref_frame_map_pairs);
 #else
         av1_get_ref_frames(cm, current_frame->display_order_hint,
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
