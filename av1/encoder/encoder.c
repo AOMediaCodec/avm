@@ -1305,10 +1305,6 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
 
   cpi->frames_left = cpi->oxcf.input_cfg.limit;
 
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-  cpi->num_coded_longterm_ref = 0;
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-
   av1_rc_init(&cpi->oxcf, 0, &cpi->rc);
 
   // For two pass and lag_in_frames > 33 in LAP.
@@ -4659,9 +4655,7 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
       current_frame->key_frame_number + current_frame->display_order_hint;
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   if (current_frame->frame_type == KEY_FRAME) {
-    current_frame->long_term_id =
-        cpi->num_coded_longterm_ref % MAX_NUM_LONG_TERM_FRAMES;
-    cpi->num_coded_longterm_ref++;
+    current_frame->long_term_id = 0;
   } else {
     current_frame->long_term_id = -1;
   }

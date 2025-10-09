@@ -3121,10 +3121,6 @@ typedef struct AV1_COMP {
    * determine the mode of the switch frame
    */
   int switch_frame_mode;
-  /*!
-   * count the number of long-term references
-   */
-  int num_coded_longterm_ref;
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 } AV1_COMP;
 
