@@ -22,6 +22,7 @@ extern "C" {
 #endif
 
 #include "aom/aom_integer.h"
+#include "config/aom_config.h"
 
 /*!\brief Current ABI version number
  *

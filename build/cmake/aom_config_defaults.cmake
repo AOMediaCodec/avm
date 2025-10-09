@@ -358,10 +358,9 @@ set_aom_config_var(CONFIG_ADAPTIVE_WEDGE_BOUNDARY 1
 set_aom_config_var(CONFIG_DF_DQP 0 "Adding DQP to the deblocking filter")
 
 set_aom_config_var(CONFIG_SHORT_METADATA 1
-                   "Enable short metadata OBU header support.")
+                   "Enable short metadata OBU header support")
 
 set_aom_config_var(CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS 1
-
                    "Disable loop filters for lossless segments")
 set_aom_config_var(
   CONFIG_MIXED_LOSSLESS_ENCODE 0
