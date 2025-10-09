@@ -682,7 +682,7 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
 
 #if CONFIG_MULTILAYER_HLS
   //  Initialize LCRs and load an "active" set into cm
-  cpi->write_lcr = 0;
+  cpi->write_lcr = 1;
   for (int i = 0; i < MAX_NUM_LCR; i++)
     memset(&cpi->lcr_list[i], 0, sizeof(struct LayerConfigurationRecord));
   cm->lcr = &cpi->lcr_list[0];
