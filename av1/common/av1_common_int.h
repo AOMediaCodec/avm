@@ -3990,8 +3990,8 @@ static AOM_INLINE int is_sdp_enabled_in_keyframe(const AV1_COMMON *const cm) {
 }
 
 // The blocksize above which chroma and luma partitions will stayed coupled.
-// Currently this is set to BLOCK_128X128 (e.g. chroma always follows luma at
-// BLOCK_128X128, but can be de-coupled later).
+// Currently this is set to BLOCK_64X64 (e.g. chroma always follows luma at
+// BLOCK_64X64, but can be de-coupled later).
 static AOM_INLINE bool is_bsize_above_decoupled_thresh(BLOCK_SIZE bsize) {
   return bsize >= BLOCK_64X64 && bsize <= BLOCK_LARGEST;
 }
