@@ -69,7 +69,7 @@ uint32_t aom_rb_read_uvlc(struct aom_read_bit_buffer *rb) {
   if (leading_zeros == 32) {
     if (rb->error_handler) {
       rb->error_handler(rb->error_handler_data, AOM_CODEC_CORRUPT_FRAME,
-                        "uvlc() or svlc() input too long");
+                        "VLC input too long (more than 31 leading zeros)");
     }
     return UINT32_MAX;  // Error.
   }
