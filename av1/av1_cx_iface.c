@@ -2542,12 +2542,14 @@ static aom_codec_err_t ctrl_set_enable_angle_delta(aom_codec_alg_priv_t *ctx,
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
+#if !CONFIG_F322_OBUER_ERM
 static aom_codec_err_t ctrl_set_error_resilient_mode(aom_codec_alg_priv_t *ctx,
                                                      va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
   extra_cfg.error_resilient_mode = CAST(AV1E_SET_ERROR_RESILIENT_MODE, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
+#endif  // !CONFIG_F322_OBUER_ERM
 
 static aom_codec_err_t ctrl_set_enable_cdf_averaging(aom_codec_alg_priv_t *ctx,
                                                      va_list args) {
@@ -4532,7 +4534,9 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_MTU, ctrl_set_mtu },
   { AV1E_SET_TIMING_INFO_TYPE, ctrl_set_timing_info_type },
   { AV1E_SET_FRAME_PARALLEL_DECODING, ctrl_set_frame_parallel_decoding_mode },
+#if !CONFIG_F322_OBUER_ERM
   { AV1E_SET_ERROR_RESILIENT_MODE, ctrl_set_error_resilient_mode },
+#endif  // !CONFIG_F322_OBUER_ERM
   { AV1E_SET_ENABLE_CDF_AVERAGING, ctrl_set_enable_cdf_averaging },
   { AV1E_SET_S_FRAME_MODE, ctrl_set_s_frame_mode },
   { AV1E_SET_ENABLE_RECT_PARTITIONS, ctrl_set_enable_rect_partitions },

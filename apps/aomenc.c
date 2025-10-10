@@ -183,7 +183,9 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
                                         AV1E_SET_MODE_COST_UPD_FREQ,
                                         AV1E_SET_MV_COST_UPD_FREQ,
                                         AV1E_SET_FRAME_PARALLEL_DECODING,
+#if !CONFIG_F322_OBUER_ERM
                                         AV1E_SET_ERROR_RESILIENT_MODE,
+#endif  // !CONFIG_F322_OBUER_ERM
                                         AV1E_SET_AQ_MODE,
                                         AV1E_SET_DELTAQ_MODE,
                                         AV1E_SET_DELTALF_MODE,

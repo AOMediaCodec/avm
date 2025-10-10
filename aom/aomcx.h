@@ -379,7 +379,7 @@ enum aome_enc_control_id {
    * - 1 = enable
    */
   AV1E_SET_FRAME_PARALLEL_DECODING = 37,
-
+#if !CONFIG_F322_OBUER_ERM
   /*!\brief Codec control function to enable error_resilient_mode, int parameter
    *
    * AV1 has a bitstream feature to guarantee parseability of a frame
@@ -390,6 +390,7 @@ enum aome_enc_control_id {
    * - 1 = enable
    */
   AV1E_SET_ERROR_RESILIENT_MODE = 38,
+#endif // !CONFIG_F322_OBUER_ERM
 
   /*!\brief Codec control function to enable s_frame_mode, int parameter
    *
@@ -1623,8 +1624,10 @@ AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_ANGLE_DELTA, int)
 AOM_CTRL_USE_TYPE(AV1E_SET_FRAME_PARALLEL_DECODING, unsigned int)
 #define AOM_CTRL_AV1E_SET_FRAME_PARALLEL_DECODING
 
+#if !CONFIG_F322_OBUER_ERM
 AOM_CTRL_USE_TYPE(AV1E_SET_ERROR_RESILIENT_MODE, int)
 #define AOM_CTRL_AV1E_SET_ERROR_RESILIENT_MODE
+#endif // !CONFIG_F322_OBUER_ERM
 
 AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_CDF_AVERAGING, int)
 #define AOM_CTRL_AV1E_SET_ENABLE_CDF_AVERAGING
