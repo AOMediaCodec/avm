@@ -528,7 +528,7 @@ static int allow_show_existing(const AV1_COMP *const cpi,
   const int is_error_resilient =
 #if !CONFIG_F322_OBUER_ERM
       cpi->oxcf.tool_cfg.error_resilient_mode ||
-#endif // !CONFIG_F322_OBUER_ERM
+#endif  // !CONFIG_F322_OBUER_ERM
       (lookahead_src->flags & AOM_EFLAG_ERROR_RESILIENT);
   const int is_s_frame = cpi->oxcf.kf_cfg.enable_sframe ||
                          (lookahead_src->flags & AOM_EFLAG_SET_S_FRAME);

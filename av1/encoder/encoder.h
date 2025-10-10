@@ -888,7 +888,7 @@ typedef struct {
   // Indicates if the error resiliency features should be enabled.
 #if !CONFIG_F322_OBUER_ERM
   bool error_resilient_mode;
-#endif // !CONFIG_F322_OBUER_ERM
+#endif  // !CONFIG_F322_OBUER_ERM
   // Indicates if frame parallel decoding feature should be enabled.
   bool frame_parallel_decoding_mode;
   // Indicates if the input should be encoded as monochrome.

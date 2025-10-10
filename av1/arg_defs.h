@@ -244,7 +244,7 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t frame_parallel_decoding;
 #if !CONFIG_F322_OBUER_ERM
   arg_def_t error_resilient_mode;
-#endif // !CONFIG_F322_OBUER_ERM
+#endif  // !CONFIG_F322_OBUER_ERM
   arg_def_t aq_mode;
   arg_def_t deltaq_mode;
   arg_def_t deltalf_mode;
