@@ -330,6 +330,7 @@ class TileGroupTestLarge
                                   ::libaom_test::Encoder *encoder) {
     if (video->frame() == 0) {
       encoder->Control(AOME_SET_CPUUSED, 5);
+      encoder->Control(AOME_SET_QP, 210);
       encoder->Control(AV1E_SET_NUM_TG, tile_group_config_params_.num_tg);
       encoder->Control(AV1E_SET_TILE_COLUMNS,
                        tile_group_config_params_.num_tile_cols);
@@ -360,7 +361,6 @@ class TileGroupTestLarge
 
   int show_existing_frame_;
   bool tile_group_config_violated_;
-  aom_rc_mode end_usage_check_;
   ::libaom_test::TestMode encoding_mode_;
   const TileGroupConfigParams tile_group_config_params_;
 };
