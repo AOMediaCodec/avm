@@ -4261,7 +4261,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     cm->features.allow_local_intrabc = 0;
   }
   const bool compute_ds_filter =
-      cpi->common.current_frame.frame_type == KEY_FRAME && !cpi->no_show_fwd_kf;
+      av1_is_regular_keyframe(cpi, cm->current_frame.frame_type);
   if (compute_ds_filter) {
     av1_set_downsample_filter_options(cpi);
   }
@@ -4606,7 +4606,7 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
   memcpy(cm->remapped_ref_idx, frame_params->remapped_ref_idx,
          REF_FRAMES * sizeof(*cm->remapped_ref_idx));
 
-  if (current_frame->frame_type == KEY_FRAME && !cpi->no_show_fwd_kf) {
+  if (av1_is_regular_keyframe(cpi, current_frame->frame_type)) {
     current_frame->key_frame_number += current_frame->frame_number;
     current_frame->frame_number = 0;
   }
@@ -5053,7 +5053,7 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
 
   if (cpi->level_params.keep_level_stats && !is_stat_generation_stage(cpi)) {
     // Initialize level info. at the beginning of each sequence.
-    if (cm->current_frame.frame_type == KEY_FRAME && !cpi->no_show_fwd_kf) {
+    if (av1_is_regular_keyframe(cpi, cm->current_frame.frame_type)) {
       av1_init_level_info(cpi);
     }
     av1_update_level_info(cpi, *size, *time_stamp, *time_end);

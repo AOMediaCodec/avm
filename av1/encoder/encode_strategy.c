@@ -756,7 +756,7 @@ int av1_get_refresh_frame_flags(
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 
   // Switch frames and shown key-frames overwrite all reference slots
-  if ((frame_params->frame_type == KEY_FRAME && !cpi->no_show_fwd_kf) ||
+  if (av1_is_regular_keyframe(cpi, frame_params->frame_type) ||
       frame_params->frame_type == S_FRAME) {
     return (1 << cpi->common.seq_params.ref_frames) - 1;
   }
