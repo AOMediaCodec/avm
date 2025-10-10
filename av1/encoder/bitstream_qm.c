@@ -560,46 +560,6 @@ bool check_add_cmqm_in_qmobulist(AV1_COMP *cpi, bool write_in_prevobu) {
           memcpy(qm_inobu->quantizer_matrix[2][plane], cm_qm_values4x8,
                  sizeof(qm_val_t) * 32);
         }
-#if 0
-        if(1){
-          printf("qm_inobu->quantizer_matrix:\n");
-          int  coef_size= 64;
-          for(int txidx=0; txidx<3; txidx++){
-            if(txidx!=0) coef_size= 32;
-            for(int ccc=0; ccc<3; ccc++){
-              printf("tx[%d][%d]:", txidx, ccc);
-              for(int xxx=0; xxx<coef_size;xxx++)
-                printf("%d, ", qm_inobu->quantizer_matrix[txidx][ccc][xxx]);
-              printf("\n");
-            }
-          }
-          int test_qm_idx = quant_params->qm_y[pic_qm_idx];
-          printf("quant_params->qm[%d]:\n", test_qm_idx);
-          coef_size= 64;
-          for(int ccc=0; ccc<3; ccc++){
-            printf("tx[%d][%d]:", 0, ccc);
-            qm_val_t * cm_qm_values8x8 = &quant_params->iwt_matrix_ref[test_qm_idx][ccc][START_POS_8x8];
-            for(int xxx=0; xxx<coef_size;xxx++)
-              printf("%d, ", cm_qm_values8x8[xxx]);
-            printf("\n");
-          }
-          coef_size= 32;
-          for(int ccc=0; ccc<3; ccc++){
-            printf("tx[%d][%d]:", 1, ccc);
-            qm_val_t * cm_qm_values8x4 = &quant_params->iwt_matrix_ref[test_qm_idx][ccc][START_POS_8x4];
-            for(int xxx=0; xxx<coef_size;xxx++)
-              printf("%d, ", cm_qm_values8x4[xxx]);
-            printf("\n");
-          }
-          for(int ccc=0; ccc<3; ccc++){
-            printf("tx[%d][%d]", 2, ccc);
-            qm_val_t * cm_qm_values4x8 = &quant_params->iwt_matrix_ref[test_qm_idx][ccc][START_POS_4x8];
-            for(int xxx=0; xxx<coef_size;xxx++)
-              printf("%d, ", cm_qm_values4x8[xxx]);
-            printf("\n");
-          }
-        }
-#endif
       }  // add_cmqm
       if (num_planes > 1 && !qm_uv_same_as_y) {
         if (add_cmqm[pic_qm_idx][1]) {
@@ -674,21 +634,6 @@ void check_qm_is_predefined(AV1_COMP *cpi, int qmobu_pos) {
     if (qm_bit_map & (1 << qm_id)) {
       struct quantization_matrix_set *qm_inobu =
           &cpi->qmobu_list[qmobu_pos].qm_list[qm_id];
-#if 0
-        if(1){
-          printf("qm_inobu->quantizer_matrix:\n");
-          int  coef_size= 64;
-          for(int txidx=0; txidx<3; txidx++){
-            if(txidx!=0) coef_size= 32;
-            for(int ccc=0; ccc<3; ccc++){
-              printf("tx[%d][%d]: ", txidx, ccc);
-              for(int xxx=0; xxx<coef_size;xxx++)
-                printf("%d, ", qm_inobu->quantizer_matrix[txidx][ccc][xxx]);
-              printf("\n");
-            }
-          }
-        }
-#endif
       qm_inobu->qm_default_index = -1;
       for (int predefined_id = 0; predefined_id < NUM_CUSTOM_QMS;
            predefined_id++) {
@@ -712,33 +657,6 @@ void check_qm_is_predefined(AV1_COMP *cpi, int qmobu_pos) {
                          sizeof(qm_val_t) * 32) == 0;
           if (!same) break;
         }
-#if 0
-        if(predefined_id==5){
-          printf("predefined_8x8_iwt_base_matrix[%d]:\n", predefined_id);
-          int  coef_size= 64;
-          for(int ccc=0; ccc<3; ccc++){
-            printf("tx[%d][%d]: ", 0, ccc);
-            for(int xxx=0; xxx<coef_size;xxx++)
-              printf("%d, ", predefined_8x8_iwt_base_matrix[predefined_id][ccc==0?0:1][xxx]);
-            printf("\n");
-          }
-          coef_size= 32;
-          printf("predefined_8x4_iwt_base_matrix[%d]:\n", predefined_id);
-          for(int ccc=0; ccc<3; ccc++){
-            printf("tx[%d][%d]: ", 1, ccc);
-            for(int xxx=0; xxx<coef_size;xxx++)
-              printf("%d, ", predefined_8x4_iwt_base_matrix[predefined_id][ccc==0?0:1][xxx]);
-            printf("\n");
-          }
-          printf("predefined_4x8_iwt_base_matrix[%d]:\n", predefined_id);
-          for(int ccc=0; ccc<3; ccc++){
-            printf("tx[%d][%d]: ", 2, ccc);
-            for(int xxx=0; xxx<coef_size;xxx++)
-              printf("%d, ", predefined_4x8_iwt_base_matrix[predefined_id][ccc==0?0:1][xxx]);
-            printf("\n");
-          }
-        }
-#endif
         if (same) {
           qm_inobu->qm_default_index = predefined_id;
           break;

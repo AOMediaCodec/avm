@@ -3968,14 +3968,10 @@ static AOM_INLINE void setup_quantization(CommonQuantParams *quant_params,
 #if CONFIG_F255_QMOBU
 void setup_cm_quant_params(AV1Decoder *pbi, CommonQuantParams *quant_params,
                            int num_planes, int qmlevel) {
-#if 1  // ENABLE_QM_TRACE
-  printf("(%s)qmlevel %d\n", __func__, qmlevel);
-  fflush(stdout);
-#endif
   int qm_pos_found = -1;
   // int valid_qm_num = AOMMIN(pbi->total_signalled_qm_count, NUM_CUSTOM_QMS);
   for (int qm_pos = 0; qm_pos < NUM_CUSTOM_QMS; qm_pos++) {
-#if 1
+#if ENABLE_QM_TRACE
     printf("(%s)pbi->qm_list[%d/%d].qm_id %d\n", __func__, qm_pos,
            NUM_CUSTOM_QMS, pbi->qm_list[qm_pos].qm_id);
     fflush(stdout);
@@ -3985,10 +3981,6 @@ void setup_cm_quant_params(AV1Decoder *pbi, CommonQuantParams *quant_params,
       break;
     }
   }
-#if 1  // ENABLE_QM_TRACE
-  printf("(setup_cm_quant_params)qm_pos_found %d\n", qm_pos_found);
-  fflush(stdout);
-#endif
 
   int q = NUM_QM_LEVELS - 1;
   if (qm_pos_found >= 0) q = qmlevel;
@@ -4096,7 +4088,7 @@ static AOM_INLINE void setup_qm_params(
 #endif
     }
 #if CONFIG_F255_QMOBU
-#if 1
+#if ENABLE_QM_TRACE
     printf("(read_uncompressed_header) pic_qm_num %d\n",
            quant_params->pic_qm_num);
     for (uint8_t i = 0; i < quant_params->pic_qm_num; i++) {
@@ -4112,28 +4104,10 @@ static AOM_INLINE void setup_qm_params(
     printf("\n");
 #endif
     for (uint8_t i = 0; i < quant_params->pic_qm_num; i++) {
-#if 1  // ENABLE_QM_TRACE
-       //      printf("(read_uncompressed_header) doh[%d] qm_id[%d] %d, %d,
-       //      %d\n",
-       //             pbi->common.current_frame.display_order_hint, i,
-       //             quant_params->qm_y[i], quant_params->qm_u[i],
-       //             quant_params->qm_v[i]);
-      printf("(read_uncompressed_header) y[%d]: %d\n", i,
-             quant_params->qm_y[i]);
-#endif
       setup_cm_quant_params(pbi, quant_params, num_planes,
                             quant_params->qm_y[i]);
-#if 1
-      printf("(read_uncompressed_header) u[%d]: %d\n", i,
-             quant_params->qm_u[i]);
-#endif
       setup_cm_quant_params(pbi, quant_params, num_planes,
                             quant_params->qm_u[i]);
-#if 1
-      printf("(read_uncompressed_header) v[%d]: %d\n", i,
-             quant_params->qm_v[i]);
-#endif
-
       setup_cm_quant_params(pbi, quant_params, num_planes,
                             quant_params->qm_v[i]);
     }
@@ -10116,7 +10090,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   }
 
   setup_segmentation(cm, rb);
-#if 1
+#if ENABLE_QM_TRACE
   for (int qm_pos = 0; qm_pos < NUM_CUSTOM_QMS; qm_pos++) {
     printf("(%s)pbi->qm_list[%d/%d].qm_id %d\n", __func__, qm_pos,
            NUM_CUSTOM_QMS, pbi->qm_list[qm_pos].qm_id);

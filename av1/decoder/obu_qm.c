@@ -229,9 +229,6 @@ static void copy_predefined_qmatrices_to_list(AV1Decoder *pbi) {
     int qm_default_index = qm_pos;
     pbi->qm_list[qm_pos].qm_id = qm_pos;
     pbi->qm_list[qm_pos].qm_default_index = qm_pos;
-#if 0
-  printf("\tpbi->qm_list[%d].quantizer_matrix: %p\n",qm_pos, &pbi->qm_list[qm_pos].quantizer_matrix);
-#endif
 #if ENABLE_QM_TRACE
     printf(
         "(copy_predefined_qmatrices_to_list) !!!predefined qm!!! "
