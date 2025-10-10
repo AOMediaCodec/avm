@@ -971,6 +971,109 @@ static size_t read_padding(AV1_COMMON *const cm, const uint8_t *data,
   return sz;
 }
 
+#if OBU_ORDER_IN_TU
+int check_obu_order(OBU_TYPE prev_obu_type, OBU_TYPE curr_obu_type) {
+  if ((prev_obu_type == OBU_TEMPORAL_DELIMITER) &&
+      (curr_obu_type == OBU_MSDO ||
+       curr_obu_type == OBU_LAYER_CONFIGURATION_RECORD ||
+       curr_obu_type == OBU_ATLAS_SEGMENT ||
+       curr_obu_type == OBU_OPERATING_POINT_SET ||
+       curr_obu_type == OBU_SEQUENCE_HEADER ||
+       curr_obu_type == OBU_MULTI_FRAME_HEADER || curr_obu_type == OBU_SEF ||
+       curr_obu_type == OBU_TIP || curr_obu_type == OBU_SWITCH ||
+       curr_obu_type == OBU_RAS_FRAME || curr_obu_type == OBU_BRIDGE_FRAME ||
+       curr_obu_type == OBU_TILE_GROUP || curr_obu_type == OBU_METADATA)) {
+    return 0;
+  } else if ((prev_obu_type == OBU_MSDO) &&
+             (curr_obu_type == OBU_LAYER_CONFIGURATION_RECORD ||
+              curr_obu_type == OBU_ATLAS_SEGMENT ||
+              curr_obu_type == OBU_OPERATING_POINT_SET ||
+              curr_obu_type == OBU_SEQUENCE_HEADER ||
+              curr_obu_type == OBU_MULTI_FRAME_HEADER ||
+              curr_obu_type == OBU_SEF || curr_obu_type == OBU_TIP ||
+              curr_obu_type == OBU_SWITCH || curr_obu_type == OBU_RAS_FRAME ||
+              curr_obu_type == OBU_BRIDGE_FRAME ||
+              curr_obu_type == OBU_TILE_GROUP ||
+              curr_obu_type == OBU_METADATA)) {
+    return 0;
+  } else if ((prev_obu_type == OBU_LAYER_CONFIGURATION_RECORD) &&
+             (curr_obu_type == OBU_LAYER_CONFIGURATION_RECORD ||
+              curr_obu_type == OBU_ATLAS_SEGMENT ||
+              curr_obu_type == OBU_OPERATING_POINT_SET ||
+              curr_obu_type == OBU_SEQUENCE_HEADER ||
+              curr_obu_type == OBU_MULTI_FRAME_HEADER ||
+              curr_obu_type == OBU_SEF || curr_obu_type == OBU_TIP ||
+              curr_obu_type == OBU_SWITCH || curr_obu_type == OBU_RAS_FRAME ||
+              curr_obu_type == OBU_BRIDGE_FRAME ||
+              curr_obu_type == OBU_TILE_GROUP ||
+              curr_obu_type == OBU_METADATA)) {
+    return 0;
+  } else if ((prev_obu_type == OBU_OPERATING_POINT_SET) &&
+             (curr_obu_type == OBU_OPERATING_POINT_SET ||
+              curr_obu_type == OBU_ATLAS_SEGMENT ||
+              curr_obu_type == OBU_SEQUENCE_HEADER ||
+              curr_obu_type == OBU_MULTI_FRAME_HEADER ||
+              curr_obu_type == OBU_SEF || curr_obu_type == OBU_TIP ||
+              curr_obu_type == OBU_SWITCH || curr_obu_type == OBU_RAS_FRAME ||
+              curr_obu_type == OBU_BRIDGE_FRAME ||
+              curr_obu_type == OBU_TILE_GROUP ||
+              curr_obu_type == OBU_METADATA)) {
+    return 0;
+  } else if ((prev_obu_type == OBU_ATLAS_SEGMENT) &&
+             (curr_obu_type == OBU_ATLAS_SEGMENT ||
+              curr_obu_type == OBU_SEQUENCE_HEADER ||
+              curr_obu_type == OBU_MULTI_FRAME_HEADER ||
+              curr_obu_type == OBU_SEF || curr_obu_type == OBU_TIP ||
+              curr_obu_type == OBU_SWITCH || curr_obu_type == OBU_RAS_FRAME ||
+              curr_obu_type == OBU_BRIDGE_FRAME ||
+              curr_obu_type == OBU_TILE_GROUP ||
+              curr_obu_type == OBU_METADATA)) {
+    return 0;
+  } else if ((prev_obu_type == OBU_SEQUENCE_HEADER) &&
+             (curr_obu_type == OBU_SEQUENCE_HEADER ||
+              curr_obu_type == OBU_MULTI_FRAME_HEADER ||
+              curr_obu_type == OBU_BUFFER_REMOVAL_TIMING ||
+              curr_obu_type == OBU_SEF || curr_obu_type == OBU_TIP ||
+              curr_obu_type == OBU_SWITCH || curr_obu_type == OBU_RAS_FRAME ||
+              curr_obu_type == OBU_BRIDGE_FRAME ||
+              curr_obu_type == OBU_TILE_GROUP ||
+              curr_obu_type == OBU_METADATA)) {
+    return 0;
+  } else if ((prev_obu_type == OBU_BUFFER_REMOVAL_TIMING) &&
+             (curr_obu_type == OBU_MULTI_FRAME_HEADER ||
+              curr_obu_type == OBU_SEF || curr_obu_type == OBU_TIP ||
+              curr_obu_type == OBU_SWITCH || curr_obu_type == OBU_RAS_FRAME ||
+              curr_obu_type == OBU_BRIDGE_FRAME ||
+              curr_obu_type == OBU_TILE_GROUP ||
+              curr_obu_type == OBU_METADATA)) {
+    return 0;
+  } else if ((prev_obu_type == OBU_MULTI_FRAME_HEADER) &&
+             (curr_obu_type == OBU_MULTI_FRAME_HEADER ||
+              curr_obu_type == OBU_SEF || curr_obu_type == OBU_TIP ||
+              curr_obu_type == OBU_SWITCH || curr_obu_type == OBU_RAS_FRAME ||
+              curr_obu_type == OBU_BRIDGE_FRAME ||
+              curr_obu_type == OBU_TILE_GROUP ||
+              curr_obu_type == OBU_METADATA)) {
+    return 0;
+  } else if ((prev_obu_type == OBU_METADATA) &&
+             (curr_obu_type == OBU_SEF || curr_obu_type == OBU_TIP ||
+              curr_obu_type == OBU_SWITCH || curr_obu_type == OBU_RAS_FRAME ||
+              curr_obu_type == OBU_BRIDGE_FRAME ||
+              curr_obu_type == OBU_TILE_GROUP ||
+              curr_obu_type == OBU_METADATA ||
+              curr_obu_type == OBU_TEMPORAL_DELIMITER)) {
+    return 0;
+  } else if (prev_obu_type == OBU_TEMPORAL_DELIMITER ||
+             prev_obu_type == OBU_TILE_GROUP || prev_obu_type == OBU_SWITCH ||
+             prev_obu_type == OBU_RAS_FRAME || prev_obu_type == OBU_SEF ||
+             prev_obu_type == OBU_TIP || prev_obu_type == OBU_BRIDGE_FRAME ||
+             prev_obu_type == OBU_PADDING) {
+    return 0;
+  }
+  return 1;
+}
+#endif  // OBU_ORDER_IN_TU
+
 // On success, sets *p_data_end and returns a boolean that indicates whether
 // the decoding of the current frame is finished. On failure, sets
 // cm->error.error_code and returns -1.
@@ -1000,6 +1103,11 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
   // Reset pbi->camera_frame_header_ready to 0 if cm->tiles.large_scale = 0.
   if (!cm->tiles.large_scale) pbi->camera_frame_header_ready = 0;
 
+#if OBU_ORDER_IN_TU
+  OBU_TYPE prev_obu_type = 0;
+  OBU_TYPE curr_obu_type = 0;
+#endif  // OBU_ORDER_IN_TU
+
   // decode frame as a series of OBUs
   while (!frame_decoding_finished && cm->error.error_code == AOM_CODEC_OK) {
     struct aom_read_bit_buffer rb;
@@ -1022,6 +1130,17 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
       cm->error.error_code = status;
       return -1;
     }
+
+#if OBU_ORDER_IN_TU
+    curr_obu_type = obu_header.type;
+    if (prev_obu_type > 0 && curr_obu_type > 0 &&
+        check_obu_order(prev_obu_type, curr_obu_type)) {
+      fprintf(stderr, "obudec: OBU orders is incorrect in TU, %d, %d\n",
+              prev_obu_type, curr_obu_type);
+      return -1;
+    }
+    prev_obu_type = curr_obu_type;
+#endif  // OBU_ORDER_IN_TU
 
 #if CONFIG_MULTI_STREAM
     if (obu_header.type == OBU_MSDO) {

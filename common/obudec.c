@@ -64,109 +64,6 @@ static int obudec_read_leb128(FILE *f, uint8_t *value_buffer,
   return aom_uleb_decode(value_buffer, len, value, NULL);
 }
 
-#if OBU_ORDER_IN_TU
-int check_obu_order(OBU_TYPE prev_obu_type, OBU_TYPE curr_obu_type) {
-  if ((prev_obu_type == OBU_TEMPORAL_DELIMITER) &&
-      (curr_obu_type == OBU_MSDO ||
-       curr_obu_type == OBU_LAYER_CONFIGURATION_RECORD ||
-       curr_obu_type == OBU_ATLAS_SEGMENT ||
-       curr_obu_type == OBU_OPERATING_POINT_SET ||
-       curr_obu_type == OBU_SEQUENCE_HEADER ||
-       curr_obu_type == OBU_MULTI_FRAME_HEADER || curr_obu_type == OBU_SEF ||
-       curr_obu_type == OBU_TIP || curr_obu_type == OBU_SWITCH ||
-       curr_obu_type == OBU_RAS_FRAME || curr_obu_type == OBU_BRIDGE_FRAME ||
-       curr_obu_type == OBU_TILE_GROUP || curr_obu_type == OBU_METADATA)) {
-    return 0;
-  } else if ((prev_obu_type == OBU_MSDO) &&
-             (curr_obu_type == OBU_LAYER_CONFIGURATION_RECORD ||
-              curr_obu_type == OBU_ATLAS_SEGMENT ||
-              curr_obu_type == OBU_OPERATING_POINT_SET ||
-              curr_obu_type == OBU_SEQUENCE_HEADER ||
-              curr_obu_type == OBU_MULTI_FRAME_HEADER ||
-              curr_obu_type == OBU_SEF || curr_obu_type == OBU_TIP ||
-              curr_obu_type == OBU_SWITCH || curr_obu_type == OBU_RAS_FRAME ||
-              curr_obu_type == OBU_BRIDGE_FRAME ||
-              curr_obu_type == OBU_TILE_GROUP ||
-              curr_obu_type == OBU_METADATA)) {
-    return 0;
-  } else if ((prev_obu_type == OBU_LAYER_CONFIGURATION_RECORD) &&
-             (curr_obu_type == OBU_LAYER_CONFIGURATION_RECORD ||
-              curr_obu_type == OBU_ATLAS_SEGMENT ||
-              curr_obu_type == OBU_OPERATING_POINT_SET ||
-              curr_obu_type == OBU_SEQUENCE_HEADER ||
-              curr_obu_type == OBU_MULTI_FRAME_HEADER ||
-              curr_obu_type == OBU_SEF || curr_obu_type == OBU_TIP ||
-              curr_obu_type == OBU_SWITCH || curr_obu_type == OBU_RAS_FRAME ||
-              curr_obu_type == OBU_BRIDGE_FRAME ||
-              curr_obu_type == OBU_TILE_GROUP ||
-              curr_obu_type == OBU_METADATA)) {
-    return 0;
-  } else if ((prev_obu_type == OBU_OPERATING_POINT_SET) &&
-             (curr_obu_type == OBU_OPERATING_POINT_SET ||
-              curr_obu_type == OBU_ATLAS_SEGMENT ||
-              curr_obu_type == OBU_SEQUENCE_HEADER ||
-              curr_obu_type == OBU_MULTI_FRAME_HEADER ||
-              curr_obu_type == OBU_SEF || curr_obu_type == OBU_TIP ||
-              curr_obu_type == OBU_SWITCH || curr_obu_type == OBU_RAS_FRAME ||
-              curr_obu_type == OBU_BRIDGE_FRAME ||
-              curr_obu_type == OBU_TILE_GROUP ||
-              curr_obu_type == OBU_METADATA)) {
-    return 0;
-  } else if ((prev_obu_type == OBU_ATLAS_SEGMENT) &&
-             (curr_obu_type == OBU_ATLAS_SEGMENT ||
-              curr_obu_type == OBU_SEQUENCE_HEADER ||
-              curr_obu_type == OBU_MULTI_FRAME_HEADER ||
-              curr_obu_type == OBU_SEF || curr_obu_type == OBU_TIP ||
-              curr_obu_type == OBU_SWITCH || curr_obu_type == OBU_RAS_FRAME ||
-              curr_obu_type == OBU_BRIDGE_FRAME ||
-              curr_obu_type == OBU_TILE_GROUP ||
-              curr_obu_type == OBU_METADATA)) {
-    return 0;
-  } else if ((prev_obu_type == OBU_SEQUENCE_HEADER) &&
-             (curr_obu_type == OBU_SEQUENCE_HEADER ||
-              curr_obu_type == OBU_MULTI_FRAME_HEADER ||
-              curr_obu_type == OBU_BUFFER_REMOVAL_TIMING ||
-              curr_obu_type == OBU_SEF || curr_obu_type == OBU_TIP ||
-              curr_obu_type == OBU_SWITCH || curr_obu_type == OBU_RAS_FRAME ||
-              curr_obu_type == OBU_BRIDGE_FRAME ||
-              curr_obu_type == OBU_TILE_GROUP ||
-              curr_obu_type == OBU_METADATA)) {
-    return 0;
-  } else if ((prev_obu_type == OBU_BUFFER_REMOVAL_TIMING) &&
-             (curr_obu_type == OBU_MULTI_FRAME_HEADER ||
-              curr_obu_type == OBU_SEF || curr_obu_type == OBU_TIP ||
-              curr_obu_type == OBU_SWITCH || curr_obu_type == OBU_RAS_FRAME ||
-              curr_obu_type == OBU_BRIDGE_FRAME ||
-              curr_obu_type == OBU_TILE_GROUP ||
-              curr_obu_type == OBU_METADATA)) {
-    return 0;
-  } else if ((prev_obu_type == OBU_MULTI_FRAME_HEADER) &&
-             (curr_obu_type == OBU_MULTI_FRAME_HEADER ||
-              curr_obu_type == OBU_SEF || curr_obu_type == OBU_TIP ||
-              curr_obu_type == OBU_SWITCH || curr_obu_type == OBU_RAS_FRAME ||
-              curr_obu_type == OBU_BRIDGE_FRAME ||
-              curr_obu_type == OBU_TILE_GROUP ||
-              curr_obu_type == OBU_METADATA)) {
-    return 0;
-  } else if ((prev_obu_type == OBU_METADATA) &&
-             (curr_obu_type == OBU_SEF || curr_obu_type == OBU_TIP ||
-              curr_obu_type == OBU_SWITCH || curr_obu_type == OBU_RAS_FRAME ||
-              curr_obu_type == OBU_BRIDGE_FRAME ||
-              curr_obu_type == OBU_TILE_GROUP ||
-              curr_obu_type == OBU_METADATA ||
-              curr_obu_type == OBU_TEMPORAL_DELIMITER)) {
-    return 0;
-  } else if (prev_obu_type == OBU_TEMPORAL_DELIMITER ||
-             prev_obu_type == OBU_TILE_GROUP || prev_obu_type == OBU_SWITCH ||
-             prev_obu_type == OBU_RAS_FRAME || prev_obu_type == OBU_SEF ||
-             prev_obu_type == OBU_TIP || prev_obu_type == OBU_BRIDGE_FRAME ||
-             prev_obu_type == OBU_PADDING) {
-    return 0;
-  }
-  return 1;
-}
-#endif  // OBU_ORDER_IN_TU
-
 static int read_nbyte_from_file(FILE *f, size_t obu_header_size,
                                 uint8_t *buffer, ObuHeader *obu_header) {
   if (!f) {
@@ -288,10 +185,6 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
   unsigned long fpos = ftell(f);
   uint8_t detect_buf[OBU_DETECTION_SIZE] = { 0 };
   int first_td = 1;
-#if OBU_ORDER_IN_TU
-  OBU_TYPE prev_obu_type = 0;
-  OBU_TYPE curr_obu_type = 0;
-#endif  // OBU_ORDER_IN_TU
   while (1) {
     ObuHeader obu_header;
     memset(&obu_header, 0, sizeof(obu_header));
@@ -317,16 +210,6 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
       // end of file
       return 1;
     }
-#if OBU_ORDER_IN_TU
-    curr_obu_type = obu_header.type;
-    if (prev_obu_type > 0 && curr_obu_type > 0 &&
-        check_obu_order(prev_obu_type, curr_obu_type)) {
-      fprintf(stderr, "obudec: OBU orders is incorrect in TU, %d, %d\n",
-              prev_obu_type, curr_obu_type);
-      return -1;
-    }
-    prev_obu_type = curr_obu_type;
-#endif  // OBU_ORDER_IN_TU
 
     if ((obu_header.type == OBU_TEMPORAL_DELIMITER && first_td != 1)) {
       break;
