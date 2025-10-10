@@ -245,7 +245,7 @@ void bru_set_default_inter_mb_mode_info(const AV1_COMMON *const cm,
     assert(cm->bru.update_ref_idx >= 0);
   }
   if (cm->bridge_frame_info.is_bridge_frame) {
-    assert(cm->bridge_frame_info.bridge_frame_ref_idx >= 0);
+    assert(cm->bridge_frame_info.bridge_frame_ref_idx_remapped >= 0);
   }
 #else
   assert(cm->bru.update_ref_idx >= 0);
@@ -259,7 +259,7 @@ void bru_set_default_inter_mb_mode_info(const AV1_COMMON *const cm,
   mbmi->mrl_index = 0;
 #if CONFIG_CWG_F317
   if (cm->bridge_frame_info.is_bridge_frame) {
-    mbmi->ref_frame[0] = cm->bridge_frame_info.bridge_frame_ref_idx;
+    mbmi->ref_frame[0] = cm->bridge_frame_info.bridge_frame_ref_idx_remapped;
   } else
 #endif  // CONFIG_CWG_F317
     mbmi->ref_frame[0] = cm->bru.update_ref_idx;

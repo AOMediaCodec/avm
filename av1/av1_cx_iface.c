@@ -141,7 +141,7 @@ struct av1_extracfg {
 
   int enable_fsc;  // enable forward skip coding
 #if CONFIG_FSC_RES_HLS
-  int enable_fsc_residual;    // enable forward skip coding residual coding
+  int enable_idtx_intra;      // enable idtx for intra
 #endif                        // CONFIG_FSC_RES_HLS
   int enable_orip;            // enable ORIP
   int enable_ist;             // enable intra secondary transform
@@ -481,7 +481,7 @@ static struct av1_extracfg default_extra_cfg = {
   1,    // eanble implicit masked blending
   1,    // enable forward skip coding
 #if CONFIG_FSC_RES_HLS
-  1,    // enable forward skip coding residual coding
+  1,    // enable idtx intra for fsc is disabled case
 #endif
   1,    // enable ORIP
   1,    // enable intra secondary transform
@@ -989,7 +989,7 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_imp_msk_bld = extra_cfg->enable_imp_msk_bld;
   cfg->enable_fsc = extra_cfg->enable_fsc;
 #if CONFIG_FSC_RES_HLS
-  cfg->enable_fsc_residual = extra_cfg->enable_fsc_residual;
+  cfg->enable_idtx_intra = extra_cfg->enable_idtx_intra;
 #endif  // CONFIG_FSC_RES_HLS
   cfg->enable_orip = extra_cfg->enable_orip;
   cfg->enable_ist = extra_cfg->enable_ist;
@@ -1113,7 +1113,7 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_imp_msk_bld = cfg->enable_imp_msk_bld;
   extra_cfg->enable_fsc = cfg->enable_fsc;
 #if CONFIG_FSC_RES_HLS
-  extra_cfg->enable_fsc_residual = cfg->enable_fsc_residual;
+  extra_cfg->enable_idtx_intra = cfg->enable_idtx_intra;
 #endif  // CONFIG_FSC_RES_HLS
   extra_cfg->enable_orip = cfg->enable_orip;
   extra_cfg->enable_ist = cfg->enable_ist;
@@ -1433,8 +1433,10 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
       ;
   tool_cfg->enable_global_motion = extra_cfg->enable_global_motion;
   tool_cfg->enable_skip_mode = extra_cfg->enable_skip_mode;
+#if !CONFIG_F322_OBUER_ERM
   tool_cfg->error_resilient_mode =
       cfg->g_error_resilient | extra_cfg->error_resilient_mode;
+#endif  // !CONFIG_F322_OBUER_ERM
   tool_cfg->frame_hash_metadata = cfg->frame_hash_metadata;
   tool_cfg->frame_hash_per_plane = cfg->frame_hash_per_plane;
   tool_cfg->frame_parallel_decoding_mode =
@@ -1706,7 +1708,11 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
           !tool_cfg->enable_order_hint ||
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-          kf_cfg->enable_sframe || tool_cfg->error_resilient_mode)
+          kf_cfg->enable_sframe
+#if !CONFIG_F322_OBUER_ERM
+          || tool_cfg->error_resilient_mode
+#endif  // !CONFIG_F322_OBUER_ERM
+          )
           ? 0
           : extra_cfg->enable_frame_output_order;
 #endif  // CONFIG_F253_REMOVE_OUTPUTFLAG
@@ -1768,7 +1774,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   intra_mode_cfg->enable_mrls = extra_cfg->enable_mrls;
   intra_mode_cfg->enable_fsc = extra_cfg->enable_fsc;
 #if CONFIG_FSC_RES_HLS
-  intra_mode_cfg->enable_fsc_residual = extra_cfg->enable_fsc_residual;
+  intra_mode_cfg->enable_idtx_intra = extra_cfg->enable_idtx_intra;
 #endif  // CONFIG_FSC_RES_HLS
   intra_mode_cfg->enable_orip = extra_cfg->enable_orip;
   intra_mode_cfg->enable_ibp = extra_cfg->enable_ibp;
@@ -2536,12 +2542,14 @@ static aom_codec_err_t ctrl_set_enable_angle_delta(aom_codec_alg_priv_t *ctx,
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
+#if !CONFIG_F322_OBUER_ERM
 static aom_codec_err_t ctrl_set_error_resilient_mode(aom_codec_alg_priv_t *ctx,
                                                      va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
   extra_cfg.error_resilient_mode = CAST(AV1E_SET_ERROR_RESILIENT_MODE, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
+#endif  // !CONFIG_F322_OBUER_ERM
 
 static aom_codec_err_t ctrl_set_enable_cdf_averaging(aom_codec_alg_priv_t *ctx,
                                                      va_list args) {
@@ -3130,11 +3138,25 @@ static void report_stats(AV1_COMP *cpi, size_t frame_size, uint64_t cx_time) {
     for (int ref_idx = 0; ref_idx < INTER_REFS_PER_FRAME; ++ref_idx) {
       fprintf(stdout, "%3d,", ref_poc[ref_idx]);
     }
+#if CONFIG_CWG_F317_TEST_PATTERN
+    if (cpi->common.bridge_frame_info.print_bridge_frame_in_log)
+      fprintf(stdout, "] %dx%d\n", cpi->common.cur_frame->buf.y_crop_width,
+              cpi->common.cur_frame->buf.y_crop_height);
+    else if (cpi->oxcf.tool_cfg.enable_bru)
+      fprintf(stdout, "] %dx%d SB skipped %d/%d\n",
+              cpi->common.cur_frame->buf.y_crop_width,
+              cpi->common.cur_frame->buf.y_crop_height, cm->bru.blocks_skipped,
+              cm->bru.total_units);
+    else
+      fprintf(stdout, "] %dx%d\n", cpi->common.cur_frame->buf.y_crop_width,
+              cpi->common.cur_frame->buf.y_crop_height);
+#else
     if (cpi->oxcf.tool_cfg.enable_bru)
       fprintf(stdout, "] SB skipped %d/%d\n", cm->bru.blocks_skipped,
               cm->bru.total_units);
     else
       fprintf(stdout, "]\n");
+#endif  // CONFIG_CWG_F317_TEST_PATTERN
   }
 }
 
@@ -3404,9 +3426,14 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       if (frame_size) {
         if (ctx->pending_cx_data == 0) ctx->pending_cx_data = cx_data;
 
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+        const int write_temporal_delimiter =
+            !cpi->common.mlayer_id &&
+            (cpi->common.show_frame || cpi->common.showable_frame);
+#else   // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
         const int write_temporal_delimiter =
             !cpi->common.mlayer_id && !ctx->pending_frame_count;
-
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
         if (write_temporal_delimiter) {
           const uint32_t obu_payload_size = 0;
           const size_t length_field_size =
@@ -3416,16 +3443,24 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
           const uint32_t obu_header_size = av1_write_obu_header(
               &cpi->level_params, OBU_TEMPORAL_DELIMITER, 0, 0, obu_header);
           const size_t move_offset = obu_header_size + length_field_size;
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+          memmove(cx_data + move_offset, cx_data, frame_size);
+          memcpy(cx_data, obu_header, obu_header_size);
+          if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size,
+                                      cx_data) != AOM_CODEC_OK) {
+            aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR, NULL);
+          }
+          // OBUs are preceded/succeeded by an unsigned leb128 coded integer.
+#else   // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
           memmove(ctx->pending_cx_data + move_offset, ctx->pending_cx_data,
                   frame_size);
           memcpy(ctx->pending_cx_data, obu_header, obu_header_size);
-
           // OBUs are preceded/succeeded by an unsigned leb128 coded integer.
           if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size,
                                       ctx->pending_cx_data) != AOM_CODEC_OK) {
             aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR, NULL);
           }
-
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
           frame_size += obu_header_size + obu_payload_size + length_field_size;
         }
 
@@ -3807,7 +3842,7 @@ static aom_codec_err_t ctrl_set_color_range(aom_codec_alg_priv_t *ctx,
   extra_cfg.color_range = CAST(AV1E_SET_COLOR_RANGE, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
-
+#if !CONFIG_CWG_F248_RENDER_SIZE
 static aom_codec_err_t ctrl_set_render_size(aom_codec_alg_priv_t *ctx,
                                             va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
@@ -3816,7 +3851,7 @@ static aom_codec_err_t ctrl_set_render_size(aom_codec_alg_priv_t *ctx,
   extra_cfg.render_height = render_size[1];
   return update_extra_cfg(ctx, &extra_cfg);
 }
-
+#endif  // CONFIG_CWG_F248_RENDER_SIZE
 static aom_codec_err_t ctrl_set_superblock_size(aom_codec_alg_priv_t *ctx,
                                                 va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
@@ -4028,8 +4063,10 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.superblock_size, argv,
                               err_string)) {
     extra_cfg.superblock_size = arg_parse_enum_helper(&arg, err_string);
+#if !CONFIG_F322_OBUER_ERM
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.error_resilient_mode,
                               argv, err_string)) {
+#endif  // !CONFIG_F322_OBUER_ERM
     extra_cfg.error_resilient_mode = arg_parse_int_helper(&arg, err_string);
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.sframe_mode, argv,
                               err_string)) {
@@ -4122,9 +4159,9 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                               err_string)) {
     extra_cfg.enable_fsc = arg_parse_int_helper(&arg, err_string);
 #if CONFIG_FSC_RES_HLS
-  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_fsc_residual,
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_idtx_intra,
                               argv, err_string)) {
-    extra_cfg.enable_fsc_residual = arg_parse_int_helper(&arg, err_string);
+    extra_cfg.enable_idtx_intra = arg_parse_int_helper(&arg, err_string);
 #endif  // CONFIG_FSC_RES_HLS
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_orip, argv,
                               err_string)) {
@@ -4497,7 +4534,9 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_MTU, ctrl_set_mtu },
   { AV1E_SET_TIMING_INFO_TYPE, ctrl_set_timing_info_type },
   { AV1E_SET_FRAME_PARALLEL_DECODING, ctrl_set_frame_parallel_decoding_mode },
+#if !CONFIG_F322_OBUER_ERM
   { AV1E_SET_ERROR_RESILIENT_MODE, ctrl_set_error_resilient_mode },
+#endif  // !CONFIG_F322_OBUER_ERM
   { AV1E_SET_ENABLE_CDF_AVERAGING, ctrl_set_enable_cdf_averaging },
   { AV1E_SET_S_FRAME_MODE, ctrl_set_s_frame_mode },
   { AV1E_SET_ENABLE_RECT_PARTITIONS, ctrl_set_enable_rect_partitions },
@@ -4556,7 +4595,9 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_MAX_GF_INTERVAL, ctrl_set_max_gf_interval },
   { AV1E_SET_GF_MIN_PYRAMID_HEIGHT, ctrl_set_gf_min_pyr_height },
   { AV1E_SET_GF_MAX_PYRAMID_HEIGHT, ctrl_set_gf_max_pyr_height },
+#if !CONFIG_CWG_F248_RENDER_SIZE
   { AV1E_SET_RENDER_SIZE, ctrl_set_render_size },
+#endif  // CONFIG_CWG_F248_RENDER_SIZE
   { AV1E_SET_SUPERBLOCK_SIZE, ctrl_set_superblock_size },
   { AV1E_SET_SINGLE_TILE_DECODING, ctrl_set_single_tile_decoding },
   { AV1E_SET_VMAF_MODEL_PATH, ctrl_set_vmaf_model_path },
@@ -4682,7 +4723,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #endif      // CONFIG_MV_RANGE_EXTENSION
         1,   1, 1, 1,
 #if CONFIG_FSC_RES_HLS
-        1,  // enable forward skip coding residual coding
+        1,  // enable idtx intra for fsc is disabled case
 #endif
         1,
         1,  // IST

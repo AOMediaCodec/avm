@@ -1216,11 +1216,15 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
   RefCntBuffer *ref_frame = NULL;
   CcsoInfo *ref_frame_ccso_info = NULL;
 
-  const int num_ref_frames =
-      (frame_is_intra_only(cm) || cm->features.error_resilient_mode ||
-       error_resilient_frame_seen)
-          ? 0
-          : cm->ref_frames_info.num_total_refs;
+  const int num_ref_frames = (frame_is_intra_only(cm) ||
+#if CONFIG_F322_OBUER_ERM
+                              frame_is_sframe(cm) ||
+#else
+                              cm->features.error_resilient_mode ||
+#endif  // CONFIG_F322_OBUER_ERM
+                              error_resilient_frame_seen)
+                                 ? 0
+                                 : cm->ref_frames_info.num_total_refs;
 
   cm->cur_frame->ccso_info.ccso_enable[plane] = 0;
   memset(cm->cur_frame->ccso_info.sb_filter_control[plane], 0,

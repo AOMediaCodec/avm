@@ -159,7 +159,7 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t enable_imp_msk_bld;
   arg_def_t enable_fsc;
 #if CONFIG_FSC_RES_HLS
-  arg_def_t enable_fsc_residual;
+  arg_def_t enable_idtx_intra;
 #endif  // CONFIG_FSC_RES_HLS
   arg_def_t enable_orip;
   arg_def_t enable_ist;

@@ -1258,6 +1258,10 @@ static AOM_INLINE void bridge_frame_decode_partition(
     case PARTITION_NONE:
       bridge_frame_set_offsets(cm, xd, subsize, mi_row, mi_col, parent, 0,
                                partition);
+      // from av1_read_mode_info
+      MB_MODE_INFO *const mi = xd->mi[0];
+      if (xd->tree_type == SHARED_PART)
+        mi->sb_type[PLANE_TYPE_UV] = mi->sb_type[PLANE_TYPE_Y];
       BRIDGE_FRAME_DEC_BLOCK(mi_row, mi_col, subsize, 0);
       break;
     case PARTITION_HORZ:
@@ -1664,7 +1668,12 @@ void av1_init_tile_data(AV1_COMP *cpi) {
       // check tile skip
       if (cm->bru.enabled) {
         tile_info->tile_active_mode = 0;
+#if CONFIG_CWG_F317
+        if (!cm->bru.frame_inactive_flag &&
+            !cm->bridge_frame_info.is_bridge_frame) {
+#else
         if (!cm->bru.frame_inactive_flag) {
+#endif  // CONFIG_CWG_F317
           for (int mi_y = tile_info->mi_row_start; mi_y < tile_info->mi_row_end;
                mi_y += cm->mib_size) {
             for (int mi_x = tile_info->mi_col_start;

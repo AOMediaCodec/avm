@@ -12,6 +12,9 @@ text aom_codec_version_extra_str
 text aom_codec_version_str
 text aom_free
 text aom_img_add_metadata
+text aom_img_add_banding_hints_metadata
+text aom_encode_banding_hints_metadata
+text aom_decode_banding_hints_metadata
 text aom_img_alloc
 text aom_img_alloc_with_border
 text aom_img_flip

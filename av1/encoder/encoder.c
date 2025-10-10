@@ -426,7 +426,6 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #if !CONFIG_CWG_F168_DPB_HLS
   seq->max_reference_frames = oxcf->ref_frm_cfg.max_reference_frames;
 #endif  // !CONFIG_CWG_F168_DPB_HLS
-#if CONFIG_SEQ_MAX_DRL_BITS
   if (oxcf->tool_cfg.max_drl_refmvs == 0) {
     seq->def_max_drl_bits = DEF_MAX_DRL_REFMVS - 1;
   } else {
@@ -441,7 +440,6 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   }
   // Disable frame by frame update for now. Can be changed later.
   seq->allow_frame_max_bvp_drl_bits = 0;
-#endif  // CONFIG_SEQ_MAX_DRL_BITS
   seq->num_same_ref_compound = SAME_REF_COMPOUND_PRUNE;
 
   seq->max_frame_width = frm_dim_cfg->forced_max_frame_width
@@ -530,7 +528,11 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_mrls = oxcf->intra_mode_cfg.enable_mrls;
   seq->enable_fsc = oxcf->intra_mode_cfg.enable_fsc;
 #if CONFIG_FSC_RES_HLS
-  seq->enable_fsc_residual = oxcf->intra_mode_cfg.enable_fsc_residual;
+  if (!seq->enable_fsc) {
+    seq->enable_idtx_intra = oxcf->intra_mode_cfg.enable_idtx_intra;
+  } else {
+    seq->enable_idtx_intra = 1;
+  }
 #endif  // CONFIG_FSC_RES_HLS
   seq->enable_orip = oxcf->intra_mode_cfg.enable_orip;
   seq->enable_ist = oxcf->txfm_cfg.enable_ist;
@@ -834,19 +836,15 @@ int aom_strcmp(const char *a, const char *b) {
 static void set_max_drl_bits(struct AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   // Add logic to choose this in the range [MIN_MAX_DRL_BITS, MAX_MAX_DRL_BITS]
-#if CONFIG_SEQ_MAX_DRL_BITS
   if (!cm->seq_params.allow_frame_max_drl_bits) {
     cm->features.max_drl_bits = cm->seq_params.def_max_drl_bits;
   } else {  // Can be changed with logic later
-#endif      // CONFIG_SEQ_MAX_DRL_BITS
     if (cpi->oxcf.tool_cfg.max_drl_refmvs == 0) {
       cm->features.max_drl_bits = DEF_MAX_DRL_REFMVS - 1;
     } else {
       cm->features.max_drl_bits = cpi->oxcf.tool_cfg.max_drl_refmvs - 1;
     }
-#if CONFIG_SEQ_MAX_DRL_BITS
   }
-#endif  // CONFIG_SEQ_MAX_DRL_BITS
   assert(cm->features.max_drl_bits >= MIN_MAX_DRL_BITS &&
          cm->features.max_drl_bits <= MAX_MAX_DRL_BITS);
 }
@@ -855,19 +853,15 @@ static void set_max_bvp_drl_bits(struct AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   // Add logic to choose this in the range [MIN_MAX_IBC_DRL_BITS,
   // MAX_MAX_IBC_DRL_BITS]
-#if CONFIG_SEQ_MAX_DRL_BITS
   if (!cm->seq_params.allow_frame_max_bvp_drl_bits) {
     cm->features.max_bvp_drl_bits = cm->seq_params.def_max_bvp_drl_bits;
   } else {  // Can be changed with logic later
-#endif      // CONFIG_SEQ_MAX_DRL_BITS
     if (cpi->oxcf.tool_cfg.max_drl_refbvs == 0) {
       cm->features.max_bvp_drl_bits = DEF_MAX_DRL_REFBVS - 1;
     } else {
       cm->features.max_bvp_drl_bits = cpi->oxcf.tool_cfg.max_drl_refbvs - 1;
     }
-#if CONFIG_SEQ_MAX_DRL_BITS
   }
-#endif  // CONFIG_SEQ_MAX_DRL_BITS
   assert(cm->features.max_bvp_drl_bits >= MIN_MAX_IBC_DRL_BITS &&
          cm->features.max_bvp_drl_bits <= MAX_MAX_IBC_DRL_BITS);
 }
@@ -1090,6 +1084,16 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   cm->width = frm_dim_cfg->width;
   cm->height = frm_dim_cfg->height;
 
+#if CONFIG_MULTILAYER_HLS && CONFIG_MULTILAYER_HLS_ENABLE_SIGNALING
+#if CONFIG_CWG_F248_RENDER_SIZE
+  if (cm->lcr->lcr_rep_info_present_flag[0][0] == 1) {
+    // NOTE: if LCR exist
+    cm->lcr_params.rep_params.lcr_max_pic_width = cm->width;
+    cm->lcr_params.rep_params.lcr_max_pic_height = cm->height;
+  }
+#endif  // CONFIG_CWG_F248_RENDER_SIZE
+#endif  // CONFIG_MULTILAYER_HLS && CONFIG_MULTILAYER_HLS_ENABLE_SIGNALING
+
   BLOCK_SIZE sb_size = cm->sb_size;
   BLOCK_SIZE new_sb_size = av1_select_sb_size(cpi);
   // Superblock size should not be updated after the first key frame.
@@ -1300,10 +1304,6 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
   }
 
   cpi->frames_left = cpi->oxcf.input_cfg.limit;
-
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-  cpi->num_coded_longterm_ref = 0;
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 
   av1_rc_init(&cpi->oxcf, 0, &cpi->rc);
 
@@ -2770,6 +2770,11 @@ void gdf_optimize_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
   init_gdf(cm);
   alloc_gdf_buffers(&cm->gdf_info);
   gdf_optimizer(cpi, cm);
+#if CONFIG_CWG_F362
+  if (cm->seq_params.single_picture_hdr_flag && cm->gdf_info.gdf_mode == 0) {
+    cm->seq_params.enable_gdf = 0;
+  }
+#endif  // CONFIG_CWG_F362
 #if GDF_VERBOSE
   gdf_print_info(cm, "ENC", cm->current_frame.absolute_poc);
 #endif  //
@@ -2847,6 +2852,12 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
                     &cpi->td,
 #endif  // CONFIG_ENTROPY_STATS
                     cpi->sf.lpf_sf.cdef_pick_method, cpi->td.mb.rdmult);
+#if CONFIG_CWG_F362
+    if (cm->seq_params.single_picture_hdr_flag &&
+        !cm->cdef_info.cdef_frame_enable) {
+      cm->seq_params.enable_cdef = 0;
+    }
+#endif  // CONFIG_CWG_F362
 
     // Apply the filter
     if (cm->cdef_info.cdef_frame_enable)
@@ -2905,6 +2916,12 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
                 &cpi->td
 #endif
     );
+#if CONFIG_CWG_F362
+    if (cm->seq_params.single_picture_hdr_flag &&
+        !cm->ccso_info.ccso_frame_flag) {
+      cm->seq_params.enable_ccso = 0;
+    }
+#endif  // CONFIG_CWG_F362
     ccso_frame(&cm->cur_frame->buf, cm, xd, ext_rec_y);
     aom_free(ext_rec_y);
   }
@@ -3040,13 +3057,23 @@ static void set_primary_ref_frame_for_error_resilient(AV1_COMP *cpi) {
                          cm->current_frame.frame_type == INTRA_ONLY_FRAME;
   if (intra_only) {
     cpi->error_resilient_frame_seen = 0;
-  } else if (cm->features.error_resilient_mode) {
+  }
+#if CONFIG_F322_OBUER_ERM
+  else if (cm->current_frame.frame_type == S_FRAME)
+#else
+  else if (cm->features.error_resilient_mode)
+#endif
+  {
     cpi->error_resilient_frame_seen = 1;
   }
 
   // The error resilient frame always use PRIMARY_REF_NONE. This is already
   // handled.
+#if CONFIG_F322_OBUER_ERM
+  if (cm->current_frame.frame_type == S_FRAME) return;
+#else
   if (cm->features.error_resilient_mode) return;
+#endif
   if (cm->features.primary_ref_frame == PRIMARY_REF_NONE) return;
 
   if (cpi->error_resilient_frame_seen) {
@@ -4091,7 +4118,11 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
           (!cm->bridge_frame_info.is_bridge_frame) &&
 #endif  // CONFIG_CWG_F317
           (cm->seq_params.enable_avg_cdf && !cm->seq_params.avg_cdf_type) &&
+#if CONFIG_F322_OBUER_ERM
+          !frame_is_sframe(cm) &&
+#else
           !(cm->features.error_resilient_mode || frame_is_sframe(cm)) &&
+#endif  // CONFIG_F322_OBUER_ERM
           (ref_frame_used != PRIMARY_REF_NONE)) {
         av1_avg_cdf_symbols(cm->fc, &cm->bru.update_ref_fc,
                             AVG_CDF_WEIGHT_PRIMARY, AVG_CDF_WEIGHT_NON_PRIMARY);
@@ -4562,7 +4593,9 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
   cpi->unscaled_last_source = frame_input->last_source;
 
   current_frame->refresh_frame_flags = frame_params->refresh_frame_flags;
+#if !CONFIG_F322_OBUER_ERM
   cm->features.error_resilient_mode = frame_params->error_resilient_mode;
+#endif  // !CONFIG_F322_OBUER_ERM
   cm->current_frame.frame_type = frame_params->frame_type;
   cm->show_frame = frame_params->show_frame;
   cm->ref_frame_flags = frame_params->ref_frame_flags;
@@ -4603,7 +4636,11 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   if (cm->seq_params.explicit_ref_frame_map
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+#if CONFIG_F322_OBUER_ERM
+      || frame_is_sframe(cm)
+#else
       || cm->features.error_resilient_mode || cpi->switch_frame_mode == 1
+#endif  // CONFIG_F322_OBUER_ERM
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   ) {
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
@@ -4638,9 +4675,7 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
       current_frame->key_frame_number + current_frame->display_order_hint;
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   if (current_frame->frame_type == KEY_FRAME) {
-    current_frame->long_term_id =
-        cpi->num_coded_longterm_ref % MAX_NUM_LONG_TERM_FRAMES;
-    cpi->num_coded_longterm_ref++;
+    current_frame->long_term_id = 0;
   } else {
     current_frame->long_term_id = -1;
   }
@@ -4663,10 +4698,110 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
                                         cm->show_frame);
 #endif  // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
 #endif  // CONFIG_BITSTREAM_DEBUG
+#if CONFIG_CWG_F317_TEST_PATTERN
+    const ResizeCfg *resize_cfg = &cpi->oxcf.resize_cfg;
+    FeatureFlags *const features = &cm->features;
+    const int current_frame_frame_number = cm->current_frame.frame_number;
+    const bool current_disable_cdf_update = features->disable_cdf_update;
+    const bool current_allow_lf_sub_pu = features->allow_lf_sub_pu;
+    const bool current_allow_ref_frame_mvs = features->allow_ref_frame_mvs;
+    const bool current_all_lossless = features->all_lossless;
+    const OPTFLOW_REFINE_TYPE current_opfl_refine_type =
+        features->opfl_refine_type;
+    cm->bridge_frame_info.is_bridge_frame = 0;
+    cm->bridge_frame_info.print_bridge_frame_in_log = 0;
+    if ((resize_cfg->resize_mode == RESIZE_BRIDGE_FRAME_PATTERN) &&
+        (cpi->gf_group.update_type[cpi->gf_group.index] != OVERLAY_UPDATE)) {
+      int chunk_size = cm->bridge_frame_info.frame_count;
+      if (chunk_size == 1) {
+        cm->bridge_frame_info.is_bridge_frame = 1;
+        cm->current_frame.display_order_hint = 0;
+        cm->current_frame.absolute_poc = 0;
+        cm->show_frame = 0;
+        cm->showable_frame = 0;
+        cm->show_existing_frame = 0;
+        cm->current_frame.order_hint = 0;
+        cm->current_frame.frame_number = 0;
+        cm->bridge_frame_info.bridge_frame_ref_idx = INVALID_IDX;
+        cm->bridge_frame_info.bridge_frame_ref_idx_remapped = INVALID_IDX;
+        cm->bridge_frame_info.print_bridge_frame_in_log = 1;
+        features->allow_lf_sub_pu = false;
+        features->disable_cdf_update = true;
+        features->allow_ref_frame_mvs = false;
+        features->all_lossless = false;
+        features->opfl_refine_type = REFINE_NONE;
+        for (int map_idx = 0; map_idx < cm->seq_params.ref_frames; map_idx++) {
+          // Get reference frame buffer
+          const RefCntBuffer *const buf = cm->ref_frame_map[map_idx];
+          if (buf->display_order_hint == 0) {
+            cm->bridge_frame_info.bridge_frame_ref_idx = map_idx;
+
+            cm->quant_params.base_qindex = buf->base_qindex;
+            if (av1_num_planes(cm) > 1) {
+              cm->quant_params.u_ac_delta_q = buf->u_ac_delta_q;
+              cm->quant_params.v_ac_delta_q = buf->v_ac_delta_q;
+            } else {
+              cm->quant_params.v_ac_delta_q = cm->quant_params.u_ac_delta_q = 0;
+            }
+            cm->cur_frame->base_qindex = cm->quant_params.base_qindex;
+            cm->cur_frame->u_ac_delta_q = cm->quant_params.u_ac_delta_q;
+            cm->cur_frame->v_ac_delta_q = cm->quant_params.v_ac_delta_q;
+
+            break;
+          }
+        }
+        if (cm->bridge_frame_info.bridge_frame_ref_idx == INVALID_IDX) {
+          aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                             "Cannot find bridge frame reference frame");
+          return AOM_CODEC_ERROR;
+        }
+        cm->bridge_frame_info.bridge_frame_overwrite_flag = 1;
+        cm->current_frame.refresh_frame_flags =
+            (1 << cm->bridge_frame_info.bridge_frame_ref_idx);
+
+        init_ref_map_pair(&cpi->common, cm->ref_frame_map_pairs,
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                          current_frame->frame_type == KEY_FRAME,
+                          cpi->switch_frame_mode == 1);
+#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                          cpi->gf_group.update_type[cpi->gf_group.index] ==
+                              KF_UPDATE);
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+#if CONFIG_ACROSS_SCALE_REF_OPT
+        // Derive reference mapping in a resolution independent manner to
+        // generate parameters needed in write_frame_size_with_refs
+        av1_get_ref_frames(cm, cur_frame_disp, 0,
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                           0,
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                           cm->ref_frame_map_pairs);
+        av1_get_ref_frames(cm, cur_frame_disp, 1,
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                           0,
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                           cm->ref_frame_map_pairs);
+#else
+        av1_get_ref_frames(cm, cur_frame_disp, cm->ref_frame_map_pairs);
+#endif  // CONFIG_ACROSS_SCALE_REF_OP
+      }
+    }
+#endif  // CONFIG_CWG_F317_TEST_PATTERN
     if (encode_frame_to_data_rate(cpi, &frame_results->size, dest) !=
         AOM_CODEC_OK) {
       return AOM_CODEC_ERROR;
     }
+#if CONFIG_CWG_F317_TEST_PATTERN
+    cm->bridge_frame_info.frame_count++;
+    if (cm->bridge_frame_info.is_bridge_frame) {
+      features->disable_cdf_update = current_disable_cdf_update;
+      features->allow_lf_sub_pu = current_allow_lf_sub_pu;
+      features->allow_ref_frame_mvs = current_allow_ref_frame_mvs;
+      features->all_lossless = current_all_lossless;
+      features->opfl_refine_type = current_opfl_refine_type;
+      cm->current_frame.frame_number = current_frame_frame_number;
+      cm->bridge_frame_info.is_bridge_frame = 0;
+    }
+#endif  // CONFIG_CWG_F317_TEST_PATTERN
   }
   return AOM_CODEC_OK;
 }
@@ -4739,6 +4874,12 @@ int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
                          cpi->oxcf.noise_level, time_stamp, end_time) < 0)
       res = -1;
 #endif  //  CONFIG_DENOISE
+#if CONFIG_CWG_F362
+  if (seq_params->single_picture_hdr_flag &&
+      !cm->film_grain_params.apply_grain) {
+    cm->seq_params.film_grain_params_present = 0;
+  }
+#endif  // CONFIG_CWG_F362
 
   const int order_offset = cpi->gf_group.arf_src_offset[cpi->gf_group.index];
   const int disp_order_hint = (cm->current_frame.frame_number + order_offset);
@@ -5078,8 +5219,10 @@ void av1_apply_encoding_flags(AV1_COMP *cpi, aom_enc_frame_flags_t flags) {
 
   ext_flags->use_ref_frame_mvs = cpi->oxcf.tool_cfg.enable_ref_frame_mvs &
                                  ((flags & AOM_EFLAG_NO_REF_FRAME_MVS) == 0);
+#if !CONFIG_F322_OBUER_ERM
   ext_flags->use_error_resilient = cpi->oxcf.tool_cfg.error_resilient_mode |
                                    ((flags & AOM_EFLAG_ERROR_RESILIENT) != 0);
+#endif  // !CONFIG_F322_OBUER_ERM
   ext_flags->use_s_frame =
       cpi->oxcf.kf_cfg.enable_sframe | ((flags & AOM_EFLAG_SET_S_FRAME) != 0);
   ext_flags->use_primary_ref_none =

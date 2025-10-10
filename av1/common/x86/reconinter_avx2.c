@@ -609,3 +609,135 @@ void av1_build_compound_diffwtd_mask_highbd_avx2(
     }
   }
 }
+
+static const uint8_t refinemv_pad_left[14][16] = {
+  { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 },
+  { 1, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 },
+  { 2, 2, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 },
+  { 3, 3, 3, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 },
+  { 4, 4, 4, 4, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 },
+  { 5, 5, 5, 5, 5, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 },
+  { 6, 6, 6, 6, 6, 6, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 },
+  { 7, 7, 7, 7, 7, 7, 7, 7, 8, 9, 10, 11, 12, 13, 14, 15 },
+  { 8, 8, 8, 8, 8, 8, 8, 8, 8, 9, 10, 11, 12, 13, 14, 15 },
+  { 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 10, 11, 12, 13, 14, 15 },
+  { 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 11, 12, 13, 14, 15 },
+  { 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 12, 13, 14, 15 },
+  { 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 13, 14, 15 },
+  { 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 14, 15 },
+};
+
+static const uint8_t refinemv_pad_right[14][16] = {
+  { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 },
+  { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 13, 15 },
+  { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 12, 12, 15 },
+  { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 11, 11, 11, 15 },
+  { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10, 10, 15 },
+  { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 9, 9, 9, 9, 9, 15 },
+  { 0, 1, 2, 3, 4, 5, 6, 7, 8, 8, 8, 8, 8, 8, 8, 15 },
+  { 0, 1, 2, 3, 4, 5, 6, 7, 7, 7, 7, 7, 7, 7, 7, 15 },
+  { 0, 1, 2, 3, 4, 5, 6, 6, 6, 6, 6, 6, 6, 6, 6, 15 },
+  { 0, 1, 2, 3, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 15 },
+  { 0, 1, 2, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 15 },
+  { 0, 1, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 15 },
+  { 0, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 15 },
+  { 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 15 },
+};
+
+DECLARE_ALIGNED(32, static const uint8_t, pad_mc_border_shuffle_pattern[32]) = {
+  0, 8, 1, 9, 2, 10, 3, 11, 4, 12, 5, 13, 6, 14, 7, 15,
+  0, 8, 1, 9, 2, 10, 3, 11, 4, 12, 5, 13, 6, 14, 7, 15
+};
+
+DECLARE_ALIGNED(32, static const uint8_t, pad_mc_border_arrange_bytes[32]) = {
+  0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15,
+  0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15
+};
+
+// AVX2 implementation for refinemv_highbd_pad_mc_border_c for b_w = 15.
+void refinemv_highbd_pad_mc_border_avx2(const uint16_t *src, int src_stride,
+                                        uint16_t *dst, int dst_stride, int x0,
+                                        int y0, int b_w, int b_h,
+                                        const ReferenceArea *ref_area) {
+  if (b_w != 15) {
+    refinemv_highbd_pad_mc_border_c(src, src_stride, dst, dst_stride, x0, y0,
+                                    b_w, b_h, ref_area);
+    return;
+  }
+
+  assert(b_w == 15);
+  const int ref_x0 = ref_area->pad_block.x0;
+  const int ref_y0 = ref_area->pad_block.y0;
+  const int ref_x1 = ref_area->pad_block.x1;
+  const int ref_y1 = ref_area->pad_block.y1;
+
+  // Get a pointer to the start of the real data for this row.
+  const uint16_t *ref_row = src - x0 - y0 * src_stride;
+
+  if (y0 >= ref_area->pad_block.y1)
+    ref_row += (ref_area->pad_block.y1 - 1) * src_stride;
+  else if (y0 >= ref_area->pad_block.y0)
+    ref_row += y0 * src_stride;
+  else
+    ref_row += ref_area->pad_block.y0 * src_stride;
+
+  int left = x0 < ref_x0 ? ref_x0 - x0 : 0;
+  if (left > b_w) left = b_w;
+  int right = (x0 + b_w > ref_x1) ? (x0 + b_w - ref_x1) : 0;
+  if (right > b_w) right = b_w;
+
+  if (left < 14 && right < 14 && (left != 0 || right != 0)) {
+    const __m128i shuffle_left =
+        _mm_loadu_si128((__m128i *)refinemv_pad_left[left]);
+    const __m256i shuffle_reg_left = _mm256_inserti128_si256(
+        _mm256_castsi128_si256(shuffle_left), shuffle_left, 1);
+
+    const __m128i shuffle_right =
+        _mm_loadu_si128((__m128i *)refinemv_pad_right[right]);
+    const __m256i shuffle_reg_right = _mm256_inserti128_si256(
+        _mm256_castsi128_si256(shuffle_right), shuffle_right, 1);
+
+    const __m256i shuffle_input_reg =
+        _mm256_load_si256((__m256i *)pad_mc_border_arrange_bytes);
+    const __m256i shuffle_output_reg =
+        _mm256_load_si256((__m256i *)pad_mc_border_shuffle_pattern);
+    __m256i out_reg;
+    do {
+      const __m256i src_0 = _mm256_loadu_si256((__m256i *)(ref_row + x0));
+
+      const __m256i src_01 = _mm256_shuffle_epi8(src_0, shuffle_input_reg);
+      __m256i src_reg = _mm256_permute4x64_epi64(src_01, 0xD8);
+
+      src_reg = _mm256_shuffle_epi8(src_reg, shuffle_reg_left);
+      src_reg = _mm256_shuffle_epi8(src_reg, shuffle_reg_right);
+
+      out_reg = _mm256_shuffle_epi8(_mm256_permute4x64_epi64(src_reg, 0xD8),
+                                    shuffle_output_reg);
+      do {
+        _mm256_storeu_si256((__m256i *)dst, out_reg);
+        dst += dst_stride;
+        ++y0;
+        --b_h;
+      } while ((y0 <= ref_y0 || y0 >= ref_y1) && b_h);
+      ref_row += src_stride;
+    } while (b_h);
+  } else if (left == 0 && right == 0) {
+    do {
+      const __m256i src_0 = _mm256_loadu_si256((__m256i *)(ref_row + x0));
+      _mm256_storeu_si256((__m256i *)dst, src_0);
+      dst += dst_stride;
+      ++y0;
+      if (y0 > ref_y0 && y0 < ref_y1) ref_row += src_stride;
+    } while (--b_h);
+  } else {
+    const uint16_t *cur_ref_row =
+        (left >= 14) ? (ref_row + ref_x0) : (ref_row + ref_x1 - 1);
+    do {
+      const __m256i src_0 = _mm256_set1_epi16(cur_ref_row[0]);
+      _mm256_storeu_si256((__m256i *)dst, src_0);
+      dst += dst_stride;
+      ++y0;
+      if (y0 > ref_y0 && y0 < ref_y1) cur_ref_row += src_stride;
+    } while (--b_h);
+  }
+}

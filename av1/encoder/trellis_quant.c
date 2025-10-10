@@ -1300,13 +1300,13 @@ int av1_trellis_quant(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
 
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
   const int bob_code = p->bobs[block];
-  const int is_fsc = ((xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
-                       plane == PLANE_TYPE_Y) ||
-                      use_inter_fsc(&cpi->common, plane, tx_type, is_inter))
+  const int is_fsc = ((
 #if CONFIG_FSC_RES_HLS
-                     && cm->seq_params.enable_fsc_residual
-#endif  // CONFIG_FSC_RES_HLS
-      ;
+                          cm->seq_params.enable_fsc &&
+#endif
+                          xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
+                          plane == PLANE_TYPE_Y) ||
+                      use_inter_fsc(&cpi->common, plane, tx_type, is_inter));
   const LV_MAP_COEFF_COST *txb_costs =
       &coeff_costs->coeff_costs[txs_ctx][plane_type];
 

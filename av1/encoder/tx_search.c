@@ -375,7 +375,7 @@ static AOM_INLINE void set_skip_txfm(MACROBLOCK *x, RD_STATS *rd_stats,
   get_txb_ctx(bsize, tx_size, 0, ta, tl, &txb_ctx,
               mbmi->fsc_mode[xd->tree_type == CHROMA_PART]
 #if CONFIG_FSC_RES_HLS
-                  && cm->seq_params.enable_fsc_residual
+                  && cm->seq_params.enable_fsc
 #endif  // CONFIG_FSC_RES_HLS
   );
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
@@ -961,13 +961,13 @@ static INLINE void recon_intra(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
       av1_xform_quant(cm, x, plane, block, blk_row, blk_col, plane_bsize,
                       &txfm_param_intra, &quant_param_intra);
       const uint8_t fsc_mode =
-          ((xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
-            plane == PLANE_TYPE_Y) ||
-           use_inter_fsc(cm, plane, best_tx_type, 0 /*is_inter*/))
+          ((
 #if CONFIG_FSC_RES_HLS
-          && cm->seq_params.enable_fsc_residual
-#endif  // CONFIG_FSC_RES_HLS
-          ;
+               cm->seq_params.enable_fsc &&
+#endif
+               xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
+               plane == PLANE_TYPE_Y) ||
+           use_inter_fsc(cm, plane, best_tx_type, 0 /*is_inter*/));
       if (fsc_mode && quant_param_intra.use_optimize_b) {
         av1_optimize_fsc(cpi, x, plane, block, tx_size, best_tx_type, txb_ctx,
                          rate_cost);
@@ -2268,7 +2268,7 @@ static INLINE void predict_dc_only_block(
     get_txb_ctx(plane_bsize, tx_size, plane, ta, tl, &txb_ctx_tmp,
                 mbmi->fsc_mode[xd->tree_type == CHROMA_PART]
 #if CONFIG_FSC_RES_HLS
-                    && cm->seq_params.enable_fsc_residual
+                    && cm->seq_params.enable_fsc
 #endif  // CONFIG_FSC_RES_HLS
     );
     int zero_blk_rate = 0;
@@ -2680,13 +2680,14 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
                   txfm_params->coeff_opt_satd_threshold, skip_trellis_in,
                   dc_only_blk);
 
-        uint8_t fsc_mode_in = ((mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
-                                plane == PLANE_TYPE_Y) ||
-                               use_inter_fsc(cm, plane, tx_type, is_inter))
+        uint8_t fsc_mode_in =
+            ((
 #if CONFIG_FSC_RES_HLS
-                              && cm->seq_params.enable_fsc_residual
-#endif  // CONFIG_FSC_RES_HLS
-            ;
+                 cm->seq_params.enable_fsc &&
+#endif
+                 mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
+                 plane == PLANE_TYPE_Y) ||
+             use_inter_fsc(cm, plane, tx_type, is_inter));
         av1_quant(x, plane, block, &txfm_param, &quant_param);
         if (fsc_mode_in) {
           if (primary_tx_type == IDTX) {
@@ -3042,13 +3043,13 @@ static void search_cctx_type(const AV1_COMP *cpi, MACROBLOCK *x, int block,
       if (skip_cctx_eval) break;
 
       // Calculate rate cost of quantized coefficients.
-      uint8_t fsc_mode = ((mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
-                           plane == PLANE_TYPE_Y) ||
-                          use_inter_fsc(cm, plane, tx_type, is_inter))
+      uint8_t fsc_mode = ((
 #if CONFIG_FSC_RES_HLS
-                         && cm->seq_params.enable_fsc_residual
-#endif  // CONFIG_FSC_RES_HLS
-          ;
+                              cm->seq_params.enable_fsc &&
+#endif
+                              mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
+                              plane == PLANE_TYPE_Y) ||
+                          use_inter_fsc(cm, plane, tx_type, is_inter));
       if (quant_param.use_optimize_b) {
         if (fsc_mode)
           av1_optimize_fsc(cpi, x, plane, block, tx_size, tx_type,
@@ -3212,7 +3213,7 @@ static AOM_INLINE void try_tx_block_no_split(
   get_txb_ctx(plane_bsize, tx_size, 0, pta, ptl, &txb_ctx,
               mbmi->fsc_mode[xd->tree_type == CHROMA_PART]
 #if CONFIG_FSC_RES_HLS
-                  && cm->seq_params.enable_fsc_residual
+                  && cm->seq_params.enable_fsc
 #endif  // CONFIG_FSC_RES_HLS
   );
   const int is_inter = is_inter_block(mbmi, xd->tree_type);
@@ -3849,7 +3850,7 @@ static AOM_INLINE void block_rd_txfm(int plane, int block, int blk_row,
   get_txb_ctx(plane_bsize, tx_size, plane, a, l, &txb_ctx,
               xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART]
 #if CONFIG_FSC_RES_HLS
-                  && cm->seq_params.enable_fsc_residual
+                  && cm->seq_params.enable_fsc
 #endif  // CONFIG_FSC_RES_HLS
   );
   int dummy = 0;
@@ -4023,7 +4024,7 @@ static AOM_INLINE void block_rd_txfm_joint_uv(int dummy_plane, int block,
     get_txb_ctx(plane_bsize, tx_size, plane, a, l, txb_ctx,
                 xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART]
 #if CONFIG_FSC_RES_HLS
-                    && cm->seq_params.enable_fsc_residual
+                    && cm->seq_params.enable_fsc
 #endif  // CONFIG_FSC_RES_HLS
     );
 

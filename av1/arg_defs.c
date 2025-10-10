@@ -433,11 +433,10 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
                         "Enable forward skip coding"
                         "(0: false, 1: true (default))"),
 #if CONFIG_FSC_RES_HLS
-  .enable_fsc_residual =
-      ARG_DEF(NULL, "enable-fsc_res", 1,
-              "Enable forward skip coding residual coding"
-              "(0: fsc residual coding disabled, using regular residual "
-              "coding, 1: fsc residual coding enabled (default))"),
+  .enable_idtx_intra = ARG_DEF(
+      NULL, "enable-idtx-intra", 1,
+      "Enable idtx for intra for enable-fsc is 0 case"
+      "(0: idtx for intra disabled 1: idtx for intra enabled (default))"),
 #endif  // CONFIG_FSC_RES_HLS
   .enable_orip = ARG_DEF(NULL, "enable-orip", 1,
                          "Enable Offset Based refinement of intra prediction"
@@ -682,7 +681,7 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
               "Enable frame parallel decodability features "
               "(0: false (default), 1: true)"),
   .error_resilient_mode = ARG_DEF(NULL, "error-resilient", 1,
-                                  "Enable error resilient features "
+                                  "Enable error resilient features (obsolete)"
                                   "(0: false (default), 1: true)"),
   .aq_mode = ARG_DEF(NULL, "aq-mode", 1,
                      "Adaptive quantization mode (0: off (default), 1: "

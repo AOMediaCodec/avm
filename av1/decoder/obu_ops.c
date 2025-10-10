@@ -140,12 +140,10 @@ uint32_t av1_read_operating_point_set_obu(struct AV1Decoder *pbi,
     if (obu_xlayer_id == 31) {
       ops_params->ops_mlayer_info_idc[obu_xlayer_id][ops_id] =
           aom_rb_read_literal(rb, 2);
-      ops_params->ops_reserved_2bits[obu_xlayer_id][ops_id] =
-          aom_rb_read_literal(rb, 2);
+      (void)aom_rb_read_literal(rb, 2);  // ops_reserved_2bits
     } else {
       ops_params->ops_mlayer_info_idc[obu_xlayer_id][ops_id] = 1;
-      ops_params->ops_reserved_3bits[obu_xlayer_id][ops_id] =
-          aom_rb_read_literal(rb, 3);
+      (void)aom_rb_read_literal(rb, 3);  // ops_reserved_3bits
     }
     for (int i = 0; i < ops_params->ops_cnt[obu_xlayer_id][ops_id]; i++) {
       ops_params->ops_data_size[obu_xlayer_id][ops_id][i] =

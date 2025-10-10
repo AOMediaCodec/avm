@@ -661,6 +661,15 @@ static void pick_sb_modes(AV1_COMP *const cpi, ThreadData *td,
   av1_set_error_per_bit(&x->mv_costs, x->rdmult);
   av1_rd_cost_update(x->rdmult, &best_rd);
 
+  const int super_block_upper_left = ((mi_row & (cm->mib_size - 1)) == 0) &&
+                                     ((mi_col & (cm->mib_size - 1)) == 0);
+
+  if (!super_block_upper_left) {
+    xd->mi[0]->current_qindex = x->qindex_without_seg_delta;
+  }
+  get_qindex_with_offsets(cm, x->qindex, xd->mi[0]->final_qindex_dc,
+                          xd->mi[0]->final_qindex_ac);
+
   // Find best coding mode & reconstruct the MB so it is available
   // as a predictor for MBs that follow in the SB
   if (frame_is_intra_only(cm) || mbmi->region_type == INTRA_REGION) {
@@ -1776,6 +1785,25 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
         }
       }
     }
+
+    if (delta_q_info->delta_q_present_flag && super_block_upper_left &&
+        bsize == cm->sb_size && mbmi->skip_txfm[xd->tree_type == CHROMA_PART]) {
+      mbmi->current_qindex = xd->current_base_qindex;
+      int seg_qindex =
+          av1_get_qindex(&cm->seg, mbmi->segment_id, xd->current_base_qindex,
+                         cm->seq_params.bit_depth);
+
+      get_qindex_with_offsets(cm, seg_qindex, mbmi->final_qindex_dc,
+                              mbmi->final_qindex_ac);
+    }
+#ifndef NDEBUG
+    for (int k = 0; k < num_planes; k++) {
+      assert(IMPLIES(!cm->delta_q_info.delta_q_present_flag,
+                     mbmi->final_qindex_dc[k] == xd->qindex[mbmi->segment_id]));
+      assert(IMPLIES(!cm->delta_q_info.delta_q_present_flag,
+                     mbmi->final_qindex_ac[k] == xd->qindex[mbmi->segment_id]));
+    }
+#endif  // NDEBUG
 
     RD_COUNTS *rdc = &td->rd_counts;
     if (mbmi->skip_mode) {

@@ -61,6 +61,10 @@ set_aom_detect_var(HAVE_UNISTD_H 0
                    "Internal flag, unistd.h present for target.")
 set_aom_detect_var(HAVE_WXWIDGETS 0 "WxWidgets present.")
 
+set_aom_config_var(CONFIG_F322_OBUER_EXPLICIT_REFLIST 1
+                   "Signal explit_ref_frame_map in uncompressed_headr")
+set_aom_config_var(CONFIG_F322_OBUER_ERM 1
+                   "Infer error_resilient_mode without signalling.")
 #
 # Variables in this section can be set from the CMake command line or from
 # within the CMake GUI. The variables control libaom features.
@@ -144,6 +148,8 @@ set_aom_config_var(CONFIG_MULTILAYER_CORE_HLS 1
 set_aom_config_var(CONFIG_MULTILAYER_HLS 1 "HLS for multilayer coding.")
 set_aom_config_var(CONFIG_BACKGRND_COLOR_ATLAS 1 "Atlas Background color")
 
+set_aom_config_var(CONFIG_SET_DEFAULT_VALUE_XLAYER_ID 1
+                   "Set the default value of xlayer_id to global scope OBUs.")
 set_aom_config_var(CONFIG_PARAKIT_COLLECT_DATA 0
                    "enables data collection for ParaKit training.")
 
@@ -178,10 +184,11 @@ set_aom_config_var(CONFIG_F253_REMOVE_OUTPUTFLAG 1
 set_aom_config_var(CONFIG_CWG_E242_SIGNAL_TILE_INFO 1
                    "Signal tile information at sequence header.")
 
+set_aom_config_var(CONFIG_CWG_E242_PARSING_INDEP 1
+                   "Parsing independence of MFH.")
+
 set_aom_config_var(CONFIG_CWG_E242_BITDEPTH 1 "Signal Bitdepth using a LUT.")
 
-set_aom_config_var(CONFIG_SEQ_MAX_DRL_BITS 1
-                   "AV2 sequence level max_drl_bits information")
 set_aom_config_var(CONFIG_MINIMUM_LR_UNIT_SIZE_64x64 0
                    "Support minimum LR Unit size ")
 set_aom_config_var(CONFIG_LR_FRAMEFILTERS_IN_HEADER 0
@@ -221,9 +228,12 @@ set_aom_config_var(CONFIG_CWG_E242_MFH_ID_UVLC 1
                    "Signaling multi-frame header ID in UVLC")
 set_aom_config_var(CONFIG_RANDOM_ACCESS_SWITCH_FRAME 1
                    "Enable random access switch (RAS) frame")
+set_aom_config_var(CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME 1
+                   "Enable temporal unit based on showable frame")
 set_aom_config_var(CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER 1
                    "Remove redundant frame header OBU from OBU types")
 set_aom_config_var(CONFIG_MULTI_STREAM 1 "AV2 enable multi-streams.")
+set_aom_config_var(OBU_ORDER_IN_TU 1 "Check OBU order in TU")
 
 # Configurable DPB extension
 set_aom_config_var(CONFIG_CWG_F168_DPB_HLS 1
@@ -252,6 +262,8 @@ set_aom_config_var(CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING 1
 set_aom_config_var(
   CONFIG_QM_DEBUG 0
   "Enable debug information for extension to AV1 quantization matrices.")
+
+set_aom_config_var(CONFIG_CWG_F248_RENDER_SIZE 1 "Remove render size.")
 
 set_aom_config_var(CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION 1
                    "Enable to reduce context model line buffer size")
@@ -329,14 +341,15 @@ set_aom_config_var(CONFIG_REDUCE_SYMBOL_SIZE 1
 set_aom_config_var(CONFIG_CCSO_CLEANUP 1
                    "Clean up CCSO quant_sz and signaling.")
 
-set_aom_config_var(CONFIG_DRL_SIZE_LIMIT 1 "F206 limit drl size to six.")
-set_aom_config_var(CONFIG_DRL_PR_LIM 1 "Limit the number of DRL pruning.")
 set_aom_config_var(CONFIG_COEFF_PARSING 1
                    "Parsing dependency removal for coefficient related syntax.")
 
 set_aom_config_var(CONFIG_FGS_BLOCK_SIZE 1 "Choice of FGS blocks size.")
 set_aom_config_var(CONFIG_MOTION_MODE_FRAME_HEADERS_OPT 1
                    "Frame header optimzation of motion modes.")
+
+set_aom_config_var(CONFIG_CWG_F362 1
+                   "Implicit frame tool flags for single picture headers.")
 
 # CWG-F243
 set_aom_config_var(CONFIG_CWG_F243_ORDER_HINT_BITDEPTH 1
@@ -357,7 +370,12 @@ set_aom_config_var(
   "Encoder only flag to configure encoder to enable mixed lossy/lossless coding"
 )
 set_aom_config_var(CONFIG_CWG_F317 1 "Bridge frame")
+set_aom_config_var(CONFIG_CWG_F317_TEST_PATTERN 1
+                   "Bridge frame - unit test pattern")
 
+set_aom_config_var(CONFIG_4X4_WARP_FIX 1 "Fix 4x4 warp padding")
+
+set_aom_config_var(CONFIG_BAND_METADATA 1 "Enable banding hints metadata.")
 #
 # Variables in this section control optional features of the build system.
 #

@@ -3895,10 +3895,15 @@ static void find_optimal_num_classes_and_frame_filters(RestSearchCtxt *rsc) {
       calculate_frame_filters_cost(rsc, &tmp_bank, &best_filter, &filter_bits);
 
   int8_t best_ref_idx = -1;
-  const int num_ref_frames =
-      (frame_is_intra_only(rsc->cm) || rsc->cm->features.error_resilient_mode)
-          ? 0
-          : rsc->cm->ref_frames_info.num_total_refs;
+  const int num_ref_frames = (frame_is_intra_only(rsc->cm) ||
+#if CONFIG_F322_OBUER_ERM
+                              frame_is_sframe(rsc->cm)
+#else
+                              rsc->cm->features.error_resilient_mode
+#endif
+                                  )
+                                 ? 0
+                                 : rsc->cm->ref_frames_info.num_total_refs;
   for (int ref_idx = 0; ref_idx < num_ref_frames; ref_idx++) {
     RestorationInfo rsi =
         get_ref_frame_buf(rsc->cm, ref_idx)->rst_info[rsc->plane];

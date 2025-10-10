@@ -119,11 +119,9 @@ uint32_t av1_write_operating_point_set_obu(AV1_COMP *cpi, int obu_xlayer_id,
     if (obu_xlayer_id == 31) {
       aom_wb_write_literal(&wb, ops->ops_mlayer_info_idc[obu_xlayer_id][ops_id],
                            2);
-      aom_wb_write_literal(&wb, ops->ops_reserved_2bits[obu_xlayer_id][ops_id],
-                           2);
+      aom_wb_write_literal(&wb, 0, 2);  // ops_reserved_2bits
     } else {
-      aom_wb_write_literal(&wb, ops->ops_reserved_3bits[obu_xlayer_id][ops_id],
-                           3);
+      aom_wb_write_literal(&wb, 0, 3);  // ops_reserved_3bits
     }
     for (int i = 0; i < ops->ops_cnt[obu_xlayer_id][ops_id]; i++) {
       aom_wb_write_uleb(&wb, ops->ops_data_size[obu_xlayer_id][ops_id][i]);

@@ -20,7 +20,10 @@ default:
     - docker-x86_64
   retry:
     max: 2
-    when: runner_system_failure
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
+    exit_codes: 135
 
 workflow:
   rules:
@@ -516,12 +519,28 @@ Linux Sanitizers (x86_64-clang):
       CMAKE_FLAGS="$CMAKE_FLAGS -DAOM_EXTRA_CXX_FLAGS=${SANITIZER_BLACKLIST_FLAG}"
       echo "CMake Flags: $CMAKE_FLAGS"
     - cmake -B "aom_build/$AOM_SANITIZER_TYPE" -GNinja -DCMAKE_BUILD_TYPE=RelWithDebInfo $CMAKE_FLAGS
-    - cmake --build "aom_build/$AOM_SANITIZER_TYPE" --target test_libaom
+    # Special handling for a transient clang compiler crash.
+    - exit_code=0
+    - cmake --build "aom_build/$AOM_SANITIZER_TYPE" --target test_libaom 2>&1 | tee build.log || exit_code=$?
+    - |
+      COMPILER_CRASH_EXIT_CODE=135
+      # Looking for clang compiler crash in log
+      grep -q "clang frontend command failed with exit code ${COMPILER_CRASH_EXIT_CODE}" build.log && {
+        echo "Compiler crashed with exit code ${COMPILER_CRASH_EXIT_CODE}"
+        echo "Saving diagnostic files and asking gitlab to retry..."
+        mkdir clang_diagnostic_files
+        cp /tmp/av1_config* clang_diagnostic_files/
+        exit ${COMPILER_CRASH_EXIT_CODE}
+      }
+      exit ${exit_code}
   needs: []
   artifacts:
     expire_in: 1 day
     paths:
       - aom_build/*/test_libaom
+      # Generated when clang crashes.
+      - clang_diagnostic_files/*
+    when: always
 
 Example Test (x86_64):
   stage: test

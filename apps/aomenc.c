@@ -183,7 +183,9 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
                                         AV1E_SET_MODE_COST_UPD_FREQ,
                                         AV1E_SET_MV_COST_UPD_FREQ,
                                         AV1E_SET_FRAME_PARALLEL_DECODING,
+#if !CONFIG_F322_OBUER_ERM
                                         AV1E_SET_ERROR_RESILIENT_MODE,
+#endif  // !CONFIG_F322_OBUER_ERM
                                         AV1E_SET_AQ_MODE,
                                         AV1E_SET_DELTAQ_MODE,
                                         AV1E_SET_DELTALF_MODE,
@@ -379,7 +381,9 @@ const arg_def_t *av1_ctrl_args[] = {
   &g_av1_codec_arg_defs.mode_cost_upd_freq,
   &g_av1_codec_arg_defs.mv_cost_upd_freq,
   &g_av1_codec_arg_defs.frame_parallel_decoding,
+#if !CONFIG_F322_OBUER_ERM
   &g_av1_codec_arg_defs.error_resilient_mode,
+#endif  // !CONFIG_F322_OBUER_ERM
   &g_av1_codec_arg_defs.aq_mode,
   &g_av1_codec_arg_defs.deltaq_mode,
   &g_av1_codec_arg_defs.deltalf_mode,
@@ -453,7 +457,7 @@ const arg_def_t *av1_key_val_args[] = {
   &g_av1_codec_arg_defs.enable_imp_msk_bld,
   &g_av1_codec_arg_defs.enable_fsc,
 #if CONFIG_FSC_RES_HLS
-  &g_av1_codec_arg_defs.enable_fsc_residual,
+  &g_av1_codec_arg_defs.enable_idtx_intra,
 #endif  // CONFIG_FSC_RES_HLS
   &g_av1_codec_arg_defs.enable_orip,
   &g_av1_codec_arg_defs.enable_ist,
@@ -658,7 +662,7 @@ static void init_config(cfg_options_t *config) {
   config->enable_imp_msk_bld = 1;
   config->enable_fsc = 1;
 #if CONFIG_FSC_RES_HLS
-  config->enable_fsc_residual = 1;
+  config->enable_idtx_intra = 1;
 #endif  // CONFIG_FSC_RES_HLS
   config->enable_orip = 1;
   config->enable_ist = 1;
@@ -1539,7 +1543,7 @@ static void show_stream_config(struct stream_state *stream,
           ", MRLS(%d)"
           ", FSC(%d)"
 #if CONFIG_FSC_RES_HLS
-          ", FSC_RESIDUAL(%d)"
+          ", IDTX_INTRA(%d)"
 #endif  // CONFIG_FSC_RES_HLS
           ", ORIP(%d)"
           ", IBP(%d)"
@@ -1548,7 +1552,7 @@ static void show_stream_config(struct stream_state *stream,
           encoder_cfg->enable_paeth_intra, encoder_cfg->enable_mrls,
           encoder_cfg->enable_fsc,
 #if CONFIG_FSC_RES_HLS
-          encoder_cfg->enable_fsc_residual,
+          encoder_cfg->enable_idtx_intra,
 #endif  // CONFIG_FSC_RES_HLS
           encoder_cfg->enable_orip, encoder_cfg->enable_ibp);
   fprintf(

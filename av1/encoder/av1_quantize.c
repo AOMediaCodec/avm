@@ -421,6 +421,8 @@ void av1_init_plane_quantizers(const AV1_COMP *cpi, MACROBLOCK *x,
                 cm->delta_q_info.delta_q_present_flag
                     ? quant_params->base_qindex + x->delta_qindex
                     : quant_params->base_qindex));
+
+  x->qindex_without_seg_delta = current_qindex;
   const int qindex = av1_get_qindex(&cm->seg, segment_id, current_qindex,
                                     cm->seq_params.bit_depth);
 
@@ -482,6 +484,8 @@ void av1_init_plane_quantizers(const AV1_COMP *cpi, MACROBLOCK *x,
 
   x->seg_skip_block = segfeature_active(&cm->seg, segment_id, SEG_LVL_SKIP);
   x->qindex = qindex;
+  get_qindex_with_offsets(cm, x->qindex, xd->mi[0]->final_qindex_dc,
+                          xd->mi[0]->final_qindex_ac);
 
 #if DEBUG_EXTQUANT
   fprintf(cm->fEncCoeffLog, "\ninit_plane_quantizers\n");

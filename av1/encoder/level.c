@@ -774,8 +774,6 @@ static void get_temporal_parallel_params(int scalability_mode_idc,
 }
 
 #define MAX_TILE_SIZE (4096 * 2304)
-#define MIN_CROPPED_TILE_WIDTH 8
-#define MIN_CROPPED_TILE_HEIGHT 8
 #define MIN_FRAME_WIDTH 16
 #define MIN_FRAME_HEIGHT 16
 #define MAX_TILE_SIZE_HEADER_RATE_PRODUCT 588251136
@@ -851,16 +849,6 @@ static TARGET_LEVEL_FAIL_ID check_level_constraints(
 
     if (level_stats->max_superres_tile_width > MAX_TILE_WIDTH) {
       fail_id = SUPERRES_TILE_WIDTH_TOO_LARGE;
-      break;
-    }
-
-    if (level_stats->min_cropped_tile_width < MIN_CROPPED_TILE_WIDTH) {
-      fail_id = CROPPED_TILE_WIDTH_TOO_SMALL;
-      break;
-    }
-
-    if (level_stats->min_cropped_tile_height < MIN_CROPPED_TILE_HEIGHT) {
-      fail_id = CROPPED_TILE_HEIGHT_TOO_SMALL;
       break;
     }
 

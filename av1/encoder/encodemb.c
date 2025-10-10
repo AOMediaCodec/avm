@@ -627,13 +627,13 @@ void av1_xform_quant(const AV1_COMMON *cm, MACROBLOCK *x, int plane, int block,
               NULL);
   }
   const uint8_t fsc_mode =
-      ((mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
-        plane == PLANE_TYPE_Y) ||
-       use_inter_fsc(cm, plane, txfm_param->tx_type, is_inter))
+      ((
 #if CONFIG_FSC_RES_HLS
-      && cm->seq_params.enable_fsc_residual
-#endif  // CONFIG_FSC_RES_HLS
-      ;
+           cm->seq_params.enable_fsc &&
+#endif
+           mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
+           plane == PLANE_TYPE_Y) ||
+       use_inter_fsc(cm, plane, txfm_param->tx_type, is_inter));
   av1_quant(x, plane, block, txfm_param, qparam);
   if (fsc_mode) {
     if (get_primary_tx_type(txfm_param->tx_type) == IDTX) {
@@ -908,13 +908,13 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
     TxfmParam txfm_param;
     QUANT_PARAM quant_param;
     const int is_inter = is_inter_block(mbmi, xd->tree_type);
-    const int fsc_mode = ((mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
-                           plane == PLANE_TYPE_Y) ||
-                          use_inter_fsc(cm, plane, tx_type, is_inter))
+    const int fsc_mode = ((
 #if CONFIG_FSC_RES_HLS
-                         && cm->seq_params.enable_fsc_residual
-#endif  // CONFIG_FSC_RES_HLS
-        ;
+                              cm->seq_params.enable_fsc &&
+#endif
+                              mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
+                              plane == PLANE_TYPE_Y) ||
+                          use_inter_fsc(cm, plane, tx_type, is_inter));
     const int use_trellis = is_trellis_used(args->enable_optimize_b, dry_run);
     int quant_idx;
     if (use_trellis)
@@ -966,7 +966,7 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
       get_txb_ctx(plane_bsize, tx_size, plane, a, l, &txb_ctx,
                   mbmi->fsc_mode[xd->tree_type == CHROMA_PART]
 #if CONFIG_FSC_RES_HLS
-                      && cm->seq_params.enable_fsc_residual
+                      && cm->seq_params.enable_fsc
 #endif  // CONFIG_FSC_RES_HLS
       );
       if (fsc_mode)
@@ -1457,13 +1457,14 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
 
     TxfmParam txfm_param;
     QUANT_PARAM quant_param;
-    const uint8_t fsc_mode = ((mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
-                               plane == PLANE_TYPE_Y) ||
-                              use_inter_fsc(cm, plane, tx_type, is_inter))
+    const uint8_t fsc_mode =
+        ((
 #if CONFIG_FSC_RES_HLS
-                             && cm->seq_params.enable_fsc_residual
-#endif  // CONFIG_FSC_RES_HLS
-        ;
+             cm->seq_params.enable_fsc &&
+#endif
+             mbmi->fsc_mode[xd->tree_type == CHROMA_PART] &&
+             plane == PLANE_TYPE_Y) ||
+         use_inter_fsc(cm, plane, tx_type, is_inter));
     const int use_trellis =
         is_trellis_used(args->enable_optimize_b, args->dry_run);
     int quant_idx;
@@ -1536,7 +1537,7 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
       get_txb_ctx(plane_bsize, tx_size, plane, a, l, &txb_ctx,
                   mbmi->fsc_mode[xd->tree_type == CHROMA_PART]
 #if CONFIG_FSC_RES_HLS
-                      && cm->seq_params.enable_fsc_residual
+                      && cm->seq_params.enable_fsc
 #endif  // CONFIG_FSC_RES_HLS
       );
       if (fsc_mode)
@@ -1570,7 +1571,7 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
         get_txb_ctx(plane_bsize, tx_size, plane, a, l, &txb_ctx,
                     mbmi->fsc_mode[xd->tree_type == CHROMA_PART]
 #if CONFIG_FSC_RES_HLS
-                        && cm->seq_params.enable_fsc_residual
+                        && cm->seq_params.enable_fsc
 #endif  // CONFIG_FSC_RES_HLS
         );
         if (fsc_mode)
@@ -1873,13 +1874,13 @@ void av1_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
     av1_xform_quant(cm, x, plane, block, blk_row, blk_col, plane_bsize,
                     &txfm_param, &quant_param);
     const uint8_t fsc_mode =
-        ((xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
-          plane == PLANE_TYPE_Y) ||
-         use_inter_fsc(cm, plane, tx_type, 0 /*is_inter*/))
+        ((
 #if CONFIG_FSC_RES_HLS
-        && cm->seq_params.enable_fsc_residual
-#endif  // CONFIG_FSC_RES_HLS
-        ;
+             cm->seq_params.enable_fsc &&
+#endif
+             xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART] &&
+             plane == PLANE_TYPE_Y) ||
+         use_inter_fsc(cm, plane, tx_type, 0 /*is_inter*/));
     if (quant_param.use_optimize_b && do_trellis) {
       const ENTROPY_CONTEXT *a =
           &args->ta[blk_col + (plane - AOM_PLANE_U) * MAX_MIB_SIZE];
@@ -1889,7 +1890,7 @@ void av1_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
       get_txb_ctx(plane_bsize, tx_size, plane, a, l, &txb_ctx,
                   xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART]
 #if CONFIG_FSC_RES_HLS
-                      && cm->seq_params.enable_fsc_residual
+                      && cm->seq_params.enable_fsc
 #endif  // CONFIG_FSC_RES_HLS
       );
       if (fsc_mode)
@@ -1921,7 +1922,7 @@ void av1_encode_block_intra_joint_uv(int block, int blk_row, int blk_col,
         get_txb_ctx(plane_bsize, tx_size, plane, a, l, &txb_ctx,
                     xd->mi[0]->fsc_mode[xd->tree_type == CHROMA_PART]
 #if CONFIG_FSC_RES_HLS
-                        && cm->seq_params.enable_fsc_residual
+                        && cm->seq_params.enable_fsc
 #endif  // CONFIG_FSC_RES_HLS
         );
         if (fsc_mode)

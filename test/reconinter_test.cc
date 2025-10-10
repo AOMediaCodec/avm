@@ -174,4 +174,176 @@ INSTANTIATE_TEST_SUITE_P(NEON, BuildCompDiffwtdMaskD16Test,
                          BuildParams(av1_build_compound_diffwtd_mask_d16_neon));
 #endif
 
+typedef void (*RefinemvPadMCBorderFunc)(const uint16_t *src, int src_stride,
+                                        uint16_t *dst, int dst_stride, int x0,
+                                        int y0, int b_w, int b_h,
+                                        const ReferenceArea *ref_area);
+
+using std::get;
+using std::make_tuple;
+using std::tuple;
+
+static constexpr int kSpeedIterations = 10000;
+static constexpr int kMaxDimension = 2 * (REF_BUFFER_WIDTH + 1);
+
+// <width, height, bit_depth, subtract>
+typedef tuple<int, int, int, RefinemvPadMCBorderFunc> Params;
+
+class RefinemvPadMCBorderTest : public ::testing::TestWithParam<Params> {
+ public:
+  virtual void SetUp() {
+    block_width_ = GET_PARAM(0) + (AOM_INTERP_EXTEND - 1) + AOM_INTERP_EXTEND;
+    block_height_ = GET_PARAM(1) + (AOM_INTERP_EXTEND - 1) + AOM_INTERP_EXTEND;
+    func_ = GET_PARAM(3);
+    src_stride_ = kMaxDimension;
+    dst_stride_ = REF_BUFFER_WIDTH;
+
+    const size_t max_width = REF_BUFFER_WIDTH + 1;
+    const size_t max_block_size = max_width * max_width;
+    src_ = reinterpret_cast<uint16_t *>(
+        aom_memalign(16, kMaxDimension * kMaxDimension * sizeof(uint16_t)));
+    dst_ref_ = reinterpret_cast<uint16_t *>(
+        aom_memalign(16, max_block_size * sizeof(uint16_t)));
+    dst_test_ = reinterpret_cast<uint16_t *>(
+        aom_memalign(16, max_block_size * sizeof(uint16_t)));
+
+    aom_bit_depth_t bit_depth = static_cast<aom_bit_depth_t>(GET_PARAM(2));
+    const int mask = (1 << bit_depth) - 1;
+    ref_area_ = { { 0, 15, 0, 15 }, { 0 }, 0 };
+
+    ACMRandom rnd;
+    rnd.Reset(ACMRandom::DeterministicSeed());
+    for (int j = 0; j < (int)max_block_size; ++j) {
+      src_[j] = rnd.Rand16() & mask;
+    }
+  }
+
+  int BorderLeft() const { return (kMaxDimension - block_width_) / 2; }
+  int BorderTop() const { return (kMaxDimension - block_height_) / 2; }
+
+  uint16_t *input() const {
+    const int offset = BorderTop() * kMaxDimension + BorderLeft();
+    return src_ + offset;
+  }
+
+  virtual void TearDown() {
+    aom_free(src_);
+    aom_free(dst_ref_);
+    aom_free(dst_test_);
+  }
+
+  void AssertOutputBufferEq(const uint16_t *p1, const uint16_t *p2, int width,
+                            int height, int stride) {
+    ASSERT_TRUE(p1 != p2) << "Buffers must be in different memory locations";
+    for (int j = 0; j < height; ++j) {
+      if (memcmp(p1, p2, sizeof(*p1) * width) == 0) {
+        p1 += stride;
+        p2 += stride;
+        continue;
+      }
+      for (int i = 0; i < width; ++i) {
+        ASSERT_EQ(p1[i], p2[i])
+            << width << "x" << height << " Pixel mismatch at (" << i << ", "
+            << j << ")";
+      }
+    }
+  }
+
+ protected:
+  void CheckResult();
+  void RunSpeedTest();
+
+ private:
+  int block_height_;
+  int block_width_;
+  RefinemvPadMCBorderFunc func_;
+  uint16_t *src_;
+  uint16_t *dst_ref_;
+  uint16_t *dst_test_;
+  int src_stride_;
+  int dst_stride_;
+  ReferenceArea ref_area_;
+};
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(RefinemvPadMCBorderTest);
+
+void RefinemvPadMCBorderTest::CheckResult() {
+  uint16_t *const in = input();
+  for (int y0 = -15; y0 <= 15; y0++) {
+    for (int x0 = -15; x0 <= 15; x0++) {
+      const uint16_t *const buf_ptr = in + y0 * src_stride_ + x0;
+      refinemv_highbd_pad_mc_border_c(buf_ptr, src_stride_, dst_ref_,
+                                      dst_stride_, x0, y0, block_width_,
+                                      block_height_, &ref_area_);
+      func_(buf_ptr, src_stride_, dst_test_, dst_stride_, x0, y0, block_width_,
+            block_height_, &ref_area_);
+
+      AssertOutputBufferEq(dst_ref_, dst_test_, block_width_, block_height_,
+                           dst_stride_);
+    }
+  }
+}
+
+TEST_P(RefinemvPadMCBorderTest, CheckResult) { CheckResult(); }
+
+void RefinemvPadMCBorderTest::RunSpeedTest() {
+  int x0[3] = { 0, 1, 15 };
+  int y0[3] = { 0, 1, 15 };
+  uint16_t *const in = input();
+
+  for (int k = 0; k <= 2; k++) {
+    for (int l = 0; l <= 2; l++) {
+      const uint16_t *const buf_ptr = in + y0[k] * src_stride_ + x0[l];
+      aom_usec_timer timer;
+      aom_usec_timer_start(&timer);
+      for (int i = 0; i < kSpeedIterations; ++i) {
+        refinemv_highbd_pad_mc_border_c(buf_ptr, src_stride_, dst_ref_,
+                                        dst_stride_, x0[l], y0[k], block_width_,
+                                        block_height_, &ref_area_);
+      }
+      aom_usec_timer_mark(&timer);
+      auto elapsed_time_c = aom_usec_timer_elapsed(&timer);
+
+      aom_usec_timer_start(&timer);
+      for (int i = 0; i < kSpeedIterations; ++i) {
+        func_(buf_ptr, src_stride_, dst_test_, dst_stride_, x0[l], y0[k],
+              block_width_, block_height_, &ref_area_);
+      }
+      aom_usec_timer_mark(&timer);
+      auto elapsed_time_opt = aom_usec_timer_elapsed(&timer);
+
+      float c_time_per_pixel =
+          (float)1000.0 * elapsed_time_c /
+          (kSpeedIterations * block_width_ * block_height_);
+      float opt_time_per_pixel =
+          (float)1000.0 * elapsed_time_opt /
+          (kSpeedIterations * block_width_ * block_height_);
+      float scaling = c_time_per_pixel / opt_time_per_pixel;
+      printf(
+          "%3dx%-3d: c_time_per_pixel=%10.5f, "
+          "opt_time_per_pixel=%10.5f,  scaling=%f, x0:%d, y0:%d \n",
+          block_width_, block_height_, c_time_per_pixel, opt_time_per_pixel,
+          scaling, x0[l], y0[k]);
+    }
+  }
+}
+
+TEST_P(RefinemvPadMCBorderTest, DISABLED_Speed) { RunSpeedTest(); }
+
+#if HAVE_AVX2
+const Params kRefinemvPadMCBorder_avx2[] = {
+  make_tuple(8, 4, 8, &refinemv_highbd_pad_mc_border_avx2),
+  make_tuple(8, 8, 8, &refinemv_highbd_pad_mc_border_avx2),
+  make_tuple(8, 16, 8, &refinemv_highbd_pad_mc_border_avx2),
+  make_tuple(8, 4, 10, &refinemv_highbd_pad_mc_border_avx2),
+  make_tuple(8, 8, 10, &refinemv_highbd_pad_mc_border_avx2),
+  make_tuple(8, 16, 10, &refinemv_highbd_pad_mc_border_avx2),
+  make_tuple(8, 4, 12, &refinemv_highbd_pad_mc_border_avx2),
+  make_tuple(8, 8, 12, &refinemv_highbd_pad_mc_border_avx2),
+  make_tuple(8, 16, 12, &refinemv_highbd_pad_mc_border_avx2)
+};
+
+INSTANTIATE_TEST_SUITE_P(AVX2, RefinemvPadMCBorderTest,
+                         ::testing::ValuesIn(kRefinemvPadMCBorder_avx2));
+#endif  // HAVE_AVX2
+
 }  // namespace

@@ -361,6 +361,9 @@ if ($opts{config} !~ /libs-x86-win32-vs.*/) {
   add_proto qw/void gdf_compensation_unit/, "uint16_t* rec_pnt, const int rec_stride, int16_t* err_pnt, const int err_stride, const int err_shift, const int scale, const int pxl_max, const int blk_height, const int blk_width";
   specialize qw/gdf_compensation_unit avx2/;
 
+add_proto qw/void refinemv_highbd_pad_mc_border/, "const uint16_t *src, int src_stride, uint16_t *dst, int dst_stride, int x0, int y0, int b_w, int b_h, const ReferenceArea *ref_area";
+specialize qw/refinemv_highbd_pad_mc_border avx2/;
+
 # Cross-component Sample Offset
 add_proto qw/void ccso_filter_block_hbd_wo_buf/, "const uint16_t *src_y, uint16_t *dst_yuv, const int x, const int y, const int pic_width, const int pic_height, int *src_cls, const int8_t *offset_buf, const int scaled_ext_stride, const int dst_stride, const int y_uv_hscale, const int y_uv_vscale, const int thr, const int neg_thr, const int *src_loc, const int max_val, const int blk_size_x, const int blk_size_y, const bool isSingleBand, const uint8_t shift_bits, const int edge_clf, const uint8_t ccso_bo_only";
 specialize qw/ccso_filter_block_hbd_wo_buf avx2/;

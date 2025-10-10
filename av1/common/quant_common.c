@@ -122,6 +122,50 @@ int tcq_next_state(const int curState, const int absLevel) {
   return nextState;
 }
 
+// Clamp the qindex value to minimum and maximum allowed limit
+int av1_q_clamped(int qindex, int delta, int base_dc_delta_q,
+                  aom_bit_depth_t bit_depth) {
+  int q_clamped;
+  if ((qindex == 0) && (delta + base_dc_delta_q <= 0))
+    q_clamped = 0;
+  else
+    q_clamped = clamp(qindex + base_dc_delta_q + delta, 1,
+                      bit_depth == AOM_BITS_8    ? MAXQ_8_BITS
+                      : bit_depth == AOM_BITS_10 ? MAXQ_10_BITS
+                                                 : MAXQ);
+  return q_clamped;
+}
+// Add the deltaq offset value
+// seg_qindex is the frame base QP + superblock delta + segment delta
+void get_qindex_with_offsets(const struct AV1Common *cm, int seg_qindex,
+                             int final_qindex_dc[3], int final_qindex_ac[3]) {
+  const int num_planes = av1_num_planes(cm);
+  const CommonQuantParams *const quant_params = &cm->quant_params;
+  for (int j = 0; j < num_planes; ++j) {
+    if (cm->delta_q_info.delta_q_present_flag) {
+      const int dc_delta_q = j == 0 ? quant_params->y_dc_delta_q
+                                    : (j == 1 ? quant_params->u_dc_delta_q
+                                              : quant_params->v_dc_delta_q);
+      const int ac_delta_q = j == 0 ? 0
+                                    : (j == 1 ? quant_params->u_ac_delta_q
+                                              : quant_params->v_ac_delta_q);
+
+      final_qindex_dc[j] =
+          av1_q_clamped(seg_qindex, dc_delta_q,
+                        j == 0 ? cm->seq_params.base_y_dc_delta_q
+                               : cm->seq_params.base_uv_dc_delta_q,
+                        cm->seq_params.bit_depth);
+      final_qindex_ac[j] =
+          av1_q_clamped(seg_qindex, ac_delta_q,
+                        j == 0 ? 0 : cm->seq_params.base_uv_ac_delta_q,
+                        cm->seq_params.bit_depth);
+    } else {
+      final_qindex_dc[j] = seg_qindex;
+      final_qindex_ac[j] = seg_qindex;
+    }
+  }
+}
+
 int32_t av1_dc_quant_QTX(int qindex, int delta, int base_dc_delta_q,
                          aom_bit_depth_t bit_depth) {
   int q_clamped;

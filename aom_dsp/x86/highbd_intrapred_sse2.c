@@ -821,7 +821,9 @@ void aom_highbd_v_predictor_32x16_sse2(uint16_t *dst, ptrdiff_t stride,
 void aom_highbd_dc_predictor_4x8_sse2(uint16_t *dst, ptrdiff_t stride,
                                       const uint16_t *above,
                                       const uint16_t *left, int bd) {
+#if !CONFIG_DC_DIV_UNIFY
   (void)bd;
+#endif  // !CONFIG_DC_DIV_UNIFY
   const __m128i sum_above = dc_sum_4(above);
   const __m128i sum_left = dc_sum_8(left);
   const __m128i sum = _mm_add_epi16(sum_above, sum_left);
@@ -831,7 +833,7 @@ void aom_highbd_dc_predictor_4x8_sse2(uint16_t *dst, ptrdiff_t stride,
   int16_t shift = 0;
   uint16_t scale = resolve_divisor_32(12, &shift);
   uint16_t rounding = 1 << shift >> 1;
-  sum32 = (sum32 * scale + rounding) >> shift;
+  sum32 = clip_pixel_highbd((sum32 * scale + rounding) >> shift, bd);
 #else
   sum32 += 6;
   sum32 /= 12;
@@ -849,7 +851,9 @@ void aom_highbd_dc_predictor_4x8_sse2(uint16_t *dst, ptrdiff_t stride,
 void aom_highbd_dc_predictor_8x4_sse2(uint16_t *dst, ptrdiff_t stride,
                                       const uint16_t *above,
                                       const uint16_t *left, int bd) {
+#if !CONFIG_DC_DIV_UNIFY
   (void)bd;
+#endif  // !CONFIG_DC_DIV_UNIFY
   const __m128i sum_left = dc_sum_4(left);
   const __m128i sum_above = dc_sum_8(above);
   const __m128i sum = _mm_add_epi16(sum_above, sum_left);
@@ -859,7 +863,7 @@ void aom_highbd_dc_predictor_8x4_sse2(uint16_t *dst, ptrdiff_t stride,
   int16_t shift = 0;
   uint16_t scale = resolve_divisor_32(12, &shift);
   uint16_t rounding = 1 << shift >> 1;
-  sum32 = (sum32 * scale + rounding) >> shift;
+  sum32 = clip_pixel_highbd((sum32 * scale + rounding) >> shift, bd);
 #else
   sum32 += 6;
   sum32 /= 12;
@@ -878,7 +882,9 @@ void aom_highbd_dc_predictor_8x4_sse2(uint16_t *dst, ptrdiff_t stride,
 void aom_highbd_dc_predictor_8x16_sse2(uint16_t *dst, ptrdiff_t stride,
                                        const uint16_t *above,
                                        const uint16_t *left, int bd) {
+#if !CONFIG_DC_DIV_UNIFY
   (void)bd;
+#endif  // !CONFIG_DC_DIV_UNIFY
   __m128i sum_left = dc_sum_16(left);
   __m128i sum_above = dc_sum_8(above);
   const __m128i zero = _mm_setzero_si128();
@@ -890,7 +896,7 @@ void aom_highbd_dc_predictor_8x16_sse2(uint16_t *dst, ptrdiff_t stride,
   int16_t shift = 0;
   uint16_t scale = resolve_divisor_32(24, &shift);
   uint16_t rounding = 1 << shift >> 1;
-  sum32 = (sum32 * scale + rounding) >> shift;
+  sum32 = clip_pixel_highbd((sum32 * scale + rounding) >> shift, bd);
 #else
   sum32 += 12;
   sum32 /= 24;
@@ -912,7 +918,9 @@ void aom_highbd_dc_predictor_8x16_sse2(uint16_t *dst, ptrdiff_t stride,
 void aom_highbd_dc_predictor_16x8_sse2(uint16_t *dst, ptrdiff_t stride,
                                        const uint16_t *above,
                                        const uint16_t *left, int bd) {
+#if !CONFIG_DC_DIV_UNIFY
   (void)bd;
+#endif  // !CONFIG_DC_DIV_UNIFY
   __m128i sum_left = dc_sum_8(left);
   __m128i sum_above = dc_sum_16(above);
   const __m128i zero = _mm_setzero_si128();
@@ -924,7 +932,7 @@ void aom_highbd_dc_predictor_16x8_sse2(uint16_t *dst, ptrdiff_t stride,
   int16_t shift = 0;
   uint16_t scale = resolve_divisor_32(24, &shift);
   uint16_t rounding = 1 << shift >> 1;
-  sum32 = (sum32 * scale + rounding) >> shift;
+  sum32 = clip_pixel_highbd((sum32 * scale + rounding) >> shift, bd);
 #else
   sum32 += 12;
   sum32 /= 24;
@@ -950,7 +958,9 @@ void aom_highbd_dc_predictor_16x8_sse2(uint16_t *dst, ptrdiff_t stride,
 void aom_highbd_dc_predictor_16x32_sse2(uint16_t *dst, ptrdiff_t stride,
                                         const uint16_t *above,
                                         const uint16_t *left, int bd) {
+#if !CONFIG_DC_DIV_UNIFY
   (void)bd;
+#endif  // !CONFIG_DC_DIV_UNIFY
   __m128i sum_left = dc_sum_32(left);
   __m128i sum_above = dc_sum_16(above);
   const __m128i zero = _mm_setzero_si128();
@@ -961,7 +971,7 @@ void aom_highbd_dc_predictor_16x32_sse2(uint16_t *dst, ptrdiff_t stride,
   int16_t shift = 0;
   uint16_t scale = resolve_divisor_32(48, &shift);
   uint16_t rounding = 1 << shift >> 1;
-  sum32 = (sum32 * scale + rounding) >> shift;
+  sum32 = clip_pixel_highbd((sum32 * scale + rounding) >> shift, bd);
 #else
   sum32 += 24;
   sum32 /= 48;
@@ -987,7 +997,9 @@ void aom_highbd_dc_predictor_16x32_sse2(uint16_t *dst, ptrdiff_t stride,
 void aom_highbd_dc_predictor_32x16_sse2(uint16_t *dst, ptrdiff_t stride,
                                         const uint16_t *above,
                                         const uint16_t *left, int bd) {
+#if !CONFIG_DC_DIV_UNIFY
   (void)bd;
+#endif  // !CONFIG_DC_DIV_UNIFY
   __m128i sum_left = dc_sum_16(left);
   __m128i sum_above = dc_sum_32(above);
   const __m128i zero = _mm_setzero_si128();
@@ -998,7 +1010,7 @@ void aom_highbd_dc_predictor_32x16_sse2(uint16_t *dst, ptrdiff_t stride,
   int16_t shift = 0;
   uint16_t scale = resolve_divisor_32(48, &shift);
   uint16_t rounding = 1 << shift >> 1;
-  sum32 = (sum32 * scale + rounding) >> shift;
+  sum32 = clip_pixel_highbd((sum32 * scale + rounding) >> shift, bd);
 #else
   sum32 += 24;
   sum32 /= 48;

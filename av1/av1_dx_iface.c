@@ -1332,9 +1332,11 @@ static aom_codec_err_t ctrl_get_frame_flags(aom_codec_alg_priv_t *ctx,
     case INTRA_ONLY_FRAME: *arg |= AOM_FRAME_IS_INTRAONLY; break;
     case S_FRAME: *arg |= AOM_FRAME_IS_SWITCH; break;
   }
+#if !CONFIG_F322_OBUER_ERM
   if (pbi->common.features.error_resilient_mode) {
     *arg |= AOM_FRAME_IS_ERROR_RESILIENT;
   }
+#endif  // !CONFIG_F322_OBUER_ERM
   if (pbi->common.film_grain_params.apply_grain) {
     *arg |= AOM_FRAME_HAS_FILM_GRAIN_PARAMS;
   }

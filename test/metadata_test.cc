@@ -362,3 +362,169 @@ TEST(MetadataTest, ReadMetadatasFromImage) {
   }
   aom_img_metadata_array_free(image.metadata);
 }
+
+#if CONFIG_BAND_METADATA
+#include "av1/common/banding_metadata.h"
+
+TEST(MetadataTest, BandingHintsMetadata) {
+  // Create a test banding metadata structure for encoding
+  aom_banding_hints_metadata_t encode_metadata;
+  memset(&encode_metadata, 0, sizeof(encode_metadata));
+
+  // Set up test values
+  encode_metadata.coding_banding_present_flag = 1;
+  encode_metadata.source_banding_present_flag = 0;
+  encode_metadata.banding_hints_flag = 1;
+  encode_metadata.three_color_components = 1;
+
+  // Set per-component information
+  for (int i = 0; i < 3; i++) {
+    encode_metadata.banding_in_component_present_flag[i] = 1;
+    encode_metadata.max_band_width_minus4[i] = 4 + i;  // 6-bit value
+    encode_metadata.max_band_step_minus1[i] = 2 + i;   // 4-bit value
+  }
+
+  // Set band units information
+  encode_metadata.band_units_information_present_flag = 1;
+  encode_metadata.num_band_units_rows_minus_1 = 3;  // 4 rows
+  encode_metadata.num_band_units_cols_minus_1 = 3;  // 4 cols
+  encode_metadata.varying_size_band_units_flag = 1;
+  encode_metadata.band_block_in_luma_samples = 2;  // 3-bit value
+
+  // Set varying size information
+  for (int r = 0; r <= encode_metadata.num_band_units_rows_minus_1; r++) {
+    encode_metadata.vert_size_in_band_blocks_minus1[r] = r + 1;
+  }
+  for (int c = 0; c <= encode_metadata.num_band_units_cols_minus_1; c++) {
+    encode_metadata.horz_size_in_band_blocks_minus1[c] = c + 2;
+  }
+
+  // Set per-tile banding flags
+  for (int r = 0; r <= encode_metadata.num_band_units_rows_minus_1; r++) {
+    for (int c = 0; c <= encode_metadata.num_band_units_cols_minus_1; c++) {
+      encode_metadata.banding_in_band_unit_present_flag[r][c] = (r + c) % 2;
+    }
+  }
+
+  // Test encoding to payload
+  uint8_t payload[256];
+  size_t payload_size = sizeof(payload);
+  ASSERT_EQ(aom_encode_banding_hints_metadata(&encode_metadata, payload,
+                                              &payload_size),
+            0);
+  ASSERT_GT(payload_size, 0u);
+
+  // Test decoding from payload (using separate instance of same structure type)
+  aom_banding_hints_metadata_t decode_metadata;
+  ASSERT_EQ(aom_decode_banding_hints_metadata(payload, payload_size,
+                                              &decode_metadata),
+            0);
+
+  // Verify that the decoded structure matches the encoded structure
+  EXPECT_EQ(decode_metadata.coding_banding_present_flag,
+            encode_metadata.coding_banding_present_flag);
+  EXPECT_EQ(decode_metadata.source_banding_present_flag,
+            encode_metadata.source_banding_present_flag);
+  EXPECT_EQ(decode_metadata.banding_hints_flag,
+            encode_metadata.banding_hints_flag);
+  EXPECT_EQ(decode_metadata.three_color_components,
+            encode_metadata.three_color_components);
+
+  // Verify per-component information
+  for (int i = 0; i < 3; i++) {
+    EXPECT_EQ(decode_metadata.banding_in_component_present_flag[i],
+              encode_metadata.banding_in_component_present_flag[i]);
+    EXPECT_EQ(decode_metadata.max_band_width_minus4[i],
+              encode_metadata.max_band_width_minus4[i]);
+    EXPECT_EQ(decode_metadata.max_band_step_minus1[i],
+              encode_metadata.max_band_step_minus1[i]);
+  }
+
+  // Verify band units information
+  EXPECT_EQ(decode_metadata.band_units_information_present_flag,
+            encode_metadata.band_units_information_present_flag);
+  EXPECT_EQ(decode_metadata.num_band_units_rows_minus_1,
+            encode_metadata.num_band_units_rows_minus_1);
+  EXPECT_EQ(decode_metadata.num_band_units_cols_minus_1,
+            encode_metadata.num_band_units_cols_minus_1);
+  EXPECT_EQ(decode_metadata.varying_size_band_units_flag,
+            encode_metadata.varying_size_band_units_flag);
+  EXPECT_EQ(decode_metadata.band_block_in_luma_samples,
+            encode_metadata.band_block_in_luma_samples);
+
+  // Verify varying size information
+  for (int r = 0; r <= encode_metadata.num_band_units_rows_minus_1; r++) {
+    EXPECT_EQ(decode_metadata.vert_size_in_band_blocks_minus1[r],
+              encode_metadata.vert_size_in_band_blocks_minus1[r]);
+  }
+  for (int c = 0; c <= encode_metadata.num_band_units_cols_minus_1; c++) {
+    EXPECT_EQ(decode_metadata.horz_size_in_band_blocks_minus1[c],
+              encode_metadata.horz_size_in_band_blocks_minus1[c]);
+  }
+
+  // Verify per-tile banding flags
+  for (int r = 0; r <= encode_metadata.num_band_units_rows_minus_1; r++) {
+    for (int c = 0; c <= encode_metadata.num_band_units_cols_minus_1; c++) {
+      EXPECT_EQ(decode_metadata.banding_in_band_unit_present_flag[r][c],
+                encode_metadata.banding_in_band_unit_present_flag[r][c]);
+    }
+  }
+}
+
+TEST(MetadataTest, BandingHintsImageMetadata) {
+  aom_image_t image;
+  image.metadata = NULL;
+
+  // Create test banding metadata
+  aom_banding_hints_metadata_t banding_metadata;
+  memset(&banding_metadata, 0, sizeof(banding_metadata));
+  banding_metadata.coding_banding_present_flag = 1;
+  banding_metadata.source_banding_present_flag = 1;
+  banding_metadata.banding_hints_flag = 1;
+  banding_metadata.three_color_components = 0;  // Only component 0
+  banding_metadata.banding_in_component_present_flag[0] = 1;
+  banding_metadata.max_band_width_minus4[0] = 10;
+  banding_metadata.max_band_step_minus1[0] = 5;
+  banding_metadata.band_units_information_present_flag = 0;
+
+  // Add banding metadata to image
+  ASSERT_EQ(aom_img_add_banding_hints_metadata(&image, &banding_metadata,
+                                               AOM_MIF_ANY_FRAME),
+            0);
+
+  // Verify metadata was added
+  ASSERT_TRUE(image.metadata != nullptr);
+  ASSERT_EQ(image.metadata->sz, 1u);
+  ASSERT_EQ(image.metadata->metadata_array[0]->type,
+            OBU_METADATA_TYPE_BANDING_HINTS);
+  ASSERT_GT(image.metadata->metadata_array[0]->sz, 0u);
+
+  // Test decoding the metadata from the image (using separate instance of same
+  // structure type)
+  aom_banding_hints_metadata_t decoded_metadata;
+  ASSERT_EQ(aom_decode_banding_hints_metadata(
+                image.metadata->metadata_array[0]->payload,
+                image.metadata->metadata_array[0]->sz, &decoded_metadata),
+            0);
+
+  // Verify the decoded values match
+  EXPECT_EQ(decoded_metadata.coding_banding_present_flag,
+            banding_metadata.coding_banding_present_flag);
+  EXPECT_EQ(decoded_metadata.source_banding_present_flag,
+            banding_metadata.source_banding_present_flag);
+  EXPECT_EQ(decoded_metadata.banding_hints_flag,
+            banding_metadata.banding_hints_flag);
+  EXPECT_EQ(decoded_metadata.three_color_components,
+            banding_metadata.three_color_components);
+  EXPECT_EQ(decoded_metadata.banding_in_component_present_flag[0],
+            banding_metadata.banding_in_component_present_flag[0]);
+  EXPECT_EQ(decoded_metadata.max_band_width_minus4[0],
+            banding_metadata.max_band_width_minus4[0]);
+  EXPECT_EQ(decoded_metadata.max_band_step_minus1[0],
+            banding_metadata.max_band_step_minus1[0]);
+  EXPECT_EQ(decoded_metadata.band_units_information_present_flag,
+            banding_metadata.band_units_information_present_flag);
+
+  aom_img_metadata_array_free(image.metadata);
+}
+#endif  // CONFIG_BAND_METADATA

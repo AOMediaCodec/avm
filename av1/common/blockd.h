@@ -72,6 +72,12 @@ enum {
 } UENUM1BYTE(CHROMA_FORMAT);
 #endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
+#if CONFIG_CWG_F248_RENDER_SIZE
+#if CONFIG_MULTILAYER_HLS
+enum { LCR_GLOBAL = 0, LCR_LOCAL = 1, NUM_LCR_TYPES = 2 } UENUM1BYTE(LCR_TYPES);
+#endif  // CONFIG_MULTILAYER_HLS
+#endif  // CONFIG_CWG_F248_RENDER_SIZE
+
 // Check if the block is 4xn or nx4 block
 static INLINE int is_thin_4xn_nx4_block(BLOCK_SIZE bsize) {
   int min_size = AOMMIN(block_size_wide[bsize], block_size_high[bsize]);
@@ -427,8 +433,20 @@ typedef struct MB_MODE_INFO {
   uint8_t fsc_mode[2];
   /*! \brief The UV mode when intra is used */
   UV_PREDICTION_MODE uv_mode;
-  /*! \brief The q index for the current coding block. */
+  /*! \brief The q index for the current super block. It only related when
+   * cm->delta_q_info.delta_q_present_flag is true. This current_qindex does not
+   * consider delta for each segment. */
   int current_qindex;
+
+  /*! \brief The final qindex of the dc component for the current block after
+   * adding all deltas including segment delta. It is  the final qindex value
+   * used for quantization.*/
+  int final_qindex_dc[3];
+  /*! \brief The final qindex of the ac component for the current block after
+   * adding all deltas including segment delta. It is  the final qindex value
+   * used for quantization.*/
+  int final_qindex_ac[3];
+
   /**@}*/
 
   /*****************************************************************************
@@ -2204,6 +2222,8 @@ typedef struct macroblockd {
 
   /*!
    * Quantizer index for each segment (base qindex + delta for each segment).
+   * This qindex does not consider delta values when
+   * cm->delta_q_info.delta_q_present_flag is true.
    */
   int qindex[MAX_SEGMENTS];
   /*!
@@ -2218,7 +2238,9 @@ typedef struct macroblockd {
    * Precisely, this is the latest qindex used by the first coding block of a
    * non-skip superblock in the current tile; OR
    * same as cm->quant_params.base_qindex (if not explicitly set yet).
-   * Note: This is 'CurrentQIndex' in the AV1 spec.
+   * For a frame, initially current_base_qindex is set to the frame base qindex
+   * and then updated after adding delta of each superblock. Note: This is
+   * 'CurrentQIndex' in the AV1 spec.
    */
   int current_base_qindex;
 

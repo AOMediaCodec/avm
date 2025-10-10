@@ -721,7 +721,7 @@ typedef struct LayerConfigurationRecord {
   int lcr_data_size_present_flag;
   int lcr_global_purpose_id;
 
-  int long lcr_data_size[MAX_NUM_XLAYERS];
+  uint32_t lcr_data_size[MAX_NUM_XLAYERS];
   int lcr_xLayer_id[MAX_NUM_XLAYERS];
   int lcr_num_dependent_xlayer_map[MAX_NUM_XLAYERS];
   int lcr_dependent_xlayers_flag;
@@ -739,7 +739,10 @@ typedef struct LayerConfigurationRecord {
   int lcr_xlayer_atlas_segment_id[MAX_NUM_XLAYERS];
   int lcr_xlayer_priority_order[MAX_NUM_XLAYERS];
   int lcr_xlayer_rendering_method[MAX_NUM_XLAYERS];
-
+#if CONFIG_CWG_F248_RENDER_SIZE
+  bool is_local_lcr;
+  int xlayer_id;
+#endif  // CONFIG_CWG_F248_RENDER_SIZE
   struct CroppingWindow lcr_crop;
   struct CroppingWindow crop_win_list[MAX_NUM_XLAYERS][MAX_NUM_XLAYERS];
   struct RepresentationInfo rep_params;
@@ -873,9 +876,7 @@ typedef struct OperatingPointSet {
   int ops_decoder_model_info_present_flag[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
 
   int ops_mlayer_info_idc[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
-  int ops_reserved_2bits[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
-  int ops_reserved_3bits[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
-  int ops_data_size[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_NUM_OPS_COUNT];
+  uint32_t ops_data_size[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_NUM_OPS_COUNT];
   int ops_intent_op[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_NUM_OPS_COUNT];
   int ops_operational_profile_id[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID]
                                 [MAX_NUM_OPS_COUNT];
@@ -918,24 +919,24 @@ typedef struct SequenceHeader {
   uint8_t frame_id_numbers_present_flag;
   int frame_id_length;
   int delta_frame_id_length;
-#endif                         // !CWG_F215_CONFIG_REMOVE_FRAME_ID
-  BLOCK_SIZE sb_size;          // Size of the superblock used for this frame
-  int mib_size;                // Size of the superblock in units of MI blocks
-  int mib_size_log2;           // Log 2 of above.
+#endif                 // !CWG_F215_CONFIG_REMOVE_FRAME_ID
+  BLOCK_SIZE sb_size;  // Size of the superblock used for this frame
+  int mib_size;        // Size of the superblock in units of MI blocks
+  int mib_size_log2;   // Log 2 of above.
+
   int explicit_ref_frame_map;  // Explicitly signal the reference frame mapping
+
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
   int enable_frame_output_order;  // Enable frame output order derivation based
                                   // on order hint value
 #endif                            // !CONFIG_F253_REMOVE_OUTPUTFLAG
 #if !CONFIG_CWG_F168_DPB_HLS
-  int max_reference_frames;  // Number of reference frames allowed
-#endif                       // !CONFIG_CWG_F168_DPB_HLS
-#if CONFIG_SEQ_MAX_DRL_BITS
+  int max_reference_frames;              // Number of reference frames allowed
+#endif                                   // !CONFIG_CWG_F168_DPB_HLS
   int def_max_drl_bits;                  // default max drl bits for MVs
   uint8_t allow_frame_max_drl_bits;      // whether to allow frame level update
   int def_max_bvp_drl_bits;              // default max ibc drl bits for MVs
   uint8_t allow_frame_max_bvp_drl_bits;  // whether to allow frame level update
-#endif                                   // CONFIG_SEQ_MAX_DRL_BITS
   int num_same_ref_compound;  // Number of the allowed same reference frames for
                               // the compound mode
 #if !CONFIG_CWG_F168_DPB_HLS
@@ -971,9 +972,9 @@ typedef struct SequenceHeader {
 
   uint8_t enable_fsc;  // enables/disables forward skip coding
 #if CONFIG_FSC_RES_HLS
-  uint8_t enable_fsc_residual;  // enables/disables forward skip coding residual
-#endif                          // CONFIG_FSC_RES_HLS
-  uint8_t enable_intra_dip;     // enables/disables intra_dip
+  uint8_t enable_idtx_intra;         // enables/disables idtx for intra
+#endif                               // CONFIG_FSC_RES_HLS
+  uint8_t enable_intra_dip;          // enables/disables intra_dip
   uint8_t enable_intra_edge_filter;  // enables/disables edge upsampling
   uint8_t enable_orip;               // To turn on/off sub-block based ORIP
   uint8_t enable_ist;             // enables/disables intra secondary transform
@@ -1242,12 +1243,14 @@ typedef struct {
   bool
 #endif  // CONFIG_REDUCED_TX_SET_EXT
       reduced_tx_set_used;
+#if !CONFIG_F322_OBUER_ERM
   /*!
    * If true, error resilient mode is enabled.
    * Note: Error resilient mode allows the syntax of a frame to be parsed
    * independently of previously decoded frames.
    */
   bool error_resilient_mode;
+#endif
   TX_MODE tx_mode;            /*!< Transform mode at frame level. */
   InterpFilter interp_filter; /*!< Interpolation filter at frame level. */
   /*!
@@ -1380,6 +1383,20 @@ typedef struct {
  */
 #if CONFIG_MULTI_FRAME_HEADER
 typedef struct MultiFrameHeader {
+#if CONFIG_CWG_E242_PARSING_INDEP
+  /*!
+   * Frame size present flag
+   */
+  int mfh_frame_size_present_flag;
+  /*!
+   * Frame width bits
+   */
+  int mfh_frame_width_bits_minus1;
+  /*!
+   * Frame height bits
+   */
+  int mfh_frame_height_bits_minus1;
+#endif  // CONFIG_CWG_E242_PARSING_INDEP
   /*!
    * Frame Width of frames that reference this multi-frame header
    */
@@ -1388,6 +1405,13 @@ typedef struct MultiFrameHeader {
    * Frame Height of frames that reference this multi-frame header
    */
   int mfh_frame_height;
+#if CONFIG_CWG_E242_PARSING_INDEP
+  /*!
+   * Render size present flag
+   */
+  int mfh_render_size_present_flag;
+#endif  // CONFIG_CWG_E242_PARSING_INDEP
+#if !CONFIG_CWG_F248_RENDER_SIZE
   /*!
    * Render Width of frames that reference this multi-frame header
    */
@@ -1396,6 +1420,7 @@ typedef struct MultiFrameHeader {
    * Render Height of frames that reference this multi-frame header
    */
   int mfh_render_height;
+#endif  // !CONFIG_CWG_F248_RENDER_SIZE
   /*!
    * Presence of loop filter levels in this multi-frame header
    */
@@ -1982,9 +2007,14 @@ typedef struct BRU_Info {
  */
 typedef struct BridgeFrame_Info {
   /*!
-   * reference idx of reference frame used for bridge frame
+   * reference frame used for bridge frame - index for 'ref_frame_map_pairs' and
+   * 'refresh_frame_flags'
    */
   int bridge_frame_ref_idx;
+  /*!
+   * reference frame used for bridge frame - index for 'remapped_ref_idx'
+   */
+  int bridge_frame_ref_idx_remapped;
   /*!
    * maximum width for bridge frame
    */
@@ -2001,6 +2031,16 @@ typedef struct BridgeFrame_Info {
    * flag indicating if refresh flags will be signaled (and not inferred)
    */
   int bridge_frame_overwrite_flag;
+#if CONFIG_CWG_F317_TEST_PATTERN
+  /*!
+   * frame count used for test pattern
+   */
+  int frame_count;
+  /*!
+   * idenitfy bridge frame in encoder log
+   */
+  int print_bridge_frame_in_log;
+#endif  // CONFIG_CWG_F317_TEST_PATTERN
 } BridgeFrameInfo;
 #endif  // CONFIG_CWG_F317
 
@@ -2945,7 +2985,11 @@ static INLINE void avg_primary_secondary_references(const AV1_COMMON *const cm,
       (!cm->bridge_frame_info.is_bridge_frame) &&
 #endif  // CONFIG_CWG_F317
       (cm->seq_params.enable_avg_cdf && !cm->seq_params.avg_cdf_type) &&
+#if CONFIG_F322_OBUER_ERM
+      !frame_is_sframe(cm) &&
+#else
       !(cm->features.error_resilient_mode || frame_is_sframe(cm)) &&
+#endif
       (ref_frame_used != PRIMARY_REF_NONE)) {
     av1_avg_cdf_symbols(cm->fc, &cm->ref_frame_map[map_idx]->frame_context,
                         AVG_CDF_WEIGHT_PRIMARY, AVG_CDF_WEIGHT_NON_PRIMARY);
@@ -3009,15 +3053,20 @@ static INLINE RefCntBuffer *get_primary_ref_frame_buf(
 
 // Returns 1 if this frame might allow mvs from some reference frame.
 static INLINE int frame_might_allow_ref_frame_mvs(const AV1_COMMON *cm) {
-  return !cm->features.error_resilient_mode &&
-         cm->seq_params.order_hint_info.enable_ref_frame_mvs &&
+  return
+#if CONFIG_F322_OBUER_ERM
+      !frame_is_sframe(cm) &&
+#else
+      !cm->features.error_resilient_mode &&
+#endif
+      cm->seq_params.order_hint_info.enable_ref_frame_mvs &&
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-         cm->seq_params.order_hint_info.enable_order_hint &&
+      cm->seq_params.order_hint_info.enable_order_hint &&
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
 #if CONFIG_CWG_F317
-         !cm->bridge_frame_info.is_bridge_frame &&
+      !cm->bridge_frame_info.is_bridge_frame &&
 #endif  // CONFIG_CWG_F317
-         !frame_is_intra_only(cm);
+      !frame_is_intra_only(cm);
 }
 
 static INLINE void ensure_mv_buffer(RefCntBuffer *buf, AV1_COMMON *cm) {

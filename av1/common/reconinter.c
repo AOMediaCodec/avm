@@ -2580,10 +2580,12 @@ void bru_extend_mc_border(const AV1_COMMON *const cm, int mi_row, int mi_col,
   }
 }
 
-void refinemv_highbd_pad_mc_border(const uint16_t *src, int src_stride,
-                                   uint16_t *dst, int dst_stride, int x0,
-                                   int y0, int b_w, int b_h,
-                                   const ReferenceArea *ref_area) {
+// Performs padding if the motion compensated block is partially
+// outside the reference area.
+void refinemv_highbd_pad_mc_border_c(const uint16_t *src, int src_stride,
+                                     uint16_t *dst, int dst_stride, int x0,
+                                     int y0, int b_w, int b_h,
+                                     const ReferenceArea *ref_area) {
   const int ref_x0 = ref_area->pad_block.x0;
   const int ref_y0 = ref_area->pad_block.y0;
   const int ref_x1 = ref_area->pad_block.x1;
@@ -3895,10 +3897,12 @@ static void build_inter_predictors_8x8_and_bigger(
       *ext_warp_used = true;
       inter_pred_params.use_warp_bd_box = 1;
       inter_pred_params.warp_bd_box = &warp_bd_box_mem[0];
+#if !CONFIG_4X4_WARP_FIX
       const BLOCK_SIZE bsize = xd->mi[0]->sb_type[PLANE_TYPE_Y];
       const int_mv warp_mv = get_int_warp_mv_for_fb(
           xd, &inter_pred_params.warp_params, bsize, (mi_x >> MI_SIZE_LOG2),
           (mi_y >> MI_SIZE_LOG2));
+#endif
       // printf("warpmv (%d, %d), loc (%d,
       // %d)\n", warp_mv.as_mv.col,
       //        warp_mv.as_mv.row, mi_x,
@@ -3914,6 +3918,14 @@ static void build_inter_predictors_8x8_and_bigger(
           int block_width = AOMMIN(8, comp_bw);
           int block_height = AOMMIN(8, comp_bh);
           if ((x_loc & 7) == 0 && (y_loc & 7) == 0) {
+#if CONFIG_4X4_WARP_FIX
+            const int_mv warp_mv = get_int_warp_mv_for_fb(
+                xd, &inter_pred_params.warp_params,
+                block_width << pd->subsampling_x,
+                block_height << pd->subsampling_y,
+                sub_mi_x << pd->subsampling_x >> MI_SIZE_LOG2,
+                sub_mi_y << pd->subsampling_y >> MI_SIZE_LOG2);
+#endif
             av1_get_reference_area_with_padding_single_warp(
                 cm, xd, plane, mi, warp_mv.as_mv, block_width, block_height,
                 (sub_mi_x << pd->subsampling_x),

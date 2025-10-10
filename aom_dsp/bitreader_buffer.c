@@ -142,14 +142,19 @@ int16_t aom_rb_read_signed_primitive_refsubexpfin(
 // implementation of leb128() signaling in the specification using
 // aom_read_bit_buffer
 uint32_t aom_rb_read_uleb(struct aom_read_bit_buffer *rb) {
-  uint32_t value = 0;
+  uint64_t value = 0;
   for (size_t i = 0; i < 8; ++i) {
-    uint8_t byte = aom_rb_read_literal(rb, 8);
+    uint64_t byte = aom_rb_read_literal(rb, 8);
     value |= ((byte & 0x7f) << (i * 7));
     if (!(byte & 0x80)) {
-      break;
+      if (value > UINT32_MAX) {
+        if (rb->error_handler) rb->error_handler(rb->error_handler_data);
+        return 0;
+      }
+      return (uint32_t)value;
     }
   }
-  return value;
+  if (rb->error_handler) rb->error_handler(rb->error_handler_data);
+  return 0;
 }
 #endif  // CONFIG_MULTILAYER_HLS

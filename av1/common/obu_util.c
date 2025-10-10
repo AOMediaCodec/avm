@@ -112,7 +112,12 @@ static aom_codec_err_t read_obu_header(struct aom_read_bit_buffer *rb,
     header->obu_xlayer_id = aom_rb_read_literal(rb, XLAYER_BITS);
   } else {
     header->obu_mlayer_id = 0;
-    header->obu_xlayer_id = 0;
+#if CONFIG_SET_DEFAULT_VALUE_XLAYER_ID
+    if (header->type == OBU_MSDO)
+      header->obu_xlayer_id = MAX_NUM_XLAYERS - 1;
+    else
+#endif  // CONFIG_SET_DEFAULT_VALUE_XLAYER_ID
+      header->obu_xlayer_id = 0;
   }
 
   return AOM_CODEC_OK;

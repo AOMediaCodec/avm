@@ -65,7 +65,12 @@ void av1_vaq_frame_setup(AV1_COMP *cpi) {
     return;
   }
   if (frame_is_intra_only(cm) || cm->current_frame.pyramid_level <= 1 ||
-      cm->features.error_resilient_mode) {
+#if CONFIG_F322_OBUER_ERM
+      frame_is_sframe(cm)
+#else
+      cm->features.error_resilient_mode
+#endif
+  ) {
     cpi->vaq_refresh = 1;
 
     av1_enable_segmentation(seg);
