@@ -741,8 +741,14 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
               is_frame_eligible_for_output(cm->ref_frame_map[ref_index]))
             output_frame_buffers(pbi, ref_index);
           decrease_ref_count(cm->ref_frame_map[ref_index], pool);
-          cm->ref_frame_map[ref_index] = cm->cur_frame;
-          ++cm->cur_frame->ref_count;
+          if ((cm->current_frame.frame_type == KEY_FRAME &&
+               cm->show_frame == 1) &&
+              ref_index > 0) {
+            cm->ref_frame_map[ref_index] = NULL;
+          } else {
+            cm->ref_frame_map[ref_index] = cm->cur_frame;
+            ++cm->cur_frame->ref_count;
+          }
         }
         ++ref_index;
       }

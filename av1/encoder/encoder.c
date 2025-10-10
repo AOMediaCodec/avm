@@ -4729,7 +4729,7 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
         for (int map_idx = 0; map_idx < cm->seq_params.ref_frames; map_idx++) {
           // Get reference frame buffer
           const RefCntBuffer *const buf = cm->ref_frame_map[map_idx];
-          if (buf->display_order_hint == 0) {
+          if (buf != NULL && buf->display_order_hint == 0) {
             cm->bridge_frame_info.bridge_frame_ref_idx = map_idx;
 
             cm->quant_params.base_qindex = buf->base_qindex;

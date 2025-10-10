@@ -936,7 +936,15 @@ static AOM_INLINE void refresh_reference_frames(AV1_COMP *cpi) {
     for (int ref_frame = 0; ref_frame < cm->seq_params.ref_frames;
          ref_frame++) {
       if (((cm->current_frame.refresh_frame_flags >> ref_frame) & 1) == 1) {
-        assign_frame_buffer_p(&cm->ref_frame_map[ref_frame], cm->cur_frame);
+        if (cm->cur_frame->frame_type == KEY_FRAME && cm->show_frame == 1 &&
+            ref_frame > 0) {
+          if (cm->ref_frame_map[ref_frame] != NULL) {
+            --cm->ref_frame_map[ref_frame]->ref_count;
+            cm->ref_frame_map[ref_frame] = NULL;
+          }
+        } else {
+          assign_frame_buffer_p(&cm->ref_frame_map[ref_frame], cm->cur_frame);
+        }
       }
     }
   }

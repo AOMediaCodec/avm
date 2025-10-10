@@ -7791,8 +7791,13 @@ static AOM_INLINE void update_ref_frame_id(AV1Decoder *const pbi) {
   int refresh_frame_flags = cm->current_frame.refresh_frame_flags;
   for (int i = 0; i < cm->seq_params.ref_frames; i++) {
     if ((refresh_frame_flags >> i) & 1) {
-      cm->ref_frame_id[i] = cm->current_frame_id;
-      pbi->valid_for_referencing[i] = 1;
+      if ((cm->current_frame.frame_type == KEY_FRAME && cm->show_frame == 1) &&
+          i > 0) {
+        pbi->valid_for_referencing[i] = 0;
+      } else {
+        cm->ref_frame_id[i] = cm->current_frame_id;
+        pbi->valid_for_referencing[i] = 1;
+      }
     }
   }
 }
@@ -8971,7 +8976,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
               rb, seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
           // Get buffer
           RefCntBuffer *buf = cm->ref_frame_map[ref_idx];
-          if (buf == NULL || order_hint != buf->order_hint) {
+          if ((pbi->valid_for_referencing[ref_idx] == 0) ||
+              (buf != NULL && order_hint != buf->order_hint)) {
             if (buf != NULL) {
               lock_buffer_pool(pool);
               decrease_ref_count(buf, pool);
@@ -9026,13 +9032,16 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           }
         }
       }
-      if (features->error_resilient_mode) {
-        // Read all ref frame base_qindex
-        for (int ref_idx = 0; ref_idx < seq_params->ref_frames; ref_idx++) {
+    }
+    if (features->error_resilient_mode) {
+      // Read all ref frame base_qindex
+      for (int ref_idx = 0; ref_idx < seq_params->ref_frames; ref_idx++) {
+        const int base_qindex = aom_rb_read_literal(
+            rb, cm->seq_params.bit_depth == AOM_BITS_8 ? QINDEX_BITS_UNEXT
+                                                       : QINDEX_BITS);
+        if (pbi->valid_for_referencing[ref_idx]) {
           RefCntBuffer *buf = cm->ref_frame_map[ref_idx];
-          buf->base_qindex = aom_rb_read_literal(
-              rb, cm->seq_params.bit_depth == AOM_BITS_8 ? QINDEX_BITS_UNEXT
-                                                         : QINDEX_BITS);
+          if (buf != NULL) buf->base_qindex = base_qindex;
         }
       }
     }
