@@ -15,6 +15,7 @@
 
 #include <limits.h>
 
+#include "aom/aom_codec.h"
 #include "aom/aom_integer.h"
 #include "config/aom_config.h"
 
@@ -22,7 +23,8 @@
 extern "C" {
 #endif
 
-typedef void (*aom_rb_error_handler)(void *data);
+typedef void (*aom_rb_error_handler)(void *data, aom_codec_err_t error,
+                                     const char *detail);
 
 struct aom_read_bit_buffer {
   const uint8_t *bit_buffer;
@@ -45,12 +47,16 @@ int aom_rb_read_inv_signed_literal(struct aom_read_bit_buffer *rb, int bits);
 
 // Reads a variable length unsigned integer. Valid range is 0..UINT32_MAX - 1.
 // Returns UINT32_MAX if the input is too long (has 32 or more leading zero
-// bits).
+// bits); if rb->error_handler is not null, rb->error_handler() is invoked.
+// If rb->error_handler() calls aom_internal_error(), the function does a long
+// jump and does not return.
 uint32_t aom_rb_read_uvlc(struct aom_read_bit_buffer *rb);
 
 // Reads a variable length signed integer. Valid range is
 // INT32_MIN + 1..INT32_MAX. Returns INT32_MIN if the input is too long (has 32
-// or more leading zero bits).
+// or more leading zero bits); if rb->error_handler is not null,
+// rb->error_handler() is invoked. If rb->error_handler() calls
+// aom_internal_error(), the function does a long jump and does not return.
 int32_t aom_rb_read_svlc(struct aom_read_bit_buffer *rb);
 
 uint16_t aom_rb_read_primitive_refsubexpfin(struct aom_read_bit_buffer *rb,

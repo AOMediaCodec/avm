@@ -31,7 +31,10 @@ int aom_rb_read_bit(struct aom_read_bit_buffer *rb) {
     rb->bit_offset = off + 1;
     return bit;
   } else {
-    if (rb->error_handler) rb->error_handler(rb->error_handler_data);
+    if (rb->error_handler) {
+      rb->error_handler(rb->error_handler_data, AOM_CODEC_CORRUPT_FRAME,
+                        "Truncated packet");
+    }
     return 0;
   }
 }
@@ -63,7 +66,13 @@ uint32_t aom_rb_read_uvlc(struct aom_read_bit_buffer *rb) {
   int leading_zeros = 0;
   while (leading_zeros < 32 && !aom_rb_read_bit(rb)) ++leading_zeros;
   // Maximum 32 bits.
-  if (leading_zeros == 32) return UINT32_MAX;  // Error.
+  if (leading_zeros == 32) {
+    if (rb->error_handler) {
+      rb->error_handler(rb->error_handler_data, AOM_CODEC_CORRUPT_FRAME,
+                        "uvlc() or svlc() input too long");
+    }
+    return UINT32_MAX;  // Error.
+  }
   const uint32_t base = (1u << leading_zeros) - 1;
   const uint32_t value = aom_rb_read_literal(rb, leading_zeros);
   return base + value;
@@ -148,13 +157,19 @@ uint32_t aom_rb_read_uleb(struct aom_read_bit_buffer *rb) {
     value |= ((byte & 0x7f) << (i * 7));
     if (!(byte & 0x80)) {
       if (value > UINT32_MAX) {
-        if (rb->error_handler) rb->error_handler(rb->error_handler_data);
+        if (rb->error_handler) {
+          rb->error_handler(rb->error_handler_data, AOM_CODEC_CORRUPT_FRAME,
+                            "leb128() value greater than UINT32_MAX");
+        }
         return 0;
       }
       return (uint32_t)value;
     }
   }
-  if (rb->error_handler) rb->error_handler(rb->error_handler_data);
+  if (rb->error_handler) {
+    rb->error_handler(rb->error_handler_data, AOM_CODEC_CORRUPT_FRAME,
+                      "leb128() input longer than 8 bytes");
+  }
   return 0;
 }
 #endif  // CONFIG_MULTILAYER_HLS

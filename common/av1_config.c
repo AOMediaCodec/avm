@@ -95,8 +95,11 @@
 
 static const size_t kAv1cSize = 4;
 
-static void bitreader_error_handler(void *data) {
+static void bitreader_error_handler(void *data, aom_codec_err_t error,
+                                    const char *detail) {
   int *error_val = (int *)data;
+  (void)error;
+  (void)detail;
   *error_val = -1;
 }
 

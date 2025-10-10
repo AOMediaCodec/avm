@@ -6443,9 +6443,10 @@ static const uint8_t *decode_tiles_row_mt(AV1Decoder *pbi, const uint8_t *data,
   return aom_reader_find_end(&tile_data->bit_reader);
 }
 
-static AOM_INLINE void error_handler(void *data) {
+static AOM_INLINE void error_handler(void *data, aom_codec_err_t error,
+                                     const char *detail) {
   AV1_COMMON *const cm = (AV1_COMMON *)data;
-  aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME, "Truncated packet");
+  aom_internal_error(&cm->error, error, detail);
 }
 
 #if CONFIG_CWG_E242_BITDEPTH
