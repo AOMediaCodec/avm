@@ -972,7 +972,7 @@ static size_t read_padding(AV1_COMMON *const cm, const uint8_t *data,
 }
 
 #if OBU_ORDER_IN_TU
-int check_obu_order(OBU_TYPE prev_obu_type, OBU_TYPE curr_obu_type) {
+static int check_obu_order(OBU_TYPE prev_obu_type, OBU_TYPE curr_obu_type) {
   if ((prev_obu_type == OBU_TEMPORAL_DELIMITER) &&
       (curr_obu_type == OBU_MSDO ||
        curr_obu_type == OBU_LAYER_CONFIGURATION_RECORD ||
@@ -1135,9 +1135,8 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
     curr_obu_type = obu_header.type;
     if (prev_obu_type > 0 && curr_obu_type > 0 &&
         check_obu_order(prev_obu_type, curr_obu_type)) {
-      fprintf(stderr, "obudec: OBU orders is incorrect in TU, %d, %d\n",
-              prev_obu_type, curr_obu_type);
-      return -1;
+      aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+                         "OBU orders are incorrect in TU");
     }
     prev_obu_type = curr_obu_type;
 #endif  // OBU_ORDER_IN_TU
