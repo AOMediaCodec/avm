@@ -3779,12 +3779,10 @@ static INLINE void check_ref_count_status_enc(AV1_COMP *cpi) {
   }
 }
 
-// Returns true if current frame is a regular keyframe: that is, it's NOT a
-// forward keyframe and NOT a show-existing frame.
-static INLINE bool av1_is_regular_keyframe(const AV1_COMP *cpi,
-                                           FRAME_TYPE frame_type) {
-  return (frame_type == KEY_FRAME) && !cpi->no_show_fwd_kf &&
-         !cpi->common.show_existing_frame;
+// Returns true if current frame is a shown (visible) keyframe.
+static INLINE bool av1_is_shown_keyframe(const AV1_COMP *cpi,
+                                         FRAME_TYPE frame_type) {
+  return (frame_type == KEY_FRAME) && !cpi->no_show_fwd_kf;
 }
 
 /*!\endcond */

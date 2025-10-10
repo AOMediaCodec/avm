@@ -8919,7 +8919,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 
   // The TD is now written outside the frame encode loop
 #if CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
-  if (av1_is_regular_keyframe(cpi, cm->current_frame.frame_type) &&
+  if (av1_is_shown_keyframe(cpi, cm->current_frame.frame_type) &&
       cpi->write_brt_obu) {
     av1_set_buffer_removal_timing_params(cpi);
     obu_header_size = av1_write_obu_header(
@@ -8939,7 +8939,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 #endif  // CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
 
 #if CONFIG_MULTILAYER_HLS && CONFIG_MULTILAYER_HLS_ENABLE_SIGNALING
-  if (av1_is_regular_keyframe(cpi, cm->current_frame.frame_type)) {
+  if (av1_is_shown_keyframe(cpi, cm->current_frame.frame_type)) {
     // Layer Configuration Record
     if (cpi->write_lcr) {
       struct LayerConfigurationRecord *lcr = &cpi->lcr_list[0];
@@ -8997,7 +8997,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 #endif  // CONFIG_MULTILAYER_HLS && CONFIG_MULTILAYER_HLS_ENABLE_SIGNALING
 
   // write sequence header obu if KEY_FRAME, preceded by 4-byte size
-  if (av1_is_regular_keyframe(cpi, cm->current_frame.frame_type)) {
+  if (av1_is_shown_keyframe(cpi, cm->current_frame.frame_type)) {
     obu_header_size =
         av1_write_obu_header(level_params, OBU_SEQUENCE_HEADER, 0, 0, data);
 
