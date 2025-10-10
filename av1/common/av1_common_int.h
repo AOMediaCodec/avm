@@ -802,12 +802,12 @@ typedef struct AtlasBasicInfo {
   int ats_segment_top_left_pos_y[MAX_NUM_XLAYERS][8][8];
   int ats_segment_width[MAX_NUM_XLAYERS][8][8];
   int ats_segment_height[MAX_NUM_XLAYERS][8][8];
-#if CONFIG_BACKGRND_COLOR_ATLAS
+#if CONFIG_ATLAS_BACKGROUND_COLOR
   int ats_background_info_present_flag[MAX_NUM_XLAYERS][8];
   int ats_background_red_value[MAX_NUM_XLAYERS][8];
   int ats_background_green_value[MAX_NUM_XLAYERS][8];
   int ats_background_blue_value[MAX_NUM_XLAYERS][8];
-#endif  // CONFIG_BACKGRND_COLOR_ATLAS
+#endif  // CONFIG_ATLAS_BACKGROUND_COLOR
 } AtlasBasicInfo;
 
 typedef struct AtlasSegmentInfo {
