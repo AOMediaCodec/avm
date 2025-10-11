@@ -344,7 +344,7 @@ static const aom_cdf_prob default_identity_row_cdf_uv[4][CDF_SIZE(3)] = {
   { AOM_CDF3(10923, 21845),  56 },
 };
 
-static const aom_cdf_prob default_palette_y_color_index_cdf[PALETTE_SIZES][PALETTE_COLOR_INDEX_CONTEXTS][CDF_SIZE(PALETTE_COLORS)] = { 
+static const aom_cdf_prob default_palette_y_color_index_cdf[PALETTE_SIZES][PALETTE_COLOR_INDEX_CONTEXTS][CDF_SIZE(PALETTE_COLORS)] = {
 {
   { AOM_CDF2(27953), 120 },
   { AOM_CDF2(16384),   0 },
@@ -652,7 +652,7 @@ static const aom_cdf_prob default_cdef_strength_index0_cdf[4][CDF_SIZE(2)] = {
   { AOM_CDF2( 7830),  37 },
 };
 
-static const aom_cdf_prob default_cdef_cdf[CDEF_STRENGTHS_NUM - 1][CDF_SIZE(CDEF_STRENGTHS_NUM)] = { 
+static const aom_cdf_prob default_cdef_cdf[CDEF_STRENGTHS_NUM - 1][CDF_SIZE(CDEF_STRENGTHS_NUM)] = {
 { AOM_CDF2(16384),   0 },
 { AOM_CDF3(10923, 21845),   0 },
 { AOM_CDF4( 8192, 16384, 24576),   0 },
@@ -802,7 +802,7 @@ static const aom_cdf_prob default_intra_ext_tx_cdf[EXT_TX_SETS_INTRA][EXT_TX_SIZ
     { AOM_CDF2(16384), 0 },
   },
 };
-    
+
 static const aom_cdf_prob default_intra_ext_tx_short_side_cdf[4][CDF_SIZE(4)] = {
   { AOM_CDF4(11656, 26664, 29603),   0 },
   { AOM_CDF4(22336, 31457, 32748),   0 },
