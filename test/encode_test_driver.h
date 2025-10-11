@@ -136,6 +136,11 @@ class Encoder {
     const aom_codec_err_t res = aom_codec_control(&encoder_, ctrl_id, arg);
     ASSERT_EQ(AOM_CODEC_OK, res) << EncoderError();
   }
+
+  void SetOption(const char *key, const char *value) {
+    const aom_codec_err_t res = aom_codec_set_option(&encoder_, key, value);
+    ASSERT_EQ(AOM_CODEC_OK, res) << EncoderError();
+  }
 #endif
 
   void Config(const aom_codec_enc_cfg_t *cfg) {
