@@ -361,7 +361,7 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
       } else {
         // we could get rid of this if we assume that deltas are set to
         // zero when not in use; encoder always uses deltas
-        const int scale = 4;
+        //        const int scale = 4;
         int ref, mode;
 #if !CONFIG_DF_DQP
         lfi->q_thr[plane][seg_id][dir][INTRA_FRAME_INDEX][0] =
@@ -405,7 +405,8 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
           }
         }
 
-        const int scale_ref_deltas = lf->ref_deltas[TIP_FRAME_INDEX] * scale;
+        //        const int scale_ref_deltas = lf->ref_deltas[TIP_FRAME_INDEX] *
+        //        scale;
         for (mode = 0; mode < MAX_MODE_LF_DELTAS; ++mode) {
 #if !CONFIG_DF_DQP
           lfi->q_thr[plane][seg_id][dir][TIP_FRAME_INDEX][mode] =
