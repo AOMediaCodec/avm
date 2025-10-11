@@ -973,9 +973,9 @@ static size_t read_padding(AV1_COMMON *const cm, const uint8_t *data,
 
 // Check the obu type is a kind of coded frame
 static int is_coded_frame(OBU_TYPE obu_type) {
-  return obu_type == OBU_SEF || obu_type == OBU_TIP || obu_type == OBU_SEF ||
-         obu_type == OBU_SWITCH || obu_type == OBU_RAS_FRAME ||
-         obu_type == OBU_BRIDGE_FRAME || obu_type == OBU_TILE_GROUP;
+  return obu_type == OBU_SEF || obu_type == OBU_TIP || obu_type == OBU_SWITCH ||
+         obu_type == OBU_RAS_FRAME || obu_type == OBU_BRIDGE_FRAME ||
+         obu_type == OBU_TILE_GROUP;
 }
 
 // Check the obu type ordering within a temporal unit
