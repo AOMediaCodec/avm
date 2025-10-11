@@ -375,9 +375,9 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
 #endif                                      // !CONFIG_DF_DQP
 #if CONFIG_DF_DQP
         lfi->q_thr_q_offset[plane][dir][INTRA_FRAME_INDEX][0] =
-            q_ind_seg + lf->ref_deltas[INTRA_FRAME_INDEX] * scale;
+            q_ind_seg /*+ lf->ref_deltas[INTRA_FRAME_INDEX] * scale */;
         lfi->side_thr_q_offset[plane][dir][INTRA_FRAME_INDEX][0] =
-            side_ind_seg + lf->ref_deltas[INTRA_FRAME_INDEX] * scale;
+            side_ind_seg /*+ lf->ref_deltas[INTRA_FRAME_INDEX] * scale */;
 #endif  // CONFIG_DF_DQP
 
         for (ref = 0; ref < INTER_REFS_PER_FRAME; ++ref) {
@@ -394,11 +394,13 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
 #endif  // !CONFIG_DF_DQP
 #if CONFIG_DF_DQP
             lfi->q_thr_q_offset[plane][dir][ref][mode] =
-                q_ind_seg + lf->ref_deltas[ref] * scale +
-                lf->mode_deltas[mode] * scale;
+                q_ind_seg /*+ lf->ref_deltas[ref] * scale +
+                lf->mode_deltas[mode] * scale */
+                ;
             lfi->side_thr_q_offset[plane][dir][ref][mode] =
-                side_ind_seg + lf->ref_deltas[ref] * scale +
-                lf->mode_deltas[mode] * scale;
+                side_ind_seg /*+ lf->ref_deltas[ref] * scale +
+                lf->mode_deltas[mode] * scale */
+                ;
 #endif  // CONFIG_DF_DQP
           }
         }
@@ -417,9 +419,11 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
 #endif  // !CONFIG_DF_DQP
 #if CONFIG_DF_DQP
           lfi->q_thr_q_offset[plane][dir][TIP_FRAME_INDEX][mode] =
-              q_ind_seg + scale_ref_deltas + lf->mode_deltas[mode] * scale;
+              q_ind_seg /*+ scale_ref_deltas + lf->mode_deltas[mode] * scale */;
           lfi->side_thr_q_offset[plane][dir][TIP_FRAME_INDEX][mode] =
-              side_ind_seg + scale_ref_deltas + lf->mode_deltas[mode] * scale;
+              side_ind_seg /* + scale_ref_deltas + lf->mode_deltas[mode] * scale
+                            */
+              ;
 #endif  // CONFIG_DF_DQP
         }
       }
