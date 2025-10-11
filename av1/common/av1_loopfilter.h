@@ -101,10 +101,8 @@ typedef struct {
 
 typedef struct {
 #if CONFIG_DF_DQP
-  int q_thr_q_offset[MAX_MB_PLANE][MAX_SEGMENTS][2][SINGLE_REF_FRAMES]
-                    [MAX_MODE_LF_DELTAS];
-  int side_thr_q_offset[MAX_MB_PLANE][MAX_SEGMENTS][2][SINGLE_REF_FRAMES]
-                       [MAX_MODE_LF_DELTAS];
+  int q_thr_q_offset[MAX_MB_PLANE][2][SINGLE_REF_FRAMES][MAX_MODE_LF_DELTAS];
+  int side_thr_q_offset[MAX_MB_PLANE][2][SINGLE_REF_FRAMES][MAX_MODE_LF_DELTAS];
 #else
   uint16_t q_thr[MAX_MB_PLANE][MAX_SEGMENTS][2][SINGLE_REF_FRAMES]
                 [MAX_MODE_LF_DELTAS];
