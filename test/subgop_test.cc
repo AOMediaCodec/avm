@@ -212,7 +212,7 @@ class SubGopTestLarge
     cfg_.kf_max_dist = 65;
     cfg_.g_lag_in_frames = subgop_test_params_.lag_in_frames;
     // Note: Uncomment the following line for verbose output, to aid debugging.
-    init_flags_ = AOM_CODEC_USE_PER_FRAME_STATS;
+    // init_flags_ = AOM_CODEC_USE_PER_FRAME_STATS;
   }
 
   // check if subgop_config_str is a preset tag
@@ -893,7 +893,6 @@ class SubGopSwitchingTestLarge
     cfg_.kf_min_dist = 65;
     cfg_.kf_max_dist = 9999;
     cfg_.g_lag_in_frames = test_params_.lag_in_frames;
-    init_flags_ = AOM_CODEC_USE_PER_FRAME_STATS;
   }
 
   void ResetSubgop() {
