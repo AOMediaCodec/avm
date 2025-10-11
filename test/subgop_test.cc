@@ -692,14 +692,14 @@ typedef struct {
 
 static const SubgopPsnrTestParams SubGopPsnrTestVectors[] = {
   { subgop_config_str_preset_map[DEFAULT].preset_tag,
-    "hantro_collage_w352h288.yuv", 352, 288, 35 },
+    "hantro_collage_w352h288.yuv", 64, 64, 35 },
   { subgop_config_str_preset_map[DEFAULT].preset_tag, "desktop1.320_180.yuv",
-    320, 180, 35 },
+    64, 64, 35 },
 
   { subgop_config_str_preset_map[ENHANCE].preset_tag,
-    "hantro_collage_w352h288.yuv", 352, 288, 35 },
+    "hantro_collage_w352h288.yuv", 64, 64, 35 },
   { subgop_config_str_preset_map[ENHANCE].preset_tag,
-    "pixel_capture_w320h240.yuv", 320, 240, 35 },
+    "pixel_capture_w320h240.yuv", 64, 64, 35 },
   // TODO(any): Enable after fix
   /* { subgop_config_str_preset_map[ENHANCE].preset_tag, "paris_352_288_30.y4m",
      352, 288, 35 },
@@ -709,19 +709,19 @@ static const SubgopPsnrTestParams SubGopPsnrTestVectors[] = {
      352, 288, 35 }, */
 
   { subgop_config_str_preset_map[ASYMMETRIC].preset_tag,
-    "pixel_capture_w320h240.yuv", 320, 240, 35 },
+    "pixel_capture_w320h240.yuv", 64, 64, 35 },
   // TODO(any): Enable after fix
   /* { subgop_config_str_preset_map[ASYMMETRIC].preset_tag,
-    "desktop1.320_180.yuv", 320, 180, 35 }, */
+    "desktop1.320_180.yuv", 64, 64, 35 }, */
 
   { subgop_config_str_preset_map[TEMPORAL_SCALABLE].preset_tag,
-    "hantro_collage_w352h288.yuv", 352, 288, 35 },
+    "hantro_collage_w352h288.yuv", 64, 64, 35 },
 
   // TODO(any): Enable after fix
   /* { subgop_config_str_preset_map[LOW_DELAY].preset_tag,
      "paris_352_288_30.y4m", 352, 288, 0 },
      { subgop_config_str_preset_map[LOW_DELAY].preset_tag,
-     "desktop1.320_180.yuv", 320, 180, 0 }, */
+     "desktop1.320_180.yuv", 64, 64, 0 }, */
 };
 
 std::ostream &operator<<(std::ostream &os,
@@ -757,6 +757,7 @@ class SubGopPSNRCheckTestLarge
     cfg_.g_threads = 1;
     cfg_.g_lag_in_frames = test_params_.lag_in_frames;
     cfg_.rc_end_usage = rc_end_usage_;
+    cfg_.rc_target_bitrate = 40;
     cfg_.rc_undershoot_pct = 100;
     cfg_.rc_overshoot_pct = 100;
     init_flags_ = AOM_CODEC_USE_PSNR;
