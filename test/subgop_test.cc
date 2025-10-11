@@ -106,68 +106,67 @@ int is_extension_y4m(const char *filename) {
 static const SubgopTestParams SubGopTestVectors[] = {
   // Default subgop config
   { subgop_config_str_preset_map[DEFAULT].preset_tag,
-    "hantro_collage_w352h288.yuv", 0, 16, 352, 288, 35, 0 },
+    "hantro_collage_w352h288.yuv", 0, 16, 64, 64, 35, 0 },
   { subgop_config_str_preset_map[DEFAULT].preset_tag, "desktop1.320_180.yuv", 0,
-    16, 320, 180, 35, 0 },
+    16, 64, 64, 35, 0 },
   { subgop_config_str_preset_map[DEFAULT].preset_tag,
-    "pixel_capture_w320h240.yuv", 16, 16, 320, 240, 35, 1 },
+    "pixel_capture_w320h240.yuv", 16, 16, 64, 64, 35, 1 },
   { subgop_config_str_preset_map[DEFAULT].preset_tag,
-    "hantro_collage_w352h288.yuv", 0, 32, 352, 288, 35, 0 },
+    "hantro_collage_w352h288.yuv", 0, 32, 64, 64, 35, 0 },
   { subgop_config_str_preset_map[DEFAULT].preset_tag,
-    "pixel_capture_w320h240.yuv", 32, 32, 320, 240, 35, 1 },
+    "pixel_capture_w320h240.yuv", 32, 32, 64, 64, 35, 1 },
 
   // Enhanced subgop config
   { subgop_config_str_preset_map[ENHANCE].preset_tag, "niklas_640_480_30.yuv",
-    0, 15, 640, 480, 35, 0 },
-  { subgop_config_str_preset_map[ENHANCE].preset_tag, "paris_352_288_30.y4m", 0,
-    6, 352, 288, 35, 0 },
+    0, 15, 64, 64, 35, 0 },
   { subgop_config_str_preset_map[ENHANCE].preset_tag,
-    "hantro_collage_w352h288.yuv", 0, 16, 352, 288, 35, 0 },
+    "pixel_capture_w320h240.yuv", 0, 6, 64, 64, 35, 0 },
   { subgop_config_str_preset_map[ENHANCE].preset_tag,
-    "pixel_capture_w320h240.yuv", 0, 12, 320, 240, 35, 0 },
+    "hantro_collage_w352h288.yuv", 0, 16, 64, 64, 35, 0 },
+  { subgop_config_str_preset_map[ENHANCE].preset_tag,
+    "pixel_capture_w320h240.yuv", 0, 12, 64, 64, 35, 0 },
   { subgop_config_str_preset_map[ENHANCE].preset_tag, "niklas_640_480_30.yuv",
-    0, 11, 640, 480, 35, 0 },
+    0, 11, 64, 64, 35, 0 },
   { subgop_config_str_preset_map[ENHANCE].preset_tag, "screendata.y4m", 0, 16,
-    640, 480, 35, 0 },
+    64, 64, 35, 0 },
   { subgop_config_str_preset_map[ENHANCE].preset_tag,
-    "pixel_capture_w320h240.yuv", 0, 14, 320, 240, 35, 0 },
+    "pixel_capture_w320h240.yuv", 0, 14, 64, 64, 35, 0 },
   { subgop_config_str_preset_map[ENHANCE].preset_tag, "desktop1.320_180.yuv", 0,
-    10, 320, 180, 35, 0 },
-  { subgop_config_str_preset_map[ENHANCE].preset_tag, "paris_352_288_30.y4m", 0,
-    13, 352, 288, 35, 0 },
+    10, 64, 64, 35, 0 },
   { subgop_config_str_preset_map[ENHANCE].preset_tag,
-    "pixel_capture_w320h240.yuv", 0, 8, 320, 240, 35, 0 },
+    "pixel_capture_w320h240.yuv", 0, 13, 64, 64, 35, 0 },
+  { subgop_config_str_preset_map[ENHANCE].preset_tag,
+    "pixel_capture_w320h240.yuv", 0, 8, 64, 64, 35, 0 },
 
   // Asymmetric subgop config
   { subgop_config_str_preset_map[ASYMMETRIC].preset_tag,
-    "pixel_capture_w320h240.yuv", 0, 16, 320, 240, 35, 0 },
+    "pixel_capture_w320h240.yuv", 0, 16, 64, 64, 35, 0 },
   { subgop_config_str_preset_map[ASYMMETRIC].preset_tag, "desktop1.320_180.yuv",
-    0, 16, 320, 180, 35, 0 },
+    0, 16, 64, 64, 35, 0 },
 
   // Temporal scalable subgop config
   { subgop_config_str_preset_map[TEMPORAL_SCALABLE].preset_tag,
-    "pixel_capture_w320h240.yuv", 0, 16, 320, 240, 35, 0 },
+    "pixel_capture_w320h240.yuv", 0, 16, 64, 64, 35, 0 },
   { subgop_config_str_preset_map[TEMPORAL_SCALABLE].preset_tag,
-    "hantro_collage_w352h288.yuv", 0, 16, 352, 288, 35, 0 },
+    "hantro_collage_w352h288.yuv", 0, 16, 64, 64, 35, 0 },
 
   // Low delay subgop config
-  { subgop_config_str_preset_map[LOW_DELAY].preset_tag, "paris_352_288_30.y4m",
-    0, 16, 352, 288, 0, 0 },
+  { subgop_config_str_preset_map[LOW_DELAY].preset_tag,
+    "pixel_capture_w320h240.yuv", 0, 16, 64, 64, 0, 0 },
   { subgop_config_str_preset_map[LOW_DELAY].preset_tag, "desktop1.320_180.yuv",
-    16, 16, 320, 180, 0, 1 },
-  { subgop_config_str_preset_map[LOW_DELAY].preset_tag, "paris_352_288_30.y4m",
-    0, 32, 352, 288, 0, 0 },
+    16, 16, 64, 64, 0, 1 },
+  { subgop_config_str_preset_map[LOW_DELAY].preset_tag,
+    "pixel_capture_w320h240.yuv", 0, 32, 64, 64, 0, 0 },
   { subgop_config_str_preset_map[LOW_DELAY].preset_tag, "desktop1.320_180.yuv",
-    32, 32, 320, 180, 0, 1 },
+    32, 32, 64, 64, 0, 1 },
 
   // Non-default subgop config
-  { subgop_config_str_nondef[0], "pixel_capture_w320h240.yuv", 0, 4, 320, 240,
-    35, 0 },
-  { subgop_config_str_nondef[0], "desktop1.320_180.yuv", 0, 5, 320, 180, 35,
+  { subgop_config_str_nondef[0], "pixel_capture_w320h240.yuv", 0, 4, 64, 64, 35,
     0 },
-  { subgop_config_str_nondef[0], "pixel_capture_w320h240.yuv", 0, 7, 320, 240,
-    35, 0 },
-  { subgop_config_str_nondef[0], "hantro_collage_w352h288.yuv", 0, 9, 352, 288,
+  { subgop_config_str_nondef[0], "desktop1.320_180.yuv", 0, 5, 64, 64, 35, 0 },
+  { subgop_config_str_nondef[0], "pixel_capture_w320h240.yuv", 0, 7, 64, 64, 35,
+    0 },
+  { subgop_config_str_nondef[0], "hantro_collage_w352h288.yuv", 0, 9, 64, 64,
     35, 0 },
 };
 
@@ -201,6 +200,7 @@ class SubGopTestLarge
     cfg_.g_timebase = timebase;
     cfg_.g_threads = 1;
     cfg_.rc_end_usage = rc_end_usage_;
+    cfg_.rc_target_bitrate = 40;
     cfg_.rc_undershoot_pct = 100;
     cfg_.rc_overshoot_pct = 100;
     if (rc_end_usage_ == AOM_Q) {
@@ -212,7 +212,7 @@ class SubGopTestLarge
     cfg_.kf_max_dist = 65;
     cfg_.g_lag_in_frames = subgop_test_params_.lag_in_frames;
     // Note: Uncomment the following line for verbose output, to aid debugging.
-    // init_flags_ = AOM_CODEC_USE_PER_FRAME_STATS;
+    init_flags_ = AOM_CODEC_USE_PER_FRAME_STATS;
   }
 
   // check if subgop_config_str is a preset tag
