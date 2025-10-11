@@ -146,6 +146,9 @@ set_aom_config_var(CONFIG_MULTILAYER_CORE_HLS 1
 set_aom_config_var(CONFIG_PARAKIT_COLLECT_DATA 0
                    "enables data collection for ParaKit training.")
 
+set_aom_config_var(CONFIG_NEW_CONTEXT_TABLES 1
+                   "Context tables in separate files.")
+
 # FG8 context simplification tests
 set_aom_config_var(CONFIG_EOB_PT_CTX_REDUCTION 1 "FG8-Test4.")
 set_aom_config_var(CONFIG_COEFF_BR_LF_UV_BYPASS 1

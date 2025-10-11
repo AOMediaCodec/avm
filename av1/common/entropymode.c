@@ -20,6 +20,9 @@
 #include "av1/common/txb_common.h"
 #include "av1/encoder/mcomp.h"
 
+#if CONFIG_NEW_CONTEXT_TABLES
+#include "av1/common/entropy_inits_modes.h"
+#else
 static const aom_cdf_prob
     default_mrl_index_cdf[MRL_INDEX_CONTEXTS][CDF_SIZE(MRL_LINE_NUMBER)] = {
       { AOM_CDF4(28081, 30613, 31659), 78 },
@@ -3944,6 +3947,8 @@ static const aom_cdf_prob
                                      { AOM_CDF3(25484, 32287), 75 },
                                  },
                                };
+
+#endif  // CONFIG_NEW_CONTEXT_TABLES
 
 #define MAX_COLOR_CONTEXT_HASH 8
 

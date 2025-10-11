@@ -13,6 +13,9 @@
 #include "av1/common/av1_common_int.h"
 #include "av1/common/entropymv.h"
 
+#if CONFIG_NEW_CONTEXT_TABLES
+#include "av1/common/entropy_inits_mv.h"
+#else
 static const nmv_context default_nmv_context = {
 #if !CONFIG_VQ_MVD_CODING
   { AOM_CDF4(671, 5207, 9061), 75 },  // joints_cdf
@@ -227,7 +230,7 @@ static const nmv_context default_nmv_context = {
               { AOM_CDF2(15625), 0 },
               { AOM_CDF2(17117), 75 },
           },  // fp_cdf
-#endif        // !CONFIG_VQ_MVD_CODING
+#endif  // !CONFIG_VQ_MVD_CODING
 #if !CONFIG_VQ_MVD_CODING
           { AOM_CDF2(25929), 90 },  // class0_hp_cdf
           { AOM_CDF2(11557), 84 },  // hp_cdf
@@ -246,9 +249,9 @@ static const nmv_context default_nmv_context = {
 #if CONFIG_MV_RANGE_EXTENSION
               { AOM_CDF2(16384), 0 },
               { AOM_CDF2(16384), 0 },
-#endif        // CONFIG_MV_RANGE_EXTENSION
+#endif  // CONFIG_MV_RANGE_EXTENSION
           },  // bits_cdf
-#endif        // !CONFIG_VQ_MVD_CODING
+#endif  // !CONFIG_VQ_MVD_CODING
       },
       {
 #if !CONFIG_VQ_MVD_CODING
@@ -328,7 +331,7 @@ static const nmv_context default_nmv_context = {
               { AOM_CDF2(11379), 75 },
               { AOM_CDF2(6857), 0 },
           },  // fp_cdf
-#endif        // !CONFIG_VQ_MVD_CODING
+#endif  // !CONFIG_VQ_MVD_CODING
 #if !CONFIG_VQ_MVD_CODING
           { AOM_CDF2(24896), 75 },   // class0_hp_cdf
           { AOM_CDF2(16355), 119 },  // hp_cdf
@@ -347,12 +350,13 @@ static const nmv_context default_nmv_context = {
 #if CONFIG_MV_RANGE_EXTENSION
               { AOM_CDF2(16384) },
               { AOM_CDF2(16384) },
-#endif        // CONFIG_MV_RANGE_EXTENSION
+#endif  // CONFIG_MV_RANGE_EXTENSION
           },  // bits_cdf
-#endif        // !CONFIG_VQ_MVD_CODING
+#endif  // !CONFIG_VQ_MVD_CODING
       },
   },
 };
+#endif  // CONFIG_NEW_CONTEXT_TABLES
 
 void av1_init_mv_probs(AV1_COMMON *cm) {
   // NB: this sets CDFs too
