@@ -210,7 +210,6 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
 #if CONFIG_F160_TD
   int vcl_obu_count = 0; // a local variable to count the nubmer of obus
 #endif  // CONFIG_F160_TD
-
   while (1) {
     ObuHeader obu_header;
     memset(&obu_header, 0, sizeof(obu_header));
@@ -273,8 +272,7 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
           obu_header.type == OBU_TIP || obu_header.type == OBU_SWITCH)
 #else
       if (obu_header.type == OBU_FRAME || obu_header.type == OBU_FRAME_HEADER ||
-          obu_header.type ==
-              OBU_REDUNDANT_FRAME_HEADER)
+          obu_header.type == OBU_REDUNDANT_FRAME_HEADER)
 #endif  // CONFIG_F106_OBU_TILEGROUP
         vcl_obu_count++;
 #endif  // CONFIG_F160_TD

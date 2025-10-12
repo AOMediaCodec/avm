@@ -657,7 +657,7 @@ static int main_loop(int argc, const char **argv_) {
 #if CONFIG_F160_TD
                                         ,
                                         0
-#endif // CONFIG_F160_TD
+#endif  // CONFIG_F160_TD
 
   };
   int is_ivf = 0;
