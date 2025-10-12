@@ -120,7 +120,6 @@ static int peek_obu_from_file(FILE *f, size_t obu_header_size, uint8_t *buffer,
 #if CONFIG_F160_TD && CONFIG_F106_OBU_TILEGROUP
   if (obu_header->type == OBU_TILE_GROUP) {
     *first_tile_group = buffer[1];
-    // fread(test, sizeof(uint8_t), 1, f);
   } else {
     *first_tile_group = 0;
   }
@@ -209,7 +208,7 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
   OBU_TYPE curr_obu_type = 0;
 #endif  // OBU_ORDER_IN_TU
 #if CONFIG_F160_TD
-  int vcl_obu_count = 0;
+  int vcl_obu_count = 0; // a local variable to count the nubmer of obus
 #endif  // CONFIG_F160_TD
 
   while (1) {
@@ -248,7 +247,7 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
 #if CONFIG_F160_TD
     int decoding_unit_token =
         (obu_header.type == OBU_TEMPORAL_DELIMITER && first_td != 1);
-    if (obu_ctx->has_temporal_delimiter == 0) {
+    if (!obu_ctx->has_temporal_delimiter) {
       decoding_unit_token =
           ((vcl_obu_count > 0 && obu_header.type == OBU_TILE_GROUP
 #if CONFIG_F106_OBU_TILEGROUP
@@ -265,10 +264,6 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
     if ((obu_header.type == OBU_TEMPORAL_DELIMITER && first_td != 1))
 #endif  // CONFIG_F160_TD
     {
-#if 0
-      printf("<<obudec_read_temporal_unit>> (break) obu_header.type: %s\n",
-             aom_obu_type_to_string(obu_header.type));
-#endif
       break;
     } else {
       if (obu_header.type == OBU_TEMPORAL_DELIMITER) first_td = 0;
@@ -279,15 +274,10 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
 #else
       if (obu_header.type == OBU_FRAME || obu_header.type == OBU_FRAME_HEADER ||
           obu_header.type ==
-              OBU_REDUNDANT_FRAME_HEADER)  //[jkei] obu_total_size needed?
+              OBU_REDUNDANT_FRAME_HEADER)
 #endif  // CONFIG_F106_OBU_TILEGROUP
         vcl_obu_count++;
 #endif  // CONFIG_F160_TD
-#if 0
-      printf("<<obudec_read_temporal_unit>> obu_header.type: %s\n",
-             aom_obu_type_to_string(obu_header.type));
-#endif
-
       fseek(f, obu_size, SEEK_CUR);
       tu_size += (obu_size + obu_size_bytelength);
     }

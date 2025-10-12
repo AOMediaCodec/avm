@@ -1819,7 +1819,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 
   oxcf->save_as_annexb = cfg->save_as_annexb;
 #if CONFIG_F160_TD
-  oxcf->use_td = cfg->use_td;
+  oxcf->signal_td = cfg->signal_td;
 #endif  // CONFIG_F160_TD
 
   // Set unit test related configuration.
@@ -3432,7 +3432,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 #if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
         const int write_temporal_delimiter =
 #if CONFIG_F160_TD
-            !(ctx->oxcf.use_td)
+            !(ctx->oxcf.signal_td)
                 ? 0
                 :
 #endif
@@ -3441,7 +3441,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 #else  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
         const int write_temporal_delimiter =
 #if CONFIG_F160_TD
-            !(ctx->oxcf.use_td)
+            !(ctx->oxcf.signal_td)
                 ? 0
                 :
 #endif
@@ -4707,7 +4707,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
     1,            // enable_tcq
     1,            // save_as_annexb (0: external means)
 #if CONFIG_F160_TD
-    0,                           // use_td (0. temporal delimiter is not used)
+    0,                           // signal_td
 #endif                           // CONFIG_F160_TD
     0,                           // tile_width_count
     0,                           // tile_height_count

@@ -107,7 +107,7 @@ int main(int argc, char **argv) {
 #if CONFIG_F160_TD
                                         ,
                                         0
-#endif
+#endif // CONFIG_F160_TD
   };
   aom_codec_stream_info_t si;
   uint8_t tmpbuf[32];

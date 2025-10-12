@@ -288,7 +288,7 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       ARG_DEF(NULL, "sframe-mode", 1, "S-Frame insertion mode (1..2)"),
   .save_as_annexb = ARG_DEF(NULL, "annexb", 1, "Save as Annex-B"),
 #if CONFIG_F160_TD
-  .use_td =
+  .signal_td =
       ARG_DEF(NULL, "use-temporal-delimiter", 1, "Signal temproal delimiters"),
 #endif  // CONFIG_F160_TD
   .noise_sens = ARG_DEF(NULL, "noise-sensitivity", 1,
