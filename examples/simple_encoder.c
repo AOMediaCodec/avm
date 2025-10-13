@@ -114,7 +114,7 @@ void usage_exit(void) {
           "<keyframe-interval> <frames to encode>\n"
 #else
           "<keyframe-interval> <error-resilient> <frames to encode>\n"
-#endif // CONFIG_F322_OBUER_ERM
+#endif  // CONFIG_F322_OBUER_ERM
           "See comments in simple_encoder.c for more information.\n",
           exec_name);
   exit(EXIT_FAILURE);
