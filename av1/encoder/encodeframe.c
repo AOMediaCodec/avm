@@ -1637,10 +1637,11 @@ void av1_init_tile_data(AV1_COMP *cpi) {
         tile_info->tile_active_mode = 0;
 #if CONFIG_CWG_F317
         if (!cm->bru.frame_inactive_flag &&
-            !cm->bridge_frame_info.is_bridge_frame) {
+            !cm->bridge_frame_info.is_bridge_frame)
 #else
-        if (!cm->bru.frame_inactive_flag) {
+        if (!cm->bru.frame_inactive_flag)
 #endif  // CONFIG_CWG_F317
+        {
           for (int mi_y = tile_info->mi_row_start; mi_y < tile_info->mi_row_end;
                mi_y += cm->mib_size) {
             for (int mi_x = tile_info->mi_col_start;

@@ -8271,7 +8271,7 @@ static AOM_INLINE void validate_refereces(AV1Decoder *const pbi) {
     }
   }
 }
-#if !CONFIG_F024_KEYOBU
+#if !CONFIG_F024_KEYOBU || !CONFIG_F356_SEF_DOH
 static AOM_INLINE void show_existing_frame_reset(AV1Decoder *const pbi) {
   AV1_COMMON *const cm = &pbi->common;
 
@@ -8297,7 +8297,7 @@ static AOM_INLINE void show_existing_frame_reset(AV1Decoder *const pbi) {
 
   cm->features.refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
 }
-#endif
+#endif  // !CONFIG_F024_KEYOBU || !CONFIG_F356_SEF_DOH
 static INLINE void reset_frame_buffers(AV1_COMMON *cm) {
   RefCntBuffer *const frame_bufs = cm->buffer_pool->frame_bufs;
   int i;
@@ -8333,9 +8333,10 @@ static INLINE int get_disp_order_hint(AV1_COMMON *const cm)
     if (random_accessed) return current_frame->order_hint;
   }
 #else
+#if !CONFIG_F356_SEF_DOH
   if (current_frame->frame_type == KEY_FRAME && cm->show_existing_frame)
     return 0;
-
+#endif  // !CONFIG_F356_SEF_DOH
   // For key frames, the implicit derivation of display_order_hit is not
   // applied.
   if (current_frame->frame_type == KEY_FRAME) return current_frame->order_hint;
@@ -8590,6 +8591,61 @@ static int read_show_existing_frame(AV1Decoder *pbi,
     aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                        "Buffer does not contain a decoded frame");
   }
+#if CONFIG_F356_SEF_DOH
+  cm->sef_ref_fb_idx = existing_frame_idx;
+  cm->derive_sef_order_hint = aom_rb_read_bit(rb);
+  if (!cm->derive_sef_order_hint) {
+    int cur_frame_ref_count = cm->cur_frame->ref_count;
+    // memcpy(cm->cur_frame, frame_to_show, sizeof(RefCntBuffer));
+    current_frame->order_hint = aom_rb_read_literal(
+        rb, seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
+
+    current_frame->display_order_hint =
+#if CONFIG_F024_KEYOBU
+        get_disp_order_hint(
+            cm, is_regular_obu ? OBU_REGULAR_SEF : OBU_LEADING_SEF, false);
+#else
+        get_disp_order_hint(cm);
+#endif  // CONFIG_F024_KEYOBU
+    current_frame->frame_number = current_frame->order_hint;
+    cm->cur_frame->ref_count = cur_frame_ref_count;
+    // Since a SEF frame is not used as a reference frame, its display order
+    // hint cannot be used to derive display order hints of subsequent frames.
+    // To guarantee that, the display order hint of the SEF frame should not be
+    // bigger than the max_disp_order_hint
+    unsigned int max_disp_order_hint = 0;
+    for (int map_idx = 0; map_idx < cm->seq_params.ref_frames; map_idx++) {
+      // Get reference frame buffer
+      const RefCntBuffer *const buf = cm->ref_frame_map[map_idx];
+      if (buf == NULL ||
+          !is_tlayer_scalable_and_dependent(&cm->seq_params, cm->tlayer_id,
+                                            buf->temporal_layer_id) ||
+          !is_mlayer_scalable_and_dependent(&cm->seq_params, cm->mlayer_id,
+                                            buf->mlayer_id))
+        continue;
+      if (buf->display_order_hint > max_disp_order_hint)
+        max_disp_order_hint = buf->display_order_hint;
+    }
+    if (max_disp_order_hint < current_frame->display_order_hint) {
+      aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+                         "display order hint of SEF(%s) is bigger than "
+                         "max_disp_order_hint(%d) in the ref_frame_map",
+                         current_frame->display_order_hint,
+                         max_disp_order_hint);
+    }
+    cm->cur_frame->order_hint = current_frame->order_hint;
+    cm->cur_frame->display_order_hint = current_frame->display_order_hint;
+  } else {
+    if (frame_to_show->showable_frame) {
+      aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+                         "the reference frame should be a hidden frame when "
+                         "derive_sef_order_hint is true");
+      return 0;
+    }
+    cm->cur_frame->order_hint = frame_to_show->order_hint;
+    cm->cur_frame->display_order_hint = frame_to_show->display_order_hint;
+  }
+#endif  // CONFIG_F356_SEF_DOH
   if (seq_params->decoder_model_info_present_flag &&
 #if CONFIG_CWG_F270_CI_OBU
       (cm->ci_params.ci_timing_info_present_flag == 1) &&
@@ -8614,9 +8670,12 @@ static int read_show_existing_frame(AV1Decoder *pbi,
 
   FrameHash raw_frame_hash = cm->cur_frame->raw_frame_hash;
   FrameHash grain_frame_hash = cm->cur_frame->grain_frame_hash;
-
+  // TODO: does assign_frame_buffer_p need to be enabled when
+  // derive_sef_order_hint = true?
+#if !CONFIG_F356_SEF_DOH
   assign_frame_buffer_p(&cm->cur_frame, frame_to_show);
-#if !CONFIG_F024_KEYOBU
+#endif  // !CONFIG_F356_SEF_DOH
+#if !CONFIG_F024_KEYOBU || !CONFIG_F356_SEF_DOH
   pbi->reset_decoder_state = frame_to_show->frame_type == KEY_FRAME;
 #endif  // !CONFIG_F024_KEYOBU
   // Combine any Decoded Frame Header metadata that was parsed before
@@ -8645,13 +8704,13 @@ static int read_show_existing_frame(AV1Decoder *pbi,
   if (pbi->reset_decoder_state) frame_to_show->showable_frame = 0;
 #endif  // !CONFIG_F024_KEYOBU
   cm->film_grain_params = frame_to_show->film_grain_params;
-#if !CONFIG_F024_KEYOBU
+#if !CONFIG_F024_KEYOBU || !CONFIG_F356_SEF_DOH
   if (pbi->reset_decoder_state) {
     show_existing_frame_reset(pbi);
   } else {
 #endif  // !CONFIG_F024_KEYOBU
     current_frame->refresh_frame_flags = 0;
-#if !CONFIG_F024_KEYOBU
+#if !CONFIG_F024_KEYOBU || !CONFIG_F356_SEF_DOH
   }
 #endif  // !CONFIG_F024_KEYOBU
 
@@ -10311,7 +10370,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       }
     }
   }
-
   av1_setup_frame_buf_refs(cm);
 
   av1_setup_frame_sign_bias(cm);

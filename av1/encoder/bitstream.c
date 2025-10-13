@@ -6541,7 +6541,7 @@ static AOM_INLINE void write_screen_content_params(
   }
 }
 #if CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_SEF
-static AOM_INLINE void write_show_exisiting_frame(
+static AOM_INLINE void write_show_existing_frame(
     AV1_COMP *cpi, struct aom_write_bit_buffer *wb) {
   AV1_COMMON *const cm = &cpi->common;
   const SequenceHeader *const seq_params = &cm->seq_params;
@@ -6552,7 +6552,16 @@ static AOM_INLINE void write_show_exisiting_frame(
                        cpi->existing_fb_idx_to_show,
 #endif
                        cm->seq_params.ref_frames_log2);
-
+#if CONFIG_F356_SEF_DOH
+  aom_wb_write_bit(wb, cm->derive_sef_order_hint);
+#endif  // CONFIG_F356_SEF_DOH
+#if CONFIG_F356_SEF_DOH
+  if (!cm->derive_sef_order_hint) {
+    aom_wb_write_literal(
+        wb, cm->current_frame.order_hint,
+        seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
+  }
+#endif  // CONFIG_F356_SEF_DOH
   if (seq_params->decoder_model_info_present_flag &&
 #if CONFIG_CWG_F270_CI_OBU
       cm->ci_params.timing_info.equal_elemental_interval == 0) {
@@ -6635,7 +6644,7 @@ static AOM_INLINE void write_uncompressed_header_obu
     if (obu_type == OBU_SEF)
 #endif
     {
-      write_show_exisiting_frame(cpi, wb);
+      write_show_existing_frame(cpi, wb);
       return;
     }
 #else
@@ -9700,6 +9709,16 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 #if CONFIG_CWG_F317
   if (cm->bridge_frame_info.is_bridge_frame) obu_type = OBU_BRIDGE_FRAME;
 #endif  // CONFIG_CWG_F317
+#if CONFIG_F356_SEF_DOH
+  if (cm->show_existing_frame) {
+#if CONFIG_F024_KEYOBU
+    obu_type =
+        (cm->is_leading_picture == 1 ? OBU_LEADING_SEF : OBU_REGULAR_SEF);
+#else
+    obu_type = OBU_SEF;
+#endif  // CONFIG_F024_KEYOBU
+  }
+#endif  // CONFIG_F356_SEF_DOH
   const int num_tiles = cm->tiles.cols * cm->tiles.rows;
   const int max_tg_num = AOMMIN(cpi->num_tg, num_tiles);
   const int num_tiles_per_tg = num_tiles / max_tg_num;

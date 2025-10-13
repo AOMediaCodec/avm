@@ -793,6 +793,13 @@ int av1_get_refresh_frame_flags(
     return 0;
   }
 #endif
+
+#if CONFIG_F356_SEF_DOH
+  if (frame_params->duplicate_existing_frame) {
+    return 0;
+  }
+#endif
+
   const int refresh_mask = 0;
   const ExtRefreshFrameFlagsInfo *const ext_refresh_frame_flags =
       &cpi->ext_flags.refresh_frame;
@@ -993,7 +1000,6 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
 
   if (gf_group->index == 0) av1_init_tpl_stats(&cpi->tpl_data);
   if (allow_tpl) av1_tpl_setup_stats(cpi, 0, frame_params, frame_input);
-
   if (av1_encode(cpi, dest, frame_input, frame_params, frame_results) !=
       AOM_CODEC_OK) {
     return AOM_CODEC_ERROR;
@@ -1100,7 +1106,9 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   if (!is_stat_generation_stage(cpi)) {
     av1_get_second_pass_params(cpi, &frame_params);
   }
-
+#if CONFIG_F356_SEF_DOH
+  frame_params.duplicate_existing_frame = 0;
+#endif
   struct lookahead_entry *source = NULL;
   struct lookahead_entry *last_source = NULL;
   struct lookahead_entry *bru_ref_source = NULL;
@@ -1167,15 +1175,18 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   // Shown frames and arf-overlay frames need frame-rate considering
   if (frame_params.show_frame)
     adjust_frame_rate(cpi, source->ts_start, source->ts_end);
+#if CONFIG_F356_SEF_DOH
+  if (!frame_params.duplicate_existing_frame) {  //[jkei] is it needed?
+#endif
 #if !CONFIG_F024_KEYOBU
-  if (!frame_params.show_existing_frame) {
+    if (!frame_params.show_existing_frame) {
 #endif
 #if CONFIG_F153_FGM_OBU  // cpi->film_grain_table
-    if (cpi->film_grain_table) {
-      cm->seq_params.film_grain_params_present = aom_film_grain_table_lookup(
-          cpi->film_grain_table, *time_stamp, *time_end, 0 /* =erase */,
-          &cm->film_grain_params);
-    }
+      if (cpi->film_grain_table) {
+        cm->seq_params.film_grain_params_present = aom_film_grain_table_lookup(
+            cpi->film_grain_table, *time_stamp, *time_end, 0 /* =erase */,
+            &cm->film_grain_params);
+      }
 #else
   if (cpi->film_grain_table) {
     cm->cur_frame->film_grain_params_present = aom_film_grain_table_lookup(
@@ -1186,13 +1197,17 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
         cm->seq_params.film_grain_params_present;
   }
 #endif  // CONFIG_F153_FGM_OBU
-    // only one operating point supported now
-    const int64_t pts64 = ticks_to_timebase_units(timestamp_ratio, *time_stamp);
-    if (pts64 < 0 || pts64 > UINT32_MAX) return AOM_CODEC_ERROR;
-    cm->frame_presentation_time = (uint32_t)pts64;
+      // only one operating point supported now
+      const int64_t pts64 =
+          ticks_to_timebase_units(timestamp_ratio, *time_stamp);
+      if (pts64 < 0 || pts64 > UINT32_MAX) return AOM_CODEC_ERROR;
+      cm->frame_presentation_time = (uint32_t)pts64;
 #if !CONFIG_F024_KEYOBU
-  }
+    }
 #endif
+#if CONFIG_F356_SEF_DOH
+  }
+#endif  // CONFIG_F356_SEF_DOH
   FRAME_UPDATE_TYPE frame_update_type = get_frame_update_type(gf_group);
 #if !CONFIG_F024_KEYOBU
   if (frame_params.show_existing_frame &&
@@ -1488,16 +1503,26 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   init_bru_frame(cm);
 
   cpi->td.mb.delta_qindex = 0;
-#if !CONFIG_F024_KEYOBU
-  if (!frame_params.show_existing_frame) {
+#if CONFIG_F356_SEF_DOH
+  if (!frame_params.duplicate_existing_frame) {
 #endif
-    cm->quant_params.using_qmatrix = oxcf->q_cfg.using_qm;
-    av1_set_lr_tools(cm->seq_params.lr_tools_disable_mask[0], 0, &cm->features);
-    av1_set_lr_tools(cm->seq_params.lr_tools_disable_mask[1], 1, &cm->features);
-    av1_set_lr_tools(cm->seq_params.lr_tools_disable_mask[1], 2, &cm->features);
+
 #if !CONFIG_F024_KEYOBU
-  }
+    if (!frame_params.show_existing_frame) {
+#endif
+      cm->quant_params.using_qmatrix = oxcf->q_cfg.using_qm;
+      av1_set_lr_tools(cm->seq_params.lr_tools_disable_mask[0], 0,
+                       &cm->features);
+      av1_set_lr_tools(cm->seq_params.lr_tools_disable_mask[1], 1,
+                       &cm->features);
+      av1_set_lr_tools(cm->seq_params.lr_tools_disable_mask[1], 2,
+                       &cm->features);
+#if !CONFIG_F024_KEYOBU
+    }
 #endif  // !CONFIG_F024_KEYOBU
+#if CONFIG_F356_SEF_DOH
+  }
+#endif  // CONFIG_F356_SEF_DOH
 #if CONFIG_F255_QMOBU
   if (cm->quant_params.using_qmatrix) {
     if (oxcf->q_cfg.using_qm && oxcf->q_cfg.user_defined_qmatrix) {

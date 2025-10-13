@@ -3242,11 +3242,12 @@ static void rd_pick_rect_partition(
 #if CONFIG_CWG_F317
   if (partition_found &&
       ((!bru_is_sb_active(&cpi->common, x->e_mbd.mi_col, x->e_mbd.mi_row)) ||
-       cpi->common.bridge_frame_info.is_bridge_frame)) {
+       cpi->common.bridge_frame_info.is_bridge_frame))
 #else
   if (partition_found &&
-      !bru_is_sb_active(&cpi->common, x->e_mbd.mi_col, x->e_mbd.mi_row)) {
+      !bru_is_sb_active(&cpi->common, x->e_mbd.mi_col, x->e_mbd.mi_row))
 #endif  // CONFIG_CWG_F317
+  {
     part_search_state->terminate_partition_search = 1;
     part_search_state->do_rectangular_split = 0;
     part_search_state->is_block_splittable = 0;
@@ -3645,10 +3646,11 @@ static void prune_partitions_after_none(AV1_COMP *const cpi, MACROBLOCK *x,
   // force early terminate after successful none in not active
 #if CONFIG_CWG_F317
   if ((!bru_is_sb_active(cm, blk_params.mi_col, blk_params.mi_row)) ||
-      cm->bridge_frame_info.is_bridge_frame) {
+      cm->bridge_frame_info.is_bridge_frame)
 #else
-  if (!bru_is_sb_active(cm, blk_params.mi_col, blk_params.mi_row)) {
+  if (!bru_is_sb_active(cm, blk_params.mi_col, blk_params.mi_row))
 #endif  // CONFIG_CWG_F317
+  {
     part_search_state->terminate_partition_search = 1;
     part_search_state->do_rectangular_split = 0;
     part_search_state->is_block_splittable = 0;
@@ -4006,11 +4008,12 @@ static void split_partition_search(
 #if CONFIG_CWG_F317
   if (part_search_state->found_best_partition &&
       ((!bru_is_sb_active(cm, mi_col, mi_row)) ||
-       cm->bridge_frame_info.is_bridge_frame)) {
+       cm->bridge_frame_info.is_bridge_frame))
 #else
   if (part_search_state->found_best_partition &&
-      !bru_is_sb_active(cm, mi_col, mi_row)) {
+      !bru_is_sb_active(cm, mi_col, mi_row))
 #endif  // CONFIG_CWG_F317
+  {
     part_search_state->terminate_partition_search = 1;
     part_search_state->do_rectangular_split = 0;
     part_search_state->forced_partition = 0;

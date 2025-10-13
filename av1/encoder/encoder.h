@@ -3048,6 +3048,9 @@ typedef struct EncodeFrameParams {
   // TODO(jkei): if possible remove cm_obu_type
   OBU_TYPE frame_params_obu_type;
 #endif
+#if CONFIG_F356_SEF_DOH
+  int duplicate_existing_frame;
+#endif  // CONFIG_F356_SEF_DOH
   /*!\endcond */
   /*!
    *  Bitmask of which reference buffers may be referenced by this frame.

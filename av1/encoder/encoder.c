@@ -2047,8 +2047,19 @@ static void generate_psnr_packet(AV1_COMP *cpi) {
   PSNR_STATS psnr;
   const uint32_t in_bit_depth = cpi->oxcf.input_cfg.input_bit_depth;
   const uint32_t bit_depth = cpi->td.mb.e_mbd.bd;
-  aom_calc_highbd_psnr(cpi->source, &cpi->common.cur_frame->buf, &psnr,
-                       bit_depth, in_bit_depth,
+#if CONFIG_F356_SEF_DOH
+  const YV12_BUFFER_CONFIG *b =
+      cpi->common.show_existing_frame
+          ? &cpi->common.ref_frame_map[cpi->common.sef_ref_fb_idx]->buf
+          : &cpi->common.cur_frame->buf;
+#endif
+  aom_calc_highbd_psnr(cpi->source,
+#if CONFIG_F356_SEF_DOH
+                       b,
+#else
+                       &cpi->common.cur_frame->buf,
+#endif  // CONFIG_F356_SEF_DOH
+                       &psnr, bit_depth, in_bit_depth,
                        is_lossless_requested(&cpi->oxcf.rc_cfg));
 
   for (i = 0; i < 4; ++i) {
@@ -3983,7 +3994,6 @@ static INLINE int compute_tip_direct_output_mode_RD(AV1_COMP *cpi,
       }
     }
     cm->tip_interp_filter = best_interp_filter;
-
     av1_finalize_encoded_frame(cpi);
     if (av1_pack_bitstream(cpi, dest, size, largest_tile_id) != AOM_CODEC_OK)
       return AOM_CODEC_ERROR;
@@ -4115,7 +4125,6 @@ static INLINE int finalize_tip_mode(AV1_COMP *cpi, uint8_t *dest, size_t *size,
       cm->cur_frame->global_motion[i] = default_warp_params;
     }
     cpi->gm_info.search_done = 0;
-
     av1_finalize_encoded_frame(cpi);
     if (av1_pack_bitstream(cpi, dest, size, largest_tile_id) != AOM_CODEC_OK)
       return AOM_CODEC_ERROR;
@@ -4330,7 +4339,6 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
       if (!cm->fc->initialized)
         aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                            "Uninitialized entropy context.");
-
       av1_finalize_encoded_frame(cpi);
       // Storing/restoring cm->features.primary_ref_frame isn't needed here
       // since it always takes 3 bits for primary_ref_frame signaling.
@@ -4477,7 +4485,6 @@ void encoder_avg_tiles_cdfs(AV1_COMP *const cpi) {
     }
   }
 }
-
 /*!\brief Run the final pass encoding for 1-pass/2-pass encoding mode, and pack
  * the bitstream
  *
@@ -4506,7 +4513,6 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, encode_frame_to_data_rate_time);
 #endif
-
   av1_set_screen_content_options(cpi, features);
   if (cm->current_frame.frame_type != KEY_FRAME) {
     // the current kf_allow_sc_tools will be considered when we set
@@ -4541,7 +4547,6 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   if (compute_ds_filter) {
     av1_set_downsample_filter_options(cpi);
   }
-
   // frame type has been decided outside of this function call
   cm->cur_frame->frame_type = current_frame->frame_type;
 
@@ -4611,11 +4616,75 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
       ++current_frame->frame_number;
     return AOM_CODEC_OK;
   }  // if(cpi->update_type_was_overlay)
-#else
+
+#if CONFIG_F356_SEF_DOH
+
+  if (cm->show_existing_frame && !cm->derive_sef_order_hint) {
+    av1_finalize_encoded_frame(cpi);
+    // Build the bitstream
+    int largest_tile_id = 0;  // Output from bitstream: unused here
+    if (av1_pack_bitstream(cpi, dest, size, &largest_tile_id) != AOM_CODEC_OK)
+      return AOM_CODEC_ERROR;
+#if CONFIG_F153_FGM_OBU  // encode_show_existing
+    if (cpi->increase_fgm_counter) {
+      assert(cm->fgm_id >= 0 && cm->fgm_id < MAX_FGM_NUM &&
+             cpi->fgm->fgm_chroma_idc >= 0 && cpi->fgm->fgm_chroma_idc < 4);
+      int fgm_pos = cpi->written_fgm_num % MAX_FGM_NUM;
+      int valid_fgm_num = AOMMIN(cpi->written_fgm_num, MAX_FGM_NUM);
+      for (int i = 0; i < valid_fgm_num; i++) {
+        if (cpi->fgm_list[i].fgm_id == cm->fgm_id) {
+          fgm_pos = i;
+          break;
+        }
+      }
+      cpi->fgm_list[fgm_pos] = *cpi->fgm;
+      cpi->written_fgm_num += 1;
+    }
+#endif  // CONFIG_F153_FGM_OBU
+
+    cpi->seq_params_locked = 1;
+
+    // NOTE: Save the new show frame buffer index for --test-code=warn, i.e.,
+    //       for the purpose to verify no mismatch between encoder and decoder.
+    if (cm->derive_sef_order_hint)
+      cpi->last_show_frame_buf = cm->cur_frame;
+    else
+      cpi->last_show_frame_buf = cm->ref_frame_map[cm->sef_ref_fb_idx];
+    refresh_reference_frames(cpi);
+
+    // Since we allocate a spot for the OVERLAY frame in the gf group, we need
+    // to do post-encoding update accordingly.
+    if (cpi->rc.is_src_frame_alt_ref) {
+      av1_set_target_rate(cpi, cm->width, cm->height);
+      av1_rc_postencode_update(cpi, *size);
+    }
+
+    if (is_psnr_calc_enabled(cpi)) {
+      int y_crop_width =
+          !cm->derive_sef_order_hint
+              ? cm->ref_frame_map[cm->sef_ref_fb_idx]->buf.y_crop_width
+              : cm->cur_frame->buf.y_crop_width;
+      int y_crop_height =
+          !cm->derive_sef_order_hint
+              ? cm->ref_frame_map[cm->sef_ref_fb_idx]->buf.y_crop_height
+              : cm->cur_frame->buf.y_crop_height;
+      cpi->source = realloc_and_scale_source(cpi, y_crop_width, y_crop_height);
+    }
+
+    ++current_frame->frame_number;
+
+    return AOM_CODEC_OK;
+  }
+#endif  // CONFIG_F356_SEF_DOH
+#else   // CONFIG_F024_KEYOBU
   const int encode_show_existing = encode_show_existing_frame(cm);
   if (encode_show_existing || cm->show_existing_frame) {
     av1_finalize_encoded_frame(cpi);
-    if (encode_show_existing) {
+    if (encode_show_existing
+#if CONFIG_F356_SEF_DOH
+        || !cm->derive_sef_order_hint
+#endif                   // CONFIG_F356_SEF_DOH
+    ) {
       // Build the bitstream
       int largest_tile_id = 0;  // Output from bitstream: unused here
       if (av1_pack_bitstream(cpi, dest, size, &largest_tile_id) != AOM_CODEC_OK)
@@ -4643,7 +4712,12 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     // NOTE: Save the new show frame buffer index for --test-code=warn, i.e.,
     //       for the purpose to verify no mismatch between encoder and decoder.
     if (cm->show_frame) cpi->last_show_frame_buf = cm->cur_frame;
-
+#if CONFIG_F356_SEF_DOH
+    if (cm->show_frame && !cm->derive_sef_order_hint) {
+      cpi->last_show_frame_buf =
+          cm->ref_frame_map[cpi->existing_fb_idx_to_show];
+    }
+#endif  // CONFIG_F356_SEF_DOH
     refresh_reference_frames(cpi);
 
     // Since we allocate a spot for the OVERLAY frame in the gf group, we need
@@ -4654,16 +4728,31 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     }
 
     if (is_psnr_calc_enabled(cpi)) {
-      cpi->source =
-          realloc_and_scale_source(cpi, cm->cur_frame->buf.y_crop_width,
-                                   cm->cur_frame->buf.y_crop_height);
+#if CONFIG_F356_SEF_DOH
+      int y_crop_width = !cm->derive_sef_order_hint
+                             ? cm->ref_frame_map[cpi->existing_fb_idx_to_show]
+                                   ->buf.y_crop_width
+                             : cm->cur_frame->buf.y_crop_width;
+      int y_crop_height = !cm->derive_sef_order_hint
+                              ? cm->ref_frame_map[cpi->existing_fb_idx_to_show]
+                                    ->buf.y_crop_height
+                              : cm->cur_frame->buf.y_crop_height;
+#endif  // CONFIG_F356_SEF_DOH
+      cpi->source = realloc_and_scale_source(cpi,
+#if CONFIG_F356_SEF_DOH
+                                             y_crop_width, y_crop_height
+#else
+                                             cm->cur_frame->buf.y_crop_width,
+                                             cm->cur_frame->buf.y_crop_height
+#endif  // CONFIG_F356_SEF_DOH
+      );
     }
 
     ++current_frame->frame_number;
 
     return AOM_CODEC_OK;
   }
-#endif
+#endif  // CONFIG_F024_KEYOBU
 
 #if CONFIG_F024_KEYOBU
   if (current_frame->frame_type == KEY_FRAME) {
@@ -4709,7 +4798,6 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 
   // Set default state for segment based loop filter update flags.
   cm->lf.mode_ref_delta_update = 0;
-
   // Set various flags etc to special state if it is a key frame.
   if (frame_is_intra_only(cm) || frame_is_sframe(cm)) {
     // Reset the loop filter deltas and segmentation map.
@@ -4784,7 +4872,6 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     aom_invalidate_pyramid(cpi->source->y_pyramid);
     av1_invalidate_corner_list(cpi->source->corners);
   }
-
   int largest_tile_id = 0;
   if (encode_with_recode_loop_and_filter(cpi, size, dest, NULL, NULL,
                                          &largest_tile_id) != AOM_CODEC_OK) {
@@ -4818,7 +4905,6 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
                  sizeof(*cm->cur_frame->seg_map));
     }
   }
-
   if (frame_is_intra_only(cm) == 0) {
     release_scaled_references(cpi);
   }
@@ -4834,7 +4920,6 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   }
 
   refresh_reference_frames(cpi);
-
 #if CONFIG_ENTROPY_STATS
   av1_accumulate_frame_counts(&aggregate_fc, &cpi->counts);
 #endif  // CONFIG_ENTROPY_STATS
@@ -4887,7 +4972,6 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   if (cm->show_frame) {
     ++current_frame->frame_number;
   }
-
   return AOM_CODEC_OK;
 }
 
@@ -4934,6 +5018,28 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
   current_frame->order_hint =
       current_frame->frame_number + frame_params->order_offset;
   current_frame->display_order_hint = current_frame->order_hint;
+#if CONFIG_F356_SEF_DOH
+  cm->show_existing_frame = frame_params->duplicate_existing_frame;
+  // scan the reference list. if all the display_order_hint of the reference
+  // frame is smaller than the current display_order_hint,
+  // duplicate_existing_frame is not applicable.
+  cm->derive_sef_order_hint = false;
+  if (cm->show_existing_frame) {
+    bool valid_duplicate_existing_frame = false;
+    for (int ref_idx = 0; ref_idx < cm->seq_params.ref_frames; ref_idx++) {
+      if (cm->ref_frame_map[ref_idx] != NULL) {
+        // TODO: it may need to consider the layers as well
+        if (cm->ref_frame_map[ref_idx]->display_order_hint >=
+            current_frame->display_order_hint) {
+          valid_duplicate_existing_frame = true;
+          break;
+        }
+      }
+    }
+    if (!valid_duplicate_existing_frame) cm->show_existing_frame = 0;
+  }
+#endif  // CONFIG_F356_SEF_DOH
+
   current_frame->pyramid_level = get_true_pyr_level(
       cpi->gf_group.layer_depth[cpi->gf_group.index],
       current_frame->display_order_hint, cpi->gf_group.max_layer_depth,
@@ -5098,6 +5204,7 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
       }
     }
 #endif  // CONFIG_CWG_F317_TEST_PATTERN
+
     if (encode_frame_to_data_rate(cpi, &frame_results->size, dest) !=
         AOM_CODEC_OK) {
       return AOM_CODEC_ERROR;
@@ -5255,7 +5362,14 @@ static void compute_internal_stats(AV1_COMP *cpi, int frame_bytes) {
   cpi->bytes += frame_bytes;
   if (cm->show_frame) {
     const YV12_BUFFER_CONFIG *orig = cpi->source;
+#if CONFIG_F356_SEF_DOH
+    const YV12_BUFFER_CONFIG *recon =
+        cpi->common.show_existing_frame
+            ? &cpi->common.ref_frame_map[cpi->common.sef_ref_fb_idx]->buf
+            : &cpi->common.cur_frame->buf;
+#else
     const YV12_BUFFER_CONFIG *recon = &cpi->common.cur_frame->buf;
+#endif  // CONFIG_F356_SEF_DOH
     double y, u, v, frame_all;
 
     cpi->count[0]++;

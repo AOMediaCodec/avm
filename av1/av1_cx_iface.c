@@ -2947,8 +2947,20 @@ static void calculate_psnr(AV1_COMP *cpi, PSNR_STATS *psnr) {
   const int resize_mode = cpi->oxcf.resize_cfg.resize_mode;
   const YV12_BUFFER_CONFIG *source =
       resize_mode == RESIZE_NONE ? cpi->unfiltered_source : cpi->source;
-  aom_calc_highbd_psnr(source, &cpi->common.cur_frame->buf, psnr, bit_depth,
-                       in_bit_depth, is_lossless_requested(&cpi->oxcf.rc_cfg));
+#if CONFIG_F356_SEF_DOH
+  const YV12_BUFFER_CONFIG *b =
+      cpi->common.show_existing_frame
+          ? &cpi->common.ref_frame_map[cpi->common.sef_ref_fb_idx]->buf
+          : &cpi->common.cur_frame->buf;
+#endif  // CONFIG_F356_SEF_DOH
+  aom_calc_highbd_psnr(source,
+#if CONFIG_F356_SEF_DOH
+                       b,
+#else
+                       &cpi->common.cur_frame->buf,
+#endif  // CONFIG_F356_SEF_DOH
+                       psnr, bit_depth, in_bit_depth,
+                       is_lossless_requested(&cpi->oxcf.rc_cfg));
 }
 
 static void report_stats(AV1_COMP *cpi, size_t frame_size, uint64_t cx_time) {

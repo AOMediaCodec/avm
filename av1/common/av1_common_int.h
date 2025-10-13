@@ -2502,7 +2502,7 @@ typedef struct AV1Common {
   int showable_frame;
 #if CONFIG_F024_KEYOBU
   /*!
-   * If true, the obu_type of the frame is SEF_OBU
+   * index in the cm->ref_frame_map for the reference frame of duplicated frame
    */
   int sef_ref_fb_idx;
 
@@ -2517,6 +2517,13 @@ typedef struct AV1Common {
    */
 #endif  // CONFIG_F024_KEYOBU
   int show_existing_frame;
+
+#if CONFIG_F356_SEF_DOH
+  /*!
+   * If true, order_hint of the SEF OBU is derived from the reference frame
+   */
+  int derive_sef_order_hint;
+#endif
 
   /*!
    * Whether some features are allowed or not.
@@ -3153,6 +3160,7 @@ static INLINE RefCntBuffer *assign_cur_frame_new_fb(AV1_COMMON *const cm) {
   if (new_fb_idx == INVALID_IDX) return NULL;
 
   cm->cur_frame = &cm->buffer_pool->frame_bufs[new_fb_idx];
+
 #if CONFIG_AV1_ENCODER
   aom_invalidate_pyramid(cm->cur_frame->buf.y_pyramid);
   av1_invalidate_corner_list(cm->cur_frame->buf.corners);

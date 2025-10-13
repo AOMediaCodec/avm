@@ -24,7 +24,9 @@
 #include "av1/encoder/rdopt.h"
 #include "av1/encoder/segmentation.h"
 #include "av1/encoder/encodeframe_utils.h"
-
+#if CONFIG_F356_SEF_DOH
+#include "av1/common/ccso.h"
+#endif  // CONFIG_F356_SEF_DOH
 #if CONFIG_TUNE_VMAF
 #include "av1/encoder/tune_vmaf.h"
 #endif
@@ -825,8 +827,19 @@ static void screen_content_tools_determination(
 
   const uint32_t in_bit_depth = cpi->oxcf.input_cfg.input_bit_depth;
   const uint32_t bit_depth = cpi->td.mb.e_mbd.bd;
-  aom_calc_highbd_psnr(cpi->source, &cpi->common.cur_frame->buf, &psnr[pass],
-                       bit_depth, in_bit_depth,
+#if CONFIG_F356_SEF_DOH
+  const YV12_BUFFER_CONFIG *b =
+      cpi->common.show_existing_frame
+          ? &cpi->common.ref_frame_map[cm->sef_ref_fb_idx]->buf
+          : &cpi->common.cur_frame->buf;
+#endif  // CONFIG_F356_SEF_DOH
+  aom_calc_highbd_psnr(cpi->source,
+#if CONFIG_F356_SEF_DOH
+                       b,
+#else
+                       &cpi->common.cur_frame->buf,
+#endif  // CONFIG_F356_SEF_DOH
+                       &psnr[pass], bit_depth, in_bit_depth,
                        is_lossless_requested(&cpi->oxcf.rc_cfg));
 
   if (pass != 1) return;
@@ -1022,15 +1035,47 @@ static void fix_interp_filter(InterpFilter *const interp_filter,
     }
   }
 }
+#if CONFIG_F356_SEF_DOH
+void direct_existing_frames_to_current(AV1_COMP *const cpi) {
+  AV1_COMMON *const cm = &cpi->common;
+  cm->show_frame = 1;
+  cm->cur_frame->showable_frame = 1;
+  cm->cur_frame->frame_output_done = 0;
+  // copy from current_frame
+  cm->cur_frame->order_hint = cm->current_frame.order_hint;
+  cm->cur_frame->display_order_hint = cm->current_frame.display_order_hint;
+  cm->cur_frame->absolute_poc = cm->current_frame.absolute_poc;
+  cm->cur_frame->pyramid_level = cm->current_frame.pyramid_level;
+  cm->cur_frame->temporal_layer_id = cm->current_frame.temporal_layer_id;
+  cm->cur_frame->mlayer_id = cm->current_frame.mlayer_id;
+  RefCntBuffer *const frame_to_show = cm->ref_frame_map[cm->sef_ref_fb_idx];
+
+  if (frame_to_show == NULL) {
+    aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+                       "Buffer does not contain a reconstructed frame");
+  }
+  cm->cur_frame->frame_type = frame_to_show->frame_type;
+}
+#endif
 
 void av1_finalize_encoded_frame(AV1_COMP *const cpi) {
   AV1_COMMON *const cm = &cpi->common;
 #if !CONFIG_F153_FGM_OBU
   CurrentFrame *const current_frame = &cm->current_frame;
 #endif  // #if !CONFIG_F153_FGM_OBU
+#if CONFIG_F356_SEF_DOH
+  if (!cm->seq_params.single_picture_header_flag && cm->show_existing_frame &&
+      !cm->derive_sef_order_hint) {
+    direct_existing_frames_to_current(cpi);
+  } else
+#endif  // CONFIG_F356_SEF_DOH
 #if CONFIG_F024_KEYOBU
-  if (cm->show_existing_frame)
-#else
+      if (cm->show_existing_frame
+#if CONFIG_F356_SEF_DOH
+          && cm->derive_sef_order_hint
+#endif
+      )
+#else  // CONFIG_F356_SEF_DOH
   if (!cm->seq_params.single_picture_header_flag &&
       (encode_show_existing_frame(cm) || cm->show_existing_frame))
 #endif
