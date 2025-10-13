@@ -226,8 +226,10 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
 #endif
   .timebase = ARG_DEF(NULL, "timebase", 1,
                       "Output timestamp precision (fractional seconds)"),
+#if !CONFIG_F322_OBUER_ERM
   .global_error_resilient = ARG_DEF(NULL, "global-error-resilient", 1,
                                     "Enable global error resiliency features"),
+#endif // !CONFIG_F322_OBUER_ERM
   .lag_in_frames =
       ARG_DEF(NULL, "lag-in-frames", 1, "Max number of frames to lag"),
   .large_scale_tile = ARG_DEF(
@@ -682,9 +684,11 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       ARG_DEF(NULL, "frame-parallel", 1,
               "Enable frame parallel decodability features "
               "(0: false (default), 1: true)"),
+#if !CONFIG_F322_OBUER_ERM
   .error_resilient_mode = ARG_DEF(NULL, "error-resilient", 1,
                                   "Enable error resilient features (obsolete)"
                                   "(0: false (default), 1: true)"),
+#endif // !CONFIG_F322_OBUER_ERM
   .aq_mode = ARG_DEF(NULL, "aq-mode", 1,
                      "Adaptive quantization mode (0: off (default), 1: "
                      "variance 2: complexity, "
