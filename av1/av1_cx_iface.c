@@ -489,7 +489,7 @@ static struct av1_extracfg default_extra_cfg = {
   1,    // enable mvd-sign derivation
   4,    // min_partition_size
   256,  // max_partition_size
-  1,    // enable intra edge filter 
+  1,    // enable intra edge filter
   1,    // enable 64-pt transform usage
   0,    // enable reduced transform block partition set
   1,    // enable flip and identity transform
