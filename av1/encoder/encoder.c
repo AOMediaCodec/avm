@@ -371,11 +371,6 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   seq->order_hint_info.enable_order_hint = tool_cfg->enable_order_hint;
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
-  seq->frame_id_numbers_present_flag =
-      !(seq->still_picture && seq->single_picture_hdr_flag) &&
-      !oxcf->tile_cfg.enable_large_scale_tile && tool_cfg->error_resilient_mode;
-#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
   if (seq->still_picture && seq->single_picture_hdr_flag) {
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
     seq->order_hint_info.enable_order_hint = 0;
@@ -467,11 +462,6 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
       (seq->max_frame_height > 1) ? get_msb(seq->max_frame_height - 1) + 1 : 1;
   assert(seq->num_bits_width <= 16);
   assert(seq->num_bits_height <= 16);
-
-#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
-  seq->frame_id_length = FRAME_ID_LENGTH;
-  seq->delta_frame_id_length = DELTA_FRAME_ID_LENGTH;
-#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
 
   seq->order_hint_info.enable_ref_frame_mvs = tool_cfg->ref_frame_mvs_present;
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
@@ -4307,16 +4297,6 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
         return AOM_CODEC_ERROR;
     }
 
-#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
-    if (seq_params->frame_id_numbers_present_flag &&
-        current_frame->frame_type == KEY_FRAME) {
-      // Displaying a forward key-frame, so reset the ref buffer IDs
-      int display_frame_id = cm->ref_frame_id[cpi->existing_fb_idx_to_show];
-      for (int i = 0; i < seq_params->ref_frames; i++)
-        cm->ref_frame_id[i] = display_frame_id;
-    }
-#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
-
     cpi->seq_params_locked = 1;
 
     // NOTE: Save the new show frame buffer index for --test-code=warn, i.e.,
@@ -4411,32 +4391,6 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 
   aom_clear_system_state();
 
-#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
-  if (seq_params->frame_id_numbers_present_flag) {
-    /* Non-normative definition of current_frame_id ("frame counter" with
-     * wraparound) */
-    if (cm->current_frame_id == -1) {
-      int lsb, msb;
-      /* quasi-random initialization of current_frame_id for a key frame */
-      lsb = cpi->source->y_buffer[0] & 0xff;
-      msb = cpi->source->y_buffer[1] & 0xff;
-      cm->current_frame_id =
-          ((msb << 8) + lsb) % (1 << seq_params->frame_id_length);
-
-      // S_frame is meant for stitching different streams of different
-      // resolutions together, so current_frame_id must be the
-      // same across different streams of the same content current_frame_id
-      // should be the same and not random. 0x37 is a chosen number as start
-      // point
-      if (oxcf->kf_cfg.sframe_dist != 0) cm->current_frame_id = 0x37;
-    } else {
-      cm->current_frame_id =
-          (cm->current_frame_id + 1 + (1 << seq_params->frame_id_length)) %
-          (1 << seq_params->frame_id_length);
-    }
-  }
-#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
-
   switch (oxcf->algo_cfg.cdf_update_mode) {
     case 0:  // No CDF update for any frames(4~6% compression loss).
       features->disable_cdf_update = 1;
@@ -4470,17 +4424,6 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   }
 
   cpi->seq_params_locked = 1;
-
-#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
-  // Update reference frame ids for reference frames this frame will overwrite
-  if (seq_params->frame_id_numbers_present_flag) {
-    for (int i = 0; i < seq_params->ref_frames; i++) {
-      if ((current_frame->refresh_frame_flags >> i) & 1) {
-        cm->ref_frame_id[i] = cm->current_frame_id;
-      }
-    }
-  }
-#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
 
   if (cm->seg.enabled) {
     if (cm->seg.update_map) {

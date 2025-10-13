@@ -211,9 +211,6 @@ set_aom_config_var(CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT 1
 set_aom_config_var(CONFIG_CWG_F349_SIGNAL_TILE_INFO 1
                    "Improved tile information at sequence header.")
 
-# CWG-F215
-set_aom_config_var(CWG_F215_CONFIG_REMOVE_FRAME_ID 1
-                   "Remove frame_id signalling")
 # CWG-E242 Chroma Format IDC
 set_aom_config_var(CONFIG_CWG_E242_CHROMA_FORMAT_IDC 1 "Chroma format idc.")
 

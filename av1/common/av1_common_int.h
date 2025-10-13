@@ -61,10 +61,6 @@ extern "C" {
 #define MAX_SUBGOP_STATS_SIZE 32
 
 /* Constant values while waiting for the sequence header */
-#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
-#define FRAME_ID_LENGTH 15
-#define DELTA_FRAME_ID_LENGTH 14
-#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
 
 #define DELTA_DCQUANT_BITS 5
 #define DELTA_DCQUANT_MAX (1 << (DELTA_DCQUANT_BITS - 2))
@@ -911,15 +907,7 @@ typedef struct SequenceHeader {
   int num_bits_height;
   int max_frame_width;
   int max_frame_height;
-#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
-  // Whether current and reference frame IDs are signaled in the bitstream.
-  // Frame id numbers are additional information that do not affect the
-  // decoding process, but provide decoders with a way of detecting missing
-  // reference frames so that appropriate action can be taken.
-  uint8_t frame_id_numbers_present_flag;
-  int frame_id_length;
-  int delta_frame_id_length;
-#endif                 // !CWG_F215_CONFIG_REMOVE_FRAME_ID
+
   BLOCK_SIZE sb_size;  // Size of the superblock used for this frame
   int mib_size;        // Size of the superblock in units of MI blocks
   int mib_size_log2;   // Log 2 of above.

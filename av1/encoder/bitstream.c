@@ -5692,21 +5692,6 @@ static AOM_INLINE void write_sb_size(const SequenceHeader *const seq_params,
 
 static AOM_INLINE void write_sequence_header(
     const SequenceHeader *const seq_params, struct aom_write_bit_buffer *wb) {
-#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
-  if (!seq_params->single_picture_hdr_flag) {
-    aom_wb_write_bit(wb, seq_params->frame_id_numbers_present_flag);
-    if (seq_params->frame_id_numbers_present_flag) {
-      // We must always have delta_frame_id_length < frame_id_length,
-      // in order for a frame to be referenced with a unique delta.
-      // Avoid wasting bits by using a coding that enforces this restriction.
-      aom_wb_write_literal(wb, seq_params->delta_frame_id_length - 2, 4);
-      aom_wb_write_literal(
-          wb,
-          seq_params->frame_id_length - seq_params->delta_frame_id_length - 1,
-          3);
-    }
-  }
-#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
 
   write_sb_size(seq_params, wb);
   aom_wb_write_bit(wb, seq_params->enable_intra_dip);
@@ -6329,13 +6314,6 @@ static AOM_INLINE void write_show_exisiting_frame(
       seq_params->timing_info.equal_picture_interval == 0) {
     write_tu_pts_info(cm, wb);
   }
-#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
-  if (seq_params->frame_id_numbers_present_flag) {
-    int frame_id_len = seq_params->frame_id_length;
-    int display_frame_id = cm->ref_frame_id[cpi->existing_fb_idx_to_show];
-    aom_wb_write_literal(wb, display_frame_id, frame_id_len);
-  }
-#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
   return;
 }
 #endif  // CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_SEF
@@ -6416,13 +6394,6 @@ static AOM_INLINE void write_uncompressed_header_obu
           seq_params->timing_info.equal_picture_interval == 0) {
         write_tu_pts_info(cm, wb);
       }
-#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
-      if (seq_params->frame_id_numbers_present_flag) {
-        int frame_id_len = seq_params->frame_id_length;
-        int display_frame_id = cm->ref_frame_id[cpi->existing_fb_idx_to_show];
-        aom_wb_write_literal(wb, display_frame_id, frame_id_len);
-      }
-#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
       return;
     } else {
 #if CONFIG_CWG_F317
@@ -6547,30 +6518,6 @@ static AOM_INLINE void write_uncompressed_header_obu
     assert(cm->width == seq_params->max_frame_width &&
            cm->height == seq_params->max_frame_height);
   } else {
-#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
-    if (seq_params->frame_id_numbers_present_flag) {
-#if CONFIG_CWG_F317
-      if (cm->bridge_frame_info.is_bridge_frame) {
-        const int ref_frame =
-            cm->bridge_frame_info.bridge_frame_ref_idx_remapped;
-        assert(!is_tip_ref_frame(
-            ref_frame));  // TIP frame reference is not allowed
-        const int map_idx = get_ref_frame_map_idx(cm, ref_frame);
-        if (cm->current_frame_id != cm->ref_frame_id[map_idx]) {
-          aom_internal_error(
-              &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-              "Bridge frame current_frame_id is not equal to ref_frame_id");
-        }
-      } else {
-#endif  // CONFIG_CWG_F317
-        int frame_id_len = seq_params->frame_id_length;
-        aom_wb_write_literal(wb, cm->current_frame_id, frame_id_len);
-#if CONFIG_CWG_F317
-      }
-#endif  // CONFIG_CWG_F317
-    }
-#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
-
     if (cm->width > seq_params->max_frame_width ||
         cm->height > seq_params->max_frame_height) {
       aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
@@ -6946,30 +6893,6 @@ static AOM_INLINE void write_uncompressed_header_obu
           aom_wb_write_literal(wb, get_ref_frame_map_idx(cm, ref_frame),
                                cm->seq_params.ref_frames_log2);
 #endif  // !CONFIG_ACROSS_SCALE_REF_OPT
-#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
-#if CONFIG_CWG_F317
-        if (seq_params->frame_id_numbers_present_flag &&
-            !cm->bridge_frame_info.is_bridge_frame)
-#else
-        if (seq_params->frame_id_numbers_present_flag)
-#endif  // CONFIG_CWG_F317
-        {
-          int i = get_ref_frame_map_idx(cm, ref_frame);
-          int frame_id_len = seq_params->frame_id_length;
-          int diff_len = seq_params->delta_frame_id_length;
-          int delta_frame_id_minus_1 =
-              ((cm->current_frame_id - cm->ref_frame_id[i] +
-                (1 << frame_id_len)) %
-               (1 << frame_id_len)) -
-              1;
-          if (delta_frame_id_minus_1 < 0 ||
-              delta_frame_id_minus_1 >= (1 << diff_len)) {
-            aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR,
-                               "Invalid delta_frame_id_minus_1");
-          }
-          aom_wb_write_literal(wb, delta_frame_id_minus_1, diff_len);
-        }
-#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
       }  // for(ref_frame)
 
 #if !CONFIG_ACROSS_SCALE_REF_OPT

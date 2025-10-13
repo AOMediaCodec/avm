@@ -7019,28 +7019,7 @@ static void read_multi_frame_header_tile_info(MultiFrameHeader *mfh_param,
 #endif  // CONFIG_MFH_SIGNAL_TILE_INFO && CONFIG_MULTI_FRAME_HEADER
 
 void av1_read_sequence_header(
-#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
-    AV1_COMMON *cm,
-#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
     struct aom_read_bit_buffer *rb, SequenceHeader *seq_params) {
-#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
-  if (seq_params->single_picture_hdr_flag) {
-    seq_params->frame_id_numbers_present_flag = 0;
-  } else {
-    seq_params->frame_id_numbers_present_flag = aom_rb_read_bit(rb);
-  }
-  if (seq_params->frame_id_numbers_present_flag) {
-    // We must always have delta_frame_id_length < frame_id_length,
-    // in order for a frame to be referenced with a unique delta.
-    // Avoid wasting bits by using a coding that enforces this restriction.
-    seq_params->delta_frame_id_length = aom_rb_read_literal(rb, 4) + 2;
-    seq_params->frame_id_length =
-        aom_rb_read_literal(rb, 3) + seq_params->delta_frame_id_length + 1;
-    if (seq_params->frame_id_length > 16)
-      aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
-                         "Invalid frame_id_length");
-  }
-#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
 
   setup_seq_sb_size(seq_params, rb);
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO
@@ -8177,18 +8156,6 @@ static int read_show_existing_frame(AV1Decoder *pbi,
       seq_params->timing_info.equal_picture_interval == 0) {
     read_temporal_point_info(cm, rb);
   }
-#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
-  if (seq_params->frame_id_numbers_present_flag) {
-    int frame_id_length = seq_params->frame_id_length;
-    int display_frame_id = aom_rb_read_literal(rb, frame_id_length);
-    /* Compare display_frame_id with ref_frame_id and check valid for
-     * referencing */
-    if (display_frame_id != cm->ref_frame_id[existing_frame_idx] ||
-        pbi->valid_for_referencing[existing_frame_idx] == 0)
-      aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
-                         "Reference buffer frame ID mismatch");
-  }
-#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
   lock_buffer_pool(pool);
   assert(frame_to_show->ref_count > 0);
   // cm->cur_frame should be the buffer referenced by the return value
@@ -8457,18 +8424,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           seq_params->timing_info.equal_picture_interval == 0) {
         read_temporal_point_info(cm, rb);
       }
-#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
-      if (seq_params->frame_id_numbers_present_flag) {
-        int frame_id_length = seq_params->frame_id_length;
-        int display_frame_id = aom_rb_read_literal(rb, frame_id_length);
-        /* Compare display_frame_id with ref_frame_id and check valid for
-         * referencing */
-        if (display_frame_id != cm->ref_frame_id[existing_frame_idx] ||
-            pbi->valid_for_referencing[existing_frame_idx] == 0)
-          aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
-                             "Reference buffer frame ID mismatch");
-      }
-#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
       lock_buffer_pool(pool);
       assert(frame_to_show->ref_count > 0);
       // cm->cur_frame should be the buffer referenced by the return value
@@ -8720,63 +8675,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   pbi->signal_primary_ref_frame = -1;
 
   if (!seq_params->single_picture_hdr_flag) {
-#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
-    if (seq_params->frame_id_numbers_present_flag) {
-      int frame_id_length = seq_params->frame_id_length;
-      int diff_len = seq_params->delta_frame_id_length;
-      int prev_frame_id = 0;
-      int have_prev_frame_id =
-          !pbi->decoding_first_frame &&
-          !(current_frame->frame_type == KEY_FRAME && cm->show_frame);
-      if (have_prev_frame_id) {
-        prev_frame_id = cm->current_frame_id;
-      }
-#if CONFIG_CWG_F317
-      if (cm->bridge_frame_info.is_bridge_frame) {
-        const int ref_frame =
-            cm->bridge_frame_info.bridge_frame_ref_idx_remapped;
-        assert(!is_tip_ref_frame(
-            ref_frame));  // TIP frame reference is not allowed
-        const int map_idx = get_ref_frame_map_idx(cm, ref_frame);
-        cm->current_frame_id = cm->ref_frame_id[map_idx];
-      } else {
-#endif  // CONFIG_CWG_F317
-        cm->current_frame_id = aom_rb_read_literal(rb, frame_id_length);
-#if CONFIG_CWG_F317
-      }
-#endif  // CONFIG_CWG_F317
-
-      if (have_prev_frame_id) {
-        int diff_frame_id;
-        if (cm->current_frame_id > prev_frame_id) {
-          diff_frame_id = cm->current_frame_id - prev_frame_id;
-        } else {
-          diff_frame_id =
-              (1 << frame_id_length) + cm->current_frame_id - prev_frame_id;
-        }
-        /* Check current_frame_id for conformance */
-        if (prev_frame_id == cm->current_frame_id ||
-            diff_frame_id >= (1 << (frame_id_length - 1))) {
-          aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
-                             "Invalid value of current_frame_id");
-        }
-      }
-      /* Check if some frames need to be marked as not valid for referencing */
-      for (int i = 0; i < seq_params->ref_frames; i++) {
-        if (cm->current_frame_id - (1 << diff_len) > 0) {
-          if (cm->ref_frame_id[i] > cm->current_frame_id ||
-              cm->ref_frame_id[i] < cm->current_frame_id - (1 << diff_len))
-            pbi->valid_for_referencing[i] = 0;
-        } else {
-          if (cm->ref_frame_id[i] > cm->current_frame_id &&
-              cm->ref_frame_id[i] < (1 << frame_id_length) +
-                                        cm->current_frame_id - (1 << diff_len))
-            pbi->valid_for_referencing[i] = 0;
-        }
-      }
-    }
-#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
-
 #if CONFIG_CWG_F317
     if (cm->bridge_frame_info.is_bridge_frame) {
       frame_size_override_flag = 1;
@@ -9446,30 +9344,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         }
         // Check valid for referencing
         if (pbi->valid_for_referencing[ref] == 0)
-          aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
-                             "Reference frame not valid for referencing");
-
-#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
-#if CONFIG_CWG_F317
-        if (seq_params->frame_id_numbers_present_flag &&
-            !cm->bridge_frame_info.is_bridge_frame) {
-#else
-        if (seq_params->frame_id_numbers_present_flag) {
-#endif  // CONFIG_CWG_F317
-          int frame_id_length = seq_params->frame_id_length;
-          int diff_len = seq_params->delta_frame_id_length;
-          int delta_frame_id_minus_1 = aom_rb_read_literal(rb, diff_len);
-          int ref_frame_id =
-              ((cm->current_frame_id - (delta_frame_id_minus_1 + 1) +
-                (1 << frame_id_length)) %
-               (1 << frame_id_length));
-          // Compare values derived from delta_frame_id_minus_1 and
-          // refresh_frame_flags.
-          if (ref_frame_id != cm->ref_frame_id[ref])
-            aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
-                               "Reference buffer frame ID mismatch");
-        }
-#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
+          aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME, "Reference frame not valid for referencing");
       }
       if (cm->bru.update_ref_idx != -1) {
         for (int i = 0; i < cm->ref_frames_info.num_total_refs; ++i) {
