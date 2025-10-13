@@ -203,10 +203,7 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
   unsigned long fpos = ftell(f);
   uint8_t detect_buf[OBU_DETECTION_SIZE] = { 0 };
   int first_td = 1;
-#if OBU_ORDER_IN_TU
-  OBU_TYPE prev_obu_type = 0;
-  OBU_TYPE curr_obu_type = 0;
-#endif  // OBU_ORDER_IN_TU
+
 #if CONFIG_F160_TD
   int vcl_obu_count = 0;  // a local variable to count the nubmer of obus
 #endif                    // CONFIG_F160_TD
