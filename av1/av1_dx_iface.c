@@ -196,7 +196,7 @@ static aom_codec_err_t parse_bitdepth(struct aom_read_bit_buffer *rb,
                                       aom_bit_depth_t *bit_depth) {
 #if CONFIG_CWG_E242_BITDEPTH
   (void)profile;
-  const int bitdepth_lut_idx = aom_rb_read_uvlc(rb);
+  const uint32_t bitdepth_lut_idx = aom_rb_read_uvlc(rb);
   const int bitdepth = av1_get_bitdepth_from_index(bitdepth_lut_idx);
   if (bitdepth < 0)
     return AOM_CODEC_UNSUP_BITSTREAM;
@@ -528,12 +528,12 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
 
 #if CONFIG_MULTI_FRAME_HEADER
 #if CONFIG_CWG_E242_MFH_ID_UVLC
-        int mfh_id = aom_rb_read_uvlc(&rb);
+        uint32_t mfh_id = aom_rb_read_uvlc(&rb);
 #else
         int mfh_id = aom_rb_read_literal(&rb, 4);
 #endif  // CONFIG_CWG_E242_MFH_ID_UVLC
         if (mfh_id == 0) {
-          int seq_header_id_in_frame_header = aom_rb_read_uvlc(&rb);
+          uint32_t seq_header_id_in_frame_header = aom_rb_read_uvlc(&rb);
           (void)seq_header_id_in_frame_header;
         }
 #endif  // CONFIG_MULTI_FRAME_HEADER

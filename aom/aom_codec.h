@@ -344,8 +344,9 @@ enum {
  *
  * Return the bitdepth corresponding to index
  */
-int av1_get_bitdepth_from_index(int bitdepth_lut_idx);
+int av1_get_bitdepth_from_index(uint32_t bitdepth_lut_idx);
 #endif  // CONFIG_CWG_E242_BITDEPTH
+
 /*!\brief Superblock size selection.
  *
  * Defines the superblock size used for encoding. The superblock size can

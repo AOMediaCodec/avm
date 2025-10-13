@@ -53,20 +53,6 @@
     }                                                 \
   } while (0)
 
-#if CONFIG_CWG_E242_BITDEPTH
-#define AV1C_UVLC_READ_BITS_OR_RETURN_ERROR(field)                             \
-  int field = 0;                                                               \
-  do {                                                                         \
-    field = aom_rb_read_uvlc(reader);                                          \
-    if (result == -1) {                                                        \
-      fprintf(stderr,                                                          \
-              "av1c: Error reading bit for " #field ", value=%d result=%d.\n", \
-              field, result);                                                  \
-      return -1;                                                               \
-    }                                                                          \
-  } while (0)
-#endif  // CONFIG_CWG_E242_BITDEPTH
-
 // Helper macros for setting/restoring the error handler data in
 // aom_read_bit_buffer.
 #define AV1C_PUSH_ERROR_HANDLER_DATA(new_data)                \
@@ -82,12 +68,12 @@
   } while (0)
 
 #define AV1C_READ_UVLC_BITS_OR_RETURN_ERROR(field)                             \
-  int field = 0;                                                               \
+  uint32_t field = 0;                                                          \
   do {                                                                         \
     field = aom_rb_read_uvlc(reader);                                          \
     if (result == -1) {                                                        \
       fprintf(stderr,                                                          \
-              "av1c: Error reading bit for " #field ", value=%d result=%d.\n", \
+              "av1c: Error reading bit for " #field ", value=%u result=%d.\n", \
               field, result);                                                  \
       return -1;                                                               \
     }                                                                          \
@@ -209,10 +195,19 @@ static int parse_color_config(struct aom_read_bit_buffer *reader,
 #endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
 #if CONFIG_CWG_E242_BITDEPTH
-  AV1C_UVLC_READ_BITS_OR_RETURN_ERROR(bitdepth_idx);
-  config->bitdepth_idx = bitdepth_idx;
+  AV1C_READ_UVLC_BITS_OR_RETURN_ERROR(bitdepth_idx);
+  if (bitdepth_idx > UINT8_MAX) {
+    fprintf(stderr, "av1c: invalid value for bitdepth_idx: %u.\n",
+            bitdepth_idx);
+    return -1;
+  }
+  config->bitdepth_idx = (uint8_t)bitdepth_idx;
   int bit_depth = get_bitdepth((int)config->bitdepth_idx);
-  if (bit_depth < 0) return AOM_CODEC_UNSUP_BITSTREAM;
+  if (bit_depth < 0) {
+    fprintf(stderr, "av1c: invalid value for bitdepth_idx: %u.\n",
+            bitdepth_idx);
+    return -1;
+  }
 #else
   AV1C_READ_BIT_OR_RETURN_ERROR(high_bitdepth);
   config->high_bitdepth = high_bitdepth;
@@ -485,8 +480,13 @@ int read_av1config(const uint8_t *buffer, size_t buffer_length,
   config->seq_tier_0 = seq_tier_0;
 
 #if CONFIG_CWG_E242_BITDEPTH
-  AV1C_UVLC_READ_BITS_OR_RETURN_ERROR(bitdepth_idx);
-  config->bitdepth_idx = bitdepth_idx;
+  AV1C_READ_UVLC_BITS_OR_RETURN_ERROR(bitdepth_idx);
+  if (bitdepth_idx > UINT8_MAX) {
+    fprintf(stderr, "av1c: invalid value for bitdepth_idx: %u.\n",
+            bitdepth_idx);
+    return -1;
+  }
+  config->bitdepth_idx = (uint8_t)bitdepth_idx;
 #else
   AV1C_READ_BIT_OR_RETURN_ERROR(high_bitdepth);
   config->high_bitdepth = high_bitdepth;

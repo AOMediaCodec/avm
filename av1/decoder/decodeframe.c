@@ -6444,7 +6444,7 @@ static AOM_INLINE void error_handler(void *data, aom_codec_err_t error,
 #if CONFIG_CWG_E242_BITDEPTH
 // Gets the bitdepth_lut_idx field in color_config() and returns bit_depth from
 // the bitdepth list.
-int av1_get_bitdepth_from_index(int bitdepth_lut_idx) {
+int av1_get_bitdepth_from_index(uint32_t bitdepth_lut_idx) {
   static aom_bit_depth_t bitdepth_list[] = { AOM_BITS_10, AOM_BITS_8,
                                              AOM_BITS_12 };
   if (bitdepth_lut_idx >= AOM_NUM_SUPPORTED_BITDEPTH) return -1;
@@ -6462,7 +6462,7 @@ static AOM_INLINE void read_bitdepth(
     struct aom_read_bit_buffer *rb, SequenceHeader *seq_params,
     struct aom_internal_error_info *error_info) {
 #if CONFIG_CWG_E242_BITDEPTH
-  const int bitdepth_lut_idx = aom_rb_read_uvlc(rb);
+  const uint32_t bitdepth_lut_idx = aom_rb_read_uvlc(rb);
   const int bitdepth = av1_get_bitdepth_from_index(bitdepth_lut_idx);
   if (bitdepth >= 0) seq_params->bit_depth = bitdepth;
 #else
@@ -7541,7 +7541,7 @@ void av1_read_multi_frame_header(AV1_COMMON *cm,
                                  struct aom_read_bit_buffer *rb) {
   // TO DO: Adding a read seq_header_id_in_multi_frame_header here
 #if CONFIG_CWG_E242_MFH_ID_UVLC
-  int cur_mfh_id = aom_rb_read_uvlc(rb) + 1;
+  uint32_t cur_mfh_id = aom_rb_read_uvlc(rb) + 1;
 #else
   int cur_mfh_id = aom_rb_read_literal(rb, 4) + 1;
 #endif  // CONFIG_CWG_E242_MFH_ID_UVLC
@@ -8349,12 +8349,17 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // CONFIG_CWG_F317
 #if CONFIG_MULTI_FRAME_HEADER
 #if CONFIG_CWG_E242_MFH_ID_UVLC
-    cm->cur_mfh_id = aom_rb_read_uvlc(rb);
+    uint32_t cur_mfh_id = aom_rb_read_uvlc(rb);
+    if (cur_mfh_id > INT_MAX) {
+      aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                         "mfh_id %u is too big", cur_mfh_id);
+    }
+    cm->cur_mfh_id = (int)cur_mfh_id;
 #else
     cm->cur_mfh_id = aom_rb_read_literal(rb, 4);
 #endif  // CONFIG_CWG_E242_MFH_ID_UVLC
     if (cm->cur_mfh_id == 0) {
-      int seq_header_id_in_frame_header = aom_rb_read_uvlc(rb);
+      uint32_t seq_header_id_in_frame_header = aom_rb_read_uvlc(rb);
       (void)seq_header_id_in_frame_header;
       cm->mfh_params[cm->cur_mfh_id].mfh_frame_width =
           seq_params->max_frame_width;
