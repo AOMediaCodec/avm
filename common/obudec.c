@@ -208,8 +208,8 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
   OBU_TYPE curr_obu_type = 0;
 #endif  // OBU_ORDER_IN_TU
 #if CONFIG_F160_TD
-  int vcl_obu_count = 0; // a local variable to count the nubmer of obus
-#endif  // CONFIG_F160_TD
+  int vcl_obu_count = 0;  // a local variable to count the nubmer of obus
+#endif                    // CONFIG_F160_TD
   while (1) {
     ObuHeader obu_header;
     memset(&obu_header, 0, sizeof(obu_header));
@@ -227,13 +227,13 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
       }
     }
 #if CONFIG_F160_TD && CONFIG_F106_OBU_TILEGROUP
-    uint8_t first_tile_group = 0;
+    uint8_t first_tile_group_byte = 0;
 #endif
     const int read_status =
         peek_obu_from_file(f, OBU_HEADER_SIZE, &detect_buf[0], &obu_header
 #if CONFIG_F160_TD && CONFIG_F106_OBU_TILEGROUP
                            ,
-                           &first_tile_group
+                           &first_tile_group_byte
 #endif
         );
     if (read_status == -2) {
@@ -244,15 +244,20 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
     }
 
 #if CONFIG_F160_TD
+    // A data chunk before next decoding_unit_token is read from the file to
+    // buffer to be decoded.
     int decoding_unit_token =
         (obu_header.type == OBU_TEMPORAL_DELIMITER && first_td != 1);
     if (!obu_ctx->has_temporal_delimiter) {
+#if CONFIG_F106_OBU_TILEGROUP
+      int first_tile_group_in_frame = (first_tile_group_byte >> 7);
+#endif
       decoding_unit_token =
           ((vcl_obu_count > 0 && obu_header.type == OBU_TILE_GROUP
 #if CONFIG_F106_OBU_TILEGROUP
-            && (first_tile_group >> 7)
+            && first_tile_group_in_frame
 #endif
-                )
+            )
 #if !CONFIG_F106_OBU_TILEGROUP
            || (vcl_obu_count > 0 && obu_header.type == OBU_FRAME_HEADER)
 #endif
