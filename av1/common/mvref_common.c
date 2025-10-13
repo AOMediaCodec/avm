@@ -269,7 +269,7 @@ void av1_copy_frame_mvs_tip_frame_mode(const AV1_COMMON *const cm,
                         !is_tip_ref_frame(mi->ref_frame[1]) &&
                         mi->interinter_comp.type == COMPOUND_WEDGE;
   if (is_wedge) {
-#if WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
+#if WEDGE_BLD_SIG
     decisions = av1_get_contiguous_soft_mask_decision(
         mi->interinter_comp.wedge_index, mi->interinter_comp.wedge_sign,
         mi->interinter_comp.wedge_boundary_index, bsize);
@@ -567,7 +567,7 @@ void av1_copy_frame_mvs(const AV1_COMMON *const cm, const MACROBLOCKD *const xd,
                         !is_tip_ref_frame(mi->ref_frame[1]) &&
                         mi->interinter_comp.type == COMPOUND_WEDGE;
   if (is_wedge) {
-#if WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
+#if WEDGE_BLD_SIG
     decisions = av1_get_contiguous_soft_mask_decision(
         mi->interinter_comp.wedge_index, mi->interinter_comp.wedge_sign,
         mi->interinter_comp.wedge_boundary_index, bsize);

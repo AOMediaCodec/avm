@@ -123,7 +123,7 @@ void AV1HighbdCompMaskVarianceTest::RunCheckOutput(
   }
 
   for (int wedge_index = 0; wedge_index < wedge_types; ++wedge_index) {
-#if WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
+#if WEDGE_BLD_SIG
     for (int k = 0; k < MAX_WEDGE_BOUNDARY_TYPES; k++) {
       const uint8_t *mask =
           av1_get_all_contiguous_soft_mask(wedge_index, 1, bsize, k);
@@ -138,7 +138,7 @@ void AV1HighbdCompMaskVarianceTest::RunCheckOutput(
 
       ASSERT_EQ(CheckResult(w, h), true)
           << " wedge " << wedge_index << " inv " << inv;
-#if WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
+#if WEDGE_BLD_SIG
     }
 #endif
   }
@@ -159,7 +159,7 @@ void AV1HighbdCompMaskVarianceTest::RunSpeedTest(
   for (int i = 0; i < MAX_SB_SQUARE + (8 * MAX_SB_SIZE); ++i) {
     ref_buffer_[i] = rnd_.Rand16() & ((1 << bd_) - 1);
   }
-#if WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
+#if WEDGE_BLD_SIG
   int boundary_index = 0;
   const uint8_t *mask =
       av1_get_all_contiguous_soft_mask(wedge_index, 1, bsize, boundary_index);
@@ -250,7 +250,7 @@ void AV1HighbdCompMaskUpVarianceTest::RunCheckOutput(
       int subx = sub & 0x7;
       int suby = (sub >> 3);
       for (int wedge_index = 0; wedge_index < wedge_types; ++wedge_index) {
-#if WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
+#if WEDGE_BLD_SIG
         for (int k = 0; k < MAX_WEDGE_BOUNDARY_TYPES; k++) {
           const uint8_t *mask =
               av1_get_all_contiguous_soft_mask(wedge_index, 1, bsize, k);
@@ -277,7 +277,7 @@ void AV1HighbdCompMaskUpVarianceTest::RunCheckOutput(
           ASSERT_EQ(CheckResult(w, h), true)
               << " wedge " << wedge_index << " inv " << inv << "sub (" << subx
               << "," << suby << ")";
-#if WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
+#if WEDGE_BLD_SIG
         }
 #endif
       }
@@ -294,7 +294,7 @@ void AV1HighbdCompMaskUpVarianceTest::RunSpeedTest(
   const int suby = havSub ? 4 : 0;
   const int wedge_types = get_wedge_types_lookup(bsize);
   int wedge_index = wedge_types / 2;
-#if WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
+#if WEDGE_BLD_SIG
   int boundary_index = 0;
   const uint8_t *mask =
       av1_get_all_contiguous_soft_mask(wedge_index, 1, bsize, boundary_index);
