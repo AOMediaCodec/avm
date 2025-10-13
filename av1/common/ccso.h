@@ -25,12 +25,10 @@
 #include "aom_ports/mem.h"
 #include "av1/common/av1_common_int.h"
 
-#if CONFIG_CCSO_CLEANUP
 static const uint16_t quant_sz[4][4] = { { 16, 8, 32, 0 },
                                          { 56, 40, 64, 128 },
                                          { 48, 24, 96, 192 },
                                          { 80, 112, 160, 256 } };
-#endif  // CONFIG_CCSO_CLEANUP
 
 static const int edge_clf_to_edge_interval[2] = { 3, 2 };
 

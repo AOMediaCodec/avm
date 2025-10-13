@@ -639,13 +639,6 @@ void ccso_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm, MACROBLOCKD *xd,
   const int num_planes = av1_num_planes(cm);
   av1_setup_dst_planes(xd->plane, frame, 0, 0, 0, num_planes, NULL);
 
-#if !CONFIG_CCSO_CLEANUP
-  const uint16_t quant_sz[4][4] = { { 16, 8, 32, 0 },
-                                    { 32, 16, 64, 128 },
-                                    { 48, 24, 96, 192 },
-                                    { 64, 32, 128, 256 } };
-#endif  // !CONFIG_CCSO_CLEANUP
-
   for (int plane = 0; plane < num_planes; plane++) {
     const int dst_stride = xd->plane[plane].dst.stride;
     const uint16_t quant_step_size = quant_sz[cm->ccso_info.scale_idx[plane]]

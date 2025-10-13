@@ -4580,14 +4580,10 @@ static AOM_INLINE void encode_ccso(const AV1_COMMON *cm,
             aom_wb_write_literal(wb, cm->ccso_info.quant_idx[plane], 2);
             aom_wb_write_literal(wb, cm->ccso_info.ext_filter_support[plane],
                                  3);
-#if CONFIG_CCSO_CLEANUP
             if (quant_sz[cm->ccso_info.scale_idx[plane]]
                         [cm->ccso_info.quant_idx[plane]]) {
               aom_wb_write_bit(wb, cm->ccso_info.edge_clf[plane]);
             }
-#else
-            aom_wb_write_bit(wb, cm->ccso_info.edge_clf[plane]);
-#endif  // CONFIG_CCSO_CLEANUP
             aom_wb_write_literal(wb, cm->ccso_info.max_band_log2[plane], 2);
           }
           const int max_band = 1 << cm->ccso_info.max_band_log2[plane];

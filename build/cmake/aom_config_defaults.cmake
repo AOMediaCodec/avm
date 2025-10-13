@@ -336,9 +336,6 @@ set_aom_config_var(CONFIG_GDF_IMPROVEMENT 1
 set_aom_config_var(CONFIG_REDUCE_SYMBOL_SIZE 1
                    "Symbol size reduction from 16 to 8.")
 
-set_aom_config_var(CONFIG_CCSO_CLEANUP 1
-                   "Clean up CCSO quant_sz and signaling.")
-
 set_aom_config_var(CONFIG_COEFF_PARSING 1
                    "Parsing dependency removal for coefficient related syntax.")
 

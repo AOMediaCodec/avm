@@ -56,13 +56,6 @@ typedef struct {
 } CcsoCtx;
 
 const int ccso_offset[8] = { -10, -7, -3, -1, 0, 1, 3, 7 };
-#if !CONFIG_CCSO_CLEANUP
-const uint16_t quant_sz[4][4] = { { 16, 8, 32, 0 },
-                                  { 32, 16, 64, 128 },
-                                  { 48, 24, 96, 192 },
-                                  { 64, 32, 128, 256 } };
-#endif  // CONFIG_CCSO_CLEANUP
-
 const int ccso_scale[4] = { 1, 2, 3, 4 };
 
 void ccso_derive_src_block_c(const uint16_t *src_y, uint8_t *const src_cls0,
@@ -1247,11 +1240,9 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
           for (int edge_clf = 0; edge_clf < num_edge_clf_iter; edge_clf++) {
             const int max_edge_interval = edge_clf_to_edge_interval[edge_clf];
 
-#if CONFIG_CCSO_CLEANUP
             if (quant_sz[scale_idx][quant_idx] == 0 && edge_clf == 1) {
               continue;
             }
-#endif  // CONFIG_CCSO_CLEANUP
             if (!ccso_bo_only) {
               ccso_derive_src_info(
                   cm, xd, plane, ext_rec_y,
@@ -1477,12 +1468,10 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
                             lut_bits +
                             (ccso_bo_only ? frame_bits_bo_only : frame_bits);
 
-#if CONFIG_CCSO_CLEANUP
                         if (!ccso_bo_only && !quant_sz[scale_idx][quant_idx]) {
                           // remove one frame bit for quant sz is 0 case
                           cur_total_bits -= 1;
                         }
-#endif  // CONFIG_CCSO_CLEANUP
 
                         cur_total_rate +=
                             (reuse_ccso_idx

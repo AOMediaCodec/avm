@@ -3861,16 +3861,12 @@ static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
                   &cm->error, AOM_CODEC_CORRUPT_FRAME,
                   "Invalid ccso_ext_filter: ccso_ext_filter == 7");
             }
-#if CONFIG_CCSO_CLEANUP
             if (quant_sz[cm->ccso_info.scale_idx[plane]]
                         [cm->ccso_info.quant_idx[plane]]) {
               cm->ccso_info.edge_clf[plane] = aom_rb_read_bit(rb);
             } else {
               cm->ccso_info.edge_clf[plane] = 0;
             }
-#else
-            cm->ccso_info.edge_clf[plane] = aom_rb_read_bit(rb);
-#endif  // CONFIG_CCSO_CLEANUP
             cm->ccso_info.max_band_log2[plane] = aom_rb_read_literal(rb, 2);
           }
           const int max_band = 1 << cm->ccso_info.max_band_log2[plane];
