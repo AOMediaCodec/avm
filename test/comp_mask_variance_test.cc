@@ -123,13 +123,9 @@ void AV1HighbdCompMaskVarianceTest::RunCheckOutput(
   }
 
   for (int wedge_index = 0; wedge_index < wedge_types; ++wedge_index) {
-#if WEDGE_BLD_SIG
     for (int k = 0; k < MAX_WEDGE_BOUNDARY_TYPES; k++) {
       const uint8_t *mask =
           av1_get_all_contiguous_soft_mask(wedge_index, 1, bsize, k);
-#else
-    const uint8_t *mask = av1_get_contiguous_soft_mask(wedge_index, 1, bsize);
-#endif
 
       aom_highbd_comp_mask_pred_c(comp_pred1_, pred_, w, h, ref_, MAX_SB_SIZE,
                                   mask, w, inv);
@@ -138,9 +134,7 @@ void AV1HighbdCompMaskVarianceTest::RunCheckOutput(
 
       ASSERT_EQ(CheckResult(w, h), true)
           << " wedge " << wedge_index << " inv " << inv;
-#if WEDGE_BLD_SIG
     }
-#endif
   }
 }
 
@@ -159,13 +153,9 @@ void AV1HighbdCompMaskVarianceTest::RunSpeedTest(
   for (int i = 0; i < MAX_SB_SQUARE + (8 * MAX_SB_SIZE); ++i) {
     ref_buffer_[i] = rnd_.Rand16() & ((1 << bd_) - 1);
   }
-#if WEDGE_BLD_SIG
   int boundary_index = 0;
   const uint8_t *mask =
       av1_get_all_contiguous_soft_mask(wedge_index, 1, bsize, boundary_index);
-#else
-  const uint8_t *mask = av1_get_contiguous_soft_mask(wedge_index, 1, bsize);
-#endif
   const int num_loops = 1000000000 / (w + h);
 
   highbd_comp_mask_pred_func funcs[2] = { aom_highbd_comp_mask_pred_c,
@@ -250,14 +240,9 @@ void AV1HighbdCompMaskUpVarianceTest::RunCheckOutput(
       int subx = sub & 0x7;
       int suby = (sub >> 3);
       for (int wedge_index = 0; wedge_index < wedge_types; ++wedge_index) {
-#if WEDGE_BLD_SIG
         for (int k = 0; k < MAX_WEDGE_BOUNDARY_TYPES; k++) {
           const uint8_t *mask =
               av1_get_all_contiguous_soft_mask(wedge_index, 1, bsize, k);
-#else
-        const uint8_t *mask =
-            av1_get_contiguous_soft_mask(wedge_index, 1, bsize);
-#endif
 
           // ref
           aom_highbd_upsampled_pred_c(NULL, NULL, 0, 0, NULL, comp_pred1_, w, h,
@@ -277,9 +262,7 @@ void AV1HighbdCompMaskUpVarianceTest::RunCheckOutput(
           ASSERT_EQ(CheckResult(w, h), true)
               << " wedge " << wedge_index << " inv " << inv << "sub (" << subx
               << "," << suby << ")";
-#if WEDGE_BLD_SIG
         }
-#endif
       }
     }
   }
@@ -294,13 +277,9 @@ void AV1HighbdCompMaskUpVarianceTest::RunSpeedTest(
   const int suby = havSub ? 4 : 0;
   const int wedge_types = get_wedge_types_lookup(bsize);
   int wedge_index = wedge_types / 2;
-#if WEDGE_BLD_SIG
   int boundary_index = 0;
   const uint8_t *mask =
       av1_get_all_contiguous_soft_mask(wedge_index, 1, bsize, boundary_index);
-#else
-  const uint8_t *mask = av1_get_contiguous_soft_mask(wedge_index, 1, bsize);
-#endif
 
   for (int i = 0; i < MAX_SB_SQUARE; ++i) {
     pred_[i] = rnd_.Rand16() & ((1 << bd_) - 1);

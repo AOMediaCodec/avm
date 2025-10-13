@@ -170,7 +170,6 @@ void av1_make_inter_predictor(const uint16_t *src, int src_stride,
 }
 
 /* clang-format off */
-#if WEDGE_BLD_SIG
 // rounded cosine and sine look-up tables given by round(32*cos(i)) and round(16*cos(i)) for two wedge boundaries
 static const int8_t wedge_cos_lut_all[MAX_WEDGE_BOUNDARY_TYPES][WEDGE_ANGLES] = {
   {
@@ -235,62 +234,19 @@ static const int8_t neg_dist_2_bld_weight[WEDGE_BLD_LUT_SIZE] = {
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
   1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
-#else
-static const int8_t wedge_cos_lut[WEDGE_ANGLES] = {
-  //  0,  1,  2,  4,  6,
-      8,  8,  8,  4,  4,
-  //  8, 10, 12, 14, 15,
-      0, -4, -4, -8, -8,
-  // 16, 17, 18, 20, 22,
-     -8, -8, -8, -4, -4,
-  // 24, 26, 28, 30, 31
-      0,  4,  4,  8,  8
-};
-static const int8_t wedge_sin_lut[WEDGE_ANGLES] = {
-  //  0,  1,  2,  4,  6,
-      0, -2, -4, -4, -8,
-  //  8, 10, 12, 14, 15,
-     -8, -8, -4, -4, -2,
-  // 16, 17, 18, 20, 22,
-      0,  2,  4,  4,  8,
-  // 24, 26, 28, 30, 31
-      8,  8,  4,  4,  2
-};
-#endif
 /* clang-format on */
-#if WEDGE_BLD_SIG
 DECLARE_ALIGNED(16, static uint8_t,
                 wedge_allmaster_mask[2][WEDGE_ANGLES][MAX_WEDGE_BOUNDARY_TYPES]
                                     [MASK_MASTER_SIZE * MASK_MASTER_SIZE]);
-#else
-// [negative][direction]
-DECLARE_ALIGNED(
-    16, static uint8_t,
-    wedge_master_mask[2][WEDGE_ANGLES][MASK_MASTER_SIZE * MASK_MASTER_SIZE]);
-#endif  // WEDGE_BLD_SIG &&CONFIG_ADAPTIVE_WEDGE_BOUNDARY
 
-#if WEDGE_BLD_SIG
 DECLARE_ALIGNED(16, static uint8_t,
                 all_wedge_mask_buf[2 * MAX_WEDGE_TYPES * H_WEDGE_ANGLES *
                                    MAX_WEDGE_SQUARE]);
-#else
-// 4 * MAX_WEDGE_SQUARE is an easy to compute and fairly tight upper bound
-// on the sum of all mask sizes up to an including MAX_WEDGE_SQUARE.
-DECLARE_ALIGNED(
-    16, static uint8_t,
-    wedge_mask_buf[2 * MAX_WEDGE_TYPES * H_WEDGE_ANGLES * MAX_WEDGE_SQUARE]);
-#endif  // WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
 
-#if WEDGE_BLD_SIG
 DECLARE_ALIGNED(
     16, static uint8_t,
     wedge_tmvp_decision_buf[2 * MAX_WEDGE_TYPES * MAX_WEDGE_BOUNDARY_TYPES *
                             H_WEDGE_ANGLES * MAX_WEDGE_SQUARE]);
-#else
-DECLARE_ALIGNED(16, static uint8_t,
-                wedge_tmvp_decision_buf[2 * MAX_WEDGE_TYPES * H_WEDGE_ANGLES *
-                                        MAX_WEDGE_SQUARE]);
-#endif  // WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
 
 DECLARE_ALIGNED(16, static uint8_t,
                 smooth_interintra_mask_buf[INTERINTRA_MODES][BLOCK_SIZES_ALL]
@@ -298,11 +254,7 @@ DECLARE_ALIGNED(16, static uint8_t,
 
 DECLARE_ALIGNED(16, static int8_t, cwp_mask[2][MAX_CWP_NUM][MAX_SB_SQUARE]);
 
-#if WEDGE_BLD_SIG
 static all_wedge_masks_type all_wedge_masks[BLOCK_SIZES_ALL][2];
-#else
-static wedge_masks_type wedge_masks[BLOCK_SIZES_ALL][2];
-#endif  // WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
 
 static wedge_decisions_type wedge_tmvp_decisions[BLOCK_SIZES_ALL][2];
 
@@ -333,7 +285,6 @@ static const wedge_code_type wedge_codebook_16[MAX_WEDGE_TYPES] = {
 };
 
 // Look up table of params for wedge mode for different block sizes.
-#if WEDGE_BLD_SIG
 const wedge_params_type av1_wedge_params_lookup[BLOCK_SIZES_ALL] = {
   { 0, NULL, NULL, NULL, NULL },
   { 0, NULL, NULL, NULL, NULL },
@@ -383,57 +334,6 @@ const wedge_params_type av1_wedge_params_lookup[BLOCK_SIZES_ALL] = {
   { 0, NULL, NULL, NULL, NULL },
   { 0, NULL, NULL, NULL, NULL },
 };
-#else
-const wedge_params_type av1_wedge_params_lookup[BLOCK_SIZES_ALL] = {
-  { 0, NULL, NULL, NULL, NULL },
-  { 0, NULL, NULL, NULL, NULL },
-  { 0, NULL, NULL, NULL, NULL },
-  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_8X8],
-    wedge_tmvp_decisions[BLOCK_8X8] },
-  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_8X16],
-    wedge_tmvp_decisions[BLOCK_8X16] },
-  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_16X8],
-    wedge_tmvp_decisions[BLOCK_16X8] },
-  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_16X16],
-    wedge_tmvp_decisions[BLOCK_16X16] },
-  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_16X32],
-    wedge_tmvp_decisions[BLOCK_16X32] },
-  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_32X16],
-    wedge_tmvp_decisions[BLOCK_32X16] },
-  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_32X32],
-    wedge_tmvp_decisions[BLOCK_32X32] },
-  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_32X64],
-    wedge_tmvp_decisions[BLOCK_32X64] },
-  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_64X32],
-    wedge_tmvp_decisions[BLOCK_64X32] },
-  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_64X64],
-    wedge_tmvp_decisions[BLOCK_64X64] },
-  { 0, NULL, NULL, NULL, NULL },
-  { 0, NULL, NULL, NULL, NULL },
-  { 0, NULL, NULL, NULL, NULL },
-  { 0, NULL, NULL, NULL, NULL },
-  { 0, NULL, NULL, NULL, NULL },
-  { 0, NULL, NULL, NULL, NULL },
-  { 0, NULL, NULL, NULL, NULL },
-  { 0, NULL, NULL, NULL, NULL },
-  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_8X32],
-    wedge_tmvp_decisions[BLOCK_8X32] },
-  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_32X8],
-    wedge_tmvp_decisions[BLOCK_32X8] },
-  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_16X64],
-    wedge_tmvp_decisions[BLOCK_16X64] },
-  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_64X16],
-    wedge_tmvp_decisions[BLOCK_64X16] },
-  { 0, NULL, NULL, NULL, NULL },
-  { 0, NULL, NULL, NULL, NULL },
-  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_8X64],
-    wedge_tmvp_decisions[BLOCK_8X64] },
-  { MAX_WEDGE_TYPES, wedge_codebook_16, NULL, wedge_masks[BLOCK_64X8],
-    wedge_tmvp_decisions[BLOCK_64X8] },
-  { 0, NULL, NULL, NULL, NULL },
-  { 0, NULL, NULL, NULL, NULL },
-};
-#endif  // WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
 
 // Init the cwp masks, called by init_cwp_masks
 static AOM_INLINE void build_cwp_mask(int8_t *mask, int stride,
@@ -461,7 +361,6 @@ const int8_t *av1_get_cwp_mask(int list_idx, int idx) {
   return cwp_mask[list_idx][idx];
 }
 
-#if WEDGE_BLD_SIG
 // get wedge masks for both boundaries
 static const uint8_t *get_wedge_allmask_inplace(int wedge_index,
                                                 int boundary_index, int neg,
@@ -480,25 +379,6 @@ static const uint8_t *get_wedge_allmask_inplace(int wedge_index,
            MASK_MASTER_SIZE / 2 - woff;
   return master;
 }
-#else
-static const uint8_t *get_wedge_mask_inplace(int wedge_index, int neg,
-                                             BLOCK_SIZE sb_type) {
-  const uint8_t *master;
-  const int bh = block_size_high[sb_type];
-  const int bw = block_size_wide[sb_type];
-  const wedge_code_type *a =
-      av1_wedge_params_lookup[sb_type].codebook + wedge_index;
-  int woff, hoff;
-
-  assert(wedge_index >= 0 && wedge_index < get_wedge_types_lookup(sb_type));
-  woff = (a->x_offset * bw) >> 3;
-  hoff = (a->y_offset * bh) >> 3;
-  master = wedge_master_mask[neg][a->direction] +
-           MASK_MASTER_STRIDE * (MASK_MASTER_SIZE / 2 - hoff) +
-           MASK_MASTER_SIZE / 2 - woff;
-  return master;
-}
-#endif  // WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
 
 // For each 8x8 block, decide (if using wedge mode), whether it should store
 // both MVs as the TMVP MVs, or just 1 of them (and in this case which one to
@@ -541,14 +421,9 @@ const uint8_t *av1_get_compound_type_mask(
   (void)sb_type;
   switch (comp_data->type) {
     case COMPOUND_WEDGE:
-#if WEDGE_BLD_SIG
       return av1_get_all_contiguous_soft_mask(comp_data->wedge_index,
                                               comp_data->wedge_sign, sb_type,
                                               comp_data->wedge_boundary_index);
-#else
-      return av1_get_contiguous_soft_mask(comp_data->wedge_index,
-                                          comp_data->wedge_sign, sb_type);
-#endif  // WEDGE_BLD_SIG &&CONFIG_ADAPTIVE_WEDGE_BOUNDARY
     case COMPOUND_AVERAGE:
     case COMPOUND_DIFFWTD: return comp_data->seg_mask;
     default: assert(0); return NULL;
@@ -669,7 +544,6 @@ void av1_build_compound_diffwtd_mask_highbd_c(
   }
 }
 
-#if WEDGE_BLD_SIG
 // initiate master wedge masks for both boundaries for extended wedges
 static AOM_INLINE void init_wedge_master_all_masks() {
   const int w = MASK_MASTER_SIZE;
@@ -692,61 +566,22 @@ static AOM_INLINE void init_wedge_master_all_masks() {
     }
   }
 }
-#else
-static AOM_INLINE void init_wedge_master_masks() {
-  const int w = MASK_MASTER_SIZE;
-  const int h = MASK_MASTER_SIZE;
-  for (int angle = 0; angle < WEDGE_ANGLES; angle++) {
-    int idx = 0;
-    // printf("angle: %d\n", angle);
-    for (int n = 0; n < h; n++) {
-      int y = ((n << 1) - h + 1) * wedge_sin_lut[angle];
-      for (int m = 0; m < w; m++, idx++) {
-        int d = ((m << 1) - w + 1) * wedge_cos_lut[angle] + y;
-#if WEDGE_BLD_SIG
-        const int clamp_d = clamp(d, -127, 127);
-        wedge_master_mask[0][angle][idx] =
-            clamp_d >= 0 ? (pos_dist_2_bld_weight[clamp_d] << (7 - 5))
-                         : (neg_dist_2_bld_weight[-clamp_d] << (7 - 5));
-#else
-        wedge_master_mask[0][angle][idx] = clamp((d + 32), 0, 64);
-#endif
-        wedge_master_mask[1][angle][idx] =
-            64 - wedge_master_mask[0][angle][idx];
-      }
-    }
-  }
-}
-#endif  // WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
 
 static AOM_INLINE void init_wedge_masks() {
-#if WEDGE_BLD_SIG
   uint8_t *dst_all = all_wedge_mask_buf;
-#else
-  uint8_t *dst = wedge_mask_buf;
-#endif  // WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
   BLOCK_SIZE bsize;
-#if WEDGE_BLD_SIG
   memset(all_wedge_masks, 0, sizeof(all_wedge_masks));
-#else
-  memset(wedge_masks, 0, sizeof(wedge_masks));
-#endif  // WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
   uint8_t *dst_tmvp_decision = wedge_tmvp_decision_buf;
   memset(wedge_tmvp_decisions, 0, sizeof(wedge_tmvp_decisions));
   for (bsize = BLOCK_4X4; bsize < BLOCK_SIZES_ALL; ++bsize) {
     const wedge_params_type *wedge_params = &av1_wedge_params_lookup[bsize];
     const int wtypes = wedge_params->wedge_types;
     if (wtypes == 0) continue;
-#if WEDGE_BLD_SIG
     const uint8_t *all_mask;
-#else
-    const uint8_t *mask;
-#endif  // WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
     const int bw = block_size_wide[bsize];
     const int bh = block_size_high[bsize];
     int w;
     for (w = 0; w < wtypes; ++w) {
-#if WEDGE_BLD_SIG
       for (int k = 0; k < MAX_WEDGE_BOUNDARY_TYPES; k++) {
         all_mask = get_wedge_allmask_inplace(w, k, 0, bsize);
         aom_convolve_copy(all_mask, MASK_MASTER_STRIDE, dst_all,
@@ -766,32 +601,9 @@ static AOM_INLINE void init_wedge_masks() {
         dst_tmvp_decision += bw * bh;
         dst_all += bw * bh;
       }
-#else
-      mask = get_wedge_mask_inplace(w, 0, bsize);
-      aom_convolve_copy(mask, MASK_MASTER_STRIDE, dst, bw /* dst_stride */, bw,
-                        bh);
-      wedge_params->masks[0][w] = dst;
-      get_wedge_tmvp_decision(dst, bw, bw, bh, dst_tmvp_decision, bw);
-      wedge_params->tmvp_mv_decisions[0][w] = dst_tmvp_decision;
-      dst_tmvp_decision += bw * bh;
-      dst += bw * bh;
-
-      mask = get_wedge_mask_inplace(w, 1, bsize);
-      aom_convolve_copy(mask, MASK_MASTER_STRIDE, dst, bw /* dst_stride */, bw,
-                        bh);
-      wedge_params->masks[1][w] = dst;
-      wedge_params->tmvp_mv_decisions[1][w] = dst_tmvp_decision;
-      get_wedge_tmvp_decision(dst, bw, bw, bh, dst_tmvp_decision, bw);
-      dst_tmvp_decision += bw * bh;
-      dst += bw * bh;
-#endif  // WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
     }
-#if WEDGE_BLD_SIG
     assert(sizeof(all_wedge_mask_buf) >=
            (size_t)(dst_all - all_wedge_mask_buf));
-#else
-    assert(sizeof(wedge_mask_buf) >= (size_t)(dst - wedge_mask_buf));
-#endif  // WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
   }
 }
 
@@ -1511,11 +1323,7 @@ int is_out_of_frame_block(const InterPredParams *inter_pred_params,
 // Equation of line: f(x, y) = a[0]*(x -
 // a[2]*w/8) + a[1]*(y - a[3]*h/8) = 0
 void av1_init_wedge_masks() {
-#if WEDGE_BLD_SIG
   init_wedge_master_all_masks();
-#else
-  init_wedge_master_masks();
-#endif  // WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
   init_wedge_masks();
   init_smooth_interintra_masks();
 }
@@ -4149,24 +3957,17 @@ void av1_setup_pre_planes(MACROBLOCKD *xd, int idx,
 
 static AOM_INLINE void combine_interintra_highbd(
     INTERINTRA_MODE mode, int8_t use_wedge_interintra, int8_t wedge_index,
-#if WEDGE_BLD_SIG
-    int8_t boundary_index,
-#endif  // WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
-    int8_t wedge_sign, BLOCK_SIZE bsize, BLOCK_SIZE plane_bsize,
-    uint16_t *comppred8, int compstride, const uint16_t *interpred8,
-    int interstride, const uint16_t *intrapred8, int intrastride, int bd) {
+    int8_t boundary_index, int8_t wedge_sign, BLOCK_SIZE bsize,
+    BLOCK_SIZE plane_bsize, uint16_t *comppred8, int compstride,
+    const uint16_t *interpred8, int interstride, const uint16_t *intrapred8,
+    int intrastride, int bd) {
   const int bw = block_size_wide[plane_bsize];
   const int bh = block_size_high[plane_bsize];
 
   if (use_wedge_interintra) {
     if (av1_is_wedge_used(bsize)) {
-#if WEDGE_BLD_SIG
       const uint8_t *mask = av1_get_all_contiguous_soft_mask(
           wedge_index, wedge_sign, bsize, boundary_index);
-#else
-      const uint8_t *mask =
-          av1_get_contiguous_soft_mask(wedge_index, wedge_sign, bsize);
-#endif  // WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
 
       const int subh = 2 * mi_size_high[bsize] == bh;
       const int subw = 2 * mi_size_wide[bsize] == bw;
@@ -4214,10 +4015,7 @@ void av1_combine_interintra(MACROBLOCKD *xd, BLOCK_SIZE bsize, int plane,
 
   combine_interintra_highbd(
       xd->mi[0]->interintra_mode, xd->mi[0]->use_wedge_interintra,
-      xd->mi[0]->interintra_wedge_index,
-#if WEDGE_BLD_SIG
-      xd->mi[0]->wedge_boundary_index,
-#endif  // WEDGE_BLD_SIG && CONFIG_ADAPTIVE_WEDGE_BOUNDARY
+      xd->mi[0]->interintra_wedge_index, xd->mi[0]->wedge_boundary_index,
       INTERINTRA_WEDGE_SIGN, bsize, plane_bsize, xd->plane[plane].dst.buf,
       xd->plane[plane].dst.stride, inter_pred, inter_stride, intra_pred,
       intra_stride, xd->bd);
