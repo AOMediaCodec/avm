@@ -1303,7 +1303,6 @@ static INLINE int allow_warpmv_with_mvd_coding(const AV1_COMMON *const cm,
   return (mbmi->mode == WARPMV && mbmi->warp_ref_idx < 2);
 }
 
-#if CONFIG_DERIVED_MVD_SIGN
 // Return the threshold value for number of non-zero componenets for sign
 // derivation.
 static INLINE int get_derive_sign_nzero_th(const MB_MODE_INFO *mbmi) {
@@ -1333,7 +1332,6 @@ static INLINE int is_mvd_sign_derive_allowed(const AV1_COMMON *const cm,
           mbmi->mode == JOINT_NEWMV || mbmi->mode == JOINT_NEWMV_OPTFLOW ||
           mbmi->mode == NEW_NEWMV || mbmi->mode == NEW_NEWMV_OPTFLOW);
 }
-#endif  // CONFIG_DERIVED_MVD_SIGN
 
 void av1_build_linear_predictor(uint16_t *dst, const int dst_stride,
                                 const int width, const int height,

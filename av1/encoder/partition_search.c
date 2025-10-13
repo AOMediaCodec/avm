@@ -1049,30 +1049,18 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
   if (av1_allow_intrabc(cm, xd, bsize) && xd->tree_type != CHROMA_PART) {
     if (use_intrabc) {
       const int_mv ref_mv = mbmi_ext->ref_mv_stack[INTRA_FRAME][0].this_mv;
-#if CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
       MV mv_diff;
       MV low_prec_ref_mv = ref_mv.as_mv;
       if (mbmi->pb_mv_precision < MV_PRECISION_HALF_PEL)
         lower_mv_precision(&low_prec_ref_mv, mbmi->pb_mv_precision);
       mv_diff.row = mbmi->mv[0].as_mv.row - low_prec_ref_mv.row;
       mv_diff.col = mbmi->mv[0].as_mv.col - low_prec_ref_mv.col;
-#endif  // CONFIG_DERIVED_MVD_SIGN
 
       assert(is_this_mv_precision_compliant(mbmi->mv[0].as_mv,
                                             mbmi->pb_mv_precision));
       assert(is_this_mv_precision_compliant(mv_diff, mbmi->pb_mv_precision));
 
-#if CONFIG_VQ_MVD_CODING
       av1_update_mv_stats(&fc->ndvc, mv_diff, mbmi->pb_mv_precision, 0);
-#else
-      av1_update_mv_stats(
-#if CONFIG_DERIVED_MVD_SIGN
-          mv_diff, 0,
-#else
-          mbmi->mv[0].as_mv, ref_mv.as_mv,
-#endif  // CONFIG_DERIVED_MVD_SIGN
-          &fc->ndvc, 0, MV_PRECISION_ONE_PEL);
-#endif  // CONFIG_VQ_MVD_CODING
     }
     if (use_intrabc) {
       update_cdf(fc->intrabc_mode_cdf, mbmi->intrabc_mode, 2);
@@ -1538,10 +1526,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
                              counts, mbmi);
     }
 
-#if CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
     MV mv_diff[2] = { kZeroMv, kZeroMv };
-#endif  // CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
-
     if (xd->tree_type != CHROMA_PART && mbmi->mode == WARPMV) {
       if (mbmi->warpmv_with_mvd_flag) {
         WarpedMotionParams ref_warp_model =
@@ -1553,24 +1538,11 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
             get_mv_from_wrl(xd, &ref_warp_model, mbmi->pb_mv_precision, bsize,
                             xd->mi_col, xd->mi_row);
         assert(is_adaptive_mvd == 0);
-#if CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
         get_mvd_from_ref_mv(mbmi->mv[0].as_mv, ref_mv.as_mv, is_adaptive_mvd,
                             mbmi->pb_mv_precision, &mv_diff[0]);
-#endif  // CONFIG_DERIVED_MVD_SIGN
 
-#if CONFIG_VQ_MVD_CODING
         av1_update_mv_stats(&fc->nmvc, mv_diff[0], mbmi->pb_mv_precision,
                             is_adaptive_mvd);
-
-#else
-        av1_update_mv_stats(
-#if CONFIG_DERIVED_MVD_SIGN
-            mv_diff[0], 1,
-#else
-            mbmi->mv[0].as_mv, ref_mv.as_mv,
-#endif  // CONFIG_DERIVED_MVD_SIGN
-            &fc->nmvc, is_adaptive_mvd, mbmi->pb_mv_precision);
-#endif  //  CONFIG_VQ_MVD_CODING
       }
     } else {
       if (have_newmv_in_inter_mode(mbmi->mode) &&
@@ -1605,46 +1577,21 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
         if (new_mv) {
           for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
             const int_mv ref_mv = av1_get_ref_mv(x, ref);
-#if CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
             get_mvd_from_ref_mv(mbmi->mv[ref].as_mv, ref_mv.as_mv,
                                 is_adaptive_mvd, pb_mv_precision,
                                 &mv_diff[ref]);
-#endif  // CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
-
-#if CONFIG_VQ_MVD_CODING
             av1_update_mv_stats(&fc->nmvc, mv_diff[ref], pb_mv_precision,
                                 is_adaptive_mvd);
-#else
-            av1_update_mv_stats(
-#if CONFIG_DERIVED_MVD_SIGN
-                mv_diff[ref], 1,
-#else
-                mbmi->mv[ref].as_mv, ref_mv.as_mv,
-#endif  // CONFIG_DERIVED_MVD_SIGN
-                &fc->nmvc, is_adaptive_mvd, pb_mv_precision);
-#endif  // CONFIG_VQ_MVD_CODING
           }
         } else if (have_nearmv_newmv_in_inter_mode(mbmi->mode)) {
           const int ref = mbmi->mode == NEAR_NEWMV_OPTFLOW ||
                           jmvd_base_ref_list || mbmi->mode == NEAR_NEWMV;
           const int_mv ref_mv = av1_get_ref_mv(x, ref);
-#if CONFIG_VQ_MVD_CODING || CONFIG_DERIVED_MVD_SIGN
           get_mvd_from_ref_mv(mbmi->mv[ref].as_mv, ref_mv.as_mv,
                               is_adaptive_mvd, pb_mv_precision, &mv_diff[ref]);
-#endif  // CONFIG_DERIVED_MVD_SIGN
 
-#if CONFIG_VQ_MVD_CODING
           av1_update_mv_stats(&fc->nmvc, mv_diff[ref], pb_mv_precision,
                               is_adaptive_mvd);
-#else
-          av1_update_mv_stats(
-#if CONFIG_DERIVED_MVD_SIGN
-              mv_diff[ref], 1,
-#else
-              mbmi->mv[ref].as_mv, ref_mv.as_mv,
-#endif  //  CONFIG_DERIVED_MVD_SIGN
-              &fc->nmvc, is_adaptive_mvd, pb_mv_precision);
-#endif  // CONFIG_VQ_MVD_CODING
         }
       }
     }

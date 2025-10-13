@@ -4088,9 +4088,6 @@ static AOM_INLINE void cumulative_avg_cdf_symbol(
 
 static void cumulative_avg_nmv(nmv_context *nmv_left, nmv_context *nmv_tr,
                                int total_tiles_log2) {
-#if !CONFIG_VQ_MVD_CODING
-  CUMULATIVE_AVERAGE_CDF(nmv_left->joints_cdf, nmv_tr->joints_cdf, 4);
-#else
 #if CONFIG_REDUCE_SYMBOL_SIZE
   CUMULATIVE_AVERAGE_CDF(nmv_left->joint_shell_set_cdf,
                          nmv_tr->joint_shell_set_cdf, 2);
@@ -4147,37 +4144,11 @@ static void cumulative_avg_nmv(nmv_context *nmv_left, nmv_context *nmv_tr,
   CUMULATIVE_AVERAGE_CDF(nmv_left->col_mv_index_cdf, nmv_tr->col_mv_index_cdf,
                          2);
 
-#endif  // !CONFIG_VQ_MVD_CODING
   CUMULATIVE_AVERAGE_CDF(nmv_left->amvd_joints_cdf, nmv_tr->amvd_joints_cdf,
                          MV_JOINTS);
   for (int i = 0; i < 2; i++) {
-#if !CONFIG_VQ_MVD_CODING
-    CUMULATIVE_AVERAGE_CDF(nmv_left->comps[i].classes_cdf,
-                           nmv_tr->comps[i].classes_cdf, MV_CLASSES);
-    CUMULATIVE_AVERAGE_CDF(nmv_left->comps[i].amvd_classes_cdf,
-                           nmv_tr->comps[i].amvd_classes_cdf, MV_CLASSES);
-#else
     CUMULATIVE_AVERAGE_CDF(nmv_left->comps[i].amvd_indices_cdf,
                            nmv_tr->comps[i].amvd_indices_cdf, MAX_AMVD_INDEX);
-#endif  // !CONFIG_VQ_MVD_CODING
-
-#if !CONFIG_VQ_MVD_CODING
-    CUMULATIVE_AVERAGE_CDF(nmv_left->comps[i].class0_fp_cdf,
-                           nmv_tr->comps[i].class0_fp_cdf, 2);
-    CUMULATIVE_AVERAGE_CDF(nmv_left->comps[i].fp_cdf, nmv_tr->comps[i].fp_cdf,
-                           2);
-#endif  //! CONFIG_VQ_MVD_CODING
-
-#if !CONFIG_VQ_MVD_CODING
-    CUMULATIVE_AVERAGE_CDF(nmv_left->comps[i].class0_hp_cdf,
-                           nmv_tr->comps[i].class0_hp_cdf, 2);
-    CUMULATIVE_AVERAGE_CDF(nmv_left->comps[i].hp_cdf, nmv_tr->comps[i].hp_cdf,
-                           2);
-    CUMULATIVE_AVERAGE_CDF(nmv_left->comps[i].class0_cdf,
-                           nmv_tr->comps[i].class0_cdf, CLASS0_SIZE);
-    CUMULATIVE_AVERAGE_CDF(nmv_left->comps[i].bits_cdf,
-                           nmv_tr->comps[i].bits_cdf, 2);
-#endif  // !CONFIG_VQ_MVD_CODING
   }
 }
 
@@ -4601,9 +4572,6 @@ static AOM_INLINE void shift_cdf_symbol(aom_cdf_prob *cdf_ptr, int num_cdfs,
   } while (0)
 
 static void shift_nmv(nmv_context *nmv_ptr, int total_tiles_log2) {
-#if !CONFIG_VQ_MVD_CODING
-  SHIFT_CDF(nmv_ptr->joints_cdf, 4);
-#else
 #if CONFIG_REDUCE_SYMBOL_SIZE
   SHIFT_CDF(nmv_ptr->joint_shell_set_cdf, 2);
   for (int prec = 0; prec < NUM_MV_PRECISIONS; prec++) {
@@ -4642,28 +4610,9 @@ static void shift_nmv(nmv_context *nmv_ptr, int total_tiles_log2) {
   SHIFT_CDF(nmv_ptr->shell_offset_other_class_cdf, 2);
   SHIFT_CDF(nmv_ptr->col_mv_greater_flags_cdf, 2);
   SHIFT_CDF(nmv_ptr->col_mv_index_cdf, 2);
-
-#endif  // !CONFIG_VQ_MVD_CODING
   SHIFT_CDF(nmv_ptr->amvd_joints_cdf, MV_JOINTS);
   for (int i = 0; i < 2; i++) {
-#if !CONFIG_VQ_MVD_CODING
-    SHIFT_CDF(nmv_ptr->comps[i].classes_cdf, MV_CLASSES);
-    SHIFT_CDF(nmv_ptr->comps[i].amvd_classes_cdf, MV_CLASSES);
-#else
     SHIFT_CDF(nmv_ptr->comps[i].amvd_indices_cdf, MAX_AMVD_INDEX);
-#endif  // !CONFIG_VQ_MVD_CODING
-
-#if !CONFIG_VQ_MVD_CODING
-    SHIFT_CDF(nmv_ptr->comps[i].class0_fp_cdf, 2);
-    SHIFT_CDF(nmv_ptr->comps[i].fp_cdf, 2);
-#endif  //! CONFIG_VQ_MVD_CODING
-
-#if !CONFIG_VQ_MVD_CODING
-    SHIFT_CDF(nmv_ptr->comps[i].class0_hp_cdf, 2);
-    SHIFT_CDF(nmv_ptr->comps[i].hp_cdf, 2);
-    SHIFT_CDF(nmv_ptr->comps[i].class0_cdf, CLASS0_SIZE);
-    SHIFT_CDF(nmv_ptr->comps[i].bits_cdf, 2);
-#endif  // !CONFIG_VQ_MVD_CODING
   }
 }
 
@@ -4948,9 +4897,6 @@ static void avg_cdf_symbol(aom_cdf_prob *cdf_ptr_left, aom_cdf_prob *cdf_ptr_tr,
 
 static void avg_nmv(nmv_context *nmv_left, nmv_context *nmv_tr, int wt_left,
                     int wt_tr, unsigned int offset, unsigned int shift) {
-#if !CONFIG_VQ_MVD_CODING
-  AVERAGE_CDF(nmv_left->joints_cdf, nmv_tr->joints_cdf, 4);
-#else
 #if CONFIG_REDUCE_SYMBOL_SIZE
   AVERAGE_CDF(nmv_left->joint_shell_set_cdf, nmv_tr->joint_shell_set_cdf, 2);
   for (int prec = 0; prec < NUM_MV_PRECISIONS; prec++) {
@@ -5003,33 +4949,10 @@ static void avg_nmv(nmv_context *nmv_left, nmv_context *nmv_tr, int wt_left,
               nmv_tr->col_mv_greater_flags_cdf, 2);
   AVERAGE_CDF(nmv_left->col_mv_index_cdf, nmv_tr->col_mv_index_cdf, 2);
 
-#endif  // !CONFIG_VQ_MVD_CODING
   AVERAGE_CDF(nmv_left->amvd_joints_cdf, nmv_tr->amvd_joints_cdf, MV_JOINTS);
   for (int i = 0; i < 2; i++) {
-#if !CONFIG_VQ_MVD_CODING
-    AVERAGE_CDF(nmv_left->comps[i].classes_cdf, nmv_tr->comps[i].classes_cdf,
-                MV_CLASSES);
-    AVERAGE_CDF(nmv_left->comps[i].amvd_classes_cdf,
-                nmv_tr->comps[i].amvd_classes_cdf, MV_CLASSES);
-#else
     AVERAGE_CDF(nmv_left->comps[i].amvd_indices_cdf,
                 nmv_tr->comps[i].amvd_indices_cdf, MAX_AMVD_INDEX);
-#endif  // !CONFIG_VQ_MVD_CODING
-
-#if !CONFIG_VQ_MVD_CODING
-    AVERAGE_CDF(nmv_left->comps[i].class0_fp_cdf,
-                nmv_tr->comps[i].class0_fp_cdf, 2);
-    AVERAGE_CDF(nmv_left->comps[i].fp_cdf, nmv_tr->comps[i].fp_cdf, 2);
-#endif  //! CONFIG_VQ_MVD_CODING
-
-#if !CONFIG_VQ_MVD_CODING
-    AVERAGE_CDF(nmv_left->comps[i].class0_hp_cdf,
-                nmv_tr->comps[i].class0_hp_cdf, 2);
-    AVERAGE_CDF(nmv_left->comps[i].hp_cdf, nmv_tr->comps[i].hp_cdf, 2);
-    AVERAGE_CDF(nmv_left->comps[i].class0_cdf, nmv_tr->comps[i].class0_cdf,
-                CLASS0_SIZE);
-    AVERAGE_CDF(nmv_left->comps[i].bits_cdf, nmv_tr->comps[i].bits_cdf, 2);
-#endif  // !CONFIG_VQ_MVD_CODING
   }
 }
 

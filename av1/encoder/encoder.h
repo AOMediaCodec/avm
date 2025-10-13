@@ -863,10 +863,8 @@ typedef struct {
   // Indicates if cfl should be enabled.
   bool enable_cfl_intra;
 #endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
-#if CONFIG_DERIVED_MVD_SIGN
   // Indicates if mvd sign derivation should be enabled.
   bool enable_mvd_sign_derive;
-#endif  // CONFIG_DERIVED_MVD_SIGN
   // enable temporal interpolated prediction
   int enable_tip;
   // enable RefineMv and OPFL for TIP frame.
@@ -1240,24 +1238,11 @@ typedef struct {
 
 #if CONFIG_ENTROPY_STATS
 typedef struct {
-#if CONFIG_VQ_MVD_CODING
   unsigned int amvd_indices_cnts[CDF_SIZE(MAX_AMVD_INDEX)];  // placeholder
-#else
-  unsigned int classes_cnts[NUM_MV_PRECISIONS]
-                           [CDF_SIZE(MV_CLASSES)];           // placeholder
-  unsigned int amvd_classes_cnts[CDF_SIZE(MV_CLASSES)];      // placeholder
-  unsigned int class0_fp_cnts[CLASS0_SIZE][3][CDF_SIZE(2)];  // placeholder
-  unsigned int fp_cnts[3][CDF_SIZE(2)];                      // placeholder
-  unsigned int class0_hp_cnts[CDF_SIZE(2)];                  // placeholder
-  unsigned int hp_cnts[CDF_SIZE(2)];                         // placeholder
-  unsigned int class0_cnts[CDF_SIZE(CLASS0_SIZE)];           // placeholder
-  unsigned int bits_cnts[MV_OFFSET_BITS][CDF_SIZE(2)];       // placeholder
-#endif                                  // CONFIG_VQ_MVD_CODING
-  unsigned int sign_cnts[CDF_SIZE(2)];  // placeholder
+  unsigned int sign_cnts[CDF_SIZE(2)];                       // placeholder
 } nmv_component_count;
 
 typedef struct {
-#if CONFIG_VQ_MVD_CODING
 #if CONFIG_REDUCE_SYMBOL_SIZE
   unsigned int joint_shell_set_cnts[CDF_SIZE(2)];
   unsigned int joint_shell_class_0_cnts[NUM_MV_PRECISIONS]
@@ -1284,10 +1269,7 @@ typedef struct {
   unsigned int col_mv_greater_flags_cnts[NUM_CTX_COL_MV_GTX]
                                         [CDF_SIZE(2)];  // placeholder
   unsigned int col_mv_index_cnts[NUM_CTX_COL_MV_INDEX]
-                                [CDF_SIZE(2)];  // placeholder
-#else
-  unsigned int joints_cnts[CDF_SIZE(MV_JOINTS)];
-#endif                                                 // CONFIG_VQ_MVD_CODING
+                                [CDF_SIZE(2)];         // placeholder
   unsigned int amvd_joints_cnts[CDF_SIZE(MV_JOINTS)];  // placeholder
   nmv_component_count mvd_comp_cnts[2];
 } nmv_context_count;

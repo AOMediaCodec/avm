@@ -814,7 +814,6 @@ static INLINE int get_intra_mode(const MB_MODE_INFO *mbmi, int plane) {
                : get_uv_mode(mbmi->uv_mode);
 }
 
-#if CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
 // This function return the MVD from MV and refMV
 static INLINE void get_mvd_from_ref_mv(MV mv, MV ref_mv, int is_adaptive_mvd,
                                        MvSubpelPrecision precision, MV *mvd) {
@@ -824,7 +823,6 @@ static INLINE void get_mvd_from_ref_mv(MV mv, MV ref_mv, int is_adaptive_mvd,
   mvd->col = mv.col - ref_mv.col;
 }
 
-#if CONFIG_DERIVED_MVD_SIGN
 // This function compute the MV from MVD and refMV
 static INLINE void update_mv_component_from_mvd(int16_t modified_mvd_comp,
                                                 MV ref_mv, int comp,
@@ -839,8 +837,6 @@ static INLINE void update_mv_component_from_mvd(int16_t modified_mvd_comp,
   else
     mv->col = ref_mv.col + modified_mvd_comp;
 }
-#endif  // CONFIG_DERIVED_MVD_SIGN
-#endif  // CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
 
 /*!\brief Returns whether the current block size is square */
 static INLINE int is_square_block(BLOCK_SIZE bsize) {

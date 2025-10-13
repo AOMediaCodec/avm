@@ -552,9 +552,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->cfl_ds_filter_index = tool_cfg->select_cfl_ds_filter;
   seq->enable_joint_mvd = tool_cfg->enable_joint_mvd;
   seq->enable_refinemv = tool_cfg->enable_refinemv;
-#if CONFIG_DERIVED_MVD_SIGN
   seq->enable_mvd_sign_derive = tool_cfg->enable_mvd_sign_derive;
-#endif  // CONFIG_DERIVED_MVD_SIGN
   set_bitstream_level_tier(seq, cm, frm_dim_cfg->width, frm_dim_cfg->height,
                            oxcf->input_cfg.init_framerate);
 

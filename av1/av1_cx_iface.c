@@ -155,11 +155,9 @@ struct av1_extracfg {
 
   int select_cfl_ds_filter;  // select adaptive downsample filter
 
-  int enable_joint_mvd;  // enable joint MVD coding
-  int enable_refinemv;   // enable refineMV mode
-#if CONFIG_DERIVED_MVD_SIGN
+  int enable_joint_mvd;          // enable joint MVD coding
+  int enable_refinemv;           // enable refineMV mode
   int enable_mvd_sign_derive;    // enable mvd-sign-derivation
-#endif                           // CONFIG_DERIVED_MVD_SIGN
   int min_partition_size;        // min partition size [4,8,16,32,64,128]
   int max_partition_size;        // max partition size [4,8,16,32,64,128]
   int enable_intra_edge_filter;  // enable intra-edge filter for sequence
@@ -495,9 +493,7 @@ static struct av1_extracfg default_extra_cfg = {
   3,    // enable adaptive downsample filter
   1,    // enable joint mvd coding
   1,    // enable refineMV mode
-#if CONFIG_DERIVED_MVD_SIGN
   1,    // enable mvd-sign derivation
-#endif  // CONFIG_DERIVED_MVD_SIGN
   4,    // min_partition_size
   256,  // max_partition_size
   1,    // enable intra edge filter
@@ -1005,9 +1001,7 @@ static void update_encoder_config(cfg_options_t *cfg,
 
   cfg->enable_joint_mvd = extra_cfg->enable_joint_mvd;
   cfg->enable_refinemv = extra_cfg->enable_refinemv;
-#if CONFIG_DERIVED_MVD_SIGN
   cfg->enable_mvd_sign_derive = extra_cfg->enable_mvd_sign_derive;
-#endif  // CONFIG_DERIVED_MVD_SIGN
   cfg->max_partition_size = extra_cfg->max_partition_size;
   cfg->min_partition_size = extra_cfg->min_partition_size;
   cfg->enable_intra_edge_filter = extra_cfg->enable_intra_edge_filter;
@@ -1130,9 +1124,7 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_joint_mvd = cfg->enable_joint_mvd;
 
   extra_cfg->enable_refinemv = cfg->enable_refinemv;
-#if CONFIG_DERIVED_MVD_SIGN
   extra_cfg->enable_mvd_sign_derive = cfg->enable_mvd_sign_derive;
-#endif  // CONFIG_DERIVED_MVD_SIGN
   extra_cfg->max_partition_size = cfg->max_partition_size;
   extra_cfg->min_partition_size = cfg->min_partition_size;
   extra_cfg->enable_intra_edge_filter = cfg->enable_intra_edge_filter;
@@ -1386,9 +1378,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 
   tool_cfg->enable_joint_mvd = extra_cfg->enable_joint_mvd;
   tool_cfg->enable_refinemv = extra_cfg->enable_refinemv;
-#if CONFIG_DERIVED_MVD_SIGN
   tool_cfg->enable_mvd_sign_derive = extra_cfg->enable_mvd_sign_derive;
-#endif  // CONFIG_DERIVED_MVD_SIGN
   // Turn off BRU if LA, AI or resize mode
   tool_cfg->enable_bru = extra_cfg->enable_bru;
   if (tool_cfg->enable_bru) {
@@ -4213,12 +4203,10 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_refinemv, argv,
                               err_string)) {
     extra_cfg.enable_refinemv = arg_parse_int_helper(&arg, err_string);
-#if CONFIG_DERIVED_MVD_SIGN
   } else if (arg_match_helper(&arg,
                               &g_av1_codec_arg_defs.enable_mvd_sign_derive,
                               argv, err_string)) {
     extra_cfg.enable_mvd_sign_derive = arg_parse_int_helper(&arg, err_string);
-#endif  // CONFIG_DERIVED_MVD_SIGN
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.min_partition_size,
                               argv, err_string)) {
     extra_cfg.min_partition_size = arg_parse_int_helper(&arg, err_string);
@@ -4749,18 +4737,15 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         1,  // enable_cctx
         1,   1, 1,
         3,  // select_cfl_ds
+        1,   1, 1, 1,
+        1,   1, 1, 1,
+        1,   1, 1, 1,
+        1,   1, 1, 1,
+        1,   1, 1, 1,
+        1,   1, 0, 0,
+        1,   1, 1, 1,
+        1,   1, 1, 1,
         1,   1,
-#if CONFIG_DERIVED_MVD_SIGN
-        1,
-#endif  // CONFIG_DERIVED_MVD_SIGN
-        1,   1, 1, 1,
-        1,   1, 1, 1,
-        1,   1, 1, 1,
-        1,   1, 1, 1,
-        1,   1, 1, 0,
-        0,   1, 1, 1,
-        1,   1, 1, 1,
-        1,   1, 1,
         0,  // reduced_tx_part_set
         1,   1, 1, 1,
         3,   1,

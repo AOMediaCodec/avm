@@ -997,9 +997,7 @@ typedef struct SequenceHeader {
 
   uint8_t enable_refinemv;  // enables/disables refineMV mode
 
-#if CONFIG_DERIVED_MVD_SIGN
   uint8_t enable_mvd_sign_derive;  // enables/disables MVD sign derivation
-#endif                             // CONFIG_DERIVED_MVD_SIGN
 
   int seq_enabled_motion_modes;  // Bit mask of enabled motion modes for
                                  // sequence

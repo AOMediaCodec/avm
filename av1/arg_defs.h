@@ -176,9 +176,7 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t select_cfl_ds_filter;
   arg_def_t enable_joint_mvd;
   arg_def_t enable_refinemv;
-#if CONFIG_DERIVED_MVD_SIGN
   arg_def_t enable_mvd_sign_derive;
-#endif  // CONFIG_DERIVED_MVD_SIGN
   arg_def_t min_partition_size;
   arg_def_t max_partition_size;
   arg_def_t enable_chroma_deltaq;

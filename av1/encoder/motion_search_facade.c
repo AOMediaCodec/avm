@@ -353,14 +353,9 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
     }
   }
 
-#if CONFIG_VQ_MVD_CODING
   assert(IMPLIES(!is_adaptive_mvd, is_this_mv_precision_compliant(
                                        get_mv_from_fullmv(&best_mv->as_fullmv),
                                        mbmi->pb_mv_precision)));
-#else
-  assert(is_this_mv_precision_compliant(get_mv_from_fullmv(&best_mv->as_fullmv),
-                                        mbmi->pb_mv_precision));
-#endif  // CONFIG_VQ_MVD_CODING
 
   if (cpi->common.features.cur_frame_force_integer_mv) {
     convert_fullmv_to_mv(best_mv);
@@ -905,9 +900,8 @@ void av1_amvd_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
 
   bestsme = adaptive_mvd_search(cm, xd, &ms_params, ref_mv.as_mv,
                                 &best_mv.as_mv, &dis, &sse);
-#if CONFIG_VQ_MVD_CODING
+
   if (bestsme == INT_MAX) best_mv.as_int = INVALID_MV;
-#endif
 
   if (scaled_ref_frame) {
     // Swap back the original buffers for subpel motion search.
@@ -932,13 +926,10 @@ void av1_amvd_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
       printf("assertion failure error! [%5d %5d ]\n", diff.row, diff.col);
     }
     assert(diff.row == 0 || diff.col == 0);
-  }
-#if CONFIG_VQ_MVD_CODING
-  else {
+  } else {
     best_mv.as_int = INVALID_MV;
     return;
   }
-#endif  // CONFIG_VQ_MVD_CODING
   *rate_mv = 0;
   *rate_mv +=
       av1_mv_bit_cost(this_mv, &ref_mv.as_mv, mbmi->pb_mv_precision, mv_costs,
@@ -1041,9 +1032,7 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
     bestsme = adaptive_mvd_search(cm, xd, &ms_params, ref_mv.as_mv,
                                   &best_mv.as_mv, &dis, &sse);
 
-#if CONFIG_VQ_MVD_CODING
     if (bestsme == INT_MAX) best_mv.as_int = INVALID_MV;
-#endif  // CONFIG_VQ_MVD_CODING
   } else if ((mbmi->mode == JOINT_NEWMV || mbmi->mode == JOINT_NEWMV_OPTFLOW) &&
              mbmi->use_amvd == 0) {
     int dis; /* TODO: use dis in distortion calculation later. */
@@ -1081,12 +1070,10 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
     bestsme = av1_joint_amvd_motion_search(
         cm, xd, &ms_params, &ref_mv.as_mv, &best_mv.as_mv, &dis, &sse, ref_idx,
         other_mv, &best_other_mv.as_mv, second_pred, &inter_pred_params);
-#if CONFIG_VQ_MVD_CODING
     if (bestsme == INT_MAX) {
       best_mv.as_int = INVALID_MV;
       best_other_mv.as_int = INVALID_MV;
     }
-#endif  // CONFIG_VQ_MVD_CODING
   } else {
     if (mbmi->use_amvd) assert(0);
     // Make motion search params
@@ -1171,33 +1158,18 @@ void av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
     }
   }
 
-  if (bestsme < INT_MAX
-#if CONFIG_VQ_MVD_CODING
-      || is_adaptive_mvd
-#endif  // CONFIG_VQ_MVD_CODING
-  )
-    *this_mv = best_mv.as_mv;
+  if (bestsme < INT_MAX || is_adaptive_mvd) *this_mv = best_mv.as_mv;
 
   if (is_joint_mvd_coding_mode(mbmi->mode)) {
-    if (bestsme < INT_MAX
-#if CONFIG_VQ_MVD_CODING
-        || is_adaptive_mvd
-#endif  // CONFIG_VQ_MVD_CODING
-    )
-      *other_mv = best_other_mv.as_mv;
+    if (bestsme < INT_MAX || is_adaptive_mvd) *other_mv = best_other_mv.as_mv;
   }
 
   *rate_mv = 0;
   if (is_adaptive_mvd) {
-#if CONFIG_VQ_MVD_CODING
     if (bestsme < INT_MAX) {
-#endif  // CONFIG_VQ_MVD_CODING
-
       *rate_mv += av1_mv_bit_cost(this_mv, &ref_mv.as_mv, pb_mv_precision,
                                   mv_costs, MV_COST_WEIGHT, is_adaptive_mvd);
-#if CONFIG_VQ_MVD_CODING
     }
-#endif  // CONFIG_VQ_MVD_CODING
   } else {
     *rate_mv += av1_mv_bit_cost(this_mv, &ref_mv.as_mv, pb_mv_precision,
                                 mv_costs, MV_COST_WEIGHT, is_adaptive_mvd);

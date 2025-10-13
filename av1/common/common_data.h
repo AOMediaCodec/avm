@@ -189,12 +189,10 @@ static const int8_t cwp_weighting_factor[2][MAX_CWP_NUM] = {
 static const int8_t tip_weighting_factors[MAX_TIP_WTD_NUM] = { 8,  12, 16, 18,
                                                                20, 4,  6,  -4 };
 
-#if CONFIG_VQ_MVD_CODING
 // Supported set of MVD values in unit of 1/8 pel for AMVD mode
 static const int16_t amvd_index_to_mvd[MAX_AMVD_INDEX + 1] = { 0,  2,  4,
                                                                6,  8,  16,
                                                                32, 64, 128 };
-#endif  // CONFIG_VQ_MVD_CODING
 
 /* clang-format off */
 // This table covers all block sizes.
@@ -960,7 +958,7 @@ static const int inv_tx_shift[TX_SIZES_ALL][2] = {
   { 7, 10 },  // TX_8X4,    // 8x4 transform
   { 7, 11 },  // TX_8X16,   // 8x16 transform
   { 7, 11 },  // TX_16X8,   // 16x8 transform
-  { 6, 12 },  // TX_16X32,  // 16x32 transformß
+  { 6, 12 },  // TX_16X32,  // 16x32 transformï¿½
   { 6, 12 },  // TX_32X16,  // 32x16 transform
   { 6, 12 },  // TX_32X64,  // 32x64 transform
   { 6, 12 },  // TX_64X32,  // 64x32 transform

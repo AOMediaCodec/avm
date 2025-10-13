@@ -33,9 +33,8 @@
 #include "av1/encoder/mcomp.h"
 #include "av1/encoder/rdopt.h"
 #include "av1/encoder/reconinter_enc.h"
-#if CONFIG_VQ_MVD_CODING
+
 #include "aom_dsp/binary_codes_writer.h"
-#endif
 
 static INLINE void init_ms_buffers(MSBuffers *ms_buffers, const MACROBLOCK *x) {
   ms_buffers->ref = &x->e_mbd.plane[0].pre[0];
@@ -389,20 +388,7 @@ int av1_init_search_range(int size
 #define SSE_LAMBDA_HDRES 1  // Used by mv_cost_err_fn
 #define SAD_LAMBDA_HDRES 8  // Used by mvsad_err_cost during full pixel search
 
-#if !CONFIG_VQ_MVD_CODING
-// Returns the rate of encoding the current motion vector based on the
-// joint_cost and comp_cost. joint_costs covers the cost of transmitting
-// JOINT_MV, and comp_cost covers the cost of transmitting the actual motion
-// vector.
-static INLINE int mv_cost(const MV *mv, const int *joint_cost,
-                          const int *const comp_cost[2]) {
-  return joint_cost[av1_get_mv_joint(mv)] + comp_cost[0][mv->row] +
-         comp_cost[1][mv->col];
-}
-#endif  //! CONFIG_VQ_MVD_CODING
-
 #define CONVERT_TO_CONST_MVCOST(ptr) ((const int *const *)(ptr))
-#if CONFIG_VQ_MVD_CODING
 static INLINE int get_vq_col_mvd_cost(const MvCosts *mv_costs,
                                       const MvSubpelPrecision pb_mv_precision,
                                       const int max_coded_value, int col,
@@ -551,7 +537,6 @@ static INLINE int get_vq_mvd_cost(const MV mv_diff,
   return total_cost;
 }
 
-#endif  // CONFIG_VQ_MVD_CODING
 static INLINE int get_mv_cost_with_precision(
     const MV mv, const MV ref_mv, const MvSubpelPrecision pb_mv_precision,
     const int is_adaptive_mvd, const int is_ibc_cost, const MvCosts *mv_costs,
@@ -561,85 +546,42 @@ static INLINE int get_mv_cost_with_precision(
     lower_mv_precision(&low_prec_ref_mv, pb_mv_precision);
   const MV diff = { mv.row - low_prec_ref_mv.row,
                     mv.col - low_prec_ref_mv.col };
-#if CONFIG_VQ_MVD_CODING
   assert(IMPLIES(!is_adaptive_mvd,
                  is_this_mv_precision_compliant(diff, pb_mv_precision)));
-#else
-  assert(is_this_mv_precision_compliant(diff, pb_mv_precision));
-#endif  // CONFIG_VQ_MVD_CODING
 
-#if CONFIG_VQ_MVD_CODING
   return (int)ROUND_POWER_OF_TWO_64(
       (int64_t)get_vq_mvd_cost(diff, pb_mv_precision, mv_costs, is_adaptive_mvd,
                                is_ibc_cost, NULL) *
           weight,
       round_bits);
-#else
-  const int *mvjcost =
-      is_adaptive_mvd
-          ? mv_costs->amvd_nmv_joint_cost
-          : (is_ibc_cost ? mv_costs->dv_joint_cost : mv_costs->nmv_joint_cost);
-  const int *const *mvcost =
-      is_adaptive_mvd
-          ? CONVERT_TO_CONST_MVCOST(mv_costs->amvd_nmv_cost)
-          : (is_ibc_cost ? CONVERT_TO_CONST_MVCOST(mv_costs->dv_nmv_cost)
-                         : CONVERT_TO_CONST_MVCOST(
-                               mv_costs->nmv_costs[pb_mv_precision]));
-
-  if (mvcost) {
-    return (int)ROUND_POWER_OF_TWO_64(
-        ((int64_t)mv_cost(&diff, mvjcost, mvcost)) * weight, round_bits);
-  }
-#endif  // CONFIG_VQ_MVD_CODING
-
   return 0;
 }
 
 static INLINE int get_intrabc_mv_cost_with_precision(
     const MV diff, const IntraBCMvCosts *dv_costs, int weight, int round_bits,
     MvSubpelPrecision precision) {
-#if CONFIG_VQ_MVD_CODING
   if (dv_costs) {
     return (int)ROUND_POWER_OF_TWO_64(
         (int64_t)get_vq_mvd_cost(diff, precision, NULL, 0, 1, dv_costs) *
             weight,
         round_bits);
   }
-#else
-
-  const int *dvjcost = dv_costs->joint_mv;
-  const int *const *dvcost = CONVERT_TO_CONST_MVCOST(dv_costs->dv_costs);
-
-  if (dv_costs) {
-    return (int)ROUND_POWER_OF_TWO_64(
-        (int64_t)mv_cost(&diff, dvjcost, dvcost) * weight, round_bits);
-  }
-
-#endif  // CONFIG_VQ_MVD_CODING
-
   return 0;
 }
 
-#if CONFIG_DERIVED_MVD_SIGN
 int av1_mv_sign_cost(const int sign, const int comp, const MvCosts *mv_costs,
                      int weight, int round_bit, const int is_adaptive_mvd
 
 ) {
-#if CONFIG_VQ_MVD_CODING
   assert(!is_adaptive_mvd);
   const int *mv_sign_cost = mv_costs->nmv_sign_cost[comp];
   (void)is_adaptive_mvd;
-#else
-  const int *mv_sign_cost = is_adaptive_mvd ? mv_costs->amvd_nmv_sign_cost[comp]
-                                            : mv_costs->nmv_sign_cost[comp];
-#endif  // CONFIG_VQ_MVD_CODING
   if (mv_sign_cost) {
     return (int)ROUND_POWER_OF_TWO_64((int64_t)mv_sign_cost[sign] * weight,
                                       round_bit);
   }
   return 0;
 }
-#endif  // CONFIG_DERIVED_MVD_SIGN
 
 // Returns the cost of encoding the motion vector diff := *mv - *ref. The cost
 // is defined as the rate required to encode diff * weight, rounded to the
@@ -679,12 +621,8 @@ static INLINE int mv_err_cost(const MV mv,
     lower_mv_precision(&low_prec_ref_mv, pb_mv_precision);
   const MV diff = { mv.row - low_prec_ref_mv.row,
                     mv.col - low_prec_ref_mv.col };
-#if CONFIG_VQ_MVD_CODING
   assert(IMPLIES(!mv_cost_params->is_adaptive_mvd,
                  is_this_mv_precision_compliant(diff, pb_mv_precision)));
-#else
-  assert(is_this_mv_precision_compliant(diff, pb_mv_precision));
-#endif  // CONFIG_VQ_MVD_CODING
 
   const MV abs_diff = { abs(diff.row), abs(diff.col) };
 
@@ -728,44 +666,18 @@ static INLINE int mvsad_err_cost(const FULLPEL_MV mv,
 
   const MvCosts *mv_costs = mv_cost_params->mv_costs;
 
-#if !CONFIG_VQ_MVD_CODING
-  const int *mvjcost =
-#if !CONFIG_VQ_MVD_CODING
-      mv_cost_params->is_ibc_cost ? mv_costs->dv_joint_cost :
-#endif  //! CONFIG_VQ_MVD_CODING
-                                  (mv_cost_params->is_adaptive_mvd
-                                       ? mv_costs->amvd_nmv_joint_cost
-                                       : mv_costs->nmv_joint_cost);
-
-  const int *const *mvcost =
-#if !CONFIG_VQ_MVD_CODING
-      mv_cost_params->is_ibc_cost
-          ? CONVERT_TO_CONST_MVCOST(mv_costs->dv_nmv_cost)
-          :
-#endif  // !CONFIG_VQ_MVD_CODING
-          (mv_cost_params->is_adaptive_mvd
-               ? CONVERT_TO_CONST_MVCOST(mv_costs->amvd_nmv_cost)
-               : CONVERT_TO_CONST_MVCOST(mv_costs->nmv_costs[pb_mv_precision]));
-#endif  // !CONFIG_VQ_MVD_CODING
-
   const int sad_per_bit = mv_costs->sadperbit;
 
   const MV_COST_TYPE mv_cost_type = mv_cost_params->mv_cost_type;
 
   switch (mv_cost_type) {
     case MV_COST_ENTROPY:
-#if CONFIG_VQ_MVD_CODING
       return ROUND_POWER_OF_TWO(
           (unsigned)get_vq_mvd_cost(diff, pb_mv_precision, mv_costs,
                                     mv_cost_params->is_adaptive_mvd,
                                     mv_cost_params->is_ibc_cost, NULL) *
               sad_per_bit,
           AV1_PROB_COST_SHIFT);
-#else
-      return ROUND_POWER_OF_TWO(
-          (unsigned)mv_cost(&diff, mvjcost, mvcost) * sad_per_bit,
-          AV1_PROB_COST_SHIFT);
-#endif  // CONFIG_VQ_MVD_CODING
     case MV_COST_L1_LOWRES:
       return (SAD_LAMBDA_LOWRES * (abs_diff.row + abs_diff.col)) >> 3;
     case MV_COST_L1_MIDRES:
@@ -3982,10 +3894,6 @@ void av1_amvd_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
 int adaptive_mvd_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
                         SUBPEL_MOTION_SEARCH_PARAMS *ms_params, MV start_mv,
                         MV *bestmv, int *distortion, unsigned int *sse1) {
-#if !CONFIG_VQ_MVD_CODING
-  const int allow_hp = 0;
-  const int forced_stop = ms_params->forced_stop;
-#endif  //! CONFIG_VQ_MVD_CODING
   // const int iters_per_step = ms_params->iters_per_step;
   MV_COST_PARAMS *mv_cost_params = &ms_params->mv_cost_params;
   const SUBPEL_SEARCH_VAR_PARAMS *var_params = &ms_params->var_params;
@@ -3997,22 +3905,12 @@ int adaptive_mvd_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
   set_amvd_mv_precision(mbmi, mbmi->max_mv_precision);
   mv_cost_params->pb_mv_precision = mbmi->pb_mv_precision;
 
-#if !CONFIG_VQ_MVD_CODING
-  // How many steps to take. A round of 0 means fullpel search only, 1 means
-  // half-pel, and so on.
-  int round = AOMMIN(FULL_PEL - forced_stop, FULL_PEL - !allow_hp);
-  if (cm->features.cur_frame_force_integer_mv) round = 0;
-  int hstep = 8 >> round;  // Step size, initialized to 4/8=1/2 pel
-#endif                     //! CONFIG_VQ_MVD_CODING
-
   unsigned int besterr = INT_MAX;
 
-#if CONFIG_VQ_MVD_CODING
   MV this_mvd;
   get_adaptive_mvd_from_ref_mv(start_mv, *ms_params->mv_cost_params.ref_mv,
                                &this_mvd);
   if (is_valid_amvd_mvd(this_mvd)) {
-#endif  // CONFIG_VQ_MVD_CODING
     *bestmv = start_mv;
 
     if (subpel_search_type != FILTER_UNUSED) {
@@ -4022,9 +3920,7 @@ int adaptive_mvd_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
       besterr = setup_center_error(xd, bestmv, var_params, mv_cost_params, sse1,
                                    distortion);
     }
-#if CONFIG_VQ_MVD_CODING
   }
-#endif  // CONFIG_VQ_MVD_CODING
 
   MV iter_center_mv = start_mv;
   const int cand_pos[4][2] = {
@@ -4034,7 +3930,6 @@ int adaptive_mvd_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
     { +1, 0 }   // down
   };
 
-#if CONFIG_VQ_MVD_CODING
   for (int curr_index = 1; curr_index <= MAX_AMVD_INDEX; curr_index++) {
     MV candidate_mv[2];
     int dummy = 0;
@@ -4062,48 +3957,6 @@ int adaptive_mvd_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
         break;
     }
   }
-#else
-  for (int iter = hstep; iter <= 256;) {
-    int dummy = 0;
-    MV candidate_mv[2];
-    // loop 4 directions, left, right, above, and right
-    for (int i = 0; i < 4; ++i) {
-      const MV cur_mvd = { cand_pos[i][0] * iter, cand_pos[i][1] * iter };
-      candidate_mv[0].row = iter_center_mv.row + cur_mvd.row;
-      candidate_mv[0].col = iter_center_mv.col + cur_mvd.col;
-
-      check_better(xd, cm, &candidate_mv[0], bestmv, mv_limits, var_params,
-                   mv_cost_params, &besterr, sse1, distortion, &dummy);
-    }
-
-    // fast encoder method to early terminate the MV search
-    // after searching [-2,+2] MV samples, if the best MV is still within
-    // [-1/2,1/2], stop the MV search
-    if (iter >= 16) {
-      if (abs(bestmv->row - start_mv.row) <= iter / 4 &&
-          abs(bestmv->col - start_mv.col) <= iter / 4)
-        break;
-    }
-
-    // allow integer and fractional MVD in (0,1]
-    if (iter < 8) iter += hstep;
-    // only allow integer MVD in (1,2]
-    else if (iter < 16)
-      iter += 8;
-    // only allow 4 integer MVD in (2,4]
-    else if (iter < 32)
-      iter += 16;
-    // only allow 8 sample integer MVD in (4,8]
-    else if (iter < 64)
-      iter += 32;
-    // only allow 16 sample integer MVD in (8,16]
-    else if (iter < 128)
-      iter += 64;
-    // only allow 32 sample integer MVD in (16,32]
-    else
-      iter += 128;
-  }
-#endif  // CONFIG_VQ_MVD_CODING
   return besterr;
 }
 
@@ -4114,10 +3967,6 @@ int av1_joint_amvd_motion_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
                                  int ref_idx, MV *other_mv, MV *best_other_mv,
                                  uint16_t *second_pred,
                                  InterPredParams *inter_pred_params) {
-#if !CONFIG_VQ_MVD_CODING
-  const int allow_hp_mvd = 0;
-  const int forced_stop = ms_params->forced_stop;
-#endif  // !CONFIG_VQ_MVD_CODING
   // const int iters_per_step = ms_params->iters_per_step;
   const MV_COST_PARAMS *mv_cost_params = &ms_params->mv_cost_params;
   const SUBPEL_SEARCH_VAR_PARAMS *var_params = &ms_params->var_params;
@@ -4131,21 +3980,10 @@ int av1_joint_amvd_motion_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
 
   set_amvd_mv_precision(mbmi, mbmi->max_mv_precision);
 
-#if !CONFIG_VQ_MVD_CODING
-  // How many steps to take. A round of 0 means fullpel search only, 1 means
-  // half-pel, and so on.
-  int round = AOMMIN(FULL_PEL - forced_stop, 3 - !allow_hp_mvd);
-  if (cm->features.cur_frame_force_integer_mv) round = 0;
-  int hstep = 8 >> round;  // Step size, initialized to 4/8=1/2 pel
-#endif                     //! CONFIG_VQ_MVD_CODING
   unsigned int besterr = INT_MAX;
-
-#if CONFIG_VQ_MVD_CODING
   MV this_mvd;
   get_adaptive_mvd_from_ref_mv(*start_mv, *mv_cost_params->ref_mv, &this_mvd);
   if (is_valid_amvd_mvd(this_mvd)) {
-#endif  // CONFIG_VQ_MVD_CODING
-
     *bestmv = *start_mv;
     *best_other_mv = *other_mv;
 
@@ -4156,9 +3994,7 @@ int av1_joint_amvd_motion_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
       besterr = setup_center_error(xd, bestmv, var_params, mv_cost_params, sse1,
                                    distortion);
     }
-#if CONFIG_VQ_MVD_CODING
   }
-#endif  // CONFIG_VQ_MVD_CODING
 
   MV iter_center_mv = *start_mv;
   const int cand_pos[4][2] = {
@@ -4177,7 +4013,6 @@ int av1_joint_amvd_motion_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
 
   other_ref_dist = same_side ? other_ref_dist : -other_ref_dist;
 
-#if CONFIG_VQ_MVD_CODING
   for (int curr_index = 1; curr_index <= MAX_AMVD_INDEX; curr_index++) {
     int dummy = 0;
     MV candidate_mv[2];
@@ -4222,64 +4057,6 @@ int av1_joint_amvd_motion_search(const AV1_COMMON *const cm, MACROBLOCKD *xd,
         break;
     }
   }
-#else
-  for (int iter = hstep; iter <= 256;) {
-    int dummy = 0;
-    MV candidate_mv[2];
-    // loop left, right, above, bottom directions
-    for (int i = 0; i < 4; ++i) {
-      const MV cur_mvd = { cand_pos[i][0] * iter, cand_pos[i][1] * iter };
-      MV other_mvd = { 0, 0 };
-      candidate_mv[0].row = iter_center_mv.row + cur_mvd.row;
-      candidate_mv[0].col = iter_center_mv.col + cur_mvd.col;
-
-      get_mv_projection(&other_mvd, cur_mvd, other_ref_dist, cur_ref_dist);
-      scale_other_mvd(&other_mvd, mbmi->jmvd_scale_mode, mbmi->mode);
-
-      candidate_mv[1].row = (int)(other_mv->row + other_mvd.row);
-      candidate_mv[1].col = (int)(other_mv->col + other_mvd.col);
-      if (av1_is_subpelmv_in_range(mv_limits, candidate_mv[1]) == 0) continue;
-      av1_enc_build_one_inter_predictor(second_pred, block_size_wide[bsize],
-                                        &candidate_mv[1], inter_pred_params);
-      check_better(xd, cm, &candidate_mv[0], bestmv, mv_limits, var_params,
-                   mv_cost_params, &besterr, sse1, distortion, &dummy);
-
-      // best mv on the other reference list
-      if (bestmv->row == candidate_mv[0].row &&
-          bestmv->col == candidate_mv[0].col) {
-        best_other_mv->row = candidate_mv[1].row;
-        best_other_mv->col = candidate_mv[1].col;
-      }
-    }
-    // fast encoder method to early terminate the MV search
-    // after searching [-2,+2] MV samples, if the best MV is still within
-    // [-1/2,1/2], stop the MV search
-    if (iter >= 16) {
-      if (abs(bestmv->row - start_mv->row) <= iter / 4 &&
-          abs(bestmv->col - start_mv->col) <= iter / 4)
-        break;
-    }
-
-    // allow integer and fractional MVD in (0,1]
-    if (iter < 8) iter += hstep;
-    // only allow integer MVD in (1,2]
-    else if (iter < 16)
-      iter += 8;
-    // only allow 4 integer MVD in (2,4]
-    else if (iter < 32)
-      iter += 16;
-    // only allow 8 sample integer MVD in (4,8]
-    else if (iter < 64)
-      iter += 32;
-    // only allow 16 sample integer MVD in (8,16]
-    else if (iter < 128)
-      iter += 64;
-    // only allow 32 sample integer MVD in (16,32]
-    else
-      iter += 128;
-  }
-#endif  // CONFIG_VQ_MVD_CODING
-
   return besterr;
 }
 
@@ -5170,7 +4947,6 @@ unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
   return bestmse;
 }
 
-#if CONFIG_DERIVED_MVD_SIGN
 // This function check if the MV adjust is required  for MVD sign derivation
 uint8_t need_mv_adjustment(MACROBLOCKD *xd, const AV1_COMMON *const cm,
                            MACROBLOCK *const x, MB_MODE_INFO *mbmi,
@@ -5274,7 +5050,6 @@ uint8_t need_mv_adjustment(MACROBLOCKD *xd, const AV1_COMMON *const cm,
   int sum_parity = sum_mvd & 0x1;
   return (last_sign == sum_parity) ? 0 : 1;
 }
-#endif  // CONFIG_DERIVED_MVD_SIGN
 
 #define MAX_WARP_DELTA_ITERS_EXT 14
 #define MAX_WARP_DELTA_ITERS 8

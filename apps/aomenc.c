@@ -491,9 +491,7 @@ const arg_def_t *av1_key_val_args[] = {
   &g_av1_codec_arg_defs.select_cfl_ds_filter,
   &g_av1_codec_arg_defs.enable_joint_mvd,
   &g_av1_codec_arg_defs.enable_refinemv,
-#if CONFIG_DERIVED_MVD_SIGN
   &g_av1_codec_arg_defs.enable_mvd_sign_derive,
-#endif  // CONFIG_DERIVED_MVD_SIGN
   &g_av1_codec_arg_defs.enable_parity_hiding,
   &g_av1_codec_arg_defs.enable_warp_causal,
   &g_av1_codec_arg_defs.enable_warp_delta,
@@ -679,9 +677,7 @@ static void init_config(cfg_options_t *config) {
   config->select_cfl_ds_filter = 3;
   config->enable_joint_mvd = 1;
   config->enable_refinemv = 1;
-#if CONFIG_DERIVED_MVD_SIGN
   config->enable_mvd_sign_derive = 1;
-#endif  // CONFIG_DERIVED_MVD_SIGN
   config->enable_flip_idtx = 1;
   config->enable_deblocking = 1;
   config->enable_cdef = 1;
@@ -1617,11 +1613,9 @@ static void show_stream_config(struct stream_state *stream,
           encoder_cfg->enable_joint_mvd);
   fprintf(stdout, "                               : RefineMV mode: (%d)\n",
           encoder_cfg->enable_refinemv);
-#if CONFIG_DERIVED_MVD_SIGN
   fprintf(stdout,
           "                               : MVD sign derivation mode: (%d)\n",
           encoder_cfg->enable_mvd_sign_derive);
-#endif  // CONFIG_DERIVED_MVD_SIGN
   fprintf(stdout,
           "                               : InterInterWedge (%d), "
           "InterIntraWedge (%d), RefFrameMv (%d)\n",

@@ -93,10 +93,10 @@ typedef struct {
   int is_adaptive_mvd;
   int is_ibc_cost;
 } MV_COST_PARAMS;
-#if CONFIG_DERIVED_MVD_SIGN
+
 int av1_mv_sign_cost(const int sign, const int comp, const MvCosts *mv_costs,
                      int weight, int round_bit, const int is_adaptive_mvd);
-#endif  // CONFIG_DERIVED_MVD_SIGN
+
 int av1_mv_bit_cost(const MV *mv, const MV *ref_mv,
                     const MvSubpelPrecision pb_mv_precision,
                     const MvCosts *mv_costs, int weight,
@@ -605,14 +605,12 @@ unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
                                   const int *pts_inref0, int total_samples,
                                   int8_t ref, WARP_SEARCH_METHOD search_method,
                                   int num_iterations);
-#if CONFIG_DERIVED_MVD_SIGN
 uint8_t need_mv_adjustment(MACROBLOCKD *xd, const AV1_COMMON *const cm,
                            MACROBLOCK *const x, MB_MODE_INFO *mbmi,
                            BLOCK_SIZE bsize, MV *mv_diffs, MV *ref_mvs,
                            MvSubpelPrecision pb_mv_precision,
                            int *num_signaled_mvd, int *start_signaled_mvd_idx,
                            int *num_nonzero_mvd);
-#endif  // CONFIG_DERIVED_MVD_SIGN
 
 // Returns 1 if able to select a good model, 0 if not
 int av1_pick_warp_delta(const AV1_COMMON *const cm, MACROBLOCKD *xd,
@@ -641,7 +639,6 @@ static INLINE void av1_set_fractional_mv(int_mv *fractional_best_mv) {
   }
 }
 
-#if CONFIG_DERIVED_MVD_SIGN
 static INLINE int is_valid_sign_mvd_single(const MV mvd,
                                            MvSubpelPrecision precision,
                                            const int is_adaptive_mvd,
@@ -663,7 +660,7 @@ static INLINE int is_valid_sign_mvd_single(const MV mvd,
 
   return (last_sign == (sum_mvd & 0x1));
 }
-#endif  // CONFIG_DERIVED_MVD_SIGN
+
 // This function convert the mv value to the target precision
 static INLINE int av1_lower_mv_limit(const int mv, const int shift) {
   int out = ((abs(mv) >> shift) << shift);

@@ -21,138 +21,8 @@
 #include "aom_dsp/aom_dsp_common.h"
 #include "aom_ports/bitops.h"
 #include "av1/common/reconinter.h"
-#if CONFIG_VQ_MVD_CODING
 #include "aom_dsp/binary_codes_writer.h"
-#else
-static void update_mv_component_stats_lower_precision(
-    int comp, nmv_component *mvcomp,
-#if CONFIG_DERIVED_MVD_SIGN
-    int skip_sign_coding,
-#endif  // CONFIG_DERIVED_MVD_SIGN
-    MvSubpelPrecision precision) {
-  assert(comp != 0);
-  int offset;
-  const int nonZero_offset = (1 << (MV_PRECISION_ONE_PEL - precision));
-  const int sign = comp < 0;
-  const int mag_int_mv = (abs(comp) >> 3) - nonZero_offset;
-  assert(mag_int_mv >= 0);
-  const int mv_class = av1_get_mv_class_low_precision(mag_int_mv, &offset);
-  int has_offset = (mv_class >= min_class_with_offset[precision]);
-  int start_lsb = MV_PRECISION_ONE_PEL - precision;
-  int mv_class_coded_value = mv_class;
-  // There is no valid value of MV_CLASS_1 for MV_PRECISION_FOUR_PEL. So
-  // shifting the mv_class value before coding
-  // There is no valid value of MV_CLASS_1 and MV_CLASS_2 for
-  // MV_PRECISION_8_PEL. So shifting the mv_class value before coding
-  if (precision == MV_PRECISION_FOUR_PEL && mv_class > MV_CLASS_1)
-    mv_class_coded_value -= 1;
-  else if (precision == MV_PRECISION_8_PEL && mv_class > MV_CLASS_2)
-    mv_class_coded_value -= 2;
 
-  const int num_mv_classes = MV_CLASSES - (precision <= MV_PRECISION_FOUR_PEL) -
-                             (precision <= MV_PRECISION_8_PEL);
-
-  // Sign
-#if CONFIG_DERIVED_MVD_SIGN
-  if (!skip_sign_coding) {
-#endif  // CONFIG_DERIVED_MVD_SIGN
-    update_cdf(mvcomp->sign_cdf, sign, 2);
-#if CONFIG_DERIVED_MVD_SIGN
-  }
-#endif  // CONFIG_DERIVED_MVD_SIGN
-
-  // Class
-  update_cdf(mvcomp->classes_cdf[av1_get_mv_class_context(precision)],
-             mv_class_coded_value, num_mv_classes);
-
-  // Integer bits
-  if (has_offset) {
-    const int n = (mv_class == MV_CLASS_0) ? 1 : mv_class;
-    for (int i = start_lsb; i < n; ++i)
-      update_cdf(mvcomp->bits_cdf[i], (offset >> i) & 1, 2);
-  }
-}
-
-static void update_mv_component_stats(int comp, nmv_component *mvcomp,
-                                      int is_adaptive_mvd,
-#if CONFIG_DERIVED_MVD_SIGN
-                                      int skip_sign_coding,
-#endif  // CONFIG_DERIVED_MVD_SIGN
-                                      MvSubpelPrecision precision) {
-  assert(comp != 0);
-  if (precision < MV_PRECISION_ONE_PEL) {
-    assert(!is_adaptive_mvd);
-    update_mv_component_stats_lower_precision(comp, mvcomp,
-#if CONFIG_DERIVED_MVD_SIGN
-                                              skip_sign_coding,
-#endif  // CONFIG_DERIVED_MVD_SIGN
-                                              precision);
-    return;
-  }
-
-  int offset;
-  const int sign = comp < 0;
-  const int mag = sign ? -comp : comp;
-  const int mv_class = av1_get_mv_class(mag - 1, &offset);
-  const int d = offset >> 3;         // int mv data
-  const int fr = (offset >> 1) & 3;  // fractional mv data
-  const int hp = offset & 1;         // high precision mv data
-
-// Sign
-#if CONFIG_DERIVED_MVD_SIGN
-  if (!skip_sign_coding) {
-#endif
-    update_cdf(mvcomp->sign_cdf, sign, 2);
-#if CONFIG_DERIVED_MVD_SIGN
-  }
-#endif
-
-  // Class
-  update_cdf(is_adaptive_mvd
-                 ? mvcomp->amvd_classes_cdf
-                 : mvcomp->classes_cdf[av1_get_mv_class_context(precision)],
-             mv_class, MV_CLASSES);
-
-  int use_mv_class_offset = 1;
-  if (is_adaptive_mvd && (mv_class != MV_CLASS_0 || d > 0)) {
-    assert(fr == 3 && hp == 1);
-    precision = MV_PRECISION_ONE_PEL;
-  }
-  if (mv_class > MV_CLASS_0 && is_adaptive_mvd) use_mv_class_offset = 0;
-  if (use_mv_class_offset) {
-    // Integer bits
-    if (mv_class == MV_CLASS_0) {
-      update_cdf(mvcomp->class0_cdf, d, CLASS0_SIZE);
-    } else {
-      const int n = mv_class + CLASS0_BITS - 1;  // number of bits
-      for (int i = 0; i < n; ++i)
-        update_cdf(mvcomp->bits_cdf[i], (d >> i) & 1, 2);
-    }
-  }
-  // Fractional bits
-  // 1/2 and 1/4 pel bits
-  if (precision > MV_PRECISION_ONE_PEL) {
-    aom_cdf_prob *fp_cdf = mv_class == MV_CLASS_0 ? mvcomp->class0_fp_cdf[d][0]
-                                                  : mvcomp->fp_cdf[0];
-    update_cdf(fp_cdf, fr >> 1, 2);
-    if (precision > MV_PRECISION_HALF_PEL) {
-      fp_cdf = mv_class == MV_CLASS_0 ? mvcomp->class0_fp_cdf[d][1 + (fr >> 1)]
-                                      : mvcomp->fp_cdf[1 + (fr >> 1)];
-      update_cdf(fp_cdf, fr & 1, 2);
-    }
-  }
-
-  // High precision bit
-  // 1/8 pel bit
-  if (precision > MV_PRECISION_QTR_PEL) {
-    aom_cdf_prob *hp_cdf =
-        mv_class == MV_CLASS_0 ? mvcomp->class0_hp_cdf : mvcomp->hp_cdf;
-    update_cdf(hp_cdf, hp, 2);
-  }
-}
-#endif  // CONFIG_VQ_MVD_CODING
-
-#if CONFIG_VQ_MVD_CODING
 static void update_truncated_unary(nmv_context *mvctx,
                                    const int max_coded_value, int coded_value,
                                    int num_of_ctx, int is_low_class) {
@@ -253,17 +123,6 @@ static void av1_encode_vq_amvd(AV1_COMP *cpi, MV mv, aom_writer *w,
                      MAX_AMVD_INDEX);
   }
 
-#if !CONFIG_DERIVED_MVD_SIGN
-  // Encode signs
-  for (int component = 0; component < 2; component++) {
-    int value = component == 0 ? mv_diff_index.row : mv_diff_index.col;
-    if (value) {
-      int sign = value < 0;
-      aom_write_symbol(w, sign, mvctx->comps[component].sign_cdf, 2);
-    }
-  }
-#endif
-
   // If auto_mv_step_size is enabled then keep track of the largest
   // motion vector component used.
   if (cpi && cpi->sf.mv_sf.auto_mv_step_size) {
@@ -300,17 +159,6 @@ static void av1_update_vq_amvd(nmv_context *mvctx, const MV mv_diff) {
     assert(mv_diff.col == get_mvd_from_amvd_index(mv_diff_index.col));
     update_cdf(mvctx->comps[1].amvd_indices_cdf, mag - 1, MAX_AMVD_INDEX);
   }
-
-#if !CONFIG_DERIVED_MVD_SIGN
-  // Encode signs
-  for (int component = 0; component < 2; component++) {
-    int value = component == 0 ? mv_diff_index.row : mv_diff_index.col;
-    if (value) {
-      int sign = value < 0;
-      update_cdf(mvctx->comps[component].sign_cdf, sign, 2);
-    }
-  }
-#endif
 }
 
 void av1_encode_mv(AV1_COMP *cpi, MV mv, aom_writer *w, nmv_context *mvctx,
@@ -432,17 +280,6 @@ void av1_encode_mv(AV1_COMP *cpi, MV mv, aom_writer *w, nmv_context *mvctx,
     }
   }
 
-#if !CONFIG_DERIVED_MVD_SIGN
-  // Encode signs
-  for (int component = 0; component < 2; component++) {
-    int value = component == 0 ? mv_diff.row : mv_diff.col;
-    if (value) {
-      int sign = value < 0;
-      aom_write_symbol(w, sign, mvctx->comps[component].sign_cdf, 2);
-    }
-  }
-#endif
-
   // If auto_mv_step_size is enabled then keep track of the largest
   // motion vector component used.
   if (cpi && cpi->sf.mv_sf.auto_mv_step_size) {
@@ -562,392 +399,7 @@ void av1_update_mv_stats(nmv_context *mvctx, const MV mv_diff,
                  scaled_mv_diff.col > maximum_pair_index, 2);
     }
   }
-
-#if !CONFIG_DERIVED_MVD_SIGN
-  // Encode signs
-  for (int component = 0; component < 2; component++) {
-    int value = component == 0 ? mv_diff.row : mv_diff.col;
-    if (value) {
-      int sign = value < 0;
-      update_cdf(mvctx->comps[component].sign_cdf, sign, 2);
-    }
-  }
-#endif
 }
-
-#endif  // CONFIG_VQ_MVD_CODING
-#if !CONFIG_VQ_MVD_CODING
-void av1_update_mv_stats(
-#if CONFIG_DERIVED_MVD_SIGN
-    MV mv_diff, int skip_sign_coding,
-#else
-    MV mv, MV ref,
-#endif
-    nmv_context *mvctx, int is_adaptive_mvd, MvSubpelPrecision precision) {
-
-#if CONFIG_VQ_MVD_CODING
-  assert(is_adaptive_mvd);
-#endif
-#if CONFIG_DERIVED_MVD_SIGN
-  const MV diff = { mv_diff.row, mv_diff.col };
-#else
-  if (!is_adaptive_mvd && precision < MV_PRECISION_HALF_PEL)
-    lower_mv_precision(&ref, precision);
-  const MV diff = { mv.row - ref.row, mv.col - ref.col };
-  assert(is_this_mv_precision_compliant(diff, precision));
-#endif  // CONFIG_DERIVED_MVD_SIGN
-
-  const MV_JOINT_TYPE j = av1_get_mv_joint(&diff);
-
-  if (is_adaptive_mvd) assert(j < MV_JOINTS - 1);
-  if (is_adaptive_mvd)
-    update_cdf(mvctx->amvd_joints_cdf, j, MV_JOINTS);
-  else
-    update_cdf(mvctx->joints_cdf, j, MV_JOINTS);
-
-  if (mv_joint_vertical(j))
-    update_mv_component_stats(diff.row, &mvctx->comps[0], is_adaptive_mvd,
-#if CONFIG_DERIVED_MVD_SIGN
-                              skip_sign_coding,
-#endif  // CONFIG_DERIVED_MVD_SIGN
-                              precision);
-
-  if (mv_joint_horizontal(j))
-    update_mv_component_stats(diff.col, &mvctx->comps[1], is_adaptive_mvd,
-#if CONFIG_DERIVED_MVD_SIGN
-                              skip_sign_coding,
-#endif  // CONFIG_DERIVED_MVD_SIGN
-                              precision);
-}
-
-static void encode_mv_component_low_precisions(aom_writer *w, int comp,
-                                               nmv_component *mvcomp,
-                                               MvSubpelPrecision precision) {
-  int offset;
-  const int nonZero_offset = (1 << (MV_PRECISION_ONE_PEL - precision));
-#if !CONFIG_DERIVED_MVD_SIGN
-  const int sign = comp < 0;
-#endif  //! CONFIG_DERIVED_MVD_SIGN
-
-  const int mag_int_mv = (abs(comp) >> 3) - nonZero_offset;
-  assert(mag_int_mv >= 0);
-  const int mv_class = av1_get_mv_class_low_precision(mag_int_mv, &offset);
-  int has_offset = (mv_class >= min_class_with_offset[precision]);
-
-  int start_lsb = MV_PRECISION_ONE_PEL - precision;
-  int mv_class_coded_value = mv_class;
-  // There is no valid value of MV_CLASS_1 for MV_PRECISION_FOUR_PEL. So
-  // shifting the mv_class value before coding
-  // There is no valid value of MV_CLASS_1 and MV_CLASS_2 for
-  // MV_PRECISION_8_PEL. So shifting the mv_class value before coding
-  if (precision == MV_PRECISION_FOUR_PEL && mv_class > MV_CLASS_1)
-    mv_class_coded_value -= 1;
-  else if (precision == MV_PRECISION_8_PEL && mv_class > MV_CLASS_2)
-    mv_class_coded_value -= 2;
-
-  const int num_mv_classes = MV_CLASSES - (precision <= MV_PRECISION_FOUR_PEL) -
-                             (precision <= MV_PRECISION_8_PEL);
-  // Sign
-#if !CONFIG_DERIVED_MVD_SIGN
-  aom_write_symbol(w, sign, mvcomp->sign_cdf, 2);
-#endif  //! CONFIG_DERIVED_MVD_SIGN
-
-  // Class
-  aom_write_symbol(w, mv_class_coded_value,
-                   mvcomp->classes_cdf[av1_get_mv_class_context(precision)],
-                   num_mv_classes);
-
-  // Integer bits
-  if (has_offset) {
-    int i;
-    const int n = (mv_class == MV_CLASS_0) ? 1 : mv_class;
-    for (i = start_lsb; i < n; ++i)
-      aom_write_symbol(w, (offset >> i) & 1, mvcomp->bits_cdf[i], 2);
-  }
-}
-
-static void encode_mv_component(aom_writer *w, int comp, nmv_component *mvcomp,
-                                int is_adaptive_mvd,
-                                MvSubpelPrecision precision) {
-  assert(comp != 0);
-  if (precision < MV_PRECISION_ONE_PEL) {
-    assert(!is_adaptive_mvd);
-    encode_mv_component_low_precisions(w, comp, mvcomp, precision);
-    return;
-  }
-
-  int offset;
-  const int sign = comp < 0;
-  const int mag = sign ? -comp : comp;
-  const int mv_class = av1_get_mv_class(mag - 1, &offset);
-  const int d = offset >> 3;         // int mv data
-  const int fr = (offset >> 1) & 3;  // fractional mv data
-  const int hp = offset & 1;         // high precision mv data
-
-  // Sign
-#if !CONFIG_DERIVED_MVD_SIGN
-  aom_write_symbol(w, sign, mvcomp->sign_cdf, 2);
-#endif  //! CONFIG_DERIVED_MVD_SIGN
-
-  // Class
-  aom_write_symbol(
-      w, mv_class,
-      is_adaptive_mvd
-          ? mvcomp->amvd_classes_cdf
-          : mvcomp->classes_cdf[av1_get_mv_class_context(precision)],
-
-      MV_CLASSES);
-
-  int use_mv_class_offset = 1;
-  if (is_adaptive_mvd && (mv_class != MV_CLASS_0 || d > 0)) {
-    assert(fr == 3 && hp == 1);
-    precision = MV_PRECISION_ONE_PEL;
-  }
-  if (mv_class > MV_CLASS_0 && is_adaptive_mvd) use_mv_class_offset = 0;
-  if (use_mv_class_offset) {
-    // Integer bits
-    if (mv_class == MV_CLASS_0) {
-      aom_write_symbol(w, d, mvcomp->class0_cdf, CLASS0_SIZE);
-    } else {
-      int i;
-      const int n = mv_class + CLASS0_BITS - 1;  // number of bits
-      for (i = 0; i < n; ++i)
-        aom_write_symbol(w, (d >> i) & 1, mvcomp->bits_cdf[i], 2);
-    }
-  }
-
-  // The 1/2 and 1/4 pel bits
-
-  if (precision > MV_PRECISION_ONE_PEL) {
-    aom_write_symbol(w, fr >> 1,
-                     mv_class == MV_CLASS_0 ? mvcomp->class0_fp_cdf[d][0]
-                                            : mvcomp->fp_cdf[0],
-                     2);
-    if (precision > MV_PRECISION_HALF_PEL)
-      aom_write_symbol(w, fr & 1,
-                       mv_class == MV_CLASS_0
-                           ? mvcomp->class0_fp_cdf[d][1 + (fr >> 1)]
-                           : mvcomp->fp_cdf[1 + (fr >> 1)],
-                       2);
-    // High precision bit
-    // The 1/8 pel bits
-    if (precision > MV_PRECISION_QTR_PEL)
-      aom_write_symbol(
-          w, hp,
-          mv_class == MV_CLASS_0 ? mvcomp->class0_hp_cdf : mvcomp->hp_cdf, 2);
-  }
-}
-
-static void build_nmv_component_cost_table_low_precision(
-    int *mvcost, const nmv_component *const mvcomp,
-    MvSubpelPrecision pb_mv_precision
-#if CONFIG_DERIVED_MVD_SIGN
-    ,
-    int *mv_sign_cost
-#endif  // CONFIG_DERIVED_MVD_SIGN
-) {
-  int i, v;
-  int sign_cost[2], class_cost[MV_CLASSES];
-  int bits_cost[MV_OFFSET_BITS][2];
-
-  assert(pb_mv_precision < MV_PRECISION_ONE_PEL);
-
-  av1_cost_tokens_from_cdf(sign_cost, mvcomp->sign_cdf, NULL);
-#if CONFIG_DERIVED_MVD_SIGN
-  mv_sign_cost[0] = sign_cost[0];
-  mv_sign_cost[1] = sign_cost[1];
-#endif  // CONFIG_DERIVED_MVD_SIGN
-
-  av1_cost_tokens_from_cdf(
-      class_cost,
-      mvcomp->classes_cdf[av1_get_mv_class_context(pb_mv_precision)], NULL);
-
-  for (i = 0; i < MV_OFFSET_BITS; ++i) {
-    av1_cost_tokens_from_cdf(bits_cost[i], mvcomp->bits_cdf[i], NULL);
-  }
-
-  mvcost[0] = 0;
-  for (v = 1; v <= MV_MAX; ++v) {
-    int cost = 0;
-
-    const int round = MV_PRECISION_ONE_EIGHTH_PEL - pb_mv_precision;
-    int v_reduced = (v >> round) << round;
-    if (v != v_reduced) {
-      mvcost[v] = mvcost[-v] = INT_MAX;
-      continue;
-    }
-
-    int offset;
-    const int nonZero_offset = (1 << (MV_PRECISION_ONE_PEL - pb_mv_precision));
-    const int mag_int_mv = (v >> 3) - nonZero_offset;
-    assert(mag_int_mv >= 0);
-    const int mv_class = av1_get_mv_class_low_precision(mag_int_mv, &offset);
-    const int has_offset = (mv_class >= min_class_with_offset[pb_mv_precision]);
-    const int start_lsb = MV_PRECISION_ONE_PEL - pb_mv_precision;
-
-    int mv_class_coded_value = mv_class;
-    // There is no valid value of MV_CLASS_1 for MV_PRECISION_FOUR_PEL. So
-    // shifting the mv_class value before coding
-    // There is no valid value of MV_CLASS_1 and MV_CLASS_2 for
-    // MV_PRECISION_8_PEL. So shifting the mv_class value before coding
-    if (pb_mv_precision == MV_PRECISION_FOUR_PEL && mv_class > MV_CLASS_1)
-      mv_class_coded_value -= 1;
-    else if (pb_mv_precision == MV_PRECISION_8_PEL && mv_class > MV_CLASS_2)
-      mv_class_coded_value -= 2;
-
-    cost += class_cost[mv_class_coded_value];
-    if (has_offset) {
-      const int b = (mv_class == MV_CLASS_0) ? 1 : mv_class;
-      for (i = start_lsb; i < b; ++i) cost += bits_cost[i][((offset >> i) & 1)];
-    }
-    mvcost[v] = cost + sign_cost[0];
-    mvcost[-v] = cost + sign_cost[1];
-  }
-}
-static void build_nmv_component_cost_table(int *mvcost,
-                                           const nmv_component *const mvcomp,
-                                           MvSubpelPrecision pb_mv_precision,
-                                           int is_adaptive_mvd
-#if CONFIG_DERIVED_MVD_SIGN
-                                           ,
-                                           int *mv_sign_cost
-#endif  // CONFIG_DERIVED_MVD_SIGN
-) {
-  int i, v;
-  int sign_cost[2], class_cost[MV_CLASSES], class0_cost[CLASS0_SIZE];
-  int bits_cost[MV_OFFSET_BITS][2];
-  int amvd_class_cost[MV_CLASSES];
-  int class0_fp_cost[CLASS0_SIZE][3][2], fp_cost[3][2];
-  int class0_hp_cost[2], hp_cost[2];
-  av1_cost_tokens_from_cdf(sign_cost, mvcomp->sign_cdf, NULL);
-#if CONFIG_DERIVED_MVD_SIGN
-  mv_sign_cost[0] = sign_cost[0];
-  mv_sign_cost[1] = sign_cost[1];
-#endif  // CONFIG_DERIVED_MVD_SIGN
-  av1_cost_tokens_from_cdf(
-      class_cost,
-      mvcomp->classes_cdf[av1_get_mv_class_context(pb_mv_precision)], NULL);
-
-  av1_cost_tokens_from_cdf(amvd_class_cost, mvcomp->amvd_classes_cdf, NULL);
-  av1_cost_tokens_from_cdf(class0_cost, mvcomp->class0_cdf, NULL);
-  for (i = 0; i < MV_OFFSET_BITS; ++i) {
-    av1_cost_tokens_from_cdf(bits_cost[i], mvcomp->bits_cdf[i], NULL);
-  }
-
-  for (i = 0; i < CLASS0_SIZE; ++i) {
-    for (int j = 0; j < 3; ++j)
-      av1_cost_tokens_from_cdf(class0_fp_cost[i][j],
-                               mvcomp->class0_fp_cdf[i][j], NULL);
-  }
-  for (int j = 0; j < 3; ++j)
-    av1_cost_tokens_from_cdf(fp_cost[j], mvcomp->fp_cdf[j], NULL);
-
-  if (pb_mv_precision > MV_PRECISION_QTR_PEL) {
-    av1_cost_tokens_from_cdf(class0_hp_cost, mvcomp->class0_hp_cdf, NULL);
-    av1_cost_tokens_from_cdf(hp_cost, mvcomp->hp_cdf, NULL);
-  }
-
-  mvcost[0] = 0;
-  for (v = 1; v <= MV_MAX; ++v) {
-    int z, c, o, d, e, f, cost = 0;
-    const int round = MV_PRECISION_ONE_EIGHTH_PEL - pb_mv_precision;
-    int v_reduced = (v >> round) << round;
-    if (v != v_reduced) {
-      mvcost[v] = mvcost[-v] = (INT_MAX >> 2);  // initialize a large number
-      continue;
-    }
-    z = v - 1;
-    c = av1_get_mv_class(z, &o);
-    cost += is_adaptive_mvd ? amvd_class_cost[c] : class_cost[c];
-    d = (o >> 3);     /* int mv data */
-    f = (o >> 1) & 3; /* fractional pel mv data */
-    e = (o & 1);      /* high precision mv data */
-
-    int use_mv_class_offset = 1;
-    if (is_adaptive_mvd && (c != MV_CLASS_0 || d > 0)) {
-      pb_mv_precision = MV_PRECISION_ONE_PEL;
-    }
-    if (c > MV_CLASS_0 && is_adaptive_mvd) use_mv_class_offset = 0;
-    if (use_mv_class_offset) {
-      if (c == MV_CLASS_0) {
-        cost += class0_cost[d];
-      } else {
-        const int b = c + CLASS0_BITS - 1; /* number of bits */
-        for (i = 0; i < b; ++i) cost += bits_cost[i][((d >> i) & 1)];
-      }
-    }
-
-    if (pb_mv_precision > MV_PRECISION_ONE_PEL) {
-      if (c == MV_CLASS_0) {
-        cost += class0_fp_cost[d][0][f >> 1];
-        if (pb_mv_precision > MV_PRECISION_HALF_PEL)
-          cost += class0_fp_cost[d][1 + (f >> 1)][f & 1];
-      } else {
-        cost += fp_cost[0][f >> 1];
-        if (pb_mv_precision > MV_PRECISION_HALF_PEL)
-          cost += fp_cost[1 + (f >> 1)][f & 1];
-      }
-
-      if (pb_mv_precision > MV_PRECISION_QTR_PEL) {
-        if (c == MV_CLASS_0) {
-          cost += class0_hp_cost[e];
-        } else {
-          cost += hp_cost[e];
-        }
-      }
-    }
-    mvcost[v] = cost + sign_cost[0];
-    mvcost[-v] = cost + sign_cost[1];
-  }
-}
-
-void av1_encode_mv(AV1_COMP *cpi, aom_writer *w, MV mv,
-#if CONFIG_DERIVED_MVD_SIGN
-                   const MV mv_diff,
-#else
-                   MV ref,
-#endif  // CONFIG_DERIVED_MVD_SIGN
-                   nmv_context *mvctx, MvSubpelPrecision pb_mv_precision) {
-  const AV1_COMMON *cm = &cpi->common;
-  const MACROBLOCK *const x = &cpi->td.mb;
-  const MACROBLOCKD *const xd = &x->e_mbd;
-  MB_MODE_INFO *mbmi = xd->mi[0];
-  const int is_adaptive_mvd = enable_adaptive_mvd_resolution(cm, mbmi);
-
-#if CONFIG_DERIVED_MVD_SIGN
-  const MV diff = mv_diff;
-#else
-  if (!is_adaptive_mvd && pb_mv_precision < MV_PRECISION_HALF_PEL)
-    lower_mv_precision(&ref, pb_mv_precision);
-  const MV diff = { mv.row - ref.row, mv.col - ref.col };
-#endif  // CONFIG_DERIVED_MVD_SIGN
-  assert(is_this_mv_precision_compliant(diff, pb_mv_precision));
-
-  const MV_JOINT_TYPE j = av1_get_mv_joint(&diff);
-
-  if (is_adaptive_mvd) {
-    assert(j < MV_JOINTS - 1);
-  }
-  if (is_adaptive_mvd)
-    aom_write_symbol(w, j, mvctx->amvd_joints_cdf, MV_JOINTS);
-  else
-    aom_write_symbol(w, j, mvctx->joints_cdf, MV_JOINTS);
-  if (mv_joint_vertical(j))
-    encode_mv_component(w, diff.row, &mvctx->comps[0], is_adaptive_mvd,
-                        pb_mv_precision);
-  if (mv_joint_horizontal(j))
-    encode_mv_component(w, diff.col, &mvctx->comps[1], is_adaptive_mvd,
-                        pb_mv_precision);
-
-  // If auto_mv_step_size is enabled then keep track of the largest
-  // motion vector component used.
-  if (cpi->sf.mv_sf.auto_mv_step_size) {
-    int maxv = AOMMAX(abs(mv.row), abs(mv.col)) >> 3;
-    cpi->mv_search_params.max_mv_magnitude =
-        AOMMAX(maxv, cpi->mv_search_params.max_mv_magnitude);
-  }
-}
-#endif  // !CONFIG_VQ_MVD_CODING
 
 void av1_encode_dv(aom_writer *w, const MV *mv, const MV *ref,
                    nmv_context *mvctx, MvSubpelPrecision pb_mv_precision) {
@@ -958,20 +410,10 @@ void av1_encode_dv(aom_writer *w, const MV *mv, const MV *ref,
                     mv->col - low_prec_ref_mv.col };
   assert(is_this_mv_precision_compliant(diff, pb_mv_precision));
 
-#if CONFIG_VQ_MVD_CODING
   const MV dummy = { 0, 0 };
   av1_encode_mv(NULL, dummy, w, mvctx, diff, pb_mv_precision, 0);
-#else
-  const MV_JOINT_TYPE j = av1_get_mv_joint(&diff);
-  aom_write_symbol(w, j, mvctx->joints_cdf, MV_JOINTS);
-  if (mv_joint_vertical(j))
-    encode_mv_component(w, diff.row, &mvctx->comps[0], 0, MV_PRECISION_ONE_PEL);
-
-  if (mv_joint_horizontal(j))
-    encode_mv_component(w, diff.col, &mvctx->comps[1], 0, MV_PRECISION_ONE_PEL);
-#endif  // CONFIG_VQ_MVD_CODING
 }
-#if CONFIG_VQ_MVD_CODING
+
 void av1_build_vq_amvd_nmv_cost_table(MvCosts *mv_costs,
                                       const nmv_context *ctx) {
   int amvd_joints_costs[MV_JOINTS];
@@ -1111,14 +553,13 @@ void av1_build_vq_nmv_cost_table(MvCosts *mv_costs, const nmv_context *ctx,
     }
   }
 
-#if !CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
   if (!is_ibc) {
     for (int i = 0; i < 2; i++) {
       mv_costs->nmv_sign_cost[i][0] = av1_cost_literal(1);
       mv_costs->nmv_sign_cost[i][1] = av1_cost_literal(1);
     }
   }
-#endif  //! CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
+
   int max_shell_idx = (2 * MV_MAX) >> start_lsb;
 
 #ifndef NDEBUG
@@ -1229,52 +670,6 @@ void av1_build_vq_nmv_cost_table(MvCosts *mv_costs, const nmv_context *ctx,
   }  // for (int shell_index = 0; shell_index <= max_shell_idx;
      // shell_index++)
 }
-#else
-void av1_build_nmv_cost_table(int *mvjoint, int *mvcost[2],
-                              const nmv_context *ctx,
-                              MvSubpelPrecision precision, int is_adaptive_mvd
-#if CONFIG_DERIVED_MVD_SIGN
-                              ,
-                              int mv_sign_cost[2][2]
-#endif
-) {
-  av1_cost_tokens_from_cdf(
-      mvjoint, is_adaptive_mvd ? ctx->amvd_joints_cdf : ctx->joints_cdf, NULL);
-
-  if (precision < MV_PRECISION_ONE_PEL) {
-    assert(!is_adaptive_mvd);
-    build_nmv_component_cost_table_low_precision(mvcost[0], &ctx->comps[0],
-                                                 precision
-#if CONFIG_DERIVED_MVD_SIGN
-                                                 ,
-                                                 &mv_sign_cost[0][0]
-#endif
-    );
-    build_nmv_component_cost_table_low_precision(mvcost[1], &ctx->comps[1],
-                                                 precision
-#if CONFIG_DERIVED_MVD_SIGN
-                                                 ,
-                                                 &mv_sign_cost[1][0]
-#endif
-    );
-  } else {
-    build_nmv_component_cost_table(mvcost[0], &ctx->comps[0], precision,
-                                   is_adaptive_mvd
-#if CONFIG_DERIVED_MVD_SIGN
-                                   ,
-                                   &mv_sign_cost[0][0]
-#endif
-    );
-    build_nmv_component_cost_table(mvcost[1], &ctx->comps[1], precision,
-                                   is_adaptive_mvd
-#if CONFIG_DERIVED_MVD_SIGN
-                                   ,
-                                   &mv_sign_cost[1][0]
-#endif
-    );
-  }
-}
-#endif  // CONFIG_VQ_MVD_CODING
 
 int_mv av1_get_ref_mv_from_stack(int ref_idx,
                                  const MV_REFERENCE_FRAME *ref_frame,

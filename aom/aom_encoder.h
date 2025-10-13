@@ -390,12 +390,10 @@ typedef struct cfg_options {
    */
   unsigned int enable_refinemv;
 
-#if CONFIG_DERIVED_MVD_SIGN
   /*!\brief enable mvd_sign_derive
    *
    */
   unsigned int enable_mvd_sign_derive;
-#endif  // CONFIG_DERIVED_MVD_SIGN
 
   /*!\brief enable flip and identity transform type
    *

@@ -36,9 +36,7 @@
 #include "av1/decoder/decodemv.h"
 
 #include "aom_dsp/aom_dsp_common.h"
-#if CONFIG_VQ_MVD_CODING
 #include "aom_dsp/binary_codes_reader.h"
-#endif  // CONFIG_VQ_MVD_CODING
 #include "aom_ports/bitops.h"
 #include "av1/common/gdf.h"
 
@@ -1473,25 +1471,10 @@ void av1_read_sec_tx_type(const AV1_COMMON *const cm, MACROBLOCKD *xd,
     }
   }
 }
-#if !CONFIG_VQ_MVD_CODING
-static INLINE void read_mv(aom_reader *r,
-#if CONFIG_DERIVED_MVD_SIGN
-                           MV *mv_diff,
-#else
-                           MV *mv, MV ref,
-#endif  // CONFIG_DERIVED_MVD_SIGN
-                           int is_adaptive_mvd, nmv_context *ctx,
-                           MvSubpelPrecision precision);
-#else
+
 static INLINE void read_mv(aom_reader *r, MV *mv_diff, int skip_sign_coding,
                            nmv_context *ctx, MvSubpelPrecision precision,
-                           int is_adaptive_mvd
-#if !CONFIG_DERIVED_MVD_SIGN
-                           ,
-                           MV *mv, MV ref
-#endif
-);
-#endif  // !CONFIG_VQ_MVD_CODING
+                           int is_adaptive_mvd);
 
 #if CONFIG_MV_VALUE_CLIP
 // Clip the MV to the integer value if it goes out of range
@@ -1516,29 +1499,9 @@ static INLINE int assign_dv(AV1_COMMON *cm, MACROBLOCKD *xd, int_mv *mv,
   if (mbmi->intrabc_mode == 1) {
     mv->as_int = ref_mv->as_int;
   } else {
-#if CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
     MV mv_diff = kZeroMv;
-#endif
-#if CONFIG_VQ_MVD_CODING
-    read_mv(r, &mv_diff, 1, &ec_ctx->ndvc, mbmi->pb_mv_precision, 0
-#if !CONFIG_DERIVED_MVD_SIGN
-            ,
-            &mv->as_mv, ref_mv->as_mv
-#endif
-    );
-#else
+    read_mv(r, &mv_diff, 1, &ec_ctx->ndvc, mbmi->pb_mv_precision, 0);
 
-    read_mv(r,
-#if CONFIG_DERIVED_MVD_SIGN
-            &mv_diff,
-#else
-            &mv->as_mv, ref_mv->as_mv,
-#endif  // CONFIG_DERIVED_MVD_SIGN
-            0, &ec_ctx->ndvc, mbmi->pb_mv_precision);
-
-#endif  //   CONFIG_VQ_MVD_CODING
-
-#if CONFIG_DERIVED_MVD_SIGN
     // Encode sign
     if (mv_diff.row) {
       int sign = aom_read_literal(r, 1, ACCT_INFO("sign"));
@@ -1556,7 +1519,6 @@ static INLINE int assign_dv(AV1_COMMON *cm, MACROBLOCKD *xd, int_mv *mv,
 
     mv->as_mv.row = low_prec_refmv.row + mv_diff.row;
     mv->as_mv.col = low_prec_refmv.col + mv_diff.col;
-#endif  // CONFIG_DERIVED_MVD_SIGN
   }
 
   assert(
@@ -2042,169 +2004,6 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
   }
 }
 
-#if !CONFIG_VQ_MVD_CODING
-// Read the MVD for the lower precision
-// this function is executed when the precision is less than integer pixel
-// precision
-static int read_mv_component_low_precision(aom_reader *r, nmv_component *mvcomp,
-                                           MvSubpelPrecision precision) {
-  int offset, mag;
-
-#if CONFIG_DERIVED_MVD_SIGN
-  const int sign = 0;
-#else
-  const int sign = aom_read_symbol(r, mvcomp->sign_cdf, 2, ACCT_INFO("sign"));
-#endif  // CONFIG_DERIVED_MVD_SIGN
-
-  const int num_mv_classes = MV_CLASSES - (precision <= MV_PRECISION_FOUR_PEL) -
-                             (precision <= MV_PRECISION_8_PEL);
-
-  int mv_class = aom_read_symbol(
-      r, mvcomp->classes_cdf[av1_get_mv_class_context(precision)],
-      num_mv_classes, ACCT_INFO("mv_class"));
-
-  if (precision <= MV_PRECISION_FOUR_PEL && mv_class >= MV_CLASS_1)
-    mv_class += (precision == MV_PRECISION_FOUR_PEL ? 1 : 2);
-
-  int has_offset = (mv_class >= min_class_with_offset[precision]);
-
-  assert(MV_PRECISION_ONE_PEL >= precision);
-  const int precision_diff = MV_PRECISION_ONE_PEL - precision;
-  const uint8_t start_lsb = (precision_diff >= 0) ? (uint8_t)precision_diff : 0;
-
-  // Integer part
-  if (!has_offset) {
-    mag = mv_class ? (1 << mv_class) : 0;  // int mv data
-  } else {
-    const int n = (mv_class == MV_CLASS_0) ? 1 : mv_class;
-    offset = 0;
-    for (int i = start_lsb; i < n; ++i)
-      offset |= aom_read_symbol(r, mvcomp->bits_cdf[i], 2, ACCT_INFO("offset"))
-                << i;
-    const int base = mv_class ? (1 << mv_class) : 0;
-    mag = (offset + base);  // int mv data
-  }
-
-  const int nonZero_offset = (1 << start_lsb);
-  mag = (mag + nonZero_offset) << 3;
-  return sign ? -mag : mag;
-}
-
-static int read_mv_component(aom_reader *r, nmv_component *mvcomp,
-                             int is_adaptive_mvd, MvSubpelPrecision precision) {
-  if (precision < MV_PRECISION_ONE_PEL) {
-    assert(!is_adaptive_mvd);
-    return read_mv_component_low_precision(r, mvcomp, precision);
-  }
-
-  int mag, d, fr, hp;
-#if CONFIG_DERIVED_MVD_SIGN
-  const int sign = 0;
-#else
-  const int sign = aom_read_symbol(r, mvcomp->sign_cdf, 2, ACCT_INFO("sign"));
-#endif  // CONFIG_DERIVED_MVD_SIGN
-
-  const int mv_class =
-      is_adaptive_mvd
-          ? aom_read_symbol(r, mvcomp->amvd_classes_cdf, MV_CLASSES,
-                            ACCT_INFO("mv_class", "amvd_classes_cdf"))
-          : aom_read_symbol(
-                r, mvcomp->classes_cdf[av1_get_mv_class_context(precision)],
-                MV_CLASSES, ACCT_INFO("mv_class", "classes_cdf"));
-
-  const int class0 = mv_class == MV_CLASS_0;
-
-  int use_mv_class_offset = 1;
-  if (mv_class > MV_CLASS_0 && is_adaptive_mvd) use_mv_class_offset = 0;
-  if (use_mv_class_offset) {
-    // Integer part
-    if (class0) {
-      d = aom_read_symbol(r, mvcomp->class0_cdf, CLASS0_SIZE,
-                          ACCT_INFO("class0_cdf"));
-      mag = 0;
-    } else {
-      const int n = mv_class + CLASS0_BITS - 1;  // number of bits
-      d = 0;
-      for (int i = 0; i < n; ++i)
-        d |= aom_read_symbol(r, mvcomp->bits_cdf[i], 2, ACCT_INFO("bits_cdf"))
-             << i;
-      mag = CLASS0_SIZE << (mv_class + 2);
-    }
-  } else {
-    const int n = mv_class + CLASS0_BITS - 1;  // number of bits
-    d = 0;
-    for (int i = 0; i < n; ++i) d |= 1 << i;
-    mag = CLASS0_SIZE << (mv_class + 2);
-  }
-
-  int use_subpel = 1;
-  if (is_adaptive_mvd) {
-    use_subpel &= class0;
-    use_subpel &= (d == 0);
-  }
-
-  if (precision > MV_PRECISION_ONE_PEL && use_subpel) {
-    // Fractional part
-    // 1/2 and 1/4 pel parts
-    fr = aom_read_symbol(
-             r, class0 ? mvcomp->class0_fp_cdf[d][0] : mvcomp->fp_cdf[0], 2,
-             ACCT_INFO("class0_fp_cdf"))
-         << 1;
-    fr +=
-        precision > MV_PRECISION_HALF_PEL
-            ? aom_read_symbol(r,
-                              class0 ? mvcomp->class0_fp_cdf[d][1 + (fr >> 1)]
-                                     : mvcomp->fp_cdf[1 + (fr >> 1)],
-                              2, ACCT_INFO(class0 ? "class0_fp_cdf" : "fp_cdf"))
-            : 1;
-    // 1/8 pel part (if hp is not used, the default value of the hp is 1)
-    hp = (precision > MV_PRECISION_QTR_PEL)
-             ? aom_read_symbol(
-                   r, class0 ? mvcomp->class0_hp_cdf : mvcomp->hp_cdf, 2,
-                   ACCT_INFO(class0 ? "class0_hp_cdf" : "hp_cdf"))
-             : 1;
-  } else {
-    fr = 3;
-    hp = 1;
-  }
-
-  // Result
-  mag += ((d << 3) | (fr << 1) | hp) + 1;
-  return sign ? -mag : mag;
-}
-static INLINE void read_mv(aom_reader *r,
-#if CONFIG_DERIVED_MVD_SIGN
-                           MV *mv_diff,
-#else
-                           MV *mv, MV ref,
-#endif  // CONFIG_DERIVED_MVD_SIGN
-                           int is_adaptive_mvd, nmv_context *ctx,
-                           MvSubpelPrecision precision) {
-  MV diff = kZeroMv;
-  const MV_JOINT_TYPE joint_type =
-      is_adaptive_mvd ? (MV_JOINT_TYPE)aom_read_symbol(
-                            r, ctx->amvd_joints_cdf, MV_JOINTS,
-                            ACCT_INFO("joint_type", "amvd_joints_cdf"))
-                      : (MV_JOINT_TYPE)aom_read_symbol(
-                            r, ctx->joints_cdf, MV_JOINTS,
-                            ACCT_INFO("joint_type", "joints_cdf"));
-  if (mv_joint_vertical(joint_type))
-    diff.row = read_mv_component(r, &ctx->comps[0], is_adaptive_mvd, precision);
-
-  if (mv_joint_horizontal(joint_type))
-    diff.col = read_mv_component(r, &ctx->comps[1], is_adaptive_mvd, precision);
-
-#if CONFIG_DERIVED_MVD_SIGN
-  mv_diff->row = diff.row;
-  mv_diff->col = diff.col;
-#else
-  if (!is_adaptive_mvd && precision < MV_PRECISION_HALF_PEL)
-    lower_mv_precision(&ref, precision);
-  mv->row = ref.row + diff.row;
-  mv->col = ref.col + diff.col;
-#endif  // CONFIG_DERIVED_MVD_SIGN
-}
-#else
 // Coding of col mvd for shell class 2
 static void read_truncated_unary_mvd(aom_reader *r, nmv_context *ctx,
                                      const int max_coded_value, int num_of_ctx,
@@ -2252,12 +2051,7 @@ static void read_tu_quasi_uniform(aom_reader *r, nmv_context *ctx,
   *scaled_mv_col = col;
 }
 // Read MVD for AMVD mode
-static INLINE void read_vq_amvd(aom_reader *r, MV *mv_diff, nmv_context *ctx
-#if !CONFIG_DERIVED_MVD_SIGN
-                                ,
-                                MV *mv, MV ref
-#endif
-) {
+static INLINE void read_vq_amvd(aom_reader *r, MV *mv_diff, nmv_context *ctx) {
   MV diff_index = kZeroMv;
 
   const MV_JOINT_TYPE joint_type = (MV_JOINT_TYPE)aom_read_symbol(
@@ -2283,42 +2077,13 @@ static INLINE void read_vq_amvd(aom_reader *r, MV *mv_diff, nmv_context *ctx
 
   mv_diff->row = diff.row;
   mv_diff->col = diff.col;
-#if !CONFIG_DERIVED_MVD_SIGN
-  // Decode signs
-  for (int component = 0; component < 2; component++) {
-    int value = component == 0 ? mv_diff->row : mv_diff->col;
-    if (value) {
-      int sign = aom_read_symbol(r, ctx->comps[component].sign_cdf, 2,
-                                 ACCT_INFO("sign"));
-      if (component == 0) {
-        mv_diff->row = sign ? -value : value;
-      } else {
-        mv_diff->col = sign ? -value : value;
-      }
-    }
-  }
-
-  mv->row = ref.row + mv_diff->row;
-  mv->col = ref.col + mv_diff->col;
-#endif  // CONFIG_DERIVED_MVD_SIGN
 }
 
 static INLINE void read_mv(aom_reader *r, MV *mv_diff, int skip_sign_coding,
                            nmv_context *ctx, MvSubpelPrecision precision,
-                           int is_adaptive_mvd
-#if !CONFIG_DERIVED_MVD_SIGN
-                           ,
-                           MV *mv, MV ref
-#endif
-) {
-
+                           int is_adaptive_mvd) {
   if (is_adaptive_mvd) {
-    read_vq_amvd(r, mv_diff, ctx
-#if !CONFIG_DERIVED_MVD_SIGN
-                 ,
-                 mv, ref
-#endif
-    );
+    read_vq_amvd(r, mv_diff, ctx);
     return;
   }
 
@@ -2460,36 +2225,8 @@ static INLINE void read_mv(aom_reader *r, MV *mv_diff, int skip_sign_coding,
   mv_diff->row = scaled_mv_diff.row << start_lsb;
   mv_diff->col = scaled_mv_diff.col << start_lsb;
 
-  // Decode signs
-#if !CONFIG_DERIVED_MVD_SIGN
-  for (int component = 0; component < 2; component++) {
-    int value = component == 0 ? mv_diff->row : mv_diff->col;
-    if (value) {
-      int sign = aom_read_symbol(r, ctx->comps[component].sign_cdf, 2,
-                                 ACCT_INFO("sign"));
-      if (component == 0) {
-        mv_diff->row = sign ? -value : value;
-      } else {
-        mv_diff->col = sign ? -value : value;
-      }
-    }
-  }
-
-  if (!is_adaptive_mvd && precision < MV_PRECISION_HALF_PEL)
-    lower_mv_precision(&ref, precision);
-  mv->row = ref.row + mv_diff->row;
-  mv->col = ref.col + mv_diff->col;
-#endif
-
-#if 0
-   static int counter = 0;
-   printf(" Decoder: counter = %d shell_index = %d \n", counter, shell_index);
-   counter++;
-#endif
-
   (void)skip_sign_coding;
 }
-#endif  // !CONFIG_VQ_MVD_CODING
 
 static REFERENCE_MODE read_block_reference_mode(AV1_COMMON *cm,
                                                 const MACROBLOCKD *xd,
@@ -2842,40 +2579,18 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
   }
   const int is_adaptive_mvd = enable_adaptive_mvd_resolution(cm, mbmi);
   assert(!(is_adaptive_mvd && is_pb_mv_precision_active(cm, mbmi, bsize)));
-#if CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
   MV mv_diff[2] = { kZeroMv, kZeroMv };
-#if CONFIG_DERIVED_MVD_SIGN
   int num_signaled_mvd = 0;
   int start_signaled_mvd_idx = 0;
   int is_joint_mv_mode = 0;
-#endif  // CONFIG_DERIVED_MVD_SIGN
-#endif  // CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
 
   switch (mode) {
     case WARP_NEWMV:
     case NEWMV: {
       nmv_context *const nmvc = &ec_ctx->nmvc;
-#if CONFIG_DERIVED_MVD_SIGN
       num_signaled_mvd = 1;
       start_signaled_mvd_idx = 0;
-#endif  // CONFIG_DERIVED_MVD_SIGN
-#if CONFIG_VQ_MVD_CODING
-      read_mv(r, &mv_diff[0], 1, nmvc, precision, is_adaptive_mvd
-#if !CONFIG_DERIVED_MVD_SIGN
-              ,
-              &mv[0].as_mv, ref_mv[0].as_mv
-#endif
-      );
-#else
-      read_mv(r,
-#if CONFIG_DERIVED_MVD_SIGN
-              &mv_diff[0],
-#else
-              &mv[0].as_mv, ref_mv[0].as_mv,
-#endif  // CONFIG_DERIVED_MVD_SIGN
-              is_adaptive_mvd, nmvc, precision);
-#endif  // CONFIG_VQ_MVD_CODING
-
+      read_mv(r, &mv_diff[0], 1, nmvc, precision, is_adaptive_mvd);
       break;
     }
     case NEARMV: {
@@ -2887,27 +2602,9 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
       mbmi->mv[0] = ref_mv[0];
       if (mbmi->warpmv_with_mvd_flag) {
         nmv_context *const nmvc = &ec_ctx->nmvc;
-#if CONFIG_DERIVED_MVD_SIGN
         num_signaled_mvd = 1;
         start_signaled_mvd_idx = 0;
-#endif  // CONFIG_DERIVED_MVD_SIGN
-
-#if CONFIG_VQ_MVD_CODING
-        read_mv(r, &mv_diff[0], 1, nmvc, precision, is_adaptive_mvd
-#if !CONFIG_DERIVED_MVD_SIGN
-                ,
-                &mv[0].as_mv, ref_mv[0].as_mv
-#endif
-        );
-#else
-        read_mv(r,
-#if CONFIG_DERIVED_MVD_SIGN
-                &mv_diff[0],
-#else
-                &mv[0].as_mv, ref_mv[0].as_mv,
-#endif  // CONFIG_DERIVED_MVD_SIGN
-                is_adaptive_mvd, nmvc, precision);
-#endif  // CONFIG_VQ_MVD_CODING
+        read_mv(r, &mv_diff[0], 1, nmvc, precision, is_adaptive_mvd);
       }
 
       break;
@@ -2929,28 +2626,11 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
     case NEW_NEWMV:
     case NEW_NEWMV_OPTFLOW: {
       assert(is_compound);
-#if CONFIG_DERIVED_MVD_SIGN
       num_signaled_mvd = 2;
       start_signaled_mvd_idx = 0;
-#endif  // CONFIG_DERIVED_MVD_SIGN
       for (int i = 0; i < 2; ++i) {
         nmv_context *const nmvc = &ec_ctx->nmvc;
-#if CONFIG_VQ_MVD_CODING
-        read_mv(r, &mv_diff[i], 1, nmvc, precision, is_adaptive_mvd
-#if !CONFIG_DERIVED_MVD_SIGN
-                ,
-                &mv[i].as_mv, ref_mv[i].as_mv
-#endif  //! CONFIG_DERIVED_MVD_SIGN
-        );
-#else
-        read_mv(r,
-#if CONFIG_DERIVED_MVD_SIGN
-                &mv_diff[i],
-#else
-                &mv[i].as_mv, ref_mv[i].as_mv,
-#endif  // CONFIG_DERIVED_MVD_SIGN
-                is_adaptive_mvd, nmvc, precision);
-#endif  // CONFIG_VQ_MVD_CODING
+        read_mv(r, &mv_diff[i], 1, nmvc, precision, is_adaptive_mvd);
       }
       break;
     }
@@ -2965,27 +2645,9 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
     case NEAR_NEWMV_OPTFLOW: {
       nmv_context *const nmvc = &ec_ctx->nmvc;
       mv[0].as_int = ref_mv[0].as_int;
-#if CONFIG_DERIVED_MVD_SIGN
       num_signaled_mvd = 1;
       start_signaled_mvd_idx = 1;
-#endif  // CONFIG_DERIVED_MVD_SIGN
-
-#if CONFIG_VQ_MVD_CODING
-      read_mv(r, &mv_diff[1], 1, nmvc, precision, is_adaptive_mvd
-#if !CONFIG_DERIVED_MVD_SIGN
-              ,
-              &mv[1].as_mv, ref_mv[1].as_mv
-#endif  //! CONFIG_DERIVED_MVD_SIGN
-      );
-#else
-      read_mv(r,
-#if CONFIG_DERIVED_MVD_SIGN
-              &mv_diff[1],
-#else
-              &mv[1].as_mv, ref_mv[1].as_mv,
-#endif  // CONFIG_DERIVED_MVD_SIGN
-              is_adaptive_mvd, nmvc, precision);
-#endif  // CONFIG_VQ_MVD_CODING
+      read_mv(r, &mv_diff[1], 1, nmvc, precision, is_adaptive_mvd);
       assert(is_compound);
       break;
     }
@@ -2994,26 +2656,9 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
       nmv_context *const nmvc = &ec_ctx->nmvc;
       assert(is_compound);
       mv[1].as_int = ref_mv[1].as_int;
-#if CONFIG_DERIVED_MVD_SIGN
       num_signaled_mvd = 1;
       start_signaled_mvd_idx = 0;
-#endif
-#if CONFIG_VQ_MVD_CODING
-      read_mv(r, &mv_diff[0], 1, nmvc, precision, is_adaptive_mvd
-#if !CONFIG_DERIVED_MVD_SIGN
-              ,
-              &mv[0].as_mv, ref_mv[0].as_mv
-#endif
-      );
-#else
-      read_mv(r,
-#if CONFIG_DERIVED_MVD_SIGN
-              &mv_diff[0],
-#else
-              &mv[0].as_mv, ref_mv[0].as_mv,
-#endif  // CONFIG_DERIVED_MVD_SIGN
-              is_adaptive_mvd, nmvc, precision);
-#endif  // CONFIG_VQ_MVD_CODING
+      read_mv(r, &mv_diff[0], 1, nmvc, precision, is_adaptive_mvd);
       break;
     }
     case GLOBAL_GLOBALMV: {
@@ -3036,49 +2681,11 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
       nmv_context *const nmvc = &ec_ctx->nmvc;
       assert(is_compound);
       mv[1 - jmvd_base_ref_list].as_int = ref_mv[1 - jmvd_base_ref_list].as_int;
-#if CONFIG_DERIVED_MVD_SIGN
       is_joint_mv_mode = 1;
       num_signaled_mvd = 1;
       start_signaled_mvd_idx = jmvd_base_ref_list;
-#endif  // CONFIG_DERIVED_MVD_SIGN
-#if CONFIG_VQ_MVD_CODING
       read_mv(r, &mv_diff[jmvd_base_ref_list], 1, nmvc, precision,
-              is_adaptive_mvd
-
-#if !CONFIG_DERIVED_MVD_SIGN
-              ,
-              &mv[jmvd_base_ref_list].as_mv, ref_mv[jmvd_base_ref_list].as_mv
-#endif
-      );
-#else
-      read_mv(r,
-#if CONFIG_DERIVED_MVD_SIGN
-              &mv_diff[jmvd_base_ref_list],
-#else
-              &mv[jmvd_base_ref_list].as_mv, ref_mv[jmvd_base_ref_list].as_mv,
-#endif  // CONFIG_DERIVED_MVD_SIGN
-              is_adaptive_mvd, nmvc, precision);
-#endif  // CONFIG_VQ_MVD_CODING
-
-#if !CONFIG_DERIVED_MVD_SIGN
-      sec_ref_dist = same_side ? sec_ref_dist : -sec_ref_dist;
-      MV other_mvd = { 0, 0 };
-      MV diff = { 0, 0 };
-
-      MV low_prec_refmv = ref_mv[jmvd_base_ref_list].as_mv;
-      if (!is_adaptive_mvd && precision < MV_PRECISION_HALF_PEL)
-        lower_mv_precision(&low_prec_refmv, precision);
-      diff.row = mv[jmvd_base_ref_list].as_mv.row - low_prec_refmv.row;
-      diff.col = mv[jmvd_base_ref_list].as_mv.col - low_prec_refmv.col;
-
-      get_mv_projection(&other_mvd, diff, sec_ref_dist, first_ref_dist);
-      scale_other_mvd(&other_mvd, mbmi->jmvd_scale_mode, mbmi->mode);
-      mv[1 - jmvd_base_ref_list].as_mv.row =
-          (int)(ref_mv[1 - jmvd_base_ref_list].as_mv.row + other_mvd.row);
-      mv[1 - jmvd_base_ref_list].as_mv.col =
-          (int)(ref_mv[1 - jmvd_base_ref_list].as_mv.col + other_mvd.col);
-#endif  //! CONFIG_DERIVED_MVD_SIGN
-
+              is_adaptive_mvd);
       break;
     }
     default: {
@@ -3086,7 +2693,6 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
     }
   }
 
-#if CONFIG_DERIVED_MVD_SIGN
   if (num_signaled_mvd > 0) {
     int last_ref = -1;
     int last_comp = -1;
@@ -3170,7 +2776,6 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
           (int)(ref_mv[1 - jmvd_base_ref_list].as_mv.col + other_mvd.col);
     }
   }
-#endif  // CONFIG_DERIVED_MVD_SIGN
 
 #if CONFIG_MV_VALUE_CLIP
   mv_clamp_to_integer(&mv[0].as_mv);

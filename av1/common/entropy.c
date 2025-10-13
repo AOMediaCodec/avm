@@ -108,7 +108,6 @@ static AOM_INLINE void reset_cdf_symbol_counter(aom_cdf_prob *cdf_ptr,
   } while (0)
 
 static AOM_INLINE void reset_nmv_counter(nmv_context *nmv) {
-#if CONFIG_VQ_MVD_CODING
 #if CONFIG_REDUCE_SYMBOL_SIZE
   RESET_CDF_COUNTER(nmv->joint_shell_set_cdf, 2);
   for (int prec = 0; prec < NUM_MV_PRECISIONS; prec++) {
@@ -149,30 +148,10 @@ static AOM_INLINE void reset_nmv_counter(nmv_context *nmv) {
   }
   RESET_CDF_COUNTER(nmv->col_mv_greater_flags_cdf, 2);
   RESET_CDF_COUNTER(nmv->col_mv_index_cdf, 2);
-#else
-  RESET_CDF_COUNTER(nmv->joints_cdf, 4);
-#endif  // CONFIG_VQ_MVD_CODING
 
   RESET_CDF_COUNTER(nmv->amvd_joints_cdf, 4);
   for (int i = 0; i < 2; i++) {
-#if !CONFIG_VQ_MVD_CODING
-    RESET_CDF_COUNTER(nmv->comps[i].classes_cdf[0], MV_CLASSES - 2);
-    RESET_CDF_COUNTER(nmv->comps[i].classes_cdf[1], MV_CLASSES - 1);
-    RESET_CDF_COUNTER(nmv->comps[i].classes_cdf[2], MV_CLASSES);
-    RESET_CDF_COUNTER(nmv->comps[i].classes_cdf[3], MV_CLASSES);
-    RESET_CDF_COUNTER(nmv->comps[i].classes_cdf[4], MV_CLASSES);
-    RESET_CDF_COUNTER(nmv->comps[i].classes_cdf[5], MV_CLASSES);
-    RESET_CDF_COUNTER(nmv->comps[i].classes_cdf[6], MV_CLASSES);
-    RESET_CDF_COUNTER(nmv->comps[i].amvd_classes_cdf, MV_CLASSES);
-    RESET_CDF_COUNTER(nmv->comps[i].class0_fp_cdf, 2);
-    RESET_CDF_COUNTER(nmv->comps[i].fp_cdf, 2);
-    RESET_CDF_COUNTER(nmv->comps[i].class0_hp_cdf, 2);
-    RESET_CDF_COUNTER(nmv->comps[i].hp_cdf, 2);
-    RESET_CDF_COUNTER(nmv->comps[i].class0_cdf, CLASS0_SIZE);
-    RESET_CDF_COUNTER(nmv->comps[i].bits_cdf, 2);
-#else
     RESET_CDF_COUNTER(nmv->comps[i].amvd_indices_cdf, MAX_AMVD_INDEX);
-#endif  // !CONFIG_VQ_MVD_CODING
   }
 }
 

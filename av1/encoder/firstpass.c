@@ -245,14 +245,9 @@ static AOM_INLINE void first_pass_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
   FULLPEL_MV this_best_mv;
   tmp_err = av1_full_pixel_search(start_mv, &ms_params, step_param, NULL,
                                   &this_best_mv, NULL);
-#if CONFIG_VQ_MVD_CODING
   assert(IMPLIES(!enable_adaptive_mvd_resolution(&cpi->common, xd->mi[0]),
                  is_this_mv_precision_compliant(
                      get_mv_from_fullmv(&this_best_mv), pb_mv_precision)));
-#else
-  assert(is_this_mv_precision_compliant(get_mv_from_fullmv(&this_best_mv),
-                                        pb_mv_precision));
-#endif  // CONFIG_VQ_MVD_CODING
 
   if (tmp_err < INT_MAX) {
     aom_variance_fn_ptr_t v_fn_ptr = cpi->fn_ptr[bsize];

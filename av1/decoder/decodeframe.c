@@ -7449,9 +7449,7 @@ void av1_read_sequence_header_beyond_av1(
           ? aom_rb_read_bit(rb)
           : 0;
   seq_params->enable_bru = aom_rb_read_bit(rb);
-#if CONFIG_DERIVED_MVD_SIGN
   seq_params->enable_mvd_sign_derive = aom_rb_read_bit(rb);
-#endif  // CONFIG_DERIVED_MVD_SIGN
   seq_params->enable_flex_mvres = aom_rb_read_bit(rb);
   seq_params->cfl_ds_filter_index =
       seq_params->monochrome ? 0 : aom_rb_read_literal(rb, 2);

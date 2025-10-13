@@ -19,7 +19,6 @@
 extern "C" {
 #endif
 
-#if CONFIG_VQ_MVD_CODING
 void av1_encode_mv(AV1_COMP *cpi, MV mv, aom_writer *w, nmv_context *mvctx,
                    const MV mv_diff, MvSubpelPrecision pb_mv_precision,
                    int is_adaptive_mvd);
@@ -31,31 +30,11 @@ void av1_build_vq_amvd_nmv_cost_table(MvCosts *mv_costs,
 void av1_build_vq_nmv_cost_table(MvCosts *mv_costs, const nmv_context *ctx,
                                  MvSubpelPrecision precision,
                                  IntraBCMvCosts *dv_costs, int is_ibc);
-#else
-void av1_encode_mv(AV1_COMP *cpi, aom_writer *w, MV mv,
-#if CONFIG_DERIVED_MVD_SIGN
-                   const MV mv_diff,
-#else
-                   MV ref,
-#endif  // CONFIG_DERIVED_MVD_SIGN
-                   nmv_context *mvctx, MvSubpelPrecision pb_mv_precision);
-void av1_update_mv_stats(
-#if CONFIG_DERIVED_MVD_SIGN
-    MV mv_diff, int skip_sign_coding,
-#else
-    MV mv, MV ref,
-#endif  // CONFIG_DERIVED_MVD_SIGN
-    nmv_context *mvctx, int is_adaptive_mvd, MvSubpelPrecision precision);
-#endif  // CONFIG_VQ_MVD_CODING
 
 void av1_build_nmv_cost_table(int *mvjoint, int *mvcost[2],
                               const nmv_context *mvctx,
-                              MvSubpelPrecision precision, int is_adaptive_mvd
-#if CONFIG_DERIVED_MVD_SIGN
-                              ,
-                              int mv_sign_cost[2][2]
-#endif  // CONFIG_DERIVED_MVD_SIGN
-);
+                              MvSubpelPrecision precision, int is_adaptive_mvd,
+                              int mv_sign_cost[2][2]);
 
 void av1_update_mv_count(ThreadData *td);
 
@@ -98,7 +77,6 @@ static INLINE uint8_t av1_log_in_base_2(unsigned int n) {
   return n == 0 ? 0 : get_msb(n);
 }
 
-#if CONFIG_VQ_MVD_CODING
 // Get the shell class value from the shell_index and precision
 static INLINE int get_shell_class_with_precision(const int shell_index,
                                                  int *shell_cls_offset) {
@@ -112,7 +90,6 @@ static INLINE int get_shell_class_with_precision(const int shell_index,
   *shell_cls_offset = shell_index - shell_class_base_index;
   return shell_class;
 }
-#endif  // CONFIG_VQ_MVD_CODING
 
 static INLINE MV_CLASS_TYPE av1_get_mv_class(int z, int *offset) {
   assert(z >= 0);

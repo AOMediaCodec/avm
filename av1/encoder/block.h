@@ -1283,24 +1283,11 @@ typedef struct {
   //! A multiplier that converts mv cost to l1 error.
   int sadperbit;
   /**@}*/
-
-#if CONFIG_VQ_MVD_CODING
-/*****************************************************************************
- * \name Encoding Costs
- * Here are the entropy costs needed to encode a given mv.
- ****************************************************************************/
-#else
-/*****************************************************************************
- * \name Encoding Costs
- * Here are the entropy costs needed to encode a given mv.
- * \ref nmv_costs_alloc is an array that holds the memory for mv cost. Since
- * the motion vectors can be negative, we save a pointer to the middle of the
- * array in \ref nmv_costs for easier referencing.
- ****************************************************************************/
-#endif  // CONFIG_VQ_MVD_CODING
-
+  /*****************************************************************************
+   * \name Encoding Costs
+   * Here are the entropy costs needed to encode a given mv.
+   ****************************************************************************/
   /**@{*/
-#if CONFIG_VQ_MVD_CODING
   /*! costs to code mvd shell index. */
   int nmv_joint_shell_cost[NUM_MV_PRECISIONS][(2 * MV_MAX) + 1];
 
@@ -1315,41 +1302,10 @@ typedef struct {
   int amvd_index_mag_cost[MAX_AMVD_INDEX + 1][MAX_AMVD_INDEX + 1];
   /*! costs to code amvd mvd sign. */
   int amvd_index_sign_cost[2][2];
-#else
-  /*! Costs for coding the zero components. */
-  int nmv_joint_cost[MV_JOINTS];
 
-  /*! Allocates memory for motion vector costs. */
-  int nmv_costs_alloc[NUM_MV_PRECISIONS][2][MV_VALS];
-  /*! Points to the middle of \ref nmv_costs_alloc. */
-  int *nmv_costs[NUM_MV_PRECISIONS][2];
-
-#endif  // CONFIG_VQ_MVD_CODING
-
-#if CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
   /*! Costs for coding the sign components. */
   int nmv_sign_cost[2][2];
-#endif  // CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
 
-#if !CONFIG_VQ_MVD_CODING
-  //! Costs for coding the zero components when adaptive MVD resolution is
-  //! applied
-  int amvd_nmv_joint_cost[MV_JOINTS];
-
-  //! Allocates memory for 1/4-pel motion vector costs when adaptive MVD
-  //! resolution is applied
-  int amvd_nmv_cost_alloc[2][MV_VALS];
-
-  //! Points to the middle of \ref amvd_nmv_cost_alloc
-  int *amvd_nmv_cost[2];
-#endif  // !CONFIG_VQ_MVD_CODING
-
-#if CONFIG_DERIVED_MVD_SIGN && !CONFIG_VQ_MVD_CODING
-  /*! Costs for coding the sign components. */
-  int amvd_nmv_sign_cost[2][2];
-#endif  // CONFIG_DERIVED_MVD_SIGN && !CONFIG_VQ_MVD_CODING
-
-#if CONFIG_VQ_MVD_CODING
   /*! Costs for coding the shell cost of dv cost. */
   int *dv_joint_shell_cost[NUM_MV_PRECISIONS];
 
@@ -1364,21 +1320,12 @@ typedef struct {
   /*! Costs for coding the sign of each component. */
   int dv_sign_cost[NUM_MV_PRECISIONS][2][2];
 
-#else
-
-  /*! Costs for coding the zero components of dv cost. */
-  int *dv_joint_cost;
-
-  /*! Points to the middle of dvcost. */
-  int *dv_nmv_cost[2];
-#endif  // CONFIG_VQ_MVD_CODING
   /**@}*/
 } MvCosts;
 
 /*! \brief Holds mv costs for intrabc.
  */
 typedef struct {
-#if CONFIG_VQ_MVD_CODING
   /*! Costs for coding the joint shell. */
   int dv_joint_shell_cost[NUM_MV_PRECISIONS][(2 * MV_MAX) + 1];
 
@@ -1388,25 +1335,9 @@ typedef struct {
                                    [MAX_COL_TRUNCATED_UNARY_VAL + 1];
   /*! Costs for coding the column index. */
   int dv_col_mv_index_cost[NUM_MV_PRECISIONS][NUM_CTX_COL_MV_INDEX][2];
-#else
-  /*! Costs for coding the joint mv. */
-  // TODO(huisu@google.com): we can update dv_joint_cost per SB.
-  int joint_mv[MV_JOINTS];
 
-  /*! \brief Cost of transmitting the actual motion vector.
-   *  mv_costs_alloc[0][i] is the cost of motion vector with horizontal
-   * component (mv_row) equal to i - MV_MAX. mv_costs_alloc[1][i] is the cost of
-   * motion vector with vertical component (mv_col) equal to i - MV_MAX.
-   */
-  int dv_costs_alloc[2][MV_VALS];
-
-  /*! Points to the middle of \ref dv_costs_alloc. */
-  int *dv_costs[2];
-#endif  // CONFIG_VQ_MVD_CODING
-#if CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
   /*! Costs for coding the sign components. */
   int dv_sign_cost[NUM_MV_PRECISIONS][2][2];
-#endif  // CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
 
 } IntraBCMvCosts;
 

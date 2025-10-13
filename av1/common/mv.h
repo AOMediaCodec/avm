@@ -157,13 +157,11 @@ static const int av1_intraBc_precision_to_index[NUM_MV_PRECISIONS] = {
 #define NUM_PB_FLEX_QUALIFIED_MAX_PREC \
   ((NUM_MV_PRECISIONS) - (MV_PRECISION_HALF_PEL))
 
-#if CONFIG_VQ_MVD_CODING
 #if CONFIG_MV_RANGE_EXTENSION
 #define MAX_NUM_SHELL_CLASS 17
 #else
 #define MAX_NUM_SHELL_CLASS 15
 #endif  // CONFIG_MV_RANGE_EXTENSION
-#endif  // CONFIG_VQ_MVD_CODING
 // The mv limit for fullpel mvs
 typedef struct {
   int col_min;
@@ -389,12 +387,10 @@ static INLINE void full_pel_lower_mv_precision(FULLPEL_MV *full_pel_mv,
                              GET_MV_RAWPEL(MV_UPP) - radix);
   }
 }
-#if CONFIG_VQ_MVD_CODING
 // Get the number of shell class for a given precision
 static INLINE int get_default_num_shell_class(MvSubpelPrecision precision) {
   return (MAX_NUM_SHELL_CLASS - (MV_PRECISION_ONE_EIGHTH_PEL - precision));
 }
-#endif  // CONFIG_VQ_MVD_CODING
 #if CONFIG_REDUCE_SYMBOL_SIZE
 // Split the number of shell class into two
 static INLINE void split_num_shell_class(const int num_mv_class,
@@ -424,7 +420,6 @@ static INLINE void full_pel_lower_mv_precision_one_comp(
   }
 }
 
-#if CONFIG_VQ_MVD_CODING
 // Get the index value of AMVD MVD from the MVD value
 static INLINE int16_t get_index_from_amvd_mvd(int this_mvd_comp) {
   int index;
@@ -481,7 +476,6 @@ static INLINE int check_mvd_valid_amvd(const MV mvd) {
 
   return (abs(row_index) <= MAX_AMVD_INDEX && abs(col_index) <= MAX_AMVD_INDEX);
 }
-#endif  // CONFIG_VQ_MVD_CODING
 
 // Calculation precision for warp models
 #define WARPEDMODEL_PREC_BITS 16

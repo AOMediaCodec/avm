@@ -2158,15 +2158,10 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
         write_pb_mv_precision(cm, xd, w);
       }
     }
-#if CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
     MV mv_diff[2] = { kZeroMv, kZeroMv };
     const int is_adaptive_mvd = enable_adaptive_mvd_resolution(cm, mbmi);
-#if CONFIG_DERIVED_MVD_SIGN
     int num_signaled_mvd = 0;
     int start_signaled_mvd_idx = 0;
-#endif  // CONFIG_DERIVED_MVD_SIGN
-#endif  // CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
-
     if (mbmi->mode == WARPMV && mbmi->warpmv_with_mvd_flag) {
       nmv_context *nmvc = &ec_ctx->nmvc;
       WarpedMotionParams ref_warp_model =
@@ -2174,108 +2169,52 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
       int_mv ref_mv =
           get_mv_from_wrl(xd, &ref_warp_model, mbmi->pb_mv_precision, bsize,
                           xd->mi_col, xd->mi_row);
-#if CONFIG_DERIVED_MVD_SIGN
       num_signaled_mvd = 1;
       start_signaled_mvd_idx = 0;
-#endif  // CONFIG_DERIVED_MVD_SIGN
-#if CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
+
       get_mvd_from_ref_mv(mbmi->mv[0].as_mv, ref_mv.as_mv, is_adaptive_mvd,
                           pb_mv_precision, &mv_diff[0]);
-#endif  // CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
-#if CONFIG_VQ_MVD_CODING
       av1_encode_mv(cpi, mbmi->mv[0].as_mv, w, nmvc, mv_diff[0],
                     pb_mv_precision, is_adaptive_mvd);
-#else
-      av1_encode_mv(cpi, w, mbmi->mv[0].as_mv,
-#if CONFIG_DERIVED_MVD_SIGN
-                    mv_diff[0],
-#else
-                    ref_mv.as_mv,
-#endif  // CONFIG_DERIVED_MVD_SIGN
-                    nmvc, pb_mv_precision);
-#endif  // CONFIG_VQ_MVD_CODING
 
     } else {
       if (have_newmv_in_each_reference(mode)) {
-#if CONFIG_DERIVED_MVD_SIGN
         num_signaled_mvd = 1 + is_compound;
         start_signaled_mvd_idx = 0;
-#endif  // CONFIG_DERIVED_MVD_SIGN
-
         for (ref = 0; ref < 1 + is_compound; ++ref) {
           nmv_context *nmvc = &ec_ctx->nmvc;
           int_mv ref_mv = get_ref_mv(x, ref);
-#if CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
+
           get_mvd_from_ref_mv(mbmi->mv[ref].as_mv, ref_mv.as_mv,
                               is_adaptive_mvd, pb_mv_precision, &mv_diff[ref]);
-#endif  // CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
-#if CONFIG_VQ_MVD_CODING
           av1_encode_mv(cpi, mbmi->mv[ref].as_mv, w, nmvc, mv_diff[ref],
                         pb_mv_precision, is_adaptive_mvd);
-#else
-          av1_encode_mv(cpi, w, mbmi->mv[ref].as_mv,
-#if CONFIG_DERIVED_MVD_SIGN
-                        mv_diff[ref],
-#else
-                        ref_mv.as_mv,
-#endif
-                        nmvc, pb_mv_precision);
-#endif  // CONFIG_VQ_MVD_CODING
         }
       } else if (mode == NEAR_NEWMV || mode == NEAR_NEWMV_OPTFLOW ||
                  (is_joint_mvd_coding_mode(mode) && jmvd_base_ref_list == 1)) {
         nmv_context *nmvc = &ec_ctx->nmvc;
         int_mv ref_mv = get_ref_mv(x, 1);
 
-#if CONFIG_DERIVED_MVD_SIGN
         num_signaled_mvd = 1;
         start_signaled_mvd_idx = 1;
-#endif  // CONFIG_DERIVED_MVD_SIGN
-#if CONFIG_VQ_MVD_CODING || CONFIG_DERIVED_MVD_SIGN
         get_mvd_from_ref_mv(mbmi->mv[1].as_mv, ref_mv.as_mv, is_adaptive_mvd,
                             pb_mv_precision, &mv_diff[1]);
-#endif  // CONFIG_VQ_MVD_CODING || CONFIG_DERIVED_MVD_SIGN
-
-#if CONFIG_VQ_MVD_CODING
         av1_encode_mv(cpi, mbmi->mv[1].as_mv, w, nmvc, mv_diff[1],
                       pb_mv_precision, is_adaptive_mvd);
-#else
-        av1_encode_mv(cpi, w, mbmi->mv[1].as_mv,
-#if CONFIG_DERIVED_MVD_SIGN
-                      mv_diff[1],
-#else
-                      ref_mv.as_mv,
-#endif  // CONFIG_DERIVED_MVD_SIGN
-                      nmvc, pb_mv_precision);
-#endif  // CONFIG_VQ_MVD_CODING
 
       } else if (mode == NEW_NEARMV || mode == NEW_NEARMV_OPTFLOW ||
                  (is_joint_mvd_coding_mode(mode) && jmvd_base_ref_list == 0)) {
         nmv_context *nmvc = &ec_ctx->nmvc;
         int_mv ref_mv = get_ref_mv(x, 0);
-#if CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
-#if CONFIG_DERIVED_MVD_SIGN
         num_signaled_mvd = 1;
         start_signaled_mvd_idx = 0;
-#endif  // CONFIG_DERIVED_MVD_SIGN
         get_mvd_from_ref_mv(mbmi->mv[0].as_mv, ref_mv.as_mv, is_adaptive_mvd,
                             pb_mv_precision, &mv_diff[0]);
-#endif  // CONFIG_DERIVED_MVD_SIGN || CONFIG_VQ_MVD_CODING
-#if CONFIG_VQ_MVD_CODING
         av1_encode_mv(cpi, mbmi->mv[0].as_mv, w, nmvc, mv_diff[0],
                       pb_mv_precision, is_adaptive_mvd);
-#else
-        av1_encode_mv(cpi, w, mbmi->mv[0].as_mv,
-#if CONFIG_DERIVED_MVD_SIGN
-                      mv_diff[0],
-#else
-                      ref_mv.as_mv,
-#endif  // CONFIG_DERIVED_MVD_SIGN
-                      nmvc, pb_mv_precision);
-#endif  // CONFIG_VQ_MVD_CODING
       }
     }
-#if CONFIG_DERIVED_MVD_SIGN
+
     // Code sign in the second pass
     if (num_signaled_mvd > 0) {
       int last_ref = -1;
@@ -2318,7 +2257,6 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
         }
       }
     }
-#endif  // CONFIG_DERIVED_MVD_SIGN
 
     if (mbmi->motion_mode == WARP_DELTA) {
       write_warp_delta(cm, xd, mbmi, mbmi_ext_frame, w);
@@ -2462,7 +2400,6 @@ static AOM_INLINE void write_intrabc_info(
     if (!mbmi->intrabc_mode)
       av1_encode_dv(w, &mbmi->mv[0].as_mv, &dv_ref.as_mv, &ec_ctx->ndvc,
                     mbmi->pb_mv_precision);
-#if CONFIG_DERIVED_MVD_SIGN
     if (!mbmi->intrabc_mode) {
       MV low_prec_ref_mv = dv_ref.as_mv;
       if (mbmi->pb_mv_precision < MV_PRECISION_HALF_PEL)
@@ -2480,7 +2417,6 @@ static AOM_INLINE void write_intrabc_info(
         aom_write_literal(w, diff.col < 0, 1);
       }
     }
-#endif  // CONFIG_DERIVED_MVD_SIGN
 
     if (av1_allow_intrabc_morph_pred(cm)) {
       const int morph_pred_ctx = get_morph_pred_ctx(xd);
@@ -6053,9 +5989,7 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
   }
 
   aom_wb_write_bit(wb, (int)(seq_params->enable_bru > 0));
-#if CONFIG_DERIVED_MVD_SIGN
   aom_wb_write_bit(wb, seq_params->enable_mvd_sign_derive);
-#endif  // CONFIG_DERIVED_MVD_SIGN
 
   aom_wb_write_bit(wb, seq_params->enable_flex_mvres);
 

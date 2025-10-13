@@ -1333,10 +1333,8 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
 
         av1_compound_single_motion_search_interinter(cpi, x, bsize, cur_mv,
                                                      NULL, 0, rate_mv, 1);
-#if CONFIG_VQ_MVD_CODING
-        if (cur_mv->as_int == INVALID_MV) return INT64_MAX;
-#endif
 
+        if (cur_mv->as_int == INVALID_MV) return INT64_MAX;
         save_comp_mv_search_stat(x, args, cur_mv, start_mv);
       } else {
         // aomenc2
@@ -1395,9 +1393,7 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
       }
       av1_compound_single_motion_search_interinter(
           cpi, x, bsize, cur_mv, NULL, 0, rate_mv, jmvd_base_ref_list);
-#if CONFIG_VQ_MVD_CODING
       if (cur_mv->as_int == INVALID_MV) return INT64_MAX;
-#endif  // CONFIG_VQ_MVD_CODING
       int_mv start_mv = { 0 };
       save_comp_mv_search_stat(x, args, cur_mv, start_mv);
     } else {
@@ -1418,9 +1414,7 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
       if (cm->seq_params.enable_adaptive_mvd) {
         av1_compound_single_motion_search_interinter(cpi, x, bsize, cur_mv,
                                                      NULL, 0, rate_mv, 0);
-#if CONFIG_VQ_MVD_CODING
         if (cur_mv->as_int == INVALID_MV) return INT64_MAX;
-#endif  // CONFIG_VQ_MVD_CODING
         int_mv start_mv = { 0 };
         save_comp_mv_search_stat(x, args, cur_mv, start_mv);
       } else {
@@ -1689,7 +1683,6 @@ static INLINE int get_warp_ref_idx_cost(const MB_MODE_INFO *mbmi,
   return cost;
 }
 
-#if CONFIG_DERIVED_MVD_SIGN
 #define NUMBER_OF_ITER_PER_COMP 4
 // Get the other non-signaled MVD for joint MVD mode
 static int get_othermv_for_jointmv_mode(
@@ -2157,7 +2150,6 @@ static int av1_adjust_mvs_for_derive_sign(const AV1_COMP *const cpi,
 
   return (best_model_rd != INT64_MAX);
 }
-#endif
 
 // Reject this motion mode if modelrd is larder that the stored model rd values
 //  Return 1 means reject this mode
@@ -2450,8 +2442,6 @@ static int64_t motion_mode_rd(
               // SIMPLE_TRANSLATION mode: no need to recalculate.
               // The prediction is calculated before motion_mode_rd() is called
               // in handle_inter_mode()
-
-#if CONFIG_DERIVED_MVD_SIGN
               if (is_mvd_sign_derive_allowed(cm, xd, mbmi)) {
                 MV mv_diff[2] = { kZeroMv, kZeroMv };
                 MV ref_mvs[2] = { kZeroMv, kZeroMv };
@@ -2490,7 +2480,7 @@ static int64_t motion_mode_rd(
                   assert(tmp_rate_mv >= 0);
                 }
               }  // if (is_mvd_sign_derive_allowed(cm, xd, mbmi))
-#endif
+
             } else if (mbmi->motion_mode == WARP_CAUSAL) {
               int pts[SAMPLES_ARRAY_SIZE], pts_inref[SAMPLES_ARRAY_SIZE];
               mbmi->wm_params[0].wmtype = DEFAULT_WMTYPE;
@@ -4126,9 +4116,7 @@ static int skip_repeated_newmv(
   // with ref_mv_idx
   if (is_warp_mode(best_mbmi->motion_mode)) return 0;
   if (mbmi->use_amvd) return 0;
-#if CONFIG_DERIVED_MVD_SIGN
   if (is_mvd_sign_derive_allowed(cm, xd, mbmi)) return 0;
-#endif  // CONFIG_DERIVED_MVD_SIGN
 
   int skip = 0;
   int this_rate_mv = 0;
