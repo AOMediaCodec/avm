@@ -956,15 +956,9 @@ static AOM_INLINE void update_subgop_stats(
     unsigned int enable_subgop_stats) {
   (void)key_freq_max;
   if (!enable_subgop_stats) return;
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-  if (order_hint_info->enable_order_hint) {
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-    int max_order_hint = 1 << (order_hint_info->order_hint_bits_minus_1 + 1);
-    (void)max_order_hint;
-    assert(key_freq_max <= max_order_hint + 1);
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-  }
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+  int max_order_hint = 1 << (order_hint_info->order_hint_bits_minus_1 + 1);
+  (void)max_order_hint;
+  assert(key_freq_max <= max_order_hint + 1);
   subgop_stats->pyramid_level[subgop_stats->stat_count] =
       gf_group->layer_depth[gf_group->index];
   subgop_stats->is_filtered[subgop_stats->stat_count] =

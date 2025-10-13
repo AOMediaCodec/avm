@@ -61,10 +61,6 @@ extern "C" {
 #define MAX_SUBGOP_STATS_SIZE 32
 
 /* Constant values while waiting for the sequence header */
-#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
-#define FRAME_ID_LENGTH 15
-#define DELTA_FRAME_ID_LENGTH 14
-#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
 
 #define DELTA_DCQUANT_BITS 5
 #define DELTA_DCQUANT_MAX (1 << (DELTA_DCQUANT_BITS - 2))
@@ -532,9 +528,6 @@ typedef struct {
 } DeltaQInfo;
 
 typedef struct {
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-  int enable_order_hint;           // 0 - disable order hint, and related tools
-#endif                             // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   int order_hint_bits_minus_1;     // dist_wtd_comp, ref_frame_mvs,
                                    // frame_sign_bias
                                    // if 0, enable_dist_wtd_comp and
@@ -912,26 +905,14 @@ typedef struct SequenceHeader {
   int num_bits_height;
   int max_frame_width;
   int max_frame_height;
-#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
-  // Whether current and reference frame IDs are signaled in the bitstream.
-  // Frame id numbers are additional information that do not affect the
-  // decoding process, but provide decoders with a way of detecting missing
-  // reference frames so that appropriate action can be taken.
-  uint8_t frame_id_numbers_present_flag;
-  int frame_id_length;
-  int delta_frame_id_length;
-#endif                 // !CWG_F215_CONFIG_REMOVE_FRAME_ID
+
   BLOCK_SIZE sb_size;  // Size of the superblock used for this frame
   int mib_size;        // Size of the superblock in units of MI blocks
   int mib_size_log2;   // Log 2 of above.
 
   int explicit_ref_frame_map;  // Explicitly signal the reference frame mapping
 
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-  int enable_frame_output_order;  // Enable frame output order derivation based
-                                  // on order hint value
-#endif                            // !CONFIG_F253_REMOVE_OUTPUTFLAG
-  int def_max_drl_bits;           // default max drl bits for MVs
+  int def_max_drl_bits;                  // default max drl bits for MVs
   uint8_t allow_frame_max_drl_bits;      // whether to allow frame level update
   int def_max_bvp_drl_bits;              // default max ibc drl bits for MVs
   uint8_t allow_frame_max_bvp_drl_bits;  // whether to allow frame level update
@@ -2397,14 +2378,6 @@ typedef struct AV1Common {
    */
   CommonContexts above_contexts;
 
-  /**
-   * \name Signaled when cm->seq_params.frame_id_numbers_present_flag == 1
-   */
-  /**@{*/
-  int current_frame_id;         /*!< frame ID for the current frame. */
-  int ref_frame_id[REF_FRAMES]; /*!< frame IDs for the reference frames. */
-  /**@}*/
-
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   /*!
    * number of referenced key frames
@@ -3038,9 +3011,6 @@ static INLINE int frame_might_allow_ref_frame_mvs(const AV1_COMMON *cm) {
       !cm->features.error_resilient_mode &&
 #endif
       cm->seq_params.order_hint_info.enable_ref_frame_mvs &&
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-      cm->seq_params.order_hint_info.enable_order_hint &&
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
 #if CONFIG_CWG_F317
       !cm->bridge_frame_info.is_bridge_frame &&
 #endif  // CONFIG_CWG_F317
@@ -5179,11 +5149,7 @@ static INLINE void init_ibp_info(
 #define RELATIVE_DIST_BITS 8
 
 static INLINE int get_relative_dist(const OrderHintInfo *oh, int a, int b) {
-#if CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   if (oh->order_hint_bits_minus_1 < 0) return 0;
-#else
-  if (!oh->enable_order_hint) return 0;
-#endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
 
   assert(a >= 0);
   assert(b >= 0);

@@ -337,9 +337,6 @@ class TileGroupTestLarge
       encoder->Control(AV1E_SET_TILE_ROWS,
                        tile_group_config_params_.num_tile_rows);
       encoder->SetOption("enable-tip", "0");
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-      encoder->Control(AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, 1);
-#endif
     }
   }
 

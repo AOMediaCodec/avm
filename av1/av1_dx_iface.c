@@ -867,22 +867,11 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
       ctx->grain_image_frame_buffers[j].priv = NULL;
     }
     ctx->num_grain_image_frame_buffers = 0;
-#if CONFIG_F253_REMOVE_OUTPUTFLAG
     // Output any frames in the buffer
-#else
-    // When enable_frame_output_order == 1, output any frames in the buffer
-#endif  // CONFIG_F253_REMOVE_OUTPUTFLAG
     // that have showable_frame == 1 but have not yet been output.  This is
     // useful when OBUs are lost due to channel errors or removed for temporal
     // scalability.
-    if (data == NULL && data_sz == 0
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-        && pbi->common.seq_params.order_hint_info.enable_order_hint
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-        && pbi->common.seq_params.enable_frame_output_order
-#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
-    ) {
+    if (data == NULL && data_sz == 0) {
       output_trailing_frames(pbi);
       for (size_t j = 0; j < pbi->num_output_frames; j++) {
         decrease_ref_count(pbi->output_frames[j], pool);

@@ -160,19 +160,12 @@ struct av1_extracfg {
   int min_partition_size;        // min partition size [4,8,16,32,64,128]
   int max_partition_size;        // max partition size [4,8,16,32,64,128]
   int enable_intra_edge_filter;  // enable intra-edge filter for sequence
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-  int enable_order_hint;     // enable order hint for sequence
-#endif                       // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-  int enable_tx64;           // enable 64-pt transform usage for sequence
-  int reduced_tx_part_set;   // enable reduced transform block partition set
-  int enable_flip_idtx;      // enable flip and identity transform types
-  int max_reference_frames;  // maximum number of references per frame
+  int enable_tx64;               // enable 64-pt transform usage for sequence
+  int reduced_tx_part_set;       // enable reduced transform block partition set
+  int enable_flip_idtx;          // enable flip and identity transform types
+  int max_reference_frames;      // maximum number of references per frame
   int enable_reduced_reference_set;  // enable reduced set of references
-  int explicit_ref_frame_map;  // explicitly signal reference frame mapping
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-  int enable_frame_output_order;   // enable frame output order derivation based
-                                   // on order hint value
-#endif                             // !CONFIG_F253_REMOVE_OUTPUTFLAG
+  int explicit_ref_frame_map;      // explicitly signal reference frame mapping
   int enable_ref_frame_mvs;        // sequence level
   int reduced_ref_frame_mvs_mode;  // use 1 reference frame combination
                                    // for temporal mv prediction
@@ -495,18 +488,12 @@ static struct av1_extracfg default_extra_cfg = {
   4,    // min_partition_size
   256,  // max_partition_size
   1,    // enable intra edge filter
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-  1,    // frame order hint
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   1,    // enable 64-pt transform usage
   0,    // enable reduced transform block partition set
   1,    // enable flip and identity transform
   7,  // max_reference_frames
   0,  // enable_reduced_reference_set
   0,  // explicit_ref_frame_map
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-  1,  // enable frame output order derivation based on order hint value
-#endif // !CONFIG_F253_REMOVE_OUTPUTFLAG
   1,  // enable_ref_frame_mvs sequence level
   0,    // reduced_ref_frame_mvs_mode sequence level
   1,  // allow ref_frame_mvs frame level
@@ -838,9 +825,6 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   RANGE_CHECK(extra_cfg, reduced_ref_frame_mvs_mode, 0, 1);
   RANGE_CHECK(extra_cfg, enable_reduced_reference_set, 0, 1);
   RANGE_CHECK(extra_cfg, explicit_ref_frame_map, 0, 1);
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-  RANGE_CHECK(extra_cfg, enable_frame_output_order, 0, 1);
-#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
   RANGE_CHECK_HI(extra_cfg, chroma_subsampling_x, 1);
   RANGE_CHECK_HI(extra_cfg, chroma_subsampling_y, 1);
 
@@ -1026,9 +1010,6 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->disable_loopfilters_across_tiles =
       extra_cfg->disable_loopfilters_across_tiles;
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-  cfg->enable_frame_output_order = extra_cfg->enable_frame_output_order;
-#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
   cfg->reduced_tx_type_set = extra_cfg->reduced_tx_type_set;
   cfg->max_drl_refmvs = extra_cfg->max_drl_refmvs;
   cfg->max_drl_refbvs = extra_cfg->max_drl_refbvs;
@@ -1150,9 +1131,6 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->disable_loopfilters_across_tiles =
       cfg->disable_loopfilters_across_tiles;
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-  extra_cfg->enable_frame_output_order = cfg->enable_frame_output_order;
-#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
   extra_cfg->reduced_tx_type_set = cfg->reduced_tx_type_set;
   extra_cfg->max_drl_refmvs = cfg->max_drl_refmvs;
   extra_cfg->max_drl_refbvs = cfg->max_drl_refbvs;
@@ -1406,14 +1384,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
             "mismatch. To use tcq, set enable_trellis_quant to be non-0.\n");
     tool_cfg->enable_tcq = 0;
   }
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-  tool_cfg->enable_order_hint = extra_cfg->enable_order_hint;
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-  tool_cfg->ref_frame_mvs_present = extra_cfg->enable_ref_frame_mvs
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-                                    & extra_cfg->enable_order_hint
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-      ;
+  tool_cfg->ref_frame_mvs_present = extra_cfg->enable_ref_frame_mvs;
   tool_cfg->enable_global_motion = extra_cfg->enable_global_motion;
   tool_cfg->enable_skip_mode = extra_cfg->enable_skip_mode;
 #if !CONFIG_F322_OBUER_ERM
@@ -1461,11 +1432,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   } else {
     tool_cfg->avg_cdf_type = 0;
   }
-  if (
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-      extra_cfg->enable_order_hint &&
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-      extra_cfg->enable_ref_frame_mvs) {
+  if (extra_cfg->enable_ref_frame_mvs) {
     tool_cfg->enable_tip = extra_cfg->enable_tip;
     tool_cfg->enable_mv_traj = extra_cfg->enable_mv_traj;
     if (tool_cfg->enable_tip) {
@@ -1482,24 +1449,16 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   tool_cfg->enable_high_motion = extra_cfg->enable_high_motion;
 #endif  // CONFIG_MV_RANGE_EXTENSION
 
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-  if (extra_cfg->enable_order_hint) {
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-    tool_cfg->enable_opfl_refine = extra_cfg->enable_opfl_refine;
-    if (tool_cfg->enable_opfl_refine) {
-      if (cfg->g_lag_in_frames == 0) {
-        tool_cfg->enable_opfl_refine = 0;
-      }
-
-      if (cfg->kf_max_dist == 0) {
-        tool_cfg->enable_opfl_refine = 0;
-      }
+  tool_cfg->enable_opfl_refine = extra_cfg->enable_opfl_refine;
+  if (tool_cfg->enable_opfl_refine) {
+    if (cfg->g_lag_in_frames == 0) {
+      tool_cfg->enable_opfl_refine = 0;
     }
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-  } else {
-    tool_cfg->enable_opfl_refine = AOM_OPFL_REFINE_NONE;
+
+    if (cfg->kf_max_dist == 0) {
+      tool_cfg->enable_opfl_refine = 0;
+    }
   }
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   tool_cfg->enable_tip_refinemv =
       (tool_cfg->enable_tip &&
        (tool_cfg->enable_opfl_refine || tool_cfg->enable_refinemv))
@@ -1667,23 +1626,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
       extra_cfg->enable_reduced_reference_set;
   oxcf->ref_frm_cfg.enable_onesided_comp = extra_cfg->enable_onesided_comp;
   oxcf->ref_frm_cfg.explicit_ref_frame_map = extra_cfg->explicit_ref_frame_map;
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-  // Disable the implicit derivation of frame output order
-  // when order_hint is not available, S-frame is used or error resilience mode
-  // is used.
-  oxcf->ref_frm_cfg.enable_frame_output_order =
-      (
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-          !tool_cfg->enable_order_hint ||
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-          kf_cfg->enable_sframe
-#if !CONFIG_F322_OBUER_ERM
-          || tool_cfg->error_resilient_mode
-#endif  // !CONFIG_F322_OBUER_ERM
-          )
-          ? 0
-          : extra_cfg->enable_frame_output_order;
-#endif  // CONFIG_F253_REMOVE_OUTPUTFLAG
 
   oxcf->row_mt = extra_cfg->row_mt;
 
@@ -2338,15 +2280,6 @@ static aom_codec_err_t ctrl_set_enable_intra_edge_filter(
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-static aom_codec_err_t ctrl_set_enable_order_hint(aom_codec_alg_priv_t *ctx,
-                                                  va_list args) {
-  struct av1_extracfg extra_cfg = ctx->extra_cfg;
-  extra_cfg.enable_order_hint = CAST(AV1E_SET_ENABLE_ORDER_HINT, args);
-  return update_extra_cfg(ctx, &extra_cfg);
-}
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-
 static aom_codec_err_t ctrl_set_enable_tx64(aom_codec_alg_priv_t *ctx,
                                             va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
@@ -2788,15 +2721,6 @@ static aom_codec_err_t ctrl_enable_subgop_stats(aom_codec_alg_priv_t *ctx,
   return update_extra_cfg(ctx, &extra_cfg);
   return AOM_CODEC_OK;
 }
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-static aom_codec_err_t ctrl_set_frame_output_order(aom_codec_alg_priv_t *ctx,
-                                                   va_list args) {
-  struct av1_extracfg extra_cfg = ctx->extra_cfg;
-  extra_cfg.enable_frame_output_order =
-      CAST(AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, args);
-  return update_extra_cfg(ctx, &extra_cfg);
-}
-#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
 static aom_codec_err_t ctrl_set_enable_bru(aom_codec_alg_priv_t *ctx,
                                            va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
@@ -3361,17 +3285,11 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 
       cpi->seq_params_locked = 1;
       is_frame_visible = cpi->common.show_frame;
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-      if (cpi->oxcf.ref_frm_cfg.enable_frame_output_order) {
-#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
-        if (cpi->common.current_frame.frame_type != KEY_FRAME &&
-            cpi->common.show_existing_frame) {
-          is_frame_visible_null = 1;
-        }
-        assert(IMPLIES(is_frame_visible_null, frame_size == 0));
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
+      if (cpi->common.current_frame.frame_type != KEY_FRAME &&
+          cpi->common.show_existing_frame) {
+        is_frame_visible_null = 1;
       }
-#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
+      assert(IMPLIES(is_frame_visible_null, frame_size == 0));
       if (!is_frame_visible_null && frame_size == 0) is_frame_visible = 0;
 
       if (frame_size) {
@@ -4171,11 +4089,6 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                               argv, err_string)) {
     extra_cfg.enable_intra_edge_filter =
         arg_parse_uint_helper(&arg, err_string);
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_order_hint,
-                              argv, err_string)) {
-    extra_cfg.enable_order_hint = arg_parse_int_helper(&arg, err_string);
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_tx64, argv,
                               err_string)) {
     extra_cfg.enable_tx64 = arg_parse_int_helper(&arg, err_string);
@@ -4215,13 +4128,6 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                               &g_av1_codec_arg_defs.explicit_ref_frame_map,
                               argv, err_string)) {
     extra_cfg.explicit_ref_frame_map = arg_parse_int_helper(&arg, err_string);
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-  } else if (arg_match_helper(&arg,
-                              &g_av1_codec_arg_defs.enable_frame_output_order,
-                              argv, err_string)) {
-    extra_cfg.enable_frame_output_order =
-        arg_parse_int_helper(&arg, err_string);
-#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_ref_frame_mvs,
                               argv, err_string)) {
     extra_cfg.enable_ref_frame_mvs = arg_parse_int_helper(&arg, err_string);
@@ -4510,9 +4416,6 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_MAX_PARTITION_SIZE, ctrl_set_max_partition_size },
   { AV1E_SET_ENABLE_CHROMA_DELTAQ, ctrl_set_enable_chroma_deltaq },
   { AV1E_SET_ENABLE_INTRA_EDGE_FILTER, ctrl_set_enable_intra_edge_filter },
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-  { AV1E_SET_ENABLE_ORDER_HINT, ctrl_set_enable_order_hint },
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   { AV1E_SET_ENABLE_TX64, ctrl_set_enable_tx64 },
   { AV1E_SET_ENABLE_FLIP_IDTX, ctrl_set_enable_flip_idtx },
   { AV1E_SET_MAX_REFERENCE_FRAMES, ctrl_set_max_reference_frames },
@@ -4581,9 +4484,6 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_VBR_CORPUS_COMPLEXITY_LAP, ctrl_set_vbr_corpus_complexity_lap },
   { AV1E_ENABLE_SB_MULTIPASS_UNIT_TEST, ctrl_enable_sb_multipass_unit_test },
   { AV1E_ENABLE_SUBGOP_STATS, ctrl_enable_subgop_stats },
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-  { AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, ctrl_set_frame_output_order },
-#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
   { AV1E_SET_ENABLE_BRU, ctrl_set_enable_bru },
   { AV1E_GET_ENABLE_BRU, ctrl_get_enable_bru },
   // Getters
@@ -4713,9 +4613,6 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         0,  // reduced_ref_frame_mvs_mode
         1,  // enable_reduced_reference_set
         0,  // explicit_ref_frame_map
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-        1,  // enable_frame_output_order
-#endif
         0,  // reduced_tx_type_set
         0,  // max_drl_refmvs
 

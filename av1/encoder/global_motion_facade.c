@@ -440,19 +440,11 @@ static AOM_INLINE void pick_base_gm_params(AV1_COMP *cpi) {
         if (model->wmtype == IDENTITY) continue;
 
         int temporal_distance;
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-        if (seq_params->order_hint_info.enable_order_hint) {
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-          const RefCntBuffer *const ref_buf = get_ref_frame_buf(cm, frame);
-          const int ref_order_hint = ref_buf->display_order_hint;
-          const int cur_order_hint = cm->cur_frame->display_order_hint;
-          temporal_distance = get_relative_dist(&seq_params->order_hint_info,
-                                                cur_order_hint, ref_order_hint);
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-        } else {
-          temporal_distance = 1;
-        }
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+        const RefCntBuffer *const ref_buf = get_ref_frame_buf(cm, frame);
+        const int ref_order_hint = ref_buf->display_order_hint;
+        const int cur_order_hint = cm->cur_frame->display_order_hint;
+        temporal_distance = get_relative_dist(&seq_params->order_hint_info,
+                                              cur_order_hint, ref_order_hint);
 
         if (temporal_distance == 0) {
           // Don't code global motion for frames at the same temporal instant

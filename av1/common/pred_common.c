@@ -105,11 +105,7 @@ void av1_get_past_future_cur_ref_lists(AV1_COMMON *cm, RefScoreData *scores) {
   for (int i = 0; i < cm->ref_frames_info.num_total_refs; i++) {
     // If order hint is disabled, the scores and past/future information are
     // not available to the decoder. Assume all references are from the past.
-    if (
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-        !cm->seq_params.order_hint_info.enable_order_hint ||
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-        scores[i].distance > 0) {
+    if (scores[i].distance > 0) {
       cm->ref_frames_info.past_refs[n_past] = i;
       n_past++;
     } else if (scores[i].distance < 0) {
@@ -240,13 +236,7 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
     cm->remapped_ref_idx[i] = scores[i].index;
     // The distance is not available to the decoder when order_hint is disabled.
     // In that case, set all distances to 1.
-    cm->ref_frames_info.ref_frame_distance[i] =
-#if CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-        scores[i].distance;
-#else
-        cm->seq_params.order_hint_info.enable_order_hint ? scores[i].distance
-                                                         : 1;
-#endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+    cm->ref_frames_info.ref_frame_distance[i] = scores[i].distance;
 #if CONFIG_CWG_F317
     if (cm->bridge_frame_info.is_bridge_frame &&
         !bridge_frame_ref_idx_remapped_found &&

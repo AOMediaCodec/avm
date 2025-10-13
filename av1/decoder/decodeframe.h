@@ -54,11 +54,8 @@ uint32_t av1_read_atlas_segment_info_obu(struct AV1Decoder *pbi,
 // Reads the middle part of the sequence header OBU (from
 // frame_width_bits_minus_1 to enable_restoration) into seq_params.
 // Reports errors by calling rb->error_handler() or aom_internal_error().
-void av1_read_sequence_header(
-#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
-    AV1_COMMON *cm,
-#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
-    struct aom_read_bit_buffer *rb, SequenceHeader *seq_params);
+void av1_read_sequence_header(struct aom_read_bit_buffer *rb,
+                              SequenceHeader *seq_params);
 
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO
 // Reads the tile information in the sequence header

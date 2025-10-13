@@ -368,61 +368,28 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->single_picture_hdr_flag &= !tool_cfg->full_still_picture_hdr;
   seq->force_screen_content_tools = 2;
   seq->force_integer_mv = 2;
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-  seq->order_hint_info.enable_order_hint = tool_cfg->enable_order_hint;
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
-  seq->frame_id_numbers_present_flag =
-      !(seq->still_picture && seq->single_picture_hdr_flag) &&
-      tool_cfg->error_resilient_mode;
-#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
   if (seq->still_picture && seq->single_picture_hdr_flag) {
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-    seq->order_hint_info.enable_order_hint = 0;
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
     seq->force_screen_content_tools = 2;
     seq->force_integer_mv = 2;
   }
 #if CONFIG_CWG_F243_ORDER_HINT_BITDEPTH
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-  if (seq->order_hint_info.enable_order_hint) {
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-    if (oxcf->kf_cfg.key_freq_min == 9999 && oxcf->kf_cfg.key_freq_max == 9999)
-      seq->order_hint_info.order_hint_bits_minus_1 =
-          DEFAULT_EXPLICIT_ORDER_HINT_BITS - 4;
-    else if (oxcf->kf_cfg.key_freq_min == 65 && oxcf->kf_cfg.key_freq_max == 65)
-      seq->order_hint_info.order_hint_bits_minus_1 =
-          DEFAULT_EXPLICIT_ORDER_HINT_BITS - 1;  // 7
-    else if (oxcf->kf_cfg.key_freq_min == 0 && oxcf->kf_cfg.key_freq_max == 0)
-      seq->order_hint_info.order_hint_bits_minus_1 = 0;  // 1 bit
-    else
-      seq->order_hint_info.order_hint_bits_minus_1 =
-          DEFAULT_EXPLICIT_ORDER_HINT_BITS - 1;
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-  } else {
-    seq->order_hint_info.order_hint_bits_minus_1 = -1;
-  }
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+  if (oxcf->kf_cfg.key_freq_min == 9999 && oxcf->kf_cfg.key_freq_max == 9999)
+    seq->order_hint_info.order_hint_bits_minus_1 =
+        DEFAULT_EXPLICIT_ORDER_HINT_BITS - 4;
+  else if (oxcf->kf_cfg.key_freq_min == 65 && oxcf->kf_cfg.key_freq_max == 65)
+    seq->order_hint_info.order_hint_bits_minus_1 =
+        DEFAULT_EXPLICIT_ORDER_HINT_BITS - 1;  // 7
+  else if (oxcf->kf_cfg.key_freq_min == 0 && oxcf->kf_cfg.key_freq_max == 0)
+    seq->order_hint_info.order_hint_bits_minus_1 = 0;  // 1 bit
+  else
+    seq->order_hint_info.order_hint_bits_minus_1 =
+        DEFAULT_EXPLICIT_ORDER_HINT_BITS - 1;
 #else
   seq->order_hint_info.order_hint_bits_minus_1 =
-#if CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
       DEFAULT_EXPLICIT_ORDER_HINT_BITS - 1;
-#else
-      seq->order_hint_info.enable_order_hint
-          ? DEFAULT_EXPLICIT_ORDER_HINT_BITS - 1
-          : -1;
 #endif  // CONFIG_CWG_F243_ORDER_HINT_BITDEPTH
-#endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   seq->enable_bru = tool_cfg->enable_bru;
   seq->explicit_ref_frame_map = oxcf->ref_frm_cfg.explicit_ref_frame_map;
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-  // Set 0 for multi-layer coding
-  seq->enable_frame_output_order = oxcf->ref_frm_cfg.enable_frame_output_order
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-                                   && seq->order_hint_info.enable_order_hint
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-      ;
-#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
   if (oxcf->tool_cfg.max_drl_refmvs == 0) {
     seq->def_max_drl_bits = DEF_MAX_DRL_REFMVS - 1;
   } else {
@@ -464,16 +431,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   assert(seq->num_bits_width <= 16);
   assert(seq->num_bits_height <= 16);
 
-#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
-  seq->frame_id_length = FRAME_ID_LENGTH;
-  seq->delta_frame_id_length = DELTA_FRAME_ID_LENGTH;
-#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
-
   seq->order_hint_info.enable_ref_frame_mvs = tool_cfg->ref_frame_mvs_present;
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-  seq->order_hint_info.enable_ref_frame_mvs &=
-      seq->order_hint_info.enable_order_hint;
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   seq->order_hint_info.reduced_ref_frame_mvs_mode =
       tool_cfg->reduced_ref_frame_mvs_mode;
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
@@ -1329,7 +1287,6 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
 
   cm->current_frame.frame_number = 0;
   cm->current_frame.key_frame_number = 0;
-  cm->current_frame_id = -1;
   cpi->seq_params_locked = 0;
   cpi->partition_search_skippable_frame = 0;
   cpi->tile_data = NULL;
@@ -4297,16 +4254,6 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
         return AOM_CODEC_ERROR;
     }
 
-#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
-    if (seq_params->frame_id_numbers_present_flag &&
-        current_frame->frame_type == KEY_FRAME) {
-      // Displaying a forward key-frame, so reset the ref buffer IDs
-      int display_frame_id = cm->ref_frame_id[cpi->existing_fb_idx_to_show];
-      for (int i = 0; i < seq_params->ref_frames; i++)
-        cm->ref_frame_id[i] = display_frame_id;
-    }
-#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
-
     cpi->seq_params_locked = 1;
 
     // NOTE: Save the new show frame buffer index for --test-code=warn, i.e.,
@@ -4401,32 +4348,6 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 
   aom_clear_system_state();
 
-#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
-  if (seq_params->frame_id_numbers_present_flag) {
-    /* Non-normative definition of current_frame_id ("frame counter" with
-     * wraparound) */
-    if (cm->current_frame_id == -1) {
-      int lsb, msb;
-      /* quasi-random initialization of current_frame_id for a key frame */
-      lsb = cpi->source->y_buffer[0] & 0xff;
-      msb = cpi->source->y_buffer[1] & 0xff;
-      cm->current_frame_id =
-          ((msb << 8) + lsb) % (1 << seq_params->frame_id_length);
-
-      // S_frame is meant for stitching different streams of different
-      // resolutions together, so current_frame_id must be the
-      // same across different streams of the same content current_frame_id
-      // should be the same and not random. 0x37 is a chosen number as start
-      // point
-      if (oxcf->kf_cfg.sframe_dist != 0) cm->current_frame_id = 0x37;
-    } else {
-      cm->current_frame_id =
-          (cm->current_frame_id + 1 + (1 << seq_params->frame_id_length)) %
-          (1 << seq_params->frame_id_length);
-    }
-  }
-#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
-
   switch (oxcf->algo_cfg.cdf_update_mode) {
     case 0:  // No CDF update for any frames(4~6% compression loss).
       features->disable_cdf_update = 1;
@@ -4460,17 +4381,6 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   }
 
   cpi->seq_params_locked = 1;
-
-#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
-  // Update reference frame ids for reference frames this frame will overwrite
-  if (seq_params->frame_id_numbers_present_flag) {
-    for (int i = 0; i < seq_params->ref_frames; i++) {
-      if ((current_frame->refresh_frame_flags >> i) & 1) {
-        cm->ref_frame_id[i] = cm->current_frame_id;
-      }
-    }
-  }
-#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
 
   if (cm->seg.enabled) {
     if (cm->seg.update_map) {
@@ -5280,13 +5190,7 @@ void enc_bru_swap_ref(AV1_COMMON *const cm) {
             scores[replaced_bru_ref_idx].index;
         cm->ref_frames_info
             .ref_frame_distance[cm->ref_frames_info.num_total_refs - 1] =
-#if CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
             scores[replaced_bru_ref_idx].distance;
-#else
-            cm->seq_params.order_hint_info.enable_order_hint
-                ? scores[replaced_bru_ref_idx].distance
-                : 1;
-#endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
         RefScoreData tmp_score = scores[cm->ref_frames_info.num_total_refs - 1];
         scores[cm->ref_frames_info.num_total_refs - 1] =
             scores[replaced_bru_ref_idx];

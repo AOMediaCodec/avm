@@ -161,8 +161,6 @@ set_aom_config_var(CONFIG_F106_OBU_TIP 1 "Use TIP_OBU.")
 set_aom_config_var(CONFIG_METADATA 1 "F161 metadata syntax")
 set_aom_config_var(CONFIG_ICC_METADATA 1 "ICC metadata syntax")
 
-set_aom_config_var(CONFIG_F253_REMOVE_OUTPUTFLAG 1
-                   "Remove enable_frame_output_order.")
 # CWG-E242
 set_aom_config_var(CONFIG_CWG_E242_SIGNAL_TILE_INFO 1
                    "Signal tile information at sequence header.")
@@ -187,16 +185,10 @@ set_aom_config_var(CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES 1
                    "AV2 control to allow loopfilters across tiles or not")
 set_aom_config_var(CONFIG_DIP_EXT_PRUNING 1 "AV2 DIP TFLite pruning.")
 
-set_aom_config_var(CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT 1
-                   "Remove enable order hint flag.")
-
 # CWG-F349
 set_aom_config_var(CONFIG_CWG_F349_SIGNAL_TILE_INFO 1
                    "Improved tile information at sequence header.")
 
-# CWG-F215
-set_aom_config_var(CWG_F215_CONFIG_REMOVE_FRAME_ID 1
-                   "Remove frame_id signalling")
 # CWG-E242 Chroma Format IDC
 set_aom_config_var(CONFIG_CWG_E242_CHROMA_FORMAT_IDC 1 "Chroma format idc.")
 

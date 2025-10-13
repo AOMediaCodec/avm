@@ -6402,12 +6402,7 @@ void av1_read_film_grain_params(AV1_COMMON *cm,
 
 static AOM_INLINE void read_film_grain(AV1_COMMON *cm,
                                        struct aom_read_bit_buffer *rb) {
-  if (cm->seq_params.film_grain_params_present
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-      && (cm->seq_params.enable_frame_output_order || cm->show_frame ||
-          cm->showable_frame)
-#endif
-  ) {
+  if (cm->seq_params.film_grain_params_present) {
     av1_read_film_grain_params(cm, rb);
   } else {
     memset(&cm->film_grain_params, 0, sizeof(cm->film_grain_params));
@@ -6704,9 +6699,6 @@ static void read_multi_frame_header_tile_info(MultiFrameHeader *mfh_param,
 void init_single_picture_header_flags(struct SequenceHeader *seq_params) {
   seq_params->seq_enabled_motion_modes = (1 << SIMPLE_TRANSLATION);
   seq_params->enable_masked_compound = 0;
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-  seq_params->order_hint_info.enable_order_hint = 0;
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   seq_params->order_hint_info.enable_ref_frame_mvs = 0;
   seq_params->force_screen_content_tools = 2;  // SELECT_SCREEN_CONTENT_TOOLS
   seq_params->force_integer_mv = 2;            // SELECT_INTEGER_MV
@@ -6762,27 +6754,13 @@ void read_sequence_inter_group_tool_flags(struct SequenceHeader *seq_params,
 #endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
     seq_params->seq_enabled_motion_modes = seq_enabled_motion_modes;
     seq_params->enable_masked_compound = aom_rb_read_bit(rb);
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-    seq_params->order_hint_info.enable_order_hint = aom_rb_read_bit(rb);
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-    seq_params->order_hint_info.enable_ref_frame_mvs =
-#if CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-        aom_rb_read_bit(rb);
-#else
-        seq_params->order_hint_info.enable_order_hint ? aom_rb_read_bit(rb) : 0;
-#endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+    seq_params->order_hint_info.enable_ref_frame_mvs = aom_rb_read_bit(rb);
     seq_params->order_hint_info.reduced_ref_frame_mvs_mode =
         seq_params->order_hint_info.enable_ref_frame_mvs ? aom_rb_read_bit(rb)
                                                          : 0;
 
     seq_params->order_hint_info.order_hint_bits_minus_1 =
-#if CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
         aom_rb_read_literal(rb, 3);
-#else
-        seq_params->order_hint_info.enable_order_hint
-            ? aom_rb_read_literal(rb, 3)
-            : -1;
-#endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   }
   seq_params->enable_refmvbank = aom_rb_read_bit(rb);
   if (aom_rb_read_bit(rb)) {
@@ -6792,11 +6770,6 @@ void read_sequence_inter_group_tool_flags(struct SequenceHeader *seq_params,
         aom_rb_read_bit(rb) ? DRL_REORDER_CONSTRAINT : DRL_REORDER_ALWAYS;
   }
   seq_params->explicit_ref_frame_map = aom_rb_read_bit(rb);
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-  // 0 : use show_existing_frame, 1: use implicit derivation
-  seq_params->enable_frame_output_order = aom_rb_read_bit(rb);
-#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
-
   if (aom_rb_read_bit(rb)) {
     seq_params->ref_frames =
         aom_rb_read_literal(rb, 4) + 1;  // explicitly signaled DPB size
@@ -6847,13 +6820,7 @@ void read_sequence_inter_group_tool_flags(struct SequenceHeader *seq_params,
   } else {
     seq_params->enable_tip_explicit_qp = 0;
   }
-#if CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   seq_params->enable_opfl_refine = aom_rb_read_literal(rb, 2);
-#else
-  seq_params->enable_opfl_refine = seq_params->order_hint_info.enable_order_hint
-                                       ? aom_rb_read_literal(rb, 2)
-                                       : AOM_OPFL_REFINE_NONE;
-#endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
 
   seq_params->enable_adaptive_mvd = aom_rb_read_bit(rb);
 
@@ -6960,30 +6927,8 @@ void read_sequence_transform_group_tool_flags(struct SequenceHeader *seq_params,
 }
 #endif  // CONFIG_REORDER_SEQ_FLAGS
 
-void av1_read_sequence_header(
-#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
-    AV1_COMMON *cm,
-#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
-    struct aom_read_bit_buffer *rb, SequenceHeader *seq_params) {
-#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
-  if (seq_params->single_picture_hdr_flag) {
-    seq_params->frame_id_numbers_present_flag = 0;
-  } else {
-    seq_params->frame_id_numbers_present_flag = aom_rb_read_bit(rb);
-  }
-  if (seq_params->frame_id_numbers_present_flag) {
-    // We must always have delta_frame_id_length < frame_id_length,
-    // in order for a frame to be referenced with a unique delta.
-    // Avoid wasting bits by using a coding that enforces this restriction.
-    seq_params->delta_frame_id_length = aom_rb_read_literal(rb, 4) + 2;
-    seq_params->frame_id_length =
-        aom_rb_read_literal(rb, 3) + seq_params->delta_frame_id_length + 1;
-    if (seq_params->frame_id_length > 16)
-      aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
-                         "Invalid frame_id_length");
-  }
-#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
-
+void av1_read_sequence_header(struct aom_read_bit_buffer *rb,
+                              SequenceHeader *seq_params) {
   setup_seq_sb_size(seq_params, rb);
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO
   seq_params->seq_tile_info_present_flag = 0;
@@ -7007,9 +6952,6 @@ void av1_read_sequence_header(
 #if !CONFIG_REORDER_SEQ_FLAGS
     seq_params->seq_enabled_motion_modes = (1 << SIMPLE_TRANSLATION);
     seq_params->enable_masked_compound = 0;
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-    seq_params->order_hint_info.enable_order_hint = 0;
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
     seq_params->order_hint_info.enable_ref_frame_mvs = 0;
     seq_params->force_screen_content_tools = 2;  // SELECT_SCREEN_CONTENT_TOOLS
     seq_params->force_integer_mv = 2;            // SELECT_INTEGER_MV
@@ -7053,15 +6995,7 @@ void av1_read_sequence_header(
 
     seq_params->seq_enabled_motion_modes = seq_enabled_motion_modes;
     seq_params->enable_masked_compound = aom_rb_read_bit(rb);
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-    seq_params->order_hint_info.enable_order_hint = aom_rb_read_bit(rb);
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-    seq_params->order_hint_info.enable_ref_frame_mvs =
-#if CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-        aom_rb_read_bit(rb);
-#else
-        seq_params->order_hint_info.enable_order_hint ? aom_rb_read_bit(rb) : 0;
-#endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+    seq_params->order_hint_info.enable_ref_frame_mvs = aom_rb_read_bit(rb);
     seq_params->order_hint_info.reduced_ref_frame_mvs_mode =
         seq_params->order_hint_info.enable_ref_frame_mvs ? aom_rb_read_bit(rb)
                                                          : 0;
@@ -7083,13 +7017,7 @@ void av1_read_sequence_header(
     }
 
     seq_params->order_hint_info.order_hint_bits_minus_1 =
-#if CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
         aom_rb_read_literal(rb, 3);
-#else
-        seq_params->order_hint_info.enable_order_hint
-            ? aom_rb_read_literal(rb, 3)
-            : -1;
-#endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
 #endif  // !CONFIG_REORDER_SEQ_FLAGS
   }
 
@@ -7292,11 +7220,6 @@ void av1_read_sequence_header_beyond_av1(
 #if !CONFIG_REORDER_SEQ_FLAGS
   seq_params->explicit_ref_frame_map = aom_rb_read_bit(rb);
 
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-  // 0 : use show_existing_frame, 1: use implicit derivation
-  seq_params->enable_frame_output_order = aom_rb_read_bit(rb);
-#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
-
   if (aom_rb_read_bit(rb)) {
     seq_params->ref_frames =
         aom_rb_read_literal(rb, 4) + 1;  // explicitly signaled DPB size
@@ -7363,13 +7286,7 @@ void av1_read_sequence_header_beyond_av1(
     seq_params->enable_tip_explicit_qp = 0;
   }
   seq_params->enable_orip = aom_rb_read_bit(rb);
-#if CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   seq_params->enable_opfl_refine = aom_rb_read_literal(rb, 2);
-#else
-  seq_params->enable_opfl_refine = seq_params->order_hint_info.enable_order_hint
-                                       ? aom_rb_read_literal(rb, 2)
-                                       : AOM_OPFL_REFINE_NONE;
-#endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   seq_params->enable_ibp = aom_rb_read_bit(rb);
   seq_params->enable_adaptive_mvd = aom_rb_read_bit(rb);
   seq_params->enable_refinemv = aom_rb_read_bit(rb);
@@ -7698,19 +7615,11 @@ static AOM_INLINE void read_global_motion(AV1_COMMON *cm,
 
   for (int frame = 0; frame < cm->ref_frames_info.num_total_refs; ++frame) {
     int temporal_distance;
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-    if (seq_params->order_hint_info.enable_order_hint) {
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-      const RefCntBuffer *const ref_buf = get_ref_frame_buf(cm, frame);
-      const int ref_order_hint = ref_buf->display_order_hint;
-      const int cur_order_hint = cm->cur_frame->display_order_hint;
-      temporal_distance = get_relative_dist(&seq_params->order_hint_info,
-                                            cur_order_hint, ref_order_hint);
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-    } else {
-      temporal_distance = 1;
-    }
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+    const RefCntBuffer *const ref_buf = get_ref_frame_buf(cm, frame);
+    const int ref_order_hint = ref_buf->display_order_hint;
+    const int cur_order_hint = cm->cur_frame->display_order_hint;
+    temporal_distance = get_relative_dist(&seq_params->order_hint_info,
+                                          cur_order_hint, ref_order_hint);
 
     if (temporal_distance == 0) {
       // Don't code global motion for frames at the same temporal instant
@@ -7775,7 +7684,7 @@ static AOM_INLINE void reset_ref_frame_map(AV1_COMMON *const cm) {
 
 // If the refresh_frame_flags bitmask is set, update reference frame id values
 // and mark frames as valid for reference.
-static AOM_INLINE void update_ref_frame_id(AV1Decoder *const pbi) {
+static AOM_INLINE void validate_refereces(AV1Decoder *const pbi) {
   AV1_COMMON *const cm = &pbi->common;
   int refresh_frame_flags = cm->current_frame.refresh_frame_flags;
   for (int i = 0; i < cm->seq_params.ref_frames; i++) {
@@ -7784,15 +7693,13 @@ static AOM_INLINE void update_ref_frame_id(AV1Decoder *const pbi) {
           i > 0) {
         pbi->valid_for_referencing[i] = 0;
       } else {
-        cm->ref_frame_id[i] = cm->current_frame_id;
         pbi->valid_for_referencing[i] = 1;
       }
     }
   }
 }
 
-static AOM_INLINE void show_existing_frame_reset(AV1Decoder *const pbi,
-                                                 int existing_frame_idx) {
+static AOM_INLINE void show_existing_frame_reset(AV1Decoder *const pbi) {
   AV1_COMMON *const cm = &pbi->common;
 
   assert(cm->show_existing_frame);
@@ -7813,8 +7720,7 @@ static AOM_INLINE void show_existing_frame_reset(AV1Decoder *const pbi,
 
   // Note that the displayed frame must be valid for referencing in order to
   // have been selected.
-  cm->current_frame_id = cm->ref_frame_id[existing_frame_idx];
-  update_ref_frame_id(pbi);
+  validate_refereces(pbi);
 
   cm->features.refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
 }
@@ -8064,18 +7970,6 @@ static int read_show_existing_frame(AV1Decoder *pbi,
       seq_params->timing_info.equal_picture_interval == 0) {
     read_temporal_point_info(cm, rb);
   }
-#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
-  if (seq_params->frame_id_numbers_present_flag) {
-    int frame_id_length = seq_params->frame_id_length;
-    int display_frame_id = aom_rb_read_literal(rb, frame_id_length);
-    /* Compare display_frame_id with ref_frame_id and check valid for
-     * referencing */
-    if (display_frame_id != cm->ref_frame_id[existing_frame_idx] ||
-        pbi->valid_for_referencing[existing_frame_idx] == 0)
-      aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
-                         "Reference buffer frame ID mismatch");
-  }
-#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
   lock_buffer_pool(pool);
   assert(frame_to_show->ref_count > 0);
   // cm->cur_frame should be the buffer referenced by the return value
@@ -8111,17 +8005,8 @@ static int read_show_existing_frame(AV1Decoder *pbi,
   // show_existing_frame is used to show a previous frame with
   // RefFrameType[ frame_to_show_map_idx ] equal to KEY_FRAME, that the
   // frame is output via the show_existing_frame mechanism at most once.
-  if ((
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-          seq_params->enable_frame_output_order &&
-#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
-          frame_to_show->frame_type == KEY_FRAME &&
-          !frame_to_show->showable_frame && frame_to_show->frame_output_done)
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-      ||
-      (!seq_params->enable_frame_output_order && !frame_to_show->showable_frame)
-#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
-  ) {
+  if ((frame_to_show->frame_type == KEY_FRAME &&
+       !frame_to_show->showable_frame && frame_to_show->frame_output_done)) {
     aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                        "Buffer does not contain a showable frame");
   }
@@ -8130,7 +8015,7 @@ static int read_show_existing_frame(AV1Decoder *pbi,
   cm->film_grain_params = frame_to_show->film_grain_params;
 
   if (pbi->reset_decoder_state) {
-    show_existing_frame_reset(pbi, existing_frame_idx);
+    show_existing_frame_reset(pbi);
   } else {
     current_frame->refresh_frame_flags = 0;
   }
@@ -8341,14 +8226,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     features->error_resilient_mode = 1;
 #endif  // !CONFIG_F322_OBUER_ERM
 
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-    if (cm->seq_params.enable_frame_output_order)
-#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
-      cm->cur_frame->frame_output_done = 0;
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-    else
-      cm->cur_frame->frame_output_done = 1;
-#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
+    cm->cur_frame->frame_output_done = 0;
 
   } else {
 #if CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_SEF
@@ -8393,18 +8271,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           seq_params->timing_info.equal_picture_interval == 0) {
         read_temporal_point_info(cm, rb);
       }
-#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
-      if (seq_params->frame_id_numbers_present_flag) {
-        int frame_id_length = seq_params->frame_id_length;
-        int display_frame_id = aom_rb_read_literal(rb, frame_id_length);
-        /* Compare display_frame_id with ref_frame_id and check valid for
-         * referencing */
-        if (display_frame_id != cm->ref_frame_id[existing_frame_idx] ||
-            pbi->valid_for_referencing[existing_frame_idx] == 0)
-          aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
-                             "Reference buffer frame ID mismatch");
-      }
-#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
       lock_buffer_pool(pool);
       assert(frame_to_show->ref_count > 0);
       // cm->cur_frame should be the buffer referenced by the return value
@@ -8441,32 +8307,24 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       // show_existing_frame is used to show a previous frame with
       // RefFrameType[ frame_to_show_map_idx ] equal to KEY_FRAME, that the
       // frame is output via the show_existing_frame mechanism at most once.
-      if ((
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-              seq_params->enable_frame_output_order &&
-#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
-              frame_to_show->frame_type == KEY_FRAME &&
-              !frame_to_show->showable_frame &&
-              frame_to_show->frame_output_done)) {
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-          || (!seq_params->enable_frame_output_order &&
-              !frame_to_show->showable_frame)) {
-#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
-            aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-                               "Buffer does not contain a showable frame");
-          }
-          if (pbi->reset_decoder_state) frame_to_show->showable_frame = 0;
-
-          cm->film_grain_params = frame_to_show->film_grain_params;
-
-          if (pbi->reset_decoder_state) {
-            show_existing_frame_reset(pbi, existing_frame_idx);
-          } else {
-            current_frame->refresh_frame_flags = 0;
-          }
-
-          return 0;
+      if ((frame_to_show->frame_type == KEY_FRAME &&
+           !frame_to_show->showable_frame &&
+           frame_to_show->frame_output_done)) {
+        aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+                           "Buffer does not contain a showable frame");
       }
+      if (pbi->reset_decoder_state) frame_to_show->showable_frame = 0;
+
+      cm->film_grain_params = frame_to_show->film_grain_params;
+
+      if (pbi->reset_decoder_state) {
+        show_existing_frame_reset(pbi, existing_frame_idx);
+      } else {
+        current_frame->refresh_frame_flags = 0;
+      }
+
+      return 0;
+    }
 #endif  // CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_SEF
 #if CONFIG_F106_OBU_TILEGROUP
 #if CONFIG_F106_OBU_SWITCH
@@ -8498,8 +8356,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_SWITCH
           current_frame->frame_type = INTRA_ONLY_FRAME;
 #else
-          current_frame->frame_type =
-              aom_rb_read_bit(rb) ? INTRA_ONLY_FRAME : S_FRAME;
+        current_frame->frame_type =
+            aom_rb_read_bit(rb) ? INTRA_ONLY_FRAME : S_FRAME;
 #endif  // CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_SWITCH
         }
       }
@@ -8582,30 +8440,14 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         seq_params->timing_info.equal_picture_interval == 0)
       read_temporal_point_info(cm, rb);
 #endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
-    if (
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-        seq_params->enable_frame_output_order &&
-#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
-        current_frame->frame_type == KEY_FRAME && cm->showable_frame) {
+    if (current_frame->frame_type == KEY_FRAME && cm->showable_frame) {
       aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                          "showable_frame should be equal to 0"
-#if CONFIG_F253_REMOVE_OUTPUTFLAG
                          "Frame "
-#else
-                           "when enable_frame_output_order is enabled and "
-                           "frame "
-#endif  // CONFIG_F253_REMOVE_OUTPUTFLAG
                          "type is KEY_FRAME.");
     }
     cm->cur_frame->showable_frame = cm->showable_frame;
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-    if (cm->seq_params.enable_frame_output_order)
-#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
-      cm->cur_frame->frame_output_done = 0;
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-    else
-      cm->cur_frame->frame_output_done = 1;
-#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
+    cm->cur_frame->frame_output_done = 0;
 
 #if !CONFIG_F322_OBUER_ERM
 #if CONFIG_CWG_F317
@@ -8656,63 +8498,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   pbi->signal_primary_ref_frame = -1;
 
   if (!seq_params->single_picture_hdr_flag) {
-#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
-    if (seq_params->frame_id_numbers_present_flag) {
-      int frame_id_length = seq_params->frame_id_length;
-      int diff_len = seq_params->delta_frame_id_length;
-      int prev_frame_id = 0;
-      int have_prev_frame_id =
-          !pbi->decoding_first_frame &&
-          !(current_frame->frame_type == KEY_FRAME && cm->show_frame);
-      if (have_prev_frame_id) {
-        prev_frame_id = cm->current_frame_id;
-      }
-#if CONFIG_CWG_F317
-      if (cm->bridge_frame_info.is_bridge_frame) {
-        const int ref_frame =
-            cm->bridge_frame_info.bridge_frame_ref_idx_remapped;
-        assert(!is_tip_ref_frame(
-            ref_frame));  // TIP frame reference is not allowed
-        const int map_idx = get_ref_frame_map_idx(cm, ref_frame);
-        cm->current_frame_id = cm->ref_frame_id[map_idx];
-      } else {
-#endif  // CONFIG_CWG_F317
-        cm->current_frame_id = aom_rb_read_literal(rb, frame_id_length);
-#if CONFIG_CWG_F317
-      }
-#endif  // CONFIG_CWG_F317
-
-      if (have_prev_frame_id) {
-        int diff_frame_id;
-        if (cm->current_frame_id > prev_frame_id) {
-          diff_frame_id = cm->current_frame_id - prev_frame_id;
-        } else {
-          diff_frame_id =
-              (1 << frame_id_length) + cm->current_frame_id - prev_frame_id;
-        }
-        /* Check current_frame_id for conformance */
-        if (prev_frame_id == cm->current_frame_id ||
-            diff_frame_id >= (1 << (frame_id_length - 1))) {
-          aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
-                             "Invalid value of current_frame_id");
-        }
-      }
-      /* Check if some frames need to be marked as not valid for referencing */
-      for (int i = 0; i < seq_params->ref_frames; i++) {
-        if (cm->current_frame_id - (1 << diff_len) > 0) {
-          if (cm->ref_frame_id[i] > cm->current_frame_id ||
-              cm->ref_frame_id[i] < cm->current_frame_id - (1 << diff_len))
-            pbi->valid_for_referencing[i] = 0;
-        } else {
-          if (cm->ref_frame_id[i] > cm->current_frame_id &&
-              cm->ref_frame_id[i] < (1 << frame_id_length) +
-                                        cm->current_frame_id - (1 << diff_len))
-            pbi->valid_for_referencing[i] = 0;
-        }
-      }
-    }
-#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
-
 #if CONFIG_CWG_F317
     if (cm->bridge_frame_info.is_bridge_frame) {
       frame_size_override_flag = 1;
@@ -8732,7 +8517,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_F322_OBUER_ERM
         !frame_is_sframe(cm)
 #else
-          !features->error_resilient_mode
+        !features->error_resilient_mode
 #endif
         && !frame_is_intra_only(cm)) {
 #if CONFIG_CWG_F317
@@ -8803,7 +8588,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_F322_OBUER_ERM
         !frame_is_sframe(cm)
 #else
-          !cm->features.error_resilient_mode
+        !cm->features.error_resilient_mode
 #endif
         ;
     const int refresh_frame_flags_bits = short_refresh_frame_flags
@@ -8854,10 +8639,10 @@ static int read_uncompressed_header(AV1Decoder *pbi,
             aom_rb_read_literal(rb, seq_params->ref_frames);
       } else {
 #else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-        if (frame_is_sframe(cm)) {
-          current_frame->refresh_frame_flags =
-              ((1 << seq_params->ref_frames) - 1);
-        } else {
+      if (frame_is_sframe(cm)) {
+        current_frame->refresh_frame_flags =
+            ((1 << seq_params->ref_frames) - 1);
+      } else {
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 #if CONFIG_CWG_F317
         if (cm->bridge_frame_info.is_bridge_frame) {
@@ -8906,97 +8691,93 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 #else
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-    if (pbi->obu_type == OBU_RAS_FRAME) {
-      mark_reference_frames_with_long_term_ids(pbi);
-    } else if (!frame_is_intra_only(cm) ||
-               current_frame->refresh_frame_flags !=
-                   ((1 << seq_params->ref_frames) - 1))
+  if (pbi->obu_type == OBU_RAS_FRAME) {
+    mark_reference_frames_with_long_term_ids(pbi);
+  } else if (!frame_is_intra_only(cm) ||
+             current_frame->refresh_frame_flags !=
+                 ((1 << seq_params->ref_frames) - 1))
 #else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   if (!frame_is_intra_only(cm) ||
       current_frame->refresh_frame_flags != ((1 << seq_params->ref_frames) - 1))
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-    {
-      // Read all ref frame order hints if error_resilient_mode == 1
-      if (features->error_resilient_mode
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-          && seq_params->order_hint_info.enable_order_hint
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-      ) {
-        for (int ref_idx = 0; ref_idx < seq_params->ref_frames; ref_idx++) {
-          // Read order hint from bit stream
-          unsigned int order_hint = aom_rb_read_literal(
-              rb, seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
-          // Get buffer
-          RefCntBuffer *buf = cm->ref_frame_map[ref_idx];
-          if ((pbi->valid_for_referencing[ref_idx] == 0) ||
-              (buf != NULL && order_hint != buf->order_hint)) {
-            if (buf != NULL) {
-              lock_buffer_pool(pool);
-              decrease_ref_count(buf, pool);
-              unlock_buffer_pool(pool);
-              cm->ref_frame_map[ref_idx] = NULL;
-            }
-            // If no corresponding buffer exists, allocate a new buffer with all
-            // pixels set to neutral grey.
-            check_ref_count_status_dec(pbi);
-            int buf_idx = get_free_fb(cm);
-            if (buf_idx == INVALID_IDX) {
-              aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
-                                 "Unable to find free frame buffer");
-            }
-            buf = &frame_bufs[buf_idx];
-            lock_buffer_pool(pool);
-            if (aom_realloc_frame_buffer(
-                    &buf->buf, seq_params->max_frame_width,
-                    seq_params->max_frame_height, seq_params->subsampling_x,
-                    seq_params->subsampling_y, AOM_BORDER_IN_PIXELS,
-                    features->byte_alignment, &buf->raw_frame_buffer,
-                    pool->get_fb_cb, pool->cb_priv, false)) {
-              decrease_ref_count(buf, pool);
-              unlock_buffer_pool(pool);
-              aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
-                                 "Failed to allocate frame buffer");
-            }
-            unlock_buffer_pool(pool);
-            // According to the specification, valid bitstreams are required to
-            // never use missing reference frames so the filling process for
-            // missing frames is not normatively defined and RefValid for
-            // missing frames is set to 0.
-
-            // To make libaom more robust when the bitstream has been corrupted
-            // by the loss of some frames of data, this code adds a neutral grey
-            // buffer in place of missing frames, i.e.
-            //
-            set_planes_to_neutral_grey(seq_params, &buf->buf, 0);
-            //
-            // and allows the frames to be used for referencing, i.e.
-            //
-            pbi->valid_for_referencing[ref_idx] = 1;
-            //
-            // Please note such behavior is not normative and other decoders may
-            // use a different approach.
-            cm->ref_frame_map[ref_idx] = buf;
-            buf->order_hint = order_hint;
-            buf->display_order_hint = get_ref_frame_disp_order_hint(cm, buf);
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-            buf->long_term_id = -1;
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-          }
-        }
-      }
-    }
+  {
+    // Read all ref frame order hints if error_resilient_mode == 1
     if (features->error_resilient_mode) {
-      // Read all ref frame base_qindex
       for (int ref_idx = 0; ref_idx < seq_params->ref_frames; ref_idx++) {
-        const int base_qindex = aom_rb_read_literal(
-            rb, cm->seq_params.bit_depth == AOM_BITS_8 ? QINDEX_BITS_UNEXT
-                                                       : QINDEX_BITS);
-        if (pbi->valid_for_referencing[ref_idx]) {
-          RefCntBuffer *buf = cm->ref_frame_map[ref_idx];
-          if (buf != NULL) buf->base_qindex = base_qindex;
+        // Read order hint from bit stream
+        unsigned int order_hint = aom_rb_read_literal(
+            rb, seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
+        // Get buffer
+        RefCntBuffer *buf = cm->ref_frame_map[ref_idx];
+        if ((pbi->valid_for_referencing[ref_idx] == 0) ||
+            (buf != NULL && order_hint != buf->order_hint)) {
+          if (buf != NULL) {
+            lock_buffer_pool(pool);
+            decrease_ref_count(buf, pool);
+            unlock_buffer_pool(pool);
+            cm->ref_frame_map[ref_idx] = NULL;
+          }
+          // If no corresponding buffer exists, allocate a new buffer with all
+          // pixels set to neutral grey.
+          check_ref_count_status_dec(pbi);
+          int buf_idx = get_free_fb(cm);
+          if (buf_idx == INVALID_IDX) {
+            aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+                               "Unable to find free frame buffer");
+          }
+          buf = &frame_bufs[buf_idx];
+          lock_buffer_pool(pool);
+          if (aom_realloc_frame_buffer(
+                  &buf->buf, seq_params->max_frame_width,
+                  seq_params->max_frame_height, seq_params->subsampling_x,
+                  seq_params->subsampling_y, AOM_BORDER_IN_PIXELS,
+                  features->byte_alignment, &buf->raw_frame_buffer,
+                  pool->get_fb_cb, pool->cb_priv, false)) {
+            decrease_ref_count(buf, pool);
+            unlock_buffer_pool(pool);
+            aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
+                               "Failed to allocate frame buffer");
+          }
+          unlock_buffer_pool(pool);
+          // According to the specification, valid bitstreams are required to
+          // never use missing reference frames so the filling process for
+          // missing frames is not normatively defined and RefValid for
+          // missing frames is set to 0.
+
+          // To make libaom more robust when the bitstream has been corrupted
+          // by the loss of some frames of data, this code adds a neutral grey
+          // buffer in place of missing frames, i.e.
+          //
+          set_planes_to_neutral_grey(seq_params, &buf->buf, 0);
+          //
+          // and allows the frames to be used for referencing, i.e.
+          //
+          pbi->valid_for_referencing[ref_idx] = 1;
+          //
+          // Please note such behavior is not normative and other decoders may
+          // use a different approach.
+          cm->ref_frame_map[ref_idx] = buf;
+          buf->order_hint = order_hint;
+          buf->display_order_hint = get_ref_frame_disp_order_hint(cm, buf);
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+          buf->long_term_id = -1;
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
         }
       }
     }
+  }
+  if (features->error_resilient_mode) {
+    // Read all ref frame base_qindex
+    for (int ref_idx = 0; ref_idx < seq_params->ref_frames; ref_idx++) {
+      const int base_qindex = aom_rb_read_literal(
+          rb, cm->seq_params.bit_depth == AOM_BITS_8 ? QINDEX_BITS_UNEXT
+                                                     : QINDEX_BITS);
+      if (pbi->valid_for_referencing[ref_idx]) {
+        RefCntBuffer *buf = cm->ref_frame_map[ref_idx];
+        if (buf != NULL) buf->base_qindex = base_qindex;
+      }
+    }
+  }
 #endif  // CONFIG_F322_OBUER_ERM
 
   features->allow_lf_sub_pu = 0;
@@ -9048,7 +8829,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                         current_frame->frame_type == KEY_FRAME,
                         pbi->obu_type == OBU_RAS_FRAME);
 #else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-                          current_frame->frame_type == KEY_FRAME);
+                        current_frame->frame_type == KEY_FRAME);
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 #if CONFIG_CWG_F317
       if (cm->bridge_frame_info.is_bridge_frame) {
@@ -9098,20 +8879,17 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           explicit_ref_frame_map = 0;
       }
 #else
-        const int explicit_ref_frame_map =
+      const int explicit_ref_frame_map =
 #if CONFIG_CWG_F317
-            (
+          (
 #endif  // CONFIG_CWG_F317
-                cm->features.error_resilient_mode || frame_is_sframe(cm) ||
-                seq_params->explicit_ref_frame_map
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-                || !seq_params->order_hint_info.enable_order_hint
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+              cm->features.error_resilient_mode || frame_is_sframe(cm) ||
+              seq_params->explicit_ref_frame_map
 #if CONFIG_CWG_F317
-                ) &&
-            !cm->bridge_frame_info.is_bridge_frame
+              ) &&
+          !cm->bridge_frame_info.is_bridge_frame
 #endif  // CONFIG_CWG_F317
-            ;
+          ;
 #endif  // CONFIG_F322_OBUER_EXPLICIT_REFLIST
 
       if (explicit_ref_frame_map) {
@@ -9178,7 +8956,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           && frame_size_override_flag &&
           !cm->bridge_frame_info.is_bridge_frame) {
 #else
-        if (!features->error_resilient_mode && frame_size_override_flag) {
+      if (!features->error_resilient_mode && frame_size_override_flag) {
 #endif  // CONFIG_CWG_F317
         setup_frame_size_with_refs(cm, explicit_ref_frame_map, rb);
       } else {
@@ -9212,7 +8990,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_TIP
       if (obu_type != OBU_TIP && current_frame->frame_type == INTER_FRAME)
 #else
-        if (current_frame->frame_type == INTER_FRAME)
+      if (current_frame->frame_type == INTER_FRAME)
 #endif
       {
         setup_bru_active_info(cm, rb);
@@ -9235,7 +9013,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       if (cm->bru.frame_inactive_flag ||
           cm->bridge_frame_info.is_bridge_frame) {
 #else
-        if (cm->bru.frame_inactive_flag) {
+      if (cm->bru.frame_inactive_flag) {
 #endif  // CONFIG_CWG_F317
         cm->features.disable_cdf_update = 1;
       }
@@ -9278,28 +9056,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         if (pbi->valid_for_referencing[ref] == 0)
           aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                              "Reference frame not valid for referencing");
-
-#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
-#if CONFIG_CWG_F317
-        if (seq_params->frame_id_numbers_present_flag &&
-            !cm->bridge_frame_info.is_bridge_frame) {
-#else
-        if (seq_params->frame_id_numbers_present_flag) {
-#endif  // CONFIG_CWG_F317
-          int frame_id_length = seq_params->frame_id_length;
-          int diff_len = seq_params->delta_frame_id_length;
-          int delta_frame_id_minus_1 = aom_rb_read_literal(rb, diff_len);
-          int ref_frame_id =
-              ((cm->current_frame_id - (delta_frame_id_minus_1 + 1) +
-                (1 << frame_id_length)) %
-               (1 << frame_id_length));
-          // Compare values derived from delta_frame_id_minus_1 and
-          // refresh_frame_flags.
-          if (ref_frame_id != cm->ref_frame_id[ref])
-            aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
-                               "Reference buffer frame ID mismatch");
-        }
-#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
       }
       if (cm->bru.update_ref_idx != -1) {
         for (int i = 0; i < cm->ref_frames_info.num_total_refs; ++i) {
@@ -9342,18 +9098,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           scores[i].score = i;
           int ref = cm->remapped_ref_idx[i];
           scores[i].distance =
-#if CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
               get_relative_dist(&seq_params->order_hint_info,
                                 (int)current_frame->display_order_hint,
                                 (int)cm->ref_frame_map_pairs[ref].disp_order);
-#else
-                seq_params->order_hint_info.enable_order_hint
-                    ? get_relative_dist(
-                          &seq_params->order_hint_info,
-                          (int)current_frame->display_order_hint,
-                          (int)cm->ref_frame_map_pairs[ref].disp_order)
-                    : 1;
-#endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
           cm->ref_frames_info.ref_frame_distance[i] = scores[i].distance;
         }
         av1_get_past_future_cur_ref_lists(cm, scores);
@@ -9367,11 +9114,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
       if (features->allow_ref_frame_mvs &&
           cm->ref_frames_info.num_total_refs > 1 &&
-          block_size_high[seq_params->sb_size] > 64
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-          && seq_params->order_hint_info.enable_order_hint
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-      ) {
+          block_size_high[seq_params->sb_size] > 64) {
         // Get the TMVP sampling mode
         cm->tmvp_sample_step = aom_rb_read_bit(rb) + 1;
         cm->tmvp_sample_stepl2 = cm->tmvp_sample_step == 1 ? 0 : 1;
@@ -9408,9 +9151,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           features->tip_frame_mode = TIP_FRAME_AS_OUTPUT;
         }
 #else
-          if (cm->seq_params.enable_tip == 1 && aom_rb_read_bit(rb)) {
-            features->tip_frame_mode = TIP_FRAME_AS_OUTPUT;
-          }
+        if (cm->seq_params.enable_tip == 1 && aom_rb_read_bit(rb)) {
+          features->tip_frame_mode = TIP_FRAME_AS_OUTPUT;
+        }
 #endif  // CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_TIP
         else {
           features->tip_frame_mode =
@@ -9506,9 +9249,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                                             : MV_PRECISION_HALF_PEL;
           }
 #else
-            features->fr_mv_precision = aom_rb_read_bit(rb)
-                                            ? MV_PRECISION_ONE_EIGHTH_PEL
-                                            : MV_PRECISION_QTR_PEL;
+          features->fr_mv_precision = aom_rb_read_bit(rb)
+                                          ? MV_PRECISION_ONE_EIGHTH_PEL
+                                          : MV_PRECISION_QTR_PEL;
 
 #endif  //  CONFIG_FRAME_HALF_PRECISION
 
@@ -9602,7 +9345,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
   cm->cur_frame->frame_type = current_frame->frame_type;
 
-  update_ref_frame_id(pbi);
+  validate_refereces(pbi);
 
   cm->cur_frame->buf.bit_depth = seq_params->bit_depth;
   cm->cur_frame->buf.color_primaries = seq_params->color_primaries;
@@ -9636,7 +9379,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_CWG_F317
   if (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame) {
 #else
-    if (cm->bru.frame_inactive_flag) {
+  if (cm->bru.frame_inactive_flag) {
 #endif  // CONFIG_CWG_F317
     // Set parameters corresponding to no filtering.
     struct loopfilter *lf = &cm->lf;
@@ -9665,8 +9408,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       ref_buf = get_ref_frame_buf(cm, cm->bru.update_ref_idx);
     }
 #else
-      const RefCntBuffer *bru_ref_buf =
-          get_ref_frame_buf(cm, cm->bru.update_ref_idx);
+    const RefCntBuffer *bru_ref_buf =
+        get_ref_frame_buf(cm, cm->bru.update_ref_idx);
 #endif  // CONFIG_CWG_F317
     // set cm->ccso_info and copy to cur_frame->ccso_info
     // doing once in uncompred header
@@ -9676,7 +9419,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       if (cm->bru.frame_inactive_flag ||
           cm->bridge_frame_info.is_bridge_frame) {
 #else
-        if (cm->bru.frame_inactive_flag) {
+      if (cm->bru.frame_inactive_flag) {
 #endif  // CONFIG_CWG_F317
         cm->ccso_info.reuse_ccso[plane] = 0;
         cm->ccso_info.sb_reuse_ccso[plane] = 0;
@@ -9693,10 +9436,10 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       cm->quant_params.u_ac_delta_q = ref_buf->u_ac_delta_q;
       cm->quant_params.v_ac_delta_q = ref_buf->v_ac_delta_q;
 #else  // CONFIG_CWG_F317
-      cm->quant_params.base_qindex = bru_ref_buf->base_qindex;
-      if (av1_num_planes(cm) > 1) {
-        cm->quant_params.u_ac_delta_q = bru_ref_buf->u_ac_delta_q;
-        cm->quant_params.v_ac_delta_q = bru_ref_buf->v_ac_delta_q;
+    cm->quant_params.base_qindex = bru_ref_buf->base_qindex;
+    if (av1_num_planes(cm) > 1) {
+      cm->quant_params.u_ac_delta_q = bru_ref_buf->u_ac_delta_q;
+      cm->quant_params.v_ac_delta_q = bru_ref_buf->v_ac_delta_q;
 #endif
     } else {
       cm->quant_params.v_ac_delta_q = cm->quant_params.u_ac_delta_q = 0;
@@ -9980,7 +9723,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_REDUCED_TX_SET_EXT
       aom_rb_read_literal(rb, 2);
 #else
-        aom_rb_read_bit(rb);
+      aom_rb_read_bit(rb);
 #endif  // CONFIG_REDUCED_TX_SET_EXT
 
   if (features->allow_ref_frame_mvs && !frame_might_allow_ref_frame_mvs(cm)) {

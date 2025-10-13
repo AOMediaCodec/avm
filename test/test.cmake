@@ -147,10 +147,6 @@ if(NOT BUILD_SHARED_LIBS)
          "${AOM_ROOT}/test/error_resilience_test.cc")
   endif()
 
-  if(NOT CONFIG_F253_REMOVE_OUTPUTFLAG)
-    list(APPEND AOM_UNIT_TEST_COMMON_SOURCES "${AOM_ROOT}/test/sef_test.cc")
-  endif()
-
   list(APPEND AOM_UNIT_TEST_COMMON_INTRIN_NEON
        "${AOM_ROOT}/test/simd_cmp_neon.cc")
   if(HAVE_NEON)

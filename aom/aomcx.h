@@ -778,17 +778,6 @@ enum aome_enc_control_id {
    */
   AV1E_SET_ENABLE_INTRA_EDGE_FILTER = 78,
 
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-  /*!\brief Codec control function to turn on / off frame order hint (int
-   * parameter). Affects: joint compound mode, motion field motion vector,
-   * ref frame sign bias
-   *
-   * - 0 = disable
-   * - 1 = enable (default)
-   */
-  AV1E_SET_ENABLE_ORDER_HINT = 79,
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-
   /*!\brief Codec control function to turn on / off 64-length transforms, int
    * parameter
    *
@@ -1520,11 +1509,6 @@ AOM_CTRL_USE_TYPE(AV1E_SET_MAX_PARTITION_SIZE, int)
 
 AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_INTRA_EDGE_FILTER, int)
 #define AOM_CTRL_AV1E_SET_ENABLE_INTRA_EDGE_FILTER
-
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_ORDER_HINT, int)
-#define AOM_CTRL_AV1E_SET_ENABLE_ORDER_HINT
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
 
 AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_TX64, int)
 #define AOM_CTRL_AV1E_SET_ENABLE_TX64

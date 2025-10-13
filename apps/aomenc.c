@@ -147,9 +147,6 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
                                         AV1E_SET_MAX_PARTITION_SIZE,
                                         AV1E_SET_ENABLE_CHROMA_DELTAQ,
                                         AV1E_SET_ENABLE_INTRA_EDGE_FILTER,
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-                                        AV1E_SET_ENABLE_ORDER_HINT,
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
                                         AV1E_SET_ENABLE_TX64,
                                         AV1E_SET_ENABLE_FLIP_IDTX,
                                         AV1E_SET_ENABLE_MASKED_COMP,
@@ -352,9 +349,6 @@ const arg_def_t *av1_ctrl_args[] = {
   &g_av1_codec_arg_defs.max_partition_size,
   &g_av1_codec_arg_defs.enable_chroma_deltaq,
   &g_av1_codec_arg_defs.enable_intra_edge_filter,
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-  &g_av1_codec_arg_defs.enable_order_hint,
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   &g_av1_codec_arg_defs.enable_tx64,
   &g_av1_codec_arg_defs.enable_flip_idtx,
   &g_av1_codec_arg_defs.enable_masked_comp,
@@ -475,9 +469,6 @@ const arg_def_t *av1_key_val_args[] = {
   &g_av1_codec_arg_defs.enable_cctx,
   &g_av1_codec_arg_defs.enable_ibp,
   &g_av1_codec_arg_defs.explicit_ref_frame_map,
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-  &g_av1_codec_arg_defs.enable_frame_output_order,
-#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
   &g_av1_codec_arg_defs.max_drl_refmvs,
   &g_av1_codec_arg_defs.max_drl_refbvs,
   &g_av1_codec_arg_defs.enable_refmvbank,
@@ -713,9 +704,6 @@ static void init_config(cfg_options_t *config) {
   config->enable_angle_delta = 1;
   config->enable_opfl_refine = 1;
   config->explicit_ref_frame_map = 0;
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-  config->enable_frame_output_order = 1;
-#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
   config->enable_intra_edge_filter = 1;
   config->enable_tx64 = 1;
   config->reduced_tx_part_set = 0;

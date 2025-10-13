@@ -1963,9 +1963,6 @@ static AOM_INLINE void av1_enc_setup_tip_frame(AV1_COMP *cpi) {
 
   if (cm->seq_params.enable_tip && could_tip_mode_be_selected(cpi)) {
     if (cm->features.allow_ref_frame_mvs &&
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-        cm->seq_params.order_hint_info.enable_order_hint &&
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
         (cm->has_both_sides_refs || cm->ref_frames_info.num_past_refs >= 2)) {
 #if CONFIG_COLLECT_COMPONENT_TIMING
       start_timing(cpi, av1_enc_setup_tip_frame_time);

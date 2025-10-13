@@ -404,35 +404,13 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
     }
   }
 
-  av1_read_sequence_header(
-#if !CWG_F215_CONFIG_REMOVE_FRAME_ID
-      cm,
-#endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
-      rb, seq_params);
+  av1_read_sequence_header(rb, seq_params);
 
   seq_params->film_grain_params_present = aom_rb_read_bit(rb);
 
   // Sequence header for coding tools beyond AV1
   av1_read_sequence_header_beyond_av1(rb, seq_params, &cm->quant_params,
                                       &cm->error);
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-  if (!seq_params->order_hint_info.enable_order_hint &&
-      !seq_params->single_picture_hdr_flag
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-      && seq_params->enable_frame_output_order
-#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
-  ) {
-    aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-#if CONFIG_F253_REMOVE_OUTPUTFLAG
-                       "enable_order_hint needs to be enabled"
-#else
-                       "enable_frame_output_order cannot be enabled"
-                       "when enable_order_hint is disabled."
-#endif  // CONFIG_F253_REMOVE_OUTPUTFLAG
-    );
-  }
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-
   if (av1_check_trailing_bits(pbi, rb) != 0) {
     // cm->error.error_code is already set.
     return 0;

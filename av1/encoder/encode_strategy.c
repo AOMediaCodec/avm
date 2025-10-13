@@ -1150,11 +1150,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     }
   } else if (is_stat_consumption_stage(cpi)) {
 #if CONFIG_MISMATCH_DEBUG
-    mismatch_move_frame_idx_w(
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-        !cm->seq_params.enable_frame_output_order ||
-#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
-        !frame_params.show_existing_frame);
+    mismatch_move_frame_idx_w(!frame_params.show_existing_frame);
 #endif  // CONFIG_MISMATCH_DEBUG
 #if TXCOEFF_COST_TIMER
     cm->txcoeff_cost_timer = 0;
@@ -1168,11 +1164,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 
 #if CONFIG_MISMATCH_DEBUG
   if (has_no_stats_stage(cpi)) {
-    mismatch_move_frame_idx_w(
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-        !cm->seq_params.enable_frame_output_order ||
-#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
-        !frame_params.show_existing_frame);
+    mismatch_move_frame_idx_w(!frame_params.show_existing_frame);
   }
 #endif  // CONFIG_MISMATCH_DEBUG
 
@@ -1226,11 +1218,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     cm->bru.enabled = cpi->oxcf.tool_cfg.enable_bru > 0 &&
                       (frame_params.frame_type == INTER_FRAME);
     cm->bru.frame_inactive_flag = 0;
-    if (cm->bru.enabled
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-        && cm->seq_params.order_hint_info.enable_order_hint
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-    ) {
+    if (cm->bru.enabled) {
       int n_future = 0;
       for (int i = 0; i < REF_FRAMES; i++) {
         const RefCntBuffer *const buf = cm->ref_frame_map[i];
