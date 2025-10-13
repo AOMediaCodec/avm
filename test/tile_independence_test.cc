@@ -152,31 +152,4 @@ AV1_INSTANTIATE_TEST_SUITE(TileIndependenceTest, ::testing::Values(0, 1),
                            ::testing::Values(0, 1), ::testing::Values(1, 2, 4));
 AV1_INSTANTIATE_TEST_SUITE(TileIndependenceTestLarge, ::testing::Values(0, 1),
                            ::testing::Values(0, 1), ::testing::Values(1, 2, 4));
-
-class TileIndependenceLSTest : public TileIndependenceTest {};
-
-TEST_P(TileIndependenceLSTest, DISABLED_MD5Match) {
-  cfg_.large_scale_tile = 1;
-  fw_dec_->Control(AV1_SET_TILE_MODE, 1);
-  fw_dec_->Control(AV1D_EXT_TILE_DEBUG, 1);
-  inv_dec_->Control(AV1_SET_TILE_MODE, 1);
-  inv_dec_->Control(AV1D_EXT_TILE_DEBUG, 1);
-  DoTest();
-}
-
-class TileIndependenceLSTestLarge : public TileIndependenceTestLarge {};
-
-TEST_P(TileIndependenceLSTestLarge, DISABLED_MD5Match) {
-  cfg_.large_scale_tile = 1;
-  fw_dec_->Control(AV1_SET_TILE_MODE, 1);
-  fw_dec_->Control(AV1D_EXT_TILE_DEBUG, 1);
-  inv_dec_->Control(AV1_SET_TILE_MODE, 1);
-  inv_dec_->Control(AV1D_EXT_TILE_DEBUG, 1);
-  DoTest();
-}
-
-AV1_INSTANTIATE_TEST_SUITE(TileIndependenceLSTest, ::testing::Values(6),
-                           ::testing::Values(6), ::testing::Values(1));
-AV1_INSTANTIATE_TEST_SUITE(TileIndependenceLSTestLarge, ::testing::Values(6),
-                           ::testing::Values(6), ::testing::Values(1));
 }  // namespace

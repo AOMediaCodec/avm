@@ -439,42 +439,4 @@ AV1_INSTANTIATE_TEST_SUITE(AVxEncoderThreadTestLarge,
                            ::testing::Values(0, 1, 3, 5),
                            ::testing::Values(1, 6), ::testing::Values(1, 6),
                            ::testing::Values(0));
-
-class AVxEncoderThreadLSTest : public AVxEncoderThreadTest {
-  virtual void SetTileSize(libaom_test::Encoder *encoder) {
-    encoder->Control(AV1E_SET_TILE_COLUMNS, tile_cols_);
-    encoder->Control(AV1E_SET_TILE_ROWS, tile_rows_);
-  }
-
-  virtual void DoTestMaxThreads(::libaom_test::YUVVideoSource *video,
-                                const std::vector<size_t> ref_size_enc,
-                                const std::vector<std::string> ref_md5_enc,
-                                const std::vector<std::string> ref_md5_dec) {
-    (void)video;
-    (void)ref_size_enc;
-    (void)ref_md5_enc;
-    (void)ref_md5_dec;
-  }
-};
-GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AVxEncoderThreadLSTest);
-
-TEST_P(AVxEncoderThreadLSTest, DISABLED_EncoderResultTest) {
-  cfg_.large_scale_tile = 1;
-  decoder_->Control(AV1_SET_TILE_MODE, 1);
-  decoder_->Control(AV1D_EXT_TILE_DEBUG, 1);
-  DoTest();
-}
-
-class AVxEncoderThreadLSTestLarge : public AVxEncoderThreadLSTest {};
-
-TEST_P(AVxEncoderThreadLSTestLarge, DISABLED_EncoderResultTest) {
-  cfg_.large_scale_tile = 1;
-  decoder_->Control(AV1_SET_TILE_MODE, 1);
-  decoder_->Control(AV1D_EXT_TILE_DEBUG, 1);
-  DoTest();
-}
-
-AV1_INSTANTIATE_TEST_SUITE(AVxEncoderThreadLSTestLarge, GOODQUALITY_TEST_MODES,
-                           ::testing::Range(1, 3), ::testing::Values(0, 6),
-                           ::testing::Values(0, 6), ::testing::Values(1));
 }  // namespace

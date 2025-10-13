@@ -115,7 +115,6 @@ if(NOT BUILD_SHARED_LIBS)
       AOM_UNIT_TEST_COMMON_SOURCES
       "${AOM_ROOT}/test/altref_test.cc"
       "${AOM_ROOT}/test/av1_encoder_parms_get_to_decoder.cc"
-      "${AOM_ROOT}/test/av1_ext_tile_test.cc"
       "${AOM_ROOT}/test/binary_codes_test.cc"
       "${AOM_ROOT}/test/boolcoder_test.cc"
       "${AOM_ROOT}/test/cnn_test.cc"

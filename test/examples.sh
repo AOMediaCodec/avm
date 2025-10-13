@@ -16,7 +16,7 @@ example_tests=$(ls -r $(dirname $0)/*.sh)
 
 # List of script names to exclude.
 exclude_list="best_encode examples run_encodes tools_common"
-exclude_list="$exclude_list twopass_encoder lightfield_test"
+exclude_list="$exclude_list twopass_encoder"
 exclude_list="$exclude_list extract_proto_test"
 exclude_list="$exclude_list aomcx_set_ref"
 

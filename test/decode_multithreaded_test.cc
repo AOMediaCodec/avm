@@ -173,21 +173,4 @@ AV1_INSTANTIATE_TEST_SUITE(AV1DecodeMultiThreadedTestLarge,
                            ::testing::Values(0, 1, 2, 6),
                            ::testing::Values(1, 4), ::testing::Values(1),
                            ::testing::Values(0, 1));
-
-class AV1DecodeMultiThreadedLSTestLarge
-    : public AV1DecodeMultiThreadedTestLarge {};
-
-TEST_P(AV1DecodeMultiThreadedLSTestLarge, DISABLED_MD5Match) {
-  cfg_.large_scale_tile = 1;
-  single_thread_dec_->Control(AV1_SET_TILE_MODE, 1);
-  for (int i = 0; i < kNumMultiThreadDecoders; ++i)
-    multi_thread_dec_[i]->Control(AV1_SET_TILE_MODE, 1);
-  DoTest();
-}
-
-AV1_INSTANTIATE_TEST_SUITE(AV1DecodeMultiThreadedLSTestLarge,
-                           ::testing::Values(6), ::testing::Values(6),
-                           ::testing::Values(1), ::testing::Values(0, 3),
-                           ::testing::Values(0, 1));
-
 }  // namespace
