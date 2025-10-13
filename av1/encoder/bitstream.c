@@ -5877,11 +5877,6 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
 
   aom_wb_write_bit(wb, seq_params->explicit_ref_frame_map);
 
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-  // 0 : show_existing_frame, 1: implicit derviation
-  aom_wb_write_bit(wb, seq_params->enable_frame_output_order);
-#endif
-
 #if CONFIG_CWG_F168_DPB_HLS
   const int signal_dpb_explicit =
       seq_params->ref_frames != 8;  // DPB size 8 is the default value
@@ -7092,13 +7087,7 @@ static AOM_INLINE void write_uncompressed_header_obu
       write_tile_info(cm, saved_wb, wb);
     }
 
-    if (seq_params->film_grain_params_present
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-        && (cm->seq_params.enable_frame_output_order || cm->show_frame ||
-            cm->showable_frame)
-#endif
-    )
-      write_film_grain_params(cpi, wb);
+    if (seq_params->film_grain_params_present) write_film_grain_params(cpi, wb);
     return;
   }
 
@@ -7241,13 +7230,7 @@ static AOM_INLINE void write_uncompressed_header_obu
 
   if (!frame_is_intra_only(cm)) write_global_motion(cpi, wb);
 
-  if (seq_params->film_grain_params_present
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-      && (cm->seq_params.enable_frame_output_order || cm->show_frame ||
-          cm->showable_frame)
-#endif
-  )
-    write_film_grain_params(cpi, wb);
+  if (seq_params->film_grain_params_present) write_film_grain_params(cpi, wb);
 
   if (cm->tiles.large_scale) write_ext_tile_info(cm, saved_wb, wb);
 }
@@ -8984,11 +8967,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 #endif  // CONFIG_F106_OBU_SWITCH
 #if CONFIG_F106_OBU_SEF
   if (encode_show_existing_frame(cm) &&
-      (
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-          !cm->seq_params.enable_frame_output_order ||
-#endif
-          cm->cur_frame->frame_type == KEY_FRAME))
+      (cm->cur_frame->frame_type == KEY_FRAME))
     obu_type = OBU_SEF;
 #endif  // CONFIG_F106_OBU_SEF
 #if CONFIG_F106_OBU_TIP
@@ -9043,11 +9022,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 #endif  // CONFIG_CWG_F317
 #else
     if ((encode_show_existing_frame(cm) &&
-         (
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-             !cm->seq_params.enable_frame_output_order ||
-#endif
-             cm->cur_frame->frame_type == KEY_FRAME)) ||
+         (cm->cur_frame->frame_type == KEY_FRAME)) ||
         cm->bru.frame_inactive_flag ||
 #if CONFIG_CWG_F317
         cm->bridge_frame_info.is_bridge_frame ||
@@ -9060,11 +9035,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
   const int write_frame_header =
       (cpi->num_tg > 1 ||
        (encode_show_existing_frame(cm) &&
-        (
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-            !cm->seq_params.enable_frame_output_order ||
-#endif
-            cm->cur_frame->frame_type == KEY_FRAME)) ||
+        (cm->cur_frame->frame_type == KEY_FRAME)) ||
        cm->bru.frame_inactive_flag ||
 #if CONFIG_CWG_F317
        cm->bridge_frame_info.is_bridge_frame ||
@@ -9106,7 +9077,6 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
     }
   }
 
-#if CONFIG_F253_REMOVE_OUTPUTFLAG
   const bool non_signaled_show_existing_frame = (cm->show_existing_frame &&
 #if CONFIG_F322_OBUER_ERM
                                                  !frame_is_sframe(cm)
@@ -9115,18 +9085,6 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
                                                       .error_resilient_mode
 #endif
   );
-#elif !CONFIG_F253_REMOVE_OUTPUTFLAG
-  const bool non_signaled_show_existing_frame =
-      (cm->seq_params.enable_frame_output_order && cm->show_existing_frame &&
-#if CONFIG_F322_OBUER_ERM
-       !frame_is_sframe(cm)
-#else
-       !cm->features.error_resilient_mode
-#endif
-           ) ||
-      (!cm->seq_params.enable_frame_output_order &&
-       encode_show_existing_frame(cm));
-#endif  // CONFIG_F253_REMOVE_OUTPUTFLAG
   const bool non_signaled_frame =
       non_signaled_show_existing_frame || cm->bru.frame_inactive_flag ||
 #if CONFIG_CWG_F317

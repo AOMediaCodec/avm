@@ -1000,8 +1000,7 @@ static AOM_INLINE void add_ref_mv_candidate(
       } else if (add_more_mvs &&
                  (is_inter_ref_frame(candidate->ref_frame[ref]) ||
                   is_tip_ref_frame(candidate->ref_frame[0])) &&
-                 rf[0] != INTRA_FRAME && !is_tip_ref_frame(rf[0])
-      ) {
+                 rf[0] != INTRA_FRAME && !is_tip_ref_frame(rf[0])) {
         int_mv cand_refmv;
         MV_REFERENCE_FRAME cand_ref_frame;
         if (is_tip_ref_frame(candidate->ref_frame[0])) {
@@ -1185,10 +1184,9 @@ static AOM_INLINE void add_ref_mv_candidate(
         if (have_newmv_in_inter_mode(candidate->mode)) ++*newmv_count;
         ++*ref_match_count;
       } else if (add_more_mvs) {
-        if (cm->seq_params.enable_mv_traj &&
-            cm->features.allow_ref_frame_mvs && rf[0] != rf[1] &&
-            is_inter_ref_frame(rf[0]) && is_inter_ref_frame(rf[1])) {
-
+        if (cm->seq_params.enable_mv_traj && cm->features.allow_ref_frame_mvs &&
+            rf[0] != rf[1] && is_inter_ref_frame(rf[0]) &&
+            is_inter_ref_frame(rf[1])) {
           for (ref = 0; ref < 2; ref++) {
             if (!is_inter_ref_frame(candidate->ref_frame[ref]) ||
                 is_tip_ref_frame(candidate->ref_frame[ref]))
@@ -1936,8 +1934,7 @@ static AOM_INLINE void add_tmvp_candidate(
 // adjacent SMVP candidates based on some predefined conditions
 static AOM_INLINE int assign_tmvp_high_priority(const AV1_COMMON *cm,
                                                 MV_REFERENCE_FRAME rf[2]) {
-  if (cm->features.allow_ref_frame_mvs == 0)
-    return 0;
+  if (cm->features.allow_ref_frame_mvs == 0) return 0;
 
   if (cm->seq_params.enable_drl_reorder == DRL_REORDER_ALWAYS) return 0;
 

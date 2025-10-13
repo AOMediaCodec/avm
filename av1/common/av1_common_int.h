@@ -911,10 +911,6 @@ typedef struct SequenceHeader {
 
   int explicit_ref_frame_map;  // Explicitly signal the reference frame mapping
 
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-  int enable_frame_output_order;  // Enable frame output order derivation based
-                                  // on order hint value
-#endif
 #if !CONFIG_CWG_F168_DPB_HLS
   int max_reference_frames;              // Number of reference frames allowed
 #endif                                   // !CONFIG_CWG_F168_DPB_HLS

@@ -390,10 +390,6 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #endif  // CONFIG_CWG_F243_ORDER_HINT_BITDEPTH
   seq->enable_bru = tool_cfg->enable_bru;
   seq->explicit_ref_frame_map = oxcf->ref_frm_cfg.explicit_ref_frame_map;
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-  // Set 0 for multi-layer coding
-  seq->enable_frame_output_order = oxcf->ref_frm_cfg.enable_frame_output_order;
-#endif
 #if !CONFIG_CWG_F168_DPB_HLS
   seq->max_reference_frames = oxcf->ref_frm_cfg.max_reference_frames;
 #endif  // !CONFIG_CWG_F168_DPB_HLS

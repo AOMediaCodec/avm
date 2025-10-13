@@ -1163,11 +1163,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     }
   } else if (is_stat_consumption_stage(cpi)) {
 #if CONFIG_MISMATCH_DEBUG
-    mismatch_move_frame_idx_w(
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-        !cm->seq_params.enable_frame_output_order ||
-#endif  
-        !frame_params.show_existing_frame);
+    mismatch_move_frame_idx_w(!frame_params.show_existing_frame);
 #endif  // CONFIG_MISMATCH_DEBUG
 #if TXCOEFF_COST_TIMER
     cm->txcoeff_cost_timer = 0;
@@ -1181,11 +1177,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 
 #if CONFIG_MISMATCH_DEBUG
   if (has_no_stats_stage(cpi)) {
-    mismatch_move_frame_idx_w(
-#if !CONFIG_F253_REMOVE_OUTPUTFLAG
-        !cm->seq_params.enable_frame_output_order ||
-#endif  
-        !frame_params.show_existing_frame);
+    mismatch_move_frame_idx_w(!frame_params.show_existing_frame);
   }
 #endif  // CONFIG_MISMATCH_DEBUG
 
