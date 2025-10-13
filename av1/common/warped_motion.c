@@ -526,22 +526,15 @@ static int is_affine_shear_allowed(int16_t alpha, int16_t beta, int16_t gamma,
 }
 
 // Returns 1 on success or 0 on an invalid affine set
-int av1_get_shear_params(WarpedMotionParams *wm
-#if CONFIG_ACROSS_SCALE_WARP
-                         ,
-                         const struct scale_factors *sf
-#endif  // CONFIG_ACROSS_SCALE_WARP
+int av1_get_shear_params(WarpedMotionParams *wm, const struct scale_factors *sf
+
 ) {
   if (!is_affine_valid(wm)) return 0;
   const int16_t max_value = INT16_MAX - (1 << (WARP_PARAM_REDUCE_BITS - 1));
 
-#if CONFIG_ACROSS_SCALE_WARP
   // Always use 4x4 warp in scale of across-scale
   const int is_scaled = sf ? av1_is_scaled(sf) : 0;
   const int32_t *mat = wm->wmmat;
-#else
-  const int32_t *mat = wm->wmmat;
-#endif  // CONFIG_ACROSS_SCALE_WARP
 
   wm->alpha =
       clamp(mat[2] - (1 << WARPEDMODEL_PREC_BITS), INT16_MIN, max_value);
@@ -582,12 +575,9 @@ int av1_get_shear_params(WarpedMotionParams *wm
                 (1 << WARP_PARAM_REDUCE_BITS));
 
   wm->use_affine_filter =
-#if CONFIG_ACROSS_SCALE_WARP
       is_scaled
           ? 0
-          :
-#endif  // CONFIG_ACROSS_SCALE_WARP
-          is_affine_shear_allowed(wm->alpha, wm->beta, wm->gamma, wm->delta);
+          : is_affine_shear_allowed(wm->alpha, wm->beta, wm->gamma, wm->delta);
 
   return 1;
 }
@@ -1031,7 +1021,6 @@ void av1_ext_highbd_warp_affine_c(const int32_t *mat, const uint16_t *ref,
   }
 }
 
-#if CONFIG_ACROSS_SCALE_WARP
 void av1_ext_highbd_warp_affine_scaled_c(
     const int32_t *mat, const uint16_t *ref, int width, int height, int stride,
     uint16_t *pred, int p_col, int p_row, int p_width, int p_height,
@@ -1203,24 +1192,15 @@ void av1_ext_highbd_warp_affine_scaled_c(
     }
   }
 }
-#endif  // CONFIG_ACROSS_SCALE_WARP
 
 void highbd_warp_plane(WarpedMotionParams *wm, const uint16_t *const ref,
                        int width, int height, int stride, uint16_t *const pred,
                        int p_col, int p_row, int p_width, int p_height,
                        int p_stride, int subsampling_x, int subsampling_y,
-                       int bd, ConvolveParams *conv_params
-#if CONFIG_ACROSS_SCALE_WARP
-                       ,
-                       const struct scale_factors *sf
-#endif  // CONFIG_ACROSS_SCALE_WARP
-                       ,
-                       int use_warp_bd_box, WarpBoundaryBox *warp_bd_box) {
-
-#if CONFIG_ACROSS_SCALE_WARP
+                       int bd, ConvolveParams *conv_params,
+                       const struct scale_factors *sf, int use_warp_bd_box,
+                       WarpBoundaryBox *warp_bd_box) {
   const int is_scaled = sf ? av1_is_scaled(sf) : 0;
-#endif  // CONFIG_ACROSS_SCALE_WARP
-
   assert(wm->wmtype <= AFFINE);
   if (wm->wmtype == ROTZOOM) {
     wm->wmmat[5] = wm->wmmat[2];
@@ -1232,38 +1212,24 @@ void highbd_warp_plane(WarpedMotionParams *wm, const uint16_t *const ref,
   const int16_t gamma = wm->gamma;
   const int16_t delta = wm->delta;
 
-#if CONFIG_ACROSS_SCALE_WARP
   assert(IMPLIES(!is_scaled,
                  wm->use_affine_filter ==
                      is_affine_shear_allowed(alpha, beta, gamma, delta)));
   assert(IMPLIES(is_scaled, !wm->use_affine_filter));
-#else
-  assert(wm->use_affine_filter ==
-         is_affine_shear_allowed(alpha, beta, gamma, delta));
-#endif  // CONFIG_ACROSS_SCALE_WARP
 
-  if (!wm->use_affine_filter || p_width < 8 || p_height < 8
-#if CONFIG_ACROSS_SCALE_WARP
-      || is_scaled
-#endif  // CONFIG_ACROSS_SCALE_WARP
-  ) {
+  if (!wm->use_affine_filter || p_width < 8 || p_height < 8 || is_scaled) {
     WarpedMotionParams wm_scaled = *wm;
-#if CONFIG_ACROSS_SCALE_WARP
     if (is_scaled) {
       av1_ext_highbd_warp_affine_scaled_c(
           &wm_scaled.wmmat[0], ref, width, height, stride, pred, p_col, p_row,
           p_width, p_height, p_stride, subsampling_x, subsampling_y, bd,
           conv_params, sf, use_warp_bd_box, warp_bd_box);
     } else {
-#endif  // CONFIG_ACROSS_SCALE_WARP
       av1_ext_highbd_warp_affine(&wm_scaled.wmmat[0], ref, width, height,
                                  stride, pred, p_col, p_row, p_width, p_height,
                                  p_stride, subsampling_x, subsampling_y, bd,
                                  conv_params, use_warp_bd_box, warp_bd_box);
-#if CONFIG_ACROSS_SCALE_WARP
     }
-#endif  // CONFIG_ACROSS_SCALE_WARP
-
   } else {
     av1_highbd_warp_affine(mat, ref, width, height, stride, pred, p_col, p_row,
                            p_width, p_height, p_stride, subsampling_x,
@@ -1276,22 +1242,13 @@ void av1_warp_plane(WarpedMotionParams *wm, int bd, const uint16_t *ref,
                     int width, int height, int stride, uint16_t *pred,
                     int p_col, int p_row, int p_width, int p_height,
                     int p_stride, int subsampling_x, int subsampling_y,
-                    ConvolveParams *conv_params
-#if CONFIG_ACROSS_SCALE_WARP
-                    ,
-                    const struct scale_factors *sf
-#endif  // CONFIG_ACROSS_SCALE_WARP
+                    ConvolveParams *conv_params, const struct scale_factors *sf
+
                     ,
                     int use_warp_bd_box, WarpBoundaryBox *warp_bd_box) {
   highbd_warp_plane(wm, ref, width, height, stride, pred, p_col, p_row, p_width,
                     p_height, p_stride, subsampling_x, subsampling_y, bd,
-                    conv_params
-#if CONFIG_ACROSS_SCALE_WARP
-                    ,
-                    sf
-#endif  // CONFIG_ACROSS_SCALE_WARP
-                    ,
-                    use_warp_bd_box, warp_bd_box);
+                    conv_params, sf, use_warp_bd_box, warp_bd_box);
 }
 
 #define LS_MV_MAX 256  // max mv in 1/8-pel
@@ -1391,11 +1348,9 @@ static int32_t get_mult_shift_diag(int64_t Px, int16_t iDet, int shift) {
 
 static int find_affine_int(int np, const int *pts1, const int *pts2,
                            BLOCK_SIZE bsize, MV mv, WarpedMotionParams *wm,
-                           int mi_row, int mi_col
-#if CONFIG_ACROSS_SCALE_WARP
-                           ,
+                           int mi_row, int mi_col,
                            const struct scale_factors *sf
-#endif  // CONFIG_ACROSS_SCALE_WARP
+
 ) {
   int32_t A[2][2] = { { 0, 0 }, { 0, 0 } };
   int32_t Bx[2] = { 0, 0 };
@@ -1491,11 +1446,8 @@ static int find_affine_int(int np, const int *pts1, const int *pts2,
 
   av1_reduce_warp_model(wm);
   // check compatibility with the fast warp filter
-  if (!av1_get_shear_params(wm
-#if CONFIG_ACROSS_SCALE_WARP
-                            ,
-                            sf
-#endif  // CONFIG_ACROSS_SCALE_WARP
+  if (!av1_get_shear_params(wm, sf
+
                             ))
     return 1;
   av1_set_warp_translation(mi_row, mi_col, bsize, mv, wm);
@@ -1505,15 +1457,11 @@ static int find_affine_int(int np, const int *pts1, const int *pts2,
 
 int av1_find_projection(int np, const int *pts1, const int *pts2,
                         BLOCK_SIZE bsize, MV mv, WarpedMotionParams *wm_params,
-                        int mi_row, int mi_col
-#if CONFIG_ACROSS_SCALE_WARP
-                        ,
-                        const struct scale_factors *sf
-#endif  // CONFIG_ACROSS_SCALE_WARP
+                        int mi_row, int mi_col, const struct scale_factors *sf
+
 ) {
   assert(wm_params->wmtype == AFFINE);
 
-#if CONFIG_ACROSS_SCALE_WARP
   if (find_affine_int(np, pts1, pts2, bsize, mv, wm_params, mi_row, mi_col, sf
 
                       )) {
@@ -1521,10 +1469,6 @@ int av1_find_projection(int np, const int *pts1, const int *pts2,
     return 1;
   }
   wm_params->invalid = 0;
-#else
-  if (find_affine_int(np, pts1, pts2, bsize, mv, wm_params, mi_row, mi_col))
-    return 1;
-#endif  // CONFIG_ACROSS_SCALE_WARP
 
   return 0;
 }
@@ -1545,11 +1489,9 @@ int av1_extend_warp_model(const bool neighbor_is_above, const BLOCK_SIZE bsize,
                           const MV *center_mv, const int mi_row,
                           const int mi_col,
                           const WarpedMotionParams *neighbor_wm,
-                          WarpedMotionParams *wm_params
-#if CONFIG_ACROSS_SCALE_WARP
-                          ,
+                          WarpedMotionParams *wm_params,
                           const struct scale_factors *sf
-#endif  // CONFIG_ACROSS_SCALE_WARP
+
 ) {
   const int half_width_log2 = mi_size_wide_log2[bsize] + MI_SIZE_LOG2 - 1;
   const int half_height_log2 = mi_size_high_log2[bsize] + MI_SIZE_LOG2 - 1;
@@ -1631,19 +1573,14 @@ int av1_extend_warp_model(const bool neighbor_is_above, const BLOCK_SIZE bsize,
 
   av1_reduce_warp_model(wm_params);
   // check compatibility with the fast warp filter
-#if CONFIG_ACROSS_SCALE_WARP
   if (!av1_get_shear_params(wm_params, sf)) {
     wm_params->invalid = 1;
     return 1;
   }
-#else
-  if (!av1_get_shear_params(wm_params)) return 1;
-#endif  // CONFIG_ACROSS_SCALE_WARP
+
   // Derive translational part from signaled MV
   av1_set_warp_translation(mi_row, mi_col, bsize, *center_mv, wm_params);
-#if CONFIG_ACROSS_SCALE_WARP
   wm_params->invalid = 0;
-#endif  // CONFIG_ACROSS_SCALE_WARP
   return 0;
 }
 
@@ -1716,11 +1653,9 @@ int_mv get_warp_motion_vector_xy_pos(const MACROBLOCKD *xd,
 //  is the row value of mv pts_inref[2*n] is the col value of the projected
 //  position. pts_inref[2*n + 1] is the row value of the projected position
 int get_model_from_corner_mvs(WarpedMotionParams *derive_model, int *pts,
-                              int np, int *mvs, const BLOCK_SIZE bsize
-#if CONFIG_ACROSS_SCALE_WARP
-                              ,
+                              int np, int *mvs, const BLOCK_SIZE bsize,
                               const struct scale_factors *sf
-#endif  // CONFIG_ACROSS_SCALE_WARP
+
 ) {
   // In order to derive the warp model we need 3 projected points
   // If the number of projected points (np) is not equal to 3, model is not
@@ -1792,11 +1727,8 @@ int get_model_from_corner_mvs(WarpedMotionParams *derive_model, int *pts,
   av1_reduce_warp_model(derive_model);
 
   // check compatibility with the fast warp filter
-  if (!av1_get_shear_params(derive_model
-#if CONFIG_ACROSS_SCALE_WARP
-                            ,
-                            sf
-#endif  // CONFIG_ACROSS_SCALE_WARP
+  if (!av1_get_shear_params(derive_model, sf
+
                             )) {
     derive_model->invalid = 1;
     return 0;

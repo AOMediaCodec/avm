@@ -1104,10 +1104,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
       av1_get_ref_frames_enc(cm, true_disp, ref_frame_map_pairs);
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     else
-      av1_get_ref_frames(cm, true_disp,
-#if CONFIG_ACROSS_SCALE_REF_OPT
-                         1,
-#endif  // CONFIG_ACROSS_SCALE_REF_OPT
+      av1_get_ref_frames(cm, true_disp, 1,
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
                          0,
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
@@ -1167,10 +1164,8 @@ static AOM_INLINE void init_gop_frames_for_tpl(
       av1_get_ref_frames_enc(cm, true_disp, ref_frame_map_pairs);
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     else
-      av1_get_ref_frames(cm, true_disp,
-#if CONFIG_ACROSS_SCALE_REF_OPT
-                         1,
-#endif  // CONFIG_ACROSS_SCALE_REF_OPT
+      av1_get_ref_frames(cm, true_disp, 1,
+
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
                          0,
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
@@ -1239,10 +1234,8 @@ static AOM_INLINE void init_gop_frames_for_tpl(
       av1_get_ref_frames_enc(cm, true_disp, ref_frame_map_pairs);
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     else
-      av1_get_ref_frames(cm, true_disp,
-#if CONFIG_ACROSS_SCALE_REF_OPT
-                         1,
-#endif  // CONFIG_ACROSS_SCALE_REF_OPT
+      av1_get_ref_frames(cm, true_disp, 1,
+
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
                          0,
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
@@ -1306,10 +1299,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     av1_get_ref_frames_enc(cm, true_disp, ref_frame_map_pairs);
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   else
-    av1_get_ref_frames(cm, true_disp,
-#if CONFIG_ACROSS_SCALE_REF_OPT
-                       1,
-#endif  // CONFIG_ACROSS_SCALE_REF_OPT
+    av1_get_ref_frames(cm, true_disp, 1,
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
                        0,
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME

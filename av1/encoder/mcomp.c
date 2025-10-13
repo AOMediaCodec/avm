@@ -4914,12 +4914,10 @@ unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
         if (total_samples > 1) mbmi->num_proj_ref[ref] = total_samples;
 
         if (!av1_find_projection(mbmi->num_proj_ref[ref], pts, pts_inref, bsize,
-                                 this_mv, &mbmi->wm_params[ref], mi_row, mi_col
-#if CONFIG_ACROSS_SCALE_WARP
-                                 ,
+                                 this_mv, &mbmi->wm_params[ref], mi_row, mi_col,
                                  get_ref_scale_factors((AV1_COMMON *const)cm,
                                                        mbmi->ref_frame[ref])
-#endif  // CONFIG_ACROSS_SCALE_WARP
+
                                      )) {
           thismse = compute_motion_cost(xd, cm, ms_params, bsize, &this_mv, 1);
 
@@ -5213,10 +5211,9 @@ int av1_pick_warp_delta(const AV1_COMMON *const cm, MACROBLOCKD *xd,
   const BLOCK_SIZE bsize = mbmi->sb_type[PLANE_TYPE_Y];
   int mi_row = xd->mi_row;
   int mi_col = xd->mi_col;
-#if CONFIG_ACROSS_SCALE_WARP
+
   const struct scale_factors *sf =
       get_ref_scale_factors_const(cm, mbmi->ref_frame[0]);
-#endif  // CONFIG_ACROSS_SCALE_WARP
 
   bool skip_mv_search = 0;
   int enable_fast_model_search = prev_best_models && mbmi->warp_precision_idx;
@@ -5333,10 +5330,10 @@ int av1_pick_warp_delta(const AV1_COMMON *const cm, MACROBLOCKD *xd,
   }
   av1_reduce_warp_model(params);
   av1_get_shear_params(params
-#if CONFIG_ACROSS_SCALE_WARP
+
                        ,
                        sf
-#endif  // CONFIG_ACROSS_SCALE_WARP
+
   );
   params->invalid = 0;
 
@@ -5388,10 +5385,10 @@ int av1_pick_warp_delta(const AV1_COMMON *const cm, MACROBLOCKD *xd,
           params->wmmat[5] = params->wmmat[2];
         }
         valid = av1_is_warp_model_reduced(params) && av1_get_shear_params(params
-#if CONFIG_ACROSS_SCALE_WARP
+
                                                                           ,
                                                                           sf
-#endif  // CONFIG_ACROSS_SCALE_WARP
+
                                                      );
         if (valid) {
           av1_set_warp_translation(mi_row, mi_col, bsize, center_mv.as_mv,
@@ -5423,10 +5420,10 @@ int av1_pick_warp_delta(const AV1_COMMON *const cm, MACROBLOCKD *xd,
           params->wmmat[5] = params->wmmat[2];
         }
         valid = av1_is_warp_model_reduced(params) && av1_get_shear_params(params
-#if CONFIG_ACROSS_SCALE_WARP
+
                                                                           ,
                                                                           sf
-#endif  // CONFIG_ACROSS_SCALE_WARP
+
                                                      );
         if (valid) {
           av1_set_warp_translation(mi_row, mi_col, bsize, center_mv.as_mv,
@@ -5518,10 +5515,10 @@ int av1_refine_mv_for_base_param_warp_model(
   av1_set_warp_translation(mi_row, mi_col, bsize, center_mv.as_mv, params);
   int valid =
       av1_get_shear_params(params
-#if CONFIG_ACROSS_SCALE_WARP
+
                            ,
                            get_ref_scale_factors_const(cm, mbmi->ref_frame[0])
-#endif  // CONFIG_ACROSS_SCALE_WARP
+
       );
   params->invalid = !valid;
   if (!valid) {
@@ -5577,10 +5574,10 @@ int av1_refine_mv_for_base_param_warp_model(
         av1_set_warp_translation(mi_row, mi_col, bsize, this_mv, params);
         if (!av1_get_shear_params(
                 params
-#if CONFIG_ACROSS_SCALE_WARP
+
                 ,
                 get_ref_scale_factors_const(cm, mbmi->ref_frame[0])
-#endif  // CONFIG_ACROSS_SCALE_WARP
+
                     ))
           continue;
 
@@ -5670,10 +5667,10 @@ void av1_refine_mv_for_warp_extend(const AV1_COMMON *cm, MACROBLOCKD *xd,
         if (!av1_extend_warp_model(
                 neighbor_is_above, bsize, &this_mv, mi_row, mi_col,
                 neighbor_params, &mbmi->wm_params[0]
-#if CONFIG_ACROSS_SCALE_WARP
+
                 ,
                 get_ref_scale_factors_const(cm, mbmi->ref_frame[0])
-#endif  // CONFIG_ACROSS_SCALE_WARP
+
                     )) {
           thismse = compute_motion_cost(xd, cm, ms_params, bsize, &this_mv, 1);
 

@@ -263,10 +263,7 @@ static AOM_INLINE void write_inter_compound_mode(MACROBLOCKD *xd, aom_writer *w,
     const int use_optical_flow = mode >= NEAR_NEARMV_OPTFLOW;
     const int allow_translational_refinement =
         is_translational_refinement_allowed(
-            cm, mbmi->sb_type[xd->tree_type == CHROMA_PART],
-#if CONFIG_ACROSS_SCALE_WARP
-            xd,
-#endif  // CONFIG_ACROSS_SCALE_WARP
+            cm, mbmi->sb_type[xd->tree_type == CHROMA_PART], xd,
             comp_idx_to_opfl_mode[comp_mode_idx]);
     if (allow_translational_refinement) {
       const int opfl_ctx =
@@ -4999,29 +4996,18 @@ static AOM_INLINE void write_frame_size(const AV1_COMMON *cm,
 }
 
 static AOM_INLINE void write_frame_size_with_refs(
-    const AV1_COMMON *const cm,
-#if CONFIG_ACROSS_SCALE_REF_OPT
-    const int explicit_ref_frame_map,
-#endif  // CONFIG_ACROSS_SCALE_REF_OPT
+    const AV1_COMMON *const cm, const int explicit_ref_frame_map,
     struct aom_write_bit_buffer *wb) {
   int found = 0;
-#if CONFIG_ACROSS_SCALE_REF_OPT
   const int num_refs = explicit_ref_frame_map
                            ? cm->ref_frames_info.num_total_refs
                            : cm->ref_frames_info.num_total_refs_res_indep;
-#else
-  const int num_refs = cm->ref_frames_info.num_total_refs;
-#endif  // CONFIG_ACROSS_SCALE_REF_OPT
   MV_REFERENCE_FRAME ref_frame;
   for (ref_frame = 0; ref_frame < num_refs; ++ref_frame) {
-#if CONFIG_ACROSS_SCALE_REF_OPT
     const YV12_BUFFER_CONFIG *cfg =
         explicit_ref_frame_map
             ? get_ref_frame_yv12_buf(cm, ref_frame)
             : get_ref_frame_yv12_buf_res_indep(cm, ref_frame);
-#else
-    const YV12_BUFFER_CONFIG *cfg = get_ref_frame_yv12_buf(cm, ref_frame);
-#endif  // CONFIG_ACROSS_SCALE_REF_OPT
 
     if (cfg != NULL) {
       found =
@@ -6875,12 +6861,7 @@ static AOM_INLINE void write_uncompressed_header_obu
         const int max_num_ref_frames =
             AOMMIN(seq_params->ref_frames, INTER_REFS_PER_FRAME);
 #endif  // CONFIG_CWG_F168_DPB_HLS
-        if (
-#if CONFIG_ACROSS_SCALE_REF_OPT
-            cm->ref_frames_info.num_total_refs < 0 ||
-#else
-            cm->ref_frames_info.num_total_refs <= 0 ||
-#endif  // CONFIG_ACROSS_SCALE_REF_OPT
+        if (cm->ref_frames_info.num_total_refs < 0 ||
             cm->ref_frames_info.num_total_refs >
 #if CONFIG_CWG_F168_DPB_HLS
                 max_num_ref_frames
@@ -6892,13 +6873,12 @@ static AOM_INLINE void write_uncompressed_header_obu
                              "Invalid num_total_refs");
         aom_wb_write_literal(wb, cm->ref_frames_info.num_total_refs,
                              MAX_REFS_PER_FRAME_LOG2);
-#if CONFIG_ACROSS_SCALE_REF_OPT
         for (int i = 0; i < cm->ref_frames_info.num_total_refs; ++i)
           aom_wb_write_literal(wb, get_ref_frame_map_idx(cm, i),
                                cm->seq_params.ref_frames_log2);
-#endif  // CONFIG_ACROSS_SCALE_REF_OPT
+
       }  // explicit_ref_frame_map
-#if CONFIG_ACROSS_SCALE_REF_OPT
+
 #if CONFIG_CWG_F317
       if (
 #if CONFIG_F322_OBUER_ERM
@@ -6921,7 +6901,7 @@ static AOM_INLINE void write_uncompressed_header_obu
       } else {
         write_frame_size(cm, frame_size_override_flag, wb);
       }
-#endif
+
 #if CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_TIP
       if (obu_type != OBU_TIP && current_frame->frame_type == INTER_FRAME)
 #else
@@ -6941,11 +6921,6 @@ static AOM_INLINE void write_uncompressed_header_obu
       for (ref_frame = 0; ref_frame < cm->ref_frames_info.num_total_refs;
            ++ref_frame) {
         assert(get_ref_frame_map_idx(cm, ref_frame) != INVALID_IDX);
-#if !CONFIG_ACROSS_SCALE_REF_OPT
-        if (explicit_ref_frame_map)
-          aom_wb_write_literal(wb, get_ref_frame_map_idx(cm, ref_frame),
-                               cm->seq_params.ref_frames_log2);
-#endif  // !CONFIG_ACROSS_SCALE_REF_OPT
 #if !CWG_F215_CONFIG_REMOVE_FRAME_ID
 #if CONFIG_CWG_F317
         if (seq_params->frame_id_numbers_present_flag &&
@@ -6971,31 +6946,6 @@ static AOM_INLINE void write_uncompressed_header_obu
         }
 #endif  // !CWG_F215_CONFIG_REMOVE_FRAME_ID
       }  // for(ref_frame)
-
-#if !CONFIG_ACROSS_SCALE_REF_OPT
-#if CONFIG_CWG_F317
-      if (
-#if CONFIG_F322_OBUER_ERM
-          !frame_is_sframe(cm)
-#else
-          !features->error_resilient_mode
-#endif
-          && frame_size_override_flag && !cm->bridge_frame_info.is_bridge_frame)
-#else  // CONFIG_CWG_F317
-      if (
-#if CONFIG_F322_OBUER_ERM
-          !frame_is_sframe(cm)
-#else
-          !features->error_resilient_mode
-#endif
-          && frame_size_override_flag)
-#endif  // CONFIG_CWG_F317
-      {
-        write_frame_size_with_refs(cm, wb);
-      } else {
-        write_frame_size(cm, frame_size_override_flag, wb);
-      }
-#endif  // !CONFIG_ACROSS_SCALE_REF_OPT
 
       if (frame_might_allow_ref_frame_mvs(cm)) {
         aom_wb_write_bit(wb, features->allow_ref_frame_mvs);

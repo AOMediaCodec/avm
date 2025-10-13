@@ -2436,14 +2436,10 @@ static AOM_INLINE void setup_ref_mv_list(
         WarpedMotionParams cand_warp_param = default_warp_params;
         const int valid_points = generate_points_from_corners(
             xd, wrl_corner_mv_status[iter], pts, mvs_32, &np, ref_frame);
-        const int valid_model =
-            get_model_from_corner_mvs(&cand_warp_param, pts, valid_points,
-                                      mvs_32, xd->mi[0]->sb_type[PLANE_TYPE_Y]
-#if CONFIG_ACROSS_SCALE_WARP
-                                      ,
-                                      get_ref_scale_factors_const(cm, ref_frame)
-#endif  // CONFIG_ACROSS_SCALE_WARP
-            );
+        const int valid_model = get_model_from_corner_mvs(
+            &cand_warp_param, pts, valid_points, mvs_32,
+            xd->mi[0]->sb_type[PLANE_TYPE_Y],
+            get_ref_scale_factors_const(cm, ref_frame));
         if (valid_model && !cand_warp_param.invalid &&
             !is_this_param_already_in_list(*valid_num_warp_candidates,
                                            warp_param_stack, cand_warp_param)) {
@@ -2464,12 +2460,8 @@ static AOM_INLINE void setup_ref_mv_list(
         xd, row_smvp_state, pts, mvs_32, &np, ref_frame);
     const int valid_model =
         get_model_from_corner_mvs(&cand_warp_param, pts, valid_points, mvs_32,
-                                  xd->mi[0]->sb_type[PLANE_TYPE_Y]
-#if CONFIG_ACROSS_SCALE_WARP
-                                  ,
-                                  get_ref_scale_factors_const(cm, ref_frame)
-#endif  // CONFIG_ACROSS_SCALE_WARP
-        );
+                                  xd->mi[0]->sb_type[PLANE_TYPE_Y],
+                                  get_ref_scale_factors_const(cm, ref_frame));
     if (valid_model && !cand_warp_param.invalid &&
         !is_this_param_already_in_list(*valid_num_warp_candidates,
                                        warp_param_stack, cand_warp_param)) {

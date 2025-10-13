@@ -42,12 +42,8 @@ int av1_allow_warp(const MB_MODE_INFO *const mbmi,
   // Note: As per the spec, we must test the fixed point scales here, which are
   // at a higher precision (1 << 14) than the xs and ys in subpel_params (that
   // have 1 << 10 precision).
-#if CONFIG_ACROSS_SCALE_WARP
-  (void)sf;
-#else
-  if (av1_is_scaled(sf)) return 0;
-#endif  // CONFIG_ACROSS_SCALE_WARP
 
+  (void)sf;
   if (final_warp_params != NULL) *final_warp_params = default_warp_params;
 
   if (warp_types->local_warp_allowed && !mbmi->wm_params[ref].invalid) {
@@ -137,10 +133,8 @@ void av1_make_inter_predictor(const uint16_t *src, int src_stride,
                               const SubpelParams *subpel_params) {
   assert(IMPLIES(inter_pred_params->conv_params.is_compound,
                  inter_pred_params->conv_params.dst != NULL));
-#if CONFIG_ACROSS_SCALE_REF_OPT
   assert(IMPLIES(av1_is_scaled(inter_pred_params->scale_factors),
                  av1_is_valid_scale(inter_pred_params->scale_factors)));
-#endif  // CONFIG_ACROSS_SCALE_REF_OPT
   // TODO(jingning): av1_warp_plane() can be further cleaned up.
   if (inter_pred_params->mode == WARP_PRED) {
     av1_warp_plane(
@@ -152,13 +146,9 @@ void av1_make_inter_predictor(const uint16_t *src, int src_stride,
         inter_pred_params->pix_col, inter_pred_params->pix_row,
         inter_pred_params->block_width, inter_pred_params->block_height,
         dst_stride, inter_pred_params->subsampling_x,
-        inter_pred_params->subsampling_y, &inter_pred_params->conv_params
-#if CONFIG_ACROSS_SCALE_WARP
-        ,
-        inter_pred_params->scale_factors
-#endif  // CONFIG_ACROSS_SCALE_WARP
-        ,
-        inter_pred_params->use_warp_bd_box, inter_pred_params->warp_bd_box);
+        inter_pred_params->subsampling_y, &inter_pred_params->conv_params,
+        inter_pred_params->scale_factors, inter_pred_params->use_warp_bd_box,
+        inter_pred_params->warp_bd_box);
   } else if (inter_pred_params->mode == TRANSLATION_PRED) {
     highbd_inter_predictor(
         src, src_stride, dst, dst_stride, subpel_params,
@@ -3667,16 +3657,12 @@ static void build_inter_predictors_8x8_and_bigger(
         ref, plane, xd->tmp_conv_dst, MAX_SB_SIZE, is_compound, xd->bd);
 
     av1_init_warp_params(&inter_pred_params, &warp_types, ref, xd, mi);
-#if CONFIG_ACROSS_SCALE_WARP
     assert(IMPLIES(inter_pred_params.mode == WARP_PRED &&
                        av1_is_scaled(inter_pred_params.scale_factors),
                    !inter_pred_params.warp_params.use_affine_filter));
-#endif  // CONFIG_ACROSS_SCALE_WARP
     if (inter_pred_params.mode == WARP_PRED &&
         (!inter_pred_params.warp_params.use_affine_filter ||
-#if CONFIG_ACROSS_SCALE_WARP
          av1_is_scaled(inter_pred_params.scale_factors) ||
-#endif  // CONFIG_ACROSS_SCALE_WARP
          (comp_bw < 8 || comp_bh < 8))) {
       *ext_warp_used = true;
       inter_pred_params.use_warp_bd_box = 1;

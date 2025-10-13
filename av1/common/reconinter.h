@@ -621,17 +621,13 @@ int64_t stable_mult_shift(const int64_t a, const int64_t b, const int shift,
 
 static INLINE int is_translational_refinement_allowed(const AV1_COMMON *cm,
                                                       BLOCK_SIZE bsize,
-#if CONFIG_ACROSS_SCALE_WARP
                                                       const MACROBLOCKD *xd,
-#endif  // CONFIG_ACROSS_SCALE_WARP
                                                       const int mode) {
   assert(cm->seq_params.enable_opfl_refine);
   (void)cm;
   if (mode < NEAR_NEARMV_OPTFLOW) return 0;
   if (is_thin_4xn_nx4_block(bsize)) return 0;
-#if CONFIG_ACROSS_SCALE_WARP
   (void)xd;
-#endif  // CONFIG_ACROSS_SCALE_WARP
   return 1;
 }
 

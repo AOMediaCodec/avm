@@ -670,13 +670,10 @@ static void read_warp_delta(const AV1_COMMON *cm, const MACROBLOCKD *xd,
   }
 
   av1_reduce_warp_model(params);
-  int valid =
-      av1_get_shear_params(params
-#if CONFIG_ACROSS_SCALE_WARP
-                           ,
-                           get_ref_scale_factors_const(cm, mbmi->ref_frame[0])
-#endif  // CONFIG_ACROSS_SCALE_WARP
-      );
+  int valid = av1_get_shear_params(
+      params, get_ref_scale_factors_const(cm, mbmi->ref_frame[0])
+
+  );
   params->invalid = !valid;
   if (!valid) {
 #if WARPED_MOTION_DEBUG
@@ -855,10 +852,8 @@ static PREDICTION_MODE read_inter_compound_mode(MACROBLOCKD *xd, aom_reader *r,
       opfl_allowed_cur_refs_bsize(cm, xd, mbmi)) {
     const int allow_translational_refinement =
         is_translational_refinement_allowed(
-            cm, mbmi->sb_type[xd->tree_type == CHROMA_PART],
-#if CONFIG_ACROSS_SCALE_WARP
-            xd,
-#endif  // CONFIG_ACROSS_SCALE_WARP
+            cm, mbmi->sb_type[xd->tree_type == CHROMA_PART], xd,
+
             comp_idx_to_opfl_mode[mode]);
     if (allow_translational_refinement) {
       const int opfl_ctx = get_optflow_context(comp_idx_to_opfl_mode[mode]);
@@ -3251,30 +3246,22 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
     MV mv0 = mbmi->mv[0].as_mv;
     MV mv1 = mbmi->mv[1].as_mv;
 
-#if CONFIG_ACROSS_SCALE_WARP
     const struct scale_factors *sf[2];
     sf[0] = get_ref_scale_factors(cm, mbmi->ref_frame[0]);
     sf[1] = get_ref_scale_factors(cm, mbmi->ref_frame[1]);
-#endif  // CONFIG_ACROSS_SCALE_WARP
 
     if (mbmi->num_proj_ref[0] > 0) {
       if (!av1_find_projection(mbmi->num_proj_ref[0], pts0, pts0_inref, bsize,
-                               mv0, &mbmi->wm_params[0], mi_row, mi_col
-#if CONFIG_ACROSS_SCALE_WARP
-                               ,
-                               sf[0]
-#endif  // CONFIG_ACROSS_SCALE_WARP
+                               mv0, &mbmi->wm_params[0], mi_row, mi_col, sf[0]
+
                                ))
         mbmi->wm_params[0].invalid = 0;
     }
     if (has_second_ref(mbmi)) {
       if (mbmi->num_proj_ref[1] > 0) {
         if (!av1_find_projection(mbmi->num_proj_ref[1], pts1, pts1_inref, bsize,
-                                 mv1, &mbmi->wm_params[1], mi_row, mi_col
-#if CONFIG_ACROSS_SCALE_WARP
-                                 ,
-                                 sf[1]
-#endif  // CONFIG_ACROSS_SCALE_WARP
+                                 mv1, &mbmi->wm_params[1], mi_row, mi_col, sf[1]
+
                                  ))
           mbmi->wm_params[1].invalid = 0;
       }
@@ -3326,11 +3313,9 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       av1_get_neighbor_warp_model(cm, xd, neighbor_mi, &neighbor_params);
       if (av1_extend_warp_model(
               neighbor_is_above, bsize, &mbmi->mv[0].as_mv, mi_row, mi_col,
-              &neighbor_params, &mbmi->wm_params[0]
-#if CONFIG_ACROSS_SCALE_WARP
-              ,
+              &neighbor_params, &mbmi->wm_params[0],
               get_ref_scale_factors_const(cm, mbmi->ref_frame[0])
-#endif  // CONFIG_ACROSS_SCALE_WARP
+
                   )) {
 #if WARPED_MOTION_DEBUG
         printf("Warning: unexpected warped model from aomenc\n");

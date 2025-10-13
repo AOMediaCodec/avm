@@ -217,12 +217,6 @@ set_aom_config_var(CWG_F215_CONFIG_REMOVE_FRAME_ID 1
 # CWG-E242 Chroma Format IDC
 set_aom_config_var(CONFIG_CWG_E242_CHROMA_FORMAT_IDC 1 "Chroma format idc.")
 
-set_aom_config_var(CONFIG_ACROSS_SCALE_REF_OPT 1 NUMBER
-                   "Reference framework optimization based on resolutions.")
-
-set_aom_config_var(CONFIG_ACROSS_SCALE_WARP 1 NUMBER
-                   "AV2 experiment flag to enable across scale warp modes.")
-
 set_aom_config_var(CONFIG_CWG_F298_REC11 1 NUMBER
                    "Scaling function improvements for film grain synthesis.")
 
@@ -309,9 +303,6 @@ set_aom_config_var(
 
 # This is an encode-only change.
 set_aom_config_var(CONFIG_FAST_INTER_RDO 1 "Fast inter mode selection")
-
-set_aom_config_var(CONFIG_FIX_RESIZE_PSNR 1
-                   "Fix PSNR computation of resize mode in coded resolution")
 
 set_aom_config_var(CONFIG_F107_GRADIENT_SIMPLIFY 1
                    "Use smaller OPFL gradient units and remove bit checks.")

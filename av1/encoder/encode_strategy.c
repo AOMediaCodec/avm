@@ -78,7 +78,6 @@ void av1_get_ref_frames_enc(AV1_COMMON *cm, int cur_frame_disp,
   // With explicit_ref_frame_map, error_resilient_mode or switch_frame_mode on,
   // an encoder-only ranking scheme can be implemented here. For now,
   // av1_get_ref_frames is used as a placeholder.
-#if CONFIG_ACROSS_SCALE_REF_OPT
   // Do a dry run to obtain variables in resolution independent reference
   // mapping that will be used in write_frame_size_with_refs
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
@@ -100,18 +99,6 @@ void av1_get_ref_frames_enc(AV1_COMMON *cm, int cur_frame_disp,
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   }
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-#else
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-  if (cpi->switch_frame_mode == 1)
-    av1_get_ref_frames(cm, cur_frame_disp, 1, ref_frame_map_pairs);
-  else
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-    av1_get_ref_frames(cm, cur_frame_disp,
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-                       0,
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-                       ref_frame_map_pairs);
-#endif  // CONFIG_ACROSS_SCALE_REF_OPT
 
   // if BRU ref frame is not in the top n_refs list, swap bru ref to the last of
   // top_n
@@ -1321,7 +1308,6 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
       av1_get_ref_frames_enc(cm, cur_frame_disp, cm->ref_frame_map_pairs);
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     } else {
-#if CONFIG_ACROSS_SCALE_REF_OPT
       // Derive reference mapping in a resolution independent manner, to
       // generate parameters (num_total_refs_res_indep and
       // remapped_ref_idx_res_indep) needed in write_frame_size_with_refs.
@@ -1336,13 +1322,6 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
                          0,
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
                          cm->ref_frame_map_pairs);
-#else
-      av1_get_ref_frames(cm, cur_frame_disp,
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-                         0,
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-                         cm->ref_frame_map_pairs);
-#endif  // CONFIG_ACROSS_SCALE_REF_OPT
     }
     if (!cm->seq_params.explicit_ref_frame_map && cm->bru.enabled) {
       const int num_past_refs = cm->ref_frames_info.num_past_refs;

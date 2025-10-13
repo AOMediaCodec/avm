@@ -192,11 +192,8 @@ static int64_t highbd_warp_error(WarpedMotionParams *wm,
       const int warp_h = AOMMIN(error_bsize_h, p_row + ref_height - i);
       highbd_warp_plane(wm, ref, ref_width, ref_height, ref_stride, tmp, j, i,
                         warp_w, warp_h, WARP_ERROR_BLOCK, subsampling_x,
-                        subsampling_y, bd, &conv_params
-#if CONFIG_ACROSS_SCALE_WARP
-                        ,
-                        NULL
-#endif  // CONFIG_ACROSS_SCALE_WARP
+                        subsampling_y, bd, &conv_params, NULL
+
                         ,
                         0, NULL);
 
@@ -232,11 +229,8 @@ int64_t av1_warp_error(WarpedMotionParams *wm, int bd, const uint16_t *ref,
                        int segment_map_stride) {
   if (wm->wmtype <= AFFINE) {
     av1_reduce_warp_model(wm);
-    if (!av1_get_shear_params(wm
-#if CONFIG_ACROSS_SCALE_WARP
-                              ,
-                              NULL
-#endif  // CONFIG_ACROSS_SCALE_WARP
+    if (!av1_get_shear_params(wm, NULL
+
                               ))
       return INT64_MAX;
   }
@@ -251,11 +245,8 @@ int64_t av1_refine_integerized_param(
     WarpedMotionParams *wm, TransformationType wmtype, int bd, uint16_t *ref,
     int r_width, int r_height, int r_stride, uint16_t *dst, int d_width,
     int d_height, int d_stride, int n_refinements, int64_t ref_frame_error,
-    uint8_t *segment_map, int segment_map_stride
-#if CONFIG_ACROSS_SCALE_WARP
-    ,
-    const struct scale_factors *sf
-#endif  // CONFIG_ACROSS_SCALE_WARP
+    uint8_t *segment_map, int segment_map_stride, const struct scale_factors *sf
+
 ) {
   static const int max_trans_model_params[TRANS_TYPES] = { 0, 2, 4, 6 };
   const int border = ERRORADV_BORDER;
@@ -361,11 +352,8 @@ int64_t av1_refine_integerized_param(
   wm->wmtype = get_wmtype(wm);
   // Recompute shear params for the refined model
   // This should never fail, because we only ever consider warp-able models
-  if (!av1_get_shear_params(wm
-#if CONFIG_ACROSS_SCALE_WARP
-                            ,
-                            sf
-#endif  // CONFIG_ACROSS_SCALE_WARP
+  if (!av1_get_shear_params(wm, sf
+
                             )) {
     assert(0);
   }

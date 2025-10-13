@@ -4647,7 +4647,6 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
     av1_get_ref_frames_enc(cm, cur_frame_disp, cm->ref_frame_map_pairs);
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   } else {
-#if CONFIG_ACROSS_SCALE_REF_OPT
     // Derive reference mapping in a resolution independent manner to generate
     // parameters needed in write_frame_size_with_refs
     av1_get_ref_frames(cm, cur_frame_disp, 0,
@@ -4660,13 +4659,6 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
                        0,
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
                        cm->ref_frame_map_pairs);
-#else
-    av1_get_ref_frames(cm, cur_frame_disp,
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-                       0,
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-                       cm->ref_frame_map_pairs);
-#endif  // CONFIG_ACROSS_SCALE_REF_OPT
   }
 
   current_frame->absolute_poc =
@@ -4765,7 +4757,7 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
                           cpi->gf_group.update_type[cpi->gf_group.index] ==
                               KF_UPDATE);
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-#if CONFIG_ACROSS_SCALE_REF_OPT
+
         // Derive reference mapping in a resolution independent manner to
         // generate parameters needed in write_frame_size_with_refs
         av1_get_ref_frames(cm, cur_frame_disp, 0,
@@ -4778,9 +4770,6 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
                            0,
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
                            cm->ref_frame_map_pairs);
-#else
-        av1_get_ref_frames(cm, cur_frame_disp, cm->ref_frame_map_pairs);
-#endif  // CONFIG_ACROSS_SCALE_REF_OP
       }
     }
 #endif  // CONFIG_CWG_F317_TEST_PATTERN

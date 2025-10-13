@@ -370,10 +370,8 @@ typedef struct {
 #if CONFIG_MULTILAYER_CORE
   int layer_id;
 #endif  // CONFIG_MULTILAYER_CORE
-#if CONFIG_ACROSS_SCALE_REF_OPT
   int width;
   int height;
-#endif  // CONFIG_ACROSS_SCALE_REF_OPT
 } RefFrameMapPair;
 
 typedef struct BufferPool {
@@ -1837,13 +1835,11 @@ typedef struct {
    * Total number of reference buffers available to the current frame.
    */
   int num_total_refs;
-#if CONFIG_ACROSS_SCALE_REF_OPT
   /*!
    * Total number of reference buffers (with invalid resolution) available to
    * the current frame.
    */
   int num_total_refs_res_indep;
-#endif  // CONFIG_ACROSS_SCALE_REF_OPT
   /*!
    * Contains the indices of the frames in ref_frame_map that are future
    * references.
@@ -2171,12 +2167,10 @@ typedef struct AV1Common {
    * have a remapped index for the same.
    */
   int remapped_ref_idx[REF_FRAMES];
-#if CONFIG_ACROSS_SCALE_REF_OPT
   /*!
    * Resolution independent version of the reference remapped index
    */
   int remapped_ref_idx_res_indep[REF_FRAMES];
-#endif  // CONFIG_ACROSS_SCALE_REF_OPT
 
   /*!
    * Scale of the current frame with respect to itself.
@@ -3010,7 +3004,6 @@ static INLINE void avg_primary_secondary_references(const AV1_COMMON *const cm,
   }
 }
 
-#if CONFIG_ACROSS_SCALE_REF_OPT
 static INLINE int get_ref_frame_map_idx_res_indep(const AV1_COMMON *const cm,
                                                   const int ref_frame) {
   return (ref_frame >= 0 && ref_frame < cm->seq_params.ref_frames)
@@ -3024,7 +3017,6 @@ static INLINE RefCntBuffer *get_ref_frame_buf_res_indep(
   const int map_idx = get_ref_frame_map_idx_res_indep(cm, ref_frame);
   return (map_idx != INVALID_IDX) ? cm->ref_frame_map[map_idx] : NULL;
 }
-#endif  // CONFIG_ACROSS_SCALE_REF_OPT
 
 static INLINE RefCntBuffer *get_ref_frame_buf(
     const AV1_COMMON *const cm, const MV_REFERENCE_FRAME ref_frame) {
@@ -5549,19 +5541,12 @@ static INLINE int is_warp_newmv_allowed(const AV1_COMMON *cm,
                                         const MACROBLOCKD *xd,
                                         const MB_MODE_INFO *mbmi,
                                         const BLOCK_SIZE bsize) {
-#if CONFIG_ACROSS_SCALE_WARP
   (void)cm;
-#endif  // CONFIG_ACROSS_SCALE_WARP
-
   const int allow_warped_motion =
       is_motion_variation_allowed_bsize(bsize, xd->mi_row, xd->mi_col) &&
       is_motion_variation_allowed_compound(mbmi) &&
       is_inter_ref_frame(mbmi->ref_frame[0]) &&
-      !is_tip_ref_frame(mbmi->ref_frame[0]) &&
-#if !CONFIG_ACROSS_SCALE_WARP
-      !av1_is_scaled(get_ref_scale_factors_const(cm, mbmi->ref_frame[0])) &&
-#endif  // !CONFIG_ACROSS_SCALE_WARP
-      !xd->cur_frame_force_integer_mv;
+      !is_tip_ref_frame(mbmi->ref_frame[0]) && !xd->cur_frame_force_integer_mv;
 
   return allow_warped_motion;
 }
@@ -5649,11 +5634,7 @@ static INLINE int motion_mode_allowed(const AV1_COMMON *cm,
 
   const int allow_compound_warp_causal_motion =
       is_motion_variation_allowed_bsize(bsize, xd->mi_row, xd->mi_col) &&
-      mbmi->mode == NEW_NEWMV &&
-#if !CONFIG_ACROSS_SCALE_WARP
-      !av1_is_scaled(xd->block_ref_scale_factors[0]) &&
-#endif  // !CONFIG_ACROSS_SCALE_WARP
-      !xd->cur_frame_force_integer_mv &&
+      mbmi->mode == NEW_NEWMV && !xd->cur_frame_force_integer_mv &&
       is_compound_warp_causal_allowed(cm, xd, mbmi);
   if (allow_compound_warp_causal_motion) {
     allowed_motion_modes |= (1 << WARP_CAUSAL);

@@ -2541,10 +2541,10 @@ static int64_t motion_mode_rd(
               mbmi->wm_params[0].invalid = l0_invalid = av1_find_projection(
                   mbmi->num_proj_ref[0], pts, pts_inref, bsize,
                   mbmi->mv[0].as_mv, &mbmi->wm_params[0], mi_row, mi_col
-#if CONFIG_ACROSS_SCALE_WARP
+
                   ,
                   get_ref_scale_factors_const(cm, mbmi->ref_frame[0])
-#endif  // CONFIG_ACROSS_SCALE_WARP
+
               );
 
               if (has_second_ref(mbmi)) {
@@ -2557,10 +2557,10 @@ static int64_t motion_mode_rd(
                 mbmi->wm_params[1].invalid = l1_invalid = av1_find_projection(
                     mbmi->num_proj_ref[1], pts, pts_inref, bsize,
                     mbmi->mv[1].as_mv, &mbmi->wm_params[1], mi_row, mi_col
-#if CONFIG_ACROSS_SCALE_WARP
+
                     ,
                     get_ref_scale_factors_const(cm, mbmi->ref_frame[1])
-#endif  // CONFIG_ACROSS_SCALE_WARP
+
                 );
               }
 
@@ -2866,10 +2866,10 @@ static int64_t motion_mode_rd(
                 if (!av1_extend_warp_model(
                         neighbor_is_above, bsize, &mbmi->mv[0].as_mv, mi_row,
                         mi_col, &neighbor_params, &wm_params0
-#if CONFIG_ACROSS_SCALE_WARP
+
                         ,
                         get_ref_scale_factors_const(cm, mbmi->ref_frame[0])
-#endif  // CONFIG_ACROSS_SCALE_WARP
+
                             )) {
                   // NEWMV search produced a valid model
                   mbmi->wm_params[0] = wm_params0;
@@ -2910,10 +2910,10 @@ static int64_t motion_mode_rd(
                   if (av1_extend_warp_model(
                           neighbor_is_above, bsize, &mbmi->mv[0].as_mv, mi_row,
                           mi_col, &neighbor_params, &mbmi->wm_params[0]
-#if CONFIG_ACROSS_SCALE_WARP
+
                           ,
                           get_ref_scale_factors_const(cm, mbmi->ref_frame[0])
-#endif  // CONFIG_ACROSS_SCALE_WARP
+
                               )) {
                     continue;
                   }

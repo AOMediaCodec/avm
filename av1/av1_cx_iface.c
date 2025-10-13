@@ -3017,19 +3017,11 @@ static aom_codec_frame_flags_t get_frame_pkt_flags(const AV1_COMP *cpi,
 static void calculate_psnr(AV1_COMP *cpi, PSNR_STATS *psnr) {
   const uint32_t in_bit_depth = cpi->oxcf.input_cfg.input_bit_depth;
   const uint32_t bit_depth = cpi->td.mb.e_mbd.bd;
-#if CONFIG_FIX_RESIZE_PSNR
   const int resize_mode = cpi->oxcf.resize_cfg.resize_mode;
   const YV12_BUFFER_CONFIG *source =
       resize_mode == RESIZE_NONE ? cpi->unfiltered_source : cpi->source;
   aom_calc_highbd_psnr(source, &cpi->common.cur_frame->buf, psnr, bit_depth,
                        in_bit_depth, is_lossless_requested(&cpi->oxcf.rc_cfg));
-
-#else
-  aom_calc_highbd_psnr(cpi->unfiltered_source, &cpi->common.cur_frame->buf,
-                       psnr, bit_depth, in_bit_depth,
-                       is_lossless_requested(&cpi->oxcf.rc_cfg));
-
-#endif  // CONFIG_FIX_RESIZE_PSNR
 }
 
 static void report_stats(AV1_COMP *cpi, size_t frame_size, uint64_t cx_time) {
