@@ -9563,6 +9563,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         // Get the TMVP sampling mode
         cm->tmvp_sample_step = aom_rb_read_bit(rb) + 1;
         cm->tmvp_sample_stepl2 = cm->tmvp_sample_step == 1 ? 0 : 1;
+
+        const int sb_size = block_size_high[seq_params->sb_size];
+        if (sb_size == 64 && cm->tmvp_sample_step == 2) {
+          aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                             "Invalid tmvp sampling when SB size if 64.");
+        }
       } else {
         cm->tmvp_sample_step = 1;
         cm->tmvp_sample_stepl2 = 0;
