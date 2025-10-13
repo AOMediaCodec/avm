@@ -368,56 +368,32 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->single_picture_hdr_flag &= !tool_cfg->full_still_picture_hdr;
   seq->force_screen_content_tools = 2;
   seq->force_integer_mv = 2;
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-  seq->order_hint_info.enable_order_hint = tool_cfg->enable_order_hint;
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   if (seq->still_picture && seq->single_picture_hdr_flag) {
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-    seq->order_hint_info.enable_order_hint = 0;
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
     seq->force_screen_content_tools = 2;
     seq->force_integer_mv = 2;
   }
 #if CONFIG_CWG_F243_ORDER_HINT_BITDEPTH
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-  if (seq->order_hint_info.enable_order_hint) {
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-    if (oxcf->kf_cfg.key_freq_min == 9999 && oxcf->kf_cfg.key_freq_max == 9999)
-      seq->order_hint_info.order_hint_bits_minus_1 =
-          DEFAULT_EXPLICIT_ORDER_HINT_BITS - 4;
-    else if (oxcf->kf_cfg.key_freq_min == 65 && oxcf->kf_cfg.key_freq_max == 65)
-      seq->order_hint_info.order_hint_bits_minus_1 =
-          DEFAULT_EXPLICIT_ORDER_HINT_BITS - 1;  // 7
-    else if (oxcf->kf_cfg.key_freq_min == 0 && oxcf->kf_cfg.key_freq_max == 0)
-      seq->order_hint_info.order_hint_bits_minus_1 = 0;  // 1 bit
-    else
-      seq->order_hint_info.order_hint_bits_minus_1 =
-          DEFAULT_EXPLICIT_ORDER_HINT_BITS - 1;
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-  } else {
-    seq->order_hint_info.order_hint_bits_minus_1 = -1;
-  }
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+  if (oxcf->kf_cfg.key_freq_min == 9999 && oxcf->kf_cfg.key_freq_max == 9999)
+    seq->order_hint_info.order_hint_bits_minus_1 =
+        DEFAULT_EXPLICIT_ORDER_HINT_BITS - 4;
+  else if (oxcf->kf_cfg.key_freq_min == 65 && oxcf->kf_cfg.key_freq_max == 65)
+    seq->order_hint_info.order_hint_bits_minus_1 =
+        DEFAULT_EXPLICIT_ORDER_HINT_BITS - 1;  // 7
+  else if (oxcf->kf_cfg.key_freq_min == 0 && oxcf->kf_cfg.key_freq_max == 0)
+    seq->order_hint_info.order_hint_bits_minus_1 = 0;  // 1 bit
+  else
+    seq->order_hint_info.order_hint_bits_minus_1 =
+        DEFAULT_EXPLICIT_ORDER_HINT_BITS - 1;
 #else
   seq->order_hint_info.order_hint_bits_minus_1 =
-#if CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
       DEFAULT_EXPLICIT_ORDER_HINT_BITS - 1;
-#else
-      seq->order_hint_info.enable_order_hint
-          ? DEFAULT_EXPLICIT_ORDER_HINT_BITS - 1
-          : -1;
 #endif  // CONFIG_CWG_F243_ORDER_HINT_BITDEPTH
-#endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   seq->enable_bru = tool_cfg->enable_bru;
   seq->explicit_ref_frame_map = oxcf->ref_frm_cfg.explicit_ref_frame_map;
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
   // Set 0 for multi-layer coding
-  seq->enable_frame_output_order = oxcf->ref_frm_cfg.enable_frame_output_order
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-                                   && seq->order_hint_info.enable_order_hint
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-      ;
-#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
+  seq->enable_frame_output_order = oxcf->ref_frm_cfg.enable_frame_output_order;
+#endif
 #if !CONFIG_CWG_F168_DPB_HLS
   seq->max_reference_frames = oxcf->ref_frm_cfg.max_reference_frames;
 #endif  // !CONFIG_CWG_F168_DPB_HLS
@@ -464,10 +440,6 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   assert(seq->num_bits_height <= 16);
 
   seq->order_hint_info.enable_ref_frame_mvs = tool_cfg->ref_frame_mvs_present;
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-  seq->order_hint_info.enable_ref_frame_mvs &=
-      seq->order_hint_info.enable_order_hint;
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   seq->order_hint_info.reduced_ref_frame_mvs_mode =
       tool_cfg->reduced_ref_frame_mvs_mode;
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
@@ -5259,13 +5231,7 @@ void enc_bru_swap_ref(AV1_COMMON *const cm) {
             scores[replaced_bru_ref_idx].index;
         cm->ref_frames_info
             .ref_frame_distance[cm->ref_frames_info.num_total_refs - 1] =
-#if CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
             scores[replaced_bru_ref_idx].distance;
-#else
-            cm->seq_params.order_hint_info.enable_order_hint
-                ? scores[replaced_bru_ref_idx].distance
-                : 1;
-#endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
         RefScoreData tmp_score = scores[cm->ref_frames_info.num_total_refs - 1];
         scores[cm->ref_frames_info.num_total_refs - 1] =
             scores[replaced_bru_ref_idx];

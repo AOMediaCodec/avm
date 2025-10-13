@@ -534,9 +534,6 @@ typedef struct {
 } DeltaQInfo;
 
 typedef struct {
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-  int enable_order_hint;           // 0 - disable order hint, and related tools
-#endif                             // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   int order_hint_bits_minus_1;     // dist_wtd_comp, ref_frame_mvs,
                                    // frame_sign_bias
                                    // if 0, enable_dist_wtd_comp and
@@ -917,7 +914,7 @@ typedef struct SequenceHeader {
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
   int enable_frame_output_order;  // Enable frame output order derivation based
                                   // on order hint value
-#endif                            // !CONFIG_F253_REMOVE_OUTPUTFLAG
+#endif
 #if !CONFIG_CWG_F168_DPB_HLS
   int max_reference_frames;              // Number of reference frames allowed
 #endif                                   // !CONFIG_CWG_F168_DPB_HLS
@@ -3062,9 +3059,6 @@ static INLINE int frame_might_allow_ref_frame_mvs(const AV1_COMMON *cm) {
       !cm->features.error_resilient_mode &&
 #endif
       cm->seq_params.order_hint_info.enable_ref_frame_mvs &&
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-      cm->seq_params.order_hint_info.enable_order_hint &&
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
 #if CONFIG_CWG_F317
       !cm->bridge_frame_info.is_bridge_frame &&
 #endif  // CONFIG_CWG_F317
@@ -5294,11 +5288,7 @@ static INLINE void init_ibp_info(
 #define RELATIVE_DIST_BITS 8
 
 static INLINE int get_relative_dist(const OrderHintInfo *oh, int a, int b) {
-#if CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   if (oh->order_hint_bits_minus_1 < 0) return 0;
-#else
-  if (!oh->enable_order_hint) return 0;
-#endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
 
   assert(a >= 0);
   assert(b >= 0);

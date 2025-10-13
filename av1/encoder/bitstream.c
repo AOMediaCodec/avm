@@ -5692,7 +5692,6 @@ static AOM_INLINE void write_sb_size(const SequenceHeader *const seq_params,
 
 static AOM_INLINE void write_sequence_header(
     const SequenceHeader *const seq_params, struct aom_write_bit_buffer *wb) {
-
   write_sb_size(seq_params, wb);
   aom_wb_write_bit(wb, seq_params->enable_intra_dip);
   aom_wb_write_bit(wb, seq_params->enable_intra_edge_filter);
@@ -5734,21 +5733,13 @@ static AOM_INLINE void write_sequence_header(
 #endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
 
     aom_wb_write_bit(wb, seq_params->enable_masked_compound);
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-    aom_wb_write_bit(wb, seq_params->order_hint_info.enable_order_hint);
-
-    if (seq_params->order_hint_info.enable_order_hint) {
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-      aom_wb_write_bit(wb, seq_params->order_hint_info.enable_ref_frame_mvs);
-      if (seq_params->order_hint_info.enable_ref_frame_mvs) {
-        assert(seq_params->order_hint_info.reduced_ref_frame_mvs_mode >= 0 &&
-               seq_params->order_hint_info.reduced_ref_frame_mvs_mode <= 1);
-        aom_wb_write_bit(
-            wb, seq_params->order_hint_info.reduced_ref_frame_mvs_mode);
-      }
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+    aom_wb_write_bit(wb, seq_params->order_hint_info.enable_ref_frame_mvs);
+    if (seq_params->order_hint_info.enable_ref_frame_mvs) {
+      assert(seq_params->order_hint_info.reduced_ref_frame_mvs_mode >= 0 &&
+             seq_params->order_hint_info.reduced_ref_frame_mvs_mode <= 1);
+      aom_wb_write_bit(wb,
+                       seq_params->order_hint_info.reduced_ref_frame_mvs_mode);
     }
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
     if (seq_params->force_screen_content_tools == 2) {
       aom_wb_write_bit(wb, 1);
     } else {
@@ -5765,11 +5756,8 @@ static AOM_INLINE void write_sequence_header(
     } else {
       assert(seq_params->force_integer_mv == 2);
     }
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-    if (seq_params->order_hint_info.enable_order_hint)
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-      aom_wb_write_literal(
-          wb, seq_params->order_hint_info.order_hint_bits_minus_1, 3);
+    aom_wb_write_literal(
+        wb, seq_params->order_hint_info.order_hint_bits_minus_1, 3);
   }
 
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
@@ -5892,7 +5880,7 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
   // 0 : show_existing_frame, 1: implicit derviation
   aom_wb_write_bit(wb, seq_params->enable_frame_output_order);
-#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
+#endif
 
 #if CONFIG_CWG_F168_DPB_HLS
   const int signal_dpb_explicit =
@@ -5958,13 +5946,7 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
     aom_wb_write_bit(wb, seq_params->enable_tip_explicit_qp);
   }
   aom_wb_write_bit(wb, seq_params->enable_orip);
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-  if (seq_params->order_hint_info.enable_order_hint) {
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-    aom_wb_write_literal(wb, seq_params->enable_opfl_refine, 2);
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-  }
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+  aom_wb_write_literal(wb, seq_params->enable_opfl_refine, 2);
   aom_wb_write_bit(wb, seq_params->enable_ibp);
   aom_wb_write_bit(wb, seq_params->enable_adaptive_mvd);
   aom_wb_write_bit(wb, seq_params->enable_refinemv);
@@ -6227,19 +6209,11 @@ static AOM_INLINE void write_global_motion(AV1_COMP *cpi,
 
   for (frame = 0; frame < num_total_refs; ++frame) {
     int temporal_distance;
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-    if (seq_params->order_hint_info.enable_order_hint) {
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-      const RefCntBuffer *const ref_buf = get_ref_frame_buf(cm, frame);
-      const int ref_order_hint = ref_buf->display_order_hint;
-      const int cur_order_hint = cm->cur_frame->display_order_hint;
-      temporal_distance = get_relative_dist(&seq_params->order_hint_info,
-                                            cur_order_hint, ref_order_hint);
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-    } else {
-      temporal_distance = 1;
-    }
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+    const RefCntBuffer *const ref_buf = get_ref_frame_buf(cm, frame);
+    const int ref_order_hint = ref_buf->display_order_hint;
+    const int cur_order_hint = cm->cur_frame->display_order_hint;
+    temporal_distance = get_relative_dist(&seq_params->order_hint_info,
+                                          cur_order_hint, ref_order_hint);
 
     if (temporal_distance == 0) {
       // Don't code global motion for frames at the same temporal instant
@@ -6550,13 +6524,9 @@ static AOM_INLINE void write_uncompressed_header_obu
                               : (cm->width != seq_params->max_frame_width ||
                                  cm->height != seq_params->max_frame_height);
       if (!frame_is_sframe(cm)) aom_wb_write_bit(wb, frame_size_override_flag);
-
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-      if (seq_params->order_hint_info.enable_order_hint)
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-        aom_wb_write_literal(
-            wb, current_frame->order_hint,
-            seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
+      aom_wb_write_literal(
+          wb, current_frame->order_hint,
+          seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
 #if CONFIG_CWG_F317
     }
 #endif  // CONFIG_CWG_F317
@@ -6722,11 +6692,7 @@ static AOM_INLINE void write_uncompressed_header_obu
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   {
     // Write all ref frame order hints if error_resilient_mode == 1
-    if (features->error_resilient_mode
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-        && seq_params->order_hint_info.enable_order_hint
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-    ) {
+    if (features->error_resilient_mode) {
       for (int ref_idx = 0; ref_idx < cm->seq_params.ref_frames; ref_idx++) {
         aom_wb_write_literal(
             wb, cm->ref_frame_map[ref_idx]->order_hint,
@@ -6800,9 +6766,6 @@ static AOM_INLINE void write_uncompressed_header_obu
               cm->features.error_resilient_mode ||
 #endif  // !CONFIG_F322_OBUER_ERM
               frame_is_sframe(cm) || seq_params->explicit_ref_frame_map
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-              || !seq_params->order_hint_info.enable_order_hint
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
 #if CONFIG_CWG_F317
               ) &&
           !cm->bridge_frame_info.is_bridge_frame
@@ -6927,11 +6890,7 @@ static AOM_INLINE void write_uncompressed_header_obu
       }
 
       if (features->allow_ref_frame_mvs &&
-          cm->ref_frames_info.num_total_refs > 1
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-          && seq_params->order_hint_info.enable_order_hint
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-      ) {
+          cm->ref_frames_info.num_total_refs > 1) {
         // Write TMVP sampling mode
         assert(cm->tmvp_sample_step == 1 || cm->tmvp_sample_step == 2);
         aom_wb_write_bit(wb, cm->tmvp_sample_step - 1);
@@ -9026,12 +8985,9 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 #if CONFIG_F106_OBU_SEF
   if (encode_show_existing_frame(cm) &&
       (
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-          !cm->seq_params.order_hint_info.enable_order_hint ||
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
           !cm->seq_params.enable_frame_output_order ||
-#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
+#endif
           cm->cur_frame->frame_type == KEY_FRAME))
     obu_type = OBU_SEF;
 #endif  // CONFIG_F106_OBU_SEF
@@ -9088,12 +9044,9 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 #else
     if ((encode_show_existing_frame(cm) &&
          (
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-             cm->seq_params.order_hint_info.enable_order_hint ||
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
              !cm->seq_params.enable_frame_output_order ||
-#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
+#endif
              cm->cur_frame->frame_type == KEY_FRAME)) ||
         cm->bru.frame_inactive_flag ||
 #if CONFIG_CWG_F317
@@ -9108,12 +9061,9 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
       (cpi->num_tg > 1 ||
        (encode_show_existing_frame(cm) &&
         (
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-            !cm->seq_params.order_hint_info.enable_order_hint ||
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
             !cm->seq_params.enable_frame_output_order ||
-#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
+#endif
             cm->cur_frame->frame_type == KEY_FRAME)) ||
        cm->bru.frame_inactive_flag ||
 #if CONFIG_CWG_F317
@@ -9156,7 +9106,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
     }
   }
 
-#if CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT && CONFIG_F253_REMOVE_OUTPUTFLAG
+#if CONFIG_F253_REMOVE_OUTPUTFLAG
   const bool non_signaled_show_existing_frame = (cm->show_existing_frame &&
 #if CONFIG_F322_OBUER_ERM
                                                  !frame_is_sframe(cm)
@@ -9165,7 +9115,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
                                                       .error_resilient_mode
 #endif
   );
-#elif CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT && !CONFIG_F253_REMOVE_OUTPUTFLAG
+#elif !CONFIG_F253_REMOVE_OUTPUTFLAG
   const bool non_signaled_show_existing_frame =
       (cm->seq_params.enable_frame_output_order && cm->show_existing_frame &&
 #if CONFIG_F322_OBUER_ERM
@@ -9176,33 +9126,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
            ) ||
       (!cm->seq_params.enable_frame_output_order &&
        encode_show_existing_frame(cm));
-#elif !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT && CONFIG_F253_REMOVE_OUTPUTFLAG
-  const bool non_signaled_show_existing_frame =
-      (cm->seq_params.order_hint_info.enable_order_hint &&
-       cm->show_existing_frame &&
-#if CONFIG_F322_OBUER_ERM
-       !frame_is_sframe(cm)
-#else
-       !cm->features.error_resilient_mode
-#endif
-           ) ||
-      (!cm->seq_params.order_hint_info.enable_order_hint &&
-       encode_show_existing_frame(cm));
-#else
-  const bool non_signaled_show_existing_frame =
-      (cm->seq_params.order_hint_info.enable_order_hint &&
-       cm->seq_params.enable_frame_output_order && cm->show_existing_frame &&
-#if CONFIG_F322_OBUER_ERM
-       !frame_is_sframe(cm)
-#else
-       !cm->features.error_resilient_mode
-#endif
-           ) ||
-      ((!cm->seq_params.order_hint_info.enable_order_hint ||
-        !cm->seq_params.enable_frame_output_order) &&
-       encode_show_existing_frame(cm));
-#endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT &&
-        // CONFIG_F253_REMOVE_OUTPUTFLAG
+#endif  // CONFIG_F253_REMOVE_OUTPUTFLAG
   const bool non_signaled_frame =
       non_signaled_show_existing_frame || cm->bru.frame_inactive_flag ||
 #if CONFIG_CWG_F317

@@ -566,7 +566,7 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_frame_output_order;
-#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
+#endif  
   /*!\brief use reduced transform type set
    *
    */

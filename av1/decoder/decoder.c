@@ -742,7 +742,7 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
           if (
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
               cm->seq_params.enable_frame_output_order &&
-#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
+#endif  
               is_frame_eligible_for_output(cm->ref_frame_map[ref_index]))
             output_frame_buffers(pbi, ref_index);
           decrease_ref_count(cm->ref_frame_map[ref_index], pool);
@@ -761,24 +761,16 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
                           pbi->enable_subgop_stats);
     }
     if (
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-        cm->seq_params.order_hint_info.enable_order_hint &&
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
         cm->seq_params.enable_frame_output_order &&
-#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
+#endif  
         ((cm->show_frame && !cm->cur_frame->frame_output_done) ||
          cm->show_existing_frame)) {
       output_frame_buffers(pbi, -1);
       decrease_ref_count(cm->cur_frame, pool);
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT || !CONFIG_F253_REMOVE_OUTPUTFLAG
+#if !CONFIG_F253_REMOVE_OUTPUTFLAG
     } else if ((
-#if CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-                   false
-#else
-                   !cm->seq_params.order_hint_info.enable_order_hint
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-                   ||
+                   false ||
 #if CONFIG_F253_REMOVE_OUTPUTFLAG
                    false
 #else
@@ -807,8 +799,8 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
         pbi->output_frames[0] = cm->cur_frame;
         pbi->num_output_frames = 1;
       }
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT ||
-        // !CONFIG_F253_REMOVE_OUTPUTFLAG
+#endif   ||
+        
     } else {
       decrease_ref_count(cm->cur_frame, pool);
     }
@@ -972,25 +964,19 @@ int av1_get_raw_frame(AV1Decoder *pbi, size_t index, YV12_BUFFER_CONFIG **sd,
 // TODO(rachelbarker): What should this do?
 int av1_get_frame_to_show(AV1Decoder *pbi, YV12_BUFFER_CONFIG *frame) {
   if (pbi->num_output_frames == 0) return -1;
-#if CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT && CONFIG_F253_REMOVE_OUTPUTFLAG
+#if CONFIG_F253_REMOVE_OUTPUTFLAG
   const size_t out_frame_idx = pbi->output_frames_offset;
 #else
   bool output_order_enabled = true;
-#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-  output_order_enabled =
-      output_order_enabled &&
-      pbi->common.seq_params.order_hint_info.enable_order_hint;
-#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
   output_order_enabled =
       output_order_enabled && pbi->common.seq_params.enable_frame_output_order;
-#endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
+#endif  
   const size_t out_frame_idx = output_order_enabled
                                    ? pbi->output_frames_offset
                                    : pbi->num_output_frames - 1;
   if (output_order_enabled)
-#endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT &&
-        // CONFIG_F253_REMOVE_OUTPUTFLAG
+#endif  // CONFIG_F253_REMOVE_OUTPUTFLAG
   if (pbi->num_output_frames <= out_frame_idx) return -1;
   *frame = pbi->output_frames[out_frame_idx]->buf;
   return 0;
