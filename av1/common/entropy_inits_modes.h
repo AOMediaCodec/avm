@@ -1863,32 +1863,32 @@ static const aom_cdf_prob default_morph_pred_cdf[3][CDF_SIZE(2)] = {
   { AOM_CDF2( 8242),  95 },
 };
 
-static const aom_cdf_prob default_seg_tree_cdf[CDF_SIZE(8)] = { AOM_CDF8( 4096,  8192, 12288, 16384, 20480, 24576, 28672),   0 }; // not exercised in CTC
+static const aom_cdf_prob default_seg_tree_cdf[CDF_SIZE(8)] = { AOM_CDF8( 4096,  8192, 12288, 16384, 20480, 24576, 28672),   0 }; // in specification, yet not exercised in CTC
 
-static const aom_cdf_prob default_seg_tree_cdf1[CDF_SIZE(8)] = { AOM_CDF8( 4096,  8192, 12288, 16384, 20480, 24576, 28672),   0 }; // not exercised in CTC
+static const aom_cdf_prob default_seg_tree_cdf1[CDF_SIZE(8)] = { AOM_CDF8( 4096,  8192, 12288, 16384, 20480, 24576, 28672),   0 }; // in specification, yet not exercised in CTC
 
 static const aom_cdf_prob default_segment_pred_cdf[3][CDF_SIZE(2)] = {
-  { AOM_CDF2(16384),   0 }, // not exercised in CTC
-  { AOM_CDF2(16384),   0 }, // not exercised in CTC
-  { AOM_CDF2(16384),   0 }, // not exercised in CTC
+  { AOM_CDF2(16384),   0 }, // in specification, yet not exercised in CTC
+  { AOM_CDF2(16384),   0 }, // in specification, yet not exercised in CTC
+  { AOM_CDF2(16384),   0 }, // in specification, yet not exercised in CTC
 };
 
 static const aom_cdf_prob default_spatial_pred_seg_tree_cdf[3][CDF_SIZE(8)] = {
-  { AOM_CDF8( 5622,  7893, 16093, 18233, 27809, 28373, 32533),   0 }, // not exercised in CTC
-  { AOM_CDF8(14274, 18230, 22557, 24935, 29980, 30851, 32344),   0 }, // not exercised in CTC
-  { AOM_CDF8(27527, 28487, 28723, 28890, 32397, 32647, 32679),   0 }, // not exercised in CTC
+  { AOM_CDF8( 5622,  7893, 16093, 18233, 27809, 28373, 32533),   0 }, // in specification, yet not exercised in CTC
+  { AOM_CDF8(14274, 18230, 22557, 24935, 29980, 30851, 32344),   0 }, // in specification, yet not exercised in CTC
+  { AOM_CDF8(27527, 28487, 28723, 28890, 32397, 32647, 32679),   0 }, // in specification, yet not exercised in CTC
 };
 
 static const aom_cdf_prob default_spatial_pred_seg_tree_cdf1[3][CDF_SIZE(8)] = {
-  { AOM_CDF8( 4096,  8192, 12288, 16384, 20480, 24576, 28672),   0 }, // not exercised in CTC
-  { AOM_CDF8( 4096,  8192, 12288, 16384, 20480, 24576, 28672),   0 }, // not exercised in CTC
-  { AOM_CDF8( 4096,  8192, 12288, 16384, 20480, 24576, 28672),   0 }, // not exercised in CTC
+  { AOM_CDF8( 4096,  8192, 12288, 16384, 20480, 24576, 28672),   0 }, // in specification, yet not exercised in CTC
+  { AOM_CDF8( 4096,  8192, 12288, 16384, 20480, 24576, 28672),   0 }, // in specification, yet not exercised in CTC
+  { AOM_CDF8( 4096,  8192, 12288, 16384, 20480, 24576, 28672),   0 }, // in specification, yet not exercised in CTC
 };
 
 static const aom_cdf_prob default_seg_id_ext_flag_cdf[3][CDF_SIZE(2)] = {
-  { AOM_CDF2(16384),   0 }, // not exercised in CTC
-  { AOM_CDF2(16384),   0 }, // not exercised in CTC
-  { AOM_CDF2(16384),   0 }, // not exercised in CTC
+  { AOM_CDF2(16384),   0 }, // in specification, yet not exercised in CTC
+  { AOM_CDF2(16384),   0 }, // in specification, yet not exercised in CTC
+  { AOM_CDF2(16384),   0 }, // in specification, yet not exercised in CTC
 };
 
 /* clang-format on */
