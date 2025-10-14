@@ -251,7 +251,6 @@ static int read_lcr_global_info(struct AV1Decoder *pbi,
   }
 
   lcr_params->lcr_global_config_record_id = lcr_global_config_record_id;
-  lcr_params->lcr_global_config_record_id = aom_rb_read_literal(rb, 3);
   lcr_params->lcr_max_num_extended_layers_minus_1 = aom_rb_read_literal(rb, 5);
   lcr_params->lcr_max_profile_tier_level_info_present_flag =
       aom_rb_read_bit(rb);
@@ -342,6 +341,5 @@ uint32_t av1_read_layer_configuration_record_obu(
   if (av1_check_trailing_bits(pbi, rb) != 0) {
     return 0;
   }
-  pbi->lcr_counter++;
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }
