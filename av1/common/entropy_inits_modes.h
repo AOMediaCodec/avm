@@ -542,24 +542,24 @@ static const aom_cdf_prob default_skip_mode_cdfs[3][CDF_SIZE(2)] = {
 
 static const aom_cdf_prob default_lossless_tx_size_cdf[4][2][CDF_SIZE(2)] = {
   {
-    { AOM_CDF2(16384),   1 }, // not exercised in CTC
-    { AOM_CDF2(16384),   1 }, // not exercised in CTC
+    { AOM_CDF2(16384),   1 }, // in specification, yet not exercised in CTC
+    { AOM_CDF2(16384),   1 }, // in specification, yet not exercised in CTC
   },
   {
-    { AOM_CDF2(16384),  75 }, // not exercised in CTC
-    { AOM_CDF2(16384),  75 }, // not exercised in CTC
+    { AOM_CDF2(16384),  75 }, // in specification, yet not exercised in CTC
+    { AOM_CDF2(16384),  75 }, // in specification, yet not exercised in CTC
   },
   {
-    { AOM_CDF2(16384),  75 }, // not exercised in CTC
-    { AOM_CDF2(16384),  75 }, // not exercised in CTC
+    { AOM_CDF2(16384),  75 }, // in specification, yet not exercised in CTC
+    { AOM_CDF2(16384),  75 }, // in specification, yet not exercised in CTC
   },
   {
-    { AOM_CDF2(16384),  75 }, // not exercised in CTC
-    { AOM_CDF2(16384),  75 }, // not exercised in CTC
+    { AOM_CDF2(16384),  75 }, // in specification, yet not exercised in CTC
+    { AOM_CDF2(16384),  75 }, // in specification, yet not exercised in CTC
   },
 };
 
-static const aom_cdf_prob default_lossless_inter_tx_type_cdf[CDF_SIZE(2)] = { AOM_CDF2(16384),  75 }; // not exercised in CTC
+static const aom_cdf_prob default_lossless_inter_tx_type_cdf[CDF_SIZE(2)] = { AOM_CDF2(16384),  75 }; // in specification, yet not exercised in CTC
 
 static const aom_cdf_prob default_skip_txfm_cdfs[6][CDF_SIZE(2)] = {
   { AOM_CDF2(23601),   0 },
@@ -570,7 +570,7 @@ static const aom_cdf_prob default_skip_txfm_cdfs[6][CDF_SIZE(2)] = {
   { AOM_CDF2( 1437),  90 },
 };
 
-static const aom_cdf_prob default_bru_mode_cdf[CDF_SIZE(3)] = { AOM_CDF3( 4124, 16615),   0 }; // not exercised in CTC
+static const aom_cdf_prob default_bru_mode_cdf[CDF_SIZE(3)] = { AOM_CDF3( 4124, 16615),   0 }; // in specification, yet not exercised in CTC
 
 static const aom_cdf_prob default_intra_inter_cdf[4][CDF_SIZE(2)] = {
   { AOM_CDF2( 2375),  75 },
@@ -675,13 +675,13 @@ static const aom_cdf_prob default_multi_line_mrl_cdf[3][CDF_SIZE(2)] = {
   { AOM_CDF2(16384),   0 },
 };
 
-static const aom_cdf_prob default_dpcm_cdf[CDF_SIZE(2)] = { AOM_CDF2(16384),   0 }; // not exercised in CTC
+static const aom_cdf_prob default_dpcm_cdf[CDF_SIZE(2)] = { AOM_CDF2(16384),   0 }; // in specification, yet not exercised in CTC
 
-static const aom_cdf_prob default_dpcm_vert_horz_cdf[CDF_SIZE(2)] = { AOM_CDF2(16384),   0 }; // not exercised in CTC
+static const aom_cdf_prob default_dpcm_vert_horz_cdf[CDF_SIZE(2)] = { AOM_CDF2(16384),   0 }; // in specification, yet not exercised in CTC
 
-static const aom_cdf_prob default_dpcm_uv_cdf[CDF_SIZE(2)] = { AOM_CDF2(16384),   0 }; // not exercised in CTC
+static const aom_cdf_prob default_dpcm_uv_cdf[CDF_SIZE(2)] = { AOM_CDF2(16384),   0 }; // in specification, yet not exercised in CTC
 
-static const aom_cdf_prob default_dpcm_uv_vert_horz_cdf[CDF_SIZE(2)] = { AOM_CDF2(16384),   0 }; // not exercised in CTC
+static const aom_cdf_prob default_dpcm_uv_vert_horz_cdf[CDF_SIZE(2)] = { AOM_CDF2(16384),   0 }; // in specification, yet not exercised in CTC
 
 static const aom_cdf_prob default_fsc_mode_cdf[4][6][CDF_SIZE(2)] = {
   {
@@ -771,7 +771,7 @@ static const aom_cdf_prob default_switchable_interp_cdf[16][CDF_SIZE(3)] = {
   { AOM_CDF3(10923, 21845),   0 }, // not exercised in CTC
 };
 
-static const aom_cdf_prob default_delta_q_cdf[CDF_SIZE(8)] = { AOM_CDF8(16594, 23325, 26424, 28225, 29358, 30099, 30613),  56 }; // not exercised in CTC
+static const aom_cdf_prob default_delta_q_cdf[CDF_SIZE(8)] = { AOM_CDF8(16594, 23325, 26424, 28225, 29358, 30099, 30613),  56 }; // in specification, yet not exercised in CTC
 
 static const aom_cdf_prob default_delta_lf_multi_cdf[4][CDF_SIZE(4)] = {
   { AOM_CDF4(28160, 32120, 32677),   0 }, // not exercised in CTC
