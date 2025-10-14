@@ -204,6 +204,11 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
   uint8_t detect_buf[OBU_DETECTION_SIZE] = { 0 };
   int first_td = 1;
 
+#if OBU_ORDER_IN_TU
+  OBU_TYPE prev_obu_type = 0;
+  OBU_TYPE curr_obu_type = 0;
+#endif  // OBU_ORDER_IN_TU
+
 #if CONFIG_F160_TD
   int vcl_obu_count = 0;  // a local variable to count the nubmer of obus
 #endif                    // CONFIG_F160_TD
@@ -223,6 +228,19 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
           break;
       }
     }
+
+#if OBU_ORDER_IN_TU
+    curr_obu_type = obu_header.type;
+    if (prev_obu_type > 0 && curr_obu_type > 0 &&
+        check_obu_order(prev_obu_type, curr_obu_type)) {
+      fprintf(stderr, "obudec: OBU orders is incorrect in TU, %s, %s\n",
+              aom_obu_type_to_string(prev_obu_type),
+              aom_obu_type_to_string(curr_obu_type));
+      return -1;
+    }
+    prev_obu_type = curr_obu_type;
+#endif  // OBU_ORDER_IN_TU
+
 #if CONFIG_F160_TD && CONFIG_F106_OBU_TILEGROUP
     uint8_t first_tile_group_byte = 0;
 #endif
