@@ -8350,9 +8350,10 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_MULTI_FRAME_HEADER
 #if CONFIG_CWG_E242_MFH_ID_UVLC
     uint32_t cur_mfh_id = aom_rb_read_uvlc(rb);
-    if (cur_mfh_id > INT_MAX) {
+    if (cur_mfh_id >= MAX_MFH_NUM) {
       aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
-                         "mfh_id %u is too big", cur_mfh_id);
+                         "multi-frame header id is greater than or equal to "
+                         "the maximum multi-frame header number");
     }
     cm->cur_mfh_id = (int)cur_mfh_id;
 #else
