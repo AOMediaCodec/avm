@@ -7010,8 +7010,12 @@ static AOM_INLINE void write_uncompressed_header_obu
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
       ) {
         // Write TMVP sampling mode
-        assert(cm->tmvp_sample_step == 1 || cm->tmvp_sample_step == 2);
-        aom_wb_write_bit(wb, cm->tmvp_sample_step - 1);
+        if (block_size_high[seq_params->sb_size] > 64) {
+          assert(cm->tmvp_sample_step == 1 || cm->tmvp_sample_step == 2);
+          aom_wb_write_bit(wb, cm->tmvp_sample_step - 1);
+        } else {
+          assert(cm->tmvp_sample_step == 1);
+        }
       }
 
       if (cm->seq_params.enable_lf_sub_pu) {
