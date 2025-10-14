@@ -39,30 +39,30 @@ static const aom_cdf_prob default_inter_warp_mode_cdf[5][CDF_SIZE(2)] = {
 static const aom_cdf_prob default_is_warpmv_or_warp_newmv_cdf[CDF_SIZE(2)] = { AOM_CDF2(11941),   0 };
 
 static const aom_cdf_prob default_refinemv_flag_cdf[24][CDF_SIZE(2)] = {
+  { AOM_CDF2(16384),   0 }, // not exercised in CTC
+  { AOM_CDF2(16384),   0 }, // not exercised in CTC
+  { AOM_CDF2(16384),   0 }, // not exercised in CTC
+  { AOM_CDF2(16384),   0 }, // not exercised in CTC
+  { AOM_CDF2(16384),   0 }, // not exercised in CTC
+  { AOM_CDF2(16384),   0 }, // not exercised in CTC
+  { AOM_CDF2(16384),   0 }, // not exercised in CTC
+  { AOM_CDF2(16384),   0 }, // not exercised in CTC
   { AOM_CDF2(16384),   0 },
   { AOM_CDF2(16384),   0 },
   { AOM_CDF2(16384),   0 },
-  { AOM_CDF2(16384),   0 },
-  { AOM_CDF2(16384),   0 },
-  { AOM_CDF2(16384),   0 },
-  { AOM_CDF2(16384),   0 },
-  { AOM_CDF2(16384),   0 },
-  { AOM_CDF2(16384),   0 },
-  { AOM_CDF2(16384),   0 },
-  { AOM_CDF2(16384),   0 },
-  { AOM_CDF2(16384),   0 },
-  { AOM_CDF2(16384),   0 },
-  { AOM_CDF2(16384),   0 },
-  { AOM_CDF2(16384),   0 },
-  { AOM_CDF2(16384),   0 },
-  { AOM_CDF2(16384),   0 },
-  { AOM_CDF2(16384),   0 },
-  { AOM_CDF2(16384),   0 },
-  { AOM_CDF2(16384),   0 },
-  { AOM_CDF2(16384),   0 },
-  { AOM_CDF2(16384),   0 },
-  { AOM_CDF2(16384),   0 },
-  { AOM_CDF2(16384),   0 },
+  { AOM_CDF2(16384),   0 }, // not exercised in CTC
+  { AOM_CDF2(16384),   0 }, // not exercised in CTC
+  { AOM_CDF2(16384),   0 }, // not exercised in CTC
+  { AOM_CDF2(16384),   0 }, // not exercised in CTC
+  { AOM_CDF2(16384),   0 }, // not exercised in CTC
+  { AOM_CDF2(16384),   0 }, // not exercised in CTC
+  { AOM_CDF2(16384),   0 }, // not exercised in CTC
+  { AOM_CDF2(16384),   0 }, // not exercised in CTC
+  { AOM_CDF2(16384),   0 }, // not exercised in CTC
+  { AOM_CDF2(16384),   0 }, // not exercised in CTC
+  { AOM_CDF2(16384),   0 }, // not exercised in CTC
+  { AOM_CDF2(16384),   0 }, // not exercised in CTC
+  { AOM_CDF2(16384),   0 }, // not exercised in CTC
 };
 
 static const aom_cdf_prob default_drl_cdf[3][5][CDF_SIZE(2)] = {
@@ -135,10 +135,10 @@ static const aom_cdf_prob default_cwp_idx_cdf[2][4][CDF_SIZE(2)] = {
     { AOM_CDF2(21219),  31 },
   },
   {
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
   },
 };
 
@@ -210,7 +210,7 @@ static const aom_cdf_prob default_wedge_dist_cdf[CDF_SIZE(4)] = { AOM_CDF4( 5746
 static const aom_cdf_prob default_wedge_dist_cdf2[CDF_SIZE(3)] = { AOM_CDF3(11164, 18454),  90 };
 
 static const aom_cdf_prob default_warp_interintra_cdf[4][CDF_SIZE(2)] = {
-  { AOM_CDF2(16384),   0 },
+  { AOM_CDF2(16384),   0 }, // not exercised in CTC
   { AOM_CDF2(16384),   0 },
   { AOM_CDF2(16384),   0 },
   { AOM_CDF2(16384),   0 },
@@ -252,6 +252,9 @@ static const aom_cdf_prob default_warp_causal_cdf[4][CDF_SIZE(2)] = {
 };
 
 static const aom_cdf_prob default_warp_precision_idx_cdf[31][CDF_SIZE(2)] = {
+  { AOM_CDF2(16384),   0 }, // not exercised in CTC
+  { AOM_CDF2(16384),   0 }, // not exercised in CTC
+  { AOM_CDF2(16384),   0 }, // not exercised in CTC
   { AOM_CDF2(16384),   0 },
   { AOM_CDF2(16384),   0 },
   { AOM_CDF2(16384),   0 },
@@ -268,21 +271,18 @@ static const aom_cdf_prob default_warp_precision_idx_cdf[31][CDF_SIZE(2)] = {
   { AOM_CDF2(16384),   0 },
   { AOM_CDF2(16384),   0 },
   { AOM_CDF2(16384),   0 },
+  { AOM_CDF2(16384),   0 }, // not exercised in CTC
+  { AOM_CDF2(16384),   0 }, // not exercised in CTC
   { AOM_CDF2(16384),   0 },
   { AOM_CDF2(16384),   0 },
   { AOM_CDF2(16384),   0 },
   { AOM_CDF2(16384),   0 },
+  { AOM_CDF2(16384),   0 }, // not exercised in CTC
+  { AOM_CDF2(16384),   0 }, // not exercised in CTC
   { AOM_CDF2(16384),   0 },
   { AOM_CDF2(16384),   0 },
-  { AOM_CDF2(16384),   0 },
-  { AOM_CDF2(16384),   0 },
-  { AOM_CDF2(16384),   0 },
-  { AOM_CDF2(16384),   0 },
-  { AOM_CDF2(16384),   0 },
-  { AOM_CDF2(16384),   0 },
-  { AOM_CDF2(16384),   0 },
-  { AOM_CDF2(16384),   0 },
-  { AOM_CDF2(16384),   0 },
+  { AOM_CDF2(16384),   0 }, // not exercised in CTC
+  { AOM_CDF2(16384),   0 }, // not exercised in CTC
 };
 
 static const aom_cdf_prob default_warp_delta_param_cdf[2][CDF_SIZE(8)] = {
@@ -328,7 +328,7 @@ static const aom_cdf_prob default_tip_pred_mode_cdf[CDF_SIZE(2)] = { AOM_CDF2(29
 
 static const aom_cdf_prob default_palette_y_size_cdf[CDF_SIZE(7)] = { AOM_CDF7( 7882, 14719, 20582, 24895, 28455, 30765),  70 };
 
-static const aom_cdf_prob default_palette_uv_size_cdf[CDF_SIZE(7)] = { AOM_CDF7( 8195, 19832, 25803, 29025, 30747, 31974),  50 };
+static const aom_cdf_prob default_palette_uv_size_cdf[CDF_SIZE(7)] = { AOM_CDF7( 8195, 19832, 25803, 29025, 30747, 31974),  50 }; // not exercised in CTC
 
 static const aom_cdf_prob default_identity_row_cdf_y[4][CDF_SIZE(3)] = {
   { AOM_CDF3(10923, 21845),  25 },
@@ -338,16 +338,16 @@ static const aom_cdf_prob default_identity_row_cdf_y[4][CDF_SIZE(3)] = {
 };
 
 static const aom_cdf_prob default_identity_row_cdf_uv[4][CDF_SIZE(3)] = {
-  { AOM_CDF3(10923, 21845),  32 },
-  { AOM_CDF3(10923, 21845),  57 },
-  { AOM_CDF3(10923, 21845),  30 },
-  { AOM_CDF3(10923, 21845),  56 },
+  { AOM_CDF3(10923, 21845),  32 }, // not exercised in CTC
+  { AOM_CDF3(10923, 21845),  57 }, // not exercised in CTC
+  { AOM_CDF3(10923, 21845),  30 }, // not exercised in CTC
+  { AOM_CDF3(10923, 21845),  56 }, // not exercised in CTC
 };
 
 static const aom_cdf_prob default_palette_y_color_index_cdf[PALETTE_SIZES][PALETTE_COLOR_INDEX_CONTEXTS][CDF_SIZE(PALETTE_COLORS)] = {
 {
   { AOM_CDF2(27953), 120 },
-  { AOM_CDF2(16384),   0 },
+  { AOM_CDF2(16384),   0 }, // not exercised in CTC
   { AOM_CDF2( 8822),  60 },
   { AOM_CDF2(27664),  25 },
   { AOM_CDF2(30470),   0 },
@@ -398,7 +398,7 @@ static const aom_cdf_prob default_palette_y_color_index_cdf[PALETTE_SIZES][PALET
 
 static const aom_cdf_prob default_palette_y_mode_cdf[CDF_SIZE(2)] = { AOM_CDF2(24488),  55 };
 
-static const aom_cdf_prob default_palette_uv_mode_cdf[CDF_SIZE(2)] = { AOM_CDF2(30790),  50 };
+static const aom_cdf_prob default_palette_uv_mode_cdf[CDF_SIZE(2)] = { AOM_CDF2(30790),  50 }; // not exercised in CTC
 
 static const aom_cdf_prob default_comp_inter_cdf[5][CDF_SIZE(2)] = {
   { AOM_CDF2(27078),  75 },
@@ -439,26 +439,26 @@ static const aom_cdf_prob default_comp_ref0_cdf[3][6][CDF_SIZE(2)] = {
   {
     { AOM_CDF2(11015),  32 },
     { AOM_CDF2(14938),  32 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
   },
   {
     { AOM_CDF2( 1829),  75 },
     { AOM_CDF2( 3838),   6 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
   },
   {
     { AOM_CDF2( 1233),  75 },
     { AOM_CDF2( 1491),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
   },
 };
 
@@ -473,7 +473,7 @@ static const aom_cdf_prob default_comp_ref1_cdf[3][2][6][CDF_SIZE(2)] = {
       { AOM_CDF2(31208),  32 },
     },
     {
-      { AOM_CDF2(16384),   0 },
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
       { AOM_CDF2(19512),  31 },
       { AOM_CDF2(28511),   1 },
       { AOM_CDF2(27987),  31 },
@@ -491,7 +491,7 @@ static const aom_cdf_prob default_comp_ref1_cdf[3][2][6][CDF_SIZE(2)] = {
       { AOM_CDF2(14939),  57 },
     },
     {
-      { AOM_CDF2(16384),   0 },
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
       { AOM_CDF2( 7402),   1 },
       { AOM_CDF2(16893),   6 },
       { AOM_CDF2(13997),  31 },
@@ -509,7 +509,7 @@ static const aom_cdf_prob default_comp_ref1_cdf[3][2][6][CDF_SIZE(2)] = {
       { AOM_CDF2( 2839),  71 },
     },
     {
-      { AOM_CDF2(16384),   0 },
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
       { AOM_CDF2( 1576),  93 },
       { AOM_CDF2( 5081),   1 },
       { AOM_CDF2( 2205),   6 },
@@ -542,24 +542,24 @@ static const aom_cdf_prob default_skip_mode_cdfs[3][CDF_SIZE(2)] = {
 
 static const aom_cdf_prob default_lossless_tx_size_cdf[4][2][CDF_SIZE(2)] = {
   {
-    { AOM_CDF2(16384),   1 },
-    { AOM_CDF2(16384),   1 },
+    { AOM_CDF2(16384),   1 }, // not exercised in CTC
+    { AOM_CDF2(16384),   1 }, // not exercised in CTC
   },
   {
-    { AOM_CDF2(16384),  75 },
-    { AOM_CDF2(16384),  75 },
+    { AOM_CDF2(16384),  75 }, // not exercised in CTC
+    { AOM_CDF2(16384),  75 }, // not exercised in CTC
   },
   {
-    { AOM_CDF2(16384),  75 },
-    { AOM_CDF2(16384),  75 },
+    { AOM_CDF2(16384),  75 }, // not exercised in CTC
+    { AOM_CDF2(16384),  75 }, // not exercised in CTC
   },
   {
-    { AOM_CDF2(16384),  75 },
-    { AOM_CDF2(16384),  75 },
+    { AOM_CDF2(16384),  75 }, // not exercised in CTC
+    { AOM_CDF2(16384),  75 }, // not exercised in CTC
   },
 };
 
-static const aom_cdf_prob default_lossless_inter_tx_type_cdf[CDF_SIZE(2)] = { AOM_CDF2(16384),  75 };
+static const aom_cdf_prob default_lossless_inter_tx_type_cdf[CDF_SIZE(2)] = { AOM_CDF2(16384),  75 }; // not exercised in CTC
 
 static const aom_cdf_prob default_skip_txfm_cdfs[6][CDF_SIZE(2)] = {
   { AOM_CDF2(23601),   0 },
@@ -570,7 +570,7 @@ static const aom_cdf_prob default_skip_txfm_cdfs[6][CDF_SIZE(2)] = {
   { AOM_CDF2( 1437),  90 },
 };
 
-static const aom_cdf_prob default_bru_mode_cdf[CDF_SIZE(3)] = { AOM_CDF3( 4124, 16615),   0 };
+static const aom_cdf_prob default_bru_mode_cdf[CDF_SIZE(3)] = { AOM_CDF3( 4124, 16615),   0 }; // not exercised in CTC
 
 static const aom_cdf_prob default_intra_inter_cdf[4][CDF_SIZE(2)] = {
   { AOM_CDF2( 2375),  75 },
@@ -594,18 +594,18 @@ static const aom_cdf_prob default_intrabc_bv_precision_cdf[1][CDF_SIZE(2)] = {
 static const aom_cdf_prob default_switchable_flex_restore_cdf[3][3][CDF_SIZE(2)] = {
   {
     { AOM_CDF2(21337),  37 },
-    { AOM_CDF2(13763),  32 },
-    { AOM_CDF2(13677),  37 },
+    { AOM_CDF2(13763),  32 }, // not exercised in CTC
+    { AOM_CDF2(13677),  37 }, // not exercised in CTC
   },
   {
     { AOM_CDF2(20429),  37 },
-    { AOM_CDF2(22496),  37 },
-    { AOM_CDF2(18867),  37 },
+    { AOM_CDF2(22496),  37 }, // not exercised in CTC
+    { AOM_CDF2(18867),  37 }, // not exercised in CTC
   },
   {
-    { AOM_CDF2(19205),  37 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
+    { AOM_CDF2(19205),  37 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
   },
 };
 
@@ -627,21 +627,21 @@ static const aom_cdf_prob default_pc_wiener_restore_cdf[CDF_SIZE(2)] = { AOM_CDF
 static const aom_cdf_prob default_ccso_cdf[3][4][CDF_SIZE(2)] = {
   {
     { AOM_CDF2(24690),  37 },
-    { AOM_CDF2(17161),  37 },
+    { AOM_CDF2(17161),  37 }, // not exercised in CTC
     { AOM_CDF2(10618),  37 },
-    { AOM_CDF2( 7830),  37 },
+    { AOM_CDF2( 7830),  37 }, // not exercised in CTC
   },
   {
     { AOM_CDF2(26090),  37 },
-    { AOM_CDF2(18122),  37 },
+    { AOM_CDF2(18122),  37 }, // not exercised in CTC
     { AOM_CDF2(12248),  37 },
-    { AOM_CDF2( 8523),  37 },
+    { AOM_CDF2( 8523),  37 }, // not exercised in CTC
   },
   {
     { AOM_CDF2(27240),  37 },
-    { AOM_CDF2(18679),  37 },
+    { AOM_CDF2(18679),  37 }, // not exercised in CTC
     { AOM_CDF2(10831),  37 },
-    { AOM_CDF2( 7846),  37 },
+    { AOM_CDF2( 7846),  37 }, // not exercised in CTC
   },
 };
 
@@ -675,13 +675,13 @@ static const aom_cdf_prob default_multi_line_mrl_cdf[3][CDF_SIZE(2)] = {
   { AOM_CDF2(16384),   0 },
 };
 
-static const aom_cdf_prob default_dpcm_cdf[CDF_SIZE(2)] = { AOM_CDF2(16384),   0 };
+static const aom_cdf_prob default_dpcm_cdf[CDF_SIZE(2)] = { AOM_CDF2(16384),   0 }; // not exercised in CTC
 
-static const aom_cdf_prob default_dpcm_vert_horz_cdf[CDF_SIZE(2)] = { AOM_CDF2(16384),   0 };
+static const aom_cdf_prob default_dpcm_vert_horz_cdf[CDF_SIZE(2)] = { AOM_CDF2(16384),   0 }; // not exercised in CTC
 
-static const aom_cdf_prob default_dpcm_uv_cdf[CDF_SIZE(2)] = { AOM_CDF2(16384),   0 };
+static const aom_cdf_prob default_dpcm_uv_cdf[CDF_SIZE(2)] = { AOM_CDF2(16384),   0 }; // not exercised in CTC
 
-static const aom_cdf_prob default_dpcm_uv_vert_horz_cdf[CDF_SIZE(2)] = { AOM_CDF2(16384),   0 };
+static const aom_cdf_prob default_dpcm_uv_vert_horz_cdf[CDF_SIZE(2)] = { AOM_CDF2(16384),   0 }; // not exercised in CTC
 
 static const aom_cdf_prob default_fsc_mode_cdf[4][6][CDF_SIZE(2)] = {
   {
@@ -709,8 +709,8 @@ static const aom_cdf_prob default_fsc_mode_cdf[4][6][CDF_SIZE(2)] = {
     { AOM_CDF2( 4688),   4 },
   },
   {
-    { AOM_CDF2(29627), 118 },
-    { AOM_CDF2(29794),  93 },
+    { AOM_CDF2(29627), 118 }, // not exercised in CTC
+    { AOM_CDF2(29794),  93 }, // not exercised in CTC
     { AOM_CDF2(32190), 123 },
     { AOM_CDF2(32289), 123 },
     { AOM_CDF2(32618), 123 },
@@ -761,26 +761,26 @@ static const aom_cdf_prob default_switchable_interp_cdf[16][CDF_SIZE(3)] = {
   { AOM_CDF3( 8963, 32500),   6 },
   { AOM_CDF3(  370,   693),  75 },
   { AOM_CDF3(25697, 27654),  31 },
-  { AOM_CDF3(10923, 21845),   0 },
-  { AOM_CDF3(10923, 21845),   0 },
-  { AOM_CDF3(10923, 21845),   0 },
-  { AOM_CDF3(10923, 21845),   0 },
-  { AOM_CDF3(10923, 21845),   0 },
-  { AOM_CDF3(10923, 21845),   0 },
-  { AOM_CDF3(10923, 21845),   0 },
-  { AOM_CDF3(10923, 21845),   0 },
+  { AOM_CDF3(10923, 21845),   0 }, // not exercised in CTC
+  { AOM_CDF3(10923, 21845),   0 }, // not exercised in CTC
+  { AOM_CDF3(10923, 21845),   0 }, // not exercised in CTC
+  { AOM_CDF3(10923, 21845),   0 }, // not exercised in CTC
+  { AOM_CDF3(10923, 21845),   0 }, // not exercised in CTC
+  { AOM_CDF3(10923, 21845),   0 }, // not exercised in CTC
+  { AOM_CDF3(10923, 21845),   0 }, // not exercised in CTC
+  { AOM_CDF3(10923, 21845),   0 }, // not exercised in CTC
 };
 
-static const aom_cdf_prob default_delta_q_cdf[CDF_SIZE(8)] = { AOM_CDF8(16594, 23325, 26424, 28225, 29358, 30099, 30613),  56 };
+static const aom_cdf_prob default_delta_q_cdf[CDF_SIZE(8)] = { AOM_CDF8(16594, 23325, 26424, 28225, 29358, 30099, 30613),  56 }; // not exercised in CTC
 
 static const aom_cdf_prob default_delta_lf_multi_cdf[4][CDF_SIZE(4)] = {
-  { AOM_CDF4(28160, 32120, 32677),   0 },
-  { AOM_CDF4(28160, 32120, 32677),   0 },
-  { AOM_CDF4(28160, 32120, 32677),   0 },
-  { AOM_CDF4(28160, 32120, 32677),   0 },
+  { AOM_CDF4(28160, 32120, 32677),   0 }, // not exercised in CTC
+  { AOM_CDF4(28160, 32120, 32677),   0 }, // not exercised in CTC
+  { AOM_CDF4(28160, 32120, 32677),   0 }, // not exercised in CTC
+  { AOM_CDF4(28160, 32120, 32677),   0 }, // not exercised in CTC
 };
 
-static const aom_cdf_prob default_delta_lf_cdf[CDF_SIZE(4)] = { AOM_CDF4( 8192, 16384, 24576),   0 };
+static const aom_cdf_prob default_delta_lf_cdf[CDF_SIZE(4)] = { AOM_CDF4( 8192, 16384, 24576),   0 }; // not exercised in CTC
 
 static const aom_cdf_prob default_intra_ext_tx_cdf[EXT_TX_SETS_INTRA][EXT_TX_SIZES][CDF_SIZE(TX_TYPES)] = {
   {
@@ -793,7 +793,7 @@ static const aom_cdf_prob default_intra_ext_tx_cdf[EXT_TX_SETS_INTRA][EXT_TX_SIZ
   { AOM_CDF7( 3910, 13624, 16648, 19644, 23773, 27952),  35 },
   { AOM_CDF7(11788, 21074, 24067, 27345, 29126, 30842),  40 },
   { AOM_CDF7(11068, 21436, 24806, 28312, 29521, 31139),  60 },
-  { AOM_CDF7( 4681,  9362, 14043, 18725, 23406, 28087),   0 },
+  { AOM_CDF7( 4681,  9362, 14043, 18725, 23406, 28087),   0 }, // not exercised in CTC
 },
   {
     { AOM_CDF2(16384), 0 },
@@ -807,7 +807,7 @@ static const aom_cdf_prob default_intra_ext_tx_short_side_cdf[4][CDF_SIZE(4)] = 
   { AOM_CDF4(11656, 26664, 29603),   0 },
   { AOM_CDF4(22336, 31457, 32748),   0 },
   { AOM_CDF4(24537, 32017, 32748),   0 },
-  { AOM_CDF4( 8192, 16384, 24576),   0 },
+  { AOM_CDF4( 8192, 16384, 24576),   0 }, // not exercised in CTC
 };
 
 static const aom_cdf_prob default_inter_tx_type_set_cdf[2][3][4][CDF_SIZE(2)] = {
@@ -815,40 +815,40 @@ static const aom_cdf_prob default_inter_tx_type_set_cdf[2][3][4][CDF_SIZE(2)] = 
     {
       { AOM_CDF2(20576),   0 },
       { AOM_CDF2(16541),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
     },
     {
       { AOM_CDF2(16147),   0 },
       { AOM_CDF2(30302),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
     },
     {
       { AOM_CDF2(25522),   0 },
       { AOM_CDF2(23776),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
     },
   },
   {
     {
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
       { AOM_CDF2(22866),   0 },
-      { AOM_CDF2(16384),   0 },
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
     },
     {
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
       { AOM_CDF2(32277),   0 },
-      { AOM_CDF2(16384),   0 },
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
     },
     {
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
       { AOM_CDF2(29701),   0 },
-      { AOM_CDF2(16384),   0 },
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
     },
   },
 };
@@ -902,82 +902,82 @@ static const aom_cdf_prob default_inter_ext_tx_cdf[EXT_TX_SETS_INTER][EOB_TX_CTX
     },
       {
   {
-    { AOM_CDF16( 9037, 10470, 11932, 13873, 15828, 17558, 19436, 20576, 21620, 22970, 23724, 24861, 27101, 28740, 30607),  75 },
-    { AOM_CDF16( 4837,  5975,  7101,  8771, 10184, 11652, 13003, 16541, 18453, 20761, 22240, 24190, 26752, 28498, 30554),  75 },
-    { AOM_CDF16( 2048,  4096,  6144,  8192, 10240, 12288, 14336, 16384, 18432, 20480, 22528, 24576, 26624, 28672, 30720),   0 },
-    { AOM_CDF16( 2048,  4096,  6144,  8192, 10240, 12288, 14336, 16384, 18432, 20480, 22528, 24576, 26624, 28672, 30720),   0 },
+    { AOM_CDF16( 9037, 10470, 11932, 13873, 15828, 17558, 19436, 20576, 21620, 22970, 23724, 24861, 27101, 28740, 30607),  75 }, // not exercised in CTC
+    { AOM_CDF16( 4837,  5975,  7101,  8771, 10184, 11652, 13003, 16541, 18453, 20761, 22240, 24190, 26752, 28498, 30554),  75 }, // not exercised in CTC
+    { AOM_CDF16( 2048,  4096,  6144,  8192, 10240, 12288, 14336, 16384, 18432, 20480, 22528, 24576, 26624, 28672, 30720),   0 }, // not exercised in CTC
+    { AOM_CDF16( 2048,  4096,  6144,  8192, 10240, 12288, 14336, 16384, 18432, 20480, 22528, 24576, 26624, 28672, 30720),   0 }, // not exercised in CTC
   },
   {
-    { AOM_CDF16( 2911,  3858,  4826,  5546,  5683,  6221,  6591, 16147, 16206, 16256, 16318, 16534, 21589, 24753, 28642),   6 },
-    { AOM_CDF16(  409,   519,   682,  1046,  1123,  1381,  1501, 30302, 30605, 30678, 30823, 30928, 31926, 32088, 32409),   1 },
-    { AOM_CDF16( 2048,  4096,  6144,  8192, 10240, 12288, 14336, 16384, 18432, 20480, 22528, 24576, 26624, 28672, 30720),   0 },
-    { AOM_CDF16( 2048,  4096,  6144,  8192, 10240, 12288, 14336, 16384, 18432, 20480, 22528, 24576, 26624, 28672, 30720),   0 },
+    { AOM_CDF16( 2911,  3858,  4826,  5546,  5683,  6221,  6591, 16147, 16206, 16256, 16318, 16534, 21589, 24753, 28642),   6 }, // not exercised in CTC
+    { AOM_CDF16(  409,   519,   682,  1046,  1123,  1381,  1501, 30302, 30605, 30678, 30823, 30928, 31926, 32088, 32409),   1 }, // not exercised in CTC
+    { AOM_CDF16( 2048,  4096,  6144,  8192, 10240, 12288, 14336, 16384, 18432, 20480, 22528, 24576, 26624, 28672, 30720),   0 }, // not exercised in CTC
+    { AOM_CDF16( 2048,  4096,  6144,  8192, 10240, 12288, 14336, 16384, 18432, 20480, 22528, 24576, 26624, 28672, 30720),   0 }, // not exercised in CTC
   },
   {
-    { AOM_CDF16(14339, 15492, 16743, 18715, 21104, 22943, 25268, 25522, 25961, 26821, 27184, 27829, 29338, 30204, 31281),  78 },
-    { AOM_CDF16(14549, 15847, 17117, 18394, 19905, 21029, 22382, 23776, 24880, 26193, 27197, 28407, 29553, 30713, 31757),  75 },
-    { AOM_CDF16( 2048,  4096,  6144,  8192, 10240, 12288, 14336, 16384, 18432, 20480, 22528, 24576, 26624, 28672, 30720),   0 },
-    { AOM_CDF16( 2048,  4096,  6144,  8192, 10240, 12288, 14336, 16384, 18432, 20480, 22528, 24576, 26624, 28672, 30720),   0 },
-  },
-},
-{
-  {
-    { AOM_CDF12( 2731,  5461,  8192, 10923, 13653, 16384, 19115, 21845, 24576, 27307, 30037),   0 },
-    { AOM_CDF12( 2731,  5461,  8192, 10923, 13653, 16384, 19115, 21845, 24576, 27307, 30037),   0 },
-    { AOM_CDF12( 2522,  4047,  5909, 11268, 14390, 17900, 20374, 22866, 25954, 27992, 30446),  75 },
-    { AOM_CDF12( 2731,  5461,  8192, 10923, 13653, 16384, 19115, 21845, 24576, 27307, 30037),   0 },
-  },
-  {
-    { AOM_CDF12( 2731,  5461,  8192, 10923, 13653, 16384, 19115, 21845, 24576, 27307, 30037),   0 },
-    { AOM_CDF12( 2731,  5461,  8192, 10923, 13653, 16384, 19115, 21845, 24576, 27307, 30037),   0 },
-    { AOM_CDF12(  133,   275,   909, 31300, 31753, 31888, 32028, 32277, 32529, 32562, 32617),  32 },
-    { AOM_CDF12( 2731,  5461,  8192, 10923, 13653, 16384, 19115, 21845, 24576, 27307, 30037),   0 },
-  },
-  {
-    { AOM_CDF12( 2731,  5461,  8192, 10923, 13653, 16384, 19115, 21845, 24576, 27307, 30037),   0 },
-    { AOM_CDF12( 2731,  5461,  8192, 10923, 13653, 16384, 19115, 21845, 24576, 27307, 30037),   0 },
-    { AOM_CDF12(23775, 24397, 25942, 26888, 27257, 27972, 28802, 29701, 30485, 31477, 32168),  56 },
-    { AOM_CDF12( 2731,  5461,  8192, 10923, 13653, 16384, 19115, 21845, 24576, 27307, 30037),   0 },
+    { AOM_CDF16(14339, 15492, 16743, 18715, 21104, 22943, 25268, 25522, 25961, 26821, 27184, 27829, 29338, 30204, 31281),  78 }, // not exercised in CTC
+    { AOM_CDF16(14549, 15847, 17117, 18394, 19905, 21029, 22382, 23776, 24880, 26193, 27197, 28407, 29553, 30713, 31757),  75 }, // not exercised in CTC
+    { AOM_CDF16( 2048,  4096,  6144,  8192, 10240, 12288, 14336, 16384, 18432, 20480, 22528, 24576, 26624, 28672, 30720),   0 }, // not exercised in CTC
+    { AOM_CDF16( 2048,  4096,  6144,  8192, 10240, 12288, 14336, 16384, 18432, 20480, 22528, 24576, 26624, 28672, 30720),   0 }, // not exercised in CTC
   },
 },
 {
   {
-    { AOM_CDF2( 5900),  32 },
-    { AOM_CDF2(  984),  32 },
-    { AOM_CDF2( 1539),  37 },
-    { AOM_CDF2( 2809),  36 },
+    { AOM_CDF12( 2731,  5461,  8192, 10923, 13653, 16384, 19115, 21845, 24576, 27307, 30037),   0 }, // not exercised in CTC
+    { AOM_CDF12( 2731,  5461,  8192, 10923, 13653, 16384, 19115, 21845, 24576, 27307, 30037),   0 }, // not exercised in CTC
+    { AOM_CDF12( 2522,  4047,  5909, 11268, 14390, 17900, 20374, 22866, 25954, 27992, 30446),  75 }, // not exercised in CTC
+    { AOM_CDF12( 2731,  5461,  8192, 10923, 13653, 16384, 19115, 21845, 24576, 27307, 30037),   0 }, // not exercised in CTC
   },
   {
-    { AOM_CDF2(  751),  77 },
-    { AOM_CDF2(   19), 102 },
-    { AOM_CDF2(   27), 120 },
-    { AOM_CDF2(   20), 104 },
+    { AOM_CDF12( 2731,  5461,  8192, 10923, 13653, 16384, 19115, 21845, 24576, 27307, 30037),   0 }, // not exercised in CTC
+    { AOM_CDF12( 2731,  5461,  8192, 10923, 13653, 16384, 19115, 21845, 24576, 27307, 30037),   0 }, // not exercised in CTC
+    { AOM_CDF12(  133,   275,   909, 31300, 31753, 31888, 32028, 32277, 32529, 32562, 32617),  32 }, // not exercised in CTC
+    { AOM_CDF12( 2731,  5461,  8192, 10923, 13653, 16384, 19115, 21845, 24576, 27307, 30037),   0 }, // not exercised in CTC
   },
   {
-    { AOM_CDF2(23032),  60 },
-    { AOM_CDF2(25224),  50 },
-    { AOM_CDF2(30401),  50 },
-    { AOM_CDF2(31447),  50 },
+    { AOM_CDF12( 2731,  5461,  8192, 10923, 13653, 16384, 19115, 21845, 24576, 27307, 30037),   0 }, // not exercised in CTC
+    { AOM_CDF12( 2731,  5461,  8192, 10923, 13653, 16384, 19115, 21845, 24576, 27307, 30037),   0 }, // not exercised in CTC
+    { AOM_CDF12(23775, 24397, 25942, 26888, 27257, 27972, 28802, 29701, 30485, 31477, 32168),  56 }, // not exercised in CTC
+    { AOM_CDF12( 2731,  5461,  8192, 10923, 13653, 16384, 19115, 21845, 24576, 27307, 30037),   0 }, // not exercised in CTC
   },
 },
 {
   {
-    { AOM_CDF4( 8192, 16384, 24576),   0 },
-    { AOM_CDF4( 8192, 16384, 24576),   0 },
-    { AOM_CDF4( 8192, 16384, 24576),   0 },
-    { AOM_CDF4( 8192, 16384, 24576),   0 },
+    { AOM_CDF2( 5900),  32 }, // not exercised in CTC
+    { AOM_CDF2(  984),  32 }, // not exercised in CTC
+    { AOM_CDF2( 1539),  37 }, // not exercised in CTC
+    { AOM_CDF2( 2809),  36 }, // not exercised in CTC
   },
   {
-    { AOM_CDF4( 8192, 16384, 24576),   0 },
-    { AOM_CDF4( 8192, 16384, 24576),   0 },
-    { AOM_CDF4( 8192, 16384, 24576),   0 },
-    { AOM_CDF4( 8192, 16384, 24576),   0 },
+    { AOM_CDF2(  751),  77 }, // not exercised in CTC
+    { AOM_CDF2(   19), 102 }, // not exercised in CTC
+    { AOM_CDF2(   27), 120 }, // not exercised in CTC
+    { AOM_CDF2(   20), 104 }, // not exercised in CTC
   },
   {
-    { AOM_CDF4( 8192, 16384, 24576),   0 },
-    { AOM_CDF4( 8192, 16384, 24576),   0 },
-    { AOM_CDF4( 8192, 16384, 24576),   0 },
-    { AOM_CDF4( 8192, 16384, 24576),   0 },
+    { AOM_CDF2(23032),  60 }, // not exercised in CTC
+    { AOM_CDF2(25224),  50 }, // not exercised in CTC
+    { AOM_CDF2(30401),  50 }, // not exercised in CTC
+    { AOM_CDF2(31447),  50 }, // not exercised in CTC
+  },
+},
+{
+  {
+    { AOM_CDF4( 8192, 16384, 24576),   0 }, // not exercised in CTC
+    { AOM_CDF4( 8192, 16384, 24576),   0 }, // not exercised in CTC
+    { AOM_CDF4( 8192, 16384, 24576),   0 }, // not exercised in CTC
+    { AOM_CDF4( 8192, 16384, 24576),   0 }, // not exercised in CTC
+  },
+  {
+    { AOM_CDF4( 8192, 16384, 24576),   0 }, // not exercised in CTC
+    { AOM_CDF4( 8192, 16384, 24576),   0 }, // not exercised in CTC
+    { AOM_CDF4( 8192, 16384, 24576),   0 }, // not exercised in CTC
+    { AOM_CDF4( 8192, 16384, 24576),   0 }, // not exercised in CTC
+  },
+  {
+    { AOM_CDF4( 8192, 16384, 24576),   0 }, // not exercised in CTC
+    { AOM_CDF4( 8192, 16384, 24576),   0 }, // not exercised in CTC
+    { AOM_CDF4( 8192, 16384, 24576),   0 }, // not exercised in CTC
+    { AOM_CDF4( 8192, 16384, 24576),   0 }, // not exercised in CTC
   },
 },
 };
@@ -987,19 +987,19 @@ static const aom_cdf_prob default_inter_ext_tx_short_side_cdf[3][4][CDF_SIZE(4)]
     { AOM_CDF4( 7821, 18687, 24236),   0 },
     { AOM_CDF4(14442, 26756, 32748),   0 },
     { AOM_CDF4(16946, 27485, 32748),   0 },
-    { AOM_CDF4( 8192, 16384, 24576),   0 },
+    { AOM_CDF4( 8192, 16384, 24576),   0 }, // not exercised in CTC
   },
   {
     { AOM_CDF4(20461, 26250, 29309),   0 },
     { AOM_CDF4(24931, 30589, 32748),   0 },
     { AOM_CDF4(28078, 31430, 32748),   0 },
-    { AOM_CDF4( 8192, 16384, 24576),   0 },
+    { AOM_CDF4( 8192, 16384, 24576),   0 }, // not exercised in CTC
   },
   {
     { AOM_CDF4( 7593, 15185, 16784),   0 },
     { AOM_CDF4(17164, 21845, 31208),   0 },
     { AOM_CDF4( 9362, 23406, 28087),   0 },
-    { AOM_CDF4( 8192, 16384, 24576),   0 },
+    { AOM_CDF4( 8192, 16384, 24576),   0 }, // not exercised in CTC
   },
 };
 
@@ -1017,8 +1017,8 @@ static const aom_cdf_prob default_stx_cdf[2][5][CDF_SIZE(4)] = {
     { AOM_CDF4(10685, 14127, 17177),   1 },
   },
   {
-    { AOM_CDF4(  293, 11683, 25053),   0 },
-    { AOM_CDF4( 2952,  9945, 16750),   0 },
+    { AOM_CDF4(  293, 11683, 25053),   0 }, // not exercised in CTC
+    { AOM_CDF4( 2952,  9945, 16750),   0 }, // not exercised in CTC
     { AOM_CDF4( 2684,  9484, 16065),   6 },
     { AOM_CDF4( 3552, 10398, 15130),   6 },
     { AOM_CDF4(10685, 14127, 17177),  31 },
@@ -1035,12 +1035,12 @@ static const aom_cdf_prob default_pb_mv_most_probable_precision_cdf[3][CDF_SIZE(
 
 static const aom_cdf_prob default_pb_mv_precision_cdf[2][3][CDF_SIZE(3)] = {
   {
-    { AOM_CDF3(10923, 21845),   0 },
+    { AOM_CDF3(10923, 21845),   0 }, // not exercised in CTC
     { AOM_CDF3(30680, 31861),  78 },
     { AOM_CDF3(21154, 31023),   0 },
   },
   {
-    { AOM_CDF3(10923, 21845),   0 },
+    { AOM_CDF3(10923, 21845),   0 }, // not exercised in CTC
     { AOM_CDF3(31613, 32191),  78 },
     { AOM_CDF3(25484, 32287),  75 },
   },
@@ -1114,10 +1114,10 @@ static const aom_cdf_prob default_do_split_cdf[2][64][CDF_SIZE(2)] = {
     { AOM_CDF2( 2431),  25 },
   },
   {
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
     { AOM_CDF2(25023),   0 },
     { AOM_CDF2(20754),   0 },
     { AOM_CDF2(20240),   0 },
@@ -1130,46 +1130,46 @@ static const aom_cdf_prob default_do_split_cdf[2][64][CDF_SIZE(2)] = {
     { AOM_CDF2(19251),  32 },
     { AOM_CDF2(22019),  32 },
     { AOM_CDF2(13900),  31 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
     { AOM_CDF2(24433),   4 },
-    { AOM_CDF2(23923),  22 },
+    { AOM_CDF2(23923),  22 }, // not exercised in CTC
     { AOM_CDF2(20977),   1 },
-    { AOM_CDF2(18697),   1 },
+    { AOM_CDF2(18697),   1 }, // not exercised in CTC
     { AOM_CDF2(22912),   1 },
     { AOM_CDF2(19497),   1 },
-    { AOM_CDF2(20455),   6 },
-    { AOM_CDF2(16519),   1 },
+    { AOM_CDF2(20455),   6 }, // not exercised in CTC
+    { AOM_CDF2(16519),   1 }, // not exercised in CTC
     { AOM_CDF2(22789),  47 },
     { AOM_CDF2(18840),  10 },
     { AOM_CDF2(20664),   6 },
@@ -1193,14 +1193,14 @@ static const aom_cdf_prob default_do_square_split_cdf[2][8][CDF_SIZE(2)] = {
     { AOM_CDF2( 6299),  32 },
   },
   {
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
   },
 };
 
@@ -1234,26 +1234,26 @@ static const aom_cdf_prob default_rect_type_cdf[2][64][CDF_SIZE(2)] = {
     { AOM_CDF2(12716),  31 },
     { AOM_CDF2(24743),   1 },
     { AOM_CDF2(22007),   1 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
     { AOM_CDF2(15380),   0 },
     { AOM_CDF2( 9860),  47 },
     { AOM_CDF2(19503),  31 },
     { AOM_CDF2(14132),  39 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
     { AOM_CDF2(16602),   0 },
     { AOM_CDF2(13446),  10 },
     { AOM_CDF2(19306),  10 },
@@ -1266,10 +1266,10 @@ static const aom_cdf_prob default_rect_type_cdf[2][64][CDF_SIZE(2)] = {
     { AOM_CDF2( 1483),  90 },
     { AOM_CDF2(11973),  30 },
     { AOM_CDF2( 2872),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
   },
   {
     { AOM_CDF2(15399),  76 },
@@ -1300,30 +1300,30 @@ static const aom_cdf_prob default_rect_type_cdf[2][64][CDF_SIZE(2)] = {
     { AOM_CDF2(10112),  24 },
     { AOM_CDF2(22575),  12 },
     { AOM_CDF2(17188),   6 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
     { AOM_CDF2(18577), 100 },
     { AOM_CDF2(14008), 100 },
     { AOM_CDF2(22927),  35 },
@@ -1332,20 +1332,20 @@ static const aom_cdf_prob default_rect_type_cdf[2][64][CDF_SIZE(2)] = {
     { AOM_CDF2( 5718),   6 },
     { AOM_CDF2(15864),  45 },
     { AOM_CDF2( 6207),  26 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
-    { AOM_CDF2(16384),   0 },
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
+    { AOM_CDF2(16384),   0 }, // not exercised in CTC
   },
 };
 
 static const aom_cdf_prob default_do_ext_partition_cdf[2][1][64][CDF_SIZE(2)] = {
   {
     {
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
       { AOM_CDF2(31443),  78 },
       { AOM_CDF2(28558),   0 },
       { AOM_CDF2(28437),   0 },
@@ -1358,38 +1358,38 @@ static const aom_cdf_prob default_do_ext_partition_cdf[2][1][64][CDF_SIZE(2)] = 
       { AOM_CDF2(27986),  15 },
       { AOM_CDF2(27168),  75 },
       { AOM_CDF2(26844),  25 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
       { AOM_CDF2(30314),   1 },
       { AOM_CDF2(26226),   9 },
       { AOM_CDF2(25222),   9 },
@@ -1410,14 +1410,14 @@ static const aom_cdf_prob default_do_ext_partition_cdf[2][1][64][CDF_SIZE(2)] = 
   },
   {
     {
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
       { AOM_CDF2(16384),  31 },
       { AOM_CDF2(16384),  25 },
       { AOM_CDF2(16384),  31 },
@@ -1426,46 +1426,46 @@ static const aom_cdf_prob default_do_ext_partition_cdf[2][1][64][CDF_SIZE(2)] = 
       { AOM_CDF2(16384),  31 },
       { AOM_CDF2(16384),  31 },
       { AOM_CDF2(16384),  30 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
       { AOM_CDF2(16384),  25 },
       { AOM_CDF2(16384), 100 },
       { AOM_CDF2(16384), 100 },
@@ -1481,14 +1481,14 @@ static const aom_cdf_prob default_do_ext_partition_cdf[2][1][64][CDF_SIZE(2)] = 
 static const aom_cdf_prob default_do_uneven_4way_partition_cdf[2][1][64][CDF_SIZE(2)] = {
   {
     {
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
       { AOM_CDF2(22788),  75 },
       { AOM_CDF2(20501),   1 },
       { AOM_CDF2(20361),   1 },
@@ -1497,38 +1497,38 @@ static const aom_cdf_prob default_do_uneven_4way_partition_cdf[2][1][64][CDF_SIZ
       { AOM_CDF2(20816),   9 },
       { AOM_CDF2(19610),   9 },
       { AOM_CDF2(20458),  32 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
       { AOM_CDF2(18501),  24 },
       { AOM_CDF2(15193),   0 },
       { AOM_CDF2(15645),  90 },
@@ -1549,62 +1549,62 @@ static const aom_cdf_prob default_do_uneven_4way_partition_cdf[2][1][64][CDF_SIZ
   },
   {
     {
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
       { AOM_CDF2(16384),  22 },
       { AOM_CDF2(16384),  75 },
       { AOM_CDF2(16384),  80 },
       { AOM_CDF2(16384),  76 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
       { AOM_CDF2(16384),  25 },
       { AOM_CDF2(16384),   0 },
       { AOM_CDF2(16384),   0 },
@@ -1620,70 +1620,70 @@ static const aom_cdf_prob default_do_uneven_4way_partition_cdf[2][1][64][CDF_SIZ
 static const aom_cdf_prob default_txfm_4way_partition_type_reduced_cdf[2][2][14][CDF_SIZE(7)] = {
   {
     {
-      { AOM_CDF7(32414, 32473, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 2876, 18313, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 3923,  9350, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 6028, 14813, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 3202, 14728, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 4109,  8558, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 6859, 14500, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 3391, 11845, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 3524, 10297, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 4258, 11816, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 2794, 12996, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 2464,  6875, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 4942, 22210, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 5470, 15586, 32532, 32591, 32650, 32709),   0 },
+      { AOM_CDF7(32414, 32473, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 2876, 18313, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 3923,  9350, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 6028, 14813, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 3202, 14728, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 4109,  8558, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 6859, 14500, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 3391, 11845, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 3524, 10297, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 4258, 11816, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 2794, 12996, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 2464,  6875, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 4942, 22210, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 5470, 15586, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
     },
     {
-      { AOM_CDF7(13540, 21123, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 7415, 15547, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 4894, 11490, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 5041, 10187, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7(14018, 23200, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7(13864, 16376, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 8947, 12382, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7(11792, 18010, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7(14010, 21153, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 8570, 15398, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 5364, 12080, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 3916, 11644, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7(11052, 23760, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7(12450, 19865, 32532, 32591, 32650, 32709),   0 },
+      { AOM_CDF7(13540, 21123, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 7415, 15547, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 4894, 11490, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 5041, 10187, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7(14018, 23200, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7(13864, 16376, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 8947, 12382, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7(11792, 18010, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7(14010, 21153, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 8570, 15398, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 5364, 12080, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 3916, 11644, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7(11052, 23760, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7(12450, 19865, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
     },
   },
   {
     {
-      { AOM_CDF7( 8192, 12288, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 1425, 11398, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 2621, 11796, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 1489, 13405, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 2185, 15292, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 3277, 16384, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 5461, 16384, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 9362, 18724, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 9362, 18724, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 9362, 18724, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 2185,  8738, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 4681, 18725, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 9362, 18724, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 9362, 18724, 32532, 32591, 32650, 32709),   0 },
+      { AOM_CDF7( 8192, 12288, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 1425, 11398, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 2621, 11796, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 1489, 13405, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 2185, 15292, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 3277, 16384, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 5461, 16384, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 9362, 18724, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 9362, 18724, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 9362, 18724, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 2185,  8738, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 4681, 18725, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 9362, 18724, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 9362, 18724, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
     },
     {
-      { AOM_CDF7( 9362, 18724, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 9362, 18724, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 9362, 18724, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 9362, 18724, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 9362, 18724, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 9362, 18724, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 9362, 18724, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 9362, 18724, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 9362, 18724, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 9362, 18724, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 9362, 18724, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 9362, 18724, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 9362, 18724, 32532, 32591, 32650, 32709),   0 },
-      { AOM_CDF7( 9362, 18724, 32532, 32591, 32650, 32709),   0 },
+      { AOM_CDF7( 9362, 18724, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 9362, 18724, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 9362, 18724, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 9362, 18724, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 9362, 18724, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 9362, 18724, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 9362, 18724, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 9362, 18724, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 9362, 18724, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 9362, 18724, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 9362, 18724, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 9362, 18724, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 9362, 18724, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
+      { AOM_CDF7( 9362, 18724, 32532, 32591, 32650, 32709),   0 }, // not exercised in CTC
     },
   },
 };
@@ -1705,8 +1705,8 @@ static const aom_cdf_prob default_txfm_2or3_way_partition_type_cdf[2][2][2][CDF_
       { AOM_CDF2(28399),   0 },
     },
     {
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
     },
   },
 };
@@ -1748,20 +1748,20 @@ static const aom_cdf_prob default_txfm_do_partition_cdf[2][2][9][CDF_SIZE(2)] = 
       { AOM_CDF2(25777),   0 },
       { AOM_CDF2(24932),   0 },
       { AOM_CDF2(26103),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
       { AOM_CDF2(25753),   0 },
     },
     {
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
-      { AOM_CDF2(16384),   0 },
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
+      { AOM_CDF2(16384),   0 }, // not exercised in CTC
     },
   },
 };
@@ -1810,35 +1810,35 @@ static const aom_cdf_prob default_txfm_4way_partition_type_cdf[2][2][14][CDF_SIZ
       { AOM_CDF7( 2185, 15292, 19661, 26214, 28399, 30583),   0 },
       { AOM_CDF7( 3277, 16384, 22938, 26214, 29491, 31130),   0 },
       { AOM_CDF7( 5461, 16384, 21845, 25486, 27307, 29127),   0 },
-      { AOM_CDF7( 4681,  9362, 14043, 18725, 23406, 28087),   0 },
-      { AOM_CDF7( 4681,  9362, 14043, 18725, 23406, 28087),   0 },
-      { AOM_CDF7( 4681,  9362, 14043, 18725, 23406, 28087),   0 },
+      { AOM_CDF7( 4681,  9362, 14043, 18725, 23406, 28087),   0 }, // not exercised in CTC
+      { AOM_CDF7( 4681,  9362, 14043, 18725, 23406, 28087),   0 }, // not exercised in CTC
+      { AOM_CDF7( 4681,  9362, 14043, 18725, 23406, 28087),   0 }, // not exercised in CTC
       { AOM_CDF7( 2185,  8738, 21845, 24030, 26214, 30583),   0 },
       { AOM_CDF7( 4681, 18725, 26526, 28087, 29647, 31208),   0 },
-      { AOM_CDF7( 4681,  9362, 14043, 18725, 23406, 28087),   0 },
-      { AOM_CDF7( 4681,  9362, 14043, 18725, 23406, 28087),   0 },
+      { AOM_CDF7( 4681,  9362, 14043, 18725, 23406, 28087),   0 }, // not exercised in CTC
+      { AOM_CDF7( 4681,  9362, 14043, 18725, 23406, 28087),   0 }, // not exercised in CTC
     },
     {
-      { AOM_CDF7( 4681,  9362, 14043, 18725, 23406, 28087),   0 },
-      { AOM_CDF7( 4681,  9362, 14043, 18725, 23406, 28087),   0 },
-      { AOM_CDF7( 4681,  9362, 14043, 18725, 23406, 28087),   0 },
-      { AOM_CDF7( 4681,  9362, 14043, 18725, 23406, 28087),   0 },
-      { AOM_CDF7( 4681,  9362, 14043, 18725, 23406, 28087),   0 },
-      { AOM_CDF7( 4681,  9362, 14043, 18725, 23406, 28087),   0 },
-      { AOM_CDF7( 4681,  9362, 14043, 18725, 23406, 28087),   0 },
-      { AOM_CDF7( 4681,  9362, 14043, 18725, 23406, 28087),   0 },
-      { AOM_CDF7( 4681,  9362, 14043, 18725, 23406, 28087),   0 },
-      { AOM_CDF7( 4681,  9362, 14043, 18725, 23406, 28087),   0 },
-      { AOM_CDF7( 4681,  9362, 14043, 18725, 23406, 28087),   0 },
-      { AOM_CDF7( 4681,  9362, 14043, 18725, 23406, 28087),   0 },
-      { AOM_CDF7( 4681,  9362, 14043, 18725, 23406, 28087),   0 },
-      { AOM_CDF7( 4681,  9362, 14043, 18725, 23406, 28087),   0 },
+      { AOM_CDF7( 4681,  9362, 14043, 18725, 23406, 28087),   0 }, // not exercised in CTC
+      { AOM_CDF7( 4681,  9362, 14043, 18725, 23406, 28087),   0 }, // not exercised in CTC
+      { AOM_CDF7( 4681,  9362, 14043, 18725, 23406, 28087),   0 }, // not exercised in CTC
+      { AOM_CDF7( 4681,  9362, 14043, 18725, 23406, 28087),   0 }, // not exercised in CTC
+      { AOM_CDF7( 4681,  9362, 14043, 18725, 23406, 28087),   0 }, // not exercised in CTC
+      { AOM_CDF7( 4681,  9362, 14043, 18725, 23406, 28087),   0 }, // not exercised in CTC
+      { AOM_CDF7( 4681,  9362, 14043, 18725, 23406, 28087),   0 }, // not exercised in CTC
+      { AOM_CDF7( 4681,  9362, 14043, 18725, 23406, 28087),   0 }, // not exercised in CTC
+      { AOM_CDF7( 4681,  9362, 14043, 18725, 23406, 28087),   0 }, // not exercised in CTC
+      { AOM_CDF7( 4681,  9362, 14043, 18725, 23406, 28087),   0 }, // not exercised in CTC
+      { AOM_CDF7( 4681,  9362, 14043, 18725, 23406, 28087),   0 }, // not exercised in CTC
+      { AOM_CDF7( 4681,  9362, 14043, 18725, 23406, 28087),   0 }, // not exercised in CTC
+      { AOM_CDF7( 4681,  9362, 14043, 18725, 23406, 28087),   0 }, // not exercised in CTC
+      { AOM_CDF7( 4681,  9362, 14043, 18725, 23406, 28087),   0 }, // not exercised in CTC
     },
   },
 };
 
 static const aom_cdf_prob default_filter_dir_cdf[4][CDF_SIZE(3)] = {
-  { AOM_CDF3(16384, 24576),   1 },
+  { AOM_CDF3(16384, 24576),   1 }, // not exercised in CTC
   { AOM_CDF3(16384, 24576),   1 },
   { AOM_CDF3(16384, 24576),   1 },
   { AOM_CDF3(16384, 24576),  32 },
@@ -1863,32 +1863,32 @@ static const aom_cdf_prob default_morph_pred_cdf[3][CDF_SIZE(2)] = {
   { AOM_CDF2( 8242),  95 },
 };
 
-static const aom_cdf_prob default_seg_tree_cdf[CDF_SIZE(8)] = { AOM_CDF8( 4096,  8192, 12288, 16384, 20480, 24576, 28672),   0 };
+static const aom_cdf_prob default_seg_tree_cdf[CDF_SIZE(8)] = { AOM_CDF8( 4096,  8192, 12288, 16384, 20480, 24576, 28672),   0 }; // not exercised in CTC
 
-static const aom_cdf_prob default_seg_tree_cdf1[CDF_SIZE(8)] = { AOM_CDF8( 4096,  8192, 12288, 16384, 20480, 24576, 28672),   0 };
+static const aom_cdf_prob default_seg_tree_cdf1[CDF_SIZE(8)] = { AOM_CDF8( 4096,  8192, 12288, 16384, 20480, 24576, 28672),   0 }; // not exercised in CTC
 
 static const aom_cdf_prob default_segment_pred_cdf[3][CDF_SIZE(2)] = {
-  { AOM_CDF2(16384),   0 },
-  { AOM_CDF2(16384),   0 },
-  { AOM_CDF2(16384),   0 },
+  { AOM_CDF2(16384),   0 }, // not exercised in CTC
+  { AOM_CDF2(16384),   0 }, // not exercised in CTC
+  { AOM_CDF2(16384),   0 }, // not exercised in CTC
 };
 
 static const aom_cdf_prob default_spatial_pred_seg_tree_cdf[3][CDF_SIZE(8)] = {
-  { AOM_CDF8( 5622,  7893, 16093, 18233, 27809, 28373, 32533),   0 },
-  { AOM_CDF8(14274, 18230, 22557, 24935, 29980, 30851, 32344),   0 },
-  { AOM_CDF8(27527, 28487, 28723, 28890, 32397, 32647, 32679),   0 },
+  { AOM_CDF8( 5622,  7893, 16093, 18233, 27809, 28373, 32533),   0 }, // not exercised in CTC
+  { AOM_CDF8(14274, 18230, 22557, 24935, 29980, 30851, 32344),   0 }, // not exercised in CTC
+  { AOM_CDF8(27527, 28487, 28723, 28890, 32397, 32647, 32679),   0 }, // not exercised in CTC
 };
 
 static const aom_cdf_prob default_spatial_pred_seg_tree_cdf1[3][CDF_SIZE(8)] = {
-  { AOM_CDF8( 4096,  8192, 12288, 16384, 20480, 24576, 28672),   0 },
-  { AOM_CDF8( 4096,  8192, 12288, 16384, 20480, 24576, 28672),   0 },
-  { AOM_CDF8( 4096,  8192, 12288, 16384, 20480, 24576, 28672),   0 },
+  { AOM_CDF8( 4096,  8192, 12288, 16384, 20480, 24576, 28672),   0 }, // not exercised in CTC
+  { AOM_CDF8( 4096,  8192, 12288, 16384, 20480, 24576, 28672),   0 }, // not exercised in CTC
+  { AOM_CDF8( 4096,  8192, 12288, 16384, 20480, 24576, 28672),   0 }, // not exercised in CTC
 };
 
 static const aom_cdf_prob default_seg_id_ext_flag_cdf[3][CDF_SIZE(2)] = {
-  { AOM_CDF2(16384),   0 },
-  { AOM_CDF2(16384),   0 },
-  { AOM_CDF2(16384),   0 },
+  { AOM_CDF2(16384),   0 }, // not exercised in CTC
+  { AOM_CDF2(16384),   0 }, // not exercised in CTC
+  { AOM_CDF2(16384),   0 }, // not exercised in CTC
 };
 
 /* clang-format on */
