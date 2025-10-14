@@ -2837,9 +2837,9 @@ static int get_switchable_restore_cost(const AV1_COMMON *const cm,
                                        const MACROBLOCK *const x, int plane,
                                        int rest_type) {
   (void)cm;
-  (void)plane;
   int cost = 0;
-  for (int re = 0; re <= cm->features.lr_last_switchable_ndx[plane]; re++) {
+  if (plane) return 0;
+  for (int re = 0; re <= RESTORE_SWITCHABLE - 2; re++) {
     if (cm->features.lr_tools_disable_mask[plane] & (1 << re)) continue;
     const int found = (re == rest_type);
     cost += x->mode_costs.switchable_flex_restore_cost[re][plane][found];
@@ -2906,6 +2906,18 @@ static void search_switchable_visitor(const RestorationTileLimits *limits,
   RestUnitSearchInfo *rusi = &rsc->rusi[rest_unit_idx];
 
   const MACROBLOCK *const x = rsc->x;
+
+  bool skip_search = rsc->plane > 0;
+  if (rusi->bru_unit_skipped) {
+    skip_search = true;
+  }
+  if (skip_search) {
+    rsc->sse += rusi->sse[RESTORE_NONE];
+    rusi->best_rtype[RESTORE_SWITCHABLE - 1] = RESTORE_NONE;
+    rusi->sse[RESTORE_SWITCHABLE] = sse_restoration_unit(
+        limits, rsc->src, &rsc->cm->cur_frame->buf, rsc->plane);
+    return;
+  }
 
   if (!rsc->adjust_switchable_for_frame_filters && rsc->frame_filters_on &&
       is_frame_filters_enabled(rsc->plane) &&
@@ -2993,9 +3005,6 @@ static void adjust_frame_rtype(RestorationInfo *rsi, int plane_ntiles,
                                RestSearchCtxt *rsc, const ToolCfg *tool_cfg) {
   (void)rsc;
   (void)tool_cfg;
-  rsi->sw_lr_tools_disable_mask = 0;
-  uint8_t sw_lr_tools_disable_mask = 0;
-  (void)sw_lr_tools_disable_mask;
   if (rsi->frame_restoration_type == RESTORE_NONE) return;
   int tool_count[RESTORE_SWITCHABLE_TYPES] = { 0 };
   for (int u = 0; u < plane_ntiles; ++u) {
@@ -3010,8 +3019,6 @@ static void adjust_frame_rtype(RestorationInfo *rsi, int plane_ntiles,
       rused = j;
       assert((rsc->cm->features.lr_tools_disable_mask[rsc->plane] & (1 << j)) ==
              0);
-    } else {
-      sw_lr_tools_disable_mask |= (1 << j);
     }
   }
   rsi->frame_restoration_type = ntools < 2 ? rused : RESTORE_SWITCHABLE;

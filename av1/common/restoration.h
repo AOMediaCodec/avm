@@ -472,10 +472,6 @@ typedef struct {
    */
   int optimized_lr;
   /*!
-   * Additional tools disable mask in switchable frame mode
-   */
-  uint8_t sw_lr_tools_disable_mask;
-  /*!
    * Number of classes in the Wienerns filtering calculation.
    */
   int num_filter_classes;

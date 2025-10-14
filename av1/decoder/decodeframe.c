@@ -2646,24 +2646,6 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
     av1_set_lr_tools(plane_lr_tools_disable_mask, p, &cm->features);
     const int ndx = rb_read_uniform(rb, cm->features.lr_frame_tools_count[p]);
     rsi->frame_restoration_type = index_to_frame_restoration_type(cm, p, ndx);
-    if (rsi->frame_restoration_type == RESTORE_SWITCHABLE &&
-        cm->features.lr_tools_count[p] > 2) {
-      if (aom_rb_read_bit(rb)) {
-        int tools_count = cm->features.lr_tools_count[p];
-        for (int i = 1; i < RESTORE_SWITCHABLE_TYPES; ++i) {
-          if (!(plane_lr_tools_disable_mask & (1 << i))) {
-            const int disable_tool = aom_rb_read_bit(rb);
-            plane_lr_tools_disable_mask |= (disable_tool << i);
-            tools_count -= disable_tool;
-            // if tools_count becomes 2 break from the loop since we
-            // do not allow any other tool to be disabled.
-            if (tools_count == 2) break;
-          }
-        }
-        av1_set_lr_tools(plane_lr_tools_disable_mask, p, &cm->features);
-      }
-    }
-
     if (rsi->frame_restoration_type != RESTORE_NONE) {
       luma_none &= p > 0;
       chroma_none &= p == 0;
@@ -3390,8 +3372,9 @@ static AOM_INLINE void loop_restoration_read_sb_coeffs(AV1_COMMON *cm,
   rui->wienerns_info.num_classes = rsi->num_filter_classes;
 
   if (rsi->frame_restoration_type == RESTORE_SWITCHABLE) {
-    rui->restoration_type = cm->features.lr_last_switchable_ndx_0_type[plane];
-    for (int re = 0; re <= cm->features.lr_last_switchable_ndx[plane]; re++) {
+    assert(plane == AOM_PLANE_Y);
+    rui->restoration_type = RESTORE_SWITCHABLE - 1;
+    for (int re = 0; re <= RESTORE_SWITCHABLE - 2; re++) {
       if (cm->features.lr_tools_disable_mask[plane] & (1 << re)) continue;
       const int found = aom_read_symbol(
           r, xd->tile_ctx->switchable_flex_restore_cdf[re][plane], 2,

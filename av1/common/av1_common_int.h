@@ -1349,18 +1349,6 @@ typedef struct {
    */
   int lr_frame_tools_count[MAX_MB_PLANE];
   /*!
-   * index of last bit transmitted for convenience. Beyond this index
-   * there is exactly one allowed option, and therefore there is no need
-   * to signal anything.
-   */
-  int lr_last_switchable_ndx[MAX_MB_PLANE];
-  /*!
-   * Restoration Type if last bit transmitted is 0 for convenience. If the
-   * last bit (lr_last_switchable_ndx) transmitted is 0, the
-   * restoration type is lr_last_switchable_ndx_0_type.
-   */
-  int lr_last_switchable_ndx_0_type[MAX_MB_PLANE];
-  /*!
    * Frame tcq_mode: 0 = disabled, 1 = enabled (8-state)
    */
   int tcq_mode;
@@ -5124,22 +5112,6 @@ static INLINE void av1_set_lr_tools(uint8_t lr_tools_disable_mask, int plane,
   else
     tools_count++;
   fea_params->lr_frame_tools_count[plane] = tools_count + 1;
-
-  // If switchable is allowed get last index for transmitted bit, and the
-  // type if that bit is 0.
-  if (!((fea_params->lr_tools_disable_mask[plane] >> RESTORE_SWITCHABLE) & 1)) {
-    for (int t = 0, i = RESTORE_SWITCHABLE_TYPES - 1; i >= 0; --i) {
-      if (!((fea_params->lr_tools_disable_mask[plane] >> i) & 1)) {
-        t++;
-        if (t == 1) {
-          fea_params->lr_last_switchable_ndx_0_type[plane] = i;
-        } else if (t == 2) {
-          fea_params->lr_last_switchable_ndx[plane] = i;
-          break;
-        }
-      }
-    }
-  }
 }
 
 static INLINE SB_INFO *av1_get_sb_info(const AV1_COMMON *cm, int mi_row,

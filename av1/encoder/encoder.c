@@ -3882,10 +3882,6 @@ typedef struct {
   int lr_switchable_tools_count[MAX_MB_PLANE];
   /*!\brief Number of lr modes available at frame level */
   int lr_frame_tools_count[MAX_MB_PLANE];
-  /*!\brief Index of last bit transmitted */
-  int lr_last_switchable_ndx[MAX_MB_PLANE];
-  /*!\brief Restoration Type if last bit transmitted is 0 */
-  int lr_last_switchable_ndx_0_type[MAX_MB_PLANE];
 } LrParams;
 
 static void store_lr_parameters(AV1_COMMON *const cm, LrParams *lr_params) {
@@ -3898,10 +3894,6 @@ static void store_lr_parameters(AV1_COMMON *const cm, LrParams *lr_params) {
     lr_params->lr_switchable_tools_count[i] =
         fea_params->lr_switchable_tools_count[i];
     lr_params->lr_frame_tools_count[i] = fea_params->lr_frame_tools_count[i];
-    lr_params->lr_last_switchable_ndx[i] =
-        fea_params->lr_last_switchable_ndx[i];
-    lr_params->lr_last_switchable_ndx_0_type[i] =
-        fea_params->lr_last_switchable_ndx_0_type[i];
   }
 }
 
@@ -3916,10 +3908,6 @@ static void restore_lr_parameters(AV1_COMMON *const cm,
     fea_params->lr_switchable_tools_count[i] =
         lr_params->lr_switchable_tools_count[i];
     fea_params->lr_frame_tools_count[i] = lr_params->lr_frame_tools_count[i];
-    fea_params->lr_last_switchable_ndx[i] =
-        lr_params->lr_last_switchable_ndx[i];
-    fea_params->lr_last_switchable_ndx_0_type[i] =
-        lr_params->lr_last_switchable_ndx_0_type[i];
   }
 }
 
@@ -4046,7 +4034,7 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
     int best_frame_size = INT32_MAX;
     int cur_frame_size = INT32_MAX;
     // Save LR parameters
-    LrParams lr_params = { { 0 }, { 0 }, { 0 }, { 0 }, { 0 }, { 0 } };
+    LrParams lr_params = { { 0 }, { 0 }, { 0 }, { 0 } };
     store_lr_parameters(cm, &lr_params);
 
     for (int i = 0; i < n_refs; ++i) {

@@ -3502,32 +3502,6 @@ static AOM_INLINE void encode_restoration_mode(
     const int ndx =
         frame_restoration_type_to_index(cm, p, rsi->frame_restoration_type);
     wb_write_uniform(wb, cm->features.lr_frame_tools_count[p], ndx);
-    uint8_t plane_lr_tools_disable_mask = cm->features.lr_tools_disable_mask[p];
-    uint8_t sw_lr_tools_disable_mask = rsi->sw_lr_tools_disable_mask;
-    if (rsi->frame_restoration_type == RESTORE_SWITCHABLE &&
-        cm->features.lr_tools_count[p] > 2) {
-      if ((sw_lr_tools_disable_mask | plane_lr_tools_disable_mask) ==
-          plane_lr_tools_disable_mask) {
-        aom_wb_write_bit(wb, 0);
-      } else {
-        aom_wb_write_bit(wb, 1);
-        int tools_count = cm->features.lr_tools_count[p];
-        for (int i = 1; i < RESTORE_SWITCHABLE_TYPES; ++i) {
-          if (!(plane_lr_tools_disable_mask & (1 << i))) {
-            const int disable_tool = (sw_lr_tools_disable_mask >> i) & 1;
-            aom_wb_write_bit(wb, disable_tool);
-            plane_lr_tools_disable_mask |=
-                (sw_lr_tools_disable_mask & (1 << i));
-            tools_count -= disable_tool;
-            // if tools_count becomes 2 break from the loop since we
-            // do not allow any other tool to be disabled.
-            if (tools_count == 2) break;
-          }
-        }
-        av1_set_lr_tools(plane_lr_tools_disable_mask, p, &cm->features);
-      }
-    }
-
     const int is_wiener_nonsep_possible =
         rsi->frame_restoration_type == RESTORE_WIENER_NONSEP ||
         rsi->frame_restoration_type == RESTORE_SWITCHABLE;
@@ -4188,16 +4162,15 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
           1) == 0);
   if (frame_rtype == RESTORE_SWITCHABLE) {
     int found = 0;
-    for (int re = 0; re <= cm->features.lr_last_switchable_ndx[plane]; re++) {
+    assert(plane == AOM_PLANE_Y);
+    for (int re = 0; re <= RESTORE_SWITCHABLE - 2; re++) {
       if (cm->features.lr_tools_disable_mask[plane] & (1 << re)) continue;
       found = (re == (int)unit_rtype);
       aom_write_symbol(w, found,
                        xd->tile_ctx->switchable_flex_restore_cdf[re][plane], 2);
       if (found) break;
     }
-    assert(IMPLIES(
-        !found,
-        (int)unit_rtype == cm->features.lr_last_switchable_ndx_0_type[plane]));
+    assert(IMPLIES(!found, (int)unit_rtype == RESTORE_SWITCHABLE - 1));
     switch (unit_rtype) {
       case RESTORE_WIENER_NONSEP:
         write_wienerns_filter(xd, plane, rsi, &rui->wienerns_info,
