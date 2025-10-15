@@ -10863,8 +10863,10 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
 
     const int do_loop_restoration =
         cm->rst_info[0].frame_restoration_type != RESTORE_NONE ||
-        cm->rst_info[1].frame_restoration_type != RESTORE_NONE ||
-        cm->rst_info[2].frame_restoration_type != RESTORE_NONE;
+        (cm->rst_info[1].frame_restoration_type != RESTORE_NONE &&
+         !cm->seq_params.monochrome) ||
+        (cm->rst_info[2].frame_restoration_type != RESTORE_NONE &&
+         !cm->seq_params.monochrome);
     const int do_cdef = !pbi->skip_loop_filter &&
                         !cm->features.coded_lossless &&
                         cm->cdef_info.cdef_frame_enable;
