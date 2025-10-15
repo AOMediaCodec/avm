@@ -1413,6 +1413,12 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   tool_cfg->enable_monochrome = cfg->monochrome;
   tool_cfg->full_still_picture_hdr = cfg->full_still_picture_hdr;
   tool_cfg->enable_tcq = cfg->enable_tcq;
+  if (!cfg->encoder_cfg.enable_trellis_quant) {
+    fprintf(stderr,
+            "Warning: automatically setting enable-tcq to 0 to avoid enc/dec "
+            "mismatch. To use tcq, set enable_trellis_quant to be non-0.\n");
+    tool_cfg->enable_tcq = 0;
+  }
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   tool_cfg->enable_order_hint = extra_cfg->enable_order_hint;
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
