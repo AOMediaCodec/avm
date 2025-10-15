@@ -5268,8 +5268,8 @@ void av1_update_intra_mb_txb_context(const AV1_COMP *cpi, ThreadData *td,
       // if we are in the unrestricted motion border.
       int i = 0;
 #if CONFIG_TU64_TRAVERSED_ORDER
-      const int mu128_wide = mi_size_wide[BLOCK_128X128];
-      const int mu128_high = mi_size_high[BLOCK_128X128];
+      const int mu128_wide = mi_size_wide[BLOCK_128X128] >> ss_x;
+      const int mu128_high = mi_size_high[BLOCK_128X128] >> ss_y;
       // Loop through each 128x128 block within the current coding block
       for (int row128 = 0; row128 < max_blocks_high; row128 += mu128_high) {
         for (int col128 = 0; col128 < max_blocks_wide; col128 += mu128_wide) {

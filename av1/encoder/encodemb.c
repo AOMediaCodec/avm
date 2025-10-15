@@ -1192,8 +1192,8 @@ void av1_foreach_transformed_block_in_plane(
   // if we are in the unrestricted motion border.
   int i = 0;
 #if CONFIG_TU64_TRAVERSED_ORDER
-  const int mu128_wide = mi_size_wide[BLOCK_128X128];
-  const int mu128_high = mi_size_high[BLOCK_128X128];
+  const int mu128_wide = mi_size_wide[BLOCK_128X128] >> pd->subsampling_x;
+  const int mu128_high = mi_size_high[BLOCK_128X128] >> pd->subsampling_y;
   // Loop through each 128x128 block within the current coding block
   for (int row128 = 0; row128 < max_blocks_high; row128 += mu128_high) {
     for (int col128 = 0; col128 < max_blocks_wide; col128 += mu128_wide) {
@@ -1330,8 +1330,8 @@ void av1_encode_sb(const struct AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
     mu_blocks_wide = AOMMIN(mi_width, mu_blocks_wide);
     mu_blocks_high = AOMMIN(mi_height, mu_blocks_high);
 #if CONFIG_TU64_TRAVERSED_ORDER
-    const int mu128_wide = mi_size_wide[BLOCK_128X128];
-    const int mu128_high = mi_size_high[BLOCK_128X128];
+    const int mu128_wide = mi_size_wide[BLOCK_128X128] >> subsampling_x;
+    const int mu128_high = mi_size_high[BLOCK_128X128] >> subsampling_y;
     // Loop through each 128x128 block within the current coding block
     for (int row128 = 0; row128 < mi_height; row128 += mu128_high) {
       for (int col128 = 0; col128 < mi_width; col128 += mu128_wide) {

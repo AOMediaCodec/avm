@@ -2644,8 +2644,9 @@ static AOM_INLINE void write_inter_txb_coeff(
       tx_size_wide_unit[max_tx_size] * tx_size_high_unit[max_tx_size];
   const int bkw = tx_size_wide_unit[max_tx_size];
   const int bkh = tx_size_high_unit[max_tx_size];
-  const BLOCK_SIZE max_unit_bsize =
-      get_plane_block_size(BLOCK_64X64, ss_x, ss_y);
+  const int lossless = xd->lossless[mbmi->segment_id];
+  const BLOCK_SIZE max_unit_bsize = get_plane_block_size(
+      BLOCK_64X64, lossless ? ss_x : 0, lossless ? ss_y : 0);
   const int num_4x4_w = mi_size_wide[plane_bsize];
   const int num_4x4_h = mi_size_high[plane_bsize];
   const int mu_blocks_wide = mi_size_wide[max_unit_bsize];
