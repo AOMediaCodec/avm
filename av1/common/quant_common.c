@@ -99,27 +99,25 @@ int tcq_init_state(int tcq_mode) {
   return state;
 }
 
-int tcq_next_state(const int curState, const int absLevel) {
-  int tcq_mode = curState >> 8;
-  int state = curState & 255;
-  int nextState = 0;
-  if (tcq_mode == TCQ_8ST) {
-    switch (state) {
-      case 0: nextState = !(tcq_parity(absLevel)) ? 0 : 4; break;
-      case 1: nextState = !(tcq_parity(absLevel)) ? 4 : 0; break;
-      case 2: nextState = !(tcq_parity(absLevel)) ? 1 : 5; break;
-      case 3: nextState = !(tcq_parity(absLevel)) ? 5 : 1; break;
-      case 4: nextState = !(tcq_parity(absLevel)) ? 6 : 2; break;
-      case 5: nextState = !(tcq_parity(absLevel)) ? 2 : 6; break;
-      case 6: nextState = !(tcq_parity(absLevel)) ? 7 : 3; break;
-      case 7: nextState = !(tcq_parity(absLevel)) ? 3 : 7; break;
-      default: nextState = !(tcq_parity(absLevel)) ? 0 : 4; break;
-    }
-  } else {  // TCQ_DISABLE
-    nextState = 0;
-  }
-  nextState += (tcq_mode << 8);
-  return nextState;
+int tcq_next_state(const int cur_state, const int abs_level) {
+  const int tcq_mode = cur_state >> 8;
+  int state = cur_state & 0xFF;
+  int next_state = tcq_mode << 8;
+
+  if (tcq_mode != TCQ_8ST) return next_state;
+
+  static const uint8_t next_state_lut_8st[TCQ_MAX_STATES][2] = {
+    { 0, 4 }, { 4, 0 }, { 1, 5 }, { 5, 1 },
+    { 6, 2 }, { 2, 6 }, { 7, 3 }, { 3, 7 }
+  };
+
+  const int parity = tcq_parity(abs_level);
+  assert(parity < 2);
+
+  if (state < 0 || state >= TCQ_MAX_STATES) state = 0;
+
+  next_state |= next_state_lut_8st[state][parity];
+  return next_state;
 }
 
 // Clamp the qindex value to minimum and maximum allowed limit
