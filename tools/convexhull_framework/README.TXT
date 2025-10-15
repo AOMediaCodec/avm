@@ -12,7 +12,7 @@ Prerequisites
 1. Inside ./bin folder, make sure you have executables for all external tools,
    such as vmaf(version v2.1.1+), HDRConvert, encoder, decoder, etc. You can get
    the pre-build binaries or source code for the following tools that are needed:
-   vmaf tools: https://github.com/Netflix/vmaf/releases/tag/v2.1.1
+   vmaf tools: https://github.com/Netflix/vmaf/releases/tag/v3.0.0
    HDRConvert: https://gitlab.com/standards/HDRTools 0.22 branch
    libaom research branch encoder/decoder: https://gitlab.com/AOMediaCodec/avm
    SVT AV1 encoder: https://github.com/OpenVisualCloud/SVT-AV1
@@ -23,7 +23,7 @@ Prerequisites
    Linux system is used to capture run time information.
 
 2. AV2 CTC has adopted VMAF tool as the reference implementation of all quality
-   metrics required. Using the versioned '--aom_ctc v1.0' at the command line
+   metrics required. Using the versioned '--aom_ctc v6.0' at the command line
    will generate all quality metrics for AV2 CTC.
 
 3. HDRConvert is used to perform downscale and upscale operation. It requires
