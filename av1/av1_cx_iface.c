@@ -3329,6 +3329,9 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
     unsigned int lib_flags = 0;
     int is_frame_visible = 0;
     int is_frame_visible_null = 0;
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+    int is_showable_frame = 0;
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
     int index_size = 0;
     int has_no_show_keyframe = 0;
     int num_workers = 0;
@@ -3379,6 +3382,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       const int status = av1_get_compressed_data(
           cpi, &lib_flags, &frame_size, cx_data, &dst_time_stamp,
           &dst_end_time_stamp, !img, timestamp_ratio);
+
       aom_usec_timer_mark(&timer);
       cx_time += aom_usec_timer_elapsed(&timer);
       if (status == -1) break;
@@ -3387,7 +3391,15 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       }
 
       cpi->seq_params_locked = 1;
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+      is_frame_visible = cpi->common.show_frame || cpi->common.showable_frame;
+#else   // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
       is_frame_visible = cpi->common.show_frame;
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+      is_showable_frame = !cpi->common.show_frame && cpi->common.showable_frame;
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
       if (cpi->oxcf.ref_frm_cfg.enable_frame_output_order) {
 #endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
@@ -3404,9 +3416,14 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       if (frame_size) {
         if (ctx->pending_cx_data == 0) ctx->pending_cx_data = cx_data;
 
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+        const int write_temporal_delimiter =
+            !cpi->common.mlayer_id &&
+            (cpi->common.show_frame || cpi->common.showable_frame);
+#else   // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
         const int write_temporal_delimiter =
             !cpi->common.mlayer_id && !ctx->pending_frame_count;
-
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
         if (write_temporal_delimiter) {
           const uint32_t obu_payload_size = 0;
           const size_t length_field_size =
@@ -3416,16 +3433,24 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
           const uint32_t obu_header_size = av1_write_obu_header(
               &cpi->level_params, OBU_TEMPORAL_DELIMITER, 0, 0, obu_header);
           const size_t move_offset = obu_header_size + length_field_size;
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+          memmove(cx_data + move_offset, cx_data, frame_size);
+          memcpy(cx_data, obu_header, obu_header_size);
+          if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size,
+                                      cx_data) != AOM_CODEC_OK) {
+            aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR, NULL);
+          }
+          // OBUs are preceded/succeeded by an unsigned leb128 coded integer.
+#else   // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
           memmove(ctx->pending_cx_data + move_offset, ctx->pending_cx_data,
                   frame_size);
           memcpy(ctx->pending_cx_data, obu_header, obu_header_size);
-
           // OBUs are preceded/succeeded by an unsigned leb128 coded integer.
           if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size,
                                       ctx->pending_cx_data) != AOM_CODEC_OK) {
             aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR, NULL);
           }
-
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
           frame_size += obu_header_size + obu_payload_size + length_field_size;
         }
 
@@ -3522,10 +3547,20 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       aom_codec_cx_pkt_t pkt;
 
       // decrement frames_left counter
-      cpi->frames_left = AOMMAX(0, cpi->frames_left - 1);
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+      if (!is_frame_visible_null)
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+        cpi->frames_left = AOMMAX(0, cpi->frames_left - 1);
 
-      pkt.kind = is_frame_visible_null ? AOM_CODEC_CX_FRAME_NULL_PKT
-                                       : AOM_CODEC_CX_FRAME_PKT;
+      pkt.kind = is_frame_visible_null
+                     ? AOM_CODEC_CX_FRAME_NULL_PKT
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+                     : (is_showable_frame ? AOM_CODEC_CX_SHOWABLE_FRAME_PKT
+                                          : AOM_CODEC_CX_FRAME_PKT);
+#else   // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+                     : AOM_CODEC_CX_FRAME_PKT;
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+
       pkt.data.frame.buf = ctx->pending_cx_data;
       pkt.data.frame.sz = ctx->pending_cx_data_sz;
       pkt.data.frame.partition_id = -1;

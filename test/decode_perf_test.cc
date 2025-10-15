@@ -151,7 +151,13 @@ class AV1NewEncodeDecodePerfTest
                             ::libaom_test::DxDataIterator *dec_iter) {
     (void)dec_iter;
     ++out_frames_;
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+    if (pkt->kind != AOM_CODEC_CX_FRAME_PKT &&
+        pkt->kind != AOM_CODEC_CX_SHOWABLE_FRAME_PKT)
+      return;
+#else   // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
     if (pkt->kind != AOM_CODEC_CX_FRAME_PKT) return;
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
     // Write initial file header if first frame.
     if (pkt->data.frame.pts == 0)
       ivf_write_file_header(outfile_, &cfg_, AV1_FOURCC, out_frames_);

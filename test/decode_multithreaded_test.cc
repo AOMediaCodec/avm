@@ -89,7 +89,12 @@ class AV1DecodeMultiThreadedTest
                  ::libaom_test::MD5 *md5,
                  ::libaom_test::DxDataIterator *dec_iter) {
     const aom_image_t *img;
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+    if (pkt->kind == AOM_CODEC_CX_FRAME_PKT ||
+        pkt->kind == AOM_CODEC_CX_SHOWABLE_FRAME_PKT) {
+#else   // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
     if (pkt->kind == AOM_CODEC_CX_FRAME_PKT) {
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
       const aom_codec_err_t res = dec->DecodeFrame(
           reinterpret_cast<uint8_t *>(pkt->data.frame.buf), pkt->data.frame.sz);
       if (res != AOM_CODEC_OK) {

@@ -81,8 +81,12 @@ static int encode_frame(aom_codec_ctx_t *codec, aom_image_t *img,
 
   while ((pkt = aom_codec_get_cx_data(codec, &iter)) != NULL) {
     got_pkts = 1;
-
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+    if (pkt->kind == AOM_CODEC_CX_FRAME_PKT ||
+        pkt->kind == AOM_CODEC_CX_SHOWABLE_FRAME_PKT) {
+#else   // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
     if (pkt->kind == AOM_CODEC_CX_FRAME_PKT) {
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
       const int keyframe = (pkt->data.frame.flags & AOM_FRAME_IS_KEY) != 0;
       if (!aom_video_writer_write_frame(writer, pkt->data.frame.buf,
                                         pkt->data.frame.sz,

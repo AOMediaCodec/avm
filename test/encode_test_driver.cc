@@ -233,6 +233,9 @@ void EncoderTest::RunLoop(VideoSource *video) {
               FramePktHook(pkt, &dec_iter);
               break;
             case AOM_CODEC_CX_FRAME_PKT:
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+            case AOM_CODEC_CX_SHOWABLE_FRAME_PKT:
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
               has_cxdata = true;
               if (decoder.get() != NULL && DoDecode()) {
                 if (DoDecodeInvisible()) {
