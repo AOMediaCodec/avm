@@ -101,7 +101,7 @@ class TileIndependenceTest
 
   virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt,
                             ::libaom_test::DxDataIterator *dec_iter) {
-    //    UpdateMD5(fw_dec_, pkt, &md5_fw_order_, dec_iter);
+    UpdateMD5(fw_dec_, pkt, &md5_fw_order_, dec_iter);
     //    UpdateMD5(inv_dec_, pkt, &md5_inv_order_, dec_iter);
   }
 
