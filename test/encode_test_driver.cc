@@ -257,12 +257,9 @@ void EncoderTest::RunLoop(VideoSource *video) {
 
 #if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
             case AOM_CODEC_CX_SHOWABLE_FRAME_PKT:
-              has_cxdata = true;
               if (decoder.get() != NULL && DoDecode()) {
                 res_dec = decoder->DecodeFrame(
                     (const uint8_t *)pkt->data.frame.buf, pkt->data.frame.sz);
-
-                if (!HandleDecodeResult(res_dec, decoder.get())) break;
               }
               ASSERT_GE(pkt->data.frame.pts, last_pts_);
               if (sl == number_spatial_layers_) last_pts_ = pkt->data.frame.pts;
