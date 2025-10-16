@@ -21,15 +21,16 @@
 
 #define LOCAL_FIXED_MULT(x, y, round, bits) (((x) * (y) + round) >> bits)
 
-/* Portable ilog2 for 32-bit unsigned integers */
-static inline int ilog2_32(uint32_t x) {
+/* Returns floor(log2(x)) for 32-bit unsigned x — i.e., the index (0..31) of the
+ * highest set bit.*/
+static INLINE int ilog2_32(uint32_t x) {
 #if defined(_MSC_VER)
   unsigned long idx;
   if (_BitScanReverse(&idx, x | 1u)) return (int)idx;  // x|1 to avoid UB on 0
   return 0;
 #else
   return 31 - __builtin_clz(x | 1u);  // x|1 to avoid UB on 0
-#endif
+#endif  // defined(_MSC_VER)
 }
 
 /*
@@ -43,7 +44,7 @@ static inline int ilog2_32(uint32_t x) {
  *
  * This keeps all intermediates in 32-bit while keeping the mean error low.
  */
-static inline int32_t mul_fixed32_adapt(int32_t a, int32_t b, int shift) {
+static INLINE int32_t mul_fixed32_adapt(int32_t a, int32_t b, int shift) {
   /* 1) Effective bit-widths of |a| and |b| (in [1..32]) */
   const uint32_t ua = (uint32_t)(a < 0 ? -a : a);
   const uint32_t ub = (uint32_t)(b < 0 ? -b : b);
@@ -58,11 +59,7 @@ static inline int32_t mul_fixed32_adapt(int32_t a, int32_t b, int shift) {
   int s1 = need >> 1;
   int s2 = need - s1;
 
-  /* Do not over-reduce so that final right shift stays non-negative */
-  if (s1 > shift) s1 = shift;
-  if (s2 > shift - s1) s2 = shift - s1;
-
-  const int adj = shift - (s1 + s2); /* remaining right shift (>= 0) */
+  const int adj = shift - (s1 + s2);
   assert(s1 >= 0);
   assert(s2 >= 0);
   const int32_t a_sh = s1 ? (a >> s1) : a;
@@ -969,7 +966,7 @@ void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
            sizeof(int64_t) * (MHCCP_NUM_PARAMS) * (MHCCP_NUM_PARAMS));
     memset(Ty, 0x00, sizeof(int64_t) * (MHCCP_NUM_PARAMS));
     memset(C, 0x00, sizeof(C));
-#endif
+#endif  // CONFIG_MHCCP_SOLVER_BITS
     for (int coli0 = 0; coli0 < (MHCCP_NUM_PARAMS); ++coli0) {
       for (int coli1 = coli0; coli1 < (MHCCP_NUM_PARAMS); ++coli1) {
         int16_t *col0 = A[coli0];
@@ -1028,7 +1025,7 @@ void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
 #define DIV_INTR_ROUND (1 << DIV_INTR_BITS >> 1)
 
 // Return the number of shifted bits for the denominator
-static inline int floorLog2Uint64(uint64_t x) {
+static INLINE int floorLog2Uint64(uint64_t x) {
   if (x == 0) {
     return 0;
   }
@@ -1083,25 +1080,25 @@ void get_division_scale_shift(uint64_t denom, int *scale, int64_t *round,
 
   *shift = floorLog2Uint64(denom);
   assert(*shift < 32);
-  if (*shift == 0)
+  if (*shift == 0) {
     *round = 0;
-  else
+  } else {
 #if CONFIG_MHCCP_SOLVER_BITS
     *round = (int32_t)(1U << (*shift) >> 1);
 #else
     *round = (int64_t)(1ULL << (*shift) >> 1);
 #endif  // CONFIG_MHCCP_SOLVER_BITS
-
-    // Consider the division approximation: y = (x + D/2) / D,
-    // where x is the numerator and D is the denominator.
-    // We want to approximate it as: y ≈ (x / d) >> s,
-    // where d is in the range [1, 2) and s = floor(log2(D)).
-    //
-    // Step 1: Normalize D into fixed-point format with DIV_PREC_BITS fractional
-    // bits.
-    //         The expression below computes a scaled version of D:
-    //         normDiff_tmp = ((D << DIV_PREC_BITS) + round) >> shift
-    //         This ensures fixed-point precision and rounding.
+  }
+  // Consider the division approximation: y = (x + D/2) / D,
+  // where x is the numerator and D is the denominator.
+  // We want to approximate it as: y ≈ (x / d) >> s,
+  // where d is in the range [1, 2) and s = floor(log2(D)).
+  //
+  // Step 1: Normalize D into fixed-point format with DIV_PREC_BITS fractional
+  // bits.
+  //         The expression below computes a scaled version of D:
+  //         normDiff_tmp = ((D << DIV_PREC_BITS) + round) >> shift
+  //         This ensures fixed-point precision and rounding.
 #if CONFIG_MHCCP_SOLVER_BITS
   int delta = *shift - DIV_PREC_BITS;
   int32_t normDiff_tmp;
