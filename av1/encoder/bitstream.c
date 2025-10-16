@@ -7757,7 +7757,12 @@ static uint32_t write_tilegroup_payload(AV1_COMP *const cpi, uint8_t *const dst,
   }  // tile_row
 
   if (tile_cols * tile_rows > 1) {
+#if CONFIG_F385_CONTEXT_UPDATE_TILE_ID
+    if (cm->features.refresh_frame_context == REFRESH_FRAME_CONTEXT_BACKWARD &&
+        (!cm->seq_params.enable_avg_cdf || !cm->seq_params.avg_cdf_type)) {
+#else
     if (!cm->seq_params.enable_avg_cdf || !cm->seq_params.avg_cdf_type) {
+#endif  // CONFIG_F385_CONTEXT_UPDATE_TILE_ID
       // Fill in context_update_tile_id indicating the tile to use for the
       // cdf update. The encoder currently sets it to the largest tile
       // (but is up to the encoder)
@@ -8369,7 +8374,12 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
   }
 
   if (have_tiles) {
+#if CONFIG_F385_CONTEXT_UPDATE_TILE_ID
+    if (cm->features.refresh_frame_context == REFRESH_FRAME_CONTEXT_BACKWARD &&
+        (!cm->seq_params.enable_avg_cdf || !cm->seq_params.avg_cdf_type)) {
+#else
     if (!cm->seq_params.enable_avg_cdf || !cm->seq_params.avg_cdf_type) {
+#endif  // CONFIG_F385_CONTEXT_UPDATE_TILE_ID
       // Fill in context_update_tile_id indicating the tile to use for the
       // cdf update. The encoder currently sets it to the largest tile
       // (but is up to the encoder)

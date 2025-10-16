@@ -4573,7 +4573,12 @@ static AOM_INLINE void read_tile_info(AV1Decoder *const pbi,
   }
   pbi->context_update_tile_id = 0;
   if (cm->tiles.rows * cm->tiles.cols > 1) {
+#if CONFIG_F385_CONTEXT_UPDATE_TILE_ID
+    if (cm->features.refresh_frame_context == REFRESH_FRAME_CONTEXT_BACKWARD &&
+        (!cm->seq_params.enable_avg_cdf || !cm->seq_params.avg_cdf_type)) {
+#else
     if (!cm->seq_params.enable_avg_cdf || !cm->seq_params.avg_cdf_type) {
+#endif  // CONFIG_F385_CONTEXT_UPDATE_TILE_ID
       // tile to use for cdf update
       pbi->context_update_tile_id =
           aom_rb_read_literal(rb, cm->tiles.log2_rows + cm->tiles.log2_cols);

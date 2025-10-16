@@ -189,6 +189,10 @@ set_aom_config_var(CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT 1
 set_aom_config_var(CONFIG_CWG_F349_SIGNAL_TILE_INFO 1
                    "Improved tile information at sequence header.")
 
+set_aom_config_var(
+  CONFIG_F385_CONTEXT_UPDATE_TILE_ID 1
+  "Signal context_update_tile_id only if disable_frame_end_update_cdf is 0.")
+
 # CWG-F215
 set_aom_config_var(CWG_F215_CONFIG_REMOVE_FRAME_ID 1
                    "Remove frame_id signalling")
