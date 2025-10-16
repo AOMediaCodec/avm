@@ -277,17 +277,27 @@ class AVxEncoderThreadTest
         abort_ = true;
         ASSERT_EQ(AOM_CODEC_OK, res);
       }
-      img = decoder_->GetDxData().Next();
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+      if (pkt->kind == AOM_CODEC_CX_FRAME_PKT)
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+        img = decoder_->GetDxData().Next();
     } else {
       assert(dec_iter != NULL);
       img = dec_iter->Peek();
     }
 
-    if (img) {
-      ::libaom_test::MD5 md5_res;
-      md5_res.Add(img);
-      md5_dec_.push_back(md5_res.Get());
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+    if (pkt->kind == AOM_CODEC_CX_FRAME_PKT ||
+        pkt->kind == AOM_CODEC_CX_FRAME_NULL_PKT) {
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+      if (img) {
+        ::libaom_test::MD5 md5_res;
+        md5_res.Add(img);
+        md5_dec_.push_back(md5_res.Get());
+      }
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
     }
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
   }
 
   void DoTest() {

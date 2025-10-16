@@ -101,12 +101,19 @@ class AV1DecodeMultiThreadedTest
         abort_ = true;
         ASSERT_EQ(AOM_CODEC_OK, res);
       }
-      img = dec->GetDxData().Next();
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+      if (pkt->kind == AOM_CODEC_CX_FRAME_PKT)
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+        img = dec->GetDxData().Next();
     } else {
       assert(dec_iter != NULL);
       img = dec_iter->Peek();
     }
-    md5->Add(img);
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+    if (pkt->kind == AOM_CODEC_CX_FRAME_PKT ||
+        pkt->kind == AOM_CODEC_CX_FRAME_NULL_PKT)
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+      md5->Add(img);
   }
 
   virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt,
