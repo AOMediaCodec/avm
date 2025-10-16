@@ -91,12 +91,14 @@ class TileIndependenceTest
         abort_ = true;
         ASSERT_EQ(AOM_CODEC_OK, res);
       }
-      img = dec->GetDxData().Next();
+      if (pkt->kind == AOM_CODEC_CX_FRAME_PKT) img = dec->GetDxData().Next();
     } else {
       assert(dec_iter != NULL);
       img = dec_iter->Peek();
     }
-    md5->Add(img);
+    if (pkt->kind == AOM_CODEC_CX_FRAME_PKT ||
+        pkt->kind == AOM_CODEC_CX_FRAME_NULL_PKT)
+      md5->Add(img);
   }
 
   virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt,
