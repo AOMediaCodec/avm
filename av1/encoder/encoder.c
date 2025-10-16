@@ -2572,8 +2572,24 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
             int i_max = AOMMIN(v_pos + cm->gdf_info.gdf_unit_size,
                                tile_height - GDF_TEST_FRAME_BOUNDARY_SIZE) +
                         tile_rect.top;
+
+            int copy_above = 1, copy_below = 1;
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+            if (cm->seq_params.disable_loopfilters_across_tiles == 0) {
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+        // tile top but not picture top
+              if (v_pos == -GDF_TEST_STRIPE_OFF && tile_row != 0)
+                copy_above = 0;
+              // tile bottom but not picture bottom
+              if (v_pos + cm->gdf_info.gdf_unit_size >= tile_height &&
+                  tile_row != num_tile_rows - 1)
+                copy_below = 0;
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+            }
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
             gdf_setup_reference_lines(cm, i_min, i_max,
-                                      tile_blk_stripe0 + blk_stripe);
+                                      tile_blk_stripe0 + blk_stripe, copy_above,
+                                      copy_below);
             for (int u_pos = x_pos;
                  u_pos < x_pos + cm->gdf_info.gdf_block_size &&
                  u_pos < tile_width;
@@ -2666,7 +2682,7 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
                   tile_boundary_right);
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
             }
-            gdf_unset_reference_lines(cm, i_min, i_max);
+            gdf_unset_reference_lines(cm, i_min, i_max, copy_above, copy_below);
             blk_stripe++;
           }  // v_pos
           blk_idx++;

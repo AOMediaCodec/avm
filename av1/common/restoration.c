@@ -1879,9 +1879,21 @@ uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV1Common *cm,
       const int h_uv = (ss_y ? (h + 1) >> ss_y : h) +
                        ((y0 > 0) + (y1 < height_y)) * WIENERNS_UV_BRD;
 
-      setup_processing_stripe_boundary(&remaining_stripes, &rsi->boundaries,
-                                       rsb_row, h, dgd, in_stride, cm->rlbs, 1,
-                                       1, rsi->optimized_lr, 0);
+      int copy_above = 1, copy_below = 1;
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+      if (cm->seq_params.disable_loopfilters_across_tiles == 0) {
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+        // tile top but not picture top
+        if (tile_boundary_above) copy_above = 0;
+        // tile bottom but not picture bottom
+        if (tile_boundary_below) copy_below = 0;
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+      }
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+
+      setup_processing_stripe_boundary(
+          &remaining_stripes, &rsi->boundaries, rsb_row, h, dgd, in_stride,
+          cm->rlbs, copy_above, copy_below, rsi->optimized_lr, 0);
       if (y0 > 0) curr_dgd -= WIENERNS_UV_BRD * in_stride << ss_y;
 
 #if WIENERNS_CROSS_FILT_LUMA_TYPE == 0
@@ -1965,7 +1977,8 @@ uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV1Common *cm,
 #endif  // WIENERNS_CROSS_FILT_LUMA_TYPE
 
       restore_processing_stripe_boundary(&remaining_stripes, cm->rlbs, h, dgd,
-                                         in_stride, 1, 1, rsi->optimized_lr, 0);
+                                         in_stride, copy_above, copy_below,
+                                         rsi->optimized_lr, 0);
 
       if (y0 > 0) curr_dgd += WIENERNS_UV_BRD * in_stride << ss_y;
       curr_dgd += in_stride * h;
@@ -2251,9 +2264,23 @@ void av1_loop_restoration_filter_unit(
         mbmi_base_ptr + (i >> (MI_SIZE_LOG2 - ss_y)) * rui->mi_stride;
     tmp_rui->mi_stride = rui->mi_stride;
     tmp_rui->error = rui->error;
+
+    int copy_above = 1, copy_below = 1;
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+    if (disable_loopfilters_across_tiles == 0) {
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+        // picture boundaries does not process since picture boundaries are
+        // extended tile top
+      if (tile_boundary_above) copy_above = 0;
+      // tile bottom but not picture bottom
+      if (tile_boundary_below) copy_below = 0;
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+    }
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+
     setup_processing_stripe_boundary(&remaining_stripes, rsb, rsb_row, h, data,
-                                     stride, rlbs, 1, 1, optimized_lr,
-                                     rui->plane != PLANE_TYPE_Y);
+                                     stride, rlbs, copy_above, copy_below,
+                                     optimized_lr, rui->plane != PLANE_TYPE_Y);
 
     // cross-filter
     tmp_rui->luma =
@@ -2325,9 +2352,9 @@ void av1_loop_restoration_filter_unit(
       }
     }
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-    restore_processing_stripe_boundary(&remaining_stripes, rlbs, h, data,
-                                       stride, 1, 1, optimized_lr,
-                                       rui->plane != PLANE_TYPE_Y);
+    restore_processing_stripe_boundary(
+        &remaining_stripes, rlbs, h, data, stride, copy_above, copy_below,
+        optimized_lr, rui->plane != PLANE_TYPE_Y);
 
     i += h;
   }
