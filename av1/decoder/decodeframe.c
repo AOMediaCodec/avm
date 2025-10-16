@@ -7509,10 +7509,13 @@ void av1_read_multi_frame_header(AV1_COMMON *cm,
 
 #if CONFIG_CWG_E242_PARSING_INDEP
   mfh_param->mfh_frame_size_present_flag = aom_rb_read_bit(rb);
+#if CONFIG_MFH_SIGNAL_TILE_INFO
   mfh_param->mfh_tile_info_present_flag = aom_rb_read_bit(rb);
-
   if (mfh_param->mfh_frame_size_present_flag ||
-      mfh_param->mfh_loop_filter_update_flag) {
+      mfh_param->mfh_tile_info_present_flag) {
+#else
+  if (mfh_param->mfh_frame_size_present_flag) {
+#endif  // CONFIG_MFH_SIGNAL_TILE_INFO
     mfh_param->mfh_frame_width_bits_minus1 = aom_rb_read_literal(rb, 4);
     int num_bits_width = mfh_param->mfh_frame_width_bits_minus1 + 1;
     mfh_param->mfh_frame_height_bits_minus1 = aom_rb_read_literal(rb, 4);
@@ -7572,6 +7575,9 @@ void av1_read_multi_frame_header(AV1_COMMON *cm,
   }
 
 #if CONFIG_MFH_SIGNAL_TILE_INFO
+#if !CONFIG_CWG_E242_PARSING_INDEP
+  mfh_param->mfh_tile_info_present_flag = aom_rb_read_bit(rb);
+#endif  //  !CONFIG_CWG_E242_PARSING_INDEP
   if (mfh_param->mfh_tile_info_present_flag) {
     read_mfh_sb_size(mfh_param, rb);
     read_multi_frame_header_tile_info(mfh_param, rb);
