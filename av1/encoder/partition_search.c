@@ -474,27 +474,6 @@ void av1_set_offsets(const AV1_COMP *const cpi, const TileInfo *const tile,
     mbmi->mi_col_start = mi_col;
   }
   mbmi->segment_id = 0;
-#if CONFIG_DF_DQP
-  // Set current_qindex to match decoder behavior (for deblocking filter)
-
-  if (cm->delta_q_info.delta_q_present_flag) {
-    if (mbmi->current_qindex != 0) {
-      // setup_delta_q already set current_qindex, update current_base_qindex to
-      // match
-      xd->current_base_qindex = mbmi->current_qindex;
-    } else {
-      // Initialize both indices if they are not set
-      if (xd->current_base_qindex == 0) {
-        xd->current_base_qindex = cm->quant_params.base_qindex;
-      }
-      mbmi->current_qindex = xd->current_base_qindex;
-    }
-  } else {
-    // When delta_q is not present, both indices are equal to base_qindex
-    xd->current_base_qindex = cm->quant_params.base_qindex;
-    mbmi->current_qindex = xd->current_base_qindex;
-  }
-#endif  // CONFIG_DF_DQP
 
   if (seg->enabled) {
     if (seg->enabled && !cpi->vaq_refresh) {
