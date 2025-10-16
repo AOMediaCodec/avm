@@ -2914,8 +2914,6 @@ static void search_switchable_visitor(const RestorationTileLimits *limits,
   if (skip_search) {
     rsc->sse += rusi->sse[RESTORE_NONE];
     rusi->best_rtype[RESTORE_SWITCHABLE - 1] = RESTORE_NONE;
-    rusi->sse[RESTORE_SWITCHABLE] = sse_restoration_unit(
-        limits, rsc->src, &rsc->cm->cur_frame->buf, rsc->plane);
     return;
   }
 
