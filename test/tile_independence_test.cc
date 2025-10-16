@@ -81,7 +81,7 @@ class TileIndependenceTest
     const aom_image_t *img;
 #if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
     if (pkt->kind == AOM_CODEC_CX_FRAME_PKT ||
-        pkt->kind == AOM_CODEC_CX_FRAME_NULL_PKT) {
+        pkt->kind == AOM_CODEC_CX_SHOWABLE_FRAME_PKT) {
 #else   // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
     if (pkt->kind == AOM_CODEC_CX_FRAME_PKT) {
 #endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
