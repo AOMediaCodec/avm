@@ -88,11 +88,12 @@ class AV1DecodeMultiThreadedTest
   void UpdateMD5(::libaom_test::Decoder *dec, const aom_codec_cx_pkt_t *pkt,
                  ::libaom_test::MD5 *md5,
                  ::libaom_test::DxDataIterator *dec_iter) {
-    const aom_image_t *img;
 #if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+    const aom_image_t *img = NULL;
     if (pkt->kind == AOM_CODEC_CX_FRAME_PKT ||
         pkt->kind == AOM_CODEC_CX_SHOWABLE_FRAME_PKT) {
 #else   // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+    const aom_image_t *img;
     if (pkt->kind == AOM_CODEC_CX_FRAME_PKT) {
 #endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
       const aom_codec_err_t res = dec->DecodeFrame(
@@ -110,8 +111,9 @@ class AV1DecodeMultiThreadedTest
       img = dec_iter->Peek();
     }
 #if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
-    if (pkt->kind == AOM_CODEC_CX_FRAME_PKT ||
-        pkt->kind == AOM_CODEC_CX_FRAME_NULL_PKT)
+    if ((pkt->kind == AOM_CODEC_CX_FRAME_PKT ||
+         pkt->kind == AOM_CODEC_CX_FRAME_NULL_PKT) &&
+        img != NULL)
 #endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
       md5->Add(img);
   }
