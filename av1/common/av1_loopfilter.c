@@ -161,14 +161,17 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
       side_ind_r[MAX_MB_PLANE];
 #endif  // CONFIG_DF_DQP && DF_DUAL
   int plane;
-  //  int seg_id;
+#if !CONFIG_DF_DQP
+  int seg_id;
+#endif  // !CONFIG_DF_DQP
   // n_shift is the multiplier for lf_deltas
   // the multiplier is 1 for when filter_lvl is between 0 and 31;
   // 2 when filter_lvl is between 32 and 63
   loop_filter_info_n *const lfi = &cm->lf_info;
   struct loopfilter *const lf = &cm->lf;
-  //  const struct segmentation *const seg = &cm->seg;
-
+#if !CONFIG_DF_DQP
+  const struct segmentation *const seg = &cm->seg;
+#endif  // !CONFIG_DF_DQP
 #if CONFIG_DF_DQP && DF_DUAL
   for (int dir = 0; dir < NUM_EDGE_DIRS; ++dir) {
     q_ind[0][dir] = cm->lf.delta_q_luma[dir] * DF_DELTA_SCALE;
