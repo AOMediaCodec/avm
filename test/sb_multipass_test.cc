@@ -86,11 +86,12 @@ class AV1SBMultipassTestLarge
                 pkt->data.frame.sz);
     md5_enc_.push_back(md5_enc.Get());
 
-    const aom_image_t *img;
 #if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+    const aom_image_t *img = NULL;
     if (pkt->kind == AOM_CODEC_CX_FRAME_PKT ||
         pkt->kind == AOM_CODEC_CX_SHOWABLE_FRAME_PKT) {
 #else   // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+    const aom_image_t *img;
     if (pkt->kind == AOM_CODEC_CX_FRAME_PKT) {
 #endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
       const aom_codec_err_t res = decoder_->DecodeFrame(

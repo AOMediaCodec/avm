@@ -129,11 +129,12 @@ class AV1ExtTileTest
           decoder_->Control(AV1_SET_DECODE_TILE_COL, c);
         }
 
-        const aom_image_t *img;
 #if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+        const aom_image_t *img = NULL;
         if (pkt->kind == AOM_CODEC_CX_FRAME_PKT ||
             pkt->kind == AOM_CODEC_CX_FRAME_NULL_PKT) {
 #else   // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+        const aom_image_t *img;
         if (pkt->kind == AOM_CODEC_CX_FRAME_PKT) {
 #endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
           const aom_codec_err_t res = decoder_->DecodeFrame(
