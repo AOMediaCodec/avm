@@ -6033,7 +6033,7 @@ static AOM_INLINE void write_multi_frame_header(
   if (mfh_param->mfh_frame_size_present_flag ||
       mfh_param->mfh_tile_info_present_flag) {
 #else
-    if (mfh_param->mfh_frame_size_present_flag) {
+  if (mfh_param->mfh_frame_size_present_flag) {
 #endif  // CONFIG_MFH_SIGNAL_TILE_INFO
     const int coded_width = mfh_param->mfh_frame_width;
     const int coded_height = mfh_param->mfh_frame_height;
