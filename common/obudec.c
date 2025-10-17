@@ -118,6 +118,9 @@ static int peek_obu_from_file(FILE *f, size_t obu_header_size, uint8_t *buffer,
     return -1;
   }
 #if CONFIG_F160_TD && CONFIG_F106_OBU_TILEGROUP
+  // TODO(any): The `if` and `else if` conditions below combined are same
+  // as the condition used in 2 places with TODOs below. Need to refactor
+  // after macros are cleaned up.
   if (obu_header->type == OBU_TILE_GROUP || obu_header->type == OBU_SWITCH
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
       || obu_header->type == OBU_RAS_FRAME
@@ -262,6 +265,9 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
                                           ? ((first_tile_group_byte >> 7) & 1u)
                                           : first_tile_group_byte;
 #endif  // CONFIG_F106_OBU_TILEGROUP
+      // TODO(any): OBU header type condition is almost same as
+      // `is_coded_frame`, except `type == OBU_BRIDGE_FRAME` condition. Need to
+      // refactor after macros are cleaned up.
       decoding_unit_token =
           ((vcl_obu_count > 0 &&
             (obu_header.type == OBU_TILE_GROUP || obu_header.type == OBU_SEF ||
@@ -289,6 +295,9 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
       if (obu_header.type == OBU_TEMPORAL_DELIMITER) first_td = 0;
 #if CONFIG_F160_TD
 #if CONFIG_F106_OBU_TILEGROUP
+      // TODO(any): This condition is almost same as `is_coded_frame`, except
+      // `type == OBU_BRIDGE_FRAME` condition. Need to refactor after macros
+      // are cleaned up.
       if (obu_header.type == OBU_TILE_GROUP || obu_header.type == OBU_SEF ||
           obu_header.type == OBU_TIP || obu_header.type == OBU_SWITCH
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
