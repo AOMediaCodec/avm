@@ -118,7 +118,11 @@ static int peek_obu_from_file(FILE *f, size_t obu_header_size, uint8_t *buffer,
     return -1;
   }
 #if CONFIG_F160_TD && CONFIG_F106_OBU_TILEGROUP
-  if (obu_header->type == OBU_TILE_GROUP) {
+  if (obu_header->type == OBU_TILE_GROUP || obu_header->type == OBU_SWITCH
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+      || obu_header->type == OBU_RAS_FRAME
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+  ) {
 #if CONFIG_OPT_TD_BUGFIX
     int actual_obu_header_size = 1;
     if (obu_header->obu_extension_flag) {
@@ -130,11 +134,7 @@ static int peek_obu_from_file(FILE *f, size_t obu_header_size, uint8_t *buffer,
 #endif  // CONFIG_OPT_TD_BUGFIX
   }
 #if CONFIG_OPT_TD_BUGFIX
-  else if (obu_header->type == OBU_TIP || obu_header->type == OBU_SEF ||
-           obu_header->type == OBU_SWITCH
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-           || obu_header->type == OBU_RAS_FRAME
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+  else if (obu_header->type == OBU_TIP || obu_header->type == OBU_SEF
 #if CONFIG_CWG_F317
            || obu_header->type == OBU_BRIDGE_FRAME
 #endif  // CONFIG_CWG_F317
@@ -285,9 +285,6 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
              || obu_header.type == OBU_RAS_FRAME
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-#if CONFIG_CWG_F317
-             || obu_header.type == OBU_BRIDGE_FRAME
-#endif  // CONFIG_CWG_F317
              )
 #else
             obu_header.type == OBU_TILE_GROUP
@@ -316,9 +313,6 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
           || obu_header.type == OBU_RAS_FRAME
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-#if CONFIG_CWG_F317
-          || obu_header.type == OBU_BRIDGE_FRAME
-#endif  // CONFIG_CWG_F317
       )
 #else
       if (obu_header.type == OBU_FRAME || obu_header.type == OBU_FRAME_HEADER ||
