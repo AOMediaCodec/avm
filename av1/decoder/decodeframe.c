@@ -10285,6 +10285,9 @@ int32_t av1_read_tilegroup_header(
 #if CONFIG_F106_OBU_TIP
   send_first_tile_group_indication &= obu_type != OBU_TIP;
 #endif  // CONFIG_F106_OBU_TIP
+#if CONFIG_CWG_F317
+  send_first_tile_group_indication &= obu_type != OBU_BRIDGE_FRAME;
+#endif  // CONFIG_CWG_F317
   if (send_first_tile_group_indication)
     is_first_tile_group = aom_rb_read_bit(rb);
   *first_tile_group_in_frame = is_first_tile_group;

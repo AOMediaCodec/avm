@@ -7985,7 +7985,9 @@ static uint32_t write_tilegroup_header(AV1_COMP *cpi,
 #if CONFIG_F106_OBU_TIP
   send_first_tile_group_indication &= obu_type != OBU_TIP;
 #endif  // CONFIG_F106_OBU_TIP
-
+#if CONFIG_CWG_F317
+  send_first_tile_group_indication &= obu_type != OBU_BRIDGE_FRAME;
+#endif  // CONFIG_CWG_F317
   if (send_first_tile_group_indication)
     aom_wb_write_bit(&wb, first_tile_group_in_frame);
 
