@@ -123,10 +123,7 @@ static int peek_obu_from_file(FILE *f, size_t obu_header_size, uint8_t *buffer,
       || obu_header->type == OBU_RAS_FRAME
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   ) {
-    int actual_obu_header_size = 1;
-    if (obu_header->obu_extension_flag) {
-      actual_obu_header_size = 2;
-    }
+    const int actual_obu_header_size = obu_header->obu_extension_flag ? 2 : 1;
     *first_tile_group = buffer[actual_obu_header_size];
   } else if (obu_header->type == OBU_TIP || obu_header->type == OBU_SEF
 #if CONFIG_CWG_F317
