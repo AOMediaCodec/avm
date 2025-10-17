@@ -683,7 +683,7 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
 
   int dst_stride = dst_buf->stride;
   if (plane == 0 && !is_tip_mv_refine_disabled_for_unit_size_16x16 &&
-      is_any_mv_refinement_allowed(cm) && is_compound &&
+      is_any_mv_refinement_allowed_in_tip(cm) && is_compound &&
       tip_weight == TIP_EQUAL_WTD && (do_opfl || apply_refinemv)) {
     if (bw != unit_bw || bh != unit_bh) {
       for (int h = 0; h < bh; h += unit_bh) {

@@ -770,7 +770,8 @@ static INLINE int is_refinemv_allowed(const AV1_COMMON *const cm,
 }
 
 // check if any mv refinement mode is allowed at frame level
-static INLINE int is_any_mv_refinement_allowed(const AV1_COMMON *const cm) {
+static INLINE int is_any_mv_refinement_allowed_in_tip(
+    const AV1_COMMON *const cm) {
   if (!cm->has_both_sides_refs) return 0;
 
 #if CONFIG_FIX_OPFL_AUTO
@@ -781,6 +782,8 @@ static INLINE int is_any_mv_refinement_allowed(const AV1_COMMON *const cm) {
   if (!cm->seq_params.enable_opfl_refine && !cm->seq_params.enable_refinemv)
     return 0;
 #endif  // CONFIG_FIX_OPFL_AUTO
+
+  if (!cm->seq_params.enable_tip_refinemv) return 0;
 
   const int tip_wtd_index = cm->tip_global_wtd_index;
   const int8_t tip_weight = tip_weighting_factors[tip_wtd_index];
@@ -810,7 +813,7 @@ static INLINE void set_tip_interp_weight_factor(
     const AV1_COMMON *const cm, const int ref_index,
     InterPredParams *const inter_pred_params) {
   if (ref_index == 1 && inter_pred_params->conv_params.do_average == 1 &&
-      !is_any_mv_refinement_allowed(cm)) {
+      !is_any_mv_refinement_allowed_in_tip(cm)) {
     const int tip_wtd_index = cm->tip_global_wtd_index;
     const int8_t tip_weight = tip_weighting_factors[tip_wtd_index];
     assert(tip_wtd_index >= 0 && tip_wtd_index < MAX_TIP_WTD_NUM);
@@ -863,6 +866,17 @@ static INLINE int switchable_refinemv_flag(const AV1_COMMON *const cm,
   }
 
   return 0;
+}
+
+// Check if refined MV needs to be stored in the TMVP list.
+static INLINE int enable_refined_mvs_in_tmvp(const AV1_COMMON *cm,
+                                             const MACROBLOCKD *xd,
+                                             const MB_MODE_INFO *mbmi) {
+  return (
+      opfl_allowed_cur_pred_mode(cm, xd, mbmi) ||
+      (mbmi->refinemv_flag && mbmi->interinter_comp.type == COMPOUND_AVERAGE) ||
+      (is_tip_ref_frame(mbmi->ref_frame[0]) &&
+       is_any_mv_refinement_allowed_in_tip(cm)));
 }
 
 // This function conduct the SAD search between two predictors and find the best
