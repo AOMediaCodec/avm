@@ -5516,7 +5516,9 @@ static INLINE int opfl_allowed_cur_refs_bsize(const AV1_COMMON *cm,
     return 0;
 
   if (!has_second_ref(mbmi) && !is_tip_ref_frame(mbmi->ref_frame[0])) return 0;
-
+#if CONFIG_F323_ERROR_RESILIENT_FIX
+  if (frame_is_sframe(cm)) return 0;
+#endif // CONFIG_F323_ERROR_RESILIENT_FIX
   const unsigned int cur_index = cm->cur_frame->display_order_hint;
   int d0, d1;
   if (mbmi->ref_frame[0] == TIP_FRAME) {

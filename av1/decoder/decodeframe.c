@@ -8081,7 +8081,13 @@ static AOM_INLINE void read_global_motion(AV1_COMMON *cm,
     return;
   }
 
-  int our_ref = aom_rb_read_primitive_quniform(rb, num_total_refs + 1);
+#if CONFIG_F323_ERROR_RESILIENT_FIX
+  int our_ref = num_total_refs;
+  if (!frame_is_sframe(cm))
+#else
+  int
+#endif  // CONFIG_F323_ERROR_RESILIENT_FIX
+    our_ref = aom_rb_read_primitive_quniform(rb, num_total_refs + 1);
   if (our_ref == num_total_refs) {
     // Special case: Use IDENTITY model
     cm->base_global_motion_model = default_warp_params;

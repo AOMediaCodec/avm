@@ -6422,7 +6422,11 @@ static AOM_INLINE void write_global_motion(AV1_COMP *cpi,
 
   int our_ref = cpi->gm_info.base_model_our_ref;
   int their_ref = cpi->gm_info.base_model_their_ref;
-  aom_wb_write_primitive_quniform(wb, num_total_refs + 1, our_ref);
+#if CONFIG_F323_ERROR_RESILIENT_FIX
+  assert(IMPLIES(frame_is_sframe(cm), our_ref == num_total_refs));
+  if (frame_is_sframe(cm))
+#endif  // CONFIG_F323_ERROR_RESILIENT_FIX
+    aom_wb_write_primitive_quniform(wb, num_total_refs + 1, our_ref);
   if (our_ref >= num_total_refs) {
     // Special case: Use IDENTITY model
     // Nothing more to code
