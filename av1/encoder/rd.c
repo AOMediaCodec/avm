@@ -1090,7 +1090,6 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
                                  2, NULL);
       for (int gr = 0; gr < DC_SIGN_GROUPS; ++gr) {
         for (int ctx = 0; ctx < DC_SIGN_CONTEXTS; ++ctx) {
-#if CONFIG_CTX_BYPASS_CB_DC_SIGN
           if (plane == PLANE_TYPE_Y) {
             av1_cost_tokens_from_cdf(pcost->dc_sign_cost[gr][ctx],
                                      fc->dc_sign_cdf[plane][gr][ctx], 2, NULL);
@@ -1098,10 +1097,6 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
             pcost->dc_sign_cost[gr][ctx][0] = av1_cost_literal(1);
             pcost->dc_sign_cost[gr][ctx][1] = av1_cost_literal(1);
           }
-#else
-          av1_cost_tokens_from_cdf(pcost->dc_sign_cost[gr][ctx],
-                                   fc->dc_sign_cdf[plane][gr][ctx], NULL);
-#endif  // CONFIG_CTX_BYPASS_CB_DC_SIGN
         }
       }
       if (plane == PLANE_TYPE_UV) {

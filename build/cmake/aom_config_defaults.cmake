@@ -151,10 +151,6 @@ set_aom_config_var(CONFIG_PARAKIT_COLLECT_DATA 0
 
 set_aom_config_var(CONFIG_EXT_FRAME_BUFFER_POOL 1 "Buffer pool extension.")
 
-# FG8 context simplification tests
-set_aom_config_var(CONFIG_CTX_BYPASS_CB_DC_SIGN 1
-                   "bypass coding FG8-Test8-chroma-only")
-
 # AV2 experiment flags.
 set_aom_config_var(
   CONFIG_F106_OBU_TILEGROUP 1
