@@ -2157,18 +2157,18 @@ static int av1_adjust_mvs_for_derive_sign(const AV1_COMP *const cpi,
 static int prune_motion_mode(int64_t this_model_rd,
                              int64_t top_motion_mode_model_rd[]) {
   const double thresh_top = 1.00;
-  for (int i = 0; i < MAXIMUM_NUM_OF_TX_MODES; i++) {
+  for (int i = 0; i < TOP_MOTION_MODE_MODEL_COUNT; i++) {
     if (this_model_rd < top_motion_mode_model_rd[i]) {
-      for (int j = MAXIMUM_NUM_OF_TX_MODES - 1; j > i; j--) {
+      for (int j = TOP_MOTION_MODE_MODEL_COUNT - 1; j > i; j--) {
         top_motion_mode_model_rd[j] = top_motion_mode_model_rd[j - 1];
       }
       top_motion_mode_model_rd[i] = this_model_rd;
       break;
     }
   }
-  if (top_motion_mode_model_rd[MAXIMUM_NUM_OF_TX_MODES - 1] != INT64_MAX &&
+  if (top_motion_mode_model_rd[TOP_MOTION_MODE_MODEL_COUNT - 1] != INT64_MAX &&
       this_model_rd >
-          thresh_top * top_motion_mode_model_rd[MAXIMUM_NUM_OF_TX_MODES - 1])
+          thresh_top * top_motion_mode_model_rd[TOP_MOTION_MODE_MODEL_COUNT - 1])
     return 1;
 
   return 0;
@@ -4763,10 +4763,10 @@ static int64_t handle_inter_mode(
   }
 
 #if !CONFIG_FAST_INTER_RDO
-  int64_t top_motion_mode_model_rd[MAXIMUM_NUM_OF_TX_MODES];
+  int64_t top_motion_mode_model_rd[TOP_MOTION_MODE_MODEL_COUNT];
   uint8_t enable_tx_prune = do_tx_search;
   if (enable_tx_prune) {
-    for (int k = 0; k < MAXIMUM_NUM_OF_TX_MODES; k++) {
+    for (int k = 0; k < TOP_MOTION_MODE_MODEL_COUNT; k++) {
       top_motion_mode_model_rd[k] = INT64_MAX;
     }
   }
@@ -8666,10 +8666,10 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   // frames.
   for (PREDICTION_MODE this_mode = 0; this_mode < MB_MODE_COUNT; ++this_mode) {
 #if CONFIG_FAST_INTER_RDO
-    int64_t top_motion_mode_model_rd[MAXIMUM_NUM_OF_TX_MODES];
+    int64_t top_motion_mode_model_rd[TOP_MOTION_MODE_MODEL_COUNT];
     uint8_t enable_tx_prune = do_tx_search;
     if (enable_tx_prune) {
-      for (int k = 0; k < MAXIMUM_NUM_OF_TX_MODES; k++) {
+      for (int k = 0; k < TOP_MOTION_MODE_MODEL_COUNT; k++) {
         top_motion_mode_model_rd[k] = INT64_MAX;
       }
     }
