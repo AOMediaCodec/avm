@@ -1405,17 +1405,24 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
     const int16_t mode_ctx =
         av1_mode_context_analyzer(mbmi_ext->mode_context, mbmi->ref_frame);
     if (has_second_ref(mbmi)) {
+      const int comp_mode_idx = opfl_get_comp_idx(mode);
       if (cm->features.opfl_refine_type == REFINE_SWITCHABLE &&
           opfl_allowed_cur_refs_bsize(cm, xd, mbmi)) {
         const int use_optical_flow = mode >= NEAR_NEARMV_OPTFLOW;
+        const int allow_translational_refinement =
+            is_translational_refinement_allowed(
+                cm, mbmi->sb_type[xd->tree_type == CHROMA_PART], xd,
+                comp_idx_to_opfl_mode[comp_mode_idx]);
+        if (allow_translational_refinement) {
+          const int opfl_ctx =
+              get_optflow_context(comp_idx_to_opfl_mode[comp_mode_idx]);
 #if CONFIG_ENTROPY_STATS
-        ++counts->use_optflow[mode_ctx][use_optical_flow];
+          ++counts->use_optflow[opfl_ctx][use_optical_flow];
 #endif
-        const int opfl_ctx =
-            get_optflow_context(comp_idx_to_opfl_mode[opfl_get_comp_idx(mode)]);
-        update_cdf(fc->use_optflow_cdf[opfl_ctx], use_optical_flow, 2);
+          update_cdf(fc->use_optflow_cdf[opfl_ctx], use_optical_flow, 2);
+        }
       }
-      const int comp_mode_idx = opfl_get_comp_idx(mode);
+
       if (is_new_nearmv_pred_mode_disallowed(mbmi)) {
         const int signal_mode_idx =
             comp_mode_idx_to_mode_signal_idx[comp_mode_idx];
