@@ -368,23 +368,11 @@ static int get_mid_cost_lf(tran_low_t abs_qc, int coeff_ctx,
                            const LV_MAP_COEFF_COST *txb_costs, int plane) {
   int cost = 0;
   int mid_ctx = coeff_ctx >> 4;
-#if 1
   assert(plane == 0);
   (void)plane;
   if (abs_qc > LF_NUM_BASE_LEVELS) {
     cost += get_br_lf_cost_tcq(abs_qc, txb_costs->lps_lf_cost[mid_ctx]);
   }
-#else
-  if (plane > 0) {
-    if (abs_qc > LF_NUM_BASE_LEVELS) {
-      cost += get_br_lf_cost_tcq(abs_qc, txb_costs->lps_lf_cost_uv[mid_ctx]);
-    }
-  } else {
-    if (abs_qc > LF_NUM_BASE_LEVELS) {
-      cost += get_br_lf_cost_tcq(abs_qc, txb_costs->lps_lf_cost[mid_ctx]);
-    }
-  }
-#endif
   return cost;
 }
 
@@ -904,16 +892,7 @@ void av1_get_rate_dist_lf_chroma_avx2(const struct LV_MAP_COEFF_COST *txb_costs,
   _mm_storeu_si64(&rd->rate_eob[0], rate_eob);
 
   // Chroma LF region consists of only DC coeffs.
-#if 1
   const int is_dc_coeff = 1;
-#else
-  const int row = blk_pos >> bwl;
-  const int col = blk_pos - (row << bwl);
-  const bool dc_2dtx = (blk_pos == 0);
-  const bool dc_hor = (col == 0) && tx_class == TX_CLASS_HORIZ;
-  const bool dc_ver = (row == 0) && tx_class == TX_CLASS_VERT;
-  const bool is_dc_coeff = dc_2dtx || dc_hor || dc_ver;
-#endif
   if (is_dc_coeff) {
     for (int i = 0; i < TCQ_N_STATES; i++) {
       int a0 = i & 2 ? 1 : 0;
@@ -1191,14 +1170,10 @@ int av1_find_best_path_avx2(const struct tcq_node_t *trellis,
       dqc = _mm_sub_epi32(dqc, sign);
       __m128i lev = _mm_xor_si128(abs_lev, sign);
       lev = _mm_sub_epi32(lev, sign);
-#if 1
+
       // Older compilers don't implement _mm_storeu_si32()
       _mm_store_ss((float *)&qcoeff[blk_pos], _mm_castsi128_ps(lev));
       _mm_store_ss((float *)&dqcoeff[blk_pos], _mm_castsi128_ps(dqc));
-#else
-      _mm_storeu_si32(&qcoeff[blk_pos], lev);
-      _mm_storeu_si32(&dqcoeff[blk_pos], dqc);
-#endif
       dqv = dqv_ac;
       __m128i prevId = _mm_srai_epi32(info, 24);
       prev_id = _mm_extract_epi32(prevId, 0);

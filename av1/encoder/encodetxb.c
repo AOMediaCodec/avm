@@ -1232,23 +1232,7 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
         }
       } else {
         int limits = get_lf_limits(row, col, tx_class, plane);
-#if 0 /* fix write_high_range() */
-        if (limits) {
-          if (level > COEFF_BASE_RANGE + LF_NUM_BASE_LEVELS) {
-            int hr_level = level - COEFF_BASE_RANGE - 1 - LF_NUM_BASE_LEVELS;
-            write_adaptive_hr(w, hr_level, hr_level_avg);
-            hr_level_avg = (hr_level_avg + hr_level) >> 1;
-          }
-        } else {
-          if (level > COEFF_BASE_RANGE + NUM_BASE_LEVELS) {
-            int hr_level = level - COEFF_BASE_RANGE - 1 - NUM_BASE_LEVELS;
-            write_adaptive_hr(w, hr_level, hr_level_avg);
-            hr_level_avg = (hr_level_avg + hr_level) >> 1;
-          }
-        }
-#else
         write_high_range(w, tcq_mode, level, limits, &hr_level_avg, plane);
-#endif
       }
     }
   }
