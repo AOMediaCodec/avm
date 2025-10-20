@@ -2168,7 +2168,8 @@ static int prune_motion_mode(int64_t this_model_rd,
   }
   if (top_motion_mode_model_rd[TOP_MOTION_MODE_MODEL_COUNT - 1] != INT64_MAX &&
       this_model_rd >
-          thresh_top * top_motion_mode_model_rd[TOP_MOTION_MODE_MODEL_COUNT - 1])
+          thresh_top *
+              top_motion_mode_model_rd[TOP_MOTION_MODE_MODEL_COUNT - 1])
     return 1;
 
   return 0;
