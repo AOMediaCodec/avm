@@ -3237,7 +3237,6 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
 
   if (use_optflow_refinement && plane) {
     // Optical flow refined luma MVs are reused for chroma
-    assert(sb_rows <= 2 && sb_cols <= 2);
     for (int i = 0; i < sb_rows; i++) {
       for (int j = 0; j < sb_cols; j++) {
         int mvidx = opfl_sb_idx + i * opfl_mv_stride + j;
