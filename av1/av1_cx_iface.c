@@ -3302,6 +3302,9 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
     unsigned int lib_flags = 0;
     int is_frame_visible = 0;
     int is_frame_visible_null = 0;
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+    int is_showable_frame = 0;
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
     int index_size = 0;
     int has_no_show_keyframe = 0;
     int num_workers = 0;
@@ -3345,7 +3348,12 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       }
     }
     while (cx_data_sz - index_size >= ctx->cx_data_sz / 2 &&
-           !is_frame_visible) {
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+           (!is_frame_visible || is_showable_frame)
+#else   // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+           !is_frame_visible
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+    ) {
       uint64_t cx_time = 0;
       aom_usec_timer_start(&timer);
 
@@ -3360,7 +3368,16 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       }
 
       cpi->seq_params_locked = 1;
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+      is_frame_visible = cpi->common.show_frame || cpi->common.showable_frame;
+#else   // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
       is_frame_visible = cpi->common.show_frame;
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+      is_showable_frame = !cpi->common.show_frame &&
+                          !cpi->common.show_existing_frame &&
+                          cpi->common.showable_frame;
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
       if (cpi->oxcf.ref_frm_cfg.enable_frame_output_order) {
 #endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
@@ -3512,16 +3529,34 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
         }
 #endif  // CONFIG_MIXED_LOSSLESS_ENCODE
       }
+#if !CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
     }
+#endif  // !CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
     if (is_frame_visible) {
       // Add the frame packet to the list of returned packets.
       aom_codec_cx_pkt_t pkt;
 
       // decrement frames_left counter
-      cpi->frames_left = AOMMAX(0, cpi->frames_left - 1);
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+      int64_t frame_duration = dst_end_time_stamp - dst_time_stamp;
+      if (!is_frame_visible_null) {
+        cpi->frames_left = AOMMAX(0, cpi->frames_left - 1);
+        dst_time_stamp = timebase_units_to_ticks(
+            timestamp_ratio, cpi->coded_visible_frame_counter);
+        ++cpi->coded_visible_frame_counter;
+      }
+#else   // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+        cpi->frames_left = AOMMAX(0, cpi->frames_left - 1);
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
 
-      pkt.kind = is_frame_visible_null ? AOM_CODEC_CX_FRAME_NULL_PKT
-                                       : AOM_CODEC_CX_FRAME_PKT;
+      pkt.kind = is_frame_visible_null
+                     ? AOM_CODEC_CX_FRAME_NULL_PKT
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+                     : (is_showable_frame ? AOM_CODEC_CX_SHOWABLE_FRAME_PKT
+                                          : AOM_CODEC_CX_FRAME_PKT);
+#else   // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+                       : AOM_CODEC_CX_FRAME_PKT;
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
       pkt.data.frame.buf = ctx->pending_cx_data;
       pkt.data.frame.sz = ctx->pending_cx_data_sz;
       pkt.data.frame.partition_id = -1;
@@ -3537,7 +3572,11 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
         pkt.data.frame.flags |= AOM_FRAME_IS_DELAYED_RANDOM_ACCESS_POINT;
       }
       pkt.data.frame.duration = (uint32_t)ticks_to_timebase_units(
-          timestamp_ratio, dst_end_time_stamp - dst_time_stamp);
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+          timestamp_ratio, frame_duration);
+#else   // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+            timestamp_ratio, dst_end_time_stamp - dst_time_stamp);
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
 
       aom_codec_pkt_list_add(&ctx->pkt_list.head, &pkt);
 
@@ -3545,10 +3584,13 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       ctx->pending_cx_data_sz = 0;
       ctx->pending_frame_count = 0;
     }
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
   }
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+}
 
-  cpi->common.error.setjmp = 0;
-  return res;
+cpi->common.error.setjmp = 0;
+return res;
 }
 
 static const aom_codec_cx_pkt_t *encoder_get_cxdata(aom_codec_alg_priv_t *ctx,
@@ -3850,7 +3892,7 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                  "The size of the err_msg buffer for arg_match_helper must be "
                  "at least ARG_ERR_MSG_MAX_LEN");
 #else
-  assert(sizeof(ctx->cpi->common.error.detail) >= ARG_ERR_MSG_MAX_LEN);
+    assert(sizeof(ctx->cpi->common.error.detail) >= ARG_ERR_MSG_MAX_LEN);
 #endif
 
   argv[0] = aom_malloc(len * sizeof(argv[1][0]));

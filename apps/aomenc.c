@@ -1962,6 +1962,41 @@ static void get_cx_data(struct stream_state *stream,
 #endif
         break;
 
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+      case AOM_CODEC_CX_SHOWABLE_FRAME_PKT:
+        update_rate_histogram(stream->rate_hist, cfg, pkt);
+#if CONFIG_WEBM_IO
+        if (stream->config.write_webm) {
+          if (write_webm_block(&stream->webm_ctx, cfg, pkt) != 0) {
+            fatal("WebM writer failed.");
+          }
+        }
+#endif
+        if (!stream->config.write_webm) {
+          if (stream->config.write_ivf) {
+            if (pkt->data.frame.partition_id <= 0) {
+              ivf_header_pos = ftello(stream->file);
+              fsize = pkt->data.frame.sz;
+
+              ivf_write_frame_header(stream->file, pkt->data.frame.pts, fsize);
+            } else {
+              fsize += pkt->data.frame.sz;
+
+              const FileOffset currpos = ftello(stream->file);
+              fseeko(stream->file, ivf_header_pos, SEEK_SET);
+              ivf_write_frame_size(stream->file, fsize);
+              fseeko(stream->file, currpos, SEEK_SET);
+            }
+          }
+
+          (void)fwrite(pkt->data.frame.buf, 1, pkt->data.frame.sz,
+                       stream->file);
+        }
+        stream->nbytes += pkt->data.raw.sz;
+        *got_data = 2;
+        break;
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+
       case AOM_CODEC_CX_FRAME_PKT:
         ++stream->frames_out;
         update_rate_histogram(stream->rate_hist, cfg, pkt);
@@ -2439,8 +2474,16 @@ int main(int argc, const char **argv_) {
     // The limit iterator will stop returning frames after the N-th.
     StreamIter limit_stream;
     limit_stream_iter_init(&limit_stream, &step_stream, global.limit);
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+    while (frame_avail || got_data > 0) {
+      frame_avail = 0;
+      if (got_data < 2) {
+        frame_avail = read_stream_iter(&limit_stream, &raw);
+      }
+#else   // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
     while (frame_avail || got_data) {
       frame_avail = read_stream_iter(&limit_stream, &raw);
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
       if (frame_avail) {
         seen_frames++;
       }
@@ -2472,12 +2515,20 @@ int main(int argc, const char **argv_) {
       FOREACH_STREAM(stream, streams) {
         get_cx_data(stream, &global, &got_data);
       }
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+      if (got_data == 1 && recon_file != NULL) {
+#else   // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
       if (got_data && recon_file != NULL) {
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
         FOREACH_STREAM(stream, streams) {
           write_recon_file(stream, recon_file);
         }
       }
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+      if (got_data == 1 && global.test_decode != TEST_DECODE_OFF) {
+#else   // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
       if (got_data && global.test_decode != TEST_DECODE_OFF) {
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
         FOREACH_STREAM(stream, streams) {
           test_decode(stream, global.test_decode);
         }

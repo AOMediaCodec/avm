@@ -119,6 +119,9 @@ class ArfFreqTestLarge
                             ::libaom_test::DxDataIterator *dec_iter) {
     (void)dec_iter;
     if (pkt->kind != AOM_CODEC_CX_FRAME_PKT &&
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+        pkt->kind != AOM_CODEC_CX_SHOWABLE_FRAME_PKT &&
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
         pkt->kind != AOM_CODEC_CX_FRAME_NULL_PKT)
       return;
     const int frames = GetNumFramesInPkt(pkt);

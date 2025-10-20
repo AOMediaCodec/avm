@@ -75,20 +75,34 @@ class AV1DecodeMultiThreadedTest
   void UpdateMD5(::libaom_test::Decoder *dec, const aom_codec_cx_pkt_t *pkt,
                  ::libaom_test::MD5 *md5,
                  ::libaom_test::DxDataIterator *dec_iter) {
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+    const aom_image_t *img = NULL;
+    if (pkt->kind == AOM_CODEC_CX_FRAME_PKT ||
+        pkt->kind == AOM_CODEC_CX_SHOWABLE_FRAME_PKT) {
+#else   // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
     const aom_image_t *img;
     if (pkt->kind == AOM_CODEC_CX_FRAME_PKT) {
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
       const aom_codec_err_t res = dec->DecodeFrame(
           reinterpret_cast<uint8_t *>(pkt->data.frame.buf), pkt->data.frame.sz);
       if (res != AOM_CODEC_OK) {
         abort_ = true;
         ASSERT_EQ(AOM_CODEC_OK, res);
       }
-      img = dec->GetDxData().Next();
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+      if (pkt->kind == AOM_CODEC_CX_FRAME_PKT)
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+        img = dec->GetDxData().Next();
     } else {
       assert(dec_iter != NULL);
       img = dec_iter->Peek();
     }
-    md5->Add(img);
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+    if ((pkt->kind == AOM_CODEC_CX_FRAME_PKT ||
+         pkt->kind == AOM_CODEC_CX_FRAME_NULL_PKT) &&
+        img != NULL)
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+      md5->Add(img);
   }
 
   virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt,

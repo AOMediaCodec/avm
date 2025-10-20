@@ -74,6 +74,9 @@ static void write_ivf_frame_header(const aom_codec_cx_pkt_t *const pkt,
   aom_codec_pts_t pts;
 
   if (pkt->kind != AOM_CODEC_CX_FRAME_PKT &&
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+      pkt->kind != AOM_CODEC_CX_SHOWABLE_FRAME_PKT &&
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
       pkt->kind != AOM_CODEC_CX_FRAME_NULL_PKT)
     return;
 
@@ -283,7 +286,13 @@ class ResizeInternalTestLarge : public ResizeTest {
                             ::libaom_test::DxDataIterator *dec_iter) {
     (void)dec_iter;
     ++out_frames_;
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+    if (pkt->kind != AOM_CODEC_CX_FRAME_PKT &&
+        pkt->kind != AOM_CODEC_CX_SHOWABLE_FRAME_PKT)
+      return;
+#else   // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
     if (pkt->kind != AOM_CODEC_CX_FRAME_PKT) return;
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
     // Write initial file header if first frame.
     if (pkt->data.frame.pts == 0) write_ivf_file_header(&cfg_, 0, outfile_);
 

@@ -1175,12 +1175,15 @@ void av1_finalize_encoded_frame(AV1_COMP *const cpi) {
 
   if (!cm->seq_params.single_picture_hdr_flag &&
       (encode_show_existing_frame(cm) || cm->show_existing_frame)) {
-    RefCntBuffer *const frame_to_show =
+    RefCntBuffer *frame_to_show =
         cm->ref_frame_map[cpi->existing_fb_idx_to_show];
-
     if (frame_to_show == NULL) {
-      aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-                         "Buffer does not contain a reconstructed frame");
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+      frame_to_show = cm->ref_frame_map[0];
+      if (frame_to_show == NULL)
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+        aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+                           "Buffer does not contain a reconstructed frame");
     }
     assign_frame_buffer_p(&cm->cur_frame, frame_to_show);
   }

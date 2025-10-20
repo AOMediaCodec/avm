@@ -175,7 +175,12 @@ const aom_codec_cx_pkt_t *aom_codec_get_cx_data(aom_codec_ctx_t *ctx,
       pkt = ctx->iface->enc.get_cx_data(get_alg_priv(ctx), iter);
   }
 
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+  if (pkt && (pkt->kind == AOM_CODEC_CX_FRAME_PKT ||
+              pkt->kind == AOM_CODEC_CX_SHOWABLE_FRAME_PKT)) {
+#else   // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
   if (pkt && pkt->kind == AOM_CODEC_CX_FRAME_PKT) {
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
     // If the application has specified a destination area for the
     // compressed data, and the codec has not placed the data there,
     // and it fits, copy it.

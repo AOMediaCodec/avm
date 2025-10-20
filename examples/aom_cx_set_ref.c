@@ -165,6 +165,31 @@ static int encode_frame(aom_codec_ctx_t *ecodec, aom_image_t *img,
           if (aom_codec_control(dcodec, AV1_COPY_NEW_FRAME_IMAGE, ext_ref))
             die_codec(dcodec, "Failed to get decoder new frame");
       }
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+    } else if (pkt->kind == AOM_CODEC_CX_SHOWABLE_FRAME_PKT) {
+      const int keyframe = (pkt->data.frame.flags & AOM_FRAME_IS_KEY) != 0;
+
+      if (!aom_video_writer_write_frame(writer, pkt->data.frame.buf,
+                                        pkt->data.frame.sz,
+                                        pkt->data.frame.pts)) {
+        die_codec(ecodec, "Failed to write compressed frame");
+      }
+      printf(keyframe ? "K" : ".");
+      fflush(stdout);
+      got_data = 2;
+
+      // Decode 1 frame.
+      if (test_decode) {
+        if (aom_codec_decode(dcodec, pkt->data.frame.buf,
+                             (unsigned int)pkt->data.frame.sz, NULL))
+          die_codec(dcodec, "Failed to decode frame.");
+
+        // Copy out first decoded frame, and use it as reference later.
+        if (*frame_out == 1 && ext_ref != NULL)
+          if (aom_codec_control(dcodec, AV1_COPY_NEW_FRAME_IMAGE, ext_ref))
+            die_codec(dcodec, "Failed to get decoder new frame");
+      }
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
     } else if (pkt->kind == AOM_CODEC_CX_FRAME_NULL_PKT) {
       const int keyframe = (pkt->data.frame.flags & AOM_FRAME_IS_KEY) != 0;
 
@@ -187,7 +212,11 @@ static int encode_frame(aom_codec_ctx_t *ecodec, aom_image_t *img,
   }
 
   // Mismatch checking
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+  if (got_data == 1 && test_decode) {
+#else   // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
   if (got_data && test_decode) {
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
     testing_decode(ecodec, dcodec, *frame_out, mismatch_seen);
   }
 

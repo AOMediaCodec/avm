@@ -100,7 +100,10 @@ enum aom_codec_cx_pkt_kind {
   AOM_CODEC_FPMB_STATS_PKT,    /**< first pass mb statistics for this frame */
   AOM_CODEC_PSNR_PKT,          /**< PSNR statistics for this frame */
   AOM_CODEC_CX_FRAME_NULL_PKT, /**< Null show-existing frame */
-  AOM_CODEC_CUSTOM_PKT = 256   /**< Algorithm extensions  */
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+  AOM_CODEC_CX_SHOWABLE_FRAME_PKT, /**< showable frame */
+#endif                             // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+  AOM_CODEC_CUSTOM_PKT = 256       /**< Algorithm extensions  */
 };
 
 /*!\brief Encoder output packet
