@@ -5614,10 +5614,11 @@ void write_sequence_inter_group_tool_flags(
 
   aom_wb_write_bit(wb, seq_params->enable_flex_mvres);
 
-  aom_wb_write_bit(wb, seq_params->enable_global_motion);
+  if (!seq_params->single_picture_hdr_flag)
+    aom_wb_write_bit(wb, seq_params->enable_global_motion);
 
   aom_wb_write_bit(wb, seq_params->enable_short_refresh_frame_flags);
-}  // intergroup
+}
 
 void write_sequence_filter_group_tool_flags(
     const SequenceHeader *const seq_params, struct aom_write_bit_buffer *wb) {
@@ -5728,7 +5729,7 @@ static AOM_INLINE void write_sequence_header(
   aom_wb_write_bit(wb, seq_params->enable_intra_edge_filter);
 #endif  // !CONFIG_REORDER_SEQ_FLAGS
   if (!seq_params->single_picture_hdr_flag) {
-#if !CONFIG_REORDER_SEQ_FLAGS  // intergroup
+#if !CONFIG_REORDER_SEQ_FLAGS
     // Encode allowed motion modes
     // Skip SIMPLE_TRANSLATION, as that is always enabled
     int seq_enabled_motion_modes = seq_params->seq_enabled_motion_modes;
@@ -5898,7 +5899,7 @@ static void write_frame_max_bvp_drl_bits(AV1_COMMON *const cm,
 
 static AOM_INLINE void write_sequence_header_beyond_av1(
     const SequenceHeader *const seq_params, struct aom_write_bit_buffer *wb) {
-#if !CONFIG_REORDER_SEQ_FLAGS  // intergroup
+#if !CONFIG_REORDER_SEQ_FLAGS
   aom_wb_write_bit(wb, seq_params->enable_refmvbank);
 
   const int is_drl_reorder_disable =
@@ -5908,7 +5909,7 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
     aom_wb_write_bit(wb,
                      seq_params->enable_drl_reorder == DRL_REORDER_CONSTRAINT);
   }
-#endif  // !CONFIG_REORDER_SEQ_FLAGS // intergroup
+#endif  // !CONFIG_REORDER_SEQ_FLAGS
 
   const int is_cdef_on_skip_txfm_always_on =
       (seq_params->enable_cdef_on_skip_txfm == CDEF_ON_SKIP_TXFM_ALWAYS_ON);

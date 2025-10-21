@@ -6858,7 +6858,9 @@ void read_sequence_inter_group_tool_flags(struct SequenceHeader *seq_params,
 
   seq_params->enable_mvd_sign_derive = aom_rb_read_bit(rb);
   seq_params->enable_flex_mvres = aom_rb_read_bit(rb);
+  if (!seq_params->single_picture_hdr_flag)
   seq_params->enable_global_motion = aom_rb_read_bit(rb);
+
 
   seq_params->enable_short_refresh_frame_flags = aom_rb_read_bit(rb);
 }
@@ -6866,19 +6868,19 @@ void read_sequence_inter_group_tool_flags(struct SequenceHeader *seq_params,
 void read_sequence_filter_group_tool_flags(struct SequenceHeader *seq_params,
                                            struct aom_read_bit_buffer *rb) {
   if (aom_rb_read_bit(rb)) {
-    seq_params->force_screen_content_tools = 2;  // SELECT_SCREEN_CONTENT_TOOLS
+    seq_params->force_screen_content_tools = 2;
   } else {
     seq_params->force_screen_content_tools = aom_rb_read_bit(rb);
   }
 
   if (seq_params->force_screen_content_tools > 0) {
     if (aom_rb_read_bit(rb)) {
-      seq_params->force_integer_mv = 2;  // SELECT_INTEGER_MV
+      seq_params->force_integer_mv = 2;
     } else {
       seq_params->force_integer_mv = aom_rb_read_bit(rb);
     }
   } else {
-    seq_params->force_integer_mv = 2;  // SELECT_INTEGER_MV
+    seq_params->force_integer_mv = 2;
   }
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   seq_params->disable_loopfilters_across_tiles = aom_rb_read_bit(rb);
@@ -6924,7 +6926,7 @@ void read_sequence_filter_group_tool_flags(struct SequenceHeader *seq_params,
     seq_params->enable_uneven_4way_partitions = aom_rb_read_bit(rb);
   else
     seq_params->enable_uneven_4way_partitions = 0;
-}  // filtergroup
+}
 
 void read_sequence_transform_group_tool_flags(struct SequenceHeader *seq_params,
                                               struct aom_read_bit_buffer *rb) {
@@ -7260,7 +7262,7 @@ void av1_read_sequence_header_beyond_av1(
     seq_params->enable_drl_reorder =
         aom_rb_read_bit(rb) ? DRL_REORDER_CONSTRAINT : DRL_REORDER_ALWAYS;
   }
-#endif  // !CONFIG_REORDER_SEQ_FLAGS // intergroup
+#endif  // !CONFIG_REORDER_SEQ_FLAGS
 
   if (aom_rb_read_bit(rb)) {
     seq_params->enable_cdef_on_skip_txfm = CDEF_ON_SKIP_TXFM_ALWAYS_ON;
