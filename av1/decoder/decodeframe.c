@@ -6859,8 +6859,7 @@ void read_sequence_inter_group_tool_flags(struct SequenceHeader *seq_params,
   seq_params->enable_mvd_sign_derive = aom_rb_read_bit(rb);
   seq_params->enable_flex_mvres = aom_rb_read_bit(rb);
   if (!seq_params->single_picture_hdr_flag)
-  seq_params->enable_global_motion = aom_rb_read_bit(rb);
-
+    seq_params->enable_global_motion = aom_rb_read_bit(rb);
 
   seq_params->enable_short_refresh_frame_flags = aom_rb_read_bit(rb);
 }
