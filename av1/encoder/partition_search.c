@@ -781,9 +781,7 @@ static void update_drl_index_stats(int max_drl_bits, const int16_t mode_ctx,
 static void update_intrabc_drl_idx_stats(int max_ref_bv_num,
                                          FRAME_COUNTS *counts,
                                          const MB_MODE_INFO *mbmi) {
-#if !CONFIG_ENTROPY_STATS || CONFIG_BYPASS_INTRABC_DRL_IDX
   (void)counts;
-#endif  // !CONFIG_ENTROPY_STATS || CONFIG_BYPASS_INTRABC_DRL_IDX
   assert(mbmi->intrabc_drl_idx < max_ref_bv_num);
   for (int idx = 0; idx < max_ref_bv_num - 1; ++idx) {
     if (mbmi->intrabc_drl_idx == idx) break;
