@@ -6715,6 +6715,9 @@ void init_single_picture_header_flags(struct SequenceHeader *seq_params) {
   seq_params->enable_opfl_refine = AOM_OPFL_REFINE_NONE;
   seq_params->enable_six_param_warp_delta = 0;
   seq_params->enable_global_motion = 0;
+#if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
+    seq_params->seq_frame_motion_modes_present_flag = 0;
+#endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
 }
 void read_sequence_intra_group_tool_flags(struct SequenceHeader *seq_params,
                                           struct aom_read_bit_buffer *rb) {
@@ -6731,14 +6734,31 @@ void read_sequence_intra_group_tool_flags(struct SequenceHeader *seq_params,
 void read_sequence_inter_group_tool_flags(struct SequenceHeader *seq_params,
                                           struct aom_read_bit_buffer *rb) {
   int seq_enabled_motion_modes = (1 << SIMPLE_TRANSLATION);
+#if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
+    uint8_t motion_mode_enabled = 0;
+    uint8_t warp_delta_enabled = 0;
+#endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
   for (int motion_mode = INTERINTRA; motion_mode < MOTION_MODES;
        motion_mode++) {
     int enabled = aom_rb_read_bit(rb);
+#if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
+      motion_mode_enabled |= enabled;
+      if (motion_mode == WARP_DELTA && enabled) {
+        warp_delta_enabled = 1;
+      }
+#endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
     if (enabled) {
       seq_enabled_motion_modes |= (1 << motion_mode);
     }
   }
+#if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
+    seq_params->seq_frame_motion_modes_present_flag =
+        motion_mode_enabled ? aom_rb_read_bit(rb) : 0;
+    seq_params->enable_six_param_warp_delta =
+        warp_delta_enabled ? aom_rb_read_bit(rb) : 0;
+#else
   seq_params->enable_six_param_warp_delta = aom_rb_read_bit(rb);
+#endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
   seq_params->seq_enabled_motion_modes = seq_enabled_motion_modes;
   seq_params->enable_masked_compound = aom_rb_read_bit(rb);
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
@@ -6767,7 +6787,6 @@ void read_sequence_inter_group_tool_flags(struct SequenceHeader *seq_params,
   seq_params->enable_frame_output_order = aom_rb_read_bit(rb);
 #endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
 
-#if CONFIG_CWG_F168_DPB_HLS
   if (aom_rb_read_bit(rb)) {
     seq_params->ref_frames =
         aom_rb_read_literal(rb, 4) + 1;  // explicitly signaled DPB size
@@ -6775,32 +6794,7 @@ void read_sequence_inter_group_tool_flags(struct SequenceHeader *seq_params,
     seq_params->ref_frames = 8;  // default DPB size: 8
   }
   seq_params->ref_frames_log2 = aom_ceil_log2(seq_params->ref_frames);
-#else
-  // A bit is sent here to indicate if the max number of references is 7. If
-  // this bit is 0, then two more bits are sent to indicate the exact number
-  // of references allowed (range: 3 to 6).
-  if (aom_rb_read_bit(rb)) {
-    seq_params->max_reference_frames = 3 + aom_rb_read_literal(rb, 2));
-  } else {
-    seq_params->max_reference_frames = 7;
-  }
-  const bool use_extra_dpb = aom_rb_read_bit(rb);
 
-  if (use_extra_dpb) {
-    seq_params->num_extra_dpb = 1 + aom_rb_read_literal(rb, 3);
-  } else {
-    seq_params->num_extra_dpb = 0;
-  }
-
-  seq_params->ref_frames = seq_params->num_extra_dpb
-                               ? REGULAR_REF_FRAMES + seq_params->num_extra_dpb
-                               : REGULAR_REF_FRAMES;
-
-  seq_params->ref_frames_log2 =
-      seq_params->num_extra_dpb ? REF_FRAMES_LOG2 + 1 : REF_FRAMES_LOG2;
-#endif  // CONFIG_CWG_F168_DPB_HLS
-
-#if CONFIG_SEQ_MAX_DRL_BITS
   seq_params->def_max_drl_bits =
       aom_rb_read_primitive_quniform(rb,
                                      MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1) +
@@ -6811,7 +6805,6 @@ void read_sequence_inter_group_tool_flags(struct SequenceHeader *seq_params,
           rb, MAX_MAX_IBC_DRL_BITS - MIN_MAX_IBC_DRL_BITS + 1) +
       MIN_MAX_IBC_DRL_BITS;
   seq_params->allow_frame_max_bvp_drl_bits = aom_rb_read_bit(rb);
-#endif  // CONFIG_SEQ_MAX_DRL_BITS
 
   seq_params->num_same_ref_compound = aom_rb_read_literal(rb, 2);
 
@@ -6832,8 +6825,10 @@ void read_sequence_inter_group_tool_flags(struct SequenceHeader *seq_params,
   seq_params->enable_imp_msk_bld = aom_rb_read_bit(rb);
   seq_params->enable_fsc = aom_rb_read_bit(rb);
 #if CONFIG_FSC_RES_HLS
-  if (seq_params->enable_fsc) {
-    seq_params->enable_fsc_residual = aom_rb_read_bit(rb);
+  if (!seq_params->enable_fsc) {
+      seq_params->enable_idtx_intra = aom_rb_read_bit(rb);
+    } else {
+      seq_params->enable_idtx_intra = 1;
   }
 #endif  // CONFIG_FSC_RES_HLS
   seq_params->enable_lf_sub_pu = aom_rb_read_bit(rb);
@@ -6853,17 +6848,15 @@ void read_sequence_inter_group_tool_flags(struct SequenceHeader *seq_params,
 
   seq_params->enable_refinemv = aom_rb_read_bit(rb);
 
-#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
   seq_params->enable_tip_refinemv =
       (seq_params->enable_tip &&
        (seq_params->enable_opfl_refine || seq_params->enable_refinemv))
           ? aom_rb_read_bit(rb)
           : 0;
-#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
+
   seq_params->enable_bru = aom_rb_read_bit(rb);
-#if CONFIG_DERIVED_MVD_SIGN
+
   seq_params->enable_mvd_sign_derive = aom_rb_read_bit(rb);
-#endif  // CONFIG_DERIVED_MVD_SIGN
   seq_params->enable_flex_mvres = aom_rb_read_bit(rb);
   seq_params->enable_global_motion = aom_rb_read_bit(rb);
 
@@ -6945,9 +6938,10 @@ void read_sequence_transform_group_tool_flags(struct SequenceHeader *seq_params,
   seq_params->enable_inter_ddt = aom_rb_read_bit(rb);
   seq_params->reduced_tx_part_set = aom_rb_read_bit(rb);
   seq_params->enable_cctx = seq_params->monochrome ? 0 : aom_rb_read_bit(rb);
-#if CONFIG_EXT_SEG
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+  seq_params->number_of_bits_for_lt_frame_id = aom_rb_read_literal(rb, 3);
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   seq_params->enable_ext_seg = aom_rb_read_bit(rb);
-#endif  // CONFIG_EXT_SEG
 }
 #endif  // CONFIG_REORDER_SEQ_FLAGS
 

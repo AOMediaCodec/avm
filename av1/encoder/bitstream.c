@@ -5493,13 +5493,36 @@ void write_sequence_inter_group_tool_flags(
   // Skip SIMPLE_TRANSLATION, as that is always enabled
   int seq_enabled_motion_modes = seq_params->seq_enabled_motion_modes;
   assert((seq_enabled_motion_modes & (1 << SIMPLE_TRANSLATION)) != 0);
+#if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
+    uint8_t motion_mode_enabled = 0;
+    uint8_t warp_delta_enabled = 0;
+#endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
   for (int motion_mode = INTERINTRA; motion_mode < MOTION_MODES;
        motion_mode++) {
     int enabled = (seq_enabled_motion_modes & (1 << motion_mode)) != 0 ? 1 : 0;
     aom_wb_write_bit(wb, enabled);
+#if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
+      motion_mode_enabled |= enabled;
+      if (motion_mode == WARP_DELTA && enabled) {
+        warp_delta_enabled = 1;
+      }
+#endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
   }
 
+#if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
+    if (motion_mode_enabled) {
+      aom_wb_write_bit(wb, seq_params->seq_frame_motion_modes_present_flag);
+    }
+    assert(IMPLIES(!motion_mode_enabled,
+                   !seq_params->seq_frame_motion_modes_present_flag));
+    if (warp_delta_enabled) {
+      aom_wb_write_bit(wb, seq_params->enable_six_param_warp_delta);
+    }
+    assert(
+        IMPLIES(!warp_delta_enabled, !seq_params->enable_six_param_warp_delta));
+#else
   aom_wb_write_bit(wb, seq_params->enable_six_param_warp_delta);
+#endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
 
   aom_wb_write_bit(wb, seq_params->enable_masked_compound);
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
@@ -5534,21 +5557,12 @@ void write_sequence_inter_group_tool_flags(
   aom_wb_write_bit(wb, seq_params->enable_frame_output_order);
 #endif  // !CONFIG_F253_REMOVE_OUTPUTFLAG
 
-#if CONFIG_CWG_F168_DPB_HLS
   const int signal_dpb_explicit =
       seq_params->ref_frames != 8;  // DPB size 8 is the default value
   aom_wb_write_bit(wb, signal_dpb_explicit);
   if (signal_dpb_explicit) {
     aom_wb_write_literal(wb, seq_params->ref_frames - 1, 4);
   }
-#else
-  // A bit is sent here to indicate if the max number of references is 7. If
-  // this bit is 0, then two more bits are sent to indicate the exact number
-  // of references allowed (range: 3 to 6).
-  aom_wb_write_bit(wb, seq_params->max_reference_frames < 7);
-  if (seq_params->max_reference_frames < 7)
-    aom_wb_write_literal(wb, seq_params->max_reference_frames - 3, 2);
-#endif  // CONFIG_CWG_F168_DPB_HLS
 
 #if CONFIG_SEQ_MAX_DRL_BITS
   aom_wb_write_primitive_quniform(
@@ -5575,8 +5589,8 @@ void write_sequence_inter_group_tool_flags(
   aom_wb_write_bit(wb, seq_params->enable_imp_msk_bld);
   aom_wb_write_bit(wb, seq_params->enable_fsc);
 #if CONFIG_FSC_RES_HLS
-  if (seq_params->enable_fsc) {
-    aom_wb_write_bit(wb, seq_params->enable_fsc_residual);
+  if (!seq_params->enable_fsc) {
+    aom_wb_write_bit(wb, seq_params->enable_idtx_intra);
   }
 #endif  // CONFIG_FSC_RES_HLS
   aom_wb_write_bit(wb, seq_params->enable_lf_sub_pu);
@@ -5592,17 +5606,13 @@ void write_sequence_inter_group_tool_flags(
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   aom_wb_write_bit(wb, seq_params->enable_adaptive_mvd);
   aom_wb_write_bit(wb, seq_params->enable_refinemv);
-#if CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
   if (seq_params->enable_tip != 0 &&
       (seq_params->enable_opfl_refine != 0 || seq_params->enable_refinemv)) {
     aom_wb_write_bit(wb, seq_params->enable_tip_refinemv);
   }
-#endif  // CONFIG_ENABLE_TIP_REFINEMV_SEQ_FLAG
 
   aom_wb_write_bit(wb, (int)(seq_params->enable_bru > 0));
-#if CONFIG_DERIVED_MVD_SIGN
   aom_wb_write_bit(wb, seq_params->enable_mvd_sign_derive);
-#endif  // CONFIG_DERIVED_MVD_SIGN
 
   aom_wb_write_bit(wb, seq_params->enable_flex_mvres);
 
@@ -5684,9 +5694,10 @@ void write_sequence_transform_group_tool_flags(
   aom_wb_write_bit(wb, seq_params->enable_inter_ddt);
   aom_wb_write_bit(wb, seq_params->reduced_tx_part_set);
   if (!seq_params->monochrome) aom_wb_write_bit(wb, seq_params->enable_cctx);
-#if CONFIG_EXT_SEG
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+  aom_wb_write_literal(wb, seq_params->number_of_bits_for_lt_frame_id, 3);
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   aom_wb_write_bit(wb, seq_params->enable_ext_seg);
-#endif  // CONFIG_EXT_SEG
 }
 #endif  // CONFIG_REORDER_SEQ_FLAGS
 
