@@ -1264,36 +1264,6 @@ enum aome_enc_control_id {
   AV1E_SET_FILM_GRAIN_BLOCK_SIZE = 174,
 #endif
 
-#if CONFIG_CROP_WIN_CWG_F220
-  /*!\brief Control to enable cropping window
-   *
-   * Valid range: 0 or 1
-   */
-  AV1E_SET_ENABLE_CROPPING_WINDOW = 175,
-  /*!\brief Control to enable cropping window
-   *
-   * Valid range: 0 or 1
-   */
-  AV1E_SET_ENABLE_CROPPING_WINDOW_LEFT_OFFSET = 176,
-  /*!\brief Control to enable cropping left offset
-   *
-   * Note: only used when cropping window is enabled
-   */
-  AV1E_SET_ENABLE_CROPPING_WINDOW_RIGHT_OFFSET = 177,
-  /*!\brief Control to enable cropping window
-   *
-   * Note: only used when cropping window is enabled
-   */
-  AV1E_SET_ENABLE_CROPPING_WINDOW_TOP_OFFSET = 178,
-  /*!\brief Control to enable cropping window
-   *
-   * Note: only used when cropping window is enabled
-   */
-  AV1E_SET_ENABLE_CROPPING_WINDOW_BOTTOM_OFFSET = 179,
-#else
-/* Note: enum value 82 unused */
-#endif  // CONFIG_CROP_WIN_CWG_F220
-
 };
 
 /*!\brief aom 1-D scaling mode
@@ -1811,23 +1781,6 @@ AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_BRU, int)
 #define AOM_CTRL_AV1E_SET_ENABLE_BRU
 AOM_CTRL_USE_TYPE(AV1E_GET_ENABLE_BRU, int *)
 #define AOM_CTRL_AV1E_GET_ENABLE_BRU
-
-#if CONFIG_CROP_WIN_CWG_F220
-AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_CROPPING_WINDOW, int)
-#define AOM_CTRL_AV1E_SET_ENABLE_CROPPING_WINDOW
-
-AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_CROPPING_WINDOW_LEFT_OFFSET, int)
-#define AOM_CTRL_AV1E_SET_ENABLE_CROPPING_WINDOW_LEFT_OFFSET
-
-AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_CROPPING_WINDOW_RIGHT_OFFSET, int)
-#define AOM_CTRL_AV1E_SET_ENABLE_CROPPING_WINDOW_RIGHT_OFFSET
-
-AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_CROPPING_WINDOW_TOP_OFFSET, int)
-#define AOM_CTRL_AV1E_SET_ENABLE_CROPPING_WINDOW_TOP_OFFSET
-
-AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_CROPPING_WINDOW_BOTTOM_OFFSET, int)
-#define AOM_CTRL_AV1E_SET_ENABLE_CROPPING_WINDOW_BOTTOM_OFFSET
-#endif  // CONFIG_CROP_WIN_CWG_F220
 /*!\endcond */
 /*! @} - end defgroup aom_encoder */
 #ifdef __cplusplus
