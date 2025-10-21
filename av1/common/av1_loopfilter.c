@@ -291,8 +291,8 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
         const int seg_lf_feature_id = seg_lvl_lf_lut[plane][dir];
         if (segfeature_active(seg, seg_id, seg_lf_feature_id)) {
           // TODO(Andrey): add separate offsets to segments for q and side
-              // thresholds // add clamp
-              const int data = get_segdata(&cm->seg, seg_id, seg_lf_feature_id);
+          // thresholds // add clamp
+          const int data = get_segdata(&cm->seg, seg_id, seg_lf_feature_id);
           q_ind_seg += data;
           side_ind_seg += data;
         }

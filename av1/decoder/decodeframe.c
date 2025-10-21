@@ -6716,7 +6716,7 @@ void init_single_picture_header_flags(struct SequenceHeader *seq_params) {
   seq_params->enable_six_param_warp_delta = 0;
   seq_params->enable_global_motion = 0;
 #if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
-    seq_params->seq_frame_motion_modes_present_flag = 0;
+  seq_params->seq_frame_motion_modes_present_flag = 0;
 #endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
 }
 void read_sequence_intra_group_tool_flags(struct SequenceHeader *seq_params,
@@ -6735,27 +6735,27 @@ void read_sequence_inter_group_tool_flags(struct SequenceHeader *seq_params,
                                           struct aom_read_bit_buffer *rb) {
   int seq_enabled_motion_modes = (1 << SIMPLE_TRANSLATION);
 #if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
-    uint8_t motion_mode_enabled = 0;
-    uint8_t warp_delta_enabled = 0;
+  uint8_t motion_mode_enabled = 0;
+  uint8_t warp_delta_enabled = 0;
 #endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
   for (int motion_mode = INTERINTRA; motion_mode < MOTION_MODES;
        motion_mode++) {
     int enabled = aom_rb_read_bit(rb);
 #if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
-      motion_mode_enabled |= enabled;
-      if (motion_mode == WARP_DELTA && enabled) {
-        warp_delta_enabled = 1;
-      }
+    motion_mode_enabled |= enabled;
+    if (motion_mode == WARP_DELTA && enabled) {
+      warp_delta_enabled = 1;
+    }
 #endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
     if (enabled) {
       seq_enabled_motion_modes |= (1 << motion_mode);
     }
   }
 #if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
-    seq_params->seq_frame_motion_modes_present_flag =
-        motion_mode_enabled ? aom_rb_read_bit(rb) : 0;
-    seq_params->enable_six_param_warp_delta =
-        warp_delta_enabled ? aom_rb_read_bit(rb) : 0;
+  seq_params->seq_frame_motion_modes_present_flag =
+      motion_mode_enabled ? aom_rb_read_bit(rb) : 0;
+  seq_params->enable_six_param_warp_delta =
+      warp_delta_enabled ? aom_rb_read_bit(rb) : 0;
 #else
   seq_params->enable_six_param_warp_delta = aom_rb_read_bit(rb);
 #endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
@@ -6826,9 +6826,9 @@ void read_sequence_inter_group_tool_flags(struct SequenceHeader *seq_params,
   seq_params->enable_fsc = aom_rb_read_bit(rb);
 #if CONFIG_FSC_RES_HLS
   if (!seq_params->enable_fsc) {
-      seq_params->enable_idtx_intra = aom_rb_read_bit(rb);
-    } else {
-      seq_params->enable_idtx_intra = 1;
+    seq_params->enable_idtx_intra = aom_rb_read_bit(rb);
+  } else {
+    seq_params->enable_idtx_intra = 1;
   }
 #endif  // CONFIG_FSC_RES_HLS
   seq_params->enable_lf_sub_pu = aom_rb_read_bit(rb);
