@@ -5564,7 +5564,6 @@ void write_sequence_inter_group_tool_flags(
     aom_wb_write_literal(wb, seq_params->ref_frames - 1, 4);
   }
 
-#if CONFIG_SEQ_MAX_DRL_BITS
   aom_wb_write_primitive_quniform(
       wb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1,
       seq_params->def_max_drl_bits - MIN_MAX_DRL_BITS);
@@ -5573,7 +5572,6 @@ void write_sequence_inter_group_tool_flags(
       wb, MAX_MAX_IBC_DRL_BITS - MIN_MAX_IBC_DRL_BITS + 1,
       seq_params->def_max_bvp_drl_bits - MIN_MAX_IBC_DRL_BITS);
   aom_wb_write_bit(wb, seq_params->allow_frame_max_bvp_drl_bits);
-#endif  // CONFIG_SEQ_MAX_DRL_BITS
 
   aom_wb_write_literal(wb, seq_params->num_same_ref_compound, 2);
   aom_wb_write_bit(wb, seq_params->enable_tip != 0);

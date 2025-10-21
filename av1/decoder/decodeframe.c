@@ -7004,6 +7004,7 @@ void av1_read_sequence_header(
 #if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
     seq_params->seq_frame_motion_modes_present_flag = 0;
 #endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
+#endif  // CONFIG_REORDER_SEQ_FLAGS
   } else {
 #if !CONFIG_REORDER_SEQ_FLAGS
     int seq_enabled_motion_modes = (1 << SIMPLE_TRANSLATION);
