@@ -3223,17 +3223,18 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
   assert(IMPLIES(use_optflow_refinement && tip_ref_frame, plane == 0));
 
   int use_4x4 = tip_ref_frame ? 0 : 1;
-  int n = opfl_get_subblock_size(bw, bh, plane, use_4x4);
-  const int n_blocks = (bw / n) * (bh / n);
+  int sub_bw, sub_bh;
+  opfl_subblock_size_plane(xd, plane, use_4x4, &sub_bw, &sub_bh);
 
   // optical flow refined MVs in a subblock (16x16) unit
   int_mv mv_refined_sb[4 * 2];
   memset(mv_refined_sb, 0, 4 * 2 * sizeof(int_mv));
-  const int opfl_mv_stride = pu_width / n;
+  const int opfl_mv_stride = pu_width / sub_bw;
   const int opfl_sb_idx =
-      (subblk_start_y / n) * opfl_mv_stride + subblk_start_x / n;
-  const int sb_rows = bh / n;
-  const int sb_cols = bw / n;
+      (subblk_start_y / sub_bh) * opfl_mv_stride + subblk_start_x / sub_bw;
+  const int sb_rows = bh / sub_bh;
+  const int sb_cols = bw / sub_bw;
+  const int n_blocks = sb_rows * sb_cols;
 
   if (use_optflow_refinement && plane) {
     // Optical flow refined luma MVs are reused for chroma
