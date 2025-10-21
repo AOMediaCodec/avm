@@ -7495,19 +7495,19 @@ static const aom_cdf_prob av1_default_v_txb_skip_cdfs[4][12][CDF_SIZE(2)] = {
 
 static const aom_cdf_prob default_intra_dip_cdf[4][3][CDF_SIZE(2)] = {
   {
-    { AOM_CDF2(13133),  56 },
-    { AOM_CDF2( 5577),   0 },
-    { AOM_CDF2( 4354),   0 },
+    { AOM_CDF2(11914),  31 },
+    { AOM_CDF2( 5128),  31 },
+    { AOM_CDF2( 3555),  31 },
   },
   {
-    { AOM_CDF2( 8419),  31 },
-    { AOM_CDF2( 4256),   5 },
-    { AOM_CDF2( 2789),   5 },
+    { AOM_CDF2(11914),  31 },
+    { AOM_CDF2( 5128),  31 },
+    { AOM_CDF2( 3555),  31 },
   },
   {
-    { AOM_CDF2( 5199),  31 },
-    { AOM_CDF2( 2454),  30 },
-    { AOM_CDF2( 1763),  30 },
+    { AOM_CDF2(11914),  31 },
+    { AOM_CDF2( 5128),  31 },
+    { AOM_CDF2( 3555),  31 },
   },
   {
     { AOM_CDF2(11914),  31 },
