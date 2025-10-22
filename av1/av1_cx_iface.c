@@ -3538,12 +3538,16 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 
       // decrement frames_left counter
 #if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+#if CONFIG_USE_PTS_AS_DTS
       int64_t frame_duration = dst_end_time_stamp - dst_time_stamp;
+#endif  // CONFIG_USE_PTS_AS_DTS
       if (!is_frame_visible_null) {
         cpi->frames_left = AOMMAX(0, cpi->frames_left - 1);
+#if CONFIG_USE_PTS_AS_DTS
         dst_time_stamp = timebase_units_to_ticks(
             timestamp_ratio, cpi->coded_visible_frame_counter);
         ++cpi->coded_visible_frame_counter;
+#endif  // CONFIG_USE_PTS_AS_DTS
       }
 #else   // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
         cpi->frames_left = AOMMAX(0, cpi->frames_left - 1);
@@ -3572,11 +3576,11 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
         pkt.data.frame.flags |= AOM_FRAME_IS_DELAYED_RANDOM_ACCESS_POINT;
       }
       pkt.data.frame.duration = (uint32_t)ticks_to_timebase_units(
-#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+#if CONFIG_USE_PTS_AS_DTS
           timestamp_ratio, frame_duration);
-#else   // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+#else   // CONFIG_USE_PTS_AS_DTS
             timestamp_ratio, dst_end_time_stamp - dst_time_stamp);
-#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+#endif  // CONFIG_USE_PTS_AS_DTS
 
       aom_codec_pkt_list_add(&ctx->pkt_list.head, &pkt);
 

@@ -311,8 +311,12 @@ typedef struct AV1Decoder {
   // application calls aom_codec_decode().
   int output_all_layers;
   RefCntBuffer *output_frames[REF_FRAMES + 1];  // Use only for single layer
-  size_t output_frames_offset;                  // Use only for single layer
-  size_t num_output_frames;  // How many frames are queued up so far?
+#if CONFIG_ONE_OUTPUT_FRAME_PER_TU
+  RefCntBuffer *current_output_frame_buffers[REF_FRAMES +
+                                             1];  // Current output frame buffer
+#endif                          // CONFIG_ONE_OUTPUT_FRAME_PER_TU
+  size_t output_frames_offset;  // Use only for single layer
+  size_t num_output_frames;     // How many frames are queued up so far?
 
   // In order to properly support random-access decoding, we need
   // to behave slightly differently for the very first frame we decode.

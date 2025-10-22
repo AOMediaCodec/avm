@@ -855,10 +855,24 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
     struct AV1Decoder *pbi = frame_worker_data->pbi;
     if (ctx->enable_subgop_stats)
       memset(&pbi->subgop_stats, 0, sizeof(pbi->subgop_stats));
+#if CONFIG_ONE_OUTPUT_FRAME_PER_TU
+    for (size_t j = 0; j <= REF_FRAMES; j++) {
+      pbi->current_output_frame_buffers[j] = NULL;
+    }
+    if (pbi->num_output_frames > 0) {
+      decrease_ref_count(pbi->output_frames[0], pool);
+      for (size_t j = 0; j < pbi->num_output_frames - 1; j++) {
+        pbi->output_frames[j] = pbi->output_frames[j + 1];
+      }
+      pbi->output_frames[pbi->num_output_frames - 1] = NULL;
+      --pbi->num_output_frames;
+    }
+#else   // CONFIG_ONE_OUTPUT_FRAME_PER_TU
     for (size_t j = 0; j < pbi->num_output_frames; j++) {
       decrease_ref_count(pbi->output_frames[j], pool);
     }
     pbi->num_output_frames = 0;
+#endif  // CONFIG_ONE_OUTPUT_FRAME_PER_TU
     unlock_buffer_pool(pool);
     for (size_t j = 0; j < ctx->num_grain_image_frame_buffers; j++) {
       pool->release_fb_cb(pool->cb_priv, &ctx->grain_image_frame_buffers[j]);
@@ -887,6 +901,11 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
       for (size_t j = 0; j < pbi->num_output_frames; j++) {
         decrease_ref_count(pbi->output_frames[j], pool);
       }
+#if CONFIG_ONE_OUTPUT_FRAME_PER_TU
+      if (pbi->num_output_frames > 0) {
+        pbi->current_output_frame_buffers[0] = pbi->output_frames[0];
+      }
+#endif  // CONFIG_ONE_OUTPUT_FRAME_PER_TU
       return AOM_CODEC_OK;
     }
   }
@@ -894,6 +913,17 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
   /* Sanity checks */
   /* NULL data ptr allowed if data_sz is 0 too */
   if (data == NULL && data_sz == 0) {
+#if CONFIG_ONE_OUTPUT_FRAME_PER_TU
+    if (ctx->frame_worker) {
+      AVxWorker *const worker = ctx->frame_worker;
+      FrameWorkerData *const frame_worker_data =
+          (FrameWorkerData *)worker->data1;
+      struct AV1Decoder *pbi = frame_worker_data->pbi;
+      if (pbi->num_output_frames > 0) {
+        pbi->current_output_frame_buffers[0] = pbi->output_frames[0];
+      }
+    }
+#endif  // CONFIG_ONE_OUTPUT_FRAME_PER_TU
     ctx->flushed = 1;
     return AOM_CODEC_OK;
   }
@@ -927,6 +957,17 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
     res = decode_one(ctx, &data_start, (size_t)frame_size, user_priv);
     if (res != AOM_CODEC_OK) return res;
   }
+
+#if CONFIG_ONE_OUTPUT_FRAME_PER_TU
+  if (ctx->frame_worker) {
+    AVxWorker *const worker = ctx->frame_worker;
+    FrameWorkerData *const frame_worker_data = (FrameWorkerData *)worker->data1;
+    struct AV1Decoder *pbi = frame_worker_data->pbi;
+    if (pbi->num_output_frames > 0) {
+      pbi->current_output_frame_buffers[0] = pbi->output_frames[0];
+    }
+  }
+#endif  // CONFIG_ONE_OUTPUT_FRAME_PER_TU
 
   return res;
 }
@@ -1028,6 +1069,13 @@ static aom_image_t *decoder_get_frame_(aom_codec_alg_priv_t *ctx,
     FrameWorkerData *const frame_worker_data = (FrameWorkerData *)worker->data1;
     AV1Decoder *const pbi = frame_worker_data->pbi;
     AV1_COMMON *const cm = &pbi->common;
+
+#if CONFIG_ONE_OUTPUT_FRAME_PER_TU
+    if (pbi->current_output_frame_buffers[*index] == NULL) {
+      return NULL;
+    }
+#endif  // CONFIG_ONE_OUTPUT_FRAME_PER_TU
+
     // Wait for the frame from worker thread.
     if (winterface->sync(worker)) {
       // Check if worker has received any frames.
@@ -1039,7 +1087,12 @@ static aom_image_t *decoder_get_frame_(aom_codec_alg_priv_t *ctx,
       aom_film_grain_t *grain_params;
       if (av1_get_raw_frame(frame_worker_data->pbi, *index, &sd,
                             &grain_params) == 0) {
+#if CONFIG_ONE_OUTPUT_FRAME_PER_TU
+        RefCntBuffer *const output_frame_buf =
+            pbi->current_output_frame_buffers[*index];
+#else   // CONFIG_ONE_OUTPUT_FRAME_PER_TU
         RefCntBuffer *const output_frame_buf = pbi->output_frames[*index];
+#endif  // CONFIG_ONE_OUTPUT_FRAME_PER_TU
         ctx->last_show_frame = output_frame_buf;
         if (ctx->need_resync) return NULL;
         aom_img_remove_metadata(&ctx->img);
