@@ -16,17 +16,10 @@
 #include "config/aom_config.h"
 #include "aom_ports/mem.h"
 
-#define DF_SPARSE 1
 #define DF_FILT26 1
 #define DF_8_THRESH 3
 #define DF_6_THRESH 4
 #define FILT_8_THRESH_SHIFT 3
-#define DF_SHORT_DEC 1
-#if CONFIG_ASYM_DF
-#define EDGE_DECISION 1
-#else
-#define EDGE_DECISION 0
-#endif  // CONFIG_ASYM_DF
 
 #define MAX_DBL_FLT_LEN 12
 
@@ -147,14 +140,6 @@ static INLINE int filt_choice_highbd(uint16_t *s, int pitch,
   mask |= (second_deriv[-2] > side_thresh3) * -1;
   mask |= (second_deriv[1] > side_thresh3) * -1;
 
-#if !DF_SHORT_DEC
-  second_deriv[-3] = abs(s[-4 * pitch] - (s[-3 * pitch] << 1) + s[-2 * pitch]);
-  second_deriv[2] = abs(s[pitch] - (s[2 * pitch] << 1) + s[3 * pitch]);
-
-  mask |= (second_deriv[-3] > side_thresh3) * -1;
-  mask |= (second_deriv[2] > side_thresh3) * -1;
-#endif  //! DF_SHORT_DEC
-
   mask |= ((second_deriv[-1] + second_deriv[0]) > q_thresh * DF_8_THRESH) * -1;
 
   int end_dir_thresh = (side_thresh * 3) >> 4;
@@ -191,15 +176,6 @@ static INLINE int filt_choice_highbd(uint16_t *s, int pitch,
 
     // Testing  4 sample modification and above
     //-----------------------------------------------
-#if !DF_SHORT_DEC
-#if DF_SPARSE
-  int p_deriv_sum = 0;
-  int q_deriv_sum = 0;
-#else
-  int p_deriv_sum = second_deriv[-3] << DF_SIDE_SUM_SHIFT;
-  int q_deriv_sum = second_deriv[2] << DF_SIDE_SUM_SHIFT;
-#endif  // DF_SPARSE
-#endif  // !DF_SHORT_DEC
 
 #if !CONFIG_ASYM_DF
   int p_first_deriv_scaled = second_deriv[-2] << DF_SIDE_FIRST_SHIFT;
@@ -208,22 +184,7 @@ static INLINE int filt_choice_highbd(uint16_t *s, int pitch,
 
   int transition = (second_deriv[-1] + second_deriv[0]) << DF_Q_THRESH_SHIFT;
 
-#if DF_SPARSE
   for (int dist = 4; dist < MAX_DBL_FLT_LEN + 1; dist += 2) {
-#if !DF_SHORT_DEC
-    second_deriv[-(dist - 1)] =
-        abs(s[-(dist)*pitch] - (s[-(dist - 1) * pitch] << 1) +
-            s[-(dist - 2) * pitch]);
-    second_deriv[dist - 2] =
-        abs(s[(dist - 3) * pitch] - (s[(dist - 2) * pitch] << 1) +
-            s[(dist - 1) * pitch]);
-
-    p_deriv_sum += (second_deriv[-(dist - 1)] << DF_SIDE_SUM_SHIFT);
-    q_deriv_sum += (second_deriv[dist - 2] << DF_SIDE_SUM_SHIFT);
-#endif  // !DF_SHORT_DEC
-#else
-  for (int dist = 4; dist < MAX_DBL_FLT_LEN + 1; ++dist) {
-#endif  // DF_SPARSE
 #if !CONFIG_ASYM_DF
     second_deriv[-dist] = abs(s[(-dist - 1) * pitch] - (s[-dist * pitch] << 1) +
                               s[(-dist + 1) * pitch]);
@@ -231,21 +192,10 @@ static INLINE int filt_choice_highbd(uint16_t *s, int pitch,
     second_deriv[dist - 1] = abs(
         s[(dist - 2) * pitch] - (s[(dist - 1) * pitch] << 1) + s[dist * pitch]);
 
-#if !DF_SHORT_DEC
-    p_deriv_sum += (second_deriv[-dist] << DF_SIDE_SUM_SHIFT);
-    q_deriv_sum += (second_deriv[dist - 1] << DF_SIDE_SUM_SHIFT);
-
-    const int sum_side_thresh4 = side_thresh * side_sum[dist - 4];
-#endif
-
     int side_thresh4 = side_thresh * side_first[dist - 4];
 #endif  // !CONFIG_ASYM_DF
 
     const int q_thresh4 = q_thresh * q_first[dist - 4];
-#if !DF_SHORT_DEC
-    mask |= (p_deriv_sum > sum_side_thresh4) * -1;
-    mask |= (q_deriv_sum > sum_side_thresh4) * -1;
-#endif
 
 #if !CONFIG_ASYM_DF
     mask |= (p_first_deriv_scaled > side_thresh4) * -1;
@@ -284,7 +234,6 @@ static INLINE int filt_choice_highbd(uint16_t *s, int pitch,
             -1;
 #endif  // CONFIG_ASYM_DF
 
-#if DF_SPARSE
 #if CONFIG_ASYM_DF
     if (mask) return dist == 4 ? dist - 1 : dist - 2;
     if (max_samples_pos <= dist) return ((dist >> 1) << 1);
@@ -292,10 +241,6 @@ static INLINE int filt_choice_highbd(uint16_t *s, int pitch,
     if (mask) return dist - 2;
     if (max_samples <= dist) return ((dist >> 1) << 1);
 #endif  // CONFIG_ASYM_DF
-#else
-    if (mask) return dist - 1;
-    if (max_samples == dist) return dist;
-#endif  // DF_SPARSE
   }
   return MAX_DBL_FLT_LEN;
 }

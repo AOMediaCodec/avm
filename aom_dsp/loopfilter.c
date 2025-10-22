@@ -106,7 +106,6 @@ void aom_highbd_lpf_horizontal_generic_c(uint16_t *s, int pitch,
 
   int count = 4;
 
-#if EDGE_DECISION
 #if CONFIG_ASYM_DF
   int filt_neg = (filt_width_neg >> 1) - 1;
   int filter = filt_choice_highbd(s, pitch, filt_width_neg, filt_width_pos,
@@ -121,13 +120,8 @@ void aom_highbd_lpf_horizontal_generic_c(uint16_t *s, int pitch,
 
   int filter = AOMMIN(filter0, filter3);
 #endif  // CONFIG_ASYM_DF
-#endif  // EDGE_DECISION
 
   for (i = 0; i < count; ++i) {
-#if !EDGE_DECISION
-    int filter =
-        filt_choice_highbd(s, pitch, filt_width, *q_thresh, *side_thresh);
-#endif
 #if CONFIG_ASYM_DF
     filt_generic_asym_highbd(*q_thresh, AOMMIN(filter, filt_neg), filter, s,
                              pitch, bd
@@ -165,7 +159,6 @@ void aom_highbd_lpf_vertical_generic_c(uint16_t *s, int pitch,
   int i;
   int count = 4;
 
-#if EDGE_DECISION
 #if CONFIG_ASYM_DF
   int filt_neg = (filt_width_neg >> 1) - 1;
   int filter =
@@ -180,15 +173,10 @@ void aom_highbd_lpf_vertical_generic_c(uint16_t *s, int pitch,
                                          *q_thresh, *side_thresh);
   int filter = AOMMIN(filter0, filter3);
 #endif  // CONFIG_ASYM_DF
-#endif  // EDGE_DECISION
 
   // loop filter designed to work using chars so that we can make maximum use
   // of 8 bit simd instructions.
   for (i = 0; i < count; ++i) {
-#if !EDGE_DECISION
-    int filter = filt_choice_highbd(s, 1, filt_width, *q_thresh, *side_thresh);
-#endif
-
 #if CONFIG_ASYM_DF
     filt_generic_asym_highbd(*q_thresh, AOMMIN(filter, filt_neg), filter, s, 1,
                              bd
