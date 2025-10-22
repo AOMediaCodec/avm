@@ -16,18 +16,16 @@
 #include "config/aom_config.h"
 #include "aom_ports/mem.h"
 
-#define DF_FILT26 1
 #define DF_8_THRESH 3
 #define DF_6_THRESH 4
 #define FILT_8_THRESH_SHIFT 3
 
-#define MAX_DBL_FLT_LEN 12
+#define MAX_DBL_FLT_LEN 8
 
 #define DF_SHIFT 8
-static const int w_mult[MAX_DBL_FLT_LEN] = { 85, 51, 37, 28, 23, 20,
-                                             17, 15, 13, 12, 11, 10 };
-static const int q_thresh_mults[MAX_DBL_FLT_LEN] = { 32, 25, 19, 19, 18, 18,
-                                                     17, 17, 17, 16, 16, 16 };
+static const int w_mult[MAX_DBL_FLT_LEN] = { 85, 51, 37, 28, 23, 20, 17, 15 };
+static const int q_thresh_mults[MAX_DBL_FLT_LEN] = { 32, 25, 19, 19,
+                                                     18, 18, 17, 17 };
 
 #define DBL_CUSTOM_DECIS 3
 #define DBL_REG_DECIS_LEN MAX_DBL_FLT_LEN - DBL_CUSTOM_DECIS
@@ -43,11 +41,7 @@ static int side_first[DBL_REG_DECIS_LEN] = { 7, 7, 6, 5, 4, 4, 4, 4, 4 };
 #define DF_Q_THRESH_SHIFT 4
 static int q_first[DBL_REG_DECIS_LEN] = { 45, 43, 40, 35, 32, 32, 32, 32, 32 };
 
-#if DF_FILT26
 #define SEC_DERIV_ARRAY_LEN (MAX_DBL_FLT_LEN + 1) * 2
-#else
-#define SEC_DERIV_ARRAY_LEN 14
-#endif  // DF_FILT26
 
 // Determining number of samples to be modified for the current row/column
 static INLINE int filt_choice_highbd(uint16_t *s, int pitch, int max_filt_neg,
