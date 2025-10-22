@@ -4662,7 +4662,7 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
     bitstream_queue_record_write();
 #if CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
     aom_bitstream_queue_set_frame_write(
-        derive_output_order_idx(cm, cm->current_frame) * 2 + cm->show_frame);
+        (int)(derive_output_order_idx(cm, cm->cur_frame) * 2 + cm->show_frame));
 #else   // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
     aom_bitstream_queue_set_frame_write(cm->current_frame.order_hint * 2 +
                                         cm->show_frame);

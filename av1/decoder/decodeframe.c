@@ -9967,7 +9967,7 @@ int32_t av1_read_tilegroup_header(
 #if CONFIG_BITSTREAM_DEBUG
 #if CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
     aom_bitstream_queue_set_frame_read(
-        derive_output_order_idx(cm, cm->current_frame) * 2 + cm->show_frame);
+        (int)(derive_output_order_idx(cm, cm->cur_frame) * 2 + cm->show_frame));
 #else   // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
     aom_bitstream_queue_set_frame_read(cm->current_frame.order_hint * 2 +
                                        cm->show_frame);
