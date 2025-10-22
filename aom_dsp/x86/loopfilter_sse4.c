@@ -950,12 +950,7 @@ static INLINE int filt_choice_highbd_vertical_px4_sse4_1(uint16_t *s, int pitch,
 }
 
 void aom_highbd_lpf_horizontal_generic_sse4_1(
-    uint16_t *s, int pitch,
-#if CONFIG_ASYM_DF
-    int filt_width_neg, int filt_width_pos,
-#else
-    int filt_width,
-#endif
+    uint16_t *s, int pitch, int filt_width_neg, int filt_width_pos,
     const uint16_t *q_thresh, const uint16_t *side_thresh, int bd
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
     ,
@@ -969,8 +964,6 @@ void aom_highbd_lpf_horizontal_generic_sse4_1(
 
   int count = 4;
 
-#if EDGE_DECISION
-#if CONFIG_ASYM_DF
   int filt_neg = (filt_width_neg >> 1) - 1;
   int filter;
   if (count == 4) {
@@ -980,50 +973,23 @@ void aom_highbd_lpf_horizontal_generic_sse4_1(
     filter = filt_choice_highbd(s, pitch, filt_width_neg, filt_width_pos,
                                 *q_thresh, *side_thresh, s + count - 1);
   }
-#else
-  const int filter0 =
-      filt_choice_highbd(s, pitch, filt_width, *q_thresh, *side_thresh);
-  s += count - 1;
-  const int filter3 =
-      filt_choice_highbd(s, pitch, filt_width, *q_thresh, *side_thresh);
-  s -= count - 1;
-
-  int filter = AOMMIN(filter0, filter3);
-#endif  // CONFIG_ASYM_DF
-#endif  // EDGE_DECISION
 
   // loop filter designed to work using chars so that we can make maximum use
   // of 8 bit simd instructions.
   for (int i = 0; i < count; i += 4) {
-#if !EDGE_DECISION
-    int filter =
-        filt_choice_highbd(s, pitch, filt_width, *q_thresh, *side_thresh);
-#endif
-#if CONFIG_ASYM_DF
     filt_generic_asym_highbd_hor_4px_sse4_1(*q_thresh, AOMMIN(filter, filt_neg),
                                             filter, s, pitch, bd);
-#else
-    filt_generic_asym_highbd_hor_4px_sse4_1(*q_thresh, filter, filter, s, pitch,
-                                            bd);
-#endif  // CONFIG_ASYM_DF
 
     s += 4;
   }
 }
 
-void aom_highbd_lpf_vertical_generic_sse4_1(uint16_t *s, int pitch,
-#if CONFIG_ASYM_DF
-                                            int filt_width_neg,
-                                            int filt_width_pos,
-#else
-                                            int filt_width,
-#endif
-                                            const uint16_t *q_thresh,
-                                            const uint16_t *side_thresh, int bd
+void aom_highbd_lpf_vertical_generic_sse4_1(
+    uint16_t *s, int pitch, int filt_width_neg, int filt_width_pos,
+    const uint16_t *q_thresh, const uint16_t *side_thresh, int bd
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-                                            ,
-                                            int is_lossless_neg,
-                                            int is_lossless_pos
+    ,
+    int is_lossless_neg, int is_lossless_pos
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 ) {
   int i;
@@ -1035,8 +1001,6 @@ void aom_highbd_lpf_vertical_generic_sse4_1(uint16_t *s, int pitch,
 
   int count = 4;
 
-#if EDGE_DECISION
-#if CONFIG_ASYM_DF
   int filt_neg = (filt_width_neg >> 1) - 1;
   int filter;
   if (count == 4) {
@@ -1046,31 +1010,12 @@ void aom_highbd_lpf_vertical_generic_sse4_1(uint16_t *s, int pitch,
     filter = filt_choice_highbd(s, 1, filt_width_neg, filt_width_pos, *q_thresh,
                                 *side_thresh, s + (count - 1) * pitch);
   }
-#else
-  int filt_neg = (filt_width_neg >> 1) - 1;
-  int filt_pos = (filt_width_pos >> 1) - 1;
-  const int filter0 = filt_choice_highbd(
-      s, 1, AOMMAX(filt_width_pos, filt_width_neg), *q_thresh, *side_thresh);
-  const int filter3 = filt_choice_highbd(s + (count - 1) * pitch, 1, filt_width,
-                                         *q_thresh, *side_thresh);
-  int filter = AOMMIN(filter0, filter3);
-#endif  // CONFIG_ASYM_DF
-#endif  // EDGE_DECISION
 
   // loop filter designed to work using chars so that we can make maximum use
   // of 8 bit simd instructions.
   for (i = 0; i < count; i += 4) {
-#if !EDGE_DECISION
-    int filter = filt_choice_highbd(s, 1, filt_width, *q_thresh, *side_thresh);
-#endif
-
-#if CONFIG_ASYM_DF
     filt_generic_asym_highbd_ver_4px_sse4_1(*q_thresh, AOMMIN(filter, filt_neg),
                                             filter, s, pitch, bd);
-#else
-    filt_generic_asym_highbd_ver_4px_sse4_1(*q_thresh, filter, filter, s, pitch,
-                                            bd);
-#endif
     s += 4 * pitch;
   }
 }
