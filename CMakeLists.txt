@@ -350,6 +350,8 @@ if(ENABLE_EXAMPLES
    OR ENABLE_TOOLS)
   add_library(aom_common_app_util OBJECT ${AOM_COMMON_APP_UTIL_SOURCES})
   set_property(TARGET ${example} PROPERTY FOLDER examples)
+  # common/av1_config.c depends on internal headers that require *rtcd.h
+  add_dependencies(aom_common_app_util aom_rtcd)
   if(CONFIG_AV1_DECODER)
     add_library(aom_decoder_app_util OBJECT ${AOM_DECODER_APP_UTIL_SOURCES})
     set_property(TARGET ${example} PROPERTY FOLDER examples)
