@@ -19,7 +19,6 @@
 #include "aom_dsp/loopfilter.h"
 #include "aom_ports/mem.h"
 
-#if CONFIG_ASYM_DF
 static INLINE void filt_generic_asym_highbd(int q_threshold, int width_neg,
                                             int width_pos, uint16_t *s,
                                             const int pitch, int bd
@@ -64,36 +63,9 @@ static INLINE void filt_generic_asym_highbd(int q_threshold, int width_neg,
   }
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 }
-#else
-static INLINE void filt_generic_highbd(int q_threshold, int width, uint16_t *s,
-                                       const int pitch, int bd) {
-  if (width < 1) return;
-
-  int delta_m2 = (3 * (s[0] - s[-1 * pitch]) - (s[pitch] - s[-2 * pitch])) * 4;
-
-  int q_thresh_clamp = q_threshold * q_thresh_mults[width - 1];
-  delta_m2 = clamp(delta_m2, -q_thresh_clamp, q_thresh_clamp);
-
-  delta_m2 *= w_mult[width - 1];
-
-  for (int i = 0; i < width; i++) {
-    s[(-i - 1) * pitch] = clip_pixel_highbd(
-        s[(-i - 1) * pitch] +
-            ROUND_POWER_OF_TWO(delta_m2 * (width - i), 3 + DF_SHIFT),
-        bd);
-    s[i * pitch] = clip_pixel_highbd(
-        s[i * pitch] - ROUND_POWER_OF_TWO(delta_m2 * (width - i), 3 + DF_SHIFT),
-        bd);
-  }
-}
-#endif  // CONFIG_ASYM_DF
 
 void aom_highbd_lpf_horizontal_generic_c(uint16_t *s, int pitch,
-#if CONFIG_ASYM_DF
                                          int filt_width_neg, int filt_width_pos,
-#else
-                                         int filt_width,
-#endif  // CONFIG_ASYM_DF
                                          const uint16_t *q_thresh,
                                          const uint16_t *side_thresh, int bd
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
@@ -106,23 +78,11 @@ void aom_highbd_lpf_horizontal_generic_c(uint16_t *s, int pitch,
 
   int count = 4;
 
-#if CONFIG_ASYM_DF
   int filt_neg = (filt_width_neg >> 1) - 1;
   int filter = filt_choice_highbd(s, pitch, filt_width_neg, filt_width_pos,
                                   *q_thresh, *side_thresh, s + count - 1);
-#else
-  const int filter0 =
-      filt_choice_highbd(s, pitch, filt_width, *q_thresh, *side_thresh);
-  s += count - 1;
-  const int filter3 =
-      filt_choice_highbd(s, pitch, filt_width, *q_thresh, *side_thresh);
-  s -= count - 1;
-
-  int filter = AOMMIN(filter0, filter3);
-#endif  // CONFIG_ASYM_DF
 
   for (i = 0; i < count; ++i) {
-#if CONFIG_ASYM_DF
     filt_generic_asym_highbd(*q_thresh, AOMMIN(filter, filt_neg), filter, s,
                              pitch, bd
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
@@ -130,25 +90,12 @@ void aom_highbd_lpf_horizontal_generic_c(uint16_t *s, int pitch,
                              is_lossless_neg, is_lossless_pos
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
     );
-#else
-    filt_generic_highbd(*q_thresh, filter, s, pitch, bd
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-                        ,
-                        is_lossless_neg, is_lossless_pos
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-    );
-#endif  // CONFIG_ASYM_DF
-
     ++s;
   }
 }
 
 void aom_highbd_lpf_vertical_generic_c(uint16_t *s, int pitch,
-#if CONFIG_ASYM_DF
                                        int filt_width_neg, int filt_width_pos,
-#else
-                                       int filt_width,
-#endif  // CONFIG_ASYM_DF
                                        const uint16_t *q_thresh,
                                        const uint16_t *side_thresh, int bd
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
@@ -159,25 +106,14 @@ void aom_highbd_lpf_vertical_generic_c(uint16_t *s, int pitch,
   int i;
   int count = 4;
 
-#if CONFIG_ASYM_DF
   int filt_neg = (filt_width_neg >> 1) - 1;
   int filter =
       filt_choice_highbd(s, 1, filt_width_neg, filt_width_pos, *q_thresh,
                          *side_thresh, s + (count - 1) * pitch);
-#else
-  int filt_neg = (filt_width_neg >> 1) - 1;
-  int filt_pos = (filt_width_pos >> 1) - 1;
-  const int filter0 = filt_choice_highbd(
-      s, 1, AOMMAX(filt_width_pos, filt_width_neg), *q_thresh, *side_thresh);
-  const int filter3 = filt_choice_highbd(s + (count - 1) * pitch, 1, filt_width,
-                                         *q_thresh, *side_thresh);
-  int filter = AOMMIN(filter0, filter3);
-#endif  // CONFIG_ASYM_DF
 
   // loop filter designed to work using chars so that we can make maximum use
   // of 8 bit simd instructions.
   for (i = 0; i < count; ++i) {
-#if CONFIG_ASYM_DF
     filt_generic_asym_highbd(*q_thresh, AOMMIN(filter, filt_neg), filter, s, 1,
                              bd
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
@@ -185,15 +121,6 @@ void aom_highbd_lpf_vertical_generic_c(uint16_t *s, int pitch,
                              is_lossless_neg, is_lossless_pos
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
     );
-#else
-    filt_generic_highbd(*q_thresh, filter, s, 1, bd
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-                        ,
-                        is_lossless_neg, is_lossless_pos
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-    );
-#endif
-
     s += pitch;
   }
 }
