@@ -3831,11 +3831,6 @@ void setup_cm_quant_params(AV1Decoder *pbi, CommonQuantParams *quant_params,
   int qm_pos_found = -1;
   // int valid_qm_num = AOMMIN(pbi->total_signalled_qm_count, NUM_CUSTOM_QMS);
   for (int qm_pos = 0; qm_pos < NUM_CUSTOM_QMS; qm_pos++) {
-#if ENABLE_QM_TRACE
-    printf("(%s)pbi->qm_list[%d/%d].qm_id %d\n", __func__, qm_pos,
-           NUM_CUSTOM_QMS, pbi->qm_list[qm_pos].qm_id);
-    fflush(stdout);
-#endif
     if (pbi->qm_list[qm_pos].qm_id == qmlevel) {
       qm_pos_found = qm_pos;
       break;
@@ -3860,11 +3855,10 @@ void setup_cm_quant_params(AV1Decoder *pbi, CommonQuantParams *quant_params,
       } else {
         assert(current + size <= QM_TOTAL_SIZE);
         // Generate the iwt matrices from the base matrices.
-        const int plane = c;
-        scale_tx(t, q, plane, &quant_params->iwt_matrix_ref[q][plane][current],
+        scale_tx(t, c, &quant_params->iwt_matrix_ref[q][c][current],
                  pbi->qm_list[qm_pos_found].quantizer_matrix);
         quant_params->giqmatrix[q][c][t] =
-            &quant_params->iwt_matrix_ref[q][plane][current];
+            &quant_params->iwt_matrix_ref[q][c][current];
         current += size;
       }
     }
@@ -3886,9 +3880,6 @@ static AOM_INLINE void setup_qm_params(
   quant_params->using_qmatrix = aom_rb_read_bit(rb);
 #if CONFIG_F255_QMOBU
   AV1_COMMON *const cm = &pbi->common;
-  //[jkei] should it be pbi->active_seq or cm->seq_params?
-  // are seq_params and active_seq different? should they be different? should
-  // they be the same?
   const SequenceHeader *const seq_params = &cm->seq_params;
 #else
   if (quant_params->using_qmatrix) {
@@ -3963,28 +3954,15 @@ static AOM_INLINE void setup_qm_params(
 #endif
     }
 #if CONFIG_F255_QMOBU
-#if ENABLE_QM_TRACE
-    printf("(read_uncompressed_header) pic_qm_num %d\n",
-           quant_params->pic_qm_num);
-    for (uint8_t i = 0; i < quant_params->pic_qm_num; i++) {
-      printf("(read_uncompressed_header) doh[%d] qm_yuv[%d] %d, %d, %d\n",
-             pbi->common.current_frame.display_order_hint, i,
-             quant_params->qm_y[i], quant_params->qm_u[i],
-             quant_params->qm_v[i]);
-    }
-    printf("qm_list.qm_id:\t");
-    for (int qm_pos = 0; qm_pos < NUM_CUSTOM_QMS; qm_pos++) {
-      printf("%d, ", pbi->qm_list[qm_pos].qm_id);
-    }
-    printf("\n");
-#endif
     for (uint8_t i = 0; i < quant_params->pic_qm_num; i++) {
       setup_cm_quant_params(pbi, quant_params, num_planes,
                             quant_params->qm_y[i]);
-      setup_cm_quant_params(pbi, quant_params, num_planes,
-                            quant_params->qm_u[i]);
-      setup_cm_quant_params(pbi, quant_params, num_planes,
-                            quant_params->qm_v[i]);
+      if (num_planes > 1) {
+        setup_cm_quant_params(pbi, quant_params, num_planes,
+                              quant_params->qm_u[i]);
+        setup_cm_quant_params(pbi, quant_params, num_planes,
+                              quant_params->qm_v[i]);
+      }
     }
 #endif  // CONFIG_F255_QMOBU
   } else {

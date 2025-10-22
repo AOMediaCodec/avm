@@ -9009,10 +9009,6 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 #if CONFIG_F255_QMOBU
   if (cm->quant_params.using_qmatrix && !cpi->obu_is_written &&
       !cm->show_existing_frame) {
-#if ENABLE_QM_TRACE
-    printf("(av1_pack_bitstream) DOH[%d] cpi->obu_is_written==0\n",
-           cm->current_frame.display_order_hint);
-#endif
     AV1EncoderConfig *const oxcf = &cpi->oxcf;
     bool need_new_qmobu =
         oxcf->q_cfg.use_full_qm_predefined

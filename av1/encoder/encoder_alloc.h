@@ -322,17 +322,14 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
       if (qm_bit_map & (1 << j)) {
         if (cpi->qmobu_list[qmobu_pos].qm_list[j].quantizer_matrix != NULL)
           av1_free_qm(cpi->qmobu_list[qmobu_pos].qm_list[j].quantizer_matrix,
-                      cm->seq_params.monochrome ? 1 : 3, j);
+                      cm->seq_params.monochrome ? 1 : 3);
       }
     }
   }
-#if ENABLE_QM_TRACE
-  printf("av1_free_qm for user_defined_qm_list\n");
-#endif
   for (int qm_idx = 0; qm_idx < NUM_CUSTOM_QMS; qm_idx++) {
     if (cpi->user_defined_qm_list[qm_idx] != NULL)
       av1_free_qm(cpi->user_defined_qm_list[qm_idx],
-                  cm->seq_params.monochrome ? 1 : 3, qm_idx);
+                  cm->seq_params.monochrome ? 1 : 3);
   }
 #else
   if (cm->quant_params.qmatrix_allocated) {

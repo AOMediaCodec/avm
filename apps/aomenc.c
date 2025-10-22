@@ -169,7 +169,7 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
                                         AV1E_SET_ENABLE_ANGLE_DELTA,
                                         AV1E_SET_ENABLE_TRELLIS_QUANT,
                                         AV1E_SET_ENABLE_QM,
-#if CONFIG_F255_QMOBU_FULLPREDEF
+#if CONFIG_F255_QMOBU
                                         AV1E_SET_QM_FULL_PREDEFINED,
 #endif
                                         AV1E_SET_QM_MIN,
@@ -376,8 +376,8 @@ const arg_def_t *av1_ctrl_args[] = {
   &g_av1_codec_arg_defs.enable_angle_delta,
   &g_av1_codec_arg_defs.enable_trellis_quant,
   &g_av1_codec_arg_defs.enable_qm,
-#if CONFIG_F255_QMOBU_FULLPREDEF
-  &g_av1_codec_arg_defs.use_full_qm_predefinedA,
+#if CONFIG_F255_QMOBU
+  &g_av1_codec_arg_defs.use_full_qm_predefined,
 #endif
   &g_av1_codec_arg_defs.qm_min,
   &g_av1_codec_arg_defs.qm_max,

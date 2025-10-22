@@ -759,8 +759,9 @@ typedef struct {
   bool enable_chroma_deltaq;
   // Indicates if encoding with quantization matrices should be enabled.
   bool using_qm;
-#if CONFIG_F255_QMOBU_FULLPREDEF
-  // Indicates if 15 quantization matrices are set as the predefined matrices.
+#if CONFIG_F255_QMOBU
+  // Indicates if 15 quantization matrices are set to be the predefined
+  // matrices.
   bool use_full_qm_predefined;
 #endif
   // Indicates whether user-defined quantization matrices should be used

@@ -159,22 +159,10 @@ int write_qm_data(AV1_COMP *cpi, struct quantization_matrix_set *qm_list,
   const bool qm_is_default_flag = qm_list[qm_pos].qm_default_index != -1;
   aom_wb_write_bit(wb, qm_is_default_flag);
   if (qm_is_default_flag) {
-#if ENABLE_QM_TRACE
-    printf(
-        "(write_qm_data) !!!!USE_PREDEFINED_QM!!!!! "
-        "cpi->qm_list[%d].qm_default_index: %d\n",
-        qm_pos, qm_list[qm_pos].qm_default_index);
-#endif
     aom_wb_write_literal(wb, qm_list[qm_pos].qm_default_index, 4);
     return wb->bit_offset - size;
-    ;
   }
-#if ENABLE_QM_TRACE
-  else {
-    printf("(write_qm_data) !!!!USE_USERDEFINED_QM!!!!!at [%d]\n", qm_pos);
-  }
-#endif
-  // cpi->qm_list[qm_pos].quantizer_matrix[t][c][j]
+
   for (int t = 0; t < 3; t++) {
     const TX_SIZE tsize = fund_tsize[t];
     const int width = tx_size_wide[tsize];
@@ -182,7 +170,6 @@ int write_qm_data(AV1_COMP *cpi, struct quantization_matrix_set *qm_list,
     const SCAN_ORDER *s = get_scan(tsize, DCT_DCT);
 
     for (int c = 0; c < num_planes; c++) {
-      // const qm_val_t *mat = fund_mat[t][level][c];
       const qm_val_t *mat = qm_list[qm_pos].quantizer_matrix[t][c];
       if (c > 0) {
         //        const qm_val_t *prev_mat = fund_mat[t][level][c - 1];
@@ -263,9 +250,6 @@ int write_qm_data(AV1_COMP *cpi, struct quantization_matrix_set *qm_list,
           delta -= 256;
         }
         aom_wb_write_svlc(wb, delta);
-#if ENABLE_QM_TRACE
-        printf("qmatrix[%d][%d] %d\n", t, c, delta);
-#endif
         if (symbol_idx == stop_symbol_idx) {
           break;
         }
@@ -281,26 +265,17 @@ int write_qm_data(AV1_COMP *cpi, struct quantization_matrix_set *qm_list,
 
 uint32_t write_qm_obu(AV1_COMP *cpi, int signalled_obu_pos,
                       uint8_t *const dst) {
-#if ENABLE_QM_TRACE
-  printf("------(WRITE)START_OF_QMOBU---------\n");
-#endif
-
   struct aom_write_bit_buffer wb = { dst, 0 };
   uint32_t size = 0;
-#if CONFIG_F255_QMOBU_FULLPREDEF
+#if CONFIG_F255_QMOBU
   AV1EncoderConfig *const oxcf = &cpi->oxcf;
   if (oxcf->q_cfg.use_full_qm_predefined) {
     aom_wb_write_literal(&wb, 0, NUM_CUSTOM_QMS);
     av1_add_trailing_bits(&wb);
     size = aom_wb_bytes_written(&wb);
-#if ENABLE_QM_TRACE
-    printf(
-        "------(WRITE)END_OF_QMOBU use_full_qm_predefined (%d)bytes---------\n",
-        size);
-#endif
     return size;
   }
-#endif  // CONFIG_F255_QMOBU_FULLPREDEF
+#endif  // CONFIG_F255_QMOBU
   assert(signalled_obu_pos >= 0);
   int qm_bit_map = cpi->qmobu_list[signalled_obu_pos].qm_bit_map;
   aom_wb_write_literal(&wb, qm_bit_map, NUM_CUSTOM_QMS);
@@ -321,11 +296,6 @@ uint32_t write_qm_obu(AV1_COMP *cpi, int signalled_obu_pos,
 
   av1_add_trailing_bits(&wb);
   size = aom_wb_bytes_written(&wb);
-
-#if ENABLE_QM_TRACE
-  printf("------(WRITE)END_OF_QMOBU (%d)bytes---------\n", size);
-#endif
-
   return size;
 }
 
@@ -338,18 +308,10 @@ bool add_userqm_in_qmobulist(AV1_COMP *cpi) {
   int qm_bit_map = 0;
   for (int qm_id = 0; qm_id < NUM_CUSTOM_QMS; qm_id++) {
     if (cm->use_user_defined_qm[qm_id]) {
-#if ENABLE_QM_TRACE
-      printf(
-          "!!!!!!(add_userqm_in_qmobulist) cm->qm_list[%d] is user-defined\n",
-          qm_id);
-#endif
       qm_bit_map |= 1 << qm_id;
       struct quantization_matrix_set *qm_inobu =
           &cpi->qmobu_list[qmobu_pos].qm_list[qm_id];
       if (qm_inobu->quantizer_matrix == NULL) {
-#if ENABLE_QM_TRACE
-        printf("qm_inobu->quantizer_matrix\n");
-#endif
         qm_inobu->quantizer_matrix = av1_alloc_qmset(num_planes);
       }
       for (int tx_size = 0; tx_size < 3; tx_size++) {
@@ -365,13 +327,6 @@ bool add_userqm_in_qmobulist(AV1_COMP *cpi) {
   }  // for(qm_id)
   cpi->qmobu_list[qmobu_pos].qm_bit_map = qm_bit_map;
   cpi->total_signalled_qmobu_count++;
-#if ENABLE_QM_TRACE
-  printf(
-      "!!!!!!(add_userqm_in_qmobulist) NEW OBU NEEDED: "
-      "total_signalled_qmobu_count (%d) cm->qm_list[%d].qm_bit_map:%d\n",
-      cpi->total_signalled_qmobu_count, qmobu_pos,
-      cpi->qmobu_list[qmobu_pos].qm_bit_map);
-#endif
   return obu_added;
 }
 bool check_add_cmqm_in_qmobulist(AV1_COMP *cpi, bool write_in_prevobu) {
@@ -391,13 +346,6 @@ bool check_add_cmqm_in_qmobulist(AV1_COMP *cpi, bool write_in_prevobu) {
   AV1_COMMON *const cm = &cpi->common;
   CommonQuantParams *quant_params = &cm->quant_params;
   int num_planes = cm->seq_params.monochrome ? 1 : 3;
-#if ENABLE_QM_TRACE
-  printf(
-      "(check_add_cmqm_in_qmobulist) total_signalled_qmobu_count : "
-      "%d\tpic_qm_num "
-      ": %d\n",
-      cpi->total_signalled_qmobu_count, quant_params->pic_qm_num);
-#endif
   for (int pic_qm_idx = 0; pic_qm_idx < quant_params->pic_qm_num;
        pic_qm_idx++) {
     int qm_uv_same_as_y = 1;
@@ -417,12 +365,6 @@ bool check_add_cmqm_in_qmobulist(AV1_COMP *cpi, bool write_in_prevobu) {
               &cpi->qmobu_list[qmobu_pos].qm_list[qm_id];
           // need_to_be_added &= compare_qms(qm_inobu, quant_params);
           int plane = 0;  // check only y-plane : memcmp=0 when equal
-#if ENABLE_QM_TRACE
-          printf(
-              "(check_add_cmqm_in_qmobulist) quant_params->qm_y[%d]: %d vs "
-              "obu_pos[%d].qm_id: %d\n",
-              pic_qm_idx, quant_params->qm_y[pic_qm_idx], qmobu_pos, qm_id);
-#endif
 
           qm_val_t *cm_qm_values8x8 =
               &quant_params->iwt_matrix_ref[quant_params->qm_y[pic_qm_idx]]
@@ -497,16 +439,6 @@ bool check_add_cmqm_in_qmobulist(AV1_COMP *cpi, bool write_in_prevobu) {
   bool new_obu_needed = false;
   for (int i = 0; i < 4; i++)
     for (int j = 0; j < 3; j++) new_obu_needed |= add_cmqm[i][j];
-#if ENABLE_QM_TRACE
-  if (write_in_prevobu)
-    printf("write_in_prevobu: add the current qm into the previous qm obu\n");
-  if (new_obu_needed) {
-    printf("new_obu_needed: new obu is needed\t");
-    for (int i = 0; i < quant_params->pic_qm_num; i++)
-      printf("(%d,%d,%d)\t", add_cmqm[i][0], add_cmqm[i][1], add_cmqm[i][2]);
-    printf("\n");
-  }
-#endif
   if (new_obu_needed) {
     if (write_in_prevobu) cpi->total_signalled_qmobu_count--;
     struct qm_obu *qmobu = &cpi->qmobu_list[cpi->total_signalled_qmobu_count];
@@ -523,20 +455,9 @@ bool check_add_cmqm_in_qmobulist(AV1_COMP *cpi, bool write_in_prevobu) {
       }
       if (add_cmqm[pic_qm_idx][0]) {
         int qm_id = cm->quant_params.qm_y[pic_qm_idx];
-#if ENABLE_QM_TRACE
-        printf(
-            "!!!!!!(check_add_cmqm_in_qmobulist) quant_params->qm_y[%d]: "
-            "quant_params->iwt_matrix_ref[%d] is added to OBU[%d] as "
-            "qmobu->qm_list[%d] \n",
-            pic_qm_idx, quant_params->qm_y[pic_qm_idx],
-            cpi->total_signalled_qmobu_count, qm_id);
-#endif
         qm_bit_map |= 1 << qm_id;
         struct quantization_matrix_set *qm_inobu = &qmobu->qm_list[qm_id];
         if (qm_inobu->quantizer_matrix == NULL) {
-#if ENABLE_QM_TRACE
-          printf("qm_inobu->quantizer_matrix\n");
-#endif
           qm_inobu->quantizer_matrix = av1_alloc_qmset(num_planes);
         }
         for (int plane = 0; plane < num_planes; plane++) {
@@ -563,9 +484,6 @@ bool check_add_cmqm_in_qmobulist(AV1_COMP *cpi, bool write_in_prevobu) {
           qm_bit_map |= 1 << qm_id;
           struct quantization_matrix_set *qm_inobu = &qmobu->qm_list[qm_id];
           if (qm_inobu->quantizer_matrix == NULL) {
-#if ENABLE_QM_TRACE
-            printf("qm_inobu->quantizer_matrix\n");
-#endif
             qm_inobu->quantizer_matrix = av1_alloc_qmset(num_planes);
           }
           for (int plane = 0; plane < num_planes; plane++) {
@@ -591,9 +509,6 @@ bool check_add_cmqm_in_qmobulist(AV1_COMP *cpi, bool write_in_prevobu) {
           qm_bit_map |= 1 << qm_id;
           struct quantization_matrix_set *qm_inobu = &qmobu->qm_list[qm_id];
           if (qm_inobu->quantizer_matrix == NULL) {
-#if ENABLE_QM_TRACE
-            printf("qm_inobu->quantizer_matrix\n");
-#endif
             qm_inobu->quantizer_matrix = av1_alloc_qmset(num_planes);
           }
           for (int plane = 0; plane < num_planes; plane++) {
@@ -633,9 +548,6 @@ void check_qm_is_predefined(AV1_COMP *cpi, int qmobu_pos) {
       qm_inobu->qm_default_index = -1;
       for (int predefined_id = 0; predefined_id < NUM_CUSTOM_QMS;
            predefined_id++) {
-        //  predefined_4x8_iwt_base_matrix[NUM_QM_LEVELS - 1][2][4 * 8]
-        //  predefined_8x4_iwt_base_matrix[NUM_QM_LEVELS - 1][2][4 * 8]
-        //  predefined_8x8_iwt_base_matrix[NUM_QM_LEVELS - 1][2][8 * 8]
         bool same = true;
         for (int plane = 0; plane < 3; plane++) {
           int c = plane == 0 ? 0 : 1;

@@ -125,27 +125,21 @@ static INLINE int aom_get_qmlevel(int qindex, int first, int last,
 // array.
 qm_val_t ***av1_alloc_qm(int width, int height);
 
-// Frees the three-dimensional array mat. The three-dimensional array must have
-// been allocated by av1_alloc_qm().
 #if CONFIG_F255_QMOBU
-void av1_free_qm(qm_val_t ***mat, int num_planes, int qm_pos);
+void av1_free_qm(qm_val_t ***mat, int num_planes);
 qm_val_t ***av1_alloc_qmset(int num_planes);
-void av1_test_user_defined_qm_load(qm_val_t ***user_qmatrix_set, int num_planes,
-                                   int qm_idx);
 // Initialize all global quant/dequant matrices. Used by the encoder.
 void av1_qm_frame_update(struct CommonQuantParams *quant_params, int num_planes,
                          int q, qm_val_t ***matrix_set);
 void av1_qm_init(struct CommonQuantParams *quant_params, int num_planes);
 
-// Initialize all global dequant matrices. Used by the decoder.
-void av1_qm_init_dequant_only(struct CommonQuantParams *quant_params,
-                              int num_planes, qm_val_t ***fund_matrices);
-
 void av1_qm_replace_level(struct CommonQuantParams *quant_params, int level,
                           int num_planes, qm_val_t ***fund_matrices);
-void scale_tx(const int txsize, const int level, const int plane,
-              qm_val_t *output, qm_val_t ***fund_matrices);
+void scale_tx(const int txsize, const int plane, qm_val_t *output,
+              qm_val_t ***fund_matrices);
 #else
+// Frees the three-dimensional array mat. The three-dimensional array must have
+// been allocated by av1_alloc_qm().
 void av1_free_qm(qm_val_t ***mat);
 // Initializes the fundamental quantization matrices to the default ones.
 void av1_init_qmatrix(qm_val_t ***qm_8x8, qm_val_t ***qm_8x4,

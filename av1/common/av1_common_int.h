@@ -2040,13 +2040,13 @@ struct quantization_matrix_set {
   int qm_id;
   /*!
    * Indicates the index of the predefined matrix indicated by the quantization
-   * matrix
+   * matrix : -1: user_defined 0~15: predefined_matrix_idx
    */
-  int qm_default_index;  // -1: user_defined 0~15: predefined_matrix_idx
+  int qm_default_index;
   /*!
-   * quantization matrix
+   * quantization matrix : [8x8/8x4/4x8][y/u/v][64 or 32]
    */
-  qm_val_t ***quantizer_matrix;  //[8x8/8x4,4x8][y/u/v][64]
+  qm_val_t ***quantizer_matrix;
 };
 
 /*!
@@ -2697,7 +2697,7 @@ typedef struct AV1Common {
    */
   bool use_user_defined_qm[NUM_CUSTOM_QMS];
   /*!
-   * new_qmobu_added
+   * Indicate that new obu is added at the encoder to increase the counter
    */
   int new_qmobu_added;
 #endif  // CONFIG_F255_QMOBU

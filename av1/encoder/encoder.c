@@ -3555,9 +3555,6 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
     if (do_dummy_pack) {
       av1_finalize_encoded_frame(cpi);
       int largest_tile_id = 0;  // Output from bitstream: unused here
-#if ENABLE_QM_TRACE
-      printf("<<encode_with_recode_loop>> av1_pack_bitstream\n");
-#endif
       if (av1_pack_bitstream(cpi, dest, size, &largest_tile_id) !=
           AOM_CODEC_OK) {
         return AOM_CODEC_ERROR;
@@ -3599,11 +3596,6 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 
 #if CONFIG_F255_QMOBU
   if (cm->new_qmobu_added) cpi->total_signalled_qmobu_count++;
-#if ENABLE_QM_TRACE
-  printf("(%s) doh:%d\t qmobu_count:%d\n", __func__,
-         cm->current_frame.display_order_hint,
-         cpi->total_signalled_qmobu_count);
-#endif
 #endif
   return AOM_CODEC_OK;
 }
@@ -3772,9 +3764,6 @@ static INLINE int compute_tip_direct_output_mode_RD(AV1_COMP *cpi,
     cm->tip_interp_filter = best_interp_filter;
 
     av1_finalize_encoded_frame(cpi);
-#if ENABLE_QM_TRACE
-    printf("<<%s>> av1_pack_bitstream\n", __func__);
-#endif
     if (av1_pack_bitstream(cpi, dest, size, largest_tile_id) != AOM_CODEC_OK)
       return AOM_CODEC_ERROR;
 
@@ -3907,9 +3896,6 @@ static INLINE int finalize_tip_mode(AV1_COMP *cpi, uint8_t *dest, size_t *size,
     cpi->gm_info.search_done = 0;
 
     av1_finalize_encoded_frame(cpi);
-#if ENABLE_QM_TRACE
-    printf("<<%s>> av1_pack_bitstream\n", __func__);
-#endif
     if (av1_pack_bitstream(cpi, dest, size, largest_tile_id) != AOM_CODEC_OK)
       return AOM_CODEC_ERROR;
 
@@ -4186,9 +4172,6 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, av1_pack_bitstream_final_time);
 #endif
-#if ENABLE_QM_TRACE
-  printf("<<%s>> av1_pack_bitstream\n", __func__);
-#endif
   if (av1_pack_bitstream(cpi, dest, size, largest_tile_id) != AOM_CODEC_OK)
     return AOM_CODEC_ERROR;
 #if CONFIG_COLLECT_COMPONENT_TIMING
@@ -4235,11 +4218,6 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
   cpi->last_encoded_frame_order_hint = cm->current_frame.display_order_hint;
 #if CONFIG_F255_QMOBU
   if (cm->new_qmobu_added) cpi->total_signalled_qmobu_count++;
-#if ENABLE_QM_TRACE
-  printf("(%s) doh:%d\t qmobu_count:%d\n", __func__,
-         cm->current_frame.display_order_hint,
-         cpi->total_signalled_qmobu_count);
-#endif
 #endif
   return AOM_CODEC_OK;
 }
@@ -4352,10 +4330,6 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   }
 #if CONFIG_F255_QMOBU
   cm->new_qmobu_added = 0;
-#if ENABLE_QM_TRACE
-  printf("cm->doh[%d]\tobu_is_written %d\n",
-         cm->current_frame.display_order_hint, (int)cpi->obu_is_written);
-#endif
 #endif
   const int encode_show_existing = encode_show_existing_frame(cm);
   if (encode_show_existing || cm->show_existing_frame) {
@@ -4363,10 +4337,6 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     if (encode_show_existing) {
       // Build the bitstream
       int largest_tile_id = 0;  // Output from bitstream: unused here
-#if ENABLE_QM_TRACE
-      printf("<<%s>> encode_show_existing() calls av1_pack_bitstream\n",
-             __func__);
-#endif
       if (av1_pack_bitstream(cpi, dest, size, &largest_tile_id) != AOM_CODEC_OK)
         return AOM_CODEC_ERROR;
     }

@@ -35,10 +35,6 @@ void alloc_qmatrix(struct quantization_matrix_set *qm_set, int qm_id,
   if (qm_set->quantizer_matrix != NULL) return;
   qm_set->quantizer_matrix =
       (qm_val_t ***)aom_malloc(3 * sizeof(qm_val_t **));  // 8x8,8x4,4x8
-#if ENABLE_QM_TRACE
-  printf("allocate qm_list[%d].quantizer_matrix: %p num_planes: %d\n", qm_id,
-         qm_set->quantizer_matrix, num_planes);
-#endif
   (void)qm_id;
   for (int t = 0; t < 3; t++) {
     const TX_SIZE tsize = fund_tsize[t];
@@ -51,14 +47,6 @@ void alloc_qmatrix(struct quantization_matrix_set *qm_set, int qm_id,
           (qm_val_t *)aom_malloc(width * height * sizeof(qm_val_t));
     }
   }
-#if ENABLE_QM_TRACE
-  for (int t = 0; t < 3; t++) {
-    for (int c = 0; c < num_planes; c++) {
-      printf("\tqm_set->quantizer_matrix[%d][%d]:%p\n", t, c,
-             &qm_set->quantizer_matrix[t][c]);
-    }
-  }
-#endif
 }
 
 uint32_t read_qm_data(AV1Decoder *pbi, int qm_pos, int qm_id, int num_planes,
@@ -67,25 +55,7 @@ uint32_t read_qm_data(AV1Decoder *pbi, int qm_pos, int qm_id, int num_planes,
   const TX_SIZE fund_tsize[3] = { TX_8X8, TX_8X4, TX_4X8 };
 
   if (qm_pos == -1) qm_pos = qm_id;
-#if ENABLE_QM_TRACE
-  printf("<<read_qm_data>>\n");
-#endif
-
   alloc_qmatrix(&pbi->qm_list[qm_pos], qm_pos, num_planes);
-
-  //  pbi->qm_list[qm_pos].quantizer_matrix =
-  //      (qm_val_t ***)aom_malloc(3 * sizeof(qm_val_t **));  // 8x8,8x4,4x8
-  //  for (int t = 0; t < 3; t++) {
-  //    const TX_SIZE tsize = fund_tsize[t];
-  //    const int width = tx_size_wide[tsize];
-  //    const int height = tx_size_high[tsize];
-  //    pbi->qm_list[qm_pos].quantizer_matrix[t] =
-  //        (qm_val_t **)aom_malloc(3 * sizeof(qm_val_t *));  // y/u/v
-  //    for (int c = 0; c < num_planes; c++) {
-  //      pbi->qm_list[qm_pos].quantizer_matrix[t][c] =
-  //          (qm_val_t *)aom_malloc(width * height * sizeof(qm_val_t));
-  //    }
-  //  }
   pbi->qm_list[qm_pos].qm_id = qm_id;
 
   const uint32_t saved_bit_offset = rb->bit_offset;
@@ -93,12 +63,6 @@ uint32_t read_qm_data(AV1Decoder *pbi, int qm_pos, int qm_id, int num_planes,
   if (qm_is_default_flag) {
     const int qm_default_index = aom_rb_read_literal(rb, 4);
     pbi->qm_list[qm_pos].qm_default_index = qm_default_index;
-#if ENABLE_QM_TRACE
-    printf(
-        "(read_qm_data) !!!!USE_PREDEFINED_QM!!!!! "
-        "pbi->qm_list[%d].qm_default_index: %d\n",
-        qm_pos, pbi->qm_list[qm_pos].qm_default_index);
-#endif
     // copy predefined[qm_default_index] to pbi->qm_list[qm_pos]
     for (int c = 0; c < num_planes; ++c) {
       // plane_type: 0:luma, 1:chroma
@@ -116,9 +80,6 @@ uint32_t read_qm_data(AV1Decoder *pbi, int qm_pos, int qm_id, int num_planes,
     return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
   } else {
     pbi->qm_list[qm_pos].qm_default_index = -1;
-#if ENABLE_QM_TRACE
-    printf("(read_qm_data) !!!!USE_USERDEFINED_QM!!!!!at [%d]\n", qm_pos);
-#endif
   }
 
   for (int t = 0; t < 3; t++) {
@@ -135,10 +96,6 @@ uint32_t read_qm_data(AV1Decoder *pbi, int qm_pos, int qm_id, int num_planes,
           memcpy(pbi->qm_list[qm_pos].quantizer_matrix[t][c],
                  pbi->qm_list[qm_pos].quantizer_matrix[t][c - 1],
                  width * height * sizeof(qm_val_t));
-          //          const qm_val_t *src_mat = fund_mat[t][level][c - 1];
-          //          qm_val_t *dst_mat = fund_mat[t][level][c];
-          //          memcpy(dst_mat, src_mat, width * height *
-          //          sizeof(qm_val_t));
           continue;
         }
       }
@@ -155,9 +112,6 @@ uint32_t read_qm_data(AV1Decoder *pbi, int qm_pos, int qm_id, int num_planes,
                   pbi->qm_list[qm_pos]
                       .quantizer_matrix[t - 1][c][j * height + i];
             }
-            //            pbi->qm_list[qm_pos].quantizer_matrix[t][c] += 1;
-            //            pbi->qm_list[qm_pos].quantizer_matrix[t-1][c] +=
-            //            width;
           }
           continue;
         }
@@ -181,9 +135,6 @@ uint32_t read_qm_data(AV1Decoder *pbi, int qm_pos, int qm_id, int num_planes,
 
         if (!coef_repeat_until_end) {
           const int32_t delta = aom_rb_read_svlc(rb);
-#if ENABLE_QM_TRACE
-          printf("qmatrix[%d][%d] %d\n", t, c, delta);
-#endif
           // The valid range of quantization matrix coefficients is 1..255.
           // Therefore the valid range of delta values is -254..254. Because of
           // the % 256 operation, the valid range of delta values can be reduced
@@ -205,36 +156,15 @@ uint32_t read_qm_data(AV1Decoder *pbi, int qm_pos, int qm_id, int num_planes,
     }  // num_planes
   }  // t
 
-  if (0) {
-    for (int tx_idx = 0; tx_idx < 3; tx_idx++) {
-      printf("tx_size:%d=======\n", tx_idx);
-      for (int c = 0; c < 3; c++) {
-        int coeff_num = (tx_idx == 0) ? 64 : 32;
-        for (int x = 0; x < coeff_num; x++)
-          printf("%d, ", pbi->qm_list[qm_pos].quantizer_matrix[tx_idx][c][x]);
-        printf("----------------\n");
-      }
-    }
-  }
-
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }
 static void copy_predefined_qmatrices_to_list(AV1Decoder *pbi) {
   int num_planes = pbi->common.seq_params.monochrome ? 1 : 3;
-#if ENABLE_QM_TRACE
-  printf("<<copy_predefined_qmatrices_to_list>>\n");
-#endif
   for (int qm_pos = 0; qm_pos < NUM_CUSTOM_QMS; qm_pos++) {
     alloc_qmatrix(&pbi->qm_list[qm_pos], qm_pos, num_planes);
     int qm_default_index = qm_pos;
     pbi->qm_list[qm_pos].qm_id = qm_pos;
     pbi->qm_list[qm_pos].qm_default_index = qm_pos;
-#if ENABLE_QM_TRACE
-    printf(
-        "(copy_predefined_qmatrices_to_list) !!!predefined qm!!! "
-        "pbi->qm_list[%d].qm_default_index: %d\n",
-        qm_pos, pbi->qm_list[qm_pos].qm_default_index);
-#endif
     // copy predefined[qm_default_index] to pbi->qm_list[qm_pos]
     for (int c = 0; c < num_planes; ++c) {
       // plane_type: 0:luma, 1:chroma
@@ -252,9 +182,6 @@ static void copy_predefined_qmatrices_to_list(AV1Decoder *pbi) {
   }  // qm_pos
 }
 uint32_t read_qm_obu(AV1Decoder *pbi, struct aom_read_bit_buffer *rb) {
-#if ENABLE_QM_TRACE
-  printf("------(READ)START_OF_QMOBU---------\n");
-#endif
   // multiple qms in one obu with id
   const uint32_t saved_bit_offset = rb->bit_offset;
   int qm_bit_map = aom_rb_read_literal(rb, NUM_CUSTOM_QMS);
@@ -265,10 +192,6 @@ uint32_t read_qm_obu(AV1Decoder *pbi, struct aom_read_bit_buffer *rb) {
       printf("av1_check_trailing_bits(pbi, rb)!=0\n");
       return 0;
     }
-#if ENABLE_QM_TRACE
-    printf("------(READ)END_OF_QMOBU qm_bit_map=0 (%d)bytes ---------\n",
-           ((rb->bit_offset - saved_bit_offset + 7) >> 3));
-#endif
     return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
   }
 
@@ -288,12 +211,6 @@ uint32_t read_qm_obu(AV1Decoder *pbi, struct aom_read_bit_buffer *rb) {
       }
       if (qm_pos == -1) pbi->total_signalled_qm_count += 1;
       read_qm_data(pbi, qm_pos, qm_id, (qm_is_monochrome ? 1 : 3), rb);
-      if (pbi->common.error.error_code != AOM_CODEC_OK) {
-        // error_code is already set in read_qm_data;
-        aom_internal_error(&pbi->common.error, AOM_CODEC_UNSUP_BITSTREAM,
-                           "quantization matrix error code [%d].",
-                           pbi->common.error.error_code);
-      }
     }
   }
 
@@ -302,11 +219,6 @@ uint32_t read_qm_obu(AV1Decoder *pbi, struct aom_read_bit_buffer *rb) {
     printf("av1_check_trailing_bits(pbi, rb)!=0\n");
     return 0;
   }
-#if ENABLE_QM_TRACE
-  printf("------(READ)END_OF_QMOBU (%d)bytes---------\n",
-         ((rb->bit_offset - saved_bit_offset + 7) >> 3));
-#endif
-
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }
 

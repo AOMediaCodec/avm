@@ -627,9 +627,10 @@ enum aome_enc_control_id {
    */
   AV1E_SET_FORCE_VIDEO_MODE = 60,
 
-#if CONFIG_F255_QMOBU_FULLPREDEF
-  /*!\brief Codec control function to set all the quantization matrices as the
-   * predefined matrices when the quantization matrices are
+#if CONFIG_F255_QMOBU
+  /*!\brief Codec control function to set all the quantization matrices to be
+   * the predefined matrices when the quantization matrices are enabled unsigned
+   * int parameter
    *
    * - 0 = disable
    * - 1 = enable (default)
@@ -1463,7 +1464,7 @@ AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_RESTORATION, unsigned int)
 AOM_CTRL_USE_TYPE(AV1E_SET_FORCE_VIDEO_MODE, unsigned int)
 #define AOM_CTRL_AV1E_SET_FORCE_VIDEO_MODE
 
-#if CONFIG_F255_QMOBU_FULLPREDEF
+#if CONFIG_F255_QMOBU
 AOM_CTRL_USE_TYPE(AV1E_SET_QM_FULL_PREDEFINED, unsigned int)
 #define AOM_CTRL_AV1E_SET_QM_FULL_PREDEFINED
 #endif
