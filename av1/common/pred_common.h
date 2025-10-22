@@ -43,7 +43,7 @@ static INLINE void init_ref_map_pair(AV1_COMMON *cm,
       ref_frame_map_pairs[map_idx].disp_order = (int)buf->display_order_hint;
       ref_frame_map_pairs[map_idx].pyr_level = buf->pyramid_level;
       ref_frame_map_pairs[map_idx].temporal_layer_id = buf->temporal_layer_id;
-      ref_frame_map_pairs[map_idx].layer_id = buf->layer_id;
+      ref_frame_map_pairs[map_idx].mlayer_id = buf->mlayer_id;
       ref_frame_map_pairs[map_idx].base_qindex = buf->base_qindex;
       ref_frame_map_pairs[map_idx].frame_type = buf->frame_type;
     }
@@ -54,7 +54,7 @@ static INLINE void init_ref_map_pair(AV1_COMMON *cm,
                                           cm->current_frame.temporal_layer_id,
                                           buf->temporal_layer_id) ||
         !is_mlayer_scalable_and_dependent(
-            &cm->seq_params, cm->current_frame.layer_id, buf->layer_id)
+            &cm->seq_params, cm->current_frame.mlayer_id, buf->mlayer_id)
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
         || (is_ras && buf->frame_type != KEY_FRAME)
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
@@ -98,8 +98,8 @@ typedef struct {
   int disp_order;
   // Quality of the reference frame
   int base_qindex;
-  // Layer id of the ference frame
-  int layer_id;
+  // Layer id of the reference frame
+  int mlayer_id;
   // log2 of resolution ratio
   int res_ratio_log2;
 } RefScoreData;

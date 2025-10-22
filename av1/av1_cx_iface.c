@@ -3737,9 +3737,6 @@ static aom_codec_err_t ctrl_set_mlayer_id(aom_codec_alg_priv_t *ctx,
   const int mlayer_id = va_arg(args, int);
   if (mlayer_id >= MAX_NUM_MLAYERS) return AOM_CODEC_INVALID_PARAM;
   ctx->cpi->common.mlayer_id = mlayer_id;
-  // TODO(hegilmez) replace layer_id with mlayer_id (current code uses
-  // layer_id variable)
-  ctx->cpi->common.layer_id = mlayer_id;
   return AOM_CODEC_OK;
 }
 

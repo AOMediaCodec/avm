@@ -41,10 +41,10 @@ static void bubble_sort_ref_scores(RefScoreData *scores, int n_ranked) {
 
 // Checks to see if a particular reference frame is already in the reference
 // frame map
-static int is_in_ref_score(RefScoreData *map, int disp_order, int layer_id,
+static int is_in_ref_score(RefScoreData *map, int disp_order, int mlayer_id,
                            int score, int n_frames) {
   for (int i = 0; i < n_frames; i++) {
-    if (disp_order == map[i].disp_order && layer_id == map[i].layer_id &&
+    if (disp_order == map[i].disp_order && mlayer_id == map[i].mlayer_id &&
         score == map[i].score)
       return 1;
   }
@@ -174,8 +174,8 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
       continue;
 
     const int ref_disp = cur_ref.disp_order;
-    const int cur_layer_id = cm->current_frame.layer_id;
-    const int ref_layer_id = cur_ref.layer_id;
+    const int cur_layer_id = cm->current_frame.mlayer_id;
+    const int ref_layer_id = cur_ref.mlayer_id;
     const int cur_temporal_id = cm->current_frame.temporal_layer_id;
     const int ref_temporal_id = cur_ref.temporal_layer_id;
     if (!is_tlayer_scalable_and_dependent(&cm->seq_params, cur_temporal_id,
@@ -213,7 +213,7 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
     scores[n_ranked].distance = disp_diff;
     scores[n_ranked].disp_order = ref_disp;
     scores[n_ranked].base_qindex = ref_base_qindex;
-    scores[n_ranked].layer_id = ref_layer_id;
+    scores[n_ranked].mlayer_id = ref_layer_id;
     scores[n_ranked].res_ratio_log2 = res_ratio_log2;
     n_ranked++;
   }

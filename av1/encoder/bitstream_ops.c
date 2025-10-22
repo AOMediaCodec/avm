@@ -175,8 +175,8 @@ uint32_t av1_write_operating_point_set_obu(AV1_COMP *cpi, int obu_xlayer_id,
 }
 
 int av1_set_ops_params(AV1_COMP *cpi, struct OperatingPointSet *ops,
-                       int layer_id) {
-  (void)layer_id;
+                       int xlayer_id) {
+  (void)xlayer_id;
   AV1_COMMON *const cm = &cpi->common;
   memcpy(ops, cm->ops, sizeof(struct OperatingPointSet));
   return 0;

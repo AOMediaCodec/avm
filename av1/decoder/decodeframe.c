@@ -4092,9 +4092,9 @@ static AOM_INLINE void setup_render_size(AV1_COMMON *cm,
   // extended layer. Set default to use xlayer_id 31 when Global LCR is being
   // used
   const bool is_global_lcr = !cm->lcr_params.is_local_lcr;
-  const int layer_id =
+  const int xId =
       is_global_lcr ? GLOBAL_LCR_XLAYER_ID : cm->lcr_params.xlayer_id;
-  const int xlayer_id = cm->lcr_params.lcr_xLayer_id[layerId];
+  const int xlayer_id = cm->lcr_params.lcr_xLayer_id[xId];
   if (cm->lcr_params.lcr_rep_info_present_flag[is_global_lcr][xlayer_id]) {
     cm->render_width = cm->lcr_params.rep_params.lcr_max_pic_width;
     cm->render_height = cm->lcr_params.rep_params.lcr_max_pic_height;
@@ -7861,7 +7861,7 @@ static INLINE int get_disp_order_hint(AV1_COMMON *const cm) {
         !is_tlayer_scalable_and_dependent(&cm->seq_params, cm->tlayer_id,
                                           buf->temporal_layer_id) ||
         !is_mlayer_scalable_and_dependent(&cm->seq_params, cm->mlayer_id,
-                                          buf->layer_id))
+                                          buf->mlayer_id))
       continue;
     if ((int)buf->display_order_hint > max_disp_order_hint)
       max_disp_order_hint = buf->display_order_hint;
@@ -7894,7 +7894,7 @@ static INLINE int get_ref_frame_disp_order_hint(AV1_COMMON *const cm,
     if (!is_tlayer_scalable_and_dependent(&cm->seq_params, cm->tlayer_id,
                                           buf->temporal_layer_id) ||
         !is_mlayer_scalable_and_dependent(
-            &cm->seq_params, cm->current_frame.layer_id, buf->layer_id))
+            &cm->seq_params, cm->current_frame.mlayer_id, buf->mlayer_id))
       continue;
     if ((int)buf->ref_display_order_hint[map_idx] > max_disp_order_hint)
       max_disp_order_hint = buf->ref_display_order_hint[map_idx];
@@ -9003,7 +9003,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   if (current_frame->frame_type == KEY_FRAME) {
     cm->current_frame.pyramid_level = 1;
     cm->current_frame.temporal_layer_id = cm->tlayer_id;
-    cm->current_frame.layer_id = cm->mlayer_id;
+    cm->current_frame.mlayer_id = cm->mlayer_id;
 
     features->tip_frame_mode = TIP_FRAME_DISABLED;
     setup_frame_size(cm, frame_size_override_flag, rb);
@@ -9022,7 +9022,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     cm->cur_frame->num_ref_frames = 0;
   } else {
     cm->current_frame.temporal_layer_id = cm->tlayer_id;
-    cm->current_frame.layer_id = cm->mlayer_id;
+    cm->current_frame.mlayer_id = cm->mlayer_id;
 
     features->allow_ref_frame_mvs = 0;
     features->tip_frame_mode = TIP_FRAME_DISABLED;
@@ -9147,8 +9147,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                                "Inter frame requests nonexistent reference");
           // mlayer and tlayer scalability related bitstream constraints for the
           // explicit reference frame signaling
-          const int cur_mlayer_id = current_frame->layer_id;
-          const int ref_mlayer_id = cm->ref_frame_map[ref]->layer_id;
+          const int cur_mlayer_id = current_frame->mlayer_id;
+          const int ref_mlayer_id = cm->ref_frame_map[ref]->mlayer_id;
           if (!is_mlayer_scalable_and_dependent(seq_params, cur_mlayer_id,
                                                 ref_mlayer_id)) {
             aom_internal_error(

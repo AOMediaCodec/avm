@@ -291,8 +291,8 @@ typedef struct RefCntBuffer {
   unsigned int order_hint;
   int ref_order_hints[INTER_REFS_PER_FRAME];
   int ref_display_order_hint[INTER_REFS_PER_FRAME];
-  int layer_id;
-  int ref_layer_ids[INTER_REFS_PER_FRAME];
+  int mlayer_id;
+  int ref_mlayer_ids[INTER_REFS_PER_FRAME];
 
   // These variables are used only in encoder and compare the absolute
   // display order hint to compute the relative distance and overcome
@@ -365,7 +365,7 @@ typedef struct {
   int temporal_layer_id;
   int disp_order;
   int base_qindex;
-  int layer_id;
+  int mlayer_id;
   int width;
   int height;
 } RefFrameMapPair;
@@ -1136,7 +1136,7 @@ typedef struct {
   unsigned int absolute_poc;
   unsigned int key_frame_number;
   unsigned int frame_number;
-  int layer_id;
+  int mlayer_id;
   SkipModeInfo skip_mode_info;
   int refresh_frame_flags;  // Which ref frames are overwritten by this frame
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO
@@ -2524,16 +2524,6 @@ typedef struct AV1Common {
    * (in the range 0 ... (number_xlayers - 1)).
    */
   int xlayer_id;
-
-  /*!
-   * Number of multiple layers
-   */
-  unsigned int number_layers;
-  /*!
-   * Multi-layer ID of this frame
-   * (in the range 0 ... (number_layers - 1)).
-   */
-  int layer_id;
 
   /*!
    * Weights for IBP of directional modes.
@@ -5699,7 +5689,7 @@ static INLINE int is_frame_tile_config_reuse_eligible(
 static INLINE uint64_t derive_output_order_idx(AV1_COMMON *cm,
                                                RefCntBuffer *output_candidate) {
   uint64_t max_mlayer_id = cm->seq_params.max_mlayer_id;
-  uint64_t mlayer_id = output_candidate->layer_id;
+  uint64_t mlayer_id = output_candidate->mlayer_id;
   uint64_t display_order = output_candidate->display_order_hint;
   return ((max_mlayer_id + 1) * display_order) + mlayer_id;
 }

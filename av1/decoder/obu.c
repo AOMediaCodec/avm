@@ -1625,9 +1625,6 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
     cm->tlayer_id = obu_header.obu_tlayer_id;
     cm->mlayer_id = obu_header.obu_mlayer_id;
     cm->xlayer_id = obu_header.obu_xlayer_id;
-    // TODO(hegilmez) replace layer_id with mlayer_id (current code uses
-    // layer_id variable)
-    cm->layer_id = cm->mlayer_id;
 
     // check bitstream conformance if sequence header is parsed
     if (pbi->sequence_header_ready) {

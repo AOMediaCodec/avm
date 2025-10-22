@@ -237,8 +237,8 @@ uint32_t av1_write_atlas_segment_info_obu(AV1_COMP *cpi, int obu_xLayer_id,
 
 int av1_set_atlas_segment_info_params(AV1_COMP *cpi,
                                       struct AtlasSegmentInfo *atlas,
-                                      int layer_id) {
-  (void)layer_id;
+                                      int xlayer_id) {
+  (void)xlayer_id;
   AV1_COMMON *cm = &cpi->common;
   memcpy(atlas, cm->atlas, sizeof(struct AtlasSegmentInfo));
   atlas->atlas_segment_id[0] = 1;

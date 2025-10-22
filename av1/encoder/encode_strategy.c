@@ -1207,7 +1207,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   cm->tlayer_id = 0;
   cm->current_frame.temporal_layer_id = cm->tlayer_id;
   cm->mlayer_id = 0;
-  cm->current_frame.layer_id = cm->mlayer_id;
+  cm->current_frame.mlayer_id = cm->mlayer_id;
 
   init_ref_map_pair(&cpi->common, cm->ref_frame_map_pairs,
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME

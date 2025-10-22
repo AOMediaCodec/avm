@@ -52,7 +52,7 @@ void set_sequence_header_with_keyframe(AV1_COMP *cpi,
 
 #if CONFIG_MULTILAYER_HLS
 uint32_t av1_write_layer_configuration_record_obu(AV1_COMP *const cpi,
-                                                  int layer_id,
+                                                  int xlayer_id,
                                                   uint8_t *const dst);
 uint32_t av1_write_atlas_segment_info_obu(AV1_COMP *const cpi,
                                           int obu_xLayer_id,
@@ -62,14 +62,14 @@ uint32_t av1_write_operating_point_set_obu(AV1_COMP *const cpi,
                                            uint8_t *const dst);
 
 int av1_set_lcr_params(AV1_COMP *cpi, struct LayerConfigurationRecord *lcr,
-                       int global_id, int layer_id);
+                       int global_id, int xlayer_id);
 
 int av1_set_atlas_segment_info_params(AV1_COMP *cpi,
                                       struct AtlasSegmentInfo *atlas,
-                                      int layer_id);
+                                      int xlayer_id);
 
 int av1_set_ops_params(AV1_COMP *cpi, struct OperatingPointSet *ops,
-                       int layer_id);
+                       int xlayer_id);
 #endif  // CONFIG_MULTILAYER_HLS
 
 #if CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
