@@ -2763,6 +2763,16 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
     }
     cm->rst_info[2].restoration_unit_size =
         cm->rst_info[1].restoration_unit_size;
+
+    // ru_size can be not smaller than stripe size, this error could only be
+    // triggered for 422 coding.
+    if (cm->rst_info[1].restoration_unit_size <
+        (64 >> cm->seq_params.subsampling_y)) {
+      aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+                         "Invalid RU size, RU size shall not be smaller than "
+                         "stripe height which is 64 for 422 format");
+      return;
+    }
   }
 
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES

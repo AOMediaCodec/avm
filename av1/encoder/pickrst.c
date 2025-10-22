@@ -4180,6 +4180,12 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
 
     for (int unit_size = min_unit_size; unit_size <= max_unit_size;
          unit_size <<= 1) {
+      // ru_size can be not smaller than stripe size, this process could only be
+      // triggered for 422 coding.
+      if (plane > 0 && unit_size < (64 >> cm->seq_params.subsampling_y)) {
+        continue;
+      }
+
       if (plane == 2 && unit_size != cm->rst_info[1].restoration_unit_size) {
         continue;
       }
