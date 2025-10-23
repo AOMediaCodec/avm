@@ -812,7 +812,7 @@ static size_t read_metadata_banding_hints(AV1Decoder *const pbi,
 }
 #endif  // CONFIG_BAND_METADATA
 
-#if CONFIG_METADATA  // ICC
+#if CONFIG_ICC_METADATA
 // On success, returns the number of bytes read from 'data'. On failure, calls
 // aom_internal_error() and does not return.
 static size_t read_metadata_icc_profile(AV1Decoder *const pbi,
@@ -827,7 +827,7 @@ static size_t read_metadata_icc_profile(AV1Decoder *const pbi,
                       AOM_MIF_ANY_FRAME);
   return sz;
 }
-#endif  // CONFIG_METADATA // ICC
+#endif  // CONFIG_ICC_METADATA
 
 static int read_metadata_frame_hash(AV1Decoder *const pbi,
                                     struct aom_read_bit_buffer *rb) {
@@ -1961,10 +1961,14 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
 #endif  // CONFIG_METADATA && !CONFIG_SHORT_METADATA
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
         break;
-#if CONFIG_SHORT_METADATA && CONFIG_METADATA
+#if CONFIG_SHORT_METADATA
       case OBU_METADATA_GROUP:
         decoded_payload_size =
+#if  CONFIG_METADATA
             read_metadata_obu(pbi, data, payload_size, &obu_header);
+#else
+            read_metadata_short(pbi, data, payload_size);
+#endif // CONFIG_METADATA
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
         break;
 #endif  // CONFIG_SHORT_METADATA

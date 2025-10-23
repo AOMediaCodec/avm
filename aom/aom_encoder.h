@@ -655,7 +655,7 @@ typedef struct cfg_options {
   int crop_win_bottom_offset;
 #endif  // CONFIG_CROP_WIN_CWG_F220
 
-#if CONFIG_METADATA  // ICC
+#if CONFIG_ICC_METADATA
   /*!\brief ICC profile metadata
    *
    */
@@ -664,7 +664,7 @@ typedef struct cfg_options {
    *
    */
   size_t icc_size;
-#endif  // CONFIG_METADATA // ICC
+#endif  // CONFIG_ICC_METADATA
 } cfg_options_t;
 
 /*!\brief Encoded Frame Flags

@@ -303,9 +303,9 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t crop_win_bottom_offset;
 #endif  // CONFIG_CROP_WIN_CWG_F220
 
-#if CONFIG_METADATA  // ICC
+#if CONFIG_ICC_METADATA
   arg_def_t icc_file;
-#endif  // CONFIG_METADATA // ICC
+#endif  // CONFIG_ICC_METADATA
 } av1_codec_arg_definitions_t;
 
 extern const av1_codec_arg_definitions_t g_av1_codec_arg_defs;

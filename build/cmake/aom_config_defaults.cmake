@@ -159,6 +159,7 @@ set_aom_config_var(CONFIG_F106_OBU_SEF 1 "Use SEF OBU.")
 set_aom_config_var(CONFIG_F106_OBU_TIP 1 "Use TIP_OBU.")
 
 set_aom_config_var(CONFIG_METADATA 1 "F161 metadata syntax")
+set_aom_config_var(CONFIG_ICC_METADATA 1 "ICC metadata syntax")
 
 set_aom_config_var(CONFIG_F253_REMOVE_OUTPUTFLAG 1
                    "Remove enable_frame_output_order.")

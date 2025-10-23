@@ -4741,9 +4741,9 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         0,           // crop_win_top_offset
         0,           // crop_win_bottom_offset
 #endif               // CONFIG_CROP_WIN_CWG_F220
-#if CONFIG_METADATA  // ICC
+#if CONFIG_ICC_METADATA
         NULL, 0,
-#endif  // CONFIG_METADATA // ICC
+#endif  // CONFIG_ICC_METADATA
     },  // cfg
 #if CONFIG_CROP_WIN_CWG_F220
     0,  // enable cropping window
