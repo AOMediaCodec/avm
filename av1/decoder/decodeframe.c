@@ -6761,6 +6761,7 @@ void read_sequence_inter_group_tool_flags(struct SequenceHeader *seq_params,
     seq_params->enable_six_param_warp_delta = aom_rb_read_bit(rb);
 #endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
     seq_params->seq_enabled_motion_modes = seq_enabled_motion_modes;
+    seq_params->enable_masked_compound = aom_rb_read_bit(rb);
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
     seq_params->order_hint_info.enable_order_hint = aom_rb_read_bit(rb);
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
@@ -6791,7 +6792,6 @@ void read_sequence_inter_group_tool_flags(struct SequenceHeader *seq_params,
         aom_rb_read_bit(rb) ? DRL_REORDER_CONSTRAINT : DRL_REORDER_ALWAYS;
   }
   seq_params->explicit_ref_frame_map = aom_rb_read_bit(rb);
-  seq_params->enable_masked_compound = aom_rb_read_bit(rb);
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
   // 0 : use show_existing_frame, 1: use implicit derivation
   seq_params->enable_frame_output_order = aom_rb_read_bit(rb);
@@ -6847,16 +6847,14 @@ void read_sequence_inter_group_tool_flags(struct SequenceHeader *seq_params,
   } else {
     seq_params->enable_tip_explicit_qp = 0;
   }
-  if (!seq_params->single_picture_hdr_flag) {
 #if CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-    seq_params->enable_opfl_refine = aom_rb_read_literal(rb, 2);
+  seq_params->enable_opfl_refine = aom_rb_read_literal(rb, 2);
 #else
-    seq_params->enable_opfl_refine =
-        seq_params->order_hint_info.enable_order_hint
-            ? aom_rb_read_literal(rb, 2)
-            : AOM_OPFL_REFINE_NONE;
+  seq_params->enable_opfl_refine = seq_params->order_hint_info.enable_order_hint
+                                       ? aom_rb_read_literal(rb, 2)
+                                       : AOM_OPFL_REFINE_NONE;
 #endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-  }
+
   seq_params->enable_adaptive_mvd = aom_rb_read_bit(rb);
 
   seq_params->enable_refinemv = aom_rb_read_bit(rb);
@@ -6923,14 +6921,13 @@ void read_sequence_filter_group_tool_flags(struct SequenceHeader *seq_params,
   seq_params->cfl_ds_filter_index =
       seq_params->monochrome ? 0 : aom_rb_read_literal(rb, 2);
 
-  if (!seq_params->single_picture_hdr_flag) {
-    seq_params->enable_tcq = 0;
-    int enable_tcq = aom_rb_read_bit(rb);
-    if (enable_tcq) {
-      enable_tcq += aom_rb_read_bit(rb);
-      seq_params->enable_tcq = enable_tcq;
-    }
+  seq_params->enable_tcq = 0;
+  int enable_tcq = aom_rb_read_bit(rb);
+  if (enable_tcq) {
+    enable_tcq += aom_rb_read_bit(rb);
+    seq_params->enable_tcq = enable_tcq;
   }
+
   if (seq_params->enable_tcq == TCQ_DISABLE ||
       seq_params->enable_tcq >= TCQ_8ST_FR) {
     seq_params->enable_parity_hiding = aom_rb_read_bit(rb);
@@ -7084,6 +7081,15 @@ void av1_read_sequence_header(
     } else {
       seq_params->force_integer_mv = 2;  // SELECT_INTEGER_MV
     }
+
+    seq_params->order_hint_info.order_hint_bits_minus_1 =
+#if CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+        aom_rb_read_literal(rb, 3);
+#else
+        seq_params->order_hint_info.enable_order_hint
+            ? aom_rb_read_literal(rb, 3)
+            : -1;
+#endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
 #endif  // !CONFIG_REORDER_SEQ_FLAGS
   }
 

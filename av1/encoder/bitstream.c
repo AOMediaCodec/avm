@@ -5525,7 +5525,7 @@ void write_sequence_inter_group_tool_flags(
 #else
     aom_wb_write_bit(wb, seq_params->enable_six_param_warp_delta);
 #endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
-
+    aom_wb_write_bit(wb, seq_params->enable_masked_compound);
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
     aom_wb_write_bit(wb, seq_params->order_hint_info.enable_order_hint);
 
@@ -5560,7 +5560,6 @@ void write_sequence_inter_group_tool_flags(
   }
 
   aom_wb_write_bit(wb, seq_params->explicit_ref_frame_map);
-  aom_wb_write_bit(wb, seq_params->enable_masked_compound);
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
   // 0 : show_existing_frame, 1: implicit derviation
   aom_wb_write_bit(wb, seq_params->enable_frame_output_order);
@@ -5607,9 +5606,7 @@ void write_sequence_inter_group_tool_flags(
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   if (seq_params->order_hint_info.enable_order_hint) {
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-    if (!seq_params->single_picture_hdr_flag) {
-      aom_wb_write_literal(wb, seq_params->enable_opfl_refine, 2);
-    }
+    aom_wb_write_literal(wb, seq_params->enable_opfl_refine, 2);
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   }
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
@@ -5683,11 +5680,9 @@ void write_sequence_filter_group_tool_flags(
     aom_wb_write_literal(wb, seq_params->cfl_ds_filter_index, 2);
 
   int enable_tcq = seq_params->enable_tcq;
-  if (!seq_params->single_picture_hdr_flag) {
-    aom_wb_write_bit(wb, enable_tcq != 0);
-    if (enable_tcq) {
-      aom_wb_write_literal(wb, enable_tcq - 1, 1);
-    }
+  aom_wb_write_bit(wb, enable_tcq != 0);
+  if (enable_tcq) {
+    aom_wb_write_literal(wb, enable_tcq - 1, 1);
   }
   if (enable_tcq == TCQ_DISABLE || enable_tcq >= TCQ_8ST_FR) {
     // Signal whether parity hiding is used if TCQ is
