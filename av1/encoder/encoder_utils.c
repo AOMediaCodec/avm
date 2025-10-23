@@ -706,9 +706,7 @@ void av1_update_film_grain_parameters(struct AV1_COMP *cpi,
     cm->seq_params.film_grain_params_present = 0;
 #endif
     memset(&cm->film_grain_params, 0, sizeof(cm->film_grain_params));
-#if CONFIG_FGS_BLOCK_SIZE
     cm->film_grain_params.block_size = tune_cfg->film_grain_block_size;
-#endif
   }
 }
 

@@ -4706,10 +4706,8 @@ static int apply_denoise_2d(AV1_COMP *cpi, YV12_BUFFER_CONFIG *sd,
   if (aom_denoise_and_model_run(cpi->denoise_and_model, sd,
                                 &cm->film_grain_params)) {
     if (cm->film_grain_params.apply_grain) {
-#if CONFIG_FGS_BLOCK_SIZE
       cm->film_grain_params.block_size =
           cpi->oxcf.tune_cfg.film_grain_block_size;
-#endif
       aom_film_grain_table_append(cpi->film_grain_table, time_stamp, end_time,
                                   &cm->film_grain_params);
     }

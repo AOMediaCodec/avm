@@ -649,11 +649,9 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       "... 16: test-16)"),
   .film_grain_table = ARG_DEF(NULL, "film-grain-table", 1,
                               "Path to file containing film grain parameters"),
-#if CONFIG_FGS_BLOCK_SIZE
   .film_grain_block_size =
       ARG_DEF(NULL, "film-grain-block-size", 1,
               "Film grain synthesis block size (0: 16x16 (default), 1: 32x32)"),
-#endif
 #if CONFIG_DENOISE
   .denoise_noise_level =
       ARG_DEF(NULL, "denoise-noise-level", 1,

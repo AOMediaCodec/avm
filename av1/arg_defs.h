@@ -229,9 +229,7 @@ typedef struct av1_codec_arg_definitions {
 #endif
   arg_def_t film_grain_test;
   arg_def_t film_grain_table;
-#if CONFIG_FGS_BLOCK_SIZE
   arg_def_t film_grain_block_size;
-#endif
 #if CONFIG_DENOISE
   arg_def_t denoise_noise_level;
   arg_def_t denoise_block_size;

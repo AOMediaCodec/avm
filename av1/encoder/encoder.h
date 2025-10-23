@@ -708,10 +708,8 @@ typedef struct {
   aom_tune_content content;
   // Indicates the film grain parameters.
   int film_grain_test_vector;
-#if CONFIG_FGS_BLOCK_SIZE
   // Indicates FGS block size: 0 - 16x16, 1 - 32x32
   int film_grain_block_size;
-#endif
 } TuneCfg;
 
 typedef struct {

@@ -98,11 +98,9 @@ static const arg_def_t use_i444 =
     ARG_DEF(NULL, "i444", 0, "Input file (and denoised) is I444");
 static const arg_def_t debug_file_arg =
     ARG_DEF(NULL, "debug-file", 1, "File to output debug info");
-#if CONFIG_FGS_BLOCK_SIZE
 static const arg_def_t fgs_block_size_arg =
     ARG_DEF(NULL, "fgs-block-size", 1,
             "Block size in film grain synthesis (0: 16x16, 1: 32x32)");
-#endif
 
 typedef struct {
   int width;
@@ -118,9 +116,7 @@ typedef struct {
   int force_flat_psd;
   int skip_frames;
   const char *debug_file;
-#if CONFIG_FGS_BLOCK_SIZE
   int fgs_block_size;
-#endif
 } noise_model_args_t;
 
 static void parse_args(noise_model_args_t *noise_args, int *argc, char **argv) {
@@ -137,9 +133,7 @@ static void parse_args(noise_model_args_t *noise_args, int *argc, char **argv) {
                                           &use_i422,
                                           &use_i444,
                                           &debug_file_arg,
-#if CONFIG_FGS_BLOCK_SIZE
                                           &fgs_block_size_arg,
-#endif
                                           NULL };
   for (int argi = *argc + 1; *argv; argi++, argv++) {
     (void)argi;
@@ -175,10 +169,8 @@ static void parse_args(noise_model_args_t *noise_args, int *argc, char **argv) {
       noise_args->skip_frames = atoi(arg.val);
     } else if (arg_match(&arg, &debug_file_arg, argv)) {
       noise_args->debug_file = arg.val;
-#if CONFIG_FGS_BLOCK_SIZE
     } else if (arg_match(&arg, &fgs_block_size_arg, argv)) {
       noise_args->fgs_block_size = atoi(arg.val);
-#endif
     } else {
       fprintf(stdout, "Unknown arg: %s\n\nUsage:\n", *argv);
       arg_show_usage(stdout, main_args);
@@ -274,7 +266,7 @@ static void print_variance_y(FILE *debug_file, aom_image_t *raw,
 static void print_debug_info(FILE *debug_file, aom_image_t *raw,
                              aom_image_t *denoised, uint8_t *flat_blocks,
                              int block_size, aom_noise_model_t *noise_model
-#if CONFIG_FGS_BLOCK_SIZE && CONFIG_AV1_DECODER
+#if CONFIG_AV1_DECODER
                              ,
                              int fgs_block_size
 #endif
@@ -302,33 +294,15 @@ static void print_debug_info(FILE *debug_file, aom_image_t *raw,
 #if CONFIG_AV1_DECODER
   aom_film_grain_t grain;
   aom_noise_model_get_grain_parameters(noise_model, &grain);
-#if CONFIG_FGS_BLOCK_SIZE
   grain.block_size = fgs_block_size;
-#endif
   print_variance_y(debug_file, raw, denoised, flat_blocks, block_size, &grain);
 #endif
   fflush(debug_file);
 }
 
 int main(int argc, char *argv[]) {
-  noise_model_args_t args = { 0,
-                              0,
-                              { 25, 1 },
-                              0,
-                              0,
-                              0,
-                              AOM_IMG_FMT_I420,
-                              32,
-                              8,
-                              1,
-                              0,
-                              1,
-                              NULL
-#if CONFIG_FGS_BLOCK_SIZE
-                              ,
-                              0
-#endif
-  };
+  noise_model_args_t args = { 0,  0, { 25, 1 }, 0, 0, 0,    AOM_IMG_FMT_I420,
+                              32, 8, 1,         0, 1, NULL, 0 };
   aom_image_t raw, denoised;
   FILE *infile = NULL;
   AvxVideoInfo info;
@@ -432,9 +406,7 @@ int main(int argc, char *argv[]) {
         aom_film_grain_t grain;
         aom_noise_model_get_grain_parameters(&noise_model, &grain);
         grain.random_seed = random_seed;
-#if CONFIG_FGS_BLOCK_SIZE
         grain.block_size = args.fgs_block_size;
-#endif
         random_seed = 0;
         aom_film_grain_table_append(&grain_table, prev_timestamp, cur_timestamp,
                                     &grain);
@@ -444,7 +416,7 @@ int main(int argc, char *argv[]) {
       if (debug_file) {
         print_debug_info(debug_file, &raw, &denoised, flat_blocks, block_size,
                          &noise_model
-#if CONFIG_FGS_BLOCK_SIZE && CONFIG_AV1_DECODER
+#if CONFIG_AV1_DECODER
                          ,
                          args.fgs_block_size
 #endif
@@ -458,9 +430,7 @@ int main(int argc, char *argv[]) {
   aom_film_grain_t grain;
   aom_noise_model_get_grain_parameters(&noise_model, &grain);
   grain.random_seed = random_seed;
-#if CONFIG_FGS_BLOCK_SIZE
   grain.block_size = args.fgs_block_size;
-#endif
   aom_film_grain_table_append(&grain_table, prev_timestamp, INT64_MAX, &grain);
   if (args.output_grain_table) {
     struct aom_internal_error_info error_info;

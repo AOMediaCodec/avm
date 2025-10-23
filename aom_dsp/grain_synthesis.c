@@ -223,13 +223,11 @@ static int luma_subblock_size_x = 32;
 static int chroma_subblock_size_y = 16;
 static int chroma_subblock_size_x = 16;
 
-#if CONFIG_FGS_BLOCK_SIZE
 static int max_luma_subblock_size_y = 32;
 static int max_luma_subblock_size_x = 32;
 
 static int max_chroma_subblock_size_y = 16;
 static int max_chroma_subblock_size_x = 16;
-#endif
 
 static const int min_luma_legal_range = 16;
 static const int max_luma_legal_range = 235;
@@ -1126,7 +1124,6 @@ int av1_add_film_grain_run(const aom_film_grain_t *params, uint8_t *luma,
 
   int ar_padding = 3;  // maximum lag used for stabilization of AR coefficients
 
-#if CONFIG_FGS_BLOCK_SIZE
   max_luma_subblock_size_y = 32;
   max_luma_subblock_size_x = 32;
 
@@ -1135,10 +1132,6 @@ int av1_add_film_grain_run(const aom_film_grain_t *params, uint8_t *luma,
 
   luma_subblock_size_y = 16 << params->block_size;
   luma_subblock_size_x = 16 << params->block_size;
-#else
-  luma_subblock_size_y = 32;
-  luma_subblock_size_x = 32;
-#endif
 
   chroma_subblock_size_y = luma_subblock_size_y >> chroma_subsamp_y;
   chroma_subblock_size_x = luma_subblock_size_x >> chroma_subsamp_x;
@@ -1149,28 +1142,15 @@ int av1_add_film_grain_run(const aom_film_grain_t *params, uint8_t *luma,
   // is used later for adding grain, padding can be discarded
 
   int luma_block_size_y =
-#if CONFIG_FGS_BLOCK_SIZE
       top_pad + 2 * ar_padding + max_luma_subblock_size_y * 2 + bottom_pad;
   int luma_block_size_x = left_pad + 2 * ar_padding +
-                          max_luma_subblock_size_x * 2 +
-#else
-      top_pad + 2 * ar_padding + luma_subblock_size_y * 2 + bottom_pad;
-  int luma_block_size_x = left_pad + 2 * ar_padding + luma_subblock_size_x * 2 +
-#endif
-                          2 * ar_padding + right_pad;
+                          max_luma_subblock_size_x * 2 + 2 * ar_padding +
+                          right_pad;
 
   int chroma_block_size_y = top_pad + (2 >> chroma_subsamp_y) * ar_padding +
-#if CONFIG_FGS_BLOCK_SIZE
                             max_chroma_subblock_size_y * 2 + bottom_pad;
-#else
-                            chroma_subblock_size_y * 2 + bottom_pad;
-#endif
   int chroma_block_size_x = left_pad + (2 >> chroma_subsamp_x) * ar_padding +
-#if CONFIG_FGS_BLOCK_SIZE
                             max_chroma_subblock_size_x * 2 +
-#else
-                            chroma_subblock_size_x * 2 +
-#endif
                             (2 >> chroma_subsamp_x) * ar_padding + right_pad;
 
   int luma_grain_stride = luma_block_size_x;
@@ -1235,13 +1215,8 @@ int av1_add_film_grain_run(const aom_film_grain_t *params, uint8_t *luma,
 #endif
   }
   for (int y = 0; y < height / 2; y += (luma_subblock_size_y >> 1)) {
-#if CONFIG_FGS_BLOCK_SIZE
     init_random_generator(y << 2, params->random_seed);
-#else
-    init_random_generator(y * 2, params->random_seed);
-#endif
     for (int x = 0; x < width / 2; x += (luma_subblock_size_x >> 1)) {
-#if CONFIG_FGS_BLOCK_SIZE
       int offset_y = (get_random_number(9) * (3 - params->block_size)) >> 6;
       get_random_number(16);
       get_random_number(16);
@@ -1251,11 +1226,6 @@ int av1_add_film_grain_run(const aom_film_grain_t *params, uint8_t *luma,
       get_random_number(16);
       get_random_number(16);
       get_random_number(16);
-#else
-      int offset_y = get_random_number(8);
-      int offset_x = (offset_y >> 4) & 15;
-      offset_y &= 15;
-#endif
 
       int luma_offset_y = left_pad + 2 * ar_padding + (offset_y << 1);
       int luma_offset_x = top_pad + 2 * ar_padding + (offset_x << 1);

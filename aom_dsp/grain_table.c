@@ -36,11 +36,7 @@
 #include "aom_dsp/aom_dsp_common.h"
 #include "aom_dsp/grain_table.h"
 #include "aom_mem/aom_mem.h"
-#if CONFIG_FGS_BLOCK_SIZE
 static const char kFileMagic[8] = "filmgrn2";
-#else
-static const char kFileMagic[8] = "filmgrn1";
-#endif
 static void grain_table_entry_read(FILE *file,
                                    struct aom_internal_error_info *error_info,
                                    aom_film_grain_table_entry_t *entry) {
@@ -56,35 +52,20 @@ static void grain_table_entry_read(FILE *file,
     return;
   }
   if (pars->update_parameters) {
-#if CONFIG_FGS_BLOCK_SIZE
-    num_read = fscanf(file, "p %d %d %d %d %d %d %d %d %d %d %d %d %d\n",
-#else
-    num_read = fscanf(file, "p %d %d %d %d %d %d %d %d %d %d %d %d\n",
-#endif
-                      &pars->ar_coeff_lag, &pars->ar_coeff_shift,
-                      &pars->grain_scale_shift, &pars->scaling_shift,
+    num_read = fscanf(
+        file, "p %d %d %d %d %d %d %d %d %d %d %d %d %d\n", &pars->ar_coeff_lag,
+        &pars->ar_coeff_shift, &pars->grain_scale_shift, &pars->scaling_shift,
 #if CONFIG_CWG_F298_REC11
-                      &pars->fgm_scale_from_channel0_flag, &pars->overlap_flag,
+        &pars->fgm_scale_from_channel0_flag, &pars->overlap_flag,
 #else
-                      &pars->chroma_scaling_from_luma, &pars->overlap_flag,
+        &pars->chroma_scaling_from_luma, &pars->overlap_flag,
 #endif
 
-                      &pars->cb_mult, &pars->cb_luma_mult, &pars->cb_offset,
-#if CONFIG_FGS_BLOCK_SIZE
-                      &pars->cr_mult, &pars->cr_luma_mult, &pars->cr_offset,
-                      &pars->block_size);
-#else
-                      &pars->cr_mult, &pars->cr_luma_mult, &pars->cr_offset);
-#endif
-#if CONFIG_FGS_BLOCK_SIZE
+        &pars->cb_mult, &pars->cb_luma_mult, &pars->cb_offset, &pars->cr_mult,
+        &pars->cr_luma_mult, &pars->cr_offset, &pars->block_size);
     if (num_read != 13) {
       aom_internal_error(error_info, AOM_CODEC_ERROR,
                          "Unable to read entry params. Read %d != 13",
-#else
-    if (num_read != 12) {
-      aom_internal_error(error_info, AOM_CODEC_ERROR,
-                         "Unable to read entry params. Read %d != 12",
-#endif
                          num_read);
       return;
     }
@@ -211,11 +192,7 @@ static void grain_table_entry_write(FILE *file,
           entry->end_time, pars->apply_grain, pars->random_seed,
           pars->update_parameters);
   if (pars->update_parameters) {
-#if CONFIG_FGS_BLOCK_SIZE
     fprintf(file, "\tp %d %d %d %d %d %d %d %d %d %d %d %d %d\n",
-#else
-    fprintf(file, "\tp %d %d %d %d %d %d %d %d %d %d %d %d\n",
-#endif
             pars->ar_coeff_lag, pars->ar_coeff_shift, pars->grain_scale_shift,
 #if CONFIG_CWG_F298_REC11
             pars->scaling_shift, pars->fgm_scale_from_channel0_flag,
@@ -224,12 +201,8 @@ static void grain_table_entry_write(FILE *file,
 #endif
 
             pars->overlap_flag, pars->cb_mult, pars->cb_luma_mult,
-            pars->cb_offset, pars->cr_mult, pars->cr_luma_mult,
-#if CONFIG_FGS_BLOCK_SIZE
-            pars->cr_offset, pars->block_size);
-#else
-            pars->cr_offset);
-#endif
+            pars->cb_offset, pars->cr_mult, pars->cr_luma_mult, pars->cr_offset,
+            pars->block_size);
 #if CONFIG_CWG_F298_REC11
     fprintf(file, "\tsY %d ", pars->fgm_points[0]);
     for (int i = 0; i < pars->fgm_points[0]; ++i) {

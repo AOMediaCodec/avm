@@ -6395,9 +6395,7 @@ void av1_read_film_grain_params(AV1_COMMON *cm,
 
   pars->clip_to_restricted_range = aom_rb_read_bit(rb);
 
-#if CONFIG_FGS_BLOCK_SIZE
   pars->block_size = aom_rb_read_bit(rb);
-#endif
 }
 
 static AOM_INLINE void read_film_grain(AV1_COMMON *cm,

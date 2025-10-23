@@ -1238,13 +1238,11 @@ enum aome_enc_control_id {
    */
   AV1E_SET_ENABLE_GDF = 173,
 
-#if CONFIG_FGS_BLOCK_SIZE
   /*!\brief Control to select block size in film grain synthesis
    *
    * Valid range: 0..1, 0 is 16x16 block size (default), 1 is 32x32 block size
    */
   AV1E_SET_FILM_GRAIN_BLOCK_SIZE = 174,
-#endif
 
 };
 
@@ -1671,10 +1669,8 @@ AOM_CTRL_USE_TYPE(AV1E_SET_FILM_GRAIN_TEST_VECTOR, int)
 AOM_CTRL_USE_TYPE(AV1E_SET_FILM_GRAIN_TABLE, const char *)
 #define AOM_CTRL_AV1E_SET_FILM_GRAIN_TABLE
 
-#if CONFIG_FGS_BLOCK_SIZE
 AOM_CTRL_USE_TYPE(AV1E_SET_FILM_GRAIN_BLOCK_SIZE, int)
 #define AOM_CTRL_AV1E_SET_FILM_GRAIN_BLOCK_SIZE
-#endif
 
 AOM_CTRL_USE_TYPE(AV1E_SET_CDF_UPDATE_MODE, unsigned int)
 #define AOM_CTRL_AV1E_SET_CDF_UPDATE_MODE

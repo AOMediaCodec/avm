@@ -293,7 +293,6 @@ set_aom_config_var(CONFIG_GDF_IMPROVEMENT 1
 set_aom_config_var(CONFIG_COEFF_PARSING 1
                    "Parsing dependency removal for coefficient related syntax.")
 
-set_aom_config_var(CONFIG_FGS_BLOCK_SIZE 1 "Choice of FGS blocks size.")
 set_aom_config_var(CONFIG_MOTION_MODE_FRAME_HEADERS_OPT 1
                    "Frame header optimzation of motion modes.")
 
