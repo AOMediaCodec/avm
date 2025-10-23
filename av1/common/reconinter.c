@@ -3852,6 +3852,9 @@ static void build_inter_predictors_8x8_and_bigger_facade(
               MAX_BLOCK_SIZE_WITH_SAME_MV);
         }
 
+        // The step size (unit_blk_size) is already determined by whether it is
+        // a TIP 8x8 or TIP 16x16 block, so no additional offset adjustment is
+        // needed.
         get_tip_mv(cm, &mi->mv[0].as_mv, tpl_col, tpl_row, tip_mv_tmp);
 
         tip_mv[0] = tip_mv_tmp[0].as_mv;

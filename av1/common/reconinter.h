@@ -769,7 +769,7 @@ static INLINE int is_refinemv_allowed(const AV1_COMMON *const cm,
          is_refinemv_allowed_reference(cm, mbmi);
 }
 
-// check if any mv refinement mode is allowed at frame level
+// check if any mv refinement mode is allowed in TIP at frame level
 static INLINE int is_any_mv_refinement_allowed_in_tip(
     const AV1_COMMON *const cm) {
   if (!cm->has_both_sides_refs) return 0;
@@ -790,6 +790,50 @@ static INLINE int is_any_mv_refinement_allowed_in_tip(
   if (tip_weight != TIP_EQUAL_WTD) return 0;
 
   return 1;
+}
+
+// check if any refinement algorithm is applied in TIP at block level
+static INLINE int is_tip_block_with_mv_refinement(const AV1_COMMON *const cm,
+                                                  const MACROBLOCKD *xd) {
+  if (!is_any_mv_refinement_allowed_in_tip(cm)) return 0;
+
+  if (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
+    // No OPFL and subblock MV refinement on TIP direct output mode when
+    // the interpolation filter is not MULTITAP_SHARP
+    if (cm->tip_interp_filter != MULTITAP_SHARP) return 0;
+
+    // No subblock MV refinement on TIP direct output mode when the
+    // interpolation filter is MULTITAP_SHARP
+    if (cm->seq_params.enable_opfl_refine == AOM_OPFL_REFINE_NONE) return 0;
+  }
+
+  if (cm->features.tip_frame_mode == TIP_FRAME_AS_REF) {
+    // No OPFL MV refinement on TIP reference mode when the coding block
+    // is 256x256
+    const MB_MODE_INFO *mi = xd->mi[0];
+
+    const int bw = block_size_wide[mi->sb_type[xd->tree_type == CHROMA_PART]];
+    const int bh = block_size_high[mi->sb_type[xd->tree_type == CHROMA_PART]];
+    if (bw >= 256 && bh >= 256 && !cm->seq_params.enable_refinemv) return 0;
+  }
+
+  return 1;
+}
+
+// Is the coding block a TIP 16x16 coding block.
+static AOM_INLINE bool is_tip_coded_as_16x16_block(const AV1_COMMON *cm,
+                                                   const MB_MODE_INFO *mi) {
+  if (!is_tip_ref_frame(mi->ref_frame[0])) return false;
+
+  const int bw = block_size_wide[mi->sb_type[0]];
+  const int bh = block_size_high[mi->sb_type[0]];
+
+  bool is_tip_16_16 = disable_opfl_for_16x16_tip_ref(
+      cm->features.tip_frame_mode, bw, bh, cm->seq_params.enable_tip_refinemv);
+  is_tip_16_16 |= disable_opfl_for_tip_direct(
+      cm->features.tip_frame_mode, cm->tip_interp_filter,
+      cm->seq_params.enable_tip_refinemv);
+  return is_tip_16_16;
 }
 
 // check if unequal weight is allowed for TIP at frame level
@@ -878,7 +922,7 @@ static INLINE int enable_refined_mvs_in_tmvp(const AV1_COMMON *cm,
       opfl_allowed_cur_pred_mode(cm, xd, mbmi) ||
       (mbmi->refinemv_flag && mbmi->interinter_comp.type == COMPOUND_AVERAGE) ||
       (is_tip_ref_frame(mbmi->ref_frame[0]) &&
-       is_any_mv_refinement_allowed_in_tip(cm)));
+       is_tip_block_with_mv_refinement(cm, xd)));
 }
 
 // This function conduct the SAD search between two predictors and find the best

@@ -185,6 +185,10 @@ void av1_copy_frame_refined_mvs_tip_frame_mode(const AV1_COMMON *const cm,
 
   int apply_sub_block_refinemv = tip_ref_frame || mi->refinemv_flag;
 
+  // If this is a TIP block and a refinement algorithm is applied,
+  // no special handling is needed for TIP 16x16 blocks, because refined MVs
+  // are used for TMVP in this case, and they are stored at a finer granularity.
+
   for (int h = 0; h < y_inside_boundary; h++) {
     MV_REF *mv = frame_mvs;
     for (int w = 0; w < x_inside_boundary; w++) {
@@ -287,6 +291,8 @@ void av1_copy_frame_mvs_tip_frame_mode(const AV1_COMMON *const cm,
     is_warp[idx] = is_warp_affine_block(xd, mi, idx, &warp_params[idx]);
   }
 
+  const int is_tip_16_16 = is_tip_coded_as_16x16_block(cm, mi);
+
   for (int h = 0; h < y_inside_boundary; h++) {
     MV_REF *mv = frame_mvs;
     for (int w = 0; w < x_inside_boundary; w++) {
@@ -322,22 +328,28 @@ void av1_copy_frame_mvs_tip_frame_mode(const AV1_COMMON *const cm,
           mv->mv[idx].as_int = sub_block_mv.as_int;
           process_mv_for_tmvp(&mv->mv[idx].as_mv);
         } else if (is_tip_ref_frame(ref_frame)) {
-          int_mv this_mv[2] = { { 0 } };
-          const MV *blk_mv = &mi->mv[idx].as_mv;
-          get_tip_mv(cm, blk_mv, cur_tpl_col + w, cur_tpl_row + h, this_mv);
-          if ((abs(this_mv[0].as_mv.row) <= REFMVS_LIMIT) &&
-              (abs(this_mv[0].as_mv.col) <= REFMVS_LIMIT)) {
-            mv->ref_frame[0] = tip_ref->ref_frame[0];
-            mv->mv[0].as_int = this_mv[0].as_int;
-            process_mv_for_tmvp(&mv->mv[0].as_mv);
-          }
+          if (is_tip_16_16 && ((h % 2) || (w % 2))) {
+            const int col_offset = (w % 2) ? -1 : 0;
+            const int row_offset = (h % 2) ? -1 : 0;
+            *mv = mv[row_offset * frame_mvs_stride + col_offset];
+          } else {
+            int_mv this_mv[2] = { { 0 } };
+            const MV *blk_mv = &mi->mv[idx].as_mv;
+            get_tip_mv(cm, blk_mv, cur_tpl_col + w, cur_tpl_row + h, this_mv);
+            if ((abs(this_mv[0].as_mv.row) <= REFMVS_LIMIT) &&
+                (abs(this_mv[0].as_mv.col) <= REFMVS_LIMIT)) {
+              mv->ref_frame[0] = tip_ref->ref_frame[0];
+              mv->mv[0].as_int = this_mv[0].as_int;
+              process_mv_for_tmvp(&mv->mv[0].as_mv);
+            }
 
-          if (is_tip_two_refs) {
-            if ((abs(this_mv[1].as_mv.row) <= REFMVS_LIMIT) &&
-                (abs(this_mv[1].as_mv.col) <= REFMVS_LIMIT)) {
-              mv->ref_frame[1] = tip_ref->ref_frame[1];
-              mv->mv[1].as_int = this_mv[1].as_int;
-              process_mv_for_tmvp(&mv->mv[1].as_mv);
+            if (is_tip_two_refs) {
+              if ((abs(this_mv[1].as_mv.row) <= REFMVS_LIMIT) &&
+                  (abs(this_mv[1].as_mv.col) <= REFMVS_LIMIT)) {
+                mv->ref_frame[1] = tip_ref->ref_frame[1];
+                mv->mv[1].as_int = this_mv[1].as_int;
+                process_mv_for_tmvp(&mv->mv[1].as_mv);
+              }
             }
           }
           break;
@@ -725,11 +737,10 @@ static AOM_INLINE void derive_ref_mv_candidate_from_tip_mode(
     uint16_t *ref_mv_weight, uint16_t weight, int *drl_pr_count) {
   int index = 0;
 
-  const int cand_tpl_row = (mi_row_cand >> TMVP_SHIFT_BITS);
-  const int cand_tpl_col = (mi_col_cand >> TMVP_SHIFT_BITS);
-  int_mv cand_mv = candidate->mv[0];
   int_mv ref_mv[2];
-  get_tip_mv(cm, &cand_mv.as_mv, cand_tpl_col, cand_tpl_row, ref_mv);
+  derive_non_tip_mode_smvp_from_tip(cm, candidate, mi_row_cand, mi_col_cand,
+                                    is_tip_coded_as_16x16_block(cm, candidate),
+                                    ref_mv);
 
   if (*drl_pr_count < MAX_PR_NUM) {
     for (index = 0; index < *refmv_count; ++index) {
@@ -831,10 +842,10 @@ static AOM_INLINE void add_ref_mv_candidate(
     int_mv cand_tip_mvs[2];
     MV_REFERENCE_FRAME cand_tip_ref_frames[2];
     if (is_tip_ref_frame(candidate->ref_frame[0])) {
-      const int cand_tpl_row = (mi_row_cand >> TMVP_SHIFT_BITS);
-      const int cand_tpl_col = (mi_col_cand >> TMVP_SHIFT_BITS);
-      int_mv cand_mv = candidate->mv[0];
-      get_tip_mv(cm, &cand_mv.as_mv, cand_tpl_col, cand_tpl_row, cand_tip_mvs);
+      derive_non_tip_mode_smvp_from_tip(
+          cm, candidate, mi_row_cand, mi_col_cand,
+          is_tip_coded_as_16x16_block(cm, candidate), cand_tip_mvs);
+
       cand_tip_ref_frames[0] = cm->tip_ref.ref_frame[0];
       cand_tip_ref_frames[1] = cm->tip_ref.ref_frame[1];
     } else {

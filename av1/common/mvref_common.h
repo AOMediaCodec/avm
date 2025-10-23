@@ -1370,6 +1370,28 @@ static AOM_INLINE void get_tip_mv(const AV1_COMMON *cm, const MV *block_mv,
       tip_mv[1].as_mv.col + block_mv->col, MV_LOW + 1, MV_UPP - 1);
 }
 
+static AOM_INLINE void derive_non_tip_mode_smvp_from_tip(const AV1_COMMON *cm,
+                                                         const MB_MODE_INFO *mi,
+                                                         int mi_row, int mi_col,
+                                                         int is_tip_16_16,
+                                                         int_mv ref_mv[2]) {
+  const int tpl_row_start = (mi->mi_row_start >> TMVP_SHIFT_BITS);
+  const int tpl_col_start = (mi->mi_col_start >> TMVP_SHIFT_BITS);
+
+  const int tpl_row_offset =
+      (((mi_row - mi->mi_row_start) >> TMVP_SHIFT_BITS) >> is_tip_16_16)
+      << is_tip_16_16;
+  const int tpl_col_offset =
+      (((mi_col - mi->mi_col_start) >> TMVP_SHIFT_BITS) >> is_tip_16_16)
+      << is_tip_16_16;
+
+  const int tpl_row = tpl_row_start + tpl_row_offset;
+  const int tpl_col = tpl_col_start + tpl_col_offset;
+  int_mv mv = mi->mv[0];
+
+  get_tip_mv(cm, &mv.as_mv, tpl_col, tpl_row, ref_mv);
+}
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
