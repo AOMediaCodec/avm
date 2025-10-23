@@ -5541,7 +5541,14 @@ void write_sequence_inter_group_tool_flags(
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
     }
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+
+#if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+    if (seq_params->order_hint_info.enable_order_hint)
+#endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+      aom_wb_write_literal(
+          wb, seq_params->order_hint_info.order_hint_bits_minus_1, 3);
   }
+
   aom_wb_write_bit(wb, seq_params->enable_refmvbank);
 
   const int is_drl_reorder_disable =
@@ -5809,13 +5816,14 @@ static AOM_INLINE void write_sequence_header(
     } else {
       assert(seq_params->force_integer_mv == 2);
     }
-#endif  // !CONFIG_REORDER_SEQ_FLAGS //filtergroup
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
     if (seq_params->order_hint_info.enable_order_hint)
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
       aom_wb_write_literal(
           wb, seq_params->order_hint_info.order_hint_bits_minus_1, 3);
+#endif  // !CONFIG_REORDER_SEQ_FLAGS
   }
+
 #if !CONFIG_REORDER_SEQ_FLAGS
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   aom_wb_write_bit(wb, seq_params->disable_loopfilters_across_tiles);

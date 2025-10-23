@@ -6773,6 +6773,15 @@ void read_sequence_inter_group_tool_flags(struct SequenceHeader *seq_params,
     seq_params->order_hint_info.reduced_ref_frame_mvs_mode =
         seq_params->order_hint_info.enable_ref_frame_mvs ? aom_rb_read_bit(rb)
                                                          : 0;
+
+    seq_params->order_hint_info.order_hint_bits_minus_1 =
+#if CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+        aom_rb_read_literal(rb, 3);
+#else
+        seq_params->order_hint_info.enable_order_hint
+            ? aom_rb_read_literal(rb, 3)
+            : -1;
+#endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   }
   seq_params->enable_refmvbank = aom_rb_read_bit(rb);
   if (aom_rb_read_bit(rb)) {
@@ -7076,18 +7085,9 @@ void av1_read_sequence_header(
       seq_params->force_integer_mv = 2;  // SELECT_INTEGER_MV
     }
 #endif  // !CONFIG_REORDER_SEQ_FLAGS
-
-    seq_params->order_hint_info.order_hint_bits_minus_1 =
-#if CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-        aom_rb_read_literal(rb, 3);
-#else
-        seq_params->order_hint_info.enable_order_hint
-            ? aom_rb_read_literal(rb, 3)
-            : -1;
-#endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
   }
 
-#if !CONFIG_REORDER_SEQ_FLAGS  // filtergroup
+#if !CONFIG_REORDER_SEQ_FLAGS
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   seq_params->disable_loopfilters_across_tiles = aom_rb_read_bit(rb);
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
@@ -7396,7 +7396,7 @@ void av1_read_sequence_header_beyond_av1(
     seq_params->enable_uneven_4way_partitions = aom_rb_read_bit(rb);
   else
     seq_params->enable_uneven_4way_partitions = 0;
-#endif  // !CONFIG_REORDER_SEQ_FLAGS //filtergroup
+#endif  // !CONFIG_REORDER_SEQ_FLAGS
   seq_params->max_pb_aspect_ratio_log2_m1 = 2;
   if (aom_rb_read_bit(rb)) {
     seq_params->max_pb_aspect_ratio_log2_m1 = aom_rb_read_bit(rb);
