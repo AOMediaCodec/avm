@@ -11053,15 +11053,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
   av1_alloc_cdef_buffers(cm, &pbi->cdef_worker, &pbi->cdef_sync,
                          pbi->num_workers);
   av1_alloc_cdef_sync(cm, &pbi->cdef_sync, pbi->num_workers);
-  printf("decoder %d active map:\n", cm->current_frame.order_hint);
-  uint8_t *map = cm->bru.active_mode_map;
-  for (unsigned int j=0; j< cm->bru.unit_rows; j++) {
-    for (unsigned int i = 0; i< cm->bru.unit_cols; i++) {
-      printf("%d, ", map[i]);
-    }
-    printf("\n");
-    map+= cm->bru.unit_cols;
-  }
+
   // verify active region
   if (!bru_active_map_validation(cm)) {
     aom_internal_error(&cm->error, AOM_CODEC_ERROR, "Invalid active region");
