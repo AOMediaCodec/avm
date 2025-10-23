@@ -160,13 +160,15 @@ uint32_t read_qm_data(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
 
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }
-static void copy_predefined_qmatrices_to_list(AV1Decoder *pbi) {
+void copy_predefined_qmatrices_to_list(AV1Decoder *pbi) {
   int num_planes = pbi->common.seq_params.monochrome ? 1 : 3;
   for (int qm_pos = 0; qm_pos < NUM_CUSTOM_QMS; qm_pos++) {
     alloc_qmatrix(&pbi->qm_list[qm_pos], qm_pos, num_planes);
     int qm_default_index = qm_pos;
     pbi->qm_list[qm_pos].qm_id = qm_pos;
     pbi->qm_list[qm_pos].qm_default_index = qm_pos;
+    pbi->qm_list[qm_pos].qm_mlayer_id = -1;
+    pbi->qm_list[qm_pos].qm_tlayer_id = -1;
     // copy predefined[qm_default_index] to pbi->qm_list[qm_pos]
     for (int c = 0; c < num_planes; ++c) {
       // plane_type: 0:luma, 1:chroma

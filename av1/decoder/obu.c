@@ -496,12 +496,19 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
   if (pbi->sequence_header_ready) {
     if (!are_seq_headers_consistent(&cm->seq_params, seq_params)) {
       pbi->sequence_header_changed = 1;
+#if !CONFIG_F255_QMOBU
       cm->quant_params.qmatrix_initialized = false;
+#endif  // CONFIG_F255_QMOBU
 #if CONFIG_MULTI_FRAME_HEADER
       reset_mfh_valid(cm);
 #endif  // CONFIG_MULTI_FRAME_HEADER
     }
   }
+
+#if CONFIG_F255_QMOBU
+  // load the predefined qmatrices to the list
+  copy_predefined_qmatrices_to_list(pbi);
+#endif  // CONFIG_F255_QMOBU
 
   cm->seq_params = *seq_params;
   av1_set_frame_sb_size(cm, cm->seq_params.sb_size);

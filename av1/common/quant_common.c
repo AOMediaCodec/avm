@@ -895,7 +895,6 @@ static const int iwt_matrix_para[BASE_TX_SIZES_ALL][2][13][9] = {
 };
 
 */
-#if !CONFIG_F255_QMOBU
 /* Provide 15 sets of base quantization matrices for chroma and luma
    and each TX size. Matrices for different TX sizes are in fact
    scaled from the 8x8, 8x4, and 4x8 sizes using indexing.
@@ -906,7 +905,11 @@ static const int iwt_matrix_para[BASE_TX_SIZES_ALL][2][13][9] = {
    not used.
 */
 /* clang-format off */
+#if CONFIG_F255_QMOBU
+const qm_val_t predefined_8x8_iwt_base_matrix[NUM_QM_LEVELS - 1][2][64] = {
+#else
 static const qm_val_t default_8x8_iwt_base_matrix[NUM_QM_LEVELS - 1][2][64] = {
+#endif // CONFIG_F255_QMOBU
     {
         {
             /* Luma */
@@ -1268,8 +1271,11 @@ static const qm_val_t default_8x8_iwt_base_matrix[NUM_QM_LEVELS - 1][2][64] = {
         },
     },
 };
-
+#if CONFIG_F255_QMOBU
+const qm_val_t predefined_8x4_iwt_base_matrix[NUM_QM_LEVELS - 1][2][8 * 4] = {
+#else
 static const qm_val_t default_8x4_iwt_base_matrix[NUM_QM_LEVELS - 1][2][8 * 4] = {
+#endif // CONFIG_F255_QMOBU
     {
         {
             /* Luma */
@@ -1511,8 +1517,11 @@ static const qm_val_t default_8x4_iwt_base_matrix[NUM_QM_LEVELS - 1][2][8 * 4] =
         },
     },
 };
-
+#if CONFIG_F255_QMOBU
+const qm_val_t predefined_4x8_iwt_base_matrix[NUM_QM_LEVELS - 1][2][4 * 8] = {
+#else
 static const qm_val_t default_4x8_iwt_base_matrix[NUM_QM_LEVELS - 1][2][4 * 8] = {
+#endif // CONFIG_F255_QMOBU
     {
         {
             /* Luma */
@@ -1874,5 +1883,4 @@ static const qm_val_t default_4x8_iwt_base_matrix[NUM_QM_LEVELS - 1][2][4 * 8] =
         },
     },
 };
-#endif  // !CONFIG_F255_QMOBU
 /* clang-format on */

@@ -1704,6 +1704,7 @@ struct CommonQuantParams {
    *  - If false, we implicitly use level index 'NUM_QM_LEVELS - 1'.
    */
   bool using_qmatrix;
+#if !CONFIG_F255_QMOBU
   /**
    * \name Valid only when using_qmatrix == true
    * Indicate the level indices to be used to access appropriate global quant
@@ -1722,7 +1723,7 @@ struct CommonQuantParams {
    * Note that when sequence header OBUs change, we should reset the parameter.
    */
   bool qmatrix_initialized;
-
+#endif  // CONFIG_F255_QMOBU
   /**@{*/
   /*!
    * Number of QM levels available for use by the segments in the frame.
