@@ -330,17 +330,20 @@ static INLINE bool bru_check_rect_cluster(const uint8_t *map, int width,
   // Extend bounds by 1 in each direction for support blocks
   int extended_left = AOMMAX(0, x_min - 1);
   int extended_top = AOMMAX(0, y_min - 1);
-  int extended_right = AOMMIN(width, x_max + 2);   // x_max + 1 + 1 (original + extension)
-  int extended_bottom = AOMMIN(height, y_max + 2); // y_max + 1 + 1 (original + extension)
+  int extended_right =
+      AOMMIN(width, x_max + 2);  // x_max + 1 + 1 (original + extension)
+  int extended_bottom =
+      AOMMIN(height, y_max + 2);  // y_max + 1 + 1 (original + extension)
 
-  // Validate that all extended positions (outside active rectangle) are support blocks
+  // Validate that all extended positions (outside active rectangle) are support
+  // blocks
   for (int y = extended_top; y < extended_bottom; y++) {
     for (int x = extended_left; x < extended_right; x++) {
       // Skip positions that are part of the active rectangle
       if (x >= x_min && x <= x_max && y >= y_min && y <= y_max) {
         continue;
       }
-      
+
       // All extended positions must be support blocks
       if (map[y * width + x] != BRU_SUPPORT_SB) {
         return false;
@@ -418,7 +421,7 @@ static INLINE int bru_active_map_validation(const AV1_COMMON *cm) {
 
   free(visited);
   free(rectangles);
-  
+
   return 1;
 }
 
