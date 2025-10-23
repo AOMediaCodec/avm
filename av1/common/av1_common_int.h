@@ -2068,7 +2068,7 @@ struct qm_obu {
   /*!
    * Indication that quantization matrices has chroam information
    */
-  int qm_is_monochrome;
+  int qm_chroma_info_present_flag;
   /*!
    * list of quantization matrices
    */

@@ -198,7 +198,7 @@ uint32_t read_qm_obu(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
     return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
   }
 
-  bool qm_is_monochrome = aom_rb_read_bit(rb);
+  bool qm_chroma_info_present_flag = aom_rb_read_bit(rb);
   for (int j = 0; j < NUM_CUSTOM_QMS; j++) {
     // it will overwrite the pos if the qm_id is the same.
     if (qm_bit_map & (1 << j)) {
@@ -211,7 +211,7 @@ uint32_t read_qm_obu(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
         }
       }
       read_qm_data(pbi, obu_tlayer_id, obu_mlayer_id, qm_pos, qm_id,
-                   (qm_is_monochrome ? 1 : 3), rb);
+                   (qm_chroma_info_present_flag ? 3 : 1), rb);
     }
   }
 

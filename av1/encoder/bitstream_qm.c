@@ -533,7 +533,7 @@ bool check_add_cmqm_in_qmobulist(AV1_COMP *cpi, bool write_in_prevobu) {
     }  // pic_qm_idx
 
     qmobu->qm_bit_map |= qm_bit_map;
-    qmobu->qm_is_monochrome = cm->seq_params.monochrome;
+    qmobu->qm_chroma_info_present_flag = !cm->seq_params.monochrome;
     cpi->total_signalled_qmobu_count++;
   }  // new_obu_needed
   return (new_obu_needed || write_in_prevobu);
