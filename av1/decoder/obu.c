@@ -507,7 +507,7 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
 
 #if CONFIG_F255_QMOBU
   // load the predefined qmatrices to the list
-  copy_predefined_qmatrices_to_list(pbi);
+  //copy_predefined_qmatrices_to_list(pbi);
 #endif  // CONFIG_F255_QMOBU
 
   cm->seq_params = *seq_params;
