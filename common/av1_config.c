@@ -358,17 +358,17 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
   AV1C_READ_BIT_OR_RETURN_ERROR(conf_window_flag);
   config->conf_win_enabled_flag = conf_window_flag;
   if (config->conf_win_enabled_flag) {
-  config->conf_win_left_offset = aom_rb_read_uvlc(reader);
-  config->conf_win_right_offset = aom_rb_read_uvlc(reader);
-  config->conf_win_top_offset = aom_rb_read_uvlc(reader);
-  config->conf_win_bottom_offset = aom_rb_read_uvlc(reader);
-} else {
-  config->conf_win_enabled_flag = 0;
-  config->conf_win_left_offset = 0;
-  config->conf_win_right_offset = 0;
-  config->conf_win_top_offset = 0;
-  config->conf_win_bottom_offset = 0;
-}
+    config->conf_win_left_offset = aom_rb_read_uvlc(reader);
+    config->conf_win_right_offset = aom_rb_read_uvlc(reader);
+    config->conf_win_top_offset = aom_rb_read_uvlc(reader);
+    config->conf_win_bottom_offset = aom_rb_read_uvlc(reader);
+  } else {
+    config->conf_win_enabled_flag = 0;
+    config->conf_win_left_offset = 0;
+    config->conf_win_right_offset = 0;
+    config->conf_win_top_offset = 0;
+    config->conf_win_bottom_offset = 0;
+  }
 #endif  // CONFIG_CROP_WIN_CWG_F220
 
   if (parse_color_config(reader, config) != 0) {
