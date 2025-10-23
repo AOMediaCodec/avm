@@ -120,11 +120,11 @@ typedef struct aom_codec_cx_pkt {
       /*!\brief presentation time stamp to show/showable frame (in timebase
        * units) */
       aom_codec_pts_t pts;
-#if CONFIG_SIGNAL_DTS
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
       /*!\brief decoding time stamp to show/showable frame (in timebase units)
        */
       aom_codec_pts_t dts;
-#endif  // CONFIG_SIGNAL_DTS
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
       /*!\brief duration to show frame (in timebase units) */
       unsigned long duration;
       aom_codec_frame_flags_t flags; /**< flags for this frame */

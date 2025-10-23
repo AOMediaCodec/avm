@@ -2970,12 +2970,12 @@ typedef struct AV1_COMP {
    */
   int frames_left;
 
-#if CONFIG_SIGNAL_DTS
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
   /*!
    * Counter of coded visible frames
    */
   int coded_visible_frame_counter;
-#endif  // CONFIG_SIGNAL_DTS
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
 
   /*!
    * Indicates if a valid global motion model has been found in the different

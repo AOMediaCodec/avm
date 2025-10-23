@@ -3540,9 +3540,9 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 #if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
       if (!is_frame_visible_null) {
         cpi->frames_left = AOMMAX(0, cpi->frames_left - 1);
-#if CONFIG_SIGNAL_DTS
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
         ++cpi->coded_visible_frame_counter;
-#endif  // CONFIG_SIGNAL_DTS
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
       }
 #else   // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
         cpi->frames_left = AOMMAX(0, cpi->frames_left - 1);
@@ -3565,9 +3565,9 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
           ticks_to_timebase_units(timestamp_ratio, dst_time_stamp) +
           ctx->pts_offset;
 
-#if CONFIG_SIGNAL_DTS
+#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
       pkt.data.frame.dts = cpi->coded_visible_frame_counter;
-#endif  // CONFIG_SIGNAL_DTS
+#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
 
       pkt.data.frame.flags = get_frame_pkt_flags(cpi, lib_flags);
       if (has_no_show_keyframe) {
