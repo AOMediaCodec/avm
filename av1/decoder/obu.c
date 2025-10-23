@@ -640,7 +640,7 @@ static uint32_t read_one_tile_group_obu(
   return header_size + tg_payload_size;
 }
 #endif  // CONFIG_F106_OBU_TILEGROUP
-
+#if !CONFIG_METADATA || CONFIG_SHORT_METADATA
 // Returns the last nonzero byte index in 'data'. If there is no nonzero byte in
 // 'data', returns -1.
 static int get_last_nonzero_byte_index(const uint8_t *data, size_t sz) {
@@ -651,7 +651,7 @@ static int get_last_nonzero_byte_index(const uint8_t *data, size_t sz) {
   }
   return i;
 }
-
+#endif  // !CONFIG_METADATA || CONFIG_SHORT_METADATA
 // Allocates metadata that was read and adds it to the decoders metadata array.
 static void alloc_read_metadata(AV1Decoder *const pbi,
                                 OBU_METADATA_TYPE metadata_type,
@@ -934,7 +934,7 @@ static void read_metadata_timecode(struct aom_read_bit_buffer *rb) {
     aom_rb_read_literal(rb, time_offset_length);
   }
 }
-#if !CONFIG_METADATA || CONFIG_SHORT_METADATA
+
 // Returns the last nonzero byte in 'data'. If there is no nonzero byte in
 // 'data', returns 0.
 //
@@ -951,7 +951,6 @@ static uint8_t get_last_nonzero_byte(const uint8_t *data, size_t sz) {
   }
   return 0;
 }
-#endif  // !CONFIG_METADATA || CONFIG_SHORT_METADATA
 
 // Checks the metadata for correct syntax but ignores the parsed metadata.
 //
@@ -1249,36 +1248,25 @@ static size_t read_metadata_short(AV1Decoder *pbi, const uint8_t *data,
   AV1_COMMON *const cm = &pbi->common;
   size_t type_length;
   uint64_t type_value;
-
+  // TODO: [@anorkin] this part may need to be revisited considering
+  // CONFIG_SHORT_METADATA and CONFIG_METADATA
   struct aom_read_bit_buffer rb;
-#if CONFIG_SHORT_METADATA
   av1_init_read_bit_buffer(pbi, &rb, data, data + sz);
 
   uint8_t metadata_is_suffix = aom_rb_read_bit(&rb);
   uint8_t muh_layer_idc = aom_rb_read_literal(&rb, 3);
   uint8_t muh_cancel_flag = aom_rb_read_bit(&rb);
   uint8_t muh_persistence_idc = aom_rb_read_literal(&rb, 3);
-#endif  // CONFIG_SHORT_METADATA
-  if (aom_uleb_decode(data
-#if CONFIG_SHORT_METADATA
-                          + 1  // read type from the position data + 1
-#endif                         // CONFIG_SHORT_METADATA
-                      ,
-                      sz
-#if CONFIG_SHORT_METADATA
-                          -
-                          1  // one less bytes available due to extra parameters
-#endif                       // CONFIG_SHORT_METADATA
-                      ,
-                      &type_value, &type_length) < 0) {
-
+  if (aom_uleb_decode(
+          data + 1,  // read type from the position data + 1
+          sz - 1,    // one less bytes available due to extra parameters
+          &type_value, &type_length) < 0) {
     cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
     return 0;
   }
 
   const OBU_METADATA_TYPE metadata_type = (OBU_METADATA_TYPE)type_value;
 
-#if CONFIG_SHORT_METADATA
   // Increase the type_length by 1 byte since there is one prefix byte added
   // before the type
   ++type_length;
@@ -1295,7 +1283,6 @@ static size_t read_metadata_short(AV1Decoder *pbi, const uint8_t *data,
       last_metadata->persistence_idc = muh_persistence_idc;
     }
   }
-#endif  // CONFIG_SHORT_METADATA
 
 #if CONFIG_BAND_METADATA
   if (metadata_type == 0 || metadata_type >= 8) {
@@ -1312,12 +1299,7 @@ static size_t read_metadata_short(AV1Decoder *pbi, const uint8_t *data,
   }
   if (metadata_type == OBU_METADATA_TYPE_ITUT_T35) {
     // read_metadata_itut_t35() checks trailing bits.
-#if CONFIG_SHORT_METADATA
     read_metadata_itut_t35_short(pbi, data + type_length, sz - type_length);
-#else
-    read_metadata_itut_t35(pbi, data + type_length, sz - type_length);
-#endif  // CONFIG_METADATA
-#if CONFIG_SHORT_METADATA
     // Update the metadata with the header fields we read
     if (pbi->metadata && pbi->metadata->sz > 0) {
       aom_metadata_t *last_metadata =
@@ -1329,7 +1311,6 @@ static size_t read_metadata_short(AV1Decoder *pbi, const uint8_t *data,
         last_metadata->persistence_idc = muh_persistence_idc;
       }
     }
-#endif  // CONFIG_SHORT_METADATA
     return sz;
   } else if (metadata_type == OBU_METADATA_TYPE_HDR_CLL) {
     size_t bytes_read =
@@ -1339,7 +1320,6 @@ static size_t read_metadata_short(AV1Decoder *pbi, const uint8_t *data,
       cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
       return 0;
     }
-#if CONFIG_SHORT_METADATA
     // Update the metadata with the header fields we read
     if (pbi->metadata && pbi->metadata->sz > 0) {
       aom_metadata_t *last_metadata =
@@ -1351,7 +1331,6 @@ static size_t read_metadata_short(AV1Decoder *pbi, const uint8_t *data,
         last_metadata->persistence_idc = muh_persistence_idc;
       }
     }
-#endif  // CONFIG_SHORT_METADATA
     return sz;
   } else if (metadata_type == OBU_METADATA_TYPE_HDR_MDCV) {
     size_t bytes_read =
@@ -1361,7 +1340,6 @@ static size_t read_metadata_short(AV1Decoder *pbi, const uint8_t *data,
       cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
       return 0;
     }
-#if CONFIG_SHORT_METADATA
     // Update the metadata with the header fields we read
     if (pbi->metadata && pbi->metadata->sz > 0) {
       aom_metadata_t *last_metadata =
@@ -1373,7 +1351,6 @@ static size_t read_metadata_short(AV1Decoder *pbi, const uint8_t *data,
         last_metadata->persistence_idc = muh_persistence_idc;
       }
     }
-#endif  // CONFIG_SHORT_METADATA
     return sz;
 #if CONFIG_BAND_METADATA
   } else if (metadata_type == OBU_METADATA_TYPE_BANDING_HINTS) {
@@ -1964,11 +1941,11 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
 #if CONFIG_SHORT_METADATA
       case OBU_METADATA_GROUP:
         decoded_payload_size =
-#if  CONFIG_METADATA
+#if CONFIG_METADATA
             read_metadata_obu(pbi, data, payload_size, &obu_header);
 #else
             read_metadata_short(pbi, data, payload_size);
-#endif // CONFIG_METADATA
+#endif  // CONFIG_METADATA
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
         break;
 #endif  // CONFIG_SHORT_METADATA

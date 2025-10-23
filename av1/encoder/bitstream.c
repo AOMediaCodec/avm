@@ -8786,7 +8786,8 @@ size_t av1_write_banding_hints_metadata(
                        "Error allocating banding hints metadata");
     return 0;
   }
-
+  // TODO: [@anorkin] this part may need to be updated considering
+  // CONFIG_SHORT_METADATA and CONFIG_METADATA
   size_t total_bytes_written = 0;
   size_t obu_header_size = av1_write_obu_header(&cpi->level_params,
 #if CONFIG_SHORT_METADATA

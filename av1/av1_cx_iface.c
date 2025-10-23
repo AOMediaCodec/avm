@@ -4735,12 +4735,12 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         0,  // disable_loopfilters_across_tiles
 #endif      // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 #if CONFIG_CROP_WIN_CWG_F220
-        0,           // enable cropping window
-        0,           // crop_win_left_offset
-        0,           // crop_win_right_offset
-        0,           // crop_win_top_offset
-        0,           // crop_win_bottom_offset
-#endif               // CONFIG_CROP_WIN_CWG_F220
+        0,  // enable cropping window
+        0,  // crop_win_left_offset
+        0,  // crop_win_right_offset
+        0,  // crop_win_top_offset
+        0,  // crop_win_bottom_offset
+#endif      // CONFIG_CROP_WIN_CWG_F220
 #if CONFIG_ICC_METADATA
         NULL, 0,
 #endif  // CONFIG_ICC_METADATA
