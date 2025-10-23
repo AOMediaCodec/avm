@@ -275,8 +275,8 @@ static bool bru_is_rect_overlap(AV1PixelRect *rect1, AV1PixelRect *rect2) {
   else
     return false;
 }
-
 /* Helper function to check if a cluster forms a perfect rectangle using BFS */
+/* Finds rectangle of BRU_ACTIVE_SB blocks, then extends with BRU_SUPPORT_SB */
 static INLINE bool bru_check_rect_cluster(const uint8_t *map, int width,
                                           int height, int start_x, int start_y,
                                           uint8_t *visited,
@@ -287,7 +287,7 @@ static INLINE bool bru_check_rect_cluster(const uint8_t *map, int width,
   int x_min = start_x, x_max = start_x;
   int y_min = start_y, y_max = start_y;
 
-  // BFS to find all connected active blocks and their bounding box
+  // BFS to find all connected ACTIVE blocks and their bounding box
   ard_enqueue(q, start);
   visited[start_y * width + start_x] = 1;
 
@@ -309,6 +309,7 @@ static INLINE bool bru_check_rect_cluster(const uint8_t *map, int width,
       int nx = current.x + dx[i];
       int ny = current.y + dy[i];
 
+      // Only traverse BRU_ACTIVE_SB blocks for rectangle validation
       if (is_valid_ard_location(nx, ny, width, height) &&
           !visited[ny * width + nx] && map[ny * width + nx] == BRU_ACTIVE_SB) {
         ARD_Coordinate next = { nx, ny };
@@ -320,17 +321,42 @@ static INLINE bool bru_check_rect_cluster(const uint8_t *map, int width,
 
   free(q);
 
-  // Store rectangle bounds
-  if (rect) {
-    rect->left = x_min;
-    rect->top = y_min;
-    rect->right = x_max + 1;
-    rect->bottom = y_max + 1;
+  // Check if the active cluster forms a perfect rectangle
+  int expected_count = (x_max - x_min + 1) * (y_max - y_min + 1);
+  if (count != expected_count) {
+    return false;  // Active blocks don't form a rectangle
   }
 
-  // Check if this cluster forms a perfect rectangle
-  int expected_count = (x_max - x_min + 1) * (y_max - y_min + 1);
-  return count == expected_count;
+  // Extend bounds by 1 in each direction for support blocks
+  int extended_left = AOMMAX(0, x_min - 1);
+  int extended_top = AOMMAX(0, y_min - 1);
+  int extended_right = AOMMIN(width, x_max + 2);   // x_max + 1 + 1 (original + extension)
+  int extended_bottom = AOMMIN(height, y_max + 2); // y_max + 1 + 1 (original + extension)
+
+  // Validate that all extended positions (outside active rectangle) are support blocks
+  for (int y = extended_top; y < extended_bottom; y++) {
+    for (int x = extended_left; x < extended_right; x++) {
+      // Skip positions that are part of the active rectangle
+      if (x >= x_min && x <= x_max && y >= y_min && y <= y_max) {
+        continue;
+      }
+      
+      // All extended positions must be support blocks
+      if (map[y * width + x] != BRU_SUPPORT_SB) {
+        return false;
+      }
+    }
+  }
+
+  // Store extended rectangle bounds
+  if (rect) {
+    rect->left = extended_left;
+    rect->top = extended_top;
+    rect->right = extended_right;
+    rect->bottom = extended_bottom;
+  }
+
+  return true;
 }
 
 /* Validate active map, for each active SB, it cannot has any inactive neighbor
@@ -392,46 +418,7 @@ static INLINE int bru_active_map_validation(const AV1_COMMON *cm) {
 
   free(visited);
   free(rectangles);
-  // Second pass: check neighboring constraints
-  for (unsigned int row = 0; row < cm->bru.unit_rows; row++) {
-    for (unsigned int col = 0; col < cm->bru.unit_cols; col++) {
-      // if active must surrounded by active/support
-      if (*(act + col) == BRU_ACTIVE_SB) {
-        const uint8_t has_top = row > 0;
-        const uint8_t has_left = col > 0;
-        const uint8_t has_bottom = row + 1 < cm->bru.unit_rows;
-        const uint8_t has_right = col + 1 < cm->bru.unit_cols;
-        uint8_t top_inactive =
-            has_top ? *(act + col - stride) == BRU_INACTIVE_SB : 0;
-        uint8_t bot_inactive =
-            has_bottom ? *(act + col + stride) == BRU_INACTIVE_SB : 0;
-        uint8_t left_inactive =
-            has_left ? *(act + col - 1) == BRU_INACTIVE_SB : 0;
-        uint8_t right_inactive =
-            has_right ? *(act + col + 1) == BRU_INACTIVE_SB : 0;
-        uint8_t top_left_inactive =
-            has_top && has_left ? *(act + col - 1 - stride) == BRU_INACTIVE_SB
-                                : 0;
-        uint8_t top_right_inactive =
-            has_top && has_right ? *(act + col + 1 - stride) == BRU_INACTIVE_SB
-                                 : 0;
-        uint8_t bot_left_inactive =
-            has_bottom && has_left
-                ? *(act + col - 1 + stride) == BRU_INACTIVE_SB
-                : 0;
-        uint8_t bot_right_inactive =
-            has_bottom && has_right
-                ? *(act + col + 1 + stride) == BRU_INACTIVE_SB
-                : 0;
-        if (top_inactive || bot_inactive || left_inactive || right_inactive ||
-            top_left_inactive || top_right_inactive || bot_left_inactive ||
-            bot_right_inactive) {
-          return 0;
-        }
-      }
-    }
-    act += stride;
-  }
+  
   return 1;
 }
 
