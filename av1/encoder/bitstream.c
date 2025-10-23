@@ -8629,9 +8629,10 @@ static size_t av1_write_frame_hash_metadata(
     AV1_COMP *const cpi, uint8_t *dst,
     const aom_film_grain_t *const grain_params
 #if CONFIG_METADATA
-                                            , ObuHeader *obu_header
-#endif // CONFIG_METADATA
-                                            ) {
+    ,
+    ObuHeader *obu_header
+#endif  // CONFIG_METADATA
+) {
   if (!cpi->source) return 0;
   AV1_COMMON *const cm = &cpi->common;
   aom_image_t img;
@@ -9003,8 +9004,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
         apply_grain;
 #if !CONFIG_METADATA
     if (write_grain_frame_hash)
-      data +=
-          av1_write_frame_hash_metadata(cpi, data, grain_params);
+      data += av1_write_frame_hash_metadata(cpi, data, grain_params);
 #else
     if (write_raw_frame_hash || write_grain_frame_hash) {
       aom_metadata_array_t arr;

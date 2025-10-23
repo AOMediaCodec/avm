@@ -1051,7 +1051,7 @@ static size_t read_metadata(AV1Decoder *pbi, const uint8_t *data, size_t sz)
       return 0;
     }
     return sz;
-#endif // !CONFIG_METADATA
+#endif  // !CONFIG_METADATA
 #endif  // CONFIG_BAND_METADATA
 #if CONFIG_METADATA
   } else if (metadata_type == OBU_METADATA_TYPE_ICC_PROFILE) {
@@ -1244,7 +1244,8 @@ static size_t read_metadata_obu(AV1Decoder *pbi, const uint8_t *data, size_t sz,
 // On success, returns the number of bytes read from 'data'. On failure, sets
 // pbi->common.error.error_code and returns 0, or calls aom_internal_error()
 // and does not return.
-static size_t read_metadata_short(AV1Decoder *pbi, const uint8_t *data, size_t sz) {
+static size_t read_metadata_short(AV1Decoder *pbi, const uint8_t *data,
+                                  size_t sz) {
   AV1_COMMON *const cm = &pbi->common;
   size_t type_length;
   uint64_t type_value;
