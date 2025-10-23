@@ -210,7 +210,8 @@ uint32_t read_qm_obu(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
           break;
         }
       }
-      read_qm_data(pbi, obu_tlayer_id, obu_mlayer_id, qm_pos, qm_id, (qm_is_monochrome ? 1 : 3), rb);
+      read_qm_data(pbi, obu_tlayer_id, obu_mlayer_id, qm_pos, qm_id,
+                   (qm_is_monochrome ? 1 : 3), rb);
     }
   }
 
