@@ -214,8 +214,8 @@ set_aom_config_var(CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME 1
                    "Enable temporal unit based on showable frame")
 set_aom_config_var(CONFIG_ONE_OUTPUT_FRAME_PER_TU 0
                    "Enable output of one decoded frame per temporal unit")
-set_aom_config_var(CONFIG_USE_PTS_AS_DTS 0
-                   "Signal decoding timestamp at pts field of packet")
+set_aom_config_var(CONFIG_SIGNAL_DTS 1
+                   "Signal decoding timestamp at the dts field of packet")
 set_aom_config_var(CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER 1
                    "Remove redundant frame header OBU from OBU types")
 set_aom_config_var(CONFIG_MULTI_STREAM 1 "AV2 enable multi-streams.")

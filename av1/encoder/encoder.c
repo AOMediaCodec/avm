@@ -1309,9 +1309,9 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
   }
 
   cpi->frames_left = cpi->oxcf.input_cfg.limit;
-#if CONFIG_USE_PTS_AS_DTS
+#if CONFIG_SIGNAL_DTS
   cpi->coded_visible_frame_counter = 0;
-#endif  // CONFIG_USE_PTS_AS_DTS
+#endif  // CONFIG_SIGNAL_DTS
   av1_rc_init(&cpi->oxcf, 0, &cpi->rc);
 
   // For two pass and lag_in_frames > 33 in LAP.

@@ -117,8 +117,14 @@ typedef struct aom_codec_cx_pkt {
     struct {
       void *buf; /**< compressed data buffer */
       size_t sz; /**< length of compressed data */
-      /*!\brief time stamp to show frame (in timebase units) */
+      /*!\brief presentation time stamp to show/showable frame (in timebase
+       * units) */
       aom_codec_pts_t pts;
+#if CONFIG_SIGNAL_DTS
+      /*!\brief decoding time stamp to show/showable frame (in timebase units)
+       */
+      aom_codec_pts_t dts;
+#endif  // CONFIG_SIGNAL_DTS
       /*!\brief duration to show frame (in timebase units) */
       unsigned long duration;
       aom_codec_frame_flags_t flags; /**< flags for this frame */
