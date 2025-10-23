@@ -49,7 +49,8 @@ void alloc_qmatrix(struct quantization_matrix_set *qm_set, int qm_id,
   }
 }
 
-uint32_t read_qm_data(AV1Decoder *pbi, int qm_pos, int qm_id, int num_planes,
+uint32_t read_qm_data(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
+                      int qm_pos, int qm_id, int num_planes,
                       struct aom_read_bit_buffer *rb) {
   pbi->common.error.error_code = AOM_CODEC_OK;
   const TX_SIZE fund_tsize[3] = { TX_8X8, TX_8X4, TX_4X8 };
@@ -57,7 +58,8 @@ uint32_t read_qm_data(AV1Decoder *pbi, int qm_pos, int qm_id, int num_planes,
   if (qm_pos == -1) qm_pos = qm_id;
   alloc_qmatrix(&pbi->qm_list[qm_pos], qm_pos, num_planes);
   pbi->qm_list[qm_pos].qm_id = qm_id;
-
+  pbi->qm_list[qm_pos].qm_tlayer_id = obu_tlayer_id;
+  pbi->qm_list[qm_pos].qm_mlayer_id = obu_mlayer_id;
   const uint32_t saved_bit_offset = rb->bit_offset;
   const bool qm_is_default_flag = (bool)aom_rb_read_bit(rb);
   if (qm_is_default_flag) {
@@ -181,7 +183,8 @@ static void copy_predefined_qmatrices_to_list(AV1Decoder *pbi) {
     }
   }  // qm_pos
 }
-uint32_t read_qm_obu(AV1Decoder *pbi, struct aom_read_bit_buffer *rb) {
+uint32_t read_qm_obu(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
+                     struct aom_read_bit_buffer *rb) {
   // multiple qms in one obu with id
   const uint32_t saved_bit_offset = rb->bit_offset;
   int qm_bit_map = aom_rb_read_literal(rb, NUM_CUSTOM_QMS);
@@ -201,16 +204,13 @@ uint32_t read_qm_obu(AV1Decoder *pbi, struct aom_read_bit_buffer *rb) {
     if (qm_bit_map & (1 << j)) {
       int qm_id = j;
       int qm_pos = -1;
-      // int valid_qm_num = AOMMIN(pbi->total_signalled_qm_count,
-      // NUM_CUSTOM_QMS);
       for (int i = 0; i < NUM_CUSTOM_QMS; i++) {
         if (pbi->qm_list[i].qm_id == qm_id) {  // overwrite
           qm_pos = i;
           break;
         }
       }
-      if (qm_pos == -1) pbi->total_signalled_qm_count += 1;
-      read_qm_data(pbi, qm_pos, qm_id, (qm_is_monochrome ? 1 : 3), rb);
+      read_qm_data(pbi, obu_tlayer_id, obu_mlayer_id, qm_pos, qm_id, (qm_is_monochrome ? 1 : 3), rb);
     }
   }
 

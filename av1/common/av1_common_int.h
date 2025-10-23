@@ -2039,6 +2039,14 @@ struct quantization_matrix_set {
    */
   int qm_id;
   /*!
+   * tlayer id of the OBU that conveys this quantization matrix
+   */
+  int qm_tlayer_id;
+  /*!
+   * mlayer id of the OBU that conveys this quantization matrix
+   */
+  int qm_mlayer_id;
+  /*!
    * Indicates the index of the predefined matrix indicated by the quantization
    * matrix : -1: user_defined 0~15: predefined_matrix_idx
    */
@@ -2058,7 +2066,7 @@ struct qm_obu {
    */
   int qm_bit_map;
   /*!
-   * Indication that quantization matrices are in monochrome
+   * Indication that quantization matrices has chroam information
    */
   int qm_is_monochrome;
   /*!

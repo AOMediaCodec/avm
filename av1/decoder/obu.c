@@ -2031,8 +2031,8 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
 #endif  // CONFIG_F106_OBU_TILEGROUP
 #if CONFIG_F255_QMOBU
       case OBU_QM:
-        decoded_payload_size = read_qm_obu(pbi, &rb);
-        // setup_cm_quant_params(pbi);
+        decoded_payload_size = read_qm_obu(pbi, obu_header.obu_tlayer_id,
+                                           obu_header.obu_mlayer_id, &rb);
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
         break;
 #endif  // CONFIG_F255_QMOBU

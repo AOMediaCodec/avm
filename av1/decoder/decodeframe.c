@@ -3829,13 +3829,33 @@ static AOM_INLINE void setup_quantization(CommonQuantParams *quant_params,
 void setup_cm_quant_params(AV1Decoder *pbi, CommonQuantParams *quant_params,
                            int num_planes, int qmlevel) {
   int qm_pos_found = -1;
-  // int valid_qm_num = AOMMIN(pbi->total_signalled_qm_count, NUM_CUSTOM_QMS);
   for (int qm_pos = 0; qm_pos < NUM_CUSTOM_QMS; qm_pos++) {
     if (pbi->qm_list[qm_pos].qm_id == qmlevel) {
       qm_pos_found = qm_pos;
       break;
     }
   }
+  // TODO: does xlayer_id need to be taken into account?
+  //  when a picture indicated in an embedded layer with id equal obu_mlayer_id
+  //  and in a temporal layer with id obu_tlayer_id is associated with either
+  //  the sequence header or an embedded and temporal layer with ids qmMlayerId
+  //  and qmTlayerId, respectively for which
+  //  mlayer_dependency_map[obu_mlayer_id][qmMlayerId] and
+  //  tlayer_dependency_map[obu_tlayer_id][qmTlayerId] are both equal to 1.
+//  if (pbi->common.seq_params
+//              .tlayer_dependency_map[pbi->common.tlayer_id]
+//                                    [pbi->qm_list[qm_pos_found].qm_tlayer_id] !=
+//          1 ||
+//      pbi->common.seq_params
+//              .mlayer_dependency_map[pbi->common.mlayer_id]
+//                                    [pbi->qm_list[qm_pos_found].qm_mlayer_id] !=
+//          1) {
+//    aom_internal_error(&pbi->common.error, AOM_CODEC_UNSUP_BITSTREAM,
+//                       "the layer ids of the quantization matrices are out of "
+//                       "the limit: (%d, %d)",
+//                       pbi->qm_list[qm_pos_found].qm_tlayer_id,
+//                       pbi->qm_list[qm_pos_found].qm_mlayer_id);
+//  }
 
   int q = NUM_QM_LEVELS - 1;
   if (qm_pos_found >= 0) q = qmlevel;
