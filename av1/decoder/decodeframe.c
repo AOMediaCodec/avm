@@ -6733,47 +6733,47 @@ void read_sequence_intra_group_tool_flags(struct SequenceHeader *seq_params,
 }
 void read_sequence_inter_group_tool_flags(struct SequenceHeader *seq_params,
                                           struct aom_read_bit_buffer *rb) {
-  int seq_enabled_motion_modes = (1 << SIMPLE_TRANSLATION);
+  if (!seq_params->single_picture_hdr_flag) {
+    int seq_enabled_motion_modes = (1 << SIMPLE_TRANSLATION);
 #if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
-  uint8_t motion_mode_enabled = 0;
-  uint8_t warp_delta_enabled = 0;
+    uint8_t motion_mode_enabled = 0;
+    uint8_t warp_delta_enabled = 0;
 #endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
-  for (int motion_mode = INTERINTRA; motion_mode < MOTION_MODES;
-       motion_mode++) {
-    int enabled = aom_rb_read_bit(rb);
+    for (int motion_mode = INTERINTRA; motion_mode < MOTION_MODES;
+         motion_mode++) {
+      int enabled = aom_rb_read_bit(rb);
 #if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
-    motion_mode_enabled |= enabled;
-    if (motion_mode == WARP_DELTA && enabled) {
-      warp_delta_enabled = 1;
-    }
+      motion_mode_enabled |= enabled;
+      if (motion_mode == WARP_DELTA && enabled) {
+        warp_delta_enabled = 1;
+      }
 #endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
-    if (enabled) {
-      seq_enabled_motion_modes |= (1 << motion_mode);
+      if (enabled) {
+        seq_enabled_motion_modes |= (1 << motion_mode);
+      }
     }
-  }
 #if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
-  seq_params->seq_frame_motion_modes_present_flag =
-      motion_mode_enabled ? aom_rb_read_bit(rb) : 0;
-  seq_params->enable_six_param_warp_delta =
-      warp_delta_enabled ? aom_rb_read_bit(rb) : 0;
+    seq_params->seq_frame_motion_modes_present_flag =
+        motion_mode_enabled ? aom_rb_read_bit(rb) : 0;
+    seq_params->enable_six_param_warp_delta =
+        warp_delta_enabled ? aom_rb_read_bit(rb) : 0;
 #else
-  seq_params->enable_six_param_warp_delta = aom_rb_read_bit(rb);
+    seq_params->enable_six_param_warp_delta = aom_rb_read_bit(rb);
 #endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
-  seq_params->seq_enabled_motion_modes = seq_enabled_motion_modes;
-  seq_params->enable_masked_compound = aom_rb_read_bit(rb);
+    seq_params->seq_enabled_motion_modes = seq_enabled_motion_modes;
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-  seq_params->order_hint_info.enable_order_hint = aom_rb_read_bit(rb);
+    seq_params->order_hint_info.enable_order_hint = aom_rb_read_bit(rb);
 #endif  // !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-  seq_params->order_hint_info.enable_ref_frame_mvs =
+    seq_params->order_hint_info.enable_ref_frame_mvs =
 #if CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-      aom_rb_read_bit(rb);
+        aom_rb_read_bit(rb);
 #else
-      seq_params->order_hint_info.enable_order_hint ? aom_rb_read_bit(rb) : 0;
+        seq_params->order_hint_info.enable_order_hint ? aom_rb_read_bit(rb) : 0;
 #endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-  seq_params->order_hint_info.reduced_ref_frame_mvs_mode =
-      seq_params->order_hint_info.enable_ref_frame_mvs ? aom_rb_read_bit(rb)
-                                                       : 0;
-
+    seq_params->order_hint_info.reduced_ref_frame_mvs_mode =
+        seq_params->order_hint_info.enable_ref_frame_mvs ? aom_rb_read_bit(rb)
+                                                         : 0;
+  }
   seq_params->enable_refmvbank = aom_rb_read_bit(rb);
   if (aom_rb_read_bit(rb)) {
     seq_params->enable_drl_reorder = DRL_REORDER_DISABLED;
@@ -6782,6 +6782,7 @@ void read_sequence_inter_group_tool_flags(struct SequenceHeader *seq_params,
         aom_rb_read_bit(rb) ? DRL_REORDER_CONSTRAINT : DRL_REORDER_ALWAYS;
   }
   seq_params->explicit_ref_frame_map = aom_rb_read_bit(rb);
+  seq_params->enable_masked_compound = aom_rb_read_bit(rb);
 #if !CONFIG_F253_REMOVE_OUTPUTFLAG
   // 0 : use show_existing_frame, 1: use implicit derivation
   seq_params->enable_frame_output_order = aom_rb_read_bit(rb);
@@ -6837,13 +6838,16 @@ void read_sequence_inter_group_tool_flags(struct SequenceHeader *seq_params,
   } else {
     seq_params->enable_tip_explicit_qp = 0;
   }
+  if (!seq_params->single_picture_hdr_flag) {
 #if CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
-  seq_params->enable_opfl_refine = aom_rb_read_literal(rb, 2);
+    seq_params->enable_opfl_refine = aom_rb_read_literal(rb, 2);
 #else
-  seq_params->enable_opfl_refine = seq_params->order_hint_info.enable_order_hint
-                                       ? aom_rb_read_literal(rb, 2)
-                                       : AOM_OPFL_REFINE_NONE;
+    seq_params->enable_opfl_refine =
+        seq_params->order_hint_info.enable_order_hint
+            ? aom_rb_read_literal(rb, 2)
+            : AOM_OPFL_REFINE_NONE;
 #endif  // CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
+  }
   seq_params->enable_adaptive_mvd = aom_rb_read_bit(rb);
 
   seq_params->enable_refinemv = aom_rb_read_bit(rb);
@@ -6866,20 +6870,22 @@ void read_sequence_inter_group_tool_flags(struct SequenceHeader *seq_params,
 
 void read_sequence_filter_group_tool_flags(struct SequenceHeader *seq_params,
                                            struct aom_read_bit_buffer *rb) {
-  if (aom_rb_read_bit(rb)) {
-    seq_params->force_screen_content_tools = 2;
-  } else {
-    seq_params->force_screen_content_tools = aom_rb_read_bit(rb);
-  }
-
-  if (seq_params->force_screen_content_tools > 0) {
+  if (!seq_params->single_picture_hdr_flag) {
     if (aom_rb_read_bit(rb)) {
-      seq_params->force_integer_mv = 2;
+      seq_params->force_screen_content_tools = 2;
     } else {
-      seq_params->force_integer_mv = aom_rb_read_bit(rb);
+      seq_params->force_screen_content_tools = aom_rb_read_bit(rb);
     }
-  } else {
-    seq_params->force_integer_mv = 2;
+
+    if (seq_params->force_screen_content_tools > 0) {
+      if (aom_rb_read_bit(rb)) {
+        seq_params->force_integer_mv = 2;
+      } else {
+        seq_params->force_integer_mv = aom_rb_read_bit(rb);
+      }
+    } else {
+      seq_params->force_integer_mv = 2;
+    }
   }
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   seq_params->disable_loopfilters_across_tiles = aom_rb_read_bit(rb);
@@ -6908,11 +6914,13 @@ void read_sequence_filter_group_tool_flags(struct SequenceHeader *seq_params,
   seq_params->cfl_ds_filter_index =
       seq_params->monochrome ? 0 : aom_rb_read_literal(rb, 2);
 
-  seq_params->enable_tcq = 0;
-  int enable_tcq = aom_rb_read_bit(rb);
-  if (enable_tcq) {
-    enable_tcq += aom_rb_read_bit(rb);
-    seq_params->enable_tcq = enable_tcq;
+  if (!seq_params->single_picture_hdr_flag) {
+    seq_params->enable_tcq = 0;
+    int enable_tcq = aom_rb_read_bit(rb);
+    if (enable_tcq) {
+      enable_tcq += aom_rb_read_bit(rb);
+      seq_params->enable_tcq = enable_tcq;
+    }
   }
   if (seq_params->enable_tcq == TCQ_DISABLE ||
       seq_params->enable_tcq >= TCQ_8ST_FR) {
@@ -6978,6 +6986,9 @@ void av1_read_sequence_header(
 #endif  // CONFIG_CWG_F349_SIGNAL_TILE_INFO
 #endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 #if CONFIG_REORDER_SEQ_FLAGS
+  if (seq_params->single_picture_hdr_flag) {
+    init_single_picture_header_flags(seq_params);
+  }
   read_sequence_intra_group_tool_flags(seq_params, rb);
   read_sequence_inter_group_tool_flags(seq_params, rb);
   read_sequence_filter_group_tool_flags(seq_params, rb);
@@ -6987,9 +6998,7 @@ void av1_read_sequence_header(
   seq_params->enable_intra_edge_filter = aom_rb_read_bit(rb);
 #endif  // !CONFIG_REORDER_SEQ_FLAGS
   if (seq_params->single_picture_hdr_flag) {
-#if CONFIG_REORDER_SEQ_FLAGS
-    init_single_picture_header_flags(seq_params);
-#else
+#if !CONFIG_REORDER_SEQ_FLAGS
     seq_params->seq_enabled_motion_modes = (1 << SIMPLE_TRANSLATION);
     seq_params->enable_masked_compound = 0;
 #if !CONFIG_CWG_F243_REMOVE_ENABLE_ORDER_HINT
@@ -7005,7 +7014,7 @@ void av1_read_sequence_header(
 #if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
     seq_params->seq_frame_motion_modes_present_flag = 0;
 #endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
-#endif  // CONFIG_REORDER_SEQ_FLAGS
+#endif  // !CONFIG_REORDER_SEQ_FLAGS
   } else {
 #if !CONFIG_REORDER_SEQ_FLAGS
     int seq_enabled_motion_modes = (1 << SIMPLE_TRANSLATION);
