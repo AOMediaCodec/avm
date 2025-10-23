@@ -4868,8 +4868,8 @@ void av1_write_conformance_window(const SequenceHeader *seq_params,
   aom_wb_write_bit(wb, conf->conf_win_enabled_flag);
   if (conf->conf_win_enabled_flag) {
     aom_wb_write_uvlc(wb, conf->conf_win_left_offset);
-    aom_wb_write_uvlc(wb, conf->conf_win_top_offset);
     aom_wb_write_uvlc(wb, conf->conf_win_right_offset);
+    aom_wb_write_uvlc(wb, conf->conf_win_top_offset);
     aom_wb_write_uvlc(wb, conf->conf_win_bottom_offset);
   }
 }

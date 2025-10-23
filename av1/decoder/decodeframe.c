@@ -6603,8 +6603,8 @@ void av1_read_conformance_window(struct aom_read_bit_buffer *rb,
 
   if (conf->conf_win_enabled_flag) {
     conf->conf_win_left_offset = aom_rb_read_uvlc(rb);
-    conf->conf_win_top_offset = aom_rb_read_uvlc(rb);
     conf->conf_win_right_offset = aom_rb_read_uvlc(rb);
+    conf->conf_win_top_offset = aom_rb_read_uvlc(rb);
     conf->conf_win_bottom_offset = aom_rb_read_uvlc(rb);
   } else {
     conf->conf_win_left_offset = 0;

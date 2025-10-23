@@ -65,6 +65,13 @@ typedef struct _Av1Config {
   uint8_t monochrome;
   uint8_t chroma_subsampling_x;
   uint8_t chroma_subsampling_y;
+#if CONFIG_CROP_WIN_CWG_F220
+  int conf_win_enabled_flag;
+  int conf_win_left_offset;
+  int conf_win_right_offset;
+  int conf_win_top_offset;
+  int conf_win_bottom_offset;
+#endif  // CONFIG_CROP_WIN_CWG_F220
   uint8_t chroma_sample_position;
   uint8_t initial_presentation_delay_present;
   uint8_t initial_presentation_delay_minus_one;

@@ -100,10 +100,10 @@ static void yuvconfig2image(aom_image_t *img, const YV12_BUFFER_CONFIG *yv12,
 #if CONFIG_CROP_WIN_CWG_F220
   img->w_conf_win_enabled_flag = yv12->w_conf_win_enabled_flag;
   if (img->w_conf_win_enabled_flag) {
-    img->w_conf_win_bottom_offset = yv12->w_win_bottom_offset;
     img->w_conf_win_left_offset = yv12->w_win_left_offset;
     img->w_conf_win_right_offset = yv12->w_win_right_offset;
     img->w_conf_win_top_offset = yv12->w_win_top_offset;
+    img->w_conf_win_bottom_offset = yv12->w_win_bottom_offset;
 
     // Determine subsampling factors
     const int ss_x = img->monochrome ? img->x_chroma_shift : 0;
