@@ -45,6 +45,7 @@
 #include "av1/common/entropymv.h"
 #include "av1/common/intra_dip.h"
 #include "av1/common/mvref_common.h"
+#include "av1/common/obu_util.h"
 #include "av1/common/pred_common.h"
 #include "av1/common/quant_common.h"
 #include "av1/common/reconinter.h"

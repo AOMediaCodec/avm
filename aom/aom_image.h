@@ -33,7 +33,7 @@ extern "C" {
  * fields to structures
  */
 #if CONFIG_METADATA
-#define AOM_IMAGE_ABI_VERSION (42) /**<\hideinitializer*/
+#define AOM_IMAGE_ABI_VERSION (10) /**<\hideinitializer*/
 #else
 #define AOM_IMAGE_ABI_VERSION (9) /**<\hideinitializer*/
 #endif                            // CONFIG_METADATA
