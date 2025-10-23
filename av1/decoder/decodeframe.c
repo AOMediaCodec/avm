@@ -3827,7 +3827,7 @@ static AOM_INLINE void setup_quantization(CommonQuantParams *quant_params,
 }
 #if CONFIG_F255_QMOBU
 void setup_cm_quant_params(AV1Decoder *pbi, CommonQuantParams *quant_params,
-                           int num_planes, int qmlevel) {
+                           int plane, int qmlevel) {
   int qm_pos_found = -1;
   for (int qm_pos = 0; qm_pos < NUM_CUSTOM_QMS; qm_pos++) {
     if (pbi->qm_list[qm_pos].qm_id == qmlevel) {
@@ -3862,27 +3862,25 @@ void setup_cm_quant_params(AV1Decoder *pbi, CommonQuantParams *quant_params,
   int q = NUM_QM_LEVELS - 1;
   if (qm_pos_found >= 0) q = qmlevel;
 
-  for (int c = 0; c < num_planes; ++c) {
-    // Generate matrices for each tx size
-    int current = 0;
-    for (int t = 0; t < TX_SIZES_ALL; ++t) {
-      const int size = tx_size_2d[t];
-      const int qm_tx_size = av1_get_adjusted_tx_size(t);
-      if (q == NUM_QM_LEVELS - 1) {
-        quant_params->giqmatrix[q][c][t] = NULL;
-      } else if (t != qm_tx_size) {  // Reuse matrices for 'qm_tx_size'
-        assert(t > qm_tx_size);
-        quant_params->giqmatrix[q][c][t] =
-            quant_params->giqmatrix[q][c][qm_tx_size];
-      } else {
-        assert(current + size <= QM_TOTAL_SIZE);
-        // Generate the iwt matrices from the base matrices.
-        scale_tx(t, c, &quant_params->iwt_matrix_ref[q][c][current],
-                 pbi->qm_list[qm_pos_found].quantizer_matrix);
-        quant_params->giqmatrix[q][c][t] =
-            &quant_params->iwt_matrix_ref[q][c][current];
-        current += size;
-      }
+  // Generate matrices for each tx size
+  int current = 0;
+  for (int t = 0; t < TX_SIZES_ALL; ++t) {
+    const int size = tx_size_2d[t];
+    const int qm_tx_size = av1_get_adjusted_tx_size(t);
+    if (q == NUM_QM_LEVELS - 1) {
+      quant_params->giqmatrix[q][plane][t] = NULL;
+    } else if (t != qm_tx_size) {  // Reuse matrices for 'qm_tx_size'
+      assert(t > qm_tx_size);
+      quant_params->giqmatrix[q][plane][t] =
+          quant_params->giqmatrix[q][plane][qm_tx_size];
+    } else {
+      assert(current + size <= QM_TOTAL_SIZE);
+      // Generate the iwt matrices from the base matrices.
+      scale_tx(t, plane, &quant_params->iwt_matrix_ref[q][plane][current],
+               pbi->qm_list[qm_pos_found].quantizer_matrix);
+      quant_params->giqmatrix[q][plane][t] =
+          &quant_params->iwt_matrix_ref[q][plane][current];
+      current += size;
     }
   }
 }
@@ -3977,13 +3975,10 @@ static AOM_INLINE void setup_qm_params(
     }
 #if CONFIG_F255_QMOBU
     for (uint8_t i = 0; i < quant_params->pic_qm_num; i++) {
-      setup_cm_quant_params(pbi, quant_params, num_planes,
-                            quant_params->qm_y[i]);
+      setup_cm_quant_params(pbi, quant_params, 0, quant_params->qm_y[i]);
       if (num_planes > 1) {
-        setup_cm_quant_params(pbi, quant_params, num_planes,
-                              quant_params->qm_u[i]);
-        setup_cm_quant_params(pbi, quant_params, num_planes,
-                              quant_params->qm_v[i]);
+        setup_cm_quant_params(pbi, quant_params, 1, quant_params->qm_u[i]);
+        setup_cm_quant_params(pbi, quant_params, 2, quant_params->qm_v[i]);
       }
     }
 #endif  // CONFIG_F255_QMOBU
@@ -7282,7 +7277,7 @@ void av1_read_sequence_header_beyond_av1(
     ,
     CommonQuantParams *quant_params, struct aom_internal_error_info *error_info
 #endif  // !CONFIG_F255_QMOBU
-{
+){
 #if !CONFIG_REORDER_SEQ_FLAGS
   seq_params->enable_refmvbank = aom_rb_read_bit(rb);
   if (aom_rb_read_bit(rb)) {

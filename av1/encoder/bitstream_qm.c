@@ -279,13 +279,17 @@ uint32_t write_qm_obu(AV1_COMP *cpi, int signalled_obu_pos,
   assert(signalled_obu_pos >= 0);
   int qm_bit_map = cpi->qmobu_list[signalled_obu_pos].qm_bit_map;
   aom_wb_write_literal(&wb, qm_bit_map, NUM_CUSTOM_QMS);
-  aom_wb_write_bit(&wb, cpi->common.seq_params.monochrome);
+  aom_wb_write_bit(
+      &wb, cpi->qmobu_list[signalled_obu_pos].qm_chroma_info_present_flag);
 
   for (int j = 0; j < NUM_CUSTOM_QMS; j++) {
     if (qm_bit_map & (1 << j)) {
       check_qm_is_predefined(cpi, signalled_obu_pos);
-      write_qm_data(cpi, cpi->qmobu_list[signalled_obu_pos].qm_list, j,
-                    (cpi->common.seq_params.monochrome ? 1 : 3), &wb);
+      write_qm_data(
+          cpi, cpi->qmobu_list[signalled_obu_pos].qm_list, j,
+          (cpi->qmobu_list[signalled_obu_pos].qm_chroma_info_present_flag ? 3
+                                                                          : 1),
+          &wb);
       if (cpi->common.error.error_code != AOM_CODEC_OK) {
         aom_internal_error(&cpi->common.error, AOM_CODEC_UNSUP_BITSTREAM,
                            "quantization matrix error code [%d].",

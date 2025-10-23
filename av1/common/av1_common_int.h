@@ -2036,15 +2036,17 @@ typedef struct BridgeFrame_Info {
 
 struct quantization_matrix_set {
   /*!
-   * id of the quantization matrix
+   * id of the quantization matrix : initialized to be -1
    */
   int qm_id;
   /*!
-   * tlayer id of the OBU that conveys this quantization matrix
+   * tlayer id of the OBU that conveys this quantization matrix : initialized to
+   * be -1
    */
   int qm_tlayer_id;
   /*!
-   * mlayer id of the OBU that conveys this quantization matrix
+   * mlayer id of the OBU that conveys this quantization matrix : initialized to
+   * be -1
    */
   int qm_mlayer_id;
   /*!

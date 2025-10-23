@@ -2147,7 +2147,10 @@ static aom_codec_err_t ctrl_set_user_defined_qmatrix(aom_codec_alg_priv_t *ctx,
 
   AV1_COMP *cpi = ctx->cpi;
 #if CONFIG_F255_QMOBU
-  assert(num_planes == (cpi->common.seq_params.monochrome ? 1 : 3));
+  if (num_planes != (cpi->common.seq_params.monochrome ? 1 : 3)) {
+    return AOM_CODEC_INVALID_PARAM;
+  }
+  cpi->common.use_user_defined_qm[level] = true;
   cpi->user_defined_qm_list[level] = av1_alloc_qmset(num_planes);
 #else
   SequenceHeader *seq_params = &cpi->common.seq_params;

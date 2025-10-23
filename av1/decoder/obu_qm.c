@@ -32,7 +32,10 @@
 void alloc_qmatrix(struct quantization_matrix_set *qm_set, int qm_id,
                    int num_planes) {
   const TX_SIZE fund_tsize[3] = { TX_8X8, TX_8X4, TX_4X8 };
-  if (qm_set->quantizer_matrix != NULL) return;
+  if (qm_set->quantizer_matrix != NULL) {
+    // printf("quantizer_matrix is not NULL\n");
+    return;
+  }
   qm_set->quantizer_matrix =
       (qm_val_t ***)aom_malloc(3 * sizeof(qm_val_t **));  // 8x8,8x4,4x8
   (void)qm_id;
@@ -47,6 +50,16 @@ void alloc_qmatrix(struct quantization_matrix_set *qm_set, int qm_id,
           (qm_val_t *)aom_malloc(width * height * sizeof(qm_val_t));
     }
   }
+#if 1
+  for (int t = 0; t < 3; t++)
+    for (int c = 0; c < 3; c++) {
+      printf("quantizer_matrix[%d][%d]", t, c);
+      if (qm_set->quantizer_matrix[t][c] == NULL)
+        printf(": NULL\n");
+      else
+        printf(": %p\n", &qm_set->quantizer_matrix[t][c]);
+    }
+#endif
 }
 
 uint32_t read_qm_data(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
@@ -194,7 +207,6 @@ uint32_t read_qm_obu(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
     copy_predefined_qmatrices_to_list(pbi);
     if (av1_check_trailing_bits(pbi, rb) != 0) {
       // cm->error.error_code is already set.
-      printf("av1_check_trailing_bits(pbi, rb)!=0\n");
       return 0;
     }
     return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
