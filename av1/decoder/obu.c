@@ -507,7 +507,12 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
 
 #if CONFIG_F255_QMOBU
   // load the predefined qmatrices to the list
-  //copy_predefined_qmatrices_to_list(pbi);
+  for (int qm_pos = 0; qm_pos < NUM_CUSTOM_QMS; qm_pos++) {
+    if (pbi->qm_list[qm_pos].quantizer_matrix != NULL)
+      av1_free_qm(pbi->qm_list[qm_pos].quantizer_matrix,
+                  pbi->common.seq_params.monochrome ? 1 : 3);
+  }
+  copy_predefined_qmatrices_to_list(pbi);
 #endif  // CONFIG_F255_QMOBU
 
   cm->seq_params = *seq_params;
