@@ -5461,3 +5461,156 @@ void av1_fill_tskip_feature_accumulator_avx2(
     assert(0);
   }
 }
+
+static const uint8_t shuffle_mask[32] = { 0, 1, 4, 5, 8, 9, 12, 13,
+                                          0, 1, 4, 5, 8, 9, 12, 13,
+                                          0, 1, 4, 5, 8, 9, 12, 13,
+                                          0, 1, 4, 5, 8, 9, 12, 13 };
+
+// AVX2 implementation for luma buffer of cross-component wienerns
+void calc_wienerns_ds_luma_420_avx2(const uint16_t *src, int src_stride,
+                                    uint16_t *const dst, int dst_stride,
+                                    int ds_type, int height_uv, int width_uv,
+                                    int ss_x, int ss_y, int col_start) {
+  assert(ss_x == 1 && ss_y == 1);
+  (void)col_start;
+  const __m256i shuffle_reg = _mm256_loadu_si256((__m256i *)shuffle_mask);
+  const __m256i zero = _mm256_setzero_si256();
+  const int width_offset = (width_uv >> 4) << 4;
+  const int width_remainder = width_uv - width_offset;
+  if (!width_offset) {
+    calc_wienerns_ds_luma_420_c(src, src_stride, dst, dst_stride, ds_type,
+                                height_uv, width_uv, ss_x, ss_y, 0);
+    return;
+  }
+  if (ds_type == 1) {
+    for (int r = 0; r < height_uv; ++r) {
+      const uint16_t *src_0 = &src[2 * r * src_stride];
+      const uint16_t *src_1 = &src[(2 * r + 1) * src_stride];
+      for (int c = 0; c < width_offset; c += 16) {
+        // 00 01 02 03 04 05 06 07 | 08 09 010 011 012 013 014 015
+        const __m256i src_a0 = _mm256_loadu_si256((__m256i *)(src_0 + c * 2));
+        // 016 017 018 019 020 021 022 023 | 024 025 026 027 028 029 030 031
+        const __m256i src_a1 =
+            _mm256_loadu_si256((__m256i *)(src_0 + c * 2 + 16));
+        const __m256i src_b0 = _mm256_loadu_si256((__m256i *)(src_1 + c * 2));
+        const __m256i src_b1 =
+            _mm256_loadu_si256((__m256i *)(src_1 + c * 2 + 16));
+
+        // 00 02 04 06 08 010 012 014 | x x x x x x x x
+        const __m256i src_a_even_0 = _mm256_permute4x64_epi64(
+            _mm256_shuffle_epi8(src_a0, shuffle_reg), 0x08);
+        // 016 018 020 022 024 026 028 030 | x x x x x x x x
+        const __m256i src_a_even_1 = _mm256_permute4x64_epi64(
+            _mm256_shuffle_epi8(src_a1, shuffle_reg), 0x08);
+        // 00 02 04 06 08 010 012 014 | 016 018 020 022 024 026 028 030
+        const __m256i src_a_even =
+            _mm256_permute2x128_si256(src_a_even_0, src_a_even_1, 0x20);
+        // 00 02 04 06 016 018 020 022
+        const __m256i src_00 = _mm256_unpacklo_epi16(src_a_even, zero);
+        // 08 010 012 014 024 026 028 030
+        const __m256i src_01 = _mm256_unpackhi_epi16(src_a_even, zero);
+
+        // 10 12 14 16 18 110 112 114 | x x x x x x x x
+        const __m256i src_b_even_0 = _mm256_permute4x64_epi64(
+            _mm256_shuffle_epi8(src_b0, shuffle_reg), 0x08);
+        // 116 118 120 122 124 126 128 130 | x x x x x x x x
+        const __m256i src_b_even_1 = _mm256_permute4x64_epi64(
+            _mm256_shuffle_epi8(src_b1, shuffle_reg), 0x08);
+        // 10 12 14 16 18 110 112 114 | 116 118 120 122 124 126 128 130
+        const __m256i src_b_even =
+            _mm256_permute2x128_si256(src_b_even_0, src_b_even_1, 0x20);
+        // 10 12 14 16 116 118 120 122
+        const __m256i src_10 = _mm256_unpacklo_epi16(src_b_even, zero);
+        // 18 110 112 114 124 126 128 130
+        const __m256i src_11 = _mm256_unpackhi_epi16(src_b_even, zero);
+
+        const __m256i result_0 =
+            _mm256_srli_epi32(_mm256_add_epi32(src_00, src_10), 1);
+        const __m256i result_1 =
+            _mm256_srli_epi32(_mm256_add_epi32(src_01, src_11), 1);
+        // 10 12 14 16 18 110 112 114 116 118 120 122 124 126 128 130
+        const __m256i result = _mm256_packus_epi32(result_0, result_1);
+        _mm256_storeu_si256((__m256i *)(&dst[r * dst_stride + c]), result);
+      }
+    }
+  } else if (ds_type == 2) {
+    for (int r = 0; r < height_uv; ++r) {
+      const uint16_t *src_0 = &src[(1 + ss_y) * r * src_stride];
+      for (int c = 0; c < width_offset; c += 16) {
+        // 00 01 02 03 04 05 06 07 | 08 09 010 011 012 013 014 015
+        const __m256i src_a =
+            _mm256_loadu_si256((__m256i const *)(src_0 + c * 2));
+        const __m256i src_b =
+            _mm256_loadu_si256((__m256i const *)(src_0 + c * 2 + 16));
+
+        // 00 02 04 06 00 02 04 06 | 08 010 012 014 08 010 012 014
+        const __m256i src_a_even = _mm256_permute4x64_epi64(
+            _mm256_shuffle_epi8(src_a, shuffle_reg), 0x08);
+        // 016 018 020 022 016 018 020 022 | 024 026 028 030 024 026 028 030
+        const __m256i src_b_even = _mm256_permute4x64_epi64(
+            _mm256_shuffle_epi8(src_b, shuffle_reg), 0x08);
+        const __m256i result =
+            _mm256_permute2x128_si256(src_a_even, src_b_even, 0x20);
+        _mm256_storeu_si256((__m256i *)(&dst[r * dst_stride + c]), result);
+      }
+    }
+  } else {
+    for (int r = 0; r < height_uv; ++r) {
+      const uint16_t *src_0 = &src[2 * r * src_stride];
+      const uint16_t *src_1 = &src[(2 * r + 1) * src_stride];
+      for (int c = 0; c < width_offset; c += 16) {
+        // 00 01 02 03 04 05 06 07 | 08 09 010 011 012 013 014 015
+        const __m256i src_a0 = _mm256_loadu_si256((__m256i *)(src_0 + c * 2));
+        // 016 017 018 019 020 021 022 023 | 024 025 026 027 028 029 030 031
+        const __m256i src_a1 =
+            _mm256_loadu_si256((__m256i *)(src_0 + c * 2 + 16));
+        // 10 11 12 13 14 15 16 17 | 18 19 110 111 112 113 114 115
+        const __m256i src_b0 = _mm256_loadu_si256((__m256i *)(src_1 + c * 2));
+        // 116 117 118 119 120 121 122 123 | 124 125 126 127 128 129 130 131
+        const __m256i src_b1 =
+            _mm256_loadu_si256((__m256i *)(src_1 + c * 2 + 16));
+
+        // 00 01 02 03 | 08 09 010 011
+        const __m256i src_a00 = _mm256_unpacklo_epi16(src_a0, zero);
+        // 04 05 06 07 | 012 013 014 015
+        const __m256i src_a01 = _mm256_unpackhi_epi16(src_a0, zero);
+        // 016 017 018 019 | 024 025 026 027
+        const __m256i src_a10 = _mm256_unpacklo_epi16(src_a1, zero);
+        // 020 021 022 023 | 028 029 030 031
+        const __m256i src_a11 = _mm256_unpackhi_epi16(src_a1, zero);
+        // 10 11 12 13 | 18 19 110 111
+        const __m256i src_b00 = _mm256_unpacklo_epi16(src_b0, zero);
+        // 14 15 16 17 | 112 113 114 115
+        const __m256i src_b01 = _mm256_unpackhi_epi16(src_b0, zero);
+        // 116 117 118 119 | 124 125 126 127
+        const __m256i src_b10 = _mm256_unpacklo_epi16(src_b1, zero);
+        // 120 121 122 123 | 128 129 130 131
+        const __m256i src_b11 = _mm256_unpackhi_epi16(src_b1, zero);
+
+        // 00 01 | 02 03 | 04 05 | 06 07
+        const __m256i src_a_0 = _mm256_hadd_epi32(src_a00, src_a01);
+        // 08 09 | 010 011 | 012 013 | 014 015
+        const __m256i src_a_1 = _mm256_hadd_epi32(src_a10, src_a11);
+        // 00 01 | 02 03 | 04 05 | 06 07
+        const __m256i src_b_0 = _mm256_hadd_epi32(src_b00, src_b01);
+        // 08 09 | 010 011 | 012 013 | 014 015
+        const __m256i src_b_1 = _mm256_hadd_epi32(src_b10, src_b11);
+
+        // 00 01 | 02 03 | 04 05 | 06 07
+        const __m256i res_0 =
+            _mm256_srli_epi32(_mm256_add_epi32(src_a_0, src_b_0), 2);
+        // 08 09 | 010 011 | 012 013 | 014 015
+        const __m256i res_1 =
+            _mm256_srli_epi32(_mm256_add_epi32(src_a_1, src_b_1), 2);
+        // 00 01 02 03 | 08 09 010 011 | 04 05 06 07 |012 013 014 015
+        const __m256i res = _mm256_packus_epi32(res_0, res_1);
+        _mm256_storeu_si256((__m256i *)(&dst[r * dst_stride + c]),
+                            _mm256_permute4x64_epi64(res, 0XD8));
+      }
+    }
+  }
+  if (width_remainder)
+    calc_wienerns_ds_luma_420_c(src, src_stride, dst, dst_stride, ds_type,
+                                height_uv, width_uv, ss_x, ss_y, width_offset);
+}

@@ -93,6 +93,9 @@ specialize qw/av1_highbd_convolve_horiz_rs sse4_1/;
 add_proto qw/void av1_highbd_wiener_convolve_add_src/, "const uint16_t *src, ptrdiff_t src_stride, uint16_t *dst, ptrdiff_t dst_stride, const int16_t *filter_x, int x_step_q4, const int16_t *filter_y, int y_step_q4, int w, int h, const WienerConvolveParams *conv_params, int bd";
 specialize qw/av1_highbd_wiener_convolve_add_src ssse3 avx2/;
 
+add_proto qw/void calc_wienerns_ds_luma_420/, "const uint16_t *src, int src_stride, uint16_t *const dst, int dst_stride, int ds_type, int height_uv, int width_uv, int ss_x, int ss_y, int col_start";
+specialize qw/calc_wienerns_ds_luma_420 avx2/;
+
 # pc wiener filter
 add_proto qw/void av1_fill_tskip_sum_buffer/, "int row, const uint8_t *tskip, int tskip_stride, int8_t *tskip_sum_buffer, int width, int height, int tskip_lead, int tskip_lag, bool use_strict_bounds";
 specialize qw/av1_fill_tskip_sum_buffer avx2/;

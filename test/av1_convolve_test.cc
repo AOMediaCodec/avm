@@ -2263,4 +2263,152 @@ INSTANTIATE_TEST_SUITE_P(
     AVX2, AV1TskipAccumHighbdTest,
     ::testing::Values(av1_fill_tskip_feature_accumulator_avx2));
 #endif  // HAVE_AVX2
+
+//////////////////////////////////////////////////////////
+//     unit-test for 'calc_wieners_ds_luma'             //
+//////////////////////////////////////////////////////////
+using libaom_test::ACMRandom;
+using std::tuple;
+using ::testing::Combine;
+using ::testing::Values;
+using ::testing::ValuesIn;
+using std::get;
+using std::make_tuple;
+
+typedef void (*calc_wieners_ds_luma_func)(const uint16_t *src, int src_stride,
+                                          uint16_t *const dst, int dst_stride,
+                                          int ds_type, int height_uv,
+                                          int width_uv, int ss_x, int ss_y,
+                                          int col_start);
+
+// width, height, ss_x, ss_y
+typedef tuple<int, int, int, int> Param;
+typedef tuple<calc_wieners_ds_luma_func, Param> WienersDSParam;
+
+class WienersDSLumaTest : public ::testing::TestWithParam<WienersDSParam> {
+ public:
+  ~WienersDSLumaTest();
+  void SetUp();
+
+  void TearDown();
+
+ protected:
+  void RunCheckOutput();
+  void RunSpeedTest();
+  bool CheckResult(int width, int height, int ds_type) {
+    for (int y = 0; y < height; ++y) {
+      for (int x = 0; x < width; ++x) {
+        const int idx = y * width + x;
+        if (out1_[idx] != out2_[idx]) {
+          printf("%dx%d mismatch @%d for %d(%d,%d) ", width, height, idx,
+                 ds_type, x, y);
+          printf("%d != %d ", out1_[idx], out2_[idx]);
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+  ACMRandom rnd_;
+  calc_wieners_ds_luma_func test_fun_;
+  Param param_;
+  uint16_t *src_;
+  uint16_t *out1_;
+  uint16_t *out2_;
+  int width_;
+  int width_uv_;
+  int height_;
+  int height_uv_;
+  int src_stride_;
+  int out_stride_;
+  int ss_x_;
+  int ss_y_;
+};
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(WienersDSLumaTest);
+
+WienersDSLumaTest::~WienersDSLumaTest() {}
+
+void WienersDSLumaTest::SetUp() {
+  rnd_.Reset(ACMRandom::DeterministicSeed());
+  test_fun_ = GET_PARAM(0);
+  param_ = GET_PARAM(1);
+  width_ = std::get<0>(param_);
+  height_ = std::get<1>(param_);
+  ss_x_ = std::get<2>(param_);
+  ss_y_ = std::get<3>(param_);
+  src_stride_ = width_;
+  out_stride_ = width_ >> ss_x_;
+  width_uv_ = out_stride_;
+  height_uv_ = height_ >> ss_y_;
+  src_ = (uint16_t *)aom_memalign(16, width_ * height_ * sizeof(*src_));
+  ASSERT_NE(src_, nullptr);
+  out1_ = (uint16_t *)aom_memalign(16, width_uv_ * height_uv_ * sizeof(*out1_));
+  ASSERT_NE(out1_, nullptr);
+  out2_ = (uint16_t *)aom_memalign(16, width_uv_ * height_uv_ * sizeof(*out2_));
+  ASSERT_NE(out2_, nullptr);
+
+  for (int i = 0; i < width_ * height_; ++i) {
+    src_[i] = rnd_.Rand16();
+  }
+}
+
+void WienersDSLumaTest::TearDown() {
+  aom_free(src_);
+  aom_free(out1_);
+  aom_free(out2_);
+}
+
+void WienersDSLumaTest::RunCheckOutput() {
+  for (int ds_type = 0; ds_type < 3; ds_type++) {
+    calc_wienerns_ds_luma_420_c(src_, src_stride_, out1_, out_stride_, ds_type,
+                                height_uv_, width_uv_, ss_x_, ss_y_, 0);
+    test_fun_(src_, src_stride_, out2_, out_stride_, ds_type, height_uv_,
+              width_uv_, ss_x_, ss_y_, 0);
+
+    ASSERT_EQ(CheckResult(width_uv_, height_uv_, ds_type), true);
+  }
+}
+
+void WienersDSLumaTest::RunSpeedTest() {
+  const int num_loops = 1000;
+
+  calc_wieners_ds_luma_func functions[2] = { calc_wienerns_ds_luma_420_c,
+                                            test_fun_ };
+  double elapsed_time[2] = { 0.0 };
+  for (int i = 0; i < 2; ++i) {
+    aom_usec_timer timer;
+    aom_usec_timer_start(&timer);
+    calc_wieners_ds_luma_func func = functions[i];
+    for (int j = 0; j < num_loops; ++j) {
+      for (int ds_type = 0; ds_type < 3; ds_type++)
+        func(src_, src_stride_, out1_, out_stride_, ds_type, height_uv_,
+             width_uv_, ss_x_, ss_y_, 0);
+    }
+    aom_usec_timer_mark(&timer);
+    const double time = static_cast<double>(aom_usec_timer_elapsed(&timer));
+    elapsed_time[i] = 1000.0 * time;
+  }
+  printf(
+      "WienersDSLumaTest %3dx%-3d: c_time=%7.2fs, simd_time=%7.2fs, "
+      "scaling=%3.2f\n",
+      width_, height_, elapsed_time[0], elapsed_time[1],
+      elapsed_time[0] / elapsed_time[1]);
+}
+
+TEST_P(WienersDSLumaTest, CheckOutput) { RunCheckOutput(); }
+
+TEST_P(WienersDSLumaTest, DISABLED_Speed) { RunSpeedTest(); }
+
+#if HAVE_AVX2
+const Param kwienerns_ds_luma_420[] = {
+  make_tuple(3840, 2160, 1, 1), make_tuple(1920, 1080, 1, 1),
+  make_tuple(1280, 720, 1, 1),  make_tuple(640, 480, 1, 1),
+  make_tuple(480, 270, 1, 1),   make_tuple(270, 480, 1, 1),
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, WienersDSLumaTest,
+    ::testing::Combine(::testing::Values(&calc_wienerns_ds_luma_420_avx2),
+                       ::testing::ValuesIn(kwienerns_ds_luma_420)));
+#endif  // HAVE_AVX2
 }  // namespace

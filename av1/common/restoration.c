@@ -1797,6 +1797,57 @@ static void wiener_nsfilter_stripe_highbd(const RestorationUnitInfo *rui,
   }
 }
 
+// C implementation for luma buffer of cross-component wienerns
+void calc_wienerns_ds_luma_420_c(const uint16_t *src, int src_stride,
+                                 uint16_t *const dst, int dst_stride,
+                                 int ds_type, int height_uv, int width_uv,
+                                 int ss_x, int ss_y, int col_start) {
+  assert(ss_x == 1 && ss_y == 1);
+  if (ds_type == 1) {
+    for (int r = 0; r < height_uv; ++r) {
+      for (int c = col_start; c < width_uv; ++c) {
+        dst[r * dst_stride + c] = (src[2 * r * src_stride + 2 * c] +
+                                   src[(2 * r + 1) * src_stride + 2 * c]) >>
+                                  1;
+      }
+    }
+  } else if (ds_type == 2) {
+    for (int r = 0; r < height_uv; ++r) {
+      for (int c = col_start; c < width_uv; ++c) {
+        dst[r * dst_stride + c] =
+            src[(1 + ss_y) * r * src_stride + (1 + ss_x) * c];
+      }
+    }
+  } else {
+    for (int r = 0; r < height_uv; ++r) {
+      for (int c = col_start; c < width_uv; ++c) {
+        dst[r * dst_stride + c] = (src[2 * r * src_stride + 2 * c] +
+                                   src[2 * r * src_stride + 2 * c + 1] +
+                                   src[(2 * r + 1) * src_stride + 2 * c] +
+                                   src[(2 * r + 1) * src_stride + 2 * c + 1]) >>
+                                  2;
+      }
+    }
+  }
+}
+
+static INLINE void make_wienerns_ds_luma(const uint16_t *src, int src_stride,
+                                         uint16_t *const dst, int dst_stride,
+                                         int ds_type, int height_uv,
+                                         int width_uv, int ss_x, int ss_y) {
+  if (ss_x && ss_y) {
+    calc_wienerns_ds_luma_420(src, src_stride, dst, dst_stride, ds_type,
+                              height_uv, width_uv, ss_x, ss_y, 0);
+  } else {
+    for (int r = 0; r < height_uv; ++r) {
+      for (int c = 0; c < width_uv; ++c) {
+        dst[r * dst_stride + c] =
+            src[(1 + ss_y) * r * src_stride + (1 + ss_x) * c];
+      }
+    }
+  }
+}
+
 uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV1Common *cm,
                                                 uint16_t **luma_hbd) {
   const RestorationInfo *rsi = &cm->rst_info[0];
@@ -1932,43 +1983,8 @@ uint16_t *wienerns_copy_luma_with_virtual_lines(struct AV1Common *cm,
         assert(0 && "Invalid dimensions");
       }
 #elif WIENERNS_CROSS_FILT_LUMA_TYPE == 2
-      if (ss_x && ss_y) {
-        if (ds_type == 1) {
-          for (int r = 0; r < h_uv; ++r) {
-            for (int c = 0; c < width_uv; ++c) {
-              curr_luma[r * out_stride + c] =
-                  (curr_dgd[2 * r * in_stride + 2 * c] +
-                   curr_dgd[(2 * r + 1) * in_stride + 2 * c]) >>
-                  1;
-            }
-          }
-        } else if (ds_type == 2) {
-          for (int r = 0; r < h_uv; ++r) {
-            for (int c = 0; c < width_uv; ++c) {
-              curr_luma[r * out_stride + c] =
-                  curr_dgd[(1 + ss_y) * r * in_stride + (1 + ss_x) * c];
-            }
-          }
-        } else {
-          for (int r = 0; r < h_uv; ++r) {
-            for (int c = 0; c < width_uv; ++c) {
-              curr_luma[r * out_stride + c] =
-                  (curr_dgd[2 * r * in_stride + 2 * c] +
-                   curr_dgd[2 * r * in_stride + 2 * c + 1] +
-                   curr_dgd[(2 * r + 1) * in_stride + 2 * c] +
-                   curr_dgd[(2 * r + 1) * in_stride + 2 * c + 1]) >>
-                  2;
-            }
-          }
-        }
-      } else {
-        for (int r = 0; r < h_uv; ++r) {
-          for (int c = 0; c < width_uv; ++c) {
-            curr_luma[r * out_stride + c] =
-                curr_dgd[(1 + ss_y) * r * in_stride + (1 + ss_x) * c];
-          }
-        }
-      }
+      make_wienerns_ds_luma(curr_dgd, in_stride, curr_luma, out_stride, ds_type,
+                            h_uv, width_uv, ss_x, ss_y);
 #else
       av1_highbd_resize_plane(dgd, height_y, width_y, in_stride, *luma,
                               height_uv, width_uv, out_stride, bd);
