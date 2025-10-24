@@ -3429,12 +3429,9 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
     } else {
       lf->filter_level_u = lf->filter_level_v = 0;
     }
-  }
-#if CONFIG_ASYM_DF
-  else {
+  } else {
     lf->filter_level_u = lf->filter_level_v = 0;
   }
-#endif  // CONFIG_ASYM_DF
 
   const uint8_t df_par_bits = cm->seq_params.df_par_bits_minus2 + 2;
   const uint8_t df_par_offset = 1 << (df_par_bits - 1);
