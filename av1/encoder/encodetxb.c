@@ -3829,7 +3829,9 @@ static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
     }
   } else {
     if (cpi->oxcf.txfm_cfg.use_intra_dct_only) {
-      assert(get_primary_tx_type(tx_type) == DCT_DCT);
+      assert(get_primary_tx_type(tx_type) == DCT_DCT ||
+        (cm->seq_params.enable_idtx_intra &&
+          get_primary_tx_type(tx_type) == IDTX));
     } else if (cpi->oxcf.txfm_cfg.use_intra_default_tx_only) {
       const TX_TYPE default_type = get_default_tx_type(
           PLANE_TYPE_Y, xd, tx_size, cpi->is_screen_content_type);
