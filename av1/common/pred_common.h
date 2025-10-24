@@ -98,7 +98,7 @@ typedef struct {
   int disp_order;
   // Quality of the reference frame
   int base_qindex;
-  // Layer id of the reference frame
+  // Embedded layer id of the reference frame
   int mlayer_id;
   // log2 of resolution ratio
   int res_ratio_log2;

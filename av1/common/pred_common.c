@@ -174,14 +174,14 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
       continue;
 
     const int ref_disp = cur_ref.disp_order;
-    const int cur_layer_id = cm->current_frame.mlayer_id;
-    const int ref_layer_id = cur_ref.mlayer_id;
+    const int cur_mlayer_id = cm->current_frame.mlayer_id;
+    const int ref_mlayer_id = cur_ref.mlayer_id;
     const int cur_temporal_id = cm->current_frame.temporal_layer_id;
     const int ref_temporal_id = cur_ref.temporal_layer_id;
     if (!is_tlayer_scalable_and_dependent(&cm->seq_params, cur_temporal_id,
                                           ref_temporal_id) ||
-        !is_mlayer_scalable_and_dependent(&cm->seq_params, cur_layer_id,
-                                          ref_layer_id))
+        !is_mlayer_scalable_and_dependent(&cm->seq_params, cur_mlayer_id,
+                                          ref_mlayer_id))
       continue;
 
     // In error resilient mode, ref mapping must be independent of the
@@ -195,8 +195,8 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
     const int res_ratio_log2 = -get_msb(cur_ref.width * cur_ref.height);
     // The current frame can only refer to a reference with the same layer id or
     // a reference with lower layer ids. The continue statement above makes sure
-    // that 'ref_layer_id <= cur_layer_id' is always true
-    const int layer_diff = cur_layer_id - ref_layer_id;
+    // that 'ref_layer_id <= cur_mlayer_id' is always true
+    const int layer_diff = cur_mlayer_id - ref_mlayer_id;
     assert(layer_diff >= 0);
     int tdist = abs(disp_diff) + layer_diff;
     const int score =
@@ -205,7 +205,7 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
              : (temp_dist_score_lookup[AOMMIN(tdist, DECAY_DIST_CAP)] +
                 AOMMAX(tdist - DECAY_DIST_CAP, 0))) +
         res_ratio_log2 * (1 << RES_RATIO_LOG2_BITS) + ref_base_qindex;
-    if (is_in_ref_score(scores, ref_disp, ref_layer_id, score, n_ranked))
+    if (is_in_ref_score(scores, ref_disp, ref_mlayer_id, score, n_ranked))
       continue;
 
     scores[n_ranked].index = i;
@@ -213,7 +213,7 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
     scores[n_ranked].distance = disp_diff;
     scores[n_ranked].disp_order = ref_disp;
     scores[n_ranked].base_qindex = ref_base_qindex;
-    scores[n_ranked].mlayer_id = ref_layer_id;
+    scores[n_ranked].mlayer_id = ref_mlayer_id;
     scores[n_ranked].res_ratio_log2 = res_ratio_log2;
     n_ranked++;
   }
