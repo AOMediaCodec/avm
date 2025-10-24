@@ -299,10 +299,6 @@ set_aom_config_var(CONFIG_MOTION_MODE_FRAME_HEADERS_OPT 1
 set_aom_config_var(CONFIG_CWG_F362 1
                    "Implicit frame tool flags for single picture headers.")
 
-# CWG-F243
-set_aom_config_var(CONFIG_CWG_F243_ORDER_HINT_BITDEPTH 1
-                   "Encoder-only reduce order hint bitdepth.")
-
 set_aom_config_var(
   CONFIG_FSC_RES_HLS 1
   "add high level flag to switch fsc residual and regular residual.")

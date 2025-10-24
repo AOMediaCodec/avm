@@ -372,7 +372,6 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
     seq->force_screen_content_tools = 2;
     seq->force_integer_mv = 2;
   }
-#if CONFIG_CWG_F243_ORDER_HINT_BITDEPTH
   if (oxcf->kf_cfg.key_freq_min == 9999 && oxcf->kf_cfg.key_freq_max == 9999)
     seq->order_hint_info.order_hint_bits_minus_1 =
         DEFAULT_EXPLICIT_ORDER_HINT_BITS - 4;
@@ -384,10 +383,6 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   else
     seq->order_hint_info.order_hint_bits_minus_1 =
         DEFAULT_EXPLICIT_ORDER_HINT_BITS - 1;
-#else
-  seq->order_hint_info.order_hint_bits_minus_1 =
-      DEFAULT_EXPLICIT_ORDER_HINT_BITS - 1;
-#endif  // CONFIG_CWG_F243_ORDER_HINT_BITDEPTH
   seq->enable_bru = tool_cfg->enable_bru;
   seq->explicit_ref_frame_map = oxcf->ref_frm_cfg.explicit_ref_frame_map;
   if (oxcf->tool_cfg.max_drl_refmvs == 0) {
