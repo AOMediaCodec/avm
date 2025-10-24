@@ -238,6 +238,9 @@ Test Data Check:
         entropy-stats)
           CMAKE_FLAGS="$CMAKE_FLAGS -DCONFIG_ENTROPY_STATS=1"
           ;;
+        bitstream-mismatch-debug)
+          CMAKE_FLAGS="$CMAKE_FLAGS -DCONFIG_BITSTREAM_DEBUG=1 -DCONFIG_MISMATCH_DEBUG=1"
+          ;;
         nasm)
           CMAKE_FLAGS="$CMAKE_FLAGS -DENABLE_NASM=1"
           ;;
@@ -325,6 +328,13 @@ Build (entropy-stats):
     matrix:
       - AOM_BUILD_CONFIG:
           - entropy-stats
+
+Build (bitstream-mismatch-debug):
+  extends: .build-common
+  parallel:
+    matrix:
+      - AOM_BUILD_CONFIG:
+          - bitstream-mismatch-debug
 
 Build (x86-linux-gcc):
   extends: .build-common
