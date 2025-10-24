@@ -5006,7 +5006,6 @@ static const uint8_t *decode_tiles(AV1Decoder *pbi, const uint8_t *data,
   tile_cols_end = tile_cols;
   inv_col_order = pbi->inv_tile_order;
   inv_row_order = pbi->inv_tile_order;
-  allow_update_cdf = 1;
 
   // No tiles to decode.
   if (tile_rows_end <= tile_rows_start || tile_cols_end <= tile_cols_start ||
@@ -5016,7 +5015,7 @@ static const uint8_t *decode_tiles(AV1Decoder *pbi, const uint8_t *data,
       (tile_rows_end - 1) * tiles->cols + tile_cols_end - 1 < start_tile)
     return data;
 
-  allow_update_cdf = allow_update_cdf && !cm->features.disable_cdf_update;
+  allow_update_cdf = !cm->features.disable_cdf_update;
 
   assert(tile_rows <= MAX_TILE_ROWS);
   assert(tile_cols <= MAX_TILE_COLS);
@@ -5179,8 +5178,7 @@ static int tile_worker_hook(void *arg1, void *arg2) {
   }
   thread_data->error_info.setjmp = 1;
 
-  allow_update_cdf = 1;
-  allow_update_cdf = allow_update_cdf && !cm->features.disable_cdf_update;
+  allow_update_cdf = !cm->features.disable_cdf_update;
 
   set_decode_func_pointers(td, 0x3);
 
@@ -5437,8 +5435,7 @@ static int row_mt_worker_hook(void *arg1, void *arg2) {
   }
   thread_data->error_info.setjmp = 1;
 
-  allow_update_cdf = 1;
-  allow_update_cdf = allow_update_cdf && !cm->features.disable_cdf_update;
+  allow_update_cdf = !cm->features.disable_cdf_update;
 
   set_decode_func_pointers(td, 0x1);
 
