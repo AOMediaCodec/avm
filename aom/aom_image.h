@@ -32,11 +32,7 @@ extern "C" {
  * types, removing or reassigning enums, adding/removing/rearranging
  * fields to structures
  */
-#if CONFIG_METADATA
-#define AOM_IMAGE_ABI_VERSION (10) /**<\hideinitializer*/
-#else
 #define AOM_IMAGE_ABI_VERSION (9) /**<\hideinitializer*/
-#endif                            // CONFIG_METADATA
 
 #define AOM_IMG_FMT_PLANAR 0x100  /**< Image is a planar format. */
 #define AOM_IMG_FMT_UV_FLIP 0x200 /**< V plane precedes U in memory. */
