@@ -26,9 +26,6 @@ extern "C" {
 #define MAX_DF_OFFSETS 64
 #define ZERO_DF_OFFSET 32
 
-#define DF_TWO_PARAM 0
-#define DF_DUAL 1
-
 #define DF_PAR_BITS 3
 #define DF_DELTA_SCALE 8
 #define DF_SEARCH_STEP_SIZE 2
@@ -59,13 +56,9 @@ struct loopfilter {
   int filter_level_u;
   int filter_level_v;
 
-#if DF_DUAL
   int delta_q_luma[2];
   int delta_side_luma[2];
-#else
-  int delta_q_luma;
-  int delta_side_luma;
-#endif  // DF_DUAL
+
   int delta_q_u;
   int delta_side_u;
   int delta_q_v;

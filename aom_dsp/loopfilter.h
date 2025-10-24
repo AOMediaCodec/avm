@@ -31,7 +31,7 @@ static const int q_thresh_mults[MAX_DBL_FLT_LEN] = { 32, 25, 19, 19,
 #define DBL_REG_DECIS_LEN MAX_DBL_FLT_LEN - DBL_CUSTOM_DECIS
 
 #define DF_Q_THRESH_SHIFT 4
-static int q_first[DBL_REG_DECIS_LEN] = { 45, 43, 40, 35, 32, 32, 32, 32, 32 };
+static int q_first[DBL_REG_DECIS_LEN] = { 45, 43, 40, 35, 32 };
 
 #define SEC_DERIV_ARRAY_LEN (MAX_DBL_FLT_LEN + 1) * 2
 

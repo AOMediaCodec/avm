@@ -4104,9 +4104,9 @@ static AOM_INLINE void encode_loopfilter(AV1_COMMON *cm,
   if (!cm->mfh_params[cm->cur_mfh_id].mfh_loop_filter_update_flag) {
 #endif  // CONFIG_MULTI_FRAME_HEADER
     aom_wb_write_bit(wb, lf->filter_level[0]);
-#if DF_DUAL
+
     aom_wb_write_bit(wb, lf->filter_level[1]);
-#endif
+
     if (num_planes > 1) {
       if (lf->filter_level[0] || lf->filter_level[1]) {
         aom_wb_write_bit(wb, lf->filter_level_u);
@@ -4118,7 +4118,6 @@ static AOM_INLINE void encode_loopfilter(AV1_COMMON *cm,
 #endif  // CONFIG_MULTI_FRAME_HEADER
   const uint8_t df_par_bits = cm->seq_params.df_par_bits_minus2 + 2;
   const uint8_t df_par_offset = 1 << (df_par_bits - 1);
-#if DF_DUAL
   if (lf->filter_level[0]) {
     int luma_delta_q_flag = lf->delta_q_luma[0] != 0;
 
@@ -4127,16 +4126,7 @@ static AOM_INLINE void encode_loopfilter(AV1_COMMON *cm,
       aom_wb_write_literal(wb, lf->delta_q_luma[0] + df_par_offset,
                            df_par_bits);
     }
-#if DF_TWO_PARAM
-    int luma_delta_side_flag = lf->delta_side_luma[0] != 0;
-    aom_wb_write_bit(wb, luma_delta_side_flag);
-    if (luma_delta_side_flag) {
-      aom_wb_write_literal(wb, lf->delta_side_luma[0] + df_par_offset,
-                           df_par_bits);
-    }
-#else
     assert(lf->delta_q_luma[0] == lf->delta_side_luma[0]);
-#endif  // DF_TWO_PARAM
   }
 
   if (lf->filter_level[1]) {
@@ -4147,37 +4137,9 @@ static AOM_INLINE void encode_loopfilter(AV1_COMMON *cm,
       aom_wb_write_literal(wb, lf->delta_q_luma[1] + df_par_offset,
                            df_par_bits);
     }
-#if DF_TWO_PARAM
-    int luma_delta_side_flag = lf->delta_side_luma[1] != lf->delta_side_luma[0];
-    aom_wb_write_bit(wb, luma_delta_side_flag);
-    if (luma_delta_side_flag) {
-      aom_wb_write_literal(wb, lf->delta_side_luma[1] + df_par_offset,
-                           df_par_bits);
-    }
-#else
     assert(lf->delta_q_luma[1] == lf->delta_side_luma[1]);
-#endif  // DF_TWO_PARAM
   }
-#else
-  if (lf->filter_level[0] || lf->filter_level[1]) {
-    int luma_delta_q_flag = lf->delta_q_luma != 0;
 
-    aom_wb_write_bit(wb, luma_delta_q_flag);
-    if (luma_delta_q_flag) {
-      aom_wb_write_literal(wb, lf->delta_q_luma + df_par_offset, df_par_bits);
-    }
-#if DF_TWO_PARAM
-    int luma_delta_side_flag = lf->delta_side_luma != 0;
-    aom_wb_write_bit(wb, luma_delta_side_flag);
-    if (luma_delta_side_flag) {
-      aom_wb_write_literal(wb, lf->delta_side_luma + df_par_offset,
-                           df_par_bits);
-    }
-#else
-    assert(lf->delta_q_luma == lf->delta_side_luma);
-#endif  // DF_TWO_PARAM
-  }
-#endif  // DF_DUAL
   if (lf->filter_level_u) {
     int u_delta_q_flag = lf->delta_q_u != 0;
 
@@ -4185,15 +4147,7 @@ static AOM_INLINE void encode_loopfilter(AV1_COMMON *cm,
     if (u_delta_q_flag) {
       aom_wb_write_literal(wb, lf->delta_q_u + df_par_offset, df_par_bits);
     }
-#if DF_TWO_PARAM
-    int u_delta_side_flag = lf->delta_side_u != 0;
-    aom_wb_write_bit(wb, u_delta_side_flag);
-    if (u_delta_side_flag) {
-      aom_wb_write_literal(wb, lf->delta_side_u + DF_PAR_OFFSET, DF_PAR_BITS);
-    }
-#else
     assert(lf->delta_q_u == lf->delta_side_u);
-#endif  // DF_TWO_PARAM
   }
 
   if (lf->filter_level_v) {
@@ -4203,15 +4157,7 @@ static AOM_INLINE void encode_loopfilter(AV1_COMMON *cm,
     if (v_delta_q_flag) {
       aom_wb_write_literal(wb, lf->delta_q_v + df_par_offset, df_par_bits);
     }
-#if DF_TWO_PARAM
-    int v_delta_side_flag = lf->delta_side_v != 0;
-    aom_wb_write_bit(wb, v_delta_side_flag);
-    if (v_delta_side_flag) {
-      aom_wb_write_literal(wb, lf->delta_side_v + df_par_offset, df_par_bits);
-    }
-#else
     assert(lf->delta_q_v == lf->delta_side_v);
-#endif  // DF_TWO_PARAM
   }
 }
 
