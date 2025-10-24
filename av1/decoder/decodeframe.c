@@ -3828,6 +3828,11 @@ static AOM_INLINE void setup_quantization(CommonQuantParams *quant_params,
 #if CONFIG_F255_QMOBU
 void setup_cm_quant_params(AV1Decoder *pbi, CommonQuantParams *quant_params,
                            int plane, int qmlevel) {
+  if (qmlevel >= NUM_QM_LEVELS - 1) {
+    aom_internal_error(&pbi->common.error, AOM_CODEC_UNSUP_BITSTREAM,
+                       "qmlevel %d is out of boundary", qmlevel);
+  }
+
   int qm_pos_found = -1;
   for (int qm_pos = 0; qm_pos < NUM_CUSTOM_QMS; qm_pos++) {
     if (pbi->qm_list[qm_pos].qm_id == qmlevel) {
@@ -3842,44 +3847,42 @@ void setup_cm_quant_params(AV1Decoder *pbi, CommonQuantParams *quant_params,
   //  and qmTlayerId, respectively for which
   //  mlayer_dependency_map[obu_mlayer_id][qmMlayerId] and
   //  tlayer_dependency_map[obu_tlayer_id][qmTlayerId] are both equal to 1.
-  //  if ((pbi->qm_list[qm_pos_found].qm_tlayer_id != -1 &&
-  //       pbi->common.seq_params.tlayer_dependency_map[pbi->common.tlayer_id]
-  //                                                   [pbi->qm_list[qm_pos_found]
-  //                                                        .qm_tlayer_id] != 1)
-  //                                                        ||
-  //      (pbi->qm_list[qm_pos_found].qm_mlayer_id != -1 &&
-  //       pbi->common.seq_params.mlayer_dependency_map[pbi->common.mlayer_id]
-  //                                                   [pbi->qm_list[qm_pos_found]
-  //                                                        .qm_mlayer_id] !=
-  //                                                        1)) {
-  //    aom_internal_error(&pbi->common.error, AOM_CODEC_UNSUP_BITSTREAM,
-  //                       "the layer ids of the quantization matrices are out"
-  //                       "of the limit: (%d, %d)",
-  //                       pbi->qm_list[qm_pos_found].qm_tlayer_id,
-  //                       pbi->qm_list[qm_pos_found].qm_mlayer_id);
-  //  }
+  if ((pbi->qm_list[qm_pos_found].qm_tlayer_id != -1 &&
+       pbi->common.seq_params.tlayer_dependency_map[pbi->common.tlayer_id]
+                                                   [pbi->qm_list[qm_pos_found]
+                                                        .qm_tlayer_id] != 1) ||
+      (pbi->qm_list[qm_pos_found].qm_mlayer_id != -1 &&
+       pbi->common.seq_params.mlayer_dependency_map[pbi->common.mlayer_id]
+                                                   [pbi->qm_list[qm_pos_found]
+                                                        .qm_mlayer_id] != 1)) {
+    aom_internal_error(&pbi->common.error, AOM_CODEC_UNSUP_BITSTREAM,
+                       "the layer ids of the quantization matrices are out"
+                       "of the limit: (%d, %d)",
+                       pbi->qm_list[qm_pos_found].qm_tlayer_id,
+                       pbi->qm_list[qm_pos_found].qm_mlayer_id);
+  }
 
-  int q = NUM_QM_LEVELS - 1;
-  if (qm_pos_found >= 0) q = qmlevel;
+  if (qm_pos_found < 0) {
+    aom_internal_error(&pbi->common.error, AOM_CODEC_UNSUP_BITSTREAM,
+                       "quantiztion matrix with Id[%d] is not found", qmlevel);
+  }
 
   // Generate matrices for each tx size
   int current = 0;
   for (int t = 0; t < TX_SIZES_ALL; ++t) {
     const int size = tx_size_2d[t];
     const int qm_tx_size = av1_get_adjusted_tx_size(t);
-    if (q == NUM_QM_LEVELS - 1) {
-      quant_params->giqmatrix[q][plane][t] = NULL;
-    } else if (t != qm_tx_size) {  // Reuse matrices for 'qm_tx_size'
+    if (t != qm_tx_size) {  // Reuse matrices for 'qm_tx_size'
       assert(t > qm_tx_size);
-      quant_params->giqmatrix[q][plane][t] =
-          quant_params->giqmatrix[q][plane][qm_tx_size];
+      quant_params->giqmatrix[qmlevel][plane][t] =
+          quant_params->giqmatrix[qmlevel][plane][qm_tx_size];
     } else {
       assert(current + size <= QM_TOTAL_SIZE);
       // Generate the iwt matrices from the base matrices.
-      scale_tx(t, plane, &quant_params->iwt_matrix_ref[q][plane][current],
+      scale_tx(t, plane, &quant_params->iwt_matrix_ref[qmlevel][plane][current],
                pbi->qm_list[qm_pos_found].quantizer_matrix);
-      quant_params->giqmatrix[q][plane][t] =
-          &quant_params->iwt_matrix_ref[q][plane][current];
+      quant_params->giqmatrix[qmlevel][plane][t] =
+          &quant_params->iwt_matrix_ref[qmlevel][plane][current];
       current += size;
     }
   }
@@ -7277,7 +7280,7 @@ void av1_read_sequence_header_beyond_av1(
     ,
     CommonQuantParams *quant_params, struct aom_internal_error_info *error_info
 #endif  // !CONFIG_F255_QMOBU
-){
+) {
 #if !CONFIG_REORDER_SEQ_FLAGS
   seq_params->enable_refmvbank = aom_rb_read_bit(rb);
   if (aom_rb_read_bit(rb)) {
@@ -9753,9 +9756,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_F255_QMOBU
       pbi,
 #else
-        &cm->seq_params,
+      &cm->seq_params,
 #if CONFIG_CWG_E242_SEQ_HDR_ID
-        pbi->active_seq,
+      pbi->active_seq,
 #endif  // CONFIG_CWG_E242_SEQ_HDR_ID
 #endif  // #if CONFIG_F255_QMOBU
       quant_params, cm->seg.enabled, av1_num_planes(cm), rb);
@@ -9839,7 +9842,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_F255_QMOBU
   setup_segmentation_dequant(pbi, xd);
 #else
-    setup_segmentation_dequant(cm, xd);
+  setup_segmentation_dequant(cm, xd);
 #endif  // CONFIG_F255_QMOBU
 
   if (features->coded_lossless) {

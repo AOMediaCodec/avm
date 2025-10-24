@@ -462,6 +462,7 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
                                       &cm->quant_params, &cm->error
 #endif  // !CONFIG_F255_QMOBU
 );
+
 #if CONFIG_SCAN_TYPE_METADATA
   // TODO(seethalpaluri): Move these to the CI OBU
   seq_params->scan_type_info_present_flag = aom_rb_read_bit(rb);
@@ -505,13 +506,15 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
     }
   }
 
-#if CONFIG_F255_QMOBU
-  copy_predefined_qmatrices_to_list(pbi);
-#endif  // CONFIG_F255_QMOBU
-
   cm->seq_params = *seq_params;
   av1_set_frame_sb_size(cm, cm->seq_params.sb_size);
   pbi->sequence_header_ready = 1;
+
+#if CONFIG_F255_QMOBU
+  // TODO: qmatrices copy needs to be done when a sequence header is activated
+  // not when it is parsed
+  //  copy_predefined_qmatrices_to_list(pbi);
+#endif  // CONFIG_F255_QMOBU
 
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }
@@ -1524,25 +1527,25 @@ static int is_coded_frame(OBU_TYPE obu_type) {
 // On success, return 0. If failed return 1.
 #if OBU_ORDER_IN_TU
 static int check_obu_order(OBU_TYPE prev_obu_type, OBU_TYPE curr_obu_type) {
-  #if CONFIG_F255_QMOBU
-    if (is_coded_frame(curr_obu_type) && prev_obu_type == OBU_QM) {
-      return 0;
-    } else if (curr_obu_type == OBU_QM) {
-      return 0;
-    } else
-  #endif
-  if ((prev_obu_type == OBU_TEMPORAL_DELIMITER) &&
-      (curr_obu_type == OBU_MSDO ||
-       curr_obu_type == OBU_LAYER_CONFIGURATION_RECORD ||
-       curr_obu_type == OBU_ATLAS_SEGMENT ||
-       curr_obu_type == OBU_OPERATING_POINT_SET ||
-       curr_obu_type == OBU_SEQUENCE_HEADER ||
-       curr_obu_type == OBU_MULTI_FRAME_HEADER ||
-       is_coded_frame(curr_obu_type) || curr_obu_type == OBU_METADATA
+#if CONFIG_F255_QMOBU
+  if (is_coded_frame(curr_obu_type) && prev_obu_type == OBU_QM) {
+    return 0;
+  } else if (curr_obu_type == OBU_QM) {
+    return 0;
+  } else
+#endif
+      if ((prev_obu_type == OBU_TEMPORAL_DELIMITER) &&
+          (curr_obu_type == OBU_MSDO ||
+           curr_obu_type == OBU_LAYER_CONFIGURATION_RECORD ||
+           curr_obu_type == OBU_ATLAS_SEGMENT ||
+           curr_obu_type == OBU_OPERATING_POINT_SET ||
+           curr_obu_type == OBU_SEQUENCE_HEADER ||
+           curr_obu_type == OBU_MULTI_FRAME_HEADER ||
+           is_coded_frame(curr_obu_type) || curr_obu_type == OBU_METADATA
 #if CONFIG_SHORT_METADATA
-       || curr_obu_type == OBU_METADATA_GROUP
+           || curr_obu_type == OBU_METADATA_GROUP
 #endif  // CONFIG_SHORT_METADATA
-       )) {
+           )) {
     return 0;
   } else if ((prev_obu_type == OBU_MSDO) &&
              (curr_obu_type == OBU_LAYER_CONFIGURATION_RECORD ||
