@@ -33,11 +33,6 @@ extern "C" {
 #define DF_DELTA_SCALE 8
 #define DF_SEARCH_STEP_SIZE 2
 
-#define DF_FILT26 1
-#define DF_CHROMA_WIDE 1
-
-#define DF_REDUCED_SB_EDGE 1
-
 #define MAX_LOOP_FILTER 63
 #define MAX_SHARPNESS 7
 

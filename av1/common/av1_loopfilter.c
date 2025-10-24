@@ -24,13 +24,6 @@
 #include "av1/common/reconinter.h"
 #include "av1/common/seg_common.h"
 
-#define DF_MVS 0
-#if DF_MVS
-#define DF_MV_THRESH 8
-#endif
-
-#define ISSUE_665 1
-
 #define MAX_SIDE_TABLE 296
 // based on int side_threshold = (int)(32 * AOMMAX(0.0444 * q_ind - 2.9936, 0.31
 // * q_ind - 39) );
@@ -590,12 +583,9 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
 typedef struct AV1_DEBLOCKING_PARAMETERS {
   // length of the filter applied to the outer edge
 
-#if CONFIG_ASYM_DF
   uint32_t filter_length_neg;
   uint32_t filter_length_pos;
-#else
-  uint32_t filter_length;
-#endif  // CONFIG_ASYM_DF
+
   // deblocking limits
   const uint8_t *lim;
   const uint8_t *mblim;
@@ -819,12 +809,8 @@ static TX_SIZE set_lpf_parameters(
   }
   // reset to initial values
 
-#if CONFIG_ASYM_DF
   params->filter_length_neg = 0;
   params->filter_length_pos = 0;
-#else
-  params->filter_length = 0;
-#endif  // CONFIG_ASYM_DF
 
   TREE_TYPE tree_type = SHARED_PART;
 
@@ -964,15 +950,12 @@ static TX_SIZE set_lpf_parameters(
           const bool pu_edge = (coord == pu_starting_coord);
           // if the current and the previous blocks are skipped,
           // deblock the edge if the edge belongs to a PU's edge only.
-#if DF_REDUCED_SB_EDGE
-#if CONFIG_ASYM_DF
+
           const BLOCK_SIZE block64_size = get_plane_block_size(
               BLOCK_64X64, plane_ptr->subsampling_x, plane_ptr->subsampling_y);
 
           const int vert_sb_mask = block_size_high[block64_size] - 1;
-#else
-          const int vert_sb_mask = block_size_high[superblock_size] - 1;
-#endif  // CONFIG_ASYM_DF
+
           int horz_superblock_edge =
               (HORZ_EDGE == edge_dir) && !(coord & vert_sb_mask);
 
@@ -980,77 +963,15 @@ static TX_SIZE set_lpf_parameters(
           int vert_tile_edge = 0;
 
           for (int i = 1; i < cm->tiles.cols; ++i) {
-#if CONFIG_ASYM_DF
             if ((cm->tiles.col_start_sb[i] * hor_sb_size == coord) &&
                 (VERT_EDGE == edge_dir)) {
-#else
-            if (cm->tiles.col_start_sb[i] * hor_sb_size == coord) {
-#endif  // CONFIG_ASYM_DF
               vert_tile_edge = 1;
             }
           }
 
-#endif  // DF_REDUCED_SB_EDGE
-#if DF_MVS
-          // Check difference between MVs, may need consider cases with
-          // inter-intra
-          int diff_mvs = 0;
-          if (pv_skip_txfm && curr_skipped && pu_edge) {
-            if ((!has_second_ref(mi_prev) && has_second_ref(mbmi)) ||
-                (has_second_ref(mi_prev) && !has_second_ref(mbmi))) {
-              diff_mvs = 1;
-            } else if (!has_second_ref(mi_prev) &&
-                       !has_second_ref(
-                           mbmi) /*second term can be removed*/) {  // One ref
-                                                                    // frame
-                                                                    // case
-              if (mi_prev->ref_frame[0] != mbmi->ref_frame[0]) {
-                diff_mvs = 1;
-              } else if (abs(mi_prev->mv[0].as_mv.row -
-                             mbmi->mv[0].as_mv.row) >= DF_MV_THRESH ||
-                         abs(mi_prev->mv[0].as_mv.col -
-                             mbmi->mv[0].as_mv.col) >= DF_MV_THRESH) {
-                diff_mvs = 1;
-              }
-            } else {  // if more than two ref frames
-              if (mi_prev->ref_frame[0] == mbmi->ref_frame[0] &&
-                  mi_prev->ref_frame[1] == mbmi->ref_frame[1]) {
-                if (abs(mi_prev->mv[0].as_mv.row - mbmi->mv[0].as_mv.row) >=
-                        DF_MV_THRESH ||
-                    abs(mi_prev->mv[0].as_mv.col - mbmi->mv[0].as_mv.col) >=
-                        DF_MV_THRESH ||
-                    abs(mi_prev->mv[1].as_mv.row - mbmi->mv[1].as_mv.row) >=
-                        DF_MV_THRESH ||
-                    abs(mi_prev->mv[1].as_mv.col - mbmi->mv[1].as_mv.col) >=
-                        DF_MV_THRESH) {
-                  diff_mvs = 1;
-                }
-              } else if (mi_prev->ref_frame[0] == mbmi->ref_frame[1] &&
-                         mi_prev->ref_frame[1] == mbmi->ref_frame[0]) {
-                if (abs(mi_prev->mv[0].as_mv.row - mbmi->mv[1].as_mv.row) >=
-                        DF_MV_THRESH ||
-                    abs(mi_prev->mv[0].as_mv.col - mbmi->mv[1].as_mv.col) >=
-                        DF_MV_THRESH ||
-                    abs(mi_prev->mv[1].as_mv.row - mbmi->mv[0].as_mv.row) >=
-                        DF_MV_THRESH ||
-                    abs(mi_prev->mv[1].as_mv.col - mbmi->mv[0].as_mv.col) >=
-                        DF_MV_THRESH) {
-                  diff_mvs = 1;
-                }
-              } else {
-                diff_mvs = 1;
-              }
-            }
-          }
-#endif  // DF_MVS
-
           const int none_skip_txfm = (!pv_skip_txfm || !curr_skipped);
           if (((curr_q && curr_side) || (pv_q && pv_side)) &&
-#if DF_MVS
-              (!pv_skip_txfm || !curr_skipped || diff_mvs)) {
-#else
               (none_skip_txfm || sub_pu_edge || pu_edge)) {
-#endif
             TX_SIZE clipped_ts = ts;
             if (!plane) {
               if (((VERT_EDGE == edge_dir) && (width < x + 16)) ||
@@ -1067,21 +988,10 @@ static TX_SIZE set_lpf_parameters(
             }
             const TX_SIZE min_ts = AOMMIN(clipped_ts, pv_ts);
             if (TX_4X4 >= min_ts) {
-#if CONFIG_ASYM_DF
               params->filter_length_neg = 4;
               params->filter_length_pos = 4;
-#else
-              params->filter_length = 4;
-#endif  // CONFIG_ASYM_DF
             } else if (TX_8X8 == min_ts) {
-#if !DF_CHROMA_WIDE
-              if (plane != 0)
-                params->filter_length = 6;
-              else
-#endif  // !DF_CHROMA_WIDE
-#if CONFIG_ASYM_DF
-#if ISSUE_665
-                  if (plane != 0) {
+              if (plane != 0) {
                 if (horz_superblock_edge || vert_tile_edge) {
                   params->filter_length_neg = 6;
                   params->filter_length_pos = 8;
@@ -1090,26 +1000,16 @@ static TX_SIZE set_lpf_parameters(
                   params->filter_length_pos = 8;
                 }
               } else {
-#endif
                 params->filter_length_neg = 8;
                 params->filter_length_pos = 8;
               }
-#else
-              params->filter_length = 8;
-#endif  // CONFIG_ASYM_DF
-#if DF_FILT26
+
             } else if (TX_16X16 == min_ts) {
-#if CONFIG_ASYM_DF
               params->filter_length_neg = 14;
               params->filter_length_pos = 14;
-#else
-            params->filter_length = 14;
-#endif  // CONFIG_ASYM_DF
-        // No wide filtering for chroma plane
+
+              // No wide filtering for chroma plane
               if (plane != 0) {
-#if DF_CHROMA_WIDE
-#if CONFIG_ASYM_DF
-#if DF_REDUCED_SB_EDGE
                 if (horz_superblock_edge || vert_tile_edge) {
                   params->filter_length_neg = 6;
                   params->filter_length_pos = 10;
@@ -1117,72 +1017,28 @@ static TX_SIZE set_lpf_parameters(
                   params->filter_length_neg = 10;
                   params->filter_length_pos = 10;
                 }
-#else
-                params->filter_length_neg = 10;
-                params->filter_length_pos = 10;
-#endif
-#else
-                params->filter_length = 10;
-#endif  // CONFIG_ASYM_DF
-#else
-              params->filter_length = 6;
-#endif  // DF_CHROMA_WIDE
               }
             } else {
-#if DF_REDUCED_SB_EDGE
               if (horz_superblock_edge || vert_tile_edge) {
                 if (plane != 0) {
-#if CONFIG_ASYM_DF
                   params->filter_length_neg = 6;
                   params->filter_length_pos = 10;
                 } else {
                   params->filter_length_neg = 14;
                   params->filter_length_pos = 18;
                 }
-#else
-                  params->filter_length = 6;
-                } else
-                  params->filter_length = 14;
-#endif  // CONFIG_ASYM_DF
-              } else
-#endif  // DF_REDUCED_SB_EDGE
-              {
-#if CONFIG_ASYM_DF
+              } else {
                 params->filter_length_neg = 18;
                 params->filter_length_pos = 18;
-#else
-              params->filter_length = 22;
-#endif  // CONFIG_ASYM_DF
-        // No wide filtering for chroma plane
+
+                // No wide filtering for chroma plane
 
                 if (plane != 0) {
-#if DF_CHROMA_WIDE
-#if CONFIG_ASYM_DF
                   params->filter_length_neg = 10;
                   params->filter_length_pos = 10;
-#else
-                  params->filter_length = 10;
-#endif  // CONFIG_ASYM_DF
-#else
-#if CONFIG_ASYM_DF
-                params->filter_length_neg = 6;
-                params->filter_length_pos = 6;
-#else
-                params->filter_length = 6;
-#endif  // CONFIG_ASYM_DF
-#endif  // DF_CHROMA_WIDE
                 }
               }
             }
-#else
-            } else {
-              params->filter_length = 14;
-              // No wide filtering for chroma plane
-              if (plane != 0) {
-                params->filter_length = 6;
-              }
-            }
-#endif  // DF_FILT26
 
             // update the level if the current block is skipped,
             // but the previous one is not
@@ -1281,12 +1137,9 @@ void av1_filter_block_plane_vert(AV1_COMMON *const cm,
                                        plane_ptr, tx_size, mi_size_min_height);
 
       if (cur_tx_size == TX_INVALID) {
-#if CONFIG_ASYM_DF
         params->filter_length_neg = 0;
         params->filter_length_pos = 0;
-#else
-        params->filter_length = 0;
-#endif  // CONFIG_ASYM_DF
+
         cur_tx_size = TX_4X4;
       }
 
@@ -1308,28 +1161,20 @@ void av1_filter_block_plane_vert(AV1_COMMON *const cm,
       }
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
       if (do_filter) {
-#if CONFIG_ASYM_DF
         if (
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
             !skip_deblock_lossless &&
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
             (params->filter_length_neg || params->filter_length_pos)) {
-#else
-        if (params->filter_length) {
-#endif  // CONFIG_ASYM_DF
 
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
           if (!(is_lossless_prev_block || is_lossless_current_block)) {
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 
             aom_highbd_lpf_vertical_generic(
-                p, dst_stride,
-#if CONFIG_ASYM_DF
-                params->filter_length_neg, params->filter_length_pos,
-#else
-              params->filter_length,
-#endif  // CONFIG_ASYM_DF
-                &params->q_threshold, &params->side_threshold, bit_depth
+                p, dst_stride, params->filter_length_neg,
+                params->filter_length_pos, &params->q_threshold,
+                &params->side_threshold, bit_depth
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
                 ,
                 is_lossless_prev_block, is_lossless_current_block
@@ -1339,13 +1184,9 @@ void av1_filter_block_plane_vert(AV1_COMMON *const cm,
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
           } else {
             aom_highbd_lpf_vertical_generic_c(
-                p, dst_stride,
-#if CONFIG_ASYM_DF
-                params->filter_length_neg, params->filter_length_pos,
-#else
-                params->filter_length,
-#endif  // CONFIG_ASYM_DF
-                &params->q_threshold, &params->side_threshold, bit_depth
+                p, dst_stride, params->filter_length_neg,
+                params->filter_length_pos, &params->q_threshold,
+                &params->side_threshold, bit_depth
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
                 ,
                 is_lossless_prev_block, is_lossless_current_block
@@ -1415,12 +1256,9 @@ void av1_filter_block_plane_horz(AV1_COMMON *const cm,
                                        HORZ_EDGE, curr_x, curr_y, plane,
                                        plane_ptr, tx_size, mi_size_min_width);
       if (cur_tx_size == TX_INVALID) {
-#if CONFIG_ASYM_DF
         params->filter_length_neg = 0;
         params->filter_length_pos = 0;
-#else
-        params->filter_length = 0;
-#endif  // CONFIG_ASYM_DF
+
         cur_tx_size = TX_4X4;
       }
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
@@ -1441,27 +1279,19 @@ void av1_filter_block_plane_horz(AV1_COMMON *const cm,
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
       if (do_filter) {
         const aom_bit_depth_t bit_depth = cm->seq_params.bit_depth;
-#if CONFIG_ASYM_DF
         if (
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
             !skip_deblock_lossless &&
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
             (params->filter_length_neg || params->filter_length_pos)) {
-#else
-        if (params->filter_length) {
-#endif  // CONFIG_ASYM_DF
 
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
           if (!(is_lossless_current_block || is_lossless_prev_block)) {
 #endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
             aom_highbd_lpf_horizontal_generic(
-                p, dst_stride,
-#if CONFIG_ASYM_DF
-                params->filter_length_neg, params->filter_length_pos,
-#else
-              params->filter_length,
-#endif  // CONFIG_ASYM_DF
-                &params->q_threshold, &params->side_threshold, bit_depth
+                p, dst_stride, params->filter_length_neg,
+                params->filter_length_pos, &params->q_threshold,
+                &params->side_threshold, bit_depth
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
                 ,
                 is_lossless_prev_block, is_lossless_current_block
@@ -1470,13 +1300,9 @@ void av1_filter_block_plane_horz(AV1_COMMON *const cm,
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
           } else {
             aom_highbd_lpf_horizontal_generic_c(
-                p, dst_stride,
-#if CONFIG_ASYM_DF
-                params->filter_length_neg, params->filter_length_pos,
-#else
-                params->filter_length,
-#endif  // CONFIG_ASYM_DF
-                &params->q_threshold, &params->side_threshold, bit_depth
+                p, dst_stride, params->filter_length_neg,
+                params->filter_length_pos, &params->q_threshold,
+                &params->side_threshold, bit_depth
 #if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
                 ,
                 is_lossless_prev_block, is_lossless_current_block
