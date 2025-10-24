@@ -52,7 +52,7 @@ static INLINE int32_t mul_fixed32_adapt(int32_t a, int32_t b, int shift) {
   const int bits_b = ilog2_32(ub) + 1;
 
   /* 2) Decide how many bits to drop in total to avoid 32-bit mul overflow */
-  int need = bits_a + bits_b - 31;
+  int need = bits_a + bits_b - 30;
   if (need < 0) need = 0;
 
   /* Split the drop across a and b to minimize error */
