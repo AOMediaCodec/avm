@@ -74,8 +74,8 @@ static void raw_write_image_file_or_md5(const aom_image_t *img,
     const int w = aom_img_plane_width(img, plane);
     const int h = aom_img_plane_height(img, plane);
 
-        // If we're on a color plane and the output is monochrome, write a
-        // greyscale value. Since there are only YUV planes, compare against Y.
+    // If we're on a color plane and the output is monochrome, write a
+    // greyscale value. Since there are only YUV planes, compare against Y.
     if (img->monochrome && plane != AOM_PLANE_Y) {
       write_greyscale(high_bitdepth, w * h, writer_func, file_or_md5);
       continue;
