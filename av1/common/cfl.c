@@ -50,9 +50,11 @@ static INLINE int32_t mul_fixed32_adapt(int32_t a, int32_t b, int shift) {
   const uint32_t ub = (uint32_t)(b < 0 ? -b : b);
   const int bits_a = ilog2_32(ua) + 1;
   const int bits_b = ilog2_32(ub) + 1;
+  // We need to reserve extra bits to prevent overflow.
+  const int bits_limit = 29;
 
-  /* 2) Decide how many bits to drop in total to avoid 32-bit mul overflow */
-  int need = bits_a + bits_b - 30;
+  /* 2) Decide how many bits to drop in total to avoid mul overflow */
+  int need = bits_a + bits_b - bits_limit;
   if (need < 0) need = 0;
 
   /* Split the drop across a and b to minimize error */
@@ -71,11 +73,12 @@ static INLINE int32_t mul_fixed32_adapt(int32_t a, int32_t b, int shift) {
   /* 4) Final right shift with symmetric rounding to nearest */
   if (adj <= 0) return prod; /* no further shift */
 
-  const uint32_t bias = (adj < 32) ? (1u << (adj - 1)) : 0u;
+  const uint32_t bias = (adj <= bits_limit) ? (1u << (adj - 1)) : 0u;
   if (prod >= 0) {
-    return (adj < 32) ? (int32_t)(((uint32_t)prod + bias) >> adj) : 0;
+    return (adj <= bits_limit) ? (int32_t)(((uint32_t)prod + bias) >> adj) : 0;
   } else {
-    return (adj < 32) ? -(int32_t)(((uint32_t)(-prod) + bias) >> adj) : 0;
+    return (adj <= bits_limit) ? -(int32_t)(((uint32_t)(-prod) + bias) >> adj)
+                               : 0;
   }
 }
 
