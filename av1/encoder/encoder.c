@@ -615,28 +615,31 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   ResizePendingParams *resize_pending_params = &cpi->resize_pending_params;
   const DecoderModelCfg *const dec_model_cfg = &oxcf->dec_model_cfg;
   const ColorCfg *const color_cfg = &oxcf->color_cfg;
+#if CONFIG_MULTILAYER_HLS
+  const LayerCfg *const layer_cfg = &oxcf->layer_cfg;
+#endif  // CONFIG_MULTILAYER_HLS
   cpi->oxcf = *oxcf;
   cpi->framerate = oxcf->input_cfg.init_framerate;
 
 #if CONFIG_MULTILAYER_HLS
-  //  Initialize LCRs and load an "active" set into cm
-  cpi->write_lcr = 1;
+  //  Initialize LCR information
+  cpi->write_lcr = layer_cfg->enable_lcr;
   for (int i = 0; i < MAX_NUM_LCR; i++)
     memset(&cpi->lcr_list[i], 0, sizeof(struct LayerConfigurationRecord));
   cm->lcr = &cpi->lcr_list[0];
 
-  // Initialize Atlas segment info
-  cpi->write_atlas = 1;
+  // Initialize OPS information
+  cpi->write_ops = layer_cfg->enable_ops;
+  for (int i = 0; i < MAX_NUM_OPS_ID; i++)
+    memset(&cpi->ops_list[i], 0, sizeof(struct OperatingPointSet));
+  cm->ops = &cpi->ops_list[0];
+
+  // Initialize Atlas Segment information
+  cpi->write_atlas = layer_cfg->enable_atlas;
   cpi->write_atlas = cpi->write_lcr && cpi->write_atlas;
   for (int i = 0; i < MAX_NUM_ATLAS_SEG_ID; i++)
     memset(&cpi->atlas_list[i], 0, sizeof(struct AtlasSegmentInfo));
   cm->atlas = &cpi->atlas_list[0];
-
-  // Initialize OPS in
-  cpi->write_ops = 1;
-  for (int i = 0; i < MAX_NUM_OPS_ID; i++)
-    memset(&cpi->ops_list[i], 0, sizeof(struct OperatingPointSet));
-  cm->ops = &cpi->ops_list[0];
 #endif  // CONFIG_MULTILAYER_HLS
 
 #if CONFIG_CWG_E242_SEQ_HDR_ID
@@ -1039,7 +1042,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   cm->width = frm_dim_cfg->width;
   cm->height = frm_dim_cfg->height;
 
-#if CONFIG_MULTILAYER_HLS && CONFIG_MULTILAYER_HLS_ENABLE_SIGNALING
+#if CONFIG_MULTILAYER_HLS
 #if CONFIG_CWG_F248_RENDER_SIZE
   if (cm->lcr->lcr_rep_info_present_flag[0][0] == 1) {
     // NOTE: if LCR exist
@@ -1047,7 +1050,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
     cm->lcr_params.rep_params.lcr_max_pic_height = cm->height;
   }
 #endif  // CONFIG_CWG_F248_RENDER_SIZE
-#endif  // CONFIG_MULTILAYER_HLS && CONFIG_MULTILAYER_HLS_ENABLE_SIGNALING
+#endif  // CONFIG_MULTILAYER_HLS
 
   BLOCK_SIZE sb_size = cm->sb_size;
   BLOCK_SIZE new_sb_size = av1_select_sb_size(cpi);

@@ -202,6 +202,11 @@ int main(int argc, char **argv) {
 #if CONFIG_F160_TD
   cfg.signal_td = 0;
 #endif  // CONFIG_F160_TD
+#if CONFIG_MULTILAYER_HLS
+  cfg.enable_lcr = 0;
+  cfg.enable_ops = 0;
+  cfg.enable_atlas = 0;
+#endif  // CONFIG_MULTILAYER_HLS
   outfile = fopen(outfile_arg, "wb");
   if (!outfile) die("Failed to open %s for writing.", outfile_arg);
 

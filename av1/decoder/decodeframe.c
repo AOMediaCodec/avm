@@ -4015,7 +4015,7 @@ static AOM_INLINE void setup_render_size(AV1_COMMON *cm,
 
 #if CONFIG_CWG_F248_RENDER_SIZE
   (void)rb;
-#if CONFIG_MULTILAYER_HLS && CONFIG_MULTILAYER_HLS_ENABLE_SIGNALING
+#if CONFIG_MULTILAYER_HLS
   // Note: if Local LCR information is used, then the layer_id =
   // lcr_params.xlayer_id If Global LCR is used, then for each extended layer
   // i.e, xlayer_info(1,n) is specified, where n is xlayer_id[i] of the i-th
@@ -4029,12 +4029,12 @@ static AOM_INLINE void setup_render_size(AV1_COMMON *cm,
     cm->render_width = cm->lcr_params.rep_params.lcr_max_pic_width;
     cm->render_height = cm->lcr_params.rep_params.lcr_max_pic_height;
   } else {
-#endif  // CONFIG_MULTILAYER_HLS && CONFIG_MULTILAYER_HLS_ENABLE_SIGNALING
+#endif  // CONFIG_MULTILAYER_HLS
     cm->render_width = cm->width;
     cm->render_height = cm->height;
-#if CONFIG_MULTILAYER_HLS && CONFIG_MULTILAYER_HLS_ENABLE_SIGNALING
+#if CONFIG_MULTILAYER_HLS
   }
-#endif  // CONFIG_MULTILAYER_HLS && CONFIG_MULTILAYER_HLS_ENABLE_SIGNALING
+#endif  // CONFIG_MULTILAYER_HLS
 #else
   if (aom_rb_read_bit(rb))
     av1_read_frame_size(rb, 16, 16, &cm->render_width, &cm->render_height);

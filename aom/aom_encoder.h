@@ -1070,6 +1070,25 @@ typedef struct aom_codec_enc_cfg {
    */
   unsigned int signal_td;
 #endif  // CONFIG_F160_TD
+#if CONFIG_MULTILAYER_HLS
+  /*!\brief Signal layer config record (LCR) OBU.
+   *
+   * This value indicates LCR OBU is signaled.
+   */
+  unsigned int enable_lcr;
+
+  /*!\brief Signal operating point set (OPS) OBU.
+   *
+   * This value indicates OPS OBU is signaled.
+   */
+  unsigned int enable_ops;
+
+  /*!\brief Signal atlas segment OBU.
+   *
+   * This value indicates atlas segment OBU is signaled.
+   */
+  unsigned int enable_atlas;
+#endif  // CONFIG_MULTILAYER_HLS
   /*!\brief Number of explicit tile widths specified
    *
    * This value indicates the number of tile widths specified

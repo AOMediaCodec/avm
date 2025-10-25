@@ -110,6 +110,11 @@ typedef struct av1_codec_arg_definitions {
 #if CONFIG_F160_TD
   arg_def_t signal_td;
 #endif  // CONFIG_F160_TD
+#if CONFIG_MULTILAYER_HLS
+  arg_def_t enable_lcr;
+  arg_def_t enable_ops;
+  arg_def_t enable_atlas;
+#endif  // CONFIG_MULTILAYER_HLS
   arg_def_t noise_sens;
   arg_def_t sharpness;
   arg_def_t static_thresh;

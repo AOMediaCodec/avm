@@ -684,7 +684,16 @@ typedef struct {
   // Indicates if a limited color range or full color range should be used.
   aom_color_range_t color_range;
 } ColorCfg;
-
+#if CONFIG_MULTILAYER_HLS
+typedef struct {
+  // Indicates the LCR OBU (OBU_LAYER_CONFIGURATION_RECORD) is enabled.
+  bool enable_lcr;
+  // Indicates the OPS OBU (OBU_OPERATING_POINT_SET) is enabled.
+  bool enable_ops;
+  // Indicates the Atlas Segment OBU (OBU_ATLAS_SEGMENT) is enabled.
+  bool enable_atlas;
+} LayerCfg;
+#endif  // CONFIG_MULTILAYER_HLS
 typedef struct {
   // Indicates if extreme motion vector unit test should be enabled or not.
   unsigned int motion_vector_unit_test;
@@ -1193,7 +1202,10 @@ typedef struct AV1EncoderConfig {
   // Indicates the temporal delimiter is signaled.
   bool signal_td;
 #endif  // CONFIG_F160_TD
-
+#if CONFIG_MULTILAYER_HLS
+  // Configuration related to layering information.
+  LayerCfg layer_cfg;
+#endif  // CONFIG_MULTILAYER_HLS
   /*!\endcond */
 } AV1EncoderConfig;
 

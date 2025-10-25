@@ -290,6 +290,17 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .signal_td =
       ARG_DEF(NULL, "use-temporal-delimiter", 1, "Signal temproal delimiters"),
 #endif  // CONFIG_F160_TD
+#if CONFIG_MULTILAYER_HLS
+  .enable_lcr = ARG_DEF(NULL, "enable-lcr", 1,
+                        "Enable layer config record (LCR OBU) information (0: "
+                        "off (default), 1: on)"),
+  .enable_ops = ARG_DEF(NULL, "enable-ops", 1,
+                        "Enable operating point set (OPS OBU) information (0: "
+                        "off (default), 1: on)"),
+  .enable_atlas = ARG_DEF(NULL, "enable-atlas", 1,
+                          "Enable atlas segment (Atlas Segment OBU) "
+                          "information (0: off (default), 1: on)"),
+#endif  // CONFIG_MULTILAYER_HLS
   .noise_sens = ARG_DEF(NULL, "noise-sensitivity", 1,
                         "Noise sensitivity (frames to blur)"),
   .sharpness = ARG_DEF(NULL, "sharpness", 1, "Loop filter sharpness (0..7)"),

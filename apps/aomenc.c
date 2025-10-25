@@ -282,6 +282,11 @@ const arg_def_t *global_args[] = {
 #if CONFIG_F160_TD
   &g_av1_codec_arg_defs.signal_td,
 #endif  // CONFIG_F160_TD
+#if CONFIG_MULTILAYER_HLS
+  &g_av1_codec_arg_defs.enable_lcr,
+  &g_av1_codec_arg_defs.enable_ops,
+  &g_av1_codec_arg_defs.enable_atlas,
+#endif  // CONFIG_MULTILAYER_HLS
 
 #if CONFIG_ICC_METADATA
   &g_av1_codec_arg_defs.icc_file,
@@ -1296,6 +1301,14 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.signal_td, argi)) {
       config->cfg.signal_td = arg_parse_uint(&arg);
 #endif  // CONFIG_F160_TD
+#if CONFIG_MULTILAYER_HLS
+    } else if (arg_match(&arg, &g_av1_codec_arg_defs.enable_lcr, argi)) {
+      config->cfg.enable_lcr = arg_parse_uint(&arg);
+    } else if (arg_match(&arg, &g_av1_codec_arg_defs.enable_ops, argi)) {
+      config->cfg.enable_ops = arg_parse_uint(&arg);
+    } else if (arg_match(&arg, &g_av1_codec_arg_defs.enable_atlas, argi)) {
+      config->cfg.enable_atlas = arg_parse_uint(&arg);
+#endif  // CONFIG_MULTILAYER_HLS
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.tile_width, argi)) {
       config->cfg.tile_width_count =
           arg_parse_list(&arg, config->cfg.tile_widths, MAX_TILE_WIDTHS);
