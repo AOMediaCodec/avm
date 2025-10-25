@@ -129,8 +129,10 @@ static void yuvconfig2image(aom_image_t *img, const YV12_BUFFER_CONFIG *yv12,
     img->d_w = img->crop_width;
     img->d_h = img->crop_height;
 
-    const int scaled_left_offset = (yv12->w_win_left_offset * yv12->y_crop_width) / yv12->max_width;
-    const int scaled_top_offset = (yv12->w_win_top_offset * yv12->y_crop_height) / yv12->max_height;
+    const int scaled_left_offset =
+        (yv12->w_win_left_offset * yv12->y_crop_width) / yv12->max_width;
+    const int scaled_top_offset =
+        (yv12->w_win_top_offset * yv12->y_crop_height) / yv12->max_height;
 
     // Adjust plane pointers to point to the cropped region
     const int bytes_per_sample = (img->fmt & AOM_IMG_FMT_HIGHBITDEPTH) ? 2 : 1;
@@ -139,16 +141,16 @@ static void yuvconfig2image(aom_image_t *img, const YV12_BUFFER_CONFIG *yv12,
     img->planes[AOM_PLANE_Y] += (scaled_top_offset * img->stride[AOM_PLANE_Y]) +
                                 (scaled_left_offset * bytes_per_sample);
 
-      const int chroma_left_offset = scaled_left_offset >> img->x_chroma_shift;
-      const int chroma_top_offset = scaled_top_offset >> img->y_chroma_shift;
+    const int chroma_left_offset = scaled_left_offset >> img->x_chroma_shift;
+    const int chroma_top_offset = scaled_top_offset >> img->y_chroma_shift;
 
     if (!img->monochrome) {
       img->planes[AOM_PLANE_U] +=
-      (chroma_top_offset * img->stride[AOM_PLANE_U]) +
-      (chroma_left_offset * bytes_per_sample);
+          (chroma_top_offset * img->stride[AOM_PLANE_U]) +
+          (chroma_left_offset * bytes_per_sample);
       img->planes[AOM_PLANE_V] +=
-      (chroma_top_offset * img->stride[AOM_PLANE_V]) +
-      (chroma_left_offset * bytes_per_sample);
+          (chroma_top_offset * img->stride[AOM_PLANE_V]) +
+          (chroma_left_offset * bytes_per_sample);
     }
   } else {
     img->w_conf_win_bottom_offset = 0;
