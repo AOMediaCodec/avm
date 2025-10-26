@@ -2058,6 +2058,10 @@ struct quantization_matrix_set {
    * quantization matrix : [8x8/8x4/4x8][y/u/v][64 or 32]
    */
   qm_val_t ***quantizer_matrix;
+  /*!
+   * Indicates number of vaild planes for the quantization matrices
+   */
+  int quantizer_matrix_num_planes;
 };
 
 /*!

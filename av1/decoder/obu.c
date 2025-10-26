@@ -513,7 +513,7 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
 #if CONFIG_F255_QMOBU
   // TODO: qmatrices copy needs to be done when a sequence header is activated
   // not when it is parsed
-  //  copy_predefined_qmatrices_to_list(pbi);
+  //  copy_predefined_qmatrices_to_list(pbi, num_planes);
 #endif  // CONFIG_F255_QMOBU
 
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);

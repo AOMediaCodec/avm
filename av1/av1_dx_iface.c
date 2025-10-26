@@ -722,6 +722,7 @@ static aom_codec_err_t init_decoder(aom_codec_alg_priv_t *ctx) {
     frame_worker_data->pbi->qm_list[i].qm_id = -1;
     frame_worker_data->pbi->qm_list[i].qm_tlayer_id = -1;
     frame_worker_data->pbi->qm_list[i].qm_mlayer_id = -1;
+    frame_worker_data->pbi->qm_list[i].quantizer_matrix_num_planes = -1;
   }
 #endif  // CONFIG_F255_QMOBU
 

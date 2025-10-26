@@ -33,6 +33,9 @@ void alloc_qmatrix(struct quantization_matrix_set *qm_set, int qm_id,
                    int num_planes) {
   const TX_SIZE fund_tsize[3] = { TX_8X8, TX_8X4, TX_4X8 };
   if (qm_set->quantizer_matrix != NULL) {
+#if 1
+    printf("quantizer_matrix[%d] is not null\n", qm_id);
+#endif
     return;
   }
   qm_set->quantizer_matrix =
@@ -62,6 +65,7 @@ uint32_t read_qm_data(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
   pbi->qm_list[qm_pos].qm_id = qm_id;
   pbi->qm_list[qm_pos].qm_tlayer_id = obu_tlayer_id;
   pbi->qm_list[qm_pos].qm_mlayer_id = obu_mlayer_id;
+  pbi->qm_list[qm_pos].quantizer_matrix_num_planes = num_planes;
   const uint32_t saved_bit_offset = rb->bit_offset;
   const bool qm_is_default_flag = (bool)aom_rb_read_bit(rb);
   if (qm_is_default_flag) {
@@ -162,8 +166,7 @@ uint32_t read_qm_data(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
 
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }
-void copy_predefined_qmatrices_to_list(AV1Decoder *pbi) {
-  int num_planes = pbi->common.seq_params.monochrome ? 1 : 3;
+void copy_predefined_qmatrices_to_list(AV1Decoder *pbi, int num_planes) {
   for (int qm_pos = 0; qm_pos < NUM_CUSTOM_QMS; qm_pos++) {
     alloc_qmatrix(&pbi->qm_list[qm_pos], qm_pos, num_planes);
     int qm_default_index = qm_pos;
@@ -171,6 +174,7 @@ void copy_predefined_qmatrices_to_list(AV1Decoder *pbi) {
     pbi->qm_list[qm_pos].qm_default_index = qm_pos;
     pbi->qm_list[qm_pos].qm_mlayer_id = -1;
     pbi->qm_list[qm_pos].qm_tlayer_id = -1;
+    pbi->qm_list[qm_pos].quantizer_matrix_num_planes = num_planes;
     // copy predefined[qm_default_index] to pbi->qm_list[qm_pos]
     for (int c = 0; c < num_planes; ++c) {
       // plane_type: 0:luma, 1:chroma
@@ -192,8 +196,17 @@ uint32_t read_qm_obu(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
   // multiple qms in one obu with id
   const uint32_t saved_bit_offset = rb->bit_offset;
   int qm_bit_map = aom_rb_read_literal(rb, NUM_CUSTOM_QMS);
+  bool qm_chroma_info_present_flag = aom_rb_read_bit(rb);
+#if 1
+  printf(
+      "(read_qm_obu) qm_bit_map: %d\tqm_chroma_info_present_flag: "
+      "%d\t(pbi->common.seq_params.monochrome:%d)\n",
+      qm_bit_map, qm_chroma_info_present_flag,
+      pbi->common.seq_params.monochrome);
+#endif
   if (qm_bit_map == 0) {
-    copy_predefined_qmatrices_to_list(pbi);
+    copy_predefined_qmatrices_to_list(pbi,
+                                      (qm_chroma_info_present_flag ? 3 : 1));
     if (av1_check_trailing_bits(pbi, rb) != 0) {
       // cm->error.error_code is already set.
       return 0;
@@ -201,7 +214,6 @@ uint32_t read_qm_obu(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
     return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
   }
 
-  bool qm_chroma_info_present_flag = aom_rb_read_bit(rb);
   for (int j = 0; j < NUM_CUSTOM_QMS; j++) {
     // it will overwrite the pos if the qm_id is the same.
     if (qm_bit_map & (1 << j)) {
