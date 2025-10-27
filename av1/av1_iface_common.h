@@ -105,15 +105,16 @@ static void yuvconfig2image(aom_image_t *img, const YV12_BUFFER_CONFIG *yv12,
     img->w_conf_win_top_offset = yv12->w_win_top_offset;
     img->w_conf_win_bottom_offset = yv12->w_win_bottom_offset;
 
-    // Determine subsampling factors
-    const int ss_x = img->monochrome ? img->x_chroma_shift : 0;
-    const int ss_y = img->monochrome ? img->y_chroma_shift : 0;
-
     // Convert
-    const int plane_left_offset = img->w_conf_win_left_offset >> ss_x;
-    const int plane_right_offset = img->w_conf_win_right_offset >> ss_x;
-    const int plane_top_offset = img->w_conf_win_top_offset >> ss_y;
-    const int plane_bottom_offset = img->w_conf_win_bottom_offset >> ss_y;
+    const int plane_left_offset =
+        (img->w_conf_win_left_offset * yv12->y_crop_width) / yv12->max_width;
+    const int plane_right_offset =
+        (img->w_conf_win_right_offset * yv12->y_crop_width) / yv12->max_width;
+    const int plane_top_offset =
+        (img->w_conf_win_top_offset * yv12->y_crop_height) / yv12->max_height;
+    const int plane_bottom_offset =
+        (img->w_conf_win_bottom_offset * yv12->y_crop_height) /
+        yv12->max_height;
 
     // Calculate cropping positions
     int left_pos_x = plane_left_offset;
