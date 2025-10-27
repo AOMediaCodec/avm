@@ -658,9 +658,7 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
 #endif  // CONFIG_CROP_WIN_CWG_F220
 
 #if CONFIG_SCAN_TYPE_METADATA
-  seq_params->scan_type_info_present_flag =
-      oxcf->tool_cfg.scan_type_info_present_flag ||
-      oxcf->tool_cfg.scan_type_info_present_flag;
+  seq_params->scan_type_info_present_flag = oxcf->tool_cfg.scan_type_info_present_flag;
   if (seq_params->scan_type_info_present_flag) {
     seq_params->seq_scan_type_idc = UNSPECIFIED;
     seq_params->seq_fixed_cvs_pic_rate_flag = 0;
