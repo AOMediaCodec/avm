@@ -8662,8 +8662,9 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 
 #if CONFIG_MULTILAYER_HLS
   if (av1_is_shown_keyframe(cpi, cm->current_frame.frame_type)) {
+    const LayerCfg *const layer_cfg = &cpi->oxcf.layer_cfg;
     // Layer Configuration Record
-    if (cpi->write_lcr) {
+    if (layer_cfg->enable_lcr) {
       struct LayerConfigurationRecord *lcr = &cpi->lcr_list[0];
       av1_set_lcr_params(cpi, lcr, 0, 0);
       obu_header_size = av1_write_obu_header(
@@ -8680,8 +8681,8 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
       data += obu_header_size + obu_payload_size + length_field_size;
     }
 
-    // Operating Point Info
-    if (cpi->write_ops) {
+    // Operating Point Set
+    if (layer_cfg->enable_ops) {
       int xlayer_id = 0;
       struct OperatingPointSet *ops = &cpi->ops_list[0];
       av1_set_ops_params(cpi, ops, xlayer_id);
@@ -8698,8 +8699,8 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
       data += obu_header_size + obu_payload_size + length_field_size;
     }
 
-    // Atlas Segment Info
-    if (cpi->write_atlas) {
+    // Atlas Segment
+    if (layer_cfg->enable_lcr && layer_cfg->enable_atlas) {
       int xlayer_id = 0;
       struct AtlasSegmentInfo *atlas_params = &cpi->atlas_list[0];
       av1_set_atlas_segment_info_params(cpi, atlas_params, xlayer_id);

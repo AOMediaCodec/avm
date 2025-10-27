@@ -615,30 +615,21 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   ResizePendingParams *resize_pending_params = &cpi->resize_pending_params;
   const DecoderModelCfg *const dec_model_cfg = &oxcf->dec_model_cfg;
   const ColorCfg *const color_cfg = &oxcf->color_cfg;
-#if CONFIG_MULTILAYER_HLS
-  const LayerCfg *const layer_cfg = &oxcf->layer_cfg;
-#endif  // CONFIG_MULTILAYER_HLS
   cpi->oxcf = *oxcf;
   cpi->framerate = oxcf->input_cfg.init_framerate;
 
 #if CONFIG_MULTILAYER_HLS
   //  Initialize LCR information
-  cpi->write_lcr = layer_cfg->enable_lcr;
   for (int i = 0; i < MAX_NUM_LCR; i++)
     memset(&cpi->lcr_list[i], 0, sizeof(struct LayerConfigurationRecord));
   cm->lcr = &cpi->lcr_list[0];
 
   // Initialize OPS information
-  cpi->write_ops = layer_cfg->enable_ops;
   for (int i = 0; i < MAX_NUM_OPS_ID; i++)
     memset(&cpi->ops_list[i], 0, sizeof(struct OperatingPointSet));
   cm->ops = &cpi->ops_list[0];
 
   // Initialize Atlas Segment information
-  cpi->write_atlas = 0;
-  if (layer_cfg->enable_lcr) {
-    cpi->write_atlas = layer_cfg->enable_atlas;
-  }
   for (int i = 0; i < MAX_NUM_ATLAS_SEG_ID; i++)
     memset(&cpi->atlas_list[i], 0, sizeof(struct AtlasSegmentInfo));
   cm->atlas = &cpi->atlas_list[0];
