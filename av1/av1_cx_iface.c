@@ -4677,7 +4677,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         NULL, 0,
 #endif  // CONFIG_ICC_METADATA
 #if CONFIG_SCAN_TYPE_METADATA
-        NULL,
+        0,
 #endif  // CONFIG_SCAN_TYPE_METADATA
     },  // cfg
 #if CONFIG_CROP_WIN_CWG_F220
