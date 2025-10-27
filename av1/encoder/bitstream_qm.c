@@ -271,9 +271,10 @@ uint32_t write_qm_obu(AV1_COMP *cpi, int signalled_obu_pos,
   printf(
       "(write_qm_obu) qm_bit_map: %d\tqm_chroma_info_present_flag: "
       "%d\t(cpi->common.seq_params.monochrome:%d)\n",
-         cpi->oxcf.q_cfg.use_full_qm_predefined?0:cpi->qmobu_list[signalled_obu_pos].qm_bit_map,
-         cpi->common.seq_params.monochrome,
-      cpi->common.seq_params.monochrome);
+      cpi->oxcf.q_cfg.use_full_qm_predefined
+          ? 0
+          : cpi->qmobu_list[signalled_obu_pos].qm_bit_map,
+      !cpi->common.seq_params.monochrome, cpi->common.seq_params.monochrome);
 #endif
 
 #if CONFIG_F255_QMOBU
