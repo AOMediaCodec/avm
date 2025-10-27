@@ -222,7 +222,7 @@ typedef struct {
 } ARD_Queue;
 
 static INLINE ARD_Queue *ard_create_queue() {
-  ARD_Queue *q = (ARD_Queue *)malloc(sizeof(ARD_Queue));
+  ARD_Queue *q = (ARD_Queue *)aom_malloc(sizeof(ARD_Queue));
   q->front = NULL;
   q->rear = NULL;
   return q;
@@ -232,7 +232,7 @@ static INLINE bool ard_is_queue_empty(ARD_Queue *q) { return q->front == NULL; }
 
 // Function to enqueue an item
 static INLINE void ard_enqueue(ARD_Queue *q, ARD_Coordinate item) {
-  ARD_QueueNode *newNode = (ARD_QueueNode *)malloc(sizeof(ARD_QueueNode));
+  ARD_QueueNode *newNode = (ARD_QueueNode *)aom_malloc(sizeof(ARD_QueueNode));
   newNode->item = item;
   newNode->next = NULL;
   if (ard_is_queue_empty(q)) {
@@ -256,7 +256,7 @@ static INLINE ARD_Coordinate ard_dequeue(ARD_Queue *q) {
   if (q->front == NULL) {
     q->rear = NULL;
   }
-  free(temp);
+  aom_free(temp);
   return item;
 }
 
@@ -274,155 +274,6 @@ static bool bru_is_rect_overlap(AV1PixelRect *rect1, AV1PixelRect *rect2) {
     return true;
   else
     return false;
-}
-/* Helper function to check if a cluster forms a perfect rectangle using BFS */
-/* Finds rectangle of BRU_ACTIVE_SB blocks, then extends with BRU_SUPPORT_SB */
-static INLINE bool bru_check_rect_cluster(const uint8_t *map, int width,
-                                          int height, int start_x, int start_y,
-                                          uint8_t *visited,
-                                          AV1PixelRect *rect) {
-  ARD_Queue *q = ard_create_queue();
-  ARD_Coordinate start = { start_x, start_y };
-  int count = 0;
-  int x_min = start_x, x_max = start_x;
-  int y_min = start_y, y_max = start_y;
-
-  // BFS to find all connected ACTIVE blocks and their bounding box
-  ard_enqueue(q, start);
-  visited[start_y * width + start_x] = 1;
-
-  while (!ard_is_queue_empty(q)) {
-    ARD_Coordinate current = ard_dequeue(q);
-    count++;
-
-    // Update bounding box
-    if (current.x < x_min) x_min = current.x;
-    if (current.x > x_max) x_max = current.x;
-    if (current.y < y_min) y_min = current.y;
-    if (current.y > y_max) y_max = current.y;
-
-    // Check 4-connected neighbors (up, down, left, right)
-    int dx[] = { 0, 0, -1, 1 };
-    int dy[] = { -1, 1, 0, 0 };
-
-    for (int i = 0; i < 4; i++) {
-      int nx = current.x + dx[i];
-      int ny = current.y + dy[i];
-
-      // Only traverse BRU_ACTIVE_SB blocks for rectangle validation
-      if (is_valid_ard_location(nx, ny, width, height) &&
-          !visited[ny * width + nx] && map[ny * width + nx] == BRU_ACTIVE_SB) {
-        ARD_Coordinate next = { nx, ny };
-        ard_enqueue(q, next);
-        visited[ny * width + nx] = 1;
-      }
-    }
-  }
-
-  free(q);
-
-  // Check if the active cluster forms a perfect rectangle
-  int expected_count = (x_max - x_min + 1) * (y_max - y_min + 1);
-  if (count != expected_count) {
-    return false;  // Active blocks don't form a rectangle
-  }
-
-  // Extend bounds by 1 in each direction for support blocks
-  int extended_left = AOMMAX(0, x_min - 1);
-  int extended_top = AOMMAX(0, y_min - 1);
-  int extended_right =
-      AOMMIN(width, x_max + 2);  // x_max + 1 + 1 (original + extension)
-  int extended_bottom =
-      AOMMIN(height, y_max + 2);  // y_max + 1 + 1 (original + extension)
-
-  // Validate that all extended positions (outside active rectangle) are support
-  // blocks
-  for (int y = extended_top; y < extended_bottom; y++) {
-    for (int x = extended_left; x < extended_right; x++) {
-      // Skip positions that are part of the active rectangle
-      if (x >= x_min && x <= x_max && y >= y_min && y <= y_max) {
-        continue;
-      }
-
-      // All extended positions must be support blocks
-      if (map[y * width + x] != BRU_SUPPORT_SB) {
-        return false;
-      }
-    }
-  }
-
-  // Store extended rectangle bounds
-  if (rect) {
-    rect->left = extended_left;
-    rect->top = extended_top;
-    rect->right = extended_right;
-    rect->bottom = extended_bottom;
-  }
-
-  return true;
-}
-
-/* Validate active map, for each active SB, it cannot has any inactive neighbor
- */
-static INLINE int bru_active_map_validation(const AV1_COMMON *cm) {
-  // this can only be called after all the SBs are decoded
-  if (!cm->bru.enabled) return 1;
-  if (cm->bru.frame_inactive_flag) return 1;
-  const uint8_t *act = cm->bru.active_mode_map;
-  const int stride = cm->bru.unit_cols;
-  const int max_regions = cm->bru.unit_cols * cm->bru.unit_rows;
-  // Create visited array for BFS rectangle checking
-  uint8_t *visited = (uint8_t *)calloc(max_regions, sizeof(uint8_t));
-  if (!visited) return 0;
-
-  // Dynamically allocate rectangles array based on grid dimensions
-  // Maximum possible rectangles is width * height (worst case: all 1x1
-  // rectangles)
-  AV1PixelRect *rectangles =
-      (AV1PixelRect *)malloc(max_regions * sizeof(AV1PixelRect));
-  if (!rectangles) {
-    free(visited);
-    return 0;
-  }
-  int num_rectangles = 0;
-
-  // First pass: Check if all active regions form rectangles and collect their
-  // bounds
-  for (unsigned int row = 0; row < cm->bru.unit_rows; row++) {
-    for (unsigned int col = 0; col < cm->bru.unit_cols; col++) {
-      if (act[row * stride + col] == BRU_ACTIVE_SB &&
-          !visited[row * cm->bru.unit_cols + col]) {
-        // Found unvisited active block, check if its cluster is rectangular
-        AV1PixelRect rect;
-        if (!bru_check_rect_cluster(act, cm->bru.unit_cols, cm->bru.unit_rows,
-                                    col, row, visited, &rect)) {
-          free(visited);
-          free(rectangles);
-          return 0;  // Found non-rectangular cluster
-        }
-
-        // Check if this rectangle overlaps with any existing rectangle
-        for (int i = 0; i < num_rectangles; i++) {
-          if (bru_is_rect_overlap(&rect, &rectangles[i])) {
-            free(visited);
-            free(rectangles);
-            return 0;  // Found overlapping rectangles
-          }
-        }
-
-        // Store this rectangle
-        if (num_rectangles < max_regions) {
-          rectangles[num_rectangles] = rect;
-          num_rectangles++;
-        }
-      }
-    }
-  }
-
-  free(visited);
-  free(rectangles);
-
-  return 1;
 }
 
 /* Check if this SB is not active and not on the partial border */
@@ -504,4 +355,270 @@ void bru_set_default_inter_mb_mode_info(const AV1_COMMON *const cm,
                                         MB_MODE_INFO *const mbmi,
                                         BLOCK_SIZE bsize);
 RefCntBuffer *bru_swap_common(AV1_COMMON *cm);
+
+// Breadth-First Search to find clusters
+static INLINE ARD_Queue *ARD_BFS(unsigned char *map, int width, int height, int x, int y,
+                   uint8_t *visited, int *x_min, int *y_min, int *x_max,
+                   int *y_max, int *count) {
+  ARD_Queue *q = ard_create_queue();
+  ARD_Queue *q_sd = ard_create_queue();
+  ARD_Coordinate start = { x, y };
+  int active_count = 0;
+  ard_enqueue(q, start);
+  ard_enqueue(q_sd, start);
+  active_count++;
+  visited[y * width + x] = 1;
+  *x_min = x;
+  *x_max = x;
+  *y_min = y;
+  *y_max = y;
+  while (!ard_is_queue_empty(q)) {
+    ARD_Coordinate current = ard_dequeue(q);
+    for (int dy = -2; dy <= 2; dy++) {
+      for (int dx = -2; dx <= 2; dx++) {
+        if (dx == 0 && dy == 0) continue;
+        int nx = current.x + dx;
+        int ny = current.y + dy;
+        if (is_valid_ard_location(nx, ny, width, height) &&
+            !visited[ny * width + nx] && (map[ny * width + nx] & 1)) {
+          ARD_Coordinate next = { nx, ny };
+          ard_enqueue(q, next);
+          ard_enqueue(q_sd, next);
+          active_count++;
+          visited[ny * width + nx] = 1;
+          *x_min = (*x_min < nx) ? *x_min : nx;
+          *y_min = (*y_min < ny) ? *y_min : ny;
+          *x_max = (*x_max > nx) ? *x_max : nx;
+          *y_max = (*y_max > ny) ? *y_max : ny;
+        }
+      }
+    }
+  }
+  aom_free(q);
+  *count = active_count;
+  return q_sd;
+}
+
+// Function to find clusters and their bounding boxes
+static INLINE AV1PixelRect *cluster_active_regions(unsigned char *map, AV1PixelRect *regions,
+                                     uint32_t *act_sb_in_region,
+                                     ARD_Queue **ard_queue, int width,
+                                     int height, uint32_t *numRegions, int output_ext) {
+  uint8_t *visited = (uint8_t *)aom_calloc(height * width, sizeof(uint8_t));
+  *numRegions = 0;
+  for (int j = 0; j < height; j++) {
+    for (int i = 0; i < width; i++) {
+      if (!visited[j * width + i] && (map[j * width + i] & 1)) {
+        int x_min, y_min, x_max, y_max;
+        int count = 0;
+        ARD_Queue *q = ARD_BFS(map, width, height, i, j, visited, &x_min,
+                               &y_min, &x_max, &y_max, &count);
+        AV1PixelRect *region = &regions[*numRegions];
+        region->left = x_min;
+        region->top = y_min;
+        region->right = x_max + 1;
+        region->bottom = y_max + 1;
+        act_sb_in_region[*numRegions] = count;
+        ard_queue[*numRegions] = q;
+        (*numRegions)++;
+      }
+    }
+  }
+  aom_free(visited);
+  // merge first (assume all the regions are not extened yet)
+  for (int r = (*numRegions) - 1; r > 0; r--) {
+    AV1PixelRect *r0 = &regions[r];
+    AV1PixelRect r0e;
+    r0e.left = AOMMAX(r0->left - 1, 0);
+    r0e.top = AOMMAX(r0->top - 1, 0);
+    r0e.right = AOMMIN(r0->right + 1, width);
+    r0e.bottom = AOMMIN(r0->bottom + 1, height);
+    for (int p = r - 1; p >= 0; p--) {
+      if (p == r) continue;
+      AV1PixelRect *r1 = &regions[p];
+      AV1PixelRect r1e;
+      r1e.left = AOMMAX(r1->left - 1, 0);
+      r1e.top = AOMMAX(r1->top - 1, 0);
+      r1e.right = AOMMIN(r1->right + 1, width);
+      r1e.bottom = AOMMIN(r1->bottom + 1, height);
+      // is overlap with extened
+      if (bru_is_rect_overlap(&r0e, &r1e)) {
+        r1->left = AOMMIN(r0->left, r1->left);
+        r1->top = AOMMIN(r0->top, r1->top);
+        r1->bottom = AOMMAX(r0->bottom, r1->bottom);
+        r1->right = AOMMAX(r0->right, r1->right);
+        (*numRegions)--;
+        ARD_Queue *qr = ard_queue[r];
+        ARD_Queue *qp = ard_queue[p];
+        assert(qr);
+        assert(qp);
+        while (qr && !ard_is_queue_empty(qr)) {
+          ard_enqueue(qp, ard_dequeue(qr));
+        }
+        aom_free(qr);
+        act_sb_in_region[p] += act_sb_in_region[r];
+        // need to shift all the region # > r to r
+        for (uint32_t k = r; k < *(numRegions); k++) {
+          ard_queue[k] = ard_queue[k + 1];
+          regions[k] = regions[k + 1];
+          act_sb_in_region[k] = act_sb_in_region[k + 1];
+        }
+        // set previouis last to NULL
+        ard_queue[*(numRegions)] = NULL;
+        act_sb_in_region[*(numRegions)] = 0;
+        // reset the loop
+        r = *numRegions;
+        break;
+      }
+    }
+  }
+  // for now, set inside all active //fix this if there are issues (time or
+  // rate)
+  for (uint32_t r = 0; r < *numRegions; r++) {
+    unsigned char *p = map + regions[r].top * width;
+    for (int y = regions[r].top; y < regions[r].bottom; y++) {
+      for (int x = regions[r].left; x < regions[r].right; x++) {
+        p[x] = 3;
+      }
+      p += width;
+    }
+  }
+  // then extend
+  for (uint32_t r = 0; r < *numRegions; r++) {
+    unsigned char *p;
+    AV1PixelRect ext_region;
+    ext_region.left = AOMMAX(regions[r].left - 1, 0);
+    ext_region.top = AOMMAX(regions[r].top - 1, 0);
+    ext_region.right = AOMMIN(regions[r].right + 1, width);
+    ext_region.bottom = AOMMIN(regions[r].bottom + 1, height);
+    p = map + ext_region.top * width;
+    for (int y = ext_region.top; y < ext_region.bottom; y++) {
+      for (int x = ext_region.left; x < ext_region.right; x++) {
+        p[x] |= 1;
+        if (p[x] == 3) {
+          p[x] = 2;
+        }
+      }
+      p += width;
+    }
+    if (output_ext) {
+      regions[r].left = ext_region.left;
+      regions[r].top = ext_region.top;
+      regions[r].right = ext_region.right;
+      regions[r].bottom = ext_region.bottom;
+    }
+  }
+  return regions;
+}
+
+// Enhanced function with input conversion, validation and debug output
+static INLINE bool bru_active_map_validation(AV1_COMMON *cm) {
+  if (!cm->bru.enabled) return true;
+  if (cm->bru.frame_inactive_flag) return true;
+  
+  // Create a new active map with same dimensions as cm->bru.unit_cols * cm->bru.unit_rows
+  const int width = cm->bru.unit_cols;
+  const int height = cm->bru.unit_rows;
+  const int total_units = width * height;
+  
+  // Allocate new active map and copy values from cm->bru.active_mode_map
+  unsigned char *new_active_map = (unsigned char *)aom_malloc(total_units * sizeof(unsigned char));
+  if (!new_active_map) {
+    return false;
+  }
+  
+  // Convert input values and copy to new_active_map
+  // Input format: 0=inactive, 1=support, 2=active
+  // Clustering algorithm expects: 0=inactive, 0=support, 3=active
+  for (int i = 0; i < total_units; i++) {
+    unsigned char input_val = cm->bru.active_mode_map[i];
+    if (input_val == 0) {
+      new_active_map[i] = 0;  // inactive -> inactive
+    } else if (input_val == 1) {
+      new_active_map[i] = 0;  // support -> clustering support value
+    } else if (input_val == 2) {
+      new_active_map[i] = 3;  // active -> clustering active value
+    }
+  }
+  
+  // Allocate memory for clustering results
+  const int max_regions = (width / 3 + 1) * (height / 3 + 1);
+  AV1PixelRect *regions = (AV1PixelRect *)aom_calloc(max_regions, sizeof(AV1PixelRect));
+  uint32_t *act_sb_in_region = (uint32_t *)aom_calloc(max_regions, sizeof(uint32_t));
+  ARD_Queue **ard_queue = (ARD_Queue **)aom_calloc(max_regions, sizeof(ARD_Queue*));
+  
+  if (!regions || !act_sb_in_region || !ard_queue) {
+    aom_free(new_active_map);
+    aom_free(regions);
+    aom_free(act_sb_in_region);
+    aom_free(ard_queue);
+    return false;
+  }
+  
+  // Use the clustering algorithm from cluster_active_regions
+  uint32_t numRegions = 0;
+  cluster_active_regions(new_active_map, regions, act_sb_in_region, ard_queue,
+                         width, height, &numRegions, 1);
+  
+  // Validation: Check if generated regions properly overlay with original map
+  bool overall_valid = true;
+  
+  // For each generated region, check all coordinates within the region bounds
+  for (uint32_t region_id = 0; region_id < numRegions; region_id++) {
+    bool region_valid = true;
+    
+    // Check every coordinate within the region bounds (right and bottom exclusive)
+    for (int y = regions[region_id].top; y < regions[region_id].bottom; y++) {
+      for (int x = regions[region_id].left; x < regions[region_id].right; x++) {
+        unsigned char original_val = cm->bru.active_mode_map[y * width + x];
+        
+        // Rule 1: Every block in the region must NOT be inactive (0)
+        if (original_val == 0) {
+          region_valid = false;
+          break;
+        }
+        
+        // Rule 2: Check border blocks must be support (unless at array border)
+        bool is_region_border = (x == regions[region_id].left ||
+                                 x == regions[region_id].right - 1 ||
+                                 y == regions[region_id].top ||
+                                 y == regions[region_id].bottom - 1);
+        
+        bool is_array_border = (x == 0 || x == width - 1 || y == 0 || y == height - 1);
+        
+        if (is_region_border && !is_array_border && original_val != 1) {
+          region_valid = false;
+          break;
+        }
+      }
+      if (!region_valid) break;
+    }
+    
+    if (!region_valid) {
+      overall_valid = false;
+      break;
+    }
+  }
+  
+  // Clean up the queue memory
+  for (uint32_t i = 0; i < numRegions; i++) {
+    if (ard_queue[i]) {
+      // Empty the queue and free it
+      while (!ard_is_queue_empty(ard_queue[i])) {
+        ard_dequeue(ard_queue[i]);
+      }
+      aom_free(ard_queue[i]);
+    }
+  }
+  
+  // Clean up memory
+  aom_free(new_active_map);
+  aom_free(regions);
+  aom_free(act_sb_in_region);
+  aom_free(ard_queue);
+  
+  // Return the validation result
+  return overall_valid;
+}
+
 #endif  // AOM_AV1_COMMON_ARD_H_
