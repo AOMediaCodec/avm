@@ -1264,6 +1264,14 @@ void active_region_detection(AV1_COMP *cpi,
   const int mi_cols = cpi->common.mi_params.mi_cols;
   const int num_comps = cm->seq_params.monochrome ? 1 : 3;
   BruInfo *bru_info = &cm->bru;
+  
+  // Local ARD queue variables (moved from global cpi->enc_act_sb_queue)
+  ARD_Queue *act_sb_queue[MAX_ACTIVE_REGION];
+  // Initialize all queue pointers to NULL
+  for (int i = 0; i < MAX_ACTIVE_REGION; i++) {
+    act_sb_queue[i] = NULL;
+  }
+  
   if (cur_picture == NULL || last_picture == NULL) {
     cpi->active_map.update = 0;
     cpi->active_map.enabled = 0;
@@ -1327,7 +1335,20 @@ void active_region_detection(AV1_COMP *cpi,
   // such that active region become '10', extended active region is '01' the
   // inactive region (outside rects) are still '00'
   cluster_active_regions(bru_info->active_mode_map, bru_info->active_region,
-                         bru_info->active_sb_in_region, cpi->enc_act_sb_queue,
+                         bru_info->active_sb_in_region, act_sb_queue,
                          cm->bru.unit_cols, cm->bru.unit_rows,
                          &bru_info->num_active_regions, 0);
+  
+  // Clean up local ARD queues after clustering is complete
+  for (uint32_t r = 0; r < bru_info->num_active_regions; r++) {
+    ARD_Queue *q = act_sb_queue[r];
+    if (q == NULL) continue;
+    // make sure every queue is empty
+    while (!ard_is_queue_empty(q)) {
+      ard_dequeue(q);
+    }
+    // after cleanup, free the ARD_Queue structure
+    aom_free(q);
+    act_sb_queue[r] = NULL;
+  }
 }

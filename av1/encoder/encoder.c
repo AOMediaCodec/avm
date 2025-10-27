@@ -1169,7 +1169,6 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
       cpi->td.firstpass_ctx = NULL;
       alloc_compressor_data(cpi);
       realloc_segmentation_maps(cpi);
-      realloc_ARD_queue(cpi);
       initial_dimensions->width = initial_dimensions->height = 0;
     }
   }
@@ -1383,7 +1382,6 @@ AV1_COMP *av1_create_compressor(AV1EncoderConfig *oxcf, BufferPool *const pool,
   cpi->tile_data = NULL;
   cpi->last_show_frame_buf = NULL;
   realloc_segmentation_maps(cpi);
-  realloc_ARD_queue(cpi);
 
   cpi->b_calculate_psnr = CONFIG_INTERNAL_STATS;
 #if CONFIG_INTERNAL_STATS
@@ -2354,7 +2352,6 @@ int av1_set_size_literal(AV1_COMP *cpi, int width, int height) {
       cpi->td.firstpass_ctx = NULL;
       alloc_compressor_data(cpi);
       realloc_segmentation_maps(cpi);
-      realloc_ARD_queue(cpi);
     }
   }
   update_frame_size(cpi);
@@ -5395,17 +5392,6 @@ void enc_bru_swap_ref(AV1_COMMON *const cm) {
 void enc_bru_swap_stage(AV1_COMP *cpi) {
   AV1_COMMON *cm = &cpi->common;
   if (cm->bru.enabled) {
-    // dump active sb queue
-    for (uint32_t r = 0; r < cm->bru.num_active_regions; r++) {
-      ARD_Queue *q = cpi->enc_act_sb_queue[r];
-      // make sure every queue is dumpped
-      while (!ard_is_queue_empty(q)) {
-        ard_dequeue(q);
-      }
-      // after dump, free the ARD_Queue structure
-      free(q);
-      cpi->enc_act_sb_queue[r] = NULL;
-    }
     if (bru_swap_common(cm) == NULL) {
       aom_internal_error(&cm->error, AOM_CODEC_ERROR,
                          "Encoder BRU swap stage error");

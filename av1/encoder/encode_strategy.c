@@ -1330,17 +1330,8 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     // exists
     if (cm->bru.enabled == 0 && cm->bru.active_mode_map) {
       memset(cm->bru.active_mode_map, 2, sizeof(uint8_t) * cm->bru.total_units);
-      for (uint32_t r = 0; r < cm->bru.num_active_regions; r++) {
-        ARD_Queue *q = cpi->enc_act_sb_queue[r];
-        if (q == NULL) continue;
-        // make sure every queue is dumpped
-        while (!ard_is_queue_empty(q)) {
-          ard_dequeue(q);
-        }
-        // after dump, free the ARD_Queue structure
-        free(q);
-        cpi->enc_act_sb_queue[r] = NULL;
-      }
+      // Note: enc_act_sb_queue is now local to active_region_detection(),
+      // so no global cleanup needed here
     } else {
       cm->features.tip_frame_mode = TIP_FRAME_DISABLED;
     }

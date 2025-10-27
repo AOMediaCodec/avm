@@ -114,27 +114,6 @@ static AOM_INLINE void realloc_segmentation_maps(AV1_COMP *cpi) {
                   aom_calloc(mi_params->mi_rows * mi_params->mi_cols, 1));
 }
 
-static AOM_INLINE void realloc_ARD_queue(AV1_COMP *cpi) {
-  AV1_COMMON *const cm = &cpi->common;
-  CommonModeInfoParams *const mi_params = &cm->mi_params;
-  // have to make sure empty queue
-  for (uint32_t r = 0; r < cpi->enc_act_queue_size; r++) {
-    ARD_Queue *q = cpi->enc_act_sb_queue[r];
-    if (q != NULL) {
-      while (!ard_is_queue_empty(q)) {
-        ard_dequeue(q);
-      }
-      cpi->enc_act_sb_queue[r] = NULL;
-    }
-  }
-  aom_free(cpi->enc_act_sb_queue);
-  CHECK_MEM_ERROR(
-      cm, cpi->enc_act_sb_queue,
-      aom_calloc((mi_params->mb_cols / 3 + 1) * (mi_params->mb_rows / 3 + 1),
-                 sizeof(ARD_Queue *)));
-  cpi->enc_act_queue_size =
-      (mi_params->mb_cols / 3 + 1) * (mi_params->mb_rows / 3 + 1);
-}
 static AOM_INLINE void alloc_compound_type_rd_buffers(
     AV1_COMMON *const cm, CompoundTypeRdBuffers *const bufs) {
   CHECK_MEM_ERROR(
@@ -176,18 +155,6 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
   // Delete sementation map
   aom_free(cpi->enc_seg.map);
   cpi->enc_seg.map = NULL;
-  // have to make sure empty queue
-  for (uint32_t r = 0; r < cpi->enc_act_queue_size; r++) {
-    ARD_Queue *q = cpi->enc_act_sb_queue[r];
-    if (q != NULL) {
-      while (!ard_is_queue_empty(q)) {
-        ard_dequeue(q);
-      }
-      cpi->enc_act_sb_queue[r] = NULL;
-    }
-  }
-  aom_free(cpi->enc_act_sb_queue);
-  cpi->enc_act_sb_queue = NULL;
 
   av1_cyclic_refresh_free(cpi->cyclic_refresh);
   cpi->cyclic_refresh = NULL;

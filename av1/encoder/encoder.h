@@ -2625,15 +2625,6 @@ typedef struct AV1_COMP {
    */
   EncSegmentationInfo enc_seg;
 
-  /*!
-   * queue for encoding active SBs in each active region
-   */
-  ARD_Queue **enc_act_sb_queue;
-
-  /*!
-   * store queue memory allocated size
-   */
-  uint32_t enc_act_queue_size;
 
   /*!
    * Parameters related to cyclic refresh aq-mode.
