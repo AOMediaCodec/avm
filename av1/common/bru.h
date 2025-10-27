@@ -401,10 +401,10 @@ static INLINE ARD_Queue *ARD_BFS(unsigned char *map, int width, int height,
 }
 
 // Function to find clusters and their bounding boxes
-static INLINE AV1PixelRect *cluster_active_regions(
-    unsigned char *map, AV1PixelRect *regions, uint32_t *act_sb_in_region,
-    ARD_Queue **ard_queue, int width, int height, uint32_t *numRegions,
-    int output_ext) {
+static INLINE void cluster_active_regions(unsigned char *map, AV1PixelRect *regions,
+                                     uint32_t *act_sb_in_region,
+                                     ARD_Queue **ard_queue, int width,
+                                     int height, uint32_t *numRegions, uint32_t max_regions, int output_ext) {
   uint8_t *visited = (uint8_t *)aom_calloc(height * width, sizeof(uint8_t));
   *numRegions = 0;
   for (int j = 0; j < height; j++) {
@@ -422,6 +422,15 @@ static INLINE AV1PixelRect *cluster_active_regions(
         act_sb_in_region[*numRegions] = count;
         ard_queue[*numRegions] = q;
         (*numRegions)++;
+        
+        // Protection mechanism: check if we exceed MAX_ACTIVE_REGION
+        if (*numRegions > max_regions) {
+          // Clean up visited array
+          aom_free(visited);
+          // Reset numRegions and return error (NULL indicates failure)
+          *numRegions = AOMMAX(MAX_ACTIVE_REGION, max_regions) + 1;
+          return;
+        }
       }
     }
   }
@@ -509,7 +518,7 @@ static INLINE AV1PixelRect *cluster_active_regions(
       regions[r].bottom = ext_region.bottom;
     }
   }
-  return regions;
+  return;
 }
 
 // Enhanced function with input conversion, validation and debug output
@@ -545,14 +554,12 @@ static INLINE bool bru_active_map_validation(AV1_COMMON *cm) {
   }
 
   // Allocate memory for clustering results
-  const int max_regions = (width / 3 + 1) * (height / 3 + 1);
-  AV1PixelRect *regions =
-      (AV1PixelRect *)aom_calloc(max_regions, sizeof(AV1PixelRect));
-  uint32_t *act_sb_in_region =
-      (uint32_t *)aom_calloc(max_regions, sizeof(uint32_t));
-  ARD_Queue **ard_queue =
-      (ARD_Queue **)aom_calloc(max_regions, sizeof(ARD_Queue *));
-
+  const unsigned int max_regions = width * height;
+  //const int max_regions = (width / 3 + 1) * (height / 3 + 1);
+  AV1PixelRect *regions = (AV1PixelRect *)aom_calloc(max_regions, sizeof(AV1PixelRect));
+  uint32_t *act_sb_in_region = (uint32_t *)aom_calloc(max_regions, sizeof(uint32_t));
+  ARD_Queue **ard_queue = (ARD_Queue **)aom_calloc(max_regions, sizeof(ARD_Queue*));
+  
   if (!regions || !act_sb_in_region || !ard_queue) {
     aom_free(new_active_map);
     aom_free(regions);
@@ -564,11 +571,12 @@ static INLINE bool bru_active_map_validation(AV1_COMMON *cm) {
   // Use the clustering algorithm from cluster_active_regions
   uint32_t numRegions = 0;
   cluster_active_regions(new_active_map, regions, act_sb_in_region, ard_queue,
-                         width, height, &numRegions, 1);
-
+                         width, height, &numRegions, max_regions, 1);
+  
   // Validation: Check if generated regions properly overlay with original map
   bool overall_valid = true;
-
+  if (numRegions > max_regions) 
+    overall_valid = false;
   // For each generated region, check all coordinates within the region bounds
   for (uint32_t region_id = 0; region_id < numRegions; region_id++) {
     bool region_valid = true;

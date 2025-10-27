@@ -1337,7 +1337,7 @@ void active_region_detection(AV1_COMP *cpi,
   cluster_active_regions(bru_info->active_mode_map, bru_info->active_region,
                          bru_info->active_sb_in_region, act_sb_queue,
                          cm->bru.unit_cols, cm->bru.unit_rows,
-                         &bru_info->num_active_regions, 0);
+                         &bru_info->num_active_regions, MAX_ACTIVE_REGION, 0);
   
   // Clean up local ARD queues after clustering is complete
   for (uint32_t r = 0; r < bru_info->num_active_regions; r++) {
