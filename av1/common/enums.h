@@ -308,6 +308,8 @@ enum {
 #define ATLAS_LABEL_SEG_ID_BITS 8
 #define MAX_NUM_ATLAS_SEGMENTS (1 << ATLAS_LABEL_SEG_ID_BITS)
 
+// Enabling this macro removes the prompting in lcr_profile_tier_level() to be
+// included after profile, tier and level definitions are finalized.
 #define CONFIG_MULTILAYER_HLS_REMOVE_LOGS 1
 
 enum { AUX_LAYER, LAYER_TYPES };

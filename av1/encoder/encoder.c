@@ -635,8 +635,10 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   cm->ops = &cpi->ops_list[0];
 
   // Initialize Atlas Segment information
-  cpi->write_atlas = layer_cfg->enable_atlas;
-  cpi->write_atlas = cpi->write_lcr && cpi->write_atlas;
+  cpi->write_atlas = 0;
+  if (layer_cfg->enable_lcr) {
+    cpi->write_atlas = layer_cfg->enable_atlas;
+  }
   for (int i = 0; i < MAX_NUM_ATLAS_SEG_ID; i++)
     memset(&cpi->atlas_list[i], 0, sizeof(struct AtlasSegmentInfo));
   cm->atlas = &cpi->atlas_list[0];
