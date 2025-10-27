@@ -226,6 +226,9 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
                                         AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION,
                                         AV1E_SET_ENABLE_CDF_AVERAGING,
                                         AV1E_SET_ENABLE_BRU,
+#if CONFIG_SCAN_TYPE_METADATA
+                                        AV1E_SET_SCAN_TYPE_INFO_PRESENT_FLAG,
+#endif  // CONFIG_SCAN_TYPE_METADATA
                                         0 };
 
 const arg_def_t *main_args[] = { &g_av1_codec_arg_defs.help,
@@ -292,6 +295,9 @@ const arg_def_t *global_args[] = {
   &g_av1_codec_arg_defs.icc_file,
 #endif  // CONFIG_ICC_METADATA
 
+#if CONFIG_ICC_METADATA
+  &g_av1_codec_arg_defs.icc_file,
+#endif  // CONFIG_ICC_METADATA
   NULL
 };
 
@@ -507,6 +513,9 @@ const arg_def_t *av1_key_val_args[] = {
   &g_av1_codec_arg_defs.crop_win_top_offset,
   &g_av1_codec_arg_defs.crop_win_bottom_offset,
 #endif  // CONFIG_CROP_WIN_CWG_F220
+#if CONFIG_SCAN_TYPE_METADATA
+  &g_av1_codec_arg_defs.scan_type_info_present_flag,
+#endif  // CONFIG_SCAN_TYPE_METADATA
   NULL,
 };
 
@@ -735,6 +744,9 @@ static void init_config(cfg_options_t *config) {
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   config->disable_loopfilters_across_tiles = 0;
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+#if CONFIG_SCAN_TYPE_METADATA
+  config->scan_type_info_present_flag = 0;
+#endif  // CONFIG_SCAN_TYPE_METADATA
 }
 
 #if CONFIG_ICC_METADATA
@@ -875,6 +887,14 @@ static void parse_global_config(struct AvxEncoderConfig *global, char ***argv) {
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.icc_file, argi)) {
       read_icc_profile(global, arg.val);
 #endif  // CONFIG_ICC_METADATA
+#if CONFIG_SCAN_TYPE_METADATA
+    } else if (arg_match(&arg,
+                         &g_av1_codec_arg_defs.scan_type_info_present_flag,
+                         argi)) {
+      global->encoder_config.scan_type_info_present_flag =
+          arg_parse_enum_or_int(&arg);
+      ;
+#endif  // CONFIG_SCAN_TYPE_METADATA
     } else {
       argj++;
     }
@@ -1315,6 +1335,12 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.tile_height, argi)) {
       config->cfg.tile_height_count =
           arg_parse_list(&arg, config->cfg.tile_heights, MAX_TILE_HEIGHTS);
+#if CONFIG_SCAN_TYPE_METADATA
+    } else if (arg_match(&arg,
+                         &g_av1_codec_arg_defs.scan_type_info_present_flag,
+                         argi)) {
+      config->cfg.scan_type_info_present_flag = arg_parse_uint(&arg);
+#endif  // CONFIG_SCAN_TYPE_METADATA
 #if CONFIG_TUNE_VMAF
     } else if (arg_match(&arg, &vmaf_model_path, argi)) {
       config->vmaf_model_path = arg.val;

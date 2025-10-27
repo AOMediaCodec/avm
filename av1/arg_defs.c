@@ -890,4 +890,8 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
 #if CONFIG_ICC_METADATA
   .icc_file = ARG_DEF(NULL, "icc", 1, "ICC profile filename"),
 #endif  // CONFIG_ICC_METADATA
+#if CONFIG_SCAN_TYPE_METADATA
+  .scan_type_info_present_flag =
+      ARG_DEF(NULL, "scan-type-info", 1, "Scan type info present flag"),
+#endif  // CONFIG_SCAN_TYPE_METADATA
 };

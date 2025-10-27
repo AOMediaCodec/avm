@@ -950,6 +950,10 @@ typedef struct {
   // entire frame.
   bool frame_hash_per_plane;
 
+#if CONFIG_SCAN_TYPE_METADATA
+  unsigned int scan_type_info_present_flag;
+#endif  // CONFIG_SCAN_TYPE_METADATA
+
 } ToolCfg;
 
 #define MAX_SUBGOP_CONFIGS 64

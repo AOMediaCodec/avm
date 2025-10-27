@@ -657,6 +657,17 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   }
 #endif  // CONFIG_CROP_WIN_CWG_F220
 
+#if CONFIG_SCAN_TYPE_METADATA
+  seq_params->scan_type_info_present_flag =
+      oxcf->tool_cfg.scan_type_info_present_flag ||
+      oxcf->tool_cfg.scan_type_info_present_flag;
+  if (seq_params->scan_type_info_present_flag) {
+    seq_params->seq_scan_type_idc = UNSPECIFIED;
+    seq_params->seq_fixed_cvs_pic_rate_flag = 0;
+    seq_params->seq_elemental_ct_duration_minus_1 = -1;
+  }
+#endif  // CONFIG_SCAN_TYPE_METADATA
+
   seq_params->profile = oxcf->profile;
   seq_params->bit_depth = oxcf->tool_cfg.bit_depth;
   seq_params->color_primaries = color_cfg->color_primaries;
@@ -754,6 +765,12 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
 
   // Single thread case: use counts in common.
   cpi->td.counts = &cpi->counts;
+
+#if CONFIG_SCAN_TYPE_METADATA
+  cm->pic_struct_params.mps_pic_struct = 10;
+  cm->pic_struct_params.mps_source_scan_type_idc = 1;
+  cm->pic_struct_params.mps_duplicate_flag = 0;
+#endif  // CONFIG_SCAN_TYPE_METADATA
 
   // Set init SVC parameters.
   cm->number_tlayers = 1;

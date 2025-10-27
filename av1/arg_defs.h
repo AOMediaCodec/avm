@@ -303,6 +303,9 @@ typedef struct av1_codec_arg_definitions {
 #if CONFIG_ICC_METADATA
   arg_def_t icc_file;
 #endif  // CONFIG_ICC_METADATA
+#if CONFIG_SCAN_TYPE_METADATA
+  arg_def_t scan_type_info_present_flag;
+#endif  // CONFIG_SCAN_TYPE_METADATA
 } av1_codec_arg_definitions_t;
 
 extern const av1_codec_arg_definitions_t g_av1_codec_arg_defs;

@@ -1085,6 +1085,13 @@ typedef struct SequenceHeader {
 #if CONFIG_CROP_WIN_CWG_F220
   CropWindow conf;
 #endif  // CONFIG_CROP_WIN_CWG_F220
+#if CONFIG_SCAN_TYPE_METADATA
+  // NOTE these syntax elements will move to the CI Obu
+  int scan_type_info_present_flag;
+  int seq_scan_type_idc;
+  int seq_fixed_cvs_pic_rate_flag;
+  int seq_elemental_ct_duration_minus_1;
+#endif  // CONFIG_SCAN_TYPE_METADATA
 } SequenceHeader;
 
 typedef struct {
@@ -2629,6 +2636,12 @@ typedef struct AV1Common {
    */
   struct OperatingPointSet *ops;
 #endif  // CONFIG_MULTILAYER_HLS
+#if CONFIG_SCAN_TYPE_METADATA
+  /*!
+   * Pic struct parameters.
+   */
+  aom_pic_struct pic_struct_params;
+#endif  // CONFIG_SCAN_TYPE_METADATA
 } AV1_COMMON;
 
 /*!\cond */

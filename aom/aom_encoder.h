@@ -659,6 +659,13 @@ typedef struct cfg_options {
    */
   size_t icc_size;
 #endif  // CONFIG_ICC_METADATA
+
+#if CONFIG_SCAN_TYPE_METADATA
+  /*!\brief Scan type info present flag
+   *
+   */
+  unsigned int scan_type_info_present_flag;
+#endif  // CONFIG_SCAN_TYPE_METADATA
 } cfg_options_t;
 
 /*!\brief Encoded Frame Flags
@@ -1208,7 +1215,14 @@ typedef struct aom_codec_enc_cfg {
    *
    */
   int crop_win_bottom_offset;
-#endif                 // CONFIG_CROP_WIN_CWG_F220
+#endif  // CONFIG_CROP_WIN_CWG_F220
+#if CONFIG_SCAN_TYPE_METADATA
+
+  /*!\brief Scan type info present flag
+   *
+   */
+  unsigned int scan_type_info_present_flag;
+#endif                 // CONFIG_SCAN_TYPE_METADATA
 } aom_codec_enc_cfg_t; /**< alias for struct aom_codec_enc_cfg */
 
 /*!\brief Initialize an encoder instance

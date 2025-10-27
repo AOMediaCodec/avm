@@ -32,7 +32,11 @@ extern "C" {
  * types, removing or reassigning enums, adding/removing/rearranging
  * fields to structures
  */
+#if CONFIG_METADATA
+#define AOM_IMAGE_ABI_VERSION (42) /**<\hideinitializer*/
+#else
 #define AOM_IMAGE_ABI_VERSION (9) /**<\hideinitializer*/
+#endif                            // CONFIG_METADATA
 
 #define AOM_IMG_FMT_PLANAR 0x100  /**< Image is a planar format. */
 #define AOM_IMG_FMT_UV_FLIP 0x200 /**< V plane precedes U in memory. */
@@ -208,6 +212,15 @@ typedef enum aom_metadata_application_id {
   // 6-15 are reserved for AOM use
   // 16-31 are externally defined
 } aom_metadata_application_id_t;
+
+#if CONFIG_SCAN_TYPE_METADATA
+/*!\brief Picture Struct Metadata payload. */
+typedef struct aom_pic_struct {
+  int mps_pic_struct;           /**< picture struct*/
+  int mps_source_scan_type_idc; /**< source scan type*/
+  int mps_duplicate_flag;       /**< frame duplicate */
+} aom_pic_struct;
+#endif  // CONFIG_SCAN_TYPE_METADATA
 
 /*!\brief Metadata persistence behavior
  *

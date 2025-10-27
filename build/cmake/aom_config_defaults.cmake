@@ -185,6 +185,8 @@ set_aom_config_var(CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES 1
                    "AV2 control to allow loopfilters across tiles or not")
 set_aom_config_var(CONFIG_DIP_EXT_PRUNING 1 "AV2 DIP TFLite pruning.")
 
+set_aom_config_var(CONFIG_SCAN_TYPE_METADATA 1
+                   "CWG-F233 Scan type metadata syntax")
 # CWG-F349
 set_aom_config_var(CONFIG_CWG_F349_SIGNAL_TILE_INFO 1
                    "Improved tile information at sequence header.")

@@ -17,6 +17,7 @@
 extern "C" {
 #endif
 
+#include "av1/common/obu_util.h"
 #include "av1/encoder/encoder.h"
 
 struct aom_write_bit_buffer;
