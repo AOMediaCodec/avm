@@ -300,7 +300,7 @@ enum {
 #define OPS_ID_BITS 4
 #define MAX_NUM_OPS_ID (1 << OPS_ID_BITS)
 #define OPS_COUNT_BITS 3
-#define MAX_OPS_COUNT (1 << OPS_COUNT_BITS)
+#define MAX_OPS_COUNT ((1 << OPS_COUNT_BITS) - 1)
 // Atlas
 #define MAX_ATLAS_REGIONS 64
 #define ATLAS_SEG_ID_BITS 3
