@@ -2059,6 +2059,10 @@ struct quantization_matrix_set {
    */
   qm_val_t ***quantizer_matrix;
   /*!
+   * Indicates memory is allocated for the matrices
+   */
+  int quantizer_matrix_allocated;
+  /*!
    * Indicates number of vaild planes for the quantization matrices
    */
   int quantizer_matrix_num_planes;

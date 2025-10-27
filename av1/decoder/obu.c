@@ -510,12 +510,6 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
   av1_set_frame_sb_size(cm, cm->seq_params.sb_size);
   pbi->sequence_header_ready = 1;
 
-#if CONFIG_F255_QMOBU
-  // TODO: qmatrices copy needs to be done when a sequence header is activated
-  // not when it is parsed
-  //  copy_predefined_qmatrices_to_list(pbi, num_planes);
-#endif  // CONFIG_F255_QMOBU
-
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }
 
@@ -1669,6 +1663,12 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
   int prev_obu_type_initialized = 0;
 #endif  // OBU_ORDER_IN_TU
 
+#if CONFIG_F255_QMOBU
+  bool first_qm_obu = true;
+  uint32_t qm_id_bitmap = 0;
+  bool seq_header_in_tu = false;
+#endif
+
   // decode frame as a series of OBUs
   while (!frame_decoding_finished && cm->error.error_code == AOM_CODEC_OK) {
     struct aom_read_bit_buffer rb;
@@ -1803,6 +1803,9 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
           cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
           return -1;
         }
+#if CONFIG_F255_QMOBU
+        seq_header_in_tu = true;
+#endif
         break;
 #if CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
       case OBU_BUFFER_REMOVAL_TIMING:
@@ -2040,8 +2043,10 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
 #endif  // CONFIG_F106_OBU_TILEGROUP
 #if CONFIG_F255_QMOBU
       case OBU_QM:
-        decoded_payload_size = read_qm_obu(pbi, obu_header.obu_tlayer_id,
-                                           obu_header.obu_mlayer_id, &rb);
+        decoded_payload_size =
+            read_qm_obu(pbi, obu_header.obu_tlayer_id, obu_header.obu_mlayer_id,
+                        first_qm_obu, seq_header_in_tu, &qm_id_bitmap, &rb);
+        first_qm_obu = false;
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
         break;
 #endif  // CONFIG_F255_QMOBU

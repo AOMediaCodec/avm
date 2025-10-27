@@ -72,6 +72,12 @@ void av1_read_sequence_header_beyond_av1(
 #endif  // !CONFIG_F255_QMOBU
 );
 
+#if CONFIG_F255_QMOBU
+void av1_copy_predefined_qmatrices_to_list(struct AV1Decoder *pbi,
+                                           int num_planes,
+                                           bool as_seq_header_init);
+#endif  // CONFIG_F255_QMOBU
+
 #if CONFIG_MULTI_FRAME_HEADER
 // Reads multi-frame header
 void av1_read_multi_frame_header(AV1_COMMON *cm,

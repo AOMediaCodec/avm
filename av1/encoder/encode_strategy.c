@@ -971,7 +971,110 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
 
   return AOM_CODEC_OK;
 }
+#if CONFIG_F255_QMOBU_USERQM_TEST
+uint8_t flat_qm_8x8[8 * 8] = {
+  32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+  32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+  32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+  32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+};
+uint8_t flat_qm_8x4[8 * 4] = {
+  32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+  32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+};
+uint8_t flat_qm_4x8[4 * 8] = {
+  32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+  32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+};
+static aom_codec_err_t set_user_defined_qm_test(AV1_COMP *const cpi,
+                                                bool monochrome_) {
+  // TestNoMisMatchQM8
+  //    monochrome_ = true;
+  //    user_defined_qmatrix_ = 2;
+  //    DoTest(0, 0);
+  aom_user_defined_qm_t user_defined_qm0;
+  {
+    user_defined_qm0.level = 0;
+    user_defined_qm0.num_planes = monochrome_ ? 1 : 3;
+    if (monochrome_) {
+      user_defined_qm0.qm_8x8[0] = flat_qm_8x8;
+      user_defined_qm0.qm_8x4[0] = flat_qm_8x4;
+      user_defined_qm0.qm_4x8[0] = flat_qm_4x8;
+    } else {
+      user_defined_qm0.qm_8x8[0] = flat_qm_8x8;
+      user_defined_qm0.qm_8x8[1] = flat_qm_8x8;
+      user_defined_qm0.qm_8x8[2] = flat_qm_8x8;
+      user_defined_qm0.qm_8x4[0] = flat_qm_8x4;
+      user_defined_qm0.qm_8x4[1] = flat_qm_8x4;
+      user_defined_qm0.qm_8x4[2] = flat_qm_8x4;
+      user_defined_qm0.qm_4x8[0] = flat_qm_4x8;
+      user_defined_qm0.qm_4x8[1] = flat_qm_4x8;
+      user_defined_qm0.qm_4x8[2] = flat_qm_4x8;
+    }
+  }
+  aom_user_defined_qm_t *user_defined_qm = &user_defined_qm0;
+  int num_planes = user_defined_qm0.num_planes;
+  const int level = user_defined_qm->level;
+  printf("user_defined_qm->level: %d\n", user_defined_qm->level);
+  for (int c = 0; c < num_planes; c++) {
+    if (!user_defined_qm->qm_8x8[c]) {
+      return AOM_CODEC_INVALID_PARAM;
+    }
+    // In calc_wt_matrix() we will divide 1024 by these quantization matrix
+    // coefficients and store the quotients in qm_val_t (uint8_t) arrays. These
+    // coefficients must be greater than 4, otherwise the quotients will be
+    // greater than or equal to 1024 / 4 = 256, which cannot be converted to
+    // qm_val_t without losing integer precision.
+    for (int i = 0; i < 8 * 8; i++) {
+      if (user_defined_qm->qm_8x8[c][i] <= 4) {
+        return AOM_CODEC_INVALID_PARAM;
+      }
+    }
 
+    cpi->common.use_user_defined_qm[level] = true;
+    cpi->user_defined_qm_list[level] = av1_alloc_qmset(num_planes);
+
+#if CONFIG_F255_QMOBU
+    memcpy(cpi->user_defined_qm_list[level][0][c], user_defined_qm->qm_8x8[c],
+           8 * 8 * sizeof(qm_val_t));
+#else
+    memcpy(seq_params->quantizer_matrix_8x8[level][c],
+           user_defined_qm->qm_8x8[c], 8 * 8 * sizeof(qm_val_t));
+#endif  // CONFIG_F255_QMOBU
+    if (!user_defined_qm->qm_8x4[c]) {
+      return AOM_CODEC_INVALID_PARAM;
+    }
+    for (int i = 0; i < 8 * 4; i++) {
+      if (user_defined_qm->qm_8x4[c][i] <= 4) {
+        return AOM_CODEC_INVALID_PARAM;
+      }
+    }
+#if CONFIG_F255_QMOBU
+    memcpy(cpi->user_defined_qm_list[level][1][c], user_defined_qm->qm_8x4[c],
+           8 * 4 * sizeof(qm_val_t));
+#else
+    memcpy(seq_params->quantizer_matrix_8x4[level][c],
+           user_defined_qm->qm_8x4[c], 8 * 4 * sizeof(qm_val_t));
+#endif  // CONFIG_F255_QMOBU
+    if (!user_defined_qm->qm_4x8[c]) {
+      return AOM_CODEC_INVALID_PARAM;
+    }
+    for (int i = 0; i < 4 * 8; i++) {
+      if (user_defined_qm->qm_4x8[c][i] <= 4) {
+        return AOM_CODEC_INVALID_PARAM;
+      }
+    }
+#if CONFIG_F255_QMOBU
+    memcpy(cpi->user_defined_qm_list[level][2][c], user_defined_qm->qm_4x8[c],
+           4 * 8 * sizeof(qm_val_t));
+#else
+    memcpy(seq_params->quantizer_matrix_4x8[level][c],
+           user_defined_qm->qm_4x8[c], 4 * 8 * sizeof(qm_val_t));
+#endif  // CONFIG_F255_QMOBU
+  }
+  return AOM_CODEC_OK;
+}
+#endif
 int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
                         uint8_t *const dest, unsigned int *frame_flags,
                         int64_t *const time_stamp, int64_t *const time_end,
@@ -1400,6 +1503,9 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   }
 #if CONFIG_F255_QMOBU
   if (cm->quant_params.using_qmatrix) {
+#if CONFIG_F255_QMOBU_USERQM_TEST
+    set_user_defined_qm_test(cpi, cm->seq_params.monochrome);
+#endif
     if (oxcf->q_cfg.using_qm && oxcf->q_cfg.user_defined_qmatrix) {
       for (int qm_id = 0; qm_id < NUM_CUSTOM_QMS; qm_id++) {
         if (cm->use_user_defined_qm[qm_id]) {

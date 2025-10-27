@@ -30,8 +30,9 @@ aom_codec_err_t aom_get_num_layers_from_operating_point_idc(
     unsigned int *number_temporal_layers);
 #if CONFIG_F255_QMOBU
 uint32_t read_qm_obu(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
+                     int first_qm_obu, bool seq_header_in_tu,
+                     uint32_t *acc_qm_id_bitmap,
                      struct aom_read_bit_buffer *rb);
-void copy_predefined_qmatrices_to_list(AV1Decoder *pbi, int num_planes);
 #endif  // CONFIG_F255_QMOBU
 
 #if CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
