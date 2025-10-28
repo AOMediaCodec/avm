@@ -72,4 +72,9 @@ macro(fix_experiment_configs)
     change_config_and_warn(CONFIG_MULTI_FRAME_HEADER 1
                            CONFIG_CWG_E242_SEQ_HDR_ID)
   endif()
+
+  if (CONFIG_SCAN_TYPE_METADATA)
+    change_config_and_warn(CONFIG_METADATA 1
+                           CONFIG_SCAN_TYPE_METADATA)
+  endif()
 endmacro()

@@ -1376,8 +1376,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 #if CONFIG_SCAN_TYPE_METADATA
   tool_cfg->scan_type_info_present_flag =
-      cfg->encoder_cfg.scan_type_info_present_flag ||
-      oxcf->tool_cfg.scan_type_info_present_flag;
+      extra_cfg->scan_type_info_present_flag;
 #endif  // CONFIG_SCAN_TYPE_METADATA
   tool_cfg->enable_bawp = extra_cfg->enable_bawp;
   tool_cfg->enable_cwp = extra_cfg->enable_cwp;

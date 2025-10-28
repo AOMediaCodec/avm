@@ -412,12 +412,15 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
   av1_read_sequence_header_beyond_av1(rb, seq_params, &cm->quant_params,
                                       &cm->error);
 #if CONFIG_SCAN_TYPE_METADATA
+  // TODO(seethalpaluri)
   seq_params->scan_type_info_present_flag = aom_rb_read_bit(rb);
   if (seq_params->scan_type_info_present_flag) {
     seq_params->scan_type_idc = aom_rb_read_literal(rb, 2);
     seq_params->fixed_cvs_pic_rate_flag = aom_rb_read_bit(rb);
     if (seq_params->fixed_cvs_pic_rate_flag)
       seq_params->elemental_ct_duration_minus_1 = aom_rb_read_uvlc(rb);
+    else
+      seq_params->elemental_ct_duration_minus_1 = -1;
   } else {
     seq_params->scan_type_idc = 0;
     seq_params->fixed_cvs_pic_rate_flag = 0;
@@ -1071,12 +1074,10 @@ static size_t read_metadata(AV1Decoder *pbi, const uint8_t *data, size_t sz)
 #endif  // CONFIG_BAND_METADATA
 #if CONFIG_SCAN_TYPE_METADATA
   } else if (metadata_type == OBU_METADATA_TYPE_SCAN_TYPE) {
-#if CONFIG_METADATA
-    struct aom_read_bit_buffer rb;
-#else
-    size_t bytes_read =
-        type_length +
-#endif  // CONFIG_METADATA
+#if !CONFIG_METADATA
+    size_t bytes_read = type_length +
+#endif  // !CONFIG_METADATA
+                        struct aom_read_bit_buffer rb;
     av1_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);
     read_metadata_scan_type(pbi, &rb);
 #if !CONFIG_METADATA

@@ -287,9 +287,11 @@ const arg_def_t *global_args[] = {
   &g_av1_codec_arg_defs.enable_ops,
   &g_av1_codec_arg_defs.enable_atlas,
 #endif  // CONFIG_MULTILAYER_HLS
+
 #if CONFIG_ICC_METADATA
   &g_av1_codec_arg_defs.icc_file,
 #endif  // CONFIG_ICC_METADATA
+
   NULL
 };
 
