@@ -33,6 +33,7 @@ extern "C" {
 
 #include "aom/aom_codec.h"
 #include "aom/aom_frame_buffer.h"
+#include "av1/common/enums.h"
 
 /*!\brief Current ABI version number
  *
@@ -64,6 +65,25 @@ extern "C" {
  *  The available flags are specified by AOM_CODEC_USE_* defines.
  */
 
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+// This structure collects and stores all the SH OBUs and
+// will pick one of the seq headers for decoder peek
+typedef struct SequenceHeaderInfo {
+  int seq_header_id;
+  int w;
+  int h;
+  uint8_t single_picture_hdr_flag;
+  int number_mlayers;
+  int number_tlayers;
+#if CONFIG_CROP_WIN_CWG_F220
+  int conf_win_left_offset;
+  int conf_win_right_offset;
+  int conf_win_top_offset;
+  int conf_win_bottom_offset;
+#endif  // CONFIG_CROP_WIN_CWG_F220
+} SequenceHeaderInfo;
+#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
+
 /*!\brief Stream properties
  *
  * This structure is used to query or set properties of the decoded
@@ -77,6 +97,9 @@ typedef struct aom_codec_stream_info {
   unsigned int number_mlayers; /**< Number of embedded layers */
   unsigned int number_xlayers; /**< Number of extended layers */
   unsigned int is_annexb;      /**< Is Bitstream in Annex-B format */
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+  SequenceHeaderInfo seq_hdr_info_list[MAX_SEQ_NUM]; /**< Sequence header list for decoder peek */
+#endif  //  CONFIG_CWG_E242_SEQ_HDR_ID
 #if CONFIG_CROP_WIN_CWG_F220
   int conf_win_left_offset;   /**< conformance window left offset */
   int conf_win_right_offset;  /**< conformance window right offset */

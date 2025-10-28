@@ -421,6 +421,12 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
   si->h = 0;
   si->is_kf = 0;  // is_kf indicates whether the current packet contains a RAP
 
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+  SequenceHeaderInfo seq_headers_info[MAX_SEQ_NUM];
+  int seq_header_count = 0;
+  int target_seq_header_id = -1;
+#endif  // CONFIG_CWG_E242_SEQ_HDR_ID && CONFIG_MULTI_FRAME_HEADER
+
   ObuHeader obu_header;
   memset(&obu_header, 0, sizeof(obu_header));
   size_t payload_size = 0;
@@ -454,8 +460,14 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
       struct aom_read_bit_buffer rb = { data, data + data_sz, 0, NULL, NULL };
 
 #if CONFIG_CWG_E242_SEQ_HDR_ID
-      aom_rb_read_uvlc(&rb);  // seq_header_id
-#endif                        // CONFIG_CWG_E242_SEQ_HDR_ID
+      uint32_t seq_header_id = aom_rb_read_uvlc(&rb);  // seq_header_id
+      if (seq_header_id >= MAX_SEQ_NUM){
+        return AOM_CODEC_CORRUPT_FRAME;
+      }
+#if CONFIG_MULTI_FRAME_HEADER
+      int curr_seq_id = (int)seq_header_id;
+#endif  // CONFIG_MULTI_FRAME_HEADER
+#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
 
       BITSTREAM_PROFILE profile = av1_read_profile(&rb);  // profile
 
@@ -488,8 +500,42 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
 
       status = parse_operating_points(&rb, single_picture_hdr_flag, si);
       if (status != AOM_CODEC_OK) return status;
-
+      
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+      // Collect all the seq header OBUs and then make a decision as to which one to move forward with for the decoder peek. If only 1 SH, then just won't need to select from multiple SHs.
+      if (seq_header_count < MAX_SEQ_NUM){
+        seq_headers_info[seq_header_count].seq_header_id = curr_seq_id;
+        seq_headers_info[seq_header_count].w = max_frame_width;
+        seq_headers_info[seq_header_count].h = max_frame_height;
+        seq_headers_info[seq_header_count].single_picture_hdr_flag = single_picture_hdr_flag;
+        seq_headers_info[seq_header_count].number_mlayers = si->number_mlayers;
+        seq_headers_info[seq_header_count].number_tlayers = si->number_tlayers;
+#if CONFIG_CROP_WIN_CWG_F220
+        if (conf_win_flag) {
+          seq_headers_info[seq_header_count].conf_win_left_offset = si->conf_win_left_offset;
+          seq_headers_info[seq_header_count].conf_win_right_offset = si->conf_win_right_offset;
+          seq_headers_info[seq_header_count].conf_win_top_offset = si->conf_win_top_offset;
+          seq_headers_info[seq_header_count].conf_win_bottom_offset = si->conf_win_bottom_offset;
+        }
+#endif  // CONFIG_CROP_WIN_CWG_F220
+        seq_header_count++;
+      }
+#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
       got_sequence_header = 1;
+      
+#if CONFIG_MULTI_FRAME_HEADER
+    } else if (obu_header.type == OBU_MULTI_FRAME_HEADER) {
+      // Should this be 1 or 2 ?
+      if (data_sz < 1) return AOM_CODEC_CORRUPT_FRAME;
+      struct aom_read_bit_buffer rb = { data, data + data_sz, 0, NULL, NULL };
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+      uint32_t mfh_seq_header_id = aom_rb_read_uvlc(&rb);
+      if (mfh_seq_header_id >= MAX_SEQ_NUM){
+        return AOM_CODEC_CORRUPT_FRAME;
+      }
+      target_seq_header_id = (int)mfh_seq_header_id;
+#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
+#endif  // CONFIG_MULTI_FRAME_HEADER
 #if CONFIG_F106_OBU_TILEGROUP
 #if CONFIG_CWG_F317
     } else if (obu_header.type == OBU_TILE_GROUP ||
@@ -588,6 +634,31 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
         data, data_sz, si->is_annexb, &obu_header, &payload_size, &bytes_read);
     if (status != AOM_CODEC_OK) return status;
   }
+  
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+  if (got_sequence_header && target_seq_header_id >= 0) {
+    int seq_hdr_found = 0;
+    for (int i = 0; i < seq_header_count; i++) {
+      if (seq_headers_info[i].seq_header_id == target_seq_header_id) {
+        si->w =  seq_headers_info[i].w;
+        si->h =  seq_headers_info[i].h;
+        single_picture_hdr_flag = seq_headers_info[i].single_picture_hdr_flag;
+        si->number_mlayers = seq_headers_info[i].number_mlayers;
+        si->number_tlayers = seq_headers_info[i].number_tlayers;
+#if CONFIG_CROP_WIN_CWG_F220
+        si->conf_win_left_offset = seq_headers_info[i].conf_win_left_offset;
+        si->conf_win_right_offset = seq_headers_info[i].conf_win_right_offset;
+        si->conf_win_top_offset = seq_headers_info[i].conf_win_top_offset;
+        si->conf_win_bottom_offset = seq_headers_info[i].conf_win_bottom_offset;
+#endif  // CONFIG_CROP_WIN_CWG_F220
+        seq_hdr_found = 1;
+        break;
+      }
+    }
+    if (!seq_hdr_found) return AOM_CODEC_CORRUPT_FRAME;
+  }
+#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
+  
   if (got_sequence_header && found_keyframe) si->is_kf = 1;
   if (is_intra_only != NULL) *is_intra_only = intra_only_flag;
   return AOM_CODEC_OK;
