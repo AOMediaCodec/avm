@@ -2775,29 +2775,37 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
   }
 
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-  // add the normative restriction of ru size when
-  // disable_loopfilters_across_tiles == 1
+  // add the normative restriction of ru size so that a RU shall not cross any
+  // tile boundaries
   int max_plane_ru_size =
       AOMMAX(cm->rst_info[0].restoration_unit_size,
              cm->rst_info[1].restoration_unit_size << subsampling_xy);
-  for (int tile_row = 0; tile_row < cm->tiles.rows - 1; tile_row++) {
-    for (int tile_col = 0; tile_col < cm->tiles.cols - 1; tile_col++) {
-      int tile_w = (cm->tiles.col_start_sb[tile_col + 1] -
-                    cm->tiles.col_start_sb[tile_col])
-                   << (cm->mib_size_log2 + MI_SIZE_LOG2);
-      int tile_h = (cm->tiles.row_start_sb[tile_row + 1] -
-                    cm->tiles.row_start_sb[tile_row])
-                   << (cm->mib_size_log2 + MI_SIZE_LOG2);
-
-      if (tile_w % max_plane_ru_size || tile_h % max_plane_ru_size) {
-        aom_internal_error(
-            &cm->error, AOM_CODEC_ERROR,
-            "Invalid RU size, RU size shall be an integer divisor of any tile "
-            "width or height when disable-loopfilters-across-tiles=1.");
-        return;
-      }
+  for (int tile_col = 0; tile_col < cm->tiles.cols - 1; tile_col++) {
+    int tile_w = (cm->tiles.col_start_sb[tile_col + 1] -
+                  cm->tiles.col_start_sb[tile_col])
+                 << (cm->mib_size_log2 + MI_SIZE_LOG2);
+    if (tile_w % max_plane_ru_size) {
+      aom_internal_error(
+          &cm->error, AOM_CODEC_ERROR,
+          "Invalid RU size, RU size shall be an integer divisor of any tile "
+          "width or height when disable-loopfilters-across-tiles=1.");
+      return;
     }
   }
+
+  for (int tile_row = 0; tile_row < cm->tiles.rows - 1; tile_row++) {
+    int tile_h = (cm->tiles.row_start_sb[tile_row + 1] -
+                  cm->tiles.row_start_sb[tile_row])
+                 << (cm->mib_size_log2 + MI_SIZE_LOG2);
+    if (tile_h % max_plane_ru_size) {
+      aom_internal_error(
+          &cm->error, AOM_CODEC_ERROR,
+          "Invalid RU size, RU size shall be an integer divisor of any tile "
+          "width or height when disable-loopfilters-across-tiles=1.");
+      return;
+    }
+  }
+
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 #else
   const int frame_width = cm->width;
