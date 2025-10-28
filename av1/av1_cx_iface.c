@@ -4515,10 +4515,6 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_ENABLE_SUBGOP_STATS, ctrl_enable_subgop_stats },
   { AV1E_SET_ENABLE_BRU, ctrl_set_enable_bru },
   { AV1E_GET_ENABLE_BRU, ctrl_get_enable_bru },
-#if CONFIG_SCAN_TYPE_METADATA
-  { AV1E_SET_SCAN_TYPE_INFO_PRESENT_FLAG,
-    ctrl_get_scan_type_info_present_flag },
-#endif  // CONFIG_SCAN_TYPE_METADATA
   // Getters
   { AOME_GET_LAST_QUANTIZER, ctrl_get_quantizer },
   { AV1_GET_REFERENCE, ctrl_get_reference },

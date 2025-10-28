@@ -414,14 +414,14 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
 #if CONFIG_SCAN_TYPE_METADATA
   seq_params->scan_type_info_present_flag = aom_rb_read_bit(rb);
   if (seq_params->scan_type_info_present_flag) {
-    seq_params->seq_scan_type_idc = aom_rb_read_literal(rb, 2);
-    seq_params->seq_fixed_cvs_pic_rate_flag = aom_rb_read_bit(rb);
-    if (seq_params->seq_fixed_cvs_pic_rate_flag)
-      seq_params->seq_elemental_ct_duration_minus_1 = aom_rb_read_uvlc(rb);
+    seq_params->scan_type_idc = aom_rb_read_literal(rb, 2);
+    seq_params->fixed_cvs_pic_rate_flag = aom_rb_read_bit(rb);
+    if (seq_params->fixed_cvs_pic_rate_flag)
+      seq_params->elemental_ct_duration_minus_1 = aom_rb_read_uvlc(rb);
   } else {
-    seq_params->seq_scan_type_idc = 0;
-    seq_params->seq_fixed_cvs_pic_rate_flag = 0;
-    seq_params->seq_elemental_ct_duration_minus_1 = -1;
+    seq_params->scan_type_idc = 0;
+    seq_params->fixed_cvs_pic_rate_flag = 0;
+    seq_params->elemental_ct_duration_minus_1 = -1;
   }
 #endif  // CONFIG_SCAN_TYPE_METADATA
 

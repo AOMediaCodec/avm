@@ -7435,10 +7435,10 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
   // NOTE: these will be removed when CI OBU is added
   aom_wb_write_bit(&wb, seq_params->scan_type_info_present_flag);
   if (seq_params->scan_type_info_present_flag) {
-    aom_wb_write_literal(&wb, seq_params->seq_scan_type_idc, 2);
-    aom_wb_write_bit(&wb, seq_params->seq_fixed_cvs_pic_rate_flag);
-    if (seq_params->seq_fixed_cvs_pic_rate_flag)
-      aom_wb_write_uvlc(&wb, seq_params->seq_elemental_ct_duration_minus_1);
+    aom_wb_write_literal(&wb, seq_params->scan_type_idc, 2);
+    aom_wb_write_bit(&wb, seq_params->fixed_cvs_pic_rate_flag);
+    if (seq_params->fixed_cvs_pic_rate_flag)
+      aom_wb_write_uvlc(&wb, seq_params->elemental_ct_duration_minus_1);
   }
 #endif  // CONFIG_SCAN_TYPE_METADATA
 
