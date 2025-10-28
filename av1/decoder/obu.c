@@ -735,12 +735,10 @@ static void read_metadata_itut_t35_short(AV1Decoder *const pbi,
     ++country_code_size;
   }
   int end_index = get_last_nonzero_byte_index(data, sz);
-
   if (end_index < country_code_size) {
     aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                        "No trailing bits found in ITU-T T.35 metadata OBU");
   }
-
   // itu_t_t35_payload_bytes is byte aligned. Section 6.7.2 of the spec says:
   //   itu_t_t35_payload_bytes shall be bytes containing data registered as
   //   specified in Recommendation ITU-T T.35.
@@ -1073,10 +1071,12 @@ static size_t read_metadata(AV1Decoder *pbi, const uint8_t *data, size_t sz)
 #endif  // CONFIG_BAND_METADATA
 #if CONFIG_SCAN_TYPE_METADATA
   } else if (metadata_type == OBU_METADATA_TYPE_SCAN_TYPE) {
-#if !CONFIG_METADATA
-    size_t bytes_read = type_length +
-#endif  // !CONFIG_METADATA
-                        struct aom_read_bit_buffer rb;
+#if CONFIG_METADATA
+    struct aom_read_bit_buffer rb;
+#else
+    size_t bytes_read =
+        type_length +
+#endif  // CONFIG_METADATA
     av1_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);
     read_metadata_scan_type(pbi, &rb);
 #if !CONFIG_METADATA
@@ -1302,7 +1302,6 @@ static size_t read_metadata_short(AV1Decoder *pbi, const uint8_t *data,
   }
 
   const OBU_METADATA_TYPE metadata_type = (OBU_METADATA_TYPE)type_value;
-  printf("metadata_type %d\n", metadata_type);
 
   // Increase the type_length by 1 byte since there is one prefix byte added
   // before the type

@@ -8081,6 +8081,7 @@ static size_t av1_write_metadata_obsp_header(uint8_t *const dst,
   }
   return bytes_written + coded_cnt_size;
 }
+
 static size_t av1_write_metadata_unit_header(const aom_metadata_t *metadata,
                                              uint8_t *const dst,
                                              const ObuHeader *obu_header) {

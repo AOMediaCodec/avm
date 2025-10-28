@@ -226,9 +226,6 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
                                         AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION,
                                         AV1E_SET_ENABLE_CDF_AVERAGING,
                                         AV1E_SET_ENABLE_BRU,
-#if CONFIG_SCAN_TYPE_METADATA
-                                        AV1E_SET_SCAN_TYPE_INFO_PRESENT_FLAG,
-#endif  // CONFIG_SCAN_TYPE_METADATA
                                         0 };
 
 const arg_def_t *main_args[] = { &g_av1_codec_arg_defs.help,
@@ -290,11 +287,6 @@ const arg_def_t *global_args[] = {
   &g_av1_codec_arg_defs.enable_ops,
   &g_av1_codec_arg_defs.enable_atlas,
 #endif  // CONFIG_MULTILAYER_HLS
-
-#if CONFIG_ICC_METADATA
-  &g_av1_codec_arg_defs.icc_file,
-#endif  // CONFIG_ICC_METADATA
-
 #if CONFIG_ICC_METADATA
   &g_av1_codec_arg_defs.icc_file,
 #endif  // CONFIG_ICC_METADATA
