@@ -3258,6 +3258,8 @@ static void check_and_add_process_ref(const AV1_COMMON *cm, int max_check,
     if (target_frame == cm->bru.update_ref_idx) return;
   }
 
+  if (type == 1 && start_frame == target_frame) return;
+
   if (*process_count >= MFMV_STACK_SIZE) return;
   if (checked_ref[start_frame][side]) return;
 
@@ -3668,6 +3670,8 @@ static int motion_field_projection_side(AV1_COMMON *cm,
         int scaled_blk_row = blk_row;
 
         MV_REFERENCE_FRAME end_frame = start_ref_map[ref_frame];
+        if (start_frame == end_frame) continue;
+
         if (cm->seq_params.enable_mv_traj) {
           check_traj_intersect(cm, start_frame, end_frame, &ref_mv,
                                scaled_blk_row, scaled_blk_col, mvs_cols);
