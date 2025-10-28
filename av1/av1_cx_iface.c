@@ -2752,16 +2752,6 @@ static aom_codec_err_t ctrl_get_enable_bru(aom_codec_alg_priv_t *ctx,
   return AOM_CODEC_OK;
 }
 
-#if CONFIG_SCAN_TYPE_METADATA
-static aom_codec_err_t ctrl_get_scan_type_info_present_flag(
-    aom_codec_alg_priv_t *ctx, va_list args) {
-  int *const arg = va_arg(args, int *);
-  if (arg == NULL) return AOM_CODEC_INVALID_PARAM;
-  *arg = ctx->cpi->common.seq_params.scan_type_info_present_flag;
-  return AOM_CODEC_OK;
-}
-#endif  // CONFIG_SCAN_TYPE_METADATA
-
 static aom_codec_err_t create_stats_buffer(FIRSTPASS_STATS **frame_stats_buffer,
                                            STATS_BUFFER_CTX *stats_buf_context,
                                            int num_lap_buffers) {
