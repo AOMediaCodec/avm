@@ -98,7 +98,8 @@ typedef struct aom_codec_stream_info {
   unsigned int number_xlayers; /**< Number of extended layers */
   unsigned int is_annexb;      /**< Is Bitstream in Annex-B format */
 #if CONFIG_CWG_E242_SEQ_HDR_ID
-  SequenceHeaderInfo seq_hdr_info_list[MAX_SEQ_NUM]; /**< Sequence header list for decoder peek */
+  SequenceHeaderInfo seq_hdr_info_list[MAX_SEQ_NUM]; /**< Sequence header list
+                                                        for decoder peek */
 #endif  //  CONFIG_CWG_E242_SEQ_HDR_ID
 #if CONFIG_CROP_WIN_CWG_F220
   int conf_win_left_offset;   /**< conformance window left offset */
