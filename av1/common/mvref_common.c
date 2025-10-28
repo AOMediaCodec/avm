@@ -120,6 +120,8 @@ static INLINE int is_warp_affine_block(const MACROBLOCKD *xd,
 
   if (!is_inter_ref_frame(ref_frame)) return 0;
 
+  if (xd->cur_frame_force_integer_mv) return 0;
+
   const WarpedMotionParams gm_params = xd->global_motion[ref_frame];
   const WarpTypesAllowed warp_types = {
     is_global_mv_block(mi, gm_params.wmtype), is_warp_mode(mi->motion_mode)
