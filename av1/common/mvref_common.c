@@ -4908,9 +4908,6 @@ static INLINE void update_warp_param_bank(const MB_MODE_INFO *const mbmi,
             (mbmi->wm_params[ref_idx].wmmat[4] == queue[idx].wmmat[4]);
         same_param &=
             (mbmi->wm_params[ref_idx].wmmat[5] == queue[idx].wmmat[5]);
-
-        same_param &= (mbmi->wm_params[ref_idx].wmtype == queue[idx].wmtype);
-
         if (same_param) {
           found = i;
           break;
