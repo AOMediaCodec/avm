@@ -497,6 +497,7 @@ void av1_set_warp_translation(int mi_row, int mi_col, BLOCK_SIZE bsize, MV mv,
   wm->wmmat[1] =
       (int32_t)clamp64(wmmat1, -WARPEDMODEL_TRANS_CLAMP,
                        WARPEDMODEL_TRANS_CLAMP - (1 << WARP_PARAM_REDUCE_BITS));
+  wm->wmtype = get_wmtype(wm);
 }
 
 const uint16_t div_lut[DIV_LUT_NUM + 1] = {
