@@ -2106,7 +2106,7 @@ void av1_apply_orip_4x4subblock_hbd(uint16_t *dst, ptrdiff_t stride,
           int diff = (int)ref_samples_sb_row[tap] - predvalue;
           offset += av1_sub_block_filter_intra_taps_4x4[k][tap] * diff;
         }
-        offset = (offset + 32) >> 6;
+        offset = ROUND_POWER_OF_TWO_SIGNED(offset, 6);
         int filteredpixelValue = predvalue + offset;
         dst[stride * r_pos + c_pos] = clip_pixel_highbd(filteredpixelValue, bd);
       }
@@ -2139,7 +2139,7 @@ void av1_apply_orip_4x4subblock_hbd(uint16_t *dst, ptrdiff_t stride,
             int diff = (int)ref_samples_sb_col[tap] - predvalue;
             offset += av1_sub_block_filter_intra_taps_4x4[k][tap] * diff;
           }
-          offset = (offset + 32) >> 6;
+          offset = ROUND_POWER_OF_TWO_SIGNED(offset, 6);
           int filteredpixelValue = predvalue + offset;
           dst[stride * r_pos + c_pos] =
               clip_pixel_highbd(filteredpixelValue, bd);
