@@ -224,17 +224,11 @@ static INLINE int_mv get_warp_motion_vector(const MACROBLOCKD *xd,
   int x, y, tx, ty;
 
   if (model->wmtype == IDENTITY || model->wmtype == TRANSLATION) {
-    // All global motion vectors are stored with WARPEDMODEL_PREC_BITS (16)
-    // bits of fractional precision. The offset for a translation is stored in
-    // entries 0 and 1. For translations, all but the top three (two if
-    // precision < MV_SUBPEL_EIGHTH) fractional bits are always
-    // zero.
-    //
-    // After the right shifts, there are 3 fractional bits of precision. If
-    // precision < MV_SUBPEL_EIGHTH is false, the bottom bit is always zero
-    // (so we don't need a call to convert_to_trans_prec here)
-    res.as_mv.col = model->wmmat[0] >> WARPEDMODEL_TO_MV_SHIFT;
-    res.as_mv.row = model->wmmat[1] >> WARPEDMODEL_TO_MV_SHIFT;
+    tx = convert_to_trans_prec(precision, model->wmmat[0]);
+    ty = convert_to_trans_prec(precision, model->wmmat[1]);
+    
+    res.as_mv.row = clamp(ty, MV_LOW + 1, MV_UPP - 1);
+    res.as_mv.col = clamp(tx, MV_LOW + 1, MV_UPP - 1);
 
     clamp_mv_ref(&res.as_mv, xd->width << MI_SIZE_LOG2,
                  xd->height << MI_SIZE_LOG2, xd);
