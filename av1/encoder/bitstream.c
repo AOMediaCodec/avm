@@ -6946,6 +6946,11 @@ static AOM_INLINE void write_uncompressed_header_obu
       } else {
 #endif  // CONFIG_CWG_F317
         aom_wb_write_literal(wb, cpi->signal_primary_ref_frame, 1);
+#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
+        if (obu_type != OBU_REGULAR_TIP && obu_type != OBU_LEADING_TIP)
+          aom_wb_write_bit(wb, features->cross_frame_context ==
+                                   CROSS_FRAME_CONTEXT_DISABLED);
+#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
         if (cpi->signal_primary_ref_frame)
           aom_wb_write_literal(wb, features->primary_ref_frame,
                                PRIMARY_REF_BITS);
@@ -7586,6 +7591,7 @@ static AOM_INLINE void write_uncompressed_header_obu
   }
 
   aom_wb_write_bit(wb, features->disable_cdf_update);
+#if !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
 #if CONFIG_CWG_F317
   if (!cm->bridge_frame_info.is_bridge_frame) {
 #endif  // CONFIG_CWG_F317
@@ -7599,6 +7605,7 @@ static AOM_INLINE void write_uncompressed_header_obu
 #if CONFIG_CWG_F317
   }
 #endif  // CONFIG_CWG_F317
+#endif  // !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
 
   write_tile_info(cm, saved_wb, wb);
 

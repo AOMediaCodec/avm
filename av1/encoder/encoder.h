@@ -802,6 +802,15 @@ typedef struct {
    */
   uint8_t cdf_update_mode;
 
+#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
+  /*!
+   * Indicates the cross frame CDF initialization mode
+   * 0: cross frame initialization disabled
+   * 1: cross frame initialization enabled
+   */
+  uint8_t cross_frame_cdf_init_mode;
+#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
+
   /*!
    * Indicates if RDO based on frame temporal dependency should be enabled.
    */
@@ -2167,6 +2176,13 @@ typedef struct {
    */
   ExtRefreshFrameFlagsInfo refresh_frame;
 
+#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
+  /*!
+   * Flag to enable CDF initialization with cross frame contexts at the
+   * beginning of a frame decode.
+   */
+  bool cross_frame_context;
+#else
   /*!
    * Flag to enable the update of frame contexts at the end of a frame decode.
    */
@@ -2177,7 +2193,7 @@ typedef struct {
    * interface is pending.
    */
   bool refresh_frame_context_pending;
-
+#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   /*!
    * Flag to enable temporal MV prediction.
    */

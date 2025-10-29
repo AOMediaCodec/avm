@@ -8533,7 +8533,9 @@ static AOM_INLINE void show_existing_frame_reset(AV1Decoder *const pbi) {
   // have been selected.
   validate_refereces(pbi);
 
+#if !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   cm->features.refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
+#endif  // !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
 }
 #endif  // !CONFIG_F024_KEYOBU || !CONFIG_F356_SEF_DOH
 static INLINE void reset_frame_buffers(AV1_COMMON *cm) {
@@ -8700,6 +8702,9 @@ static void set_primary_ref_frame_and_ctx(AV1Decoder *pbi) {
       features->primary_ref_frame == PRIMARY_REF_NONE) {
     features->primary_ref_frame = PRIMARY_REF_NONE;
     features->derived_primary_ref_frame = PRIMARY_REF_NONE;
+#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
+    features->cross_frame_context = CROSS_FRAME_CONTEXT_DISABLED;
+#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   }
   assert(IMPLIES(features->derived_primary_ref_frame == PRIMARY_REF_NONE,
                  features->primary_ref_frame == PRIMARY_REF_NONE));
@@ -8712,7 +8717,11 @@ static void set_primary_ref_frame_and_ctx(AV1Decoder *pbi) {
                        "Invalid primary_ref_frame");
   }
 
-  if (cm->features.primary_ref_frame == PRIMARY_REF_NONE) {
+  if (cm->features.primary_ref_frame == PRIMARY_REF_NONE
+#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
+      || cm->features.cross_frame_context == CROSS_FRAME_CONTEXT_DISABLED
+#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
+  ) {
     // use the default frame context values
     av1_setup_past_independence(cm);
   } else {
@@ -9678,6 +9687,10 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   features->derived_primary_ref_frame = PRIMARY_REF_NONE;
   pbi->signal_primary_ref_frame = -1;
 
+#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
+  features->cross_frame_context = CROSS_FRAME_CONTEXT_FORWARD;
+#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
+
   if (!seq_params->single_picture_header_flag) {
 #if CONFIG_F024_KEYOBU
     if (pbi->olk_encountered &&
@@ -9720,6 +9733,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       if (!cm->bridge_frame_info.is_bridge_frame) {
 #endif  // CONFIG_CWG_F317
         signal_primary_ref_frame = aom_rb_read_bit(rb);
+#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
+        if (obu_type != OBU_REGULAR_TIP && obu_type != OBU_LEADING_TIP)
+          features->cross_frame_context = aom_rb_read_bit(rb)
+                                              ? CROSS_FRAME_CONTEXT_DISABLED
+                                              : CROSS_FRAME_CONTEXT_FORWARD;
+#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
         pbi->signal_primary_ref_frame = signal_primary_ref_frame;
         if (signal_primary_ref_frame)
           features->primary_ref_frame =
@@ -10682,7 +10701,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       cm->cur_frame->rst_info[plane].rst_ref_pic_idx = 0;
       cm->cur_frame->rst_info[plane].temporal_pred_flag = 0;
     }
+#if !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
     features->refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
+#endif  // !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
     features->disable_cdf_update = 1;
 #if CONFIG_CWG_F317
     const RefCntBuffer *ref_buf;
@@ -10795,7 +10816,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       cm->cur_frame->u_ac_delta_q = cm->quant_params.u_ac_delta_q;
       cm->cur_frame->v_ac_delta_q = cm->quant_params.v_ac_delta_q;
     }
+#if !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
     features->refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
+#endif  // !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
     if (cm->seq_params.enable_lf_sub_pu && cm->features.allow_lf_sub_pu &&
         cm->lf.tip_filter_level) {
       read_tile_info(pbi, rb);
@@ -10823,6 +10846,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   }
 #endif  // CONFIG_CWG_F317
 
+#if !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
 #if CONFIG_CWG_F317
   if (!cm->bridge_frame_info.is_bridge_frame) {
 #endif  // CONFIG_CWG_F317
@@ -10838,6 +10862,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_CWG_F317
   }
 #endif  // CONFIG_CWG_F317
+#endif  // !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
 
   read_tile_info(pbi, rb);
   if (!av1_is_min_tile_width_satisfied(cm)) {
@@ -11383,8 +11408,11 @@ int32_t av1_read_tilegroup_header(
       memset(&cm->seg, 0, sizeof(cm->seg));
       cm->seg.enable_ext_seg = cm->seq_params.enable_ext_seg;
       segfeatures_copy(&cm->cur_frame->seg, &cm->seg);
-
-      if (cm->features.primary_ref_frame == PRIMARY_REF_NONE) {
+      if (cm->features.primary_ref_frame == PRIMARY_REF_NONE
+#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
+          || cm->features.cross_frame_context == CROSS_FRAME_CONTEXT_DISABLED
+#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
+      ) {
         // use the default frame context values
         *cm->fc = *cm->default_frame_context;
       } else {
@@ -11422,7 +11450,11 @@ int32_t av1_read_tilegroup_header(
 
     av1_setup_block_planes(xd, cm->seq_params.subsampling_x,
                            cm->seq_params.subsampling_y, av1_num_planes(cm));
-    if (cm->features.primary_ref_frame == PRIMARY_REF_NONE) {
+    if (cm->features.primary_ref_frame == PRIMARY_REF_NONE
+#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
+        || cm->features.cross_frame_context == CROSS_FRAME_CONTEXT_DISABLED
+#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
+    ) {
       // use the default frame context values
       *cm->fc = *cm->default_frame_context;
     } else {
@@ -11606,7 +11638,11 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
     cm->seg.enable_ext_seg = cm->seq_params.enable_ext_seg;
     segfeatures_copy(&cm->cur_frame->seg, &cm->seg);
 
-    if (cm->features.primary_ref_frame == PRIMARY_REF_NONE) {
+    if (cm->features.primary_ref_frame == PRIMARY_REF_NONE
+#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
+        || cm->features.cross_frame_context == CROSS_FRAME_CONTEXT_DISABLED
+#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
+    ) {
       // use the default frame context values
       *cm->fc = *cm->default_frame_context;
     } else {
@@ -11634,7 +11670,11 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
 
   av1_setup_block_planes(xd, cm->seq_params.subsampling_x,
                          cm->seq_params.subsampling_y, num_planes);
-  if (cm->features.primary_ref_frame == PRIMARY_REF_NONE) {
+  if (cm->features.primary_ref_frame == PRIMARY_REF_NONE
+#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
+      || cm->features.cross_frame_context == CROSS_FRAME_CONTEXT_DISABLED
+#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
+  ) {
     // use the default frame context values
     *cm->fc = *cm->default_frame_context;
   } else {
@@ -11930,8 +11970,24 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
         }
       }
     }
+#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
+    if (!pbi->dcb.corrupted) {
+      if (cm->seq_params.enable_avg_cdf && cm->seq_params.avg_cdf_type &&
+          cm->tiles.rows * cm->tiles.cols > 1) {
+        decoder_avg_tiles_cdfs(pbi);
+      } else {
+        assert(pbi->context_update_tile_id < pbi->allocated_tiles);
+        *cm->fc = pbi->tile_data[pbi->context_update_tile_id].tctx;
+      }
+      av1_reset_cdf_symbol_counters(cm->fc);
+    } else {
+      aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                         "Decode failed. Frame data is corrupted.");
+    }
+#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   }
 
+#if !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   if (!pbi->dcb.corrupted) {
     if (cm->features.refresh_frame_context == REFRESH_FRAME_CONTEXT_BACKWARD) {
       if (cm->seq_params.enable_avg_cdf && cm->seq_params.avg_cdf_type &&
@@ -11947,6 +12003,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
     aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                        "Decode failed. Frame data is corrupted.");
   }
+#endif  // !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
 
 #if CONFIG_INSPECTION
   if (pbi->inspect_cb != NULL) {

@@ -129,6 +129,20 @@ enum {
   REFERENCE_MODES = 3,
 } UENUM1BYTE(REFERENCE_MODE);
 
+#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
+enum {
+  /**
+   * Cross frame context initialization is disabled
+   */
+  CROSS_FRAME_CONTEXT_DISABLED,
+  /**
+   * Cross frame context initialization is enabled.
+   * Current frame context can be initialized with updated contexts from a
+   * previously decoded frame
+   */
+  CROSS_FRAME_CONTEXT_FORWARD,
+} UENUM1BYTE(CROSS_FRAME_CONTEXT_MODE);
+#else
 enum {
   /**
    * Frame context updates are disabled
@@ -140,6 +154,7 @@ enum {
    */
   REFRESH_FRAME_CONTEXT_BACKWARD,
 } UENUM1BYTE(REFRESH_FRAME_CONTEXT_MODE);
+#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
 
 enum {
   /**
@@ -1294,11 +1309,19 @@ typedef struct {
    * Byte alignment of the planes in the reference buffers.
    */
   int byte_alignment;
+#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
+  /*!
+   * Flag signaling how frame contexts should be initialized at the beginning of
+   * a frame decode.
+   */
+  CROSS_FRAME_CONTEXT_MODE cross_frame_context;
+#else
   /*!
    * Flag signaling how frame contexts should be updated at the end of
    * a frame decode.
    */
   REFRESH_FRAME_CONTEXT_MODE refresh_frame_context;
+#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   /*!
    * Max_drl_bits. Note number of ref MVs allowed is max_drl_bits + 1
    */

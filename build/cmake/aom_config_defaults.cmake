@@ -316,6 +316,10 @@ set_aom_config_var(CONFIG_CWG_F317_TEST_PATTERN 1
 set_aom_config_var(CONFIG_4X4_WARP_FIX 1 "Fix 4x4 warp padding")
 
 set_aom_config_var(CONFIG_BAND_METADATA 1 "Enable banding hints metadata.")
+
+set_aom_config_var(
+  CONFIG_DISABLE_CROSS_FRAME_CDF_INIT 1
+  "Introduce frame level flag for disabling cross frame CDF initialization.")
 #
 # Variables in this section control optional features of the build system.
 #

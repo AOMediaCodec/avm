@@ -1266,10 +1266,17 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   av1_rc_init(&cpi->oxcf, 0, rc);
   rc->baseline_gf_interval = (MIN_GF_INTERVAL + MAX_GF_INTERVAL) / 2;
 
+#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
+  cm->features.cross_frame_context =
+      (oxcf->tool_cfg.frame_parallel_decoding_mode)
+          ? CROSS_FRAME_CONTEXT_DISABLED
+          : CROSS_FRAME_CONTEXT_FORWARD;
+#else
   cm->features.refresh_frame_context =
       (oxcf->tool_cfg.frame_parallel_decoding_mode)
           ? REFRESH_FRAME_CONTEXT_DISABLED
           : REFRESH_FRAME_CONTEXT_BACKWARD;
+#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
 
   if (x->palette_buffer == NULL) {
     CHECK_MEM_ERROR(cm, x->palette_buffer,
@@ -1408,7 +1415,9 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   av1_set_tile_info(cm, &cpi->oxcf.tile_cfg);
 
   cpi->ext_flags.refresh_frame.update_pending = 0;
+#if !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   cpi->ext_flags.refresh_frame_context_pending = 0;
+#endif  // !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   cpi->ext_flags.refresh_frame.all_ref_frames = 1;
 
   highbd_set_var_fns(cpi);
@@ -4051,8 +4060,9 @@ static INLINE int finalize_tip_mode(AV1_COMP *cpi, uint8_t *dest, size_t *size,
     for (int plane = 0; plane < av1_num_planes(cm); plane++) {
       cm->cur_frame->ccso_info.ccso_enable[plane] = 0;
     }
+#if !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
     cm->features.refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
-
+#endif  // !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
     const int cur_order_hint = cm->current_frame.display_order_hint;
     if (!cm->has_both_sides_refs && cur_order_hint < INTER_REFS_PER_FRAME) {
       const int mvs_rows = cm->mi_params.mi_rows;
@@ -4081,9 +4091,15 @@ static INLINE int finalize_tip_mode(AV1_COMP *cpi, uint8_t *dest, size_t *size,
           avg_base_qindex;
     }
 
+#if !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
     cm->features.refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
+#endif  // !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
     set_primary_ref_frame(cpi);
-    if (cm->features.primary_ref_frame == PRIMARY_REF_NONE) {
+    if (cm->features.primary_ref_frame == PRIMARY_REF_NONE
+#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
+        || cm->features.cross_frame_context == CROSS_FRAME_CONTEXT_DISABLED
+#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
+    ) {
       // use the default frame context values
       *cm->fc = *cm->default_frame_context;
     } else {
@@ -4095,7 +4111,6 @@ static INLINE int finalize_tip_mode(AV1_COMP *cpi, uint8_t *dest, size_t *size,
                          "Uninitialized entropy context.");
 
     cm->cur_frame->frame_context = *cm->fc;
-
     const int num_planes = av1_num_planes(cm);
     ThreadData *const td = &cpi->td;
     av1_setup_tip_frame(cm, &td->mb.e_mbd, NULL, td->mb.tmp_conv_dst,
@@ -4388,30 +4403,39 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
     if (!cm->fc->initialized)
       aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                          "Uninitialized entropy context.");
-
-    int ref_frame_used = PRIMARY_REF_NONE;
-    int secondary_map_idx = INVALID_IDX;
-    get_secondary_reference_frame_idx(cm, &ref_frame_used, &secondary_map_idx);
-    if (!cm->bru.enabled || ref_frame_used != cm->bru.update_ref_idx) {
-      avg_primary_secondary_references(cm, ref_frame_used, secondary_map_idx);
+#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
+    if (cm->features.cross_frame_context == CROSS_FRAME_CONTEXT_DISABLED) {
+      av1_set_default_frame_contexts(cm);
     } else {
-      if ((map_idx != INVALID_IDX) &&
-          (ref_frame_used != cm->features.primary_ref_frame) &&
-          (!cm->bru.frame_inactive_flag) &&
+#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
+      int ref_frame_used = PRIMARY_REF_NONE;
+      int secondary_map_idx = INVALID_IDX;
+      get_secondary_reference_frame_idx(cm, &ref_frame_used,
+                                        &secondary_map_idx);
+      if (!cm->bru.enabled || ref_frame_used != cm->bru.update_ref_idx) {
+        avg_primary_secondary_references(cm, ref_frame_used, secondary_map_idx);
+      } else {
+        if ((map_idx != INVALID_IDX) &&
+            (ref_frame_used != cm->features.primary_ref_frame) &&
+            (!cm->bru.frame_inactive_flag) &&
 #if CONFIG_CWG_F317
-          (!cm->bridge_frame_info.is_bridge_frame) &&
+            (!cm->bridge_frame_info.is_bridge_frame) &&
 #endif  // CONFIG_CWG_F317
-          (cm->seq_params.enable_avg_cdf && !cm->seq_params.avg_cdf_type) &&
+            (cm->seq_params.enable_avg_cdf && !cm->seq_params.avg_cdf_type) &&
 #if CONFIG_F322_OBUER_ERM
-          !frame_is_sframe(cm) &&
+            !frame_is_sframe(cm) &&
 #else
           !(cm->features.error_resilient_mode || frame_is_sframe(cm)) &&
 #endif  // CONFIG_F322_OBUER_ERM
-          (ref_frame_used != PRIMARY_REF_NONE)) {
-        av1_avg_cdf_symbols(cm->fc, &cm->bru.update_ref_fc,
-                            AVG_CDF_WEIGHT_PRIMARY, AVG_CDF_WEIGHT_NON_PRIMARY);
+            (ref_frame_used != PRIMARY_REF_NONE)) {
+          av1_avg_cdf_symbols(cm->fc, &cm->bru.update_ref_fc,
+                              AVG_CDF_WEIGHT_PRIMARY,
+                              AVG_CDF_WEIGHT_NON_PRIMARY);
+        }
       }
+#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
     }
+#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   }
 
   av1_finalize_encoded_frame(cpi);
@@ -4866,6 +4890,15 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 #else
   seq_params->timing_info_present &= !seq_params->single_picture_header_flag;
 #endif  // CONFIG_CWG_F270_CI_OBU
+#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
+  switch (oxcf->algo_cfg.cross_frame_cdf_init_mode) {
+    case 0:  // Disable cross frame CDF initialization
+      features->cross_frame_context = CROSS_FRAME_CONTEXT_DISABLED;
+      break;
+    case 1:  // Enable cross frame CDF initialization
+    default: features->cross_frame_context = CROSS_FRAME_CONTEXT_FORWARD; break;
+  }
+#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
 
   if (cpi->oxcf.tool_cfg.enable_global_motion && !frame_is_intra_only(cm)) {
     // Flush any stale global motion information, which may be left over
@@ -4924,20 +4957,28 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 #if CONFIG_ENTROPY_STATS
   av1_accumulate_frame_counts(&aggregate_fc, &cpi->counts);
 #endif  // CONFIG_ENTROPY_STATS
-
+#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
+  if (!(features->tip_frame_mode == TIP_FRAME_AS_OUTPUT) &&
+      !cm->bru.frame_inactive_flag && !cm->bridge_frame_info.is_bridge_frame) {
+#else
   if (features->refresh_frame_context == REFRESH_FRAME_CONTEXT_BACKWARD) {
+#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
     if (cm->seq_params.enable_avg_cdf && cm->seq_params.avg_cdf_type &&
         cm->tiles.rows * cm->tiles.cols > 1) {
       encoder_avg_tiles_cdfs(cpi);
     } else {
       *cm->fc = cpi->tile_data[largest_tile_id].tctx;
     }
+#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
+    av1_reset_cdf_symbol_counters(cm->fc);
+#else
 #if CONFIG_CWG_F317
     if (!cm->bru.frame_inactive_flag && !cm->bridge_frame_info.is_bridge_frame)
       av1_reset_cdf_symbol_counters(cm->fc);
 #else
     if (!cm->bru.frame_inactive_flag) av1_reset_cdf_symbol_counters(cm->fc);
 #endif  // CONFIG_CWG_F317
+#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   }
 
   cm->cur_frame->frame_context = *cm->fc;
@@ -5444,10 +5485,17 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
   av1_set_high_precision_mv(cpi, MV_PRECISION_ONE_EIGHTH_PEL);
 
   // Normal defaults
+#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
+  cm->features.cross_frame_context =
+      (oxcf->tool_cfg.frame_parallel_decoding_mode)
+          ? CROSS_FRAME_CONTEXT_DISABLED
+          : CROSS_FRAME_CONTEXT_FORWARD;
+#else
   cm->features.refresh_frame_context =
       oxcf->tool_cfg.frame_parallel_decoding_mode
           ? REFRESH_FRAME_CONTEXT_DISABLED
           : REFRESH_FRAME_CONTEXT_BACKWARD;
+#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
 
   // Initialize fields related to forward keyframes
   cpi->no_show_fwd_kf = 0;
@@ -5657,10 +5705,12 @@ void av1_apply_encoding_flags(AV1_COMP *cpi, aom_enc_frame_flags_t flags) {
   ext_flags->use_primary_ref_none =
       (flags & AOM_EFLAG_SET_PRIMARY_REF_NONE) != 0;
 
+#if !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   if (flags & AOM_EFLAG_NO_UPD_ENTROPY) {
     update_entropy(&ext_flags->refresh_frame_context,
                    &ext_flags->refresh_frame_context_pending, 0);
   }
+#endif  // !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
 }
 
 aom_fixed_buf_t *av1_get_global_headers(AV1_COMP *cpi) {

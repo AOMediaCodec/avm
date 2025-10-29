@@ -894,4 +894,11 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
 #endif  // CONFIG_MULTI_FRAME_HEADER
   .operating_points_count = ARG_DEF(NULL, "operating-points-count", 1,
                                     "Number of operating points (1-31)."),
+#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
+  .cross_frame_cdf_init_mode =
+      ARG_DEF(NULL, "cross-frame-cdf-init-mode", 1,
+              "Cross frame CDF for context initialization "
+              "(0: disable cross frame CDF init, 1: enable cross frame CDF "
+              "init(default), "),
+#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
 };

@@ -1275,3 +1275,13 @@ void av1_setup_past_independence(AV1_COMMON *cm) {
   cm->fc->initialized = 1;
   av1_setup_frame_contexts(cm);
 }
+
+#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
+void av1_set_default_frame_contexts(AV1_COMMON *cm) {
+  av1_default_coef_probs(cm);
+  init_mode_probs(cm->fc, &cm->seq_params);
+  av1_init_mv_probs(cm);
+  cm->fc->initialized = 1;
+  av1_setup_frame_contexts(cm);
+}
+#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT

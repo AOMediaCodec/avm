@@ -251,10 +251,12 @@ static void set_ext_overrides(AV1_COMMON *const cm,
     frame_params->frame_type = S_FRAME;
   }
 
+#if !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   if (ext_flags->refresh_frame_context_pending) {
     cm->features.refresh_frame_context = ext_flags->refresh_frame_context;
     ext_flags->refresh_frame_context_pending = 0;
   }
+#endif  // !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   cm->features.allow_ref_frame_mvs = ext_flags->use_ref_frame_mvs;
 #if !CONFIG_F322_OBUER_ERM
   frame_params->error_resilient_mode = ext_flags->use_error_resilient;
@@ -1433,7 +1435,9 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
       }
     }
     if (cm->bru.frame_inactive_flag) {
+#if !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
       cm->features.refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
+#endif  // !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
       const RefCntBuffer *bru_ref_buf =
           get_ref_frame_buf(cm, cm->bru.update_ref_idx);
       cm->quant_params.base_qindex = bru_ref_buf->base_qindex;

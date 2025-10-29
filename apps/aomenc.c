@@ -507,6 +507,9 @@ const arg_def_t *av1_key_val_args[] = {
   &g_av1_codec_arg_defs.enable_mfh_obu_signaling,
 #endif  // CONFIG_MULTI_FRAME_HEADER
   &g_av1_codec_arg_defs.operating_points_count,
+#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
+  &g_av1_codec_arg_defs.cross_frame_cdf_init_mode,
+#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   NULL,
 };
 

@@ -244,6 +244,9 @@ struct av1_extracfg {
   unsigned int enable_mfh_obu_signaling;
 #endif  // CONFIG_MULTI_FRAME_HEADER
   int operating_points_count;
+#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
+  unsigned int cross_frame_cdf_init_mode;
+#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
 };
 
 // Example subgop configs. Currently not used by default.
@@ -572,7 +575,10 @@ static struct av1_extracfg default_extra_cfg = {
 #if CONFIG_MULTI_FRAME_HEADER
   0,  // enable_mfh_obu_signaling
 #endif  // CONFIG_MULTI_FRAME_HEADER
-  1
+  1,
+#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
+  1                            // cross frame CDF init mode
+#endif // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
 };
 // clang-format on
 
@@ -709,7 +715,9 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   RANGE_CHECK(cfg, rc_resize_kf_denominator, SCALE_NUMERATOR,
               SCALE_NUMERATOR << 1);
   RANGE_CHECK_HI(extra_cfg, cdf_update_mode, 2);
-
+#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
+  RANGE_CHECK_HI(extra_cfg, cross_frame_cdf_init_mode, 1);
+#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   RANGE_CHECK_HI(extra_cfg, motion_vector_unit_test, 2);
   RANGE_CHECK_HI(extra_cfg, sb_multipass_unit_test, 1);
   RANGE_CHECK_HI(extra_cfg, enable_auto_alt_ref, 1);
@@ -1544,6 +1552,10 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   algo_cfg->arnr_max_frames = extra_cfg->arnr_max_frames;
   algo_cfg->arnr_strength = extra_cfg->arnr_strength;
   algo_cfg->cdf_update_mode = (uint8_t)extra_cfg->cdf_update_mode;
+#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
+  algo_cfg->cross_frame_cdf_init_mode =
+      (uint8_t)extra_cfg->cross_frame_cdf_init_mode;
+#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   // TODO(any): Fix and Enable TPL for resize-mode > 0
   algo_cfg->enable_tpl_model =
       resize_cfg->resize_mode ? 0 : extra_cfg->enable_tpl_model;
@@ -4013,6 +4025,13 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.cdf_update_mode, argv,
                               err_string)) {
     extra_cfg.cdf_update_mode = arg_parse_int_helper(&arg, err_string);
+#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
+  } else if (arg_match_helper(&arg,
+                              &g_av1_codec_arg_defs.cross_frame_cdf_init_mode,
+                              argv, err_string)) {
+    extra_cfg.cross_frame_cdf_init_mode =
+        arg_parse_int_helper(&arg, err_string);
+#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   } else if (arg_match_helper(&arg,
                               &g_av1_codec_arg_defs.enable_rect_partitions,
                               argv, err_string)) {

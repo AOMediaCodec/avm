@@ -108,12 +108,14 @@ extern aom_codec_iface_t *aom_codec_av1_cx(void);
  */
 #define AOM_EFLAG_NO_UPD_ALL (1 << 23)
 
+#if !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
 /*!\brief Disable entropy update
  *
  * When this flag is set, the encoder will not update its internal entropy
  * model based on the entropy of this frame.
  */
 #define AOM_EFLAG_NO_UPD_ENTROPY (1 << 26)
+#endif  // !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
 /*!\brief Disable ref frame mvs
  *
  * When this flag is set, the encoder will not allow frames to

@@ -750,7 +750,13 @@ void av1_setup_frame(AV1_COMP *cpi) {
       av1_setup_past_independence(cm);
       cm->seg.update_map = 1;
       cm->seg.update_data = 1;
-    } else {
+    }
+#if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
+    else if (cm->features.cross_frame_context == CROSS_FRAME_CONTEXT_DISABLED) {
+      av1_set_default_frame_contexts(cm);
+    }
+#endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
+    else {
       *cm->fc = primary_ref_buf->frame_context;
       int ref_frame_used = PRIMARY_REF_NONE;
       int map_idx = INVALID_IDX;
