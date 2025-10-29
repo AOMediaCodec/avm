@@ -1602,7 +1602,7 @@ int_mv get_warp_motion_vector_xy_pos(const MACROBLOCKD *xd,
   if (model->wmtype == TRANSLATION) {
     tx = convert_to_trans_prec(precision, model->wmmat[0]);
     ty = convert_to_trans_prec(precision, model->wmmat[1]);
-    
+
     res.as_mv.row = clamp(ty, MV_LOW + 1, MV_UPP - 1);
     res.as_mv.col = clamp(tx, MV_LOW + 1, MV_UPP - 1);
 
