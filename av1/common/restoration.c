@@ -475,7 +475,8 @@ void set_restoration_unit_size(
     rst[0].min_restoration_unit_size = RESTORATION_UNITSIZE_MAX >> 2;
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   // impose the bitstream constraint: RU size shall be an integer divisor of any
-  // tile width or height so that the no RU across tile boundaries
+  // tile (except the right-most and bottom) width or height so that the no RU
+  // across tile boundaries
   for (int tile_col = 0; tile_col < cm->tiles.cols - 1; tile_col++) {
     int tile_w = (cm->tiles.col_start_sb[tile_col + 1] -
                   cm->tiles.col_start_sb[tile_col])

@@ -2787,8 +2787,8 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
     if (tile_w % max_plane_ru_size) {
       aom_internal_error(
           &cm->error, AOM_CODEC_ERROR,
-          "Invalid RU size, RU size shall be an integer divisor of any tile "
-          "width or height when disable-loopfilters-across-tiles=1.");
+          "Invalid RU size, RU size shall be an integer divisor of tiles "
+          "width or height, except right-most and bottom tiles");
       return;
     }
   }
@@ -2800,8 +2800,8 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
     if (tile_h % max_plane_ru_size) {
       aom_internal_error(
           &cm->error, AOM_CODEC_ERROR,
-          "Invalid RU size, RU size shall be an integer divisor of any tile "
-          "width or height when disable-loopfilters-across-tiles=1.");
+          "Invalid RU size, RU size shall be an integer divisor of tiles "
+          "width or height, except right-most and bottom tiles");
       return;
     }
   }
