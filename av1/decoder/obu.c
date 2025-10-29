@@ -412,7 +412,7 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
   av1_read_sequence_header_beyond_av1(rb, seq_params, &cm->quant_params,
                                       &cm->error);
 #if CONFIG_SCAN_TYPE_METADATA
-  // TODO(seethalpaluri)
+  // TODO(seethalpaluri): Move these to the CI OBU
   seq_params->scan_type_info_present_flag = aom_rb_read_bit(rb);
   if (seq_params->scan_type_info_present_flag) {
     seq_params->scan_type_idc = aom_rb_read_literal(rb, 2);
@@ -425,6 +425,13 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
     seq_params->scan_type_idc = 0;
     seq_params->fixed_cvs_pic_rate_flag = 0;
     seq_params->elemental_ct_duration_minus_1 = -1;
+  }
+  if (seq_params->elemental_ct_duration_minus_1 + 1 < 0 ||
+      seq_params->elemental_ct_duration_minus_1 + 1 > 2046) {
+    aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+                       "The value of elemental_ct_duration_minus_1 + 1 shall "
+                       "be in the range of 0 to 2046.\n",
+                       seq_params->elemental_ct_duration_minus_1);
   }
 #endif  // CONFIG_SCAN_TYPE_METADATA
 
@@ -1074,19 +1081,9 @@ static size_t read_metadata(AV1Decoder *pbi, const uint8_t *data, size_t sz)
 #endif  // CONFIG_BAND_METADATA
 #if CONFIG_SCAN_TYPE_METADATA
   } else if (metadata_type == OBU_METADATA_TYPE_SCAN_TYPE) {
-#if !CONFIG_METADATA
-    size_t bytes_read = type_length +
-#endif  // !CONFIG_METADATA
-                        struct aom_read_bit_buffer rb;
+    struct aom_read_bit_buffer rb;
     av1_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);
     read_metadata_scan_type(pbi, &rb);
-#if !CONFIG_METADATA
-    if (get_last_nonzero_byte(data + bytes_read, sz - bytes_read) != 0x80) {
-      cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
-      return 0;
-    }
-    return sz;
-#endif  // !CONFIG_METADATA
     return sz;
 #endif  // CONFIG_SCAN_TYPE_METADATA
 #if CONFIG_METADATA

@@ -8426,19 +8426,17 @@ static void write_frame_hash(AV1_COMP *const cpi,
 }
 
 #if CONFIG_SCAN_TYPE_METADATA
-uint8_t write_scan_type_metadata(AV1_COMP *const cpi, uint8_t *dst
+static size_t write_scan_type_metadata(AV1_COMP *const cpi, uint8_t *dst
 #if CONFIG_METADATA
-                                 ,
-                                 ObuHeader *obu_header
+                                       ,
+                                       ObuHeader *obu_header
 #endif  // CONFIG_METADATA
 ) {
   if (!cpi->source) return 0;
   AV1_COMMON *const cm = &cpi->common;
-  unsigned char payload[49];
+  unsigned char payload[1];
   struct aom_write_bit_buffer wb = { payload, 0 };
   aom_wb_write_literal(&wb, cm->pic_struct_params.mps_pic_struct, 5);
-  printf("cm->pic_struct_params.mps_pic_struct %d\n",
-         cm->pic_struct_params.mps_pic_struct);
   aom_wb_write_literal(&wb, cm->pic_struct_params.mps_source_scan_type_idc, 2);
   aom_wb_write_bit(&wb, cm->pic_struct_params.mps_duplicate_flag);
   aom_metadata_t *metadata =
@@ -9073,7 +9071,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 #endif  // CONFIG_METADATA
 
 #if CONFIG_SCAN_TYPE_METADATA
-  if (cpi->oxcf.tool_cfg.scan_type_info_present_flag) {
+  if (cm->seq_params.scan_type_info_present_flag) {
 #if CONFIG_METADATA
     aom_metadata_array_t arr;
     arr.sz = 1;
