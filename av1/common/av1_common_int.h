@@ -916,7 +916,8 @@ typedef struct SequenceHeader {
   int mib_size;        // Size of the superblock in units of MI blocks
   int mib_size_log2;   // Log 2 of above.
 
-  int explicit_ref_frame_map;  // Explicitly signal the reference frame mapping
+  int enable_explicit_ref_frame_map;  // Explicitly signal the reference frame
+                                      // mapping
 
   int def_max_drl_bits;                  // default max drl bits for MVs
   uint8_t allow_frame_max_drl_bits;      // whether to allow frame level update
@@ -5518,7 +5519,7 @@ static INLINE int opfl_allowed_cur_refs_bsize(const AV1_COMMON *cm,
   if (!has_second_ref(mbmi) && !is_tip_ref_frame(mbmi->ref_frame[0])) return 0;
 #if CONFIG_F323_ERROR_RESILIENT_FIX
   if (frame_is_sframe(cm)) return 0;
-#endif // CONFIG_F323_ERROR_RESILIENT_FIX
+#endif  // CONFIG_F323_ERROR_RESILIENT_FIX
   const unsigned int cur_index = cm->cur_frame->display_order_hint;
   int d0, d1;
   if (mbmi->ref_frame[0] == TIP_FRAME) {

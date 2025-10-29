@@ -5568,7 +5568,7 @@ void write_sequence_inter_group_tool_flags(
 
 #if CONFIG_CWG_F377_STILL_PICTURE
   if (seq_params->single_picture_header_flag) {
-    assert(!seq_params->explicit_ref_frame_map);
+    assert(!seq_params->enable_explicit_ref_frame_map);
 
     assert(seq_params->ref_frames == 2);
 
@@ -5576,7 +5576,7 @@ void write_sequence_inter_group_tool_flags(
     assert(!seq_params->allow_frame_max_drl_bits);
   } else {
 #endif  // CONFIG_CWG_F377_STILL_PICTURE
-    aom_wb_write_bit(wb, seq_params->explicit_ref_frame_map);
+    aom_wb_write_bit(wb, seq_params->enable_explicit_ref_frame_map);
 
     const int signal_dpb_explicit =
         seq_params->ref_frames != 8;  // DPB size 8 is the default value
@@ -7157,7 +7157,7 @@ static AOM_INLINE void write_uncompressed_header_obu
 #if !CONFIG_F322_OBUER_ERM
               cm->features.error_resilient_mode ||
 #endif  // !CONFIG_F322_OBUER_ERM
-              frame_is_sframe(cm) || seq_params->explicit_ref_frame_map
+              frame_is_sframe(cm) || seq_params->enable_explicit_ref_frame_map
 #if CONFIG_CWG_F317
               ) &&
           !cm->bridge_frame_info.is_bridge_frame
@@ -7165,7 +7165,7 @@ static AOM_INLINE void write_uncompressed_header_obu
           ;
 #if CONFIG_F322_OBUER_EXPLICIT_REFLIST
       if (!frame_is_intra_only(cm) && !frame_is_sframe(cm) &&
-          seq_params->explicit_ref_frame_map
+          seq_params->enable_explicit_ref_frame_map
 #if CONFIG_CWG_F317
           && !cm->bridge_frame_info.is_bridge_frame
 #endif  // CONFIG_CWG_F317

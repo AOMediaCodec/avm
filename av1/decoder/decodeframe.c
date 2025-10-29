@@ -7068,7 +7068,7 @@ void read_sequence_inter_group_tool_flags(struct SequenceHeader *seq_params,
   }
 #if CONFIG_CWG_F377_STILL_PICTURE
   if (seq_params->single_picture_header_flag) {
-    seq_params->explicit_ref_frame_map = 0;
+    seq_params->enable_explicit_ref_frame_map = 0;
     seq_params->ref_frames = 2;
     seq_params->ref_frames_log2 = 1;
 
@@ -7076,7 +7076,7 @@ void read_sequence_inter_group_tool_flags(struct SequenceHeader *seq_params,
     seq_params->allow_frame_max_drl_bits = 0;
   } else {
 #endif  // CONFIG_CWG_F377_STILL_PICTURE
-    seq_params->explicit_ref_frame_map = aom_rb_read_bit(rb);
+    seq_params->enable_explicit_ref_frame_map = aom_rb_read_bit(rb);
     if (aom_rb_read_bit(rb)) {
       seq_params->ref_frames =
           aom_rb_read_literal(rb, 4) + 1;  // explicitly signaled DPB size
@@ -9674,7 +9674,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         explicit_ref_frame_map = 0;
 #endif  // CONFIG_CWG_F317
       else {
-        if (seq_params->explicit_ref_frame_map)
+        if (seq_params->enable_explicit_ref_frame_map)
           explicit_ref_frame_map = aom_rb_read_bit(rb);
         else
           explicit_ref_frame_map = 0;

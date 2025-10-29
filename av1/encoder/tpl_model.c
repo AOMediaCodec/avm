@@ -1087,7 +1087,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     const int true_disp =
         (int)(tpl_frame->frame_display_index) -
         (gf_group->subgop_cfg != NULL && frame_params.show_frame);
-    if (cm->seq_params.explicit_ref_frame_map
+    if (cm->seq_params.enable_explicit_ref_frame_map
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 #if CONFIG_F322_OBUER_ERM
         || frame_is_sframe(cm)
@@ -1147,7 +1147,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
                       cpi->gf_group.update_type[cpi->gf_group.index] ==
                           KF_UPDATE);
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-    if (cm->seq_params.explicit_ref_frame_map
+    if (cm->seq_params.enable_explicit_ref_frame_map
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 #if CONFIG_F322_OBUER_ERM
         || frame_is_sframe(cm)
@@ -1219,7 +1219,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     const int true_disp =
         (int)(tpl_frame->frame_display_index) -
         (gf_group->subgop_cfg != NULL && frame_params.show_frame);
-    if (cm->seq_params.explicit_ref_frame_map
+    if (cm->seq_params.enable_explicit_ref_frame_map
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 #if CONFIG_F322_OBUER_ERM
         || frame_is_sframe(cm)
@@ -1284,7 +1284,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
                     cpi->gf_group.update_type[cpi->gf_group.index] ==
                         KF_UPDATE);
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-  if (cm->seq_params.explicit_ref_frame_map
+  if (cm->seq_params.enable_explicit_ref_frame_map
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 #if CONFIG_F322_OBUER_ERM
       || frame_is_sframe(cm)

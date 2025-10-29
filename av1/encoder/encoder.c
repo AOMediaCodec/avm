@@ -385,9 +385,10 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
         DEFAULT_EXPLICIT_ORDER_HINT_BITS - 1;
 #if CONFIG_CWG_F377_STILL_PICTURE
   seq->enable_bru = seq->single_picture_header_flag ? 0 : tool_cfg->enable_bru;
-  seq->explicit_ref_frame_map = seq->single_picture_header_flag
-                                    ? 0
-                                    : oxcf->ref_frm_cfg.explicit_ref_frame_map;
+  seq->enable_explicit_ref_frame_map =
+      seq->single_picture_header_flag
+          ? 0
+          : oxcf->ref_frm_cfg.explicit_ref_frame_map;
 #else
   seq->enable_bru = tool_cfg->enable_bru;
   seq->explicit_ref_frame_map = oxcf->ref_frm_cfg.explicit_ref_frame_map;
@@ -4722,7 +4723,7 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
                     cpi->gf_group.update_type[cpi->gf_group.index] ==
                         KF_UPDATE);
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-  if (cm->seq_params.explicit_ref_frame_map
+  if (cm->seq_params.enable_explicit_ref_frame_map
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 #if CONFIG_F322_OBUER_ERM
       || frame_is_sframe(cm)

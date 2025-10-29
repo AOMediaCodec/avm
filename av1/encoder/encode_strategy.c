@@ -65,7 +65,7 @@ void av1_get_ref_frames_enc(AV1_COMMON *cm, int cur_frame_disp,
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   AV1_COMMON *const cm = &cpi->common;
 #if CONFIG_F322_OBUER_ERM
-  assert(cm->seq_params.explicit_ref_frame_map || frame_is_sframe(cm));
+  assert(cm->seq_params.enable_explicit_ref_frame_map || frame_is_sframe(cm));
 #else
   assert(cm->seq_params.explicit_ref_frame_map ||
          cm->features.error_resilient_mode || cpi->switch_frame_mode == 1);
@@ -1358,7 +1358,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     } else {
       cm->features.tip_frame_mode = TIP_FRAME_DISABLED;
     }
-    if (cm->seq_params.explicit_ref_frame_map
+    if (cm->seq_params.enable_explicit_ref_frame_map
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 #if CONFIG_F322_OBUER_ERM
         || frame_is_sframe(cm)
@@ -1388,7 +1388,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
                          cm->ref_frame_map_pairs);
     }
-    if (!cm->seq_params.explicit_ref_frame_map && cm->bru.enabled) {
+    if (!cm->seq_params.enable_explicit_ref_frame_map && cm->bru.enabled) {
       const int num_past_refs = cm->ref_frames_info.num_past_refs;
       if (cm->bru.ref_disp_order >= 0) {
         cm->bru.update_ref_idx = -1;
