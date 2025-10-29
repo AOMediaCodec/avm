@@ -8271,14 +8271,16 @@ static void activate_sequence_header(AV1Decoder *pbi,
                        "No sequence header found with id = %d", seq_header_id);
   }
 
-  // TODO(jkei): as of Oct 29, 2025, the activation process need to be invoked when the frame is a
-  // random access point. Though, As a reference s/w, comparing the content may
-  // be useful (are_seq_headers_consistent(&cm->seq_params, seq_params))
-  // In the current design it is impossible to activate a sequence header at the random access point
-  // since parsing of frame_type is done only when signalled when
-  // (seq_params->single_picture_hdr_flag) is false. It requires F024 that has obu_type indication.
-  // for now, let's keep it in this way but it may do decoded-frame times mem alloc/delloc
-  
+  // TODO(jkei): as of Oct 29, 2025, the activation process need to be invoked
+  // when the frame is a random access point. Though, As a reference s/w,
+  // comparing the content may be useful
+  // (are_seq_headers_consistent(&cm->seq_params, seq_params)) In the current
+  // design it is impossible to activate a sequence header at the random access
+  // point since parsing of frame_type is done only when signalled when
+  // (seq_params->single_picture_hdr_flag) is false. It requires F024 that has
+  // obu_type indication. for now, let's keep it in this way but it may do
+  // decoded-frame times mem alloc/delloc
+
 #if CONFIG_F255_QMOBU_TEST
   printf("<<activate_sequence_header>> cm->seq_params %p pbi->active_seq %p\n",
          &cm->seq_params, pbi->active_seq);
@@ -8308,11 +8310,6 @@ static void activate_sequence_header(AV1Decoder *pbi,
             qmset->qm_tlayer_id = qmset_inobu->qm_tlayer_id;
             qmset->quantizer_matrix_num_planes =
                 qmset_inobu->quantizer_matrix_num_planes;
-            // copy predefined[qm_default_index] to pbi->qm_list[qm_pos]
-#if 1
-            printf("%s: num_planes %d\n", __func__,
-                   qmset->quantizer_matrix_num_planes);
-#endif
             for (int c = 0; c < qmset_inobu->quantizer_matrix_num_planes; ++c) {
               memcpy(qmset->quantizer_matrix[0][c],
                      qmset_inobu->quantizer_matrix[0][c],
@@ -8333,6 +8330,15 @@ static void activate_sequence_header(AV1Decoder *pbi,
 #endif
             av1_free_qm(qmset_inobu->quantizer_matrix,
                         qmset_inobu->quantizer_matrix_num_planes);
+            //[jkei] is it correct way to free the memory?
+            qmset_inobu->quantizer_matrix = NULL;
+#if CONFIG_F255_QMOBU_TEST
+            if (qmset_inobu->quantizer_matrix != NULL)
+              printf(
+                  "free_qm:(%s) qmset_inobu[%d]->quantizer_matrix %p should be "
+                  "null\n",
+                  __func__, i, qmset_inobu->quantizer_matrix);
+#endif
             qmset_inobu->quantizer_matrix_allocated = false;
           }  // if (qm_bit_map & (1 << j))
         }  // qm_pos

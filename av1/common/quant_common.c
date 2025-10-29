@@ -504,6 +504,10 @@ qm_val_t ***av1_alloc_qmset(int num_planes) {
 }
 void av1_free_qm(qm_val_t ***mat, int num_planes) {
   const int num_tsize = 3;  // 8x8, 8x4, 4x8
+#if CONFIG_F255_QMOBU_TEST
+  printf("av1_free_qm:(%s) mat %p\n", __func__, mat);
+#endif
+
   for (int q = 0; q < num_tsize; q++) {
     for (int c = 0; c < num_planes; c++) {
       if (mat[q][c] != NULL) aom_free(mat[q][c]);
@@ -511,6 +515,13 @@ void av1_free_qm(qm_val_t ***mat, int num_planes) {
     if (mat[q] != NULL) aom_free(mat[q]);
   }
   if (mat != NULL) aom_free(mat);
+#if CONFIG_F255_QMOBU_TEST
+  if (mat != NULL) printf("av1_free_qm:(%s) mat %p\n", __func__, mat);
+#endif
+  mat = NULL;
+#if CONFIG_F255_QMOBU_TEST
+  printf("av1_free_qm:(%s) mat after set null %p\n", __func__, mat);
+#endif
 }
 
 void av1_qm_frame_update(struct CommonQuantParams *quant_params, int num_planes,
