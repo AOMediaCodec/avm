@@ -187,7 +187,8 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
                                             cur_frame_disp, ref_disp);
     // The log2 ratio of current and reference frame resolution is
     // log2(num_pixel_cur) - log2(num_pixel_ref), where the first term is a
-    // constant so it can be dropped
+    // constant so it can be dropped. This term is included in the reference
+    // score to prefer frames with higher resolutions
     const int res_ratio_log2 = -get_msb(cur_ref.width * cur_ref.height);
     // The current frame can only refer to a reference with the same layer id or
     // a reference with lower layer ids. The continue statement above makes sure
