@@ -9858,7 +9858,7 @@ int32_t av1_read_tilegroup_header(
     const uint8_t **p_data_end, int *first_tile_group_in_frame, int *start_tile,
     int *end_tile, OBU_TYPE obu_type) {
 #if CONFIG_COLLECT_COMPONENT_TIMING
-  start_timing(pbi, av1_read_tilegroup_header);
+  start_timing(pbi, av1_read_tilegroup_header_time);
 #endif
 
   assert(rb->bit_offset == 0);
@@ -9950,7 +9950,7 @@ int32_t av1_read_tilegroup_header(
                              "Uninitialized entropy context.");
       }
 #if CONFIG_COLLECT_COMPONENT_TIMING
-      end_timing(pbi, av1_read_tilegroup_header);
+      end_timing(pbi, av1_read_tilegroup_header_time);
 #endif
       return uncomp_hdr_size;
     }
@@ -10025,7 +10025,7 @@ int32_t av1_read_tilegroup_header(
       }
       *p_data_end = data + uncomp_hdr_size;
 #if CONFIG_COLLECT_COMPONENT_TIMING
-      end_timing(pbi, av1_read_tilegroup_header);
+      end_timing(pbi, av1_read_tilegroup_header_time);
 #endif
       return uncomp_hdr_size;
     }
@@ -10039,7 +10039,7 @@ int32_t av1_read_tilegroup_header(
     {
       *p_data_end = data + uncomp_hdr_size;
 #if CONFIG_COLLECT_COMPONENT_TIMING
-      end_timing(pbi, av1_read_tilegroup_header);
+      end_timing(pbi, av1_read_tilegroup_header_time);
 #endif
       return uncomp_hdr_size;
     }
@@ -10085,7 +10085,7 @@ int32_t av1_read_tilegroup_header(
   if (tile_indices_present_flag)
     read_tile_indices_in_tilegroup(pbi, rb, start_tile, end_tile);
 #if CONFIG_COLLECT_COMPONENT_TIMING
-  end_timing(pbi, av1_read_tilegroup_header);
+  end_timing(pbi, av1_read_tilegroup_header_time);
 #endif
   return (int32_t)aom_rb_bytes_read(rb);
 }

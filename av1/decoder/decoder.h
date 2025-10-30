@@ -257,6 +257,7 @@ typedef struct {
 // Adjust the following to add new components.
 enum {
   av1_decode_frame_headers_and_setup_time,
+  av1_read_tilegroup_header_time,
   av1_decode_tg_tiles_and_wrapup_time,
   aom_decode_frame_from_obus_time,
   kTimingComponents,
