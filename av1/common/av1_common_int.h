@@ -1088,7 +1088,7 @@ typedef struct SequenceHeader {
 #if CONFIG_SCAN_TYPE_METADATA
   // NOTE these syntax elements will move to the CI Obu
   int scan_type_info_present_flag;
-  int scan_type_idc;
+  SCAN_TYPE_IDC scan_type_idc;
   int fixed_cvs_pic_rate_flag;
   int elemental_ct_duration_minus_1;
 #endif  // CONFIG_SCAN_TYPE_METADATA
@@ -2640,7 +2640,7 @@ typedef struct AV1Common {
   /*!
    * Pic struct parameters.
    */
-  aom_pic_struct pic_struct_params;
+  aom_metadata_pic_struct_t pic_struct_metadata_params;
 #endif  // CONFIG_SCAN_TYPE_METADATA
 } AV1_COMMON;
 

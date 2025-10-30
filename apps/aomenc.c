@@ -887,7 +887,6 @@ static void parse_global_config(struct AvxEncoderConfig *global, char ***argv) {
                          argi)) {
       global->encoder_config.scan_type_info_present_flag =
           arg_parse_enum_or_int(&arg);
-      ;
 #endif  // CONFIG_SCAN_TYPE_METADATA
     } else {
       argj++;

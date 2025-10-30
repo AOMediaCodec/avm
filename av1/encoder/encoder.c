@@ -766,9 +766,10 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   cpi->td.counts = &cpi->counts;
 
 #if CONFIG_SCAN_TYPE_METADATA
-  cm->pic_struct_params.mps_pic_struct = PIC_FRAME;
-  cm->pic_struct_params.mps_source_scan_type_idc = SCAN_TYPE_PROGRESSIVE;
-  cm->pic_struct_params.mps_duplicate_flag = 0;
+  cm->pic_struct_metadata_params.mps_pic_struct_type = PIC_FRAME;
+  cm->pic_struct_metadata_params.mps_source_scan_type_idc =
+      SCAN_TYPE_PROGRESSIVE;
+  cm->pic_struct_metadata_params.mps_duplicate_flag = 0;
 #endif  // CONFIG_SCAN_TYPE_METADATA
 
   // Set init SVC parameters.

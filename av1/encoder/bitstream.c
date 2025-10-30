@@ -8436,9 +8436,11 @@ static size_t write_scan_type_metadata(AV1_COMP *const cpi, uint8_t *dst
   AV1_COMMON *const cm = &cpi->common;
   unsigned char payload[1];
   struct aom_write_bit_buffer wb = { payload, 0 };
-  aom_wb_write_literal(&wb, cm->pic_struct_params.mps_pic_struct, 5);
-  aom_wb_write_literal(&wb, cm->pic_struct_params.mps_source_scan_type_idc, 2);
-  aom_wb_write_bit(&wb, cm->pic_struct_params.mps_duplicate_flag);
+  aom_wb_write_literal(&wb, cm->pic_struct_metadata_params.mps_pic_struct_type,
+                       5);
+  aom_wb_write_literal(
+      &wb, cm->pic_struct_metadata_params.mps_source_scan_type_idc, 2);
+  aom_wb_write_bit(&wb, cm->pic_struct_metadata_params.mps_duplicate_flag);
   aom_metadata_t *metadata =
       aom_img_metadata_alloc(OBU_METADATA_TYPE_SCAN_TYPE, payload,
                              aom_wb_bytes_written(&wb), AOM_MIF_ANY_FRAME);

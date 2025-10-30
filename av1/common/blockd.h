@@ -77,36 +77,6 @@ enum {
 enum { LCR_GLOBAL = 0, LCR_LOCAL = 1, NUM_LCR_TYPES = 2 } UENUM1BYTE(LCR_TYPES);
 #endif  // CONFIG_MULTILAYER_HLS
 #endif  // CONFIG_CWG_F248_RENDER_SIZE
-#if CONFIG_SCAN_TYPE_METADATA
-enum {
-  SCAN_TYPE_UNSPECIFIED = 0,
-  SCAN_TYPE_PROGRESSIVE = 1,  // PROGRESSIVE_FRAME_PICTURE_SAMPLES
-  SCAN_TYPE_INTERLACE = 2,    // INTERLACE_FIELD_PICTURE_SAMPLES
-  SCAN_TYPE_INTERLACE_COMPLEMENTARY =
-      3,  // INTERLACE_COMPLEMENTARY_FIELD_PAIR_PICTURE_SAMPLES
-  NUM_SCAN_TYPES,
-} UENUM1BYTE(SCAN_TYPE_IDC);
-enum {
-  PIC_FRAME = 0,
-  PIC_TOP_FIELD = 1,
-  PIC_BOTTOM_FIELD = 2,
-  PIC_TOP_BOTTOM_FIELD = 3,
-  PIC_BOTTOM_TOP_FIELD = 4,
-  PIC_TOP_BOTTOM_TOP_FIELD = 5,     // Top field, bottom field, top field
-  PIC_BOTTOM_TOP_BOTTOM_FIELD = 6,  // Bottom field, top field, bottom field
-  PIC_FRAME_DOUBLING = 7,
-  PIC_FRAME_TRIPLING = 8,
-  PIC_TOP_PREV_BOTTOM_FIELD =
-      9,  // Top field paired with previous bottomr field in output order
-  PIC_BOTTOM_PREV_TOP_FIELD =
-      10,  // Bottom field paried with previous top field in output order
-  PIC_TOP_NEXT_TOP_FIELD =
-      11,  // Top field paired with next bottom field is output order
-  PIC_BOTTOM_NEXT_TOP_FIELD =
-      12,  // Bottom field paired with next top field in output order
-  NUM_PIC_STRUCT_TYPES
-} UENUM1BYTE(PIC_STRUCT_TYPES);
-#endif  // CONFIG_SCAN_TYPE_METADATA
 
 // Check if the block is 4xn or nx4 block
 static INLINE int is_thin_4xn_nx4_block(BLOCK_SIZE bsize) {

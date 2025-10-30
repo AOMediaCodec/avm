@@ -1749,10 +1749,8 @@ AOM_CTRL_USE_TYPE(AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION, int)
 
 AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_BRU, int)
 #define AOM_CTRL_AV1E_SET_ENABLE_BRU
-
 AOM_CTRL_USE_TYPE(AV1E_GET_ENABLE_BRU, int *)
 #define AOM_CTRL_AV1E_GET_ENABLE_BRU
-
 /*!\endcond */
 /*! @} - end defgroup aom_encoder */
 #ifdef __cplusplus

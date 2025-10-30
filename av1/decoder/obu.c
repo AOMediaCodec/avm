@@ -838,15 +838,17 @@ static size_t read_metadata_icc_profile(AV1Decoder *const pbi,
 static void read_metadata_scan_type(AV1Decoder *const pbi,
                                     struct aom_read_bit_buffer *rb) {
   AV1_COMMON *const cm = &pbi->common;
-  cm->pic_struct_params.mps_pic_struct = aom_rb_read_literal(rb, 5);
-  cm->pic_struct_params.mps_source_scan_type_idc = aom_rb_read_literal(rb, 2);
-  cm->pic_struct_params.mps_duplicate_flag = aom_rb_read_bit(rb);
+  cm->pic_struct_metadata_params.mps_pic_struct_type =
+      aom_rb_read_literal(rb, 5);
+  cm->pic_struct_metadata_params.mps_source_scan_type_idc =
+      aom_rb_read_literal(rb, 2);
+  cm->pic_struct_metadata_params.mps_duplicate_flag = aom_rb_read_bit(rb);
 
 #if CONFIG_SHORT_METADATA
   uint8_t payload[1];
-  payload[0] = (cm->pic_struct_params.mps_pic_struct << 3) |
-               (cm->pic_struct_params.mps_source_scan_type_idc << 1) |
-               cm->pic_struct_params.mps_duplicate_flag;
+  payload[0] = (cm->pic_struct_metadata_params.mps_pic_struct_type << 3) |
+               (cm->pic_struct_metadata_params.mps_source_scan_type_idc << 1) |
+               cm->pic_struct_metadata_params.mps_duplicate_flag;
   alloc_read_metadata(pbi, OBU_METADATA_TYPE_SCAN_TYPE, payload, 1,
                       AOM_MIF_ANY_FRAME);
 #endif  // CONFIG_SHORT_METADATA

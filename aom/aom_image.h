@@ -23,6 +23,7 @@ extern "C" {
 
 #include "aom/aom_integer.h"
 #include "config/aom_config.h"
+#include "av1/common/enums.h"
 
 /*!\brief Current ABI version number
  *
@@ -211,11 +212,11 @@ typedef enum aom_metadata_application_id {
 
 #if CONFIG_SCAN_TYPE_METADATA
 /*!\brief Picture Struct Metadata payload. */
-typedef struct aom_pic_struct {
-  int mps_pic_struct;           /**< picture struct*/
-  int mps_source_scan_type_idc; /**< source scan type*/
-  int mps_duplicate_flag;       /**< frame duplicate */
-} aom_pic_struct;
+typedef struct aom_metadata_pic_struct_t {
+  PIC_STRUCT_TYPE mps_pic_struct_type; /**< picture struct*/
+  int mps_source_scan_type_idc;        /**< source scan type*/
+  int mps_duplicate_flag;              /**< frame duplicate */
+} aom_metadata_pic_struct_t;
 #endif  // CONFIG_SCAN_TYPE_METADATA
 
 /*!\brief Metadata persistence behavior
