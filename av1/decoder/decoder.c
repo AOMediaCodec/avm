@@ -668,14 +668,14 @@ void output_frame_buffers(AV1Decoder *pbi, int ref_idx) {
 #endif  // CONFIG_MISMATCH_DEBUG
 
     // Add the next frames (showable_frame == 1) into the output queue.
-#if CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
+#if CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID && !MULTILAYER_ENCODING_TEST
   uint64_t trigger_frame_output_order =
       derive_output_order_idx(cm, trigger_frame);
 #endif  // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
   int successive_output = 1;
   for (int k = 1; k <= cm->seq_params.ref_frames && successive_output > 0;
        k++) {
-#if CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
+#if CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID && !MULTILAYER_ENCODING_TEST
     uint64_t next_frame_output_order = trigger_frame_output_order + k;
 #else   // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
     unsigned int next_disp_order = trigger_frame->display_order_hint + k;
@@ -684,8 +684,15 @@ void output_frame_buffers(AV1Decoder *pbi, int ref_idx) {
     for (int i = 0; i < cm->seq_params.ref_frames; i++) {
       if (is_frame_eligible_for_output(cm->ref_frame_map[i]) &&
 #if CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
+#if MULTILAYER_ENCODING_TEST
+          is_successive_output(cm, next_disp_order, trigger_frame->mlayer_id,
+                               cm->ref_frame_map[i])
+
+#else
           derive_output_order_idx(cm, cm->ref_frame_map[i]) ==
-              next_frame_output_order) {
+              next_frame_output_order
+#endif
+      ) {
 #else   // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
           cm->ref_frame_map[i]->display_order_hint == next_disp_order) {
 #endif  // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYE
@@ -731,6 +738,13 @@ void output_trailing_frames(AV1Decoder *pbi) {
       output_candidate->frame_output_done = 1;
     }
   } while (output_candidate != NULL);
+#if MULTILAYER_ENCODING_TEST
+  for (int i = 0; i < REF_FRAMES; i++) {
+    if (pbi->output_frames[i] != NULL)
+      printf("(%d)%d, ", i, pbi->output_frames[i]->display_order_hint);
+  }
+  printf("\n");
+#endif
 }
 
 // If any buffer updating is signaled it should be done here.
@@ -750,8 +764,9 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
 
     if (cm->current_frame.frame_type == KEY_FRAME && cm->show_frame &&
         cm->current_frame.refresh_frame_flags ==
-            ((1 << cm->seq_params.ref_frames) - 1))
+            ((1 << cm->seq_params.ref_frames) - 1)) {
       output_trailing_frames(pbi);
+    }
 
     // The following for loop needs to release the reference stored in
     // cm->ref_frame_map[ref_index] before storing a reference to
