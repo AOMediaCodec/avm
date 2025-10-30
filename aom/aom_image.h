@@ -210,6 +210,10 @@ typedef enum aom_metadata_application_id {
 } aom_metadata_application_id_t;
 
 #if CONFIG_SCAN_TYPE_METADATA
+/*!\brief Metadata Picture Scan Type
+ *
+ * Specifies the picture scan type is intended.
+ */
 typedef enum aom_pic_scan_type_t {
   AOM_SCAN_TYPE_UNSPECIFIED = 0,
   AOM_SCAN_TYPE_PROGRESSIVE = 1,  // PROGRESSIVE_FRAME_PICTURE_SAMPLES
@@ -219,6 +223,10 @@ typedef enum aom_pic_scan_type_t {
   AOM_NUM_SCAN_TYPES = 4,
 } aom_pic_scan_type_t;
 
+/*!\brief Metadata Picture Structure type
+ *
+ * Specifies the picture type.
+ */
 typedef enum aom_pic_struct_type_t {
   AOM_PIC_FRAME = 0,
   AOM_PIC_TOP_FIELD = 1,
