@@ -405,6 +405,19 @@ static INLINE void cluster_active_regions(unsigned char *map, AV1PixelRect *regi
                                      uint32_t *act_sb_in_region,
                                      ARD_Queue **ard_queue, int width,
                                      int height, uint32_t *numRegions, uint32_t max_regions, int output_ext) {
+  // Store the original input map
+  unsigned char *original_map = (unsigned char *)aom_malloc(height * width * sizeof(unsigned char));
+  if (!original_map) {
+    *numRegions = max_regions + 1; // Error indicator
+    return;
+  }
+  
+  // Copy original map for later overlay
+  for (int i = 0; i < height * width; i++) {
+    original_map[i] = map[i];
+  }
+  
+  // Create temp clustering map (work on the passed map as temp)
   uint8_t *visited = (uint8_t *)aom_calloc(height * width, sizeof(uint8_t));
   *numRegions = 0;
   for (int j = 0; j < height; j++) {
@@ -518,6 +531,33 @@ static INLINE void cluster_active_regions(unsigned char *map, AV1PixelRect *regi
       regions[r].bottom = ext_region.bottom;
     }
   }
+  
+  // Overlay temp map results onto original map using bit operators
+  // Rules: 1. orig=0 && temp=2 → result=1 (support)
+  //        2. orig=3 && temp=2 → result=2 (active)
+  //        3. orig=0 && temp=1 → result=1 (support)
+  //        4. orig=3 && temp≠2 → ERROR
+  for (int i = 0; i < height * width; i++) {
+    unsigned char orig = original_map[i];
+    unsigned char temp = map[i];
+    
+    // Error check: original==3 && temp!=2
+    if ((orig == 3) && (temp != 2)) {
+      // Report error by setting invalid numRegions
+      aom_free(original_map);
+      aom_free(visited);
+      *numRegions = max_regions + 1;
+      return;
+    }
+    
+    // Overlay logic using bit operators:
+    // if temp==2: result = 1 + (orig==3 ? 1 : 0) = 1 + ((orig>>1)&1)
+    // if temp==1: result = 1
+    // if temp==0: result = 0
+    map[i] = (temp == 2) ? (1 + ((orig >> 1) & 1)) : temp;
+  }
+  
+  aom_free(original_map);
   return;
 }
 
