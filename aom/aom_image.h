@@ -23,7 +23,6 @@ extern "C" {
 
 #include "aom/aom_integer.h"
 #include "config/aom_config.h"
-#include "av1/common/enums.h"
 
 /*!\brief Current ABI version number
  *
@@ -211,11 +210,41 @@ typedef enum aom_metadata_application_id {
 } aom_metadata_application_id_t;
 
 #if CONFIG_SCAN_TYPE_METADATA
+typedef enum aom_pic_scan_type_t {
+  AOM_SCAN_TYPE_UNSPECIFIED = 0,
+  AOM_SCAN_TYPE_PROGRESSIVE = 1,  // PROGRESSIVE_FRAME_PICTURE_SAMPLES
+  AOM_SCAN_TYPE_INTERLACE = 2,    // INTERLACE_FIELD_PICTURE_SAMPLES
+  AOM_SCAN_TYPE_INTERLACE_COMPLEMENTARY =
+      3,  // INTERLACE_COMPLEMENTARY_FIELD_PAIR_PICTURE_SAMPLES
+  AOM_NUM_SCAN_TYPES = 4,
+} aom_pic_scan_type_t;
+
+typedef enum aom_pic_struct_type_t {
+  AOM_PIC_FRAME = 0,
+  AOM_PIC_TOP_FIELD = 1,
+  AOM_PIC_BOTTOM_FIELD = 2,
+  AOM_PIC_TOP_BOTTOM_FIELD = 3,
+  AOM_PIC_BOTTOM_TOP_FIELD = 4,
+  AOM_PIC_TOP_BOTTOM_TOP_FIELD = 5,     // Top field, bottom field, top field
+  AOM_PIC_BOTTOM_TOP_BOTTOM_FIELD = 6,  // Bottom field, top field, bottom field
+  AOM_PIC_FRAME_DOUBLING = 7,
+  AOM_PIC_FRAME_TRIPLING = 8,
+  AOM_PIC_TOP_PREV_BOTTOM_FIELD =
+      9,  // Top field paired with previous bottomr field in output order
+  AOM_PIC_BOTTOM_PREV_TOP_FIELD =
+      10,  // Bottom field paried with previous top field in output order
+  AOM_PIC_TOP_NEXT_TOP_FIELD =
+      11,  // Top field paired with next bottom field is output order
+  AOM_PIC_BOTTOM_NEXT_TOP_FIELD =
+      12,  // Bottom field paired with next top field in output order
+  AOM_NUM_PIC_STRUCT_TYPE = 13,
+} aom_pic_struct_type_t;
+
 /*!\brief Picture Struct Metadata payload. */
 typedef struct aom_metadata_pic_struct_t {
-  PIC_STRUCT_TYPE mps_pic_struct_type; /**< picture struct*/
-  int mps_source_scan_type_idc;        /**< source scan type*/
-  int mps_duplicate_flag;              /**< frame duplicate */
+  aom_pic_struct_type_t mps_pic_struct_type;    /**< picture struct*/
+  aom_pic_scan_type_t mps_source_scan_type_idc; /**< source scan type*/
+  int mps_duplicate_flag;                       /**< frame duplicate */
 } aom_metadata_pic_struct_t;
 #endif  // CONFIG_SCAN_TYPE_METADATA
 
