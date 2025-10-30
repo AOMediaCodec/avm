@@ -33,17 +33,10 @@ void alloc_qmatrix(struct quantization_matrix_set *qm_set, int qm_id,
                    int num_planes) {
   const TX_SIZE fund_tsize[3] = { TX_8X8, TX_8X4, TX_4X8 };
   if (qm_set->quantizer_matrix != NULL) {
-#if CONFIG_F255_QMOBU_TEST
-    printf("quantizer_matrix[%d] is not null %p\n", qm_id,
-           qm_set->quantizer_matrix);
-#endif
     return;
   }
   qm_set->quantizer_matrix =
       (qm_val_t ***)aom_malloc(3 * sizeof(qm_val_t **));  // 8x8,8x4,4x8
-#if CONFIG_F255_QMOBU_TEST
-  printf("<<alloc_qmatrix>> qm_pos[%d] %p\n", qm_id, qm_set->quantizer_matrix);
-#endif
   (void)qm_id;
   for (int t = 0; t < 3; t++) {
     const TX_SIZE tsize = fund_tsize[t];
@@ -72,15 +65,6 @@ uint32_t read_qm_data(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
       store_at_intermediate_location
           ? &pbi->qmobu_list[pbi->total_qmobu_count].qm_list[qm_pos]
           : &pbi->qm_list[qm_pos];
-
-#if CONFIG_F255_QMOBU_TEST
-  printf(
-      "read_qm_data store_at_intermediate_location %d "
-      "qmset[%d].quantizer_matrix_allocated: "
-      "%d\n",
-      qm_pos, store_at_intermediate_location,
-      qmset->quantizer_matrix_allocated);
-#endif
 
   if (qmset->quantizer_matrix_allocated != true)
     alloc_qmatrix(qmset, qm_pos, num_planes);
@@ -201,14 +185,6 @@ void av1_copy_predefined_qmatrices_to_list(
     // obu and activating a SEQ header.
     if (qmset->quantizer_matrix_allocated != true) {
       alloc_qmatrix(qmset, qm_pos, num_planes);
-    } else {
-#if CONFIG_F255_QMOBU_TEST
-      printf(
-          "qm_pos[%d] store_at_intermediate_location:%d "
-          "quantizer_matrix_allocated address "
-          "%p\n",
-          qm_pos, store_at_intermediate_location, qmset);
-#endif
     }
     int qm_default_index = qm_pos;
     qmset->qm_id = qm_pos;
@@ -250,15 +226,6 @@ uint32_t read_qm_obu(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
   }
 #endif  // CWG-F255v7
   bool qm_chroma_info_present_flag = aom_rb_read_bit(rb);
-#if CONFIG_F255_QMOBU_TEST
-  printf(
-      "(read_qm_obu) qm_bit_map: %d\tqm_chroma_info_present_flag: "
-      "%d\t(pbi->common.seq_params.monochrome:%d) first_qm_obu: %d "
-      "store_at_intermediate_location: %d\n",
-      qm_bit_map, qm_chroma_info_present_flag,
-      pbi->common.seq_params.monochrome, first_qm_obu,
-      store_at_intermediate_location);
-#endif
   if (store_at_intermediate_location) {
     pbi->qmobu_list[pbi->total_qmobu_count].qm_bit_map = qm_bit_map;
     pbi->qmobu_list[pbi->total_qmobu_count].qm_chroma_info_present_flag =

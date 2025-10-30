@@ -8281,19 +8281,9 @@ static void activate_sequence_header(AV1Decoder *pbi,
   // obu_type indication. for now, let's keep it in this way but it may do
   // decoded-frame times mem alloc/delloc
 
-#if CONFIG_F255_QMOBU_TEST
-  printf("<<activate_sequence_header>> cm->seq_params %p pbi->active_seq %p\n",
-         &cm->seq_params, pbi->active_seq);
-#endif
   if (&cm->seq_params != pbi->active_seq || obu_type == OBU_SWITCH ||
       obu_type == OBU_RAS_FRAME) {
 #if CONFIG_F255_QMOBU
-#if CONFIG_F255_QMOBU_TEST
-    printf(
-        "<<activate_sequence_header>> cm->seq_params.monochrome %d "
-        "pbi->total_qmobu_count:%d\n",
-        pbi->common.seq_params.monochrome, pbi->total_qmobu_count);
-#endif
     av1_copy_predefined_qmatrices_to_list(
         pbi, cm->seq_params.monochrome ? 1 : 3, false);
     if (pbi->total_qmobu_count != 0) {
@@ -8321,24 +8311,10 @@ static void activate_sequence_header(AV1Decoder *pbi,
                      qmset_inobu->quantizer_matrix[2][c],
                      4 * 8 * sizeof(qm_val_t));
             }  // c
-#if CONFIG_F255_QMOBU_TEST
-            printf(
-                "free_qm:(%s) qmset_inobu[%d]->quantizer_matrix %p, "
-                "num_planes: %d\n",
-                __func__, i, qmset_inobu->quantizer_matrix,
-                qmset_inobu->quantizer_matrix_num_planes);
-#endif
             av1_free_qm(qmset_inobu->quantizer_matrix,
                         qmset_inobu->quantizer_matrix_num_planes);
             //[jkei] is it correct way to free the memory?
             qmset_inobu->quantizer_matrix = NULL;
-#if CONFIG_F255_QMOBU_TEST
-            if (qmset_inobu->quantizer_matrix != NULL)
-              printf(
-                  "free_qm:(%s) qmset_inobu[%d]->quantizer_matrix %p should be "
-                  "null\n",
-                  __func__, i, qmset_inobu->quantizer_matrix);
-#endif
             qmset_inobu->quantizer_matrix_allocated = false;
           }  // if (qm_bit_map & (1 << j))
         }  // qm_pos

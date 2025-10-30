@@ -267,16 +267,6 @@ uint32_t write_qm_obu(AV1_COMP *cpi, int signalled_obu_pos,
                       uint8_t *const dst) {
   struct aom_write_bit_buffer wb = { dst, 0 };
   uint32_t size = 0;
-#if CONFIG_F255_QMOBU_TEST
-  printf(
-      "(write_qm_obu) qm_bit_map: %d\tqm_chroma_info_present_flag: "
-      "%d\t(cpi->common.seq_params.monochrome:%d)\n",
-      cpi->oxcf.q_cfg.use_full_qm_predefined
-          ? 0
-          : cpi->qmobu_list[signalled_obu_pos].qm_bit_map,
-      !cpi->common.seq_params.monochrome, cpi->common.seq_params.monochrome);
-#endif
-
 #if CONFIG_F255_QMOBU
   AV1EncoderConfig *const oxcf = &cpi->oxcf;
   if (oxcf->q_cfg.use_full_qm_predefined) {
@@ -323,10 +313,6 @@ bool add_userqm_in_qmobulist(AV1_COMP *cpi) {
   int qm_bit_map = 0;
   for (int qm_id = 0; qm_id < NUM_CUSTOM_QMS; qm_id++) {
     if (cm->use_user_defined_qm[qm_id]) {
-#if CONFIG_F255_QMOBU_TEST
-      printf("cm->use_user_defined_qm[%d]: %d\n", qm_id,
-             cm->use_user_defined_qm[qm_id]);
-#endif
       qm_bit_map |= 1 << qm_id;
       struct quantization_matrix_set *qm_inobu =
           &cpi->qmobu_list[qmobu_pos].qm_list[qm_id];
