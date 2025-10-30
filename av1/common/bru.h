@@ -615,10 +615,26 @@ static INLINE bool bru_active_map_validation(AV1_COMMON *cm) {
   
   // Validation: Check if generated regions properly overlay with original map
   bool overall_valid = true;
-  if (numRegions > max_regions) 
+  if (numRegions > max_regions)
     overall_valid = false;
+  
+  // Rule 3: Every active block in original map must be active in clustered region
+  for (int y = 0; y < height; y++) {
+    for (int x = 0; x < width; x++) {
+      unsigned char original_val = cm->bru.active_mode_map[y * width + x];
+      unsigned char clustered_val = new_active_map[y * width + x];
+      
+      // If original is active (2), clustered result must be active (2)
+      if (original_val == 2 && clustered_val != 2) {
+        overall_valid = false;
+        break;
+      }
+    }
+    if (!overall_valid) break;
+  }
+  
   // For each generated region, check all coordinates within the region bounds
-  for (uint32_t region_id = 0; region_id < numRegions; region_id++) {
+  for (uint32_t region_id = 0; region_id < numRegions && overall_valid; region_id++) {
     bool region_valid = true;
 
     // Check every coordinate within the region bounds (right and bottom
