@@ -252,9 +252,6 @@ int aom_yv12_realloc_with_new_border_c(YV12_BUFFER_CONFIG *ybf, int new_border,
     // Copy image buffer
     aom_yv12_copy_frame(ybf, &new_buf, num_planes);
 
-    // Extend up to new border
-    aom_extend_frame_borders(&new_buf, num_planes, 0);
-
     // Now free the old buffer and replace with the new
     aom_free_frame_buffer(ybf);
     memcpy(ybf, &new_buf, sizeof(new_buf));
