@@ -5719,23 +5719,6 @@ static INLINE uint64_t derive_output_order_idx(AV1_COMMON *cm,
 }
 #endif  // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
 
-#if MULTILAYER_ENCODING_TEST
-static INLINE bool is_successive_output(AV1_COMMON *cm,
-                                        unsigned int next_disp_order,
-                                        int cur_mlayer_id, RefCntBuffer *ref) {
-  if (cm->seq_params.max_mlayer_id == 0) {
-    if (ref->display_order_hint == next_disp_order) return true;
-  } else {
-    if (ref->mlayer_id == cur_mlayer_id &&
-        ref->display_order_hint == next_disp_order)
-      return true;
-    else if (ref->mlayer_id != cur_mlayer_id) {
-      return derive_output_order_idx(cm, ref) == next_disp_order;
-    }
-  }
-  return false;
-}
-#endif  // CONFIG_F024_KEYOBU_MULTILAYER_ENCODING_TEST
 #ifdef __cplusplus
 }  // extern "C"
 #endif
