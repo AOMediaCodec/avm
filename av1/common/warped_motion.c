@@ -1461,7 +1461,7 @@ int av1_find_projection(int np, const int *pts1, const int *pts2,
                         int mi_row, int mi_col, const struct scale_factors *sf
 
 ) {
-  assert(wm_params->wmtype == AFFINE);
+  assert(wm_params->wmtype <= AFFINE);
 
   if (find_affine_int(np, pts1, pts2, bsize, mv, wm_params, mi_row, mi_col, sf
 
