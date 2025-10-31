@@ -261,7 +261,7 @@ static int read_lcr_global_info(struct AV1Decoder *pbi,
   if (lcr_params->lcr_global_atlas_id_present_flag)
     lcr_params->lcr_global_atlas_id = aom_rb_read_literal(rb, 3);
   else
-    lcr_params->lcr_reserved_zero_3bits = aom_rb_read_literal(rb, 2);
+    lcr_params->lcr_reserved_zero_3bits = aom_rb_read_literal(rb, 3);
   lcr_params->lcr_data_size_present_flag = aom_rb_read_bit(rb);
   lcr_params->lcr_global_purpose_id = aom_rb_read_literal(rb, 7);
 
