@@ -4725,17 +4725,18 @@ static INLINE int get_tx_partition_sizes(
     txw_step /= 2;
     txh_step /= 2;
   }
-  const TX_PARTITION_BIT_SHIFT subtx_shift = partition_shift_bits[partition];
-  const int n_partitions = subtx_shift.n_partitions;
+  const TX_PARTITION_BIT_SHIFT *const subtx_shift =
+      &partition_shift_bits[partition];
+  const int n_partitions = subtx_shift->n_partitions;
 
   txb_pos->n_partitions = n_partitions;
   for (int i = 0; i < n_partitions; i++) {
-    sub_txw = txw >> subtx_shift.cols[i];
-    sub_txh = txh >> subtx_shift.rows[i];
+    sub_txw = txw >> subtx_shift->cols[i];
+    sub_txh = txh >> subtx_shift->rows[i];
     sub_txs[i] = get_tx_size(sub_txw, sub_txh);
 
-    txb_pos->row_offset[i] = subtx_shift.row_offsets[i] * txh_step;
-    txb_pos->col_offset[i] = subtx_shift.col_offsets[i] * txw_step;
+    txb_pos->row_offset[i] = subtx_shift->row_offsets[i] * txh_step;
+    txb_pos->col_offset[i] = subtx_shift->col_offsets[i] * txw_step;
     if (sub_txs[i] == TX_INVALID) {
       aom_internal_error(error_info, AOM_CODEC_ERROR, "Invalid sub_txs.");
     }
@@ -4752,9 +4753,10 @@ static INLINE TX_SIZE get_tx_partition_one_size(TX_PARTITION_TYPE partition,
   const int txh = tx_size_high[max_tx_size];
   int sub_txw = 0, sub_txh = 0;
 
-  const TX_PARTITION_BIT_SHIFT subtx_shift = partition_shift_bits[partition];
-  sub_txw = txw >> subtx_shift.cols[0];
-  sub_txh = txh >> subtx_shift.rows[0];
+  const TX_PARTITION_BIT_SHIFT *const subtx_shift =
+      &partition_shift_bits[partition];
+  sub_txw = txw >> subtx_shift->cols[0];
+  sub_txh = txh >> subtx_shift->rows[0];
   return get_tx_size(sub_txw, sub_txh);
 }
 
