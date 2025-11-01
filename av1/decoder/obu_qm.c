@@ -215,16 +215,16 @@ uint32_t read_qm_obu(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
   // multiple qms in one obu with id
   const uint32_t saved_bit_offset = rb->bit_offset;
   int qm_bit_map = aom_rb_read_literal(rb, NUM_CUSTOM_QMS);
-#if 1  // CWG-F255v7
+#if CONFIG_F255_QMOBU
   if (*acc_qm_id_bitmap & (uint32_t)qm_bit_map) {
     aom_internal_error(&pbi->common.error, AOM_CODEC_INVALID_PARAM,
-                       "qm_bit_map(%d) overwrap the accumulated qm_bit_map(%d)",
+                       "qm_bit_map(%d) overlaps the accumulated qm_bit_map(%d)",
                        qm_bit_map, acc_qm_id_bitmap);
     return 0;
   } else {
     *acc_qm_id_bitmap |= qm_bit_map;
   }
-#endif  // CWG-F255v7
+#endif  // CONFIG_F255_QMOBU
   bool qm_chroma_info_present_flag = aom_rb_read_bit(rb);
   if (store_at_intermediate_location) {
     pbi->qmobu_list[pbi->total_qmobu_count].qm_bit_map = qm_bit_map;
@@ -233,14 +233,14 @@ uint32_t read_qm_obu(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
   }
 
   if (qm_bit_map == 0) {
-#if 1  // CWG-F255v7
+#if CONFIG_F255_QMOBU
     if (!first_qm_obu) {
       aom_internal_error(
           &pbi->common.error, AOM_CODEC_INVALID_PARAM,
           "only the first QM OBU in the temporal unit can have qm_bit_map=0");
       return 0;
     }
-#endif  // CWG-F255v7
+#endif  // CONFIG_F255_QMOBU
     av1_copy_predefined_qmatrices_to_list(pbi,
                                           (qm_chroma_info_present_flag ? 3 : 1),
                                           store_at_intermediate_location);
@@ -264,8 +264,6 @@ uint32_t read_qm_obu(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
   }  // qm_bit_map != 0
   pbi->total_qmobu_count++;
   if (av1_check_trailing_bits(pbi, rb) != 0) {
-    // cm->error.error_code is already set.
-    // printf("av1_check_trailing_bits(pbi, rb)!=0\n");
     return 0;
   }
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);

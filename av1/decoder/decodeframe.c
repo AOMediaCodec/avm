@@ -8252,11 +8252,7 @@ void mark_reference_frames_with_long_term_ids(AV1Decoder *pbi) {
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 
 #if CONFIG_CWG_E242_SEQ_HDR_ID
-static void activate_sequence_header(AV1Decoder *pbi,
-#if CONFIG_F255_QMOBU
-                                     OBU_TYPE obu_type,
-#endif  // CONFIG_F255_QMOBU
-                                     int seq_header_id) {
+static void activate_sequence_header(AV1Decoder *pbi, int seq_header_id) {
   AV1_COMMON *const cm = &pbi->common;
   bool seq_header_found = false;
   for (int i = 0; i < pbi->seq_header_count; i++) {
@@ -8271,6 +8267,7 @@ static void activate_sequence_header(AV1Decoder *pbi,
                        "No sequence header found with id = %d", seq_header_id);
   }
 
+#if CONFIG_F255_QMOBU
   // TODO(jkei): as of Oct 29, 2025, the activation process need to be invoked
   // when the frame is a random access point. Though, As a reference s/w,
   // comparing the content may be useful
@@ -8281,9 +8278,7 @@ static void activate_sequence_header(AV1Decoder *pbi,
   // obu_type indication. for now, let's keep it in this way but it may do
   // decoded-frame times mem alloc/delloc
 
-  if (&cm->seq_params != pbi->active_seq || obu_type == OBU_SWITCH ||
-      obu_type == OBU_RAS_FRAME) {
-#if CONFIG_F255_QMOBU
+  if (&cm->seq_params != pbi->active_seq) {
     av1_copy_predefined_qmatrices_to_list(
         pbi, cm->seq_params.monochrome ? 1 : 3, false);
     if (pbi->total_qmobu_count != 0) {
@@ -8397,7 +8392,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     }
     cm->cur_mfh_id = (int)cur_mfh_id;
 #else
-      cm->cur_mfh_id = aom_rb_read_literal(rb, 4);
+    cm->cur_mfh_id = aom_rb_read_literal(rb, 4);
 #endif  // CONFIG_CWG_E242_MFH_ID_UVLC
     if (cm->cur_mfh_id == 0) {
       uint32_t seq_header_id_in_frame_header = aom_rb_read_uvlc(rb);
@@ -8410,13 +8405,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       cm->mfh_params[cm->cur_mfh_id].mfh_seq_header_id =
           (int)seq_header_id_in_frame_header;
       activate_sequence_header(
-          pbi,
-#if CONFIG_F255_QMOBU
-          obu_type,
-#endif  // CONFIG_F255_QMOBU
-          cm->mfh_params[cm->cur_mfh_id].mfh_seq_header_id);
+          pbi, cm->mfh_params[cm->cur_mfh_id].mfh_seq_header_id);
 #else
-        (void)seq_header_id_in_frame_header;
+      (void)seq_header_id_in_frame_header;
 #endif  // CONFIG_CWG_E242_SEQ_HDR_ID
       cm->mfh_params[cm->cur_mfh_id].mfh_frame_width =
           seq_params->max_frame_width;
@@ -8441,11 +8432,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       }
 #if CONFIG_CWG_E242_SEQ_HDR_ID
       activate_sequence_header(
-          pbi,
-#if CONFIG_F255_QMOBU
-          obu_type,
-#endif  // CONFIG_F255_QMOBU
-          cm->mfh_params[cm->cur_mfh_id].mfh_seq_header_id);
+          pbi, cm->mfh_params[cm->cur_mfh_id].mfh_seq_header_id);
 #endif  // CONFIG_CWG_E242_SEQ_HDR_ID
     }
 #endif  // CONFIG_MULTI_FRAME_HEADER
@@ -8706,11 +8693,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         features->error_resilient_mode = aom_rb_read_bit(rb);
       }
 #else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-      features->error_resilient_mode =
-          frame_is_sframe(cm) ||
-                  (current_frame->frame_type == KEY_FRAME && cm->show_frame)
-              ? 1
-              : aom_rb_read_bit(rb);
+    features->error_resilient_mode =
+        frame_is_sframe(cm) ||
+                (current_frame->frame_type == KEY_FRAME && cm->show_frame)
+            ? 1
+            : aom_rb_read_bit(rb);
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 #if CONFIG_CWG_F317
     }
@@ -9194,7 +9181,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_F322_OBUER_ERM
           !frame_is_sframe(cm)
 #else
-            !features->error_resilient_mode
+          !features->error_resilient_mode
 #endif  // CONFIG_F322_OBUER_ERM
           && frame_size_override_flag &&
           !cm->bridge_frame_info.is_bridge_frame) {
@@ -9460,7 +9447,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
             !cm->bridge_frame_info.is_bridge_frame)
           read_frame_opfl_refine_type(cm, rb);
 #else
-          if (!cm->bru.frame_inactive_flag) read_frame_opfl_refine_type(cm, rb);
+        if (!cm->bru.frame_inactive_flag) read_frame_opfl_refine_type(cm, rb);
 #endif
 #endif  // CONFIG_FIX_OPFL_AUTO
       }
@@ -10254,7 +10241,7 @@ int32_t av1_read_tilegroup_header(
 #if CONFIG_F106_OBU_SEF
     if (obu_type == OBU_SEF)
 #else
-      if (cm->show_existing_frame)
+    if (cm->show_existing_frame)
 #endif  // CONFIG_F106_OBU_SEF
     {
       // showing a frame directly
@@ -10282,7 +10269,7 @@ int32_t av1_read_tilegroup_header(
 #if CONFIG_CWG_F317
     if (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame) {
 #else
-      if (cm->bru.frame_inactive_flag) {
+    if (cm->bru.frame_inactive_flag) {
 #endif  // CONFIG_CWG_F317
       for (int plane = 0; plane < av1_num_planes(cm); plane++) {
         cm->cur_frame->ccso_info.ccso_enable[plane] = 0;
@@ -10305,7 +10292,7 @@ int32_t av1_read_tilegroup_header(
             mv->ref_frame[0] = cm->bru.update_ref_idx;
           }
 #else
-            mv->ref_frame[0] = cm->bru.update_ref_idx;
+          mv->ref_frame[0] = cm->bru.update_ref_idx;
 #endif  // CONFIG_CWG_F317
           mv->ref_frame[1] = NONE_FRAME;
           mv->mv[0].as_int = 0;
@@ -10351,7 +10338,7 @@ int32_t av1_read_tilegroup_header(
 #if CONFIG_F106_OBU_TIP
     if (obu_type == OBU_TIP)
 #else
-      if (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT)
+    if (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT)
 #endif  // CONFIG_F106_OBU_TIP
     {
       *p_data_end = data + uncomp_hdr_size;
@@ -10385,19 +10372,19 @@ int32_t av1_read_tilegroup_header(
 #if CONFIG_F106_OBU_SEF
   tile_indices_present_flag &= obu_type != OBU_SEF;
 #else
-    tile_indices_present_flag &= !cm->show_existing_frame;
+  tile_indices_present_flag &= !cm->show_existing_frame;
 #endif  // CONFIG_F106_OBU_SEF
 #if CONFIG_F106_OBU_TIP
   tile_indices_present_flag &= obu_type != OBU_TIP;
 #else
-    tile_indices_present_flag &=
-        (cm->features.tip_frame_mode != TIP_FRAME_AS_OUTPUT);
+  tile_indices_present_flag &=
+      (cm->features.tip_frame_mode != TIP_FRAME_AS_OUTPUT);
 #endif  // CONFIG_F106_OBU_TIP
 #if CONFIG_CWG_F317
   tile_indices_present_flag &=
       (!cm->bru.frame_inactive_flag && !cm->bridge_frame_info.is_bridge_frame);
 #else
-    tile_indices_present_flag &= !cm->bru.frame_inactive_flag;
+  tile_indices_present_flag &= !cm->bru.frame_inactive_flag;
 #endif  // CONFIG_CWG_F317
   if (tile_indices_present_flag)
     read_tile_indices_in_tilegroup(pbi, rb, start_tile, end_tile);
@@ -10488,7 +10475,7 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
 #if CONFIG_CWG_F317
   if (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame) {
 #else
-    if (cm->bru.frame_inactive_flag) {
+  if (cm->bru.frame_inactive_flag) {
 #endif  // CONFIG_CWG_F317
     for (int plane = 0; plane < av1_num_planes(cm); plane++) {
       cm->cur_frame->ccso_info.ccso_enable[plane] = 0;
@@ -10511,7 +10498,7 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
           mv->ref_frame[0] = cm->bru.update_ref_idx;
         }
 #else
-          mv->ref_frame[0] = cm->bru.update_ref_idx;
+        mv->ref_frame[0] = cm->bru.update_ref_idx;
 #endif  // CONFIG_CWG_F317
         mv->ref_frame[1] = NONE_FRAME;
         mv->mv[0].as_int = 0;

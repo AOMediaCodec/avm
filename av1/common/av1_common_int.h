@@ -2077,7 +2077,7 @@ struct qm_obu {
    */
   int qm_bit_map;
   /*!
-   * Indication that quantization matrices has chroam information
+   * Indication that quantization matrices has chroma information
    */
   int qm_chroma_info_present_flag;
   /*!
