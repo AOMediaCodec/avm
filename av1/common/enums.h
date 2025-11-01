@@ -312,9 +312,22 @@ enum {
 // included after profile, tier and level definitions are finalized.
 #define CONFIG_MULTILAYER_HLS_REMOVE_LOGS 1
 
-enum { AUX_LAYER, LAYER_TYPES };
+enum {
+  TEXTURE_LAYER = 0,
+  AUX_LAYER = 1,
+  // Reserved: 2-15
+  LAYER_TYPES = 16
+};
 
-enum { VIEW_EXPLICIT, VIEW_TYPES };
+enum {
+  VIEW_UNSPECIFIED = 0,
+  VIEW_CENTER = 1,
+  VIEW_LEFT = 2,
+  VIEW_RIGHT = 3,
+  VIEW_EXPLICIT = 4,
+  // Reserved: 5-7
+  VIEW_TYPES = 8
+};
 
 enum {
   ENHANCED_ATLAS = 0,
