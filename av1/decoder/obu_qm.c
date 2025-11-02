@@ -262,7 +262,7 @@ uint32_t read_qm_obu(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
       }
     }
   }  // qm_bit_map != 0
-  pbi->total_qmobu_count++;
+  if (store_at_intermediate_location) pbi->total_qmobu_count++;
   if (av1_check_trailing_bits(pbi, rb) != 0) {
     return 0;
   }
