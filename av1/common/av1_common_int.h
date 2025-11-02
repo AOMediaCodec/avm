@@ -2101,7 +2101,7 @@ typedef struct AV1Common {
    * Bitmask indicating which reference buffers may be referenced by this frame.
    */
   int ref_frame_flags;
-  
+
   /*!
    * Information about the current frame that is being coded.
    */
@@ -2110,7 +2110,7 @@ typedef struct AV1Common {
    * Code and details about current error status.
    */
   struct aom_internal_error_info error;
-  
+
   /*!
    * AV1 allows two types of frame scaling operations:
    * 1. Frame super-resolution: that allows coding a frame at lower resolution
@@ -2121,7 +2121,7 @@ typedef struct AV1Common {
    * the coding loop.
    * Hence, the need for 3 types of dimensions.
    */
-  
+
   /**
    * \name Coded frame dimensions.
    */
@@ -2129,7 +2129,7 @@ typedef struct AV1Common {
   int width;  /*!< Coded frame width */
   int height; /*!< Coded frame height */
   /**@}*/
-  
+
   /**
    * \name Rendered frame dimensions.
    * Dimensions after applying both super-resolution and resize to the coded
@@ -2140,7 +2140,7 @@ typedef struct AV1Common {
   int render_width;  /*!< Rendered frame width */
   int render_height; /*!< Rendered frame height */
   /**@}*/
-  
+
 #if !CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
   /*!
    * If true, buffer removal times are present.
@@ -2152,7 +2152,7 @@ typedef struct AV1Common {
    * point for operating point op_num.
    * TODO(urvang): We probably don't need the +1 here.
    */
-  
+
   uint32_t buffer_removal_times[MAX_NUM_OPERATING_POINTS + 1];
 #endif  // !CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
   /*!
@@ -2161,18 +2161,18 @@ typedef struct AV1Common {
    * is being decoded.
    */
   uint32_t frame_presentation_time;
-  
+
   /*!
    * Buffer where previous frame is stored.
    */
   RefCntBuffer *prev_frame;
-  
+
   /*!
    * Buffer into which the current frame will be stored and other related info.
    * TODO(hkuang): Combine this with cur_buf in macroblockd.
    */
   RefCntBuffer *cur_frame;
-  
+
   /*!
    * An alternative to remapped_ref_idx (above) which contains a mapping to
    * ref_frame_map[] according to a "usefulness" score. It also contains all
@@ -2204,14 +2204,14 @@ typedef struct AV1Common {
    * Resolution independent version of the reference remapped index
    */
   int remapped_ref_idx_res_indep[REF_FRAMES];
-  
+
   /*!
    * Scale of the current frame with respect to itself.
    * This is currently used for intra block copy, which behaves like an inter
    * prediction mode, where the reference frame is the current frame itself.
    */
   struct scale_factors sf_identity;
-  
+
   /*!
    * Scale factors of the reference frame with respect to the current frame.
    * This is required for generating inter prediction and will be non-identity
@@ -2219,7 +2219,7 @@ typedef struct AV1Common {
    * dimensions of the current frame.
    */
   struct scale_factors ref_scale_factors[REF_FRAMES];
-  
+
   /*!
    * For decoder, ref_frame_map[i] maps reference type 'i' to a pointer to
    * the buffer in the buffer pool 'cm->buffer_pool.frame_bufs'.
@@ -2228,19 +2228,19 @@ typedef struct AV1Common {
    * a pointer to the buffer in the buffer pool 'cm->buffer_pool.frame_bufs'.
    */
   RefCntBuffer *ref_frame_map[REF_FRAMES];
-  
+
   /*!
    * Ref frame data.
    */
   RefFrameMapPair ref_frame_map_pairs[REF_FRAMES];
-  
+
   /*!
    * If true, this frame is actually shown after decoding.
    * If false, this frame is coded in the bitstream, but not shown. It is only
    * used as a reference for other frames coded later.
    */
   int show_frame;
-  
+
   /*!
    * If true, this frame can be used as a show-existing frame for other frames
    * coded later.
@@ -2248,51 +2248,51 @@ typedef struct AV1Common {
    * When 'show_frame' is false, this value is transmitted in the bitstream.
    */
   int showable_frame;
-  
+
   /*!
    * If true, show an existing frame coded before, instead of actually coding a
    * frame. The existing frame comes from one of the existing reference buffers,
    * as signaled in the bitstream.
    */
   int show_existing_frame;
-  
+
   /*!
    * Whether some features are allowed or not.
    */
   FeatureFlags features;
-  
+
   /*!
    * Params related to MB_MODE_INFO arrays and related info.
    */
   CommonModeInfoParams mi_params;
-  
+
   /*!
    * Params related to SB_INFO arrays and related info.
    */
   CommonSBInfoParams sbi_params;
-  
+
 #if CONFIG_ENTROPY_STATS
   /*!
    * Context type used by token CDFs, in the range 0 .. (TOKEN_CDF_Q_CTXS - 1).
    */
   int coef_cdf_category;
 #endif  // CONFIG_ENTROPY_STATS
-  
+
   /*!
    * Quantization params.
    */
   CommonQuantParams quant_params;
-  
+
   /*!
    * Segmentation info for current frame.
    */
   struct segmentation seg;
-  
+
   /*!
    * Segmentation map for previous frame.
    */
   uint8_t *last_frame_seg_map;
-  
+
   /**
    * \name Deblocking filter parameters.
    */
@@ -2300,7 +2300,7 @@ typedef struct AV1Common {
   loop_filter_info_n lf_info; /*!< Loop filter info */
   struct loopfilter lf;       /*!< Loop filter parameters */
   /**@}*/
-  
+
   /**
    * \name Loop Restoration filter parameters.
    */
@@ -2309,17 +2309,17 @@ typedef struct AV1Common {
   RestorationLineBuffers *rlbs; /*!< Line buffers needed by loop restoration */
   YV12_BUFFER_CONFIG rst_frame; /*!< Stores the output of loop restoration */
   /**@}*/
-  
+
   /*!
    * GDF (Guided detail filter) parameters.
    */
   GdfInfo gdf_info; /*!< Guided detail filter info */
-  
+
   /*!
    * CDEF (Constrained Directional Enhancement Filter) parameters.
    */
   CdefInfo cdef_info;
-  
+
   /**
    * \name Frame filter prediction dictionary related parameters.
    */
@@ -2330,37 +2330,37 @@ typedef struct AV1Common {
   int translation_done; /*!< Whether format translation has been done. */
   int *num_ref_filters; /*!< Number of available reference filters. */
   /**@}*/
-  
+
   /*!
    * CCSO (Cross Component Sample Offset) parameters.
    */
   CcsoInfo ccso_info;
-  
+
   /*!
    * Parameters for film grain synthesis.
    */
   aom_film_grain_t film_grain_params;
-  
+
   /*!
    * Parameters for delta quantization and delta loop filter level.
    */
   DeltaQInfo delta_q_info;
-  
+
   /*!
    * Base model used for delta-coding global motion parameters
    */
   WarpedMotionParams base_global_motion_model;
-  
+
   /*!
    * Temporal length of `base_global_motion_model`
    */
   int base_global_motion_distance;
-  
+
   /*!
    * Global motion parameters for each reference frame.
    */
   WarpedMotionParams global_motion[INTER_REFS_PER_FRAME];
-  
+
   /*!
    * Frame level MV for TIP direct frames.
    */
@@ -2369,33 +2369,33 @@ typedef struct AV1Common {
    * Interpolation filter for TIP direct frames.
    */
   InterpFilter tip_interp_filter;
-  
+
   //! Index for TIP weighted prediction parameters.
   int8_t tip_global_wtd_index;
-  
+
 #if CONFIG_MULTILAYER_HLS
   /*!
    * Elements part of the layer configuration record
    */
   LayerConfigurationRecord lcr_params;
-  
+
   /*!
    * Elements part of the atlas segment
    */
   AtlasSegmentInfo atlas_params;
-  
+
   /*!
    * Operating Point Set part of the operating point set
    */
   OperatingPointSet ops_params;
 #endif  // CONFIG_MULTILAYER_HLS
-  
+
   /*!
    * Elements part of the sequence header, that are applicable for all the
    * frames in the video.
    */
   SequenceHeader seq_params;
-  
+
 #if CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
   /*!
    * Elements part of the buffer removal timing, that are applicable for all the
@@ -2403,7 +2403,7 @@ typedef struct AV1Common {
    */
   BufferRemovalTimingInfo brt_info;
 #endif  // CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
-  
+
 #if CONFIG_MULTI_FRAME_HEADER
   /*!
    * Elements part of the multi-frame header, that are applicable for multiple
@@ -2425,17 +2425,17 @@ typedef struct AV1Common {
    * copied from default CDF tables for each symbol.
    */
   FRAME_CONTEXT *default_frame_context;
-  
+
   /*!
    * Parameters related to tiling.
    */
   CommonTileParams tiles;
-  
+
   /*!
    * External BufferPool passed from outside.
    */
   BufferPool *buffer_pool;
-  
+
   /*!
    * Above context buffers and their sizes.
    * Note: above contexts are allocated in this struct, as their size is
@@ -2443,19 +2443,19 @@ typedef struct AV1Common {
    * MACROBLOCKD struct, as they have a fixed size.
    */
   CommonContexts above_contexts;
-  
+
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   /*!
    * number of referenced key frames
    */
   int num_ref_key_frames;
-  
+
   /*!
    * long-term IDs of reference key frames
    */
   int ref_long_term_ids[MAX_NUM_LONG_TERM_FRAMES];
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-  
+
   /*!
    * Motion vectors provided by motion field estimation.
    * tpl_mvs[row * stride + col] stores MV for block at [mi_row, mi_col] where:
@@ -2468,7 +2468,7 @@ typedef struct AV1Common {
    * List of pointers to the start of each row in tpl_mvs.
    */
   TPL_MV_REF **tpl_mvs_rows;
-  
+
   /*!
    * Step size for tmvp sampling. Should be 1 (no sampling) or 2.
    */
@@ -2493,7 +2493,7 @@ typedef struct AV1Common {
    * Projection range extension in col
    */
   int tmvp_col_offset;
-  
+
   /*!
    * Mapping table from trajectory id to the offset to the current block.
    */
@@ -2535,7 +2535,7 @@ typedef struct AV1Common {
    * relative distance between reference 'k' and current frame.
    */
   int ref_frame_relative_dist[INTER_REFS_PER_FRAME];
-  
+
   /*!
    * Number of temporal layers: may be > 1 for SVC (scalable video coding).
    */
@@ -2563,34 +2563,34 @@ typedef struct AV1Common {
    * (in the range 0 ... (number_xlayers - 1)).
    */
   int xlayer_id;
-  
+
   /*!
    * Weights for IBP of directional modes.
    */
   IbpWeightsType ibp_directional_weights[IBP_WEIGHT_SIZE][IBP_WEIGHT_SIZE]
-  [DIR_MODES_0_90];
-  
+                                        [DIR_MODES_0_90];
+
 #if TXCOEFF_TIMER
   int64_t cum_txcoeff_timer;
   int64_t txcoeff_timer;
   int txb_count;
 #endif  // TXCOEFF_TIMER
-  
+
 #if TXCOEFF_COST_TIMER
   int64_t cum_txcoeff_cost_timer;
   int64_t txcoeff_cost_timer;
   int64_t txcoeff_cost_count;
 #endif  // TXCOEFF_COST_TIMER
-  
+
 #if DEBUG_EXTQUANT
   FILE *fEncCoeffLog;
   FILE *fDecCoeffLog;
 #endif
-  
+
 #if CONFIG_PARAKIT_COLLECT_DATA
   ProbModelInfo prob_models[MAX_NUM_CTX_GROUPS];
 #endif
-  
+
   /*!
    * Flag to indicate if current frame has forward and backward ref frames
    */
@@ -2669,14 +2669,14 @@ typedef struct AV1Common {
    */
   int cur_mfh_id;
 #endif  // CONFIG_MULTI_FRAME_HEADER
-  
+
   /*!
    * Flag to indicate whether wedge masks are initialized.
    * Wedge masks are only needed for inter prediction.
    * So we only need to initialized it for inter frames only once.
    */
   bool wedge_mask_initialized;
-  
+
 #if CONFIG_MULTILAYER_HLS
   /*!
    * Layer config record (LCR) id.

@@ -461,7 +461,7 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
                                       ,
                                       &cm->quant_params, &cm->error
 #endif  // !CONFIG_F255_QMOBU
-);
+  );
 
 #if CONFIG_SCAN_TYPE_METADATA
   // TODO(seethalpaluri): Move these to the CI OBU
