@@ -267,16 +267,6 @@ uint32_t write_qm_obu(AV1_COMP *cpi, int signalled_obu_pos,
                       uint8_t *const dst) {
   struct aom_write_bit_buffer wb = { dst, 0 };
   uint32_t size = 0;
-#if CONFIG_F255_QMOBU
-  AV1EncoderConfig *const oxcf = &cpi->oxcf;
-  if (oxcf->q_cfg.use_full_qm_predefined) {
-    aom_wb_write_literal(&wb, 0, NUM_CUSTOM_QMS);
-    aom_wb_write_bit(&wb, !cpi->common.seq_params.monochrome);
-    av1_add_trailing_bits(&wb);
-    size = aom_wb_bytes_written(&wb);
-    return size;
-  }
-#endif  // CONFIG_F255_QMOBU
   assert(signalled_obu_pos >= 0);
   int qm_bit_map = cpi->qmobu_list[signalled_obu_pos].qm_bit_map;
   aom_wb_write_literal(&wb, qm_bit_map, NUM_CUSTOM_QMS);

@@ -211,9 +211,6 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t enable_opfl_refine;
   arg_def_t enable_trellis_quant;
   arg_def_t enable_qm;
-#if CONFIG_F255_QMOBU
-  arg_def_t use_full_qm_predefined;
-#endif
   arg_def_t qm_min;
   arg_def_t qm_max;
   arg_def_t reduced_tx_type_set;

@@ -8987,21 +8987,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
       cpi->total_signalled_qmobu_count = 0;
       cpi->obu_is_written = 0;
       AV1EncoderConfig *const oxcf = &cpi->oxcf;
-      if (oxcf->q_cfg.use_full_qm_predefined && oxcf->q_cfg.using_qm &&
-          !oxcf->q_cfg.user_defined_qmatrix) {
-        obu_header_size = av1_write_obu_header(level_params, OBU_QM,
-                                               obu_temporal, obu_layer, data);
-        obu_payload_size = write_qm_obu(cpi, 0, data + obu_header_size);
-        size_t length_field_size_qm =
-            obu_memmove(obu_header_size, obu_payload_size, data);
-        if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
-            AOM_CODEC_OK) {
-          return AOM_CODEC_ERROR;
-        }
-        data += obu_header_size + obu_payload_size + length_field_size_qm;
-        cpi->total_signalled_qmobu_count--;
-        cm->new_qmobu_added = 1;
-      } else if (oxcf->q_cfg.using_qm && oxcf->q_cfg.user_defined_qmatrix) {
+      if (oxcf->q_cfg.using_qm && oxcf->q_cfg.user_defined_qmatrix) {
         add_new_user_qm = add_userqm_in_qmobulist(cpi);
       }
     }
@@ -9011,11 +8997,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
   if (cm->quant_params.using_qmatrix && !cpi->obu_is_written &&
       !cm->show_existing_frame) {
     AV1EncoderConfig *const oxcf = &cpi->oxcf;
-    bool need_new_qmobu =
-        (oxcf->q_cfg.use_full_qm_predefined &&
-         !oxcf->q_cfg.user_defined_qmatrix)
-            ? 0
-            : check_add_cmqm_in_qmobulist(cpi, add_new_user_qm);
+    bool need_new_qmobu = check_add_cmqm_in_qmobulist(cpi, add_new_user_qm);
     if (need_new_qmobu) {
       assert(cpi->total_signalled_qmobu_count > 0);
       obu_header_size = av1_write_obu_header(level_params, OBU_QM, obu_temporal,

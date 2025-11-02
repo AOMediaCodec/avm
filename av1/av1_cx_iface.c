@@ -77,9 +77,6 @@ struct av1_extracfg {
   unsigned int force_video_mode;
   unsigned int enable_trellis_quant;
   unsigned int enable_qm;
-#if CONFIG_F255_QMOBU
-  unsigned int use_full_qm_predefined;
-#endif
   unsigned int qm_y;
   unsigned int qm_u;
   unsigned int qm_v;
@@ -411,9 +408,6 @@ static struct av1_extracfg default_extra_cfg = {
   0,                            // force_video_mode
   3,                            // enable_trellis_quant
   0,                            // enable_qm
-#if CONFIG_F255_QMOBU
-  1,                            // use_full_qm_predefined;
-#endif
   DEFAULT_QM_Y,                 // qm_y
   DEFAULT_QM_U,                 // qm_u
   DEFAULT_QM_V,                 // qm_v
@@ -1475,9 +1469,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 
   // Set Quantization related configuration.
   q_cfg->using_qm = extra_cfg->enable_qm;
-#if CONFIG_F255_QMOBU
-  q_cfg->use_full_qm_predefined = extra_cfg->use_full_qm_predefined;
-#endif
   q_cfg->qm_minlevel = extra_cfg->qm_min;
   q_cfg->qm_maxlevel = extra_cfg->qm_max;
   q_cfg->user_defined_qmatrix = extra_cfg->user_defined_qmatrix != 0;
@@ -2079,14 +2070,6 @@ static aom_codec_err_t ctrl_set_force_video_mode(aom_codec_alg_priv_t *ctx,
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
-#if CONFIG_F255_QMOBU
-static aom_codec_err_t ctrl_set_qm_fullpredefined(aom_codec_alg_priv_t *ctx,
-                                                  va_list args) {
-  struct av1_extracfg extra_cfg = ctx->extra_cfg;
-  extra_cfg.use_full_qm_predefined = CAST(AV1E_SET_QM_FULL_PREDEFINED, args);
-  return update_extra_cfg(ctx, &extra_cfg);
-}
-#endif
 static aom_codec_err_t ctrl_set_enable_trellis_quant(aom_codec_alg_priv_t *ctx,
                                                      va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
@@ -3914,12 +3897,6 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_qm, argv,
                               err_string)) {
     extra_cfg.enable_qm = arg_parse_uint_helper(&arg, err_string);
-#if CONFIG_F255_QMOBU
-  } else if (arg_match_helper(&arg,
-                              &g_av1_codec_arg_defs.use_full_qm_predefined,
-                              argv, err_string)) {
-    extra_cfg.use_full_qm_predefined = arg_parse_uint_helper(&arg, err_string);
-#endif
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.qm_max, argv,
                               err_string)) {
     extra_cfg.qm_max = arg_parse_uint_helper(&arg, err_string);
@@ -4432,9 +4409,6 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_ENABLE_GDF, ctrl_set_enable_gdf },
   { AV1E_SET_ENABLE_RESTORATION, ctrl_set_enable_restoration },
   { AV1E_SET_FORCE_VIDEO_MODE, ctrl_set_force_video_mode },
-#if CONFIG_F255_QMOBU
-  { AV1E_SET_QM_FULL_PREDEFINED, ctrl_set_qm_fullpredefined },
-#endif
   { AV1E_SET_ENABLE_TRELLIS_QUANT, ctrl_set_enable_trellis_quant },
   { AV1E_SET_ENABLE_QM, ctrl_set_enable_qm },
   { AV1E_SET_QM_Y, ctrl_set_qm_y },
