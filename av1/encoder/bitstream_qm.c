@@ -275,7 +275,10 @@ uint32_t write_qm_obu(AV1_COMP *cpi, int signalled_obu_pos,
 
   for (int j = 0; j < NUM_CUSTOM_QMS; j++) {
     if (qm_bit_map & (1 << j)) {
-      check_qm_is_predefined(cpi, signalled_obu_pos);
+      check_qm_is_predefined(
+          cpi, signalled_obu_pos,
+          (cpi->qmobu_list[signalled_obu_pos].qm_chroma_info_present_flag ? 3
+                                                                          : 1));
       write_qm_data(
           cpi, cpi->qmobu_list[signalled_obu_pos].qm_list, j,
           (cpi->qmobu_list[signalled_obu_pos].qm_chroma_info_present_flag ? 3
@@ -534,7 +537,7 @@ bool check_add_cmqm_in_qmobulist(AV1_COMP *cpi, bool write_in_prevobu) {
   return (new_obu_needed || write_in_prevobu);
 }
 
-void check_qm_is_predefined(AV1_COMP *cpi, int qmobu_pos) {
+void check_qm_is_predefined(AV1_COMP *cpi, int qmobu_pos, int num_planes) {
   int qm_bit_map = cpi->qmobu_list[qmobu_pos].qm_bit_map;
   for (int qm_id = 0; qm_id < NUM_CUSTOM_QMS; qm_id++) {
     if (qm_bit_map & (1 << qm_id)) {
@@ -544,7 +547,7 @@ void check_qm_is_predefined(AV1_COMP *cpi, int qmobu_pos) {
       for (int predefined_id = 0; predefined_id < NUM_CUSTOM_QMS;
            predefined_id++) {
         bool same = true;
-        for (int plane = 0; plane < 3; plane++) {
+        for (int plane = 0; plane < num_planes; plane++) {
           int c = plane == 0 ? 0 : 1;
           const qm_val_t *qvalues8x8 =
               predefined_8x8_iwt_base_matrix[predefined_id][c];
