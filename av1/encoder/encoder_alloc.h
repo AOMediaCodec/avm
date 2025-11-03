@@ -323,13 +323,20 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
         if (cpi->qmobu_list[qmobu_pos].qm_list[j].quantizer_matrix != NULL)
           av1_free_qm(cpi->qmobu_list[qmobu_pos].qm_list[j].quantizer_matrix,
                       cm->seq_params.monochrome ? 1 : 3);
+        //[jkei] is it correct way to free the memory?
+        cpi->qmobu_list[qmobu_pos].qm_list[j].quantizer_matrix = NULL;
+        cpi->qmobu_list[qmobu_pos].qm_list[j].quantizer_matrix_allocated =
+            false;
       }
     }
   }
   for (int qm_idx = 0; qm_idx < NUM_CUSTOM_QMS; qm_idx++) {
-    if (cpi->user_defined_qm_list[qm_idx] != NULL)
+    if (cpi->user_defined_qm_list[qm_idx] != NULL) {
       av1_free_qm(cpi->user_defined_qm_list[qm_idx],
                   cm->seq_params.monochrome ? 1 : 3);
+      //[jkei] is it correct way to free the memory?
+      cpi->user_defined_qm_list[qm_idx] = NULL;
+    }
   }
 #else
   if (cm->quant_params.qmatrix_allocated) {
