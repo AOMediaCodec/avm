@@ -3633,6 +3633,8 @@ static int motion_field_projection_side(AV1_COMMON *cm,
   int start_ref_map[INTER_REFS_PER_FRAME];
   for (int k = 0; k < INTER_REFS_PER_FRAME; k++) {
     const int ref_k_hint = start_frame_buf->ref_display_order_hint[k];
+    if (ref_k_hint < 0) continue;
+
     start_ref_map[k] = NONE_FRAME;
     if (get_relative_dist(&cm->seq_params.order_hint_info,
                           start_frame_order_hint, ref_k_hint) == 0) {
