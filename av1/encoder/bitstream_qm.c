@@ -328,6 +328,9 @@ bool add_userqm_in_qmobulist(AV1_COMP *cpi) {
   return obu_added;
 }
 bool check_add_cmqm_in_qmobulist(AV1_COMP *cpi, bool write_in_prevobu) {
+#if 1
+  printf("<<%s>> is called\n", __func__);
+#endif
   static int START_POS_8x8 = 4 * 4;
   static int START_POS_8x4 = 1392;  // tx_size:6 4*4+8*8+16*16+32*32+64*64+4*8;
   static int START_POS_4x8 = 1360;  // tx_size:5 4*4+8*8+16*16+32*32+64*64;
@@ -457,6 +460,9 @@ bool check_add_cmqm_in_qmobulist(AV1_COMP *cpi, bool write_in_prevobu) {
         struct quantization_matrix_set *qm_inobu = &qmobu->qm_list[qm_id];
         if (qm_inobu->quantizer_matrix == NULL) {
           qm_inobu->quantizer_matrix = av1_alloc_qmset(num_planes);
+#if 1
+  printf("<<%s>> is called: write_in_prevobu %d qm_inobu->quantizer_matrix = av1_alloc_qmset\n", __func__, write_in_prevobu);
+#endif
         }
         for (int plane = 0; plane < num_planes; plane++) {
           qm_val_t *cm_qm_values8x8 =
