@@ -972,6 +972,86 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
   return AOM_CODEC_OK;
 }
 
+#if CONFIG_F255_QMOBU_USERQM_TEST
+uint8_t user_defined_qm_8x8[2][8 * 8] = {
+  {
+      /* Luma */
+      32, 31, 30, 32, 37, 44, 53, 65, 31, 28, 29, 31, 36, 44, 52, 62,
+      30, 29, 29, 35, 39, 45, 53, 63, 32, 31, 35, 37, 44, 51, 57, 66,
+      37, 36, 39, 44, 51, 57, 65, 74, 44, 44, 45, 51, 57, 65, 74, 85,
+      53, 52, 53, 57, 65, 74, 84, 97, 65, 62, 63, 66, 74, 85, 97, 112,
+  },
+  {
+      /* Chroma */
+      32, 30, 36, 40, 44, 47, 51, 53, 30, 32, 37, 40, 43, 45, 48, 49,
+      36, 37, 41, 43, 46, 47, 51, 52, 40, 40, 43, 45, 47, 49, 51, 53,
+      44, 43, 46, 47, 51, 52, 56, 58, 47, 45, 47, 49, 52, 53, 59, 62,
+      51, 48, 51, 51, 56, 59, 65, 71, 53, 49, 52, 53, 58, 62, 71, 79,
+  },
+};
+uint8_t user_defined_qm_8x4[2][8 * 4] = {
+  {
+      /* Luma */
+      32, 31, 31, 33, 38, 44, 54, 65, 30, 30, 32, 35, 40, 46, 54, 62,
+      38, 38, 41, 45, 53, 58, 67, 77, 57, 54, 56, 61, 68, 77, 89, 103,
+  },
+  {
+      /* Chroma */
+      32, 31, 37, 41, 45, 48, 52, 54, 37, 38, 42, 43, 46, 47, 51, 52,
+      45, 44, 47, 48, 52, 53, 57, 61, 51, 48, 51, 53, 57, 62, 70, 76,
+  },
+};
+uint8_t user_defined_qm_4x8[2][4 * 8] = {
+  {
+      /* Luma */
+      32, 30, 38, 57, 31, 30, 38, 54, 31, 32, 41, 56, 33, 35, 45, 61,
+      38, 40, 53, 68, 44, 46, 58, 77, 54, 54, 67, 89, 65, 62, 77, 103,
+  },
+  {
+      /* Chroma */
+      32, 37, 45, 51, 31, 38, 44, 48, 37, 42, 47, 51, 41, 43, 48, 53,
+      45, 46, 52, 57, 48, 47, 53, 62, 52, 51, 57, 70, 54, 52, 61, 76,
+  },
+};
+void set_user_defined_qmatrix(struct AV1_COMP *cpi) {
+  printf("<<<<<%s>>>>>\n", __func__);
+  aom_user_defined_qm_t user_defined_qm;
+  user_defined_qm.level = 6;
+  user_defined_qm.num_planes = 3;
+  int level = user_defined_qm.level;
+  const int num_planes = user_defined_qm.num_planes;
+  cpi->common.use_user_defined_qm[level] = true;
+  if (cpi->user_defined_qm_list[level] == NULL) {
+#if CONFIG_F255_QMOBU_TRACE
+    printf("level: %d\n", level);
+#endif
+    cpi->user_defined_qm_list[level] = av1_alloc_qmset(num_planes);
+  }
+  // Copy user-defined QMs for level.
+  for (int c = 0; c < num_planes; c++) {
+    memcpy(cpi->user_defined_qm_list[level][0][c],
+           &user_defined_qm_8x8[c == 0 ? 0 : 1], 8 * 8 * sizeof(qm_val_t));
+    memcpy(cpi->user_defined_qm_list[level][1][c],
+           &user_defined_qm_8x4[c == 0 ? 0 : 1], 8 * 4 * sizeof(qm_val_t));
+    memcpy(cpi->user_defined_qm_list[level][2][c],
+           &user_defined_qm_4x8[c == 0 ? 0 : 1], 4 * 8 * sizeof(qm_val_t));
+  }
+
+  //    for (int c = 0; c < num_planes; c++) {
+  //      printf("colour: %d\n", c);
+  //      printf("8x8\n");
+  //      for(int i=0; i<64; i++)
+  //        printf("%d, ", cpi->user_defined_qm_list[level][0][c][i]);
+  //      printf("8x4\n");
+  //      for(int i=0; i<32; i++)
+  //        printf("%d, ", cpi->user_defined_qm_list[level][1][c][i]);
+  //      printf("4x8\n");
+  //      for(int i=0; i<32; i++)
+  //        printf("%d, ", cpi->user_defined_qm_list[level][2][c][i]);
+  //      printf("\n");
+  //    }
+}
+#endif  // test
 int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
                         uint8_t *const dest, unsigned int *frame_flags,
                         int64_t *const time_stamp, int64_t *const time_end,
@@ -1401,6 +1481,9 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 #if CONFIG_F255_QMOBU
   if (cm->quant_params.using_qmatrix) {
     if (oxcf->q_cfg.using_qm && oxcf->q_cfg.user_defined_qmatrix) {
+#if CONFIG_F255_QMOBU_USERQM_TEST
+      set_user_defined_qmatrix(cpi);
+#endif
       for (int qm_id = 0; qm_id < NUM_CUSTOM_QMS; qm_id++) {
         if (cm->use_user_defined_qm[qm_id]) {
           av1_qm_frame_update(&cm->quant_params,

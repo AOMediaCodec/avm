@@ -8984,6 +8984,32 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 
 #if CONFIG_F255_QMOBU
     if (cm->quant_params.using_qmatrix) {
+      if (cpi->total_signalled_qmobu_count != 0) {
+        for (int qmobu_pos = 0; qmobu_pos < cpi->total_signalled_qmobu_count;
+             qmobu_pos++) {
+          int qm_bit_map = cpi->qmobu_list[qmobu_pos].qm_bit_map;
+          for (int j = 0; j < NUM_CUSTOM_QMS; j++) {
+            if (qm_bit_map == 0 || qm_bit_map & (1 << j)) {
+              if (cpi->qmobu_list[qmobu_pos].qm_list[j].quantizer_matrix !=
+                  NULL) {
+                av1_free_qm(
+                    cpi->qmobu_list[qmobu_pos].qm_list[j].quantizer_matrix,
+                    cm->seq_params.monochrome ? 1 : 3);
+              }
+              cpi->qmobu_list[qmobu_pos].qm_list[j].quantizer_matrix = NULL;
+              cpi->qmobu_list[qmobu_pos].qm_list[j].quantizer_matrix_allocated =
+                  false;
+            }
+          }
+        }
+        for (int qm_idx = 0; qm_idx < NUM_CUSTOM_QMS; qm_idx++) {
+          if (cpi->user_defined_qm_list[qm_idx] != NULL) {
+            av1_free_qm(cpi->user_defined_qm_list[qm_idx],
+                        cm->seq_params.monochrome ? 1 : 3);
+            cpi->user_defined_qm_list[qm_idx] = NULL;
+          }
+        }
+      }  // cpi->total_signalled_qmobu_count != 0
       cpi->total_signalled_qmobu_count = 0;
       cpi->obu_is_written = 0;
       AV1EncoderConfig *const oxcf = &cpi->oxcf;
@@ -9011,6 +9037,10 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
       }
       data += obu_header_size + obu_payload_size + length_field_size_qm;
       cpi->total_signalled_qmobu_count--;
+#if 1
+      printf("<<%s>> cpi->total_signalled_qmobu_count:%d\n", __func__,
+             cpi->total_signalled_qmobu_count);
+#endif
       cm->new_qmobu_added = 1;
     }  // need_new_qmobu
   }

@@ -1472,6 +1472,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   q_cfg->qm_minlevel = extra_cfg->qm_min;
   q_cfg->qm_maxlevel = extra_cfg->qm_max;
   q_cfg->user_defined_qmatrix = extra_cfg->user_defined_qmatrix != 0;
+#if CONFIG_F255_QMOBU_USERQM_TEST
+  q_cfg->user_defined_qmatrix = 1;
+#endif
   for (int i = 0; i < NUM_CUSTOM_QMS; i++) {
     q_cfg->qm_data_present[i] = extra_cfg->qm_data_present[i];
   }
@@ -2134,7 +2137,8 @@ static aom_codec_err_t ctrl_set_user_defined_qmatrix(aom_codec_alg_priv_t *ctx,
     return AOM_CODEC_INVALID_PARAM;
   }
   cpi->common.use_user_defined_qm[level] = true;
-  cpi->user_defined_qm_list[level] = av1_alloc_qmset(num_planes);
+  if (cpi->user_defined_qm_list[level] == NULL)
+    cpi->user_defined_qm_list[level] = av1_alloc_qmset(num_planes);
 #else
   SequenceHeader *seq_params = &cpi->common.seq_params;
   if (num_planes != av1_num_planes(&cpi->common)) {
