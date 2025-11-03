@@ -1951,14 +1951,17 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
       const int ac_delta_q = k == 0 ? 0
                                     : (k == 1 ? quant_params->u_ac_delta_q
                                               : quant_params->v_ac_delta_q);
+      const int seg_qindex =
+          av1_get_qindex(&cm->seg, mbmi->segment_id, xd->current_base_qindex,
+                         cm->seq_params.bit_depth);
       assert(mbmi->final_qindex_dc[k] ==
-             av1_q_clamped(xd->current_base_qindex, dc_delta_q,
+             av1_q_clamped(seg_qindex, dc_delta_q,
                            k == 0 ? cm->seq_params.base_y_dc_delta_q
                                   : cm->seq_params.base_uv_dc_delta_q,
                            cm->seq_params.bit_depth));
 
       assert(mbmi->final_qindex_ac[k] ==
-             av1_q_clamped(xd->current_base_qindex, ac_delta_q,
+             av1_q_clamped(seg_qindex, ac_delta_q,
                            k == 0 ? 0 : cm->seq_params.base_uv_ac_delta_q,
                            cm->seq_params.bit_depth));
     }
@@ -2411,14 +2414,17 @@ static AOM_INLINE void write_mb_modes_kf(
       const int ac_delta_q = k == 0 ? 0
                                     : (k == 1 ? quant_params->u_ac_delta_q
                                               : quant_params->v_ac_delta_q);
+      const int seg_qindex =
+          av1_get_qindex(&cm->seg, mbmi->segment_id, xd->current_base_qindex,
+                         cm->seq_params.bit_depth);
       assert(mbmi->final_qindex_dc[k] ==
-             av1_q_clamped(xd->current_base_qindex, dc_delta_q,
+             av1_q_clamped(seg_qindex, dc_delta_q,
                            k == 0 ? cm->seq_params.base_y_dc_delta_q
                                   : cm->seq_params.base_uv_dc_delta_q,
                            cm->seq_params.bit_depth));
 
       assert(mbmi->final_qindex_ac[k] ==
-             av1_q_clamped(xd->current_base_qindex, ac_delta_q,
+             av1_q_clamped(seg_qindex, ac_delta_q,
                            k == 0 ? 0 : cm->seq_params.base_uv_ac_delta_q,
                            cm->seq_params.bit_depth));
     }
