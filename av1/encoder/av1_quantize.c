@@ -556,8 +556,9 @@ static void set_qm_test_params(AV1_COMMON *const cm,
   for (uint8_t i = 0; i < quant_params->pic_qm_num; i++) {
     quant_params->qm_y[i] = min_qmlevel + rand() % qm_range;
 #if CONFIG_F255_QMOBU
-    if (quant_params->qm_y[i] >= NUM_CUSTOM_QMS)
+    if (quant_params->qm_y[i] >= NUM_CUSTOM_QMS) {
       quant_params->qm_y[i] = NUM_CUSTOM_QMS - 1;
+    }
 #endif
     if (num_planes > 1) {
       const int qm_uv_same_as_y = rand() % 1;
@@ -637,6 +638,14 @@ static void set_qm_params(AV1_COMMON *const cm,
     quant_params->qm_y[i] = qm_y;
     quant_params->qm_u[i] = qm_u;
     quant_params->qm_v[i] = qm_v;
+#if CONFIG_F255_QMOBU
+    if (quant_params->qm_y[i] >= NUM_CUSTOM_QMS)
+      quant_params->qm_y[i] = NUM_CUSTOM_QMS - 1;
+    if (quant_params->qm_u[i] >= NUM_CUSTOM_QMS)
+      quant_params->qm_u[i] = NUM_CUSTOM_QMS - 1;
+    if (quant_params->qm_v[i] >= NUM_CUSTOM_QMS)
+      quant_params->qm_v[i] = NUM_CUSTOM_QMS - 1;
+#endif  // CONFIG_F255_QMOBU
   }
 }
 
