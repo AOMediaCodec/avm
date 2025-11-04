@@ -210,7 +210,7 @@ int file_is_obu(struct ObuDecInputContext *obu_ctx) {
         obu_ctx->has_temporal_delimiter = 1;
 #endif  // CONFIG_F160_TD
       if (fseeko(f, (FileOffset)obu_size - obu_header_size, SEEK_CUR) != 0) {
-        fprintf(stderr, "file_type: Failure seeking to end of OBU\n");
+        fprintf(stderr, "file_type: Failure seeking to end of OBU.\n");
         rewind(f);
         return 0;
       }
@@ -333,7 +333,7 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
         vcl_obu_count++;
 #endif  // CONFIG_F160_TD
       if (fseeko(f, (FileOffset)obu_size, SEEK_CUR) != 0) {
-        fprintf(stderr, "obudec: Failure seeking to end of OBU\n");
+        fprintf(stderr, "obudec: Failure seeking to end of OBU.\n");
         return -1;
       }
       tu_size += (obu_size + obu_size_bytelength);
