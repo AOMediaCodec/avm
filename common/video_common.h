@@ -20,7 +20,6 @@ typedef struct {
   int frame_width;
   int frame_height;
   struct AvxRational time_base;
-  unsigned int is_annexb;
 } AvxVideoInfo;
 
 #endif  // AOM_COMMON_VIDEO_COMMON_H_

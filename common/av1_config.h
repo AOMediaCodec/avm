@@ -80,7 +80,7 @@ typedef struct _Av1Config {
 // Attempts to parse a Sequence Header OBU and set the paramenters of 'config'.
 // Returns 0 upon success, and -1 upon failure. 'buffer' can contain multiple
 // OBUs, but the Sequence Header OBU must be the first OBU within the buffer.
-int get_av1config_from_obu(const uint8_t *buffer, size_t length, int is_annexb,
+int get_av1config_from_obu(const uint8_t *buffer, size_t length,
                            Av1Config *config);
 
 // Attempts to parse an AV1 config from 'buffer'. Returns 0 upon success.

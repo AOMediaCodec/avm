@@ -4999,7 +4999,7 @@ int av1_get_quantizer(AV1_COMP *cpi) {
   return cpi->common.quant_params.base_qindex;
 }
 
-int av1_convert_sect5obus_to_annexb(uint8_t *buffer, size_t *frame_size) {
+int av1_convert_sect5obus_to_regular(uint8_t *buffer, size_t *frame_size) {
   size_t output_size = 0;
   size_t total_bytes_read = 0;
   size_t remaining_size = *frame_size;

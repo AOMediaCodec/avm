@@ -299,11 +299,6 @@ enum aom_dec_control_id {
    */
   AV1D_SET_ROW_MT,
 
-  /*!\brief Codec control function to indicate whether bitstream is in
-   * Annex-B format, unsigned int parameter
-   */
-  AV1D_SET_IS_ANNEXB,
-
   /*!\brief Codec control function to indicate which operating point to use,
    * int parameter
    *
@@ -499,9 +494,6 @@ AOM_CTRL_USE_TYPE(AV1D_SET_SKIP_FILM_GRAIN, int)
 
 AOM_CTRL_USE_TYPE(AV1D_SET_BRU_OPT_MODE, int)
 #define AOM_CTRL_AV1D_SET_BRU_OPT_MODE
-
-AOM_CTRL_USE_TYPE(AV1D_SET_IS_ANNEXB, unsigned int)
-#define AOM_CTRL_AV1D_SET_IS_ANNEXB
 
 AOM_CTRL_USE_TYPE(AV1D_SET_OPERATING_POINT, int)
 #define AOM_CTRL_AV1D_SET_OPERATING_POINT

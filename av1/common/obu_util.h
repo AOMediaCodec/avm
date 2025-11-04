@@ -30,7 +30,6 @@ typedef struct {
 
 aom_codec_err_t aom_read_obu_header_and_size(const uint8_t *data,
                                              size_t bytes_available,
-                                             int is_annexb,
                                              ObuHeader *obu_header,
                                              size_t *const payload_size,
                                              size_t *const bytes_read);

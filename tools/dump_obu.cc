@@ -36,7 +36,6 @@ struct InputContext {
     memset(avx_ctx, 0, sizeof(*avx_ctx));
     memset(obu_ctx, 0, sizeof(*obu_ctx));
     obu_ctx->avx_ctx = avx_ctx;
-    obu_ctx->is_annexb = 1;
 #if CONFIG_WEBM_IO
     memset(webm_ctx, 0, sizeof(*webm_ctx));
 #endif

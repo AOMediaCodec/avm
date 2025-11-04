@@ -1616,9 +1616,8 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
       break;
     }
 
-    aom_codec_err_t status =
-        aom_read_obu_header_and_size(data, bytes_available, pbi->is_annexb,
-                                     &obu_header, &payload_size, &bytes_read);
+    aom_codec_err_t status = aom_read_obu_header_and_size(
+        data, bytes_available, &obu_header, &payload_size, &bytes_read);
 
     if (status != AOM_CODEC_OK) {
       cm->error.error_code = status;
@@ -2032,9 +2031,8 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
     size_t decoded_payload_size = 0;
     size_t bytes_read = 0;
     const size_t bytes_available = data_end - data;
-    aom_codec_err_t status =
-        aom_read_obu_header_and_size(data, bytes_available, pbi->is_annexb,
-                                     &obu_header, &payload_size, &bytes_read);
+    aom_codec_err_t status = aom_read_obu_header_and_size(
+        data, bytes_available, &obu_header, &payload_size, &bytes_read);
 
     if (status != AOM_CODEC_OK) {
       cm->error.error_code = status;

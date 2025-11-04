@@ -278,7 +278,6 @@ const arg_def_t *global_args[] = {
   &g_av1_codec_arg_defs.monochrome,
   &g_av1_codec_arg_defs.full_still_picture_hdr,
   &g_av1_codec_arg_defs.enable_tcq,
-  &g_av1_codec_arg_defs.save_as_annexb,
 #if CONFIG_F160_TD
   &g_av1_codec_arg_defs.signal_td,
 #endif  // CONFIG_F160_TD
@@ -1304,8 +1303,6 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
       config->cfg.sframe_dist = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.sframe_mode, argi)) {
       config->cfg.sframe_mode = arg_parse_uint(&arg);
-    } else if (arg_match(&arg, &g_av1_codec_arg_defs.save_as_annexb, argi)) {
-      config->cfg.save_as_annexb = arg_parse_uint(&arg);
 #if CONFIG_F160_TD
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.signal_td, argi)) {
       config->cfg.signal_td = arg_parse_uint(&arg);
@@ -1849,10 +1846,6 @@ static void initialize_encoder(struct stream_state *stream,
     aom_codec_dec_init(&stream->decoder, decoder, &cfg, 0);
 
     if (strcmp(get_short_name_by_aom_encoder(global->codec), "av1") == 0) {
-      AOM_CODEC_CONTROL_TYPECHECKED(&stream->decoder, AV1D_SET_IS_ANNEXB,
-                                    stream->config.cfg.save_as_annexb);
-      ctx_exit_on_error(&stream->decoder, "Failed to set is_annexb");
-
       int bru_opt_mode;
       AOM_CODEC_CONTROL_TYPECHECKED(&stream->encoder, AV1E_GET_ENABLE_BRU,
                                     &bru_opt_mode);

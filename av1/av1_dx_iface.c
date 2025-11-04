@@ -54,7 +54,6 @@ struct aom_codec_alg_priv {
   int bru_opt_mode;
   unsigned int row_mt;
   EXTERNAL_REFERENCES ext_refs;
-  unsigned int is_annexb;
   int operating_point;
   int output_all_layers;
 
@@ -105,8 +104,6 @@ static aom_codec_err_t decoder_init(aom_codec_ctx_t *ctx) {
     priv->num_grain_image_frame_buffers = 0;
     // Turn row_mt on by default.
     priv->row_mt = 1;
-
-    priv->is_annexb = 1;
 
     init_ibp_info(ctx->priv->ibp_directional_weights);
   }
@@ -427,7 +424,7 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
   size_t bytes_read = 0;
   uint8_t single_picture_hdr_flag = 0;
   aom_codec_err_t status = aom_read_obu_header_and_size(
-      data, data_sz, si->is_annexb, &obu_header, &payload_size, &bytes_read);
+      data, data_sz, &obu_header, &payload_size, &bytes_read);
   if (status != AOM_CODEC_OK) return status;
 
   // If the first OBU is a temporal delimiter, skip over it and look at the next
@@ -438,8 +435,8 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
     data += bytes_read + payload_size;
     data_sz -= bytes_read + payload_size;
 
-    status = aom_read_obu_header_and_size(
-        data, data_sz, si->is_annexb, &obu_header, &payload_size, &bytes_read);
+    status = aom_read_obu_header_and_size(data, data_sz, &obu_header,
+                                          &payload_size, &bytes_read);
     if (status != AOM_CODEC_OK) return status;
   }
   while (1) {
@@ -584,8 +581,8 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
     data += payload_size;
     data_sz -= payload_size;
     if (data_sz == 0) break;  // exit if we're out of OBUs
-    status = aom_read_obu_header_and_size(
-        data, data_sz, si->is_annexb, &obu_header, &payload_size, &bytes_read);
+    status = aom_read_obu_header_and_size(data, data_sz, &obu_header,
+                                          &payload_size, &bytes_read);
     if (status != AOM_CODEC_OK) return status;
   }
   if (got_sequence_header && found_keyframe) si->is_kf = 1;
@@ -714,7 +711,6 @@ static aom_codec_err_t init_decoder(aom_codec_alg_priv_t *ctx) {
   // thread or loopfilter thread.
   frame_worker_data->pbi->max_threads = ctx->cfg.threads;
   frame_worker_data->pbi->inv_tile_order = ctx->invert_tile_order;
-  frame_worker_data->pbi->is_annexb = ctx->is_annexb;
   frame_worker_data->pbi->operating_point = ctx->operating_point;
   frame_worker_data->pbi->output_all_layers = ctx->output_all_layers;
   frame_worker_data->pbi->row_mt = ctx->row_mt;
@@ -763,7 +759,6 @@ static aom_codec_err_t decode_one(aom_codec_alg_priv_t *ctx,
   // of the heap.
   if (!ctx->si.h) {
     int is_intra_only = 0;
-    ctx->si.is_annexb = ctx->is_annexb;
     const aom_codec_err_t res =
         decoder_peek_si_internal(*data, data_sz, &ctx->si, &is_intra_only);
     if (res != AOM_CODEC_OK) return res;
@@ -780,8 +775,6 @@ static aom_codec_err_t decode_one(aom_codec_alg_priv_t *ctx,
 
   frame_worker_data->pbi->row_mt = ctx->row_mt;
   frame_worker_data->pbi->ext_refs = ctx->ext_refs;
-
-  frame_worker_data->pbi->is_annexb = ctx->is_annexb;
 
   worker->had_error = 0;
   winterface->execute(worker);
@@ -1725,12 +1718,6 @@ static aom_codec_err_t ctrl_get_accounting(aom_codec_alg_priv_t *ctx,
 #endif
 }
 
-static aom_codec_err_t ctrl_set_is_annexb(aom_codec_alg_priv_t *ctx,
-                                          va_list args) {
-  ctx->is_annexb = va_arg(args, unsigned int);
-  return AOM_CODEC_OK;
-}
-
 static aom_codec_err_t ctrl_set_operating_point(aom_codec_alg_priv_t *ctx,
                                                 va_list args) {
   ctx->operating_point = va_arg(args, int);
@@ -1773,7 +1760,6 @@ static aom_codec_ctrl_fn_map_t decoder_ctrl_maps[] = {
   { AV1_INVERT_TILE_DECODE_ORDER, ctrl_set_invert_tile_order },
   { AV1_SET_BYTE_ALIGNMENT, ctrl_set_byte_alignment },
   { AV1_SET_SKIP_LOOP_FILTER, ctrl_set_skip_loop_filter },
-  { AV1D_SET_IS_ANNEXB, ctrl_set_is_annexb },
   { AV1D_SET_OPERATING_POINT, ctrl_set_operating_point },
   { AV1D_SET_OUTPUT_ALL_LAYERS, ctrl_set_output_all_layers },
   { AV1_SET_INSPECTION_CALLBACK, ctrl_set_inspection_callback },

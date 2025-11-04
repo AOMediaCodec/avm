@@ -134,7 +134,7 @@ int write_webm_file_header(struct WebmOutputContext *webm_ctx,
     Av1Config av1_config;
     if (get_av1config_from_obu(
             reinterpret_cast<const uint8_t *>(obu_sequence_header->buf),
-            obu_sequence_header->sz, false, &av1_config) == 0) {
+            obu_sequence_header->sz, &av1_config) == 0) {
       uint8_t av1_config_buffer[4] = { 0 };
       size_t bytes_written = 0;
       if (write_av1config(&av1_config, sizeof(av1_config_buffer),

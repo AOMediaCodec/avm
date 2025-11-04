@@ -114,9 +114,6 @@ static const arg_def_t framestatsarg =
     ARG_DEF(NULL, "framestats", 1, "Output per-frame stats (.csv format)");
 static const arg_def_t outbitdeptharg =
     ARG_DEF(NULL, "output-bit-depth", 1, "Output bit-depth for decoded frames");
-static const arg_def_t isannexb =
-    ARG_DEF(NULL, "annexb", 1,
-            "0: external means, 1: Bitstream is in Annex-B format (default)");
 static const arg_def_t oppointarg = ARG_DEF(
     NULL, "oppoint", 1, "Select an operating point of a scalable bitstream");
 static const arg_def_t outallarg = ARG_DEF(
@@ -154,7 +151,6 @@ static const arg_def_t *all_args[] = { &help,
                                        &framestatsarg,
                                        &continuearg,
                                        &outbitdeptharg,
-                                       &isannexb,
                                        &oppointarg,
                                        &outallarg,
                                        &skipfilmgrain,
@@ -640,7 +636,6 @@ static int main_loop(int argc, const char **argv_) {
   int opt_raw = 0;
   aom_codec_dec_cfg_t cfg = { 0, 0, 0, NULL, NULL };
   unsigned int fixed_output_bit_depth = 0;
-  unsigned int is_annexb = 1;
   int frames_corrupted = 0;
   int dec_flags = 0;
   int do_scale = 0;
@@ -682,11 +677,7 @@ static int main_loop(int argc, const char **argv_) {
   memset(&webm_ctx, 0, sizeof(webm_ctx));
   input.webm_ctx = &webm_ctx;
 #endif
-  struct ObuDecInputContext obu_ctx = { NULL,
-                                        NULL,
-                                        0,
-                                        0,
-                                        /*is_annexb=*/1
+  struct ObuDecInputContext obu_ctx = { NULL, NULL, 0, 0
 #if CONFIG_F160_TD
                                         ,
                                         0
@@ -790,8 +781,6 @@ static int main_loop(int argc, const char **argv_) {
       keep_going = 1;
     } else if (arg_match(&arg, &outbitdeptharg, argi)) {
       fixed_output_bit_depth = arg_parse_uint(&arg);
-    } else if (arg_match(&arg, &isannexb, argi)) {
-      is_annexb = input.obu_ctx->is_annexb = arg_parse_int(&arg);
     } else if (arg_match(&arg, &oppointarg, argi)) {
       operating_point = arg_parse_int(&arg);
     } else if (arg_match(&arg, &outallarg, argi)) {
@@ -918,11 +907,6 @@ static int main_loop(int argc, const char **argv_) {
   }
 
   if (!quiet) fprintf(stderr, "%s\n", decoder.name);
-
-  if (AOM_CODEC_CONTROL_TYPECHECKED(&decoder, AV1D_SET_IS_ANNEXB, is_annexb)) {
-    fprintf(stderr, "Failed to set is_annexb: %s\n", aom_codec_error(&decoder));
-    goto fail;
-  }
 
   if (AOM_CODEC_CONTROL_TYPECHECKED(&decoder, AV1D_SET_OPERATING_POINT,
                                     operating_point)) {

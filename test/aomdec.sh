@@ -18,7 +18,6 @@
 aomdec_verify_environment() {
   if [ "$(av1_encode_available)" != "yes" ] ; then
     if [ ! -e "${AV1_IVF_FILE}" ] || \
-       [ ! -e "${AV1_OBU_ANNEXB_FILE}" ] || \
        [ ! -e "${AV1_OBU_SEC5_FILE}" ] || \
        [ ! -e "${AV1_WEBM_FILE}" ]; then
       elog "Libaom test data must exist before running this test script when " \
@@ -105,16 +104,6 @@ aomdec_aom_ivf_pipe_input() {
   fi
 }
 
-aomdec_av1_obu_annexb() {
-  if [ "$(aomdec_can_decode_av1)" = "yes" ]; then
-    local file="${AV1_OBU_ANNEXB_FILE}"
-    if [ ! -e "${file}" ]; then
-      encode_yuv_raw_input_av1 "${file}" --obu --annexb=1 || return 1
-    fi
-    aomdec "${file}" --summary --noblit --annexb
-  fi
-}
-
 aomdec_av1_obu_section5() {
   if [ "$(aomdec_can_decode_av1)" = "yes" ]; then
     local file="${AV1_OBU_SEC5_FILE}"
@@ -140,7 +129,6 @@ aomdec_tests="aomdec_av1_ivf
               aomdec_av1_ivf_error_resilient
               aomdec_av1_ivf_multithread
               aomdec_aom_ivf_pipe_input
-              aomdec_av1_obu_annexb
               aomdec_av1_obu_section5
               aomdec_av1_webm"
 

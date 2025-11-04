@@ -285,7 +285,6 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .sframe_dist = ARG_DEF(NULL, "sframe-dist", 1, "S-Frame interval (frames)"),
   .sframe_mode =
       ARG_DEF(NULL, "sframe-mode", 1, "S-Frame insertion mode (1..2)"),
-  .save_as_annexb = ARG_DEF(NULL, "annexb", 1, "Save as Annex-B"),
 #if CONFIG_F160_TD
   .signal_td =
       ARG_DEF(NULL, "use-temporal-delimiter", 1, "Signal temproal delimiters"),

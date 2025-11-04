@@ -151,8 +151,7 @@ static void pass1(aom_image_t *raw, FILE *infile, const char *outfile_name,
   AvxVideoInfo info = { get_fourcc_by_aom_encoder(encoder),
                         cfg->g_w,
                         cfg->g_h,
-                        { cfg->g_timebase.num, cfg->g_timebase.den },
-                        0 };
+                        { cfg->g_timebase.num, cfg->g_timebase.den } };
   AvxVideoWriter *writer = NULL;
   aom_codec_ctx_t codec;
   int frame_count = 0;

@@ -76,7 +76,6 @@ struct InputContext {
 #if CONFIG_WEBM_IO
     memset(webm_ctx, 0, sizeof(*webm_ctx));
 #endif
-    obu_ctx->is_annexb = 1;
   }
 
   AvxInputContext *avx_ctx = nullptr;

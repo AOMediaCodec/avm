@@ -169,7 +169,6 @@ int file_is_obu(struct ObuDecInputContext *obu_ctx) {
 #endif  // CONFIG_F160_TD
   struct AvxInputContext *avx_ctx = obu_ctx->avx_ctx;
   uint8_t detect_buf[OBU_DETECTION_SIZE] = { 0 };
-  const int is_annexb = obu_ctx->is_annexb;
   FILE *f = avx_ctx->file;
 
   if (!f) {
@@ -180,19 +179,13 @@ int file_is_obu(struct ObuDecInputContext *obu_ctx) {
     {
       size_t obu_size_bytelength = 0;
       uint64_t obu_size = 0;
-      if (is_annexb) {
-        if (obudec_read_leb128(f, &detect_buf[0], &obu_size_bytelength,
-                               &obu_size) != 0) {
-          fprintf(stderr, "file_type: Failure reading obu size\n");
-          rewind(f);
-          return 0;
-        } else if (feof(f)) {
-          break;
-        }
-      } else {
-        fprintf(stderr, "file_type: OBU size is required\n");
+      if (obudec_read_leb128(f, &detect_buf[0], &obu_size_bytelength,
+                             &obu_size) != 0) {
+        fprintf(stderr, "file_type: Failure reading obu size\n");
         rewind(f);
         return 0;
+      } else if (feof(f)) {
+        break;
       }
       ObuHeader obu_header;
       memset(&obu_header, 0, sizeof(obu_header));
@@ -248,16 +241,14 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
     memset(&obu_header, 0, sizeof(obu_header));
     uint64_t obu_size = 0;
     size_t obu_size_bytelength = 0;
-    if (obu_ctx->is_annexb) {
-      if (obudec_read_leb128(f, &detect_buf[0], &obu_size_bytelength,
-                             &obu_size) != 0) {
-        fprintf(stderr, "obudec: Failure reading frame unit header\n");
-      } else if (feof(f)) {
-        if (tu_size == 0)
-          return 1;
-        else
-          break;
-      }
+    if (obudec_read_leb128(f, &detect_buf[0], &obu_size_bytelength,
+                           &obu_size) != 0) {
+      fprintf(stderr, "obudec: Failure reading frame unit header\n");
+    } else if (feof(f)) {
+      if (tu_size == 0)
+        return 1;
+      else
+        break;
     }
 #if CONFIG_F160_TD && CONFIG_F106_OBU_TILEGROUP
     uint8_t first_tile_group_byte = 0;

@@ -99,11 +99,7 @@ int main(int argc, char **argv) {
   size_t bytes_in_buffer = 0;
   size_t buffer_size = 0;
   struct AvxInputContext aom_input_ctx;
-  struct ObuDecInputContext obu_ctx = { &aom_input_ctx,
-                                        NULL,
-                                        0,
-                                        0,
-                                        /*is_annexb=*/1
+  struct ObuDecInputContext obu_ctx = { &aom_input_ctx, NULL, 0, 0
 #if CONFIG_F160_TD
                                         ,
                                         0
@@ -136,7 +132,6 @@ int main(int argc, char **argv) {
   // peak sequence header OBU to get number of spatial layers
   const size_t ret = fread(tmpbuf, 1, 32, inputfile);
   if (ret != 32) die_codec(&codec, "Input is not a valid obu file");
-  si.is_annexb = 0;
   if (aom_codec_peek_stream_info(decoder, tmpbuf, 32, &si)) {
     die_codec(&codec, "Input is not a valid obu file");
   }

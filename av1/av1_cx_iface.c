@@ -1730,7 +1730,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
     dec_model_cfg->timing_info_present = 0;
   }
 
-  oxcf->save_as_annexb = cfg->save_as_annexb;
 #if CONFIG_F160_TD
   oxcf->signal_td = cfg->signal_td;
 #endif  // CONFIG_F160_TD
@@ -3349,14 +3348,12 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
           frame_size += obu_header_size + obu_payload_size + length_field_size;
         }
 
-        if (ctx->oxcf.save_as_annexb) {
-          size_t curr_frame_size = frame_size;
-          if (av1_convert_sect5obus_to_annexb(cx_data, &curr_frame_size) !=
-              AOM_CODEC_OK) {
-            aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR, NULL);
-          }
-          frame_size = curr_frame_size;
+        size_t curr_frame_size = frame_size;
+        if (av1_convert_sect5obus_to_regular(cx_data, &curr_frame_size) !=
+            AOM_CODEC_OK) {
+          aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR, NULL);
         }
+        frame_size = curr_frame_size;
 
         ctx->pending_frame_sizes[ctx->pending_frame_count++] = frame_size;
         ctx->pending_cx_data_sz += frame_size;
@@ -4561,7 +4558,6 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
     0,            // monochrome
     0,            // full_still_picture_hdr
     1,            // enable_tcq
-    1,            // save_as_annexb (0: external means)
 #if CONFIG_F160_TD
     0,  // signal_td
 #endif  // CONFIG_F160_TD

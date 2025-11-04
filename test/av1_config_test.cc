@@ -27,20 +27,12 @@ namespace {
 // Sequence Header OBUs vs Sequence Header OBUs with the
 // reduced_still_image_flag set).
 //
-const uint8_t kAnnexBFullSequenceHeaderObu[] = { 0x0c, 0x08, 0x00, 0x00, 0x00,
-                                                 0x04, 0x45, 0x7e, 0x3e, 0xff,
-                                                 0xfc, 0xc0, 0x20 };
-const uint8_t kAnnexBReducedStillImageSequenceHeaderObu[] = {
-  0x08, 0x08, 0x18, 0x22, 0x2b, 0xf1, 0xfe, 0xc0, 0x20
-};
-
-const uint8_t kLobfFullSequenceHeaderObu[] = { 0x0a, 0x0b, 0x00, 0x00, 0x00,
-                                               0x04, 0x45, 0x7e, 0x3e, 0xff,
-                                               0xfc, 0xc0, 0x20 };
-
-const uint8_t kLobfReducedStillImageSequenceHeaderObu[] = { 0x0a, 0x07, 0x18,
-                                                            0x22, 0x2b, 0xf1,
-                                                            0xfe, 0xc0, 0x20 };
+const uint8_t kFullSequenceHeaderObu[] = { 0x0c, 0x08, 0x00, 0x00, 0x00,
+                                           0x04, 0x45, 0x7e, 0x3e, 0xff,
+                                           0xfc, 0xc0, 0x20 };
+const uint8_t kReducedStillImageSequenceHeaderObu[] = { 0x08, 0x08, 0x18,
+                                                        0x22, 0x2b, 0xf1,
+                                                        0xfe, 0xc0, 0x20 };
 
 const uint8_t kAv1cAllZero[] = { 0, 0, 0, 0 };
 
@@ -48,12 +40,11 @@ const uint8_t kAv1cAllZero[] = { 0, 0, 0, 0 };
 // configuration structure.
 const size_t kAv1cNoConfigObusSize = 4;
 
-bool VerifyAv1c(const uint8_t *const obu_buffer, size_t obu_buffer_length,
-                bool is_annexb) {
+bool VerifyAv1c(const uint8_t *const obu_buffer, size_t obu_buffer_length) {
   Av1Config av1_config;
   memset(&av1_config, 0, sizeof(av1_config));
-  bool parse_ok = get_av1config_from_obu(obu_buffer, obu_buffer_length,
-                                         is_annexb, &av1_config) == 0;
+  bool parse_ok =
+      get_av1config_from_obu(obu_buffer, obu_buffer_length, &av1_config) == 0;
   if (parse_ok) {
     EXPECT_EQ(1, av1_config.marker);
     EXPECT_EQ(1, av1_config.version);
@@ -75,16 +66,14 @@ bool VerifyAv1c(const uint8_t *const obu_buffer, size_t obu_buffer_length,
 TEST(Av1Config, ObuInvalidInputs) {
   Av1Config av1_config;
   memset(&av1_config, 0, sizeof(av1_config));
-  ASSERT_EQ(-1, get_av1config_from_obu(NULL, 0, 0, NULL));
+  ASSERT_EQ(-1, get_av1config_from_obu(NULL, 0, NULL));
+  ASSERT_EQ(-1, get_av1config_from_obu(&kFullSequenceHeaderObu[0], 0, NULL));
+  ASSERT_EQ(-1, get_av1config_from_obu(&kFullSequenceHeaderObu[0],
+                                       sizeof(kFullSequenceHeaderObu), NULL));
   ASSERT_EQ(-1,
-            get_av1config_from_obu(&kLobfFullSequenceHeaderObu[0], 0, 0, NULL));
-  ASSERT_EQ(
-      -1, get_av1config_from_obu(&kLobfFullSequenceHeaderObu[0],
-                                 sizeof(kLobfFullSequenceHeaderObu), 0, NULL));
-  ASSERT_EQ(-1, get_av1config_from_obu(NULL, sizeof(kLobfFullSequenceHeaderObu),
-                                       0, NULL));
-  ASSERT_EQ(-1, get_av1config_from_obu(&kLobfFullSequenceHeaderObu[0], 0, 0,
-                                       &av1_config));
+            get_av1config_from_obu(NULL, sizeof(kFullSequenceHeaderObu), NULL));
+  ASSERT_EQ(-1,
+            get_av1config_from_obu(&kFullSequenceHeaderObu[0], 0, &av1_config));
 }
 
 TEST(Av1Config, ReadInvalidInputs) {
@@ -112,28 +101,15 @@ TEST(Av1Config, WriteInvalidInputs) {
   ASSERT_EQ(-1, write_av1config(&av1_config, 4, &bytes_written, NULL));
 }
 
-TEST(Av1Config, DISABLED_GetAv1ConfigFromLobfObu) {
+TEST(Av1Config, DISABLED_GetAv1ConfigFromObu) {
   // Test parsing of a Sequence Header OBU with the reduced_still_picture_header
   // unset-- aka a full Sequence Header OBU.
-  ASSERT_TRUE(VerifyAv1c(kLobfFullSequenceHeaderObu,
-                         sizeof(kLobfFullSequenceHeaderObu), false));
+  ASSERT_TRUE(
+      VerifyAv1c(kFullSequenceHeaderObu, sizeof(kFullSequenceHeaderObu)));
 
   // Test parsing of a reduced still image Sequence Header OBU.
-  ASSERT_TRUE(VerifyAv1c(kLobfReducedStillImageSequenceHeaderObu,
-                         sizeof(kLobfReducedStillImageSequenceHeaderObu),
-                         false));
-}
-
-TEST(Av1Config, DISABLED_GetAv1ConfigFromAnnexBObu) {
-  // Test parsing of a Sequence Header OBU with the reduced_still_picture_header
-  // unset-- aka a full Sequence Header OBU.
-  ASSERT_TRUE(VerifyAv1c(kAnnexBFullSequenceHeaderObu,
-                         sizeof(kAnnexBFullSequenceHeaderObu), true));
-
-  // Test parsing of a reduced still image Sequence Header OBU.
-  ASSERT_TRUE(VerifyAv1c(kAnnexBReducedStillImageSequenceHeaderObu,
-                         sizeof(kAnnexBReducedStillImageSequenceHeaderObu),
-                         true));
+  ASSERT_TRUE(VerifyAv1c(kReducedStillImageSequenceHeaderObu,
+                         sizeof(kReducedStillImageSequenceHeaderObu)));
 }
 
 TEST(Av1Config, DISABLED_ReadWriteConfig) {

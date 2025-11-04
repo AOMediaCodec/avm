@@ -450,7 +450,7 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
   return 0;
 }
 
-int get_av1config_from_obu(const uint8_t *buffer, size_t length, int is_annexb,
+int get_av1config_from_obu(const uint8_t *buffer, size_t length,
                            Av1Config *config) {
   if (!buffer || length == 0 || !config) {
     return -1;
@@ -461,7 +461,7 @@ int get_av1config_from_obu(const uint8_t *buffer, size_t length, int is_annexb,
 
   size_t sequence_header_length = 0;
   size_t obu_header_length = 0;
-  if (aom_read_obu_header_and_size(buffer, length, is_annexb, &obu_header,
+  if (aom_read_obu_header_and_size(buffer, length, &obu_header,
                                    &sequence_header_length,
                                    &obu_header_length) != AOM_CODEC_OK ||
       obu_header.type != OBU_SEQUENCE_HEADER ||

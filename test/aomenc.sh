@@ -98,25 +98,6 @@ aomenc_av1_ivf() {
   fi
 }
 
-aomenc_av1_obu_annexb() {
-   if [ "$(aomenc_can_encode_av1)" = "yes" ]; then
-    local output="${AV1_OBU_ANNEXB_FILE}"
-    if [ -e "${AV1_OBU_ANNEXB_FILE}" ]; then
-      output="${AOM_TEST_OUTPUT_DIR}/av1_test.annexb.obu"
-    fi
-    aomenc $(yuv_raw_input) \
-      $(aomenc_encode_test_fast_params) \
-      --obu \
-      --annexb=1 \
-      --output="${output}" || return 1
-
-    if [ ! -e "${output}" ]; then
-      elog "Output file does not exist."
-      return 1
-    fi
-  fi
-}
-
 aomenc_av1_obu_section5() {
    if [ "$(aomenc_can_encode_av1)" = "yes" ]; then
     local output="${AV1_OBU_SEC5_FILE}"
@@ -279,7 +260,6 @@ aomenc_av1_webm_cdf_update_mode() {
 }
 
 aomenc_tests="aomenc_av1_ivf
-              aomenc_av1_obu_annexb
               aomenc_av1_obu_section5
               aomenc_av1_obu_lcr_ops_atlas
               aomenc_av1_webm

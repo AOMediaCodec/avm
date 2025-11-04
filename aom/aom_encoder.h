@@ -1060,14 +1060,6 @@ typedef struct aom_codec_enc_cfg {
    */
   unsigned int enable_tcq;
 
-  /*!\brief Bitstream syntax mode
-   *
-   * This value indicates the bitstream syntax mode.
-   * A value of 0 indicates bitstream is saved as Section 5 bitstream. A value
-   * of 1 indicates the bitstream is saved in Annex-B format
-   */
-  unsigned int save_as_annexb;
-
 #if CONFIG_F160_TD
   /*!\brief Signal temporal delimiters
    *

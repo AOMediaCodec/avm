@@ -18,7 +18,6 @@
 extract_proto_verify_environment() {
   if [ "$(av1_encode_available)" != "yes" ] ; then
     if [ ! -e "${AV1_IVF_FILE}" ] || \
-       [ ! -e "${AV1_OBU_ANNEXB_FILE}" ] || \
        [ ! -e "${AV1_OBU_SEC5_FILE}" ] || \
        [ ! -e "${AV1_WEBM_FILE}" ]; then
       elog "Libaom test data must exist before running this test script when " \

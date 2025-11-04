@@ -76,7 +76,6 @@ typedef struct aom_codec_stream_info {
   unsigned int number_tlayers; /**< Number of temporal layers */
   unsigned int number_mlayers; /**< Number of embedded layers */
   unsigned int number_xlayers; /**< Number of extended layers */
-  unsigned int is_annexb;      /**< Is Bitstream in Annex-B format */
 #if CONFIG_CROP_WIN_CWG_F220
   int conf_win_left_offset;   /**< conformance window left offset */
   int conf_win_right_offset;  /**< conformance window right offset */
@@ -147,9 +146,7 @@ aom_codec_err_t aom_codec_dec_init_ver(aom_codec_ctx_t *ctx,
  * \param[in]      iface   Pointer to the algorithm interface
  * \param[in]      data    Pointer to a block of data to parse
  * \param[in]      data_sz Size of the data buffer
- * \param[in,out]  si      Pointer to stream info to update. The is_annexb
- *                         member \ref MUST be properly initialized. This
- *                         function sets the rest of the members.
+ * \param[in,out]  si      Pointer to stream info to update.
  *
  * \retval #AOM_CODEC_OK
  *     Bitstream is parsable and stream information updated.

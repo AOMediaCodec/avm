@@ -92,12 +92,11 @@ static aom_codec_err_t read_obu_size(const uint8_t *data,
 
 // Parses OBU header and stores values in 'header'.
 static aom_codec_err_t read_obu_header(struct aom_read_bit_buffer *rb,
-                                       int is_annexb, ObuHeader *header) {
+                                       ObuHeader *header) {
   if (!rb || !header) return AOM_CODEC_INVALID_PARAM;
 
   const ptrdiff_t bit_buffer_byte_length = rb->bit_buffer_end - rb->bit_buffer;
 
-  (void)is_annexb;
   if (bit_buffer_byte_length < 1) return AOM_CODEC_CORRUPT_FRAME;
   header->size = 1;
 
@@ -128,7 +127,6 @@ static aom_codec_err_t read_obu_header(struct aom_read_bit_buffer *rb,
 
 aom_codec_err_t aom_read_obu_header_and_size(const uint8_t *data,
                                              size_t bytes_available,
-                                             int is_annexb,
                                              ObuHeader *obu_header,
                                              size_t *const payload_size,
                                              size_t *const bytes_read) {
@@ -136,18 +134,16 @@ aom_codec_err_t aom_read_obu_header_and_size(const uint8_t *data,
   size_t obu_size = 0;
   aom_codec_err_t status;
 
-  if (is_annexb) {
-    // Size field comes before the OBU header, and includes the OBU header
-    status =
-        read_obu_size(data, bytes_available, &obu_size, &length_field_size_obu);
+  // Size field comes before the OBU header, and includes the OBU header
+  status =
+      read_obu_size(data, bytes_available, &obu_size, &length_field_size_obu);
 
-    if (status != AOM_CODEC_OK) return status;
-  }
+  if (status != AOM_CODEC_OK) return status;
 
   struct aom_read_bit_buffer rb = { data + length_field_size_obu,
                                     data + bytes_available, 0, NULL, NULL };
 
-  status = read_obu_header(&rb, is_annexb, obu_header);
+  status = read_obu_header(&rb, obu_header);
   if (status != AOM_CODEC_OK) return status;
 
   // Derive the payload size from the data we've already read
