@@ -8999,6 +8999,8 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
               cpi->qmobu_list[qmobu_pos].qm_list[j].quantizer_matrix = NULL;
               cpi->qmobu_list[qmobu_pos].qm_list[j].quantizer_matrix_allocated =
                   false;
+              cpi->qmobu_list[qmobu_pos].qm_bit_map = 0;
+              cpi->qmobu_list[qmobu_pos].qm_chroma_info_present_flag = 0;
             }
           }
         }
