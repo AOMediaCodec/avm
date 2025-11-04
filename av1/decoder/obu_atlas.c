@@ -198,8 +198,8 @@ static uint32_t read_ats_label_segment_info(struct AV1Decoder *pbi,
 }
 
 static uint32_t read_ats_multistream_atlas_info(
-    struct AtlasBasicInfo *ats_basic_info, int obu_xLayer_id, int xAId,
-    struct aom_read_bit_buffer *rb) {
+    struct AV1Decoder *pbi, struct AtlasBasicInfo *ats_basic_info,
+    int obu_xLayer_id, int xAId, struct aom_read_bit_buffer *rb) {
   ats_basic_info->ats_atlas_width[obu_xLayer_id][xAId] = aom_rb_read_uvlc(rb);
   ats_basic_info->ats_atlas_height[obu_xLayer_id][xAId] = aom_rb_read_uvlc(rb);
   ats_basic_info->ats_num_atlas_segments_minus_1[obu_xLayer_id][xAId] =
@@ -310,8 +310,8 @@ uint32_t av1_read_atlas_segment_info_obu(struct AV1Decoder *pbi,
         aom_rb_read_uvlc(rb);
   } else if (atlas_params->atlas_segment_mode_idc[obu_xLayer_id][xAId] ==
              MULTISTREAM_ATLAS) {
-    read_ats_multistream_atlas_info(atlas_params->ats_basic_info, obu_xLayer_id,
-                                    xAId, rb);
+    read_ats_multistream_atlas_info(pbi, atlas_params->ats_basic_info,
+                                    obu_xLayer_id, xAId, rb);
   }
   // Label each atlas segment
   read_ats_label_segment_info(pbi, obu_xLayer_id, xAId, rb);
