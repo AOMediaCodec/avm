@@ -204,6 +204,16 @@ static uint32_t read_ats_multistream_atlas_info(
   ats_basic_info->ats_atlas_height[obu_xLayer_id][xAId] = aom_rb_read_uvlc(rb);
   ats_basic_info->ats_num_atlas_segments_minus_1[obu_xLayer_id][xAId] =
       aom_rb_read_uvlc(rb);
+  int NumSegments =
+      ats_basic_info->ats_num_atlas_segments_minus_1[obu_xLayer_id][xAId] + 1;
+  if (NumSegments > MAX_NUM_ATLAS_SEG_ID) {
+    aom_internal_error(
+        &pbi->common.error, AOM_CODEC_UNSUP_BITSTREAM,
+        "When atlas_segment_mode_idc is MULTISTREAM_ATLAS, the value of "
+        "ats_num_atlas_segments_minus_1[%d][%d] shall be in the "
+        "range of 0 to %d, inclusive.",
+        obu_xLayer_id, xAId, (MAX_NUM_ATLAS_SEG_ID - 1));
+  }
 
   ats_basic_info->AtlasWidth[obu_xLayer_id][xAId] =
       ats_basic_info->ats_atlas_width[obu_xLayer_id][xAId];
@@ -224,8 +234,6 @@ static uint32_t read_ats_multistream_atlas_info(
   }
 #endif  // CONFIG_ATLAS_BACKGROUND_COLOR
 
-  int NumSegments =
-      ats_basic_info->ats_num_atlas_segments_minus_1[obu_xLayer_id][xAId] + 1;
   for (int i = 0; i < NumSegments; i++) {
     ats_basic_info->ats_input_stream_id[obu_xLayer_id][xAId][i] =
         aom_rb_read_literal(rb, 5);
