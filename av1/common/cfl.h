@@ -324,6 +324,45 @@ void cfl_load_dc_pred(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
     return subfn_##sub[tx_size];                                          \
   }
 
+#define CFL_SUBSAMPLE_FUNCTIONS_NEON(arch, sub, bd)                            \
+  CFL_SUBSAMPLE(arch, sub, bd, 4, 4)                                           \
+  CFL_SUBSAMPLE(arch, sub, bd, 8, 8)                                           \
+  CFL_SUBSAMPLE(arch, sub, bd, 16, 16)                                         \
+  CFL_SUBSAMPLE(arch, sub, bd, 32, 32)                                         \
+  CFL_SUBSAMPLE(arch, sub, bd, 4, 8)                                           \
+  CFL_SUBSAMPLE(arch, sub, bd, 8, 4)                                           \
+  CFL_SUBSAMPLE(arch, sub, bd, 8, 16)                                          \
+  CFL_SUBSAMPLE(arch, sub, bd, 16, 8)                                          \
+  CFL_SUBSAMPLE(arch, sub, bd, 16, 32)                                         \
+  CFL_SUBSAMPLE(arch, sub, bd, 32, 16)                                         \
+  CFL_SUBSAMPLE(arch, sub, bd, 4, 16)                                          \
+  CFL_SUBSAMPLE(arch, sub, bd, 16, 4)                                          \
+  CFL_SUBSAMPLE(arch, sub, bd, 8, 32)                                          \
+  CFL_SUBSAMPLE(arch, sub, bd, 32, 8)                                          \
+  CFL_SUBSAMPLE(arch, sub, bd, 4, 32)                                          \
+  CFL_SUBSAMPLE(arch, sub, bd, 32, 4)                                          \
+  CFL_SUBSAMPLE(arch, sub, bd, 64, 64)                                         \
+  CFL_SUBSAMPLE(arch, sub, bd, 32, 64)                                         \
+  CFL_SUBSAMPLE(arch, sub, bd, 16, 64)                                         \
+  CFL_SUBSAMPLE(arch, sub, bd, 8, 64)                                          \
+  CFL_SUBSAMPLE(arch, sub, bd, 4, 64)                                          \
+  CFL_SUBSAMPLE(arch, sub, bd, 64, 32)                                         \
+  CFL_SUBSAMPLE(arch, sub, bd, 64, 16)                                         \
+  CFL_SUBSAMPLE(arch, sub, bd, 64, 8)                                          \
+  CFL_SUBSAMPLE(arch, sub, bd, 64, 4)                                          \
+  cfl_subsample_##bd##_fn cfl_get_luma_subsampling_##sub##_##bd##_##arch(      \
+      TX_SIZE tx_size) {                                                       \
+    CFL_SUBSAMPLE_FUNCTION_ARRAY(arch, sub, bd)                                \
+    switch (tx_size) {                                                         \
+      case TX_64X64:                                                           \
+      case TX_64X32:                                                           \
+      case TX_64X16:                                                           \
+      case TX_64X8:                                                            \
+      case TX_64X4: return cfl_get_luma_subsampling_##sub##_##bd##_c(tx_size); \
+    }                                                                          \
+    return subfn_##sub[tx_size];                                               \
+  }
+
 // Declare an architecture-specific array of function pointers for size-specific
 // wrappers.
 #define CFL_SUBSAMPLE_FUNCTION_ARRAY(arch, sub, bd)                  \
@@ -361,6 +400,11 @@ void cfl_load_dc_pred(MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
   CFL_SUBSAMPLE_FUNCTIONS(arch, 420, hbd) \
   CFL_SUBSAMPLE_FUNCTIONS(arch, 422, hbd) \
   CFL_SUBSAMPLE_FUNCTIONS(arch, 444, hbd)
+
+#define CFL_GET_SUBSAMPLE_FUNCTION_NEON(arch)  \
+  CFL_SUBSAMPLE_FUNCTIONS_NEON(arch, 420, hbd) \
+  CFL_SUBSAMPLE_FUNCTIONS_NEON(arch, 422, hbd) \
+  CFL_SUBSAMPLE_FUNCTIONS_NEON(arch, 444, hbd)
 
 #define CFL_SUBSAMPLE_121(arch, width, height)                              \
   void cfl_subsample_hbd_420_121_##width##x##height##_##arch(               \

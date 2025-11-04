@@ -147,7 +147,7 @@ static void cfl_luma_subsampling_444_hbd_neon(const uint16_t *input,
   } while ((pred_buf_q3 += CFL_BUF_LINE) < end);
 }
 
-CFL_GET_SUBSAMPLE_FUNCTION(neon)
+CFL_GET_SUBSAMPLE_FUNCTION_NEON(neon)
 
 static INLINE void subtract_average_neon(const uint16_t *src, int16_t *dst,
                                          int width, int height,
