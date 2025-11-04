@@ -17,6 +17,7 @@
 
 #include "config/aom_config.h"
 #include "common/obudec.h"
+#include "common/tools_common.h"
 
 #include "aom_dsp/aom_dsp_common.h"
 #include "aom_ports/mem_ops.h"
@@ -116,7 +117,7 @@ static int peek_obu_from_file(FILE *f, size_t obu_size, uint8_t *buffer,
   if (!f) {
     return -2;
   }
-  unsigned long fpos = ftell(f);
+  FileOffset fpos = ftello(f);
   const int obu_header_size =
       read_obu_header_from_file(f, obu_size, buffer, obu_header);
   if (obu_header_size == -2) {
@@ -154,7 +155,10 @@ static int peek_obu_from_file(FILE *f, size_t obu_size, uint8_t *buffer,
     *first_tile_group = 0;
   }
 #endif
-  fseek(f, fpos, SEEK_SET);
+  if (fseeko(f, fpos, SEEK_SET) != 0) {
+    fprintf(stderr, "obudec: Failure restoring file position indicator.\n");
+    return -2;
+  }
   return 0;
 }
 
@@ -205,13 +209,16 @@ int file_is_obu(struct ObuDecInputContext *obu_ctx) {
       if (obu_header.type == OBU_TEMPORAL_DELIMITER)
         obu_ctx->has_temporal_delimiter = 1;
 #endif  // CONFIG_F160_TD
-      fseek(f, obu_size - obu_header_size, SEEK_CUR);
+      if (fseeko(f, (FileOffset)obu_size - obu_header_size, SEEK_CUR) != 0) {
+        fprintf(stderr, "file_type: Failure seeking to end of OBU\n");
+        rewind(f);
+        return 0;
+      }
     }
   }  // while
 
   // move the file pointer back to the beginning
   rewind(f);
-  // fseek(f, 0, SEEK_SET);
   return 1;
 }
 
@@ -229,7 +236,7 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
   }
 
   size_t tu_size = 0;
-  unsigned long fpos = ftell(f);
+  FileOffset fpos = ftello(f);
   uint8_t detect_buf[OBU_DETECTION_SIZE] = { 0 };
   int first_td = 1;
 
@@ -325,11 +332,17 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
 #endif  // CONFIG_F106_OBU_TILEGROUP
         vcl_obu_count++;
 #endif  // CONFIG_F160_TD
-      fseek(f, obu_size, SEEK_CUR);
+      if (fseeko(f, (FileOffset)obu_size, SEEK_CUR) != 0) {
+        fprintf(stderr, "obudec: Failure seeking to end of OBU\n");
+        return -1;
+      }
       tu_size += (obu_size + obu_size_bytelength);
     }
   }  // while
-  fseek(f, fpos, SEEK_SET);
+  if (fseeko(f, fpos, SEEK_SET) != 0) {
+    fprintf(stderr, "obudec: Failure restoring file position indicator.\n");
+    return -1;
+  }
 
 #if defined AOM_MAX_ALLOCABLE_MEMORY
   if (tu_size > AOM_MAX_ALLOCABLE_MEMORY) {
