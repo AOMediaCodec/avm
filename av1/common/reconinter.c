@@ -1573,7 +1573,9 @@ void make_inter_pred_of_nxn(
     for (int i = 0; i < bw; i += sub_bw) {
       int delta_idx = (j / sub_bh) * (pu_width / sub_bw) + (i / sub_bw);
       ReferenceArea ref_area_opfl;
-      if ((plane || (sub_bh >= 8 && sub_bw >= 8)) && use_sub_pad) {
+      // Reference padding is not needed for 4x4 subblocks where 4-tap
+      // interpolation filters are used
+      if ((sub_bh >= 8 || sub_bw >= 8) && use_sub_pad) {
         av1_get_reference_area_with_padding_single(
             cm, xd, plane, mi, mi_mv[ref], sub_bw, sub_bh,
             mi_x + (i << inter_pred_params->subsampling_x),
