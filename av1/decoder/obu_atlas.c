@@ -22,29 +22,42 @@
 #include "av1/decoder/obu.h"
 #include "av1/common/enums.h"
 
-static uint32_t read_ats_region_info(struct AtlasRegionInfo *atlas_reg_params,
+static uint32_t read_ats_region_info(struct AV1Decoder *pbi,
+                                     struct AtlasRegionInfo *atlas_reg_params,
                                      int xlayerId, int xAId,
                                      struct aom_read_bit_buffer *rb) {
   atlas_reg_params->ats_num_region_columns_minus_1[xlayerId][xAId] =
       aom_rb_read_uvlc(rb);
+  const int num_regions_column =
+      atlas_reg_params->ats_num_region_columns_minus_1[xlayerId][xAId] + 1;
+  if (num_regions_column > MAX_ATLAS_REGIONS) {
+    aom_internal_error(&pbi->common.error, AOM_CODEC_UNSUP_BITSTREAM,
+                       "The value of ats_num_region_columns_minus_1[%d][%d] "
+                       "shall be in the range of 0 to %d, inclusive.",
+                       xlayerId, xAId, (MAX_ATLAS_REGIONS - 1));
+  }
+
   atlas_reg_params->ats_num_region_rows_minus_1[xlayerId][xAId] =
       aom_rb_read_uvlc(rb);
+  const int num_regions_row =
+      atlas_reg_params->ats_num_region_rows_minus_1[xlayerId][xAId] + 1;
+  if (num_regions_row > MAX_ATLAS_REGIONS) {
+    aom_internal_error(&pbi->common.error, AOM_CODEC_UNSUP_BITSTREAM,
+                       "The value of ats_num_region_rows_minus_1[%d][%d] shall "
+                       "be in the range of 0 to %d, inclusive.",
+                       xlayerId, xAId, (MAX_ATLAS_REGIONS - 1));
+  }
   atlas_reg_params->ats_uniform_spacing_flag[xlayerId][xAId] =
       aom_rb_read_bit(rb);
 
   if (!atlas_reg_params->ats_uniform_spacing_flag[xlayerId][xAId]) {
-    for (int i = 0;
-         i <
-         atlas_reg_params->ats_num_region_columns_minus_1[xlayerId][xAId] + 1;
-         i++) {
+    for (int i = 0; i < num_regions_column; i++) {
       atlas_reg_params->ats_column_width_minus_1[xlayerId][xAId][i] =
           aom_rb_read_uvlc(rb);
       atlas_reg_params->AtlasWidth[xlayerId][xAId] +=
           (atlas_reg_params->ats_column_width_minus_1[xlayerId][xAId][i] + 1);
     }
-    for (int i = 0;
-         i < atlas_reg_params->ats_num_region_rows_minus_1[xlayerId][xAId] + 1;
-         i++) {
+    for (int i = 0; i < num_regions_row; i++) {
       atlas_reg_params->ats_row_height_minus_1[xlayerId][xAId][i] =
           aom_rb_read_uvlc(rb);
       atlas_reg_params->AtlasHeight[xlayerId][xAId] +=
@@ -58,20 +71,20 @@ static uint32_t read_ats_region_info(struct AtlasRegionInfo *atlas_reg_params,
 
     atlas_reg_params->AtlasWidth[xlayerId][xAId] =
         (atlas_reg_params->ats_region_width_minus_1[xlayerId][xAId] + 1) *
-        (atlas_reg_params->ats_num_region_columns_minus_1[xlayerId][xAId] + 1);
+        num_regions_column;
 
     atlas_reg_params->AtlasHeight[xlayerId][xAId] =
         (atlas_reg_params->ats_region_height_minus_1[xlayerId][xAId] + 1) *
-        (atlas_reg_params->ats_num_region_rows_minus_1[xlayerId][xAId] + 1);
+        num_regions_row;
   }
   atlas_reg_params->NumRegionsInAtlas[xlayerId][xAId] =
-      (atlas_reg_params->ats_num_region_columns_minus_1[xlayerId][xAId] + 1) *
-      (atlas_reg_params->ats_num_region_rows_minus_1[xlayerId][xAId] + 1);
+      num_regions_column * num_regions_row;
 
   return 0;
 }
 
-static uint32_t read_ats_basic_info(struct AtlasBasicInfo *ats_basic_info,
+static uint32_t read_ats_basic_info(struct AV1Decoder *pbi,
+                                    struct AtlasBasicInfo *ats_basic_info,
                                     int obu_xLayer_id, int xAId,
                                     struct aom_read_bit_buffer *rb) {
   ats_basic_info->ats_stream_id_present[obu_xLayer_id][xAId] =
@@ -88,6 +101,14 @@ static uint32_t read_ats_basic_info(struct AtlasBasicInfo *ats_basic_info,
 
   int NumSegments =
       ats_basic_info->ats_num_atlas_segments_minus_1[obu_xLayer_id][xAId] + 1;
+  if (NumSegments > MAX_NUM_ATLAS_SEG_ID) {
+    aom_internal_error(
+        &pbi->common.error, AOM_CODEC_UNSUP_BITSTREAM,
+        "When atlas_segment_mode_idc is BASIC_ATLAS, the value of "
+        "ats_num_atlas_segments_minus_1[%d][%d] shall be in the "
+        "range of 0 to %d, inclusive.",
+        obu_xLayer_id, xAId, (MAX_NUM_ATLAS_SEG_ID - 1));
+  }
   for (int i = 0; i < NumSegments; i++) {
     if (ats_basic_info->ats_stream_id_present[obu_xLayer_id][xAId]) {
       ats_basic_info->ats_input_stream_id[obu_xLayer_id][xAId][i] =
@@ -106,8 +127,9 @@ static uint32_t read_ats_basic_info(struct AtlasBasicInfo *ats_basic_info,
 }
 
 static uint32_t read_ats_region_to_segment_mapping(
-    struct AtlasRegionToSegmentMapping *ats_reg_seg_map, int obu_xLayer_id,
-    int xAId, int NumRegionsInAtlas, struct aom_read_bit_buffer *rb) {
+    struct AV1Decoder *pbi, struct AtlasRegionToSegmentMapping *ats_reg_seg_map,
+    int obu_xLayer_id, int xAId, int NumRegionsInAtlas,
+    struct aom_read_bit_buffer *rb) {
   ats_reg_seg_map
       ->ats_single_region_per_atlas_segment_flag[obu_xLayer_id][xAId] =
       aom_rb_read_bit(rb);
@@ -119,6 +141,14 @@ static uint32_t read_ats_region_to_segment_mapping(
     int NumSegments =
         ats_reg_seg_map->ats_num_atlas_segments_minus_1[obu_xLayer_id][xAId] +
         1;
+    if (NumSegments > MAX_NUM_ATLAS_SEGMENTS) {
+      aom_internal_error(
+          &pbi->common.error, AOM_CODEC_UNSUP_BITSTREAM,
+          "When atlas_segment_mode_idc is ENHANCED_ATLAS case, the value of "
+          "ats_num_atlas_segments_minus_1[%d][%d] shall be in "
+          "the range of 0 to %d, inclusive.",
+          obu_xLayer_id, xAId, (MAX_NUM_ATLAS_SEGMENTS - 1));
+    }
     for (int i = 0; i < NumSegments; i++) {
       ats_reg_seg_map->ats_top_left_region_column[obu_xLayer_id][xAId][i] =
           aom_rb_read_uvlc(rb);
@@ -252,15 +282,16 @@ uint32_t av1_read_atlas_segment_info_obu(struct AV1Decoder *pbi,
   }
   if (atlas_params->atlas_segment_mode_idc[obu_xLayer_id][xAId] ==
       ENHANCED_ATLAS) {
-    read_ats_region_info(&atlas_params->ats_reg_params, obu_xLayer_id, xAId,
-                         rb);
+    read_ats_region_info(pbi, &atlas_params->ats_reg_params, obu_xLayer_id,
+                         xAId, rb);
     read_ats_region_to_segment_mapping(
-        &atlas_params->ats_reg_seg_map, obu_xLayer_id, xAId,
+        pbi, &atlas_params->ats_reg_seg_map, obu_xLayer_id, xAId,
         atlas_params->ats_reg_params.NumRegionsInAtlas[obu_xLayer_id][xAId],
         rb);
   } else if (atlas_params->atlas_segment_mode_idc[obu_xLayer_id][xAId] ==
              BASIC_ATLAS) {
-    read_ats_basic_info(atlas_params->ats_basic_info, obu_xLayer_id, xAId, rb);
+    read_ats_basic_info(pbi, atlas_params->ats_basic_info, obu_xLayer_id, xAId,
+                        rb);
   } else if (atlas_params->atlas_segment_mode_idc[obu_xLayer_id][xAId] ==
              SINGLE_ATLAS) {
     atlas_params->ats_reg_seg_map
