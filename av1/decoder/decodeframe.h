@@ -36,6 +36,8 @@ struct ThreadData;
 #if CONFIG_CROP_WIN_CWG_F220
 void av1_read_conformance_window(struct aom_read_bit_buffer *rb,
                                  struct SequenceHeader *seq_params);
+
+void av1_validate_conformance_window(const struct SequenceHeader *seq_params, struct aom_internal_error_info *error_info);
 #endif  // CONFIG_CROP_WIN_CWG_F220
 
 #if CONFIG_MULTILAYER_HLS

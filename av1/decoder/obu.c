@@ -240,6 +240,7 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
 
 #if CONFIG_CROP_WIN_CWG_F220
   av1_read_conformance_window(rb, seq_params);
+  av1_validate_conformance_window(seq_params, &cm->error);
 #endif  // CONFIG_CROP_WIN_CWG_F220
 
   av1_read_color_config(rb, seq_params, &cm->error);
