@@ -125,8 +125,9 @@ aomdec_av1_webm() {
   fi
 }
 
+# TODO(jungsun): Add back `aomdec_av1_ivf_error_resilient` when this option is
+# reintroduced.
 aomdec_tests="aomdec_av1_ivf
-              aomdec_av1_ivf_error_resilient
               aomdec_av1_ivf_multithread
               aomdec_aom_ivf_pipe_input
               aomdec_av1_obu
