@@ -196,7 +196,7 @@ uint32_t av1_read_operating_point_set_obu(struct AV1Decoder *pbi,
                 6) {
               aom_internal_error(
                   &pbi->common.error, AOM_CODEC_UNSUP_BITSTREAM,
-                  "value of ops_embedded_op_id shall not be larget than 6.");
+                  "value of ops_embedded_op_id shall not be larger than 6.");
             }
             int embedded_ops_id =
                 ops_params->ops_embedded_mapping[obu_xlayer_id][ops_id][i][j];
