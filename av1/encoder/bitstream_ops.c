@@ -156,11 +156,13 @@ uint32_t av1_write_operating_point_set_obu(AV1_COMP *cpi, int obu_xlayer_id,
                 &wb, ops->ops_embedded_mapping[obu_xlayer_id][ops_id][i][j], 4);
             aom_wb_write_literal(
                 &wb, ops->ops_embedded_op_id[obu_xlayer_id][ops_id][i][j], 3);
-            int opsEmMap =
+            int embedded_ops_id =
                 ops->ops_embedded_mapping[obu_xlayer_id][ops_id][i][j];
-            int opsEmId = ops->ops_embedded_op_id[obu_xlayer_id][ops_id][i][j];
-            write_ops_mlayer_info(obu_xlayer_id, opsEmMap, opsEmId, j,
-                                  ops->ops_mlayer_info, &wb);
+            int embedded_op_index =
+                ops->ops_embedded_op_id[obu_xlayer_id][ops_id][i][j];
+            write_ops_mlayer_info(obu_xlayer_id, embedded_ops_id,
+                                  embedded_op_index, j, ops->ops_mlayer_info,
+                                  &wb);
           }
         }
       } else {

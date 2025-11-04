@@ -192,11 +192,18 @@ uint32_t av1_read_operating_point_set_obu(struct AV1Decoder *pbi,
                 aom_rb_read_literal(rb, 4);
             ops_params->ops_embedded_op_id[obu_xlayer_id][ops_id][i][j] =
                 aom_rb_read_literal(rb, 3);
-            int opsEmbMap =
+            if (ops_params->ops_embedded_op_id[obu_xlayer_id][ops_id][i][j] >
+                6) {
+              aom_internal_error(
+                  &pbi->common.error, AOM_CODEC_UNSUP_BITSTREAM,
+                  "value of ops_embedded_op_id shall not be larget than 6.");
+            }
+            int embedded_ops_id =
                 ops_params->ops_embedded_mapping[obu_xlayer_id][ops_id][i][j];
-            int opsEmbId =
+            int embedded_op_index =
                 ops_params->ops_embedded_op_id[obu_xlayer_id][ops_id][i][j];
-            read_ops_mlayer_info(obu_xlayer_id, opsEmbMap, opsEmbId, j,
+            read_ops_mlayer_info(obu_xlayer_id, embedded_ops_id,
+                                 embedded_op_index, j,
                                  ops_params->ops_mlayer_info, rb);
           } else if (ops_params->ops_mlayer_info_idc[obu_xlayer_id][ops_id] >=
                      3) {
