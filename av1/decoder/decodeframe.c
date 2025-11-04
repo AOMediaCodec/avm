@@ -8306,9 +8306,6 @@ static void activate_sequence_header(AV1Decoder *pbi, int seq_header_id) {
                      qmset_inobu->quantizer_matrix[2][c],
                      4 * 8 * sizeof(qm_val_t));
             }  // c
-#if CONFIG_F255_QMOBU_TRACE
-            printf("<<<decoder>>>");
-#endif
             av1_free_qm(qmset_inobu->quantizer_matrix,
                         qmset_inobu->quantizer_matrix_num_planes);
             //[jkei] is it correct way to free the memory?

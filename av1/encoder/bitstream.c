@@ -9039,10 +9039,6 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
       }
       data += obu_header_size + obu_payload_size + length_field_size_qm;
       cpi->total_signalled_qmobu_count--;
-#if 1
-      printf("<<%s>> cpi->total_signalled_qmobu_count:%d\n", __func__,
-             cpi->total_signalled_qmobu_count);
-#endif
       cm->new_qmobu_added = 1;
     }  // need_new_qmobu
   }

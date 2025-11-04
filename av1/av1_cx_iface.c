@@ -1472,9 +1472,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   q_cfg->qm_minlevel = extra_cfg->qm_min;
   q_cfg->qm_maxlevel = extra_cfg->qm_max;
   q_cfg->user_defined_qmatrix = extra_cfg->user_defined_qmatrix != 0;
-#if CONFIG_F255_QMOBU_USERQM_TEST
-  q_cfg->user_defined_qmatrix = 1;
-#endif
   for (int i = 0; i < NUM_CUSTOM_QMS; i++) {
     q_cfg->qm_data_present[i] = extra_cfg->qm_data_present[i];
   }

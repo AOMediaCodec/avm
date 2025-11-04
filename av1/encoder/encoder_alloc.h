@@ -315,22 +315,12 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
   cpi->alloc_height = 0;
   cpi->alloc_sb_size = 0;
 #if CONFIG_F255_QMOBU
-#if CONFIG_F255_QMOBU_TRACE
-  printf("<<<<<%s>>>>> total_signalled_qmobu_count : %d\n", __func__,
-         cpi->total_signalled_qmobu_count);
-#endif
-
   for (int qmobu_pos = 0; qmobu_pos < cpi->total_signalled_qmobu_count;
        qmobu_pos++) {
     int qm_bit_map = cpi->qmobu_list[qmobu_pos].qm_bit_map;
     for (int j = 0; j < NUM_CUSTOM_QMS; j++) {
       if (qm_bit_map == 0 || qm_bit_map & (1 << j)) {
         if (cpi->qmobu_list[qmobu_pos].qm_list[j].quantizer_matrix != NULL) {
-#if CONFIG_F255_QMOBU_TRACE
-          printf("<<<<<%s>>>>> qmobu_list[%d].qm_list[%d]: %p\n", __func__,
-                 qmobu_pos, j,
-                 cpi->qmobu_list[qmobu_pos].qm_list[j].quantizer_matrix);
-#endif
           av1_free_qm(cpi->qmobu_list[qmobu_pos].qm_list[j].quantizer_matrix,
                       cm->seq_params.monochrome ? 1 : 3);
         }
@@ -343,10 +333,6 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
   }
   for (int qm_idx = 0; qm_idx < NUM_CUSTOM_QMS; qm_idx++) {
     if (cpi->user_defined_qm_list[qm_idx] != NULL) {
-#if CONFIG_F255_QMOBU_TRACE
-      printf("<<<<<%s>>>>> user_defined_mat[%d]: %p\n", __func__, qm_idx,
-             cpi->user_defined_qm_list[qm_idx]);
-#endif
       av1_free_qm(cpi->user_defined_qm_list[qm_idx],
                   cm->seq_params.monochrome ? 1 : 3);
       //[jkei] is it correct way to free the memory?

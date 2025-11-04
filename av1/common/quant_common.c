@@ -500,15 +500,9 @@ qm_val_t ***av1_alloc_qmset(int num_planes) {
       mat[q][c] = (qm_val_t *)aom_malloc(num_coeff * sizeof(qm_val_t));
     }
   }
-#if CONFIG_F255_QMOBU_TRACE
-  printf("<<<<%s>>>> mat %p\n", __func__, mat);
-#endif
   return mat;
 }
 void av1_free_qm(qm_val_t ***mat, int num_planes) {
-#if CONFIG_F255_QMOBU_TRACE
-  printf("<<<<%s>>>> mat %p\n", __func__, mat);
-#endif
   const int num_tsize = 3;  // 8x8, 8x4, 4x8
   for (int q = 0; q < num_tsize; q++) {
     for (int c = 0; c < num_planes; c++) {
