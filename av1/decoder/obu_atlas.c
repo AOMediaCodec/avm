@@ -101,13 +101,11 @@ static uint32_t read_ats_basic_info(struct AV1Decoder *pbi,
 
   int NumSegments =
       ats_basic_info->ats_num_atlas_segments_minus_1[obu_xLayer_id][xAId] + 1;
-  if (NumSegments > MAX_NUM_ATLAS_SEG_ID) {
-    aom_internal_error(
-        &pbi->common.error, AOM_CODEC_UNSUP_BITSTREAM,
-        "When atlas_segment_mode_idc is BASIC_ATLAS, the value of "
-        "ats_num_atlas_segments_minus_1[%d][%d] shall be in the "
-        "range of 0 to %d, inclusive.",
-        obu_xLayer_id, xAId, (MAX_NUM_ATLAS_SEG_ID - 1));
+  if (NumSegments > MAX_NUM_ATLAS_SEGMENTS) {
+    aom_internal_error(&pbi->common.error, AOM_CODEC_UNSUP_BITSTREAM,
+                       "The value of ats_num_atlas_segments_minus_1[%d][%d] "
+                       "shall be in the range of 0 to %d, inclusive.",
+                       obu_xLayer_id, xAId, (MAX_NUM_ATLAS_SEGMENTS - 1));
   }
   for (int i = 0; i < NumSegments; i++) {
     if (ats_basic_info->ats_stream_id_present[obu_xLayer_id][xAId]) {
@@ -142,12 +140,10 @@ static uint32_t read_ats_region_to_segment_mapping(
         ats_reg_seg_map->ats_num_atlas_segments_minus_1[obu_xLayer_id][xAId] +
         1;
     if (NumSegments > MAX_NUM_ATLAS_SEGMENTS) {
-      aom_internal_error(
-          &pbi->common.error, AOM_CODEC_UNSUP_BITSTREAM,
-          "When atlas_segment_mode_idc is ENHANCED_ATLAS case, the value of "
-          "ats_num_atlas_segments_minus_1[%d][%d] shall be in "
-          "the range of 0 to %d, inclusive.",
-          obu_xLayer_id, xAId, (MAX_NUM_ATLAS_SEGMENTS - 1));
+      aom_internal_error(&pbi->common.error, AOM_CODEC_UNSUP_BITSTREAM,
+                         "The value of ats_num_atlas_segments_minus_1[%d][%d] "
+                         "shall be in the range of 0 to %d, inclusive.",
+                         obu_xLayer_id, xAId, (MAX_NUM_ATLAS_SEGMENTS - 1));
     }
     for (int i = 0; i < NumSegments; i++) {
       ats_reg_seg_map->ats_top_left_region_column[obu_xLayer_id][xAId][i] =
@@ -206,13 +202,11 @@ static uint32_t read_ats_multistream_atlas_info(
       aom_rb_read_uvlc(rb);
   int NumSegments =
       ats_basic_info->ats_num_atlas_segments_minus_1[obu_xLayer_id][xAId] + 1;
-  if (NumSegments > MAX_NUM_ATLAS_SEG_ID) {
-    aom_internal_error(
-        &pbi->common.error, AOM_CODEC_UNSUP_BITSTREAM,
-        "When atlas_segment_mode_idc is MULTISTREAM_ATLAS, the value of "
-        "ats_num_atlas_segments_minus_1[%d][%d] shall be in the "
-        "range of 0 to %d, inclusive.",
-        obu_xLayer_id, xAId, (MAX_NUM_ATLAS_SEG_ID - 1));
+  if (NumSegments > MAX_NUM_ATLAS_SEGMENTS) {
+    aom_internal_error(&pbi->common.error, AOM_CODEC_UNSUP_BITSTREAM,
+                       "The value of ats_num_atlas_segments_minus_1[%d][%d] "
+                       "shall be in the range of 0 to %d, inclusive.",
+                       obu_xLayer_id, xAId, (MAX_NUM_ATLAS_SEGMENTS - 1));
   }
 
   ats_basic_info->AtlasWidth[obu_xLayer_id][xAId] =

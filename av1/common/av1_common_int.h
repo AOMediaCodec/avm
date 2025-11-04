@@ -781,22 +781,27 @@ typedef struct AtlasRegionInfo {
 } AtlasRegionInfo;
 
 typedef struct AtlasBasicInfo {
-  int ats_stream_id_present[MAX_NUM_XLAYERS][8];
-  int ats_atlas_width[MAX_NUM_XLAYERS][8];
-  int ats_atlas_height[MAX_NUM_XLAYERS][8];
-  int ats_num_atlas_segments_minus_1[MAX_NUM_XLAYERS][8];
-  int AtlasWidth[MAX_NUM_XLAYERS][8];
-  int AtlasHeight[MAX_NUM_XLAYERS][8];
-  int ats_input_stream_id[MAX_NUM_XLAYERS][8][8];
-  int ats_segment_top_left_pos_x[MAX_NUM_XLAYERS][8][8];
-  int ats_segment_top_left_pos_y[MAX_NUM_XLAYERS][8][8];
-  int ats_segment_width[MAX_NUM_XLAYERS][8][8];
-  int ats_segment_height[MAX_NUM_XLAYERS][8][8];
+  int ats_stream_id_present[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
+  int ats_atlas_width[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
+  int ats_atlas_height[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
+  int ats_num_atlas_segments_minus_1[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
+  int AtlasWidth[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
+  int AtlasHeight[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
+  int ats_input_stream_id[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID]
+                         [MAX_NUM_ATLAS_SEGMENTS];
+  int ats_segment_top_left_pos_x[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID]
+                                [MAX_NUM_ATLAS_SEGMENTS];
+  int ats_segment_top_left_pos_y[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID]
+                                [MAX_NUM_ATLAS_SEGMENTS];
+  int ats_segment_width[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID]
+                       [MAX_NUM_ATLAS_SEGMENTS];
+  int ats_segment_height[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID]
+                        [MAX_NUM_ATLAS_SEGMENTS];
 #if CONFIG_ATLAS_BACKGROUND_COLOR
-  int ats_background_info_present_flag[MAX_NUM_XLAYERS][8];
-  int ats_background_red_value[MAX_NUM_XLAYERS][8];
-  int ats_background_green_value[MAX_NUM_XLAYERS][8];
-  int ats_background_blue_value[MAX_NUM_XLAYERS][8];
+  int ats_background_info_present_flag[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
+  int ats_background_red_value[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
+  int ats_background_green_value[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
+  int ats_background_blue_value[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID];
 #endif  // CONFIG_ATLAS_BACKGROUND_COLOR
 } AtlasBasicInfo;
 
