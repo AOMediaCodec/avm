@@ -22,8 +22,7 @@ namespace {
 //
 // Input buffers containing exactly one Sequence Header OBU.
 //
-// Each buffer is named according to the OBU storage format (Annex-B vs Low
-// Overhead Bitstream Format) and the type of Sequence Header OBU ("Full"
+// Each buffer is named according to the type of Sequence Header OBU ("Full"
 // Sequence Header OBUs vs Sequence Header OBUs with the
 // reduced_still_image_flag set).
 //

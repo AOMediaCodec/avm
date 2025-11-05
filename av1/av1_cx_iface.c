@@ -3349,7 +3349,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
         }
 
         size_t curr_frame_size = frame_size;
-        if (av1_convert_sect5obus_to_regular(cx_data, &curr_frame_size) !=
+        if (av1_convert_sect5obus_to_annexb(cx_data, &curr_frame_size) !=
             AOM_CODEC_OK) {
           aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR, NULL);
         }

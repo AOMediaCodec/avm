@@ -3223,7 +3223,11 @@ int av1_set_internal_size(AV1EncoderConfig *const oxcf,
 
 int av1_get_quantizer(struct AV1_COMP *cpi);
 
-int av1_convert_sect5obus_to_regular(uint8_t *buffer, size_t *input_size);
+// The "sect5" and "annexb" in the function name refer to Section 5 and Annex B
+// in the AV1 spec, but AV2 only supports a simplified variant of Annex B.
+// TODO(wtc): write OBU sizes to the bitstream in the AV2 bitstream format
+// directly and remove this function.
+int av1_convert_sect5obus_to_annexb(uint8_t *buffer, size_t *input_size);
 
 void av1_set_downsample_filter_options(AV1_COMP *cpi);
 

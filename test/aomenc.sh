@@ -98,11 +98,11 @@ aomenc_av1_ivf() {
   fi
 }
 
-aomenc_av1_obu_section5() {
+aomenc_av1_obu() {
    if [ "$(aomenc_can_encode_av1)" = "yes" ]; then
-    local output="${AV1_OBU_SEC5_FILE}"
-    if [ -e "${AV1_OBU_SEC5_FILE}" ]; then
-      output="${AOM_TEST_OUTPUT_DIR}/av1_test.section5.obu"
+    local output="${AV1_OBU_FILE}"
+    if [ -e "${AV1_OBU_FILE}" ]; then
+      output="${AOM_TEST_OUTPUT_DIR}/av1_test.obu"
     fi
     aomenc $(yuv_raw_input) \
       $(aomenc_encode_test_fast_params) \
@@ -260,7 +260,7 @@ aomenc_av1_webm_cdf_update_mode() {
 }
 
 aomenc_tests="aomenc_av1_ivf
-              aomenc_av1_obu_section5
+              aomenc_av1_obu
               aomenc_av1_obu_lcr_ops_atlas
               aomenc_av1_webm
               aomenc_av1_webm_1pass
