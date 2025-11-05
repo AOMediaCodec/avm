@@ -92,7 +92,6 @@ list(
   "${AOM_ROOT}/av1/common/timing.h"
   "${AOM_ROOT}/av1/common/tip.c"
   "${AOM_ROOT}/av1/common/tip.h"
-  "${AOM_ROOT}/av1/common/token_cdfs.h"
   "${AOM_ROOT}/av1/common/txb_common.c"
   "${AOM_ROOT}/av1/common/txb_common.h"
   "${AOM_ROOT}/av1/common/warped_motion.c"
