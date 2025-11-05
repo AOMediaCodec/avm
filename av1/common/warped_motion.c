@@ -1419,7 +1419,17 @@ static int find_affine_int(int np, const int *pts1, const int *pts2,
 
   // Compute Determinant of A
   const int64_t Det = (int64_t)A[0][0] * A[1][1] - (int64_t)A[0][1] * A[0][1];
-  if (Det == 0) return 1;
+  if (Det == 0) {
+    wm->wmmat[2] = (1 << WARPEDMODEL_PREC_BITS);
+    wm->wmmat[3] = 0;
+    wm->wmmat[4] = 0;
+    wm->wmmat[5] = (1 << WARPEDMODEL_PREC_BITS);
+    wm->wmmat[6] = 0;
+    wm->wmmat[7] = 0;
+    av1_get_shear_params(wm, sf);
+    av1_set_warp_translation(mi_row, mi_col, bsize, mv, wm);
+    return 0;
+  }
 
   int16_t shift;
   int16_t iDet = resolve_divisor_64(llabs(Det), &shift) * (Det < 0 ? -1 : 1);
