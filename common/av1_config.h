@@ -53,7 +53,11 @@ typedef struct _Av1Config {
 #if CONFIG_CWG_E242_SEQ_HDR_ID
   uint8_t seq_header_id;
 #endif  // CONFIG_CWG_E242_SEQ_HDR_ID
+#if CONFIG_CWG_F270_OPS
+  uint8_t seq_tool_set_idc;
+#else
   uint8_t seq_profile;
+#endif  // CONFIG_CWG_F270_OPS
   uint8_t seq_level_idx_0;
   uint8_t seq_tier_0;
 #if CONFIG_CWG_E242_BITDEPTH

@@ -6064,10 +6064,18 @@ static AOM_INLINE void read_bitdepth(
   if (bitdepth >= 0) seq_params->bit_depth = bitdepth;
 #else
   const int high_bitdepth = aom_rb_read_bit(rb);
+#if CONFIG_CWG_F270_OPS
+  if (seq_params->seq_tool_set_idc == PROFILE_2 && high_bitdepth) {
+#else
   if (seq_params->profile == PROFILE_2 && high_bitdepth) {
+#endif  // CONFIG_CWG_F270_OPS
     const int twelve_bit = aom_rb_read_bit(rb);
     seq_params->bit_depth = twelve_bit ? AOM_BITS_12 : AOM_BITS_10;
+#if CONFIG_CWG_F270_OPS
+  } else if (seq_params->seq_tool_set_idc <= PROFILE_2) {
+#else
   } else if (seq_params->profile <= PROFILE_2) {
+#endif  // CONFIG_CWG_F270_OPSs
     seq_params->bit_depth = high_bitdepth ? AOM_BITS_10 : AOM_BITS_8;
   }
 #endif  // CONFIG_CWG_E242_BITDEPTH
@@ -6379,7 +6387,11 @@ void av1_read_color_config(struct aom_read_bit_buffer *rb,
 #else
   // monochrome bit (not needed for PROFILE_1)
   const int is_monochrome =
+#if CONFIG_CWG_F270_OPS
       seq_params->profile != PROFILE_1 ? aom_rb_read_bit(rb) : 0;
+#else
+      seq_params->profile != PROFILE_1 ? aom_rb_read_bit(rb) : 0;
+#endif  // CONFIG_CWG_F270_OPS
 #endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
   seq_params->monochrome = is_monochrome;
   int color_description_present_flag = aom_rb_read_bit(rb);
@@ -6403,9 +6415,15 @@ void av1_read_color_config(struct aom_read_bit_buffer *rb,
         seq_params->matrix_coefficients == AOM_CICP_MC_IDENTITY) {
       seq_params->subsampling_y = seq_params->subsampling_x = 0;
       seq_params->color_range = 1;  // assume full color-range
+#if CONFIG_CWG_F270_OPS
+      if (!(seq_params->seq_tool_set_idc == PROFILE_1 ||
+            (seq_params->seq_tool_set_idc == PROFILE_2 &&
+             seq_params->bit_depth == AOM_BITS_12))) {
+#else
       if (!(seq_params->profile == PROFILE_1 ||
             (seq_params->profile == PROFILE_2 &&
              seq_params->bit_depth == AOM_BITS_12))) {
+#endif  // CONFIG_CWG_F270_OPS
         aom_internal_error(
             error_info, AOM_CODEC_UNSUP_BITSTREAM,
             "sRGB colorspace not compatible with specified profile");
@@ -6414,14 +6432,26 @@ void av1_read_color_config(struct aom_read_bit_buffer *rb,
       // [16,235] (including xvycc) vs [0,255] range
       seq_params->color_range = aom_rb_read_bit(rb);
 #if !CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+#if CONFIG_CWG_F270_OPS
+      if (seq_params->seq_tool_set_idc == PROFILE_0) {
+#else
       if (seq_params->profile == PROFILE_0) {
+#endif  // CONFIG_CWG_F270_OPS
         // 420 only
         seq_params->subsampling_x = seq_params->subsampling_y = 1;
+#if CONFIG_CWG_F270_OPS
+      } else if (seq_params->seq_tool_set_idc == PROFILE_1) {
+#else
       } else if (seq_params->profile == PROFILE_1) {
+#endif  // CONFIG_CWG_F270_OPS
         // 444 only
         seq_params->subsampling_x = seq_params->subsampling_y = 0;
       } else {
+#if CONFIG_CWG_F270_OPS
+        assert(seq_params->seq_tool_set_idc == PROFILE_2);
+#else
         assert(seq_params->profile == PROFILE_2);
+#endif  // CONFIG_CWG_F270_OPS
         if (seq_params->bit_depth == AOM_BITS_12) {
           seq_params->subsampling_x = aom_rb_read_bit(rb);
           if (seq_params->subsampling_x)

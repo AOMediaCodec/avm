@@ -44,7 +44,11 @@ static AOM_INLINE void config_target_level(AV1_COMP *const cpi,
   RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
 
   // Adjust target bitrate to be no larger than 70% of level limit.
+#if CONFIG_CWG_F270_OPS
+  const BITSTREAM_PROFILE profile = seq_params->seq_tool_set_idc;
+#else
   const BITSTREAM_PROFILE profile = seq_params->profile;
+#endif  // CONFIG_CWG_F270_OPS
   const double level_bitrate_limit =
       av1_get_max_bitrate_for_level(target_level, tier, profile);
   const int64_t max_bitrate = (int64_t)(level_bitrate_limit * 0.70);

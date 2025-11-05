@@ -344,8 +344,15 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
   config->seq_header_id = seq_header_id;
 #endif  // CONFIG_CWG_E242_SEQ_HDR_ID
 
+#if CONFIG_CWG_F270_OPS
+  AV1C_READ_BITS_OR_RETURN_ERROR(seq_tool_set_idc, 3);
+  config->seq_tool_set_idc = seq_tool_set_idc;
+  AV1C_READ_BITS_OR_RETURN_ERROR(seq_level_idx_0, 5);
+  config->seq_level_idx_0 = seq_level_idx_0;
+#else
   AV1C_READ_BITS_OR_RETURN_ERROR(seq_profile, 3);
   config->seq_profile = seq_profile;
+#endif  // CONFIG_CWG_F270_OPS
 
   AV1C_READ_BITS_OR_RETURN_ERROR(frame_width_bits_minus_1, 4);
   AV1C_READ_BITS_OR_RETURN_ERROR(frame_height_bits_minus_1, 4);
@@ -380,10 +387,29 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
   AV1C_READ_BIT_OR_RETURN_ERROR(reduced_still_picture_header);
   if (reduced_still_picture_header) {
     config->initial_presentation_delay_present = 0;
+#if !CONFIG_CWG_F270_OPS
     AV1C_READ_BITS_OR_RETURN_ERROR(seq_level_idx_0, 5);
     config->seq_level_idx_0 = seq_level_idx_0;
+#endif  // !CONFIG_CWG_F270_OPS
     config->seq_tier_0 = 0;
   } else {
+#if CONFIG_CWG_F270_OPS
+    AV1C_READ_BIT_OR_RETURN_ERROR(max_display_model_info_present_flag);
+    int seq_max_display_model_info_present_flag =
+        max_display_model_info_present_flag;
+    AV1C_READ_BIT_OR_RETURN_ERROR(decoder_model_present_flag);
+    int decoder_model_info_present_flag = decoder_model_present_flag;
+    if (decoder_model_info_present_flag) {
+      AV1C_READ_BITS_OR_RETURN_ERROR(num_units_in_decoding_tick, 32);
+      AV1C_READ_BIT_OR_RETURN_ERROR(max_decoder_model_present_flag);
+      int max_decoder_model_info_present_flag = max_decoder_model_present_flag;
+      if (max_decoder_model_info_present_flag) {
+        int seq_max_decoder_buffer_delay = aom_rb_read_uvlc(reader);
+        int seq_max_encoder_buffer_delay = aom_rb_read_uvlc(reader);
+        int seq_max_low_delay_mode_flag = aom_rb_read_uvlc(reader);
+      }
+    }
+#else
     int has_decoder_model = 0;
     int buffer_delay_length = 0;
 
@@ -445,6 +471,7 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
         config->initial_presentation_delay_minus_one = 0;
       }
     }
+#endif  // CONFIG_CWG_F270_OPS
   }
 
   return 0;
@@ -497,7 +524,11 @@ int read_av1config(const uint8_t *buffer, size_t buffer_length,
   config->version = version;
 
   AV1C_READ_BITS_OR_RETURN_ERROR(seq_profile, 3);
+#if CONFIG_CWG_F270_OPS
+  config->seq_tool_set_idc = seq_profile;
+#else
   config->seq_profile = seq_profile;
+#endif  // CONFIG_CWG_F270_OPS
 
   AV1C_READ_BITS_OR_RETURN_ERROR(seq_level_idx_0, 5);
   config->seq_level_idx_0 = seq_level_idx_0;
@@ -559,7 +590,11 @@ int write_av1config(const Av1Config *config, size_t capacity,
 
   aom_wb_write_bit(&writer, config->marker);
   aom_wb_write_literal(&writer, config->version, 7);
+#if CONFIG_CWG_F270_OPS
+  aom_wb_write_literal(&writer, config->seq_tool_set_idc, 3);
+#else
   aom_wb_write_literal(&writer, config->seq_profile, 3);
+#endif  // CONFIG_CWG_F270_OPS
   aom_wb_write_literal(&writer, config->seq_level_idx_0, 5);
   aom_wb_write_bit(&writer, config->seq_tier_0);
 #if CONFIG_CWG_E242_BITDEPTH

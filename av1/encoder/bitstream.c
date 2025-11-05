@@ -4806,7 +4806,12 @@ static AOM_INLINE void write_bitdepth(const SequenceHeader *const seq_params,
   // Profile 0/1: [0] for 8 bit, [1]  10-bit
   // Profile   2: [0] for 8 bit, [10] 10-bit, [11] - 12-bit
   aom_wb_write_bit(wb, seq_params->bit_depth == AOM_BITS_8 ? 0 : 1);
+#if CONFIG_CWG_F270_OPS
+  if (seq_params->seq_tool_set_idc == PROFILE_2 &&
+      seq_params->bit_depth != AOM_BITS_8) {
+#else
   if (seq_params->profile == PROFILE_2 && seq_params->bit_depth != AOM_BITS_8) {
+#endif  //  CONFIG_CWG_F270_OPS
     aom_wb_write_bit(wb, seq_params->bit_depth == AOM_BITS_10 ? 0 : 1);
   }
 #endif  // CONFIG_CWG_E242_BITDEPTH
@@ -4840,7 +4845,11 @@ static AOM_INLINE void write_color_config(
   const int is_monochrome = seq_params->monochrome;
 #if !CONFIG_CWG_E242_CHROMA_FORMAT_IDC
   // monochrome bit
+#if CONFIG_CWG_F270_OPS
+  if (seq_params->seq_tool_set_idc != PROFILE_1)
+#else
   if (seq_params->profile != PROFILE_1)
+#endif  // CONFIG_CWG_F270_OPS
     aom_wb_write_bit(wb, is_monochrome);
   else
     assert(!is_monochrome);
@@ -4863,22 +4872,40 @@ static AOM_INLINE void write_color_config(
         seq_params->transfer_characteristics == AOM_CICP_TC_SRGB &&
         seq_params->matrix_coefficients == AOM_CICP_MC_IDENTITY) {
       assert(seq_params->subsampling_x == 0 && seq_params->subsampling_y == 0);
+#if CONFIG_CWG_F270_OPS
+      assert(seq_params->seq_tool_set_idc == PROFILE_1 ||
+             (seq_params->seq_tool_set_idc == PROFILE_2 &&
+              seq_params->bit_depth == AOM_BITS_12));
+#else
       assert(seq_params->profile == PROFILE_1 ||
              (seq_params->profile == PROFILE_2 &&
               seq_params->bit_depth == AOM_BITS_12));
+#endif  // CONFIG_CWG_F270_OPS
     } else {
       // 0: [16, 235] (i.e. xvYCC), 1: [0, 255]
       aom_wb_write_bit(wb, seq_params->color_range);
 #if !CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+#if CONFIG_CWG_F270_OPS
+      if (seq_params->seq_tool_set_idc == PROFILE_0) {
+#else
       if (seq_params->profile == PROFILE_0) {
+#endif  // CONFIG_CWG_F270_OPS
         // 420 only
         assert(seq_params->subsampling_x == 1 &&
                seq_params->subsampling_y == 1);
+#if CONFIG_CWG_F270_OPS
+      } else if (seq_params->seq_tool_set_idc == PROFILE_1) {
+#else
       } else if (seq_params->profile == PROFILE_1) {
+#endif  // CONFIG_CWG_F270_OPS
         // 444 only
         assert(seq_params->subsampling_x == 0 &&
                seq_params->subsampling_y == 0);
+#if CONFIG_CWG_F270_OPS
+      } else if (seq_params->seq_tool_set_idc == PROFILE_2) {
+#else
       } else if (seq_params->profile == PROFILE_2) {
+#endif  // CONFIG_CWG_F270_OPS
         if (seq_params->bit_depth == AOM_BITS_12) {
           // 420, 444 or 422
           aom_wb_write_bit(wb, seq_params->subsampling_x);
@@ -7337,8 +7364,14 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
 #if CONFIG_CWG_E242_SEQ_HDR_ID
   aom_wb_write_uvlc(&wb, seq_params->seq_header_id);
 #endif  // CONFIG_CWG_E242_SEQ_HDR_ID
+#if CONFIG_CWG_F270_OPS
+  write_profile(seq_params->seq_tool_set_idc, &wb);
+  write_bitstream_level(seq_params->seq_max_level_idx, &wb);
+  if (seq_params->seq_max_level_idx >= SEQ_LEVEL_4_0)
+    aom_wb_write_bit(&wb, seq_params->seq_tier);
+#else
   write_profile(seq_params->profile, &wb);
-
+#endif  // CONFIG_CWG_F270_OPS
   aom_wb_write_literal(&wb, seq_params->num_bits_width - 1, 4);
   aom_wb_write_literal(&wb, seq_params->num_bits_height - 1, 4);
   aom_wb_write_literal(&wb, seq_params->max_frame_width - 1,
@@ -7363,8 +7396,28 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
     assert(seq_params->timing_info_present == 0);
     assert(seq_params->decoder_model_info_present_flag == 0);
     assert(seq_params->display_model_info_present_flag == 0);
+#if !CONFIG_CWG_F270_OPS
     write_bitstream_level(seq_params->seq_level_idx[0], &wb);
+#endif  // !CONFIG_CWG_F270_OPS
   } else {
+#if CONFIG_CWG_F270_OPS
+    aom_wb_write_bit(&wb, seq_params->seq_max_display_model_info_present_flag);
+    if (seq_params->seq_max_display_model_info_present_flag) {
+      aom_wb_write_literal(
+          &wb, seq_params->seq_max_initial_display_delay_minus_1, 4);
+    }
+    aom_wb_write_bit(&wb, seq_params->decoder_model_info_present_flag);
+    if (seq_params->decoder_model_info_present_flag) {
+      aom_wb_write_literal(
+          &wb, seq_params->decoder_model_info.num_units_in_decoding_tick, 32);
+      aom_wb_write_bit(&wb, seq_params->seq_max_decoder_model_present_flag);
+      if (seq_params->seq_max_decoder_model_present_flag) {
+        aom_wb_write_literal(&wb, seq_params->seq_max_decoder_buffer_delay, 4);
+        aom_wb_write_literal(&wb, seq_params->seq_max_encoder_buffer_delay, 4);
+        aom_wb_write_bit(&wb, seq_params->seq_max_low_delay_mode_flag);
+      }
+    }
+#else
     aom_wb_write_bit(
         &wb, seq_params->timing_info_present);  // timing info present flag
 
@@ -7383,9 +7436,11 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
     for (i = 0; i < seq_params->operating_points_cnt_minus_1 + 1; i++) {
       aom_wb_write_literal(&wb, seq_params->operating_point_idc[i],
                            OP_POINTS_IDC_BITS);
+#if !CONFIG_CWG_F270_OPS
       write_bitstream_level(seq_params->seq_level_idx[i], &wb);
       if (seq_params->seq_level_idx[i] >= SEQ_LEVEL_4_0)
         aom_wb_write_bit(&wb, seq_params->tier[i]);
+#endif  // !CONFIG_CWG_F270_OPS
       if (seq_params->decoder_model_info_present_flag) {
         aom_wb_write_bit(
             &wb, seq_params->op_params[i].decoder_model_param_present_flag);
@@ -7407,6 +7462,7 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
         }
       }
     }
+#endif  // !CONFIG_CWG_F270_OPS
   }
 
   if (!seq_params->single_picture_hdr_flag) {

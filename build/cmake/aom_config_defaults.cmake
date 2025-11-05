@@ -197,6 +197,10 @@ set_aom_config_var(CONFIG_CWG_E242_CHROMA_FORMAT_IDC 1 "Chroma format idc.")
 # CWG-F220 Sequence Cropping Window
 set_aom_config_var(CONFIG_CROP_WIN_CWG_F220 1 "Sequence Cropping Window")
 
+set_aom_config_var(CONFIG_CWG_F270_CI_OBU 1 "Use content interpretation OBU")
+
+set_aom_config_var(CONFIG_CWG_F270_OPS 1 "Add OPS and SH related changes")
+
 set_aom_config_var(CONFIG_CWG_F298_REC11 1 NUMBER
                    "Scaling function improvements for film grain synthesis.")
 

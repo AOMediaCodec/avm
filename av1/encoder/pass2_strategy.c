@@ -796,7 +796,11 @@ static int adjust_boost_bits_for_target_level(const AV1_COMP *const cpi,
     assert(is_valid_seq_level_idx(target_level));
 
     const double level_bitrate_limit = av1_get_max_bitrate_for_level(
+#if CONFIG_CWG_F270_OPS
+        target_level, seq_params->tier[0], seq_params->seq_tool_set_idc);
+#else
         target_level, seq_params->tier[0], seq_params->profile);
+#endif  // CONFIG_CWG_F270_OPS
     const int target_bits_per_frame =
         (int)(level_bitrate_limit / cpi->framerate);
     if (frame_type == 0) {

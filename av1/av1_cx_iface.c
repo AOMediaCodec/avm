@@ -1807,7 +1807,12 @@ static aom_codec_err_t encoder_set_config(aom_codec_alg_priv_t *ctx,
     ctx->cfg = *cfg;
     set_encoder_config(&ctx->oxcf, &ctx->cfg, &ctx->extra_cfg, 0);
     // On profile change, request a key frame
+#if CONFIG_CWG_F270_OPS
+    force_key |=
+        ctx->cpi->common.seq_params.seq_tool_set_idc != ctx->oxcf.profile;
+#else
     force_key |= ctx->cpi->common.seq_params.profile != ctx->oxcf.profile;
+#endif  // CONFIG_CWG_F270_OPS
     av1_change_config(ctx->cpi, &ctx->oxcf);
     if (ctx->cpi_lap != NULL) {
       av1_change_config(ctx->cpi_lap, &ctx->oxcf);

@@ -485,7 +485,12 @@ void av1_decoder_model_init(const AV1_COMP *const cpi, AV1_LEVEL level,
   const AV1_COMMON *const cm = &cpi->common;
   const SequenceHeader *const seq_params = &cm->seq_params;
   decoder_model->bit_rate = get_max_bitrate(
+#if CONFIG_CWG_F270_OPS
+      av1_level_defs + level, seq_params->tier[op_index],
+      seq_params->seq_tool_set_idc);
+#else
       av1_level_defs + level, seq_params->tier[op_index], seq_params->profile);
+#endif  // CONFIG_CWG_F270_OPS
 
   // TODO(huisu or anyone): implement SCHEDULE_MODE.
   decoder_model->mode = RESOURCE_MODE;
@@ -1068,7 +1073,11 @@ void av1_update_level_info(AV1_COMP *cpi, size_t size, int64_t ts_start,
   const int xlayer_id = cm->xlayer_id;
   (void)xlayer_id;
   const SequenceHeader *const seq_params = &cm->seq_params;
+#if CONFIG_CWG_F270_OPS
+  const BITSTREAM_PROFILE profile = seq_params->seq_tool_set_idc;
+#else
   const BITSTREAM_PROFILE profile = seq_params->profile;
+#endif  // CONFIG_CWG_F270_OPS
   const int is_still_picture = seq_params->still_picture;
   // update level_stats
   // TODO(kyslov@) fix the implementation according to buffer model
@@ -1152,7 +1161,11 @@ aom_codec_err_t av1_get_seq_level_idx(const SequenceHeader *seq_params,
                                       const AV1LevelParams *level_params,
                                       int *seq_level_idx) {
   const int is_still_picture = seq_params->still_picture;
+#if CONFIG_CWG_F270_OPS
+  const BITSTREAM_PROFILE profile = seq_params->seq_tool_set_idc;
+#else
   const BITSTREAM_PROFILE profile = seq_params->profile;
+#endif  // CONFIG_CWG_F270_OPS
   for (int op = 0; op < seq_params->operating_points_cnt_minus_1 + 1; ++op) {
     seq_level_idx[op] = (int)SEQ_LEVEL_MAX;
     if (!((level_params->keep_level_stats >> op) & 1)) continue;

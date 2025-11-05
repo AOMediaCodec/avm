@@ -29,6 +29,7 @@
 #include "av1/decoder/decoder.h"
 #include "av1/decoder/decodeframe.h"
 #include "av1/decoder/obu.h"
+#include "av1/common/enums.h"
 
 aom_codec_err_t aom_get_num_layers_from_operating_point_idc(
     int operating_point_idc, unsigned int *number_mlayers,
@@ -222,12 +223,26 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
   SequenceHeader sh = cm->seq_params;
   SequenceHeader *const seq_params = &sh;
 #endif  // CONFIG_CWG_E242_SEQ_HDR_ID
+#if CONFIG_CWG_F270_OPS
+  seq_params->seq_tool_set_idc = av1_read_profile(rb);
+  if (seq_params->seq_tool_set_idc > CONFIG_MAX_DECODE_PROFILE) {
+#else
   seq_params->profile = av1_read_profile(rb);
   if (seq_params->profile > CONFIG_MAX_DECODE_PROFILE) {
+#endif  // CONFIG_CWG_F270_OPS
     cm->error.error_code = AOM_CODEC_UNSUP_BITSTREAM;
     return 0;
   }
-
+#if CONFIG_CWG_F270_OPS
+  if (!read_bitstream_level(&seq_params->seq_max_level_idx, rb)) {
+    cm->error.error_code = AOM_CODEC_UNSUP_BITSTREAM;
+    return 0;
+  }
+  if (seq_params->seq_max_level_idx >= SEQ_LEVEL_4_0)
+    seq_params->seq_tier = aom_rb_read_bit(rb);
+  else
+    seq_params->seq_tier = 0;
+#endif  // CONFIG_CWG_F270_OPS
   const int num_bits_width = aom_rb_read_literal(rb, 4) + 1;
   const int num_bits_height = aom_rb_read_literal(rb, 4) + 1;
   const int max_frame_width = aom_rb_read_literal(rb, num_bits_width) + 1;
@@ -263,17 +278,52 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
     return 0;
   }
 
+#if CONFIG_CWG_F270_OPS
+  if (seq_params->single_picture_hdr_flag) {
+    seq_params->timing_info_present = 0;
+    seq_params->decoder_model_info_present_flag = 0;
+    seq_params->display_model_info_present_flag = 0;
+  } else {
+    seq_params->seq_max_display_model_info_present_flag = aom_rb_read_bit(rb);
+    if (seq_params->seq_max_display_model_info_present_flag)
+      seq_params->seq_max_initial_display_delay_minus_1 =
+          BUFFER_POOL_MAX_SIZE - 1;
+    seq_params->decoder_model_info_present_flag = aom_rb_read_bit(rb);
+    if (seq_params->decoder_model_info_present_flag) {
+      seq_params->decoder_model_info.num_units_in_decoding_tick =
+          aom_rb_read_literal(rb, 32);
+      seq_params->seq_max_display_model_info_present_flag = aom_rb_read_bit(rb);
+      if (seq_params->seq_max_display_model_info_present_flag) {
+        seq_params->seq_max_decoder_buffer_delay = aom_rb_read_uvlc(rb);
+        seq_params->seq_max_encoder_buffer_delay = aom_rb_read_uvlc(rb);
+        seq_params->seq_max_low_delay_mode_flag = aom_rb_read_bit(rb);
+      } else {
+        seq_params->seq_max_decoder_buffer_delay = 70000;
+        seq_params->seq_max_encoder_buffer_delay = 20000;
+        seq_params->seq_max_low_delay_mode_flag = 0;
+      }
+    } else {
+      seq_params->decoder_model_info.num_units_in_decoding_tick = 1;
+      seq_params->seq_max_decoder_buffer_delay = 70000;
+      seq_params->seq_max_encoder_buffer_delay = 20000;
+      seq_params->seq_max_low_delay_mode_flag = 0;
+    }
+    seq_params->seq_max_initial_display_delay_minus_1 = 0;
+  }
+#else
   if (seq_params->single_picture_hdr_flag) {
     seq_params->timing_info_present = 0;
     seq_params->decoder_model_info_present_flag = 0;
     seq_params->display_model_info_present_flag = 0;
     seq_params->operating_points_cnt_minus_1 = 0;
     seq_params->operating_point_idc[0] = 0;
+#if !CONFIG_CWG_F270_OPS
     if (!read_bitstream_level(&seq_params->seq_level_idx[0], rb)) {
       cm->error.error_code = AOM_CODEC_UNSUP_BITSTREAM;
       return 0;
     }
     seq_params->tier[0] = 0;
+#endif  // !CONFIG_CWG_F270_OPS
     seq_params->op_params[0].decoder_model_param_present_flag = 0;
     seq_params->op_params[0].display_model_param_present_flag = 0;
   } else {
@@ -293,10 +343,12 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
     for (int i = 0; i < seq_params->operating_points_cnt_minus_1 + 1; i++) {
       seq_params->operating_point_idc[i] =
           aom_rb_read_literal(rb, OP_POINTS_IDC_BITS);
+#if !CONFIG_CWG_F270_OPS
       if (!read_bitstream_level(&seq_params->seq_level_idx[i], rb)) {
         cm->error.error_code = AOM_CODEC_UNSUP_BITSTREAM;
         return 0;
       }
+#endif  // !CONFIG_CWG_F270_OPS
       // This is the seq_level_idx[i] > 7 check in the spec. seq_level_idx 7
       // is equivalent to level 3.3.
       if (seq_params->seq_level_idx[i] >= SEQ_LEVEL_4_0)
@@ -318,7 +370,11 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
           (seq_params->timing_info.equal_picture_interval ||
            seq_params->op_params[i].decoder_model_param_present_flag)) {
         seq_params->op_params[i].bitrate = av1_max_level_bitrate(
+#if CONFIG_CWG_F270_OPS
+            seq_params->seq_tool_set_idc, seq_params->seq_level_idx[i],
+#else
             seq_params->profile, seq_params->seq_level_idx[i],
+#endif  // CONFIG_CWG_F270_OPS
             seq_params->tier[i]);
         // Level with seq_level_idx = 31 returns a high "dummy" bitrate to pass
         // the check
@@ -358,6 +414,7 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
       }
     }
   }
+#endif  // CONFIG_CWG_F270_OPS
   // This decoder supports all levels.  Choose operating point provided by
   // external means
   int operating_point = pbi->operating_point;

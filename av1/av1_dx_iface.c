@@ -36,6 +36,7 @@
 #include "av1/decoder/obu.h"
 
 #include "aom_dsp/bitwriter_buffer.h"
+#include "av1/common/enums.h"
 
 #include "av1/av1_iface_common.h"
 
@@ -457,8 +458,14 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
       aom_rb_read_uvlc(&rb);  // seq_header_id
 #endif                        // CONFIG_CWG_E242_SEQ_HDR_ID
 
+#if CONFIG_CWG_F270_OPS
+      BITSTREAM_PROFILE seq_tool_set_idc = av1_read_profile(&rb);  // profile
+      AV1_LEVEL max_level_idx = aom_rb_read_literal(&rb, 5);
+      int tier = 0;
+      if (max_level_idx >= SEQ_LEVEL_4_0) tier = aom_rb_read_bit(&rb);
+#else
       BITSTREAM_PROFILE profile = av1_read_profile(&rb);  // profile
-
+#endif  // CONFIG_CWG_F270_OPS
       int num_bits_width = aom_rb_read_literal(&rb, 4) + 1;
       int num_bits_height = aom_rb_read_literal(&rb, 4) + 1;
       int max_frame_width = aom_rb_read_literal(&rb, num_bits_width) + 1;
@@ -476,7 +483,11 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
       }
 #endif  // CONFIG_CROP_WIN_CWG_F220
 
+#if CONFIG_CWG_F270_OPS
+      status = parse_color_config(&rb, seq_tool_set_idc);
+#else
       status = parse_color_config(&rb, profile);
+#endif  // CONFIG_CWG_F270_OPS
       if (status != AOM_CODEC_OK) return status;
 
       const uint8_t still_picture = aom_rb_read_bit(&rb);
@@ -486,8 +497,10 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
         return AOM_CODEC_UNSUP_BITSTREAM;
       }
 
+#if !CONFIG_CWG_F270_OPS
       status = parse_operating_points(&rb, single_picture_hdr_flag, si);
       if (status != AOM_CODEC_OK) return status;
+#endif  // !CONFIG_CWG_F270_OPS
 
       got_sequence_header = 1;
 #if CONFIG_F106_OBU_TILEGROUP

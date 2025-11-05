@@ -243,7 +243,11 @@ double av1_get_compression_ratio(const AV1_COMMON *const cm,
   const int height = cm->height;
   const int luma_pic_size = upscaled_width * height;
   const SequenceHeader *const seq_params = &cm->seq_params;
+#if CONFIG_CWG_F270_OPS
+  const BITSTREAM_PROFILE profile = seq_params->seq_tool_set_idc;
+#else
   const BITSTREAM_PROFILE profile = seq_params->profile;
+#endif  // CONFIG_CWG_F270_OPS
   const int pic_size_profile_factor =
       profile == PROFILE_0 ? 15 : (profile == PROFILE_1 ? 30 : 36);
   encoded_frame_size =
@@ -345,7 +349,7 @@ static void set_bitstream_level_tier(SequenceHeader *seq, AV1_COMMON *cm,
     // Set the maximum parameters for bitrate and buffer size for this profile,
     // level, and tier
     seq_params->op_params[i].bitrate = av1_max_level_bitrate(
-        cm->seq_params.profile, seq->seq_level_idx[i], seq->tier[i]);
+        cm->seq_params.seq_tool_set_idc, seq->seq_level_idx[i], seq->tier[i]);
     // Level with seq_level_idx = 31 returns a high "dummy" bitrate to pass the
     // check
     if (seq_params->op_params[i].bitrate == 0)
@@ -504,6 +508,9 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_mvd_sign_derive = tool_cfg->enable_mvd_sign_derive;
   set_bitstream_level_tier(seq, cm, frm_dim_cfg->width, frm_dim_cfg->height,
                            oxcf->input_cfg.init_framerate);
+#if CONFIG_CWG_F270_OPS
+  seq->seq_max_level_idx = seq->seq_level_idx[0];
+#endif  // CONFIG_CWG_F270_OPS
 
   if (seq->operating_points_cnt_minus_1 == 0) {
     seq->operating_point_idc[0] = 0;
@@ -667,7 +674,11 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   }
 #endif  // CONFIG_SCAN_TYPE_METADATA
 
+#if CONFIG_CWG_F270_OPS
+  seq_params->seq_tool_set_idc = oxcf->profile;
+#else
   seq_params->profile = oxcf->profile;
+#endif  // CONFIG_CWG_F270_OPS
   seq_params->bit_depth = oxcf->tool_cfg.bit_depth;
   seq_params->color_primaries = color_cfg->color_primaries;
   seq_params->transfer_characteristics = color_cfg->transfer_characteristics;
@@ -706,6 +717,18 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
     seq_params->op_params[0].initial_display_delay =
         10;  // Default value (not signaled)
   }
+#if CONFIG_CWG_F270_OPS
+  seq_params->seq_max_display_model_info_present_flag = 0;
+  seq_params->seq_max_initial_display_delay_minus_1 = 0;
+  if (seq_params->decoder_model_info_present_flag) {
+    seq_params->seq_max_decoder_model_present_flag = 0;
+    if (seq_params->seq_max_decoder_model_present_flag) {
+      seq_params->seq_max_decoder_buffer_delay = 0;
+      seq_params->seq_max_encoder_buffer_delay = 0;
+      seq_params->seq_max_low_delay_mode_flag = 0;
+    }
+  }
+#endif  //  CONFIG_CWG_F270_OPS
 
   if (seq_params->monochrome) {
     seq_params->subsampling_x = 1;
@@ -716,10 +739,18 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
     seq_params->subsampling_x = 0;
     seq_params->subsampling_y = 0;
   } else {
+#if CONFIG_CWG_F270_OPS
+    if (seq_params->seq_tool_set_idc == 0) {
+#else
     if (seq_params->profile == 0) {
+#endif  // CONFIG_CWG_F270_OPS
       seq_params->subsampling_x = 1;
       seq_params->subsampling_y = 1;
+#if CONFIG_CWG_F270_OPS
+    } else if (seq_params->seq_tool_set_idc == 1) {
+#else
     } else if (seq_params->profile == 1) {
+#endif  // CONFIG_CWG_F270_OPS
       seq_params->subsampling_x = 0;
       seq_params->subsampling_y = 0;
     } else {
@@ -882,7 +913,12 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   memset(brt_info, 0, sizeof(BufferRemovalTimingInfo));
 #endif  // CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
 
+#if CONFIG_CWG_F270_OPS
+  if (seq_params->seq_tool_set_idc != oxcf->profile)
+    seq_params->seq_tool_set_idc = oxcf->profile;
+#else
   if (seq_params->profile != oxcf->profile) seq_params->profile = oxcf->profile;
+#endif  // CONFIG_CWG_F270_OPS
   seq_params->bit_depth = oxcf->tool_cfg.bit_depth;
   seq_params->color_primaries = color_cfg->color_primaries;
   seq_params->transfer_characteristics = color_cfg->transfer_characteristics;
@@ -891,8 +927,13 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   seq_params->chroma_sample_position = color_cfg->chroma_sample_position;
   seq_params->color_range = color_cfg->color_range;
 
+#if CONFIG_CWG_F270_OPS
+  assert(IMPLIES(seq_params->seq_tool_set_idc <= PROFILE_1,
+                 seq_params->bit_depth <= AOM_BITS_10));
+#else
   assert(IMPLIES(seq_params->profile <= PROFILE_1,
                  seq_params->bit_depth <= AOM_BITS_10));
+#endif  // CONFIG_CWG_F270_OPS
 
   seq_params->timing_info_present = dec_model_cfg->timing_info_present;
   seq_params->timing_info.num_units_in_display_tick =
@@ -4777,19 +4818,31 @@ int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
   // Profile in the seq header, and likewise a bitstream that contains 4:2:2
   // bitstream must be designated as Professional Profile in the sequence
   // header.
+#if CONFIG_CWG_F270_OPS
+  if ((seq_params->seq_tool_set_idc == PROFILE_0) && !seq_params->monochrome &&
+#else
   if ((seq_params->profile == PROFILE_0) && !seq_params->monochrome &&
+#endif  // CONFIG_CWG_F270_OPS
       (subsampling_x != 1 || subsampling_y != 1)) {
     aom_internal_error(&cm->error, AOM_CODEC_INVALID_PARAM,
                        "Non-4:2:0 color format requires profile 1 or 2");
     res = -1;
   }
+#if CONFIG_CWG_F270_OPS
+  if ((seq_params->seq_tool_set_idc == PROFILE_1) &&
+#else
   if ((seq_params->profile == PROFILE_1) &&
+#endif  // CONFIG_CWG_F270_OPS
       !(subsampling_x == 0 && subsampling_y == 0)) {
     aom_internal_error(&cm->error, AOM_CODEC_INVALID_PARAM,
                        "Profile 1 requires 4:4:4 color format");
     res = -1;
   }
+#if CONFIG_CWG_F270_OPS
+  if ((seq_params->seq_tool_set_idc == PROFILE_2) &&
+#else
   if ((seq_params->profile == PROFILE_2) &&
+#endif  // CONFIG_CWG_F270_OPS
       (seq_params->bit_depth <= AOM_BITS_10) &&
       !(subsampling_x == 1 && subsampling_y == 0)) {
     aom_internal_error(&cm->error, AOM_CODEC_INVALID_PARAM,
