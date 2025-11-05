@@ -101,11 +101,12 @@ bridge_frame_tests() {
 
 
 bridge_frame_tests_av2() {
-  if [ "$(av1_encode_available)" = "yes" -a "$(av1_decode_available)" = "yes" ]; then
+  if [ "$(av1_decode_available)" = "yes" ] && \
+     [ "$(av1_encode_available)" = "yes" ]; then
     bridge_frame_tests || return 1
   fi
 }
 
-bridge_frame_tests = "bridge_frame_tests_av2"
+bridge_frame_tests="bridge_frame_tests_av2"
 
 run_tests bridge_frame_tests_verify_environment "${bridge_frame_tests}"
