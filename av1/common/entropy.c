@@ -20,11 +20,10 @@
 #include "av1/common/entropymode.h"
 #include "av1/common/scan.h"
 #include "av1/common/txb_common.h"
-#if CONFIG_NEW_CONTEXT_TABLES
+
+// Context tables for coefficient coding
 #include "av1/common/entropy_inits_coeffs.h"
-#else
-#include "av1/common/token_cdfs.h"
-#endif
+
 static int get_q_ctx(int q) {
   if (q <= 90) return 0;
   if (q <= 140) return 1;
