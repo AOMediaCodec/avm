@@ -6238,12 +6238,11 @@ static AOM_INLINE void write_screen_content_params(
       if (features->allow_global_intrabc) {
         aom_wb_write_bit(wb, features->allow_local_intrabc);
       }
-    } else {
     }
-    assert(features->max_bvp_drl_bits >= MIN_MAX_IBC_DRL_BITS &&
-           features->max_bvp_drl_bits <= MAX_MAX_IBC_DRL_BITS);
-    write_frame_max_bvp_drl_bits(cm, wb);
   }
+  assert(features->max_bvp_drl_bits >= MIN_MAX_IBC_DRL_BITS &&
+         features->max_bvp_drl_bits <= MAX_MAX_IBC_DRL_BITS);
+  write_frame_max_bvp_drl_bits(cm, wb);
 }
 #if CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_SEF
 static AOM_INLINE void write_show_exisiting_frame(
