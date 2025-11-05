@@ -5069,8 +5069,8 @@ static AOM_INLINE void write_film_grain_params(
 
   // Scaling functions parameters
 #if CONFIG_CWG_F298_REC11
-#define fgm_value_increment(i, j)                                              \
-  ((j) > 0 ? (fgm_scaling_points[i][j][0] - fgm_scaling_points[i][(j) - 1][0]) \
+#define fgm_value_increment(i, j)                                            \
+  ((j) > 0 ? (fgm_scaling_points[i][j][0] - fgm_scaling_points[i][(j)-1][0]) \
            : (fgm_scaling_points[i][j][0]))
 #define fgm_value_scale(i, j) (fgm_scaling_points[i][j][1])
   const int(*fgm_scaling_points[])[2] = { pars->fgm_scaling_points_0,
@@ -5813,20 +5813,6 @@ static void write_frame_max_bvp_drl_bits(AV1_COMMON *const cm,
   } else {
     assert(features->max_bvp_drl_bits == seq_params->def_max_bvp_drl_bits);
   }
-  aom_wb_write_bit(wb, features->allow_intrabc);
-  if (features->allow_intrabc) {
-    if (current_frame->frame_type == KEY_FRAME ||
-        current_frame->frame_type == INTRA_ONLY_FRAME) {
-      aom_wb_write_bit(wb, features->allow_global_intrabc);
-      if (features->allow_global_intrabc) {
-        aom_wb_write_bit(wb, features->allow_local_intrabc);
-      }
-    } else {
-    }
-    assert(features->max_bvp_drl_bits >= MIN_MAX_IBC_DRL_BITS &&
-           features->max_bvp_drl_bits <= MAX_MAX_IBC_DRL_BITS);
-    write_frame_max_bvp_drl_bits(cm, wb);
-  }
 }
 
 static AOM_INLINE void write_sequence_header_beyond_av1(
@@ -6225,6 +6211,7 @@ static AOM_INLINE void write_global_motion(AV1_COMP *cpi,
 static AOM_INLINE void write_screen_content_params(
     AV1_COMMON *const cm, struct aom_write_bit_buffer *wb) {
   const SequenceHeader *const seq_params = &cm->seq_params;
+  CurrentFrame *const current_frame = &cm->current_frame;
   FeatureFlags *const features = &cm->features;
   if (seq_params->force_screen_content_tools == 2) {
     aom_wb_write_bit(wb, features->allow_screen_content_tools);
@@ -6242,6 +6229,20 @@ static AOM_INLINE void write_screen_content_params(
     }
   } else {
     assert(features->cur_frame_force_integer_mv == 0);
+  }
+  aom_wb_write_bit(wb, features->allow_intrabc);
+  if (features->allow_intrabc) {
+    if (current_frame->frame_type == KEY_FRAME ||
+        current_frame->frame_type == INTRA_ONLY_FRAME) {
+      aom_wb_write_bit(wb, features->allow_global_intrabc);
+      if (features->allow_global_intrabc) {
+        aom_wb_write_bit(wb, features->allow_local_intrabc);
+      }
+    } else {
+    }
+    assert(features->max_bvp_drl_bits >= MIN_MAX_IBC_DRL_BITS &&
+           features->max_bvp_drl_bits <= MAX_MAX_IBC_DRL_BITS);
+    write_frame_max_bvp_drl_bits(cm, wb);
   }
 }
 #if CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_SEF
@@ -6373,7 +6374,7 @@ static AOM_INLINE void write_uncompressed_header_obu
 #endif  // !CONFIG_F106_OBU_TILEGROUP || !CONFIG_F106_OBU_SWITCH
       }
 #if CONFIG_F106_OBU_TILEGROUP && (CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_TIP)
-    }  // frame_type_signaled
+    }   // frame_type_signaled
 #endif  // CONFIG_F106_OBU_TILEGROUP && (CONFIG_F106_OBU_SWITCH ||
         // CONFIG_F106_OBU_TIP)
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
@@ -6453,7 +6454,7 @@ static AOM_INLINE void write_uncompressed_header_obu
     }
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 #endif  // !CONFIG_F322_OBUER_ERM
-  }  // if(!seq_params->single_picture_hdr_flag)
+  }     // if(!seq_params->single_picture_hdr_flag)
   int frame_size_override_flag = 0;
 
   if (seq_params->single_picture_hdr_flag) {
@@ -6633,8 +6634,8 @@ static AOM_INLINE void write_uncompressed_header_obu
 //        (current_frame->frame_type == S_FRAME && cpi->switch_frame_mode != 1)
 //        || current_frame->frame_type == INTRA_ONLY_FRAME)
 #if CONFIG_CWG_F317
-  }  //(!cm->bridge_frame_info.is_bridge_frame ||
-     // cm->bridge_frame_info.bridge_frame_overwrite_flag)
+  }     //(!cm->bridge_frame_info.is_bridge_frame ||
+        // cm->bridge_frame_info.bridge_frame_overwrite_flag)
 #endif  // CONFIG_CWG_F317
 
 #if !CONFIG_F322_OBUER_ERM
@@ -6858,8 +6859,8 @@ static AOM_INLINE void write_uncompressed_header_obu
           write_frame_opfl_refine_type(cm, wb);
 #else
         if (!cm->bru.frame_inactive_flag) write_frame_opfl_refine_type(cm, wb);
-#endif  // CONFIG_CWG_F317
-#endif  // CONFIG_FIX_OPFL_AUTO
+#endif   // CONFIG_CWG_F317
+#endif   // CONFIG_FIX_OPFL_AUTO
       }  // (cm->seq_params.enable_tip && features->allow_ref_frame_mvs &&
       // cm->ref_frames_info.num_total_refs >= 2 &&
       // !cm->bridge_frame_info.is_bridge_frame &&
@@ -6936,13 +6937,13 @@ static AOM_INLINE void write_uncompressed_header_obu
             aom_wb_write_bit(wb, features->opfl_refine_type == REFINE_ALL);
           }
         }
-#endif  // !CONFIG_FIX_OPFL_AUTO
+#endif   // !CONFIG_FIX_OPFL_AUTO
       }  // if (!cm->bru.frame_inactive_flag &&
          // !cm->bridge_frame_info.is_bridge_frame &&
          //  (!cm->seq_params.enable_tip ||
          //   features->tip_frame_mode != TIP_FRAME_AS_OUTPUT))
-    }  // (current_frame->frame_type == INTER_FRAME || frame_is_sframe(cm))
-  }  // else of if (current_frame->frame_type == KEY_FRAME)
+    }    // (current_frame->frame_type == INTER_FRAME || frame_is_sframe(cm))
+  }      // else of if (current_frame->frame_type == KEY_FRAME)
 
 #if CONFIG_CWG_F317
   if (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame)
@@ -7571,7 +7572,7 @@ static uint32_t write_tilegroup_payload(AV1_COMP *const cpi, uint8_t *const dst,
 
       aom_wb_overwrite_literal(saved_wb, tile_size_bytes - 1, 2);
     }  // one TG only
-  }  // not single tile
+  }    // not single tile
 
   return total_size;
 }
@@ -8976,8 +8977,8 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
         (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT))
       break;
 #endif  // CONFIG_F106_OBU_SEF || CONFIG_F106_OBU_TIP
-  }  // tg_idx
-#else  // CONFIG_F106_OBU_TILEGROUP
+  }     // tg_idx
+#else   // CONFIG_F106_OBU_TILEGROUP
   const int write_frame_header =
       (cpi->num_tg > 1 ||
        (encode_show_existing_frame(cm) &&
