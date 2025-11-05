@@ -194,6 +194,16 @@ uint32_t av1_read_operating_point_set_obu(struct AV1Decoder *pbi,
         read_ops_decoder_model_info(ops_params->ops_decoder_model_info,
                                     obu_xlayer_id, ops_id, i, rb);
       }
+#if CONFIG_CWG_F270_OPS
+      ops_params
+          ->ops_initial_display_delay_present_flag[obu_xlayer_id][ops_id] =
+          aom_rb_read_bit(rb);
+      if (ops_params
+              ->ops_initial_display_delay_present_flag[obu_xlayer_id][ops_id]) {
+        ops_params->ops_initial_display_delay_minus_1[obu_xlayer_id][ops_id] =
+            aom_rb_read_literal(rb, 4);
+      }
+#endif  // CONFIG_CWG_F270_OPS
 
       if (obu_xlayer_id == GLOBAL_XLAYER_ID) {
         ops_params->ops_xlayer_map[obu_xlayer_id][ops_id][i] =

@@ -336,6 +336,16 @@ uint32_t av1_write_operating_point_set_obu(AV1_COMP *cpi, int obu_xlayer_id,
         write_ops_decoder_model_info(ops->ops_decoder_model_info, obu_xlayer_id,
                                      ops_id, i, &wb);
       }
+#if CONFIG_CWG_F270_OPS
+      aom_wb_write_bit(
+          &wb,
+          ops->ops_initial_display_delay_present_flag[obu_xlayer_id][ops_id]);
+      if (ops->ops_initial_display_delay_present_flag[obu_xlayer_id][ops_id]) {
+        aom_wb_write_literal(
+            &wb, ops->ops_initial_display_delay_minus_1[obu_xlayer_id][ops_id],
+            4);
+      }
+#endif  // CONFIG_CWG_F270_OPS
       if (obu_xlayer_id == GLOBAL_XLAYER_ID) {
         aom_wb_write_literal(&wb, ops->ops_xlayer_map[obu_xlayer_id][ops_id][i],
                              MAX_NUM_XLAYERS - 1);

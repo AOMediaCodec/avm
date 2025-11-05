@@ -36,6 +36,7 @@
 #include "av1/decoder/obu.h"
 
 #include "aom_dsp/bitwriter_buffer.h"
+#include "av1/common/enums.h"
 
 #include "av1/av1_iface_common.h"
 
@@ -311,7 +312,7 @@ static aom_codec_err_t parse_color_config(struct aom_read_bit_buffer *rb,
   return AOM_CODEC_OK;
 }
 
-#if !CONFIG_CWG_F270_CI_OBU
+#if !CONFIG_CWG_F270_OPS
 static aom_codec_err_t parse_timing_info(struct aom_read_bit_buffer *rb) {
   const uint32_t num_units_in_display_tick =
       aom_rb_read_unsigned_literal(rb, 32);
@@ -328,7 +329,6 @@ static aom_codec_err_t parse_timing_info(struct aom_read_bit_buffer *rb) {
   }
   return AOM_CODEC_OK;
 }
-#endif  // !CONFIG_CWG_F270_CI_OBU
 
 static aom_codec_err_t parse_decoder_model_info(
     struct aom_read_bit_buffer *rb, int *buffer_delay_length_minus_1) {
@@ -423,6 +423,7 @@ static aom_codec_err_t parse_operating_points(struct aom_read_bit_buffer *rb,
 
   return AOM_CODEC_OK;
 }
+#endif  // !CONFIG_CWG_F270_OPS
 
 static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
                                                 size_t data_sz,
@@ -524,8 +525,10 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
       }
 #endif  // !CONFIG_MODIFY_SH
 
+#if !CONFIG_CWG_F270_OPS
       status = parse_operating_points(&rb, single_picture_header_flag, si);
       if (status != AOM_CODEC_OK) return status;
+#endif  // !CONFIG_CWG_F270_OPS
 
       got_sequence_header = 1;
 #if CONFIG_F024_KEYOBU

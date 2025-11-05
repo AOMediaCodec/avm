@@ -2998,6 +2998,19 @@ typedef struct AV1_COMP {
 
   int scan_type_info_present_flag;
 #endif  // CONFIG_CWG_F270_CI_OBU
+
+#if CONFIG_CWG_F270_OPS
+  /*!
+   * Indicates the level index for the operating points
+   */
+
+  AV1_LEVEL level_idx[MAX_NUM_OPERATING_POINTS];
+  /*!
+   * Indicates the tier information  for the operating points
+   */
+
+  uint8_t tier[MAX_NUM_OPERATING_POINTS];  // seq_tier in spec. One bit: 0 or 1.
+#endif                                     // CONFIG_CWG_F270_OPS
 } AV1_COMP;
 
 /*!
@@ -3089,8 +3102,11 @@ void av1_change_config(AV1_COMP *cpi, const AV1EncoderConfig *oxcf);
 void av1_check_initial_width(AV1_COMP *cpi, int subsampling_x,
                              int subsampling_y);
 
-void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
-                               const AV1EncoderConfig *oxcf);
+void av1_init_seq_coding_tools(
+#if CONFIG_CWG_F270_OPS
+    AV1_COMP *cpi,
+#endif  // CONFIG_CWG_F270_OPS
+    SequenceHeader *seq, AV1_COMMON *cm, const AV1EncoderConfig *oxcf);
 
 /*!\endcond */
 

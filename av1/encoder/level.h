@@ -110,7 +110,9 @@ enum {
   DECODER_MODEL_DISABLED
 } UENUM1BYTE(DECODER_MODEL_STATUS);
 
+#if !CONFIG_CWG_F270_OPS
 #define BUFFER_POOL_MAX_SIZE 18  // Max VBI slots (16) + 2 extra
+#endif                           // !CONFIG_CWG_F270_OPS
 
 typedef struct {
   DECODER_MODEL_STATUS status;
@@ -183,9 +185,12 @@ void av1_update_level_info(struct AV1_COMP *cpi, size_t size, int64_t ts_start,
                            int64_t ts_end);
 
 // Return sequence level indices in seq_level_idx[MAX_NUM_OPERATING_POINTS].
-aom_codec_err_t av1_get_seq_level_idx(const SequenceHeader *seq_params,
-                                      const AV1LevelParams *level_params,
-                                      int *seq_level_idx);
+aom_codec_err_t av1_get_seq_level_idx(
+#if CONFIG_CWG_F270_OPS
+    const struct AV1_COMP *cpi,
+#endif  // CONFIG_CWG_F270_OPS
+    const SequenceHeader *seq_params, const AV1LevelParams *level_params,
+    int *seq_level_idx);
 
 void av1_decoder_model_init(const struct AV1_COMP *const cpi, AV1_LEVEL level,
                             int op_index, DECODER_MODEL *const decoder_model);

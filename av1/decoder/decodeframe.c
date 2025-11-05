@@ -8973,6 +8973,29 @@ void update_ref_frames_info(AV1Decoder *pbi, OBU_TYPE obu_type,
   }
 }
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
+#if CONFIG_CWG_F270_OPS
+static aom_codec_err_t aom_get_num_layers_from_operating_point_idc(
+    int operating_point_idc, unsigned int *number_mlayers,
+    unsigned int *number_tlayers) {
+  // derive number of embedded/temporal layers from operating_point_idc
+  if (!number_mlayers || !number_tlayers) return AOM_CODEC_INVALID_PARAM;
+
+  if (operating_point_idc == 0) {
+    *number_tlayers = 1;
+    *number_mlayers = 1;
+  } else {
+    *number_mlayers = 0;
+    *number_tlayers = 0;
+    for (int j = 0; j < MAX_NUM_MLAYERS; j++) {
+      *number_mlayers += (operating_point_idc >> (j + MAX_NUM_TLAYERS)) & 0x1;
+    }
+    for (int j = 0; j < MAX_NUM_TLAYERS; j++) {
+      *number_tlayers += (operating_point_idc >> j) & 0x1;
+    }
+  }
+  return AOM_CODEC_OK;
+}
+#endif  // CONFIG_CWG_F270_OPS
 
 // On success, returns 0. On failure, calls aom_internal_error and does not
 // return.
@@ -9004,6 +9027,24 @@ static int read_uncompressed_header(AV1Decoder *pbi, OBU_TYPE obu_type,
             beginningFrameFlag[i][j][k][l][h] = 1;
   }
 #endif
+
+#if CONFIG_CWG_F270_OPS
+  // The current decoder implementation supports all levels.
+  // TODO: Replace this with a CLI option that allows to choose an operating
+  // point by external means.
+  if (pbi->ops_counter > 0) {
+    pbi->operating_point = pbi->ops_list[0].ops_id[0];
+  } else {
+    pbi->operating_point = 0;
+  }
+  pbi->current_operating_point = pbi->operating_point;
+  if (aom_get_num_layers_from_operating_point_idc(
+          pbi->current_operating_point, &cm->number_mlayers,
+          &cm->number_tlayers) != AOM_CODEC_OK) {
+    cm->error.error_code = AOM_CODEC_ERROR;
+    return 0;
+  }
+#endif  // CONFIG_CWG_F270_OPS
 
 #if !CONFIG_CWG_E242_SEQ_HDR_ID
   if (!pbi->sequence_header_ready) {

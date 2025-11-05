@@ -35,9 +35,12 @@ uint32_t read_fgm_obu(AV1Decoder *pbi, const int obu_tlayer_id,
                       int fgm_seq_id_in_tu, struct aom_read_bit_buffer *rb);
 #endif  // CONFIG_F153_FGM_OBU
 
+#if !CONFIG_CWG_F270_OPS
 aom_codec_err_t aom_get_num_layers_from_operating_point_idc(
     int operating_point_idc, unsigned int *number_spatial_layers,
     unsigned int *number_temporal_layers);
+#endif  // !CONFIG_CWG_F270_OPS
+
 #if CONFIG_F255_QMOBU
 uint32_t read_qm_obu(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
                      uint32_t *acc_qm_id_bitmap,

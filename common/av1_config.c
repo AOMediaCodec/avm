@@ -89,7 +89,7 @@ static void bitreader_error_handler(void *data, aom_codec_err_t error,
   *error_val = -1;
 }
 
-#if !CONFIG_CWG_F270_CI_OBU
+#if !CONFIG_CWG_F270_OPS
 // Parse the AV1 timing_info() structure:
 // timing_info( ) {
 //   num_units_in_display_tick       f(32)
@@ -135,7 +135,6 @@ static int parse_timing_info(struct aom_read_bit_buffer *reader) {
   AV1C_POP_ERROR_HANDLER_DATA();
   return result;
 }
-#endif  // !CONFIG_CWG_F270_CI_OBU
 
 // Parse the AV1 decoder_model_info() structure:
 // decoder_model_info( ) {
@@ -181,6 +180,8 @@ static int parse_operating_parameters_info(struct aom_read_bit_buffer *reader,
   AV1C_POP_ERROR_HANDLER_DATA();
   return result;
 }
+#endif  // !CONFIG_CWG_F270_OPS
+
 #if CONFIG_CWG_E242_BITDEPTH
 static int get_bitdepth(int bitdepth_lut_idx) {
   int bitdepth = -1;
@@ -430,6 +431,36 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
     config->seq_tier_0 = 0;
 #endif  // !CONFIG_MODIFY_SH
   } else {
+#if CONFIG_CWG_F270_OPS
+    AV1C_READ_BIT_OR_RETURN_ERROR(max_display_model_info_present_flag);
+    int seq_max_display_model_info_present_flag =
+        max_display_model_info_present_flag;
+    if (seq_max_display_model_info_present_flag) {
+      AV1C_READ_BITS_OR_RETURN_ERROR(max_initial_display_delay_minus_1, 4);
+      int seq_max_initial_display_delay_minus_1 =
+          max_initial_display_delay_minus_1;
+      printf("seq_max_initial_display_delay_minus_1 %d\n",
+             seq_max_initial_display_delay_minus_1);
+    }
+    AV1C_READ_BIT_OR_RETURN_ERROR(decoder_model_present_flag);
+    int decoder_model_info_present_flag = decoder_model_present_flag;
+    if (decoder_model_info_present_flag) {
+      AV1C_READ_BITS_OR_RETURN_ERROR(num_units_in_decoding_tick, 32);
+      AV1C_READ_BIT_OR_RETURN_ERROR(max_decoder_model_present_flag);
+      int max_decoder_model_info_present_flag = max_decoder_model_present_flag;
+      if (max_decoder_model_info_present_flag) {
+        int seq_max_decoder_buffer_delay = aom_rb_read_uvlc(reader);
+        int seq_max_encoder_buffer_delay = aom_rb_read_uvlc(reader);
+        int seq_max_low_delay_mode_flag = aom_rb_read_uvlc(reader);
+        if ((seq_max_decoder_buffer_delay < 0) ||
+            (seq_max_encoder_buffer_delay < 0) ||
+            (seq_max_low_delay_mode_flag < 0)) {
+          fprintf(stderr, "Unsupported values.\n");
+          return -1;
+        }
+      }
+    }
+#else
     int has_decoder_model = 0;
     int buffer_delay_length = 0;
 
@@ -498,6 +529,7 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
         config->initial_presentation_delay_minus_one = 0;
       }
     }
+#endif  // CONFIG_CWG_F270_OPS
   }
 
   return 0;

@@ -29,6 +29,7 @@
 #include "av1/decoder/decoder.h"
 #include "av1/decoder/decodeframe.h"
 #include "av1/decoder/obu.h"
+#include "av1/common/enums.h"
 
 // Helper macro to check if OBU type is metadata
 #if !CONFIG_METADATA
@@ -38,6 +39,7 @@
   ((type) == OBU_METADATA_SHORT || (type) == OBU_METADATA_GROUP)
 #endif  // CONFIG_METADATA
 
+#if !CONFIG_CWG_F270_OPS
 aom_codec_err_t aom_get_num_layers_from_operating_point_idc(
     int operating_point_idc, unsigned int *number_mlayers,
     unsigned int *number_tlayers) {
@@ -74,6 +76,7 @@ static int is_obu_in_current_operating_point(AV1Decoder *pbi,
   }
   return 0;
 }
+#endif  // !CONFIG_CWG_F270_OPS
 
 static uint32_t read_temporal_delimiter_obu() { return 0; }
 
@@ -271,6 +274,14 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
   SequenceHeader *const seq_params = &sh;
 #endif  // CONFIG_CWG_E242_SEQ_HDR_ID
 
+#if CONFIG_CWG_F270_OPS
+  seq_params->profile = av1_read_profile(rb);
+  if (seq_params->profile > CONFIG_MAX_DECODE_PROFILE) {
+    cm->error.error_code = AOM_CODEC_UNSUP_BITSTREAM;
+    return 0;
+  }
+#endif  // CONFIG_CWG_F270_OPS
+
 #if !CONFIG_LCR_ID_IN_SH
   int seq_lcr_id = aom_rb_read_literal(rb, 3);
   if (seq_lcr_id > MAX_NUM_SEQ_LCR_ID) {
@@ -280,11 +291,13 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
   seq_params->seq_lcr_id = seq_lcr_id;
 #endif  // !CONFIG_LCR_ID_IN_SH
 
+#if !CONFIG_CWG_F270_OPS
   seq_params->profile = av1_read_profile(rb);
   if (seq_params->profile > CONFIG_MAX_DECODE_PROFILE) {
     cm->error.error_code = AOM_CODEC_UNSUP_BITSTREAM;
     return 0;
   }
+#endif  // !CONFIG_CWG_F270_OPS
 #if CONFIG_MODIFY_SH
   seq_params->single_picture_header_flag = aom_rb_read_bit(rb);
   if (seq_params->single_picture_header_flag) {
@@ -303,6 +316,17 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
 #endif  // CONFIG_LCR_ID_IN_SH
     seq_params->still_picture = aom_rb_read_bit(rb);
   }
+#if CONFIG_CWG_F270_OPS
+  if (!read_bitstream_level(&seq_params->seq_max_level_idx, rb)) {
+    cm->error.error_code = AOM_CODEC_UNSUP_BITSTREAM;
+    return 0;
+  }
+  if (seq_params->seq_max_level_idx >= SEQ_LEVEL_4_0 &&
+      !seq_params->single_picture_header_flag)
+    seq_params->seq_tier = aom_rb_read_bit(rb);
+  else
+    seq_params->seq_tier = 0;
+#else
   if (!read_bitstream_level(&seq_params->seq_level_idx[0], rb)) {
     cm->error.error_code = AOM_CODEC_UNSUP_BITSTREAM;
     return 0;
@@ -312,6 +336,7 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
     seq_params->tier[0] = aom_rb_read_bit(rb);
   else
     seq_params->tier[0] = 0;
+#endif  // CONFIG_CWG_F270_OPS
 #endif  // CONFIG_MODIFY_SH
 
   const int num_bits_width = aom_rb_read_literal(rb, 4) + 1;
@@ -357,6 +382,52 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
   }
 #endif  // !CONFIG_MODIFY_SH
 
+#if CONFIG_CWG_F270_OPS
+  if (seq_params->single_picture_header_flag) {
+    seq_params->decoder_model_info_present_flag = 0;
+    seq_params->display_model_info_present_flag = 0;
+  } else {
+    seq_params->seq_max_display_model_info_present_flag = aom_rb_read_bit(rb);
+    if (seq_params->seq_max_display_model_info_present_flag)
+      seq_params->seq_max_initial_display_delay_minus_1 =
+          BUFFER_POOL_MAX_SIZE - 1;
+    seq_params->decoder_model_info_present_flag = aom_rb_read_bit(rb);
+    if (seq_params->decoder_model_info_present_flag) {
+      seq_params->decoder_model_info.num_units_in_decoding_tick =
+          aom_rb_read_unsigned_literal(rb, 32);
+      seq_params->seq_max_display_model_info_present_flag = aom_rb_read_bit(rb);
+      if (seq_params->seq_max_display_model_info_present_flag) {
+        seq_params->seq_max_decoder_buffer_delay = aom_rb_read_uvlc(rb);
+        seq_params->seq_max_encoder_buffer_delay = aom_rb_read_uvlc(rb);
+        seq_params->seq_max_low_delay_mode_flag = aom_rb_read_bit(rb);
+      } else {
+        seq_params->seq_max_decoder_buffer_delay = 70000;
+        seq_params->seq_max_encoder_buffer_delay = 20000;
+        seq_params->seq_max_low_delay_mode_flag = 0;
+      }
+    } else {
+      seq_params->decoder_model_info.num_units_in_decoding_tick = 1;
+      seq_params->seq_max_decoder_buffer_delay = 70000;
+      seq_params->seq_max_encoder_buffer_delay = 20000;
+      seq_params->seq_max_low_delay_mode_flag = 0;
+    }
+    seq_params->seq_max_initial_display_delay_minus_1 = 0;
+    // TODO: May need additional modifications with decoder model
+    int64_t seq_bitrate = av1_max_level_bitrate(seq_params->profile,
+                                                seq_params->seq_max_level_idx,
+                                                seq_params->seq_tier);
+    if (seq_bitrate == 0)
+      aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+                         "AV1 does not support this combination of "
+                         "profile, level, and tier.");
+    // Buffer size in bits/s is bitrate in bits/s * 1 s
+    int64_t buffer_size = seq_bitrate;
+    if (buffer_size == 0)
+      aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+                         "AV1 does not support this combination of "
+                         "profile, level, and tier.");
+  }
+#else
   if (seq_params->single_picture_header_flag) {
 #if !CONFIG_CWG_F270_CI_OBU
     seq_params->timing_info_present = 0;
@@ -482,6 +553,7 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
     cm->error.error_code = AOM_CODEC_ERROR;
     return 0;
   }
+#endif  // CONFIG_CWG_F270_OPS
 
   if (seq_params->single_picture_header_flag) {
     seq_params->max_tlayer_id = 0;
@@ -1904,6 +1976,7 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
       cm->bridge_frame_info.is_bridge_frame = 0;
     }
 
+#if !CONFIG_CWG_F270_OPS
     if (obu_header.type != OBU_TEMPORAL_DELIMITER &&
         obu_header.type != OBU_SEQUENCE_HEADER) {
       // don't decode obu if it's not in current operating mode
@@ -1912,6 +1985,7 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
         continue;
       }
     }
+#endif  // !CONFIG_CWG_F270_OPS
 
     av1_init_read_bit_buffer(pbi, &rb, data, data + payload_size);
     switch (obu_header.type) {

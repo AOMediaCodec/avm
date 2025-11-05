@@ -889,6 +889,10 @@ typedef struct OperatingPointSet {
   int ops_operational_ptl_present_flag[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
   int ops_color_info_present_flag[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
   int ops_decoder_model_info_present_flag[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
+#if CONFIG_CWG_F270_OPS
+  int ops_initial_display_delay_present_flag[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
+  int ops_initial_display_delay_minus_1[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
+#endif  // CONFIG_CWG_F270_OPS
 
   int ops_mlayer_info_idc[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID];
   uint32_t ops_data_size[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT];
@@ -1093,6 +1097,16 @@ typedef struct SequenceHeader {
   qm_val_t ***quantizer_matrix_4x8;
 #endif  // !CONFIG_F255_QMOBU
 
+#if CONFIG_CWG_F270_OPS
+  AV1_LEVEL seq_max_level_idx;
+  uint8_t seq_tier;
+  int seq_max_display_model_info_present_flag;
+  int seq_max_initial_display_delay_minus_1;
+  int seq_max_decoder_model_present_flag;
+  int seq_max_decoder_buffer_delay;
+  int seq_max_encoder_buffer_delay;
+  int seq_max_low_delay_mode_flag;
+#endif  // CONFIG_CWG_F270_OPS
   BITSTREAM_PROFILE profile;
 
   // Color config.
@@ -1135,8 +1149,10 @@ typedef struct SequenceHeader {
   uint8_t decoder_model_info_present_flag;
   aom_dec_model_info_t decoder_model_info;
   uint8_t display_model_info_present_flag;
+#if !CONFIG_CWG_F270_OPS
   AV1_LEVEL seq_level_idx[MAX_NUM_OPERATING_POINTS];
   uint8_t tier[MAX_NUM_OPERATING_POINTS];  // seq_tier in spec. One bit: 0 or 1.
+#endif                                     // !CONFIG_CWG_F270_OPS
 
   // Layer dependency structure descriptors
   int max_tlayer_id;

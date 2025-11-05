@@ -4397,8 +4397,13 @@ static aom_codec_err_t ctrl_get_seq_level_idx(aom_codec_alg_priv_t *ctx,
   int *const arg = va_arg(args, int *);
   const AV1_COMP *const cpi = ctx->cpi;
   if (arg == NULL) return AOM_CODEC_INVALID_PARAM;
+#if CONFIG_CWG_F270_OPS
+  return av1_get_seq_level_idx(cpi, &cpi->common.seq_params, &cpi->level_params,
+                               arg);
+#else
   return av1_get_seq_level_idx(&cpi->common.seq_params, &cpi->level_params,
                                arg);
+#endif  // CONFIG_CWG_F270_OPS
 }
 
 static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {

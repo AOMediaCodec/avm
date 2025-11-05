@@ -4701,6 +4701,7 @@ static AOM_INLINE void write_timing_info_header
   }
 }
 
+#if !CONFIG_CWG_F270_OPS
 static AOM_INLINE void write_decoder_model_info(
     const aom_dec_model_info_t *const decoder_model_info,
     struct aom_write_bit_buffer *wb) {
@@ -4713,7 +4714,9 @@ static AOM_INLINE void write_decoder_model_info(
       wb, decoder_model_info->frame_presentation_time_length - 1, 5);
 #endif  // !CONFIG_CWG_F430
 }
+#endif  // !CONFIG_CWG_F270_OPS
 
+#if !CONFIG_CWG_F270_OPS
 static AOM_INLINE void write_dec_model_op_parameters(
     const aom_dec_model_op_parameters_t *op_params, int buffer_delay_length,
     struct aom_write_bit_buffer *wb) {
@@ -4723,6 +4726,7 @@ static AOM_INLINE void write_dec_model_op_parameters(
                                 buffer_delay_length);
   aom_wb_write_bit(wb, op_params->low_delay_mode_flag);
 }
+#endif  // !CONFIG_CWG_F270_OPS
 
 #if !CONFIG_CWG_F430
 static AOM_INLINE void write_tu_pts_info(AV1_COMMON *const cm,
@@ -7432,10 +7436,17 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
 #endif  // CONFIG_LCR_ID_IN_SH
     aom_wb_write_bit(&wb, seq_params->still_picture);
   }
+#if CONFIG_CWG_F270_OPS
+  write_bitstream_level(seq_params->seq_max_level_idx, &wb);
+  if (seq_params->seq_max_level_idx >= SEQ_LEVEL_4_0 &&
+      !seq_params->single_picture_header_flag)
+    aom_wb_write_bit(&wb, seq_params->seq_tier);
+#else
   write_bitstream_level(seq_params->seq_level_idx[0], &wb);
   if (seq_params->seq_level_idx[0] >= SEQ_LEVEL_4_0 &&
       !seq_params->single_picture_header_flag)
     aom_wb_write_bit(&wb, seq_params->tier[0]);
+#endif  // CONFIG_CWG_F270_OPS
 #endif  // CONFIG_MODIFY_SH
 
   aom_wb_write_literal(&wb, seq_params->num_bits_width - 1, 4);
@@ -7474,6 +7485,24 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
     write_bitstream_level(seq_params->seq_level_idx[0], &wb);
 #endif  // !CONFIG_MODIFY_SH
   } else {
+#if CONFIG_CWG_F270_OPS
+    aom_wb_write_bit(&wb, seq_params->seq_max_display_model_info_present_flag);
+    if (seq_params->seq_max_display_model_info_present_flag) {
+      aom_wb_write_literal(
+          &wb, seq_params->seq_max_initial_display_delay_minus_1, 4);
+    }
+    aom_wb_write_bit(&wb, seq_params->decoder_model_info_present_flag);
+    if (seq_params->decoder_model_info_present_flag) {
+      aom_wb_write_unsigned_literal(
+          &wb, seq_params->decoder_model_info.num_units_in_decoding_tick, 32);
+      aom_wb_write_bit(&wb, seq_params->seq_max_decoder_model_present_flag);
+      if (seq_params->seq_max_decoder_model_present_flag) {
+        aom_wb_write_literal(&wb, seq_params->seq_max_decoder_buffer_delay, 4);
+        aom_wb_write_literal(&wb, seq_params->seq_max_encoder_buffer_delay, 4);
+        aom_wb_write_bit(&wb, seq_params->seq_max_low_delay_mode_flag);
+      }
+    }
+#else
 #if !CONFIG_CWG_F270_CI_OBU
     aom_wb_write_bit(
         &wb, seq_params->timing_info_present);  // timing info present flag
@@ -7522,6 +7551,7 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
         }
       }
     }
+#endif  // !CONFIG_CWG_F270_OPS
   }
 
   if (!seq_params->single_picture_header_flag) {

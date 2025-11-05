@@ -285,6 +285,10 @@ enum {
   MAX_PROFILES,
 } SENUM1BYTE(BITSTREAM_PROFILE);
 
+#if CONFIG_CWG_F270_OPS
+#define BUFFER_POOL_MAX_SIZE 18  // Max VBI slots (16) + 2 extra
+#endif                           // CONFIG_CWG_F270_OPS
+
 #define MAX_NUM_TLAYERS 4
 #define MAX_NUM_MLAYERS 8
 #define MAX_NUM_XLAYERS 32

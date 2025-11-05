@@ -294,9 +294,13 @@ static INLINE int does_level_match(int width, int height, double fps,
          height <= lvl_height * lvl_dim_mult;
 }
 
-static void set_bitstream_level_tier(SequenceHeader *seq, AV1_COMMON *cm,
-                                     int width, int height,
-                                     double init_framerate) {
+static void set_bitstream_level_tier(
+#if CONFIG_CWG_F270_OPS
+    AV1_COMP *cpi,
+#else
+    SequenceHeader *seq,
+#endif  // !CONFIG_CWG_F270_OPS
+    AV1_COMMON *cm, int width, int height, double init_framerate) {
   // TODO(any): This is a placeholder function that only addresses dimensions
   // and max display sample rates.
   // Need to add checks for max bit rate, max decoded luma sample rate, header
@@ -341,11 +345,19 @@ static void set_bitstream_level_tier(SequenceHeader *seq, AV1_COMMON *cm,
 
   SequenceHeader *const seq_params = &cm->seq_params;
   for (int i = 0; i < MAX_NUM_OPERATING_POINTS; ++i) {
+#if CONFIG_CWG_F270_OPS
+    cpi->level_idx[i] = level;
+#else
     seq->seq_level_idx[i] = level;
+#endif  // CONFIG_CWG_F270_OPS
     // Set the maximum parameters for bitrate and buffer size for this profile,
     // level, and tier
     seq_params->op_params[i].bitrate = av1_max_level_bitrate(
+#if CONFIG_CWG_F270_OPS
+        cm->seq_params.profile, cpi->level_idx[i], cpi->tier[i]);
+#else
         cm->seq_params.profile, seq->seq_level_idx[i], seq->tier[i]);
+#endif  //  CONFIG_CWG_F270_OPS
 
     // Level with seq_level_idx = 31 returns a high "dummy" bitrate to pass the
     // check
@@ -358,8 +370,11 @@ static void set_bitstream_level_tier(SequenceHeader *seq, AV1_COMMON *cm,
   }
 }
 
-void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
-                               const AV1EncoderConfig *oxcf) {
+void av1_init_seq_coding_tools(
+#if CONFIG_CWG_F270_OPS
+    AV1_COMP *cpi,
+#endif  // CONFIG_CWG_F270_OPS
+    SequenceHeader *seq, AV1_COMMON *cm, const AV1EncoderConfig *oxcf) {
   const FrameDimensionCfg *const frm_dim_cfg = &oxcf->frm_dim_cfg;
   const ToolCfg *const tool_cfg = &oxcf->tool_cfg;
 
@@ -568,8 +583,19 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_refinemv = tool_cfg->enable_refinemv;
   seq->enable_mvd_sign_derive = tool_cfg->enable_mvd_sign_derive;
 #endif  // CONFIG_CWG_F377_STILL_PICTURE
-  set_bitstream_level_tier(seq, cm, frm_dim_cfg->width, frm_dim_cfg->height,
-                           oxcf->input_cfg.init_framerate);
+
+  set_bitstream_level_tier(
+#if CONFIG_CWG_F270_OPS
+      cpi,
+#else
+      seq,
+#endif  // CONFIG_CWG_F270_OPS
+      cm, frm_dim_cfg->width, frm_dim_cfg->height,
+      oxcf->input_cfg.init_framerate);
+
+#if CONFIG_CWG_F270_OPS
+  seq->seq_max_level_idx = cpi->level_idx[0];
+#endif  // CONFIG_CWG_F270_OPS
 
   if (seq->operating_points_cnt_minus_1 == 0) {
     seq->operating_point_idc[0] = 0;
@@ -992,6 +1018,18 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
     seq_params->op_params[0].initial_display_delay =
         10;  // Default value (not signaled)
   }
+#if CONFIG_CWG_F270_OPS
+  seq_params->seq_max_display_model_info_present_flag = 0;
+  seq_params->seq_max_initial_display_delay_minus_1 = 0;
+  if (seq_params->decoder_model_info_present_flag) {
+    seq_params->seq_max_decoder_model_present_flag = 0;
+    if (seq_params->seq_max_decoder_model_present_flag) {
+      seq_params->seq_max_decoder_buffer_delay = 0;
+      seq_params->seq_max_encoder_buffer_delay = 0;
+      seq_params->seq_max_low_delay_mode_flag = 0;
+    }
+  }
+#endif  //  CONFIG_CWG_F270_OPS
 
   if (seq_params->monochrome) {
     seq_params->subsampling_x = 1;
@@ -1268,7 +1306,12 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   if (level_params->target_seq_level_idx[0] < SEQ_LEVELS) {
     // Adjust encoder config in order to meet target level.
     config_target_level(cpi, level_params->target_seq_level_idx[0],
-                        seq_params->tier[0]);
+#if CONFIG_CWG_F270_OPS
+                        cpi->tier[0]
+#else
+                        seq_params->tier[0]
+#endif  // CONFIG_CWG_F270_OPS
+    );
   }
 
   // Need to call av1_rc_init() whenever any QP, lossless or related config
@@ -1388,7 +1431,11 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   if (!cpi->seq_params_locked) {
     set_sb_size(cm, new_sb_size);
     for (int i = 0; i < MAX_NUM_OPERATING_POINTS; ++i)
+#if CONFIG_CWG_F270_OPS
+      cpi->tier[i] = (oxcf->tier_mask >> i) & 1;
+#else
       seq_params->tier[i] = (oxcf->tier_mask >> i) & 1;
+#endif  // CONFIG_CWG_F270_OPS
   } else {
     av1_set_frame_sb_size(cm, new_sb_size);
   }
@@ -1431,10 +1478,15 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   // Init sequence level coding tools
   // This should not be called after the first key frame.
   if (!cpi->seq_params_locked) {
-    // TODO: When CWG-F270 part 2 is merged, this will will be removed
+#if !CONFIG_CWG_F270_OPS
     seq_params->operating_points_cnt_minus_1 =
         oxcf->tool_cfg.operating_points_count - 1;
-    av1_init_seq_coding_tools(&cm->seq_params, cm, oxcf);
+#endif  // !CONFIG_CWG_F270_OPS
+    av1_init_seq_coding_tools(
+#if CONFIG_CWG_F270_OPS
+        cpi,
+#endif  // CONFIG_CWG_F270_OPS
+        &cm->seq_params, cm, oxcf);
     if (seq_params->enable_restoration) set_seq_lr_tools_mask(seq_params, oxcf);
   }
 
