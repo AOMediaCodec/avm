@@ -13,6 +13,9 @@
 #include "av1/common/av1_common_int.h"
 #include "av1/common/entropymv.h"
 
+#if CONFIG_NEW_CONTEXT_TABLES
+#include "av1/common/entropy_inits_mv.h"
+#else
 static const nmv_context default_nmv_context = {
   { AOM_CDF2(24576), 0 },  // joint_shell_set_cdf
   {
@@ -80,6 +83,7 @@ static const nmv_context default_nmv_context = {
       },
   },
 };
+#endif  // CONFIG_NEW_CONTEXT_TABLES
 
 void av1_init_mv_probs(AV1_COMMON *cm) {
   // NB: this sets CDFs too

@@ -17,6 +17,9 @@
 
 #include "av1/common/entropy.h"
 
+#if CONFIG_NEW_CONTEXT_TABLES
+#include "av1/common/entropy_inits_coeffs.h"
+#else
 static const aom_cdf_prob
     av1_default_idtx_sign_cdfs[TOKEN_CDF_Q_CTXS][TX_SIZES][IDTX_SIGN_CONTEXTS]
                               [CDF_SIZE(2)] = {
@@ -7148,4 +7151,5 @@ static const aom_cdf_prob
       { { AOM_CDF2(26870) }, { AOM_CDF2(21845) }, { AOM_CDF2(16384) } }
     };
 
+#endif  // CONFIG_NEW_CONTEXT_TABLES
 #endif  // AOM_AV1_COMMON_TOKEN_CDFS_H_

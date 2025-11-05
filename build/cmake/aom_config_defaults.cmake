@@ -148,6 +148,9 @@ set_aom_config_var(CONFIG_SET_DEFAULT_VALUE_XLAYER_ID 1
 set_aom_config_var(CONFIG_PARAKIT_COLLECT_DATA 0
                    "enables data collection for ParaKit training.")
 
+set_aom_config_var(CONFIG_NEW_CONTEXT_TABLES 1
+                   "Context tables in separate files.")
+
 set_aom_config_var(CONFIG_EXT_FRAME_BUFFER_POOL 1 "Buffer pool extension.")
 
 # AV2 experiment flags.
