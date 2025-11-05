@@ -78,9 +78,9 @@
 #define AOM_MIN_THREADS_PER_TILE 1
 #define AOM_MAX_THREADS_PER_TILE 2
 
-#define MC_TEMP_BUF_PELS                           \
-  (((MAX_SB_SIZE) * 2 + (AOM_INTERP_EXTEND) * 2) * \
-   ((MAX_SB_SIZE) * 2 + (AOM_INTERP_EXTEND) * 2))
+#define MC_TEMP_BUF_PELS                       \
+  (((MAX_SB_SIZE)*2 + (AOM_INTERP_EXTEND)*2) * \
+   ((MAX_SB_SIZE)*2 + (AOM_INTERP_EXTEND)*2))
 
 #if CONFIG_LR_FRAMEFILTERS_IN_HEADER
 static void read_wienerns_framefilters_hdr(AV1_COMMON *cm, int plane,
@@ -7755,9 +7755,24 @@ static INLINE int get_ref_frame_disp_order_hint(AV1_COMMON *const cm,
 }
 #endif  // CONFIG_F322_OBUER_ERM
 
+static void read_frame_max_bvp_drl_bits(AV1_COMMON *const cm,
+                                        struct aom_read_bit_buffer *rb) {
+  FeatureFlags *const features = &cm->features;
+  const SequenceHeader *const seq_params = &cm->seq_params;
+  features->max_bvp_drl_bits = seq_params->def_max_bvp_drl_bits;
+  if (seq_params->allow_frame_max_bvp_drl_bits) {
+    features->max_bvp_drl_bits =
+        aom_rb_read_primitive_ref_quniform(
+            rb, MAX_MAX_IBC_DRL_BITS - MIN_MAX_IBC_DRL_BITS + 1,
+            seq_params->def_max_bvp_drl_bits - MIN_MAX_IBC_DRL_BITS) +
+        MIN_MAX_IBC_DRL_BITS;
+  }
+}
+
 static INLINE void read_screen_content_params(AV1_COMMON *const cm,
                                               struct aom_read_bit_buffer *rb) {
   const SequenceHeader *const seq_params = &cm->seq_params;
+  CurrentFrame *const current_frame = &cm->current_frame;
   FeatureFlags *const features = &cm->features;
 
   if (seq_params->force_screen_content_tools == 2) {
@@ -7775,6 +7790,19 @@ static INLINE void read_screen_content_params(AV1_COMMON *const cm,
     }
   } else {
     features->cur_frame_force_integer_mv = 0;
+  }
+  features->allow_intrabc = aom_rb_read_bit(rb);
+  if (features->allow_intrabc) {
+    if (current_frame->frame_type == KEY_FRAME ||
+        current_frame->frame_type == INTRA_ONLY_FRAME) {
+      features->allow_global_intrabc = aom_rb_read_bit(rb);
+      features->allow_local_intrabc =
+          features->allow_global_intrabc ? aom_rb_read_bit(rb) : 1;
+    } else {
+      features->allow_global_intrabc = 0;
+      features->allow_local_intrabc = features->allow_intrabc;
+    }
+    read_frame_max_bvp_drl_bits(cm, rb);
   }
 }
 
@@ -7850,20 +7878,6 @@ static void read_frame_max_drl_bits(AV1_COMMON *const cm,
             rb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1,
             seq_params->def_max_drl_bits - MIN_MAX_DRL_BITS) +
         MIN_MAX_DRL_BITS;
-  }
-}
-
-static void read_frame_max_bvp_drl_bits(AV1_COMMON *const cm,
-                                        struct aom_read_bit_buffer *rb) {
-  FeatureFlags *const features = &cm->features;
-  const SequenceHeader *const seq_params = &cm->seq_params;
-  features->max_bvp_drl_bits = seq_params->def_max_bvp_drl_bits;
-  if (seq_params->allow_frame_max_bvp_drl_bits) {
-    features->max_bvp_drl_bits =
-        aom_rb_read_primitive_ref_quniform(
-            rb, MAX_MAX_IBC_DRL_BITS - MIN_MAX_IBC_DRL_BITS + 1,
-            seq_params->def_max_bvp_drl_bits - MIN_MAX_IBC_DRL_BITS) +
-        MIN_MAX_IBC_DRL_BITS;
   }
 }
 
@@ -8718,14 +8732,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     features->tip_frame_mode = TIP_FRAME_DISABLED;
     setup_frame_size(cm, frame_size_override_flag, rb);
     read_screen_content_params(cm, rb);
-    features->allow_intrabc = aom_rb_read_bit(rb);
-    if (features->allow_intrabc) {
-      features->allow_global_intrabc = aom_rb_read_bit(rb);
-      features->allow_local_intrabc =
-          features->allow_global_intrabc ? aom_rb_read_bit(rb) : 1;
-      read_frame_max_bvp_drl_bits(cm, rb);
-    }
-
     features->allow_ref_frame_mvs = 0;
     cm->prev_frame = NULL;
 
@@ -8741,14 +8747,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           seq_params->film_grain_params_present;
       setup_frame_size(cm, frame_size_override_flag, rb);
       read_screen_content_params(cm, rb);
-      features->allow_intrabc = aom_rb_read_bit(rb);
-      if (features->allow_intrabc) {
-        features->allow_global_intrabc = aom_rb_read_bit(rb);
-        features->allow_local_intrabc =
-            features->allow_global_intrabc ? aom_rb_read_bit(rb) : 1;
-        read_frame_max_bvp_drl_bits(cm, rb);
-      }
-
       cm->cur_frame->num_ref_frames = 0;
 
     } else if (pbi->need_resync != 1) { /* Skip if need resync */
@@ -9157,14 +9155,10 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // CONFIG_CWG_F317
           !cm->bru.frame_inactive_flag) {
         read_screen_content_params(cm, rb);
-        features->allow_intrabc = aom_rb_read_bit(rb);
         features->allow_global_intrabc = 0;
         features->allow_local_intrabc = features->allow_intrabc;
 
         read_frame_max_drl_bits(cm, rb);
-        if (features->allow_intrabc) {
-          read_frame_max_bvp_drl_bits(cm, rb);
-        }
 
         if (features->cur_frame_force_integer_mv) {
           features->fr_mv_precision = MV_PRECISION_ONE_PEL;
