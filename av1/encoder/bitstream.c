@@ -5803,7 +5803,6 @@ static void write_frame_max_drl_bits(AV1_COMMON *const cm,
 static void write_frame_max_bvp_drl_bits(AV1_COMMON *const cm,
                                          struct aom_write_bit_buffer *wb) {
   FeatureFlags *const features = &cm->features;
-  CurrentFrame *const current_frame = &cm->current_frame;
   const SequenceHeader *const seq_params = &cm->seq_params;
   if (seq_params->allow_frame_max_bvp_drl_bits) {
     aom_wb_write_primitive_ref_quniform(
@@ -6873,7 +6872,6 @@ static AOM_INLINE void write_uncompressed_header_obu
           (!cm->seq_params.enable_tip ||
            features->tip_frame_mode != TIP_FRAME_AS_OUTPUT)) {
         write_screen_content_params(cm, wb);
-        aom_wb_write_bit(wb, features->allow_intrabc);
         write_frame_max_drl_bits(cm, wb);
         if (!features->cur_frame_force_integer_mv) {
 #if CONFIG_FRAME_HALF_PRECISION
