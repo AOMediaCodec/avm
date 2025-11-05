@@ -78,9 +78,9 @@
 #define AOM_MIN_THREADS_PER_TILE 1
 #define AOM_MAX_THREADS_PER_TILE 2
 
-#define MC_TEMP_BUF_PELS                       \
-  (((MAX_SB_SIZE)*2 + (AOM_INTERP_EXTEND)*2) * \
-   ((MAX_SB_SIZE)*2 + (AOM_INTERP_EXTEND)*2))
+#define MC_TEMP_BUF_PELS                           \
+  (((MAX_SB_SIZE) * 2 + (AOM_INTERP_EXTEND) * 2) * \
+   ((MAX_SB_SIZE) * 2 + (AOM_INTERP_EXTEND) * 2))
 
 #if CONFIG_LR_FRAMEFILTERS_IN_HEADER
 static void read_wienerns_framefilters_hdr(AV1_COMMON *cm, int plane,
