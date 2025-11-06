@@ -124,8 +124,8 @@ static int read_lcr_embedded_layer_info(
       struct CroppingWindow *crop_params =
           &lcr_params->crop_win_list[isGlobal][xId];
 
-      crop_params->crop_info_in_scr_flag = aom_rb_read_bit(rb);
-      if (!crop_params->crop_info_in_scr_flag) {
+      crop_params->crop_info_seq_flag = aom_rb_read_bit(rb);
+      if (!crop_params->crop_info_seq_flag) {
         crop_params->crop_max_width = aom_rb_read_uvlc(rb);
         crop_params->crop_max_height = aom_rb_read_uvlc(rb);
       }

@@ -111,8 +111,8 @@ int write_lcr_embedded_layer_info(AV1_COMP *cpi, int isGlobal, int xId,
       // signal
       struct CroppingWindow *crop_params =
           &lcr_params->crop_win_list[isGlobal][xId];
-      aom_wb_write_bit(wb, crop_params->crop_info_in_scr_flag);
-      if (!crop_params->crop_info_in_scr_flag) {
+      aom_wb_write_bit(wb, crop_params->crop_info_seq_flag);
+      if (!crop_params->crop_info_seq_flag) {
         aom_wb_write_uvlc(wb, crop_params->crop_max_width);
         aom_wb_write_uvlc(wb, crop_params->crop_max_height);
       }

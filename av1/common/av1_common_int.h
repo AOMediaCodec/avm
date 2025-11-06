@@ -660,7 +660,7 @@ typedef struct CroppingWindow {
   int crop_win_top_offset;
   int crop_win_bottom_offset;
 
-  int crop_info_in_scr_flag;
+  int crop_info_seq_flag;
   int crop_max_width;
   int crop_max_height;
 } CroppingWindow;
