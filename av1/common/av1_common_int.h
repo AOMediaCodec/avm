@@ -2325,6 +2325,7 @@ typedef struct AV1Common {
   RestorationInfo rst_info[MAX_MB_PLANE]; /*!< Loop Restoration filter info */
   RestorationLineBuffers *rlbs; /*!< Line buffers needed by loop restoration */
   YV12_BUFFER_CONFIG rst_frame; /*!< Stores the output of loop restoration */
+  uint16_t *lru_stripe_buf;     /*!< Stores the input to stripe_filter() */
   /**@}*/
 
   /*!

@@ -310,6 +310,11 @@ void av1_alloc_restoration_buffers(AV1_COMMON *cm) {
   if (cm->rlbs == NULL) {
     CHECK_MEM_ERROR(cm, cm->rlbs, aom_malloc(sizeof(RestorationLineBuffers)));
   }
+  if (cm->lru_stripe_buf == NULL) {
+    CHECK_MEM_ERROR(
+        cm, cm->lru_stripe_buf,
+        aom_malloc(MAX_LRU_STRIPE_BUF_SIZE * sizeof(*cm->lru_stripe_buf)));
+  }
 
   av1_alloc_restoration_boundary_buffers(cm, num_planes);
 }
@@ -376,6 +381,8 @@ void av1_free_restoration_buffers(AV1_COMMON *cm) {
     av1_free_restoration_struct(&cm->rst_info[p]);
   aom_free(cm->rlbs);
   cm->rlbs = NULL;
+  aom_free(cm->lru_stripe_buf);
+  cm->lru_stripe_buf = NULL;
   for (p = 0; p < MAX_MB_PLANE; ++p) {
     RestorationStripeBoundaries *boundaries = &cm->rst_info[p].boundaries;
     aom_free(boundaries->stripe_boundary_above);

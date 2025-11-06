@@ -71,6 +71,10 @@ extern "C" {
     RESTORATION_PADDING))
 
 #define RESTORATION_UNITSIZE_MAX 512
+#define RESTORATION_WIDTH_MAX (RESTORATION_UNITSIZE_MAX * 3 / 2)
+#define MAX_LRU_STRIPE_BUF_SIZE                            \
+  ((RESTORATION_WIDTH_MAX + 2 * RESTORATION_BORDER_HORZ) * \
+   (RESTORATION_PROC_UNIT_SIZE + 2 * RESTORATION_BORDER_VERT))
 #define NUM_PC_WIENER_TAPS_LUMA 13
 #include "av1/common/pc_wiener_filters.h"
 
@@ -690,9 +694,8 @@ typedef void (*sync_write_fn_t)(void *const lr_sync, int r, int c,
 void av1_foreach_rest_unit_in_tile(const AV1PixelRect *tile_rect, int unit_idx0,
                                    int hunits_per_tile, int vunits_per_tile,
                                    int unit_stride, int unit_size, int ss_y,
-                                   int plane, rest_unit_visitor_t on_rest_unit,
-                                   void *priv, RestorationLineBuffers *rlbs,
-                                   int *processed);
+                                   int tile_stripe0, void *priv,
+                                   uint16_t *stripe_buf);
 // Call on_rest_unit for each loop restoration unit in a coded SB.
 void av1_foreach_rest_unit_in_sb(const AV1PixelRect *tile_rect,
                                  const AV1PixelRect *sb_rect, int unit_idx0,
@@ -703,9 +706,7 @@ void av1_foreach_rest_unit_in_sb(const AV1PixelRect *tile_rect,
                                  int *processed);
 // Call on_rest_unit for each loop restoration unit in the plane.
 void av1_foreach_rest_unit_in_plane(const struct AV1Common *cm, int plane,
-                                    rest_unit_visitor_t on_rest_unit,
-                                    void *priv, AV1PixelRect *tile_rect,
-                                    RestorationLineBuffers *rlbs);
+                                    void *priv, AV1PixelRect *tile_rect);
 
 // Return 1 iff the block at mi_row, mi_col with size bsize is a
 // top-level superblock containing the top-left corner of at least one

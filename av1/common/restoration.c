@@ -814,9 +814,7 @@ static void restore_processing_stripe_boundary(
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 static uint16_t *alloc_processing_stripe_leftright_boundary(
     uint16_t *data_tl, int w, int h, int *data_stride, int border,
-    int tile_boundary_left, int tile_boundary_right,
-    RestorationLineBuffers *rlbs) {
-  (void)rlbs;
+    int tile_boundary_left, int tile_boundary_right) {
   if (!tile_boundary_left && !tile_boundary_right) return data_tl;
   int new_data_w = (w + 2 * border);
   int new_data_stride = new_data_w;
@@ -849,9 +847,7 @@ static uint16_t *alloc_processing_stripe_leftright_boundary(
 
 static void dealloc_processing_stripe_leftright_boundary(
     uint16_t *new_data_tl, int new_data_stride, int border,
-    int tile_boundary_left, int tile_boundary_right,
-    RestorationLineBuffers *rlbs) {
-  (void)rlbs;
+    int tile_boundary_left, int tile_boundary_right) {
   assert(border <= RESTORATION_BORDER_HORZ);
   if (!tile_boundary_left && !tile_boundary_right) return;
   aom_free(new_data_tl - border * new_data_stride - border);
@@ -2315,13 +2311,13 @@ void av1_loop_restoration_filter_unit(
       // dealloc functions.
       data_stripe_tl = alloc_processing_stripe_leftright_boundary(
           data_stripe_tl, unit_w, h, &stride, border, tile_boundary_left,
-          tile_boundary_right, rlbs);
+          tile_boundary_right);
       if (enable_cross_buffers) {
         backup_luma = (uint16_t *)tmp_rui->luma;
         backup_luma_stride = tmp_rui->luma_stride;
         tmp_rui->luma = alloc_processing_stripe_leftright_boundary(
             (uint16_t *)tmp_rui->luma, unit_w, h, &tmp_rui->luma_stride,
-            WIENERNS_UV_BRD, tile_boundary_left, tile_boundary_right, rlbs);
+            WIENERNS_UV_BRD, tile_boundary_left, tile_boundary_right);
       }
     }
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
@@ -2343,12 +2339,12 @@ void av1_loop_restoration_filter_unit(
       // Deallocate the allocated tmp buffers and reassign from backup
       dealloc_processing_stripe_leftright_boundary(data_stripe_tl, stride,
                                                    border, tile_boundary_left,
-                                                   tile_boundary_right, rlbs);
+                                                   tile_boundary_right);
       stride = backup_data_stride;
       if (enable_cross_buffers) {
         dealloc_processing_stripe_leftright_boundary(
             (uint16_t *)tmp_rui->luma, tmp_rui->luma_stride, WIENERNS_UV_BRD,
-            tile_boundary_left, tile_boundary_right, rlbs);
+            tile_boundary_left, tile_boundary_right);
         tmp_rui->luma = backup_luma;
         tmp_rui->luma_stride = backup_luma_stride;
       }
@@ -2523,9 +2519,8 @@ static void foreach_rest_unit_in_planes(AV1LrStruct *lr_ctxt, AV1_COMMON *cm,
     ctxt[plane].wiener_class_id_stride =
         cm->mi_params.wiener_class_id_stride[plane];
     ctxt[plane].tskip_zero_flag = 0;
-    av1_foreach_rest_unit_in_plane(cm, plane, lr_ctxt->on_rest_unit,
-                                   &ctxt[plane], &ctxt[plane].tile_rect,
-                                   cm->rlbs);
+    av1_foreach_rest_unit_in_plane(cm, plane, &ctxt[plane],
+                                   &ctxt[plane].tile_rect);
   }
   free(luma_buf);
 }
@@ -2610,6 +2605,339 @@ void av1_lr_sync_write_dummy(void *const lr_sync, int r, int c,
   (void)plane;
 }
 
+// Populate the scratch buffer of size (w + 2 * border)*(h+ 2 * border). This
+// buffer is the input to stripe_filter().
+static uint16_t *prepare_lru_stripe_buf(
+    const RestorationTileLimits *limits, const RestorationStripeBoundaries *rsb,
+    int rsb_row, uint16_t *data_tl, int lru_width, int stripe_h,
+    int data_stride, int border, int tile_boundary_left,
+    int tile_boundary_right, int copy_above, int copy_below, int opt,
+    uint16_t *stripe_buf, int *new_stride) {
+  const int new_data_w = lru_width + 2 * border;
+  const int new_data_stride =
+      RESTORATION_WIDTH_MAX + 2 * RESTORATION_BORDER_HORZ;
+  // Offsets within the line buffers. The buffer logically starts at column
+  // -RESTORATION_BORDER_HORZ so the 1st column (at x0 -
+  // RESTORATION_BORDER_HORZ) has column x0 in the buffer.
+  const int buf_stride = rsb->stripe_boundary_stride;
+  const int buf_x0_off = limits->h_start;
+  const int line_width =
+      (limits->h_end - limits->h_start) + 2 * RESTORATION_BORDER_HORZ;
+  const int line_size = line_width << 1;
+  const int data_x0 = -RESTORATION_BORDER_HORZ;
+  const int loop_offset = RESTORATION_BORDER_VERT;
+  assert(rsb_row < rsb->num_stripes * RESTORATION_CTX_VERT);
+
+  *new_stride = new_data_stride;
+  uint16_t *stripe_buf_tl = stripe_buf +
+                            RESTORATION_BORDER_VERT * new_data_stride +
+                            RESTORATION_BORDER_HORZ;
+  for (int i = -border; i < stripe_h + border; ++i)
+    memcpy(stripe_buf_tl + new_data_stride * i - border,
+           data_tl + data_stride * i - border, new_data_w * sizeof(*data_tl));
+
+  // Replace RESTORATION_BORDER_VERT pixels above the top of the stripe
+  // We expand RESTORATION_CTX_VERT=2 lines from rsb->stripe_boundary_above
+  // to fill RESTORATION_BORDER_VERT=4 lines of above pixels. This is done by
+  // duplicating the topmost of the 2 lines (see the AOMMAX call when
+  // calculating src_row, which gets the values 0, 0, 1 for i = -3, -2, -1).
+  // (the values 0, 0, 0, 1 for i = -4, -3, -2, -1 in the case of
+  // cross-component wienerns).
+  //
+  // Special case: If we're at the top of a tile, which isn't on the topmost
+  // tile row, and we're allowed to loop filter across tiles, then we have a
+  // logical 64-pixel-high stripe which has been split into an 8-pixel high
+  // stripe and a 56-pixel high stripe (the current one). So, in this case,
+  // we want to leave the boundary alone!
+  if (!opt) {
+    if (copy_above) {
+      uint16_t *data_ab = stripe_buf_tl + data_x0;
+
+      for (int i = -loop_offset; i < 0; ++i) {
+        const int buf_row = rsb_row + AOMMAX(i + RESTORATION_CTX_VERT, 0);
+        const int buf_off = buf_x0_off + buf_row * buf_stride;
+        const uint16_t *buf = rsb->stripe_boundary_above + buf_off;
+        uint16_t *dst = data_ab + i * new_data_stride;
+        memcpy(dst, buf, line_size);
+      }
+    }
+
+    // Replace RESTORATION_BORDER_VERT pixels below the bottom of the stripe.
+    // The second buffer row is repeated, so src_row gets the values 0, 1, 1
+    // for i = 0, 1, 2.
+    // (the values 0, 1, 1, 1 for i = 0,1,2,3 in the case of
+    // cross-component wienerns).
+    if (copy_below) {
+      const int stripe_end = stripe_h;
+      uint16_t *data_bl =
+          stripe_buf_tl + data_x0 + stripe_end * new_data_stride;
+
+      for (int i = 0; i < loop_offset; ++i) {
+        const int buf_row = rsb_row + AOMMIN(i, RESTORATION_CTX_VERT - 1);
+        const int buf_off = buf_x0_off + buf_row * buf_stride;
+        const uint16_t *src = rsb->stripe_boundary_below + buf_off;
+
+        uint16_t *dst = data_bl + i * new_data_stride;
+        memcpy(dst, src, line_size);
+      }
+    }
+  } else {
+    if (copy_above) {
+      uint16_t *data_ab = stripe_buf_tl + data_x0;
+
+      // Only save and overwrite i=-RESTORATION_BORDER_VERT line.
+      uint16_t *dst = data_ab + (-loop_offset) * new_data_stride;
+      memcpy(dst,
+             data_ab + (-loop_offset + RESTORATION_CTX_VERT) * new_data_stride,
+             line_size);
+      memcpy(dst + new_data_stride,
+             data_ab + (-loop_offset + RESTORATION_CTX_VERT) * new_data_stride,
+             line_size);
+    }
+
+    if (copy_below) {
+      const int stripe_end = stripe_h;
+      uint16_t *data_bl =
+          stripe_buf_tl + data_x0 + stripe_end * new_data_stride;
+
+      // Only save and overwrite i=2 line.
+      uint16_t *dst = data_bl + 2 * new_data_stride;
+      memcpy(dst, data_bl + (RESTORATION_CTX_VERT - 1) * new_data_stride,
+             line_size);
+      memcpy(dst + new_data_stride,
+             data_bl + (RESTORATION_CTX_VERT - 1) * new_data_stride, line_size);
+    }
+  }
+  if (!tile_boundary_left && !tile_boundary_right) return stripe_buf_tl;
+
+  if (tile_boundary_left) {
+    uint16_t *d = stripe_buf_tl - border * new_data_stride - border;
+    for (int i = 0; i < stripe_h + 2 * border; ++i) {
+      // Replicate
+      aom_memset16(d + i * new_data_stride, *(d + i * new_data_stride + border),
+                   border);
+    }
+  }
+  if (tile_boundary_right) {
+    uint16_t *d = stripe_buf_tl + lru_width - border * new_data_stride;
+    for (int i = 0; i < stripe_h + 2 * border; ++i) {
+      // Replicate
+      aom_memset16(d + i * new_data_stride, *(d + i * new_data_stride - 1),
+                   border);
+    }
+  }
+  return stripe_buf_tl;
+}
+
+// Apply LR filter for each rest unit of size LRU width and stripe height.
+static void for_each_restoration_unit(RestorationTileLimits *limits,
+                                      RestorationTileLimits *remaining_stripes,
+                                      const AV1PixelRect *tile_rect,
+                                      int rest_unit_idx, int start_height,
+                                      int stripe_height, int tile_stripe0,
+                                      void *priv, uint16_t *stripe_buf) {
+  const FilterFrameCtxt *ctxt = (FilterFrameCtxt *)priv;
+  const RestorationInfo *rsi = ctxt->rsi;
+  const int stride = ctxt->data_stride;
+  const int dst_stride = ctxt->dst_stride;
+  uint16_t *data = ctxt->data8;
+  uint16_t *dst = ctxt->dst8;
+  const RestorationUnitInfo *const rui = &rsi->unit_info[rest_unit_idx];
+  RestorationUnitInfo tmp_rui = *rui;
+  const int lru_width = limits->h_end - limits->h_start;
+  uint16_t *data_tl =
+      data + (limits->v_start + start_height) * stride + limits->h_start;
+  uint16_t *dst_tl =
+      dst + (limits->v_start + start_height) * dst_stride + limits->h_start;
+  const int ss_x = ctxt->ss_x;
+  const int ss_y = ctxt->ss_y;
+  const int start_mi_x = limits->h_start >> (MI_SIZE_LOG2 - ss_x);
+  const int start_mi_y = limits->v_start >> (MI_SIZE_LOG2 - ss_y);
+  const int mbmi_idx = get_mi_grid_idx(ctxt->mi_params, start_mi_y, start_mi_x);
+  remaining_stripes->h_start = limits->h_start;
+  remaining_stripes->h_end = limits->h_end;
+
+  // Initialization for each LR height in steps of nominal_stripe_height
+  tmp_rui.plane = ctxt->plane;
+  tmp_rui.base_qindex = ctxt->base_qindex;
+  tmp_rui.luma = ctxt->luma;
+  tmp_rui.luma_stride = ctxt->luma_stride;
+  tmp_rui.tskip = ctxt->tskip;
+  tmp_rui.tskip_stride = ctxt->tskip_stride;
+  tmp_rui.wiener_class_id = ctxt->wiener_class_id;
+  tmp_rui.wiener_class_id_stride = ctxt->wiener_class_id_stride;
+  tmp_rui.qindex_offset = ctxt->qindex_offset;
+  tmp_rui.wiener_class_id_restrict = -1;
+  tmp_rui.tskip_zero_flag = ctxt->tskip_zero_flag;
+  tmp_rui.compute_classification = 1;
+  tmp_rui.skip_pcwiener_filtering = 0;
+  tmp_rui.mbmi_ptr = ctxt->mi_params->mi_grid_base + mbmi_idx;
+  tmp_rui.mi_stride = ctxt->mi_params->mi_stride;
+  tmp_rui.error = ctxt->error;
+#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+  tmp_rui.lossless_segment = ctxt->lossless_segment;
+  tmp_rui.cm = ctxt->cm;
+#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+
+  RestorationType unit_rtype = tmp_rui.restoration_type;
+
+  if (unit_rtype == RESTORE_NONE) {
+    copy_tile(lru_width, stripe_height, data_tl, stride, dst_tl, dst_stride);
+    return;
+  }
+
+  const RestorationStripeBoundaries *rsb = &rsi->boundaries;
+  const int filter_idx = (int)unit_rtype - 1;
+  assert(filter_idx < NUM_STRIPE_FILTERS);
+  const stripe_filter_fun stripe_filter = stripe_filters[filter_idx];
+  const int procunit_width = RESTORATION_PROC_UNIT_SIZE >> ss_x;
+  const int enable_pcwiener_buffers =
+      unit_rtype == RESTORE_PC_WIENER || unit_rtype == RESTORE_WIENER_NONSEP;
+
+  PcwienerBuffers pc_wiener_buffers = { 0 };
+  tmp_rui.pcwiener_buffers = &pc_wiener_buffers;
+  const uint8_t *tskip_in_ru = NULL;
+  uint8_t *wiener_class_id_in_ru = NULL;
+  if (enable_pcwiener_buffers) {
+    tskip_in_ru = tmp_rui.tskip +
+                  (limits->v_start >> MI_SIZE_LOG2) * tmp_rui.tskip_stride +
+                  (limits->h_start >> MI_SIZE_LOG2);
+    wiener_class_id_in_ru =
+        tmp_rui.wiener_class_id +
+        (limits->v_start >> MI_SIZE_LOG2) * tmp_rui.wiener_class_id_stride +
+        (limits->h_start >> MI_SIZE_LOG2);
+    allocate_pcwiener_line_buffers(procunit_width, &pc_wiener_buffers);
+  }
+
+  int tile_boundary_above, tile_boundary_below;
+  get_stripe_boundary_info(remaining_stripes, tile_rect, ss_y,
+                           &tile_boundary_above, &tile_boundary_below);
+  int copy_above = 1, copy_below = 1;
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  if (ctxt->disable_loopfilters_across_tiles == 0) {
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+        // picture boundaries does not process since picture boundaries are
+        // extended tile top
+    if (tile_boundary_above) copy_above = 0;
+    // tile bottom but not picture bottom
+    if (tile_boundary_below) copy_below = 0;
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  }
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+
+  const int full_stripe_height = RESTORATION_PROC_UNIT_SIZE >> ss_y;
+  const int runit_offset = RESTORATION_UNIT_OFFSET >> ss_y;
+  // Work out where this stripe's boundaries are within
+  // rsb->stripe_boundary_{above,below}
+  const int rel_tile_stripe =
+      (remaining_stripes->v_start - tile_rect->top + runit_offset) /
+      full_stripe_height;
+  const int frame_stripe = tile_stripe0 + rel_tile_stripe;
+  const int rsb_row = RESTORATION_CTX_VERT * frame_stripe;
+
+  // cross-filter
+  const uint16_t *luma_in_ru = NULL;
+
+  const int enable_cross_buffers =
+      unit_rtype == RESTORE_WIENER_NONSEP && tmp_rui.plane != AOM_PLANE_Y;
+  /* Update cross buffer pointer to beginning of the stripe */
+  if (enable_cross_buffers) {
+    // Move to beginning of the LRU
+    luma_in_ru =
+        tmp_rui.luma + limits->v_start * tmp_rui.luma_stride + limits->h_start;
+    // Move to beginning of the stripe
+    tmp_rui.luma =
+        luma_in_ru + (start_height + 2 * frame_stripe * WIENERNS_UV_BRD) *
+                         tmp_rui.luma_stride;
+  }
+  // pass BRU related info to tmp RUI
+  tmp_rui.ss_x = ss_x;
+  tmp_rui.ss_y = ss_y;
+  tmp_rui.mbmi_ptr +=
+      (start_height >> (MI_SIZE_LOG2 - ss_y)) * tmp_rui.mi_stride;
+
+  const int border = RESTORATION_BORDER_HORZ >> ss_x;
+  int tile_boundary_left = (remaining_stripes->h_start == 0);
+  int tile_boundary_right = (remaining_stripes->h_end == ctxt->plane_width);
+
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  if (ctxt->disable_loopfilters_across_tiles) {
+    tile_boundary_left = (remaining_stripes->h_start == tile_rect->left);
+    tile_boundary_right = (remaining_stripes->h_end == tile_rect->right);
+  }
+
+  if (tile_boundary_left || tile_boundary_right) {
+    // Note the alloc functions below do temporary buffer allocations and
+    // change the buffer data_stripe_tl and its stride, as well as
+    // tmp_rui->luma and its stride in the cross filter case.
+    // So we need to keep a backup and restore them after the corresponding
+    // dealloc functions.
+    if (enable_cross_buffers) {
+      tmp_rui.luma = alloc_processing_stripe_leftright_boundary(
+          (uint16_t *)tmp_rui.luma, lru_width, stripe_height,
+          &tmp_rui.luma_stride, WIENERNS_UV_BRD, tile_boundary_left,
+          tile_boundary_right);
+    }
+  }
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  // pc wiener filter
+  tmp_rui.tskip =
+      enable_pcwiener_buffers
+          ? tskip_in_ru + (start_height >> MI_SIZE_LOG2) * tmp_rui.tskip_stride
+          : NULL;
+  tmp_rui.wiener_class_id =
+      enable_pcwiener_buffers
+          ? wiener_class_id_in_ru +
+                (start_height >> MI_SIZE_LOG2) * tmp_rui.wiener_class_id_stride
+          : NULL;
+
+  int new_stride = 0;
+  uint16_t *data_buf = prepare_lru_stripe_buf(
+      limits, rsb, rsb_row, data_tl, lru_width, stripe_height, stride, border,
+      tile_boundary_left, tile_boundary_right, copy_above, copy_below,
+      rsi->optimized_lr, stripe_buf, &new_stride);
+
+  stripe_filter(&tmp_rui, lru_width, stripe_height, procunit_width, data_buf,
+                new_stride, dst_tl, dst_stride, ctxt->bit_depth);
+
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  if (tile_boundary_left || tile_boundary_right) {
+    // Deallocate the allocated tmp buffers and reassign from backup
+    if (enable_cross_buffers) {
+      dealloc_processing_stripe_leftright_boundary(
+          (uint16_t *)tmp_rui.luma, tmp_rui.luma_stride, WIENERNS_UV_BRD,
+          tile_boundary_left, tile_boundary_right);
+    }
+  }
+#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  if (enable_pcwiener_buffers) free_pcwiener_line_buffers(&pc_wiener_buffers);
+}
+
+// Loop over tile width in steps of LRU size. Further, pass the LRU width to
+// for_each_restoration_unit() for LR filtering.
+void av1_foreach_rest_unit_in_tile_row(
+    RestorationTileLimits *limits, RestorationTileLimits *remaining_stripes,
+    const AV1PixelRect *tile_rect, int row_number, int start_height,
+    int proc_height, int unit_size, int unit_idx0, int hunits_per_tile,
+    int unit_stride, int tile_stripe0, void *priv, uint16_t *stripe_buf) {
+  const int tile_w = tile_rect->right - tile_rect->left;
+  int x0 = 0, j = 0;
+  while (x0 < tile_w) {
+    const int remaining_w = tile_w - x0;
+    const int w = (j == hunits_per_tile - 1) ? remaining_w : unit_size;
+
+    limits->h_start = tile_rect->left + x0;
+    limits->h_end = tile_rect->left + x0 + w;
+    assert(limits->h_end <= tile_rect->right);
+    const int unit_idx = unit_idx0 + row_number * unit_stride + j;
+    for_each_restoration_unit(limits, remaining_stripes, tile_rect, unit_idx,
+                              start_height, proc_height, tile_stripe0, priv,
+                              stripe_buf);
+    x0 += w;
+    ++j;
+  }
+}
+
 // This is meant to be called when the RUs in an entire coded tile are to
 // be processed. The tile_rect passed in is the RU-domain rectangle covering
 // all the RUs that are signaled as part of  coded tile. The first RU row is
@@ -2623,9 +2951,8 @@ void av1_lr_sync_write_dummy(void *const lr_sync, int r, int c,
 void av1_foreach_rest_unit_in_tile(const AV1PixelRect *tile_rect, int unit_idx0,
                                    int hunits_per_tile, int vunits_per_tile,
                                    int unit_stride, int unit_size, int ss_y,
-                                   int plane, rest_unit_visitor_t on_rest_unit,
-                                   void *priv, RestorationLineBuffers *rlbs,
-                                   int *processed) {
+                                   int tile_stripe0, void *priv,
+                                   uint16_t *stripe_buf) {
   const int tile_h = tile_rect->bottom - tile_rect->top;
 
   int y0 = 0, i = 0;
@@ -2648,11 +2975,28 @@ void av1_foreach_rest_unit_in_tile(const AV1PixelRect *tile_rect, int unit_idx0,
     // if (limits.v_end < tile_rect->bottom) limits.v_end -= voffset;
 
     assert(i < vunits_per_tile);
-    av1_foreach_rest_unit_in_row(
-        &limits, tile_rect, tile_rect, on_rest_unit, i, unit_size, unit_idx0,
-        hunits_per_tile, vunits_per_tile, unit_stride, plane, priv, rlbs,
-        av1_lr_sync_read_dummy, av1_lr_sync_write_dummy, NULL, processed);
+    RestorationTileLimits remaining_stripes = limits;
+    int j = 0;
+    const int unit_h = limits.v_end - limits.v_start;
+    while (j < unit_h) {
+      remaining_stripes.v_start = limits.v_start + j;
+      const int full_stripe_height = RESTORATION_PROC_UNIT_SIZE >> ss_y;
+      const int runit_offset = RESTORATION_UNIT_OFFSET >> ss_y;
+      const int rel_tile_stripe =
+          (remaining_stripes.v_start - tile_rect->top + runit_offset) /
+          full_stripe_height;
+      const int nominal_stripe_height =
+          full_stripe_height - ((rel_tile_stripe == 0) ? runit_offset : 0);
+      const int height =
+          AOMMIN(nominal_stripe_height,
+                 remaining_stripes.v_end - remaining_stripes.v_start);
 
+      av1_foreach_rest_unit_in_tile_row(&limits, &remaining_stripes, tile_rect,
+                                        i, j, height, unit_size, unit_idx0,
+                                        hunits_per_tile, unit_stride,
+                                        tile_stripe0, priv, stripe_buf);
+      j += height;
+    }
     y0 += h;
     ++i;
   }
@@ -2702,16 +3046,13 @@ void av1_foreach_rest_unit_in_sb(const AV1PixelRect *tile_rect,
 }
 
 void av1_foreach_rest_unit_in_plane(const struct AV1Common *cm, int plane,
-                                    rest_unit_visitor_t on_rest_unit,
-                                    void *priv, AV1PixelRect *tile_rect,
-                                    RestorationLineBuffers *rlbs) {
+                                    void *priv, AV1PixelRect *tile_rect) {
   (void)tile_rect;
   const int is_uv = plane > 0;
   const int ss_y = is_uv && cm->seq_params.subsampling_y;
 
   const RestorationInfo *rsi = &cm->rst_info[plane];
   int unit_idx0;
-  int processed = 0;
   FilterFrameCtxt *ctxt = (FilterFrameCtxt *)priv;
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   TileInfo tile_info;
@@ -2725,8 +3066,8 @@ void av1_foreach_rest_unit_in_plane(const struct AV1Common *cm, int plane,
       av1_foreach_rest_unit_in_tile(
           &this_tile_rect, unit_idx0, rsi->horz_units_per_tile[tile_col],
           rsi->vert_units_per_tile[tile_row], rsi->horz_units_per_frame,
-          rsi->restoration_unit_size, ss_y, plane, on_rest_unit, priv, rlbs,
-          &processed);
+          rsi->restoration_unit_size, ss_y, ctxt->tile_stripe0, priv,
+          cm->lru_stripe_buf);
     }
   }
 #else
@@ -2737,8 +3078,7 @@ void av1_foreach_rest_unit_in_plane(const struct AV1Common *cm, int plane,
   av1_foreach_rest_unit_in_tile(
       tile_rect, unit_idx0, rsi->horz_units_per_tile[0],
       rsi->vert_units_per_tile[0], rsi->horz_units_per_frame,
-      rsi->restoration_unit_size, ss_y, plane, on_rest_unit, priv, rlbs,
-      &processed);
+      rsi->restoration_unit_size, ss_y, ctxt->tile_stripe0, priv, NULL);
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 }
 
