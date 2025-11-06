@@ -5400,8 +5400,15 @@ static AOM_INLINE void parse_tile_row_mt(AV1Decoder *pbi, ThreadData *const td,
     signal_parse_sb_row_done(pbi, tile_data, sb_mi_size);
   }
 
+#if CONFIG_CWG_F317
   int corrupted =
-      (check_trailing_bits_after_symbol_coder(td->bit_reader)) ? 1 : 0;
+      (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame) ? 0
+#else
+  int corrupted =
+      cm->bru.frame_inactive_flag ? 0
+#endif  // CONFIG_CWG_F317
+      : (check_trailing_bits_after_symbol_coder(td->bit_reader)) ? 1
+                                                                 : 0;
   aom_merge_corrupted_flag(&dcb->corrupted, corrupted);
 }
 
