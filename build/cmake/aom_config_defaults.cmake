@@ -145,6 +145,7 @@ set_aom_config_var(CONFIG_NN_V2 0 "Fully-connected neural nets ver.2.")
 
 # CWG-F221
 set_aom_config_var(CONFIG_MULTILAYER_HLS 1 "HLS for multilayer coding.")
+set_aom_config_var(CONFIG_LCR_ID_IN_SH 1 "Add LCR id in the Sequence Header.")
 set_aom_config_var(CONFIG_ATLAS_BACKGROUND_COLOR 1
                    "Atlas background color information.")
 

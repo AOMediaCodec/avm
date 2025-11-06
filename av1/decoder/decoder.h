@@ -418,6 +418,16 @@ typedef struct AV1Decoder {
   int atlas_counter;
   struct OperatingPointSet ops_list[MAX_NUM_OPS_ID];
   int ops_counter;
+#if CONFIG_LCR_ID_IN_SH
+  /*!
+   * active layer configuration record for a coded video sequence
+   */
+  struct LayerConfigurationRecord *active_lcr;
+  /*!
+   * active atlas segment for a coded video sequence
+   */
+  struct AtlasSegmentInfo *active_atlas_segment_info;
+#endif  // CONFIG_LCR_ID_IN_SH
 #endif  // CONFIG_MULTILAYER_HLS
 
 #if CONFIG_CWG_E242_SEQ_HDR_ID

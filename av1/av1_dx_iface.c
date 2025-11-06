@@ -455,6 +455,10 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
       aom_rb_read_uvlc(&rb);  // seq_header_id
 #endif                        // CONFIG_CWG_E242_SEQ_HDR_ID
 
+#if CONFIG_LCR_ID_IN_SH
+      aom_rb_read_literal(&rb, 3);
+#endif  // CONFIG_LCR_ID_IN_SH
+
       BITSTREAM_PROFILE profile = av1_read_profile(&rb);  // profile
 
       int num_bits_width = aom_rb_read_literal(&rb, 4) + 1;

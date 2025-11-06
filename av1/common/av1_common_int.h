@@ -907,6 +907,11 @@ typedef struct SequenceHeader {
 #if CONFIG_CWG_E242_SEQ_HDR_ID
   int seq_header_id;
 #endif  // CONFIG_CWG_E242_SEQ_HDR_ID
+
+#if CONFIG_LCR_ID_IN_SH
+  int seq_lcr_id;
+#endif  //  CONFIG_LCR_ID_IN_SH
+
   int num_bits_width;
   int num_bits_height;
   int max_frame_width;

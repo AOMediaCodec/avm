@@ -756,6 +756,12 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   seq_params->seq_header_id =
       0;  // intentionally 0 for a single sequence bitstream
 #endif    // CONFIG_CWG_E242_SEQ_HDR_ID
+#if CONFIG_LCR_ID_IN_SH
+  // Intentionally 0 for a single sequence bitstream
+  // The scr_lcr_id corresponds to the global lcr id, so if an LCR is present,
+  // then this id needs to reflect its global id
+  seq_params->seq_lcr_id = LCR_ID_UNSPECIFIED;
+#endif  // CONFIG_LCR_ID_IN_SH
 
   seq_params->profile = oxcf->profile;
   seq_params->bit_depth = oxcf->tool_cfg.bit_depth;

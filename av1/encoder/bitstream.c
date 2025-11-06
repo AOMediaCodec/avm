@@ -7838,6 +7838,11 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
 #if CONFIG_CWG_E242_SEQ_HDR_ID
   aom_wb_write_uvlc(&wb, seq_params->seq_header_id);
 #endif  // CONFIG_CWG_E242_SEQ_HDR_ID
+
+#if CONFIG_LCR_ID_IN_SH
+  aom_wb_write_literal(&wb, seq_params->seq_lcr_id, 3);
+#endif  // CONFIG_LCR_ID_IN_SH
+
   write_profile(seq_params->profile, &wb);
 
   aom_wb_write_literal(&wb, seq_params->num_bits_width - 1, 4);

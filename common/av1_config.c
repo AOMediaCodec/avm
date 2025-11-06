@@ -344,6 +344,11 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
   config->seq_header_id = seq_header_id;
 #endif  // CONFIG_CWG_E242_SEQ_HDR_ID
 
+#if CONFIG_LCR_ID_IN_SH
+  AV1C_READ_BITS_OR_RETURN_ERROR(seq_lcr_id, 3);
+  config->seq_lcr_id = seq_lcr_id;
+#endif  // CONFIG_LCR_ID_IN_SH
+
   AV1C_READ_BITS_OR_RETURN_ERROR(seq_profile, 3);
   config->seq_profile = seq_profile;
 

@@ -8630,6 +8630,51 @@ void mark_reference_frames_with_long_term_ids(AV1Decoder *pbi) {
 }
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 
+#if CONFIG_LCR_ID_IN_SH
+static void activate_atlas_segment(AV1Decoder *pbi) {
+  AV1_COMMON *const cm = &pbi->common;
+  bool atlas_found = false;
+  int xlayer_id = GLOBAL_LCR_XLAYER_ID;
+  if (cm->lcr_params.is_local_lcr) xlayer_id = cm->lcr_params.xlayer_id;
+
+  int atas_lcr_id = cm->lcr_params.is_local_lcr
+                        ? cm->lcr_params.lcr_local_atlas_id[xlayer_id]
+                        : cm->lcr_params.lcr_global_atlas_id;
+  for (int i = 0; i < pbi->atlas_counter; i++) {
+    if (pbi->atlas_list[i].atlas_segment_id[i] == atas_lcr_id) {
+      pbi->active_atlas_segment_info = &pbi->atlas_list[i];
+      atlas_found = true;
+      break;
+    }
+  }
+  if (atlas_found) {
+    cm->atlas_params = *pbi->active_atlas_segment_info;
+  } else {
+    memset(&cm->atlas_params, 0, sizeof(struct AtlasSegmentInfo));
+  }
+}
+
+static void activate_layer_configuration_record(AV1Decoder *pbi,
+                                                int seq_lcr_id) {
+  AV1_COMMON *const cm = &pbi->common;
+  bool lcr_found = false;
+  for (int i = 0; i < pbi->lcr_counter; i++) {
+    if (pbi->lcr_list[i].lcr_global_config_record_id == seq_lcr_id) {
+      pbi->active_lcr = &pbi->lcr_list[i];
+      lcr_found = true;
+      break;
+    }
+  }
+  if (lcr_found) {
+    cm->lcr_params = *pbi->active_lcr;
+    activate_atlas_segment(pbi);
+  } else {
+    aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+                       "Unsupported LCR id in the Sequence Header.\n");
+  }
+}
+#endif  // CONFIG_LCR_ID_IN_SH
+
 #if CONFIG_CWG_E242_SEQ_HDR_ID
 static void activate_sequence_header(AV1Decoder *pbi,
 #if CONFIG_F024_KEYOBU
@@ -8863,6 +8908,17 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_CWG_F317
   }
 #endif  // CONFIG_CWG_F317
+
+#if CONFIG_LCR_ID_IN_SH
+  if (obu_type == OBU_OLK || obu_type == OBU_CLK) {
+    if (seq_params->seq_lcr_id != LCR_ID_UNSPECIFIED) {
+      activate_layer_configuration_record(pbi, seq_params->seq_lcr_id);
+    } else {
+      memset(&cm->lcr_params, 0, sizeof(struct LayerConfigurationRecord));
+      memset(&cm->atlas_params, 0, sizeof(struct AtlasSegmentInfo));
+    }
+  }
+#endif  // CONFIG_LCR_ID_IN_SH
 
   if (seq_params->single_picture_header_flag) {
     cm->show_existing_frame = 0;
