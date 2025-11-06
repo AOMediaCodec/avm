@@ -798,8 +798,14 @@ static AOM_INLINE void update_long_term_frame_id(AV1Decoder *const pbi) {
   int refresh_frame_flags = cm->current_frame.refresh_frame_flags;
   for (int i = 0; i < cm->seq_params.ref_frames; i++) {
     if ((refresh_frame_flags >> i) & 1) {
-      pbi->long_term_ids_in_buffer[i] = cm->current_frame.long_term_id;
-      pbi->valid_for_referencing[i] = 1;
+      if ((cm->current_frame.frame_type == KEY_FRAME && cm->show_frame == 1) &&
+          i > 0) {
+        pbi->long_term_ids_in_buffer[i] = -1;
+        pbi->valid_for_referencing[i] = 0;
+      } else {
+        pbi->long_term_ids_in_buffer[i] = cm->cur_frame->long_term_id;
+        pbi->valid_for_referencing[i] = 1;
+      }
     }
   }
 }
@@ -880,15 +886,15 @@ int av1_receive_compressed_data(AV1Decoder *pbi, size_t size,
   cm->txb_count = 0;
 #endif
 
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+  update_long_term_frame_id(pbi);
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+
   // Note: At this point, this function holds a reference to cm->cur_frame
   // in the buffer pool. This reference is consumed by update_frame_buffers().
   check_ref_count_status_dec(pbi);
   update_frame_buffers(pbi, frame_decoded);
   check_ref_count_status_dec(pbi);
-
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-  update_long_term_frame_id(pbi);
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 
   if (frame_decoded) {
     pbi->decoding_first_frame = 0;
