@@ -522,9 +522,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_ist = oxcf->txfm_cfg.enable_ist;
   seq->enable_inter_ist = oxcf->txfm_cfg.enable_inter_ist;
   seq->enable_chroma_dctonly = oxcf->txfm_cfg.enable_chroma_dctonly;
-#if CONFIG_CWG_F307_CFL_SEQ_FLAG
   seq->enable_cfl_intra = oxcf->intra_mode_cfg.enable_cfl_intra;
-#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
   seq->enable_mhccp = oxcf->intra_mode_cfg.enable_mhccp;
 #if CONFIG_CWG_F377_STILL_PICTURE
   seq->enable_inter_ddt =

@@ -851,10 +851,8 @@ typedef struct {
   bool enable_joint_mvd;
   // Indicates if refineMV mode should be enabled.
   bool enable_refinemv;
-#if CONFIG_CWG_F307_CFL_SEQ_FLAG
   // Indicates if cfl should be enabled.
   bool enable_cfl_intra;
-#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
   // Indicates if mvd sign derivation should be enabled.
   bool enable_mvd_sign_derive;
   // enable temporal interpolated prediction

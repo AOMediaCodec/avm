@@ -18,7 +18,7 @@
 
 #define CFL_ADD_BITS_ALPHA 5
 
-/* Returns floor(log2(x)) for 32-bit unsigned x — i.e., the index (0..31) of the
+/* Returns floor(log2(x)) for 32-bit unsigned x ï¿½ i.e., the index (0..31) of the
  * highest set bit.*/
 static INLINE int ilog2_32(uint32_t x) {
 #if defined(_MSC_VER)
@@ -54,17 +54,11 @@ static INLINE int derive_linear_parameters_beta(int sum_x, int sum_y, int count,
 }
 
 // Can we use CfL for the current block?
-static INLINE CFL_ALLOWED_TYPE is_cfl_allowed(
-#if CONFIG_CWG_F307_CFL_SEQ_FLAG
-    bool seq_enable_cfl_intra,
-#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
-    const MACROBLOCKD *xd) {
-
+static INLINE CFL_ALLOWED_TYPE is_cfl_allowed(bool seq_enable_cfl_intra,
+                                              const MACROBLOCKD *xd) {
   const MB_MODE_INFO *mbmi = xd->mi[0];
   if (xd->tree_type == LUMA_PART) return CFL_DISALLOWED;
-#if CONFIG_CWG_F307_CFL_SEQ_FLAG
   if (!seq_enable_cfl_intra) return CFL_DISALLOWED;
-#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
   assert(xd->is_cfl_allowed_in_sdp < CFL_ALLOWED_TYPES_FOR_SDP);
   if (xd->is_cfl_allowed_in_sdp != CFL_ALLOWED_FOR_CHROMA) {
     assert(xd->tree_type == CHROMA_PART);
@@ -222,12 +216,10 @@ static INLINE CFL_PRED_TYPE get_cfl_pred_type(PLANE_TYPE plane) {
   return (CFL_PRED_TYPE)(plane - 1);
 }
 
-void cfl_predict_block(
-#if CONFIG_CWG_F307_CFL_SEQ_FLAG
-    bool seq_enable_cfl_intra, bool seq_enable_mhccp,
-#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
-    MACROBLOCKD *const xd, uint16_t *dst, int dst_stride, TX_SIZE tx_size,
-    int plane, bool have_top, bool have_left, int above_lines, int left_lines);
+void cfl_predict_block(bool seq_enable_cfl_intra, bool seq_enable_mhccp,
+                       MACROBLOCKD *const xd, uint16_t *dst, int dst_stride,
+                       TX_SIZE tx_size, int plane, bool have_top,
+                       bool have_left, int above_lines, int left_lines);
 
 void cfl_store_block(MACROBLOCKD *const xd, BLOCK_SIZE bsize, TX_SIZE tx_size,
                      int filter_type);

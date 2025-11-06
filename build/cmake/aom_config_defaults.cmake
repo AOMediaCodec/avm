@@ -249,8 +249,6 @@ set_aom_config_var(CONFIG_MHCCP_BLK_SIZE 1
 set_aom_config_var(CONFIG_MHCCP_SOLVER_BITS 1
                    "Reduce the number of bits for MHCCP solver")
 
-set_aom_config_var(CONFIG_CWG_F307_CFL_SEQ_FLAG 1 "Sequence level flag for CfL")
-
 set_aom_config_var(CONFIG_RU_SIZE_RESTRICTION 1
                    "RU size shall be larger than or equal to sb size")
 

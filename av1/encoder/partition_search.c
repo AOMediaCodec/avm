@@ -333,13 +333,8 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
   }
 
   if (is_inter_block(mbmi, xd->tree_type) && !xd->is_chroma_ref &&
-      (is_cfl_allowed(
-#if CONFIG_CWG_F307_CFL_SEQ_FLAG
-          cm->seq_params.enable_cfl_intra,
-#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
-          xd) ||
-        is_mhccp_allowed(cm, xd))
-      ) {
+      (is_cfl_allowed(cm->seq_params.enable_cfl_intra, xd) ||
+       is_mhccp_allowed(cm, xd))) {
     cfl_store_block(xd, mbmi->sb_type[xd->tree_type == CHROMA_PART],
                     mbmi->tx_size, cm->seq_params.cfl_ds_filter_index);
   }
@@ -2018,11 +2013,9 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
         is_cfl_allowed_for_sdp(cm, xd, ptree_luma, partition, bsize);
     CFL_ALLOWED_FOR_SDP_TYPE is_cfl_allowed_in_sdp =
         ptree->is_cfl_allowed_for_this_chroma_partition;
-#if CONFIG_CWG_F307_CFL_SEQ_FLAG
     if (!cm->seq_params.enable_cfl_intra && !cm->seq_params.enable_mhccp) {
       is_cfl_allowed_in_sdp = CFL_DISALLOWED_FOR_CHROMA;
     }
-#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
     if (partition == PARTITION_NONE) {
       xd->is_cfl_allowed_in_sdp = is_cfl_allowed_in_sdp;
     }
@@ -2074,11 +2067,9 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
         break;
       default: break;
     }
-#if CONFIG_CWG_F307_CFL_SEQ_FLAG
     if (!cm->seq_params.enable_cfl_intra && !cm->seq_params.enable_mhccp) {
       xd->is_cfl_allowed_in_sdp = CFL_DISALLOWED_FOR_CHROMA;
     }
-#endif //CONFIG_CWG_F307_CFL_SEQ_FLAG
   }
 
   const int track_ptree_luma =
@@ -2730,11 +2721,9 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
     ptree->is_cfl_allowed_for_this_chroma_partition = CFL_DISALLOWED_FOR_CHROMA;
   }
 
-#if CONFIG_CWG_F307_CFL_SEQ_FLAG
   if (!cm->seq_params.enable_cfl_intra && !cm->seq_params.enable_mhccp) {
     xd->is_cfl_allowed_in_sdp = CFL_DISALLOWED_FOR_CHROMA;
   }
-#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
   switch (partition) {
     case PARTITION_NONE:
       pick_sb_modes(cpi, td, tile_data, x, mi_row, mi_col, &last_part_rdc,
@@ -3764,11 +3753,9 @@ static void none_partition_search(
   x->e_mbd.is_cfl_allowed_in_sdp =
       pc_tree->is_cfl_allowed_for_this_chroma |
       is_cfl_allowed_for_sdp(cm, &x->e_mbd, ptree_luma, PARTITION_NONE, bsize);
-#if CONFIG_CWG_F307_CFL_SEQ_FLAG
   if (!cm->seq_params.enable_cfl_intra && !cm->seq_params.enable_mhccp) {
     x->e_mbd.is_cfl_allowed_in_sdp = CFL_DISALLOWED_FOR_CHROMA;
   }
-#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
   REGION_TYPE cur_region_type = pc_tree->region_type;
   PICK_MODE_CONTEXT *ctx_none = sdp_inter_chroma_flag
                                     ? pc_tree->none_chroma

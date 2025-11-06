@@ -961,10 +961,8 @@ typedef struct SequenceHeader {
   uint8_t enable_ist;             // enables/disables intra secondary transform
   uint8_t enable_inter_ist;       // enables/disables inter secondary transform
   uint8_t enable_chroma_dctonly;  // enables/disables dct only for chroma
-#if CONFIG_CWG_F307_CFL_SEQ_FLAG
-  uint8_t enable_cfl_intra;     // enables/disables CFL
-#endif                          // CONFIG_CWG_F307_CFL_SEQ_FLAG
-  uint8_t enable_mhccp;         // enables/disables MHCCP
+  uint8_t enable_cfl_intra;       // enables/disables CFL
+  uint8_t enable_mhccp;           // enables/disables MHCCP
   uint8_t enable_inter_ddt;     // enables/disables inter data-driven transform
   uint8_t reduced_tx_part_set;  // use reduced transform block partition set
   uint8_t enable_cctx;  // enables/disables cross-chroma component transform
@@ -3999,14 +3997,10 @@ static AOM_INLINE bool is_luma_chroma_share_same_partition(
 
 static AOM_INLINE CFL_ALLOWED_FOR_SDP_TYPE
 
-is_cfl_allowed_for_this_luma_partition(
-#if CONFIG_CWG_F307_CFL_SEQ_FLAG
-    bool seq_enable_cfl_intra,
-#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
-    PARTITION_TYPE luma_partition, PARTITION_TYPE current_partition) {
-#if CONFIG_CWG_F307_CFL_SEQ_FLAG
+is_cfl_allowed_for_this_luma_partition(bool seq_enable_cfl_intra,
+                                       PARTITION_TYPE luma_partition,
+                                       PARTITION_TYPE current_partition) {
   if (!seq_enable_cfl_intra) return CFL_DISALLOWED_FOR_CHROMA;
-#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
   if (luma_partition == current_partition) return CFL_ALLOWED_FOR_CHROMA;
 
   switch (luma_partition) {
@@ -4045,9 +4039,8 @@ static AOM_INLINE CFL_ALLOWED_FOR_SDP_TYPE is_cfl_allowed_for_sdp(
     AV1_COMMON const *cm, const MACROBLOCKD *const xd,
     const PARTITION_TREE *ptree_luma, PARTITION_TYPE current_partition,
     BLOCK_SIZE bsize_luma) {
-#if CONFIG_CWG_F307_CFL_SEQ_FLAG
-  if (!cm->seq_params.enable_cfl_intra && !cm->seq_params.enable_mhccp) return CFL_DISALLOWED_FOR_CHROMA;
-#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
+  if (!cm->seq_params.enable_cfl_intra && !cm->seq_params.enable_mhccp)
+    return CFL_DISALLOWED_FOR_CHROMA;
 
   if (!frame_is_intra_only(cm)) return CFL_ALLOWED_FOR_CHROMA;
   if (xd->tree_type != CHROMA_PART) return CFL_ALLOWED_FOR_CHROMA;
@@ -4065,9 +4058,7 @@ static AOM_INLINE CFL_ALLOWED_FOR_SDP_TYPE is_cfl_allowed_for_sdp(
   if (ptree_luma) {
     assert(bsize_luma == BLOCK_64X64);
     return is_cfl_allowed_for_this_luma_partition(
-#if CONFIG_CWG_F307_CFL_SEQ_FLAG
         cm->seq_params.enable_cfl_intra || cm->seq_params.enable_mhccp,
-#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
         ptree_luma->partition, current_partition);
   }
 

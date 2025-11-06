@@ -6630,9 +6630,7 @@ void read_sequence_intra_group_tool_flags(struct SequenceHeader *seq_params,
   seq_params->enable_intra_dip = aom_rb_read_bit(rb);
   seq_params->enable_intra_edge_filter = aom_rb_read_bit(rb);
   seq_params->enable_mrls = aom_rb_read_bit(rb);
-#if CONFIG_CWG_F307_CFL_SEQ_FLAG
   seq_params->enable_cfl_intra = aom_rb_read_bit(rb);
-#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
   seq_params->enable_mhccp = aom_rb_read_bit(rb);
   seq_params->enable_orip = aom_rb_read_bit(rb);
   seq_params->enable_ibp = aom_rb_read_bit(rb);
@@ -7292,9 +7290,7 @@ void av1_read_sequence_header_beyond_av1(
   seq_params->reduced_tx_part_set = aom_rb_read_bit(rb);
   seq_params->enable_cctx = seq_params->monochrome ? 0 : aom_rb_read_bit(rb);
   seq_params->enable_mrls = aom_rb_read_bit(rb);
-#if CONFIG_CWG_F307_CFL_SEQ_FLAG
   seq_params->enable_cfl_intra = aom_rb_read_bit(rb);
-#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
   seq_params->enable_mhccp = aom_rb_read_bit(rb);
 #if CONFIG_CWG_F377_STILL_PICTURE
   uint8_t enable_tip =

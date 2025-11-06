@@ -1673,40 +1673,29 @@ static AOM_INLINE void write_intra_prediction_modes(AV1_COMP *cpi,
     if (xd->lossless[mbmi->segment_id]) {
       write_dpcm_uv_index(ec_ctx, mbmi->use_dpcm_uv, w);
       if (mbmi->use_dpcm_uv == 0) {
-        write_intra_uv_mode(xd,
-                            is_cfl_allowed(
-#if CONFIG_CWG_F307_CFL_SEQ_FLAG
-                                cm->seq_params.enable_cfl_intra,
-#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
-                                xd) || is_mhccp_allowed(cm, xd),
-                            w);
+        write_intra_uv_mode(
+            xd,
+            is_cfl_allowed(cm->seq_params.enable_cfl_intra, xd) ||
+                is_mhccp_allowed(cm, xd),
+            w);
       } else {
         write_dpcm_uv_vert_horz_mode(ec_ctx, mbmi->dpcm_mode_uv, w);
       }
     } else {
       write_intra_uv_mode(xd,
-                          is_cfl_allowed(
-#if CONFIG_CWG_F307_CFL_SEQ_FLAG
-                              cm->seq_params.enable_cfl_intra,
-#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
-                              xd) || is_mhccp_allowed(cm, xd),
+                          is_cfl_allowed(cm->seq_params.enable_cfl_intra, xd) ||
+                              is_mhccp_allowed(cm, xd),
                           w);
     }
 
     if (uv_mode == UV_CFL_PRED) {
       if (is_mhccp_allowed(cm, xd)) {
-#if CONFIG_CWG_F307_CFL_SEQ_FLAG
         if (cm->seq_params.enable_cfl_intra)
-#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
           write_cfl_mhccp_switch(ec_ctx, mbmi->cfl_idx == CFL_MULTI_PARAM, w);
         if (mbmi->cfl_idx != CFL_MULTI_PARAM) {
           write_cfl_index(ec_ctx, mbmi->cfl_idx, w);
         }
-      } else
-#if CONFIG_CWG_F307_CFL_SEQ_FLAG
-          if (cm->seq_params.enable_cfl_intra)
-#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
-      {
+      } else if (cm->seq_params.enable_cfl_intra) {
         write_cfl_index(ec_ctx, mbmi->cfl_idx, w);
       }
       if (mbmi->cfl_idx == CFL_MULTI_PARAM) {
@@ -5404,9 +5393,7 @@ void write_sequence_intra_group_tool_flags(
   aom_wb_write_bit(wb, seq_params->enable_intra_dip);
   aom_wb_write_bit(wb, seq_params->enable_intra_edge_filter);
   aom_wb_write_bit(wb, seq_params->enable_mrls);
-#if CONFIG_CWG_F307_CFL_SEQ_FLAG
   aom_wb_write_bit(wb, seq_params->enable_cfl_intra);
-#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
   aom_wb_write_bit(wb, seq_params->enable_mhccp);
   aom_wb_write_bit(wb, seq_params->enable_orip);
   aom_wb_write_bit(wb, seq_params->enable_ibp);
@@ -5972,9 +5959,7 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
   aom_wb_write_bit(wb, seq_params->reduced_tx_part_set);
   if (!seq_params->monochrome) aom_wb_write_bit(wb, seq_params->enable_cctx);
   aom_wb_write_bit(wb, seq_params->enable_mrls);
-#if CONFIG_CWG_F307_CFL_SEQ_FLAG
   aom_wb_write_bit(wb, seq_params->enable_cfl_intra);
-#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
   aom_wb_write_bit(wb, seq_params->enable_mhccp);
 #if CONFIG_CWG_F377_STILL_PICTURE
   if (seq_params->single_picture_header_flag) {

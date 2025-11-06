@@ -320,11 +320,9 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
                                         txfm_info->skip_txfm);
     }
 
-    if (mi_addr->uv_mode == UV_CFL_PRED && !is_cfl_allowed(
-#if CONFIG_CWG_F307_CFL_SEQ_FLAG
-                                               cm->seq_params.enable_cfl_intra,
-#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
-                                               xd) && !is_mhccp_allowed(cm, xd)){
+    if (mi_addr->uv_mode == UV_CFL_PRED &&
+        !is_cfl_allowed(cm->seq_params.enable_cfl_intra, xd) &&
+        !is_mhccp_allowed(cm, xd)) {
       mi_addr->uv_mode = UV_DC_PRED;
     }
   }
@@ -614,11 +612,9 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
   if (!xd->is_chroma_ref) return;
   if (xd->tree_type != LUMA_PART) {
     const UV_PREDICTION_MODE uv_mode = mbmi->uv_mode;
-    const CFL_ALLOWED_TYPE cfl_allowed = is_cfl_allowed(
-#if CONFIG_CWG_F307_CFL_SEQ_FLAG
-        cm->seq_params.enable_cfl_intra,
-#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
-        xd) || is_mhccp_allowed(cm, xd);
+    const CFL_ALLOWED_TYPE cfl_allowed =
+        is_cfl_allowed(cm->seq_params.enable_cfl_intra, xd) ||
+        is_mhccp_allowed(cm, xd);
     const int uv_context = av1_is_directional_mode(mbmi->mode) ? 1 : 0;
 #if CONFIG_ENTROPY_STATS
     if (cfl_allowed) {
@@ -696,9 +692,7 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
           update_cdf(fc->cfl_index_cdf, mbmi->cfl_idx, CFL_TYPE_COUNT - 1);
         }
       } else {
-#if CONFIG_CWG_F307_CFL_SEQ_FLAG
         if (cm->seq_params.enable_cfl_intra)
-#endif  // CONFIG_CWG_F307_CFL_SEQ_FLAG
           update_cdf(fc->cfl_index_cdf, mbmi->cfl_idx, CFL_TYPE_COUNT - 1);
       }
     }
