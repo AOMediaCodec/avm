@@ -619,7 +619,7 @@ uint8_t av1_read_coeffs_txb_skip(const AV1_COMMON *const cm,
       // Bitmasking to clamp level to valid range:
       // The valid range for 8/10/12 bit video is at most 14/16/18 bit
       if ((level >> 20) != 0) {
-        aom_internal_error(xd->error_info, AOM_CODEC_CORRUPT_FRAME,
+        aom_internal_error(xd->error_info, AOM_CODEC_ERROR,
                            "Invalid FSC coeff level beyond 20 bits");
       }
       cul_level += level;
@@ -927,7 +927,7 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
       // Bitmasking to clamp level to valid range:
       //   The valid range for 8/10/12 bit vdieo is at most 14/16/18 bit
       if ((level >> 20) != 0) {
-        aom_internal_error(xd->error_info, AOM_CODEC_CORRUPT_FRAME,
+        aom_internal_error(xd->error_info, AOM_CODEC_ERROR,
                            "Invalid coeff level beyond 20 bits");
       }
       cul_level += level;
@@ -965,7 +965,7 @@ uint8_t av1_read_coeffs_txb(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
         tran_low_t dq_coeff;
         tran_low_t qIdx = AOMMAX(0, (abs(tcoeffs[pos]) << 1) - Qx);
         if ((qIdx >> 20) != 0) {
-          aom_internal_error(xd->error_info, AOM_CODEC_CORRUPT_FRAME,
+          aom_internal_error(xd->error_info, AOM_CODEC_ERROR,
                              "Invalid TCQ coeff level beyond 20 bits");
         }
         // Bitmasking to clamp dq_coeff to valid range:
