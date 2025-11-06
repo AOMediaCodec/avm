@@ -302,7 +302,7 @@ enum {
 #define OPS_COUNT_BITS 3
 #define MAX_OPS_COUNT ((1 << OPS_COUNT_BITS) - 1)
 // Atlas
-#define MAX_ATLAS_REGIONS 64
+#define MAX_ATLAS_REGIONS 64  // maximum number of Atlas regions per dimension
 #define ATLAS_SEG_ID_BITS 3
 #define MAX_NUM_ATLAS_SEG_ID (1 << ATLAS_SEG_ID_BITS)
 #define ATLAS_LABEL_SEG_ID_BITS 8
