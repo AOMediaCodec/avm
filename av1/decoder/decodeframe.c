@@ -7582,7 +7582,12 @@ static AOM_INLINE void read_mfh_sb_size(MultiFrameHeader *mfh_params,
 #endif  // CONFIG_MFH_SIGNAL_TILE_INFO
 
 #if CONFIG_MULTI_FRAME_HEADER
-void av1_read_multi_frame_header(AV1_COMMON *cm,
+#if CONFIG_F343
+ int
+#else
+void
+#endif  // CONFIG_F343
+    av1_read_multi_frame_header(AV1_COMMON *cm,
                                  struct aom_read_bit_buffer *rb) {
 #if CONFIG_CWG_E242_SEQ_HDR_ID
   const uint32_t mfh_seq_header_id = aom_rb_read_uvlc(rb);
@@ -7603,6 +7608,9 @@ void av1_read_multi_frame_header(AV1_COMMON *cm,
   }
 
   MultiFrameHeader *mfh_param = &cm->mfh_params[cur_mfh_id];
+#if CONFIG_F343
+  mfh_param->mfh_id = cur_mfh_id;
+#endif  // CONFIG_F343
 #if CONFIG_CWG_E242_SEQ_HDR_ID
   mfh_param->mfh_seq_header_id = (int)mfh_seq_header_id;
 #endif  // #if CONFIG_CWG_E242_SEQ_HDR_ID
@@ -7682,8 +7690,12 @@ void av1_read_multi_frame_header(AV1_COMMON *cm,
     read_multi_frame_header_tile_info(mfh_param, rb);
   }
 #endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
-
+    
   cm->mfh_valid[cur_mfh_id] = true;
+    
+#if CONFIG_F343
+    return cur_mfh_id;
+#endif  // CONFIG_F343
 }
 #endif  // CONFIG_MULTI_FRAME_HEADER
 

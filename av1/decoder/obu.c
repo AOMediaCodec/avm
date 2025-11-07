@@ -227,11 +227,29 @@ static INLINE void reset_mfh_valid(AV1_COMMON *cm) {
 }
 #endif  // CONFIG_MULTI_FRAME_HEADER
 
+#if CONFIG_F343
+void read_obu_extension(ObuExtension obu_ext, struct aom_read_bit_buffer *rb, size_t remaining_bits) {
+
+  obu_ext.extension_present_flag = aom_rb_read_bit(rb);
+  if (obu_ext.extension_present_flag) {
+    while (remaining_bits-1 > 0) {
+      obu_ext.extension_bit = aom_rb_read_bit(rb);
+      remaining_bits--;
+    }
+  }
+}
+#endif  // CONFIG_F343
+
 // On success, sets pbi->sequence_header_ready to 1 and returns the number of
 // bytes read from 'rb'.
 // On failure, sets pbi->common.error.error_code and returns 0.
 static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
-                                         struct aom_read_bit_buffer *rb) {
+                                         struct aom_read_bit_buffer *rb
+#if CONFIG_F343
+                                      , size_t payload_size
+#endif  //  CONFIG_F343
+                                         
+                                         ) {
   AV1_COMMON *const cm = &pbi->common;
   const uint32_t saved_bit_offset = rb->bit_offset;
 
@@ -487,10 +505,15 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
   }
 #endif  // CONFIG_SCAN_TYPE_METADATA
 
+#if CONFIG_F343
+  uint32_t remaining_bits = (uint32_t)payload_size*8 - rb->bit_offset;
+  read_obu_extension(seq_params->sh_extension, rb, remaining_bits);
+#else
   if (av1_check_trailing_bits(pbi, rb) != 0) {
     // cm->error.error_code is already set.
     return 0;
   }
+#endif  // CONFIG_F343
 
   // If a sequence header has been decoded before, we check if the new
   // one is consistent with the old one.
@@ -505,7 +528,7 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
 #endif  // CONFIG_MULTI_FRAME_HEADER
     }
   }
-
+  
   cm->seq_params = *seq_params;
   av1_set_frame_sb_size(cm, cm->seq_params.sb_size);
   pbi->sequence_header_ready = 1;
@@ -515,17 +538,29 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
 
 #if CONFIG_MULTI_FRAME_HEADER
 static uint32_t read_multi_frame_header_obu(AV1Decoder *pbi,
-                                            struct aom_read_bit_buffer *rb) {
+                                            struct aom_read_bit_buffer *rb
+#if CONFIG_F343
+                                      , size_t payload_size
+#endif  //  CONFIG_F343
+                                            ) {
   AV1_COMMON *const cm = &pbi->common;
   const uint32_t saved_bit_offset = rb->bit_offset;
 
+#if CONFIG_F343
+  int cur_mfh_id = av1_read_multi_frame_header(cm, rb);
+#else
   av1_read_multi_frame_header(cm, rb);
+#endif  // CONFIG_F343
 
+#if CONFIG_F343
+  uint32_t remaining_bits = (uint32_t)payload_size*8 - rb->bit_offset;
+  read_obu_extension(cm->mfh_params[cur_mfh_id].obu_ext, rb, remaining_bits);
+#else
   if (av1_check_trailing_bits(pbi, rb) != 0) {
     // cm->error.error_code is already set.
     return 0;
   }
-
+#endif  // CONFIG_F343
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }
 #endif  // CONFIG_MULTI_FRAME_HEADER
@@ -1795,7 +1830,11 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
         break;
 #endif  // CONFIG_MULTI_STREAM
       case OBU_SEQUENCE_HEADER:
-        decoded_payload_size = read_sequence_header_obu(pbi, &rb);
+        decoded_payload_size = read_sequence_header_obu(pbi, &rb
+#if CONFIG_F343
+            , payload_size
+#endif  // CONFIG_F343
+                                                        );
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
         // The sequence header should not change in the middle of a frame.
         if (pbi->sequence_header_changed && pbi->seen_frame_header) {
@@ -1816,7 +1855,11 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
 #if CONFIG_MULTILAYER_HLS
       case OBU_LAYER_CONFIGURATION_RECORD:
         decoded_payload_size =
-            av1_read_layer_configuration_record_obu(pbi, cm->xlayer_id, &rb);
+            av1_read_layer_configuration_record_obu(pbi, cm->xlayer_id, &rb
+#if CONFIG_F343
+            , payload_size
+#endif  // CONFIG_F343
+                                                    );
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
         break;
       case OBU_ATLAS_SEGMENT:
@@ -1826,13 +1869,21 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
         break;
       case OBU_OPERATING_POINT_SET:
         decoded_payload_size =
-            av1_read_operating_point_set_obu(pbi, cm->xlayer_id, &rb);
+            av1_read_operating_point_set_obu(pbi, cm->xlayer_id, &rb
+#if CONFIG_F343
+            ,payload_size
+#endif  // CONFIG_F343
+                                             );
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
         break;
 #endif  // CONFIG_MULTILAYER_HLS
 #if CONFIG_MULTI_FRAME_HEADER
       case OBU_MULTI_FRAME_HEADER:
-        decoded_payload_size = read_multi_frame_header_obu(pbi, &rb);
+        decoded_payload_size = read_multi_frame_header_obu(pbi, &rb
+#if CONFIG_F343
+                                      ,payload_size
+#endif  //  CONFIG_F343
+                                                           );
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
         break;
 #endif  // CONFIG_MULTI_FRAME_HEADER

@@ -40,11 +40,19 @@ void av1_read_conformance_window(struct aom_read_bit_buffer *rb,
 
 #if CONFIG_MULTILAYER_HLS
 uint32_t av1_read_layer_configuration_record_obu(
-    struct AV1Decoder *pbi, int obu_xlayer_id, struct aom_read_bit_buffer *rb);
+    struct AV1Decoder *pbi, int obu_xlayer_id, struct aom_read_bit_buffer *rb
+#if CONFIG_F343
+            ,size_t payload_size
+#endif  // CONFIG_F343
+                                                 );
 
 uint32_t av1_read_operating_point_set_obu(struct AV1Decoder *pbi,
                                           int obu_xlayer_id,
-                                          struct aom_read_bit_buffer *rb);
+                                          struct aom_read_bit_buffer *rb
+#if CONFIG_F343
+                                          ,size_t payload_size
+#endif  // CONFIG_F343
+                                          );
 
 uint32_t av1_read_atlas_segment_info_obu(struct AV1Decoder *pbi,
                                          int obu_xLayer_id,
@@ -56,6 +64,10 @@ uint32_t av1_read_atlas_segment_info_obu(struct AV1Decoder *pbi,
 // Reports errors by calling rb->error_handler() or aom_internal_error().
 void av1_read_sequence_header(struct aom_read_bit_buffer *rb,
                               SequenceHeader *seq_params);
+
+#if CONFIG_F343
+void read_obu_extension(ObuExtension obu_extension, struct aom_read_bit_buffer *rb, size_t remaining_bits);
+#endif  // CONFIG_F343
 
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO
 // Reads the tile information in the sequence header
@@ -80,7 +92,12 @@ void av1_copy_predefined_qmatrices_to_list(struct AV1Decoder *pbi,
 
 #if CONFIG_MULTI_FRAME_HEADER
 // Reads multi-frame header
-void av1_read_multi_frame_header(AV1_COMMON *cm,
+#if CONFIG_F343
+int
+#else
+void
+#endif  // CONFIG_F343
+av1_read_multi_frame_header(AV1_COMMON *cm,
                                  struct aom_read_bit_buffer *rb);
 #endif  // CONFIG_MULTI_FRAME_HEADER
 

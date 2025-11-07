@@ -36,6 +36,9 @@ int write_qm_data(AV1_COMP *cpi, struct quantization_matrix_set *qm_list,
                   int qm_pos, const int num_planes,
                   struct aom_write_bit_buffer *wb);
 #endif
+#if CONFIG_F343
+void write_obu_extension(const ObuExtension *obu_ext, struct aom_write_bit_buffer *wb);
+#endif  // CONFIG_F343
 
 // Writes only the OBU Sequence Header payload, and returns the size of the
 // payload written to 'dst'. This function does not write the OBU header, the
