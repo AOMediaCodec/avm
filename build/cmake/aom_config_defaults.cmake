@@ -216,6 +216,7 @@ set_aom_config_var(CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER 1
                    "Remove redundant frame header OBU from OBU types")
 set_aom_config_var(CONFIG_MULTI_STREAM 1 "AV2 enable multi-streams.")
 set_aom_config_var(OBU_ORDER_IN_TU 1 "Check OBU order in TU")
+set_aom_config_var(CONFIG_F343 1 "Obu extensibility.")
 
 set_aom_config_var(CONFIG_TU64_TRAVERSED_ORDER 1
                    "Coding order of TU 64x64 traversed as 128x128 blocks")
