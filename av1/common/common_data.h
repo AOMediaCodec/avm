@@ -952,7 +952,7 @@ static const int inv_tx_shift[TX_SIZES_ALL][2] = {
   { 7, 10 },  // TX_8X4,    // 8x4 transform
   { 7, 11 },  // TX_8X16,   // 8x16 transform
   { 7, 11 },  // TX_16X8,   // 16x8 transform
-  { 6, 12 },  // TX_16X32,  // 16x32 transform�
+  { 6, 12 },  // TX_16X32,  // 16x32 transform
   { 6, 12 },  // TX_32X16,  // 32x16 transform
   { 6, 12 },  // TX_32X64,  // 32x64 transform
   { 6, 12 },  // TX_64X32,  // 64x32 transform
