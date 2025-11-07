@@ -8849,8 +8849,12 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
   if (cm->current_frame.frame_type == S_FRAME) obu_type = OBU_SWITCH;
 #endif  // CONFIG_F106_OBU_SWITCH
 #if CONFIG_F106_OBU_SEF
-  if (encode_show_existing_frame(cm) &&
-      (cm->cur_frame->frame_type == KEY_FRAME))
+  if (encode_show_existing_frame(cm)
+#if CONFIG_FIX_OBU_SEF
+  )
+#else   // CONFIG_FIX_OBU_SEF
+      && (cm->cur_frame->frame_type == KEY_FRAME))
+#endif  // CONFIG_FIX_OBU_SEF
     obu_type = OBU_SEF;
 #endif  // CONFIG_F106_OBU_SEF
 #if CONFIG_F106_OBU_TIP

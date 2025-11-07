@@ -921,6 +921,10 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
     cm->current_frame.frame_type = frame_params->frame_type;
     const int code_arf =
         av1_temporal_filter(cpi, arf_src_index, &show_existing_alt_ref);
+#if CONFIG_FIX_OBU_SEF
+    if (cpi->oxcf.ref_frm_cfg.enable_generation_sef_obu)
+      cpi->common.showable_frame = 0;
+#endif  // CONFIG_FIX_OBU_SEF
     if (code_arf) {
       aom_extend_frame_borders(&cpi->alt_ref_buffer, av1_num_planes(cm), 0);
       frame_input->source = &cpi->alt_ref_buffer;
@@ -1057,6 +1061,11 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   if (frame_params.frame_type == S_FRAME) cpi->common.show_frame = 1;
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 
+#if CONFIG_FIX_OBU_SEF
+  if (cpi->oxcf.ref_frm_cfg.enable_generation_sef_obu)
+    cpi->common.showable_frame = 0;
+#endif  // CONFIG_FIX_OBU_SEF
+
   if (source == NULL) {  // If no source was found, we can't encode a frame.
     if (flush && oxcf->pass == 1 && !cpi->twopass.first_pass_done) {
       av1_end_first_pass(cpi); /* get last stats packet */
@@ -1160,7 +1169,9 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     source->disp_order_hint = 0;
   }
   if (frame_params.frame_type == KEY_FRAME) cm->showable_frame = 0;
-
+#if CONFIG_FIX_OBU_SEF
+  if (cpi->oxcf.ref_frm_cfg.enable_generation_sef_obu) cm->showable_frame = 0;
+#endif  // CONFIG_FIX_OBU_SEF
 #if CONFIG_MISMATCH_DEBUG
   if (has_no_stats_stage(cpi)) {
     mismatch_move_frame_idx_w(!frame_params.show_existing_frame);

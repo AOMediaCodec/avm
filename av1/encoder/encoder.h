@@ -670,6 +670,10 @@ typedef struct {
   // Indicates if one-sided compound should be enabled.
   bool enable_onesided_comp;
   bool explicit_ref_frame_map;
+#if CONFIG_FIX_OBU_SEF
+  // Indicates if frame order derivation based on SEF is enabled.
+  bool enable_generation_sef_obu;
+#endif  // CONFIG_FIX_OBU_SEF
 } RefFrameCfg;
 
 typedef struct {
@@ -3430,6 +3434,9 @@ static INLINE int av1_frame_scaled(const AV1_COMMON *cm) {
 // frame. An exception can be made for a forward keyframe since it has no
 // previous dependencies.
 static INLINE int encode_show_existing_frame(const AV1_COMMON *cm) {
+#if CONFIG_FIX_OBU_SEF
+  return cm->show_existing_frame;
+#endif  // CONFIG_FIX_OBU_SEF
   if (!cm->show_existing_frame) return 0;
   // show_existing_frame can be equal to 1
   // only for a forward key frame
