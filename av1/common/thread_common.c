@@ -525,17 +525,28 @@ static void enqueue_ccso_jobs(AV1CcsoSync *ccso_sync, AV1_COMMON *cm,
   ccso_sync->jobs_dequeued = 0;
   const int num_planes = av1_num_planes(cm);
   const int inc_row = 1 << CCSO_PROC_BLK_LOG2;
-  const int blk_size = 1 << CCSO_BLK_SIZE;
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  const int blk_size = 1 << get_ccso_unit_size_log2_adaptive_tile(
+                           cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
+#else
+  const int blk_size = CCSO_BLK_SIZE;
+#endif
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
 
   for (int plane = 0; plane < num_planes; plane++) {
     const int pic_height = xd->plane[plane].dst.height;
     const int pic_width = xd->plane[plane].dst.width;
-    int blk_log2_x = CCSO_BLK_SIZE;
-    int blk_log2_y = CCSO_BLK_SIZE;
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+    const int blk_log2 = get_ccso_unit_size_log2_adaptive_tile(
+        cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
+#else
+    const int blk_log2 = CCSO_BLK_SIZE;
+#endif
+    int blk_log2_x = blk_log2;
+    int blk_log2_y = blk_log2;
     if (plane != 0) {
-      blk_log2_x = CCSO_BLK_SIZE - cm->seq_params.subsampling_x;
-      blk_log2_y = CCSO_BLK_SIZE - cm->seq_params.subsampling_y;
+      blk_log2_x -= cm->seq_params.subsampling_x;
+      blk_log2_y -= cm->seq_params.subsampling_y;
     }
     if (cm->ccso_info.ccso_enable[plane]) {
       for (int row = 0; row < pic_height; row += inc_row) {
@@ -591,15 +602,20 @@ static INLINE void process_ccso_rows(AV1_COMMON *const cm, MACROBLOCKD *xd,
   int src_cls[2];
   int src_loc[2];
   const int ccso_ext_stride = xd->plane[0].dst.width + (CCSO_PADDING_SIZE << 1);
+#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
+  const int blk_log2 = get_ccso_unit_size_log2_adaptive_tile(
+      cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
+#else
   const int blk_log2 = CCSO_BLK_SIZE;
+#endif
 
   while (1) {
     AV1CCSOMTInfo *cur_job_info = get_ccso_job_info(ccso_sync);
     // Break the while loop if no job is available
     if (cur_job_info == NULL) break;
 
-    int blk_log2_x = CCSO_BLK_SIZE;
-    int blk_log2_y = CCSO_BLK_SIZE;
+    int blk_log2_x = blk_log2;
+    int blk_log2_y = blk_log2;
     const int row = cur_job_info->row;
     const int plane = cur_job_info->plane;
     uint16_t *dst_yuv = xd->plane[plane].dst.buf;
@@ -614,8 +630,8 @@ static INLINE void process_ccso_rows(AV1_COMMON *const cm, MACROBLOCKD *xd,
     const int y_uv_vscale = xd->plane[plane].subsampling_y;
     derive_ccso_sample_pos(src_loc, ccso_ext_stride, filter_sup);
     if (plane != 0) {
-      blk_log2_x = CCSO_BLK_SIZE - cm->seq_params.subsampling_x;
-      blk_log2_y = CCSO_BLK_SIZE - cm->seq_params.subsampling_y;
+      blk_log2_x -= cm->seq_params.subsampling_x;
+      blk_log2_y -= cm->seq_params.subsampling_y;
     }
     const int unit_log2_x = AOMMIN(proc_unit_log2, blk_log2_x);
     const int unit_log2_y = AOMMIN(proc_unit_log2, blk_log2_y);

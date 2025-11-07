@@ -10760,7 +10760,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
       if (do_cdef) {
         if (pbi->num_workers > 1
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-            && USE_LOOP_RESTORATION_MT
+            && !cm->seq_params.disable_loopfilters_across_tiles
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
         ) {
           av1_cdef_frame_mt(cm, &pbi->dcb.xd, pbi->cdef_worker,
@@ -10774,8 +10774,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
       if (use_ccso) {
         if (pbi->num_workers > 1
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-            && !cm->seq_params.disable_loopfilters_across_tiles &&
-            USE_LOOP_RESTORATION_MT
+            && !cm->seq_params.disable_loopfilters_across_tiles
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
         ) {
           av1_ccso_frame_mt(&cm->cur_frame->buf, cm, xd, pbi->tile_workers,
