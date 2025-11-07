@@ -6688,8 +6688,8 @@ void read_sequence_inter_group_tool_flags(struct SequenceHeader *seq_params,
 #if CONFIG_CWG_F377_STILL_PICTURE
   if (seq_params->single_picture_header_flag) {
     seq_params->explicit_ref_frame_map = 0;
-    seq_params->ref_frames = 2;
-    seq_params->ref_frames_log2 = 1;
+    seq_params->ref_frames = 8;
+    seq_params->ref_frames_log2 = 3;
 
     seq_params->def_max_drl_bits = MIN_MAX_DRL_BITS;
     seq_params->allow_frame_max_drl_bits = 0;
@@ -7227,8 +7227,8 @@ void av1_read_sequence_header_beyond_av1(
   if (seq_params->single_picture_header_flag) {
     seq_params->explicit_ref_frame_map = 0;
 
-    seq_params->ref_frames = 2;
-    seq_params->ref_frames_log2 = 1;
+    seq_params->ref_frames = 8;
+    seq_params->ref_frames_log2 = 3;
 
     seq_params->def_max_drl_bits = MIN_MAX_DRL_BITS;
     seq_params->allow_frame_max_drl_bits = 0;

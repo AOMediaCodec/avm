@@ -5479,7 +5479,7 @@ void write_sequence_inter_group_tool_flags(
   if (seq_params->single_picture_header_flag) {
     assert(!seq_params->explicit_ref_frame_map);
 
-    assert(seq_params->ref_frames == 2);
+    assert(seq_params->ref_frames == 8);
 
     assert(seq_params->def_max_drl_bits == MIN_MAX_DRL_BITS);
     assert(!seq_params->allow_frame_max_drl_bits);
@@ -5914,7 +5914,7 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
   if (seq_params->single_picture_header_flag) {
     assert(!seq_params->explicit_ref_frame_map);
 
-    assert(seq_params->ref_frames == 2);
+    assert(seq_params->ref_frames == 8);
 
     assert(seq_params->def_max_drl_bits == MIN_MAX_DRL_BITS);
     assert(!seq_params->allow_frame_max_drl_bits);

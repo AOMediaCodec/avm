@@ -671,7 +671,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   seq->enable_ext_seg = tool_cfg->enable_ext_seg;
 #if CONFIG_CWG_F377_STILL_PICTURE
-  seq->ref_frames = seq->single_picture_header_flag ? 2 : tool_cfg->dpb_size;
+  seq->ref_frames = seq->single_picture_header_flag ? 8 : tool_cfg->dpb_size;
 #else
   seq->ref_frames = tool_cfg->dpb_size;
 #endif  // CONFIG_CWG_F377_STILL_PICTURE
