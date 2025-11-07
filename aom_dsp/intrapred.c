@@ -306,16 +306,11 @@ static INLINE void highbd_smooth_predictor(uint16_t *dst, ptrdiff_t stride,
     const int s_top =
         BLEND_WEIGHT_MAX >>
         AOMMIN(blk_size_log2[BLEND_WEIGHT_MAX << 1], ((r << 1) >> scale));
-#if CONFIG_BLENDING_SIMPLIFICATION
     const uint16_t l = left[r];
-#else
-    const uint32_t l = left[r];
-#endif  // CONFIG_BLENDING_SIMPLIFICATION
     for (int c = 0; c < bw; c++) {
       const int s_left =
           BLEND_WEIGHT_MAX >>
           AOMMIN(blk_size_log2[BLEND_WEIGHT_MAX << 1], ((c << 1) >> scale));
-#if CONFIG_BLENDING_SIMPLIFICATION
       const uint16_t top = above[c];
       const int blend_max_log2 = blk_size_log2[BLEND_WEIGHT_MAX];
       uint16_t predv =
@@ -332,18 +327,6 @@ static INLINE void highbd_smooth_predictor(uint16_t *dst, ptrdiff_t stride,
       assert(predh < (1 << bd));
       pred[c] = divide_round((predv + predh), 1);
       assert(pred[c] < (1 << bd));
-#else
-      const uint32_t top = above[c];
-      uint32_t predv = (above[c] * (bh - 1 - r) + bl * (r + 1)) * bw;
-      uint32_t predh = (left[r] * (bw - 1 - c) + tr * (c + 1)) * bh;
-      predv = (s_top * top * bw * bh + (BLEND_WEIGHT_MAX * 2 - s_top) * predv);
-      assert(predv < UINT_MAX);
-      predh = (s_left * l * bw * bh + (BLEND_WEIGHT_MAX * 2 - s_left) * predh);
-      assert(predh < UINT_MAX);
-
-      const int bits = 1 + 6 + blk_size_log2[bh] + blk_size_log2[bw];
-      pred[c] = divide_round((predv + predh), bits);
-#endif  // CONFIG_BLENDING_SIMPLIFICATION
     }
     pred += stride;
   }
@@ -365,7 +348,6 @@ static INLINE void highbd_smooth_v_predictor(uint16_t *dst, ptrdiff_t stride,
         BLEND_WEIGHT_MAX >>
         AOMMIN(blk_size_log2[BLEND_WEIGHT_MAX << 1], ((r << 1) >> scale));
     for (int c = 0; c < bw; ++c) {
-#if CONFIG_BLENDING_SIMPLIFICATION
       const uint16_t top = above[c];
       const int blend_max_log2 = blk_size_log2[BLEND_WEIGHT_MAX];
       uint16_t predv =
@@ -374,15 +356,6 @@ static INLINE void highbd_smooth_v_predictor(uint16_t *dst, ptrdiff_t stride,
       pred[c] = predv + divide_round(((int16_t)top - (int16_t)predv) * s_top,
                                      (blend_max_log2 + 1));
       assert(pred[c] < (1 << bd));
-#else
-      const uint32_t top = above[c];
-      uint32_t predv = (above[c] * (bh - 1 - r) + bl * (r + 1)) * bw;
-      assert(predv < UINT_MAX);
-      const int bits = 6 + blk_size_log2[bh] + blk_size_log2[bw];
-      pred[c] = divide_round(
-          (s_top * top * bw * bh + (BLEND_WEIGHT_MAX * 2 - s_top) * predv),
-          bits);
-#endif  // CONFIG_BLENDING_SIMPLIFICATION
     }
     pred += stride;
   }
@@ -400,16 +373,11 @@ static INLINE void highbd_smooth_h_predictor(uint16_t *dst, ptrdiff_t stride,
       ROUND_POWER_OF_TWO((blk_size_log2[bh] - 2 + blk_size_log2[bw] - 2), 2);
   assert(scale >= 0 && scale <= BLEND_WEIGHT_MAX - 1);
   for (int r = 0; r < bh; r++) {
-#if CONFIG_BLENDING_SIMPLIFICATION
     const uint16_t l = left[r];
-#else
-    const uint32_t l = left[r];
-#endif  // CONFIG_BLENDING_SIMPLIFICATION
     for (int c = 0; c < bw; c++) {
       const int s_left =
           BLEND_WEIGHT_MAX >>
           AOMMIN(blk_size_log2[BLEND_WEIGHT_MAX << 1], ((c << 1) >> scale));
-#if CONFIG_BLENDING_SIMPLIFICATION
       const int blend_max_log2 = blk_size_log2[BLEND_WEIGHT_MAX];
       uint16_t predh =
           tr + divide_round(((int16_t)left[r] - (int16_t)tr) * (bw - 1 - c),
@@ -417,14 +385,6 @@ static INLINE void highbd_smooth_h_predictor(uint16_t *dst, ptrdiff_t stride,
       pred[c] = predh + divide_round(((int16_t)l - (int16_t)predh) * s_left,
                                      (blend_max_log2 + 1));
       assert(pred[c] < (1 << bd));
-#else
-      uint32_t predh = (left[r] * (bw - 1 - c) + tr * (c + 1)) * bh;
-      assert(predh < UINT_MAX);
-      const int bits = 6 + blk_size_log2[bh] + blk_size_log2[bw];
-      pred[c] = divide_round(
-          (s_left * l * (bw * bh) + (BLEND_WEIGHT_MAX * 2 - s_left) * predh),
-          bits);
-#endif  // CONFIG_BLENDING_SIMPLIFICATION
     }
     pred += stride;
   }
