@@ -225,9 +225,10 @@ static void read_lcr_global_payload(struct AV1Decoder *pbi,
 static int read_lcr_global_info(struct AV1Decoder *pbi,
                                 struct aom_read_bit_buffer *rb
 #if CONFIG_F343
-            ,size_t payload_size
+                                ,
+                                size_t payload_size
 #endif  // CONFIG_F343
-                                ) {
+) {
   int lcr_global_config_record_id = aom_rb_read_literal(rb, 3);
 
   struct LayerConfigurationRecord *lcr_params;
@@ -289,9 +290,9 @@ static int read_lcr_global_info(struct AV1Decoder *pbi,
   // ID for the indicated extended layer in the Global LCR and
   // lcr_params->xlayer_id is the obu_layer_id.
 #endif  // CONFIG_CWG_F248_RENDER_SIZE
-                                  
+
 #if CONFIG_F343
-  uint32_t remaining_bits = (uint32_t)payload_size*8 - rb->bit_offset;
+  uint32_t remaining_bits = (uint32_t)payload_size * 8 - rb->bit_offset;
   read_obu_extension(lcr_params->obu_ext, rb, remaining_bits);
 #endif  // CONFIG_F343
   return 0;
@@ -300,9 +301,10 @@ static int read_lcr_global_info(struct AV1Decoder *pbi,
 static int read_lcr_local_info(struct AV1Decoder *pbi, int xlayerId,
                                struct aom_read_bit_buffer *rb
 #if CONFIG_F343
-            ,size_t payload_size
+                               ,
+                               size_t payload_size
 #endif  // CONFIG_F343
-                               ) {
+) {
   int lcr_global_id = aom_rb_read_literal(rb, 3);
 
   struct LayerConfigurationRecord *lcr_params;
@@ -341,35 +343,39 @@ static int read_lcr_local_info(struct AV1Decoder *pbi, int xlayerId,
   lcr_params->is_local_lcr = 1;
   lcr_params->xlayer_id = xlayerId;
 #endif  // CONFIG_CWG_F248_RENDER_SIZE
-  
+
 #if CONFIG_F343
-  uint32_t remaining_bits = (uint32_t)payload_size*8 - rb->bit_offset;
+  uint32_t remaining_bits = (uint32_t)payload_size * 8 - rb->bit_offset;
   read_obu_extension(lcr_params->obu_ext, rb, remaining_bits);
 #endif  // CONFIG_F343
   return 0;
 }
 
-uint32_t av1_read_layer_configuration_record_obu(
-    struct AV1Decoder *pbi, int xlayer_id, struct aom_read_bit_buffer *rb
+uint32_t av1_read_layer_configuration_record_obu(struct AV1Decoder *pbi,
+                                                 int xlayer_id,
+                                                 struct aom_read_bit_buffer *rb
 #if CONFIG_F343
-            ,size_t payload_size
+                                                 ,
+                                                 size_t payload_size
 #endif  // CONFIG_F343
-                                                 ) {
+) {
   const uint32_t saved_bit_offset = rb->bit_offset;
   assert(rb->error_handler);
 
   if (xlayer_id == GLOBAL_LCR_XLAYER_ID)
     read_lcr_global_info(pbi, rb
 #if CONFIG_F343
-                         , payload_size
+                         ,
+                         payload_size
 #endif  // CONFIG_F343
-                         );
+    );
   else
     read_lcr_local_info(pbi, xlayer_id, rb
 #if CONFIG_F343
-                         , payload_size
+                        ,
+                        payload_size
 #endif  // CONFIG_F343
-                        );
+    );
 #if !CONFIG_F343
   if (av1_check_trailing_bits(pbi, rb) != 0) {
     return 0;

@@ -6205,9 +6205,9 @@ static AOM_INLINE void write_multi_frame_header(
     write_tile_mfh(mfh_param, wb);
   }
 #endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
-    
+
 #if CONFIG_F343
-    write_obu_extension(&mfh_param->obu_ext, wb);
+  write_obu_extension(&mfh_param->obu_ext, wb);
 #endif  // CONFIG_F343
 }
 #endif  // CONFIG_MULTI_FRAME_HEADER
@@ -7479,8 +7479,8 @@ static void av1_write_mlayer_dependency_info(struct aom_write_bit_buffer *wb,
 }
 
 #if CONFIG_F343
-void write_obu_extension(const ObuExtension *obu_ext, struct aom_write_bit_buffer *wb) {
-  
+void write_obu_extension(const ObuExtension *obu_ext,
+                         struct aom_write_bit_buffer *wb) {
   aom_wb_write_bit(wb, obu_ext->extension_present_flag);
   int remaining_bits = obu_ext->num_extension_bits;
   while (remaining_bits > 0) {
@@ -7489,7 +7489,7 @@ void write_obu_extension(const ObuExtension *obu_ext, struct aom_write_bit_buffe
   }
 }
 #endif  // CONFIG_F343
-    
+
 uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
                                        uint8_t *const dst) {
   struct aom_write_bit_buffer wb = { dst, 0 };

@@ -39,20 +39,23 @@ void av1_read_conformance_window(struct aom_read_bit_buffer *rb,
 #endif  // CONFIG_CROP_WIN_CWG_F220
 
 #if CONFIG_MULTILAYER_HLS
-uint32_t av1_read_layer_configuration_record_obu(
-    struct AV1Decoder *pbi, int obu_xlayer_id, struct aom_read_bit_buffer *rb
+uint32_t av1_read_layer_configuration_record_obu(struct AV1Decoder *pbi,
+                                                 int obu_xlayer_id,
+                                                 struct aom_read_bit_buffer *rb
 #if CONFIG_F343
-            ,size_t payload_size
+                                                 ,
+                                                 size_t payload_size
 #endif  // CONFIG_F343
-                                                 );
+);
 
 uint32_t av1_read_operating_point_set_obu(struct AV1Decoder *pbi,
                                           int obu_xlayer_id,
                                           struct aom_read_bit_buffer *rb
 #if CONFIG_F343
-                                          ,size_t payload_size
+                                          ,
+                                          size_t payload_size
 #endif  // CONFIG_F343
-                                          );
+);
 
 uint32_t av1_read_atlas_segment_info_obu(struct AV1Decoder *pbi,
                                          int obu_xLayer_id,
@@ -66,7 +69,8 @@ void av1_read_sequence_header(struct aom_read_bit_buffer *rb,
                               SequenceHeader *seq_params);
 
 #if CONFIG_F343
-void read_obu_extension(ObuExtension obu_extension, struct aom_read_bit_buffer *rb, size_t remaining_bits);
+void read_obu_extension(ObuExtension obu_extension,
+                        struct aom_read_bit_buffer *rb, size_t remaining_bits);
 #endif  // CONFIG_F343
 
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO

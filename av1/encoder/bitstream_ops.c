@@ -172,11 +172,11 @@ uint32_t av1_write_operating_point_set_obu(AV1_COMP *cpi, int obu_xlayer_id,
       }
     }
   }
-  
+
 #if CONFIG_F343
-    write_obu_extension(&ops->obu_ext, &wb);
+  write_obu_extension(&ops->obu_ext, &wb);
 #endif  // CONFIG_F343
-  
+
   av1_add_trailing_bits(&wb);
   size = aom_wb_bytes_written(&wb);
   return size;

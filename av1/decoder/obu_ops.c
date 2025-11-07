@@ -95,9 +95,10 @@ uint32_t av1_read_operating_point_set_obu(struct AV1Decoder *pbi,
                                           int obu_xlayer_id,
                                           struct aom_read_bit_buffer *rb
 #if CONFIG_F343
-                         ,size_t payload_size
+                                          ,
+                                          size_t payload_size
 #endif  // CONFIG_F343
-                                          ) {
+) {
   const uint32_t saved_bit_offset = rb->bit_offset;
 
   int ops_reset_flag = aom_rb_read_bit(rb);
@@ -229,9 +230,9 @@ uint32_t av1_read_operating_point_set_obu(struct AV1Decoder *pbi,
       }
     }
   }
-  
+
 #if CONFIG_F343
-  uint32_t remaining_bits = (uint32_t)payload_size*8 - rb->bit_offset;
+  uint32_t remaining_bits = (uint32_t)payload_size * 8 - rb->bit_offset;
   read_obu_extension(ops_params->obu_ext, rb, remaining_bits);
 #else
   if (av1_check_trailing_bits(pbi, rb) != 0) {

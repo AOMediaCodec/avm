@@ -7583,7 +7583,7 @@ static AOM_INLINE void read_mfh_sb_size(MultiFrameHeader *mfh_params,
 
 #if CONFIG_MULTI_FRAME_HEADER
 #if CONFIG_F343
- int
+int
 #else
 void
 #endif  // CONFIG_F343
@@ -7690,11 +7690,11 @@ void
     read_multi_frame_header_tile_info(mfh_param, rb);
   }
 #endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
-    
+
   cm->mfh_valid[cur_mfh_id] = true;
-    
+
 #if CONFIG_F343
-    return cur_mfh_id;
+  return cur_mfh_id;
 #endif  // CONFIG_F343
 }
 #endif  // CONFIG_MULTI_FRAME_HEADER

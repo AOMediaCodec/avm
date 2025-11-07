@@ -234,9 +234,9 @@ static int write_lcr_global_info(AV1_COMP *cpi,
       aom_wb_write_uleb(wb, lcr_params.lcr_data_size[i]);
     write_lcr_global_payload(cpi, i, lcr_params.lcr_data_size_present_flag, wb);
   }
-  
+
 #if CONFIG_F343
-    write_obu_extension(&lcr_params.obu_ext, wb);
+  write_obu_extension(&lcr_params.obu_ext, wb);
 #endif  // CONFIG_F343
   return 0;
 }
@@ -260,7 +260,7 @@ static int write_lcr_local_info(AV1_COMP *cpi, int xlayerId,
   write_lcr_xlayer_info(cpi, 0, xlayerId, wb);
 
 #if CONFIG_F343
-    write_obu_extension(&lcr_params.obu_ext, wb);
+  write_obu_extension(&lcr_params.obu_ext, wb);
 #endif  // CONFIG_F343
 
   return 0;
@@ -275,7 +275,7 @@ uint32_t av1_write_layer_configuration_record_obu(AV1_COMP *cpi, int xlayer_id,
     write_lcr_global_info(cpi, &wb);
   else
     write_lcr_local_info(cpi, xlayer_id, &wb);
-  
+
   av1_add_trailing_bits(&wb);
   size = aom_wb_bytes_written(&wb);
   return size;

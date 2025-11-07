@@ -1122,11 +1122,11 @@ typedef struct SequenceHeader {
   int fixed_cvs_pic_rate_flag;
   int elemental_ct_duration_minus_1;
 #endif  // CONFIG_SCAN_TYPE_METADATA
-  
+
 #if CONFIG_F343
   struct ObuExtension sh_extension;
 #endif  // CONFIG_F343
-  
+
 } SequenceHeader;
 
 typedef struct {
@@ -1367,7 +1367,6 @@ typedef struct {
  */
 #if CONFIG_MULTI_FRAME_HEADER
 typedef struct MultiFrameHeader {
-  
 #if CONFIG_F343
   /*!
    * MFH header id
