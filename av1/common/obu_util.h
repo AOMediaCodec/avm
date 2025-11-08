@@ -33,7 +33,6 @@ aom_codec_err_t aom_read_obu_header_and_size(const uint8_t *data,
                                              ObuHeader *obu_header,
                                              size_t *const payload_size,
                                              size_t *const bytes_read);
-
 #ifdef __cplusplus
 }  // extern "C"
 #endif
