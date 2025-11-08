@@ -291,10 +291,6 @@ set_aom_config_var(
   CONFIG_CWG_F377_STILL_PICTURE 1
   "Sequence header OBU changes for single_picture_header_flag.")
 
-set_aom_config_var(
-  CONFIG_FSC_RES_HLS 1
-  "add high level flag to switch fsc residual and regular residual.")
-
 set_aom_config_var(CONFIG_DF_DQP 1 "Adding DQP to the deblocking filter")
 
 set_aom_config_var(CONFIG_SHORT_METADATA 1

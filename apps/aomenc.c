@@ -455,9 +455,7 @@ const arg_def_t *av1_key_val_args[] = {
   &g_av1_codec_arg_defs.enable_cwp,
   &g_av1_codec_arg_defs.enable_imp_msk_bld,
   &g_av1_codec_arg_defs.enable_fsc,
-#if CONFIG_FSC_RES_HLS
   &g_av1_codec_arg_defs.enable_idtx_intra,
-#endif  // CONFIG_FSC_RES_HLS
   &g_av1_codec_arg_defs.enable_orip,
   &g_av1_codec_arg_defs.enable_ist,
   &g_av1_codec_arg_defs.enable_inter_ist,
@@ -655,9 +653,7 @@ static void init_config(cfg_options_t *config) {
   config->enable_cwp = 1;
   config->enable_imp_msk_bld = 1;
   config->enable_fsc = 1;
-#if CONFIG_FSC_RES_HLS
   config->enable_idtx_intra = 1;
-#endif  // CONFIG_FSC_RES_HLS
   config->enable_orip = 1;
   config->enable_ist = 1;
   config->enable_inter_ist = 1;
@@ -1591,18 +1587,13 @@ static void show_stream_config(struct stream_state *stream,
           "EdgeFilter (%d), PaethPredictor (%d)"
           ", MRLS(%d)"
           ", FSC(%d)"
-#if CONFIG_FSC_RES_HLS
           ", IDTX_INTRA(%d)"
-#endif  // CONFIG_FSC_RES_HLS
           ", ORIP(%d)"
           ", IBP(%d)"
           "\n",
           encoder_cfg->enable_intra_edge_filter,
           encoder_cfg->enable_paeth_intra, encoder_cfg->enable_mrls,
-          encoder_cfg->enable_fsc,
-#if CONFIG_FSC_RES_HLS
-          encoder_cfg->enable_idtx_intra,
-#endif  // CONFIG_FSC_RES_HLS
+          encoder_cfg->enable_fsc, encoder_cfg->enable_idtx_intra,
           encoder_cfg->enable_orip, encoder_cfg->enable_ibp);
   fprintf(
       stdout,

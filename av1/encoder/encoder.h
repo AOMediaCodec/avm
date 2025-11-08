@@ -298,12 +298,10 @@ typedef struct {
    * Flag to indicate if forward skip coding is enabled
    */
   bool enable_fsc;
-#if CONFIG_FSC_RES_HLS
   /*!
    * Flag to indicate if the intra IDTX is eanbled
    */
   bool enable_idtx_intra;
-#endif  // CONFIG_FSC_RES_HLS
   /*!
    * Flag to indicate if ORIP should be enabled
    */

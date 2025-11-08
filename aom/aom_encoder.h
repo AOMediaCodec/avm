@@ -331,12 +331,10 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_fsc;
-#if CONFIG_FSC_RES_HLS
   /*!\brief enable IDTX intra
    *
    */
   unsigned int enable_idtx_intra;
-#endif
   /*!\brief enable Offset based refinement of Intra prediction
    *
    */

@@ -442,12 +442,10 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .enable_fsc = ARG_DEF(NULL, "enable-fsc", 1,
                         "Enable forward skip coding"
                         "(0: false, 1: true (default))"),
-#if CONFIG_FSC_RES_HLS
   .enable_idtx_intra = ARG_DEF(
       NULL, "enable-idtx-intra", 1,
       "Enable idtx for intra for enable-fsc is 0 case"
       "(0: idtx for intra disabled 1: idtx for intra enabled (default))"),
-#endif  // CONFIG_FSC_RES_HLS
   .enable_orip = ARG_DEF(NULL, "enable-orip", 1,
                          "Enable Offset Based refinement of intra prediction"
                          "(0: false, 1: true (default))"),
