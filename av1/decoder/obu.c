@@ -1741,10 +1741,16 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
 #if CONFIG_F024_KEYOBU
     // Skip all obus till the random_accessed-th random access point
     // Remove all leading_vcl obus
-    cm->is_leading_picture = (av1_is_single_tile_vcl_obu(obu_header.type) ||
-                              av1_is_multi_tile_vcl_obu(obu_header.type))
-                                 ? is_leading_vcl_obu(obu_header.type)
-                                 : -1;
+    if (obu_header.type == OBU_LEADING_SEF ||
+        obu_header.type == OBU_LEADING_TIP ||
+        obu_header.type == OBU_LEADING_TILE_GROUP)
+      cm->is_leading_picture = 1;
+    else if (obu_header.type == OBU_REGULAR_SEF ||
+             obu_header.type == OBU_REGULAR_TIP ||
+             obu_header.type == OBU_REGULAR_TILE_GROUP)
+      cm->is_leading_picture = 0;
+    else
+      cm->is_leading_picture = -1;
     if (obu_header.type == OBU_CLK || obu_header.type == OBU_OLK)
       pbi->random_access_point_count++;
     if (pbi->random_access_point_count < pbi->random_access_point_index) {

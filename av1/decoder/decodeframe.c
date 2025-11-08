@@ -7993,7 +7993,7 @@ static INLINE int get_disp_order_hint(AV1_COMMON *const cm)
     if (buf == NULL ||
 #if CONFIG_F024_KEYOBU
         !buf->showable_frame ||
-#endif // CONFIG_F024_KEYOBU
+#endif  // CONFIG_F024_KEYOBU
         !is_tlayer_scalable_and_dependent(&cm->seq_params, cm->tlayer_id,
                                           buf->temporal_layer_id) ||
         !is_mlayer_scalable_and_dependent(&cm->seq_params, cm->mlayer_id,

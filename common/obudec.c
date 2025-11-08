@@ -107,12 +107,12 @@ static int read_obu_header_from_file(FILE *f, size_t obu_size, uint8_t *buffer,
   return obu_header->obu_extension_flag ? 2 : 1;
 }
 #if CONFIG_F024_KEYOBU
-int av1_is_single_tile_vcl_obu(OBU_TYPE obu_type) {
+static int is_single_tile_vcl_obu(OBU_TYPE obu_type) {
   return obu_type == OBU_REGULAR_SEF || obu_type == OBU_LEADING_SEF ||
          obu_type == OBU_REGULAR_TIP || obu_type == OBU_LEADING_TIP ||
          obu_type == OBU_BRIDGE_FRAME;
 }
-int av1_is_multi_tile_vcl_obu(OBU_TYPE obu_type) {
+static int is_multi_tile_vcl_obu(OBU_TYPE obu_type) {
   return obu_type == OBU_REGULAR_TILE_GROUP ||
          obu_type == OBU_LEADING_TILE_GROUP || obu_type == OBU_SWITCH ||
          obu_type == OBU_RAS_FRAME || obu_type == OBU_CLK ||
@@ -145,7 +145,7 @@ static int peek_obu_from_file(FILE *f, size_t obu_size, uint8_t *buffer,
   // as the condition used in 2 places with TODOs below. Need to refactor
   // after macros are cleaned up.
 #if CONFIG_F024_KEYOBU
-  if (av1_is_multi_tile_vcl_obu(obu_header->type))
+  if (is_multi_tile_vcl_obu(obu_header->type))
 #else
   if (obu_header->type == OBU_TILE_GROUP || obu_header->type == OBU_SWITCH
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
@@ -165,7 +165,7 @@ static int peek_obu_from_file(FILE *f, size_t obu_size, uint8_t *buffer,
     *first_tile_group = buffer[obu_header_size];
   } else if (
 #if CONFIG_F024_KEYOBU
-      av1_is_single_tile_vcl_obu(obu_header->type)
+      is_single_tile_vcl_obu(obu_header->type)
 #else
       obu_header->type == OBU_TIP || obu_header->type == OBU_SEF
 #if CONFIG_CWG_F317
@@ -299,7 +299,7 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
 #if CONFIG_F106_OBU_TILEGROUP
       int first_tile_group_in_frame =
 #if CONFIG_F024_KEYOBU
-          av1_is_multi_tile_vcl_obu(obu_header.type)
+          is_multi_tile_vcl_obu(obu_header.type)
 #else
           obu_header.type == OBU_TILE_GROUP
 #endif  // CONFIG_F024_KEYOBU
@@ -312,8 +312,8 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
       decoding_unit_token =
           ((vcl_obu_count > 0 &&
 #if CONFIG_F024_KEYOBU
-            (av1_is_multi_tile_vcl_obu(obu_header.type) ||
-             av1_is_single_tile_vcl_obu(obu_header.type))
+            (is_multi_tile_vcl_obu(obu_header.type) ||
+             is_single_tile_vcl_obu(obu_header.type))
 #else
             (obu_header.type == OBU_TILE_GROUP || obu_header.type == OBU_SEF ||
              obu_header.type == OBU_TIP || obu_header.type == OBU_SWITCH
@@ -342,7 +342,7 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
 #if CONFIG_F160_TD
 #if CONFIG_F106_OBU_TILEGROUP
 #if CONFIG_F024_KEYOBU
-      if (av1_is_multi_tile_vcl_obu(obu_header.type) ||
+      if (is_multi_tile_vcl_obu(obu_header.type) ||
           obu_header.type == OBU_REGULAR_SEF ||
           obu_header.type == OBU_LEADING_SEF ||
           obu_header.type == OBU_REGULAR_TIP ||
