@@ -542,8 +542,8 @@ int get_cfl_ctx(MACROBLOCKD *xd) {
 // Directional prediction, zone 1: 0 < angle < 90
 void av1_highbd_dr_prediction_z1_c(uint16_t *dst, ptrdiff_t stride, int bw,
                                    int bh, const uint16_t *above,
-                                   const uint16_t *left, int upsample_above,
-                                   int dx, int dy, int bd, int mrl_index) {
+                                   const uint16_t *left, int dx, int dy, int bd,
+                                   int mrl_index) {
   int r, c, x, base, shift, val;
 
   (void)left;
@@ -552,13 +552,13 @@ void av1_highbd_dr_prediction_z1_c(uint16_t *dst, ptrdiff_t stride, int bw,
   assert(dy == 1);
   assert(dx > 0);
 
-  const int max_base_x = ((bw + bh) - 1 + (mrl_index << 1)) << upsample_above;
-  const int frac_bits = 6 - upsample_above;
-  const int base_inc = 1 << upsample_above;
+  const int max_base_x = (bw + bh) - 1 + (mrl_index << 1);
+  const int frac_bits = 6;
+  const int base_inc = 1;
   x = dx * (1 + mrl_index);
   for (r = 0; r < bh; ++r, dst += stride, x += dx) {
     base = x >> frac_bits;
-    shift = ((x << upsample_above) & 0x3F) >> 1;
+    shift = (x & 0x3F) >> 1;
 
     if (base >= max_base_x) {
       for (int i = r; i < bh; ++i) {
@@ -582,18 +582,17 @@ void av1_highbd_dr_prediction_z1_c(uint16_t *dst, ptrdiff_t stride, int bw,
 // Directional prediction, zone 2: 90 < angle < 180
 void av1_highbd_dr_prediction_z2_c(uint16_t *dst, ptrdiff_t stride, int bw,
                                    int bh, const uint16_t *above,
-                                   const uint16_t *left, int upsample_above,
-                                   int upsample_left, int dx, int dy, int bd,
+                                   const uint16_t *left, int dx, int dy, int bd,
                                    int mrl_index) {
   (void)bd;
   assert(dx > 0);
   assert(dy > 0);
 
-  const int min_base_x = -(1 << upsample_above) - mrl_index;
-  const int min_base_y = -(1 << upsample_left) - mrl_index;
+  const int min_base_x = -1 - mrl_index;
+  const int min_base_y = -1 - mrl_index;
   (void)min_base_y;
-  const int frac_bits_x = 6 - upsample_above;
-  const int frac_bits_y = 6 - upsample_left;
+  const int frac_bits_x = 6;
+  const int frac_bits_y = 6;
 
   for (int r = 0; r < bh; ++r) {
     for (int c = 0; c < bw; ++c) {
@@ -602,7 +601,7 @@ void av1_highbd_dr_prediction_z2_c(uint16_t *dst, ptrdiff_t stride, int bw,
       int x = (c << 6) - (y + mrl_index) * dx;
       const int base_x = x >> frac_bits_x;
       if (base_x >= min_base_x) {
-        const int shift = ((x * (1 << upsample_above)) & 0x3F) >> 1;
+        const int shift = (x & 0x3F) >> 1;
         val = above[base_x] * (32 - shift) + above[base_x + 1] * shift;
         val = ROUND_POWER_OF_TWO(val, 5);
       } else {
@@ -610,7 +609,7 @@ void av1_highbd_dr_prediction_z2_c(uint16_t *dst, ptrdiff_t stride, int bw,
         y = (r << 6) - (x + mrl_index) * dy;
         const int base_y = y >> frac_bits_y;
         assert(base_y >= min_base_y);
-        const int shift = ((y * (1 << upsample_left)) & 0x3F) >> 1;
+        const int shift = (y & 0x3F) >> 1;
         val = left[base_y] * (32 - shift) + left[base_y + 1] * shift;
         val = ROUND_POWER_OF_TWO(val, 5);
       }
@@ -623,8 +622,8 @@ void av1_highbd_dr_prediction_z2_c(uint16_t *dst, ptrdiff_t stride, int bw,
 // Directional prediction, zone 3: 180 < angle < 270
 void av1_highbd_dr_prediction_z3_c(uint16_t *dst, ptrdiff_t stride, int bw,
                                    int bh, const uint16_t *above,
-                                   const uint16_t *left, int upsample_left,
-                                   int dx, int dy, int bd, int mrl_index) {
+                                   const uint16_t *left, int dx, int dy, int bd,
+                                   int mrl_index) {
   int r, c, y, base, shift, val;
 
   (void)above;
@@ -633,13 +632,13 @@ void av1_highbd_dr_prediction_z3_c(uint16_t *dst, ptrdiff_t stride, int bw,
   assert(dx == 1);
   assert(dy > 0);
 
-  const int max_base_y = ((bw + bh - 1) << upsample_left) + (mrl_index << 1);
-  const int frac_bits = 6 - upsample_left;
-  const int base_inc = 1 << upsample_left;
+  const int max_base_y = (bw + bh - 1) + (mrl_index << 1);
+  const int frac_bits = 6;
+  const int base_inc = 1;
   y = dy * (1 + mrl_index);
   for (c = 0; c < bw; ++c, y += dy) {
     base = y >> frac_bits;
-    shift = ((y << upsample_left) & 0x3F) >> 1;
+    shift = (y & 0x3F) >> 1;
 
     for (r = 0; r < bh; ++r, base += base_inc) {
       if (base < max_base_y) {
@@ -865,8 +864,7 @@ static void highbd_dr_predictor_idif(uint16_t *dst, ptrdiff_t stride,
 
 static void highbd_dr_predictor(uint16_t *dst, ptrdiff_t stride,
                                 TX_SIZE tx_size, const uint16_t *above,
-                                const uint16_t *left, int upsample_above,
-                                int upsample_left, int angle, int bd,
+                                const uint16_t *left, int angle, int bd,
                                 int mrl_index) {
   const int dx = av1_get_dx(angle);
   const int dy = av1_get_dy(angle);
@@ -875,15 +873,14 @@ static void highbd_dr_predictor(uint16_t *dst, ptrdiff_t stride,
   assert(angle > 0 && angle < 270);
 
   if (angle > 0 && angle < 90) {
-    av1_highbd_dr_prediction_z1(dst, stride, bw, bh, above, left,
-                                upsample_above, dx, dy, bd, mrl_index);
+    av1_highbd_dr_prediction_z1(dst, stride, bw, bh, above, left, dx, dy, bd,
+                                mrl_index);
   } else if (angle > 90 && angle < 180) {
-    av1_highbd_dr_prediction_z2(dst, stride, bw, bh, above, left,
-                                upsample_above, upsample_left, dx, dy, bd,
+    av1_highbd_dr_prediction_z2(dst, stride, bw, bh, above, left, dx, dy, bd,
                                 mrl_index);
   } else if (angle > 180 && angle < 270) {
-    av1_highbd_dr_prediction_z3(dst, stride, bw, bh, above, left, upsample_left,
-                                dx, dy, bd, mrl_index);
+    av1_highbd_dr_prediction_z3(dst, stride, bw, bh, above, left, dx, dy, bd,
+                                mrl_index);
   } else if (angle == 90) {
     pred_high[V_PRED][tx_size](dst, stride, above, left, bd);
   } else if (angle == 180) {
@@ -894,21 +891,21 @@ static void highbd_dr_predictor(uint16_t *dst, ptrdiff_t stride,
 // Generate the second directional predictor for IBP
 static void highbd_second_dr_predictor(uint16_t *dst, ptrdiff_t stride,
                                        TX_SIZE tx_size, const uint16_t *above,
-                                       const uint16_t *left, int upsample_above,
-                                       int upsample_left, int angle, int bd) {
+                                       const uint16_t *left, int angle,
+                                       int bd) {
   const int bw = tx_size_wide[tx_size];
   const int bh = tx_size_high[tx_size];
 
   if (angle > 0 && angle < 90) {
     int dy = dr_intra_derivative[90 - angle];
     int dx = 1;
-    av1_highbd_dr_prediction_z3(dst, stride, bw, bh, above, left, upsample_left,
-                                dx, dy, bd, 0);
+    av1_highbd_dr_prediction_z3(dst, stride, bw, bh, above, left, dx, dy, bd,
+                                0);
   } else if (angle > 180 && angle < 270) {
     int dx = dr_intra_derivative[angle - 180];
     int dy = 1;
-    av1_highbd_dr_prediction_z1(dst, stride, bw, bh, above, left,
-                                upsample_above, dx, dy, bd, 0);
+    av1_highbd_dr_prediction_z1(dst, stride, bw, bh, above, left, dx, dy, bd,
+                                0);
   }
 }
 
@@ -1341,8 +1338,6 @@ static void build_intra_predictors_high(
   }
 
   if (is_dr_mode) {
-    int upsample_above = 0;
-    int upsample_left = 0;
     if (!disable_edge_filter && mrl_index == 0) {
       int need_right = p_angle < 90;
       int need_bottom = p_angle > 180;
@@ -1402,13 +1397,11 @@ static void build_intra_predictors_high(
       }
     } else {
       highbd_dr_predictor(dst, dst_stride, tx_size, above_row_1st, left_col_1st,
-                          upsample_above, upsample_left, p_angle, xd->bd,
-                          mrl_index);
+                          p_angle, xd->bd, mrl_index);
       if (xd->mi[0]->multi_line_mrl && mrl_index &&
           is_multi_line_mrls_allowed_blk_sz) {
         highbd_dr_predictor(dst_mrl_line_0, txwpx, tx_size, above_row_2nd,
-                            left_col_2nd, upsample_above, upsample_left,
-                            p_angle, xd->bd, 0);
+                            left_col_2nd, p_angle, xd->bd, 0);
 
         int r, c;
         for (r = 0; r < txhpx; ++r) {
@@ -1429,9 +1422,9 @@ static void build_intra_predictors_high(
                                               above_row_1st, left_col_1st,
                                               p_angle, xd->bd);
             } else {
-              highbd_second_dr_predictor(
-                  second_pred, txwpx, tx_size, above_row_1st, left_col_1st,
-                  upsample_above, upsample_left, p_angle, xd->bd);
+              highbd_second_dr_predictor(second_pred, txwpx, tx_size,
+                                         above_row_1st, left_col_1st, p_angle,
+                                         xd->bd);
             }
             av1_highbd_ibp_dr_prediction_z1_c(ibp_weights, mode_index, dst,
                                               dst_stride, second_pred, txwpx,
@@ -1446,9 +1439,9 @@ static void build_intra_predictors_high(
                                               above_row_1st, left_col_1st,
                                               p_angle, xd->bd);
             } else {
-              highbd_second_dr_predictor(
-                  second_pred, txwpx, tx_size, above_row_1st, left_col_1st,
-                  upsample_above, upsample_left, p_angle, xd->bd);
+              highbd_second_dr_predictor(second_pred, txwpx, tx_size,
+                                         above_row_1st, left_col_1st, p_angle,
+                                         xd->bd);
             }
             av1_highbd_ibp_dr_prediction_z3_c(ibp_weights, mode_index, dst,
                                               dst_stride, second_pred, txwpx,

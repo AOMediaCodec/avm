@@ -313,14 +313,6 @@ void mhccp_implicit_fetch_neighbor_chroma(MACROBLOCKD *const xd, int plane,
                                           int is_top_sb_boundary, int ref_width,
                                           int ref_height);
 
-static INLINE int av1_use_intra_edge_upsample(int bs0, int bs1, int delta,
-                                              int type) {
-  const int d = abs(delta);
-  const int blk_wh = bs0 + bs1;
-  if (d == 0 || d >= 40) return 0;
-  return type ? (blk_wh <= 8) : (blk_wh <= 16);
-}
-
 static const int32_t transpose_tx_size[TX_SIZES_ALL] = {
   TX_4X4,  TX_8X8,  TX_16X16, TX_32X32, TX_64X64, TX_8X4,   TX_4X8,
   TX_16X8, TX_8X16, TX_32X16, TX_16X32, TX_64X32, TX_32X64, TX_16X4,

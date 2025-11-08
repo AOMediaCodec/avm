@@ -51,93 +51,73 @@ const char *const kTxSizeStrings[] = {
 using libaom_test::ACMRandom;
 
 typedef void (*DrPred_Hbd)(uint16_t *dst, ptrdiff_t stride, int bw, int bh,
-                           const uint16_t *above, const uint16_t *left,
-                           int upsample_above, int upsample_left, int dx,
+                           const uint16_t *above, const uint16_t *left, int dx,
                            int dy, int bd, int mrl_index);
 
-typedef void (*DrPred)(uint8_t *dst, ptrdiff_t stride, int bw, int bh,
-                       const uint8_t *above, const uint8_t *left,
-                       int upsample_above, int upsample_left, int dx, int dy,
-                       int bd, int mrl_index);
-
 typedef void (*Z1_Lbd)(uint8_t *dst, ptrdiff_t stride, int bw, int bh,
-                       const uint8_t *above, const uint8_t *left,
-                       int upsample_above, int dx, int dy, int mrl_index);
+                       const uint8_t *above, const uint8_t *left, int dx,
+                       int dy, int mrl_index);
 template <Z1_Lbd fn>
 void z1_wrapper(uint8_t *dst, ptrdiff_t stride, int bw, int bh,
-                const uint8_t *above, const uint8_t *left, int upsample_above,
-                int upsample_left, int dx, int dy, int bd, int mrl_index) {
+                const uint8_t *above, const uint8_t *left, int dx, int dy,
+                int bd, int mrl_index) {
   (void)bd;
-  (void)upsample_left;
-  fn(dst, stride, bw, bh, above, left, upsample_above, dx, dy, mrl_index);
+  fn(dst, stride, bw, bh, above, left, dx, dy, mrl_index);
 }
 
 typedef void (*Z2_Lbd)(uint8_t *dst, ptrdiff_t stride, int bw, int bh,
-                       const uint8_t *above, const uint8_t *left,
-                       int upsample_above, int upsample_left, int dx, int dy,
-                       int mrl_index);
+                       const uint8_t *above, const uint8_t *left, int dx,
+                       int dy, int mrl_index);
 template <Z2_Lbd fn>
 void z2_wrapper(uint8_t *dst, ptrdiff_t stride, int bw, int bh,
-                const uint8_t *above, const uint8_t *left, int upsample_above,
-                int upsample_left, int dx, int dy, int bd, int mrl_index) {
+                const uint8_t *above, const uint8_t *left, int dx, int dy,
+                int bd, int mrl_index) {
   (void)bd;
-  (void)upsample_left;
-  fn(dst, stride, bw, bh, above, left, upsample_above, upsample_left, dx, dy,
-     mrl_index);
+  fn(dst, stride, bw, bh, above, left, dx, dy, mrl_index);
 }
 
 typedef void (*Z3_Lbd)(uint8_t *dst, ptrdiff_t stride, int bw, int bh,
-                       const uint8_t *above, const uint8_t *left,
-                       int upsample_left, int dx, int dy, int mrl_index);
+                       const uint8_t *above, const uint8_t *left, int dx,
+                       int dy, int mrl_index);
 template <Z3_Lbd fn>
 void z3_wrapper(uint8_t *dst, ptrdiff_t stride, int bw, int bh,
-                const uint8_t *above, const uint8_t *left, int upsample_above,
-                int upsample_left, int dx, int dy, int bd, int mrl_index) {
+                const uint8_t *above, const uint8_t *left, int dx, int dy,
+                int bd, int mrl_index) {
   (void)bd;
-  (void)upsample_above;
-  fn(dst, stride, bw, bh, above, left, upsample_left, dx, dy, mrl_index);
+  fn(dst, stride, bw, bh, above, left, dx, dy, mrl_index);
 }
 
 typedef void (*Z1_Hbd)(uint16_t *dst, ptrdiff_t stride, int bw, int bh,
-                       const uint16_t *above, const uint16_t *left,
-                       int upsample_above, int dx, int dy, int bd,
-                       int mrl_index);
+                       const uint16_t *above, const uint16_t *left, int dx,
+                       int dy, int bd, int mrl_index);
 template <Z1_Hbd fn>
 void z1_wrapper_hbd(uint16_t *dst, ptrdiff_t stride, int bw, int bh,
-                    const uint16_t *above, const uint16_t *left,
-                    int upsample_above, int upsample_left, int dx, int dy,
+                    const uint16_t *above, const uint16_t *left, int dx, int dy,
                     int bd, int mrl_index) {
   (void)bd;
-  (void)upsample_left;
-  fn(dst, stride, bw, bh, above, left, upsample_above, dx, dy, bd, mrl_index);
+  fn(dst, stride, bw, bh, above, left, dx, dy, bd, mrl_index);
 }
 
 typedef void (*Z2_Hbd)(uint16_t *dst, ptrdiff_t stride, int bw, int bh,
-                       const uint16_t *above, const uint16_t *left,
-                       int upsample_above, int upsample_left, int dx, int dy,
-                       int bd, int mrl_index);
+                       const uint16_t *above, const uint16_t *left, int dx,
+                       int dy, int bd, int mrl_index);
 template <Z2_Hbd fn>
 void z2_wrapper_hbd(uint16_t *dst, ptrdiff_t stride, int bw, int bh,
-                    const uint16_t *above, const uint16_t *left,
-                    int upsample_above, int upsample_left, int dx, int dy,
+                    const uint16_t *above, const uint16_t *left, int dx, int dy,
                     int bd, int mrl_index) {
   (void)bd;
-  fn(dst, stride, bw, bh, above, left, upsample_above, upsample_left, dx, dy,
-     bd, mrl_index);
+  fn(dst, stride, bw, bh, above, left, dx, dy, bd, mrl_index);
 }
 
 typedef void (*Z3_Hbd)(uint16_t *dst, ptrdiff_t stride, int bw, int bh,
-                       const uint16_t *above, const uint16_t *left,
-                       int upsample_left, int dx, int dy, int bd,
-                       int mrl_index);
+                       const uint16_t *above, const uint16_t *left, int dx,
+                       int dy, int bd, int mrl_index);
 template <Z3_Hbd fn>
 void z3_wrapper_hbd(uint16_t *dst, ptrdiff_t stride, int bw, int bh,
-                    const uint16_t *above, const uint16_t *left,
-                    int upsample_above, int upsample_left, int dx, int dy,
+                    const uint16_t *above, const uint16_t *left, int dx, int dy,
                     int bd, int mrl_index) {
   (void)bd;
-  (void)upsample_above;
-  fn(dst, stride, bw, bh, above, left, upsample_left, dx, dy, bd, mrl_index);
+  fn(dst, stride, bw, bh, above, left, dx, dy, bd, mrl_index);
 }
 
 typedef void (*Z3_IDIF_Hbd)(uint16_t *dst, ptrdiff_t stride, int bw, int bh,
@@ -145,11 +125,8 @@ typedef void (*Z3_IDIF_Hbd)(uint16_t *dst, ptrdiff_t stride, int bw, int bh,
                             int dy, int bd, int mrl_index);
 template <Z3_IDIF_Hbd fn>
 void z3_idif_wrapper_hbd(uint16_t *dst, ptrdiff_t stride, int bw, int bh,
-                         const uint16_t *above, const uint16_t *left,
-                         int upsample_above, int upsample_left, int dx, int dy,
-                         int bd, int mrl_index) {
-  (void)upsample_above;
-  (void)upsample_left;
+                         const uint16_t *above, const uint16_t *left, int dx,
+                         int dy, int bd, int mrl_index) {
   fn(dst, stride, bw, bh, above, left, dx, dy, bd, mrl_index);
 }
 
@@ -176,9 +153,7 @@ class DrPredTest : public ::testing::TestWithParam<DrPredFunc<FuncType> > {
   static const int kOffset = 16;
   static const int kBufSize = ((2 * MAX_TX_SIZE) << 1) + 16;
 
-  DrPredTest()
-      : enable_upsample_(0), upsample_above_(0), upsample_left_(0), bw_(0),
-        bh_(0), dx_(1), dy_(1), bd_(8), txsize_(TX_4X4) {
+  DrPredTest() : bw_(0), bh_(0), dx_(1), dy_(1), bd_(8), txsize_(TX_4X4) {
     params_ = this->GetParam();
     start_angle_ = params_.start_angle;
     stop_angle_ = start_angle_ + 90;
@@ -211,11 +186,9 @@ class DrPredTest : public ::testing::TestWithParam<DrPredFunc<FuncType> > {
 
     aom_usec_timer_start(&timer);
     for (int mrl_index_ = 0; mrl_index_ < MRL_LINE_NUMBER; ++mrl_index_) {
-      if (mrl_index_ && (upsample_above_ || upsample_left_)) continue;
       for (int k = 0; k < kNumTests; ++k) {
-        params_.ref_fn(dst_ref_, dst_stride_, bw_, bh_, above_, left_,
-                       upsample_above_, upsample_left_, dx_, dy_, bd_,
-                       mrl_index_);
+        params_.ref_fn(dst_ref_, dst_stride_, bw_, bh_, above_, left_, dx_, dy_,
+                       bd_, mrl_index_);
       }
     }
 
@@ -225,11 +198,10 @@ class DrPredTest : public ::testing::TestWithParam<DrPredFunc<FuncType> > {
     if (params_.tst_fn) {
       aom_usec_timer_start(&timer);
       for (int mrl_index_ = 0; mrl_index_ < MRL_LINE_NUMBER; ++mrl_index_) {
-        if (mrl_index_ && (upsample_above_ || upsample_left_)) continue;
         for (int k = 0; k < kNumTests; ++k) {
-          ASM_REGISTER_STATE_CHECK(params_.tst_fn(
-              dst_tst_, dst_stride_, bw_, bh_, above_, left_, upsample_above_,
-              upsample_left_, dx_, dy_, bd_, mrl_index_));
+          ASM_REGISTER_STATE_CHECK(params_.tst_fn(dst_tst_, dst_stride_, bw_,
+                                                  bh_, above_, left_, dx_, dy_,
+                                                  bd_, mrl_index_));
         }
       }
       aom_usec_timer_mark(&timer);
@@ -243,7 +215,7 @@ class DrPredTest : public ::testing::TestWithParam<DrPredFunc<FuncType> > {
     OutputTimes(kNumTests, ref_time, tst_time, tx);
   }
 
-  void RunTest(bool speedtest, bool needsaturation, int p_angle) {
+  void RunTest(bool speedtest, bool needsaturation) {
     bd_ = params_.bit_depth;
 
     if (needsaturation) {
@@ -267,15 +239,6 @@ class DrPredTest : public ::testing::TestWithParam<DrPredFunc<FuncType> > {
       bw_ = tx_size_wide[kTxSize[tx]];
       bh_ = tx_size_high[kTxSize[tx]];
 
-      if (enable_upsample_) {
-        upsample_above_ =
-            av1_use_intra_edge_upsample(bw_, bh_, p_angle - 90, 0);
-        upsample_left_ =
-            av1_use_intra_edge_upsample(bw_, bh_, p_angle - 180, 0);
-      } else {
-        upsample_above_ = upsample_left_ = 0;
-      }
-
       Predict(speedtest, tx);
 
       for (int r = 0; r < bh_; ++r) {
@@ -283,9 +246,7 @@ class DrPredTest : public ::testing::TestWithParam<DrPredFunc<FuncType> > {
           ASSERT_EQ(dst_ref_[r * dst_stride_ + c],
                     dst_tst_[r * dst_stride_ + c])
               << bw_ << "x" << bh_ << " r: " << r << " c: " << c
-              << " dx: " << dx_ << " dy: " << dy_
-              << " upsample_above: " << upsample_above_
-              << " upsample_left: " << upsample_left_;
+              << " dx: " << dx_ << " dy: " << dy_;
         }
       }
     }
@@ -316,9 +277,6 @@ class DrPredTest : public ::testing::TestWithParam<DrPredFunc<FuncType> > {
   Pixel *left_;
   int dst_stride_;
 
-  int enable_upsample_;
-  int upsample_above_;
-  int upsample_left_;
   int bw_;
   int bh_;
   int dx_;
@@ -340,12 +298,10 @@ using std::make_tuple;
 class HighbdDrPredTest : public DrPredTest<uint16_t, DrPred_Hbd> {};
 
 TEST_P(HighbdDrPredTest, SaturatedValues) {
-  for (enable_upsample_ = 0; enable_upsample_ < 2; ++enable_upsample_) {
-    for (int angle = start_angle_; angle < stop_angle_; ++angle) {
-      dx_ = av1_get_dx(angle);
-      dy_ = av1_get_dy(angle);
-      if (dx_ && dy_) RunTest(false, true, angle);
-    }
+  for (int angle = start_angle_; angle < stop_angle_; ++angle) {
+    dx_ = av1_get_dx(angle);
+    dy_ = av1_get_dy(angle);
+    if (dx_ && dy_) RunTest(false, true);
   }
 }
 
@@ -435,27 +391,22 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST_P(HighbdDrPredTest, DISABLED_Speed) {
   const int angles[] = { 3, 45, 87 };
-  for (enable_upsample_ = 0; enable_upsample_ < 2; ++enable_upsample_) {
-    for (int i = 0; i < 3; ++i) {
-      int angle = angles[i] + start_angle_;
-      dx_ = av1_get_dx(angle);
-      dy_ = av1_get_dy(angle);
-      printf("enable_upsample: %d angle: %d ~~~~~~~~~~~~~~~\n",
-             enable_upsample_, angle);
-      if (dx_ && dy_) RunTest(true, false, angle);
-    }
+  for (int i = 0; i < 3; ++i) {
+    int angle = angles[i] + start_angle_;
+    dx_ = av1_get_dx(angle);
+    dy_ = av1_get_dy(angle);
+    printf("angle: %d ~~~~~~~~~~~~~~~\n", angle);
+    if (dx_ && dy_) RunTest(true, false);
   }
 }
 
 TEST_P(HighbdDrPredTest, OperationCheck) {
   if (params_.tst_fn == NULL) return;
   // const int angles[] = { 3, 45, 81, 87, 93, 100, 145, 187, 199, 260 };
-  for (enable_upsample_ = 0; enable_upsample_ < 2; ++enable_upsample_) {
-    for (int angle = start_angle_; angle < stop_angle_; angle++) {
-      dx_ = av1_get_dx(angle);
-      dy_ = av1_get_dy(angle);
-      if (dx_ && dy_) RunTest(false, false, angle);
-    }
+  for (int angle = start_angle_; angle < stop_angle_; angle++) {
+    dx_ = av1_get_dx(angle);
+    dy_ = av1_get_dy(angle);
+    if (dx_ && dy_) RunTest(false, false);
   }
 }
 #endif  // HAVE_AVX2

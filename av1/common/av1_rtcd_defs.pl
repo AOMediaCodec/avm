@@ -163,11 +163,11 @@ add_proto qw/void av1_lossless_inv_idtx_add_vert/, "const tran_low_t *input, uin
 add_proto qw/void av1_lossless_inv_idtx_add_horz/, "const tran_low_t *input, uint16_t *dest, int stride, const TxfmParam *txfm_param";
 
   # directional intra predictor functions
-add_proto qw/void av1_highbd_dr_prediction_z1/, "uint16_t *dst, ptrdiff_t stride, int bw, int bh, const uint16_t *above, const uint16_t *left, int upsample_above, int dx, int dy, int bd, int mrl_index";
+add_proto qw/void av1_highbd_dr_prediction_z1/, "uint16_t *dst, ptrdiff_t stride, int bw, int bh, const uint16_t *above, const uint16_t *left, int dx, int dy, int bd, int mrl_index";
 specialize qw/av1_highbd_dr_prediction_z1 avx2/;
-add_proto qw/void av1_highbd_dr_prediction_z2/, "uint16_t *dst, ptrdiff_t stride, int bw, int bh, const uint16_t *above, const uint16_t *left, int upsample_above, int upsample_left, int dx, int dy, int bd, int mrl_index";
+add_proto qw/void av1_highbd_dr_prediction_z2/, "uint16_t *dst, ptrdiff_t stride, int bw, int bh, const uint16_t *above, const uint16_t *left, int dx, int dy, int bd, int mrl_index";
 specialize qw/av1_highbd_dr_prediction_z2 avx2/;
-add_proto qw/void av1_highbd_dr_prediction_z3/, "uint16_t *dst, ptrdiff_t stride, int bw, int bh, const uint16_t *above, const uint16_t *left, int upsample_left, int dx, int dy, int bd, int mrl_index";
+add_proto qw/void av1_highbd_dr_prediction_z3/, "uint16_t *dst, ptrdiff_t stride, int bw, int bh, const uint16_t *above, const uint16_t *left, int dx, int dy, int bd, int mrl_index";
 specialize qw/av1_highbd_dr_prediction_z3 avx2/;
 
 add_proto qw/void av1_highbd_dr_prediction_z1_idif/ , "uint16_t *dst, ptrdiff_t stride, int bw, int bh, const uint16_t *above, const uint16_t *left, int dx, int dy, int bd, int mrl_index";
