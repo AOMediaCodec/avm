@@ -1119,7 +1119,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
                              cpi->gf_group.max_layer_depth, 0);
     }
 
-    for (int i = 0; i < cm->seq_params.ref_frames; ++i) {
+    for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
       if (cm->remapped_ref_idx[i] != -1) {
         tpl_frame->ref_map_index[i] = ref_picture_map[cm->remapped_ref_idx[i]];
       } else {
@@ -1253,7 +1253,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
                              cpi->gf_group.max_layer_depth, 0);
     }
 
-    for (int i = 0; i < cm->seq_params.ref_frames; ++i) {
+    for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
       if (cm->remapped_ref_idx[i] != -1) {
         tpl_frame->ref_map_index[i] = ref_picture_map[cm->remapped_ref_idx[i]];
       } else {
