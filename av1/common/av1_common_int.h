@@ -2741,10 +2741,6 @@ typedef struct AV1Common {
    */
   int olk_refresh_frame_flags[MAX_NUM_MLAYERS];
   /*!
-   * Index of the OLK in the reference list per layer used at the encoder
-   */
-  int enc_olk_fb_idx[MAX_NUM_MLAYERS];
-  /*!
    * Indicates if the frame is a leading frame
    */
   int is_leading_picture;

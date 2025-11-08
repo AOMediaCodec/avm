@@ -4352,13 +4352,20 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     // Note: currently olk_fb_idx is decided in uncompressed_header to balance
     // with the decoder. but it may be able to be decided where
     // existing_fb_idx_to_show is decided
+    int enc_olk_fb_idx = 0;
+    for (int ref_pos = 0; ref_pos < seq_params->ref_frames; ref_pos++) {
+      if ((cm->olk_refresh_frame_flags[cm->mlayer_id] >> ref_pos) & 1) {
+        enc_olk_fb_idx = ref_pos;
+        break;
+      }
+    }
     if (cpi->olk_encountered &&
-        cm->enc_olk_fb_idx[cm->mlayer_id] != INVALID_IDX &&
-        cm->enc_olk_fb_idx[cm->mlayer_id] == cpi->fb_idx_for_overlay) {
+        cm->olk_refresh_frame_flags[cm->mlayer_id] != INVALID_IDX &&
+        enc_olk_fb_idx == cpi->fb_idx_for_overlay) {
       int ref_flags_to_keep = 0;
       for (int layer = 0; layer <= seq_params->max_mlayer_id; layer++) {
         assert(cm->olk_refresh_frame_flags[layer] != -1);
-        ref_flags_to_keep |= (1 << cm->enc_olk_fb_idx[layer]);
+        ref_flags_to_keep |= cm->olk_refresh_frame_flags[cm->mlayer_id];
       }
       for (int ref_index = 0; ref_index < cm->seq_params.ref_frames;
            ref_index++) {
