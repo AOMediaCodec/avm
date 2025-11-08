@@ -26,7 +26,9 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
                                const uint8_t **p_data_end);
 
 #if CONFIG_F024_KEYOBU
-int is_random_accessed_temporal_unit(const uint8_t *data, size_t data_sz);
+int av1_is_random_accessed_temporal_unit(const uint8_t *data, size_t data_sz);
+int av1_is_single_tile_vcl_obu(OBU_TYPE obu_type);
+int av1_is_multi_tile_vcl_obu(OBU_TYPE obu_type);
 #endif
 
 aom_codec_err_t aom_get_num_layers_from_operating_point_idc(

@@ -6757,17 +6757,13 @@ static AOM_INLINE void write_uncompressed_header_obu
     // it needs to be this way since ref_frame_map is not updated yet here not
     // as update_frame_buffers()
     // In this encoder, the OLK updates only one reference slot
-    for (int ref_pos = 0; ref_pos < seq_params->ref_frames; ref_pos++) {
-      if ((current_frame->refresh_frame_flags >> ref_pos) & 1) {
-        cm->enc_olk_fb_idx[cm->mlayer_id] = ref_pos;
-        break;
-      }
-    }
+    cm->olk_refresh_frame_flags[cm->mlayer_id] =
+        current_frame->refresh_frame_flags;
   } else if (obu_type == OBU_CLK ||
              cm->is_leading_picture ==
                  0) {  // first regular frame, olk_encountered is set 0
     cpi->olk_encountered = 0;
-    cm->enc_olk_fb_idx[cm->mlayer_id] = INVALID_IDX;
+    cm->olk_refresh_frame_flags[cm->mlayer_id] = INVALID_IDX;
   }
 #endif  // CONFIG_F024_KEYOBU
 

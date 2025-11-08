@@ -1660,7 +1660,7 @@ static int check_obu_order(OBU_TYPE prev_obu_type, OBU_TYPE curr_obu_type) {
 #endif  // OBU_ORDER_IN_TU
 
 #if CONFIG_F024_KEYOBU
-int is_random_accessed_temporal_unit(const uint8_t *data, size_t data_sz) {
+int av1_is_random_accessed_temporal_unit(const uint8_t *data, size_t data_sz) {
   const uint8_t *data_read = data;
 
   ObuHeader obu_header;
@@ -1741,6 +1741,10 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
 #if CONFIG_F024_KEYOBU
     // Skip all obus till the random_accessed-th random access point
     // Remove all leading_vcl obus
+    cm->is_leading_picture = (av1_is_single_tile_vcl_obu(obu_header.type) ||
+                              av1_is_multi_tile_vcl_obu(obu_header.type))
+                                 ? is_leading_vcl_obu(obu_header.type)
+                                 : -1;
     if (obu_header.type == OBU_CLK || obu_header.type == OBU_OLK)
       pbi->random_access_point_count++;
     if (pbi->random_access_point_count < pbi->random_access_point_index) {

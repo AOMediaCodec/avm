@@ -911,7 +911,7 @@ int av1_receive_compressed_data(AV1Decoder *pbi, size_t size,
   // Flush the DPB before CLK and before OLK
   // This should be done before new fb is assigned to current frame to make all
   // the DPB available
-  if (is_random_accessed_temporal_unit(source, size)) {
+  if (av1_is_random_accessed_temporal_unit(source, size)) {
     if (pbi->is_first_layer_decoded) flush_remaining_frames(pbi);
   }
 #endif
