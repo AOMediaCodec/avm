@@ -601,9 +601,10 @@ static void release_current_frame(AV1Decoder *pbi) {
 #if CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
 // This function returns true if the frame,ref, is considered as a successive
 // frame
-static INLINE bool is_successive_output(AV1_COMMON *cm,
-                                        unsigned int next_disp_order,
-                                        int cur_mlayer_id, RefCntBuffer *ref) {
+static INLINE bool is_successive_in_output_order(AV1_COMMON *cm,
+                                                 unsigned int next_disp_order,
+                                                 int cur_mlayer_id,
+                                                 RefCntBuffer *ref) {
   if (cm->seq_params.max_mlayer_id == 0) {
     if (ref->display_order_hint == next_disp_order) return true;
   } else {
@@ -696,8 +697,9 @@ void output_frame_buffers(AV1Decoder *pbi, int ref_idx) {
     for (int i = 0; i < cm->seq_params.ref_frames; i++) {
       if (is_frame_eligible_for_output(cm->ref_frame_map[i]) &&
 #if CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
-          is_successive_output(cm, next_disp_order, trigger_frame->mlayer_id,
-                               cm->ref_frame_map[i])) {
+          is_successive_in_output_order(cm, next_disp_order,
+                                        trigger_frame->mlayer_id,
+                                        cm->ref_frame_map[i])) {
 #else   // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
           cm->ref_frame_map[i]->display_order_hint == next_disp_order) {
 #endif  // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYE
