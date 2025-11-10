@@ -432,11 +432,11 @@ static
 #if !CONFIG_F255_QMOBU
              const int level,
 #endif  // CONFIG_F255_QMOBU
-             const int plane,
+             const int plane, qm_val_t *output,
 #if CONFIG_F255_QMOBU
-             qm_val_t *output, qm_val_t ***fund_matrices
+             qm_val_t ***fund_matrices
 #else
-                     qm_val_t *output, qm_val_t ****fund_matrices
+             qm_val_t ****fund_matrices
 #endif  // CONFIG_F255_QMOBU
     ) {
   int height = tx_size_high[txsize];
@@ -502,7 +502,7 @@ qm_val_t ***av1_alloc_qmset(int num_planes) {
   }
   return mat;
 }
-void av1_free_qm(qm_val_t ***mat, int num_planes) {
+void av1_free_qmset(qm_val_t ***mat, int num_planes) {
   const int num_tsize = 3;  // 8x8, 8x4, 4x8
   for (int q = 0; q < num_tsize; q++) {
     for (int c = 0; c < num_planes; c++) {
@@ -515,9 +515,9 @@ void av1_free_qm(qm_val_t ***mat, int num_planes) {
 }
 
 void av1_qm_frame_update(struct CommonQuantParams *quant_params, int num_planes,
-                         int q, qm_val_t ***matrix_set) {
+                         int qm_id, qm_val_t ***matrix_set) {
   // matrix_set[tx_size(3)][color(3)][64,32,32]
-  assert(q != (NUM_QM_LEVELS - 1));
+  assert(qm_id != (NUM_QM_LEVELS - 1));
   for (int c = 0; c < num_planes; ++c) {
     // Generate matrices for each tx size
     int current = 0;
@@ -526,22 +526,22 @@ void av1_qm_frame_update(struct CommonQuantParams *quant_params, int num_planes,
       const int qm_tx_size = av1_get_adjusted_tx_size(t);
       if (t != qm_tx_size) {  // Reuse matrices for 'qm_tx_size'
         assert(t > qm_tx_size);
-        quant_params->gqmatrix[q][c][t] =
-            quant_params->gqmatrix[q][c][qm_tx_size];
-        quant_params->giqmatrix[q][c][t] =
-            quant_params->giqmatrix[q][c][qm_tx_size];
+        quant_params->gqmatrix[qm_id][c][t] =
+            quant_params->gqmatrix[qm_id][c][qm_tx_size];
+        quant_params->giqmatrix[qm_id][c][t] =
+            quant_params->giqmatrix[qm_id][c][qm_tx_size];
       } else {
         assert(current + size <= QM_TOTAL_SIZE);
         // Generate the iwt and wt matrices from the base matrices.
-        scale_tx(t, c, &quant_params->iwt_matrix_ref[q][c][current],
+        scale_tx(t, c, &quant_params->iwt_matrix_ref[qm_id][c][current],
                  matrix_set);
-        calc_wt_matrix(t, &quant_params->iwt_matrix_ref[q][c][current],
-                       &quant_params->wt_matrix_ref[q][c][current]);
+        calc_wt_matrix(t, &quant_params->iwt_matrix_ref[qm_id][c][current],
+                       &quant_params->wt_matrix_ref[qm_id][c][current]);
 
-        quant_params->gqmatrix[q][c][t] =
-            &quant_params->wt_matrix_ref[q][c][current];
-        quant_params->giqmatrix[q][c][t] =
-            &quant_params->iwt_matrix_ref[q][c][current];
+        quant_params->gqmatrix[qm_id][c][t] =
+            &quant_params->wt_matrix_ref[qm_id][c][current];
+        quant_params->giqmatrix[qm_id][c][t] =
+            &quant_params->iwt_matrix_ref[qm_id][c][current];
         current += size;
       }
     }  // t

@@ -446,8 +446,8 @@ void av1_decoder_remove(AV1Decoder *pbi) {
 #if CONFIG_F255_QMOBU
   for (int qm_pos = 0; qm_pos < NUM_CUSTOM_QMS; qm_pos++) {
     if (pbi->qm_list[qm_pos].quantizer_matrix != NULL)
-      av1_free_qm(pbi->qm_list[qm_pos].quantizer_matrix,
-                  pbi->qm_list[qm_pos].quantizer_matrix_num_planes);
+      av1_free_qmset(pbi->qm_list[qm_pos].quantizer_matrix,
+                     pbi->qm_list[qm_pos].quantizer_matrix_num_planes);
   }
 #else
   if (pbi->common.quant_params.qmatrix_allocated) {

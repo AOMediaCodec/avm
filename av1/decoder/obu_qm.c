@@ -29,15 +29,13 @@
 #include "av1/common/quant_common.h"
 
 #if CONFIG_F255_QMOBU
-void alloc_qmatrix(struct quantization_matrix_set *qm_set, int qm_id,
-                   int num_planes) {
+void alloc_qmatrix(struct quantization_matrix_set *qm_set, int num_planes) {
   const TX_SIZE fund_tsize[3] = { TX_8X8, TX_8X4, TX_4X8 };
   if (qm_set->quantizer_matrix != NULL) {
     return;
   }
   qm_set->quantizer_matrix =
       (qm_val_t ***)aom_malloc(3 * sizeof(qm_val_t **));  // 8x8,8x4,4x8
-  (void)qm_id;
   for (int t = 0; t < 3; t++) {
     const TX_SIZE tsize = fund_tsize[t];
     const int width = tx_size_wide[tsize];
@@ -52,10 +50,10 @@ void alloc_qmatrix(struct quantization_matrix_set *qm_set, int qm_id,
   qm_set->quantizer_matrix_allocated = true;
 }
 
-uint32_t read_qm_data(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
-                      int qm_pos, int qm_id, int num_planes,
-                      bool store_at_intermediate_location,
-                      struct aom_read_bit_buffer *rb) {
+static void read_qm_data(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
+                         int qm_pos, int qm_id, int num_planes,
+                         bool store_at_intermediate_location,
+                         struct aom_read_bit_buffer *rb) {
   pbi->common.error.error_code = AOM_CODEC_OK;
   const TX_SIZE fund_tsize[3] = { TX_8X8, TX_8X4, TX_4X8 };
 
@@ -66,8 +64,7 @@ uint32_t read_qm_data(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
           ? &pbi->qmobu_list[pbi->total_qmobu_count].qm_list[qm_pos]
           : &pbi->qm_list[qm_pos];
 
-  if (qmset->quantizer_matrix_allocated != true)
-    alloc_qmatrix(qmset, qm_pos, num_planes);
+  if (!qmset->quantizer_matrix_allocated) alloc_qmatrix(qmset, num_planes);
   qmset->qm_id = qm_id;
   qmset->qm_tlayer_id = obu_tlayer_id;
   qmset->qm_mlayer_id = obu_mlayer_id;
@@ -77,7 +74,7 @@ uint32_t read_qm_data(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
   if (qm_is_default_flag) {
     const int qm_default_index = aom_rb_read_literal(rb, 4);
     qmset->qm_default_index = qm_default_index;
-    // copy predefined[qm_default_index] to pbi->qm_list[qm_pos]
+    // copy predefined[qm_default_index] to qmset
     for (int c = 0; c < num_planes; ++c) {
       // plane_type: 0:luma, 1:chroma
       const int plane_type = (c >= 1);
@@ -91,7 +88,7 @@ uint32_t read_qm_data(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
              predefined_4x8_iwt_base_matrix[qm_default_index][plane_type],
              4 * 8 * sizeof(qm_val_t));
     }
-    return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
+    return;
   } else {
     qmset->qm_default_index = -1;
   }
@@ -131,7 +128,6 @@ uint32_t read_qm_data(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
         }
       }
 
-      //      qm_val_t *mat = fund_mat[t][level][c];
       bool coef_repeat_until_end = false;
       qm_val_t prev = 32;
       for (int i = 0; i < tx_size_2d[tsize]; i++) {
@@ -140,7 +136,6 @@ uint32_t read_qm_data(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
           const int row = pos / width;
           const int col = pos % width;
           if (col > row) {
-            // mat[pos] = mat[col * width + row];
             qmset->quantizer_matrix[t][c][pos] =
                 qmset->quantizer_matrix[t][c][col * width + row];
             continue;
@@ -164,13 +159,10 @@ uint32_t read_qm_data(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
             prev = coef;
           }
         }
-        // mat[pos] = prev;
         qmset->quantizer_matrix[t][c][pos] = prev;
       }  // coeff
     }  // num_planes
   }  // t
-
-  return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }
 void av1_copy_predefined_qmatrices_to_list(
     AV1Decoder *pbi, int num_planes, bool store_at_intermediate_location) {
@@ -180,11 +172,8 @@ void av1_copy_predefined_qmatrices_to_list(
             ? &pbi->qmobu_list[pbi->total_qmobu_count].qm_list[qm_pos]
             : &pbi->qm_list[qm_pos];
 
-    // TODO: the case below cannot detect when seq header is changed from
-    // monochrome to multichrome this depends on the cadence of signalling QM
-    // obu and activating a SEQ header.
-    if (qmset->quantizer_matrix_allocated != true) {
-      alloc_qmatrix(qmset, qm_pos, num_planes);
+    if (!qmset->quantizer_matrix_allocated) {
+      alloc_qmatrix(qmset, num_planes);
     }
     int qm_default_index = qm_pos;
     qmset->qm_id = qm_pos;
@@ -192,7 +181,7 @@ void av1_copy_predefined_qmatrices_to_list(
     qmset->qm_mlayer_id = -1;
     qmset->qm_tlayer_id = -1;
     qmset->quantizer_matrix_num_planes = num_planes;
-    // copy predefined[qm_default_index] to pbi->qm_list[qm_pos]
+    // copy predefined[qm_default_index] to qmset
     for (int c = 0; c < num_planes; ++c) {
       // plane_type: 0:luma, 1:chroma
       const int plane_type = (c >= 1);
@@ -209,13 +198,12 @@ void av1_copy_predefined_qmatrices_to_list(
   }  // qm_pos
 }
 uint32_t read_qm_obu(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
-                     int first_qm_obu, bool store_at_intermediate_location,
+                     bool first_qm_obu, bool store_at_intermediate_location,
                      uint32_t *acc_qm_id_bitmap,
                      struct aom_read_bit_buffer *rb) {
   // multiple qms in one obu with id
   const uint32_t saved_bit_offset = rb->bit_offset;
   int qm_bit_map = aom_rb_read_literal(rb, NUM_CUSTOM_QMS);
-#if CONFIG_F255_QMOBU
   if (*acc_qm_id_bitmap & (uint32_t)qm_bit_map) {
     aom_internal_error(&pbi->common.error, AOM_CODEC_INVALID_PARAM,
                        "qm_bit_map(%d) overlaps the accumulated qm_bit_map(%d)",
@@ -224,9 +212,13 @@ uint32_t read_qm_obu(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
   } else {
     *acc_qm_id_bitmap |= qm_bit_map;
   }
-#endif  // CONFIG_F255_QMOBU
   bool qm_chroma_info_present_flag = aom_rb_read_bit(rb);
   if (store_at_intermediate_location) {
+    if (pbi->total_qmobu_count >= NELEMENTS(pbi->qmobu_list)) {
+      aom_internal_error(&pbi->common.error, AOM_CODEC_UNSUP_BITSTREAM,
+                         "too many QM OBUs");
+      return 0;
+    }
     pbi->qmobu_list[pbi->total_qmobu_count].qm_bit_map = qm_bit_map;
     pbi->qmobu_list[pbi->total_qmobu_count].qm_chroma_info_present_flag =
         qm_chroma_info_present_flag;
@@ -246,7 +238,6 @@ uint32_t read_qm_obu(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
                                           store_at_intermediate_location);
   } else {
     for (int j = 0; j < NUM_CUSTOM_QMS; j++) {
-      // it will overwrite the pos if the qm_id is the same.
       if (qm_bit_map & (1 << j)) {
         int qm_id = j;
         int qm_pos = -1;

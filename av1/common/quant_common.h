@@ -117,6 +117,19 @@ static INLINE int aom_get_qmlevel(int qindex, int first, int last,
                                                  : QINDEX_RANGE);
 }
 
+#if CONFIG_F255_QMOBU
+void av1_free_qmset(qm_val_t ***mat, int num_planes);
+qm_val_t ***av1_alloc_qmset(int num_planes);
+// Initialize all global quant/dequant matrices. Used by the encoder.
+void av1_qm_frame_update(struct CommonQuantParams *quant_params, int num_planes,
+                         int qm_id, qm_val_t ***matrix_set);
+void av1_qm_init(struct CommonQuantParams *quant_params, int num_planes);
+
+void av1_qm_replace_level(struct CommonQuantParams *quant_params, int level,
+                          int num_planes, qm_val_t ***fund_matrices);
+void scale_tx(const int txsize, const int plane, qm_val_t *output,
+              qm_val_t ***fund_matrices);
+#else
 // Allocates all the width-by-height quantization matrices as a
 // three-dimensional array. The first dimension is the number of levels
 // (NUM_CUSTOM_QMS = 15). The second dimension is the number of planes (3). The
@@ -125,19 +138,6 @@ static INLINE int aom_get_qmlevel(int qindex, int first, int last,
 // array.
 qm_val_t ***av1_alloc_qm(int width, int height);
 
-#if CONFIG_F255_QMOBU
-void av1_free_qm(qm_val_t ***mat, int num_planes);
-qm_val_t ***av1_alloc_qmset(int num_planes);
-// Initialize all global quant/dequant matrices. Used by the encoder.
-void av1_qm_frame_update(struct CommonQuantParams *quant_params, int num_planes,
-                         int q, qm_val_t ***matrix_set);
-void av1_qm_init(struct CommonQuantParams *quant_params, int num_planes);
-
-void av1_qm_replace_level(struct CommonQuantParams *quant_params, int level,
-                          int num_planes, qm_val_t ***fund_matrices);
-void scale_tx(const int txsize, const int plane, qm_val_t *output,
-              qm_val_t ***fund_matrices);
-#else
 // Frees the three-dimensional array mat. The three-dimensional array must have
 // been allocated by av1_alloc_qm().
 void av1_free_qm(qm_val_t ***mat);

@@ -2037,16 +2037,22 @@ typedef struct BridgeFrame_Info {
 struct quantization_matrix_set {
   /*!
    * id of the quantization matrix : initialized to be -1
+   * qm_id equals -1 indicates that this struct, quantization_matrix_set, is not
+   * used or not set yet.
    */
   int qm_id;
   /*!
    * tlayer id of the OBU that conveys this quantization matrix : initialized to
    * be -1
+   * qm_tlayer_id equals -1 indicates this struct quantization_matrix_set is
+   * initialized to be the predefined matrices at the sequence header activation
    */
   int qm_tlayer_id;
   /*!
    * mlayer id of the OBU that conveys this quantization matrix : initialized to
    * be -1
+   * qm_mlayer_id equals -1 indicates this struct quantization_matrix_set is set
+   * to be the  predefined matrices at the sequence header activation
    */
   int qm_mlayer_id;
   /*!

@@ -3826,8 +3826,8 @@ static AOM_INLINE void setup_quantization(CommonQuantParams *quant_params,
   }
 }
 #if CONFIG_F255_QMOBU
-void setup_cm_quant_params(AV1Decoder *pbi, CommonQuantParams *quant_params,
-                           int plane, int qmlevel) {
+void setup_quant_matrices(AV1Decoder *pbi, CommonQuantParams *quant_params,
+                          int plane, int qmlevel) {
   if (qmlevel >= NUM_QM_LEVELS - 1) {
     aom_internal_error(&pbi->common.error, AOM_CODEC_UNSUP_BITSTREAM,
                        "qmlevel %d is out of boundary", qmlevel);
@@ -3839,6 +3839,10 @@ void setup_cm_quant_params(AV1Decoder *pbi, CommonQuantParams *quant_params,
       qm_pos_found = qm_pos;
       break;
     }
+  }
+  if (qm_pos_found < 0) {
+    aom_internal_error(&pbi->common.error, AOM_CODEC_UNSUP_BITSTREAM,
+                       "quantiztion matrix with Id[%d] is not found", qmlevel);
   }
   // TODO: does xlayer_id need to be taken into account?
   //  when a picture indicated in an embedded layer with id equal obu_mlayer_id
@@ -3860,11 +3864,6 @@ void setup_cm_quant_params(AV1Decoder *pbi, CommonQuantParams *quant_params,
                        "of the limit: (%d, %d)",
                        pbi->qm_list[qm_pos_found].qm_tlayer_id,
                        pbi->qm_list[qm_pos_found].qm_mlayer_id);
-  }
-
-  if (qm_pos_found < 0) {
-    aom_internal_error(&pbi->common.error, AOM_CODEC_UNSUP_BITSTREAM,
-                       "quantiztion matrix with Id[%d] is not found", qmlevel);
   }
 
   // Generate matrices for each tx size
@@ -3978,10 +3977,10 @@ static AOM_INLINE void setup_qm_params(
     }
 #if CONFIG_F255_QMOBU
     for (uint8_t i = 0; i < quant_params->pic_qm_num; i++) {
-      setup_cm_quant_params(pbi, quant_params, 0, quant_params->qm_y[i]);
+      setup_quant_matrices(pbi, quant_params, 0, quant_params->qm_y[i]);
       if (num_planes > 1) {
-        setup_cm_quant_params(pbi, quant_params, 1, quant_params->qm_u[i]);
-        setup_cm_quant_params(pbi, quant_params, 2, quant_params->qm_v[i]);
+        setup_quant_matrices(pbi, quant_params, 1, quant_params->qm_u[i]);
+        setup_quant_matrices(pbi, quant_params, 2, quant_params->qm_v[i]);
       }
     }
 #endif  // CONFIG_F255_QMOBU
@@ -8268,56 +8267,49 @@ static void activate_sequence_header(AV1Decoder *pbi, int seq_header_id) {
   }
 
 #if CONFIG_F255_QMOBU
-  // TODO(jkei): as of Oct 29, 2025, the activation process need to be invoked
-  // when the frame is a random access point. Though, As a reference s/w,
-  // comparing the content may be useful
-  // (are_seq_headers_consistent(&cm->seq_params, seq_params)) In the current
-  // design it is impossible to activate a sequence header at the random access
-  // point since parsing of frame_type is done only when signalled when
-  // (seq_params->single_picture_hdr_flag) is false. It requires F024 that has
-  // obu_type indication. for now, let's keep it in this way but it may do
-  // decoded-frame times mem alloc/delloc
+  av1_copy_predefined_qmatrices_to_list(pbi, cm->seq_params.monochrome ? 1 : 3,
+                                        false);
+  if (pbi->total_qmobu_count != 0) {
+    for (int i = 0; i < pbi->total_qmobu_count; i++) {
+      for (int qm_pos = 0; qm_pos < NUM_CUSTOM_QMS; qm_pos++) {
+        if (pbi->qmobu_list[i].qm_bit_map == 0 ||
+            (pbi->qmobu_list[i].qm_bit_map & (1 << qm_pos))) {
+          struct quantization_matrix_set *qmset_inobu =
+              &pbi->qmobu_list[i].qm_list[qm_pos];
+          struct quantization_matrix_set *qmset = &pbi->qm_list[qm_pos];
+          qmset->qm_id = qmset_inobu->qm_id;
+          qmset->qm_default_index = qmset_inobu->qm_default_index;
+          qmset->qm_mlayer_id = qmset_inobu->qm_mlayer_id;
+          qmset->qm_tlayer_id = qmset_inobu->qm_tlayer_id;
+          if (qmset->quantizer_matrix_num_planes !=
+              qmset_inobu->quantizer_matrix_num_planes) {
+            aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+                               "num_planes of qmsets should be the same");
+          }
 
-  if (&cm->seq_params != pbi->active_seq) {
-    av1_copy_predefined_qmatrices_to_list(
-        pbi, cm->seq_params.monochrome ? 1 : 3, false);
-    if (pbi->total_qmobu_count != 0) {
-      for (int i = 0; i < pbi->total_qmobu_count; i++) {
-        for (int qm_pos = 0; qm_pos < NUM_CUSTOM_QMS; qm_pos++) {
-          if (pbi->qmobu_list[i].qm_bit_map == 0 ||
-              (pbi->qmobu_list[i].qm_bit_map & (1 << qm_pos))) {
-            struct quantization_matrix_set *qmset_inobu =
-                &pbi->qmobu_list[i].qm_list[qm_pos];
-            struct quantization_matrix_set *qmset = &pbi->qm_list[qm_pos];
-            qmset->qm_id = qmset_inobu->qm_id;
-            qmset->qm_default_index = qmset_inobu->qm_default_index;
-            qmset->qm_mlayer_id = qmset_inobu->qm_mlayer_id;
-            qmset->qm_tlayer_id = qmset_inobu->qm_tlayer_id;
-            qmset->quantizer_matrix_num_planes =
-                qmset_inobu->quantizer_matrix_num_planes;
-            for (int c = 0; c < qmset_inobu->quantizer_matrix_num_planes; ++c) {
-              memcpy(qmset->quantizer_matrix[0][c],
-                     qmset_inobu->quantizer_matrix[0][c],
-                     8 * 8 * sizeof(qm_val_t));
-              memcpy(qmset->quantizer_matrix[1][c],
-                     qmset_inobu->quantizer_matrix[1][c],
-                     8 * 4 * sizeof(qm_val_t));
-              memcpy(qmset->quantizer_matrix[2][c],
-                     qmset_inobu->quantizer_matrix[2][c],
-                     4 * 8 * sizeof(qm_val_t));
-            }  // c
-            av1_free_qm(qmset_inobu->quantizer_matrix,
-                        qmset_inobu->quantizer_matrix_num_planes);
-            //[jkei] is it correct way to free the memory?
-            qmset_inobu->quantizer_matrix = NULL;
-            qmset_inobu->quantizer_matrix_allocated = false;
-          }  // if (qm_bit_map & (1 << j))
-        }  // qm_pos
-      }  // i
+          qmset->quantizer_matrix_num_planes =
+              qmset_inobu->quantizer_matrix_num_planes;
+          for (int c = 0; c < qmset_inobu->quantizer_matrix_num_planes; ++c) {
+            memcpy(qmset->quantizer_matrix[0][c],
+                   qmset_inobu->quantizer_matrix[0][c],
+                   8 * 8 * sizeof(qm_val_t));
+            memcpy(qmset->quantizer_matrix[1][c],
+                   qmset_inobu->quantizer_matrix[1][c],
+                   8 * 4 * sizeof(qm_val_t));
+            memcpy(qmset->quantizer_matrix[2][c],
+                   qmset_inobu->quantizer_matrix[2][c],
+                   4 * 8 * sizeof(qm_val_t));
+          }  // c
+          av1_free_qmset(qmset_inobu->quantizer_matrix,
+                         qmset_inobu->quantizer_matrix_num_planes);
+          qmset_inobu->quantizer_matrix = NULL;
+          qmset_inobu->quantizer_matrix_allocated = false;
+        }  // if (qm_bit_map & (1 << j))
+      }  // qm_pos
+    }  // i
 
-      pbi->total_qmobu_count = 0;
-    }  // !(pbi->total_qmobu_count != 0)
-  }
+    pbi->total_qmobu_count = 0;
+  }  // !(pbi->total_qmobu_count != 0)
 #endif  // CONFIG_F255_QMOBU
 
   cm->seq_params = *pbi->active_seq;

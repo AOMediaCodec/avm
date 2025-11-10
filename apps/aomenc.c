@@ -1784,6 +1784,7 @@ static void initialize_encoder(struct stream_state *stream,
   aom_codec_enc_init(&stream->encoder, global->codec, &stream->config.cfg,
                      flags);
   ctx_exit_on_error(&stream->encoder, "Failed to initialize encoder");
+
   for (i = 0; i < stream->config.arg_ctrl_cnt; i++) {
     int ctrl = stream->config.arg_ctrls[i][0];
     int value = stream->config.arg_ctrls[i][1];

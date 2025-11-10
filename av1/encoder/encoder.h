@@ -3045,7 +3045,7 @@ typedef struct AV1_COMP {
    * a list of OBU_QM
    */
 
-  struct qm_obu qmobu_list[130];  // any big enough size
+  struct qm_obu qmobu_list[NUM_CUSTOM_QMS];
   /*!
    * Intermediate list of quantiztaion matrices for input user defined matrices
    */

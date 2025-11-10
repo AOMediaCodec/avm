@@ -1868,7 +1868,9 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
         decoded_payload_size =
             read_tilegroup_obu(pbi, &rb, data, data + payload_size, p_data_end,
                                obu_header.type, &frame_decoding_finished);
-
+#if CONFIG_F255_QMOBU
+        qm_id_bitmap = 0;
+#endif
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
 #if CONFIG_CWG_F317
         if (cm->bru.frame_inactive_flag ||
