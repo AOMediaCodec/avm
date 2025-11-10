@@ -69,7 +69,6 @@ static void read_qm_data(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
   qmset->qm_tlayer_id = obu_tlayer_id;
   qmset->qm_mlayer_id = obu_mlayer_id;
   qmset->quantizer_matrix_num_planes = num_planes;
-  const uint32_t saved_bit_offset = rb->bit_offset;
   const bool qm_is_default_flag = (bool)aom_rb_read_bit(rb);
   if (qm_is_default_flag) {
     const int qm_default_index = aom_rb_read_literal(rb, 4);
