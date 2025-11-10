@@ -2132,7 +2132,7 @@ typedef struct AV1Common {
    *      0,               ...,            INTER_REFS_PER_FRAME - 1
    *      |                                           |
    *      v                                           v
-   * remapped_ref_idx[0],  ...,     remapped_ref_idx[INTER_REFS_PER_FRAME- 1]
+   * remapped_ref_idx[0],  ...,     remapped_ref_idx[INTER_REFS_PER_FRAME - 1]
    *      |                                           |
    *      v                                           v
    * ref_frame_map[],      ...,                ref_frame_map[]
