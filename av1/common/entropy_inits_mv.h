@@ -63,6 +63,8 @@ static const nmv_context default_nmv_context = {
     { AOM_CDF2(30765),  50 },
     { AOM_CDF2(16384),   0 },
     { AOM_CDF2(16384),   0 },
+    { AOM_CDF2(16384),   0 },
+    { AOM_CDF2(16384),   0 },
   },
 },
 {
