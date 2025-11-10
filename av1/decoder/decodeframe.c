@@ -11186,7 +11186,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
         copy_frame_filters_to_runits_if_needed(cm);
         if (pbi->num_workers > 1
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-            && USE_LOOP_RESTORATION_MT
+            && !cm->seq_params.disable_loopfilters_across_tiles
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
         ) {
           av1_loop_restoration_filter_frame_mt(
@@ -11212,7 +11212,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
         copy_frame_filters_to_runits_if_needed(cm);
         if (pbi->num_workers > 1
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-            && USE_LOOP_RESTORATION_MT
+            && !cm->seq_params.disable_loopfilters_across_tiles
 #endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
         ) {
           av1_loop_restoration_filter_frame_mt(

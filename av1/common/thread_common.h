@@ -86,39 +86,28 @@ typedef struct AV1CcsoSync {
 } AV1CcsoSync;
 
 typedef struct AV1LrMTInfo {
-  int v_start;
-  int v_end;
+  RestorationTileLimits limits;
+  RestorationTileLimits remaining_stripes;
   AV1PixelRect tile_rect;
   int tile_row;
   int tile_col;
   int lr_unit_row;
   int plane;
-  int sync_mode;
-  int v_copy_start;
-  int v_copy_end;
+  int proc_height;
+  int start_height;
+  int none_type_count;
 } AV1LrMTInfo;
 
 typedef struct LoopRestorationWorkerData {
-  void *rlbs;
   void *lr_ctxt;
+  AV1_COMMON *cm;
+  uint16_t *scratch_buf;
 } LRWorkerData;
 
 // Looprestoration row synchronization
 typedef struct AV1LrSyncData {
-#if CONFIG_MULTITHREAD
-  pthread_mutex_t *mutex_[MAX_MB_PLANE];
-  pthread_cond_t *cond_[MAX_MB_PLANE];
-#endif
-  // Allocate memory to store the loop-restoration block index in each row.
-  int *cur_sb_col[MAX_MB_PLANE];
-  // The optimal sync_range for different resolution and platform should be
-  // determined by testing. Currently, it is chosen to be a power-of-2 number.
-  int sync_range;
   int rows;
-  int num_planes;
-
   int num_workers;
-
 #if CONFIG_MULTITHREAD
   pthread_mutex_t *job_mutex;
 #endif
@@ -214,6 +203,13 @@ void av1_loop_restoration_filter_frame_mt(YV12_BUFFER_CONFIG *frame,
                                           int num_workers, AV1LrSync *lr_sync,
                                           void *lr_ctxt);
 void av1_loop_restoration_dealloc(AV1LrSync *lr_sync, int num_workers);
+
+// Apply LR for each restoration unit in a tile row.
+void av1_foreach_rest_unit_in_tile_row(
+    RestorationTileLimits *limits, RestorationTileLimits *remaining_stripes,
+    const AV1PixelRect *tile_rect, int row_number, int start_height,
+    int proc_height, int unit_size, int unit_idx0, int hunits_per_tile,
+    int unit_stride, int tile_stripe0, void *priv, uint16_t *stripe_buf);
 
 // Deallocate ccsofilter synchronization related mutex and data.
 void av1_ccso_filter_dealloc(AV1CcsoSync *ccso_sync);
