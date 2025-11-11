@@ -1664,8 +1664,7 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
 #endif  // OBU_ORDER_IN_TU
 
 #if CONFIG_F255_QMOBU
-  bool first_qm_obu = true;
-  uint32_t qm_id_bitmap = 0;
+  uint32_t acc_qm_id_bitmap = 0;
   bool seq_header_in_tu = false;
 #endif
 
@@ -1867,7 +1866,7 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
 #if CONFIG_F255_QMOBU
         // It is a requirement that if multiple QM OBUs are present
         // consecutively prior to a coded frame.
-        qm_id_bitmap = 0;
+        acc_qm_id_bitmap = 0;
 #endif
 
 #if CONFIG_F106_OBU_TILEGROUP
@@ -2050,8 +2049,7 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
       case OBU_QM:
         decoded_payload_size =
             read_qm_obu(pbi, obu_header.obu_tlayer_id, obu_header.obu_mlayer_id,
-                        first_qm_obu, seq_header_in_tu, &qm_id_bitmap, &rb);
-        first_qm_obu = false;
+                        seq_header_in_tu, &acc_qm_id_bitmap, &rb);
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
         break;
 #endif  // CONFIG_F255_QMOBU

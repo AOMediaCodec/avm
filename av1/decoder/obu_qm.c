@@ -195,7 +195,7 @@ void av1_copy_predefined_qmatrices_to_list(
   }  // qm_pos
 }
 uint32_t read_qm_obu(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
-                     bool first_qm_obu, bool store_at_intermediate_location,
+                     bool store_at_intermediate_location,
                      uint32_t *acc_qm_id_bitmap,
                      struct aom_read_bit_buffer *rb) {
   // multiple qms in one obu with id
@@ -220,11 +220,6 @@ uint32_t read_qm_obu(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
   }
 
   if (qm_bit_map == 0) {
-    if (!first_qm_obu) {
-      aom_internal_error(
-          &pbi->common.error, AOM_CODEC_INVALID_PARAM,
-          "only the first QM OBU in the temporal unit can have qm_bit_map=0");
-    }
     av1_copy_predefined_qmatrices_to_list(pbi,
                                           (qm_chroma_info_present_flag ? 3 : 1),
                                           store_at_intermediate_location);
