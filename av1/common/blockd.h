@@ -2679,9 +2679,6 @@ static INLINE int get_ext_tx_types(TX_SIZE tx_size, int is_inter,
                   : av1_num_ext_tx_set_intra[set_type];
 }
 
-#define TXSIZEMAX(t1, t2) (tx_size_2d[(t1)] >= tx_size_2d[(t2)] ? (t1) : (t2))
-#define TXSIZEMIN(t1, t2) (tx_size_2d[(t1)] <= tx_size_2d[(t2)] ? (t1) : (t2))
-
 static INLINE TX_SIZE tx_size_from_tx_mode(BLOCK_SIZE bsize, TX_MODE tx_mode) {
   const TX_SIZE largest_tx_size = tx_mode_to_biggest_tx_size[tx_mode];
   const TX_SIZE max_rect_tx_size = max_txsize_rect_lookup[bsize];
@@ -3369,13 +3366,6 @@ static INLINE int bsize_to_tx_size_cat(BLOCK_SIZE bsize) {
   const int depth = bsize_to_tx_size_depth_table[bsize];
   assert(depth <= MAX_TX_CATS);
   return depth - 1;
-}
-
-static INLINE TX_SIZE depth_to_tx_size(int depth, BLOCK_SIZE bsize) {
-  TX_SIZE max_tx_size = max_txsize_rect_lookup[bsize];
-  TX_SIZE tx_size = max_tx_size;
-  for (int d = 0; d < depth; ++d) tx_size = sub_tx_size_map[tx_size];
-  return tx_size;
 }
 
 static INLINE TX_SIZE av1_get_adjusted_tx_size(TX_SIZE tx_size) {
