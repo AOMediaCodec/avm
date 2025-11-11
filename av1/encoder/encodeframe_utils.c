@@ -143,43 +143,6 @@ static AOM_INLINE void update_filter_type_count(FRAME_COUNTS *counts,
   ++counts->switchable_interp[ctx][mbmi->interp_fltr];
 }
 
-static void reset_tx_size(MACROBLOCK *x, MB_MODE_INFO *mbmi,
-                          const TX_MODE tx_mode) {
-  MACROBLOCKD *const xd = &x->e_mbd;
-  TxfmSearchInfo *txfm_info = &x->txfm_search_info;
-
-  if (xd->tree_type != CHROMA_PART) {
-    const int plane_index = xd->tree_type == CHROMA_PART;
-    assert(plane_index == 0);
-    if (xd->lossless[mbmi->segment_id]) {
-      mbmi->tx_size = TX_4X4;
-    } else if (tx_mode != TX_MODE_SELECT) {
-      mbmi->tx_size = tx_size_from_tx_mode(mbmi->sb_type[plane_index], tx_mode);
-    } else {
-      BLOCK_SIZE bsize = mbmi->sb_type[plane_index];
-      TX_SIZE min_tx_size = depth_to_tx_size(MAX_TX_DEPTH, bsize);
-      mbmi->tx_size = (TX_SIZE)TXSIZEMAX(mbmi->tx_size, min_tx_size);
-    }
-    memset(mbmi->tx_partition_type, TX_PARTITION_NONE,
-           sizeof(mbmi->tx_partition_type));
-    const int stride = xd->tx_type_map_stride;
-    const int bw = mi_size_wide[mbmi->sb_type[plane_index]];
-    for (int row = 0; row < mi_size_high[mbmi->sb_type[plane_index]]; ++row) {
-      memset(xd->tx_type_map + row * stride, DCT_DCT,
-             bw * sizeof(xd->tx_type_map[0]));
-    }
-    av1_zero(txfm_info->blk_skip);
-    txfm_info->skip_txfm = 0;
-  }
-
-  if (xd->tree_type != LUMA_PART) {
-    const BLOCK_SIZE chroma_bsize = get_bsize_base(xd, mbmi, AOM_PLANE_U);
-    for (int row = 0; row < mi_size_high[chroma_bsize]; ++row)
-      memset(xd->cctx_type_map + row * xd->cctx_type_map_stride, CCTX_NONE,
-             mi_size_wide[chroma_bsize] * sizeof(xd->cctx_type_map[0]));
-  }
-}
-
 // This function will copy the best reference mode information from
 // MB_MODE_INFO_EXT_FRAME to MB_MODE_INFO_EXT.
 static INLINE void copy_mbmi_ext_frame_to_mbmi_ext(
@@ -316,7 +279,6 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
           seg->update_map ? cpi->enc_seg.map : cm->last_frame_seg_map;
       mi_addr->segment_id =
           map ? get_segment_id(mi_params, map, bsize, mi_row, mi_col) : 0;
-      reset_tx_size(x, mi_addr, x->txfm_search_params.tx_mode_search_type);
     }
     // Else for cyclic refresh mode update the segment map, set the segment id
     // and then update the quantizer.
