@@ -3284,8 +3284,7 @@ static void select_tx_partition_type(
 
   const int threshold = cpi->sf.tx_sf.tx_type_search.ml_tx_split_thresh;
   const int threshold_horzvert = threshold * 10;
-  const int try_ml_predict_tx_split =
-      max_tx_size > TX_4X4 && threshold >= 0 && !cpi->is_screen_content_type;
+  const int try_ml_predict_tx_split = 0;
   int split_score = INT_MAX;
   if (try_ml_predict_tx_split) {
     split_score =
