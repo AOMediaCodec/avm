@@ -3673,7 +3673,7 @@ static int motion_field_projection_side(AV1_COMMON *cm,
         int scaled_blk_row = blk_row;
 
         MV_REFERENCE_FRAME end_frame = start_ref_map[ref_frame];
-        if (end_frame == NONE_FRAME) continue;
+        if (end_frame == start_frame) continue;
 
         if (cm->seq_params.enable_mv_traj) {
           check_traj_intersect(cm, start_frame, end_frame, &ref_mv,
