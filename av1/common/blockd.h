@@ -1066,19 +1066,6 @@ static INLINE int is_partition_point(BLOCK_SIZE bsize) {
   return bsize != BLOCK_4X4 && bsize < BLOCK_SIZES;
 }
 
-static INLINE int get_sqr_bsize_idx(BLOCK_SIZE bsize) {
-  switch (bsize) {
-    case BLOCK_4X4: return 0;
-    case BLOCK_8X8: return 1;
-    case BLOCK_16X16: return 2;
-    case BLOCK_32X32: return 3;
-    case BLOCK_64X64: return 4;
-    case BLOCK_128X128: return 5;
-    case BLOCK_256X256: return 6;
-    default: return SQR_BLOCK_SIZES;
-  }
-}
-
 // For a block size 'bsize', returns the size of the sub-blocks used by the
 // given partition type. If the partition produces sub-blocks of different
 // sizes, then the function returns the size of the first sub-block. If given
@@ -1495,8 +1482,6 @@ static INLINE void mi_to_pixel_loc(int *pixel_c, int *pixel_r, int mi_col,
              (tx_blk_row << MI_SIZE_LOG2);
 }
 #endif  // CONFIG_MISMATCH_DEBUG
-
-enum { MV_PRECISION_Q3, MV_PRECISION_Q4 } UENUM1BYTE(mv_precision);
 
 struct buf_2d {
   uint16_t *buf;
