@@ -503,15 +503,18 @@ qm_val_t ***av1_alloc_qmset(int num_planes) {
   return mat;
 }
 void av1_free_qmset(qm_val_t ***mat, int num_planes) {
-  const int num_tsize = 3;  // 8x8, 8x4, 4x8
-  for (int q = 0; q < num_tsize; q++) {
-    for (int c = 0; c < num_planes; c++) {
-      if (mat[q][c] != NULL) aom_free(mat[q][c]);
+  if (mat != NULL) {
+    const int num_tsize = 3;  // 8x8, 8x4, 4x8
+    for (int q = 0; q < num_tsize; q++) {
+      if (mat[q] != NULL) {
+        for (int c = 0; c < num_planes; c++) {
+          if (mat[q][c] != NULL) aom_free(mat[q][c]);
+        }
+        aom_free(mat[q]);
+      }
     }
-    if (mat[q] != NULL) aom_free(mat[q]);
+    aom_free(mat);
   }
-  if (mat != NULL) aom_free(mat);
-  mat = NULL;
 }
 
 void av1_qm_frame_update(struct CommonQuantParams *quant_params, int num_planes,

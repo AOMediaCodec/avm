@@ -2133,7 +2133,7 @@ static aom_codec_err_t ctrl_set_user_defined_qmatrix(aom_codec_alg_priv_t *ctx,
   if (num_planes != (cpi->common.seq_params.monochrome ? 1 : 3)) {
     return AOM_CODEC_INVALID_PARAM;
   }
-  cpi->common.use_user_defined_qm[level] = true;
+  cpi->use_user_defined_qm[level] = true;
   if (cpi->user_defined_qm_list[level] == NULL)
     cpi->user_defined_qm_list[level] = av1_alloc_qmset(num_planes);
 #else

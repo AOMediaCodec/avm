@@ -8287,8 +8287,6 @@ static void activate_sequence_header(AV1Decoder *pbi, int seq_header_id) {
                                "num_planes of qmsets should be the same");
           }
 
-          qmset->quantizer_matrix_num_planes =
-              qmset_inobu->quantizer_matrix_num_planes;
           for (int c = 0; c < qmset_inobu->quantizer_matrix_num_planes; ++c) {
             memcpy(qmset->quantizer_matrix[0][c],
                    qmset_inobu->quantizer_matrix[0][c],

@@ -304,7 +304,7 @@ bool add_userqm_in_qmobulist(AV1_COMP *cpi) {
   int qmobu_pos = cpi->total_signalled_qmobu_count;
   int qm_bit_map = 0;
   for (int qm_id = 0; qm_id < NUM_CUSTOM_QMS; qm_id++) {
-    if (cm->use_user_defined_qm[qm_id]) {
+    if (cpi->use_user_defined_qm[qm_id]) {
       qm_bit_map |= 1 << qm_id;
       struct quantization_matrix_set *qm_inobu =
           &cpi->qmobu_list[qmobu_pos].qm_list[qm_id];

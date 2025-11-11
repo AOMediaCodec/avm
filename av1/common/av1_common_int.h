@@ -2716,17 +2716,6 @@ typedef struct AV1Common {
   aom_metadata_pic_struct_t pic_struct_metadata_params;
 #endif  // CONFIG_SCAN_TYPE_METADATA
 
-#if CONFIG_F255_QMOBU
-  /*!
-   * Flags to indicate whether user defined qm is used for id, i
-   */
-  bool use_user_defined_qm[NUM_CUSTOM_QMS];
-  /*!
-   * Indicate that new obu is added at the encoder to increase the counter
-   */
-  int new_qmobu_added;
-#endif  // CONFIG_F255_QMOBU
-
 } AV1_COMMON;
 
 /*!\cond */

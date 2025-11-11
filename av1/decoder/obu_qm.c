@@ -57,8 +57,6 @@ static void read_qm_data(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
   pbi->common.error.error_code = AOM_CODEC_OK;
   const TX_SIZE fund_tsize[3] = { TX_8X8, TX_8X4, TX_4X8 };
 
-  if (qm_pos == -1) qm_pos = qm_id;
-
   struct quantization_matrix_set *qmset =
       store_at_intermediate_location
           ? &pbi->qmobu_list[pbi->total_qmobu_count].qm_list[qm_pos]
@@ -207,7 +205,6 @@ uint32_t read_qm_obu(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
     aom_internal_error(&pbi->common.error, AOM_CODEC_INVALID_PARAM,
                        "qm_bit_map(%d) overlaps the accumulated qm_bit_map(%d)",
                        qm_bit_map, acc_qm_id_bitmap);
-    return 0;
   } else {
     *acc_qm_id_bitmap |= qm_bit_map;
   }
@@ -216,7 +213,6 @@ uint32_t read_qm_obu(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
     if (pbi->total_qmobu_count >= NELEMENTS(pbi->qmobu_list)) {
       aom_internal_error(&pbi->common.error, AOM_CODEC_UNSUP_BITSTREAM,
                          "too many QM OBUs");
-      return 0;
     }
     pbi->qmobu_list[pbi->total_qmobu_count].qm_bit_map = qm_bit_map;
     pbi->qmobu_list[pbi->total_qmobu_count].qm_chroma_info_present_flag =
@@ -224,14 +220,11 @@ uint32_t read_qm_obu(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
   }
 
   if (qm_bit_map == 0) {
-#if CONFIG_F255_QMOBU
     if (!first_qm_obu) {
       aom_internal_error(
           &pbi->common.error, AOM_CODEC_INVALID_PARAM,
           "only the first QM OBU in the temporal unit can have qm_bit_map=0");
-      return 0;
     }
-#endif  // CONFIG_F255_QMOBU
     av1_copy_predefined_qmatrices_to_list(pbi,
                                           (qm_chroma_info_present_flag ? 3 : 1),
                                           store_at_intermediate_location);
@@ -239,13 +232,7 @@ uint32_t read_qm_obu(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
     for (int j = 0; j < NUM_CUSTOM_QMS; j++) {
       if (qm_bit_map & (1 << j)) {
         int qm_id = j;
-        int qm_pos = -1;
-        for (int i = 0; i < NUM_CUSTOM_QMS; i++) {
-          if (pbi->qm_list[i].qm_id == qm_id) {  // overwrite
-            qm_pos = i;
-            break;
-          }
-        }
+        int qm_pos = qm_id;
         read_qm_data(pbi, obu_tlayer_id, obu_mlayer_id, qm_pos, qm_id,
                      (qm_chroma_info_present_flag ? 3 : 1),
                      store_at_intermediate_location, rb);

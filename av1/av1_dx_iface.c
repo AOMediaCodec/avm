@@ -717,16 +717,6 @@ static aom_codec_err_t init_decoder(aom_codec_alg_priv_t *ctx) {
   frame_worker_data->pbi->is_fwd_kf_present = 0;
   frame_worker_data->pbi->enable_subgop_stats = ctx->enable_subgop_stats;
   frame_worker_data->pbi->is_arf_frame_present = 0;
-#if CONFIG_F255_QMOBU
-  frame_worker_data->pbi->total_qmobu_count = 0;
-  for (int i = 0; i < NUM_CUSTOM_QMS; ++i) {
-    frame_worker_data->pbi->qm_list[i].qm_id = -1;
-    frame_worker_data->pbi->qm_list[i].qm_tlayer_id = -1;
-    frame_worker_data->pbi->qm_list[i].qm_mlayer_id = -1;
-    frame_worker_data->pbi->qm_list[i].quantizer_matrix_allocated = false;
-    frame_worker_data->pbi->qm_list[i].quantizer_matrix_num_planes = -1;
-  }
-#endif  // CONFIG_F255_QMOBU
 
   memcpy(frame_worker_data->pbi->common.ibp_directional_weights,
          ctx->base.ibp_directional_weights,

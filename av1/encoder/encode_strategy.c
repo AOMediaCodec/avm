@@ -1402,7 +1402,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   if (cm->quant_params.using_qmatrix) {
     if (oxcf->q_cfg.using_qm && oxcf->q_cfg.user_defined_qmatrix) {
       for (int qm_id = 0; qm_id < NUM_CUSTOM_QMS; qm_id++) {
-        if (cm->use_user_defined_qm[qm_id]) {
+        if (cpi->use_user_defined_qm[qm_id]) {
           av1_qm_frame_update(&cm->quant_params,
                               cm->seq_params.monochrome ? 1 : 3, qm_id,
                               cpi->user_defined_qm_list[qm_id]);
