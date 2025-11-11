@@ -39,17 +39,8 @@ extern "C" {
 #define SUB_PU_QTHR 150
 #define SUB_PU_BD_FACTOR 24
 
-enum lf_path {
-  LF_PATH_420,
-  LF_PATH_444,
-  LF_PATH_SLOW,
-};
-
 /*!\cond */
 enum { VERT_EDGE = 0, HORZ_EDGE = 1, NUM_EDGE_DIRS } UENUM1BYTE(EDGE_DIR);
-typedef struct {
-  uint64_t bits[4];
-} FilterMask;
 
 struct loopfilter {
   int filter_level[2];
@@ -78,14 +69,6 @@ struct loopfilter {
   int tip_filter_level;
   int tip_delta;
 };
-
-// Need to align this structure so when it is declared and
-// passed it can be loaded into vector registers.
-typedef struct {
-  DECLARE_ALIGNED(SIMD_WIDTH, uint8_t, mblim[SIMD_WIDTH]);
-  DECLARE_ALIGNED(SIMD_WIDTH, uint8_t, lim[SIMD_WIDTH]);
-  DECLARE_ALIGNED(SIMD_WIDTH, uint8_t, hev_thr[SIMD_WIDTH]);
-} loop_filter_thresh;
 
 typedef struct {
 #if CONFIG_DF_DQP

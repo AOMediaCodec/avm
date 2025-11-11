@@ -44,7 +44,6 @@ struct aom_codec_alg_priv {
   aom_codec_dec_cfg_t cfg;
   aom_codec_stream_info_t si;
   aom_image_t img;
-  int img_avail;
   int flushed;
   int invert_tile_order;
   RefCntBuffer *last_show_frame;  // Last output frame buffer

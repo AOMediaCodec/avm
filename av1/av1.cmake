@@ -401,9 +401,6 @@ list(
 
 list(APPEND AOM_AV1_ENCODER_INTRIN_SSE3 "${AOM_ROOT}/av1/encoder/x86/ml_sse3.c")
 
-list(APPEND AOM_AV1_ENCODER_ASM_SSSE3_X86_64
-     "${AOM_ROOT}/av1/encoder/x86/av1_quantize_ssse3_x86_64.asm")
-
 list(
   APPEND
   AOM_AV1_ENCODER_INTRIN_SSE4_1
@@ -416,10 +413,8 @@ list(
 list(
   APPEND
   AOM_AV1_ENCODER_INTRIN_AVX2
-  "${AOM_ROOT}/av1/encoder/x86/av1_quantize_avx2.c"
   "${AOM_ROOT}/av1/encoder/x86/av1_highbd_quantize_avx2.c"
   "${AOM_ROOT}/av1/encoder/x86/highbd_block_error_intrin_avx2.c"
-  "${AOM_ROOT}/av1/encoder/x86/av1_fwd_txfm_avx2.h"
   "${AOM_ROOT}/av1/encoder/x86/av1_fwd_txfm2d_avx2.c"
   "${AOM_ROOT}/av1/encoder/x86/highbd_fwd_txfm_avx2.c"
   "${AOM_ROOT}/av1/encoder/x86/wedge_utils_avx2.c"
@@ -430,7 +425,6 @@ list(
 list(
   APPEND
   AOM_AV1_ENCODER_INTRIN_NEON
-  "${AOM_ROOT}/av1/encoder/arm/neon/quantize_neon.c"
   "${AOM_ROOT}/av1/encoder/arm/neon/ml_neon.c"
   "${AOM_ROOT}/av1/encoder/arm/neon/rdopt_neon.c"
   "${AOM_ROOT}/av1/encoder/arm/neon/encodetxb_neon.c"

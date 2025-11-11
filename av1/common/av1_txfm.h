@@ -91,9 +91,6 @@ static INLINE uint16_t highbd_clip_pixel_add(uint16_t dest, tran_high_t trans,
   return clip_pixel_highbd(dest + (int)trans, bd);
 }
 
-typedef void (*TxfmFunc)(const int32_t *input, int32_t *output, int8_t cos_bit,
-                         const int8_t *stage_range);
-
 #ifdef __cplusplus
 }
 #endif  // __cplusplus

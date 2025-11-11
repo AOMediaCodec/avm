@@ -15,7 +15,7 @@
 #include "av1/common/enums.h"
 #include "av1/common/av1_txfm.h"
 #include "av1/common/idct.h"
-#include "av1/encoder/x86/av1_fwd_txfm_avx2.h"
+#include <immintrin.h>
 
 static INLINE __m256i load_4x4_s16_avx2(const int16_t *src, int stride) {
   // Cast src pointer to handle byte-level stride arithmetic

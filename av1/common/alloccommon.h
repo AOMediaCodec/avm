@@ -56,9 +56,6 @@ void av1_alloc_restoration_boundary_buffers(struct AV1Common *cm,
                                             int num_planes);
 void av1_free_restoration_buffers(struct AV1Common *cm);
 
-int av1_alloc_state_buffers(struct AV1Common *cm, int width, int height);
-void av1_free_state_buffers(struct AV1Common *cm);
-
 int av1_get_MBs(int width, int height);
 
 #ifdef __cplusplus

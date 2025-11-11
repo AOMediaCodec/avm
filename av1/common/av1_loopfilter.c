@@ -566,15 +566,10 @@ static TX_SIZE get_transform_size(const MACROBLOCKD *const xd,
 }
 
 typedef struct AV1_DEBLOCKING_PARAMETERS {
-  // length of the filter applied to the outer edge
-
+  // Length of the filter applied to the outer edge.
   uint32_t filter_length_neg;
   uint32_t filter_length_pos;
-
-  // deblocking limits
-  const uint8_t *lim;
-  const uint8_t *mblim;
-  const uint8_t *hev_thr;
+  // Thresholds.
   uint16_t q_threshold;
   uint16_t side_threshold;
 } AV1_DEBLOCKING_PARAMETERS;

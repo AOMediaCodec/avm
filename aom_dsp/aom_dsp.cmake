@@ -229,8 +229,6 @@ if(CONFIG_AV1_ENCODER)
     "${AOM_ROOT}/aom_dsp/x86/fwd_txfm_sse2.h"
     "${AOM_ROOT}/aom_dsp/x86/highbd_quantize_intrin_sse2.c"
     "${AOM_ROOT}/aom_dsp/x86/highbd_variance_sse2.c"
-    "${AOM_ROOT}/aom_dsp/x86/quantize_sse2.c"
-    "${AOM_ROOT}/aom_dsp/x86/adaptive_quantize_sse2.c"
     "${AOM_ROOT}/aom_dsp/x86/highbd_adaptive_quantize_sse2.c"
     "${AOM_ROOT}/aom_dsp/x86/quantize_x86.h"
     "${AOM_ROOT}/aom_dsp/x86/blk_sse_sum_sse2.c"
@@ -245,7 +243,6 @@ if(CONFIG_AV1_ENCODER)
     AOM_DSP_ENCODER_INTRIN_AVX2
     "${AOM_ROOT}/aom_dsp/x86/masked_sad_intrin_avx2.c"
     "${AOM_ROOT}/aom_dsp/x86/highbd_quantize_intrin_avx2.c"
-    "${AOM_ROOT}/aom_dsp/x86/adaptive_quantize_avx2.c"
     "${AOM_ROOT}/aom_dsp/x86/highbd_adaptive_quantize_avx2.c"
     "${AOM_ROOT}/aom_dsp/x86/sad4d_avx2.c"
     "${AOM_ROOT}/aom_dsp/x86/sad_highbd_avx2.c"
@@ -257,9 +254,6 @@ if(CONFIG_AV1_ENCODER)
     "${AOM_ROOT}/aom_dsp/x86/blk_sse_sum_avx2.c"
     "${AOM_ROOT}/aom_dsp/x86/sum_squares_avx2.c")
 
-  list(APPEND AOM_DSP_ENCODER_INTRIN_AVX
-       "${AOM_ROOT}/aom_dsp/x86/aom_quantize_avx.c")
-
   list(
     APPEND
     AOM_DSP_ENCODER_INTRIN_SSSE3
@@ -268,7 +262,6 @@ if(CONFIG_AV1_ENCODER)
     "${AOM_ROOT}/aom_dsp/x86/masked_sad4d_ssse3.c"
     "${AOM_ROOT}/aom_dsp/x86/masked_variance_intrin_ssse3.h"
     "${AOM_ROOT}/aom_dsp/x86/masked_variance_intrin_ssse3.c"
-    "${AOM_ROOT}/aom_dsp/x86/quantize_ssse3.c"
     "${AOM_ROOT}/aom_dsp/x86/variance_impl_ssse3.c"
     "${AOM_ROOT}/aom_dsp/x86/jnt_sad_ssse3.c")
 
