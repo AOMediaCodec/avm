@@ -972,12 +972,9 @@ static void foreach_rest_unit_in_planes_mt(AV1LrStruct *lr_ctxt,
   FilterFrameCtxt *ctxt = lr_ctxt->ctxt;
 
   uint16_t *luma = NULL;
-  uint16_t *luma_buf;
+  uint16_t *luma_buf = NULL;
   const YV12_BUFFER_CONFIG *dgd = &cm->cur_frame->buf;
   int luma_stride = dgd->widths[1] + 2 * WIENERNS_UV_BRD;
-  luma_buf = wienerns_copy_luma_with_virtual_lines(cm, &luma);
-  assert(luma_buf != NULL);
-
   const int num_planes = av1_num_planes(cm);
 
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
@@ -997,6 +994,8 @@ static void foreach_rest_unit_in_planes_mt(AV1LrStruct *lr_ctxt,
     ctxt[plane].plane = plane;
     ctxt[plane].base_qindex = cm->quant_params.base_qindex;
     const int is_uv = (plane != AOM_PLANE_Y);
+    if (is_uv && luma_buf == NULL)
+      luma_buf = wienerns_copy_luma_with_virtual_lines(cm, &luma);
     ctxt[plane].luma = is_uv ? luma : NULL;
     ctxt[plane].luma_stride = is_uv ? luma_stride : -1;
     ctxt[plane].tskip = cm->mi_params.tx_skip[plane];
@@ -1099,7 +1098,7 @@ static void foreach_rest_unit_in_planes_mt(AV1LrStruct *lr_ctxt,
   for (i = 0; i < num_workers; ++i) {
     winterface->sync(&workers[i]);
   }
-  free(luma_buf);
+  if (luma_buf != NULL) free(luma_buf);
 }
 
 void av1_loop_restoration_filter_frame_mt(YV12_BUFFER_CONFIG *frame,
