@@ -417,9 +417,6 @@ static INLINE void decode_eob(DecoderCodingBlock *dcb, aom_reader *const r,
   }
   *eob = rec_eob_pos(eob_pt, eob_extra);
   *bob = *eob;  // escape character
-  if (plane == AOM_PLANE_U) {
-    xd->eob_u = *eob;
-  }
 }
 
 uint8_t av1_read_sig_txtype(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
@@ -439,9 +436,6 @@ uint8_t av1_read_sig_txtype(const AV1_COMMON *const cm, DecoderCodingBlock *dcb,
   *max_scan_line = 0;
   *eob = 0;
 
-  if (plane == AOM_PLANE_U) {
-    xd->eob_u = 0;
-  }
   int txb_skip_ctx = txb_ctx->txb_skip_ctx;
   int all_zero;
   if (plane == AOM_PLANE_Y || plane == AOM_PLANE_U) {

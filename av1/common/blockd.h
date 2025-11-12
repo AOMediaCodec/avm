@@ -2343,8 +2343,6 @@ typedef struct macroblockd {
 
   /** buffer to store AOM_PLANE_U txfm coefficient signs */
   int32_t tmp_sign[1024];
-  /** variable to store AOM_PLANE_U eob value */
-  uint16_t eob_u;
   /** variable to store eob_u flag */
   uint8_t eob_u_flag;
 
