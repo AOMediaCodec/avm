@@ -1189,10 +1189,14 @@ static void build_intra_predictors_high(
       mbmi->is_wide_angle[plane > 0][txb_idx] = 0;
       mbmi->mapped_intra_mode[plane > 0][txb_idx] = DC_PRED;
     }
-    if (p_angle <= 90)
+    if (p_angle < 90)
       need_above = 1, need_left = 0, need_above_left = 1;
+    else if (p_angle == 90)
+      need_above = 1, need_left = 0, need_above_left = 0;
     else if (p_angle < 180)
       need_above = 1, need_left = 1, need_above_left = 1;
+    else if (p_angle == 180)
+      need_above = 0, need_left = 1, need_above_left = 0;
     else
       need_above = 0, need_left = 1, need_above_left = 1;
     if (apply_ibp) {
