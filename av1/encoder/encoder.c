@@ -4225,9 +4225,6 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
   return AOM_CODEC_OK;
 }
 
-extern void av1_print_frame_contexts(const FRAME_CONTEXT *fc,
-                                     const char *filename);
-
 // 1) For multiple tiles-based coding, calculate the average CDFs from the
 // allowed tiles, and use the average CDFs of the tiles as the frame's CDFs
 // 2) For one tile coding, directly use that tile's CDFs as the frame's CDFs

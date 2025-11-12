@@ -164,11 +164,6 @@ static const uint8_t
       2
     };
 
-static const uint8_t size_to_tx_type_group_lookup[BLOCK_SIZES_ALL] = {
-  0,  0,  0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 10, 10, 10,
-  10, 10, 10, 11, 12, 13, 14, 15, 16, 11, 12, 13, 14, 11, 12
-};
-
 static const uint8_t fsc_bsize_groups[BLOCK_SIZES_ALL] = {
   0, 1, 1, 2, 3, 3, 4, 5, 5, 5, 6, 6, 6, 6, 6, 6,
   6, 6, 6, 3, 3, 4, 4, 6, 6, 4, 4, 6, 6, 6, 6
@@ -518,7 +513,6 @@ static const TX_TYPE_1D htx_tab[TX_TYPES] = {
 #if CONFIG_INSPECTION
 // Smallest sub_tx size units. Used to compute the index in the
 // tx type map.
-// TODO(urvang): Is this even required?
 static const TX_SIZE smallest_sub_tx_size_map[TX_SIZES_ALL] = {
   TX_4X4,    // TX_4X4
   TX_4X4,    // TX_8X8
@@ -541,34 +535,6 @@ static const TX_SIZE smallest_sub_tx_size_map[TX_SIZES_ALL] = {
   TX_16X4,   // TX_64X16
 };
 #endif  // CONFIG_INSPECTION
-
-static const TX_SIZE sub_tx_size_map[TX_SIZES_ALL] = {
-  TX_4X4,    // TX_4X4
-  TX_4X4,    // TX_8X8
-  TX_8X8,    // TX_16X16
-  TX_16X16,  // TX_32X32
-  TX_32X32,  // TX_64X64
-  TX_4X4,    // TX_4X8
-  TX_4X4,    // TX_8X4
-  TX_8X8,    // TX_8X16
-  TX_8X8,    // TX_16X8
-  TX_16X16,  // TX_16X32
-  TX_16X16,  // TX_32X16
-  TX_32X32,  // TX_32X64
-  TX_32X32,  // TX_64X32
-  TX_4X8,    // TX_4X16
-  TX_8X4,    // TX_16X4
-  TX_8X16,   // TX_8X32
-  TX_16X8,   // TX_32X8
-  TX_16X32,  // TX_16X64
-  TX_32X16,  // TX_64X16
-  TX_4X16,   // TX_4X32
-  TX_16X4,   // TX_32X4
-  TX_8X32,   // TX_8X64
-  TX_32X8,   // TX_64X8
-  TX_4X32,   // TX_4X64
-  TX_32X4,   // TX_64X4
-};
 
 static const TX_SIZE txsize_horz_map[TX_SIZES_ALL] = {
   TX_4X4,    // TX_4X4
@@ -871,16 +837,6 @@ static const struct {
 };
 /* clang-format on */
 
-static const int intra_mode_context[INTRA_MODES] = {
-  0, 1, 2, 3, 4, 4, 4, 4, 3, 0, 1, 2, 0,
-};
-
-// Note: this is also used in unit tests. So whenever one changes the table,
-// the unit tests need to be changed accordingly.
-static const int quant_dist_weight[4][2] = {
-  { 2, 3 }, { 2, 5 }, { 2, 7 }, { 1, MAX_FRAME_DISTANCE }
-};
-
 static const int quant_dist_lookup_table[4][2] = {
   { 9, 7 },
   { 11, 5 },
@@ -1007,8 +963,6 @@ static const int g_ver_tx_type[TX_TYPES] = {
   DCT8,  // V_FLIPADST,         // FLIPADST in vertical, identity in horizontal
   IDT,   // H_FLIPADST,         // Identity in vertical, FLIPADST in horizontal
 };
-
-static const int min_class_with_offset[7] = { 4, 3, 2, 0, 0, 0, 0 };
 
 #ifdef __cplusplus
 }  // extern "C"

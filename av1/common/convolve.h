@@ -121,19 +121,6 @@ void av1_convolve_nonsep_dual_highbd(const uint16_t *dgd, int width, int height,
 
 #define WIENER_CLAMP_LIMIT(r0, bd) (1 << ((bd) + 1 + FILTER_BITS - r0))
 
-typedef void (*aom_convolve_fn_t)(const uint8_t *src, int src_stride,
-                                  uint8_t *dst, int dst_stride, int w, int h,
-                                  const InterpFilterParams *filter_params_x,
-                                  const InterpFilterParams *filter_params_y,
-                                  const int subpel_x_qn, const int subpel_y_qn,
-                                  ConvolveParams *conv_params);
-
-typedef void (*aom_highbd_convolve_fn_t)(
-    const uint16_t *src, int src_stride, uint16_t *dst, int dst_stride, int w,
-    int h, const InterpFilterParams *filter_params_x,
-    const InterpFilterParams *filter_params_y, const int subpel_x_qn,
-    const int subpel_y_qn, ConvolveParams *conv_params, int bd);
-
 struct AV1Common;
 struct scale_factors;
 
@@ -204,11 +191,6 @@ void av1_highbd_convolve_2d_facade(const uint16_t *src8, int src_stride,
                                    const int subpel_y_qn, int y_step_q4,
                                    int scaled, ConvolveParams *conv_params,
                                    int bd, int is_intrabc);
-
-// TODO(sarahparker) This will need to be integerized and optimized
-void av1_convolve_2d_sobel_y_c(const uint8_t *src, int src_stride, double *dst,
-                               int dst_stride, int w, int h, int dir,
-                               double norm);
 
 #ifdef __cplusplus
 }  // extern "C"

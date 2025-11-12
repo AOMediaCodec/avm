@@ -2765,17 +2765,7 @@ static INLINE BLOCK_SIZE get_mb_plane_block_size_from_tree_type(
   return get_plane_block_size(bsize_base, subsampling_x, subsampling_y);
 }
 
-/*
- * Logic to generate the lookup tables:
- *
- * TX_SIZE txs = max_txsize_rect_lookup[bsize];
- * for (int level = 0; level < MAX_VARTX_DEPTH - 1; ++level)
- *   txs = sub_tx_size_map[txs];
- * const int tx_w_log2 = tx_size_wide_log2[txs] - MI_SIZE_LOG2;
- * const int tx_h_log2 = tx_size_high_log2[txs] - MI_SIZE_LOG2;
- * const int bw_uint_log2 = mi_size_wide_log2[bsize];
- * const int stride_log2 = bw_uint_log2 - tx_w_log2;
- */
+// Get the index into the `mbmi->tx_partition_type` array for this block.
 static INLINE int av1_get_txb_size_index(BLOCK_SIZE bsize, int blk_row,
                                          int blk_col) {
   (void)bsize;
@@ -2790,17 +2780,6 @@ static INLINE int av1_get_txb_size_index(BLOCK_SIZE bsize, int blk_row,
 }
 
 #if CONFIG_INSPECTION
-/*
- * Here is the logic to generate the lookup tables:
- *
- * TX_SIZE txs = max_txsize_rect_lookup[bsize];
- * for (int level = 0; level < MAX_VARTX_DEPTH; ++level)
- *   txs = sub_tx_size_map[txs];
- * const int tx_w_log2 = tx_size_wide_log2[txs] - MI_SIZE_LOG2;
- * const int tx_h_log2 = tx_size_high_log2[txs] - MI_SIZE_LOG2;
- * const int bw_uint_log2 = mi_size_wide_log2[bsize];
- * const int stride_log2 = bw_uint_log2 - tx_w_log2;
- */
 static INLINE int av1_get_txk_type_index(BLOCK_SIZE bsize, int blk_row,
                                          int blk_col) {
   int index = 0;
@@ -3381,17 +3360,6 @@ static INLINE int is_interintra_allowed(const MB_MODE_INFO *mbmi) {
          is_interintra_allowed_ref(mbmi->ref_frame) && mbmi->bawp_flag[0] == 0;
 }
 
-static INLINE int is_interintra_allowed_bsize_group(int group) {
-  int i;
-  for (i = 0; i < BLOCK_SIZES_ALL; i++) {
-    if (size_group_lookup[i] == group &&
-        is_interintra_allowed_bsize((BLOCK_SIZE)i)) {
-      return 1;
-    }
-  }
-  return 0;
-}
-
 static INLINE int is_interintra_pred(const MB_MODE_INFO *mbmi) {
   assert(IMPLIES(is_interintra_mode(mbmi), mbmi->ref_frame[1] == NONE_FRAME));
   return is_interintra_mode(mbmi);
@@ -3489,9 +3457,6 @@ typedef aom_cdf_prob (*MapCdf)[PALETTE_COLOR_INDEX_CONTEXTS]
 typedef const int (*ColorCost)[PALETTE_SIZES][PALETTE_COLOR_INDEX_CONTEXTS]
                               [PALETTE_COLORS];
 /* clang-format on */
-
-typedef aom_cdf_prob(*PaletteDirectionCdf);
-typedef const int (*PaletteDirectionCost)[2];
 
 typedef aom_cdf_prob (*IdentityRowCdf)[CDF_SIZE(3)];
 typedef const int (*IdentityRowCost)[PALETTE_ROW_FLAG_CONTEXTS][3];

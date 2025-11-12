@@ -7823,9 +7823,6 @@ uint32_t write_multi_frame_header_obu(AV1_COMP *cpi,
 #endif  // CONFIG_MULTI_FRAME_HEADER
 
 #if CONFIG_F106_OBU_TILEGROUP
-extern void av1_print_uncompressed_frame_header(const uint8_t *data, int size,
-                                                const char *filename);
-
 static uint32_t write_tilegroup_payload(AV1_COMP *const cpi, uint8_t *const dst,
                                         struct aom_write_bit_buffer *saved_wb,
                                         int num_tgs, int start_tile_idx,
@@ -8180,9 +8177,6 @@ typedef struct {
   size_t obu_header_byte_offset;
   size_t total_length;
 } FrameHeaderInfo;
-
-extern void av1_print_uncompressed_frame_header(const uint8_t *data, int size,
-                                                const char *filename);
 
 static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
                                        struct aom_write_bit_buffer *saved_wb,
