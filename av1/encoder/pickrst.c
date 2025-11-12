@@ -49,7 +49,7 @@
 #define WIENER_TAP_SCALE_FACTOR ((int64_t)1 << 16)
 
 // Number of elements needed in the temporary buffer for
-// compute_wienerns_filter
+// compute_wienerns_filter* functions.
 #define WIENERNS_A_SIZE (WIENERNS_TAPS_MAX * WIENERNS_TAPS_MAX)
 #define WIENERNS_b_SIZE (WIENERNS_TAPS_MAX)
 #define WIENERNS_R_SIZE \
@@ -148,7 +148,7 @@ typedef struct {
 
   int luma_stride;
 
-  // Temporary storage used by compute_wienerns_filter
+  // Temporary storage used by *wienerns_filter* functions.
   double *wienerns_tmpbuf;
 
   bool tskip_zero_flag;
@@ -1283,7 +1283,6 @@ static BestMatchResults find_best_match_for_class(
 
   int64_t best_scr = INT_MAX;
   int best_filter_index = ILLEGAL_MATCH;
-  const int zero_filter_index = 0;
   const int nopcw =
       disable_pcwiener_filters_in_framefilters(&rsc->cm->seq_params);
   const int max_filter_index = num_dictionary_slots(filter->num_classes, nopcw);
@@ -1553,151 +1552,6 @@ static int compute_wienerns_filter_select(
   for (int i = 0; i < n; i++) {
     nsfilter[i] = select[i] ? sel_x[ip++] : 0;
   }
-  return ret;
-}
-
-static int compute_wienerns_filter_sym(
-    int n, const double *A, int stride, const double *b, double *tmpbuf,
-    int16_t *nsfilter, const WienernsFilterParameters *nsfilter_params) {
-  int ncoeffs1, ncoeffs2;
-  int ncoeffs =
-      config2ncoeffs(&nsfilter_params->nsfilter_config, &ncoeffs1, &ncoeffs2);
-  (void)ncoeffs;
-  if (nsfilter_params->nsfilter_config.asymmetric +
-          nsfilter_params->nsfilter_config.asymmetric2 ==
-      0)
-    return 0;
-  double sym_A[WIENERNS_A_SIZE] = { 0 };
-  double sym_b[WIENERNS_b_SIZE] = { 0 };
-  int stridep = n;
-  int ip = 0;
-  for (int i = 0; i < n; ++i) {
-    const int is_asym_coeff_i =
-        (i < nsfilter_params->nsfilter_config.asymmetric ||
-         (i >= ncoeffs1 &&
-          i - ncoeffs1 < nsfilter_params->nsfilter_config.asymmetric2));
-    if (is_asym_coeff_i && (i & 1) == 1) continue;
-    const int is_merge_i = (is_asym_coeff_i && (i & 1) == 0);
-    for (int j = i, jp = ip; j < n; ++j) {
-      const int is_asym_coeff_j =
-          (j < nsfilter_params->nsfilter_config.asymmetric ||
-           (j >= ncoeffs1 &&
-            j - ncoeffs1 < nsfilter_params->nsfilter_config.asymmetric2));
-      if (is_asym_coeff_j && (j & 1) == 1) continue;
-      const int is_merge_j = is_asym_coeff_j && (j & 1) == 0;
-      if (is_merge_i && is_merge_j)
-        sym_A[ip * stridep + jp] = A[i * stride + j] + A[i * stride + j + 1] +
-                                   A[(i + 1) * stride + j] +
-                                   A[(i + 1) * stride + j + 1];
-      else if (is_merge_i)
-        sym_A[ip * stridep + jp] = A[i * stride + j] + A[(i + 1) * stride + j];
-      else if (is_merge_j)
-        sym_A[ip * stridep + jp] = A[i * stride + j] + A[i * stride + j + 1];
-      else
-        sym_A[ip * stridep + jp] = A[i * stride + j];
-      if (ip != jp) sym_A[jp * stridep + ip] = sym_A[ip * stridep + jp];
-      jp++;
-    }
-    if (is_merge_i)
-      sym_b[ip] = b[i] + b[i + 1];
-    else
-      sym_b[ip] = b[i];
-    ip++;
-  }
-  int np = ip;
-  assert(np > 0);
-  assert(stridep > 0);
-
-  // Use temporary storage to avoid modifying A and b
-  double *R = tmpbuf;
-  double *tmp = tmpbuf + WIENERNS_R_SIZE;
-
-  // Set up quantization data
-  double prec[WIENERNS_TAPS_MAX] = { 0 };
-  int32_t min[WIENERNS_TAPS_MAX] = { 0 };
-  int32_t max[WIENERNS_TAPS_MAX] = { 0 };
-  int32_t scale[WIENERNS_TAPS_MAX] = { 0 };
-
-  assert(np <= nsfilter_params->ncoeffs);
-
-  ip = 0;
-  for (int i = 0; i < n; i++) {
-    const int is_asym_coeff_i =
-        (i < nsfilter_params->nsfilter_config.asymmetric ||
-         (i >= ncoeffs1 &&
-          i - ncoeffs1 < nsfilter_params->nsfilter_config.asymmetric2));
-    if (is_asym_coeff_i && (i & 1) == 1) continue;
-    int min_val = nsfilter_params->coeffs[i][WIENERNS_MIN_ID];
-    int range = 1 << nsfilter_params->coeffs[i][WIENERNS_BIT_ID];
-
-    prec[ip] = (double)(1 << nsfilter_params->nsfilter_config.prec_bits);
-    min[ip] = min_val;
-    max[ip] = min_val + range - 1;
-    scale[ip] = 1;
-    ip++;
-  }
-  // Solve problem
-  int32_t sym_x[WIENERNS_TAPS_MAX];
-  int ret = linsolve_spd_quantize(np, sym_A, R, stridep, sym_b, tmp, sym_x,
-                                  prec, min, max, scale);
-  if (!ret) goto finished;
-
-  // Convert results from 32-bit to 16-bit storage
-  ip = 0;
-  for (int i = 0; i < n; i++) {
-    const int is_asym_coeff_i =
-        (i < nsfilter_params->nsfilter_config.asymmetric ||
-         (i >= ncoeffs1 &&
-          i - ncoeffs1 < nsfilter_params->nsfilter_config.asymmetric2));
-    if (is_asym_coeff_i && (i & 1) == 1)
-      nsfilter[i] = nsfilter[i - 1];
-    else
-      nsfilter[i] = sym_x[ip++];
-  }
-
-finished:
-  return ret;
-}
-
-static int compute_wienerns_filter(
-    int n, const double *A, int stride, const double *b, double *tmpbuf,
-    int16_t *nsfilter, const WienernsFilterParameters *nsfilter_params) {
-  assert(n > 0);
-  assert(stride > 0);
-
-  // Use temporary storage to avoid modifying A and b
-  double *R = tmpbuf;
-  double *tmp = tmpbuf + WIENERNS_R_SIZE;
-
-  // Set up quantization data
-  double prec[WIENERNS_TAPS_MAX] = { 0 };
-  int32_t min[WIENERNS_TAPS_MAX] = { 0 };
-  int32_t max[WIENERNS_TAPS_MAX] = { 0 };
-  int32_t scale[WIENERNS_TAPS_MAX] = { 0 };
-
-  assert(n <= nsfilter_params->ncoeffs);
-  for (int i = 0; i < n; i++) {
-    int min_val = nsfilter_params->coeffs[i][WIENERNS_MIN_ID];
-    int range = 1 << nsfilter_params->coeffs[i][WIENERNS_BIT_ID];
-
-    prec[i] = (double)(1 << nsfilter_params->nsfilter_config.prec_bits);
-    min[i] = min_val;
-    max[i] = min_val + range - 1;
-    scale[i] = 1;
-  }
-
-  // Solve problem
-  int32_t x[WIENERNS_TAPS_MAX];
-  int ret =
-      linsolve_spd_quantize(n, A, R, stride, b, tmp, x, prec, min, max, scale);
-  if (!ret) goto finished;
-
-  // Convert results from 32-bit to 16-bit storage
-  for (int i = 0; i < n; i++) {
-    nsfilter[i] = x[i];
-  }
-
-finished:
   return ret;
 }
 
@@ -3413,19 +3267,6 @@ static void solve_filters_from_stats_wienerns(const RestSearchCtxt *rsc,
         sum_stats->A + c_id * stride_A, num_feat,
         sum_stats->b + c_id * stride_b, rsc->wienerns_tmpbuf, nsfilter_params,
         0);
-    /*
-    linsolve_successful = compute_wienerns_filter_select(
-        num_feat, nsfilter_params->subset_config[nsfilter_params->nsubsets - 1],
-        sum_stats->A + c_id * stride_A, num_feat,
-        sum_stats->b + c_id * stride_b, rsc->wienerns_tmpbuf,
-        nsfilter_taps(filter, c_id), nsfilter_params);
-        */
-    /*
-    linsolve_successful = compute_wienerns_filter(
-        num_feat, sum_stats->A + c_id * stride_A, num_feat,
-        sum_stats->b + c_id * stride_b, rsc->wienerns_tmpbuf,
-        nsfilter_taps(filter, c_id), nsfilter_params);
-        */
     if (!linsolve_successful) {
       memset(nsfilter_taps(filter, c_id), 0,
              num_feat * sizeof(*filter->allfiltertaps));
