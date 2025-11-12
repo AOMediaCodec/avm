@@ -2201,9 +2201,6 @@ typedef struct AV1Common {
    *      |                                           |
    *      v                                           v
    * ref_frame_map[],      ...,                ref_frame_map[]
-   *
-   * Note: INTRA_FRAME always refers to the current frame, so there's no need to
-   * have a remapped index for the same.
    */
   int remapped_ref_idx[REF_FRAMES];
   /*!
