@@ -756,8 +756,7 @@ int64_t av1_rd_pick_intra_sbuv_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
           is_mode_rd_info_fetched = true;
         }
       }
-      this_rate = tokenonly_rd_stats.rate +
-                  intra_mode_info_cost_uv(cpi, x, mbmi, bsize, mode_cost);
+      this_rate = tokenonly_rd_stats.rate + mode_cost;
 
       if (mode == UV_CFL_PRED &&
           (cm->seq_params.enable_cfl_intra || cm->seq_params.enable_mhccp)) {
@@ -1279,9 +1278,7 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
     const int uv_mode_cost = get_uv_mode_cost(
         mbmi, x->mode_costs, xd,
         is_cfl_allowed(cm->seq_params.enable_cfl_intra, xd), mbmi->uv_mode_idx);
-    rd_stats->rate +=
-        rd_stats_uv->rate +
-        intra_mode_info_cost_uv(cpi, x, mbmi, bsize, uv_mode_cost);
+    rd_stats->rate += rd_stats_uv->rate + uv_mode_cost;
   }
 
   // Intra block is always coded as non-skip

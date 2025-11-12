@@ -9291,10 +9291,9 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   store_coding_context(x, ctx, search_state.best_pred_diff,
                        search_state.best_mode_skippable, cm);
 
-  if (mbmi->palette_mode_info.palette_size[1] > 0) {
-    assert(try_palette);
-    av1_restore_uv_color_map(cpi, x);
-  }
+  // TODO(urvang): Remove index from `palette_size` array, as palette is no
+  // longer allowed for chroma.
+  assert(mbmi->palette_mode_info.palette_size[1] == 0);
 }
 
 void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,

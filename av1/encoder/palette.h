@@ -197,10 +197,6 @@ void av1_rd_pick_palette_intra_sby(
     struct PICK_MODE_CONTEXT *ctx, uint8_t *best_blk_skip,
     TX_TYPE *tx_type_map);
 
-/*!\brief Resets palette color map for chroma channels.
- */
-void av1_restore_uv_color_map(const struct AV1_COMP *cpi, struct macroblock *x);
-
 #ifdef __cplusplus
 }  // extern "C"
 #endif

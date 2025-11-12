@@ -266,47 +266,6 @@ static AOM_INLINE int intra_mode_info_cost_y(const AV1_COMP *cpi,
   return total_rate;
 }
 
-/*!\brief Return the rate cost for chroma prediction mode info of intra blocks.
- *
- * \callergraph
- */
-static AOM_INLINE int intra_mode_info_cost_uv(const AV1_COMP *cpi,
-                                              const MACROBLOCK *x,
-                                              const MB_MODE_INFO *mbmi,
-                                              BLOCK_SIZE bsize, int mode_cost) {
-  int total_rate = mode_cost;
-  const ModeCosts *mode_costs = &x->mode_costs;
-  const int use_palette = mbmi->palette_mode_info.palette_size[1] > 0;
-  const UV_PREDICTION_MODE mode = mbmi->uv_mode;
-  // Can only activate one mode.
-  assert(mbmi->use_intrabc[PLANE_TYPE_UV] == 0);
-  assert(((mode != UV_DC_PRED) + use_palette +
-          mbmi->use_intrabc[PLANE_TYPE_UV]) <= 1);
-  const int try_palette = av1_allow_palette(
-      PLANE_TYPE_UV, cpi->common.features.allow_screen_content_tools,
-      mbmi->sb_type[PLANE_TYPE_UV]);
-  if (try_palette && mode == UV_DC_PRED) {
-    const PALETTE_MODE_INFO *pmi = &mbmi->palette_mode_info;
-    total_rate += mode_costs->palette_uv_mode_cost[use_palette];
-    if (use_palette) {
-      const int plt_size = pmi->palette_size[1];
-      const MACROBLOCKD *xd = &x->e_mbd;
-      const uint8_t *const color_map = xd->plane[1].color_index_map;
-      int palette_mode_cost =
-          mode_costs->palette_uv_size_cost[plt_size - PALETTE_MIN_SIZE] +
-          write_uniform_cost(plt_size, color_map[0]);
-      uint16_t color_cache[2 * PALETTE_MAX_SIZE];
-      const int n_cache = av1_get_palette_cache(xd, 1, color_cache);
-      palette_mode_cost += av1_palette_color_cost_uv(
-          pmi, color_cache, n_cache, cpi->common.seq_params.bit_depth);
-      palette_mode_cost +=
-          av1_cost_color_map(x, 1, bsize, mbmi->tx_size, PALETTE_MAP);
-      total_rate += palette_mode_cost;
-    }
-  }
-  return total_rate;
-}
-
 /*!\cond */
 // Makes a quick luma prediction and estimate the rdcost with a model without
 // going through the whole txfm/quantize/itxfm process.
