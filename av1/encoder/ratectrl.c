@@ -34,6 +34,7 @@
 #include "av1/encoder/gop_structure.h"
 #include "av1/encoder/random.h"
 #include "av1/encoder/ratectrl.h"
+#include "av1/encoder/scale.h"
 
 #define USE_UNRESTRICTED_Q_IN_CQ_MODE 0
 
@@ -44,10 +45,6 @@
 
 #define MIN_BPB_FACTOR 0.005
 #define MAX_BPB_FACTOR 50
-
-#define SUPERRES_QADJ_PER_DENOM_KEYFRAME_SOLO 0
-#define SUPERRES_QADJ_PER_DENOM_KEYFRAME 2
-#define SUPERRES_QADJ_PER_DENOM_ARFFRAME 0
 
 #define FRAME_OVERHEAD_BITS 200
 #define ASSIGN_MINQ_TABLE(bit_depth, name)                   \
@@ -1287,9 +1284,7 @@ static int rc_pick_q_and_bounds_no_stats_cq(const AV1_COMP *cpi, int width,
   const AV1_COMMON *const cm = &cpi->common;
   const RATE_CONTROL *const rc = &cpi->rc;
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
-  const int qp =
-      get_active_qp(rc, oxcf, frame_is_intra_only(cm), cpi->superres_mode,
-                    cm->superres_scale_denominator);
+  const int qp = get_active_qp(rc, oxcf, frame_is_intra_only(cm));
   const int bit_depth = cm->seq_params.bit_depth;
   const int q = (int)av1_convert_qindex_to_q(qp, bit_depth);
   (void)width;

@@ -1265,11 +1265,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
     //      printf("Only --arnr-strength=0 can currently be used with
     //      --timing-info=model."); return AOM_CODEC_INVALID_PARAM;
     //    }
-    //    if( extra_cfg->enable_superres)
-    //    {
-    //      printf("Only --superres-mode=0 can currently be used with
-    //      --timing-info=model."); return AOM_CODEC_INVALID_PARAM;
-    //    }
     dec_model_cfg->num_units_in_decoding_tick = cfg->g_timebase.num;
     dec_model_cfg->timing_info.equal_picture_interval = 0;
     dec_model_cfg->decoder_model_info_present_flag = 1;

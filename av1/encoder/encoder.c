@@ -79,10 +79,10 @@
 #include "av1/encoder/rd.h"
 #include "av1/encoder/rdopt.h"
 #include "av1/encoder/reconinter_enc.h"
+#include "av1/encoder/scale.h"
 #include "av1/encoder/segmentation.h"
 #include "av1/encoder/speed_features.h"
 #include "av1/encoder/subgop.h"
-#include "av1/encoder/superres_scale.h"
 #include "av1/encoder/tpl_model.h"
 
 #if CONFIG_ML_PART_SPLIT
@@ -3463,10 +3463,6 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 
     av1_set_speed_features_qindex_dependent(cpi, oxcf->speed);
 
-    // printf("Frame %d/%d: q = %d, frame_type = %d superres_denom = %d\n",
-    //        cm->current_frame.frame_number, cm->show_frame, q,
-    //        cm->current_frame.frame_type, cm->superres_scale_denominator);
-
     if (loop_count == 0) {
       av1_setup_frame(cpi);
     } else if (get_primary_ref_frame_buf(cm, cm->features.primary_ref_frame) ==
@@ -4033,8 +4029,6 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
   cm->cur_frame->buf.render_height = cm->render_height;
   cm->cur_frame->buf.bit_depth = (unsigned int)seq_params->bit_depth;
 
-  // If superres is used turn off PC_WIENER since tx_skip values will
-  // not be aligned.
   uint8_t master_lr_tools_disable_mask[2] = {
     cm->seq_params.lr_tools_disable_mask[0],
     cm->seq_params.lr_tools_disable_mask[1]

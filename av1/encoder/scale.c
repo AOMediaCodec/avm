@@ -11,8 +11,8 @@
  */
 
 #include "av1/encoder/encoder_alloc.h"
-#include "av1/encoder/superres_scale.h"
 #include "av1/encoder/random.h"
+#include "av1/encoder/scale.h"
 
 // This function is used to compute the resolution for low delay mode
 static uint8_t get_resolution_ratio_pattern1(const int display_order_hint) {
@@ -98,6 +98,11 @@ static uint8_t calculate_next_resize_scale(const AV1_COMP *cpi) {
   return new_denom;
 }
 
+typedef struct {
+  int resize_width;
+  int resize_height;
+} size_params_type;
+
 static int dimension_is_ok(int orig_dim, int resized_dim, int denom) {
   return (resized_dim * SCALE_NUMERATOR >= orig_dim * denom / 2);
 }
@@ -105,7 +110,7 @@ static int dimension_is_ok(int orig_dim, int resized_dim, int denom) {
 static int dimensions_are_ok(int owidth, int oheight, size_params_type *rsz) {
   // Only need to check the width, as scaling is horizontal only.
   (void)oheight;
-  return dimension_is_ok(owidth, rsz->resize_width, rsz->superres_denom);
+  return dimension_is_ok(owidth, rsz->resize_width, SCALE_NUMERATOR);
 }
 
 static int validate_size_scales(RESIZE_MODE resize_mode, int owidth,
@@ -116,7 +121,7 @@ static int validate_size_scales(RESIZE_MODE resize_mode, int owidth,
   if ((resize_mode == RESIZE_RANDOM || resize_mode == RESIZE_PATTERN)) {
     // Alter resize scale as needed to enforce conformity.
     int resize_denom =
-        (2 * SCALE_NUMERATOR * SCALE_NUMERATOR) / rsz->superres_denom;
+        (2 * SCALE_NUMERATOR * SCALE_NUMERATOR) / SCALE_NUMERATOR;
     rsz->resize_width = owidth;
     rsz->resize_height = oheight;
     av1_calculate_scaled_size(&rsz->resize_width, &rsz->resize_height,
@@ -130,20 +135,18 @@ static int validate_size_scales(RESIZE_MODE resize_mode, int owidth,
                                   resize_denom);
       }
     }
-  } else {  // We are allowed to alter neither resize scale nor superres
-            // scale.
+  } else {  // We are not allowed to alter resize scale.
     return 0;
   }
   return dimensions_are_ok(owidth, oheight, rsz);
 }
 
-// Calculates resize and superres params for next frame
+// Calculates resize params for next frame.
 static size_params_type calculate_next_size_params(AV1_COMP *cpi) {
   const AV1EncoderConfig *oxcf = &cpi->oxcf;
   ResizePendingParams *resize_pending_params = &cpi->resize_pending_params;
   const FrameDimensionCfg *const frm_dim_cfg = &oxcf->frm_dim_cfg;
-  size_params_type rsz = { frm_dim_cfg->width, frm_dim_cfg->height,
-                           SCALE_NUMERATOR };
+  size_params_type rsz = { frm_dim_cfg->width, frm_dim_cfg->height };
   int resize_denom = SCALE_NUMERATOR;
   if (is_stat_generation_stage(cpi)) return rsz;
   if (resize_pending_params->width && resize_pending_params->height) {

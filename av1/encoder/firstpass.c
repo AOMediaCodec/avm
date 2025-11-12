@@ -44,6 +44,7 @@
 #include "av1/encoder/mcomp.h"
 #include "av1/encoder/rd.h"
 #include "av1/encoder/reconinter_enc.h"
+#include "av1/encoder/scale.h"
 
 #define OUTPUT_FPF 0
 

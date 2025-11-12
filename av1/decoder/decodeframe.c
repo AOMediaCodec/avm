@@ -11182,7 +11182,6 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
           save_tile_row_boundary_lines(&pbi->common.cur_frame->buf, 0, cm, 1);
       }
       if (do_loop_restoration) {
-        // HERE
         copy_frame_filters_to_runits_if_needed(cm);
         if (pbi->num_workers > 1
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
@@ -11205,10 +11204,7 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
       }
 
     } else {
-      // In no cdef and no superres case. Provide an optimized version of
-      // loop_restoration_filter.
       if (do_loop_restoration) {
-        // HERE
         copy_frame_filters_to_runits_if_needed(cm);
         if (pbi->num_workers > 1
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES

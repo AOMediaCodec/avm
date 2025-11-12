@@ -2384,7 +2384,7 @@ typedef struct AV1_COMP {
   YV12_BUFFER_CONFIG *unscaled_source;
 
   /*!
-   * Frame buffer holding the resized source frame (cropping / superres).
+   * Frame buffer holding the resized source frame.
    */
   YV12_BUFFER_CONFIG scaled_source;
 
@@ -3312,18 +3312,8 @@ double av1_get_compression_ratio(const AV1_COMMON *const cm,
 
 void av1_new_framerate(AV1_COMP *cpi, double framerate);
 
-void av1_setup_frame_size(AV1_COMP *cpi);
-
 #define LAYER_IDS_TO_IDX(sl, tl, num_tl) ((sl) * (num_tl) + (tl))
 
-// Returns 1 if a frame is scaled and 0 otherwise.
-static INLINE int av1_resize_scaled(const AV1_COMMON *cm) {
-  return !(cm->width == cm->render_width && cm->height == cm->render_height);
-}
-
-static INLINE int av1_frame_scaled(const AV1_COMMON *cm) {
-  return av1_resize_scaled(cm);
-}
 #if !CONFIG_F024_KEYOBU
 // Don't allow a show_existing_frame to coincide with an error resilient
 // frame. An exception can be made for a forward keyframe since it has no

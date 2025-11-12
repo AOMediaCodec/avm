@@ -471,8 +471,6 @@ typedef struct {
 
   /*!
    * Whether optimized lr can be used for speed.
-   * That includes cases of no cdef and no superres, or if fast trial runs
-   * are used on the encoder side.
    */
   int optimized_lr;
   /*!

@@ -3149,13 +3149,6 @@ int av1_loop_restoration_corners_in_sb(const struct AV1Common *cm, int plane,
   const int mi_size_x = MI_SIZE >> ss_x;
   const int mi_size_y = MI_SIZE >> ss_y;
 
-  // Write m for the relative mi column or row, D for the superres denominator
-  // and N for the superres numerator. If u is the upscaled pixel offset then
-  // we can write the downscaled pixel offset in two ways as:
-  //
-  //   MI_SIZE * m = N / D u
-  //
-  // from which we get u = D * MI_SIZE * m / N
   const int mi_to_num_x = mi_size_x;
   const int mi_to_num_y = mi_size_y;
   const int denom_x = size;
@@ -3259,10 +3252,6 @@ static void save_cdef_boundary_lines(const YV12_BUFFER_CONFIG *frame,
   uint16_t *bdry_rows =
       bdry_start + RESTORATION_CTX_VERT * stripe * bdry_stride;
   const int src_width = frame->widths[is_uv];
-
-  // At the point where this function is called, we've already applied
-  // superres. So we don't need to extend the lines here, we can just
-  // pull directly from the topmost row of the upscaled frame.
   const int upscaled_width = src_width;
   const int line_bytes = upscaled_width << 1;
   for (int i = 0; i < RESTORATION_CTX_VERT; i++) {

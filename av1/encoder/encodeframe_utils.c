@@ -105,8 +105,7 @@ int av1_get_hier_tpl_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
   const int num_rows = (cm->mi_params.mi_rows + num_mi_h - 1) / num_mi_h;
   const int num_bcols = (block_mi_width_sr + num_mi_w - 1) / num_mi_w;
   const int num_brows = (mi_size_high[bsize] + num_mi_h - 1) / num_mi_h;
-  // This is required because the end col of superblock may be off by 1 in case
-  // of superres.
+  // This is required because the end col of superblock may be off by 1.
   const int sb_bcol_end = get_superblock_tpl_column_end(cm, mi_col, num_mi_w);
   int row, col;
   double base_block_count = 0.0;
@@ -944,7 +943,6 @@ void av1_get_tpl_stats_sb(AV1_COMP *cpi, BLOCK_SIZE bsize, int mi_row,
   int count = 0;
   const int mi_col_sr = mi_col;
   const int mi_col_end_sr = mi_col + mi_wide;
-  // mi_cols_sr is mi_cols at superres case.
   const int mi_cols_sr = av1_pixels_to_mi(cm->width);
   // TPL store unit size is not the same as the motion estimation unit size.
   // Here always use motion estimation size to avoid getting repetitive inter/

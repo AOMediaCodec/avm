@@ -954,15 +954,7 @@ enum aome_enc_control_id {
    */
   AV1E_SET_ENABLE_CFL_INTRA = 101,
 
-  /*!\brief Codec control function to turn on / off frame superresolution, int
-   * parameter
-   *
-   * \attention If AV1E_SET_ENABLE_SUPERRES is 0, then this flag is forced to 0.
-   *
-   * - 0 = disable
-   * - 1 = enable (default)
-   */
-  AV1E_SET_ENABLE_SUPERRES = 102,
+  /* NOTE: enum 102 unused */
 
   /*!\brief Codec control function to turn on / off overlay frames for
    * filtered ALTREF frames, int parameter
@@ -1561,9 +1553,6 @@ AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_PAETH_INTRA, int)
 
 AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_CFL_INTRA, int)
 #define AOM_CTRL_AV1E_SET_ENABLE_CFL_INTRA
-
-AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_SUPERRES, int)
-#define AOM_CTRL_AV1E_SET_ENABLE_SUPERRES
 
 AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_OVERLAY, int)
 #define AOM_CTRL_AV1E_SET_ENABLE_OVERLAY

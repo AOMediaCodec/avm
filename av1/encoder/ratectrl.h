@@ -49,13 +49,6 @@ extern "C" {
 #define MAX_NUM_GF_INTERVALS 15
 
 #define MAX_ARF_LAYERS 6
-// #define STRICT_RC
-
-typedef struct {
-  int resize_width;
-  int resize_height;
-  uint8_t superres_denom;
-} size_params_type;
 
 enum {
   INTER_NORMAL,

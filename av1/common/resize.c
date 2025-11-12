@@ -1245,9 +1245,6 @@ void av1_upscale_normative_rows(const AV1_COMMON *cm, const uint16_t *src,
     const int upscaled_x0 = downscaled_x0;
     int upscaled_x1;
     if (j == cm->tiles.cols - 1) {
-      // Note that we can't just use AOMMIN here - due to rounding,
-      // (downscaled_x1 * superres_denom) / SCALE_NUMERATOR may be less than
-      // upscaled_plane_width.
       upscaled_x1 = upscaled_plane_width;
     } else {
       upscaled_x1 = downscaled_x1;
@@ -1290,9 +1287,6 @@ YV12_BUFFER_CONFIG *av1_scale_if_required(AV1_COMMON *cm,
                                           const InterpFilter filter,
                                           const int phase,
                                           const bool use_optimized_scaler) {
-  // If scaling is performed for the sole purpose of calculating PSNR, then our
-  // target dimensions are superres upscaled width/height. Otherwise our target
-  // dimensions are coded width/height.
   const bool scaling_required = (cm->width != unscaled->y_crop_width ||
                                  cm->height != unscaled->y_crop_height);
 
