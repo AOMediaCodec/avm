@@ -206,11 +206,6 @@ const map_entry tx_type_map[] = { ENUM(DCT_DCT),
                                   ENUM(V_FLIPADST),
                                   ENUM(H_FLIPADST),
                                   LAST_ENUM };
-const map_entry dual_filter_map[] = { ENUM(REG_REG),       ENUM(REG_SMOOTH),
-                                      ENUM(REG_SHARP),     ENUM(SMOOTH_REG),
-                                      ENUM(SMOOTH_SMOOTH), ENUM(SMOOTH_SHARP),
-                                      ENUM(SHARP_REG),     ENUM(SHARP_SMOOTH),
-                                      ENUM(SHARP_SHARP),   LAST_ENUM };
 const map_entry prediction_mode_map[] = { ENUM(DC_PRED),
                                           ENUM(V_PRED),
                                           ENUM(H_PRED),
@@ -678,10 +673,6 @@ void inspect(void *pbi, void *data) {
   if (layers & TRANSFORM_TYPE_LAYER) {
     buf += put_block_info(buf, tx_type_map, "transformType",
                           offsetof(insp_mi_data, tx_type), 0);
-  }
-  if (layers & DUAL_FILTER_LAYER) {
-    buf += put_block_info(buf, dual_filter_map, "dualFilterType",
-                          offsetof(insp_mi_data, dual_filter_type), 0);
   }
   if (layers & MODE_LAYER) {
     buf += put_block_info(buf, prediction_mode_map, "mode",
