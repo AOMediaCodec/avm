@@ -57,16 +57,10 @@
 #define WIENERNS_B_SIZE (WIENERNS_MAX_CLASSES * WIENERNS_TAPS_MAX)
 #define WIENERNS_TMPBUF_SIZE (WIENERNS_R_SIZE + WIENERNS_B_SIZE + 1)
 
-typedef int64_t (*sse_extractor_type)(const YV12_BUFFER_CONFIG *a,
-                                      const YV12_BUFFER_CONFIG *b);
 typedef int64_t (*sse_part_extractor_type)(const YV12_BUFFER_CONFIG *a,
                                            const YV12_BUFFER_CONFIG *b,
                                            int hstart, int width, int vstart,
                                            int height);
-typedef uint64_t (*var_part_extractor_type)(const YV12_BUFFER_CONFIG *a,
-                                            int hstart, int width, int vstart,
-                                            int height);
-
 #define NUM_EXTRACTORS 3
 
 static const sse_part_extractor_type sse_part_extractors[NUM_EXTRACTORS] = {
@@ -1266,9 +1260,10 @@ static int64_t finer_tile_search_wienerns(
 }
 
 typedef struct BestMatchResults {
-  int use_one_match_index;      // Index of the best matching dictionary-filter.
-  int64_t use_one_taps_score;   // debug: Bits to encode the filter with match.
-  int64_t all_zero_taps_score;  // debug: Bits to encode with all zeros.
+  int use_one_match_index;  // Index of the best matching dictionary-filter.
+#ifndef NDEBUG
+  int64_t use_one_taps_score;  // debug: Bits to encode the filter with match.
+#endif                         // NDEBUG
 } BestMatchResults;
 
 // Returns the index of the dictionary-filter in frame_filter_bank that
@@ -1287,7 +1282,6 @@ static BestMatchResults find_best_match_for_class(
   tmp_filter.num_classes = filter->num_classes;
 
   int64_t best_scr = INT_MAX;
-  int64_t all_zeros_score = 0;  // debug
   int best_filter_index = ILLEGAL_MATCH;
   const int zero_filter_index = 0;
   const int nopcw =
@@ -1309,12 +1303,12 @@ static BestMatchResults find_best_match_for_class(
       best_scr = score;
       best_filter_index = filter_index;
     }
-    if (filter_index == zero_filter_index) all_zeros_score = score;
   }
   assert(best_filter_index != ILLEGAL_MATCH);
   best_match_results.use_one_match_index = best_filter_index;
+#ifndef NDEBUG
   best_match_results.use_one_taps_score = best_scr;
-  best_match_results.all_zero_taps_score = all_zeros_score;
+#endif  // NDEBUG
   return best_match_results;
 }
 
@@ -1360,11 +1354,12 @@ static void find_best_match_for_filter(const RestSearchCtxt *rsc,
                            filter->match_indices, nsfilter_params, c_id, nopcw);
     av1_upd_to_wienerns_bank(&tmp_bank, /*bank_ref=*/0, &tmp_filter, c_id);
     tmp_bank.bank_size_for_class[c_id] = 1;
+#ifndef NDEBUG
     const int64_t taps_score =
         count_wienerns_bits_set(rsc->plane, &rsc->x->mode_costs, filter,
                                 &tmp_bank, nsfilter_params, c_id);
-    (void)taps_score;
     assert(taps_score == best_match_results[c_id].use_one_taps_score);
+#endif  // NDEBUG
   }
 }
 
@@ -1807,87 +1802,6 @@ static int compute_wienerns_filter_select_master(
                                               rsc->cm->seq_params.bit_depth);
     // printf("[%d] Sym:  e %" PRId64 " b %" PRId64 " cost %f\n", ru_size, err,
     //        bits, cost_sym);
-  }
-  if (!linsolve_successful && !linsolve_successful_sym) return 0;
-  if (cost < cost_sym || (linsolve_successful && !linsolve_successful_sym)) {
-    memcpy(nsfilter, nsfilter_bak, num_feat * sizeof(*nsfilter));
-  }
-  return 1;
-}
-
-int compute_wienerns_filter_master_basic(
-    const RestSearchCtxt *rsc, WienerNonsepInfo *filter, int c_id, int n,
-    const double *A, int stride, const double *b, double *tmpbuf,
-    const WienernsFilterParameters *nsfilter_params, int do_sym_search) {
-  double cost = DBL_MAX, cost_sym = DBL_MAX;
-  int16_t *nsfilter = nsfilter_taps(filter, c_id);
-  int16_t nsfilter_bak[WIENERNS_TAPS_MAX];
-  const int num_feat = nsfilter_params->ncoeffs;
-
-  int linsolve_successful = compute_wienerns_filter(n, A, stride, b, tmpbuf,
-                                                    nsfilter, nsfilter_params);
-  if (!do_sym_search) return linsolve_successful;
-  if (linsolve_successful) {
-    double err = 0;
-    for (int i = 0; i < num_feat; ++i) err -= nsfilter[i] * b[i];
-    const int64_t bits =
-        count_wienerns_bits_set(rsc->plane, &rsc->x->mode_costs, filter,
-                                &rsc->wienerns_bank, nsfilter_params, c_id);
-    cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-        rsc->x->rdmult, bits >> 4, (int64_t)err, rsc->cm->seq_params.bit_depth);
-    memcpy(nsfilter_bak, nsfilter, num_feat * sizeof(*nsfilter));
-  }
-  int linsolve_successful_sym = compute_wienerns_filter_sym(
-      n, A, stride, b, tmpbuf, nsfilter, nsfilter_params);
-  if (linsolve_successful_sym) {
-    double err = 0;
-    for (int i = 0; i < num_feat; ++i) err -= nsfilter[i] * b[i];
-    const int64_t bits =
-        count_wienerns_bits_set(rsc->plane, &rsc->x->mode_costs, filter,
-                                &rsc->wienerns_bank, nsfilter_params, c_id);
-    cost_sym = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-        rsc->x->rdmult, bits >> 4, (int64_t)err, rsc->cm->seq_params.bit_depth);
-  }
-  if (!linsolve_successful && !linsolve_successful_sym) return 0;
-  if (cost < cost_sym || (linsolve_successful && !linsolve_successful_sym)) {
-    memcpy(nsfilter, nsfilter_bak, num_feat * sizeof(*nsfilter));
-  }
-  return 1;
-}
-
-int compute_wienerns_filter_master(
-    RestSearchCtxt *rsc, const RestorationTileLimits *limits,
-    const AV1PixelRect *tile_rect, RestorationUnitInfo *rui, int c_id, int n,
-    const double *A, int stride, const double *b, double *tmpbuf,
-    const WienernsFilterParameters *nsfilter_params, int do_sym_search) {
-  double cost = DBL_MAX, cost_sym = DBL_MAX;
-  int16_t *nsfilter = nsfilter_taps(&rui->wienerns_info, c_id);
-  int16_t nsfilter_bak[WIENERNS_TAPS_MAX];
-  const int num_feat = nsfilter_params->ncoeffs;
-
-  int linsolve_successful = compute_wienerns_filter(n, A, stride, b, tmpbuf,
-                                                    nsfilter, nsfilter_params);
-  if (!do_sym_search) return linsolve_successful;
-  if (linsolve_successful) {
-    const int64_t err =
-        calc_finer_tile_search_error(rsc, limits, tile_rect, rui);
-    const int64_t bits = count_wienerns_bits_set(
-        rsc->plane, &rsc->x->mode_costs, &rui->wienerns_info,
-        &rsc->wienerns_bank, nsfilter_params, c_id);
-    cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(rsc->x->rdmult, bits >> 4, err,
-                                          rsc->cm->seq_params.bit_depth);
-    memcpy(nsfilter_bak, nsfilter, num_feat * sizeof(*nsfilter));
-  }
-  int linsolve_successful_sym = compute_wienerns_filter_sym(
-      n, A, stride, b, tmpbuf, nsfilter, nsfilter_params);
-  if (linsolve_successful_sym) {
-    const int64_t err =
-        calc_finer_tile_search_error(rsc, limits, tile_rect, rui);
-    const int64_t bits = count_wienerns_bits_set(
-        rsc->plane, &rsc->x->mode_costs, &rui->wienerns_info,
-        &rsc->wienerns_bank, nsfilter_params, c_id);
-    cost_sym = RDCOST_DBL_WITH_NATIVE_BD_DIST(rsc->x->rdmult, bits >> 4, err,
-                                              rsc->cm->seq_params.bit_depth);
   }
   if (!linsolve_successful && !linsolve_successful_sym) return 0;
   if (cost < cost_sym || (linsolve_successful && !linsolve_successful_sym)) {

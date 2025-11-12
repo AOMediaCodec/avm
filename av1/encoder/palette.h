@@ -43,18 +43,6 @@ void AV1_K_MEANS_RENAME(av1_k_means, 2)(const int *data, int *centroids,
                                         int max_itr);
 /*!\endcond */
 
-/*!\brief Extended Palette Coding Flags */
-typedef enum {
-  /*!\brief No extra palette flags. */
-  PALETTE_NO_FLAGS,
-
-  /*!\brief Identity row flag, all values are the same as first value*/
-  PALETTE_IDENTIY_ROW,
-
-  /*!\brief Line Copy flag, all values are the same as above line */
-  PALETTE_LINE_COPY
-} palette_flag_t;
-
 /*!\brief Calculates the cluster to which each data point belong.
  *
  * \ingroup palette_mode_search
@@ -208,21 +196,6 @@ void av1_rd_pick_palette_intra_sby(
     int64_t *distortion, int *skippable, int *beat_best_rd,
     struct PICK_MODE_CONTEXT *ctx, uint8_t *best_blk_skip,
     TX_TYPE *tx_type_map);
-
-/*!\brief Search for the best palette in the chroma plane.
- *
- * \ingroup palette_mode_search
- * \callergraph
- * This function is used in both inter and intra frame coding.
- */
-void av1_rd_pick_palette_intra_sbuv(const struct AV1_COMP *cpi,
-                                    struct macroblock *x, int dc_mode_cost,
-                                    uint8_t *best_palette_color_map,
-                                    MB_MODE_INFO *const best_mbmi,
-                                    CctxType *tmp_cctx_type_map,
-                                    int64_t *best_rd, int *rate,
-                                    int *rate_tokenonly, int64_t *distortion,
-                                    int *skippable, int num_4x4_blk_chroma);
 
 /*!\brief Resets palette color map for chroma channels.
  */

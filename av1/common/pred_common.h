@@ -526,10 +526,6 @@ static INLINE aom_cdf_prob *av1_get_reference_mode_cdf(const AV1_COMMON *cm,
   return xd->tile_ctx->comp_inter_cdf[av1_get_reference_mode_context(cm, xd)];
 }
 
-static INLINE aom_cdf_prob *av1_get_skip_txfm_cdf(const MACROBLOCKD *xd) {
-  return xd->tile_ctx->skip_txfm_cdfs[av1_get_skip_txfm_context(xd)];
-}
-
 int av1_get_ref_pred_context(const MACROBLOCKD *xd, MV_REFERENCE_FRAME ref,
                              int num_total_refs);
 

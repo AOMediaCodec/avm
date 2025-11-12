@@ -5661,17 +5661,3 @@ static INLINE int get_mvpred_mask_var(
                    invert_mask, &unused) +
          mv_err_cost(mv, mv_cost_params);
 }
-
-int av1_get_mvpred_compound_var(
-    const MV_COST_PARAMS *mv_cost_params, const FULLPEL_MV best_mv,
-    const uint16_t *second_pred, const uint8_t *mask, int mask_stride,
-    int invert_mask, const aom_variance_fn_ptr_t *vfp, const struct buf_2d *src,
-    const struct buf_2d *pre) {
-  if (mask) {
-    return get_mvpred_mask_var(mv_cost_params, best_mv, second_pred, mask,
-                               mask_stride, invert_mask, vfp, src, pre);
-  } else {
-    return get_mvpred_av_var(mv_cost_params, best_mv, second_pred, vfp, src,
-                             pre);
-  }
-}

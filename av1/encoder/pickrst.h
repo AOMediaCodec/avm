@@ -22,40 +22,6 @@ extern "C" {
 struct yv12_buffer_config;
 struct AV1_COMP;
 
-static const uint8_t g_shuffle_stats_data[16] = {
-  0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8,
-};
-
-static const uint8_t g_shuffle_stats_highbd_data[32] = {
-  0, 1, 2, 3, 2, 3, 4, 5, 4, 5, 6, 7, 6, 7, 8, 9,
-  0, 1, 2, 3, 2, 3, 4, 5, 4, 5, 6, 7, 6, 7, 8, 9,
-};
-
-static INLINE uint8_t find_average(const uint8_t *src, int h_start, int h_end,
-                                   int v_start, int v_end, int stride) {
-  uint64_t sum = 0;
-  for (int i = v_start; i < v_end; i++) {
-    for (int j = h_start; j < h_end; j++) {
-      sum += src[i * stride + j];
-    }
-  }
-  uint64_t avg = sum / ((v_end - v_start) * (h_end - h_start));
-  return (uint8_t)avg;
-}
-
-static INLINE uint16_t find_average_highbd(const uint16_t *src, int h_start,
-                                           int h_end, int v_start, int v_end,
-                                           int stride) {
-  uint64_t sum = 0;
-  for (int i = v_start; i < v_end; i++) {
-    for (int j = h_start; j < h_end; j++) {
-      sum += src[i * stride + j];
-    }
-  }
-  uint64_t avg = sum / ((v_end - v_start) * (h_end - h_start));
-  return (uint16_t)avg;
-}
-
 static INLINE int check_wienerns_eq(const WienerNonsepInfo *info,
                                     const WienerNonsepInfo *ref, int num_coeffs,
                                     int wiener_class_id) {
@@ -101,26 +67,6 @@ static INLINE int check_wienerns_bank_eq(const WienerNonsepInfoBank *bank,
   }
 
   return num_equal == (c_id_end - c_id_begin) ? 0 : -1;
-}
-
-int count_match_indices_bits(int plane, int num_classes, int num_ref_frames,
-                             const int *match_indices, int nopcw);
-
-static INLINE int wienerns_info_diff(
-    const WienerNonsepInfo *info1, const WienerNonsepInfo *info2,
-    const WienernsFilterParameters *nsfilter_params) {
-  int diff = 0;
-  const int beg_feat = 0;
-  const int end_feat = nsfilter_params->ncoeffs;
-  assert(info1->num_classes == info2->num_classes);
-  for (int c_id = 0; c_id < info1->num_classes; ++c_id) {
-    const int16_t *info1_nsfilter = const_nsfilter_taps(info1, c_id);
-    const int16_t *info2_nsfilter = const_nsfilter_taps(info2, c_id);
-
-    for (int k = beg_feat; k < end_feat; ++k)
-      diff += abs(info1_nsfilter[k] - info2_nsfilter[k]);
-  }
-  return diff;
 }
 
 /*!\brief Algorithm for AV1 loop restoration search and estimation.
