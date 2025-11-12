@@ -1264,14 +1264,14 @@ void active_region_detection(AV1_COMP *cpi,
   const int mi_cols = cpi->common.mi_params.mi_cols;
   const int num_comps = cm->seq_params.monochrome ? 1 : 3;
   BruInfo *bru_info = &cm->bru;
-  
+
   // Local ARD queue variables (moved from global cpi->enc_act_sb_queue)
   ARD_Queue *act_sb_queue[MAX_ACTIVE_REGION];
   // Initialize all queue pointers to NULL
   for (int i = 0; i < MAX_ACTIVE_REGION; i++) {
     act_sb_queue[i] = NULL;
   }
-  
+
   if (cur_picture == NULL || last_picture == NULL) {
     cpi->active_map.update = 0;
     cpi->active_map.enabled = 0;
@@ -1338,7 +1338,7 @@ void active_region_detection(AV1_COMP *cpi,
                          bru_info->active_sb_in_region, act_sb_queue,
                          cm->bru.unit_cols, cm->bru.unit_rows,
                          &bru_info->num_active_regions, MAX_ACTIVE_REGION, 0);
-  
+
   // Clean up local ARD queues after clustering is complete
   for (uint32_t r = 0; r < bru_info->num_active_regions; r++) {
     ARD_Queue *q = act_sb_queue[r];
