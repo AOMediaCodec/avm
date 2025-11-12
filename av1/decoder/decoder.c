@@ -887,7 +887,9 @@ int av1_receive_compressed_data(AV1Decoder *pbi, size_t size,
 #endif
 
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-  update_long_term_frame_id(pbi);
+  if (frame_decoded) {
+    update_long_term_frame_id(pbi);
+  }
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 
   // Note: At this point, this function holds a reference to cm->cur_frame
