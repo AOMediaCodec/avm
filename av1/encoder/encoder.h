@@ -2625,7 +2625,6 @@ typedef struct AV1_COMP {
    */
   EncSegmentationInfo enc_seg;
 
-
   /*!
    * Parameters related to cyclic refresh aq-mode.
    */
