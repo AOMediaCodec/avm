@@ -357,9 +357,10 @@ void bru_set_default_inter_mb_mode_info(const AV1_COMMON *const cm,
 RefCntBuffer *bru_swap_common(AV1_COMMON *cm);
 
 // Breadth-First Search to find clusters
-static INLINE ARD_Queue *ARD_BFS(unsigned char *map, int width, int height, int x, int y,
-                   uint8_t *visited, int *x_min, int *y_min, int *x_max,
-                   int *y_max, int *count) {
+static INLINE ARD_Queue *ARD_BFS(unsigned char *map, int width, int height,
+                                 int x, int y, uint8_t *visited, int *x_min,
+                                 int *y_min, int *x_max, int *y_max,
+                                 int *count) {
   ARD_Queue *q = ard_create_queue();
   ARD_Queue *q_sd = ard_create_queue();
   ARD_Coordinate start = { x, y };
@@ -400,10 +401,10 @@ static INLINE ARD_Queue *ARD_BFS(unsigned char *map, int width, int height, int 
 }
 
 // Function to find clusters and their bounding boxes
-static INLINE AV1PixelRect *cluster_active_regions(unsigned char *map, AV1PixelRect *regions,
-                                     uint32_t *act_sb_in_region,
-                                     ARD_Queue **ard_queue, int width,
-                                     int height, uint32_t *numRegions, int output_ext) {
+static INLINE AV1PixelRect *cluster_active_regions(
+    unsigned char *map, AV1PixelRect *regions, uint32_t *act_sb_in_region,
+    ARD_Queue **ard_queue, int width, int height, uint32_t *numRegions,
+    int output_ext) {
   uint8_t *visited = (uint8_t *)aom_calloc(height * width, sizeof(uint8_t));
   *numRegions = 0;
   for (int j = 0; j < height; j++) {
@@ -515,18 +516,20 @@ static INLINE AV1PixelRect *cluster_active_regions(unsigned char *map, AV1PixelR
 static INLINE bool bru_active_map_validation(AV1_COMMON *cm) {
   if (!cm->bru.enabled) return true;
   if (cm->bru.frame_inactive_flag) return true;
-  
-  // Create a new active map with same dimensions as cm->bru.unit_cols * cm->bru.unit_rows
+
+  // Create a new active map with same dimensions as cm->bru.unit_cols *
+  // cm->bru.unit_rows
   const int width = cm->bru.unit_cols;
   const int height = cm->bru.unit_rows;
   const int total_units = width * height;
-  
+
   // Allocate new active map and copy values from cm->bru.active_mode_map
-  unsigned char *new_active_map = (unsigned char *)aom_malloc(total_units * sizeof(unsigned char));
+  unsigned char *new_active_map =
+      (unsigned char *)aom_malloc(total_units * sizeof(unsigned char));
   if (!new_active_map) {
     return false;
   }
-  
+
   // Convert input values and copy to new_active_map
   // Input format: 0=inactive, 1=support, 2=active
   // Clustering algorithm expects: 0=inactive, 0=support, 3=active
@@ -540,13 +543,16 @@ static INLINE bool bru_active_map_validation(AV1_COMMON *cm) {
       new_active_map[i] = 3;  // active -> clustering active value
     }
   }
-  
+
   // Allocate memory for clustering results
   const int max_regions = (width / 3 + 1) * (height / 3 + 1);
-  AV1PixelRect *regions = (AV1PixelRect *)aom_calloc(max_regions, sizeof(AV1PixelRect));
-  uint32_t *act_sb_in_region = (uint32_t *)aom_calloc(max_regions, sizeof(uint32_t));
-  ARD_Queue **ard_queue = (ARD_Queue **)aom_calloc(max_regions, sizeof(ARD_Queue*));
-  
+  AV1PixelRect *regions =
+      (AV1PixelRect *)aom_calloc(max_regions, sizeof(AV1PixelRect));
+  uint32_t *act_sb_in_region =
+      (uint32_t *)aom_calloc(max_regions, sizeof(uint32_t));
+  ARD_Queue **ard_queue =
+      (ARD_Queue **)aom_calloc(max_regions, sizeof(ARD_Queue *));
+
   if (!regions || !act_sb_in_region || !ard_queue) {
     aom_free(new_active_map);
     aom_free(regions);
@@ -554,38 +560,40 @@ static INLINE bool bru_active_map_validation(AV1_COMMON *cm) {
     aom_free(ard_queue);
     return false;
   }
-  
+
   // Use the clustering algorithm from cluster_active_regions
   uint32_t numRegions = 0;
   cluster_active_regions(new_active_map, regions, act_sb_in_region, ard_queue,
                          width, height, &numRegions, 1);
-  
+
   // Validation: Check if generated regions properly overlay with original map
   bool overall_valid = true;
-  
+
   // For each generated region, check all coordinates within the region bounds
   for (uint32_t region_id = 0; region_id < numRegions; region_id++) {
     bool region_valid = true;
-    
-    // Check every coordinate within the region bounds (right and bottom exclusive)
+
+    // Check every coordinate within the region bounds (right and bottom
+    // exclusive)
     for (int y = regions[region_id].top; y < regions[region_id].bottom; y++) {
       for (int x = regions[region_id].left; x < regions[region_id].right; x++) {
         unsigned char original_val = cm->bru.active_mode_map[y * width + x];
-        
+
         // Rule 1: Every block in the region must NOT be inactive (0)
         if (original_val == 0) {
           region_valid = false;
           break;
         }
-        
+
         // Rule 2: Check border blocks must be support (unless at array border)
-        bool is_region_border = (x == regions[region_id].left ||
-                                 x == regions[region_id].right - 1 ||
-                                 y == regions[region_id].top ||
-                                 y == regions[region_id].bottom - 1);
-        
-        bool is_array_border = (x == 0 || x == width - 1 || y == 0 || y == height - 1);
-        
+        bool is_region_border =
+            (x == regions[region_id].left ||
+             x == regions[region_id].right - 1 || y == regions[region_id].top ||
+             y == regions[region_id].bottom - 1);
+
+        bool is_array_border =
+            (x == 0 || x == width - 1 || y == 0 || y == height - 1);
+
         if (is_region_border && !is_array_border && original_val != 1) {
           region_valid = false;
           break;
@@ -593,13 +601,13 @@ static INLINE bool bru_active_map_validation(AV1_COMMON *cm) {
       }
       if (!region_valid) break;
     }
-    
+
     if (!region_valid) {
       overall_valid = false;
       break;
     }
   }
-  
+
   // Clean up the queue memory
   for (uint32_t i = 0; i < numRegions; i++) {
     if (ard_queue[i]) {
@@ -610,13 +618,13 @@ static INLINE bool bru_active_map_validation(AV1_COMMON *cm) {
       aom_free(ard_queue[i]);
     }
   }
-  
+
   // Clean up memory
   aom_free(new_active_map);
   aom_free(regions);
   aom_free(act_sb_in_region);
   aom_free(ard_queue);
-  
+
   // Return the validation result
   return overall_valid;
 }
