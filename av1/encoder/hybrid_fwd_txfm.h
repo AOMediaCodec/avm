@@ -22,9 +22,6 @@ extern "C" {
 void av1_fwd_txfm(const int16_t *src_diff, tran_low_t *coeff, int diff_stride,
                   TxfmParam *txfm_param);
 
-void av1_highbd_fwd_txfm(const int16_t *src_diff, tran_low_t *coeff,
-                         int diff_stride, TxfmParam *txfm_param);
-
 void av1_fwd_stxfm(tran_low_t *coeff, TxfmParam *txfm_param,
                    int64_t *sec_tx_sse);
 

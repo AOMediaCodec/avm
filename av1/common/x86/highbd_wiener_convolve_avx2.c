@@ -4539,69 +4539,6 @@ static INLINE void apply_uv2_asym_13tap_filtering_with_subtract_center_off(
   MADD_AND_ACCUM_FOR_CHROMA_FILTERING_2(fc76, fc12z)
 }
 
-void av1_convolve_symmetric_dual_highbd_uv2_7plus13tap_avx2(
-    const uint16_t *dgd, int dgd_stride, const uint16_t *dgd_dual,
-    int dgd_dual_stride, const NonsepFilterConfig *filter_config,
-    const int16_t *filter, uint16_t *dst, int dst_stride, int bit_depth,
-    int block_row_begin, int block_col_begin) {
-  // Derive singleton_tap and singleton_tap_dual and repalce center tap filter
-  // values with the same.
-  int32_t singleton_tap = 1 << filter_config->prec_bits;
-  int32_t singleton_tap_dual = 0;
-  if (filter_config->num_pixels % 2) {
-    const int singleton_tap_index =
-        filter_config->config[filter_config->num_pixels - 1][NONSEP_BUF_POS];
-    singleton_tap += filter[singleton_tap_index];
-  }
-
-  if (filter_config->num_pixels2 % 2) {
-    const int last_config = filter_config->num_pixels2 - 1;
-    const int singleton_tap_index =
-        filter_config->config2[last_config][NONSEP_BUF_POS];
-    singleton_tap_dual += filter[singleton_tap_index];
-  }
-
-  // Prepare filter coefficients for dgd(first) buffer 7-tap filtering
-  // fc0 fc1 fc2 fc3 fc4 fc5 fc18(center_tap1) x
-  __m128i filter_coeff = _mm_loadu_si128((__m128i const *)(filter));
-  // Replace the center_tap with derived singleton_tap.
-  const __m128i center_tap1 = _mm_set1_epi16(singleton_tap);
-  const __m128i filter_coeff_dgd =
-      _mm_blend_epi16(filter_coeff, center_tap1, 0x40);
-
-  // Prepare filter coefficients for dgd_dual(second) buffer 13-tap filtering
-  // Currently we only support the case where there is a center tap in the
-  // in-plane filter, so that the dual filter taps are at indices:
-  // fc6 fc7 fc8 fc9 fc10 fc11 fc12 fc13 | fc14 fc15 fc16 fc17 center_tap2 x x x
-  assert(filter_config->num_pixels == 13);
-  const __m128i filter_coeff_dual_lo =
-      _mm_loadu_si128((__m128i const *)(filter + 6));
-  __m128i filter_coeff_dual_hi =
-      _mm_bsrli_si128(_mm_loadu_si128((__m128i const *)(filter + 12)), 4);
-  const __m128i center_tap2 = _mm_set1_epi16(singleton_tap_dual);
-  filter_coeff_dual_hi =
-      _mm_blend_epi16(filter_coeff_dual_hi, center_tap2, 0x10);
-
-  // Initialize the output registers with zero.
-  __m256i accum_out_r0r1 = _mm256_setzero_si256();
-  __m256i accum_out_r2r3 = _mm256_setzero_si256();
-
-  // 7-tap filtering for dgd (first) buffer.
-  apply_uv2_7tap_filtering_with_subtract_center_off(
-      dgd, dgd_stride, filter_coeff_dgd, &accum_out_r0r1, &accum_out_r2r3,
-      block_row_begin, block_col_begin);
-
-  // 7-tap filtering for dgd_dual (second) buffer.
-  apply_uv2_asym_13tap_filtering_with_subtract_center_off(
-      dgd_dual, dgd_dual_stride, filter_coeff_dual_lo, filter_coeff_dual_hi,
-      &accum_out_r0r1, &accum_out_r2r3, block_row_begin, block_col_begin);
-
-  // Store the output after rounding and clipping.
-  round_and_store_avx2(dst, dst_stride, filter_config, bit_depth,
-                       accum_out_r0r1, accum_out_r2r3, block_row_begin,
-                       block_col_begin);
-}
-
 void av1_convolve_symmetric_dual_highbd_avx2(
     const uint16_t *dgd, int dgd_stride, const uint16_t *dgd_dual,
     int dgd_dual_stride, const NonsepFilterConfig *filter_config,

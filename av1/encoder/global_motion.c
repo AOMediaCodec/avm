@@ -34,31 +34,6 @@ int av1_is_enough_erroradvantage(double best_erroradvantage, int params_cost) {
          best_erroradvantage * params_cost < erroradv_prod_tr;
 }
 
-static void convert_to_params(const double *params, int32_t *model) {
-  int i;
-  model[0] = (int32_t)floor(params[0] * (1 << GM_TRANS_PREC_BITS) + 0.5);
-  model[1] = (int32_t)floor(params[1] * (1 << GM_TRANS_PREC_BITS) + 0.5);
-  model[0] = (int32_t)clamp(model[0], GM_TRANS_MIN, GM_TRANS_MAX) *
-             GM_TRANS_DECODE_FACTOR;
-  model[1] = (int32_t)clamp(model[1], GM_TRANS_MIN, GM_TRANS_MAX) *
-             GM_TRANS_DECODE_FACTOR;
-
-  for (i = 2; i < 6; ++i) {
-    const int diag_value = ((i == 2 || i == 5) ? (1 << GM_ALPHA_PREC_BITS) : 0);
-    model[i] = (int32_t)floor(params[i] * (1 << GM_ALPHA_PREC_BITS) + 0.5);
-    model[i] =
-        (int32_t)clamp(model[i] - diag_value, GM_ALPHA_MIN, GM_ALPHA_MAX);
-    model[i] = (model[i] + diag_value) * GM_ALPHA_DECODE_FACTOR;
-  }
-}
-
-void av1_convert_model_to_params(const double *params,
-                                 WarpedMotionParams *model) {
-  convert_to_params(params, model->wmmat);
-  model->wmtype = get_wmtype(model);
-  model->invalid = 0;
-}
-
 // Adds some offset to a global motion parameter and handles
 // all of the necessary precision shifts, clamping, and
 // zero-centering.

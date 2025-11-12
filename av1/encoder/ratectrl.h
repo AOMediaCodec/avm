@@ -324,12 +324,7 @@ int av1_rc_get_default_max_gf_interval(double framerate, int min_gf_interval);
 
 // Generally at the high level, the following flow is expected
 // to be enforced for rate control:
-// First call per frame, one of:
-//   av1_rc_get_first_pass_params()
-//   av1_rc_get_second_pass_params()
-// depending on the usage to set the rate control encode parameters desired.
-//
-// Then, call encode_frame_to_data_rate() to perform the
+// Call encode_frame_to_data_rate() to perform the
 // actual encode. This function will in turn call encode_frame()
 // one or more times, followed by one of:
 //   av1_rc_postencode_update()

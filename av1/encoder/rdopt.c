@@ -7140,7 +7140,6 @@ static AOM_INLINE void init_intra_mode_search_state(
   intra_search_state->skip_intra_modes = 0;
   intra_search_state->best_intra_mode = DC_PRED;
   intra_search_state->best_mrl_index = 0;
-  intra_search_state->best_fsc = 0;
   intra_search_state->dir_mode_skip_mask_ready = 0;
   av1_zero(intra_search_state->directional_mode_skip_mask);
   intra_search_state->rate_uv_intra = INT_MAX;

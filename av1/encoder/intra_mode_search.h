@@ -22,21 +22,6 @@
 extern "C" {
 #endif
 
-/*!\cond */
-static const PREDICTION_MODE intra_rd_search_mode_order[INTRA_MODES] = {
-  DC_PRED,       H_PRED,        V_PRED,    SMOOTH_PRED, PAETH_PRED,
-  SMOOTH_V_PRED, SMOOTH_H_PRED, D135_PRED, D203_PRED,   D157_PRED,
-  D67_PRED,      D113_PRED,     D45_PRED,
-};
-
-static const UV_PREDICTION_MODE uv_rd_search_mode_order[UV_INTRA_MODES] = {
-  UV_DC_PRED,     UV_CFL_PRED,   UV_H_PRED,        UV_V_PRED,
-  UV_SMOOTH_PRED, UV_PAETH_PRED, UV_SMOOTH_V_PRED, UV_SMOOTH_H_PRED,
-  UV_D135_PRED,   UV_D203_PRED,  UV_D157_PRED,     UV_D67_PRED,
-  UV_D113_PRED,   UV_D45_PRED,
-};
-/*!\endcond */
-
 /*! \brief Variables related to intra-mode search during inter frame coding.
  *
  * \ingroup intra_mode_search
@@ -59,14 +44,6 @@ typedef struct IntraModeSearchState {
    */
   int best_multi_line_mrl;
   /*!
-   * \brief The best dpcm mode found for Y block
-   */
-  int best_dpcm_index;
-  /*!
-   * \brief The best dpcm direction found for Y block
-   */
-  int best_dpcm_dir;
-  /*!
    * \brief The best dpcm mode found for UV block
    */
   int best_dpcm_uv_index;
@@ -74,10 +51,6 @@ typedef struct IntraModeSearchState {
    * \brief The best dpcm direction found for UV block
    */
   int best_dpcm_uv_dir;
-  /*!
-   * \brief The best forward skip mode found.
-   */
-  int best_fsc;
 
   /** \name Speed feature variables
    * Variables to help with pruning some luma intra-modes during inter frame

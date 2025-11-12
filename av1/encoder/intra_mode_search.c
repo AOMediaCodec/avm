@@ -1293,13 +1293,8 @@ int64_t av1_handle_intra_mode(IntraModeSearchState *intra_search_state,
   if (this_rd < *best_intra_rd) {
     *best_intra_rd = this_rd;
     intra_search_state->best_intra_mode = mode;
-    intra_search_state->best_fsc = mbmi->fsc_mode[xd->tree_type == CHROMA_PART];
     intra_search_state->best_mrl_index = mbmi->mrl_index;
     intra_search_state->best_multi_line_mrl = mbmi->multi_line_mrl;
-    if (xd->lossless[mbmi->segment_id]) {
-      intra_search_state->best_dpcm_index = mbmi->use_dpcm_y;
-      intra_search_state->best_dpcm_dir = mbmi->dpcm_mode_y;
-    }
   }
 
   if (sf->intra_sf.skip_intra_in_interframe) {

@@ -27,10 +27,6 @@ extern "C" {
 
 typedef void (*transform_1d)(const tran_low_t *, tran_low_t *);
 
-typedef struct {
-  transform_1d cols, rows;  // vertical and horizontal
-} transform_2d;
-
 void inv_txfm_c(const tran_low_t *input, uint16_t *dest, int stride,
                 const TxfmParam *txfm_param);
 
@@ -54,11 +50,6 @@ void av1_highbd_iwht4x4_horz_add(const tran_low_t *input, uint16_t *dest,
 
 void av1_highbd_iwht4x4_vert_add(const tran_low_t *input, uint16_t *dest,
                                  int stride, int eob, int bd);
-
-static INLINE const int32_t *cast_to_int32(const tran_low_t *input) {
-  assert(sizeof(int32_t) == sizeof(tran_low_t));
-  return (const int32_t *)input;
-}
 
 void av1_inv_stxfm(tran_low_t *coeff, TxfmParam *txfm_param);
 

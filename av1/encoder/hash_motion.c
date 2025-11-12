@@ -135,24 +135,6 @@ Iterator av1_hash_get_first_iterator(hash_table *p_hash_table,
   return aom_vector_begin(p_hash_table->p_lookup_table[hash_value]);
 }
 
-int32_t av1_has_exact_match(hash_table *p_hash_table, uint32_t hash_value1,
-                            uint32_t hash_value2) {
-  if (p_hash_table->p_lookup_table[hash_value1] == NULL) {
-    return 0;
-  }
-  Iterator iterator =
-      aom_vector_begin(p_hash_table->p_lookup_table[hash_value1]);
-  Iterator last = aom_vector_end(p_hash_table->p_lookup_table[hash_value1]);
-  for (; !aom_iterator_equals(&iterator, &last);
-       aom_iterator_increment(&iterator)) {
-    if ((*(block_hash *)aom_iterator_get(&iterator)).hash_value2 ==
-        hash_value2) {
-      return 1;
-    }
-  }
-  return 0;
-}
-
 void av1_generate_block_2x2_hash_value(IntraBCHashInfo *intrabc_hash_info,
                                        const YV12_BUFFER_CONFIG *picture,
                                        uint32_t *pic_block_hash[2],

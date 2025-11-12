@@ -84,9 +84,6 @@ typedef struct {
   int8_t allocated_workers;
 } AV1GlobalMotionSync;
 
-void av1_convert_model_to_params(const double *params,
-                                 WarpedMotionParams *model);
-
 // Criteria for accepting a global motion model
 static const double erroradv_tr = 0.65;
 static const double erroradv_prod_tr = 20000;
