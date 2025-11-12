@@ -151,13 +151,6 @@ enum {
   RESIZE_MODES
 } UENUM1BYTE(RESIZE_MODE);
 
-typedef enum {
-  kInvalid = 0,
-  kLowSad = 1,
-  kHighSad = 2,
-  kLowVarHighSumdiff = 3,
-} CONTENT_STATE_SB;
-
 enum {
   SS_CFG_SRC = 0,
   SS_CFG_LOOKAHEAD = 1,

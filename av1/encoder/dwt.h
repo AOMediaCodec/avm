@@ -18,7 +18,6 @@
 
 #define DWT_MAX_LENGTH 64
 
-void av1_fdwt8x8(tran_low_t *input, tran_low_t *output, int stride);
 void av1_fdwt8x8_uint8_input_c(uint16_t *input, tran_low_t *output, int stride);
 int av1_haar_ac_sad_8x8_uint8_input(uint16_t *input, int stride);
 

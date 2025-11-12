@@ -218,11 +218,6 @@ typedef struct DataBuffer {
   size_t size;
 } DataBuffer;
 
-typedef struct EXTERNAL_REFERENCES {
-  YV12_BUFFER_CONFIG refs[MAX_EXTERNAL_REFERENCES];
-  int num;
-} EXTERNAL_REFERENCES;
-
 typedef struct TileJobsDec {
   TileBufferDec *tile_buffer;
   TileDataDec *tile_data;
@@ -357,10 +352,7 @@ typedef struct AV1Decoder {
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   OBU_TYPE obu_type;
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-  int output_frame_width_in_tiles_minus_1;
-  int output_frame_height_in_tiles_minus_1;
   int tile_count_minus_1;
-  uint32_t coded_tile_data_size;
 
   // Decoder has 3 modes of operation:
   // (1) Single-threaded decoding.
@@ -369,9 +361,6 @@ typedef struct AV1Decoder {
   // row_mt = 1 triggers mode (3) above, while row_mt = 0, will trigger mode (1)
   // or (2) depending on 'max_threads'.
   unsigned int row_mt;
-
-  EXTERNAL_REFERENCES ext_refs;
-  YV12_BUFFER_CONFIG tile_list_outbuf;
 
   // Coding block buffer for the current frame.
   // Allocated and used only for multi-threaded decoding with 'row_mt == 0'.

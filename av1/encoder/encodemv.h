@@ -30,14 +30,6 @@ void av1_build_vq_amvd_nmv_cost_table(MvCosts *mv_costs,
 void av1_build_vq_nmv_cost_table(MvCosts *mv_costs, const nmv_context *ctx,
                                  MvSubpelPrecision precision,
                                  IntraBCMvCosts *dv_costs, int is_ibc);
-
-void av1_build_nmv_cost_table(int *mvjoint, int *mvcost[2],
-                              const nmv_context *mvctx,
-                              MvSubpelPrecision precision, int is_adaptive_mvd,
-                              int mv_sign_cost[2][2]);
-
-void av1_update_mv_count(ThreadData *td);
-
 void av1_encode_dv(aom_writer *w, const MV *mv, const MV *ref,
                    nmv_context *mvctx, MvSubpelPrecision pb_mv_precision);
 int_mv av1_get_ref_mv(const MACROBLOCK *x, int ref_idx);
@@ -47,9 +39,6 @@ int_mv av1_get_ref_mv_from_stack(int ref_idx,
                                  const MB_MODE_INFO_EXT *mbmi_ext,
                                  const MB_MODE_INFO *mbmi);
 
-int_mv av1_find_first_ref_mv_from_stack(const MB_MODE_INFO_EXT *mbmi_ext,
-                                        MV_REFERENCE_FRAME ref_frame,
-                                        MvSubpelPrecision precision);
 int_mv av1_find_best_ref_mv_from_stack(const MB_MODE_INFO_EXT *mbmi_ext,
                                        const MB_MODE_INFO *mbmi,
                                        MV_REFERENCE_FRAME ref_frame,
@@ -89,20 +78,6 @@ static INLINE int get_shell_class_with_precision(const int shell_index,
       (shell_class == 0) ? 0 : (1 << (shell_class));
   *shell_cls_offset = shell_index - shell_class_base_index;
   return shell_class;
-}
-
-static INLINE MV_CLASS_TYPE av1_get_mv_class(int z, int *offset) {
-  assert(z >= 0);
-  const MV_CLASS_TYPE c = (MV_CLASS_TYPE)av1_log_in_base_2(z >> 3);
-  assert(c < MV_CLASSES);
-  if (offset) *offset = z - av1_mv_class_base(c);
-  return c;
-}
-
-static INLINE MV_CLASS_TYPE av1_get_mv_class_low_precision(int z, int *offset) {
-  const MV_CLASS_TYPE c = (z == 0) ? 0 : (MV_CLASS_TYPE)av1_log_in_base_2(z);
-  if (offset) *offset = z - av1_mv_class_base_low_precision(c);
-  return c;
 }
 
 static INLINE int av1_check_newmv_joint_nonzero(const AV1_COMMON *cm,

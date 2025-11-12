@@ -576,12 +576,6 @@ void av1_dropout_qcoeff(MACROBLOCK *mb, int plane, int block, TX_SIZE tx_size,
   }
 }
 
-enum {
-  QUANT_FUNC_LOWBD = 0,
-  QUANT_FUNC_HIGHBD = 1,
-  QUANT_FUNC_TYPES = 2
-} UENUM1BYTE(QUANT_FUNC);
-
 static AV1_QUANT_FACADE quant_func_list[AV1_XFORM_QUANT_TYPES] = {
   av1_highbd_quantize_fp_facade, av1_highbd_quantize_b_facade,
   av1_highbd_quantize_dc_facade, NULL

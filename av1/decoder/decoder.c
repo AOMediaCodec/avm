@@ -384,9 +384,6 @@ void av1_decoder_remove(AV1Decoder *pbi) {
 
   if (!pbi) return;
 
-  // Free the tile list output buffer.
-  aom_free_frame_buffer(&pbi->tile_list_outbuf);
-
   aom_get_worker_interface()->end(&pbi->lf_worker);
   aom_free(pbi->lf_worker.data1);
 

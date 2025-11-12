@@ -41,8 +41,6 @@ typedef struct FrameWorkerData {
   size_t data_size;
   void *user_priv;
   int received_frame;
-  int frame_context_ready;  // Current frame's context is ready to read.
-  int frame_decoded;        // Finished decoding current frame.
 } FrameWorkerData;
 
 #ifdef __cplusplus

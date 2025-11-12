@@ -55,7 +55,6 @@ struct aom_codec_alg_priv {
 #endif  // CONFIG_F024_KEYOBU
   int bru_opt_mode;
   unsigned int row_mt;
-  EXTERNAL_REFERENCES ext_refs;
   int operating_point;
   int output_all_layers;
 
@@ -727,7 +726,6 @@ static aom_codec_err_t init_decoder(aom_codec_alg_priv_t *ctx) {
     set_error_detail(ctx, "Failed to allocate frame_worker_data");
     return AOM_CODEC_MEM_ERROR;
   }
-  frame_worker_data->frame_context_ready = 0;
   frame_worker_data->received_frame = 0;
 
   // If decoding in serial mode, FrameWorker thread could create tile worker
@@ -804,7 +802,6 @@ static aom_codec_err_t decode_one(aom_codec_alg_priv_t *ctx,
   frame_worker_data->received_frame = 1;
 
   frame_worker_data->pbi->row_mt = ctx->row_mt;
-  frame_worker_data->pbi->ext_refs = ctx->ext_refs;
 
   worker->had_error = 0;
   winterface->execute(worker);
@@ -1538,22 +1535,6 @@ static aom_codec_err_t ctrl_get_frame_size(aom_codec_alg_priv_t *ctx,
   return AOM_CODEC_INVALID_PARAM;
 }
 
-static aom_codec_err_t ctrl_set_ext_ref_ptr(aom_codec_alg_priv_t *ctx,
-                                            va_list args) {
-  av1_ext_ref_frame_t *const data = va_arg(args, av1_ext_ref_frame_t *);
-
-  if (data) {
-    av1_ext_ref_frame_t *const ext_frames = data;
-    ctx->ext_refs.num = ext_frames->num;
-    for (int i = 0; i < ctx->ext_refs.num; i++) {
-      image2yuvconfig(ext_frames->img++, &ctx->ext_refs.refs[i]);
-    }
-    return AOM_CODEC_OK;
-  } else {
-    return AOM_CODEC_INVALID_PARAM;
-  }
-}
-
 static aom_codec_err_t ctrl_get_render_size(aom_codec_alg_priv_t *ctx,
                                             va_list args) {
   int *const render_size = va_arg(args, int *);
@@ -1815,7 +1796,6 @@ static aom_codec_ctrl_fn_map_t decoder_ctrl_maps[] = {
   { AV1D_SET_OUTPUT_ALL_LAYERS, ctrl_set_output_all_layers },
   { AV1_SET_INSPECTION_CALLBACK, ctrl_set_inspection_callback },
   { AV1D_SET_ROW_MT, ctrl_set_row_mt },
-  { AV1D_SET_EXT_REF_PTR, ctrl_set_ext_ref_ptr },
   { AV1D_SET_SKIP_FILM_GRAIN, ctrl_set_skip_film_grain },
 #if CONFIG_F024_KEYOBU
   { AV1D_SET_RANDOM_ACCESS, ctrl_set_random_access },

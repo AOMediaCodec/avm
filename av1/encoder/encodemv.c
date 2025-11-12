@@ -654,19 +654,3 @@ int_mv av1_find_best_ref_mv_from_stack(const MB_MODE_INFO_EXT *mbmi_ext,
   if (!found_ref_mv) mv.as_int = INVALID_MV;
   return mv;
 }
-
-int_mv av1_find_best_ref_mvs_from_stack(const MB_MODE_INFO_EXT *mbmi_ext,
-                                        MV_REFERENCE_FRAME ref_frame,
-                                        MvSubpelPrecision precision) {
-  int_mv mv;
-  const int ref_idx = 0;
-  MV_REFERENCE_FRAME ref_frames[2] = { ref_frame, NONE_FRAME };
-  // this function is not called in this software.
-  MB_MODE_INFO mbmi;
-  mbmi.skip_mode = 0;
-  mbmi.mode = NEWMV;
-  mbmi.ref_frame[0] = ref_frame;
-  mv = av1_get_ref_mv_from_stack(ref_idx, ref_frames, 0, mbmi_ext, &mbmi);
-  lower_mv_precision(&mv.as_mv, precision);
-  return mv;
-}

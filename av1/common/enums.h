@@ -1209,13 +1209,6 @@ enum {
   SCALABILITY_SS = 14
 } UENUM1BYTE(SCALABILITY_STRUCTURES);
 
-#define SUPERRES_SCALE_BITS 3
-#define SUPERRES_SCALE_DENOMINATOR_MIN (SCALE_NUMERATOR + 1)
-
-// In large_scale_tile coding, external references are used.
-#define MAX_EXTERNAL_REFERENCES 128
-#define MAX_TILES 512
-
 #define DIV_LUT_PREC_BITS 9
 #define DIV_LUT_BITS 7
 

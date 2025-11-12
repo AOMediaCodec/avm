@@ -285,14 +285,6 @@ enum aom_dec_control_id {
    */
   AOMD_GET_LAST_QUANTIZER,
 
-  /*!\brief Codec control function to set the external references' pointers in
-   * the decoder, av1_ext_ref_frame_t* parameter.
-   *
-   * This is used while decoding the tile list OBU in large-scale tile coding
-   * mode.
-   */
-  AV1D_SET_EXT_REF_PTR,
-
   /*!\brief Codec control function to enable the row based multi-threading of
    * decoding, unsigned int parameter
    *
@@ -488,9 +480,6 @@ AOM_CTRL_USE_TYPE(AV1_INVERT_TILE_DECODE_ORDER, int)
 
 AOM_CTRL_USE_TYPE(AV1_GET_ACCOUNTING, Accounting **)
 #define AOM_CTRL_AV1_GET_ACCOUNTING
-
-AOM_CTRL_USE_TYPE(AV1D_SET_EXT_REF_PTR, av1_ext_ref_frame_t *)
-#define AOM_CTRL_AV1D_SET_EXT_REF_PTR
 
 AOM_CTRL_USE_TYPE(AV1D_SET_ROW_MT, unsigned int)
 #define AOM_CTRL_AV1D_SET_ROW_MT
