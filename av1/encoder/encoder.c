@@ -4346,7 +4346,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 #endif
 
 #if CONFIG_F024_KEYOBU
-  if (cm->update_type_was_overlay) {
+  if (cpi->update_type_was_overlay) {
     assign_frame_buffer_p(&cm->cur_frame,
                           cm->ref_frame_map[cpi->fb_idx_for_overlay]);
     int enc_olk_fb_idx = 0;
@@ -4372,10 +4372,10 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
           }
         }
       }
-      cm->is_olk_overlay = 1;
+      cpi->is_olk_overlay = 1;
     }  // cpi->olk_encountered
     else {
-      cm->is_olk_overlay = 0;
+      cpi->is_olk_overlay = 0;
     }
     cpi->seq_params_locked = 1;
     if (cm->show_frame) cpi->last_show_frame_buf = cm->cur_frame;
@@ -4386,7 +4386,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
                                     cpi->rc.frames_since_key))
       ++current_frame->frame_number;
     return AOM_CODEC_OK;
-  }  // if(cm->update_type_was_overlay)
+  }  // if(cpi->update_type_was_overlay)
 #else
   const int encode_show_existing = encode_show_existing_frame(cm);
   if (encode_show_existing || cm->show_existing_frame) {
@@ -4652,7 +4652,7 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
   cm->ref_frame_flags = frame_params->ref_frame_flags;
   cpi->speed = frame_params->speed;
 #if CONFIG_F024_KEYOBU
-  cm->update_type_was_overlay =
+  cpi->update_type_was_overlay =
       frame_params->frame_params_update_type_was_overlay;
   cpi->fb_idx_for_overlay = frame_params->fb_idx_for_overlay;
 #else
@@ -5094,7 +5094,7 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
   if (cpi->b_calculate_psnr) {
     if (
 #if CONFIG_F024_KEYOBU
-        cm->update_type_was_overlay ||
+        cpi->update_type_was_overlay ||
 #else
         cm->show_existing_frame ||
 #endif

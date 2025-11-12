@@ -6512,8 +6512,7 @@ static AOM_INLINE void write_uncompressed_header_obu
 #endif  // CONFIG_F106_OBU_TILEGROUP && (CONFIG_F106_OBU_SWITCH ||
         // CONFIG_F106_OBU_TIP)
 #else   // CONFIG_F024_KEYOBU
-#if CONFIG_F106_OBU_TILEGROUP && (CONFIG_F106_OBU_SWITCH ||
- CONFIG_F106_OBU_TIP)
+#if CONFIG_F106_OBU_TILEGROUP && (CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_TIP)
      bool frame_type_signaled = true;
 #if CONFIG_F106_OBU_SWITCH
  frame_type_signaled &= (obu_type != OBU_SWITCH);

@@ -2255,16 +2255,7 @@ typedef struct AV1Common {
    * When 'show_frame' is false, this value is transmitted in the bitstream.
    */
   int showable_frame;
-#if CONFIG_F024_KEYOBU  // overlay update indication
-  /*!
-   * If true, the update type is one of overlay updates
-   */
-  bool update_type_was_overlay;
-  /*!
-   * If true, the overlay update is for an OLK
-   */
-  bool is_olk_overlay;
-#else
+#if !CONFIG_F024_KEYOBU
   /*!
    * If true, show an existing frame coded before, instead of actually coding a
    * frame. The existing frame comes from one of the existing reference buffers,
