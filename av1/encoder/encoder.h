@@ -2446,6 +2446,14 @@ typedef struct AV1_COMP {
    * when the first regular frame or the first CLK after the olk is decoded.
    */
   int olk_encountered;
+  /*!
+   * If true, the update type is one of overlay updates
+   */
+  bool update_type_was_overlay;
+  /*!
+   * If true, the overlay update is for an OLK
+   */
+  bool is_olk_overlay;
 #endif
   /*!
    * Stores the trellis optimization type at segment level.

@@ -7911,8 +7911,7 @@ static AOM_INLINE void validate_refereces(AV1Decoder *const pbi) {
   }
 }
 #if !CONFIG_F024_KEYOBU
-static AOM_INLINE void show_existing_frame_reset(AV1Decoder *const pbi,
-                                                 int existing_frame_idx) {
+static AOM_INLINE void show_existing_frame_reset(AV1Decoder *const pbi) {
   AV1_COMMON *const cm = &pbi->common;
 
   assert(cm->show_existing_frame);

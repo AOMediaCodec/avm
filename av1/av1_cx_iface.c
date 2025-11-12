@@ -3310,7 +3310,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       cpi->seq_params_locked = 1;
       is_frame_visible = cpi->common.show_frame;
 #if CONFIG_F024_KEYOBU
-      if (!cpi->common.is_olk_overlay && cpi->common.update_type_was_overlay) {
+      if (!cpi->is_olk_overlay && cpi->update_type_was_overlay) {
         is_frame_visible_null = 1;
       }
 #else
@@ -3481,13 +3481,11 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
           ticks_to_timebase_units(timestamp_ratio, dst_time_stamp) +
           ctx->pts_offset;
       pkt.data.frame.flags = get_frame_pkt_flags(cpi, lib_flags);
-#if CONFIG_F024_KEYOBU
       if (has_no_show_keyframe) {
         // If one of the invisible frames in the packet is a keyframe, set
         // the delayed random access point flag.
         pkt.data.frame.flags |= AOM_FRAME_IS_DELAYED_RANDOM_ACCESS_POINT;
       }
-#endif
       pkt.data.frame.duration = (uint32_t)ticks_to_timebase_units(
           timestamp_ratio, dst_end_time_stamp - dst_time_stamp);
 
