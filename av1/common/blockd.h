@@ -2453,69 +2453,6 @@ static const int av1_ext_tx_used[EXT_TX_SET_TYPES][TX_TYPES] = {
   { 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0 },
 };
 
-static const int av1_mdtx_used_flag[EXT_TX_SIZES][INTRA_MODES][TX_TYPES] = {
-  {
-      { 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 0, 0 },
-      { 1, 1, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 0 },
-      { 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 0, 1, 0, 1, 0, 0 },
-      { 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
-      { 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 0, 0 },
-      { 1, 1, 1, 1, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0 },
-      { 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 0, 0 },
-      { 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 0, 1, 0, 1, 0, 0 },
-      { 1, 1, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 0 },
-      { 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
-      { 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0 },
-      { 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 0, 0 },
-      { 1, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0 },
-  },  // size_class: 0
-  {
-      { 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
-      { 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
-      { 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
-      { 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
-      { 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
-      { 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
-      { 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
-      { 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
-      { 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0 },
-      { 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
-      { 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
-      { 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
-      { 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0 },
-  },  // size_class: 1
-  {
-      { 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
-      { 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
-      { 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
-      { 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
-      { 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
-      { 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
-      { 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
-      { 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0 },
-      { 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
-      { 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
-      { 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
-      { 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0 },
-      { 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0 },
-  },  // size_class: 2
-  {
-      { 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0 },
-      { 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0 },
-      { 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0 },
-      { 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0 },
-      { 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0 },
-      { 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0 },
-      { 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0 },
-      { 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0 },
-      { 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0 },
-      { 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0 },
-      { 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0 },
-      { 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0 },
-      { 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0 },
-  },  // size_class: 3
-};
-
 static const uint16_t av1_reduced_intra_tx_used_flag[INTRA_MODES] = {
   0x080F,  // DC_PRED:       0000 1000 0000 1111
   0x040F,  // V_PRED:        0000 0100 0000 1111
@@ -2676,27 +2613,6 @@ static INLINE TX_SIZE tx_size_from_tx_mode(BLOCK_SIZE bsize, TX_MODE tx_mode) {
 static const uint8_t mode_to_angle_map[] = {
   0, 90, 180, 45, 135, 113, 157, 203, 67, 0, 0, 0, 0,
 };
-
-// Converts block_index for given transform size to index of the block in raster
-// order.
-static INLINE int av1_block_index_to_raster_order(TX_SIZE tx_size,
-                                                  int block_idx) {
-  // For transform size 4x8, the possible block_idx values are 0 & 2, because
-  // block_idx values are incremented in steps of size 'tx_width_unit x
-  // tx_height_unit'. But, for this transform size, block_idx = 2 corresponds to
-  // block number 1 in raster order, inside an 8x8 MI block.
-  // For any other transform size, the two indices are equivalent.
-  return (tx_size == TX_4X8 && block_idx == 2) ? 1 : block_idx;
-}
-
-// Inverse of above function.
-// Note: only implemented for transform sizes 4x4, 4x8 and 8x4 right now.
-static INLINE int av1_raster_order_to_block_index(TX_SIZE tx_size,
-                                                  int raster_order) {
-  assert(tx_size == TX_4X4 || tx_size == TX_4X8 || tx_size == TX_8X4);
-  // We ensure that block indices are 0 & 2 if tx size is 4x8 or 8x4.
-  return (tx_size == TX_4X4) ? raster_order : (raster_order > 0) ? 2 : 0;
-}
 
 static INLINE TX_TYPE get_default_tx_type(PLANE_TYPE plane_type,
                                           const MACROBLOCKD *xd,
@@ -2971,11 +2887,6 @@ static INLINE CctxType av1_get_cctx_type(const MACROBLOCKD *xd, int blk_row,
   const int br = blk_row << pd->subsampling_y;
   const int bc = blk_col << pd->subsampling_x;
   return xd->cctx_type_map[br * xd->cctx_type_map_stride + bc];
-}
-
-static INLINE int tx_size_is_depth0(TX_SIZE tx_size, BLOCK_SIZE bsize) {
-  TX_SIZE ctx_size = max_txsize_rect_lookup[bsize];
-  return ctx_size == tx_size;
 }
 
 #define PRIMARY_TX_BITS 4  // # of bits for primary tx
@@ -3309,47 +3220,6 @@ static INLINE TX_TYPE av1_get_tx_type(const MACROBLOCKD *xd,
 
 void av1_setup_block_planes(MACROBLOCKD *xd, int ss_x, int ss_y,
                             const int num_planes);
-
-/*
- * Logic to generate the lookup table:
- *
- * TX_SIZE tx_size = max_txsize_rect_lookup[bsize];
- * int depth = 0;
- * while (depth < MAX_TX_DEPTH && tx_size != TX_4X4) {
- *   depth++;
- *   tx_size = sub_tx_size_map[tx_size];
- * }
- */
-static INLINE int bsize_to_max_depth(BLOCK_SIZE bsize) {
-  static const uint8_t bsize_to_max_depth_table[BLOCK_SIZES_ALL] = {
-    0, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-  };
-  return bsize_to_max_depth_table[bsize];
-}
-
-/*
- * Logic to generate the lookup table:
- *
- * TX_SIZE tx_size = max_txsize_rect_lookup[bsize];
- * assert(tx_size != TX_4X4);
- * int depth = 0;
- * while (tx_size != TX_4X4) {
- *   depth++;
- *   tx_size = sub_tx_size_map[tx_size];
- * }
- * assert(depth < 10);
- */
-static INLINE int bsize_to_tx_size_cat(BLOCK_SIZE bsize) {
-  assert(bsize < BLOCK_SIZES_ALL);
-  static const uint8_t bsize_to_tx_size_depth_table[BLOCK_SIZES_ALL] = {
-    0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4, 4, 4,
-    4, 4, 4, 2, 2, 3, 3, 4, 4, 3, 3, 4, 4, 4, 4,
-  };
-  const int depth = bsize_to_tx_size_depth_table[bsize];
-  assert(depth <= MAX_TX_CATS);
-  return depth - 1;
-}
 
 static INLINE TX_SIZE av1_get_adjusted_tx_size(TX_SIZE tx_size) {
   switch (tx_size) {
