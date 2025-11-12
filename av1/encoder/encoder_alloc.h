@@ -65,7 +65,6 @@ static AOM_INLINE void alloc_compressor_data(AV1_COMP *cpi) {
   TokenInfo *token_info = &cpi->token_info;
   cpi->alloc_width = cm->width;
   cpi->alloc_height = cm->height;
-  cpi->alloc_sb_size = cm->sb_size;
   if (av1_alloc_context_buffers(cm, cm->width, cm->height)) {
     aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate context buffers");
@@ -280,7 +279,6 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
   }
   cpi->alloc_width = 0;
   cpi->alloc_height = 0;
-  cpi->alloc_sb_size = 0;
 #if CONFIG_F255_QMOBU
   for (int qmobu_pos = 0; qmobu_pos < cpi->total_signalled_qmobu_count;
        qmobu_pos++) {

@@ -845,20 +845,6 @@ static AOM_INLINE void restore_cdef_coding_context(CdefInfo *const dst,
   dst->nb_cdef_strengths = src->nb_cdef_strengths;
 }
 
-// Coding context that only needs to be restored when recode loop includes
-// filtering (deblocking, CDEF, superres post-encode upscale and/or loop
-// restoraton).
-static AOM_INLINE void restore_extra_coding_context(AV1_COMP *cpi) {
-  CODING_CONTEXT *const cc = &cpi->coding_context;
-  AV1_COMMON *cm = &cpi->common;
-  cm->lf = cc->lf;
-  cm->cdef_info = cc->cdef_info;
-  restore_cdef_coding_context(&cm->cdef_info, &cc->cdef_info);
-  cpi->rc = cc->rc;
-  cpi->mv_stats = cc->mv_stats;
-  cm->features = cc->features;
-}
-
 static AOM_INLINE int equal_dimensions_and_border(const YV12_BUFFER_CONFIG *a,
                                                   const YV12_BUFFER_CONFIG *b) {
   return a->y_height == b->y_height && a->y_width == b->y_width &&
@@ -913,11 +899,6 @@ static AOM_INLINE void release_scaled_references(AV1_COMP *cpi) {
       cpi->scaled_ref_buf[i] = NULL;
     }
   }
-}
-
-static AOM_INLINE void restore_all_coding_context(AV1_COMP *cpi) {
-  restore_extra_coding_context(cpi);
-  if (!frame_is_intra_only(&cpi->common)) release_scaled_references(cpi);
 }
 
 // Refresh reference frame buffers according to refresh_frame_flags.
@@ -1013,7 +994,6 @@ int av1_is_integer_mv(const YV12_BUFFER_CONFIG *cur_picture,
 
 void av1_set_mb_ssim_rdmult_scaling(AV1_COMP *cpi);
 
-void av1_save_all_coding_context(AV1_COMP *cpi);
 void active_region_detection(AV1_COMP *cpi,
                              const YV12_BUFFER_CONFIG *cur_picture,
                              const YV12_BUFFER_CONFIG *last_picture);

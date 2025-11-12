@@ -4326,8 +4326,6 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   features->enable_ext_seg = seq_params->enable_ext_seg;
   cm->seg.enable_ext_seg = seq_params->enable_ext_seg;
 
-  cpi->last_frame_type = current_frame->frame_type;
-
   if (frame_is_sframe(cm)) {
     GF_GROUP *gf_group = &cpi->gf_group;
     // S frame will wipe out any previously encoded altref so we cannot place
@@ -4605,8 +4603,6 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     cpi->frame_component_time[i] = 0;
   }
 #endif
-
-  cpi->last_frame_type = current_frame->frame_type;
 
   av1_rc_postencode_update(cpi, *size);
 

@@ -57,24 +57,6 @@ void set_coeff_info(tran_low_t qc_low, tran_low_t dqc_low, tran_low_t qc_up,
   }
 }
 
-typedef struct LevelDownStats {
-  int update;
-  tran_low_t low_qc;
-  tran_low_t low_dqc;
-  int64_t dist0;
-  int rate;
-  int rate_low;
-  int64_t dist;
-  int64_t dist_low;
-  int64_t rd;
-  int64_t rd_low;
-  int64_t nz_rd;
-  int64_t rd_diff;
-  int cost_diff;
-  int64_t dist_diff;
-  int new_eob;
-} LevelDownStats;
-
 static AOM_FORCE_INLINE int get_dqv(const int32_t *dequant, int coeff_idx,
                                     const qm_val_t *iqmatrix) {
   int dqv = dequant[!!coeff_idx];
@@ -1231,12 +1213,6 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
     }
   }
 }
-
-typedef struct encode_txb_args {
-  const AV1_COMMON *cm;
-  MACROBLOCK *x;
-  aom_writer *w;
-} ENCODE_TXB_ARGS;
 
 void av1_write_intra_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x,
                                aom_writer *w, BLOCK_SIZE bsize) {

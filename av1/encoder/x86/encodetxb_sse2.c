@@ -944,28 +944,6 @@ static INLINE void get_16n_coeff_contexts_2d_skip_sse2(const uint8_t *levels,
 }
 
 // Note: levels[] must be in the range [0, 127], inclusive.
-void av1_get_nz_map_contexts_skip_sse2(const uint8_t *const levels,
-                                       const int16_t *const scan,
-                                       const uint16_t bob, const uint16_t eob,
-                                       const TX_SIZE tx_size,
-                                       int8_t *const coeff_contexts) {
-  (void)scan;
-  (void)eob;
-  (void)bob;
-  const int width = get_txb_wide(tx_size);
-  const int height = get_txb_high(tx_size);
-  // coeff_contexts must be 16 byte aligned.
-  assert(!((intptr_t)coeff_contexts & 0xf));
-  if (width == 4) {
-    get_4_nz_map_contexts_2d_skip_sse2(levels, height, coeff_contexts);
-  } else if (width == 8) {
-    get_8_coeff_contexts_2d_skip_sse2(levels, height, coeff_contexts);
-  } else {
-    get_16n_coeff_contexts_2d_skip_sse2(levels, width, height, coeff_contexts);
-  }
-}
-
-// Note: levels[] must be in the range [0, 127], inclusive.
 void av1_get_nz_map_contexts_sse2(const uint8_t *const levels,
                                   const int16_t *const scan, const uint16_t eob,
                                   const TX_SIZE tx_size,

@@ -2278,8 +2278,6 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   cpi->all_one_sided_refs =
       frame_is_intra_only(cm) ? 0 : refs_are_one_sided(cm);
 
-  cpi->prune_ref_frame_mask = 0;
-
   x->txfm_search_info.txb_split_count = 0;
 #if CONFIG_SPEED_STATS
   x->txfm_search_info.tx_search_count = 0;

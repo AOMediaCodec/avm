@@ -288,9 +288,7 @@ static AOM_INLINE void inter_mode_data_push(TileDataEnc *tile_data,
 
 static AOM_INLINE void inter_modes_info_push(InterModesInfo *inter_modes_info,
                                              int mode_rate, int64_t sse,
-                                             int64_t rd, RD_STATS *rd_cost,
-                                             RD_STATS *rd_cost_y,
-                                             RD_STATS *rd_cost_uv,
+                                             int64_t rd,
                                              const MB_MODE_INFO *mbmi) {
   const int num = inter_modes_info->num;
   assert(num < MAX_INTER_MODES);
@@ -298,9 +296,6 @@ static AOM_INLINE void inter_modes_info_push(InterModesInfo *inter_modes_info,
   inter_modes_info->mode_rate_arr[num] = mode_rate;
   inter_modes_info->sse_arr[num] = sse;
   inter_modes_info->est_rd_arr[num] = rd;
-  inter_modes_info->rd_cost_arr[num] = *rd_cost;
-  inter_modes_info->rd_cost_y_arr[num] = *rd_cost_y;
-  inter_modes_info->rd_cost_uv_arr[num] = *rd_cost_uv;
   ++inter_modes_info->num;
 }
 
@@ -3115,14 +3110,12 @@ static int64_t motion_mode_rd(
                 if (!is_comp_pred) {
                   assert(curr_sse >= 0);
                   inter_modes_info_push(inter_modes_info, mode_rate, curr_sse,
-                                        rd_stats->rdcost, rd_stats, rd_stats_y,
-                                        rd_stats_uv, mbmi);
+                                        rd_stats->rdcost, mbmi);
                 }
               } else {
                 assert(curr_sse >= 0);
                 inter_modes_info_push(inter_modes_info, mode_rate, curr_sse,
-                                      rd_stats->rdcost, rd_stats, rd_stats_y,
-                                      rd_stats_uv, mbmi);
+                                      rd_stats->rdcost, mbmi);
               }
               mbmi->skip_txfm[xd->tree_type == CHROMA_PART] = 0;
             } else {

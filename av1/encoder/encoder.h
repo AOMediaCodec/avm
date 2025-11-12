@@ -1549,92 +1549,7 @@ typedef struct inter_modes_info {
    * The rate and mode index for each of the candidate modes.
    */
   RdIdxPair rd_idx_pair_arr[MAX_INTER_MODES];
-  /*!
-   * The full rd stats for each of the candidate modes.
-   */
-  RD_STATS rd_cost_arr[MAX_INTER_MODES];
-  /*!
-   * The full rd stats of luma only for each of the candidate modes.
-   */
-  RD_STATS rd_cost_y_arr[MAX_INTER_MODES];
-  /*!
-   * The full rd stats of chroma only for each of the candidate modes.
-   */
-  RD_STATS rd_cost_uv_arr[MAX_INTER_MODES];
 } InterModesInfo;
-
-/*!\cond */
-typedef struct {
-  // TODO(kyslov): consider changing to 64bit
-
-  // This struct is used for computing variance in choose_partitioning(), where
-  // the max number of samples within a superblock is 32x32 (with 4x4 avg).
-  // With 8bit bitdepth, uint32_t is enough for sum_square_error (2^8 * 2^8 * 32
-  // * 32 = 2^26). For high bitdepth we need to consider changing this to 64 bit
-  uint32_t sum_square_error;
-  int32_t sum_error;
-  int log2_count;
-  int variance;
-} VPartVar;
-
-typedef struct {
-  VPartVar none;
-  VPartVar horz[2];
-  VPartVar vert[2];
-} VPVariance;
-
-typedef struct {
-  VPVariance part_variances;
-  VPartVar split[4];
-} VP4x4;
-
-typedef struct {
-  VPVariance part_variances;
-  VP4x4 split[4];
-} VP8x8;
-
-typedef struct {
-  VPVariance part_variances;
-  VP8x8 split[4];
-} VP16x16;
-
-typedef struct {
-  VPVariance part_variances;
-  VP16x16 split[4];
-} VP32x32;
-
-typedef struct {
-  VPVariance part_variances;
-  VP32x32 split[4];
-} VP64x64;
-
-typedef struct {
-  VPVariance part_variances;
-  VP64x64 *split;
-} VP128x128;
-
-/*!\endcond */
-
-/*!
- * \brief Thresholds for variance based partitioning.
- */
-typedef struct {
-  /*!
-   * If block variance > threshold, then that block is forced to split.
-   * thresholds[0] - threshold for 128x128;
-   * thresholds[1] - threshold for 64x64;
-   * thresholds[2] - threshold for 32x32;
-   * thresholds[3] - threshold for 16x16;
-   * thresholds[4] - threshold for 8x8;
-   */
-  int64_t thresholds[5];
-
-  /*!
-   * MinMax variance threshold for 8x8 sub blocks of a 16x16 block. If actual
-   * minmax > threshold_minmax, the 16x16 is forced to split.
-   */
-  int64_t threshold_minmax;
-} VarBasedPartitionInfo;
 
 /*!
  * \brief Encoder parameters for synchronization of row based multi-threading
@@ -1898,11 +1813,6 @@ typedef struct IMAGE_STAT {
   double worst;
 } ImageStat;
 #endif  // CONFIG_INTERNAL_STATS
-
-typedef struct {
-  int ref_count;
-  YV12_BUFFER_CONFIG buf;
-} EncRefCntBuffer;
 
 /*!\endcond */
 
@@ -2521,14 +2431,6 @@ typedef struct AV1_COMP {
   RefCntBuffer *last_show_frame_buf;
 
   /*!
-   * For each type of reference frame, this contains the index of a reference
-   * frame buffer for a reference frame of the same type.  We use this to
-   * choose our primary reference frame (which is the most recent reference
-   * frame of the same type as the current frame).
-   */
-  int fb_of_context_type[REF_FRAMES];
-
-  /*!
    * Flags signalled by the external interface at frame level.
    */
   ExternalFlags ext_flags;
@@ -2783,11 +2685,6 @@ typedef struct AV1_COMP {
   int vaq_refresh;
 
   /*!
-   * Thresholds for variance based partitioning.
-   */
-  VarBasedPartitionInfo vbp_info;
-
-  /*!
    * Probabilities for pruning of various AV1 tools.
    */
   FrameProbInfo frame_probs;
@@ -2820,11 +2717,6 @@ typedef struct AV1_COMP {
    * A flag to indicate if intrabc is ever used in current frame.
    */
   int intrabc_used;
-
-  /*!
-   * Mark which ref frames can be skipped for encoding current frame during RDO.
-   */
-  uint64_t prune_ref_frame_mask;
 
   /*!
    * Loop Restoration context.
@@ -2929,12 +2821,6 @@ typedef struct AV1_COMP {
   MV_STATS mv_stats;
 
   /*!
-   * Frame type of the last frame. May be used in some heuristics for speeding
-   * up the encoding.
-   */
-  FRAME_TYPE last_frame_type;
-
-  /*!
    * Number of tile-groups.
    */
   int num_tg;
@@ -3000,10 +2886,6 @@ typedef struct AV1_COMP {
    * allocation height
    */
   int alloc_height;
-  /*!
-   * allocation sb_size
-   */
-  int alloc_sb_size;
 #if CONFIG_MULTI_FRAME_HEADER
   /*!
    * Record the current multi-frame header parameters
@@ -3327,17 +3209,6 @@ static INLINE const YV12_BUFFER_CONFIG *get_ref_frame_yv12_buf(
   return buf != NULL ? &buf->buf : NULL;
 }
 
-static INLINE int enc_is_ref_frame_buf(const AV1_COMMON *const cm,
-                                       const RefCntBuffer *const frame_buf) {
-  MV_REFERENCE_FRAME ref_frame;
-  for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME; ++ref_frame) {
-    const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
-    if (buf == NULL) continue;
-    if (frame_buf == buf) break;
-  }
-  return (ref_frame < INTER_REFS_PER_FRAME);
-}
-
 static INLINE void alloc_frame_mvs(AV1_COMMON *const cm, RefCntBuffer *buf) {
   assert(buf != NULL);
   ensure_mv_buffer(buf, cm);
@@ -3420,10 +3291,6 @@ static INLINE void set_ref_ptrs(const AV1_COMMON *cm, MACROBLOCKD *xd,
       cm, ref0 < INTER_REFS_PER_FRAME || is_tip_ref_frame(ref0) ? ref0 : 0);
   xd->block_ref_scale_factors[1] = get_ref_scale_factors_const(
       cm, ref1 < INTER_REFS_PER_FRAME || is_tip_ref_frame(ref1) ? ref1 : 0);
-}
-
-static INLINE int get_chessboard_index(int frame_index) {
-  return frame_index & 0x1;
 }
 
 static INLINE const int *cond_cost_list_const(const struct AV1_COMP *cpi,

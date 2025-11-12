@@ -31,28 +31,6 @@ extern "C" {
 #define DC_SIGN_CTX_SHIFT 5
 #define DC_SIGN_CTX_MASK 3
 
-typedef struct TxbInfo {
-  tran_low_t *qcoeff;
-  uint8_t *levels;  // absolute values and clamped to 255.
-  tran_low_t *dqcoeff;
-  const tran_low_t *tcoeff;
-  const int32_t *dequant;
-  int shift;
-  TX_SIZE tx_size;
-  TX_SIZE txs_ctx;
-  TX_TYPE tx_type;
-  int bwl;
-  int width;
-  int height;
-  int eob;
-  int seg_eob;
-  const SCAN_ORDER *scan_order;
-  TXB_CTX *txb_ctx;
-  int64_t rdmult;
-  const qm_val_t *iqmatrix;
-  int tx_type_cost;
-} TxbInfo;
-
 /*!\endcond */
 /*!\brief Allocate the memory resources for all the macro blocks in the current
  * coding frame.
