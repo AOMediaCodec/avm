@@ -616,12 +616,6 @@ typedef struct MB_MODE_INFO {
   int_mv ref_bv;
   /*! \brief Flag of the linear intra prediction mode. */
   int morph_pred;
-  /*! \brief Scaling parameter of the linear model:
-   * Y = morph_alpa * X + morph_beta. */
-  int morph_alpha;
-  /*! \brief Offset of the linear model:
-   * Y = morph_alpa * X + morph_beta. */
-  int morph_beta;
 
   /*! \brief Which index to use for warp base parameter. */
   uint8_t warp_ref_idx;
