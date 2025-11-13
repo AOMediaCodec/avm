@@ -4146,8 +4146,7 @@ void set_default_intraBC_bv_precision(const AV1_COMMON *const cm,
 
 // set the mv precision for amvd applied mode
 void set_amvd_mv_precision(MB_MODE_INFO *mbmi, MvSubpelPrecision precision) {
-  mbmi->pb_mv_precision =
-      precision <= MV_PRECISION_QTR_PEL ? precision : MV_PRECISION_QTR_PEL;
+  mbmi->pb_mv_precision = precision;
 }
 int av1_get_pb_mv_precision_index(const MB_MODE_INFO *mbmi) {
   const PRECISION_SET *precision_def =
