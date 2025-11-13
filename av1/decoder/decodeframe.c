@@ -8414,12 +8414,13 @@ static void activate_sequence_header(AV1Decoder *pbi,
 #if CONFIG_F024_KEYOBU
   if (obu_type == OBU_CLK) {
     //[jkei] should it be reset_ref_frame_map(cm)?
-    for (int i = 0; i < cm->seq_params.ref_frames; i++) {
-      if (cm->ref_frame_map[i] != NULL) {
-        cm->ref_frame_map[i]->ref_count = 0;
-        cm->ref_frame_map[i] = NULL;
-      }
-    }
+    reset_ref_frame_map(cm);
+//    for (int i = 0; i < cm->seq_params.ref_frames; i++) {
+//      if (cm->ref_frame_map[i] != NULL) {
+//        cm->ref_frame_map[i]->ref_count = 0;
+//        cm->ref_frame_map[i] = NULL;
+//      }
+//    }
   }
 #endif  // CONFIG_F024_KEYOBU
 }
@@ -10254,9 +10255,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   read_film_grain(cm, rb);
 
   features->enable_ext_seg = seq_params->enable_ext_seg;
-#if 0
-  printf("<---------------READ_uncompressed_header[ %d ]-----------\n",
-         current_frame->display_order_hint);
+#if 1
+  printf("-------------END_OF_read_uncompressed_header-------------DOH[%d] %s\n", current_frame->display_order_hint, aom_obu_type_to_string(obu_type));
 #endif
   return 0;
 }
