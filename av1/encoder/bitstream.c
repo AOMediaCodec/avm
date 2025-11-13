@@ -6513,18 +6513,18 @@ static AOM_INLINE void write_uncompressed_header_obu
         // CONFIG_F106_OBU_TIP)
 #else   // CONFIG_F024_KEYOBU
 #if CONFIG_F106_OBU_TILEGROUP && (CONFIG_F106_OBU_SWITCH || CONFIG_F106_OBU_TIP)
-     bool frame_type_signaled = true;
+    bool frame_type_signaled = true;
 #if CONFIG_F106_OBU_SWITCH
- frame_type_signaled &= (obu_type != OBU_SWITCH);
+    frame_type_signaled &= (obu_type != OBU_SWITCH);
 #endif  // CONFIG_F106_OBU_SWITCH
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
- frame_type_signaled &= (obu_type != OBU_RAS_FRAME);
+    frame_type_signaled &= (obu_type != OBU_RAS_FRAME);
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 #if CONFIG_F106_OBU_TIP
- frame_type_signaled &= (obu_type != OBU_TIP);
+    frame_type_signaled &= (obu_type != OBU_TIP);
 #endif  // CONFIG_F106_OBU_TIP
 #if CONFIG_CWG_F317
- frame_type_signaled &= (!cm->bridge_frame_info.is_bridge_frame);
+    frame_type_signaled &= (!cm->bridge_frame_info.is_bridge_frame);
 #endif  // CONFIG_CWG_F317
 
 #endif  // CONFIG_F106_OBU_TILEGROUP && (CONFIG_F106_OBU_SWITCH ||

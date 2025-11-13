@@ -498,9 +498,15 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
 #if CONFIG_F106_OBU_TILEGROUP
 #if CONFIG_F024_KEYOBU
     } else if (obu_header.type == OBU_LEADING_TILE_GROUP ||
-               obu_header.type == OBU_REGULAR_TILE_GROUP) {
+               obu_header.type == OBU_REGULAR_TILE_GROUP ||
+               obu_header.type == OBU_BRIDGE_FRAME) {
+#else
+#if CONFIG_CWG_F317
+    } else if (obu_header.type == OBU_TILE_GROUP ||
+               obu_header.type == OBU_BRIDGE_FRAME) {
 #else
     } else if (obu_header.type == OBU_TILE_GROUP) {
+#endif  // CONFIG_CWG_F317
 #endif
 #else
 #if CONFIG_CWG_F317
