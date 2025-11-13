@@ -1060,9 +1060,7 @@ static INLINE int reuse_comp_mv_for_opfl(const AV1_COMMON *const cm,
   MvSubpelPrecision cur_mv_precision = mbmi->pb_mv_precision;
   int is_adaptive_mvd = enable_adaptive_mvd_resolution(cm, mbmi);
   if (is_adaptive_mvd) {
-    cur_mv_precision = mbmi->max_mv_precision <= MV_PRECISION_QTR_PEL
-                           ? mbmi->max_mv_precision
-                           : MV_PRECISION_QTR_PEL;
+    cur_mv_precision = mbmi->max_mv_precision;
   }
   int match_idx = -1;
   int ref_mv_idx = 0;
