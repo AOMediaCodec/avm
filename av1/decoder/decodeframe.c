@@ -8412,7 +8412,8 @@ static void activate_sequence_header(AV1Decoder *pbi,
   }
 #endif  // CONFIG_F024_KEYOBU
 #if CONFIG_F024_KEYOBU
-  if (obu_type == OBU_CLK || obu_type == OBU_OLK) {
+  if (obu_type == OBU_CLK) {
+    //[jkei] should it be reset_ref_frame_map(cm)?
     for (int i = 0; i < cm->seq_params.ref_frames; i++) {
       if (cm->ref_frame_map[i] != NULL) {
         cm->ref_frame_map[i]->ref_count = 0;
