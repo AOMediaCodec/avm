@@ -54,13 +54,6 @@ int av1_write_uleb_obu_size(size_t obu_header_size, size_t obu_payload_size,
 
 void av1_add_trailing_bits(struct aom_write_bit_buffer *wb);
 
-#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
-/*!\brief Derive sequence header from a keyframe
- */
-void set_sequence_header_with_keyframe(AV1_COMP *cpi,
-                                       struct SequenceHeader *seq_params);
-#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
-
 #if CONFIG_MULTILAYER_HLS
 uint32_t av1_write_layer_configuration_record_obu(AV1_COMP *const cpi,
                                                   int xlayer_id,
