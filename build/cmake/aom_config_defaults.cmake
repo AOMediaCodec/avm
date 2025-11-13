@@ -264,6 +264,8 @@ set_aom_config_var(CONFIG_WRL_NO_PRUNING 1 "No pruning when construct WRL")
 
 set_aom_config_var(CONFIG_FIX_OPFL_AUTO 1
                    "Fix optical flow auto mode, option 3")
+set_aom_config_var(CONFIG_FIX_BW_CHROMA_REFINED_MV 1
+                   "Fix bandwidth issue for the refined MVs reused by chroma")
 
 set_aom_config_var(
   CONFIG_MV_VALUE_CLIP 1

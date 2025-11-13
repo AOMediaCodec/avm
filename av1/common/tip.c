@@ -654,7 +654,9 @@ static AOM_INLINE void tip_build_inter_predictors_8x8_and_bigger(
           cm->features.tip_frame_mode);
   const int do_ref_area_pad = cm->seq_params.enable_tip_refinemv &&
                               cm->has_both_sides_refs &&
+#if !CONFIG_FIX_BW_CHROMA_REFINED_MV
                               (comp_bw > 4 || comp_bh > 4) &&
+#endif  // !CONFIG_FIX_BW_CHROMA_REFINED_MV
                               !is_tip_mv_refine_disabled_for_unit_size_16x16;
   if (do_ref_area_pad) {
     MB_MODE_INFO *mbmi = aom_calloc(1, sizeof(*mbmi));

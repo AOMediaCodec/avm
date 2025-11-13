@@ -1515,10 +1515,14 @@ void make_inter_pred_of_nxn(
   inter_pred_params->block_width = sub_bw;
   inter_pred_params->block_height = sub_bh;
 
+#if CONFIG_FIX_BW_CHROMA_REFINED_MV
+  MV subblock_mv = { 0, 0 };
+#else
   MV *subblock_mv;
+  MV avg_mv;
+#endif  // CONFIG_FIX_BW_CHROMA_REFINED_MV
   uint16_t *pre;
   int src_stride = 0;
-  MV avg_mv;
 
   const int mi_row = -xd->mb_to_top_edge >> MI_SUBPEL_SIZE_LOG2;
   const int mi_col = -xd->mb_to_left_edge >> MI_SUBPEL_SIZE_LOG2;
@@ -1530,12 +1534,20 @@ void make_inter_pred_of_nxn(
   // Process whole nxn blocks.
   for (int j = 0; j < bh; j += sub_bh) {
     for (int i = 0; i < bw; i += sub_bw) {
+#if !CONFIG_FIX_BW_CHROMA_REFINED_MV
       int delta_idx = (j / sub_bh) * (pu_width / sub_bw) + (i / sub_bw);
+#endif  // !CONFIG_FIX_BW_CHROMA_REFINED_MV
       ReferenceArea ref_area_opfl;
+#if CONFIG_FIX_BW_CHROMA_REFINED_MV
+      if (use_sub_pad && (plane || (sub_bh >= 8 && sub_bw >= 8))) {
+#else
       if (sub_bh >= 8 && sub_bw >= 8 && use_sub_pad) {
+#endif  // CONFIG_FIX_BW_CHROMA_REFINED_MV
         av1_get_reference_area_with_padding_single(
-            cm, xd, plane, mi, mi_mv[ref], sub_bw, sub_bh, mi_x + i, mi_y + j,
-            &ref_area_opfl, pu_width, pu_height, ref);
+            cm, xd, plane, mi, mi_mv[ref], sub_bw, sub_bh,
+            mi_x + (i << inter_pred_params->subsampling_x),
+            mi_y + (j << inter_pred_params->subsampling_y), &ref_area_opfl,
+            pu_width, pu_height, ref);
         inter_pred_params->use_ref_padding = 1;
         inter_pred_params->ref_area = &ref_area_opfl;
       }
@@ -1554,6 +1566,14 @@ void make_inter_pred_of_nxn(
       if (bw == 4 && bh == 4 && sub_bw == 4 && sub_bh == 4 &&
           inter_pred_params->subsampling_x &&
           inter_pred_params->subsampling_y) {
+#if CONFIG_FIX_BW_CHROMA_REFINED_MV
+        // In 420, a 8x8 luma block (consisting of 4 4x4 subblocks with refined
+        // MVs stored in mv_refined[i*2+ref] with i=0,1,2,3) has a 4x4 colocated
+        // chroma. This 4x4 chroma block would reuse the top-left luma refined
+        // MV (i=0) of its 8x8 colocated luma region without any latency issue
+        // in hardware implementation.
+        subblock_mv = mv_refined[ref].as_mv;
+#else
         // In 420, a 8x8 luma block has a 4x4 colocated chroma. This 4x4 chroma
         // block would reuse the average of 4 refined MVs in its 8x8 colocated
         // luma region.
@@ -1570,9 +1590,19 @@ void make_inter_pred_of_nxn(
                                           mv_refined[3 * 2 + ref].as_mv.col,
                                       2);
         subblock_mv = &avg_mv;
+#endif  // CONFIG_FIX_BW_CHROMA_REFINED_MV
       } else if (bw == 4 && bh == 8 && sub_bw == 4 && sub_bh == 4 &&
                  inter_pred_params->subsampling_x &&
                  !inter_pred_params->subsampling_y) {
+#if CONFIG_FIX_BW_CHROMA_REFINED_MV
+        // In 422, a 8x8 luma block (consisting of 4 4x4 subblocks with refined
+        // MVs stored in mv_refined[i*2+ref] with i=0,1,2,3) has a 4x8 colocated
+        // chroma that consists of two 4x4 chroma subblocks. Each 4x4 chroma
+        // would reuse the left luma refined MV (i=0 or 2) of its 8x4 colocated
+        // luma region without any latency issue in hardware implementation.
+        const int sub_idx = n_blocks * 2;
+        subblock_mv = mv_refined[sub_idx * 2 + ref].as_mv;
+#else
         // In 422, a 8x8 luma block has a 4x8 colocated chroma that consists of
         // two 4x4 chroma subblocks. Each 4x4 chroma would reuse the average of
         // 2 refined MVs in its 8x4 colocated luma region.
@@ -1586,12 +1616,24 @@ void make_inter_pred_of_nxn(
                 mv_refined[(sub_idx + 1) * 2 + ref].as_mv.col,
             1);
         subblock_mv = &avg_mv;
+#endif  // CONFIG_FIX_BW_CHROMA_REFINED_MV
       } else {
+#if CONFIG_FIX_BW_CHROMA_REFINED_MV
+        subblock_mv = mv_refined[n_blocks * 2 + ref].as_mv;
+#else
         subblock_mv = &(mv_refined[n_blocks * 2 + ref].as_mv);
+#endif  // CONFIG_FIX_BW_CHROMA_REFINED_MV
       }
+
+#if CONFIG_FIX_BW_CHROMA_REFINED_MV
+      calc_subpel_params_func(&subblock_mv, inter_pred_params, xd, mi_x + i,
+                              mi_y + j, ref, 1, mc_buf, &pre, subpel_params,
+                              &src_stride);
+#else
       calc_subpel_params_func(subblock_mv, inter_pred_params, xd, mi_x + i,
                               mi_y + j, ref, 1, mc_buf, &pre, subpel_params,
                               &src_stride);
+#endif  // CONFIG_FIX_BW_CHROMA_REFINED_MV
 
       int use_bacp = 0;
       assert(inter_pred_params->mask_comp.type == COMPOUND_AVERAGE);
@@ -2601,10 +2643,28 @@ static void get_ref_area_info(const MV *const src_mv,
   struct buf_2d *const pre_buf = &inter_pred_params->ref_frame_buf;
   int frame_height = pre_buf->height;
   int frame_width = pre_buf->width;
+#if CONFIG_FIX_BW_CHROMA_REFINED_MV
+  if (inter_pred_params->block_width == 4) {
+    block.x0 -= FOUR_TAPS_REF_LEFT_BORDER;
+    block.x1 += FOUR_TAPS_REF_RIGHT_BORDER;
+  } else {
+    block.x0 -= EIGHT_TAPS_REF_LEFT_BORDER;
+    block.x1 += EIGHT_TAPS_REF_RIGHT_BORDER;
+  }
+
+  if (inter_pred_params->block_height == 4) {
+    block.y0 -= FOUR_TAPS_REF_TOP_BORDER;
+    block.y1 += FOUR_TAPS_REF_BOTTOM_BORDER;
+  } else {
+    block.y0 -= EIGHT_TAPS_REF_TOP_BORDER;
+    block.y1 += EIGHT_TAPS_REF_BOTTOM_BORDER;
+  }
+#else
   block.x0 -= REF_LEFT_BORDER;
   block.x1 += REF_RIGHT_BORDER;
   block.y0 -= REF_TOP_BORDER;
   block.y1 += REF_BOTTOM_BORDER;
+#endif  // CONFIG_FIX_BW_CHROMA_REFINED_MV
 
   ref_area->pad_block.x0 = CLIP(block.x0, 0, frame_width - 1);
   ref_area->pad_block.y0 = CLIP(block.y0, 0, frame_height - 1);
@@ -2742,7 +2802,9 @@ void av1_get_reference_area_with_padding(const AV1_COMMON *cm, MACROBLOCKD *xd,
   assert(!is_intrabc_block(mi, xd->tree_type));
   struct macroblockd_plane *const pd = &xd->plane[plane];
 
+#if !CONFIG_FIX_BW_CHROMA_REFINED_MV
   if (is_tip && bw < 8 && bh < 8) return;
+#endif  // !CONFIG_FIX_BW_CHROMA_REFINED_MV
 
   int row_start = 0;
   int col_start = 0;
@@ -3294,11 +3356,18 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
     const int refinemv_is_allowed_y =
         is_mv_refine_allowed(cm, mi, 0) ||
         is_optflow_refinement_enabled(cm, xd, mi, 0, tip_ref_frame);
+#if CONFIG_FIX_BW_CHROMA_REFINED_MV
+    const int use_ref_padding =
+        tip_ref_frame ? (apply_refinemv || use_optflow_refinement ||
+                         (plane && refinemv_is_allowed_y))
+                      : 1;
+#else
     const int use_ref_padding =
         tip_ref_frame
             ? ((apply_refinemv || use_optflow_refinement) ||
                (plane && (comp_bw > 4 || comp_bh > 4) && refinemv_is_allowed_y))
             : 1;
+#endif  // CONFIG_FIX_BW_CHROMA_REFINED_MV
     if (use_ref_padding) {
       inter_pred_params.use_ref_padding = 1;
       inter_pred_params.ref_area = &ref_area[ref];
@@ -3577,6 +3646,9 @@ static void build_inter_predictors_8x8_and_bigger(
   int opfl_sub_bw = OF_BSIZE;
   int opfl_sub_bh = OF_BSIZE;
   opfl_subblock_size_plane(xd, plane, use_4x4, &opfl_sub_bw, &opfl_sub_bh);
+#if CONFIG_FIX_BW_CHROMA_REFINED_MV
+  ReferenceArea ref_area_opfl[2];
+#endif  // CONFIG_FIX_BW_CHROMA_REFINED_MV
 
   BacpBlockData bacp_block_data[2 * N_OF_OFFSETS];
   uint8_t use_bacp =
@@ -3722,6 +3794,29 @@ static void build_inter_predictors_8x8_and_bigger(
 
     if (tip_ref_frame) {
       set_tip_interp_weight_factor(cm, ref, &inter_pred_params);
+
+#if CONFIG_FIX_BW_CHROMA_REFINED_MV
+      // TODO(any) refactor the code to use a common data path for padding, or
+      // change is_optflow_refinement_enabled such that use_optflow_refinement
+      // is 1 for the special case below.
+      //
+      // Chroma 4x4 blocks in TIP ref mode (with use_optflow_refinement==0) will
+      // use this data path. In this case, the luma refined MV is reused, so the
+      // reference padding needs to be set up like what is done in
+      // av1_opfl_rebuild_inter_predictor.
+      if (plane) {
+        const int opfl_is_allowed_y =
+            is_optflow_refinement_enabled(cm, xd, mi, 0, tip_ref_frame);
+        const int use_ref_padding = opfl_is_allowed_y;
+        if (use_ref_padding) {
+          av1_get_reference_area_with_padding_single(
+              cm, xd, plane, mi, mi_mv[ref], opfl_sub_bw, opfl_sub_bh, mi_x,
+              mi_y, &ref_area_opfl[ref], pu_width, pu_height, ref);
+          inter_pred_params.use_ref_padding = 1;
+          inter_pred_params.ref_area = &ref_area_opfl[ref];
+        }
+      }
+#endif  // CONFIG_FIX_BW_CHROMA_REFINED_MV
     }
 
     const MV mv_1_16th_pel = (tip_ref_frame && plane)
