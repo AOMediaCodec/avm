@@ -121,12 +121,10 @@ typedef struct InterModeSearchState {
   int best_rate_uv;
   int best_mode_skippable;
   int best_skip2;
-  int num_available_refs;
   int64_t dist_refs[REF_FRAMES];
   int dist_order_refs[REF_FRAMES];
   int64_t mode_threshold[MB_MODE_COUNT];
   int64_t best_intra_rd;
-  unsigned int best_pred_sse;
   int64_t best_pred_diff[REFERENCE_MODES];
 
   // Save a set of single_newmv for each checked ref_mv.
@@ -5408,118 +5406,6 @@ static INLINE int is_bv_valid(const FULLPEL_MV *full_mv, const AV1_COMMON *cm,
 }
 
 // Search for the best ref BV
-int rd_pick_ref_bv(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
-                   FULLPEL_MOTION_SEARCH_PARAMS fullms_params_init, int_mv *bv,
-                   int *cost) {
-  const AV1_COMMON *const cm = &cpi->common;
-  MACROBLOCKD *const xd = &x->e_mbd;
-  MB_MODE_INFO *mbmi = xd->mi[0];
-  MB_MODE_INFO_EXT *const mbmi_ext = x->mbmi_ext;
-  const TileInfo *tile = &xd->tile;
-
-  if (mbmi_ext->ref_mv_count[INTRA_FRAME] > 0) {
-    int_mv best_bv;
-    int best_intrabc_mode;
-    int best_intrabc_drl_idx;
-    int best_cost = INT_MAX;
-
-    int intrabc_drl_idx;
-    int_mv cur_mv;
-    int_mv cur_ref_bv;
-    int cur_cost = INT_MAX;
-    int cur_ref_bv_cost = 0;
-
-    best_bv.as_int = 0;
-    best_intrabc_drl_idx = 0;
-    best_intrabc_mode = 0;
-
-    const int mi_row = xd->mi_row;
-    const int mi_col = xd->mi_col;
-
-    FULLPEL_MOTION_SEARCH_PARAMS fullms_params = fullms_params_init;
-
-    for (intrabc_drl_idx = 0;
-         intrabc_drl_idx < mbmi_ext->ref_mv_count[INTRA_FRAME];
-         intrabc_drl_idx++) {
-      if (intrabc_drl_idx > cm->features.max_bvp_drl_bits) break;
-      cur_ref_bv = xd->ref_mv_stack[INTRA_FRAME][intrabc_drl_idx].this_mv;
-
-      if (cur_ref_bv.as_int == 0 || cur_ref_bv.as_int == INVALID_MV) {
-        cur_ref_bv.as_int = 0;
-      }
-      if (cur_ref_bv.as_int == 0) {
-        av1_find_ref_dv(&cur_ref_bv, tile, cm->mib_size, mi_row);
-      }
-      // Ref DV should not have sub-pel.
-      assert((cur_ref_bv.as_mv.col & 7) == 0);
-      assert((cur_ref_bv.as_mv.row & 7) == 0);
-      assert(mbmi->pb_mv_precision == MV_PRECISION_ONE_PEL);
-
-      mbmi_ext->ref_mv_stack[INTRA_FRAME][0].this_mv = cur_ref_bv;
-
-      fullms_params = fullms_params_init;
-      av1_init_ref_mv(&fullms_params.mv_cost_params, &cur_ref_bv.as_mv);
-      av1_set_mv_search_range(&fullms_params.mv_limits, &cur_ref_bv.as_mv
-
-                              ,
-                              mbmi->pb_mv_precision
-
-      );
-      if (fullms_params.mv_limits.col_max < fullms_params.mv_limits.col_min ||
-          fullms_params.mv_limits.row_max < fullms_params.mv_limits.row_min) {
-        continue;
-      }
-
-      cur_ref_bv_cost = av1_get_ref_bv_rate_cost(
-          1, intrabc_drl_idx, cm->features.max_bvp_drl_bits, x,
-          fullms_params.mv_cost_params.mv_costs->errorperbit,
-          mbmi_ext->ref_mv_count[INTRA_FRAME]);
-      cur_cost = av1_get_ref_mvpred_var_cost(cpi, xd, &fullms_params);
-
-      if (cur_cost != INT_MAX) cur_cost += cur_ref_bv_cost;
-      if (cur_cost < best_cost) {
-        cur_mv.as_fullmv =
-            get_fullmv_from_mv(fullms_params.mv_cost_params.ref_mv);
-        if (is_bv_valid(&cur_mv.as_fullmv, cm, xd, mi_row, mi_col, bsize,
-                        fullms_params)) {
-          best_bv.as_mv = get_mv_from_fullmv(&cur_mv.as_fullmv);
-          best_cost = cur_cost;
-          best_intrabc_mode = 1;
-          best_intrabc_drl_idx = intrabc_drl_idx;
-        }
-      }
-    }
-
-    if (best_cost < INT_MAX) {
-      bv->as_mv = best_bv.as_mv;
-      mbmi->intrabc_drl_idx = best_intrabc_drl_idx;
-      mbmi->intrabc_mode = best_intrabc_mode;
-    } else {
-      bv->as_int = 0;
-      mbmi->intrabc_drl_idx = 0;
-      mbmi->intrabc_mode = 0;
-    }
-
-    // set best ref_bv
-    *cost = best_cost;
-    cur_ref_bv = xd->ref_mv_stack[INTRA_FRAME][best_intrabc_drl_idx].this_mv;
-
-    if (cur_ref_bv.as_int == 0 || cur_ref_bv.as_int == INVALID_MV) {
-      cur_ref_bv.as_int = 0;
-    }
-    if (cur_ref_bv.as_int == 0) {
-      av1_find_ref_dv(&cur_ref_bv, tile, cm->mib_size, mi_row);
-    }
-    // Ref DV should not have sub-pel.
-    assert((cur_ref_bv.as_mv.col & 7) == 0);
-    assert((cur_ref_bv.as_mv.row & 7) == 0);
-    mbmi_ext->ref_mv_stack[INTRA_FRAME][0].this_mv = cur_ref_bv;
-    return 1;
-  }
-  return 0;
-}
-
-// Search for the best ref BV
 int rd_pick_ref_bv_sub_pel(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
                            FULLPEL_MOTION_SEARCH_PARAMS fullms_params_init,
                            int_mv *bv, int *cost) {
@@ -7175,7 +7061,6 @@ static AOM_INLINE void init_inter_mode_search_state(
   const MB_MODE_INFO *const mbmi = xd->mi[0];
   const unsigned char segment_id = mbmi->segment_id;
 
-  search_state->num_available_refs = 0;
   memset(search_state->dist_refs, -1, sizeof(search_state->dist_refs));
   memset(search_state->dist_order_refs, -1,
          sizeof(search_state->dist_order_refs));
@@ -7187,8 +7072,6 @@ static AOM_INLINE void init_inter_mode_search_state(
         RD_THRESH_FAC_FRAC_BITS;
 
   search_state->best_intra_rd = INT64_MAX;
-
-  search_state->best_pred_sse = UINT_MAX;
 
   av1_zero(search_state->single_newmv);
   av1_zero(search_state->single_newmv_rate);
@@ -8869,8 +8752,6 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
             }
             assert(IMPLIES(comp_pred, cm->current_frame.reference_mode !=
                                           SINGLE_REFERENCE));
-            search_state.best_pred_sse =
-                x->pred_sse[COMPACT_INDEX0_NRS(ref_frame)];
             update_search_state(&search_state, rd_cost, ctx, &rd_stats,
                                 &rd_stats_y, &rd_stats_uv, this_mode, x,
                                 do_tx_search, cm);
@@ -9444,14 +9325,6 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
 
   store_coding_context(x, ctx, best_pred_diff, 0, cm);
 }
-
-/*!\cond */
-struct calc_target_weighted_pred_ctxt {
-  const uint16_t *tmp;
-  int tmp_stride;
-  int overlap;
-};
-/*!\endcond */
 
 /* Use standard 3x3 Sobel matrix. Macro so it can be used for either high or
    low bit-depth arrays. */

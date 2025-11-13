@@ -37,8 +37,6 @@ struct scale_factors {
   int (*scale_value_y)(int val, const struct scale_factors *sf);
   int64_t (*scale_value_warp_x)(int64_t val, const struct scale_factors *sf);
   int64_t (*scale_value_warp_y)(int64_t val, const struct scale_factors *sf);
-  int (*scale_value_x_gen)(int val, const struct scale_factors *sf);
-  int (*scale_value_y_gen)(int val, const struct scale_factors *sf);
 };
 
 MV32 av1_scale_mv(const MV *mv, int x, int y, const struct scale_factors *sf);

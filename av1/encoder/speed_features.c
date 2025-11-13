@@ -323,7 +323,6 @@ static void set_good_speed_features_framesize_independent(
 
   sf->tx_sf.adaptive_tx_type_search_idx = 1;
   sf->tx_sf.adaptive_tx_partition_type_search_idx = 1;
-  sf->tx_sf.intra_tx_size_search_init_depth_sqr = 1;
   sf->tx_sf.model_based_prune_tx_search_level = 1;
   sf->tx_sf.prune_tx_rd_eval_sec_tx_sse = true;
   sf->tx_sf.tx_type_search.use_reduced_intra_txset = 1;
@@ -383,9 +382,6 @@ static void set_good_speed_features_framesize_independent(
 
     sf->tx_sf.adaptive_tx_type_search_idx = 4;
     sf->tx_sf.adaptive_tx_partition_type_search_idx = 4;
-    sf->tx_sf.inter_tx_size_search_init_depth_rect = 1;
-    sf->tx_sf.inter_tx_size_search_init_depth_sqr = 1;
-    sf->tx_sf.intra_tx_size_search_init_depth_rect = 1;
     sf->tx_sf.model_based_prune_tx_search_level = 0;
     sf->tx_sf.tx_type_search.ml_tx_split_thresh = 400;
     sf->tx_sf.tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_2;
@@ -508,7 +504,6 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.disable_smooth_interintra = 1;
     sf->inter_sf.disable_onesided_comp = 1;
 
-    sf->interp_sf.cb_pred_filter_search = 1;
     sf->interp_sf.use_interp_filter = 2;
 
     sf->intra_sf.intra_uv_mode_mask[TX_16X16] = UV_INTRA_DC_H_V_CFL;
@@ -760,7 +755,6 @@ static AOM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
 }
 
 static AOM_INLINE void init_interp_sf(INTERP_FILTER_SPEED_FEATURES *interp_sf) {
-  interp_sf->cb_pred_filter_search = 0;
   interp_sf->use_interp_filter = 0;
 }
 
@@ -780,11 +774,6 @@ static AOM_INLINE void init_intra_sf(INTRA_MODE_SPEED_FEATURES *intra_sf) {
 }
 
 static AOM_INLINE void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {
-  tx_sf->inter_tx_size_search_init_depth_sqr = 0;
-  tx_sf->inter_tx_size_search_init_depth_rect = 0;
-  tx_sf->intra_tx_size_search_init_depth_rect = 0;
-  tx_sf->intra_tx_size_search_init_depth_sqr = 0;
-  tx_sf->tx_size_search_lgr_block = 0;
   tx_sf->model_based_prune_tx_search_level = 0;
   tx_sf->tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_1;
   tx_sf->tx_type_search.ml_tx_split_thresh = 400;
@@ -801,7 +790,6 @@ static AOM_INLINE void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {
   tx_sf->adaptive_tx_partition_type_search_idx = 0;
   tx_sf->use_intra_txb_hash = 0;
   tx_sf->use_inter_txb_hash = 1;
-  tx_sf->refine_fast_tx_search_results = 1;
   tx_sf->prune_tx_rd_eval_sec_tx_sse = false;
   tx_sf->use_largest_tx_size_for_small_bsize = false;
   tx_sf->restrict_tx_partition_type_search = 0;
@@ -1273,9 +1261,6 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
       memcpy(winner_mode_params->coeff_opt_dist_threshold,
              coeff_opt_dist_thresholds[sf->rd_sf.perform_coeff_opt],
              sizeof(winner_mode_params->coeff_opt_dist_threshold));
-      sf->tx_sf.inter_tx_size_search_init_depth_rect = 1;
-      sf->tx_sf.inter_tx_size_search_init_depth_sqr = 1;
-      sf->tx_sf.intra_tx_size_search_init_depth_rect = 1;
       sf->inter_sf.skip_repeated_newmv = 1;
       sf->tx_sf.model_based_prune_tx_search_level = 0;
 
@@ -1285,7 +1270,6 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
         sf->rd_sf.tx_domain_dist_level = boosted ? 1 : 2;
         sf->rd_sf.tx_domain_dist_thres_level = 1;
         sf->tx_sf.tx_type_search.ml_tx_split_thresh = 400;
-        sf->interp_sf.cb_pred_filter_search = 0;
         sf->tx_sf.tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_2;
         sf->tx_sf.tx_type_search.skip_tx_search = 1;
         sf->tx_sf.use_intra_txb_hash = 1;

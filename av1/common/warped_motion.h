@@ -192,10 +192,6 @@ void highbd_warp_plane(WarpedMotionParams *wm, const uint16_t *const ref,
                        ,
                        int use_warp_bd_box, WarpBoundaryBox *warp_bd_box);
 
-void warp_plane(WarpedMotionParams *wm, const uint8_t *const ref, int width,
-                int height, int stride, uint8_t *pred, int p_col, int p_row,
-                int p_width, int p_height, int p_stride, int subsampling_x,
-                int subsampling_y, ConvolveParams *conv_params);
 void av1_warp_plane(WarpedMotionParams *wm, int bd, const uint16_t *ref,
                     int width, int height, int stride, uint16_t *pred,
                     int p_col, int p_row, int p_width, int p_height,

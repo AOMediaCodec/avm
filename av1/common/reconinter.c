@@ -780,45 +780,6 @@ int get_refinemv_sad(uint16_t *src1, uint16_t *src2, int stride, int width,
   return get_highbd_sad_ds(src1, stride, src2, stride, bd, width, height);
 }
 
-int64_t stable_mult_shift(const int64_t a, const int64_t b, const int shift,
-                          const int msb_a, const int msb_b, const int max_bd,
-                          int *rem_shift) {
-  assert(shift >= 0);
-
-  // Remaining bit shifts (may be used in the next stage of multiplcation)
-  int rem = AOMMAX(0, msb_a + msb_b - shift + 1 - max_bd);
-  if (rem_shift) *rem_shift += rem;
-  if (msb_a + msb_b + 2 < max_bd)
-    return ROUND_POWER_OF_TWO_SIGNED_64(a * b, shift);
-
-  // To determine s1/s2/s3 in ((a>>s1)*(b>>s2))>>s3, consider the equation
-  //   (1+msb_a-s1)+(1+msb_b-s2)+1 <= max_bd+rem,
-  // where better numerical stability is obtained when
-  //   msb_a-s1 ~= msb_b-s2.
-  // This leads to the following solution
-  int msb_diff = abs(msb_a - msb_b);
-  // Total required shifts (s1 + s2)
-  int s = msb_a + msb_b - max_bd - rem + 4;
-  int diff = AOMMIN(s, msb_diff);
-  int s1 = (s - diff) >> 1;
-  int s2 = s1;
-  if (msb_a >= msb_b)
-    s1 = s - s2;
-  else
-    s2 = s - s1;
-
-  assert(s1 >= 0);
-  assert(s2 >= 0);
-  if (shift - s1 - s2 < 0) {
-    // bit depth not large enough to hold the result
-    return ((a > 0) ^ (b > 0)) ? -((1LL << (max_bd - 1)) - 1)
-                               : ((1LL << (max_bd - 1)) - 1);
-  }
-  return ROUND_POWER_OF_TWO_SIGNED_64(
-      ROUND_POWER_OF_TWO_SIGNED_64(a, s1) * ROUND_POWER_OF_TWO_SIGNED_64(b, s2),
-      shift - s1 - s2);
-}
-
 // Restrict MV delta to 1 or 2 pixels. This restriction would reduce complexity
 // in hardware.
 #define OPFL_CLAMP_MV_DELTA 1
@@ -1630,16 +1591,6 @@ void make_inter_pred_of_nxn(
       } else {
         subblock_mv = &(mv_refined[n_blocks * 2 + ref].as_mv);
       }
-
-      const int width = (cm->mi_params.mi_cols << MI_SIZE_LOG2);
-      const int height = (cm->mi_params.mi_rows << MI_SIZE_LOG2);
-      inter_pred_params->dist_to_top_edge = -GET_MV_SUBPEL(mi_y + j);
-      inter_pred_params->dist_to_bottom_edge =
-          GET_MV_SUBPEL(height - bh - mi_y - j);
-      inter_pred_params->dist_to_left_edge = -GET_MV_SUBPEL(mi_x + i);
-      inter_pred_params->dist_to_right_edge =
-          GET_MV_SUBPEL(width - bw - mi_x - i);
-
       calc_subpel_params_func(subblock_mv, inter_pred_params, xd, mi_x + i,
                               mi_y + j, ref, 1, mc_buf, &pre, subpel_params,
                               &src_stride);
@@ -4110,10 +4061,6 @@ int av1_get_pb_mv_precision_down_context(const AV1_COMMON *cm,
   assert(left_down >= 0);
   return (above_down + left_down > 0);
 #endif  // CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
-}
-
-int av1_get_mv_class_context(const MvSubpelPrecision pb_mv_precision) {
-  return pb_mv_precision;
 }
 
 void set_mv_precision(MB_MODE_INFO *mbmi, MvSubpelPrecision precision) {

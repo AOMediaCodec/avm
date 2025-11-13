@@ -43,11 +43,6 @@ typedef struct {
   TX_TYPE tx_type;
 } TxCandidateInfo;
 
-typedef struct {
-  int leaf;
-  int8_t children[4];
-} RD_RECORD_IDX_NODE;
-
 typedef struct tx_size_rd_info_node {
   TXB_RD_INFO *rd_info_array;  // Points to array of size TX_TYPES.
   struct tx_size_rd_info_node *children[4];

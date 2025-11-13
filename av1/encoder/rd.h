@@ -236,8 +236,6 @@ YV12_BUFFER_CONFIG *av1_get_scaled_ref_frame(const struct AV1_COMP *cpi,
 
 void av1_init_me_luts(void);
 
-void av1_set_mvcost(MACROBLOCK *x, int ref, int ref_mv_idx);
-
 void av1_get_entropy_contexts(BLOCK_SIZE plane_bsize,
                               const struct macroblockd_plane *pd,
                               ENTROPY_CONTEXT t_above[MAX_MIB_SIZE],
@@ -255,11 +253,6 @@ static INLINE void reset_thresh_freq_fact(MACROBLOCK *const x) {
       x->thresh_freq_fact[i][j] = RD_THRESH_FAC_FRAC_VAL;
     }
   }
-}
-
-static INLINE int rd_less_than_thresh(int64_t best_rd, int thresh,
-                                      int thresh_fact) {
-  return best_rd < ((int64_t)thresh * thresh_fact >> 5) || thresh == INT_MAX;
 }
 
 void av1_mv_pred(const struct AV1_COMP *cpi, MACROBLOCK *x,

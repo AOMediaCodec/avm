@@ -43,24 +43,9 @@ enum {
       (1 << UV_D157_PRED) | (1 << UV_D203_PRED) | (1 << UV_D67_PRED) |
       (1 << UV_SMOOTH_PRED) | (1 << UV_SMOOTH_V_PRED) |
       (1 << UV_SMOOTH_H_PRED) | (1 << UV_PAETH_PRED) | (1 << UV_CFL_PRED),
-  UV_INTRA_DC = (1 << UV_DC_PRED),
-  UV_INTRA_DC_CFL = (1 << UV_DC_PRED) | (1 << UV_CFL_PRED),
-  UV_INTRA_DC_TM = (1 << UV_DC_PRED) | (1 << UV_PAETH_PRED),
-  UV_INTRA_DC_PAETH_CFL =
-      (1 << UV_DC_PRED) | (1 << UV_PAETH_PRED) | (1 << UV_CFL_PRED),
-  UV_INTRA_DC_H_V = (1 << UV_DC_PRED) | (1 << UV_V_PRED) | (1 << UV_H_PRED),
   UV_INTRA_DC_H_V_CFL = (1 << UV_DC_PRED) | (1 << UV_V_PRED) |
                         (1 << UV_H_PRED) | (1 << UV_CFL_PRED),
-  UV_INTRA_DC_PAETH_H_V = (1 << UV_DC_PRED) | (1 << UV_PAETH_PRED) |
-                          (1 << UV_V_PRED) | (1 << UV_H_PRED),
-  UV_INTRA_DC_PAETH_H_V_CFL = (1 << UV_DC_PRED) | (1 << UV_PAETH_PRED) |
-                              (1 << UV_V_PRED) | (1 << UV_H_PRED) |
-                              (1 << UV_CFL_PRED),
-  INTRA_DC = (1 << DC_PRED),
-  INTRA_DC_TM = (1 << DC_PRED) | (1 << PAETH_PRED),
   INTRA_DC_H_V = (1 << DC_PRED) | (1 << V_PRED) | (1 << H_PRED),
-  INTRA_DC_PAETH_H_V =
-      (1 << DC_PRED) | (1 << PAETH_PRED) | (1 << V_PRED) | (1 << H_PRED)
 };
 
 enum {
@@ -71,17 +56,6 @@ enum {
                       (1 << NEW_NEARMV) | (1 << NEAR_NEWMV) |
                       (1 << NEAR_NEARMV),
 };
-
-enum {
-  TXFM_CODING_SF = 1,
-  INTER_PRED_SF = 2,
-  INTRA_PRED_SF = 4,
-  PARTITION_SF = 8,
-  LOOP_FILTER_SF = 16,
-  RD_SKIP_SF = 32,
-  RESERVE_2_SF = 64,
-  RESERVE_3_SF = 128,
-} UENUM1BYTE(DEV_SPEED_FEATURES);
 
 /* This enumeration defines when the rate control recode loop will be
  * enabled.
@@ -141,24 +115,6 @@ typedef enum {
 } CDEF_PICK_METHOD;
 
 /*!\cond */
-enum {
-  // Terminate search early based on distortion so far compared to
-  // qp step, distortion in the neighborhood of the frame, etc.
-  FLAG_EARLY_TERMINATE = 1 << 0,
-
-  // Skips comp inter modes if the best so far is an intra mode.
-  FLAG_SKIP_COMP_BESTINTRA = 1 << 1,
-
-  // Skips oblique intra modes if the best so far is an inter mode.
-  FLAG_SKIP_INTRA_BESTINTER = 1 << 3,
-
-  // Skips oblique intra modes  at angles 27, 63, 117, 153 if the best
-  // intra so far is not one of the neighboring directions.
-  FLAG_SKIP_INTRA_DIRMISMATCH = 1 << 4,
-
-  // Skips intra modes other than DC_PRED if the source variance is small
-  FLAG_SKIP_INTRA_LOWVAR = 1 << 5,
-} UENUM1BYTE(MODE_SEARCH_SKIP_LOGIC);
 
 enum {
   // No tx type pruning
@@ -173,15 +129,6 @@ enum {
   TX_TYPE_PRUNE_4 = 4,
   TX_TYPE_PRUNE_5 = 5,
 } UENUM1BYTE(TX_TYPE_PRUNE_MODE);
-
-enum {
-  // No reaction to rate control on a detected slide/scene change.
-  NO_DETECTION = 0,
-
-  // Set to larger Q based only on the detected slide/scene change and
-  // current/past Q.
-  FAST_DETECTION_MAXQ = 1,
-} UENUM1BYTE(OVERSHOOT_DETECTION_CBR);
 
 enum {
   // Turns off multi-winner mode. So we will do txfm search on either all modes
@@ -297,13 +244,6 @@ typedef struct HIGH_LEVEL_SPEED_FEATURES {
   // CURRENT_Q: use the current q as a threshold
   // QTR_ONLY: use quarter pel precision only.
   MV_PREC_LOGIC high_precision_mv_usage;
-
-  // Always set to 0. If on it enables 0 cost background transmission
-  // (except for the initial transmission of the segmentation). The feature is
-  // disabled because the addition of very large block sizes make the
-  // backgrounds very to cheap to encode, and the segmentation we have
-  // adds overhead.
-  int static_segmentation;
 
   /*!
    * disallow references at different scale
@@ -763,8 +703,6 @@ typedef struct INTERP_FILTER_SPEED_FEATURES {
   // Check mv and ref_frames before search, if they are very close with previous
   // saved results, filter search can be skipped.
   int use_interp_filter;
-
-  int cb_pred_filter_search;
 } INTERP_FILTER_SPEED_FEATURES;
 
 typedef struct INTRA_MODE_SPEED_FEATURES {
@@ -806,18 +744,6 @@ typedef struct INTRA_MODE_SPEED_FEATURES {
 } INTRA_MODE_SPEED_FEATURES;
 
 typedef struct TX_SPEED_FEATURES {
-  // Init search depth for square and rectangular transform partitions.
-  // Values:
-  // 0 - search full tree, 1: search 1 level, 2: search the highest level only
-  int inter_tx_size_search_init_depth_sqr;
-  int inter_tx_size_search_init_depth_rect;
-  int intra_tx_size_search_init_depth_sqr;
-  int intra_tx_size_search_init_depth_rect;
-
-  // If any dimension of a coding block size above 64, always search the
-  // largest transform only, since the largest transform block size is 64x64.
-  int tx_size_search_lgr_block;
-
   TX_TYPE_SEARCH tx_type_search;
 
   // Skip split transform block partition when the collocated bigger block
@@ -848,9 +774,6 @@ typedef struct TX_SPEED_FEATURES {
   // Use hash table to store inter txb transform search results
   // to avoid repeated search on the same residue signal.
   int use_inter_txb_hash;
-
-  // Refine TX type after fast TX search.
-  int refine_fast_tx_search_results;
 
   // Prune RD evaluation of secondary transform using the SSE of secondary
   // transform output.

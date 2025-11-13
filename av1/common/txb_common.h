@@ -157,24 +157,6 @@ static AOM_FORCE_INLINE int get_br_ctx_lf_eob(const int c,  // raster order
 }
 
 // This function returns the low range context index/increment for the
-// coefficients residing in the low-frequency region for 2D transforms.
-// For chroma components only and not used for the DC term.
-static INLINE int get_br_lf_ctx_2d_chroma(const uint8_t *const levels,
-                                          const int c,  // raster order
-                                          const int bwl) {
-  assert(c > 0);
-  const int row = c >> bwl;
-  const int col = c - (row << bwl);
-  const int stride = (1 << bwl) + TX_PAD_HOR;
-  const int pos = row * stride + col;
-  int mag = AOMMIN(levels[pos + 1], MAX_VAL_BR_CTX) +
-            AOMMIN(levels[pos + stride], MAX_VAL_BR_CTX) +
-            AOMMIN(levels[pos + 1 + stride], MAX_VAL_BR_CTX);
-  mag = AOMMIN((mag + 1) >> 1, 3);
-  return mag + 4;
-}
-
-// This function returns the low range context index/increment for the
 // coefficients residing in the higher-frequency default region
 // for 1D and 2D transforms. For chroma.
 static AOM_FORCE_INLINE int get_br_ctx_chroma(const uint8_t *const levels,
@@ -420,30 +402,6 @@ static AOM_FORCE_INLINE int get_nz_mag(const uint8_t *const levels,
   return mag;
 }
 
-#define NZ_MAP_CTX_0 SIG_COEF_CONTEXTS_2D
-#define NZ_MAP_CTX_5 (NZ_MAP_CTX_0 + 5)
-#define NZ_MAP_CTX_10 (NZ_MAP_CTX_0 + 10)
-
-static const int nz_map_ctx_offset_1d[32] = {
-  NZ_MAP_CTX_0,  NZ_MAP_CTX_5,  NZ_MAP_CTX_10, NZ_MAP_CTX_10, NZ_MAP_CTX_10,
-  NZ_MAP_CTX_10, NZ_MAP_CTX_10, NZ_MAP_CTX_10, NZ_MAP_CTX_10, NZ_MAP_CTX_10,
-  NZ_MAP_CTX_10, NZ_MAP_CTX_10, NZ_MAP_CTX_10, NZ_MAP_CTX_10, NZ_MAP_CTX_10,
-  NZ_MAP_CTX_10, NZ_MAP_CTX_10, NZ_MAP_CTX_10, NZ_MAP_CTX_10, NZ_MAP_CTX_10,
-  NZ_MAP_CTX_10, NZ_MAP_CTX_10, NZ_MAP_CTX_10, NZ_MAP_CTX_10, NZ_MAP_CTX_10,
-  NZ_MAP_CTX_10, NZ_MAP_CTX_10, NZ_MAP_CTX_10, NZ_MAP_CTX_10, NZ_MAP_CTX_10,
-  NZ_MAP_CTX_10, NZ_MAP_CTX_10,
-};
-
-static AOM_FORCE_INLINE int get_nz_map_ctx_from_stats_skip(const int stats,
-                                                           const int coeff_idx,
-                                                           const int bwl) {
-  const int ctx = AOMMIN(stats, 6);
-  const int row = (coeff_idx >> bwl);
-  const int col = (coeff_idx - (row << bwl)) + TX_PAD_LEFT;
-  if ((row < 2) && (col < (2 + TX_PAD_LEFT))) return ctx;
-  return ctx + 7;
-}
-
 // This function returns the base range context index/increment for the
 // coefficients residing in the low-frequency region for 1D/2D transforms for
 // chroma.
@@ -562,36 +520,6 @@ static INLINE int get_base_ctx_ph(const uint8_t *levels, int pos, int bwl,
   const int stats =
       get_nz_mag(levels + get_padded_idx(pos, bwl), bwl, tx_class);
   return AOMMIN((stats + 1) >> 1, (COEFF_BASE_PH_CONTEXTS - 1));
-}
-
-// This function returns the low range context index/increment for the
-// coefficients with hidden parity.
-static AOM_FORCE_INLINE int get_par_br_ctx(const uint8_t *const levels,
-                                           const int c,  // raster order
-                                           const int bwl,
-                                           const TX_CLASS tx_class) {
-  const int row = c >> bwl;
-  const int col = c - (row << bwl);
-  const int stride = (1 << bwl) + TX_PAD_HOR;
-  const int pos = row * stride + col;
-  int mag = AOMMIN(levels[pos + 1], MAX_VAL_BR_CTX);
-  mag += AOMMIN(levels[pos + stride], MAX_VAL_BR_CTX);
-  switch (tx_class) {
-    case TX_CLASS_2D:
-      mag += AOMMIN(levels[pos + stride + 1], MAX_VAL_BR_CTX);
-      mag = AOMMIN((mag + 1) >> 1, (COEFF_BR_PH_CONTEXTS - 1));
-      break;
-    case TX_CLASS_HORIZ:
-      mag += AOMMIN(levels[pos + 2], MAX_VAL_BR_CTX);
-      mag = AOMMIN((mag + 1) >> 1, (COEFF_BR_PH_CONTEXTS - 1));
-      break;
-    case TX_CLASS_VERT:
-      mag += AOMMIN(levels[pos + (stride << 1)], MAX_VAL_BR_CTX);
-      mag = AOMMIN((mag + 1) >> 1, (COEFF_BR_PH_CONTEXTS - 1));
-      break;
-    default: break;
-  }
-  return mag;
 }
 
 static AOM_FORCE_INLINE int get_lower_levels_ctx_eob(int bwl, int height,

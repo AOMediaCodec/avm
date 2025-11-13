@@ -149,18 +149,7 @@ typedef struct SubpelParams {
   int y0;  // top left sample vertical cood.
   int x1;  // x0 + bw
   int y1;  // y0 + bh
-
 } SubpelParams;
-
-struct build_prediction_ctxt {
-  const AV1_COMMON *cm;
-  uint16_t **tmp_buf;
-  int *tmp_width;
-  int *tmp_height;
-  int *tmp_stride;
-  int mb_to_far_edge;
-  void *dcb;  // Decoder-only coding block.
-};
 
 #define REFINE_MV_MAX_OFFSET 0
 #define REF_TOP_BORDER (AOM_INTERP_EXTEND - 1 + REFINE_MV_MAX_OFFSET)
@@ -215,15 +204,6 @@ typedef struct InterPredParams {
   INTERINTER_COMPOUND_DATA mask_comp;
   BLOCK_SIZE sb_type;
   int is_intrabc;
-  /**
-   * \name Distance of TIP block from frame edges in 1/8th pixel units.
-   */
-  /**@{*/
-  int dist_to_left_edge;   /*!< Distance from left edge */
-  int dist_to_right_edge;  /*!< Distance from right edge */
-  int dist_to_top_edge;    /*!< Distance from top edge */
-  int dist_to_bottom_edge; /*!< Distance from bottom edge */
-
   int use_ref_padding;
   ReferenceArea *ref_area;
 
@@ -612,13 +592,6 @@ static INLINE void divide_and_round_array(int32_t *sol, int32_t den,
   }
 }
 
-// This function is a stable version of ROUND_POWER_OF_TWO_SIGNED(a*b, shift),
-// where shifts are partially applied before multiplcation operations to avoid
-// overflow issues, i.e., (a>>s1)*(b>>s2)>>s3, where s1+s2+s3=shift
-int64_t stable_mult_shift(const int64_t a, const int64_t b, const int shift,
-                          const int msb_a, const int msb_b, const int max_bd,
-                          int *rem_shift);
-
 static INLINE int is_translational_refinement_allowed(const AV1_COMMON *cm,
                                                       BLOCK_SIZE bsize,
                                                       const MACROBLOCKD *xd,
@@ -946,13 +919,6 @@ int update_extend_mc_border_params(const struct scale_factors *const sf,
                                    int *x_pad, int *y_pad,
                                    const ReferenceArea *ref_area);
 
-int update_extend_mc_border_params_bi(const struct scale_factors *const sf,
-                                      struct buf_2d *const pre_buf,
-                                      MV32 scaled_mv, PadBlock *block,
-                                      int subpel_x_mv, int subpel_y_mv,
-                                      int do_warp, int is_intrabc,
-                                      const ReferenceArea *ref_area);
-
 // Derive the sub-pixel related parameters of refinemv non-TIP blocks
 // Sub-pel related parameters are stored in the structures pointed by
 // "subpel_params" Also do padding if required This function is used for
@@ -1253,9 +1219,6 @@ int av1_get_mpp_flag_context(const AV1_COMMON *cm, const MACROBLOCKD *xd);
 int av1_get_pb_mv_precision_down_context(const AV1_COMMON *cm,
                                          const MACROBLOCKD *xd);
 
-// derive the context of the mv class
-int av1_get_mv_class_context(const MvSubpelPrecision pb_mv_precision);
-
 // set the precision of a block to the precision
 void set_mv_precision(MB_MODE_INFO *mbmi, MvSubpelPrecision precision);
 void set_amvd_mv_precision(MB_MODE_INFO *mbmi, MvSubpelPrecision precision);
@@ -1360,10 +1323,6 @@ static INLINE int is_mvd_sign_derive_allowed(const AV1_COMMON *const cm,
           mbmi->mode == NEW_NEWMV || mbmi->mode == NEW_NEWMV_OPTFLOW);
 }
 
-void av1_build_linear_predictor(uint16_t *dst, const int dst_stride,
-                                const int width, const int height,
-                                const int alpha, const int beta,
-                                const int bit_depth);
 bool av1_build_morph_pred(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
                           const BLOCK_SIZE bsize, const int mi_row,
                           const int mi_col);

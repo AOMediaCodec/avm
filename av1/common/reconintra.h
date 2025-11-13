@@ -88,11 +88,6 @@ static INLINE int av1_is_directional_mode(PREDICTION_MODE mode) {
   return mode >= V_PRED && mode <= D67_PRED;
 }
 
-// TODO(any): Verify the correct behavior when we have BLOCK_4X16
-static INLINE int av1_use_angle_delta(BLOCK_SIZE bsize) {
-  return bsize >= BLOCK_8X8;
-}
-
 // Function to check morph prediction is allowed or not
 static INLINE int av1_allow_intrabc_morph_pred(const AV1_COMMON *const cm) {
   return cm->features.enable_intra_bawp &&
@@ -312,13 +307,6 @@ void mhccp_implicit_fetch_neighbor_chroma(MACROBLOCKD *const xd, int plane,
                                           int above_lines, int left_lines,
                                           int is_top_sb_boundary, int ref_width,
                                           int ref_height);
-
-static const int32_t transpose_tx_size[TX_SIZES_ALL] = {
-  TX_4X4,  TX_8X8,  TX_16X16, TX_32X32, TX_64X64, TX_8X4,   TX_4X8,
-  TX_16X8, TX_8X16, TX_32X16, TX_16X32, TX_64X32, TX_32X64, TX_16X4,
-  TX_4X16, TX_32X8, TX_8X32,  TX_64X16, TX_16X64, TX_32X4,  TX_4X32,
-  TX_64X8, TX_8X64, TX_64X4,  TX_4X64,
-};
 
 static AOM_INLINE void set_have_top_and_left(int *have_top, int *have_left,
                                              const MACROBLOCKD *xd, int row_off,

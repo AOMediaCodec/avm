@@ -25,20 +25,12 @@
 extern "C" {
 #endif
 
-void enc_calc_subpel_params(const MV *const src_mv,
-                            InterPredParams *const inter_pred_params,
-                            MACROBLOCKD *xd, int mi_x, int mi_y, int ref,
-                            int use_optflow_refinement, uint16_t **mc_buf,
-                            uint16_t **pre, SubpelParams *subpel_params,
-                            int *src_stride);
 // Build single or compound reference inter predictors for all planes.
 // Can build inter-intra predictors, masked predictors etc as well.
 void av1_enc_build_inter_predictor(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                    int mi_row, int mi_col,
                                    const BUFFER_SET *ctx, BLOCK_SIZE bsize,
                                    int plane_from, int plane_to);
-
-void av1_enc_build_inter_predictor_y(MACROBLOCKD *xd, int mi_row, int mi_col);
 
 void enc_build_inter_predictors(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                 int plane, MB_MODE_INFO *mi,

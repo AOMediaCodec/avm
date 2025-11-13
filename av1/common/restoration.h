@@ -159,22 +159,12 @@ extern const int wienerns_simd_config_y[25][3];
 extern const int wienerns_simd_large_config_y[33][3];
 extern const int wienerns_simd_config_uv_from_uv[13][3];
 extern const int wienerns_simd_config_uv_from_y[13][3];
-extern const int wienerns_simd_subtract_center_config_y[24][3];
-extern const int wienerns_simd_subtract_center_config_uv_from_uv[12][3];
-extern const int wienerns_simd_subtract_center_config_uv_from_y[12][3];
 extern const int wienerns_simd_config_uv_from_uvonly[13][3];
 
 static INLINE const WienernsFilterParameters *get_wienerns_parameters(
     int qindex, int is_uv) {
   (void)qindex;
   return is_uv ? &wienerns_filter_uv : &wienerns_filter_y;
-}
-
-static INLINE const NonsepFilterConfig *get_wienerns_config(int qindex,
-                                                            int is_uv) {
-  const WienernsFilterParameters *base_nsfilter_params =
-      get_wienerns_parameters(qindex, is_uv);
-  return &base_nsfilter_params->nsfilter_config;
 }
 
 static inline int is_frame_filters_enabled(int plane) {
@@ -222,28 +212,6 @@ static INLINE int get_first_match_index(int compound_match_index,
   return compound_match_index &
          ((1 << num_frame_first_predictor_bits[nopcw][num_classes]) - 1);
 }
-
-static INLINE int first_match_bits(int num_classes, int nopcw) {
-  assert(num_classes >= 1 && num_classes <= WIENERNS_MAX_CLASSES);
-  return num_frame_first_predictor_bits[nopcw][num_classes];
-}
-
-static INLINE int encode_first_match(int compound_match_index, int *num_bits,
-                                     int num_classes, int nopcw) {
-  assert(num_classes >= 1 && num_classes <= WIENERNS_MAX_CLASSES);
-  *num_bits = first_match_bits(num_classes, nopcw);
-  return get_first_match_index(compound_match_index, num_classes, nopcw);
-}
-
-static INLINE int decode_first_match(int encoded_match_index) {
-  return encoded_match_index;
-}
-
-// Max of DOMAINTXFMRF_TMPBUF_SIZE, WIENER_TMPBUF_SIZE
-#define RESTORATION_TMPBUF_SIZE (RESTORATION_UNITPELS_MAX * 2 * sizeof(int32_t))
-
-// Max of WIENER_EXTBUF_SIZE
-#define RESTORATION_EXTBUF_SIZE (WIENER_EXTBUF_SIZE)
 
 #define LR_TILE_ROW 0
 #define LR_TILE_COL 0
@@ -679,8 +647,6 @@ void av1_loop_restoration_filter_frame(YV12_BUFFER_CONFIG *frame,
 
 #define DEF_UV_LR_TOOLS_DISABLE_MASK (1 << RESTORE_PC_WIENER)
 
-typedef void (*rest_tile_start_visitor_t)(int tile_row, int tile_col,
-                                          void *priv);
 struct AV1LrSyncData;
 
 typedef void (*sync_read_fn_t)(void *const lr_sync, int r, int c, int plane);

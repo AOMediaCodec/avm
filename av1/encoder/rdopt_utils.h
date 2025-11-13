@@ -26,11 +26,6 @@ extern "C" {
 #define INTER_INTRA_RD_THRESH_SCALE 9
 #define INTER_INTRA_RD_THRESH_SHIFT 4
 
-typedef struct {
-  PREDICTION_MODE mode;
-  MV_REFERENCE_FRAME ref_frame[2];
-} MODE_DEFINITION;
-
 static AOM_INLINE void restore_dst_buf(MACROBLOCKD *xd, const BUFFER_SET dst,
                                        const int num_planes) {
   for (int i = 0; i < num_planes; i++) {
