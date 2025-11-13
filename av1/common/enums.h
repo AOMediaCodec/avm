@@ -427,9 +427,6 @@ enum {
   REGION_TYPES = 2,
 } UENUM1BYTE(REGION_TYPE);
 
-// 4X4, 8X8, 16X16, 32X32, 64X64, 128X128, 256X256
-#define SQR_BLOCK_SIZES 7
-
 //  Partition types.  R: Recursive
 //
 //  NONE          HORZ          VERT          SPLIT
@@ -616,10 +613,6 @@ enum {
 #define TX_PARTITION_TYPE_NUM (TX_PARTITION_TYPES - 1)
 #define TX_PARTITION_TYPE_NUM_VERT_AND_HORZ 14
 #define TX_PARTITION_TYPE_NUM_VERT_OR_HORZ 3
-#define TX_SIZE_LUMA_MIN (TX_4X4)
-/* We don't need to code a transform size unless the allowed size is at least
-   one more than the minimum. */
-#define TX_SIZE_CTX_MIN (TX_SIZE_LUMA_MIN + 1)
 
 #define MAX_TX_SIZE_LOG2 (6)
 #define MAX_TX_SIZE (1 << MAX_TX_SIZE_LOG2)

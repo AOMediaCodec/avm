@@ -3433,7 +3433,6 @@ static AOM_INLINE void enforce_max_ref_frames(AV1_COMP *cpi,
 aom_fixed_buf_t *av1_get_global_headers(AV1_COMP *cpi);
 
 #define MAX_GFUBOOST_FACTOR 10.0
-#define MIN_GFUBOOST_FACTOR 4.0
 
 static INLINE int is_frame_tpl_eligible(const GF_GROUP *const gf_group,
                                         uint8_t index) {

@@ -32,8 +32,6 @@ extern "C" {
 
 #define MAX_LOOP_FILTER 63
 
-#define SIMD_WIDTH 16
-
 #define SUB_PU_THR_SHIFT 3
 #define SUB_PU_QTHR 150
 #define SUB_PU_BD_FACTOR 24
