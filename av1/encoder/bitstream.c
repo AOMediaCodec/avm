@@ -9271,8 +9271,11 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 #endif  // CONFIG_F255_QMOBU
   }
 #if CONFIG_F255_QMOBU
-  if (cm->quant_params.using_qmatrix && !cpi->obu_is_written &&
-      !cm->show_existing_frame) {
+  if (cm->quant_params.using_qmatrix && !cpi->obu_is_written
+#if !CONFIG_F024_KEYOBU
+      && !cm->show_existing_frame
+#endif
+  ) {
     bool need_new_qmobu = check_add_cmqm_in_qmobulist(cpi, add_new_user_qm);
     if (need_new_qmobu) {
       assert(cpi->total_signalled_qmobu_count > 0);
