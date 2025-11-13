@@ -1478,7 +1478,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     av1_set_lr_tools(cm->seq_params.lr_tools_disable_mask[1], 2, &cm->features);
 #if !CONFIG_F024_KEYOBU
   }
-#endif // !CONFIG_F024_KEYOBU
+#endif  // !CONFIG_F024_KEYOBU
 #if CONFIG_F255_QMOBU
   if (cm->quant_params.using_qmatrix) {
     if (oxcf->q_cfg.using_qm && oxcf->q_cfg.user_defined_qmatrix) {

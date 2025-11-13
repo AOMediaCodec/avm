@@ -8354,7 +8354,7 @@ static void activate_sequence_header(AV1Decoder *pbi,
     aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                        "No sequence header found with id = %d", seq_header_id);
   }
-  
+
 #if CONFIG_F255_QMOBU
   av1_copy_predefined_qmatrices_to_list(pbi, cm->seq_params.monochrome ? 1 : 3,
                                         false);
@@ -8364,7 +8364,7 @@ static void activate_sequence_header(AV1Decoder *pbi,
         if (pbi->qmobu_list[i].qm_bit_map == 0 ||
             (pbi->qmobu_list[i].qm_bit_map & (1 << qm_pos))) {
           struct quantization_matrix_set *qmset_inobu =
-          &pbi->qmobu_list[i].qm_list[qm_pos];
+              &pbi->qmobu_list[i].qm_list[qm_pos];
           struct quantization_matrix_set *qmset = &pbi->qm_list[qm_pos];
           qmset->qm_id = qmset_inobu->qm_id;
           qmset->qm_default_index = qmset_inobu->qm_default_index;
@@ -8375,7 +8375,7 @@ static void activate_sequence_header(AV1Decoder *pbi,
             aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                                "num_planes of qmsets should be the same");
           }
-          
+
           for (int c = 0; c < qmset_inobu->quantizer_matrix_num_planes; ++c) {
             memcpy(qmset->quantizer_matrix[0][c],
                    qmset_inobu->quantizer_matrix[0][c],
@@ -8394,7 +8394,7 @@ static void activate_sequence_header(AV1Decoder *pbi,
         }  // if (qm_bit_map & (1 << j))
       }  // qm_pos
     }  // i
-    
+
     pbi->total_qmobu_count = 0;
   }  // !(pbi->total_qmobu_count != 0)
 #endif  // CONFIG_F255_QMOBU
@@ -8402,7 +8402,7 @@ static void activate_sequence_header(AV1Decoder *pbi,
 #if CONFIG_F024_KEYOBU
   if (obu_type == OBU_CLK || obu_type == OBU_OLK)
 #endif
-  cm->seq_params = *pbi->active_seq;
+    cm->seq_params = *pbi->active_seq;
 #if CONFIG_F024_KEYOBU
   else {
     if (!are_seq_headers_consistent(&cm->seq_params, pbi->active_seq)) {
