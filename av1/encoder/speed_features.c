@@ -265,7 +265,7 @@ static void set_good_speed_feature_framesize_dependent(
       sf->inter_sf.prune_ref_mv_idx_search = 1;
     }
   }
-  sf->part_sf.use_square_partition_only_threshold = BLOCK_MAX;
+  sf->part_sf.use_square_partition_only_threshold = BLOCK_LARGEST;
 }
 
 static void set_good_speed_features_framesize_independent(

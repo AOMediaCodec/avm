@@ -4169,7 +4169,7 @@ static AOM_INLINE CFL_ALLOWED_FOR_SDP_TYPE is_cfl_allowed_for_sdp(
 
   if (!frame_is_intra_only(cm)) return CFL_ALLOWED_FOR_CHROMA;
   if (xd->tree_type != CHROMA_PART) return CFL_ALLOWED_FOR_CHROMA;
-  if ((bsize_luma > BLOCK_64X64 && bsize_luma <= BLOCK_MAX)) {
+  if ((bsize_luma > BLOCK_64X64 && bsize_luma <= BLOCK_LARGEST)) {
     if (current_partition == PARTITION_NONE) return CFL_ALLOWED_FOR_CHROMA;
   }
   if ((bsize_luma != BLOCK_64X64)) {
