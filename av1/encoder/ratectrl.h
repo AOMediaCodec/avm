@@ -71,14 +71,6 @@ enum {
   FRAME_UPDATE_TYPES
 } UENUM1BYTE(FRAME_UPDATE_TYPE);
 
-typedef enum {
-  NO_RESIZE = 0,
-  DOWN_THREEFOUR = 1,  // From orig to 3/4.
-  DOWN_ONEHALF = 2,    // From orig or 3/4 to 1/2.
-  UP_THREEFOUR = -1,   // From 1/2 to 3/4.
-  UP_ORIG = -2,        // From 1/2 or 3/4 to orig.
-} RESIZE_ACTION;
-
 typedef enum { ORIG = 0, THREE_QUARTER = 1, ONE_HALF = 2 } RESIZE_STATE;
 
 /*!\endcond */
@@ -440,8 +432,6 @@ void av1_rc_set_gf_interval_range(const struct AV1_COMP *const cpi,
                                   RATE_CONTROL *const rc);
 
 void av1_set_target_rate(struct AV1_COMP *cpi, int width, int height);
-
-int av1_resize_one_pass_cbr(struct AV1_COMP *cpi);
 
 void av1_rc_set_frame_target(struct AV1_COMP *cpi, int target, int width,
                              int height);

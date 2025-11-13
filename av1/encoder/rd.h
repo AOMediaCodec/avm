@@ -175,17 +175,6 @@ static INLINE void av1_merge_rd_stats(RD_STATS *rd_stats_dst,
 #endif
 }
 
-static INLINE void av1_accumulate_rd_stats(RD_STATS *rd_stats, int64_t dist,
-                                           int rate, int skip_txfm, int64_t sse,
-                                           int zero_rate) {
-  assert(rd_stats->rate != INT_MAX && rate != INT_MAX);
-  rd_stats->rate += rate;
-  if (!rd_stats->zero_rate) rd_stats->zero_rate = zero_rate;
-  rd_stats->dist += dist;
-  rd_stats->skip_txfm &= skip_txfm;
-  rd_stats->sse += sse;
-}
-
 static INLINE int64_t av1_calculate_rd_cost(int mult, int rate, int64_t dist) {
   assert(mult >= 0);
   if (rate >= 0) {
@@ -238,8 +227,6 @@ void av1_model_rd_from_var_lapndz(int64_t var, unsigned int n,
 
 void av1_model_rd_curvfit(BLOCK_SIZE bsize, double sse_norm, double xqr,
                           double *rate_f, double *distbysse_f);
-void av1_model_rd_surffit(BLOCK_SIZE bsize, double sse_norm, double xm,
-                          double yl, double *rate_f, double *distbysse_f);
 
 int av1_get_switchable_rate(const MACROBLOCK *x, const MACROBLOCKD *xd,
                             InterpFilter interp_filter);
