@@ -8415,12 +8415,12 @@ static void activate_sequence_header(AV1Decoder *pbi,
   if (obu_type == OBU_CLK) {
     //[jkei] should it be reset_ref_frame_map(cm)?
     reset_ref_frame_map(cm);
-//    for (int i = 0; i < cm->seq_params.ref_frames; i++) {
-//      if (cm->ref_frame_map[i] != NULL) {
-//        cm->ref_frame_map[i]->ref_count = 0;
-//        cm->ref_frame_map[i] = NULL;
-//      }
-//    }
+    //    for (int i = 0; i < cm->seq_params.ref_frames; i++) {
+    //      if (cm->ref_frame_map[i] != NULL) {
+    //        cm->ref_frame_map[i]->ref_count = 0;
+    //        cm->ref_frame_map[i] = NULL;
+    //      }
+    //    }
   }
 #endif  // CONFIG_F024_KEYOBU
 }
@@ -8686,20 +8686,21 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 
 #if CONFIG_F106_OBU_TILEGROUP
 #if CONFIG_F024_KEYOBU
-    if (obu_type == OBU_CLK){
+    if (obu_type == OBU_CLK) {
       current_frame->frame_type = KEY_FRAME;
       pbi->olk_encountered = 0;
-    } else if(obu_type == OBU_OLK) {
+    } else if (obu_type == OBU_OLK) {
       current_frame->frame_type = KEY_FRAME;
-      if(pbi->olk_encountered){
-        //the first regular frame is OLK (0-4(K)-2-1-3-8(K)...
+      if (pbi->olk_encountered) {
+        // the first regular frame is OLK (0-4(K)-2-1-3-8(K)...
         lock_buffer_pool(pool);
         int ref_flags_to_keep = 0;
         for (int layer = 0; layer <= seq_params->max_mlayer_id; layer++) {
           if (cm->olk_refresh_frame_flags[layer] == -1) continue;
           ref_flags_to_keep |= cm->olk_refresh_frame_flags[layer];
         }
-        for (int ref_index = 0; ref_index < seq_params->ref_frames; ref_index++) {
+        for (int ref_index = 0; ref_index < seq_params->ref_frames;
+             ref_index++) {
           if (!((ref_flags_to_keep >> ref_index) & 1u)) {
             decrease_ref_count(cm->ref_frame_map[ref_index], pool);
             cm->ref_frame_map[ref_index] = NULL;
@@ -10255,9 +10256,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   read_film_grain(cm, rb);
 
   features->enable_ext_seg = seq_params->enable_ext_seg;
-#if 1
-  printf("-------------END_OF_read_uncompressed_header-------------DOH[%d] %s\n", current_frame->display_order_hint, aom_obu_type_to_string(obu_type));
-#endif
   return 0;
 }
 

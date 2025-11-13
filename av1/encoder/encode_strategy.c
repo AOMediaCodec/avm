@@ -785,9 +785,6 @@ int av1_get_refresh_frame_flags(
   if (is_frame_droppable(ext_refresh_frame_flags)) return 0;
 
   if (ext_refresh_frame_flags->update_pending) {
-#if 0  //[jkei]
-    printf("<<%s>> refresh_mask: %d\n", __func__, refresh_mask);
-#endif
     return refresh_mask;
   }
 

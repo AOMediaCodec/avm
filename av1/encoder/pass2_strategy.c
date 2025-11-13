@@ -2757,23 +2757,7 @@ static void process_first_pass_stats(AV1_COMP *cpi,
       twopass->fr_content_type = FC_NORMAL;
   // Note for typical sequences FC_HIGHMOTION is chosen a majority of the time
 }
-#if 1
-const char* frame_update_type_name(FRAME_UPDATE_TYPE update_type){
-  switch (update_type) {
-    case OVERLAY_UPDATE: return "OVERLAY_UPDATE";
-    case KFFLT_OVERLAY_UPDATE: return "KFFLT_OVERLAY_UPDATE";
-    case INTNL_OVERLAY_UPDATE: return "INTNL_OVERLAY_UPDATE";
 
-    case KF_UPDATE: return "KF_UPDATE";
-    case LF_UPDATE: return "LF_UPDATE";
-    case GF_UPDATE: return "GF_UPDATE";
-    case ARF_UPDATE: return "ARF_UPDATE";
-    case KFFLT_UPDATE: return "KFFLT_UPDATE";
-    case INTNL_ARF_UPDATE: return "INTNL_ARF_UPDATE";
-  }
-  return "<Invalid Update Type>";
-}
-#endif
 static void setup_target_rate(AV1_COMP *cpi) {
   RATE_CONTROL *const rc = &cpi->rc;
   GF_GROUP *const gf_group = &cpi->gf_group;
@@ -2832,10 +2816,6 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
       if (cpi->sf.part_sf.allow_partition_search_skip && oxcf->pass == 2) {
         cpi->partition_search_skippable_frame = is_skippable_frame(cpi);
       }
-#if 0
-  printf("===[av1_get_second_pass_params]1 (index<size (ENDS)) frame_params->show_frame %d, cm->showable_frame %d rc->frames_to_key %d\t", frame_params->show_frame, cpi->common.showable_frame, rc->frames_to_key);
-  printf("gf_group->index %d gf_group->size %d gf_group->update_type[%d] %s(%d) frame_params->frame_type %d frame_number %d\n", gf_group->index, gf_group->size, gf_group->index, frame_update_type_name(gf_group->update_type[gf_group->index]), gf_group->update_type[gf_group->index], frame_params->frame_type, cpi->common.current_frame.frame_number );
-#endif
       return;
     }
   }
@@ -2989,18 +2969,6 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
 
     rc->frames_till_gf_update_due = rc->baseline_gf_interval;
     assert(gf_group->index == 0);
-#if 0
-  printf("===[av1_get_second_pass_params]\n");
-  for(int ii=0; ii<gf_group->size; ii++){
-    printf("**********[%2d] update_type %-20s(%d), arf_src_offset %2d, cur_frame_idx %2d, layer_depth %d\n",
-           ii,
-           frame_update_type_name(gf_group->update_type[ii]),
-           gf_group->update_type[ii],
-           gf_group->arf_src_offset[ii],
-           gf_group->cur_frame_idx[ii],
-           gf_group->layer_depth[ii]);
-  }
-#endif
 #if ARF_STATS_OUTPUT
     {
       FILE *fpfile;
@@ -3027,10 +2995,6 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
   if (cpi->sf.part_sf.allow_partition_search_skip && oxcf->pass == 2) {
     cpi->partition_search_skippable_frame = is_skippable_frame(cpi);
   }
-#if 0
-  printf("===[av1_get_second_pass_params]2 (index<size (ENDS)) frame_params->show_frame %d, cm->showable_frame %d rc->frames_to_key %d\t", frame_params->show_frame, cpi->common.showable_frame, rc->frames_to_key);
-  printf("gf_group->index %d gf_group->size %d gf_group->update_type[%d] %s(%d) frame_params->frame_type %d frame_number %d\n", gf_group->index, gf_group->size, gf_group->index, frame_update_type_name(gf_group->update_type[gf_group->index]), gf_group->update_type[gf_group->index], frame_params->frame_type, cpi->common.current_frame.frame_number );
-#endif
   setup_target_rate(cpi);
 }
 

@@ -548,26 +548,6 @@ static INLINE bool is_frame_eligible_for_output(RefCntBuffer *const buf) {
 static INLINE void check_ref_count_status_dec(struct AV1Decoder *pbi) {
   AV1_COMMON *volatile const cm = &pbi->common;
   RefCntBuffer *const frame_bufs = cm->buffer_pool->frame_bufs;
-#if 0
-  if(1){
-    for (int i = 0; i < FRAME_BUFFERS; ++i) {
-      int ref_frame_map_cnt = 0, cur_frame_cnt = 0, output_frames_cnt = 0;
-      for (int j = 0; j < REF_FRAMES; ++j) {
-        if (cm->ref_frame_map[j] && cm->ref_frame_map[j] == &frame_bufs[i])
-          ref_frame_map_cnt++;
-      }
-      if (cm->cur_frame && cm->cur_frame == &frame_bufs[i]) cur_frame_cnt++;
-      for (int j = 0; j < (int)pbi->num_output_frames; ++j) {
-        if (pbi->output_frames[j] && pbi->output_frames[j] == &frame_bufs[i])
-          output_frames_cnt++;
-      }
-      printf("<<%s>> frame_buff_cnt:%d ref_frame_map_cnt:%d cur_frame_cnt:%d output_frames_cnt:%d\n",
-             __func__,
-             frame_bufs[i].ref_count,
-             ref_frame_map_cnt, cur_frame_cnt, output_frames_cnt);
-    }
-  }
-#endif
   for (int i = 0; i < FRAME_BUFFERS; ++i) {
     int ref_frame_map_cnt = 0, cur_frame_cnt = 0, output_frames_cnt = 0;
     int calculated_ref_count = 0;
