@@ -7455,9 +7455,6 @@ static AOM_INLINE void write_uncompressed_header_obu
   if (!frame_is_intra_only(cm)) write_global_motion(cpi, wb);
 
   if (seq_params->film_grain_params_present) write_film_grain_params(cpi, wb);
-#if 1
-  printf("-------------END_OF_write_uncompressed_header-------------DOH[%d] %s\n", current_frame->display_order_hint, aom_obu_type_to_string(obu_type));
-#endif
 }
 
 static int choose_size_bytes(uint32_t size, int spare_msbs) {
