@@ -23,7 +23,6 @@ extern "C" {
 struct AV1_COMP;
 struct EncodeFrameParams;
 
-#define MIN_ARF_GF_BOOST 240
 #define NORMAL_BOOST 100
 
 /*!\endcond */

@@ -283,10 +283,6 @@ static inline int uncompression_mv(int16_t val) {
   return uncompressed_val;
 }
 
-/* Left shift for signed integers, for use when shift >= 0 */
-#define LEFT_SHIFT_SIGNED(x, shift) \
-  (((x) >= 0) ? ((x) << (shift)) : (-((-(x)) << (shift))))
-
 // Compress TMVP MVs before storing
 static AOM_INLINE void process_mv_for_tmvp(MV *mv) {
   mv->row = compression_mv(mv->row);
@@ -494,9 +490,6 @@ static INLINE int check_mvd_valid_amvd(const MV mvd) {
   (1 << (WARPEDMODEL_PREC_BITS + WARP_TRANS_INTEGER_BITS - 1))
 #define WARPEDMODEL_NONDIAGAFFINE_CLAMP (1 << (WARPEDMODEL_PREC_BITS - 3))
 
-// Shift required to convert between warp parameter and MV precision
-#define WARPEDMODEL_TO_MV_SHIFT (WARPEDMODEL_PREC_BITS - 3)
-
 // Bits of subpel precision for warped interpolation
 #define WARPEDPIXEL_PREC_BITS 6
 #define WARPEDPIXEL_PREC_SHIFTS (1 << WARPEDPIXEL_PREC_BITS)
@@ -573,7 +566,6 @@ static const WarpedMotionParams default_warp_params = {
 #define GM_TRANS_ONLY_PREC_DIFF \
   (WARPEDMODEL_PREC_BITS - GM_TRANS_ONLY_PREC_BITS)
 #define GM_TRANS_DECODE_FACTOR (1 << GM_TRANS_PREC_DIFF)
-#define GM_TRANS_ONLY_DECODE_FACTOR (1 << GM_TRANS_ONLY_PREC_DIFF)
 
 #define GM_ALPHA_PREC_BITS 10
 #define GM_ABS_ALPHA_BITS 9

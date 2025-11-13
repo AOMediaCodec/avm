@@ -32,7 +32,6 @@ extern "C" {
 // Border for Loop restoration buffer
 #define AOM_RESTORATION_FRAME_BORDER 32
 #define CLIP(x, lo, hi) ((x) < (lo) ? (lo) : (x) > (hi) ? (hi) : (x))
-#define RINT(x) ((x) < 0 ? (int)((x) - 0.5) : (int)((x) + 0.5))
 
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 #define USE_LOOP_RESTORATION_MT \
@@ -52,23 +51,11 @@ extern "C" {
 #define RESTORATION_BORDER_VERT 4
 #define RESTORATION_BORDER_HORZ 4
 
-// How many border pixels do we need for each processing unit?
-#define RESTORATION_BORDER \
-  (AOMMAX(RESTORATION_BORDER_VERT, RESTORATION_BORDER_HORZ))
-
 // How many rows of deblocked pixels do we save above/below each processing
 // stripe.
 #define RESTORATION_CTX_VERT 2
 // Note (RESTORATION_BORDER_VERT - RESTORATION_CTX_VERT) lines are padded by
 // repetition.
-
-// Pad up to 20 more (may be much less is needed)
-#define RESTORATION_PADDING 20
-#define RESTORATION_PROC_UNIT_PELS                             \
-  ((RESTORATION_PROC_UNIT_SIZE + RESTORATION_BORDER_HORZ * 2 + \
-    RESTORATION_PADDING) *                                     \
-   (RESTORATION_PROC_UNIT_SIZE + RESTORATION_BORDER_VERT * 2 + \
-    RESTORATION_PADDING))
 
 #define RESTORATION_UNITSIZE_MAX 512
 #define RESTORATION_WIDTH_MAX (RESTORATION_UNITSIZE_MAX * 3 / 2)
@@ -81,37 +68,14 @@ extern "C" {
 // Maximum number of filter-taps in LR non-separable filtering.
 #define MAX_NUM_DICTIONARY_TAPS 28
 
-#define RESTORATION_UNITPELS_HORZ_MAX \
-  (RESTORATION_UNITSIZE_MAX * 3 / 2 + 2 * RESTORATION_BORDER_HORZ + 16)
-#define RESTORATION_UNITPELS_VERT_MAX                                \
-  ((RESTORATION_UNITSIZE_MAX * 3 / 2 + 2 * RESTORATION_BORDER_VERT + \
-    RESTORATION_UNIT_OFFSET))
-#define RESTORATION_UNITPELS_MAX \
-  (RESTORATION_UNITPELS_HORZ_MAX * RESTORATION_UNITPELS_VERT_MAX)
-
-#define WIENER_TMPBUF_SIZE (0)
-#define WIENER_EXTBUF_SIZE (0)
-
-// If WIENER_WIN_CHROMA == WIENER_WIN - 2, that implies 5x5 filters are used for
-// chroma. To use 7x7 for chroma set WIENER_WIN_CHROMA to WIENER_WIN.
-#define WIENER_WIN_CHROMA (WIENER_WIN - 2)
-#define WIENER_WIN_REDUCED (WIENER_WIN - 2)
-#define WIENER_WIN2_CHROMA ((WIENER_WIN_CHROMA) * (WIENER_WIN_CHROMA))
-
 // Central values for the taps
 #define WIENER_FILT_TAP0_MIDV (3)
 #define WIENER_FILT_TAP1_MIDV (-7)
 #define WIENER_FILT_TAP2_MIDV (15)
-#define WIENER_FILT_TAP3_MIDV                                              \
-  (WIENER_FILT_STEP - 2 * (WIENER_FILT_TAP0_MIDV + WIENER_FILT_TAP1_MIDV + \
-                           WIENER_FILT_TAP2_MIDV))
 
 #define WIENER_FILT_TAP0_BITS 4
 #define WIENER_FILT_TAP1_BITS 5
 #define WIENER_FILT_TAP2_BITS 6
-
-#define WIENER_FILT_BITS \
-  ((WIENER_FILT_TAP0_BITS + WIENER_FILT_TAP1_BITS + WIENER_FILT_TAP2_BITS) * 2)
 
 #define WIENER_FILT_TAP0_MINV \
   (WIENER_FILT_TAP0_MIDV - (1 << WIENER_FILT_TAP0_BITS) / 2)
@@ -127,10 +91,6 @@ extern "C" {
 #define WIENER_FILT_TAP2_MAXV \
   (WIENER_FILT_TAP2_MIDV - 1 + (1 << WIENER_FILT_TAP2_BITS) / 2)
 
-#define WIENER_FILT_TAP0_SUBEXP_K 1
-#define WIENER_FILT_TAP1_SUBEXP_K 2
-#define WIENER_FILT_TAP2_SUBEXP_K 3
-
 #define WIENERNS_UV_BRD 2  // Max offset for luma used for chorma
 
 #define WIENERNS_ROW_ID 0
@@ -141,8 +101,6 @@ extern "C" {
 #define WIENERNS_BIT_ID 0
 #define WIENERNS_MIN_ID 1
 #define WIENERNS_PAR_ID 2
-
-#define MAX_WIENERNS_SUBSETS 8
 
 typedef struct {
   NonsepFilterConfig nsfilter_config;

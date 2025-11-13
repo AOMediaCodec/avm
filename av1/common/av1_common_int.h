@@ -97,11 +97,7 @@ extern "C" {
 // TMVP unit size
 #define TMVP_MI_SZ_LOG2 (MI_SIZE_LOG2 + TMVP_SHIFT_BITS)
 #define TMVP_MI_SIZE (1 << TMVP_MI_SZ_LOG2)
-// TMVP_MI_SIZE_UV is the block size in luma unit for Chroma TIP interpolation
-#define TMVP_MI_SIZE_UV (TMVP_MI_SIZE)
 #define TIP_MV_STRIDE (1 << (MAX_SB_SIZE_LOG2 - TMVP_MI_SZ_LOG2))
-// TIP MV search range constraint in TMVP unit
-#define TIP_MV_SEARCH_RANGE 4
 
 #define MAX_SB_TMVP_SIZE_LOG2 (MAX_MIB_SIZE_LOG2 - TMVP_SHIFT_BITS)
 #define MAX_SB_TMVP_SIZE (1 << MAX_SB_TMVP_SIZE_LOG2)

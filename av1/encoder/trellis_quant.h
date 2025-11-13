@@ -27,7 +27,6 @@ extern "C" {
 #endif
 
 #define MAX_DIAG 32
-#define MAX_LF_SCAN 10
 
 typedef struct tcq_node_t {
   int64_t rdCost : 64;

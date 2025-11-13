@@ -506,8 +506,6 @@ static const TX_TYPE_1D htx_tab[TX_TYPES] = {
   IDTX_1D, DCT_1D,      IDTX_1D,     ADST_1D,     IDTX_1D, FLIPADST_1D,
 };
 
-#define TXSIZE_CAT_INVALID (-1)
-
 /* clang-format on */
 
 #if CONFIG_INSPECTION

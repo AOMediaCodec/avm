@@ -26,8 +26,6 @@ extern "C" {
 
 #define BLOCK_SIZE_GROUPS 4
 
-#define TX_SIZE_CONTEXTS 3
-
 #define INTER_OFFSET(mode) ((mode) - NEARMV)
 #define INTER_COMPOUND_OFFSET(mode) (uint8_t)((mode) - NEAR_NEARMV)
 // Number of possible contexts for a color index.
@@ -37,8 +35,6 @@ extern "C" {
 // a value from 0 to 5 using 'palette_color_index_context_lookup' table.
 #define PALETTE_COLOR_INDEX_CONTEXTS 5
 #define PALETTE_ROW_FLAG_CONTEXTS 4
-
-#define KF_MODE_CONTEXTS 5
 
 #define FSC_MODE_CONTEXTS 4
 #define FSC_BSIZE_CONTEXTS 6
@@ -105,11 +101,6 @@ extern "C" {
 #define WARP_DELTA_NUMSYMBOLS_LOW 8
 #define WARP_DELTA_NUMSYMBOLS_HIGH 8
 
-// The use_warp_extend symbol has two components to its context:
-// First context is the extension type (copy, extend from warp model, etc.)
-// Second context is log2(number of MI units along common edge)
-#define WARP_EXTEND_CTXS1 5
-#define WARP_EXTEND_CTXS2 5
 #define NUM_REFINEMV_CTX 24
 #define REFINEMV_NUM_MODES 2
 

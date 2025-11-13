@@ -780,9 +780,7 @@ int get_refinemv_sad(uint16_t *src1, uint16_t *src2, int stride, int width,
   return get_highbd_sad_ds(src1, stride, src2, stride, bd, width, height);
 }
 
-// Restrict MV delta to 1 or 2 pixels. This restriction would reduce complexity
-// in hardware.
-#define OPFL_CLAMP_MV_DELTA 1
+// Restrict MV delta. This restriction would reduce complexity in hardware.
 #define OPFL_MV_DELTA_LIMIT (1 << MV_REFINE_PREC_BITS)
 
 void reduce_temporal_dist(int *d0, int *d1) {

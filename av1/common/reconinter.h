@@ -45,11 +45,6 @@ extern "C" {
 
 #define WEDGE_WEIGHT_BITS 6
 
-#define WEDGE_NONE -1
-
-#define MORPH_FIT_SHIFT 8
-#define TEMPLATE_SIZE 1
-
 static const int wedge_angle_dist_2_index[WEDGE_ANGLES][NUM_WEDGE_DIST] = {
   { -1, 0, 1, 2 },     // WEDGE_0
   { 3, 4, 5, 6 },      // WEDGE_14

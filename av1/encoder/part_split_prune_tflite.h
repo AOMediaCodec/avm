@@ -19,9 +19,6 @@ extern "C" {
 
 #include "av1/common/av1_common_int.h"
 
-#define DEFAULT_QP_LOW 85
-#define DEFAULT_QP_HIGH 85
-
 typedef enum {
   MODEL_OTHER = 0,
   MODEL_128X128,

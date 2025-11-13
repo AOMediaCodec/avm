@@ -23,7 +23,6 @@ extern "C" {
 
 /*!\cond */
 #define MAX_INTERP_FILTER_STATS 128
-#define DUAL_FILTER_SET_SIZE (SWITCHABLE_FILTERS * SWITCHABLE_FILTERS)
 
 typedef struct {
   InterpFilter interp_fltr;

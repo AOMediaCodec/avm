@@ -130,7 +130,6 @@ void av1_setup_in_frame_q_adj(AV1_COMP *cpi) {
 }
 
 #define DEFAULT_LV_THRESH 10.0
-#define MIN_DEFAULT_LV_THRESH 8.0
 // Select a segment for the current block.
 // The choice of segment for a block depends on the ratio of the projected
 // bits for the block vs a target average and its spatial complexity.

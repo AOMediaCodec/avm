@@ -1673,15 +1673,6 @@ static AOM_FORCE_INLINE void multiply(const __m256i a, const __m256i b,
   *t2 = _mm256_unpackhi_epi16(lo, hi);
 }
 
-#define OPFL_OUTPUT_RANGE_CHECK(su2, sv2, suv, suw, svw) \
-  {                                                      \
-    su2 = ROUND_POWER_OF_TWO_SIGNED(su2, 1);             \
-    sv2 = ROUND_POWER_OF_TWO_SIGNED(sv2, 1);             \
-    suv = ROUND_POWER_OF_TWO_SIGNED(suv, 1);             \
-    suw = ROUND_POWER_OF_TWO_SIGNED(suw, 1);             \
-    svw = ROUND_POWER_OF_TWO_SIGNED(svw, 1);             \
-  }
-
 static AOM_FORCE_INLINE void xx256_storel_32(int32_t *store_lo,
                                              int32_t *store_hi, const __m256i a,
                                              const __m256i b) {

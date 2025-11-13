@@ -42,8 +42,6 @@
 #include "av1/encoder/tune_vmaf.h"
 #endif
 
-#define TEMPORAL_FILTER_KEY_FRAME 1
-
 // Get the subgop config corresponding to the current frame within the
 // gf group
 const SubGOPStepCfg *get_subgop_step(const GF_GROUP *const gf_group,

@@ -36,8 +36,6 @@ typedef struct WienerConvolveParams {
   int round_1;
 } WienerConvolveParams;
 
-#define NONSEP_PIXELS_MAX 32
-#define NONSEP_COEFFS_MAX 32
 #define NONSEP_ROW_ID 0
 #define NONSEP_COL_ID 1
 #define NONSEP_BUF_POS 2

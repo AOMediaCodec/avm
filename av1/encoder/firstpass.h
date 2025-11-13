@@ -27,9 +27,6 @@ extern "C" {
 #define MIN_ZERO_MOTION 0.95
 #define MAX_SR_CODED_ERROR 40
 #define MAX_RAW_ERR_VAR 2000
-#define MIN_MV_IN_OUT 0.4
-
-#define VLOW_MOTION_THRESHOLD 950
 
 // size of firstpass macroblocks in terms of MIs.
 #define FP_MIB_SIZE 4

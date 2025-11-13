@@ -42,12 +42,6 @@
 // Search level 2 - search only the best drl candidate for the current RU
 #define MERGE_DRL_SEARCH_LEVEL 1
 
-// Number of Wiener iterations
-#define NUM_WIENER_ITERS 5
-
-// Working precision for Wiener filter coefficients
-#define WIENER_TAP_SCALE_FACTOR ((int64_t)1 << 16)
-
 // Number of elements needed in the temporary buffer for
 // compute_wienerns_filter* functions.
 #define WIENERNS_A_SIZE (WIENERNS_TAPS_MAX * WIENERNS_TAPS_MAX)
@@ -777,7 +771,6 @@ static int64_t count_wienerns_bits_set(
 #define MIN(a, b) ((a) > (b) ? (b) : (a))
 
 #define FINER_UPDATE_BANK 1
-#define FINER_REPLACE 1
 static void initialize_bank_with_best_frame_filter_match(
     const RestSearchCtxt *rsc, WienerNonsepInfo *filter,
     WienerNonsepInfoBank *bank, int reset_dict);

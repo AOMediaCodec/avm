@@ -16,8 +16,6 @@
 #include "aom/aom_integer.h"
 #include "av1/common/enums.h"
 
-#define MAX_NUM_OP_POINTS 32
-
 typedef struct aom_timing {
   uint32_t num_units_in_display_tick;
   uint32_t time_scale;

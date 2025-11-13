@@ -62,10 +62,6 @@ static double calculate_active_area(const FRAME_INFO *frame_info,
   return fclamp(active_pct, MIN_ACTIVE_AREA, MAX_ACTIVE_AREA);
 }
 
-// Calculate a modified Error used in distributing bits between easier and
-// harder frames.
-#define ACT_AREA_CORRECTION 0.5
-
 // Resets the first pass file to the given position using a relative seek from
 // the current position.
 static void reset_fpf_position(TWO_PASS *p, const FIRSTPASS_STATS *position) {
@@ -1756,7 +1752,6 @@ static void define_gf_group(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame,
         rc->use_arf_in_this_kf_group && (i <= gf_cfg->lag_in_frames) && (i > 2);
   }
 
-#define REDUCE_GF_LENGTH_THRESH 4
 #define REDUCE_GF_LENGTH_TO_KEY_THRESH 9
 #define REDUCE_GF_LENGTH_BY 1
   int alt_offset = 0;

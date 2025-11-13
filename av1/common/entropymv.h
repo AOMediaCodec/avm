@@ -27,8 +27,6 @@ struct AV1Common;
 
 void av1_init_mv_probs(struct AV1Common *cm);
 
-#define MV_UPDATE_PROB 252
-
 /* Symbols for coding which components are zero jointly */
 #define MV_JOINTS 4
 enum {
@@ -67,10 +65,8 @@ enum {
 
 #define CLASS0_BITS 1 /* bits at integer precision for class 0 */
 #define CLASS0_SIZE (1 << CLASS0_BITS)
-#define MV_OFFSET_BITS (MV_CLASSES + CLASS0_BITS - 2)
 #define MV_MAX_BITS (MV_CLASSES + CLASS0_BITS + 2)
 #define MV_MAX ((1 << MV_MAX_BITS) - 1)
-#define MV_VALS ((MV_MAX << 1) + 1)
 #define SHELL_INT_OFFSET_BIT (MAX_NUM_SHELL_CLASS - 1)
 #define MAX_COL_TRUNCATED_UNARY_VAL 2
 #define NUM_CTX_COL_MV_GTX 2

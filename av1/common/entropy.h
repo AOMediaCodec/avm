@@ -90,12 +90,8 @@ extern "C" {
 #define LF_RC_LIM 2     // row or column limit
 #define LF_RC_LIM_UV 1  // row or column limit for chroma
 
-#define COEFF_BASE_CONTEXTS (SIG_COEF_CONTEXTS)
 #define DC_SIGN_GROUPS 2
 #define DC_SIGN_CONTEXTS 3
-
-#define BR_TMP_OFFSET 12
-#define BR_REF_CAT 4
 
 #define NUM_BASE_LEVELS 2
 
@@ -106,18 +102,12 @@ extern "C" {
 #define COEFF_CONTEXT_MASK ((1 << COEFF_CONTEXT_BITS) - 1)
 #define MAX_BASE_BR_RANGE (COEFF_BASE_RANGE + NUM_BASE_LEVELS + 1)
 
-#define BASE_CONTEXT_POSITION_NUM 12
-
 enum {
   TX_CLASS_2D = 0,
   TX_CLASS_HORIZ = 1,
   TX_CLASS_VERT = 2,
   TX_CLASSES,
 } UENUM1BYTE(TX_CLASS);
-
-#define DCT_MAX_VALUE 16384
-#define DCT_MAX_VALUE_HIGH10 65536
-#define DCT_MAX_VALUE_HIGH12 262144
 
 /* Coefficients are predicted via a 3-dimensional probability table indexed on
  * REF_TYPES, COEF_BANDS and COEF_CONTEXTS. */

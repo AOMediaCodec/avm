@@ -65,7 +65,6 @@ static INLINE InterpFilter av1_unswitchable_filter(InterpFilter filter) {
 #define SWITCHABLE_FILTER_CONTEXTS ((SWITCHABLE_FILTERS + 1) * 4)
 #define INTER_FILTER_COMP_OFFSET (SWITCHABLE_FILTERS + 1)
 #define INTER_FILTER_DIR_OFFSET ((SWITCHABLE_FILTERS + 1) * 2)
-#define ALLOW_ALL_INTERP_FILT_MASK (0x01ff)
 
 typedef struct InterpFilterParams {
   const int16_t *filter_ptr;

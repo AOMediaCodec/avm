@@ -72,8 +72,6 @@
 #include "av1/encoder/tx_search.h"
 #include "av1/encoder/partition_strategy.h"
 
-#define LAST_NEW_MV_INDEX 6
-
 // Mode_threshold multiplication factor table for prune_inter_modes_if_skippable
 // The values are kept in Q12 format and equation used to derive is
 // (2.5 - ((float)x->qindex / MAXQ) * 1.5)

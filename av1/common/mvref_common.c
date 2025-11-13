@@ -4698,7 +4698,6 @@ void av1_setup_skip_mode_allowed(AV1_COMMON *cm) {
 }
 
 #define SB_TO_RMB_UNITS_LOG2 3
-#define SB_TO_RMB_UNITS (1 << SB_TO_RMB_UNITS_LOG2)
 #define BANK_1ST_UNIT_UPDATE_COUNT 4
 #define BANK_UNIT_MAX_ALLOWED_LEFTOVER_UPDATES 16
 

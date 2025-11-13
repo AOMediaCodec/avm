@@ -24,8 +24,6 @@
 extern "C" {
 #endif
 
-#define MAX_NEIGHBORS 2
-
 enum {
   SCAN_MODE_ZIG_ZAG,
   SCAN_MODE_COL_DIAG,

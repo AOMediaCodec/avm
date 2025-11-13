@@ -105,11 +105,8 @@ void compute_residual_stats(AV1_COMP *const cpi, ThreadData *td, MACROBLOCK *x,
   xd->tree_type = old_tree_type;
 }
 
-#define ZERO_ARRAY(arr) memset(arr, 0, sizeof(arr))
-
 #define MAX_BLK_SIZE (MAX_TX_SIZE << 1)
 #define MAX_BLK_SQUARE (MAX_BLK_SIZE * MAX_BLK_SIZE)
-#define MAX_TX_RECT (MAX_TX_SIZE * MAX_BLK_SIZE)
 
 static AOM_INLINE void av1_ml_part_split_features_square(AV1_COMP *const cpi,
                                                          MACROBLOCK *x,

@@ -378,7 +378,6 @@ int av1_init_search_range(int size, int enable_high_motion) {
 #define SSE_LAMBDA_HDRES 1  // Used by mv_cost_err_fn
 #define SAD_LAMBDA_HDRES 8  // Used by mvsad_err_cost during full pixel search
 
-#define CONVERT_TO_CONST_MVCOST(ptr) ((const int *const *)(ptr))
 static INLINE int get_vq_col_mvd_cost(const MvCosts *mv_costs,
                                       const MvSubpelPrecision pb_mv_precision,
                                       const int max_coded_value, int col,

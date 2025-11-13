@@ -2277,8 +2277,6 @@ static void init_motion_estimation(AV1_COMP *cpi) {
   }
 }
 
-#define COUPLED_CHROMA_FROM_LUMA_RESTORATION 0
-
 static void init_ref_frame_bufs(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   int i;

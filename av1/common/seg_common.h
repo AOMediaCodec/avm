@@ -22,8 +22,6 @@ extern "C" {
 #define MAX_SEGMENTS 16
 #define MAX_SEGMENTS_8 8
 
-#define SEG_TREE_PROBS (MAX_SEGMENTS - 1)
-
 #define SEG_TEMPORAL_PRED_CTXS 3
 #define SPATIAL_PREDICTION_PROBS 3
 

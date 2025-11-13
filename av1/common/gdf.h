@@ -21,7 +21,6 @@ extern "C" {
 enum Direction { GDF_VER, GDF_HOR, GDF_DIAG0, GDF_DIAG1, GDF_NUM_DIRS };
 
 #define GDF_VERBOSE 0
-#define GDF_C_CODE_ONLY 0
 
 #define GDF_RDO_QP_NUM_LOG2 2
 #define GDF_RDO_SCALE_NUM_LOG2 2

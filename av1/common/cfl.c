@@ -1005,7 +1005,6 @@ void mhccp_derive_multi_param_hv(MACROBLOCKD *const xd, int plane,
 #define DIV_PREC_BITS_POW2 8
 #define DIV_SLOT_BITS 3
 #define DIV_INTR_BITS (DIV_PREC_BITS - DIV_SLOT_BITS)
-#define DIV_INTR_ROUND (1 << DIV_INTR_BITS >> 1)
 
 // Return the number of shifted bits for the denominator
 static INLINE int floorLog2Uint64(uint64_t x) {

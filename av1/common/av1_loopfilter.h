@@ -31,7 +31,6 @@ extern "C" {
 #define DF_SEARCH_STEP_SIZE 2
 
 #define MAX_LOOP_FILTER 63
-#define MAX_SHARPNESS 7
 
 #define SIMD_WIDTH 16
 
@@ -98,7 +97,6 @@ typedef struct LoopFilterWorkerData {
 /* assorted loopfilter functions which get used elsewhere */
 struct AV1Common;
 struct macroblockd;
-struct AV1LfSyncData;
 
 void av1_loop_filter_init(struct AV1Common *cm);
 

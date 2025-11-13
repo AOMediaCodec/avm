@@ -13,9 +13,6 @@
 #ifndef AOM_AV1_COMMON_CCSO_H_
 #define AOM_AV1_COMMON_CCSO_H_
 
-#define min_ccf(X, Y) (((X) < (Y)) ? (X) : (Y))
-#define max_ccf(X, Y) (((X) > (Y)) ? (X) : (Y))
-
 #define CCSO_INPUT_INTERVAL 3
 #define CCSO_PROC_BLK_LOG2 5
 

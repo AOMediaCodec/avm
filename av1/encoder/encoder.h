@@ -1911,9 +1911,6 @@ static INLINE char const *get_component_name(int index) {
 }
 #endif
 
-// The maximum number of internal ARFs except ALTREF_FRAME
-#define MAX_INTERNAL_ARFS (REF_FRAMES - BWDREF_FRAME - 1)
-
 /*!\endcond */
 
 /*!
@@ -3311,8 +3308,6 @@ double av1_get_compression_ratio(const AV1_COMMON *const cm,
                                  size_t encoded_frame_size);
 
 void av1_new_framerate(AV1_COMP *cpi, double framerate);
-
-#define LAYER_IDS_TO_IDX(sl, tl, num_tl) ((sl) * (num_tl) + (tl))
 
 #if !CONFIG_F024_KEYOBU
 // Don't allow a show_existing_frame to coincide with an error resilient

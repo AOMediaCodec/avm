@@ -54,8 +54,6 @@ extern "C" {
 #define INTER_TX_TYPE_OFFSET1_COUNT 8
 #define INTER_TX_TYPE_OFFSET2_COUNT 4
 
-#define ADJUST_SUPER_RES_Q 1
-
 #define NUM_CTX_IS_JOINT 2
 #define NUM_OPTIONS_IS_JOINT 2
 #define NUM_CTX_NON_JOINT_TYPE INTER_MODE_CONTEXTS
@@ -158,9 +156,6 @@ enum {
 #define MHCCP_DECIM_BITS 16
 #define MHCCP_DECIM_ROUND (1 << (MHCCP_DECIM_BITS - 1))
 
-#define FIXED_MULT(x, y) (((x) * (y) + MHCCP_DECIM_ROUND) >> MHCCP_DECIM_BITS)
-#define FIXED_DIV(x, y) (((x) << MHCCP_DECIM_BITS) / (y))
-
 // Min superblock size
 #define MIN_SB_SIZE_LOG2 6
 
@@ -170,7 +165,6 @@ enum {
 
 // 1/8 pels per Mode Info (MI) unit
 #define MI_SUBPEL_SIZE_LOG2 (MI_SIZE_LOG2 + 3)
-#define MI_SUBPEL_SIZE (1 << MI_SUBPEL_SIZE_LOG2)
 
 // MI-units per max superblock (MI Block - MIB)
 #define MAX_MIB_SIZE_LOG2 (MAX_SB_SIZE_LOG2 - MI_SIZE_LOG2)
@@ -178,8 +172,10 @@ enum {
 
 #define MAX_MIB_SQUARE (MAX_MIB_SIZE * MAX_MIB_SIZE)
 
+#if CONFIG_INSPECTION
 // MI-units per min superblock
 #define MIN_MIB_SIZE_LOG2 (MIN_SB_SIZE_LOG2 - MI_SIZE_LOG2)
+#endif  // CONFIG_INSPECTION
 
 // Mask to extract MI offset within max MIB
 #define MAX_MIB_MASK (MAX_MIB_SIZE - 1)
@@ -195,8 +191,6 @@ enum {
 // Maximum number of tile rows and tile columns
 #define MAX_TILE_ROWS 64
 #define MAX_TILE_COLS 64
-
-#define MAX_VARTX_DEPTH 2
 
 #define MI_SIZE_64X64 (64 >> MI_SIZE_LOG2)
 #define MI_SIZE_128X128 (128 >> MI_SIZE_LOG2)
@@ -216,9 +210,6 @@ enum {
 #define FRAME_LF_COUNT 4
 #define DEFAULT_DELTA_LF_MULTI 0
 #define MAX_MODE_LF_DELTAS 2
-
-// Semi-Decoupled Partitioning
-#define SHARED_PART_SIZE 128
 
 // Multiple reference line selection for intra prediction
 #define MRL_LINE_NUMBER 4
@@ -255,7 +246,6 @@ enum {
 #define FSC_MINHEIGHT 4
 
 #define DIST_PRECISION_BITS 4
-#define DIST_PRECISION (1 << DIST_PRECISION_BITS)  // 16
 
 #define IBC_TOP_INTERP_BORDER 0
 #define IBC_LEFT_INTERP_BORDER 0
@@ -631,10 +621,6 @@ enum {
    one more than the minimum. */
 #define TX_SIZE_CTX_MIN (TX_SIZE_LUMA_MIN + 1)
 
-// Maximum tx_size categories
-#define MAX_TX_CATS (TX_SIZES - TX_SIZE_CTX_MIN)
-#define MAX_TX_DEPTH 2
-
 #define MAX_TX_SIZE_LOG2 (6)
 #define MAX_TX_SIZE (1 << MAX_TX_SIZE_LOG2)
 #define MIN_TX_SIZE_LOG2 2
@@ -642,13 +628,9 @@ enum {
 #define MAX_TX_SQUARE (MAX_TX_SIZE * MAX_TX_SIZE)
 #define MAX_TRELLIS 1024
 
-// Pad 4 extra columns to remove horizontal availability check.
 #define TX_PAD_HOR_LOG2 2
 #define TX_PAD_HOR 4
-// Pad 6 extra rows (2 on top and 4 on bottom) to remove vertical availability
-// check.
 #define TX_PAD_LEFT 4
-#define TX_PAD_RIGHT 4
 #define TX_PAD_TOP 4
 #define TX_PAD_BOTTOM 4
 #define TX_PAD_VER (TX_PAD_TOP + TX_PAD_BOTTOM)
@@ -767,7 +749,6 @@ enum { PLANE_TYPE_Y, PLANE_TYPE_UV, PLANE_TYPES } UENUM1BYTE(PLANE_TYPE);
 
 #define CFL_ALPHABET_SIZE_LOG2 3
 #define CFL_ALPHABET_SIZE (1 << CFL_ALPHABET_SIZE_LOG2)
-#define CFL_MAGS_SIZE ((2 << CFL_ALPHABET_SIZE_LOG2) + 1)
 #define CFL_IDX_U(idx) (idx >> CFL_ALPHABET_SIZE_LOG2)
 #define CFL_IDX_V(idx) (idx & (CFL_ALPHABET_SIZE - 1))
 
@@ -978,15 +959,12 @@ enum {
 #define MAX_ANGLE_DELTA 3
 #define ANGLE_STEP 3
 
-#define NO_D149_FOR_WARP_CAUSAL 1
 // Total delta angles for one nominal directional mode
 #define TOTAL_ANGLE_DELTA_COUNT 7
 
 // The warpmv and warpmv_new mode is signalled as a separate flag
 // So the number of remaining modes to be signalled is (SINGLE_INTER_MODE_NUM-2)
 #define INTER_SINGLE_MODES (SINGLE_INTER_MODE_NUM - 2)
-
-#define INTER_COMPOUND_MODES COMP_INTER_MODE_NUM
 
 #define SKIP_CONTEXTS 6
 #define SKIP_MODE_CONTEXTS 3
@@ -1059,13 +1037,9 @@ enum {
 #define MAX_WARP_REF_CANDIDATES 4
 #define WARP_REF_CONTEXTS 1
 
-#define INTRA_INTER_SKIP_TXFM_CONTEXTS 2
 #define INTRA_INTER_CONTEXTS 4
 #define COMP_INTER_CONTEXTS 5
 #define REF_CONTEXTS 3
-
-#define COMP_REF_TYPE_CONTEXTS 5
-#define UNI_COMP_REF_CONTEXTS 3
 
 // Group size from mapping block size to tx partition context
 #define TXFM_SPLIT_GROUP 9
@@ -1117,10 +1091,6 @@ typedef uint16_t TXFM_CONTEXT;
 // frame in cm->cur_frame, INTER_REFS_PER_FRAME for scaled references on the
 // encoder in the cpi->scaled_ref_buf array.
 #define FRAME_BUFFERS (REF_FRAMES + 1 + INTER_REFS_PER_FRAME)
-
-#define TOTAL_COMP_REFS (FWD_REFS * BWD_REFS + TOTAL_UNIDIR_COMP_REFS)
-
-#define COMP_REFS (FWD_REFS * BWD_REFS + UNIDIR_COMP_REFS)
 
 #define TIP_FRAME (MODE_CTX_REF_FRAMES - 1)
 #define TIP_FRAME_INDEX (INTER_REFS_PER_FRAME + 1)
