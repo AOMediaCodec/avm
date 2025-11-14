@@ -6389,7 +6389,7 @@ static AOM_INLINE void write_show_exisiting_frame(
   const SequenceHeader *const seq_params = &cm->seq_params;
   aom_wb_write_literal(wb,
 #if CONFIG_F024_KEYOBU
-                       cpi->fb_idx_for_overlay,
+                       cm->sef_ref_fb_idx,
 #else
                        cpi->existing_fb_idx_to_show,
 #endif

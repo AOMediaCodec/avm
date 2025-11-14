@@ -244,9 +244,7 @@ typedef struct AV1DecTileMTData {
  */
 typedef struct {
   unsigned char disp_frame_idx[MAX_SUBGOP_STATS_SIZE];
-#if !CONFIG_F024_KEYOBU
   int show_existing_frame[MAX_SUBGOP_STATS_SIZE];
-#endif
   int show_frame[MAX_SUBGOP_STATS_SIZE];
   int qindex[MAX_SUBGOP_STATS_SIZE];
   int refresh_frame_flags[MAX_SUBGOP_STATS_SIZE];

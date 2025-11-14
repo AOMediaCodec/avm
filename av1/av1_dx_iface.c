@@ -1479,10 +1479,8 @@ static aom_codec_err_t ctrl_get_dec_frame_info(aom_codec_alg_priv_t *ctx,
   for (int step_idx = 0; step_idx < stat_count; step_idx++) {
     SubGOPStepData *step_data = &subgop_step[step_idx];
     step_data->disp_frame_idx = subgop_stats->disp_frame_idx[step_idx];
-#if !CONFIG_F024_KEYOBU
     step_data->show_existing_frame =
         subgop_stats->show_existing_frame[step_idx];
-#endif
     step_data->show_frame = subgop_stats->show_frame[step_idx];
     step_data->qindex = subgop_stats->qindex[step_idx];
     step_data->refresh_frame_flags =

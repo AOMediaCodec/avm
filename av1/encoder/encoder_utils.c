@@ -1171,11 +1171,19 @@ void av1_finalize_encoded_frame(AV1_COMP *const cpi) {
   AV1_COMMON *const cm = &cpi->common;
   CurrentFrame *const current_frame = &cm->current_frame;
 
-#if !CONFIG_F024_KEYOBU
+#if CONFIG_F024_KEYOBU
+  if (cm->show_existing_frame)
+#else
   if (!cm->seq_params.single_picture_header_flag &&
-      (encode_show_existing_frame(cm) || cm->show_existing_frame)) {
+      (encode_show_existing_frame(cm) || cm->show_existing_frame))
+#endif
+  {
     RefCntBuffer *const frame_to_show =
+#if CONFIG_F024_KEYOBU
+        cm->ref_frame_map[cm->sef_ref_fb_idx];
+#else
         cm->ref_frame_map[cpi->existing_fb_idx_to_show];
+#endif
 
     if (frame_to_show == NULL) {
       aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
@@ -1183,9 +1191,11 @@ void av1_finalize_encoded_frame(AV1_COMP *const cpi) {
     }
     assign_frame_buffer_p(&cm->cur_frame, frame_to_show);
   }
-#endif
+
   if (
-#if !CONFIG_F024_KEYOBU
+#if CONFIG_F024_KEYOBU
+      !cm->show_existing_frame &&
+#else
       !encode_show_existing_frame(cm) &&
 #endif
       cm->seq_params.film_grain_params_present &&

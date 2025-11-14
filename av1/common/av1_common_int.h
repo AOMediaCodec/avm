@@ -2255,14 +2255,24 @@ typedef struct AV1Common {
    * When 'show_frame' is false, this value is transmitted in the bitstream.
    */
   int showable_frame;
-#if !CONFIG_F024_KEYOBU
+#if CONFIG_F024_KEYOBU
+  /*!
+   * If true, the obu_type of the frame is SEF_OBU
+   */
+  int sef_ref_fb_idx;
+
+  /*!
+   * If true, the obu_type of the frame is SEF_OBU
+   */
+#else
   /*!
    * If true, show an existing frame coded before, instead of actually coding a
    * frame. The existing frame comes from one of the existing reference buffers,
    * as signaled in the bitstream.
    */
+#endif  // CONFIG_F024_KEYOBU
   int show_existing_frame;
-#endif
+
   /*!
    * Whether some features are allowed or not.
    */
