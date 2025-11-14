@@ -16,7 +16,7 @@
 #include "aom_dsp/aom_dsp_common.h"
 
 void av1_tile_init(TileInfo *tile, const AV1_COMMON *cm, int row, int col) {
-  tile->tile_active_mode = 1;
+  //tile->tile_active_mode = 1;
   av1_tile_set_row(tile, cm, row);
   av1_tile_set_col(tile, cm, col);
 }
