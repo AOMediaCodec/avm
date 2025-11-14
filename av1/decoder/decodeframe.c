@@ -8177,9 +8177,7 @@ static int read_show_existing_frame(AV1Decoder *pbi,
   const SequenceHeader *const seq_params = &cm->seq_params;
   CurrentFrame *const current_frame = &cm->current_frame;
   BufferPool *const pool = cm->buffer_pool;
-#if !CONFIG_F024_KEYOBU
   cm->show_existing_frame = 1;
-#endif  // !CONFIG_F024_KEYOBU
   init_bru_params(cm);
   if (pbi->sequence_header_changed) {
     aom_internal_error(
@@ -8188,7 +8186,10 @@ static int read_show_existing_frame(AV1Decoder *pbi,
   }
   // Show an existing frame directly.
   const int existing_frame_idx =
-      aom_rb_read_literal(rb, seq_params->ref_frames_log2);
+#if CONFIG_F024_KEYOBU
+      cm->sef_ref_fb_idx =
+#endif  // CONFIG_F024_KEYOBU
+          aom_rb_read_literal(rb, seq_params->ref_frames_log2);
   if (existing_frame_idx >= seq_params->ref_frames) {
     aom_internal_error(
         &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
@@ -8554,9 +8555,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // CONFIG_CWG_F317
 
   if (seq_params->single_picture_header_flag) {
-#if !CONFIG_F024_KEYOBU
     cm->show_existing_frame = 0;
-#endif
     cm->show_frame = 1;
     cm->cur_frame->showable_frame = 0;
     current_frame->frame_type = KEY_FRAME;
@@ -8577,6 +8576,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_SEF
     pbi->reset_decoder_state = 0;
 #if CONFIG_F024_KEYOBU
+    cm->show_existing_frame = 0;
     if (obu_type == OBU_LEADING_SEF || obu_type == OBU_REGULAR_SEF)
       return read_show_existing_frame(pbi,
 #if CONFIG_F024_KEYOBU

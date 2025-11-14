@@ -4655,6 +4655,8 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
   cpi->update_type_was_overlay =
       frame_params->frame_params_update_type_was_overlay;
   cpi->fb_idx_for_overlay = frame_params->fb_idx_for_overlay;
+  cm->show_existing_frame = 0;
+  cm->sef_ref_fb_idx = 0;
 #else
   cm->show_existing_frame = frame_params->show_existing_frame;
   cpi->existing_fb_idx_to_show = frame_params->existing_fb_idx_to_show;
@@ -4771,9 +4773,10 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
         cm->current_frame.absolute_poc = 0;
         cm->show_frame = 0;
         cm->showable_frame = 0;
-#if !CONFIG_F024_KEYOBU
         cm->show_existing_frame = 0;
-#endif  // !CONFIG_F024_KEYOBU
+#if CONFIG_F024_KEYOBU
+        cm->sef_ref_fb_idx = 0;
+#endif  // CONFIG_F024_KEYOBU
         cm->current_frame.order_hint = 0;
         cm->current_frame.frame_number = 0;
         cm->bridge_frame_info.bridge_frame_ref_idx = INVALID_IDX;

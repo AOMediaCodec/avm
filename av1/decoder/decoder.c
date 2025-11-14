@@ -64,10 +64,8 @@ static void update_subgop_stats(const AV1_COMMON *const cm,
   if (!enable_subgop_stats) return;
   // Update subgop related frame data.
   subgop_stats->disp_frame_idx[subgop_stats->stat_count] = display_order_hint;
-#if !CONFIG_F024_KEYOBU
   subgop_stats->show_existing_frame[subgop_stats->stat_count] =
       cm->show_existing_frame;
-#endif
   subgop_stats->show_frame[subgop_stats->stat_count] = cm->show_frame;
   subgop_stats->qindex[subgop_stats->stat_count] = cm->quant_params.base_qindex;
   subgop_stats->refresh_frame_flags[subgop_stats->stat_count] =
