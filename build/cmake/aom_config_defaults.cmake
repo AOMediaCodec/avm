@@ -305,6 +305,8 @@ set_aom_config_var(CONFIG_CWG_F317_TEST_PATTERN 1
 
 set_aom_config_var(CONFIG_4X4_WARP_FIX 1 "Fix 4x4 warp padding")
 
+set_aom_config_var(CONFIG_NO_8X8_DMVR 1 "Remove 8x8 DMVR")
+
 set_aom_config_var(CONFIG_BAND_METADATA 1 "Enable banding hints metadata.")
 #
 # Variables in this section control optional features of the build system.

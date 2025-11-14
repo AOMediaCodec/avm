@@ -445,7 +445,12 @@ static AOM_INLINE void tip_build_inter_predictors_8x8(
   MV best_mv_ref[2] = { { mbmi->mv[0].as_mv.row, mbmi->mv[0].as_mv.col },
                         { mbmi->mv[1].as_mv.row, mbmi->mv[1].as_mv.col } };
 
-  int apply_refinemv = (is_refinemv_allowed_tip_blocks(cm, mbmi) && plane == 0);
+  int apply_refinemv = (plane == 0 && is_refinemv_allowed_tip_blocks(cm, mbmi
+#if CONFIG_NO_8X8_DMVR
+                                                                     ,
+                                                                     bw, bh
+#endif  // CONFIG_NO_8X8_DMVR
+                                                                     ));
   assert(IMPLIES(bw > 16, !apply_refinemv));
 
   if (apply_refinemv) {

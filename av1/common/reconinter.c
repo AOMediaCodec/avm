@@ -3080,10 +3080,20 @@ static AOM_INLINE int is_sub_block_refinemv_enabled(const AV1_COMMON *cm,
 // check if the refinemv mode is allowed for a
 // given block
 static INLINE int is_mv_refine_allowed(const AV1_COMMON *cm,
-                                       const MB_MODE_INFO *mbmi, int plane) {
+                                       const MB_MODE_INFO *mbmi, int plane
+#if CONFIG_NO_8X8_DMVR
+                                       ,
+                                       int bw, int bh
+#endif  // CONFIG_NO_8X8_DMVR
+) {
   if (plane != 0) return 0;
   if (is_tip_ref_frame(mbmi->ref_frame[0]))
-    return is_refinemv_allowed_tip_blocks(cm, mbmi);
+    return is_refinemv_allowed_tip_blocks(cm, mbmi
+#if CONFIG_NO_8X8_DMVR
+                                          ,
+                                          bw, bh
+#endif  // CONFIG_NO_8X8_DMVR
+    );
   return 1;
 }
 
@@ -3171,7 +3181,12 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
   uint16_t *refinemv_ref0 = NULL;
   uint16_t *refinemv_ref1 = NULL;
 
-  int apply_refinemv = is_mv_refine_allowed(cm, mi, plane);
+  int apply_refinemv = is_mv_refine_allowed(cm, mi, plane
+#if CONFIG_NO_8X8_DMVR
+                                            ,
+                                            bw, bh
+#endif  // CONFIG_NO_8X8_DMVR
+  );
 
   MV best_mv_ref[2] = { mi_mv[0], mi_mv[1] };
   if (apply_refinemv) {
@@ -3343,7 +3358,12 @@ static void build_inter_predictors_8x8_and_bigger_refinemv(
                           pd->subsampling_x, pd->subsampling_y, xd->bd,
                           mi->use_intrabc[0], sf, pre_buf, mi->interp_fltr);
     const int refinemv_is_allowed_y =
-        is_mv_refine_allowed(cm, mi, 0) ||
+        is_mv_refine_allowed(cm, mi, 0
+#if CONFIG_NO_8X8_DMVR
+                             ,
+                             bw, bh
+#endif  // CONFIG_NO_8X8_DMVR
+                             ) ||
         is_optflow_refinement_enabled(cm, xd, mi, 0, tip_ref_frame);
     const int use_ref_padding =
         tip_ref_frame
