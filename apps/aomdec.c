@@ -1034,7 +1034,7 @@ static int main_loop(int argc, const char **argv_) {
       if (progress) show_progress(frame_in, frame_out, dx_time);
 
 #if CONFIG_ICC_METADATA
-      const int num_metadata = (int)aom_img_num_metadata(img);
+      const int num_metadata = aom_img_num_metadata(img);
       for (int m = 0; m < num_metadata; m++) {
         const aom_metadata_t *metadata = aom_img_get_metadata(img, m);
         switch (metadata->type) {

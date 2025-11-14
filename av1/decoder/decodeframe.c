@@ -4681,7 +4681,9 @@ static AOM_INLINE void get_tile_buffers(
             (cm->tiles.tile_active_bitmap[tile_active_map_byte] >>
              tile_active_map_bit) &
             1;
-        //printf("read tile mode: tile_idx %d, active mode %d, in pbi %d\n", tile_idx, this_tile->tile_info.tile_active_mode, (pbi->tile_data + tile_idx)->tile_info.tile_active_mode);
+        // printf("read tile mode: tile_idx %d, active mode %d, in pbi %d\n",
+        // tile_idx, this_tile->tile_info.tile_active_mode, (pbi->tile_data +
+        // tile_idx)->tile_info.tile_active_mode);
       }
     }
   }
@@ -5194,8 +5196,6 @@ static TileJobsDec *get_dec_job_info(AV1DecTileMT *tile_mt_info) {
   if (tile_mt_info->jobs_dequeued < tile_mt_info->jobs_enqueued) {
     cur_job_info = tile_mt_info->job_queue + tile_mt_info->jobs_dequeued;
     tile_mt_info->jobs_dequeued++;
-    //pthread_t self_id = pthread_self();
-    //printf("thread id = %lld., job tile active %d\n", (long long)self_id, cur_job_info->tile_data->tile_info.tile_active_mode);
   }
 
   pthread_mutex_unlock(tile_mt_info->job_mutex);
@@ -5237,8 +5237,7 @@ static AOM_INLINE void tile_worker_hook_init(
   av1_init_above_context(&cm->above_contexts, av1_num_planes(cm), tile_row, xd);
   td->dcb.xd.tile.tile_active_mode = 1;
   if (cm->bru.enabled && (cm->tiles.cols * cm->tiles.rows > 1)) {
-      td->dcb.xd.tile.tile_active_mode =
-      tile_data->tile_info.tile_active_mode;
+    td->dcb.xd.tile.tile_active_mode = tile_data->tile_info.tile_active_mode;
   }
   // Initialise the tile context from the frame context
   tile_data->tctx = *cm->fc;
@@ -5468,13 +5467,11 @@ static AOM_INLINE void parse_tile_row_mt(AV1Decoder *pbi, ThreadData *const td,
     if (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame)
       xd->tile.tile_active_mode = 0;
   }
-#else  
+#else
   if (cm->bru.enabled) {
-    if (cm->bru.frame_inactive_flag) 
-      xd->tile.tile_active_mode = 0;
+    if (cm->bru.frame_inactive_flag) xd->tile.tile_active_mode = 0;
   }
-#endif  
-  //printf("in parse_tile_row_mt tile active mode %d\n", xd->tile.tile_active_mode);
+#endif
   for (int mi_row = tile_info.mi_row_start; mi_row < tile_info.mi_row_end;
        mi_row += cm->mib_size) {
     av1_zero_left_context(xd);
@@ -5625,8 +5622,7 @@ static int row_mt_worker_hook(void *arg1, void *arg2) {
 
     td->dcb.xd.tile.tile_active_mode = 1;
     if (cm->bru.enabled && (cm->tiles.cols * cm->tiles.rows > 1)) {
-      td->dcb.xd.tile.tile_active_mode =
-            tile_data->tile_info.tile_active_mode;
+      td->dcb.xd.tile.tile_active_mode = tile_data->tile_info.tile_active_mode;
     }
     decode_tile_sb_row(pbi, td, tile_info, mi_row);
 
@@ -5665,8 +5661,6 @@ static AOM_INLINE void enqueue_tile_jobs(AV1Decoder *pbi, AV1_COMMON *cm,
         continue;
       tile_job_queue->tile_buffer = &pbi->tile_buffers[row][col];
       tile_job_queue->tile_data = pbi->tile_data + row * cm->tiles.cols + col;
-      //printf("enqueue tile mt %d, r %d, c %d, active mode %d\n",
-      //  tile_mt_info->jobs_enqueued, row, col, tile_job_queue->tile_data->tile_info.tile_active_mode);
       tile_job_queue++;
       tile_mt_info->jobs_enqueued++;
     }
