@@ -343,8 +343,8 @@ uint32_t read_fgm_obu(AV1Decoder *pbi, const int obu_tlayer_id,
   if (*acc_fgm_id_bitmap & (uint32_t)fgm_bit_map) {
     aom_internal_error(
         &pbi->common.error, AOM_CODEC_INVALID_PARAM,
-        "fg,_bit_map(%d) overlaps the accumulated fgm_bit_map(%d)",
-        fgm_bit_map, acc_fgm_id_bitmap);
+        "fgm_bit_map(%d) overlaps the accumulated fgm_bit_map(%d)", fgm_bit_map,
+        acc_fgm_id_bitmap);
   } else {
     *acc_fgm_id_bitmap |= fgm_bit_map;
   }
