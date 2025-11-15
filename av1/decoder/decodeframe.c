@@ -6345,13 +6345,13 @@ static void setup_film_grain(AV1Decoder *pbi, struct aom_read_bit_buffer *rb) {
         aom_internal_error(&cm->error, AOM_CODEC_INVALID_PARAM,
                            "fgm_list[%d] is unavailable", cm->fgm_id);
       }
-      if (!seq_params->mlayer_dependency_map
-               [cm->mlayer_id][pbi->fgm_list[cm->fgm_id].fgm_mlayer_id] ||
-          !seq_params->tlayer_dependency_map
-               [cm->tlayer_id][pbi->fgm_list[cm->fgm_id].fgm_tlayer_id]) {
+      if (seq_params->mlayer_dependency_map
+              [cm->mlayer_id][pbi->fgm_list[cm->fgm_id].fgm_mlayer_id] ||
+          seq_params->tlayer_dependency_map
+              [cm->tlayer_id][pbi->fgm_list[cm->fgm_id].fgm_tlayer_id]) {
         aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-                           "mlayer_id[%d] or tlayer_id[%d] of film grain model "
-                           "doesnot comply the layer dependency",
+                           "the layer ids of the film grain model are out"
+                           "of the limit: (%d, %d)",
                            pbi->fgm_list[cm->fgm_id].fgm_mlayer_id,
                            pbi->fgm_list[cm->fgm_id].fgm_tlayer_id);
       }

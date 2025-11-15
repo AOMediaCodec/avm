@@ -71,7 +71,6 @@ set_aom_config_var(CONFIG_F255_QMOBU 1 "Enable QM_OBU")
 set_aom_config_var(CONFIG_F024_KEYOBU 1 "Use Key OBUs.")
 
 set_aom_config_var(CONFIG_F153_FGM_OBU 1 "Signal film grain model in OBU_FGM.")
-set_aom_config_var(CONFIG_F153_FGM_OBU_1OBU 0 "Signal a single obu in cvs.")
 
 #
 # Variables in this section can be set from the CMake command line or from

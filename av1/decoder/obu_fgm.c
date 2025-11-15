@@ -336,29 +336,29 @@ static int read_film_grain_model(struct film_grain_model *fgm, int chroma_idc,
 }
 
 uint32_t read_fgm_obu(AV1Decoder *pbi, const int obu_tlayer_id,
-                      const int obu_mlayer_id, uint32_t *acc_fgcp_id_bitmap,
+                      const int obu_mlayer_id, uint32_t *acc_fgm_id_bitmap,
                       struct aom_read_bit_buffer *rb) {
   const uint32_t saved_bit_offset = rb->bit_offset;
-  int fgcp_bit_map = aom_rb_read_literal(rb, MAX_FGM_NUM);
-  if (*acc_fgcp_id_bitmap & (uint32_t)fgcp_bit_map) {
+  int fgm_bit_map = aom_rb_read_literal(rb, MAX_FGM_NUM);
+  if (*acc_fgm_id_bitmap & (uint32_t)fgm_bit_map) {
     aom_internal_error(
         &pbi->common.error, AOM_CODEC_INVALID_PARAM,
-        "fgcp_bit_map(%d) overlaps the accumulated fgcp_bit_map(%d)",
-        fgcp_bit_map, acc_fgcp_id_bitmap);
+        "fg,_bit_map(%d) overlaps the accumulated fgm_bit_map(%d)",
+        fgm_bit_map, acc_fgm_id_bitmap);
   } else {
-    *acc_fgcp_id_bitmap |= fgcp_bit_map;
+    *acc_fgm_id_bitmap |= fgm_bit_map;
   }
-  int fgcp_chroma_idc = aom_rb_read_uvlc(rb);
+  int fgm_chroma_idc = aom_rb_read_uvlc(rb);
   for (int j = 0; j < MAX_FGM_NUM; j++) {
     // it will overwrite the pos if the fgm_id is the same.
-    if (fgcp_bit_map & (1 << j)) {
+    if (fgm_bit_map & (1 << j)) {
       int fgm_id = j;
       memset(&pbi->fgm_list[fgm_id], 0, sizeof(struct film_grain_model));
       pbi->fgm_list[fgm_id].fgm_id = fgm_id;
       pbi->fgm_list[fgm_id].fgm_mlayer_id = obu_mlayer_id;
       pbi->fgm_list[fgm_id].fgm_tlayer_id = obu_tlayer_id;
       int error_code =
-          read_film_grain_model(&pbi->fgm_list[fgm_id], fgcp_chroma_idc, rb);
+          read_film_grain_model(&pbi->fgm_list[fgm_id], fgm_chroma_idc, rb);
       if (error_code > 0) {
         aom_internal_error(&pbi->common.error, AOM_CODEC_UNSUP_BITSTREAM,
                            "film grain model setting error code [%d].",

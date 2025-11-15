@@ -2128,7 +2128,7 @@ struct film_grain_model {
 #if CONFIG_CWG_F298_REC11
   /*!
    * fgm_scaling_points[c][i][0] the value increment for the i-th point of
-   the piecewise scaling function for the c-th component.
+   the piecewise linear scaling function for the c-th component.
    * scaling_points[c][i][1] the scaling (output) value for the i-th point of
    the piecewise linear scaling function for  the c-th  component.
    */
@@ -2941,11 +2941,6 @@ typedef struct AV1Common {
    */
 
   int fgm_id;
-  /*!
-   * film grain model for a frame
-   */
-
-  struct film_grain_model *fgm;
 #endif  // CONFIG_F153_FGM_OBU
 } AV1_COMMON;
 

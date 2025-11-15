@@ -1718,7 +1718,9 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
   bool seq_header_in_tu = false;
 #endif
 #if CONFIG_F153_FGM_OBU
-  uint32_t acc_fgcp_id_bitmap = 0;
+  // acc_fgm_id_bitmap accumulate fgm_id_bitmap in FGM OBU to check if film
+  // grain models signalled before a coded frame have the same fgm_id
+  uint32_t acc_fgm_id_bitmap = 0;
 #endif  // CONFIG_F153_FGM_OBU
 
   // decode frame as a series of OBUs
@@ -1979,7 +1981,7 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
         // It is a requirement that if multiple FGM OBUs are present
         // consecutively prior to a coded frame, that such FGM OBUs will not set
         // the same FGM ID more than once.
-        acc_fgcp_id_bitmap = 0;
+        acc_fgm_id_bitmap = 0;
 #endif  // CONFIG_F153_FGM_OBU
 #if CONFIG_F106_OBU_TILEGROUP
         decoded_payload_size =
@@ -2191,7 +2193,7 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
       case OBU_FGM:
         decoded_payload_size =
             read_fgm_obu(pbi, obu_header.obu_tlayer_id,
-                         obu_header.obu_mlayer_id, &acc_fgcp_id_bitmap, &rb);
+                         obu_header.obu_mlayer_id, &acc_fgm_id_bitmap, &rb);
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
         break;
 #endif  // CONFIG_F153_FGM_OBU

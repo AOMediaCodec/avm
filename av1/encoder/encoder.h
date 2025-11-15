@@ -2970,6 +2970,11 @@ typedef struct AV1_COMP {
    * film grain model counter
    */
   int increase_fgm_counter;
+  /*!
+   * film grain model for a frame
+   */
+
+  struct film_grain_model *fgm;
 #endif  // CONFIG_F153_FGM_OBU
 } AV1_COMP;
 

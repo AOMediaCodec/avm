@@ -9466,17 +9466,8 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 
   // Film Grain Model
 #if CONFIG_F153_FGM_OBU
-#if CONFIG_F153_FGM_OBU_1OBU
-  if (cm->current_frame.frame_type != KEY_FRAME &&
-      cm->film_grain_params.apply_grain) {
-    cm->fgm_id = 0;
-  } else if (cm->current_frame.frame_type == KEY_FRAME &&
-             cm->film_grain_params.apply_grain)
-#else
   if ((cm->show_frame || cm->showable_frame) &&
-      cm->film_grain_params.apply_grain)
-#endif  // CONFIG_F153_FGM_OBU_1OBU
-  {
+      cm->film_grain_params.apply_grain) {
     struct film_grain_model fgm_current;
     set_film_grain_model(cpi, &fgm_current);
     int use_existing_fgm = -1;
@@ -9523,7 +9514,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
       cpi->increase_fgm_counter = true;
       data += obu_header_size + obu_payload_size + length_field_size;
     }
-    cm->fgm = &fgm_current;
+    cpi->fgm = &fgm_current;
 
   }  // if(fgm is applied)
 #endif  // CONFIG_F153_FGM_OBU

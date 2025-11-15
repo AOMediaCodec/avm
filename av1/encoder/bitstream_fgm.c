@@ -222,8 +222,8 @@ int write_fgm_obu(AV1_COMP *cpi, struct film_grain_model *fgm,
 
   AV1_COMMON *cm = &cpi->common;
 
-  int fgcp_bit_map = 1 << (fgm->fgm_id);
-  aom_wb_write_literal(&wb, fgcp_bit_map, MAX_FGM_NUM);
+  int fg,_bit_map = 1 << (fgm->fgm_id);
+  aom_wb_write_literal(&wb, fg,_bit_map, MAX_FGM_NUM);
   int chroma_format_idc = CHROMA_FORMAT_420;
   if (cm->seq_params.monochrome)
     chroma_format_idc = CHROMA_FORMAT_400;

@@ -31,7 +31,7 @@ int av1_is_random_accessed_temporal_unit(const uint8_t *data, size_t data_sz);
 
 #if CONFIG_F153_FGM_OBU
 uint32_t read_fgm_obu(AV1Decoder *pbi, const int obu_tlayer_id,
-                      const int obu_mlayer_id, uint32_t *acc_fgcp_id_bitmap,
+                      const int obu_mlayer_id, uint32_t *acc_fgm_id_bitmap,
                       struct aom_read_bit_buffer *rb);
 #endif  // CONFIG_F153_FGM_OBU
 
