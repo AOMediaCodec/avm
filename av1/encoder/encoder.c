@@ -901,6 +901,12 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
     memset(&cpi->ops_list[i], 0, sizeof(struct OperatingPointSet));
   cm->ops = &cpi->ops_list[0];
 
+  for (int i = 0; i < MAX_NUM_XLAYERS; i++) {
+    for (int j = 0; j < MAX_NUM_OPS_ID; j++) {
+      cm->ops->ops_cnt[i][j] = oxcf->tool_cfg.operating_points_count;
+    }
+  }
+
   // Initialize Atlas Segment information
   for (int i = 0; i < MAX_NUM_ATLAS_SEG_ID; i++)
     memset(&cpi->atlas_list[i], 0, sizeof(struct AtlasSegmentInfo));
@@ -1411,10 +1417,9 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   // Init sequence level coding tools
   // This should not be called after the first key frame.
   if (!cpi->seq_params_locked) {
+    // TODO: When CWG-F270 part 2 is merged, this will will be removed
     seq_params->operating_points_cnt_minus_1 =
-        (cm->number_mlayers > 1 || cm->number_tlayers > 1)
-            ? cm->number_mlayers * cm->number_tlayers - 1
-            : 0;
+        oxcf->tool_cfg.operating_points_count - 1;
     av1_init_seq_coding_tools(&cm->seq_params, cm, oxcf);
 #if CONFIG_F255_QMOBU
     for (int i = 0; i < NUM_CUSTOM_QMS; i++) {

@@ -305,6 +305,7 @@ typedef struct av1_codec_arg_definitions {
 #if CONFIG_MULTI_FRAME_HEADER
   arg_def_t enable_mfh_obu_signaling;
 #endif  // CONFIG_MULTI_FRAME_HEADER
+  arg_def_t operating_points_count;
 } av1_codec_arg_definitions_t;
 
 extern const av1_codec_arg_definitions_t g_av1_codec_arg_defs;

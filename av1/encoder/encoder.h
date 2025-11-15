@@ -950,6 +950,8 @@ typedef struct {
 #if CONFIG_MULTI_FRAME_HEADER
   unsigned int enable_mfh_obu_signaling;
 #endif  // CONFIG_MULTI_FRAME_HEADER
+  int operating_points_count;
+
 } ToolCfg;
 
 #define MAX_SUBGOP_CONFIGS 64
@@ -1201,6 +1203,8 @@ typedef struct AV1EncoderConfig {
   // Configuration related to layering information.
   LayerCfg layer_cfg;
 #endif  // CONFIG_MULTILAYER_HLS
+  // 0-31 = manually set operating_points_cnt_minus_1
+  int operating_points_count;
   /*!\endcond */
 } AV1EncoderConfig;
 

@@ -673,6 +673,11 @@ typedef struct cfg_options {
    */
   unsigned int enable_mfh_obu_signaling;
 #endif  // CONFIG_MULTI_FRAME_HEADER
+
+  /*!\brief indicate the number  of operating points
+   *
+   */
+  int operating_points_count;
 } cfg_options_t;
 
 /*!\brief Encoded Frame Flags

@@ -509,6 +509,7 @@ const arg_def_t *av1_key_val_args[] = {
 #if CONFIG_MULTI_FRAME_HEADER
   &g_av1_codec_arg_defs.enable_mfh_obu_signaling,
 #endif  // CONFIG_MULTI_FRAME_HEADER
+  &g_av1_codec_arg_defs.operating_points_count,
   NULL,
 };
 
@@ -740,6 +741,7 @@ static void init_config(cfg_options_t *config) {
 #if CONFIG_MULTI_FRAME_HEADER
   config->enable_mfh_obu_signaling = 0;
 #endif  // CONFIG_MULTI_FRAME_HEADER
+  config->operating_points_count = 1;
 }
 
 #if CONFIG_ICC_METADATA

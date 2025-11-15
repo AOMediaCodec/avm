@@ -245,6 +245,7 @@ struct av1_extracfg {
 #if CONFIG_MULTI_FRAME_HEADER
   unsigned int enable_mfh_obu_signaling;
 #endif  // CONFIG_MULTI_FRAME_HEADER
+  int operating_points_count;
 };
 
 // Example subgop configs. Currently not used by default.
@@ -575,6 +576,7 @@ static struct av1_extracfg default_extra_cfg = {
 #if CONFIG_MULTI_FRAME_HEADER
   0,  // enable_mfh_obu_signaling
 #endif  // CONFIG_MULTI_FRAME_HEADER
+  1
 };
 // clang-format on
 
@@ -1035,6 +1037,7 @@ static void update_encoder_config(cfg_options_t *cfg,
 #endif  // CONFIG_CROP_WIN_CWG_F220
   cfg->enable_ext_seg = extra_cfg->enable_ext_seg;
   cfg->dpb_size = extra_cfg->dpb_size;
+  cfg->operating_points_count = extra_cfg->operating_points_count;
 }
 
 static void update_default_encoder_config(const cfg_options_t *cfg,
@@ -1159,6 +1162,7 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
 #if CONFIG_MULTI_FRAME_HEADER
   extra_cfg->enable_mfh_obu_signaling = cfg->enable_mfh_obu_signaling;
 #endif  // CONFIG_MULTI_FRAME_HEADER
+  extra_cfg->operating_points_count = cfg->operating_points_count;
 }
 
 static double convert_qp_offset(int qp, int qp_offset, int bit_depth) {
@@ -1433,6 +1437,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   tool_cfg->crop_win_top_offset = extra_cfg->crop_win_top_offset;
   tool_cfg->crop_win_bottom_offset = extra_cfg->crop_win_bottom_offset;
 #endif  // CONFIG_CROP_WIN_CWG_F220
+  tool_cfg->operating_points_count = extra_cfg->operating_points_count;
 
   tool_cfg->enable_drl_reorder = extra_cfg->enable_drl_reorder;
   if (tool_cfg->enable_drl_reorder == 1) {
@@ -4409,6 +4414,10 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                               argv, err_string)) {
     extra_cfg.enable_mfh_obu_signaling = arg_parse_int_helper(&arg, err_string);
 #endif  // CONFIG_MULTI_FRAME_HEADER
+  } else if (arg_match_helper(&arg,
+                              &g_av1_codec_arg_defs.operating_points_count,
+                              argv, err_string)) {
+    extra_cfg.operating_points_count = arg_parse_int_helper(&arg, err_string);
   } else {
     match = 0;
     snprintf(err_string, ARG_ERR_MSG_MAX_LEN, "Cannot find aom option %s",
@@ -4724,7 +4733,8 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_MULTI_FRAME_HEADER
         0,  // enable_mfh_obu_signaling
 #endif      // CONFIG_MULTI_FRAME_HEADER
-    },      // cfg
+        1,
+    },  // cfg
 } };
 
 // This data structure and function are exported in aom/aomcx.h

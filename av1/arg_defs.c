@@ -898,4 +898,6 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       ARG_DEF(NULL, "enable-mfh-obu-signaling", 1,
               "Enable MFH OBU signaling (0: false (default), 1: true)"),
 #endif  // CONFIG_MULTI_FRAME_HEADER
+  .operating_points_count = ARG_DEF(NULL, "operating-points-count", 1,
+                                    "Number of operating points (1-31)."),
 };

@@ -88,5 +88,4 @@ macro(fix_experiment_configs)
     change_config_and_warn(CONFIG_RANDOM_ACCESS_SWITCH_FRAME 1
                            CONFIG_F024_KEYOBU)
   endif()
-
 endmacro()
