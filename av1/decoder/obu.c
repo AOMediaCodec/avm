@@ -109,22 +109,30 @@ static void av1_validate_seq_conformance_window(
 
   if (conf->conf_win_left_offset >= seq_params->max_frame_width) {
     aom_internal_error(
-                       error_info, AOM_CODEC_UNSUP_BITSTREAM, "Conformance window left offset %d exceeds max width %d\n", conf->conf_win_left_offset, seq_params->max_frame_width);
+        error_info, AOM_CODEC_UNSUP_BITSTREAM,
+        "Conformance window left offset %d exceeds max width %d\n",
+        conf->conf_win_left_offset, seq_params->max_frame_width);
   }
-  
+
   if (conf->conf_win_right_offset >= seq_params->max_frame_width) {
     aom_internal_error(
-                       error_info, AOM_CODEC_UNSUP_BITSTREAM, "Conformance window right offset %d exceeds max width %d\n", conf->conf_win_right_offset, seq_params->max_frame_width);
+        error_info, AOM_CODEC_UNSUP_BITSTREAM,
+        "Conformance window right offset %d exceeds max width %d\n",
+        conf->conf_win_right_offset, seq_params->max_frame_width);
   }
-  
+
   if (conf->conf_win_top_offset >= seq_params->max_frame_height) {
     aom_internal_error(
-                       error_info, AOM_CODEC_UNSUP_BITSTREAM, "Conformance window top offset %d exceeds max height %d\n", conf->conf_win_top_offset, seq_params->max_frame_height);
+        error_info, AOM_CODEC_UNSUP_BITSTREAM,
+        "Conformance window top offset %d exceeds max height %d\n",
+        conf->conf_win_top_offset, seq_params->max_frame_height);
   }
-  
+
   if (conf->conf_win_bottom_offset >= seq_params->max_frame_height) {
     aom_internal_error(
-                       error_info, AOM_CODEC_UNSUP_BITSTREAM, "Conformance window bottom offset %d exceeds max height %d\n", conf->conf_win_bottom_offset, seq_params->max_frame_height);
+        error_info, AOM_CODEC_UNSUP_BITSTREAM,
+        "Conformance window bottom offset %d exceeds max height %d\n",
+        conf->conf_win_bottom_offset, seq_params->max_frame_height);
   }
 }
 #endif  // CONFIG_CROP_WIN_CWG_F220

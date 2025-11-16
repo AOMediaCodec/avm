@@ -4291,44 +4291,64 @@ static AOM_INLINE void setup_buffer_pool(AV1_COMMON *cm) {
 }
 
 #if CONFIG_CROP_WIN_CWG_F220
-  void av1_validate_frame_level_conformance(const struct SequenceHeader *seq_params, int frame_width, int frame_height, struct aom_internal_error_info *error_info) {
-    
-    const struct CropWindow *conf = &seq_params->conf;
-    if (!conf->conf_win_enabled_flag) return;
-    
-    const int SubX = seq_params->subsampling_x + 1;
-    const int SubY = seq_params->subsampling_y + 1;
-    const int LeftPosX = (conf->conf_win_left_offset * frame_width)/seq_params->max_frame_width;
-    
-    const int RightPosX = frame_width - 1 - ((conf->conf_win_right_offset * frame_width)/ seq_params->max_frame_width);
-    
-    const int TopPosY = (conf->conf_win_top_offset * frame_height)/seq_params->max_frame_height;
-    
-    const int BottomPosY = frame_height - 1- ((conf->conf_win_bottom_offset * frame_height)/ seq_params->max_frame_height);
-    
-    // Conformance requirement 1: LeftPosX == SubX * (LeftPosX/Subx)
-    if (!seq_params->monochrome && SubX > 1 && LeftPosX != SubX *(LeftPosX / SubX)) {
-      aom_internal_error(error_info, AOM_CODEC_UNSUP_BITSTREAM, "Conformance window left position %d must be a multiple of SubX=%d", LeftPosX, SubX);
-    }
-    
-    // Conformance requirement 2: TopPosY == SubY * (TopPosY / SubY)
-    if (!seq_params->monochrome && SubY > 1 && TopPosY != SubY * (TopPosY/SubY)) {
-      aom_internal_error(error_info, AOM_CODEC_UNSUP_BITSTREAM, "Conformance window top position %d must be a multiple of SubY=%d", TopPosY, SubY);
-    }
-    
-    // Conformance requirement 3: LeftPosX<= RightPosX
-    if (LeftPosX > RightPosX) {
-      aom_internal_error(error_info, AOM_CODEC_UNSUP_BITSTREAM, "Conformance window left position %d must be <= right position=%d", LeftPosX, RightPosX);
-    }
-    
-    // Conformance requirement 4: TopPosY <= BottomPosY
-    if (TopPosY > BottomPosY) {
-      aom_internal_error(error_info, AOM_CODEC_UNSUP_BITSTREAM, "Conformance window top position %d must be <= bottom position=%d", TopPosY, BottomPosY);
-    }
+void av1_validate_frame_level_conformance(
+    const struct SequenceHeader *seq_params, int frame_width, int frame_height,
+    struct aom_internal_error_info *error_info) {
+  const struct CropWindow *conf = &seq_params->conf;
+  if (!conf->conf_win_enabled_flag) return;
+
+  const int SubX = seq_params->subsampling_x + 1;
+  const int SubY = seq_params->subsampling_y + 1;
+  const int LeftPosX =
+      (conf->conf_win_left_offset * frame_width) / seq_params->max_frame_width;
+
+  const int RightPosX = frame_width - 1 -
+                        ((conf->conf_win_right_offset * frame_width) /
+                         seq_params->max_frame_width);
+
+  const int TopPosY =
+      (conf->conf_win_top_offset * frame_height) / seq_params->max_frame_height;
+
+  const int BottomPosY = frame_height - 1 -
+                         ((conf->conf_win_bottom_offset * frame_height) /
+                          seq_params->max_frame_height);
+
+  // Conformance requirement 1: LeftPosX == SubX * (LeftPosX/Subx)
+  if (!seq_params->monochrome && SubX > 1 &&
+      LeftPosX != SubX * (LeftPosX / SubX)) {
+    aom_internal_error(
+        error_info, AOM_CODEC_UNSUP_BITSTREAM,
+        "Conformance window left position %d must be a multiple of SubX=%d",
+        LeftPosX, SubX);
   }
+
+  // Conformance requirement 2: TopPosY == SubY * (TopPosY / SubY)
+  if (!seq_params->monochrome && SubY > 1 &&
+      TopPosY != SubY * (TopPosY / SubY)) {
+    aom_internal_error(
+        error_info, AOM_CODEC_UNSUP_BITSTREAM,
+        "Conformance window top position %d must be a multiple of SubY=%d",
+        TopPosY, SubY);
+  }
+
+  // Conformance requirement 3: LeftPosX<= RightPosX
+  if (LeftPosX > RightPosX) {
+    aom_internal_error(
+        error_info, AOM_CODEC_UNSUP_BITSTREAM,
+        "Conformance window left position %d must be <= right position=%d",
+        LeftPosX, RightPosX);
+  }
+
+  // Conformance requirement 4: TopPosY <= BottomPosY
+  if (TopPosY > BottomPosY) {
+    aom_internal_error(
+        error_info, AOM_CODEC_UNSUP_BITSTREAM,
+        "Conformance window top position %d must be <= bottom position=%d",
+        TopPosY, BottomPosY);
+  }
+}
 #endif  // CONFIG_CROP_WIN_CWG_F220
 
-  
 static AOM_INLINE void setup_frame_size(AV1_COMMON *cm,
                                         int frame_size_override_flag,
                                         struct aom_read_bit_buffer *rb) {
@@ -4393,7 +4413,8 @@ static AOM_INLINE void setup_frame_size(AV1_COMMON *cm,
   setup_buffer_pool(cm);
   realloc_bru_info(cm);
 #if CONFIG_CROP_WIN_CWG_F220
-  av1_validate_frame_level_conformance(&cm->seq_params, width, height, &cm->error);
+  av1_validate_frame_level_conformance(&cm->seq_params, width, height,
+                                       &cm->error);
 #endif  // CONFIG_CROP_WIN_CWG_F220
 }
 
@@ -4489,7 +4510,8 @@ static AOM_INLINE void setup_frame_size_with_refs(
   setup_buffer_pool(cm);
   realloc_bru_info(cm);
 #if CONFIG_CROP_WIN_CWG_F220
-  av1_validate_frame_level_conformance(&cm->seq_params, width, height, &cm->error);
+  av1_validate_frame_level_conformance(&cm->seq_params, width, height,
+                                       &cm->error);
 #endif  // CONFIG_CROP_WIN_CWG_F220
 }
 
