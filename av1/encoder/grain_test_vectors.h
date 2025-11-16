@@ -36,7 +36,9 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
       { 158, 176 },
       { 178, 184 } },
 #if CONFIG_CWG_F298_REC11
-    { 14, 8, 9 } /* num_points_y */,
+    { 14, 8, 9 } /* fgm_points */,
+#else
+    14 /* num_y_points */,
 #endif
     { { 16, 0 },
       { 20, 64 },
@@ -86,7 +88,9 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
     1 /* update_parameters */,
     { { 0, 96 }, { 255, 96 } },
 #if CONFIG_CWG_F298_REC11
-    { 2, 2, 2 } /* num_points_y */,
+    { 2, 2, 2 } /* fgm_points */,
+#else
+    2 /* num_y_points */,
 #endif
     { { 0, 64 }, { 255, 64 } },
 #if !CONFIG_CWG_F298_REC11
@@ -130,7 +134,9 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
     1 /* update_parameters */,
     { { 0, 192 }, { 255, 192 } },
 #if CONFIG_CWG_F298_REC11
-    { 2, 2, 2 } /* num_points_y */,
+    { 2, 2, 2 } /* fgm_points */,
+#else
+    2 /* num_y_points */,
 #endif
     { { 0, 128 }, { 255, 128 } },
 #if !CONFIG_CWG_F298_REC11
@@ -184,7 +190,9 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
         { 166, 153 },
     },
 #if CONFIG_CWG_F298_REC11
-    { 9, 9, 9 } /* num_points_y */,
+    { 9, 9, 9 } /* fgm_points */,
+#else
+    9 /* num_y_points */,
 #endif
     {
         { 16, 0 },
@@ -248,7 +256,9 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
     0 /* update_parameters */,
     { { 0, 64 }, { 255, 64 } },
 #if CONFIG_CWG_F298_REC11
-    { 2, 9, 9 } /* num_points_y */,
+    { 2, 9, 9 } /* fgm_points */,
+#else
+    2 /* num_y_points */,
 #endif
     {
         { 0, 96 },
@@ -327,7 +337,9 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
         { 255, 0 },
     },
 #if CONFIG_CWG_F298_REC11
-    { 14, 0, 0 } /* num_points_y */,
+    { 14, 0, 0 } /* fgm_points */,
+#else
+    14 /* num_y_points */,
 #endif
     { { 0, 0 } },
 #if !CONFIG_CWG_F298_REC11
@@ -386,7 +398,9 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
         { 255, 96 },
     },
 #if CONFIG_CWG_F298_REC11
-    { 14, 2, 2 } /* num_points_y */,
+    { 14, 2, 2 } /* fgm_points */,
+#else
+    14 /* num_y_points */,
 #endif
     { { 0, 0 }, { 255, 0 } },
 #if !CONFIG_CWG_F298_REC11
@@ -430,7 +444,9 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
     1 /* update_parameters */,
     { { 0, 96 }, { 255, 96 } },
 #if CONFIG_CWG_F298_REC11
-    { 2, 2, 2 } /* num_points_y */,
+    { 2, 2, 2 } /* fgm_points */,
+#else
+    2 /* num_y_points */,
 #endif
     { { 0, 62 }, { 255, 62 } },
 #if !CONFIG_CWG_F298_REC11
@@ -474,7 +490,9 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
     0 /* update_parameters */,
     { { 0, 48 }, { 255, 48 } },
 #if CONFIG_CWG_F298_REC11
-    { 2, 2, 2 } /* num_points_y */,
+    { 2, 2, 2 } /* fgm_points */,
+#else
+    2 /* num_y_points */,
 #endif
     { { 0, 32 }, { 255, 32 } },
 #if !CONFIG_CWG_F298_REC11
@@ -509,7 +527,9 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
     1 /* update_parameters */,
     { { 0, 48 }, { 255, 48 } },
 #if CONFIG_CWG_F298_REC11
-    { 2, 2, 2 } /* num_points_y */,
+    { 2, 2, 2 } /* fgm_points */,
+#else
+    2 /* num_y_points */,
 #endif
     { { 0, 32 }, { 255, 32 } },
 #if !CONFIG_CWG_F298_REC11
@@ -544,7 +564,9 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
     0 /* update_parameters */,
     { { 0, 32 }, { 255, 32 } },
 #if CONFIG_CWG_F298_REC11
-    { 2, 9, 9 } /* num_points_y */,
+    { 2, 9, 9 } /* fgm_points */,
+#else
+    2 /* num_y_points */,
 #endif
     {
         { 0, 48 },
@@ -618,7 +640,9 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
         { 164, 139 },
     },
 #if CONFIG_CWG_F298_REC11
-    { 9, 9, 9 } /* num_points_y */,
+    { 9, 9, 9 } /* fgm_points */,
+#else
+    9 /* num_y_points */,
 #endif
     {
         { 16, 0 },
@@ -688,7 +712,9 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
         { 255, 0 },
     },
 #if CONFIG_CWG_F298_REC11
-    { 14, 0, 0 } /* num_points_y */,
+    { 14, 0, 0 } /* fgm_points */,
+#else
+    14 /* num_y_points */,
 #endif
     { { 0, 0 }, { 255, 0 } },
 #if !CONFIG_CWG_F298_REC11
@@ -738,7 +764,9 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
         { 255, 48 },
     },
 #if CONFIG_CWG_F298_REC11
-    { 14, 0, 0 } /* num_points_y */,
+    { 14, 0, 0 } /* fgm_points */,
+#else
+    14 /* num_y_points */,
 #endif
     { { 0, 0 }, { 255, 0 } },
 #if !CONFIG_CWG_F298_REC11
@@ -773,7 +801,9 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
     1 /* update_parameters */,
     { { 0, 96 }, { 255, 96 } },
 #if CONFIG_CWG_F298_REC11
-    { 1, 0, 0 } /* num_points_y */,
+    { 1, 0, 0 } /* fgm_points */,
+#else
+    1 /* num_y_points */,
 #endif
     { { 0, 96 }, { 255, 96 } },
 #if !CONFIG_CWG_F298_REC11
@@ -817,7 +847,9 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
         { 199, 153 },
     },
 #if CONFIG_CWG_F298_REC11
-    { 8, 8, 8 } /* num_points_y */,
+    { 8, 8, 8 } /* fgm_points */,
+#else
+    8 /* num_y_points */,
 #endif
     {
         { 16, 0 },
