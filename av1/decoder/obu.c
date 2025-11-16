@@ -101,46 +101,30 @@ static void av1_read_mlayer_dependency_info(SequenceHeader *const seq,
 
 #if CONFIG_CROP_WIN_CWG_F220
 // This function validates the conformance window params
-static void av1_validate_conformance_window(
+static void av1_validate_seq_conformance_window(
     const struct SequenceHeader *seq_params,
     struct aom_internal_error_info *error_info) {
   const struct CropWindow *conf = &seq_params->conf;
   if (!conf->conf_win_enabled_flag) return;
 
-  const int SubX = seq_params->subsampling_x;
-  const int SubY = seq_params->subsampling_y;
-
-  const int LeftPosX = conf->conf_win_left_offset;
-  const int RightPosX =
-      seq_params->max_frame_height - 1 - conf->conf_win_right_offset;
-  const int TopPosY = conf->conf_win_top_offset;
-  const int BottomPosY =
-      seq_params->max_frame_height - 1 - conf->conf_win_bottom_offset;
-
-  // Conformance requirement 1: LeftPosX == SubX * (LeftPosX/SubX)
-  if (SubX > 0 && LeftPosX != SubX * (LeftPosX / SubX)) {
+  if (conf->conf_win_left_offset >= seq_params->max_frame_width) {
     aom_internal_error(
-        error_info, AOM_CODEC_UNSUP_BITSTREAM,
-        "Conformance window left offset must be a multiple of SubX");
+                       error_info, AOM_CODEC_UNSUP_BITSTREAM, "Conformance window left offset %d exceeds max width %d\n", conf->conf_win_left_offset, seq_params->max_frame_width);
   }
-
-  // Conformance requirement 2: TopPosY == SubY * (TopPosY / SubY)
-  if (SubY > 0 && TopPosY != SubY * (TopPosY / SubY)) {
+  
+  if (conf->conf_win_right_offset >= seq_params->max_frame_width) {
     aom_internal_error(
-        error_info, AOM_CODEC_UNSUP_BITSTREAM,
-        "Conformance window top offset must be a multiple of SubY");
+                       error_info, AOM_CODEC_UNSUP_BITSTREAM, "Conformance window right offset %d exceeds max width %d\n", conf->conf_win_right_offset, seq_params->max_frame_width);
   }
-
-  // Conformance requirement 3: LeftPosX <= RightPosX
-  if (LeftPosX > RightPosX) {
-    aom_internal_error(error_info, AOM_CODEC_UNSUP_BITSTREAM,
-                       "Conformance window left position must be <= right");
+  
+  if (conf->conf_win_top_offset >= seq_params->max_frame_height) {
+    aom_internal_error(
+                       error_info, AOM_CODEC_UNSUP_BITSTREAM, "Conformance window top offset %d exceeds max height %d\n", conf->conf_win_top_offset, seq_params->max_frame_height);
   }
-
-  // Conformance requirement 4: TopPosY <= BottomPosY
-  if (TopPosY > BottomPosY) {
-    aom_internal_error(error_info, AOM_CODEC_UNSUP_BITSTREAM,
-                       "Conformance window top position must be <= bottom");
+  
+  if (conf->conf_win_bottom_offset >= seq_params->max_frame_height) {
+    aom_internal_error(
+                       error_info, AOM_CODEC_UNSUP_BITSTREAM, "Conformance window bottom offset %d exceeds max height %d\n", conf->conf_win_bottom_offset, seq_params->max_frame_height);
   }
 }
 #endif  // CONFIG_CROP_WIN_CWG_F220
@@ -290,7 +274,7 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
 
 #if CONFIG_CROP_WIN_CWG_F220
   av1_read_conformance_window(rb, seq_params);
-  av1_validate_conformance_window(seq_params, &cm->error);
+  av1_validate_seq_conformance_window(seq_params, &cm->error);
 #endif  // CONFIG_CROP_WIN_CWG_F220
 
   av1_read_color_config(rb, seq_params, &cm->error);

@@ -151,6 +151,10 @@ struct aom_read_bit_buffer *av1_init_read_bit_buffer(
 void av1_free_mc_tmp_buf(struct ThreadData *thread_data);
 void av1_free_opfl_tmp_bufs(struct ThreadData *thread_data);
 
+#if CONFIG_CROP_WIN_CWG_F220
+void av1_validate_frame_level_conformance(const struct SequenceHeader *seq_params, int frame_width, int frame_height, struct aom_internal_error_info *error_info);
+#endif  // CONFIG_CROP_WIN_CWG_F220
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
