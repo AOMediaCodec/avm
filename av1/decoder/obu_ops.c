@@ -140,7 +140,7 @@ uint32_t av1_read_operating_point_set_obu(struct AV1Decoder *pbi,
     ops_params->ops_decoder_model_info_present_flag[obu_xlayer_id][ops_id] =
         aom_rb_read_bit(rb);
 
-    if (obu_xlayer_id == 31) {
+    if (obu_xlayer_id == MAX_NUM_XLAYERS - 1) {
       ops_params->ops_mlayer_info_idc[obu_xlayer_id][ops_id] =
           aom_rb_read_literal(rb, 2);
       (void)aom_rb_read_literal(rb, 2);  // ops_reserved_2bits
@@ -148,9 +148,23 @@ uint32_t av1_read_operating_point_set_obu(struct AV1Decoder *pbi,
       ops_params->ops_mlayer_info_idc[obu_xlayer_id][ops_id] = 1;
       (void)aom_rb_read_literal(rb, 3);  // ops_reserved_3bits
     }
+
+    // Byte alignment before reading operating point data because
+    // uleb reads bytes.
+    if (av1_check_byte_alignment(&pbi->common, rb) != 0) {
+      aom_internal_error(
+          &pbi->common.error, AOM_CODEC_CORRUPT_FRAME,
+          "Byte alignment error in av1_read_operating_point_set_obu()");
+    }
+
     for (int i = 0; i < ops_params->ops_cnt[obu_xlayer_id][ops_id]; i++) {
+      // Read ops_data_size (ULEB128 encoded)
+      const uint32_t signaled_ops_data_size = aom_rb_read_uleb(rb);
       ops_params->ops_data_size[obu_xlayer_id][ops_id][i] =
-          aom_rb_read_uleb(rb);
+          signaled_ops_data_size;
+
+      const uint32_t op_start_bit_offset = rb->bit_offset;
+
       if (ops_params->ops_intent_present_flag[obu_xlayer_id][ops_id])
         ops_params->ops_intent_op[obu_xlayer_id][ops_id][i] =
             aom_rb_read_literal(rb, 4);
@@ -172,12 +186,11 @@ uint32_t av1_read_operating_point_set_obu(struct AV1Decoder *pbi,
                                     obu_xlayer_id, ops_id, i, rb);
       }
 
-      if (obu_xlayer_id == 31) {
-        // TODO(hegilmez): align 31 with MAX_NUM_XLAYERS
+      if (obu_xlayer_id == MAX_NUM_XLAYERS - 1) {
         ops_params->ops_xlayer_map[obu_xlayer_id][ops_id][i] =
-            aom_rb_read_literal(rb, 31);
+            aom_rb_read_literal(rb, MAX_NUM_XLAYERS - 1);
         int k = 0;
-        for (int j = 0; j < 31; j++) {
+        for (int j = 0; j < MAX_NUM_XLAYERS - 1; j++) {
           if ((ops_params->ops_xlayer_map[obu_xlayer_id][ops_id][i] &
                (1 << j))) {
             ops_params->OpsxLayerId[obu_xlayer_id][ops_id][i][k] = j;
@@ -222,6 +235,31 @@ uint32_t av1_read_operating_point_set_obu(struct AV1Decoder *pbi,
         if (ops_params->ops_mlayer_info_idc[obu_xlayer_id][ops_id] == 1)
           read_ops_mlayer_info(obu_xlayer_id, ops_id, i, obu_xlayer_id,
                                ops_params->ops_mlayer_info, rb);
+      }
+
+      // Byte alignment at end of each operating point iteration
+      if (av1_check_byte_alignment(&pbi->common, rb) != 0) {
+        aom_internal_error(&pbi->common.error, AOM_CODEC_CORRUPT_FRAME,
+                           "Byte alignment error at end of operating point in "
+                           "av1_read_operating_point_set_obu()");
+      }
+
+      const uint32_t op_end_bit_offset = rb->bit_offset;
+      const uint32_t actual_bits_read = op_end_bit_offset - op_start_bit_offset;
+      // +7 to convert bits to bytes by rounding up to the nearest byte
+      const uint32_t actual_bytes_read = (actual_bits_read + 7) / 8;
+      if (signaled_ops_data_size != actual_bytes_read) {
+        aom_internal_error(
+            &pbi->common.error, AOM_CODEC_CORRUPT_FRAME,
+            "ops_data_size mismatch in av1_read_operating_point_set_obu()");
+      }
+      const uint32_t max_reasonable_size = 1024 * 1024;  // Set a max size
+      if (ops_params->ops_data_size[obu_xlayer_id][ops_id][i] >
+          max_reasonable_size) {
+        aom_internal_error(&pbi->common.error, AOM_CODEC_CORRUPT_FRAME,
+                           "ops_data_size value %u exceeds reasonable limit in "
+                           "av1_read_operating_point_set_obu()",
+                           ops_params->ops_data_size[obu_xlayer_id][ops_id][i]);
       }
     }
   }
