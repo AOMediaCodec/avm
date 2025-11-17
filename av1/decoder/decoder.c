@@ -598,25 +598,6 @@ static void release_current_frame(AV1Decoder *pbi) {
   cm->cur_frame = NULL;
 }
 #if CONFIG_F024_KEYOBU
-// This function returns true if the frame,ref, is considered as a successive
-// frame
-static INLINE bool is_successive_in_output_order(AV1_COMMON *cm,
-                                                 unsigned int next_disp_order,
-                                                 int cur_mlayer_id,
-                                                 RefCntBuffer *ref) {
-  if (cm->seq_params.max_mlayer_id == 0) {
-    return ref->display_order_hint == next_disp_order;
-  } else {
-    if (ref->mlayer_id == cur_mlayer_id &&
-        ref->display_order_hint == next_disp_order)
-      return true;
-    else if (ref->mlayer_id != cur_mlayer_id) {
-      return derive_output_order_idx(cm, ref) == next_disp_order;
-    }
-  }
-  return false;
-}
-
 // This function flushes out the DPB, all the slots in the dpb is free to use
 aom_codec_err_t flush_remaining_frames(struct AV1Decoder *pbi) {
   aom_codec_err_t res = AOM_CODEC_OK;
@@ -736,14 +717,14 @@ void output_frame_buffers(AV1Decoder *pbi, int ref_idx) {
 #endif  // CONFIG_MISMATCH_DEBUG
 
     // Add the next frames (showable_frame == 1) into the output queue.
-#if CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID && !CONFIG_F024_KEYOBU
+#if CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
   uint64_t trigger_frame_output_order =
       derive_output_order_idx(cm, trigger_frame);
 #endif  // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
   int successive_output = 1;
   for (int k = 1; k <= cm->seq_params.ref_frames && successive_output > 0;
        k++) {
-#if CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID && !CONFIG_F024_KEYOBU
+#if CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
     uint64_t next_frame_output_order = trigger_frame_output_order + k;
 #else   // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
     unsigned int next_disp_order = trigger_frame->display_order_hint + k;
@@ -752,14 +733,8 @@ void output_frame_buffers(AV1Decoder *pbi, int ref_idx) {
     for (int i = 0; i < cm->seq_params.ref_frames; i++) {
       if (is_frame_eligible_for_output(cm->ref_frame_map[i]) &&
 #if CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
-#if CONFIG_F024_KEYOBU
-          is_successive_in_output_order(cm, next_disp_order,
-                                        trigger_frame->mlayer_id,
-                                        cm->ref_frame_map[i])
-#else
           derive_output_order_idx(cm, cm->ref_frame_map[i]) ==
               next_frame_output_order
-#endif
 #else   // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
           cm->ref_frame_map[i]->display_order_hint == next_disp_order
 #endif  // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYE
