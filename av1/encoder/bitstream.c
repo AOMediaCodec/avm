@@ -6307,7 +6307,7 @@ static AOM_INLINE void write_multi_frame_header(
 #if CONFIG_MULTI_LEVEL_SEGMENTATION
   aom_wb_write_bit(wb, mfh_param->mfh_seg_info_present_flag);
   if (mfh_param->mfh_seg_info_present_flag) {
-    aom_wb_write_bit(mfh_param->mfh_ext_seg_flag, wb);
+    aom_wb_write_bit(wb, mfh_param->mfh_ext_seg_flag);
     write_seg_syntax_info(&mfh_param->mfh_seg_params, wb);
   }
 #endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
