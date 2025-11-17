@@ -437,6 +437,16 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   }
 #endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 
+#if CONFIG_MULTI_LEVEL_SEGMENTATION
+  seq->seg_params.allow_seg_info_change = 1;
+  if (!seq->still_picture && oxcf->kf_cfg.key_freq_max > 0) {
+    seq->seq_seg_info_present_flag = 1;
+  } else {
+    // For image coding turn seq level seg features off
+    seq->seq_seg_info_present_flag = 0;
+  }
+#endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
+
   seq->num_bits_width =
       (seq->max_frame_width > 1) ? get_msb(seq->max_frame_width - 1) + 1 : 1;
   seq->num_bits_height =

@@ -66,6 +66,10 @@ void av1_configure_buffer_updates(AV1_COMP *const cpi,
                                   const FRAME_UPDATE_TYPE type);
 // Encoder-only version for the reference mapping
 
+#if CONFIG_MULTI_LEVEL_SEGMENTATION
+void av1_set_seq_seg_info(SequenceHeader *seq_params, struct segmentation *seg);
+#endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
+
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 void av1_get_ref_frames_enc(AV1_COMP *const cpi, int cur_frame_disp,
                             RefFrameMapPair *ref_frame_map_pairs);

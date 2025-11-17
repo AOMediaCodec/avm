@@ -58,6 +58,7 @@
 #include "av1/common/cost.h"
 #include "av1/encoder/encodemv.h"
 #include "av1/encoder/encodetxb.h"
+#include "av1/encoder/encode_strategy.h"
 #include "av1/encoder/mcomp.h"
 #include "av1/encoder/palette.h"
 #include "av1/encoder/pickrst.h"
@@ -4471,16 +4472,96 @@ static AOM_INLINE void encode_bru_active_info(AV1_COMP *cpi,
   return;
 }
 
-static AOM_INLINE void encode_segmentation(AV1_COMMON *cm, MACROBLOCKD *xd,
-                                           struct aom_write_bit_buffer *wb) {
-  int i, j;
-  struct segmentation *seg = &cm->seg;
+#if CONFIG_MULTI_LEVEL_SEGMENTATION
+static void write_seg_syntax_info(
+    const struct SegmentationInfoSyntax *seg_params,
+    struct aom_write_bit_buffer *wb) {
+  aom_wb_write_bit(wb, seg_params->allow_seg_info_change);
+  const int max_seg_num =
+      seg_params->enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
 
+  // Write the seg feature data
+  for (int i = 0; i < max_seg_num; i++) {
+    for (int j = 0; j < SEG_LVL_MAX; j++) {
+      // int active = segfeature_active(seg_params, i, j);
+      int feature_enabled = (seg_params->feature_mask[i] & (1 << j));
+      aom_wb_write_bit(wb, feature_enabled);
+      if (feature_enabled) {
+        const int data_max = av1_seg_feature_data_max(j);
+        const int data_min = -data_max;
+        const int ubits = get_unsigned_bits(data_max);
+        // const int data = clamp(get_segdata(seg_params, i, j), data_min,
+        // data_max);
+        int seg_data = seg_params->feature_data[i][j];
+        const int data = clamp(seg_data, data_min, data_max);
+        if (av1_is_segfeature_signed(j)) {
+          aom_wb_write_inv_signed_literal(wb, data, ubits);
+        } else {
+          aom_wb_write_literal(wb, data, ubits);
+        }
+      }
+    }
+  }
+}
+
+static void write_seg_syntax_info_from_segmentation(
+    const struct segmentation *seg, struct aom_write_bit_buffer *wb) {
+  const int max_seg_num = seg->enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
+  for (int i = 0; i < max_seg_num; i++) {
+    for (int j = 0; j < SEG_LVL_MAX; j++) {
+      const int active = segfeature_active(seg, i, j);
+      aom_wb_write_bit(wb, active);
+
+      if (active) {
+        const int data_max = av1_seg_feature_data_max(j);
+        const int data_min = -data_max;
+        const int ubits = get_unsigned_bits(data_max);
+        const int data = clamp(get_segdata(seg, i, j), data_min, data_max);
+
+        if (av1_is_segfeature_signed(j)) {
+          aom_wb_write_inv_signed_literal(wb, data, ubits);
+        } else {
+          aom_wb_write_literal(wb, data, ubits);
+        }
+      }
+    }
+  }
+}
+#endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
+
+static AOM_INLINE void encode_segmentation(AV1_COMMON *cm,
+#if !CONFIG_MULTI_LEVEL_SEGMENTATION
+                                           MACROBLOCKD *xd,
+#endif  // !CONFIG_MULTI_LEVEL_SEGMENTATION
+                                           struct aom_write_bit_buffer *wb) {
+  struct segmentation *seg = &cm->seg;
   aom_wb_write_bit(wb, seg->enabled);
   if (!seg->enabled) {
     return;
   }
 
+#if CONFIG_MULTI_LEVEL_SEGMENTATION
+  const SegmentationInfoSyntax *seg_params = find_effective_seg_params(cm);
+  int reuse = 0;
+  if (seg_params && is_frame_seg_config_reuse_eligible(seg_params, seg)) {
+    if (seg_params->allow_seg_info_change) {
+      reuse = av1_check_seg_equivalence(seg_params, seg);
+      aom_wb_write_bit(wb, reuse);
+    } else {
+      reuse = 1;
+    }
+
+    if (!reuse) {
+      write_seg_syntax_info_from_segmentation(seg, wb);
+    }
+
+    aom_wb_write_bit(wb, seg->update_map);
+    if (seg->update_map) {
+      aom_wb_write_bit(wb, seg->temporal_update);
+    }
+    cm->current_frame.seg_info_present_in_frame_header = !reuse;
+  }
+#else
   // Write update flags
   if (cm->features.derived_primary_ref_frame == PRIMARY_REF_NONE) {
     assert(seg->update_map == 1);
@@ -4499,8 +4580,8 @@ static AOM_INLINE void encode_segmentation(AV1_COMMON *cm, MACROBLOCKD *xd,
   // Segmentation data
   if (seg->update_data) {
     const int max_seg_num = seg->enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
-    for (i = 0; i < max_seg_num; i++) {
-      for (j = 0; j < SEG_LVL_MAX; j++) {
+    for (int i = 0; i < max_seg_num; i++) {
+      for (int j = 0; j < SEG_LVL_MAX; j++) {
         const int active = segfeature_active(seg, i, j);
         aom_wb_write_bit(wb, active);
         if (active) {
@@ -4518,6 +4599,7 @@ static AOM_INLINE void encode_segmentation(AV1_COMMON *cm, MACROBLOCKD *xd,
       }
     }
   }
+#endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
 }
 
 static AOM_INLINE void write_frame_interp_filter(
@@ -5686,6 +5768,15 @@ void write_sequence_transform_group_tool_flags(
   aom_wb_write_literal(wb, seq_params->number_of_bits_for_lt_frame_id, 3);
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   aom_wb_write_bit(wb, seq_params->enable_ext_seg);
+#if CONFIG_MULTI_LEVEL_SEGMENTATION
+  // TODO: The above aom_wb_write_bit(wb, seq_params->enable_ext_seg); seems to
+  // be only used for segmentation. Is it necessary anywhere else ? If not it
+  // can be moved in if(seg info present flag)
+  aom_wb_write_bit(wb, seq_params->seq_seg_info_present_flag);
+  if (seq_params->seq_seg_info_present_flag) {
+    write_seg_syntax_info(&seq_params->seg_params, wb);
+  }
+#endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
 }
 #endif  // CONFIG_REORDER_SEQ_FLAGS
 
@@ -6094,6 +6185,14 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
   aom_wb_write_literal(wb, seq_params->number_of_bits_for_lt_frame_id, 3);
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   aom_wb_write_bit(wb, seq_params->enable_ext_seg);
+#if CONFIG_MULTI_LEVEL_SEGMENTATION
+  // TODO: The above aom_wb_write_bit(wb, seq_params->enable_ext_seg); seems to
+  // be only used for segmentation. Is it necessary anywhere else ? If not it
+  // can be moved in if(seg info present flag)
+  aom_wb_write_bit(wb, seq_params->seq_seg_info_present_flag);
+  if (seq_params->seq_seg_info_present_flag)
+    write_seg_syntax_info(&seq_params->seg_params, wb);
+#endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
 #endif  // !CONFIG_REORDER_SEQ_FLAGS //transformgroup
 
 #if !CONFIG_F255_QMOBU
@@ -6209,6 +6308,14 @@ static AOM_INLINE void write_multi_frame_header(
     write_tile_mfh(mfh_param, wb);
   }
 #endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
+
+#if CONFIG_MULTI_LEVEL_SEGMENTATION
+  aom_wb_write_bit(wb, mfh_param->mfh_seg_info_present_flag);
+  if (mfh_param->mfh_seg_info_present_flag) {
+    aom_wb_write_bit(wb, mfh_param->mfh_ext_seg_flag);
+    write_seg_syntax_info(&mfh_param->mfh_seg_params, wb);
+  }
+#endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
 }
 #endif  // CONFIG_MULTI_FRAME_HEADER
 
@@ -7343,7 +7450,11 @@ static AOM_INLINE void write_uncompressed_header_obu
   write_tile_info(cm, saved_wb, wb);
 
   encode_quantization(quant_params, av1_num_planes(cm), &cm->seq_params, wb);
-  encode_segmentation(cm, xd, wb);
+  encode_segmentation(cm,
+#if !CONFIG_MULTI_LEVEL_SEGMENTATION
+                      xd,
+#endif  // !CONFIG_MULTI_LEVEL_SEGMENTATION
+                      wb);
   encode_qm_params(cm, wb);
 
   const DeltaQInfo *const delta_q_info = &cm->delta_q_info;
@@ -9189,6 +9300,10 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
     obu_header_size =
         av1_write_obu_header(level_params, OBU_SEQUENCE_HEADER, 0, 0, data);
 
+#if CONFIG_MULTI_LEVEL_SEGMENTATION
+    if (cm->seq_params.seq_seg_info_present_flag)
+      av1_set_seq_seg_info(&cm->seq_params, &cm->seg);
+#endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
     obu_payload_size =
         av1_write_sequence_header_obu(&cm->seq_params, data + obu_header_size);
 #if CONFIG_MULTI_FRAME_HEADER

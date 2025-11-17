@@ -1105,6 +1105,12 @@ typedef struct SequenceHeader {
   int fixed_cvs_pic_rate_flag;
   int elemental_ct_duration_minus_1;
 #endif  // CONFIG_SCAN_TYPE_METADATA
+
+#if CONFIG_MULTI_LEVEL_SEGMENTATION
+  uint8_t seq_seg_info_present_flag;
+  SegmentationInfoSyntax seg_params;
+  int allow_seg_info_change;
+#endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
 } SequenceHeader;
 
 typedef struct {
@@ -1139,6 +1145,9 @@ typedef struct {
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO
   bool tile_info_present_in_frame_header;
 #endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
+#if CONFIG_MULTI_LEVEL_SEGMENTATION
+  bool seg_info_present_in_frame_header;
+#endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
 } CurrentFrame;
 
 /*!\endcond */
@@ -1419,6 +1428,20 @@ typedef struct MultiFrameHeader {
    */
   int mfh_seq_mib_sb_size_log2;
 #endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
+#if CONFIG_MULTI_LEVEL_SEGMENTATION
+  /*!
+   * Presence of segmentation information in this multi-frame header
+   */
+  uint8_t mfh_seg_info_present_flag;
+  /*!
+   * Segmentation parameters for frames that reference this MFH
+   */
+  SegmentationInfoSyntax mfh_seg_params;
+  /*!
+   * enable_seg_flag for MFH
+   */
+  int mfh_ext_seg_flag;
+#endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
 } MultiFrameHeader;
 #endif  // CONFIG_MULTI_FRAME_HEADER
 
@@ -5748,6 +5771,33 @@ static INLINE int is_frame_tile_config_reuse_eligible(
            tile_params->tile_info.sb_cols == tiles->sb_cols));
 }
 #endif  // CONFIG_CWG_F349_SIGNAL_TILE_INFO
+
+#if CONFIG_MULTI_LEVEL_SEGMENTATION
+static INLINE int is_frame_seg_config_reuse_eligible(
+    const SegmentationInfoSyntax *const seg_params,
+    const struct segmentation *const seg) {
+  // Reuse the params if it is enabled and there is params match
+  if (!seg->enabled) return 0;  // TODO(any): check if needed
+  if (seg_params->enable_ext_seg != seg->enable_ext_seg) return 0;
+  // What else needs to be checked here?
+
+  return 1;
+}
+
+static INLINE const SegmentationInfoSyntax *find_effective_seg_params(
+    const AV1_COMMON *const cm) {
+  // Returns pointer to effective sequence level or multi-frame header level seg
+  // info. Returns null if none exist
+  if (cm->mfh_valid[cm->cur_mfh_id] &&
+      cm->mfh_params[cm->cur_mfh_id].mfh_seg_info_present_flag) {
+    return &cm->mfh_params[cm->cur_mfh_id].mfh_seg_params;
+  }
+  if (cm->seq_params.seq_seg_info_present_flag)
+    return &cm->seq_params.seg_params;
+  else
+    return NULL;
+}
+#endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
 
 #if CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
 // This function derives the order of frame output with layer IDs

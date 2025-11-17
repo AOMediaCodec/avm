@@ -105,6 +105,23 @@ void av1_get_ref_frames_enc(AV1_COMMON *cm, int cur_frame_disp,
   enc_bru_swap_ref(cm);
 }
 
+#if CONFIG_MULTI_LEVEL_SEGMENTATION
+void av1_set_seq_seg_info(SequenceHeader *seq_params,
+                          struct segmentation *seg) {
+  SegmentationInfoSyntax *seg_params = &seq_params->seg_params;
+  seg_params->allow_seg_info_change = 1;
+  const int max_seg_num = seg->enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
+  for (int i = 0; i < max_seg_num; i++) {
+    seg_params->feature_mask[i] = seg->feature_mask[i];
+    for (int j = 0; j < SEG_LVL_MAX; j++) {
+      seg_params->feature_data[i][j] = seg->feature_data[i][j];
+    }
+  }
+  seg_params->segid_preskip = seg->segid_preskip;
+  seg_params->last_active_segid = seg->last_active_segid;
+}
+#endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
+
 void av1_configure_buffer_updates(AV1_COMP *const cpi,
                                   const FRAME_UPDATE_TYPE type) {
   // NOTE(weitinglin): Should we define another function to take care of
