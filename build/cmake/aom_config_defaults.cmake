@@ -169,7 +169,7 @@ set_aom_config_var(CONFIG_MFH_SIGNAL_TILE_INFO 1
                    "Tile information in the multi frame header.")
 
 set_aom_config_var(CONFIG_MULTI_LEVEL_SEGMENTATION 1
-                    "Segmentation information in the multi frame header");
+                   "Segmentation information in the multi frame header")
 
 set_aom_config_var(CONFIG_CWG_E242_PARSING_INDEP 1
                    "Parsing independence of MFH.")
