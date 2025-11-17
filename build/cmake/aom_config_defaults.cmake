@@ -279,9 +279,6 @@ set_aom_config_var(CONFIG_ML_PART_SPLIT 1
 set_aom_config_var(CONFIG_UNIFORM_TILE 1
                    "Enable better uniform tile distribution")
 
-set_aom_config_var(CONFIG_GDF_IMPROVEMENT 1
-                   "Enable guided detail filter improvement.")
-
 set_aom_config_var(CONFIG_MOTION_MODE_FRAME_HEADERS_OPT 1
                    "Frame header optimzation of motion modes.")
 
