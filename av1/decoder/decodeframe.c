@@ -2454,35 +2454,35 @@ static AOM_INLINE void setup_bru_active_info(AV1_COMMON *const cm,
     }
   }
 }
-      
+
 #if CONFIG_MULTI_LEVEL_SEGMENTATION
-static void read_seg_syntax_info_to_segmentation(struct segmentation *seg, struct aom_read_bit_buffer *rb) {
-  
+static void read_seg_syntax_info_to_segmentation(
+    struct segmentation *seg, struct aom_read_bit_buffer *rb) {
   const int max_seg_num = seg->enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
   av1_clearall_segfeatures(seg);
-  
+
   for (int i = 0; i < max_seg_num; i++) {
     for (int j = 0; j < SEG_LVL_MAX; j++) {
-       int data = 0;
-        const int feature_enabled = aom_rb_read_bit(rb);
-          if (feature_enabled) {
-            av1_enable_segfeature(seg, i, j);
-            const int data_max = av1_seg_feature_data_max(j);
-            const int data_min = -data_max;
-            const int ubits = get_unsigned_bits(data_max);
-  
-          if (av1_is_segfeature_signed(j)) {
-            data = aom_rb_read_inv_signed_literal(rb, ubits);
-          } else {
-            data = aom_rb_read_literal(rb, ubits);
-          }
-          data = clamp(data, data_min, data_max);
+      int data = 0;
+      const int feature_enabled = aom_rb_read_bit(rb);
+      if (feature_enabled) {
+        av1_enable_segfeature(seg, i, j);
+        const int data_max = av1_seg_feature_data_max(j);
+        const int data_min = -data_max;
+        const int ubits = get_unsigned_bits(data_max);
+
+        if (av1_is_segfeature_signed(j)) {
+          data = aom_rb_read_inv_signed_literal(rb, ubits);
+        } else {
+          data = aom_rb_read_literal(rb, ubits);
         }
-        av1_set_segdata(seg, i, j, data);
+        data = clamp(data, data_min, data_max);
       }
+      av1_set_segdata(seg, i, j, data);
     }
-  
-    av1_calculate_segdata(seg);
+  }
+
+  av1_calculate_segdata(seg);
 }
 #endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
 
@@ -2507,9 +2507,10 @@ static AOM_INLINE void setup_segmentation(AV1_COMMON *const cm,
     segfeatures_copy(&cm->cur_frame->seg, seg);
     return;
   }
-  
+
 #if CONFIG_MULTI_LEVEL_SEGMENTATION
-  const SegmentationInfoSyntax  *const seg_params = find_effective_seg_params(cm);
+  const SegmentationInfoSyntax *const seg_params =
+      find_effective_seg_params(cm);
   int reuse = 0;
   if (seg_params && is_frame_seg_config_reuse_eligible(seg_params, seg)) {
     if (seg_params->allow_seg_info_change) {
@@ -6787,50 +6788,50 @@ static void read_multi_frame_header_tile_info(MultiFrameHeader *mfh_param,
   read_tile_syntax_info(&mfh_param->mfh_tile_params, rb);
 }
 #endif  // CONFIG_MFH_SIGNAL_TILE_INFO && CONFIG_MULTI_FRAME_HEADER
-    
-#if CONFIG_MULTI_LEVEL_SEGMENTATION
-  static void read_seg_syntax_info(struct SegmentationInfoSyntax *seg_params, struct aom_read_bit_buffer *rb) {
-    
-    seg_params->allow_seg_info_change = aom_rb_read_bit(rb);
-    
-    const int max_seg_num = seg_params->enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
-    
-    memset(seg_params->feature_mask, 0, sizeof(seg_params->feature_mask));
-    memset(seg_params->feature_data, 0, sizeof(seg_params->feature_data));
-    
-    // Read segmentation feature data
-    for (int i = 0; i < max_seg_num; i++) {
-      for (int j = 0; j < SEG_LVL_MAX; j++) {
-        const int feature_enabled = aom_rb_read_bit(rb);
-          if (feature_enabled) {
-            seg_params->feature_mask[i] |= (1 << j);
-    
-            const int data_max = av1_seg_feature_data_max(j);
-            const int data_min = -data_max;
-            const int ubits = get_unsigned_bits(data_max);
-            int data = 0;
-  
-            if (av1_is_segfeature_signed(j)) {
-              data = aom_rb_read_inv_signed_literal(rb, ubits);
-            } else {
-              data = aom_rb_read_literal(rb, ubits);
-            }
-    
-            seg_params->feature_data[i][j] = clamp(data, data_min, data_max);
-          }
-        }
-      }
-    
 
-      av1_calculate_segdata_from_syntax(seg_params);
+#if CONFIG_MULTI_LEVEL_SEGMENTATION
+static void read_seg_syntax_info(struct SegmentationInfoSyntax *seg_params,
+                                 struct aom_read_bit_buffer *rb) {
+  seg_params->allow_seg_info_change = aom_rb_read_bit(rb);
+
+  const int max_seg_num =
+      seg_params->enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
+
+  memset(seg_params->feature_mask, 0, sizeof(seg_params->feature_mask));
+  memset(seg_params->feature_data, 0, sizeof(seg_params->feature_data));
+
+  // Read segmentation feature data
+  for (int i = 0; i < max_seg_num; i++) {
+    for (int j = 0; j < SEG_LVL_MAX; j++) {
+      const int feature_enabled = aom_rb_read_bit(rb);
+      if (feature_enabled) {
+        seg_params->feature_mask[i] |= (1 << j);
+
+        const int data_max = av1_seg_feature_data_max(j);
+        const int data_min = -data_max;
+        const int ubits = get_unsigned_bits(data_max);
+        int data = 0;
+
+        if (av1_is_segfeature_signed(j)) {
+          data = aom_rb_read_inv_signed_literal(rb, ubits);
+        } else {
+          data = aom_rb_read_literal(rb, ubits);
+        }
+
+        seg_params->feature_data[i][j] = clamp(data, data_min, data_max);
+      }
+    }
   }
-    
-    
-/*static void read_seg_syntax_info_to_segmentation(struct segmentation *seg, struct aom_read_bit_buffer *rb) {
-  
+
+  av1_calculate_segdata_from_syntax(seg_params);
+}
+
+/*static void read_seg_syntax_info_to_segmentation(struct segmentation *seg,
+struct aom_read_bit_buffer *rb) {
+
   const int max_seg_num = seg->enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
   av1_clearall_segfeatures(seg);
-  
+
   for (int i = 0; i < max_seg_num; i++) {
     for (int j = 0; j < SEG_LVL_MAX; j++) {
        int data = 0;
@@ -6840,7 +6841,7 @@ static void read_multi_frame_header_tile_info(MultiFrameHeader *mfh_param,
             const int data_max = av1_seg_feature_data_max(j);
             const int data_min = -data_max;
             const int ubits = get_unsigned_bits(data_max);
-  
+
           if (av1_is_segfeature_signed(j)) {
             data = aom_rb_read_inv_signed_literal(rb, ubits);
           } else {
@@ -6851,7 +6852,7 @@ static void read_multi_frame_header_tile_info(MultiFrameHeader *mfh_param,
         av1_set_segdata(seg, i, j, data);
       }
     }
-  
+
     av1_calculate_segdata(seg);
 }*/
 #endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
@@ -7157,7 +7158,7 @@ void read_sequence_transform_group_tool_flags(struct SequenceHeader *seq_params,
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   seq_params->enable_ext_seg = aom_rb_read_bit(rb);
 #if CONFIG_MULTI_LEVEL_SEGMENTATION
-  
+
 #endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
 }
 #endif  // CONFIG_REORDER_SEQ_FLAGS
@@ -7710,10 +7711,10 @@ static AOM_INLINE void read_mfh_sb_size(MultiFrameHeader *mfh_params,
   mfh_params->mfh_sb_size = sb_sizes[index + scale_sb];
 }
 #endif  // CONFIG_MFH_SIGNAL_TILE_INFO
-    
+
 #if CONFIG_MULTI_LEVEL_SEGMENTATION
-static AOM_INLINE void read_multi_frame_header_seg_info(MultiFrameHeader *mfh_param, struct aom_read_bit_buffer *rb) {
-  
+static AOM_INLINE void read_multi_frame_header_seg_info(
+    MultiFrameHeader *mfh_param, struct aom_read_bit_buffer *rb) {
   mfh_param->mfh_seg_info_present_flag = aom_rb_read_bit(rb);
   if (mfh_param->mfh_seg_info_present_flag) {
     mfh_param->mfh_ext_seg_flag = aom_rb_read_bit(rb);
@@ -7823,9 +7824,9 @@ void av1_read_multi_frame_header(AV1_COMMON *cm,
     read_multi_frame_header_tile_info(mfh_param, rb);
   }
 #endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
-    
+
 #if CONFIG_MULTI_LEVEL_SEGMENTATION
-    read_multi_frame_header_seg_info(mfh_param, rb);
+  read_multi_frame_header_seg_info(mfh_param, rb);
 #endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
 
   cm->mfh_valid[cur_mfh_id] = true;

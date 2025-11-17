@@ -55,7 +55,8 @@ void av1_calculate_segdata_from_syntax(SegmentationInfoSyntax *seg_params) {
   seg_params->segid_preskip = 0;
   seg_params->last_active_segid = 0;
 
-  const int max_seg_num = seg_params->enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
+  const int max_seg_num =
+      seg_params->enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
   for (int i = 0; i < max_seg_num; i++) {
     for (int j = 0; j < SEG_LVL_MAX; j++) {
       if (seg_params->feature_mask[i] & (1 << j)) {
@@ -66,41 +67,40 @@ void av1_calculate_segdata_from_syntax(SegmentationInfoSyntax *seg_params) {
   }
 }
 
-int av1_check_seg_equivalence(const struct SegmentationInfoSyntax *seg_params, const struct segmentation *seg) {
-  
+int av1_check_seg_equivalence(const struct SegmentationInfoSyntax *seg_params,
+                              const struct segmentation *seg) {
   if (seg_params->enable_ext_seg != seg->enable_ext_seg) return 0;
   const int max_seg_num = seg->enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
-  
+
   for (int i = 0; i < max_seg_num; i++) {
-    if (seg_params->feature_mask[i] != seg->feature_mask[i])
-      return 0;
+    if (seg_params->feature_mask[i] != seg->feature_mask[i]) return 0;
   }
-  
+
   for (int i = 0; i < max_seg_num; i++) {
-    for (int j = 0; j < SEG_LVL_MAX; j++){
+    for (int j = 0; j < SEG_LVL_MAX; j++) {
       if (seg_params->feature_mask[i] & (i << j)) {
-        if (seg_params->feature_data[i][j] != seg->feature_data[i][j])
-          return 0;
+        if (seg_params->feature_data[i][j] != seg->feature_data[i][j]) return 0;
       }
     }
   }
   return 1;
 }
 
-void av1_reconstruct_seg_params(const struct SegmentationInfoSyntax *seg_params,struct segmentation *seg) {
-  
-  const int max_seg_num = seg_params->enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
+void av1_reconstruct_seg_params(const struct SegmentationInfoSyntax *seg_params,
+                                struct segmentation *seg) {
+  const int max_seg_num =
+      seg_params->enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
   seg->enable_ext_seg = seg_params->enable_ext_seg;
   seg->segid_preskip = seg_params->segid_preskip;
   seg->last_active_segid = seg_params->last_active_segid;
-  
+
   // Copy feature masks and data
   for (int i = 0; i < max_seg_num; i++) {
-      seg->feature_mask[i] = seg_params->feature_mask[i];
-      for (int j = 0; j < SEG_LVL_MAX; j++) {
-        seg->feature_data[i][j] = seg_params->feature_data[i][j];
-      }
+    seg->feature_mask[i] = seg_params->feature_mask[i];
+    for (int j = 0; j < SEG_LVL_MAX; j++) {
+      seg->feature_data[i][j] = seg_params->feature_data[i][j];
     }
+  }
 }
 #endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
 

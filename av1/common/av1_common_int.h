@@ -5735,15 +5735,16 @@ static INLINE int is_frame_tile_config_reuse_eligible(
 static INLINE int is_frame_seg_config_reuse_eligible(
     const SegmentationInfoSyntax *const seg_params,
     const struct segmentation *const seg) {
-   // Reuse the params if it is enabled and there is params match
+  // Reuse the params if it is enabled and there is params match
   if (!seg->enabled) return 0;
   if (seg_params->enable_ext_seg != seg->enable_ext_seg) return 0;
   // What else needs to be checked here?
-  
+
   return 1;
 }
 
-static INLINE const SegmentationInfoSyntax *find_effective_seg_params(const AV1_COMMON *const cm) {
+static INLINE const SegmentationInfoSyntax *find_effective_seg_params(
+    const AV1_COMMON *const cm) {
   // Returns pointer to effective sequence level or multi-frame header level seg
   // info. Returns null if none exist
   if (cm->mfh_valid[cm->cur_mfh_id] &&

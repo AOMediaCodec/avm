@@ -436,7 +436,7 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
     seq->seq_tile_info_present_flag = 0;
   }
 #endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
-  
+
 #if CONFIG_MULTI_LEVEL_SEGMENTATION
   seq->seg_params.allow_seg_info_change = 0;
   if (!seq->still_picture && oxcf->kf_cfg.key_freq_max > 0) {

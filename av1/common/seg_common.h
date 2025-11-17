@@ -107,11 +107,14 @@ void av1_enable_segfeature(struct segmentation *seg, int segment_id,
                            SEG_LVL_FEATURES feature_id);
 
 #if CONFIG_MULTI_LEVEL_SEGMENTATION
-int av1_check_seg_equivalence(const struct SegmentationInfoSyntax *seg_params, const struct segmentation *seg);
+int av1_check_seg_equivalence(const struct SegmentationInfoSyntax *seg_params,
+                              const struct segmentation *seg);
 
-void av1_reconstruct_seg_params(const struct SegmentationInfoSyntax *seg_params,struct segmentation *seg);
+void av1_reconstruct_seg_params(const struct SegmentationInfoSyntax *seg_params,
+                                struct segmentation *seg);
 
-void av1_calculate_segdata_from_syntax(struct SegmentationInfoSyntax *seg_params);
+void av1_calculate_segdata_from_syntax(
+    struct SegmentationInfoSyntax *seg_params);
 #endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
 
 void av1_calculate_segdata(struct segmentation *seg);
