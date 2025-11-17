@@ -8886,6 +8886,46 @@ static int is_reference_mapping_consistent(
   }
   return 1;
 }
+#if CONFIG_MULTI_FRAME_HEADER
+// Called if the cur_mfh_id syntax element in uncompressed_header() is zero.
+static void handle_zero_cur_mfh_id(AV1Decoder *pbi,
+#if CONFIG_F024_KEYOBU
+                                   OBU_TYPE obu_type,
+#endif
+                                   struct aom_read_bit_buffer *rb) {
+  AV1_COMMON *const cm = &pbi->common;
+  const SequenceHeader *const seq_params = &cm->seq_params;
+#if CONFIG_CWG_E242_SEQ_HDR_ID
+  uint32_t seq_header_id_in_frame_header = aom_rb_read_uvlc(rb);
+  if (seq_header_id_in_frame_header >= MAX_SEQ_NUM) {
+    aom_internal_error(
+        &cm->error, AOM_CODEC_CORRUPT_FRAME,
+        "Unsupported Sequence Header ID in uncompressed_header()");
+  }
+  cm->mfh_params[cm->cur_mfh_id].mfh_seq_header_id =
+      (int)seq_header_id_in_frame_header;
+
+  activate_sequence_header(pbi,
+#if CONFIG_F024_KEYOBU
+                           obu_type,
+#endif
+                           cm->mfh_params[cm->cur_mfh_id].mfh_seq_header_id);
+#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
+  cm->mfh_params[cm->cur_mfh_id].mfh_frame_width = seq_params->max_frame_width;
+  cm->mfh_params[cm->cur_mfh_id].mfh_frame_height =
+      seq_params->max_frame_height;
+#if !CONFIG_CWG_F248_RENDER_SIZE
+  cm->mfh_params[cm->cur_mfh_id].mfh_render_width = seq_params->max_frame_width;
+  cm->mfh_params[cm->cur_mfh_id].mfh_render_height =
+      seq_params->max_frame_height;
+#endif  // !CONFIG_CWG_F248_RENDER_SIZE
+  cm->mfh_params[cm->cur_mfh_id].mfh_loop_filter_update_flag = 0;
+  for (int i = 0; i < 4; i++) {
+    cm->mfh_params[cm->cur_mfh_id].mfh_loop_filter_level[i] = 0;
+  }
+  cm->mfh_valid[cm->cur_mfh_id] = true;
+}
+#endif  // CONFIG_MULTI_FRAME_HEADER
 
 // On success, returns 0. On failure, calls aom_internal_error and does not
 // return.
@@ -8928,16 +8968,11 @@ static int read_uncompressed_header(AV1Decoder *pbi, OBU_TYPE obu_type,
 #if CONFIG_CWG_F317
   cm->bridge_frame_info.bridge_frame_ref_idx = INVALID_IDX;
   if (cm->bridge_frame_info.is_bridge_frame) {
-#if CONFIG_CWG_E242_SEQ_HDR_ID
-    // TODO(issue #988): read seq_header_id_in_frame_header from the bitstream.
-    // For now, always use the first sequence header.
-    if (pbi->seq_header_count == 0) {
-      aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
-                         "No sequence header");
-    }
-    pbi->active_seq = &pbi->seq_list[0];
-    cm->seq_params = *pbi->active_seq;
-#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
+#if CONFIG_MULTI_FRAME_HEADER
+    uint32_t cur_mfh_id = 0;
+    cm->cur_mfh_id = (int)cur_mfh_id;
+    handle_zero_cur_mfh_id(pbi, obu_type, rb);
+#endif  // CONFIG_MULTI_FRAME_HEADER
     cm->bridge_frame_info.bridge_frame_ref_idx =
         aom_rb_read_literal(rb, seq_params->ref_frames_log2);
   } else {
@@ -8955,33 +8990,7 @@ static int read_uncompressed_header(AV1Decoder *pbi, OBU_TYPE obu_type,
     cm->cur_mfh_id = aom_rb_read_literal(rb, 4);
 #endif  // CONFIG_CWG_E242_MFH_ID_UVLC
     if (cm->cur_mfh_id == 0) {
-      uint32_t seq_header_id_in_frame_header = aom_rb_read_uvlc(rb);
-#if CONFIG_CWG_E242_SEQ_HDR_ID
-      if (seq_header_id_in_frame_header >= MAX_SEQ_NUM) {
-        aom_internal_error(
-            &cm->error, AOM_CODEC_CORRUPT_FRAME,
-            "Unsupported Sequence Header ID in uncompressed_header()");
-      }
-      cm->mfh_params[cm->cur_mfh_id].mfh_seq_header_id =
-          (int)seq_header_id_in_frame_header;
-      activate_sequence_header(
-          pbi,
-#if CONFIG_F024_KEYOBU
-          obu_type,
-#endif
-          cm->mfh_params[cm->cur_mfh_id].mfh_seq_header_id);
-#else
-      (void)seq_header_id_in_frame_header;
-#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
-      cm->mfh_params[cm->cur_mfh_id].mfh_frame_width =
-          seq_params->max_frame_width;
-      cm->mfh_params[cm->cur_mfh_id].mfh_frame_height =
-          seq_params->max_frame_height;
-      cm->mfh_params[cm->cur_mfh_id].mfh_loop_filter_update_flag = 0;
-      for (int i = 0; i < 4; i++) {
-        cm->mfh_params[cm->cur_mfh_id].mfh_loop_filter_level[i] = 0;
-      }
-      cm->mfh_valid[cm->cur_mfh_id] = true;
+      handle_zero_cur_mfh_id(pbi, obu_type, rb);
     } else {
       if (!cm->mfh_valid[cm->cur_mfh_id]) {
         aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,

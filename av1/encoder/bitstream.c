@@ -6409,6 +6409,7 @@ static AOM_INLINE void write_uncompressed_header(
 
 #if CONFIG_CWG_F317
   if (cm->bridge_frame_info.is_bridge_frame) {
+    aom_wb_write_uvlc(wb, 0);  // seq_header_id_in_frame_header
     aom_wb_write_literal(wb, cm->bridge_frame_info.bridge_frame_ref_idx,
                          seq_params->ref_frames_log2);
   } else {
