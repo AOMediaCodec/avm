@@ -1317,12 +1317,6 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.tile_height, argi)) {
       config->cfg.tile_height_count =
           arg_parse_list(&arg, config->cfg.tile_heights, MAX_TILE_HEIGHTS);
-#if CONFIG_SCAN_TYPE_METADATA
-    } else if (arg_match(&arg,
-                         &g_av1_codec_arg_defs.scan_type_info_present_flag,
-                         argi)) {
-      config->cfg.scan_type_info_present_flag = arg_parse_uint(&arg);
-#endif  // CONFIG_SCAN_TYPE_METADATA
 #if CONFIG_TUNE_VMAF
     } else if (arg_match(&arg, &vmaf_model_path, argi)) {
       config->vmaf_model_path = arg.val;
