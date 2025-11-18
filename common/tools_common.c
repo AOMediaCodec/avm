@@ -446,6 +446,11 @@ void aom_shift_img(unsigned int output_bit_depth, aom_image_t **img_ptr,
       img_shifted->d_h = img->d_h;
       img_shifted->max_width = img->crop_width;
       img_shifted->max_height = img->crop_height;
+#if CONFIG_MULTI_STREAM
+      img_shifted->tlayer_id = img->tlayer_id;
+      img_shifted->mlayer_id = img->mlayer_id;
+      img_shifted->xlayer_id = img->xlayer_id;
+#endif  // CONFIG_MULTI_STREAM
     } else {
       // TODO: Does this change during rpr
       img_shifted->w_conf_win_left_offset = 0;
@@ -454,6 +459,11 @@ void aom_shift_img(unsigned int output_bit_depth, aom_image_t **img_ptr,
       img_shifted->w_conf_win_bottom_offset = 0;
       img_shifted->max_width = img->d_w;
       img_shifted->max_height = img->d_h;
+#if CONFIG_MULTI_STREAM
+      img_shifted->tlayer_id = img->tlayer_id;
+      img_shifted->mlayer_id = img->mlayer_id;
+      img_shifted->xlayer_id = img->xlayer_id;
+#endif  // CONFIG_MULTI_STREAM
     }
 
     // img_shifted->x_chroma_shift = img->x_chroma_shift;

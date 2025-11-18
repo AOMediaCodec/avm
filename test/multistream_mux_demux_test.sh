@@ -11,7 +11,7 @@
 readonly BITSTREAM_0="${AOM_TEST_OUTPUT_DIR}/bitstream_0.bin"
 readonly BITSTREAM_1="${AOM_TEST_OUTPUT_DIR}/bitstream_1.bin"
 
-# Output filesd
+# Muxed/Demuxed bitstream files
 readonly MUXED_OUTPUT="${AOM_TEST_OUTPUT_DIR}/bitstream_muxed_01.bin"
 readonly DEMUXED_OUTPUT="${AOM_TEST_OUTPUT_DIR}/bitstream_demuxed.bin"
 readonly DEMUXED_OUTPUT_0="${AOM_TEST_OUTPUT_DIR}/bitstream_demuxed_0.bin"
@@ -48,7 +48,6 @@ encode_bitstream_0() {
     $(aomenc_encode_test_fast_params) \
     $(yuv_raw_input) \
     --obu \
-    --use-temporal-delimiter=1 \
     --output=${BITSTREAM_0} \
     ${devnull} || return 1
 
@@ -68,7 +67,6 @@ encode_bitstream_1() {
     $(aomenc_encode_test_fast_params) \
     $(yuv_raw_input) \
     --obu \
-    --use-temporal-delimiter=1 \
     --output=${BITSTREAM_1} \
     ${devnull} || return 1
 
@@ -78,6 +76,61 @@ encode_bitstream_1() {
   fi
 
   echo "Successfully encoded bitstream_1.bin"
+}
+
+# Decode the first bitstream
+decode_bitstream_0() {
+  local decoder="$(aom_tool_path aomdec)"
+  local output_file="${AOM_TEST_OUTPUT_DIR}/decoded_seq_0"
+
+  eval "${decoder}" -o "${output_file}" \
+    "${BITSTREAM_0}" --md5 || return 1
+
+  if [ ! -e "${output_file}" ]; then
+    elog "Decoding bitstream_0.bin failed."
+    return 1
+  fi
+
+  echo "Successfully decoded bitstream_0.bin"
+}
+
+# Decode the second bitstream
+decode_bitstream_1() {
+  local decoder="$(aom_tool_path aomdec)"
+  local output_file="${AOM_TEST_OUTPUT_DIR}/decoded_seq_1"
+
+  eval "${decoder}" -o "${output_file}" \
+    "${BITSTREAM_1}" --md5 || return 1
+
+  if [ ! -e "${output_file}" ]; then
+    elog "Decoding bitstream_1.bin failed."
+    return 1
+  fi
+
+  echo "Successfully decoded bitstream_1.bin"
+}
+
+# Decode the muxed bitstream
+decode_muxed_bitstream() {
+  local decoder="$(aom_tool_path aomdec)"
+  local output_file="${AOM_TEST_OUTPUT_DIR}/decoded_seq_demuxed"
+  local output_file_0="${AOM_TEST_OUTPUT_DIR}/decoded_seq_demuxed_0"
+  local output_file_1="${AOM_TEST_OUTPUT_DIR}/decoded_seq_demuxed_1"
+
+  eval "${decoder}" -o "${output_file}" \
+    "${MUXED_OUTPUT}" --num-streams=2 --md5 || return 1
+
+  if [ ! -e "${output_file_0}" ]; then
+    elog "Decoding bitstream_muxed_01.bin failed."
+    return 1
+  fi
+
+  if [ ! -e "${output_file_1}" ]; then
+    elog "Decoding bitstream_muxed_01.bin failed."
+    return 1
+  fi
+
+  echo "Successfully decoded bitstream_muxed_01.bin"
 }
 
 # Mux the bitstreams
@@ -95,7 +148,7 @@ mux_bitstreams() {
     return 1
   fi
 
-  echo "Successfully muxed bitstreams to bitstream_muxed_0123.bin"
+  echo "Successfully muxed bitstreams to bitstream_muxed_01.bin"
 }
 
 # Demux the muxed bitstream
@@ -146,13 +199,45 @@ compare_bitstreams() {
   echo "All bitstream comparisons passed successfully!"
 }
 
+# Compare demuxed bitstreams with original bitstreams
+compare_md5() {
+  local output_file_0="${AOM_TEST_OUTPUT_DIR}/decoded_seq_0"
+  local output_file_1="${AOM_TEST_OUTPUT_DIR}/decoded_seq_1"
+  local output_file_demuxed_0="${AOM_TEST_OUTPUT_DIR}/decoded_seq_demuxed_0"
+  local output_file_demuxed_1="${AOM_TEST_OUTPUT_DIR}/decoded_seq_demuxed_1"
+
+  echo "Comparing demuxed decoded sequences with original decoded sequences..."
+
+  # Compare first output seq
+  if cmp -s "${output_file_0}" "${output_file_demuxed_0}"; then
+    echo "PASS: decoded_seq_0 matches decoded_seq_demuxed_0"
+  else
+    elog "FAIL: decoded_seq_0 does NOT match decoded_seq_demuxed_0"
+    return 1
+  fi
+
+  # Compare second output seq
+  if cmp -s "${output_file_1}" "${output_file_demuxed_1}"; then
+    echo "PASS: decoded_seq_1 matches decoded_seq_demuxed_1"
+  else
+    elog "FAIL: decoded_seq_1 does NOT match decoded_seq_demuxed_1"
+    return 1
+  fi
+
+  echo "All decoded sequences comparisons passed successfully!"
+}
+
 # Run complete encode, mux, and demux pipeline
 run_encode_mux_demux() {
   encode_bitstream_0 || return 1
   encode_bitstream_1 || return 1
+  decode_bitstream_0 || return 1
+  decode_bitstream_1 || return 1
   mux_bitstreams || return 1
   demux_bitstream || return 1
   compare_bitstreams || return 1
+  decode_muxed_bitstream || return 1
+  compare_md5 || return 1
 }
 
 # Test list

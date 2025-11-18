@@ -2958,6 +2958,9 @@ void av1_setup_frame_buf_refs(AV1_COMMON *cm) {
   cm->cur_frame->pyramid_level = cm->current_frame.pyramid_level;
   cm->cur_frame->temporal_layer_id = cm->current_frame.temporal_layer_id;
   cm->cur_frame->mlayer_id = cm->current_frame.mlayer_id;
+#if CONFIG_MULTI_STREAM
+  cm->cur_frame->xlayer_id = cm->current_frame.xlayer_id;
+#endif  // CONFIG_MULTI_STREAM
 
   MV_REFERENCE_FRAME ref_frame;
   for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME; ++ref_frame) {

@@ -1736,6 +1736,10 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
   int fgm_seq_id_in_tu = -1;
 #endif  // CONFIG_F153_FGM_OBU
 
+#if CONFIG_MULTI_STREAM
+  int prev_obu_xlayer_id = -1;
+#endif  // CONFIG_MULTI_STREAM
+
   // decode frame as a series of OBUs
   while (!frame_decoding_finished && cm->error.error_code == AOM_CODEC_OK) {
     struct aom_read_bit_buffer rb;
@@ -1841,7 +1845,52 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
 
     cm->tlayer_id = obu_header.obu_tlayer_id;
     cm->mlayer_id = obu_header.obu_mlayer_id;
+#if CONFIG_MULTI_STREAM
+    if (obu_header.type == OBU_MSDO) {
+      cm->xlayer_id = obu_header.obu_xlayer_id;
+    } else {
+      if (cm->xlayer_id != obu_header.obu_xlayer_id) {
+        for (int i = 0; i < REF_FRAMES; i++) {
+          pbi->ref_frame_map_buf[cm->xlayer_id][i] = cm->ref_frame_map[i];
+        }
+        for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
+          pbi->remapped_ref_idx_buf[cm->xlayer_id][i] = cm->remapped_ref_idx[i];
+        }
+        pbi->seq_params_buf[cm->xlayer_id] = cm->seq_params;
+        for (int i = 0; i < MAX_MFH_NUM; i++) {
+          pbi->mfh_params_buf[cm->xlayer_id][i] = cm->mfh_params[i];
+        }
+        cm->xlayer_id = obu_header.obu_xlayer_id;
+        for (int i = 0; i < REF_FRAMES; i++) {
+          cm->ref_frame_map[i] = pbi->ref_frame_map_buf[cm->xlayer_id][i];
+        }
+        for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
+          cm->remapped_ref_idx[i] = pbi->remapped_ref_idx_buf[cm->xlayer_id][i];
+        }
+        cm->seq_params = pbi->seq_params_buf[cm->xlayer_id];
+        pbi->seq_params_buf[cm->xlayer_id] = cm->seq_params;
+        for (int i = 0; i < MAX_MFH_NUM; i++) {
+          cm->mfh_params[i] = pbi->mfh_params_buf[cm->xlayer_id][i];
+        }
+        pbi->stream_switched = 1;
+      }
+      if (obu_header.type == OBU_LEADING_TILE_GROUP ||
+          obu_header.type == OBU_REGULAR_TILE_GROUP) {
+        if (prev_obu_xlayer_id == -1) {
+          prev_obu_xlayer_id = obu_header.obu_xlayer_id;
+        } else {
+          if (prev_obu_xlayer_id >= 0 &&
+              obu_header.obu_xlayer_id != prev_obu_xlayer_id) {
+            aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+                               "tile group OBUs with the same stream_id shall "
+                               "be contiguous within a temporal unit");
+          }
+        }
+      }
+    }
+#else   // CONFIG_MULTI_STREAM
     cm->xlayer_id = obu_header.obu_xlayer_id;
+#endif  // CONFIG_MULTI_STREAM
 
     // check bitstream conformance if sequence header is parsed
     if (pbi->sequence_header_ready) {
@@ -1894,6 +1943,11 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
         break;
       case OBU_SEQUENCE_HEADER:
+#if CONFIG_MULTI_STREAM
+        cm->xlayer_id = obu_header.obu_xlayer_id;
+        cm->seq_params = pbi->seq_params_buf[cm->xlayer_id];
+        pbi->stream_switched = 0;
+#endif  // CONFIG_MULTI_STREAM
         decoded_payload_size = read_sequence_header_obu(pbi, &rb);
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
 #if CONFIG_F153_FGM_OBU

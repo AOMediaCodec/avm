@@ -9090,7 +9090,12 @@ static int read_uncompressed_header(AV1Decoder *pbi, OBU_TYPE obu_type,
       pbi->decoding_first_frame = 1;
       reset_frame_buffers(cm);
     }
-
+#if CONFIG_MULTI_STREAM
+    else if (pbi->stream_switched) {
+      pbi->stream_switched = 0;
+      reset_frame_buffers(cm);
+    }
+#endif  // CONFIG_MULTI_STREAM
     cm->cur_frame->frame_output_done = 0;
 
   } else {
@@ -9214,6 +9219,12 @@ static int read_uncompressed_header(AV1Decoder *pbi, OBU_TYPE obu_type,
 #endif
       }
     }
+#if CONFIG_MULTI_STREAM
+    else if (pbi->stream_switched) {
+      pbi->stream_switched = 0;
+      reset_frame_buffers(cm);
+    }
+#endif  // CONFIG_MULTI_STREAM
 
     if (cm->bridge_frame_info.is_bridge_frame) {
       cm->show_frame = 0;
@@ -9558,7 +9569,9 @@ static int read_uncompressed_header(AV1Decoder *pbi, OBU_TYPE obu_type,
     cm->current_frame.pyramid_level = 1;
     cm->current_frame.temporal_layer_id = cm->tlayer_id;
     cm->current_frame.mlayer_id = cm->mlayer_id;
-
+#if CONFIG_MULTI_STREAM
+    cm->current_frame.xlayer_id = cm->xlayer_id;
+#endif  // CONFIG_MULTI_STREAM
     features->tip_frame_mode = TIP_FRAME_DISABLED;
     setup_frame_size(cm, frame_size_override_flag, rb);
     read_screen_content_params(cm, rb);
@@ -9570,6 +9583,9 @@ static int read_uncompressed_header(AV1Decoder *pbi, OBU_TYPE obu_type,
   } else {
     cm->current_frame.temporal_layer_id = cm->tlayer_id;
     cm->current_frame.mlayer_id = cm->mlayer_id;
+#if CONFIG_MULTI_STREAM
+    cm->current_frame.xlayer_id = cm->xlayer_id;
+#endif  // CONFIG_MULTI_STREAM
 
     features->allow_ref_frame_mvs = 0;
     features->tip_frame_mode = TIP_FRAME_DISABLED;

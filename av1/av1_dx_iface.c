@@ -773,9 +773,23 @@ static aom_codec_err_t init_decoder(aom_codec_alg_priv_t *ctx) {
   frame_worker_data->pbi->random_access_point_count = 0;
 #endif
   init_buffer_callbacks(ctx);
+#if CONFIG_MULTI_STREAM
+  for (int i = 0; i < AOM_MAX_NUM_STREAMS; i++) {
+    for (int j = 0; j < INTER_REFS_PER_FRAME; j++) {
+      frame_worker_data->pbi->remapped_ref_idx_buf[i][j] = INVALID_IDX;
+    }
+  }
+#endif  // CONFIG_MULTI_STREAM
   for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
     frame_worker_data->pbi->common.remapped_ref_idx[i] = INVALID_IDX;
   }
+#if CONFIG_MULTI_STREAM
+  for (int i = 0; i < AOM_MAX_NUM_STREAMS; i++) {
+    for (int j = 0; j < REF_FRAMES; j++) {
+      frame_worker_data->pbi->ref_frame_map_buf[i][j] = NULL;
+    }
+  }
+#endif  // CONFIG_MULTI_STREAM
   for (int i = 0; i < frame_worker_data->pbi->common.seq_params.ref_frames;
        i++) {
     frame_worker_data->pbi->common.ref_frame_map[i] = NULL;
@@ -1012,6 +1026,11 @@ static aom_image_t *add_grain_if_needed(aom_codec_alg_priv_t *ctx,
   grain_img->fb_priv = fb->priv;
   aom_img_remove_metadata(grain_img);
   grain_img->metadata = img->metadata;
+#if CONFIG_MULTI_STREAM
+  grain_img->tlayer_id = img->tlayer_id;
+  grain_img->mlayer_id = img->mlayer_id;
+  grain_img->xlayer_id = img->xlayer_id;
+#endif  // CONFIG_MULTI_STREAM
   img->metadata = NULL;
   if (av1_add_film_grain(grain_params, img, grain_img)) {
     pool->release_fb_cb(pool->cb_priv, fb);
@@ -1069,7 +1088,9 @@ static aom_image_t *decoder_get_frame_(aom_codec_alg_priv_t *ctx,
     AVxWorker *const worker = ctx->frame_worker;
     FrameWorkerData *const frame_worker_data = (FrameWorkerData *)worker->data1;
     AV1Decoder *const pbi = frame_worker_data->pbi;
+#if !CONFIG_MULTI_STREAM
     AV1_COMMON *const cm = &pbi->common;
+#endif  // !CONFIG_MULTI_STREAM
     // Wait for the frame from worker thread.
     if (winterface->sync(worker)) {
       // Check if worker has received any frames.
@@ -1091,9 +1112,15 @@ static aom_image_t *decoder_get_frame_(aom_codec_alg_priv_t *ctx,
 
         ctx->img.fb_priv = output_frame_buf->raw_frame_buffer.priv;
         img = &ctx->img;
+#if CONFIG_MULTI_STREAM
+        img->tlayer_id = output_frame_buf->temporal_layer_id;
+        img->mlayer_id = output_frame_buf->mlayer_id;
+        img->xlayer_id = output_frame_buf->xlayer_id;
+#else   // CONFIG_MULTI_STREAM
         img->tlayer_id = cm->tlayer_id;
         img->mlayer_id = cm->mlayer_id;
         img->xlayer_id = cm->xlayer_id;
+#endif  // CONFIG_MULTI_STREAM
 
         if (pbi->skip_film_grain) grain_params->apply_grain = 0;
         aom_image_t *res =

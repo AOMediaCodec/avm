@@ -18,6 +18,7 @@
 #include "aom/aom_codec.h"
 #include "aom/aom_integer.h"
 #include "aom_ports/mem.h"
+#include "aom/aom_frame_buffer.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -1097,7 +1098,13 @@ typedef uint16_t TXFM_CONTEXT;
 // REF_FRAMES for the cm->ref_frame_map array, 1 scratch frame for the new
 // frame in cm->cur_frame, INTER_REFS_PER_FRAME for scaled references on the
 // encoder in the cpi->scaled_ref_buf array.
+#if CONFIG_MULTI_STREAM
+// Each substream has its own sub-DPB.
+#define FRAME_BUFFERS \
+  (REF_FRAMES + 1 + INTER_REFS_PER_FRAME) * AOM_MAX_NUM_STREAMS
+#else  // CONFIG_MULTI_STREAM
 #define FRAME_BUFFERS (REF_FRAMES + 1 + INTER_REFS_PER_FRAME)
+#endif  // CONFIG_MULTI_STREAM
 
 #define TIP_FRAME (MODE_CTX_REF_FRAMES - 1)
 #define TIP_FRAME_INDEX (INTER_REFS_PER_FRAME + 1)
