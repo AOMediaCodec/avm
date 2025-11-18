@@ -22,7 +22,8 @@
 #if !CONFIG_F343_EXTENSIBILITY
 static
 #endif  // !CONFIG_F343_EXTENSIBILITY
-int valid_obu_type(int obu_type) {
+    int
+    valid_obu_type(int obu_type) {
   int valid_type = 0;
   switch (obu_type) {
     case OBU_SEQUENCE_HEADER:

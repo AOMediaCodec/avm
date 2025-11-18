@@ -234,6 +234,11 @@ uint32_t av1_read_operating_point_set_obu(struct AV1Decoder *pbi,
 #if CONFIG_F343
   uint32_t remaining_bits = (uint32_t)payload_size * 8 - rb->bit_offset;
   read_obu_extension(ops_params->obu_ext, rb, remaining_bits);
+  if (!ops_params->obu_ext.extension_present_flag) {
+    if (av1_check_trailing_bits(pbi, rb) != 0) {
+      return 0;
+    }
+  }
 #else
   if (av1_check_trailing_bits(pbi, rb) != 0) {
     return 0;
