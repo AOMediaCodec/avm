@@ -1354,9 +1354,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 #if CONFIG_SCAN_TYPE_METADATA
   tool_cfg->scan_type_info_present_flag =
       extra_cfg->scan_type_info_present_flag;
-  if (cfg->encoder_cfg.scan_type_info_present_flag)
-    tool_cfg->scan_type_info_present_flag =
-        cfg->encoder_cfg.scan_type_info_present_flag;
 #endif  // CONFIG_SCAN_TYPE_METADATA
   tool_cfg->enable_bawp = extra_cfg->enable_bawp;
   tool_cfg->enable_cwp = extra_cfg->enable_cwp;
@@ -1398,13 +1395,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   tool_cfg->crop_win_right_offset = extra_cfg->crop_win_right_offset;
   tool_cfg->crop_win_top_offset = extra_cfg->crop_win_top_offset;
   tool_cfg->crop_win_bottom_offset = extra_cfg->crop_win_bottom_offset;
-  if (cfg->encoder_cfg.enable_cropping_window) {
-    tool_cfg->enable_cropping_window = cfg->encoder_cfg.enable_cropping_window;
-    tool_cfg->crop_win_left_offset = cfg->encoder_cfg.crop_win_left_offset;
-    tool_cfg->crop_win_right_offset = cfg->encoder_cfg.crop_win_right_offset;
-    tool_cfg->crop_win_top_offset = cfg->encoder_cfg.crop_win_top_offset;
-    tool_cfg->crop_win_bottom_offset = cfg->encoder_cfg.crop_win_bottom_offset;
-  }
 #endif  // CONFIG_CROP_WIN_CWG_F220
 
   tool_cfg->enable_drl_reorder = extra_cfg->enable_drl_reorder;

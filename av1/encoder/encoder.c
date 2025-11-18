@@ -622,6 +622,31 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
 
   seq->enable_refmvbank = tool_cfg->enable_refmvbank;
   seq->enable_drl_reorder = tool_cfg->enable_drl_reorder;
+
+#if CONFIG_CROP_WIN_CWG_F220
+  seq->conf.conf_win_enabled_flag = oxcf->tool_cfg.enable_cropping_window;
+  if (seq->conf.conf_win_enabled_flag) {
+    seq->conf.conf_win_left_offset = oxcf->tool_cfg.crop_win_left_offset;
+    seq->conf.conf_win_top_offset = oxcf->tool_cfg.crop_win_top_offset;
+    seq->conf.conf_win_right_offset = oxcf->tool_cfg.crop_win_right_offset;
+    seq->conf.conf_win_bottom_offset = oxcf->tool_cfg.crop_win_bottom_offset;
+  } else {
+    seq->conf.conf_win_left_offset = 0;
+    seq->conf.conf_win_top_offset = 0;
+    seq->conf.conf_win_right_offset = 0;
+    seq->conf.conf_win_bottom_offset = 0;
+  }
+#endif  // CONFIG_CROP_WIN_CWG_F220
+
+#if CONFIG_SCAN_TYPE_METADATA
+  seq->scan_type_info_present_flag = oxcf->tool_cfg.scan_type_info_present_flag;
+  if (seq->scan_type_info_present_flag) {
+    seq->scan_type_idc = AOM_SCAN_TYPE_UNSPECIFIED;
+    seq->fixed_cvs_pic_rate_flag = 0;
+    seq->elemental_ct_duration_minus_1 = -1;
+  }
+#endif  // CONFIG_SCAN_TYPE_METADATA
+
 #if CONFIG_CWG_F377_STILL_PICTURE
   seq->enable_cdef_on_skip_txfm = seq->single_picture_header_flag
                                       ? CDEF_ON_SKIP_TXFM_ADAPTIVE
@@ -717,33 +742,6 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   seq_params->seq_header_id =
       0;  // intentionally 0 for a single sequence bitstream
 #endif    // CONFIG_CWG_E242_SEQ_HDR_ID
-#if CONFIG_CROP_WIN_CWG_F220
-  seq_params->conf.conf_win_enabled_flag =
-      oxcf->tool_cfg.enable_cropping_window;
-  if (seq_params->conf.conf_win_enabled_flag) {
-    seq_params->conf.conf_win_left_offset = oxcf->tool_cfg.crop_win_left_offset;
-    seq_params->conf.conf_win_top_offset = oxcf->tool_cfg.crop_win_top_offset;
-    seq_params->conf.conf_win_right_offset =
-        oxcf->tool_cfg.crop_win_right_offset;
-    seq_params->conf.conf_win_bottom_offset =
-        oxcf->tool_cfg.crop_win_bottom_offset;
-  } else {
-    seq_params->conf.conf_win_left_offset = 0;
-    seq_params->conf.conf_win_top_offset = 0;
-    seq_params->conf.conf_win_right_offset = 0;
-    seq_params->conf.conf_win_bottom_offset = 0;
-  }
-#endif  // CONFIG_CROP_WIN_CWG_F220
-
-#if CONFIG_SCAN_TYPE_METADATA
-  seq_params->scan_type_info_present_flag =
-      oxcf->tool_cfg.scan_type_info_present_flag;
-  if (seq_params->scan_type_info_present_flag) {
-    seq_params->scan_type_idc = AOM_SCAN_TYPE_UNSPECIFIED;
-    seq_params->fixed_cvs_pic_rate_flag = 0;
-    seq_params->elemental_ct_duration_minus_1 = -1;
-  }
-#endif  // CONFIG_SCAN_TYPE_METADATA
 
   seq_params->profile = oxcf->profile;
   seq_params->bit_depth = oxcf->tool_cfg.bit_depth;
