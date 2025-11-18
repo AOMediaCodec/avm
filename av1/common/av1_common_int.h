@@ -544,8 +544,6 @@ typedef struct {
 #if CONFIG_F343
 typedef struct ObuExtension {
   bool extension_present_flag;
-  int num_extension_bits;
-  int extension_bit;
 } ObuExtension;
 #endif  // CONFIG_F343
 

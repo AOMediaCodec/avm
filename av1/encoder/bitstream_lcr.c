@@ -270,13 +270,21 @@ uint32_t av1_write_layer_configuration_record_obu(AV1_COMP *cpi, int xlayer_id,
                                                   uint8_t *const dst) {
   struct aom_write_bit_buffer wb = { dst, 0 };
   uint32_t size = 0;
+  AV1_COMMON *cm = &cpi->common;
 
   if (xlayer_id == 31)
     write_lcr_global_info(cpi, &wb);
   else
     write_lcr_local_info(cpi, xlayer_id, &wb);
 
+#if CONFIG_F343
+  // Only add trailing bits if extension is NOT present
+  if (!cm->lcr_params.obu_ext.extension_present_flag) {
+    av1_add_trailing_bits(&wb);
+  }
+#else
   av1_add_trailing_bits(&wb);
+#endif  // CONFIG_F343
   size = aom_wb_bytes_written(&wb);
   return size;
 }

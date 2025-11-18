@@ -175,9 +175,13 @@ uint32_t av1_write_operating_point_set_obu(AV1_COMP *cpi, int obu_xlayer_id,
 
 #if CONFIG_F343
   write_obu_extension(&ops->obu_ext, &wb);
-#endif  // CONFIG_F343
-
+  // Only add trailing bits if extension is NOT present
+  if (!ops->obu_ext.extension_present_flag) {
+    av1_add_trailing_bits(&wb);
+  }
+#else
   av1_add_trailing_bits(&wb);
+#endif  // CONFIG_F343
   size = aom_wb_bytes_written(&wb);
   return size;
 }

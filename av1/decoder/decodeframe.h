@@ -69,8 +69,8 @@ void av1_read_sequence_header(struct aom_read_bit_buffer *rb,
                               SequenceHeader *seq_params);
 
 #if CONFIG_F343
-void read_obu_extension(ObuExtension obu_extension,
-                        struct aom_read_bit_buffer *rb, size_t remaining_bits);
+void read_obu_extension(ObuExtension *obu_extension,
+                        struct aom_read_bit_buffer *rb, uint32_t remaining_bits);
 #endif  // CONFIG_F343
 
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO

@@ -7481,12 +7481,13 @@ static void av1_write_mlayer_dependency_info(struct aom_write_bit_buffer *wb,
 #if CONFIG_F343
 void write_obu_extension(const ObuExtension *obu_ext,
                          struct aom_write_bit_buffer *wb) {
+  // Write the extension_present_flag
   aom_wb_write_bit(wb, obu_ext->extension_present_flag);
-  int remaining_bits = obu_ext->num_extension_bits;
-  while (remaining_bits > 0) {
-    aom_wb_write_bit(wb, 0);
-    remaining_bits--;
-  }
+
+  // Note: If extension_present_flag is 0, trailing bits will be added
+  // by the caller (av1_add_trailing_bits).
+  // If extension_present_flag is 1, future encoder versions would write
+  // extension data here. For now, a v1 encoder should never set this flag to 1.
 }
 #endif  // CONFIG_F343
 
@@ -7611,8 +7612,13 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
 
 #if CONFIG_F343
   write_obu_extension(&seq_params->sh_extension, &wb);
-#endif  // CONFIG_F343
+  // Only add trailing bits if extension is NOT present
+  if (!seq_params->sh_extension.extension_present_flag) {
+    av1_add_trailing_bits(&wb);
+  }
+#else
   av1_add_trailing_bits(&wb);
+#endif  // CONFIG_F343
 
   size = aom_wb_bytes_written(&wb);
   return size;
@@ -7627,7 +7633,14 @@ uint32_t write_multi_frame_header_obu(AV1_COMP *cpi,
 
   write_multi_frame_header(cpi, mfh_param, &wb);
 
+#if CONFIG_F343
+  // Only add trailing bits if extension is NOT present
+  if (!mfh_param->obu_ext.extension_present_flag) {
+    av1_add_trailing_bits(&wb);
+  }
+#else
   av1_add_trailing_bits(&wb);
+#endif  // CONFIG_F343
 
   size = aom_wb_bytes_written(&wb);
   return size;

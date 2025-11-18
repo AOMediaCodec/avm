@@ -228,15 +228,35 @@ static INLINE void reset_mfh_valid(AV1_COMMON *cm) {
 #endif  // CONFIG_MULTI_FRAME_HEADER
 
 #if CONFIG_F343
-void read_obu_extension(ObuExtension obu_ext, struct aom_read_bit_buffer *rb,
-                        size_t remaining_bits) {
-  obu_ext.extension_present_flag = aom_rb_read_bit(rb);
-  if (obu_ext.extension_present_flag) {
-    while (remaining_bits - 1 > 0) {
-      obu_ext.extension_bit = aom_rb_read_bit(rb);
-      remaining_bits--;
+void read_obu_extension(ObuExtension *obu_ext, struct aom_read_bit_buffer *rb,
+                        uint32_t remaining_bits) {
+  // remaining_bits = total bits from current position to end of OBU payload
+
+  if (remaining_bits == 0) {
+    // No bits left, no extension flag present
+    obu_ext->extension_present_flag = 0;
+    return;
+  }
+
+  // Read the extension flag
+  obu_ext->extension_present_flag = aom_rb_read_bit(rb);
+  remaining_bits--;
+
+  if (obu_ext->extension_present_flag) {
+    // Extension data present - v1 decoder ignores remaining bits
+    // Just advance bit offset to consume all remaining bits
+    if (remaining_bits > 0) {
+      rb->bit_offset += remaining_bits;
+    } else {
+      // Error: extension_present_flag set but no extension data
+      // This is invalid bitstream
+      if (rb->error_handler) {
+        rb->error_handler(rb->error_handler_data, AOM_CODEC_CORRUPT_FRAME,
+                         "OBU extension flag set but no extension data present");
+      }
     }
   }
+  // If extension_present_flag == 0, caller checks trailing bits
 }
 #endif  // CONFIG_F343
 
@@ -508,7 +528,7 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
 
 #if CONFIG_F343
   uint32_t remaining_bits = (uint32_t)payload_size * 8 - rb->bit_offset;
-  read_obu_extension(seq_params->sh_extension, rb, remaining_bits);
+  read_obu_extension(&seq_params->sh_extension, rb, remaining_bits);
   if (!seq_params->sh_extension.extension_present_flag) {
     if (av1_check_trailing_bits(pbi, rb) != 0) {
       // cm->error.error_code is already set.
@@ -562,7 +582,7 @@ static uint32_t read_multi_frame_header_obu(AV1Decoder *pbi,
 
 #if CONFIG_F343
   uint32_t remaining_bits = (uint32_t)payload_size * 8 - rb->bit_offset;
-  read_obu_extension(cm->mfh_params[cur_mfh_id].obu_ext, rb, remaining_bits);
+  read_obu_extension(&cm->mfh_params[cur_mfh_id].obu_ext, rb, remaining_bits);
   int extension_flag =
       cm->mfh_params[cur_mfh_id].obu_ext.extension_present_flag;
   if (!extension_flag) {
