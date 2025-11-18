@@ -3564,7 +3564,8 @@ static INLINE int get_lp2tx_ctx(TX_SIZE tx_size, int bwl, int eob) {
   const int eoby = (eob - 1) >> bwl;
   const int eobx = (eob - 1) - (eoby << bwl);
   const int diag = eobx + eoby;
-  const int max_diag = tx_size_wide[tx_size] + tx_size_high[tx_size] - 2;
+  const int max_diag = tx_size_wide[av1_get_adjusted_tx_size(tx_size)] +
+                       tx_size_high[av1_get_adjusted_tx_size(tx_size)] - 2;
   int ctx_idx = 0;
   if (diag < lim) {
     ctx_idx = 1;
