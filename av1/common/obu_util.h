@@ -28,6 +28,10 @@ typedef struct {
   int obu_xlayer_id;
 } ObuHeader;
 
+#if CONFIG_F343_EXTENSIBILITY
+int valid_obu_type(int obu_type);
+#endif  // CONFIG_F343_EXTENSIBILITY
+
 aom_codec_err_t aom_read_obu_header_and_size(const uint8_t *data,
                                              size_t bytes_available,
                                              ObuHeader *obu_header,

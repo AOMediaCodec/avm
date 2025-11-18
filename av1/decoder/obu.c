@@ -1727,6 +1727,14 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
       return -1;
     }
 
+#if CONFIG_F343_EXTENSIBILITY
+    if (!valid_obu_type(obu_header.type)) {
+      // Unknown obu so skip payload
+      data += payload_size;
+      continue;
+    }
+#endif  // CONFIG_F343_EXTENSIBILITY
+
 #if OBU_ORDER_IN_TU
     curr_obu_type = obu_header.type;
     if (prev_obu_type_initialized &&
