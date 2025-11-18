@@ -492,7 +492,25 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
     } else if (obu_header.type == OBU_CLK || obu_header.type == OBU_OLK) {
       found_keyframe = 1;
       break;
-#endif  // CONFIG_F024_KEYOBU
+    } else if (obu_header.type == OBU_LEADING_TILE_GROUP ||
+               obu_header.type == OBU_REGULAR_TILE_GROUP) {
+      if (data_sz < 1) return AOM_CODEC_CORRUPT_FRAME;
+      struct aom_read_bit_buffer rb = { data, data + data_sz, 0, NULL, NULL };
+      int first_tile_group_in_frame = aom_rb_read_bit(&rb);
+      if (!first_tile_group_in_frame) {
+        aom_rb_read_bit(&rb);  // send_uncompressed_header_flag
+      }
+      uint32_t mfh_id = aom_rb_read_uvlc(&rb);
+      if (mfh_id == 0) {
+        uint32_t seq_header_id_in_frame_header = aom_rb_read_uvlc(&rb);
+        (void)seq_header_id_in_frame_header;
+      }
+      FRAME_TYPE frame_type = aom_rb_read_bit(&rb) ? INTER_FRAME : INTRA_FRAME;
+      if (frame_type == INTRA_ONLY_FRAME) {
+        intra_only_flag = 1;
+      }
+    }  // TILE_GROUP
+#else  // CONFIG_F024_KEYOBU
 #if CONFIG_F106_OBU_TILEGROUP
 #if CONFIG_F024_KEYOBU
     } else if (obu_header.type == OBU_LEADING_TILE_GROUP ||
@@ -548,7 +566,7 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
           uint32_t seq_header_id_in_frame_header = aom_rb_read_uvlc(&rb);
           (void)seq_header_id_in_frame_header;
         }
-#endif  // CONFIG_MULTI_FRAME_HEADER
+#endif  // CONFIG_F024_KEYOBU
 
 #if !CONFIG_F106_OBU_TILEGROUP || !CONFIG_F106_OBU_SEF
         const int show_existing_frame = aom_rb_read_bit(&rb);
@@ -596,6 +614,7 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
 #endif  // !CONFIG_F106_OBU_TILEGROUP || !CONFIG_F106_OBU_SEF
       }
     }
+#endif  // KEY
     // skip past any unread OBU header data
     data += payload_size;
     data_sz -= payload_size;
