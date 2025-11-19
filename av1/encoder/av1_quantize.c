@@ -561,7 +561,10 @@ static void set_qm_test_params(AV1_COMMON *const cm,
     }
 #endif
     if (num_planes > 1) {
-      const int qm_uv_same_as_y = rand() % 1;
+      const int qm_uv_same_as_y = (cm->seq_params.uv_dc_delta_q_enabled ||
+                                   cm->seq_params.uv_ac_delta_q_enabled)
+                                      ? 0
+                                      : 1;
       if (qm_uv_same_as_y) {
         quant_params->qm_u[i] = quant_params->qm_y[i];
         quant_params->qm_v[i] = quant_params->qm_y[i];
@@ -581,7 +584,6 @@ static void set_qm_test_params(AV1_COMMON *const cm,
       }
     }
   }
-
 #if CONFIG_QM_DEBUG
   printf("[DEBUG] pic_qm_num=%d\n", quant_params->pic_qm_num);
   for (int i = 0; i < quant_params->pic_qm_num; i++) {

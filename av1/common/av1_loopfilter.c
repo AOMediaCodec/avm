@@ -110,7 +110,7 @@ uint16_t av1_get_filter_q(const loop_filter_info_n *lfi_n, const int dir_idx,
       bit_depth);
 #else
   // TODO(Andrey): non-CTC conditions
-  return lfi_n->q_thr[plane][segment_id][dir_idx][COMPACT_INDEX0_NRS(
+  return lfi_n->q_thr[plane][mbmi->segment_id][dir_idx][COMPACT_INDEX0_NRS(
       mbmi->ref_frame[0])][mode_lf_lut[mbmi->mode]];
 #endif  // CONFIG_DF_DQP
 }
@@ -131,7 +131,7 @@ uint16_t av1_get_filter_side(const loop_filter_info_n *lfi_n, const int dir_idx,
       bit_depth);
 #else
   // TODO(Andrey): non-CTC conditions
-  return lfi_n->side_thr[plane][segment_id][dir_idx][COMPACT_INDEX0_NRS(
+  return lfi_n->side_thr[plane][mbmi->segment_id][dir_idx][COMPACT_INDEX0_NRS(
       mbmi->ref_frame[0])][mode_lf_lut[mbmi->mode]];
 #endif  // CONFIG_DF_DQP
 }

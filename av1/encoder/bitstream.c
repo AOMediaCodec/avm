@@ -807,15 +807,6 @@ static AOM_INLINE void write_segment_id(AV1_COMP *cpi,
                            mi_col, pred);
     /* mbmi is read only but we need to update segment_id */
     ((MB_MODE_INFO *)mbmi)->segment_id = pred;
-    int seg_qindex =
-        av1_get_qindex(&cm->seg, mbmi->segment_id,
-                       cpi->common.delta_q_info.delta_q_present_flag
-                           ? xd->current_base_qindex
-                           : cpi->common.quant_params.base_qindex,
-                       cm->seq_params.bit_depth);
-    get_qindex_with_offsets(cm, seg_qindex,
-                            ((MB_MODE_INFO *)mbmi)->final_qindex_dc,
-                            ((MB_MODE_INFO *)mbmi)->final_qindex_ac);
     return;
   }
 
@@ -1889,6 +1880,16 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
   assert(IMPLIES(xd->lossless[mbmi->segment_id],
                  !cpi->common.delta_q_info.delta_q_present_flag));
 
+  const int seg_qindex =
+      av1_get_qindex(&cm->seg, mbmi->segment_id,
+                     cpi->common.delta_q_info.delta_q_present_flag
+                         ? xd->current_base_qindex
+                         : cpi->common.quant_params.base_qindex,
+                     cm->seq_params.bit_depth);
+  get_qindex_with_offsets(cm, seg_qindex,
+                          ((MB_MODE_INFO *)mbmi)->final_qindex_dc,
+                          ((MB_MODE_INFO *)mbmi)->final_qindex_ac);
+
 #ifndef NDEBUG
   const CommonQuantParams *const quant_params = &cm->quant_params;
   for (int k = 0; k < av1_num_planes(cm); k++) {
@@ -1914,9 +1915,6 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
       const int ac_delta_q = k == 0 ? 0
                                     : (k == 1 ? quant_params->u_ac_delta_q
                                               : quant_params->v_ac_delta_q);
-      const int seg_qindex =
-          av1_get_qindex(&cm->seg, mbmi->segment_id, xd->current_base_qindex,
-                         cm->seq_params.bit_depth);
       assert(mbmi->final_qindex_dc[k] ==
              av1_q_clamped(seg_qindex, dc_delta_q,
                            k == 0 ? cm->seq_params.base_y_dc_delta_q
@@ -2352,6 +2350,15 @@ static AOM_INLINE void write_mb_modes_kf(
   if (xd->tree_type != CHROMA_PART) write_delta_q_params(cpi, skip, w);
   assert(IMPLIES(xd->lossless[mbmi->segment_id],
                  !cpi->common.delta_q_info.delta_q_present_flag));
+  const int seg_qindex =
+      av1_get_qindex(&cm->seg, mbmi->segment_id,
+                     cpi->common.delta_q_info.delta_q_present_flag
+                         ? xd->current_base_qindex
+                         : cpi->common.quant_params.base_qindex,
+                     cm->seq_params.bit_depth);
+  get_qindex_with_offsets(cm, seg_qindex,
+                          ((MB_MODE_INFO *)mbmi)->final_qindex_dc,
+                          ((MB_MODE_INFO *)mbmi)->final_qindex_ac);
 #ifndef NDEBUG
   const CommonQuantParams *const quant_params = &cm->quant_params;
   for (int k = 0; k < av1_num_planes(cm); k++) {
@@ -2377,9 +2384,6 @@ static AOM_INLINE void write_mb_modes_kf(
       const int ac_delta_q = k == 0 ? 0
                                     : (k == 1 ? quant_params->u_ac_delta_q
                                               : quant_params->v_ac_delta_q);
-      const int seg_qindex =
-          av1_get_qindex(&cm->seg, mbmi->segment_id, xd->current_base_qindex,
-                         cm->seq_params.bit_depth);
       assert(mbmi->final_qindex_dc[k] ==
              av1_q_clamped(seg_qindex, dc_delta_q,
                            k == 0 ? cm->seq_params.base_y_dc_delta_q

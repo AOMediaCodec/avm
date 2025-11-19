@@ -51,13 +51,14 @@ class FrameMultiQmatrixTest
                           ::libaom_test::Encoder *encoder) override {
     if (video->frame() == 0) {
       encoder->Control(AOME_SET_CPUUSED, cpu_used_);
+      encoder->Control(AOME_SET_QP, 160);
       // Enable AQ mode based on segmentation
       encoder->Control(AV1E_SET_AQ_MODE, 1);
       // Enable quantization matrices
       encoder->Control(AV1E_SET_ENABLE_QM, 1);
       // Utilize full min and max QM range
       encoder->Control(AV1E_SET_QM_MIN, 0);
-      encoder->Control(AV1E_SET_QM_MAX, 15);
+      encoder->Control(AV1E_SET_QM_MAX, 11);
       encoder->Control(AV1E_SET_FRAME_MULTI_QMATRIX_UNIT_TEST, frame_qm_num_);
     }
   }

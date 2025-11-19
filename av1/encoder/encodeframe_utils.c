@@ -273,7 +273,8 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
   // If segmentation in use
   if (seg->enabled) {
     // For in frame complexity AQ copy the segment id from the segment map.
-    if (cpi->oxcf.q_cfg.aq_mode == COMPLEXITY_AQ) {
+    if (cpi->oxcf.q_cfg.aq_mode == COMPLEXITY_AQ &&
+        xd->tree_type != CHROMA_PART) {
       const uint8_t *const map =
           seg->update_map ? cpi->enc_seg.map : cm->last_frame_seg_map;
       mi_addr->segment_id =
@@ -282,7 +283,7 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
     // Else for cyclic refresh mode update the segment map, set the segment id
     // and then update the quantizer.
     if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ &&
-        xd->tree_type == SHARED_PART) {
+        xd->tree_type != CHROMA_PART) {
       av1_cyclic_refresh_update_segment(cpi, mi_addr, mi_row, mi_col, bsize,
                                         ctx->rd_stats.rate, ctx->rd_stats.dist,
                                         txfm_info->skip_txfm);

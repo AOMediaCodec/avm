@@ -363,7 +363,7 @@ void setup_block_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
                         AQ_MODE aq_mode, MB_MODE_INFO *mbmi) {
   x->rdmult = cpi->rd.RDMULT;
   MACROBLOCKD *const xd = &x->e_mbd;
-  if (aq_mode != NO_AQ && xd->tree_type == SHARED_PART) {
+  if (aq_mode != NO_AQ && xd->tree_type != CHROMA_PART) {
     assert(mbmi != NULL);
     if (aq_mode == VARIANCE_AQ) {
       if (cpi->vaq_refresh) {
@@ -461,8 +461,7 @@ void av1_set_offsets(const AV1_COMP *const cpi, const TileInfo *const tile,
   av1_set_offsets_without_segment_id(cpi, tile, x, mi_row, mi_col, bsize,
                                      chroma_ref_info);
 
-  // Don't set up segment ID for chroma part in SDP of inter frame
-  if (!frame_is_intra_only(cm) && xd->tree_type == CHROMA_PART) return;
+  if (xd->tree_type == CHROMA_PART) return;
 
   // Setup segment ID.
   mbmi = xd->mi[0];
@@ -628,6 +627,12 @@ static void pick_sb_modes(AV1_COMP *const cpi, ThreadData *td,
   // Save rdmult before it might be changed, so it can be restored later.
   const int orig_rdmult = x->rdmult;
   setup_block_rdmult(cpi, x, mi_row, mi_col, bsize, aq_mode, mbmi);
+
+  // For VARIANCE_AQ, segment id is set in setup_block_rdmult().
+  // Thus plane quantizers need to initialized again
+  if (cpi->oxcf.q_cfg.aq_mode == VARIANCE_AQ && cpi->vaq_refresh)
+    av1_init_plane_quantizers(cpi, x, mbmi->segment_id);
+
   // Set error per bit for current rdmult
   av1_set_error_per_bit(&x->mv_costs, x->rdmult);
   av1_rd_cost_update(x->rdmult, &best_rd);
@@ -685,7 +690,7 @@ static void pick_sb_modes(AV1_COMP *const cpi, ThreadData *td,
 
   // Examine the resulting rate and for AQ mode 2 make a segment choice.
   if (rd_cost->rate != INT_MAX && aq_mode == COMPLEXITY_AQ &&
-      bsize >= BLOCK_16X16) {
+      bsize >= BLOCK_16X16 && xd->tree_type != CHROMA_PART) {
     av1_caq_select_segment(cpi, x, bsize, mi_row, mi_col, rd_cost->rate);
   }
 
