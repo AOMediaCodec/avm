@@ -6355,7 +6355,17 @@ static void setup_film_grain(AV1Decoder *pbi, struct aom_read_bit_buffer *rb) {
                            pbi->fgm_list[cm->fgm_id].fgm_mlayer_id,
                            pbi->fgm_list[cm->fgm_id].fgm_tlayer_id);
       }
-
+      uint32_t seq_chroma_format_idc = CHROMA_FORMAT_420;
+      av1_get_chroma_format_idc(seq_params, &seq_chroma_format_idc);
+      if (seq_chroma_format_idc !=
+          (uint32_t)pbi->fgm_list[cm->fgm_id].fgm_chroma_idc) {
+        aom_internal_error(
+            &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+            "chroma_format_idc(%d) of fgm_list[%d] is different from "
+            "chroma_format_idc(%d) the sequence header",
+            pbi->fgm_list[cm->fgm_id].fgm_chroma_idc, cm->fgm_id,
+            seq_chroma_format_idc);
+      }
       copy_fgm_from_list(cm, pars, &pbi->fgm_list[cm->fgm_id]);
     }
   }

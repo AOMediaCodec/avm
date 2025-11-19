@@ -80,24 +80,24 @@ void copy_fgm_from_list(AV1_COMMON *cm, aom_film_grain_t *pars,
   pars->overlap_flag = fgm->overlap_flag;
   pars->clip_to_restricted_range = fgm->clip_to_restricted_range;
 #if CONFIG_CWG_F298_REC11
-      pars->fgm_scale_from_channel0_flag = fgm->fgm_scale_from_channel0_flag;
+  pars->fgm_scale_from_channel0_flag = fgm->fgm_scale_from_channel0_flag;
 #else
-      pars->chroma_scaling_from_luma = fgm->chroma_scaling_from_luma;
+  pars->chroma_scaling_from_luma = fgm->chroma_scaling_from_luma;
 #endif
   pars->grain_scale_shift = fgm->grain_scale_shift;
   pars->block_size = fgm->block_size;
 }
 
 static void read_film_grain_model(struct film_grain_model *fgm, int chroma_idc,
-                                 struct aom_read_bit_buffer *rb,
-                                 struct aom_internal_error_info *error_info) {
+                                  struct aom_read_bit_buffer *rb,
+                                  struct aom_internal_error_info *error_info) {
   int monochrome = chroma_idc == CHROMA_FORMAT_400;
   int subsampling_x = chroma_idc == CHROMA_FORMAT_444 ? 0 : 1;
   int subsampling_y =
       (chroma_idc == CHROMA_FORMAT_422 || chroma_idc == CHROMA_FORMAT_444) ? 0
                                                                            : 1;
 
-    // Scaling functions parameters
+  // Scaling functions parameters
 #if CONFIG_CWG_F298_REC11
   int fgmNumChannels = monochrome ? 1 : 3;
 
@@ -111,16 +111,13 @@ static void read_film_grain_model(struct film_grain_model *fgm, int chroma_idc,
       fgm->fgm_scale_from_channel0_flag ? 1 : fgmNumChannels;
   for (int c = 0; c < fgmNumScalingChannels; c++) {
     fgm->fgm_points[c] = aom_rb_read_literal(rb, 4);  // max 14
-    if (c == 0 && fgm->fgm_points[c] > 14) {
+    if (fgm->fgm_points[c] > 14) {
       aom_internal_error(error_info, AOM_CODEC_UNSUP_BITSTREAM,
                          "Number of points for film grain %s scaling "
                          "function exceeds the maximum value.",
-                         "luma");
-    } else if (c > 0 && fgm->fgm_points[c] > 10) {
-      aom_internal_error(error_info, AOM_CODEC_UNSUP_BITSTREAM,
-                         "Number of points for film grain %s scaling "
-                         "function exceeds the maximum value.",
-                         c == 1 ? "cb" : "cr");
+                         c == 0   ? "y"
+                         : c == 1 ? "cb"
+                                  : "cr");
     }
     if (fgm->fgm_points[c]) {
       int point_value_increment_bits_minus1 = aom_rb_read_literal(rb, 3);
@@ -140,7 +137,9 @@ static void read_film_grain_model(struct film_grain_model *fgm, int chroma_idc,
           aom_internal_error(error_info, AOM_CODEC_UNSUP_BITSTREAM,
                              "First coordinate of the scaling function "
                              "points shall be increasing.",
-                             c == 0 ? "y" : c == 1 ? "cb": "cr");
+                             c == 0   ? "y"
+                             : c == 1 ? "cb"
+                                      : "cr");
         }
         fgm->fgm_scaling_points[c][i][1] = aom_rb_read_literal(rb, bitsScal);
       }
@@ -175,7 +174,8 @@ static void read_film_grain_model(struct film_grain_model *fgm, int chroma_idc,
       if (i && fgm->scaling_points_y[i - 1][0] >= fgm->scaling_points_y[i][0]) {
         aom_internal_error(error_info, AOM_CODEC_UNSUP_BITSTREAM,
                            "First coordinate of the scaling function "
-                           "points shall be increasing.", "y");
+                           "points shall be increasing.",
+                           "y");
       }
       fgm->scaling_points_y[i][1] = aom_rb_read_literal(rb, bitsScal);
     }
@@ -196,7 +196,8 @@ static void read_film_grain_model(struct film_grain_model *fgm, int chroma_idc,
     if (fgm->num_cb_points > 10) {
       aom_internal_error(error_info, AOM_CODEC_UNSUP_BITSTREAM,
                          "Number of points for film grain %s scaling "
-                         "function exceeds the maximum value.", "cb");
+                         "function exceeds the maximum value.",
+                         "cb");
     }
     if (fgm->num_cb_points) {
       int point_cb_value_increment_bits_minus1 = aom_rb_read_literal(rb, 3);
@@ -209,7 +210,8 @@ static void read_film_grain_model(struct film_grain_model *fgm, int chroma_idc,
             fgm->scaling_points_cb[i - 1][0] >= fgm->scaling_points_cb[i][0]) {
           aom_internal_error(error_info, AOM_CODEC_UNSUP_BITSTREAM,
                              "First coordinate of the scaling function "
-                             "points shall be increasing.", "cb");
+                             "points shall be increasing.",
+                             "cb");
         }
         fgm->scaling_points_cb[i][1] = aom_rb_read_literal(rb, bitsScal);
       }
@@ -219,7 +221,8 @@ static void read_film_grain_model(struct film_grain_model *fgm, int chroma_idc,
     if (fgm->num_cr_points > 10) {
       aom_internal_error(error_info, AOM_CODEC_UNSUP_BITSTREAM,
                          "Number of points for film grain %s scaling "
-                         "function exceeds the maximum value.", "cr");
+                         "function exceeds the maximum value.",
+                         "cr");
     }
     if (fgm->num_cr_points) {
       int point_cr_value_increment_bits_minus1 = aom_rb_read_literal(rb, 3);
@@ -232,7 +235,8 @@ static void read_film_grain_model(struct film_grain_model *fgm, int chroma_idc,
             fgm->scaling_points_cr[i - 1][0] >= fgm->scaling_points_cr[i][0]) {
           aom_internal_error(error_info, AOM_CODEC_UNSUP_BITSTREAM,
                              "First coordinate of the scaling function "
-                             "points shall be increasing.", "cr");
+                             "points shall be increasing.",
+                             "cr");
         }
         fgm->scaling_points_cr[i][1] = aom_rb_read_literal(rb, bitsScal);
       }
@@ -345,7 +349,8 @@ uint32_t read_fgm_obu(AV1Decoder *pbi, const int obu_tlayer_id,
                        "Invalid fgm_chroma_idc [%d].", fgm_chroma_idc);
   }
   for (int j = 0; j < MAX_FGM_NUM; j++) {
-    // This process overwrites the position(pbi->fg_list[fgm_id]) if the fgm_id is the same.
+    // This process overwrites the position(pbi->fg_list[fgm_id]) if the fgm_id
+    // is the same.
     if (fgm_bit_map & (1 << j)) {
       int fgm_id = j;
       memset(&pbi->fgm_list[fgm_id], 0, sizeof(struct film_grain_model));

@@ -110,7 +110,7 @@ void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
 void av1_write_cctx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,
                          CctxType cctx_type, TX_SIZE tx_size, aom_writer *w);
 
-#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC && !CONFIG_F153_FGM_OBU
 // Given subsampling x/y and monochrome values in `seq_params`, outputs the
 // chroma format idc. Returns error in case of invalid subsampling format.
 static INLINE aom_codec_err_t av1_get_chroma_format_idc(
@@ -128,7 +128,7 @@ static INLINE aom_codec_err_t av1_get_chroma_format_idc(
   }
   return AOM_CODEC_OK;
 }
-#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
+#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC && !CONFIG_F153_FGM_OBU
 
 #ifdef __cplusplus
 }  // extern "C"
