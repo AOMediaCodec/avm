@@ -833,9 +833,8 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
     }
     update_subgop_stats(cm, &pbi->subgop_stats, cm->cur_frame->order_hint,
                         pbi->enable_subgop_stats);
-    if (((cm->show_frame && !cm->cur_frame->frame_output_done)
-         || cm->show_existing_frame
-         )) {
+    if (((cm->show_frame && !cm->cur_frame->frame_output_done) ||
+         cm->show_existing_frame)) {
       output_frame_buffers(pbi, -1);
       decrease_ref_count(cm->cur_frame, pool);
     } else {
