@@ -8038,7 +8038,6 @@ static INLINE int get_disp_order_hint(AV1_COMMON *const cm)
   } else if (obu_type == OBU_OLK) {
     if (random_accessed) return current_frame->order_hint;
   }
-  assert(current_frame->frame_type != KEY_FRAME);
 #else
   if (current_frame->frame_type == KEY_FRAME && cm->show_existing_frame)
     return 0;
