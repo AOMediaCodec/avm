@@ -2268,12 +2268,12 @@ INSTANTIATE_TEST_SUITE_P(
 //     unit-test for 'calc_wieners_ds_luma'             //
 //////////////////////////////////////////////////////////
 using libaom_test::ACMRandom;
+using std::get;
+using std::make_tuple;
 using std::tuple;
 using ::testing::Combine;
 using ::testing::Values;
 using ::testing::ValuesIn;
-using std::get;
-using std::make_tuple;
 
 typedef void (*calc_wieners_ds_luma_func)(const uint16_t *src, int src_stride,
                                           uint16_t *const dst, int dst_stride,
@@ -2373,7 +2373,7 @@ void WienersDSLumaTest::RunSpeedTest() {
   const int num_loops = 1000;
 
   calc_wieners_ds_luma_func functions[2] = { calc_wienerns_ds_luma_420_c,
-                                            test_fun_ };
+                                             test_fun_ };
   double elapsed_time[2] = { 0.0 };
   for (int i = 0; i < 2; ++i) {
     aom_usec_timer timer;
