@@ -1979,7 +1979,7 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
 #endif
 #if CONFIG_F153_FGM_OBU
         // It is a requirement that if multiple FGM OBUs are present
-        // consecutively prior to a coded frame, that such FGM OBUs will not set
+        // consecutively prior to a coded frame, such FGM OBUs will not set
         // the same FGM ID more than once.
         acc_fgm_id_bitmap = 0;
 #endif  // CONFIG_F153_FGM_OBU

@@ -2606,8 +2606,8 @@ static AOM_INLINE void write_tokens_b(AV1_COMP *cpi, aom_writer *w,
           for (int col = col128; col < AOMMIN(col128 + mu128_wide, num_4x4_w);
                col += mu_blocks_wide) {
 #else
-//    for (int row = 0; row < num_4x4_h; row += mu_blocks_high) {
-//      for (int col = 0; col < num_4x4_w; col += mu_blocks_wide) {
+    for (int row = 0; row < num_4x4_h; row += mu_blocks_high) {
+      for (int col = 0; col < num_4x4_w; col += mu_blocks_wide) {
 #endif  // CONFIG_TU64_TRAVERSED_ORDER
             const int plane_start = get_partition_plane_start(xd->tree_type);
             const int plane_end =

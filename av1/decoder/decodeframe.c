@@ -6345,13 +6345,13 @@ static void setup_film_grain(AV1Decoder *pbi, struct aom_read_bit_buffer *rb) {
         aom_internal_error(&cm->error, AOM_CODEC_INVALID_PARAM,
                            "fgm_list[%d] is unavailable", cm->fgm_id);
       }
-      if (seq_params->mlayer_dependency_map
-              [cm->mlayer_id][pbi->fgm_list[cm->fgm_id].fgm_mlayer_id] ||
-          seq_params->tlayer_dependency_map
-              [cm->tlayer_id][pbi->fgm_list[cm->fgm_id].fgm_tlayer_id]) {
+      if (!seq_params->mlayer_dependency_map
+               [cm->mlayer_id][pbi->fgm_list[cm->fgm_id].fgm_mlayer_id] ||
+          !seq_params->tlayer_dependency_map
+               [cm->tlayer_id][pbi->fgm_list[cm->fgm_id].fgm_tlayer_id]) {
         aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-                           "the layer ids of the film grain model are out"
-                           "of the limit: (%d, %d)",
+                           "mlayer_id(%d) or tlayer_id(%d) of the film grain "
+                           "model are out of the limit",
                            pbi->fgm_list[cm->fgm_id].fgm_mlayer_id,
                            pbi->fgm_list[cm->fgm_id].fgm_tlayer_id);
       }
@@ -6359,6 +6359,7 @@ static void setup_film_grain(AV1Decoder *pbi, struct aom_read_bit_buffer *rb) {
       copy_fgm_from_list(cm, pars, &pbi->fgm_list[cm->fgm_id]);
     }
   }
+  cm->cur_frame->film_grain_params = cm->film_grain_params;
 }
 #else
 void av1_read_film_grain_params(AV1_COMMON *cm,
@@ -10533,7 +10534,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   if (!frame_is_intra_only(cm)) read_global_motion(cm, rb);
 #if CONFIG_F153_FGM_OBU
   setup_film_grain(pbi, rb);
-  cm->cur_frame->film_grain_params = cm->film_grain_params;
 #else
   cm->cur_frame->film_grain_params_present =
       seq_params->film_grain_params_present;

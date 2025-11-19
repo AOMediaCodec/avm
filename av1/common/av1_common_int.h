@@ -2127,8 +2127,8 @@ struct film_grain_model {
   // 8 bit values
 #if CONFIG_CWG_F298_REC11
   /*!
-   * fgm_scaling_points[c][i][0] the value increment for the i-th point of
-   the piecewise linear scaling function for the c-th component.
+   * fgm_scaling_points[c][i][0] the x (luma value) coordinate for the i-th
+   point of the piecewise linear scaling function for the c-th component.
    * scaling_points[c][i][1] the scaling (output) value for the i-th point of
    the piecewise linear scaling function for  the c-th  component.
    */
@@ -2242,10 +2242,6 @@ component
    */
   int clip_to_restricted_range;
   /*!
-   * video bit depth
-   */
-  unsigned int bit_depth;
-  /*!
    * the chroma scaling is inferred from the luma scaling
    */
 #if CONFIG_CWG_F298_REC11
@@ -2264,7 +2260,8 @@ component
    */
   int grain_scale_shift;
   /*!
-   * id of the model
+   * id of the model : initialized to be -1 to indicate the film grain model is
+   * not used or not set
    */
   int fgm_id;
   /*!
