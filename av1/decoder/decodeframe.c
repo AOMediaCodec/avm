@@ -8698,11 +8698,17 @@ static void activate_sequence_header(AV1Decoder *pbi,
   }
 #endif  // CONFIG_F024_KEYOBU
 #if CONFIG_F153_FGM_OBU
-//  for (int i = 0; i < MAX_FGM_NUM; ++i) {
-//    pbi->fgm_list[i].fgm_id = -1;
-//    pbi->fgm_list[i].fgm_tlayer_id = -1;
-//    pbi->fgm_list[i].fgm_mlayer_id = -1;
-//  }
+  if (obu_type == OBU_CLK) {
+    // when SH, FGM and CLK are present in one TU, the fgm list is not reset.
+    for (int i = 0; i < MAX_FGM_NUM; ++i) {
+      if (pbi->fgm_list[i].fgm_seq_id_in_tu != -1 &&
+          pbi->fgm_list[i].fgm_seq_id_in_tu != cm->seq_params.seq_header_id) {
+        pbi->fgm_list[i].fgm_id = -1;
+        pbi->fgm_list[i].fgm_tlayer_id = -1;
+        pbi->fgm_list[i].fgm_mlayer_id = -1;
+      }
+    }
+  }
 #endif  // CONFIG_F153_FGM_OBU
 }
 #endif  // CONFIG_CWG_E242_SEQ_HDR_ID

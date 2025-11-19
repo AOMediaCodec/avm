@@ -332,7 +332,7 @@ static void read_film_grain_model(struct film_grain_model *fgm, int chroma_idc,
 
 uint32_t read_fgm_obu(AV1Decoder *pbi, const int obu_tlayer_id,
                       const int obu_mlayer_id, uint32_t *acc_fgm_id_bitmap,
-                      struct aom_read_bit_buffer *rb) {
+                      int fgm_seq_id_in_tu, struct aom_read_bit_buffer *rb) {
   const uint32_t saved_bit_offset = rb->bit_offset;
   int fgm_bit_map = aom_rb_read_literal(rb, MAX_FGM_NUM);
   if (*acc_fgm_id_bitmap & (uint32_t)fgm_bit_map) {
@@ -354,6 +354,7 @@ uint32_t read_fgm_obu(AV1Decoder *pbi, const int obu_tlayer_id,
     if (fgm_bit_map & (1 << j)) {
       int fgm_id = j;
       memset(&pbi->fgm_list[fgm_id], 0, sizeof(struct film_grain_model));
+      pbi->fgm_list[fgm_id].fgm_seq_id_in_tu = fgm_seq_id_in_tu;
       pbi->fgm_list[fgm_id].fgm_id = fgm_id;
       pbi->fgm_list[fgm_id].fgm_mlayer_id = obu_mlayer_id;
       pbi->fgm_list[fgm_id].fgm_tlayer_id = obu_tlayer_id;
