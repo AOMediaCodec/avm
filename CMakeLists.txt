@@ -485,15 +485,14 @@ if(CONFIG_AV1_DECODER AND ENABLE_EXAMPLES)
         "${AOM_ROOT}/av1/common/mv.h" --enums_header
         "${AOM_ROOT}/av1/decoder/accounting.h" --output
         "${AOM_ROOT}/tools/extract_proto/enum_mappings.h"
-      DEPENDS
-        "${AOM_ROOT}/tools/extract_proto/generate_enum_mappings.py"
-        "${AOM_ROOT}/av1/common/av1_common_int.h"
-        "${AOM_ROOT}/av1/common/blockd.h"
-        "${AOM_ROOT}/av1/common/enums.h"
-        "${AOM_ROOT}/av1/common/filter.h"
-        "${AOM_ROOT}/av1/common/mv.h"
-        "${AOM_ROOT}/av1/decoder/accounting.h"
-     VERBATIM)
+      DEPENDS "${AOM_ROOT}/tools/extract_proto/generate_enum_mappings.py"
+              "${AOM_ROOT}/av1/common/av1_common_int.h"
+              "${AOM_ROOT}/av1/common/blockd.h"
+              "${AOM_ROOT}/av1/common/enums.h"
+              "${AOM_ROOT}/av1/common/filter.h"
+              "${AOM_ROOT}/av1/common/mv.h"
+              "${AOM_ROOT}/av1/decoder/accounting.h"
+      VERBATIM)
     add_executable(
       extract_proto
       ${AOM_EXTRACT_PROTO_SOURCES} ${AVM_FRAME_PROTO_SRCS}
