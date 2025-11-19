@@ -4407,7 +4407,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
                sizeof(struct film_grain_model));
         cpi->written_fgm_num += 1;
       }
-#endif  // CONFIG_F153_FGM_OBU
+#endif                   // CONFIG_F153_FGM_OBU
     }
 
     cpi->seq_params_locked = 1;

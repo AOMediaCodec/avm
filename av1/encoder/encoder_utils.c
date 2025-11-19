@@ -1023,7 +1023,7 @@ void av1_finalize_encoded_frame(AV1_COMP *const cpi) {
   AV1_COMMON *const cm = &cpi->common;
 #if !CONFIG_F153_FGM_OBU
   CurrentFrame *const current_frame = &cm->current_frame;
-#endif // #if !CONFIG_F153_FGM_OBU
+#endif  // #if !CONFIG_F153_FGM_OBU
 #if CONFIG_F024_KEYOBU
   if (cm->show_existing_frame)
 #else

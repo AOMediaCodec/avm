@@ -342,7 +342,7 @@ typedef struct AV1Decoder {
   int seen_frame_header;
   // The expected start_tile (tg_start syntax element) of the next tile group.
   int next_start_tile;
-  
+
 #if CONFIG_F106_OBU_TILEGROUP
   uint32_t uncomp_hdr_size_in_bits;
 #else
