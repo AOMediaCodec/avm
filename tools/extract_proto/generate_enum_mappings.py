@@ -10,8 +10,8 @@
 ##
 """Creates enum value to name mapping header for AVM.
 
-Walks through the enum definitions in av1/common/enums.h and creates a header that
-maps individual enum variants to their (string) names.
+Walks through the enum definitions in av1/common/enums.h and creates a header
+that maps individual enum variants to their (string) names.
 """
 
 import argparse
@@ -28,6 +28,8 @@ ENUM_START_REGEX = re.compile(r"(?:typedef )?enum (?:ATTRIBUTE_PACKED )?\{")
 # AVM enum definitions optionally end with the macro UENUM1BYTE or SENUM1BYTE
 # and the enum name.
 ENUM_END_REGEX = re.compile(r"} ([US]ENUM[12]BYTE\()?(\w+)(?(1)\)|);")
+# For anonymous enums.
+ANON_ENUM_END_REGEX = re.compile(r"};")
 # Some enum variants are defined based on another variant; we don't care about
 # these ones, and only want to handle the ones with unique values. These variants
 # typically appear as actual symbols in the stream; the others are defined just
@@ -98,8 +100,11 @@ def remove_backslashes(s: str) -> str:
   s = re.sub(r"\\\n", "", s, flags=re.DOTALL)
   return s
 
+
 # TODO(comc) Unit test this, and its helper functions.
-def create_enum_mapping(input_header_paths: Sequence[str], output_header_path: str):
+def create_enum_mapping(
+    input_header_paths: Sequence[str], output_header_path: str
+):
   enum_definitions = []
   for input_header_path in input_header_paths:
     with open(input_header_path, "r") as f:
@@ -129,9 +134,13 @@ def create_enum_mapping(input_header_paths: Sequence[str], output_header_path: s
           )
           current_enum_index = None
           output_lines.append("};")
+        elif re.fullmatch(ANON_ENUM_END_REGEX, line):
+          del output_lines[current_enum_index:]
+          current_enum_index = None
     enum_definitions.append("\n".join(output_lines))
   enum_header = ENUM_HEADER_TEMPLATE.format(
-      enum_definitions="\n".join(enum_definitions))
+      enum_definitions="\n".join(enum_definitions)
+  )
   with open(output_header_path, "w") as f:
     f.write(enum_header)
 
