@@ -1110,7 +1110,12 @@ static AOM_INLINE void av1_set_tile_info(AV1_COMMON *const cm,
   // configure tile rows
   if (tiles->uniform_spacing) {
     // add BRU conditon here, not affect the result but make the code consistant
+#if CONFIG_CWG_F317
+    if ((cm->bru.enabled && cm->bru.frame_inactive_flag) ||
+        cm->bridge_frame_info.is_bridge_frame) {
+#else
     if (!cm->bru.enabled || !cm->bru.frame_inactive_flag) {
+#endif
       tiles->log2_rows = AOMMAX(tile_cfg->tile_rows, tiles->min_log2_rows);
       tiles->log2_rows = AOMMIN(tiles->log2_rows, tiles->max_log2_rows);
     }
