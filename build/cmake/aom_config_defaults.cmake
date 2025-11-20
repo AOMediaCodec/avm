@@ -153,7 +153,8 @@ set_aom_config_var(CONFIG_MULTILAYER_HLS 1 "HLS for multilayer coding.")
 set_aom_config_var(CONFIG_LCR_ID_IN_SH 1 "Add LCR id in the Sequence Header.")
 set_aom_config_var(CONFIG_ATLAS_BACKGROUND_COLOR 1
                    "Atlas background color information.")
-
+set_aom_config_var(CONFIG_ATLAS_ALPHA_SEGMENT 1
+                   "Atlas alpha segment information.")
 set_aom_config_var(CONFIG_SET_DEFAULT_VALUE_XLAYER_ID 1
                    "Set the default value of xlayer_id to global scope OBUs.")
 set_aom_config_var(CONFIG_PARAKIT_COLLECT_DATA 0
