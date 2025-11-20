@@ -75,6 +75,11 @@ static uint32_t write_ats_multistream_atlas_info(
   aom_wb_write_uvlc(
       wb, ats_basic_info->ats_num_atlas_segments_minus_1[obu_xLayer_id][xAId]);
 
+#if CONFIG_ATLAS_ALPHA_SEGMENT
+  aom_wb_write_bit(
+      wb,
+      ats_basic_info->ats_alpha_segments_present_flag[obu_xLayer_id][xAId]);
+#endif  // CONFIG_ATLAS_ALPHA_SEGMENT
 #if CONFIG_ATLAS_BACKGROUND_COLOR
   aom_wb_write_bit(
       wb,
@@ -103,6 +108,12 @@ static uint32_t write_ats_multistream_atlas_info(
         wb, ats_basic_info->ats_segment_width[obu_xLayer_id][xAId][i]);
     aom_wb_write_uvlc(
         wb, ats_basic_info->ats_segment_height[obu_xLayer_id][xAId][i]);
+#if CONFIG_ATLAS_ALPHA_SEGMENT
+    if (ats_basic_info->ats_alpha_segments_present_flag[obu_xLayer_id][xAId] == 1 &
+        i < NumSegments - 1)
+    aom_wb_write_uvlc(
+        wb, ats_basic_info->ats_alpha_segment_flag[obu_xLayer_id][xAId][i]);
+#endif  // CONFIG_ATLAS_ALPHA_SEGMENT
   }
   return 0;
 }

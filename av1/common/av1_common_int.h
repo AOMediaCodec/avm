@@ -792,6 +792,10 @@ typedef struct AtlasBasicInfo {
   int ats_segment_top_left_pos_y[MAX_NUM_XLAYERS][8][8];
   int ats_segment_width[MAX_NUM_XLAYERS][8][8];
   int ats_segment_height[MAX_NUM_XLAYERS][8][8];
+#if CONFIG_ATLAS_ALPHA_SEGMENT
+  int ats_alpha_segments_present_flag[MAX_NUM_XLAYERS][8];
+  int ats_alpha_segment_flag[MAX_NUM_XLAYERS][8][8];
+#endif  // CONFIG_ATLAS_ALPHA_SEGMENT
 #if CONFIG_ATLAS_BACKGROUND_COLOR
   int ats_background_info_present_flag[MAX_NUM_XLAYERS][8];
   int ats_background_red_value[MAX_NUM_XLAYERS][8];
