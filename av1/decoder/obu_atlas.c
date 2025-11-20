@@ -146,15 +146,28 @@ static uint32_t read_ats_region_to_segment_mapping(
                          obu_xLayer_id, xAId, (MAX_NUM_ATLAS_SEGMENTS - 1));
     }
     for (int i = 0; i < NumSegments; i++) {
+      // read top-left row and column
       ats_reg_seg_map->ats_top_left_region_column[obu_xLayer_id][xAId][i] =
           aom_rb_read_uvlc(rb);
       ats_reg_seg_map->ats_top_left_region_row[obu_xLayer_id][xAId][i] =
           aom_rb_read_uvlc(rb);
+      // read row and column offsets
       ats_reg_seg_map
-          ->ats_bottom_right_region_column_off[obu_xLayer_id][xAId][i] =
+          ->ats_bottom_right_region_column_offset[obu_xLayer_id][xAId][i] =
           aom_rb_read_uvlc(rb);
-      ats_reg_seg_map->ats_bottom_right_region_row_off[obu_xLayer_id][xAId][i] =
+      ats_reg_seg_map
+          ->ats_bottom_right_region_row_offset[obu_xLayer_id][xAId][i] =
           aom_rb_read_uvlc(rb);
+      // derive ats_bottom_right_region_column
+      ats_reg_seg_map->ats_bottom_right_region_column[obu_xLayer_id][xAId][i] =
+          ats_reg_seg_map->ats_top_left_region_column[obu_xLayer_id][xAId][i] +
+          ats_reg_seg_map
+              ->ats_bottom_right_region_column_offset[obu_xLayer_id][xAId][i];
+      // derive ats_bottom_right_region_row
+      ats_reg_seg_map->ats_bottom_right_region_row[obu_xLayer_id][xAId][i] =
+          ats_reg_seg_map->ats_top_left_region_row[obu_xLayer_id][xAId][i] +
+          ats_reg_seg_map
+              ->ats_bottom_right_region_row_offset[obu_xLayer_id][xAId][i];
     }
   } else {
     if (NumRegionsInAtlas > MAX_NUM_ATLAS_SEGMENTS) {

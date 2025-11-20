@@ -158,12 +158,26 @@ static uint32_t write_ats_region_to_segment_mapping(
           ats_reg_seg_map->ats_top_left_region_column[obu_xLayer_id][xAId][i]);
       aom_wb_write_uvlc(
           wb, ats_reg_seg_map->ats_top_left_region_row[obu_xLayer_id][xAId][i]);
+      // check if ats_bottom_right_region_column is derived correctly
+      assert(
+          ats_reg_seg_map
+              ->ats_bottom_right_region_column[obu_xLayer_id][xAId][i] ==
+          (ats_reg_seg_map->ats_top_left_region_column[obu_xLayer_id][xAId][i] +
+           ats_reg_seg_map->ats_bottom_right_region_column_offset[obu_xLayer_id]
+                                                                 [xAId][i]));
+      aom_wb_write_uvlc(
+          wb,
+          ats_reg_seg_map
+              ->ats_bottom_right_region_column_offset[obu_xLayer_id][xAId][i]);
+      // check if ats_bottom_right_region_row is derived correctly
+      assert(ats_reg_seg_map
+                 ->ats_bottom_right_region_row[obu_xLayer_id][xAId][i] ==
+             (ats_reg_seg_map->ats_top_left_region_row[obu_xLayer_id][xAId][i] +
+              ats_reg_seg_map->ats_bottom_right_region_row_offset[obu_xLayer_id]
+                                                                 [xAId][i]));
       aom_wb_write_uvlc(
           wb, ats_reg_seg_map
-                  ->ats_bottom_right_region_column_off[obu_xLayer_id][xAId][i]);
-      aom_wb_write_uvlc(
-          wb, ats_reg_seg_map
-                  ->ats_bottom_right_region_row_off[obu_xLayer_id][xAId][i]);
+                  ->ats_bottom_right_region_row_offset[obu_xLayer_id][xAId][i]);
     }
   } else
     ats_reg_seg_map->ats_num_atlas_segments_minus_1[obu_xLayer_id][xAId] =

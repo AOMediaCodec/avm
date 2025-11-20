@@ -758,10 +758,18 @@ typedef struct AtlasRegionToSegmentMapping {
                                 [MAX_NUM_ATLAS_SEGMENTS];
   int ats_top_left_region_row[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID]
                              [MAX_NUM_ATLAS_SEGMENTS];
-  int ats_bottom_right_region_column_off[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID]
+  int ats_bottom_right_region_column_offset[MAX_NUM_XLAYERS]
+                                           [MAX_NUM_ATLAS_SEG_ID]
+                                           [MAX_NUM_ATLAS_SEGMENTS];
+  int ats_bottom_right_region_row_offset[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID]
                                         [MAX_NUM_ATLAS_SEGMENTS];
-  int ats_bottom_right_region_row_off[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID]
-                                     [MAX_NUM_ATLAS_SEGMENTS];
+  // derived from ats_top_left_region_column and
+  // ats_bottom_right_region_column_offset
+  int ats_bottom_right_region_column[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID]
+                                    [MAX_NUM_ATLAS_SEGMENTS];
+  // derived from ats_top_left_region_row and ats_bottom_right_region_row_offset
+  int ats_bottom_right_region_row[MAX_NUM_XLAYERS][MAX_NUM_ATLAS_SEG_ID]
+                                 [MAX_NUM_ATLAS_SEGMENTS];
 } AtlasRegionToSegmentMapping;
 
 typedef struct AtlasRegionInfo {
