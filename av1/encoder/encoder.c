@@ -5028,6 +5028,14 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   if (cm->show_frame) {
     ++current_frame->frame_number;
   }
+
+  // after change the tile info in the bru frame_inactive, reset the flag to
+  // default
+  if (cm->bru.enabled && cm->bru.frame_inactive_flag) {
+    cm->bru.frame_inactive_flag = 0;
+    av1_set_tile_info(cm, &cpi->oxcf.tile_cfg);
+  }
+
   return AOM_CODEC_OK;
 }
 

@@ -1109,8 +1109,11 @@ static AOM_INLINE void av1_set_tile_info(AV1_COMMON *const cm,
 
   // configure tile rows
   if (tiles->uniform_spacing) {
-    tiles->log2_rows = AOMMAX(tile_cfg->tile_rows, tiles->min_log2_rows);
-    tiles->log2_rows = AOMMIN(tiles->log2_rows, tiles->max_log2_rows);
+    // add BRU conditon here, not affect the result but make the code consistant
+    if (!cm->bru.enabled || !cm->bru.frame_inactive_flag) {
+      tiles->log2_rows = AOMMAX(tile_cfg->tile_rows, tiles->min_log2_rows);
+      tiles->log2_rows = AOMMIN(tiles->log2_rows, tiles->max_log2_rows);
+    }
   } else {
     int mi_rows = ALIGN_POWER_OF_TWO(mi_params->mi_rows, cm->mib_size_log2);
     int sb_rows = mi_rows >> cm->mib_size_log2;

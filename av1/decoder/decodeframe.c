@@ -4578,9 +4578,6 @@ static AOM_INLINE void get_tile_buffers(
             (cm->tiles.tile_active_bitmap[tile_active_map_byte] >>
              tile_active_map_bit) &
             1;
-        // printf("read tile mode: tile_idx %d, active mode %d, in pbi %d\n",
-        // tile_idx, this_tile->tile_info.tile_active_mode, (pbi->tile_data +
-        // tile_idx)->tile_info.tile_active_mode);
       }
     }
   }
