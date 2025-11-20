@@ -473,10 +473,16 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
     }
   }
 
-  av1_read_sequence_header(rb, seq_params);
+  av1_read_sequence_header(rb, seq_params
+#if CONFIG_IMPROVED_REORDER_SEQ_FLAGS && !CONFIG_F255_QMOBU
+                           ,
+                           &cm->quant_params, &cm->error
+#endif  // CONFIG_IMPROVED_REORDER_SEQ_FLAGS && !CONFIG_F255_QMOBU
+  );
 
   seq_params->film_grain_params_present = aom_rb_read_bit(rb);
 
+#if !CONFIG_IMPROVED_REORDER_SEQ_FLAGS
   // Sequence header for coding tools beyond AV1
   av1_read_sequence_header_beyond_av1(rb, seq_params
 #if !CONFIG_F255_QMOBU
@@ -484,6 +490,7 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
                                       &cm->quant_params, &cm->error
 #endif  // !CONFIG_F255_QMOBU
   );
+#endif  // !CONFIG_IMPROVED_REORDER_SEQ_FLAGS
 
 #if !CONFIG_CWG_F270_CI_OBU
 #if CONFIG_SCAN_TYPE_METADATA

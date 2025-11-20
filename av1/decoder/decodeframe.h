@@ -59,7 +59,13 @@ void copy_fgm_from_list(AV1_COMMON *cm, aom_film_grain_t *pars,
 // frame_width_bits_minus_1 to enable_restoration) into seq_params.
 // Reports errors by calling rb->error_handler() or aom_internal_error().
 void av1_read_sequence_header(struct aom_read_bit_buffer *rb,
-                              SequenceHeader *seq_params);
+                              SequenceHeader *seq_params
+#if CONFIG_IMPROVED_REORDER_SEQ_FLAGS && !CONFIG_F255_QMOBU
+                              ,
+                              CommonQuantParams *quant_params,
+                              struct aom_internal_error_info *error_info
+#endif  // CONFIG_IMPROVED_REORDER_SEQ_FLAGS && !CONFIG_F255_QMOBU
+);
 
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO
 // Reads the tile information in the sequence header
@@ -67,6 +73,8 @@ void read_sequence_tile_info(struct SequenceHeader *seq_params,
                              struct aom_read_bit_buffer *rb);
 #endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 
+#if !CONFIG_IMPROVED_REORDER_SEQ_FLAGS
+// this function can be removed with CONFIG_IMPROVED_REORDER_SEQ_FLAGS == 1
 // Reads additional sequence header for coding tools beyond AV1
 void av1_read_sequence_header_beyond_av1(
     struct aom_read_bit_buffer *rb, SequenceHeader *seq_params
@@ -75,6 +83,7 @@ void av1_read_sequence_header_beyond_av1(
     CommonQuantParams *quant_params, struct aom_internal_error_info *error_info
 #endif  // !CONFIG_F255_QMOBU
 );
+#endif  // !CONFIG_IMPROVED_REORDER_SEQ_FLAGS
 
 #if CONFIG_F255_QMOBU
 void av1_copy_predefined_qmatrices_to_list(struct AV1Decoder *pbi,
