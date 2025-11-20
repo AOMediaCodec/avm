@@ -7902,6 +7902,8 @@ void av1_read_multi_frame_header(AV1_COMMON *cm,
   mfh_param->mfh_seq_header_id = (int)mfh_seq_header_id;
 #endif  // #if CONFIG_CWG_E242_SEQ_HDR_ID
 #if CONFIG_CWG_E242_PARSING_INDEP
+  mfh_param->mfh_frame_width = cm->seq_params.max_frame_width;
+  mfh_param->mfh_frame_height = cm->seq_params.max_frame_height;
   mfh_param->mfh_frame_size_present_flag = aom_rb_read_bit(rb);
 #if CONFIG_MFH_SIGNAL_TILE_INFO
   mfh_param->mfh_tile_info_present_flag = aom_rb_read_bit(rb);
@@ -7922,8 +7924,8 @@ void av1_read_multi_frame_header(AV1_COMMON *cm,
 #else
   bool frame_size_update_flag = aom_rb_read_bit(rb);
 
-  int width = cm->seq_params.num_bits_width;
-  int height = cm->seq_params.num_bits_height;
+  int width = cm->seq_params.max_frame_width;
+  int height = cm->seq_params.max_frame_height;
   if (frame_size_update_flag) {
     int num_bits_width = cm->seq_params.num_bits_width;
     int num_bits_height = cm->seq_params.num_bits_height;
@@ -7978,7 +7980,6 @@ void av1_read_multi_frame_header(AV1_COMMON *cm,
     read_multi_frame_header_tile_info(mfh_param, rb);
   }
 #endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
-
 #if CONFIG_MULTI_LEVEL_SEGMENTATION
   read_multi_frame_header_seg_info(mfh_param, rb);
 #endif  // CONFIG_MULTI_LEVEL_SEGMENTATION

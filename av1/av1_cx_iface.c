@@ -242,6 +242,9 @@ struct av1_extracfg {
 #if CONFIG_SCAN_TYPE_METADATA
   unsigned int scan_type_info_present_flag;
 #endif  // CONFIG_SCAN_TYPE_METADATA
+#if CONFIG_MULTI_FRAME_HEADER
+  unsigned int enable_mfh_obu_signaling;
+#endif  // CONFIG_MULTI_FRAME_HEADER
 };
 
 // Example subgop configs. Currently not used by default.
@@ -569,6 +572,9 @@ static struct av1_extracfg default_extra_cfg = {
 #if CONFIG_SCAN_TYPE_METADATA
   0,
 #endif  // CONFIG_SCAN_TYPE_METADATA
+#if CONFIG_MULTI_FRAME_HEADER
+  0,  // enable_mfh_obu_signaling
+#endif  // CONFIG_MULTI_FRAME_HEADER
 };
 // clang-format on
 
@@ -1000,6 +1006,9 @@ static void update_encoder_config(cfg_options_t *cfg,
 #if CONFIG_SCAN_TYPE_METADATA
   cfg->scan_type_info_present_flag = extra_cfg->scan_type_info_present_flag;
 #endif  // CONFIG_SCAN_TYPE_METADATA
+#if CONFIG_MULTI_FRAME_HEADER
+  cfg->enable_mfh_obu_signaling = extra_cfg->enable_mfh_obu_signaling;
+#endif  // CONFIG_MULTI_FRAME_HEADER
   cfg->explicit_ref_frame_map = extra_cfg->explicit_ref_frame_map;
   cfg->enable_generation_sef_obu = extra_cfg->enable_generation_sef_obu;
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
@@ -1147,6 +1156,9 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
 #if CONFIG_SCAN_TYPE_METADATA
   extra_cfg->scan_type_info_present_flag = cfg->scan_type_info_present_flag;
 #endif  // CONFIG_SCAN_TYPE_METADATA
+#if CONFIG_MULTI_FRAME_HEADER
+  extra_cfg->enable_mfh_obu_signaling = cfg->enable_mfh_obu_signaling;
+#endif  // CONFIG_MULTI_FRAME_HEADER
 }
 
 static double convert_qp_offset(int qp, int qp_offset, int bit_depth) {
@@ -1361,6 +1373,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   tool_cfg->scan_type_info_present_flag =
       extra_cfg->scan_type_info_present_flag;
 #endif  // CONFIG_SCAN_TYPE_METADATA
+#if CONFIG_MULTI_FRAME_HEADER
+  tool_cfg->enable_mfh_obu_signaling = extra_cfg->enable_mfh_obu_signaling;
+#endif  // CONFIG_MULTI_FRAME_HEADER
   tool_cfg->enable_bawp = extra_cfg->enable_bawp;
   tool_cfg->enable_cwp = extra_cfg->enable_cwp;
   tool_cfg->enable_imp_msk_bld = extra_cfg->enable_imp_msk_bld;
@@ -2747,6 +2762,15 @@ static aom_codec_err_t ctrl_get_enable_bru(aom_codec_alg_priv_t *ctx,
   *arg = ctx->cpi->common.seq_params.enable_bru;
   return AOM_CODEC_OK;
 }
+
+#if CONFIG_MULTI_FRAME_HEADER
+static aom_codec_err_t ctrl_set_mfh_obu_signaling(aom_codec_alg_priv_t *ctx,
+                                                  va_list args) {
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.enable_mfh_obu_signaling = CAST(AV1E_SET_MFH_OBU_SIGNALING, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+#endif  // CONFIG_MULTI_FRAME_HEADER
 
 static aom_codec_err_t create_stats_buffer(FIRSTPASS_STATS **frame_stats_buffer,
                                            STATS_BUFFER_CTX *stats_buf_context,
@@ -4360,6 +4384,12 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
     extra_cfg.scan_type_info_present_flag =
         arg_parse_int_helper(&arg, err_string);
 #endif  // CONFIG_SCAN_TYPE_METADATA
+#if CONFIG_MULTI_FRAME_HEADER
+  } else if (arg_match_helper(&arg,
+                              &g_av1_codec_arg_defs.enable_mfh_obu_signaling,
+                              argv, err_string)) {
+    extra_cfg.enable_mfh_obu_signaling = arg_parse_int_helper(&arg, err_string);
+#endif  // CONFIG_MULTI_FRAME_HEADER
   } else {
     match = 0;
     snprintf(err_string, ARG_ERR_MSG_MAX_LEN, "Cannot find aom option %s",
@@ -4516,6 +4546,9 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_ENABLE_SUBGOP_STATS, ctrl_enable_subgop_stats },
   { AV1E_SET_ENABLE_BRU, ctrl_set_enable_bru },
   { AV1E_GET_ENABLE_BRU, ctrl_get_enable_bru },
+#if CONFIG_MULTI_FRAME_HEADER
+  { AV1E_SET_MFH_OBU_SIGNALING, ctrl_set_mfh_obu_signaling },
+#endif  // CONFIG_MULTI_FRAME_HEADER
   // Getters
   { AOME_GET_LAST_QUANTIZER, ctrl_get_quantizer },
   { AV1_GET_REFERENCE, ctrl_get_reference },
@@ -4672,7 +4705,10 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #if CONFIG_SCAN_TYPE_METADATA
         0,
 #endif  // CONFIG_SCAN_TYPE_METADATA
-    },  // cfg
+#if CONFIG_MULTI_FRAME_HEADER
+        0,  // enable_mfh_obu_signaling
+#endif      // CONFIG_MULTI_FRAME_HEADER
+    },      // cfg
 } };
 
 // This data structure and function are exported in aom/aomcx.h

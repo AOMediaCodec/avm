@@ -1236,6 +1236,9 @@ enum aome_enc_control_id {
    */
   AV1E_SET_FILM_GRAIN_BLOCK_SIZE = 174,
 
+  /*!\brief Control to set multi-frame header OBU signaling
+   */
+  AV1E_SET_MFH_OBU_SIGNALING = 175,
 };
 
 /*!\brief aom 1-D scaling mode
@@ -1740,6 +1743,10 @@ AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_BRU, int)
 #define AOM_CTRL_AV1E_SET_ENABLE_BRU
 AOM_CTRL_USE_TYPE(AV1E_GET_ENABLE_BRU, int *)
 #define AOM_CTRL_AV1E_GET_ENABLE_BRU
+
+AOM_CTRL_USE_TYPE(AV1E_SET_MFH_OBU_SIGNALING, int)
+#define AOM_CTRL_AV1E_SET_MFH_OBU_SIGNALING
+
 /*!\endcond */
 /*! @} - end defgroup aom_encoder */
 #ifdef __cplusplus

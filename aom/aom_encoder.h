@@ -666,6 +666,13 @@ typedef struct cfg_options {
    */
   unsigned int scan_type_info_present_flag;
 #endif  // CONFIG_SCAN_TYPE_METADATA
+
+#if CONFIG_MULTI_FRAME_HEADER
+  /*!\brief Scan type info present flag
+   *
+   */
+  unsigned int enable_mfh_obu_signaling;
+#endif  // CONFIG_MULTI_FRAME_HEADER
 } cfg_options_t;
 
 /*!\brief Encoded Frame Flags

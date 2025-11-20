@@ -226,6 +226,9 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
                                         AV1E_SET_FRAME_OUTPUT_ORDER_DERIVATION,
                                         AV1E_SET_ENABLE_CDF_AVERAGING,
                                         AV1E_SET_ENABLE_BRU,
+#if CONFIG_MULTI_FRAME_HEADER
+                                        AV1E_SET_MFH_OBU_SIGNALING,
+#endif  // CONFIG_MULTI_FRAME_HEADER
                                         0 };
 
 const arg_def_t *main_args[] = { &g_av1_codec_arg_defs.help,
@@ -506,6 +509,9 @@ const arg_def_t *av1_key_val_args[] = {
 #if CONFIG_SCAN_TYPE_METADATA
   &g_av1_codec_arg_defs.scan_type_info_present_flag,
 #endif  // CONFIG_SCAN_TYPE_METADATA
+#if CONFIG_MULTI_FRAME_HEADER
+  &g_av1_codec_arg_defs.enable_mfh_obu_signaling,
+#endif  // CONFIG_MULTI_FRAME_HEADER
   NULL,
 };
 
@@ -734,6 +740,9 @@ static void init_config(cfg_options_t *config) {
 #if CONFIG_SCAN_TYPE_METADATA
   config->scan_type_info_present_flag = 0;
 #endif  // CONFIG_SCAN_TYPE_METADATA
+#if CONFIG_MULTI_FRAME_HEADER
+  config->enable_mfh_obu_signaling = 0;
+#endif  // CONFIG_MULTI_FRAME_HEADER
 }
 
 #if CONFIG_ICC_METADATA

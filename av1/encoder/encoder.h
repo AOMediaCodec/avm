@@ -938,6 +938,9 @@ typedef struct {
   unsigned int scan_type_info_present_flag;
 #endif  // CONFIG_SCAN_TYPE_METADATA
 
+#if CONFIG_MULTI_FRAME_HEADER
+  unsigned int enable_mfh_obu_signaling;
+#endif  // CONFIG_MULTI_FRAME_HEADER
 } ToolCfg;
 
 #define MAX_SUBGOP_CONFIGS 64

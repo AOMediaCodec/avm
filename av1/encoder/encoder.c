@@ -851,7 +851,7 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   av1_update_film_grain_parameters(cpi, oxcf);
 
 #if CONFIG_MULTI_FRAME_HEADER
-  cm->cur_mfh_id = 0;
+  cm->cur_mfh_id = oxcf->tool_cfg.enable_mfh_obu_signaling ? 1 : 0;
   cpi->cur_mfh_params.mfh_loop_filter_update_flag = 0;
 #if CONFIG_MFH_SIGNAL_TILE_INFO
   cpi->cur_mfh_params.mfh_tile_info_present_flag = 0;
@@ -5089,7 +5089,7 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   AV1_COMMON *const cm = &cpi->common;
 #if CONFIG_MULTI_FRAME_HEADER
-  cm->cur_mfh_id = 0;
+  cm->cur_mfh_id = oxcf->tool_cfg.enable_mfh_obu_signaling ? 1 : 0;
 #endif  // CONFIG_MULTI_FRAME_HEADER
   cm->showable_frame = 0;
   *size = 0;

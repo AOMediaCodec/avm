@@ -302,6 +302,9 @@ typedef struct av1_codec_arg_definitions {
 #if CONFIG_SCAN_TYPE_METADATA
   arg_def_t scan_type_info_present_flag;
 #endif  // CONFIG_SCAN_TYPE_METADATA
+#if CONFIG_MULTI_FRAME_HEADER
+  arg_def_t enable_mfh_obu_signaling;
+#endif  // CONFIG_MULTI_FRAME_HEADER
 } av1_codec_arg_definitions_t;
 
 extern const av1_codec_arg_definitions_t g_av1_codec_arg_defs;
