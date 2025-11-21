@@ -304,6 +304,9 @@ typedef struct RefCntBuffer {
   // the limitation of get_relative_dist() which returns incorrect
   // distance when a very old frame is used as a reference.
   unsigned int display_order_hint;
+#if CONFIG_F322_OBUER_REFRESTRICT
+  unsigned int display_order_hint_restricted;
+#endif  // CONFIG_F322_OBUER_REFRESTRICT
   unsigned int absolute_poc;
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   int long_term_id;
@@ -354,6 +357,11 @@ typedef struct RefCntBuffer {
   FrameHash raw_frame_hash;
   FrameHash grain_frame_hash;
   CcsoInfo ccso_info;
+#if CONFIG_F322_OBUER_REFRESTRICT
+  bool is_restricted_ref;  // 0.free-to-use 1.restricted-to-use
+  bool is_restricted_switch_frame;
+  int has_restricted_ref[INTER_REFS_PER_FRAME];
+#endif  // CONFIG_F322_OBUER_REFRESTRICT
 } RefCntBuffer;
 
 // Store the characteristics related to each reference frame, which can be used
@@ -363,9 +371,15 @@ typedef struct {
   // 1 if this reference frame can be considered in the inference process (not
   // a repeated reference frame)
   int ref_frame_for_inference;
+#if CONFIG_F322_OBUER_REFRESTRICT
+  int ref_frame_restricted;
+#endif  // CONFIG_F322_OBUER_REFRESTRICT
   int pyr_level;
   int temporal_layer_id;
   int disp_order;
+#if CONFIG_F322_OBUER_REFRESTRICT
+  int disp_order_removed;
+#endif  // CONFIG_F322_OBUER_REFRESTRICT
   int base_qindex;
   int mlayer_id;
   int width;
@@ -1174,6 +1188,9 @@ typedef struct {
 
   unsigned int order_hint;
   unsigned int display_order_hint;
+#if CONFIG_F322_OBUER_REFRESTRICT
+  unsigned int display_order_hint_restricted;
+#endif  // CONFIG_F322_OBUER_REFRESTRICT
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   int long_term_id;
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
@@ -1901,6 +1918,23 @@ typedef struct {
    * Number of references for the compound mode with the same slot.
    */
   int num_same_ref_compound;
+#if CONFIG_F322_OBUER_REFRESTRICT
+  /*!
+   * Number of references that are not restricted
+   */
+  int num_valid_refs_without_restricted_ref;
+  /*!
+   * Number of restricted references
+   */
+  int num_restricted_ref;
+  /*!
+   * Number of references including restricted and non-restricted
+   * At the encoder num_valid_refs_with_restricted_ref =
+   * num_restricted_ref+num_total_refs The same limit to num_total_refs is
+   * applied
+   */
+  int num_valid_refs_with_restricted_ref;
+#endif  // CONFIG_F322_OBUER_REFRESTRICT
 } RefFramesInfo;
 
 /*!
@@ -2958,6 +2992,15 @@ typedef struct AV1Common {
 
   int fgm_id;
 #endif  // CONFIG_F153_FGM_OBU
+
+#if CONFIG_F322_OBUER_REFRESTRICT
+  /*!
+   * restricted_prediction_switch equals 1 indicates the frame is a switch frame
+   * with restricted references.
+   */
+  bool restricted_prediction_switch;
+#endif  // CONFIG_F322_OBUER_REFRESTRICT
+
 } AV1_COMMON;
 
 /*!\cond */
@@ -3258,6 +3301,9 @@ static INLINE void get_secondary_reference_frame_idx(const AV1_COMMON *const cm,
     for (; ref_frame < cm->ref_frames_info.num_total_refs; ref_frame++) {
       RefFrameMapPair cur_ref =
           cm->ref_frame_map_pairs[get_ref_frame_map_idx(cm, ref_frame)];
+#if CONFIG_F322_OBUER_REFRESTRICT
+      assert(!cur_ref.ref_frame_restricted);
+#endif  // CONFIG_F322_OBUER_REFRESTRICT
       if (cur_ref.ref_frame_for_inference == -1 ||
           cur_ref.frame_type != INTER_FRAME)
         continue;
@@ -3339,7 +3385,13 @@ static INLINE RefCntBuffer *get_primary_ref_frame_buf(
     return cm->tip_ref.tip_frame;
   }
   const int map_idx = get_ref_frame_map_idx(cm, primary_ref_frame);
-  return (map_idx != INVALID_IDX) ? cm->ref_frame_map[map_idx] : NULL;
+#if CONFIG_F322_OBUER_REFRESTRICT
+  if (cm->ref_frame_map[map_idx] != NULL &&
+      cm->ref_frame_map[map_idx]->is_restricted_ref)
+    return NULL;
+  else
+#endif  // CONFIG_F322_OBUER_REFRESTRICT
+    return (map_idx != INVALID_IDX) ? cm->ref_frame_map[map_idx] : NULL;
 }
 
 // Returns 1 if this frame might allow mvs from some reference frame.
@@ -5428,10 +5480,15 @@ static INLINE void init_ibp_info(
 
 #define DISPLAY_ORDER_HINT_BITS 30
 #define RELATIVE_DIST_BITS 8
+#if CONFIG_F322_OBUER_REFRESTRICT
+#define REF_RESTRICTED_DOH INT_MAX
+#endif  // CONFIG_F322_OBUER_REFRESTRICT
 
 static INLINE int get_relative_dist(const OrderHintInfo *oh, int a, int b) {
   if (oh->order_hint_bits_minus_1 < 0) return 0;
-
+#if CONFIG_F322_OBUER_REFRESTRICT
+  assert(a != INT_MAX || b != INT_MAX);
+#endif  // CONFIG_F322_OBUER_REFRESTRICT
   assert(a >= 0);
   assert(b >= 0);
   const int bits = DISPLAY_ORDER_HINT_BITS;

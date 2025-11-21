@@ -258,6 +258,9 @@ AV1Decoder *av1_decoder_create(BufferPool *const pool) {
     pbi->fgm_list[i].fgm_seq_id_in_tu = -1;
   }
 #endif  // CONFIG_F153_FGM_OBU
+#if CONFIG_F322_OBUER_REFRESTRICT
+  pbi->restricted_predition = 0;
+#endif  // CONFIG_F322_OBUER_REFRESTRICT
 
 #if CONFIG_ACCOUNTING
   pbi->acct_enabled = 1;
@@ -731,6 +734,13 @@ void output_frame_buffers(AV1Decoder *pbi, int ref_idx) {
   uint64_t trigger_frame_output_order =
       derive_output_order_idx(cm, trigger_frame);
 #endif  // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
+
+#if CONFIG_F322_OBUER_REFRESTRICT
+  // NOTE when the restricted switch frame is used, the DOHs of some reference
+  // frames are not reliable and very big(INT_MAX). therefore, nothing will be
+  // output.
+#endif  // CONFIG_F322_OBUER_REFRESTRICT
+
   int successive_output = 1;
   for (int k = 1; k <= cm->seq_params.ref_frames && successive_output > 0;
        k++) {
@@ -769,7 +779,6 @@ void output_frame_buffers(AV1Decoder *pbi, int ref_idx) {
     }
   }
 }
-
 // This function outputs all frames from the frame buffers that are showable but
 // have not yet been output in the previous CVS.
 void output_trailing_frames(AV1Decoder *pbi) {
@@ -812,6 +821,9 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
         cm->current_frame.refresh_frame_flags ==
             ((1 << cm->seq_params.ref_frames) - 1))
       output_trailing_frames(pbi);
+#if CONFIG_F322_OBUER_REFRESTRICT
+    cm->cur_frame->is_restricted_ref = false;
+#endif  // CONFIG_F322_OBUER_REFRESTRICT
 
     // The following for loop needs to release the reference stored in
     // cm->ref_frame_map[ref_index] before storing a reference to

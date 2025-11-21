@@ -1390,6 +1390,9 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
 
                   if (ref_idx > 0) {
                     ref_frame = get_ref_frame_buf(cm, ref_idx - 1);
+#if CONFIG_F322_OBUER_REFRESTRICT  // ccso
+                    if (ref_frame->is_restricted_ref) continue;
+#endif  // CONFIG_F322_OBUER_REFRESTRICT
                     CcsoInfo *ccso_tmp = &ref_frame->ccso_info;
                     if (!ccso_tmp->ccso_enable[plane]) {
                       continue;

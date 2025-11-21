@@ -190,5 +190,20 @@ void av1_setup_frame_size(AV1_COMP *cpi) {
                      cm->ref_frame_map_pairs);
   cm->ref_frame_flags = (1 << cpi->common.ref_frames_info.num_total_refs) - 1;
   cm->cur_frame->num_ref_frames = cm->ref_frames_info.num_total_refs;
+
+#if CONFIG_F322_OBUER_REFRESTRICT
+  int ref_frame_safe_to_use = 0;
+  for (int i = 0; i < cm->seq_params.ref_frames; i++) {
+    if (cm->ref_frame_map[i] != NULL) {
+      bool ref_unrestricted = (current_frame->frame_type == S_FRAME ||
+                               current_frame->frame_type == KEY_FRAME ||
+                               current_frame->frame_type == INTRA_ONLY_FRAME)
+                                  ? false
+                                  : !cm->ref_frame_map[i]->is_restricted_ref;
+      ref_frame_safe_to_use |= ref_unrestricted << i;
+    }
+  }
+  cm->ref_frame_flags &= ref_frame_safe_to_use;
+#endif  // CONFIG_F322_OBUER_REFRESTRICT
 #endif  // CONFIG_CWG_F317_TEST_PATTERN
 }

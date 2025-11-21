@@ -65,6 +65,9 @@ set_aom_config_var(CONFIG_F322_OBUER_EXPLICIT_REFLIST 1
                    "Signal explit_ref_frame_map in uncompressed_headr")
 set_aom_config_var(CONFIG_ERROR_RESILIENT_FIX 1 "Additional check for s_frame.")
 
+set_aom_config_var(CONFIG_F322_OBUER_REFRESTRICT 1
+                   "Use restricted reference for switch frames and after.")
+
 set_aom_config_var(CONFIG_F255_QMOBU 1 "Enable QM_OBU")
 
 set_aom_config_var(CONFIG_F024_KEYOBU 1 "Use Key OBUs.")

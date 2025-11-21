@@ -373,7 +373,11 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
     seq->force_screen_content_tools = 2;
     seq->force_integer_mv = 2;
   }
-  if (oxcf->kf_cfg.key_freq_min == 9999 && oxcf->kf_cfg.key_freq_max == 9999)
+  if (oxcf->kf_cfg.key_freq_min == 9999 && oxcf->kf_cfg.key_freq_max == 9999
+#if CONFIG_F322_OBUER_REFRESTRICT
+      && oxcf->kf_cfg.sframe_mode != 0
+#endif  // CONFIG_F322_OBUER_REFRESTRICT
+  )
     seq->order_hint_info.order_hint_bits_minus_1 =
         DEFAULT_EXPLICIT_ORDER_HINT_BITS - 4;
   else if (oxcf->kf_cfg.key_freq_min == 65 && oxcf->kf_cfg.key_freq_max == 65)
@@ -3336,6 +3340,9 @@ static void set_primary_ref_frame_for_error_resilient(AV1_COMP *cpi) {
       // Get reference frame buffer
       RefFrameMapPair cur_ref =
           ref_frame_map_pairs[get_ref_frame_map_idx(cm, i)];
+#if CONFIG_F322_OBUER_REFRESTRICT
+      if (cur_ref.ref_frame_restricted) continue;
+#endif  // CONFIG_F322_OBUER_REFRESTRICT
       if (cur_ref.ref_frame_for_inference == -1) continue;
       if (cur_ref.frame_type != INTER_FRAME) continue;
 
@@ -4304,6 +4311,10 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
     for (int i = 0; i < n_refs; ++i) {
       const int temp_map_idx = get_ref_frame_map_idx(cm, i);
       const RefCntBuffer *const temp_ref_buf = cm->ref_frame_map[temp_map_idx];
+#if CONFIG_F322_OBUER_REFRESTRICT
+      assert(temp_ref_buf != NULL);
+      if (temp_ref_buf != NULL && temp_ref_buf->is_restricted_ref) continue;
+#endif  // CONFIG_F322_OBUER_REFRESTRICT
       if (temp_ref_buf->frame_type != INTER_FRAME) continue;
       if (cm->bru.enabled && i == cm->bru.update_ref_idx) continue;
 
@@ -4535,13 +4546,15 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 
   features->enable_ext_seg = seq_params->enable_ext_seg;
   cm->seg.enable_ext_seg = seq_params->enable_ext_seg;
-
+  // TODO: Does it need to keep GF_UPDATE?
+#if !CONFIG_F322_OBUER_REFRESTRICT
   if (frame_is_sframe(cm)) {
     GF_GROUP *gf_group = &cpi->gf_group;
     // S frame will wipe out any previously encoded altref so we cannot place
     // an overlay frame
     gf_group->update_type[gf_group->size] = GF_UPDATE;
   }
+#endif  // CONFIG_F322_OBUER_REFRESTRICT
 
 #if CONFIG_F024_KEYOBU
   if (!cpi->oxcf.ref_frm_cfg.enable_generation_sef_obu &&
@@ -5053,6 +5066,10 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
   }
 #endif  // CONFIG_F356_SEF_DOH
 
+#if CONFIG_F322_OBUER_REFRESTRICT
+  current_frame->display_order_hint_restricted = current_frame->order_hint;
+#endif  // CONFIG_F322_OBUER_REFRESTRICT
+
   current_frame->pyramid_level = get_true_pyr_level(
       cpi->gf_group.layer_depth[cpi->gf_group.index],
 #if CONFIG_F024_KEYOBU
@@ -5065,7 +5082,41 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
 
   cm->tlayer_id = 0;
   current_frame->temporal_layer_id = cm->tlayer_id;
+#if CONFIG_F322_OBUER_REFRESTRICT
+  cm->cur_frame->is_restricted_switch_frame = 0;
+  cm->restricted_prediction_switch =
+      cpi->oxcf.kf_cfg.sframe_dist != 0 && cpi->oxcf.kf_cfg.sframe_mode == 0;
+  if (current_frame->frame_type == KEY_FRAME) {
+    for (int i = 0; i < cm->seq_params.ref_frames; i++) {
+      if (cm->ref_frame_map[i] != NULL)
+        cm->ref_frame_map[i]->is_restricted_ref = true;
+    }
+  }
 
+  if (cm->restricted_prediction_switch) {
+    cm->cur_frame->is_restricted_switch_frame = 1;
+    if (current_frame->frame_type == S_FRAME) {
+      for (int i = 0; i < cm->seq_params.ref_frames; i++) {
+        if (cm->ref_frame_map[i] != NULL)
+          cm->ref_frame_map[i]->is_restricted_ref = true;
+      }
+    }
+
+    int ref_frame_safe_to_use = 0;
+    // todo: check ref_frame_restricted how did it be used
+    for (int i = 0; i < cm->seq_params.ref_frames; i++) {
+      if (cm->ref_frame_map[i] != NULL) {
+        bool ref_unrestricted = (current_frame->frame_type == S_FRAME ||
+                                 current_frame->frame_type == KEY_FRAME ||
+                                 current_frame->frame_type == INTRA_ONLY_FRAME)
+                                    ? false
+                                    : !cm->ref_frame_map[i]->is_restricted_ref;
+        ref_frame_safe_to_use |= ref_unrestricted << i;
+      }
+    }
+    cm->ref_frame_flags &= ref_frame_safe_to_use;
+  }
+#endif  // CONFIG_F322_OBUER_REFRESTRICT
   const int order_offset = cpi->gf_group.arf_src_offset[cpi->gf_group.index];
   const int cur_frame_disp =
       cpi->common.current_frame.frame_number + order_offset;
@@ -5115,6 +5166,13 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
   current_frame->order_hint %=
       (1 << (cm->seq_params.order_hint_info.order_hint_bits_minus_1 + 1));
 
+#if CONFIG_F322_OBUER_REFRESTRICT
+  // Note this is placed here to keep the same pyramid_level
+  if (current_frame->frame_type == S_FRAME) {
+    current_frame->display_order_hint = current_frame->order_hint;
+    current_frame->display_order_hint_restricted = current_frame->order_hint;
+  }
+#endif  // CONFIG_F322_OBUER_REFRESTRICT
   if (is_stat_generation_stage(cpi)) {
     av1_first_pass(cpi, frame_input->ts_duration);
   } else {
@@ -5168,6 +5226,10 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
         for (int map_idx = 0; map_idx < cm->seq_params.ref_frames; map_idx++) {
           // Get reference frame buffer
           const RefCntBuffer *const buf = cm->ref_frame_map[map_idx];
+#if CONFIG_F322_OBUER_REFRESTRICT
+          if (buf != NULL && cm->ref_frame_map[map_idx]->is_restricted_ref)
+            continue;
+#endif  // CONFIG_F322_OBUER_REFRESTRICT
           if (buf != NULL && buf->display_order_hint == 0) {
             cm->bridge_frame_info.bridge_frame_ref_idx = map_idx;
 

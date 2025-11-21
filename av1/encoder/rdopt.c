@@ -7595,7 +7595,11 @@ static int compound_skip_by_single_states(
   int ref_searched[2] = { 0, 0 };
   int ref_mv_match[2] = { 1, 1 };
   int i, j;
-
+#if CONFIG_F322_OBUER_REFRESTRICT  // compound mode dir
+  if (mode_dir[0] == -1 || mode_dir[1] == -1) {
+    return 1;
+  }
+#endif  // CONFIG_F322_OBUER_REFRESTRICT
   for (i = 0; i < 2; ++i) {
     const SingleInterModeState *state =
         search_state->single_state[mode_dir[i]][mode_offset[i]];

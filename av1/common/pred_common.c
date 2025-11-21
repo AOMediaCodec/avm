@@ -103,6 +103,12 @@ void av1_get_past_future_cur_ref_lists(AV1_COMMON *cm, RefScoreData *scores) {
   int n_past = 0;
   int n_cur = 0;
   for (int i = 0; i < cm->ref_frames_info.num_total_refs; i++) {
+#if CONFIG_F322_OBUER_REFRESTRICT
+    int ref_idx = cm->remapped_ref_idx[i];
+    if (cm->ref_frame_map[ref_idx] != NULL &&
+        cm->ref_frame_map[ref_idx]->is_restricted_ref)
+      continue;
+#endif  // CONFIG_F322_OBUER_REFRESTRICT
     // If order hint is disabled, the scores and past/future information are
     // not available to the decoder. Assume all references are from the past.
     if (scores[i].distance > 0) {
@@ -264,11 +270,28 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
     cm->remapped_ref_idx[i] = INVALID_IDX;
   }
   int n_ranked = 0;
-
+#if CONFIG_F322_OBUER_REFRESTRICT
+  cm->ref_frames_info.num_restricted_ref = 0;
+  if (cm->current_frame.frame_type == S_FRAME &&
+      cm->restricted_prediction_switch) {
+    // resetting when S_FRAME. these values should not change the outputs
+    for (int i = 0; i < cm->seq_params.ref_frames; i++) {
+      if (cm->ref_frame_map[i] != NULL) {
+        cm->ref_frame_map[i]->display_order_hint = REF_RESTRICTED_DOH;
+        cm->ref_frame_map[i]->base_qindex = 255;
+        cm->ref_frame_map[i]->absolute_poc =
+            -2;  // this change is only for the encoder output log
+      }
+    }
+  }
+#endif  // CONFIG_F322_OBUER_REFRESTRICT
   // Give more weight to base_qindex if all references are from the past
   int max_disp = 0;
   for (int i = 0; i < cm->seq_params.ref_frames; i++) {
     RefFrameMapPair cur_ref = ref_frame_map_pairs[i];
+#if CONFIG_F322_OBUER_REFRESTRICT
+    if (cur_ref.ref_frame_restricted == 1) continue;
+#endif  // CONFIG_F322_OBUER_REFRESTRICT
     if (cur_ref.ref_frame_for_inference == -1) continue;
     max_disp = AOMMAX(max_disp, cur_ref.disp_order);
   }
@@ -277,6 +300,12 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
   for (int i = 0; i < cm->seq_params.ref_frames; i++) {
     // Get reference frame buffer
     RefFrameMapPair cur_ref = ref_frame_map_pairs[i];
+#if CONFIG_F322_OBUER_REFRESTRICT
+    if (cur_ref.ref_frame_restricted == 1) {
+      cm->ref_frames_info.num_restricted_ref++;
+      continue;
+    }
+#endif  // CONFIG_F322_OBUER_REFRESTRICT
     if (cur_ref.ref_frame_for_inference == -1) continue;
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     if (key_frame_only && cur_ref.frame_type != KEY_FRAME) continue;
@@ -393,6 +422,17 @@ int av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
         cm->remapped_ref_idx_res_indep[i] == INVALID_IDX)
       cm->remapped_ref_idx_res_indep[i] = scores[0].index;
   }
+
+#if CONFIG_F322_OBUER_REFRESTRICT
+  cm->ref_frames_info.num_valid_refs_without_restricted_ref =
+      cm->ref_frames_info.num_total_refs;
+  cm->ref_frames_info.num_valid_refs_with_restricted_ref =
+      cm->ref_frames_info.num_total_refs +
+      cm->ref_frames_info.num_restricted_ref;
+  if (cm->ref_frames_info.num_valid_refs_with_restricted_ref >
+      max_num_ref_frames)
+    cm->ref_frames_info.num_valid_refs_with_restricted_ref = max_num_ref_frames;
+#endif  // CONFIG_F322_OBUER_REFRESTRICT
   return n_ranked;
 }
 
@@ -443,6 +483,9 @@ void choose_primary_secondary_ref_frame(const AV1_COMMON *const cm,
 
   for (int i = 0; i < n_refs; i++) {
     RefFrameMapPair cur_ref = ref_frame_map_pairs[get_ref_frame_map_idx(cm, i)];
+#if CONFIG_F322_OBUER_REFRESTRICT
+    if (cur_ref.ref_frame_restricted == 1) continue;
+#endif  // CONFIG_F322_OBUER_REFRESTRICT
     if (cur_ref.ref_frame_for_inference == -1 ||
         cur_ref.frame_type != INTER_FRAME)
       continue;

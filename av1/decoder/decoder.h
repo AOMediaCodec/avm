@@ -291,6 +291,11 @@ typedef struct AV1Decoder {
   ThreadData td;
   TileDataDec *tile_data;
   int allocated_tiles;
+#if CONFIG_F322_OBUER_REFRESTRICT
+  // 1 indicates it may have restricted references
+  // 0 indicates it doesnot have restricted references
+  int restricted_predition;
+#endif  // CONFIG_F322_OBUER_REFRESTRICT
 
   TileBufferDec tile_buffers[MAX_TILE_ROWS][MAX_TILE_COLS];
   AV1DecTileMT tile_mt_info;
