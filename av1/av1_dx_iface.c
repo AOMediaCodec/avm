@@ -368,7 +368,9 @@ static aom_codec_err_t parse_operating_points(struct aom_read_bit_buffer *rb,
                                               aom_codec_stream_info_t *si) {
   int operating_point_idc0 = 0;
   if (is_reduced_header) {
+#if !CONFIG_MODIFY_SH
     aom_rb_read_literal(rb, LEVEL_BITS);  // level
+#endif                                    // !CONFIG_MODIFY_SH
   } else {
     uint8_t decoder_model_info_present_flag = 0;
     int buffer_delay_length_minus_1 = 0;
@@ -394,8 +396,10 @@ static aom_codec_err_t parse_operating_points(struct aom_read_bit_buffer *rb,
       int operating_point_idc;
       operating_point_idc = aom_rb_read_literal(rb, OP_POINTS_IDC_BITS);
       if (i == 0) operating_point_idc0 = operating_point_idc;
+#if !CONFIG_MODIFY_SH
       int seq_level_idx = aom_rb_read_literal(rb, LEVEL_BITS);  // level
       if (seq_level_idx > 7) aom_rb_read_bit(rb);               // tier
+#endif  // !CONFIG_MODIFY_SH
       if (decoder_model_info_present_flag) {
         const uint8_t decoder_model_present_for_this_op = aom_rb_read_bit(rb);
         if (decoder_model_present_for_this_op) {
@@ -472,11 +476,27 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
       aom_rb_read_uvlc(&rb);  // seq_header_id
 #endif                        // CONFIG_CWG_E242_SEQ_HDR_ID
 
+      BITSTREAM_PROFILE profile = av1_read_profile(&rb);  // profile
+#if CONFIG_MODIFY_SH
+      single_picture_header_flag = aom_rb_read_bit(&rb);
+      int still_picture = 0;
+      (void)still_picture;
+      if (single_picture_header_flag) {
+        still_picture = 1;
+      } else {
+        aom_rb_read_literal(&rb, 3);  // seq_lcr_id
+        still_picture = aom_rb_read_bit(&rb);
+      }
+      int seq_max_level_idx =
+          aom_rb_read_literal(&rb, LEVEL_BITS);  // seq_max_level
+      if (seq_max_level_idx > 7 && !single_picture_header_flag)
+        aom_rb_read_bit(&rb);  // seq_tier_flag
+#else
 #if CONFIG_LCR_ID_IN_SH
       aom_rb_read_literal(&rb, 3);
 #endif  // CONFIG_LCR_ID_IN_SH
+#endif  // CONFIG_MODIFY_SH
 
-      BITSTREAM_PROFILE profile = av1_read_profile(&rb);  // profile
       int num_bits_width = aom_rb_read_literal(&rb, 4) + 1;
       int num_bits_height = aom_rb_read_literal(&rb, 4) + 1;
       int max_frame_width = aom_rb_read_literal(&rb, num_bits_width) + 1;
@@ -501,12 +521,14 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
 #endif  // CONFIG_CWG_F270_CI_OBU
       if (status != AOM_CODEC_OK) return status;
 
+#if !CONFIG_MODIFY_SH
       const uint8_t still_picture = aom_rb_read_bit(&rb);
       single_picture_header_flag = aom_rb_read_bit(&rb);
 
       if (!still_picture && single_picture_header_flag) {
         return AOM_CODEC_UNSUP_BITSTREAM;
       }
+#endif  // !CONFIG_MODIFY_SH
 
       status = parse_operating_points(&rb, single_picture_header_flag, si);
       if (status != AOM_CODEC_OK) return status;

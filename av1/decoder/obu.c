@@ -265,20 +265,39 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
   SequenceHeader *const seq_params = &sh;
 #endif  // CONFIG_CWG_E242_SEQ_HDR_ID
 
-#if CONFIG_LCR_ID_IN_SH
-  int seq_lcr_id = aom_rb_read_literal(rb, 3);
-  if (seq_lcr_id > MAX_NUM_SEQ_LCR_ID) {
-    aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-                       "Unsupported LCR id in the Sequence Header.\n");
-  }
-  seq_params->seq_lcr_id = seq_lcr_id;
-#endif  // CONFIG_LCR_ID_IN_SH
-
   seq_params->profile = av1_read_profile(rb);
   if (seq_params->profile > CONFIG_MAX_DECODE_PROFILE) {
     cm->error.error_code = AOM_CODEC_UNSUP_BITSTREAM;
     return 0;
   }
+#if CONFIG_MODIFY_SH
+  seq_params->single_picture_header_flag = aom_rb_read_bit(rb);
+  if (seq_params->single_picture_header_flag) {
+    seq_params->seq_lcr_id = LCR_ID_UNSPECIFIED;
+    seq_params->still_picture = 1;
+  } else {
+#if CONFIG_LCR_ID_IN_SH
+    int seq_lcr_id = aom_rb_read_literal(rb, 3);
+    if (seq_lcr_id > MAX_NUM_SEQ_LCR_ID) {
+      aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+                         "Unsupported LCR id in the Sequence Header.\n");
+    }
+    seq_params->seq_lcr_id = seq_lcr_id;
+    seq_params->still_picture = aom_rb_read_bit(rb);
+#endif  // CONFIG_LCR_ID_IN_SH
+  }
+  // TODO: this has to change to seq_max_level_idx and seq_tier_flag
+  if (!read_bitstream_level(&seq_params->seq_level_idx[0], rb)) {
+    cm->error.error_code = AOM_CODEC_UNSUP_BITSTREAM;
+    return 0;
+  }
+  if (seq_params->seq_level_idx[0] >= SEQ_LEVEL_4_0 &&
+      !seq_params->single_picture_header_flag)
+    seq_params->tier[0] = aom_rb_read_bit(rb);
+  else
+    seq_params->tier[0] = 0;
+#endif  // CONFIG_MODIFY_SH
+
   const int num_bits_width = aom_rb_read_literal(rb, 4) + 1;
   const int num_bits_height = aom_rb_read_literal(rb, 4) + 1;
   const int max_frame_width = aom_rb_read_literal(rb, num_bits_width) + 1;
@@ -312,6 +331,7 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
 #endif  // !CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
   // Still picture or not
+#if !CONFIG_MODIFY_SH
   seq_params->still_picture = aom_rb_read_bit(rb);
   seq_params->single_picture_header_flag = aom_rb_read_bit(rb);
   // Video must have single_picture_header_flag = 0
@@ -319,6 +339,7 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
     cm->error.error_code = AOM_CODEC_UNSUP_BITSTREAM;
     return 0;
   }
+#endif  // !CONFIG_MODIFY_SH
 
   if (seq_params->single_picture_header_flag) {
 #if !CONFIG_CWG_F270_CI_OBU
@@ -328,11 +349,13 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
     seq_params->display_model_info_present_flag = 0;
     seq_params->operating_points_cnt_minus_1 = 0;
     seq_params->operating_point_idc[0] = 0;
+#if !CONFIG_MODIFY_SH
     if (!read_bitstream_level(&seq_params->seq_level_idx[0], rb)) {
       cm->error.error_code = AOM_CODEC_UNSUP_BITSTREAM;
       return 0;
     }
     seq_params->tier[0] = 0;
+#endif  // !CONFIG_MODIFY_SH
     seq_params->op_params[0].decoder_model_param_present_flag = 0;
     seq_params->op_params[0].display_model_param_present_flag = 0;
   } else {
@@ -355,6 +378,7 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
     for (int i = 0; i < seq_params->operating_points_cnt_minus_1 + 1; i++) {
       seq_params->operating_point_idc[i] =
           aom_rb_read_literal(rb, OP_POINTS_IDC_BITS);
+#if !CONFIG_MODIFY_SH
       if (!read_bitstream_level(&seq_params->seq_level_idx[i], rb)) {
         cm->error.error_code = AOM_CODEC_UNSUP_BITSTREAM;
         return 0;
@@ -365,6 +389,7 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
         seq_params->tier[i] = aom_rb_read_bit(rb);
       else
         seq_params->tier[i] = 0;
+#endif  // !CONFIG_MODIFY_SH
       if (seq_params->decoder_model_info_present_flag) {
         seq_params->op_params[i].decoder_model_param_present_flag =
             aom_rb_read_bit(rb);

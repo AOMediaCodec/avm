@@ -8031,11 +8031,22 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
   aom_wb_write_uvlc(&wb, seq_params->seq_header_id);
 #endif  // CONFIG_CWG_E242_SEQ_HDR_ID
 
-#if CONFIG_LCR_ID_IN_SH
-  aom_wb_write_literal(&wb, seq_params->seq_lcr_id, 3);
-#endif  // CONFIG_LCR_ID_IN_SH
-
   write_profile(seq_params->profile, &wb);
+#if CONFIG_MODIFY_SH
+  aom_wb_write_bit(&wb, seq_params->single_picture_header_flag);
+  if (!seq_params->single_picture_header_flag) {
+#if CONFIG_LCR_ID_IN_SH
+    aom_wb_write_literal(&wb, seq_params->seq_lcr_id, 3);
+#endif  // CONFIG_LCR_ID_IN_SH
+    aom_wb_write_bit(&wb, seq_params->still_picture);
+  }
+  // TODO: this has to change to seq_max_level_idx and seq_tier_flag
+  write_bitstream_level(seq_params->seq_level_idx[0], &wb);
+  if (seq_params->seq_level_idx[0] >= SEQ_LEVEL_4_0 &&
+      !seq_params->single_picture_header_flag)
+    aom_wb_write_bit(&wb, seq_params->tier[0]);
+#endif  // CONFIG_MODIFY_SH
+
   aom_wb_write_literal(&wb, seq_params->num_bits_width - 1, 4);
   aom_wb_write_literal(&wb, seq_params->num_bits_height - 1, 4);
   aom_wb_write_literal(&wb, seq_params->max_frame_width - 1,
@@ -8053,12 +8064,14 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
   write_color_config(seq_params, &wb);
 #endif  // CONFIG_CWG_F270_CI_OBU
 
+#if !CONFIG_MODIFY_SH
   // Still picture or not
   aom_wb_write_bit(&wb, seq_params->still_picture);
   assert(IMPLIES(!seq_params->still_picture,
                  !seq_params->single_picture_header_flag));
   // whether to use reduced still picture header
   aom_wb_write_bit(&wb, seq_params->single_picture_header_flag);
+#endif  // !CONFIG_MODIFY_SH
 
   if (seq_params->single_picture_header_flag) {
 #if !CONFIG_CWG_F270_CI_OBU
@@ -8066,7 +8079,9 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
 #endif  // !CONFIG_CWG_F270_CI_OBU
     assert(seq_params->decoder_model_info_present_flag == 0);
     assert(seq_params->display_model_info_present_flag == 0);
+#if !CONFIG_MODIFY_SH
     write_bitstream_level(seq_params->seq_level_idx[0], &wb);
+#endif  // !CONFIG_MODIFY_SH
   } else {
 #if !CONFIG_CWG_F270_CI_OBU
     aom_wb_write_bit(
@@ -8090,9 +8105,11 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
     for (i = 0; i < seq_params->operating_points_cnt_minus_1 + 1; i++) {
       aom_wb_write_literal(&wb, seq_params->operating_point_idc[i],
                            OP_POINTS_IDC_BITS);
+#if !CONFIG_MODIFY_SH
       write_bitstream_level(seq_params->seq_level_idx[i], &wb);
       if (seq_params->seq_level_idx[i] >= SEQ_LEVEL_4_0)
         aom_wb_write_bit(&wb, seq_params->tier[i]);
+#endif  // !CONFIG_MODIFY_SH
       if (seq_params->decoder_model_info_present_flag) {
         aom_wb_write_bit(
             &wb, seq_params->op_params[i].decoder_model_param_present_flag);

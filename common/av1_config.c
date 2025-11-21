@@ -365,13 +365,24 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
   config->seq_header_id = seq_header_id;
 #endif  // CONFIG_CWG_E242_SEQ_HDR_ID
 
-#if CONFIG_LCR_ID_IN_SH
-  AV1C_READ_BITS_OR_RETURN_ERROR(seq_lcr_id, 3);
-  config->seq_lcr_id = seq_lcr_id;
-#endif  // CONFIG_LCR_ID_IN_SH
-
   AV1C_READ_BITS_OR_RETURN_ERROR(seq_profile, 3);
   config->seq_profile = seq_profile;
+#if CONFIG_MODIFY_SH
+  AV1C_READ_BIT_OR_RETURN_ERROR(single_picture_header_flag);
+  if (!single_picture_header_flag) {
+#if CONFIG_LCR_ID_IN_SH
+    AV1C_READ_BITS_OR_RETURN_ERROR(seq_lcr_id, 3);
+    config->seq_lcr_id = seq_lcr_id;
+#endif  // CONFIG_LCR_ID_IN_SH
+    AV1C_READ_BIT_OR_RETURN_ERROR(still_picture);
+  }
+  AV1C_READ_BITS_OR_RETURN_ERROR(seq_level_idx_0, 5);
+  config->seq_level_idx_0 = seq_level_idx_0;
+  if (seq_level_idx_0 > 7 && !single_picture_header_flag) {
+    AV1C_READ_BIT_OR_RETURN_ERROR(single_tier_0);
+    config->seq_tier_0 = 0;
+  }
+#endif  // CONFIG_MODIFY_SH
 
   AV1C_READ_BITS_OR_RETURN_ERROR(frame_width_bits_minus_1, 4);
   AV1C_READ_BITS_OR_RETURN_ERROR(frame_height_bits_minus_1, 4);
@@ -409,13 +420,17 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
   }
 #endif  // CONFIG_CWG_F270_CI_OBU
 
+#if !CONFIG_MODIFY_SH
   AV1C_READ_BIT_OR_RETURN_ERROR(still_picture);
   AV1C_READ_BIT_OR_RETURN_ERROR(single_picture_header_flag);
+#endif  // !CONFIG_MODIFY_SH
   if (single_picture_header_flag) {
     config->initial_presentation_delay_present = 0;
-    AV1C_READ_BITS_OR_RETURN_ERROR(seq_level_idx_0, 5);
-    config->seq_level_idx_0 = seq_level_idx_0;
+#if !CONFIG_MODIFY_SH
+    AV1C_READ_BITS_OR_RETURN_ERROR(seq_level_idx, 5);
+    config->seq_level_idx_0 = seq_level_idx;
     config->seq_tier_0 = 0;
+#endif  // !CONFIG_MODIFY_SH
   } else {
     int has_decoder_model = 0;
     int buffer_delay_length = 0;
@@ -445,6 +460,7 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
 
     for (int op_index = 0; op_index < num_operating_points; ++op_index) {
       AV1C_READ_BITS_OR_RETURN_ERROR(operating_point_idc, 12);
+#if !CONFIG_MODIFY_SH
       AV1C_READ_BITS_OR_RETURN_ERROR(seq_level_idx, 5);
 
       int seq_tier = 0;
@@ -452,7 +468,7 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
         AV1C_READ_BIT_OR_RETURN_ERROR(seq_tier_this_op);
         seq_tier = seq_tier_this_op;
       }
-
+#endif  // !CONFIG_MODIFY_SH
       if (has_decoder_model) {
         AV1C_READ_BIT_OR_RETURN_ERROR(decoder_model_present_for_op);
         if (decoder_model_present_for_op) {
@@ -476,8 +492,10 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
 
       if (op_index == 0) {
         // Av1Config needs only the values from the first operating point.
+#if !CONFIG_MODIFY_SH
         config->seq_level_idx_0 = seq_level_idx;
         config->seq_tier_0 = seq_tier;
+#endif  // !CONFIG_MODIFY_SH
         config->initial_presentation_delay_present = 0;
         config->initial_presentation_delay_minus_one = 0;
       }
