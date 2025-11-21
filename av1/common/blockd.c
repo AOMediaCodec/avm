@@ -710,11 +710,11 @@ void av1_update_txk_skip_array(const AV1_COMMON *cm, int mi_row, int mi_col,
   x = (x + blk_col) >> MIN_TX_SIZE_LOG2;
   y = (y + blk_row) >> MIN_TX_SIZE_LOG2;
   for (int r = 0; r < rows; r++) {
-    for (int c = 0; c < cols; c++) {
-      uint32_t idx = (y + r) * stride + x + c;
-      assert(idx < cm->mi_params.tx_skip_buf_size[plane]);
-      cm->mi_params.tx_skip[plane][idx] = 1;
-    }
+    uint32_t idx = (y + r) * stride + x;
+    assert(idx < cm->mi_params.tx_skip_buf_size[plane]);
+    assert(sizeof(uint8_t) == sizeof(cm->mi_params.tx_skip[plane][idx]));
+    memset(&cm->mi_params.tx_skip[plane][idx], 1,
+           cols * sizeof(cm->mi_params.tx_skip[plane][idx]));
   }
 }
 
