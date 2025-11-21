@@ -1808,6 +1808,9 @@ static AOM_INLINE void set_rel_frame_dist(
   for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME; ++ref_frame) {
     ref_frame_dist_info->ref_relative_dist[ref_frame] = 0;
     if (ref_frame_flags & (1 << ref_frame)) {
+#if CONFIG_F322_OBUER_REFRESTRICT
+      assert(!cm->ref_frame_map[ref_frame]->is_restricted_ref);
+#endif
       int dist = av1_encoder_get_relative_dist(
           cm->cur_frame->ref_display_order_hint[ref_frame],
           cm->current_frame.display_order_hint);
@@ -2297,6 +2300,17 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
 
   cm->tmvp_sample_step = 1;
   cm->tmvp_sample_stepl2 = 0;
+#if CONFIG_F322_OBUER_REFRESTRICT  //[jkei]refrestricted added
+  int num_ref_usable = 0;
+  for (int ref_idx = 0; ref_idx < cm->seq_params.ref_frames; ref_idx++) {
+    if (cm->ref_frame_map[ref_idx] != NULL &&
+        !cm->ref_frame_map[ref_idx]->is_restricted_ref)
+      num_ref_usable++;
+  }
+  // When the restricted prediction is used
+  if (cpi->oxcf.kf_cfg.sframe_dist != 0 && cpi->oxcf.kf_cfg.sframe_mode == 0)
+    features->allow_ref_frame_mvs &= num_ref_usable > 2;
+#endif
   if (features->allow_ref_frame_mvs) {
     cm->tmvp_sample_step = -1;
     av1_setup_motion_field(cm);

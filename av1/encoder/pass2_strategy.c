@@ -2811,6 +2811,43 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
       if (cpi->sf.part_sf.allow_partition_search_skip && oxcf->pass == 2) {
         cpi->partition_search_skippable_frame = is_skippable_frame(cpi);
       }
+#if CONFIG_F322_OBUER_REFRESTRICT  // CONFIG_F322_OBUER_SDIST
+      int sframe_dist = oxcf->kf_cfg.sframe_dist;
+      int sframe_mode = oxcf->kf_cfg.sframe_mode;
+      CurrentFrame *const current_frame = &cpi->common.current_frame;
+      //[jkei] dist=1 + RA : ARF&KFFLT dist=1+LD: all frames
+      if (sframe_dist) {
+        if (oxcf->gf_cfg.lag_in_frames == 0) {
+          if (current_frame->frame_number % sframe_dist == 0 &&
+              current_frame->frame_number)
+            frame_params->frame_type = S_FRAME;
+        } else {
+          if (sframe_mode == 0) {
+            if (update_type == ARF_UPDATE || update_type == KFFLT_UPDATE) {
+              frame_params->frame_type = S_FRAME;
+            }
+          } else {
+            rc->sframe_due = 1;
+            if (current_frame->frame_number % sframe_dist == 0 &&
+                current_frame->frame_number &&
+                update_type != INTNL_ARF_UPDATE && update_type != KF_UPDATE) {
+              frame_params->frame_type = S_FRAME;
+            } else {
+              if ((update_type == ARF_UPDATE || update_type == KFFLT_UPDATE) &&
+                  rc->sframe_due) {
+                frame_params->frame_type = S_FRAME;
+                rc->sframe_due = 0;
+              }
+            }
+          }
+        }
+      }  // sframe_dist
+#endif
+
+#if 0  // ENABLE_TRACE_OBUER
+  printf("===[av1_get_second_pass_params]1 (index<size (ENDS)) frame_params->show_frame %d, cm->showable_frame %d rc->frames_to_key %d\t", frame_params->show_frame, cpi->common.showable_frame, rc->frames_to_key);
+  printf("gf_group->index %d gf_group->size %d gf_group->update_type[%d] %s(%d) frame_params->frame_type %d frame_number %d\n", gf_group->index, gf_group->size, gf_group->index, frame_update_type_name(gf_group->update_type[gf_group->index]), gf_group->update_type[gf_group->index], frame_params->frame_type, cpi->common.current_frame.frame_number );
+#endif
       return;
     }
   }
@@ -2859,7 +2896,14 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
     const int update_type = gf_group->update_type[gf_group->index];
     CurrentFrame *const current_frame = &cpi->common.current_frame;
     if (sframe_dist != 0) {
-      if (altref_enabled) {
+#if CONFIG_F322_OBUER_REFRESTRICT  // CONFIG_F322_OBUER_SDIST
+      if (sframe_mode == 0 && oxcf->gf_cfg.lag_in_frames != 0) {
+        if (update_type == ARF_UPDATE || update_type == KFFLT_UPDATE) {
+          frame_params->frame_type = S_FRAME;
+        }
+      } else
+#endif
+          if (altref_enabled) {
         if (sframe_mode == 1) {
           // sframe_mode == 1: insert sframe if it matches altref frame.
           if (current_frame->frame_number % sframe_dist == 0 &&
@@ -2955,6 +2999,12 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
         if (frame_params->frame_params_obu_type == NUM_OBU_TYPES)
           frame_params->frame_params_obu_type =
               rc->frames_since_key == 0 ? OBU_CLK : NUM_OBU_TYPES;
+#endif
+
+#if CONFIG_F322_OBUER_REFRESTRICT
+        if (frame_params->frame_type == INTER_FRAME &&
+            (oxcf->kf_cfg.sframe_dist > 0))
+          frame_params->frame_type = S_FRAME;
 #endif
       }
     }

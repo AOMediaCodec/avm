@@ -1943,6 +1943,9 @@ static void get_cx_data(struct stream_state *stream,
         break;
 
       case AOM_CODEC_CX_FRAME_PKT:
+#if CONFIG_F322_OBUER_REFRESTRICT
+      case AOM_CODEC_CX_SWITCH_FRAME_PKT:
+#endif
         ++stream->frames_out;
         update_rate_histogram(stream->rate_hist, cfg, pkt);
 #if CONFIG_WEBM_IO

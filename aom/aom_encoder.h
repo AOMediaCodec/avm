@@ -100,7 +100,10 @@ enum aom_codec_cx_pkt_kind {
   AOM_CODEC_FPMB_STATS_PKT,    /**< first pass mb statistics for this frame */
   AOM_CODEC_PSNR_PKT,          /**< PSNR statistics for this frame */
   AOM_CODEC_CX_FRAME_NULL_PKT, /**< Null show-existing frame */
-  AOM_CODEC_CUSTOM_PKT = 256   /**< Algorithm extensions  */
+#if CONFIG_F322_OBUER_REFRESTRICT
+  AOM_CODEC_CX_SWITCH_FRAME_PKT, /**< Switch frame to output immediately */
+#endif
+  AOM_CODEC_CUSTOM_PKT = 256 /**< Algorithm extensions  */
 };
 
 /*!\brief Encoder output packet
@@ -1017,7 +1020,24 @@ typedef struct aom_codec_enc_cfg {
    * an S-Frame every sframe_dist frames.
    */
   unsigned int sframe_dist;
-
+#if CONFIG_F322_OBUER_REFRESTRICT
+  /*!\brief sframe insertion mode
+   *
+   * This value must be set to 0 to 2, and tells the encoder how to insert
+   * S-Frames. It will only have an effect if sframe_dist != 0.
+   * If s_frame_mode == 0,
+   * and lag-in-frames is not 0, only the frames in the lowest pyramid level is
+   * set as S-Frame regardless of th sframe_dist
+   *
+   * If altref is enabled:
+   *   - if sframe_mode == 1, the considered frame will be made into an
+   *     S-Frame only if it is an altref frame
+   *   - if sframe_mode == 2, the next altref frame will be made into an
+   *     S-Frame.
+   *
+   * Otherwise: the considered frame will be made into an S-Frame.
+   */
+#else
   /*!\brief sframe insertion mode
    *
    * This value must be set to 1 or 2 and tells the encoder how to insert
@@ -1031,6 +1051,7 @@ typedef struct aom_codec_enc_cfg {
    *
    * Otherwise: the considered frame will be made into an S-Frame.
    */
+#endif
   unsigned int sframe_mode;
 
   /*!\brief Monochrome mode

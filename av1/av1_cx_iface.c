@@ -2943,7 +2943,20 @@ static void report_stats(AV1_COMP *cpi, size_t frame_size, uint64_t cx_time) {
       const int ref_idx = ref_frame;
       const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
       ref_poc[ref_idx] = buf ? (int)buf->absolute_poc : -1;
-
+#if CONFIG_F322_OBUER_REFRESTRICT
+      if (buf != NULL) {
+        if (ref_poc[ref_idx] == (int)cm->cur_frame->absolute_poc) {
+          const int valid_ref_case =
+              (cpi->oxcf.kf_cfg.enable_keyframe_filtering > 1) &&
+              (cm->cur_frame->frame_type == INTER_FRAME);
+          if (valid_ref_case || cm->bridge_frame_info.is_bridge_frame) {
+            ref_poc[ref_idx] = -cm->cur_frame->absolute_poc;
+          } else {
+            ref_poc[ref_idx] = -3;
+          }
+        }
+      }
+#else
       // Currently, "enable_keyframe_filtering > 1" is the only exception case
       // in AVM. Later, if more cases arise, this condition can be made general
       // based on frame type.
@@ -2959,6 +2972,7 @@ static void report_stats(AV1_COMP *cpi, size_t frame_size, uint64_t cx_time) {
 #endif
               ? -1
               : ref_poc[ref_idx];
+#endif
     }
     if (cpi->b_calculate_psnr >= 1) {
       const bool use_hbd_psnr = (cpi->b_calculate_psnr == 2);
@@ -3448,7 +3462,14 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 #endif  // CONFIG_MIXED_LOSSLESS_ENCODE
       }
     }
-    if (is_frame_visible) {
+#if CONFIG_F322_OBUER_REFRESTRICT  //[jkei] is it needed?
+    if ((cpi->oxcf.kf_cfg.sframe_dist == 1 && is_frame_visible &&
+         !is_frame_visible_null) ||
+        (cpi->oxcf.kf_cfg.sframe_dist != 1 && is_frame_visible))
+#else
+    if (is_frame_visible)
+#endif
+    {
       // Add the frame packet to the list of returned packets.
       aom_codec_cx_pkt_t pkt;
 

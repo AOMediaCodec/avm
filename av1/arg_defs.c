@@ -284,7 +284,11 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .kf_disabled = ARG_DEF(NULL, "disable-kf", 0, "Disable keyframe placement"),
   .sframe_dist = ARG_DEF(NULL, "sframe-dist", 1, "S-Frame interval (frames)"),
   .sframe_mode =
+#if CONFIG_F322_OBUER_REFRESTRICT
+      ARG_DEF(NULL, "sframe-mode", 1, "S-Frame insertion mode (0..2)"),
+#else
       ARG_DEF(NULL, "sframe-mode", 1, "S-Frame insertion mode (1..2)"),
+#endif
 #if CONFIG_F160_TD
   .signal_td =
       ARG_DEF(NULL, "use-temporal-delimiter", 1, "Signal temproal delimiters"),

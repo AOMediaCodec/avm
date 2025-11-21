@@ -2454,6 +2454,16 @@ static AOM_INLINE void setup_bru_active_info(AV1_COMMON *const cm,
       memset(cm->bru.active_mode_map, 0, sizeof(uint8_t) * cm->bru.total_units);
       cm->bru.update_ref_idx = aom_rb_read_literal(
           rb, aom_ceil_log2(cm->ref_frames_info.num_total_refs));
+#if CONFIG_F322_OBUER_REFRESTRICT
+      //[jkei] BRU reference especially the inactive_frame case, the
+      // referece.buf can be copied. but other information should not. what
+      // should we do?
+      //      if(cm->ref_frame_map[cm->bru.update_ref_idx]->is_restricted_ref){
+      //        aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+      //                           "BRU update_ref_idx %d points restricted "
+      //                           "reference", cm->bru.update_ref_idx);
+      //      }
+#endif
       cm->bru.frame_inactive_flag = aom_rb_read_bit(rb);
       if (cm->bru.frame_inactive_flag) {
         cm->features.disable_cdf_update = 1;
@@ -2562,7 +2572,10 @@ static AOM_INLINE void setup_segmentation(AV1_COMMON *const cm,
   } else {
     seg->update_map = aom_rb_read_bit(rb);
     if (seg->update_map) {
-      seg->temporal_update = aom_rb_read_bit(rb);
+#if CONFIG_F322_OBUER_REFRESTRICT  // segment
+      if (cm->current_frame.frame_type != S_FRAME)
+#endif
+        seg->temporal_update = aom_rb_read_bit(rb);
     } else {
       seg->temporal_update = 0;
     }
@@ -2685,6 +2698,16 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
 
             if (num_ref_frames > 0)
               rsi->temporal_pred_flag = aom_rb_read_bit(rb);
+#if CONFIG_F322_OBUER_REFRESTRICT  // restoration
+            int num_ref_frames_available = 0;
+            for (int i = 0; i < num_ref_frames; i++) {
+              if (cm->ref_frame_map[i] != NULL)
+                num_ref_frames_available +=
+                    !cm->ref_frame_map[i]->is_restricted_ref;
+            }
+            if (num_ref_frames_available == 0)
+              assert(rsi->temporal_pred_flag == 0);
+#endif
             if (rsi->temporal_pred_flag && num_ref_frames > 1) {
               rsi->rst_ref_pic_idx = aom_rb_read_literal(
                   rb,
@@ -3681,6 +3704,13 @@ static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
                                   )
                                  ? 0
                                  : cm->ref_frames_info.num_total_refs;
+#if CONFIG_F322_OBUER_REFRESTRICT  // ccso
+  int num_ref_frames_available = 0;
+  for (int i = 0; i < num_ref_frames; i++) {
+    if (cm->ref_frame_map[i] != NULL)
+      num_ref_frames_available += !cm->ref_frame_map[i]->is_restricted_ref;
+  }
+#endif
 #if CONFIG_CWG_F317
   if (cm->bridge_frame_info.is_bridge_frame) {
     cm->ccso_info.ccso_frame_flag = 0;
@@ -3727,7 +3757,11 @@ static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
           cm->ccso_info.reuse_ccso[plane] = 0;
           cm->ccso_info.sb_reuse_ccso[plane] = 0;
         }
-
+#if CONFIG_F322_OBUER_REFRESTRICT
+        if (num_ref_frames_available == 0)
+          assert(cm->ccso_info.reuse_ccso[plane] == 0 &&
+                 cm->ccso_info.sb_reuse_ccso[plane] == 0);
+#endif
         if (cm->ccso_info.reuse_ccso[plane] ||
             cm->ccso_info.sb_reuse_ccso[plane]) {
           if (num_ref_frames > 1) {
@@ -3742,6 +3776,15 @@ static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
                 &cm->error, AOM_CODEC_ERROR,
                 "Invalid ccso_ref_idx: ccso_ref_idx >= num_total_refs");
           }
+#if CONFIG_F322_OBUER_REFRESTRICT
+//          if(pbi->restricted_predition && get_ref_frame_buf(cm,
+//          cm->ccso_info.ccso_ref_idx[plane])->is_restricted_ref) {
+//            aom_internal_error(&cm->error, AOM_CODEC_ERROR,
+//                               "Invalid ccso_ref_idx[%d](%d): restricted
+//                               refefence frame", plane,
+//                               cm->ccso_info.ccso_ref_idx[plane]);
+//          }
+#endif
           ref_frame_ccso_info =
               &get_ref_frame_buf(cm, cm->ccso_info.ccso_ref_idx[plane])
                    ->ccso_info;
@@ -4520,6 +4563,12 @@ static AOM_INLINE void setup_frame_size_with_refs(
       const RefCntBuffer *const ref_buf =
           explicit_ref_frame_map ? get_ref_frame_buf(cm, i)
                                  : get_ref_frame_buf_res_indep(cm, i);
+#if CONFIG_F322_OBUER_REFRESTRICT
+      if (ref_buf->is_restricted_ref) {
+        aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                           "Invalid condition: restricted reference buffer");
+      }
+#endif
       // This will never be NULL in a normal stream, as streams are required to
       // have a shown keyframe before any inter frames, which would refresh all
       // the reference buffers. However, it might be null if we're starting in
@@ -6399,11 +6448,22 @@ void av1_read_film_grain_params(AV1_COMMON *cm,
   }
 
   pars->random_seed = aom_rb_read_literal(rb, 16);
+#if CONFIG_F322_OBUER_REFRESTRICT  // fgm update
+  if (cm->current_frame.frame_type == INTER_FRAME && !frame_is_sframe(cm))
+#else
   if (cm->current_frame.frame_type == INTER_FRAME)
+#endif
     pars->update_parameters = aom_rb_read_bit(rb);
   else
     pars->update_parameters = 1;
-
+#if CONFIG_F322_OBUER_REFRESTRICT  // film_grain_model
+  int num_ref_frames_available = 0;
+  for (int i = 0; i < cm->seq_params.ref_frames; i++) {
+    if (cm->ref_frame_map[i] != NULL)
+      num_ref_frames_available += !cm->ref_frame_map[i]->is_restricted_ref;
+  }
+  if (num_ref_frames_available == 0) assert(pars->update_parameters == 1);
+#endif
   pars->bit_depth = seq_params->bit_depth;
 
   if (!pars->update_parameters) {
@@ -6440,6 +6500,12 @@ void av1_read_film_grain_params(AV1_COMMON *cm,
       aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                          "Invalid Film grain reference idx");
     }
+#if CONFIG_F322_OBUER_REFRESTRICT
+    if (buf->is_restricted_ref) {
+      aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+                         "Invalid Film grain reference idx");
+    }
+#endif
     if (!buf->film_grain_params_present) {
       aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                          "Film grain reference parameters not available");
@@ -8115,6 +8181,13 @@ static AOM_INLINE void read_global_motion(AV1_COMMON *cm,
   for (int frame = 0; frame < cm->ref_frames_info.num_total_refs; ++frame) {
     int temporal_distance;
     const RefCntBuffer *const ref_buf = get_ref_frame_buf(cm, frame);
+#if CONFIG_F322_OBUER_REFRESTRICT
+    // continue or warning?
+//    if(ref_buf->is_restricted_ref){
+//      cm->global_motion[frame].invalid = 1;
+//      continue;
+//  }
+#endif
     const int ref_order_hint = ref_buf->display_order_hint;
     const int cur_order_hint = cm->cur_frame->display_order_hint;
     temporal_distance = get_relative_dist(&seq_params->order_hint_info,
@@ -8262,6 +8335,16 @@ static INLINE int get_disp_order_hint(AV1_COMMON *const cm)
   if (current_frame->frame_type == KEY_FRAME && cm->show_existing_frame)
     return 0;
 
+#if CONFIG_F322_OBUER_REFRESTRICT  //[jkei] disp_order
+  if (current_frame->frame_type == S_FRAME) {
+    for (int map_idx = 0; map_idx < cm->seq_params.ref_frames; map_idx++) {
+      RefCntBuffer *buf = cm->ref_frame_map[map_idx];
+      if (buf != NULL) buf->display_order_hint = REF_RESTRICTED_DOH;
+    }
+    return current_frame->order_hint;
+  }
+#endif
+
   // For key frames, the implicit derivation of display_order_hit is not
   // applied.
   if (current_frame->frame_type == KEY_FRAME) return current_frame->order_hint;
@@ -8279,6 +8362,9 @@ static INLINE int get_disp_order_hint(AV1_COMMON *const cm)
 #if CONFIG_F024_KEYOBU
         !buf->showable_frame ||
 #endif  // CONFIG_F024_KEYOBU
+#if CONFIG_F322_OBUER_REFRESTRICT  //[jkei] disp_order
+        buf->is_restricted_ref ||
+#endif
         !is_tlayer_scalable_and_dependent(&cm->seq_params, cm->tlayer_id,
                                           buf->temporal_layer_id) ||
         !is_mlayer_scalable_and_dependent(&cm->seq_params, cm->mlayer_id,
@@ -8306,7 +8392,7 @@ static INLINE int get_disp_order_hint(AV1_COMMON *const cm)
   return cur_disp_order_hint;
 }
 
-#if !CONFIG_F322_OBUER_ERM
+#if !CONFIG_F322_OBUER_ERM || !CONFIG_F322_OBUER_REFRESTRICT
 static INLINE int get_ref_frame_disp_order_hint(AV1_COMMON *const cm,
                                                 const RefCntBuffer *const buf) {
   // Find the reference frame with the largest order_hint
@@ -9081,6 +9167,17 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       if (obu_type == OBU_SWITCH) {
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
       current_frame->frame_type = S_FRAME;
+#if CONFIG_F322_OBUER_REFRESTRICT
+      cm->cur_frame->is_restricted_switch_frame =
+          cm->restricted_prediction_switch;
+      if (cm->restricted_prediction_switch) {
+        pbi->restricted_predition = 1;
+        for (int i = 0; i < REF_FRAMES; i++) {
+          if (cm->ref_frame_map[i] != NULL)
+            cm->ref_frame_map[i]->is_restricted_ref = true;
+        }
+      }
+#endif
     } else
 #endif  // CONFIG_F106_OBU_SWITCH
 #if CONFIG_F106_OBU_TIP
@@ -9133,6 +9230,14 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       }
     }
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+#if CONFIG_F322_OBUER_REFRESTRICT
+    if (current_frame->frame_type == KEY_FRAME) {
+      pbi->restricted_predition = 0;
+      for (int i = 0; i < seq_params->ref_frames; i++)
+        if (cm->ref_frame_map[i] != NULL)
+          cm->ref_frame_map[i]->is_restricted_ref = false;
+    }
+#endif
     if (pbi->sequence_header_changed) {
 #if CONFIG_F024_KEYOBU
       if (obu_type == OBU_CLK)
@@ -9291,6 +9396,10 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     current_frame->display_order_hint = get_disp_order_hint(cm);
 #endif  // CONFIG_F024_KEYOBU
       current_frame->frame_number = current_frame->order_hint;
+#if CONFIG_F322_OBUER_REFRESTRICT
+      current_frame->display_order_hint_removed =
+          current_frame->display_order_hint;
+#endif
 #if CONFIG_CWG_F317
     }
 #endif  // CONFIG_CWG_F317
@@ -9817,14 +9926,70 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
                            cm->ref_frame_map_pairs);
       }
-
+#if CONFIG_F322_OBUER_REFRESTRICT
+      // restricted_predition=if number of is_restricted_ref >0
+      if (pbi->restricted_predition) {
+        // include restricted references num_total_refs and remapped_ref_idx.
+        // They are still references but not to be used except for pixel values
+        const int max_num_ref_frames =
+            AOMMIN(cm->seq_params.ref_frames, INTER_REFS_PER_FRAME);
+        int num_valid_refs_without_restricted_ref =
+            cm->ref_frames_info.num_total_refs;
+        for (int idx = 0;
+             idx < cm->seq_params.ref_frames &&
+             cm->ref_frames_info.num_total_refs < max_num_ref_frames;
+             idx++) {
+          if (cm->ref_frame_map[idx] != NULL &&
+              cm->ref_frame_map[idx]->is_restricted_ref) {
+            int map_pos = -1;
+            for (int map_idx = 0;
+                 map_idx < num_valid_refs_without_restricted_ref; map_idx++) {
+              if (cm->remapped_ref_idx[map_idx] == idx) {
+                map_pos = map_idx;
+                break;
+              }
+            }  // map_idx
+#if 1  // CONFIG_F322_OBUER_REFRESTRICT_DEC
+       // if idx is not included in ref_frames_info
+            if (map_pos == -1) {
+              cm->ref_frames_info
+                  .ref_frame_distance[cm->ref_frames_info.num_total_refs] =
+                  INT_MAX;
+              cm->remapped_ref_idx[cm->ref_frames_info.num_total_refs] = idx;
+              cm->ref_frames_info.num_total_refs++;
+            }
+#endif
+          }  // restricted reference
+        }
+      }
+#endif
+#if 1
+      printf(
+          "<<%s>> num_restricted_ref:%d, num_total_refs: %d, "
+          "num_valid_refs_with_restricted_ref: %d, cm->remapped_ref_idx: \t",
+          __func__, cm->ref_frames_info.num_restricted_ref,
+          cm->ref_frames_info.num_total_refs,
+          cm->ref_frames_info.num_valid_refs_with_restricted_ref);
+      for (int idx = 0; idx < cm->ref_frames_info.num_total_refs; idx++) {
+        printf("%d, ", cm->remapped_ref_idx[idx]);
+      }
+      printf("dist:");
+      for (int idx = 0; idx < cm->ref_frames_info.num_total_refs; idx++) {
+        printf("%d, ", cm->ref_frames_info.ref_frame_distance[idx]);
+      }
+      printf("\n");
+#endif
       // Check to make sure all reference frames have valid dimensions.
       for (int i = 0; i < cm->ref_frames_info.num_total_refs; ++i) {
         const RefCntBuffer *const ref_frame = get_ref_frame_buf(cm, i);
         int valid_ref_frame = valid_ref_frame_size(ref_frame->buf.y_crop_width,
                                                    ref_frame->buf.y_crop_height,
                                                    cm->width, cm->height);
+#if CONFIG_F322_OBUER_REFRESTRICT
+        if (!valid_ref_frame && !ref_frame->is_restricted_ref)
+#else
         if (!valid_ref_frame)
+#endif
           aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                              "Referenced frame has invalid size");
       }
@@ -9848,6 +10013,13 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         if (cm->bru.enabled) {
           const RefCntBuffer *const bru_ref =
               get_ref_frame_buf(cm, cm->bru.update_ref_idx);
+#if CONFIG_F322_OBUER_REFRESTRICT
+          if (pbi->restricted_predition && bru_ref != NULL &&
+              bru_ref->is_restricted_ref) {
+            aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                               "Invalid BRU Ref: restricted reference buffer");
+          }
+#endif
           if (bru_ref == NULL) {
             aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                                "Invalid BRU Ref: invalid reference buffer");
@@ -9924,6 +10096,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         int cur_frame_disp = (int)current_frame->display_order_hint;
         for (int i = 0; i < cm->seq_params.ref_frames; i++) {
           const RefCntBuffer *const buf = cm->ref_frame_map[i];
+#if CONFIG_F322_OBUER_REFRESTRICT
+          if (buf->is_restricted_ref) continue;
+#endif
           if (buf) {
             int ref_disp = (int)buf->display_order_hint;
             const int disp_diff = get_relative_dist(
@@ -9946,6 +10121,10 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         for (int i = 0; i < seq_params->ref_frames; i++)
           scores[i].score = INT_MAX;
         for (int i = 0; i < cm->ref_frames_info.num_total_refs; i++) {
+#if CONFIG_F322_OBUER_REFRESTRICT
+          if (cm->ref_frame_map[cm->remapped_ref_idx[i]]->is_restricted_ref)
+            continue;
+#endif
           scores[i].score = i;
           int ref = cm->remapped_ref_idx[i];
           scores[i].distance =
@@ -9954,6 +10133,43 @@ static int read_uncompressed_header(AV1Decoder *pbi,
                                 (int)cm->ref_frame_map_pairs[ref].disp_order);
           cm->ref_frames_info.ref_frame_distance[i] = scores[i].distance;
         }
+#if CONFIG_F322_OBUER_REFRESTRICT
+        if (pbi->restricted_predition) {
+          // include restricted references num_total_refs and remapped_ref_idx.
+          // They are still references but not to be used except for pixel
+          // values
+          int num_valid_refs_without_restricted_ref =
+              cm->ref_frames_info.num_total_refs;
+          const int max_num_ref_frames =
+              AOMMIN(cm->seq_params.ref_frames, INTER_REFS_PER_FRAME);
+          for (int idx = 0;
+               idx < cm->seq_params.ref_frames &&
+               cm->ref_frames_info.num_total_refs < max_num_ref_frames;
+               idx++) {
+            if (cm->ref_frame_map[idx] != NULL &&
+                cm->ref_frame_map[idx]->is_restricted_ref) {
+              int map_pos = -1;
+              for (int map_idx = 0;
+                   map_idx < num_valid_refs_without_restricted_ref; map_idx++) {
+                if (cm->remapped_ref_idx[map_idx] == idx) {
+                  map_pos = map_idx;
+                  break;
+                }
+              }  // map_idx
+#if 1  // CONFIG_F322_OBUER_REFRESTRICT_DEC
+       // if idx is not included in ref_frames_info
+              if (map_pos == -1) {
+                cm->ref_frames_info
+                    .ref_frame_distance[cm->ref_frames_info.num_total_refs] =
+                    INT_MAX;
+                cm->remapped_ref_idx[cm->ref_frames_info.num_total_refs] = idx;
+                cm->ref_frames_info.num_total_refs++;
+              }
+#endif
+            }  // restricted reference
+          }
+        }
+#endif
         av1_get_past_future_cur_ref_lists(cm, scores);
       }
       cm->cur_frame->num_ref_frames = cm->ref_frames_info.num_total_refs;
@@ -9964,7 +10180,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         features->allow_ref_frame_mvs = 0;
 
       if (features->allow_ref_frame_mvs &&
+#if 0  // CONFIG_F322_OBUER_REFRESTRICT jkei is it needed?
+          cm->ref_frames_info.num_valid_refs_without_restricted_ref > 1 &&
+#else
           cm->ref_frames_info.num_total_refs > 1 &&
+#endif
           block_size_high[seq_params->sb_size] > 64) {
         // Get the TMVP sampling mode
         cm->tmvp_sample_step = aom_rb_read_bit(rb) + 1;
@@ -9992,7 +10212,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       cm->has_both_sides_refs = (cm->ref_frames_info.num_future_refs > 0) &&
                                 (cm->ref_frames_info.num_past_refs > 0);
       if (cm->seq_params.enable_tip && features->allow_ref_frame_mvs &&
+#if 0  // CONFIG_F322_OBUER_REFRESTRICT jkei is it needed?
+          cm->ref_frames_info.num_valid_refs_without_restricted_ref >= 2 &&
+#else
           cm->ref_frames_info.num_total_refs >= 2 &&
+#endif
 #if CONFIG_CWG_F317
           !cm->bridge_frame_info.is_bridge_frame &&
 #endif  // CONFIG_CWG_F317
@@ -10169,6 +10393,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       for (int i = 0; i < cm->ref_frames_info.num_total_refs; ++i) {
         const RefCntBuffer *const ref_buf = get_ref_frame_buf(cm, i);
         if (!ref_buf) continue;
+#if CONFIG_F322_OBUER_REFRESTRICT
+        if (ref_buf->is_restricted_ref) continue;
+#endif
         struct scale_factors *const ref_scale_factors =
             get_ref_scale_factors(cm, i);
         av1_setup_scale_factors_for_frame(
@@ -10833,6 +11060,12 @@ int32_t av1_read_tilegroup_header(
   if (send_first_tile_group_indication)
     is_first_tile_group = aom_rb_read_bit(rb);
   *first_tile_group_in_frame = is_first_tile_group;
+#if CONFIG_F322_OBUER_REFRESTRICT
+  if (obu_type == OBU_SWITCH)
+    cm->restricted_prediction_switch = aom_rb_read_bit(rb);
+  else
+    cm->restricted_prediction_switch = 0;
+#endif
 
   if (is_first_tile_group) {
 #if CONFIG_MISMATCH_DEBUG

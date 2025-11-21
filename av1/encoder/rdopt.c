@@ -7418,6 +7418,11 @@ static AOM_INLINE void collect_single_states(const AV1_COMMON *const cm,
   const PREDICTION_MODE this_mode = mbmi->mode;
   const MV_REFERENCE_FRAME ref_frame = COMPACT_INDEX0_NRS(mbmi->ref_frame[0]);
   const int dir = get_dir_rank(cm, mbmi->ref_frame[0], NULL);
+#if CONFIG_F322_OBUER_REFRESTRICT
+  //[jkei] dir==1 doesnot come in this function is it needed?
+  assert(dir != -1);
+#endif
+
   const int mode_offset = INTER_OFFSET(this_mode);
   const int ref_set = get_drl_refmv_count(features->max_drl_bits, x,
                                           mbmi->ref_frame, this_mode, 0);
@@ -7595,7 +7600,12 @@ static int compound_skip_by_single_states(
   int ref_searched[2] = { 0, 0 };
   int ref_mv_match[2] = { 1, 1 };
   int i, j;
-
+#if CONFIG_F322_OBUER_REFRESTRICT  //[jkei] do we need this?
+  if (mode_dir[0] == -1 || mode_dir[1] == -1) {
+    printf("[!!!!] the compound mode dir is not valid\n");
+    return 1;
+  }
+#endif
   for (i = 0; i < 2; ++i) {
     const SingleInterModeState *state =
         search_state->single_state[mode_dir[i]][mode_offset[i]];
@@ -8720,16 +8730,25 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
 #endif  // CONFIG_FAST_INTER_RDO
 
               &inter_cost_info_from_tpl);
+#if CONFIG_F322_OBUER_REFRESTRICT  //[jkei] do we need this?
+          bool dir_avail = true;
+#endif
 
           if (sf->inter_sf.prune_comp_search_by_single_result > 0 &&
               is_inter_singleref_mode(this_mode)) {
-            collect_single_states(cm, x, &search_state, mbmi);
+#if CONFIG_F322_OBUER_REFRESTRICT  //[jkei] do we need this?
+            dir_avail = get_dir_rank(cm, mbmi->ref_frame[0], NULL) != -1;
+            if (dir_avail)
+#endif
+              collect_single_states(cm, x, &search_state, mbmi);
           }
-
-          if (sf->inter_sf.prune_comp_using_best_single_mode_ref > 0 &&
-              is_inter_singleref_mode(this_mode))
-            update_best_single_mode(&search_state, this_mode, ref_frame,
-                                    this_rd);
+#if CONFIG_F322_OBUER_REFRESTRICT  //[jkei] do we need this?
+          if (dir_avail)
+#endif
+            if (sf->inter_sf.prune_comp_using_best_single_mode_ref > 0 &&
+                is_inter_singleref_mode(this_mode))
+              update_best_single_mode(&search_state, this_mode, ref_frame,
+                                      this_rd);
 
           if (this_rd == INT64_MAX) continue;
           if (mbmi->skip_txfm[xd->tree_type == CHROMA_PART]) {

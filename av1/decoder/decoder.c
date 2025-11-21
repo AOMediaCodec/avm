@@ -248,6 +248,9 @@ AV1Decoder *av1_decoder_create(BufferPool *const pool) {
     pbi->fgm_list[i].fgm_seq_id_in_tu = -1;
   }
 #endif  // CONFIG_F153_FGM_OBU
+#if CONFIG_F322_OBUER_REFRESTRICT
+  pbi->restricted_predition = 0;
+#endif
 
 #if CONFIG_ACCOUNTING
   pbi->acct_enabled = 1;
@@ -726,6 +729,28 @@ void output_frame_buffers(AV1Decoder *pbi, int ref_idx) {
   uint64_t trigger_frame_output_order =
       derive_output_order_idx(cm, trigger_frame);
 #endif  // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
+
+#if CONFIG_F322_OBUER_REFRESTRICT
+  //[jkei] if the current frame is s_frame, the doh in the reference frame is
+  // not reliable and very big. therefore, output everything in the reference
+  // list
+  if (cm->current_frame.frame_type == S_FRAME) {
+    for (int i = 0; i < cm->seq_params.ref_frames; i++) {
+      if ((cm->ref_frame_map[i] != NULL) &&
+          !cm->ref_frame_map[i]->frame_output_done) {
+        assign_output_frame_buffer_p(
+            &pbi->output_frames[pbi->num_output_frames++],
+            cm->ref_frame_map[i]);
+        cm->ref_frame_map[i]->frame_output_done = 1;
+#if CONFIG_MISMATCH_DEBUG
+        mismatch_move_frame_idx_r(0);
+#endif  // CONFIG_MISMATCH_DEBUG
+      }
+    }
+    return;
+  }  // is_s_frame
+#endif
+
   int successive_output = 1;
   for (int k = 1; k <= cm->seq_params.ref_frames && successive_output > 0;
        k++) {
@@ -764,7 +789,41 @@ void output_frame_buffers(AV1Decoder *pbi, int ref_idx) {
     }
   }
 }
+#if CONFIG_F322_OBUER_REFRESTRICT
+void output_trailing_frames_at_switch_frames(AV1Decoder *pbi) {
+  AV1_COMMON *const cm = &pbi->common;
+  RefCntBuffer *output_candidate = NULL;
+  RefCntBuffer *trigger_frame = NULL;
+  int display_order = -1;
+  int target_idx = -1;
 
+  for (int i = 0; i < REF_FRAMES; i++) {
+    if (is_frame_eligible_for_output(cm->ref_frame_map[i]) &&
+        ((int)cm->ref_frame_map[i]->display_order_hint_removed >
+         display_order)) {
+      display_order = cm->ref_frame_map[i]->display_order_hint_removed;
+      target_idx = i;
+    }
+  }
+
+  if (target_idx >= 0) {
+    trigger_frame = cm->ref_frame_map[target_idx];
+    do {
+      output_candidate = trigger_frame;
+      for (int i = 0; i < REF_FRAMES; i++) {
+        if (is_frame_eligible_for_output(cm->ref_frame_map[i]) &&
+            cm->ref_frame_map[i]->display_order_hint_removed <
+                output_candidate->display_order_hint_removed) {
+          output_candidate = cm->ref_frame_map[i];
+        }
+      }
+      assign_output_frame_buffer_p(
+          &pbi->output_frames[pbi->num_output_frames++], output_candidate);
+      output_candidate->frame_output_done = 1;
+    } while (output_candidate != trigger_frame);
+  }
+}
+#endif
 // This function outputs all frames from the frame buffers that are showable but
 // have not yet been output in the previous CVS.
 void output_trailing_frames(AV1Decoder *pbi) {
@@ -807,6 +866,14 @@ static void update_frame_buffers(AV1Decoder *pbi, int frame_decoded) {
         cm->current_frame.refresh_frame_flags ==
             ((1 << cm->seq_params.ref_frames) - 1))
       output_trailing_frames(pbi);
+#if CONFIG_F322_OBUER_REFRESTRICT
+    else if (cm->current_frame.frame_type == S_FRAME) {
+      output_trailing_frames_at_switch_frames(pbi);
+    }
+#endif
+#if CONFIG_F322_OBUER_REFRESTRICT
+    cm->cur_frame->is_restricted_ref = false;
+#endif
 
     // The following for loop needs to release the reference stored in
     // cm->ref_frame_map[ref_index] before storing a reference to

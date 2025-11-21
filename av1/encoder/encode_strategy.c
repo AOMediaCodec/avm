@@ -298,6 +298,9 @@ static void get_gop_cfg_enabled_refs(AV1_COMP *const cpi, int *ref_frame_flags,
     // Get reference frame buffer
     const RefCntBuffer *const buf = get_ref_frame_buf(&cpi->common, frame);
     if (buf == NULL) continue;
+#if CONFIG_F322_OBUER_REFRESTRICT  //[jkei] added refrestricted
+    if (buf->is_restricted_ref) continue;
+#endif
     const int frame_order = (int)buf->display_order_hint;
     frame_level = buf->pyramid_level;
 
@@ -663,7 +666,11 @@ static int get_refresh_idx(int update_arf, int refresh_level,
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     if (switch_frame_mode == 1 && ref_pair.frame_type == KEY_FRAME) continue;
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+#if CONFIG_F322_OBUER_REFRESTRICT
+    const int frame_order = ref_pair.disp_order_removed;
+#else
     const int frame_order = ref_pair.disp_order;
+#endif
     const int reference_frame_level = ref_pair.pyr_level;
     // Keep future frames and three closest previous frames in output order
     if (frame_order > cur_frame_disp - 3) continue;
@@ -775,7 +782,10 @@ int av1_get_refresh_frame_flags(
 #if CONFIG_F024_KEYOBU  // CONFIG_F024_KEYOBU_FIX
           && cpi->common.seq_params.max_mlayer_id == 0)
 #endif  // CONFIG_F024_KEYOBU
-      || frame_params->frame_type == S_FRAME) {
+#if !CONFIG_F322_OBUER_REFRESTRICT
+      || frame_params->frame_type == S_FRAME
+#endif
+      ) {
     return (1 << cpi->common.seq_params.ref_frames) - 1;
   }
 
@@ -1279,6 +1289,9 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   // not signaled and does not change the reference frame list construction.
   cm->current_frame.order_hint = cur_frame_disp;
   cm->current_frame.display_order_hint = cur_frame_disp;
+#if CONFIG_F322_OBUER_REFRESTRICT
+  cm->current_frame.display_order_hint_removed = cur_frame_disp;
+#endif
   cm->current_frame.pyramid_level = get_true_pyr_level(
       cpi->gf_group.layer_depth[cpi->gf_group.index], cur_frame_disp,
       cpi->gf_group.max_layer_depth,
@@ -1462,7 +1475,13 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
       for (int frame = 0; frame < cm->seq_params.ref_frames; frame++) {
         const RefCntBuffer *const buf = cm->ref_frame_map[frame];
         if (buf == NULL) continue;
+#if CONFIG_F322_OBUER_REFRESTRICT
+        const int frame_order = cpi->oxcf.kf_cfg.sframe_dist != 0
+                                    ? (int)buf->display_order_hint_removed
+                                    : (int)buf->display_order_hint;
+#else
         const int frame_order = (int)buf->display_order_hint;
+#endif
         if (frame_order == cur_frame_disp)
           frame_params.existing_fb_idx_to_show = frame;
       }
