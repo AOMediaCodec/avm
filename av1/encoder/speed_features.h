@@ -156,9 +156,6 @@ typedef struct {
   // and avoid doing full TX type search for such blocks.
   int use_skip_flag_prediction;
 
-  // Threshold used by the ML based method to predict TX block split decisions.
-  int ml_tx_split_thresh;
-
   // skip remaining transform type search when we found the rdcost of skip is
   // better than applying transform
   int skip_tx_search;

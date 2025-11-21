@@ -1802,88 +1802,6 @@ static void prune_tx_2D(MACROBLOCK *x, BLOCK_SIZE bsize, TX_SIZE tx_size,
   *allowed_tx_mask = allow_bitmask;
 }
 
-static float get_dev(float mean, double x2_sum, int num) {
-  const float e_x2 = (float)(x2_sum / num);
-  const float diff = e_x2 - mean * mean;
-  const float dev = (diff > 0) ? sqrtf(diff) : 0;
-  return dev;
-}
-
-// Feature used by the model to predict tx split: the mean and standard
-// deviation values of the block and sub-blocks.
-static AOM_INLINE void get_mean_dev_features(int bd, const int16_t *data,
-                                             int stride, int bw, int bh,
-                                             float *feature) {
-  const int16_t *const data_ptr = &data[0];
-  const int subh = (bh >= bw) ? (bh >> 1) : bh;
-  const int subw = (bw >= bh) ? (bw >> 1) : bw;
-  const int num = bw * bh;
-  const int sub_num = subw * subh;
-  int feature_idx = 2;
-  int total_x_sum = 0;
-  int64_t total_x2_sum = 0;
-  int blk_idx = 0;
-  double mean2_sum = 0.0f;
-  float dev_sum = 0.0f;
-
-  for (int row = 0; row < bh; row += subh) {
-    for (int col = 0; col < bw; col += subw) {
-      int x_sum;
-      int64_t x2_sum;
-      // TODO(any): Write a SIMD version. Clear registers.
-      aom_get_blk_sse_sum(data_ptr + row * stride + col, stride, subw, subh,
-                          &x_sum, &x2_sum);
-      x_sum >>= (bd - 8);
-      x2_sum >>= (bd - 8) * 2;
-      total_x_sum += x_sum;
-      total_x2_sum += x2_sum;
-
-      aom_clear_system_state();
-      const float mean = (float)x_sum / sub_num;
-      const float dev = get_dev(mean, (double)x2_sum, sub_num);
-      feature[feature_idx++] = mean;
-      feature[feature_idx++] = dev;
-      mean2_sum += (double)(mean * mean);
-      dev_sum += dev;
-      blk_idx++;
-    }
-  }
-
-  const float lvl0_mean = (float)total_x_sum / num;
-  feature[0] = lvl0_mean;
-  feature[1] = get_dev(lvl0_mean, (double)total_x2_sum, num);
-
-  if (blk_idx > 1) {
-    // Deviation of means.
-    feature[feature_idx++] = get_dev(lvl0_mean, mean2_sum, blk_idx);
-    // Mean of deviations.
-    feature[feature_idx++] = dev_sum / blk_idx;
-  }
-}
-
-static int ml_predict_tx_split(MACROBLOCK *x, BLOCK_SIZE bsize, int blk_row,
-                               int blk_col, TX_SIZE tx_size) {
-  const NN_CONFIG *nn_config = av1_tx_split_nnconfig_map[tx_size];
-  if (!nn_config) return -1;
-
-  const int diff_stride = block_size_wide[bsize];
-  const int16_t *diff =
-      x->plane[0].src_diff + 4 * blk_row * diff_stride + 4 * blk_col;
-  const int bw = tx_size_wide[tx_size];
-  const int bh = tx_size_high[tx_size];
-  aom_clear_system_state();
-
-  float features[64] = { 0.0f };
-  get_mean_dev_features(x->e_mbd.bd, diff, diff_stride, bw, bh, features);
-
-  float score = 0.0f;
-  av1_nn_predict(features, nn_config, 1, &score);
-  aom_clear_system_state();
-
-  int int_score = (int)(score * 10000);
-  return clamp(int_score, -80000, 80000);
-}
-
 static INLINE uint16_t
 get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
             int blk_row, int blk_col, BLOCK_SIZE plane_bsize, TX_SIZE tx_size,
@@ -3271,7 +3189,6 @@ static void select_tx_partition_type(
   const int is_rect = is_rect_tx(max_tx_size);
   const int txw = tx_size_wide[max_tx_size];
   const int txh = tx_size_high[max_tx_size];
-  const int is_vert_rect = (txh > txw);
   const int max_txw_txh = AOMMAX(txw, txh);
   assert(max_tx_size < TX_SIZES_ALL);
   TX_SIZE sub_txs[MAX_TX_PARTITIONS] = { 0 };
@@ -3282,14 +3199,6 @@ static void select_tx_partition_type(
   TX_TYPE best_partition_tx_types[MAX_TX_PARTITIONS] = { 0 };
   uint8_t full_blk_skip[MAX_TX_PARTITIONS] = { 0 };
 
-  const int threshold = cpi->sf.tx_sf.tx_type_search.ml_tx_split_thresh;
-  const int threshold_horzvert = threshold * 10;
-  const int try_ml_predict_tx_split = 0;
-  int split_score = INT_MAX;
-  if (try_ml_predict_tx_split) {
-    split_score =
-        ml_predict_tx_split(x, plane_bsize, blk_row, blk_col, max_tx_size);
-  }
   for (TX_PARTITION_TYPE type = 0; type < TX_PARTITION_TYPES; ++type) {
     if (cpi->common.seq_params.reduced_tx_part_set &&
         type > TX_PARTITION_VERT) {
@@ -3298,25 +3207,6 @@ static void select_tx_partition_type(
     // Skip any illegal partitions for this block size
     if (!use_tx_partition(type, plane_bsize, max_tx_size)) continue;
     if (cpi->sf.tx_sf.enable_tx_partition == false && type) continue;
-    // ML based speed feature to skip searching for split transform blocks.
-    if (try_ml_predict_tx_split) {
-      if (!is_rect && type == TX_PARTITION_SPLIT) {
-        if (split_score < -threshold) continue;
-      }
-      if ((is_rect && is_vert_rect && type == TX_PARTITION_HORZ) ||
-          (is_rect && !is_vert_rect && type == TX_PARTITION_VERT)) {
-        if (split_score < -threshold * 2) continue;
-      }
-      if ((type == TX_PARTITION_HORZ || type == TX_PARTITION_VERT) &&
-          split_score < -threshold_horzvert) {
-        continue;
-      }
-      if ((type == TX_PARTITION_HORZ || type == TX_PARTITION_VERT) &&
-          best_tx_partition == TX_PARTITION_SPLIT &&
-          split_score > threshold_horzvert / 2) {
-        continue;
-      }
-    }
 
     if ((type == TX_PARTITION_HORZ4 &&
          best_tx_partition == TX_PARTITION_VERT) ||
