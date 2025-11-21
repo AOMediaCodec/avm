@@ -135,7 +135,7 @@ static void read_film_grain_model(struct film_grain_model *fgm, int chroma_idc,
         if (i && fgm->fgm_scaling_points[c][i - 1][0] >=
                      fgm->fgm_scaling_points[c][i][0]) {
           aom_internal_error(error_info, AOM_CODEC_UNSUP_BITSTREAM,
-                             "First coordinate of the scaling function "
+                             "First coordinate of the %s scaling function "
                              "points shall be increasing.",
                              c == 0   ? "y"
                              : c == 1 ? "cb"
@@ -173,7 +173,7 @@ static void read_film_grain_model(struct film_grain_model *fgm, int chroma_idc,
       fgm->scaling_points_y[i][0] = aom_rb_read_literal(rb, bitsIncr);
       if (i && fgm->scaling_points_y[i - 1][0] >= fgm->scaling_points_y[i][0]) {
         aom_internal_error(error_info, AOM_CODEC_UNSUP_BITSTREAM,
-                           "First coordinate of the scaling function "
+                           "First coordinate of the %s scaling function "
                            "points shall be increasing.",
                            "y");
       }
@@ -209,7 +209,7 @@ static void read_film_grain_model(struct film_grain_model *fgm, int chroma_idc,
         if (i &&
             fgm->scaling_points_cb[i - 1][0] >= fgm->scaling_points_cb[i][0]) {
           aom_internal_error(error_info, AOM_CODEC_UNSUP_BITSTREAM,
-                             "First coordinate of the scaling function "
+                             "First coordinate of the %s scaling function "
                              "points shall be increasing.",
                              "cb");
         }
@@ -234,7 +234,7 @@ static void read_film_grain_model(struct film_grain_model *fgm, int chroma_idc,
         if (i &&
             fgm->scaling_points_cr[i - 1][0] >= fgm->scaling_points_cr[i][0]) {
           aom_internal_error(error_info, AOM_CODEC_UNSUP_BITSTREAM,
-                             "First coordinate of the scaling function "
+                             "First coordinate of the % scaling function "
                              "points shall be increasing.",
                              "cr");
         }

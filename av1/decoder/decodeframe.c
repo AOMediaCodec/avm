@@ -6356,7 +6356,14 @@ static void setup_film_grain(AV1Decoder *pbi, struct aom_read_bit_buffer *rb) {
                            pbi->fgm_list[cm->fgm_id].fgm_tlayer_id);
       }
       uint32_t seq_chroma_format_idc = CHROMA_FORMAT_420;
-      av1_get_chroma_format_idc(seq_params, &seq_chroma_format_idc);
+      aom_codec_err_t err =
+          av1_get_chroma_format_idc(seq_params, &seq_chroma_format_idc);
+      if (err != AOM_CODEC_OK) {
+        aom_internal_error(
+            &cm->error, err,
+            "Unsupported subsampling_x = %d, subsampling_y = %d.",
+            seq_params->subsampling_x, seq_params->subsampling_y);
+      }
       if (seq_chroma_format_idc !=
           (uint32_t)pbi->fgm_list[cm->fgm_id].fgm_chroma_idc) {
         aom_internal_error(
@@ -8701,11 +8708,11 @@ static void activate_sequence_header(AV1Decoder *pbi,
   if (obu_type == OBU_CLK) {
     // when SH, FGM and CLK are present in one TU, the fgm list is not reset.
     for (int i = 0; i < MAX_FGM_NUM; ++i) {
-      if (pbi->fgm_list[i].fgm_seq_id_in_tu != -1 &&
-          pbi->fgm_list[i].fgm_seq_id_in_tu != cm->seq_params.seq_header_id) {
+      if (pbi->fgm_list[i].fgm_seq_id_in_tu != cm->seq_params.seq_header_id) {
         pbi->fgm_list[i].fgm_id = -1;
         pbi->fgm_list[i].fgm_tlayer_id = -1;
         pbi->fgm_list[i].fgm_mlayer_id = -1;
+        pbi->fgm_list[i].fgm_seq_id_in_tu = -1;
       }
     }
   }

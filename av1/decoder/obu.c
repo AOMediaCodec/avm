@@ -1541,6 +1541,8 @@ static int is_coded_frame(OBU_TYPE obu_type) {
 // On success, return 0. If failed return 1.
 #if OBU_ORDER_IN_TU
 static int check_obu_order(OBU_TYPE prev_obu_type, OBU_TYPE curr_obu_type) {
+  // TODO: avm#1115 - Rewrite check_obu_order() to better express all OBU
+  // ordering constraints.
 #if CONFIG_F153_FGM_OBU
   if (curr_obu_type == OBU_FGM || prev_obu_type == OBU_FGM) {
     return 0;
@@ -1887,6 +1889,10 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
 #endif  // CONFIG_MULTI_STREAM
       case OBU_SEQUENCE_HEADER:
         decoded_payload_size = read_sequence_header_obu(pbi, &rb);
+#if CONFIG_F153_FGM_OBU
+        fgm_seq_id_in_tu =
+            pbi->seq_list[pbi->seq_header_count - 1].seq_header_id;
+#endif
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
         // The sequence header should not change in the middle of a frame.
         if (pbi->sequence_header_changed && pbi->seen_frame_header) {
