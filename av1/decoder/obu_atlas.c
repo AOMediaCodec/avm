@@ -156,9 +156,17 @@ static uint32_t read_ats_region_to_segment_mapping(
       ats_reg_seg_map->ats_bottom_right_region_row_off[obu_xLayer_id][xAId][i] =
           aom_rb_read_uvlc(rb);
     }
-  } else
+  } else {
+    if (NumRegionsInAtlas > MAX_NUM_ATLAS_SEGMENTS) {
+      aom_internal_error(
+          &pbi->common.error, AOM_CODEC_UNSUP_BITSTREAM,
+          "If ats_single_region_per_atlas_segment_flag[%d][%d] is enabled, "
+          "NumRegionsInAtlas shall not be larger than %d.",
+          obu_xLayer_id, xAId, MAX_NUM_ATLAS_SEGMENTS);
+    }
     ats_reg_seg_map->ats_num_atlas_segments_minus_1[obu_xLayer_id][xAId] =
         NumRegionsInAtlas - 1;
+  }
 
   return 0;
 }
