@@ -557,12 +557,10 @@ typedef struct cfg_options {
    *
    */
   unsigned int explicit_ref_frame_map;
-#if CONFIG_FIX_OBU_SEF
   /*!\brief enable generation of SEF OBUs
    *
    */
   unsigned int enable_generation_sef_obu;
-#endif  // CONFIG_FIX_OBU_SEF
   /*!\brief use reduced transform type set
    *
    */

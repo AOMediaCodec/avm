@@ -159,11 +159,9 @@ struct av1_extracfg {
   int enable_flip_idtx;          // enable flip and identity transform types
   int max_reference_frames;      // maximum number of references per frame
   int enable_reduced_reference_set;  // enable reduced set of references
-  int explicit_ref_frame_map;  // explicitly signal reference frame mapping
-#if CONFIG_FIX_OBU_SEF
+  int explicit_ref_frame_map;      // explicitly signal reference frame mapping
   int enable_generation_sef_obu;   // enable frame output order derivation based
                                    // on SEF
-#endif                             // CONFIG_FIX_OBU_SEF
   int enable_ref_frame_mvs;        // sequence level
   int reduced_ref_frame_mvs_mode;  // use 1 reference frame combination
                                    // for temporal mv prediction
@@ -489,9 +487,7 @@ static struct av1_extracfg default_extra_cfg = {
   7,  // max_reference_frames
   0,  // enable_reduced_reference_set
   0,  // explicit_ref_frame_map
-#if CONFIG_FIX_OBU_SEF
   0,  // enable frame output order derivation based on SEF
-#endif  // CONFIG_FIX_OBU_SEF
   1,  // enable_ref_frame_mvs sequence level
   0,    // reduced_ref_frame_mvs_mode sequence level
   1,  // allow ref_frame_mvs frame level
@@ -826,9 +822,7 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   RANGE_CHECK(extra_cfg, reduced_ref_frame_mvs_mode, 0, 1);
   RANGE_CHECK(extra_cfg, enable_reduced_reference_set, 0, 1);
   RANGE_CHECK(extra_cfg, explicit_ref_frame_map, 0, 1);
-#if CONFIG_FIX_OBU_SEF
   RANGE_CHECK(extra_cfg, enable_generation_sef_obu, 0, 1);
-#endif  // CONFIG_FIX_OBU_SEF
   RANGE_CHECK_HI(extra_cfg, chroma_subsampling_x, 1);
   RANGE_CHECK_HI(extra_cfg, chroma_subsampling_y, 1);
 
@@ -1007,9 +1001,7 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->scan_type_info_present_flag = extra_cfg->scan_type_info_present_flag;
 #endif  // CONFIG_SCAN_TYPE_METADATA
   cfg->explicit_ref_frame_map = extra_cfg->explicit_ref_frame_map;
-#if CONFIG_FIX_OBU_SEF
   cfg->enable_generation_sef_obu = extra_cfg->enable_generation_sef_obu;
-#endif  // CONFIG_FIX_OBU_SEF
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   cfg->disable_loopfilters_across_tiles =
       extra_cfg->disable_loopfilters_across_tiles;
@@ -1127,9 +1119,7 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   // imply explicit_ref_frame_map = 1 when bru is on
   extra_cfg->enable_bru = cfg->enable_bru;
   extra_cfg->explicit_ref_frame_map = cfg->explicit_ref_frame_map;
-#if CONFIG_FIX_OBU_SEF
   extra_cfg->enable_generation_sef_obu = cfg->enable_generation_sef_obu;
-#endif  // CONFIG_FIX_OBU_SEF
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   extra_cfg->disable_loopfilters_across_tiles =
       cfg->disable_loopfilters_across_tiles;
@@ -1622,10 +1612,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
       extra_cfg->enable_reduced_reference_set;
   oxcf->ref_frm_cfg.enable_onesided_comp = extra_cfg->enable_onesided_comp;
   oxcf->ref_frm_cfg.explicit_ref_frame_map = extra_cfg->explicit_ref_frame_map;
-#if CONFIG_FIX_OBU_SEF
   oxcf->ref_frm_cfg.enable_generation_sef_obu =
       extra_cfg->enable_generation_sef_obu;
-#endif  // CONFIG_FIX_OBU_SEF
   oxcf->row_mt = extra_cfg->row_mt;
 
   // Set motion mode related configuration.
@@ -3313,23 +3301,19 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 
       cpi->seq_params_locked = 1;
       is_frame_visible = cpi->common.show_frame;
-#if CONFIG_FIX_OBU_SEF
       if (!cpi->oxcf.ref_frm_cfg.enable_generation_sef_obu) {
-#endif  // CONFIG_FIX_OBU_SEF
 #if CONFIG_F024_KEYOBU
         if (!cpi->is_olk_overlay && cpi->update_type_was_overlay) {
           is_frame_visible_null = 1;
         }
 #else
-      if (cpi->common.current_frame.frame_type != KEY_FRAME &&
-          cpi->common.show_existing_frame) {
-        is_frame_visible_null = 1;
-      }
+        if (cpi->common.current_frame.frame_type != KEY_FRAME &&
+            cpi->common.show_existing_frame) {
+          is_frame_visible_null = 1;
+        }
 #endif
         assert(IMPLIES(is_frame_visible_null, frame_size == 0));
-#if CONFIG_FIX_OBU_SEF
       }
-#endif  // CONFIG_FIX_OBU_SEF
       if (!is_frame_visible_null && frame_size == 0) is_frame_visible = 0;
 
       if (frame_size) {
@@ -4164,13 +4148,11 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                               &g_av1_codec_arg_defs.explicit_ref_frame_map,
                               argv, err_string)) {
     extra_cfg.explicit_ref_frame_map = arg_parse_int_helper(&arg, err_string);
-#if CONFIG_FIX_OBU_SEF
   } else if (arg_match_helper(&arg,
                               &g_av1_codec_arg_defs.enable_generation_sef_obu,
                               argv, err_string)) {
     extra_cfg.enable_generation_sef_obu =
         arg_parse_int_helper(&arg, err_string);
-#endif  // CONFIG_FIX_OBU_SEF
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_ref_frame_mvs,
                               argv, err_string)) {
     extra_cfg.enable_ref_frame_mvs = arg_parse_int_helper(&arg, err_string);
@@ -4661,9 +4643,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         0,  // reduced_ref_frame_mvs_mode
         1,  // enable_reduced_reference_set
         0,  // explicit_ref_frame_map
-#if CONFIG_FIX_OBU_SEF
         0,  // enable_generation_sef_obu
-#endif      // CONFIG_FIX_OBU_SEF
         0,  // reduced_tx_type_set
         0,  // max_drl_refmvs
 

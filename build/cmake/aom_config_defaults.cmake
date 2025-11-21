@@ -167,8 +167,6 @@ set_aom_config_var(CONFIG_F106_OBU_TIP 1 "Use TIP_OBU.")
 set_aom_config_var(CONFIG_METADATA 1 "F161 metadata syntax")
 set_aom_config_var(CONFIG_ICC_METADATA 1 "ICC metadata syntax")
 
-set_aom_config_var(CONFIG_FIX_OBU_SEF 1 "Fix on SEF OBU.")
-
 # CWG-E242
 set_aom_config_var(CONFIG_CWG_E242_SIGNAL_TILE_INFO 1
                    "Signal tile information at sequence header.")

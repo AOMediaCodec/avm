@@ -725,12 +725,10 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       ARG_DEF(NULL, "explicit-ref-frame-map", 1,
               "Explicitly signal the reference frame mapping (0: off "
               "(default), 1: on)"),
-#if CONFIG_FIX_OBU_SEF
   .enable_generation_sef_obu =
       ARG_DEF(NULL, "enable-generation-sef-obu", 1,
               "Enable frame output order derivation based on SEF"
               "(0: off (default), 1: on)"),
-#endif  // CONFIG_FIX_OBU_SEF
   .target_seq_level_idx = ARG_DEF(
       NULL, "target-seq-level-idx", 1,
       "Target sequence level index. "
