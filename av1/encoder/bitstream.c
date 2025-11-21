@@ -9609,14 +9609,16 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
   if (cm->current_frame.frame_type == S_FRAME) obu_type = OBU_SWITCH;
 #endif  // CONFIG_F106_OBU_SWITCH
 
-#if CONFIG_F106_OBU_SEF && !CONFIG_F024_KEYOBU
-  if (encode_show_existing_frame(cm)) obu_type = OBU_SEF;
-#else   // CONFIG_F106_OBU_SEF && !CONFIG_F024_KEYOBU
+#if CONFIG_F106_OBU_SEF
+#if CONFIG_F024_KEYOBU
   if (cpi->oxcf.ref_frm_cfg.enable_generation_sef_obu &&
       cm->show_existing_frame) {
-    obu_type = OBU_REGULAR_SEF;
+    obu_type = cm->is_leading_picture == 1 ? OBU_LEADING_SEF : OBU_REGULAR_SEF;
   }
-#endif  // CONFIG_F106_OBU_SEF && !CONFIG_F024_KEYOBU
+#else   // CONFIG_F024_KEYOBU
+  if (encode_show_existing_frame(cm)) obu_type = OBU_SEF;
+#endif  // CONFIG_F024_KEYOBU
+#endif  // CONFIG_F106_OBU_SEF
 #if CONFIG_F106_OBU_TIP
   if (cm->current_frame.frame_type == INTER_FRAME &&
       cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT)
