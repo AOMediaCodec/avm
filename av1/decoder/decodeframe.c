@@ -6351,7 +6351,7 @@ static void setup_film_grain(AV1Decoder *pbi, struct aom_read_bit_buffer *rb) {
                [cm->tlayer_id][pbi->fgm_list[cm->fgm_id].fgm_tlayer_id]) {
         aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                            "mlayer_id(%d) or tlayer_id(%d) of the film grain "
-                           "model are out of the limit",
+                           "model is out of the limit",
                            pbi->fgm_list[cm->fgm_id].fgm_mlayer_id,
                            pbi->fgm_list[cm->fgm_id].fgm_tlayer_id);
       }
@@ -6369,7 +6369,7 @@ static void setup_film_grain(AV1Decoder *pbi, struct aom_read_bit_buffer *rb) {
         aom_internal_error(
             &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
             "chroma_format_idc(%d) of fgm_list[%d] is different from "
-            "chroma_format_idc(%d) the sequence header",
+            "chroma_format_idc(%d) in the sequence header",
             pbi->fgm_list[cm->fgm_id].fgm_chroma_idc, cm->fgm_id,
             seq_chroma_format_idc);
       }
@@ -8712,9 +8712,12 @@ static void activate_sequence_header(AV1Decoder *pbi,
 #endif  // CONFIG_F024_KEYOBU
 #if CONFIG_F153_FGM_OBU
   if (obu_type == OBU_CLK) {
-    // when SH, FGM and CLK are present in one TU, the fgm list is not reset.
+    // When a SH, a CLK and FGMs are in one TU, the fgms currently in the list
+    // can remain. Otherwise, they need to be reset/invalidated when a new
+    // sequence header is activated.
     for (int i = 0; i < MAX_FGM_NUM; ++i) {
       if (pbi->fgm_list[i].fgm_seq_id_in_tu != cm->seq_params.seq_header_id) {
+        // SH, CLK and FGM are not in one TU.
         pbi->fgm_list[i].fgm_id = -1;
         pbi->fgm_list[i].fgm_tlayer_id = -1;
         pbi->fgm_list[i].fgm_mlayer_id = -1;

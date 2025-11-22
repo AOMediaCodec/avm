@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Alliance for Open Media. All rights reserved
+ * Copyright (c) 2025, Alliance for Open Media. All rights reserved
  *
  * This source code is subject to the terms of the BSD 3-Clause Clear License
  * and the Alliance for Open Media Patent License 1.0. If the BSD 3-Clause Clear
@@ -28,7 +28,7 @@
 
 #if CONFIG_F153_FGM_OBU
 void copy_fgm_from_list(AV1_COMMON *cm, aom_film_grain_t *pars,
-                        struct film_grain_model *fgm) {
+                        const struct film_grain_model *fgm) {
   const SequenceHeader *const seq_params = &cm->seq_params;
   pars->bit_depth = seq_params->bit_depth;
 #if CONFIG_CWG_F298_REC11
@@ -162,7 +162,7 @@ static void read_film_grain_model(struct film_grain_model *fgm, int chroma_idc,
     aom_internal_error(error_info, AOM_CODEC_UNSUP_BITSTREAM,
                        "Number of points for film grain %s scaling "
                        "function exceeds the maximum value.",
-                       "luma");
+                       "y");
   }
   if (fgm->num_y_points) {
     int point_y_value_increment_bits_minus1 = aom_rb_read_literal(rb, 3);
@@ -234,7 +234,7 @@ static void read_film_grain_model(struct film_grain_model *fgm, int chroma_idc,
         if (i &&
             fgm->scaling_points_cr[i - 1][0] >= fgm->scaling_points_cr[i][0]) {
           aom_internal_error(error_info, AOM_CODEC_UNSUP_BITSTREAM,
-                             "First coordinate of the % scaling function "
+                             "First coordinate of the %s scaling function "
                              "points shall be increasing.",
                              "cr");
         }
@@ -330,6 +330,10 @@ static void read_film_grain_model(struct film_grain_model *fgm, int chroma_idc,
   fgm->block_size = aom_rb_read_bit(rb);
 }
 
+// acc_fgm_id_bitmap is an in/out parameter. The caller should set
+// *acc_fgm_id_bitmap to 0 before the first call to read_fgm_obu(). Each
+// read_fgm_obu() call updates *acc_fgm_id_bitmap by bitwise-ORing the
+// fgm_bit_map from the FGM OBU with *acc_fgm_id_bitmap.
 uint32_t read_fgm_obu(AV1Decoder *pbi, const int obu_tlayer_id,
                       const int obu_mlayer_id, uint32_t *acc_fgm_id_bitmap,
                       int fgm_seq_id_in_tu, struct aom_read_bit_buffer *rb) {
@@ -353,7 +357,7 @@ uint32_t read_fgm_obu(AV1Decoder *pbi, const int obu_tlayer_id,
     // is the same.
     if (fgm_bit_map & (1 << j)) {
       int fgm_id = j;
-      memset(&pbi->fgm_list[fgm_id], 0, sizeof(struct film_grain_model));
+      memset(&pbi->fgm_list[fgm_id], 0, sizeof(pbi->fgm_list[fgm_id]));
       pbi->fgm_list[fgm_id].fgm_seq_id_in_tu = fgm_seq_id_in_tu;
       pbi->fgm_list[fgm_id].fgm_id = fgm_id;
       pbi->fgm_list[fgm_id].fgm_mlayer_id = obu_mlayer_id;

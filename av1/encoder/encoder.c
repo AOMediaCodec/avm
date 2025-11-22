@@ -4404,8 +4404,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
             break;
           }
         }
-        memcpy(&cpi->fgm_list[fgm_pos], cpi->fgm,
-               sizeof(struct film_grain_model));
+        cpi->fgm_list[fgm_pos] = *cpi->fgm;
         cpi->written_fgm_num += 1;
       }
 #endif                   // CONFIG_F153_FGM_OBU
@@ -4572,7 +4571,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
         break;
       }
     }
-    memcpy(&cpi->fgm_list[fgm_pos], cpi->fgm, sizeof(struct film_grain_model));
+    cpi->fgm_list[fgm_pos] = *cpi->fgm;
     cpi->written_fgm_num += 1;
   }
 #endif  // CONFIG_F153_FGM_OBU

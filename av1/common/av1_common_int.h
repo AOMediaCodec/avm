@@ -2252,7 +2252,7 @@ component
 #endif
 
   /*!
-   * block size for the film grain synthesis
+   * block size for the film grain synthesis: 0 - 16x16, 1 - 32x32
    */
   int block_size;
 
@@ -2277,7 +2277,7 @@ component
   int fgm_mlayer_id;
 
   /*!
-   * chrom foram idc for the model stats.
+   * chroma format idc for the model stats.
    */
   int fgm_chroma_idc;
 
@@ -2991,7 +2991,7 @@ void av1_set_class_id_array_stride(CommonModeInfoParams *mi_params,
                                    AV1_COMMON *cm, int height);
 void av1_dealloc_class_id_array(CommonModeInfoParams *mi_params);
 
-#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC && CONFIG_F153_FGM_OBU
+#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 // Given subsampling x/y and monochrome values in `seq_params`, outputs the
 // chroma format idc. Returns error in case of invalid subsampling format.
 static INLINE aom_codec_err_t av1_get_chroma_format_idc(
@@ -3009,7 +3009,7 @@ static INLINE aom_codec_err_t av1_get_chroma_format_idc(
   }
   return AOM_CODEC_OK;
 }
-#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC && CONFIG_F153_FGM_OBU
+#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
 #if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 int get_ccso_unit_size_log2_adaptive_tile(const AV1_COMMON *cm,

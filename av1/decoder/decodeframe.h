@@ -53,7 +53,7 @@ uint32_t av1_read_atlas_segment_info_obu(struct AV1Decoder *pbi,
 
 #if CONFIG_F153_FGM_OBU
 void copy_fgm_from_list(AV1_COMMON *cm, aom_film_grain_t *pars,
-                        struct film_grain_model *fgm);
+                        const struct film_grain_model *fgm);
 #endif  // CONFIG_F153_FGM_OBU
 // Reads the middle part of the sequence header OBU (from
 // frame_width_bits_minus_1 to enable_restoration) into seq_params.
