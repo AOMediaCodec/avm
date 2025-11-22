@@ -10096,10 +10096,10 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         int cur_frame_disp = (int)current_frame->display_order_hint;
         for (int i = 0; i < cm->seq_params.ref_frames; i++) {
           const RefCntBuffer *const buf = cm->ref_frame_map[i];
+          if (buf) {
 #if CONFIG_F322_OBUER_REFRESTRICT
           if (buf->is_restricted_ref) continue;
 #endif
-          if (buf) {
             int ref_disp = (int)buf->display_order_hint;
             const int disp_diff = get_relative_dist(
                 &cm->seq_params.order_hint_info, cur_frame_disp, ref_disp);
