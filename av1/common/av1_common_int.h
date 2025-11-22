@@ -2959,7 +2959,6 @@ typedef struct AV1Common {
    */
   aom_metadata_pic_struct_t pic_struct_metadata_params;
 #endif  // CONFIG_SCAN_TYPE_METADATA
-<<<<<<< HEAD
 #if CONFIG_F024_KEYOBU
   /*!
    * Order hint of the last encountered OLK per layer

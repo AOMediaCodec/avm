@@ -6441,7 +6441,7 @@ void av1_read_film_grain_params(AV1_COMMON *cm,
   }
 #else
   pars->apply_grain = aom_rb_read_bit(rb);
-#endif  // CONFIG_CWG_F362
+#endif                             // CONFIG_CWG_F362
   if (!pars->apply_grain) {
     memset(pars, 0, sizeof(*pars));
     return;
@@ -8361,7 +8361,7 @@ static INLINE int get_disp_order_hint(AV1_COMMON *const cm)
     if (buf == NULL ||
 #if CONFIG_F024_KEYOBU
         !buf->showable_frame ||
-#endif  // CONFIG_F024_KEYOBU
+#endif                             // CONFIG_F024_KEYOBU
 #if CONFIG_F322_OBUER_REFRESTRICT  //[jkei] disp_order
         buf->is_restricted_ref ||
 #endif
@@ -10098,7 +10098,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
           const RefCntBuffer *const buf = cm->ref_frame_map[i];
           if (buf) {
 #if CONFIG_F322_OBUER_REFRESTRICT
-          if (buf->is_restricted_ref) continue;
+            if (buf->is_restricted_ref) continue;
 #endif
             int ref_disp = (int)buf->display_order_hint;
             const int disp_diff = get_relative_dist(

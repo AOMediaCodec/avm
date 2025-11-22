@@ -785,7 +785,7 @@ int av1_get_refresh_frame_flags(
 #if !CONFIG_F322_OBUER_REFRESTRICT
       || frame_params->frame_type == S_FRAME
 #endif
-      ) {
+  ) {
     return (1 << cpi->common.seq_params.ref_frames) - 1;
   }
 

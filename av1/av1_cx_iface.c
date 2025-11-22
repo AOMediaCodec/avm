@@ -2957,21 +2957,21 @@ static void report_stats(AV1_COMP *cpi, size_t frame_size, uint64_t cx_time) {
         }
       }
 #else
-      // Currently, "enable_keyframe_filtering > 1" is the only exception case
-      // in AVM. Later, if more cases arise, this condition can be made general
-      // based on frame type.
-      const int valid_ref_case =
-          (cpi->oxcf.kf_cfg.enable_keyframe_filtering > 1) &&
-          (cm->cur_frame->frame_type == INTER_FRAME);
-      ref_poc[ref_idx] =
-          ((ref_poc[ref_idx] == (int)cm->cur_frame->absolute_poc) &&
+    // Currently, "enable_keyframe_filtering > 1" is the only exception case
+    // in AVM. Later, if more cases arise, this condition can be made general
+    // based on frame type.
+    const int valid_ref_case =
+        (cpi->oxcf.kf_cfg.enable_keyframe_filtering > 1) &&
+        (cm->cur_frame->frame_type == INTER_FRAME);
+    ref_poc[ref_idx] =
+        ((ref_poc[ref_idx] == (int)cm->cur_frame->absolute_poc) &&
 #if CONFIG_CWG_F317
-           !valid_ref_case && !cm->bridge_frame_info.is_bridge_frame)
+         !valid_ref_case && !cm->bridge_frame_info.is_bridge_frame)
 #else
          !valid_ref_case)
 #endif
-              ? -1
-              : ref_poc[ref_idx];
+            ? -1
+            : ref_poc[ref_idx];
 #endif
     }
     if (cpi->b_calculate_psnr >= 1) {

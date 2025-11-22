@@ -4611,15 +4611,15 @@ static AOM_INLINE void encode_segmentation(AV1_COMMON *cm,
 #if CONFIG_F322_OBUER_REFRESTRICT  // segmentation
       if (cm->current_frame.frame_type != S_FRAME)
 #endif
-      aom_wb_write_bit(wb, seg->temporal_update);
+        aom_wb_write_bit(wb, seg->temporal_update);
 #if CONFIG_F322_OBUER_REFRESTRICT  // segmentation
-  int num_ref_frames_available = 0;
-  for (int ref_idx = 0; ref_idx < cm->seq_params.ref_frames; ref_idx++) {
-    if (cm->ref_frame_map[ref_idx] != NULL)
-      num_ref_frames_available +=
-          !cm->ref_frame_map[ref_idx]->is_restricted_ref;
-  }
-  if (num_ref_frames_available == 0) assert(seg->temporal_update == 0);
+      int num_ref_frames_available = 0;
+      for (int ref_idx = 0; ref_idx < cm->seq_params.ref_frames; ref_idx++) {
+        if (cm->ref_frame_map[ref_idx] != NULL)
+          num_ref_frames_available +=
+              !cm->ref_frame_map[ref_idx]->is_restricted_ref;
+      }
+      if (num_ref_frames_available == 0) assert(seg->temporal_update == 0);
 #endif
     }
     cm->current_frame.seg_info_present_in_frame_header = !reuse;
