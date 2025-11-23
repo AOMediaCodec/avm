@@ -231,6 +231,7 @@ static INLINE void reset_mfh_valid(AV1_COMMON *cm) {
 void read_obu_extension(ObuExtension *obu_ext, struct aom_read_bit_buffer *rb,
                         uint32_t remaining_bits) {
   // remaining_bits = total bits from current position to end of OBU payload
+  assert(rb->error_handler);
 
   if (remaining_bits == 0) {
     // No bits left, no extension flag present
@@ -256,7 +257,6 @@ void read_obu_extension(ObuExtension *obu_ext, struct aom_read_bit_buffer *rb,
       }
     }
   }
-  // If extension_present_flag == 0, caller checks trailing bits
 }
 #endif  // CONFIG_F343
 
