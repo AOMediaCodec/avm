@@ -8452,7 +8452,29 @@ static void read_frame_max_bvp_drl_bits(AV1_COMMON *const cm,
         MIN_MAX_IBC_DRL_BITS;
   }
 }
-
+#if CONFIG_F024_KEYOBU
+static void reset_buffer_other_than_OLK(AV1Decoder *pbi) {
+  AV1_COMMON *const cm = &pbi->common;
+  const SequenceHeader *const seq_params = &cm->seq_params;
+  BufferPool *const pool = cm->buffer_pool;
+  int ref_flags_to_keep = 0;
+  for (int layer = 0; layer <= seq_params->max_mlayer_id; layer++) {
+    if (cm->olk_refresh_frame_flags[layer] == -1) continue;
+    ref_flags_to_keep |= cm->olk_refresh_frame_flags[layer];
+  }
+  for (int ref_index = 0; ref_index < seq_params->ref_frames; ref_index++) {
+    if (!((ref_flags_to_keep >> ref_index) & 1u)) {
+      decrease_ref_count(cm->ref_frame_map[ref_index], pool);
+      cm->ref_frame_map[ref_index] = NULL;
+      if (pbi->random_accessed) pbi->valid_for_referencing[ref_index] = 1;
+    }
+  }  // ref_index
+}
+static int is_regular_non_olk_obu(OBU_TYPE obu_type) {
+  return obu_type == OBU_REGULAR_SEF || obu_type == OBU_REGULAR_TIP ||
+         obu_type == OBU_REGULAR_TILE_GROUP;
+}
+#endif
 #if CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_SEF
 static int read_show_existing_frame(AV1Decoder *pbi,
 #if CONFIG_F024_KEYOBU
@@ -8463,6 +8485,13 @@ static int read_show_existing_frame(AV1Decoder *pbi,
   const SequenceHeader *const seq_params = &cm->seq_params;
   CurrentFrame *const current_frame = &cm->current_frame;
   BufferPool *const pool = cm->buffer_pool;
+#if CONFIG_F024_KEYOBU
+  if (is_regular_obu) {
+    pbi->olk_encountered = 0;
+    reset_buffer_other_than_OLK(pbi);
+    unlock_buffer_pool(pool);
+  }
+#endif
   cm->show_existing_frame = 1;
   init_bru_params(cm);
   if (pbi->sequence_header_changed) {
@@ -8546,27 +8575,6 @@ static int read_show_existing_frame(AV1Decoder *pbi,
   }
 #endif  // !CONFIG_F024_KEYOBU
 
-#if CONFIG_F024_KEYOBU
-  if (is_regular_obu) {
-    pbi->olk_encountered = 0;
-    // reset_DFB_other_than_OLK
-    // as update_frame_buffers : no output but update the buffer
-    lock_buffer_pool(pool);
-    int ref_flags_to_keep = 0;
-    for (int layer = 0; layer <= seq_params->max_mlayer_id; layer++) {
-      if (cm->olk_refresh_frame_flags[layer] == -1) continue;
-      ref_flags_to_keep |= cm->olk_refresh_frame_flags[layer];
-    }
-    for (int ref_index = 0; ref_index < seq_params->ref_frames; ref_index++) {
-      if (!((ref_flags_to_keep >> ref_index) & 1u)) {
-        decrease_ref_count(cm->ref_frame_map[ref_index], pool);
-        cm->ref_frame_map[ref_index] = NULL;
-        if (pbi->random_accessed) pbi->valid_for_referencing[ref_index] = 1;
-      }
-    }  // ref_index
-    unlock_buffer_pool(pool);
-  }
-#endif
   return 0;
 }
 #endif  // CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_SEF
@@ -8996,21 +9004,10 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     } else if (obu_type == OBU_OLK) {
       current_frame->frame_type = KEY_FRAME;
       if (pbi->olk_encountered) {
-        // the first regular frame is OLK (0-4(K)-2-1-3-8(K)...
+        // This is the case when the first regular frame is another OLK
+        // (0-4(K)-2-1-3-8(K)...
         lock_buffer_pool(pool);
-        int ref_flags_to_keep = 0;
-        for (int layer = 0; layer <= seq_params->max_mlayer_id; layer++) {
-          if (cm->olk_refresh_frame_flags[layer] == -1) continue;
-          ref_flags_to_keep |= cm->olk_refresh_frame_flags[layer];
-        }
-        for (int ref_index = 0; ref_index < seq_params->ref_frames;
-             ref_index++) {
-          if (!((ref_flags_to_keep >> ref_index) & 1u)) {
-            decrease_ref_count(cm->ref_frame_map[ref_index], pool);
-            cm->ref_frame_map[ref_index] = NULL;
-            if (pbi->random_accessed) pbi->valid_for_referencing[ref_index] = 1;
-          }
-        }  // ref_index
+        reset_buffer_other_than_OLK(pbi);
         unlock_buffer_pool(pool);
       }
       pbi->olk_encountered = 1;
@@ -9250,23 +9247,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     // samples at the system layer. The figures below show an example of the
     // related cases.
     if (pbi->olk_encountered &&
-        (obu_type == OBU_REGULAR_TILE_GROUP || obu_type == OBU_REGULAR_TIP ||
+        (is_regular_non_olk_obu(obu_type) ||
          obu_type == OBU_BRIDGE_FRAME ||  // TODO(jkei): how about RAS?
          obu_type == OBU_SWITCH)) {
       pbi->olk_encountered = 0;
       lock_buffer_pool(pool);
-      int ref_flags_to_keep = 0;
-      for (int layer = 0; layer <= seq_params->max_mlayer_id; layer++) {
-        if (cm->olk_refresh_frame_flags[layer] == -1) continue;
-        ref_flags_to_keep |= cm->olk_refresh_frame_flags[layer];
-      }
-      for (int ref_index = 0; ref_index < seq_params->ref_frames; ref_index++) {
-        if (!((ref_flags_to_keep >> ref_index) & 1u)) {
-          decrease_ref_count(cm->ref_frame_map[ref_index], pool);
-          cm->ref_frame_map[ref_index] = NULL;
-          if (pbi->random_accessed) pbi->valid_for_referencing[ref_index] = 1;
-        }
-      }  // ref_index
+      reset_buffer_other_than_OLK(pbi);
       unlock_buffer_pool(pool);
     }  // if(pbi->olk_encountered...)
 #endif
