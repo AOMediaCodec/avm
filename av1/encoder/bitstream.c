@@ -8446,32 +8446,7 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
         is_last_tile_in_tg = 0;
       }
 
-#if 0  // ENABLE_TRACE_VERBOSE
-      uint8_t * temp = cm->fgm;
-      printf("Checking FGM : testA cm->fgm %d buf->data: %d dst:%d total_size:%d\n", cm->fgm, buf->data, dst, total_size);
-      printf("fgm_id : %d &fgm_id: %d scaling_points_y[0][0]: %d scaling_points_y[0][1]: %d\n",
-             cm->fgm->fgm_id, &cm->fgm->fgm_id, cm->fgm->scaling_points_y[0][0], cm->fgm->scaling_points_y[0][1]);
-      printf("fgm->a : %d, %d, %d, %d\t %d, %d, %d, %d\t %d, %d, %d, %d\t %d, %d, %d, %d\n",
-             cm->fgm->a0, cm->fgm->a1, cm->fgm->a2, cm->fgm->a3,
-             cm->fgm->a4, cm->fgm->a5, cm->fgm->a6, cm->fgm->a7,
-             cm->fgm->a8, cm->fgm->a9, cm->fgm->a10, cm->fgm->a11,
-             cm->fgm->a12, cm->fgm->a13, cm->fgm->a14, cm->fgm->a15);
-      printf("fgm->b : %d\n", cm->fgm->b0);
-      printf("temp %d: %d, %d, %d, %d, %d\n", temp, temp[0], temp[1], temp[2], temp[3], temp[4]);
-#endif
       buf->data = dst + total_size;
-#if 0  // ENABLE_TRACE_VERBOSE
-      printf("Checking FGM : testC cm->fgm %d buf->data: %d\n", cm->fgm, buf->data);
-      printf("fgm_id : %d &fgm_id: %d scaling_points_y[0][0]: %d scaling_points_y[0][1]: %d\n",
-             cm->fgm->fgm_id, &cm->fgm->fgm_id, cm->fgm->scaling_points_y[0][0], cm->fgm->scaling_points_y[0][1]);
-      printf("fgm->a : %d, %d, %d, %d\t %d, %d, %d, %d\t %d, %d, %d, %d\t %d, %d, %d, %d\n",
-             cm->fgm->a0, cm->fgm->a1, cm->fgm->a2, cm->fgm->a3,
-             cm->fgm->a4, cm->fgm->a5, cm->fgm->a6, cm->fgm->a7,
-             cm->fgm->a8, cm->fgm->a9, cm->fgm->a10, cm->fgm->a11,
-             cm->fgm->a12, cm->fgm->a13, cm->fgm->a14, cm->fgm->a15);
-      printf("fgm->b : %d\n", cm->fgm->b0);
-      printf("temp %d: %d, %d, %d, %d, %d\n", temp, temp[0], temp[1], temp[2], temp[3], temp[4]);
-#endif
 
       // The last tile of the tile group does not have a header.
       if (!is_last_tile_in_tg) total_size += 4;
