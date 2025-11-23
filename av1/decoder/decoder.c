@@ -883,7 +883,7 @@ static AOM_INLINE void update_long_term_frame_id(AV1Decoder *const pbi) {
     if ((refresh_frame_flags >> i) & 1) {
       if ((cm->current_frame.frame_type == KEY_FRAME && cm->show_frame == 1) &&
 #if CONFIG_F024_KEYOBU
-           cm->seq_params.max_mlayer_id == 0 &&
+          cm->seq_params.max_mlayer_id == 0 &&
 #endif
           i > 0) {
         pbi->long_term_ids_in_buffer[i] = -1;
