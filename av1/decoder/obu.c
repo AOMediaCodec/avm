@@ -529,12 +529,7 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
 #if CONFIG_F343
   uint32_t remaining_bits = (uint32_t)payload_size * 8 - rb->bit_offset;
   read_obu_extension(&seq_params->sh_extension, rb, remaining_bits);
-  if (!seq_params->sh_extension.extension_present_flag) {
-    if (av1_check_trailing_bits(pbi, rb) != 0) {
-      // cm->error.error_code is already set.
-      return 0;
-    }
-  }
+  // OBU length is known - no need to validate trailing bits
 #else
   if (av1_check_trailing_bits(pbi, rb) != 0) {
     // cm->error.error_code is already set.
@@ -583,14 +578,7 @@ static uint32_t read_multi_frame_header_obu(AV1Decoder *pbi,
 #if CONFIG_F343
   uint32_t remaining_bits = (uint32_t)payload_size * 8 - rb->bit_offset;
   read_obu_extension(&cm->mfh_params[cur_mfh_id].obu_ext, rb, remaining_bits);
-  int extension_flag =
-      cm->mfh_params[cur_mfh_id].obu_ext.extension_present_flag;
-  if (!extension_flag) {
-    if (av1_check_trailing_bits(pbi, rb) != 0) {
-      // cm->error.error_code is already set.
-      return 0;
-    }
-  }
+  // OBU length is known - no need to validate trailing bits
 #else
   if (av1_check_trailing_bits(pbi, rb) != 0) {
     // cm->error.error_code is already set.

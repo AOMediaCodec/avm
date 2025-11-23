@@ -7443,10 +7443,11 @@ static size_t obu_memmove(size_t obu_header_size, size_t obu_payload_size,
 
 void av1_add_trailing_bits(struct aom_write_bit_buffer *wb) {
   if (aom_wb_is_byte_aligned(wb)) {
-    aom_wb_write_literal(wb, 0x80, 8);
+    // Already byte-aligned, no padding needed
+    return;
   } else {
-    // assumes that the other bits are already 0s
-    aom_wb_write_bit(wb, 1);
+    // Round up to next byte boundary (assumes remaining bits are already 0)
+    wb->bit_offset = (wb->bit_offset + 7) & ~7;
   }
 }
 

@@ -294,11 +294,7 @@ static int read_lcr_global_info(struct AV1Decoder *pbi,
 #if CONFIG_F343
   uint32_t remaining_bits = (uint32_t)payload_size * 8 - rb->bit_offset;
   read_obu_extension(&lcr_params->obu_ext, rb, remaining_bits);
-  if (!lcr_params->obu_ext.extension_present_flag) {
-    if (av1_check_trailing_bits(pbi, rb) != 0) {
-      return 0;
-    }
-  }
+  // OBU length is known - no need to validate trailing bits
 #endif  // CONFIG_F343
   return 0;
 }
@@ -352,11 +348,7 @@ static int read_lcr_local_info(struct AV1Decoder *pbi, int xlayerId,
 #if CONFIG_F343
   uint32_t remaining_bits = (uint32_t)payload_size * 8 - rb->bit_offset;
   read_obu_extension(&lcr_params->obu_ext, rb, remaining_bits);
-  if (!lcr_params->obu_ext.extension_present_flag) {
-    if (av1_check_trailing_bits(pbi, rb) != 0) {
-      return 0;
-    }
-  }
+  // OBU length is known - no need to validate trailing bits
 #endif  // CONFIG_F343
   return 0;
 }
