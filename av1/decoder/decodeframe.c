@@ -1333,8 +1333,8 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
         }
       }
 #else
+        }
       }
-    }
 #endif  // CONFIG_TU64_TRAVERSED_ORDER
     } else if (is_cctx_enabled(cm, xd) && xd->is_chroma_ref &&
                xd->tree_type != LUMA_PART) {
