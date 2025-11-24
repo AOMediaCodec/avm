@@ -170,6 +170,7 @@ const qm_val_t *av1_get_qmatrix(const struct CommonQuantParams *quant_params,
                                 const struct macroblockd *xd, int plane,
                                 TX_SIZE tx_size, TX_TYPE tx_type);
 
+#if !CONFIG_QM_REVERT
 #if CONFIG_F255_QMOBU
 extern const qm_val_t predefined_8x8_iwt_base_matrix[NUM_QM_LEVELS - 1][2][64];
 extern const qm_val_t predefined_8x4_iwt_base_matrix[NUM_QM_LEVELS - 1][2]
@@ -177,6 +178,14 @@ extern const qm_val_t predefined_8x4_iwt_base_matrix[NUM_QM_LEVELS - 1][2]
 extern const qm_val_t predefined_4x8_iwt_base_matrix[NUM_QM_LEVELS - 1][2]
                                                     [4 * 8];
 #endif  // CONFIG_F255_QMOBU
+#endif  // !CONFIG_QM_REVERT
+
+#if CONFIG_QM_REVERT
+extern const qm_val_t predefined_iwt_matrix_ref[NUM_QM_LEVELS - 1][2]
+                                               [QM_TOTAL_SIZE];
+extern const qm_val_t predefined_wt_matrix_ref[NUM_QM_LEVELS - 1][2]
+                                              [QM_TOTAL_SIZE];
+#endif  // CONFIG_QM_REVERT
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -155,11 +155,17 @@ int write_qm_data(AV1_COMP *cpi, struct quantization_matrix_set *qm_list,
   cpi->common.error.error_code = AOM_CODEC_OK;
   const TX_SIZE fund_tsize[3] = { TX_8X8, TX_8X4, TX_4X8 };
 
-  const bool qm_is_default_flag = qm_list[qm_pos].qm_default_index != -1;
-  aom_wb_write_bit(wb, qm_is_default_flag);
-  if (qm_is_default_flag) {
+#if CONFIG_QM_REVERT
+  const bool qm_is_predefined_flag = !qm_list[qm_pos].is_user_defined_qm;
+#else
+  const bool qm_is_predefined_flag = qm_list[qm_pos].qm_default_index != -1;
+#endif
+  aom_wb_write_bit(wb, qm_is_predefined_flag);
+  if (qm_is_predefined_flag) {
+#if !CONFIG_QM_REVERT
     assert(qm_list[qm_pos].qm_default_index < NUM_CUSTOM_QMS);
     aom_wb_write_literal(wb, qm_list[qm_pos].qm_default_index, 4);
+#endif  // !CONFIG_QM_REVERT
     return wb->bit_offset - size;
   }
 
@@ -274,10 +280,12 @@ uint32_t write_qm_obu(AV1_COMP *cpi, int signalled_obu_pos,
       &wb, cpi->qmobu_list[signalled_obu_pos].qm_chroma_info_present_flag);
   for (int j = 0; j < NUM_CUSTOM_QMS; j++) {
     if (qm_bit_map & (1 << j)) {
+#if !CONFIG_QM_REVERT
       check_qm_is_predefined(
           cpi, signalled_obu_pos,
           (cpi->qmobu_list[signalled_obu_pos].qm_chroma_info_present_flag ? 3
                                                                           : 1));
+#endif  // !CONFIG_QM_REVERT
       write_qm_data(
           cpi, cpi->qmobu_list[signalled_obu_pos].qm_list, j,
           (cpi->qmobu_list[signalled_obu_pos].qm_chroma_info_present_flag ? 3
@@ -329,6 +337,7 @@ bool add_userqm_in_qmobulist(AV1_COMP *cpi) {
   return obu_added;
 }
 
+#if !CONFIG_QM_REVERT
 void check_qm_is_predefined(AV1_COMP *cpi, int qmobu_pos, int num_planes) {
   int qm_bit_map = cpi->qmobu_list[qmobu_pos].qm_bit_map;
   for (int qm_id = 0; qm_id < NUM_CUSTOM_QMS; qm_id++) {
@@ -363,4 +372,5 @@ void check_qm_is_predefined(AV1_COMP *cpi, int qmobu_pos, int num_planes) {
     }  // if(qm_bit_map & (1<<qm_id))
   }  // qm_id
 }
+#endif  // !CONFIG_QM_REVERT
 #endif  // CONFIG_F255_QMOBU

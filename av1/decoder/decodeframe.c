@@ -3642,6 +3642,9 @@ void setup_quant_matrices(AV1Decoder *pbi, CommonQuantParams *quant_params,
 
   // Generate matrices for each tx size
   int current = 0;
+#if CONFIG_QM_REVERT
+  const bool is_user_defined_qm = pbi->qm_list[qm_pos_found].is_user_defined_qm;
+#endif
   for (int t = 0; t < TX_SIZES_ALL; ++t) {
     const int size = tx_size_2d[t];
     const int qm_tx_size = av1_get_adjusted_tx_size(t);
@@ -3649,6 +3652,24 @@ void setup_quant_matrices(AV1Decoder *pbi, CommonQuantParams *quant_params,
       assert(t > qm_tx_size);
       quant_params->giqmatrix[qmlevel][plane][t] =
           quant_params->giqmatrix[qmlevel][plane][qm_tx_size];
+#if CONFIG_QM_REVERT
+    } else if (is_user_defined_qm &&
+               (t <= TX_8X8 || t == TX_4X8 || t == TX_8X4)) {
+      assert(current + size <= QM_TOTAL_SIZE);
+      // Generate the iwt matrices from the base matrices.
+      scale_tx(t, plane, &quant_params->iwt_matrix_ref[qmlevel][plane][current],
+               pbi->qm_list[qm_pos_found].quantizer_matrix);
+      quant_params->giqmatrix[qmlevel][plane][t] =
+          &quant_params->iwt_matrix_ref[qmlevel][plane][current];
+      current += size;
+    } else {
+      // Fill with reference matrices.
+      assert(current + size <= QM_TOTAL_SIZE);
+      quant_params->giqmatrix[qmlevel][plane][t] =
+          &predefined_iwt_matrix_ref[qmlevel][plane >= 1][current];
+      current += size;
+    }
+#else
     } else {
       assert(current + size <= QM_TOTAL_SIZE);
       // Generate the iwt matrices from the base matrices.
@@ -3658,6 +3679,7 @@ void setup_quant_matrices(AV1Decoder *pbi, CommonQuantParams *quant_params,
           &quant_params->iwt_matrix_ref[qmlevel][plane][current];
       current += size;
     }
+#endif  // CONFIG_QM_REVERT
   }
 }
 #endif  // CONFIG_F255_QMOBU
@@ -8983,12 +9005,18 @@ static void activate_sequence_header(AV1Decoder *pbi,
     if (!qmset->quantizer_matrix_allocated) {
       alloc_qmatrix(qmset);
     }
+#if CONFIG_QM_REVERT
+    qmset->is_user_defined_qm = false;
+#else
     int qm_default_index = qm_pos;
-    qmset->qm_id = qm_pos;
     qmset->qm_default_index = qm_pos;
+#endif  // !CONFIG_QM_REVERT
+    qmset->qm_id = qm_pos;
     qmset->qm_mlayer_id = -1;
     qmset->qm_tlayer_id = -1;
     qmset->quantizer_matrix_num_planes = cm->seq_params.monochrome ? 1 : 3;
+
+#if !CONFIG_QM_REVERT
     // copy predefined[qm_default_index] to qmset
     for (int c = 0; c < qmset->quantizer_matrix_num_planes; ++c) {
       // plane_type: 0:luma, 1:chroma
@@ -9003,6 +9031,7 @@ static void activate_sequence_header(AV1Decoder *pbi,
              predefined_4x8_iwt_base_matrix[qm_default_index][plane_type],
              4 * 8 * sizeof(qm_val_t));
     }
+#endif  // !CONFIG_QM_REVERT
   }  // qm_pos
 #endif  // CONFIG_F255_QMOBU
 

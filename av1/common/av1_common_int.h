@@ -2144,11 +2144,20 @@ struct quantization_matrix_set {
    * to be the  predefined matrices at the sequence header activation
    */
   int qm_mlayer_id;
+#if CONFIG_QM_REVERT
+  /*!
+   * Indicates if the quantization matrix set stores an 8x8/8x4/4x8 user-defined
+   * qmatrix in quantizer_matrix. If is_user_defined_qm is false,
+   * quantizer_matrix is not used.
+   */
+  bool is_user_defined_qm;
+#else
   /*!
    * Indicates the index of the predefined matrix indicated by the quantization
    * matrix : -1: user_defined 0~15: predefined_matrix_idx
    */
   int qm_default_index;
+#endif  // CONFIG_QM_REVERT
   /*!
    * quantization matrix : [8x8/8x4/4x8][y/u/v][64 or 32]
    */

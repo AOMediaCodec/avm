@@ -268,6 +268,9 @@ set_aom_config_var(CONFIG_FAST_INTER_RDO 1 "Fast inter mode selection")
 set_aom_config_var(CONFIG_F107_GRADIENT_SIMPLIFY 1
                    "Use smaller OPFL gradient units and remove bit checks.")
 
+set_aom_config_var(CONFIG_QM_REVERT 1
+                   "Enable QMs based on original AV1 Quantization Matrices.")
+
 set_aom_config_var(CONFIG_ML_PART_SPLIT 1
                    "Partition SPLIT pruning/forcing as predicted by ML.")
 
