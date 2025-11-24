@@ -8486,7 +8486,7 @@ static int read_show_existing_frame(AV1Decoder *pbi,
   CurrentFrame *const current_frame = &cm->current_frame;
   BufferPool *const pool = cm->buffer_pool;
 #if CONFIG_F024_KEYOBU
-  if (is_regular_obu) {
+  if (is_regular_obu && pbi->olk_encountered) {
     pbi->olk_encountered = 0;
     reset_buffer_other_than_OLK(pbi);
     unlock_buffer_pool(pool);
