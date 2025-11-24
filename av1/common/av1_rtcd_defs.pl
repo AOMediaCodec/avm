@@ -347,7 +347,7 @@ if ($opts{config} !~ /libs-x86-win32-vs.*/) {
 
   specialize qw/cdef_copy_rect8_16bit_to_16bit sse2 ssse3 sse4_1 avx2 neon/;
 }
-  add_proto qw/void gdf_set_lap_and_cls_unit/, "const int i_min, const int i_max, const int j_min, const int j_max, const int stripe_size, const uint16_t *rec_pnt, const int rec_stride, const int bit_depth, uint16_t *const *gdf_lap_y, const int gdf_lap_y_stride, uint32_t *gdf_cls_y, const int gdf_cls_y_stride";
+  add_proto qw/void gdf_set_lap_and_cls_unit/, "const int i_min, const int i_max, const int j_min, const int j_max, const uint16_t *rec_pnt, const int rec_stride, const int bit_depth, uint16_t *const *gdf_lap_y, const int gdf_lap_y_stride, uint32_t *gdf_cls_y, const int gdf_cls_y_stride";
   specialize qw/gdf_set_lap_and_cls_unit avx2/;
   add_proto qw/void gdf_inference_unit/, "const int i_min, const int i_max, const int j_min, const int j_max, const int qp_idx, const uint16_t* rec_pnt, const int rec_stride, uint16_t *const *gdf_lap_pnt, const int gdf_lap_stride, const uint32_t *gdf_cls_pnt, const int gdf_cls_stride, int16_t* err_pnt, const int err_stride, const int pxl_shift, const int ref_dst_idx";
   specialize qw/gdf_inference_unit avx2/;

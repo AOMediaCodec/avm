@@ -662,9 +662,9 @@ void gdf_filter_frame(AV1_COMMON *cm) {
                 for (int qp_idx = qp_idx_min; qp_idx < qp_idx_max_plus_1;
                      qp_idx++) {
                   gdf_set_lap_and_cls_unit(
-                      i_min, i_max, j_min, j_max, cm->gdf_info.gdf_stripe_size,
-                      cm->gdf_info.inp_ptr + cm->gdf_info.inp_stride * i_min +
-                          j_min,
+                      i_min, i_max, j_min, j_max,
+                      cm->gdf_info.inp_ptr +
+                          cm->gdf_info.inp_stride * (i_min - 1) + (j_min - 1),
                       cm->gdf_info.inp_stride, bit_depth, cm->gdf_info.lap_ptr,
                       cm->gdf_info.lap_stride, cm->gdf_info.cls_ptr,
                       cm->gdf_info.cls_stride);

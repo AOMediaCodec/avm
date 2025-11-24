@@ -2911,9 +2911,9 @@ void gdf_optimizer(AV1_COMP *cpi, AV1_COMMON *cm) {
                   gdf_block_adjust_and_validate(&i_min, &i_max, &j_min, &j_max);
               if (use_gdf_local) {
                 gdf_set_lap_and_cls_unit(
-                    i_min, i_max, j_min, j_max, cm->gdf_info.gdf_stripe_size,
-                    cm->gdf_info.inp_ptr + cm->gdf_info.inp_stride * i_min +
-                        j_min,
+                    i_min, i_max, j_min, j_max,
+                    cm->gdf_info.inp_ptr +
+                        cm->gdf_info.inp_stride * (i_min - 1) + (j_min - 1),
                     cm->gdf_info.inp_stride, bit_depth, cm->gdf_info.lap_ptr,
                     cm->gdf_info.lap_stride, cm->gdf_info.cls_ptr,
                     cm->gdf_info.cls_stride);

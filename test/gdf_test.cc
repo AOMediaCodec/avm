@@ -33,9 +33,9 @@ using libaom_test::ACMRandom;
 namespace {
 typedef void (*gdf_set_lap_and_cls_unit_func)(
     const int i_min, const int i_max, const int j_min, const int j_max,
-    const int stripe_size, const uint16_t *rec_pnt, const int rec_stride,
-    const int bit_depth, uint16_t *const *gdf_lap_y, const int gdf_lap_y_stride,
-    uint32_t *gdf_cls_y, const int gdf_cls_y_stride);
+    const uint16_t *rec_pnt, const int rec_stride, const int bit_depth,
+    uint16_t *const *gdf_lap_y, const int gdf_lap_y_stride, uint32_t *gdf_cls_y,
+    const int gdf_cls_y_stride);
 
 typedef void (*gdf_inference_unit_func)(
     const int i_min, const int i_max, const int j_min, const int j_max,
@@ -135,7 +135,6 @@ void test_gdf(int iterations, int height, int width, int depth, int qp_idx,
     }
     alloc_gdf_buffers(&gi);
     alloc_gdf_buffers(&ref_gi);
-    const int stripe_size = gi.gdf_stripe_size;
     int top_buf = GDF_TEST_EXTRA_VER_BORDER;
     int bot_buf = GDF_TEST_EXTRA_VER_BORDER;
     const int rec_height = height;
@@ -184,12 +183,11 @@ void test_gdf(int iterations, int height, int width, int depth, int qp_idx,
                                width - GDF_TEST_FRAME_BOUNDARY_SIZE);
             const uint16_t *inp_ptr =
                 gi.inp_ptr + gi.inp_stride * i_min + j_min;
-            lapgdf(i_min, i_max, j_min, j_max, stripe_size, inp_ptr,
-                   gi.inp_stride, depth, gi.lap_ptr, gi.lap_stride, gi.cls_ptr,
-                   gi.cls_stride);
-            ref_lapgdf(i_min, i_max, j_min, j_max, stripe_size, inp_ptr,
-                       gi.inp_stride, depth, ref_gi.lap_ptr, ref_gi.lap_stride,
-                       ref_gi.cls_ptr, ref_gi.cls_stride);
+            lapgdf(i_min, i_max, j_min, j_max, inp_ptr, gi.inp_stride, depth,
+                   gi.lap_ptr, gi.lap_stride, gi.cls_ptr, gi.cls_stride);
+            ref_lapgdf(i_min, i_max, j_min, j_max, inp_ptr, gi.inp_stride,
+                       depth, ref_gi.lap_ptr, ref_gi.lap_stride, ref_gi.cls_ptr,
+                       ref_gi.cls_stride);
 
             const int lap_height = (i_max - i_min) >> 1;
             const int lap_width = (j_max - j_min);

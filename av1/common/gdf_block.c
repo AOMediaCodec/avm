@@ -304,9 +304,8 @@ const int8_t gdf_inter_error_table[GDF_TRAIN_REFDST_NUM][GDF_TRAIN_QP_NUM][GDF_N
  */
 void gdf_set_lap_and_cls_unit_c(const int i_min, const int i_max,
                                 const int j_min, const int j_max,
-                                const int stripe_size, const uint16_t *rec_pnt,
-                                const int rec_stride, const int bit_depth,
-                                uint16_t *const *gdf_lap_y,
+                                const uint16_t *rec_pnt, const int rec_stride,
+                                const int bit_depth, uint16_t *const *gdf_lap_y,
                                 const int gdf_lap_y_stride, uint32_t *gdf_cls_y,
                                 const int gdf_cls_y_stride) {
   const int blk_height = i_max - i_min;
@@ -337,18 +336,10 @@ void gdf_set_lap_and_cls_unit_c(const int i_min, const int i_max,
   const int16_t *std_pos0;
   const int16_t *std_pos1;
   const int16_t *std_pos2;
-  if ((i_max + GDF_TEST_STRIPE_OFF) % stripe_size == 0) {
-    std_pos_1 = std_pos - 3 * rec_stride;
-    std_pos0 = std_pos_1 + rec_stride;
-    std_pos1 = std_pos0 + rec_stride;
-    std_pos2 = std_pos1 + rec_stride;
-  } else {
-    std_pos_1 = std_pos - rec_stride;
-    std_pos0 = std_pos;
-    std_pos1 = std_pos0 + rec_stride;
-    std_pos2 = std_pos1 + rec_stride;
-  }
-
+  std_pos_1 = std_pos - rec_stride;
+  std_pos0 = std_pos;
+  std_pos1 = std_pos0 + rec_stride;
+  std_pos2 = std_pos1 + rec_stride;
   const int16_t *y00 = std_pos0;
   const int16_t *y10 = std_pos1;
   const int16_t *y_10 = std_pos_1;
