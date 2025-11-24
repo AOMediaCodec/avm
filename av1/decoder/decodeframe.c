@@ -1333,8 +1333,8 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
         }
       }
 #else
-        }
       }
+    }
 #endif  // CONFIG_TU64_TRAVERSED_ORDER
     } else if (is_cctx_enabled(cm, xd) && xd->is_chroma_ref &&
                xd->tree_type != LUMA_PART) {
@@ -3903,9 +3903,15 @@ static AOM_INLINE void setup_quantization(CommonQuantParams *quant_params,
 #if CONFIG_F255_QMOBU
 void setup_quant_matrices(AV1Decoder *pbi, CommonQuantParams *quant_params,
                           int plane, int qmlevel) {
-  if (qmlevel >= NUM_QM_LEVELS - 1) {
+  if (qmlevel > NUM_QM_LEVELS - 1) {
     aom_internal_error(&pbi->common.error, AOM_CODEC_UNSUP_BITSTREAM,
                        "qmlevel %d is out of boundary", qmlevel);
+  }
+  struct quantization_matrix_set *qm_set;
+  if (qmlevel == (NUM_QM_LEVELS - 1)) {
+    qm_set = &pbi->qm_list[qmlevel];
+    qm_set->qm_id = qmlevel;
+    return;
   }
 
   int qm_pos_found = -1;
@@ -3919,6 +3925,7 @@ void setup_quant_matrices(AV1Decoder *pbi, CommonQuantParams *quant_params,
     aom_internal_error(&pbi->common.error, AOM_CODEC_UNSUP_BITSTREAM,
                        "quantiztion matrix with Id[%d] is not found", qmlevel);
   }
+  qm_set = &pbi->qm_list[qm_pos_found];
   // TODO: does xlayer_id need to be taken into account?
   //  when a picture indicated in an embedded layer with id equal obu_mlayer_id
   //  and in a temporal layer with id obu_tlayer_id is associated with either
@@ -3926,19 +3933,18 @@ void setup_quant_matrices(AV1Decoder *pbi, CommonQuantParams *quant_params,
   //  and qmTlayerId, respectively for which
   //  mlayer_dependency_map[obu_mlayer_id][qmMlayerId] and
   //  tlayer_dependency_map[obu_tlayer_id][qmTlayerId] are both equal to 1.
-  if ((pbi->qm_list[qm_pos_found].qm_tlayer_id != -1 &&
+  if ((qm_set->qm_tlayer_id != -1 &&
        pbi->common.seq_params.tlayer_dependency_map[pbi->common.tlayer_id]
-                                                   [pbi->qm_list[qm_pos_found]
-                                                        .qm_tlayer_id] != 1) ||
-      (pbi->qm_list[qm_pos_found].qm_mlayer_id != -1 &&
+                                                   [qm_set->qm_tlayer_id] !=
+           1) ||
+      (qm_set->qm_mlayer_id != -1 &&
        pbi->common.seq_params.mlayer_dependency_map[pbi->common.mlayer_id]
-                                                   [pbi->qm_list[qm_pos_found]
-                                                        .qm_mlayer_id] != 1)) {
+                                                   [qm_set->qm_mlayer_id] !=
+           1)) {
     aom_internal_error(&pbi->common.error, AOM_CODEC_UNSUP_BITSTREAM,
                        "the layer ids of the quantization matrices are out"
                        "of the limit: (%d, %d)",
-                       pbi->qm_list[qm_pos_found].qm_tlayer_id,
-                       pbi->qm_list[qm_pos_found].qm_mlayer_id);
+                       qm_set->qm_tlayer_id, qm_set->qm_mlayer_id);
   }
 
   // Generate matrices for each tx size
@@ -3954,7 +3960,7 @@ void setup_quant_matrices(AV1Decoder *pbi, CommonQuantParams *quant_params,
       assert(current + size <= QM_TOTAL_SIZE);
       // Generate the iwt matrices from the base matrices.
       scale_tx(t, plane, &quant_params->iwt_matrix_ref[qmlevel][plane][current],
-               pbi->qm_list[qm_pos_found].quantizer_matrix);
+               qm_set->quantizer_matrix);
       quant_params->giqmatrix[qmlevel][plane][t] =
           &quant_params->iwt_matrix_ref[qmlevel][plane][current];
       current += size;
@@ -5115,8 +5121,8 @@ static AOM_INLINE void decode_tile(AV1Decoder *pbi, ThreadData *const td,
     if (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame)
       xd->tile.tile_active_mode = 0;
 #else
-  if (cm->bru.enabled) {
-    if (cm->bru.frame_inactive_flag) xd->tile.tile_active_mode = 0;
+//  if (cm->bru.enabled) {
+//    if (cm->bru.frame_inactive_flag) xd->tile.tile_active_mode = 0;
 #endif  // CONFIG_CWG_F317
   }
 
@@ -5154,8 +5160,7 @@ static AOM_INLINE void decode_tile(AV1Decoder *pbi, ThreadData *const td,
   int corrupted =
       (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame) ? 0
 #else
-  int corrupted =
-      cm->bru.frame_inactive_flag ? 0
+int corrupted = cm->bru.frame_inactive_flag ? 0
 #endif  // CONFIG_CWG_F317
       : (check_trailing_bits_after_symbol_coder(td->bit_reader)) ? 1
                                                                  : 0;
