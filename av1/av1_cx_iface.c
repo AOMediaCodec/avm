@@ -1416,6 +1416,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   tool_cfg->error_resilient_mode =
       cfg->g_error_resilient | extra_cfg->error_resilient_mode;
 #endif  // !CONFIG_F322_OBUER_ERM
+#if CONFIG_F322_OBUER_ERM_FIX990
+  tool_cfg->g_error_resilient_mode = cfg->g_error_resilient;
+#endif
   tool_cfg->frame_hash_metadata = cfg->frame_hash_metadata;
   tool_cfg->frame_hash_per_plane = cfg->frame_hash_per_plane;
   tool_cfg->frame_parallel_decoding_mode =

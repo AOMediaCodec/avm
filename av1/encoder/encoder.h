@@ -873,6 +873,9 @@ typedef struct {
 #if !CONFIG_F322_OBUER_ERM
   bool error_resilient_mode;
 #endif  // !CONFIG_F322_OBUER_ERM
+#if CONFIG_F322_OBUER_ERM_FIX990
+  bool g_error_resilient_mode;
+#endif
   // Indicates if frame parallel decoding feature should be enabled.
   bool frame_parallel_decoding_mode;
   // Indicates if the input should be encoded as monochrome.

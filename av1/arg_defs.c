@@ -226,10 +226,8 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
 #endif
   .timebase = ARG_DEF(NULL, "timebase", 1,
                       "Output timestamp precision (fractional seconds)"),
-#if !CONFIG_F322_OBUER_ERM
   .global_error_resilient = ARG_DEF(NULL, "global-error-resilient", 1,
                                     "Enable global error resiliency features"),
-#endif  // !CONFIG_F322_OBUER_ERM
   .lag_in_frames =
       ARG_DEF(NULL, "lag-in-frames", 1, "Max number of frames to lag"),
   .monochrome =
