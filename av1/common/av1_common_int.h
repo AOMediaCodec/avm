@@ -3870,7 +3870,6 @@ enum {
   RECT_TYPE_CTX_MODE,
   EXT_PART_CTX_MODE,
   FOUR_WAY_CTX_MODE,
-  FOUR_WAY_AB_CTX_MODE,
 } UENUM1BYTE(PART_CTX_MODE);
 
 static INLINE void update_partition_context(MACROBLOCKD *xd, int mi_row,
@@ -4012,8 +4011,7 @@ static INLINE int partition_plane_context(const MACROBLOCKD *xd, int mi_row,
   const int bh_mi = mi_size_high[bsize];
   const int bsl_w = mi_size_wide_log2[bsize];
   const int bsl_h = mi_size_high_log2[bsize];
-  if (ctx_mode == EXT_PART_CTX_MODE || ctx_mode == FOUR_WAY_CTX_MODE ||
-      ctx_mode == FOUR_WAY_AB_CTX_MODE) {
+  if (ctx_mode == EXT_PART_CTX_MODE || ctx_mode == FOUR_WAY_CTX_MODE) {
     if (rect_type == HORZ) {
       const PARTITION_CONTEXT *left_mid_ctx = left_ctx + bh_mi / 2;
       ctx1 = (*left_ctx >> AOMMAX(bsl_h - 2, 0)) & 1;
