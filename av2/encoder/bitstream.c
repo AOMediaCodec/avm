@@ -8045,6 +8045,21 @@ static size_t av2_write_metadata_array(AV2_COMP *const cpi, uint8_t *dst
               current_metadata, dst + obu_header_size + obu_payload_size);
           obu_payload_size += mu_payload_size;
           total_bytes_written += mu_header_size + mu_payload_size;
+
+#if CONFIG_METADATA_ALIGNMENT
+          struct aom_write_bit_buffer wb_align = {
+            dst + obu_header_size + obu_payload_size, 0
+          };
+
+          while (!aom_wb_is_byte_aligned(&wb_align)) {
+            aom_wb_write_bit(&wb_align, 0);
+          }
+          size_t alignment_bytes = aom_wb_bytes_written(&wb_align);
+          if (alignment_bytes > 0) {
+            obu_payload_size += alignment_bytes;
+            total_bytes_written += alignment_bytes;
+          }
+#endif  // CONFIG_METADATA_ALIGNMENT
         }
       }
 

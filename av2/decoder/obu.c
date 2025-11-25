@@ -1355,6 +1355,17 @@ static size_t read_metadata_obu(AV2Decoder *pbi, const uint8_t *data, size_t sz,
       const size_t mup_size =
           read_metadata_unit_payload(pbi, data + bytes_read, &metadata);
       bytes_read += mup_size;
+
+#if CONFIG_METADATA_ALIGNMENT
+    struct aom_read_bit_buffer rb_align;
+    av1_init_read_bit_buffer(pbi, &rb_align, data + bytes_read, data + sz);
+
+    if (av1_check_byte_alignment(&pbi->common, &rb_align) != 0) {
+      return 0;
+    }
+    size_t alignment_bytes = (rb_align.bit_offset + 7) / 8;
+    bytes_read += alignment_bytes;
+#endif  // CONFIG_METADATA_ALIGNMENT
     }
   }
 
