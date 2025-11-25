@@ -535,6 +535,11 @@ bool check_add_cmqm_in_qmobulist(AV1_COMP *cpi, bool write_in_prevobu) {
 }
 
 void check_qm_is_predefined(AV1_COMP *cpi, int qmobu_pos, int num_planes) {
+#if CONFIG_QM_REVERT
+  const int START_POS_8x8 = 4 * 4;
+  const int START_POS_8x4 = 1392;  // tx_size:6 4*4+8*8+16*16+32*32+64*64+4*8;
+  const int START_POS_4x8 = 1360;  // tx_size:5 4*4+8*8+16*16+32*32+64*64;
+#endif                             // CONFIG_QM_REVERT
   int qm_bit_map = cpi->qmobu_list[qmobu_pos].qm_bit_map;
   for (int qm_id = 0; qm_id < NUM_CUSTOM_QMS; qm_id++) {
     if (qm_bit_map & (1 << qm_id)) {
@@ -546,12 +551,27 @@ void check_qm_is_predefined(AV1_COMP *cpi, int qmobu_pos, int num_planes) {
         bool same = true;
         for (int plane = 0; plane < num_planes; plane++) {
           int c = plane == 0 ? 0 : 1;
+
+#if CONFIG_QM_REVERT
+          // TODO(toddnguyen@google.com): This is very clunky right now --
+          // compares 8x8 only to determine if a QM is pre-defined or
+          // user-defined.
+          // Potential case of errror due to scaling of 4x4.
+          const qm_val_t* qvalues8x8 =
+              &predefined_iwt_matrix_ref[predefined_id][c][START_POS_8x8];
+          const qm_val_t* qvalues8x4 =
+              &predefined_iwt_matrix_ref[predefined_id][c][START_POS_8x4];
+          const qm_val_t* qvalues4x8 =
+              &predefined_iwt_matrix_ref[predefined_id][c][START_POS_4x8];
+#else
           const qm_val_t *qvalues8x8 =
               predefined_8x8_iwt_base_matrix[predefined_id][c];
           const qm_val_t *qvalues8x4 =
               predefined_8x4_iwt_base_matrix[predefined_id][c];
           const qm_val_t *qvalues4x8 =
               predefined_4x8_iwt_base_matrix[predefined_id][c];
+#endif     // CONFIG_QM_REVERT
+
           same &= memcmp(qm_inobu->quantizer_matrix[0][plane], qvalues8x8,
                          sizeof(qm_val_t) * 8 * 8) == 0;
           same &= memcmp(qm_inobu->quantizer_matrix[1][plane], qvalues8x4,

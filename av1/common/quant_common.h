@@ -178,6 +178,11 @@ extern const qm_val_t predefined_4x8_iwt_base_matrix[NUM_QM_LEVELS - 1][2]
                                                     [4 * 8];
 #endif  // CONFIG_F255_QMOBU
 
+#if CONFIG_QM_REVERT
+extern const qm_val_t predefined_iwt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE];
+extern const qm_val_t predefined_wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE];
+#endif // CONFIG_QM_REVERT
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
