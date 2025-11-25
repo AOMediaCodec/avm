@@ -3915,7 +3915,6 @@ static INLINE int get_intra_region_context(BLOCK_SIZE bsize) {
 static INLINE int partition_plane_context_helper(int raw_context,
                                                  BLOCK_SIZE bsize,
                                                  PART_CTX_MODE ctx_mode) {
-  int ctx = raw_context + bsize * PARTITION_PLOFFSET;
   const int bsize_rect_map[BLOCK_SIZES] = {
     0,   // BLOCK_4X4,
     0,   // BLOCK_4X8,
@@ -3970,6 +3969,8 @@ static INLINE int partition_plane_context_helper(int raw_context,
     14,  // BLOCK_16X64,
     15,  // BLOCK_64X16,
   };
+
+  int ctx;
   if (ctx_mode == SQUARE_SPLIT_CTX_MODE) {
     ctx = raw_context + (bsize == BLOCK_256X256) * PARTITION_PLOFFSET;
   } else if (ctx_mode == RECT_TYPE_CTX_MODE) {
