@@ -17,7 +17,6 @@
  *
  * @{
  */
-#include "config/aom_config.h"
 #include "aom/aom.h"
 #include "aom/aom_encoder.h"
 
