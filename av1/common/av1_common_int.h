@@ -3912,26 +3912,9 @@ static INLINE int get_intra_region_context(BLOCK_SIZE bsize) {
     return 3;
 }
 
-/*!\brief Returns the context used by \ref PARTITION_SPLIT. */
-static INLINE int square_split_context(const MACROBLOCKD *xd, int mi_row,
-                                       int mi_col, BLOCK_SIZE bsize) {
-  const int plane = xd->tree_type == CHROMA_PART;
-  const PARTITION_CONTEXT *above_ctx =
-      xd->above_partition_context[plane] + mi_col;
-  const PARTITION_CONTEXT *left_ctx =
-      xd->left_partition_context[plane] + (mi_row & MAX_MIB_MASK);
-  assert(bsize < BLOCK_SIZES);
-  const int bsl_w = mi_size_wide_log2[bsize];
-  const int bsl_h = mi_size_high_log2[bsize];
-  const int above = (*above_ctx >> AOMMAX(bsl_w - 1, 0)) & 1;
-  const int left = (*left_ctx >> AOMMAX(bsl_h - 1, 0)) & 1;
-
-  return (left * 2 + above) + (bsize == BLOCK_256X256) * PARTITION_PLOFFSET;
-}
-
 static INLINE int partition_plane_context_helper(int raw_context,
                                                  BLOCK_SIZE bsize,
-                                                 int ctx_mode) {
+                                                 PART_CTX_MODE ctx_mode) {
   int ctx = raw_context + bsize * PARTITION_PLOFFSET;
   const int bsize_rect_map[BLOCK_SIZES] = {
     0,   // BLOCK_4X4,
@@ -3987,10 +3970,13 @@ static INLINE int partition_plane_context_helper(int raw_context,
     14,  // BLOCK_16X64,
     15,  // BLOCK_64X16,
   };
-  if (ctx_mode == 1)  // all part ctx except rect mode
-    ctx = raw_context + bsize_map[bsize] * PARTITION_PLOFFSET;
-  if (ctx_mode == 0)  // part ctx only for rect mode
+  if (ctx_mode == SQUARE_SPLIT_CTX_MODE) {
+    ctx = raw_context + (bsize == BLOCK_256X256) * PARTITION_PLOFFSET;
+  } else if (ctx_mode == RECT_TYPE_CTX_MODE) {
     ctx = raw_context + bsize_rect_map[bsize] * PARTITION_PLOFFSET;
+  } else {
+    ctx = raw_context + bsize_map[bsize] * PARTITION_PLOFFSET;
+  }
   assert(ctx >= 0);
   assert(ctx < PARTITION_CONTEXTS);
   return ctx;
@@ -3999,7 +3985,7 @@ static INLINE int partition_plane_context_helper(int raw_context,
 static INLINE int partition_plane_context(const MACROBLOCKD *xd, int mi_row,
                                           int mi_col, BLOCK_SIZE bsize,
                                           RECT_PART_TYPE rect_type,
-                                          int ctx_mode) {
+                                          PART_CTX_MODE ctx_mode) {
   const int plane = xd->tree_type == CHROMA_PART;
   const PARTITION_CONTEXT *above_ctx =
       xd->above_partition_context[plane] + mi_col;
@@ -4023,12 +4009,13 @@ static INLINE int partition_plane_context(const MACROBLOCKD *xd, int mi_row,
     }
     ctx = ctx1 * 2 + ctx2;
   } else {
+    assert(ctx_mode == SPLIT_CTX_MODE || ctx_mode == SQUARE_SPLIT_CTX_MODE ||
+           ctx_mode == RECT_TYPE_CTX_MODE);
     const int above = (*above_ctx >> AOMMAX(bsl_w - 1, 0)) & 1;
     const int left = (*left_ctx >> AOMMAX(bsl_h - 1, 0)) & 1;
     ctx = left * 2 + above;
   }
-  return partition_plane_context_helper(ctx, bsize,
-                                        ctx_mode != RECT_TYPE_CTX_MODE);
+  return partition_plane_context_helper(ctx, bsize, ctx_mode);
 }
 
 static INLINE void av1_zero_above_context(AV1_COMMON *const cm,

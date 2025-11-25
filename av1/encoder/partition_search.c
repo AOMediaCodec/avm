@@ -1824,8 +1824,8 @@ static void update_partition_stats(
 
   const bool do_square_split = partition == PARTITION_SPLIT;
   if (partition_allowed[PARTITION_SPLIT]) {
-    const int square_split_ctx =
-        square_split_context(xd, mi_row, mi_col, bsize);
+    const int square_split_ctx = partition_plane_context(
+        xd, mi_row, mi_col, bsize, 0, SQUARE_SPLIT_CTX_MODE);
 #if CONFIG_ENTROPY_STATS
     counts->do_square_split[plane_index][square_split_ctx][do_square_split]++;
 #endif  // CONFIG_ENTROPY_STATS
@@ -2529,8 +2529,8 @@ static void init_partition_costs(const AV1_COMMON *const cm,
     }
     const bool do_square_split = part == PARTITION_SPLIT;
     if (partition_allowed[PARTITION_SPLIT]) {
-      const int square_split_ctx =
-          square_split_context(xd, mi_row, mi_col, bsize);
+      const int square_split_ctx = partition_plane_context(
+          xd, mi_row, mi_col, bsize, 0, SQUARE_SPLIT_CTX_MODE);
       partition_cost[part] +=
           mode_costs->do_square_split_cost[plane_index][square_split_ctx]
                                           [do_square_split];

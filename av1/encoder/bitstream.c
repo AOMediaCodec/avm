@@ -2861,8 +2861,8 @@ static AOM_INLINE PARTITION_TYPE write_partition(
 
   const bool do_square_split = p == PARTITION_SPLIT;
   if (partition_allowed[PARTITION_SPLIT]) {
-    const int square_split_ctx =
-        square_split_context(xd, mi_row, mi_col, bsize);
+    const int square_split_ctx = partition_plane_context(
+        xd, mi_row, mi_col, bsize, 0, SQUARE_SPLIT_CTX_MODE);
     aom_write_symbol(w, do_square_split,
                      ec_ctx->do_square_split_cdf[plane][square_split_ctx], 2);
   }
