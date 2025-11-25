@@ -531,11 +531,6 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
 #endif  // CONFIG_CWG_F270_CI_OBU
     }
   }
-#if CONFIG_F024_KEYOBU
-  pbi->is_first_layer_decoded = true;
-  for (int layer = 0; layer <= seq_params->max_mlayer_id; layer++)
-    cm->olk_refresh_frame_flags[layer] = -1;
-#endif
   cm->seq_params = *seq_params;
   av1_set_frame_sb_size(cm, cm->seq_params.sb_size);
   pbi->sequence_header_ready = 1;

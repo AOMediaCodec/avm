@@ -8907,7 +8907,12 @@ static void activate_sequence_header(AV1Decoder *pbi,
 #if CONFIG_F024_KEYOBU
   if (obu_type == OBU_CLK || obu_type == OBU_OLK)
 #endif
+  {
     cm->seq_params = *pbi->active_seq;
+    pbi->is_first_layer_decoded = true;
+    for (int layer = 0; layer <= pbi->common.seq_params.max_mlayer_id; layer++)
+      cm->olk_refresh_frame_flags[layer] = -1;
+  }
 #if CONFIG_F024_KEYOBU
   else {
     if (!are_seq_headers_consistent(&cm->seq_params, pbi->active_seq)) {
