@@ -1937,7 +1937,11 @@ static void derive_bawp_parameters(MACROBLOCKD *xd, uint16_t *recon_top,
           sum_x, sum_y, count, shift, mbmi->bawp_alpha[plane][ref]);
       mbmi->bawp_beta[plane][ref] = beta;
     } else {
+#if CONFIG_F421_BAWP_CHECKS
+      mbmi->bawp_beta[plane][ref] = -(1 << (shift - 1));
+#else
       mbmi->bawp_beta[plane][ref] = -(1 << shift);
+#endif  // CONFIG_F421_BAWP_CHECKS
     }
   } else {
     if (count > 0) {
@@ -1954,7 +1958,11 @@ static void derive_bawp_parameters(MACROBLOCKD *xd, uint16_t *recon_top,
       mbmi->bawp_beta[plane][ref] = beta;
     } else {
       mbmi->bawp_alpha[plane][ref] = 1 << shift;
+#if CONFIG_F421_BAWP_CHECKS
+      mbmi->bawp_beta[plane][ref] = -(1 << (shift - 1));
+#else
       mbmi->bawp_beta[plane][ref] = -(1 << shift);
+#endif  // CONFIG_F421_BAWP_CHECKS
     }
   }
 }
@@ -2016,8 +2024,14 @@ void av1_build_one_bawp_inter_predictor(
   if ((mi_y_p + bh) >= height_p) ref_h = height_p - mi_y_p;
   if ((mi_x_p + x_off_p - BAWP_REF_LINES) < 0 ||
       (mi_y_p + y_off_p - BAWP_REF_LINES) < 0 || ref_w <= 0 || ref_h <= 0 ||
+#if CONFIG_F421_BAWP_CHECKS
+      (mi_x_p + ref_w + x_off_p) > width_p ||
+      (mi_y_p + ref_h + y_off_p) > height_p
+#else
       (mi_x_p + ref_w + x_off_p) >= width_p ||
-      (mi_y_p + ref_h + y_off_p) >= height_p) {
+      (mi_y_p + ref_h + y_off_p) >= height_p
+#endif  // CONFIG_F421_BAWP_CHECKS
+  ) {
     aom_internal_error(
         (struct aom_internal_error_info *)&cm->error, AOM_CODEC_ERROR,
         "Inter BAWP template cannot outside the valid reference range");
@@ -4185,6 +4199,7 @@ bool av1_build_morph_pred(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
   if (cur_x + bw >= pd->dst.width) ref_w = pd->dst.width - cur_x;
   if (cur_y + bh >= pd->dst.height) ref_h = pd->dst.height - cur_y;
 
+#if !CONFIG_F421_BAWP_CHECKS
   const int cur_tmplt_x = cur_x - BAWP_REF_LINES;
   const int cur_tmplt_y = cur_y - BAWP_REF_LINES;
   const int ref_x = cur_x + dv.col;
@@ -4193,8 +4208,8 @@ bool av1_build_morph_pred(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
   const int ref_tmplt_y = ref_y - BAWP_REF_LINES;
   assert(cur_tmplt_x + ref_w < pd->dst.width);
   assert(cur_tmplt_y + ref_h < pd->dst.height);
-  if (ref_tmplt_x < 0 || ref_tmplt_y < 0 || ref_x + ref_w >= pd->dst.width ||
-      ref_y + ref_h >= pd->dst.height) {
+  if (ref_tmplt_x < 0 || ref_tmplt_y < 0 || ref_x + ref_w > pd->dst.width ||
+      ref_y + ref_h > pd->dst.height) {
     return false;
   }
 
@@ -4219,6 +4234,7 @@ bool av1_build_morph_pred(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
   // outside the current tile too.
   if (cur_tmplt_y < tile_top_edge) return false;
   if (cur_tmplt_x < tile_left_edge) return false;
+#endif  // CONFIG_F421_BAWP_CHECKS
 
   uint16_t *recon_buf = xd->plane[0].dst.buf;
   uint16_t *recon_top = dst - BAWP_REF_LINES * dst_stride;

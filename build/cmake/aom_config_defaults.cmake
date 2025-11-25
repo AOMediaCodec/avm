@@ -249,6 +249,8 @@ set_aom_config_var(CONFIG_FIX_OPFL_AUTO 1
 set_aom_config_var(CONFIG_FIX_BW_CHROMA_REFINED_MV 1
                    "Fix bandwidth issue for the refined MVs reused by chroma")
 
+set_aom_config_var(CONFIG_F421_BAWP_CHECKS 1 "Adjust BAWP condition checks")
+
 # This is an encode-only change.
 set_aom_config_var(CONFIG_FAST_INTER_RDO 1 "Fast inter mode selection")
 
