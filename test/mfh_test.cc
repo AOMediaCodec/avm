@@ -89,7 +89,7 @@ class MFHTestLarge
       encoder->Control(AOME_SET_ARNR_MAXFRAMES, 7);
       encoder->Control(AOME_SET_ARNR_STRENGTH, 5);
 #if CONFIG_MULTI_FRAME_HEADER
-      encoder->Control(AV1E_SET_MFH_OBU_SIGNALING, enable_mfh_obu_signaling_);
+      encoder->SetOption("enable-mfh-obu-signaling", "1");
 #endif  // CONFIG_MULTI_FRAME_HEADER
     }
   }

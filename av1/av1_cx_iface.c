@@ -2763,15 +2763,6 @@ static aom_codec_err_t ctrl_get_enable_bru(aom_codec_alg_priv_t *ctx,
   return AOM_CODEC_OK;
 }
 
-#if CONFIG_MULTI_FRAME_HEADER
-static aom_codec_err_t ctrl_set_mfh_obu_signaling(aom_codec_alg_priv_t *ctx,
-                                                  va_list args) {
-  struct av1_extracfg extra_cfg = ctx->extra_cfg;
-  extra_cfg.enable_mfh_obu_signaling = CAST(AV1E_SET_MFH_OBU_SIGNALING, args);
-  return update_extra_cfg(ctx, &extra_cfg);
-}
-#endif  // CONFIG_MULTI_FRAME_HEADER
-
 static aom_codec_err_t create_stats_buffer(FIRSTPASS_STATS **frame_stats_buffer,
                                            STATS_BUFFER_CTX *stats_buf_context,
                                            int num_lap_buffers) {
@@ -4546,9 +4537,6 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_ENABLE_SUBGOP_STATS, ctrl_enable_subgop_stats },
   { AV1E_SET_ENABLE_BRU, ctrl_set_enable_bru },
   { AV1E_GET_ENABLE_BRU, ctrl_get_enable_bru },
-#if CONFIG_MULTI_FRAME_HEADER
-  { AV1E_SET_MFH_OBU_SIGNALING, ctrl_set_mfh_obu_signaling },
-#endif  // CONFIG_MULTI_FRAME_HEADER
   // Getters
   { AOME_GET_LAST_QUANTIZER, ctrl_get_quantizer },
   { AV1_GET_REFERENCE, ctrl_get_reference },
