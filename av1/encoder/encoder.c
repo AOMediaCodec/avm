@@ -4696,12 +4696,11 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
   memcpy(cm->remapped_ref_idx, frame_params->remapped_ref_idx,
          INTER_REFS_PER_FRAME * sizeof(*cm->remapped_ref_idx));
 
-#if !CONFIG_F024_KEYOBU
   if (av1_is_shown_keyframe(cpi, current_frame->frame_type)) {
     current_frame->key_frame_number += current_frame->frame_number;
     current_frame->frame_number = 0;
   }
-#endif
+
 #if CONFIG_F024_KEYOBU
   cm->current_frame.cm_obu_type = frame_params->frame_params_obu_type;
 #endif
