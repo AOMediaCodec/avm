@@ -668,7 +668,7 @@ typedef struct cfg_options {
 #endif  // CONFIG_SCAN_TYPE_METADATA
 
 #if CONFIG_MULTI_FRAME_HEADER
-  /*!\brief Scan type info present flag
+  /*!\brief enable signaling multi-frame header OBU
    *
    */
   unsigned int enable_mfh_obu_signaling;

@@ -9130,8 +9130,11 @@ static void set_multi_frame_header_with_keyframe(AV1_COMP *cpi,
   mfh_params->mfh_frame_height = seq_params->max_frame_height;
   mfh_params->mfh_frame_width = seq_params->max_frame_width;
 
-  if (mfh_params->mfh_frame_size_present_flag ||
-      seq_params->seq_tile_info_present_flag) {
+  if (mfh_params->mfh_frame_size_present_flag
+#if CONFIG_MFH_SIGNAL_TILE_INFO
+      || seq_params->seq_tile_info_present_flag
+#endif  // CONFIG_MFH_SIGNAL_TILE_INFO
+  ) {
     mfh_params->mfh_frame_width_bits_minus1 = cm->seq_params.num_bits_width - 1;
     mfh_params->mfh_frame_height_bits_minus1 =
         cm->seq_params.num_bits_height - 1;
@@ -9150,7 +9153,6 @@ static void set_multi_frame_header_with_keyframe(AV1_COMP *cpi,
 #endif  // !CONFIG_CWG_F248_RENDER_SIZE
 
 #if CONFIG_MFH_SIGNAL_TILE_INFO
-  // Ideally the mfh_frame_width and mfh_frame_height would be set separately
   mfh_params->mfh_sb_size = seq_params->sb_size;
   assert(seq_params->sb_size == BLOCK_256X256 ||
          seq_params->sb_size == BLOCK_128X128 ||
