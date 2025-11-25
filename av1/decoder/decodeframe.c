@@ -8610,6 +8610,7 @@ int ras_frame_refresh_frame_flags_derivation(AV1Decoder *pbi) {
   AV1_COMMON *const cm = &pbi->common;
   int refresh_frame_flags = (1 << cm->seq_params.ref_frames) - 1;
   for (int i = 0; i < cm->seq_params.ref_frames; i++) {
+    if (cm->ref_frame_map[i] == NULL) continue;
     for (int j = 0; j < cm->num_ref_key_frames; j++) {
       if (cm->ref_long_term_ids[j] == pbi->long_term_ids_in_buffer[i]) {
         refresh_frame_flags &= ~(1 << i);
