@@ -3077,30 +3077,6 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
     }
   }
 
-#if 0
-  {
-    AV1_COMMON *cm = &cpi->common;
-    FILE *fpfile;
-    fpfile = fopen("details.stt", "a");
-    fprintf(fpfile,
-            "%10d %10d %10d %10" PRId64 " %10" PRId64
-            " %10d %10d %10d %10.4lf %10.4lf %10.4lf %10.4lf\n",
-            cm->current_frame.frame_number, rc->base_frame_target,
-            rc->projected_frame_size, rc->total_actual_bits,
-            rc->vbr_bits_off_target, rc->rate_error_estimate,
-            twopass->rolling_arf_group_target_bits,
-            twopass->rolling_arf_group_actual_bits,
-            (double)twopass->rolling_arf_group_actual_bits /
-                (double)twopass->rolling_arf_group_target_bits,
-            twopass->bpm_factor,
-            av1_convert_qindex_to_q(cpi->common.quant_params.base_qindex,
-                                    cm->seq_params.bit_depth),
-            av1_convert_qindex_to_q(rc->active_worst_quality,
-                                    cm->seq_params.bit_depth));
-    fclose(fpfile);
-  }
-#endif
-
   if (cpi->common.current_frame.frame_type != KEY_FRAME) {
     twopass->kf_group_bits -= bits_used;
     twopass->last_kfgroup_zeromotion_pct = twopass->kf_zeromotion_pct;

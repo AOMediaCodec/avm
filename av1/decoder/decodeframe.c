@@ -4936,20 +4936,11 @@ static AOM_INLINE void decoder_alloc_tile_data(AV1Decoder *pbi,
 }
 
 // Set up nsync by width.
+// Note: currently returns a constant value.
+// To use alternate nsync numbers picked by testing, see `get_sync_range()` in
+// `thread_common.c`.
 static INLINE int get_sync_range(int width) {
-// nsync numbers are picked by testing.
-#if 0
-  if (width < 640)
-    return 1;
-  else if (width <= 1280)
-    return 2;
-  else if (width <= 4096)
-    return 4;
-  else
-    return 8;
-#else
   (void)width;
-#endif
   return 1;
 }
 

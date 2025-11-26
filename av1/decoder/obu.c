@@ -1093,9 +1093,6 @@ static size_t read_metadata(AV1Decoder *pbi, const uint8_t *data, size_t sz)
     return 0;
   }
   const OBU_METADATA_TYPE metadata_type = (OBU_METADATA_TYPE)type_value;
-#if 0
-  printf("(%s) SZ: %zu\n", __func__, sz);
-#endif
 #else
   size_t type_length = 0;
   const OBU_METADATA_TYPE metadata_type = metadata->type;

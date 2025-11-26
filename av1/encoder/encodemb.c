@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (c) 2021, Alliance for Open Media. All rights reserved
  *
  * This source code is subject to the terms of the BSD 3-Clause Clear License
@@ -1050,24 +1050,7 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
         cm->features.reduced_tx_set_used);
   }
 
-  // TODO(debargha, jingning): Temporarily disable txk_type check for eob=0
-  // case. It is possible that certain collision in hash index would cause
-  // the assertion failure. To further optimize the rate-distortion
-  // performance, we need to re-visit this part and enable this assert
-  // again.
   if (p->eobs[block] == 0 && plane == 0) {
-#if 0
-    if (args->cpi->oxcf.q_cfg.aq_mode == NO_AQ &&
-        args->cpi->oxcf.q_cfg.deltaq_mode == NO_DELTA_Q) {
-      // TODO(jingning,angiebird,huisu@google.com): enable txk_check when
-      // enable_optimize_b is true to detect potential RD bug.
-      const uint8_t disable_txk_check = args->enable_optimize_b;
-      if (!disable_txk_check) {
-        assert(xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col)] ==
-            DCT_DCT);
-      }
-    }
-#endif
     update_txk_array(xd, blk_row, blk_col, tx_size, DCT_DCT);
   }
   if (dry_run == OUTPUT_ENABLED && plane == AOM_PLANE_V &&
@@ -1576,19 +1559,7 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
         cm->features.reduced_tx_set_used);
   }
 
-  // TODO(jingning): Temporarily disable txk_type check for eob=0 case.
-  // It is possible that certain collision in hash index would cause
-  // the assertion failure. To further optimize the rate-distortion
-  // performance, we need to re-visit this part and enable this assert
-  // again.
   if (*eob == 0 && plane == 0) {
-#if 0
-    if (args->cpi->oxcf.q_cfg.aq_mode == NO_AQ
-        && args->cpi->oxcf.q_cfg.deltaq_mode == NO_DELTA_Q) {
-      assert(xd->tx_type_map[blk_row * xd->tx_type_map_stride + blk_col)] ==
-          DCT_DCT);
-    }
-#endif
     update_txk_array(xd, blk_row, blk_col, tx_size, DCT_DCT);
   }
 

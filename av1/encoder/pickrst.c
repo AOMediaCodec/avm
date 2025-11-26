@@ -3799,10 +3799,6 @@ static int replace_with_frame_filters(RestSearchCtxt *rsc, double *best_cost) {
   double cost_again = search_rest_type(rsc, RESTORE_WIENER_NONSEP);
   if (rsc->num_wiener_nonsep) cost_again += rsc->frame_filter_cost;
   (void)cost_again;
-  // should match the earlier calculated cost.
-#if 0  // debug_point
-  assert(fabs(cost_again - rsc->frame_filters_total_cost) < 1e-3);
-#endif
   cost_again = rsc->frame_filters_total_cost;
   const int num_wiener_nonsep = rsc->num_wiener_nonsep;
 

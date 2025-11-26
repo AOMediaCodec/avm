@@ -394,14 +394,4 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(TestFuncsHBD_d16(aom_highbd_blend_a64_d16_mask_c,
                                        aom_highbd_blend_a64_d16_mask_avx2)));
 #endif  // HAVE_AVX2
-
-// TODO(slavarnway): Enable the following in the avx2 commit. (56501)
-#if 0
-#if HAVE_AVX2
-INSTANTIATE_TEST_SUITE_P(
-    SSE4_1, BlendA64MaskTestHBD,
-    ::testing::Values(TestFuncsHBD(aom_highbd_blend_a64_mask_c,
-                                   aom_highbd_blend_a64_mask_avx2)));
-#endif  // HAVE_AVX2
-#endif
 }  // namespace

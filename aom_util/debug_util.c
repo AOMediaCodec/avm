@@ -159,6 +159,9 @@ void mismatch_record_block_pre(const uint16_t *src, int src_stride,
                                         pixel_c] = src[r * src_stride + c];
     }
   }
+// Note: change `#if 0` to `#if 1` below and set `ref_*` variables to approriate
+// values matching the decoder side -- to print a message and/or add a
+// breakpoint when we hit corresponding block on the encoder side.
 #if 0
   int ref_frame_idx = 3;
   int ref_frame_offset = 4;
@@ -191,6 +194,9 @@ void mismatch_record_block_tx(const uint16_t *src, int src_stride,
                                        pixel_c] = src[r * src_stride + c];
     }
   }
+// Note: change `#if 0` to `#if 1` below and set `ref_*` variables to approriate
+// values matching the decoder side -- to print a message and/or add a
+// breakpoint when we hit corresponding block on the encoder side.
 #if 0
   int ref_frame_idx = 3;
   int ref_frame_offset = 4;
