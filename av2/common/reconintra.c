@@ -1104,14 +1104,6 @@ static void build_intra_predictors_high_mrl(
   assert(!mbmi->use_intra_dip);
   const int is_dr_mode = av2_is_directional_mode(mode);
   int base = 128 << (xd->bd - 8);
-  // The left_data, above_data buffers must be zeroed to fix some intermittent
-  // valgrind errors. Uninitialized reads in intra pred modules (e.g. width =
-  // 4 path in av2_highbd_dr_prediction_z2_avx2()) from left_data, above_data
-  // are seen to be the potential reason for this issue.
-  avm_memset16(left_data_1st, base + 1, NUM_INTRA_NEIGHBOUR_PIXELS);
-  avm_memset16(above_data_1st, base - 1, NUM_INTRA_NEIGHBOUR_PIXELS);
-  avm_memset16(left_data_2nd, base + 1, NUM_INTRA_NEIGHBOUR_PIXELS);
-  avm_memset16(above_data_2nd, base - 1, NUM_INTRA_NEIGHBOUR_PIXELS);
 
   // The default values if ref pixels are not available:
   // base   base-1 base-1 .. base-1 base-1 base-1 base-1 base-1 base-1
@@ -1184,8 +1176,11 @@ static void build_intra_predictors_high_mrl(
                      num_left_pixels_needed - i);
       }
     } else if (n_top_px > 0) {
-      avm_memset16(left_col_1st, above_ref_1st[0], num_left_pixels_needed);
-      avm_memset16(left_col_2nd, above_ref_2nd[0], num_left_pixels_needed);
+      aom_memset16(left_col_1st, above_ref_1st[0], num_left_pixels_needed);
+      aom_memset16(left_col_2nd, above_ref_2nd[0], num_left_pixels_needed);
+    } else {
+      aom_memset16(left_col_1st, base + 1, num_left_pixels_needed);
+      aom_memset16(left_col_2nd, base + 1, num_left_pixels_needed);
     }
   }
 
@@ -1212,8 +1207,11 @@ static void build_intra_predictors_high_mrl(
                      num_top_pixels_needed - i);
       }
     } else if (n_left_px > 0) {
-      avm_memset16(above_row_1st, left_ref_1st[0], num_top_pixels_needed);
-      avm_memset16(above_row_2nd, left_ref_2nd[0], num_top_pixels_needed);
+      aom_memset16(above_row_1st, left_ref_1st[0], num_top_pixels_needed);
+      aom_memset16(above_row_2nd, left_ref_2nd[0], num_top_pixels_needed);
+    } else {
+      aom_memset16(above_row_1st, base - 1, num_top_pixels_needed);
+      aom_memset16(above_row_2nd, base - 1, num_top_pixels_needed);
     }
   }
 
@@ -1303,12 +1301,6 @@ static void build_intra_predictors_high_default(
   int base = 128 << (xd->bd - 8);
   // Use build_intra_predictors_high_mrl() for mrl_index > 0
   assert(!mrl_index);
-  // The left_data, above_data buffers must be zeroed to fix some intermittent
-  // valgrind errors. Uninitialized reads in intra pred modules (e.g. width =
-  // 4 path in av2_highbd_dr_prediction_z2_avx2()) from left_data, above_data
-  // are seen to be the potential reason for this issue.
-  avm_memset16(left_data_1st, base + 1, NUM_INTRA_NEIGHBOUR_PIXELS);
-  avm_memset16(above_data_1st, base - 1, NUM_INTRA_NEIGHBOUR_PIXELS);
 
   // The default values if ref pixels are not available:
   // base   base-1 base-1 .. base-1 base-1 base-1 base-1 base-1 base-1
@@ -1383,7 +1375,9 @@ static void build_intra_predictors_high_default(
                      num_left_pixels_needed - i);
       }
     } else if (n_top_px > 0) {
-      avm_memset16(left_col_1st, above_ref_1st[0], num_left_pixels_needed);
+      aom_memset16(left_col_1st, above_ref_1st[0], num_left_pixels_needed);
+    } else {
+      aom_memset16(left_col_1st, base + 1, num_left_pixels_needed);
     }
   }
 
@@ -1408,7 +1402,9 @@ static void build_intra_predictors_high_default(
                      num_top_pixels_needed - i);
       }
     } else if (n_left_px > 0) {
-      avm_memset16(above_row_1st, left_ref_1st[0], num_top_pixels_needed);
+      aom_memset16(above_row_1st, left_ref_1st[0], num_top_pixels_needed);
+    } else {
+      aom_memset16(above_row_1st, base - 1, num_top_pixels_needed);
     }
   }
 
@@ -1677,7 +1673,7 @@ void av2_predict_intra_block(const AV2_COMMON *cm, const MACROBLOCKD *xd,
         xd, ref, ref_stride, dst, dst_stride, mode, p_angle, angle_delta,
         tx_size, disable_edge_filter, have_top ? AVMMIN(txwpx, xr + txwpx) : 0,
         n_topright_px, have_left ? AVMMIN(txhpx, yd + txhpx) : 0,
-        n_bottomleft_px, plane, cm->seq_params.enable_orip, apply_ibp,
+        n_bottomleft_px, plane, apply_ibp,
         cm->ibp_directional_weights, 0 /* mrl_index */);
   }
 }
