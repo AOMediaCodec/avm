@@ -129,7 +129,7 @@ if(NOT BUILD_SHARED_LIBS)
       "${AOM_ROOT}/test/fwd_kf_test.cc"
       "${AOM_ROOT}/test/kf_test.cc"
       "${AOM_ROOT}/test/lossless_test.cc"
-      "${AOM_ROOT}/test/mfh_test.cc"      
+      "${AOM_ROOT}/test/mfh_test.cc"
       "${AOM_ROOT}/test/quant_test.cc"
       "${AOM_ROOT}/test/sb_multipass_test.cc"
       "${AOM_ROOT}/test/screen_content_test.cc"
