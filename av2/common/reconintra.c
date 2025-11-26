@@ -1072,45 +1072,37 @@ void av2_highbd_ibp_dr_prediction_z3_c(
   }
 }
 
-static void build_intra_predictors_high(
+// Handles the prediction of intra block when mrl_index > 0
+static void build_intra_predictors_high_mrl(
     const MACROBLOCKD *xd, const uint16_t *ref, int ref_stride, uint16_t *dst,
-    int dst_stride, PREDICTION_MODE mode, int angle_delta, TX_SIZE tx_size,
-    int disable_edge_filter, int n_top_px, int n_topright_px, int n_left_px,
-    int n_bottomleft_px, int plane, int is_sb_boundary, const int seq_ibp_flag,
-    const IbpWeightsType ibp_weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90]) {
-  MB_MODE_INFO *const mbmi = xd->mi[0];
+    int dst_stride, PREDICTION_MODE mode, int p_angle, TX_SIZE tx_size,
+    int n_top_px, int n_topright_px, int n_left_px, int n_bottomleft_px,
+    int is_sb_boundary, int apply_ibp, uint8_t mrl_index) {
+  const MB_MODE_INFO *const mbmi = xd->mi[0];
   int i;
   DECLARE_ALIGNED(16, uint16_t, left_data_1st[NUM_INTRA_NEIGHBOUR_PIXELS]);
   DECLARE_ALIGNED(16, uint16_t, above_data_1st[NUM_INTRA_NEIGHBOUR_PIXELS]);
   DECLARE_ALIGNED(16, uint16_t, left_data_2nd[NUM_INTRA_NEIGHBOUR_PIXELS]);
   DECLARE_ALIGNED(16, uint16_t, above_data_2nd[NUM_INTRA_NEIGHBOUR_PIXELS]);
-  DECLARE_ALIGNED(16, uint16_t, second_pred_data[MAX_TX_SQUARE + 32]);
   DECLARE_ALIGNED(16, uint16_t, mrl_line_0_data[MAX_TX_SQUARE + 32]);
   uint16_t *const above_row_1st = above_data_1st + 32;
   uint16_t *const left_col_1st = left_data_1st + 32;
   uint16_t *const above_row_2nd = above_data_2nd + 32;
   uint16_t *const left_col_2nd = left_data_2nd + 32;
 
-  uint16_t *const second_pred = second_pred_data + 16;
   uint16_t *dst_mrl_line_0 = mrl_line_0_data + 16;
   const int txwpx = tx_size_wide[tx_size];
   const int txhpx = tx_size_high[tx_size];
-  int need_left = extend_modes[mode] & NEED_LEFT;
-  int need_above = extend_modes[mode] & NEED_ABOVE;
-  int need_above_left = extend_modes[mode] & NEED_ABOVELEFT;
-  const uint8_t mrl_index =
-      (plane == PLANE_TYPE_Y && is_inter_block(xd->mi[0], xd->tree_type) == 0)
-          ? xd->mi[0]->mrl_index
-          : 0;
   const int above_mrl_idx = is_sb_boundary ? 0 : mrl_index;
   const uint16_t *above_ref_1st = ref - ref_stride * (above_mrl_idx + 1);
   const uint16_t *left_ref_1st = ref - 1 - mrl_index;
   const uint16_t *above_ref_2nd = ref - ref_stride;
   const uint16_t *left_ref_2nd = ref - 1;
 
-  int p_angle = 0;
+  // Use build_intra_predictors_high_default() for mrl_index = 0
+  assert(mrl_index > 0);
+  assert(!mbmi->use_intra_dip);
   const int is_dr_mode = av2_is_directional_mode(mode);
-  const int use_intra_dip = mbmi->use_intra_dip && plane == PLANE_TYPE_Y;
   int base = 128 << (xd->bd - 8);
   // The left_data, above_data buffers must be zeroed to fix some intermittent
   // valgrind errors. Uninitialized reads in intra pred modules (e.g. width =
@@ -1128,23 +1120,11 @@ static void build_intra_predictors_high(
   // base+1   E      F  ..     U      V
   // base+1   G      H  ..     S      T      T      T      T      T
 
-  const bool is_ibp_allowed_blk_sz = tx_size != TX_4X4;
-  const int apply_ibp = seq_ibp_flag && is_ibp_allowed_blk_sz;
-  const int txb_idx = get_tx_partition_idx(xd->mi[0], plane);
-  xd->mi[0]->is_wide_angle[plane > 0][txb_idx] = 0;
-  xd->mi[0]->mapped_intra_mode[plane > 0][txb_idx] = DC_PRED;
+  int need_left = extend_modes[mode] & NEED_LEFT;
+  int need_above = extend_modes[mode] & NEED_ABOVE;
+  int need_above_left = extend_modes[mode] & NEED_ABOVELEFT;
+
   if (is_dr_mode) {
-    p_angle = mode_to_angle_map[mode] + angle_delta;
-    const int mrl_index_to_delta[4] = { 0, 1, -1, 0 };
-    p_angle += mrl_index_to_delta[mrl_index];
-    assert(p_angle > 0 && p_angle < 270);
-    if (!is_inter_block(xd->mi[0], xd->tree_type)) {
-      p_angle =
-          wide_angle_mapping(xd->mi[0], angle_delta, tx_size, mode, plane);
-    } else {
-      mbmi->is_wide_angle[plane > 0][txb_idx] = 0;
-      mbmi->mapped_intra_mode[plane > 0][txb_idx] = DC_PRED;
-    }
     if (p_angle < 90)
       need_above = 1, need_left = 0, need_above_left = 1;
     else if (p_angle == 90)
@@ -1159,13 +1139,13 @@ static void build_intra_predictors_high(
       need_above = 1, need_left = 1, need_above_left = 1;
     }
   }
-  if (use_intra_dip) need_left = need_above = need_above_left = 1;
-  assert(n_top_px >= 0);
-  assert(n_topright_px >= 0);
-  assert(n_left_px >= 0);
-  assert(n_bottomleft_px >= 0);
 
-  if (xd->mi[0]->multi_line_mrl == 0 &&
+  assert(n_top_px >= 0);
+  assert(n_topright_px >= -1);
+  assert(n_left_px >= 0);
+  assert(n_bottomleft_px >= -1);
+
+  if (mbmi->multi_line_mrl == 0 &&
       ((!need_above && n_left_px == 0) || (!need_left && n_top_px == 0))) {
     int val;
     if (need_left) {
@@ -1182,24 +1162,15 @@ static void build_intra_predictors_high(
 
   // NEED_LEFT
   if (need_left) {
-    int need_bottom = extend_modes[mode] & NEED_BOTTOMLEFT;
-    if (use_intra_dip) need_bottom = 1;
-    if (is_dr_mode)
-      need_bottom =
-          apply_ibp ? (p_angle < 90) || (p_angle > 180) : p_angle > 180;
     int num_left_pixels_needed =
-        txhpx + (need_bottom ? txwpx : 3) + (mrl_index << 1);
-    if (use_intra_dip) {
-      // DIP mode requires left edge + 1/4 tx height for overhang feature.
-      num_left_pixels_needed = txhpx + (txhpx >> 2);
-    }
+        txhpx + (n_bottomleft_px >= 0 ? txwpx : 3) + (mrl_index << 1);
     i = 0;
     if (n_left_px > 0) {
       for (; i < n_left_px; i++) {
         left_col_1st[i] = left_ref_1st[i * ref_stride];
         left_col_2nd[i] = left_ref_2nd[i * ref_stride];
       }
-      if (need_bottom && n_bottomleft_px > 0) {
+      if (n_bottomleft_px > 0) {
         assert(i == txhpx);
         for (; i < txhpx + n_bottomleft_px; i++) {
           left_col_1st[i] = left_ref_1st[i * ref_stride];
@@ -1220,21 +1191,13 @@ static void build_intra_predictors_high(
 
   // NEED_ABOVE
   if (need_above) {
-    int need_right = extend_modes[mode] & NEED_ABOVERIGHT;
-    if (use_intra_dip) need_right = 1;
-    if (is_dr_mode)
-      need_right = apply_ibp ? (p_angle < 90) || (p_angle > 180) : p_angle < 90;
     int num_top_pixels_needed =
-        txwpx + (need_right ? txhpx : 0) + (mrl_index << 1);
-    if (use_intra_dip) {
-      // DIP mode requires above line + 1/4 tx width for overhang feature.
-      num_top_pixels_needed = txwpx + (txwpx >> 2);
-    }
+        txwpx + (n_topright_px >= 0 ? txhpx : 0) + (mrl_index << 1);
     if (n_top_px > 0) {
       memcpy(above_row_1st, above_ref_1st, n_top_px * sizeof(above_ref_1st[0]));
       memcpy(above_row_2nd, above_ref_2nd, n_top_px * sizeof(above_ref_2nd[0]));
       i = n_top_px;
-      if (need_right && n_topright_px > 0) {
+      if (n_topright_px > 0) {
         assert(n_top_px == txwpx);
         memcpy(above_row_1st + txwpx, above_ref_1st + txwpx,
                n_topright_px * sizeof(above_ref_1st[0]));
@@ -1279,6 +1242,189 @@ static void build_intra_predictors_high(
     }
   }
 
+  if (is_dr_mode) {
+    const int is_multi_line_mrls_allowed_blk_sz = (tx_size == TX_4X4) ? 0 : 1;
+    highbd_dr_predictor_idif(dst, dst_stride, tx_size, above_row_1st,
+                             left_col_1st, p_angle, xd->bd, mrl_index);
+
+    if (mbmi->multi_line_mrl && is_multi_line_mrls_allowed_blk_sz) {
+      highbd_dr_predictor_idif(dst_mrl_line_0, txwpx, tx_size, above_row_2nd,
+                               left_col_2nd, p_angle, xd->bd, 0);
+
+      int r, c;
+      for (r = 0; r < txhpx; ++r) {
+        for (c = 0; c < txwpx; ++c) {
+          dst[r * dst_stride + c] =
+              (dst[r * dst_stride + c] + dst_mrl_line_0[r * txwpx + c] + 1) / 2;
+        }
+      }
+    }
+    return;
+  }
+
+  if (mode == DC_PRED) {
+    dc_pred_high[n_left_px > 0][n_top_px > 0][tx_size](
+        dst, dst_stride, above_row_1st, left_col_1st, xd->bd);
+    if (apply_ibp && ((n_left_px > 0) || (n_top_px > 0))) {
+      ibp_dc_pred_high[n_left_px > 0][n_top_px > 0][tx_size](
+          dst, dst_stride, above_row_1st, left_col_1st, xd->bd);
+    }
+  } else {
+    pred_high[mode][tx_size](dst, dst_stride, above_row_1st, left_col_1st,
+                             xd->bd);
+  }
+}
+
+// Handles the prediction of intra block when mrl_index = 0
+static void build_intra_predictors_high_default(
+    const MACROBLOCKD *xd, const uint16_t *ref, int ref_stride, uint16_t *dst,
+    int dst_stride, PREDICTION_MODE mode, int p_angle, int angle_delta,
+    TX_SIZE tx_size, int disable_edge_filter, int n_top_px, int n_topright_px,
+    int n_left_px, int n_bottomleft_px, int plane, int apply_ibp,
+    const IbpWeightsType ibp_weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90],
+    uint8_t mrl_index) {
+  (void)mrl_index;
+  MB_MODE_INFO *const mbmi = xd->mi[0];
+  int i;
+  DECLARE_ALIGNED(16, uint16_t, left_data_1st[NUM_INTRA_NEIGHBOUR_PIXELS]);
+  DECLARE_ALIGNED(16, uint16_t, above_data_1st[NUM_INTRA_NEIGHBOUR_PIXELS]);
+  DECLARE_ALIGNED(16, uint16_t, second_pred_data[MAX_TX_SQUARE + 32]);
+  uint16_t *const above_row_1st = above_data_1st + 32;
+  uint16_t *const left_col_1st = left_data_1st + 32;
+  uint16_t *const second_pred = second_pred_data + 16;
+
+  const int txwpx = tx_size_wide[tx_size];
+  const int txhpx = tx_size_high[tx_size];
+  const uint16_t *above_ref_1st = ref - ref_stride;
+  const uint16_t *left_ref_1st = ref - 1;
+
+  const int is_dr_mode = av2_is_directional_mode(mode);
+  const int use_intra_dip = mbmi->use_intra_dip && plane == PLANE_TYPE_Y;
+  int base = 128 << (xd->bd - 8);
+  // Use build_intra_predictors_high_mrl() for mrl_index > 0
+  assert(!mrl_index);
+  // The left_data, above_data buffers must be zeroed to fix some intermittent
+  // valgrind errors. Uninitialized reads in intra pred modules (e.g. width =
+  // 4 path in av2_highbd_dr_prediction_z2_avx2()) from left_data, above_data
+  // are seen to be the potential reason for this issue.
+  avm_memset16(left_data_1st, base + 1, NUM_INTRA_NEIGHBOUR_PIXELS);
+  avm_memset16(above_data_1st, base - 1, NUM_INTRA_NEIGHBOUR_PIXELS);
+
+  // The default values if ref pixels are not available:
+  // base   base-1 base-1 .. base-1 base-1 base-1 base-1 base-1 base-1
+  // base+1   A      B  ..     Y      Z
+  // base+1   C      D  ..     W      X
+  // base+1   E      F  ..     U      V
+  // base+1   G      H  ..     S      T      T      T      T      T
+
+  int need_left = extend_modes[mode] & NEED_LEFT;
+  int need_above = extend_modes[mode] & NEED_ABOVE;
+  int need_above_left = extend_modes[mode] & NEED_ABOVELEFT;
+
+  if (is_dr_mode) {
+    if (p_angle < 90)
+      need_above = 1, need_left = 0, need_above_left = 1;
+    else if (p_angle == 90)
+      need_above = 1, need_left = 0, need_above_left = 0;
+    else if (p_angle < 180)
+      need_above = 1, need_left = 1, need_above_left = 1;
+    else if (p_angle == 180)
+      need_above = 0, need_left = 1, need_above_left = 0;
+    else
+      need_above = 0, need_left = 1, need_above_left = 1;
+
+    if (apply_ibp) {
+      need_left = need_above = need_above_left = 1;
+    }
+  }
+
+  if (use_intra_dip) need_left = need_above = need_above_left = 1;
+
+  assert(n_top_px >= 0);
+  assert(n_topright_px >= -1);
+  assert(n_left_px >= 0);
+  assert(n_bottomleft_px >= -1);
+
+  if (mbmi->multi_line_mrl == 0 &&
+      ((!need_above && n_left_px == 0) || (!need_left && n_top_px == 0))) {
+    int val;
+    if (need_left) {
+      val = (n_top_px > 0) ? above_ref_1st[0] : base + 1;
+    } else {
+      val = (n_left_px > 0) ? left_ref_1st[0] : base - 1;
+    }
+    for (i = 0; i < txhpx; ++i) {
+      avm_memset16(dst, val, txwpx);
+      dst += dst_stride;
+    }
+    return;
+  }
+
+  // NEED_LEFT
+  if (need_left) {
+    int num_left_pixels_needed = txhpx + (n_bottomleft_px >= 0 ? txwpx : 3);
+    if (use_intra_dip) {
+      // DIP mode requires left edge + 1/4 tx height for overhang feature.
+      num_left_pixels_needed = txhpx + (txhpx >> 2);
+    }
+    i = 0;
+    if (n_left_px > 0) {
+      for (; i < n_left_px; i++) {
+        left_col_1st[i] = left_ref_1st[i * ref_stride];
+      }
+      if (n_bottomleft_px > 0) {
+        assert(i == txhpx);
+        for (; i < txhpx + n_bottomleft_px; i++) {
+          left_col_1st[i] = left_ref_1st[i * ref_stride];
+        }
+      }
+      if (i < num_left_pixels_needed) {
+        avm_memset16(&left_col_1st[i], left_col_1st[i - 1],
+                     num_left_pixels_needed - i);
+      }
+    } else if (n_top_px > 0) {
+      avm_memset16(left_col_1st, above_ref_1st[0], num_left_pixels_needed);
+    }
+  }
+
+  // NEED_ABOVE
+  if (need_above) {
+    int num_top_pixels_needed = txwpx + (n_topright_px >= 0 ? txhpx : 0);
+    if (use_intra_dip) {
+      // DIP mode requires above line + 1/4 tx width for overhang feature.
+      num_top_pixels_needed = txwpx + (txwpx >> 2);
+    }
+    if (n_top_px > 0) {
+      memcpy(above_row_1st, above_ref_1st, n_top_px * sizeof(above_ref_1st[0]));
+      i = n_top_px;
+      if (n_topright_px > 0) {
+        assert(n_top_px == txwpx);
+        memcpy(above_row_1st + txwpx, above_ref_1st + txwpx,
+               n_topright_px * sizeof(above_ref_1st[0]));
+        i += n_topright_px;
+      }
+      if (i < num_top_pixels_needed) {
+        avm_memset16(&above_row_1st[i], above_row_1st[i - 1],
+                     num_top_pixels_needed - i);
+      }
+    } else if (n_left_px > 0) {
+      avm_memset16(above_row_1st, left_ref_1st[0], num_top_pixels_needed);
+    }
+  }
+
+  if (need_above_left) {
+    if (n_top_px > 0 && n_left_px > 0) {
+      above_row_1st[-1] = above_ref_1st[-1];
+      left_col_1st[-1] = left_ref_1st[-ref_stride];
+    } else if (n_top_px > 0) {
+      above_row_1st[-1] = left_col_1st[-1] = above_ref_1st[0];
+    } else if (n_left_px > 0) {
+      above_row_1st[-1] = left_col_1st[-1] = left_ref_1st[0];
+    } else {
+      above_row_1st[-1] = left_col_1st[-1] = base;
+    }
+  }
+
   if (use_intra_dip) {
     av2_highbd_intra_dip_predictor(mbmi->intra_dip_mode, dst, dst_stride,
                                    above_row_1st, left_col_1st, tx_size, xd->bd
@@ -1291,7 +1437,7 @@ static void build_intra_predictors_high(
   }
 
   if (is_dr_mode) {
-    if (!disable_edge_filter && mrl_index == 0) {
+    if (!disable_edge_filter) {
       int need_right = p_angle < 90;
       int need_bottom = p_angle > 180;
       int filt_type_above = get_filt_type(xd, plane);
@@ -1330,78 +1476,47 @@ static void build_intra_predictors_high(
         }
       }
     }
-    const int is_multi_line_mrls_allowed_blk_sz = (tx_size == TX_4X4) ? 0 : 1;
     if (plane == AVM_PLANE_Y) {
       highbd_dr_predictor_idif(dst, dst_stride, tx_size, above_row_1st,
-                               left_col_1st, p_angle, xd->bd, mrl_index);
-
-      if (xd->mi[0]->multi_line_mrl && mrl_index &&
-          is_multi_line_mrls_allowed_blk_sz) {
-        highbd_dr_predictor_idif(dst_mrl_line_0, txwpx, tx_size, above_row_2nd,
-                                 left_col_2nd, p_angle, xd->bd, 0);
-
-        int r, c;
-        for (r = 0; r < txhpx; ++r) {
-          for (c = 0; c < txwpx; ++c) {
-            dst[r * dst_stride + c] =
-                (dst[r * dst_stride + c] + dst_mrl_line_0[r * txwpx + c] + 1) /
-                2;
-          }
-        }
-      }
+                               left_col_1st, p_angle, xd->bd,
+                               0 /* mrl_index */);
     } else {
       highbd_dr_predictor(dst, dst_stride, tx_size, above_row_1st, left_col_1st,
-                          p_angle, xd->bd, mrl_index);
-      if (xd->mi[0]->multi_line_mrl && mrl_index &&
-          is_multi_line_mrls_allowed_blk_sz) {
-        highbd_dr_predictor(dst_mrl_line_0, txwpx, tx_size, above_row_2nd,
-                            left_col_2nd, p_angle, xd->bd, 0);
-
-        int r, c;
-        for (r = 0; r < txhpx; ++r) {
-          for (c = 0; c < txwpx; ++c) {
-            dst[r * dst_stride + c] =
-                (dst[r * dst_stride + c] + dst_mrl_line_0[r * txwpx + c] + 1) /
-                2;
+                          p_angle, xd->bd, 0 /* mrl_index */);
+    }
+    if (apply_ibp && (angle_delta % 2 == 0) && plane == PLANE_TYPE_Y) {
+      if (p_angle > 0 && p_angle < 90) {
+        int mode_index = angle_to_mode_index[p_angle];
+        if (is_ibp_enabled[mode_index]) {
+          if (plane == AVM_PLANE_Y) {
+            highbd_second_dr_predictor_idif(second_pred, txwpx, tx_size,
+                                            above_row_1st, left_col_1st,
+                                            p_angle, xd->bd);
+          } else {
+            highbd_second_dr_predictor(second_pred, txwpx, tx_size,
+                                       above_row_1st, left_col_1st, p_angle,
+                                       xd->bd);
           }
+          av2_highbd_ibp_dr_prediction_z1_c(ibp_weights, mode_index, dst,
+                                            dst_stride, second_pred, txwpx,
+                                            txwpx, txhpx);
         }
       }
-    }
-    if (apply_ibp) {
-      if (mrl_index == 0 && (angle_delta % 2 == 0) && plane == PLANE_TYPE_Y) {
-        if (p_angle > 0 && p_angle < 90) {
-          int mode_index = angle_to_mode_index[p_angle];
-          if (is_ibp_enabled[mode_index]) {
-            if (plane == AVM_PLANE_Y) {
-              highbd_second_dr_predictor_idif(second_pred, txwpx, tx_size,
-                                              above_row_1st, left_col_1st,
-                                              p_angle, xd->bd);
-            } else {
-              highbd_second_dr_predictor(second_pred, txwpx, tx_size,
-                                         above_row_1st, left_col_1st, p_angle,
-                                         xd->bd);
-            }
-            av2_highbd_ibp_dr_prediction_z1_c(ibp_weights, mode_index, dst,
-                                              dst_stride, second_pred, txwpx,
-                                              txwpx, txhpx);
+      if (p_angle > 180 && p_angle < 270) {
+        int mode_index = angle_to_mode_index[270 - p_angle];
+        if (is_ibp_enabled[mode_index]) {
+          if (plane == AVM_PLANE_Y) {
+            highbd_second_dr_predictor_idif(second_pred, txwpx, tx_size,
+                                            above_row_1st, left_col_1st,
+                                            p_angle, xd->bd);
+          } else {
+            highbd_second_dr_predictor(second_pred, txwpx, tx_size,
+                                       above_row_1st, left_col_1st, p_angle,
+                                       xd->bd);
           }
-        }
-        if (p_angle > 180 && p_angle < 270) {
-          int mode_index = angle_to_mode_index[270 - p_angle];
-          if (is_ibp_enabled[mode_index]) {
-            if (plane == AVM_PLANE_Y) {
-              highbd_second_dr_predictor_idif(second_pred, txwpx, tx_size,
-                                              above_row_1st, left_col_1st,
-                                              p_angle, xd->bd);
-            } else {
-              highbd_second_dr_predictor(second_pred, txwpx, tx_size,
-                                         above_row_1st, left_col_1st, p_angle,
-                                         xd->bd);
-            }
-            av2_highbd_ibp_dr_prediction_z3_c(ibp_weights, mode_index, dst,
-                                              dst_stride, second_pred, txwpx,
-                                              txwpx, txhpx);
-          }
+          av2_highbd_ibp_dr_prediction_z3_c(ibp_weights, mode_index, dst,
+                                            dst_stride, second_pred, txwpx,
+                                            txwpx, txhpx);
         }
       }
     }
@@ -1418,7 +1533,7 @@ static void build_intra_predictors_high(
     } else
       dc_pred_high[n_left_px > 0][n_top_px > 0][tx_size](
           dst, dst_stride, above_row_1st, left_col_1st, xd->bd);
-    if (apply_ibp && ((plane == 0) || (xd->mi[0]->uv_mode != UV_CFL_PRED)) &&
+    if (apply_ibp && ((plane == 0) || (mbmi->uv_mode != UV_CFL_PRED)) &&
         ((n_left_px > 0) || (n_top_px > 0))) {
       ibp_dc_pred_high[n_left_px > 0][n_top_px > 0][tx_size](
           dst, dst_stride, above_row_1st, left_col_1st, xd->bd);
@@ -1465,9 +1580,9 @@ void av2_predict_intra_block(const AV2_COMMON *cm, const MACROBLOCKD *xd,
   const int ss_y = pd->subsampling_y;
   int have_top = 0, have_left = 0;
   set_have_top_and_left(&have_top, &have_left, xd, row_off, col_off, plane);
-  const int mi_row = plane ? xd->mi[0]->chroma_ref_info.mi_row_chroma_base
+  const int mi_row = plane ? mbmi->chroma_ref_info.mi_row_chroma_base
                            : -xd->mb_to_top_edge >> MI_SUBPEL_SIZE_LOG2;
-  const int mi_col = plane ? xd->mi[0]->chroma_ref_info.mi_col_chroma_base
+  const int mi_col = plane ? mbmi->chroma_ref_info.mi_col_chroma_base
                            : -xd->mb_to_left_edge >> MI_SUBPEL_SIZE_LOG2;
   BLOCK_SIZE bsize = mbmi->sb_type[plane > 0];
   const BLOCK_SIZE init_bsize = bsize;
@@ -1493,30 +1608,78 @@ void av2_predict_intra_block(const AV2_COMMON *cm, const MACROBLOCKD *xd,
   const int bottom_available =
       (yd > 0) && (mi_row + ((row_off + txh) << ss_y) < xd->tile.mi_row_end);
 
+  const bool is_ibp_orip_allowed_blk_sz = tx_size != TX_4X4;
+  const int apply_ibp = cm->seq_params.enable_ibp && is_ibp_orip_allowed_blk_sz;
+  const int is_dr_mode = av2_is_directional_mode(mode);
+  const int use_intra_dip = mbmi->use_intra_dip && plane == PLANE_TYPE_Y;
+  int need_top_right =
+      !use_intra_dip ? extend_modes[mode] & NEED_ABOVERIGHT : 1;
+  int need_bottom_left =
+      !use_intra_dip ? extend_modes[mode] & NEED_BOTTOMLEFT : 1;
+
+  int p_angle = 0;
+  const int txb_idx = get_tx_partition_idx(mbmi, plane);
+  xd->mi[0]->is_wide_angle[plane > 0][txb_idx] = 0;
+  xd->mi[0]->mapped_intra_mode[plane > 0][txb_idx] = DC_PRED;
+  if (is_dr_mode) {
+    p_angle = mode_to_angle_map[mode] + angle_delta;
+    if (!is_inter_block(mbmi, xd->tree_type)) {
+      p_angle =
+          wide_angle_mapping(xd->mi[0], angle_delta, tx_size, mode, plane);
+    }
+    need_top_right =
+        apply_ibp ? (p_angle < 90) || (p_angle > 180) : p_angle < 90;
+    need_bottom_left =
+        apply_ibp ? (p_angle < 90) || (p_angle > 180) : p_angle > 180;
+  }
+
+  // Possible states for have_top_right(TR) and have_bottom_left(BL)
+  // -1 : TR and BL are not needed
+  //  0 : TR and BL are needed but not available
+  // > 0 : TR and BL are needed and pixels are available
   int px_top_right = 0;
-  const int have_top_right = has_top_right(
-      cm, xd, bsize, mi_row, mi_col, have_top, right_available, tx_size, plane,
-      row_off, col_off, ss_x, ss_y, xr, &px_top_right, bsize != init_bsize);
+  const int have_top_right =
+      need_top_right
+          ? has_top_right(cm, xd, bsize, mi_row, mi_col, have_top,
+                          right_available, tx_size, plane, row_off, col_off,
+                          ss_x, ss_y, xr, &px_top_right, bsize != init_bsize)
+          : -1;
 
   int px_bottom_left = 0;
   const int have_bottom_left =
-      has_bottom_left(cm, xd, bsize, mi_row, mi_col, bottom_available,
-                      have_left, tx_size, plane, row_off, col_off, ss_x, ss_y,
-                      yd, &px_bottom_left, bsize != init_bsize);
+      need_bottom_left
+          ? has_bottom_left(cm, xd, bsize, mi_row, mi_col, bottom_available,
+                            have_left, tx_size, plane, row_off, col_off, ss_x,
+                            ss_y, yd, &px_bottom_left, bsize != init_bsize)
+          : -1;
 
   const int disable_edge_filter = !cm->seq_params.enable_intra_edge_filter;
 
   const int is_sb_boundary =
       (mi_row % cm->mib_size == 0 && row_off == 0) ? 1 : 0;
+  const uint8_t mrl_index =
+      (plane == PLANE_TYPE_Y && is_inter_block(mbmi, xd->tree_type) == 0)
+          ? mbmi->mrl_index
+          : 0;
 
-  build_intra_predictors_high(
-      xd, ref, ref_stride, dst, dst_stride, mode, angle_delta, tx_size,
-      disable_edge_filter, have_top ? AVMMIN(txwpx, xr + txwpx) : 0,
-      have_top_right ? px_top_right : 0,
-      have_left ? AVMMIN(txhpx, yd + txhpx) : 0,
-      have_bottom_left ? px_bottom_left : 0, plane, is_sb_boundary,
-      cm->seq_params.enable_ibp, cm->ibp_directional_weights);
-  return;
+  const int n_topright_px = have_top_right > 0 ? px_top_right : have_top_right;
+  const int n_bottomleft_px =
+      have_bottom_left > 0 ? px_bottom_left : have_bottom_left;
+
+  if (mrl_index) {
+    build_intra_predictors_high_mrl(
+        xd, ref, ref_stride, dst, dst_stride, mode, p_angle, tx_size,
+        have_top ? AVMMIN(txwpx, xr + txwpx) : 0, n_topright_px,
+        have_left ? AVMMIN(txhpx, yd + txhpx) : 0, n_bottomleft_px,
+        is_sb_boundary, apply_ibp, mrl_index);
+  } else {
+    build_intra_predictors_high_default(
+        xd, ref, ref_stride, dst, dst_stride, mode, p_angle, angle_delta,
+        tx_size, disable_edge_filter, have_top ? AVMMIN(txwpx, xr + txwpx) : 0,
+        n_topright_px, have_left ? AVMMIN(txhpx, yd + txhpx) : 0,
+        n_bottomleft_px, plane, cm->seq_params.enable_orip, apply_ibp,
+        cm->ibp_directional_weights, 0 /* mrl_index */);
+  }
 }
 
 void mhccp_implicit_fetch_neighbor_luma(const AV2_COMMON *cm,
