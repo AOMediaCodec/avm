@@ -19,7 +19,11 @@
 #include "av1/common/enums.h"
 
 // Returns 1 when OBU type is valid, and 0 otherwise.
-static int valid_obu_type(int obu_type) {
+#if !CONFIG_F414_EXTENSIBILITY
+static
+#endif  // !CONFIG_F414_EXTENSIBILITY
+    int
+    valid_obu_type(int obu_type) {
   int valid_type = 0;
   switch (obu_type) {
     case OBU_SEQUENCE_HEADER:
@@ -127,7 +131,9 @@ static aom_codec_err_t read_obu_header(struct aom_read_bit_buffer *rb,
 
   header->obu_extension_flag = aom_rb_read_bit(rb);
   header->type = (OBU_TYPE)aom_rb_read_literal(rb, 5);  // obu_type
+#if !CONFIG_F414_EXTENSIBILITY
   if (!valid_obu_type(header->type)) return AOM_CODEC_CORRUPT_FRAME;
+#endif  // !CONFIG_F414_EXTENSIBILITY
 
   header->obu_tlayer_id = aom_rb_read_literal(rb, TLAYER_BITS);
 

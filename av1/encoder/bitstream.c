@@ -6342,6 +6342,10 @@ static AOM_INLINE void write_multi_frame_header(
     write_seg_syntax_info(&mfh_param->mfh_seg_params, wb);
   }
 #endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
+#if CONFIG_F414_EXTENSIBILITY
+  write_obu_extension(&mfh_param->obu_ext, wb);
+  av1_add_trailing_bits(wb);
+#endif  // CONFIG_F414_EXTENSIBILITY
 }
 #endif  // CONFIG_MULTI_FRAME_HEADER
 
@@ -7800,10 +7804,11 @@ static size_t obu_memmove(size_t obu_header_size, size_t obu_payload_size,
 }
 void av1_add_trailing_bits(struct aom_write_bit_buffer *wb) {
   if (aom_wb_is_byte_aligned(wb)) {
-    aom_wb_write_literal(wb, 0x80, 8);
+    // Already byte-aligned, no padding needed
+    return;
   } else {
-    // assumes that the other bits are already 0s
-    aom_wb_write_bit(wb, 1);
+    // Round up to next byte boundary (assumes remaining bits are already 0)
+    wb->bit_offset = (wb->bit_offset + 7) & ~7;
   }
 }
 
@@ -7834,6 +7839,19 @@ static void av1_write_mlayer_dependency_info(struct aom_write_bit_buffer *wb,
     }
   }
 }
+
+#if CONFIG_F414_EXTENSIBILITY
+void write_obu_extension(const ObuExtension *obu_ext,
+                         struct aom_write_bit_buffer *wb) {
+  // V1 encoder should never set extension_present_flag to 1
+  // Future encoder versions (v2+) would write extension data when flag is 1
+  assert(obu_ext->extension_present_flag == 0 &&
+         "V1 encoder should not set extension_present_flag");
+
+  // Write the extension_present_flag
+  aom_wb_write_bit(wb, obu_ext->extension_present_flag);
+}
+#endif  // CONFIG_F414_EXTENSIBILITY
 
 uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
                                        uint8_t *const dst) {
@@ -7959,6 +7977,9 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
   }
 #endif  // CONFIG_SCAN_TYPE_METADATA
 
+#if CONFIG_F414_EXTENSIBILITY
+  write_obu_extension(&seq_params->sh_extension, &wb);
+#endif  // CONFIG_F414_EXTENSIBILITY
   av1_add_trailing_bits(&wb);
 
   size = aom_wb_bytes_written(&wb);
@@ -7974,7 +7995,14 @@ uint32_t write_multi_frame_header_obu(AV1_COMP *cpi,
 
   write_multi_frame_header(cpi, mfh_param, &wb);
 
+#if CONFIG_F414_EXTENSIBILITY
+  // Only add trailing bits if extension is NOT present
+  if (!mfh_param->obu_ext.extension_present_flag) {
+    av1_add_trailing_bits(&wb);
+  }
+#else
   av1_add_trailing_bits(&wb);
+#endif  // CONFIG_F414_EXTENSIBILITY
 
   size = aom_wb_bytes_written(&wb);
   return size;

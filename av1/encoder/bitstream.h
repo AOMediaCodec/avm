@@ -44,6 +44,10 @@ int film_grain_model_decision(int fgm_pos, struct film_grain_model *fgm_in_list,
 int write_fgm_obu(AV1_COMP *cpi, struct film_grain_model *fgm,
                   uint8_t *const dst);
 #endif  // CONFIG_F153_FGM_OBU
+#if CONFIG_F414_EXTENSIBILITY
+void write_obu_extension(const ObuExtension *obu_ext,
+                         struct aom_write_bit_buffer *wb);
+#endif  // CONFIG_F414_EXTENSIBILITY
 
 // Writes only the OBU Sequence Header payload, and returns the size of the
 // payload written to 'dst'. This function does not write the OBU header, the

@@ -367,7 +367,16 @@ uint32_t av1_write_operating_point_set_obu(AV1_COMP *cpi, int obu_xlayer_id,
       aom_wb_write_literal(&wb, 0, (8 - wb.bit_offset % 8) % 8);
     }
   }
+
+#if CONFIG_F414_EXTENSIBILITY
+  write_obu_extension(&ops->obu_ext, &wb);
+  // Only add trailing bits if extension is NOT present
+  if (!ops->obu_ext.extension_present_flag) {
+    av1_add_trailing_bits(&wb);
+  }
+#else
   av1_add_trailing_bits(&wb);
+#endif  // CONFIG_F414_EXTENSIBILITY
   size = aom_wb_bytes_written(&wb);
   return size;
 }

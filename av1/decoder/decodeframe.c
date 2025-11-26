@@ -138,13 +138,32 @@ int av1_check_byte_alignment(AV1_COMMON *const cm,
 // It consumes an additional byte, if already byte aligned before the check.
 int av1_check_trailing_bits(AV1Decoder *pbi, struct aom_read_bit_buffer *rb) {
   AV1_COMMON *const cm = &pbi->common;
+
+#if CONFIG_F414_EXTENSIBILITY
+  // With CONFIG_F414_EXTENSIBILITY zero-padding, if already byte-aligned, no
+  // trailing bits to check
+  if (rb->bit_offset % 8 == 0) {
+    return 0;
+  }
+#endif  // CONFIG_F414_EXTENSIBILITY
+
   // bit_offset is set to 0 (mod 8) when the reader is already byte aligned
   int bits_before_alignment = 8 - rb->bit_offset % 8;
   int trailing = aom_rb_read_literal(rb, bits_before_alignment);
+#if CONFIG_F414_EXTENSIBILITY
+  // With CONFIG_F414_EXTENSIBILITY, trailing bits are zero-padded instead
+  // of 10...0 pattern
+  if (trailing != 0) {
+    cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
+    return -1;
+  }
+#else
+  // Old behavior: expect 10...0 pattern
   if (trailing != (1 << (bits_before_alignment - 1))) {
     cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
     return -1;
   }
+#endif  // CONFIG_F414_EXTENSIBILITY
   return 0;
 }
 
@@ -7877,7 +7896,12 @@ static AOM_INLINE void read_multi_frame_header_seg_info(
 #endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
 
 #if CONFIG_MULTI_FRAME_HEADER
-void av1_read_multi_frame_header(AV1_COMMON *cm,
+#if CONFIG_F414_EXTENSIBILITY
+int
+#else
+void
+#endif  // CONFIG_F414_EXTENSIBILITY
+    av1_read_multi_frame_header(AV1_COMMON *cm,
                                  struct aom_read_bit_buffer *rb) {
 #if CONFIG_CWG_E242_SEQ_HDR_ID
   const uint32_t mfh_seq_header_id = aom_rb_read_uvlc(rb);
@@ -7898,6 +7922,9 @@ void av1_read_multi_frame_header(AV1_COMMON *cm,
   }
 
   MultiFrameHeader *mfh_param = &cm->mfh_params[cur_mfh_id];
+#if CONFIG_F414_EXTENSIBILITY
+  mfh_param->mfh_id = cur_mfh_id;
+#endif  // CONFIG_F414_EXTENSIBILITY
 #if CONFIG_CWG_E242_SEQ_HDR_ID
   mfh_param->mfh_seq_header_id = (int)mfh_seq_header_id;
 #endif  // #if CONFIG_CWG_E242_SEQ_HDR_ID
@@ -7984,6 +8011,10 @@ void av1_read_multi_frame_header(AV1_COMMON *cm,
 #endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
 
   cm->mfh_valid[cur_mfh_id] = true;
+
+#if CONFIG_F414_EXTENSIBILITY
+  return cur_mfh_id;
+#endif  // CONFIG_F414_EXTENSIBILITY
 }
 #endif  // CONFIG_MULTI_FRAME_HEADER
 

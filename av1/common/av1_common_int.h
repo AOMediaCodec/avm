@@ -538,6 +538,15 @@ typedef struct {
 } OrderHintInfo;
 
 /*!
+ * \brief Obu Extensibility
+ */
+#if CONFIG_F414_EXTENSIBILITY
+typedef struct ObuExtension {
+  bool extension_present_flag;
+} ObuExtension;
+#endif  // CONFIG_F414_EXTENSIBILITY
+
+/*!
  * \brief Params related to tiles.
  */
 typedef struct CommonTileParams {
@@ -738,6 +747,9 @@ typedef struct LayerConfigurationRecord {
   struct RepresentationInfo rep_list[MAX_LCR_TYPES][MAX_NUM_XLAYERS];
   struct XLayerColorInfo xlayer_col_params;
   struct EmbeddedLayerInfo mlayer_params;
+#if CONFIG_F414_EXTENSIBILITY
+  struct ObuExtension obu_ext;
+#endif  // CONFIG_F414_EXTENSIBILITY
 } LayerConfigurationRecord;
 
 typedef struct AtlasLabelSegmentInfo {
@@ -902,6 +914,9 @@ typedef struct OperatingPointSet {
   struct OpsColorInfo ops_col_info_s;
   struct OpsDecoderModelInfo *ops_decoder_model_info;
   struct OpsDecoderModelInfo ops_decoder_model_info_s;
+#if CONFIG_F414_EXTENSIBILITY
+  struct ObuExtension obu_ext;
+#endif  // CONFIG_F414_EXTENSIBILITY
 } OperatingPointSet;
 #endif  // CONFIG_MULTILAYER_HLS
 
@@ -1124,6 +1139,10 @@ typedef struct SequenceHeader {
   SegmentationInfoSyntax seg_params;
   int allow_seg_info_change;
 #endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
+
+#if CONFIG_F414_EXTENSIBILITY
+  struct ObuExtension sh_extension;
+#endif  // CONFIG_F414_EXTENSIBILITY
 } SequenceHeader;
 
 typedef struct {
@@ -1371,6 +1390,13 @@ typedef struct {
  */
 #if CONFIG_MULTI_FRAME_HEADER
 typedef struct MultiFrameHeader {
+#if CONFIG_F414_EXTENSIBILITY
+  /*!
+   * MFH header id
+   */
+  int mfh_id;
+#endif  // CONFIG_F414_EXTENSIBILITY
+
 #if CONFIG_CWG_E242_SEQ_HDR_ID
   /*!
    * Seq header id in multi frame header
@@ -1455,6 +1481,12 @@ typedef struct MultiFrameHeader {
    */
   int mfh_ext_seg_flag;
 #endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
+#if CONFIG_F414_EXTENSIBILITY
+  /*!
+   * Obu Extension
+   */
+  struct ObuExtension obu_ext;
+#endif  // CONFIG_F414_EXTENSIBILITY
 } MultiFrameHeader;
 #endif  // CONFIG_MULTI_FRAME_HEADER
 
