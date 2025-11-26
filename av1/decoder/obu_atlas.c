@@ -233,10 +233,6 @@ static uint32_t read_ats_multistream_atlas_info(
   ats_basic_info->AtlasHeight[obu_xLayer_id][xAId] =
       ats_basic_info->ats_atlas_height[obu_xLayer_id][xAId];
 
-#if CONFIG_ATLAS_ALPHA_SEGMENT
-  ats_basic_info->ats_alpha_segments_present_flag[obu_xLayer_id][xAId] =
-      aom_rb_read_bit(rb);
-#endif  // CONFIG_ATLAS_ALPHA_SEGMENT
 #if CONFIG_ATLAS_BACKGROUND_COLOR
   ats_basic_info->ats_background_info_present_flag[obu_xLayer_id][xAId] =
       aom_rb_read_bit(rb);
@@ -264,12 +260,6 @@ static uint32_t read_ats_multistream_atlas_info(
         aom_rb_read_uvlc(rb);
     ats_basic_info->ats_segment_height[obu_xLayer_id][xAId][i] =
         aom_rb_read_uvlc(rb);
-#if CONFIG_ATLAS_ALPHA_SEGMENT
-    if (ats_basic_info->ats_alpha_segments_present_flag[obu_xLayer_id][xAId] == 1 &
-        i < NumSegments - 1)
-      ats_basic_info->ats_alpha_segment_flag[obu_xLayer_id][xAId][i] =
-          aom_rb_read_bit(rb);
-#endif  // CONFIG_ATLAS_ALPHA_SEGMENT
   }
   return 0;
 }
