@@ -3966,6 +3966,33 @@ void setup_quant_matrices(AV1Decoder *pbi, CommonQuantParams *quant_params,
       current += size;
     }
   }
+#if 1 //herehere
+  if(1){
+  printf("---->>>%s<<<<----\n", __func__);
+  printf("%slevel_%d: 8x8: ", (plane==0?"Y":plane==1?"U":"V"), qmlevel);
+  for(int k=0; k<16; k++) //giqmatrix[qmlevel][plane][tx_size]
+    printf("%d, ", qm_set->quantizer_matrix [0][plane][k]);
+  printf("\n");
+    printf("%slevel_%d: 8x4: ", (plane==0?"Y":plane==1?"U":"V"), qmlevel);
+    for(int k=0; k<16; k++) //giqmatrix[qmlevel][plane][tx_size]
+      printf("%d, ", qm_set->quantizer_matrix [1][plane][k]);
+    printf("\n");
+
+    printf("%slevel_%d: 4x8: ", (plane==0?"Y":plane==1?"U":"V"), qmlevel);
+    for(int k=0; k<16; k++) //giqmatrix[qmlevel][plane][tx_size]
+      printf("%d, ", qm_set->quantizer_matrix [2][plane][k]);
+    printf("\n");
+
+//    for (int j = 0; j < TX_SIZES_ALL; ++j) {
+//      printf("%slevel_%d[%d] ", (plane==0?"Y":plane==1?"U":"V"), qmlevel, j);
+//      for(int k=0; k<16; k++) //giqmatrix[qmlevel][plane][tx_size]
+//        //printf("%d, ", (int)quant_params->giqmatrix[qmlevel][plane][j][k]);
+//        printf("%d, ", qm_set->quantizer_matrix [0][plane][qmlevel][plane][j][k]);
+//        
+//      printf("\n");
+//    }
+  }
+#endif
 }
 #endif  // CONFIG_F255_QMOBU
 
@@ -4058,6 +4085,12 @@ static AOM_INLINE void setup_qm_params(
     }
 #if CONFIG_F255_QMOBU
     for (uint8_t i = 0; i < quant_params->pic_qm_num; i++) {
+#if 1
+      printf("<<---%s>> qm_yuv[%d] %d, %d, %d\n", __func__, i,
+             quant_params->qm_y[i],
+             quant_params->qm_u[i],
+             quant_params->qm_v[i]);
+#endif
       setup_quant_matrices(pbi, quant_params, 0, quant_params->qm_y[i]);
       if (num_planes > 1) {
         setup_quant_matrices(pbi, quant_params, 1, quant_params->qm_u[i]);
@@ -4142,6 +4175,37 @@ static AOM_INLINE void setup_segmentation_dequant(
 #endif
     }
   }
+      
+#if 0 //herehere
+      if(1){
+        printf("<<<<%s>>>>\n", __func__);
+        //printf("%d, ", quant_params->v_iqmatrix[i][j][k]);
+        for (int i = 0; i < max_segments; ++i) {
+          int qmlevel_y = quant_params->qm_y[quant_params->qm_index[i]];
+          int qmlevel_u = quant_params->qm_u[quant_params->qm_index[i]];
+          int qmlevel_v = quant_params->qm_v[quant_params->qm_index[i]];
+          printf("qmlevel: %d, %d, %d\n", qmlevel_y, qmlevel_u, qmlevel_v);
+          for (int j = 0; j < TX_SIZES_ALL; ++j) {
+            printf("Y seg[%d] txsize[%d] : ",i, j);
+            for(int k=0; k<16; k++) //giqmatrix[qmlevel][plane][tx_size]
+              printf("%d, ", (int)quant_params->giqmatrix[qmlevel_y][0][j][k]);
+            printf("\n");
+          }
+          for (int j = 0; j < TX_SIZES_ALL; ++j) {
+            printf("U seg[%d] txsize[%d] : ",i, j);
+            for(int k=0; k<16; k++) //giqmatrix[qmlevel][plane][tx_size]
+              printf("%d, ", (int)quant_params->giqmatrix[qmlevel_u][1][j][k]);
+            printf("\n");
+          }
+          for (int j = 0; j < TX_SIZES_ALL; ++j) {
+            printf("V seg[%d] txsize[%d] : ",i, j);
+            for(int k=0; k<16; k++) //giqmatrix[qmlevel][plane][tx_size]
+              printf("%d, ", (int)quant_params->giqmatrix[qmlevel_v][2][j][k]);
+            printf("\n");
+          }
+        }
+      }
+#endif
 }
 
 static InterpFilter read_frame_interp_filter(struct aom_read_bit_buffer *rb) {
@@ -8705,6 +8769,46 @@ static void activate_sequence_header(AV1Decoder *pbi,
 #if CONFIG_F255_QMOBU
   av1_copy_predefined_qmatrices_to_list(pbi, cm->seq_params.monochrome ? 1 : 3,
                                         false);
+  
+  
+#if 1 //herehere
+    if(1){
+      printf("---->>>%s<<<<---- (0)\n", __func__);
+      for(int plane=0; plane<3; plane++){
+        int qmlevel= plane==0?11:8;
+        printf("%slevel_%d: 8x8: ", (plane==0?"Y":plane==1?"U":"V"), qmlevel);
+        for(int k=0; k<16; k++)
+          printf("%d, ", predefined_8x8_iwt_base_matrix[qmlevel][plane==0?0:1][k]);
+        printf("\n");
+        printf("%slevel_%d: 8x4: ", (plane==0?"Y":plane==1?"U":"V"), qmlevel);
+        for(int k=0; k<16; k++)
+          printf("%d, ", predefined_8x4_iwt_base_matrix[qmlevel][plane==0?0:1][k]);
+        printf("\n");
+        printf("%slevel_%d: 4x8: ", (plane==0?"Y":plane==1?"U":"V"), qmlevel);
+          for(int k=0; k<16; k++)
+            printf("%d, ", predefined_4x8_iwt_base_matrix[qmlevel][plane==0?0:1][k]);
+        printf("\n");
+      }
+      
+      printf("---->>>%s<<<<---- (1)\n", __func__);
+      for(int plane=0; plane<3; plane++){
+        int qmlevel= plane==0?11:8;
+        struct quantization_matrix_set *qm_set = &pbi->qm_list[qmlevel];
+        printf("%slevel_%d: 8x8: ", (plane==0?"Y":plane==1?"U":"V"), qmlevel);
+        for(int k=0; k<16; k++) //giqmatrix[qmlevel][plane][tx_size]
+          printf("%d, ", qm_set->quantizer_matrix [0][plane][k]);
+        printf("\n");
+        printf("%slevel_%d: 8x4: ", (plane==0?"Y":plane==1?"U":"V"), qmlevel);
+        for(int k=0; k<16; k++) //giqmatrix[qmlevel][plane][tx_size]
+          printf("%d, ", qm_set->quantizer_matrix [1][plane][k]);
+        printf("\n");
+        printf("%slevel_%d: 4x8: ", (plane==0?"Y":plane==1?"U":"V"), qmlevel);
+        for(int k=0; k<16; k++) //giqmatrix[qmlevel][plane][tx_size]
+          printf("%d, ", qm_set->quantizer_matrix [2][plane][k]);
+        printf("\n");
+      }
+    }
+#endif
   if (pbi->total_qmobu_count != 0) {
     for (int i = 0; i < pbi->total_qmobu_count; i++) {
       for (int qm_pos = 0; qm_pos < NUM_CUSTOM_QMS; qm_pos++) {
@@ -8742,6 +8846,27 @@ static void activate_sequence_header(AV1Decoder *pbi,
       }  // qm_pos
     }  // i
 
+#if 1 //herehere
+    if(1){
+      printf("---->>>%s<<<<----\n", __func__);
+      for(int plane=0; plane<3; plane++){
+        int qmlevel= plane==0?11:8;
+        struct quantization_matrix_set *qm_set = &pbi->qm_list[qmlevel];
+        printf("%slevel_%d: 8x8: ", (plane==0?"Y":plane==1?"U":"V"), qmlevel);
+        for(int k=0; k<16; k++) //giqmatrix[qmlevel][plane][tx_size]
+          printf("%d, ", qm_set->quantizer_matrix [0][plane][k]);
+        printf("\n");
+        printf("%slevel_%d: 8x4: ", (plane==0?"Y":plane==1?"U":"V"), qmlevel);
+        for(int k=0; k<16; k++) //giqmatrix[qmlevel][plane][tx_size]
+          printf("%d, ", qm_set->quantizer_matrix [1][plane][k]);
+        printf("\n");
+        printf("%slevel_%d: 4x8: ", (plane==0?"Y":plane==1?"U":"V"), qmlevel);
+        for(int k=0; k<16; k++) //giqmatrix[qmlevel][plane][tx_size]
+          printf("%d, ", qm_set->quantizer_matrix [2][plane][k]);
+        printf("\n");
+      }
+    }
+#endif
     pbi->total_qmobu_count = 0;
   }  // !(pbi->total_qmobu_count != 0)
 #endif  // CONFIG_F255_QMOBU
@@ -9301,7 +9426,9 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_CWG_F317
     }
 #endif  // CONFIG_CWG_F317
-
+#if 1
+    printf("<<%s>> display_order_hint:%d\n", __func__, current_frame->display_order_hint);
+#endif
 #if CONFIG_F024_KEYOBU
     //[jkei] what is the display order hint of bridge frame?
     // TODO: it is a requirement that wo frames in different consecutive layers

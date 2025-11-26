@@ -1119,6 +1119,9 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
 
   // Do not use periodic key frames.
   cpi->rc.frames_to_key = INT_MAX;
+#if 0 //[jkei]
+  printf("%s calls av1_set_quantizer()\n", __func__);
+#endif
 
   av1_set_quantizer(cpi, cpi->oxcf.q_cfg.qm_minlevel,
                     cpi->oxcf.q_cfg.qm_maxlevel, qindex,

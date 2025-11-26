@@ -567,8 +567,8 @@ static void set_qm_test_params(AV1_COMMON *const cm,
                                     : quant_params->qm_u[i];
       }
     }
-#if CONFIG_F255_QMOBU_TEST
-    printf("<<%s>> qm_yuv[%d] %d, %d, %d\n", __func__, i, quant_params->qm_y[i], quant_params->qm_u[i], quant_params->qm_v[i]);
+#if 1
+    printf("<<%s>> base_qindex:%d qm_yuv[%d] %d, %d, %d\n", __func__, cm->quant_params.base_qindex, i, quant_params->qm_y[i], quant_params->qm_u[i], quant_params->qm_v[i]);
 #endif
   }
 #if CONFIG_QM_DEBUG

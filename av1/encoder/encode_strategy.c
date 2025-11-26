@@ -1034,7 +1034,9 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     int srcbuf_size =
         av1_lookahead_depth(cpi->lookahead, cpi->compressor_stage);
     int pop_size = av1_lookahead_pop_sz(cpi->lookahead, cpi->compressor_stage);
-
+#if 0 //[jkei]
+    printf("flush=0\n");
+#endif
     // Continue buffering look ahead buffer.
     if (srcbuf_size < pop_size) return -1;
   }
@@ -1044,6 +1046,10 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
       av1_end_first_pass(cpi); /* get last stats packet */
       cpi->twopass.first_pass_done = 1;
     }
+#if 0 //[jkei]
+    printf("!av1_lookahead_peek\n");
+#endif
+
     return -1;
   }
 

@@ -3292,7 +3292,9 @@ static int encode_without_recode(AV1_COMP *cpi) {
   // use for newmv search, we can avoid scaling here.
   if (!frame_is_intra_only(cm))
     av1_scale_references(cpi, filter_scaler, phase_scaler, 1);
-
+#if 0 //[jkei]
+  printf("%s calls av1_set_quantizer()\n", __func__);
+#endif
   av1_set_quantizer(cpi, q_cfg->qm_minlevel, q_cfg->qm_maxlevel, q,
                     q_cfg->enable_chroma_deltaq);
 
@@ -4670,6 +4672,9 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
                const EncodeFrameInput *const frame_input,
                const EncodeFrameParams *const frame_params,
                EncodeFrameResults *const frame_results) {
+#if 0 //[jkei]
+  printf("!!!!!%s!!!!!\n", __func__);
+#endif
   AV1_COMMON *const cm = &cpi->common;
   CurrentFrame *const current_frame = &cm->current_frame;
 
@@ -5113,7 +5118,9 @@ int av1_get_compressed_data(AV1_COMP *cpi, unsigned int *frame_flags,
   cpi->no_show_fwd_kf = 0;
   check_ref_count_status_enc(cpi);
   if (assign_cur_frame_new_fb(cm) == NULL) return AOM_CODEC_ERROR;
-
+#if 0 //[jkei]
+  printf("%s calls av1_encode_strategy\n", __func__);
+#endif
   const int result =
       av1_encode_strategy(cpi, size, dest, frame_flags, time_stamp, time_end,
                           timestamp_ratio, flush);

@@ -7539,6 +7539,36 @@ static AOM_INLINE void write_uncompressed_header_obu
                              quant_params->qm_index_bits);
       }
     }
+#if 0 //jkei
+    if(1){
+      printf("<<<<%s>>>>\n", __func__);
+      //printf("%d, ", quant_params->v_iqmatrix[i][j][k]);
+      for (int i = 0; i < max_seg_num; ++i) {
+        int qmlevel_y = quant_params->qm_y[quant_params->qm_index[i]];
+        int qmlevel_u = quant_params->qm_u[quant_params->qm_index[i]];
+        int qmlevel_v = quant_params->qm_v[quant_params->qm_index[i]];
+        printf("qmlevel: %d, %d, %d\n", qmlevel_y, qmlevel_u, qmlevel_v);
+        for (int j = 0; j < TX_SIZES_ALL; ++j) {
+          printf("Y seg[%d] txsize[%d] : ",i, j);
+          for(int k=0; k<16; k++) //giqmatrix[qmlevel][plane][tx_size]
+            printf("%d, ", (int)quant_params->giqmatrix[qmlevel_y][0][j][k]);
+          printf("\n");
+        }
+        for (int j = 0; j < TX_SIZES_ALL; ++j) {
+          printf("U seg[%d] txsize[%d] : ",i, j);
+          for(int k=0; k<16; k++) //giqmatrix[qmlevel][plane][tx_size]
+            printf("%d, ", (int)quant_params->giqmatrix[qmlevel_u][1][j][k]);
+          printf("\n");
+        }
+        for (int j = 0; j < TX_SIZES_ALL; ++j) {
+          printf("V seg[%d] txsize[%d] : ",i, j);
+          for(int k=0; k<16; k++) //giqmatrix[qmlevel][plane][tx_size]
+            printf("%d, ", (int)quant_params->giqmatrix[qmlevel_v][2][j][k]);
+          printf("\n");
+        }
+      }
+    }
+#endif
   }
 
   // Encode adaptive frame-level TCQ flag, if applicable.

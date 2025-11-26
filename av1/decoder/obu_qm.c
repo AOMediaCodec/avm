@@ -68,9 +68,16 @@ static void read_qm_data(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
   qmset->qm_mlayer_id = obu_mlayer_id;
   qmset->quantizer_matrix_num_planes = num_planes;
   const bool qm_is_default_flag = (bool)aom_rb_read_bit(rb);
+#if 1
+    printf("----qm_is_default_flag:%d\n", qm_is_default_flag);
+#endif
   if (qm_is_default_flag) {
     const int qm_default_index = aom_rb_read_literal(rb, 4);
     qmset->qm_default_index = qm_default_index;
+#if 1
+    printf("----defaul_index: %d\n", qmset->qm_default_index);
+#endif
+
     // copy predefined[qm_default_index] to qmset
     for (int c = 0; c < num_planes; ++c) {
       // plane_type: 0:luma, 1:chroma
@@ -241,6 +248,32 @@ uint32_t read_qm_obu(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
         read_qm_data(pbi, obu_tlayer_id, obu_mlayer_id, qm_pos, qm_id,
                      (qm_chroma_info_present_flag ? 3 : 1),
                      store_at_intermediate_location, rb);
+        
+#if 1 //jkei
+        if(1){
+          struct quantization_matrix_set *qm_set =
+              store_at_intermediate_location
+                  ? &pbi->qmobu_list[pbi->total_qmobu_count].qm_list[qm_pos]
+                  : &pbi->qm_list[qm_pos];
+          printf("<<<%s>>> qm_id %d\n", __func__, qm_id);
+          for(int plane=0; plane<3; plane++){
+            printf("%slevel_%d: 8x8: ", (plane==0?"Y":plane==1?"U":"V"), qm_id);
+            for(int k=0; k<16; k++) //giqmatrix[qmlevel][plane][tx_size]
+              printf("%d, ", qm_set->quantizer_matrix [0][plane][k]);
+            printf("\n");
+            printf("%slevel_%d: 8x4: ", (plane==0?"Y":plane==1?"U":"V"), qm_id);
+            for(int k=0; k<16; k++) //giqmatrix[qmlevel][plane][tx_size]
+              printf("%d, ", qm_set->quantizer_matrix [1][plane][k]);
+            printf("\n");
+            printf("%slevel_%d: 4x8: ", (plane==0?"Y":plane==1?"U":"V"), qm_id);
+            for(int k=0; k<16; k++) //giqmatrix[qmlevel][plane][tx_size]
+              printf("%d, ", qm_set->quantizer_matrix [2][plane][k]);
+            printf("\n");
+          }
+        }
+
+        
+#endif
       }
     }
   }  // qm_bit_map != 0

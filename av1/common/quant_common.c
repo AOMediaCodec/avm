@@ -519,6 +519,9 @@ void av1_free_qmset(qm_val_t ***mat, int num_planes) {
 
 void av1_qm_frame_update(struct CommonQuantParams *quant_params, int num_planes,
                          int qm_id, qm_val_t ***matrix_set) {
+#if 1
+  printf("---------%s----------\n", __func__);
+#endif
   // matrix_set[tx_size(3)][color(3)][64,32,32]
   assert(qm_id != (NUM_QM_LEVELS - 1));
   for (int c = 0; c < num_planes; ++c) {
@@ -641,6 +644,54 @@ void av1_qm_init(CommonQuantParams *quant_params, int num_planes
       }
     }
   }
+#if 1 //herehere
+  if(1){
+#if 1
+  printf("---->>>%s<<<<----\n", __func__);
+#endif
+
+    int qmlevel[3]={11, 8, 8};
+    printf("qmlevel: %d, %d, %d\n", qmlevel[0], qmlevel[1], qmlevel[2]);
+//    for (int j = 0; j < TX_SIZES_ALL; ++j) {
+//      printf("Ylevel_%d[%d] ", qmlevel_y, j);
+//      for(int k=0; k<16; k++) //giqmatrix[qmlevel][plane][tx_size]
+//        printf("%d, ", (int)quant_params->giqmatrix[qmlevel_y][0][j][k]);
+//      printf("\n");
+//    }
+//    
+//    for (int j = 0; j < TX_SIZES_ALL; ++j) {
+//      printf("Ulevel_%d[%d] ", qmlevel_u, j);
+//      for(int k=0; k<16; k++) //giqmatrix[qmlevel][plane][tx_size]
+//        printf("%d, ", (int)quant_params->giqmatrix[qmlevel_u][1][j][k]);
+//      printf("\n");
+//    }
+//
+//    for (int j = 0; j < TX_SIZES_ALL; ++j) {
+//      printf("Vlevel_%d[%d] ", qmlevel_v, j);
+//      for(int k=0; k<16; k++) //giqmatrix[qmlevel][plane][tx_size]
+//        printf("%d, ", (int)quant_params->giqmatrix[qmlevel_v][2][j][k]);
+//      printf("\n");
+//    }
+//
+    for(int plane=0; plane<num_planes; plane++){
+      for(int t=0; t<3; t++){
+        printf("%slevel_%d: %s: ",plane==0?"Y":plane==1?"U":"V", qmlevel[plane], t==0?"8x8":t==1?"8x4":"4x8");
+        if(t==0){
+          for(int k=0; k<16; k++)
+            printf("%d, ", predefined_8x8_iwt_base_matrix[qmlevel[plane]][plane==0?0:1][k]);
+        }else if(t==1){
+          for(int k=0; k<16; k++)
+            printf("%d, ", predefined_8x4_iwt_base_matrix[qmlevel[plane]][plane==0?0:1][k]);
+        }else{
+          for(int k=0; k<16; k++)
+            printf("%d, ", predefined_4x8_iwt_base_matrix[qmlevel[plane]][plane==0?0:1][k]);
+        }
+        printf("\n");
+      }
+    }
+
+  }
+#endif
 }
 #if !CONFIG_F255_QMOBU
 void av1_qm_init_dequant_only(CommonQuantParams *quant_params, int num_planes,
