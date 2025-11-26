@@ -58,7 +58,7 @@ class FrameMultiQmatrixTest
       encoder->Control(AV1E_SET_ENABLE_QM, 1);
       // Utilize full min and max QM range
       encoder->Control(AV1E_SET_QM_MIN, 0);
-      encoder->Control(AV1E_SET_QM_MAX, 11);
+      encoder->Control(AV1E_SET_QM_MAX, 15);
       encoder->Control(AV1E_SET_FRAME_MULTI_QMATRIX_UNIT_TEST, frame_qm_num_);
     }
   }
