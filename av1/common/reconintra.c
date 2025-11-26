@@ -1044,30 +1044,6 @@ static void filter_intra_edge_corner_high(uint16_t *p_above, uint16_t *p_left) {
   p_left[-1] = s;
 }
 
-void av1_upsample_intra_edge_high_c(uint16_t *p, int sz, int bd) {
-  // interpolate half-sample positions
-  assert(sz <= MAX_UPSAMPLE_SZ);
-
-  uint16_t in[MAX_UPSAMPLE_SZ + 3];
-  // copy p[-1..(sz-1)] and extend first and last samples
-  in[0] = p[-1];
-  in[1] = p[-1];
-  for (int i = 0; i < sz; i++) {
-    in[i + 2] = p[i];
-  }
-  in[sz + 2] = p[sz - 1];
-
-  // interpolate half-sample edge positions
-  p[-2] = in[0];
-  for (int i = 0; i < sz; i++) {
-    int s = -in[i] + (9 * in[i + 1]) + (9 * in[i + 2]) - in[i + 3];
-    s = (s + 8) >> 4;
-    s = clip_pixel_highbd(s, bd);
-    p[2 * i - 1] = s;
-    p[2 * i] = in[i + 2];
-  }
-}
-
 void av1_highbd_ibp_dr_prediction_z1_c(
     const IbpWeightsType weights[][IBP_WEIGHT_SIZE][DIR_MODES_0_90],
     int mode_idx, uint16_t *dst, ptrdiff_t stride, uint16_t *second_pred,

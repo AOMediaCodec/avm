@@ -434,8 +434,6 @@ specialize qw/av1_highbd_convolve_2d_scale sse4_1/;
 # INTRA_EDGE functions
 add_proto qw/void av1_filter_intra_edge_high/, "uint16_t *p, int sz, int strength";
 specialize qw/av1_filter_intra_edge_high sse4_1/;
-add_proto qw/void av1_upsample_intra_edge_high/, "uint16_t *p, int sz, int bd";
-specialize qw/av1_upsample_intra_edge_high sse4_1/;
 
 # CFL
 if (aom_config("CONFIG_MHCCP_SOLVER_BITS") eq "yes") {
