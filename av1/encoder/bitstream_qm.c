@@ -487,10 +487,10 @@ bool check_add_cmqm_in_qmobulist(AV1_COMP *cpi, bool write_in_prevobu) {
                                              [plane][START_POS_8x8];
             qm_val_t *cm_qm_values8x4 =
                 &quant_params->iwt_matrix_ref[quant_params->qm_u[pic_qm_idx]]
-                                             [plane][START_POS_8x8];
+                                             [plane][START_POS_8x4];
             qm_val_t *cm_qm_values4x8 =
                 &quant_params->iwt_matrix_ref[quant_params->qm_u[pic_qm_idx]]
-                                             [plane][START_POS_8x8];
+                                             [plane][START_POS_4x8];
             memcpy(qm_inobu->quantizer_matrix[0][plane], cm_qm_values8x8,
                    sizeof(qm_val_t) * 8 * 8);
             memcpy(qm_inobu->quantizer_matrix[1][plane], cm_qm_values8x4,
@@ -512,10 +512,10 @@ bool check_add_cmqm_in_qmobulist(AV1_COMP *cpi, bool write_in_prevobu) {
                                              [plane][START_POS_8x8];
             qm_val_t *cm_qm_values8x4 =
                 &quant_params->iwt_matrix_ref[quant_params->qm_v[pic_qm_idx]]
-                                             [plane][START_POS_8x8];
+                                             [plane][START_POS_8x4];
             qm_val_t *cm_qm_values4x8 =
                 &quant_params->iwt_matrix_ref[quant_params->qm_v[pic_qm_idx]]
-                                             [plane][START_POS_8x8];
+                                             [plane][START_POS_4x8];
             memcpy(qm_inobu->quantizer_matrix[0][plane], cm_qm_values8x8,
                    sizeof(qm_val_t) * 8 * 8);
             memcpy(qm_inobu->quantizer_matrix[1][plane], cm_qm_values8x4,
