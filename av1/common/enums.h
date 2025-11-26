@@ -355,7 +355,7 @@ enum {
 // type, so that we can save memory when they are used in structs/arrays.
 
 typedef enum ATTRIBUTE_PACKED {
-  BLOCK_4X4,  // 0
+  BLOCK_4X4,
   BLOCK_4X8,
   BLOCK_8X4,
   BLOCK_8X8,

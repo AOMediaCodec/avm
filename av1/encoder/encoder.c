@@ -5028,7 +5028,14 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
     bool valid_duplicate_existing_frame = false;
     for (int ref_idx = 0; ref_idx < cm->seq_params.ref_frames; ref_idx++) {
       if (cm->ref_frame_map[ref_idx] != NULL) {
-        // TODO: it may need to consider the layers as well
+        if (!is_tlayer_scalable_and_dependent(
+                &cm->seq_params, current_frame->temporal_layer_id,
+                cm->ref_frame_map[ref_idx]->temporal_layer_id))
+          continue;
+        if (!is_mlayer_scalable_and_dependent(
+                &cm->seq_params, current_frame->mlayer_id,
+                cm->ref_frame_map[ref_idx]->mlayer_id))
+          continue;
         if (cm->ref_frame_map[ref_idx]->display_order_hint >=
             current_frame->display_order_hint) {
           valid_duplicate_existing_frame = true;

@@ -1189,10 +1189,10 @@ void av1_foreach_transformed_block_in_plane(
         for (int c = col128; c < AOMMIN(col128 + mu128_wide, max_blocks_wide);
              c += mu_blocks_wide) {
 #else
-//  for (int r = 0; r < max_blocks_high; r += mu_blocks_high) {
-//    const int unit_height = AOMMIN(mu_blocks_high + r, max_blocks_high);
-//    // Skip visiting the sub blocks that are wholly within the UMV.
-//    for (int c = 0; c < max_blocks_wide; c += mu_blocks_wide) {
+  for (int r = 0; r < max_blocks_high; r += mu_blocks_high) {
+    const int unit_height = AOMMIN(mu_blocks_high + r, max_blocks_high);
+    // Skip visiting the sub blocks that are wholly within the UMV.
+    for (int c = 0; c < max_blocks_wide; c += mu_blocks_wide) {
 #endif  // CONFIG_TU64_TRAVERSED_ORDER
           const int unit_width = AOMMIN(mu_blocks_wide + c, max_blocks_wide);
           for (int blk_row = r; blk_row < unit_height; blk_row += txh_unit) {
@@ -1326,8 +1326,8 @@ void av1_encode_sb(const struct AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
           for (int idx = col128; idx < AOMMIN(col128 + mu128_wide, mi_width);
                idx += mu_blocks_wide) {
 #else
-//    for (int idy = 0; idy < mi_height; idy += mu_blocks_high) {
-//      for (int idx = 0; idx < mi_width; idx += mu_blocks_wide) {
+    for (int idy = 0; idy < mi_height; idy += mu_blocks_high) {
+      for (int idx = 0; idx < mi_width; idx += mu_blocks_wide) {
 #endif  // CONFIG_TU64_TRAVERSED_ORDER
             int blk_row, blk_col;
             const int unit_height = AOMMIN(mu_blocks_high + idy, mi_height);
@@ -1678,10 +1678,10 @@ void av1_encode_intra_block_plane(const struct AV1_COMP *cpi, MACROBLOCK *x,
           for (int c = col128; c < AOMMIN(col128 + mu128_wide, max_blocks_wide);
                c += mu_blocks_wide) {
 #else
-//    for (int r = 0; r < max_blocks_high; r += mu_blocks_high) {
-//      const int unit_height = AOMMIN(mu_blocks_high + r, max_blocks_high);
-//      // Skip visiting the sub blocks that are wholly within the UMV.
-//      for (int c = 0; c < max_blocks_wide; c += mu_blocks_wide) {
+    for (int r = 0; r < max_blocks_high; r += mu_blocks_high) {
+      const int unit_height = AOMMIN(mu_blocks_high + r, max_blocks_high);
+      // Skip visiting the sub blocks that are wholly within the UMV.
+      for (int c = 0; c < max_blocks_wide; c += mu_blocks_wide) {
 #endif  // CONFIG_TU64_TRAVERSED_ORDER
             const int unit_width = AOMMIN(mu_blocks_wide + c, max_blocks_wide);
 

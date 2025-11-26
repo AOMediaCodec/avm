@@ -8596,7 +8596,6 @@ static int read_show_existing_frame(AV1Decoder *pbi,
   cm->derive_sef_order_hint = aom_rb_read_bit(rb);
   if (!cm->derive_sef_order_hint) {
     int cur_frame_ref_count = cm->cur_frame->ref_count;
-    // memcpy(cm->cur_frame, frame_to_show, sizeof(RefCntBuffer));
     current_frame->order_hint = aom_rb_read_literal(
         rb, seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
 
@@ -8670,11 +8669,11 @@ static int read_show_existing_frame(AV1Decoder *pbi,
 
   FrameHash raw_frame_hash = cm->cur_frame->raw_frame_hash;
   FrameHash grain_frame_hash = cm->cur_frame->grain_frame_hash;
-  // TODO: does assign_frame_buffer_p need to be enabled when
-  // derive_sef_order_hint = true?
-#if !CONFIG_F356_SEF_DOH
-  assign_frame_buffer_p(&cm->cur_frame, frame_to_show);
-#endif  // !CONFIG_F356_SEF_DOH
+#if CONFIG_F356_SEF_DOH
+  if (cm->derive_sef_order_hint)
+#endif  // CONFIG_F356_SEF_DOH
+    assign_frame_buffer_p(&cm->cur_frame, frame_to_show);
+
 #if !CONFIG_F024_KEYOBU || !CONFIG_F356_SEF_DOH
   pbi->reset_decoder_state = frame_to_show->frame_type == KEY_FRAME;
 #endif  // !CONFIG_F024_KEYOBU
