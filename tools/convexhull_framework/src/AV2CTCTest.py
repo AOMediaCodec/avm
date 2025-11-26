@@ -253,40 +253,44 @@ def GenerateSummaryRDDataFile(EncodeMethod, CodecName, EncodePreset,
     for clip in clip_list:
         total_frame = get_total_frame(test_cfg, clip.file_name)
         for qp in QPSet:
+            JobName = '%s_%s_%s_%s_Preset_%s_QP_%d' % \
+                    (GetShortContentName(clip.file_name, False),
+                    EncodeMethod, CodecName, test_cfg, EncodePreset, qp)
+
             bs, dec = GetBsReconFileName(EncodeMethod, CodecName, EncodePreset,
                                          test_cfg, clip, qp)
             if not os.path.exists(bs):
-                print("bitstream %s is missing" % bs)
-                missing.write("\nbitstream %s is missing" % bs)
+                print(f"'{JobName}',")
+                missing.write(f"'{JobName}',\n")
                 continue
 
             dec_log = GetDecLogFile(bs, Path_DecLog)
             if not os.path.exists(dec_log):
-                print("dec_log %s is missing" % dec_log)
-                missing.write("\ndec_log %s is missing" % dec_log)
+                print(f"'{JobName}',")
+                missing.write(f"'{JobName}',\n")
                 continue
 
             num_dec_frames = ParseDecLogFile(dec_log)
             if num_dec_frames == 0:
-                print("decoding error in %s" % dec_log)
-                missing.write("\ndecoding error in %s" % dec_log)
+                print(f"'{JobName}',")
+                missing.write(f"'{JobName}',\n")
                 continue
 
             vmaf_log = GetVMAFLogFile(dec, Path_QualityLog)
             if not os.path.exists(vmaf_log):
-                print("vmaf_log %s is missing" % vmaf_log)
-                missing.write("\nvmaf_log %s is missing" % vmaf_log)
+                print(f"'{JobName}',")
+                missing.write(f"'{JobName}',\n")
                 continue
 
             quality, perframe_vmaf_log, frame_num = GatherQualityMetrics(dec, Path_QualityLog)
             if not quality:
-                print("missing quality in %s" % vmaf_log)
-                missing.write("\nmissing quality in %s" % vmaf_log)
+                print(f"'{JobName}',")
+                missing.write(f"'{JobName}',\n")
                 continue
 
             if (frame_num < total_frame):
-                print("missing frames in %s" % vmaf_log)
-                missing.write("\nmissing frames in %s" % vmaf_log)
+                print(f"'{JobName}',")
+                missing.write(f"'{JobName}',\n")
                 continue
 
             # print("%s Frame number = %d"%(bs, frame_num))

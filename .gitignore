@@ -16,3 +16,4 @@ ParaKit/unit_test/*.h
 ParaKit/binaries/*
 parakit.egg-info/
 .DS_Store
+.idea/

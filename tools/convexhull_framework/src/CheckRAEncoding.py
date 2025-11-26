@@ -19,14 +19,14 @@ import subprocess
 from Utils import CreateNewSubfolder
 from Config import WorkPath, FrameNum, EnableParallelGopEncoding, GOP_SIZE
 
-root_path = '/project/tenjin/fba/design/ryanlei/AV2-CTC/AV2-CTC-v9.0.0/'
+root_path = '/project/tenjin/fba/design/ryanlei/AV2-CTC/AV2-CTC-v11.0.0/'
 test_path = os.path.join(root_path, 'test')
 dec_path = os.path.join(test_path, 'decodedYUVs')
 #ra_dec_log_path = os.path.join(test_path, 'RA_decLogs')
 dec_log_path = os.path.join(test_path, 'decLogs')
 ra_cmd_log_file = os.path.join(test_path, "AV2CTC_TestCmd_RA.log")
 as_cmd_log_file = os.path.join(test_path, "AV2CTC_TestCmd_AS.log")
-decoder = "%s/bin/avmdec-v9.0.0-rc1" % root_path
+decoder = "%s/bin/aomdec-v11.0.0" % root_path
 ra_dec_error_log = os.path.join(test_path, "ra_decode_error.log")
 as_dec_error_log = os.path.join(test_path, "as_decode_error.log")
 updated_ra_cmd_log = os.path.join(test_path, "AV2CTC_TestCmd_Update_RA.log")
@@ -91,8 +91,9 @@ def check_decoding(cmd_log_file, dec_error_log):
     error_list = []
     error_log = open(dec_error_log, 'wt')
     for line in cmd_log:
-        m = re.search(r"-o (.*).obu",line)
+        m = re.search(r"-o (.*).obu(\s)",line)
         if m:
+            #print(line)
             bitstream = m.group(1)
             output_file = bitstream + ".obu"
             video = bitstream.split("/")[-1]
@@ -165,7 +166,7 @@ def get_config(file_name):
         print("unsupported configuration")
         return ''
 
-def check_ld_decoding(cmd_log_file, dec_error_log):
+def check_ld_decoding():
     cmd_log = open(cmd_log_file, 'r')
     error_list = []
     error_log = open(dec_error_log, 'wt')
@@ -178,7 +179,7 @@ def check_ld_decoding(cmd_log_file, dec_error_log):
             video = bitstream.split("/")[-1]
             cfg = get_config(video)
             if cfg in ['RA', 'AS']:
-                dec_log = os.path.join(dec_log_path, video + "_DecLog.txt")
+                dec_log = os.path.join(ra_dec_log_path, video + "_DecLog.txt")
             elif cfg in ['LD', 'AI', 'STILL']:
                 dec_log = os.path.join(dec_log_path, video + "_DecLog.txt")
 
@@ -202,16 +203,34 @@ def check_ld_decoding(cmd_log_file, dec_error_log):
 # main
 ######################################
 if __name__ == "__main__":
+
+    """ steps for RA and AS
     #1. trigger decoding process, needed for RA
-    #run_decode(cmd_log_file)
+    run_decode(cmd_log_file)
+    """
 
+    """
     #2. check decoding errors
-    #error_list = check_decoding(ra_cmd_log_file, ra_dec_error_log)
+    error_list = check_decoding(ra_cmd_log_file, ra_dec_error_log)
 
-    #print("There are %d missing encodings" % len(error_list))
-    #filter_cmd_log(ra_cmd_log_file, updated_ra_cmd_log, error_list)
+    print("There are %d missing encodings" % len(error_list))
+    filter_cmd_log(ra_cmd_log_file, updated_ra_cmd_log, error_list)
+    """
 
+
+    #steps for AS
+    #1. check decoding errors
     error_list = check_decoding(as_cmd_log_file, as_dec_error_log)
 
     print("There are %d missing encodings" % len(error_list))
     filter_cmd_log(as_cmd_log_file, updated_as_cmd_log, error_list)
+
+
+    """
+    # steps for AI, LD, STILL
+    #1. check decoding errors
+    error_list = check_decoding(cmd_log_file, dec_error_log)
+
+    print("There are %d missing encodings" % len(error_list))
+    filter_cmd_log(cmd_log_file, updated_cmd_log, error_list)
+    """
