@@ -5031,11 +5031,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 
   // after change the tile info in the bru frame_inactive, reset the flag to
   // default and reset the tile info
-#if CONFIG_CWG_F317
-  if (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame) {
-#else
   if (cm->bru.enabled && cm->bru.frame_inactive_flag) {
-#endif
     cm->bru.frame_inactive_flag = 0;
     av1_set_tile_info(cm, &cpi->oxcf.tile_cfg);
   }
