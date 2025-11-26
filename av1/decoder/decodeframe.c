@@ -8595,7 +8595,6 @@ static int read_show_existing_frame(AV1Decoder *pbi,
   cm->sef_ref_fb_idx = existing_frame_idx;
   cm->derive_sef_order_hint = aom_rb_read_bit(rb);
   if (!cm->derive_sef_order_hint) {
-    int cur_frame_ref_count = cm->cur_frame->ref_count;
     current_frame->order_hint = aom_rb_read_literal(
         rb, seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
 
@@ -8607,7 +8606,6 @@ static int read_show_existing_frame(AV1Decoder *pbi,
         get_disp_order_hint(cm);
 #endif  // CONFIG_F024_KEYOBU
     current_frame->frame_number = current_frame->order_hint;
-    cm->cur_frame->ref_count = cur_frame_ref_count;
     // Since a SEF frame is not used as a reference frame, its display order
     // hint cannot be used to derive display order hints of subsequent frames.
     // To guarantee that, the display order hint of the SEF frame should not be
