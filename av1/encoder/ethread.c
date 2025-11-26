@@ -41,7 +41,7 @@ static AOM_INLINE void accumulate_rd_opt(ThreadData *td, ThreadData *td_t) {
     td->rd_counts.warped_used[i] += td_t->rd_counts.warped_used[i];
   }
 }
-
+#if !CONFIG_REMOVE_DELTA_LF
 static AOM_INLINE void update_delta_lf_for_row_mt(AV1_COMP *cpi) {
   AV1_COMMON *cm = &cpi->common;
   MACROBLOCKD *xd = &cpi->td.mb.e_mbd;
@@ -79,6 +79,7 @@ static AOM_INLINE void update_delta_lf_for_row_mt(AV1_COMP *cpi) {
     }
   }
 }
+#endif  // !CONFIG_REMOVE_DELTA_LF
 
 void av1_row_mt_sync_read_dummy(AV1EncRowMultiThreadSync *row_mt_sync, int r,
                                 int c) {
@@ -1066,7 +1067,9 @@ void av1_encode_tiles_row_mt(AV1_COMP *cpi) {
   prepare_enc_workers(cpi, enc_row_mt_worker_hook, num_workers);
   launch_enc_workers(&cpi->mt_info, num_workers);
   sync_enc_workers(&cpi->mt_info, cm, num_workers);
+#if !CONFIG_REMOVE_DELTA_LF
   if (cm->delta_q_info.delta_lf_present_flag) update_delta_lf_for_row_mt(cpi);
+#endif  // !CONFIG_REMOVE_DELTA_LF
   accumulate_counters_enc_workers(cpi, num_workers);
 }
 

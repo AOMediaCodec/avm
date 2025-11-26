@@ -5147,7 +5147,9 @@ static AOM_INLINE void decode_tile(AV1Decoder *pbi, ThreadData *const td,
 
   av1_zero_above_context(cm, xd, tile_info.mi_col_start, tile_info.mi_col_end,
                          tile_row);
+#if !CONFIG_REMOVE_DELTA_LF
   av1_reset_loop_filter_delta(xd, num_planes);
+#endif  // !CONFIG_REMOVE_DELTA_LF
   int num_filter_classes[MAX_MB_PLANE];
   for (int p = 0; p < num_planes; ++p)
     num_filter_classes[p] = cm->rst_info[p].num_filter_classes;
@@ -5643,7 +5645,9 @@ static AOM_INLINE void parse_tile_row_mt(AV1Decoder *pbi, ThreadData *const td,
 
   av1_zero_above_context(cm, xd, tile_info.mi_col_start, tile_info.mi_col_end,
                          tile_row);
+#if !CONFIG_REMOVE_DELTA_LF
   av1_reset_loop_filter_delta(xd, num_planes);
+#endif  // !CONFIG_REMOVE_DELTA_LF
   int num_filter_classes[MAX_MB_PLANE];
   for (int p = 0; p < num_planes; ++p)
     num_filter_classes[p] = cm->rst_info[p].num_filter_classes;
@@ -10631,20 +10635,24 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // #if CONFIG_F255_QMOBU
       quant_params, cm->seg.enabled, av1_num_planes(cm), rb);
   cm->delta_q_info.delta_q_res = 1;
+#if !CONFIG_REMOVE_DELTA_LF
   cm->delta_q_info.delta_lf_res = 1;
   cm->delta_q_info.delta_lf_present_flag = 0;
   cm->delta_q_info.delta_lf_multi = 0;
+#endif  // !CONFIG_REMOVE_DELTA_LF
   cm->delta_q_info.delta_q_present_flag =
       quant_params->base_qindex > 0 ? aom_rb_read_bit(rb) : 0;
   if (cm->delta_q_info.delta_q_present_flag) {
     xd->current_base_qindex = quant_params->base_qindex;
     cm->delta_q_info.delta_q_res = 1 << aom_rb_read_literal(rb, 2);
+#if !CONFIG_REMOVE_DELTA_LF
     cm->delta_q_info.delta_lf_present_flag = aom_rb_read_bit(rb);
     if (cm->delta_q_info.delta_lf_present_flag) {
       cm->delta_q_info.delta_lf_res = 1 << aom_rb_read_literal(rb, 2);
       cm->delta_q_info.delta_lf_multi = aom_rb_read_bit(rb);
       av1_reset_loop_filter_delta(xd, av1_num_planes(cm));
     }
+#endif  // !CONFIG_REMOVE_DELTA_LF
   }
 
   xd->cur_frame_force_integer_mv = features->cur_frame_force_integer_mv;

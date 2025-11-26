@@ -50,7 +50,8 @@ static int64_t try_filter_frame(const YV12_BUFFER_CONFIG *sd,
   int64_t filt_err;
 
   assert(plane >= 0 && plane <= 2);
-  // set base filters for use of av1_get_filter_level when in DELTA_LF mode
+  // set base filters for use of av1_get_filter_level when searching for delta_q
+  // and delta_side
   switch (plane) {
     case 0:
       switch (dir) {

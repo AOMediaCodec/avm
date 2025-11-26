@@ -773,14 +773,18 @@ static const aom_cdf_prob default_switchable_interp_cdf[16][CDF_SIZE(3)] = {
 
 static const aom_cdf_prob default_delta_q_cdf[CDF_SIZE(8)] = { AOM_CDF8(16594, 23325, 26424, 28225, 29358, 30099, 30613),  56 };
 
+#if !CONFIG_REMOVE_DELTA_LF
 static const aom_cdf_prob default_delta_lf_multi_cdf[4][CDF_SIZE(4)] = {
   { AOM_CDF4( 8192, 16384, 24576),   0 },
   { AOM_CDF4( 8192, 16384, 24576),   0 },
   { AOM_CDF4( 8192, 16384, 24576),   0 },
   { AOM_CDF4( 8192, 16384, 24576),   0 },
 };
+#endif // !CONFIG_REMOVE_DELTA_LF
 
+#if !CONFIG_REMOVE_DELTA_LF
 static const aom_cdf_prob default_delta_lf_cdf[CDF_SIZE(4)] = { AOM_CDF4( 8192, 16384, 24576),   0 };
+#endif // !CONFIG_REMOVE_DELTA_LF
 
 static const aom_cdf_prob default_intra_ext_tx_cdf[EXT_TX_SETS_INTRA][EXT_TX_SIZES][CDF_SIZE(TX_TYPES)] = {
   {

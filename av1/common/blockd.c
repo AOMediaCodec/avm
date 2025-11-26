@@ -192,12 +192,14 @@ void av1_reset_entropy_context(MACROBLOCKD *xd, BLOCK_SIZE bsize,
   }
 }
 
+#if !CONFIG_REMOVE_DELTA_LF
 void av1_reset_loop_filter_delta(MACROBLOCKD *xd, int num_planes) {
   xd->delta_lf_from_base = 0;
   const int frame_lf_count =
       num_planes > 1 ? FRAME_LF_COUNT : FRAME_LF_COUNT - 2;
   for (int lf_id = 0; lf_id < frame_lf_count; ++lf_id) xd->delta_lf[lf_id] = 0;
 }
+#endif  // !CONFIG_REMOVE_DELTA_LF
 
 // Resets the LR decoding state before decoding each coded tile and
 // associated LR coefficients

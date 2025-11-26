@@ -581,7 +581,8 @@ typedef struct MB_MODE_INFO {
   TX_SIZE sub_txs[MAX_TX_PARTITIONS];
   /*! \brief Transform partition sub-block indexes. */
   int txb_idx;
-  /**@}*/
+/**@}*/
+#if !CONFIG_REMOVE_DELTA_LF
   /*****************************************************************************
    * \name Loop Filter Info
    ****************************************************************************/
@@ -591,7 +592,7 @@ typedef struct MB_MODE_INFO {
   /*! \copydoc MACROBLOCKD::delta_lf */
   int8_t delta_lf[FRAME_LF_COUNT];
   /**@}*/
-
+#endif  // !CONFIG_REMOVE_DELTA_LF
   /*****************************************************************************
    * \name Bitfield for Memory Reduction
    ****************************************************************************/
@@ -2234,7 +2235,9 @@ typedef struct macroblockd {
    * lf and current delta lf. It is equivalent to the delta between previous
    * superblock's actual lf and current lf.
    */
+#if !CONFIG_REMOVE_DELTA_LF
   int8_t delta_lf_from_base;
+
   /*!
    * We have four frame filter levels for different plane and direction. So, to
    * support the per superblock update, we need to add a few more params:
@@ -2250,6 +2253,7 @@ typedef struct macroblockd {
    * - SEG_LVL_ALT_LF_V   = 4;
    */
   int8_t delta_lf[FRAME_LF_COUNT];
+#endif  // !CONFIG_REMOVE_DELTA_LF
   /*!
    * cdef_transmitted[i] is true if CDEF strength for ith CDEF unit in the
    * current superblock has already been read from (decoder) / written to
@@ -3252,8 +3256,9 @@ static INLINE TX_SIZE av1_get_tx_size(int plane, const MACROBLOCKD *xd) {
 
 void av1_reset_entropy_context(MACROBLOCKD *xd, BLOCK_SIZE bsize,
                                const int num_planes);
-
+#if !CONFIG_REMOVE_DELTA_LF
 void av1_reset_loop_filter_delta(MACROBLOCKD *xd, int num_planes);
+#endif  // !CONFIG_REMOVE_DELTA_LF
 
 // Resets the bank data structure holding LR_BANK_SIZE nonseparable Wiener
 // filters. The bank holds a rootating buffer of filters.

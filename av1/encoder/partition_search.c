@@ -974,6 +974,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
       td->counts->delta_q[i][1]++;
     }
     if (absdq < DELTA_Q_SMALL) td->counts->delta_q[absdq][0]++;
+#if !CONFIG_REMOVE_DELTA_LF
     if (delta_q_info->delta_lf_present_flag) {
       if (delta_q_info->delta_lf_multi) {
         const int frame_lf_count =
@@ -1000,6 +1001,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
           td->counts->delta_lf[abs_delta_lf][0]++;
       }
     }
+#endif  // !CONFIG_REMOVE_DELTA_LF
   }
 #endif
   if (!is_inter_block(mbmi, xd->tree_type)) {
@@ -1643,6 +1645,7 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
             block_size_wide[bsize_base] * block_size_high[bsize_base];
       }
     }
+#if !CONFIG_REMOVE_DELTA_LF
     if (bsize == cpi->common.sb_size &&
         mbmi->skip_txfm[xd->tree_type == CHROMA_PART] == 1 &&
         cm->delta_q_info.delta_lf_present_flag) {
@@ -1652,6 +1655,7 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
         mbmi->delta_lf[lf_id] = xd->delta_lf[lf_id];
       mbmi->delta_lf_from_base = xd->delta_lf_from_base;
     }
+#endif  // !CONFIG_REMOVE_DELTA_LF
     if (has_second_ref(mbmi)) {
       if (mbmi->interinter_comp.type == COMPOUND_AVERAGE)
         mbmi->comp_group_idx = 0;
@@ -1668,6 +1672,7 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
          !mbmi->skip_txfm[xd->tree_type == CHROMA_PART]) &&
         super_block_upper_left) {
       xd->current_base_qindex = mbmi->current_qindex;
+#if !CONFIG_REMOVE_DELTA_LF
       if (delta_q_info->delta_lf_present_flag) {
         if (delta_q_info->delta_lf_multi) {
           const int frame_lf_count =
@@ -1679,6 +1684,7 @@ static void encode_b(const AV1_COMP *const cpi, TileDataEnc *tile_data,
           xd->delta_lf_from_base = mbmi->delta_lf_from_base;
         }
       }
+#endif  // !CONFIG_REMOVE_DELTA_LF
     }
 
     if (delta_q_info->delta_q_present_flag && super_block_upper_left &&

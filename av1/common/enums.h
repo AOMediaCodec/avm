@@ -213,8 +213,10 @@ enum {
 // 4 frame filter levels: y plane vertical, y plane horizontal,
 // u plane, and v plane
 #define FRAME_LF_COUNT 4
-#define DEFAULT_DELTA_LF_MULTI 0
 #define MAX_MODE_LF_DELTAS 2
+#if !CONFIG_REMOVE_DELTA_LF
+#define DEFAULT_DELTA_LF_MULTI 0
+#endif  // !CONFIG_REMOVE_DELTA_LF
 
 // Multiple reference line selection for intra prediction
 #define MRL_LINE_NUMBER 4
@@ -1027,9 +1029,11 @@ enum {
 #define DEFAULT_DELTA_Q_RES_PERCEPTUAL 4
 #define DEFAULT_DELTA_Q_RES_OBJECTIVE 4
 
+#if !CONFIG_REMOVE_DELTA_LF
 #define DELTA_LF_SMALL 3
 #define DELTA_LF_PROBS (DELTA_LF_SMALL)
 #define DEFAULT_DELTA_LF_RES 2
+#endif  // !CONFIG_REMOVE_DELTA_LF
 
 #define MAX_MV_REF_CANDIDATES 2
 #define MAX_REF_MV_STACK_SIZE 6

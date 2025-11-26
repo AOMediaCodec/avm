@@ -517,6 +517,7 @@ typedef struct {
   int delta_q_present_flag;
   // Resolution of delta quant
   int delta_q_res;
+#if !CONFIG_REMOVE_DELTA_LF
   int delta_lf_present_flag;
   // Resolution of delta lf level
   int delta_lf_res;
@@ -524,6 +525,7 @@ typedef struct {
   // 0: use 1 delta, for y_vertical, y_horizontal, u, and v
   // 1: use separate deltas for each filter level
   int delta_lf_multi;
+#endif
 } DeltaQInfo;
 
 typedef struct {

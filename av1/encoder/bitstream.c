@@ -573,7 +573,7 @@ static AOM_INLINE void write_delta_qindex(const MACROBLOCKD *xd,
     aom_write_bit(w, sign);
   }
 }
-
+#if !CONFIG_REMOVE_DELTA_LF
 static AOM_INLINE void write_delta_lflevel(const AV1_COMMON *cm,
                                            const MACROBLOCKD *xd, int lf_id,
                                            int delta_lflevel, aom_writer *w) {
@@ -603,6 +603,7 @@ static AOM_INLINE void write_delta_lflevel(const AV1_COMMON *cm,
     aom_write_bit(w, sign);
   }
 }
+#endif  // !CONFIG_REMOVE_DELTA_LF
 
 static AOM_INLINE void pack_map_tokens(const MACROBLOCKD *xd, aom_writer *w,
                                        const TokenExtra **tp, int n, int cols,
@@ -1527,6 +1528,7 @@ static AOM_INLINE void write_delta_q_params(AV1_COMP *cpi, int skip,
           delta_q_info->delta_q_res;
       write_delta_qindex(xd, reduced_delta_qindex, w);
       xd->current_base_qindex = mbmi->current_qindex;
+#if !CONFIG_REMOVE_DELTA_LF
       if (delta_q_info->delta_lf_present_flag) {
         if (delta_q_info->delta_lf_multi) {
           const int frame_lf_count =
@@ -1546,6 +1548,7 @@ static AOM_INLINE void write_delta_q_params(AV1_COMP *cpi, int skip,
           xd->delta_lf_from_base = mbmi->delta_lf_from_base;
         }
       }
+#endif  // !CONFIG_REMOVE_DELTA_LF
     }
   }
 }
@@ -3260,9 +3263,11 @@ static AOM_INLINE void write_modes(AV1_COMP *const cpi,
 
   if (cpi->common.delta_q_info.delta_q_present_flag) {
     xd->current_base_qindex = cpi->common.quant_params.base_qindex;
+#if !CONFIG_REMOVE_DELTA_LF
     if (cpi->common.delta_q_info.delta_lf_present_flag) {
       av1_reset_loop_filter_delta(xd, num_planes);
     }
+#endif  // !CONFIG_REMOVE_DELTA_LF
   }
 
   for (int mi_row = mi_row_start; mi_row < mi_row_end; mi_row += cm->mib_size) {
@@ -7530,12 +7535,14 @@ static AOM_INLINE void write_uncompressed_header_obu
     if (delta_q_info->delta_q_present_flag) {
       aom_wb_write_literal(wb, get_msb(delta_q_info->delta_q_res), 2);
       xd->current_base_qindex = quant_params->base_qindex;
+#if !CONFIG_REMOVE_DELTA_LF
       aom_wb_write_bit(wb, delta_q_info->delta_lf_present_flag);
       if (delta_q_info->delta_lf_present_flag) {
         aom_wb_write_literal(wb, get_msb(delta_q_info->delta_lf_res), 2);
         aom_wb_write_bit(wb, delta_q_info->delta_lf_multi);
         av1_reset_loop_filter_delta(xd, av1_num_planes(cm));
       }
+#endif  // !CONFIG_REMOVE_DELTA_LF
     }
   }
 

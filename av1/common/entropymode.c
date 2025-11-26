@@ -270,8 +270,10 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
     av1_copy(fc->seg.seg_id_ext_flag_cdf[i], default_seg_id_ext_flag_cdf[i]);
   }
   av1_copy(fc->delta_q_cdf, default_delta_q_cdf);
+#if !CONFIG_REMOVE_DELTA_LF
   av1_copy(fc->delta_lf_cdf, default_delta_lf_cdf);
   av1_copy(fc->delta_lf_multi_cdf, default_delta_lf_multi_cdf);
+#endif  // !CONFIG_REMOVE_DELTA_LF
   av1_copy(fc->cfl_sign_cdf, default_cfl_sign_cdf);
   av1_copy(fc->cfl_alpha_cdf, default_cfl_alpha_cdf);
   av1_copy(fc->intrabc_cdf, default_intrabc_cdf);
@@ -636,10 +638,12 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
                          ctx_tr->switchable_interp_cdf, SWITCHABLE_FILTERS);
   CUMULATIVE_AVERAGE_CDF(ctx_left->delta_q_cdf, ctx_tr->delta_q_cdf,
                          DELTA_Q_PROBS + 1);
+#if !CONFIG_REMOVE_DELTA_LF
   CUMULATIVE_AVERAGE_CDF(ctx_left->delta_lf_cdf, ctx_tr->delta_lf_cdf,
                          DELTA_LF_PROBS + 1);
   CUMULATIVE_AVERAGE_CDF(ctx_left->delta_lf_multi_cdf,
                          ctx_tr->delta_lf_multi_cdf, DELTA_LF_PROBS + 1);
+#endif  // !CONFIG_REMOVE_DELTA_LF
   CUMULATIVE_AVERAGE_CDF(ctx_left->inter_ext_tx_short_side_cdf,
                          ctx_tr->inter_ext_tx_short_side_cdf, 4);
   CUMULATIVE_AVERAGE_CDF(ctx_left->intra_ext_tx_short_side_cdf,
@@ -904,8 +908,10 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
   SHIFT_CDF(ctx_ptr->do_uneven_4way_partition_cdf, 2);
   SHIFT_CDF(ctx_ptr->switchable_interp_cdf, SWITCHABLE_FILTERS);
   SHIFT_CDF(ctx_ptr->delta_q_cdf, DELTA_Q_PROBS + 1);
+#if !CONFIG_REMOVE_DELTA_LF
   SHIFT_CDF(ctx_ptr->delta_lf_cdf, DELTA_LF_PROBS + 1);
   SHIFT_CDF(ctx_ptr->delta_lf_multi_cdf, DELTA_LF_PROBS + 1);
+#endif  // !CONFIG_REMOVE_DELTA_LF
   SHIFT_CDF(ctx_ptr->inter_ext_tx_short_side_cdf, 4);
   SHIFT_CDF(ctx_ptr->intra_ext_tx_short_side_cdf, 4);
   SHIFT_CDF(ctx_ptr->tx_ext_32_cdf, 2);
@@ -1231,9 +1237,11 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->switchable_interp_cdf, ctx_tr->switchable_interp_cdf,
               SWITCHABLE_FILTERS);
   AVERAGE_CDF(ctx_left->delta_q_cdf, ctx_tr->delta_q_cdf, DELTA_Q_PROBS + 1);
+#if !CONFIG_REMOVE_DELTA_LF
   AVERAGE_CDF(ctx_left->delta_lf_cdf, ctx_tr->delta_lf_cdf, DELTA_LF_PROBS + 1);
   AVERAGE_CDF(ctx_left->delta_lf_multi_cdf, ctx_tr->delta_lf_multi_cdf,
               DELTA_LF_PROBS + 1);
+#endif  // !CONFIG_REMOVE_DELTA_LF
   AVERAGE_CDF(ctx_left->inter_ext_tx_short_side_cdf,
               ctx_tr->inter_ext_tx_short_side_cdf, 4);
   AVERAGE_CDF(ctx_left->intra_ext_tx_short_side_cdf,

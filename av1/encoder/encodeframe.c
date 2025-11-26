@@ -284,7 +284,7 @@ static AOM_INLINE void setup_delta_q(AV1_COMP *const cpi, ThreadData *td,
   // keep track of any non-zero delta-q used
   td->deltaq_used |= (x->delta_qindex != 0);
 
-#if !CONFIG_DF_DQP
+#if !CONFIG_DF_DQP && !CONFIG_REMOVE_DELTA_LF
   if (cpi->oxcf.tool_cfg.enable_deltalf_mode) {
     const int delta_lf_res = delta_q_info->delta_lf_res;
     const int lfmask = ~(delta_lf_res - 1);
@@ -309,7 +309,7 @@ static AOM_INLINE void setup_delta_q(AV1_COMP *const cpi, ThreadData *td,
       }
     }
   }
-#endif  // !CONFIG_DF_DQP
+#endif  // !CONFIG_DF_DQP && !CONFIG_REMOVE_DELTA_LF
 }
 
 static void init_ref_frame_space(AV1_COMP *cpi, ThreadData *td, int mi_row,
@@ -1410,9 +1410,11 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
   if (mi_row == tile_info->mi_row_start || row_mt_enabled) {
     if (cm->delta_q_info.delta_q_present_flag)
       xd->current_base_qindex = cm->quant_params.base_qindex;
+#if !CONFIG_REMOVE_DELTA_LF
     if (cm->delta_q_info.delta_lf_present_flag) {
       av1_reset_loop_filter_delta(xd, av1_num_planes(cm));
     }
+#endif  // !CONFIG_REMOVE_DELTA_LF
   }
 
   reset_thresh_freq_fact(x);
@@ -2221,8 +2223,10 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
       cm->delta_q_info.delta_q_res = DEFAULT_DELTA_Q_RES_OBJECTIVE;
     else if (deltaq_mode == DELTA_Q_PERCEPTUAL)
       cm->delta_q_info.delta_q_res = DEFAULT_DELTA_Q_RES_PERCEPTUAL;
-    // Set delta_q_present_flag before it is used for the first time
+      // Set delta_q_present_flag before it is used for the first time
+#if !CONFIG_REMOVE_DELTA_LF
     cm->delta_q_info.delta_lf_res = DEFAULT_DELTA_LF_RES;
+#endif  // !CONFIG_REMOVE_DELTA_LF
     cm->delta_q_info.delta_q_present_flag = deltaq_mode != NO_DELTA_Q;
 
     // Turn off cm->delta_q_info.delta_q_present_flag if objective delta_q
@@ -2238,16 +2242,20 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
 
     // Reset delta_q_used flag
     cpi->deltaq_used = 0;
-
+#if !CONFIG_REMOVE_DELTA_LF
     cm->delta_q_info.delta_lf_present_flag =
         cm->delta_q_info.delta_q_present_flag &&
         oxcf->tool_cfg.enable_deltalf_mode;
+
     cm->delta_q_info.delta_lf_multi = DEFAULT_DELTA_LF_MULTI;
+#endif  // !CONFIG_REMOVE_DELTA_LF
 
     // update delta_q_present_flag and delta_lf_present_flag based on
     // base_qindex
     cm->delta_q_info.delta_q_present_flag &= quant_params->base_qindex > 0;
+#if !CONFIG_REMOVE_DELTA_LF
     cm->delta_q_info.delta_lf_present_flag &= quant_params->base_qindex > 0;
+#endif  // !CONFIG_REMOVE_DELTA_LF
   }
 
   av1_frame_init_quantizer(cpi);

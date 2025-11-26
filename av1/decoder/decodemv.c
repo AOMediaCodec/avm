@@ -330,6 +330,7 @@ static int read_delta_qindex(AV1_COMMON *cm, const MACROBLOCKD *xd,
   }
   return reduced_delta_qindex;
 }
+#if !CONFIG_REMOVE_DELTA_LF
 static int read_delta_lflevel(const AV1_COMMON *const cm, aom_reader *r,
                               aom_cdf_prob *const cdf,
                               const MB_MODE_INFO *const mbmi, int mi_col,
@@ -354,6 +355,7 @@ static int read_delta_lflevel(const AV1_COMMON *const cm, aom_reader *r,
   }
   return reduced_delta_lflevel;
 }
+#endif  // !CONFIG_REMOVE_DELTA_LF
 
 static uint8_t read_mrl_index(FRAME_CONTEXT *ec_ctx, aom_reader *r,
                               const MB_MODE_INFO *neighbor0,
@@ -1578,6 +1580,7 @@ static void read_delta_q_params(AV1_COMMON *const cm, MACROBLOCKD *const xd,
               : cm->seq_params.bit_depth == AOM_BITS_10 ? MAXQ_10_BITS
                                                         : MAXQ);
     FRAME_CONTEXT *const ec_ctx = xd->tile_ctx;
+#if !CONFIG_REMOVE_DELTA_LF
     if (delta_q_info->delta_lf_present_flag) {
       const int mi_row = xd->mi_row;
       const int mi_col = xd->mi_col;
@@ -1603,6 +1606,7 @@ static void read_delta_q_params(AV1_COMMON *const cm, MACROBLOCKD *const xd,
             clamp(tmp_lvl, -MAX_LOOP_FILTER, MAX_LOOP_FILTER);
       }
     }
+#endif  // !CONFIG_REMOVE_DELTA_LF
   }
 }
 
