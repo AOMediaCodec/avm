@@ -567,6 +567,9 @@ static void set_qm_test_params(AV1_COMMON *const cm,
                                     : quant_params->qm_u[i];
       }
     }
+#if CONFIG_F255_QMOBU_TEST
+    printf("<<%s>> qm_yuv[%d] %d, %d, %d\n", __func__, i, quant_params->qm_y[i], quant_params->qm_u[i], quant_params->qm_v[i]);
+#endif
   }
 #if CONFIG_QM_DEBUG
   printf("[DEBUG] pic_qm_num=%d\n", quant_params->pic_qm_num);
@@ -653,6 +656,7 @@ void av1_set_quantizer(AV1_COMP *const cpi, int min_qmlevel, int max_qmlevel,
   if (cpi->oxcf.unit_test_cfg.frame_multi_qmatrix_unit_test == 0) {
     set_qm_params(cm, quant_params, min_qmlevel, max_qmlevel);
   } else {
+    //CONFIG_F255_QMOBU_TEST
     set_qm_test_params(cm, quant_params, min_qmlevel, max_qmlevel,
                        cpi->oxcf.unit_test_cfg.frame_multi_qmatrix_unit_test);
   }

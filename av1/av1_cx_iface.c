@@ -1727,9 +1727,12 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->unit_test_cfg.sb_multipass_unit_test =
       extra_cfg->sb_multipass_unit_test;
   oxcf->unit_test_cfg.enable_subgop_stats = extra_cfg->enable_subgop_stats;
+#if CONFIG_F255_QMOBU_TEST
+  oxcf->unit_test_cfg.frame_multi_qmatrix_unit_test = CONFIG_F255_QMOBU_TEST;
+#else
   oxcf->unit_test_cfg.frame_multi_qmatrix_unit_test =
       extra_cfg->frame_multi_qmatrix_unit_test;
-
+#endif
   oxcf->border_in_pixels =
       resize_cfg->resize_mode ? AOM_BORDER_IN_PIXELS : AOM_ENC_NO_SCALE_BORDER;
   memcpy(oxcf->target_seq_level_idx, extra_cfg->target_seq_level_idx,
