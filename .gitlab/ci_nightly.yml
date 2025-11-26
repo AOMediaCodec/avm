@@ -56,12 +56,15 @@ Linux All Unit Test:
     - ./test_libaom
     # Ignore parse errors due to a bug in `gcovr 7.0`:
     # https://github.com/gcovr/gcovr/issues/882
+    # Change behavior when to avoid aborting on 'Got function on multiple lines'
+    # by using the first line: https://gcovr.com/en/8.2/guide/merging.html
     # Ignore errors about 'no_working_dir_found' because
     # tarballs for third_party code (e.g. tensorflow and dependencies) are NOT
     # extracted here and so the source files from those are NOT available.
     - >-
       gcovr
       --gcov-ignore-parse-errors
+      --merge-mode-functions=merge-use-line-min
       --gcov-ignore-errors=no_working_dir_found
       --gcov-executable gcov-14
       --exclude ../third_party --exclude _deps --exclude abseil-cpp --exclude
