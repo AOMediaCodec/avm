@@ -51,7 +51,7 @@ class MFHTestLarge
   MFHTestLarge()
       : EncoderTest(GET_PARAM(0)), encoding_mode_(GET_PARAM(1)),
         rc_mode_(GET_PARAM(2)) {
-    enable_mfh_obu_signaling = GET_PARAM(3).enable_mfh_obu_signaling;
+    enable_mfh_obu_signaling_ = GET_PARAM(3).enable_mfh_obu_signaling;
     psnr_threshold_ = GET_PARAM(3).psnr_thresh;
   }
   virtual ~MFHTestLarge() {}

@@ -138,7 +138,8 @@ if(NOT BUILD_SHARED_LIBS)
       "${AOM_ROOT}/test/superframe_test.cc"
       "${AOM_ROOT}/test/tile_config_test.cc"
       "${AOM_ROOT}/test/tile_independence_test.cc"
-      "${AOM_ROOT}/test/temporal_filter_test.cc")
+      "${AOM_ROOT}/test/temporal_filter_test.cc"
+      "${AOM_ROOT}/test/mfh_test.cc")
   endif()
 
   if(CONFIG_AV1_DECODER
