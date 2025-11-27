@@ -3911,6 +3911,10 @@ void setup_quant_matrices(AV1Decoder *pbi, CommonQuantParams *quant_params,
   if (qmlevel == (NUM_QM_LEVELS - 1)) {
     qm_set = &pbi->qm_list[qmlevel];
     qm_set->qm_id = qmlevel;
+    for (int t = 0; t < TX_SIZES_ALL; ++t) {
+      quant_params->gqmatrix[qmlevel][plane][t] = NULL;
+      quant_params->giqmatrix[qmlevel][plane][t] = NULL;
+    }
     return;
   }
 
