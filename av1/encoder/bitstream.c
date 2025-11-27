@@ -6612,6 +6612,25 @@ static AOM_INLINE void write_screen_content_params(
     assert(features->cur_frame_force_integer_mv == 0);
   }
 }
+
+static AOM_INLINE void write_intrabc_params(AV1_COMMON *const cm,
+                                            struct aom_write_bit_buffer *wb) {
+  CurrentFrame *const current_frame = &cm->current_frame;
+  FeatureFlags *const features = &cm->features;
+  aom_wb_write_bit(wb, features->allow_intrabc);
+  if (features->allow_intrabc) {
+    if (current_frame->frame_type == KEY_FRAME ||
+        current_frame->frame_type == INTRA_ONLY_FRAME) {
+      aom_wb_write_bit(wb, features->allow_global_intrabc);
+      if (features->allow_global_intrabc) {
+        aom_wb_write_bit(wb, features->allow_local_intrabc);
+      }
+    }
+    assert(features->max_bvp_drl_bits >= MIN_MAX_IBC_DRL_BITS &&
+           features->max_bvp_drl_bits <= MAX_MAX_IBC_DRL_BITS);
+    write_frame_max_bvp_drl_bits(cm, wb);
+  }
+}
 #if CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_SEF
 static AOM_INLINE void write_show_existing_frame(
     AV1_COMP *cpi, struct aom_write_bit_buffer *wb) {
@@ -7231,30 +7250,12 @@ static AOM_INLINE void write_uncompressed_header_obu
   if (current_frame->frame_type == KEY_FRAME) {
     write_frame_size(cm, frame_size_override_flag, wb);
     write_screen_content_params(cm, wb);
-    aom_wb_write_bit(wb, features->allow_intrabc);
-    if (features->allow_intrabc) {
-      aom_wb_write_bit(wb, features->allow_global_intrabc);
-      if (features->allow_global_intrabc) {
-        aom_wb_write_bit(wb, features->allow_local_intrabc);
-      }
-      assert(features->max_bvp_drl_bits >= MIN_MAX_IBC_DRL_BITS &&
-             features->max_bvp_drl_bits <= MAX_MAX_IBC_DRL_BITS);
-      write_frame_max_bvp_drl_bits(cm, wb);
-    }
+    write_intrabc_params(cm, wb);
   } else {
     if (current_frame->frame_type == INTRA_ONLY_FRAME) {
       write_frame_size(cm, frame_size_override_flag, wb);
       write_screen_content_params(cm, wb);
-      aom_wb_write_bit(wb, features->allow_intrabc);
-      if (features->allow_intrabc) {
-        aom_wb_write_bit(wb, features->allow_global_intrabc);
-        if (features->allow_global_intrabc) {
-          aom_wb_write_bit(wb, features->allow_local_intrabc);
-        }
-        assert(features->max_bvp_drl_bits >= MIN_MAX_IBC_DRL_BITS &&
-               features->max_bvp_drl_bits <= MAX_MAX_IBC_DRL_BITS);
-        write_frame_max_bvp_drl_bits(cm, wb);
-      }
+      write_intrabc_params(cm, wb);
     } else if (current_frame->frame_type == INTER_FRAME ||
                frame_is_sframe(cm)) {
       MV_REFERENCE_FRAME ref_frame;
@@ -7461,13 +7462,8 @@ static AOM_INLINE void write_uncompressed_header_obu
           (!cm->seq_params.enable_tip ||
            features->tip_frame_mode != TIP_FRAME_AS_OUTPUT)) {
         write_screen_content_params(cm, wb);
-        aom_wb_write_bit(wb, features->allow_intrabc);
+        write_intrabc_params(cm, wb);
         write_frame_max_drl_bits(cm, wb);
-        if (features->allow_intrabc) {
-          assert(features->max_bvp_drl_bits >= MIN_MAX_IBC_DRL_BITS &&
-                 features->max_bvp_drl_bits <= MAX_MAX_IBC_DRL_BITS);
-          write_frame_max_bvp_drl_bits(cm, wb);
-        }
         if (!features->cur_frame_force_integer_mv) {
 #if CONFIG_FRAME_HALF_PRECISION
           aom_wb_write_bit(wb,

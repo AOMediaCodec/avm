@@ -8656,6 +8656,38 @@ static INLINE int get_ref_frame_disp_order_hint(AV1_COMMON *const cm,
 }
 #endif  // CONFIG_F322_OBUER_ERM
 
+static void read_frame_max_bvp_drl_bits(AV1_COMMON *const cm,
+                                        struct aom_read_bit_buffer *rb) {
+  FeatureFlags *const features = &cm->features;
+  const SequenceHeader *const seq_params = &cm->seq_params;
+  features->max_bvp_drl_bits = seq_params->def_max_bvp_drl_bits;
+  if (seq_params->allow_frame_max_bvp_drl_bits) {
+    features->max_bvp_drl_bits =
+        aom_rb_read_primitive_ref_quniform(
+            rb, MAX_MAX_IBC_DRL_BITS - MIN_MAX_IBC_DRL_BITS + 1,
+            seq_params->def_max_bvp_drl_bits - MIN_MAX_IBC_DRL_BITS) +
+        MIN_MAX_IBC_DRL_BITS;
+  }
+}
+static INLINE void read_intrabc_params(AV1_COMMON *const cm,
+                                       struct aom_read_bit_buffer *rb) {
+  CurrentFrame *const current_frame = &cm->current_frame;
+  FeatureFlags *const features = &cm->features;
+  features->allow_intrabc = aom_rb_read_bit(rb);
+
+  if (features->allow_intrabc) {
+    if (current_frame->frame_type == KEY_FRAME ||
+        current_frame->frame_type == INTRA_ONLY_FRAME) {
+      features->allow_global_intrabc = aom_rb_read_bit(rb);
+      features->allow_local_intrabc =
+          features->allow_global_intrabc ? aom_rb_read_bit(rb) : 1;
+    } else {
+      features->allow_global_intrabc = 0;
+      features->allow_local_intrabc = features->allow_intrabc;
+    }
+    read_frame_max_bvp_drl_bits(cm, rb);
+  }
+}
 static INLINE void read_screen_content_params(AV1_COMMON *const cm,
                                               struct aom_read_bit_buffer *rb) {
   const SequenceHeader *const seq_params = &cm->seq_params;
@@ -8761,19 +8793,6 @@ static void read_frame_max_drl_bits(AV1_COMMON *const cm,
   }
 }
 
-static void read_frame_max_bvp_drl_bits(AV1_COMMON *const cm,
-                                        struct aom_read_bit_buffer *rb) {
-  FeatureFlags *const features = &cm->features;
-  const SequenceHeader *const seq_params = &cm->seq_params;
-  features->max_bvp_drl_bits = seq_params->def_max_bvp_drl_bits;
-  if (seq_params->allow_frame_max_bvp_drl_bits) {
-    features->max_bvp_drl_bits =
-        aom_rb_read_primitive_ref_quniform(
-            rb, MAX_MAX_IBC_DRL_BITS - MIN_MAX_IBC_DRL_BITS + 1,
-            seq_params->def_max_bvp_drl_bits - MIN_MAX_IBC_DRL_BITS) +
-        MIN_MAX_IBC_DRL_BITS;
-  }
-}
 #if CONFIG_F024_KEYOBU
 static void reset_buffer_other_than_OLK(AV1Decoder *pbi) {
   AV1_COMMON *const cm = &pbi->common;
@@ -10048,14 +10067,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     features->tip_frame_mode = TIP_FRAME_DISABLED;
     setup_frame_size(cm, frame_size_override_flag, rb);
     read_screen_content_params(cm, rb);
-    features->allow_intrabc = aom_rb_read_bit(rb);
-    if (features->allow_intrabc) {
-      features->allow_global_intrabc = aom_rb_read_bit(rb);
-      features->allow_local_intrabc =
-          features->allow_global_intrabc ? aom_rb_read_bit(rb) : 1;
-      read_frame_max_bvp_drl_bits(cm, rb);
-    }
-
+    read_intrabc_params(cm, rb);
     features->allow_ref_frame_mvs = 0;
     cm->prev_frame = NULL;
 
@@ -10073,13 +10085,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // !CONFIG_F153_FGM_OBU
       setup_frame_size(cm, frame_size_override_flag, rb);
       read_screen_content_params(cm, rb);
-      features->allow_intrabc = aom_rb_read_bit(rb);
-      if (features->allow_intrabc) {
-        features->allow_global_intrabc = aom_rb_read_bit(rb);
-        features->allow_local_intrabc =
-            features->allow_global_intrabc ? aom_rb_read_bit(rb) : 1;
-        read_frame_max_bvp_drl_bits(cm, rb);
-      }
+      read_intrabc_params(cm, rb);
 
       cm->cur_frame->num_ref_frames = 0;
 
@@ -10499,14 +10505,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // CONFIG_CWG_F317
           !cm->bru.frame_inactive_flag) {
         read_screen_content_params(cm, rb);
-        features->allow_intrabc = aom_rb_read_bit(rb);
-        features->allow_global_intrabc = 0;
-        features->allow_local_intrabc = features->allow_intrabc;
 
         read_frame_max_drl_bits(cm, rb);
-        if (features->allow_intrabc) {
-          read_frame_max_bvp_drl_bits(cm, rb);
-        }
 
         if (features->cur_frame_force_integer_mv) {
           features->fr_mv_precision = MV_PRECISION_ONE_PEL;
