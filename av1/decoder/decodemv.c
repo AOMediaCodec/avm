@@ -1579,8 +1579,8 @@ static void read_delta_q_params(AV1_COMMON *const cm, MACROBLOCKD *const xd,
               cm->seq_params.bit_depth == AOM_BITS_8    ? MAXQ_8_BITS
               : cm->seq_params.bit_depth == AOM_BITS_10 ? MAXQ_10_BITS
                                                         : MAXQ);
-    FRAME_CONTEXT *const ec_ctx = xd->tile_ctx;
 #if !CONFIG_REMOVE_DELTA_LF
+    FRAME_CONTEXT *const ec_ctx = xd->tile_ctx;
     if (delta_q_info->delta_lf_present_flag) {
       const int mi_row = xd->mi_row;
       const int mi_col = xd->mi_col;
