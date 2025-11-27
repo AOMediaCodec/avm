@@ -525,7 +525,7 @@ typedef struct {
   // 0: use 1 delta, for y_vertical, y_horizontal, u, and v
   // 1: use separate deltas for each filter level
   int delta_lf_multi;
-#endif
+#endif  // !CONFIG_REMOVE_DELTA_LF
 } DeltaQInfo;
 
 typedef struct {

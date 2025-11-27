@@ -1276,7 +1276,7 @@ typedef struct aom_roi_map {
   int delta_q[AOM_MAX_SEGMENTS]; /**< Quantizer deltas. */
 #if !CONFIG_REMOVE_DELTA_LF
   int delta_lf[AOM_MAX_SEGMENTS]; /**< Loop filter deltas. */
-#endif
+#endif                            // !CONFIG_REMOVE_DELTA_LF
   /*! Static breakout threshold for each segment. */
   unsigned int static_threshold[AOM_MAX_SEGMENTS];
 } aom_roi_map_t;

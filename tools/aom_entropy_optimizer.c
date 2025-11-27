@@ -612,7 +612,7 @@ int main(int argc, const char **argv) {
                      "static aom_cdf_prob default_delta_q_cdf"
                      "[CDF_SIZE(DELTA_Q_PROBS + 1)]",
                      0, &total_count, 0, mem_wanted, "Other");
-
+#if !CONFIG_REMOVE_DELTA_LF
   cts_each_dim[0] = FRAME_LF_COUNT;
   cts_each_dim[1] = DELTA_LF_PROBS + 1;
   optimize_cdf_table(&fc.delta_lf_multi_cnts[0][0], probsfile, 2, cts_each_dim,
@@ -625,6 +625,7 @@ int main(int argc, const char **argv) {
                      "static aom_cdf_prob default_delta_lf_cdf"
                      "[CDF_SIZE(DELTA_Q_PROBS + 1)]",
                      0, &total_count, 0, mem_wanted, "Filters");
+#endif  // !CONFIG_REMOVE_DELTA_LF
 
   cts_each_dim[0] = 2;
   cts_each_dim[1] = TX_SIZES;
