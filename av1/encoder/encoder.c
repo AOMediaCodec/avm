@@ -3473,7 +3473,7 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
       av1_enable_segmentation(&cm->seg);
       av1_apply_active_map(cpi);
     }
-#if 1
+#if CONFIG_F255_QMOBU_HERE
     printf("DOH[%d] <<%s>> calls av1_set_quantizer\n", cpi->common.current_frame.display_order_hint, __func__);
 #endif
     av1_set_quantizer(cpi, q_cfg->qm_minlevel, q_cfg->qm_maxlevel, q,

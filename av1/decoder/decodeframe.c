@@ -3971,13 +3971,14 @@ void setup_quant_matrices(AV1Decoder *pbi, CommonQuantParams *quant_params,
       current += size;
     }
   }
-#if 1 //herehere : setup_quant_matrices
+#if CONFIG_F255_QMOBU_HERE
+  //herehere : setup_quant_matrices
   if(1){
     //now we know what will be used. scale_tx happens here
     //qmlevel,
     printf("---->>>%s<<<<----\n", __func__);
     for(int iiii=0; iiii<3; iiii++){
-      printf("(setup_quant_matrices) qmlevel:%d plane:%s -> copy to quant_params->giqmatrix except 15\n", qmlevel, plane==0?"Y":plane==1?"U":"V");
+      printf("(setup_quant_matrices) qmlevel:%d plane:%s -> copy to quant_params->giqmatrix. 15 is set NULL\n", qmlevel, plane==0?"Y":plane==1?"U":"V");
       int qmidx = qmlevel;
       if(qmidx == 15) {
         printf("15 returned!!!!\n");
@@ -4084,7 +4085,7 @@ static AOM_INLINE void setup_qm_params(
     }
 #if CONFIG_F255_QMOBU
     for (uint8_t i = 0; i < quant_params->pic_qm_num; i++) {
-#if 1
+#if CONFIG_F255_QMOBU_HERE
       printf("<<---%s>> qm_yuv[%d] %d, %d, %d\n", __func__, i,
              quant_params->qm_y[i],
              quant_params->qm_u[i],
@@ -4179,6 +4180,9 @@ static AOM_INLINE void setup_segmentation_dequant(
 #endif
     }
   }
+      
+#if CONFIG_F255_QMOBU_HERE
+      if(quant_params->using_qmatrix){
 #if 0 //herehere: segmentation
       printf("<<<<%s>>>> per segment:\n", __func__);
       for (int i = 0; i < max_segments; ++i) {
@@ -4188,39 +4192,40 @@ static AOM_INLINE void setup_segmentation_dequant(
                quant_params->qm_v[quant_params->qm_index[i]]);
       }
 #endif
-     
-#if 1 //herehere: segmentation
-      if(1){
-        printf("<<<<%s>>>>\n", __func__);
-        //const int max_segments = cm->seg.enabled ? MAX_SEGMENTS : 1;
-        const int max_seg_num = cm->seg.enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
-        //printf("%d, ", quant_params->v_iqmatrix[i][j][k]);
-        for (int i = 0; i < max_seg_num; ++i) {
-          int qmlevel_y = quant_params->qm_y[quant_params->qm_index[i]];
-          int qmlevel_u = quant_params->qm_u[quant_params->qm_index[i]];
-          int qmlevel_v = quant_params->qm_v[quant_params->qm_index[i]];
-          printf("(read:setup_segmentation_dequant) qmlevel: %d, %d, %d ====> quant_params->yuv_iqmatrix is set here including 15\n", qmlevel_y, qmlevel_u, qmlevel_v);
-          for (int j = 0; j < TX_SIZES_ALL; ++j) {
-            printf("Y seg[%d] txsize[%d] : ",i, j);
-            for(int k=0; k<16; k++) //giqmatrix[qmlevel][plane][tx_size]
-              printf("%d, ", (int)quant_params->giqmatrix[qmlevel_y][0][j][k]);
-            printf("\n");
-          }
-          for (int j = 0; j < TX_SIZES_ALL; ++j) {
-            printf("U seg[%d] txsize[%d] : ",i, j);
-            for(int k=0; k<16; k++) //giqmatrix[qmlevel][plane][tx_size]
-              printf("%d, ", (int)quant_params->giqmatrix[qmlevel_u][1][j][k]);
-            printf("\n");
-          }
-          for (int j = 0; j < TX_SIZES_ALL; ++j) {
-            printf("V seg[%d] txsize[%d] : ",i, j);
-            for(int k=0; k<16; k++) //giqmatrix[qmlevel][plane][tx_size]
-              printf("%d, ", (int)quant_params->giqmatrix[qmlevel_v][2][j][k]);
-            printf("\n");
+        //herehere: segmentation
+        if(1){
+          printf("<<<<%s>>>>\n", __func__);
+          //const int max_segments = cm->seg.enabled ? MAX_SEGMENTS : 1;
+          const int max_seg_num = cm->seg.enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
+          //printf("%d, ", quant_params->v_iqmatrix[i][j][k]);
+          for (int i = 0; i < max_seg_num; ++i) {
+            int qmlevel_y = quant_params->qm_y[quant_params->qm_index[i]];
+            int qmlevel_u = quant_params->qm_u[quant_params->qm_index[i]];
+            int qmlevel_v = quant_params->qm_v[quant_params->qm_index[i]];
+            printf("(read:setup_segmentation_dequant) qmlevel: %d, %d, %d ====> quant_params->yuv_iqmatrix is set here. for 15,NULL\n", qmlevel_y, qmlevel_u, qmlevel_v);
+            for (int j = 0; j < TX_SIZES_ALL; ++j) {
+              printf("Y seg[%d] txsize[%d] : ",i, j);
+              for(int k=0; k<16; k++) //giqmatrix[qmlevel][plane][tx_size]
+                printf("%d, ", qmlevel_y==15?-1:(int)quant_params->giqmatrix[qmlevel_y][0][j][k]);
+              printf("\n");
+            }
+            for (int j = 0; j < TX_SIZES_ALL; ++j) {
+              printf("U seg[%d] txsize[%d] : ",i, j);
+              for(int k=0; k<16; k++) //giqmatrix[qmlevel][plane][tx_size]
+                printf("%d, ", qmlevel_u==15?-1:(int)quant_params->giqmatrix[qmlevel_u][1][j][k]);
+              printf("\n");
+            }
+            for (int j = 0; j < TX_SIZES_ALL; ++j) {
+              printf("V seg[%d] txsize[%d] : ",i, j);
+              for(int k=0; k<16; k++) //giqmatrix[qmlevel][plane][tx_size]
+                printf("%d, ", qmlevel_v==15?-1:(int)quant_params->giqmatrix[qmlevel_v][2][j][k]);
+              printf("\n");
+            }
           }
         }
       }
 #endif
+
 }
 
 static InterpFilter read_frame_interp_filter(struct aom_read_bit_buffer *rb) {
@@ -8861,7 +8866,8 @@ static void activate_sequence_header(AV1Decoder *pbi,
       }  // qm_pos
     }  // i
 
-#if 1 //herehere : activte_sequence_header
+#if CONFIG_F255_QMOBU_HERE
+    //herehere : activte_sequence_header
     if(1){
   printf("---->>>%s<<<<----\n", __func__);
     int qmlevelperIndex[3]={11, 15, 0}; //picnum
@@ -9443,7 +9449,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_CWG_F317
     }
 #endif  // CONFIG_CWG_F317
-#if 1
+#if CONFIG_F255_QMOBU_HERE
     printf("<<%s>> display_order_hint:%d\n", __func__, current_frame->display_order_hint);
 #endif
 #if CONFIG_F024_KEYOBU
@@ -10766,7 +10772,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // CONFIG_F153_FGM_OBU
   features->enable_ext_seg = seq_params->enable_ext_seg;
       
-#if 1
+#if CONFIG_F255_QMOBU_HERE
     printf("<<%s>> ends here------------------- DOH[%d] frame_type:%s base_qindex: %d\n", __func__, current_frame->display_order_hint,
            (current_frame->frame_type==KEY_FRAME?"KEY":(current_frame->frame_type==INTER_FRAME?"INTER":"SWITCH")),
            quant_params->base_qindex

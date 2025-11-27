@@ -519,7 +519,7 @@ void av1_free_qmset(qm_val_t ***mat, int num_planes) {
 
 void av1_qm_frame_update(struct CommonQuantParams *quant_params, int num_planes,
                          int qm_id, qm_val_t ***matrix_set) {
-#if 1
+#if CONFIG_F255_QMOBU_HERE
   printf("---------%s----------\n", __func__);
 #endif
   // matrix_set[tx_size(3)][color(3)][64,32,32]
@@ -644,12 +644,9 @@ void av1_qm_init(CommonQuantParams *quant_params, int num_planes
       }
     }
   }
-#if 1 //herehere
+#if CONFIG_F255_QMOBU_HERE
   if(1){
-#if 1
   printf("---->>>%s<<<<---- : initializing all quant_params->giqmatrix[q] quant_params->giqmatrix[15] is NULL \n", __func__);
-    
-#endif
     for(int iiii=0; iiii<NUM_QM_LEVELS-1; iiii++){
       int qmidx = iiii;
       for(int plane=0; plane<num_planes; plane++){

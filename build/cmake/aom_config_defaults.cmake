@@ -70,7 +70,7 @@ set_aom_config_var(CONFIG_ERROR_RESILIENT_FIX 1 "Additional check for s_frame.")
 set_aom_config_var(CONFIG_F160_TD 1 "Signal temporal delimiter optionally")
 set_aom_config_var(CONFIG_F255_QMOBU 1 "Enable QM_OBU")
 set_aom_config_var(CONFIG_F024_KEYOBU 1 "Use Key OBUs.")
-
+set_aom_config_var(CONFIG_F255_QMOBU_HERE 1 "Use Key OBUs.")
 set_aom_config_var(CONFIG_F153_FGM_OBU 1 "Signal film grain model in OBU_FGM.")
 
 #

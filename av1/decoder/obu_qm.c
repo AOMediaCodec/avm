@@ -68,13 +68,13 @@ static void read_qm_data(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
   qmset->qm_mlayer_id = obu_mlayer_id;
   qmset->quantizer_matrix_num_planes = num_planes;
   const bool qm_is_default_flag = (bool)aom_rb_read_bit(rb);
-#if 1
+#if CONFIG_F255_QMOBU_HERE
     printf("----qm_is_default_flag:%d\n", qm_is_default_flag);
 #endif
   if (qm_is_default_flag) {
     const int qm_default_index = aom_rb_read_literal(rb, 4);
     qmset->qm_default_index = qm_default_index;
-#if 1
+#if CONFIG_F255_QMOBU_HERE
     printf("----defaul_index: %d\n", qmset->qm_default_index);
 #endif
 
@@ -249,7 +249,7 @@ uint32_t read_qm_obu(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
                      (qm_chroma_info_present_flag ? 3 : 1),
                      store_at_intermediate_location, rb);
         
-#if 1 //jkei
+#if CONFIG_F255_QMOBU_HERE //read qm
         if(1){
           struct quantization_matrix_set *qm_set =
               store_at_intermediate_location

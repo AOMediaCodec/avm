@@ -7511,6 +7511,13 @@ static AOM_INLINE void write_uncompressed_header_obu
       }
     }
   }
+#if 1
+      if(1){
+        struct segmentation *seg = &cm->seg;
+        int max_seg_num = seg->enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
+        printf("max_seg_num:::::%d\n", max_seg_num);
+      }
+#endif
 
   if (quant_params->using_qmatrix) {
     const struct segmentation *seg = &cm->seg;
@@ -7548,7 +7555,7 @@ static AOM_INLINE void write_uncompressed_header_obu
              quant_params->qm_v[quant_params->qm_index[i]]);
     }
 #endif
-#if 1 //herehere:segment
+#if CONFIG_F255_QMOBU_HERE //herehere:segment
     if(1){
       printf("<<<<%s>>>>\n", __func__);
       //printf("%d, ", quant_params->v_iqmatrix[i][j][k]);
