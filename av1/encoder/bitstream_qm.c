@@ -295,11 +295,12 @@ uint32_t write_qm_obu(AV1_COMP *cpi, int signalled_obu_pos,
   return size;
 }
 
+#if CONFIG_QM_REVERT
 // Compares the reference matrices with the matrices in the QM OBU.
 // Returns true if the any of the matrices aren't equal.
-static bool check_add_cmqm_obu_matrices(CommonQuantParams* quant_params,
-                                      struct quantization_matrix_set* qm_inobu,
-                                      int qm_idx, int plane) {
+static bool check_add_cmqm_obu_matrices(
+    CommonQuantParams* quant_params, struct quantization_matrix_set* qm_inobu,
+    int qm_idx, int plane) {
   const qm_val_t* cm_qm_values8x8_test =
       quant_params->giqmatrix[qm_idx][plane][TX_8X8];
   const qm_val_t* cm_qm_values8x4_test =
@@ -316,6 +317,7 @@ static bool check_add_cmqm_obu_matrices(CommonQuantParams* quant_params,
                  sizeof(qm_val_t) * 32) != 0);
 }
 
+// Copies from global matrices to QM OBU.
 static void copy_to_qmobu(CommonQuantParams* quant_params,
                           struct quantization_matrix_set* qm_inobu, int qm_idx,
                           int plane) {
@@ -332,6 +334,7 @@ static void copy_to_qmobu(CommonQuantParams* quant_params,
   memcpy(qm_inobu->quantizer_matrix[2][plane], cm_qm_values4x8,
          sizeof(qm_val_t) * 32);
 }
+#endif  // CONFIG_QM_REVERT
 
 //-------//
 bool add_userqm_in_qmobulist(AV1_COMP *cpi) {
