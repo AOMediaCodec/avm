@@ -10756,6 +10756,12 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   read_film_grain(cm, rb);
 #endif  // CONFIG_F153_FGM_OBU
   features->enable_ext_seg = seq_params->enable_ext_seg;
+      
+#if 1
+    printf("<<%s>>------------------- DOH[%d] frame_type:%s\n", __func__, current_frame->display_order_hint,
+           (current_frame->frame_type==KEY_FRAME?"KEY":(current_frame->frame_type==INTER_FRAME?"INTER":"SWITCH"))
+           );
+#endif
   return 0;
 }
 
