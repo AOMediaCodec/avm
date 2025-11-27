@@ -152,7 +152,9 @@ uint16_t av1_get_filter_side(const loop_filter_info_n *lfi_n, const int dir_idx,
 }
 
 void av1_loop_filter_init(AV1_COMMON *cm) {
+#if !CONFIG_REMOVE_MODE_LF
   assert(MB_MODE_COUNT == NELEMENTS(mode_lf_lut));
+#endif  // !CONFIG_REMOVE_MODE_LF
   struct loopfilter *lf = &cm->lf;
 
   lf->combine_vert_horz_lf = 1;
