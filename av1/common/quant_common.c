@@ -647,12 +647,11 @@ void av1_qm_init(CommonQuantParams *quant_params, int num_planes
 #if 1 //herehere
   if(1){
 #if 1
-  printf("---->>>%s<<<<----\n", __func__);
+  printf("---->>>%s<<<<---- : initializing all quant_params->giqmatrix[q] quant_params->giqmatrix[15] is NULL \n", __func__);
+    
 #endif
-    int qmlevelperIndex[3]={11, 15, 0}; //picnum
-    for(int iiii=0; iiii<3; iiii++){
-      printf("qmlevel:%d\n", qmlevelperIndex[iiii] );
-      int qmidx = qmlevelperIndex[iiii];
+    for(int iiii=0; iiii<NUM_QM_LEVELS-1; iiii++){
+      int qmidx = iiii;
       for(int plane=0; plane<num_planes; plane++){
         for(int t=0; t<3; t++){
           printf("%slevel_%d: %s: ",plane==0?"Y":plane==1?"U":"V", qmidx, t==0?"8x8":t==1?"8x4":"4x8");
