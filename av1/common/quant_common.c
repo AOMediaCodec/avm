@@ -544,6 +544,13 @@ void av1_qm_frame_update(struct CommonQuantParams *quant_params, int num_planes,
             quant_params->giqmatrix[qm_id][c][qm_tx_size];
       } else {
         assert(current + size <= QM_TOTAL_SIZE);
+#if CONFIG_QM_REVERT
+        // Fill with reference matrices.
+        quant_params->gqmatrix[qm_id][c][t] = &predefined_wt_matrix_ref[qm_id][c >= 1][current];
+        quant_params->giqmatrix[qm_id][c][t] =
+            &predefined_iwt_matrix_ref[qm_id][c >= 1][current];
+        current += size;
+#else
         // Generate the iwt and wt matrices from the base matrices.
         scale_tx(t, c, &quant_params->iwt_matrix_ref[qm_id][c][current],
                  matrix_set);
@@ -555,6 +562,7 @@ void av1_qm_frame_update(struct CommonQuantParams *quant_params, int num_planes,
         quant_params->giqmatrix[qm_id][c][t] =
             &quant_params->iwt_matrix_ref[qm_id][c][current];
         current += size;
+#endif // CONFIG_QM_REVERT
       }
     }  // t
   }  // c
@@ -611,6 +619,10 @@ void av1_qm_init(CommonQuantParams *quant_params, int num_planes
 #endif  // !CONFIG_F255_QMOBU
 ) {
   for (int q = 0; q < NUM_QM_LEVELS; ++q) {
+#if CONFIG_QM_REVERT
+    // Default initialization for user-defined matrix to false.
+    quant_params->user_defined_level[q] = false;
+#endif  // CONFIG_QM_REVERT
     for (int c = 0; c < num_planes; ++c) {
       // Generate matrices for each tx size
       int current = 0;
@@ -666,6 +678,8 @@ void av1_qm_init(CommonQuantParams *quant_params, int num_planes
 void av1_qm_init_dequant_only(CommonQuantParams *quant_params, int num_planes,
                               qm_val_t ****fund_matrices) {
   for (int q = 0; q < NUM_QM_LEVELS; ++q) {
+#if CONFIG_QM_REVERT
+#endif  // CONFIG_QM_REVERT
     for (int c = 0; c < num_planes; ++c) {
       // Generate matrices for each tx size
       int current = 0;
@@ -717,6 +731,8 @@ void av1_qm_replace_level(CommonQuantParams *quant_params, int level,
 
 ) {
   const int q = level;
+#if CONFIG_QM_REVERT
+#endif  // CONFIG_QM_REVERT
   for (int c = 0; c < num_planes; ++c) {
     // Generate matrices for each tx size
     int current = 0;
@@ -734,6 +750,8 @@ void av1_qm_replace_level(CommonQuantParams *quant_params, int level,
                quant_params->giqmatrix[q][c][qm_tx_size]);
 #if CONFIG_QM_REVERT
         } else if (t <= TX_8X8 || t == TX_4X8 || t == TX_8X4) {
+          // Use user-defined matrix for 8x8/4x8/8x4.
+          // Downscale 8x8 to 4x4 in the case of user-defined matrices.
 #else
         } else {
 #endif  // CONFIG_QM_REVERT        assert(current + size <= QM_TOTAL_SIZE);
