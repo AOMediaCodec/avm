@@ -28,7 +28,7 @@ extern "C" {
 enum {
   SEG_LVL_ALT_Q,  // Use alternate Quantizer ....
 #if CONFIG_REMOVE_DELTA_LF
-  SEG_LVL_SKIP = 5,  // Optional Segment (0,0) + skip mode
+  SEG_LVL_SKIP,  // Optional Segment (0,0) + skip mode
 #else
   SEG_LVL_ALT_LF_Y_V,  // Use alternate loop filter value on y plane vertical
   SEG_LVL_ALT_LF_Y_H,  // Use alternate loop filter value on y plane horizontal
