@@ -8856,24 +8856,22 @@ static void activate_sequence_header(AV1Decoder *pbi,
 
 #if 1 //herehere
     if(1){
-      printf("---->>>%s<<<<----\n", __func__);
+  printf("---->>>%s<<<<----\n", __func__);
+    int qmlevelperIndex[3]={11, 15, 0}; //picnum
+    for(int iiii=0; iiii<3; iiii++){
+      printf("qmlevel:%d\n", qmlevelperIndex[iiii] );
+      int qmidx = qmlevelperIndex[iiii];
+      struct quantization_matrix_set *qm_set = &pbi->qm_list[qmidx];
       for(int plane=0; plane<3; plane++){
-        int qmlevel= plane==0?11:8;
-        struct quantization_matrix_set *qm_set = &pbi->qm_list[qmlevel];
-        printf("%slevel_%d: 8x8: ", (plane==0?"Y":plane==1?"U":"V"), qmlevel);
-        for(int k=0; k<16; k++) //giqmatrix[qmlevel][plane][tx_size]
-          printf("%d, ", qm_set->quantizer_matrix [0][plane][k]);
-        printf("\n");
-        printf("%slevel_%d: 8x4: ", (plane==0?"Y":plane==1?"U":"V"), qmlevel);
-        for(int k=0; k<16; k++) //giqmatrix[qmlevel][plane][tx_size]
-          printf("%d, ", qm_set->quantizer_matrix [1][plane][k]);
-        printf("\n");
-        printf("%slevel_%d: 4x8: ", (plane==0?"Y":plane==1?"U":"V"), qmlevel);
-        for(int k=0; k<16; k++) //giqmatrix[qmlevel][plane][tx_size]
-          printf("%d, ", qm_set->quantizer_matrix [2][plane][k]);
-        printf("\n");
+        for(int t=0; t<3; t++){
+          printf("%slevel_%d: %s: ",plane==0?"Y":plane==1?"U":"V", qmidx, t==0?"8x8":t==1?"8x4":"4x8");
+          for(int k=0; k<16; k++)
+            printf("%d, ",  qm_set->quantizer_matrix [t][plane][k]);
+          printf("\n");
+        }
       }
     }
+  }
 #endif
     pbi->total_qmobu_count = 0;
   }  // !(pbi->total_qmobu_count != 0)
