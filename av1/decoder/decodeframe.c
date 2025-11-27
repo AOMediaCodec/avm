@@ -3902,9 +3902,15 @@ static AOM_INLINE void setup_quantization(CommonQuantParams *quant_params,
 #if CONFIG_F255_QMOBU
 void setup_quant_matrices(AV1Decoder *pbi, CommonQuantParams *quant_params,
                           int plane, int qmlevel) {
-  if (qmlevel >= NUM_QM_LEVELS - 1) {
+  if (qmlevel >= NUM_QM_LEVELS) {
     aom_internal_error(&pbi->common.error, AOM_CODEC_UNSUP_BITSTREAM,
                        "qmlevel %d is out of boundary", qmlevel);
+  }
+  if (qmlevel == NUM_QM_LEVELS - 1) {
+    for (int t = 0; t < TX_SIZES_ALL; ++t) {
+      quant_params->giqmatrix[qmlevel][plane][t] = NULL;
+    }
+    return;
   }
 
   int qm_pos_found = -1;

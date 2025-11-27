@@ -339,6 +339,11 @@ TEST_P(QMTest, TestNoMisMatchQM11) {
   DoTest(0, 0);
 }
 
+// encodes and decodes without a mismatch.
+TEST_P(QMTest, TestNoMisMatchQM12) {
+  DoTest(15, 15);
+}
+
 AV1_INSTANTIATE_TEST_SUITE(QMTest,
                            ::testing::Values(::libaom_test::kOnePassGood),
                            ::testing::Range(5, 9));
