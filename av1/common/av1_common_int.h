@@ -1198,9 +1198,6 @@ typedef struct {
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO
   bool tile_info_present_in_frame_header;
 #endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
-#if CONFIG_MULTI_LEVEL_SEGMENTATION
-  bool seg_info_present_in_frame_header;
-#endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
 } CurrentFrame;
 
 /*!\endcond */

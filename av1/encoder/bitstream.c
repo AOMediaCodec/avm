@@ -4563,7 +4563,6 @@ static AOM_INLINE void encode_segmentation(AV1_COMMON *cm,
     if (seg->update_map) {
       aom_wb_write_bit(wb, seg->temporal_update);
     }
-    cm->current_frame.seg_info_present_in_frame_header = !reuse;
   }
 #else
   // Write update flags

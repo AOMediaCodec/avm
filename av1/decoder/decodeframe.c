@@ -2543,7 +2543,6 @@ static AOM_INLINE void setup_segmentation(AV1_COMMON *const cm,
   } else {
     seg->temporal_update = 0;
   }
-  cm->current_frame.seg_info_present_in_frame_header = !reuse;
 #else
   if (cm->seg.enabled && cm->prev_frame &&
       (cm->mi_params.mi_rows == cm->prev_frame->mi_rows) &&
@@ -7376,6 +7375,7 @@ void read_sequence_transform_group_tool_flags(struct SequenceHeader *seq_params,
 #if CONFIG_MULTI_LEVEL_SEGMENTATION
   seq_params->seq_seg_info_present_flag = aom_rb_read_bit(rb);
   if (seq_params->seq_seg_info_present_flag) {
+    seq_params->seg_params.enable_ext_seg = seq_params->enable_ext_seg;
     read_seg_syntax_info(&seq_params->seg_params, rb);
   }
 #endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
@@ -7882,6 +7882,7 @@ void av1_read_sequence_header_beyond_av1(
 #if CONFIG_MULTI_LEVEL_SEGMENTATION
   seq_params->seq_seg_info_present_flag = aom_rb_read_bit(rb);
   if (seq_params->seq_seg_info_present_flag) {
+    seq_params->seg_params.enable_ext_seg = seq_params->enable_ext_seg;
     read_seg_syntax_info(&seq_params->seg_params, rb);
   }
 #endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
@@ -7943,6 +7944,7 @@ static AOM_INLINE void read_multi_frame_header_seg_info(
   mfh_param->mfh_seg_info_present_flag = aom_rb_read_bit(rb);
   if (mfh_param->mfh_seg_info_present_flag) {
     mfh_param->mfh_ext_seg_flag = aom_rb_read_bit(rb);
+    mfh_param->mfh_seg_params.enable_ext_seg = mfh_param->mfh_ext_seg_flag;
     read_seg_syntax_info(&mfh_param->mfh_seg_params, rb);
   }
 }
