@@ -7539,7 +7539,16 @@ static AOM_INLINE void write_uncompressed_header_obu
                              quant_params->qm_index_bits);
       }
     }
-#if 0 //jkei
+#if 1 //herehere:segmentation (qm_index)
+    printf("<<<<%s>>>> per segment:\n", __func__);
+    for (int i = 0; i < max_seg_num; ++i) {
+      printf("[%d] index:%d %d, %d, %d\n", i, quant_params->qm_index[i],
+             quant_params->qm_y[quant_params->qm_index[i]],
+             quant_params->qm_u[quant_params->qm_index[i]],
+             quant_params->qm_v[quant_params->qm_index[i]]);
+    }
+#endif
+#if 0 //herehere:segmentation (qm_index)
     if(1){
       printf("<<<<%s>>>>\n", __func__);
       //printf("%d, ", quant_params->v_iqmatrix[i][j][k]);
