@@ -10507,6 +10507,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         read_screen_content_params(cm, rb);
 
         read_frame_max_drl_bits(cm, rb);
+        read_intrabc_params(cm, rb);
 
         if (features->cur_frame_force_integer_mv) {
           features->fr_mv_precision = MV_PRECISION_ONE_PEL;
