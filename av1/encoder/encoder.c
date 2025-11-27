@@ -4799,8 +4799,11 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   }
   set_max_drl_bits(cpi);
 
+#if !CONFIG_REMOVE_MODE_LF
   // Set default state for segment based loop filter update flags.
   cm->lf.mode_ref_delta_update = 0;
+#endif  // !CONFIG_REMOVE_MODE_LF
+
   // Set various flags etc to special state if it is a key frame.
   if (frame_is_intra_only(cm) || frame_is_sframe(cm)) {
     // Reset the loop filter deltas and segmentation map.
@@ -4967,7 +4970,9 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   // filter deltas.
   cm->seg.update_map = 0;
   cm->seg.update_data = 0;
+#if !CONFIG_REMOVE_MODE_LF
   cm->lf.mode_ref_delta_update = 0;
+#endif  // !CONFIG_REMOVE_MODE_LF
 
   // A droppable frame might not be shown but it always
   // takes a space in the gf group. Therefore, even when

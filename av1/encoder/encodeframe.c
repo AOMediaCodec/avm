@@ -2270,6 +2270,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
     cm->last_frame_seg_map = cm->prev_frame->seg_map;
   else
     cm->last_frame_seg_map = NULL;
+#if !CONFIG_REMOVE_MODE_LF
   if (features->coded_lossless) {
     av1_set_default_ref_deltas(cm->lf.ref_deltas);
     av1_set_default_mode_deltas(cm->lf.mode_deltas);
@@ -2279,6 +2280,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   }
   memcpy(cm->cur_frame->ref_deltas, cm->lf.ref_deltas, SINGLE_REF_FRAMES);
   memcpy(cm->cur_frame->mode_deltas, cm->lf.mode_deltas, MAX_MODE_LF_DELTAS);
+#endif  // !CONFIG_REMOVE_MODE_LF
 
   cpi->all_one_sided_refs =
       frame_is_intra_only(cm) ? 0 : refs_are_one_sided(cm);

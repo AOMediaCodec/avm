@@ -289,6 +289,7 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   av1_copy(fc->cctx_type_cdf, default_cctx_type_cdf);
 }
 
+#if !CONFIG_REMOVE_MODE_LF
 void av1_set_default_ref_deltas(int8_t *ref_deltas) {
   assert(ref_deltas != NULL);
 
@@ -309,11 +310,13 @@ void av1_set_default_mode_deltas(int8_t *mode_deltas) {
   mode_deltas[0] = 0;
   mode_deltas[1] = 0;
 }
-
+#endif  // !CONFIG_REMOVE_MODE_LF
+#if !CONFIG_REMOVE_MODE_LF
 static void set_default_lf_deltas(struct loopfilter *lf) {
   lf->mode_ref_delta_enabled = 0;
   lf->mode_ref_delta_update = 0;
 }
+#endif  // !CONFIG_REMOVE_MODE_LF
 
 static AOM_INLINE void cumulative_avg_cdf_symbol(
     aom_cdf_prob *cdf_ptr_left, aom_cdf_prob *cdf_ptr_tr, int num_cdfs,
@@ -1314,10 +1317,12 @@ void av1_setup_past_independence(AV1_COMMON *cm) {
            (cm->cur_frame->mi_rows * cm->cur_frame->mi_cols));
   }
 
+#if !CONFIG_REMOVE_MODE_LF
   // reset mode ref deltas
   av1_set_default_ref_deltas(cm->cur_frame->ref_deltas);
   av1_set_default_mode_deltas(cm->cur_frame->mode_deltas);
   set_default_lf_deltas(&cm->lf);
+#endif  // !CONFIG_REMOVE_MODE_LF
 
   av1_default_coef_probs(cm);
   init_mode_probs(cm->fc, &cm->seq_params);

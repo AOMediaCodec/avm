@@ -52,6 +52,7 @@ struct loopfilter {
   int delta_q_v;
   int delta_side_v;
 
+#if !CONFIG_REMOVE_MODE_LF
   uint8_t mode_ref_delta_enabled;
   uint8_t mode_ref_delta_update;
 
@@ -60,7 +61,7 @@ struct loopfilter {
 
   // 0 = ZERO_MV, MV
   int8_t mode_deltas[MAX_MODE_LF_DELTAS];
-
+#endif  // !CONFIG_REMOVE_MODE_LF
   int combine_vert_horz_lf;
 
   int tip_filter_level;
@@ -69,8 +70,13 @@ struct loopfilter {
 
 typedef struct {
 #if CONFIG_DF_DQP
+#if CONFIG_REMOVE_MODE_LF
+  int q_thr_q_offset[MAX_MB_PLANE][2];
+  int side_thr_q_offset[MAX_MB_PLANE][2];
+#else
   int q_thr_q_offset[MAX_MB_PLANE][2][SINGLE_REF_FRAMES][MAX_MODE_LF_DELTAS];
   int side_thr_q_offset[MAX_MB_PLANE][2][SINGLE_REF_FRAMES][MAX_MODE_LF_DELTAS];
+#endif  // CONFIG_REMOVE_MODE_LF
 #else
   uint16_t q_thr[MAX_MB_PLANE][MAX_SEGMENTS][2][SINGLE_REF_FRAMES]
                 [MAX_MODE_LF_DELTAS];

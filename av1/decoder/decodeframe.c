@@ -3433,9 +3433,11 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
   const int num_planes = av1_num_planes(cm);
   struct loopfilter *lf = &cm->lf;
   if (cm->features.coded_lossless) {
+#if !CONFIG_REMOVE_MODE_LF
     // write default deltas to frame buffer
     av1_set_default_ref_deltas(cm->cur_frame->ref_deltas);
     av1_set_default_mode_deltas(cm->cur_frame->mode_deltas);
+#endif  // !CONFIG_REMOVE_MODE_LF
     return;
   }
   assert(!cm->features.coded_lossless);
@@ -3445,6 +3447,7 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
 #else
   if (cm->bru.frame_inactive_flag) return;
 #endif  // CONFIG_CWG_F317
+#if !CONFIG_REMOVE_MODE_LF
   if (cm->prev_frame) {
     // write deltas to frame buffer
     memcpy(lf->ref_deltas, cm->prev_frame->ref_deltas, SINGLE_REF_FRAMES);
@@ -3453,6 +3456,7 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
     av1_set_default_ref_deltas(lf->ref_deltas);
     av1_set_default_mode_deltas(lf->mode_deltas);
   }
+#endif  // !CONFIG_REMOVE_MODE_LF
 #if CONFIG_MULTI_FRAME_HEADER
   assert(cm->mfh_valid[cm->cur_mfh_id]);
   if (cm->mfh_params[cm->cur_mfh_id].mfh_loop_filter_update_flag)
@@ -3544,8 +3548,10 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
     lf->delta_q_v = 0;
     lf->delta_side_v = 0;
   }
+#if !CONFIG_REMOVE_MODE_LF
   lf->mode_ref_delta_update = 0;
   lf->mode_ref_delta_enabled = 0;
+#endif  // !CONFIG_REMOVE_MODE_LF
 }
 
 static AOM_INLINE void setup_gdf(AV1_COMMON *cm,

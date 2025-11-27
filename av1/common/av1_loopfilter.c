@@ -61,6 +61,7 @@ static const SEG_LVL_FEATURES seg_lvl_lf_lut[MAX_MB_PLANE][2] = {
 };
 #endif  // !CONFIG_DF_DQP
 
+#if !CONFIG_REMOVE_MODE_LF
 static const int mode_lf_lut[] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  // INTRA_MODES
   1, 0, 1,                                // INTER_SINGLE_MODES (GLOBALMV == 0)
@@ -69,6 +70,7 @@ static const int mode_lf_lut[] = {
   1, 1, 1, 0, 1,  // INTER_COMPOUND_MODES (GLOBAL_GLOBALMV == 0)
   1, 1, 1, 1, 1, 1,
 };
+#endif  // !CONFIG_REMOVE_MODE_LF
 
 // Function obtains q_threshold from the quantization index.
 int df_quant_from_qindex(int q_index, int bit_depth) {
@@ -103,11 +105,18 @@ uint16_t av1_get_filter_q(const loop_filter_info_n *lfi_n, const int dir_idx,
 #if CONFIG_DF_DQP
   const int current_q_index = mbmi->final_qindex_ac[plane];
 
-  return df_quant_from_qindex(
-      current_q_index +
-          lfi_n->q_thr_q_offset[plane][dir_idx][COMPACT_INDEX0_NRS(
-              mbmi->ref_frame[0])][mode_lf_lut[mbmi->mode]],
-      bit_depth);
+  return df_quant_from_qindex(current_q_index +
+#if CONFIG_REMOVE_MODE_LF
+                                  lfi_n->q_thr_q_offset[plane][dir_idx],
+                              bit_depth);
+#else
+                                  lfi_n
+                                      ->q_thr_q_offset[plane][dir_idx]
+                                                      [COMPACT_INDEX0_NRS(
+                                                          mbmi->ref_frame[0])]
+                                                      [mode_lf_lut[mbmi->mode]],
+                              bit_depth);
+#endif  // CONFIG_REMOVE_MODE_LF
 #else
   // TODO(Andrey): non-CTC conditions
   return lfi_n->q_thr[plane][mbmi->segment_id][dir_idx][COMPACT_INDEX0_NRS(
@@ -124,11 +133,17 @@ uint16_t av1_get_filter_side(const loop_filter_info_n *lfi_n, const int dir_idx,
 #if CONFIG_DF_DQP
   const int current_q_index = mbmi->final_qindex_ac[plane];
 
-  return df_side_from_qindex(
-      current_q_index +
-          lfi_n->side_thr_q_offset[plane][dir_idx][COMPACT_INDEX0_NRS(
-              mbmi->ref_frame[0])][mode_lf_lut[mbmi->mode]],
-      bit_depth);
+  return df_side_from_qindex(current_q_index +
+#if CONFIG_REMOVE_MODE_LF
+                                 lfi_n->side_thr_q_offset[plane][dir_idx],
+                             bit_depth);
+#else
+                                 lfi_n->side_thr_q_offset
+                                     [plane][dir_idx]
+                                     [COMPACT_INDEX0_NRS(mbmi->ref_frame[0])]
+                                     [mode_lf_lut[mbmi->mode]],
+                             bit_depth);
+#endif  // CONFIG_REMOVE_MODE_LF
 #else
   // TODO(Andrey): non-CTC conditions
   return lfi_n->side_thr[plane][mbmi->segment_id][dir_idx][COMPACT_INDEX0_NRS(
@@ -161,7 +176,9 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
   // the multiplier is 1 for when filter_lvl is between 0 and 31;
   // 2 when filter_lvl is between 32 and 63
   loop_filter_info_n *const lfi = &cm->lf_info;
+#if !CONFIG_REMOVE_MODE_LF
   struct loopfilter *const lf = &cm->lf;
+#endif  // !CONFIG_REMOVE_MODE_LF
 #if !CONFIG_DF_DQP
   const struct segmentation *const seg = &cm->seg;
 #endif  // !CONFIG_DF_DQP
@@ -276,28 +293,37 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
           side_ind_seg += data;
         }
 #endif  // !CONFIG_DF_DQP
-
+#if !CONFIG_REMOVE_MODE_LF
         if (!lf->mode_ref_delta_enabled) {
+#endif  // !CONFIG_REMOVE_MODE_LF
 #if !CONFIG_DF_DQP
           int q_thr_seg =
               df_quant_from_qindex(q_ind_seg, cm->seq_params.bit_depth);
           int side_thr_seg =
               df_side_from_qindex(side_ind_seg, cm->seq_params.bit_depth);
 #endif  // !CONFIG_DF_DQP
-        // we could get rid of this if we assume that deltas are set to
-        // zero when not in use; encoder always uses deltas
+#if !CONFIG_REMOVE_MODE_LF
+          // we could get rid of this if we assume that deltas are set to
+          // zero when not in use; encoder always uses deltas
           int ref, mode;
+#endif  // !CONFIG_REMOVE_MODE_LF
 #if !CONFIG_DF_DQP
           lfi->q_thr[plane][seg_id][dir][INTRA_FRAME_INDEX][0] = q_thr_seg;
           lfi->side_thr[plane][seg_id][dir][INTRA_FRAME_INDEX][0] =
               side_thr_seg;
 #endif  // !CONFIG_DF_DQP
 #if CONFIG_DF_DQP
+#if CONFIG_REMOVE_MODE_LF
+          lfi->q_thr_q_offset[plane][dir] = q_ind_seg;
+          lfi->side_thr_q_offset[plane][dir] = side_ind_seg;
+#else
           lfi->q_thr_q_offset[plane][dir][INTRA_FRAME_INDEX][0] = q_ind_seg;
           lfi->side_thr_q_offset[plane][dir][INTRA_FRAME_INDEX][0] =
               side_ind_seg;
+#endif  // CONFIG_REMOVE_MODE_LF
 #endif  // CONFIG_DF_DQP
 
+#if !CONFIG_REMOVE_MODE_LF
           for (ref = 0; ref < INTER_REFS_PER_FRAME; ++ref) {
             for (mode = 0; mode < MAX_MODE_LF_DELTAS; ++mode) {
 #if !CONFIG_DF_DQP
@@ -387,6 +413,7 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
 #endif  // CONFIG_DF_DQP
           }
         }
+#endif  // !CONFIG_REMOVE_MODE_LF
       }
     }
 #if !CONFIG_DF_DQP

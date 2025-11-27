@@ -536,9 +536,10 @@ static INLINE int av1_tx_idx_to_type(int tx_idx, int tx_set_type,
              ? av1_md_idx2type[size_idx][av1_md_class[intra_mode]][tx_idx]
              : av1_ext_tx_inv[tx_set_type][tx_idx];
 }
-
+#if !CONFIG_REMOVE_MODE_LF
 void av1_set_default_ref_deltas(int8_t *ref_deltas);
 void av1_set_default_mode_deltas(int8_t *mode_deltas);
+#endif  // !CONFIG_REMOVE_MODE_LF
 void av1_setup_frame_contexts(struct AV1Common *cm);
 void av1_setup_past_independence(struct AV1Common *cm);
 

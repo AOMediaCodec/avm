@@ -299,6 +299,8 @@ set_aom_config_var(CONFIG_DF_DQP 1 "Adding DQP to the deblocking filter")
 set_aom_config_var(CONFIG_REMOVE_DELTA_LF 1
                    "Removing delta_lf from the codebase")
 
+set_aom_config_var(CONFIG_REMOVE_MODE_LF 1 "Removing mode lf from the codebase")
+
 set_aom_config_var(CONFIG_SHORT_METADATA 1
                    "Enable short metadata OBU header support")
 
