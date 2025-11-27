@@ -4119,7 +4119,12 @@ static AOM_INLINE void setup_segmentation_dequant(
   const int bit_depth = cm->seq_params.bit_depth;
   // When segmentation is disabled, only the first value is used.  The
   // remaining are don't cares.
+#if 1
+      const int max_segments = cm->seg.enabled ?(cm->seg.enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8)
+      : 1;
+#else
   const int max_segments = cm->seg.enabled ? MAX_SEGMENTS : 1;
+#endif
   CommonQuantParams *const quant_params = &cm->quant_params;
   for (int i = 0; i < max_segments; ++i) {
     const int qindex = xd->qindex[i];
@@ -4187,8 +4192,10 @@ static AOM_INLINE void setup_segmentation_dequant(
 #if 1 //herehere: segmentation
       if(1){
         printf("<<<<%s>>>>\n", __func__);
+        //const int max_segments = cm->seg.enabled ? MAX_SEGMENTS : 1;
+        const int max_seg_num = cm->seg.enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
         //printf("%d, ", quant_params->v_iqmatrix[i][j][k]);
-        for (int i = 0; i < max_segments; ++i) {
+        for (int i = 0; i < max_seg_num; ++i) {
           int qmlevel_y = quant_params->qm_y[quant_params->qm_index[i]];
           int qmlevel_u = quant_params->qm_u[quant_params->qm_index[i]];
           int qmlevel_v = quant_params->qm_v[quant_params->qm_index[i]];
