@@ -376,6 +376,7 @@ void av1_apply_active_map(AV1_COMP *cpi) {
         if (seg_map[i] == AM_SEGMENT_ID_ACTIVE) seg_map[i] = active_map[i];
       av1_enable_segmentation(seg);
       av1_enable_segfeature(seg, AM_SEGMENT_ID_INACTIVE, SEG_LVL_SKIP);
+#if !CONFIG_REMOVE_DELTA_LF
       av1_enable_segfeature(seg, AM_SEGMENT_ID_INACTIVE, SEG_LVL_ALT_LF_Y_H);
       av1_enable_segfeature(seg, AM_SEGMENT_ID_INACTIVE, SEG_LVL_ALT_LF_Y_V);
       av1_enable_segfeature(seg, AM_SEGMENT_ID_INACTIVE, SEG_LVL_ALT_LF_U);
@@ -389,12 +390,15 @@ void av1_apply_active_map(AV1_COMP *cpi) {
                       -MAX_LOOP_FILTER);
       av1_set_segdata(seg, AM_SEGMENT_ID_INACTIVE, SEG_LVL_ALT_LF_V,
                       -MAX_LOOP_FILTER);
+#endif  // !CONFIG_REMOVE_DELTA_LF
     } else {
       av1_disable_segfeature(seg, AM_SEGMENT_ID_INACTIVE, SEG_LVL_SKIP);
+#if !CONFIG_REMOVE_DELTA_LF
       av1_disable_segfeature(seg, AM_SEGMENT_ID_INACTIVE, SEG_LVL_ALT_LF_Y_H);
       av1_disable_segfeature(seg, AM_SEGMENT_ID_INACTIVE, SEG_LVL_ALT_LF_Y_V);
       av1_disable_segfeature(seg, AM_SEGMENT_ID_INACTIVE, SEG_LVL_ALT_LF_U);
       av1_disable_segfeature(seg, AM_SEGMENT_ID_INACTIVE, SEG_LVL_ALT_LF_V);
+#endif  // !CONFIG_REMOVE_DELTA_LF
       if (seg->enabled) {
         seg->update_data = 1;
         seg->update_map = 1;

@@ -26,12 +26,16 @@ extern "C" {
 #define SPATIAL_PREDICTION_PROBS 3
 
 enum {
-  SEG_LVL_ALT_Q,       // Use alternate Quantizer ....
+  SEG_LVL_ALT_Q,  // Use alternate Quantizer ....
+#if CONFIG_REMOVE_DELTA_LF
+  SEG_LVL_SKIP = 5,  // Optional Segment (0,0) + skip mode
+#else
   SEG_LVL_ALT_LF_Y_V,  // Use alternate loop filter value on y plane vertical
   SEG_LVL_ALT_LF_Y_H,  // Use alternate loop filter value on y plane horizontal
   SEG_LVL_ALT_LF_U,    // Use alternate loop filter value on u plane
   SEG_LVL_ALT_LF_V,    // Use alternate loop filter value on v plane
   SEG_LVL_SKIP,        // Optional Segment (0,0) + skip mode
+#endif  // CONFIG_REMOVE_DELTA_LF
   SEG_LVL_GLOBALMV,
   SEG_LVL_MAX
 } UENUM1BYTE(SEG_LVL_FEATURES);
