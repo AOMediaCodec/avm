@@ -25,8 +25,6 @@
 extern "C" {
 #endif
 
-#define ORIP_BLOCK_SIZE 32
-
 /*! \brief set the luma intra mode and delta angles for a given mode index.
  * \param[in]    mode_idx           mode index in intra mode decision
  *                                  process.
@@ -69,10 +67,6 @@ void av1_predict_intra_block(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                              int ref_stride, uint16_t *dst, int dst_stride,
                              int col_off, int row_off, int plane);
 
-void av1_apply_orip_4x4subblock_hbd(uint16_t *dst, ptrdiff_t stride,
-                                    TX_SIZE tx_size, const uint16_t *above,
-                                    const uint16_t *left, PREDICTION_MODE mode,
-                                    int bd);
 // Mapping of interintra to intra mode for use in the intra component
 static const PREDICTION_MODE interintra_to_intra_mode[INTERINTRA_MODES] = {
   DC_PRED, V_PRED, H_PRED, SMOOTH_PRED
@@ -153,28 +147,6 @@ static INLINE int get_intra_dip_ctx(const MB_MODE_INFO *nbr0,
   int ctx0 = nbr0 ? nbr0->use_intra_dip != 0 : 0;
   int ctx1 = nbr1 ? nbr1->use_intra_dip != 0 : 0;
   return ctx0 + ctx1;
-}
-
-static INLINE int av1_allow_orip_smooth_dc(PREDICTION_MODE mode, int plane,
-                                           TX_SIZE tx_size) {
-  const int bw = tx_size_wide[tx_size];
-  const int bh = tx_size_high[tx_size];
-
-  int orip_allowed = 1;
-  if (bw >= ORIP_BLOCK_SIZE || bh >= ORIP_BLOCK_SIZE) orip_allowed = 0;
-
-  if (plane == AOM_PLANE_Y) return ((mode == SMOOTH_PRED) && orip_allowed);
-  return ((mode == UV_SMOOTH_PRED) && orip_allowed);
-}
-static INLINE int av1_allow_orip_dir(int p_angle, TX_SIZE tx_size) {
-  const int bw = tx_size_wide[tx_size];
-  const int bh = tx_size_high[tx_size];
-
-  int orip_allowed = 1;
-  if (p_angle == 90 && bw >= ORIP_BLOCK_SIZE) orip_allowed = 0;
-  if (p_angle == 180 && bh >= ORIP_BLOCK_SIZE) orip_allowed = 0;
-
-  return ((p_angle == 90 || p_angle == 180) && orip_allowed);
 }
 
 // Use subsampled reference samples for DC calculation for CfL mode

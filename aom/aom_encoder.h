@@ -335,10 +335,6 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_idtx_intra;
-  /*!\brief enable Offset based refinement of Intra prediction
-   *
-   */
-  unsigned int enable_orip;
   /*!\brief enable Intra secondary transform
    *
    */

@@ -305,10 +305,6 @@ typedef struct {
    */
   bool enable_idtx_intra;
   /*!
-   * Flag to indicate if ORIP should be enabled
-   */
-  bool enable_orip;
-  /*!
    * Flag to indicate if IBP should be enabled
    */
   bool enable_ibp;

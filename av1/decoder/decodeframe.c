@@ -7069,7 +7069,6 @@ void read_sequence_intra_group_tool_flags(struct SequenceHeader *seq_params,
   seq_params->enable_mrls = aom_rb_read_bit(rb);
   seq_params->enable_cfl_intra = aom_rb_read_bit(rb);
   seq_params->enable_mhccp = aom_rb_read_bit(rb);
-  seq_params->enable_orip = aom_rb_read_bit(rb);
   seq_params->enable_ibp = aom_rb_read_bit(rb);
 }
 void read_sequence_inter_group_tool_flags(struct SequenceHeader *seq_params,
@@ -7782,7 +7781,6 @@ void av1_read_sequence_header_beyond_av1(
   } else {
     seq_params->enable_tip_explicit_qp = 0;
   }
-  seq_params->enable_orip = aom_rb_read_bit(rb);
 #if CONFIG_CWG_F377_STILL_PICTURE
   seq_params->enable_opfl_refine = seq_params->single_picture_header_flag
                                        ? AOM_OPFL_REFINE_NONE

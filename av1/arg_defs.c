@@ -446,9 +446,6 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       NULL, "enable-idtx-intra", 1,
       "Enable idtx for intra for enable-fsc is 0 case"
       "(0: idtx for intra disabled 1: idtx for intra enabled (default))"),
-  .enable_orip = ARG_DEF(NULL, "enable-orip", 1,
-                         "Enable Offset Based refinement of intra prediction"
-                         "(0: false, 1: true (default))"),
   .enable_ist = ARG_DEF(NULL, "enable-ist", 1,
                         "Enable intra secondary transform"
                         "(0: false, 1: true (default))"),

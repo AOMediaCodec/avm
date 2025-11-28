@@ -530,7 +530,6 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   } else {
     seq->enable_idtx_intra = 1;
   }
-  seq->enable_orip = oxcf->intra_mode_cfg.enable_orip;
   seq->enable_ist = oxcf->txfm_cfg.enable_ist;
   seq->enable_inter_ist = oxcf->txfm_cfg.enable_inter_ist;
   seq->enable_chroma_dctonly = oxcf->txfm_cfg.enable_chroma_dctonly;

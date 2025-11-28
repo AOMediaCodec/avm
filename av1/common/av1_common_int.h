@@ -1002,7 +1002,6 @@ typedef struct SequenceHeader {
   uint8_t enable_idtx_intra;         // enables/disables idtx for intra
   uint8_t enable_intra_dip;          // enables/disables intra_dip
   uint8_t enable_intra_edge_filter;  // enables/disables edge upsampling
-  uint8_t enable_orip;               // To turn on/off sub-block based ORIP
   uint8_t enable_ist;             // enables/disables intra secondary transform
   uint8_t enable_inter_ist;       // enables/disables inter secondary transform
   uint8_t enable_chroma_dctonly;  // enables/disables dct only for chroma

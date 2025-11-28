@@ -136,7 +136,6 @@ struct av1_extracfg {
 
   int enable_fsc;             // enable forward skip coding
   int enable_idtx_intra;      // enable idtx for intra
-  int enable_orip;            // enable ORIP
   int enable_ist;             // enable intra secondary transform
   int enable_inter_ist;       // enable inter secondary transform
   int enable_chroma_dctonly;  // enable dct only for chroma
@@ -469,7 +468,6 @@ static struct av1_extracfg default_extra_cfg = {
   1,    // eanble implicit masked blending
   1,    // enable forward skip coding
   1,    // enable idtx intra for fsc is disabled case
-  1,    // enable ORIP
   1,    // enable intra secondary transform
   1,    // enable inter secondary transform
   0,    // enable DCT only for chroma
@@ -958,7 +956,6 @@ static void update_encoder_config(cfg_options_t *cfg,
   cfg->enable_imp_msk_bld = extra_cfg->enable_imp_msk_bld;
   cfg->enable_fsc = extra_cfg->enable_fsc;
   cfg->enable_idtx_intra = extra_cfg->enable_idtx_intra;
-  cfg->enable_orip = extra_cfg->enable_orip;
   cfg->enable_ist = extra_cfg->enable_ist;
   cfg->enable_inter_ist = extra_cfg->enable_inter_ist;
   cfg->enable_chroma_dctonly = extra_cfg->enable_chroma_dctonly;
@@ -1082,7 +1079,6 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_imp_msk_bld = cfg->enable_imp_msk_bld;
   extra_cfg->enable_fsc = cfg->enable_fsc;
   extra_cfg->enable_idtx_intra = cfg->enable_idtx_intra;
-  extra_cfg->enable_orip = cfg->enable_orip;
   extra_cfg->enable_ist = cfg->enable_ist;
   extra_cfg->enable_inter_ist = cfg->enable_inter_ist;
   extra_cfg->enable_chroma_dctonly = cfg->enable_chroma_dctonly;
@@ -1707,7 +1703,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   intra_mode_cfg->enable_mrls = extra_cfg->enable_mrls;
   intra_mode_cfg->enable_fsc = extra_cfg->enable_fsc;
   intra_mode_cfg->enable_idtx_intra = extra_cfg->enable_idtx_intra;
-  intra_mode_cfg->enable_orip = extra_cfg->enable_orip;
   intra_mode_cfg->enable_ibp = extra_cfg->enable_ibp;
 
   // Set transform size/type configuration.
@@ -4105,9 +4100,6 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_idtx_intra,
                               argv, err_string)) {
     extra_cfg.enable_idtx_intra = arg_parse_int_helper(&arg, err_string);
-  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_orip, argv,
-                              err_string)) {
-    extra_cfg.enable_orip = arg_parse_int_helper(&arg, err_string);
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_ist, argv,
                               err_string)) {
     extra_cfg.enable_ist = arg_parse_int_helper(&arg, err_string);
@@ -4678,7 +4670,6 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         0,  // enable_high_motion
         1,    1, 1, 1,
         1,  // enable idtx intra for fsc is disabled case
-        1,
         1,  // IST
         1,  // inter IST
         0,  // chroma DCT only

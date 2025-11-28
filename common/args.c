@@ -98,7 +98,6 @@ int parse_cfg(const char *file, cfg_options_t *config) {
     GET_PARAMS(enable_imp_msk_bld);
     GET_PARAMS(enable_fsc);
     GET_PARAMS(enable_idtx_intra);
-    GET_PARAMS(enable_orip);
     GET_PARAMS(enable_ist);
     GET_PARAMS(enable_inter_ist);
     GET_PARAMS(enable_chroma_dctonly);

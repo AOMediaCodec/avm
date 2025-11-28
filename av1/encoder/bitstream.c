@@ -5515,7 +5515,6 @@ void write_sequence_intra_group_tool_flags(
   aom_wb_write_bit(wb, seq_params->enable_mrls);
   aom_wb_write_bit(wb, seq_params->enable_cfl_intra);
   aom_wb_write_bit(wb, seq_params->enable_mhccp);
-  aom_wb_write_bit(wb, seq_params->enable_orip);
   aom_wb_write_bit(wb, seq_params->enable_ibp);
 }
 void write_sequence_inter_group_tool_flags(
@@ -6134,7 +6133,6 @@ static AOM_INLINE void write_sequence_header_beyond_av1(
   if (seq_params->enable_tip == 1 && seq_params->enable_lf_sub_pu) {
     aom_wb_write_bit(wb, seq_params->enable_tip_explicit_qp);
   }
-  aom_wb_write_bit(wb, seq_params->enable_orip);
 #if CONFIG_CWG_F377_STILL_PICTURE
   if (seq_params->single_picture_header_flag) {
     assert(seq_params->enable_opfl_refine == AOM_OPFL_REFINE_NONE);
