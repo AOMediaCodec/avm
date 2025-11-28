@@ -331,6 +331,9 @@ bool check_add_cmqm_in_qmobulist(AV1_COMP *cpi, bool write_in_prevobu) {
   static int START_POS_4x8 = 1360;  // tx_size:5 4*4+8*8+16*16+32*32+64*64;
 
   bool add_cmqm[4][3];  //[max_pic_qm_num][planes]
+  AV1_COMMON *const cm = &cpi->common;
+  CommonQuantParams *quant_params = &cm->quant_params;
+  int num_planes = cm->seq_params.monochrome ? 1 : 3;
   if (cpi->total_signalled_qmobu_count == 0) {
     for (int i = 0; i < quant_params->pic_qm_num; i++)
       for (int j = 0; j < num_planes; j++) add_cmqm[i][j] = true;
@@ -339,9 +342,6 @@ bool check_add_cmqm_in_qmobulist(AV1_COMP *cpi, bool write_in_prevobu) {
       for (int j = 0; j < num_planes; j++) add_cmqm[i][j] = false;
   }
 
-  AV1_COMMON *const cm = &cpi->common;
-  CommonQuantParams *quant_params = &cm->quant_params;
-  int num_planes = cm->seq_params.monochrome ? 1 : 3;
   for (int pic_qm_idx = 0; pic_qm_idx < quant_params->pic_qm_num;
        pic_qm_idx++) {
     int qm_uv_same_as_y = 1;
