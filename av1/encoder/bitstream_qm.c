@@ -332,11 +332,11 @@ bool check_add_cmqm_in_qmobulist(AV1_COMP *cpi, bool write_in_prevobu) {
 
   bool add_cmqm[4][3];  //[max_pic_qm_num][planes]
   if (cpi->total_signalled_qmobu_count == 0) {
-    for (int i = 0; i < 4; i++)
-      for (int j = 0; j < 3; j++) add_cmqm[i][j] = true;
+    for (int i = 0; i < quant_params->pic_qm_num; i++)
+      for (int j = 0; j < num_planes; j++) add_cmqm[i][j] = true;
   } else {
-    for (int i = 0; i < 4; i++)
-      for (int j = 0; j < 3; j++) add_cmqm[i][j] = false;
+    for (int i = 0; i < quant_params->pic_qm_num; i++)
+      for (int j = 0; j < num_planes; j++) add_cmqm[i][j] = false;
   }
 
   AV1_COMMON *const cm = &cpi->common;
@@ -433,8 +433,8 @@ bool check_add_cmqm_in_qmobulist(AV1_COMP *cpi, bool write_in_prevobu) {
 
   // create new OBU
   bool new_obu_needed = false;
-  for (int i = 0; i < 4; i++)
-    for (int j = 0; j < 3; j++) new_obu_needed |= add_cmqm[i][j];
+  for (int i = 0; i < quant_params->pic_qm_num; i++)
+    for (int j = 0; j < num_planes; j++) new_obu_needed |= add_cmqm[i][j];
   if (new_obu_needed) {
     if (write_in_prevobu) cpi->total_signalled_qmobu_count--;
     struct qm_obu *qmobu = &cpi->qmobu_list[cpi->total_signalled_qmobu_count];
