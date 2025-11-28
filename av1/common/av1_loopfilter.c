@@ -950,8 +950,6 @@ static TX_SIZE set_lpf_parameters(
 #endif
               );
 
-          const int pv_skip_txfm = mi_prev->skip_txfm[plane_type] &&
-                                   is_inter_block(mi_prev, tree_type);
           const uint32_t pu_starting_coord = get_pu_starting_cooord(
               mbmi, plane, tree_type, scale_horz, scale_vert, edge_dir);
           const bool pu_edge = (coord == pu_starting_coord);
@@ -976,9 +974,8 @@ static TX_SIZE set_lpf_parameters(
             }
           }
 
-          const int none_skip_txfm = (!pv_skip_txfm || !curr_skipped);
           if (((curr_q && curr_side) || (pv_q && pv_side)) &&
-              (none_skip_txfm || sub_pu_edge || pu_edge)) {
+              (!curr_skipped || sub_pu_edge || pu_edge)) {
             TX_SIZE clipped_ts = ts;
             if (!plane) {
               if (((VERT_EDGE == edge_dir) && (width < x + 16)) ||
