@@ -820,8 +820,6 @@ typedef struct {
   aom_bit_depth_t bit_depth;
   // Indicates the superblock size that should be used by the encoder.
   aom_superblock_size_t superblock_size;
-  // Indicates if loopfilter modulation should be enabled.
-  bool enable_deltalf_mode;
   // Indicates if deblocking should be enabled.
   bool enable_deblocking;
   // Indicates if CDEF should be enabled.

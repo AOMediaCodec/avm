@@ -93,7 +93,6 @@ struct av1_extracfg {
   unsigned int enable_chroma_deltaq;
   AQ_MODE aq_mode;
   DELTAQ_MODE deltaq_mode;
-  int deltalf_mode;
   unsigned int frame_periodic_boost;
   aom_bit_depth_t bit_depth;
   aom_tune_content content;
@@ -428,7 +427,6 @@ static struct av1_extracfg default_extra_cfg = {
   0,                            // enable delta quant in chroma planes
   NO_AQ,                        // aq_mode
   DELTA_Q_OBJECTIVE,            // deltaq_mode
-  0,                            // delta lf mode
   0,                            // frame_periodic_boost
   AOM_BITS_8,                   // Bit depth
   AOM_CONTENT_DEFAULT,          // content
@@ -681,7 +679,6 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   RANGE_CHECK_BOOL(extra_cfg, lossless);
   RANGE_CHECK_HI(extra_cfg, aq_mode, AQ_MODE_COUNT - 1);
   RANGE_CHECK_HI(extra_cfg, deltaq_mode, DELTA_Q_MODE_COUNT - 1);
-  RANGE_CHECK_HI(extra_cfg, deltalf_mode, 1);
   RANGE_CHECK_HI(extra_cfg, frame_periodic_boost, 1);
   RANGE_CHECK_HI(cfg, g_usage, 1);
   RANGE_CHECK_HI(cfg, g_threads, MAX_NUM_THREADS);
@@ -1521,9 +1518,6 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
       q_cfg->fixed_qp_offsets[i] = -1.0;
     }
   }
-
-  tool_cfg->enable_deltalf_mode =
-      (q_cfg->deltaq_mode != NO_DELTA_Q) && extra_cfg->deltalf_mode;
 
   // Set cost update frequency configuration.
   oxcf->cost_upd_freq.coeff = (COST_UPDATE_TYPE)extra_cfg->coeff_cost_upd_freq;
@@ -2669,13 +2663,6 @@ static aom_codec_err_t ctrl_set_deltaq_mode(aom_codec_alg_priv_t *ctx,
                                             va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
   extra_cfg.deltaq_mode = CAST(AV1E_SET_DELTAQ_MODE, args);
-  return update_extra_cfg(ctx, &extra_cfg);
-}
-
-static aom_codec_err_t ctrl_set_deltalf_mode(aom_codec_alg_priv_t *ctx,
-                                             va_list args) {
-  struct av1_extracfg extra_cfg = ctx->extra_cfg;
-  extra_cfg.deltalf_mode = CAST(AV1E_SET_DELTALF_MODE, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
@@ -3978,9 +3965,6 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.deltaq_mode, argv,
                               err_string)) {
     extra_cfg.deltaq_mode = arg_parse_uint_helper(&arg, err_string);
-  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.deltalf_mode, argv,
-                              err_string)) {
-    extra_cfg.deltalf_mode = arg_parse_uint_helper(&arg, err_string);
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.frame_periodic_boost,
                               argv, err_string)) {
     extra_cfg.frame_periodic_boost = arg_parse_uint_helper(&arg, err_string);
@@ -4531,7 +4515,6 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_MODE_COST_UPD_FREQ, ctrl_set_mode_cost_upd_freq },
   { AV1E_SET_MV_COST_UPD_FREQ, ctrl_set_mv_cost_upd_freq },
   { AV1E_SET_DELTAQ_MODE, ctrl_set_deltaq_mode },
-  { AV1E_SET_DELTALF_MODE, ctrl_set_deltalf_mode },
   { AV1E_SET_FRAME_PERIODIC_BOOST, ctrl_set_frame_periodic_boost },
   { AV1E_SET_TUNE_CONTENT, ctrl_set_tune_content },
   { AV1E_SET_CDF_UPDATE_MODE, ctrl_set_cdf_update_mode },

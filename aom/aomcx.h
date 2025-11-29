@@ -989,14 +989,6 @@ enum aome_enc_control_id {
    */
   AV1E_SET_DELTAQ_MODE = 107,
 
-  /*!\brief Codec control function to turn on/off loopfilter modulation
-   * when delta q modulation is enabled, unsigned int parameter.
-   *
-   * \attention AV1 only supports loopfilter modulation when delta q
-   * modulation is enabled as well.
-   */
-  AV1E_SET_DELTALF_MODE = 108,
-
   /*!\brief Value 109 is unused.
    */
 
@@ -1583,9 +1575,6 @@ AOM_CTRL_USE_TYPE(AV1E_SET_AQ_MODE, unsigned int)
 
 AOM_CTRL_USE_TYPE(AV1E_SET_DELTAQ_MODE, unsigned int)
 #define AOM_CTRL_AV1E_SET_DELTAQ_MODE
-
-AOM_CTRL_USE_TYPE(AV1E_SET_DELTALF_MODE, unsigned int)
-#define AOM_CTRL_AV1E_SET_DELTALF_MODE
 
 AOM_CTRL_USE_TYPE(AV1E_SET_FRAME_PERIODIC_BOOST, unsigned int)
 #define AOM_CTRL_AV1E_SET_FRAME_PERIODIC_BOOST

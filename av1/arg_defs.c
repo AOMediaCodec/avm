@@ -690,8 +690,7 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
               "Delta qindex mode (0: off, 1: deltaq objective (default), "
               "2: deltaq perceptual). "
               "Currently this requires enable-tpl-model as a prerequisite."),
-  .deltalf_mode = ARG_DEF(NULL, "delta-lf-mode", 1,
-                          "Enable delta-lf-mode (0: off (default), 1: on)"),
+
   .frame_periodic_boost =
       ARG_DEF(NULL, "frame-boost", 1,
               "Enable frame periodic boost (0: off (default), 1: on)"),

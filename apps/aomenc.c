@@ -185,7 +185,6 @@ static const int av1_arg_ctrl_map[] = { AOME_SET_CPUUSED,
 #endif  // !CONFIG_F322_OBUER_ERM
                                         AV1E_SET_AQ_MODE,
                                         AV1E_SET_DELTAQ_MODE,
-                                        AV1E_SET_DELTALF_MODE,
                                         AV1E_SET_FRAME_PERIODIC_BOOST,
                                         AV1E_SET_NOISE_SENSITIVITY,
                                         AV1E_SET_TUNE_CONTENT,
@@ -389,7 +388,6 @@ const arg_def_t *av1_ctrl_args[] = {
 #endif  // !CONFIG_F322_OBUER_ERM
   &g_av1_codec_arg_defs.aq_mode,
   &g_av1_codec_arg_defs.deltaq_mode,
-  &g_av1_codec_arg_defs.deltalf_mode,
   &g_av1_codec_arg_defs.frame_periodic_boost,
   &g_av1_codec_arg_defs.noise_sens,
   &g_av1_codec_arg_defs.tune_content,
