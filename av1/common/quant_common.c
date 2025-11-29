@@ -140,27 +140,21 @@ void get_qindex_with_offsets(const struct AV1Common *cm, int seg_qindex,
   const int num_planes = av1_num_planes(cm);
   const CommonQuantParams *const quant_params = &cm->quant_params;
   for (int j = 0; j < num_planes; ++j) {
-    if (cm->delta_q_info.delta_q_present_flag) {
-      const int dc_delta_q = j == 0 ? quant_params->y_dc_delta_q
-                                    : (j == 1 ? quant_params->u_dc_delta_q
-                                              : quant_params->v_dc_delta_q);
-      const int ac_delta_q = j == 0 ? 0
-                                    : (j == 1 ? quant_params->u_ac_delta_q
-                                              : quant_params->v_ac_delta_q);
+    const int dc_delta_q = j == 0 ? quant_params->y_dc_delta_q
+                                  : (j == 1 ? quant_params->u_dc_delta_q
+                                            : quant_params->v_dc_delta_q);
+    const int ac_delta_q = j == 0 ? 0
+                                  : (j == 1 ? quant_params->u_ac_delta_q
+                                            : quant_params->v_ac_delta_q);
 
-      final_qindex_dc[j] =
-          av1_q_clamped(seg_qindex, dc_delta_q,
-                        j == 0 ? cm->seq_params.base_y_dc_delta_q
-                               : cm->seq_params.base_uv_dc_delta_q,
-                        cm->seq_params.bit_depth);
-      final_qindex_ac[j] =
-          av1_q_clamped(seg_qindex, ac_delta_q,
-                        j == 0 ? 0 : cm->seq_params.base_uv_ac_delta_q,
-                        cm->seq_params.bit_depth);
-    } else {
-      final_qindex_dc[j] = seg_qindex;
-      final_qindex_ac[j] = seg_qindex;
-    }
+    final_qindex_dc[j] =
+        av1_q_clamped(seg_qindex, dc_delta_q,
+                      j == 0 ? cm->seq_params.base_y_dc_delta_q
+                             : cm->seq_params.base_uv_dc_delta_q,
+                      cm->seq_params.bit_depth);
+    final_qindex_ac[j] = av1_q_clamped(
+        seg_qindex, ac_delta_q, j == 0 ? 0 : cm->seq_params.base_uv_ac_delta_q,
+        cm->seq_params.bit_depth);
   }
 }
 

@@ -1893,10 +1893,6 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
 #ifndef NDEBUG
   const CommonQuantParams *const quant_params = &cm->quant_params;
   for (int k = 0; k < av1_num_planes(cm); k++) {
-    assert(
-        IMPLIES(!cpi->common.delta_q_info.delta_q_present_flag,
-                mbmi->final_qindex_dc[k] == xd->qindex[mbmi->segment_id] &&
-                    mbmi->final_qindex_ac[k] == xd->qindex[mbmi->segment_id]));
     assert(IMPLIES(
         xd->lossless[mbmi->segment_id],
         mbmi->final_qindex_dc[k] == 0 && mbmi->final_qindex_ac[k] == 0));
@@ -2362,10 +2358,6 @@ static AOM_INLINE void write_mb_modes_kf(
 #ifndef NDEBUG
   const CommonQuantParams *const quant_params = &cm->quant_params;
   for (int k = 0; k < av1_num_planes(cm); k++) {
-    assert(
-        IMPLIES(!cpi->common.delta_q_info.delta_q_present_flag,
-                mbmi->final_qindex_dc[k] == xd->qindex[mbmi->segment_id] &&
-                    mbmi->final_qindex_ac[k] == xd->qindex[mbmi->segment_id]));
     assert(IMPLIES(
         xd->lossless[mbmi->segment_id],
         mbmi->final_qindex_dc[k] == 0 && mbmi->final_qindex_ac[k] == 0));
