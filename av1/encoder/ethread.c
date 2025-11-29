@@ -41,45 +41,6 @@ static AOM_INLINE void accumulate_rd_opt(ThreadData *td, ThreadData *td_t) {
     td->rd_counts.warped_used[i] += td_t->rd_counts.warped_used[i];
   }
 }
-#if !CONFIG_REMOVE_DELTA_LF
-static AOM_INLINE void update_delta_lf_for_row_mt(AV1_COMP *cpi) {
-  AV1_COMMON *cm = &cpi->common;
-  MACROBLOCKD *xd = &cpi->td.mb.e_mbd;
-  const int mib_size = cm->mib_size;
-  const int frame_lf_count =
-      av1_num_planes(cm) > 1 ? FRAME_LF_COUNT : FRAME_LF_COUNT - 2;
-  for (int row = 0; row < cm->tiles.rows; row++) {
-    for (int col = 0; col < cm->tiles.cols; col++) {
-      TileDataEnc *tile_data = &cpi->tile_data[row * cm->tiles.cols + col];
-      const TileInfo *const tile_info = &tile_data->tile_info;
-      for (int mi_row = tile_info->mi_row_start; mi_row < tile_info->mi_row_end;
-           mi_row += mib_size) {
-        if (mi_row == tile_info->mi_row_start)
-          av1_reset_loop_filter_delta(xd, av1_num_planes(cm));
-        for (int mi_col = tile_info->mi_col_start;
-             mi_col < tile_info->mi_col_end; mi_col += mib_size) {
-          const int idx_str = cm->mi_params.mi_stride * mi_row + mi_col;
-          MB_MODE_INFO **mi = cm->mi_params.mi_grid_base + idx_str;
-          MB_MODE_INFO *mbmi = mi[0];
-          if (mbmi->skip_txfm[xd->tree_type == CHROMA_PART] == 1 &&
-              (mbmi->sb_type[xd->tree_type == CHROMA_PART] == cm->sb_size)) {
-            for (int lf_id = 0; lf_id < frame_lf_count; ++lf_id)
-              mbmi->delta_lf[lf_id] = xd->delta_lf[lf_id];
-            mbmi->delta_lf_from_base = xd->delta_lf_from_base;
-          } else {
-            if (cm->delta_q_info.delta_lf_multi) {
-              for (int lf_id = 0; lf_id < frame_lf_count; ++lf_id)
-                xd->delta_lf[lf_id] = mbmi->delta_lf[lf_id];
-            } else {
-              xd->delta_lf_from_base = mbmi->delta_lf_from_base;
-            }
-          }
-        }
-      }
-    }
-  }
-}
-#endif  // !CONFIG_REMOVE_DELTA_LF
 
 void av1_row_mt_sync_read_dummy(AV1EncRowMultiThreadSync *row_mt_sync, int r,
                                 int c) {
@@ -1067,9 +1028,6 @@ void av1_encode_tiles_row_mt(AV1_COMP *cpi) {
   prepare_enc_workers(cpi, enc_row_mt_worker_hook, num_workers);
   launch_enc_workers(&cpi->mt_info, num_workers);
   sync_enc_workers(&cpi->mt_info, cm, num_workers);
-#if !CONFIG_REMOVE_DELTA_LF
-  if (cm->delta_q_info.delta_lf_present_flag) update_delta_lf_for_row_mt(cpi);
-#endif  // !CONFIG_REMOVE_DELTA_LF
   accumulate_counters_enc_workers(cpi, num_workers);
 }
 

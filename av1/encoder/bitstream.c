@@ -573,37 +573,6 @@ static AOM_INLINE void write_delta_qindex(const MACROBLOCKD *xd,
     aom_write_bit(w, sign);
   }
 }
-#if !CONFIG_REMOVE_DELTA_LF
-static AOM_INLINE void write_delta_lflevel(const AV1_COMMON *cm,
-                                           const MACROBLOCKD *xd, int lf_id,
-                                           int delta_lflevel, aom_writer *w) {
-  int sign = delta_lflevel < 0;
-  int abs = sign ? -delta_lflevel : delta_lflevel;
-  int rem_bits, thr;
-  int smallval = abs < DELTA_LF_SMALL ? 1 : 0;
-  FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
-
-  if (cm->delta_q_info.delta_lf_multi) {
-    assert(lf_id >= 0 && lf_id < (av1_num_planes(cm) > 1 ? FRAME_LF_COUNT
-                                                         : FRAME_LF_COUNT - 2));
-    aom_write_symbol(w, AOMMIN(abs, DELTA_LF_SMALL),
-                     ec_ctx->delta_lf_multi_cdf[lf_id], DELTA_LF_PROBS + 1);
-  } else {
-    aom_write_symbol(w, AOMMIN(abs, DELTA_LF_SMALL), ec_ctx->delta_lf_cdf,
-                     DELTA_LF_PROBS + 1);
-  }
-
-  if (!smallval) {
-    rem_bits = get_msb(abs - 1);
-    thr = (1 << rem_bits) + 1;
-    aom_write_literal(w, rem_bits - 1, 3);
-    aom_write_literal(w, abs - thr, rem_bits);
-  }
-  if (abs > 0) {
-    aom_write_bit(w, sign);
-  }
-}
-#endif  // !CONFIG_REMOVE_DELTA_LF
 
 static AOM_INLINE void pack_map_tokens(const MACROBLOCKD *xd, aom_writer *w,
                                        const TokenExtra **tp, int n, int cols,
@@ -1528,27 +1497,6 @@ static AOM_INLINE void write_delta_q_params(AV1_COMP *cpi, int skip,
           delta_q_info->delta_q_res;
       write_delta_qindex(xd, reduced_delta_qindex, w);
       xd->current_base_qindex = mbmi->current_qindex;
-#if !CONFIG_REMOVE_DELTA_LF
-      if (delta_q_info->delta_lf_present_flag) {
-        if (delta_q_info->delta_lf_multi) {
-          const int frame_lf_count =
-              av1_num_planes(cm) > 1 ? FRAME_LF_COUNT : FRAME_LF_COUNT - 2;
-          for (int lf_id = 0; lf_id < frame_lf_count; ++lf_id) {
-            int reduced_delta_lflevel =
-                (mbmi->delta_lf[lf_id] - xd->delta_lf[lf_id]) /
-                delta_q_info->delta_lf_res;
-            write_delta_lflevel(cm, xd, lf_id, reduced_delta_lflevel, w);
-            xd->delta_lf[lf_id] = mbmi->delta_lf[lf_id];
-          }
-        } else {
-          int reduced_delta_lflevel =
-              (mbmi->delta_lf_from_base - xd->delta_lf_from_base) /
-              delta_q_info->delta_lf_res;
-          write_delta_lflevel(cm, xd, -1, reduced_delta_lflevel, w);
-          xd->delta_lf_from_base = mbmi->delta_lf_from_base;
-        }
-      }
-#endif  // !CONFIG_REMOVE_DELTA_LF
     }
   }
 }
@@ -3263,11 +3211,6 @@ static AOM_INLINE void write_modes(AV1_COMP *const cpi,
 
   if (cpi->common.delta_q_info.delta_q_present_flag) {
     xd->current_base_qindex = cpi->common.quant_params.base_qindex;
-#if !CONFIG_REMOVE_DELTA_LF
-    if (cpi->common.delta_q_info.delta_lf_present_flag) {
-      av1_reset_loop_filter_delta(xd, num_planes);
-    }
-#endif  // !CONFIG_REMOVE_DELTA_LF
   }
 
   for (int mi_row = mi_row_start; mi_row < mi_row_end; mi_row += cm->mib_size) {
@@ -7535,14 +7478,6 @@ static AOM_INLINE void write_uncompressed_header_obu
     if (delta_q_info->delta_q_present_flag) {
       aom_wb_write_literal(wb, get_msb(delta_q_info->delta_q_res), 2);
       xd->current_base_qindex = quant_params->base_qindex;
-#if !CONFIG_REMOVE_DELTA_LF
-      aom_wb_write_bit(wb, delta_q_info->delta_lf_present_flag);
-      if (delta_q_info->delta_lf_present_flag) {
-        aom_wb_write_literal(wb, get_msb(delta_q_info->delta_lf_res), 2);
-        aom_wb_write_bit(wb, delta_q_info->delta_lf_multi);
-        av1_reset_loop_filter_delta(xd, av1_num_planes(cm));
-      }
-#endif  // !CONFIG_REMOVE_DELTA_LF
     }
   }
 

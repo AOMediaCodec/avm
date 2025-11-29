@@ -270,10 +270,6 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
     av1_copy(fc->seg.seg_id_ext_flag_cdf[i], default_seg_id_ext_flag_cdf[i]);
   }
   av1_copy(fc->delta_q_cdf, default_delta_q_cdf);
-#if !CONFIG_REMOVE_DELTA_LF
-  av1_copy(fc->delta_lf_cdf, default_delta_lf_cdf);
-  av1_copy(fc->delta_lf_multi_cdf, default_delta_lf_multi_cdf);
-#endif  // !CONFIG_REMOVE_DELTA_LF
   av1_copy(fc->cfl_sign_cdf, default_cfl_sign_cdf);
   av1_copy(fc->cfl_alpha_cdf, default_cfl_alpha_cdf);
   av1_copy(fc->intrabc_cdf, default_intrabc_cdf);
@@ -288,35 +284,6 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   av1_copy(fc->pb_mv_mpp_flag_cdf, default_pb_mv_most_probable_precision_cdf);
   av1_copy(fc->cctx_type_cdf, default_cctx_type_cdf);
 }
-
-#if !CONFIG_REMOVE_MODE_LF
-void av1_set_default_ref_deltas(int8_t *ref_deltas) {
-  assert(ref_deltas != NULL);
-
-  ref_deltas[0] = -1;
-  ref_deltas[1] = -1;
-  ref_deltas[2] = -1;
-  ref_deltas[3] = 0;
-  ref_deltas[4] = 0;
-  ref_deltas[5] = 0;
-  ref_deltas[6] = 0;
-  ref_deltas[INTRA_FRAME_INDEX] = 1;
-  ref_deltas[TIP_FRAME_INDEX] = 0;
-}
-
-void av1_set_default_mode_deltas(int8_t *mode_deltas) {
-  assert(mode_deltas != NULL);
-
-  mode_deltas[0] = 0;
-  mode_deltas[1] = 0;
-}
-#endif  // !CONFIG_REMOVE_MODE_LF
-#if !CONFIG_REMOVE_MODE_LF
-static void set_default_lf_deltas(struct loopfilter *lf) {
-  lf->mode_ref_delta_enabled = 0;
-  lf->mode_ref_delta_update = 0;
-}
-#endif  // !CONFIG_REMOVE_MODE_LF
 
 static AOM_INLINE void cumulative_avg_cdf_symbol(
     aom_cdf_prob *cdf_ptr_left, aom_cdf_prob *cdf_ptr_tr, int num_cdfs,
@@ -641,12 +608,6 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
                          ctx_tr->switchable_interp_cdf, SWITCHABLE_FILTERS);
   CUMULATIVE_AVERAGE_CDF(ctx_left->delta_q_cdf, ctx_tr->delta_q_cdf,
                          DELTA_Q_PROBS + 1);
-#if !CONFIG_REMOVE_DELTA_LF
-  CUMULATIVE_AVERAGE_CDF(ctx_left->delta_lf_cdf, ctx_tr->delta_lf_cdf,
-                         DELTA_LF_PROBS + 1);
-  CUMULATIVE_AVERAGE_CDF(ctx_left->delta_lf_multi_cdf,
-                         ctx_tr->delta_lf_multi_cdf, DELTA_LF_PROBS + 1);
-#endif  // !CONFIG_REMOVE_DELTA_LF
   CUMULATIVE_AVERAGE_CDF(ctx_left->inter_ext_tx_short_side_cdf,
                          ctx_tr->inter_ext_tx_short_side_cdf, 4);
   CUMULATIVE_AVERAGE_CDF(ctx_left->intra_ext_tx_short_side_cdf,
@@ -911,10 +872,6 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
   SHIFT_CDF(ctx_ptr->do_uneven_4way_partition_cdf, 2);
   SHIFT_CDF(ctx_ptr->switchable_interp_cdf, SWITCHABLE_FILTERS);
   SHIFT_CDF(ctx_ptr->delta_q_cdf, DELTA_Q_PROBS + 1);
-#if !CONFIG_REMOVE_DELTA_LF
-  SHIFT_CDF(ctx_ptr->delta_lf_cdf, DELTA_LF_PROBS + 1);
-  SHIFT_CDF(ctx_ptr->delta_lf_multi_cdf, DELTA_LF_PROBS + 1);
-#endif  // !CONFIG_REMOVE_DELTA_LF
   SHIFT_CDF(ctx_ptr->inter_ext_tx_short_side_cdf, 4);
   SHIFT_CDF(ctx_ptr->intra_ext_tx_short_side_cdf, 4);
   SHIFT_CDF(ctx_ptr->tx_ext_32_cdf, 2);
@@ -1240,11 +1197,6 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVERAGE_CDF(ctx_left->switchable_interp_cdf, ctx_tr->switchable_interp_cdf,
               SWITCHABLE_FILTERS);
   AVERAGE_CDF(ctx_left->delta_q_cdf, ctx_tr->delta_q_cdf, DELTA_Q_PROBS + 1);
-#if !CONFIG_REMOVE_DELTA_LF
-  AVERAGE_CDF(ctx_left->delta_lf_cdf, ctx_tr->delta_lf_cdf, DELTA_LF_PROBS + 1);
-  AVERAGE_CDF(ctx_left->delta_lf_multi_cdf, ctx_tr->delta_lf_multi_cdf,
-              DELTA_LF_PROBS + 1);
-#endif  // !CONFIG_REMOVE_DELTA_LF
   AVERAGE_CDF(ctx_left->inter_ext_tx_short_side_cdf,
               ctx_tr->inter_ext_tx_short_side_cdf, 4);
   AVERAGE_CDF(ctx_left->intra_ext_tx_short_side_cdf,
@@ -1316,13 +1268,6 @@ void av1_setup_past_independence(AV1_COMMON *cm) {
     memset(cm->cur_frame->seg_map, 0,
            (cm->cur_frame->mi_rows * cm->cur_frame->mi_cols));
   }
-
-#if !CONFIG_REMOVE_MODE_LF
-  // reset mode ref deltas
-  av1_set_default_ref_deltas(cm->cur_frame->ref_deltas);
-  av1_set_default_mode_deltas(cm->cur_frame->mode_deltas);
-  set_default_lf_deltas(&cm->lf);
-#endif  // !CONFIG_REMOVE_MODE_LF
 
   av1_default_coef_probs(cm);
   init_mode_probs(cm->fc, &cm->seq_params);

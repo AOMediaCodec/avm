@@ -3433,11 +3433,6 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
   const int num_planes = av1_num_planes(cm);
   struct loopfilter *lf = &cm->lf;
   if (cm->features.coded_lossless) {
-#if !CONFIG_REMOVE_MODE_LF
-    // write default deltas to frame buffer
-    av1_set_default_ref_deltas(cm->cur_frame->ref_deltas);
-    av1_set_default_mode_deltas(cm->cur_frame->mode_deltas);
-#endif  // !CONFIG_REMOVE_MODE_LF
     return;
   }
   assert(!cm->features.coded_lossless);
@@ -3447,16 +3442,6 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
 #else
   if (cm->bru.frame_inactive_flag) return;
 #endif  // CONFIG_CWG_F317
-#if !CONFIG_REMOVE_MODE_LF
-  if (cm->prev_frame) {
-    // write deltas to frame buffer
-    memcpy(lf->ref_deltas, cm->prev_frame->ref_deltas, SINGLE_REF_FRAMES);
-    memcpy(lf->mode_deltas, cm->prev_frame->mode_deltas, MAX_MODE_LF_DELTAS);
-  } else {
-    av1_set_default_ref_deltas(lf->ref_deltas);
-    av1_set_default_mode_deltas(lf->mode_deltas);
-  }
-#endif  // !CONFIG_REMOVE_MODE_LF
 #if CONFIG_MULTI_FRAME_HEADER
   assert(cm->mfh_valid[cm->cur_mfh_id]);
   if (cm->mfh_params[cm->cur_mfh_id].mfh_loop_filter_update_flag)
@@ -3548,10 +3533,6 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
     lf->delta_q_v = 0;
     lf->delta_side_v = 0;
   }
-#if !CONFIG_REMOVE_MODE_LF
-  lf->mode_ref_delta_update = 0;
-  lf->mode_ref_delta_enabled = 0;
-#endif  // !CONFIG_REMOVE_MODE_LF
 }
 
 static AOM_INLINE void setup_gdf(AV1_COMMON *cm,
@@ -5153,9 +5134,7 @@ static AOM_INLINE void decode_tile(AV1Decoder *pbi, ThreadData *const td,
 
   av1_zero_above_context(cm, xd, tile_info.mi_col_start, tile_info.mi_col_end,
                          tile_row);
-#if !CONFIG_REMOVE_DELTA_LF
-  av1_reset_loop_filter_delta(xd, num_planes);
-#endif  // !CONFIG_REMOVE_DELTA_LF
+
   int num_filter_classes[MAX_MB_PLANE];
   for (int p = 0; p < num_planes; ++p)
     num_filter_classes[p] = cm->rst_info[p].num_filter_classes;
@@ -5651,9 +5630,6 @@ static AOM_INLINE void parse_tile_row_mt(AV1Decoder *pbi, ThreadData *const td,
 
   av1_zero_above_context(cm, xd, tile_info.mi_col_start, tile_info.mi_col_end,
                          tile_row);
-#if !CONFIG_REMOVE_DELTA_LF
-  av1_reset_loop_filter_delta(xd, num_planes);
-#endif  // !CONFIG_REMOVE_DELTA_LF
   int num_filter_classes[MAX_MB_PLANE];
   for (int p = 0; p < num_planes; ++p)
     num_filter_classes[p] = cm->rst_info[p].num_filter_classes;
@@ -10641,24 +10617,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // #if CONFIG_F255_QMOBU
       quant_params, cm->seg.enabled, av1_num_planes(cm), rb);
   cm->delta_q_info.delta_q_res = 1;
-#if !CONFIG_REMOVE_DELTA_LF
-  cm->delta_q_info.delta_lf_res = 1;
-  cm->delta_q_info.delta_lf_present_flag = 0;
-  cm->delta_q_info.delta_lf_multi = 0;
-#endif  // !CONFIG_REMOVE_DELTA_LF
   cm->delta_q_info.delta_q_present_flag =
       quant_params->base_qindex > 0 ? aom_rb_read_bit(rb) : 0;
   if (cm->delta_q_info.delta_q_present_flag) {
     xd->current_base_qindex = quant_params->base_qindex;
     cm->delta_q_info.delta_q_res = 1 << aom_rb_read_literal(rb, 2);
-#if !CONFIG_REMOVE_DELTA_LF
-    cm->delta_q_info.delta_lf_present_flag = aom_rb_read_bit(rb);
-    if (cm->delta_q_info.delta_lf_present_flag) {
-      cm->delta_q_info.delta_lf_res = 1 << aom_rb_read_literal(rb, 2);
-      cm->delta_q_info.delta_lf_multi = aom_rb_read_bit(rb);
-      av1_reset_loop_filter_delta(xd, av1_num_planes(cm));
-    }
-#endif  // !CONFIG_REMOVE_DELTA_LF
   }
 
   xd->cur_frame_force_integer_mv = features->cur_frame_force_integer_mv;
