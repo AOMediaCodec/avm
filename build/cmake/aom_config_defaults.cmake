@@ -251,9 +251,6 @@ set_aom_config_var(CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION 1
 set_aom_config_var(CONFIG_FRAME_HALF_PRECISION 1
                    "Enable frame level half precision")
 
-set_aom_config_var(CONFIG_WRL_CORNER_MVS 1
-                   "Improve the WRL from the 3 corner MVs")
-
 set_aom_config_var(CONFIG_DC_DIV_UNIFY 1 "Unify DC division")
 
 set_aom_config_var(CONFIG_MHCCP_BLK_SIZE 1
