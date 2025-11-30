@@ -158,7 +158,7 @@ set_aom_config_var(CONFIG_EXT_FRAME_BUFFER_POOL 1 "Buffer pool extension.")
 
 # AV2 experiment flags.
 set_aom_config_var(CONFIG_F356_SEF_DOH 1 "Signl order hint for SEF.")
-
+set_aom_config_var(CONFIG_F356_SEF_DOH_TEST 1 "Test macro for signalling order hint for SEF.")
 set_aom_config_var(
   CONFIG_F106_OBU_TILEGROUP 1
   "Consolidate FRAME, FRAM_EHEADER, TILE_GROUP OBUs into TILE_GROUP OBU.")

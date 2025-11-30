@@ -5046,6 +5046,11 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
     }
     if (!valid_duplicate_existing_frame) cm->show_existing_frame = 0;
   }
+#if CONFIG_F356_SEF_DOH_TEST
+  if (cm->show_existing_frame) {
+    cm->sef_ref_fb_idx = 1;
+  }  // if(cm->duplicate_existing_frame)
+#endif  // CONFIG_F356_SEF_DOH_TEST
 #endif  // CONFIG_F356_SEF_DOH
 
   current_frame->pyramid_level = get_true_pyr_level(
