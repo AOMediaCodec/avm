@@ -706,7 +706,6 @@ static INLINE int is_refinemv_allowed_reference(const AV1_COMMON *cm,
   int d0, d1;
   int is_tip = (mbmi->ref_frame[0] == TIP_FRAME);
 #if CONFIG_ERROR_RESILIENT_FIX
-  //[jkei] is this handled outside?
   // In error resilient mode, whether a frame is scaled may be unknown, and the
   // following logic for parsing is not reliable, so DMVR is disabled.
   if (frame_is_sframe(cm)) return 0;

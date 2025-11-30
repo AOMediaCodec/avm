@@ -651,7 +651,6 @@ aom_codec_err_t flush_remaining_frames(struct AV1Decoder *pbi) {
       int doh_with_layer = pool->frame_bufs[idx].display_order_hint *
                                (cm->seq_params.max_mlayer_id + 1) +
                            pool->frame_bufs[idx].mlayer_id;
-      // TODO: [jkei] would it be better to use sort()?
       for (unsigned int out_idx = 0; out_idx < pbi->num_output_frames;
            out_idx++) {
         int doh_with_layer_in_output_frames =

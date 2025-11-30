@@ -3924,7 +3924,7 @@ void setup_quant_matrices(AV1Decoder *pbi, CommonQuantParams *quant_params,
     aom_internal_error(&pbi->common.error, AOM_CODEC_UNSUP_BITSTREAM,
                        "quantiztion matrix with Id[%d] is not found", qmlevel);
   }
-  // TODO: does xlayer_id need to be taken into account?
+
   //  when a picture indicated in an embedded layer with id equal obu_mlayer_id
   //  and in a temporal layer with id obu_tlayer_id is associated with either
   //  the sequence header or an embedded and temporal layer with ids qmMlayerId
@@ -8909,14 +8909,7 @@ static void activate_sequence_header(AV1Decoder *pbi,
 #endif  // CONFIG_F024_KEYOBU
 #if CONFIG_F024_KEYOBU
   if (obu_type == OBU_CLK) {
-    //[jkei] should it be reset_ref_frame_map(cm)?
     reset_ref_frame_map(cm);
-    //    for (int i = 0; i < cm->seq_params.ref_frames; i++) {
-    //      if (cm->ref_frame_map[i] != NULL) {
-    //        cm->ref_frame_map[i]->ref_count = 0;
-    //        cm->ref_frame_map[i] = NULL;
-    //      }
-    //    }
   }
 #endif  // CONFIG_F024_KEYOBU
 #if CONFIG_F153_FGM_OBU
@@ -9468,15 +9461,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #endif  // CONFIG_CWG_F317
 
 #if CONFIG_F024_KEYOBU
-    //[jkei] what is the display order hint of bridge frame?
-    // TODO: it is a requirement that wo frames in different consecutive layers
-    // that have the same order hint belong to the same temporal unit unless
-    // they are separated a temporal delimiter or are placed in different
-    // samples at the system layer. The figures below show an example of the
-    // related cases.
     if (pbi->olk_encountered &&
-        (is_regular_non_olk_obu(obu_type) ||
-         obu_type == OBU_BRIDGE_FRAME ||  // TODO(jkei): how about RAS?
+        (is_regular_non_olk_obu(obu_type) || obu_type == OBU_BRIDGE_FRAME ||
          obu_type == OBU_SWITCH)) {
       pbi->olk_encountered = 0;
       lock_buffer_pool(pool);

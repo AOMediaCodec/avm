@@ -4536,7 +4536,6 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     cm->features.allow_local_intrabc = 0;
   }
 #if CONFIG_F024_KEYOBU
-  // TODO(jkei): check the necessity of cm_obu_type and frame_params_obu_type
   const bool compute_ds_filter =
       cpi->common.current_frame.cm_obu_type == OBU_CLK;
 #else

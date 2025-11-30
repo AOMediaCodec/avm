@@ -3045,7 +3045,6 @@ typedef struct EncodeFrameParams {
   int existing_fb_idx_to_show;
 #endif
 #if CONFIG_F024_KEYOBU
-  // TODO(jkei): if possible remove cm_obu_type
   OBU_TYPE frame_params_obu_type;
 #endif
 #if CONFIG_F356_SEF_DOH

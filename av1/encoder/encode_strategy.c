@@ -1176,7 +1176,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   if (frame_params.show_frame)
     adjust_frame_rate(cpi, source->ts_start, source->ts_end);
 #if CONFIG_F356_SEF_DOH
-  if (!frame_params.duplicate_existing_frame) {  //[jkei] is it needed?
+  if (!frame_params.duplicate_existing_frame) {
 #endif
 #if !CONFIG_F024_KEYOBU
     if (!frame_params.show_existing_frame) {

@@ -1176,7 +1176,6 @@ typedef struct {
 typedef struct {
   FRAME_TYPE frame_type;
 #if CONFIG_F024_KEYOBU
-  // TODO(jkei): if possible remove cm_obu_type
   OBU_TYPE cm_obu_type;
 #endif
   REFERENCE_MODE reference_mode;
