@@ -1448,30 +1448,6 @@ void insert_neighbor_warp_candidate(
 }
 
 // Check if the candidate warp parameters are already in the list or not.
-static int is_this_param_already_in_list(
-    const uint8_t curr_num_of_candidates,
-    WARP_CANDIDATE warp_candidates[MAX_WARP_REF_CANDIDATES],
-    WarpedMotionParams neigh_params) {
-#if CONFIG_WRL_NO_PRUNING
-  (void)curr_num_of_candidates;
-  (void)warp_candidates;
-  (void)neigh_params;
-#else
-  for (int i = 0; i < curr_num_of_candidates; i++) {
-    int same_param =
-        (neigh_params.wmmat[2] == warp_candidates[i].wm_params.wmmat[2]);
-    same_param &=
-        (neigh_params.wmmat[3] == warp_candidates[i].wm_params.wmmat[3]);
-    same_param &=
-        (neigh_params.wmmat[4] == warp_candidates[i].wm_params.wmmat[4]);
-    same_param &=
-        (neigh_params.wmmat[5] == warp_candidates[i].wm_params.wmmat[5]);
-    if (same_param) return 1;
-  }
-#endif  // CONFIG_WRL_NO_PRUNING
-
-  return 0;
-}
 
 void check_this_warp_candidate(
     const AV1_COMMON *cm, const MB_MODE_INFO *const neighbor_mbmi,
@@ -1484,12 +1460,9 @@ void check_this_warp_candidate(
   WarpedMotionParams neigh_params;
   if (*curr_num_of_candidates < max_num_of_candidates &&
       is_valid_warp_parameters(cm, neighbor_mbmi, ref_frame, &neigh_params)) {
-    if (!is_this_param_already_in_list(*curr_num_of_candidates, warp_candidates,
-                                       neigh_params)) {
-      insert_neighbor_warp_candidate(warp_candidates, &neigh_params,
-                                     *curr_num_of_candidates, proj_type);
-      ++(*curr_num_of_candidates);
-    }
+    insert_neighbor_warp_candidate(warp_candidates, &neigh_params,
+                                   *curr_num_of_candidates, proj_type);
+    ++(*curr_num_of_candidates);
   }
 }
 
@@ -2356,9 +2329,7 @@ static AOM_INLINE void setup_ref_mv_list(
             &cand_warp_param, pts, valid_points, mvs_32,
             xd->mi[0]->sb_type[PLANE_TYPE_Y],
             get_ref_scale_factors_const(cm, ref_frame));
-        if (valid_model && !cand_warp_param.invalid &&
-            !is_this_param_already_in_list(*valid_num_warp_candidates,
-                                           warp_param_stack, cand_warp_param)) {
+        if (valid_model && !cand_warp_param.invalid) {
           insert_neighbor_warp_candidate(warp_param_stack, &cand_warp_param,
                                          *valid_num_warp_candidates,
                                          PROJ_SPATIAL);
@@ -2723,9 +2694,7 @@ static AOM_INLINE void setup_ref_mv_list(
       const int idx = (start_idx + count - 1 - idx_bank) % WARP_PARAM_BANK_SIZE;
       const WarpedMotionParams cand_warp_param = queue[idx];
 
-      if (!cand_warp_param.invalid &&
-          !is_this_param_already_in_list(*valid_num_warp_candidates,
-                                         warp_param_stack, cand_warp_param)) {
+      if (!cand_warp_param.invalid) {
         insert_neighbor_warp_candidate(warp_param_stack, &cand_warp_param,
                                        *valid_num_warp_candidates,
                                        PROJ_PARAM_BANK);
@@ -2735,10 +2704,7 @@ static AOM_INLINE void setup_ref_mv_list(
 
     // Insert Global motion of the current
     if (*valid_num_warp_candidates < max_num_of_warp_candidates) {
-      if (!xd->global_motion[ref_frame].invalid &&
-          !is_this_param_already_in_list(*valid_num_warp_candidates,
-                                         warp_param_stack,
-                                         xd->global_motion[ref_frame])) {
+      if (!xd->global_motion[ref_frame].invalid) {
         insert_neighbor_warp_candidate(
             warp_param_stack, &xd->global_motion[ref_frame],
             *valid_num_warp_candidates, PROJ_GLOBAL_MOTION);
