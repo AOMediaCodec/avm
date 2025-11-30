@@ -9569,7 +9569,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
       cpi->increase_fgm_counter = true;
       data += obu_header_size + obu_payload_size + length_field_size;
     }
-    cpi->fgm = &fgm_current;
+    cpi->fgm = fgm_current;
 
   }  // if(fgm is applied)
 #endif  // CONFIG_F153_FGM_OBU

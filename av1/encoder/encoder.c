@@ -4627,7 +4627,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 #if CONFIG_F153_FGM_OBU  // encode_show_existing
     if (cpi->increase_fgm_counter) {
       assert(cm->fgm_id >= 0 && cm->fgm_id < MAX_FGM_NUM &&
-             cpi->fgm->fgm_chroma_idc >= 0 && cpi->fgm->fgm_chroma_idc < 4);
+             cpi->fgm.fgm_chroma_idc >= 0 && cpi->fgm.fgm_chroma_idc < 4);
       int fgm_pos = cpi->written_fgm_num % MAX_FGM_NUM;
       int valid_fgm_num = AOMMIN(cpi->written_fgm_num, MAX_FGM_NUM);
       for (int i = 0; i < valid_fgm_num; i++) {
@@ -4636,7 +4636,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
           break;
         }
       }
-      cpi->fgm_list[fgm_pos] = *cpi->fgm;
+      cpi->fgm_list[fgm_pos] = cpi->fgm;
       cpi->written_fgm_num += 1;
     }
 #endif  // CONFIG_F153_FGM_OBU
@@ -4700,7 +4700,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
             break;
           }
         }
-        cpi->fgm_list[fgm_pos] = *cpi->fgm;
+        cpi->fgm_list[fgm_pos] = cpi->fgm;
         cpi->written_fgm_num += 1;
       }
 #endif                   // CONFIG_F153_FGM_OBU
@@ -4881,7 +4881,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 #if CONFIG_F153_FGM_OBU  // encode_with_recode_loop_and_filter
   if (cpi->increase_fgm_counter) {
     assert(cm->fgm_id >= 0 && cm->fgm_id < MAX_FGM_NUM &&
-           cpi->fgm->fgm_chroma_idc >= 0 && cpi->fgm->fgm_chroma_idc < 4);
+           cpi->fgm.fgm_chroma_idc >= 0 && cpi->fgm.fgm_chroma_idc < 4);
     int fgm_pos = cpi->written_fgm_num % MAX_FGM_NUM;
     int valid_fgm_num = AOMMIN(cpi->written_fgm_num, MAX_FGM_NUM);
     for (int i = 0; i < valid_fgm_num; i++) {
@@ -4890,7 +4890,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
         break;
       }
     }
-    cpi->fgm_list[fgm_pos] = *cpi->fgm;
+    cpi->fgm_list[fgm_pos] = cpi->fgm;
     cpi->written_fgm_num += 1;
   }
 #endif  // CONFIG_F153_FGM_OBU
