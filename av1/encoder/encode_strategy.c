@@ -1300,7 +1300,12 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   cm->current_frame.order_hint = cur_frame_disp;
   cm->current_frame.display_order_hint = cur_frame_disp;
   cm->current_frame.pyramid_level = get_true_pyr_level(
-      cpi->gf_group.layer_depth[cpi->gf_group.index], cur_frame_disp,
+      cpi->gf_group.layer_depth[cpi->gf_group.index],
+#if CONFIG_F024_KEYOBU
+      cm->current_frame.frame_type == KEY_FRAME,
+#else
+      cur_frame_disp,
+#endif  // CONFIG_F024_KEYOBU
       cpi->gf_group.max_layer_depth,
       cpi->gf_group.update_type[cpi->gf_group.index] == KFFLT_OVERLAY_UPDATE);
 

@@ -108,11 +108,20 @@ enum {
   FRAMEFLAGS_HAS_FILM_GRAIN_PARAMS = 1 << 7,
 } UENUM1BYTE(FRAMETYPE_FLAGS);
 
-static INLINE int get_true_pyr_level(int frame_level, int frame_order,
+static INLINE int get_true_pyr_level(int frame_level,
+#if CONFIG_F024_KEYOBU
+                                     int is_key_frame,
+#else
+                                     int frame_order,
+#endif  // CONFIG_F024_KEYOBU
                                      int max_layer_depth, int is_key_overlay) {
   if (is_key_overlay) return max_layer_depth;
-
-  if (frame_order == 0) {
+#if CONFIG_F024_KEYOBU
+  if (is_key_frame)
+#else
+  if (frame_order == 0)
+#endif  // CONFIG_F024_KEYOBU
+  {
     // Keyframe case
     return 1;
   } else if (frame_level == MAX_ARF_LAYERS) {

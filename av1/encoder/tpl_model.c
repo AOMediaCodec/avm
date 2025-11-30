@@ -1113,7 +1113,12 @@ static AOM_INLINE void init_gop_frames_for_tpl(
       ref_frame_map_pairs[refresh_frame_map_index].disp_order =
           AOMMAX(0, true_disp);
       ref_frame_map_pairs[refresh_frame_map_index].pyr_level =
-          get_true_pyr_level(gf_group->layer_depth[gf_index], true_disp,
+          get_true_pyr_level(gf_group->layer_depth[gf_index],
+#if CONFIG_F024_KEYOBU
+                             frame_params.frame_type == KEY_FRAME,
+#else
+                             true_disp,
+#endif  // CONFIG_F024_KEYOBU
                              cpi->gf_group.max_layer_depth, 0);
     }
 
@@ -1249,7 +1254,12 @@ static AOM_INLINE void init_gop_frames_for_tpl(
       ref_frame_map_pairs[refresh_frame_map_index].disp_order =
           AOMMAX(0, true_disp);
       ref_frame_map_pairs[refresh_frame_map_index].pyr_level =
-          get_true_pyr_level(gf_group->layer_depth[gf_index], true_disp,
+          get_true_pyr_level(gf_group->layer_depth[gf_index],
+#if CONFIG_F024_KEYOBU
+                             frame_params.frame_type == KEY_FRAME,
+#else
+                             true_disp,
+#endif  // CONFIG_F024_KEYOBU
                              cpi->gf_group.max_layer_depth, 0);
     }
 

@@ -5006,15 +5006,18 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
   memcpy(cm->remapped_ref_idx, frame_params->remapped_ref_idx,
          INTER_REFS_PER_FRAME * sizeof(*cm->remapped_ref_idx));
 
-#if !CONFIG_F024_KEYOBU
-  if (av1_is_shown_keyframe(cpi, current_frame->frame_type)) {
+  // NOTE: frame_number is reset only for the CLK
+  if (av1_is_shown_keyframe(cpi, current_frame->frame_type)
+#if CONFIG_F024_KEYOBU
+      && !cpi->update_type_was_overlay
+#endif  // CONFIG_F024_KEYOBU
+  ) {
     current_frame->key_frame_number += current_frame->frame_number;
     current_frame->frame_number = 0;
   }
-#endif
 #if CONFIG_F024_KEYOBU
   cm->current_frame.cm_obu_type = frame_params->frame_params_obu_type;
-#endif
+#endif  // CONFIG_F024_KEYOBU
   current_frame->order_hint =
       current_frame->frame_number + frame_params->order_offset;
   current_frame->display_order_hint = current_frame->order_hint;
@@ -5049,7 +5052,12 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
 
   current_frame->pyramid_level = get_true_pyr_level(
       cpi->gf_group.layer_depth[cpi->gf_group.index],
-      current_frame->display_order_hint, cpi->gf_group.max_layer_depth,
+#if CONFIG_F024_KEYOBU
+      current_frame->frame_type == KEY_FRAME,
+#else
+      current_frame->display_order_hint,
+#endif  // CONFIG_F024_KEYOBU
+      cpi->gf_group.max_layer_depth,
       cpi->gf_group.update_type[cpi->gf_group.index] == KFFLT_OVERLAY_UPDATE);
 
   cm->tlayer_id = 0;
