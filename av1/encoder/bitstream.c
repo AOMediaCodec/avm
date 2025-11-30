@@ -9724,12 +9724,6 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
   int start_tile_idx;
   int end_tile_idx = -1;
   for (int tg_idx = 0; tg_idx < max_tg_num; tg_idx++) {
-#if CONFIG_F024_KEYOBU
-    if (cm->current_frame.frame_type == KEY_FRAME && tg_idx != 0) {
-      obu_type = (cm->is_leading_picture == 1) ? OBU_LEADING_TILE_GROUP
-                                               : OBU_REGULAR_TILE_GROUP;
-    }
-#endif  // CONFIG_F024_KEYOBU
     obu_header_size = av1_write_obu_header(level_params, obu_type, obu_temporal,
                                            obu_layer, data);
     start_tile_idx = end_tile_idx + 1;
