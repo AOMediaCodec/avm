@@ -8596,6 +8596,9 @@ static int read_show_existing_frame(AV1Decoder *pbi,
 #if CONFIG_F356_SEF_DOH
   cm->sef_ref_fb_idx = existing_frame_idx;
   cm->derive_sef_order_hint = aom_rb_read_bit(rb);
+#if 1
+  printf("cm->derive_sef_order_hint: %d sef_ref_fb_idx:%d\n", cm->derive_sef_order_hint, cm->sef_ref_fb_idx);
+#endif
   if (!cm->derive_sef_order_hint) {
     current_frame->order_hint = aom_rb_read_literal(
         rb, seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
