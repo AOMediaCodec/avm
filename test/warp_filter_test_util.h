@@ -111,8 +111,7 @@ typedef void (*ext_highbd_warp_affine_func)(
     const int32_t *mat, const uint16_t *ref, int width, int height, int stride,
     uint16_t *pred, int p_col, int p_row, int p_width, int p_height,
     int p_stride, int subsampling_x, int subsampling_y, int bd,
-    ConvolveParams *conv_params, int use_warp_bd_box,
-    WarpBoundaryBox *warp_bd_box);
+    ConvolveParams *conv_params, int use_warp_bd_box, PadBlock *warp_bd_box);
 
 typedef ::testing::tuple<int, int, int, int, ext_highbd_warp_affine_func>
     ExtHighbdWarpTestParam;

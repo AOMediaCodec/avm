@@ -336,20 +336,19 @@ typedef struct {
   (REFINEMV_SUBBLOCK_HEIGHT + (AOM_INTERP_EXTEND - 1) + AOM_INTERP_EXTEND + \
    2 * (SUBBLK_REF_EXT_LINES + DMVR_SEARCH_EXT_LINES))
 
+typedef struct PadOffset {
+  int left;
+  int right;
+  int top;
+  int bottom;
+} PadOffset;
+
 typedef struct PadBlock {
   int x0;
   int x1;
   int y0;
   int y1;
 } PadBlock;
-
-// boundary box for 4x4 warp reference samples
-typedef struct WarpBoundaryBox {
-  uint16_t x0;
-  uint16_t x1;
-  uint16_t y0;
-  uint16_t y1;
-} WarpBoundaryBox;
 
 typedef struct PadArea {
   PadBlock pad_block;

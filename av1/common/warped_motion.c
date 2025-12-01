@@ -891,8 +891,7 @@ void av1_ext_highbd_warp_affine_c(const int32_t *mat, const uint16_t *ref,
                                   int p_width, int p_height, int p_stride,
                                   int subsampling_x, int subsampling_y, int bd,
                                   ConvolveParams *conv_params,
-                                  int use_warp_bd_box,
-                                  WarpBoundaryBox *warp_bd_box) {
+                                  int use_warp_bd_box, PadBlock *warp_bd_box) {
   int32_t im_block[(4 + EXT_WARP_TAPS - 1) * 4];
   const int reduce_bits_horiz = conv_params->round_0;
   const int reduce_bits_vert = conv_params->is_compound
@@ -1027,7 +1026,7 @@ void av1_ext_highbd_warp_affine_scaled_c(
     uint16_t *pred, int p_col, int p_row, int p_width, int p_height,
     int p_stride, int subsampling_x, int subsampling_y, int bd,
     ConvolveParams *conv_params, const struct scale_factors *sf,
-    int use_warp_bd_box, WarpBoundaryBox *warp_bd_box) {
+    int use_warp_bd_box, PadBlock *warp_bd_box) {
   //  int32_t im_block[(4 + EXT_WARP_TAPS - 1) * 4];
   int32_t im_block[(2 * 4 + EXT_WARP_TAPS) * 4];
   const int reduce_bits_horiz = conv_params->round_0;
@@ -1200,7 +1199,7 @@ void highbd_warp_plane(WarpedMotionParams *wm, const uint16_t *const ref,
                        int p_stride, int subsampling_x, int subsampling_y,
                        int bd, ConvolveParams *conv_params,
                        const struct scale_factors *sf, int use_warp_bd_box,
-                       WarpBoundaryBox *warp_bd_box) {
+                       PadBlock *warp_bd_box) {
   const int is_scaled = sf ? av1_is_scaled(sf) : 0;
   assert(wm->wmtype <= AFFINE);
   if (wm->wmtype == ROTZOOM) {
@@ -1246,7 +1245,7 @@ void av1_warp_plane(WarpedMotionParams *wm, int bd, const uint16_t *ref,
                     ConvolveParams *conv_params, const struct scale_factors *sf
 
                     ,
-                    int use_warp_bd_box, WarpBoundaryBox *warp_bd_box) {
+                    int use_warp_bd_box, PadBlock *warp_bd_box) {
   highbd_warp_plane(wm, ref, width, height, stride, pred, p_col, p_row, p_width,
                     p_height, p_stride, subsampling_x, subsampling_y, bd,
                     conv_params, sf, use_warp_bd_box, warp_bd_box);

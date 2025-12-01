@@ -1546,8 +1546,9 @@ void make_inter_pred_of_nxn(
         av1_get_reference_area_with_padding_single(
             cm, xd, plane, mi, mi_mv[ref], sub_bw, sub_bh,
             mi_x + (i << inter_pred_params->subsampling_x),
-            mi_y + (j << inter_pred_params->subsampling_y), &ref_area_opfl,
-            pu_width, pu_height, ref);
+            mi_y + (j << inter_pred_params->subsampling_y),
+            &ref_area_opfl.pad_block, pu_width, pu_height, ref, 0);
+        ref_area_opfl.paded_ref_buf_stride = REF_BUFFER_WIDTH;
         inter_pred_params->use_ref_padding = 1;
         inter_pred_params->ref_area = &ref_area_opfl;
       }
@@ -2631,7 +2632,7 @@ static void get_ref_area_info(const MV *const src_mv,
                               MACROBLOCKD *const xd, int mi_x, int mi_y,
                               int use_optflow_refinement, uint16_t **pre,
                               SubpelParams *subpel_params, int *src_stride,
-                              ReferenceArea *ref_area) {
+                              PadBlock *ref_area, const PadOffset *pad_offset) {
   PadBlock block;
   MV32 scaled_mv;
   int subpel_x_mv, subpel_y_mv;
@@ -2643,102 +2644,10 @@ static void get_ref_area_info(const MV *const src_mv,
   struct buf_2d *const pre_buf = &inter_pred_params->ref_frame_buf;
   int frame_height = pre_buf->height;
   int frame_width = pre_buf->width;
-#if CONFIG_FIX_BW_CHROMA_REFINED_MV
-  if (inter_pred_params->block_width == 4) {
-    block.x0 -= FOUR_TAPS_REF_LEFT_BORDER;
-    block.x1 += FOUR_TAPS_REF_RIGHT_BORDER;
-  } else {
-    block.x0 -= EIGHT_TAPS_REF_LEFT_BORDER;
-    block.x1 += EIGHT_TAPS_REF_RIGHT_BORDER;
-  }
-
-  if (inter_pred_params->block_height == 4) {
-    block.y0 -= FOUR_TAPS_REF_TOP_BORDER;
-    block.y1 += FOUR_TAPS_REF_BOTTOM_BORDER;
-  } else {
-    block.y0 -= EIGHT_TAPS_REF_TOP_BORDER;
-    block.y1 += EIGHT_TAPS_REF_BOTTOM_BORDER;
-  }
-#else
-  block.x0 -= REF_LEFT_BORDER;
-  block.x1 += REF_RIGHT_BORDER;
-  block.y0 -= REF_TOP_BORDER;
-  block.y1 += REF_BOTTOM_BORDER;
-#endif  // CONFIG_FIX_BW_CHROMA_REFINED_MV
-
-  ref_area->pad_block.x0 = CLIP(block.x0, 0, frame_width - 1);
-  ref_area->pad_block.y0 = CLIP(block.y0, 0, frame_height - 1);
-  ref_area->pad_block.x1 = CLIP(block.x1, 1, frame_width);
-  ref_area->pad_block.y1 = CLIP(block.y1, 1, frame_height);
-}
-
-void av1_get_reference_area_with_padding_single(
-    const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mi,
-    const MV mv, int bw, int bh, int mi_x, int mi_y, ReferenceArea *ref_area,
-    int pu_width, int pu_height, int ref) {
-  const int is_tip = mi->ref_frame[0] == TIP_FRAME;
-  struct macroblockd_plane *const pd = &xd->plane[plane];
-
-  int row_start = 0;
-  int col_start = 0;
-  const int mi_row = -xd->mb_to_top_edge >> MI_SUBPEL_SIZE_LOG2;
-  const int mi_col = -xd->mb_to_left_edge >> MI_SUBPEL_SIZE_LOG2;
-  row_start = plane ? (mi->chroma_ref_info.mi_row_chroma_base - mi_row) : 0;
-  col_start = plane ? (mi->chroma_ref_info.mi_col_chroma_base - mi_col) : 0;
-
-  const int pre_x = ((mi_x + MI_SIZE * col_start) >> pd->subsampling_x);
-  const int pre_y = ((mi_y + MI_SIZE * row_start) >> pd->subsampling_y);
-
-  const struct scale_factors *const sf = is_tip
-                                             ? cm->tip_ref.ref_scale_factor[ref]
-                                             : xd->block_ref_scale_factors[ref];
-  const struct buf_2d *const pre_buf = &pd->pre[ref];
-
-  // initialize the reference buffer
-  ref_area->pad_block.x0 = 0;
-  ref_area->pad_block.y0 = 0;
-  ref_area->pad_block.x1 = cm->width;
-  ref_area->pad_block.y1 = cm->height;
-  ref_area->paded_ref_buf_stride = REF_BUFFER_WIDTH;
-
-  InterPredParams inter_pred_params;
-  av1_init_inter_params(&inter_pred_params, bw, bh, pre_y, pre_x,
-                        pd->subsampling_x, pd->subsampling_y, xd->bd,
-                        mi->use_intrabc[0], sf, pre_buf, mi->interp_fltr);
-
-  inter_pred_params.original_pu_width = pu_width;
-  inter_pred_params.original_pu_height = pu_height;
-
-  SubpelParams subpel_params;
-  uint16_t *src;
-  int src_stride;
-
-  const MV *src_mv = &mv;
-  get_ref_area_info(src_mv, &inter_pred_params, xd, mi_x, mi_y, 0, &src,
-                    &subpel_params, &src_stride, ref_area);
-}
-
-static void get_ref_area_info_warp(const MV *const src_mv,
-                                   InterPredParams *const inter_pred_params,
-                                   MACROBLOCKD *const xd, int mi_x, int mi_y,
-                                   int use_optflow_refinement, uint16_t **pre,
-                                   SubpelParams *subpel_params, int *src_stride,
-                                   WarpBoundaryBox *ref_area) {
-  PadBlock block;
-  MV32 scaled_mv;
-  int subpel_x_mv, subpel_y_mv;
-
-  dec_calc_subpel_params(
-      src_mv, inter_pred_params, xd, mi_x, mi_y, pre, subpel_params, src_stride,
-      &block, use_optflow_refinement, &scaled_mv, &subpel_x_mv, &subpel_y_mv);
-
-  struct buf_2d *const pre_buf = &inter_pred_params->ref_frame_buf;
-  int frame_height = pre_buf->height;
-  int frame_width = pre_buf->width;
-  block.x0 -= REF_LEFT_BORDER_WARP;
-  block.x1 += REF_RIGHT_BORDER_WARP;
-  block.y0 -= REF_TOP_BORDER_WARP;
-  block.y1 += REF_BOTTOM_BORDER_WARP;
+  block.x0 -= pad_offset->left;
+  block.x1 += pad_offset->right;
+  block.y0 -= pad_offset->top;
+  block.y1 += pad_offset->bottom;
 
   ref_area->x0 = CLIP(block.x0, 0, frame_width - 1);
   ref_area->y0 = CLIP(block.y0, 0, frame_height - 1);
@@ -2746,12 +2655,16 @@ static void get_ref_area_info_warp(const MV *const src_mv,
   ref_area->y1 = CLIP(block.y1, 1, frame_height);
 }
 
-void av1_get_reference_area_with_padding_single_warp(
-    const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, MB_MODE_INFO *mi,
-    const MV mv, int bw, int bh, int mi_x, int mi_y, WarpBoundaryBox *ref_area,
-    int pu_width, int pu_height, int ref) {
+void av1_get_reference_area_with_padding_single(
+    const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mi,
+    const MV mv, int bw, int bh, int mi_x, int mi_y, PadBlock *ref_area,
+    int pu_width, int pu_height, int ref, int is_warp) {
   const int is_tip = mi->ref_frame[0] == TIP_FRAME;
   struct macroblockd_plane *const pd = &xd->plane[plane];
+
+#if !CONFIG_FIX_BW_CHROMA_REFINED_MV
+  if (is_tip && bw < 8 && bh < 8) return;
+#endif  // !CONFIG_FIX_BW_CHROMA_REFINED_MV
 
   int row_start = 0;
   int col_start = 0;
@@ -2774,6 +2687,37 @@ void av1_get_reference_area_with_padding_single_warp(
   ref_area->x1 = cm->width;
   ref_area->y1 = cm->height;
 
+  PadOffset pad_offset;
+  if (is_warp) {
+    pad_offset.left = REF_LEFT_BORDER_WARP;
+    pad_offset.right = REF_RIGHT_BORDER_WARP;
+    pad_offset.top = REF_TOP_BORDER_WARP;
+    pad_offset.bottom = REF_BOTTOM_BORDER_WARP;
+  } else {
+#if CONFIG_FIX_BW_CHROMA_REFINED_MV
+    if (bw == 4) {
+      pad_offset.left = FOUR_TAPS_REF_LEFT_BORDER;
+      pad_offset.right = FOUR_TAPS_REF_RIGHT_BORDER;
+    } else {
+      pad_offset.left = EIGHT_TAPS_REF_LEFT_BORDER;
+      pad_offset.right = EIGHT_TAPS_REF_RIGHT_BORDER;
+    }
+
+    if (bh == 4) {
+      pad_offset.top = FOUR_TAPS_REF_TOP_BORDER;
+      pad_offset.bottom = FOUR_TAPS_REF_BOTTOM_BORDER;
+    } else {
+      pad_offset.top = EIGHT_TAPS_REF_TOP_BORDER;
+      pad_offset.bottom = EIGHT_TAPS_REF_BOTTOM_BORDER;
+    }
+#else
+    pad_offset.left = REF_LEFT_BORDER;
+    pad_offset.right = REF_RIGHT_BORDER;
+    pad_offset.top = REF_TOP_BORDER;
+    pad_offset.bottom = REF_BOTTOM_BORDER;
+#endif  // CONFIG_FIX_BW_CHROMA_REFINED_MV
+  }
+
   InterPredParams inter_pred_params;
   av1_init_inter_params(&inter_pred_params, bw, bh, pre_y, pre_x,
                         pd->subsampling_x, pd->subsampling_y, xd->bd,
@@ -2787,8 +2731,8 @@ void av1_get_reference_area_with_padding_single_warp(
   int src_stride;
 
   const MV *src_mv = &mv;
-  get_ref_area_info_warp(src_mv, &inter_pred_params, xd, mi_x, mi_y, 0, &src,
-                         &subpel_params, &src_stride, ref_area);
+  get_ref_area_info(src_mv, &inter_pred_params, xd, mi_x, mi_y, 0, &src,
+                    &subpel_params, &src_stride, ref_area, &pad_offset);
 }
 
 void av1_get_reference_area_with_padding(const AV1_COMMON *cm, MACROBLOCKD *xd,
@@ -2797,55 +2741,11 @@ void av1_get_reference_area_with_padding(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                          int mi_x, int mi_y,
                                          ReferenceArea ref_area[2],
                                          int pu_width, int pu_height) {
-  const int is_tip = mi->ref_frame[0] == TIP_FRAME;
-  assert(IMPLIES(!is_tip, has_second_ref(mi)));
-  assert(!is_intrabc_block(mi, xd->tree_type));
-  struct macroblockd_plane *const pd = &xd->plane[plane];
-
-#if !CONFIG_FIX_BW_CHROMA_REFINED_MV
-  if (is_tip && bw < 8 && bh < 8) return;
-#endif  // !CONFIG_FIX_BW_CHROMA_REFINED_MV
-
-  int row_start = 0;
-  int col_start = 0;
-  const int mi_row = -xd->mb_to_top_edge >> MI_SUBPEL_SIZE_LOG2;
-  const int mi_col = -xd->mb_to_left_edge >> MI_SUBPEL_SIZE_LOG2;
-  row_start = plane ? (mi->chroma_ref_info.mi_row_chroma_base - mi_row) : 0;
-  col_start = plane ? (mi->chroma_ref_info.mi_col_chroma_base - mi_col) : 0;
-
-  const int pre_x = ((mi_x + MI_SIZE * col_start) >> pd->subsampling_x);
-  const int pre_y = ((mi_y + MI_SIZE * row_start) >> pd->subsampling_y);
-
   for (int ref = 0; ref < 2; ++ref) {
-    const struct scale_factors *const sf =
-        is_tip ? cm->tip_ref.ref_scale_factor[ref]
-               : xd->block_ref_scale_factors[ref];
-    const struct buf_2d *const pre_buf = &pd->pre[ref];
-
-    // initialize the reference buffer
-    ref_area[ref].pad_block.x0 = 0;
-    ref_area[ref].pad_block.y0 = 0;
-    ref_area[ref].pad_block.x1 = cm->width;
-    ref_area[ref].pad_block.y1 = cm->height;
+    av1_get_reference_area_with_padding_single(
+        cm, xd, plane, mi, mv[ref], bw, bh, mi_x, mi_y,
+        &ref_area[ref].pad_block, pu_width, pu_height, ref, 0);
     ref_area[ref].paded_ref_buf_stride = REF_BUFFER_WIDTH;
-
-    InterPredParams inter_pred_params;
-    av1_init_inter_params(&inter_pred_params, bw, bh, pre_y, pre_x,
-                          pd->subsampling_x, pd->subsampling_y, xd->bd,
-                          mi->use_intrabc[0], sf, pre_buf, mi->interp_fltr);
-
-    inter_pred_params.original_pu_width = pu_width;
-    inter_pred_params.original_pu_height = pu_height;
-
-    SubpelParams subpel_params;
-    uint16_t *src;
-    int src_stride;
-
-    assert(!inter_pred_params.use_ref_padding);
-
-    const MV *src_mv = ref == 0 ? &mv[0] : &mv[1];
-    get_ref_area_info(src_mv, &inter_pred_params, xd, mi_x, mi_y, 0, &src,
-                      &subpel_params, &src_stride, &ref_area[ref]);
   }
 }
 
@@ -3660,7 +3560,7 @@ static void build_inter_predictors_8x8_and_bigger(
           : use_border_aware_compound(cm, xd, mi) && mi->cwp_idx == CWP_EQUAL &&
                 cm->features.enable_imp_msk_bld;
 
-  WarpBoundaryBox warp_bd_box_mem[MAX_WARP_BD_SQ];
+  PadBlock warp_bd_box_mem[MAX_WARP_BD_SQ];
   assert(IMPLIES(singleref_for_compound, !is_compound));
   for (int ref = 0; ref < 1 + is_compound; ++ref) {
     const struct scale_factors *const sf =
@@ -3731,14 +3631,14 @@ static void build_inter_predictors_8x8_and_bigger(
                 sub_mi_x << pd->subsampling_x >> MI_SIZE_LOG2,
                 sub_mi_y << pd->subsampling_y >> MI_SIZE_LOG2);
 #endif
-            av1_get_reference_area_with_padding_single_warp(
+            av1_get_reference_area_with_padding_single(
                 cm, xd, plane, mi, warp_mv.as_mv, block_width, block_height,
                 (sub_mi_x << pd->subsampling_x),
                 (sub_mi_y << pd->subsampling_y),
                 &inter_pred_params
                      .warp_bd_box[(x_loc >> 3) +
                                   (y_loc >> 3) * warp_bd_box_mem_stride],
-                pu_width, pu_height, ref);
+                pu_width, pu_height, ref, 1);
           } else {
             continue;
           }
@@ -3811,7 +3711,8 @@ static void build_inter_predictors_8x8_and_bigger(
         if (use_ref_padding) {
           av1_get_reference_area_with_padding_single(
               cm, xd, plane, mi, mi_mv[ref], opfl_sub_bw, opfl_sub_bh, mi_x,
-              mi_y, &ref_area_opfl[ref], pu_width, pu_height, ref);
+              mi_y, &ref_area_opfl[ref].pad_block, pu_width, pu_height, ref, 0);
+          ref_area_opfl[ref].paded_ref_buf_stride = REF_BUFFER_WIDTH;
           inter_pred_params.use_ref_padding = 1;
           inter_pred_params.ref_area = &ref_area_opfl[ref];
         }

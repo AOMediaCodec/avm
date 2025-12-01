@@ -190,7 +190,7 @@ void highbd_warp_plane(WarpedMotionParams *wm, const uint16_t *const ref,
                        const struct scale_factors *sf
 
                        ,
-                       int use_warp_bd_box, WarpBoundaryBox *warp_bd_box);
+                       int use_warp_bd_box, PadBlock *warp_bd_box);
 
 void av1_warp_plane(WarpedMotionParams *wm, int bd, const uint16_t *ref,
                     int width, int height, int stride, uint16_t *pred,
@@ -199,7 +199,7 @@ void av1_warp_plane(WarpedMotionParams *wm, int bd, const uint16_t *ref,
                     ConvolveParams *conv_params, const struct scale_factors *sf
 
                     ,
-                    int use_warp_bd_box, WarpBoundaryBox *warp_bd_box);
+                    int use_warp_bd_box, PadBlock *warp_bd_box);
 
 int av1_find_projection(int np, const int *pts1, const int *pts2,
                         BLOCK_SIZE bsize, MV mv, WarpedMotionParams *wm_params,

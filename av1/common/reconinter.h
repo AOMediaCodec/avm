@@ -222,7 +222,7 @@ typedef struct InterPredParams {
   ReferenceArea *ref_area;
 
   int use_warp_bd_box;
-  WarpBoundaryBox *warp_bd_box;
+  PadBlock *warp_bd_box;
 
   INTERINTER_COMPOUND_BORDER_DATA border_data;
 } InterPredParams;
@@ -644,14 +644,10 @@ void fill_subblock_refine_mv(REFINEMV_SUBMB_INFO *refinemv_subinfo, int bw,
 
 void av1_get_reference_area_with_padding_single(
     const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, const MB_MODE_INFO *mi,
-    const MV mv, int bw, int bh, int mi_x, int mi_y, ReferenceArea *ref_area,
-    int pu_width, int pu_height, int ref);
-void av1_get_reference_area_with_padding_single_warp(
-    const AV1_COMMON *cm, MACROBLOCKD *xd, int plane, MB_MODE_INFO *mi,
-    const MV mv, int bw, int bh, int mi_x, int mi_y, WarpBoundaryBox *ref_area,
-    int pu_width, int pu_height, int ref);
+    const MV mv, int bw, int bh, int mi_x, int mi_y, PadBlock *ref_area,
+    int pu_width, int pu_height, int ref, int is_warp);
 
-// Generate the reference area ( bounding box) based on the signaled MV
+// Generate the reference area (bounding box) based on the signaled MV
 void av1_get_reference_area_with_padding(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                          int plane, MB_MODE_INFO *mi,
                                          const MV mv[2], int bw, int bh,
