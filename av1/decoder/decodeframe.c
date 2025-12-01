@@ -8875,8 +8875,7 @@ static void activate_sequence_header(AV1Decoder *pbi,
                    qmset_inobu->quantizer_matrix[2][c],
                    4 * 8 * sizeof(qm_val_t));
           }  // c
-          av1_free_qmset(qmset_inobu->quantizer_matrix,
-                         qmset_inobu->quantizer_matrix_num_planes);
+          av1_free_qmset(qmset_inobu->quantizer_matrix);
           qmset_inobu->quantizer_matrix = NULL;
           qmset_inobu->quantizer_matrix_allocated = false;
         }  // if (qm_bit_map & (1 << j))

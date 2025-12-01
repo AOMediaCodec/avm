@@ -309,7 +309,7 @@ bool add_userqm_in_qmobulist(AV1_COMP *cpi) {
       struct quantization_matrix_set *qm_inobu =
           &cpi->qmobu_list[qmobu_pos].qm_list[qm_id];
       if (qm_inobu->quantizer_matrix == NULL) {
-        qm_inobu->quantizer_matrix = av1_alloc_qmset(num_planes);
+        qm_inobu->quantizer_matrix = av1_alloc_qmset();
       }
       for (int tx_size = 0; tx_size < 3; tx_size++) {
         int num_coeff = (tx_size == 0 ? 64 : 32);
@@ -470,7 +470,7 @@ bool check_add_cmqm_in_qmobulist(AV1_COMP *cpi, bool write_in_prevobu) {
           qm_bit_map |= 1 << qm_id;
           struct quantization_matrix_set *qm_inobu = &qmobu->qm_list[qm_id];
           if (qm_inobu->quantizer_matrix == NULL) {
-            qm_inobu->quantizer_matrix = av1_alloc_qmset(num_planes);
+            qm_inobu->quantizer_matrix = av1_alloc_qmset();
           }
           for (int plane = 0; plane < num_planes; plane++) {
             qm_val_t *cm_qm_values8x8 =
@@ -498,7 +498,7 @@ bool check_add_cmqm_in_qmobulist(AV1_COMP *cpi, bool write_in_prevobu) {
             qm_bit_map |= 1 << qm_id;
             struct quantization_matrix_set *qm_inobu = &qmobu->qm_list[qm_id];
             if (qm_inobu->quantizer_matrix == NULL) {
-              qm_inobu->quantizer_matrix = av1_alloc_qmset(num_planes);
+              qm_inobu->quantizer_matrix = av1_alloc_qmset();
             }
             for (int plane = 0; plane < num_planes; plane++) {
               qm_val_t *cm_qm_values8x8 =
@@ -525,7 +525,7 @@ bool check_add_cmqm_in_qmobulist(AV1_COMP *cpi, bool write_in_prevobu) {
             qm_bit_map |= 1 << qm_id;
             struct quantization_matrix_set *qm_inobu = &qmobu->qm_list[qm_id];
             if (qm_inobu->quantizer_matrix == NULL) {
-              qm_inobu->quantizer_matrix = av1_alloc_qmset(num_planes);
+              qm_inobu->quantizer_matrix = av1_alloc_qmset();
             }
             for (int plane = 0; plane < num_planes; plane++) {
               qm_val_t *cm_qm_values8x8 =

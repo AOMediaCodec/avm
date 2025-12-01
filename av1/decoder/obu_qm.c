@@ -29,7 +29,8 @@
 #include "av1/common/quant_common.h"
 
 #if CONFIG_F255_QMOBU
-void alloc_qmatrix(struct quantization_matrix_set *qm_set, int num_planes) {
+void alloc_qmatrix(struct quantization_matrix_set *qm_set) {
+  int num_planes = 3;
   const TX_SIZE fund_tsize[3] = { TX_8X8, TX_8X4, TX_4X8 };
   if (qm_set->quantizer_matrix != NULL) {
     return;
@@ -62,7 +63,7 @@ static void read_qm_data(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
           ? &pbi->qmobu_list[pbi->total_qmobu_count].qm_list[qm_pos]
           : &pbi->qm_list[qm_pos];
 
-  if (!qmset->quantizer_matrix_allocated) alloc_qmatrix(qmset, num_planes);
+  if (!qmset->quantizer_matrix_allocated) alloc_qmatrix(qmset);
   qmset->qm_id = qm_id;
   qmset->qm_tlayer_id = obu_tlayer_id;
   qmset->qm_mlayer_id = obu_mlayer_id;
@@ -173,7 +174,7 @@ void av1_copy_predefined_qmatrices_to_list(
             : &pbi->qm_list[qm_pos];
 
     if (!qmset->quantizer_matrix_allocated) {
-      alloc_qmatrix(qmset, num_planes);
+      alloc_qmatrix(qmset);
     }
     int qm_default_index = qm_pos;
     qmset->qm_id = qm_pos;

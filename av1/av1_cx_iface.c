@@ -2158,7 +2158,7 @@ static aom_codec_err_t ctrl_set_user_defined_qmatrix(aom_codec_alg_priv_t *ctx,
   }
   cpi->use_user_defined_qm[level] = true;
   if (cpi->user_defined_qm_list[level] == NULL)
-    cpi->user_defined_qm_list[level] = av1_alloc_qmset(num_planes);
+    cpi->user_defined_qm_list[level] = av1_alloc_qmset();
 #else
   SequenceHeader *seq_params = &cpi->common.seq_params;
   if (num_planes != av1_num_planes(&cpi->common)) {

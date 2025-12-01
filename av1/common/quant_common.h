@@ -114,8 +114,8 @@ static INLINE int aom_get_qmlevel(int qindex, int first, int last,
 }
 
 #if CONFIG_F255_QMOBU
-void av1_free_qmset(qm_val_t ***mat, int num_planes);
-qm_val_t ***av1_alloc_qmset(int num_planes);
+void av1_free_qmset(qm_val_t ***mat);
+qm_val_t ***av1_alloc_qmset();
 // Initialize all global quant/dequant matrices. Used by the encoder.
 void av1_qm_frame_update(struct CommonQuantParams *quant_params, int num_planes,
                          int qm_id, qm_val_t ***matrix_set);
