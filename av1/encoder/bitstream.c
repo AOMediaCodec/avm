@@ -2673,12 +2673,8 @@ static AOM_INLINE void write_modes_b(AV1_COMP *cpi, const TileInfo *const tile,
 
   const int bh = mi_size_high[bsize];
   const int bw = mi_size_wide[bsize];
-  set_mi_row_col(
-#if CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
-      cm,
-#endif  // CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
-      xd, tile, mi_row, bh, mi_col, bw, mi_params->mi_rows, mi_params->mi_cols,
-      &mbmi->chroma_ref_info);
+  set_mi_row_col(cm, xd, tile, mi_row, bh, mi_col, bw, mi_params->mi_rows,
+                 mi_params->mi_cols, &mbmi->chroma_ref_info);
 
   // For skip blocks, reset the corresponding area in cctx_type_map to
   // CCTX_NONE, which will be used as contexts for later blocks. No need to use

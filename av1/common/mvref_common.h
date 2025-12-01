@@ -525,11 +525,7 @@ static INLINE void av1_collect_neighbors_ref_counts(MACROBLOCKD *const xd) {
 
   uint8_t *const ref_counts = xd->neighbors_ref_counts;
   for (int i = 0; i < MAX_NUM_NEIGHBORS; ++i) {
-#if CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
     const MB_MODE_INFO *const neighbor = xd->neighbors_line_buffer[i];
-#else
-    const MB_MODE_INFO *const neighbor = xd->neighbors[i];
-#endif  // CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
     if (neighbor != NULL && !is_tip_ref_frame(neighbor->ref_frame[0]) &&
         is_inter_ref_frame(neighbor->ref_frame[0])) {
       ref_counts[neighbor->ref_frame[0]]++;
@@ -568,11 +564,7 @@ static INLINE int get_amvd_context(const MACROBLOCKD *const xd) {
   const MB_MODE_INFO *const mbmi = xd->mi[0];
 
   for (int i = 0; i < MAX_NUM_NEIGHBORS; ++i) {
-#if CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
     const MB_MODE_INFO *const neighbor = xd->neighbors_line_buffer[i];
-#else
-    const MB_MODE_INFO *const neighbor = xd->neighbors[i];
-#endif  // CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
     if (neighbor != NULL) {
       if (allow_amvd_mode(neighbor->mode)) {
         if (neighbor->ref_frame[0] == mbmi->ref_frame[0])

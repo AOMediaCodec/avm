@@ -1997,13 +1997,11 @@ typedef struct macroblockd {
    * if no available mbmi, set to be NULL.
    */
   MB_MODE_INFO *neighbors[MAX_NUM_NEIGHBORS];
-#if CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
   /*!
    * Neighboring blocks' mbmi could be from line buffer
    * if no available mbmi, set to be NULL.
    */
   MB_MODE_INFO *neighbors_line_buffer[MAX_NUM_NEIGHBORS];
-#endif  // CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
   /*!
    * Above chroma reference block if is_chroma_ref == true for the current block
    * and chroma_up_available == true; otherwise NULL.

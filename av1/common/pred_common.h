@@ -210,11 +210,7 @@ static INLINE int get_dir_rank(const AV1_COMMON *const cm, int refrank,
 static INLINE int get_tip_ctx(const MACROBLOCKD *xd) {
   int ctx = 0;
   for (int i = 0; i < MAX_NUM_NEIGHBORS; ++i) {
-#if CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
     const MB_MODE_INFO *const neighbor = xd->neighbors_line_buffer[i];
-#else
-    const MB_MODE_INFO *const neighbor = xd->neighbors[i];
-#endif  // CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
     if (neighbor != NULL) {
       ctx += is_tip_ref_frame(neighbor->ref_frame[0]);
     }
@@ -268,11 +264,7 @@ static INLINE void set_skip_mode_ref_frame(const AV1_COMMON *const cm,
   ref_frame[0] = skip_mode_info->ref_frame_idx_0;
   ref_frame[1] = skip_mode_info->ref_frame_idx_1;
   for (int i = 0; i < MAX_NUM_NEIGHBORS; ++i) {
-#if CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
     const MB_MODE_INFO *const neighbor = xd->neighbors_line_buffer[i];
-#else
-    const MB_MODE_INFO *const neighbor = xd->neighbors[i];
-#endif  // CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
     if (neighbor != NULL && is_inter_ref_frame(neighbor->ref_frame[0])) {
       if (is_tip_ref_frame(neighbor->ref_frame[0])) {
         ref_frame[0] =
@@ -395,15 +387,10 @@ static INLINE int get_comp_group_idx_context(const AV1_COMMON *cm,
                                   cur_frame_index, bck_frame_index));
   const int offset = (fwd == bck);
 
-#if CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
   const int ctx0 =
       derive_comp_one_ref_context(cm, xd->neighbors_line_buffer[0]);
   const int ctx1 =
       derive_comp_one_ref_context(cm, xd->neighbors_line_buffer[1]);
-#else
-  const int ctx0 = derive_comp_one_ref_context(cm, xd->neighbors[0]);
-  const int ctx1 = derive_comp_one_ref_context(cm, xd->neighbors[1]);
-#endif  // CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
 
   const int ctxmap[3 * 3] = { 0, 1, 2, 1, 3, 4, 2, 4, 5 };
 
@@ -418,11 +405,7 @@ static INLINE aom_cdf_prob *av1_get_pred_cdf_seg_id(
 static INLINE int av1_get_skip_mode_context(const MACROBLOCKD *xd) {
   int ctx = 0;
   for (int i = 0; i < MAX_NUM_NEIGHBORS; ++i) {
-#if CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
     const MB_MODE_INFO *const neighbor = xd->neighbors_line_buffer[i];
-#else
-    const MB_MODE_INFO *const neighbor = xd->neighbors[i];
-#endif  // CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
     if (neighbor != NULL) {
       ctx += neighbor->skip_mode;
     }
@@ -434,11 +417,7 @@ static INLINE int av1_get_skip_mode_context(const MACROBLOCKD *xd) {
 static INLINE int av1_get_skip_txfm_context(const MACROBLOCKD *xd) {
   int ctx = 0;
   for (int i = 0; i < MAX_NUM_NEIGHBORS; ++i) {
-#if CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
     const MB_MODE_INFO *const neighbor = xd->neighbors_line_buffer[i];
-#else
-    const MB_MODE_INFO *const neighbor = xd->neighbors[i];
-#endif  // CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
     if (neighbor != NULL) {
       ctx += neighbor->skip_txfm[xd->tree_type == CHROMA_PART];
     }

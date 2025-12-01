@@ -3630,28 +3630,19 @@ static INLINE void set_plane_n4(MACROBLOCKD *const xd, int bw, int bh,
   }
 }
 
-#if CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
 // Check whether the coding block is at the superblock top boundary
 static AOM_INLINE bool is_at_sb_top_boundary(int mi_row, int mib_size) {
   return (mi_row % mib_size == 0);
 }
-#endif  // CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
 
-static INLINE void fetch_spatial_neighbors(MACROBLOCKD *xd
-#if CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
-                                           ,
-                                           const int mib_size
-#endif  // CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
-) {
+static INLINE void fetch_spatial_neighbors(MACROBLOCKD *xd,
+                                           const int mib_size) {
   // Scan from bottom left->above right->left->above
   for (int i = 0; i < MAX_NUM_NEIGHBORS; ++i) {
     xd->neighbors[i] = NULL;
   }
-
-#if CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
   const int not_at_sb_top_boundary =
       !is_at_sb_top_boundary(xd->mi_row, mib_size);
-#endif  // CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
 
   int index = 0;
   if (xd->bottom_left_mbmi) {
@@ -3659,11 +3650,7 @@ static INLINE void fetch_spatial_neighbors(MACROBLOCKD *xd
     if (index >= MAX_NUM_NEIGHBORS) return;
   }
 
-  if (xd->above_right_mbmi
-#if CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
-      && not_at_sb_top_boundary
-#endif  // CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
-  ) {
+  if (xd->above_right_mbmi && not_at_sb_top_boundary) {
     xd->neighbors[index++] = xd->above_right_mbmi;
     if (index >= MAX_NUM_NEIGHBORS) return;
   }
@@ -3673,17 +3660,11 @@ static INLINE void fetch_spatial_neighbors(MACROBLOCKD *xd
     if (index >= MAX_NUM_NEIGHBORS) return;
   }
 
-  if (xd->above_mbmi
-#if CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
-      && not_at_sb_top_boundary
-#endif  // CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
-  ) {
+  if (xd->above_mbmi && not_at_sb_top_boundary) {
     xd->neighbors[index++] = xd->above_mbmi;
     if (index >= MAX_NUM_NEIGHBORS) return;
   }
 }
-
-#if CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
 static INLINE void fetch_spatial_neighbors_with_line_buffer(MACROBLOCKD *xd) {
   // Scan from bottom left->above right->left->above
   for (int i = 0; i < MAX_NUM_NEIGHBORS; ++i) {
@@ -3711,14 +3692,12 @@ static INLINE void fetch_spatial_neighbors_with_line_buffer(MACROBLOCKD *xd) {
     if (index >= MAX_NUM_NEIGHBORS) return;
   }
 }
-#endif  // CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
 
-static INLINE void set_mi_row_col(
-#if CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
-    const AV1_COMMON *const cm,
-#endif  // CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
-    MACROBLOCKD *xd, const TileInfo *const tile, int mi_row, int bh, int mi_col,
-    int bw, int mi_rows, int mi_cols, const CHROMA_REF_INFO *chroma_ref_info) {
+static INLINE void set_mi_row_col(const AV1_COMMON *const cm, MACROBLOCKD *xd,
+                                  const TileInfo *const tile, int mi_row,
+                                  int bh, int mi_col, int bw, int mi_rows,
+                                  int mi_cols,
+                                  const CHROMA_REF_INFO *chroma_ref_info) {
   xd->mb_to_top_edge = -GET_MV_SUBPEL(mi_row * MI_SIZE);
   xd->mb_to_bottom_edge = GET_MV_SUBPEL((mi_rows - bh - mi_row) * MI_SIZE);
   xd->mb_to_left_edge = -GET_MV_SUBPEL((mi_col * MI_SIZE));
@@ -3763,15 +3742,8 @@ static INLINE void set_mi_row_col(
     xd->bottom_left_mbmi = NULL;
   }
 
-  fetch_spatial_neighbors(xd
-#if CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
-                          ,
-                          cm->mib_size
-#endif  // CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
-  );
-#if CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
+  fetch_spatial_neighbors(xd, cm->mib_size);
   fetch_spatial_neighbors_with_line_buffer(xd);
-#endif  // CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
 
   if (chroma_ref_info) {
     xd->is_chroma_ref = chroma_ref_info->is_chroma_ref;

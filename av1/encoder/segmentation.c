@@ -50,12 +50,8 @@ static void count_segs(const AV1_COMMON *cm, MACROBLOCKD *xd,
 
   xd->mi = mi;
   assert(xd->mi && xd->mi[0]);
-  set_mi_row_col(
-#if CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
-      cm,
-#endif  // CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
-      xd, tile, mi_row, bh, mi_col, bw, mi_params->mi_rows, mi_params->mi_cols,
-      &xd->mi[0]->chroma_ref_info);
+  set_mi_row_col(cm, xd, tile, mi_row, bh, mi_col, bw, mi_params->mi_rows,
+                 mi_params->mi_cols, &xd->mi[0]->chroma_ref_info);
 
   // Count the number of hits on each segment with no prediction
   const int segment_id = xd->mi[0]->segment_id;

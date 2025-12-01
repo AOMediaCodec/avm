@@ -346,12 +346,8 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
   const int mi_height = mi_size_high[bsize];
   set_mode_info_offsets(&cpi->common.mi_params, &cpi->mbmi_ext_info, x, xd,
                         mi_row, mi_col, mi_width, mi_height);
-  set_mi_row_col(
-#if CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
-      cm,
-#endif  // CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
-      xd, &xd->tile, mi_row, mi_height, mi_col, mi_width, cm->mi_params.mi_rows,
-      cm->mi_params.mi_cols, NULL);
+  set_mi_row_col(cm, xd, &xd->tile, mi_row, mi_height, mi_col, mi_width,
+                 cm->mi_params.mi_rows, cm->mi_params.mi_cols, NULL);
   set_plane_n4(xd, mi_size_wide[bsize], mi_size_high[bsize], av1_num_planes(cm),
                NULL);
   xd->mi[0]->sb_type[xd->tree_type == CHROMA_PART] = bsize;

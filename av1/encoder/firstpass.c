@@ -355,12 +355,9 @@ static int firstpass_intra_prediction(
   xd->left_available = (mb_col != 0);
   xd->mi[0]->sb_type[xd->tree_type == CHROMA_PART] = bsize;
   xd->mi[0]->ref_frame[0] = INTRA_FRAME;
-  set_mi_row_col(
-#if CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
-      cm,
-#endif  // CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION
-      xd, tile, mb_row * mb_scale, mi_size_high[bsize], mb_col * mb_scale,
-      mi_size_wide[bsize], mi_params->mi_rows, mi_params->mi_cols, NULL);
+  set_mi_row_col(cm, xd, tile, mb_row * mb_scale, mi_size_high[bsize],
+                 mb_col * mb_scale, mi_size_wide[bsize], mi_params->mi_rows,
+                 mi_params->mi_cols, NULL);
   set_plane_n4(xd, mi_size_wide[bsize], mi_size_high[bsize], num_planes, NULL);
   xd->mi[0]->segment_id = 0;
   xd->lossless[xd->mi[0]->segment_id] = (qindex == 0);

@@ -242,9 +242,6 @@ set_aom_config_var(
 
 set_aom_config_var(CONFIG_CWG_F248_RENDER_SIZE 1 "Remove render size.")
 
-set_aom_config_var(CONFIG_CTX_MODELS_LINE_BUFFER_REDUCTION 1
-                   "Enable to reduce context model line buffer size")
-
 set_aom_config_var(CONFIG_FRAME_HALF_PRECISION 1
                    "Enable frame level half precision")
 
