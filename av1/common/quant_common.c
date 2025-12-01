@@ -620,8 +620,6 @@ void av1_qm_init(CommonQuantParams *quant_params, int num_planes
 ) {
   for (int q = 0; q < NUM_QM_LEVELS; ++q) {
 #if CONFIG_QM_REVERT
-    // Default initialization for user-defined matrix to false.
-    quant_params->user_defined_level[q] = false;
 #endif  // CONFIG_QM_REVERT
     for (int c = 0; c < num_planes; ++c) {
       // Generate matrices for each tx size

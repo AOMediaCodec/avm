@@ -3950,6 +3950,17 @@ void setup_quant_matrices(AV1Decoder *pbi, CommonQuantParams *quant_params,
       assert(t > qm_tx_size);
       quant_params->giqmatrix[qmlevel][plane][t] =
           quant_params->giqmatrix[qmlevel][plane][qm_tx_size];
+#if CONFIG_QM_REVERT
+    } else {
+      // Fill with reference matrices.
+      assert(current + size <= QM_TOTAL_SIZE);
+      quant_params->gqmatrix[qmlevel][plane][t] =
+          &predefined_wt_matrix_ref[qmlevel][plane >= 1][current];
+      quant_params->giqmatrix[qmlevel][plane][t] =
+          &predefined_iwt_matrix_ref[qmlevel][plane >= 1][current];
+      current += size;
+    }
+#else
     } else {
       assert(current + size <= QM_TOTAL_SIZE);
       // Generate the iwt matrices from the base matrices.
@@ -3959,6 +3970,7 @@ void setup_quant_matrices(AV1Decoder *pbi, CommonQuantParams *quant_params,
           &quant_params->iwt_matrix_ref[qmlevel][plane][current];
       current += size;
     }
+#endif  // CONFIG_QM_REVERT
   }
 }
 #endif  // CONFIG_F255_QMOBU
