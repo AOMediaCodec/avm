@@ -71,10 +71,10 @@ static void read_qm_data(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
   if (qm_is_default_flag) {
     const int qm_default_index = aom_rb_read_literal(rb, 4);
     qmset->qm_default_index = qm_default_index;
-    if (qm_default_index == NUM_CUSTOM_QMS) {
+    if (qm_default_index >= NUM_CUSTOM_QMS) {
       aom_internal_error(&pbi->common.error, AOM_CODEC_ERROR,
-                         "qm_default_index %d is out of boundary",
-                         qm_default_index);
+                         "qm_default_index(%d) shall be less than %d",
+                         qm_default_index, NUM_CUSTOM_QMS);
     }
     for (int c = 0; c < num_planes; ++c) {
       // plane_type: 0:luma, 1:chroma
