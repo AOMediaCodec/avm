@@ -9855,13 +9855,6 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
     cm->derive_sef_order_hint = 1;
 #endif  // CONFIG_F356_SEF_DOH
   }
-#if CONFIG_F356_SEF_DOH
-  else if (cm->show_existing_frame) {
-    obu_type =
-        (cm->is_leading_picture == 1 ? OBU_LEADING_SEF : OBU_REGULAR_SEF);
-    cm->derive_sef_order_hint = 0;
-  }
-#endif  // CONFIG_F356_SEF_DOH
 
 #else   // CONFIG_F024_KEYOBU
   if (encode_show_existing_frame(cm)) obu_type = OBU_SEF;
@@ -9879,6 +9872,14 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 #if CONFIG_CWG_F317
   if (cm->bridge_frame_info.is_bridge_frame) obu_type = OBU_BRIDGE_FRAME;
 #endif  // CONFIG_CWG_F317
+
+#if CONFIG_F356_SEF_DOH
+  if (!cpi->oxcf.ref_frm_cfg.enable_generation_sef_obu && cm->show_existing_frame) {
+    obu_type =
+        (cm->is_leading_picture == 1 ? OBU_LEADING_SEF : OBU_REGULAR_SEF);
+    cm->derive_sef_order_hint = 0;
+  }
+#endif  // CONFIG_F356_SEF_DOH
   const int num_tiles = cm->tiles.cols * cm->tiles.rows;
   const int max_tg_num = AOMMIN(cpi->num_tg, num_tiles);
   const int num_tiles_per_tg = num_tiles / max_tg_num;
