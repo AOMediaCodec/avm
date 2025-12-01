@@ -158,6 +158,7 @@ int write_qm_data(AV1_COMP *cpi, struct quantization_matrix_set *qm_list,
   const bool qm_is_default_flag = qm_list[qm_pos].qm_default_index != -1;
   aom_wb_write_bit(wb, qm_is_default_flag);
   if (qm_is_default_flag) {
+    assert(qm_list[qm_pos].qm_default_index < NUM_CUSTOM_QMS);
     aom_wb_write_literal(wb, qm_list[qm_pos].qm_default_index, 4);
     return wb->bit_offset - size;
   }
