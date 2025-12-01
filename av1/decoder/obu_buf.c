@@ -71,6 +71,10 @@ uint32_t av1_read_buffer_removal_timing_obu(struct AV1Decoder *pbi,
       brt_info->br_buffer_removal_time[xlayer_id][ops_id][i] =
           aom_rb_read_uvlc(rb);
   }
+  if (av1_check_trailing_bits(pbi, rb) != 0) {
+    // cm->error.error_code is already set.
+    return 0;
+  }
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }
 #endif  // CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
