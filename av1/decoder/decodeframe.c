@@ -11363,10 +11363,10 @@ int32_t av1_read_tilegroup_header(
     const uint32_t uncomp_hdr_size =
         (uint32_t)aom_rb_bytes_read(rb);  // Size of the uncompressed header
 #if CONFIG_F356_SEF_DOH
-  const YV12_BUFFER_CONFIG *new_fb =
-      (cm->show_existing_frame && !cm->derive_sef_order_hint)
-          ? &cm->ref_frame_map[cm->sef_ref_fb_idx]->buf
-          : &cm->cur_frame->buf;
+    const YV12_BUFFER_CONFIG *new_fb =
+        (cm->show_existing_frame && !cm->derive_sef_order_hint)
+            ? &cm->ref_frame_map[cm->sef_ref_fb_idx]->buf
+            : &cm->cur_frame->buf;
 #else
     YV12_BUFFER_CONFIG *new_fb = &cm->cur_frame->buf;
 #endif  // CONFIG_F356_SEF_DOH
