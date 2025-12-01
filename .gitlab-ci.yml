@@ -150,7 +150,8 @@ Test Data Check:
     - git fetch --unshallow
     - |
       ADDED_TEST_FILES="$(git diff $DIFF_REF "test/" \
-        | perl -ne  '/^\++.*?"(.*?\.(ivf|webm|res|mkv|y4m|yuv))"/g and print "$1\n"')"
+        | perl -ne  '/^\++.*?"(.*?\.(ivf|webm|res|mkv|y4m|yuv))"/g and print "$1\n"')" \
+        | grep -v AVM_TEST_OUTPUT_DIR
 
       printf "Checking for files:\n%s\n\n" "$ADDED_TEST_FILES"
       echo "$ADDED_TEST_FILES" | while read -r f; do
