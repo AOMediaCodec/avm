@@ -4542,15 +4542,15 @@ static AOM_INLINE void encode_segmentation(AV1_COMMON *cm,
     } else {
       reuse = 1;
     }
+  }
 
-    if (!reuse) {
-      write_seg_syntax_info_from_segmentation(seg, wb);
-    }
+  if (!reuse) {
+    write_seg_syntax_info_from_segmentation(seg, wb);
+  }
 
-    aom_wb_write_bit(wb, seg->update_map);
-    if (seg->update_map) {
-      aom_wb_write_bit(wb, seg->temporal_update);
-    }
+  aom_wb_write_bit(wb, seg->update_map);
+  if (seg->update_map) {
+    aom_wb_write_bit(wb, seg->temporal_update);
   }
 #else
   // Write update flags
