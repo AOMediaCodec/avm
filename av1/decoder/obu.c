@@ -1691,7 +1691,6 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
 
 #if CONFIG_F255_QMOBU
   uint32_t acc_qm_id_bitmap = 0;
-  bool seq_header_in_tu = false;
 #endif
 #if CONFIG_F153_FGM_OBU
   // acc_fgm_id_bitmap accumulates fgm_id_bitmap in FGM OBU to check if film
@@ -1873,9 +1872,6 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
           cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
           return -1;
         }
-#if CONFIG_F255_QMOBU
-        seq_header_in_tu = true;
-#endif
         break;
 #if CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
       case OBU_BUFFER_REMOVAL_TIMING:
@@ -1950,6 +1946,9 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
         // qm_bit_map equal to 0, such QM OBUs will not set the same QM ID more
         // than once.
         acc_qm_id_bitmap = 0;
+        for (int i = 0; i < NUM_CUSTOM_QMS; i++)
+          pbi->qm_protected[i] &=
+              (obu_header.type == OBU_CLK || obu_header.type == OBU_OLK);
 #endif
 #if CONFIG_F153_FGM_OBU
         // It is a requirement that if multiple FGM OBUs are present
@@ -2002,7 +2001,7 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
       case OBU_QM:
         decoded_payload_size =
             read_qm_obu(pbi, obu_header.obu_tlayer_id, obu_header.obu_mlayer_id,
-                        seq_header_in_tu, &acc_qm_id_bitmap, &rb);
+                        &acc_qm_id_bitmap, &rb);
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
         break;
 #endif  // CONFIG_F255_QMOBU

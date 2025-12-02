@@ -40,7 +40,6 @@ aom_codec_err_t aom_get_num_layers_from_operating_point_idc(
     unsigned int *number_temporal_layers);
 #if CONFIG_F255_QMOBU
 uint32_t read_qm_obu(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
-                     bool store_at_intermediate_location,
                      uint32_t *acc_qm_id_bitmap,
                      struct aom_read_bit_buffer *rb);
 #endif  // CONFIG_F255_QMOBU

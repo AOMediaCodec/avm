@@ -8955,49 +8955,6 @@ static void activate_sequence_header(AV1Decoder *pbi,
   }
 #endif  // CONFIG_CWG_F270_CI_OBU
 
-#if CONFIG_F255_QMOBU
-  av1_copy_predefined_qmatrices_to_list(pbi, cm->seq_params.monochrome ? 1 : 3,
-                                        false);
-  if (pbi->total_qmobu_count != 0) {
-    for (int i = 0; i < pbi->total_qmobu_count; i++) {
-      for (int qm_pos = 0; qm_pos < NUM_CUSTOM_QMS; qm_pos++) {
-        if (pbi->qmobu_list[i].qm_bit_map == 0 ||
-            (pbi->qmobu_list[i].qm_bit_map & (1 << qm_pos))) {
-          struct quantization_matrix_set *qmset_inobu =
-              &pbi->qmobu_list[i].qm_list[qm_pos];
-          struct quantization_matrix_set *qmset = &pbi->qm_list[qm_pos];
-          qmset->qm_id = qmset_inobu->qm_id;
-          qmset->qm_default_index = qmset_inobu->qm_default_index;
-          qmset->qm_mlayer_id = qmset_inobu->qm_mlayer_id;
-          qmset->qm_tlayer_id = qmset_inobu->qm_tlayer_id;
-          if (qmset->quantizer_matrix_num_planes !=
-              qmset_inobu->quantizer_matrix_num_planes) {
-            aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-                               "num_planes of qmsets should be the same");
-          }
-
-          for (int c = 0; c < qmset_inobu->quantizer_matrix_num_planes; ++c) {
-            memcpy(qmset->quantizer_matrix[0][c],
-                   qmset_inobu->quantizer_matrix[0][c],
-                   8 * 8 * sizeof(qm_val_t));
-            memcpy(qmset->quantizer_matrix[1][c],
-                   qmset_inobu->quantizer_matrix[1][c],
-                   8 * 4 * sizeof(qm_val_t));
-            memcpy(qmset->quantizer_matrix[2][c],
-                   qmset_inobu->quantizer_matrix[2][c],
-                   4 * 8 * sizeof(qm_val_t));
-          }  // c
-          av1_free_qmset(qmset_inobu->quantizer_matrix);
-          qmset_inobu->quantizer_matrix = NULL;
-          qmset_inobu->quantizer_matrix_allocated = false;
-        }  // if (qm_bit_map & (1 << j))
-      }  // qm_pos
-    }  // i
-
-    pbi->total_qmobu_count = 0;
-  }  // !(pbi->total_qmobu_count != 0)
-#endif  // CONFIG_F255_QMOBU
-
 #if CONFIG_F024_KEYOBU
   if (obu_type == OBU_CLK || obu_type == OBU_OLK)
 #endif
@@ -9015,6 +8972,40 @@ static void activate_sequence_header(AV1Decoder *pbi,
     reset_ref_frame_map(cm);
   }
 #endif  // CONFIG_F024_KEYOBU
+
+#if CONFIG_F255_QMOBU
+  for (int qm_pos = 0; qm_pos < NUM_CUSTOM_QMS; qm_pos++) {
+    // qm_protected[qm_pos] == 1 indicates the pbi->qm_list[qm_pos] is signalled
+    // with CLK/OLK. those quantizer matrices are not reset to the predefined.
+    if (pbi->qm_protected[qm_pos]) continue;
+    // copy from predefined
+    struct quantization_matrix_set *qmset = &pbi->qm_list[qm_pos];
+    if (!qmset->quantizer_matrix_allocated) {
+      alloc_qmatrix(qmset);
+    }
+    int qm_default_index = qm_pos;
+    qmset->qm_id = qm_pos;
+    qmset->qm_default_index = qm_pos;
+    qmset->qm_mlayer_id = -1;
+    qmset->qm_tlayer_id = -1;
+    qmset->quantizer_matrix_num_planes = cm->seq_params.monochrome ? 1 : 3;
+    // copy predefined[qm_default_index] to qmset
+    for (int c = 0; c < qmset->quantizer_matrix_num_planes; ++c) {
+      // plane_type: 0:luma, 1:chroma
+      const int plane_type = (c >= 1);
+      memcpy(qmset->quantizer_matrix[0][c],
+             predefined_8x8_iwt_base_matrix[qm_default_index][plane_type],
+             8 * 8 * sizeof(qm_val_t));
+      memcpy(qmset->quantizer_matrix[1][c],
+             predefined_8x4_iwt_base_matrix[qm_default_index][plane_type],
+             8 * 4 * sizeof(qm_val_t));
+      memcpy(qmset->quantizer_matrix[2][c],
+             predefined_4x8_iwt_base_matrix[qm_default_index][plane_type],
+             4 * 8 * sizeof(qm_val_t));
+    }
+  }  // qm_pos
+#endif  // CONFIG_F255_QMOBU
+
 #if CONFIG_F153_FGM_OBU
   if (obu_type == OBU_CLK) {
     // When a SH, a CLK and FGMs are in one TU, the fgms currently in the list

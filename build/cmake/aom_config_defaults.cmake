@@ -73,6 +73,7 @@ set_aom_config_var(
 )
 
 set_aom_config_var(CONFIG_F255_QMOBU 1 "Enable QM_OBU")
+
 set_aom_config_var(CONFIG_F024_KEYOBU 1 "Use Key OBUs.")
 
 set_aom_config_var(CONFIG_F153_FGM_OBU 1 "Signal film grain model in OBU_FGM.")

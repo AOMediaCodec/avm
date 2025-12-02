@@ -86,9 +86,9 @@ void av1_read_sequence_header_beyond_av1(
 #endif  // !CONFIG_IMPROVED_REORDER_SEQ_FLAGS
 
 #if CONFIG_F255_QMOBU
+void alloc_qmatrix(struct quantization_matrix_set *qm_set);
 void av1_copy_predefined_qmatrices_to_list(struct AV1Decoder *pbi,
-                                           int num_planes,
-                                           bool store_at_intermediate_location);
+                                           int num_planes);
 #endif  // CONFIG_F255_QMOBU
 
 #if CONFIG_MULTI_FRAME_HEADER

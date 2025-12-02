@@ -8949,6 +8949,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 #if !CONFIG_F024_KEYOBU
       && !cm->show_existing_frame
 #endif
+      && cpi->oxcf.q_cfg.user_defined_qmatrix
   ) {
     if (add_new_user_qm) {
       assert(cpi->total_signalled_qmobu_count > 0);

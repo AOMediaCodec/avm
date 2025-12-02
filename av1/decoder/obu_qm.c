@@ -53,15 +53,11 @@ void alloc_qmatrix(struct quantization_matrix_set *qm_set) {
 
 static void read_qm_data(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
                          int qm_pos, int qm_id, int num_planes,
-                         bool store_at_intermediate_location,
                          struct aom_read_bit_buffer *rb) {
   pbi->common.error.error_code = AOM_CODEC_OK;
   const TX_SIZE fund_tsize[3] = { TX_8X8, TX_8X4, TX_4X8 };
 
-  struct quantization_matrix_set *qmset =
-      store_at_intermediate_location
-          ? &pbi->qmobu_list[pbi->total_qmobu_count].qm_list[qm_pos]
-          : &pbi->qm_list[qm_pos];
+  struct quantization_matrix_set *qmset = &pbi->qm_list[qm_pos];
 
   if (!qmset->quantizer_matrix_allocated) alloc_qmatrix(qmset);
   qmset->qm_id = qm_id;
@@ -165,13 +161,9 @@ static void read_qm_data(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
     }  // num_planes
   }  // t
 }
-void av1_copy_predefined_qmatrices_to_list(
-    AV1Decoder *pbi, int num_planes, bool store_at_intermediate_location) {
+void av1_copy_predefined_qmatrices_to_list(AV1Decoder *pbi, int num_planes) {
   for (int qm_pos = 0; qm_pos < NUM_CUSTOM_QMS; qm_pos++) {
-    struct quantization_matrix_set *qmset =
-        store_at_intermediate_location
-            ? &pbi->qmobu_list[pbi->total_qmobu_count].qm_list[qm_pos]
-            : &pbi->qm_list[qm_pos];
+    struct quantization_matrix_set *qmset = &pbi->qm_list[qm_pos];
 
     if (!qmset->quantizer_matrix_allocated) {
       alloc_qmatrix(qmset);
@@ -199,18 +191,11 @@ void av1_copy_predefined_qmatrices_to_list(
   }  // qm_pos
 }
 
-// If store_at_intermediate_location is true, save the QM OBU in the
-// intermediate location pbi->qmobu_list[pbi->total_qmobu_count].qm_list[].
-// Otherwise, save the QM OBU in pbi->qm_list[]. Pass
-// store_at_intermediate_location=true if a QM OBU is in a temporal unit with a
-// sequence header.
-//
 // acc_qm_id_bitmap is an in/out parameter. The caller should set
 // *acc_qm_id_bitmap to 0 before the first call to read_qm_obu(). Each
 // read_qm_obu() call updates *acc_qm_id_bitmap by bitwise-ORing the
 // qm_id_bitmap from the QM OBU with *acc_qm_id_bitmap.
 uint32_t read_qm_obu(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
-                     bool store_at_intermediate_location,
                      uint32_t *acc_qm_id_bitmap,
                      struct aom_read_bit_buffer *rb) {
   // multiple qms in one obu with id
@@ -224,32 +209,21 @@ uint32_t read_qm_obu(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
     *acc_qm_id_bitmap |= qm_bit_map;
   }
   bool qm_chroma_info_present_flag = aom_rb_read_bit(rb);
-  if (store_at_intermediate_location) {
-    if (pbi->total_qmobu_count >= NELEMENTS(pbi->qmobu_list)) {
-      aom_internal_error(&pbi->common.error, AOM_CODEC_UNSUP_BITSTREAM,
-                         "too many QM OBUs");
-    }
-    pbi->qmobu_list[pbi->total_qmobu_count].qm_bit_map = qm_bit_map;
-    pbi->qmobu_list[pbi->total_qmobu_count].qm_chroma_info_present_flag =
-        qm_chroma_info_present_flag;
-  }
-
   if (qm_bit_map == 0) {
-    av1_copy_predefined_qmatrices_to_list(pbi,
-                                          (qm_chroma_info_present_flag ? 3 : 1),
-                                          store_at_intermediate_location);
+    av1_copy_predefined_qmatrices_to_list(
+        pbi, (qm_chroma_info_present_flag ? 3 : 1));
+    for (int j = 0; j < NUM_CUSTOM_QMS; j++) pbi->qm_protected[j] = 1;
   } else {
     for (int j = 0; j < NUM_CUSTOM_QMS; j++) {
       if (qm_bit_map & (1 << j)) {
         int qm_id = j;
         int qm_pos = qm_id;
+        pbi->qm_protected[qm_id] = 1;
         read_qm_data(pbi, obu_tlayer_id, obu_mlayer_id, qm_pos, qm_id,
-                     (qm_chroma_info_present_flag ? 3 : 1),
-                     store_at_intermediate_location, rb);
+                     (qm_chroma_info_present_flag ? 3 : 1), rb);
       }
     }
   }  // qm_bit_map != 0
-  if (store_at_intermediate_location) pbi->total_qmobu_count++;
   if (av1_check_trailing_bits(pbi, rb) != 0) {
     return 0;
   }

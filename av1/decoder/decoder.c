@@ -235,7 +235,9 @@ AV1Decoder *av1_decoder_create(BufferPool *const pool) {
 
   av1_loop_filter_init(cm);
 #if CONFIG_F255_QMOBU
-  pbi->total_qmobu_count = 0;
+  for (int i = 0; i < NUM_CUSTOM_QMS; ++i) {
+    pbi->qm_protected[i] = 0;
+  }
   for (int i = 0; i < NUM_CUSTOM_QMS; ++i) {
     pbi->qm_list[i].qm_id = -1;
     pbi->qm_list[i].qm_tlayer_id = -1;
@@ -487,16 +489,6 @@ void av1_decoder_remove(AV1Decoder *pbi) {
   }
 #endif
 #if CONFIG_F255_QMOBU
-  for (i = 0; i < pbi->total_qmobu_count; i++) {
-    for (int qm_pos = 0; qm_pos < NUM_CUSTOM_QMS; qm_pos++) {
-      if (pbi->qmobu_list[i].qm_bit_map == 0 ||
-          (pbi->qmobu_list[i].qm_bit_map & (1 << qm_pos))) {
-        struct quantization_matrix_set *qmset_inobu =
-            &pbi->qmobu_list[i].qm_list[qm_pos];
-        av1_free_qmset(qmset_inobu->quantizer_matrix);
-      }
-    }
-  }
   for (int qm_pos = 0; qm_pos < NUM_CUSTOM_QMS; qm_pos++) {
     if (pbi->qm_list[qm_pos].quantizer_matrix != NULL)
       av1_free_qmset(pbi->qm_list[qm_pos].quantizer_matrix);
