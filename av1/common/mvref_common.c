@@ -4331,7 +4331,8 @@ void av1_setup_ref_frame_sides(AV1_COMMON *cm) {
   }
 }
 
-static INLINE void record_samples(const MB_MODE_INFO *mbmi, int ref, int *pts,
+static INLINE void record_samples(const MB_MODE_INFO *mbmi,
+                                  const SUBMB_INFO *submi, int ref, int *pts,
                                   int *pts_inref, int row_offset, int sign_r,
                                   int col_offset, int sign_c) {
   int bw = block_size_wide[mbmi->sb_type[PLANE_TYPE_Y]];
@@ -4341,8 +4342,9 @@ static INLINE void record_samples(const MB_MODE_INFO *mbmi, int ref, int *pts,
 
   pts[0] = GET_MV_SUBPEL(x);
   pts[1] = GET_MV_SUBPEL(y);
-  pts_inref[0] = GET_MV_SUBPEL(x) + mbmi->mv[ref].as_mv.col;
-  pts_inref[1] = GET_MV_SUBPEL(y) + mbmi->mv[ref].as_mv.row;
+  int_mv this_mv = get_block_mv(mbmi, submi, ref);
+  pts_inref[0] = GET_MV_SUBPEL(x) + this_mv.as_mv.col;
+  pts_inref[1] = GET_MV_SUBPEL(y) + this_mv.as_mv.row;
 }
 // Note: Samples returned are at 1/8-pel precision
 // Sample are the neighbor block center point's coordinates relative to the
@@ -4367,6 +4369,7 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
   if (up_available) {
     const int mi_row_offset = -1;
     MB_MODE_INFO *above_mbmi = xd->mi[mi_row_offset * mi_stride];
+    SUBMB_INFO *above_submi = xd->submi[mi_row_offset * mi_stride];
     const int above_mc_offset_start = above_mbmi->mi_col_start - mi_col;
 
     if (above_mc_offset_start < 0) do_top_left = 0;
@@ -4374,6 +4377,7 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
     for (i = above_mc_offset_start;
          i < AOMMIN(xd->width, cm->mi_params.mi_cols - mi_col); i += mi_step) {
       above_mbmi = xd->mi[i + mi_row_offset * mi_stride];
+      above_submi = xd->submi[i + mi_row_offset * mi_stride];
       mi_step = mi_size_wide[above_mbmi->sb_type[PLANE_TYPE_Y]];
       if (is_sb_border && ((mi_col + i) % 2)) {
         // Block MI width is 1 and block is in odd column
@@ -4388,11 +4392,14 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
         }
 
         above_mbmi = xd->mi[adjust_mi_col_offset + mi_row_offset * mi_stride];
+        above_submi =
+            xd->submi[adjust_mi_col_offset + mi_row_offset * mi_stride];
       }
 
       for (int ref = 0; ref < 1 + has_second_ref(above_mbmi); ++ref) {
         if (above_mbmi->ref_frame[ref] == ref_frame) {
-          record_samples(above_mbmi, ref, pts, pts_inref, 0, -1, i, 1);
+          record_samples(above_mbmi, above_submi, ref, pts, pts_inref, 0, -1, i,
+                         1);
           pts += 2;
           pts_inref += 2;
           if (++np >= LEAST_SQUARES_SAMPLES_MAX)
@@ -4408,6 +4415,7 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
   if (left_available) {
     const int mi_col_offset = -1;
     MB_MODE_INFO *left_mbmi = xd->mi[mi_col_offset];
+    SUBMB_INFO *left_submi = xd->submi[mi_col_offset];
     const int left_mr_offset_start = left_mbmi->mi_row_start - mi_row;
 
     if (left_mr_offset_start < 0) do_top_left = 0;
@@ -4415,11 +4423,13 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
     for (i = left_mr_offset_start;
          i < AOMMIN(xd->height, cm->mi_params.mi_rows - mi_row); i += mi_step) {
       left_mbmi = xd->mi[mi_col_offset + i * mi_stride];
+      left_submi = xd->submi[mi_col_offset + i * mi_stride];
       mi_step = mi_size_high[left_mbmi->sb_type[PLANE_TYPE_Y]];
 
       for (int ref = 0; ref < 1 + has_second_ref(left_mbmi); ++ref) {
         if (left_mbmi->ref_frame[ref] == ref_frame) {
-          record_samples(left_mbmi, ref, pts, pts_inref, i, 1, 0, -1);
+          record_samples(left_mbmi, left_submi, ref, pts, pts_inref, i, 1, 0,
+                         -1);
           pts += 2;
           pts_inref += 2;
           if (++np >= LEAST_SQUARES_SAMPLES_MAX) {
@@ -4438,6 +4448,8 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
     int has_valid_top_left = 1;
     MB_MODE_INFO *top_left_mbmi =
         xd->mi[mi_col_offset + mi_row_offset * mi_stride];
+    SUBMB_INFO *top_left_submi =
+        xd->submi[mi_col_offset + mi_row_offset * mi_stride];
     const int top_left_mi_col = (mi_col + mi_col_offset);
     if (is_sb_border && (top_left_mi_col % 2)) {
       mi_step = mi_size_wide[top_left_mbmi->sb_type[PLANE_TYPE_Y]];
@@ -4454,13 +4466,17 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
 
         top_left_mbmi =
             xd->mi[adjust_mi_col_offset + mi_row_offset * mi_stride];
+
+        top_left_submi =
+            xd->submi[adjust_mi_col_offset + mi_row_offset * mi_stride];
       }
     }
 
     if (has_valid_top_left) {
       for (int ref = 0; ref < 1 + has_second_ref(top_left_mbmi); ++ref) {
         if (top_left_mbmi->ref_frame[ref] == ref_frame) {
-          record_samples(top_left_mbmi, ref, pts, pts_inref, 0, -1, 0, -1);
+          record_samples(top_left_mbmi, top_left_submi, ref, pts, pts_inref, 0,
+                         -1, 0, -1);
           pts += 2;
           pts_inref += 2;
           if (++np >= LEAST_SQUARES_SAMPLES_MAX)
@@ -4481,6 +4497,8 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
       int has_valid_top_right = 1;
       MB_MODE_INFO *top_right_mbmi =
           xd->mi[mi_col_offset + mi_row_offset * mi_stride];
+      SUBMB_INFO *top_right_submi =
+          xd->submi[mi_col_offset + mi_row_offset * mi_stride];
       const int top_right_mi_col = (mi_col + mi_col_offset);
       if (is_sb_border && (top_right_mi_col % 2)) {
         mi_step = mi_size_wide[top_right_mbmi->sb_type[PLANE_TYPE_Y]];
@@ -4499,6 +4517,8 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
           if (is_inside(tile, mi_col, mi_row, &block_pos)) {
             top_right_mbmi =
                 xd->mi[adjust_mi_col_offset + mi_row_offset * mi_stride];
+            top_right_submi =
+                xd->submi[adjust_mi_col_offset + mi_row_offset * mi_stride];
           } else {
             has_valid_top_right = 0;
           }
@@ -4508,8 +4528,8 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
       if (has_valid_top_right) {
         for (int ref = 0; ref < 1 + has_second_ref(top_right_mbmi); ++ref) {
           if (top_right_mbmi->ref_frame[ref] == ref_frame) {
-            record_samples(top_right_mbmi, ref, pts, pts_inref, 0, -1,
-                           xd->width, 1);
+            record_samples(top_right_mbmi, top_right_submi, ref, pts, pts_inref,
+                           0, -1, xd->width, 1);
             pts += 2;
             pts_inref += 2;
             if (++np >= LEAST_SQUARES_SAMPLES_MAX) {
