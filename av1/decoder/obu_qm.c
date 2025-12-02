@@ -72,8 +72,8 @@ static void read_qm_data(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
   qmset->qm_tlayer_id = obu_tlayer_id;
   qmset->qm_mlayer_id = obu_mlayer_id;
   qmset->quantizer_matrix_num_planes = num_planes;
-  const bool qm_is_default_flag = (bool)aom_rb_read_bit(rb);
-  if (qm_is_default_flag) {
+  const bool qm_is_predefined_flag = (bool)aom_rb_read_bit(rb);
+  if (qm_is_predefined_flag) {
 #if CONFIG_QM_REVERT
     // Set default index to level = qm_id
     qmset->is_user_defined_qm = false;
@@ -88,13 +88,16 @@ static void read_qm_data(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
       const int plane_type = (c >= 1);
 #if CONFIG_QM_REVERT
       memcpy(qmset->quantizer_matrix[0][c],
-             &predefined_iwt_matrix_ref[qm_default_index][plane_type][START_POS_8x8],
+             &predefined_iwt_matrix_ref[qm_default_index][plane_type]
+                                       [START_POS_8x8],
              8 * 8 * sizeof(qm_val_t));
       memcpy(qmset->quantizer_matrix[1][c],
-             &predefined_iwt_matrix_ref[qm_default_index][plane_type][START_POS_8x4],
+             &predefined_iwt_matrix_ref[qm_default_index][plane_type]
+                                       [START_POS_8x4],
              8 * 4 * sizeof(qm_val_t));
       memcpy(qmset->quantizer_matrix[2][c],
-             &predefined_iwt_matrix_ref[qm_default_index][plane_type][START_POS_4x8],
+             &predefined_iwt_matrix_ref[qm_default_index][plane_type]
+                                       [START_POS_4x8],
              4 * 8 * sizeof(qm_val_t));
 #else
       memcpy(qmset->quantizer_matrix[0][c],
@@ -189,7 +192,7 @@ static void read_qm_data(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
   }  // t
 }
 void av1_copy_predefined_qmatrices_to_list(
-    AV1Decoder* pbi, int num_planes, bool store_at_intermediate_location) {
+    AV1Decoder *pbi, int num_planes, bool store_at_intermediate_location) {
 #if CONFIG_QM_REVERT
   const int START_POS_8x8 = 4 * 4;
   const int START_POS_8x4 = 1392;  // tx_size:6 4*4+8*8+16*16+32*32+64*64+4*8;

@@ -3954,7 +3954,8 @@ void setup_quant_matrices(AV1Decoder *pbi, CommonQuantParams *quant_params,
       quant_params->giqmatrix[qmlevel][plane][t] =
           quant_params->giqmatrix[qmlevel][plane][qm_tx_size];
 #if CONFIG_QM_REVERT
-    } else if (is_user_defined_qm && (t <= TX_8X8 || t == TX_4X8 || t == TX_8X4)) {
+    } else if (is_user_defined_qm &&
+               (t <= TX_8X8 || t == TX_4X8 || t == TX_8X4)) {
       assert(current + size <= QM_TOTAL_SIZE);
       // Generate the iwt matrices from the base matrices.
       scale_tx(t, plane, &quant_params->iwt_matrix_ref[qmlevel][plane][current],

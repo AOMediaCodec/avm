@@ -156,15 +156,15 @@ int write_qm_data(AV1_COMP *cpi, struct quantization_matrix_set *qm_list,
   const TX_SIZE fund_tsize[3] = { TX_8X8, TX_8X4, TX_4X8 };
 
 #if CONFIG_QM_REVERT
-  const bool qm_is_default_flag = !qm_list[qm_pos].is_user_defined_qm;
+  const bool qm_is_predefined_flag = !qm_list[qm_pos].is_user_defined_qm;
 #else
-  const bool qm_is_default_flag = qm_list[qm_pos].qm_default_index != -1;
+  const bool qm_is_predefined_flag = qm_list[qm_pos].qm_default_index != -1;
 #endif
-  aom_wb_write_bit(wb, qm_is_default_flag);
-  if (qm_is_default_flag) {
+  aom_wb_write_bit(wb, qm_is_predefined_flag);
+  if (qm_is_predefined_flag) {
 #if !CONFIG_QM_REVERT
     aom_wb_write_literal(wb, qm_list[qm_pos].qm_default_index, 4);
-#endif // !CONFIG_QM_REVERT
+#endif  // !CONFIG_QM_REVERT
     return wb->bit_offset - size;
   }
 
@@ -307,13 +307,13 @@ uint32_t write_qm_obu(AV1_COMP *cpi, int signalled_obu_pos,
 // Compares the reference matrices with the matrices in the QM OBU.
 // Returns true if the any of the matrices aren't equal.
 static bool check_add_cmqm_obu_matrices(
-    CommonQuantParams* quant_params, struct quantization_matrix_set* qm_inobu,
+    CommonQuantParams *quant_params, struct quantization_matrix_set *qm_inobu,
     int qm_idx, int plane) {
-  const qm_val_t* cm_qm_values8x8_test =
+  const qm_val_t *cm_qm_values8x8_test =
       quant_params->giqmatrix[qm_idx][plane][TX_8X8];
-  const qm_val_t* cm_qm_values8x4_test =
+  const qm_val_t *cm_qm_values8x4_test =
       quant_params->giqmatrix[qm_idx][plane][TX_8X4];
-  const qm_val_t* cm_qm_values4x8_test =
+  const qm_val_t *cm_qm_values4x8_test =
       quant_params->giqmatrix[qm_idx][plane][TX_4X8];
 
   // memcmp returns 0 when equal
@@ -326,14 +326,14 @@ static bool check_add_cmqm_obu_matrices(
 }
 
 // Copies from global matrices to QM OBU.
-static void copy_to_qmobu(CommonQuantParams* quant_params,
-                          struct quantization_matrix_set* qm_inobu, int qm_idx,
+static void copy_to_qmobu(CommonQuantParams *quant_params,
+                          struct quantization_matrix_set *qm_inobu, int qm_idx,
                           int plane) {
-  const qm_val_t* cm_qm_values8x8 =
+  const qm_val_t *cm_qm_values8x8 =
       quant_params->giqmatrix[qm_idx][plane][TX_8X8];
-  const qm_val_t* cm_qm_values8x4 =
+  const qm_val_t *cm_qm_values8x4 =
       quant_params->giqmatrix[qm_idx][plane][TX_8X4];
-  const qm_val_t* cm_qm_values4x8 =
+  const qm_val_t *cm_qm_values4x8 =
       quant_params->giqmatrix[qm_idx][plane][TX_4X8];
   memcpy(qm_inobu->quantizer_matrix[0][plane], cm_qm_values8x8,
          sizeof(qm_val_t) * 8 * 8);
@@ -381,7 +381,7 @@ bool check_add_cmqm_in_qmobulist(AV1_COMP *cpi, bool write_in_prevobu) {
   static int START_POS_8x4 = 1392;  // tx_size:6 4*4+8*8+16*16+32*32+64*64+4*8;
   static int START_POS_4x8 = 1360;  // tx_size:5 4*4+8*8+16*16+32*32+64*64;
 #endif                              // !CONFIG_QM_REVERT
-  bool add_cmqm[4][3];  //[max_pic_qm_num][planes]
+  bool add_cmqm[4][3];              //[max_pic_qm_num][planes]
   if (cpi->total_signalled_qmobu_count == 0) {
     for (int i = 0; i < 4; i++)
       for (int j = 0; j < 3; j++) add_cmqm[i][j] = true;
@@ -527,15 +527,15 @@ bool check_add_cmqm_in_qmobulist(AV1_COMP *cpi, bool write_in_prevobu) {
           // below a bug? I think they should be fixed as plane = 0 in this
           // case, and plane = 1 and plane = 2 below.
           copy_to_qmobu(quant_params, qm_inobu, quant_params->qm_y[pic_qm_idx],
-                      plane);
+                        plane);
 #else
-          qm_val_t* cm_qm_values8x8 =
+          qm_val_t *cm_qm_values8x8 =
               &quant_params->iwt_matrix_ref[quant_params->qm_y[pic_qm_idx]]
                                            [plane][START_POS_8x8];
-          qm_val_t* cm_qm_values8x4 =
+          qm_val_t *cm_qm_values8x4 =
               &quant_params->iwt_matrix_ref[quant_params->qm_y[pic_qm_idx]]
                                            [plane][START_POS_8x4];
-          qm_val_t* cm_qm_values4x8 =
+          qm_val_t *cm_qm_values4x8 =
               &quant_params->iwt_matrix_ref[quant_params->qm_y[pic_qm_idx]]
                                            [plane][START_POS_4x8];
           memcpy(qm_inobu->quantizer_matrix[0][plane], cm_qm_values8x8,
@@ -590,13 +590,13 @@ bool check_add_cmqm_in_qmobulist(AV1_COMP *cpi, bool write_in_prevobu) {
             copy_to_qmobu(quant_params, qm_inobu,
                           quant_params->qm_v[pic_qm_idx], plane);
 #else
-            qm_val_t* cm_qm_values8x8 =
+            qm_val_t *cm_qm_values8x8 =
                 &quant_params->iwt_matrix_ref[quant_params->qm_v[pic_qm_idx]]
                                              [plane][START_POS_8x8];
-            qm_val_t* cm_qm_values8x4 =
+            qm_val_t *cm_qm_values8x4 =
                 &quant_params->iwt_matrix_ref[quant_params->qm_v[pic_qm_idx]]
                                              [plane][START_POS_8x8];
-            qm_val_t* cm_qm_values4x8 =
+            qm_val_t *cm_qm_values4x8 =
                 &quant_params->iwt_matrix_ref[quant_params->qm_v[pic_qm_idx]]
                                              [plane][START_POS_8x8];
             memcpy(qm_inobu->quantizer_matrix[0][plane], cm_qm_values8x8,
@@ -631,7 +631,7 @@ void check_qm_is_predefined(AV1_COMP *cpi, int qmobu_pos, int num_planes) {
           &cpi->qmobu_list[qmobu_pos].qm_list[qm_id];
 #if !CONFIG_QM_REVERT
       qm_inobu->qm_default_index = -1;
-#endif // !CONFIG_QM_REVERT
+#endif  // !CONFIG_QM_REVERT
       for (int predefined_id = 0; predefined_id < NUM_CUSTOM_QMS;
            predefined_id++) {
         bool same = true;
@@ -643,18 +643,18 @@ void check_qm_is_predefined(AV1_COMP *cpi, int qmobu_pos, int num_planes) {
           // compares 8x8 only to determine if a QM is pre-defined or
           // user-defined.
           // Potential case of errror due to scaling of 4x4.
-          const qm_val_t* qvalues8x8 =
+          const qm_val_t *qvalues8x8 =
               &predefined_iwt_matrix_ref[predefined_id][c][START_POS_8x8];
-          const qm_val_t* qvalues8x4 =
+          const qm_val_t *qvalues8x4 =
               &predefined_iwt_matrix_ref[predefined_id][c][START_POS_8x4];
-          const qm_val_t* qvalues4x8 =
+          const qm_val_t *qvalues4x8 =
               &predefined_iwt_matrix_ref[predefined_id][c][START_POS_4x8];
 #else
-          const qm_val_t* qvalues8x8 =
+          const qm_val_t *qvalues8x8 =
               predefined_8x8_iwt_base_matrix[predefined_id][c];
-          const qm_val_t* qvalues8x4 =
+          const qm_val_t *qvalues8x4 =
               predefined_8x4_iwt_base_matrix[predefined_id][c];
-          const qm_val_t* qvalues4x8 =
+          const qm_val_t *qvalues4x8 =
               predefined_4x8_iwt_base_matrix[predefined_id][c];
 #endif  // CONFIG_QM_REVERT
 
@@ -669,7 +669,7 @@ void check_qm_is_predefined(AV1_COMP *cpi, int qmobu_pos, int num_planes) {
         if (same) {
 #if !CONFIG_QM_REVERT
           qm_inobu->qm_default_index = predefined_id;
-#endif // !CONFIG_QM_REVERT
+#endif  // !CONFIG_QM_REVERT
           break;
         }
       }
