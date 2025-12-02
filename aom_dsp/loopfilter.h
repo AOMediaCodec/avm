@@ -41,11 +41,7 @@ static INLINE int filt_choice_highbd(uint16_t *s, int pitch, int max_filt_neg,
                                      uint16_t side_thresh, uint16_t *t) {
   if (!q_thresh || !side_thresh) return 0;
 
-  int max_samples_neg =
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-      max_filt_neg == 0 ? 0 :
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-                        max_filt_neg / 2 - 1;
+  int max_samples_neg = max_filt_neg == 0 ? 0 : max_filt_neg / 2 - 1;
   int max_samples_pos = max_filt_pos / 2 - 1;
 
   if (max_samples_pos < 1 || max_samples_pos < max_samples_neg) return 0;

@@ -1960,9 +1960,7 @@ void av1_set_lossless(AV1_COMP *cpi) {
   MACROBLOCKD *const xd = &cpi->td.mb.e_mbd;
   AV1_COMMON *const cm = &cpi->common;
   const CommonQuantParams *quant_params = &cm->quant_params;
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
   cm->features.has_lossless_segment = 0;
-#endif  //  CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
   cpi->enc_seg.has_lossless_segment = 0;
   for (int i = 0; i < MAX_SEGMENTS; ++i) {
     const int qindex =
@@ -1977,10 +1975,8 @@ void av1_set_lossless(AV1_COMP *cpi) {
         (quant_params->u_ac_delta_q + cm->seq_params.base_uv_ac_delta_q <= 0) &&
         (quant_params->v_ac_delta_q + cm->seq_params.base_uv_ac_delta_q <= 0);
 
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
     cm->features.lossless_segment[i] = xd->lossless[i];
     if (xd->lossless[i]) cm->features.has_lossless_segment = 1;
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 
     if (xd->lossless[i]) cpi->enc_seg.has_lossless_segment = 1;
     xd->qindex[i] = qindex;
@@ -2002,11 +1998,7 @@ void av1_set_lossless(AV1_COMP *cpi) {
   printf(" \n");
   printf(" Encoder lossless map = ");
   for (int i = 0; i < max_seg_num; ++i) {
-#if !CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-    printf(" %d ", xd->lossless[i]);
-#else
     printf(" %d ", cm->features.lossless_segment[i]);
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
   }
   printf(" \n");
 #endif  // CONFIG_MIXED_LOSSLESS_ENCODE

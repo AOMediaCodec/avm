@@ -107,15 +107,10 @@ static void ccso_derive_src_info(AV1_COMMON *cm, MACROBLOCKD *xd,
   const int neg_qstep = qstep * -1;
   int src_loc[2];
   derive_ccso_sample_pos(src_loc, ccso_stride_ext, filter_sup);
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(
       cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
   const int blk_log2_y = ccso_blk_size - xd->plane[plane].subsampling_y;
   const int blk_log2_x = ccso_blk_size - xd->plane[plane].subsampling_x;
-#else
-  const int blk_log2_y = CCSO_BLK_SIZE - xd->plane[plane].subsampling_y;
-  const int blk_log2_x = CCSO_BLK_SIZE - xd->plane[plane].subsampling_x;
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   const int blk_size_y = 1 << blk_log2_y;
   const int blk_size_x = 1 << blk_log2_x;
   src_y += CCSO_PADDING_SIZE * ccso_stride_ext + CCSO_PADDING_SIZE;
@@ -182,15 +177,10 @@ static void ccso_pre_compute_class_err(
   int fb_idx = 0;
   uint8_t cur_src_cls0;
   uint8_t cur_src_cls1;
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(
       cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
   const int blk_log2_y = ccso_blk_size - xd->plane[plane].subsampling_y;
   const int blk_log2_x = ccso_blk_size - xd->plane[plane].subsampling_x;
-#else
-  const int blk_log2_y = CCSO_BLK_SIZE - xd->plane[plane].subsampling_y;
-  const int blk_log2_x = CCSO_BLK_SIZE - xd->plane[plane].subsampling_x;
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   const int ccso_nvfb =
       ((mi_params->mi_rows >> xd->plane[plane].subsampling_y) +
@@ -347,15 +337,10 @@ static void ccso_pre_compute_class_err_bo(
   const int y_uv_hscale = xd->plane[plane].subsampling_x;
   const int y_uv_vscale = xd->plane[plane].subsampling_y;
   int fb_idx = 0;
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(
       cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
   const int blk_log2_y = ccso_blk_size - xd->plane[plane].subsampling_y;
   const int blk_log2_x = ccso_blk_size - xd->plane[plane].subsampling_x;
-#else
-  const int blk_log2_y = CCSO_BLK_SIZE - xd->plane[plane].subsampling_y;
-  const int blk_log2_x = CCSO_BLK_SIZE - xd->plane[plane].subsampling_x;
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   const int blk_size_y = 1 << blk_log2_y;
   const int blk_size_x = 1 << blk_log2_x;
   const int scaled_ext_stride = (ctx->ccso_stride_ext << y_uv_vscale);
@@ -508,13 +493,9 @@ void ccso_try_luma_filter(CcsoCtx *ctx, AV1_COMMON *cm, MACROBLOCKD *xd,
   const int pic_height = xd->plane[plane].dst.height;
   const int pic_width = xd->plane[plane].dst.width;
   const int max_val = (1 << cm->seq_params.bit_depth) - 1;
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(
       cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
   const int blk_log2 = ccso_blk_size - xd->plane[plane].subsampling_y;
-#else
-  const int blk_log2 = CCSO_BLK_SIZE - xd->plane[plane].subsampling_y;
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   const int blk_size = 1 << blk_log2;
   int fb_idx = 0;
   src_y += CCSO_PADDING_SIZE * ccso_stride_ext + CCSO_PADDING_SIZE;
@@ -589,15 +570,10 @@ static void ccso_try_chroma_filter(
   const int y_uv_hscale = xd->plane[plane].subsampling_x;
   const int y_uv_vscale = xd->plane[plane].subsampling_y;
   const int max_val = (1 << cm->seq_params.bit_depth) - 1;
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(
       cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
   const int blk_log2_y = ccso_blk_size - xd->plane[plane].subsampling_y;
   const int blk_log2_x = ccso_blk_size - xd->plane[plane].subsampling_x;
-#else
-  const int blk_log2_y = CCSO_BLK_SIZE - xd->plane[plane].subsampling_y;
-  const int blk_log2_x = CCSO_BLK_SIZE - xd->plane[plane].subsampling_x;
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   const int blk_size_y = 1 << blk_log2_y;
   const int blk_size_x = 1 << blk_log2_x;
   int fb_idx = 0;
@@ -809,15 +785,10 @@ static void derive_blk_md(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
                           uint64_t *cur_total_dist, int *cur_total_rate,
                           bool *filter_enable, const int rdmult) {
   aom_cdf_prob ccso_cdf[CCSO_CONTEXT][CDF_SIZE(2)];
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(
       cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
   const int log2_filter_unit_size =
       ccso_blk_size - xd->plane[plane].subsampling_x;
-#else
-  const int log2_filter_unit_size =
-      CCSO_BLK_SIZE - xd->plane[plane].subsampling_x;
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   const int ccso_nhfb =
       ((mi_params->mi_cols >> xd->plane[plane].subsampling_x) +
@@ -835,13 +806,8 @@ static void derive_blk_md(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
   const CommonTileParams *const tiles = &cm->tiles;
   const int tile_cols = tiles->cols;
   const int tile_rows = tiles->rows;
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   const int blk_size_y = (1 << (ccso_blk_size - MI_SIZE_LOG2)) - 1;
   const int blk_size_x = (1 << (ccso_blk_size - MI_SIZE_LOG2)) - 1;
-#else
-  const int blk_size_y = (1 << (CCSO_BLK_SIZE - MI_SIZE_LOG2)) - 1;
-  const int blk_size_x = (1 << (CCSO_BLK_SIZE - MI_SIZE_LOG2)) - 1;
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 
   *cur_total_dist = 0;
 
@@ -934,15 +900,10 @@ static void get_sb_reuse_dist(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
                               uint64_t *cur_total_dist, int *cur_total_rate,
                               bool *filter_enable, const int rdmult) {
   (void)rdmult;
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(
       cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
   const int log2_filter_unit_size =
       ccso_blk_size - xd->plane[plane].subsampling_x;
-#else
-  const int log2_filter_unit_size =
-      CCSO_BLK_SIZE - xd->plane[plane].subsampling_x;
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   const int ccso_nhfb =
       ((mi_params->mi_cols >> xd->plane[plane].subsampling_x) +
@@ -959,13 +920,8 @@ static void get_sb_reuse_dist(AV1_COMMON *cm, MACROBLOCKD *xd, const int plane,
   const CommonTileParams *const tiles = &cm->tiles;
   const int tile_cols = tiles->cols;
   const int tile_rows = tiles->rows;
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   const int blk_size_y = (1 << (ccso_blk_size - MI_SIZE_LOG2)) - 1;
   const int blk_size_x = (1 << (ccso_blk_size - MI_SIZE_LOG2)) - 1;
-#else
-  const int blk_size_y = (1 << (CCSO_BLK_SIZE - MI_SIZE_LOG2)) - 1;
-  const int blk_size_x = (1 << (CCSO_BLK_SIZE - MI_SIZE_LOG2)) - 1;
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 
   *cur_total_dist = 0;
   *cur_total_rate = 0;
@@ -1027,13 +983,9 @@ static void ccso_compute_class_err(CcsoCtx *ctx, AV1_COMMON *cm,
                                    const int max_edge_interval,
                                    const uint8_t ccso_bo_only) {
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(
       cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
   const int blk_log2 = ccso_blk_size - xd->plane[plane].subsampling_y;
-#else
-  const int blk_log2 = CCSO_BLK_SIZE - xd->plane[plane].subsampling_y;
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   const int nvfb = ((mi_params->mi_rows >> xd->plane[plane].subsampling_y) +
                     (1 << blk_log2 >> MI_SIZE_LOG2) - 1) /
                    (1 << blk_log2 >> MI_SIZE_LOG2);
@@ -1154,7 +1106,6 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
 #endif
 ) {
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(
       cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
   const int log2_filter_unit_size_y =
@@ -1162,12 +1113,6 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
   const int log2_filter_unit_size_x =
       ccso_blk_size - xd->plane[plane].subsampling_x;
   cm->ccso_info.ccso_blk_size = ccso_blk_size;
-#else
-  const int log2_filter_unit_size_y =
-      CCSO_BLK_SIZE - xd->plane[plane].subsampling_y;
-  const int log2_filter_unit_size_x =
-      CCSO_BLK_SIZE - xd->plane[plane].subsampling_x;
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 
   const int ccso_nvfb =
       ((mi_params->mi_rows >> xd->plane[plane].subsampling_y) +
@@ -1490,13 +1435,9 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
                       (xd->plane[plane].subsampling_y ==
                        ref_frame_ccso_info->subsampling_y[plane]) &&
                       (xd->plane[plane].subsampling_x ==
-                       ref_frame_ccso_info->subsampling_x[plane])
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-                      &&
+                       ref_frame_ccso_info->subsampling_x[plane]) &&
                       (ccso_blk_size == ref_frame_ccso_info->ccso_blk_size) &&
-                      (ccso_blk_size == CCSO_BLK_SIZE)
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-                      ;
+                      (ccso_blk_size == CCSO_BLK_SIZE);
 
                   for (int sb_reuse_idx = 0; sb_reuse_idx <= check_sb_reuse;
                        ++sb_reuse_idx) {
@@ -1692,22 +1633,15 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
       xd->plane[plane].subsampling_x;
   if (cm->ccso_info.ccso_enable[plane]) {
     cm->cur_frame->ccso_info.ccso_enable[plane] = 1;
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
     cm->cur_frame->ccso_info.ccso_blk_size = ccso_blk_size;
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
     cm->cur_frame->ccso_info.reuse_root_ref[plane] =
         cm->current_frame.display_order_hint;
     cm->ccso_info.sb_reuse_ccso[plane] = ctx->final_sb_reuse_ccso[plane];
     const BLOCK_SIZE bsize = xd->mi[0]->sb_type[PLANE_TYPE_Y];
     const int bw = mi_size_wide[bsize];
     const int bh = mi_size_high[bsize];
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
     const int log2_w = ccso_blk_size;
     const int log2_h = ccso_blk_size;
-#else
-    const int log2_w = CCSO_BLK_SIZE;
-    const int log2_h = CCSO_BLK_SIZE;
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
     const int f_w = 1 << log2_w >> MI_SIZE_LOG2;
     const int f_h = 1 << log2_h >> MI_SIZE_LOG2;
     const int step_h = (bh + f_h - 1) / f_h;
@@ -1721,17 +1655,10 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
               int sb_idx = row * ccso_nhfb + col;
               cm->cur_frame->ccso_info.sb_filter_control[plane][sb_idx] =
                   ctx->final_filter_control[y_sb * ccso_nhfb + x_sb];
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
               const int grid_idx_mbmi =
                   (1 << ccso_blk_size >> MI_SIZE_LOG2) * row *
                       mi_params->mi_stride +
                   (1 << ccso_blk_size >> MI_SIZE_LOG2) * col;
-#else
-              const int grid_idx_mbmi =
-                  (1 << CCSO_BLK_SIZE >> MI_SIZE_LOG2) * row *
-                      mi_params->mi_stride +
-                  (1 << CCSO_BLK_SIZE >> MI_SIZE_LOG2) * col;
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
               MB_MODE_INFO *const mbmi = mi_params->mi_grid_base[grid_idx_mbmi];
               if (plane == AOM_PLANE_Y) {
                 // for tile skip, no valid mi exist
@@ -1766,19 +1693,11 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
                   mbmi->ccso_blk_v =
                       ctx->final_filter_control[y_sb * ccso_nhfb + x_sb];
               }
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
               const int ccso_mib_size_y = (1 << (ccso_blk_size - MI_SIZE_LOG2));
               const int ccso_mib_size_x = (1 << (ccso_blk_size - MI_SIZE_LOG2));
 
               int mi_row = (1 << ccso_blk_size >> MI_SIZE_LOG2) * row;
               int mi_col = (1 << ccso_blk_size >> MI_SIZE_LOG2) * col;
-#else
-              const int ccso_mib_size_y = (1 << (CCSO_BLK_SIZE - MI_SIZE_LOG2));
-              const int ccso_mib_size_x = (1 << (CCSO_BLK_SIZE - MI_SIZE_LOG2));
-
-              int mi_row = (1 << CCSO_BLK_SIZE >> MI_SIZE_LOG2) * row;
-              int mi_col = (1 << CCSO_BLK_SIZE >> MI_SIZE_LOG2) * col;
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
               for (int j = 0;
                    j < AOMMIN(ccso_mib_size_y, cm->mi_params.mi_rows - mi_row);
                    j++) {
@@ -1822,15 +1741,9 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
 
       for (int y_sb = 0; y_sb < ccso_nvfb; y_sb++) {
         for (int x_sb = 0; x_sb < ccso_nhfb; x_sb++) {
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
           const int grid_idx = (1 << ccso_blk_size >> MI_SIZE_LOG2) * y_sb *
                                    mi_params->mi_stride +
                                (1 << ccso_blk_size >> MI_SIZE_LOG2) * x_sb;
-#else
-          const int grid_idx = (1 << CCSO_BLK_SIZE >> MI_SIZE_LOG2) * y_sb *
-                                   mi_params->mi_stride +
-                               (1 << CCSO_BLK_SIZE >> MI_SIZE_LOG2) * x_sb;
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
           MB_MODE_INFO *const mbmi = mi_params->mi_grid_base[grid_idx];
           if (plane == AOM_PLANE_Y) {
             mbmi->ccso_blk_y =

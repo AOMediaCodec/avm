@@ -46,7 +46,6 @@ void init_gdf(AV1_COMMON *cm) {
   gi->gdf_pic_qp_idx = 0;
   gi->gdf_pic_scale_idx = 0;
   gi->gdf_block_size = AOMMAX(cm->mib_size << MI_SIZE_LOG2, GDF_TEST_BLK_SIZE);
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   const int num_tile_rows = cm->tiles.rows;
   const int num_tile_cols = cm->tiles.cols;
 
@@ -65,10 +64,6 @@ void init_gdf(AV1_COMMON *cm) {
     }
     if (e2) gi->gdf_block_size = 64;
   }
-#else
-  const int num_tile_rows = 1;
-  const int num_tile_cols = 1;
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 
   gi->gdf_stripe_size = GDF_TEST_STRIPE_SIZE;
   gi->gdf_unit_size = GDF_TEST_STRIPE_SIZE;
@@ -136,14 +131,12 @@ void alloc_gdf_buffers(GdfInfo *gi) {
   gi->gdf_block_flags = (int32_t *)aom_malloc(gi->gdf_block_num * sizeof(int));
   memset(gi->gdf_block_flags, 0, gi->gdf_block_num * sizeof(int));
   gi->glbs = (GDFLineBuffers *)aom_malloc(sizeof(GDFLineBuffers));
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   gi->tmp_save_left = (uint16_t *)aom_malloc(
       (gi->gdf_unit_size + 2 * GDF_TEST_EXTRA_VER_BORDER) *
       GDF_TEST_EXTRA_HOR_BORDER * sizeof(*gi->tmp_save_left));
   gi->tmp_save_right = (uint16_t *)aom_malloc(
       (gi->gdf_unit_size + 2 * GDF_TEST_EXTRA_VER_BORDER) *
       GDF_TEST_EXTRA_HOR_BORDER * sizeof(*gi->tmp_save_right));
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 }
 
 void free_gdf_buffers(GdfInfo *gi) {
@@ -171,7 +164,6 @@ void free_gdf_buffers(GdfInfo *gi) {
     aom_free(gi->glbs);
     gi->glbs = NULL;
   }
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   if (gi->tmp_save_left != NULL) {
     aom_free(gi->tmp_save_left);
     gi->tmp_save_left = NULL;
@@ -180,7 +172,6 @@ void free_gdf_buffers(GdfInfo *gi) {
     aom_free(gi->tmp_save_right);
     gi->tmp_save_right = NULL;
   }
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 }
 
 #define GDF_PRINT_INT(x) printf(#x " : %d\n", x)
@@ -273,7 +264,6 @@ void gdf_copy_guided_frame(AV1_COMMON *cm) {
                           GDF_TEST_EXTRA_VER_BORDER);
 }
 
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 void gdf_setup_processing_stripe_leftright_boundary(GdfInfo *gdf, int i_min,
                                                     int i_max, int j_min,
                                                     int j_max,
@@ -362,7 +352,6 @@ void gdf_restore_processing_stripe_leftright_boundary(GdfInfo *gdf, int i_min,
     }
   }
 }
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 
 void gdf_setup_reference_lines(AV1_COMMON *cm, int i_min, int i_max,
                                int frame_stripe, int copy_above,
@@ -552,22 +541,14 @@ void gdf_filter_frame(AV1_COMMON *cm) {
   int qp_idx_max_plus_1 = qp_idx_min + 1;
   int scale_val = cm->gdf_info.gdf_pic_scale_idx + 1;
 
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   const int num_tile_rows = cm->tiles.rows;
   const int num_tile_cols = cm->tiles.cols;
-#else
-  const int num_tile_rows = 1;
-  const int num_tile_cols = 1;
-  AV1PixelRect tile_rect = av1_whole_frame_rect(cm, 0);
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   int blk_idx = 0;
   int tile_blk_stripe0 = 0;
   for (int tile_row = 0; tile_row < num_tile_rows; ++tile_row) {
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
     TileInfo tile_info;
     av1_tile_init(&tile_info, cm, tile_row, 0);
     AV1PixelRect tile_rect = av1_get_tile_rect(&tile_info, cm, 0);
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
     const int tile_height = tile_rect.bottom - tile_rect.top;
     for (int y_pos = -GDF_TEST_STRIPE_OFF, blk_idx_h = 0; y_pos < tile_height;
          y_pos += cm->gdf_info.gdf_block_size, blk_idx_h++) {
@@ -576,10 +557,8 @@ void gdf_filter_frame(AV1_COMMON *cm) {
       }
       int blk_stripe = 0;
       for (int tile_col = 0; tile_col < num_tile_cols; ++tile_col) {
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
         av1_tile_init(&tile_info, cm, tile_row, tile_col);
         tile_rect = av1_get_tile_rect(&tile_info, cm, 0);
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
         const int tile_width = tile_rect.right - tile_rect.left;
         for (int x_pos = 0; x_pos < tile_width;
              x_pos += cm->gdf_info.gdf_block_size) {
@@ -594,19 +573,15 @@ void gdf_filter_frame(AV1_COMMON *cm) {
                         tile_rect.top;
 
             int copy_above = 1, copy_below = 1;
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
             if (cm->seq_params.disable_loopfilters_across_tiles == 0) {
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-        // tile top but not picture top
+              // tile top but not picture top
               if (v_pos == -GDF_TEST_STRIPE_OFF && tile_row != 0)
                 copy_above = 0;
               // tile bottom but not picture bottom
               if (v_pos + cm->gdf_info.gdf_unit_size >= tile_height &&
                   tile_row != num_tile_rows - 1)
                 copy_below = 0;
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
             }
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 
             gdf_setup_reference_lines(cm, i_min, i_max,
                                       tile_blk_stripe0 + blk_stripe, copy_above,
@@ -620,7 +595,6 @@ void gdf_filter_frame(AV1_COMMON *cm) {
               int j_max = AOMMIN(u_pos + cm->gdf_info.gdf_unit_size,
                                  tile_width - GDF_TEST_FRAME_BOUNDARY_SIZE) +
                           tile_rect.left;
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
               int tile_boundary_left =
                   cm->seq_params.disable_loopfilters_across_tiles
                       ? (j_min == tile_rect.left)
@@ -633,7 +607,6 @@ void gdf_filter_frame(AV1_COMMON *cm) {
               gdf_setup_processing_stripe_leftright_boundary(
                   &cm->gdf_info, i_min, i_max, j_min, j_max, tile_boundary_left,
                   tile_boundary_right);
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 
               int use_gdf_local = 1;
               // FU level skip
@@ -676,7 +649,6 @@ void gdf_filter_frame(AV1_COMMON *cm) {
                       cm->gdf_info.lap_stride, cm->gdf_info.cls_ptr,
                       cm->gdf_info.cls_stride, cm->gdf_info.err_ptr,
                       cm->gdf_info.err_stride, pxl_shift, ref_dst_idx);
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
                   // If there is at-least 1 segment is lossless in a frame, we
                   // have to do 4x4 processing, because minimum lossless block
                   // can be 4x4 size. Although, regardless the value of
@@ -720,22 +692,17 @@ void gdf_filter_frame(AV1_COMMON *cm) {
                       }
                     }
                   } else {
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
                     gdf_compensation_unit(rec_pnt + i_min * rec_stride + j_min,
                                           rec_stride, cm->gdf_info.err_ptr,
                                           cm->gdf_info.err_stride, err_shift,
                                           scale_val, pxl_max, i_max - i_min,
                                           j_max - j_min);
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
                   }
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
                 }
               }
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
               gdf_restore_processing_stripe_leftright_boundary(
                   &cm->gdf_info, i_min, i_max, j_min, j_max, tile_boundary_left,
                   tile_boundary_right);
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
             }  // u_pos
             gdf_unset_reference_lines(cm, i_min, i_max, copy_above, copy_below);
             blk_stripe++;

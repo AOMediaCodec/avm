@@ -104,12 +104,7 @@ extern "C" {
 int av1_cdef_compute_sb_list(const AV1_COMMON *const cm,
                              const CommonModeInfoParams *const mi_params,
                              int mi_row, int mi_col, cdef_list *dlist,
-                             BLOCK_SIZE bsize
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-                             ,
-                             int num_planes
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-);
+                             BLOCK_SIZE bsize, int num_planes);
 
 typedef void (*cdef_init_fb_row_t)(AV1_COMMON *cm, MACROBLOCKD *const xd,
                                    CdefBlockInfo *fb_info,

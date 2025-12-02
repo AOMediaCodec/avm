@@ -753,14 +753,12 @@ static TX_SIZE set_lpf_parameters(
     check_sub_pu_edge(cm, xd, mbmi, plane, tree_type, scale_horz, scale_vert,
                       edge_dir, coord, &ts, &sub_pu_edge, &tx_m_partition_size);
     if (!tu_edge && !sub_pu_edge) return ts;
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
     if (cm->seq_params.disable_loopfilters_across_tiles) {
       if (edge_dir == VERT_EDGE)
         if (is_vert_tile_boundary(&cm->tiles, mi_col)) return ts;
       if (edge_dir == HORZ_EDGE)
         if (is_horz_tile_boundary(&cm->tiles, mi_row)) return ts;
     }
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
     if (cm->bru.enabled) {
       if (mbmi->sb_active_mode != BRU_ACTIVE_SB) {
         aom_internal_error(&cm->error, AOM_CODEC_ERROR,
@@ -960,7 +958,6 @@ static TX_SIZE set_lpf_parameters(
   return ts;
 }
 
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 // Extract if the block is lossless or not based on the mbmi map of the frame
 static uint8_t get_lossless_flag(
     AV1_COMMON *const cm, uint32_t x, uint32_t y, uint32_t scale_horz,
@@ -979,7 +976,6 @@ static uint8_t get_lossless_flag(
                                            plane, &mi_row, &mi_col);
   return this_mi[0] ? cm->features.lossless_segment[this_mi[0]->segment_id] : 0;
 }
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 
 void av1_filter_block_plane_vert(AV1_COMMON *const cm,
                                  const MACROBLOCKD *const xd, const int plane,
@@ -1036,56 +1032,35 @@ void av1_filter_block_plane_vert(AV1_COMMON *const cm,
       }
 
       const aom_bit_depth_t bit_depth = cm->seq_params.bit_depth;
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
       bool is_lossless_current_block = get_lossless_flag(
           cm, curr_x, curr_y, scale_horz, scale_vert, plane, plane_ptr);
       bool is_lossless_prev_block = get_lossless_flag(
           cm, prev_x, curr_y, scale_horz, scale_vert, plane, plane_ptr);
       bool skip_deblock_lossless =
           is_lossless_current_block && is_lossless_prev_block;
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 
       int do_filter = 1;
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
       if (cm->seq_params.disable_loopfilters_across_tiles) {
         if (is_vert_tile_boundary(&cm->tiles, mi_col + (x << scale_horz)))
           do_filter = 0;
       }
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
       if (do_filter) {
-        if (
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-            !skip_deblock_lossless &&
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+        if (!skip_deblock_lossless &&
             (params->filter_length_neg || params->filter_length_pos)) {
-
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
           if (!(is_lossless_prev_block || is_lossless_current_block)) {
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-
             aom_highbd_lpf_vertical_generic(
                 p, dst_stride, params->filter_length_neg,
                 params->filter_length_pos, &params->q_threshold,
-                &params->side_threshold, bit_depth
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-                ,
-                is_lossless_prev_block, is_lossless_current_block
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-            );
+                &params->side_threshold, bit_depth, is_lossless_prev_block,
+                is_lossless_current_block);
 
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
           } else {
             aom_highbd_lpf_vertical_generic_c(
                 p, dst_stride, params->filter_length_neg,
                 params->filter_length_pos, &params->q_threshold,
-                &params->side_threshold, bit_depth
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-                ,
-                is_lossless_prev_block, is_lossless_current_block
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-            );
+                &params->side_threshold, bit_depth, is_lossless_prev_block,
+                is_lossless_current_block);
           }
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
         }
       }
 
@@ -1153,55 +1128,35 @@ void av1_filter_block_plane_horz(AV1_COMMON *const cm,
 
         cur_tx_size = TX_4X4;
       }
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
       bool is_lossless_current_block = get_lossless_flag(
           cm, curr_x, curr_y, scale_horz, scale_vert, plane, plane_ptr);
       bool is_lossless_prev_block = get_lossless_flag(
           cm, curr_x, prev_y, scale_horz, scale_vert, plane, plane_ptr);
       bool skip_deblock_lossless =
           is_lossless_current_block && is_lossless_prev_block;
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 
       int do_filter = 1;
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
       if (cm->seq_params.disable_loopfilters_across_tiles) {
         if (is_horz_tile_boundary(&cm->tiles, mi_row + (y << scale_vert)))
           do_filter = 0;
       }
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
       if (do_filter) {
         const aom_bit_depth_t bit_depth = cm->seq_params.bit_depth;
-        if (
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-            !skip_deblock_lossless &&
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+        if (!skip_deblock_lossless &&
             (params->filter_length_neg || params->filter_length_pos)) {
-
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
           if (!(is_lossless_current_block || is_lossless_prev_block)) {
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
             aom_highbd_lpf_horizontal_generic(
                 p, dst_stride, params->filter_length_neg,
                 params->filter_length_pos, &params->q_threshold,
-                &params->side_threshold, bit_depth
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-                ,
-                is_lossless_prev_block, is_lossless_current_block
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-            );
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+                &params->side_threshold, bit_depth, is_lossless_prev_block,
+                is_lossless_current_block);
           } else {
             aom_highbd_lpf_horizontal_generic_c(
                 p, dst_stride, params->filter_length_neg,
                 params->filter_length_pos, &params->q_threshold,
-                &params->side_threshold, bit_depth
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-                ,
-                is_lossless_prev_block, is_lossless_current_block
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-            );
+                &params->side_threshold, bit_depth, is_lossless_prev_block,
+                is_lossless_current_block);
           }
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
         }
       }
 
@@ -1385,7 +1340,6 @@ AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
     uint16_t *p = dst + j * dst_stride;
     for (int i = 0; i < w; i += sub_bw) {
       // filter vertical boundary
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
       if (cm->seq_params.disable_loopfilters_across_tiles) {
         if (is_vert_tile_boundary(&cm->tiles,
                                   (i << subsampling_x) >> MI_SIZE_LOG2)) {
@@ -1393,7 +1347,6 @@ AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
           continue;
         }
       }
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
       if (i > 0) {
         int filter_length_neg = 0;
         int filter_length_pos = 0;
@@ -1402,12 +1355,7 @@ AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
                               &filter_length_pos);
         aom_highbd_lpf_vertical_generic(p, dst_stride, filter_length_neg,
                                         filter_length_pos, &q_vert, &side_vert,
-                                        bit_depth
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-                                        ,
-                                        0, 0
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-        );
+                                        bit_depth, 0, 0);
       }
       p += sub_bw;
     }
@@ -1417,7 +1365,6 @@ AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
     uint16_t *p = dst + i;
     for (int j = 0; j < h; j += sub_bh) {
       // filter horizontal boundary
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
       if (cm->seq_params.disable_loopfilters_across_tiles) {
         if (is_horz_tile_boundary(&cm->tiles,
                                   (j << subsampling_y) >> MI_SIZE_LOG2)) {
@@ -1425,7 +1372,6 @@ AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
           continue;
         }
       }
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
       if (j > 0) {
         int filter_length_neg = 0;
         int filter_length_pos = 0;
@@ -1434,12 +1380,7 @@ AOM_INLINE void loop_filter_tip_plane(AV1_COMMON *cm, const int plane,
                               &filter_length_pos);
         aom_highbd_lpf_horizontal_generic(p, dst_stride, filter_length_neg,
                                           filter_length_pos, &q_horz,
-                                          &side_horz, bit_depth
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-                                          ,
-                                          0, 0
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-        );
+                                          &side_horz, bit_depth, 0, 0);
       }
 
       p += sub_bh * dst_stride;

@@ -549,13 +549,9 @@ void av1_cdef_search(const YV12_BUFFER_CONFIG *frame,
         bs = BLOCK_64X64;
       }
 
-      const int cdef_count = av1_cdef_compute_sb_list(
-          cm, mi_params, fbr * MI_SIZE_64X64, fbc * MI_SIZE_64X64, dlist, bs
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-          ,
-          num_planes
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-      );
+      const int cdef_count =
+          av1_cdef_compute_sb_list(cm, mi_params, fbr * MI_SIZE_64X64,
+                                   fbc * MI_SIZE_64X64, dlist, bs, num_planes);
 
       const int yoff = CDEF_VBORDER * (fbr != 0);
       const int xoff = CDEF_HBORDER * (fbc != 0);

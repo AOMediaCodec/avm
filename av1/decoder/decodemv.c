@@ -145,15 +145,10 @@ static void span_ccso(AV1_COMMON *cm, MACROBLOCKD *const xd, int pli,
   const BLOCK_SIZE bsize = xd->mi[0]->sb_type[PLANE_TYPE_Y];
   const int bw = mi_size_wide[bsize];
   const int bh = mi_size_high[bsize];
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(
       cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
   const int log2_w = ccso_blk_size;
   const int log2_h = ccso_blk_size;
-#else
-  const int log2_w = CCSO_BLK_SIZE;
-  const int log2_h = CCSO_BLK_SIZE;
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   const int f_w = 1 << log2_w >> MI_SIZE_LOG2;
   const int f_h = 1 << log2_h >> MI_SIZE_LOG2;
   const int ccso_nhfb = (mi_params->mi_cols + f_w - 1) / f_w;
@@ -170,23 +165,14 @@ void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(
       cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
   const int blk_size_y = (1 << (ccso_blk_size - MI_SIZE_LOG2)) - 1;
   const int blk_size_x = (1 << (ccso_blk_size - MI_SIZE_LOG2)) - 1;
-#else
-  const int blk_size_y = (1 << (CCSO_BLK_SIZE - MI_SIZE_LOG2)) - 1;
-  const int blk_size_x = (1 << (CCSO_BLK_SIZE - MI_SIZE_LOG2)) - 1;
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   int blk_idc;
   if (!(mi_row & blk_size_y) && !(mi_col & blk_size_x) &&
       cm->ccso_info.ccso_enable[0]) {
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
     const int log2_filter_unit_size = ccso_blk_size;
-#else
-    const int log2_filter_unit_size = CCSO_BLK_SIZE;
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
     const int ccso_nhfb = ((mi_params->mi_cols >> xd->plane[0].subsampling_x) +
                            (1 << log2_filter_unit_size >> 2) - 1) /
                           (1 << log2_filter_unit_size >> 2);
@@ -220,13 +206,8 @@ void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
 
   if (!(mi_row & blk_size_y) && !(mi_col & blk_size_x) &&
       cm->ccso_info.ccso_enable[1]) {
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
     const int log2_filter_unit_size =
         (ccso_blk_size - xd->plane[1].subsampling_x);
-#else
-    const int log2_filter_unit_size =
-        (CCSO_BLK_SIZE - xd->plane[1].subsampling_x);
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
     const int ccso_nhfb = ((mi_params->mi_cols >> xd->plane[1].subsampling_x) +
                            (1 << log2_filter_unit_size >> 2) - 1) /
                           (1 << log2_filter_unit_size >> 2);
@@ -260,13 +241,8 @@ void read_ccso(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
 
   if (!(mi_row & blk_size_y) && !(mi_col & blk_size_x) &&
       cm->ccso_info.ccso_enable[2]) {
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
     const int log2_filter_unit_size =
         (ccso_blk_size - xd->plane[2].subsampling_x);
-#else
-    const int log2_filter_unit_size =
-        (CCSO_BLK_SIZE - xd->plane[2].subsampling_x);
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
     const int ccso_nhfb = ((mi_params->mi_cols >> xd->plane[2].subsampling_x) +
                            (1 << log2_filter_unit_size >> 2) - 1) /
                           (1 << log2_filter_unit_size >> 2);
@@ -847,14 +823,7 @@ static int read_segment_id(AV1_COMMON *const cm, const MACROBLOCKD *const xd,
                            aom_reader *r, int skip) {
   int cdf_num;
   const int pred = av1_get_spatial_seg_pred(cm, xd, &cdf_num);
-  if (skip &&
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-      !cm->features.has_lossless_segment
-#else
-      !xd->lossless[pred]
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-  )
-    return pred;
+  if (skip && !cm->features.has_lossless_segment) return pred;
 
   FRAME_CONTEXT *ec_ctx = xd->tile_ctx;
   struct segmentation *const seg = &cm->seg;

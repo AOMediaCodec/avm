@@ -33,14 +33,6 @@ extern "C" {
 #define AOM_RESTORATION_FRAME_BORDER 32
 #define CLIP(x, lo, hi) ((x) < (lo) ? (lo) : (x) > (hi) ? (hi) : (x))
 
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-#define USE_LOOP_RESTORATION_MT \
-  0  // Enable when multithrading works again w/
-     // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-#else
-#define USE_LOOP_RESTORATION_MT 1
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-
 #define RESTORATION_PROC_UNIT_SIZE 64
 
 // Filter tile grid offset upwards compared to the superblock grid
@@ -251,7 +243,6 @@ typedef struct {
   int ss_y;
   struct aom_internal_error_info *error;
   /*!\endcond */
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
   /*!
    * Pointer to point lossless_segment array in cm.
    */
@@ -260,7 +251,6 @@ typedef struct {
    * Pointer to cm.
    */
   const struct AV1Common *cm;
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 } RestorationUnitInfo;
 
 /*!\cond */
@@ -516,13 +506,9 @@ typedef struct FilterFrameCtxt {
   const struct CommonModeInfoParams *mi_params;
   int order_hint;
   struct aom_internal_error_info *error;
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
   const bool *lossless_segment;
   const struct AV1Common *cm;
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   int disable_loopfilters_across_tiles;
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 } FilterFrameCtxt;
 
 typedef struct AV1LrStruct {
@@ -581,10 +567,7 @@ void av1_loop_restoration_filter_unit(
     const RestorationStripeBoundaries *rsb, RestorationLineBuffers *rlbs,
     const AV1PixelRect *tile_rect, int tile_stripe0, int ss_x, int ss_y,
     int bit_depth, uint16_t *data, int stride, uint16_t *dst, int dst_stride,
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-    int plane_width, int disable_loopfilters_across_tiles,
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-    int optimized_lr);
+    int plane_width, int disable_loopfilters_across_tiles, int optimized_lr);
 
 /*!\brief Function for applying loop restoration filter to a frame
  *
@@ -678,11 +661,8 @@ void av1_lr_sync_write_dummy(void *const lr_sync, int r, int c,
 void copy_tile(int width, int height, const uint16_t *src, int src_stride,
                uint16_t *dst, int dst_stride);
 
-void set_restoration_unit_size(
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-    struct AV1Common *cm,
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-    int width, int height, int sx, int sy, RestorationInfo *rst);
+void set_restoration_unit_size(struct AV1Common *cm, int width, int height,
+                               int sx, int sy, RestorationInfo *rst);
 
 static INLINE int to_readwrite_framefilters(const RestorationInfo *rsi,
                                             int mi_row, int mi_col) {

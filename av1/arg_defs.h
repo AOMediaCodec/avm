@@ -273,9 +273,7 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t enable_ext_seg;
   arg_def_t dpb_size;
   arg_def_t enable_bru;
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   arg_def_t disable_loopfilters_across_tiles;
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 #endif  // CONFIG_AV1_ENCODER
   arg_def_t frame_hash_metadata;
   arg_def_t frame_hash_per_plane;

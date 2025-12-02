@@ -182,8 +182,6 @@ set_aom_config_var(CONFIG_MODIFY_SH 1
 set_aom_config_var(CONFIG_REORDER_SEQ_FLAGS 1 "Group sequence header flags.")
 set_aom_config_var(CONFIG_IMPROVED_REORDER_SEQ_FLAGS 1
                    "Improvement of Group sequence header flags.")
-set_aom_config_var(CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES 1
-                   "AV2 control to allow loopfilters across tiles or not")
 set_aom_config_var(CONFIG_DIP_EXT_PRUNING 1 "AV2 DIP TFLite pruning.")
 
 set_aom_config_var(CONFIG_SCAN_TYPE_METADATA 1
@@ -274,8 +272,6 @@ set_aom_config_var(CONFIG_FGS_IDENT 1
 set_aom_config_var(CONFIG_SHORT_METADATA 1
                    "Enable short metadata OBU header support")
 
-set_aom_config_var(CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS 1
-                   "Disable loop filters for lossless segments")
 set_aom_config_var(
   CONFIG_MIXED_LOSSLESS_ENCODE 0
   "Encoder only flag to configure encoder to enable mixed lossy/lossless coding"

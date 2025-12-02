@@ -507,23 +507,15 @@ static void enqueue_ccso_jobs(AV1CcsoSync *ccso_sync, AV1_COMMON *cm,
   ccso_sync->jobs_dequeued = 0;
   const int num_planes = av1_num_planes(cm);
   const int inc_row = 1 << CCSO_PROC_BLK_LOG2;
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   const int blk_size = 1 << get_ccso_unit_size_log2_adaptive_tile(
                            cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
-#else
-  const int blk_size = CCSO_BLK_SIZE;
-#endif
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
 
   for (int plane = 0; plane < num_planes; plane++) {
     const int pic_height = xd->plane[plane].dst.height;
     const int pic_width = xd->plane[plane].dst.width;
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
     const int blk_log2 = get_ccso_unit_size_log2_adaptive_tile(
         cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
-#else
-    const int blk_log2 = CCSO_BLK_SIZE;
-#endif
     int blk_log2_x = blk_log2;
     int blk_log2_y = blk_log2;
     if (plane != 0) {
@@ -584,12 +576,8 @@ static INLINE void process_ccso_rows(AV1_COMMON *const cm, MACROBLOCKD *xd,
   int src_cls[2];
   int src_loc[2];
   const int ccso_ext_stride = xd->plane[0].dst.width + (CCSO_PADDING_SIZE << 1);
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   const int blk_log2 = get_ccso_unit_size_log2_adaptive_tile(
       cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
-#else
-  const int blk_log2 = CCSO_BLK_SIZE;
-#endif
 
   while (1) {
     AV1CCSOMTInfo *cur_job_info = get_ccso_job_info(ccso_sync);
@@ -789,13 +777,8 @@ static void enqueue_lr_jobs(AV1LrSync *lr_sync, AV1LrStruct *lr_ctxt,
   lr_sync->jobs_enqueued = 0;
   lr_sync->jobs_dequeued = 0;
 
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   const int num_tile_rows = cm->tiles.rows;
   const int num_tile_cols = cm->tiles.cols;
-#else
-  const int num_tile_rows = 1;
-  const int num_tile_cols = 1;
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 
   for (int plane = 0; plane < num_planes; plane++) {
     if (cm->rst_info[plane].frame_restoration_type == RESTORE_NONE) continue;
@@ -806,13 +789,9 @@ static void enqueue_lr_jobs(AV1LrSync *lr_sync, AV1LrStruct *lr_ctxt,
     for (int tile_row = 0; tile_row < num_tile_rows; ++tile_row) {
       for (int tile_col = 0; tile_col < num_tile_cols; ++tile_col) {
         AV1PixelRect tile_rect;
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
         TileInfo tile_info;
         av1_tile_init(&tile_info, cm, tile_row, tile_col);
         tile_rect = av1_get_tile_rect(&tile_info, cm, is_uv);
-#else
-        tile_rect = av1_whole_frame_rect(cm, is_uv);
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
         const int unit_idx0 = get_ru_index_for_tile_start(&cm->rst_info[plane],
                                                           tile_row, tile_col);
         const int tile_h = tile_rect.bottom - tile_rect.top;
@@ -977,13 +956,8 @@ static void foreach_rest_unit_in_planes_mt(AV1LrStruct *lr_ctxt,
   int luma_stride = dgd->widths[1] + 2 * WIENERNS_UV_BRD;
   const int num_planes = av1_num_planes(cm);
 
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   const int num_tile_cols = cm->tiles.cols;
   const int num_tile_rows = cm->tiles.rows;
-#else
-  const int num_tile_cols = 1;
-  const int num_tile_rows = 1;
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 
   const AVxWorkerInterface *const winterface = aom_get_worker_interface();
   int num_rows_lr = 0;

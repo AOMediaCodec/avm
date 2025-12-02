@@ -2760,7 +2760,6 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
         cm->rst_info[1].restoration_unit_size;
   }
 
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   // add the normative restriction of ru size so that a RU shall not cross any
   // tile boundaries
   int max_plane_ru_size =
@@ -2792,7 +2791,6 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
     }
   }
 
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   for (int p = 0; p < num_planes; ++p) {
     if (is_frame_filters_enabled(p) &&
         to_readwrite_framefilters(&cm->rst_info[p], 0, 0)) {
@@ -3381,12 +3379,10 @@ static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
   }
 #endif  // CONFIG_CWG_F317
   if (cm->ccso_info.ccso_frame_flag) {
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
     const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(
         cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
     cm->ccso_info.ccso_blk_size = ccso_blk_size;
     cm->cur_frame->ccso_info.ccso_blk_size = ccso_blk_size;
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
     for (int plane = 0; plane < av1_num_planes(cm); plane++) {
       CcsoInfo *ref_frame_ccso_info = NULL;
       cm->cur_frame->ccso_info.subsampling_y[plane] =
@@ -3425,7 +3421,6 @@ static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
             aom_internal_error(&cm->error, AOM_CODEC_ERROR,
                                "Invalid ccso_ref_idx: ref frame ccso disabled");
           }
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
           if (cm->ccso_info.sb_reuse_ccso[plane] &&
               (cm->ccso_info.ccso_blk_size !=
                    ref_frame_ccso_info->ccso_blk_size ||
@@ -3433,7 +3428,6 @@ static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
             aom_internal_error(&cm->error, AOM_CODEC_ERROR,
                                "Invalid ccso_reuse: ccso_blk_size mismatch");
           }
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
         }
 
         if (cm->ccso_info.sb_reuse_ccso[plane] &&
@@ -7053,9 +7047,7 @@ void read_sequence_filter_group_tool_flags(struct SequenceHeader *seq_params,
       seq_params->force_integer_mv = 2;  // SELECT_INTEGER_MV
     }
   }
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   seq_params->disable_loopfilters_across_tiles = aom_rb_read_bit(rb);
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   seq_params->enable_cdef = aom_rb_read_bit(rb);
   seq_params->enable_gdf = aom_rb_read_bit(rb);
   seq_params->enable_restoration = aom_rb_read_bit(rb);
@@ -7491,9 +7483,7 @@ void av1_read_sequence_header(struct aom_read_bit_buffer *rb,
   }
 
 #if !CONFIG_REORDER_SEQ_FLAGS
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   seq_params->disable_loopfilters_across_tiles = aom_rb_read_bit(rb);
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   seq_params->enable_cdef = aom_rb_read_bit(rb);
   seq_params->enable_gdf = aom_rb_read_bit(rb);
   seq_params->enable_restoration = aom_rb_read_bit(rb);
@@ -10484,9 +10474,7 @@ static int read_uncompressed_header(AV1Decoder *pbi, OBU_TYPE obu_type,
     }
 
     xd->cur_frame_force_integer_mv = features->cur_frame_force_integer_mv;
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
     features->has_lossless_segment = 0;
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 
     const int max_seg_num =
         cm->seg.enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
@@ -10505,10 +10493,8 @@ static int read_uncompressed_header(AV1Decoder *pbi, OBU_TYPE obu_type,
            0) &&
           (quant_params->v_ac_delta_q + cm->seq_params.base_uv_ac_delta_q <= 0);
 
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
       features->lossless_segment[i] = xd->lossless[i];
       if (xd->lossless[i]) features->has_lossless_segment = 1;
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 
       xd->qindex[i] = qindex;
       if (av1_use_qmatrix(quant_params, xd, i)) {
@@ -11286,10 +11272,8 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
                         cm->cdef_info.cdef_frame_enable;
     const int do_gdf = is_gdf_enabled(cm);
     const int optimized_loop_restoration =
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-        !cm->seq_params.disable_loopfilters_across_tiles &&
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-        !do_gdf && !use_ccso && !do_cdef;
+        !cm->seq_params.disable_loopfilters_across_tiles && !do_gdf &&
+        !use_ccso && !do_cdef;
 
     if (!optimized_loop_restoration) {
       if (do_loop_restoration)
@@ -11301,11 +11285,8 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
       }
 
       if (do_cdef) {
-        if (pbi->num_workers > 1
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-            && !cm->seq_params.disable_loopfilters_across_tiles
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-        ) {
+        if (pbi->num_workers > 1 &&
+            !cm->seq_params.disable_loopfilters_across_tiles) {
           av1_cdef_frame_mt(cm, &pbi->dcb.xd, pbi->cdef_worker,
                             pbi->tile_workers, &pbi->cdef_sync,
                             pbi->num_workers, av1_cdef_init_fb_row_mt);
@@ -11315,11 +11296,8 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
         }
       }
       if (use_ccso) {
-        if (pbi->num_workers > 1
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-            && !cm->seq_params.disable_loopfilters_across_tiles
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-        ) {
+        if (pbi->num_workers > 1 &&
+            !cm->seq_params.disable_loopfilters_across_tiles) {
           av1_ccso_frame_mt(&cm->cur_frame->buf, cm, xd, pbi->tile_workers,
                             pbi->num_workers, ext_rec_y, &pbi->ccso_sync);
         } else {
@@ -11339,11 +11317,8 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
       }
       if (do_loop_restoration) {
         copy_frame_filters_to_runits_if_needed(cm);
-        if (pbi->num_workers > 1
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-            && !cm->seq_params.disable_loopfilters_across_tiles
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-        ) {
+        if (pbi->num_workers > 1 &&
+            !cm->seq_params.disable_loopfilters_across_tiles) {
           av1_loop_restoration_filter_frame_mt(
               (YV12_BUFFER_CONFIG *)xd->cur_buf, cm, optimized_loop_restoration,
               pbi->tile_workers, pbi->num_workers, &pbi->lr_row_sync,
@@ -11362,11 +11337,8 @@ void av1_decode_tg_tiles_and_wrapup(AV1Decoder *pbi, const uint8_t *data,
     } else {
       if (do_loop_restoration) {
         copy_frame_filters_to_runits_if_needed(cm);
-        if (pbi->num_workers > 1
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-            && !cm->seq_params.disable_loopfilters_across_tiles
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-        ) {
+        if (pbi->num_workers > 1 &&
+            !cm->seq_params.disable_loopfilters_across_tiles) {
           av1_loop_restoration_filter_frame_mt(
               (YV12_BUFFER_CONFIG *)xd->cur_buf, cm, optimized_loop_restoration,
               pbi->tile_workers, pbi->num_workers, &pbi->lr_row_sync,

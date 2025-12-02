@@ -330,7 +330,6 @@ void av1_alloc_restoration_boundary_buffers(struct AV1Common *cm,
 
   AV1PixelRect tile_rect;
   int num_stripes = 0;
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   TileInfo tile_info;
   for (int tr = 0; tr < cm->tiles.rows; ++tr) {
     av1_tile_init(&tile_info, cm, tr, 0);
@@ -338,11 +337,6 @@ void av1_alloc_restoration_boundary_buffers(struct AV1Common *cm,
     const int tile_h = tile_rect.bottom - tile_rect.top;
     num_stripes += av1_lr_count_stripes_in_tile(tile_h, 0);
   }
-#else
-  tile_rect = av1_whole_frame_rect(cm, 0);
-  const int tile_h = tile_rect.bottom - tile_rect.top;
-  num_stripes = av1_lr_count_stripes_in_tile(tile_h, 0);
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   // int num_stripes = cm->rst_info[0].vert_stripes_per_frame;
 
   // Now we need to allocate enough space to store the line buffers for the

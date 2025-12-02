@@ -396,7 +396,6 @@ RefCntBuffer *bru_swap_common(AV1_COMMON *cm) {
           plane > 0 ? cm->seq_params.subsampling_y : 0;
       ref_buf->ccso_info.reuse_root_ref[plane] =
           tmp_buf->ccso_info.reuse_root_ref[plane];
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
       const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(
           cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
       const int log2_filter_unit_size_y =
@@ -406,14 +405,6 @@ RefCntBuffer *bru_swap_common(AV1_COMMON *cm) {
           plane == 0 ? ccso_blk_size
                      : ccso_blk_size - cm->seq_params.subsampling_x;
       ref_buf->ccso_info.ccso_blk_size = ccso_blk_size;
-#else
-      const int log2_filter_unit_size_y =
-          plane == 0 ? CCSO_BLK_SIZE
-                     : CCSO_BLK_SIZE - cm->seq_params.subsampling_y;
-      const int log2_filter_unit_size_x =
-          plane == 0 ? CCSO_BLK_SIZE
-                     : CCSO_BLK_SIZE - cm->seq_params.subsampling_x;
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
       const int ccso_nvfb = ((cm->mi_params.mi_rows >>
                               (plane ? cm->seq_params.subsampling_y : 0)) +
                              (1 << log2_filter_unit_size_y >> 2) - 1) /

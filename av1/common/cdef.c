@@ -34,7 +34,6 @@ static int is_8x8_block_skip(MB_MODE_INFO **grid, int mi_row, int mi_col,
   return 1;
 }
 
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 // Check any 4x4 sub-block of the entire block is lossless or not.
 // If one of the 4x4 sub-block is lossless, filter of full block will be
 // skipped.
@@ -52,17 +51,11 @@ static int contains_lossless_8x8(const AV1_COMMON *const cm,
   }
   return 0;
 }
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 
 int av1_cdef_compute_sb_list(const AV1_COMMON *const cm,
                              const CommonModeInfoParams *const mi_params,
                              int mi_row, int mi_col, cdef_list *dlist,
-                             BLOCK_SIZE bs
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-                             ,
-                             int num_planes
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-) {
+                             BLOCK_SIZE bs, int num_planes) {
   MB_MODE_INFO **grid = mi_params->mi_grid_base;
   int maxc = mi_params->mi_cols - mi_col;
   int maxr = mi_params->mi_rows - mi_row;
@@ -87,7 +80,6 @@ int av1_cdef_compute_sb_list(const AV1_COMMON *const cm,
   int count = 0;
   for (int r = 0; r < maxr; r += r_step) {
     for (int c = 0; c < maxc; c += c_step) {
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
       bool contains_lossless_luma = contains_lossless_8x8(
           cm, grid, mi_row + r, mi_col + c, mi_params->mi_stride, 0);
       uint8_t apply_filter = (contains_lossless_luma == false);
@@ -101,11 +93,6 @@ int av1_cdef_compute_sb_list(const AV1_COMMON *const cm,
                 ? contains_lossless_8x8(cm, grid, mi_row + r, mi_col + c,
                                         mi_params->mi_stride, 1)
                 : 0;
-#else
-      if (cm->cdef_info.cdef_on_skip_txfm_frame_enable == 1 ||
-          !is_8x8_block_skip(grid, mi_row + r, mi_col + c,
-                             mi_params->mi_stride)) {
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
         dlist[count].by = r >> r_shift;
         dlist[count].bx = c >> c_shift;
         count++;
@@ -206,7 +193,6 @@ static void cdef_prepare_fb(AV1_COMMON *const cm, CdefBlockInfo *const fb_info,
   else
     rend = vsize + CDEF_VBORDER;
 
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   int tile_top = fb_info->frame_boundary[TOP];
   int tile_left = fb_info->frame_boundary[LEFT];
   int tile_bottom = fb_info->frame_boundary[BOTTOM];
@@ -228,7 +214,6 @@ static void cdef_prepare_fb(AV1_COMMON *const cm, CdefBlockInfo *const fb_info,
       cstart = 0;
     }
   }
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 
   /* Copy in the pixels we need from the current superblock for
   deringing.*/
@@ -294,7 +279,6 @@ static void cdef_prepare_fb(AV1_COMMON *const cm, CdefBlockInfo *const fb_info,
   copy_rect(colbuf[plane], CDEF_HBORDER, src + hsize, CDEF_BSTRIDE,
             rend + CDEF_VBORDER, CDEF_HBORDER);
 
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   // if (!cm->seq_params.disable_loopfilters_across_tiles)
   // tile boundary is set to frame boundary
   if (tile_top) {
@@ -313,16 +297,6 @@ static void cdef_prepare_fb(AV1_COMMON *const cm, CdefBlockInfo *const fb_info,
     fill_rect(&src[hsize + CDEF_HBORDER], CDEF_BSTRIDE,
               vsize + 2 * CDEF_VBORDER, CDEF_HBORDER, CDEF_VERY_LARGE);
   }
-#else
-  if (fb_info->frame_boundary[LEFT]) {
-    fill_rect(src, CDEF_BSTRIDE, vsize + 2 * CDEF_VBORDER, CDEF_HBORDER,
-              CDEF_VERY_LARGE);
-  }
-  if (fb_info->frame_boundary[RIGHT]) {
-    fill_rect(&src[hsize + CDEF_HBORDER], CDEF_BSTRIDE,
-              vsize + 2 * CDEF_VBORDER, CDEF_HBORDER, CDEF_VERY_LARGE);
-  }
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 }
 
 // Initializes block-level parameters for CDEF.
@@ -392,14 +366,9 @@ static void cdef_fb_col(AV1_COMMON *const cm, MACROBLOCKD *const xd,
     return;
   }
 
-  fb_info->cdef_count =
-      av1_cdef_compute_sb_list(cm, mi_params, fbr * MI_SIZE_64X64,
-                               fbc * MI_SIZE_64X64, fb_info->dlist, BLOCK_64X64
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-                               ,
-                               num_planes
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-      );
+  fb_info->cdef_count = av1_cdef_compute_sb_list(
+      cm, mi_params, fbr * MI_SIZE_64X64, fbc * MI_SIZE_64X64, fb_info->dlist,
+      BLOCK_64X64, num_planes);
   if (!fb_info->cdef_count) {
     av1_zero_array(cdef_left, num_planes);
     return;

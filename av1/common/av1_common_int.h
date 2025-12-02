@@ -275,9 +275,7 @@ typedef struct {
   unsigned int
       reuse_root_ref[CCSO_NUM_COMPONENTS];  // only used in encoder-side for rdo
                                             // speedup
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   int ccso_blk_size;
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 } CcsoInfo;
 
 typedef struct RefCntBuffer {
@@ -463,12 +461,10 @@ typedef struct {
   int gdf_vert_blks_per_tile[MAX_TILE_ROWS];    /*!< # vert blocks per tile */
   int gdf_horz_blks_per_tile[MAX_TILE_COLS];    /*!< # horz blocks per tile */
   int gdf_vert_stripes_per_tile[MAX_TILE_ROWS]; /*!< # stripes per tile */
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   uint16_t *tmp_save_left;  /*!< pointer to memory storing pixels to
                               left of tile boundary */
   uint16_t *tmp_save_right; /*!< pointer to memory storing pixels to
                               right of tile boundary */
-#endif                      // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 } GdfInfo;
 
 /*!\brief Parameters related to CDEF */
@@ -1041,9 +1037,7 @@ typedef struct SequenceHeader {
   uint8_t enable_masked_compound;           // enables/disables masked compound
   aom_opfl_refine_type enable_opfl_refine;  // optical flow refinement type for
                                             // this frame
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   uint8_t disable_loopfilters_across_tiles;
-#endif                         // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   uint8_t enable_cdef;         // To turn on/off CDEF
   uint8_t enable_gdf;          // To turn on/off GDF
   uint8_t enable_restoration;  // To turn on/off loop restoration
@@ -1265,7 +1259,6 @@ typedef struct {
    * If true, frame is fully lossless at upscaled resolution.
    */
   bool all_lossless;
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
   /*!
    * If true, segment is fully lossless and loop filters will be skipped for
    * lossless segment
@@ -1277,8 +1270,6 @@ typedef struct {
    * lossless segment
    */
   bool has_lossless_segment;
-
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 
   /*!
    * If true, the frame is restricted to a reduced subset of the full set of
@@ -3103,10 +3094,8 @@ static INLINE aom_codec_err_t av1_get_chroma_format_idc(
 }
 #endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 int get_ccso_unit_size_log2_adaptive_tile(const AV1_COMMON *cm,
                                           int sb_size_log2, int unit_size_log2);
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 
 // TODO(hkuang): Don't need to lock the whole pool after implementing atomic
 // frame reference count.
@@ -3467,7 +3456,6 @@ static INLINE void ensure_mv_buffer(RefCntBuffer *buf, AV1_COMMON *cm) {
       if (buf->ccso_info.sb_filter_control[pli]) {
         aom_free(buf->ccso_info.sb_filter_control[pli]);
       }
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
       // this function is called before tile information is signalled, therefore
       // the temporal ccso block size is set as the minimum possible value to
       // allocate sufficient buffer for ccso bock level on/off flag
@@ -3478,14 +3466,6 @@ static INLINE void ensure_mv_buffer(RefCntBuffer *buf, AV1_COMMON *cm) {
       const int log2_filter_unit_size_x =
           pli == 0 ? ccso_blk_size
                    : ccso_blk_size - cm->seq_params.subsampling_x;
-#else
-      const int log2_filter_unit_size_y =
-          pli == 0 ? CCSO_BLK_SIZE
-                   : CCSO_BLK_SIZE - cm->seq_params.subsampling_y;
-      const int log2_filter_unit_size_x =
-          pli == 0 ? CCSO_BLK_SIZE
-                   : CCSO_BLK_SIZE - cm->seq_params.subsampling_x;
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 
       const int ccso_nvfb =
           ((cm->mi_params.mi_rows >> (pli ? cm->seq_params.subsampling_y : 0)) +

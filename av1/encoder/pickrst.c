@@ -257,17 +257,12 @@ static AOM_INLINE void rsc_on_tile(void *priv, int idx_base, int tile_row,
   RestSearchCtxt *rsc = (RestSearchCtxt *)priv;
   reset_all_banks(rsc);
   const int is_uv = rsc->plane != AOM_PLANE_Y;
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   TileInfo tile_info;
   av1_tile_init(&tile_info, rsc->cm, tile_row, tile_col);
   rsc->tile_rect = av1_get_tile_rect(&tile_info, rsc->cm, is_uv);
   rsc->tile_stripe0 = get_top_stripe_idx_in_tile(tile_row, tile_col, rsc->cm,
                                                  RESTORATION_PROC_UNIT_SIZE,
                                                  RESTORATION_UNIT_OFFSET);
-#else
-  rsc->tile_rect = av1_whole_frame_rect(rsc->cm, is_uv);
-  rsc->tile_stripe0 = 0;
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   rsc->ru_idx_base = idx_base;
   int ru_row_start, ru_row_end;
   int ru_col_start, ru_col_end;
@@ -344,9 +339,7 @@ static int64_t try_restoration_unit(const RestSearchCtxt *rsc,
       is_uv && cm->seq_params.subsampling_x,
       is_uv && cm->seq_params.subsampling_y, bit_depth, fts->buffers[plane],
       fts->strides[is_uv], rsc->dst->buffers[plane], rsc->dst->strides[is_uv],
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
       rsc->plane_width, cm->seq_params.disable_loopfilters_across_tiles,
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
       optimized_lr);
 
   if (rlbs != NULL) aom_free(rlbs);
@@ -434,10 +427,8 @@ static AOM_INLINE void search_pc_wiener_visitor(
   rui.ss_x = ss_x;
   rui.ss_y = ss_y;
   rui.mi_stride = rsc->cm->mi_params.mi_stride;
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
   rui.lossless_segment = rsc->cm->features.lossless_segment;
   rui.cm = rsc->cm;
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
   // Only need the classification if running for frame filters.
   rui.skip_pcwiener_filtering = pcwiener_disabled ? 1 : 0;
 
@@ -487,10 +478,8 @@ static int64_t calc_finer_tile_search_error(const RestSearchCtxt *rsc,
     rui->ss_x = ss_x;
     rui->ss_y = ss_y;
     rui->mi_stride = rsc->cm->mi_params.mi_stride;
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
     rui->lossless_segment = rsc->cm->features.lossless_segment;
     rui->cm = rsc->cm;
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
     err = try_restoration_unit(rsc, limits, tile, rui);
   } else {
     Vector *current_unit_stack = rsc->unit_stack;
@@ -512,10 +501,8 @@ static int64_t calc_finer_tile_search_error(const RestSearchCtxt *rsc,
         rui->ss_x = ss_x;
         rui->ss_y = ss_y;
         rui->mi_stride = rsc->cm->mi_params.mi_stride;
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
         rui->lossless_segment = rsc->cm->features.lossless_segment;
         rui->cm = rsc->cm;
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
         err += try_restoration_unit(rsc, &old_unit->limits, tile, rui);
         n++;
         if (n >= (int)current_unit_indices->size) break;
@@ -568,10 +555,8 @@ static int64_t reset_unit_stack_dst_buffers(const RestSearchCtxt *rsc,
         rui->ss_x = ss_x;
         rui->ss_y = ss_y;
         rui->mi_stride = rsc->cm->mi_params.mi_stride;
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
         rui->lossless_segment = rsc->cm->features.lossless_segment;
         rui->cm = rsc->cm;
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
         err += try_restoration_unit(rsc, &old_unit->limits, tile, rui);
         n++;
         if (n >= (int)current_unit_indices->size) break;
@@ -2060,10 +2045,8 @@ static void gather_stats_wienerns(const RestorationTileLimits *limits,
   rui.ss_x = ss_x;
   rui.ss_y = ss_y;
   rui.mi_stride = rsc->cm->mi_params.mi_stride;
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
   rui.lossless_segment = rsc->cm->features.lossless_segment;
   rui.cm = rsc->cm;
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
   // Calculate and save this RU's stats.
   RstUnitStats unit_stats;
   RestUnitSearchInfo *rusi = &rsc->rusi[rest_unit_idx];
@@ -2201,10 +2184,8 @@ static void search_wienerns_visitor(const RestorationTileLimits *limits,
   rui.ss_x = ss_x;
   rui.ss_y = ss_y;
   rui.mi_stride = rsc->cm->mi_params.mi_stride;
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
   rui.lossless_segment = rsc->cm->features.lossless_segment;
   rui.cm = rsc->cm;
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 
   // Classification has already been calculated by search_pc_wiener_visitor().
   rui.compute_classification = 0;
@@ -2871,11 +2852,7 @@ static void process_one_rutile(RestSearchCtxt *rsc, int tile_row, int tile_col,
   assert(tile_info.mi_row_start < tile_info.mi_row_end);
   assert(tile_info.mi_col_start < tile_info.mi_col_end);
   AV1PixelRect indep_tile_rect;
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   indep_tile_rect = av1_get_tile_rect(&tile_info, rsc->cm, is_uv);
-#else
-  indep_tile_rect = av1_whole_frame_rect(rsc->cm, is_uv);
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 
   reset_rsc(rsc);
   rsc_on_tile(rsc, *processed, tile_row, tile_col);
@@ -3303,10 +3280,8 @@ static RdResults update_cost_and_weights_wienerns(RestSearchCtxt *rsc,
           unit_stats_ptr->limits.v_start >> (MI_SIZE_LOG2 - ss_y);
       const int mbmi_idx =
           get_mi_grid_idx(&rsc->cm->mi_params, start_mi_y, start_mi_x);
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
       rui->lossless_segment = rsc->cm->features.lossless_segment;
       rui->cm = rsc->cm;
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
       rui->mbmi_ptr = rsc->cm->mi_params.mi_grid_base + mbmi_idx;
       rui->ss_x = ss_x;
       rui->ss_y = ss_y;
@@ -3721,7 +3696,6 @@ void av1_reset_restoration_struct(AV1_COMMON *cm, RestorationInfo *rsi,
   const int unit_size = rsi->restoration_unit_size;
   const int ss_y = is_uv && cm->seq_params.subsampling_y;
   AV1PixelRect tile_rect;
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   TileInfo tile_info;
   rsi->vert_units_per_frame = 0;
   rsi->vert_stripes_per_frame = 0;
@@ -3743,23 +3717,6 @@ void av1_reset_restoration_struct(AV1_COMMON *cm, RestorationInfo *rsi,
         av1_lr_count_units_in_tile(unit_size, tile_w);
     rsi->horz_units_per_frame += rsi->horz_units_per_tile[tc];
   }
-#else
-  tile_rect = av1_whole_frame_rect(cm, is_uv);
-  const int tile_w = tile_rect.right - tile_rect.left;
-  const int tile_h = tile_rect.bottom - tile_rect.top;
-  // To calculate hpertile and vpertile (horizontal and vertical units per
-  // tile), we basically want to divide the largest tile width or height by the
-  // size of a restoration unit. Rather than rounding up unconditionally as you
-  // might expect, we round to nearest, which models the way a right or bottom
-  // restoration unit can extend to up to 150% its normal width or height. The
-  // max with 1 is to deal with tiles that are smaller than half of a
-  // restoration unit.
-  rsi->vert_units_per_tile[0] = av1_lr_count_units_in_tile(unit_size, tile_h);
-  rsi->vert_units_per_frame = rsi->vert_units_per_tile[0];
-  rsi->horz_units_per_tile[0] = av1_lr_count_units_in_tile(unit_size, tile_w);
-  rsi->horz_units_per_frame = rsi->horz_units_per_tile[0];
-  rsi->vert_stripes_per_frame = av1_lr_count_stripes_in_tile(tile_h, ss_y);
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   const int nunits = rsi->horz_units_per_frame * rsi->vert_units_per_frame;
   if (nunits > rsi->nunits_alloc) {
     aom_free(rsi->unit_info);

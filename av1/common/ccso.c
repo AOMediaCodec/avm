@@ -21,7 +21,6 @@
 #include "av1/common/reconinter.h"
 #include "av1/common/av1_common_int.h"
 
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 // Derivation of CCSO unit size, ccso unit shall not across tile boundaries
 int get_ccso_unit_size_log2_adaptive_tile(const AV1_COMMON *cm,
                                           int sb_size_log2,
@@ -53,7 +52,6 @@ int get_ccso_unit_size_log2_adaptive_tile(const AV1_COMMON *cm,
   }
   return unit_size;
 }
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 
 /* Pad the border of a frame */
 void extend_ccso_border(const YV12_BUFFER_CONFIG *frame, uint16_t *buf,
@@ -79,7 +77,6 @@ void extend_ccso_border(const YV12_BUFFER_CONFIG *frame, uint16_t *buf,
   }
 }
 
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 void extend_ccso_tile_border(const int tile_height, const int tile_width,
                              const int tile_stride, uint16_t *buf,
                              const int d) {
@@ -102,7 +99,6 @@ void extend_ccso_tile_border(const int tile_height, const int tile_width,
            sizeof(uint16_t) * (tile_width + (d << 1)));
   }
 }
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 
 /* Derive the quantized index, later it can be used for retriving offset values
  * from the look-up table */
@@ -162,7 +158,6 @@ void derive_ccso_sample_pos(int *rec_idx, const int ccso_stride,
   }
 }
 
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 /* Derive rect area of a tile for CCSO process */
 INLINE static AV1PixelRect av1_get_tile_rect_ccso(const TileInfo *tile_info,
                                                   const AV1_COMMON *cm,
@@ -193,7 +188,6 @@ INLINE static AV1PixelRect av1_get_tile_rect_ccso(const TileInfo *tile_info,
 
   return r;
 }
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 
 // Cross-component Sample Offset band offset only case.
 void ccso_filter_block_hbd_wo_buf_bo_only_c(
@@ -257,7 +251,6 @@ void ccso_filter_block_hbd_wo_buf_c(
   }
 }
 
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 // If there is at-least 1 segment is lossless in a frame, we have
 // to do 4x4 processing, because minimum lossless block can be 4x4
 // size. Although, regardless the value of
@@ -266,13 +259,11 @@ void ccso_filter_block_hbd_wo_buf_c(
 // used  full block processing for whole lossy frame.
 void ccso_filter_block_hbd_wo_buf_4x4_c(
     AV1_COMMON *cm, const uint16_t *src_y, uint16_t *dst_yuv,
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-    int tile_col_start, int tile_row_start,
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-    const int x, const int y, const int pic_width, const int pic_height,
-    int *src_cls, const int8_t *offset_buf, const int src_y_stride,
-    const int dst_stride, const int y_uv_hscale, const int y_uv_vscale,
-    const int thr, const int neg_thr, const int *src_loc, const int max_val,
+    int tile_col_start, int tile_row_start, const int x, const int y,
+    const int pic_width, const int pic_height, int *src_cls,
+    const int8_t *offset_buf, const int src_y_stride, const int dst_stride,
+    const int y_uv_hscale, const int y_uv_vscale, const int thr,
+    const int neg_thr, const int *src_loc, const int max_val,
     const int blk_size_x, const int blk_size_y, const bool isSingleBand,
     const uint8_t shift_bits, const int edge_clf, const uint8_t ccso_bo_only,
     int plane) {
@@ -286,17 +277,11 @@ void ccso_filter_block_hbd_wo_buf_4x4_c(
     const int y_pos = y_start;
     for (int x_start = 0; x_start < x_end; x_start += min_b_size_x) {
       const int x_pos = x + x_start;
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
       const int this_mi_row =
           ((tile_row_start + y_pos + y) << y_uv_vscale) >> MI_SIZE_LOG2;
       const int this_mi_col =
           ((tile_col_start + x_pos) << y_uv_hscale) >> MI_SIZE_LOG2;
 
-#else
-      const int this_mi_row = ((y_pos + y) << y_uv_vscale) >> MI_SIZE_LOG2;
-      const int this_mi_col = (x_pos << y_uv_hscale) >> MI_SIZE_LOG2;
-
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
       MB_MODE_INFO **this_mbmi_ptr = mi_params->mi_grid_base +
                                      this_mi_row * mi_params->mi_stride +
                                      this_mi_col;
@@ -337,7 +322,6 @@ void ccso_filter_block_hbd_wo_buf_4x4_c(
     }
   }
 }
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 
 // Apply CCSO for each process block row
 void av1_apply_ccso_filter_for_row(AV1_COMMON *cm, MACROBLOCKD *xd,
@@ -398,20 +382,14 @@ void av1_apply_ccso_filter_for_row(AV1_COMMON *cm, MACROBLOCKD *xd,
     }
 #endif  // CONFIG_CWG_F317
 
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
     if (cm->features.has_lossless_segment) {
       ccso_filter_block_hbd_wo_buf_4x4_c(
-          cm, src_y, dst_yuv,
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-          0, 0,
-#endif  // CCONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-          blk_col, blk_row, pic_width, pic_height, src_cls,
-          cm->ccso_info.filter_offset[plane], src_y_stride, dst_stride,
+          cm, src_y, dst_yuv, 0, 0, blk_col, blk_row, pic_width, pic_height,
+          src_cls, cm->ccso_info.filter_offset[plane], src_y_stride, dst_stride,
           y_uv_hscale, y_uv_vscale, thr, neg_thr, src_loc, max_val,
           blk_size_proc, blk_size_proc, is_single_band, shift_bits, edge_clf,
           cm->ccso_info.ccso_bo_only[plane], plane);
     } else {
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
       if (cm->ccso_info.ccso_bo_only[plane]) {
         ccso_filter_block_hbd_wo_buf_bo_only(
             src_y, dst_yuv, blk_col, blk_row, pic_width, pic_height,
@@ -426,9 +404,7 @@ void av1_apply_ccso_filter_for_row(AV1_COMMON *cm, MACROBLOCKD *xd,
             blk_size_proc, blk_size_proc, is_single_band, shift_bits, edge_clf,
             0);
       }
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
     }
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
   }
 }
 
@@ -436,12 +412,8 @@ void av1_apply_ccso_filter_for_row(AV1_COMMON *cm, MACROBLOCKD *xd,
  * applied */
 void apply_ccso_filter(AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
                        const uint16_t *src_y, uint16_t *dst_yuv, int dst_stride,
-                       int proc_unit_log2, uint16_t thr, uint8_t filter_sup
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-                       ,
-                       uint8_t max_band_log2, int edge_clf
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-) {
+                       int proc_unit_log2, uint16_t thr, uint8_t filter_sup,
+                       uint8_t max_band_log2, int edge_clf) {
   const int ccso_ext_stride = xd->plane[0].dst.width + (CCSO_PADDING_SIZE << 1);
   const int pic_height = xd->plane[plane].dst.height;
   int src_cls[2];
@@ -449,23 +421,15 @@ void apply_ccso_filter(AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
   const int y_uv_hscale = xd->plane[plane].subsampling_x;
   const int y_uv_vscale = xd->plane[plane].subsampling_y;
   derive_ccso_sample_pos(src_loc, ccso_ext_stride, filter_sup);
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(
       cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
   const int blk_log2 = ccso_blk_size;
   const int blk_size = 1 << blk_log2;
   const int blk_log2_x = blk_log2 - y_uv_hscale;
   const int blk_log2_y = blk_log2 - y_uv_vscale;
-#else
-  const int blk_log2 = CCSO_BLK_SIZE;
-  const int blk_size = 1 << blk_log2;
-  const int blk_log2_x = CCSO_BLK_SIZE - y_uv_hscale;
-  const int blk_log2_y = CCSO_BLK_SIZE - y_uv_vscale;
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   src_y += CCSO_PADDING_SIZE * ccso_ext_stride + CCSO_PADDING_SIZE;
   const int unit_log2_x = AOMMIN(proc_unit_log2, blk_log2_x);
   const int unit_log2_y = AOMMIN(proc_unit_log2, blk_log2_y);
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   const uint8_t shift_bits = cm->seq_params.bit_depth - max_band_log2;
   const bool is_single_band = !max_band_log2;
@@ -570,7 +534,6 @@ void apply_ccso_filter(AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
                                      "active SB can be filtered");
                   return;
                 }
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
                 if (cm->features.has_lossless_segment) {
                   ccso_filter_block_hbd_wo_buf_4x4_c(
                       cm, src_unit_y, dst_unit_yuv, tile_col_start,
@@ -582,7 +545,6 @@ void apply_ccso_filter(AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
                       is_single_band, shift_bits, edge_clf,
                       cm->ccso_info.ccso_bo_only[plane], plane);
                 } else {
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
                   if (cm->ccso_info.ccso_bo_only[plane]) {
                     ccso_filter_block_hbd_wo_buf_c(
                         src_unit_y, dst_unit_yuv, tile_pxl_x + unit_x,
@@ -602,9 +564,7 @@ void apply_ccso_filter(AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
                         unit_size_x, unit_size_y, is_single_band, shift_bits,
                         edge_clf, 0);
                   }
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
                 }
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
               }
               dst_unit_yuv += (dst_stride << unit_log2_y);
               src_unit_y +=
@@ -621,7 +581,6 @@ void apply_ccso_filter(AV1_COMMON *cm, MACROBLOCKD *xd, int plane,
     }
     return;
   }
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   const int blk_log2_proc = CCSO_PROC_BLK_LOG2;
   const int blk_size_proc = 1 << blk_log2_proc;
   for (int blk_row = 0; blk_row < pic_height; blk_row += blk_size_proc) {
@@ -650,12 +609,8 @@ void ccso_frame(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm, MACROBLOCKD *xd,
               AOMMAX(xd->plane[plane].subsampling_x,
                      xd->plane[plane].subsampling_y) +
               MI_SIZE_LOG2,
-          quant_step_size, cm->ccso_info.ext_filter_support[plane]
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-          ,
-          cm->ccso_info.max_band_log2[plane], cm->ccso_info.edge_clf[plane]
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
-      );
+          quant_step_size, cm->ccso_info.ext_filter_support[plane],
+          cm->ccso_info.max_band_log2[plane], cm->ccso_info.edge_clf[plane]);
     }
   }
 }

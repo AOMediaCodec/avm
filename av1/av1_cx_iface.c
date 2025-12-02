@@ -232,9 +232,7 @@ struct av1_extracfg {
   int enable_ext_seg;
   int dpb_size;
   unsigned int enable_bru;
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   unsigned int disable_loopfilters_across_tiles;
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 #if CONFIG_CROP_WIN_CWG_F220
   int enable_cropping_window;  // enable cropping window
   int crop_win_left_offset;    // cropping window left offset
@@ -569,9 +567,7 @@ static struct av1_extracfg default_extra_cfg = {
   0,    // enable_ext_seg
   8,    // dpb_size
   0,    // enable_bru
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   0,
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 #if CONFIG_CROP_WIN_CWG_F220
   0,     // enable_cropping_window
   0,     // crop_win_left_offset
@@ -1028,10 +1024,8 @@ static void update_encoder_config(cfg_options_t *cfg,
 #endif  // CONFIG_MULTI_FRAME_HEADER
   cfg->explicit_ref_frame_map = extra_cfg->explicit_ref_frame_map;
   cfg->enable_generation_sef_obu = extra_cfg->enable_generation_sef_obu;
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   cfg->disable_loopfilters_across_tiles =
       extra_cfg->disable_loopfilters_across_tiles;
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   cfg->reduced_tx_type_set = extra_cfg->reduced_tx_type_set;
   cfg->max_drl_refmvs = extra_cfg->max_drl_refmvs;
   cfg->max_drl_refbvs = extra_cfg->max_drl_refbvs;
@@ -1146,10 +1140,8 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
   extra_cfg->enable_bru = cfg->enable_bru;
   extra_cfg->explicit_ref_frame_map = cfg->explicit_ref_frame_map;
   extra_cfg->enable_generation_sef_obu = cfg->enable_generation_sef_obu;
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   extra_cfg->disable_loopfilters_across_tiles =
       cfg->disable_loopfilters_across_tiles;
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   extra_cfg->reduced_tx_type_set = cfg->reduced_tx_type_set;
   extra_cfg->max_drl_refmvs = cfg->max_drl_refmvs;
   extra_cfg->max_drl_refbvs = cfg->max_drl_refbvs;
@@ -1399,10 +1391,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   if (cfg->rc_resize_mode != RESIZE_NONE) {
     tool_cfg->enable_bru = 0;
   }
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   tool_cfg->disable_loopfilters_across_tiles =
       extra_cfg->disable_loopfilters_across_tiles;
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 #if CONFIG_SCAN_TYPE_METADATA
   tool_cfg->scan_type_info_present_flag =
       extra_cfg->scan_type_info_present_flag;
@@ -4395,13 +4385,11 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.enable_bru, argv,
                               err_string)) {
     extra_cfg.enable_bru = arg_parse_int_helper(&arg, err_string);
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   } else if (arg_match_helper(
                  &arg, &g_av1_codec_arg_defs.disable_loopfilters_across_tiles,
                  argv, err_string)) {
     extra_cfg.disable_loopfilters_across_tiles =
         arg_parse_int_helper(&arg, err_string);
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 #if CONFIG_SCAN_TYPE_METADATA
   } else if (arg_match_helper(&arg,
                               &g_av1_codec_arg_defs.scan_type_info_present_flag,
@@ -4711,9 +4699,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
         0,  // enable_ext_seg
         8,  // dpb_size
         0,  // enable_bru
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
         0,  // disable_loopfilters_across_tiles
-#endif      // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 #if CONFIG_CROP_WIN_CWG_F220
         0,  // enable cropping window
         0,  // crop_win_left_offset

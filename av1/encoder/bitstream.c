@@ -753,14 +753,7 @@ static AOM_INLINE void write_segment_id(AV1_COMP *cpi,
   // In other words, lossless segments remain pure. No lossless
   // segment can be switched, and no non-lossless segment can be changed
   // to a lossless one.
-  if (skip_txfm &&
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-      !cm->features.has_lossless_segment
-#else
-      !xd->lossless[pred] && !xd->lossless[mbmi->segment_id]
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-  ) {
-
+  if (skip_txfm && !cm->features.has_lossless_segment) {
     assert(is_inter_block(mbmi, xd->tree_type) ||
            !cpi->enc_seg.has_lossless_segment);
     set_spatial_segment_id(&cm->mi_params, cm->cur_frame->seg_map,
@@ -1385,15 +1378,10 @@ static AOM_INLINE void write_ccso(const AV1_COMMON *cm, MACROBLOCKD *const xd,
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(
       cm, cm->mib_size_log2 + MI_SIZE_LOG2, CCSO_BLK_SIZE);
   const int blk_size_y = (1 << (ccso_blk_size - MI_SIZE_LOG2)) - 1;
   const int blk_size_x = (1 << (ccso_blk_size - MI_SIZE_LOG2)) - 1;
-#else
-  const int blk_size_y = (1 << (CCSO_BLK_SIZE - MI_SIZE_LOG2)) - 1;
-  const int blk_size_x = (1 << (CCSO_BLK_SIZE - MI_SIZE_LOG2)) - 1;
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   const MB_MODE_INFO *mbmi =
       mi_params->mi_grid_base[(mi_row & ~blk_size_y) * mi_params->mi_stride +
                               (mi_col & ~blk_size_x)];
@@ -5467,9 +5455,7 @@ void write_sequence_filter_group_tool_flags(
     }
   }
 
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   aom_wb_write_bit(wb, seq_params->disable_loopfilters_across_tiles);
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   aom_wb_write_bit(wb, seq_params->enable_cdef);
   aom_wb_write_bit(wb, seq_params->enable_gdf);
   aom_wb_write_bit(wb, seq_params->enable_restoration);
@@ -5763,9 +5749,7 @@ static AOM_INLINE void write_sequence_header(
   }
 
 #if !CONFIG_REORDER_SEQ_FLAGS
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   aom_wb_write_bit(wb, seq_params->disable_loopfilters_across_tiles);
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   aom_wb_write_bit(wb, seq_params->enable_cdef);
   aom_wb_write_bit(wb, seq_params->enable_gdf);
   aom_wb_write_bit(wb, seq_params->enable_restoration);

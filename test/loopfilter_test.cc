@@ -29,12 +29,8 @@ using std::tuple;
 
 typedef void (*LoopFilterFunc)(uint16_t *s, int pitch, int filt_width_neg,
                                int filt_width_pos, const uint16_t *q_thresh,
-                               const uint16_t *side_thresh, int bd
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-                               ,
-                               int is_lossless_neg, int is_lossless_pos
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-);
+                               const uint16_t *side_thresh, int bd,
+                               int is_lossless_neg, int is_lossless_pos);
 
 // <test_func, ref_func, bit_depth, filt_len_neg, filt_len_pos>
 typedef tuple<LoopFilterFunc, LoopFilterFunc, int, int, int> Params;
@@ -151,19 +147,9 @@ void LoopFilterTest::CheckResult() {
     InitInput(s, ref_s, &rnd, 16, mask_, pitch_, i, 0xc0);
 
     func_ref_(ref_s + 8 + pitch_ * 8, pitch_, filt_width_neg_, filt_width_pos_,
-              &q_thr, &side_thr, bit_depth_
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-              ,
-              0, 0
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-    );
+              &q_thr, &side_thr, bit_depth_, 0, 0);
     func_test_(s + 8 + pitch_ * 8, pitch_, filt_width_neg_, filt_width_pos_,
-               &q_thr, &side_thr, bit_depth_
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-               ,
-               0, 0
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-    );
+               &q_thr, &side_thr, bit_depth_, 0, 0);
     for (int j = 0; j < kNumCoeffs; ++j) {
       err_count += ref_s[j] != s[j];
     }
@@ -198,12 +184,7 @@ void LoopFilterTest::RunSpeedTest() {
   aom_usec_timer_start(&timer);
   for (int i = 0; i < kSpeedIterations; ++i) {
     func_ref_(ref_s + 8 + pitch_ * 8, pitch_, filt_width_neg_, filt_width_pos_,
-              &q_thr, &side_thr, bit_depth_
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-              ,
-              0, 0
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-    );
+              &q_thr, &side_thr, bit_depth_, 0, 0);
   }
   aom_usec_timer_mark(&timer);
   auto elapsed_time_c = aom_usec_timer_elapsed(&timer);
@@ -211,12 +192,7 @@ void LoopFilterTest::RunSpeedTest() {
   aom_usec_timer_start(&timer);
   for (int i = 0; i < kSpeedIterations; ++i) {
     func_test_(s + 8 + pitch_ * 8, pitch_, filt_width_neg_, filt_width_pos_,
-               &q_thr, &side_thr, bit_depth_
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-               ,
-               0, 0
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-    );
+               &q_thr, &side_thr, bit_depth_, 0, 0);
   }
   aom_usec_timer_mark(&timer);
   auto elapsed_time_opt = aom_usec_timer_elapsed(&timer);

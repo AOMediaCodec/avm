@@ -1061,16 +1061,10 @@ static INLINE int filt_choice_highbd_vertical_px4_sse4_1(uint16_t *s, int pitch,
 
 void aom_highbd_lpf_horizontal_generic_sse4_1(
     uint16_t *s, int pitch, int filt_width_neg, int filt_width_pos,
-    const uint16_t *q_thresh, const uint16_t *side_thresh, int bd
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-    ,
-    int is_lossless_neg, int is_lossless_pos
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-) {
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
+    const uint16_t *q_thresh, const uint16_t *side_thresh, int bd,
+    int is_lossless_neg, int is_lossless_pos) {
   (void)is_lossless_neg;
   (void)is_lossless_pos;
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 
   int count = 4;
 
@@ -1096,18 +1090,12 @@ void aom_highbd_lpf_horizontal_generic_sse4_1(
 
 void aom_highbd_lpf_vertical_generic_sse4_1(
     uint16_t *s, int pitch, int filt_width_neg, int filt_width_pos,
-    const uint16_t *q_thresh, const uint16_t *side_thresh, int bd
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-    ,
-    int is_lossless_neg, int is_lossless_pos
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-) {
+    const uint16_t *q_thresh, const uint16_t *side_thresh, int bd,
+    int is_lossless_neg, int is_lossless_pos) {
   int i;
 
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
   (void)is_lossless_neg;
   (void)is_lossless_pos;
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 
   int count = 4;
 

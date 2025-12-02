@@ -291,14 +291,12 @@ static inline void aom_cdef_find_dir(const uint16_t *in, cdef_list *dlist,
   }
 }
 
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 // Copy the pixels for lossless block
 static void copy_cdef_pixels(uint16_t *dst, int dst_stride, const uint16_t *src,
                              int src_stride, int width, int height) {
   for (int i = 0; i < height; ++i)
     memcpy(dst + i * dst_stride, src + i * src_stride, width * sizeof(*dst));
 }
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
 void av1_cdef_filter_fb(uint8_t *dst8, uint16_t *dst16, int dstride,
                         uint16_t *in, int xdec, int ydec,
                         int dir[CDEF_NBLOCKS][CDEF_NBLOCKS], int *dirinit,
@@ -364,7 +362,6 @@ void av1_cdef_filter_fb(uint8_t *dst8, uint16_t *dst16, int dstride,
     by = dlist[bi].by;
     bx = dlist[bi].bx;
 
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
     // If chroma part is lossless, copy the block
     // Luma lossless block is already handled when dlist is generated in
     // av1_cdef_compute_sb_list
@@ -376,8 +373,6 @@ void av1_cdef_filter_fb(uint8_t *dst8, uint16_t *dst16, int dstride,
           &in[(by * CDEF_BSTRIDE << bh_log2) + (bx << bw_log2)], CDEF_BSTRIDE,
           block_width, block_height);
     } else {
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
-
       const int t =
           (pli ? pri_strength : adjust_strength(pri_strength, var[by][bx]));
       const int strength_index = (sec_strength == 0) | ((t == 0) << 1);
@@ -388,8 +383,6 @@ void av1_cdef_filter_fb(uint8_t *dst8, uint16_t *dst16, int dstride,
           &in[(by * CDEF_BSTRIDE << bh_log2) + (bx << bw_log2)], t,
           sec_strength, pri_strength ? dir[by][bx] : 0, damping, damping,
           coeff_shift, block_width, block_height);
-#if CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
     }
-#endif  // CONFIG_DISABLE_LOOP_FILTERS_LOSSLESS
   }
 }

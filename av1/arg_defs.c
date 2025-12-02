@@ -842,12 +842,10 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
                         "Enable Backward Reference Update "
                         "(0: false (default), 1: true with regular decoder, 2: "
                         "true with optimized decoder)"),
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   .disable_loopfilters_across_tiles =
       ARG_DEF(NULL, "disable-loopfilters-across-tiles", 1,
               "Disable loopfilters across tiles "
               "(0: false (default), 1: true)"),
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 #if CONFIG_CROP_WIN_CWG_F220
   .enable_cropping_window =
       ARG_DEF(NULL, "enable-cropping-window", 1,

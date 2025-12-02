@@ -615,12 +615,10 @@ typedef struct cfg_options {
    *
    */
   unsigned int enable_bru;
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   /*!\brief disable_loopfilters_across_tiles
    *
    */
   unsigned int disable_loopfilters_across_tiles;
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 
 #if CONFIG_CROP_WIN_CWG_F220
   /*!\brief enable cropping window

@@ -482,9 +482,7 @@ const arg_def_t *av1_key_val_args[] = {
   &g_av1_codec_arg_defs.enable_ext_seg,
   &g_av1_codec_arg_defs.dpb_size,
   &g_av1_codec_arg_defs.enable_bru,
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   &g_av1_codec_arg_defs.disable_loopfilters_across_tiles,
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 #if CONFIG_CROP_WIN_CWG_F220
   &g_av1_codec_arg_defs.enable_cropping_window,
   &g_av1_codec_arg_defs.crop_win_left_offset,
@@ -723,9 +721,7 @@ static void init_config(cfg_options_t *config) {
   config->enable_ext_seg = 0;
   config->dpb_size = 8;
   config->enable_bru = 0;
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   config->disable_loopfilters_across_tiles = 0;
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 #if CONFIG_SCAN_TYPE_METADATA
   config->scan_type_info_present_flag = 0;
 #endif  // CONFIG_SCAN_TYPE_METADATA
@@ -1643,11 +1639,9 @@ static void show_stream_config(struct stream_state *stream,
           encoder_cfg->enable_cdef_on_skip_txfm, encoder_cfg->enable_ccso,
           encoder_cfg->enable_gdf, encoder_cfg->enable_restoration,
           encoder_cfg->enable_pc_wiener, encoder_cfg->enable_wiener_nonsep);
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   fprintf(
       stdout, "Loopfilters across tiles       : %s\n",
       encoder_cfg->disable_loopfilters_across_tiles ? "Disabled" : "Enabled");
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
 
   fprintf(stdout,
           "Tool setting (Others)          : Palette (%d), "

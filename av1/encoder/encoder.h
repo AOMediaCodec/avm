@@ -933,9 +933,7 @@ typedef struct {
   aom_opfl_refine_type enable_opfl_refine;
   // Indicates if BRU is enabled and the mode
   unsigned int enable_bru;
-#if CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   bool disable_loopfilters_across_tiles;
-#endif  // CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES
   // Indicates if parity hiding should be enabled
   bool enable_parity_hiding;
   bool enable_short_refresh_frame_flags;
