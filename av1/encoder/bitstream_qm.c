@@ -156,7 +156,7 @@ int write_qm_data(AV1_COMP *cpi, struct quantization_matrix_set *qm_list,
   const TX_SIZE fund_tsize[3] = { TX_8X8, TX_8X4, TX_4X8 };
 
 #if CONFIG_QM_REVERT
-  const bool qm_is_default_flag = qm_list[qm_pos].is_user_defined_qm;
+  const bool qm_is_default_flag = !qm_list[qm_pos].is_user_defined_qm;
 #else
   const bool qm_is_default_flag = qm_list[qm_pos].qm_default_index != -1;
 #endif
