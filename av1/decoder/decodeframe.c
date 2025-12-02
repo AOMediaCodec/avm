@@ -9387,6 +9387,17 @@ static int read_uncompressed_header(AV1Decoder *pbi,
   pbi->signal_primary_ref_frame = -1;
 
   if (!seq_params->single_picture_header_flag) {
+#if CONFIG_F024_KEYOBU
+    if (pbi->olk_encountered &&
+        (is_regular_non_olk_obu(obu_type) || obu_type == OBU_BRIDGE_FRAME ||
+         obu_type == OBU_SWITCH)) {
+      pbi->olk_encountered = 0;
+      lock_buffer_pool(pool);
+      reset_buffer_other_than_OLK(pbi);
+      unlock_buffer_pool(pool);
+    }  // if(pbi->olk_encountered...)
+#endif
+
 #if CONFIG_CWG_F317
     if (cm->bridge_frame_info.is_bridge_frame) {
       frame_size_override_flag = 1;
@@ -9405,17 +9416,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
 #if CONFIG_CWG_F317
     }
 #endif  // CONFIG_CWG_F317
-
-#if CONFIG_F024_KEYOBU
-    if (pbi->olk_encountered &&
-        (is_regular_non_olk_obu(obu_type) || obu_type == OBU_BRIDGE_FRAME ||
-         obu_type == OBU_SWITCH)) {
-      pbi->olk_encountered = 0;
-      lock_buffer_pool(pool);
-      reset_buffer_other_than_OLK(pbi);
-      unlock_buffer_pool(pool);
-    }  // if(pbi->olk_encountered...)
-#endif
 
     if (
 #if CONFIG_F322_OBUER_ERM
