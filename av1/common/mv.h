@@ -87,7 +87,6 @@ typedef struct {
   MvSubpelPrecision precision[NUM_MV_PRECISIONS];
 } PRECISION_SET;
 
-#if CONFIG_FRAME_HALF_PRECISION
 static const PRECISION_SET av1_mv_precision_sets[3] = {
   { 4,
     { MV_PRECISION_FOUR_PEL, MV_PRECISION_ONE_PEL, MV_PRECISION_HALF_PEL,
@@ -102,19 +101,6 @@ static const PRECISION_SET av1_mv_precision_sets[3] = {
       MV_PRECISION_HALF_PEL, NUM_MV_PRECISIONS, NUM_MV_PRECISIONS,
       NUM_MV_PRECISIONS } },
 };
-#else
-
-static const PRECISION_SET av1_mv_precision_sets[2] = {
-  { 4,
-    { MV_PRECISION_FOUR_PEL, MV_PRECISION_ONE_PEL, MV_PRECISION_HALF_PEL,
-      MV_PRECISION_ONE_EIGHTH_PEL, NUM_MV_PRECISIONS, NUM_MV_PRECISIONS,
-      NUM_MV_PRECISIONS } },
-  { 4,
-    { MV_PRECISION_8_PEL, MV_PRECISION_FOUR_PEL, MV_PRECISION_ONE_PEL,
-      MV_PRECISION_QTR_PEL, NUM_MV_PRECISIONS, NUM_MV_PRECISIONS,
-      NUM_MV_PRECISIONS } },
-};
-#endif  // CONFIG_FRAME_HALF_PRECISION
 
 // Precision sets defined for intra block copy mode
 static const PRECISION_SET av1_intraBc_precision_sets = {
@@ -133,9 +119,6 @@ static const int av1_intraBc_precision_to_index[NUM_MV_PRECISIONS] = {
 };
 
 #define MAX_NUM_OF_SUPPORTED_PRECISIONS 4
-#if !CONFIG_FRAME_HALF_PRECISION
-#define NUMBER_OF_PRECISION_SETS 1
-#endif  // CONFIG_FRAME_HALF_PRECISION
 #define MV_PREC_DOWN_CONTEXTS 2
 #define FLEX_MV_COSTS_SIZE (MAX_NUM_OF_SUPPORTED_PRECISIONS - 1)
 #define NUM_MV_PREC_MPP_CONTEXT 3

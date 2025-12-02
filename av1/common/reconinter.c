@@ -2018,14 +2018,9 @@ void av1_build_one_bawp_inter_predictor(
       (mi_y_p + y_off_p - BAWP_REF_LINES) < 0 || ref_w <= 0 || ref_h <= 0 ||
       (mi_x_p + ref_w + x_off_p) >= width_p ||
       (mi_y_p + ref_h + y_off_p) >= height_p) {
-#if CONFIG_INTER_BAWP_CONSTRAINT
     aom_internal_error(
         (struct aom_internal_error_info *)&cm->error, AOM_CODEC_ERROR,
         "Inter BAWP template cannot outside the valid reference range");
-#else
-    mbmi->bawp_alpha[plane][ref] = 1 << shift;
-    mbmi->bawp_beta[plane][ref] = -(1 << shift);
-#endif  // CONFIG_INTER_BAWP_CONSTRAINT
     return;
   } else {
     uint16_t *recon_buf = xd->plane[plane].dst.buf;
@@ -3602,12 +3597,6 @@ static void build_inter_predictors_8x8_and_bigger(
       *ext_warp_used = true;
       inter_pred_params.use_warp_bd_box = 1;
       inter_pred_params.warp_bd_box = &warp_bd_box_mem[0];
-#if !CONFIG_4X4_WARP_FIX
-      const BLOCK_SIZE bsize = xd->mi[0]->sb_type[PLANE_TYPE_Y];
-      const int_mv warp_mv = get_int_warp_mv_for_fb(
-          xd, &inter_pred_params.warp_params, bsize, (mi_x >> MI_SIZE_LOG2),
-          (mi_y >> MI_SIZE_LOG2));
-#endif
       // printf("warpmv (%d, %d), loc (%d,
       // %d)\n", warp_mv.as_mv.col,
       //        warp_mv.as_mv.row, mi_x,
@@ -3623,14 +3612,12 @@ static void build_inter_predictors_8x8_and_bigger(
           int block_width = AOMMIN(8, comp_bw);
           int block_height = AOMMIN(8, comp_bh);
           if ((x_loc & 7) == 0 && (y_loc & 7) == 0) {
-#if CONFIG_4X4_WARP_FIX
             const int_mv warp_mv = get_int_warp_mv_for_fb(
                 xd, &inter_pred_params.warp_params,
                 block_width << pd->subsampling_x,
                 block_height << pd->subsampling_y,
                 sub_mi_x << pd->subsampling_x >> MI_SIZE_LOG2,
                 sub_mi_y << pd->subsampling_y >> MI_SIZE_LOG2);
-#endif
             av1_get_reference_area_with_padding_single(
                 cm, xd, plane, mi, warp_mv.as_mv, block_width, block_height,
                 (sub_mi_x << pd->subsampling_x),
@@ -4121,37 +4108,20 @@ void set_precision_set(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
   (void)cm;
   (void)xd;
   (void)ref_mv_idx;
-#if CONFIG_FRAME_HALF_PRECISION
   mbmi->mb_precision_set =
       (mbmi->max_mv_precision < MV_PRECISION_HALF_PEL)
           ? 0
           : MV_PRECISION_ONE_EIGHTH_PEL - mbmi->max_mv_precision;
-#else
-  int set_idx = 0;
-
-  int offset_idx = (mbmi->max_mv_precision == MV_PRECISION_QTR_PEL)
-                       ? NUMBER_OF_PRECISION_SETS
-                       : 0;
-  mbmi->mb_precision_set = set_idx + offset_idx;
-#endif  // CONFIG_FRAME_HALF_PRECISION
 }
 void set_default_precision_set(const AV1_COMMON *const cm, MB_MODE_INFO *mbmi,
                                const BLOCK_SIZE bsize) {
   (void)bsize;
   (void)cm;
 
-#if CONFIG_FRAME_HALF_PRECISION
   mbmi->mb_precision_set =
       (mbmi->max_mv_precision < MV_PRECISION_HALF_PEL)
           ? 0
           : MV_PRECISION_ONE_EIGHTH_PEL - mbmi->max_mv_precision;
-#else
-  int set_idx = 0;
-  int offset_idx = (mbmi->max_mv_precision == MV_PRECISION_QTR_PEL)
-                       ? NUMBER_OF_PRECISION_SETS
-                       : 0;
-  mbmi->mb_precision_set = set_idx + offset_idx;
-#endif  // CONFIG_FRAME_HALF_PRECISION
 }
 void set_default_max_mv_precision(MB_MODE_INFO *mbmi,
                                   MvSubpelPrecision precision) {

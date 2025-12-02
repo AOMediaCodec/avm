@@ -158,7 +158,6 @@ void av1_enc_build_inter_predictor(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                    int plane_from, int plane_to) {
   MB_MODE_INFO *mbmi = xd->mi[0];
 
-#if CONFIG_INTER_BAWP_CONSTRAINT
   const int mi_luma_x = mi_col * MI_SIZE;
   const int mi_luma_y = mi_row * MI_SIZE;
   for (int plane = plane_from; plane <= plane_to; ++plane) {
@@ -192,7 +191,6 @@ void av1_enc_build_inter_predictor(const AV1_COMMON *cm, MACROBLOCKD *xd,
       }
     }
   }
-#endif  // CONFIG_INTER_BAWP_CONSTRAINT
 
   int is_refinemv_supported =
       mbmi->refinemv_flag && !is_intrabc_block(mbmi, xd->tree_type);

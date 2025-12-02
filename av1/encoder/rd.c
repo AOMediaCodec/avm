@@ -1301,14 +1301,9 @@ void fill_dv_costs(IntraBCMvCosts *dv_costs, const FRAME_CONTEXT *fc,
 
 void av1_fill_mv_costs(const FRAME_CONTEXT *fc, int integer_mv,
                        MvSubpelPrecision fr_mv_precision, MvCosts *mv_costs) {
-#if CONFIG_FRAME_HALF_PRECISION
   int mb_precision_set = fr_mv_precision < MV_PRECISION_HALF_PEL
                              ? 0
                              : MV_PRECISION_ONE_EIGHTH_PEL - fr_mv_precision;
-#else
-  int mb_precision_set =
-      (fr_mv_precision == MV_PRECISION_QTR_PEL) ? NUMBER_OF_PRECISION_SETS : 0;
-#endif  // CONFIG_FRAME_HALF_PRECISION
   const PRECISION_SET *precision_def = &av1_mv_precision_sets[mb_precision_set];
   for (int precision_dx = precision_def->num_precisions - 1; precision_dx >= 0;
        precision_dx--) {

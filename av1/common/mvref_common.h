@@ -269,21 +269,13 @@ static INLINE int_mv get_warp_motion_vector(const MACROBLOCKD *xd,
 // warped_motion.c
 static INLINE int_mv get_int_warp_mv_for_fb(const MACROBLOCKD *xd,
                                             const WarpedMotionParams *model,
-#if CONFIG_4X4_WARP_FIX
-                                            int bw, int bh,
-#else
-                                            BLOCK_SIZE bsize,
-#endif
-                                            int mi_col, int mi_row) {
+                                            int bw, int bh, int mi_col,
+                                            int mi_row) {
   // in term of luma for this function
   int_mv res;
 
   const int32_t *mat = model->wmmat;
   int x, y, tx, ty;
-#if !CONFIG_4X4_WARP_FIX
-  const int bw = block_size_wide[bsize];
-  const int bh = block_size_high[bsize];
-#endif
 
   // center without shift 1, matching with warp_motion.c
   x = mi_col * MI_SIZE + (bw >> 1);

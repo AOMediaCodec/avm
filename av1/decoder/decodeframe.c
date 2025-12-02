@@ -6862,9 +6862,7 @@ void read_sequence_intra_group_tool_flags(struct SequenceHeader *seq_params,
 void read_sequence_inter_group_tool_flags(struct SequenceHeader *seq_params,
                                           struct aom_read_bit_buffer *rb) {
   if (seq_params->single_picture_header_flag) {
-#if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
     seq_params->seq_frame_motion_modes_present_flag = 0;
-#endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
     seq_params->enable_six_param_warp_delta = 0;
     seq_params->seq_enabled_motion_modes = (1 << SIMPLE_TRANSLATION);
     seq_params->enable_masked_compound = 0;
@@ -6872,31 +6870,23 @@ void read_sequence_inter_group_tool_flags(struct SequenceHeader *seq_params,
     seq_params->order_hint_info.order_hint_bits_minus_1 = -1;
   } else {
     int seq_enabled_motion_modes = (1 << SIMPLE_TRANSLATION);
-#if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
     uint8_t motion_mode_enabled = 0;
     uint8_t warp_delta_enabled = 0;
-#endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
     for (int motion_mode = INTERINTRA; motion_mode < MOTION_MODES;
          motion_mode++) {
       int enabled = aom_rb_read_bit(rb);
-#if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
       motion_mode_enabled |= enabled;
       if (motion_mode == WARP_DELTA && enabled) {
         warp_delta_enabled = 1;
       }
-#endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
       if (enabled) {
         seq_enabled_motion_modes |= (1 << motion_mode);
       }
     }
-#if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
     seq_params->seq_frame_motion_modes_present_flag =
         motion_mode_enabled ? aom_rb_read_bit(rb) : 0;
     seq_params->enable_six_param_warp_delta =
         warp_delta_enabled ? aom_rb_read_bit(rb) : 0;
-#else
-    seq_params->enable_six_param_warp_delta = aom_rb_read_bit(rb);
-#endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
     seq_params->seq_enabled_motion_modes = seq_enabled_motion_modes;
     seq_params->enable_masked_compound = aom_rb_read_bit(rb);
     seq_params->order_hint_info.enable_ref_frame_mvs = aom_rb_read_bit(rb);
@@ -7457,9 +7447,7 @@ void av1_read_sequence_header(struct aom_read_bit_buffer *rb,
     seq_params->force_integer_mv = 2;            // SELECT_INTEGER_MV
     seq_params->order_hint_info.order_hint_bits_minus_1 = -1;
     seq_params->enable_six_param_warp_delta = 0;
-#if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
     seq_params->seq_frame_motion_modes_present_flag = 0;
-#endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
 #endif  // !CONFIG_REORDER_SEQ_FLAGS
   } else {
 #if !CONFIG_REORDER_SEQ_FLAGS
@@ -10336,7 +10324,6 @@ static int read_uncompressed_header(AV1Decoder *pbi, OBU_TYPE obu_type,
         if (features->cur_frame_force_integer_mv) {
           features->fr_mv_precision = MV_PRECISION_ONE_PEL;
         } else {
-#if CONFIG_FRAME_HALF_PRECISION
           if (aom_rb_read_bit(rb)) {
             features->fr_mv_precision = MV_PRECISION_QTR_PEL;
           } else {
@@ -10344,12 +10331,6 @@ static int read_uncompressed_header(AV1Decoder *pbi, OBU_TYPE obu_type,
                                             ? MV_PRECISION_ONE_EIGHTH_PEL
                                             : MV_PRECISION_HALF_PEL;
           }
-#else
-          features->fr_mv_precision = aom_rb_read_bit(rb)
-                                          ? MV_PRECISION_ONE_EIGHTH_PEL
-                                          : MV_PRECISION_QTR_PEL;
-
-#endif  //  CONFIG_FRAME_HALF_PRECISION
 
           features->most_probable_fr_mv_precision = features->fr_mv_precision;
         }
@@ -10362,9 +10343,7 @@ static int read_uncompressed_header(AV1Decoder *pbi, OBU_TYPE obu_type,
         features->interp_filter = read_frame_interp_filter(rb);
         int seq_enabled_motion_modes = cm->seq_params.seq_enabled_motion_modes;
 
-#if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
         if (cm->seq_params.seq_frame_motion_modes_present_flag) {
-#endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
           int frame_enabled_motion_modes = (1 << SIMPLE_TRANSLATION);
           for (int motion_mode = INTERINTRA; motion_mode < MOTION_MODES;
                motion_mode++) {
@@ -10376,12 +10355,10 @@ static int read_uncompressed_header(AV1Decoder *pbi, OBU_TYPE obu_type,
             }
           }
           features->enabled_motion_modes = frame_enabled_motion_modes;
-#if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
         } else {
           features->enabled_motion_modes =
               cm->seq_params.seq_enabled_motion_modes;
         }
-#endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
 
 #if !CONFIG_FIX_OPFL_AUTO
         if (cm->seq_params.enable_opfl_refine == AOM_OPFL_REFINE_AUTO) {

@@ -138,8 +138,6 @@ set_aom_config_var(CONFIG_BITSTREAM_DEBUG 0
                    "AV1 experiment flag for bitstream debugging.")
 set_aom_config_var(CONFIG_RD_DEBUG 0 "AV1 experiment flag.")
 set_aom_config_var(CONFIG_SHARP_SETTINGS 0 "AV1 experiment flag.")
-set_aom_config_var(CONFIG_DISABLE_FULL_PIXEL_SPLIT_8X8 1
-                   "Disable full_pixel_motion_search_based_split on BLOCK_8X8.")
 set_aom_config_var(CONFIG_COLLECT_PARTITION_STATS 0
                    "Collect stats on partition decisions.")
 set_aom_config_var(CONFIG_COLLECT_COMPONENT_TIMING 0
@@ -238,9 +236,6 @@ set_aom_config_var(
 
 set_aom_config_var(CONFIG_CWG_F248_RENDER_SIZE 1 "Remove render size.")
 
-set_aom_config_var(CONFIG_FRAME_HALF_PRECISION 1
-                   "Enable frame level half precision")
-
 set_aom_config_var(CONFIG_DC_DIV_UNIFY 1 "Unify DC division")
 
 set_aom_config_var(CONFIG_MHCCP_BLK_SIZE 1
@@ -254,19 +249,8 @@ set_aom_config_var(CONFIG_FIX_OPFL_AUTO 1
 set_aom_config_var(CONFIG_FIX_BW_CHROMA_REFINED_MV 1
                    "Fix bandwidth issue for the refined MVs reused by chroma")
 
-set_aom_config_var(
-  CONFIG_MV_VALUE_CLIP 1
-  "Clip MV value to ensure it is within the constrained range.")
-
-set_aom_config_var(
-  CONFIG_INTER_BAWP_CONSTRAINT 1
-  "Inter BAWP template cannot outside the valid reference range")
-
 # This is an encode-only change.
 set_aom_config_var(CONFIG_FAST_INTER_RDO 1 "Fast inter mode selection")
-
-set_aom_config_var(CONFIG_F107_GRADIENT_SIMPLIFY 1
-                   "Use smaller OPFL gradient units and remove bit checks.")
 
 set_aom_config_var(CONFIG_QM_REVERT 1
                    "Enable QMs based on original AV1 Quantization Matrices.")
@@ -280,9 +264,6 @@ set_aom_config_var(CONFIG_UNIFORM_TILE 1
 set_aom_config_var(
   CONFIG_ADJ_PYR_Q_OFFSET_LD 1
   "Encoder-only config to adjust pyr qp offsets for LD from nominal.")
-
-set_aom_config_var(CONFIG_MOTION_MODE_FRAME_HEADERS_OPT 1
-                   "Frame header optimzation of motion modes.")
 
 set_aom_config_var(CONFIG_CWG_F362 1
                    "Implicit frame tool flags for single picture headers.")
@@ -307,8 +288,6 @@ set_aom_config_var(
 set_aom_config_var(CONFIG_CWG_F317 1 "Bridge frame")
 set_aom_config_var(CONFIG_CWG_F317_TEST_PATTERN 1
                    "Bridge frame - unit test pattern")
-
-set_aom_config_var(CONFIG_4X4_WARP_FIX 1 "Fix 4x4 warp padding")
 
 set_aom_config_var(CONFIG_BAND_METADATA 1 "Enable banding hints metadata.")
 

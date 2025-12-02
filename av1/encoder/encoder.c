@@ -500,7 +500,6 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->seq_enabled_motion_modes =
       oxcf->motion_mode_cfg.seq_enabled_motion_modes;
 
-#if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
   uint8_t warp_delta_enabled =
       (seq->seq_enabled_motion_modes & (1 << WARP_DELTA)) != 0 ? 1 : 0;
   ;
@@ -508,10 +507,6 @@ void av1_init_seq_coding_tools(SequenceHeader *seq, AV1_COMMON *cm,
   seq->enable_six_param_warp_delta =
       warp_delta_enabled ? oxcf->motion_mode_cfg.enable_six_param_warp_delta
                          : 0;
-#else
-  seq->enable_six_param_warp_delta =
-      oxcf->motion_mode_cfg.enable_six_param_warp_delta;
-#endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
 
   seq->enable_ext_partitions = oxcf->part_cfg.enable_ext_partitions;
   seq->enable_uneven_4way_partitions =

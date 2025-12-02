@@ -2092,10 +2092,7 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
   // Decide which motion modes to scan this frame
   // TODO(rachelbarker): Rework pruning into something more unified in phase 2
 
-#if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
   if (cm->seq_params.seq_frame_motion_modes_present_flag) {
-#endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
-
     int enabled_motion_modes = cm->seq_params.seq_enabled_motion_modes;
 
     if ((enabled_motion_modes & (1 << WARP_CAUSAL)) != 0 &&
@@ -2109,11 +2106,9 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
 
     features->enabled_motion_modes = enabled_motion_modes;
 
-#if CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
   } else {
     features->enabled_motion_modes = cm->seq_params.seq_enabled_motion_modes;
   }
-#endif  // CONFIG_MOTION_MODE_FRAME_HEADERS_OPT
 
   features->allow_warpmv_mode =
       (features->enabled_motion_modes & (1 << WARP_DELTA)) != 0;

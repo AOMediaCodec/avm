@@ -1383,7 +1383,6 @@ static INLINE void read_mv(aom_reader *r, MV *mv_diff, int skip_sign_coding,
                            nmv_context *ctx, MvSubpelPrecision precision,
                            int is_adaptive_mvd);
 
-#if CONFIG_MV_VALUE_CLIP
 // Clip the MV to the integer value if it goes out of range
 static INLINE void mv_clamp_to_integer(MV *mv) {
   if (mv->row < MV_LOW + 1 || mv->row > MV_UPP - 1) {
@@ -1394,9 +1393,6 @@ static INLINE void mv_clamp_to_integer(MV *mv) {
     mv->col = (MV_COMP_DATA_TYPE)clamp(mv->col, MV_LOW + 8, MV_UPP - 8);
   }
 }
-#else
-static INLINE int is_mv_valid(const MV *mv);
-#endif  // CONFIG_MV_VALUE_CLIP
 
 static INLINE int assign_dv(AV1_COMMON *cm, MACROBLOCKD *xd, int_mv *mv,
                             const int_mv *ref_mv, int mi_row, int mi_col,
@@ -1431,16 +1427,10 @@ static INLINE int assign_dv(AV1_COMMON *cm, MACROBLOCKD *xd, int_mv *mv,
   assert(
       is_this_mv_precision_compliant(mbmi->mv[0].as_mv, mbmi->pb_mv_precision));
 
-#if CONFIG_MV_VALUE_CLIP
   mv_clamp_to_integer(&mv->as_mv);
 
   const int valid = av1_is_dv_valid(mv->as_mv, cm, xd, mi_row, mi_col, bsize,
                                     cm->mib_size_log2);
-#else
-  int valid = is_mv_valid(&mv->as_mv) &&
-              av1_is_dv_valid(mv->as_mv, cm, xd, mi_row, mi_col, bsize,
-                              cm->mib_size_log2);
-#endif  // CONFIG_MV_VALUE_CLIP
   return valid;
 }
 
@@ -2339,13 +2329,6 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
   }
 }
 
-#if !CONFIG_MV_VALUE_CLIP
-static INLINE int is_mv_valid(const MV *mv) {
-  return mv->row > MV_LOW && mv->row < MV_UPP && mv->col > MV_LOW &&
-         mv->col < MV_UPP;
-}
-#endif  // !CONFIG_MV_VALUE_CLIP
-
 static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
                             PREDICTION_MODE mode,
                             MV_REFERENCE_FRAME ref_frame[2], int_mv mv[2],
@@ -2569,20 +2552,12 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
     }
   }
 
-#if CONFIG_MV_VALUE_CLIP
   mv_clamp_to_integer(&mv[0].as_mv);
   if (is_compound) {
     mv_clamp_to_integer(&mv[1].as_mv);
   }
 
   return 1;
-#else
-  int ret = is_mv_valid(&mv[0].as_mv);
-  if (is_compound) {
-    ret = ret && is_mv_valid(&mv[1].as_mv);
-  }
-  return ret;
-#endif  // CONFIG_MV_VALUE_CLIP
 }
 
 static int read_is_inter_block(AV1_COMMON *const cm, MACROBLOCKD *const xd,
