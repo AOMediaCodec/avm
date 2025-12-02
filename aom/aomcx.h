@@ -989,7 +989,7 @@ enum aome_enc_control_id {
    */
   AV1E_SET_DELTAQ_MODE = 107,
 
-  /*!\brief Value 109 is unused.
+  /*!\brief Values 108-109 are unused.
    */
 
   /*!\brief Codec control function to enable the extreme motion vector unit
