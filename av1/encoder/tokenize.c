@@ -331,7 +331,6 @@ void av1_tokenize_sb_vartx(const AV1_COMP *cpi, ThreadData *td,
     mu_blocks_wide = AOMMIN(mi_width, mu_blocks_wide);
     mu_blocks_high = AOMMIN(mi_height, mu_blocks_high);
 
-#if CONFIG_TU64_TRAVERSED_ORDER
     const int mu128_wide = mi_size_wide[BLOCK_128X128] >> ss_x;
     const int mu128_high = mi_size_high[BLOCK_128X128] >> ss_y;
     // Loop through each 128x128 block within the current coding block
@@ -342,10 +341,6 @@ void av1_tokenize_sb_vartx(const AV1_COMP *cpi, ThreadData *td,
              idy += mu_blocks_high) {
           for (int idx = col128; idx < AOMMIN(col128 + mu128_wide, mi_width);
                idx += mu_blocks_wide) {
-#else
-    for (int idy = 0; idy < mi_height; idy += mu_blocks_high) {
-      for (int idx = 0; idx < mi_width; idx += mu_blocks_wide) {
-#endif  // CONFIG_TU64_TRAVERSED_ORDER
             const int unit_height = AOMMIN(mu_blocks_high + idy, mi_height);
             const int unit_width = AOMMIN(mu_blocks_wide + idx, mi_width);
             for (int blk_row = idy; blk_row < unit_height; blk_row += bh) {
@@ -357,10 +352,8 @@ void av1_tokenize_sb_vartx(const AV1_COMP *cpi, ThreadData *td,
             }
           }
         }
-#if CONFIG_TU64_TRAVERSED_ORDER
       }
     }
-#endif  // CONFIG_TU64_TRAVERSED_ORDER
   }
   if (rate) *rate += arg.this_rate;
 }

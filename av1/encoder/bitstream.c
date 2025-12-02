@@ -2541,7 +2541,6 @@ static AOM_INLINE void write_tokens_b(AV1_COMP *cpi, aom_writer *w,
     mu_blocks_wide = AOMMIN(num_4x4_w, mu_blocks_wide);
     mu_blocks_high = AOMMIN(num_4x4_h, mu_blocks_high);
 
-#if CONFIG_TU64_TRAVERSED_ORDER
     const int mu128_wide = mi_size_wide[BLOCK_128X128];
     const int mu128_high = mi_size_high[BLOCK_128X128];
     // Loop through each 128x128 block within the current coding block
@@ -2552,10 +2551,6 @@ static AOM_INLINE void write_tokens_b(AV1_COMP *cpi, aom_writer *w,
              row += mu_blocks_high) {
           for (int col = col128; col < AOMMIN(col128 + mu128_wide, num_4x4_w);
                col += mu_blocks_wide) {
-#else
-    for (int row = 0; row < num_4x4_h; row += mu_blocks_high) {
-      for (int col = 0; col < num_4x4_w; col += mu_blocks_wide) {
-#endif  // CONFIG_TU64_TRAVERSED_ORDER
             const int plane_start = get_partition_plane_start(xd->tree_type);
             const int plane_end =
                 get_partition_plane_end(xd->tree_type, av1_num_planes(cm));
@@ -2573,10 +2568,8 @@ static AOM_INLINE void write_tokens_b(AV1_COMP *cpi, aom_writer *w,
             }
           }
         }
-#if CONFIG_TU64_TRAVERSED_ORDER
       }
     }
-#endif  // CONFIG_TU64_TRAVERSED_ORDER
 #if CONFIG_RD_DEBUG
     for (int plane = 0; plane < av1_num_planes(cm); ++plane) {
       if (mbmi->sb_type[xd->tree_type == CHROMA_PART] >= BLOCK_8X8 &&

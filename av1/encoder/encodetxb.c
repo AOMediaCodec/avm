@@ -1231,7 +1231,6 @@ void av1_write_intra_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x,
   mu_blocks_wide = AOMMIN(max_blocks_wide, mu_blocks_wide);
   mu_blocks_high = AOMMIN(max_blocks_high, mu_blocks_high);
 
-#if CONFIG_TU64_TRAVERSED_ORDER
   const int mu128_wide = mi_size_wide[BLOCK_128X128];
   const int mu128_high = mi_size_high[BLOCK_128X128];
   // Loop through each 128x128 block within the current coding block
@@ -1242,10 +1241,6 @@ void av1_write_intra_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x,
            row += mu_blocks_high) {
         for (col = col128; col < AOMMIN(col128 + mu128_wide, max_blocks_wide);
              col += mu_blocks_wide) {
-#else
-  for (row = 0; row < max_blocks_high; row += mu_blocks_high) {
-    for (col = 0; col < max_blocks_wide; col += mu_blocks_wide) {
-#endif  // CONFIG_TU64_TRAVERSED_ORDER
           const int plane_start = get_partition_plane_start(xd->tree_type);
           const int plane_end =
               get_partition_plane_end(xd->tree_type, av1_num_planes(cm));
@@ -1363,10 +1358,8 @@ void av1_write_intra_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x,
           }
         }
       }
-#if CONFIG_TU64_TRAVERSED_ORDER
     }
   }
-#endif  // CONFIG_TU64_TRAVERSED_ORDER
 }
 
 int get_cctx_type_cost(const AV1_COMMON *cm, const MACROBLOCK *x,
@@ -4748,7 +4741,6 @@ void av1_update_intra_mb_txb_context(const AV1_COMP *cpi, ThreadData *td,
       // Keep track of the row and column of the blocks we use so that we know
       // if we are in the unrestricted motion border.
       int i = 0;
-#if CONFIG_TU64_TRAVERSED_ORDER
       const int mu128_wide = mi_size_wide[BLOCK_128X128] >> ss_x;
       const int mu128_high = mi_size_high[BLOCK_128X128] >> ss_y;
       // Loop through each 128x128 block within the current coding block
@@ -4761,12 +4753,6 @@ void av1_update_intra_mb_txb_context(const AV1_COMP *cpi, ThreadData *td,
             for (int c = col128;
                  c < AOMMIN(col128 + mu128_wide, max_blocks_wide);
                  c += mu_blocks_wide) {
-#else
-      for (int r = 0; r < max_blocks_high; r += mu_blocks_high) {
-        const int unit_height = AOMMIN(mu_blocks_high + r, max_blocks_high);
-        // Skip visiting the sub blocks that are wholly within the UMV.
-        for (int c = 0; c < max_blocks_wide; c += mu_blocks_wide) {
-#endif  // CONFIG_TU64_TRAVERSED_ORDER
               const int unit_width =
                   AOMMIN(mu_blocks_wide + c, max_blocks_wide);
 
@@ -4790,10 +4776,8 @@ void av1_update_intra_mb_txb_context(const AV1_COMP *cpi, ThreadData *td,
               }
             }
           }
-#if CONFIG_TU64_TRAVERSED_ORDER
         }
       }
-#endif  // CONFIG_TU64_TRAVERSED_ORDER
     } else {
       if (plane && !xd->is_chroma_ref) break;
 

@@ -1047,10 +1047,8 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
   const int plane_start = get_partition_plane_start(xd->tree_type);
   const int plane_end =
       get_partition_plane_end(xd->tree_type, av1_num_planes(cm));
-#if CONFIG_TU64_TRAVERSED_ORDER
   const int mu128_wide = mi_size_wide[BLOCK_128X128];
   const int mu128_high = mi_size_high[BLOCK_128X128];
-#endif  // CONFIG_TU64_TRAVERSED_ORDER
 
   if (!is_inter_block(mbmi, xd->tree_type)) {
     // When row_mt is used, this function can be called with
@@ -1089,7 +1087,6 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
     mu_blocks_wide = AOMMIN(max_blocks_wide, mu_blocks_wide);
     mu_blocks_high = AOMMIN(max_blocks_high, mu_blocks_high);
 
-#if CONFIG_TU64_TRAVERSED_ORDER
     // For 256x256 and 256x128 coding blocks, the coefficents/resdiuals are
     // divided into 64x* blocks, and each 64x64 block is coded in 128x128 unit.
     // For example, for a 256x256 coding block, the coding order of 64x64
@@ -1107,10 +1104,6 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
              row += mu_blocks_high) {
           for (col = col128; col < AOMMIN(col128 + mu128_wide, max_blocks_wide);
                col += mu_blocks_wide) {
-#else
-    for (row = 0; row < max_blocks_high; row += mu_blocks_high) {
-      for (col = 0; col < max_blocks_wide; col += mu_blocks_wide) {
-#endif  // CONFIG_TU64_TRAVERSED_ORDER
             for (int plane = plane_start; plane < plane_end; ++plane) {
               if (plane == AOM_PLANE_Y && !xd->lossless[mbmi->segment_id]) {
                 const struct macroblockd_plane *const pd = &xd->plane[plane];
@@ -1218,10 +1211,8 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
             }
           }
         }
-#if CONFIG_TU64_TRAVERSED_ORDER
       }
     }
-#endif  // CONFIG_TU64_TRAVERSED_ORDER
   } else {
     // When row_mt is used, this function can be called with
     // td->read_coeffs_tx_inter_block_visit == decode_block_void.
@@ -1272,7 +1263,6 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
       mu_blocks_wide = AOMMIN(max_blocks_wide, mu_blocks_wide);
       mu_blocks_high = AOMMIN(max_blocks_high, mu_blocks_high);
 
-#if CONFIG_TU64_TRAVERSED_ORDER
       // Loop through each 128x128 block within the current coding block
       for (int row128 = 0; row128 < max_blocks_high; row128 += mu128_high) {
         for (int col128 = 0; col128 < max_blocks_wide; col128 += mu128_wide) {
@@ -1282,10 +1272,6 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
             for (col = col128;
                  col < AOMMIN(col128 + mu128_wide, max_blocks_wide);
                  col += mu_blocks_wide) {
-#else
-      for (row = 0; row < max_blocks_high; row += mu_blocks_high) {
-        for (col = 0; col < max_blocks_wide; col += mu_blocks_wide) {
-#endif  // CONFIG_TU64_TRAVERSED_ORDER
               for (int plane = plane_start; plane < plane_end; ++plane) {
                 if (plane && !xd->is_chroma_ref) break;
                 const struct macroblockd_plane *const pd = &xd->plane[plane];
@@ -1323,15 +1309,10 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
                   }
                 }
               }
-#if CONFIG_TU64_TRAVERSED_ORDER
             }
           }
         }
       }
-#else
-        }
-      }
-#endif  // CONFIG_TU64_TRAVERSED_ORDER
     } else if (is_cctx_enabled(cm, xd) && xd->is_chroma_ref &&
                xd->tree_type != LUMA_PART) {
       av1_init_txk_skip_array(cm, xd->mi_row, xd->mi_col, bsize, 1,
@@ -1351,7 +1332,6 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
       const BLOCK_SIZE max_unit_bsize = BLOCK_64X64;
       int mu_blocks_wide = mi_size_wide[max_unit_bsize];
       int mu_blocks_high = mi_size_high[max_unit_bsize];
-#if CONFIG_TU64_TRAVERSED_ORDER
       // Loop through each 128x128 block within the current coding block
       for (int row128 = 0; row128 < max_blocks_high; row128 += mu128_high) {
         for (int col128 = 0; col128 < max_blocks_wide; col128 += mu128_wide) {
@@ -1362,23 +1342,14 @@ static AOM_INLINE void decode_token_recon_block(AV1Decoder *const pbi,
             for (int col = col128;
                  col < AOMMIN(col128 + mu128_wide, max_blocks_wide);
                  col += mu_blocks_wide) {
-#else
-      for (int row = 0; row < max_blocks_high; row += mu_blocks_high) {
-        for (int col = 0; col < max_blocks_wide; col += mu_blocks_wide) {
-#endif  // CONFIG_TU64_TRAVERSED_ORDER
               int row_offset, col_offset;
               get_chroma_mi_offsets(xd, &row_offset, &col_offset);
               update_cctx_array(xd, 0, 0, row_offset, col_offset, max_tx_size,
                                 CCTX_NONE);
-#if CONFIG_TU64_TRAVERSED_ORDER
             }
           }
         }
       }
-#else
-        }
-      }
-#endif  // CONFIG_TU64_TRAVERSED_ORDER
     } else {
       av1_init_txk_skip_array(cm, xd->mi_row, xd->mi_col, bsize, 1,
                               xd->tree_type, &mbmi->chroma_ref_info,

@@ -4328,7 +4328,6 @@ void av1_txfm_rd_in_plane(MACROBLOCK *x, const AV1_COMP *cpi,
     // Keep track of the row and column of the blocks we use so that we know
     // if we are in the unrestricted motion border.
     int i = 0;
-#if CONFIG_TU64_TRAVERSED_ORDER
     int mu128_wide = mi_size_wide[BLOCK_128X128];
     int mu128_high = mi_size_high[BLOCK_128X128];
     // Loop through each 128x128 block within the current coding block
@@ -4340,12 +4339,6 @@ void av1_txfm_rd_in_plane(MACROBLOCK *x, const AV1_COMP *cpi,
           const int unit_height = AOMMIN(mu_blocks_high + r, max_blocks_high);
           for (int c = col128; c < AOMMIN(col128 + mu128_wide, max_blocks_wide);
                c += mu_blocks_wide) {
-#else
-    for (int r = 0; r < max_blocks_high; r += mu_blocks_high) {
-      const int unit_height = AOMMIN(mu_blocks_high + r, max_blocks_high);
-      // Skip visiting the sub blocks that are wholly within the UMV.
-      for (int c = 0; c < max_blocks_wide; c += mu_blocks_wide) {
-#endif  // CONFIG_TU64_TRAVERSED_ORDER
             const int unit_width = AOMMIN(mu_blocks_wide + c, max_blocks_wide);
 
             for (int txb_idx = 0; txb_idx < mbmi->txb_pos.n_partitions;
@@ -4368,10 +4361,8 @@ void av1_txfm_rd_in_plane(MACROBLOCK *x, const AV1_COMP *cpi,
             }
           }
         }
-#if CONFIG_TU64_TRAVERSED_ORDER
       }
     }
-#endif  // CONFIG_TU64_TRAVERSED_ORDER
   } else {
     av1_foreach_transformed_block_in_plane(xd, plane_bsize, plane,
                                            block_rd_txfm, &args);
