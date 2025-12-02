@@ -74,8 +74,14 @@ static void read_qm_data(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
   qmset->quantizer_matrix_num_planes = num_planes;
   const bool qm_is_default_flag = (bool)aom_rb_read_bit(rb);
   if (qm_is_default_flag) {
+#if CONFIG_QM_REVERT
+    // Set default index to level = qm_id
+    qmset->is_user_defined_qm = false;
+    const int qm_default_index = qm_id;
+#else
     const int qm_default_index = aom_rb_read_literal(rb, 4);
     qmset->qm_default_index = qm_default_index;
+#endif  // CONFIG_QM_REVERT
     // copy predefined[qm_default_index] to qmset
     for (int c = 0; c < num_planes; ++c) {
       // plane_type: 0:luma, 1:chroma
@@ -104,7 +110,12 @@ static void read_qm_data(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
     }
     return;
   } else {
+#if CONFIG_QM_REVERT
+    qmset->is_user_defined_qm = true;
+#else
     qmset->qm_default_index = -1;
+
+#endif  // CONFIG_QM_REVERT
   }
 
   for (int t = 0; t < 3; t++) {
@@ -195,7 +206,11 @@ void av1_copy_predefined_qmatrices_to_list(
     }
     int qm_default_index = qm_pos;
     qmset->qm_id = qm_pos;
+#if CONFIG_QM_REVERT
+    qmset->is_user_defined_qm = false;
+#else
     qmset->qm_default_index = qm_pos;
+#endif  // CONFIG_QM_REVERT
     qmset->qm_mlayer_id = -1;
     qmset->qm_tlayer_id = -1;
     qmset->quantizer_matrix_num_planes = num_planes;

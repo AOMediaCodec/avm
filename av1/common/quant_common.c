@@ -619,8 +619,6 @@ void av1_qm_init(CommonQuantParams *quant_params, int num_planes
 #endif  // !CONFIG_F255_QMOBU
 ) {
   for (int q = 0; q < NUM_QM_LEVELS; ++q) {
-#if CONFIG_QM_REVERT
-#endif  // CONFIG_QM_REVERT
     for (int c = 0; c < num_planes; ++c) {
       // Generate matrices for each tx size
       int current = 0;

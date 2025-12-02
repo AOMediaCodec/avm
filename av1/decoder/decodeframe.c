@@ -3943,6 +3943,7 @@ void setup_quant_matrices(AV1Decoder *pbi, CommonQuantParams *quant_params,
 
   // Generate matrices for each tx size
   int current = 0;
+  const bool is_user_defined_qm = pbi->qm_list[qm_pos_found].is_user_defined_qm;
   for (int t = 0; t < TX_SIZES_ALL; ++t) {
     const int size = tx_size_2d[t];
     const int qm_tx_size = av1_get_adjusted_tx_size(t);
@@ -3951,6 +3952,14 @@ void setup_quant_matrices(AV1Decoder *pbi, CommonQuantParams *quant_params,
       quant_params->giqmatrix[qmlevel][plane][t] =
           quant_params->giqmatrix[qmlevel][plane][qm_tx_size];
 #if CONFIG_QM_REVERT
+    } else if (is_user_defined_qm && (t <= TX_8X8 || t == TX_4X8 || t == TX_8X4)) {
+      assert(current + size <= QM_TOTAL_SIZE);
+      // Generate the iwt matrices from the base matrices.
+      scale_tx(t, plane, &quant_params->iwt_matrix_ref[qmlevel][plane][current],
+               pbi->qm_list[qm_pos_found].quantizer_matrix);
+      quant_params->giqmatrix[qmlevel][plane][t] =
+          &quant_params->iwt_matrix_ref[qmlevel][plane][current];
+      current += size;
     } else {
       // Fill with reference matrices.
       assert(current + size <= QM_TOTAL_SIZE);
@@ -8719,7 +8728,11 @@ static void activate_sequence_header(AV1Decoder *pbi,
               &pbi->qmobu_list[i].qm_list[qm_pos];
           struct quantization_matrix_set *qmset = &pbi->qm_list[qm_pos];
           qmset->qm_id = qmset_inobu->qm_id;
+#if CONFIG_QM_REVERT
+          qmset->is_user_defined_qm = qmset_inobu->is_user_defined_qm;
+#else
           qmset->qm_default_index = qmset_inobu->qm_default_index;
+#endif  // CONFIG_QM_REVERT
           qmset->qm_mlayer_id = qmset_inobu->qm_mlayer_id;
           qmset->qm_tlayer_id = qmset_inobu->qm_tlayer_id;
           if (qmset->quantizer_matrix_num_planes !=

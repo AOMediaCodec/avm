@@ -155,10 +155,16 @@ int write_qm_data(AV1_COMP *cpi, struct quantization_matrix_set *qm_list,
   cpi->common.error.error_code = AOM_CODEC_OK;
   const TX_SIZE fund_tsize[3] = { TX_8X8, TX_8X4, TX_4X8 };
 
+#if CONFIG_QM_REVERT
+  const bool qm_is_default_flag = qm_list[qm_pos].is_user_defined_qm;
+#else
   const bool qm_is_default_flag = qm_list[qm_pos].qm_default_index != -1;
+#endif
   aom_wb_write_bit(wb, qm_is_default_flag);
   if (qm_is_default_flag) {
+#if !CONFIG_QM_REVERT
     aom_wb_write_literal(wb, qm_list[qm_pos].qm_default_index, 4);
+#endif // !CONFIG_QM_REVERT
     return wb->bit_offset - size;
   }
 
@@ -273,10 +279,12 @@ uint32_t write_qm_obu(AV1_COMP *cpi, int signalled_obu_pos,
       &wb, cpi->qmobu_list[signalled_obu_pos].qm_chroma_info_present_flag);
   for (int j = 0; j < NUM_CUSTOM_QMS; j++) {
     if (qm_bit_map & (1 << j)) {
+#if !CONFIG_QM_REVERT
       check_qm_is_predefined(
           cpi, signalled_obu_pos,
           (cpi->qmobu_list[signalled_obu_pos].qm_chroma_info_present_flag ? 3
                                                                           : 1));
+#endif  // !CONFIG_QM_REVERT
       write_qm_data(
           cpi, cpi->qmobu_list[signalled_obu_pos].qm_list, j,
           (cpi->qmobu_list[signalled_obu_pos].qm_chroma_info_present_flag ? 3
@@ -621,7 +629,9 @@ void check_qm_is_predefined(AV1_COMP *cpi, int qmobu_pos, int num_planes) {
     if (qm_bit_map & (1 << qm_id)) {
       struct quantization_matrix_set *qm_inobu =
           &cpi->qmobu_list[qmobu_pos].qm_list[qm_id];
+#if !CONFIG_QM_REVERT
       qm_inobu->qm_default_index = -1;
+#endif // !CONFIG_QM_REVERT
       for (int predefined_id = 0; predefined_id < NUM_CUSTOM_QMS;
            predefined_id++) {
         bool same = true;
@@ -657,7 +667,9 @@ void check_qm_is_predefined(AV1_COMP *cpi, int qmobu_pos, int num_planes) {
           if (!same) break;
         }
         if (same) {
+#if !CONFIG_QM_REVERT
           qm_inobu->qm_default_index = predefined_id;
+#endif // !CONFIG_QM_REVERT
           break;
         }
       }
