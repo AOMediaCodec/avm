@@ -933,23 +933,25 @@ static aom_codec_err_t decoder_decode(aom_codec_alg_priv_t *ctx,
       ctx->grain_image_frame_buffers[j].priv = NULL;
     }
     ctx->num_grain_image_frame_buffers = 0;
-#if CONFIG_F024_KEYOBU
-    if (data == NULL && data_sz == 0) {
-      return flush_remaining_frames(pbi);
-    }
-#else
     // Output any frames in the buffer
     // that have showable_frame == 1 but have not yet been output.  This is
     // useful when OBUs are lost due to channel errors or removed for temporal
     // scalability.
     if (data == NULL && data_sz == 0) {
+#if CONFIG_F024_KEYOBU
+      aom_codec_err_t err = flush_remaining_frames(pbi);
+#else
       output_trailing_frames(pbi);
+#endif  // CONFIG_F024_KEYOBU
       for (size_t j = 0; j < pbi->num_output_frames; j++) {
         decrease_ref_count(pbi->output_frames[j], pool);
       }
+#if CONFIG_F024_KEYOBU
+      return err;
+#else
       return AOM_CODEC_OK;
-    }
 #endif  // CONFIG_F024_KEYOBU
+    }
   }
 
   /* Sanity checks */
