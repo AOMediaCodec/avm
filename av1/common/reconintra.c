@@ -1144,8 +1144,8 @@ static void build_intra_predictors_high(
   // base+1   E      F  ..     U      V
   // base+1   G      H  ..     S      T      T      T      T      T
 
-  const bool is_ibp_orip_allowed_blk_sz = tx_size != TX_4X4;
-  const int apply_ibp = seq_ibp_flag && is_ibp_orip_allowed_blk_sz;
+  const bool is_ibp_allowed_blk_sz = tx_size != TX_4X4;
+  const int apply_ibp = seq_ibp_flag && is_ibp_allowed_blk_sz;
   const int txb_idx = get_tx_partition_idx(xd->mi[0], plane);
   xd->mi[0]->is_wide_angle[plane > 0][txb_idx] = 0;
   xd->mi[0]->mapped_intra_mode[plane > 0][txb_idx] = DC_PRED;
