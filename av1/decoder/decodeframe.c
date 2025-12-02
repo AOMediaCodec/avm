@@ -3943,7 +3943,9 @@ void setup_quant_matrices(AV1Decoder *pbi, CommonQuantParams *quant_params,
 
   // Generate matrices for each tx size
   int current = 0;
+#if CONFIG_QM_REVERT
   const bool is_user_defined_qm = pbi->qm_list[qm_pos_found].is_user_defined_qm;
+#endif
   for (int t = 0; t < TX_SIZES_ALL; ++t) {
     const int size = tx_size_2d[t];
     const int qm_tx_size = av1_get_adjusted_tx_size(t);
@@ -3963,8 +3965,8 @@ void setup_quant_matrices(AV1Decoder *pbi, CommonQuantParams *quant_params,
     } else {
       // Fill with reference matrices.
       assert(current + size <= QM_TOTAL_SIZE);
-      quant_params->gqmatrix[qmlevel][plane][t] =
-          &predefined_wt_matrix_ref[qmlevel][plane >= 1][current];
+      // quant_params->gqmatrix[qmlevel][plane][t] =
+      //     &predefined_wt_matrix_ref[qmlevel][plane >= 1][current];
       quant_params->giqmatrix[qmlevel][plane][t] =
           &predefined_iwt_matrix_ref[qmlevel][plane >= 1][current];
       current += size;
