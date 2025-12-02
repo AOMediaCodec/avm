@@ -3969,8 +3969,11 @@ static AOM_INLINE void setup_qm_params(
     SequenceHeader *active_seq,
 #endif  // CONFIG_CWG_E242_SEQ_HDR_ID
 #endif  // CONFIG_F255_QMOBU
-    CommonQuantParams *quant_params, bool segmentation_enabled, int num_planes,
-    struct aom_read_bit_buffer *rb) {
+    CommonQuantParams* quant_params,
+#if !CONFIG_REMOVE_SEGMENT_QM
+    bool segmentation_enabled,
+#endif  // !CONFIG_REMOVE_SEGMENT_QM
+    int num_planes, struct aom_read_bit_buffer* rb) {
   quant_params->using_qmatrix = aom_rb_read_bit(rb);
 #if CONFIG_F255_QMOBU
   AV1_COMMON *const cm = &pbi->common;
@@ -4010,11 +4013,15 @@ static AOM_INLINE void setup_qm_params(
 #endif
 #endif  // CONFIG_F255_QMOBU
   if (quant_params->using_qmatrix) {
+#if CONFIG_REMOVE_SEGMENT_QM
+    quant_params->pic_qm_num = 1;
+#else
     if (segmentation_enabled) {
       quant_params->pic_qm_num = aom_rb_read_literal(rb, 2) + 1;
     } else {
       quant_params->pic_qm_num = 1;
     }
+#endif  // CONFIG_REMOVE_SEGMENT_QM
 #if CONFIG_QM_DEBUG
     printf("[DEC-FRM] pic_qm_num: %d\n", quant_params->pic_qm_num);
 #endif
@@ -10631,7 +10638,11 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       pbi->active_seq,
 #endif  // CONFIG_CWG_E242_SEQ_HDR_ID
 #endif  // #if CONFIG_F255_QMOBU
-      quant_params, cm->seg.enabled, av1_num_planes(cm), rb);
+      quant_params,
+#if !CONFIG_REMOVE_SEGMENT_QM
+      cm->seg.enabled,
+#endif  // !CONFIG_REMOVE_SEGMENT_QM
+      av1_num_planes(cm), rb);
   cm->delta_q_info.delta_q_res = 1;
   cm->delta_q_info.delta_lf_res = 1;
   cm->delta_q_info.delta_lf_present_flag = 0;

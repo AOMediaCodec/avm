@@ -240,6 +240,10 @@ set_aom_config_var(
   CONFIG_QM_DEBUG 0
   "Enable debug information for extension to AV1 quantization matrices.")
 
+set_aom_config_var(
+  CONFIG_REMOVE_SEGMENT_QM 1
+  "Removes segment-adaptive QM usage.")
+
 set_aom_config_var(CONFIG_CWG_F248_RENDER_SIZE 1 "Remove render size.")
 
 set_aom_config_var(CONFIG_FRAME_HALF_PRECISION 1

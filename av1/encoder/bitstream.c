@@ -4383,6 +4383,7 @@ static AOM_INLINE void encode_qm_params(AV1_COMMON *cm,
   const CommonQuantParams *quant_params = &cm->quant_params;
   aom_wb_write_bit(wb, quant_params->using_qmatrix);
   if (quant_params->using_qmatrix) {
+#if !CONFIG_REMOVE_SEGMENT_QM
     if (cm->seg.enabled) {
       aom_wb_write_literal(wb, quant_params->pic_qm_num - 1, 2);
     } else if (quant_params->pic_qm_num > 1) {
@@ -4390,6 +4391,7 @@ static AOM_INLINE void encode_qm_params(AV1_COMMON *cm,
                          "The frame does not use segmentation but uses "
                          "per-segment quantizer matrices");
     }
+#endif  //  !CONFIG_REMOVE_SEGMENT_QM
 #if CONFIG_QM_DEBUG
     printf("[ENC-FRM] pic_qm_num: %d\n", quant_params->pic_qm_num);
 #endif
