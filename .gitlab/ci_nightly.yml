@@ -268,7 +268,7 @@ Linux Unit (x86_64, sse4_2):
 
 Linux Sanitizer (address) Test Nightly:
   extends: .sanitizer-common-nigtly
-  parallel: 34
+  parallel: 24
   variables:
     AOM_SANITIZER_TYPE: address
   needs:
@@ -277,7 +277,7 @@ Linux Sanitizer (address) Test Nightly:
 
 Linux Sanitizer (undefined) Test Nightly:
   extends: .sanitizer-common-nigtly
-  parallel: 34
+  parallel: 24
   variables:
     AOM_SANITIZER_TYPE: undefined
   needs:
@@ -294,7 +294,7 @@ Linux Sanitizer (integer) Test Nightly:
 
 Linux Sanitizer (thread) Test Nightly:
   extends: .sanitizer-common-nigtly
-  parallel: 16
+  parallel: 10
   variables:
     AOM_SANITIZER_TYPE: thread
   needs:
