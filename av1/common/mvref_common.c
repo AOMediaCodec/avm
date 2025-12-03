@@ -4369,7 +4369,6 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
   if (up_available) {
     const int mi_row_offset = -1;
     MB_MODE_INFO *above_mbmi = xd->mi[mi_row_offset * mi_stride];
-    SUBMB_INFO *above_submi = xd->submi[mi_row_offset * mi_stride];
     const int above_mc_offset_start = above_mbmi->mi_col_start - mi_col;
 
     if (above_mc_offset_start < 0) do_top_left = 0;
@@ -4377,7 +4376,7 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
     for (i = above_mc_offset_start;
          i < AOMMIN(xd->width, cm->mi_params.mi_cols - mi_col); i += mi_step) {
       above_mbmi = xd->mi[i + mi_row_offset * mi_stride];
-      above_submi = xd->submi[i + mi_row_offset * mi_stride];
+      SUBMB_INFO *above_submi = xd->submi[i + mi_row_offset * mi_stride];
       mi_step = mi_size_wide[above_mbmi->sb_type[PLANE_TYPE_Y]];
       if (is_sb_border && ((mi_col + i) % 2)) {
         // Block MI width is 1 and block is in odd column
@@ -4415,7 +4414,6 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
   if (left_available) {
     const int mi_col_offset = -1;
     MB_MODE_INFO *left_mbmi = xd->mi[mi_col_offset];
-    SUBMB_INFO *left_submi = xd->submi[mi_col_offset];
     const int left_mr_offset_start = left_mbmi->mi_row_start - mi_row;
 
     if (left_mr_offset_start < 0) do_top_left = 0;
@@ -4423,7 +4421,7 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
     for (i = left_mr_offset_start;
          i < AOMMIN(xd->height, cm->mi_params.mi_rows - mi_row); i += mi_step) {
       left_mbmi = xd->mi[mi_col_offset + i * mi_stride];
-      left_submi = xd->submi[mi_col_offset + i * mi_stride];
+      SUBMB_INFO *left_submi = xd->submi[mi_col_offset + i * mi_stride];
       mi_step = mi_size_high[left_mbmi->sb_type[PLANE_TYPE_Y]];
 
       for (int ref = 0; ref < 1 + has_second_ref(left_mbmi); ++ref) {
