@@ -7515,19 +7515,6 @@ static AOM_INLINE void write_uncompressed_header_obu
         }
       }
     }
-
-    if (cm->seq_params.enable_lf_sub_pu && cm->features.allow_lf_sub_pu &&
-        cm->lf.tip_filter_level) {
-      write_tile_info(cm, saved_wb, wb);
-    }
-
-    if (seq_params->film_grain_params_present)
-#if CONFIG_F153_FGM_OBU  // TIP
-      encode_film_grain(cpi, wb);
-#else
-      write_film_grain_params(cpi, wb);
-#endif  // CONFIG_F153_FGM_OBU
-    return;
   }
 
   if (features->all_lossless) {
