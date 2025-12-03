@@ -358,9 +358,6 @@ static const qm_val_t default_8x8_iwt_base_matrix[NUM_QM_LEVELS - 1][2][64];
 static const qm_val_t default_8x4_iwt_base_matrix[NUM_QM_LEVELS - 1][2][8 * 4];
 static const qm_val_t default_4x8_iwt_base_matrix[NUM_QM_LEVELS - 1][2][4 * 8];
 #endif  // !CONFIG_F255_QMOBU
-#define QM_TOTAL_SIZE                  \
-  (4 * 4 + 8 * 8 + 16 * 16 + 32 * 32 + \
-   2 * (4 * 8 + 8 * 16 + 16 * 32 + 4 * 16 + 8 * 32 + 4 * 32))
 
 // Upsamples base matrix using indexing according to input and output
 // dimensions.
@@ -443,7 +440,7 @@ static
 #if CONFIG_F255_QMOBU
              qm_val_t ***fund_matrices
 #else
-              qm_val_t ****fund_matrices
+             qm_val_t ****fund_matrices
 #endif  // CONFIG_F255_QMOBU
     ) {
   int height = tx_size_high[txsize];
@@ -546,7 +543,6 @@ void av1_qm_frame_update(struct CommonQuantParams *quant_params, int num_planes,
       } else {
 #endif  // CONFIG_QM_REVERT
         assert(current + size <= QM_TOTAL_SIZE);
-
         // Generate the iwt and wt matrices from the base matrices.
         scale_tx(t, c, &quant_params->iwt_matrix_ref[qm_id][c][current],
                  matrix_set);
@@ -563,7 +559,6 @@ void av1_qm_frame_update(struct CommonQuantParams *quant_params, int num_planes,
       else {
         // Fill with reference matrices.
         assert(current + size <= QM_TOTAL_SIZE);
-
         quant_params->gqmatrix[qm_id][c][t] =
             &predefined_wt_matrix_ref[qm_id][c >= 1][current];
         quant_params->giqmatrix[qm_id][c][t] =
@@ -700,8 +695,9 @@ void av1_qm_init_dequant_only(CommonQuantParams *quant_params, int num_planes,
         } else if (t <= TX_8X8 || t == TX_4X8 || t == TX_8X4) {
 #else
         } else {
-#endif  // CONFIG_QM_REVERT          assert(current + size <= QM_TOTAL_SIZE);
-        // Generate the iwt matrices from the base matrices.
+#endif  // CONFIG_QM_REVERT          
+          assert(current + size <= QM_TOTAL_SIZE);
+          // Generate the iwt matrices from the base matrices.
           const int plane = c;
           scale_tx(t, q, plane,
                    &quant_params->iwt_matrix_ref[q][plane][current],
@@ -759,7 +755,8 @@ void av1_qm_replace_level(CommonQuantParams *quant_params, int level,
         // Downscale 8x8 to 4x4 in the case of user-defined matrices.
 #else
       } else {
-#endif  // CONFIG_QM_REVERT        assert(current + size <= QM_TOTAL_SIZE);
+#endif  // CONFIG_QM_REVERT        
+        assert(current + size <= QM_TOTAL_SIZE);
         // Generate the iwt and wt matrices from the base matrices.
         const int plane = c;
         scale_tx(t,
