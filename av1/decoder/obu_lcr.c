@@ -237,6 +237,12 @@ static int read_lcr_global_info(struct AV1Decoder *pbi,
                                 struct aom_read_bit_buffer *rb) {
   int lcr_global_config_record_id = aom_rb_read_literal(rb, 3);
 
+  if (lcr_global_config_record_id == LCR_ID_UNSPECIFIED) {
+    aom_internal_error(&pbi->common.error, AOM_CODEC_UNSUP_BITSTREAM,
+                       "Invalid lcr_global_config_record_id: "
+                       "LCR_ID_UNSPECIFIED (0) is not a valid LCR ID.");
+  }
+
   struct LayerConfigurationRecord *lcr_params;
   int lcr_pos = -1;
   for (int i = 0; i < pbi->lcr_counter; i++) {
@@ -303,6 +309,12 @@ static int read_lcr_global_info(struct AV1Decoder *pbi,
 static int read_lcr_local_info(struct AV1Decoder *pbi, int xlayerId,
                                struct aom_read_bit_buffer *rb) {
   int lcr_global_id = aom_rb_read_literal(rb, 3);
+
+  if (lcr_global_id == LCR_ID_UNSPECIFIED) {
+    aom_internal_error(
+        &pbi->common.error, AOM_CODEC_UNSUP_BITSTREAM,
+        "Invalid lcr_global_id: LCR_ID_UNSPECIFIED (0) is not a valid LCR ID.");
+  }
 
   struct LayerConfigurationRecord *lcr_params;
   int lcr_pos = -1;

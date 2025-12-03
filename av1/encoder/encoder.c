@@ -910,6 +910,9 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
     memset(&cpi->lcr_list[i], 0, sizeof(struct LayerConfigurationRecord));
   cm->lcr = &cpi->lcr_list[0];
 
+  cm->lcr->lcr_global_config_record_id = 1;
+  for (int i = 0; i < MAX_NUM_LCR; i++) cm->lcr->lcr_global_id[i] = 1;
+
   // Initialize OPS information
   for (int i = 0; i < MAX_NUM_OPS_ID; i++)
     memset(&cpi->ops_list[i], 0, sizeof(struct OperatingPointSet));
@@ -935,10 +938,11 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
       0;  // intentionally 0 for a single sequence bitstream
 #endif    // CONFIG_CWG_E242_SEQ_HDR_ID
 #if CONFIG_LCR_ID_IN_SH
-  // Intentionally 0 for a single sequence bitstream
-  // The scr_lcr_id corresponds to the global lcr id, so if an LCR is present,
-  // then this id needs to reflect its global id
-  seq_params->seq_lcr_id = LCR_ID_UNSPECIFIED;
+  if (oxcf->layer_cfg.enable_lcr) {
+    seq_params->seq_lcr_id = 1;
+  } else {
+    seq_params->seq_lcr_id = LCR_ID_UNSPECIFIED;
+  }
 #endif  // CONFIG_LCR_ID_IN_SH
 
   seq_params->profile = oxcf->profile;

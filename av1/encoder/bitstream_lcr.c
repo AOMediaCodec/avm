@@ -279,5 +279,10 @@ int av1_set_lcr_params(AV1_COMP *cpi, struct LayerConfigurationRecord *lcr,
   AV1_COMMON *cm = &cpi->common;
   memcpy(lcr, cm->lcr, sizeof(struct LayerConfigurationRecord));
   lcr->lcr_global_id[xlayer_id] = global_id;
+#if CONFIG_LCR_ID_IN_SH
+  if (lcr->lcr_global_config_record_id == LCR_ID_UNSPECIFIED) {
+    lcr->lcr_global_config_record_id = global_id + 1;
+  }
+#endif  // CONFIG_LCR_ID_IN_SH
   return 0;
 }
