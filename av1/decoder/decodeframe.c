@@ -3829,23 +3829,54 @@ static AOM_INLINE void setup_segmentation_dequant(
     const int qm_index = quant_params->qm_index[i];
     const int qmlevel_y =
         use_qmatrix ? quant_params->qm_y[qm_index] : NUM_QM_LEVELS - 1;
+#if CONFIG_QM_REVERT
+    const int qmlevel_y0 =
+        use_qmatrix ? quant_params->qm_y[0] : NUM_QM_LEVELS - 1;
+#endif  // CONFIG_QM_REVERT
+
     for (int j = 0; j < TX_SIZES_ALL; ++j) {
-      quant_params->y_iqmatrix[i][j] =
-          av1_iqmatrix(quant_params, qmlevel_y, AOM_PLANE_Y, j);
+#if CONFIG_QM_REVERT
+      if (j > TX_8X8 && j != TX_4X8 && j != TX_8X4)
+        quant_params->y_iqmatrix[i][j] =
+            av1_iqmatrix(quant_params, qmlevel_y0, AOM_PLANE_Y, j);
+      else
+#endif  // CONFIG_QM_REVERT
+        quant_params->y_iqmatrix[i][j] =
+            av1_iqmatrix(quant_params, qmlevel_y, AOM_PLANE_Y, j);
     }
     const int num_planes = av1_num_planes(cm);
     if (num_planes > 1) {
       const int qmlevel_u =
           use_qmatrix ? quant_params->qm_u[qm_index] : NUM_QM_LEVELS - 1;
+#if CONFIG_QM_REVERT
+      const int qmlevel_u0 =
+          use_qmatrix ? quant_params->qm_u[0] : NUM_QM_LEVELS - 1;
+#endif  // CONFIG_QM_REVERT
       for (int j = 0; j < TX_SIZES_ALL; ++j) {
-        quant_params->u_iqmatrix[i][j] =
-            av1_iqmatrix(quant_params, qmlevel_u, AOM_PLANE_U, j);
+#if CONFIG_QM_REVERT
+        if (j > TX_8X8 && j != TX_4X8 && j != TX_8X4)
+          quant_params->u_iqmatrix[i][j] =
+              av1_iqmatrix(quant_params, qmlevel_u0, AOM_PLANE_U, j);
+        else
+#endif  // CONFIG_QM_REVERT
+          quant_params->u_iqmatrix[i][j] =
+              av1_iqmatrix(quant_params, qmlevel_u, AOM_PLANE_U, j);
       }
       const int qmlevel_v =
           use_qmatrix ? quant_params->qm_v[qm_index] : NUM_QM_LEVELS - 1;
+#if CONFIG_QM_REVERT
+      const int qmlevel_v0 =
+          use_qmatrix ? quant_params->qm_v[0] : NUM_QM_LEVELS - 1;
+#endif  // CONFIG_QM_REVERT
       for (int j = 0; j < TX_SIZES_ALL; ++j) {
-        quant_params->v_iqmatrix[i][j] =
-            av1_iqmatrix(quant_params, qmlevel_v, AOM_PLANE_V, j);
+#if CONFIG_QM_REVERT
+        if (j > TX_8X8 && j != TX_4X8 && j != TX_8X4)
+          quant_params->v_iqmatrix[i][j] =
+              av1_iqmatrix(quant_params, qmlevel_v0, AOM_PLANE_V, j);
+        else
+#endif  // CONFIG_QM_REVERT
+          quant_params->v_iqmatrix[i][j] =
+              av1_iqmatrix(quant_params, qmlevel_v, AOM_PLANE_V, j);
       }
 #if CONFIG_QM_DEBUG
       printf("[DEC-FRM] qmlevel_y/u/v[%d]: (%d,%d,%d)\n", i, qmlevel_y,

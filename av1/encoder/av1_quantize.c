@@ -441,13 +441,30 @@ void av1_init_plane_quantizers(const AV1_COMP *cpi, MACROBLOCK *x,
   const int qm_index = quant_params->qm_index[segment_id];
   const int qmlevel_y =
       use_qmatrix ? quant_params->qm_y[qm_index] : NUM_QM_LEVELS - 1;
+#if CONFIG_QM_REVERT
+  const int qmlevel_y0 =
+      use_qmatrix ? quant_params->qm_y[0] : NUM_QM_LEVELS - 1;
+  for (int j = 0; j < TX_SIZES_ALL; ++j) {
+    if (j > TX_8X8 && j != TX_4X8 && j != TX_8X4) {
+      xd->plane[0].seg_qmatrix[segment_id][j] =
+          quant_params->gqmatrix[qmlevel_y0][0][j];
+      xd->plane[0].seg_iqmatrix[segment_id][j] =
+          quant_params->giqmatrix[qmlevel_y0][0][j];
+    } else {
+      xd->plane[0].seg_qmatrix[segment_id][j] =
+          quant_params->gqmatrix[qmlevel_y][0][j];
+      xd->plane[0].seg_iqmatrix[segment_id][j] =
+          quant_params->giqmatrix[qmlevel_y][0][j];
+    }
+  }
+#else
   memcpy(&xd->plane[0].seg_qmatrix[segment_id],
          quant_params->gqmatrix[qmlevel_y][0],
          sizeof(quant_params->gqmatrix[qmlevel_y][0]));
   memcpy(&xd->plane[0].seg_iqmatrix[segment_id],
          quant_params->giqmatrix[qmlevel_y][0],
          sizeof(quant_params->giqmatrix[qmlevel_y][0]));
-
+#endif  // CONFIG_QM_REVERT
   // U
   x->plane[1].quant_QTX = quants->u_quant[qindex];
   x->plane[1].quant_fp_QTX = quants->u_quant_fp[qindex];
@@ -458,13 +475,30 @@ void av1_init_plane_quantizers(const AV1_COMP *cpi, MACROBLOCK *x,
   x->plane[1].dequant_QTX = dequants->u_dequant_QTX[qindex];
   const int qmlevel_u =
       use_qmatrix ? quant_params->qm_u[qm_index] : NUM_QM_LEVELS - 1;
+#if CONFIG_QM_REVERT
+  const int qmlevel_u0 =
+      use_qmatrix ? quant_params->qm_u[0] : NUM_QM_LEVELS - 1;
+  for (int j = 0; j < TX_SIZES_ALL; ++j) {
+    if (j > TX_8X8 && j != TX_4X8 && j != TX_8X4) {
+      xd->plane[1].seg_qmatrix[segment_id][j] =
+          quant_params->gqmatrix[qmlevel_u0][1][j];
+      xd->plane[1].seg_iqmatrix[segment_id][j] =
+          quant_params->giqmatrix[qmlevel_u0][1][j];
+    } else {
+      xd->plane[1].seg_qmatrix[segment_id][j] =
+          quant_params->gqmatrix[qmlevel_u][1][j];
+      xd->plane[1].seg_iqmatrix[segment_id][j] =
+          quant_params->giqmatrix[qmlevel_u][1][j];
+    }
+  }
+#else
   memcpy(&xd->plane[1].seg_qmatrix[segment_id],
          quant_params->gqmatrix[qmlevel_u][1],
          sizeof(quant_params->gqmatrix[qmlevel_u][1]));
   memcpy(&xd->plane[1].seg_iqmatrix[segment_id],
          quant_params->giqmatrix[qmlevel_u][1],
          sizeof(quant_params->giqmatrix[qmlevel_u][1]));
-
+#endif  // CONFIG_QM_REVERT
   // V
   x->plane[2].quant_QTX = quants->v_quant[qindex];
   x->plane[2].quant_fp_QTX = quants->v_quant_fp[qindex];
@@ -475,13 +509,30 @@ void av1_init_plane_quantizers(const AV1_COMP *cpi, MACROBLOCK *x,
   x->plane[2].dequant_QTX = dequants->v_dequant_QTX[qindex];
   const int qmlevel_v =
       use_qmatrix ? quant_params->qm_v[qm_index] : NUM_QM_LEVELS - 1;
+#if CONFIG_QM_REVERT
+  const int qmlevel_v0 =
+      use_qmatrix ? quant_params->qm_v[0] : NUM_QM_LEVELS - 1;
+  for (int j = 0; j < TX_SIZES_ALL; ++j) {
+    if (j > TX_8X8 && j != TX_4X8 && j != TX_8X4) {
+      xd->plane[2].seg_qmatrix[segment_id][j] =
+          quant_params->gqmatrix[qmlevel_v0][2][j];
+      xd->plane[2].seg_iqmatrix[segment_id][j] =
+          quant_params->giqmatrix[qmlevel_v0][2][j];
+    } else {
+      xd->plane[2].seg_qmatrix[segment_id][j] =
+          quant_params->gqmatrix[qmlevel_v][2][j];
+      xd->plane[2].seg_iqmatrix[segment_id][j] =
+          quant_params->giqmatrix[qmlevel_v][2][j];
+    }
+  }
+#else
   memcpy(&xd->plane[2].seg_qmatrix[segment_id],
          quant_params->gqmatrix[qmlevel_v][2],
          sizeof(quant_params->gqmatrix[qmlevel_v][2]));
   memcpy(&xd->plane[2].seg_iqmatrix[segment_id],
          quant_params->giqmatrix[qmlevel_v][2],
          sizeof(quant_params->giqmatrix[qmlevel_v][2]));
-
+#endif  // CONFIG_QM_REVERT
   x->seg_skip_block = segfeature_active(&cm->seg, segment_id, SEG_LVL_SKIP);
   x->qindex = qindex;
   get_qindex_with_offsets(cm, x->qindex, xd->mi[0]->final_qindex_dc,
@@ -631,6 +682,7 @@ static void set_qm_params(AV1_COMMON *const cm,
 void av1_set_quantizer(AV1_COMP *const cpi, int min_qmlevel, int max_qmlevel,
                        int q, int enable_chroma_deltaq) {
   AV1_COMMON *const cm = &cpi->common;
+
   // quantizer has to be reinitialized with av1_init_quantizer() if any
   // delta_q changes.
   CommonQuantParams *quant_params = &cm->quant_params;
