@@ -52,7 +52,8 @@ static int write_lcr_xlayer_color_info(struct AV1_COMP *cpi, int isGlobal,
                                        int xId,
                                        struct aom_write_bit_buffer *wb) {
   struct XLayerColorInfo *xlayer = &cpi->common.lcr_params.xlayer_col_params;
-  aom_wb_write_rice_golomb(wb, xlayer->layer_color_description_idc[isGlobal][xId], 2);
+  aom_wb_write_rice_golomb(
+      wb, xlayer->layer_color_description_idc[isGlobal][xId], 2);
   if (xlayer->layer_color_description_idc[isGlobal][xId] == 0) {
     aom_wb_write_literal(wb, xlayer->layer_color_primaries[isGlobal][xId], 8);
     aom_wb_write_literal(

@@ -45,7 +45,8 @@ static int read_lcr_xlayer_color_info(struct AV1Decoder *pbi, int isGlobal,
   // inclusive. Values larger than 4 are reserved for future use by AOMedia and
   // should be ignored by decoders conforming to this version of this
   // specification.
-  xlayer->layer_color_description_idc[isGlobal][xId] = aom_rb_read_rice_golomb(rb, 2);
+  xlayer->layer_color_description_idc[isGlobal][xId] =
+      aom_rb_read_rice_golomb(rb, 2);
   if (xlayer->layer_color_description_idc[isGlobal][xId] == 0) {
     xlayer->layer_color_primaries[isGlobal][xId] = aom_rb_read_literal(rb, 8);
     xlayer->layer_transfer_characteristics[isGlobal][xId] =
@@ -187,10 +188,15 @@ static int read_lcr_xlayer_info(struct AV1Decoder *pbi,
   if (lcr_params->lcr_xlayer_color_info_present_flag[isGlobal][xId]) {
     read_lcr_xlayer_color_info(pbi, isGlobal, xId, rb);
   } else {
-    lcr_params->xlayer_col_params.layer_color_description_idc[isGlobal][xId] = 0;
-    lcr_params->xlayer_col_params.layer_color_primaries[isGlobal][xId] = AOM_CICP_CP_UNSPECIFIED;
-    lcr_params->xlayer_col_params.layer_transfer_characteristics[isGlobal][xId] = AOM_CICP_TC_UNSPECIFIED;
-    lcr_params->xlayer_col_params.layer_matrix_coefficients[isGlobal][xId] = AOM_CICP_MC_UNSPECIFIED;
+    lcr_params->xlayer_col_params.layer_color_description_idc[isGlobal][xId] =
+        0;
+    lcr_params->xlayer_col_params.layer_color_primaries[isGlobal][xId] =
+        AOM_CICP_CP_UNSPECIFIED;
+    lcr_params->xlayer_col_params
+        .layer_transfer_characteristics[isGlobal][xId] =
+        AOM_CICP_TC_UNSPECIFIED;
+    lcr_params->xlayer_col_params.layer_matrix_coefficients[isGlobal][xId] =
+        AOM_CICP_MC_UNSPECIFIED;
     lcr_params->xlayer_col_params.layer_full_range_flag[isGlobal][xId] = 0;
   }
 

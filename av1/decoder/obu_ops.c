@@ -179,11 +179,19 @@ uint32_t av1_read_operating_point_set_obu(struct AV1Decoder *pbi,
         read_ops_color_info(ops_params->ops_col_info, obu_xlayer_id, ops_id, i,
                             rb);
       } else {
-        ops_params->ops_col_info->ops_color_description_idc[obu_xlayer_id][ops_id][i] = 0;
-        ops_params->ops_col_info->ops_color_primaries[obu_xlayer_id][ops_id][i] = AOM_CICP_CP_UNSPECIFIED;
-        ops_params->ops_col_info->ops_transfer_characteristics[obu_xlayer_id][ops_id][i] = AOM_CICP_TC_UNSPECIFIED;
-        ops_params->ops_col_info->ops_matrix_coefficients[obu_xlayer_id][ops_id][i] = AOM_CICP_CP_UNSPECIFIED;
-        ops_params->ops_col_info->ops_full_range_flag[obu_xlayer_id][ops_id][i] = 0;
+        ops_params->ops_col_info
+            ->ops_color_description_idc[obu_xlayer_id][ops_id][i] = 0;
+        ops_params->ops_col_info
+            ->ops_color_primaries[obu_xlayer_id][ops_id][i] =
+            AOM_CICP_CP_UNSPECIFIED;
+        ops_params->ops_col_info
+            ->ops_transfer_characteristics[obu_xlayer_id][ops_id][i] =
+            AOM_CICP_TC_UNSPECIFIED;
+        ops_params->ops_col_info
+            ->ops_matrix_coefficients[obu_xlayer_id][ops_id][i] =
+            AOM_CICP_CP_UNSPECIFIED;
+        ops_params->ops_col_info
+            ->ops_full_range_flag[obu_xlayer_id][ops_id][i] = 0;
       }
       if (ops_params
               ->ops_decoder_model_info_present_flag[obu_xlayer_id][ops_id]) {
