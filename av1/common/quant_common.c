@@ -677,8 +677,6 @@ void av1_qm_init(CommonQuantParams *quant_params, int num_planes
 void av1_qm_init_dequant_only(CommonQuantParams *quant_params, int num_planes,
                               qm_val_t ****fund_matrices) {
   for (int q = 0; q < NUM_QM_LEVELS; ++q) {
-#if CONFIG_QM_REVERT
-#endif  // CONFIG_QM_REVERT
     for (int c = 0; c < num_planes; ++c) {
       // Generate matrices for each tx size
       int current = 0;
@@ -732,8 +730,6 @@ void av1_qm_replace_level(CommonQuantParams *quant_params, int level,
 
 ) {
   const int q = level;
-#if CONFIG_QM_REVERT
-#endif  // CONFIG_QM_REVERT
   for (int c = 0; c < num_planes; ++c) {
     // Generate matrices for each tx size
     int current = 0;

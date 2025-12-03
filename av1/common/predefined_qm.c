@@ -14,7 +14,6 @@
 
 #if CONFIG_QM_REVERT
 
-
 /* Provide 15 sets of quantization matrices for chroma and luma
    and each TX size. Matrices for different TX sizes are in fact
    sub-sampled from the 32x32 and 16x16 sizes, but explicitly
@@ -13953,4 +13952,4 @@ const qm_val_t predefined_wt_matrix_ref[NUM_QM_LEVELS - 1][2][QM_TOTAL_SIZE] = {
   },
 };
 /* clang-format on */
-#endif // CONFIG_QM_REVERT
+#endif  // CONFIG_QM_REVERT

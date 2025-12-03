@@ -524,9 +524,6 @@ bool check_add_cmqm_in_qmobulist(AV1_COMP *cpi, bool write_in_prevobu) {
         }
         for (int plane = 0; plane < num_planes; plane++) {
 #if CONFIG_QM_REVERT
-          // TODO(toddnguyen@google.com): Is the above for loop and the ones
-          // below a bug? I think they should be fixed as plane = 0 in this
-          // case, and plane = 1 and plane = 2 below.
           copy_to_qmobu(quant_params, qm_inobu, quant_params->qm_y[pic_qm_idx],
                         plane);
 #else
@@ -619,6 +616,7 @@ bool check_add_cmqm_in_qmobulist(AV1_COMP *cpi, bool write_in_prevobu) {
   return (new_obu_needed || write_in_prevobu);
 }
 
+#if !CONFIG_QM_REVERT
 void check_qm_is_predefined(AV1_COMP *cpi, int qmobu_pos, int num_planes) {
 #if CONFIG_QM_REVERT
   const int START_POS_8x8 = 4 * 4;
@@ -640,10 +638,6 @@ void check_qm_is_predefined(AV1_COMP *cpi, int qmobu_pos, int num_planes) {
           int c = plane == 0 ? 0 : 1;
 
 #if CONFIG_QM_REVERT
-          // TODO(toddnguyen@google.com): This is very clunky right now --
-          // compares 8x8 only to determine if a QM is pre-defined or
-          // user-defined.
-          // Potential case of errror due to scaling of 4x4.
           const qm_val_t *qvalues8x8 =
               &predefined_iwt_matrix_ref[predefined_id][c][START_POS_8x8];
           const qm_val_t *qvalues8x4 =
@@ -677,4 +671,5 @@ void check_qm_is_predefined(AV1_COMP *cpi, int qmobu_pos, int num_planes) {
     }  // if(qm_bit_map & (1<<qm_id))
   }  // qm_id
 }
+#endif  // !CONFIG_QM_REVERT
 #endif  // CONFIG_F255_QMOBU
