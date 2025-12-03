@@ -3969,11 +3969,11 @@ static AOM_INLINE void setup_qm_params(
     SequenceHeader *active_seq,
 #endif  // CONFIG_CWG_E242_SEQ_HDR_ID
 #endif  // CONFIG_F255_QMOBU
-    CommonQuantParams* quant_params,
+    CommonQuantParams *quant_params,
 #if !CONFIG_REMOVE_SEGMENT_QM
     bool segmentation_enabled,
 #endif  // !CONFIG_REMOVE_SEGMENT_QM
-    int num_planes, struct aom_read_bit_buffer* rb) {
+    int num_planes, struct aom_read_bit_buffer *rb) {
   quant_params->using_qmatrix = aom_rb_read_bit(rb);
 #if CONFIG_F255_QMOBU
   AV1_COMMON *const cm = &pbi->common;
