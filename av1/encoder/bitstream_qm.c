@@ -44,6 +44,7 @@
 #include "av1/common/intra_dip.h"
 #include "av1/common/mvref_common.h"
 #include "av1/common/pred_common.h"
+#include "av1/common/predefined_qm.h"
 #include "av1/common/quant_common.h"
 #include "av1/common/reconinter.h"
 #include "av1/common/reconintra.h"

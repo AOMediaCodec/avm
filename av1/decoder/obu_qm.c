@@ -21,6 +21,7 @@
 
 #include "av1/common/common.h"
 #include "av1/common/obu_util.h"
+#include "av1/common/predefined_qm.h"
 #include "av1/common/timing.h"
 #include "av1/decoder/decoder.h"
 #include "av1/decoder/decodeframe.h"

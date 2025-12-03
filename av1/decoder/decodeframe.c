@@ -20,6 +20,7 @@
 #include "av1/common/bru.h"
 #include "av1/common/enums.h"
 #include "av1/common/filter.h"
+#include "av1/common/predefined_qm.h"
 #include "av1/common/scan.h"
 #include "config/aom_config.h"
 #include "config/aom_dsp_rtcd.h"
