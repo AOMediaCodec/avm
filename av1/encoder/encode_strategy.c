@@ -1177,7 +1177,9 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
       const int64_t pts64 =
           ticks_to_timebase_units(timestamp_ratio, *time_stamp);
       if (pts64 < 0 || pts64 > UINT32_MAX) return AOM_CODEC_ERROR;
+#if !CONFIG_CWG_F430
       cm->frame_presentation_time = (uint32_t)pts64;
+#endif  // !CONFIG_CWG_F430
 #if !CONFIG_F024_KEYOBU
     }
 #endif

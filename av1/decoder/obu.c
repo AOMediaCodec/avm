@@ -869,6 +869,28 @@ static void read_metadata_scan_type(AV1Decoder *const pbi,
 }
 #endif  // CONFIG_SCAN_TYPE_METADATA
 
+#if CONFIG_CWG_F430
+// On success, returns the number of bytes read from 'data'. On failure, calls
+// aom_internal_error() and does not return.
+static void read_metadata_temporal_point_info(AV1Decoder *const pbi,
+                                              struct aom_read_bit_buffer *rb) {
+  AV1_COMMON *const cm = &pbi->common;
+  cm->temporal_point_info_metadata.mtpi_frame_presentation_length =
+      aom_rb_read_literal(rb, 5) + 1;
+  int n = cm->temporal_point_info_metadata.mtpi_frame_presentation_length;
+  cm->temporal_point_info_metadata.mtpi_frame_presentation_time =
+      aom_rb_read_literal(rb, n);
+
+#if CONFIG_SHORT_METADATA
+  uint8_t payload[1];
+  payload[0] =
+      (cm->temporal_point_info_metadata.mtpi_frame_presentation_time & 0XFF);
+  alloc_read_metadata(pbi, OBU_METADATA_TYPE_TEMPORAL_POINT_INFO, payload, 1,
+                      AOM_MIF_ANY_FRAME);
+#endif  // CONFIG_SHORT_METADATA
+}
+#endif  // CONFIG_CWG_F430
+
 static int read_metadata_frame_hash(AV1Decoder *const pbi,
                                     struct aom_read_bit_buffer *rb) {
   AV1_COMMON *const cm = &pbi->common;
@@ -1026,6 +1048,9 @@ static size_t read_metadata(AV1Decoder *pbi, const uint8_t *data, size_t sz)
 #if CONFIG_SCAN_TYPE_METADATA
   known_metadata_type |= metadata_type == OBU_METADATA_TYPE_SCAN_TYPE;
 #endif  // CONFIG_SCAN_TYPE_METADATA
+#if CONFIG_CWG_F430
+  known_metadata_type |= metadata_type == OBU_METADATA_TYPE_TEMPORAL_POINT_INFO;
+#endif  // CONFIG_CWG_F430
   if (!known_metadata_type)
 #else  // CONFIG_ICC_METADATA
 #if CONFIG_BAND_METADATA
@@ -1099,6 +1124,13 @@ static size_t read_metadata(AV1Decoder *pbi, const uint8_t *data, size_t sz)
     read_metadata_scan_type(pbi, &rb);
     return sz;
 #endif  // CONFIG_SCAN_TYPE_METADATA
+#if CONFIG_CWG_F430
+  } else if (metadata_type == OBU_METADATA_TYPE_TEMPORAL_POINT_INFO) {
+    struct aom_read_bit_buffer rb;
+    av1_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);
+    read_metadata_temporal_point_info(pbi, &rb);
+    return sz;
+#endif  // CONFIG_CWG_F430
 #if CONFIG_METADATA
   } else if (metadata_type == OBU_METADATA_TYPE_ICC_PROFILE) {
 #if !CONFIG_METADATA
@@ -1331,12 +1363,10 @@ static size_t read_metadata_short(AV1Decoder *pbi, const uint8_t *data,
     }
   }
 
-#if CONFIG_BAND_METADATA
-  if (metadata_type == 0 || metadata_type >= 8)
-#else
-  if (metadata_type == 0 || metadata_type >= 7)
-#endif  // CONFIG_BAND_METADATA
-  {
+  const bool known_metadata_type =
+      (metadata_type > OBU_METADATA_TYPE_AOM_RESERVED_0) &&
+      (metadata_type < NUM_OBU_METADATA_TYPES);
+  if (!known_metadata_type) {
     // If metadata_type is reserved for future use or a user private value,
     // ignore the entire OBU and just check trailing bits.
     if (get_last_nonzero_byte(data + type_length, sz - type_length) == 0) {
@@ -1422,6 +1452,17 @@ static size_t read_metadata_short(AV1Decoder *pbi, const uint8_t *data,
     read_metadata_scan_type(pbi, &rb);
     return sz;
 #endif  // CONFIG_SCAN_TYPE_METADATA
+#if CONFIG_CWG_F430
+  } else if (metadata_type == OBU_METADATA_TYPE_TEMPORAL_POINT_INFO) {
+    const size_t kMinTemporalPointInfoHeaderSize = 1;
+    if (sz < kMinTemporalPointInfoHeaderSize) {
+      aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                         "Incorrect temporal point info metadata payload size");
+    }
+    av1_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);
+    read_metadata_temporal_point_info(pbi, &rb);
+    return sz;
+#endif  // CONFIG_CWG_F430
   }
 
   av1_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);

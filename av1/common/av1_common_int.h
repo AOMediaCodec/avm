@@ -2344,12 +2344,14 @@ typedef struct AV1Common {
   int render_height; /*!< Rendered frame height */
   /**@}*/
 
+#if !CONFIG_CWG_F430
   /*!
    * Presentation time of the frame in clock ticks DispCT counted from the
    * removal time of the last random access point for the operating point that
    * is being decoded.
    */
   uint32_t frame_presentation_time;
+#endif  // !CONFIG_CWG_F430
 
   /*!
    * Buffer where previous frame is stored.
@@ -2922,6 +2924,14 @@ typedef struct AV1Common {
    */
   aom_metadata_pic_struct_t pic_struct_metadata_params;
 #endif  // CONFIG_SCAN_TYPE_METADATA
+
+#if CONFIG_CWG_F430
+  /*!
+   * Temporal point info
+   */
+  aom_metadata_temporal_point_info_t temporal_point_info_metadata;
+#endif  // CONFIG_CWG_F430
+
 #if CONFIG_F024_KEYOBU
   /*!
    * Order hint of the last encountered OLK per layer

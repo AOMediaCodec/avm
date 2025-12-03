@@ -6490,8 +6490,10 @@ void av1_read_decoder_model_info(aom_dec_model_info_t *decoder_model_info,
   decoder_model_info->num_units_in_decoding_tick =
       aom_rb_read_unsigned_literal(rb,
                                    32);  // Number of units in a decoding tick
+#if !CONFIG_CWG_F430
   decoder_model_info->frame_presentation_time_length =
       aom_rb_read_literal(rb, 5) + 1;
+#endif  // !CONFIG_CWG_F430
 }
 
 void av1_read_op_parameters_info(aom_dec_model_op_parameters_t *op_params,
@@ -6504,11 +6506,13 @@ void av1_read_op_parameters_info(aom_dec_model_op_parameters_t *op_params,
   op_params->low_delay_mode_flag = aom_rb_read_bit(rb);
 }
 
+#if !CONFIG_CWG_F430
 static AOM_INLINE void read_temporal_point_info(
     AV1_COMMON *const cm, struct aom_read_bit_buffer *rb) {
   cm->frame_presentation_time = aom_rb_read_unsigned_literal(
       rb, cm->seq_params.decoder_model_info.frame_presentation_time_length);
 }
+#endif  // !CONFIG_CWG_F430
 
 #if CONFIG_CROP_WIN_CWG_F220
 // This function reads the parameters for the conformance window
@@ -8590,6 +8594,7 @@ static int read_show_existing_frame(AV1Decoder *pbi,
     cm->cur_frame->display_order_hint = frame_to_show->display_order_hint;
   }
 #endif  // CONFIG_F356_SEF_DOH
+#if !CONFIG_CWG_F430
   if (seq_params->decoder_model_info_present_flag &&
 #if CONFIG_CWG_F270_CI_OBU
       (cm->ci_params.ci_timing_info_present_flag == 1) &&
@@ -8600,6 +8605,7 @@ static int read_show_existing_frame(AV1Decoder *pbi,
   ) {
     read_temporal_point_info(cm, rb);
   }
+#endif  // !CONFIG_CWG_F430
   lock_buffer_pool(pool);
   assert(frame_to_show->ref_count > 0);
   // cm->cur_frame should be the buffer referenced by the return value
@@ -9191,8 +9197,12 @@ static int read_uncompressed_header(AV1Decoder *pbi, OBU_TYPE obu_type,
     } else
 #endif  // CONFIG_CWG_F317
       cm->showable_frame = current_frame->frame_type != KEY_FRAME;
+#if CONFIG_CWG_F430
+    if (!cm->show_frame) {
+#else
     if (cm->show_frame) {
     } else {
+#endif  // !CONFIG_CWG_F430
 #if CONFIG_CWG_F317
       if (cm->bridge_frame_info.is_bridge_frame) {
         cm->showable_frame = 0;
@@ -9205,6 +9215,7 @@ static int read_uncompressed_header(AV1Decoder *pbi, OBU_TYPE obu_type,
 #endif  // CONFIG_CWG_F317
     }
 
+#if !CONFIG_CWG_F430
     if ((cm->show_frame || cm->showable_frame) &&
         seq_params->decoder_model_info_present_flag &&
 #if CONFIG_CWG_F270_CI_OBU
@@ -9215,6 +9226,7 @@ static int read_uncompressed_header(AV1Decoder *pbi, OBU_TYPE obu_type,
 #endif  // CONFIG_CWG_F270_CI_OBU
     )
       read_temporal_point_info(cm, rb);
+#endif  // !CONFIG_CWG_F430
 
 #if !CONFIG_F024_KEYOBU
     if (current_frame->frame_type == KEY_FRAME && cm->showable_frame) {

@@ -4694,10 +4694,10 @@ static AOM_INLINE void write_decoder_model_info(
       wb, decoder_model_info->encoder_decoder_buffer_delay_length - 1, 5);
   aom_wb_write_unsigned_literal(
       wb, decoder_model_info->num_units_in_decoding_tick, 32);
-  aom_wb_write_literal(wb, decoder_model_info->buffer_removal_time_length - 1,
-                       5);
+#if !CONFIG_CWG_F430
   aom_wb_write_literal(
       wb, decoder_model_info->frame_presentation_time_length - 1, 5);
+#endif  // !CONFIG_CWG_F430
 }
 
 static AOM_INLINE void write_dec_model_op_parameters(
@@ -4710,12 +4710,14 @@ static AOM_INLINE void write_dec_model_op_parameters(
   aom_wb_write_bit(wb, op_params->low_delay_mode_flag);
 }
 
+#if !CONFIG_CWG_F430
 static AOM_INLINE void write_tu_pts_info(AV1_COMMON *const cm,
                                          struct aom_write_bit_buffer *wb) {
   aom_wb_write_unsigned_literal(
       wb, cm->frame_presentation_time,
       cm->seq_params.decoder_model_info.frame_presentation_time_length);
 }
+#endif  // !CONFIG_CWG_F430
 
 #if CONFIG_CWG_E242_SIGNAL_TILE_INFO
 // Writes tile syntax
@@ -6375,6 +6377,7 @@ static AOM_INLINE void write_show_existing_frame(
         seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
   }
 #endif  // CONFIG_F356_SEF_DOH
+#if !CONFIG_CWG_F430
   if (seq_params->decoder_model_info_present_flag &&
 #if CONFIG_CWG_F270_CI_OBU
       cm->ci_params.timing_info.equal_elemental_interval == 0) {
@@ -6383,6 +6386,7 @@ static AOM_INLINE void write_show_existing_frame(
 #endif  // CONFIG_CWG_F270_CI_OBU
     write_tu_pts_info(cm, wb);
   }
+#endif  // !CONFIG_CWG_F430
   return;
 }
 
@@ -6512,8 +6516,12 @@ static AOM_INLINE void write_uncompressed_header(
 #endif  // CONFIG_F024_KEYOBU
       aom_wb_write_bit(wb, cm->show_frame);
 
+#if CONFIG_CWG_F430
+    if (!cm->show_frame) {
+#else
     if (cm->show_frame) {
     } else {
+#endif  // CONFIG_CWG_F430
 #if CONFIG_CWG_F317
       if (cm->bridge_frame_info.is_bridge_frame) {
         if (cm->showable_frame) {
@@ -6525,6 +6533,7 @@ static AOM_INLINE void write_uncompressed_header(
         aom_wb_write_bit(wb, cm->showable_frame);
     }
 
+#if !CONFIG_CWG_F430
     if ((cm->show_frame || cm->showable_frame) &&
         seq_params->decoder_model_info_present_flag &&
 #if CONFIG_CWG_F270_CI_OBU
@@ -6534,7 +6543,7 @@ static AOM_INLINE void write_uncompressed_header(
 #endif  // CONFIG_CWG_F270_CI_OBU
     )
       write_tu_pts_info(cm, wb);
-
+#endif  // !CONFIG_CWG_F430
   }  // if(!seq_params->single_picture_header_flag)
   int frame_size_override_flag = 0;
 
@@ -8256,6 +8265,55 @@ static size_t write_scan_type_metadata(AV1_COMP *const cpi, uint8_t *dst
 }
 #endif  // CONFIG_SCAN_TYPE_METADATA
 
+#if CONFIG_CWG_F430
+static size_t write_temporal_point_info_metadata(AV1_COMP *const cpi,
+                                                 uint8_t *dst) {
+  AV1_COMMON *const cm = &cpi->common;
+  unsigned char payload[5];  // Max 5 + 32 = 37 bits = 5 bytes
+  struct aom_write_bit_buffer wb = { payload, 0 };
+
+  int n = cm->temporal_point_info_metadata.mtpi_frame_presentation_length - 1;
+  aom_wb_write_unsigned_literal(&wb, n, 5);
+  aom_wb_write_unsigned_literal(
+      &wb, cm->temporal_point_info_metadata.mtpi_frame_presentation_time,
+      n + 1);
+
+  // Calculate actual payload size in bytes
+  size_t payload_size = aom_wb_bytes_written(&wb);
+  aom_metadata_t *metadata =
+      aom_img_metadata_alloc(OBU_METADATA_TYPE_TEMPORAL_POINT_INFO, payload,
+                             payload_size, AOM_MIF_ANY_FRAME);
+  if (!metadata) {
+    aom_internal_error(&cpi->common.error, AOM_CODEC_MEM_ERROR,
+                       "Error allocating metadata");
+  }
+
+  // Set up metadata fields for individual OBU_METADATA
+  metadata->is_suffix = 0;
+  metadata->cancel_flag = 0;
+  metadata->persistence_idc = AOM_NO_PERSISTENCE;
+  metadata->layer_idc = AOM_LAYER_CURRENT;
+
+  size_t total_bytes_written = 0;
+  size_t obu_header_size =
+      av1_write_obu_header(&cpi->level_params, OBU_METADATA, 0, 0, dst);
+  size_t obu_payload_size =
+      av1_write_metadata_obu(metadata, dst + obu_header_size);
+  size_t length_field_size =
+      obu_memmove(obu_header_size, obu_payload_size, dst);
+  if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size, dst) ==
+      AOM_CODEC_OK) {
+    const size_t obu_size = obu_header_size + obu_payload_size;
+    total_bytes_written += obu_size + length_field_size;
+  } else {
+    aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR,
+                       "Error writing metadata OBU size");
+  }
+  aom_img_metadata_free(metadata);
+  return total_bytes_written;
+}
+#endif  // CONFIG_CWG_F430
+
 static size_t av1_write_frame_hash_metadata(
     AV1_COMP *const cpi, uint8_t *dst,
     const aom_film_grain_t *const grain_params
@@ -8959,6 +9017,18 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
   }
 #endif
 #endif  // CONFIG_SCAN_TYPE_METADATA
+
+#if CONFIG_CWG_F430
+  int write_temporal_point_metadata =
+      (cpi->write_ci_obu_flag &&
+       cpi->common.ci_params.ci_timing_info_present_flag &&
+       cpi->common.ci_params.timing_info.equal_elemental_interval == 0)
+          ? 1
+          : 0;
+  if (write_temporal_point_metadata) {
+    data += write_temporal_point_info_metadata(cpi, data);
+  }
+#endif  // CONFIG_CWG_F430
 
   *size = data - dst;
   return AOM_CODEC_OK;

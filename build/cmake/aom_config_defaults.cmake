@@ -194,6 +194,9 @@ set_aom_config_var(CONFIG_CROP_WIN_CWG_F220 1 "Sequence Cropping Window")
 
 set_aom_config_var(CONFIG_CWG_F270_CI_OBU 1 "Use content interpretation OBU")
 
+# CWG-F430 Temporal point info metadata
+set_aom_config_var(CONFIG_CWG_F430 1 "Temporal point info metadata.")
+
 # Source of throughput analysis : CWG-B065
 set_aom_config_var(CONFIG_THROUGHPUT_ANALYSIS 0
                    "AV2 experiment flag to measure throughput.")

@@ -141,7 +141,9 @@ static int parse_timing_info(struct aom_read_bit_buffer *reader) {
 // decoder_model_info( ) {
 //   buffer_delay_length_minus_1            f(5)
 //   num_units_in_decoding_tick             f(32)
+#if !CONFIG_CWG_F430
 //   frame_presentation_time_length_minus_1 f(5)
+#endif  // !CONFIG_CWG_F430
 // }
 //
 // Returns -1 upon failure, or the value of buffer_delay_length_minus_1 + 1.
@@ -151,7 +153,9 @@ static int parse_decoder_model_info(struct aom_read_bit_buffer *reader) {
 
   AV1C_READ_BITS_OR_RETURN_ERROR(buffer_delay_length_minus_1, 5);
   AV1C_READ_BITS_OR_RETURN_ERROR(num_units_in_decoding_tick, 32);
+#if !CONFIG_CWG_F430
   AV1C_READ_BITS_OR_RETURN_ERROR(frame_presentation_time_length_minus_1, 5);
+#endif  // !CONFIG_CWG_F430
 
   AV1C_POP_ERROR_HANDLER_DATA();
   return buffer_delay_length_minus_1 + 1;

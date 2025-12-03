@@ -335,10 +335,14 @@ static aom_codec_err_t parse_decoder_model_info(
   *buffer_delay_length_minus_1 = aom_rb_read_literal(rb, 5);
   const uint32_t num_units_in_decoding_tick =
       aom_rb_read_unsigned_literal(rb, 32);
+#if !CONFIG_CWG_F430
   const uint8_t frame_presentation_time_length_minus_1 =
       aom_rb_read_literal(rb, 5);
+#endif  // !CONFIG_CWG_F430
   (void)num_units_in_decoding_tick;
+#if !CONFIG_CWG_F430
   (void)frame_presentation_time_length_minus_1;
+#endif  // !CONFIG_CWG_F430
   return AOM_CODEC_OK;
 }
 

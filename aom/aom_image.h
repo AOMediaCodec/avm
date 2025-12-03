@@ -294,6 +294,18 @@ typedef struct aom_metadata_pic_struct_t {
 } aom_metadata_pic_struct_t;
 #endif  // CONFIG_SCAN_TYPE_METADATA
 
+#if CONFIG_CWG_F430
+/*!\brief Temporal Point Info Metadata payload.
+ *
+ * Contains the frame presentation time for decoder model timing
+ */
+typedef struct aom_metadata_temporal_point_info_t {
+  uint32_t mtpi_frame_presentation_time; /**< Frame presentation time in clock
+                                            ticks*/
+  int mtpi_frame_presentation_length;    /**< Frame presentation time length*/
+} aom_metadata_temporal_point_info_t;
+#endif  // CONFIG_CWG_F430
+
 /*!\brief Metadata persistence behavior
  *
  * Defines how long the metadata should remain valid and applicable

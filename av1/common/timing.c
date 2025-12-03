@@ -68,7 +68,9 @@ int64_t av1_max_level_bitrate(BITSTREAM_PROFILE seq_profile, int seq_level_idx,
 void av1_set_aom_dec_model_info(aom_dec_model_info_t *decoder_model) {
   decoder_model->encoder_decoder_buffer_delay_length = 16;
   decoder_model->buffer_removal_time_length = 10;
+#if !CONFIG_CWG_F430
   decoder_model->frame_presentation_time_length = 10;
+#endif  // !CONFIG_CWG_F430
 }
 
 void av1_set_dec_model_op_parameters(aom_dec_model_op_parameters_t *op_params) {

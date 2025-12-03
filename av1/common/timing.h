@@ -32,7 +32,9 @@ typedef struct aom_dec_model_info {
   uint32_t num_units_in_decoding_tick;
   int encoder_decoder_buffer_delay_length;
   int buffer_removal_time_length;
+#if !CONFIG_CWG_F430
   int frame_presentation_time_length;
+#endif  // !CONFIG_CWG_F430
 } aom_dec_model_info_t;
 
 typedef struct aom_dec_model_op_parameters {
