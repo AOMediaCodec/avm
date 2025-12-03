@@ -695,7 +695,7 @@ void av1_qm_init_dequant_only(CommonQuantParams *quant_params, int num_planes,
         } else if (t <= TX_8X8 || t == TX_4X8 || t == TX_8X4) {
 #else
         } else {
-#endif  // CONFIG_QM_REVERT          
+#endif  // CONFIG_QM_REVERT
           assert(current + size <= QM_TOTAL_SIZE);
           // Generate the iwt matrices from the base matrices.
           const int plane = c;
@@ -755,7 +755,7 @@ void av1_qm_replace_level(CommonQuantParams *quant_params, int level,
         // Downscale 8x8 to 4x4 in the case of user-defined matrices.
 #else
       } else {
-#endif  // CONFIG_QM_REVERT        
+#endif  // CONFIG_QM_REVERT
         assert(current + size <= QM_TOTAL_SIZE);
         // Generate the iwt and wt matrices from the base matrices.
         const int plane = c;
