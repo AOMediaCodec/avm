@@ -523,31 +523,32 @@ static int parse_content_intrepretation_obu(const uint8_t *const buffer,
 
   // Parse color information if present
   if (ci_color_description_present_flag) {
-    AV1C_READ_BITS_OR_RETURN_ERROR(color_description_idc, 3);
+    AV1C_READ_BITS_OR_RETURN_ERROR(color_description_idc, 2);
     // Rice-Golomb with k=3, but for simplicity we read as literal
-    // In actual implementation, use aom_rb_read_rice_golomb(reader, 3)
+    // In actual implementation, use aom_rb_read_rice_golomb(reader, 2)
 
     if (color_description_idc == 0) {
       AV1C_READ_UVLC_BITS_OR_RETURN_ERROR(color_primaries);
       config->ci_color_primaries = color_primaries;
 
+      AV1C_READ_UVLC_BITS_OR_RETURN_ERROR(transfer_characteristics);
+      config->ci_transfer_characteristics = transfer_characteristics;
+
       AV1C_READ_UVLC_BITS_OR_RETURN_ERROR(matrix_coefficients);
       config->ci_matrix_coefficients = matrix_coefficients;
 
-      AV1C_READ_UVLC_BITS_OR_RETURN_ERROR(transfer_characteristics);
-      config->ci_transfer_characteristics = transfer_characteristics;
     } else {
       config->ci_color_primaries = 2;           // AOM_CICP_CP_UNSPECIFIED
-      config->ci_matrix_coefficients = 2;       // AOM_CICP_MC_UNSPECIFIED
       config->ci_transfer_characteristics = 2;  // AOM_CICP_TC_UNSPECIFIED
+      config->ci_matrix_coefficients = 2;       // AOM_CICP_MC_UNSPECIFIED
     }
 
     AV1C_READ_BIT_OR_RETURN_ERROR(full_range_flag);
     config->ci_full_range_flag = full_range_flag;
   } else {
     config->ci_color_primaries = 2;           // AOM_CICP_CP_UNSPECIFIED
-    config->ci_matrix_coefficients = 2;       // AOM_CICP_MC_UNSPECIFIED
     config->ci_transfer_characteristics = 2;  // AOM_CICP_TC_UNSPECIFIED
+    config->ci_matrix_coefficients = 2;       // AOM_CICP_MC_UNSPECIFIED
     config->ci_full_range_flag = 0;
   }
 

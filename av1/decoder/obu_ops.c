@@ -60,10 +60,8 @@ static void read_ops_color_info(struct OpsColorInfo *opsColInfo,
   // inclusive. Values larger than 4 are reserved for future use by AOMedia and
   // should be ignored by decoders conforming to this version of this
   // specification.
-  // TODO(hegilmez): align with the CI OBU definitions in CWG-F270 after
-  // integrated.
   opsColInfo->ops_color_description_idc[obu_xlayer_id][ops_id][ops_idx] =
-      aom_rb_read_uvlc(rb);
+      aom_rb_read_rice_golomb(rb, 2);
   if (opsColInfo->ops_color_description_idc[obu_xlayer_id][ops_id][ops_idx] ==
       0) {
     opsColInfo->ops_color_primaries[obu_xlayer_id][ops_id][ops_idx] =
@@ -177,9 +175,16 @@ uint32_t av1_read_operating_point_set_obu(struct AV1Decoder *pbi,
         ops_params->ops_operational_tier_id[obu_xlayer_id][ops_id][i] =
             aom_rb_read_bit(rb);
       }
-      if (ops_params->ops_color_info_present_flag[obu_xlayer_id][ops_id])
+      if (ops_params->ops_color_info_present_flag[obu_xlayer_id][ops_id]) {
         read_ops_color_info(ops_params->ops_col_info, obu_xlayer_id, ops_id, i,
                             rb);
+      } else {
+        ops_params->ops_col_info->ops_color_description_idc[obu_xlayer_id][ops_id][i] = 0;
+        ops_params->ops_col_info->ops_color_primaries[obu_xlayer_id][ops_id][i] = AOM_CICP_CP_UNSPECIFIED;
+        ops_params->ops_col_info->ops_transfer_characteristics[obu_xlayer_id][ops_id][i] = AOM_CICP_TC_UNSPECIFIED;
+        ops_params->ops_col_info->ops_matrix_coefficients[obu_xlayer_id][ops_id][i] = AOM_CICP_CP_UNSPECIFIED;
+        ops_params->ops_col_info->ops_full_range_flag[obu_xlayer_id][ops_id][i] = 0;
+      }
       if (ops_params
               ->ops_decoder_model_info_present_flag[obu_xlayer_id][ops_id]) {
         read_ops_decoder_model_info(ops_params->ops_decoder_model_info,

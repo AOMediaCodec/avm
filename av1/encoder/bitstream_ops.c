@@ -61,8 +61,8 @@ static void write_ops_mlayer_info(int obuXLId, int opsID, int opIndex, int xLId,
 static void write_ops_color_info(struct OpsColorInfo *opsColInfo, int obuXLId,
                                  int opsID, int opIndex,
                                  struct aom_write_bit_buffer *wb) {
-  aom_wb_write_uvlc(
-      wb, opsColInfo->ops_color_description_idc[obuXLId][opsID][opIndex]);
+  aom_wb_write_rice_golomb(
+      wb, opsColInfo->ops_color_description_idc[obuXLId][opsID][opIndex], 2);
   if (opsColInfo->ops_color_description_idc[obuXLId][opsID][opIndex] == 0) {
     aom_wb_write_literal(
         wb, opsColInfo->ops_color_primaries[obuXLId][opsID][opIndex], 8);

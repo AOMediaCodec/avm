@@ -29,11 +29,11 @@
 void av1_write_color_info(const struct ContentInterpretation *ci_params,
                           struct aom_write_bit_buffer *wb) {
   const ColorInfo *col_info = &ci_params->color_info;
-  aom_wb_write_rice_golomb(wb, col_info->color_description_idc, 3);
+  aom_wb_write_rice_golomb(wb, col_info->color_description_idc, 2);
   if (col_info->color_description_idc == 0) {
-    aom_wb_write_uvlc(wb, col_info->color_primaries);
-    aom_wb_write_uvlc(wb, col_info->matrix_coefficients);
-    aom_wb_write_uvlc(wb, col_info->transfer_characteristics);
+    aom_wb_write_literal(wb, col_info->color_primaries, 8);
+    aom_wb_write_literal(wb, col_info->transfer_characteristics, 8);
+    aom_wb_write_literal(wb, col_info->matrix_coefficients, 8);
   }
   aom_wb_write_bit(wb, col_info->full_range_flag);
 }

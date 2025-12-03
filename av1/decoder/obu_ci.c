@@ -140,16 +140,16 @@ static int av1_set_sar_info(ContentInterpretation *ci_params) {
 static INLINE void av1_read_color_info(struct ContentInterpretation *ci_params,
                                        struct aom_read_bit_buffer *rb) {
   ColorInfo *col_info = &ci_params->color_info;
-  col_info->color_description_idc = aom_rb_read_rice_golomb(rb, 3);
+  col_info->color_description_idc = aom_rb_read_rice_golomb(rb, 2);
 
   if (col_info->color_description_idc == AOM_COLOR_DESC_IDC_EXPLICIT) {
-    col_info->color_primaries = aom_rb_read_uvlc(rb);
-    col_info->matrix_coefficients = aom_rb_read_uvlc(rb);
-    col_info->transfer_characteristics = aom_rb_read_uvlc(rb);
+    col_info->color_primaries = aom_rb_read_literal(rb, 8);
+    col_info->transfer_characteristics = aom_rb_read_literal(rb, 8);
+    col_info->matrix_coefficients = aom_rb_read_literal(rb, 8);
   } else {
     col_info->color_primaries = AOM_CICP_CP_UNSPECIFIED;
-    col_info->matrix_coefficients = AOM_CICP_MC_UNSPECIFIED;
     col_info->transfer_characteristics = AOM_CICP_TC_UNSPECIFIED;
+    col_info->matrix_coefficients = AOM_CICP_MC_UNSPECIFIED;
   }
   col_info->full_range_flag = aom_rb_read_bit(rb);
 }
