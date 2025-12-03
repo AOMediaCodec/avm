@@ -76,7 +76,7 @@ aomdec_av1_ivf_error_resilient() {
   if [ "$(aomdec_can_decode_av1)" = "yes" ]; then
     local file="av1.error-resilient.ivf"
     if [ ! -e "${file}" ]; then
-      encode_yuv_raw_input_av1 "${file}" --ivf --error-resilient=1 || return 1
+      encode_yuv_raw_input_av1 "${file}" --ivf --global-error-resilient=1 || return 1
     fi
     aomdec "${file}" --summary --noblit
   fi
@@ -125,9 +125,8 @@ aomdec_av1_webm() {
   fi
 }
 
-# TODO(jungsun): Add back `aomdec_av1_ivf_error_resilient` when this option is
-# reintroduced.
 aomdec_tests="aomdec_av1_ivf
+              aomdec_av1_ivf_error_resilient
               aomdec_av1_ivf_multithread
               aomdec_aom_ivf_pipe_input
               aomdec_av1_obu
