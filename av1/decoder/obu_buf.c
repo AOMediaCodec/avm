@@ -43,20 +43,32 @@ uint32_t av1_read_buffer_removal_timing_obu(struct AV1Decoder *pbi,
   // br_ops_id
   brt_info->br_ops_id[xlayer_id] = aom_rb_read_literal(rb, 4);
   int ops_id = brt_info->br_ops_id[xlayer_id];
-  if (brt_info->br_ops_id[xlayer_id] != cm->ops_params.ops_id[xlayer_id]) {
+  // Find the corresponding OPS in pbi->ops_list where
+  // ops_id[xlayer_id] == br_ops_id[xlayer_id].
+  // It is a requirement of bitstream conformance that if a buffer removal time
+  // OBU with a buffer br_ops_id[obu_xlayer_id] is present in the bitstream, an operating point set OBU shall also be present in the bitstream with a value of
+  // ops_id[obu_xlayer_id] equal to br_ops_id[obu_xlayer_id]."
+  struct OperatingPointSet *matched_ops = NULL;
+  for (int i = 0; i < pbi->ops_counter; i++) {
+    if (pbi->ops_list[i].ops_id[xlayer_id] == ops_id) {
+          matched_ops = &pbi->ops_list[i];
+          break;
+    }
+  }
+  if (matched_ops == NULL) {
     aom_internal_error(
         &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-        "Inconsistent values for the operating point set id: Buffer timing and "
-        "OPS indicate different id values. The bitstream constraint does not "
-        "allow different values.");
+        "No matching operating point set OBU found for br_ops_id[%d] = %d. Bitstream conformance requires an OPS OBU with ops_id[%d] = %d.", xlayer_id, ops_id, xlayer_id, ops_id);
   }
   // br_ops_cnt
   brt_info->br_ops_cnt[xlayer_id][ops_id] = aom_rb_read_literal(rb, 3);
   int ops_cnt = brt_info->br_ops_cnt[xlayer_id][ops_id];
+
+  // It is a requirement of bitstream conformance that br_ops_cnt[xlayer_id] [opsId], when present shall be equal to the value of ops_cnt[xlayerId][ops_id] of the corresponding operating point set OBU.
   if (brt_info->br_ops_cnt[xlayer_id][ops_id] !=
-      cm->ops_params.ops_cnt[xlayer_id][ops_id]) {
+      matched_ops->ops_cnt[xlayer_id][ops_id]) {
     aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-                       "Inconsistent values for the operating point count: "
+                       "Inconsistent values for the operating point count"
                        "Buffer timing and OPS counts. The bitstream constraint "
                        "does not allow different values.");
   }
