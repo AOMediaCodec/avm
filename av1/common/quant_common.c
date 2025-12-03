@@ -433,13 +433,14 @@ static void scale_tx_init(const int txsize, const int level, const int plane,
 #if !CONFIG_F255_QMOBU
 static
 #endif  // !CONFIG_F255_QMOBU
-    void scale_tx(const int txsize,
+    void
+    scale_tx(const int txsize,
 #if !CONFIG_F255_QMOBU
-                  const int level,
+             const int level,
 #endif  // CONFIG_F255_QMOBU
-                  const int plane, qm_val_t *output,
+             const int plane, qm_val_t *output,
 #if CONFIG_F255_QMOBU
-                  qm_val_t ***fund_matrices
+             qm_val_t ***fund_matrices
 #else
               qm_val_t ****fund_matrices
 #endif  // CONFIG_F255_QMOBU

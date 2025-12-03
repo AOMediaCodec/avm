@@ -89,4 +89,8 @@ macro(fix_experiment_configs)
                            CONFIG_F024_KEYOBU)
   endif()
 
+  if(CONFIG_QM_REVERT)
+    change_config_and_warn(CONFIG_F255_QMOBU 1 CONFIG_QM_REVERT)
+  endif()
+
 endmacro()
