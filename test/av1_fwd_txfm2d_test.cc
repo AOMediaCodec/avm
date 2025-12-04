@@ -46,7 +46,7 @@ class AV1FwdSecTxfmTest : public ::testing::TestWithParam<FwdSTxfmFunc> {
   AV1FwdSecTxfmTest() : fwd_stxfm_func_(GetParam()) {}
   void AV1FwdSecTxfmMatchTest() {
     av1_init_stxfm_kernels();
-    for (int set_id = 0; set_id < IST_DIR_SIZE; ++set_id) {
+    for (int set_id = 0; set_id < IST_SET_SIZE; ++set_id) {
       for (uint8_t stx = 0; stx < STX_TYPES - 1; ++stx) {
         for (int sb_size = 0; sb_size < 3; ++sb_size) {
           DECLARE_ALIGNED(32, tran_low_t, input[IST_8x8_WIDTH]) = { 0 };
@@ -149,7 +149,7 @@ class AV1InvSecTxfmTest : public ::testing::TestWithParam<InvSTxfmFunc> {
   AV1InvSecTxfmTest() : inv_stxfm_func_(GetParam()) {}
   void AV1InvSecTxfmMatchTest() {
     av1_init_stxfm_kernels();
-    for (int set_id = 0; set_id < IST_DIR_SIZE; ++set_id) {
+    for (int set_id = 0; set_id < IST_SET_SIZE; ++set_id) {
       for (uint8_t stx = 0; stx < STX_TYPES - 1; ++stx) {
         for (int sb_size = 0; sb_size < 3; ++sb_size) {
           DECLARE_ALIGNED(32, tran_low_t, input[IST_8x8_HEIGHT]) = { 0 };

@@ -622,10 +622,10 @@ int main(int argc, const char **argv) {
                      0, &total_count, 0, mem_wanted, "Transforms");
 
 #if CONFIG_IST_ANY_SET
-  cts_each_dim[0] = IST_DIR_SIZE;
+  cts_each_dim[0] = IST_SET_SIZE;
   optimize_cdf_table(&fc.stx_set_cnts[0], probsfile, 1, cts_each_dim,
                      "static aom_cdf_prob default_most_probable_stx_set_cdf"
-                     "[CDF_SIZE(IST_DIR_SIZE)]",
+                     "[CDF_SIZE(IST_SET_SIZE)]",
                      0, &total_count, 0, mem_wanted, "Transforms");
 #endif  // CONFIG_IST_ANY_SET
 

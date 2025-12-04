@@ -1142,7 +1142,9 @@ void av1_inv_stxfm(tran_low_t *coeff, TxfmParam *txfm_param) {
     src = coeff;
     memset(src, 0, width * height * sizeof(tran_low_t));
     const int16_t *sup_reg_mapping =
-        &coeff8x8_mapping[txfm_param->sec_tx_set * 3 + stx_type - 1][0];
+        sb_size == 8
+            ? &coeff8x8_mapping[txfm_param->sec_tx_set * 3 + stx_type - 1][0]
+            : NULL;
     for (int r = 0; r < reduced_width; r++) {
       if (sb_size == 8)
         src[scan_order_out[sup_reg_mapping[r]]] = *tmp;

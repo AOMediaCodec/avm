@@ -650,7 +650,7 @@ static INLINE uint8_t get_prob(unsigned int num, unsigned int den) {
  values are added to explicitly set to default rate adaptation.
  ----------------------------------------------------------------------------
  static const aom_cdf_prob
-       default_stx_set_cdf[IST_DIR_SIZE][CDF_SIZE(IST_DIR_SIZE)] = {
+       default_stx_set_cdf[IST_SET_SIZE][CDF_SIZE(IST_SET_SIZE)] = {
          { AOM_CDF7(32744, 32748, 32752, 32756, 32760, 32764), 0 },
          { AOM_CDF7(4, 32748, 32752, 32756, 32760, 32764), 0 },
          { AOM_CDF7(4, 8, 32752, 32756, 32760, 32764), 0 },
