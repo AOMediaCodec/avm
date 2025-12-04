@@ -45,8 +45,6 @@
 void read_gdf(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
   if (!is_allow_gdf(cm)) return;
   if ((cm->gdf_info.gdf_mode < 2) || (cm->gdf_info.gdf_block_num <= 1)) return;
-  if ((xd->mi_row % cm->mib_size != 0) || (xd->mi_col % cm->mib_size != 0))
-    return;
 
 #if CONFIG_CWG_F317
   if (cm->bridge_frame_info.is_bridge_frame && cm->gdf_info.gdf_mode) {

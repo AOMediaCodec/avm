@@ -1327,8 +1327,6 @@ static AOM_INLINE void write_gdf(const AV1_COMMON *cm, MACROBLOCKD *const xd,
                                  aom_writer *w) {
   if (!is_allow_gdf(cm)) return;
   if ((cm->gdf_info.gdf_mode < 2) || (cm->gdf_info.gdf_block_num <= 1)) return;
-  if ((xd->mi_row % cm->mib_size != 0) || (xd->mi_col % cm->mib_size != 0))
-    return;
 
   for (int mi_row = xd->mi_row; mi_row < xd->mi_row + cm->mib_size; mi_row++) {
     for (int mi_col = xd->mi_col; mi_col < xd->mi_col + cm->mib_size;
