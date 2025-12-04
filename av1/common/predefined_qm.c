@@ -10,7 +10,7 @@
  * aomedia.org/license/patent-license/.
  */
 
-#include "av1/common/predefined_qm.h"
+#include "av1/common/quant_common.h"
 
 #if CONFIG_QM_REVERT
 

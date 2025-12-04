@@ -20,7 +20,6 @@
 #include "av1/common/bru.h"
 #include "av1/common/enums.h"
 #include "av1/common/filter.h"
-#include "av1/common/predefined_qm.h"
 #include "av1/common/scan.h"
 #include "config/aom_config.h"
 #include "config/aom_dsp_rtcd.h"
@@ -3967,8 +3966,6 @@ void setup_quant_matrices(AV1Decoder *pbi, CommonQuantParams *quant_params,
     } else {
       // Fill with reference matrices.
       assert(current + size <= QM_TOTAL_SIZE);
-      // quant_params->gqmatrix[qmlevel][plane][t] =
-      //     &predefined_wt_matrix_ref[qmlevel][plane >= 1][current];
       quant_params->giqmatrix[qmlevel][plane][t] =
           &predefined_iwt_matrix_ref[qmlevel][plane >= 1][current];
       current += size;

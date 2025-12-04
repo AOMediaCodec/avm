@@ -65,7 +65,6 @@ list(
   "${AOM_ROOT}/av1/common/odintrin.c"
   "${AOM_ROOT}/av1/common/odintrin.h"
   "${AOM_ROOT}/av1/common/predefined_qm.c"
-  "${AOM_ROOT}/av1/common/predefined_qm.h"
   "${AOM_ROOT}/av1/common/pred_common.c"
   "${AOM_ROOT}/av1/common/pred_common.h"
   "${AOM_ROOT}/av1/common/quant_common.c"

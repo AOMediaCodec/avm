@@ -68,6 +68,10 @@ macro(fix_experiment_configs)
                            CONFIG_CONTROL_LOOPFILTERS_ACROSS_TILES)
   endif()
 
+  if(CONFIG_QM_REVERT)
+    change_config_and_warn(CONFIG_F255_QMOBU 1 CONFIG_QM_REVERT)
+  endif()
+
   if(CONFIG_CWG_E242_SEQ_HDR_ID)
     change_config_and_warn(CONFIG_MULTI_FRAME_HEADER 1
                            CONFIG_CWG_E242_SEQ_HDR_ID)
@@ -87,10 +91,6 @@ macro(fix_experiment_configs)
                            CONFIG_F024_KEYOBU)
     change_config_and_warn(CONFIG_RANDOM_ACCESS_SWITCH_FRAME 1
                            CONFIG_F024_KEYOBU)
-  endif()
-
-  if(CONFIG_QM_REVERT)
-    change_config_and_warn(CONFIG_F255_QMOBU 1 CONFIG_QM_REVERT)
   endif()
 
 endmacro()

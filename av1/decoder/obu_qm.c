@@ -21,7 +21,6 @@
 
 #include "av1/common/common.h"
 #include "av1/common/obu_util.h"
-#include "av1/common/predefined_qm.h"
 #include "av1/common/timing.h"
 #include "av1/decoder/decoder.h"
 #include "av1/decoder/decodeframe.h"
@@ -57,12 +56,6 @@ static void read_qm_data(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
                          struct aom_read_bit_buffer *rb) {
   pbi->common.error.error_code = AOM_CODEC_OK;
   const TX_SIZE fund_tsize[3] = { TX_8X8, TX_8X4, TX_4X8 };
-#if CONFIG_QM_REVERT
-  const int START_POS_8x8 = 4 * 4;
-  const int START_POS_8x4 = 1392;  // tx_size:6 4*4+8*8+16*16+32*32+64*64+4*8;
-  const int START_POS_4x8 = 1360;  // tx_size:5 4*4+8*8+16*16+32*32+64*64;
-#endif                             // CONFIG_QM_REVERT
-
   struct quantization_matrix_set *qmset =
       store_at_intermediate_location
           ? &pbi->qmobu_list[pbi->total_qmobu_count].qm_list[qm_pos]
@@ -78,29 +71,14 @@ static void read_qm_data(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
 #if CONFIG_QM_REVERT
     // Set default index to level = qm_id
     qmset->is_user_defined_qm = false;
-    const int qm_default_index = qm_id;
 #else
     const int qm_default_index = aom_rb_read_literal(rb, 4);
     qmset->qm_default_index = qm_default_index;
-#endif  // CONFIG_QM_REVERT
+
     // copy predefined[qm_default_index] to qmset
     for (int c = 0; c < num_planes; ++c) {
       // plane_type: 0:luma, 1:chroma
       const int plane_type = (c >= 1);
-#if CONFIG_QM_REVERT
-      memcpy(qmset->quantizer_matrix[0][c],
-             &predefined_iwt_matrix_ref[qm_default_index][plane_type]
-                                       [START_POS_8x8],
-             8 * 8 * sizeof(qm_val_t));
-      memcpy(qmset->quantizer_matrix[1][c],
-             &predefined_iwt_matrix_ref[qm_default_index][plane_type]
-                                       [START_POS_8x4],
-             8 * 4 * sizeof(qm_val_t));
-      memcpy(qmset->quantizer_matrix[2][c],
-             &predefined_iwt_matrix_ref[qm_default_index][plane_type]
-                                       [START_POS_4x8],
-             4 * 8 * sizeof(qm_val_t));
-#else
       memcpy(qmset->quantizer_matrix[0][c],
              predefined_8x8_iwt_base_matrix[qm_default_index][plane_type],
              8 * 8 * sizeof(qm_val_t));
@@ -110,15 +88,14 @@ static void read_qm_data(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
       memcpy(qmset->quantizer_matrix[2][c],
              predefined_4x8_iwt_base_matrix[qm_default_index][plane_type],
              4 * 8 * sizeof(qm_val_t));
-#endif  // CONFIG_QM_REVERT
     }
+#endif  // CONFIG_QM_REVERT
     return;
   } else {
 #if CONFIG_QM_REVERT
     qmset->is_user_defined_qm = true;
 #else
     qmset->qm_default_index = -1;
-
 #endif  // CONFIG_QM_REVERT
   }
 
@@ -194,11 +171,6 @@ static void read_qm_data(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
 }
 void av1_copy_predefined_qmatrices_to_list(
     AV1Decoder *pbi, int num_planes, bool store_at_intermediate_location) {
-#if CONFIG_QM_REVERT
-  const int START_POS_8x8 = 4 * 4;
-  const int START_POS_8x4 = 1392;  // tx_size:6 4*4+8*8+16*16+32*32+64*64+4*8;
-  const int START_POS_4x8 = 1360;  // tx_size:5 4*4+8*8+16*16+32*32+64*64;
-#endif                             // CONFIG_QM_REVERT
   for (int qm_pos = 0; qm_pos < NUM_CUSTOM_QMS; qm_pos++) {
     struct quantization_matrix_set *qmset =
         store_at_intermediate_location
@@ -208,34 +180,21 @@ void av1_copy_predefined_qmatrices_to_list(
     if (!qmset->quantizer_matrix_allocated) {
       alloc_qmatrix(qmset, num_planes);
     }
-    int qm_default_index = qm_pos;
     qmset->qm_id = qm_pos;
 #if CONFIG_QM_REVERT
     qmset->is_user_defined_qm = false;
 #else
+    int qm_default_index = qm_pos;
     qmset->qm_default_index = qm_pos;
 #endif  // CONFIG_QM_REVERT
     qmset->qm_mlayer_id = -1;
     qmset->qm_tlayer_id = -1;
     qmset->quantizer_matrix_num_planes = num_planes;
+#if !CONFIG_QM_REVERT
     // copy predefined[qm_default_index] to qmset
     for (int c = 0; c < num_planes; ++c) {
       // plane_type: 0:luma, 1:chroma
       const int plane_type = (c >= 1);
-#if CONFIG_QM_REVERT
-      memcpy(qmset->quantizer_matrix[0][c],
-             &predefined_iwt_matrix_ref[qm_default_index][plane_type]
-                                       [START_POS_8x8],
-             8 * 8 * sizeof(qm_val_t));
-      memcpy(qmset->quantizer_matrix[1][c],
-             &predefined_iwt_matrix_ref[qm_default_index][plane_type]
-                                       [START_POS_8x4],
-             8 * 4 * sizeof(qm_val_t));
-      memcpy(qmset->quantizer_matrix[2][c],
-             &predefined_iwt_matrix_ref[qm_default_index][plane_type]
-                                       [START_POS_4x8],
-             4 * 8 * sizeof(qm_val_t));
-#else
       memcpy(qmset->quantizer_matrix[0][c],
              predefined_8x8_iwt_base_matrix[qm_default_index][plane_type],
              8 * 8 * sizeof(qm_val_t));
@@ -245,8 +204,8 @@ void av1_copy_predefined_qmatrices_to_list(
       memcpy(qmset->quantizer_matrix[2][c],
              predefined_4x8_iwt_base_matrix[qm_default_index][plane_type],
              4 * 8 * sizeof(qm_val_t));
-#endif  // CONFIG_QM_REVERT
     }
+#endif  // !CONFIG_QM_REVERT
   }  // qm_pos
 }
 
