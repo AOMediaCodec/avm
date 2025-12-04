@@ -479,17 +479,13 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
       BITSTREAM_PROFILE profile = av1_read_profile(&rb);  // profile
 #if CONFIG_MODIFY_SH
       single_picture_header_flag = aom_rb_read_bit(&rb);
-      int still_picture = 0;
-      (void)still_picture;
-      if (single_picture_header_flag) {
-        still_picture = 1;
-      } else {
+      if (!single_picture_header_flag) {
         aom_rb_read_literal(&rb, 3);  // seq_lcr_id
-        still_picture = aom_rb_read_bit(&rb);
+        aom_rb_read_bit(&rb);         // still_picture
       }
-      int seq_max_level_idx =
-          aom_rb_read_literal(&rb, LEVEL_BITS);  // seq_max_level
-      if (seq_max_level_idx > 7 && !single_picture_header_flag)
+      int seq_level_idx =
+          aom_rb_read_literal(&rb, LEVEL_BITS);  // seq_level_idx
+      if (seq_level_idx > 7 && !single_picture_header_flag)
         aom_rb_read_bit(&rb);  // seq_tier_flag
 #else
 #if CONFIG_LCR_ID_IN_SH

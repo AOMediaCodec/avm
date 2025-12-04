@@ -8040,7 +8040,6 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
 #endif  // CONFIG_LCR_ID_IN_SH
     aom_wb_write_bit(&wb, seq_params->still_picture);
   }
-  // TODO: this has to change to seq_max_level_idx and seq_tier_flag
   write_bitstream_level(seq_params->seq_level_idx[0], &wb);
   if (seq_params->seq_level_idx[0] >= SEQ_LEVEL_4_0 &&
       !seq_params->single_picture_header_flag)

@@ -283,10 +283,9 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
                          "Unsupported LCR id in the Sequence Header.\n");
     }
     seq_params->seq_lcr_id = seq_lcr_id;
-    seq_params->still_picture = aom_rb_read_bit(rb);
 #endif  // CONFIG_LCR_ID_IN_SH
+    seq_params->still_picture = aom_rb_read_bit(rb);
   }
-  // TODO: this has to change to seq_max_level_idx and seq_tier_flag
   if (!read_bitstream_level(&seq_params->seq_level_idx[0], rb)) {
     cm->error.error_code = AOM_CODEC_UNSUP_BITSTREAM;
     return 0;
