@@ -3280,7 +3280,9 @@ static AOM_INLINE void encode_restoration_mode(
 #if CONFIG_CWG_F317
   if (cm->bridge_frame_info.is_bridge_frame) return;
 #endif  // CONFIG_CWG_F317
-  if (cm->bru.frame_inactive_flag) return;
+  if (cm->bru.frame_inactive_flag ||
+      cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT)
+    return;
   const int num_planes = av1_num_planes(cm);
   int luma_none = 1, chroma_none = 1;
   for (int p = 0; p < num_planes; ++p) {
@@ -3993,6 +3995,8 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
 static AOM_INLINE void encode_loopfilter(AV1_COMMON *cm,
                                          struct aom_write_bit_buffer *wb) {
   assert(!cm->features.coded_lossless);
+  CurrentFrame *const current_frame = &cm->current_frame;
+  FeatureFlags *const features = &cm->features;
 #if CONFIG_CWG_F317
   if (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame)
     return;
@@ -4001,6 +4005,18 @@ static AOM_INLINE void encode_loopfilter(AV1_COMMON *cm,
 #endif  // CONFIG_CWG_F317
   const int num_planes = av1_num_planes(cm);
   struct loopfilter *lf = &cm->lf;
+  if (current_frame->frame_type == INTER_FRAME) {
+    if (cm->seq_params.enable_lf_sub_pu) {
+      aom_wb_write_bit(wb, features->allow_lf_sub_pu);
+    }
+  }
+
+  if (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
+    if (cm->seq_params.enable_lf_sub_pu && features->allow_lf_sub_pu) {
+      aom_wb_write_bit(wb, cm->lf.tip_filter_level);
+    }
+    return;
+  }
 
   // Encode the loop filter level and type
 #if CONFIG_MULTI_FRAME_HEADER
@@ -4069,9 +4085,11 @@ static AOM_INLINE void encode_gdf(const AV1_COMMON *cm,
   assert(!cm->features.coded_lossless);
   if (!cm->seq_params.enable_gdf || !is_allow_gdf(cm)) return;
 #if CONFIG_CWG_F317
-  if (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame)
+  if (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame ||
+      cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT)
 #else
-  if (cm->bru.frame_inactive_flag)
+  if (cm->bru.frame_inactive_flag ||
+      cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT)
 #endif  // CONFIG_CWG_F317
   {
     return;
@@ -4103,7 +4121,9 @@ static AOM_INLINE void encode_cdef(const AV1_COMMON *cm,
 #if CONFIG_CWG_F317
   if (cm->bridge_frame_info.is_bridge_frame) return;
 #endif  // CONFIG_CWG_F317
-  if (cm->bru.frame_inactive_flag) return;
+  if (cm->bru.frame_inactive_flag ||
+      cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT)
+    return;
 #if CONFIG_CWG_F362
   if (cm->seq_params.single_picture_header_flag) {
     assert(cdef_info->cdef_frame_enable);
@@ -4154,7 +4174,9 @@ static AOM_INLINE void encode_ccso(const AV1_COMMON *cm,
 #if CONFIG_CWG_F317
   if (cm->bridge_frame_info.is_bridge_frame) return;
 #endif  // CONFIG_CWG_F317
-  if (cm->bru.frame_inactive_flag) return;
+  if (cm->bru.frame_inactive_flag ||
+      cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT)
+    return;
   const int ccso_offset[8] = { 0, 1, -1, 3, -3, 7, -7, -10 };
   const int ccso_scale[4] = { 1, 2, 3, 4 };
   const int num_ref_frames = (frame_is_intra_only(cm) ||
@@ -7378,12 +7400,6 @@ static AOM_INLINE void write_uncompressed_header_obu
         }
       }
 
-      if (cm->seq_params.enable_lf_sub_pu) {
-#if CONFIG_CWG_F317
-        if (!cm->bridge_frame_info.is_bridge_frame)
-#endif  // CONFIG_CWG_F317
-          aom_wb_write_bit(wb, features->allow_lf_sub_pu);
-      }
       if (cm->seq_params.enable_tip && features->allow_ref_frame_mvs &&
           cm->ref_frames_info.num_total_refs >= 2 &&
 #if CONFIG_CWG_F317
@@ -7418,11 +7434,6 @@ static AOM_INLINE void write_uncompressed_header_obu
 
         if (features->tip_frame_mode && is_unequal_weighted_tip_allowed(cm)) {
           aom_wb_write_literal(wb, cm->tip_global_wtd_index, 3);
-        }
-
-        if (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT &&
-            cm->seq_params.enable_lf_sub_pu && features->allow_lf_sub_pu) {
-          aom_wb_write_bit(wb, cm->lf.tip_filter_level);
         }
 
         if (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
@@ -7553,7 +7564,94 @@ static AOM_INLINE void write_uncompressed_header_obu
     return;
   }
 
-  if (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
+  if (features->tip_frame_mode != TIP_FRAME_AS_OUTPUT) {
+    aom_wb_write_bit(wb, features->disable_cdf_update);
+#if !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
+#if CONFIG_CWG_F317
+    if (!cm->bridge_frame_info.is_bridge_frame) {
+#endif  // CONFIG_CWG_F317
+      const int might_bwd_adapt = !(seq_params->single_picture_header_flag) &&
+                                  !(features->disable_cdf_update);
+
+      if (might_bwd_adapt) {
+        aom_wb_write_bit(wb, features->refresh_frame_context ==
+                                 REFRESH_FRAME_CONTEXT_DISABLED);
+      }
+#if CONFIG_CWG_F317
+    }
+#endif  // CONFIG_CWG_F317
+#endif  // !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
+
+    write_tile_info(cm, saved_wb, wb);
+
+    encode_quantization(quant_params, av1_num_planes(cm), &cm->seq_params, wb);
+    encode_segmentation(cm,
+#if !CONFIG_MULTI_LEVEL_SEGMENTATION
+                        xd,
+#endif  // !CONFIG_MULTI_LEVEL_SEGMENTATION
+                        wb);
+    encode_qm_params(cm, wb);
+
+    const DeltaQInfo *const delta_q_info = &cm->delta_q_info;
+    if (delta_q_info->delta_q_present_flag)
+      assert(quant_params->base_qindex > 0);
+    if (quant_params->base_qindex > 0) {
+      aom_wb_write_bit(wb, delta_q_info->delta_q_present_flag);
+      if (delta_q_info->delta_q_present_flag) {
+        aom_wb_write_literal(wb, get_msb(delta_q_info->delta_q_res), 2);
+        xd->current_base_qindex = quant_params->base_qindex;
+      }
+    }
+
+    if (quant_params->using_qmatrix) {
+      const struct segmentation *seg = &cm->seg;
+      const int max_seg_num =
+          seg->enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
+      for (int i = 0; i < max_seg_num; i++) {
+        const int qindex = av1_get_qindex(seg, i, quant_params->base_qindex,
+                                          cm->seq_params.bit_depth);
+
+        bool lossless =
+            qindex == 0 &&
+            (quant_params->y_dc_delta_q + cm->seq_params.base_y_dc_delta_q <=
+             0) &&
+            (quant_params->u_dc_delta_q + cm->seq_params.base_uv_dc_delta_q <=
+             0) &&
+            (quant_params->v_dc_delta_q + cm->seq_params.base_uv_dc_delta_q <=
+             0) &&
+            (quant_params->u_ac_delta_q + cm->seq_params.base_uv_ac_delta_q <=
+             0) &&
+            (quant_params->v_ac_delta_q + cm->seq_params.base_uv_ac_delta_q <=
+             0);
+
+        if (!lossless && (quant_params->qm_index_bits > 0)) {
+#if CONFIG_QM_DEBUG
+          printf("[ENC-FRM] qm_index[%d]: %d\n", i, quant_params->qm_index[i]);
+#endif
+          aom_wb_write_literal(wb, quant_params->qm_index[i],
+                               quant_params->qm_index_bits);
+        }
+      }
+    }
+
+    // Encode adaptive frame-level TCQ flag, if applicable.
+    // Basic frame-level strategy: enable for keyframes only.
+    // This can be extended in other ways (e.g., include alt-ref).
+    if (features->coded_lossless) {
+      assert(features->tcq_mode == 0);
+    } else if (seq_params->enable_tcq >= TCQ_8ST_FR) {
+      aom_wb_write_bit(wb, features->tcq_mode != 0);
+    } else {
+      assert(features->tcq_mode == seq_params->enable_tcq);
+    }
+
+    if (features->coded_lossless || !cm->seq_params.enable_parity_hiding ||
+        features->tcq_mode) {
+      assert(features->allow_parity_hiding == false);
+    } else {
+      aom_wb_write_bit(wb, features->allow_parity_hiding);
+    }
+  } else {
     if (cm->seq_params.enable_tip_explicit_qp) {
       aom_wb_write_literal(wb, quant_params->base_qindex,
                            cm->seq_params.bit_depth == AOM_BITS_8
@@ -7571,103 +7669,6 @@ static AOM_INLINE void write_uncompressed_header_obu
         }
       }
     }
-
-    if (cm->seq_params.enable_lf_sub_pu && cm->features.allow_lf_sub_pu &&
-        cm->lf.tip_filter_level) {
-      write_tile_info(cm, saved_wb, wb);
-    }
-
-    if (seq_params->film_grain_params_present)
-#if CONFIG_F153_FGM_OBU  // TIP
-      encode_film_grain(cpi, wb);
-#else
-      write_film_grain_params(cpi, wb);
-#endif  // CONFIG_F153_FGM_OBU
-    return;
-  }
-
-  aom_wb_write_bit(wb, features->disable_cdf_update);
-#if !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
-#if CONFIG_CWG_F317
-  if (!cm->bridge_frame_info.is_bridge_frame) {
-#endif  // CONFIG_CWG_F317
-    const int might_bwd_adapt = !(seq_params->single_picture_header_flag) &&
-                                !(features->disable_cdf_update);
-
-    if (might_bwd_adapt) {
-      aom_wb_write_bit(wb, features->refresh_frame_context ==
-                               REFRESH_FRAME_CONTEXT_DISABLED);
-    }
-#if CONFIG_CWG_F317
-  }
-#endif  // CONFIG_CWG_F317
-#endif  // !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
-
-  write_tile_info(cm, saved_wb, wb);
-
-  encode_quantization(quant_params, av1_num_planes(cm), &cm->seq_params, wb);
-  encode_segmentation(cm,
-#if !CONFIG_MULTI_LEVEL_SEGMENTATION
-                      xd,
-#endif  // !CONFIG_MULTI_LEVEL_SEGMENTATION
-                      wb);
-  encode_qm_params(cm, wb);
-
-  const DeltaQInfo *const delta_q_info = &cm->delta_q_info;
-  if (delta_q_info->delta_q_present_flag) assert(quant_params->base_qindex > 0);
-  if (quant_params->base_qindex > 0) {
-    aom_wb_write_bit(wb, delta_q_info->delta_q_present_flag);
-    if (delta_q_info->delta_q_present_flag) {
-      aom_wb_write_literal(wb, get_msb(delta_q_info->delta_q_res), 2);
-      xd->current_base_qindex = quant_params->base_qindex;
-    }
-  }
-
-  if (quant_params->using_qmatrix) {
-    const struct segmentation *seg = &cm->seg;
-    const int max_seg_num = seg->enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
-    for (int i = 0; i < max_seg_num; i++) {
-      const int qindex = av1_get_qindex(seg, i, quant_params->base_qindex,
-                                        cm->seq_params.bit_depth);
-
-      bool lossless =
-          qindex == 0 &&
-          (quant_params->y_dc_delta_q + cm->seq_params.base_y_dc_delta_q <=
-           0) &&
-          (quant_params->u_dc_delta_q + cm->seq_params.base_uv_dc_delta_q <=
-           0) &&
-          (quant_params->v_dc_delta_q + cm->seq_params.base_uv_dc_delta_q <=
-           0) &&
-          (quant_params->u_ac_delta_q + cm->seq_params.base_uv_ac_delta_q <=
-           0) &&
-          (quant_params->v_ac_delta_q + cm->seq_params.base_uv_ac_delta_q <= 0);
-
-      if (!lossless && (quant_params->qm_index_bits > 0)) {
-#if CONFIG_QM_DEBUG
-        printf("[ENC-FRM] qm_index[%d]: %d\n", i, quant_params->qm_index[i]);
-#endif
-        aom_wb_write_literal(wb, quant_params->qm_index[i],
-                             quant_params->qm_index_bits);
-      }
-    }
-  }
-
-  // Encode adaptive frame-level TCQ flag, if applicable.
-  // Basic frame-level strategy: enable for keyframes only.
-  // This can be extended in other ways (e.g., include alt-ref).
-  if (features->coded_lossless) {
-    assert(features->tcq_mode == 0);
-  } else if (seq_params->enable_tcq >= TCQ_8ST_FR) {
-    aom_wb_write_bit(wb, features->tcq_mode != 0);
-  } else {
-    assert(features->tcq_mode == seq_params->enable_tcq);
-  }
-
-  if (features->coded_lossless || !cm->seq_params.enable_parity_hiding ||
-      features->tcq_mode) {
-    assert(features->allow_parity_hiding == false);
-  } else {
-    aom_wb_write_bit(wb, features->allow_parity_hiding);
   }
 
   if (features->all_lossless) {
@@ -7683,6 +7684,20 @@ static AOM_INLINE void write_uncompressed_header_obu
     if (!features->coded_lossless && cm->seq_params.enable_ccso) {
       encode_ccso(cm, wb);
     }
+  }
+  if (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
+    if (cm->seq_params.enable_lf_sub_pu && cm->features.allow_lf_sub_pu &&
+        cm->lf.tip_filter_level) {
+      write_tile_info(cm, saved_wb, wb);
+    }
+
+    if (seq_params->film_grain_params_present)
+#if CONFIG_F153_FGM_OBU  // TIP
+      encode_film_grain(cpi, wb);
+#else
+      write_film_grain_params(cpi, wb);
+#endif  // CONFIG_F153_FGM_OBU
+    return;
   }
 
   // Write TX mode
