@@ -273,7 +273,9 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
 #if CONFIG_MODIFY_SH
   seq_params->single_picture_header_flag = aom_rb_read_bit(rb);
   if (seq_params->single_picture_header_flag) {
+#if CONFIG_LCR_ID_IN_SH
     seq_params->seq_lcr_id = LCR_ID_UNSPECIFIED;
+#endif  // CONFIG_LCR_ID_IN_SH
     seq_params->still_picture = 1;
   } else {
 #if CONFIG_LCR_ID_IN_SH
