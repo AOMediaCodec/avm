@@ -1110,12 +1110,12 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   }
 #if CONFIG_F356_SEF_DOH
   frame_params.duplicate_existing_frame = 0;
-#endif
-#if CONFIG_F356_SEF_DOH_TEST
-  frame_params.duplicate_existing_frame =
-      (gf_group->update_type[gf_group->index] == LF_UPDATE &&
-       oxcf->gf_cfg.lag_in_frames != 0);
-#endif
+  if (cpi->oxcf.unit_test_cfg.sef_with_order_hint_test) {
+    frame_params.duplicate_existing_frame =
+        (gf_group->update_type[gf_group->index] == LF_UPDATE &&
+         oxcf->gf_cfg.lag_in_frames != 0);
+  }
+#endif  // CONFIG_F356_SEF_DOH
   struct lookahead_entry *source = NULL;
   struct lookahead_entry *last_source = NULL;
   struct lookahead_entry *bru_ref_source = NULL;

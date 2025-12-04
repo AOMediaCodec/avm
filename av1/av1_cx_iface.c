@@ -85,6 +85,9 @@ struct av1_extracfg {
   unsigned int user_defined_qmatrix;
   unsigned int qm_data_present[NUM_CUSTOM_QMS];
   unsigned int frame_multi_qmatrix_unit_test;
+#if CONFIG_F356_SEF_DOH
+  unsigned int sef_with_order_hint_test;
+#endif // CONFIG_F356_SEF_DOH
   unsigned int num_tg;
   unsigned int mtu_size;
 
@@ -423,6 +426,9 @@ static struct av1_extracfg default_extra_cfg = {
   0,                                                // user-defined qmatrix
   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },  // qm_data_present
   0,                            // enable frame multi qmatrix unit test
+#if CONFIG_F356_SEF_DOH
+  0,                            // enable show existing frame with order hint test;
+#endif // CONFIG_F356_SEF_DOH
   1,                            // max number of tile groups
   0,                            // mtu_size
   AOM_TIMING_UNSPECIFIED,       // No picture timing signaling in bitstream
@@ -839,6 +845,9 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
 
   RANGE_CHECK_HI(extra_cfg, enable_trellis_quant, 3);
   RANGE_CHECK_HI(extra_cfg, frame_multi_qmatrix_unit_test, 4);
+#if CONFIG_F356_SEF_DOH
+  RANGE_CHECK_HI(extra_cfg, sef_with_order_hint_test, 2);
+#endif // CONFIG_F356_SEF_DOH
   RANGE_CHECK(extra_cfg, coeff_cost_upd_freq, 0, 2);
   RANGE_CHECK(extra_cfg, mode_cost_upd_freq, 0, 2);
   RANGE_CHECK(extra_cfg, mv_cost_upd_freq, 0, 3);
@@ -1769,7 +1778,10 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->unit_test_cfg.enable_subgop_stats = extra_cfg->enable_subgop_stats;
   oxcf->unit_test_cfg.frame_multi_qmatrix_unit_test =
       extra_cfg->frame_multi_qmatrix_unit_test;
-
+#if CONFIG_F356_SEF_DOH
+  oxcf->unit_test_cfg.sef_with_order_hint_test =
+      extra_cfg->sef_with_order_hint_test;
+#endif // CONFIG_F356_SEF_DOH
   oxcf->border_in_pixels =
       resize_cfg->resize_mode ? AOM_BORDER_IN_PIXELS : AOM_ENC_NO_SCALE_BORDER;
   memcpy(oxcf->target_seq_level_idx, extra_cfg->target_seq_level_idx,
@@ -2269,6 +2281,16 @@ static aom_codec_err_t ctrl_set_frame_multi_qmatrix_unit_test(
       CAST(AV1E_SET_FRAME_MULTI_QMATRIX_UNIT_TEST, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
+
+#if CONFIG_F356_SEF_DOH
+static aom_codec_err_t ctrl_set_sef_with_order_hint_test(
+    aom_codec_alg_priv_t *ctx, va_list args) {
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.sef_with_order_hint_test =
+      CAST(AV1E_SET_SEF_WITH_ORDER_HINT_TEST, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+#endif // CONFIG_F356_SEF_DOH
 
 static aom_codec_err_t ctrl_set_num_tg(aom_codec_alg_priv_t *ctx,
                                        va_list args) {
@@ -4489,6 +4511,9 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_USER_DEFINED_QMATRIX, ctrl_set_user_defined_qmatrix },
   { AV1E_SET_FRAME_MULTI_QMATRIX_UNIT_TEST,
     ctrl_set_frame_multi_qmatrix_unit_test },
+#if CONFIG_F356_SEF_DOH
+  { AV1E_SET_SEF_WITH_ORDER_HINT_TEST, ctrl_set_sef_with_order_hint_test },
+#endif // CONFIG_F356_SEF_DOH
   { AV1E_SET_NUM_TG, ctrl_set_num_tg },
   { AV1E_SET_MTU, ctrl_set_mtu },
   { AV1E_SET_TIMING_INFO_TYPE, ctrl_set_timing_info_type },

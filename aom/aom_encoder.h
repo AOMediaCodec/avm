@@ -553,7 +553,7 @@ typedef struct cfg_options {
    *
    */
   unsigned int explicit_ref_frame_map;
-  /*!\brief enable generation of SEF OBUs
+  /*!\brief enable generation of SEF OBUs with the display order hint derivation
    *
    */
   unsigned int enable_generation_sef_obu;

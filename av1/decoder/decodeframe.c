@@ -9010,12 +9010,21 @@ static int read_show_existing_frame(AV1Decoder *pbi,
   cm->lf.filter_level[0] = 0;
   cm->lf.filter_level[1] = 0;
   cm->show_frame = 1;
+#if CONFIG_F356_SEF_DOH
+  // It is a requirement of bitstream conformance that when
+  // show_existing_frame is used to show a previous frame with derived display
+  // order hint, the frame is output via the show_existing_frame mechanism at
+  // most once.
+  if (cm->derive_sef_order_hint && frame_to_show->frame_output_done)
+#else
   // It is a requirement of bitstream conformance that when
   // show_existing_frame is used to show a previous frame with
   // RefFrameType[ frame_to_show_map_idx ] equal to KEY_FRAME, that the
   // frame is output via the show_existing_frame mechanism at most once.
   if ((frame_to_show->frame_type == KEY_FRAME &&
-       !frame_to_show->showable_frame && frame_to_show->frame_output_done)) {
+       !frame_to_show->showable_frame && frame_to_show->frame_output_done))
+#endif  // CONFIG_F356_SEF_DOH
+  {
     aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                        "Buffer does not contain a showable frame");
   }

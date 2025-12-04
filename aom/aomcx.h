@@ -1229,6 +1229,13 @@ enum aome_enc_control_id {
    * Valid range: 0..1, 0 is 16x16 block size (default), 1 is 32x32 block size
    */
   AV1E_SET_FILM_GRAIN_BLOCK_SIZE = 174,
+#if CONFIG_F356_SEF_DOH
+  /*!\brief Control to set leaf node frames to be show existing frames with derive_order_hint = 0
+   *
+   * \note This is only used in show exsiting frame with order hint signalled test
+   */
+  AV1E_SET_SEF_WITH_ORDER_HINT_TEST = 175,
+#endif
 };
 
 /*!\brief aom 1-D scaling mode
@@ -1467,6 +1474,11 @@ AOM_CTRL_USE_TYPE(AV1E_SET_USER_DEFINED_QMATRIX, const aom_user_defined_qm_t *)
 
 AOM_CTRL_USE_TYPE(AV1E_SET_FRAME_MULTI_QMATRIX_UNIT_TEST, unsigned int)
 #define AOM_CTRL_AV1E_SET_FRAME_MULTI_QMATRIX_UNIT_TEST
+
+#if CONFIG_F356_SEF_DOH
+AOM_CTRL_USE_TYPE(AV1E_SET_SEF_WITH_ORDER_HINT_TEST, unsigned int)
+#define AOM_CTRL_SET_SEF_WITH_ORDER_HINT_TEST
+#endif // CONFIG_F356_SEF_DOH
 
 AOM_CTRL_USE_TYPE(AV1E_SET_NUM_TG, unsigned int)
 #define AOM_CTRL_AV1E_SET_NUM_TG
