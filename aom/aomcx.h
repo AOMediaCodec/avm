@@ -1230,9 +1230,11 @@ enum aome_enc_control_id {
    */
   AV1E_SET_FILM_GRAIN_BLOCK_SIZE = 174,
 #if CONFIG_F356_SEF_DOH
-  /*!\brief Control to set leaf node frames to be show existing frames with derive_order_hint = 0
+  /*!\brief Control to set leaf node frames to be show existing frames with
+   * derive_order_hint = 0
    *
-   * \note This is only used in show exsiting frame with order hint signalled test
+   * \note This is only used in show exsiting frame with order hint signalled
+   * test
    */
   AV1E_SET_SEF_WITH_ORDER_HINT_TEST = 175,
 #endif
@@ -1478,7 +1480,7 @@ AOM_CTRL_USE_TYPE(AV1E_SET_FRAME_MULTI_QMATRIX_UNIT_TEST, unsigned int)
 #if CONFIG_F356_SEF_DOH
 AOM_CTRL_USE_TYPE(AV1E_SET_SEF_WITH_ORDER_HINT_TEST, unsigned int)
 #define AOM_CTRL_SET_SEF_WITH_ORDER_HINT_TEST
-#endif // CONFIG_F356_SEF_DOH
+#endif  // CONFIG_F356_SEF_DOH
 
 AOM_CTRL_USE_TYPE(AV1E_SET_NUM_TG, unsigned int)
 #define AOM_CTRL_AV1E_SET_NUM_TG

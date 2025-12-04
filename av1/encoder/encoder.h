@@ -698,10 +698,10 @@ typedef struct {
   // unit test.
   uint8_t frame_multi_qmatrix_unit_test;
 #if CONFIG_F356_SEF_DOH
-  // Indicates the leaf node frames(LF_UPDATE frames) are set as show_existing_frame with derive_order_hint=0
-  // Used only for test purpose.
+  // Indicates the leaf node frames(LF_UPDATE frames) are set as
+  // show_existing_frame with derive_order_hint=0 Used only for test purpose.
   uint8_t sef_with_order_hint_test;
-#endif // CONFIG_F356_SEF_DOH
+#endif  // CONFIG_F356_SEF_DOH
 } UnitTestCfg;
 
 typedef struct {
