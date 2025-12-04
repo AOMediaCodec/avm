@@ -311,7 +311,7 @@ aom_metadata_t *aom_img_metadata_alloc(
   metadata->sz = sz;
   metadata->insert_flag = insert_flag;
 
-#if CONFIG_SHORT_METADATA || CONFIG_METADATA
+#if CONFIG_METADATA
   metadata->is_suffix = 0;
   metadata->necessity_idc = AOM_NECESSITY_UNDEFINED;
   metadata->application_id = AOM_APPID_UNDEFINED;
@@ -321,7 +321,7 @@ aom_metadata_t *aom_img_metadata_alloc(
   metadata->layer_idc = AOM_LAYER_UNSPECIFIED;
   metadata->xlayer_map = 0;
   memset(metadata->mlayer_map, 0, sizeof(metadata->mlayer_map));
-#endif  // CONFIG_SHORT_METADATA || CONFIG_METADATA
+#endif  // CONFIG_METADATA
   return metadata;
 }
 

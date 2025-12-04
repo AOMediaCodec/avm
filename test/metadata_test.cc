@@ -95,54 +95,23 @@ const uint8_t kMetadataObuCll[kMetadataObuSizeCll] = {
   0xDE, 0xAD, 0xBE, 0xEF
 };
 #else  // CONFIG_METADATA || CONFIG_F024_KEYOBU
-const size_t kMetadataObuSizeT35 =
-#if CONFIG_SHORT_METADATA
-    29;
-#else
-    28;
-#endif  // CONFIG_SHORT_METADATA
-const size_t kMetadataObuSizeT35 = 28;
+const size_t kMetadataObuSizeT35 = 29;
 const uint8_t kMetadataObuT35[kMetadataObuSizeT35] = {
-#if CONFIG_SHORT_METADATA
   0x1C, 0x14, 0x00,
-#else
-  0x1B, 0x14,
-#endif  // CONFIG_SHORT_METADATA
   0x04, 0xB5, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B,
   0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x80
 };
-const size_t kMetadataObuSizeMdcv =
-#if CONFIG_SHORT_METADATA
-    29;
-#else
-    28;
-#endif  // CONFIG_SHORT_METADATA
+const size_t kMetadataObuSizeMdcv = 29;
 const uint8_t kMetadataObuMdcv[kMetadataObuSizeMdcv] = {
-#if CONFIG_SHORT_METADATA
   0x1C, 0x14, 0x00,
-#else
-  0x1B, 0x14,
-#endif  // CONFIG_SHORT_METADATA
   0x02, 0xB5, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B,
   0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x80
 };
-const size_t kMetadataObuSizeCll =
-#if CONFIG_SHORT_METADATA
-    9;
-#else
-    8;
-#endif  // CONFIG_SHORT_METADATA
+const size_t kMetadataObuSizeCll = 9;
 const uint8_t kMetadataObuCll[kMetadataObuSizeCll] = {
-#if CONFIG_SHORT_METADATA
   0x08, 0x14, 0x00,
-#else
-  0x07, 0x14,
-#endif  // CONFIG_SHORT_METADATA
   0x01, 0xB5, 0x01, 0x02, 0x03, 0x80
 };
-const size_t kMetadataObuSizeCll = 8;
-const uint8_t kMetadataObuCll[kMetadataObuSizeCll] = { 0x07, 0x14, 0x01, 0xB5,
-                                                       0x01, 0x02, 0x03, 0x80 };
 #endif  // CONFIG_METADATA || CONFIG_F024_KEYOBU
 
 class MetadataEncodeTest

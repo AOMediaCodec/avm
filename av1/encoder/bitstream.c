@@ -7941,12 +7941,10 @@ static size_t av1_write_metadata_obu(const aom_metadata_t *metadata,
   return (uint32_t)(coded_metadata_size + metadata->sz + 1);
 #endif  // CONFIG_METADATA
 }
-#if CONFIG_SHORT_METADATA
 static size_t av1_write_metadata_obu(const aom_metadata_t *metadata,
                                      uint8_t *const dst) {
   size_t coded_metadata_size = 0;
 
-#if CONFIG_SHORT_METADATA
   struct aom_write_bit_buffer wb = { dst, 0 };
 
   aom_wb_write_bit(&wb, metadata->is_suffix);
@@ -7956,53 +7954,30 @@ static size_t av1_write_metadata_obu(const aom_metadata_t *metadata,
 
   size_t bytes_written = aom_wb_bytes_written(&wb);
   assert(bytes_written == 1);
-#endif  // CONFIG_SHORT_METADATA
 
   const uint64_t metadata_type = (uint64_t)metadata->type;
   if (aom_uleb_encode(metadata_type, sizeof(metadata_type),
-                      dst
-#if CONFIG_SHORT_METADATA
-                          + bytes_written
-#endif  // CONFIG_SHORT_METADATA
-                      ,
+                      dst + bytes_written,
                       &coded_metadata_size) != 0) {
     return 0;
   }
 
-#if CONFIG_SHORT_METADATA
   if (!metadata->cancel_flag)
-#endif  // CONFIG_SHORT_METADATA
-    memcpy(dst + coded_metadata_size
-#if CONFIG_SHORT_METADATA
-               + bytes_written
-#endif  // CONFIG_SHORT_METADATA
-           ,
+    memcpy(dst + coded_metadata_size + bytes_written,
            metadata->payload, metadata->sz);
   // Add trailing bits.
-  dst[coded_metadata_size
-#if CONFIG_SHORT_METADATA
-      + bytes_written
-#endif  // CONFIG_SHORT_METADATA
-      + metadata->sz] = 0x80;
+  dst[coded_metadata_size + bytes_written + metadata->sz] = 0x80;
 
-#if CONFIG_SHORT_METADATA
   return (uint32_t)(coded_metadata_size + bytes_written +
                     (!metadata->cancel_flag) * metadata->sz + 1);
-#else
-  return (uint32_t)(coded_metadata_size + metadata->sz + 1);
-#endif  // CONFIG_SHORT_METADATA
 }
-#endif  // !CONFIG_SHORT_METADATA
 
 static size_t av1_write_metadata_array(AV1_COMP *const cpi, uint8_t *dst
 #if CONFIG_METADATA
                                        ,
-                                       const bool is_suffix
-#endif  // CONFIG_METADATA
-#if CONFIG_METADATA && CONFIG_SHORT_METADATA
-                                       ,
+                                       const bool is_suffix,
                                        bool is_short_metadata
-#endif
+#endif  // CONFIG_METADATA
 ) {
   if (!cpi->source) return 0;
   AV1_COMMON *const cm = &cpi->common;
@@ -8013,9 +7988,7 @@ static size_t av1_write_metadata_array(AV1_COMP *const cpi, uint8_t *dst
   size_t total_bytes_written = 0;
   size_t length_field_size = 0;
 #if CONFIG_METADATA
-#if CONFIG_SHORT_METADATA
   if (!is_short_metadata) {
-#endif  // CONFIG_SHORT_METADATA
     // category is a set of medata sharing the same `application_id` and
     // `necessity_id`
     int *categories = (int *)aom_malloc(arr->sz * sizeof(int));
@@ -8057,11 +8030,7 @@ static size_t av1_write_metadata_array(AV1_COMP *const cpi, uint8_t *dst
     }
     ObuHeader obu_header;
     memset(&obu_header, 0, sizeof(obu_header));
-#if CONFIG_SHORT_METADATA
     obu_header.type = OBU_METADATA_GROUP;
-#else
-  obu_header.type = OBU_METADATA;
-#endif
     obu_header.obu_tlayer_id = cm->tlayer_id;
     obu_header.obu_mlayer_id = cm->mlayer_id;
     obu_header.obu_xlayer_id = 0;
@@ -8113,7 +8082,6 @@ static size_t av1_write_metadata_array(AV1_COMP *const cpi, uint8_t *dst
       }
     }
     aom_free(categories);
-#if CONFIG_SHORT_METADATA
   } else {
     for (size_t i = 0; i < arr->sz; i++) {
       aom_metadata_t *current_metadata = arr->metadata_array[i];
@@ -8142,7 +8110,6 @@ static size_t av1_write_metadata_array(AV1_COMP *const cpi, uint8_t *dst
       }
     }
   }
-#endif  // CONFIG_SHORT_METADATA
 #else
   for (size_t i = 0; i < arr->sz; i++) {
     aom_metadata_t *current_metadata = arr->metadata_array[i];
@@ -8457,15 +8424,9 @@ size_t av1_write_banding_hints_metadata(
                        "Error allocating banding hints metadata");
     return 0;
   }
-  // TODO: [@anorkin] this part may need to be updated considering
-  // CONFIG_SHORT_METADATA and CONFIG_METADATA
   size_t total_bytes_written = 0;
   size_t obu_header_size = av1_write_obu_header(&cpi->level_params,
-#if CONFIG_SHORT_METADATA
                                                 OBU_METADATA_GROUP,
-#else
-                                                OBU_METADATA,
-#endif
                                                 0, 0, dst);
   size_t obu_payload_size =
 #if CONFIG_METADATA
@@ -8779,12 +8740,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
   // write metadata obus before the frame obu that has the show_frame flag set
   if (cm->show_frame)
 #if CONFIG_METADATA
-    data += av1_write_metadata_array(cpi, data, false
-#if CONFIG_SHORT_METADATA
-                                     ,
-                                     false
-#endif
-    );
+    data += av1_write_metadata_array(cpi, data, false, false);
 #else
     data += av1_write_metadata_array(cpi, data);
 #endif  // CONFIG_METADATA
@@ -8832,11 +8788,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
       obu_header.obu_tlayer_id = cm->tlayer_id;
       obu_header.obu_mlayer_id = cm->mlayer_id;
       obu_header.obu_xlayer_id = 0;
-#if CONFIG_SHORT_METADATA
       obu_header.type = OBU_METADATA_GROUP;
-#else
-      obu_header.type = OBU_METADATA;
-#endif
       obu_header_size =
           av1_write_obu_header(&cpi->level_params, obu_header.type, 0, 0, data);
       obu_payload_size = 0;
@@ -8951,12 +8903,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
   // write suffix metadata obus after the frame obu that has the show_frame flag
   // set
   if (cm->show_frame)
-    data += av1_write_metadata_array(cpi, data, true
-#if CONFIG_SHORT_METADATA
-                                     ,
-                                     false
-#endif  // CONFIG_SHORT_METADATA
-    );
+    data += av1_write_metadata_array(cpi, data, true, false);
 #endif  // CONFIG_METADATA
 
 #if CONFIG_SCAN_TYPE_METADATA
