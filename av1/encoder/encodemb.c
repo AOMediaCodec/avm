@@ -159,14 +159,14 @@ static const uint8_t inv_ist_intra_stx_mapping[IST_SET_SIZE][IST_SET_SIZE] = {
   { 2, 1, 6, 5, 4, 3, 0 },  // SMOOTH_PRED
 };
 static const uint8_t
-    inv_ist_intra_stx_mapping_ADST_ADST[IST_SET_SIZE][IST_SET_SIZE] = {
-      { 2, 1, 6, 5, 3, 4, 0 },  // DC_PRED
-      { 2, 0, 4, 6, 3, 5, 1 },  // V_PRED, H_PRED, SMOOTH_V_PRED， SMOOTH_H_PRED
-      { 2, 0, 4, 6, 3, 5, 1 },  // D45_PRED
-      { 0, 3, 5, 4, 1, 6, 2 },  // D135_PRED
-      { 2, 1, 6, 4, 0, 5, 3 },  // D113_PRED, D157_PRED
-      { 1, 0, 5, 6, 3, 4, 2 },  // D203_PRED, D67_PRED
-      { 2, 1, 6, 5, 3, 4, 0 },  // SMOOTH_PRED
+    inv_ist_intra_stx_mapping_ADST_ADST[IST_SET_SIZE][IST_REDUCED_SET_SIZE] = {
+      { 2, 1, 3, 0 },  // DC_PRED
+      { 2, 0, 3, 1 },  // V_PRED, H_PRED, SMOOTH_V_PRED， SMOOTH_H_PRED
+      { 2, 0, 3, 1 },  // D45_PRED
+      { 0, 3, 1, 2 },  // D135_PRED
+      { 2, 1, 0, 3 },  // D113_PRED, D157_PRED
+      { 1, 0, 3, 2 },  // D203_PRED, D67_PRED
+      { 2, 1, 3, 0 },  // SMOOTH_PRED
     };
 
 void av1_subtract_block(const MACROBLOCKD *xd, int rows, int cols,
