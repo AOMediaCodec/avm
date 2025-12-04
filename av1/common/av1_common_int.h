@@ -2098,7 +2098,8 @@ struct quantization_matrix_set {
 #if CONFIG_QM_REVERT
   /*!
    * Indicates if the quantization matrix set stores an 8x8/8x4/4x8 user-defined
-   * qmatrix.
+   * qmatrix in quantizer_matrix. If is_user_defined_qm is false,
+   * quantizer_matrix is not used.
    */
   bool is_user_defined_qm;
 #else
