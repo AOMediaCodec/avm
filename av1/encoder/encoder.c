@@ -4615,7 +4615,8 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 #endif
 
 #if CONFIG_F024_KEYOBU
-  if (cpi->update_type_was_overlay) {
+  if (!cpi->oxcf.ref_frm_cfg.enable_generation_sef_obu &&
+      cpi->update_type_was_overlay) {
     assign_frame_buffer_p(&cm->cur_frame,
                           cm->ref_frame_map[cpi->fb_idx_for_overlay]);
     int enc_olk_fb_idx = 0;
@@ -4659,7 +4660,8 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 
 #if CONFIG_F356_SEF_DOH
 
-  if (cm->show_existing_frame && !cm->derive_sef_order_hint) {
+  if (cpi->oxcf.ref_frm_cfg.enable_generation_sef_obu &&
+      cm->show_existing_frame) {
     av1_finalize_encoded_frame(cpi);
     // Build the bitstream
     int largest_tile_id = 0;  // Output from bitstream: unused here
@@ -5077,7 +5079,14 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
       current_frame->frame_number + frame_params->order_offset;
   current_frame->display_order_hint = current_frame->order_hint;
 #if CONFIG_F356_SEF_DOH
-  cm->show_existing_frame = frame_params->duplicate_existing_frame;
+
+  if (cpi->oxcf.ref_frm_cfg.enable_generation_sef_obu) {
+    cm->show_existing_frame =
+        frame_params->frame_params_update_type_was_overlay;
+    cm->sef_ref_fb_idx = cpi->fb_idx_for_overlay;
+  } else {
+    cm->show_existing_frame = frame_params->duplicate_existing_frame;
+  }
   // scan the reference list. if all the display_order_hint of the reference
   // frame is smaller than the current display_order_hint,
   // duplicate_existing_frame is not applicable.

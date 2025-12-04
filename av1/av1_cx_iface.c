@@ -3006,9 +3006,7 @@ static void report_stats(AV1_COMP *cpi, size_t frame_size, uint64_t cx_time) {
   if (cpi->b_calculate_psnr >= 1) {
     calculate_psnr(cpi, &psnr);
   }
-#if !CONFIG_F024_KEYOBU
   if (!cm->show_existing_frame) {
-#endif
     // Get reference frame information
     int ref_poc[INTER_REFS_PER_FRAME];
     for (int ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME; ++ref_frame) {
@@ -3027,7 +3025,7 @@ static void report_stats(AV1_COMP *cpi, size_t frame_size, uint64_t cx_time) {
 #if CONFIG_CWG_F317
            !valid_ref_case && !cm->bridge_frame_info.is_bridge_frame)
 #else
-         !valid_ref_case)
+           !valid_ref_case)
 #endif
               ? -1
               : ref_poc[ref_idx];
@@ -3104,16 +3102,13 @@ static void report_stats(AV1_COMP *cpi, size_t frame_size, uint64_t cx_time) {
       fprintf(stdout, "] %dx%d\n", cpi->common.cur_frame->buf.y_crop_width,
               cpi->common.cur_frame->buf.y_crop_height);
 #else
-  if (cpi->oxcf.tool_cfg.enable_bru)
-    fprintf(stdout, "] SB skipped %d/%d\n", cm->bru.blocks_skipped,
-            cm->bru.total_units);
-  else
-    fprintf(stdout, "]\n");
+    if (cpi->oxcf.tool_cfg.enable_bru)
+      fprintf(stdout, "] SB skipped %d/%d\n", cm->bru.blocks_skipped,
+              cm->bru.total_units);
+    else
+      fprintf(stdout, "]\n");
 #endif  // CONFIG_CWG_F317_TEST_PATTERN
-
-#if !CONFIG_F024_KEYOBU
   }
-#endif
 }
 
 // TODO(Mufaddal): Check feasibility of abstracting functions related to LAP
@@ -3368,7 +3363,9 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       is_frame_visible = cpi->common.show_frame;
       if (!cpi->oxcf.ref_frm_cfg.enable_generation_sef_obu) {
 #if CONFIG_F024_KEYOBU
-        if (!cpi->is_olk_overlay && cpi->update_type_was_overlay) {
+        if ((!cpi->is_olk_overlay && cpi->update_type_was_overlay) ||
+            (cpi->common.current_frame.frame_type != KEY_FRAME &&
+             cpi->common.show_existing_frame)) {
           is_frame_visible_null = 1;
         }
 #else
@@ -3378,6 +3375,11 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
         }
 #endif
         assert(IMPLIES(is_frame_visible_null, frame_size == 0));
+      } else {
+        if (cpi->common.show_existing_frame) {
+          is_frame_visible_null = 1;
+          is_frame_visible = 1;
+        }
       }
       if (!is_frame_visible_null && frame_size == 0) is_frame_visible = 0;
 
@@ -3523,8 +3525,11 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       // decrement frames_left counter
       cpi->frames_left = AOMMAX(0, cpi->frames_left - 1);
 
-      pkt.kind = is_frame_visible_null ? AOM_CODEC_CX_FRAME_NULL_PKT
-                                       : AOM_CODEC_CX_FRAME_PKT;
+      pkt.kind = (is_frame_visible_null &&
+                  !cpi->oxcf.ref_frm_cfg.enable_generation_sef_obu)
+                     ? AOM_CODEC_CX_FRAME_NULL_PKT
+                     : AOM_CODEC_CX_FRAME_PKT;
+
       pkt.data.frame.buf = ctx->pending_cx_data;
       pkt.data.frame.sz = ctx->pending_cx_data_sz;
       pkt.data.frame.partition_id = -1;

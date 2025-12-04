@@ -1119,18 +1119,14 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   struct lookahead_entry *source = NULL;
   struct lookahead_entry *last_source = NULL;
   struct lookahead_entry *bru_ref_source = NULL;
-#if !CONFIG_F024_KEYOBU
-  if (frame_params.show_existing_frame) {
+  if (frame_params.frame_params_update_type_was_overlay) {
     source = av1_lookahead_pop(cpi->lookahead, flush, cpi->compressor_stage);
     frame_params.show_frame = 1;
   } else {
-#endif  // !CONFIG_F024_KEYOBU
     source = choose_frame_source(cpi, &flush, &last_source,
                                  -(BRU_ENC_LOOKAHEAD_DIST_MINUS_1 + 1),
                                  &bru_ref_source, &frame_params);
-#if !CONFIG_F024_KEYOBU
   }
-#endif  // !CONFIG_F024_KEYOBU
 
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   if (frame_params.frame_type == S_FRAME) cpi->common.show_frame = 1;

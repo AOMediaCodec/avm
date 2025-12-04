@@ -89,6 +89,8 @@ class SEFTestLarge
       encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
       encoder->Control(AOME_SET_ARNR_MAXFRAMES, 7);
       encoder->Control(AOME_SET_ARNR_STRENGTH, 5);
+      encoder->SetOption("enable-generation-sef-obu",
+                         enable_frame_output_order_derivation_ ? "1" : "0");
     }
   }
 
