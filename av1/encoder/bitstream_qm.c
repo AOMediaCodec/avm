@@ -44,7 +44,6 @@
 #include "av1/common/intra_dip.h"
 #include "av1/common/mvref_common.h"
 #include "av1/common/pred_common.h"
-#include "av1/common/predefined_qm.h"
 #include "av1/common/quant_common.h"
 #include "av1/common/reconinter.h"
 #include "av1/common/reconintra.h"
@@ -304,47 +303,6 @@ uint32_t write_qm_obu(AV1_COMP *cpi, int signalled_obu_pos,
   return size;
 }
 
-#if CONFIG_QM_REVERT
-// Compares the reference matrices with the matrices in the QM OBU.
-// Returns true if the any of the matrices aren't equal.
-static bool check_add_cmqm_obu_matrices(
-    CommonQuantParams *quant_params, struct quantization_matrix_set *qm_inobu,
-    int qm_idx, int plane) {
-  const qm_val_t *cm_qm_values8x8_test =
-      quant_params->giqmatrix[qm_idx][plane][TX_8X8];
-  const qm_val_t *cm_qm_values8x4_test =
-      quant_params->giqmatrix[qm_idx][plane][TX_8X4];
-  const qm_val_t *cm_qm_values4x8_test =
-      quant_params->giqmatrix[qm_idx][plane][TX_4X8];
-
-  // memcmp returns 0 when equal
-  return (memcmp(qm_inobu->quantizer_matrix[0][plane], cm_qm_values8x8_test,
-                 sizeof(qm_val_t) * 8 * 8) != 0 ||
-          memcmp(qm_inobu->quantizer_matrix[1][plane], cm_qm_values8x4_test,
-                 sizeof(qm_val_t) * 32) != 0 ||
-          memcmp(qm_inobu->quantizer_matrix[2][plane], cm_qm_values4x8_test,
-                 sizeof(qm_val_t) * 32) != 0);
-}
-
-// Copies from global matrices to QM OBU.
-static void copy_to_qmobu(CommonQuantParams *quant_params,
-                          struct quantization_matrix_set *qm_inobu, int qm_idx,
-                          int plane) {
-  const qm_val_t *cm_qm_values8x8 =
-      quant_params->giqmatrix[qm_idx][plane][TX_8X8];
-  const qm_val_t *cm_qm_values8x4 =
-      quant_params->giqmatrix[qm_idx][plane][TX_8X4];
-  const qm_val_t *cm_qm_values4x8 =
-      quant_params->giqmatrix[qm_idx][plane][TX_4X8];
-  memcpy(qm_inobu->quantizer_matrix[0][plane], cm_qm_values8x8,
-         sizeof(qm_val_t) * 8 * 8);
-  memcpy(qm_inobu->quantizer_matrix[1][plane], cm_qm_values8x4,
-         sizeof(qm_val_t) * 32);
-  memcpy(qm_inobu->quantizer_matrix[2][plane], cm_qm_values4x8,
-         sizeof(qm_val_t) * 32);
-}
-#endif  // CONFIG_QM_REVERT
-
 //-------//
 bool add_userqm_in_qmobulist(AV1_COMP *cpi) {
   bool obu_added = false;
@@ -376,13 +334,13 @@ bool add_userqm_in_qmobulist(AV1_COMP *cpi) {
   return obu_added;
 }
 
-bool check_add_cmqm_in_qmobulist(AV1_COMP *cpi, bool write_in_prevobu) {
 #if !CONFIG_QM_REVERT
+bool check_add_cmqm_in_qmobulist(AV1_COMP *cpi, bool write_in_prevobu) {
   static int START_POS_8x8 = 4 * 4;
   static int START_POS_8x4 = 1392;  // tx_size:6 4*4+8*8+16*16+32*32+64*64+4*8;
   static int START_POS_4x8 = 1360;  // tx_size:5 4*4+8*8+16*16+32*32+64*64;
-#endif                              // !CONFIG_QM_REVERT
-  bool add_cmqm[4][3];              //[max_pic_qm_num][planes]
+
+  bool add_cmqm[4][3];  //[max_pic_qm_num][planes]
   if (cpi->total_signalled_qmobu_count == 0) {
     for (int i = 0; i < 4; i++)
       for (int j = 0; j < 3; j++) add_cmqm[i][j] = true;
@@ -411,12 +369,9 @@ bool check_add_cmqm_in_qmobulist(AV1_COMP *cpi, bool write_in_prevobu) {
         if (qm_bit_map & (1 << qm_id)) {
           struct quantization_matrix_set *qm_inobu =
               &cpi->qmobu_list[qmobu_pos].qm_list[qm_id];
+          // need_to_be_added &= compare_qms(qm_inobu, quant_params);
           int plane = 0;  // check only y-plane : memcmp=0 when equal
-#if CONFIG_QM_REVERT
-          // check only y-plane
-          add_cmqm[pic_qm_idx][plane] = check_add_cmqm_obu_matrices(
-              quant_params, qm_inobu, quant_params->qm_y[pic_qm_idx], plane);
-#else
+
           qm_val_t *cm_qm_values8x8 =
               &quant_params->iwt_matrix_ref[quant_params->qm_y[pic_qm_idx]]
                                            [plane][START_POS_8x8];
@@ -436,13 +391,8 @@ bool check_add_cmqm_in_qmobulist(AV1_COMP *cpi, bool write_in_prevobu) {
           } else {
             add_cmqm[pic_qm_idx][plane] = false;
           }
-#endif
           if (num_planes > 1 && !qm_uv_same_as_y) {
             plane = 1;  // check only u-plane
-#if CONFIG_QM_REVERT
-            add_cmqm[pic_qm_idx][plane] = check_add_cmqm_obu_matrices(
-                quant_params, qm_inobu, quant_params->qm_u[pic_qm_idx], plane);
-#else
             cm_qm_values8x8 =
                 &quant_params->iwt_matrix_ref[quant_params->qm_u[pic_qm_idx]]
                                              [plane][START_POS_8x8];
@@ -462,15 +412,9 @@ bool check_add_cmqm_in_qmobulist(AV1_COMP *cpi, bool write_in_prevobu) {
             } else {
               add_cmqm[pic_qm_idx][plane] = false;
             }
-#endif  // CONFIG_QM_REVERT
 
             if (cm->seq_params.separate_uv_delta_q) {
               plane = 2;  // check only v-plane
-#if CONFIG_QM_REVERT
-              add_cmqm[pic_qm_idx][plane] = check_add_cmqm_obu_matrices(
-                  quant_params, qm_inobu, quant_params->qm_v[pic_qm_idx],
-                  plane);
-#else
               cm_qm_values8x8 =
                   &quant_params->iwt_matrix_ref[quant_params->qm_v[pic_qm_idx]]
                                                [plane][START_POS_8x8];
@@ -490,7 +434,6 @@ bool check_add_cmqm_in_qmobulist(AV1_COMP *cpi, bool write_in_prevobu) {
               } else {
                 add_cmqm[pic_qm_idx][plane] = false;
               }
-#endif  // CONFIG_QM_REVERT
             }
           }  // if(num_planes > 1 && !qm_uv_same_as_y)
         }  // if(qm_id is value)
@@ -523,10 +466,6 @@ bool check_add_cmqm_in_qmobulist(AV1_COMP *cpi, bool write_in_prevobu) {
           qm_inobu->quantizer_matrix = av1_alloc_qmset(num_planes);
         }
         for (int plane = 0; plane < num_planes; plane++) {
-#if CONFIG_QM_REVERT
-          copy_to_qmobu(quant_params, qm_inobu, quant_params->qm_y[pic_qm_idx],
-                        plane);
-#else
           qm_val_t *cm_qm_values8x8 =
               &quant_params->iwt_matrix_ref[quant_params->qm_y[pic_qm_idx]]
                                            [plane][START_POS_8x8];
@@ -542,7 +481,6 @@ bool check_add_cmqm_in_qmobulist(AV1_COMP *cpi, bool write_in_prevobu) {
                  sizeof(qm_val_t) * 32);
           memcpy(qm_inobu->quantizer_matrix[2][plane], cm_qm_values4x8,
                  sizeof(qm_val_t) * 32);
-#endif  // CONFIG_QM_REVERT
         }
       }  // add_cmqm
       if (num_planes > 1 && !qm_uv_same_as_y) {
@@ -554,10 +492,6 @@ bool check_add_cmqm_in_qmobulist(AV1_COMP *cpi, bool write_in_prevobu) {
             qm_inobu->quantizer_matrix = av1_alloc_qmset(num_planes);
           }
           for (int plane = 0; plane < num_planes; plane++) {
-#if CONFIG_QM_REVERT
-            copy_to_qmobu(quant_params, qm_inobu,
-                          quant_params->qm_u[pic_qm_idx], plane);
-#else
             qm_val_t *cm_qm_values8x8 =
                 &quant_params->iwt_matrix_ref[quant_params->qm_u[pic_qm_idx]]
                                              [plane][START_POS_8x8];
@@ -573,7 +507,6 @@ bool check_add_cmqm_in_qmobulist(AV1_COMP *cpi, bool write_in_prevobu) {
                    sizeof(qm_val_t) * 32);
             memcpy(qm_inobu->quantizer_matrix[2][plane], cm_qm_values4x8,
                    sizeof(qm_val_t) * 32);
-#endif  // CONFIG_QM_REVERT
           }
         }  // add_cmqm
         if (cm->seq_params.separate_uv_delta_q && add_cmqm[pic_qm_idx][2]) {
@@ -584,10 +517,6 @@ bool check_add_cmqm_in_qmobulist(AV1_COMP *cpi, bool write_in_prevobu) {
             qm_inobu->quantizer_matrix = av1_alloc_qmset(num_planes);
           }
           for (int plane = 0; plane < num_planes; plane++) {
-#if CONFIG_QM_REVERT
-            copy_to_qmobu(quant_params, qm_inobu,
-                          quant_params->qm_v[pic_qm_idx], plane);
-#else
             qm_val_t *cm_qm_values8x8 =
                 &quant_params->iwt_matrix_ref[quant_params->qm_v[pic_qm_idx]]
                                              [plane][START_POS_8x8];
@@ -603,7 +532,6 @@ bool check_add_cmqm_in_qmobulist(AV1_COMP *cpi, bool write_in_prevobu) {
                    sizeof(qm_val_t) * 32);
             memcpy(qm_inobu->quantizer_matrix[2][plane], cm_qm_values4x8,
                    sizeof(qm_val_t) * 32);
-#endif  // CONFIG_QM_REVERT
           }
         }  // separate_uv_delta_q
       }  // if(num_planes > 1 && !qm_uv_same_as_y)
@@ -616,43 +544,24 @@ bool check_add_cmqm_in_qmobulist(AV1_COMP *cpi, bool write_in_prevobu) {
   return (new_obu_needed || write_in_prevobu);
 }
 
-#if !CONFIG_QM_REVERT
 void check_qm_is_predefined(AV1_COMP *cpi, int qmobu_pos, int num_planes) {
-#if CONFIG_QM_REVERT
-  const int START_POS_8x8 = 4 * 4;
-  const int START_POS_8x4 = 1392;  // tx_size:6 4*4+8*8+16*16+32*32+64*64+4*8;
-  const int START_POS_4x8 = 1360;  // tx_size:5 4*4+8*8+16*16+32*32+64*64;
-#endif                             // CONFIG_QM_REVERT
   int qm_bit_map = cpi->qmobu_list[qmobu_pos].qm_bit_map;
   for (int qm_id = 0; qm_id < NUM_CUSTOM_QMS; qm_id++) {
     if (qm_bit_map & (1 << qm_id)) {
       struct quantization_matrix_set *qm_inobu =
           &cpi->qmobu_list[qmobu_pos].qm_list[qm_id];
-#if !CONFIG_QM_REVERT
       qm_inobu->qm_default_index = -1;
-#endif  // !CONFIG_QM_REVERT
       for (int predefined_id = 0; predefined_id < NUM_CUSTOM_QMS;
            predefined_id++) {
         bool same = true;
         for (int plane = 0; plane < num_planes; plane++) {
           int c = plane == 0 ? 0 : 1;
-
-#if CONFIG_QM_REVERT
-          const qm_val_t *qvalues8x8 =
-              &predefined_iwt_matrix_ref[predefined_id][c][START_POS_8x8];
-          const qm_val_t *qvalues8x4 =
-              &predefined_iwt_matrix_ref[predefined_id][c][START_POS_8x4];
-          const qm_val_t *qvalues4x8 =
-              &predefined_iwt_matrix_ref[predefined_id][c][START_POS_4x8];
-#else
           const qm_val_t *qvalues8x8 =
               predefined_8x8_iwt_base_matrix[predefined_id][c];
           const qm_val_t *qvalues8x4 =
               predefined_8x4_iwt_base_matrix[predefined_id][c];
           const qm_val_t *qvalues4x8 =
               predefined_4x8_iwt_base_matrix[predefined_id][c];
-#endif  // CONFIG_QM_REVERT
-
           same &= memcmp(qm_inobu->quantizer_matrix[0][plane], qvalues8x8,
                          sizeof(qm_val_t) * 8 * 8) == 0;
           same &= memcmp(qm_inobu->quantizer_matrix[1][plane], qvalues8x4,
@@ -662,9 +571,7 @@ void check_qm_is_predefined(AV1_COMP *cpi, int qmobu_pos, int num_planes) {
           if (!same) break;
         }
         if (same) {
-#if !CONFIG_QM_REVERT
           qm_inobu->qm_default_index = predefined_id;
-#endif  // !CONFIG_QM_REVERT
           break;
         }
       }

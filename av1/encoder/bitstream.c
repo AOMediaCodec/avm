@@ -9428,7 +9428,13 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
       && !cm->show_existing_frame
 #endif
   ) {
+#if CONFIG_QM_REVERT
+    bool need_new_qmobu = add_new_user_qm;
+#else
+    // TODO(wtc): check_add_cmqm_in_qmobulist() seems broken and doesn't seem
+    // necessary.
     bool need_new_qmobu = check_add_cmqm_in_qmobulist(cpi, add_new_user_qm);
+#endif  // CONFIG_QM_REVERT
     if (need_new_qmobu) {
       assert(cpi->total_signalled_qmobu_count > 0);
       obu_header_size = av1_write_obu_header(level_params, OBU_QM, obu_temporal,

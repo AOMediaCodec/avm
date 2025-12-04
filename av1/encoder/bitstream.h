@@ -29,7 +29,9 @@ void av1_write_conformance_window(const SequenceHeader *seq_params,
 #if CONFIG_F255_QMOBU
 void setup_cm_qmindex_list(AV1_COMMON *const cm);
 void check_qm_is_predefined(AV1_COMP *cpi, int qmobu_pos, int num_planes);
+#if !CONFIG_QM_REVERT
 bool check_add_cmqm_in_qmobulist(AV1_COMP *cpi, bool write_in_prevobu);
+#endif  // !CONFIG_QM_REVERT
 bool add_userqm_in_qmobulist(AV1_COMP *cpi);
 uint32_t write_qm_obu(AV1_COMP *cpi, int signalled_obu_pos, uint8_t *const dst);
 int write_qm_data(AV1_COMP *cpi, struct quantization_matrix_set *qm_list,
