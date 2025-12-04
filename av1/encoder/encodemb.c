@@ -149,7 +149,7 @@ static AOM_INLINE void fill_residue_outside_frame(
 }
 
 // Mapping of IST kernel set to index (for encoder only)
-static const uint8_t inv_ist_intra_stx_mapping[IST_DIR_SIZE][IST_DIR_SIZE] = {
+static const uint8_t inv_ist_intra_stx_mapping[IST_SET_SIZE][IST_SET_SIZE] = {
   { 2, 1, 6, 5, 4, 3, 0 },  // DC_PRED
   { 2, 0, 4, 6, 3, 5, 1 },  // V_PRED, H_PRED, SMOOTH_V_PRED， SMOOTH_H_PRED
   { 2, 4, 0, 6, 5, 3, 1 },  // D45_PRED
@@ -159,7 +159,7 @@ static const uint8_t inv_ist_intra_stx_mapping[IST_DIR_SIZE][IST_DIR_SIZE] = {
   { 2, 1, 6, 5, 4, 3, 0 },  // SMOOTH_PRED
 };
 static const uint8_t
-    inv_ist_intra_stx_mapping_ADST_ADST[IST_DIR_SIZE][IST_DIR_SIZE] = {
+    inv_ist_intra_stx_mapping_ADST_ADST[IST_SET_SIZE][IST_SET_SIZE] = {
       { 2, 1, 6, 5, 3, 4, 0 },  // DC_PRED
       { 2, 0, 4, 6, 3, 5, 1 },  // V_PRED, H_PRED, SMOOTH_V_PRED， SMOOTH_H_PRED
       { 2, 0, 4, 6, 3, 5, 1 },  // D45_PRED
@@ -655,9 +655,9 @@ void av1_xform(MACROBLOCK *x, int plane, int block, int blk_row, int blk_col,
                               ? tx_size_high[txfm_param->tx_size]
                               : 32;
     // perform fwd tx only once (and save the result in temp buff) during the
-    // search loop for IST Set (IST_DIR_SIZE sets) and its kenerls (3 tx kernels
-    // per set) Set 0 ~ IST_DIR_SIZE-1 for DCT_DCT, and Set IST_DIR_SIZE ~
-    // IST_SET_SIZE-1 for ADST_ADST
+    // search loop for IST Set (IST_SET_SIZE sets) and its kenerls (3 tx kernels
+    // per set) Set 0 ~ IST_SET_SIZE-1 for DCT_DCT, and Set IST_SET_SIZE ~
+    // IST_SET_SIZE+IST_REDUCED_SET_SIZE-1 for ADST_ADST
     if (txfm_param->sec_tx_type == 0 && txfm_param->sec_tx_set_idx == 0) {
       av1_fwd_txfm(src_diff, coeff, diff_stride, txfm_param);
       if (plane == 0) {
@@ -789,7 +789,7 @@ void av1_setup_xform(const AV1_COMMON *cm, MACROBLOCK *x, int plane,
           stx_transpose_mapping[AOMMIN(txfm_param->intra_mode, SMOOTH_H_PRED)];
       uint8_t stx_id = 0, stx_idx;
       if (txfm_param->tx_type == ADST_ADST) {
-        stx_id = AOMMAX(txfm_param->sec_tx_set - IST_DIR_SIZE, 0);
+        stx_id = AOMMAX(txfm_param->sec_tx_set - IST_SET_SIZE, 0);
         if (width < 8 || height < 8)
           stx_idx = inv_ist_intra_stx_mapping[intra_stx_mode][stx_id];
         else

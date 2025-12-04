@@ -22,7 +22,7 @@ extern "C" {
 // Mapping of IST kernel set to an index based on intra mode.
 // The index will be signaled in the bitstream
 static const uint8_t
-    most_probable_stx_mapping[INTRA_MODES - 1][IST_DIR_SIZE] = {
+    most_probable_stx_mapping[INTRA_MODES - 1][IST_SET_SIZE] = {
       { 2, 1, 6, 5, 4, 3, 0 },  // DC_PRED
       { 2, 0, 4, 6, 3, 5, 1 },  // V_PRED
       { 2, 0, 4, 6, 3, 5, 1 },  // H_PRED
@@ -38,7 +38,7 @@ static const uint8_t
     };
 // Inverse Mapping of signaled index to IST kernal set based on intra mode.
 static const uint8_t
-    inv_most_probable_stx_mapping[INTRA_MODES - 1][IST_DIR_SIZE] = {
+    inv_most_probable_stx_mapping[INTRA_MODES - 1][IST_SET_SIZE] = {
       { 6, 1, 0, 5, 4, 3, 2 },  // DC_PRED
       { 1, 6, 0, 4, 2, 5, 3 },  // V_PRED
       { 1, 6, 0, 4, 2, 5, 3 },  // H_PRED
@@ -53,7 +53,7 @@ static const uint8_t
       { 1, 6, 0, 4, 2, 5, 3 },  // SMOOTH_H_PRED
     };
 static const uint8_t
-    most_probable_stx_mapping_ADST_ADST[INTRA_MODES - 1][IST_DIR_SIZE] = {
+    most_probable_stx_mapping_ADST_ADST[INTRA_MODES - 1][IST_SET_SIZE] = {
       { 2, 1, 6, 5, 3, 4, 0 },  // DC_PRED
       { 2, 0, 4, 6, 3, 5, 1 },  // V_PRED
       { 2, 0, 4, 6, 3, 5, 1 },  // H_PRED
@@ -69,7 +69,7 @@ static const uint8_t
     };
 // Inverse Mapping of signaled index to IST kernal set based on intra mode.
 static const uint8_t
-    inv_most_probable_stx_mapping_ADST_ADST[INTRA_MODES - 1][IST_DIR_SIZE] = {
+    inv_most_probable_stx_mapping_ADST_ADST[INTRA_MODES - 1][IST_SET_SIZE] = {
       { 6, 1, 0, 4, 5, 3, 2 },  // DC_PRED
       { 1, 6, 0, 4, 2, 5, 3 },  // V_PRED
       { 1, 6, 0, 4, 2, 5, 3 },  // H_PRED
@@ -194,8 +194,9 @@ static const int16_t
         134, 103, 135, 166, 197, 228, 229, 198, 167, 199, 230, 231 },
     };
 
+// TODO(kslu) remove unused entries
 static const int16_t
-    coeff8x8_mapping[IST_SET_SIZE * (STX_TYPES - 1)][IST_8x8_WIDTH] = {
+    coeff8x8_mapping[IST_8x8_SET_SIZE * (STX_TYPES - 1)][IST_8x8_WIDTH] = {
       { 0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15,
         16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 30, 31, 32, 33, 34,
         35, 36, 37, 38, 39, 40, 45, 46, 47, 48, 49, 50, 51, 56, 57, 58 },
@@ -324,8 +325,8 @@ static const int16_t
         32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 44, 45, 46, 47, 51 },
     };
 
-static const int16_t ist_4x4_kernel[IST_SET_SIZE][STX_TYPES -
-                                                  1][16][IST_4x4_WIDTH] = {
+static const int16_t ist_4x4_kernel[IST_4x4_SET_SIZE][STX_TYPES -
+                                                      1][16][IST_4x4_WIDTH] = {
   {
       //  0
       {
@@ -923,9 +924,10 @@ static const int16_t ist_4x4_kernel[IST_SET_SIZE][STX_TYPES -
   },
 };
 
+// TODO(kslu) remove unused entries
 static const int16_t
     ist_8x8_kernel
-        [IST_SET_SIZE][STX_TYPES - 1][IST_8x8_HEIGHT_MAX][IST_8x8_WIDTH] = {
+        [IST_8x8_SET_SIZE][STX_TYPES - 1][IST_8x8_HEIGHT_MAX][IST_8x8_WIDTH] = {
           {
               //  0
               {

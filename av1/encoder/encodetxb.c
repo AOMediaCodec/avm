@@ -1382,8 +1382,8 @@ static int get_sec_tx_set_cost(const MACROBLOCK *x, const MACROBLOCKD *xd,
                                const MB_MODE_INFO *mbmi, TX_SIZE tx_size,
                                TX_TYPE tx_type) {
   uint8_t stx_set_flag = get_secondary_tx_set(tx_type);
-  if (get_primary_tx_type(tx_type) == ADST_ADST) stx_set_flag -= IST_DIR_SIZE;
-  assert(stx_set_flag < IST_DIR_SIZE);
+  if (get_primary_tx_type(tx_type) == ADST_ADST) stx_set_flag -= IST_SET_SIZE;
+  assert(stx_set_flag < IST_SET_SIZE);
   uint8_t intra_mode = get_intra_mode(mbmi, PLANE_TYPE_Y);
   if (!is_inter_block(mbmi, xd->tree_type) && tx_size_wide[tx_size] >= 8 &&
       tx_size_high[tx_size] >= 8 && get_primary_tx_type(tx_type) == ADST_ADST) {
@@ -3721,18 +3721,18 @@ static void update_sec_tx_set_cdf(MACROBLOCKD *xd, FRAME_CONTEXT *fc,
                                   MB_MODE_INFO *mbmi, TX_SIZE tx_size,
                                   TX_TYPE tx_type) {
   uint8_t stx_set_flag = get_secondary_tx_set(tx_type);
-  if (get_primary_tx_type(tx_type) == ADST_ADST) stx_set_flag -= IST_DIR_SIZE;
-  assert(stx_set_flag < IST_DIR_SIZE);
+  if (get_primary_tx_type(tx_type) == ADST_ADST) stx_set_flag -= IST_SET_SIZE;
+  assert(stx_set_flag < IST_SET_SIZE);
   uint8_t intra_mode = get_intra_mode(mbmi, PLANE_TYPE_Y);
   if (!is_inter_block(mbmi, xd->tree_type) && tx_size_wide[tx_size] >= 8 &&
       tx_size_high[tx_size] >= 8 && get_primary_tx_type(tx_type) == ADST_ADST) {
     update_cdf(fc->most_probable_stx_set_cdf_ADST_ADST,
                most_probable_stx_mapping_ADST_ADST[intra_mode][stx_set_flag],
-               IST_REDUCE_SET_SIZE_ADST_ADST);
+               IST_REDUCED_SET_SIZE);
   } else {
     update_cdf(fc->most_probable_stx_set_cdf,
                most_probable_stx_mapping[intra_mode][stx_set_flag],
-               IST_DIR_SIZE);
+               IST_SET_SIZE);
   }
 }
 

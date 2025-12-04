@@ -1121,7 +1121,10 @@ void av1_inv_stxfm(tran_low_t *coeff, TxfmParam *txfm_param) {
     }
 #endif  // STX_COEFF_DEBUG
     mode_t = txfm_param->sec_tx_set;
-    assert(mode_t < IST_SET_SIZE);
+    if (sb_size == 8)
+      assert(mode_t < IST_8x8_SET_SIZE);
+    else
+      assert(mode_t < IST_4x4_SET_SIZE);
     if (transpose) {
       scan_order_out = (sb_size == 4)
                            ? stx_scan_orders_transpose_4x4[log2width - 2]

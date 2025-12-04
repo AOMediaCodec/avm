@@ -1183,24 +1183,23 @@ static void write_sec_tx_set(FRAME_CONTEXT *ec_ctx, aom_writer *w,
                              MB_MODE_INFO *mbmi, TX_SIZE tx_size,
                              TX_TYPE tx_type) {
   TX_TYPE stx_set_flag = get_secondary_tx_set(tx_type);
-  assert(stx_set_flag <= IST_SET_SIZE - 1);
-  if (get_primary_tx_type(tx_type) == ADST_ADST) stx_set_flag -= IST_DIR_SIZE;
-  assert(stx_set_flag < IST_DIR_SIZE);
+  if (get_primary_tx_type(tx_type) == ADST_ADST) stx_set_flag -= IST_SET_SIZE;
   uint8_t intra_mode = get_intra_mode(mbmi, PLANE_TYPE_Y);
   if (get_primary_tx_type(tx_type) == ADST_ADST && tx_size_wide[tx_size] >= 8 &&
       tx_size_high[tx_size] >= 8) {
     uint8_t stx_set_in_bitstream =
         most_probable_stx_mapping_ADST_ADST[intra_mode][stx_set_flag];
-    assert(stx_set_in_bitstream < IST_REDUCE_SET_SIZE_ADST_ADST);
+    assert(stx_set_flag < IST_REDUCED_SET_SIZE);
+    assert(stx_set_in_bitstream < IST_REDUCED_SET_SIZE);
     aom_write_symbol(w, stx_set_in_bitstream,
                      ec_ctx->most_probable_stx_set_cdf_ADST_ADST,
-                     IST_REDUCE_SET_SIZE_ADST_ADST);
+                     IST_REDUCED_SET_SIZE);
   } else {
     uint8_t stx_set_in_bitstream =
         most_probable_stx_mapping[intra_mode][stx_set_flag];
-    assert(stx_set_in_bitstream < IST_REDUCE_SET_SIZE);
+    assert(stx_set_flag < IST_SET_SIZE);
     aom_write_symbol(w, stx_set_in_bitstream, ec_ctx->most_probable_stx_set_cdf,
-                     IST_DIR_SIZE);
+                     IST_SET_SIZE);
   }
 }
 

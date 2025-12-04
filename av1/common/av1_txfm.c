@@ -23,13 +23,12 @@
  */
 DECLARE_ALIGNED(
     32, int32_t,
-    ist_4x4_kernel_int32[IST_SET_SIZE][STX_TYPES - 1][16][IST_4x4_WIDTH]);
+    ist_4x4_kernel_int32[IST_4x4_SET_SIZE][STX_TYPES - 1][16][IST_4x4_WIDTH]);
 DECLARE_ALIGNED(32, int32_t,
-                ist_8x8_kernel_int32[IST_SET_SIZE][STX_TYPES - 1]
+                ist_8x8_kernel_int32[IST_8x8_SET_SIZE][STX_TYPES - 1]
                                     [IST_8x8_HEIGHT_MAX][IST_8x8_WIDTH]);
 
 void av1_init_stxfm_kernels(void) {
-  const int set_max = IST_SET_SIZE;
   const int type_max = STX_TYPES - 1;
 
   const int row_max_4x4 = 16;
@@ -38,7 +37,7 @@ void av1_init_stxfm_kernels(void) {
   const int row_max_8x8 = IST_8x8_HEIGHT_MAX;
   const int col_max_8x8 = IST_8x8_WIDTH;
 
-  for (int set = 0; set < set_max; ++set) {
+  for (int set = 0; set < IST_4x4_SET_SIZE; ++set) {
     for (int type = 0; type < type_max; ++type) {
       for (int row = 0; row < row_max_4x4; ++row) {
         for (int col = 0; col < col_max_4x4; ++col) {
@@ -46,6 +45,10 @@ void av1_init_stxfm_kernels(void) {
               (int32_t)ist_4x4_kernel[set][type][row][col];
         }
       }
+    }
+  }
+  for (int set = 0; set < IST_8x8_SET_SIZE; ++set) {
+    for (int type = 0; type < type_max; ++type) {
       for (int row = 0; row < row_max_8x8; ++row) {
         for (int col = 0; col < col_max_8x8; ++col) {
           ist_8x8_kernel_int32[set][type][row][col] =

@@ -34,10 +34,10 @@ extern "C" {
 #endif
 
 // Secondary transform coeffs in int precision
-extern int32_t ist_4x4_kernel_int32[IST_SET_SIZE][STX_TYPES - 1][16]
+extern int32_t ist_4x4_kernel_int32[IST_4x4_SET_SIZE][STX_TYPES - 1][16]
                                    [IST_4x4_WIDTH];
 
-extern int32_t ist_8x8_kernel_int32[IST_SET_SIZE][STX_TYPES - 1]
+extern int32_t ist_8x8_kernel_int32[IST_8x8_SET_SIZE][STX_TYPES - 1]
                                    [IST_8x8_HEIGHT_MAX][IST_8x8_WIDTH];
 
 #define REPLACE_ADST4 0

@@ -940,10 +940,10 @@ typedef struct {
   int stx_flag_cost[2][TX_SIZES][STX_TYPES];
   /*! Cost of signaling secondary transform set index for DCT_DCT primary
    * transform type */
-  int most_probable_stx_set_flag_cost[IST_DIR_SIZE];
+  int most_probable_stx_set_flag_cost[IST_SET_SIZE];
   /*! Cost of signaling secondary transform set index for ADST_ADST primary
    * transform type */
-  int most_probable_stx_set_flag_cost_ADST_ADST[IST_REDUCE_SET_SIZE_ADST_ADST];
+  int most_probable_stx_set_flag_cost_ADST_ADST[IST_REDUCED_SET_SIZE];
 
   //! Rate rate associated with each alpha codeword
   int cfl_cost[CFL_JOINT_SIGNS][CFL_PRED_PLANES][CFL_ALPHABET_SIZE];

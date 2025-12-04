@@ -49,7 +49,7 @@ typedef struct tx_size_rd_info_node {
 } TXB_RD_INFO_NODE;
 
 // Mapping of index to IST kernel set (for encoder search only)
-static const uint8_t ist_intra_stx_mapping[IST_DIR_SIZE][IST_DIR_SIZE] = {
+static const uint8_t ist_intra_stx_mapping[IST_SET_SIZE][IST_SET_SIZE] = {
   { 6, 1, 0, 5, 4, 3, 2 },  // DC_PRED
   { 1, 6, 0, 4, 2, 5, 3 },  // V_PRED, H_PRED, SMOOTH_V_PRED， SMOOTH_H_PRED
   { 2, 6, 0, 5, 1, 4, 3 },  // D45_PRED
@@ -59,7 +59,7 @@ static const uint8_t ist_intra_stx_mapping[IST_DIR_SIZE][IST_DIR_SIZE] = {
   { 6, 1, 0, 5, 4, 3, 2 },  // SMOOTH_PRED
 };
 static const uint8_t
-    ist_intra_stx_mapping_ADST_ADST[IST_DIR_SIZE][IST_DIR_SIZE] = {
+    ist_intra_stx_mapping_ADST_ADST[IST_SET_SIZE][IST_SET_SIZE] = {
       { 6, 1, 0, 4, 5, 3, 2 },  // DC_PRED
       { 1, 6, 0, 4, 2, 5, 3 },  // V_PRED, H_PRED, SMOOTH_V_PRED， SMOOTH_H_PRED
       { 1, 6, 0, 4, 2, 5, 3 },  // D45_PRED
@@ -2195,6 +2195,9 @@ static bool prune_sec_txfm_rd_eval(int64_t sec_tx_sse_to_be_coded,
   return false;
 }
 
+// Encoder-only variable to reudce the search complexity of IST
+#define IST_REDUCED_SEARCH_SET_SIZE 4
+
 // Search for the best transform type for a given transform block.
 // This function can be used for both inter and intra, both luma and chroma.
 static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
@@ -2472,12 +2475,12 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
          dc_only_blk || (eob_found) || !xd->enable_ist);
     int init_set_id = 0;
     int max_set_id =
-        (skip_stx || is_inter_block(mbmi, xd->tree_type)) ? 1 : IST_DIR_SIZE;
-    int max_set_id_ptx_type[4] = { IST_REDUCE_SET_SIZE, 1, 1,
-                                   IST_REDUCE_SET_SIZE_ADST_ADST };
-    if (max_set_id == IST_DIR_SIZE) {
+        (skip_stx || is_inter_block(mbmi, xd->tree_type)) ? 1 : IST_SET_SIZE;
+    int max_set_id_ptx_type[4] = { IST_REDUCED_SEARCH_SET_SIZE, 1, 1,
+                                   IST_REDUCED_SET_SIZE };
+    if (max_set_id == IST_SET_SIZE) {
       assert(primary_tx_type == DCT_DCT || primary_tx_type == ADST_ADST);
-      max_set_id = (txw < 8 || txh < 8) ? IST_REDUCE_SET_SIZE
+      max_set_id = (txw < 8 || txh < 8) ? IST_REDUCED_SEARCH_SET_SIZE
                                         : max_set_id_ptx_type[primary_tx_type];
     }
     for (int set_idx = init_set_id; set_idx < max_set_id; ++set_idx) {
@@ -2487,7 +2490,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
         const PREDICTION_MODE mode = AOMMIN(intra_mode, SMOOTH_H_PRED);
         int intra_stx_mode = stx_transpose_mapping[mode];
         if (txw < 8 || txh < 8) {
-          assert(set_idx < IST_REDUCE_SET_SIZE);
+          assert(set_idx < IST_REDUCED_SEARCH_SET_SIZE);
           set_id = ist_intra_stx_mapping[intra_stx_mode][set_idx];
         } else {
           assert((primary_tx_type == DCT_DCT || primary_tx_type == ADST_ADST)
@@ -2514,11 +2517,14 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
         txfm_param.sec_tx_type = stx;
 
         TX_TYPE tx_type1 = tx_type;  // does not keep set info
-        stx_set = (primary_tx_type == ADST_ADST && stx) ? set_id + IST_DIR_SIZE
+        stx_set = (primary_tx_type == ADST_ADST && stx) ? set_id + IST_SET_SIZE
                                                         : set_id;
         set_secondary_tx_set(&tx_type, stx_set);
         txfm_param.sec_tx_set = stx_set;
-        assert(stx_set < IST_SET_SIZE);
+        if (txw < 8 || txh < 8)
+          assert(stx_set < IST_4x4_SET_SIZE);
+        else
+          assert(stx_set < IST_8x8_SET_SIZE);
         assert(tx_type < (1 << (PRIMARY_TX_BITS + SECONDARY_TX_BITS +
                                 SECONDARY_TX_SET_BITS)));
         if (av1_use_qmatrix(&cm->quant_params, xd, mbmi->segment_id)) {

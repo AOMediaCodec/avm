@@ -1297,23 +1297,23 @@ static void read_secondary_tx_set(MACROBLOCKD *xd, FRAME_CONTEXT *ec_ctx,
     if (get_primary_tx_type(*tx_type) == ADST_ADST &&
         tx_size_wide[tx_size] >= 8 && tx_size_high[tx_size] >= 8) {
       reordered_stx_set_flag = aom_read_symbol(
-          r, ec_ctx->most_probable_stx_set_cdf_ADST_ADST,
-          IST_REDUCE_SET_SIZE_ADST_ADST, ACCT_INFO("stx_set_flag_ADST_ADST"));
-      assert(reordered_stx_set_flag < IST_REDUCE_SET_SIZE_ADST_ADST);
+          r, ec_ctx->most_probable_stx_set_cdf_ADST_ADST, IST_REDUCED_SET_SIZE,
+          ACCT_INFO("stx_set_flag_ADST_ADST"));
+      assert(reordered_stx_set_flag < IST_REDUCED_SET_SIZE);
       stx_set_flag =
           inv_most_probable_stx_mapping_ADST_ADST[intra_mode]
                                                  [reordered_stx_set_flag];
     } else {
       reordered_stx_set_flag =
-          aom_read_symbol(r, ec_ctx->most_probable_stx_set_cdf, IST_DIR_SIZE,
+          aom_read_symbol(r, ec_ctx->most_probable_stx_set_cdf, IST_SET_SIZE,
                           ACCT_INFO("stx_set_flag"));
-      assert(reordered_stx_set_flag < IST_DIR_SIZE);
+      assert(reordered_stx_set_flag < IST_SET_SIZE);
       stx_set_flag =
           inv_most_probable_stx_mapping[intra_mode][reordered_stx_set_flag];
     }
-    assert(stx_set_flag < IST_DIR_SIZE);
+    assert(stx_set_flag < IST_SET_SIZE);
   }
-  if (get_primary_tx_type(*tx_type) == ADST_ADST) stx_set_flag += IST_DIR_SIZE;
+  if (get_primary_tx_type(*tx_type) == ADST_ADST) stx_set_flag += IST_SET_SIZE;
   set_secondary_tx_set(tx_type, stx_set_flag);
 }
 

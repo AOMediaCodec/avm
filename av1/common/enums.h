@@ -226,14 +226,28 @@ enum {
 #define CFL_CONTEXTS 3
 
 // Intra Secondary Transform
-#define IST_SET_SIZE 14  // IST kernel set size
-// Number of directional groups in IST kernels
-#define IST_DIR_SIZE (IST_SET_SIZE >> 1)
-#define STX_TYPES 4  // 4 sec_tx_types including no IST
+// - STX_TYPES: number of IST types (including none) to be signaled before
+//   signaling the IST set index. STX_TYPES-1 is the number of IST kernels
+//   within each IST set
+// - IST_SET_SIZE: number of IST sets for 4x4 DCT_DCT, 4x4 ADST_ADST, and 8x8
+//   DCT_DCT
+// - IST_REDUCED_SET_SIZE: number of IST sets for 8x8 ADST_ADST
+// - IST_4x4_SET_SIZE: number of all 4x4 IST sets (DCT_DCT + ADST_ADST)
+// - IST_8x8_SET_SIZE: number of all 8x8 IST sets (DCT_DCT + ADST_ADST)
+#define STX_TYPES 4
+#define IST_SET_SIZE 7
+#define IST_REDUCED_SET_SIZE 4
+#define IST_4x4_SET_SIZE (IST_SET_SIZE + IST_SET_SIZE)
+// TODO(kslu) reduce it
+// #define IST_8x8_SET_SIZE (IST_SET_SIZE + IST_REDUCED_SET_SIZE)
+#define IST_8x8_SET_SIZE (IST_SET_SIZE + IST_SET_SIZE)
+
+// - Width: dimension of secondary transform input. Note: it needs to be a
+//   multiple of 4 for sse4 to work
+// - Height: dimension of secondary transform output
 #define IST_4x4_WIDTH 16
 #define IST_4x4_HEIGHT 8
 #define IST_8x8_HEIGHT_RED 20
-// Note: IST_8x8_WIDTH needs to be a multiple of 4 for sse4 to work
 #define IST_8x8_WIDTH_MAX 64
 #define IST_8x8_WIDTH 48
 #define IST_8x8_HEIGHT_MAX 32
@@ -694,9 +708,6 @@ enum {
   DDTX,
   FDDT,
 } UENUM2BYTE(TX1D_TYPE);
-
-#define IST_REDUCE_SET_SIZE 4  // reduced set size for IST
-#define IST_REDUCE_SET_SIZE_ADST_ADST 4
 
 enum {
   CCTX_NONE,     // No cross chroma transform

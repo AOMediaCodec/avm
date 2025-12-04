@@ -381,11 +381,10 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
     }
   }
   av1_cost_tokens_from_cdf(mode_costs->most_probable_stx_set_flag_cost,
-                           fc->most_probable_stx_set_cdf, IST_DIR_SIZE, NULL);
+                           fc->most_probable_stx_set_cdf, IST_SET_SIZE, NULL);
   av1_cost_tokens_from_cdf(
       mode_costs->most_probable_stx_set_flag_cost_ADST_ADST,
-      fc->most_probable_stx_set_cdf_ADST_ADST, IST_REDUCE_SET_SIZE_ADST_ADST,
-      NULL);
+      fc->most_probable_stx_set_cdf_ADST_ADST, IST_REDUCED_SET_SIZE, NULL);
 
   av1_cost_tokens_from_cdf(mode_costs->cctx_type_cost, fc->cctx_type_cdf,
                            CCTX_TYPES, NULL);

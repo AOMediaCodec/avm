@@ -647,10 +647,10 @@ void av1_cumulative_avg_cdf_symbols(FRAME_CONTEXT *ctx_left,
                          CFL_ALPHABET_SIZE);
   CUMULATIVE_AVERAGE_CDF(ctx_left->stx_cdf, ctx_tr->stx_cdf, STX_TYPES);
   CUMULATIVE_AVERAGE_CDF(ctx_left->most_probable_stx_set_cdf,
-                         ctx_tr->most_probable_stx_set_cdf, IST_DIR_SIZE);
+                         ctx_tr->most_probable_stx_set_cdf, IST_SET_SIZE);
   CUMULATIVE_AVERAGE_CDF(ctx_left->most_probable_stx_set_cdf_ADST_ADST,
                          ctx_tr->most_probable_stx_set_cdf_ADST_ADST,
-                         IST_REDUCE_SET_SIZE_ADST_ADST);
+                         IST_REDUCED_SET_SIZE);
 
   CUMULATIVE_AVERAGE_CDF(ctx_left->pb_mv_mpp_flag_cdf,
                          ctx_tr->pb_mv_mpp_flag_cdf, 2);
@@ -894,9 +894,8 @@ void av1_shift_cdf_symbols(FRAME_CONTEXT *ctx_ptr,
   SHIFT_CDF(ctx_ptr->cfl_sign_cdf, CFL_JOINT_SIGNS);
   SHIFT_CDF(ctx_ptr->cfl_alpha_cdf, CFL_ALPHABET_SIZE);
   SHIFT_CDF(ctx_ptr->stx_cdf, STX_TYPES);
-  SHIFT_CDF(ctx_ptr->most_probable_stx_set_cdf, IST_DIR_SIZE);
-  SHIFT_CDF(ctx_ptr->most_probable_stx_set_cdf_ADST_ADST,
-            IST_REDUCE_SET_SIZE_ADST_ADST);
+  SHIFT_CDF(ctx_ptr->most_probable_stx_set_cdf, IST_SET_SIZE);
+  SHIFT_CDF(ctx_ptr->most_probable_stx_set_cdf_ADST_ADST, IST_REDUCED_SET_SIZE);
 
   SHIFT_CDF(ctx_ptr->pb_mv_mpp_flag_cdf, 2);
   for (int p = MV_PRECISION_HALF_PEL; p < NUM_MV_PRECISIONS; ++p) {
@@ -1227,10 +1226,10 @@ void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
   AVG_CDF_STRIDE(ctx_left->stx_cdf, ctx_tr->stx_cdf, STX_TYPES,
                  CDF_SIZE(STX_TYPES));
   AVERAGE_CDF(ctx_left->most_probable_stx_set_cdf,
-              ctx_tr->most_probable_stx_set_cdf, IST_DIR_SIZE);
+              ctx_tr->most_probable_stx_set_cdf, IST_SET_SIZE);
   AVERAGE_CDF(ctx_left->most_probable_stx_set_cdf_ADST_ADST,
               ctx_tr->most_probable_stx_set_cdf_ADST_ADST,
-              IST_REDUCE_SET_SIZE_ADST_ADST);
+              IST_REDUCED_SET_SIZE);
 
   AVERAGE_CDF(ctx_left->pb_mv_mpp_flag_cdf, ctx_tr->pb_mv_mpp_flag_cdf, 2);
   for (int p = MV_PRECISION_HALF_PEL; p < NUM_MV_PRECISIONS; ++p) {
