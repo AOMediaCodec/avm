@@ -9561,6 +9561,24 @@ static int read_uncompressed_header(AV1Decoder *pbi, OBU_TYPE obu_type,
     }
   }
 
+  if (cm->is_leading_picture == 1) {
+    // other obu_types cannot overwrite the slots OBU_OLK is stored
+    for (int idx = 0; idx <= seq_params->max_mlayer_id; idx++) {
+      if (current_frame->refresh_frame_flags &
+          cm->olk_refresh_frame_flags[idx]) {
+        aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
+                           "refresh_frame_flags(%d) of this frame(%s, doh=%d "
+                           "layerid=%d) overwrites "
+                           "one or more OLKs of mlyaer id, %d at %d in the "
+                           "reference list",
+                           current_frame->refresh_frame_flags,
+                           aom_obu_type_to_string(obu_type),
+                           cm->current_frame.display_order_hint, cm->mlayer_id,
+                           idx, cm->olk_refresh_frame_flags[idx]);
+      }
+    }
+  }
+
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   if (pbi->obu_type == OBU_RAS_FRAME) {
     mark_reference_frames_with_long_term_ids(pbi);
