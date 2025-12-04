@@ -9393,13 +9393,6 @@ static int read_uncompressed_header(AV1Decoder *pbi,
     }
   }
 #endif  // CONFIG_LCR_ID_IN_SH
-#if CONFIG_CWG_F270_CI_OBU
-  if (cm->ci_params.color_info.matrix_coefficients == AOM_CICP_MC_IDENTITY &&
-      (cm->seq_params.subsampling_x || cm->seq_params.subsampling_y)) {
-    // Identity CICP Matrix incompatible with non 4:4:4 color sampling
-    return AOM_CODEC_UNSUP_BITSTREAM;
-  }
-#endif  // CONFIG_CWG_F270_CI_OBU
 
   if (seq_params->single_picture_header_flag) {
     cm->show_existing_frame = 0;
