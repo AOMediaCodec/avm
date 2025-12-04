@@ -531,6 +531,14 @@ void av1_update_film_grain_parameters(struct AV1_COMP *cpi,
 #endif  // CONFIG_CWG_F270_CI_OBU
         cm->film_grain_params.clip_to_restricted_range = 0;
       }
+#if CONFIG_FGS_IDENT
+#if CONFIG_CWG_F270_CI_OBU
+      if (cm->ci_params.color_info.matrix_coefficients == AOM_CICP_MC_IDENTITY)
+        cm->film_grain_params.mc_identity = 1;
+      else
+#endif
+        cm->film_grain_params.mc_identity = 0;
+#endif  // CONFIG_FGS_IDENT
     }
   } else if (tune_cfg->film_grain_table_filename) {
     cm->seq_params.film_grain_params_present = 1;

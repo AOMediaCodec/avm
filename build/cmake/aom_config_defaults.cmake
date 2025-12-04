@@ -288,6 +288,9 @@ set_aom_config_var(
 
 set_aom_config_var(CONFIG_DF_DQP 1 "Adding DQP to the deblocking filter")
 
+set_aom_config_var(CONFIG_FGS_IDENT 1
+                   "Fixing an issue with MC_IDENTITY moved to CI_OBU")
+
 set_aom_config_var(CONFIG_SHORT_METADATA 1
                    "Enable short metadata OBU header support")
 

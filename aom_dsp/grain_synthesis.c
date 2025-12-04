@@ -620,7 +620,12 @@ static void add_noise_to_block(const aom_film_grain_t *params, uint8_t *luma,
                                int luma_grain_stride, int chroma_grain_stride,
                                int half_luma_height, int half_luma_width,
                                int bit_depth, int chroma_subsamp_y,
-                               int chroma_subsamp_x, int mc_identity) {
+                               int chroma_subsamp_x
+#if !CONFIG_FGS_IDENT
+                               ,
+                               int mc_identity
+#endif  // !CONFIG_FGS_IDENT
+) {
   int cb_mult = params->cb_mult - 128;            // fixed scale
   int cb_luma_mult = params->cb_luma_mult - 128;  // fixed scale
   int cb_offset = params->cb_offset - 256;
@@ -667,7 +672,11 @@ static void add_noise_to_block(const aom_film_grain_t *params, uint8_t *luma,
     min_luma = min_luma_legal_range;
     max_luma = max_luma_legal_range;
 
+#if CONFIG_FGS_IDENT
+    if (params->mc_identity) {
+#else
     if (mc_identity) {
+#endif  // CONFIG_FGS_IDENT
       min_chroma = min_luma_legal_range;
       max_chroma = max_luma_legal_range;
     } else {
@@ -747,7 +756,12 @@ static void add_noise_to_block_hbd(
     int luma_stride, int chroma_stride, int *luma_grain, int *cb_grain,
     int *cr_grain, int luma_grain_stride, int chroma_grain_stride,
     int half_luma_height, int half_luma_width, int bit_depth,
-    int chroma_subsamp_y, int chroma_subsamp_x, int mc_identity) {
+    int chroma_subsamp_y, int chroma_subsamp_x
+#if !CONFIG_FGS_IDENT
+    ,
+    int mc_identity
+#endif  // !CONFIG_FGS_IDENT
+) {
   int cb_mult = params->cb_mult - 128;            // fixed scale
   int cb_luma_mult = params->cb_luma_mult - 128;  // fixed scale
   // offset value depends on the bit depth
@@ -802,7 +816,11 @@ static void add_noise_to_block_hbd(
     min_luma = min_luma_legal_range << (bit_depth - 8);
     max_luma = max_luma_legal_range << (bit_depth - 8);
 
+#if CONFIG_FGS_IDENT
+    if (params->mc_identity) {
+#else
     if (mc_identity) {
+#endif  // CONFIG_FGS_IDENT
       min_chroma = min_luma_legal_range << (bit_depth - 8);
       max_chroma = max_luma_legal_range << (bit_depth - 8);
     } else {
@@ -996,7 +1014,9 @@ int av1_add_film_grain(const aom_film_grain_t *params, const aom_image_t *src,
   int use_high_bit_depth = 0;
   int chroma_subsamp_x = 0;
   int chroma_subsamp_y = 0;
+#if !CONFIG_FGS_IDENT
   int mc_identity = src->mc == AOM_CICP_MC_IDENTITY ? 1 : 0;
+#endif  // !CONFIG_FGS_IDENT
 
   switch (src->fmt) {
     case AOM_IMG_FMT_AOMI420:
@@ -1091,16 +1111,26 @@ int av1_add_film_grain(const aom_film_grain_t *params, const aom_image_t *src,
   luma_stride = dst->stride[AOM_PLANE_Y] >> use_high_bit_depth;
   chroma_stride = dst->stride[AOM_PLANE_U] >> use_high_bit_depth;
 
-  return av1_add_film_grain_run(
-      params, luma, cb, cr, height, width, luma_stride, chroma_stride,
-      use_high_bit_depth, chroma_subsamp_y, chroma_subsamp_x, mc_identity);
+  return av1_add_film_grain_run(params, luma, cb, cr, height, width,
+                                luma_stride, chroma_stride, use_high_bit_depth,
+                                chroma_subsamp_y, chroma_subsamp_x
+#if !CONFIG_FGS_IDENT
+                                ,
+                                mc_identity
+#endif  // !CONFIG_FGS_IDENT
+  );
 }
 
 int av1_add_film_grain_run(const aom_film_grain_t *params, uint8_t *luma,
                            uint8_t *cb, uint8_t *cr, int height, int width,
                            int luma_stride, int chroma_stride,
                            int use_high_bit_depth, int chroma_subsamp_y,
-                           int chroma_subsamp_x, int mc_identity) {
+                           int chroma_subsamp_x
+#if !CONFIG_FGS_IDENT
+                           ,
+                           mc_identity
+#endif  // !CONFIG_FGS_IDENT
+) {
   int **pred_pos_luma;
   int **pred_pos_chroma;
   int *luma_grain_block;
@@ -1278,7 +1308,12 @@ int av1_add_film_grain_run(const aom_film_grain_t *params, uint8_t *luma,
               cr_col_buf + i * (2 - chroma_subsamp_y) * (2 - chroma_subsamp_x),
               2, (2 - chroma_subsamp_x),
               AOMMIN(luma_subblock_size_y >> 1, height / 2 - y) - i, 1,
-              bit_depth, chroma_subsamp_y, chroma_subsamp_x, mc_identity);
+              bit_depth, chroma_subsamp_y, chroma_subsamp_x
+#if !CONFIG_FGS_IDENT
+              ,
+              mc_identity
+#endif  // !CONFIG_FGS_IDENT
+          );
         } else {
           add_noise_to_block(
               params, luma + ((y + i) << 1) * luma_stride + (x << 1),
@@ -1291,7 +1326,12 @@ int av1_add_film_grain_run(const aom_film_grain_t *params, uint8_t *luma,
               cr_col_buf + i * (2 - chroma_subsamp_y) * (2 - chroma_subsamp_x),
               2, (2 - chroma_subsamp_x),
               AOMMIN(luma_subblock_size_y >> 1, height / 2 - y) - i, 1,
-              bit_depth, chroma_subsamp_y, chroma_subsamp_x, mc_identity);
+              bit_depth, chroma_subsamp_y, chroma_subsamp_x
+#if !CONFIG_FGS_IDENT
+              ,
+              mc_identity
+#endif  // !CONFIG_FGS_IDENT
+          );
         }
       }
 
@@ -1360,7 +1400,12 @@ int av1_add_film_grain_run(const aom_film_grain_t *params, uint8_t *luma,
               cr_line_buf + (x << (1 - chroma_subsamp_x)), luma_stride,
               chroma_stride, 1,
               AOMMIN(luma_subblock_size_x >> 1, width / 2 - x), bit_depth,
-              chroma_subsamp_y, chroma_subsamp_x, mc_identity);
+              chroma_subsamp_y, chroma_subsamp_x
+#if !CONFIG_FGS_IDENT
+              ,
+              mc_identity
+#endif  // !CONFIG_FGS_IDENT
+          );
         } else {
           add_noise_to_block(
               params, luma + (y << 1) * luma_stride + (x << 1),
@@ -1373,7 +1418,12 @@ int av1_add_film_grain_run(const aom_film_grain_t *params, uint8_t *luma,
               cr_line_buf + (x << (1 - chroma_subsamp_x)), luma_stride,
               chroma_stride, 1,
               AOMMIN(luma_subblock_size_x >> 1, width / 2 - x), bit_depth,
-              chroma_subsamp_y, chroma_subsamp_x, mc_identity);
+              chroma_subsamp_y, chroma_subsamp_x
+#if !CONFIG_FGS_IDENT
+              ,
+              mc_identity
+#endif  // !CONFIG_FGS_IDENT
+          );
         }
       }
 
@@ -1404,7 +1454,12 @@ int av1_add_film_grain_run(const aom_film_grain_t *params, uint8_t *luma,
             luma_grain_stride, chroma_grain_stride,
             AOMMIN(luma_subblock_size_y >> 1, height / 2 - y) - i,
             AOMMIN(luma_subblock_size_x >> 1, width / 2 - x) - j, bit_depth,
-            chroma_subsamp_y, chroma_subsamp_x, mc_identity);
+            chroma_subsamp_y, chroma_subsamp_x
+#if !CONFIG_FGS_IDENT
+            ,
+            mc_identity
+#endif  // !CONFIG_FGS_IDENT
+        );
       } else {
         add_noise_to_block(
             params, luma + ((y + i) << 1) * luma_stride + ((x + j) << 1),
@@ -1426,7 +1481,12 @@ int av1_add_film_grain_run(const aom_film_grain_t *params, uint8_t *luma,
             luma_grain_stride, chroma_grain_stride,
             AOMMIN(luma_subblock_size_y >> 1, height / 2 - y) - i,
             AOMMIN(luma_subblock_size_x >> 1, width / 2 - x) - j, bit_depth,
-            chroma_subsamp_y, chroma_subsamp_x, mc_identity);
+            chroma_subsamp_y, chroma_subsamp_x
+#if !CONFIG_FGS_IDENT
+            ,
+            mc_identity
+#endif  // !CONFIG_FGS_IDENT
+        );
       }
 
       if (overlap) {

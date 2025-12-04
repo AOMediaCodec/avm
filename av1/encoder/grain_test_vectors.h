@@ -77,6 +77,9 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
     54 /* cr_offset */,
     0 /* overlap_flag */,
     1 /* clip_to_restricted_range */,
+#if CONFIG_FGS_IDENT
+    0 /* mc_identity */,
+#endif  // CONFIG_FGS_IDENT
     8 /* bit_depth */,
     0 /* chroma_scaling_from_luma*/,
     0 /* grain_scale_shift*/,
@@ -123,6 +126,9 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
     256 /* cr_offset */,
     1 /* overlap_flag */,
     0 /* clip_to_restricted_range */,
+#if CONFIG_FGS_IDENT
+    0 /* mc_identity */,
+#endif  // CONFIG_FGS_IDENT
     8 /* bit_depth */,
     0 /*chroma_scaling_from_luma*/,
     0 /* grain_scale_shift*/,
@@ -169,6 +175,9 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
     256 /* cr_offset */,
     1 /* overlap_flag */,
     1 /* clip_to_restricted_range */,
+#if CONFIG_FGS_IDENT
+    0 /* mc_identity */,
+#endif  // CONFIG_FGS_IDENT
     8 /* bit_depth */,
     0 /*chroma_scaling_from_luma*/,
     1 /* grain_scale_shift*/,
@@ -245,6 +254,9 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
     256 /* cr_offset */,
     1 /* overlap_flag */,
     0 /* clip_to_restricted_range */,
+#if CONFIG_FGS_IDENT
+    0 /* mc_identity */,
+#endif  // CONFIG_FGS_IDENT
     8 /* bit_depth */,
     0 /*chroma_scaling_from_luma*/,
     0 /* grain_scale_shift*/,
@@ -311,6 +323,9 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
     256 /* cr_offset */,
     1 /* overlap_flag */,
     1 /* clip_to_restricted_range */,
+#if CONFIG_FGS_IDENT
+    0 /* mc_identity */,
+#endif  // CONFIG_FGS_IDENT
     8 /* bit_depth */,
     0 /*chroma_scaling_from_luma*/,
     0 /* grain_scale_shift*/,
@@ -372,6 +387,9 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
     256 /* cr_offset */,
     1 /* overlap_flag */,
     1 /* clip_to_restricted_range */,
+#if CONFIG_FGS_IDENT
+    0 /* mc_identity */,
+#endif  // CONFIG_FGS_IDENT
     8 /* bit_depth */,
     0 /*chroma_scaling_from_luma*/,
     0 /* grain_scale_shift*/,
@@ -433,6 +451,9 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
     256 /* cr_offset */,
     1 /* overlap_flag */,
     1 /* clip_to_restricted_range */,
+#if CONFIG_FGS_IDENT
+    0 /* mc_identity */,
+#endif  // CONFIG_FGS_IDENT
     8 /* bit_depth */,
     0 /*chroma_scaling_from_luma*/,
     0 /* grain_scale_shift*/,
@@ -479,6 +500,9 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
     256 /* cr_offset */,
     1 /* overlap_flag */,
     0 /* clip_to_restricted_range */,
+#if CONFIG_FGS_IDENT
+    0 /* mc_identity */,
+#endif  // CONFIG_FGS_IDENT
     8 /* bit_depth */,
     0 /*chroma_scaling_from_luma*/,
     0 /* grain_scale_shift*/,
@@ -516,6 +540,9 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
     256 /* cr_offset */,
     1 /* overlap_flag */,
     0 /* clip_to_restricted_range */,
+#if CONFIG_FGS_IDENT
+    0 /* mc_identity */,
+#endif  // CONFIG_FGS_IDENT
     8 /* bit_depth */,
     0 /*chroma_scaling_from_luma*/,
     0 /* grain_scale_shift*/,
@@ -553,6 +580,9 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
     256 /* cr_offset */,
     1 /* overlap_flag */,
     0 /* clip_to_restricted_range */,
+#if CONFIG_FGS_IDENT
+    0 /* mc_identity */,
+#endif  // CONFIG_FGS_IDENT
     8 /* bit_depth */,
     0 /*chroma_scaling_from_luma*/,
     0 /* grain_scale_shift*/,
@@ -619,6 +649,9 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
     256 /* cr_offset */,
     1 /* overlap_flag */,
     1 /* clip_to_restricted_range */,
+#if CONFIG_FGS_IDENT
+    0 /* mc_identity */,
+#endif  // CONFIG_FGS_IDENT
     8 /* bit_depth */,
     0 /*chroma_scaling_from_luma*/,
     0 /* grain_scale_shift*/,
@@ -686,6 +719,9 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
     256 /* cr_offset */,
     0 /* overlap_flag */,
     0 /* clip_to_restricted_range */,
+#if CONFIG_FGS_IDENT
+    0 /* mc_identity */,
+#endif  // CONFIG_FGS_IDENT
     8 /* bit_depth */,
     0 /*chroma_scaling_from_luma*/,
     0 /* grain_scale_shift*/,
@@ -738,6 +774,9 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
     256 /* cr_offset */,
     1 /* overlap_flag */,
     0 /* clip_to_restricted_range */,
+#if CONFIG_FGS_IDENT
+    0 /* mc_identity */,
+#endif  // CONFIG_FGS_IDENT
     8 /* bit_depth */,
     0 /*chroma_scaling_from_luma*/,
     0 /* grain_scale_shift*/,
@@ -790,6 +829,9 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
     256 /* cr_offset */,
     1 /* overlap_flag */,
     1 /* clip_to_restricted_range */,
+#if CONFIG_FGS_IDENT
+    0 /* mc_identity */,
+#endif  // CONFIG_FGS_IDENT
     8 /* bit_depth */,
     0 /*chroma_scaling_from_luma*/,
     0 /* grain_scale_shift*/,
@@ -827,6 +869,9 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
     256 /* cr_offset */,
     1 /* overlap_flag */,
     0 /* clip_to_restricted_range */,
+#if CONFIG_FGS_IDENT
+    0 /* mc_identity */,
+#endif  // CONFIG_FGS_IDENT
     8 /* bit_depth */,
     1 /*chroma_scaling_from_luma*/,
     0 /* grain_scale_shift*/,
@@ -900,6 +945,9 @@ static aom_film_grain_t film_grain_test_vectors[16] = {
     256 /* cr_offset */,
     1 /* overlap_flag */,
     0 /* clip_to_restricted_range */,
+#if CONFIG_FGS_IDENT
+    0 /* mc_identity */,
+#endif  // CONFIG_FGS_IDENT
     8 /* bit_depth */,
     0 /*chroma_scaling_from_luma*/,
     2 /* grain_scale_shift*/,

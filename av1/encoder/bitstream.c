@@ -5004,7 +5004,9 @@ static void write_film_grain_params(const AV1_COMP *const cpi,
   aom_wb_write_bit(wb, pars->overlap_flag);
 
   aom_wb_write_bit(wb, pars->clip_to_restricted_range);
-
+#if CONFIG_FGS_IDENT
+  if (pars->clip_to_restricted_range) aom_wb_write_bit(wb, pars->mc_identity);
+#endif  // CONFIG_FGS_IDENT
   aom_wb_write_bit(wb, pars->block_size);
 }
 #endif  // CONFIG_F153_FGM_OBU

@@ -91,6 +91,10 @@ typedef struct {
 
   int clip_to_restricted_range;
 
+#if CONFIG_FGS_IDENT
+  int mc_identity;
+#endif  // CONFIG_FGS_IDENT
+
   unsigned int bit_depth;  // video bit depth
 
 #if CONFIG_CWG_F298_REC11
@@ -181,6 +185,10 @@ static INLINE int av1_check_grain_params_equiv(
 
   if (pa->overlap_flag != pb->overlap_flag) return 0;
   if (pa->clip_to_restricted_range != pb->clip_to_restricted_range) return 0;
+#if CONFIG_FGS_IDENT
+  if (pa->mc_identity != pb->mc_identity) return 0;
+#endif  // CONFIG_FGS_IDENT
+
   if (pa->bit_depth != pb->bit_depth) return 0;
 #if CONFIG_CWG_F298_REC11
   if (pa->fgm_scale_from_channel0_flag != pb->fgm_scale_from_channel0_flag)
@@ -213,7 +221,12 @@ int av1_add_film_grain_run(const aom_film_grain_t *grain_params, uint8_t *luma,
                            uint8_t *cb, uint8_t *cr, int height, int width,
                            int luma_stride, int chroma_stride,
                            int use_high_bit_depth, int chroma_subsamp_y,
-                           int chroma_subsamp_x, int mc_identity);
+                           int chroma_subsamp_x
+#if !CONFIG_FGS_IDENT
+                           ,
+                           int mc_identity
+#endif  // !CONFIG_FGS_IDENT
+);
 
 /*!\brief Add film grain
  *

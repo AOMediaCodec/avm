@@ -6373,6 +6373,13 @@ void av1_read_film_grain_params(AV1_COMMON *cm,
 
   pars->clip_to_restricted_range = aom_rb_read_bit(rb);
 
+#if CONFIG_FGS_IDENT
+  if (pars->clip_to_restricted_range)
+    pars->mc_identity = aom_rb_read_bit(rb);
+  else
+    pars->mc_identity = 0;
+#endif  // CONFIG_FGS_IDENT
+
   pars->block_size = aom_rb_read_bit(rb);
 }
 

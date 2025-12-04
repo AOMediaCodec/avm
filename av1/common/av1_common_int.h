@@ -2304,6 +2304,13 @@ component
    to the sample values after adding the fi lm grain
    */
   int clip_to_restricted_range;
+#if CONFIG_FGS_IDENT
+  /*!
+   * indicates that clipping to the restricted should use the mc_identity
+   * values range
+   */
+  int mc_identity;
+#endif  // CONFIG_FGS_IDENT
   /*!
    * the chroma scaling is inferred from the luma scaling
    */

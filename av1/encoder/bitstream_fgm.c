@@ -119,6 +119,9 @@ void set_film_grain_model(const AV1_COMP *const cpi,
   fgm_current->cr_offset = pars->cr_offset;
   fgm_current->overlap_flag = pars->overlap_flag;
   fgm_current->clip_to_restricted_range = pars->clip_to_restricted_range;
+#if CONFIG_FGS_IDENT
+  fgm_current->mc_identity = pars->mc_identity;
+#endif  // CONFIG_FGS_IDENT
 #if CONFIG_CWG_F298_REC11
   fgm_current->fgm_scale_from_channel0_flag =
       pars->fgm_scale_from_channel0_flag;
@@ -201,6 +204,9 @@ int film_grain_model_decision(int fgm_pos, struct film_grain_model *fgm_in_list,
   if (fgm_current->clip_to_restricted_range !=
       fgm_in_list->clip_to_restricted_range)
     return -1;
+#if CONFIG_FGS_IDENT
+  if (fgm_current->mc_identity != fgm_in_list->mc_identity) return -1;
+#endif  // CONFIG_FGS_IDENT
 #if CONFIG_CWG_F298_REC11
   if (fgm_current->fgm_scale_from_channel0_flag !=
       fgm_in_list->fgm_scale_from_channel0_flag)
@@ -450,6 +456,9 @@ int write_fgm_obu(AV1_COMP *cpi, struct film_grain_model *fgm,
     aom_wb_write_bit(&wb, fgm->overlap_flag);
 
     aom_wb_write_bit(&wb, fgm->clip_to_restricted_range);
+#if CONFIG_FGS_IDENT
+    if (fgm->clip_to_restricted_range) aom_wb_write_bit(&wb, fgm->mc_identity);
+#endif  // CONFIG_FGS_IDENT
 
     aom_wb_write_bit(&wb, fgm->block_size);
   }
