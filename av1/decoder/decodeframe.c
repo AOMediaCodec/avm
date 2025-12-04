@@ -8522,9 +8522,27 @@ static AOM_INLINE void reset_ref_frame_map(AV1_COMMON *const cm) {
 // and mark frames as valid for reference.
 static AOM_INLINE void validate_refereces(AV1Decoder *const pbi) {
   AV1_COMMON *const cm = &pbi->common;
+  struct loopfilter *lf = &cm->lf;
+  CdefInfo *const cdef_info = &cm->cdef_info;
+  // No need to check for sub-pu filtering since it is not applied for intra
+  // coded frames
+  bool inloop_filtering_enabled =
+      lf->filter_level[0] != 0 || lf->filter_level[1] != 0 ||
+      cdef_info->cdef_frame_enable != 0 ||
+      cm->cur_frame->ccso_info.ccso_enable[0] != 0 ||
+      cm->cur_frame->ccso_info.ccso_enable[1] != 0 ||
+      cm->cur_frame->ccso_info.ccso_enable[2] != 0 ||
+      cm->rst_info[0].frame_restoration_type != RESTORE_NONE ||
+      cm->rst_info[1].frame_restoration_type != RESTORE_NONE ||
+      cm->rst_info[2].frame_restoration_type != RESTORE_NONE ||
+      cm->gdf_info.gdf_mode != 0;
+
+  int count_non_zero_bit = 0;
+
   int refresh_frame_flags = cm->current_frame.refresh_frame_flags;
   for (int i = 0; i < cm->seq_params.ref_frames; i++) {
     if ((refresh_frame_flags >> i) & 1) {
+      count_non_zero_bit++;
       if ((cm->current_frame.frame_type == KEY_FRAME && cm->show_frame == 1) &&
           i > 0) {
         pbi->valid_for_referencing[i] = 0;
@@ -8532,6 +8550,18 @@ static AOM_INLINE void validate_refereces(AV1Decoder *const pbi) {
         pbi->valid_for_referencing[i] = 1;
       }
     }
+  }
+
+  // It is a requirement of bitstream conformance that when
+  // global intra-BC and in-loop filters are enabled, least two bits of the
+  // associated refresh_frame_flags of that frame shall be set to 1.
+  if (cm->features.allow_global_intrabc && inloop_filtering_enabled &&
+      count_non_zero_bit < 2) {
+    aom_internal_error(
+        &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+        "At least two bits of the associated refresh_frame_flags of the "
+        "frame with allow_global_intrabc = 1 and inloop_filtering_enabled = "
+        "1 shall be set to 1");
   }
 }
 #if !CONFIG_F024_KEYOBU || !CONFIG_F356_SEF_DOH
