@@ -108,13 +108,9 @@ uint32_t av1_read_operating_point_set_obu(struct AV1Decoder *pbi,
   if (ops_pos != -1) {
     ops_params = &pbi->ops_list[ops_pos];
   } else {
-    if (pbi->ops_counter >= MAX_NUM_OPS_ID) {
-      aom_internal_error(
-          &pbi->common.error, AOM_CODEC_ERROR,
-          "Failed to decode in av1_read_operating_point_set_obu()");
-    }
-    ops_params = &pbi->ops_list[pbi->ops_counter];
-    pbi->ops_counter++;
+    const int idx = AOMMIN(pbi->ops_counter, MAX_NUM_OPS_ID - 1);
+    ops_params = &pbi->ops_list[idx];
+    pbi->ops_counter = AOMMIN(pbi->ops_counter + 1, MAX_NUM_OPS_ID);
     ops_params->ops_mlayer_info = &ops_params->ops_mlayer_info_s;
     ops_params->ops_col_info = &ops_params->ops_col_info_s;
     ops_params->ops_decoder_model_info = &ops_params->ops_decoder_model_info_s;

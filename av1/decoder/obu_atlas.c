@@ -343,13 +343,9 @@ uint32_t av1_read_atlas_segment_info_obu(struct AV1Decoder *pbi,
   if (atlas_pos != -1) {
     atlas_params = &pbi->atlas_list[atlas_pos];
   } else {
-    if (pbi->atlas_counter >= MAX_NUM_ATLAS_SEG_ID) {
-      aom_internal_error(
-          &pbi->common.error, AOM_CODEC_ERROR,
-          "Failed to decode in av1_read_atlas_segment_info_obu()");
-    }
-    atlas_params = &pbi->atlas_list[pbi->atlas_counter];
-    pbi->atlas_counter++;
+    const int idx = AOMMIN(pbi->atlas_counter, MAX_NUM_ATLAS_SEG_ID - 1);
+    atlas_params = &pbi->atlas_list[idx];
+    pbi->atlas_counter = AOMMIN(pbi->atlas_counter + 1, MAX_NUM_ATLAS_SEG_ID);
     atlas_params->ats_basic_info = &atlas_params->ats_basic_info_s;
   }
 

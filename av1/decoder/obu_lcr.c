@@ -249,12 +249,9 @@ static int read_lcr_global_info(struct AV1Decoder *pbi,
   if (lcr_pos != -1) {
     lcr_params = &pbi->lcr_list[lcr_pos];
   } else {
-    if (pbi->lcr_counter >= MAX_NUM_LCR) {
-      aom_internal_error(&pbi->common.error, AOM_CODEC_ERROR,
-                         "Failed to decode in read_lcr_global_info()");
-    }
-    lcr_params = &pbi->lcr_list[pbi->lcr_counter];
-    pbi->lcr_counter++;
+    const int idx = AOMMIN(pbi->lcr_counter, MAX_NUM_LCR - 1);
+    lcr_params = &pbi->lcr_list[idx];
+    pbi->lcr_counter = AOMMIN(pbi->lcr_counter + 1, MAX_NUM_LCR);
   }
 
   lcr_params->lcr_global_config_record_id = lcr_global_config_record_id;
@@ -318,16 +315,13 @@ static int read_lcr_local_info(struct AV1Decoder *pbi, int xlayerId,
       lcr_pos = i;
       break;
     }
-  }  // i
+  }
   if (lcr_pos != -1) {
     lcr_params = &pbi->lcr_list[lcr_pos];
   } else {
-    if (pbi->lcr_counter >= MAX_NUM_LCR) {
-      aom_internal_error(&pbi->common.error, AOM_CODEC_ERROR,
-                         "Failed to decode in read_lcr_local_info()");
-    }
-    lcr_params = &pbi->lcr_list[pbi->lcr_counter];
-    pbi->lcr_counter++;
+    const int idx = AOMMIN(pbi->lcr_counter, MAX_NUM_LCR - 1);
+    lcr_params = &pbi->lcr_list[idx];
+    pbi->lcr_counter = AOMMIN(pbi->lcr_counter + 1, MAX_NUM_LCR);
   }
 
   lcr_params->lcr_global_id[xlayerId] = lcr_global_id;
