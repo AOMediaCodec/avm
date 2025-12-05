@@ -1433,13 +1433,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   tool_cfg->ref_frame_mvs_present = extra_cfg->enable_ref_frame_mvs;
   tool_cfg->enable_global_motion = extra_cfg->enable_global_motion;
   tool_cfg->enable_skip_mode = extra_cfg->enable_skip_mode;
-#if !CONFIG_F322_OBUER_ERM
-  tool_cfg->error_resilient_mode =
-      cfg->g_error_resilient | extra_cfg->error_resilient_mode;
-#endif  // !CONFIG_F322_OBUER_ERM
-#if CONFIG_F322_OBUER_ERM_FIX990
   tool_cfg->g_error_resilient_mode = cfg->g_error_resilient;
-#endif
   tool_cfg->frame_hash_metadata = cfg->frame_hash_metadata;
   tool_cfg->frame_hash_per_plane = cfg->frame_hash_per_plane;
   tool_cfg->frame_parallel_decoding_mode =
@@ -2528,15 +2522,6 @@ static aom_codec_err_t ctrl_set_enable_angle_delta(aom_codec_alg_priv_t *ctx,
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
-#if !CONFIG_F322_OBUER_ERM
-static aom_codec_err_t ctrl_set_error_resilient_mode(aom_codec_alg_priv_t *ctx,
-                                                     va_list args) {
-  struct av1_extracfg extra_cfg = ctx->extra_cfg;
-  extra_cfg.error_resilient_mode = CAST(AV1E_SET_ERROR_RESILIENT_MODE, args);
-  return update_extra_cfg(ctx, &extra_cfg);
-}
-#endif  // !CONFIG_F322_OBUER_ERM
-
 static aom_codec_err_t ctrl_set_enable_cdf_averaging(aom_codec_alg_priv_t *ctx,
                                                      va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
@@ -2964,10 +2949,6 @@ static aom_codec_frame_flags_t get_frame_pkt_flags(const AV1_COMP *cpi,
   if (lib_flags & FRAMEFLAGS_KEY) flags |= AOM_FRAME_IS_KEY;
   if (lib_flags & FRAMEFLAGS_INTRAONLY) flags |= AOM_FRAME_IS_INTRAONLY;
   if (lib_flags & FRAMEFLAGS_SWITCH) flags |= AOM_FRAME_IS_SWITCH;
-#if !CONFIG_F322_OBUER_ERM
-  if (lib_flags & FRAMEFLAGS_ERROR_RESILIENT)
-    flags |= AOM_FRAME_IS_ERROR_RESILIENT;
-#endif  // CONFIG_F322_OBUER_ERM
   if (lib_flags & FRAMEFLAGS_HAS_FILM_GRAIN_PARAMS)
     flags |= AOM_FRAME_HAS_FILM_GRAIN_PARAMS;
   if (cpi->droppable) flags |= AOM_FRAME_IS_DROPPABLE;
@@ -4031,10 +4012,6 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.superblock_size, argv,
                               err_string)) {
     extra_cfg.superblock_size = arg_parse_enum_helper(&arg, err_string);
-#if !CONFIG_F322_OBUER_ERM
-  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.error_resilient_mode,
-                              argv, err_string)) {
-#endif  // !CONFIG_F322_OBUER_ERM
     extra_cfg.error_resilient_mode = arg_parse_int_helper(&arg, err_string);
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.sframe_mode, argv,
                               err_string)) {
@@ -4522,9 +4499,6 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_MTU, ctrl_set_mtu },
   { AV1E_SET_TIMING_INFO_TYPE, ctrl_set_timing_info_type },
   { AV1E_SET_FRAME_PARALLEL_DECODING, ctrl_set_frame_parallel_decoding_mode },
-#if !CONFIG_F322_OBUER_ERM
-  { AV1E_SET_ERROR_RESILIENT_MODE, ctrl_set_error_resilient_mode },
-#endif  // !CONFIG_F322_OBUER_ERM
   { AV1E_SET_ENABLE_CDF_AVERAGING, ctrl_set_enable_cdf_averaging },
   { AV1E_SET_S_FRAME_MODE, ctrl_set_s_frame_mode },
   { AV1E_SET_ENABLE_RECT_PARTITIONS, ctrl_set_enable_rect_partitions },

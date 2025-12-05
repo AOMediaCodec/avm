@@ -2812,12 +2812,10 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
       if (cpi->sf.part_sf.allow_partition_search_skip && oxcf->pass == 2) {
         cpi->partition_search_skippable_frame = is_skippable_frame(cpi);
       }
-#if CONFIG_F322_OBUER_ERM_FIX990
       if (oxcf->tool_cfg.g_error_resilient_mode) {
         if (frame_params->frame_type != KEY_FRAME)
           frame_params->frame_type = S_FRAME;
       }
-#endif
       return;
     }
   }
@@ -2997,13 +2995,10 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
   if (cpi->sf.part_sf.allow_partition_search_skip && oxcf->pass == 2) {
     cpi->partition_search_skippable_frame = is_skippable_frame(cpi);
   }
-
-#if CONFIG_F322_OBUER_ERM_FIX990
   if (oxcf->tool_cfg.g_error_resilient_mode) {
     if (frame_params->frame_type != KEY_FRAME)
       frame_params->frame_type = S_FRAME;
   }
-#endif
   setup_target_rate(cpi);
 }
 

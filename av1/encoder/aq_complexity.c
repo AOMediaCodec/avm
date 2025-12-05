@@ -50,12 +50,7 @@ static int get_aq_c_strength(int q_index, aom_bit_depth_t bit_depth) {
 static bool is_frame_aq_enabled(const AV1_COMP *const cpi) {
   const AV1_COMMON *const cm = &cpi->common;
   return frame_is_intra_only(cm) || cm->current_frame.pyramid_level <= 1 ||
-#if CONFIG_F322_OBUER_ERM
-         frame_is_sframe(cm)
-#else
-         cm->features.error_resilient_mode
-#endif
-      ;
+         frame_is_sframe(cm);
 }
 
 // Segmentation only makes sense if the target bits per SB is above a threshold.

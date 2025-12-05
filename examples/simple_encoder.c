@@ -110,11 +110,7 @@ static const char *exec_name;
 void usage_exit(void) {
   fprintf(stderr,
           "Usage: %s <codec> <width> <height> <infile> <outfile> "
-#if CONFIG_F322_OBUER_ERM
           "<keyframe-interval> <frames to encode>\n"
-#else
-          "<keyframe-interval> <error-resilient> <frames to encode>\n"
-#endif  // CONFIG_F322_OBUER_ERM
           "See comments in simple_encoder.c for more information.\n",
           exec_name);
   exit(EXIT_FAILURE);

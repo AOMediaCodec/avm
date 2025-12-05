@@ -463,13 +463,7 @@ int set_frame_filter_dictionary(int plane, const AV1_COMMON *cm,
       max_num_base_filters(num_classes, nopcw) - min_pc_wiener;
   assert(allowed_num_base_filters >= 0);
   assert(allowed_num_base_filters < max_predictors);
-  const int num_ref_frames = (frame_is_intra_only(cm) ||
-#if CONFIG_F322_OBUER_ERM
-                              frame_is_sframe(cm)
-#else
-                              cm->features.error_resilient_mode
-#endif
-                                  )
+  const int num_ref_frames = (frame_is_intra_only(cm) || frame_is_sframe(cm))
                                  ? 0
                                  : cm->ref_frames_info.num_total_refs;
   for (int ref_idx = 0; ref_idx < num_ref_frames; ref_idx++) {

@@ -735,12 +735,7 @@ void av1_setup_frame(AV1_COMP *cpi) {
   // other inter-frames the encoder currently uses only two contexts;
   // context 1 for ALTREF frames and context 0 for the others.
 
-  if (frame_is_intra_only(cm) ||
-#if CONFIG_F322_OBUER_ERM
-      frame_is_sframe(cm) ||
-#else
-      cm->features.error_resilient_mode ||
-#endif  // CONFIG_F322_OBUER_ERM
+  if (frame_is_intra_only(cm) || frame_is_sframe(cm) ||
       cpi->ext_flags.use_primary_ref_none) {
     av1_setup_past_independence(cm);
   }

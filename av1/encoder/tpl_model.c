@@ -1085,11 +1085,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
         (gf_group->subgop_cfg != NULL && frame_params.show_frame);
     if (cm->seq_params.enable_explicit_ref_frame_map
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-#if CONFIG_F322_OBUER_ERM
         || frame_is_sframe(cm)
-#else
-        || cm->features.error_resilient_mode || cpi->switch_frame_mode == 1
-#endif  // CONFIG_F322_OBUER_ERM
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     )
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
@@ -1150,11 +1146,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     if (cm->seq_params.enable_explicit_ref_frame_map
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-#if CONFIG_F322_OBUER_ERM
-        || frame_is_sframe(cm)
-#else
-        || cm->features.error_resilient_mode || cpi->switch_frame_mode == 1
-#endif  // CONFIG_F322_OBUER_ERM
+        || frame_is_sframe(cm) || cpi->switch_frame_mode == 1
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     )
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
@@ -1222,11 +1214,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
         (gf_group->subgop_cfg != NULL && frame_params.show_frame);
     if (cm->seq_params.enable_explicit_ref_frame_map
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-#if CONFIG_F322_OBUER_ERM
-        || frame_is_sframe(cm)
-#else
-        || cm->features.error_resilient_mode || cpi->switch_frame_mode == 1
-#endif  // CONFIG_F322_OBUER_ERM
+        || frame_is_sframe(cm) || cpi->switch_frame_mode == 1
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     )
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
@@ -1292,11 +1280,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   if (cm->seq_params.enable_explicit_ref_frame_map
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-#if CONFIG_F322_OBUER_ERM
-      || frame_is_sframe(cm)
-#else
-      || cm->features.error_resilient_mode || cpi->switch_frame_mode == 1
-#endif  // CONFIG_F322_OBUER_ERM
+      || frame_is_sframe(cm) || cpi->switch_frame_mode == 1
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   )
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME

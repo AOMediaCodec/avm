@@ -1285,14 +1285,7 @@ typedef struct {
    * transform types.
    */
   uint8_t reduced_tx_set_used;
-#if !CONFIG_F322_OBUER_ERM
-  /*!
-   * If true, error resilient mode is enabled.
-   * Note: Error resilient mode allows the syntax of a frame to be parsed
-   * independently of previously decoded frames.
-   */
-  bool error_resilient_mode;
-#endif
+
   TX_MODE tx_mode;            /*!< Transform mode at frame level. */
   InterpFilter interp_filter; /*!< Interpolation filter at frame level. */
   /*!
@@ -3372,12 +3365,7 @@ static INLINE void avg_primary_secondary_references(const AV1_COMMON *const cm,
       (!cm->bridge_frame_info.is_bridge_frame) &&
 #endif  // CONFIG_CWG_F317
       (cm->seq_params.enable_avg_cdf && !cm->seq_params.avg_cdf_type) &&
-#if CONFIG_F322_OBUER_ERM
-      !frame_is_sframe(cm) &&
-#else
-      !(cm->features.error_resilient_mode || frame_is_sframe(cm)) &&
-#endif
-      (ref_frame_used != PRIMARY_REF_NONE)) {
+      !frame_is_sframe(cm) && (ref_frame_used != PRIMARY_REF_NONE)) {
     av1_avg_cdf_symbols(cm->fc, &cm->ref_frame_map[map_idx]->frame_context,
                         AVG_CDF_WEIGHT_PRIMARY, AVG_CDF_WEIGHT_NON_PRIMARY);
   }
@@ -3438,17 +3426,12 @@ static INLINE RefCntBuffer *get_primary_ref_frame_buf(
 
 // Returns 1 if this frame might allow mvs from some reference frame.
 static INLINE int frame_might_allow_ref_frame_mvs(const AV1_COMMON *cm) {
-  return
-#if CONFIG_F322_OBUER_ERM
-      !frame_is_sframe(cm) &&
-#else
-      !cm->features.error_resilient_mode &&
-#endif
-      cm->seq_params.order_hint_info.enable_ref_frame_mvs &&
+  return !frame_is_sframe(cm) &&
+         cm->seq_params.order_hint_info.enable_ref_frame_mvs &&
 #if CONFIG_CWG_F317
-      !cm->bridge_frame_info.is_bridge_frame &&
+         !cm->bridge_frame_info.is_bridge_frame &&
 #endif  // CONFIG_CWG_F317
-      !frame_is_intra_only(cm);
+         !frame_is_intra_only(cm);
 }
 
 static INLINE void ensure_mv_buffer(RefCntBuffer *buf, AV1_COMMON *cm) {

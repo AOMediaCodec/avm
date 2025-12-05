@@ -2626,15 +2626,10 @@ static AOM_INLINE void decode_restoration_mode(AV1_COMMON *cm,
           rsi->rst_ref_pic_idx = 0;
           rsi->temporal_pred_flag = 0;
           if (rsi->frame_filters_on) {
-            const int num_ref_frames = (frame_is_intra_only(cm)
-#if CONFIG_F322_OBUER_ERM
-                                        || frame_is_sframe(cm)
-#else
-                                        || cm->features.error_resilient_mode
-#endif
-                                            )
-                                           ? 0
-                                           : cm->ref_frames_info.num_total_refs;
+            const int num_ref_frames =
+                (frame_is_intra_only(cm) || frame_is_sframe(cm))
+                    ? 0
+                    : cm->ref_frames_info.num_total_refs;
 
             if (num_ref_frames > 0)
               rsi->temporal_pred_flag = aom_rb_read_bit(rb);
@@ -3365,13 +3360,7 @@ static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
   }
   const int ccso_offset[8] = { 0, 1, -1, 3, -3, 7, -7, -10 };
   const int ccso_scale[4] = { 1, 2, 3, 4 };
-  const int num_ref_frames = (frame_is_intra_only(cm) ||
-#if CONFIG_F322_OBUER_ERM
-                              frame_is_sframe(cm)
-#else
-                              cm->features.error_resilient_mode
-#endif  // CONFIG_F322_OBUER_ERM
-                                  )
+  const int num_ref_frames = (frame_is_intra_only(cm) || frame_is_sframe(cm))
                                  ? 0
                                  : cm->ref_frames_info.num_total_refs;
 #if CONFIG_CWG_F317
@@ -3407,13 +3396,7 @@ static AOM_INLINE void setup_ccso(AV1_COMMON *cm,
       cm->ccso_info.ccso_enable[plane] = aom_rb_read_bit(rb);
       if (cm->ccso_info.ccso_enable[plane]) {
         cm->cur_frame->ccso_info.ccso_enable[plane] = 1;
-        if (!frame_is_intra_only(cm) &&
-#if CONFIG_F322_OBUER_ERM
-            !frame_is_sframe(cm)
-#else
-            !cm->features.error_resilient_mode
-#endif
-        ) {
+        if (!frame_is_intra_only(cm) && !frame_is_sframe(cm)) {
           cm->ccso_info.reuse_ccso[plane] = aom_rb_read_bit(rb);
           cm->ccso_info.sb_reuse_ccso[plane] = aom_rb_read_bit(rb);
         } else {
@@ -8467,41 +8450,6 @@ static INLINE int get_disp_order_hint(AV1_COMMON *const cm)
   return cur_disp_order_hint;
 }
 
-#if !CONFIG_F322_OBUER_ERM
-static INLINE int get_ref_frame_disp_order_hint(AV1_COMMON *const cm,
-                                                const RefCntBuffer *const buf) {
-  // Find the reference frame with the largest order_hint
-  int max_disp_order_hint = 0;
-  for (int map_idx = 0; map_idx < INTER_REFS_PER_FRAME; map_idx++) {
-    if (!is_tlayer_scalable_and_dependent(&cm->seq_params, cm->tlayer_id,
-                                          buf->temporal_layer_id) ||
-        !is_mlayer_scalable_and_dependent(
-            &cm->seq_params, cm->current_frame.mlayer_id, buf->mlayer_id))
-      continue;
-    if ((int)buf->ref_display_order_hint[map_idx] > max_disp_order_hint)
-      max_disp_order_hint = buf->ref_display_order_hint[map_idx];
-  }
-
-  const int display_order_hint_factor =
-      1 << (cm->seq_params.order_hint_info.order_hint_bits_minus_1 + 1);
-  int disp_order_hint = buf->order_hint;
-
-  while (abs(max_disp_order_hint - disp_order_hint) >=
-         (display_order_hint_factor >> 1)) {
-    if (disp_order_hint > max_disp_order_hint) return disp_order_hint;
-
-    disp_order_hint += display_order_hint_factor;
-  }
-  // We restrict the derived display order hint to a range, to avoid 32 bit
-  // integer overflow and some corner cases when display order hint operations
-  // are performed in DISPLAY_ORDER_HINT_BITS bit range
-  if (disp_order_hint >= (1 << (DISPLAY_ORDER_HINT_BITS - 1)))
-    aom_internal_error(&cm->error, AOM_CODEC_ERROR,
-                       "Derived display order hint is invalid");
-  return disp_order_hint;
-}
-#endif  // CONFIG_F322_OBUER_ERM
-
 static void read_frame_max_bvp_drl_bits(AV1_COMMON *const cm,
                                         struct aom_read_bit_buffer *rb) {
   FeatureFlags *const features = &cm->features;
@@ -9097,10 +9045,7 @@ static int read_uncompressed_header(AV1Decoder *pbi, OBU_TYPE obu_type,
   MACROBLOCKD *const xd = &pbi->dcb.xd;
 #if CONFIG_F024_KEYOBU
   BufferPool *const pool = cm->buffer_pool;
-#elif !CONFIG_F322_OBUER_ERM
-  BufferPool *const pool = cm->buffer_pool;
-  RefCntBuffer *const frame_bufs = pool->frame_bufs;
-#endif  // CONFIG_F322_OBUER_ERM
+#endif  // CONFIG_F024_KEYOBU
   aom_s_frame_info *sframe_info = &pbi->sframe_info;
   sframe_info->is_s_frame = 0;
   sframe_info->is_s_frame_at_altref = 0;
@@ -9236,10 +9181,6 @@ static int read_uncompressed_header(AV1Decoder *pbi, OBU_TYPE obu_type,
       pbi->decoding_first_frame = 1;
       reset_frame_buffers(cm);
     }
-
-#if !CONFIG_F322_OBUER_ERM
-    features->error_resilient_mode = 1;
-#endif  // !CONFIG_F322_OBUER_ERM
 
     cm->cur_frame->frame_output_done = 0;
 
@@ -9429,31 +9370,6 @@ static int read_uncompressed_header(AV1Decoder *pbi, OBU_TYPE obu_type,
 #endif  // !CONFIG_F024_KEYOBU
     cm->cur_frame->showable_frame = cm->showable_frame;
     cm->cur_frame->frame_output_done = 0;
-
-#if !CONFIG_F322_OBUER_ERM
-#if CONFIG_CWG_F317
-    if (cm->bridge_frame_info.is_bridge_frame) {
-      features->error_resilient_mode = 0;
-    } else {
-#endif  // CONFIG_CWG_F317
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-      if ((frame_is_sframe(cm) && pbi->obu_type != OBU_RAS_FRAME) ||
-          (current_frame->frame_type == KEY_FRAME && cm->show_frame)) {
-        features->error_resilient_mode = 1;
-      } else {
-        features->error_resilient_mode = aom_rb_read_bit(rb);
-      }
-#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-    features->error_resilient_mode =
-        frame_is_sframe(cm) ||
-                (current_frame->frame_type == KEY_FRAME && cm->show_frame)
-            ? 1
-            : aom_rb_read_bit(rb);
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-#if CONFIG_CWG_F317
-    }
-#endif  // CONFIG_CWG_F317
-#endif  // !CONFIG_F322_OBUER_ERM
   }
   av1_set_frame_sb_size(cm, cm->seq_params.sb_size);
 
@@ -9535,13 +9451,7 @@ static int read_uncompressed_header(AV1Decoder *pbi, OBU_TYPE obu_type,
     }
 #endif  // CONFIG_CWG_F317
 
-    if (
-#if CONFIG_F322_OBUER_ERM
-        !frame_is_sframe(cm)
-#else
-        !features->error_resilient_mode
-#endif
-        && !frame_is_intra_only(cm)) {
+    if (!frame_is_sframe(cm) && !frame_is_intra_only(cm)) {
 #if CONFIG_CWG_F317
       if (!cm->bridge_frame_info.is_bridge_frame) {
 #endif  // CONFIG_CWG_F317
@@ -9656,13 +9566,7 @@ static int read_uncompressed_header(AV1Decoder *pbi, OBU_TYPE obu_type,
     }
   } else {
     const int short_refresh_frame_flags =
-        cm->seq_params.enable_short_refresh_frame_flags &&
-#if CONFIG_F322_OBUER_ERM
-        !frame_is_sframe(cm)
-#else
-        !cm->features.error_resilient_mode
-#endif
-        ;
+        cm->seq_params.enable_short_refresh_frame_flags && !frame_is_sframe(cm);
     const int refresh_frame_flags_bits = short_refresh_frame_flags
                                              ? seq_params->ref_frames_log2
                                              : seq_params->ref_frames;
@@ -9755,102 +9659,11 @@ static int read_uncompressed_header(AV1Decoder *pbi, OBU_TYPE obu_type,
     }
   }
 
-#if CONFIG_F322_OBUER_ERM
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   if (pbi->obu_type == OBU_RAS_FRAME) {
     mark_reference_frames_with_long_term_ids(pbi);
   }
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-#else
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-  if (pbi->obu_type == OBU_RAS_FRAME) {
-    mark_reference_frames_with_long_term_ids(pbi);
-  } else if (!frame_is_intra_only(cm) ||
-             current_frame->refresh_frame_flags !=
-                 ((1 << seq_params->ref_frames) - 1))
-#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-  if (!frame_is_intra_only(cm) ||
-      current_frame->refresh_frame_flags != ((1 << seq_params->ref_frames) - 1))
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-  {
-    // Read all ref frame order hints if error_resilient_mode == 1
-    if (features->error_resilient_mode) {
-      for (int ref_idx = 0; ref_idx < seq_params->ref_frames; ref_idx++) {
-        // Read order hint from bit stream
-        unsigned int order_hint = aom_rb_read_literal(
-            rb, seq_params->order_hint_info.order_hint_bits_minus_1 + 1);
-        // Get buffer
-        RefCntBuffer *buf = cm->ref_frame_map[ref_idx];
-        if ((pbi->valid_for_referencing[ref_idx] == 0) ||
-            (buf != NULL && order_hint != buf->order_hint)) {
-          if (buf != NULL) {
-            lock_buffer_pool(pool);
-            decrease_ref_count(buf, pool);
-            unlock_buffer_pool(pool);
-            cm->ref_frame_map[ref_idx] = NULL;
-          }
-          // If no corresponding buffer exists, allocate a new buffer with all
-          // pixels set to neutral grey.
-          check_ref_count_status_dec(pbi);
-          int buf_idx = get_free_fb(cm);
-          if (buf_idx == INVALID_IDX) {
-            aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
-                               "Unable to find free frame buffer");
-          }
-          buf = &frame_bufs[buf_idx];
-          lock_buffer_pool(pool);
-          if (aom_realloc_frame_buffer(
-                  &buf->buf, seq_params->max_frame_width,
-                  seq_params->max_frame_height, seq_params->subsampling_x,
-                  seq_params->subsampling_y, AOM_BORDER_IN_PIXELS,
-                  features->byte_alignment, &buf->raw_frame_buffer,
-                  pool->get_fb_cb, pool->cb_priv, false)) {
-            decrease_ref_count(buf, pool);
-            unlock_buffer_pool(pool);
-            aom_internal_error(&cm->error, AOM_CODEC_MEM_ERROR,
-                               "Failed to allocate frame buffer");
-          }
-          unlock_buffer_pool(pool);
-          // According to the specification, valid bitstreams are required to
-          // never use missing reference frames so the filling process for
-          // missing frames is not normatively defined and RefValid for
-          // missing frames is set to 0.
-
-          // To make libaom more robust when the bitstream has been corrupted
-          // by the loss of some frames of data, this code adds a neutral grey
-          // buffer in place of missing frames, i.e.
-          //
-          set_planes_to_neutral_grey(seq_params, &buf->buf, 0);
-          //
-          // and allows the frames to be used for referencing, i.e.
-          //
-          pbi->valid_for_referencing[ref_idx] = 1;
-          //
-          // Please note such behavior is not normative and other decoders may
-          // use a different approach.
-          cm->ref_frame_map[ref_idx] = buf;
-          buf->order_hint = order_hint;
-          buf->display_order_hint = get_ref_frame_disp_order_hint(cm, buf);
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-          buf->long_term_id = -1;
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-        }
-      }
-    }
-  }
-  if (features->error_resilient_mode) {
-    // Read all ref frame base_qindex
-    for (int ref_idx = 0; ref_idx < seq_params->ref_frames; ref_idx++) {
-      const int base_qindex = aom_rb_read_literal(
-          rb, cm->seq_params.bit_depth == AOM_BITS_8 ? QINDEX_BITS_UNEXT
-                                                     : QINDEX_BITS);
-      if (pbi->valid_for_referencing[ref_idx]) {
-        RefCntBuffer *buf = cm->ref_frame_map[ref_idx];
-        if (buf != NULL) buf->base_qindex = base_qindex;
-      }
-    }
-  }
-#endif  // CONFIG_F322_OBUER_ERM
 
   features->allow_lf_sub_pu = 0;
   if (current_frame->frame_type == KEY_FRAME) {
@@ -10008,13 +9821,7 @@ static int read_uncompressed_header(AV1Decoder *pbi, OBU_TYPE obu_type,
         }
       }
 #if CONFIG_CWG_F317
-      if (
-#if CONFIG_F322_OBUER_ERM
-          !frame_is_sframe(cm)
-#else
-          !features->error_resilient_mode
-#endif  // CONFIG_F322_OBUER_ERM
-          && frame_size_override_flag &&
+      if (!frame_is_sframe(cm) && frame_size_override_flag &&
           !cm->bridge_frame_info.is_bridge_frame) {
 #else
       if (!features->error_resilient_mode && frame_size_override_flag) {

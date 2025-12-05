@@ -3364,23 +3364,13 @@ static void set_primary_ref_frame_for_error_resilient(AV1_COMP *cpi) {
                          cm->current_frame.frame_type == INTRA_ONLY_FRAME;
   if (intra_only) {
     cpi->error_resilient_frame_seen = 0;
-  }
-#if CONFIG_F322_OBUER_ERM
-  else if (cm->current_frame.frame_type == S_FRAME)
-#else
-  else if (cm->features.error_resilient_mode)
-#endif
-  {
+  } else if (cm->current_frame.frame_type == S_FRAME) {
     cpi->error_resilient_frame_seen = 1;
   }
 
   // The error resilient frame always use PRIMARY_REF_NONE. This is already
   // handled.
-#if CONFIG_F322_OBUER_ERM
   if (cm->current_frame.frame_type == S_FRAME) return;
-#else
-  if (cm->features.error_resilient_mode) return;
-#endif
   if (cm->features.primary_ref_frame == PRIMARY_REF_NONE) return;
 
   if (cpi->error_resilient_frame_seen) {
@@ -4435,12 +4425,7 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
             (!cm->bridge_frame_info.is_bridge_frame) &&
 #endif  // CONFIG_CWG_F317
             (cm->seq_params.enable_avg_cdf && !cm->seq_params.avg_cdf_type) &&
-#if CONFIG_F322_OBUER_ERM
-            !frame_is_sframe(cm) &&
-#else
-          !(cm->features.error_resilient_mode || frame_is_sframe(cm)) &&
-#endif  // CONFIG_F322_OBUER_ERM
-            (ref_frame_used != PRIMARY_REF_NONE)) {
+            !frame_is_sframe(cm) && (ref_frame_used != PRIMARY_REF_NONE)) {
           av1_avg_cdf_symbols(cm->fc, &cm->bru.update_ref_fc,
                               AVG_CDF_WEIGHT_PRIMARY,
                               AVG_CDF_WEIGHT_NON_PRIMARY);
@@ -5044,9 +5029,6 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
   cpi->unscaled_last_source = frame_input->last_source;
 
   current_frame->refresh_frame_flags = frame_params->refresh_frame_flags;
-#if !CONFIG_F322_OBUER_ERM
-  cm->features.error_resilient_mode = frame_params->error_resilient_mode;
-#endif  // !CONFIG_F322_OBUER_ERM
   cm->current_frame.frame_type = frame_params->frame_type;
   cm->show_frame = frame_params->show_frame;
   cm->ref_frame_flags = frame_params->ref_frame_flags;
@@ -5147,11 +5129,7 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   if (cm->seq_params.enable_explicit_ref_frame_map
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-#if CONFIG_F322_OBUER_ERM
       || frame_is_sframe(cm)
-#else
-      || cm->features.error_resilient_mode || cpi->switch_frame_mode == 1
-#endif  // CONFIG_F322_OBUER_ERM
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   ) {
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
@@ -5724,10 +5702,6 @@ void av1_apply_encoding_flags(AV1_COMP *cpi, aom_enc_frame_flags_t flags) {
 
   ext_flags->use_ref_frame_mvs = cpi->oxcf.tool_cfg.enable_ref_frame_mvs &
                                  ((flags & AOM_EFLAG_NO_REF_FRAME_MVS) == 0);
-#if !CONFIG_F322_OBUER_ERM
-  ext_flags->use_error_resilient = cpi->oxcf.tool_cfg.error_resilient_mode |
-                                   ((flags & AOM_EFLAG_ERROR_RESILIENT) != 0);
-#endif  // !CONFIG_F322_OBUER_ERM
   ext_flags->use_s_frame =
       cpi->oxcf.kf_cfg.enable_sframe | ((flags & AOM_EFLAG_SET_S_FRAME) != 0);
   ext_flags->use_primary_ref_none =

@@ -102,9 +102,6 @@ enum {
   FRAMEFLAGS_KEY = 1 << 0,
   FRAMEFLAGS_INTRAONLY = 1 << 4,
   FRAMEFLAGS_SWITCH = 1 << 5,
-#if !CONFIG_F322_OBUER_ERM
-  FRAMEFLAGS_ERROR_RESILIENT = 1 << 6,
-#endif  // !CONFIG_F322_OBUER_ERM
   FRAMEFLAGS_HAS_FILM_GRAIN_PARAMS = 1 << 7,
 } UENUM1BYTE(FRAMETYPE_FLAGS);
 
@@ -886,12 +883,7 @@ typedef struct {
   // When enabled, video mode should be used even for single frame input.
   bool force_video_mode;
   // Indicates if the error resiliency features should be enabled.
-#if !CONFIG_F322_OBUER_ERM
-  bool error_resilient_mode;
-#endif  // !CONFIG_F322_OBUER_ERM
-#if CONFIG_F322_OBUER_ERM_FIX990
   bool g_error_resilient_mode;
-#endif
   // Indicates if frame parallel decoding feature should be enabled.
   bool frame_parallel_decoding_mode;
   // Indicates if the input should be encoded as monochrome.
@@ -2206,12 +2198,6 @@ typedef struct {
   bool use_ref_frame_mvs;
 
   /*!
-   * Indicates whether the current frame is to be coded as error resilient.
-   */
-#if !CONFIG_F322_OBUER_ERM
-  bool use_error_resilient;
-#endif  // !CONFIG_F322_OBUER_ERM
-  /*!
    * Indicates whether the current frame is to be coded as s-frame.
    */
   bool use_s_frame;
@@ -3036,12 +3022,6 @@ typedef struct EncodeFrameInput {
  * av1_encode_strategy() and passed down to av1_encode().
  */
 typedef struct EncodeFrameParams {
-#if !CONFIG_F322_OBUER_ERM
-  /*!
-   * Is error resilient mode enabled
-   */
-  int error_resilient_mode;
-#endif  // !CONFIG_F322_OBUER_ERM
   /*!
    * Frame type (eg KF vs inter frame etc)
    */
@@ -3382,13 +3362,7 @@ static INLINE int encode_show_existing_frame(const AV1_COMMON *cm) {
   if (!cm->show_existing_frame) return 0;
   // show_existing_frame can be equal to 1
   // only for a forward key frame
-  return (
-#if CONFIG_F322_OBUER_ERM
-      !frame_is_sframe(cm) &&
-#else
-      !cm->features.error_resilient_mode &&
-#endif  // CONFIG_F322_OBUER_ERM
-      cm->current_frame.frame_type == KEY_FRAME);
+  return (!frame_is_sframe(cm) && cm->current_frame.frame_type == KEY_FRAME);
 }
 #endif
 
