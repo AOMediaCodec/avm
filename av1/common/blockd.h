@@ -72,11 +72,9 @@ enum {
 } UENUM1BYTE(CHROMA_FORMAT);
 #endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
-#if CONFIG_CWG_F248_RENDER_SIZE
 #if CONFIG_MULTILAYER_HLS
 enum { LCR_GLOBAL = 0, LCR_LOCAL = 1, NUM_LCR_TYPES = 2 } UENUM1BYTE(LCR_TYPES);
 #endif  // CONFIG_MULTILAYER_HLS
-#endif  // CONFIG_CWG_F248_RENDER_SIZE
 
 // Check if the block is 4xn or nx4 block
 static INLINE int is_thin_4xn_nx4_block(BLOCK_SIZE bsize) {

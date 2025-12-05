@@ -4690,17 +4690,6 @@ typedef struct TileBufferEnc {
   size_t size;
 } TileBufferEnc;
 
-#if !CONFIG_CWG_F248_RENDER_SIZE
-static AOM_INLINE void write_render_size(const AV1_COMMON *cm,
-                                         struct aom_write_bit_buffer *wb) {
-  const int scaling_active = av1_resize_scaled(cm);
-  aom_wb_write_bit(wb, scaling_active);
-  if (scaling_active) {
-    aom_wb_write_literal(wb, cm->render_width - 1, 16);
-    aom_wb_write_literal(wb, cm->render_height - 1, 16);
-  }
-}
-#endif  // !CONFIG_CWG_F248_RENDER_SIZE
 static AOM_INLINE void write_frame_size(const AV1_COMMON *cm,
                                         int frame_size_override,
                                         struct aom_write_bit_buffer *wb) {
@@ -4728,9 +4717,6 @@ static AOM_INLINE void write_frame_size(const AV1_COMMON *cm,
     aom_wb_write_literal(wb, coded_width, num_bits_width);
     aom_wb_write_literal(wb, coded_height, num_bits_height);
   }
-#if !CONFIG_CWG_F248_RENDER_SIZE
-  write_render_size(cm, wb);
-#endif  // !CONFIG_CWG_F248_RENDER_SIZE
 }
 
 static AOM_INLINE void write_frame_size_with_refs(
@@ -6477,23 +6463,6 @@ static AOM_INLINE void write_multi_frame_header(
   }
 #endif  //  CONFIG_CWG_E242_PARSING_INDEP
 
-#if !CONFIG_CWG_F248_RENDER_SIZE
-#if CONFIG_CWG_E242_PARSING_INDEP
-  aom_wb_write_bit(wb, mfh_param->mfh_render_size_present_flag);
-  if (mfh_param->mfh_render_size_present_flag) {
-#else
-  bool mfh_render_size_update_flag =
-      mfh_frame_size_update_flag &&
-      (cm->width != cm->render_width || cm->height != cm->render_height);
-  aom_wb_write_bit(wb, mfh_render_size_update_flag);
-
-  if (mfh_render_size_update_flag) {
-#endif  // CONFIG_CWG_E242_PARSING_INDEP
-    aom_wb_write_literal(wb, cm->render_width - 1, 16);
-    aom_wb_write_literal(wb, cm->render_height - 1, 16);
-  }
-#endif  // !CONFIG_CWG_F248_RENDER_SIZE
-
   aom_wb_write_bit(wb, mfh_param->mfh_loop_filter_update_flag);
   if (mfh_param->mfh_loop_filter_update_flag) {
     for (int i = 0; i < 4; i++) {
@@ -7065,45 +7034,6 @@ static AOM_INLINE void write_uncompressed_header_obu
 #endif  // CONFIG_CWG_F317
     }  // if (!features->error_resilient_mode && !frame_is_intra_only(cm))
   }  // !if (seq_params->single_picture_hdr_flag)
-
-#if !CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
-  if (seq_params->decoder_model_info_present_flag) {
-#if CONFIG_CWG_F317
-    if (cm->bridge_frame_info.is_bridge_frame) {
-      if (cm->buffer_removal_time_present != 0) {
-        aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-                           "Bridge frame buffer_removal_time_present is not 0");
-      }
-    } else {
-#endif  // CONFIG_CWG_F317
-      aom_wb_write_bit(wb, cm->buffer_removal_time_present);
-      if (cm->buffer_removal_time_present) {
-        for (int op_num = 0;
-             op_num < seq_params->operating_points_cnt_minus_1 + 1; op_num++) {
-          if (seq_params->op_params[op_num].decoder_model_param_present_flag) {
-            if (((seq_params->operating_point_idc[op_num] >> cm->tlayer_id) &
-                     0x1 &&
-                 (seq_params->operating_point_idc[op_num] >>
-                  (cm->mlayer_id + MAX_NUM_TLAYERS)) &
-                     0x1) ||
-                seq_params->operating_point_idc[op_num] == 0) {
-              aom_wb_write_unsigned_literal(
-                  wb, cm->buffer_removal_times[op_num],
-                  seq_params->decoder_model_info.buffer_removal_time_length);
-              cm->buffer_removal_times[op_num]++;
-              if (cm->buffer_removal_times[op_num] == 0) {
-                aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-                                   "buffer_removal_time overflowed");
-              }
-            }
-          }
-        }
-      }
-#if CONFIG_CWG_F317
-    }
-#endif  // CONFIG_CWG_F317
-  }
-#endif  // !CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
 
 #if CONFIG_F024_KEYOBU
   if (obu_type == OBU_OLK) {
@@ -9339,16 +9269,6 @@ static void set_multi_frame_header_with_keyframe(AV1_COMP *cpi,
     mfh_params->mfh_frame_height = cm->height;
   }
 
-#if !CONFIG_CWG_F248_RENDER_SIZE
-  // Set render size params for MFH
-  mfh_params->mfh_render_size_present_flag =
-      (cm->width != cm->render_width || cm->height != cm->render_height);
-  if (mfh_params->mfh_render_size_present_flag) {
-    mfh_params->mfh_render_width = cm->width;
-    mfh_params->mfh_render_height = cm->height;
-  }
-#endif  // !CONFIG_CWG_F248_RENDER_SIZE
-
 #if CONFIG_MFH_SIGNAL_TILE_INFO
   mfh_params->mfh_sb_size = seq_params->sb_size;
   assert(seq_params->sb_size == BLOCK_256X256 ||
@@ -9461,7 +9381,6 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
   level_params->frame_header_count = 0;
 
   // The TD is now written outside the frame encode loop
-#if CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
   if (av1_is_shown_keyframe(cpi, cm->current_frame.frame_type) &&
       cpi->write_brt_obu) {
     av1_set_buffer_removal_timing_params(cpi);
@@ -9479,7 +9398,6 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 
     data += obu_header_size + obu_payload_size + length_field_size;
   }
-#endif  // CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
 
 #if CONFIG_MULTILAYER_HLS
   if (av1_is_shown_keyframe(cpi, cm->current_frame.frame_type)) {

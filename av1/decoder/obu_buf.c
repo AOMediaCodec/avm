@@ -26,7 +26,6 @@
 #include "av1/decoder/decodeframe.h"
 #include "av1/decoder/obu.h"
 
-#if CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
 uint32_t av1_read_buffer_removal_timing_obu(struct AV1Decoder *pbi,
                                             struct aom_read_bit_buffer *rb,
                                             int xlayer_id) {
@@ -94,4 +93,3 @@ uint32_t av1_read_buffer_removal_timing_obu(struct AV1Decoder *pbi,
   }
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }
-#endif  // CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING

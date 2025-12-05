@@ -640,7 +640,6 @@ typedef struct TileInfoSyntax {
 } TileInfoSyntax;
 #endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 
-#if CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
 // This structure contains Buffer removal time parameters being parsed
 typedef struct {
   int obu_xlayer_id;
@@ -651,7 +650,6 @@ typedef struct {
                                       [MAX_OPS_COUNT];
   int br_buffer_removal_time[MAX_NUM_XLAYERS][MAX_NUM_OPS_ID][MAX_OPS_COUNT];
 } BufferRemovalTimingInfo;
-#endif  // CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
 
 #if CONFIG_MULTILAYER_HLS
 typedef struct CroppingWindow {
@@ -730,10 +728,8 @@ typedef struct LayerConfigurationRecord {
   int lcr_xlayer_atlas_segment_id[MAX_NUM_XLAYERS];
   int lcr_xlayer_priority_order[MAX_NUM_XLAYERS];
   int lcr_xlayer_rendering_method[MAX_NUM_XLAYERS];
-#if CONFIG_CWG_F248_RENDER_SIZE
   bool is_local_lcr;
   int xlayer_id;
-#endif  // CONFIG_CWG_F248_RENDER_SIZE
   struct CroppingWindow lcr_crop;
   struct CroppingWindow crop_win_list[MAX_NUM_XLAYERS][MAX_NUM_XLAYERS];
   struct RepresentationInfo rep_params;
@@ -1455,16 +1451,7 @@ typedef struct MultiFrameHeader {
    */
   int mfh_render_size_present_flag;
 #endif  // CONFIG_CWG_E242_PARSING_INDEP
-#if !CONFIG_CWG_F248_RENDER_SIZE
-  /*!
-   * Render Width of frames that reference this multi-frame header
-   */
-  int mfh_render_width;
-  /*!
-   * Render Height of frames that reference this multi-frame header
-   */
-  int mfh_render_height;
-#endif  // !CONFIG_CWG_F248_RENDER_SIZE
+
   /*!
    * Presence of loop filter levels in this multi-frame header
    */
@@ -2406,20 +2393,6 @@ typedef struct AV1Common {
   int render_height; /*!< Rendered frame height */
   /**@}*/
 
-#if !CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
-  /*!
-   * If true, buffer removal times are present.
-   */
-  bool buffer_removal_time_present;
-  /*!
-   * buffer_removal_times[op_num] specifies the frame removal time in units of
-   * DecCT clock ticks counted from the removal time of the last random access
-   * point for operating point op_num.
-   * TODO(urvang): We probably don't need the +1 here.
-   */
-
-  uint32_t buffer_removal_times[MAX_NUM_OPERATING_POINTS + 1];
-#endif  // !CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
   /*!
    * Presentation time of the frame in clock ticks DispCT counted from the
    * removal time of the last random access point for the operating point that
@@ -2676,13 +2649,11 @@ typedef struct AV1Common {
    */
   SequenceHeader seq_params;
 
-#if CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
   /*!
    * Elements part of the buffer removal timing, that are applicable for all the
    * frames in the video.
    */
   BufferRemovalTimingInfo brt_info;
-#endif  // CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
 
 #if CONFIG_MULTI_FRAME_HEADER
   /*!
