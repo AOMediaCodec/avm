@@ -5242,6 +5242,10 @@ void write_sequence_inter_group_tool_flags(
 
     assert(seq_params->ref_frames == 2);
 
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+    assert(seq_params->number_of_bits_for_lt_frame_id == 0);
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+
     assert(seq_params->def_max_drl_bits == MIN_MAX_DRL_BITS);
     assert(!seq_params->allow_frame_max_drl_bits);
   } else {
@@ -5254,6 +5258,10 @@ void write_sequence_inter_group_tool_flags(
     if (signal_dpb_explicit) {
       aom_wb_write_literal(wb, seq_params->ref_frames - 1, 4);
     }
+
+#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+    aom_wb_write_literal(wb, seq_params->number_of_bits_for_lt_frame_id, 3);
+#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 
     aom_wb_write_primitive_quniform(
         wb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1,
@@ -5305,10 +5313,6 @@ void write_sequence_inter_group_tool_flags(
 #if CONFIG_CWG_F377_STILL_PICTURE
   }
 #endif  // CONFIG_CWG_F377_STILL_PICTURE
-  aom_wb_write_bit(wb, seq_params->enable_fsc);
-  if (!seq_params->enable_fsc) {
-    aom_wb_write_bit(wb, seq_params->enable_idtx_intra);
-  }
 #if CONFIG_CWG_F377_STILL_PICTURE
   if (seq_params->single_picture_header_flag) {
     assert(!seq_params->enable_lf_sub_pu);
@@ -5324,12 +5328,10 @@ void write_sequence_inter_group_tool_flags(
 #if CONFIG_CWG_F377_STILL_PICTURE
   if (seq_params->single_picture_header_flag) {
     assert(seq_params->enable_opfl_refine == AOM_OPFL_REFINE_NONE);
-    assert(!seq_params->enable_adaptive_mvd);
     assert(!seq_params->enable_refinemv);
   } else {
 #endif  // CONFIG_CWG_F377_STILL_PICTURE
     aom_wb_write_literal(wb, seq_params->enable_opfl_refine, 2);
-    aom_wb_write_bit(wb, seq_params->enable_adaptive_mvd);
     aom_wb_write_bit(wb, seq_params->enable_refinemv);
 #if CONFIG_CWG_F377_STILL_PICTURE
   }
@@ -5342,14 +5344,14 @@ void write_sequence_inter_group_tool_flags(
 #if CONFIG_CWG_F377_STILL_PICTURE
   if (seq_params->single_picture_header_flag) {
     assert(seq_params->enable_bru == 0);
+    assert(!seq_params->enable_adaptive_mvd);
     assert(!seq_params->enable_mvd_sign_derive);
-
     assert(!seq_params->enable_flex_mvres);
   } else {
 #endif  // CONFIG_CWG_F377_STILL_PICTURE
     aom_wb_write_bit(wb, seq_params->enable_bru > 0);
     aom_wb_write_bit(wb, seq_params->enable_mvd_sign_derive);
-
+    aom_wb_write_bit(wb, seq_params->enable_adaptive_mvd);
     aom_wb_write_bit(wb, seq_params->enable_flex_mvres);
 #if CONFIG_CWG_F377_STILL_PICTURE
   }
@@ -5372,8 +5374,8 @@ void write_sequence_inter_group_tool_flags(
 #endif  // CONFIG_CWG_F377_STILL_PICTURE
 }
 
-void write_sequence_filter_group_tool_flags(
-    const SequenceHeader *const seq_params, struct aom_write_bit_buffer *wb) {
+void write_sequence_scc_group_tool_flags(const SequenceHeader *const seq_params,
+                                         struct aom_write_bit_buffer *wb) {
   if (!seq_params->single_picture_header_flag) {
     if (seq_params->force_screen_content_tools == 2) {
       aom_wb_write_bit(wb, 1);
@@ -5392,7 +5394,10 @@ void write_sequence_filter_group_tool_flags(
       assert(seq_params->force_integer_mv == 2);
     }
   }
+}
 
+void write_sequence_filter_group_tool_flags(
+    const SequenceHeader *const seq_params, struct aom_write_bit_buffer *wb) {
   aom_wb_write_bit(wb, seq_params->disable_loopfilters_across_tiles);
   aom_wb_write_bit(wb, seq_params->enable_cdef);
   aom_wb_write_bit(wb, seq_params->enable_gdf);
@@ -5485,6 +5490,10 @@ void write_sequence_transform_group_tool_flags(
 #endif  // CONFIG_CWG_F377_STILL_PICTURE
   }
 #endif  //! CONFIG_IMPROVED_REORDER_SEQ_FLAGS
+  aom_wb_write_bit(wb, seq_params->enable_fsc);
+  if (!seq_params->enable_fsc) {
+    aom_wb_write_bit(wb, seq_params->enable_idtx_intra);
+  }
   aom_wb_write_bit(wb, seq_params->enable_ist);
   aom_wb_write_bit(wb, seq_params->enable_inter_ist);
   if (!seq_params->monochrome)
@@ -5500,27 +5509,6 @@ void write_sequence_transform_group_tool_flags(
 #endif  // CONFIG_CWG_F377_STILL_PICTURE
   aom_wb_write_bit(wb, seq_params->reduced_tx_part_set);
   if (!seq_params->monochrome) aom_wb_write_bit(wb, seq_params->enable_cctx);
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-#if CONFIG_CWG_F377_STILL_PICTURE
-  if (seq_params->single_picture_header_flag) {
-    assert(seq_params->number_of_bits_for_lt_frame_id == 0);
-  } else {
-    aom_wb_write_literal(wb, seq_params->number_of_bits_for_lt_frame_id, 3);
-  }
-#else
-  aom_wb_write_literal(wb, seq_params->number_of_bits_for_lt_frame_id, 3);
-#endif  // CONFIG_CWG_F377_STILL_PICTURE
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-  aom_wb_write_bit(wb, seq_params->enable_ext_seg);
-#if CONFIG_MULTI_LEVEL_SEGMENTATION
-  // TODO: The above aom_wb_write_bit(wb, seq_params->enable_ext_seg); seems to
-  // be only used for segmentation. Is it necessary anywhere else ? If not it
-  // can be moved in if(seg info present flag)
-  aom_wb_write_bit(wb, seq_params->seq_seg_info_present_flag);
-  if (seq_params->seq_seg_info_present_flag) {
-    write_seg_syntax_info(&seq_params->seg_params, wb);
-  }
-#endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
 #if CONFIG_IMPROVED_REORDER_SEQ_FLAGS
   int enable_tcq = seq_params->enable_tcq;
   aom_wb_write_bit(wb, enable_tcq != 0);
@@ -5605,6 +5593,20 @@ void write_sequence_transform_group_tool_flags(
 }
 #endif  // CONFIG_REORDER_SEQ_FLAGS
 
+void write_sequence_segment_tool_flags(const SequenceHeader *const seq_params,
+                                       struct aom_write_bit_buffer *wb) {
+  aom_wb_write_bit(wb, seq_params->enable_ext_seg);
+#if CONFIG_MULTI_LEVEL_SEGMENTATION
+  // TODO: The above aom_wb_write_bit(wb, seq_params->enable_ext_seg); seems to
+  // be only used for segmentation. Is it necessary anywhere else ? If not it
+  // can be moved in if(seg info present flag)
+  aom_wb_write_bit(wb, seq_params->seq_seg_info_present_flag);
+  if (seq_params->seq_seg_info_present_flag) {
+    write_seg_syntax_info(&seq_params->seg_params, wb);
+  }
+#endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
+}
+
 static AOM_INLINE void write_sequence_header(
     const SequenceHeader *const seq_params, struct aom_write_bit_buffer *wb) {
 #if !CONFIG_IMPROVED_REORDER_SEQ_FLAGS
@@ -5614,8 +5616,10 @@ static AOM_INLINE void write_sequence_header(
 #if CONFIG_IMPROVED_REORDER_SEQ_FLAGS
   write_sequence_partition_group_tool_flags(seq_params, wb);
 #endif  // CONFIG_IMPROVED_REORDER_SEQ_FLAGS
+  write_sequence_segment_tool_flags(seq_params, wb);
   write_sequence_intra_group_tool_flags(seq_params, wb);
   write_sequence_inter_group_tool_flags(seq_params, wb);
+  write_sequence_scc_group_tool_flags(seq_params, wb);
 #if CONFIG_IMPROVED_REORDER_SEQ_FLAGS
   write_sequence_transform_quant_entropy_group_tool_flags(seq_params, wb);
   write_sequence_filter_group_tool_flags(seq_params, wb);
