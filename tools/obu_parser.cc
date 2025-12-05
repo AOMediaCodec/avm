@@ -224,8 +224,6 @@ bool DumpObu(const uint8_t *data, int length, int *obu_overhead_bytes) {
       first_tile_group_in_frame = (tile_group_header_first_byte >> 7) != 0;
     }
     PrintObuHeader(&obu_header, first_tile_group_in_frame);
-#else
-    PrintObuHeader(&obu_header);
 
     consumed += static_cast<int>(length_field_size) + current_obu_length;
     printf("      length:    %d\n",
