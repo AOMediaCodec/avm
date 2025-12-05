@@ -9271,8 +9271,7 @@ static int read_uncompressed_header(AV1Decoder *pbi, OBU_TYPE obu_type,
 
   if (!seq_params->single_picture_header_flag) {
 #if CONFIG_F024_KEYOBU
-    if (pbi->olk_encountered &&
-        is_regular_non_olk_obu(obu_type)) {
+    if (pbi->olk_encountered && is_regular_non_olk_obu(obu_type)) {
       pbi->olk_encountered = 0;
       lock_buffer_pool(pool);
       reset_buffer_other_than_OLK(pbi);
