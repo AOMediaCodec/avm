@@ -72,7 +72,6 @@ set_aom_config_var(
   "Add g_error_resilient_mode option to the encoder for the error resilient option."
 )
 
-set_aom_config_var(CONFIG_F160_TD 1 "Signal temporal delimiter optionally")
 set_aom_config_var(CONFIG_F255_QMOBU 1 "Enable QM_OBU")
 set_aom_config_var(CONFIG_F024_KEYOBU 1 "Use Key OBUs.")
 

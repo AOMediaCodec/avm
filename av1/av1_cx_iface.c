@@ -1761,9 +1761,7 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
     dec_model_cfg->timing_info_present = 0;
   }
 
-#if CONFIG_F160_TD
   oxcf->signal_td = cfg->signal_td;
-#endif  // CONFIG_F160_TD
 #if CONFIG_MULTILAYER_HLS
   layer_cfg->enable_lcr = cfg->enable_lcr;
   layer_cfg->enable_ops = cfg->enable_ops;
@@ -3388,21 +3386,15 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 
 #if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
         const int write_temporal_delimiter =
-#if CONFIG_F160_TD
             !(ctx->oxcf.signal_td)
                 ? 0
-                :
-#endif
-                (!cpi->common.mlayer_id &&
-                 (cpi->common.show_frame || cpi->common.showable_frame));
-#else  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+                : (!cpi->common.mlayer_id &&
+                   (cpi->common.show_frame || cpi->common.showable_frame));
+#else   // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
         const int write_temporal_delimiter =
-#if CONFIG_F160_TD
             !(ctx->oxcf.signal_td)
                 ? 0
-                :
-#endif
-                (!cpi->common.mlayer_id && !ctx->pending_frame_count);
+                : (!cpi->common.mlayer_id && !ctx->pending_frame_count);
 #endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
         if (write_temporal_delimiter) {
           const uint32_t obu_payload_size = 0;
@@ -4664,9 +4656,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
     0,            // monochrome
     0,            // full_still_picture_hdr
     1,            // enable_tcq
-#if CONFIG_F160_TD
-    0,  // signal_td
-#endif  // CONFIG_F160_TD
+    0,            // signal_td
 #if CONFIG_MULTILAYER_HLS
     0,                           // enable_lcr
     0,                           // enable_ops

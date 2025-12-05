@@ -1206,10 +1206,9 @@ typedef struct AV1EncoderConfig {
   // Indicates if row-based multi-threading should be enabled or not.
   bool row_mt;
 
-#if CONFIG_F160_TD
   // Indicates the temporal delimiter is signaled.
   bool signal_td;
-#endif  // CONFIG_F160_TD
+
 #if CONFIG_MULTILAYER_HLS
   // Configuration related to layering information.
   LayerCfg layer_cfg;

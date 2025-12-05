@@ -277,9 +277,7 @@ const arg_def_t *global_args[] = {
   &g_av1_codec_arg_defs.monochrome,
   &g_av1_codec_arg_defs.full_still_picture_hdr,
   &g_av1_codec_arg_defs.enable_tcq,
-#if CONFIG_F160_TD
   &g_av1_codec_arg_defs.signal_td,
-#endif  // CONFIG_F160_TD
 #if CONFIG_MULTILAYER_HLS
   &g_av1_codec_arg_defs.enable_lcr,
   &g_av1_codec_arg_defs.enable_ops,
@@ -1281,10 +1279,8 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
       config->cfg.sframe_dist = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.sframe_mode, argi)) {
       config->cfg.sframe_mode = arg_parse_uint(&arg);
-#if CONFIG_F160_TD
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.signal_td, argi)) {
       config->cfg.signal_td = arg_parse_uint(&arg);
-#endif  // CONFIG_F160_TD
 #if CONFIG_MULTILAYER_HLS
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.enable_lcr, argi)) {
       config->cfg.enable_lcr = arg_parse_uint(&arg);

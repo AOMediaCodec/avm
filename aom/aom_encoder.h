@@ -1070,13 +1070,12 @@ typedef struct aom_codec_enc_cfg {
    */
   unsigned int enable_tcq;
 
-#if CONFIG_F160_TD
   /*!\brief Signal temporal delimiters
    *
    * This value indicates temporal delimiter is signaled
    */
   unsigned int signal_td;
-#endif  // CONFIG_F160_TD
+
 #if CONFIG_MULTILAYER_HLS
   /*!\brief Signal layer config record (LCR) OBU.
    *
