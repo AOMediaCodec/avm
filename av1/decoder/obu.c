@@ -1175,13 +1175,21 @@ static size_t read_metadata(AV1Decoder *pbi, const uint8_t *data, size_t sz)
 static size_t read_metadata_obsp(AV1Decoder *pbi, const uint8_t *data,
                                  size_t sz,
                                  aom_metadata_array_t *metadata_array,
-                                 aom_metadata_t *metadata_base) {
+                                 aom_metadata_t *metadata_base,
+                                 int expected_suffix) {
   AV1_COMMON *const cm = &pbi->common;
 
   struct aom_read_bit_buffer rb;
   av1_init_read_bit_buffer(pbi, &rb, data, data + sz);
 
   metadata_base->is_suffix = aom_rb_read_literal(&rb, 1);
+
+  // Validate suffix bit if requested
+  if (expected_suffix >= 0 && metadata_base->is_suffix != expected_suffix) {
+    cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
+    return 0;
+  }
+
   metadata_base->necessity_idc =
       (aom_metadata_necessity_t)aom_rb_read_literal(&rb, 2);
   metadata_base->application_id =
@@ -1271,14 +1279,15 @@ static size_t read_metadata_unit_header(AV1Decoder *pbi, const uint8_t *data,
 }
 
 static size_t read_metadata_obu(AV1Decoder *pbi, const uint8_t *data, size_t sz,
-                                ObuHeader *obu_header) {
+                                ObuHeader *obu_header, int expected_suffix) {
   AV1_COMMON *const cm = &pbi->common;
 
   aom_metadata_array_t metadata_array = { 0 };
   aom_metadata_t metadata_base;
   memset(&metadata_base, 0, sizeof(metadata_base));
   size_t bytes_read =
-      read_metadata_obsp(pbi, data, sz, &metadata_array, &metadata_base);
+      read_metadata_obsp(pbi, data, sz, &metadata_array, &metadata_base,
+                         expected_suffix);
 
   for (uint32_t i = 0; i < metadata_array.sz; i++) {
     aom_metadata_t metadata = { 0 };
@@ -1314,8 +1323,9 @@ static size_t read_metadata_obu(AV1Decoder *pbi, const uint8_t *data, size_t sz,
 // On success, returns the number of bytes read from 'data'. On failure, sets
 // pbi->common.error.error_code and returns 0, or calls aom_internal_error()
 // and does not return.
+// expected_suffix: 0 for prefix metadata, 1 for suffix metadata, -1 for no validation
 static size_t read_metadata_short(AV1Decoder *pbi, const uint8_t *data,
-                                  size_t sz) {
+                                  size_t sz, int expected_suffix) {
   AV1_COMMON *const cm = &pbi->common;
   size_t type_length;
   uint64_t type_value;
@@ -1323,6 +1333,13 @@ static size_t read_metadata_short(AV1Decoder *pbi, const uint8_t *data,
   av1_init_read_bit_buffer(pbi, &rb, data, data + sz);
 
   uint8_t metadata_is_suffix = aom_rb_read_bit(&rb);
+
+  // Validate suffix bit if requested
+  if (expected_suffix >= 0 && metadata_is_suffix != expected_suffix) {
+    cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
+    return 0;
+  }
+
   uint8_t muh_layer_idc = aom_rb_read_literal(&rb, 3);
   uint8_t muh_cancel_flag = aom_rb_read_bit(&rb);
   uint8_t muh_persistence_idc = aom_rb_read_literal(&rb, 3);
@@ -2037,7 +2054,7 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
       case OBU_METADATA:
 #if CONFIG_METADATA
         decoded_payload_size =
-            read_metadata_obu(pbi, data, payload_size, &obu_header);
+            read_metadata_obu(pbi, data, payload_size, &obu_header, 0);
 #else
         decoded_payload_size = read_metadata(pbi, data, payload_size);
 #endif  // CONFIG_METADATA
@@ -2046,9 +2063,9 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
       case OBU_METADATA_GROUP:
 #if CONFIG_METADATA
         decoded_payload_size =
-            read_metadata_obu(pbi, data, payload_size, &obu_header);
+            read_metadata_obu(pbi, data, payload_size, &obu_header, 0);
 #else
-        decoded_payload_size = read_metadata_short(pbi, data, payload_size);
+        decoded_payload_size = read_metadata_short(pbi, data, payload_size, 0);
 #endif  // CONFIG_METADATA
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
         break;
@@ -2107,7 +2124,10 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
       cm->error.error_code = status;
       return -1;
     }
-    if (obu_header.type != OBU_METADATA_GROUP || data + bytes_read >= data_end)
+    // Accept both OBU_METADATA and OBU_METADATA_GROUP for suffix metadata
+    if ((obu_header.type != OBU_METADATA_GROUP &&
+         obu_header.type != OBU_METADATA) ||
+        data + bytes_read >= data_end)
       break;
 
     // check whether it is a suffix metadata OBU
@@ -2115,8 +2135,13 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
 
     data += bytes_read;
 
-    decoded_payload_size =
-        read_metadata_obu(pbi, data, payload_size, &obu_header);
+    // Call the appropriate read function based on OBU type
+    if (obu_header.type == OBU_METADATA_GROUP) {
+      decoded_payload_size =
+          read_metadata_obu(pbi, data, payload_size, &obu_header, 1);
+    } else {
+      decoded_payload_size = read_metadata_short(pbi, data, payload_size, 1);
+    }
 
     if (cm->error.error_code != AOM_CODEC_OK) return -1;
 
