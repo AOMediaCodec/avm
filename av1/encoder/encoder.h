@@ -2984,10 +2984,6 @@ typedef struct AV1_COMP {
    * Flags to indicate whether user defined qm is used for id, i
    */
   bool use_user_defined_qm[NUM_CUSTOM_QMS];
-  /*!
-   * Indicate that new obu is added at the encoder to increase the counter
-   */
-  int new_qmobu_added;
 #endif
 #if CONFIG_F153_FGM_OBU
   /*!

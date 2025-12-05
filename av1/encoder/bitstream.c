@@ -8961,8 +8961,6 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
         return AOM_CODEC_ERROR;
       }
       data += obu_header_size + obu_payload_size + length_field_size_qm;
-      cpi->total_signalled_qmobu_count--;
-      cpi->new_qmobu_added = 1;
     }  // need_new_qmobu
   }
 #endif  // CONFIG_F255_QMOBU

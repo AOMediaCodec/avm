@@ -3849,9 +3849,6 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
 #endif
   } while (loop);
 
-#if CONFIG_F255_QMOBU
-  if (cpi->new_qmobu_added) cpi->total_signalled_qmobu_count++;
-#endif
   return AOM_CODEC_OK;
 }
 
@@ -4500,9 +4497,6 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
   }
 
   cpi->last_encoded_frame_order_hint = cm->current_frame.display_order_hint;
-#if CONFIG_F255_QMOBU
-  if (cpi->new_qmobu_added) cpi->total_signalled_qmobu_count++;
-#endif
   return AOM_CODEC_OK;
 }
 
@@ -4609,10 +4603,6 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     // an overlay frame
     gf_group->update_type[gf_group->size] = GF_UPDATE;
   }
-
-#if CONFIG_F255_QMOBU
-  cpi->new_qmobu_added = 0;
-#endif
 
 #if CONFIG_F024_KEYOBU
   if (!cpi->oxcf.ref_frm_cfg.enable_generation_sef_obu &&
