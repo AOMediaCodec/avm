@@ -4352,7 +4352,6 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
     LrParams lr_params = { { 0 }, { 0 }, { 0 }, { 0 } };
     store_lr_parameters(cm, &lr_params);
 #if CONFIG_F255_QMOBU
-    // int total_qmobu_count = cpi->total_signalled_qmobu_count;
     int obu_written_status = cpi->obu_is_written;
     cpi->obu_is_written = true;
 #endif
