@@ -55,49 +55,26 @@ bool ValidObuType(int obu_type) {
 #if CONFIG_MULTI_FRAME_HEADER
     case OBU_MULTI_FRAME_HEADER:
 #endif  // CONFIG_MULTI_FRAME_HEADER
-#if CONFIG_F106_OBU_TILEGROUP
 #if CONFIG_F024_KEYOBU
     case OBU_CLK:
     case OBU_OLK:
     case OBU_LEADING_TILE_GROUP:
     case OBU_REGULAR_TILE_GROUP:
-#if CONFIG_F106_OBU_SWITCH
     case OBU_SWITCH:
-#endif  // CONFIG_F106_OBU_SWITCH
-#if CONFIG_F106_OBU_SEF
     case OBU_LEADING_SEF:
     case OBU_REGULAR_SEF:
-#endif  // CONFIG_F106_OBU_SEF
-#if CONFIG_F106_OBU_TIP
     case OBU_LEADING_TIP:
     case OBU_REGULAR_TIP:
-#endif  // CONFIG_F106_OBU_TIP
 #else   // CONFIG_F024_KEYOBU
-#if CONFIG_F106_OBU_SWITCH
     case OBU_SWITCH:
-#endif  // CONFIG_F106_OBU_SWITCH
-#if CONFIG_F106_OBU_SEF
     case OBU_SEF:
-#endif  // CONFIG_F106_OBU_SEF
-#if CONFIG_F106_OBU_TIP
     case OBU_TIP:
-#endif  // CONFIG_F106_OBU_TIP
     case OBU_TILE_GROUP:
 #endif  // CONFIG_F024_KEYOBU
-#else   // CONFIG_F106_OBU_TILEGROUP
-    case OBU_FRAME_HEADER:
-    case OBU_TILE_GROUP:
-#endif  // CONFIG_F106_OBU_TILEGROUP
     case OBU_METADATA:
 #if CONFIG_SHORT_METADATA
     case OBU_METADATA_GROUP:
 #endif  // CONFIG_SHORT_METADATA
-#if !CONFIG_F106_OBU_TILEGROUP
-    case OBU_FRAME:
-#if !CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER
-    case OBU_REDUNDANT_FRAME_HEADER:
-#endif  // !CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER
-#endif  // CONFIG_F106_OBU_TILEGROUP
 #if CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
     case OBU_BUFFER_REMOVAL_TIMING:
 #endif  // CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
@@ -150,7 +127,6 @@ bool ParseObuExtensionHeader(uint8_t ext_header_byte, ObuHeader *obu_header) {
   return true;
 }
 
-#if CONFIG_F106_OBU_TILEGROUP
 void PrintObuHeader(const ObuHeader *header, bool first_tile_group_in_frame) {
   printf(
       "  OBU extension: %s\n"
@@ -159,16 +135,6 @@ void PrintObuHeader(const ObuHeader *header, bool first_tile_group_in_frame) {
       header->obu_extension_flag ? "yes" : "no",
       aom_obu_type_to_string(static_cast<OBU_TYPE>(header->type)),
       first_tile_group_in_frame ? " (new frame)" : "", header->obu_tlayer_id);
-#else
-void PrintObuHeader(const ObuHeader *header) {
-  printf(
-      "  OBU extension: %s\n"
-      "      type:      %s\n"
-      "      tlayer_id: %d\n",
-      header->obu_extension_flag ? "yes" : "no",
-      aom_obu_type_to_string(static_cast<OBU_TYPE>(header->type)),
-      header->obu_tlayer_id);
-#endif  // CONFIG_F106_OBU_TILEGROUP
   if (header->obu_extension_flag) {
     printf(
         "      mlayer_id: %d\n"
@@ -233,7 +199,6 @@ bool DumpObu(const uint8_t *data, int length, int *obu_overhead_bytes) {
       ++obu_overhead;
     }
 
-#if CONFIG_F106_OBU_TILEGROUP
 #if CONFIG_F024_KEYOBU
     bool is_tile_group = obu_header.type == OBU_LEADING_TILE_GROUP ||
                          obu_header.type == OBU_REGULAR_TILE_GROUP ||
@@ -242,9 +207,7 @@ bool DumpObu(const uint8_t *data, int length, int *obu_overhead_bytes) {
 #else
     bool is_tile_group = obu_header.type == OBU_TILE_GROUP;
 #endif
-#if CONFIG_F106_OBU_SWITCH
     is_tile_group = is_tile_group || obu_header.type == OBU_SWITCH;
-#endif  // CONFIG_F106_OBU_SWITCH
 #if CONFIG_CWG_F317
     is_tile_group = is_tile_group || obu_header.type == OBU_BRIDGE_FRAME;
 #endif  // CONFIG_CWG_F317
@@ -263,7 +226,6 @@ bool DumpObu(const uint8_t *data, int length, int *obu_overhead_bytes) {
     PrintObuHeader(&obu_header, first_tile_group_in_frame);
 #else
     PrintObuHeader(&obu_header);
-#endif  // CONFIG_F106_OBU_TILEGROUP
 
     consumed += static_cast<int>(length_field_size) + current_obu_length;
     printf("      length:    %d\n",

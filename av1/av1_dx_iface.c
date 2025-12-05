@@ -553,7 +553,6 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
       }
     }  // TILE_GROUP
 #else  // CONFIG_F024_KEYOBU
-#if CONFIG_F106_OBU_TILEGROUP
 #if CONFIG_F024_KEYOBU
     } else if (obu_header.type == OBU_LEADING_TILE_GROUP ||
                obu_header.type == OBU_REGULAR_TILE_GROUP ||
@@ -565,25 +564,7 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
 #else
     } else if (obu_header.type == OBU_TILE_GROUP) {
 #endif  // CONFIG_CWG_F317
-#endif
-#else
-#if CONFIG_CWG_F317
-    } else if (obu_header.type == OBU_FRAME_HEADER ||
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-               obu_header.type == OBU_RAS_FRAME ||
-               obu_header.type == OBU_SWITCH ||
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-               obu_header.type == OBU_FRAME ||
-               obu_header.type == OBU_BRIDGE_FRAME) {
-#else
-    } else if (obu_header.type == OBU_FRAME_HEADER ||
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-               obu_header.type == OBU_RAS_FRAME ||
-               obu_header.type == OBU_SWITCH ||
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-               obu_header.type == OBU_FRAME) {
-#endif  // CONFIG_CWG_F317
-#endif  // CONFIG_F106_OBU_TILEGROUP
+#endif  // CONFIG_F024_KEYOBU
       if (got_sequence_header && single_picture_header_flag) {
         found_keyframe = 1;
         break;
@@ -591,12 +572,10 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
         // make sure we have enough bits to get the frame type out
         if (data_sz < 1) return AOM_CODEC_CORRUPT_FRAME;
         struct aom_read_bit_buffer rb = { data, data + data_sz, 0, NULL, NULL };
-#if CONFIG_F106_OBU_TILEGROUP
         int first_tile_group_in_frame = aom_rb_read_bit(&rb);
         if (!first_tile_group_in_frame) {
           aom_rb_read_bit(&rb);  // send_uncompressed_header_flag
         }
-#endif  // CONFIG_F106_OBU_TILEGROUP
 
 #if CONFIG_MULTI_FRAME_HEADER
 #if CONFIG_CWG_E242_MFH_ID_UVLC
@@ -610,50 +589,38 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
         }
 #endif  // CONFIG_F024_KEYOBU
 
-#if !CONFIG_F106_OBU_TILEGROUP || !CONFIG_F106_OBU_SEF
-        const int show_existing_frame = aom_rb_read_bit(&rb);
-        if (!show_existing_frame) {
-#endif  // !CONFIG_F106_OBU_TILEGROUP || !CONFIG_F106_OBU_SEF
-          FRAME_TYPE frame_type = KEY_FRAME;
+        FRAME_TYPE frame_type = KEY_FRAME;
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-          if (obu_header.type == OBU_RAS_FRAME ||
-              obu_header.type == OBU_SWITCH) {
-            frame_type = S_FRAME;
-          } else {
+        if (obu_header.type == OBU_RAS_FRAME || obu_header.type == OBU_SWITCH) {
+          frame_type = S_FRAME;
+        } else {
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+          if (aom_rb_read_bit(&rb)) {
+            frame_type = INTER_FRAME;
+          } else {
+#if !CONFIG_F024_KEYOBU
             if (aom_rb_read_bit(&rb)) {
-              frame_type = INTER_FRAME;
+              frame_type = KEY_FRAME;
             } else {
-#if !CONFIG_F024_KEYOBU
-              if (aom_rb_read_bit(&rb)) {
-                frame_type = KEY_FRAME;
-              } else {
 #endif  // !CONFIG_F024_KEYOBU
-#if CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_SWITCH
-                frame_type = INTRA_ONLY_FRAME;
-#else
-          frame_type = aom_rb_read_bit(&rb) ? INTRA_ONLY_FRAME : S_FRAME;
-#endif  // CONFIG_F106_OBU_TILEGROUP && CONFIG_F106_OBU_SWITCH
+              frame_type = INTRA_ONLY_FRAME;
 #if !CONFIG_F024_KEYOBU
-              }  // not key_frame
+            }  // not key_frame
 #endif  // !CONFIG_F024_KEYOBU
-            }  // not inter_frame
+          }  // not inter_frame
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-          }
+        }
 #endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 
 #if !CONFIG_F024_KEYOBU
-          if (frame_type == KEY_FRAME) {
-            found_keyframe = 1;
-            break;  // Stop here as no further OBUs will change the outcome.
-          } else
+        if (frame_type == KEY_FRAME) {
+          found_keyframe = 1;
+          break;  // Stop here as no further OBUs will change the outcome.
+        } else
 #endif  // !CONFIG_F024_KEYOBU
-            if (frame_type == INTRA_ONLY_FRAME) {
-              intra_only_flag = 1;
-            }
-#if !CONFIG_F106_OBU_TILEGROUP || !CONFIG_F106_OBU_SEF
-        }  //  if (!show_existing_frame)
-#endif  // !CONFIG_F106_OBU_TILEGROUP || !CONFIG_F106_OBU_SEF
+          if (frame_type == INTRA_ONLY_FRAME) {
+            intra_only_flag = 1;
+          }
       }
     }
 #endif  // KEY

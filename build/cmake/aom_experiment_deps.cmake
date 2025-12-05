@@ -69,10 +69,6 @@ macro(fix_experiment_configs)
   endif()
 
   if(CONFIG_F024_KEYOBU)
-    change_config_and_warn(CONFIG_F106_OBU_TILEGROUP 1 CONFIG_F024_KEYOBU)
-    change_config_and_warn(CONFIG_F106_OBU_SWITCH 1 CONFIG_F024_KEYOBU)
-    change_config_and_warn(CONFIG_F106_OBU_SEF 1 CONFIG_F024_KEYOBU)
-    change_config_and_warn(CONFIG_F106_OBU_TIP 1 CONFIG_F024_KEYOBU)
     change_config_and_warn(CONFIG_CWG_F317 1 CONFIG_F024_KEYOBU)
     change_config_and_warn(CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER 1
                            CONFIG_F024_KEYOBU)
