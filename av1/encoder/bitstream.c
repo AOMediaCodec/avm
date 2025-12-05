@@ -7836,6 +7836,9 @@ static size_t av1_write_metadata_obsp_header(uint8_t *const dst,
   assert((first_metadata->necessity_idc & 3) == first_metadata->necessity_idc);
   assert((first_metadata->application_id & 31) ==
          first_metadata->application_id);
+  assert(count > 0);  // Must have at least one metadata unit
+  // Ensure metadata_unit_cnt doesn't exceed 2^14 - 1 (to keep uleb128 <= 2 bytes)
+  assert(count <= 16383);
 
   struct aom_write_bit_buffer wb = { dst, 0 };
 
@@ -7847,7 +7850,9 @@ static size_t av1_write_metadata_obsp_header(uint8_t *const dst,
   assert(bytes_written == 1);
 
   size_t coded_cnt_size = 0;
-  if (aom_uleb_encode(count, sizeof(count), dst + bytes_written,
+  // Spec changed from metadata_unit_cnt to metadata_unit_cnt_minus_1
+  const size_t count_minus_1 = count - 1;
+  if (aom_uleb_encode(count_minus_1, sizeof(count_minus_1), dst + bytes_written,
                       &coded_cnt_size) != 0) {
     return 0;
   }
