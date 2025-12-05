@@ -240,9 +240,10 @@ enum {
 #define IST_4x4_SET_SIZE (IST_SET_SIZE + IST_SET_SIZE)
 #define IST_8x8_SET_SIZE (IST_SET_SIZE + IST_REDUCED_SET_SIZE)
 
-// - Width: dimension of secondary transform input. Note: it needs to be a
-//   multiple of 4 for sse4 to work
-// - Height: dimension of secondary transform output
+// - Width: dimension of secondary transform input (and inverse secondary
+//   transform output).
+// - Height: dimension of secondary transform output (and inverse secondary
+//   transform input).
 #define IST_4x4_WIDTH 16
 #define IST_4x4_HEIGHT 8
 #define IST_8x8_HEIGHT_RED 20
