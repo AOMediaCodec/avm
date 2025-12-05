@@ -1208,7 +1208,9 @@ typedef struct AV1EncoderConfig {
 
   // Indicates the temporal delimiter is signaled.
   bool signal_td;
-
+#if CONFIG_METADATA
+  bool use_short_metadata;
+#endif  // CONFIG_METADATA
 #if CONFIG_MULTILAYER_HLS
   // Configuration related to layering information.
   LayerCfg layer_cfg;

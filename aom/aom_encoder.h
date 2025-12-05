@@ -1076,6 +1076,16 @@ typedef struct aom_codec_enc_cfg {
    */
   unsigned int signal_td;
 
+#if CONFIG_METADATA
+  /*!\brief Indicate metadata obu type when used
+   *
+   * This value indicatesmetadata obu type when used
+   * 0. GROUP_METADATA_OBU 1.SHORT_METADATA_OBU
+   * 0 is default
+   */
+  unsigned int use_short_metadata;
+#endif  // CONFIG_METADATA
+
 #if CONFIG_MULTILAYER_HLS
   /*!\brief Signal layer config record (LCR) OBU.
    *

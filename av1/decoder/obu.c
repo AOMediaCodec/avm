@@ -669,7 +669,7 @@ static int get_last_nonzero_byte_index(const uint8_t *data, size_t sz) {
   }
   return i;
 }
-#endif  // !CONFIG_METADATA || CONFIG_SHORT_METADATA
+
 // Allocates metadata that was read and adds it to the decoders metadata array.
 static void alloc_read_metadata(AV1Decoder *const pbi,
                                 OBU_METADATA_TYPE metadata_type,
@@ -704,7 +704,12 @@ static void alloc_read_metadata(AV1Decoder *const pbi,
 
 // On failure, calls aom_internal_error() and does not return.
 static void read_metadata_itut_t35(AV1Decoder *const pbi, const uint8_t *data,
-                                   size_t sz) {
+                                   size_t sz
+#if CONFIG_METADATA
+                                   ,
+                                   bool is_group_metadata
+#endif
+) {
   AV1_COMMON *const cm = &pbi->common;
   if (sz == 0) {
     aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
@@ -719,7 +724,8 @@ static void read_metadata_itut_t35(AV1Decoder *const pbi, const uint8_t *data,
     ++country_code_size;
   }
 #if CONFIG_METADATA
-  const int end_index = (int)sz;
+  int end_index =
+      is_group_metadata ? (int)sz : get_last_nonzero_byte_index(data, sz);
 #else
   int end_index = get_last_nonzero_byte_index(data, sz);
 #endif  // CONFIG_METADATA
@@ -727,55 +733,22 @@ static void read_metadata_itut_t35(AV1Decoder *const pbi, const uint8_t *data,
     aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                        "No trailing bits found in ITU-T T.35 metadata OBU");
   }
-#if !CONFIG_METADATA
-  // itu_t_t35_payload_bytes is byte aligned. Section 6.7.2 of the spec says:
-  //   itu_t_t35_payload_bytes shall be bytes containing data registered as
-  //   specified in Recommendation ITU-T T.35.
-  // Therefore the first trailing byte should be 0x80.
-  if (data[end_index] != 0x80) {
-    aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
-                       "The last nonzero byte of the ITU-T T.35 metadata OBU "
-                       "is 0x%02x, should be 0x80.",
-                       data[end_index]);
-  }
-#endif  // !CONFIG_METADATA
-  alloc_read_metadata(pbi, OBU_METADATA_TYPE_ITUT_T35, data, end_index,
-                      AOM_MIF_ANY_FRAME);
-}
-
-#if CONFIG_SHORT_METADATA
-// On failure, calls aom_internal_error() and does not return.
-static void read_metadata_itut_t35_short(AV1Decoder *const pbi,
-                                         const uint8_t *data, size_t sz) {
-  AV1_COMMON *const cm = &pbi->common;
-  if (sz == 0) {
-    aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
-                       "itu_t_t35_country_code is missing");
-  }
-  int country_code_size = 1;
-  if (*data == 0xFF) {
-    if (sz == 1) {
+#if CONFIG_METADATA
+  if (!is_group_metadata) {
+#endif  // CONFIG_METADATA
+    // itu_t_t35_payload_bytes is byte aligned. Section 6.7.2 of the spec says:
+    //   itu_t_t35_payload_bytes shall be bytes containing data registered as
+    //   specified in Recommendation ITU-T T.35.
+    // Therefore the first trailing byte should be 0x80.
+    if (data[end_index] != 0x80) {
       aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
-                         "itu_t_t35_country_code_extension_byte is missing");
+                         "The last nonzero byte of the ITU-T T.35 metadata OBU "
+                         "is 0x%02x, should be 0x80.",
+                         data[end_index]);
     }
-    ++country_code_size;
+#if CONFIG_METADATA
   }
-  int end_index = get_last_nonzero_byte_index(data, sz);
-  if (end_index < country_code_size) {
-    aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
-                       "No trailing bits found in ITU-T T.35 metadata OBU");
-  }
-  // itu_t_t35_payload_bytes is byte aligned. Section 6.7.2 of the spec says:
-  //   itu_t_t35_payload_bytes shall be bytes containing data registered as
-  //   specified in Recommendation ITU-T T.35.
-  // Therefore the first trailing byte should be 0x80.
-  if (data[end_index] != 0x80) {
-    aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
-                       "The last nonzero byte of the ITU-T T.35 metadata OBU "
-                       "is 0x%02x, should be 0x80.",
-                       data[end_index]);
-  }
-
+#endif  // CONFIG_METADATA
   alloc_read_metadata(pbi, OBU_METADATA_TYPE_ITUT_T35, data, end_index,
                       AOM_MIF_ANY_FRAME);
 }
@@ -831,7 +804,7 @@ static size_t read_metadata_banding_hints(AV1Decoder *const pbi,
 }
 #endif  // CONFIG_BAND_METADATA
 
-#if CONFIG_ICC_METADATA
+#if CONFIG_ICC_METADATA && CONFIG_METADATA
 // On success, returns the number of bytes read from 'data'. On failure, calls
 // aom_internal_error() and does not return.
 static size_t read_metadata_icc_profile(AV1Decoder *const pbi,
@@ -839,8 +812,10 @@ static size_t read_metadata_icc_profile(AV1Decoder *const pbi,
   const size_t kMinIccProfileHeaderSize = 128;
   AV1_COMMON *const cm = &pbi->common;
   if (sz < kMinIccProfileHeaderSize) {
-    aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
-                       "Incorrect ICC profile metadata payload size");
+    aom_internal_error(
+        &cm->error, AOM_CODEC_CORRUPT_FRAME,
+        "Incorrect ICC profile metadata payload size (%d), min value:%d", sz,
+        kMinIccProfileHeaderSize);
   }
   alloc_read_metadata(pbi, OBU_METADATA_TYPE_ICC_PROFILE, data, sz,
                       AOM_MIF_ANY_FRAME);
@@ -1001,98 +976,32 @@ static uint8_t get_last_nonzero_byte(const uint8_t *data, size_t sz) {
 // and does not return.
 #if CONFIG_METADATA
 static size_t read_metadata_unit_payload(AV1Decoder *pbi, const uint8_t *data,
-                                         aom_metadata_t *metadata)
-#else
-static size_t read_metadata(AV1Decoder *pbi, const uint8_t *data, size_t sz)
-#endif  // CONFIG_METADATA
-{
-#if !CONFIG_METADATA
-  AV1_COMMON *const cm = &pbi->common;
-  size_t type_length;
-  uint64_t type_value;
-  if (aom_uleb_decode(data, sz, &type_value, &type_length) < 0) {
-    cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
-    return 0;
-  }
-  const OBU_METADATA_TYPE metadata_type = (OBU_METADATA_TYPE)type_value;
-#else
+                                         aom_metadata_t *metadata) {
   size_t type_length = 0;
   const OBU_METADATA_TYPE metadata_type = metadata->type;
   const size_t sz = metadata->sz;
-#endif  // !CONFIG_METADATA
 
-#if CONFIG_METADATA
   int known_metadata_type = metadata_type >= OBU_METADATA_TYPE_HDR_CLL &&
                             metadata_type < NUM_OBU_METADATA_TYPES;
   known_metadata_type |= metadata_type == OBU_METADATA_TYPE_ICC_PROFILE;
 #if CONFIG_SCAN_TYPE_METADATA
   known_metadata_type |= metadata_type == OBU_METADATA_TYPE_SCAN_TYPE;
 #endif  // CONFIG_SCAN_TYPE_METADATA
-  if (!known_metadata_type)
-#else  // CONFIG_ICC_METADATA
-#if CONFIG_BAND_METADATA
-  if (metadata_type == 0 || metadata_type >= 8)
-#else
-  if (metadata_type == 0 || metadata_type >= 7)
-#endif  // CONFIG_BAND_METADATA
-#endif  // CONFIG_ICC_METADATA
-  {
-#if !CONFIG_METADATA
-    // If metadata_type is reserved for future use or a user private value,
-    // ignore the entire OBU and just check trailing bits.
-    if (get_last_nonzero_byte(data + type_length, sz - type_length) == 0) {
-      cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
-      return 0;
-    }
-#endif  // !CONFIG_METADATA
+  if (!known_metadata_type) {
     return sz;
   }
   if (metadata_type == OBU_METADATA_TYPE_ITUT_T35) {
-#if !CONFIG_METADATA
-    // read_metadata_itut_t35() checks trailing bits.
-#endif  // !CONFIG_METADATA
-    read_metadata_itut_t35(pbi, data + type_length, sz - type_length);
+    read_metadata_itut_t35(pbi, data + type_length, sz - type_length, true);
     return sz;
   } else if (metadata_type == OBU_METADATA_TYPE_HDR_CLL) {
-#if !CONFIG_METADATA
-    size_t bytes_read =
-        type_length +
-#endif  // !CONFIG_METADATA
-        read_metadata_hdr_cll(pbi, data + type_length, sz - type_length);
-#if !CONFIG_METADATA
-    if (get_last_nonzero_byte(data + bytes_read, sz - bytes_read) != 0x80) {
-      cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
-      return 0;
-    }
-#endif  // !CONFIG_METADATA
+    read_metadata_hdr_cll(pbi, data + type_length, sz - type_length);
     return sz;
   } else if (metadata_type == OBU_METADATA_TYPE_HDR_MDCV) {
-#if !CONFIG_METADATA
-    size_t bytes_read =
-        type_length +
-#endif  // !CONFIG_METADATA
-        read_metadata_hdr_mdcv(pbi, data + type_length, sz - type_length);
-#if !CONFIG_METADATA
-    if (get_last_nonzero_byte(data + bytes_read, sz - bytes_read) != 0x80) {
-      cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
-      return 0;
-    }
-#endif  // !CONFIG_METADATA
+    read_metadata_hdr_mdcv(pbi, data + type_length, sz - type_length);
     return sz;
 #if CONFIG_BAND_METADATA
   } else if (metadata_type == OBU_METADATA_TYPE_BANDING_HINTS) {
-#if !CONFIG_METADATA
-    size_t bytes_read =
-        type_length +
-#endif  // !CONFIG_METADATA
-        read_metadata_banding_hints(pbi, data + type_length, sz - type_length);
-#if !CONFIG_METADATA
-    if (get_last_nonzero_byte(data + bytes_read, sz - bytes_read) != 0x80) {
-      cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
-      return 0;
-    }
-    return sz;
-#endif  // !CONFIG_METADATA
+    read_metadata_banding_hints(pbi, data + type_length, sz - type_length);
 #endif  // CONFIG_BAND_METADATA
 #if CONFIG_SCAN_TYPE_METADATA
   } else if (metadata_type == OBU_METADATA_TYPE_SCAN_TYPE) {
@@ -1101,19 +1010,9 @@ static size_t read_metadata(AV1Decoder *pbi, const uint8_t *data, size_t sz)
     read_metadata_scan_type(pbi, &rb);
     return sz;
 #endif  // CONFIG_SCAN_TYPE_METADATA
-#if CONFIG_METADATA
+#if CONFIG_ICC_METADATA
   } else if (metadata_type == OBU_METADATA_TYPE_ICC_PROFILE) {
-#if !CONFIG_METADATA
-    size_t bytes_read =
-        type_length +
-#endif  // !CONFIG_METADATA
-        read_metadata_icc_profile(pbi, data + type_length, sz - type_length);
-#if !CONFIG_METADATA
-    if (get_last_nonzero_byte(data + bytes_read, sz - bytes_read) != 0x80) {
-      cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
-      return 0;
-    }
-#endif  // !CONFIG_METADATA
+    read_metadata_icc_profile(pbi, data + type_length, sz - type_length);
     return sz;
 #endif  // CONFIG_ICC_METADATA
   }
@@ -1124,41 +1023,32 @@ static size_t read_metadata(AV1Decoder *pbi, const uint8_t *data, size_t sz)
     read_metadata_scalability(&rb);
   } else if (metadata_type == OBU_METADATA_TYPE_DECODED_FRAME_HASH) {
     if (read_metadata_frame_hash(pbi, &rb)) {
-#if !CONFIG_METADATA
-      // Unsupported Decoded Frame Hash metadata. Ignoring the entire OBU and
-      // just checking trailing bits
-      if (get_last_nonzero_byte(data + type_length, sz - type_length) == 0) {
-        cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
-        return 0;
-      }
-#endif  // !CONFIG_METADATA
       return sz;
     }
   } else {
     assert(metadata_type == OBU_METADATA_TYPE_TIMECODE);
     read_metadata_timecode(&rb);
   }
-#if !CONFIG_METADATA
-  if (av1_check_trailing_bits(pbi, &rb) != 0) {
-    // cm->error.error_code is already set.
-    return 0;
-  }
-#endif  // !CONFIG_METADATA
   assert((rb.bit_offset & 7) == 0);
   return type_length + (rb.bit_offset >> 3);
 }
 
-#if CONFIG_METADATA
 static size_t read_metadata_obsp(AV1Decoder *pbi, const uint8_t *data,
                                  size_t sz,
                                  aom_metadata_array_t *metadata_array,
-                                 aom_metadata_t *metadata_base) {
+                                 aom_metadata_t *metadata_base,
+                                 int expected_suffix) {
   AV1_COMMON *const cm = &pbi->common;
 
   struct aom_read_bit_buffer rb;
   av1_init_read_bit_buffer(pbi, &rb, data, data + sz);
 
   metadata_base->is_suffix = aom_rb_read_literal(&rb, 1);
+  // Validate suffix bit if requested
+  if (expected_suffix >= 0 && metadata_base->is_suffix != expected_suffix) {
+    cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
+    return 0;
+  }
   metadata_base->necessity_idc =
       (aom_metadata_necessity_t)aom_rb_read_literal(&rb, 2);
   metadata_base->application_id =
@@ -1168,15 +1058,22 @@ static size_t read_metadata_obsp(AV1Decoder *pbi, const uint8_t *data,
   assert(bytes_read == 1);
 
   size_t count_length;
-  uint64_t count_value;
-  if (aom_uleb_decode(data + bytes_read, sz - bytes_read, &count_value,
+  uint64_t count_minus_1;
+  if (aom_uleb_decode(data + bytes_read, sz - bytes_read, &count_minus_1,
                       &count_length) < 0) {
     cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
     return 0;
   }
 
-  metadata_array->sz = count_value;
+  // Spec changed from metadata_unit_cnt to metadata_unit_cnt_minus_1
+  metadata_array->sz = count_minus_1 + 1;
 
+  // Ensure metadata_unit_cnt doesn't exceed 2^14 - 1 (to keep uleb128 <= 2
+  // bytes)
+  if (metadata_array->sz > 16383) {
+    cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
+    return 0;
+  }
   return bytes_read + count_length;
 }
 
@@ -1248,14 +1145,14 @@ static size_t read_metadata_unit_header(AV1Decoder *pbi, const uint8_t *data,
 }
 
 static size_t read_metadata_obu(AV1Decoder *pbi, const uint8_t *data, size_t sz,
-                                ObuHeader *obu_header) {
+                                ObuHeader *obu_header, int expected_suffix) {
   AV1_COMMON *const cm = &pbi->common;
 
   aom_metadata_array_t metadata_array = { 0 };
   aom_metadata_t metadata_base;
   memset(&metadata_base, 0, sizeof(metadata_base));
-  size_t bytes_read =
-      read_metadata_obsp(pbi, data, sz, &metadata_array, &metadata_base);
+  size_t bytes_read = read_metadata_obsp(pbi, data, sz, &metadata_array,
+                                         &metadata_base, expected_suffix);
 
   for (uint32_t i = 0; i < metadata_array.sz; i++) {
     aom_metadata_t metadata = { 0 };
@@ -1285,37 +1182,50 @@ static size_t read_metadata_obu(AV1Decoder *pbi, const uint8_t *data, size_t sz,
   return bytes_read + 1;
 }
 #endif  // CONFIG_METADATA
-
-#if CONFIG_SHORT_METADATA
-// Checks the metadata for correct syntax but ignores the parsed metadata.
-//
-// On success, returns the number of bytes read from 'data'. On failure, sets
-// pbi->common.error.error_code and returns 0, or calls aom_internal_error()
-// and does not return.
-static size_t read_metadata_short(AV1Decoder *pbi, const uint8_t *data,
-                                  size_t sz) {
+#if CONFIG_METADATA
+// expected_suffix: 0 for prefix metadata, 1 for suffix metadata, -1 for no
+// validation
+#endif  // CONFIG_METADATA
+static size_t read_metadata(AV1Decoder *pbi, const uint8_t *data, size_t sz,
+                            int expected_suffix) {
   AV1_COMMON *const cm = &pbi->common;
   size_t type_length;
   uint64_t type_value;
-  // TODO: [@anorkin] this part may need to be revisited considering
-  // CONFIG_SHORT_METADATA and CONFIG_METADATA
+
   struct aom_read_bit_buffer rb;
+#if CONFIG_SHORT_METADATA
   av1_init_read_bit_buffer(pbi, &rb, data, data + sz);
 
   uint8_t metadata_is_suffix = aom_rb_read_bit(&rb);
+  // Validate suffix bit if requested
+  if (expected_suffix >= 0 && metadata_is_suffix != expected_suffix) {
+    cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
+    return 0;
+  }
   uint8_t muh_layer_idc = aom_rb_read_literal(&rb, 3);
   uint8_t muh_cancel_flag = aom_rb_read_bit(&rb);
   uint8_t muh_persistence_idc = aom_rb_read_literal(&rb, 3);
-  if (aom_uleb_decode(
-          data + 1,  // read type from the position data + 1
-          sz - 1,    // one less bytes available due to extra parameters
-          &type_value, &type_length) < 0) {
+#endif  // CONFIG_SHORT_METADATA
+  if (aom_uleb_decode(data
+#if CONFIG_SHORT_METADATA
+                          + 1  // read type from the position data + 1
+#endif                         // CONFIG_SHORT_METADATA
+                      ,
+                      sz
+#if CONFIG_SHORT_METADATA
+                          -
+                          1  // one less bytes available due to extra parameters
+#endif                       // CONFIG_SHORT_METADATA
+                      ,
+                      &type_value, &type_length) < 0) {
+
     cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
     return 0;
   }
 
   const OBU_METADATA_TYPE metadata_type = (OBU_METADATA_TYPE)type_value;
 
+#if CONFIG_SHORT_METADATA
   // Increase the type_length by 1 byte since there is one prefix byte added
   // before the type
   ++type_length;
@@ -1332,15 +1242,15 @@ static size_t read_metadata_short(AV1Decoder *pbi, const uint8_t *data,
       last_metadata->persistence_idc = muh_persistence_idc;
     }
   }
+#endif  // CONFIG_SHORT_METADATA
 
 #if CONFIG_BAND_METADATA
-  if (metadata_type == 0 || metadata_type >= 8)
+  if (metadata_type == 0 || metadata_type >= 8) {
 #else
-  if (metadata_type == 0 || metadata_type >= 7)
+  if (metadata_type == 0 || metadata_type >= 7) {
 #endif  // CONFIG_BAND_METADATA
-  {
-    // If metadata_type is reserved for future use or a user private value,
-    // ignore the entire OBU and just check trailing bits.
+        // If metadata_type is reserved for future use or a user private value,
+        // ignore the entire OBU and just check trailing bits.
     if (get_last_nonzero_byte(data + type_length, sz - type_length) == 0) {
       cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
       return 0;
@@ -1349,7 +1259,13 @@ static size_t read_metadata_short(AV1Decoder *pbi, const uint8_t *data,
   }
   if (metadata_type == OBU_METADATA_TYPE_ITUT_T35) {
     // read_metadata_itut_t35() checks trailing bits.
-    read_metadata_itut_t35_short(pbi, data + type_length, sz - type_length);
+    read_metadata_itut_t35(pbi, data + type_length, sz - type_length
+#if CONFIG_METADATA
+                           ,
+                           false
+#endif
+    );
+#if CONFIG_SHORT_METADATA
     // Update the metadata with the header fields we read
     if (pbi->metadata && pbi->metadata->sz > 0) {
       aom_metadata_t *last_metadata =
@@ -1361,6 +1277,7 @@ static size_t read_metadata_short(AV1Decoder *pbi, const uint8_t *data,
         last_metadata->persistence_idc = muh_persistence_idc;
       }
     }
+#endif  // CONFIG_SHORT_METADATA
     return sz;
   } else if (metadata_type == OBU_METADATA_TYPE_HDR_CLL) {
     size_t bytes_read =
@@ -1370,6 +1287,7 @@ static size_t read_metadata_short(AV1Decoder *pbi, const uint8_t *data,
       cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
       return 0;
     }
+#if CONFIG_SHORT_METADATA
     // Update the metadata with the header fields we read
     if (pbi->metadata && pbi->metadata->sz > 0) {
       aom_metadata_t *last_metadata =
@@ -1381,6 +1299,7 @@ static size_t read_metadata_short(AV1Decoder *pbi, const uint8_t *data,
         last_metadata->persistence_idc = muh_persistence_idc;
       }
     }
+#endif  // CONFIG_SHORT_METADATA
     return sz;
   } else if (metadata_type == OBU_METADATA_TYPE_HDR_MDCV) {
     size_t bytes_read =
@@ -1390,6 +1309,7 @@ static size_t read_metadata_short(AV1Decoder *pbi, const uint8_t *data,
       cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
       return 0;
     }
+#if CONFIG_SHORT_METADATA
     // Update the metadata with the header fields we read
     if (pbi->metadata && pbi->metadata->sz > 0) {
       aom_metadata_t *last_metadata =
@@ -1401,6 +1321,7 @@ static size_t read_metadata_short(AV1Decoder *pbi, const uint8_t *data,
         last_metadata->persistence_idc = muh_persistence_idc;
       }
     }
+#endif  // CONFIG_SHORT_METADATA
     return sz;
 #if CONFIG_BAND_METADATA
   } else if (metadata_type == OBU_METADATA_TYPE_BANDING_HINTS) {
@@ -1450,7 +1371,7 @@ static size_t read_metadata_short(AV1Decoder *pbi, const uint8_t *data,
   assert((rb.bit_offset & 7) == 0);
   return type_length + (rb.bit_offset >> 3);
 }
-#endif  // CONFIG_SHORT_METADATA
+
 // On success, returns 'sz'. On failure, sets pbi->common.error.error_code and
 // returns 0.
 static size_t read_padding(AV1_COMMON *const cm, const uint8_t *data,
@@ -1514,10 +1435,17 @@ static int check_obu_order(OBU_TYPE prev_obu_type, OBU_TYPE curr_obu_type) {
            curr_obu_type == OBU_CONTENT_INTERPRETATION ||
 #endif  // CONFIG_CWG_F270_CI_OBU
            curr_obu_type == OBU_MULTI_FRAME_HEADER ||
-           is_coded_frame(curr_obu_type) || curr_obu_type == OBU_METADATA
+           is_coded_frame(curr_obu_type)
+#if !CONFIG_SHORT_METADATA || !CONFIG_METADATA
+           || curr_obu_type == OBU_METADATA
+#else
 #if CONFIG_SHORT_METADATA
-           || curr_obu_type == OBU_METADATA_GROUP
+       || curr_obu_type == OBU_METADATA_SHORT
 #endif  // CONFIG_SHORT_METADATA
+#if CONFIG_METADATA
+       || curr_obu_type == OBU_METADATA_GROUP
+#endif  // CONFIG_METADATA
+#endif
            )) {
     return 0;
   } else if ((prev_obu_type == OBU_MSDO) &&
@@ -1529,10 +1457,17 @@ static int check_obu_order(OBU_TYPE prev_obu_type, OBU_TYPE curr_obu_type) {
               curr_obu_type == OBU_CONTENT_INTERPRETATION ||
 #endif  // CONFIG_CWG_F270_CI_OBU
               curr_obu_type == OBU_MULTI_FRAME_HEADER ||
-              is_coded_frame(curr_obu_type) || curr_obu_type == OBU_METADATA
+              is_coded_frame(curr_obu_type)
+#if !CONFIG_SHORT_METADATA || !CONFIG_METADATA
+              || curr_obu_type == OBU_METADATA
+#else
 #if CONFIG_SHORT_METADATA
-              || curr_obu_type == OBU_METADATA_GROUP
+              || curr_obu_type == OBU_METADATA_SHORT
 #endif  // CONFIG_SHORT_METADATA
+#if CONFIG_METADATA
+              || curr_obu_type == OBU_METADATA_GROUP
+#endif  // CONFIG_METADATA
+#endif
               )) {
     return 0;
   } else if ((prev_obu_type == OBU_LAYER_CONFIGURATION_RECORD) &&
@@ -1544,10 +1479,17 @@ static int check_obu_order(OBU_TYPE prev_obu_type, OBU_TYPE curr_obu_type) {
               curr_obu_type == OBU_CONTENT_INTERPRETATION ||
 #endif  // CONFIG_CWG_F270_CI_OBU
               curr_obu_type == OBU_MULTI_FRAME_HEADER ||
-              is_coded_frame(curr_obu_type) || curr_obu_type == OBU_METADATA
+              is_coded_frame(curr_obu_type)
+#if !CONFIG_SHORT_METADATA || !CONFIG_METADATA
+              || curr_obu_type == OBU_METADATA
+#else
 #if CONFIG_SHORT_METADATA
-              || curr_obu_type == OBU_METADATA_GROUP
+              || curr_obu_type == OBU_METADATA_SHORT
 #endif  // CONFIG_SHORT_METADATA
+#if CONFIG_METADATA
+              || curr_obu_type == OBU_METADATA_GROUP
+#endif  // CONFIG_METADATA
+#endif
               )) {
     return 0;
   } else if ((prev_obu_type == OBU_OPERATING_POINT_SET) &&
@@ -1558,10 +1500,17 @@ static int check_obu_order(OBU_TYPE prev_obu_type, OBU_TYPE curr_obu_type) {
               curr_obu_type == OBU_CONTENT_INTERPRETATION ||
 #endif  // CONFIG_CWG_F270_CI_OBU
               curr_obu_type == OBU_MULTI_FRAME_HEADER ||
-              is_coded_frame(curr_obu_type) || curr_obu_type == OBU_METADATA
+              is_coded_frame(curr_obu_type)
+#if !CONFIG_SHORT_METADATA || !CONFIG_METADATA
+              || curr_obu_type == OBU_METADATA
+#else
 #if CONFIG_SHORT_METADATA
-              || curr_obu_type == OBU_METADATA_GROUP
+              || curr_obu_type == OBU_METADATA_SHORT
 #endif  // CONFIG_SHORT_METADATA
+#if CONFIG_METADATA
+              || curr_obu_type == OBU_METADATA_GROUP
+#endif  // CONFIG_METADATA
+#endif
               )) {
     return 0;
   } else if ((prev_obu_type == OBU_ATLAS_SEGMENT) &&
@@ -1571,10 +1520,17 @@ static int check_obu_order(OBU_TYPE prev_obu_type, OBU_TYPE curr_obu_type) {
               curr_obu_type == OBU_CONTENT_INTERPRETATION ||
 #endif  // CONFIG_CWG_F270_CI_OBU
               curr_obu_type == OBU_MULTI_FRAME_HEADER ||
-              is_coded_frame(curr_obu_type) || curr_obu_type == OBU_METADATA
+              is_coded_frame(curr_obu_type)
+#if !CONFIG_SHORT_METADATA || !CONFIG_METADATA
+              || curr_obu_type == OBU_METADATA
+#else
 #if CONFIG_SHORT_METADATA
-              || curr_obu_type == OBU_METADATA_GROUP
+              || curr_obu_type == OBU_METADATA_SHORT
 #endif  // CONFIG_SHORT_METADATA
+#if CONFIG_METADATA
+              || curr_obu_type == OBU_METADATA_GROUP
+#endif  // CONFIG_METADATA
+#endif
               )) {
     return 0;
   } else if ((prev_obu_type == OBU_SEQUENCE_HEADER) &&
@@ -1584,49 +1540,95 @@ static int check_obu_order(OBU_TYPE prev_obu_type, OBU_TYPE curr_obu_type) {
 #endif  // CONFIG_CWG_F270_CI_OBU
               curr_obu_type == OBU_MULTI_FRAME_HEADER ||
               curr_obu_type == OBU_BUFFER_REMOVAL_TIMING ||
-              is_coded_frame(curr_obu_type) || curr_obu_type == OBU_METADATA
+              is_coded_frame(curr_obu_type)
+#if !CONFIG_SHORT_METADATA || !CONFIG_METADATA
+              || curr_obu_type == OBU_METADATA
+#else
 #if CONFIG_SHORT_METADATA
-              || curr_obu_type == OBU_METADATA_GROUP
+              || curr_obu_type == OBU_METADATA_SHORT
 #endif  // CONFIG_SHORT_METADATA
+#if CONFIG_METADATA
+              || curr_obu_type == OBU_METADATA_GROUP
+#endif  // CONFIG_METADATA
+#endif
               )) {
     return 0;
 #if CONFIG_CWG_F270_CI_OBU
   } else if ((prev_obu_type == OBU_CONTENT_INTERPRETATION) &&
              (curr_obu_type == OBU_MULTI_FRAME_HEADER ||
               curr_obu_type == OBU_BUFFER_REMOVAL_TIMING ||
-              is_coded_frame(curr_obu_type) || curr_obu_type == OBU_METADATA
+              is_coded_frame(curr_obu_type)
+#if !CONFIG_SHORT_METADATA || !CONFIG_METADATA
+              || curr_obu_type == OBU_METADATA
+#else
 #if CONFIG_SHORT_METADATA
-              || curr_obu_type == OBU_METADATA_GROUP
+              || curr_obu_type == OBU_METADATA_SHORT
 #endif  // CONFIG_SHORT_METADATA
+#if CONFIG_METADATA
+              || curr_obu_type == OBU_METADATA_GROUP
+#endif  // CONFIG_METADATA
+#endif
               )) {
     return 0;
 #endif  // CONFIG_CWG_F270_CI_OBU
   } else if ((prev_obu_type == OBU_BUFFER_REMOVAL_TIMING) &&
              (curr_obu_type == OBU_MULTI_FRAME_HEADER ||
-              is_coded_frame(curr_obu_type) || curr_obu_type == OBU_METADATA
+              is_coded_frame(curr_obu_type)
+#if !CONFIG_SHORT_METADATA || !CONFIG_METADATA
+              || curr_obu_type == OBU_METADATA
+#else
 #if CONFIG_SHORT_METADATA
-              || curr_obu_type == OBU_METADATA_GROUP
+              || curr_obu_type == OBU_METADATA_SHORT
 #endif  // CONFIG_SHORT_METADATA
+#if CONFIG_METADATA
+              || curr_obu_type == OBU_METADATA_GROUP
+#endif  // CONFIG_METADATA
+#endif
               )) {
     return 0;
   } else if ((prev_obu_type == OBU_MULTI_FRAME_HEADER) &&
              (curr_obu_type == OBU_MULTI_FRAME_HEADER ||
-              is_coded_frame(curr_obu_type) || curr_obu_type == OBU_METADATA
+              is_coded_frame(curr_obu_type)
+#if !CONFIG_SHORT_METADATA || !CONFIG_METADATA
+              || curr_obu_type == OBU_METADATA
+#else
 #if CONFIG_SHORT_METADATA
-              || curr_obu_type == OBU_METADATA_GROUP
+              || curr_obu_type == OBU_METADATA_SHORT
 #endif  // CONFIG_SHORT_METADATA
+#if CONFIG_METADATA
+              || curr_obu_type == OBU_METADATA_GROUP
+#endif  // CONFIG_METADATA
+#endif
               )) {
     return 0;
-  } else if ((prev_obu_type == OBU_METADATA
+  } else if ((
+#if !CONFIG_SHORT_METADATA || !CONFIG_METADATA
+                 prev_obu_type == OBU_METADATA
+#else
 #if CONFIG_SHORT_METADATA
-              || prev_obu_type == OBU_METADATA_GROUP
+                 prev_obu_type == OBU_METADATA_SHORT
 #endif  // CONFIG_SHORT_METADATA
-              ) &&
-             (is_coded_frame(curr_obu_type) || curr_obu_type == OBU_METADATA ||
+#if CONFIG_SHORT_METADATA && CONFIG_METADATA
+                 ||
+#endif
+#if CONFIG_METADATA
+                 prev_obu_type == OBU_METADATA_GROUP
+#endif  // CONFIG_METADATA
+#endif  // !CONFIG_SHORT_METADATA || !CONFIG_METADATA
+                 ) &&
+             (is_coded_frame(curr_obu_type) ||
+              curr_obu_type == OBU_TEMPORAL_DELIMITER
+#if !CONFIG_SHORT_METADATA || !CONFIG_METADATA
+              || curr_obu_type == OBU_METADATA
+#else
 #if CONFIG_SHORT_METADATA
-              curr_obu_type == OBU_METADATA_GROUP ||
+              || curr_obu_type == OBU_METADATA_SHORT
 #endif  // CONFIG_SHORT_METADATA
-              curr_obu_type == OBU_TEMPORAL_DELIMITER)) {
+#if CONFIG_METADATA
+              || curr_obu_type == OBU_METADATA_GROUP
+#endif  // CONFIG_METADATA
+#endif
+              )) {
     return 0;
   } else if (prev_obu_type == OBU_TEMPORAL_DELIMITER ||
              is_coded_frame(prev_obu_type) || prev_obu_type == OBU_PADDING) {
@@ -1845,6 +1847,7 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
         continue;
       }
     }
+    printf("%s====>\n", aom_obu_type_to_string(obu_header.type));
 
     av1_init_read_bit_buffer(pbi, &rb, data, data + payload_size);
     switch (obu_header.type) {
@@ -2005,28 +2008,25 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
         break;
 #endif  // CONFIG_F255_QMOBU
+#if !CONFIG_SHORT_METADATA || !CONFIG_METADATA
       case OBU_METADATA:
-#if CONFIG_METADATA && !CONFIG_SHORT_METADATA
-        decoded_payload_size =
-            read_metadata_obu(pbi, data, payload_size, &obu_header);
-#elif CONFIG_SHORT_METADATA
-        decoded_payload_size = read_metadata_short(pbi, data, payload_size);
-#else
-      decoded_payload_size = read_metadata(pbi, data, payload_size);
-#endif  // CONFIG_METADATA && !CONFIG_SHORT_METADATA
+        decoded_payload_size = read_metadata(pbi, data, payload_size);
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
         break;
+#endif  // !CONFIG_SHORT_METADATA || !CONFIG_METADATA
 #if CONFIG_SHORT_METADATA
-      case OBU_METADATA_GROUP:
-        decoded_payload_size =
-#if CONFIG_METADATA
-            read_metadata_obu(pbi, data, payload_size, &obu_header);
-#else
-            read_metadata_short(pbi, data, payload_size);
-#endif  // CONFIG_METADATA
+      case OBU_METADATA_SHORT:
+        decoded_payload_size = read_metadata(pbi, data, payload_size, 0);
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
         break;
 #endif  // CONFIG_SHORT_METADATA
+#if CONFIG_METADATA
+      case OBU_METADATA_GROUP:
+        decoded_payload_size =
+            read_metadata_obu(pbi, data, payload_size, &obu_header, 0);
+        if (cm->error.error_code != AOM_CODEC_OK) return -1;
+        break;
+#endif  // CONFIG_METADATA
 #if CONFIG_F153_FGM_OBU
       case OBU_FGM:
         decoded_payload_size = read_fgm_obu(
@@ -2082,11 +2082,12 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
       cm->error.error_code = status;
       return -1;
     }
+    // Accept both OBU_METADATA and OBU_METADATA_GROUP for suffix metadata
+    if ((obu_header.type != OBU_METADATA_GROUP &&
 #if CONFIG_SHORT_METADATA
-    if (obu_header.type != OBU_METADATA_GROUP || data + bytes_read >= data_end)
-#else
-    if (obu_header.type != OBU_METADATA || data + bytes_read >= data_end)
+         obu_header.type != OBU_METADATA_SHORT) ||
 #endif  // CONFIG_SHORT_METADATA
+        data + bytes_read >= data_end)
       break;
 
     // check whether it is a suffix metadata OBU
@@ -2094,8 +2095,14 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
 
     data += bytes_read;
 
-    decoded_payload_size =
-        read_metadata_obu(pbi, data, payload_size, &obu_header);
+    // Call the appropriate read function based on OBU type
+#if CONFIG_SHORT_METADATA
+    if (obu_header.type == OBU_METADATA_SHORT)
+      decoded_payload_size = read_metadata(pbi, data, payload_size, 1);
+    else
+#endif  // CONFIG_SHORT_METADATA
+      decoded_payload_size =
+          read_metadata_obu(pbi, data, payload_size, &obu_header, 1);
 
     if (cm->error.error_code != AOM_CODEC_OK) return -1;
 

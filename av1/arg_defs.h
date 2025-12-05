@@ -107,6 +107,9 @@ typedef struct av1_codec_arg_definitions {
   arg_def_t sframe_dist;
   arg_def_t sframe_mode;
   arg_def_t signal_td;
+#if CONFIG_METADATA
+  arg_def_t use_short_metadata;
+#endif  // CONFIG_METADATA
 #if CONFIG_MULTILAYER_HLS
   arg_def_t enable_lcr;
   arg_def_t enable_ops;

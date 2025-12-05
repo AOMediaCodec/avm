@@ -179,10 +179,15 @@ const char *aom_obu_type_to_string(OBU_TYPE type) {
     case OBU_TIP: return "OBU_TIP";
     case OBU_TILE_GROUP: return "OBU_TILE_GROUP";
 #endif  // CONFIG_F024_KEYOBU
-    case OBU_METADATA: return "OBU_METADATA";
 #if CONFIG_SHORT_METADATA
+    case OBU_METADATA_SHORT: return "OBU_METADATA_SHORT";
+#endif
+#if CONFIG_METADATA
     case OBU_METADATA_GROUP: return "OBU_METADATA_GROUP";
-#endif  // CONFIG_SHORT_METADATA
+#endif
+#if !CONFIG_SHORT_METADATA || !CONFIG_SHORT_METADATA
+    case OBU_METADATA: return "OBU_METADATA";
+#endif
 #if CONFIG_MULTILAYER_HLS
     case OBU_LAYER_CONFIGURATION_RECORD:
       return "OBU_LAYER_CONFIGURATION_RECORD";

@@ -244,6 +244,32 @@ typedef enum aom_metadata_application_id {
   // 16-31 are externally defined
 } aom_metadata_application_id_t;
 
+/*!\brief Metadata persistence behavior
+ *
+ * Defines how long the metadata should remain valid and applicable
+ * to subsequent frames in the bitstream.
+ */
+typedef enum aom_metadata_persistence {
+  AOM_GLOBAL_PERSISTENCE = 0,
+  AOM_BASIC_PERSISTENCE = 1,
+  AOM_NO_PERSISTENCE = 2,
+  AOM_ENHANCED_PERSISTENCE = 3,
+  // 4-15 are reserved for AOM use
+} aom_metadata_persistence_t;
+/*!\brief Metadata layer applicability
+ *
+ * Specifies which layers or layer groups the metadata applies to
+ * in scalable video coding scenarios.
+ */
+typedef enum aom_metadata_layer {
+  AOM_LAYER_UNSPECIFIED = 0,
+  AOM_LAYER_GLOBAL = 1,
+  AOM_LAYER_CURRENT = 2,
+  AOM_LAYER_VALUES = 3,
+  // 4-15 are reserved for AOM use
+} aom_metadata_layer_t;
+#endif  // CONFIG_SHORT_METADATA || CONFIG_METADATA
+
 #if CONFIG_SCAN_TYPE_METADATA
 /*!\brief Metadata Picture Scan Type
  *
@@ -290,32 +316,6 @@ typedef struct aom_metadata_pic_struct_t {
   int mps_duplicate_flag;                       /**< frame duplicate */
 } aom_metadata_pic_struct_t;
 #endif  // CONFIG_SCAN_TYPE_METADATA
-
-/*!\brief Metadata persistence behavior
- *
- * Defines how long the metadata should remain valid and applicable
- * to subsequent frames in the bitstream.
- */
-typedef enum aom_metadata_persistence {
-  AOM_GLOBAL_PERSISTENCE = 0,
-  AOM_BASIC_PERSISTENCE = 1,
-  AOM_NO_PERSISTENCE = 2,
-  AOM_ENHANCED_PERSISTENCE = 3,
-  // 4-15 are reserved for AOM use
-} aom_metadata_persistence_t;
-/*!\brief Metadata layer applicability
- *
- * Specifies which layers or layer groups the metadata applies to
- * in scalable video coding scenarios.
- */
-typedef enum aom_metadata_layer {
-  AOM_LAYER_UNSPECIFIED = 0,
-  AOM_LAYER_GLOBAL = 1,
-  AOM_LAYER_CURRENT = 2,
-  AOM_LAYER_VALUES = 3,
-  // 4-15 are reserved for AOM use
-} aom_metadata_layer_t;
-#endif  // CONFIG_SHORT_METADATA || CONFIG_METADATA
 
 /*!\brief Metadata payload. */
 typedef struct aom_metadata {

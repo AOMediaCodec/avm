@@ -1762,6 +1762,9 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   }
 
   oxcf->signal_td = cfg->signal_td;
+#if CONFIG_METADATA
+  oxcf->use_short_metadata = cfg->use_short_metadata;
+#endif  // CONFIG_METADATA
 #if CONFIG_MULTILAYER_HLS
   layer_cfg->enable_lcr = cfg->enable_lcr;
   layer_cfg->enable_ops = cfg->enable_ops;
@@ -4662,6 +4665,9 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
     0,            // full_still_picture_hdr
     1,            // enable_tcq
     0,            // signal_td
+#if CONFIG_METADATA
+    0,  // use_short_metadata;
+#endif  // CONFIG_METADATA
 #if CONFIG_MULTILAYER_HLS
     0,                           // enable_lcr
     0,                           // enable_ops

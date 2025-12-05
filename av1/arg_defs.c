@@ -285,6 +285,10 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       ARG_DEF(NULL, "sframe-mode", 1, "S-Frame insertion mode (1..2)"),
   .signal_td =
       ARG_DEF(NULL, "use-temporal-delimiter", 1, "Signal temproal delimiters"),
+#if CONFIG_METADATA
+  .use_short_metadata =
+      ARG_DEF(NULL, "use-short-metadata", 1, "Use short metadata obu"),
+#endif  // CONFIG_METADATA
 #if CONFIG_MULTILAYER_HLS
   .enable_lcr =
       ARG_DEF(NULL, "enable-lcr", 1,
