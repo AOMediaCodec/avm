@@ -1789,18 +1789,12 @@ struct CommonQuantParams {
 
   /*!
    * Flag indicating whether quantization matrices are being used:
-   *  - If true, qm_level_y, qm_level_u and qm_level_v indicate the level
-   *    indices to be used to access appropriate global quant matrix tables.
+   *  - If true, qm_y, qm_u and qm_v indicate the level indices to be used to
+   *    access appropriate global quant matrix tables.
    *  - If false, we implicitly use level index 'NUM_QM_LEVELS - 1'.
    */
   bool using_qmatrix;
 #if !CONFIG_F255_QMOBU
-  /**
-   * \name Valid only when using_qmatrix == true
-   * Indicate the level indices to be used to access appropriate global quant
-   * matrix tables.
-   */
-
   /*!
    * Flag indicating whether quantization matrices are allocated.
    */
@@ -1814,22 +1808,27 @@ struct CommonQuantParams {
    */
   bool qmatrix_initialized;
 #endif  // CONFIG_F255_QMOBU
-  /**@{*/
   /*!
    * Number of QM levels available for use by the segments in the frame.
    * Range is 1..4.
    */
   uint8_t pic_qm_num;
   uint8_t qm_index_bits; /*!< Equal to CeilLog2(pic_qm_num) */
-  uint8_t qm_y[4];       /*!< QM levels for Y plane */
-  uint8_t qm_u[4];       /*!< QM levels for U plane */
-  uint8_t qm_v[4];       /*!< QM levels for V plane */
+  /**
+   * \name Valid only when using_qmatrix == true
+   * Indicate the level indices to be used to access appropriate global quant
+   * matrix tables.
+   */
+  /**@{*/
+  uint8_t qm_y[4]; /*!< QM levels for Y plane */
+  uint8_t qm_u[4]; /*!< QM levels for U plane */
+  uint8_t qm_v[4]; /*!< QM levels for V plane */
+  /**@}*/
   /*!
    * qm_index[segmentId] selects a QM level for segmentID
    * Range is 0..pic_qm_num - 1.
    */
   uint8_t qm_index[MAX_SEGMENTS];
-  /**@}*/
 };
 
 typedef struct CommonContexts CommonContexts;
