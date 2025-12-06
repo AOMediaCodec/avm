@@ -2471,6 +2471,14 @@ static AOM_INLINE void setup_segmentation(AV1_COMMON *const cm,
     return;
   }
 
+  if (cm->seg.enabled && cm->prev_frame &&
+      (cm->mi_params.mi_rows == cm->prev_frame->mi_rows) &&
+      (cm->mi_params.mi_cols == cm->prev_frame->mi_cols)) {
+    cm->last_frame_seg_map = cm->prev_frame->seg_map;
+  } else {
+    cm->last_frame_seg_map = NULL;
+  }
+
 #if CONFIG_MULTI_LEVEL_SEGMENTATION
   const SegmentationInfoSyntax *const seg_params =
       find_effective_seg_params(cm);
@@ -2489,20 +2497,22 @@ static AOM_INLINE void setup_segmentation(AV1_COMMON *const cm,
     read_seg_syntax_info_to_segmentation(seg, rb);
   }
 
-  seg->update_map = aom_rb_read_bit(rb);
-  if (seg->update_map) {
-    seg->temporal_update = aom_rb_read_bit(rb);
-  } else {
+  if (cm->features.derived_primary_ref_frame == PRIMARY_REF_NONE) {
+    // These frames can't use previous frames, so must signal map + features
+    seg->update_map = 1;
     seg->temporal_update = 0;
+    seg->update_data = 1;
+    seg->enable_ext_seg = cm->seq_params.enable_ext_seg;
+  } else {
+    seg->update_map = aom_rb_read_bit(rb);
+    if (seg->update_map) {
+      seg->temporal_update = aom_rb_read_bit(rb);
+    } else {
+      seg->temporal_update = 0;
+    }
+    seg->update_data = reuse ? 0 : 1;
   }
 #else
-  if (cm->seg.enabled && cm->prev_frame &&
-      (cm->mi_params.mi_rows == cm->prev_frame->mi_rows) &&
-      (cm->mi_params.mi_cols == cm->prev_frame->mi_cols)) {
-    cm->last_frame_seg_map = cm->prev_frame->seg_map;
-  } else {
-    cm->last_frame_seg_map = NULL;
-  }
   // Read update flags
   if (cm->features.derived_primary_ref_frame == PRIMARY_REF_NONE) {
     // These frames can't use previous frames, so must signal map + features
