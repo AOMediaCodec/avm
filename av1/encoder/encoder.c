@@ -913,6 +913,11 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
   cm->lcr->lcr_global_config_record_id = 1;
   for (int i = 0; i < MAX_NUM_LCR; i++) cm->lcr->lcr_global_id[i] = 1;
 
+  // Initialize LCR params which is used by write_lcr_local_info()
+  // lcr_global_id must be non-zero since 0 is LCR_ID_UNSPECIFIED
+  cm->lcr_params.lcr_global_config_record_id = 1;
+  for (int i = 0; i < MAX_NUM_LCR; i++) cm->lcr_params.lcr_global_id[i] = 1;
+
   // Initialize OPS information
   for (int i = 0; i < MAX_NUM_OPS_ID; i++)
     memset(&cpi->ops_list[i], 0, sizeof(struct OperatingPointSet));
