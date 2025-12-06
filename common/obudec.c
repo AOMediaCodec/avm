@@ -121,7 +121,8 @@ static int is_multi_tile_vcl_obu(OBU_TYPE obu_type) {
 #endif  // CONFIG_F024_KEYOBU
 
 static int peek_obu_from_file(FILE *f, size_t obu_size, uint8_t *buffer,
-                              ObuHeader *obu_header, uint8_t *first_tile_group) {
+                              ObuHeader *obu_header,
+                              uint8_t *first_tile_group) {
   if (!f) {
     return -2;
   }
@@ -263,8 +264,8 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
     }
     uint8_t first_tile_group_byte = 0;
     const int read_status =
-        peek_obu_from_file(f, (size_t)obu_size, &detect_buf[0], &obu_header, &first_tile_group_byte
-        );
+        peek_obu_from_file(f, (size_t)obu_size, &detect_buf[0], &obu_header,
+                           &first_tile_group_byte);
     if (read_status == -2) {
       return -1;
     } else if (read_status == -1) {
