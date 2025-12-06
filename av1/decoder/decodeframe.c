@@ -9163,10 +9163,9 @@ static int read_uncompressed_header(AV1Decoder *pbi, OBU_TYPE obu_type,
   }
 #endif  // CONFIG_LCR_ID_IN_SH
 #if CONFIG_CWG_F270_CI_OBU
-  if (cm->ci_params.color_info.matrix_coefficients == AOM_CICP_MC_IDENTITY &&
+  if (pbi->ci_params_received && cm->ci_params.color_info.matrix_coefficients == AOM_CICP_MC_IDENTITY &&
       (cm->seq_params.subsampling_x || cm->seq_params.subsampling_y)) {
-    // Identity CICP Matrix incompatible with non 4:4:4 color sampling
-    return AOM_CODEC_UNSUP_BITSTREAM;
+    aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM, "Identity CICP Matrix incompatible with non 4:4:4 color sampling.");
   }
 #endif  // CONFIG_CWG_F270_CI_OBU
 
@@ -9204,6 +9203,10 @@ static int read_uncompressed_header(AV1Decoder *pbi, OBU_TYPE obu_type,
 #if CONFIG_F024_KEYOBU
     if (obu_type == OBU_CLK) {
       current_frame->frame_type = KEY_FRAME;
+#if CONFIG_CWG_F270_CI_OBU
+      // Reset CI arams at the start of a new CVS
+      pbi->ci_params_received = 0;
+#endif  // CONFIG_CWG_F270_CI_OBU
       pbi->olk_encountered = 0;
     } else if (obu_type == OBU_OLK) {
       current_frame->frame_type = KEY_FRAME;
