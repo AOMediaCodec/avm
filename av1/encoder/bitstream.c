@@ -8945,25 +8945,23 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
 #endif  // CONFIG_F255_QMOBU
   }
 #if CONFIG_F255_QMOBU
-  if (cm->quant_params.using_qmatrix && !cpi->obu_is_written
+  if (add_new_user_qm && !cpi->obu_is_written
 #if !CONFIG_F024_KEYOBU
       && !cm->show_existing_frame
 #endif
-      && cpi->oxcf.q_cfg.user_defined_qmatrix) {
-    if (add_new_user_qm) {
-      assert(cpi->total_signalled_qmobu_count > 0);
-      obu_header_size = av1_write_obu_header(level_params, OBU_QM, obu_temporal,
-                                             obu_layer, data);
-      obu_payload_size = write_qm_obu(cpi, cpi->total_signalled_qmobu_count - 1,
-                                      data + obu_header_size);
-      size_t length_field_size_qm =
-          obu_memmove(obu_header_size, obu_payload_size, data);
-      if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
-          AOM_CODEC_OK) {
-        return AOM_CODEC_ERROR;
-      }
-      data += obu_header_size + obu_payload_size + length_field_size_qm;
-    }  // need_new_qmobu
+  ) {
+    assert(cpi->total_signalled_qmobu_count > 0);
+    obu_header_size = av1_write_obu_header(level_params, OBU_QM, obu_temporal,
+                                           obu_layer, data);
+    obu_payload_size = write_qm_obu(cpi, cpi->total_signalled_qmobu_count - 1,
+                                    data + obu_header_size);
+    size_t length_field_size_qm =
+        obu_memmove(obu_header_size, obu_payload_size, data);
+    if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
+        AOM_CODEC_OK) {
+      return AOM_CODEC_ERROR;
+    }
+    data += obu_header_size + obu_payload_size + length_field_size_qm;
   }
 #endif  // CONFIG_F255_QMOBU
 
