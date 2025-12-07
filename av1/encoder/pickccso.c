@@ -1297,8 +1297,7 @@ static void derive_ccso_filter(CcsoCtx *ctx, AV1_COMMON *cm, const int plane,
 
   int init_shift_bits = -1;
 
-  const int num_ref_frames = (frame_is_intra_only(cm) ||
-                              frame_is_sframe(cm) ||
+  const int num_ref_frames = (frame_is_intra_only(cm) || frame_is_sframe(cm) ||
                               error_resilient_frame_seen)
                                  ? 0
                                  : cm->ref_frames_info.num_total_refs;
