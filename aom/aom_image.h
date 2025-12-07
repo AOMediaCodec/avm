@@ -122,7 +122,13 @@ typedef enum aom_matrix_coefficients {
       12, /**< Chromaticity-derived non-constant luminance */
   AOM_CICP_MC_CHROMAT_CL = 13, /**< Chromaticity-derived constant luminance */
   AOM_CICP_MC_ICTCP = 14,      /**< BT.2100 ICtCp */
+#if CONFIG_CWG_F270_CI_OBU
+  AOM_CICP_MC_RESERVED_15 = 15, /**< For future use (values 15)  */
+  AOM_CICP_MC_YCGCO_RE = 16, /**< YCgCo_Re */
+  AOM_CICP_MC_YCGCO_RO = 17, /**< YCgCo_Ro */
+#else
   AOM_CICP_MC_RESERVED_15 = 15 /**< For future use (values 15-255)  */
+#endif  // CONFIG_CWG_F270_CI_OBU
 } aom_matrix_coefficients_t;   /**< alias for enum aom_matrix_coefficients */
 
 /*!\brief List of supported color range */
