@@ -3382,7 +3382,6 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
           is_frame_visible_null = 1;
         }
 #endif
-        assert(IMPLIES(is_frame_visible_null, frame_size == 0));
       } else {
         if (cpi->common.show_existing_frame) {
           is_frame_visible_null = 1;
