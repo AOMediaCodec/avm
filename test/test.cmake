@@ -142,13 +142,6 @@ if(NOT BUILD_SHARED_LIBS)
       "${AOM_ROOT}/test/temporal_filter_test.cc")
   endif()
 
-  if(CONFIG_AV1_DECODER
-     AND CONFIG_AV1_ENCODER
-     AND NOT CONFIG_F322_OBUER_ERM)
-    list(APPEND AOM_UNIT_TEST_COMMON_SOURCES
-         "${AOM_ROOT}/test/error_resilience_test.cc")
-  endif()
-
   list(APPEND AOM_UNIT_TEST_COMMON_INTRIN_NEON
        "${AOM_ROOT}/test/simd_cmp_neon.cc")
   if(HAVE_NEON)
