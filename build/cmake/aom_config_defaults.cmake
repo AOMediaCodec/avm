@@ -225,8 +225,6 @@ set_aom_config_var(
   CONFIG_QM_DEBUG 0
   "Enable debug information for extension to AV1 quantization matrices.")
 
-set_aom_config_var(CONFIG_CWG_F248_RENDER_SIZE 1 "Remove render size.")
-
 set_aom_config_var(CONFIG_DC_DIV_UNIFY 1 "Unify DC division")
 
 set_aom_config_var(CONFIG_MHCCP_BLK_SIZE 1

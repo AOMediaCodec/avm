@@ -1384,13 +1384,11 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   cm->height = frm_dim_cfg->height;
 
 #if CONFIG_MULTILAYER_HLS
-#if CONFIG_CWG_F248_RENDER_SIZE
   if (cm->lcr->lcr_rep_info_present_flag[0][0] == 1) {
     // NOTE: if LCR exist
     cm->lcr_params.rep_params.lcr_max_pic_width = cm->width;
     cm->lcr_params.rep_params.lcr_max_pic_height = cm->height;
   }
-#endif  // CONFIG_CWG_F248_RENDER_SIZE
 #endif  // CONFIG_MULTILAYER_HLS
 
   BLOCK_SIZE sb_size = cm->sb_size;

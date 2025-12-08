@@ -107,23 +107,12 @@ class AVxEncoderParmsGetToDecoder
       encoder->Control(AV1E_SET_CHROMA_SAMPLE_POSITION,
                        encode_parms.chroma_sample_position);
       encoder->Control(AV1E_SET_LOSSLESS, encode_parms.lossless);
-#if !CONFIG_CWG_F248_RENDER_SIZE
-      if (encode_parms.render_size[0] > 0 && encode_parms.render_size[1] > 0) {
-        encoder->Control(AV1E_SET_RENDER_SIZE, encode_parms.render_size);
-      }
-#endif  // !CONFIG_CWG_F248_RENDER_SIZE
     }
   }
 
   virtual void DecompressedFrameHook(const aom_image_t &img,
                                      aom_codec_pts_t pts) {
     (void)pts;
-#if !CONFIG_CWG_F248_RENDER_SIZE
-    if (encode_parms.render_size[0] > 0 && encode_parms.render_size[1] > 0) {
-      EXPECT_EQ(encode_parms.render_size[0], (int)img.r_w);
-      EXPECT_EQ(encode_parms.render_size[1], (int)img.r_h);
-    }
-#endif  // !CONFIG_CWG_F248_RENDER_SIZE
     EXPECT_EQ(encode_parms.color_primaries, img.cp);
     EXPECT_EQ(encode_parms.transfer_characteristics, img.tc);
     EXPECT_EQ(encode_parms.matrix_coefficients, img.mc);

@@ -4423,17 +4423,6 @@ typedef struct TileBufferEnc {
   size_t size;
 } TileBufferEnc;
 
-#if !CONFIG_CWG_F248_RENDER_SIZE
-static AOM_INLINE void write_render_size(const AV1_COMMON *cm,
-                                         struct aom_write_bit_buffer *wb) {
-  const int scaling_active = av1_resize_scaled(cm);
-  aom_wb_write_bit(wb, scaling_active);
-  if (scaling_active) {
-    aom_wb_write_literal(wb, cm->render_width - 1, 16);
-    aom_wb_write_literal(wb, cm->render_height - 1, 16);
-  }
-}
-#endif  // !CONFIG_CWG_F248_RENDER_SIZE
 static AOM_INLINE void write_frame_size(const AV1_COMMON *cm,
                                         int frame_size_override,
                                         struct aom_write_bit_buffer *wb) {
@@ -4461,9 +4450,6 @@ static AOM_INLINE void write_frame_size(const AV1_COMMON *cm,
     aom_wb_write_literal(wb, coded_width, num_bits_width);
     aom_wb_write_literal(wb, coded_height, num_bits_height);
   }
-#if !CONFIG_CWG_F248_RENDER_SIZE
-  write_render_size(cm, wb);
-#endif  // !CONFIG_CWG_F248_RENDER_SIZE
 }
 
 static AOM_INLINE void write_frame_size_with_refs(
@@ -6191,23 +6177,6 @@ static AOM_INLINE void write_multi_frame_header(
     aom_wb_write_literal(wb, coded_height, num_bits_height);
   }
 #endif  //  CONFIG_CWG_E242_PARSING_INDEP
-
-#if !CONFIG_CWG_F248_RENDER_SIZE
-#if CONFIG_CWG_E242_PARSING_INDEP
-  aom_wb_write_bit(wb, mfh_param->mfh_render_size_present_flag);
-  if (mfh_param->mfh_render_size_present_flag) {
-#else
-  bool mfh_render_size_update_flag =
-      mfh_frame_size_update_flag &&
-      (cm->width != cm->render_width || cm->height != cm->render_height);
-  aom_wb_write_bit(wb, mfh_render_size_update_flag);
-
-  if (mfh_render_size_update_flag) {
-#endif  // CONFIG_CWG_E242_PARSING_INDEP
-    aom_wb_write_literal(wb, cm->render_width - 1, 16);
-    aom_wb_write_literal(wb, cm->render_height - 1, 16);
-  }
-#endif  // !CONFIG_CWG_F248_RENDER_SIZE
 
   aom_wb_write_bit(wb, mfh_param->mfh_loop_filter_update_flag);
   if (mfh_param->mfh_loop_filter_update_flag) {
@@ -8488,16 +8457,6 @@ static void set_multi_frame_header_with_keyframe(AV1_COMP *cpi,
     mfh_params->mfh_frame_width = cm->width;
     mfh_params->mfh_frame_height = cm->height;
   }
-
-#if !CONFIG_CWG_F248_RENDER_SIZE
-  // Set render size params for MFH
-  mfh_params->mfh_render_size_present_flag =
-      (cm->width != cm->render_width || cm->height != cm->render_height);
-  if (mfh_params->mfh_render_size_present_flag) {
-    mfh_params->mfh_render_width = cm->width;
-    mfh_params->mfh_render_height = cm->height;
-  }
-#endif  // !CONFIG_CWG_F248_RENDER_SIZE
 
 #if CONFIG_MFH_SIGNAL_TILE_INFO
   mfh_params->mfh_sb_size = seq_params->sb_size;
