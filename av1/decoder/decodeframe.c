@@ -10492,6 +10492,8 @@ static int read_uncompressed_header(AV1Decoder *pbi, OBU_TYPE obu_type,
     features->refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
 #endif  // !CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
     features->disable_cdf_update = 1;
+    features->coded_lossless = 0;
+    features->all_lossless = 0;
   }
   setup_loopfilter(cm, rb);
 
