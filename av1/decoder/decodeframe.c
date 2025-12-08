@@ -9165,9 +9165,8 @@ static int read_uncompressed_header(AV1Decoder *pbi, OBU_TYPE obu_type,
 #if CONFIG_CWG_F270_CI_OBU
   if (pbi->ci_params_received &&
       (cm->ci_params.color_info.matrix_coefficients == AOM_CICP_MC_IDENTITY ||
-       (cm->ci_params.color_info.matrix_coefficients == AOM_CICP_MC_YCGCO_RE) ||
-       (cm->ci_params.color_info.matrix_coefficients ==
-        AOM_CICP_MC_YCGCO_RO)) &&
+       cm->ci_params.color_info.matrix_coefficients == AOM_CICP_MC_YCGCO_RE ||
+       cm->ci_params.color_info.matrix_coefficients == AOM_CICP_MC_YCGCO_RO) &&
       (cm->seq_params.subsampling_x || cm->seq_params.subsampling_y)) {
     aom_internal_error(
         &cm->error, AOM_CODEC_UNSUP_BITSTREAM,
