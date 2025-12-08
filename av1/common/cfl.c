@@ -412,7 +412,6 @@ void cfl_calc_luma_dc(MACROBLOCKD *const xd, int row, int col,
   }
 
   if (count > 0) {
-#if CONFIG_DC_DIV_UNIFY
     int16_t shift = 0;
     const uint16_t scale = resolve_divisor_32(count, &shift);
     const uint16_t rounding = 1 << shift >> 1;
@@ -421,9 +420,6 @@ void cfl_calc_luma_dc(MACROBLOCKD *const xd, int row, int col,
     const uint16_t val = (sum_x * scale + rounding) >> shift;
     const uint16_t max_v = (1 << (xd->bd + 3)) - 1;
     cfl->avg_l = val > max_v ? max_v : val;
-#else
-    cfl->avg_l = (sum_x + count / 2) / count;
-#endif  // CONFIG_DC_DIV_UNIFY
   } else {
     cfl->avg_l = 8 << (xd->bd - 1);
   }
