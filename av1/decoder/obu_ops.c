@@ -134,7 +134,7 @@ uint32_t av1_read_operating_point_set_obu(struct AV1Decoder *pbi,
     ops_params->ops_decoder_model_info_present_flag[obu_xlayer_id][ops_id] =
         aom_rb_read_bit(rb);
 
-    if (obu_xlayer_id == MAX_NUM_XLAYERS - 1) {
+    if (obu_xlayer_id == GLOBAL_XLAYER_ID) {
       ops_params->ops_mlayer_info_idc[obu_xlayer_id][ops_id] =
           aom_rb_read_literal(rb, 2);
       (void)aom_rb_read_literal(rb, 2);  // ops_reserved_2bits
@@ -195,7 +195,7 @@ uint32_t av1_read_operating_point_set_obu(struct AV1Decoder *pbi,
                                     obu_xlayer_id, ops_id, i, rb);
       }
 
-      if (obu_xlayer_id == MAX_NUM_XLAYERS - 1) {
+      if (obu_xlayer_id == GLOBAL_XLAYER_ID) {
         ops_params->ops_xlayer_map[obu_xlayer_id][ops_id][i] =
             aom_rb_read_literal(rb, MAX_NUM_XLAYERS - 1);
         int k = 0;

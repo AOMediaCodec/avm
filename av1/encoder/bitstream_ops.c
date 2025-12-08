@@ -172,10 +172,10 @@ static uint32_t calculate_ops_data_size(AV1_COMP *cpi, int obu_xlayer_id,
   }
 
   // Write xlayer_map and mlayer info if xlayer_id == 31
-  if (obu_xlayer_id == MAX_NUM_XLAYERS - 1) {
+  if (obu_xlayer_id == GLOBAL_XLAYER_ID) {
     aom_wb_write_literal(&temp_wb,
                          ops->ops_xlayer_map[obu_xlayer_id][ops_id][op_index],
-                         MAX_NUM_XLAYERS);
+                         MAX_NUM_XLAYERS - 1);
 
     // Write mlayer info for each xlayer in the map
     for (int j = 0; j < MAX_NUM_XLAYERS - 1; j++) {
@@ -298,7 +298,7 @@ uint32_t av1_write_operating_point_set_obu(AV1_COMP *cpi, int obu_xlayer_id,
     aom_wb_write_bit(
         &wb, ops->ops_decoder_model_info_present_flag[obu_xlayer_id][ops_id]);
 
-    if (obu_xlayer_id == MAX_NUM_XLAYERS - 1) {
+    if (obu_xlayer_id == GLOBAL_XLAYER_ID) {
       aom_wb_write_literal(&wb, ops->ops_mlayer_info_idc[obu_xlayer_id][ops_id],
                            2);
       aom_wb_write_literal(&wb, 0, 2);  // ops_reserved_2bits
@@ -336,7 +336,7 @@ uint32_t av1_write_operating_point_set_obu(AV1_COMP *cpi, int obu_xlayer_id,
         write_ops_decoder_model_info(ops->ops_decoder_model_info, obu_xlayer_id,
                                      ops_id, i, &wb);
       }
-      if (obu_xlayer_id == MAX_NUM_XLAYERS - 1) {
+      if (obu_xlayer_id == GLOBAL_XLAYER_ID) {
         aom_wb_write_literal(&wb, ops->ops_xlayer_map[obu_xlayer_id][ops_id][i],
                              MAX_NUM_XLAYERS - 1);
         for (int j = 0; j < MAX_NUM_XLAYERS - 1; j++) {

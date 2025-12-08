@@ -113,7 +113,7 @@ static aom_codec_err_t read_obu_header(struct aom_read_bit_buffer *rb,
   } else {
     header->obu_mlayer_id = 0;
     if (header->type == OBU_MSDO)
-      header->obu_xlayer_id = MAX_NUM_XLAYERS - 1;
+      header->obu_xlayer_id = GLOBAL_XLAYER_ID;
     else
       header->obu_xlayer_id = 0;
   }

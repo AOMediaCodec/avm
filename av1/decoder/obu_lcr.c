@@ -286,6 +286,7 @@ static int read_lcr_global_info(struct AV1Decoder *pbi,
   lcr_params->lcr_data_size_present_flag = aom_rb_read_bit(rb);
   lcr_params->lcr_global_purpose_id = aom_rb_read_literal(rb, 7);
 
+  // TODO: align with signaling of profile, tier level
   if (lcr_params->lcr_max_profile_tier_level_info_present_flag)
     read_lcr_profile_tier_level(31, 31);
 
@@ -297,7 +298,7 @@ static int read_lcr_global_info(struct AV1Decoder *pbi,
     read_lcr_global_payload(pbi, lcr_params, i, rb);
   }
   lcr_params->is_local_lcr = 0;
-  lcr_params->xlayer_id = GLOBAL_LCR_XLAYER_ID;
+  lcr_params->xlayer_id = GLOBAL_XLAYER_ID;
   // NOTE: lcr_params->lcr_xLayer_id indicates the corresponding extended layer
   // ID for the indicated extended layer in the Global LCR and
   // lcr_params->xlayer_id is the obu_layer_id.
@@ -365,7 +366,7 @@ uint32_t av1_read_layer_configuration_record_obu(
   const uint32_t saved_bit_offset = rb->bit_offset;
   assert(rb->error_handler);
 
-  if (xlayer_id == GLOBAL_LCR_XLAYER_ID)
+  if (xlayer_id == GLOBAL_XLAYER_ID)
     read_lcr_global_info(pbi, rb);
   else
     read_lcr_local_info(pbi, xlayer_id, rb);

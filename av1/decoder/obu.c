@@ -1776,7 +1776,7 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
         aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                            "Incorrect obu_mlayer_id for MSDO: %d",
                            obu_header.obu_mlayer_id);
-      if (obu_header.obu_xlayer_id != MAX_NUM_XLAYERS - 1)
+      if (obu_header.obu_xlayer_id != GLOBAL_XLAYER_ID)
         aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
                            "Incorrect obu_xlayer_id for MSDO: %d",
                            obu_header.obu_xlayer_id);

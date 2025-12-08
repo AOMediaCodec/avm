@@ -97,7 +97,7 @@ static int read_obu_header_from_file(FILE *f, size_t obu_size, uint8_t *buffer,
   } else {
     obu_header->obu_mlayer_id = 0;  // obu_layer (mlayer)
     if (obu_header->type == OBU_MSDO)
-      obu_header->obu_xlayer_id = MAX_NUM_XLAYERS - 1;  // obu_layer (xlayer)
+      obu_header->obu_xlayer_id = GLOBAL_XLAYER_ID;  // obu_layer (xlayer)
     else
       obu_header->obu_xlayer_id = 0;  // obu_layer (xlayer)
   }

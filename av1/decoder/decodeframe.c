@@ -3888,7 +3888,7 @@ static AOM_INLINE void setup_render_size(AV1_COMMON *cm,
   // used
   const bool is_global_lcr = !cm->lcr_params.is_local_lcr;
   const int xlayer_id =
-      is_global_lcr ? GLOBAL_LCR_XLAYER_ID : cm->lcr_params.xlayer_id;
+      is_global_lcr ? GLOBAL_XLAYER_ID : cm->lcr_params.xlayer_id;
   const int xId = cm->lcr_params.lcr_xLayer_id[xlayer_id];
   if (cm->lcr_params.lcr_rep_info_present_flag[is_global_lcr][xId]) {
     cm->render_width = cm->lcr_params.rep_params.lcr_max_pic_width;
@@ -8800,7 +8800,7 @@ void mark_reference_frames_with_long_term_ids(AV1Decoder *pbi) {
 static void activate_atlas_segment(AV1Decoder *pbi) {
   AV1_COMMON *const cm = &pbi->common;
   bool atlas_found = false;
-  int xlayer_id = GLOBAL_LCR_XLAYER_ID;
+  int xlayer_id = GLOBAL_XLAYER_ID;
   if (cm->lcr_params.is_local_lcr) xlayer_id = cm->lcr_params.xlayer_id;
 
   int atas_lcr_id = cm->lcr_params.is_local_lcr

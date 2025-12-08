@@ -299,7 +299,7 @@ enum {
 #define LCR_ID_BITS 3
 #define MAX_NUM_LCR (1 << LCR_ID_BITS)
 #define MAX_LCR_TYPES 2
-#define GLOBAL_LCR_XLAYER_ID 31
+#define GLOBAL_XLAYER_ID 31
 // OPS
 #define OPS_ID_BITS 4
 #define MAX_NUM_OPS_ID (1 << OPS_ID_BITS)
