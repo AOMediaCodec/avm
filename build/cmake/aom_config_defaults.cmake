@@ -259,8 +259,6 @@ set_aom_config_var(
   CONFIG_CWG_F377_STILL_PICTURE 1
   "Sequence header OBU changes for single_picture_header_flag.")
 
-set_aom_config_var(CONFIG_DF_DQP 1 "Adding DQP to the deblocking filter")
-
 set_aom_config_var(CONFIG_FGS_IDENT 1
                    "Fixing an issue with MC_IDENTITY moved to CI_OBU")
 

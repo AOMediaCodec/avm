@@ -53,14 +53,6 @@ static const int16_t side_thresholds[MAX_SIDE_TABLE] = {
   1589, 1599, 1608, 1618, 1628, 1638, 1648, 1658, 1668, 1678
 };
 
-#if !CONFIG_DF_DQP
-static const SEG_LVL_FEATURES seg_lvl_lf_lut[MAX_MB_PLANE][2] = {
-  { SEG_LVL_ALT_LF_Y_V, SEG_LVL_ALT_LF_Y_H },
-  { SEG_LVL_ALT_LF_U, SEG_LVL_ALT_LF_U },
-  { SEG_LVL_ALT_LF_V, SEG_LVL_ALT_LF_V }
-};
-#endif  // !CONFIG_DF_DQP
-
 // Function obtains q_threshold from the quantization index.
 int df_quant_from_qindex(int q_index, int bit_depth) {
   int qstep = ROUND_POWER_OF_TWO(av1_ac_quant_QTX(q_index, 0, 0, bit_depth),
@@ -85,41 +77,19 @@ int df_side_from_qindex(int q_index, int bit_depth) {
 }
 
 uint16_t av1_get_filter_q(const loop_filter_info_n *lfi_n, const int dir_idx,
-                          int plane, const MB_MODE_INFO *mbmi
-#if CONFIG_DF_DQP
-                          ,
-                          int bit_depth
-#endif  // CONFIG_DF_DQP
-) {
-#if CONFIG_DF_DQP
+                          int plane, const MB_MODE_INFO *mbmi, int bit_depth) {
   const int current_q_index = mbmi->final_qindex_ac[plane];
 
   return df_quant_from_qindex(
       current_q_index + lfi_n->q_thr_q_offset[plane][dir_idx], bit_depth);
-
-#else
-  // TODO(Andrey): non-CTC conditions
-  return lfi_n->q_thr[plane][mbmi->segment_id][dir_idx][COMPACT_INDEX0_NRS(
-      mbmi->ref_frame[0])][mode_lf_lut[mbmi->mode]];
-#endif  // CONFIG_DF_DQP
 }
 uint16_t av1_get_filter_side(const loop_filter_info_n *lfi_n, const int dir_idx,
-                             int plane, const MB_MODE_INFO *mbmi
-#if CONFIG_DF_DQP
-                             ,
-                             int bit_depth
-#endif  // CONFIG_DF_DQP
-) {
-#if CONFIG_DF_DQP
+                             int plane, const MB_MODE_INFO *mbmi,
+                             int bit_depth) {
   const int current_q_index = mbmi->final_qindex_ac[plane];
 
   return df_side_from_qindex(
       current_q_index + lfi_n->side_thr_q_offset[plane][dir_idx], bit_depth);
-#else
-  // TODO(Andrey): non-CTC conditions
-  return lfi_n->side_thr[plane][mbmi->segment_id][dir_idx][COMPACT_INDEX0_NRS(
-      mbmi->ref_frame[0])][mode_lf_lut[mbmi->mode]];
-#endif  // CONFIG_DF_DQP
 }
 
 void av1_loop_filter_init(AV1_COMMON *cm) {
@@ -132,95 +102,22 @@ void av1_loop_filter_init(AV1_COMMON *cm) {
 // av1_loop_filter_frame() calls this function directly.
 void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
                                 int plane_end) {
-#if CONFIG_DF_DQP
   int q_ind[MAX_MB_PLANE][NUM_EDGE_DIRS], side_ind[MAX_MB_PLANE][NUM_EDGE_DIRS];
-#else
-  int q_ind[MAX_MB_PLANE], q_ind_r[MAX_MB_PLANE], side_ind[MAX_MB_PLANE],
-      side_ind_r[MAX_MB_PLANE];
-#endif  // CONFIG_DF_DQP
   int plane;
-#if !CONFIG_DF_DQP
-  int seg_id;
-#endif  // !CONFIG_DF_DQP
   // n_shift is the multiplier for lf_deltas
   // the multiplier is 1 for when filter_lvl is between 0 and 31;
   // 2 when filter_lvl is between 32 and 63
   loop_filter_info_n *const lfi = &cm->lf_info;
-#if !CONFIG_DF_DQP
-  const struct segmentation *const seg = &cm->seg;
-#endif  // !CONFIG_DF_DQP
-#if CONFIG_DF_DQP
   for (int dir = 0; dir < NUM_EDGE_DIRS; ++dir) {
     q_ind[0][dir] = cm->lf.delta_q_luma[dir] * DF_DELTA_SCALE;
     side_ind[0][dir] = cm->lf.delta_side_luma[dir] * DF_DELTA_SCALE;
   }
-#else
-  q_ind[0] =
-#if !CONFIG_DF_DQP
-      cm->quant_params.base_qindex +
-#endif  // !CONFIG_DF_DQP
-      cm->lf.delta_q_luma[0] * DF_DELTA_SCALE;
-  q_ind_r[0] =
-#if !CONFIG_DF_DQP
-      cm->quant_params.base_qindex +
-#endif  // !CONFIG_DF_DQP
-      cm->lf.delta_q_luma[1] * DF_DELTA_SCALE;
 
-  side_ind[0] =
-#if !CONFIG_DF_DQP
-      cm->quant_params.base_qindex +
-#endif  // !CONFIG_DF_DQP
-      cm->lf.delta_side_luma[0] * DF_DELTA_SCALE;
+  q_ind[1][0] = q_ind[1][1] = cm->lf.delta_q_u * DF_DELTA_SCALE;
 
-  side_ind_r[0] =
-#if !CONFIG_DF_DQP
-      cm->quant_params.base_qindex +
-#endif  // !CONFIG_DF_DQP
-      cm->lf.delta_side_luma[1] * DF_DELTA_SCALE;
-
-#endif  // CONFIG_DF_DQP
-
-#if CONFIG_DF_DQP
-  q_ind[1][0] = q_ind[1][1] =
-#else
-  q_ind[1] = q_ind_r[1] =
-#endif  // CONFIG_DF_DQP
-#if !CONFIG_DF_DQP
-      cm->quant_params.base_qindex + cm->quant_params.u_ac_delta_q +
-      cm->seq_params.base_uv_ac_delta_q +
-#endif  // !CONFIG_DF_DQP
-      cm->lf.delta_q_u * DF_DELTA_SCALE;
-
-#if CONFIG_DF_DQP
-  side_ind[1][0] = side_ind[1][1] =
-#else
-  side_ind[1] = side_ind_r[1] =
-#endif  // CONFIG_DF_DQP
-#if !CONFIG_DF_DQP
-      cm->quant_params.base_qindex + cm->quant_params.u_ac_delta_q +
-      cm->seq_params.base_uv_ac_delta_q +
-#endif  // !CONFIG_DF_DQP
-      cm->lf.delta_side_u * DF_DELTA_SCALE;
-#if CONFIG_DF_DQP
-  q_ind[2][0] = q_ind[2][1] =
-#else
-  q_ind[2] = q_ind_r[2] =
-#endif  // CONFIG_DF_DQP
-#if !CONFIG_DF_DQP
-      cm->quant_params.base_qindex + cm->quant_params.v_ac_delta_q +
-      cm->seq_params.base_uv_ac_delta_q +
-#endif  // !CONFIG_DF_DQP
-      cm->lf.delta_q_v * DF_DELTA_SCALE;
-#if CONFIG_DF_DQP
-  side_ind[2][0] = side_ind[2][1] =
-#else
-  side_ind[2] = side_ind_r[2] =
-#endif  // CONFIG_DF_DQP
-#if !CONFIG_DF_DQP
-      cm->quant_params.base_qindex + cm->quant_params.v_ac_delta_q +
-      cm->seq_params.base_uv_ac_delta_q +
-#endif  // !CONFIG_DF_DQP
-      cm->lf.delta_side_v * DF_DELTA_SCALE;
+  side_ind[1][0] = side_ind[1][1] = cm->lf.delta_side_u * DF_DELTA_SCALE;
+  q_ind[2][0] = q_ind[2][1] = cm->lf.delta_q_v * DF_DELTA_SCALE;
+  side_ind[2][0] = side_ind[2][1] = cm->lf.delta_side_v * DF_DELTA_SCALE;
 
   assert(plane_start >= AOM_PLANE_Y);
   assert(plane_end <= MAX_MB_PLANE);
@@ -233,52 +130,14 @@ void av1_loop_filter_frame_init(AV1_COMMON *cm, int plane_start,
     else if (plane == 2 && !cm->lf.filter_level_v)
       continue;
 
-#if !CONFIG_DF_DQP
-    const int max_seg_num =
-        cm->seg.enable_ext_seg ? MAX_SEGMENTS : MAX_SEGMENTS_8;
-#endif  //! CONFIG_DF_DQP
+    for (int dir = 0; dir < 2; ++dir) {
+      int q_ind_seg = q_ind[plane][dir];
+      int side_ind_seg = side_ind[plane][dir];
 
-#if !CONFIG_DF_DQP
-    for (seg_id = 0; seg_id < max_seg_num; seg_id++) {
-#endif  //! CONFIG_DF_DQP
-      for (int dir = 0; dir < 2; ++dir) {
-#if CONFIG_DF_DQP
-        int q_ind_seg = q_ind[plane][dir];
-        int side_ind_seg = side_ind[plane][dir];
-#else  // CONFIG_DF_DQP
-      int q_ind_seg = (dir == 0) ? q_ind[plane] : q_ind_r[plane];
-      int side_ind_seg = (dir == 0) ? side_ind[plane] : side_ind_r[plane];
-#endif
-
-#if !CONFIG_DF_DQP
-        const int seg_lf_feature_id = seg_lvl_lf_lut[plane][dir];
-        if (segfeature_active(seg, seg_id, seg_lf_feature_id)) {
-          // TODO(Andrey): add separate offsets to segments for q and side
-          // thresholds add clamp
-          const int data = get_segdata(&cm->seg, seg_id, seg_lf_feature_id);
-          q_ind_seg += data;
-          side_ind_seg += data;
-        }
-#endif  // !CONFIG_DF_DQP
-#if !CONFIG_DF_DQP
-        int q_thr_seg =
-            df_quant_from_qindex(q_ind_seg, cm->seq_params.bit_depth);
-        int side_thr_seg =
-            df_side_from_qindex(side_ind_seg, cm->seq_params.bit_depth);
-#endif  // !CONFIG_DF_DQP
-#if !CONFIG_DF_DQP
-        lfi->q_thr[plane][seg_id][dir][INTRA_FRAME_INDEX][0] = q_thr_seg;
-        lfi->side_thr[plane][seg_id][dir][INTRA_FRAME_INDEX][0] = side_thr_seg;
-#endif  // !CONFIG_DF_DQP
-#if CONFIG_DF_DQP
-        lfi->q_thr_q_offset[plane][dir] = q_ind_seg;
-        lfi->side_thr_q_offset[plane][dir] = side_ind_seg;
-#endif  // CONFIG_DF_DQP
-      }
+      lfi->q_thr_q_offset[plane][dir] = q_ind_seg;
+      lfi->side_thr_q_offset[plane][dir] = side_ind_seg;
     }
-#if !CONFIG_DF_DQP
   }
-#endif  // !CONFIG_DF_DQP
 }
 
 // Returns the starting mi location of chroma reference block for the current
@@ -768,20 +627,10 @@ static TX_SIZE set_lpf_parameters(
     }
     // prepare outer edge parameters. deblock the edge if it's an edge of a TU
     {
-      const uint32_t curr_q =
-          av1_get_filter_q(&cm->lf_info, edge_dir, plane, mbmi
-#if CONFIG_DF_DQP
-                           ,
-                           cm->seq_params.bit_depth
-#endif  // CONFIG_DF_DQP
-          );
-      const uint32_t curr_side =
-          av1_get_filter_side(&cm->lf_info, edge_dir, plane, mbmi
-#if CONFIG_DF_DQP
-                              ,
-                              cm->seq_params.bit_depth
-#endif  // CONFIG_DF_DQP
-          );
+      const uint32_t curr_q = av1_get_filter_q(&cm->lf_info, edge_dir, plane,
+                                               mbmi, cm->seq_params.bit_depth);
+      const uint32_t curr_side = av1_get_filter_side(
+          &cm->lf_info, edge_dir, plane, mbmi, cm->seq_params.bit_depth);
 
       const int curr_skipped =
           mbmi->skip_txfm[plane_type] && is_inter_block(mbmi, tree_type);
@@ -820,20 +669,10 @@ static TX_SIZE set_lpf_parameters(
           check_sub_pu_edge(cm, xd, mi_prev, plane, prev_tree_type, scale_horz,
                             scale_vert, edge_dir, 0, &pv_ts, &pv_sub_pu_edge,
                             &pv_tx_m_partition_size);
-          const uint32_t pv_q =
-              av1_get_filter_q(&cm->lf_info, edge_dir, plane, mi_prev
-#if CONFIG_DF_DQP
-                               ,
-                               cm->seq_params.bit_depth
-#endif
-              );
-          const uint32_t pv_side =
-              av1_get_filter_side(&cm->lf_info, edge_dir, plane, mi_prev
-#if CONFIG_DF_DQP
-                                  ,
-                                  cm->seq_params.bit_depth
-#endif
-              );
+          const uint32_t pv_q = av1_get_filter_q(
+              &cm->lf_info, edge_dir, plane, mi_prev, cm->seq_params.bit_depth);
+          const uint32_t pv_side = av1_get_filter_side(
+              &cm->lf_info, edge_dir, plane, mi_prev, cm->seq_params.bit_depth);
 
           const uint32_t pu_starting_coord = get_pu_starting_cooord(
               mbmi, plane, tree_type, scale_horz, scale_vert, edge_dir);
@@ -931,7 +770,6 @@ static TX_SIZE set_lpf_parameters(
 
             // update the level if the current block is skipped,
             // but the previous one is not
-#if CONFIG_DF_DQP
             params->q_threshold = (curr_q && pv_q) ? (curr_q + pv_q + 1) >> 1
                                   : (curr_q)       ? (curr_q)
                                                    : (pv_q);
@@ -939,10 +777,6 @@ static TX_SIZE set_lpf_parameters(
                                          ? (curr_side + pv_side + 1) >> 1
                                      : (curr_side) ? (curr_side)
                                                    : (pv_side);
-#else
-            params->q_threshold = (curr_q) ? (curr_q) : (pv_q);
-            params->side_threshold = (curr_side) ? (curr_side) : (pv_side);
-#endif
             if (sub_pu_edge && !tu_edge) {
               params->q_threshold >>= SUB_PU_THR_SHIFT;
               params->side_threshold >>= SUB_PU_THR_SHIFT;

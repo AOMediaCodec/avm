@@ -217,9 +217,6 @@ static AOM_INLINE void setup_delta_q(AV1_COMP *const cpi, ThreadData *td,
                                      const TileInfo *const tile_info,
                                      int mi_row, int mi_col, int num_planes) {
   AV1_COMMON *const cm = &cpi->common;
-#if !CONFIG_DF_DQP
-  const CommonModeInfoParams *const mi_params = &cm->mi_params;
-#endif  // !CONFIG_DF_DQP
   const DeltaQInfo *const delta_q_info = &cm->delta_q_info;
   assert(delta_q_info->delta_q_present_flag);
 

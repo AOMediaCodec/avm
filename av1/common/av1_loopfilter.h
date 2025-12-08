@@ -59,16 +59,8 @@ struct loopfilter {
 };
 
 typedef struct {
-#if CONFIG_DF_DQP
   int q_thr_q_offset[MAX_MB_PLANE][2];
   int side_thr_q_offset[MAX_MB_PLANE][2];
-#else
-  uint16_t q_thr[MAX_MB_PLANE][MAX_SEGMENTS][2][SINGLE_REF_FRAMES]
-                [MAX_MODE_LF_DELTAS];
-  uint16_t side_thr[MAX_MB_PLANE][MAX_SEGMENTS][2][SINGLE_REF_FRAMES]
-                   [MAX_MODE_LF_DELTAS];
-#endif  // CONFIG_DF_DQP
-
   uint16_t tip_q_thr[MAX_MB_PLANE][2];
   uint16_t tip_side_thr[MAX_MB_PLANE][2];
 } loop_filter_info_n;
