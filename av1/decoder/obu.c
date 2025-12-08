@@ -1873,13 +1873,11 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
           return -1;
         }
         break;
-#if CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
       case OBU_BUFFER_REMOVAL_TIMING:
         decoded_payload_size =
             av1_read_buffer_removal_timing_obu(pbi, &rb, cm->xlayer_id);
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
         break;
-#endif  // CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
 #if CONFIG_MULTILAYER_HLS
       case OBU_LAYER_CONFIGURATION_RECORD:
         decoded_payload_size =

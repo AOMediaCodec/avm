@@ -60,7 +60,6 @@
 #include "av1/encoder/segmentation.h"
 #include "av1/encoder/tokenize.h"
 
-#if CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
 void av1_set_buffer_removal_timing_params(AV1_COMP *const cpi) {
   AV1_COMMON *const cm = &cpi->common;
   struct OperatingPointSet *ops = &cm->ops_params;
@@ -107,4 +106,3 @@ uint32_t av1_write_buffer_removal_timing_obu(
   size = aom_wb_bytes_written(&wb);
   return size;
 }
-#endif  // CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING

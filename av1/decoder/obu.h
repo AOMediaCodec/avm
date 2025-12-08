@@ -44,9 +44,7 @@ uint32_t read_qm_obu(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
                      struct aom_read_bit_buffer *rb);
 #endif  // CONFIG_F255_QMOBU
 
-#if CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
 uint32_t av1_read_buffer_removal_timing_obu(struct AV1Decoder *pbi,
                                             struct aom_read_bit_buffer *rb,
                                             int xlayer_id);
-#endif  // CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
 #endif  // AOM_AV1_DECODER_OBU_H_

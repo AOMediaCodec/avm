@@ -2916,12 +2916,10 @@ typedef struct AV1_COMP {
    */
   int write_ci_obu_flag;
 #endif  // CONFIG_CWG_F270_CI_OBU
-#if CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
   /*!
    * Write the Buffer Removal Timing OBU
    */
   int write_brt_obu;
-#endif  // CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
 
 #if CONFIG_MULTILAYER_HLS
   /*!

@@ -166,9 +166,7 @@ if(CONFIG_MULTILAYER_HLS)
        "${AOM_ROOT}/av1/decoder/obu_lcr.c" "${AOM_ROOT}/av1/decoder/obu_ops.c")
 endif()
 
-if(CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING)
-  list(APPEND AOM_AV1_DECODER_SOURCES "${AOM_ROOT}/av1/decoder/obu_buf.c")
-endif()
+list(APPEND AOM_AV1_DECODER_SOURCES "${AOM_ROOT}/av1/decoder/obu_buf.c")
 
 list(
   APPEND
@@ -342,9 +340,7 @@ if(CONFIG_MULTILAYER_HLS)
     "${AOM_ROOT}/av1/encoder/bitstream_ops.c")
 endif()
 
-if(CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING)
-  list(APPEND AOM_AV1_ENCODER_SOURCES "${AOM_ROOT}/av1/encoder/bitstream_buf.c")
-endif()
+list(APPEND AOM_AV1_ENCODER_SOURCES "${AOM_ROOT}/av1/encoder/bitstream_buf.c")
 
 list(APPEND AOM_AV1_COMMON_INTRIN_SSE2
      "${AOM_ROOT}/av1/common/cdef_block_sse2.c"

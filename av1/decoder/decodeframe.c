@@ -6572,10 +6572,6 @@ void av1_read_decoder_model_info(aom_dec_model_info_t *decoder_model_info,
   decoder_model_info->num_units_in_decoding_tick =
       aom_rb_read_unsigned_literal(rb,
                                    32);  // Number of units in a decoding tick
-#if !CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
-  decoder_model_info->buffer_removal_time_length =
-      aom_rb_read_literal(rb, 5) + 1;
-#endif  // !CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
   decoder_model_info->frame_presentation_time_length =
       aom_rb_read_literal(rb, 5) + 1;
 }
@@ -9414,40 +9410,6 @@ static int read_uncompressed_header(AV1Decoder *pbi, OBU_TYPE obu_type,
 #endif  // CONFIG_CWG_F317
     }
   }
-
-#if !CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
-  if (seq_params->decoder_model_info_present_flag) {
-#if CONFIG_CWG_F317
-    if (cm->bridge_frame_info.is_bridge_frame) {
-      cm->buffer_removal_time_present = 0;
-    } else {
-#endif  // CONFIG_CWG_F317
-      cm->buffer_removal_time_present = aom_rb_read_bit(rb);
-#if CONFIG_CWG_F317
-    }
-#endif  // CONFIG_CWG_F317
-    if (cm->buffer_removal_time_present) {
-      for (int op_num = 0;
-           op_num < seq_params->operating_points_cnt_minus_1 + 1; op_num++) {
-        if (seq_params->op_params[op_num].decoder_model_param_present_flag) {
-          if ((((seq_params->operating_point_idc[op_num] >> cm->tlayer_id) &
-                0x1) &&
-               ((seq_params->operating_point_idc[op_num] >>
-                 (cm->mlayer_id + MAX_NUM_TLAYERS)) &
-                0x1)) ||
-              seq_params->operating_point_idc[op_num] == 0) {
-            cm->buffer_removal_times[op_num] = aom_rb_read_unsigned_literal(
-                rb, seq_params->decoder_model_info.buffer_removal_time_length);
-          } else {
-            cm->buffer_removal_times[op_num] = 0;
-          }
-        } else {
-          cm->buffer_removal_times[op_num] = 0;
-        }
-      }
-    }
-  }
-#endif  // !CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
 
 #if CONFIG_F024_KEYOBU
   if (obu_type == OBU_CLK || obu_type == OBU_OLK)

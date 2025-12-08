@@ -972,9 +972,6 @@ static void init_config(struct AV1_COMP *cpi, AV1EncoderConfig *oxcf) {
     // set the decoder model parameters in schedule mode
     seq_params->decoder_model_info.num_units_in_decoding_tick =
         dec_model_cfg->num_units_in_decoding_tick;
-#if !CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
-    cm->buffer_removal_time_present = 1;
-#endif  // !CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
     av1_set_aom_dec_model_info(&seq_params->decoder_model_info);
     av1_set_dec_model_op_parameters(&seq_params->op_params[0]);
 #if CONFIG_CWG_F270_CI_OBU
@@ -1159,9 +1156,7 @@ static void set_seq_lr_tools_mask(SequenceHeader *const seq_params,
 void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   AV1_COMMON *const cm = &cpi->common;
   SequenceHeader *const seq_params = &cm->seq_params;
-#if CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
   BufferRemovalTimingInfo *const brt_info = &cm->brt_info;
-#endif  // CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
   RATE_CONTROL *const rc = &cpi->rc;
   MACROBLOCK *const x = &cpi->td.mb;
   AV1LevelParams *const level_params = &cpi->level_params;
@@ -1180,9 +1175,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
     lap_lag_in_frames = cpi->oxcf.gf_cfg.lag_in_frames;
   }
 
-#if CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
   memset(brt_info, 0, sizeof(BufferRemovalTimingInfo));
-#endif  // CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
 
   if (seq_params->profile != oxcf->profile) seq_params->profile = oxcf->profile;
   seq_params->bit_depth = oxcf->tool_cfg.bit_depth;
@@ -1229,9 +1222,6 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
     // set the decoder model parameters in schedule mode
     seq_params->decoder_model_info.num_units_in_decoding_tick =
         dec_model_cfg->num_units_in_decoding_tick;
-#if !CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
-    cm->buffer_removal_time_present = 1;
-#endif  // !CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
     av1_set_aom_dec_model_info(&seq_params->decoder_model_info);
     av1_set_dec_model_op_parameters(&seq_params->op_params[0]);
 #if CONFIG_CWG_F270_CI_OBU
@@ -1457,9 +1447,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
     cpi->oxcf.gf_cfg.lag_in_frames = lap_lag_in_frames;
   }
 
-#if CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
   cpi->write_brt_obu = 0;
-#endif  // CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING
 
   bool subgop_config_changed = false;
   if (aom_strcmp(cpi->subgop_config_path, oxcf->subgop_config_path)) {

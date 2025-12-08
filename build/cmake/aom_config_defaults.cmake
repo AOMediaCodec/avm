@@ -218,9 +218,6 @@ set_aom_config_var(CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER 1
 set_aom_config_var(CONFIG_MULTI_STREAM 1 "AV2 enable multi-streams.")
 set_aom_config_var(OBU_ORDER_IN_TU 1 "Check OBU order in TU")
 
-set_aom_config_var(CONFIG_CWG_F293_BUFFER_REMOVAL_TIMING 1
-                   "Buffer removal timing OBU")
-
 set_aom_config_var(
   CONFIG_QM_DEBUG 0
   "Enable debug information for extension to AV1 quantization matrices.")
