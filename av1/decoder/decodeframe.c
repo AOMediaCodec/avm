@@ -9564,6 +9564,7 @@ static int read_uncompressed_header(AV1Decoder *pbi, OBU_TYPE obu_type,
   if (cm->is_leading_picture == 1) {
     // other obu_types cannot overwrite the slots OBU_OLK is stored
     for (int idx = 0; idx <= seq_params->max_mlayer_id; idx++) {
+      if (cm->olk_refresh_frame_flags[idx] == -1) continue;
       if (current_frame->refresh_frame_flags &
           cm->olk_refresh_frame_flags[idx]) {
         aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
