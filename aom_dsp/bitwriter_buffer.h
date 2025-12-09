@@ -13,8 +13,6 @@
 #ifndef AOM_AOM_DSP_BITWRITER_BUFFER_H_
 #define AOM_AOM_DSP_BITWRITER_BUFFER_H_
 
-#include "config/aom_config.h"
-
 #include "aom/aom_integer.h"
 
 #ifdef __cplusplus
