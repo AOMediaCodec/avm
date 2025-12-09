@@ -908,9 +908,7 @@ static void update_stats(const AV1_COMMON *const cm, ThreadData *td) {
   const int inter_block = mbmi->ref_frame[0] != INTRA_FRAME;
   const int seg_ref_active = 0;
   if (!bru_is_sb_active(cm, xd->mi_col, xd->mi_row)) return;
-#if CONFIG_CWG_F317
   if (cm->bridge_frame_info.is_bridge_frame) return;
-#endif  // CONFIG_CWG_F317
 
   if (mbmi->region_type != INTRA_REGION && is_skip_mode_allowed(cm, xd)) {
     const int skip_mode_ctx = av1_get_skip_mode_context(xd);
@@ -3189,15 +3187,9 @@ static void rd_pick_rect_partition(
     }
   }
   // force early terminate after successful rect if found
-#if CONFIG_CWG_F317
   if (partition_found &&
       ((!bru_is_sb_active(&cpi->common, x->e_mbd.mi_col, x->e_mbd.mi_row)) ||
-       cpi->common.bridge_frame_info.is_bridge_frame))
-#else
-  if (partition_found &&
-      !bru_is_sb_active(&cpi->common, x->e_mbd.mi_col, x->e_mbd.mi_row))
-#endif  // CONFIG_CWG_F317
-  {
+       cpi->common.bridge_frame_info.is_bridge_frame)) {
     part_search_state->terminate_partition_search = 1;
     part_search_state->do_rectangular_split = 0;
     part_search_state->is_block_splittable = 0;
@@ -3594,13 +3586,8 @@ static void prune_partitions_after_none(AV1_COMP *const cpi, MACROBLOCK *x,
         &part_search_state->terminate_partition_search);
   }
   // force early terminate after successful none in not active
-#if CONFIG_CWG_F317
   if ((!bru_is_sb_active(cm, blk_params.mi_col, blk_params.mi_row)) ||
-      cm->bridge_frame_info.is_bridge_frame)
-#else
-  if (!bru_is_sb_active(cm, blk_params.mi_col, blk_params.mi_row))
-#endif  // CONFIG_CWG_F317
-  {
+      cm->bridge_frame_info.is_bridge_frame) {
     part_search_state->terminate_partition_search = 1;
     part_search_state->do_rectangular_split = 0;
     part_search_state->is_block_splittable = 0;
@@ -3955,15 +3942,9 @@ static void split_partition_search(
   restore_level_banks(&x->e_mbd, level_banks);
   // todo: this may be moved to early stage
   //  force early terminate after successful split if found
-#if CONFIG_CWG_F317
   if (part_search_state->found_best_partition &&
       ((!bru_is_sb_active(cm, mi_col, mi_row)) ||
-       cm->bridge_frame_info.is_bridge_frame))
-#else
-  if (part_search_state->found_best_partition &&
-      !bru_is_sb_active(cm, mi_col, mi_row))
-#endif  // CONFIG_CWG_F317
-  {
+       cm->bridge_frame_info.is_bridge_frame)) {
     part_search_state->terminate_partition_search = 1;
     part_search_state->do_rectangular_split = 0;
     part_search_state->forced_partition = 0;

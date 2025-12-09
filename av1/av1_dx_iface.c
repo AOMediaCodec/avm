@@ -556,12 +556,8 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
                obu_header.type == OBU_REGULAR_TILE_GROUP ||
                obu_header.type == OBU_BRIDGE_FRAME) {
 #else
-#if CONFIG_CWG_F317
     } else if (obu_header.type == OBU_TILE_GROUP ||
                obu_header.type == OBU_BRIDGE_FRAME) {
-#else
-    } else if (obu_header.type == OBU_TILE_GROUP) {
-#endif  // CONFIG_CWG_F317
 #endif  // CONFIG_F024_KEYOBU
       if (got_sequence_header && single_picture_header_flag) {
         found_keyframe = 1;

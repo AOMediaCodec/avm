@@ -49,7 +49,6 @@ static uint8_t get_resolution_ratio_pattern2(const int display_order_hint) {
   return new_denom;
 }
 
-#if CONFIG_CWG_F317_TEST_PATTERN
 static uint8_t get_resolution_bridge_frame_pattern(const int frame_count) {
   uint8_t new_denom = 8;
   if (frame_count == 0) {
@@ -62,7 +61,6 @@ static uint8_t get_resolution_bridge_frame_pattern(const int frame_count) {
   return new_denom;
 }
 
-#endif
 static uint8_t calculate_next_resize_scale(const AV1_COMP *cpi) {
   // Choose an arbitrary random number
   static unsigned int seed = 56789;
@@ -87,12 +85,10 @@ static uint8_t calculate_next_resize_scale(const AV1_COMP *cpi) {
                       ? get_resolution_ratio_pattern1(display_order_hint)
                       : get_resolution_ratio_pattern2(display_order_hint);
       break;
-#if CONFIG_CWG_F317_TEST_PATTERN
     case RESIZE_BRIDGE_FRAME_PATTERN:
       new_denom = get_resolution_bridge_frame_pattern(
           cpi->common.bridge_frame_info.frame_count);
       break;
-#endif  // CONFIG_CWG_F317_TEST_PATTERN
     default: assert(0);
   }
   return new_denom;
@@ -161,9 +157,7 @@ static size_params_type calculate_next_size_params(AV1_COMP *cpi) {
     av1_calculate_scaled_size(&rsz.resize_width, &rsz.resize_height,
                               resize_denom);
   }
-#if CONFIG_CWG_F317_TEST_PATTERN
   if (oxcf->resize_cfg.resize_mode != RESIZE_BRIDGE_FRAME_PATTERN)
-#endif  // CONFIG_CWG_F317_TEST_PATTERN
     if (!validate_size_scales(oxcf->resize_cfg.resize_mode, frm_dim_cfg->width,
                               frm_dim_cfg->height, &rsz))
       assert(0 && "Invalid scale parameters");
@@ -180,7 +174,6 @@ static void setup_frame_size_from_params(AV1_COMP *cpi,
 void av1_setup_frame_size(AV1_COMP *cpi) {
   const size_params_type rsz = calculate_next_size_params(cpi);
   setup_frame_size_from_params(cpi, &rsz);
-#if CONFIG_CWG_F317_TEST_PATTERN
   AV1_COMMON *const cm = &cpi->common;
   CurrentFrame *const current_frame = &cm->current_frame;
   av1_get_ref_frames(cm, current_frame->display_order_hint, 1,
@@ -205,5 +198,4 @@ void av1_setup_frame_size(AV1_COMP *cpi) {
   }
   cm->ref_frame_flags &= ref_frame_safe_to_use;
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
-#endif  // CONFIG_CWG_F317_TEST_PATTERN
 }

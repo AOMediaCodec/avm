@@ -1684,12 +1684,8 @@ int av1_rc_pick_q_and_bounds(const AV1_COMP *cpi, RATE_CONTROL *rc, int width,
   if (gf_group->update_type[gf_index] == ARF_UPDATE ||
       gf_group->update_type[gf_index] == KFFLT_UPDATE)
     rc->level1_qp = q;
-#if CONFIG_CWG_F317
   if ((cpi->common.bru.enabled && cpi->common.bru.frame_inactive_flag) ||
       cpi->common.bridge_frame_info.is_bridge_frame) {
-#else
-  if (cpi->common.bru.enabled && cpi->common.bru.frame_inactive_flag) {
-#endif  // CONFIG_CWG_F317
     q = cpi->common.quant_params.base_qindex;
   }
   return q;

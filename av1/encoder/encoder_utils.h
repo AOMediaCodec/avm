@@ -1081,13 +1081,9 @@ static AOM_INLINE void av1_set_tile_info(AV1_COMMON *const cm,
       cm->sb_size == BLOCK_128X128)
     sb_size_scale = 2;
 
-    // configure tile columns
-#if CONFIG_CWG_F317
+  // configure tile columns
   if ((cm->bru.enabled && cm->bru.frame_inactive_flag) ||
       cm->bridge_frame_info.is_bridge_frame) {
-#else
-  if (cm->bru.enabled && cm->bru.frame_inactive_flag) {
-#endif  // CONFIG_CWG_F317
     tiles->uniform_spacing = 1;
     tiles->log2_cols = 0;
     tiles->log2_rows = 0;

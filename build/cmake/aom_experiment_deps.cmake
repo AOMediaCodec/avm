@@ -73,7 +73,6 @@ macro(fix_experiment_configs)
   endif()
 
   if(CONFIG_F024_KEYOBU)
-    change_config_and_warn(CONFIG_CWG_F317 1 CONFIG_F024_KEYOBU)
     change_config_and_warn(CONFIG_RANDOM_ACCESS_SWITCH_FRAME 1
                            CONFIG_F024_KEYOBU)
   endif()

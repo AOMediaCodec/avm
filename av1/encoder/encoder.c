@@ -2644,12 +2644,10 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
 
     av1_noise_estimate_init(&cpi->noise_estimate, cm->width, cm->height);
   }
-#if CONFIG_CWG_F317
   if (cm->bridge_frame_info.is_bridge_frame) {
     cm->bridge_frame_info.bridge_frame_max_height = cm->height;
     cm->bridge_frame_info.bridge_frame_max_width = cm->width;
   }
-#endif
   set_mv_search_params(cpi);
 
   if (is_stat_consumption_stage(cpi)) {
@@ -3062,12 +3060,9 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
   uint16_t *ref_buffer;
   const YV12_BUFFER_CONFIG *ref = cpi->source;
   int ref_stride;
-  const int use_ccso = !cm->features.coded_lossless &&
-                       !cm->bru.frame_inactive_flag &&
-#if CONFIG_CWG_F317
-                       !cm->bridge_frame_info.is_bridge_frame &&
-#endif  // CONFIG_CWG_F317
-                       cm->seq_params.enable_ccso;
+  const int use_ccso =
+      !cm->features.coded_lossless && !cm->bru.frame_inactive_flag &&
+      !cm->bridge_frame_info.is_bridge_frame && cm->seq_params.enable_ccso;
   const int num_planes = av1_num_planes(cm);
   av1_setup_dst_planes(xd->plane, &cm->cur_frame->buf, 0, 0, 0, num_planes,
                        NULL);
@@ -3255,24 +3250,15 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
   const int use_loopfilter = !cm->features.coded_lossless &&
                              !cm->bru.frame_inactive_flag &&
                              cpi->oxcf.tool_cfg.enable_deblocking;
-  const int use_cdef = cm->seq_params.enable_cdef &&
-                       !cm->bru.frame_inactive_flag &&
-#if CONFIG_CWG_F317
-                       !cm->bridge_frame_info.is_bridge_frame &&
-#endif  // CONFIG_CWG_F317
-                       !cm->features.coded_lossless;
-  const int use_gdf = cm->seq_params.enable_gdf &&
-                      !cm->bru.frame_inactive_flag &&
-#if CONFIG_CWG_F317
-                      !cm->bridge_frame_info.is_bridge_frame &&
-#endif  // CONFIG_CWG_F317
-                      !cm->features.all_lossless;
-  const int use_restoration = cm->seq_params.enable_restoration &&
-                              !cm->bru.frame_inactive_flag &&
-#if CONFIG_CWG_F317
-                              !cm->bridge_frame_info.is_bridge_frame &&
-#endif  // CONFIG_CWG_F317
-                              !cm->features.all_lossless;
+  const int use_cdef =
+      cm->seq_params.enable_cdef && !cm->bru.frame_inactive_flag &&
+      !cm->bridge_frame_info.is_bridge_frame && !cm->features.coded_lossless;
+  const int use_gdf =
+      cm->seq_params.enable_gdf && !cm->bru.frame_inactive_flag &&
+      !cm->bridge_frame_info.is_bridge_frame && !cm->features.all_lossless;
+  const int use_restoration =
+      cm->seq_params.enable_restoration && !cm->bru.frame_inactive_flag &&
+      !cm->bridge_frame_info.is_bridge_frame && !cm->features.all_lossless;
 
   struct loopfilter *lf = &cm->lf;
 
@@ -4266,12 +4252,8 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
   av1_set_lr_tools(master_lr_tools_disable_mask[1], 2, &cm->features);
 
   // Pick the loop filter level for the frame.
-#if CONFIG_CWG_F317
   if (!cm->bru.frame_inactive_flag && !cm->bridge_frame_info.is_bridge_frame)
     loopfilter_frame(cpi, cm);
-#else
-  if (!cm->bru.frame_inactive_flag) loopfilter_frame(cpi, cm);
-#endif  // CONFIG_CWG_F317
   int64_t tip_as_output_sse = INT64_MAX;
   int64_t tip_as_output_rate = INT64_MAX;
 
@@ -4383,9 +4365,7 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
         if ((map_idx != INVALID_IDX) &&
             (ref_frame_used != cm->features.primary_ref_frame) &&
             (!cm->bru.frame_inactive_flag) &&
-#if CONFIG_CWG_F317
             (!cm->bridge_frame_info.is_bridge_frame) &&
-#endif  // CONFIG_CWG_F317
             (cm->seq_params.enable_avg_cdf && !cm->seq_params.avg_cdf_type) &&
             !frame_is_sframe(cm) && (ref_frame_used != PRIMARY_REF_NONE)) {
           av1_avg_cdf_symbols(cm->fc, &cm->bru.update_ref_fc,
@@ -4929,12 +4909,8 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 #if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
     av1_reset_cdf_symbol_counters(cm->fc);
 #else
-#if CONFIG_CWG_F317
     if (!cm->bru.frame_inactive_flag && !cm->bridge_frame_info.is_bridge_frame)
       av1_reset_cdf_symbol_counters(cm->fc);
-#else
-    if (!cm->bru.frame_inactive_flag) av1_reset_cdf_symbol_counters(cm->fc);
-#endif  // CONFIG_CWG_F317
 #endif  // CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   }
 
@@ -5188,7 +5164,6 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
                                         cm->show_frame);
 #endif  // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
 #endif  // CONFIG_BITSTREAM_DEBUG
-#if CONFIG_CWG_F317_TEST_PATTERN
     const ResizeCfg *resize_cfg = &cpi->oxcf.resize_cfg;
     FeatureFlags *const features = &cm->features;
     const int current_frame_frame_number = cm->current_frame.frame_number;
@@ -5279,13 +5254,11 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
                            cm->ref_frame_map_pairs);
       }
     }
-#endif  // CONFIG_CWG_F317_TEST_PATTERN
 
     if (encode_frame_to_data_rate(cpi, &frame_results->size, dest) !=
         AOM_CODEC_OK) {
       return AOM_CODEC_ERROR;
     }
-#if CONFIG_CWG_F317_TEST_PATTERN
     cm->bridge_frame_info.frame_count++;
     if (cm->bridge_frame_info.is_bridge_frame) {
       features->disable_cdf_update = current_disable_cdf_update;
@@ -5296,7 +5269,6 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
       cm->current_frame.frame_number = current_frame_frame_number;
       cm->bridge_frame_info.is_bridge_frame = 0;
     }
-#endif  // CONFIG_CWG_F317_TEST_PATTERN
   }
   return AOM_CODEC_OK;
 }

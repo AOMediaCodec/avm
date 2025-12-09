@@ -202,9 +202,7 @@ bool DumpObu(const uint8_t *data, int length, int *obu_overhead_bytes) {
     bool is_tile_group = obu_header.type == OBU_TILE_GROUP;
 #endif
     is_tile_group = is_tile_group || obu_header.type == OBU_SWITCH;
-#if CONFIG_CWG_F317
     is_tile_group = is_tile_group || obu_header.type == OBU_BRIDGE_FRAME;
-#endif  // CONFIG_CWG_F317
     bool first_tile_group_in_frame = false;
     if (is_tile_group) {
       if (current_obu_length <

@@ -187,9 +187,7 @@ const char *aom_obu_type_to_string(OBU_TYPE type) {
       return "OBU_LAYER_CONFIGURATION_RECORD";
     case OBU_ATLAS_SEGMENT: return "OBU_ATLAS_SEGMENT";
     case OBU_OPERATING_POINT_SET: return "OBU_OPERATING_POINT_SET";
-#if CONFIG_CWG_F317
     case OBU_BRIDGE_FRAME: return "OBU_BRIDGE_FRAME";
-#endif  // CONFIG_CWG_F317
     case OBU_MSDO: return "OBU_MSDO";
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     case OBU_RAS_FRAME: return "OBU_RAS_FRAME";

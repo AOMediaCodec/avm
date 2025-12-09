@@ -257,9 +257,6 @@ set_aom_config_var(
   CONFIG_MIXED_LOSSLESS_ENCODE 0
   "Encoder only flag to configure encoder to enable mixed lossy/lossless coding"
 )
-set_aom_config_var(CONFIG_CWG_F317 1 "Bridge frame")
-set_aom_config_var(CONFIG_CWG_F317_TEST_PATTERN 1
-                   "Bridge frame - unit test pattern")
 
 set_aom_config_var(CONFIG_BAND_METADATA 1 "Enable banding hints metadata.")
 

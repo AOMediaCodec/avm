@@ -286,12 +286,8 @@ static AOM_INLINE bool is_bru_not_active_and_not_on_partial_border(
   bool on_partion_border =
       mi_row + mi_size_high[bsize] > cm->mi_params.mi_rows ||
       mi_col + mi_size_wide[bsize] > cm->mi_params.mi_cols;
-#if CONFIG_CWG_F317
   return ((mode != BRU_ACTIVE_SB) || cm->bridge_frame_info.is_bridge_frame) &&
          (!on_partion_border);
-#else
-  return (mode != BRU_ACTIVE_SB) && (!on_partion_border);
-#endif
 }
 
 /* Check if all the pixels in the Rect are available */

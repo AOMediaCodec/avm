@@ -530,16 +530,12 @@ void bru_zero_sb_mvs(const AV1_COMMON *const cm, int dst_ref_idx, int mi_row,
     MV_REF *dst_ref = dst_frame_mvs;
     // MV_REFERENCE_FRAME ref_frame[2];
     for (w = 0; w < x_inside_boundary; w++) {
-#if CONFIG_CWG_F317
       if (cm->bridge_frame_info.is_bridge_frame) {
         dst_ref->ref_frame[0] =
             cm->bridge_frame_info.bridge_frame_ref_idx_remapped;
       } else {
         dst_ref->ref_frame[0] = cm->bru.update_ref_idx;
       }
-#else
-      dst_ref->ref_frame[0] = cm->bru.update_ref_idx;
-#endif  // CONFIG_CWG_F317
       dst_ref->ref_frame[1] = NONE_FRAME;
       dst_ref->mv[0].as_int = 0;
       dst_ref->mv[1].as_int = 0;

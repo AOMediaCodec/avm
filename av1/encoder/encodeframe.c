@@ -836,7 +836,6 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
   }
 }
 
-#if CONFIG_CWG_F317
 static AOM_INLINE void bridge_frame_set_offsets(
     AV1_COMMON *const cm, MACROBLOCKD *const xd, BLOCK_SIZE bsize, int mi_row,
     int mi_col, PARTITION_TREE *parent, int index, PARTITION_TYPE partition) {
@@ -1342,7 +1341,6 @@ static AOM_INLINE void bridge_frame_decode_partition_sb(
       xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)],
       (is_intra_sdp_enabled ? xd->sbi->ptree_root[1] : NULL));
 }
-#endif  // CONFIG_CWG_F317
 
 /*!\brief Encode a superblock row by breaking it into superblocks
  *
@@ -1437,7 +1435,6 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
         enc_get_cur_sb_active_mode(cm, mi_col, mi_row);
     // support SB let it go to RD but restrict
     assert(xd->sbi->sb_active_mode == cur_sb_active_mode);
-#if CONFIG_CWG_F317
     if (cm->bridge_frame_info.is_bridge_frame) {
       CHROMA_REF_INFO chroma_ref_info;
       av1_reset_ptree_in_sbi(xd->sbi, xd->tree_type);
@@ -1468,7 +1465,6 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
       bridge_frame_decode_partition_sb(cpi, td, &tile_data->tile_info, mi_row,
                                        mi_col, cm->seq_params.sb_size);
     } else
-#endif  // CONFIG_CWG_F317
       // use for lpf only, use causal restriction only
       if (cm->bru.enabled && (cur_sb_active_mode != BRU_ACTIVE_SB)) {
         CHROMA_REF_INFO chroma_ref_info;
@@ -1598,13 +1594,8 @@ void av1_init_tile_data(AV1_COMP *cpi) {
       // check tile skip
       if (cm->bru.enabled) {
         tile_info->tile_active_mode = 0;
-#if CONFIG_CWG_F317
         if (!cm->bru.frame_inactive_flag &&
-            !cm->bridge_frame_info.is_bridge_frame)
-#else
-        if (!cm->bru.frame_inactive_flag)
-#endif  // CONFIG_CWG_F317
-        {
+            !cm->bridge_frame_info.is_bridge_frame) {
           for (int mi_y = tile_info->mi_row_start; mi_y < tile_info->mi_row_end;
                mi_y += cm->mib_size) {
             for (int mi_x = tile_info->mi_col_start;

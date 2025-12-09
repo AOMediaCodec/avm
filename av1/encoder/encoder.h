@@ -151,9 +151,7 @@ enum {
   RESIZE_RANDOM = 2,   // All frames are coded at a random scale.
   RESIZE_DYNAMIC = 3,  // Frames coded at lower scale based on rate control.
   RESIZE_PATTERN = 4,  // Fixed pattern for resize-mode common test conditions
-#if CONFIG_CWG_F317_TEST_PATTERN
   RESIZE_BRIDGE_FRAME_PATTERN = 5,  // Fixed pattern for Bridge Frame unit test
-#endif                              // CONFIG_CWG_F317_TEST_PATTERN
   RESIZE_MODES
 } UENUM1BYTE(RESIZE_MODE);
 

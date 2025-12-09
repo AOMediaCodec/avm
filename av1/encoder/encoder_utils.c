@@ -462,11 +462,9 @@ void av1_set_size_dependent_vars(AV1_COMP *cpi, int *q, int *bottom_index,
     av1_tpl_rdmult_setup(cpi);
   }
 
-#if CONFIG_CWG_F317
   if (cm->bridge_frame_info.is_bridge_frame) {
     *q = cm->quant_params.base_qindex;
   } else
-#endif  // CONFIG_CWG_F317
     // Decide q and q bounds.
     *q = av1_rc_pick_q_and_bounds(cpi, &cpi->rc, cm->width, cm->height,
                                   cpi->gf_group.index, bottom_index, top_index);

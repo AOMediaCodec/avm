@@ -2075,7 +2075,6 @@ typedef struct BRU_Info {
   int ref_n_ranked;
 } BruInfo;
 
-#if CONFIG_CWG_F317
 /*!
  * \brief Structure used for Bridge frames.
  */
@@ -2105,7 +2104,6 @@ typedef struct BridgeFrame_Info {
    * flag indicating if refresh flags will be signaled (and not inferred)
    */
   int bridge_frame_overwrite_flag;
-#if CONFIG_CWG_F317_TEST_PATTERN
   /*!
    * frame count used for test pattern
    */
@@ -2114,9 +2112,7 @@ typedef struct BridgeFrame_Info {
    * idenitfy bridge frame in encoder log
    */
   int print_bridge_frame_in_log;
-#endif  // CONFIG_CWG_F317_TEST_PATTERN
 } BridgeFrameInfo;
-#endif  // CONFIG_CWG_F317
 
 #if CONFIG_F255_QMOBU
 /*!
@@ -2891,12 +2887,10 @@ typedef struct AV1Common {
    * Structure contain frame level BRU parameters
    */
   BruInfo bru;
-#if CONFIG_CWG_F317
   /*!
    * Structure contain bridge frame parameters
    */
   BridgeFrameInfo bridge_frame_info;
-#endif  // CONFIG_CWG_F317
 #if CONFIG_INSPECTION
   YV12_BUFFER_CONFIG predicted_pixels;
   YV12_BUFFER_CONFIG prefiltered_pixels;
@@ -3325,9 +3319,7 @@ static INLINE void avg_primary_secondary_references(const AV1_COMMON *const cm,
   if ((map_idx != INVALID_IDX) &&
       (ref_frame_used != cm->features.primary_ref_frame) &&
       (!cm->bru.frame_inactive_flag) &&
-#if CONFIG_CWG_F317
       (!cm->bridge_frame_info.is_bridge_frame) &&
-#endif  // CONFIG_CWG_F317
       (cm->seq_params.enable_avg_cdf && !cm->seq_params.avg_cdf_type) &&
       !frame_is_sframe(cm) && (ref_frame_used != PRIMARY_REF_NONE)) {
     av1_avg_cdf_symbols(cm->fc, &cm->ref_frame_map[map_idx]->frame_context,
@@ -3398,10 +3390,7 @@ static INLINE RefCntBuffer *get_primary_ref_frame_buf(
 static INLINE int frame_might_allow_ref_frame_mvs(const AV1_COMMON *cm) {
   return !frame_is_sframe(cm) &&
          cm->seq_params.order_hint_info.enable_ref_frame_mvs &&
-#if CONFIG_CWG_F317
-         !cm->bridge_frame_info.is_bridge_frame &&
-#endif  // CONFIG_CWG_F317
-         !frame_is_intra_only(cm);
+         !cm->bridge_frame_info.is_bridge_frame && !frame_is_intra_only(cm);
 }
 
 static INLINE void ensure_mv_buffer(RefCntBuffer *buf, AV1_COMMON *cm) {
@@ -4190,7 +4179,6 @@ static INLINE void av1_reset_refmv_bank(const AV1_COMMON *const cm,
       const int col_aligned_to_8x8 = ((mi_col >> 1) << 1);
       const int mi_grid_idx = get_mi_grid_idx(mi_params, sb_mi_row - 1,
                                               sb_mi_col + col_aligned_to_8x8);
-#if CONFIG_CWG_F317
       const MB_MODE_INFO *candidate;
       if (cm->bridge_frame_info.is_bridge_frame) {
         const int mi_alloc_idx = get_alloc_mi_idx(
@@ -4199,10 +4187,6 @@ static INLINE void av1_reset_refmv_bank(const AV1_COMMON *const cm,
       } else {
         candidate = mi_params->mi_grid_base[mi_grid_idx];
       }
-#else
-      const MB_MODE_INFO *const candidate =
-          mi_params->mi_grid_base[mi_grid_idx];
-#endif  // CONFIG_CWG_F317
       const int candidate_bsize = candidate->sb_type[0];
       const int cand_mi_wide = mi_size_wide[candidate_bsize];
       if (is_inter_ref_frame(candidate->ref_frame[0]) ||

@@ -72,13 +72,11 @@ static INLINE void init_ref_map_pair(AV1_COMMON *cm,
       ref_frame_map_pairs[map_idx].ref_frame_for_inference = -1;
       continue;
     }
-#if CONFIG_CWG_F317
     if (cm->bridge_frame_info.is_bridge_frame &&
         map_idx != cm->bridge_frame_info.bridge_frame_ref_idx) {
       ref_frame_map_pairs[map_idx].ref_frame_for_inference = -1;
       continue;
     }
-#endif  // CONFIG_CWG_F317
     if (buf->ref_count > 1) {
       // Once the keyframe is coded, the slots in ref_frame_map will all
       // point to the same frame. In that case, all subsequent pointers

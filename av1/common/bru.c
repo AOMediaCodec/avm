@@ -86,11 +86,7 @@ BruActiveMode set_sb_mbmi_bru_mode(const AV1_COMMON *cm, MACROBLOCKD *const xd,
   // only set very first mi
   // for inactive SB, other location on the mi_grid is invalid
   // for active SB, later set_offset will redo the address assignment
-#if CONFIG_CWG_F317
   if (cm->bru.enabled || cm->bridge_frame_info.is_bridge_frame) {
-#else
-  if (cm->bru.enabled) {
-#endif  // CONFIG_CWG_F317
     xd->mi_col = mi_col;
     xd->mi_row = mi_row;
     const int mi_grid_idx = get_mi_grid_idx(&cm->mi_params, mi_row, mi_col);
@@ -240,16 +236,12 @@ void bru_set_default_inter_mb_mode_info(const AV1_COMMON *const cm,
   mbmi->interinter_comp.type = COMPOUND_AVERAGE;
   mbmi->mv[0].as_int = 0;
   mbmi->mv[1].as_int = 0;
-#if CONFIG_CWG_F317
   if (cm->bru.enabled) {
     assert(cm->bru.update_ref_idx >= 0);
   }
   if (cm->bridge_frame_info.is_bridge_frame) {
     assert(cm->bridge_frame_info.bridge_frame_ref_idx_remapped >= 0);
   }
-#else
-  assert(cm->bru.update_ref_idx >= 0);
-#endif  // CONFIG_CWG_F317
 
   mbmi->warp_inter_intra = 0;
   mbmi->morph_pred = 0;
@@ -257,11 +249,9 @@ void bru_set_default_inter_mb_mode_info(const AV1_COMMON *const cm,
   mbmi->seg_id_predicted = 0;
   mbmi->use_amvd = 0;
   mbmi->mrl_index = 0;
-#if CONFIG_CWG_F317
   if (cm->bridge_frame_info.is_bridge_frame) {
     mbmi->ref_frame[0] = cm->bridge_frame_info.bridge_frame_ref_idx_remapped;
   } else
-#endif  // CONFIG_CWG_F317
     mbmi->ref_frame[0] = cm->bru.update_ref_idx;
   mbmi->ref_frame[1] = NONE_FRAME;
   mbmi->skip_mode = 0;

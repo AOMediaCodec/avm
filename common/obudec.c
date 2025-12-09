@@ -160,10 +160,8 @@ static int peek_obu_from_file(FILE *f, size_t obu_size, uint8_t *buffer,
 #if CONFIG_F024_KEYOBU
       is_single_tile_vcl_obu(obu_header->type)
 #else
-      obu_header->type == OBU_TIP || obu_header->type == OBU_SEF
-#if CONFIG_CWG_F317
-      || obu_header->type == OBU_BRIDGE_FRAME
-#endif  // CONFIG_CWG_F317
+      obu_header->type == OBU_TIP || obu_header->type == OBU_SEF ||
+      obu_header->type == OBU_BRIDGE_FRAME
 #endif  // CONFIG_F024_KEYOBU
   ) {
     *first_tile_group = 1;
