@@ -1316,13 +1316,15 @@ static size_t read_metadata_obu(AV1Decoder *pbi, const uint8_t *data, size_t sz,
       return 0;
     }
     bytes_read += muh_size;
-    if (sz - bytes_read < metadata.sz) {
-      cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
-      return 0;
+    if (!metadata.cancel_flag) {
+      if (sz - bytes_read < metadata.sz) {
+        cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
+        return 0;
+      }
+      const size_t mup_size =
+          read_metadata_unit_payload(pbi, data + bytes_read, &metadata);
+      bytes_read += mup_size;
     }
-    const size_t mup_size =
-        read_metadata_unit_payload(pbi, data + bytes_read, &metadata);
-    bytes_read += mup_size;
   }
 
   if (bytes_read >= sz || data[bytes_read] != 0x80) {
