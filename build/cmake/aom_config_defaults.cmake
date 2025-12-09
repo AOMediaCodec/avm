@@ -208,8 +208,6 @@ set_aom_config_var(CONFIG_RANDOM_ACCESS_SWITCH_FRAME 1
                    "Enable random access switch (RAS) frame")
 set_aom_config_var(CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME 1
                    "Enable temporal unit based on showable frame")
-set_aom_config_var(CONFIG_REMOVAL_REDUNDANT_FRAME_HEADER 1
-                   "Remove redundant frame header OBU from OBU types")
 set_aom_config_var(OBU_ORDER_IN_TU 1 "Check OBU order in TU")
 
 set_aom_config_var(
