@@ -348,7 +348,7 @@ typedef struct aom_metadata {
   aom_metadata_layer_t layer_idc;               /**< Metadata layers mode */
   uint32_t xlayer_map;                          /**< Metadata x_layer mapping */
   uint8_t mlayer_map[31];                       /**< Metadata m_layer mapping */
-#endif  // CONFIG_METADATA
+#endif                                          // CONFIG_METADATA
 
 } aom_metadata_t;
 
