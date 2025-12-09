@@ -231,7 +231,6 @@ void aom_wb_write_uleb(struct aom_write_bit_buffer *wb, uint32_t value) {
   }
 }
 
-#if CONFIG_CWG_F270_CI_OBU
 // Implementation of Rice Golomb coding.
 // Step 1: For the integer data to be encoded, compute the quotient and
 // remainder from the division of data/k. Represent the quotient using unary
@@ -250,4 +249,3 @@ void aom_wb_write_rice_golomb(struct aom_write_bit_buffer *wb, uint32_t data,
   aom_wb_write_bit(wb, 0);
   aom_wb_write_unsigned_literal(wb, remainder, k);
 }
-#endif  // CONFIG_CWG_F270_CI_OBU

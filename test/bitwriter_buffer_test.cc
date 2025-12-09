@@ -219,7 +219,6 @@ TEST(BitwriterBufferTest, Svlc31LeadingZeros) {
   }
 }
 
-#if CONFIG_CWG_F270_CI_OBU
 // Test rg(2).
 // Test examples.
 //
@@ -292,6 +291,5 @@ TEST(BitwriterBufferTest, Rg2OneByte) {
     EXPECT_EQ(wb.bit_buffer[0], kExpected[i].byte);
   }
 }
-#endif  // CONFIG_CWG_F270_CI_OBU
 
 }  // namespace

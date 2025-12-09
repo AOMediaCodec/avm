@@ -172,7 +172,6 @@ uint32_t aom_rb_read_uleb(struct aom_read_bit_buffer *rb) {
   return 0;
 }
 
-#if CONFIG_CWG_F270_CI_OBU
 uint32_t aom_rb_read_rice_golomb(struct aom_read_bit_buffer *rb, int k) {
   // The maximum of k is related to the maximum of quotient.
   assert(k <= 26);
@@ -198,4 +197,3 @@ uint32_t aom_rb_read_rice_golomb(struct aom_read_bit_buffer *rb, int k) {
   value = quotient * M + remainder;
   return value;
 }
-#endif  // CONFIG_CWG_F270_CI_OBU
