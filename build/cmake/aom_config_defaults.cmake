@@ -235,10 +235,6 @@ set_aom_config_var(CONFIG_QM_REVERT 1
 
 set_aom_config_var(CONFIG_ML_PART_SPLIT 1
                    "Partition SPLIT pruning/forcing as predicted by ML.")
-
-set_aom_config_var(CONFIG_UNIFORM_TILE 1
-                   "Enable better uniform tile distribution")
-
 set_aom_config_var(
   CONFIG_ADJ_PYR_Q_OFFSET_LD 1
   "Encoder-only config to adjust pyr qp offsets for LD from nominal.")
