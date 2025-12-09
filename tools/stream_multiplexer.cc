@@ -61,8 +61,8 @@ static int write_multi_stream_decoder_operation_obu(uint8_t *const dst,
                          3);  // multistream_large_picture_idc
 
   for (int i = 0; i < num_streams; i++) {
-    aom_wb_write_literal(&wb, stream_ids[i], 5);  // signal stream IDs
-    aom_wb_write_literal(&wb, 0, PROFILE_BITS);   // substream profile_idx
+    aom_wb_write_literal(&wb, stream_ids[i], XLAYER_BITS);  // signal stream IDs
+    aom_wb_write_literal(&wb, 0, PROFILE_BITS);  // substream profile_idx
     aom_wb_write_literal(&wb, SEQ_LEVEL_4_0,
                          LEVEL_BITS);  // substream level_idx
     aom_wb_write_bit(&wb, 0);          // substream tier_idx

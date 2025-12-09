@@ -189,7 +189,7 @@ static uint32_t read_multi_stream_decoder_operation_obu(
   }
 
   for (int i = 0; i < num_streams; i++) {
-    cm->stream_ids[i] = aom_rb_read_literal(rb, 5);  // read stream ID
+    cm->stream_ids[i] = aom_rb_read_literal(rb, XLAYER_BITS);  // read stream ID
     const int substream_profile_idx =
         aom_rb_read_literal(rb, PROFILE_BITS);  // read profile of multistream
     (void)substream_profile_idx;

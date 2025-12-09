@@ -224,7 +224,7 @@ static int read_lcr_xlayer_info(struct AV1Decoder *pbi,
 static void read_lcr_global_payload(struct AV1Decoder *pbi,
                                     struct LayerConfigurationRecord *lcr_params,
                                     int i, struct aom_read_bit_buffer *rb) {
-  lcr_params->lcr_xLayer_id[i] = aom_rb_read_literal(rb, 5);
+  lcr_params->lcr_xLayer_id[i] = aom_rb_read_literal(rb, XLAYER_BITS);
   int n = lcr_params->lcr_xLayer_id[i];
   if (lcr_params->lcr_dependent_xlayers_flag && n > 0) {
     lcr_params->lcr_num_dependent_xlayer_map[n] =
@@ -261,7 +261,8 @@ static int read_lcr_global_info(struct AV1Decoder *pbi,
   }
 
   lcr_params->lcr_global_config_record_id = lcr_global_config_record_id;
-  lcr_params->lcr_max_num_extended_layers_minus_1 = aom_rb_read_literal(rb, 5);
+  lcr_params->lcr_max_num_extended_layers_minus_1 =
+      aom_rb_read_literal(rb, XLAYER_BITS);
   lcr_params->lcr_max_profile_tier_level_info_present_flag =
       aom_rb_read_bit(rb);
   lcr_params->lcr_global_atlas_id_present_flag = aom_rb_read_bit(rb);
