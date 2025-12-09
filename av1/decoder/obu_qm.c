@@ -59,7 +59,9 @@ static void read_qm_data(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
 
   struct quantization_matrix_set *qmset = &pbi->qm_list[qm_pos];
 
+#if !CONFIG_QM_REVERT
   if (!qmset->quantizer_matrix_allocated) alloc_qmatrix(qmset);
+#endif  // !CONFIG_QM_REVERT
   qmset->qm_id = qm_id;
   qmset->qm_tlayer_id = obu_tlayer_id;
   qmset->qm_mlayer_id = obu_mlayer_id;
@@ -92,13 +94,14 @@ static void read_qm_data(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
     }
 #endif  // CONFIG_QM_REVERT
     return;
-  } else {
-#if CONFIG_QM_REVERT
-    qmset->is_user_defined_qm = true;
-#else
-    qmset->qm_default_index = -1;
-#endif  // CONFIG_QM_REVERT
   }
+
+#if CONFIG_QM_REVERT
+  qmset->is_user_defined_qm = true;
+  if (!qmset->quantizer_matrix_allocated) alloc_qmatrix(qmset);
+#else
+  qmset->qm_default_index = -1;
+#endif  // CONFIG_QM_REVERT
 
   for (int t = 0; t < 3; t++) {
     const TX_SIZE tsize = fund_tsize[t];
@@ -174,20 +177,18 @@ void av1_copy_predefined_qmatrices_to_list(AV1Decoder *pbi, int num_planes) {
   for (int qm_pos = 0; qm_pos < NUM_CUSTOM_QMS; qm_pos++) {
     struct quantization_matrix_set *qmset = &pbi->qm_list[qm_pos];
 
-    if (!qmset->quantizer_matrix_allocated) {
-      alloc_qmatrix(qmset);
-    }
     qmset->qm_id = qm_pos;
+    qmset->qm_mlayer_id = -1;
+    qmset->qm_tlayer_id = -1;
+    qmset->quantizer_matrix_num_planes = num_planes;
 #if CONFIG_QM_REVERT
     qmset->is_user_defined_qm = false;
 #else
     int qm_default_index = qm_pos;
     qmset->qm_default_index = qm_pos;
-#endif  // CONFIG_QM_REVERT
-    qmset->qm_mlayer_id = -1;
-    qmset->qm_tlayer_id = -1;
-    qmset->quantizer_matrix_num_planes = num_planes;
-#if !CONFIG_QM_REVERT
+    if (!qmset->quantizer_matrix_allocated) {
+      alloc_qmatrix(qmset);
+    }
     // copy predefined[qm_default_index] to qmset
     for (int c = 0; c < num_planes; ++c) {
       // plane_type: 0:luma, 1:chroma
@@ -202,7 +203,7 @@ void av1_copy_predefined_qmatrices_to_list(AV1Decoder *pbi, int num_planes) {
              predefined_4x8_iwt_base_matrix[qm_default_index][plane_type],
              4 * 8 * sizeof(qm_val_t));
     }
-#endif  // !CONFIG_QM_REVERT
+#endif  // CONFIG_QM_REVERT
   }  // qm_pos
 }
 
@@ -224,9 +225,9 @@ uint32_t read_qm_obu(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
     *acc_qm_id_bitmap |= qm_bit_map;
   }
   bool qm_chroma_info_present_flag = aom_rb_read_bit(rb);
+  int num_planes = (qm_chroma_info_present_flag ? 3 : 1);
   if (qm_bit_map == 0) {
-    av1_copy_predefined_qmatrices_to_list(
-        pbi, (qm_chroma_info_present_flag ? 3 : 1));
+    av1_copy_predefined_qmatrices_to_list(pbi, num_planes);
     for (int j = 0; j < NUM_CUSTOM_QMS; j++) pbi->qm_protected[j] = 1;
   } else {
     for (int j = 0; j < NUM_CUSTOM_QMS; j++) {
@@ -235,7 +236,7 @@ uint32_t read_qm_obu(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
         int qm_pos = qm_id;
         pbi->qm_protected[qm_id] = 1;
         read_qm_data(pbi, obu_tlayer_id, obu_mlayer_id, qm_pos, qm_id,
-                     (qm_chroma_info_present_flag ? 3 : 1), rb);
+                     num_planes, rb);
       }
     }
   }  // qm_bit_map != 0

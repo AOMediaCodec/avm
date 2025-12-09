@@ -8832,6 +8832,7 @@ static void activate_sequence_header(AV1Decoder *pbi,
 #endif  // CONFIG_F024_KEYOBU
 
 #if CONFIG_F255_QMOBU
+  int num_planes = cm->seq_params.monochrome ? 1 : 3;
   for (int qm_pos = 0; qm_pos < NUM_CUSTOM_QMS; qm_pos++) {
     // qm_protected[qm_pos] == 1 indicates the pbi->qm_list[qm_pos] is signalled
     // with CLK/OLK. those quantizer matrices are not reset to the predefined.
@@ -8841,6 +8842,7 @@ static void activate_sequence_header(AV1Decoder *pbi,
     qmset->qm_id = qm_pos;
     qmset->qm_mlayer_id = -1;
     qmset->qm_tlayer_id = -1;
+    qmset->quantizer_matrix_num_planes = num_planes;
 #if CONFIG_QM_REVERT
     qmset->is_user_defined_qm = false;
 #else
@@ -8849,9 +8851,8 @@ static void activate_sequence_header(AV1Decoder *pbi,
     if (!qmset->quantizer_matrix_allocated) {
       alloc_qmatrix(qmset);
     }
-    qmset->quantizer_matrix_num_planes = cm->seq_params.monochrome ? 1 : 3;
     // copy predefined[qm_default_index] to qmset
-    for (int c = 0; c < qmset->quantizer_matrix_num_planes; ++c) {
+    for (int c = 0; c < num_planes; ++c) {
       // plane_type: 0:luma, 1:chroma
       const int plane_type = (c >= 1);
       memcpy(qmset->quantizer_matrix[0][c],
