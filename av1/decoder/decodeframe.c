@@ -8914,11 +8914,6 @@ static void handle_zero_cur_mfh_id(AV1Decoder *pbi,
   cm->mfh_params[cm->cur_mfh_id].mfh_frame_width = seq_params->max_frame_width;
   cm->mfh_params[cm->cur_mfh_id].mfh_frame_height =
       seq_params->max_frame_height;
-#if !CONFIG_CWG_F248_RENDER_SIZE
-  cm->mfh_params[cm->cur_mfh_id].mfh_render_width = seq_params->max_frame_width;
-  cm->mfh_params[cm->cur_mfh_id].mfh_render_height =
-      seq_params->max_frame_height;
-#endif  // !CONFIG_CWG_F248_RENDER_SIZE
   cm->mfh_params[cm->cur_mfh_id].mfh_loop_filter_update_flag = 0;
   for (int i = 0; i < 4; i++) {
     cm->mfh_params[cm->cur_mfh_id].mfh_loop_filter_level[i] = 0;
