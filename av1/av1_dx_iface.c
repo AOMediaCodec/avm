@@ -172,17 +172,12 @@ static aom_codec_err_t decoder_destroy(aom_codec_alg_priv_t *ctx) {
   aom_free(ctx);
   return AOM_CODEC_OK;
 }
-#if CONFIG_CWG_E242_BITDEPTH
+
 // Reads the bitdepth lut index in color_config() and sets *bit_depth
 // accordingly.
-#else
-// Reads the high_bitdepth and twelve_bit fields in color_config() and sets
-// *bit_depth based on the values of those fields and profile.
-#endif
 static aom_codec_err_t parse_bitdepth(struct aom_read_bit_buffer *rb,
                                       BITSTREAM_PROFILE profile,
                                       aom_bit_depth_t *bit_depth) {
-#if CONFIG_CWG_E242_BITDEPTH
   (void)profile;
   const uint32_t bitdepth_lut_idx = aom_rb_read_uvlc(rb);
   const int bitdepth = av1_get_bitdepth_from_index(bitdepth_lut_idx);
@@ -190,18 +185,6 @@ static aom_codec_err_t parse_bitdepth(struct aom_read_bit_buffer *rb,
     return AOM_CODEC_UNSUP_BITSTREAM;
   else
     *bit_depth = (aom_bit_depth_t)bitdepth;
-#else
-  const int high_bitdepth = aom_rb_read_bit(rb);
-  if (profile == PROFILE_2 && high_bitdepth) {
-    const int twelve_bit = aom_rb_read_bit(rb);
-    *bit_depth = twelve_bit ? AOM_BITS_12 : AOM_BITS_10;
-  } else if (profile <= PROFILE_2) {
-    *bit_depth = high_bitdepth ? AOM_BITS_10 : AOM_BITS_8;
-  } else {
-    // Unsupported profile/bit-depth combination
-    return AOM_CODEC_UNSUP_BITSTREAM;
-  }
-#endif  // CONFIG_CWG_E242_BITDEPTH
   return AOM_CODEC_OK;
 }
 

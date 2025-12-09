@@ -6024,7 +6024,6 @@ static AOM_INLINE void error_handler(void *data, aom_codec_err_t error,
   aom_internal_error(&cm->error, error, detail);
 }
 
-#if CONFIG_CWG_E242_BITDEPTH
 // Gets the bitdepth_lut_idx field in color_config() and returns bit_depth from
 // the bitdepth list.
 int av1_get_bitdepth_from_index(uint32_t bitdepth_lut_idx) {
@@ -6034,29 +6033,14 @@ int av1_get_bitdepth_from_index(uint32_t bitdepth_lut_idx) {
   return bitdepth_list[bitdepth_lut_idx];
 }
 // Reads the bitdepth in color_config() and sets seq_params->bit_depth
-#else
-// Reads the high_bitdepth and twelve_bit fields in color_config() and sets
-// seq_params->bit_depth based on the values of those fields and
-// seq_params->profile.
-#endif  // CONFIG_CWG_E242_BITDEPTH
 // Reports errors by calling rb->error_handler() or
 // aom_internal_error().
 static AOM_INLINE void read_bitdepth(
     struct aom_read_bit_buffer *rb, SequenceHeader *seq_params,
     struct aom_internal_error_info *error_info) {
-#if CONFIG_CWG_E242_BITDEPTH
   const uint32_t bitdepth_lut_idx = aom_rb_read_uvlc(rb);
   const int bitdepth = av1_get_bitdepth_from_index(bitdepth_lut_idx);
   if (bitdepth >= 0) seq_params->bit_depth = bitdepth;
-#else
-  const int high_bitdepth = aom_rb_read_bit(rb);
-  if (seq_params->profile == PROFILE_2 && high_bitdepth) {
-    const int twelve_bit = aom_rb_read_bit(rb);
-    seq_params->bit_depth = twelve_bit ? AOM_BITS_12 : AOM_BITS_10;
-  } else if (seq_params->profile <= PROFILE_2) {
-    seq_params->bit_depth = high_bitdepth ? AOM_BITS_10 : AOM_BITS_8;
-  }
-#endif  // CONFIG_CWG_E242_BITDEPTH
   else {
     aom_internal_error(error_info, AOM_CODEC_UNSUP_BITSTREAM,
                        "Unsupported profile/bit-depth combination");
