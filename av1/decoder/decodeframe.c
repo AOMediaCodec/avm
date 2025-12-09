@@ -4200,7 +4200,6 @@ static AOM_INLINE void setup_frame_size(AV1_COMMON *cm,
     } else {
 #if CONFIG_MULTI_FRAME_HEADER
       assert(cm->mfh_valid[cm->cur_mfh_id]);
-#if CONFIG_CWG_E242_PARSING_INDEP
       if (cm->mfh_params[cm->cur_mfh_id].mfh_frame_size_present_flag) {
         width = cm->mfh_params[cm->cur_mfh_id].mfh_frame_width;
         height = cm->mfh_params[cm->cur_mfh_id].mfh_frame_height;
@@ -4208,10 +4207,6 @@ static AOM_INLINE void setup_frame_size(AV1_COMMON *cm,
         width = seq_params->max_frame_width;
         height = seq_params->max_frame_height;
       }
-#else
-      width = cm->mfh_params[cm->cur_mfh_id].mfh_frame_width;
-      height = cm->mfh_params[cm->cur_mfh_id].mfh_frame_height;
-#endif  // CONFIG_CWG_E242_PARSING_INDEP
 #else   // CONFIG_MULTI_FRAME_HEADER
     width = seq_params->max_frame_width;
     height = seq_params->max_frame_height;
@@ -7831,7 +7826,6 @@ void av1_read_multi_frame_header(AV1_COMMON *cm,
 #if CONFIG_CWG_E242_SEQ_HDR_ID
   mfh_param->mfh_seq_header_id = (int)mfh_seq_header_id;
 #endif  // #if CONFIG_CWG_E242_SEQ_HDR_ID
-#if CONFIG_CWG_E242_PARSING_INDEP
   mfh_param->mfh_frame_width = cm->seq_params.max_frame_width;
   mfh_param->mfh_frame_height = cm->seq_params.max_frame_height;
   mfh_param->mfh_frame_size_present_flag = aom_rb_read_bit(rb);
@@ -7851,24 +7845,6 @@ void av1_read_multi_frame_header(AV1_COMMON *cm,
                         &mfh_param->mfh_frame_width,
                         &mfh_param->mfh_frame_height);
   }
-#else
-  bool frame_size_update_flag = aom_rb_read_bit(rb);
-
-  int width = cm->seq_params.max_frame_width;
-  int height = cm->seq_params.max_frame_height;
-  if (frame_size_update_flag) {
-    int num_bits_width = cm->seq_params.num_bits_width;
-    int num_bits_height = cm->seq_params.num_bits_height;
-    av1_read_frame_size(rb, num_bits_width, num_bits_height, &width, &height);
-    if (width > cm->seq_params.max_frame_width ||
-        height > cm->seq_params.max_frame_height) {
-      aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
-                         "Frame dimensions are larger than the maximum values");
-    }
-  }
-  mfh_param->mfh_frame_width = width;
-  mfh_param->mfh_frame_height = height;
-#endif  // CONFIG_CWG_E242_PARSING_INDEP
 
   mfh_param->mfh_loop_filter_update_flag = aom_rb_read_bit(rb);
   if (mfh_param->mfh_loop_filter_update_flag) {
@@ -7882,9 +7858,6 @@ void av1_read_multi_frame_header(AV1_COMMON *cm,
   }
 
 #if CONFIG_MFH_SIGNAL_TILE_INFO
-#if !CONFIG_CWG_E242_PARSING_INDEP
-  mfh_param->mfh_tile_info_present_flag = aom_rb_read_bit(rb);
-#endif  //  !CONFIG_CWG_E242_PARSING_INDEP
   if (mfh_param->mfh_tile_info_present_flag) {
     read_mfh_sb_size(mfh_param, rb);
     read_multi_frame_header_tile_info(mfh_param, rb);

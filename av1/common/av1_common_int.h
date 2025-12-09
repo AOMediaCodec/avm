@@ -1403,7 +1403,6 @@ typedef struct MultiFrameHeader {
    */
   int mfh_seq_header_id;
 #endif  // CONFIG_CWG_E242_SEQ_HDR_ID
-#if CONFIG_CWG_E242_PARSING_INDEP
   /*!
    * Frame size present flag
    */
@@ -1416,7 +1415,7 @@ typedef struct MultiFrameHeader {
    * Frame height bits
    */
   int mfh_frame_height_bits_minus1;
-#endif  // CONFIG_CWG_E242_PARSING_INDEP
+
   /*!
    * Frame Width of frames that reference this multi-frame header
    */
@@ -1425,12 +1424,10 @@ typedef struct MultiFrameHeader {
    * Frame Height of frames that reference this multi-frame header
    */
   int mfh_frame_height;
-#if CONFIG_CWG_E242_PARSING_INDEP
   /*!
    * Render size present flag
    */
   int mfh_render_size_present_flag;
-#endif  // CONFIG_CWG_E242_PARSING_INDEP
   /*!
    * Presence of loop filter levels in this multi-frame header
    */
