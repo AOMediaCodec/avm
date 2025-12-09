@@ -7820,11 +7820,7 @@ void av1_read_multi_frame_header(AV1_COMMON *cm,
                        "Unsupported Sequence Header ID in MFH");
   }
 #endif  // #if CONFIG_CWG_E242_SEQ_HDR_ID
-#if CONFIG_CWG_E242_MFH_ID_UVLC
   uint32_t cur_mfh_id = aom_rb_read_uvlc(rb) + 1;
-#else
-  int cur_mfh_id = aom_rb_read_literal(rb, 4) + 1;
-#endif  // CONFIG_CWG_E242_MFH_ID_UVLC
   if (cur_mfh_id >= MAX_MFH_NUM) {
     aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                        "multi-frame header id is greater than or equal to the "
@@ -8885,7 +8881,6 @@ static int read_uncompressed_header(AV1Decoder *pbi, OBU_TYPE obu_type,
   } else {
 #endif  // CONFIG_CWG_F317
 #if CONFIG_MULTI_FRAME_HEADER
-#if CONFIG_CWG_E242_MFH_ID_UVLC
     uint32_t cur_mfh_id = aom_rb_read_uvlc(rb);
     if (cur_mfh_id >= MAX_MFH_NUM) {
       aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
@@ -8893,9 +8888,6 @@ static int read_uncompressed_header(AV1Decoder *pbi, OBU_TYPE obu_type,
                          "the maximum multi-frame header number");
     }
     cm->cur_mfh_id = (int)cur_mfh_id;
-#else
-    cm->cur_mfh_id = aom_rb_read_literal(rb, 4);
-#endif  // CONFIG_CWG_E242_MFH_ID_UVLC
     if (cm->cur_mfh_id == 0) {
       uint32_t seq_header_id_in_frame_header = aom_rb_read_uvlc(rb);
 #if CONFIG_CWG_E242_SEQ_HDR_ID

@@ -6032,11 +6032,7 @@ static AOM_INLINE void write_multi_frame_header(
 #if CONFIG_CWG_E242_SEQ_HDR_ID
   aom_wb_write_uvlc(wb, mfh_param->mfh_seq_header_id);
 #endif  // #if CONFIG_CWG_E242_SEQ_HDR_ID
-#if CONFIG_CWG_E242_MFH_ID_UVLC
   aom_wb_write_uvlc(wb, cm->cur_mfh_id - 1);
-#else
-  aom_wb_write_literal(wb, cm->cur_mfh_id - 1, 4);
-#endif  // CONFIG_CWG_E242_MFH_ID_UVLC
 
 #if CONFIG_CWG_E242_PARSING_INDEP
   aom_wb_write_bit(wb, mfh_param->mfh_frame_size_present_flag);
@@ -6358,11 +6354,7 @@ static AOM_INLINE void write_uncompressed_header(
   } else {
 #endif  // CONFIG_CWG_F317
 #if CONFIG_MULTI_FRAME_HEADER
-#if CONFIG_CWG_E242_MFH_ID_UVLC
     aom_wb_write_uvlc(wb, cm->cur_mfh_id);
-#else
-    aom_wb_write_literal(wb, cm->cur_mfh_id, 4);
-#endif  // CONFIG_CWG_E242_MFH_ID_UVLC
     if (cm->cur_mfh_id == 0) {
       aom_wb_write_uvlc(wb, 0);  // seq_header_id_in_frame_header
     }
