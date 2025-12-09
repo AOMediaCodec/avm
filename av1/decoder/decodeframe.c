@@ -6035,7 +6035,8 @@ static AOM_INLINE void read_bitdepth(
     struct aom_internal_error_info *error_info) {
   const uint32_t bitdepth_lut_idx = aom_rb_read_uvlc(rb);
   const int bitdepth = av1_get_bitdepth_from_index(bitdepth_lut_idx);
-  if (bitdepth >= 0) seq_params->bit_depth = bitdepth;
+  if (bitdepth >= 0)
+    seq_params->bit_depth = bitdepth;
   else {
     aom_internal_error(error_info, AOM_CODEC_UNSUP_BITSTREAM,
                        "Unsupported profile/bit-depth combination");

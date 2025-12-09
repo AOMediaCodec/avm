@@ -167,11 +167,6 @@ set_aom_config_var(CONFIG_MFH_SIGNAL_TILE_INFO 1
 set_aom_config_var(CONFIG_MULTI_LEVEL_SEGMENTATION 1
                    "Segmentation information in the multi frame header")
 
-set_aom_config_var(CONFIG_CWG_E242_PARSING_INDEP 1
-                   "Parsing independence of MFH.")
-
-set_aom_config_var(CONFIG_CWG_E242_BITDEPTH 1 "Signal Bitdepth using a LUT.")
-
 set_aom_config_var(CONFIG_CWG_E242_SEQ_HDR_ID 1 "Signal sequence header id.")
 
 set_aom_config_var(CONFIG_MODIFY_SH 1
@@ -188,9 +183,6 @@ set_aom_config_var(CONFIG_SCAN_TYPE_METADATA 1
 set_aom_config_var(CONFIG_CWG_F349_SIGNAL_TILE_INFO 1
                    "Improved tile information at sequence header.")
 
-# CWG-E242 Chroma Format IDC
-set_aom_config_var(CONFIG_CWG_E242_CHROMA_FORMAT_IDC 1 "Chroma format idc.")
-
 # CWG-F220 Sequence Cropping Window
 set_aom_config_var(CONFIG_CROP_WIN_CWG_F220 1 "Sequence Cropping Window")
 
@@ -202,8 +194,7 @@ set_aom_config_var(CONFIG_THROUGHPUT_ANALYSIS 0
 set_aom_config_var(CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID 1
                    "Enable frame output order derivation with layer ID")
 set_aom_config_var(CONFIG_MULTI_FRAME_HEADER 1 "Enable multi-frame header.")
-set_aom_config_var(CONFIG_CWG_E242_MFH_ID_UVLC 1
-                   "Signaling multi-frame header ID in UVLC")
+
 set_aom_config_var(CONFIG_RANDOM_ACCESS_SWITCH_FRAME 1
                    "Enable random access switch (RAS) frame")
 set_aom_config_var(CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME 1
