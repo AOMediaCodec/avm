@@ -71,7 +71,6 @@ void set_film_grain_model(const AV1_COMP *const cpi,
     fgm_current->fgm_chroma_idc = CHROMA_FORMAT_444;
   else if (seq_params->subsampling_x == 1 && seq_params->subsampling_y == 0)
     fgm_current->fgm_chroma_idc = CHROMA_FORMAT_422;
-#if CONFIG_CWG_F298_REC11
   for (int c = 0; c < 3; c++) {
     fgm_current->fgm_points[c] = pars->fgm_points[c];
   }
@@ -85,21 +84,6 @@ void set_film_grain_model(const AV1_COMP *const cpi,
           pars->fgm_scaling_points_2[i][j];
     }
   }
-#else
-  for (int i = 0; i < 14; i++) {
-    fgm_current->scaling_points_y[i][0] = pars->scaling_points_y[i][0];
-    fgm_current->scaling_points_y[i][1] = pars->scaling_points_y[i][1];
-  }
-  fgm_current->num_y_points = pars->num_y_points;  // value: 0..14
-  for (int i = 0; i < 10; i++) {
-    for (int j = 0; j < 2; j++) {
-      fgm_current->scaling_points_cb[i][j] = pars->scaling_points_cb[i][j];
-      fgm_current->scaling_points_cr[i][j] = pars->scaling_points_cr[i][j];
-    }
-  }
-  fgm_current->num_cb_points = pars->num_cb_points;
-  fgm_current->num_cr_points = pars->num_cr_points;
-#endif  // CONFIG_CWG_F298_REC11
   fgm_current->scaling_shift = pars->scaling_shift;
   fgm_current->ar_coeff_lag = pars->ar_coeff_lag;
 
@@ -122,12 +106,8 @@ void set_film_grain_model(const AV1_COMP *const cpi,
 #if CONFIG_FGS_IDENT
   fgm_current->mc_identity = pars->mc_identity;
 #endif  // CONFIG_FGS_IDENT
-#if CONFIG_CWG_F298_REC11
   fgm_current->fgm_scale_from_channel0_flag =
       pars->fgm_scale_from_channel0_flag;
-#else
-  fgm_current->chroma_scaling_from_luma = pars->chroma_scaling_from_luma;
-#endif
   fgm_current->grain_scale_shift = pars->grain_scale_shift;
   fgm_current->block_size = pars->block_size;
 }
@@ -139,7 +119,6 @@ int film_grain_model_decision(int fgm_pos, struct film_grain_model *fgm_in_list,
   //  film_grain_model)); return is_diff? -1 : fgm_pos;
 
   //  //comparison
-#if CONFIG_CWG_F298_REC11
   for (int c = 0; c < 3; c++) {
     if (fgm_current->fgm_points[c] != fgm_in_list->fgm_points[c]) return -1;
   }
@@ -159,31 +138,6 @@ int film_grain_model_decision(int fgm_pos, struct film_grain_model *fgm_in_list,
       }
     }
   }
-#else
-  if (fgm_current->num_y_points != fgm_in_list->num_y_points) return -1;
-  if (fgm_current->num_cb_points != fgm_in_list->num_cb_points) return -1;
-  if (fgm_current->num_cr_points != fgm_in_list->num_cr_points) return -1;
-
-  for (int i = 0; i < 14; i++) {
-    if (fgm_current->scaling_points_y[i][0] !=
-        fgm_in_list->scaling_points_y[i][0])
-      return -1;
-    if (fgm_current->scaling_points_y[i][1] !=
-        fgm_in_list->scaling_points_y[i][1])
-      return -1;
-  }
-
-  for (int i = 0; i < 10; i++) {
-    for (int j = 0; j < 2; j++) {
-      if (fgm_current->scaling_points_cb[i][j] !=
-          fgm_in_list->scaling_points_cb[i][j])
-        return -1;
-      if (fgm_current->scaling_points_cr[i][j] !=
-          fgm_in_list->scaling_points_cr[i][j])
-        return -1;
-    }
-  }
-#endif
   if (fgm_current->scaling_shift != fgm_in_list->scaling_shift) return -1;
   if (fgm_current->ar_coeff_lag != fgm_in_list->ar_coeff_lag) return -1;
 
@@ -207,13 +161,8 @@ int film_grain_model_decision(int fgm_pos, struct film_grain_model *fgm_in_list,
 #if CONFIG_FGS_IDENT
   if (fgm_current->mc_identity != fgm_in_list->mc_identity) return -1;
 #endif  // CONFIG_FGS_IDENT
-#if CONFIG_CWG_F298_REC11
   if (fgm_current->fgm_scale_from_channel0_flag !=
       fgm_in_list->fgm_scale_from_channel0_flag)
-#else
-  if (fgm_current->chroma_scaling_from_luma !=
-      fgm_in_list->chroma_scaling_from_luma)
-#endif
     return -1;
   if (fgm_current->grain_scale_shift != fgm_in_list->grain_scale_shift)
     return -1;
@@ -243,7 +192,6 @@ int write_fgm_obu(AV1_COMP *cpi, struct film_grain_model *fgm,
 
   for (int fgm_pos = 0; fgm_pos < 1; fgm_pos++) {
     // Scaling functions parameters
-#if CONFIG_CWG_F298_REC11
     int fgmNumChannels = cm->seq_params.monochrome ? 1 : 3;
 
     if (fgmNumChannels > 1) {
@@ -286,82 +234,6 @@ int write_fgm_obu(AV1_COMP *cpi, struct film_grain_model *fgm,
         }
       }
     }
-#else   // CONFIG_CWG_F298_REC11
-
-    aom_wb_write_literal(&wb, fgm->num_y_points, 4);  // max 14
-    if (fgm->num_y_points) {
-      // search for the max
-      int maxIncr = -1, maxScal = -1;
-      for (int i = 0; i < fgm->num_y_points; i++) {
-        if (maxIncr < fgm->scaling_points_y[i][0])
-          maxIncr = fgm->scaling_points_y[i][0];
-        if (maxScal < fgm->scaling_points_y[i][1])
-          maxScal = fgm->scaling_points_y[i][1];
-      }
-      // ceillog2
-      int bitsIncr = maxIncr == -1 ? 0 : aom_ceil_log2(maxIncr + 1);
-      int bitsScal = maxScal == -1 ? 0 : aom_ceil_log2(maxScal + 1);
-      aom_wb_write_literal(&wb, bitsIncr - 1, 3);
-      aom_wb_write_literal(&wb, bitsScal - 5, 2);
-      for (int i = 0; i < fgm->num_y_points; i++) {
-        aom_wb_write_literal(&wb, fgm->scaling_points_y[i][0], bitsIncr);
-        aom_wb_write_literal(&wb, fgm->scaling_points_y[i][1], bitsScal);
-      }
-    }
-
-    if (!cm->seq_params.monochrome) {
-      aom_wb_write_bit(&wb, fgm->chroma_scaling_from_luma);
-    } else {
-      assert(!fgm->chroma_scaling_from_luma);
-    }
-
-    if (cm->seq_params.monochrome || fgm->chroma_scaling_from_luma ||
-        ((cm->seq_params.subsampling_x == 1) &&
-         (cm->seq_params.subsampling_y == 1) && (fgm->num_y_points == 0))) {
-      assert(fgm->num_cb_points == 0 && fgm->num_cr_points == 0);
-    } else {
-      aom_wb_write_literal(&wb, fgm->num_cb_points, 4);  // max 10
-      if (fgm->num_cb_points) {
-        int maxIncr = -1, maxScal = -1;
-        for (int i = 0; i < fgm->num_cb_points; i++) {
-          if (maxIncr < fgm->scaling_points_cb[i][0])
-            maxIncr = fgm->scaling_points_cb[i][0];
-          if (maxScal < fgm->scaling_points_cb[i][1])
-            maxScal = fgm->scaling_points_cb[i][1];
-        }
-        // ceillog2
-        int bitsIncr = maxIncr == -1 ? 0 : aom_ceil_log2(maxIncr + 1);
-        int bitsScal = maxScal == -1 ? 0 : aom_ceil_log2(maxScal + 1);
-
-        aom_wb_write_literal(&wb, bitsIncr - 1, 3);
-        aom_wb_write_literal(&wb, bitsScal - 5, 2);
-        for (int i = 0; i < fgm->num_cb_points; i++) {
-          aom_wb_write_literal(&wb, fgm->scaling_points_cb[i][0], bitsIncr);
-          aom_wb_write_literal(&wb, fgm->scaling_points_cb[i][1], bitsScal);
-        }
-      }
-
-      aom_wb_write_literal(&wb, fgm->num_cr_points, 4);  // max 10
-      if (fgm->num_cr_points) {
-        int maxIncr = -1, maxScal = -1;
-        for (int i = 0; i < fgm->num_cr_points; i++) {
-          if (maxIncr < fgm->scaling_points_cr[i][0])
-            maxIncr = fgm->scaling_points_cr[i][0];
-          if (maxScal < fgm->scaling_points_cr[i][1])
-            maxScal = fgm->scaling_points_cr[i][1];
-        }
-        // ceillog2
-        int bitsIncr = maxIncr == -1 ? 0 : aom_ceil_log2(maxIncr + 1);
-        int bitsScal = maxScal == -1 ? 0 : aom_ceil_log2(maxScal + 1);
-        aom_wb_write_literal(&wb, bitsIncr - 1, 3);
-        aom_wb_write_literal(&wb, bitsScal - 5, 2);
-        for (int i = 0; i < fgm->num_cr_points; i++) {
-          aom_wb_write_literal(&wb, fgm->scaling_points_cr[i][0], bitsIncr);
-          aom_wb_write_literal(&wb, fgm->scaling_points_cr[i][1], bitsScal);
-        }
-      }
-    }
-#endif  // #endif  // CONFIG_CWG_F298_REC11
 
     aom_wb_write_literal(&wb, fgm->scaling_shift - 8, 2);  // 8 + value
 
@@ -373,18 +245,8 @@ int write_fgm_obu(AV1_COMP *cpi, struct film_grain_model *fgm,
 
     int num_pos_luma = 2 * fgm->ar_coeff_lag * (fgm->ar_coeff_lag + 1);
     int num_pos_chroma = num_pos_luma;
-#if CONFIG_CWG_F298_REC11
-    if (fgm->fgm_points[0] > 0)
-#else
-    if (fgm->num_y_points > 0)
-#endif  // CONFIG_CWG_F298_REC11
-      ++num_pos_chroma;
-#if CONFIG_CWG_F298_REC11
-    if (fgm->fgm_points[0])
-#else
-    if (fgm->num_y_points)
-#endif
-    {
+    if (fgm->fgm_points[0] > 0) ++num_pos_chroma;
+    if (fgm->fgm_points[0]) {
       int maxAr = -1;
       for (int i = 0; i < num_pos_luma; i++) {
         if (maxAr < fgm->ar_coeffs_y[i]) maxAr = fgm->ar_coeffs_y[i];
@@ -395,12 +257,7 @@ int write_fgm_obu(AV1_COMP *cpi, struct film_grain_model *fgm,
       for (int i = 0; i < num_pos_luma; i++)
         aom_wb_write_literal(&wb, fgm->ar_coeffs_y[i] + 128, bitArY);
     }
-#if CONFIG_CWG_F298_REC11
-    if (fgm->fgm_points[1] || fgm->fgm_scale_from_channel0_flag)
-#else
-    if (fgm->num_cb_points || fgm->chroma_scaling_from_luma)
-#endif
-    {
+    if (fgm->fgm_points[1] || fgm->fgm_scale_from_channel0_flag) {
       int maxAr = -1;
       for (int i = 0; i < num_pos_chroma; i++) {
         if (maxAr < fgm->ar_coeffs_cb[i]) maxAr = fgm->ar_coeffs_cb[i];
@@ -412,12 +269,7 @@ int write_fgm_obu(AV1_COMP *cpi, struct film_grain_model *fgm,
         aom_wb_write_literal(&wb, fgm->ar_coeffs_cb[i] + 128, bitsArCb);
     }
 
-#if CONFIG_CWG_F298_REC11
-    if (fgm->fgm_points[2] || fgm->fgm_scale_from_channel0_flag)
-#else
-    if (fgm->num_cr_points || fgm->chroma_scaling_from_luma)
-#endif
-    {
+    if (fgm->fgm_points[2] || fgm->fgm_scale_from_channel0_flag) {
       int maxAr = -1;
       for (int i = 0; i < num_pos_chroma; i++) {
         if (maxAr < fgm->ar_coeffs_cr[i]) maxAr = fgm->ar_coeffs_cr[i];
@@ -432,22 +284,12 @@ int write_fgm_obu(AV1_COMP *cpi, struct film_grain_model *fgm,
     aom_wb_write_literal(&wb, fgm->ar_coeff_shift - 6, 2);  // 8 + value
 
     aom_wb_write_literal(&wb, fgm->grain_scale_shift, 2);
-#if CONFIG_CWG_F298_REC11
-    if (fgm->fgm_points[1])
-#else
-    if (fgm->num_cb_points)
-#endif
-    {
+    if (fgm->fgm_points[1]) {
       aom_wb_write_literal(&wb, fgm->cb_mult, 8);
       aom_wb_write_literal(&wb, fgm->cb_luma_mult, 8);
       aom_wb_write_literal(&wb, fgm->cb_offset, 9);
     }
-#if CONFIG_CWG_F298_REC11
-    if (fgm->fgm_points[2])
-#else
-    if (fgm->num_cr_points)
-#endif
-    {
+    if (fgm->fgm_points[2]) {
       aom_wb_write_literal(&wb, fgm->cr_mult, 8);
       aom_wb_write_literal(&wb, fgm->cr_luma_mult, 8);
       aom_wb_write_literal(&wb, fgm->cr_offset, 9);

@@ -2163,7 +2163,6 @@ struct qm_obu {
  */
 struct film_grain_model {
   // 8 bit values
-#if CONFIG_CWG_F298_REC11
   /*!
    * fgm_scaling_points[c][i][0] the x (luma value) coordinate for the i-th
    point of the piecewise linear scaling function for the c-th component.
@@ -2176,44 +2175,6 @@ struct film_grain_model {
 component
    */
   int fgm_points[3];
-#else
-  /*!
-   * scaling_points_y[i][0] the x (luma value) coordinate for the i-th point of
-   the piecewise linear scaling function for luma component.
-   * scaling_points_y[i][1] the scaling (output) value for the i-th point of the
-   piecewise linear scaling function for luma component.
-   */
-  int scaling_points_y[14][2];
-  /*!
-   * the number of points for the piece-wise linear scaling function of the luma
-component
-   */
-  int num_y_points;  // value: 0..14
-  /*!
-   * scaling_points_y[i][0] the x coordinate for the i-th point of the
-   piece-wise linear scaling function for cb component.
-   * scaling_points_y[i][1] the scaling (output) value for the i-th point of the
-   piecewise linear scaling function for cb component.
-   */
-  int scaling_points_cb[10][2];
-  /*!
-   * the number of points for the piece-wise linear scaling function of the cb
-   component
-   */
-  int num_cb_points;  // value: 0..10
-  /*!
-   * scaling_points_y[i][0] the x coordinate for the i-th point of the
-   piece-wise linear scaling function for cr component.
-   * scaling_points_y[i][1] the scaling (output) value for the i-th point of the
-   piecewise linear scaling function for cr component.
-   */
-  int scaling_points_cr[10][2];
-  /*!
-   * the number of points for the piece-wise linear scaling function of the cr
-   component
-   */
-  int num_cr_points;  // value: 0..10
-#endif
   /*!
    * how much the Gaussian random numbers should be scaled down during the grain
    * synthesisprocess.
@@ -2289,11 +2250,7 @@ component
   /*!
    * the chroma scaling is inferred from the luma scaling
    */
-#if CONFIG_CWG_F298_REC11
   int fgm_scale_from_channel0_flag;
-#else
-  int chroma_scaling_from_luma;
-#endif
 
   /*!
    * block size for the film grain synthesis: 0 - 16x16, 1 - 32x32

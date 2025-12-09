@@ -4830,7 +4830,6 @@ static void write_film_grain_params(const AV1_COMP *const cpi,
   }
 
   // Scaling functions parameters
-#if CONFIG_CWG_F298_REC11
 #define fgm_value_increment(i, j)                                              \
   ((j) > 0 ? (fgm_scaling_points[i][j][0] - fgm_scaling_points[i][(j) - 1][0]) \
            : (fgm_scaling_points[i][j][0]))
@@ -4857,44 +4856,12 @@ static void write_film_grain_params(const AV1_COMP *const cpi,
       aom_wb_write_literal(wb, fgm_value_scale(i, j), 8);
     }
   }
-#else
-  aom_wb_write_literal(wb, pars->num_y_points, 4);  // max 14
-  for (int i = 0; i < pars->num_y_points; i++) {
-    aom_wb_write_literal(wb, pars->scaling_points_y[i][0], 8);
-    aom_wb_write_literal(wb, pars->scaling_points_y[i][1], 8);
 
-    if (!cm->seq_params.monochrome) {
-      aom_wb_write_bit(wb, pars->chroma_scaling_from_luma);
-    } else {
-      assert(!pars->chroma_scaling_from_luma);
-    }
-  }
-#endif
-
-#if CONFIG_CWG_F298_REC11
   if (cm->seq_params.monochrome || pars->fgm_scale_from_channel0_flag ||
       ((cm->seq_params.subsampling_x == 1) &&
        (cm->seq_params.subsampling_y == 1) && (pars->fgm_points[0] == 0))) {
     assert(pars->fgm_points[1] == 0 && pars->fgm_points[2] == 0);
   }
-#else
-  if (cm->seq_params.monochrome || pars->chroma_scaling_from_luma ||
-      ((cm->seq_params.subsampling_x == 1) &&
-       (cm->seq_params.subsampling_y == 1) && (pars->num_y_points == 0))) {
-    assert(pars->num_cb_points == 0 && pars->num_cr_points == 0);
-  } else {
-    aom_wb_write_literal(wb, pars->num_cb_points, 4);  // max 10
-    for (int i = 0; i < pars->num_cb_points; i++) {
-      aom_wb_write_literal(wb, pars->scaling_points_cb[i][0], 8);
-      aom_wb_write_literal(wb, pars->scaling_points_cb[i][1], 8);
-    }
-    aom_wb_write_literal(wb, pars->num_cr_points, 4);  // max 10
-    for (int i = 0; i < pars->num_cr_points; i++) {
-      aom_wb_write_literal(wb, pars->scaling_points_cr[i][0], 8);
-      aom_wb_write_literal(wb, pars->scaling_points_cr[i][1], 8);
-    }
-  }
-#endif
 
   aom_wb_write_literal(wb, pars->scaling_shift - 8, 2);  // 8 + value
 
@@ -4906,31 +4873,17 @@ static void write_film_grain_params(const AV1_COMP *const cpi,
 
   int num_pos_luma = 2 * pars->ar_coeff_lag * (pars->ar_coeff_lag + 1);
   int num_pos_chroma = num_pos_luma;
-#if CONFIG_CWG_F298_REC11
   if (pars->fgm_points[0] > 0) ++num_pos_chroma;
 
   if (pars->fgm_points[0])
-#else
-  if (pars->num_y_points > 0) ++num_pos_chroma;
-
-  if (pars->num_y_points)
-#endif
     for (int i = 0; i < num_pos_luma; i++)
       aom_wb_write_literal(wb, pars->ar_coeffs_y[i] + 128, 8);
 
-#if CONFIG_CWG_F298_REC11
   if (pars->fgm_points[1] || pars->fgm_scale_from_channel0_flag)
-#else
-  if (pars->num_cb_points || pars->chroma_scaling_from_luma)
-#endif
     for (int i = 0; i < num_pos_chroma; i++)
       aom_wb_write_literal(wb, pars->ar_coeffs_cb[i] + 128, 8);
 
-#if CONFIG_CWG_F298_REC11
   if (pars->fgm_points[2] || pars->fgm_scale_from_channel0_flag)
-#else
-  if (pars->num_cr_points || pars->chroma_scaling_from_luma)
-#endif
     for (int i = 0; i < num_pos_chroma; i++)
       aom_wb_write_literal(wb, pars->ar_coeffs_cr[i] + 128, 8);
 
@@ -4938,21 +4891,13 @@ static void write_film_grain_params(const AV1_COMP *const cpi,
 
   aom_wb_write_literal(wb, pars->grain_scale_shift, 2);
 
-#if CONFIG_CWG_F298_REC11
   if (pars->fgm_points[1]) {
-#else
-  if (pars->num_cb_points) {
-#endif
     aom_wb_write_literal(wb, pars->cb_mult, 8);
     aom_wb_write_literal(wb, pars->cb_luma_mult, 8);
     aom_wb_write_literal(wb, pars->cb_offset, 9);
   }
 
-#if CONFIG_CWG_F298_REC11
   if (pars->fgm_points[2]) {
-#else
-  if (pars->num_cr_points) {
-#endif
     aom_wb_write_literal(wb, pars->cr_mult, 8);
     aom_wb_write_literal(wb, pars->cr_luma_mult, 8);
     aom_wb_write_literal(wb, pars->cr_offset, 9);

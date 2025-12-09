@@ -1152,26 +1152,14 @@ int aom_noise_model_get_grain_parameters(aom_noise_model_t *const noise_model,
   film_grain->scaling_shift = 5 + (8 - max_scaling_value_log2);
 
   const double scale_factor = 1 << (8 - max_scaling_value_log2);
-#if CONFIG_CWG_F298_REC11
   film_grain->fgm_points[0] = scaling_points[0].num_points;
   film_grain->fgm_points[1] = scaling_points[1].num_points;
   film_grain->fgm_points[2] = scaling_points[2].num_points;
-#else
-  film_grain->num_y_points = scaling_points[0].num_points;
-  film_grain->num_cb_points = scaling_points[1].num_points;
-  film_grain->num_cr_points = scaling_points[2].num_points;
-#endif
 
   int(*film_grain_scaling[3])[2] = {
-#if CONFIG_CWG_F298_REC11
     film_grain->fgm_scaling_points_0,
     film_grain->fgm_scaling_points_1,
     film_grain->fgm_scaling_points_2,
-#else
-    film_grain->scaling_points_y,
-    film_grain->scaling_points_cb,
-    film_grain->scaling_points_cr,
-#endif
   };
   for (int c = 0; c < 3; c++) {
     for (int i = 0; i < scaling_points[c].num_points; ++i) {
@@ -1255,11 +1243,7 @@ int aom_noise_model_get_grain_parameters(aom_noise_model_t *const noise_model,
   film_grain->cr_luma_mult = 192;  // 8 bits
   film_grain->cr_offset = 256;     // 9 bits
 
-#if CONFIG_CWG_F298_REC11
   film_grain->fgm_scale_from_channel0_flag = 0;
-#else
-  film_grain->chroma_scaling_from_luma = 0;
-#endif
   film_grain->grain_scale_shift = 0;
   film_grain->overlap_flag = 1;
   return 1;

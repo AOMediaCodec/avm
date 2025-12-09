@@ -1036,13 +1036,8 @@ TEST(NoiseModelGetGrainParameters, TestNoiseStrengthShiftBounds) {
     EXPECT_TRUE(aom_noise_model_get_grain_parameters(&model, &film_grain));
     // We expect a single constant segemnt
     EXPECT_EQ(test_case.expected_scaling_shift, film_grain.scaling_shift);
-#if CONFIG_CWG_F298_REC11
     EXPECT_EQ(test_case.expected_value, film_grain.fgm_scaling_points_0[0][1]);
     EXPECT_EQ(test_case.expected_value, film_grain.fgm_scaling_points_0[1][1]);
-#else
-    EXPECT_EQ(test_case.expected_value, film_grain.scaling_points_y[0][1]);
-    EXPECT_EQ(test_case.expected_value, film_grain.scaling_points_y[1][1]);
-#endif
   }
   aom_noise_model_free(&model);
 }
@@ -1109,11 +1104,7 @@ TEST(NoiseModelGetGrainParameters, GetGrainParametersReal) {
   EXPECT_EQ(3, film_grain.ar_coeff_lag);
   EXPECT_EQ(7, film_grain.ar_coeff_shift);
   EXPECT_EQ(10, film_grain.scaling_shift);
-#if CONFIG_CWG_F298_REC11
   EXPECT_EQ(kNumScalingPointsY, film_grain.fgm_points[0]);
-#else
-  EXPECT_EQ(kNumScalingPointsY, film_grain.num_y_points);
-#endif
   EXPECT_EQ(1, film_grain.update_parameters);
   EXPECT_EQ(1, film_grain.apply_grain);
 
@@ -1128,46 +1119,25 @@ TEST(NoiseModelGetGrainParameters, GetGrainParametersReal) {
     EXPECT_EQ(kExpectedARCoeffsCR[i], film_grain.ar_coeffs_cr[i]);
   }
   for (int i = 0; i < kNumScalingPointsY; ++i) {
-#if CONFIG_CWG_F298_REC11
     EXPECT_EQ(kExpectedScalingPointsY[i][0],
               film_grain.fgm_scaling_points_0[i][0]);
     EXPECT_EQ(kExpectedScalingPointsY[i][1],
               film_grain.fgm_scaling_points_0[i][1]);
-#else
-    EXPECT_EQ(kExpectedScalingPointsY[i][0], film_grain.scaling_points_y[i][0]);
-    EXPECT_EQ(kExpectedScalingPointsY[i][1], film_grain.scaling_points_y[i][1]);
-#endif
   }
 
   // CB strength should just be a piecewise segment
-#if CONFIG_CWG_F298_REC11
   EXPECT_EQ(2, film_grain.fgm_points[1]);
   EXPECT_EQ(0, film_grain.fgm_scaling_points_1[0][0]);
   EXPECT_EQ(255, film_grain.fgm_scaling_points_1[1][0]);
   EXPECT_EQ(96, film_grain.fgm_scaling_points_1[0][1]);
   EXPECT_EQ(96, film_grain.fgm_scaling_points_1[1][1]);
-#else
-  EXPECT_EQ(2, film_grain.num_cb_points);
-  EXPECT_EQ(0, film_grain.scaling_points_cb[0][0]);
-  EXPECT_EQ(255, film_grain.scaling_points_cb[1][0]);
-  EXPECT_EQ(96, film_grain.scaling_points_cb[0][1]);
-  EXPECT_EQ(96, film_grain.scaling_points_cb[1][1]);
-#endif
 
   // CR strength should just be a piecewise segment
-#if CONFIG_CWG_F298_REC11
   EXPECT_EQ(2, film_grain.fgm_points[2]);
   EXPECT_EQ(0, film_grain.fgm_scaling_points_2[0][0]);
   EXPECT_EQ(255, film_grain.fgm_scaling_points_2[1][0]);
   EXPECT_EQ(64, film_grain.fgm_scaling_points_2[0][1]);
   EXPECT_EQ(64, film_grain.fgm_scaling_points_2[1][1]);
-#else
-  EXPECT_EQ(2, film_grain.num_cr_points);
-  EXPECT_EQ(0, film_grain.scaling_points_cr[0][0]);
-  EXPECT_EQ(255, film_grain.scaling_points_cr[1][0]);
-  EXPECT_EQ(64, film_grain.scaling_points_cr[0][1]);
-  EXPECT_EQ(64, film_grain.scaling_points_cr[1][1]);
-#endif
 
   EXPECT_EQ(128, film_grain.cb_mult);
   EXPECT_EQ(192, film_grain.cb_luma_mult);
@@ -1175,11 +1145,7 @@ TEST(NoiseModelGetGrainParameters, GetGrainParametersReal) {
   EXPECT_EQ(128, film_grain.cr_mult);
   EXPECT_EQ(192, film_grain.cr_luma_mult);
   EXPECT_EQ(256, film_grain.cr_offset);
-#if CONFIG_CWG_F298_REC11
   EXPECT_EQ(0, film_grain.fgm_scale_from_channel0_flag);
-#else
-  EXPECT_EQ(0, film_grain.chroma_scaling_from_luma);
-#endif
   EXPECT_EQ(0, film_grain.grain_scale_shift);
 
   aom_noise_model_free(&model);

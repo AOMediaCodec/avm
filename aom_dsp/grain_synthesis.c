@@ -258,11 +258,7 @@ static void init_arrays(const aom_film_grain_t *params, int luma_stride,
 
   int num_pos_luma = 2 * params->ar_coeff_lag * (params->ar_coeff_lag + 1);
   int num_pos_chroma = num_pos_luma;
-#if CONFIG_CWG_F298_REC11
   if (params->fgm_points[0] > 0) ++num_pos_chroma;
-#else
-  if (params->num_y_points > 0) ++num_pos_chroma;
-#endif
 
   int **pred_pos_luma;
   int **pred_pos_chroma;
@@ -308,11 +304,7 @@ static void init_arrays(const aom_film_grain_t *params, int luma_stride,
     ++pos_ar_index;
   }
 
-#if CONFIG_CWG_F298_REC11
   if (params->fgm_points[0] > 0) {
-#else
-  if (params->num_y_points > 0) {
-#endif
     pred_pos_chroma[pos_ar_index][0] = 0;
     pred_pos_chroma[pos_ar_index][1] = 0;
     pred_pos_chroma[pos_ar_index][2] = 1;
@@ -354,11 +346,7 @@ static void dealloc_arrays(const aom_film_grain_t *params, int ***pred_pos_luma,
                            int **cr_col_buf) {
   int num_pos_luma = 2 * params->ar_coeff_lag * (params->ar_coeff_lag + 1);
   int num_pos_chroma = num_pos_luma;
-#if CONFIG_CWG_F298_REC11
   if (params->fgm_points[0] > 0) ++num_pos_chroma;
-#else
-  if (params->num_y_points > 0) ++num_pos_chroma;
-#endif
 
   for (int row = 0; row < num_pos_luma; row++) {
     aom_free((*pred_pos_luma)[row]);
@@ -419,11 +407,7 @@ static int generate_luma_grain_block(
     const aom_film_grain_t *params, int **pred_pos_luma, int *luma_grain_block,
     int luma_block_size_y, int luma_block_size_x, int luma_grain_stride,
     int left_pad, int top_pad, int right_pad, int bottom_pad) {
-#if CONFIG_CWG_F298_REC11
   if (params->fgm_points[0] == 0) {
-#else
-  if (params->num_y_points == 0) {
-#endif
     memset(luma_grain_block, 0,
            sizeof(*luma_grain_block) * luma_block_size_y * luma_grain_stride);
     return 0;
@@ -471,19 +455,11 @@ static int generate_chroma_grain_blocks(
   int gauss_sec_shift = 12 - bit_depth + params->grain_scale_shift;
 
   int num_pos_chroma = 2 * params->ar_coeff_lag * (params->ar_coeff_lag + 1);
-#if CONFIG_CWG_F298_REC11
   if (params->fgm_points[0] > 0) ++num_pos_chroma;
-#else
-  if (params->num_y_points > 0) ++num_pos_chroma;
-#endif
   int rounding_offset = (1 << (params->ar_coeff_shift - 1));
   int chroma_grain_block_size = chroma_block_size_y * chroma_grain_stride;
 
-#if CONFIG_CWG_F298_REC11
   if (params->fgm_points[1] || params->fgm_scale_from_channel0_flag) {
-#else
-  if (params->num_cb_points || params->chroma_scaling_from_luma) {
-#endif
     init_random_generator(7 << 5, params->random_seed);
 
     for (int i = 0; i < chroma_block_size_y; i++)
@@ -497,11 +473,7 @@ static int generate_chroma_grain_blocks(
            sizeof(*cb_grain_block) * chroma_grain_block_size);
   }
 
-#if CONFIG_CWG_F298_REC11
   if (params->fgm_points[2] || params->fgm_scale_from_channel0_flag) {
-#else
-  if (params->num_cr_points || params->chroma_scaling_from_luma) {
-#endif
     init_random_generator(11 << 5, params->random_seed);
 
     for (int i = 0; i < chroma_block_size_y; i++)
@@ -554,20 +526,12 @@ static int generate_chroma_grain_blocks(
           return -1;
         }
       }
-#if CONFIG_CWG_F298_REC11
       if (params->fgm_points[1] || params->fgm_scale_from_channel0_flag)
-#else
-      if (params->num_cb_points || params->chroma_scaling_from_luma)
-#endif
         cb_grain_block[i * chroma_grain_stride + j] =
             clamp(cb_grain_block[i * chroma_grain_stride + j] +
                       ((wsum_cb + rounding_offset) >> params->ar_coeff_shift),
                   grain_min, grain_max);
-#if CONFIG_CWG_F298_REC11
       if (params->fgm_points[2] || params->fgm_scale_from_channel0_flag)
-#else
-      if (params->num_cr_points || params->chroma_scaling_from_luma)
-#endif
         cr_grain_block[i * chroma_grain_stride + j] =
             clamp(cr_grain_block[i * chroma_grain_stride + j] +
                       ((wsum_cr + rounding_offset) >> params->ar_coeff_shift),
@@ -636,7 +600,6 @@ static void add_noise_to_block(const aom_film_grain_t *params, uint8_t *luma,
 
   int rounding_offset = (1 << (params->scaling_shift - 1));
 
-#if CONFIG_CWG_F298_REC11
   int apply_y = params->fgm_points[0] > 0 ? 1 : 0;
   int apply_cb =
       (params->fgm_points[1] > 0 || params->fgm_scale_from_channel0_flag) ? 1
@@ -644,19 +607,8 @@ static void add_noise_to_block(const aom_film_grain_t *params, uint8_t *luma,
   int apply_cr =
       (params->fgm_points[2] > 0 || params->fgm_scale_from_channel0_flag) ? 1
                                                                           : 0;
-#else
-  int apply_y = params->num_y_points > 0 ? 1 : 0;
-  int apply_cb =
-      (params->num_cb_points > 0 || params->chroma_scaling_from_luma) ? 1 : 0;
-  int apply_cr =
-      (params->num_cr_points > 0 || params->chroma_scaling_from_luma) ? 1 : 0;
-#endif
 
-#if CONFIG_CWG_F298_REC11
   if (params->fgm_scale_from_channel0_flag) {
-#else
-  if (params->chroma_scaling_from_luma) {
-#endif
     cb_mult = 0;        // fixed scale
     cb_luma_mult = 64;  // fixed scale
     cb_offset = 0;
@@ -774,7 +726,6 @@ static void add_noise_to_block_hbd(
 
   int rounding_offset = (1 << (params->scaling_shift - 1));
 
-#if CONFIG_CWG_F298_REC11
   int apply_y = params->fgm_points[0] > 0 ? 1 : 0;
   int apply_cb =
       (params->fgm_points[1] > 0 || params->fgm_scale_from_channel0_flag) > 0
@@ -785,22 +736,7 @@ static void add_noise_to_block_hbd(
           ? 1
           : 0;
 
-#else
-  int apply_y = params->num_y_points > 0 ? 1 : 0;
-  int apply_cb =
-      (params->num_cb_points > 0 || params->chroma_scaling_from_luma) > 0 ? 1
-                                                                          : 0;
-  int apply_cr =
-      (params->num_cr_points > 0 || params->chroma_scaling_from_luma) > 0 ? 1
-                                                                          : 0;
-
-#endif
-
-#if CONFIG_CWG_F298_REC11
   if (params->fgm_scale_from_channel0_flag) {
-#else
-  if (params->chroma_scaling_from_luma) {
-#endif
     cb_mult = 0;        // fixed scale
     cb_luma_mult = 64;  // fixed scale
     cb_offset = 0;
@@ -1216,33 +1152,17 @@ int av1_add_film_grain_run(const aom_film_grain_t *params, uint8_t *luma,
           chroma_subsamp_y, chroma_subsamp_x))
     return -1;
 
-#if CONFIG_CWG_F298_REC11
   init_scaling_function(params->fgm_scaling_points_0, params->fgm_points[0],
                         scaling_lut_y);
-#else
-  init_scaling_function(params->scaling_points_y, params->num_y_points,
-                        scaling_lut_y);
-#endif
 
-#if CONFIG_CWG_F298_REC11
   if (params->fgm_scale_from_channel0_flag) {
-#else
-  if (params->chroma_scaling_from_luma) {
-#endif
     memcpy(scaling_lut_cb, scaling_lut_y, sizeof(*scaling_lut_y) * 256);
     memcpy(scaling_lut_cr, scaling_lut_y, sizeof(*scaling_lut_y) * 256);
   } else {
-#if CONFIG_CWG_F298_REC11
     init_scaling_function(params->fgm_scaling_points_1, params->fgm_points[1],
                           scaling_lut_cb);
     init_scaling_function(params->fgm_scaling_points_2, params->fgm_points[2],
                           scaling_lut_cr);
-#else
-    init_scaling_function(params->scaling_points_cb, params->num_cb_points,
-                          scaling_lut_cb);
-    init_scaling_function(params->scaling_points_cr, params->num_cr_points,
-                          scaling_lut_cr);
-#endif
   }
   for (int y = 0; y < height / 2; y += (luma_subblock_size_y >> 1)) {
     init_random_generator(y << 2, params->random_seed);

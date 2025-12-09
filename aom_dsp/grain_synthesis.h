@@ -39,29 +39,14 @@ typedef struct {
   int update_parameters;
 
   // 8 bit values
-#if CONFIG_CWG_F298_REC11
   int fgm_scaling_points_0[14][2];
   int fgm_points[3];
-#else
-  int scaling_points_y[14][2];
-  int num_y_points;  // value: 0..14
-#endif
 
   // 8 bit values
-#if CONFIG_CWG_F298_REC11
   int fgm_scaling_points_1[14][2];
-#else
-  int scaling_points_cb[10][2];
-  int num_cb_points;  // value: 0..10
-#endif
 
   // 8 bit values
-#if CONFIG_CWG_F298_REC11
   int fgm_scaling_points_2[14][2];
-#else
-  int scaling_points_cr[10][2];
-  int num_cr_points;  // value: 0..10
-#endif
 
   int scaling_shift;  // values : 8..11
 
@@ -97,11 +82,7 @@ typedef struct {
 
   unsigned int bit_depth;  // video bit depth
 
-#if CONFIG_CWG_F298_REC11
   int fgm_scale_from_channel0_flag;
-#else
-  int chroma_scaling_from_luma;
-#endif
 
   int grain_scale_shift;
 
@@ -124,39 +105,21 @@ typedef struct {
 static INLINE int av1_check_grain_params_equiv(
     const aom_film_grain_t *const pa, const aom_film_grain_t *const pb) {
   if (pa->apply_grain != pb->apply_grain) return 0;
-    // Don't compare update_parameters
+  // Don't compare update_parameters
 
-#if CONFIG_CWG_F298_REC11
   if (pa->fgm_points[0] != pb->fgm_points[0]) return 0;
   if (memcmp(pa->fgm_scaling_points_0, pb->fgm_scaling_points_0,
              pa->fgm_points[0] * 2 * sizeof(*pa->fgm_scaling_points_0)) != 0)
-#else
-  if (pa->num_y_points != pb->num_y_points) return 0;
-  if (memcmp(pa->scaling_points_y, pb->scaling_points_y,
-             pa->num_y_points * 2 * sizeof(*pa->scaling_points_y)) != 0)
-#endif
     return 0;
 
-#if CONFIG_CWG_F298_REC11
   if (pa->fgm_points[1] != pb->fgm_points[1]) return 0;
   if (memcmp(pa->fgm_scaling_points_1, pb->fgm_scaling_points_1,
              pa->fgm_points[1] * 2 * sizeof(*pa->fgm_scaling_points_1)) != 0)
-#else
-  if (pa->num_cb_points != pb->num_cb_points) return 0;
-  if (memcmp(pa->scaling_points_cb, pb->scaling_points_cb,
-             pa->num_cb_points * 2 * sizeof(*pa->scaling_points_cb)) != 0)
-#endif
     return 0;
 
-#if CONFIG_CWG_F298_REC11
   if (pa->fgm_points[2] != pb->fgm_points[2]) return 0;
   if (memcmp(pa->fgm_scaling_points_2, pb->fgm_scaling_points_2,
              pa->fgm_points[2] * 2 * sizeof(*pa->fgm_scaling_points_2)) != 0)
-#else
-  if (pa->num_cr_points != pb->num_cr_points) return 0;
-  if (memcmp(pa->scaling_points_cr, pb->scaling_points_cr,
-             pa->num_cr_points * 2 * sizeof(*pa->scaling_points_cr)) != 0)
-#endif
     return 0;
 
   if (pa->scaling_shift != pb->scaling_shift) return 0;
@@ -190,12 +153,8 @@ static INLINE int av1_check_grain_params_equiv(
 #endif  // CONFIG_FGS_IDENT
 
   if (pa->bit_depth != pb->bit_depth) return 0;
-#if CONFIG_CWG_F298_REC11
   if (pa->fgm_scale_from_channel0_flag != pb->fgm_scale_from_channel0_flag)
     return 0;
-#else
-  if (pa->chroma_scaling_from_luma != pb->chroma_scaling_from_luma) return 0;
-#endif
   if (pa->grain_scale_shift != pb->grain_scale_shift) return 0;
   if (pa->block_size != pb->block_size) return 0;
 
