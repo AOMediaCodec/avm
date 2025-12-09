@@ -6509,11 +6509,6 @@ static AOM_INLINE void write_uncompressed_header(
       aom_wb_write_bit(wb, cm->show_frame);
 
     if (cm->show_frame) {
-#if !CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
-      if (seq_params->decoder_model_info_present_flag &&
-          seq_params->timing_info.equal_picture_interval == 0)
-        write_tu_pts_info(cm, wb);
-#endif  // !CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
     } else {
 #if CONFIG_CWG_F317
       if (cm->bridge_frame_info.is_bridge_frame) {
@@ -6526,7 +6521,6 @@ static AOM_INLINE void write_uncompressed_header(
         aom_wb_write_bit(wb, cm->showable_frame);
     }
 
-#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
     if ((cm->show_frame || cm->showable_frame) &&
         seq_params->decoder_model_info_present_flag &&
 #if CONFIG_CWG_F270_CI_OBU
@@ -6536,7 +6530,7 @@ static AOM_INLINE void write_uncompressed_header(
 #endif  // CONFIG_CWG_F270_CI_OBU
     )
       write_tu_pts_info(cm, wb);
-#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+
   }  // if(!seq_params->single_picture_header_flag)
   int frame_size_override_flag = 0;
 

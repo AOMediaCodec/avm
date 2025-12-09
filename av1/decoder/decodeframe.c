@@ -9188,11 +9188,6 @@ static int read_uncompressed_header(AV1Decoder *pbi, OBU_TYPE obu_type,
 #endif  // CONFIG_CWG_F317
       cm->showable_frame = current_frame->frame_type != KEY_FRAME;
     if (cm->show_frame) {
-#if !CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
-      if (seq_params->decoder_model_info_present_flag &&
-          seq_params->timing_info.equal_picture_interval == 0)
-        read_temporal_point_info(cm, rb);
-#endif  // !CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
     } else {
 #if CONFIG_CWG_F317
       if (cm->bridge_frame_info.is_bridge_frame) {
@@ -9206,7 +9201,6 @@ static int read_uncompressed_header(AV1Decoder *pbi, OBU_TYPE obu_type,
 #endif  // CONFIG_CWG_F317
     }
 
-#if CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
     if ((cm->show_frame || cm->showable_frame) &&
         seq_params->decoder_model_info_present_flag &&
 #if CONFIG_CWG_F270_CI_OBU
@@ -9217,7 +9211,7 @@ static int read_uncompressed_header(AV1Decoder *pbi, OBU_TYPE obu_type,
 #endif  // CONFIG_CWG_F270_CI_OBU
     )
       read_temporal_point_info(cm, rb);
-#endif  // CONFIG_TEMPORAL_UNIT_BASED_ON_OUTPUT_FRAME
+
 #if !CONFIG_F024_KEYOBU
     if (current_frame->frame_type == KEY_FRAME && cm->showable_frame) {
       aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
