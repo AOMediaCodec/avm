@@ -6293,7 +6293,6 @@ static AOM_INLINE void read_film_grain(AV1_COMMON *cm,
 }
 #endif  // CONFIG_F153_FGM_OBU
 
-#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 // Given chroma_format_idc, set the subsampling_x/y values in `seq_params`.
 // Calls `aom_internal_error` in case of invalid chroma_format_idc.
 static void set_seq_chroma_format(uint32_t seq_chroma_format_idc,
@@ -6310,7 +6309,6 @@ static void set_seq_chroma_format(uint32_t seq_chroma_format_idc,
         seq_chroma_format_idc);
   }
 }
-#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
 #if CONFIG_CWG_F270_CI_OBU
 void av1_read_chroma_format_bitdepth(
@@ -6320,20 +6318,12 @@ void av1_read_color_config(
     struct aom_read_bit_buffer *rb,
 #endif  // CONFIG_CWG_F270_CI_OBU
     SequenceHeader *seq_params, struct aom_internal_error_info *error_info) {
-#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
   const uint32_t seq_chroma_format_idc = aom_rb_read_uvlc(rb);
   set_seq_chroma_format(seq_chroma_format_idc, seq_params, error_info);
-#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
   read_bitdepth(rb, seq_params, error_info);
 
-#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
   const int is_monochrome = (seq_chroma_format_idc == CHROMA_FORMAT_400);
-#else
-  // monochrome bit (not needed for PROFILE_1)
-  const int is_monochrome =
-      seq_params->profile != PROFILE_1 ? aom_rb_read_bit(rb) : 0;
-#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
   seq_params->monochrome = is_monochrome;
 #if !CONFIG_CWG_F270_CI_OBU
   int color_description_present_flag = aom_rb_read_bit(rb);
@@ -6367,28 +6357,6 @@ void av1_read_color_config(
     } else {
       // [16,235] (including xvycc) vs [0,255] range
       seq_params->color_range = aom_rb_read_bit(rb);
-#if !CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-      if (seq_params->profile == PROFILE_0) {
-        // 420 only
-        seq_params->subsampling_x = seq_params->subsampling_y = 1;
-      } else if (seq_params->profile == PROFILE_1) {
-        // 444 only
-        seq_params->subsampling_x = seq_params->subsampling_y = 0;
-      } else {
-        assert(seq_params->profile == PROFILE_2);
-        if (seq_params->bit_depth == AOM_BITS_12) {
-          seq_params->subsampling_x = aom_rb_read_bit(rb);
-          if (seq_params->subsampling_x)
-            seq_params->subsampling_y = aom_rb_read_bit(rb);  // 422 or 420
-          else
-            seq_params->subsampling_y = 0;  // 444
-        } else {
-          // 422
-          seq_params->subsampling_x = 1;
-          seq_params->subsampling_y = 0;
-        }
-      }
-#endif  // !CONFIG_CWG_E242_CHROMA_FORMAT_IDC
       if (seq_params->matrix_coefficients == AOM_CICP_MC_IDENTITY &&
           (seq_params->subsampling_x || seq_params->subsampling_y)) {
         aom_internal_error(

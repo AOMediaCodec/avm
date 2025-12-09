@@ -327,17 +327,6 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
   av1_read_color_config(rb, seq_params, &cm->error);
 #endif  // CONFIG_CWG_F270_CI_OBU
 
-#if !CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-  if (!(seq_params->subsampling_x == 0 && seq_params->subsampling_y == 0) &&
-      !(seq_params->subsampling_x == 1 && seq_params->subsampling_y == 1) &&
-      !(seq_params->subsampling_x == 1 && seq_params->subsampling_y == 0)) {
-    aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
-                       "Only 4:4:4, 4:2:2 and 4:2:0 are currently supported, "
-                       "%d %d subsampling is not supported.\n",
-                       seq_params->subsampling_x, seq_params->subsampling_y);
-  }
-#endif  // !CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-
 #if !CONFIG_MODIFY_SH
   // Still picture or not
   seq_params->still_picture = aom_rb_read_bit(rb);

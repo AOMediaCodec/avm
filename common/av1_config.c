@@ -201,11 +201,7 @@ static int parse_color_config(struct aom_read_bit_buffer *reader,
 #endif  // CONFIG_CWG_F270_CI_OBU
   int result = 0;
   AV1C_PUSH_ERROR_HANDLER_DATA(result);
-
-#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
   AV1C_READ_UVLC_BITS_OR_RETURN_ERROR(chroma_format_idc);
-#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-
   AV1C_READ_UVLC_BITS_OR_RETURN_ERROR(bitdepth_idx);
   if (bitdepth_idx > UINT8_MAX) {
     fprintf(stderr, "av1c: invalid value for bitdepth_idx: %u.\n",
@@ -220,16 +216,9 @@ static int parse_color_config(struct aom_read_bit_buffer *reader,
     return -1;
   }
 
-#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
   (void)bit_depth;
   assert(bit_depth == 8 || bit_depth == 10 || bit_depth == 12);
   config->monochrome = (chroma_format_idc == CHROMA_FORMAT_400);
-#else
-  if (config->seq_profile != 1) {
-    AV1C_READ_BIT_OR_RETURN_ERROR(mono_chrome);
-    config->monochrome = mono_chrome;
-  }
-#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
   int color_primaries = AOM_CICP_CP_UNSPECIFIED;
   int transfer_characteristics = AOM_CICP_TC_UNSPECIFIED;
@@ -256,7 +245,6 @@ static int parse_color_config(struct aom_read_bit_buffer *reader,
     config->chroma_subsampling_y = 0;
   } else {
     AV1C_READ_BIT_OR_RETURN_ERROR(color_range);
-#if CONFIG_CWG_E242_CHROMA_FORMAT_IDC
     int subsampling_x;
     int subsampling_y;
     aom_codec_err_t err = av1_get_chroma_subsampling(
@@ -268,29 +256,6 @@ static int parse_color_config(struct aom_read_bit_buffer *reader,
     }
     config->chroma_subsampling_x = (uint8_t)subsampling_x;
     config->chroma_subsampling_y = (uint8_t)subsampling_y;
-#else
-    if (config->seq_profile == 0) {
-      config->chroma_subsampling_x = 1;
-      config->chroma_subsampling_y = 1;
-    } else if (config->seq_profile == 1) {
-      config->chroma_subsampling_x = 0;
-      config->chroma_subsampling_y = 0;
-    } else {
-      if (bit_depth == 12) {
-        AV1C_READ_BIT_OR_RETURN_ERROR(subsampling_x);
-        config->chroma_subsampling_x = subsampling_x;
-        if (subsampling_x) {
-          AV1C_READ_BIT_OR_RETURN_ERROR(subsampling_y);
-          config->chroma_subsampling_y = subsampling_y;
-        } else {
-          config->chroma_subsampling_y = 0;
-        }
-      } else {
-        config->chroma_subsampling_x = 1;
-        config->chroma_subsampling_y = 0;
-      }
-    }
-#endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
 #if !CONFIG_CWG_F270_CI_OBU
     if (config->chroma_subsampling_x && !config->chroma_subsampling_y) {
