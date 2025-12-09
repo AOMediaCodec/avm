@@ -8832,7 +8832,7 @@ static void activate_sequence_header(AV1Decoder *pbi,
 #endif  // CONFIG_F024_KEYOBU
 
 #if CONFIG_F255_QMOBU
-  int num_planes = cm->seq_params.monochrome ? 1 : 3;
+  const int num_planes = av1_num_planes(cm);
   for (int qm_pos = 0; qm_pos < NUM_CUSTOM_QMS; qm_pos++) {
     // qm_protected[qm_pos] == 1 indicates the pbi->qm_list[qm_pos] is signalled
     // with CLK/OLK. those quantizer matrices are not reset to the predefined.

@@ -225,7 +225,7 @@ uint32_t read_qm_obu(AV1Decoder *pbi, int obu_tlayer_id, int obu_mlayer_id,
     *acc_qm_id_bitmap |= qm_bit_map;
   }
   bool qm_chroma_info_present_flag = aom_rb_read_bit(rb);
-  int num_planes = (qm_chroma_info_present_flag ? 3 : 1);
+  const int num_planes = (qm_chroma_info_present_flag ? 3 : 1);
   if (qm_bit_map == 0) {
     av1_copy_predefined_qmatrices_to_list(pbi, num_planes);
     for (int j = 0; j < NUM_CUSTOM_QMS; j++) pbi->qm_protected[j] = 1;
