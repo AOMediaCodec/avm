@@ -869,10 +869,9 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
               "Write hash values for each plane instead of the entire frame. "
               "(0: false (default), 1: true)"),
 #if CONFIG_METADATA
-  .use_short_metadata =
-      ARG_DEF(NULL, "use-short-metadata", 1,
-              "Use short metadata OBU format "
-              "(0: GROUP format [default], 1: SHORT format)"),
+  .use_short_metadata = ARG_DEF(NULL, "use-short-metadata", 1,
+                                "Use short metadata OBU format "
+                                "(0: GROUP format [default], 1: SHORT format)"),
 #endif  // CONFIG_METADATA
 #endif  // CONFIG_AV1_ENCODER
   .enable_short_refresh_frame_flags =

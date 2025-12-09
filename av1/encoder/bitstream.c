@@ -7830,14 +7830,15 @@ static uint32_t write_tilegroup_obu(
 }
 
 #if CONFIG_METADATA
-static size_t av1_write_metadata_obsp_header(uint8_t *const dst,
-                                             const size_t count,
-                                             aom_metadata_t *first_metadata) {
+static size_t av1_write_metadata_group_header(uint8_t *const dst,
+                                              const size_t count,
+                                              aom_metadata_t *first_metadata) {
   assert((first_metadata->necessity_idc & 3) == first_metadata->necessity_idc);
   assert((first_metadata->application_id & 31) ==
          first_metadata->application_id);
   assert(count > 0);  // Must have at least one metadata unit
-  // Ensure metadata_unit_cnt doesn't exceed 2^14 - 1 (to keep uleb128 <= 2 bytes)
+  // Ensure metadata_unit_cnt doesn't exceed 2^14 - 1 (to keep uleb128 <= 2
+  // bytes)
   assert(count <= 16383);
 
   struct aom_write_bit_buffer wb = { dst, 0 };
@@ -7961,15 +7962,14 @@ static size_t av1_write_metadata_obu(const aom_metadata_t *metadata,
   assert(bytes_written == 1);
 
   const uint64_t metadata_type = (uint64_t)metadata->type;
-  if (aom_uleb_encode(metadata_type, sizeof(metadata_type),
-                      dst + bytes_written,
+  if (aom_uleb_encode(metadata_type, sizeof(metadata_type), dst + bytes_written,
                       &coded_metadata_size) != 0) {
     return 0;
   }
 
   if (!metadata->cancel_flag)
-    memcpy(dst + coded_metadata_size + bytes_written,
-           metadata->payload, metadata->sz);
+    memcpy(dst + coded_metadata_size + bytes_written, metadata->payload,
+           metadata->sz);
   // Add trailing bits.
   dst[coded_metadata_size + bytes_written + metadata->sz] = 0x80;
 
@@ -8052,8 +8052,8 @@ static size_t av1_write_metadata_array(AV1_COMP *const cpi, uint8_t *dst
 
       obu_header_size =
           av1_write_obu_header(&cpi->level_params, obu_header.type, 0, 0, dst);
-      obu_payload_size = av1_write_metadata_obsp_header(dst + obu_header_size,
-                                                        count, metadata);
+      obu_payload_size = av1_write_metadata_group_header(dst + obu_header_size,
+                                                         count, metadata);
       total_bytes_written += obu_header_size + obu_payload_size;
 
       for (size_t i = 0; i < arr->sz; i++) {
@@ -8096,8 +8096,8 @@ static size_t av1_write_metadata_array(AV1_COMP *const cpi, uint8_t *dst
             (cm->current_frame.frame_type != KEY_FRAME &&
              current_metadata->insert_flag == AOM_MIF_NON_KEY_FRAME) ||
             current_metadata->insert_flag == AOM_MIF_ANY_FRAME) {
-          obu_header_size =
-              av1_write_obu_header(&cpi->level_params, OBU_METADATA_SHORT, 0, 0, dst);
+          obu_header_size = av1_write_obu_header(&cpi->level_params,
+                                                 OBU_METADATA_SHORT, 0, 0, dst);
           obu_payload_size =
               av1_write_metadata_obu(current_metadata, dst + obu_header_size);
           length_field_size =
@@ -8431,13 +8431,14 @@ size_t av1_write_banding_hints_metadata(
   }
   size_t total_bytes_written = 0;
 #if CONFIG_METADATA
-  OBU_TYPE obu_type = cpi->oxcf.tool_cfg.use_short_metadata ? OBU_METADATA_SHORT : OBU_METADATA_GROUP;
+  OBU_TYPE obu_type = cpi->oxcf.tool_cfg.use_short_metadata
+                          ? OBU_METADATA_SHORT
+                          : OBU_METADATA_GROUP;
 #else
   OBU_TYPE obu_type = OBU_METADATA;
 #endif  // CONFIG_METADATA
-  size_t obu_header_size = av1_write_obu_header(&cpi->level_params,
-                                                obu_type,
-                                                0, 0, dst);
+  size_t obu_header_size =
+      av1_write_obu_header(&cpi->level_params, obu_type, 0, 0, dst);
   size_t obu_payload_size =
 #if CONFIG_METADATA
       av1_write_metadata_unit
@@ -8750,7 +8751,8 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
   // write metadata obus before the frame obu that has the show_frame flag set
   if (cm->show_frame)
 #if CONFIG_METADATA
-    data += av1_write_metadata_array(cpi, data, false, cpi->oxcf.tool_cfg.use_short_metadata);
+    data += av1_write_metadata_array(cpi, data, false,
+                                     cpi->oxcf.tool_cfg.use_short_metadata);
 #else
     data += av1_write_metadata_array(cpi, data);
 #endif  // CONFIG_METADATA
@@ -8803,8 +8805,8 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
         // SHORT format: write each metadata as separate OBU
         if (write_raw_frame_hash) {
           obu_header.type = OBU_METADATA_SHORT;
-          obu_header_size =
-              av1_write_obu_header(&cpi->level_params, obu_header.type, 0, 0, data);
+          obu_header_size = av1_write_obu_header(&cpi->level_params,
+                                                 obu_header.type, 0, 0, data);
           obu_payload_size = (uint32_t)av1_write_frame_hash_metadata(
               cpi, data + obu_header_size, NULL, &obu_header);
           // Add trailing bits
@@ -8812,8 +8814,8 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
           obu_payload_size++;
           size_t length_field_size =
               obu_memmove(obu_header_size, obu_payload_size, data);
-          if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size, data) ==
-              AOM_CODEC_OK) {
+          if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size,
+                                      data) == AOM_CODEC_OK) {
             data += obu_header_size + length_field_size + obu_payload_size;
           } else {
             aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR,
@@ -8822,8 +8824,8 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
         }
         if (write_grain_frame_hash) {
           obu_header.type = OBU_METADATA_SHORT;
-          obu_header_size =
-              av1_write_obu_header(&cpi->level_params, obu_header.type, 0, 0, data);
+          obu_header_size = av1_write_obu_header(&cpi->level_params,
+                                                 obu_header.type, 0, 0, data);
           obu_payload_size = (uint32_t)av1_write_frame_hash_metadata(
               cpi, data + obu_header_size, grain_params, &obu_header);
           // Add trailing bits
@@ -8831,8 +8833,8 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
           obu_payload_size++;
           size_t length_field_size =
               obu_memmove(obu_header_size, obu_payload_size, data);
-          if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size, data) ==
-              AOM_CODEC_OK) {
+          if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size,
+                                      data) == AOM_CODEC_OK) {
             data += obu_header_size + length_field_size + obu_payload_size;
           } else {
             aom_internal_error(&cpi->common.error, AOM_CODEC_ERROR,
@@ -8842,14 +8844,15 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
       } else {
         // GROUP format: write all metadata units in one OBU
         obu_header.type = OBU_METADATA_GROUP;
-        obu_header_size =
-            av1_write_obu_header(&cpi->level_params, obu_header.type, 0, 0, data);
+        obu_header_size = av1_write_obu_header(&cpi->level_params,
+                                               obu_header.type, 0, 0, data);
         obu_payload_size = 0;
-        obu_payload_size += av1_write_metadata_obsp_header( // TODO: this should be renamed to group header
+        obu_payload_size += av1_write_metadata_group_header(
             data + obu_header_size, arr.sz, &metadata_base);
         if (write_raw_frame_hash)
           obu_payload_size += av1_write_frame_hash_metadata(
-              cpi, data + obu_header_size + obu_payload_size, NULL, &obu_header);
+              cpi, data + obu_header_size + obu_payload_size, NULL,
+              &obu_header);
         if (write_grain_frame_hash)
           obu_payload_size += av1_write_frame_hash_metadata(
               cpi, data + obu_header_size + obu_payload_size, grain_params,
@@ -8957,7 +8960,8 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
   // write suffix metadata obus after the frame obu that has the show_frame flag
   // set
   if (cm->show_frame)
-    data += av1_write_metadata_array(cpi, data, true, cpi->oxcf.tool_cfg.use_short_metadata);
+    data += av1_write_metadata_array(cpi, data, true,
+                                     cpi->oxcf.tool_cfg.use_short_metadata);
 #endif  // CONFIG_METADATA
 
 #if CONFIG_SCAN_TYPE_METADATA
@@ -9005,8 +9009,8 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
       obu_header_size =
           av1_write_obu_header(&cpi->level_params, obu_header.type, 0, 0, data);
       obu_payload_size = 0;
-      obu_payload_size += av1_write_metadata_obsp_header(data + obu_header_size,
-                                                         arr.sz, &metadata_base);
+      obu_payload_size += av1_write_metadata_group_header(
+          data + obu_header_size, arr.sz, &metadata_base);
       obu_payload_size += write_scan_type_metadata(
           cpi, data + obu_header_size + obu_payload_size, &obu_header);
 

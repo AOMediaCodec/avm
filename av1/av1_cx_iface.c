@@ -4600,7 +4600,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
     0,                           // frame_hash_metadata;
     0,                           // frame_hash_per_plane;
 #if CONFIG_METADATA
-    0,                           // use_short_metadata;
+    0,  // use_short_metadata;
 #endif  // CONFIG_METADATA
     {
         0,    // init_by_cfg_file
