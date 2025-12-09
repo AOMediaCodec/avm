@@ -1203,6 +1203,18 @@ typedef struct aom_codec_enc_cfg {
    */
   unsigned int frame_hash_per_plane;
 
+#if CONFIG_METADATA
+  /*!\brief Use short metadata OBU format
+   *
+   * Controls whether to use OBU_METADATA_SHORT or OBU_METADATA_GROUP format
+   * for metadata OBUs.
+   *
+   * - 0 = OBU_METADATA_GROUP (default) - multiple units per OBU
+   * - 1 = OBU_METADATA_SHORT - single unit per OBU
+   */
+  unsigned int use_short_metadata;
+#endif  // CONFIG_METADATA
+
   /*!\brief Options defined per config file
    *
    */

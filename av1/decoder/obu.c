@@ -30,6 +30,14 @@
 #include "av1/decoder/decodeframe.h"
 #include "av1/decoder/obu.h"
 
+// Helper macro to check if OBU type is metadata
+#if !CONFIG_METADATA
+#define IS_METADATA_OBU(type) ((type) == OBU_METADATA)
+#else
+#define IS_METADATA_OBU(type) \
+  ((type) == OBU_METADATA_SHORT || (type) == OBU_METADATA_GROUP)
+#endif  // CONFIG_METADATA
+
 aom_codec_err_t aom_get_num_layers_from_operating_point_idc(
     int operating_point_idc, unsigned int *number_mlayers,
     unsigned int *number_tlayers) {
@@ -1566,8 +1574,7 @@ static int check_obu_order(OBU_TYPE prev_obu_type, OBU_TYPE curr_obu_type) {
            curr_obu_type == OBU_CONTENT_INTERPRETATION ||
 #endif  // CONFIG_CWG_F270_CI_OBU
            curr_obu_type == OBU_MULTI_FRAME_HEADER ||
-           is_coded_frame(curr_obu_type) || curr_obu_type == OBU_METADATA ||
-           curr_obu_type == OBU_METADATA_GROUP)) {
+           is_coded_frame(curr_obu_type) || IS_METADATA_OBU(curr_obu_type))) {
     return 0;
   } else if ((prev_obu_type == OBU_MSDO) &&
              (curr_obu_type == OBU_LAYER_CONFIGURATION_RECORD ||
@@ -1578,8 +1585,7 @@ static int check_obu_order(OBU_TYPE prev_obu_type, OBU_TYPE curr_obu_type) {
               curr_obu_type == OBU_CONTENT_INTERPRETATION ||
 #endif  // CONFIG_CWG_F270_CI_OBU
               curr_obu_type == OBU_MULTI_FRAME_HEADER ||
-              is_coded_frame(curr_obu_type) || curr_obu_type == OBU_METADATA ||
-              curr_obu_type == OBU_METADATA_GROUP)) {
+              is_coded_frame(curr_obu_type) || IS_METADATA_OBU(curr_obu_type))) {
     return 0;
   } else if ((prev_obu_type == OBU_LAYER_CONFIGURATION_RECORD) &&
              (curr_obu_type == OBU_LAYER_CONFIGURATION_RECORD ||
@@ -1590,8 +1596,7 @@ static int check_obu_order(OBU_TYPE prev_obu_type, OBU_TYPE curr_obu_type) {
               curr_obu_type == OBU_CONTENT_INTERPRETATION ||
 #endif  // CONFIG_CWG_F270_CI_OBU
               curr_obu_type == OBU_MULTI_FRAME_HEADER ||
-              is_coded_frame(curr_obu_type) || curr_obu_type == OBU_METADATA ||
-              curr_obu_type == OBU_METADATA_GROUP)) {
+              is_coded_frame(curr_obu_type) || IS_METADATA_OBU(curr_obu_type))) {
     return 0;
   } else if ((prev_obu_type == OBU_OPERATING_POINT_SET) &&
              (curr_obu_type == OBU_OPERATING_POINT_SET ||
@@ -1601,8 +1606,7 @@ static int check_obu_order(OBU_TYPE prev_obu_type, OBU_TYPE curr_obu_type) {
               curr_obu_type == OBU_CONTENT_INTERPRETATION ||
 #endif  // CONFIG_CWG_F270_CI_OBU
               curr_obu_type == OBU_MULTI_FRAME_HEADER ||
-              is_coded_frame(curr_obu_type) || curr_obu_type == OBU_METADATA ||
-              curr_obu_type == OBU_METADATA_GROUP)) {
+              is_coded_frame(curr_obu_type) || IS_METADATA_OBU(curr_obu_type))) {
     return 0;
   } else if ((prev_obu_type == OBU_ATLAS_SEGMENT) &&
              (curr_obu_type == OBU_ATLAS_SEGMENT ||
@@ -1611,8 +1615,7 @@ static int check_obu_order(OBU_TYPE prev_obu_type, OBU_TYPE curr_obu_type) {
               curr_obu_type == OBU_CONTENT_INTERPRETATION ||
 #endif  // CONFIG_CWG_F270_CI_OBU
               curr_obu_type == OBU_MULTI_FRAME_HEADER ||
-              is_coded_frame(curr_obu_type) || curr_obu_type == OBU_METADATA ||
-              curr_obu_type == OBU_METADATA_GROUP)) {
+              is_coded_frame(curr_obu_type) || IS_METADATA_OBU(curr_obu_type))) {
     return 0;
   } else if ((prev_obu_type == OBU_SEQUENCE_HEADER) &&
              (curr_obu_type == OBU_SEQUENCE_HEADER ||
@@ -1621,31 +1624,25 @@ static int check_obu_order(OBU_TYPE prev_obu_type, OBU_TYPE curr_obu_type) {
 #endif  // CONFIG_CWG_F270_CI_OBU
               curr_obu_type == OBU_MULTI_FRAME_HEADER ||
               curr_obu_type == OBU_BUFFER_REMOVAL_TIMING ||
-              is_coded_frame(curr_obu_type) || curr_obu_type == OBU_METADATA ||
-              curr_obu_type == OBU_METADATA_GROUP)) {
+              is_coded_frame(curr_obu_type) || IS_METADATA_OBU(curr_obu_type))) {
     return 0;
 #if CONFIG_CWG_F270_CI_OBU
   } else if ((prev_obu_type == OBU_CONTENT_INTERPRETATION) &&
              (curr_obu_type == OBU_MULTI_FRAME_HEADER ||
               curr_obu_type == OBU_BUFFER_REMOVAL_TIMING ||
-              is_coded_frame(curr_obu_type) || curr_obu_type == OBU_METADATA ||
-              curr_obu_type == OBU_METADATA_GROUP)) {
+              is_coded_frame(curr_obu_type) || IS_METADATA_OBU(curr_obu_type))) {
     return 0;
 #endif  // CONFIG_CWG_F270_CI_OBU
   } else if ((prev_obu_type == OBU_BUFFER_REMOVAL_TIMING) &&
              (curr_obu_type == OBU_MULTI_FRAME_HEADER ||
-              is_coded_frame(curr_obu_type) || curr_obu_type == OBU_METADATA ||
-              curr_obu_type == OBU_METADATA_GROUP)) {
+              is_coded_frame(curr_obu_type) || IS_METADATA_OBU(curr_obu_type))) {
     return 0;
   } else if ((prev_obu_type == OBU_MULTI_FRAME_HEADER) &&
              (curr_obu_type == OBU_MULTI_FRAME_HEADER ||
-              is_coded_frame(curr_obu_type) || curr_obu_type == OBU_METADATA ||
-              curr_obu_type == OBU_METADATA_GROUP)) {
+              is_coded_frame(curr_obu_type) || IS_METADATA_OBU(curr_obu_type))) {
     return 0;
-  } else if ((prev_obu_type == OBU_METADATA ||
-              prev_obu_type == OBU_METADATA_GROUP) &&
-             (is_coded_frame(curr_obu_type) || curr_obu_type == OBU_METADATA ||
-              curr_obu_type == OBU_METADATA_GROUP ||
+  } else if ((IS_METADATA_OBU(prev_obu_type)) &&
+             (is_coded_frame(curr_obu_type) || IS_METADATA_OBU(curr_obu_type) ||
               curr_obu_type == OBU_TEMPORAL_DELIMITER)) {
     return 0;
   } else if (prev_obu_type == OBU_TEMPORAL_DELIMITER ||
@@ -2058,24 +2055,21 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
         break;
 #endif  // CONFIG_F255_QMOBU
+#if !CONFIG_METADATA
       case OBU_METADATA:
-#if CONFIG_METADATA
-        decoded_payload_size =
-            read_metadata_obu(pbi, data, payload_size, &obu_header, 0);
-#else
         decoded_payload_size = read_metadata(pbi, data, payload_size);
-#endif  // CONFIG_METADATA
+        if (cm->error.error_code != AOM_CODEC_OK) return -1;
+        break;
+#else
+      case OBU_METADATA_SHORT:
+        decoded_payload_size = read_metadata_short(pbi, data, payload_size, 0);
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
         break;
       case OBU_METADATA_GROUP:
-#if CONFIG_METADATA
-        decoded_payload_size =
-            read_metadata_obu(pbi, data, payload_size, &obu_header, 0);
-#else
-        decoded_payload_size = read_metadata_short(pbi, data, payload_size, 0);
-#endif  // CONFIG_METADATA
+        decoded_payload_size = read_metadata_obu(pbi, data, payload_size, &obu_header, 0);
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
         break;
+#endif  // CONFIG_METADATA
 #if CONFIG_F153_FGM_OBU
       case OBU_FGM:
         decoded_payload_size = read_fgm_obu(
@@ -2131,10 +2125,8 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
       cm->error.error_code = status;
       return -1;
     }
-    // Accept both OBU_METADATA and OBU_METADATA_GROUP for suffix metadata
-    if ((obu_header.type != OBU_METADATA_GROUP &&
-         obu_header.type != OBU_METADATA) ||
-        data + bytes_read >= data_end)
+    // Accept both OBU_METADATA_SHORT and OBU_METADATA_GROUP for suffix metadata
+    if (!IS_METADATA_OBU(obu_header.type) || data + bytes_read >= data_end)
       break;
 
     // check whether it is a suffix metadata OBU

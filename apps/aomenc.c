@@ -417,6 +417,9 @@ const arg_def_t *av1_ctrl_args[] = {
   &g_av1_codec_arg_defs.subgop_config_path,
   &g_av1_codec_arg_defs.frame_hash_metadata,
   &g_av1_codec_arg_defs.frame_hash_per_plane,
+#if CONFIG_METADATA
+  &g_av1_codec_arg_defs.use_short_metadata,
+#endif  // CONFIG_METADATA
   NULL,
 };
 
@@ -1209,6 +1212,11 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.frame_hash_per_plane,
                          argi)) {
       config->cfg.frame_hash_per_plane = arg_parse_uint(&arg);
+#if CONFIG_METADATA
+    } else if (arg_match(&arg, &g_av1_codec_arg_defs.use_short_metadata,
+                         argi)) {
+      config->cfg.use_short_metadata = arg_parse_uint(&arg);
+#endif  // CONFIG_METADATA
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.dropframe_thresh, argi)) {
       config->cfg.rc_dropframe_thresh = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.resize_mode, argi)) {

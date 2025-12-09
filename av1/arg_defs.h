@@ -275,6 +275,9 @@ typedef struct av1_codec_arg_definitions {
 #endif  // CONFIG_AV1_ENCODER
   arg_def_t frame_hash_metadata;
   arg_def_t frame_hash_per_plane;
+#if CONFIG_METADATA
+  arg_def_t use_short_metadata;
+#endif  // CONFIG_METADATA
   arg_def_t enable_short_refresh_frame_flags;
 
 #if CONFIG_CROP_WIN_CWG_F220
