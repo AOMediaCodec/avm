@@ -5065,7 +5065,7 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
   if (current_frame->frame_type == KEY_FRAME) {
     for (int i = 0; i < cm->seq_params.ref_frames; i++) {
       if (cm->ref_frame_map[i] != NULL)
-        cm->ref_frame_map[i]->is_restricted_ref = true;
+        cm->ref_frame_map[i]->is_restricted_ref = false;
     }
   }
 
