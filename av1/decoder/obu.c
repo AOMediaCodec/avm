@@ -1771,8 +1771,7 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
              obu_header.type == OBU_REGULAR_TIP ||
              obu_header.type == OBU_REGULAR_TILE_GROUP ||
              obu_header.type == OBU_BRIDGE_FRAME ||
-             obu_header.type == OBU_SWITCH ||
-             obu_header.type == OBU_RAS_FRAME)
+             obu_header.type == OBU_SWITCH || obu_header.type == OBU_RAS_FRAME)
       cm->is_leading_picture = 0;
     else
       cm->is_leading_picture = -1;
