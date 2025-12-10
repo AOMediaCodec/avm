@@ -417,9 +417,6 @@ const arg_def_t *av1_ctrl_args[] = {
   &g_av1_codec_arg_defs.subgop_config_path,
   &g_av1_codec_arg_defs.frame_hash_metadata,
   &g_av1_codec_arg_defs.frame_hash_per_plane,
-#if CONFIG_METADATA
-  &g_av1_codec_arg_defs.use_short_metadata,
-#endif  // CONFIG_METADATA
   NULL,
 };
 
@@ -494,6 +491,9 @@ const arg_def_t *av1_key_val_args[] = {
 #if CONFIG_SCAN_TYPE_METADATA
   &g_av1_codec_arg_defs.scan_type_info_present_flag,
 #endif  // CONFIG_SCAN_TYPE_METADATA
+#if CONFIG_METADATA
+  &g_av1_codec_arg_defs.use_short_metadata,
+#endif  // CONFIG_METADATA
 #if CONFIG_MULTI_FRAME_HEADER
   &g_av1_codec_arg_defs.enable_mfh_obu_signaling,
 #endif  // CONFIG_MULTI_FRAME_HEADER
@@ -1212,11 +1212,6 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.frame_hash_per_plane,
                          argi)) {
       config->cfg.frame_hash_per_plane = arg_parse_uint(&arg);
-#if CONFIG_METADATA
-    } else if (arg_match(&arg, &g_av1_codec_arg_defs.use_short_metadata,
-                         argi)) {
-      config->cfg.use_short_metadata = arg_parse_uint(&arg);
-#endif  // CONFIG_METADATA
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.dropframe_thresh, argi)) {
       config->cfg.rc_dropframe_thresh = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &g_av1_codec_arg_defs.resize_mode, argi)) {

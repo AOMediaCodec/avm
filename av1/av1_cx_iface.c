@@ -4357,6 +4357,11 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
     extra_cfg.scan_type_info_present_flag =
         arg_parse_int_helper(&arg, err_string);
 #endif  // CONFIG_SCAN_TYPE_METADATA
+#if CONFIG_METADATA
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.use_short_metadata,
+                              argv, err_string)) {
+    ctx->cfg.use_short_metadata = arg_parse_int_helper(&arg, err_string);
+#endif  // CONFIG_METADATA
 #if CONFIG_MULTI_FRAME_HEADER
   } else if (arg_match_helper(&arg,
                               &g_av1_codec_arg_defs.enable_mfh_obu_signaling,
