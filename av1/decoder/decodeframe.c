@@ -2515,11 +2515,11 @@ static AOM_INLINE void setup_segmentation(AV1_COMMON *const cm,
     seg->update_map = aom_rb_read_bit(rb);
     if (seg->update_map) {
 #if CONFIG_F322_OBUER_REFRESTRICT  // segment
-    if (cm->current_frame.frame_type == S_FRAME)
-      seg->temporal_update = 0;
-    else
+      if (cm->current_frame.frame_type == S_FRAME)
+        seg->temporal_update = 0;
+      else
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
-      seg->temporal_update = aom_rb_read_bit(rb);
+        seg->temporal_update = aom_rb_read_bit(rb);
     } else {
       seg->temporal_update = 0;
     }

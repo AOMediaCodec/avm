@@ -4297,17 +4297,17 @@ static AOM_INLINE void encode_segmentation(AV1_COMMON *cm,
     aom_wb_write_bit(wb, seg->update_map);
     if (seg->update_map) {
 #if CONFIG_F322_OBUER_REFRESTRICT  // segmentation
-    if (cm->current_frame.frame_type != S_FRAME)
+      if (cm->current_frame.frame_type != S_FRAME)
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
-      aom_wb_write_bit(wb, seg->temporal_update);
+        aom_wb_write_bit(wb, seg->temporal_update);
 #if CONFIG_F322_OBUER_REFRESTRICT  // segmentation
-    int num_ref_frames_available = 0;
-    for (int ref_idx = 0; ref_idx < cm->seq_params.ref_frames; ref_idx++) {
-      if (cm->ref_frame_map[ref_idx] != NULL)
-        num_ref_frames_available +=
-            !cm->ref_frame_map[ref_idx]->is_restricted_ref;
-    }
-    if (num_ref_frames_available == 0) assert(seg->temporal_update == 0);
+      int num_ref_frames_available = 0;
+      for (int ref_idx = 0; ref_idx < cm->seq_params.ref_frames; ref_idx++) {
+        if (cm->ref_frame_map[ref_idx] != NULL)
+          num_ref_frames_available +=
+              !cm->ref_frame_map[ref_idx]->is_restricted_ref;
+      }
+      if (num_ref_frames_available == 0) assert(seg->temporal_update == 0);
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
     }
     seg->update_data = reuse ? 0 : 1;
