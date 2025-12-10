@@ -210,4 +210,9 @@ void av1_get_max_tiles_for_level(AV1_LEVEL level_index, int *const max_tiles,
 // Return minimum compression ratio for given level.
 double av1_get_min_cr_for_level(AV1_LEVEL level_index, int tier,
                                 int is_still_picture);
+
+// Return maximum legal DPB size defined by the level.
+int av1_get_max_legal_dpb_size(const SequenceHeader *seq_params,
+                               AV1_LEVEL level_index);
+
 #endif  // AOM_AV1_ENCODER_LEVEL_H_

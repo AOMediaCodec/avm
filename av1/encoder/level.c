@@ -15,6 +15,7 @@
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/level.h"
 
+/* clang-format off */
 #define UNDEFINED_LEVEL     \
   { .level = SEQ_LEVEL_MAX, \
     .max_picture_size = 0,  \
@@ -29,6 +30,7 @@
     .high_cr = 0,           \
     .max_tiles = 0,         \
     .max_tile_cols = 0 }
+/* clang-format on */
 
 static const AV1LevelSpec av1_level_defs[SEQ_LEVELS] = {
   { .level = SEQ_LEVEL_2_0,
@@ -245,6 +247,7 @@ typedef enum {
   TILE_SIZE_HEADER_RATE_TOO_HIGH,
   BITRATE_TOO_HIGH,
   DECODER_MODEL_FAIL,
+  DPB_SIZE_FAIL,
 
   TARGET_LEVEL_FAIL_IDS,
   TARGET_LEVEL_OK,
@@ -270,6 +273,7 @@ static const char *level_fail_messages[TARGET_LEVEL_FAIL_IDS] = {
   "The product of max tile size and header rate is too high.",
   "The bitrate is too high.",
   "The decoder model fails.",
+  "The DPB size is invalid.",
 };
 
 static double get_max_bitrate(const AV1LevelSpec *const level_spec, int tier,
@@ -778,6 +782,16 @@ double av1_get_min_cr_for_level(AV1_LEVEL level_index, int tier,
                     level_spec->max_decode_rate);
 }
 
+int av1_get_max_legal_dpb_size(const SequenceHeader *seq_params,
+                               AV1_LEVEL level_index) {
+  int max_picture_size = av1_level_defs[level_index].max_picture_size;
+  int current_picture_size =
+      seq_params->max_frame_width * seq_params->max_frame_height;
+  int max_legal_dpb_size =
+      AOMMIN(REF_FRAMES, (int)((max_picture_size * 8) / current_picture_size));
+  return max_legal_dpb_size;
+}
+
 static void get_temporal_parallel_params(int scalability_mode_idc,
                                          int *temporal_parallel_num,
                                          int *temporal_parallel_denom) {
@@ -801,8 +815,9 @@ static void get_temporal_parallel_params(int scalability_mode_idc,
 #define MAX_TILE_SIZE_HEADER_RATE_PRODUCT 588251136
 
 static TARGET_LEVEL_FAIL_ID check_level_constraints(
-    const AV1LevelInfo *const level_info, AV1_LEVEL level, int tier,
-    int is_still_picture, BITSTREAM_PROFILE profile, int check_bitrate) {
+    const SequenceHeader *seq_params, const AV1LevelInfo *const level_info,
+    AV1_LEVEL level, int tier, int is_still_picture, BITSTREAM_PROFILE profile,
+    int check_bitrate) {
   const DECODER_MODEL *const decoder_model = &level_info->decoder_models[level];
   const DECODER_MODEL_STATUS decoder_model_status = decoder_model->status;
   if (decoder_model_status != DECODER_MODEL_OK &&
@@ -916,6 +931,13 @@ static TARGET_LEVEL_FAIL_ID check_level_constraints(
         break;
       }
     }
+
+    if (seq_params->ref_frames >
+        av1_get_max_legal_dpb_size(seq_params, level)) {
+      fail_id = DPB_SIZE_FAIL;
+      break;
+    }
+
   } while (0);
 
   return fail_id;
@@ -1151,8 +1173,9 @@ void av1_update_level_info(AV1_COMP *cpi, size_t size, int64_t ts_start,
 #else
       const int tier = seq_params->tier[i];
 #endif  // CONFIG_CWG_F270_OPS
-      const TARGET_LEVEL_FAIL_ID fail_id = check_level_constraints(
-          level_info, target_level, tier, is_still_picture, profile, 0);
+      const TARGET_LEVEL_FAIL_ID fail_id =
+          check_level_constraints(seq_params, level_info, target_level, tier,
+                                  is_still_picture, profile, 0);
       if (fail_id != TARGET_LEVEL_OK) {
         const int target_level_major = 2 + (target_level >> 2);
         const int target_level_minor = target_level & 3;
@@ -1191,7 +1214,7 @@ aom_codec_err_t av1_get_seq_level_idx(
     for (int level = 0; level < SEQ_LEVELS; ++level) {
       if (!is_valid_seq_level_idx(level)) continue;
       const TARGET_LEVEL_FAIL_ID fail_id = check_level_constraints(
-          level_info, level, tier, is_still_picture, profile, 1);
+          seq_params, level_info, level, tier, is_still_picture, profile, 1);
       if (fail_id == TARGET_LEVEL_OK) {
         seq_level_idx[op] = level;
         break;

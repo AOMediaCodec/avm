@@ -603,10 +603,13 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
 #endif  // CONFIG_IMPROVED_REORDER_SEQ_FLAGS && !CONFIG_F255_QMOBU
   );
 
-  // TODO(hegilmez): the current constraint uses the largest possible picture
-  // size in the level definitions. This covers the worst-case memory
-  // requirement. If per-level memory restriction is desired, MAX_PICTURE_SIZE
-  // should be changed with level-defined picture size.
+  // TODO(hegilmez): the current decoder-side constraint uses the largest
+  // possible picture size in the level definitions. This covers the worst-case
+  // memory requirement. If per-level memory restriction is desired,
+  // MAX_PICTURE_SIZE should be changed with level-defined picture size. See the
+  // decoder model implementation within the function
+  // av1_get_max_legal_dpb_size() in av1/encoder/level.c, which should be moved
+  // to "av1/common" to be able to use at the decoder side.
   const int max_picture_size = MAX_PICTURE_SIZE;
   const int max_legal_ref_frames =
       get_max_legal_dpb_size(seq_params, max_picture_size);
