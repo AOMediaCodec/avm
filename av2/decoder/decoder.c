@@ -451,6 +451,8 @@ void av2_decoder_remove(AV2Decoder *pbi) {
     av2_ccso_filter_dealloc(&pbi->ccso_sync);
     av2_loop_restoration_dealloc(&pbi->lr_row_sync, pbi->num_workers);
     av2_dealloc_dec_jobs(&pbi->tile_mt_info);
+    avm_free(pbi->tip_worker_data);
+    av2_tip_dealloc(&pbi->tip_sync);
   }
 
   dec_free_tip_ref_frame(&pbi->common);

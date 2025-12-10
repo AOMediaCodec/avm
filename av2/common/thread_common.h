@@ -18,6 +18,7 @@
 #include "av2/common/av2_loopfilter.h"
 #include "av2/common/cdef.h"
 #include "avm_util/avm_thread.h"
+#include "av2/common/tip.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -84,6 +85,34 @@ typedef struct AV2CcsoSync {
   int jobs_enqueued;
   int jobs_dequeued;
 } AV2CcsoSync;
+
+// TIP data for job
+typedef struct AV2TIPMTInfo {
+  int row;  // row number within a frame
+} AV2TIPMTInfo;
+
+// Row-based parallel TIP data
+typedef struct TIPWorkerData {
+  DECLARE_ALIGNED(32, MACROBLOCKD, xd);
+  AV2_COMMON *cm;
+  CONV_BUF_TYPE *tmp_conv_dst;
+  uint16_t *mc_buf[2];
+  CalcSubpelParamsFunc calc_subpel_params_func;
+  int copy_refined_mvs;
+} TIPWorkerData;
+
+// TIP row synchronization
+typedef struct AV2TipSync {
+  int unit_blk_size;
+  int num_workers;
+#if CONFIG_MULTITHREAD
+  pthread_mutex_t *job_mutex;
+#endif
+  // Job info
+  AV2TIPMTInfo *job_queue;
+  int jobs_enqueued;
+  int jobs_dequeued;
+} AV2TipSync;
 
 typedef struct AV2LrMTInfo {
   RestorationTileLimits limits;
@@ -214,10 +243,20 @@ void av2_foreach_rest_unit_in_tile_row(
 // Deallocate ccsofilter synchronization related mutex and data.
 void av2_ccso_filter_dealloc(AV2CcsoSync *ccso_sync);
 
+// Deallocate TIP synchronization related mutex and data.
+void av2_tip_dealloc(AV2TipSync *tip_sync);
+
 // MT implementation of ccso_frame
 void av2_ccso_frame_mt(YV12_BUFFER_CONFIG *frame, AV2_COMMON *cm,
                        MACROBLOCKD *xd, AVxWorker *workers, int num_workers,
                        uint16_t *ext_rec_y, AV2CcsoSync *ccso_sync);
+
+// MT implementation of av1_setup_tip_frame
+void av2_setup_tip_frame_mt(AV2_COMMON *cm,
+                            CalcSubpelParamsFunc calc_subpel_params_func,
+                            int copy_refined_mvs, AVxWorker *workers,
+                            int num_workers, AV2TipSync *tip_sync,
+                            TIPWorkerData *tip_worker_data);
 
 #ifdef __cplusplus
 }  // extern "C"

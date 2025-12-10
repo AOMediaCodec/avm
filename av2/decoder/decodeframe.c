@@ -621,14 +621,46 @@ static void dec_calc_subpel_params_and_extend(
                    inter_pred_params->is_intrabc, mc_buf[ref], pre, src_stride);
 }
 
-static void av2_dec_setup_tip_frame(AV2_COMMON *cm, MACROBLOCKD *xd,
-                                    uint16_t **mc_buf,
-                                    CONV_BUF_TYPE *tmp_conv_dst) {
+// Allocate and copy data for TIP multi threading.
+static void copy_tip_worker_data(AV2Decoder *pbi, AV2_COMMON *cm) {
+  int num_worker = pbi->max_threads;
+  avm_free(pbi->tip_worker_data);
+  CHECK_MEM_ERROR(cm, pbi->tip_worker_data,
+                  avm_malloc(num_worker * sizeof(*(pbi->tip_worker_data))));
+
+  for (int worker_idx = 0; worker_idx < num_worker; ++worker_idx) {
+    DecWorkerData *const thread_data = pbi->thread_data + worker_idx;
+    TIPWorkerData *const tip_worker_data = pbi->tip_worker_data + worker_idx;
+    tip_worker_data->xd = pbi->dcb.xd;
+    tip_worker_data->mc_buf[0] = thread_data->td->mc_buf[0];
+    tip_worker_data->mc_buf[1] = thread_data->td->mc_buf[1];
+    tip_worker_data->tmp_conv_dst = thread_data->td->tmp_conv_dst;
+    // Temporary buffers used during the DMVR and OPFL processing.
+    tip_worker_data->xd.opfl_vxy_bufs = thread_data->td->opfl_vxy_bufs;
+    tip_worker_data->xd.opfl_gxy_bufs = thread_data->td->opfl_gxy_bufs;
+    tip_worker_data->xd.opfl_dst_bufs = thread_data->td->opfl_dst_bufs;
+  }
+}
+
+static void av2_dec_setup_tip_frame(AV2Decoder *pbi, AV2_COMMON *cm,
+                                    MACROBLOCKD *xd) {
   av2_setup_tip_motion_field(cm);
-  av2_setup_tip_frame(cm, xd, mc_buf, tmp_conv_dst,
-                      dec_calc_subpel_params_and_extend,
-                      1 /* copy_refined_mvs */
-  );
+  if (pbi->num_workers > 1) {
+    copy_tip_worker_data(pbi, cm);
+    av2_setup_tip_frame_mt(cm, dec_calc_subpel_params_and_extend,
+                           1 /* copy_refined_mvs */, pbi->tile_workers,
+                           pbi->num_workers, &pbi->tip_sync,
+                           pbi->tip_worker_data);
+  } else {
+    xd->opfl_vxy_bufs = pbi->td.opfl_vxy_bufs;
+    xd->opfl_gxy_bufs = pbi->td.opfl_gxy_bufs;
+    xd->opfl_dst_bufs = pbi->td.opfl_dst_bufs;
+    av2_setup_tip_frame(cm, xd, pbi->td.mc_buf, pbi->td.tmp_conv_dst,
+                        dec_calc_subpel_params_and_extend,
+                        1 /* copy_refined_mvs */
+    );
+  }
+
   if (cm->seq_params.enable_tip_explicit_qp == 0) {
     const int avg_u_ac_delta_q =
         (cm->tip_ref.ref_frame_buffer[0]->u_ac_delta_q +
@@ -9241,10 +9273,7 @@ static AVM_INLINE void process_tip_mode(AV2Decoder *pbi) {
   }
 
   if (cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
-    xd->opfl_vxy_bufs = pbi->td.opfl_vxy_bufs;
-    xd->opfl_gxy_bufs = pbi->td.opfl_gxy_bufs;
-    xd->opfl_dst_bufs = pbi->td.opfl_dst_bufs;
-    av2_dec_setup_tip_frame(cm, xd, pbi->td.mc_buf, pbi->td.tmp_conv_dst);
+    av2_dec_setup_tip_frame(pbi, cm, xd);
   } else if (cm->features.tip_frame_mode == TIP_FRAME_AS_REF) {
     av2_setup_tip_motion_field(cm);
   }

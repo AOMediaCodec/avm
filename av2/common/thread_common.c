@@ -23,6 +23,7 @@
 #include "av2/common/resize.h"
 #include "av2/common/restoration.h"
 #include "av2/common/ccso.h"
+#include "av2/common/tip.h"
 
 // Set up nsync by width.
 static INLINE int get_sync_range(int width) {
@@ -687,6 +688,159 @@ void av2_ccso_frame_mt(YV12_BUFFER_CONFIG *frame, AV2_COMMON *cm,
   av2_setup_dst_planes(xd->plane, frame, 0, 0, 0, num_planes, NULL);
 
   apply_ccso_filter_mt(workers, num_workers, cm, xd, ext_rec_y, ccso_sync);
+}
+
+// Get next TIP row job for the worker
+static AV2TIPMTInfo *get_tip_job_info(AV2TipSync *const tip_sync) {
+  AV2TIPMTInfo *cur_job_info = NULL;
+
+#if CONFIG_MULTITHREAD
+  pthread_mutex_lock(tip_sync->job_mutex);
+  if (tip_sync->jobs_dequeued < tip_sync->jobs_enqueued) {
+    cur_job_info = tip_sync->job_queue + tip_sync->jobs_dequeued;
+    tip_sync->jobs_dequeued++;
+  }
+  pthread_mutex_unlock(tip_sync->job_mutex);
+#else
+  (void)tip_sync;
+#endif
+  return cur_job_info;
+}
+
+// Process TIP row jobs of the given worker
+static INLINE void process_tip_rows(
+    AV2_COMMON *const cm, MACROBLOCKD *xd, uint16_t **mc_buf,
+    CONV_BUF_TYPE *tmp_conv_dst, CalcSubpelParamsFunc calc_subpel_params_func,
+    int copy_refined_mvs, AV2TipSync *const tip_sync) {
+  const int unit_blk_size =
+      (get_unit_bsize_for_tip_frame(
+           cm->features.tip_frame_mode, cm->tip_interp_filter,
+           cm->seq_params.enable_tip_refinemv) == BLOCK_16X16)
+          ? 16
+          : 8;
+
+  const int mvs_rows =
+      ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, TMVP_SHIFT_BITS);
+  const int mvs_cols =
+      ROUND_POWER_OF_TWO(cm->mi_params.mi_cols, TMVP_SHIFT_BITS);
+  while (1) {
+    AV2TIPMTInfo *cur_job_info = get_tip_job_info(tip_sync);
+    // Break the while loop if no job is available
+    if (cur_job_info == NULL) break;
+    const int blk_row = cur_job_info->row;
+    av2_tip_setup_tip_frame_row(
+        cm, xd, blk_row, 0, mvs_rows, mvs_cols, mvs_cols, unit_blk_size,
+        MAX_BLOCK_SIZE_WITH_SAME_MV, mc_buf, tmp_conv_dst,
+        calc_subpel_params_func, copy_refined_mvs);
+  }
+}
+
+// Row based processing of TIP worker
+static int tip_row_worker(void *arg1, void *arg2) {
+  AV2TipSync *const tip_sync = (AV2TipSync *)arg1;
+  TIPWorkerData *const tip_worker_data = (TIPWorkerData *)arg2;
+  process_tip_rows(tip_worker_data->cm, &tip_worker_data->xd,
+                   tip_worker_data->mc_buf, tip_worker_data->tmp_conv_dst,
+                   tip_worker_data->calc_subpel_params_func,
+                   tip_worker_data->copy_refined_mvs, tip_sync);
+  return 1;
+}
+
+// Generates TIP row job list
+static void enqueue_tip_jobs(AV2TipSync *const tip_sync, int mvs_rows,
+                             int step) {
+  AV2TIPMTInfo *tip_job_queue = tip_sync->job_queue;
+  tip_sync->jobs_enqueued = 0;
+  tip_sync->jobs_dequeued = 0;
+  for (int row = 0; row < mvs_rows; row += step) {
+    tip_job_queue->row = row;
+    tip_job_queue++;
+    tip_sync->jobs_enqueued++;
+  }
+}
+
+// Deallocate TIP synchronization related mutex and data
+void av2_tip_dealloc(AV2TipSync *const tip_sync) {
+  if (tip_sync != NULL) {
+#if CONFIG_MULTITHREAD
+    if (tip_sync->job_mutex != NULL) {
+      pthread_mutex_destroy(tip_sync->job_mutex);
+      avm_free(tip_sync->job_mutex);
+    }
+#endif  // CONFIG_MULTITHREAD
+
+    avm_free(tip_sync->job_queue);
+    // clear the structure as the source of this call may be a resize in which
+    // case this call will be followed by an _alloc() which may fail.
+    av2_zero(*tip_sync);
+  }
+}
+
+// Allocate memory for TIP row synchronization
+static void tip_alloc(AV2TipSync *const tip_sync, AV2_COMMON *cm,
+                      int num_workers, int mvs_rows, int unit_blk_size,
+                      int step) {
+  tip_sync->unit_blk_size = unit_blk_size;
+#if CONFIG_MULTITHREAD
+  CHECK_MEM_ERROR(cm, tip_sync->job_mutex,
+                  avm_malloc(sizeof(*(tip_sync->job_mutex))));
+  if (tip_sync->job_mutex) {
+    pthread_mutex_init(tip_sync->job_mutex, NULL);
+  }
+#endif  // CONFIG_MULTITHREAD
+  tip_sync->num_workers = num_workers;
+
+  CHECK_MEM_ERROR(
+      cm, tip_sync->job_queue,
+      avm_malloc(sizeof(*(tip_sync->job_queue)) * (mvs_rows / step)));
+}
+
+// Setup TIP frame with multithread support
+void av2_setup_tip_frame_mt(AV2_COMMON *cm,
+                            CalcSubpelParamsFunc calc_subpel_params_func,
+                            int copy_refined_mvs, AVxWorker *const workers,
+                            int num_workers, AV2TipSync *const tip_sync,
+                            TIPWorkerData *const tip_worker_data) {
+  const AVxWorkerInterface *const winterface = avm_get_worker_interface();
+  const int unit_blk_size =
+      (get_unit_bsize_for_tip_frame(
+           cm->features.tip_frame_mode, cm->tip_interp_filter,
+           cm->seq_params.enable_tip_refinemv) == BLOCK_16X16)
+          ? 16
+          : 8;
+  const int mvs_rows =
+      ROUND_POWER_OF_TWO(cm->mi_params.mi_rows, TMVP_SHIFT_BITS);
+  const int step = (unit_blk_size >> TMVP_MI_SZ_LOG2);
+  if (tip_sync->unit_blk_size != unit_blk_size ||
+      num_workers > tip_sync->num_workers) {
+    av2_tip_dealloc(tip_sync);
+    tip_alloc(tip_sync, cm, num_workers, mvs_rows, unit_blk_size, step);
+  }
+  enqueue_tip_jobs(tip_sync, mvs_rows, step);
+
+  // Setup TIP worker data and execute
+  for (int i = 0; i < num_workers; ++i) {
+    AVxWorker *const worker = &workers[i];
+    tip_worker_data[i].calc_subpel_params_func = calc_subpel_params_func;
+    tip_worker_data[i].copy_refined_mvs = copy_refined_mvs;
+    tip_worker_data[i].cm = cm;
+
+    TIPWorkerData *const tip_data = &tip_worker_data[i];
+    worker->hook = tip_row_worker;
+    worker->data1 = tip_sync;
+    worker->data2 = tip_data;
+    // Start the workers
+    if (i == num_workers - 1) {
+      winterface->execute(worker);
+    } else {
+      winterface->launch(worker);
+    }
+  }
+
+  // Wait till all workers are finished
+  for (int i = 0; i < num_workers; ++i) {
+    winterface->sync(&workers[i]);
+  }
 }
 
 // Allocate memory for loop restoration row worker data

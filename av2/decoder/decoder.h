@@ -302,6 +302,8 @@ typedef struct AV2Decoder {
   AV2LrStruct lr_ctxt;
   AV2CdefSync cdef_sync;
   AV2CdefWorkerData *cdef_worker;
+  AV2TipSync tip_sync;
+  TIPWorkerData *tip_worker_data;
   AVxWorker *tile_workers;
   int num_workers;
   DecWorkerData *thread_data;
