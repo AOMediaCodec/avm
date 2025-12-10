@@ -8256,8 +8256,16 @@ static size_t write_temporal_point_info_metadata(AV1_COMP *const cpi,
   metadata->layer_idc = AOM_LAYER_CURRENT;
 
   size_t total_bytes_written = 0;
+#if !CONFIG_METADATA
   size_t obu_header_size =
       av1_write_obu_header(&cpi->level_params, OBU_METADATA, 0, 0, dst);
+#else
+  OBU_TYPE obu_type = cpi->oxcf.tool_cfg.use_short_metadata
+                          ? OBU_METADATA_SHORT
+                          : OBU_METADATA_GROUP;
+  size_t obu_header_size =
+      av1_write_obu_header(&cpi->level_params, obu_type, 0, 0, dst);
+#endif  // CONFIG_METADATA
   size_t obu_payload_size =
       av1_write_metadata_obu(metadata, dst + obu_header_size);
   size_t length_field_size =

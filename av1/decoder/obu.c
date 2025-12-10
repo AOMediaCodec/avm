@@ -882,13 +882,13 @@ static void read_metadata_temporal_point_info(AV1Decoder *const pbi,
   cm->temporal_point_info_metadata.mtpi_frame_presentation_time =
       aom_rb_read_literal(rb, n);
 
-#if CONFIG_SHORT_METADATA
+#if CONFIG_METADATA
   uint8_t payload[1];
   payload[0] =
       (cm->temporal_point_info_metadata.mtpi_frame_presentation_time & 0XFF);
   alloc_read_metadata(pbi, OBU_METADATA_TYPE_TEMPORAL_POINT_INFO, payload, 1,
                       AOM_MIF_ANY_FRAME);
-#endif  // CONFIG_SHORT_METADATA
+#endif  // CONFIG_METADATA
 }
 #endif  // CONFIG_CWG_F430
 
