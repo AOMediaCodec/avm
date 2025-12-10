@@ -205,13 +205,11 @@ AV1Decoder *av1_decoder_create(BufferPool *const pool) {
   aom_once(initialize_dec);
 
   // Initialize the references to not point to any frame buffers.
-#if CONFIG_MULTI_STREAM
   for (int i = 0; i < AOM_MAX_NUM_STREAMS; i++) {
     for (int j = 0; j < REF_FRAMES; j++) {
       pbi->ref_frame_map_buf[i][j] = NULL;
     }
   }
-#endif  // CONFIG_MULTI_STREAM
   for (int i = 0; i < NELEMENTS(cm->ref_frame_map); i++) {
     cm->ref_frame_map[i] = NULL;
   }

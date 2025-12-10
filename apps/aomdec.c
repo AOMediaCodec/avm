@@ -31,9 +31,7 @@
 #include "aom/aomdx.h"
 #include "aom_ports/aom_timer.h"
 #include "aom_ports/mem_ops.h"
-#if CONFIG_MULTI_STREAM
 #include "aom/aom_frame_buffer.h"
-#endif  // CONFIG_MULTI_STREAM
 #include "common/args.h"
 #include "common/ivfdec.h"
 #include "common/lanczos_resample.h"
@@ -85,10 +83,8 @@ static const arg_def_t limitarg =
     ARG_DEF(NULL, "limit", 1, "Stop decoding after n frames");
 static const arg_def_t skiparg =
     ARG_DEF(NULL, "skip", 1, "Skip the first n input frames");
-#if CONFIG_MULTI_STREAM
 static const arg_def_t numstreamsarg =
     ARG_DEF(NULL, "num-streams", 1, "Number of sub-streams");
-#endif  // CONFIG_MULTI_STREAM
 static const arg_def_t summaryarg =
     ARG_DEF(NULL, "summary", 0, "Show timing summary");
 static const arg_def_t outputfile =
@@ -148,9 +144,7 @@ static const arg_def_t *all_args[] = { &help,
                                        &progressarg,
                                        &limitarg,
                                        &skiparg,
-#if CONFIG_MULTI_STREAM
                                        &numstreamsarg,
-#endif  // CONFIG_MULTI_STREAM
                                        &summaryarg,
                                        &outputfile,
 #if CONFIG_PARAKIT_COLLECT_DATA
@@ -514,7 +508,6 @@ static void generate_filename(const char *pattern, char *out, size_t q_len,
   } while (*p);
 }
 
-#if CONFIG_MULTI_STREAM
 void add_postfix_stream_id(const char *input_filename, char *filename_with_id,
                            int stream_id) {
   const char *dot = strrchr(input_filename, '.');
@@ -534,7 +527,6 @@ static void fprint_md5(FILE *stream, unsigned char digest[16]) {
   for (i = 0; i < 16; ++i) fprintf(stream, "%02x", digest[i]);
   fprintf(stream, "\n");
 }
-#endif  // CONFIG_MULTI_STREAM
 
 static int is_single_file(const char *outfile_pattern) {
   const char *p = outfile_pattern;
@@ -664,9 +656,7 @@ static int main_loop(int argc, const char **argv_) {
   int do_verify = 0, error_on_verify = 0;
   int stop_after = 0, summary = 0, quiet = 1;
   int arg_skip = 0;
-#if CONFIG_MULTI_STREAM
   int num_streams = 1;  // 1 - 4
-#endif                  // CONFIG_MULTI_STREAM
   int keep_going = 0;
   uint64_t dx_time = 0;
   struct arg arg;
@@ -698,10 +688,8 @@ static int main_loop(int argc, const char **argv_) {
   const char *outfile_pattern = NULL;
   char outfile_name[PATH_MAX] = { 0 };
   FILE *outfile = NULL;
-#if CONFIG_MULTI_STREAM
   FILE *outfile_substream[AOM_MAX_NUM_STREAMS] = { NULL, NULL, NULL, NULL };
   int substream_frame_out[AOM_MAX_NUM_STREAMS] = { 0, 0, 0, 0 };
-#endif  // CONFIG_MULTI_STREAM
   FILE *framestats_file = NULL;
 
 #if CONFIG_ICC_METADATA
@@ -712,10 +700,8 @@ static int main_loop(int argc, const char **argv_) {
 
   MD5Context md5_ctx;
   unsigned char md5_digest[16];
-#if CONFIG_MULTI_STREAM
   MD5Context md5_ctx_substream[AOM_MAX_NUM_STREAMS];
   unsigned char md5_digest_substream[AOM_MAX_NUM_STREAMS][16];
-#endif  // CONFIG_MULTI_STREAM
 
 #if CONFIG_PARAKIT_COLLECT_DATA
   char *datafilename_path = NULL;
@@ -790,10 +776,8 @@ static int main_loop(int argc, const char **argv_) {
       stop_after = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &skiparg, argi)) {
       arg_skip = arg_parse_uint(&arg);
-#if CONFIG_MULTI_STREAM
     } else if (arg_match(&arg, &numstreamsarg, argi)) {
       num_streams = arg_parse_uint(&arg);
-#endif  // CONFIG_MULTI_STREAM
     } else if (arg_match(&arg, &md5arg, argi)) {
       do_md5 = 1;
     } else if (arg_match(&arg, &verifyarg, argi)) {
@@ -910,7 +894,6 @@ static int main_loop(int argc, const char **argv_) {
   if (!noblit && single_file) {
     generate_filename(outfile_pattern, outfile_name, PATH_MAX,
                       aom_input_ctx.width, aom_input_ctx.height, 0);
-#if CONFIG_MULTI_STREAM
     if (do_md5) {
       for (int sub = 0; sub < num_streams; sub++) {
         MD5Init(&md5_ctx_substream[sub]);
@@ -925,7 +908,6 @@ static int main_loop(int argc, const char **argv_) {
     } else if (do_md5) {
       outfile_substream[0] = open_outfile(outfile_name);
     }
-#endif  // CONFIG_MULTI_STREAM
     if (do_md5)
       MD5Init(&md5_ctx);
     else
@@ -1170,13 +1152,11 @@ static int main_loop(int argc, const char **argv_) {
             scaled_img->bit_depth = img->bit_depth;
             scaled_img->monochrome = img->monochrome;
             scaled_img->csp = img->csp;
-#if CONFIG_MULTI_STREAM
             if (num_streams > 1) {
               scaled_img->tlayer_id = img->tlayer_id;
               scaled_img->mlayer_id = img->mlayer_id;
               scaled_img->xlayer_id = img->xlayer_id;
             }
-#endif  // CONFIG_MULTI_STREAM
           }
 
           if (img->d_w != scaled_img->d_w || img->d_h != scaled_img->d_h) {
@@ -1219,27 +1199,21 @@ static int main_loop(int argc, const char **argv_) {
         aom_input_ctx.height = img->d_h;
 
         int num_planes = (opt_raw && img->monochrome) ? 1 : 3;
-#if CONFIG_MULTI_STREAM
         int xlayer_id = 0;
         if (num_streams > 1) {
           xlayer_id = img->xlayer_id;
           if (!do_md5) outfile = outfile_substream[img->xlayer_id];
         }
-#endif  // CONFIG_MULTI_STREAM
         if (single_file) {
           if (use_y4m) {
             char y4m_buf[Y4M_BUFFER_SIZE] = { 0 };
             size_t len = 0;
-#if CONFIG_MULTI_STREAM
             int first_frame_in_file =
                 num_streams == 1 ? (frame_out == 1)
                                  : (substream_frame_out[xlayer_id] == 0);
             substream_frame_out[xlayer_id]++;
             if (first_frame_in_file) {
-#else   // CONFIG_MULTI_STREAM
-            if (frame_out == 1) {
-#endif  // CONFIG_MULTI_STREAM
-        // Y4M file header
+              // Y4M file header
               len = y4m_write_file_header(
                   y4m_buf, sizeof(y4m_buf), aom_input_ctx.width,
                   aom_input_ctx.height, &aom_input_ctx.framerate,
@@ -1251,10 +1225,8 @@ static int main_loop(int argc, const char **argv_) {
                         "Using a placeholder.\n");
               }
               if (do_md5) {
-#if CONFIG_MULTI_STREAM
                 MD5Update(&md5_ctx_substream[xlayer_id], (md5byte *)y4m_buf,
                           (unsigned int)len);
-#endif  // CONFIG_MULTI_STREAM
                 MD5Update(&md5_ctx, (md5byte *)y4m_buf, (unsigned int)len);
               } else {
                 fputs(y4m_buf, outfile);
@@ -1271,17 +1243,13 @@ static int main_loop(int argc, const char **argv_) {
               y4m_write_image_file(img, planes, outfile);
             }
           } else {
-#if CONFIG_MULTI_STREAM
             int first_frame_in_file =
                 num_streams == 1 ? (frame_out == 1)
                                  : (substream_frame_out[xlayer_id] == 0);
             substream_frame_out[xlayer_id]++;
             if (first_frame_in_file) {
-#else   // CONFIG_MULTI_STREAM
-            if (frame_out == 1) {
-#endif  // CONFIG_MULTI_STREAM
-        // Check if --yv12 or --i420 options are consistent with the
-        // bit-stream decoded
+              // Check if --yv12 or --i420 options are consistent with the
+              // bit-stream decoded
               if (opt_i420) {
                 if (img->fmt != AOM_IMG_FMT_I420 &&
                     img->fmt != AOM_IMG_FMT_I42016) {
@@ -1299,10 +1267,8 @@ static int main_loop(int argc, const char **argv_) {
                   goto fail;
                 }
               }
-#if CONFIG_MULTI_STREAM
               raw_update_image_md5(img, planes, num_planes,
                                    &md5_ctx_substream[xlayer_id]);
-#endif  // CONFIG_MULTI_STREAM
             }
             if (do_md5) {
               raw_update_image_md5(img, planes, num_planes, &md5_ctx);
@@ -1314,7 +1280,6 @@ static int main_loop(int argc, const char **argv_) {
           generate_filename(outfile_pattern, outfile_name, PATH_MAX, img->d_w,
                             img->d_h, frame_in);
           if (do_md5) {
-#if CONFIG_MULTI_STREAM
             MD5Init(&md5_ctx_substream[xlayer_id]);
             if (use_y4m) {
               y4m_update_image_md5(img, planes, &md5_ctx_substream[xlayer_id]);
@@ -1326,7 +1291,6 @@ static int main_loop(int argc, const char **argv_) {
                      &md5_ctx_substream[xlayer_id]);
             fprint_md5(outfile_substream[xlayer_id],
                        md5_digest_substream[xlayer_id]);
-#endif  // CONFIG_MULTI_STREAM
             MD5Init(&md5_ctx);
             if (use_y4m) {
               y4m_update_image_md5(img, planes, &md5_ctx);
@@ -1371,23 +1335,19 @@ fail2:
 
   if (!noblit && single_file) {
     if (do_md5) {
-#if CONFIG_MULTI_STREAM
       for (int sub = 0; sub < num_streams; sub++) {
         MD5Final(md5_digest_substream[sub], &md5_ctx_substream[sub]);
         fprint_md5(outfile_substream[sub], md5_digest_substream[sub]);
         fclose(outfile_substream[sub]);
       }
-#endif  // CONFIG_MULTI_STREAM
       MD5Final(md5_digest, &md5_ctx);
       print_md5(md5_digest, outfile_name);
     } else {
-#if CONFIG_MULTI_STREAM
       if (num_streams > 1) {
         for (int sub = 0; sub < num_streams; sub++) {
           fclose(outfile_substream[sub]);
         }
       } else
-#endif  // CONFIG_MULTI_STREAM
         fclose(outfile);
     }
   }

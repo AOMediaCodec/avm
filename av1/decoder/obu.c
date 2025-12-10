@@ -1736,9 +1736,7 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
   int fgm_seq_id_in_tu = -1;
 #endif  // CONFIG_F153_FGM_OBU
 
-#if CONFIG_MULTI_STREAM
   int prev_obu_xlayer_id = -1;
-#endif  // CONFIG_MULTI_STREAM
 
   // decode frame as a series of OBUs
   while (!frame_decoding_finished && cm->error.error_code == AOM_CODEC_OK) {
@@ -1845,7 +1843,6 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
 
     cm->tlayer_id = obu_header.obu_tlayer_id;
     cm->mlayer_id = obu_header.obu_mlayer_id;
-#if CONFIG_MULTI_STREAM
     if (obu_header.type == OBU_MSDO) {
       cm->xlayer_id = obu_header.obu_xlayer_id;
     } else {
@@ -1888,9 +1885,6 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
         }
       }
     }
-#else   // CONFIG_MULTI_STREAM
-    cm->xlayer_id = obu_header.obu_xlayer_id;
-#endif  // CONFIG_MULTI_STREAM
 
     // check bitstream conformance if sequence header is parsed
     if (pbi->sequence_header_ready) {
@@ -1943,11 +1937,9 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
         break;
       case OBU_SEQUENCE_HEADER:
-#if CONFIG_MULTI_STREAM
         cm->xlayer_id = obu_header.obu_xlayer_id;
         cm->seq_params = pbi->seq_params_buf[cm->xlayer_id];
         pbi->stream_switched = 0;
-#endif  // CONFIG_MULTI_STREAM
         decoded_payload_size = read_sequence_header_obu(pbi, &rb);
         if (cm->error.error_code != AOM_CODEC_OK) return -1;
 #if CONFIG_F153_FGM_OBU
