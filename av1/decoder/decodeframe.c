@@ -8475,8 +8475,7 @@ static void reset_buffer_other_than_OLK(AV1Decoder *pbi) {
 static int is_regular_non_olk_obu(OBU_TYPE obu_type) {
   return obu_type == OBU_REGULAR_SEF || obu_type == OBU_REGULAR_TIP ||
          obu_type == OBU_SWITCH || obu_type == OBU_RAS_FRAME ||
-         obu_type ==
-             OBU_BRIDGE_FRAME ||  // TODO: check if BRDIGE is always regular
+         obu_type == OBU_BRIDGE_FRAME ||
          obu_type == OBU_REGULAR_TILE_GROUP;
 }
 #endif
