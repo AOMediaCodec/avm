@@ -110,6 +110,16 @@ static void av1_read_mlayer_dependency_info(SequenceHeader *const seq,
   }
 }
 
+static INLINE int get_max_legal_dpb_size(
+    const struct SequenceHeader *seq_params, const int max_picture_size) {
+  assert(seq_params != NULL && max_picture_size > 0);
+  int current_picture_size =
+      seq_params->max_frame_width * seq_params->max_frame_height;
+  int max_legal_dpb_size =
+      AOMMIN(REF_FRAMES, (int)((max_picture_size * 8) / current_picture_size));
+  return max_legal_dpb_size;
+}
+
 #if CONFIG_CROP_WIN_CWG_F220
 // This function validates the conformance window params
 static void av1_validate_seq_conformance_window(
@@ -593,6 +603,20 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
 #endif  // CONFIG_IMPROVED_REORDER_SEQ_FLAGS && !CONFIG_F255_QMOBU
   );
 
+  // TODO(hegilmez): the current constraint uses the largest possible picture
+  // size in the level definitions. This covers the worst-case memory
+  // requirement. If per-level memory restriction is desired, MAX_PICTURE_SIZE
+  // should be changed with level-defined picture size.
+  const int max_picture_size = MAX_PICTURE_SIZE;
+  const int max_legal_ref_frames =
+      get_max_legal_dpb_size(seq_params, max_picture_size);
+  if (seq_params->ref_frames > max_legal_ref_frames) {
+    aom_internal_error(&cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+                       "The maximum number of reference frames shall not be "
+                       "greater than %d, yet the bitstream indicates that the "
+                       "maximum DPB size is equal to %d.\n",
+                       max_legal_ref_frames, seq_params->ref_frames);
+  }
   seq_params->film_grain_params_present = aom_rb_read_bit(rb);
 
 #if !CONFIG_IMPROVED_REORDER_SEQ_FLAGS
