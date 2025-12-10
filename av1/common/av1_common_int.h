@@ -3380,13 +3380,14 @@ static INLINE RefCntBuffer *get_primary_ref_frame_buf(
     return cm->tip_ref.tip_frame;
   }
   const int map_idx = get_ref_frame_map_idx(cm, primary_ref_frame);
+  if (map_idx == INVALID_IDX) return NULL;
 #if CONFIG_F322_OBUER_REFRESTRICT
   if (cm->ref_frame_map[map_idx] != NULL &&
       cm->ref_frame_map[map_idx]->is_restricted_ref)
     return NULL;
   else
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
-    return (map_idx != INVALID_IDX) ? cm->ref_frame_map[map_idx] : NULL;
+    return cm->ref_frame_map[map_idx];
 }
 
 // Returns 1 if this frame might allow mvs from some reference frame.
