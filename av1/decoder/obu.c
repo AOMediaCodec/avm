@@ -1214,12 +1214,10 @@ static size_t read_metadata_obsp(AV1Decoder *pbi, const uint8_t *data,
     return 0;
   }
 
-  // Spec changed from metadata_unit_cnt to metadata_unit_cnt_minus_1
   metadata_array->sz = count_minus_1 + 1;
 
-  // Ensure metadata_unit_cnt doesn't exceed 2^14 - 1 (to keep uleb128 <= 2
-  // bytes)
-  if (metadata_array->sz > 16383) {
+  // Ensure metadata_unit_cnt doesn't exceed 2^14 (uleb128 <= 2 bytes)
+  if (metadata_array->sz > 16384) {
     cm->error.error_code = AOM_CODEC_CORRUPT_FRAME;
     return 0;
   }
