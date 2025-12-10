@@ -30,8 +30,6 @@ extern "C" {
 #define DF_DELTA_SCALE 8
 #define DF_SEARCH_STEP_SIZE 2
 
-#define MAX_LOOP_FILTER 63
-
 #define SUB_PU_THR_SHIFT 3
 #define SUB_PU_QTHR 150
 #define SUB_PU_BD_FACTOR 24
