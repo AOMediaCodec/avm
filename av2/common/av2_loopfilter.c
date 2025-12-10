@@ -131,11 +131,8 @@ void av2_loop_filter_frame_init(AV2_COMMON *cm, int plane_start,
       continue;
 
     for (int dir = 0; dir < 2; ++dir) {
-      int q_ind_seg = q_ind[plane][dir];
-      int side_ind_seg = side_ind[plane][dir];
-
-      lfi->q_thr_q_offset[plane][dir] = q_ind_seg;
-      lfi->side_thr_q_offset[plane][dir] = side_ind_seg;
+      lfi->q_thr_q_offset[plane][dir] = q_ind[plane][dir];
+      lfi->side_thr_q_offset[plane][dir] = side_ind[plane][dir];
     }
   }
 }
