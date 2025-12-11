@@ -787,7 +787,8 @@ static avm_codec_err_t init_decoder(avm_codec_alg_priv_t *ctx) {
        i++) {
     frame_worker_data->pbi->common.ref_frame_map[i] = NULL;
   }
-  for (int i = 0; i < MAX_MFH_NUM; i++) {
+  frame_worker_data->pbi->common.mfh_valid[0] = true;
+  for (int i = 1; i < MAX_MFH_NUM; i++) {
     frame_worker_data->pbi->common.mfh_valid[i] = false;
   }
   // Initialize cm->cur_mfh_id to -1 to help detect if cm->cur_mfh_id is used

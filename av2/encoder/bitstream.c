@@ -6436,7 +6436,7 @@ static AVM_INLINE void write_uncompressed_header(
     avm_wb_write_literal(wb, cm->cur_mfh_id, 4);
 #endif  // CONFIG_CWG_E242_MFH_ID_UVLC
     if (cm->cur_mfh_id == 0) {
-      avm_wb_write_uvlc(wb, 0);  // seq_header_id_in_frame_header
+      avm_wb_write_uvlc(wb, cm->seq_params.seq_header_id);
     }
   }
 
@@ -8570,6 +8570,24 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
     }
 
     data += obu_header_size + obu_payload_size + length_field_size;
+
+    if (cpi->oxcf.unit_test_cfg.multi_seq_header_test) {
+      SequenceHeader test_seq_header = cm->seq_params;
+      for (int seq_id = 1; seq_id < 3; seq_id++) {
+        test_seq_header.seq_header_id = seq_id + cm->seq_params.seq_header_id;
+        obu_header_size =
+            av2_write_obu_header(level_params, OBU_SEQUENCE_HEADER, 0, 0, data);
+        obu_payload_size = av2_write_sequence_header_obu(
+            &test_seq_header, data + obu_header_size);
+        length_field_size =
+            obu_memmove(obu_header_size, obu_payload_size, data);
+        if (av2_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
+            AVM_CODEC_OK) {
+          return AVM_CODEC_ERROR;
+        }
+        data += obu_header_size + obu_payload_size + length_field_size;
+      }
+    }
 
 #if CONFIG_CWG_F270_CI_OBU
     if (cm->current_frame.frame_type == KEY_FRAME && !cpi->no_show_fwd_kf &&

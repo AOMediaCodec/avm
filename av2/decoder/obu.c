@@ -229,15 +229,7 @@ static uint32_t read_multi_stream_decoder_operation_obu(
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }
 
-static INLINE void reset_mfh_valid(AV2_COMMON *cm) {
-  for (int i = 0; i < MAX_MFH_NUM; i++) {
-    cm->mfh_valid[i] = false;
-    cm->mfh_params[i].mfh_tile_info_present_flag = 0;
-  }
-}
-
-// On success, sets pbi->sequence_header_ready to 1 and returns the number of
-// bytes read from 'rb'.
+// On success, returns the number of bytes read from 'rb'.
 // On failure, sets pbi->common.error.error_code and returns 0.
 static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
                                          struct avm_read_bit_buffer *rb) {
@@ -655,30 +647,6 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
     // cm->error.error_code is already set.
     return 0;
   }
-
-  // If a sequence header has been decoded before, we check if the new
-  // one is consistent with the old one.
-  if (pbi->sequence_header_ready) {
-    if (!are_seq_headers_consistent(&cm->seq_params, seq_params)) {
-      pbi->sequence_header_changed = 1;
-#if !CONFIG_F255_QMOBU
-      cm->quant_params.qmatrix_initialized = false;
-#endif  // !CONFIG_F255_QMOBU
-      reset_mfh_valid(cm);
-#if CONFIG_CWG_F270_CI_OBU
-      pbi->ci_params_received = 0;
-#endif  // CONFIG_CWG_F270_CI_OBU
-    }
-  }
-#if CONFIG_F024_KEYOBU
-  pbi->is_first_layer_decoded = true;
-  for (int layer = 0; layer <= seq_params->max_mlayer_id; layer++)
-    cm->olk_refresh_frame_flags[layer] = -1;
-#endif
-  cm->seq_params = *seq_params;
-  av2_set_frame_sb_size(cm, cm->seq_params.sb_size);
-  pbi->sequence_header_ready = 1;
-
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }
 
@@ -1805,6 +1773,7 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
 
   int prev_obu_xlayer_id = -1;
 
+  int keyframe_present = 0;
   // decode frame as a series of OBUs
   while (!frame_decoding_finished && cm->error.error_code == AVM_CODEC_OK) {
     struct avm_read_bit_buffer rb;
@@ -1950,29 +1919,6 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         }
       }
     }
-
-    // check bitstream conformance if sequence header is parsed
-    if (pbi->sequence_header_ready) {
-      // bitstream constraint for tlayer_id
-      if (cm->tlayer_id > cm->seq_params.max_tlayer_id) {
-        avm_internal_error(
-            &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-            "Inconsistent tlayer_id information: OBU header indicates "
-            "tlayer_id is "
-            "%d, yet max_tlayer_id in the sequence header is %d.",
-            cm->tlayer_id, cm->seq_params.max_tlayer_id);
-      }
-      // bitstream constraint for mlayer_id
-      if (cm->mlayer_id > cm->seq_params.max_mlayer_id) {
-        avm_internal_error(
-            &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-            "Inconsistent mlayer_id information: OBU header indicates "
-            "mlayer_id is "
-            "%d, yet max_mlayer_id in the sequence header is %d.",
-            cm->mlayer_id, cm->seq_params.max_mlayer_id);
-      }
-    }
-
     // Set is_bridge_frame flag based on OBU type
     if (obu_header.type == OBU_BRIDGE_FRAME) {
       cm->bridge_frame_info.is_bridge_frame = 1;
@@ -2009,11 +1955,11 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         pbi->stream_switched = 0;
         decoded_payload_size = read_sequence_header_obu(pbi, &rb);
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
-        // The sequence header should not change in the middle of a frame.
-        if (pbi->sequence_header_changed && pbi->seen_frame_header) {
-          cm->error.error_code = AVM_CODEC_CORRUPT_FRAME;
-          return -1;
-        }
+#if CONFIG_F024_KEYOBU
+        pbi->is_first_layer_decoded = true;
+        for (int layer = 0; layer < MAX_NUM_MLAYERS; layer++)
+          cm->olk_refresh_frame_flags[layer] = -1;
+#endif  // CONFIG_F024_KEYOBU
         break;
       case OBU_BUFFER_REMOVAL_TIMING:
         decoded_payload_size =
@@ -2037,10 +1983,6 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         break;
 #if CONFIG_CWG_F270_CI_OBU
       case OBU_CONTENT_INTERPRETATION:
-        if (!pbi->sequence_header_ready) {
-          cm->error.error_code = AVM_CODEC_UNSUP_BITSTREAM;
-          return -1;
-        }
         decoded_payload_size = av2_read_content_interpretation_obu(pbi, &rb);
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
         break;
@@ -2072,6 +2014,8 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
 #endif  // CONFIG_F024_KEYOBU
       case OBU_RAS_FRAME:
       case OBU_BRIDGE_FRAME:
+        keyframe_present =
+            (obu_header.type == OBU_CLK || obu_header.type == OBU_OLK);
 #if CONFIG_F255_QMOBU
         for (int i = 0; i < NUM_CUSTOM_QMS; i++) {
           if (acc_qm_id_bitmap & (1 << i)) {
@@ -2189,6 +2133,11 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
     }
 
     data += payload_size;
+  }
+
+  if (pbi->decoding_first_frame && keyframe_present == 0) {
+    avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
+                       "the first frame of a bitstream shall be a keyframe");
   }
 
 #if CONFIG_METADATA

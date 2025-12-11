@@ -697,6 +697,8 @@ typedef struct {
   // show_existing_frame with derive_order_hint=0 Used only for test purpose.
   uint8_t sef_with_order_hint_test;
 #endif  // CONFIG_F356_SEF_DOH
+  // Signal multiple sequence header
+  uint8_t multi_seq_header_test;
 } UnitTestCfg;
 
 typedef struct {

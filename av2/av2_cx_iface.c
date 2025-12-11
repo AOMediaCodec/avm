@@ -90,6 +90,7 @@ struct av2_extracfg {
 #if CONFIG_F356_SEF_DOH
   unsigned int sef_with_order_hint_test;
 #endif  // CONFIG_F356_SEF_DOH
+  unsigned int multi_seq_header_test;
   unsigned int num_tg;
   unsigned int mtu_size;
 
@@ -429,6 +430,7 @@ static struct av2_extracfg default_extra_cfg = {
 #if CONFIG_F356_SEF_DOH
   0,                            // enable show existing frame with order hint test;
 #endif // CONFIG_F356_SEF_DOH
+  0,                            // multi_seq_header_test
   1,                            // max number of tile groups
   0,                            // mtu_size
   AVM_TIMING_UNSPECIFIED,       // No picture timing signaling in bitstream
@@ -844,6 +846,7 @@ static avm_codec_err_t validate_config(avm_codec_alg_priv_t *ctx,
 #if CONFIG_F356_SEF_DOH
   RANGE_CHECK_HI(extra_cfg, sef_with_order_hint_test, 2);
 #endif  // CONFIG_F356_SEF_DOH
+  RANGE_CHECK_HI(extra_cfg, multi_seq_header_test, 2);
   RANGE_CHECK(extra_cfg, coeff_cost_upd_freq, 0, 2);
   RANGE_CHECK(extra_cfg, mode_cost_upd_freq, 0, 2);
   RANGE_CHECK(extra_cfg, mv_cost_upd_freq, 0, 3);
@@ -1761,6 +1764,7 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
   oxcf->unit_test_cfg.sef_with_order_hint_test =
       extra_cfg->sef_with_order_hint_test;
 #endif  // CONFIG_F356_SEF_DOH
+  oxcf->unit_test_cfg.multi_seq_header_test = extra_cfg->multi_seq_header_test;
   oxcf->border_in_pixels =
       resize_cfg->resize_mode ? AVM_BORDER_IN_PIXELS : AVM_ENC_NO_SCALE_BORDER;
   memcpy(oxcf->target_seq_level_idx, extra_cfg->target_seq_level_idx,
@@ -2272,6 +2276,13 @@ static avm_codec_err_t ctrl_set_sef_with_order_hint_test(
   return update_extra_cfg(ctx, &extra_cfg);
 }
 #endif  // CONFIG_F356_SEF_DOH
+
+static avm_codec_err_t ctrl_set_multi_seq_header_test(avm_codec_alg_priv_t *ctx,
+                                                      va_list args) {
+  struct av2_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.multi_seq_header_test = CAST(AV2E_SET_MULTI_SEQ_HEADER_TEST, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+}
 
 static avm_codec_err_t ctrl_set_num_tg(avm_codec_alg_priv_t *ctx,
                                        va_list args) {
@@ -4441,6 +4452,7 @@ static avm_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
 #if CONFIG_F356_SEF_DOH
   { AV2E_SET_SEF_WITH_ORDER_HINT_TEST, ctrl_set_sef_with_order_hint_test },
 #endif  // CONFIG_F356_SEF_DOH
+  { AV2E_SET_MULTI_SEQ_HEADER_TEST, ctrl_set_multi_seq_header_test },
   { AV2E_SET_NUM_TG, ctrl_set_num_tg },
   { AV2E_SET_MTU, ctrl_set_mtu },
   { AV2E_SET_TIMING_INFO_TYPE, ctrl_set_timing_info_type },

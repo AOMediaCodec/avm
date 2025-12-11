@@ -5024,6 +5024,13 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
     current_frame->key_frame_number += current_frame->frame_number;
     current_frame->frame_number = 0;
   }
+
+  if (cpi->oxcf.kf_cfg.key_freq_min == 0 &&
+      cpi->oxcf.kf_cfg.key_freq_max == 0 &&
+      cpi->oxcf.unit_test_cfg.multi_seq_header_test)
+    cm->seq_params.seq_header_id =
+        current_frame->key_frame_number % MAX_SEQ_NUM;
+
 #if CONFIG_F024_KEYOBU
   cm->current_frame.cm_obu_type = frame_params->frame_params_obu_type;
 #endif  // CONFIG_F024_KEYOBU

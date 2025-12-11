@@ -8434,11 +8434,6 @@ static int read_show_existing_frame(AV2Decoder *pbi,
 #endif
   cm->show_existing_frame = 1;
   init_bru_params(cm);
-  if (pbi->sequence_header_changed) {
-    avm_internal_error(
-        &cm->error, AVM_CODEC_CORRUPT_FRAME,
-        "New sequence header starts with a show_existing_frame.");
-  }
   // Show an existing frame directly.
   const int existing_frame_idx =
 #if CONFIG_F024_KEYOBU
@@ -8723,12 +8718,16 @@ static void activate_layer_configuration_record(AV2Decoder *pbi,
 #endif  // CONFIG_LCR_ID_IN_SH
 
 #if CONFIG_CWG_E242_SEQ_HDR_ID
-static void activate_sequence_header(AV2Decoder *pbi,
+static void handle_sequence_header(AV2Decoder *pbi,
 #if CONFIG_F024_KEYOBU
-                                     OBU_TYPE obu_type,
+                                   OBU_TYPE obu_type,
 #endif
-                                     int seq_header_id) {
+                                   int seq_header_id) {
   AV2_COMMON *const cm = &pbi->common;
+  // TODO: make sure pbi->random_accessed is correctly assigned
+  bool activate_sequence_header =
+      (obu_type == OBU_CLK || obu_type == OBU_OLK) &&
+      pbi->is_first_layer_decoded;
   bool seq_header_found = false;
   for (int i = 0; i < pbi->seq_header_count; i++) {
     if (pbi->seq_list[i].seq_header_id == seq_header_id) {
@@ -8741,7 +8740,54 @@ static void activate_sequence_header(AV2Decoder *pbi,
     avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
                        "No sequence header found with id = %d", seq_header_id);
   }
+  if (pbi->decoding_first_frame &&
+      !(obu_type == OBU_CLK || obu_type == OBU_OLK)) {
+    avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
+                       "the first frame of a bitstream shall be a keyframe");
+  }
+  if (!activate_sequence_header) {
+    if (!are_seq_headers_consistent(&cm->seq_params, pbi->active_seq)) {
+      avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
+                         "Sequence Header changed at %s",
+                         avm_obu_type_to_string(obu_type));
+    }
+    return;
+  }
 
+  if (obu_type == OBU_OLK && !pbi->random_accessed) {
+    if (!are_seq_headers_consistent(&cm->seq_params, pbi->active_seq)) {
+      avm_internal_error(
+          &cm->error, AVM_CODEC_CORRUPT_FRAME,
+          "Sequence Header changed at OBU_OLK when pbi->random_accessed %d",
+          pbi->random_accessed);
+    }
+  }
+  // TODO: is reset_mfh_valid() needed at certain point?
+  cm->seq_params = *pbi->active_seq;
+
+  if (obu_type == OBU_CLK) {
+    reset_ref_frame_map(cm);
+  }
+
+  // check bitstream conformance if sequence header is parsed
+  // bitstream constraint for tlayer_id
+  if (cm->tlayer_id > cm->seq_params.max_tlayer_id) {
+    avm_internal_error(
+        &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+        "Inconsistent tlayer_id information: OBU header indicates "
+        "tlayer_id is "
+        "%d, yet max_tlayer_id in the current active sequence header is %d.",
+        cm->tlayer_id, cm->seq_params.max_tlayer_id);
+  }
+  // bitstream constraint for mlayer_id
+  if (cm->mlayer_id > cm->seq_params.max_mlayer_id) {
+    avm_internal_error(
+        &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+        "Inconsistent mlayer_id information: OBU header indicates "
+        "mlayer_id is "
+        "%d, yet max_mlayer_id in the sequence header is %d.",
+        cm->mlayer_id, cm->seq_params.max_mlayer_id);
+  }
 #if CONFIG_CWG_F270_CI_OBU
   if (!pbi->ci_params_received) {
     cm->ci_params.color_info.color_description_idc = 0;
@@ -8761,24 +8807,6 @@ static void activate_sequence_header(AV2Decoder *pbi,
     cm->ci_params.ci_extension_present_flag = 0;
   }
 #endif  // CONFIG_CWG_F270_CI_OBU
-
-#if CONFIG_F024_KEYOBU
-  if (obu_type == OBU_CLK || obu_type == OBU_OLK)
-#endif
-    cm->seq_params = *pbi->active_seq;
-#if CONFIG_F024_KEYOBU
-  else {
-    if (!are_seq_headers_consistent(&cm->seq_params, pbi->active_seq)) {
-      avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
-                         "Sequence Header changed");
-    }
-  }
-#endif  // CONFIG_F024_KEYOBU
-#if CONFIG_F024_KEYOBU
-  if (obu_type == OBU_CLK) {
-    reset_ref_frame_map(cm);
-  }
-#endif  // CONFIG_F024_KEYOBU
 
 #if CONFIG_F255_QMOBU
   const int num_planes = av2_num_planes(cm);
@@ -8828,39 +8856,6 @@ static int is_reference_mapping_consistent(
     }
   }
   return 1;
-}
-// Called if the cur_mfh_id syntax element in uncompressed_header() is zero.
-static void handle_zero_cur_mfh_id(AV2Decoder *pbi,
-#if CONFIG_F024_KEYOBU
-                                   OBU_TYPE obu_type,
-#endif
-                                   struct avm_read_bit_buffer *rb) {
-  AV2_COMMON *const cm = &pbi->common;
-  const SequenceHeader *const seq_params = &cm->seq_params;
-#if CONFIG_CWG_E242_SEQ_HDR_ID
-  uint32_t seq_header_id_in_frame_header = avm_rb_read_uvlc(rb);
-  if (seq_header_id_in_frame_header >= MAX_SEQ_NUM) {
-    avm_internal_error(
-        &cm->error, AVM_CODEC_CORRUPT_FRAME,
-        "Unsupported Sequence Header ID in uncompressed_header()");
-  }
-  cm->mfh_params[cm->cur_mfh_id].mfh_seq_header_id =
-      (int)seq_header_id_in_frame_header;
-
-  activate_sequence_header(pbi,
-#if CONFIG_F024_KEYOBU
-                           obu_type,
-#endif
-                           cm->mfh_params[cm->cur_mfh_id].mfh_seq_header_id);
-#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
-  cm->mfh_params[cm->cur_mfh_id].mfh_frame_width = seq_params->max_frame_width;
-  cm->mfh_params[cm->cur_mfh_id].mfh_frame_height =
-      seq_params->max_frame_height;
-  cm->mfh_params[cm->cur_mfh_id].mfh_deblocking_filter_update_flag = 0;
-  for (int i = 0; i < 4; i++) {
-    cm->mfh_params[cm->cur_mfh_id].mfh_apply_deblocking_filter[i] = 0;
-  }
-  cm->mfh_valid[cm->cur_mfh_id] = true;
 }
 
 #if CONFIG_F322_OBUER_REFRESTRICT
@@ -8944,6 +8939,61 @@ static avm_codec_err_t avm_get_num_layers_from_operating_point_idc(
 }
 #endif  // CONFIG_CWG_F270_OPS
 
+// Called if the cm->cur_mfh_id is zero.
+static void handle_zero_cur_mfh_id(AV2_COMMON *const cm) {
+  const SequenceHeader *const seq_params = &cm->seq_params;
+  cm->mfh_params[cm->cur_mfh_id].mfh_frame_width = seq_params->max_frame_width;
+  cm->mfh_params[cm->cur_mfh_id].mfh_frame_height =
+      seq_params->max_frame_height;
+  cm->mfh_params[cm->cur_mfh_id].mfh_deblocking_filter_update_flag = 0;
+  for (int i = 0; i < 4; i++) {
+    cm->mfh_params[cm->cur_mfh_id].mfh_apply_deblocking_filter[i] = 0;
+  }
+  cm->mfh_valid[cm->cur_mfh_id] = true;
+}
+
+static int setup_multiframe_header_id(AV2_COMMON *const cm, OBU_TYPE obu_type,
+                                      struct avm_read_bit_buffer *rb) {
+#if CONFIG_CWG_E242_MFH_ID_UVLC
+  uint32_t cur_mfh_id = obu_type == OBU_BRIDGE_FRAME ? 0 : avm_rb_read_uvlc(rb);
+#else
+  uint32_t cur_mfh_id =
+      obu_type == OBU_BRIDGE_FRAME ? 0 : avm_rb_read_literal(rb, 4);
+#endif  // CONFIG_CWG_E242_MFH_ID_UVLC
+
+  if (cur_mfh_id >= MAX_MFH_NUM) {
+    avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
+                       "multi-frame header id is greater than or equal to "
+                       "the maximum multi-frame header number");
+  }
+  return cur_mfh_id;
+}
+
+static int setup_sequence_header_id(AV2_COMMON *const cm,
+                                    struct avm_read_bit_buffer *rb) {
+  int seq_header_id_in_frame_header = -1;
+  if (cm->cur_mfh_id == 0) {
+    seq_header_id_in_frame_header = avm_rb_read_uvlc(rb);
+    if (seq_header_id_in_frame_header >= MAX_SEQ_NUM) {
+      avm_internal_error(
+          &cm->error, AVM_CODEC_CORRUPT_FRAME,
+          "Unsupported Sequence Header ID in uncompressed_header()");
+    }
+    cm->mfh_params[cm->cur_mfh_id].mfh_seq_header_id =
+        (int)seq_header_id_in_frame_header;
+  } else {
+    if (!cm->mfh_valid[cm->cur_mfh_id]) {
+      avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
+                         "No multi-frame header with mfh_id %d",
+                         cm->cur_mfh_id);
+    }
+    seq_header_id_in_frame_header =
+        cm->mfh_params[cm->cur_mfh_id].mfh_seq_header_id;
+  }
+
+  return seq_header_id_in_frame_header;
+}
+
 // On success, returns 0. On failure, calls avm_internal_error and does not
 // return.
 static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
@@ -8993,58 +9043,24 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   }
 #endif  // CONFIG_CWG_F270_OPS
 
-#if !CONFIG_CWG_E242_SEQ_HDR_ID
-  if (!pbi->sequence_header_ready) {
-    avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
-                       "No sequence header");
-  }
-#endif  // !CONFIG_CWG_E242_SEQ_HDR_ID
+  cm->cur_mfh_id = setup_multiframe_header_id(cm, obu_type, rb);
 
-  cm->bridge_frame_info.bridge_frame_ref_idx = INVALID_IDX;
-  if (cm->bridge_frame_info.is_bridge_frame) {
-    uint32_t cur_mfh_id = 0;
-    cm->cur_mfh_id = (int)cur_mfh_id;
-    handle_zero_cur_mfh_id(pbi, obu_type, rb);
+  int seq_header_id_for_frame_header = setup_sequence_header_id(cm, rb);
+  assert(seq_header_id_for_frame_header >= 0);
+
+  handle_sequence_header(pbi,
+#if CONFIG_F024_KEYOBU
+                         obu_type,
+#endif
+                         seq_header_id_for_frame_header);
+
+  if (cm->cur_mfh_id == 0) handle_zero_cur_mfh_id(cm);
+
+  if (obu_type == OBU_BRIDGE_FRAME) {
     cm->bridge_frame_info.bridge_frame_ref_idx =
         avm_rb_read_literal(rb, seq_params->ref_frames_log2);
-#if CONFIG_F322_OBUER_REFRESTRICT
-    if (pbi->restricted_predition &&
-        cm->ref_frame_map[cm->bridge_frame_info.bridge_frame_ref_idx] != NULL &&
-        cm->ref_frame_map[cm->bridge_frame_info.bridge_frame_ref_idx]
-            ->is_restricted_ref) {
-      avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
-                         "Invalid Brdige Ref: restricted reference buffer");
-    }
-#endif  // CONFIG_F322_OBUER_REFRESTRICT
   } else {
-#if CONFIG_CWG_E242_MFH_ID_UVLC
-    uint32_t cur_mfh_id = avm_rb_read_uvlc(rb);
-    if (cur_mfh_id >= MAX_MFH_NUM) {
-      avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
-                         "multi-frame header id is greater than or equal to "
-                         "the maximum multi-frame header number");
-    }
-    cm->cur_mfh_id = (int)cur_mfh_id;
-#else
-    cm->cur_mfh_id = avm_rb_read_literal(rb, 4);
-#endif  // CONFIG_CWG_E242_MFH_ID_UVLC
-    if (cm->cur_mfh_id == 0) {
-      handle_zero_cur_mfh_id(pbi, obu_type, rb);
-    } else {
-      if (!cm->mfh_valid[cm->cur_mfh_id]) {
-        avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
-                           "No multi-frame header with mfh_id %d",
-                           cm->cur_mfh_id);
-      }
-#if CONFIG_CWG_E242_SEQ_HDR_ID
-      activate_sequence_header(
-          pbi,
-#if CONFIG_F024_KEYOBU
-          obu_type,
-#endif
-          cm->mfh_params[cm->cur_mfh_id].mfh_seq_header_id);
-#endif  // CONFIG_CWG_E242_SEQ_HDR_ID
-    }
+    cm->bridge_frame_info.bridge_frame_ref_idx = INVALID_IDX;
   }
 
 #if CONFIG_LCR_ID_IN_SH
@@ -9074,13 +9090,11 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     cm->show_frame = 1;
     cm->cur_frame->showable_frame = 0;
     current_frame->frame_type = KEY_FRAME;
-    if (pbi->sequence_header_changed) {
-      // This is the start of a new coded video sequence.
-      pbi->sequence_header_changed = 0;
-      pbi->decoding_first_frame = 1;
-      reset_frame_buffers(cm);
-    } else if (pbi->stream_switched) {
+    if (pbi->stream_switched) {
       pbi->stream_switched = 0;
+      reset_frame_buffers(cm);
+    } else {
+      pbi->decoding_first_frame = 1;
       reset_frame_buffers(cm);
     }
     cm->cur_frame->frame_output_done = 0;
@@ -9116,10 +9130,6 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
         unlock_buffer_pool(pool);
       }
       pbi->olk_encountered = 1;
-      if (pbi->sequence_header_changed) {
-        avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
-                           "New sequence header starts with an OLK.");
-      }
     } else
 #endif  // CONFIG_F024_KEYOBU
       if (obu_type == OBU_RAS_FRAME || obu_type == OBU_SWITCH) {
@@ -9171,6 +9181,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
             avm_rb_read_literal(rb, seq_params->number_of_bits_for_lt_frame_id);
       }
     }
+
 #if CONFIG_F322_OBUER_REFRESTRICT
     if (current_frame->frame_type == KEY_FRAME) {
       pbi->restricted_predition = 0;
@@ -9179,31 +9190,11 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
           cm->ref_frame_map[i]->is_restricted_ref = false;
     }
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
-    if (pbi->sequence_header_changed) {
-#if CONFIG_F024_KEYOBU
-      if (obu_type == OBU_CLK)
-#else
-      if (current_frame->frame_type == KEY_FRAME)
-#endif
-      {
-        // This is the start of a new coded video sequence.
-        pbi->sequence_header_changed = 0;
-        pbi->decoding_first_frame = 1;
-        reset_frame_buffers(cm);
-      } else {
-#if CONFIG_F024_KEYOBU
-        avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
-                           "Sequence header has changed without a CLK.");
-#else
-        avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
-                           "Sequence header has changed without a keyframe.");
-#endif
-      }
-    } else if (pbi->stream_switched) {
+
+    if (pbi->stream_switched) {
       pbi->stream_switched = 0;
       reset_frame_buffers(cm);
     }
-
     if (cm->bridge_frame_info.is_bridge_frame) {
       cm->show_frame = 0;
     } else {
