@@ -8607,7 +8607,7 @@ static int av1_pack_bitstream_internal(AV1_COMP *const cpi, uint8_t *dst,
     }
   }
 
-  // write sequence header obu if KEY_FRAME, preceded by 4-byte size
+  // write sequence header obu if obu type is CLK, preceded by 4-byte size
 #if CONFIG_F024_KEYOBU
   if (cm->current_frame.cm_obu_type == OBU_CLK)
 #else
