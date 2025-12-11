@@ -23,7 +23,6 @@ struct ObuDecInputContext {
   uint8_t *buffer;
   size_t buffer_capacity;
   size_t bytes_buffered;
-  int has_temporal_delimiter;
 };
 
 // Returns 1 when file data starts (if Annex B stream, after reading the
@@ -31,6 +30,16 @@ struct ObuDecInputContext {
 // OBU as defined by Section 5 of the AV2 bitstream specification.
 int file_is_obu(struct ObuDecInputContext *obu_ctx);
 
+#if CONFIG_F160_TD_FIX1033
+// Reads one frame unit from the input file. Returns 0 when a frame unit is
+// successfully read, 1 when end of file is reached, and less than 0 when an
+// error occurs. Stores frame unit data in 'buffer'. Reallocs buffer to match
+// frame unit size, returns buffer capacity via 'buffer_size', and returns size
+// of buffered data via 'bytes_read'. this buffer includes non video coded layer
+// units such as parameter sets, metadata, QM and FGM obus.
+int obudec_read_frame_unit(struct ObuDecInputContext *obu_ctx, uint8_t **buffer,
+                           size_t *bytes_read, size_t *buffer_size);
+#else
 // Reads one Temporal Unit from the input file. Returns 0 when a TU is
 // successfully read, 1 when end of file is reached, and less than 0 when an
 // error occurs. Stores TU data in 'buffer'. Reallocs buffer to match TU size,
@@ -39,7 +48,7 @@ int file_is_obu(struct ObuDecInputContext *obu_ctx);
 int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
                               uint8_t **buffer, size_t *bytes_read,
                               size_t *buffer_size);
-
+#endif  // CONFIG_F160_TD_FIX1033
 void obudec_free(struct ObuDecInputContext *obu_ctx);
 
 #ifdef __cplusplus

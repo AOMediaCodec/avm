@@ -193,3 +193,24 @@ const char *avm_obu_type_to_string(OBU_TYPE type) {
   }
   return "<Invalid OBU Type>";
 }
+
+#if CONFIG_F160_TD_FIX1033 && CONFIG_F024_KEYOBU
+int is_single_tile_vcl_obu(OBU_TYPE obu_type) {
+  return obu_type == OBU_REGULAR_SEF || obu_type == OBU_LEADING_SEF ||
+         obu_type == OBU_REGULAR_TIP || obu_type == OBU_LEADING_TIP ||
+         obu_type == OBU_BRIDGE_FRAME;
+}
+int is_multi_tile_vcl_obu(OBU_TYPE obu_type) {
+  return obu_type == OBU_REGULAR_TILE_GROUP ||
+         obu_type == OBU_LEADING_TILE_GROUP || obu_type == OBU_SWITCH ||
+         obu_type == OBU_RAS_FRAME || obu_type == OBU_CLK ||
+         obu_type == OBU_OLK;
+}
+int is_tuhead_non_vcl_obu(OBU_TYPE obu_type) {
+  return obu_type == OBU_SEQUENCE_HEADER ||
+         obu_type == OBU_TEMPORAL_DELIMITER ||
+         obu_type == OBU_LAYER_CONFIGURATION_RECORD ||
+         obu_type == OBU_ATLAS_SEGMENT || obu_type == OBU_OPERATING_POINT_SET ||
+         obu_type == OBU_MSDO;
+}
+#endif  // CONFIG_F160_TD_FIX1033 && CONFIG_F024_KEYOBU

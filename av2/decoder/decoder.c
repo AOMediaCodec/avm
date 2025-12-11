@@ -253,6 +253,16 @@ AV2Decoder *av2_decoder_create(BufferPool *const pool) {
   pbi->restricted_predition = 0;
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
 
+#if CONFIG_F160_TD_FIX1033
+  memset(&pbi->last_frame_unit, -1, sizeof(pbi->last_frame_unit));
+  memset(&pbi->last_displayable_frame_unit, -1,
+         sizeof(pbi->last_displayable_frame_unit));
+  pbi->is_random_access_frame_unit = 1;
+  for (int i = 0; i < MAX_NUM_MLAYERS; i++) {
+    pbi->num_displayable_frame_unit[i] = 0;
+  }
+#endif
+
 #if CONFIG_ACCOUNTING
   pbi->acct_enabled = 1;
   avm_accounting_init(&pbi->accounting);
@@ -877,11 +887,16 @@ int av2_receive_compressed_data(AV2Decoder *pbi, size_t size,
     if (ref_buf != NULL) ref_buf->buf.corrupted = 1;
   }
 #if CONFIG_F024_KEYOBU
-  // Flush the DPB before CLK and before OLK
-  // This should be done before new fb is assigned to current frame to make all
-  // the DPB available
-  if (av2_is_random_accessed_temporal_unit(source, size)) {
-    if (pbi->is_first_layer_decoded) flush_remaining_frames(pbi);
+  // This process is placed here to set all the DPB available before new fb is
+  // assigned to cur_frame since is_random_access_frame_unit may be -1,
+  // is_random_access_frame_unit == 1 is checked explicitly
+#if CONFIG_F160_TD_FIX1033
+  if (pbi->is_random_access_frame_unit == 1)
+#else
+  if (av2_is_random_accessed_temporal_unit(source, size))
+#endif
+  {
+    flush_remaining_frames(pbi);
   }
 #endif
   check_ref_count_status_dec(pbi);
@@ -922,6 +937,7 @@ int av2_receive_compressed_data(AV2Decoder *pbi, size_t size,
     }
   }
 #endif
+
   if (frame_decoded < 0) {
     assert(cm->error.error_code != AVM_CODEC_OK);
     release_current_frame(pbi);

@@ -803,6 +803,120 @@ static avm_codec_err_t decoder_inspect(avm_codec_alg_priv_t *ctx,
 }
 #endif
 
+#if CONFIG_F160_TD_FIX1033
+// sets number of obus in this data chunk including 1 frame unit (that may
+// consist of multiple tile groups)
+// sets random_access_frame_unit to flush the remaining frames in the reference
+// list in get_...()
+static void check_random_access_frame_unit(struct AV2Decoder *pbi,
+                                           const uint8_t *data,
+                                           uint64_t data_sz) {
+  pbi->num_obus_with_frame_unit = 0;
+  pbi->is_random_access_frame_unit = -1;
+  bool start_of_temporal_unit = true;
+  bool has_key_frames = false;
+  int frame_unit_mlayer_id = -1;
+  const uint8_t *data_read = data;
+  ObuHeader obu_header;
+  memset(&obu_header, 0, sizeof(obu_header));
+  while (data_read < data + data_sz) {
+    size_t payload_size = 0;
+    size_t bytes_read = 0;
+    avm_read_obu_header_and_size(data_read, data_sz, &obu_header, &payload_size,
+                                 &bytes_read);
+    pbi->num_obus_with_frame_unit++;
+    data_read += bytes_read + payload_size;
+    has_key_frames |=
+        (obu_header.type == OBU_CLK);  // || obu_header.type == OBU_OLK);
+    if (is_single_tile_vcl_obu(obu_header.type) ||
+        is_multi_tile_vcl_obu(obu_header.type)) {
+      if (frame_unit_mlayer_id == -1)
+        frame_unit_mlayer_id = obu_header.obu_mlayer_id;
+      else {
+        assert(frame_unit_mlayer_id == obu_header.obu_mlayer_id);
+      }
+    }
+    start_of_temporal_unit = (is_tuhead_non_vcl_obu(obu_header.type));
+  }
+
+  pbi->is_random_access_frame_unit = 0;
+  // random access frame unit of a temporal unit is the first CLK in the
+  // temporal unit that contains a configuration records. the first CLK implies
+  // a CLK with the lowest mlayer_id (not a CLK with mlayer_id=0) since
+  // mlayer_id is in ascending order.
+  // 1. if it is THE beginning of the bitstream, nothing to flush - it is okay
+  // to keep is_random_access_frame_unit true
+  if (pbi->last_frame_unit.order_hint == -1) {
+    if (!has_key_frames) assert(has_key_frames);
+    pbi->is_random_access_frame_unit = has_key_frames;
+    start_of_temporal_unit = true;
+  }
+  if (has_key_frames) {
+    // 2. this frame unit has a configuration records and a CLK, then it is a
+    // start of TU for sure
+    pbi->is_random_access_frame_unit = has_key_frames && start_of_temporal_unit;
+
+    // 3. if it doesnot have any configuration records and it has a CLK
+    // 3-1. if it is the first FU
+    // 3-2. if it is second+ FU that follows
+    if (pbi->last_frame_unit.order_hint != -1) {
+      // 3-2-1. follws non-CLK-FU
+      pbi->is_random_access_frame_unit |=
+          (has_key_frames && pbi->last_frame_unit.obu_type != OBU_CLK);
+      // 3-2-2. follows another CLK FU and the mlayer_id is smaller or equal
+      // Note this implementation assumes the bitstream complies the
+      // specification at this point. The obu order(layer_id+oh rule) will be
+      // checked later
+      pbi->is_random_access_frame_unit |=
+          (has_key_frames && pbi->last_frame_unit.obu_type == OBU_CLK &&
+           (frame_unit_mlayer_id <= pbi->last_frame_unit.mlayer_id));
+    }
+    // Note: the test decoder called at the encoder doesnot need to use random
+    // access points
+  }
+}
+static void set_last_frame_unit(struct AV2Decoder *pbi) {
+  struct obu_info current_frame_unit;
+  memset(&current_frame_unit, -1, sizeof(current_frame_unit));
+  for (int obu_idx = 0; obu_idx < pbi->num_obus_with_frame_unit; obu_idx++) {
+    if (pbi->obu_list[obu_idx].first_tile_group == 1) {
+      if (pbi->obu_list[obu_idx].showable_frame == 0 &&
+          pbi->last_frame_unit.showable_frame == 1) {
+        pbi->last_displayable_frame_unit = pbi->last_frame_unit;
+      }
+      pbi->last_frame_unit = pbi->obu_list[obu_idx];
+    }
+  }
+}
+static void reset_last_frame_unit(struct AV2Decoder *pbi, const uint8_t *data,
+                                  uint64_t data_sz) {
+  // NOTE: last_frame_unit and last_displayable_frame_unit should be reset to -1
+  // when the upcoming frame unit should not be compared with the previous frame
+  // unit such as the first frame of a new CVS.
+  bool start_of_temporal_unit = true;
+  const uint8_t *data_read = data;
+  ObuHeader obu_header;
+  memset(&obu_header, 0, sizeof(obu_header));
+  while (data_read < data + data_sz) {
+    size_t payload_size = 0;
+    size_t bytes_read = 0;
+    avm_read_obu_header_and_size(data_read, data_sz, &obu_header, &payload_size,
+                                 &bytes_read);
+    pbi->num_obus_with_frame_unit++;
+    data_read += bytes_read + payload_size;
+    start_of_temporal_unit = (is_tuhead_non_vcl_obu(obu_header.type)) &&
+                             obu_header.type != OBU_TEMPORAL_DELIMITER;
+    if (start_of_temporal_unit) break;
+  }
+
+  // TODO: should the s/w handle out-of-band sequence header for this case?
+  if (start_of_temporal_unit) {
+    memset(&pbi->last_frame_unit, -1, sizeof(pbi->last_frame_unit));
+    memset(&pbi->last_displayable_frame_unit, -1,
+           sizeof(pbi->last_displayable_frame_unit));
+  }
+}
+#endif  // CONFIG_F160_TD_FIX1033
 static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
                                       const uint8_t *data, size_t data_sz,
                                       void *user_priv) {
@@ -887,6 +1001,36 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
   const uint8_t *data_start = data;
   const uint8_t *data_end = data + data_sz;
 
+#if CONFIG_F160_TD_FIX1033
+  // checking the number of obus in this data chunk
+#if !CONFIG_INSPECTION
+  AVxWorker *const worker = ctx->frame_worker;
+  FrameWorkerData *const frame_worker_data = (FrameWorkerData *)worker->data1;
+#endif  // !CONFIG_INSPECTION
+
+  // reset last_frame_unit and last_displayable_frame_unit if needed
+  reset_last_frame_unit(frame_worker_data->pbi, data_start,
+                        (uint64_t)(data_end - data_start));
+
+  // Note:obu_list is placed in pbi instead of a local variable in
+  // avm_decode_frame_from_obus() due to the avm encoder that feeds multiple
+  // frame units to avm_codec_decode() to avoid multiple memory assignment.
+  // The input data has more than one frame unit unlike the stand alone decoder
+  // input data to have one frame unit. test_decoder_frame_unit_offset is
+  // required only for test-decoder invoked by the avm encoder.
+  check_random_access_frame_unit(frame_worker_data->pbi, data_start,
+                                 (uint64_t)(data_end - data_start));
+  frame_worker_data->pbi->obu_list = (struct obu_info *)malloc(
+      sizeof(struct obu_info) *
+      frame_worker_data->pbi->num_obus_with_frame_unit);
+  for (int obu_idx = 0;
+       obu_idx < frame_worker_data->pbi->num_obus_with_frame_unit; obu_idx++)
+    memset(&frame_worker_data->pbi->obu_list[obu_idx], -1,
+           sizeof(struct obu_info));
+  frame_worker_data->pbi->test_decoder_frame_unit_offset = 0;
+  for (int i = 0; i < MAX_NUM_MLAYERS; i++)
+    frame_worker_data->pbi->num_displayable_frame_unit[i] = 0;
+#endif  // CONFIG_F160_TD_FIX1033
   // Decode in serial mode.
   while (data_start < data_end) {
     uint64_t frame_size = (uint64_t)(data_end - data_start);
@@ -894,7 +1038,11 @@ static avm_codec_err_t decoder_decode(avm_codec_alg_priv_t *ctx,
     res = decode_one(ctx, &data_start, (size_t)frame_size, user_priv);
     if (res != AVM_CODEC_OK) return res;
   }
-
+#if CONFIG_F160_TD_FIX1033
+  set_last_frame_unit(frame_worker_data->pbi);
+  free(frame_worker_data->pbi->obu_list);
+  frame_worker_data->pbi->num_obus_with_frame_unit = 0;
+#endif  // CONFIG_F160_TD_FIX1033
   return res;
 }
 

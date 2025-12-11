@@ -273,6 +273,23 @@ static INLINE char const *get_component_name(int index) {
 }
 #endif
 
+#if CONFIG_F160_TD_FIX1033
+// this is a strcuture summarizes the crucial information of the obu for
+// checking the obu order
+struct obu_info {
+  OBU_TYPE obu_type;
+  int first_tile_group;
+  int show_frame;
+  // Note: if show_frame = 1, showble_frame = 1
+  int showable_frame;
+  int order_hint;
+  int mlayer_id;
+  int tlayer_id;
+  int xlayer_id;
+  int is_vcl;
+};
+#endif  // CONFIG_F160_TD_FIX1033
+
 typedef struct AV2Decoder {
   DecoderCodingBlock dcb;
 
@@ -448,6 +465,49 @@ typedef struct AV2Decoder {
   SequenceHeader seq_list_buf[AVM_MAX_NUM_STREAMS][MAX_SEQ_NUM];
   MultiFrameHeader mfh_params_buf[AVM_MAX_NUM_STREAMS][MAX_MFH_NUM];
 #if CONFIG_F024_KEYOBU
+#if CONFIG_F160_TD_FIX1033
+  /*!
+   * Indicates the number of obus signalled before the frame unit
+   * including the frame unit (that may consist of multiple tile group obus)
+   */
+  int num_obus_with_frame_unit;
+  /*!
+   * list of obus with a frame unit
+   * it should be noted that it may be bigger than it should be in the case that
+   * this decoder is invoked by the avm encoder
+   */
+  struct obu_info *obu_list;
+  /*!
+   * Used only when the avm encoder invokes test decoder and the avm encoder
+   * feeds multiple frame units to avm_codec_decode()
+   * test_decoder_frame_unit_offset is increased by number of obus including
+   * configuration records, qm and fgm obus and 1 frame unit that may consist of
+   * multiple obus
+   */
+  int test_decoder_frame_unit_offset;
+  /*!
+   * last_frame_unit contains obu_info of the last frame unit
+   * it is used to check the obu order validation
+   */
+  struct obu_info last_frame_unit;
+  /*!
+   * last_hidden_frame_unit contains obu_info of the last displayable frame unit
+   * it is used to check the obu order validation
+   */
+  struct obu_info last_displayable_frame_unit;
+  /*!
+   * Indicates the current data chunk being decoded in avm_codec_decode()
+   * includes a random access point, OBU_CLK or OBU_OLK and it is the
+   * start of a temporal unit that will require flush the remaining frames. -1
+   * indicates not derived yet
+   */
+  int is_random_access_frame_unit;
+  /*!
+   * Indicates the number of displayable_frame_unit  per layer between layer_id
+   * change num_displayable_frame_unit[i] can be maximum 1.   *
+   */
+  int num_displayable_frame_unit[MAX_NUM_MLAYERS];
+#endif
   /*!
    * Indicates an OLK is encountered in any layer
    * It is initialized as 0 and set 1 when the first olk is decoded and set 0

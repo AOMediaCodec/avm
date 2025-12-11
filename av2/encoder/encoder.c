@@ -4844,6 +4844,7 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
 #if CONFIG_F024_KEYOBU
   cm->current_frame.cm_obu_type = frame_params->frame_params_obu_type;
 #endif  // CONFIG_F024_KEYOBU
+
   current_frame->order_hint =
       current_frame->frame_number + frame_params->order_offset;
   current_frame->display_order_hint = current_frame->order_hint;
@@ -4951,9 +4952,16 @@ int av2_encode(AV2_COMP *const cpi, uint8_t *const dest,
     av2_get_ref_frames(cm, cur_frame_disp, 0, 0, cm->ref_frame_map_pairs);
     av2_get_ref_frames(cm, cur_frame_disp, 1, 0, cm->ref_frame_map_pairs);
   }
-
-  current_frame->absolute_poc =
-      current_frame->key_frame_number + current_frame->display_order_hint;
+#if CONFIG_F160_TD_FIX1033
+  if ((cpi->oxcf.kf_cfg.key_freq_min == 0 &&
+       cpi->oxcf.kf_cfg.key_freq_max == 0) ||
+      (cpi->oxcf.kf_cfg.key_freq_min == 1 &&
+       cpi->oxcf.kf_cfg.key_freq_max == 1))
+    current_frame->absolute_poc = current_frame->key_frame_number;
+  else
+#endif
+    current_frame->absolute_poc =
+        current_frame->key_frame_number + current_frame->display_order_hint;
   if (current_frame->frame_type == KEY_FRAME) {
     current_frame->long_term_id = 0;
   } else {
