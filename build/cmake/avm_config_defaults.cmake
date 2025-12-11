@@ -156,6 +156,8 @@ set_avm_config_var(CONFIG_CWG_F270_CI_OBU 1 "Use content interpretation OBU")
 
 set_avm_config_var(CONFIG_CWG_F270_OPS 1 "Add OPS and SH related changes")
 
+set_avm_config_var(CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING 1 "Modified signaling for immediate_output_picture and implicit_output_picture (replaces show_frame and showable_frame.")
+
 # Source of throughput analysis : CWG-B065
 set_avm_config_var(CONFIG_THROUGHPUT_ANALYSIS 0
                    "AV2 experiment flag to measure throughput.")

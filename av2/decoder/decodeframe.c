@@ -7941,17 +7941,26 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
                          "Still pictures must be coded as shown keyframes");
     }
+#if !CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
     if (cm->bridge_frame_info.is_bridge_frame) {
       cm->showable_frame = 0;
-    } else
+    } else {
       cm->showable_frame = current_frame->frame_type != KEY_FRAME;
+    }
+#endif  // !CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
     if (!cm->show_frame) {
       if (cm->bridge_frame_info.is_bridge_frame) {
         cm->showable_frame = 0;
       } else {
+#if !CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
         // See if this frame can be used as show_existing_frame in future
+#endif
         cm->showable_frame = avm_rb_read_bit(rb);
       }
+#if CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
+    } else {
+      cm->showable_frame = 0;
+#endif
     }
 
 #if !CONFIG_F024_KEYOBU

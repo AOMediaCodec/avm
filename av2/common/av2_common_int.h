@@ -316,7 +316,25 @@ typedef struct RefCntBuffer {
   int width;
   int height;
   WarpedMotionParams global_motion[INTER_REFS_PER_FRAME];
+#if CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
+  /*!
+   * TODO: rename this variable to "implicit_output_picture"
+   *
+   * Specifies whether the current picture will be output according to the
+   * output picture buffer process.
+   *
+   * implicit_output_picture equal to 1 specifies that the current picture
+   * will be output by the output frame buffers process. This picture can
+   * also be additionally output using the show_existing_frame mechanism.
+   *
+   * implicit_output_picture equal to 0 specifies that the current picture is
+   * not output using the output frame buffers process, but can be output
+   * using the show_existing_frame mechanism.
+   */
+  int showable_frame;
+#else
   int showable_frame;      // frame can be used as show existing frame in future
+#endif
   bool frame_output_done;  // 0: frame is not yet output 1: frame is already
                            // output
   int fgm_id;
@@ -2365,19 +2383,53 @@ typedef struct AV2Common {
    */
   RefFrameMapPair ref_frame_map_pairs[REF_FRAMES];
 
+#if CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
+  /*!
+   * TODO: rename this variable to "immediate_output_picture"
+   *
+   * Specifies whether the current picture is immediately queued for output
+   * or not after decoding.
+   *
+   * immediate_output_picture equal to 1 specifies that the current picture
+   * shall be immediately queued for output once decoded. This picture can
+   * also be additionally output using the show_existing_frame mechanism.
+   *
+   * immediate_output_picture equal to 0 specifies that the current picture
+   * should not be immediately queued for output and that the output of this
+   * picture depends on additional syntax elements in the bitstream.
+   */
+#else
   /*!
    * If true, this frame is actually shown after decoding.
    * If false, this frame is coded in the bitstream, but not shown. It is only
    * used as a reference for other frames coded later.
    */
+#endif
   int show_frame;
 
+#if CONFIG_CWG_F431_OUTPUT_PIC_SIGNALING
+  /*!
+   * TODO: rename this variable to "implicit_output_picture"
+   *
+   * Specifies whether the current picture will be output according to the
+   * output picture buffer process.
+   *
+   * implicit_output_picture equal to 1 specifies that the current picture
+   * will be output by the output frame buffers process. This picture can
+   * also be additionally output using the show_existing_frame mechanism.
+   *
+   * implicit_output_picture equal to 0 specifies that the current picture is
+   * not output using the output frame buffers process, but can be output
+   * using the show_existing_frame mechanism.
+   */
+#else
   /*!
    * If true, this frame can be used as a show-existing frame for other frames
    * coded later.
    * When 'show_frame' is true, this is always true for all non-keyframes.
    * When 'show_frame' is false, this value is transmitted in the bitstream.
    */
+#endif
   int showable_frame;
 #if CONFIG_F024_KEYOBU
   /*!
