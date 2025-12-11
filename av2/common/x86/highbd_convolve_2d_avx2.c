@@ -327,7 +327,7 @@ static INLINE void av2_highbd_convolve_2d_sr_specialized_avx2(
   else
     coeffs_y[0] = prepare_coeffs_bilinear(filter_params_y, subpel_y_qn);
 
-  for (int j = 0; j < w; j += 8) {
+  for (j = 0; j < w; j += 8) {
     /* Horizontal filter */
     if (tap_x == 8) {
       CONVOLVE_HORIZ_FILTER_8TAP
