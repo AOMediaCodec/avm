@@ -6665,7 +6665,8 @@ static size_t av2_write_frame_hash_metadata(
   avm_wb_write_literal(&wb, 0, 4);  // hash_type, 0 = md5
   avm_wb_write_literal(&wb, cpi->oxcf.tool_cfg.frame_hash_per_plane, 1);
   avm_wb_write_literal(&wb, !!grain_params, 1);
-  avm_wb_write_literal(&wb, 0, 2);
+  avm_wb_write_literal(&wb, img.monochrome, 1);  // is_monochrome
+  avm_wb_write_literal(&wb, 0, 1);               // reserved
   if (grain_params) {
     const int w_even = ALIGN_POWER_OF_TWO(img.d_w, 1);
     const int h_even = ALIGN_POWER_OF_TWO(img.d_h, 1);

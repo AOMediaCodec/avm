@@ -737,7 +737,8 @@ static int read_metadata_frame_hash(AV2Decoder *const pbi,
   const unsigned hash_type = avm_rb_read_literal(rb, 4);
   const unsigned per_plane = avm_rb_read_bit(rb);
   const unsigned has_grain = avm_rb_read_bit(rb);
-  avm_rb_read_literal(rb, 2);  // reserved
+  const unsigned is_monochrome = avm_rb_read_bit(rb);
+  avm_rb_read_literal(rb, 1);  // reserved
 
   // If hash_type is reserved for future use, ignore the entire OBU
   if (hash_type) return -1;
@@ -750,7 +751,9 @@ static int read_metadata_frame_hash(AV2Decoder *const pbi,
   frame_hash->per_plane = per_plane;
   frame_hash->has_grain = has_grain;
   if (per_plane) {
-    const int num_planes = av2_num_planes(cm);
+    const int num_planes = is_monochrome ? 1 : 3;
+    // Verify that is_monochrome matches the sequence header
+    assert(is_monochrome == cm->seq_params.monochrome);
     for (int i = 0; i < num_planes; ++i) {
       PlaneHash *plane = &frame_hash->plane[i];
       for (size_t j = 0; j < 16; ++j)
