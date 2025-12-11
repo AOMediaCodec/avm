@@ -977,6 +977,17 @@ class AV2Convolve2DHighbdCompoundTestLarge
       }
     }
   }
+  void SpeedTest() {
+    auto compound_params = GetCompoundParams();
+    for (int h_f = EIGHTTAP_REGULAR; h_f < INTERP_FILTERS_ALL; ++h_f) {
+      for (int v_f = EIGHTTAP_REGULAR; v_f < INTERP_FILTERS_ALL; ++v_f) {
+        if (h_f != v_f) continue;
+        ConvolveSpeed(static_cast<InterpFilter>(h_f),
+                      static_cast<InterpFilter>(v_f), 10, 10,
+                      compound_params.front());
+      }
+    }
+  }
 
  private:
   void TestConvolve(const InterpFilter h_f, const InterpFilter v_f,
@@ -996,6 +1007,69 @@ class AV2Convolve2DHighbdCompoundTestLarge
     DECLARE_ALIGNED(32, CONV_BUF_TYPE, test_conv_buf[MAX_SB_SQUARE]);
     Convolve(GetParam().TestFunction(), input1, input2, test, test_conv_buf,
              compound, h_f, v_f, sub_x, sub_y);
+
+    AssertOutputBufferEq(reference_conv_buf, test_conv_buf, width, height);
+    AssertOutputBufferEq(reference, test, width, height);
+  }
+
+  void ConvolveSpeed(const InterpFilter h_f, const InterpFilter v_f,
+                     const int sub_x, const int sub_y,
+                     const CompoundParam &compound) {
+    const BlockSize &block = GetParam().Block();
+    const int width = block.Width();
+    const int height = block.Height();
+    const uint16_t *input1 = FirstRandomInput12(GetParam());
+
+    DECLARE_ALIGNED(32, uint16_t, reference[MAX_SB_SQUARE]);
+    DECLARE_ALIGNED(32, CONV_BUF_TYPE, reference_conv_buf[MAX_SB_SQUARE]);
+
+    const InterpFilterParams *filter_params_x =
+        av2_get_interp_filter_params_with_block_size(h_f, width);
+    const InterpFilterParams *filter_params_y =
+        av2_get_interp_filter_params_with_block_size(v_f, height);
+    const int bit_depth = GetParam().BitDepth();
+
+    ConvolveParams conv_params_ref1 = GetConvolveParams(
+        0, reference_conv_buf, kOutputStride, bit_depth, compound);
+    ConvolveParams conv_params_ref2 = GetConvolveParams(
+        1, reference_conv_buf, kOutputStride, bit_depth, compound);
+
+    const int num_iters = 100000000 / (width * height);
+    avm_usec_timer timer;
+    avm_usec_timer_start(&timer);
+    for (int i = 0; i < num_iters; ++i) {
+      av2_highbd_dist_wtd_convolve_2d_c(input1, width, reference, kOutputStride,
+                                        width, height, filter_params_x,
+                                        filter_params_y, sub_x, sub_y,
+                                        &conv_params_ref1, bit_depth);
+      av2_highbd_dist_wtd_convolve_2d_c(input1, width, reference, kOutputStride,
+                                        width, height, filter_params_x,
+                                        filter_params_y, sub_x, sub_y,
+                                        &conv_params_ref2, bit_depth);
+    }
+    avm_usec_timer_mark(&timer);
+    const int time1 = static_cast<int>(avm_usec_timer_elapsed(&timer));
+
+    DECLARE_ALIGNED(32, uint16_t, test[MAX_SB_SQUARE]);
+    DECLARE_ALIGNED(32, CONV_BUF_TYPE, test_conv_buf[MAX_SB_SQUARE]);
+    ConvolveParams conv_params_mod1 =
+        GetConvolveParams(0, test_conv_buf, kOutputStride, bit_depth, compound);
+    ConvolveParams conv_params_mod2 =
+        GetConvolveParams(1, test_conv_buf, kOutputStride, bit_depth, compound);
+
+    avm_usec_timer_start(&timer);
+    for (int i = 0; i < num_iters; ++i) {
+      GetParam().TestFunction()(input1, width, test, kOutputStride, width,
+                                height, filter_params_x, filter_params_y, sub_x,
+                                sub_y, &conv_params_mod1, bit_depth);
+      GetParam().TestFunction()(input1, width, test, kOutputStride, width,
+                                height, filter_params_x, filter_params_y, sub_x,
+                                sub_y, &conv_params_mod2, bit_depth);
+    }
+    avm_usec_timer_mark(&timer);
+    const int time2 = static_cast<int>(avm_usec_timer_elapsed(&timer));
+    printf("%d - %d %3dx%-3d: ref: %d mod: %d (%3.2f)\n", h_f, v_f, width,
+           height, time1, time2, (double)time1 / time2);
 
     AssertOutputBufferEq(reference_conv_buf, test_conv_buf, width, height);
     AssertOutputBufferEq(reference, test, width, height);
@@ -1028,6 +1102,7 @@ class AV2Convolve2DHighbdCompoundTestLarge
 };
 
 TEST_P(AV2Convolve2DHighbdCompoundTestLarge, RunTest) { RunTest(); }
+TEST_P(AV2Convolve2DHighbdCompoundTestLarge, DISABLED_Speed) { SpeedTest(); }
 
 INSTANTIATE_TEST_SUITE_P(
     C, AV2Convolve2DHighbdCompoundTestLarge,
