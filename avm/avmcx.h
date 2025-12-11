@@ -1218,6 +1218,12 @@ enum avme_enc_control_id {
    */
   AV2E_SET_SEF_WITH_ORDER_HINT_TEST = 175,
 #endif
+  /*!\brief Signal multiple sequence headers that are the same as the one
+   * created
+   *
+   * \note This is used to test the case multiple sequence headers are signalled
+   */
+  AV2E_SET_MULTI_SEQ_HEADER_TEST = 176,
 };
 
 /*!\brief avm 1-D scaling mode
@@ -1461,6 +1467,9 @@ AVM_CTRL_USE_TYPE(AV2E_SET_FRAME_MULTI_QMATRIX_UNIT_TEST, unsigned int)
 AVM_CTRL_USE_TYPE(AV2E_SET_SEF_WITH_ORDER_HINT_TEST, unsigned int)
 #define AVM_CTRL_SET_SEF_WITH_ORDER_HINT_TEST
 #endif  // CONFIG_F356_SEF_DOH
+
+AVM_CTRL_USE_TYPE(AV2E_SET_MULTI_SEQ_HEADER_TEST, unsigned int)
+#define AVM_CTRL_SET_MULTI_SEQ_HEADER_TEST
 
 AVM_CTRL_USE_TYPE(AV2E_SET_NUM_TG, unsigned int)
 #define AVM_CTRL_AV2E_SET_NUM_TG

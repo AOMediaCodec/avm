@@ -331,8 +331,6 @@ typedef struct AV2Decoder {
   int acct_enabled;
   Accounting accounting;
 #endif
-  int sequence_header_ready;
-  int sequence_header_changed;
   int stream_switched;
 #if CONFIG_INSPECTION
   // Inspection callback at the end of each frame.
@@ -461,7 +459,13 @@ typedef struct AV2Decoder {
    */
   int olk_encountered;
   /*!
-   * Indicates if the frame is in the layer decoded first, decoder only
+   * Indicates the CLK or OLK is in the layer that is decoded first. This means
+   * the other layers with mlayer_id smaller than the current layer_id are
+   * dropped at the decoder it is set true when the decoder starts it is set
+   * false when THE first CLK is decoded regardless of its mlayer. it is reset
+   * true when a new sequence starts and a CLK is not decoded yet.
+   * TODO: is_first_layer_decoded may be able to be replaced with
+   * random_access_point
    */
   int is_first_layer_decoded;
   /*!
