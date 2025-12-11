@@ -835,6 +835,43 @@ void av2_highbd_dist_wtd_convolve_2d_copy_avx2(const uint16_t *src,
   }
 }
 
+DECLARE_ALIGNED(32, static const uint8_t,
+                shuffle_mask0[32]) = { 0, 1, 2, 3, 2, 3, 4, 5, 4, 5, 6,
+                                       7, 6, 7, 8, 9, 0, 1, 2, 3, 2, 3,
+                                       4, 5, 4, 5, 6, 7, 6, 7, 8, 9 };
+
+DECLARE_ALIGNED(32, static const uint8_t, shuffle_mask1[32]) = {
+  4, 5, 6, 7, 6, 7, 8, 9, 8, 9, 10, 11, 10, 11, 12, 13,
+  4, 5, 6, 7, 6, 7, 8, 9, 8, 9, 10, 11, 10, 11, 12, 13
+};
+
+static INLINE void dist_wtd_convolve_horiz_w4(
+    const uint16_t *src_ptr, int src_stride, const __m256i *const coeffs,
+    int im_h, int16_t *im_block, int im_stride, const __m256i *round_const_x,
+    const __m128i *round_shift_x) {
+  __m256i s[2];
+  for (int i = 0; i < im_h; i += 2) {
+    const __m256i row0 =
+        _mm256_loadu_si256((__m256i *)&src_ptr[i * src_stride]);
+    __m256i row1 = _mm256_set1_epi16(0);
+    if (i + 1 < im_h)
+      row1 = _mm256_loadu_si256((__m256i *)&src_ptr[(i + 1) * src_stride]);
+
+    const __m256i r0 = _mm256_permute2x128_si256(row0, row1, 0x20);
+
+    s[0] = _mm256_shuffle_epi8(r0, _mm256_load_si256((__m256i *)shuffle_mask0));
+    s[1] = _mm256_shuffle_epi8(r0, _mm256_load_si256((__m256i *)shuffle_mask1));
+
+    const __m256i res_0 = _mm256_madd_epi16(s[0], coeffs[0]);
+    const __m256i res_1 = _mm256_madd_epi16(s[1], coeffs[1]);
+    __m256i res = _mm256_add_epi32(res_0, res_1);
+    res =
+        _mm256_sra_epi32(_mm256_add_epi32(res, *round_const_x), *round_shift_x);
+    _mm256_store_si256((__m256i *)(im_block + i * im_stride),
+                       _mm256_packs_epi32(res, res));
+  }
+}
+
 void av2_highbd_dist_wtd_convolve_2d_avx2(
     const uint16_t *src, int src_stride, uint16_t *dst0, int dst_stride0, int w,
     int h, const InterpFilterParams *filter_params_x,
@@ -912,14 +949,20 @@ void av2_highbd_dist_wtd_convolve_2d_avx2(
 
   for (j = 0; j < w; j += 8) {
     /* Horizontal filter */
-    if (tap_x == 8) {
-      CONVOLVE_HORIZ_FILTER_8TAP
-    } else if (tap_x == 6) {
-      CONVOLVE_HORIZ_FILTER_6TAP
-    } else if (tap_x == 4) {
-      CONVOLVE_HORIZ_FILTER_4TAP
+    if (w == 4) {
+      assert(tap_x == 4);
+      dist_wtd_convolve_horiz_w4(src_ptr, src_stride, coeffs_x, im_h, im_block,
+                                 im_stride, &round_const_x, &round_shift_x);
     } else {
-      CONVOLVE_HORIZ_FILTER_2TAP
+      if (tap_x == 8) {
+        CONVOLVE_HORIZ_FILTER_8TAP
+      } else if (tap_x == 6) {
+        CONVOLVE_HORIZ_FILTER_6TAP
+      } else if (tap_x == 4) {
+        CONVOLVE_HORIZ_FILTER_4TAP
+      } else {
+        CONVOLVE_HORIZ_FILTER_2TAP
+      }
     }
 
     /* Vertical filter */
