@@ -12,8 +12,6 @@
 
 #include "av2/common/banding_metadata.h"
 
-#if CONFIG_BAND_METADATA
-
 #include <string.h>
 #include "avm_dsp/bitwriter_buffer.h"
 #include "avm_dsp/bitreader_buffer.h"
@@ -187,5 +185,3 @@ int avm_img_add_banding_hints_metadata(
   return avm_img_add_metadata(img, OBU_METADATA_TYPE_BANDING_HINTS,
                               payload_buffer, payload_size, insert_flag);
 }
-
-#endif  // CONFIG_BAND_METADATA

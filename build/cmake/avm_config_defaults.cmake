@@ -257,8 +257,6 @@ set_avm_config_var(
   "Encoder only flag to configure encoder to enable mixed lossy/lossless coding"
 )
 
-set_avm_config_var(CONFIG_BAND_METADATA 1 "Enable banding hints metadata.")
-
 set_avm_config_var(
   CONFIG_DISABLE_CROSS_FRAME_CDF_INIT 1
   "Introduce frame level flag for disabling cross frame CDF initialization.")

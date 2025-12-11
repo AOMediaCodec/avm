@@ -17,9 +17,7 @@
 
 #include "avm/avm_encoder.h"
 #include "avm_dsp/avm_dsp_common.h"
-#if CONFIG_BAND_METADATA
 #include "av2/common/banding_metadata.h"
-#endif  // CONFIG_BAND_METADATA
 #include "avm_dsp/binary_codes_writer.h"
 #include "avm_dsp/bitwriter_buffer.h"
 #include "avm_mem/avm_mem.h"
@@ -8442,7 +8440,6 @@ static void set_multi_frame_header_with_keyframe(AV2_COMP *cpi,
 }
 #endif  // CONFIG_CWG_E242_PARSING_INDEP
 
-#if CONFIG_BAND_METADATA
 size_t av2_write_banding_hints_metadata(
     AV2_COMP *const cpi, uint8_t *dst,
     const avm_banding_hints_metadata_t *const banding_metadata) {
@@ -8498,7 +8495,6 @@ size_t av2_write_banding_hints_metadata(
 
   return total_bytes_written;
 }
-#endif  // CONFIG_BAND_METADATA
 
 // This function actually writes to the bistream. The av2_pack_bitstream()
 // function is a thin wrapper around this function.

@@ -19,8 +19,6 @@
 extern "C" {
 #endif
 
-#if CONFIG_BAND_METADATA
-
 #define MAX_BAND_COMPONENTS 3
 #define MAX_BAND_UNITS_ROWS 32
 #define MAX_BAND_UNITS_COLS 32
@@ -106,8 +104,6 @@ struct AV2_COMP;
 size_t av2_write_banding_hints_metadata(
     struct AV2_COMP *const cpi, uint8_t *dst,
     const avm_banding_hints_metadata_t *const banding_metadata);
-
-#endif  // CONFIG_BAND_METADATA
 
 #ifdef __cplusplus
 }

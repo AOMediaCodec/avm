@@ -13,9 +13,7 @@
 #include <assert.h>
 
 #include "config/avm_config.h"
-#if CONFIG_BAND_METADATA
 #include "av2/common/banding_metadata.h"
-#endif  // CONFIG_BAND_METADATA
 #include "config/avm_scale_rtcd.h"
 
 #include "avm/avm_codec.h"
@@ -910,7 +908,6 @@ static size_t read_metadata_hdr_mdcv(AV2Decoder *const pbi, const uint8_t *data,
   return kMdcvPayloadSize;
 }
 
-#if CONFIG_BAND_METADATA
 // On success, returns the number of bytes read from 'data'. On failure, calls
 // avm_internal_error() and does not return.
 static size_t read_metadata_banding_hints(AV2Decoder *const pbi,
@@ -929,7 +926,6 @@ static size_t read_metadata_banding_hints(AV2Decoder *const pbi,
 
   return sz;
 }
-#endif  // CONFIG_BAND_METADATA
 
 #if CONFIG_ICC_METADATA
 // On success, returns the number of bytes read from 'data'. On failure, calls
@@ -1152,12 +1148,8 @@ static size_t read_metadata(AV2Decoder *pbi, const uint8_t *data, size_t sz)
   known_metadata_type |= metadata_type == OBU_METADATA_TYPE_TEMPORAL_POINT_INFO;
 #endif  // CONFIG_CWG_F430
   if (!known_metadata_type)
-#else  // CONFIG_ICC_METADATA
-#if CONFIG_BAND_METADATA
+#else   // CONFIG_ICC_METADATA
   if (metadata_type == 0 || metadata_type >= 8)
-#else
-  if (metadata_type == 0 || metadata_type >= 7)
-#endif  // CONFIG_BAND_METADATA
 #endif  // CONFIG_ICC_METADATA
   {
 #if !CONFIG_METADATA
@@ -1202,7 +1194,6 @@ static size_t read_metadata(AV2Decoder *pbi, const uint8_t *data, size_t sz)
     }
 #endif  // !CONFIG_METADATA
     return sz;
-#if CONFIG_BAND_METADATA
   } else if (metadata_type == OBU_METADATA_TYPE_BANDING_HINTS) {
 #if !CONFIG_METADATA
     size_t bytes_read =
@@ -1216,7 +1207,6 @@ static size_t read_metadata(AV2Decoder *pbi, const uint8_t *data, size_t sz)
     }
     return sz;
 #endif  // !CONFIG_METADATA
-#endif  // CONFIG_BAND_METADATA
 #if CONFIG_SCAN_TYPE_METADATA
   } else if (metadata_type == OBU_METADATA_TYPE_SCAN_TYPE) {
     struct avm_read_bit_buffer rb;
@@ -1552,7 +1542,6 @@ static size_t read_metadata_short(AV2Decoder *pbi, const uint8_t *data,
       }
     }
     return sz;
-#if CONFIG_BAND_METADATA
   } else if (metadata_type == OBU_METADATA_TYPE_BANDING_HINTS) {
     size_t bytes_read =
         type_length +
@@ -1562,7 +1551,6 @@ static size_t read_metadata_short(AV2Decoder *pbi, const uint8_t *data,
       return 0;
     }
     return sz;
-#endif  // CONFIG_BAND_METADATA
 #if CONFIG_SCAN_TYPE_METADATA
   } else if (metadata_type == OBU_METADATA_TYPE_SCAN_TYPE) {
     const size_t kMinScanTypeHeaderSize = 1;

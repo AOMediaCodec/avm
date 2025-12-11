@@ -129,11 +129,9 @@ list(APPEND AVM_AV2_ENCODER_SOURCES "${AVM_ROOT}/av2/encoder/pickccso.c"
 list(APPEND AVM_AV2_COMMON_SOURCES "${AVM_ROOT}/av2/common/bru.c"
      "${AVM_ROOT}/av2/common/bru.h")
 
-if(CONFIG_BAND_METADATA)
-  list(APPEND AVM_AV2_COMMON_SOURCES
-       "${AVM_ROOT}/av2/common/banding_metadata.c"
-       "${AVM_ROOT}/av2/common/banding_metadata.h")
-endif()
+list(APPEND AVM_AV2_COMMON_SOURCES
+     "${AVM_ROOT}/av2/common/banding_metadata.c"
+     "${AVM_ROOT}/av2/common/banding_metadata.h")
 
 list(APPEND AVM_AV2_ENCODER_SOURCES "${AVM_ROOT}/av2/encoder/trellis_quant.c"
      "${AVM_ROOT}/av2/encoder/trellis_quant.h")

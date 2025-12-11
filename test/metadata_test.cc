@@ -478,7 +478,6 @@ TEST(MetadataTest, ReadMetadatasFromImage) {
   avm_img_metadata_array_free(image.metadata);
 }
 
-#if CONFIG_BAND_METADATA
 #include "av2/common/banding_metadata.h"
 
 TEST(MetadataTest, BandingHintsMetadata) {
@@ -642,4 +641,3 @@ TEST(MetadataTest, BandingHintsImageMetadata) {
 
   avm_img_metadata_array_free(image.metadata);
 }
-#endif  // CONFIG_BAND_METADATA
