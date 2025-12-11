@@ -70,6 +70,8 @@ set_avm_config_var(CONFIG_F322_OBUER_REFRESTRICT 1
 
 set_avm_config_var(CONFIG_F024_KEYOBU 1 "Use Key OBUs.")
 
+set_avm_config_var(CONFIG_F446_SEF_FGM 1 "Signal film grain parameters for OBU_SEF")
+
 #
 # Variables in this section can be set from the CMake command line or from
 # within the CMake GUI. The variables control libavm features.

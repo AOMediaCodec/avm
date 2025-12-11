@@ -5831,6 +5831,7 @@ static void setup_film_grain(AV2Decoder *pbi, struct avm_read_bit_buffer *rb) {
   AV2_COMMON *const cm = &pbi->common;
   const SequenceHeader *const seq_params = &cm->seq_params;
   memset(&cm->film_grain_params, 0, sizeof(cm->film_grain_params));
+  // NOTE: show_frame is 1 when cm->show_existing_frame
   if (seq_params->film_grain_params_present &&
       (cm->show_frame || cm->showable_frame)) {
     avm_film_grain_t *pars = &cm->film_grain_params;
@@ -7342,7 +7343,12 @@ static int read_show_existing_frame(AV2Decoder *pbi,
 #if !CONFIG_F024_KEYOBU
   if (pbi->reset_decoder_state) frame_to_show->showable_frame = 0;
 #endif  // !CONFIG_F024_KEYOBU
+#if CONFIG_F446_SEF_FGM
+  setup_film_grain(pbi, rb);
+#else
   cm->film_grain_params = frame_to_show->film_grain_params;
+#endif // CONFIG_F446_SEF_FGM
+
 #if !CONFIG_F024_KEYOBU
   if (pbi->reset_decoder_state) {
     show_existing_frame_reset(pbi);
