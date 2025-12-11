@@ -8851,23 +8851,6 @@ static void activate_sequence_header(AV2Decoder *pbi,
 #endif  // CONFIG_QM_REVERT
   }  // qm_pos
 #endif  // CONFIG_F255_QMOBU
-
-#if CONFIG_F153_FGM_OBU
-  if (obu_type == OBU_CLK) {
-    // When a SH, a CLK and FGMs are in one TU, the fgms currently in the list
-    // can remain. Otherwise, they need to be reset/invalidated when a new
-    // sequence header is activated.
-    for (int i = 0; i < MAX_FGM_NUM; ++i) {
-      if (pbi->fgm_list[i].fgm_seq_id_in_tu != cm->seq_params.seq_header_id) {
-        // SH, CLK and FGM are not in one TU.
-        pbi->fgm_list[i].fgm_id = -1;
-        pbi->fgm_list[i].fgm_tlayer_id = -1;
-        pbi->fgm_list[i].fgm_mlayer_id = -1;
-        pbi->fgm_list[i].fgm_seq_id_in_tu = -1;
-      }
-    }
-  }
-#endif  // CONFIG_F153_FGM_OBU
 }
 #endif  // CONFIG_CWG_E242_SEQ_HDR_ID
 

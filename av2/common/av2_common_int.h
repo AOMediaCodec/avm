@@ -2330,12 +2330,6 @@ component
    * chroma format idc for the model stats.
    */
   int fgm_chroma_idc;
-
-  /*!
-   * sequence_header_id if the film grain model is signalled with a sequence
-   * header in the temporal unit otherwise fgm_seq_id_in_tu is -1
-   */
-  int fgm_seq_id_in_tu;
 };
 #endif  // CONFIG_F153_FGM_OBU
 

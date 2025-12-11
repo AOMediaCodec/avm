@@ -1821,7 +1821,6 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
   // acc_fgm_id_bitmap accumulates fgm_id_bitmap in FGM OBU to check if film
   // grain models signalled before a coded frame have the same fgm_id
   uint32_t acc_fgm_id_bitmap = 0;
-  int fgm_seq_id_in_tu = -1;
 #endif  // CONFIG_F153_FGM_OBU
 
   int prev_obu_xlayer_id = -1;
@@ -2032,10 +2031,6 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         pbi->stream_switched = 0;
         decoded_payload_size = read_sequence_header_obu(pbi, &rb);
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
-#if CONFIG_F153_FGM_OBU
-        fgm_seq_id_in_tu =
-            pbi->seq_list[pbi->seq_header_count - 1].seq_header_id;
-#endif
         // The sequence header should not change in the middle of a frame.
         if (pbi->sequence_header_changed && pbi->seen_frame_header) {
           cm->error.error_code = AVM_CODEC_CORRUPT_FRAME;
@@ -2183,9 +2178,9 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
 #endif  // CONFIG_METADATA
 #if CONFIG_F153_FGM_OBU
       case OBU_FGM:
-        decoded_payload_size = read_fgm_obu(
-            pbi, obu_header.obu_tlayer_id, obu_header.obu_mlayer_id,
-            &acc_fgm_id_bitmap, fgm_seq_id_in_tu, &rb);
+        decoded_payload_size =
+            read_fgm_obu(pbi, obu_header.obu_tlayer_id,
+                         obu_header.obu_mlayer_id, &acc_fgm_id_bitmap, &rb);
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
         break;
 #endif  // CONFIG_F153_FGM_OBU

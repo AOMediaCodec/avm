@@ -32,7 +32,7 @@ int av2_is_random_accessed_temporal_unit(const uint8_t *data, size_t data_sz);
 #if CONFIG_F153_FGM_OBU
 uint32_t read_fgm_obu(AV2Decoder *pbi, const int obu_tlayer_id,
                       const int obu_mlayer_id, uint32_t *acc_fgm_id_bitmap,
-                      int fgm_seq_id_in_tu, struct avm_read_bit_buffer *rb);
+                      struct avm_read_bit_buffer *rb);
 #endif  // CONFIG_F153_FGM_OBU
 
 #if !CONFIG_CWG_F270_OPS

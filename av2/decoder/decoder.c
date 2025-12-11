@@ -260,7 +260,6 @@ AV2Decoder *av2_decoder_create(BufferPool *const pool) {
     pbi->fgm_list[i].fgm_id = -1;
     pbi->fgm_list[i].fgm_tlayer_id = -1;
     pbi->fgm_list[i].fgm_mlayer_id = -1;
-    pbi->fgm_list[i].fgm_seq_id_in_tu = -1;
   }
 #endif  // CONFIG_F153_FGM_OBU
 #if CONFIG_F322_OBUER_REFRESTRICT
