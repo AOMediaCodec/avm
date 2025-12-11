@@ -155,7 +155,6 @@ Test Data Check:
       printf "Checking for files:\n%s\n\n" "$ADDED_TEST_FILES"
       echo "$ADDED_TEST_FILES" | while read -r f; do
         if [ -n "$(grep -L "${f}"  test/test-data.sha1 test/test_data_util.cmake)" ]; then
-          if [ "${f}" = "av2.error-resilient.ivf" ]; then continue; fi
           echo "file: ${f} was not found in test-data.sha1 or test_data_util.cmake"
           exit 1
         fi
@@ -761,7 +760,7 @@ Enc Run (All-intra):
 Previous Enc Run (All-intra):
   extends: 'Enc Run (All-intra)'
   variables:
-    AVMENC: installroot_old/usr/local/bin/aomenc
+    AVMENC: installroot_old/usr/local/bin/avmenc
     AVMENC_OUTPUT: previous-all-intra
   needs:
     - 'Previous Build (x86_64-linux-gcc): [encode-only]'
@@ -805,7 +804,7 @@ Enc Run (Random Access):
 Previous Enc Run (Random Access):
   extends: 'Enc Run (Random Access)'
   variables:
-    AVMENC: installroot_old/usr/local/bin/aomenc
+    AVMENC: installroot_old/usr/local/bin/avmenc
     AVMENC_OUTPUT: previous-random-access
   needs:
     - 'Previous Build (x86_64-linux-gcc): [encode-only]'
@@ -848,7 +847,7 @@ Enc Run (Low-delay):
 Previous Enc Run (Low-delay):
   extends: 'Enc Run (Low-delay)'
   variables:
-    AVMENC: installroot_old/usr/local/bin/aomenc
+    AVMENC: installroot_old/usr/local/bin/avmenc
     AVMENC_OUTPUT: previous-low-delay
   needs:
     - 'Previous Build (x86_64-linux-gcc): [encode-only]'
