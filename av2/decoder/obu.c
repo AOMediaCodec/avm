@@ -976,7 +976,7 @@ static void read_metadata_temporal_point_info(AV2Decoder *const pbi,
                                               struct avm_read_bit_buffer *rb) {
   AV2_COMMON *const cm = &pbi->common;
   cm->temporal_point_info_metadata.mtpi_frame_presentation_length =
-      avm_rb_read_literal(rb, 5) + 1;
+      avm_rb_read_unsigned_literal(rb, 5) + 1;
   int n = cm->temporal_point_info_metadata.mtpi_frame_presentation_length;
   cm->temporal_point_info_metadata.mtpi_frame_presentation_time =
       avm_rb_read_literal(rb, n);
