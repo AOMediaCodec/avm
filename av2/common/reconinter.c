@@ -1078,6 +1078,16 @@ void av2_opfl_mv_refinement(const int16_t *pdiff, int pstride,
                   vx1, vy1);
 }
 
+// Function to compute optical flow refinement offsets for a 8x8 block
+void av2_opfl_mv_refinement_8x8_c(const int16_t *pdiff, int pstride,
+                                  const int16_t *gx, const int16_t *gy,
+                                  int gstride, int d0, int d1,
+                                  int grad_prec_bits, int mv_prec_bits,
+                                  int *vx0, int *vy0, int *vx1, int *vy1) {
+  av2_opfl_mv_refinement(pdiff, pstride, gx, gy, gstride, 8, 8, d0, d1,
+                         grad_prec_bits, mv_prec_bits, vx0, vy0, vx1, vy1);
+}
+
 int av2_opfl_mv_refinement_nxn_c(const int16_t *pdiff, int pstride,
                                  const int16_t *gx, const int16_t *gy,
                                  int gstride, int bw, int bh, int n, int d0,

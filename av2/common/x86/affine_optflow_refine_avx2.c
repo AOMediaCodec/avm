@@ -1795,15 +1795,121 @@ static void opfl_mv_refinement_16x8_avx2(const int16_t *pdiff, int pstride,
                   rls_alpha, vx0 + 1, vy0 + 1, vx1 + 1, vy1 + 1);
 }
 
+// Function to compute optical flow refinement offsets for a 8x8 block by
+// processing 2 rows at a time
+void opfl_mv_refinement_8x8_2rows_avx2(const int16_t *pdiff, int pstride,
+                                       const int16_t *gx, const int16_t *gy,
+                                       int gstride, int d0, int d1,
+                                       int grad_prec_bits, int mv_prec_bits,
+                                       int *vx0, int *vy0, int *vx1, int *vy1) {
+  // TODO(kslu) clean up all grad_bits if later it is still not needed
+  int grad_bits = 0;
+  if (grad_bits == 0) {
+    (void)grad_bits;
+    int bHeight = 8;
+    const int rls_alpha = 4 * OPFL_RLS_PARAM;
+    const int bits = mv_prec_bits + grad_prec_bits;
+    int32_t su2 = 0;
+    int32_t sv2 = 0;
+    int32_t suv = 0;
+    int32_t suw = 0;
+    int32_t svw = 0;
+    __m256i u2_0, v2_0, uv_0, uw_0, vw_0;
+    __m256i u2_1, v2_1, uv_1, uw_1, vw_1;
+    do {
+      const __m128i gradX_0 = _mm_loadu_si128((const __m128i *)gx);
+      const __m128i gradY_0 = _mm_loadu_si128((const __m128i *)gy);
+      const __m128i pred_0 = _mm_loadu_si128((const __m128i *)pdiff);
+      const __m128i gradX_1 = _mm_loadu_si128((const __m128i *)(gx + gstride));
+      const __m128i gradY_1 = _mm_loadu_si128((const __m128i *)(gy + gstride));
+      const __m128i pred_1 =
+          _mm_loadu_si128((const __m128i *)(pdiff + pstride));
+
+      const __m256i gradX =
+          _mm256_inserti128_si256(_mm256_castsi128_si256(gradX_0), gradX_1, 1);
+      const __m256i gradY =
+          _mm256_inserti128_si256(_mm256_castsi128_si256(gradY_0), gradY_1, 1);
+      const __m256i pred =
+          _mm256_inserti128_si256(_mm256_castsi128_si256(pred_0), pred_1, 1);
+
+      multiply(gradX, gradX, &u2_0, &u2_1);
+      multiply(gradY, gradY, &v2_0, &v2_1);
+      multiply(gradX, gradY, &uv_0, &uv_1);
+      multiply(gradX, pred, &uw_0, &uw_1);
+      multiply(gradY, pred, &vw_0, &vw_1);
+
+      int32_t temp_lo, temp_hi;
+      xx256_storel_32(&temp_lo, &temp_hi, u2_0, u2_1);
+      su2 += temp_lo;
+      su2 += temp_hi;
+      xx256_storel_32(&temp_lo, &temp_hi, v2_0, v2_1);
+      sv2 += temp_lo;
+      sv2 += temp_hi;
+      xx256_storel_32(&temp_lo, &temp_hi, uv_0, uv_1);
+      suv += temp_lo;
+      suv += temp_hi;
+      xx256_storel_32(&temp_lo, &temp_hi, uw_0, uw_1);
+      suw += temp_lo;
+      suw += temp_hi;
+      xx256_storel_32(&temp_lo, &temp_hi, vw_0, vw_1);
+      svw += temp_lo;
+      svw += temp_hi;
+
+      gx += gstride * 2;
+      gy += gstride * 2;
+      pdiff += pstride * 2;
+      bHeight -= 2;
+    } while (bHeight != 0);
+    calc_mv_process(su2, sv2, suv, suw, svw, d0, d1, bits, rls_alpha, vx0, vy0,
+                    vx1, vy1);
+  } else {
+    av2_opfl_mv_refinement_8x8(pdiff, pstride, gx, gy, gstride, d0, d1,
+                               grad_prec_bits, mv_prec_bits, vx0, vy0, vx1,
+                               vy1);
+  }
+}
+
+// Function to compute optical flow refinement offsets for a 8x8 block
+int opfl_mv_refinement_8x8_avx2(const int16_t *pdiff, int pstride,
+                                const int16_t *gx, const int16_t *gy,
+                                int gstride, int bw, int bh, int n, int d0,
+                                int d1, int grad_prec_bits, int mv_prec_bits,
+                                int mi_x, int mi_y, int mi_cols, int mi_rows,
+                                int build_for_decode, int *vx0, int *vy0,
+                                int *vx1, int *vy1) {
+  assert(bw % n == 0 && bh % n == 0 && bw == 8);
+  (void)bw;
+  int n_blocks = 0;
+  const int num_blocks = 1;
+  for (int i = 0; i < bh; i += n) {
+    if (is_subblock_outside(mi_x, mi_y + i, mi_cols, mi_rows,
+                            build_for_decode)) {
+      n_blocks += num_blocks;
+      continue;
+    }
+    opfl_mv_refinement_8x8_2rows_avx2(
+        pdiff + (i * pstride), pstride, gx + (i * gstride), gy + (i * gstride),
+        gstride, d0, d1, grad_prec_bits, mv_prec_bits, vx0 + n_blocks,
+        vy0 + n_blocks, vx1 + n_blocks, vy1 + n_blocks);
+    n_blocks++;
+  }
+  return n_blocks;
+}
+
 int av2_opfl_mv_refinement_nxn_avx2(
     const int16_t *pdiff, int pstride, const int16_t *gx, const int16_t *gy,
     int gstride, int bw, int bh, int n, int d0, int d1, int grad_prec_bits,
     int mv_prec_bits, int mi_x, int mi_y, int mi_cols, int mi_rows,
     int build_for_decode, int *vx0, int *vy0, int *vx1, int *vy1) {
   int n_blocks = 0;
-  // Invoke SSE4_1 implementation for blocks with width < 16 and for other block
-  // sizes use AVX2 by processing two 8x8 blocks parallelly.
-  if (bw < 16) {
+  // Invoke SSE4_1 implementation for blocks with width < 16 and for other
+  // block sizes use AVX2 by processing two 8x8 blocks parallelly.
+  if (n == 8 && bw == 8) {
+    n_blocks = opfl_mv_refinement_8x8_avx2(
+        pdiff, pstride, gx, gy, gstride, bw, bh, n, d0, d1, grad_prec_bits,
+        mv_prec_bits, mi_x, mi_y, mi_cols, mi_rows, build_for_decode, vx0, vy0,
+        vx1, vy1);
+  } else if (bw < 16) {
     n_blocks = av2_opfl_mv_refinement_nxn_sse4_1(
         pdiff, pstride, gx, gy, gstride, bw, bh, n, d0, d1, grad_prec_bits,
         mv_prec_bits, mi_x, mi_y, mi_cols, mi_rows, build_for_decode, vx0, vy0,

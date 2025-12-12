@@ -127,6 +127,9 @@ specialize qw/av2_bicubic_grad_interpolation_highbd sse4_1 avx2/;
 add_proto qw/int av2_opfl_mv_refinement_nxn/, " const int16_t *pdiff, int pstride, const int16_t *gx, const int16_t *gy, int gstride, int bw, int bh, int n, int d0, int d1, int grad_prec_bits, int mv_prec_bits, int mi_x, int mi_y, int mi_cols, int mi_rows, int is_decode, int *vx0, int *vy0, int *vx1, int *vy1";
 specialize qw/av2_opfl_mv_refinement_nxn sse4_1 avx2/;
 
+add_proto qw/void av2_opfl_mv_refinement_8x8/, "const int16_t *pdiff, int pstride, const int16_t *gx, const int16_t *gy, int gstride, int d0, int d1, int grad_prec_bits, int mv_prec_bits, int *vx0, int *vy0, int *vx1, int *vy1";
+specialize qw/av2_opfl_mv_refinement_8x8 sse4_1/;
+
 add_proto qw/void av2_copy_pred_array_highbd/, "const uint16_t *src1, const uint16_t *src2, int src_stride, int16_t *dst1,int16_t *dst2, int bw, int bh, int d0, int d1, int bd, int centered";
 specialize qw/av2_copy_pred_array_highbd sse4_1 avx2/;
 
