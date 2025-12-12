@@ -66,9 +66,4 @@ macro(fix_experiment_configs)
   if(CONFIG_SCAN_TYPE_METADATA)
     change_config_and_warn(CONFIG_METADATA 1 CONFIG_SCAN_TYPE_METADATA)
   endif()
-
-  if(CONFIG_F024_KEYOBU)
-    change_config_and_warn(CONFIG_RANDOM_ACCESS_SWITCH_FRAME 1
-                           CONFIG_F024_KEYOBU)
-  endif()
 endmacro()

@@ -80,9 +80,7 @@ bool ValidObuType(int obu_type) {
     case OBU_ATLAS_SEGMENT:
     case OBU_OPERATING_POINT_SET:
     case OBU_MSDO:
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     case OBU_RAS_FRAME:
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 #if CONFIG_F255_QMOBU
     case OBU_QM:
 #endif

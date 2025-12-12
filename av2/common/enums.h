@@ -1067,9 +1067,7 @@ typedef uint16_t TXFM_CONTEXT;
 
 #define INTER_REFS_PER_FRAME 7
 
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 #define MAX_NUM_LONG_TERM_FRAMES INTER_REFS_PER_FRAME
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 
 // log 2 of max 8 references per-frame (7 inter + 1 intra)
 // log2(INTER_REFS_PER_FRAME + 1)

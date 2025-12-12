@@ -144,9 +144,7 @@ int is_layer_restricted(const int current_layer_id, const int max_layer_id) {
 // function shall not change the reference mapping for different operating
 // points.
 int av2_get_op_constrained_ref_frames(AV2_COMMON *cm, int cur_frame_disp,
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
                                       int key_frame_only,
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
                                       RefFrameMapPair *ref_frame_map_pairs,
                                       const int op_max_mlayer_id,
                                       const int op_max_tlayer_id) {
@@ -174,9 +172,7 @@ int av2_get_op_constrained_ref_frames(AV2_COMMON *cm, int cur_frame_disp,
     // Get reference frame buffer
     RefFrameMapPair cur_ref = ref_frame_map_pairs[i];
     if (cur_ref.ref_frame_for_inference == -1) continue;
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     if (key_frame_only && cur_ref.frame_type != KEY_FRAME) continue;
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     // In resize mode, only frames within 1/16 to 2 times the current frame in
     // each dimension can be used as references.
     if (!valid_ref_frame_size(cur_ref.width, cur_ref.height, cm->width,
@@ -255,10 +251,7 @@ int av2_get_op_constrained_ref_frames(AV2_COMMON *cm, int cur_frame_disp,
 // Determine reference mapping by ranking the reference frames based on a
 // score function.
 int av2_get_ref_frames(AV2_COMMON *cm, int cur_frame_disp,
-                       int resolution_available,
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-                       int key_frame_only,
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                       int resolution_available, int key_frame_only,
                        RefFrameMapPair *ref_frame_map_pairs) {
   RefScoreData scores[REF_FRAMES];
   memset(scores, 0, REF_FRAMES * sizeof(*scores));
@@ -307,9 +300,7 @@ int av2_get_ref_frames(AV2_COMMON *cm, int cur_frame_disp,
     }
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
     if (cur_ref.ref_frame_for_inference == -1) continue;
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     if (key_frame_only && cur_ref.frame_type != KEY_FRAME) continue;
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     // In resize mode, only frames within 1/16 to 2 times the current frame in
     // each dimension can be used as references.
     if (resolution_available &&

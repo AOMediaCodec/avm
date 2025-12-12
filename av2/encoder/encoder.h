@@ -2931,12 +2931,10 @@ typedef struct AV2_COMP {
    */
   struct AtlasSegmentInfo atlas_list[MAX_NUM_ATLAS_SEG_ID];
 
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   /*!
    * determine the mode of the switch frame
    */
   int switch_frame_mode;
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 
 #if CONFIG_F255_QMOBU
   /*!

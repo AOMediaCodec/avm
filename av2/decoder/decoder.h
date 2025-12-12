@@ -352,9 +352,7 @@ typedef struct AV2Decoder {
   uint32_t uncomp_hdr_size_in_bits;
 
   DataBuffer obu_size_hdr;
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   OBU_TYPE obu_type;
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   int tile_count_minus_1;
 
   // Decoder has 3 modes of operation:
@@ -388,9 +386,7 @@ typedef struct AV2Decoder {
   int skip_film_grain;
   int bru_opt_mode;
   int valid_for_referencing[REF_FRAMES];
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   int long_term_ids_in_buffer[REF_FRAMES];
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   int is_fwd_kf_present;
   int is_arf_frame_present;
   int num_tile_groups;

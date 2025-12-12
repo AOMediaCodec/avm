@@ -24,11 +24,7 @@ extern "C" {
 
 static INLINE void init_ref_map_pair(AV2_COMMON *cm,
                                      RefFrameMapPair *ref_frame_map_pairs,
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
                                      int is_key, int is_ras) {
-#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-                                     int is_key) {
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   if (is_key) {
     memset(ref_frame_map_pairs, -1, sizeof(*ref_frame_map_pairs) * REF_FRAMES);
     return;
@@ -64,11 +60,8 @@ static INLINE void init_ref_map_pair(AV2_COMMON *cm,
                                           cm->current_frame.temporal_layer_id,
                                           buf->temporal_layer_id) ||
         !is_mlayer_scalable_and_dependent(
-            &cm->seq_params, cm->current_frame.mlayer_id, buf->mlayer_id)
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-        || (is_ras && buf->frame_type != KEY_FRAME)
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-    ) {
+            &cm->seq_params, cm->current_frame.mlayer_id, buf->mlayer_id) ||
+        (is_ras && buf->frame_type != KEY_FRAME)) {
       ref_frame_map_pairs[map_idx].ref_frame_for_inference = -1;
       continue;
     }
@@ -115,18 +108,13 @@ typedef struct {
 
 void av2_get_past_future_cur_ref_lists(AV2_COMMON *cm, RefScoreData *scores);
 int av2_get_ref_frames(AV2_COMMON *cm, int cur_frame_disp,
-                       int resolution_available,
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-                       int key_frame_only,
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                       int resolution_available, int key_frame_only,
                        RefFrameMapPair *ref_frame_map_pairs);
 
 int is_layer_restricted(const int current_layer_id, const int max_layer_id);
 
 int av2_get_op_constrained_ref_frames(AV2_COMMON *cm, int cur_frame_disp,
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
                                       int key_frame_only,
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
                                       RefFrameMapPair *ref_frame_map_pairs,
                                       const int op_max_mlayer_id,
                                       const int op_max_tlayer_id);

@@ -881,7 +881,6 @@ static void update_frame_buffers(AV2Decoder *pbi, int frame_decoded) {
   }
 }
 
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 // If the refresh_frame_flags bitmask is set, update long-term frame id values
 // and mark frames as valid for reference.
 static AVM_INLINE void update_long_term_frame_id(AV2Decoder *const pbi) {
@@ -903,7 +902,6 @@ static AVM_INLINE void update_long_term_frame_id(AV2Decoder *const pbi) {
     }
   }
 }
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 
 int av2_receive_compressed_data(AV2Decoder *pbi, size_t size,
                                 const uint8_t **psource) {
@@ -988,11 +986,9 @@ int av2_receive_compressed_data(AV2Decoder *pbi, size_t size,
   cm->txb_count = 0;
 #endif
 
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   if (frame_decoded) {
     update_long_term_frame_id(pbi);
   }
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 
   // Note: At this point, this function holds a reference to cm->cur_frame
   // in the buffer pool. This reference is consumed by update_frame_buffers().

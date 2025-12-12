@@ -140,11 +140,8 @@ static int peek_obu_from_file(FILE *f, size_t obu_size, uint8_t *buffer,
 #if CONFIG_F024_KEYOBU
   if (is_multi_tile_vcl_obu(obu_header->type))
 #else
-  if (obu_header->type == OBU_TILE_GROUP || obu_header->type == OBU_SWITCH
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-      || obu_header->type == OBU_RAS_FRAME
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-  )
+  if (obu_header->type == OBU_TILE_GROUP || obu_header->type == OBU_SWITCH ||
+      obu_header->type == OBU_RAS_FRAME)
 #endif  // CONFIG_F024_KEYOBU
   {
     if (obu_size < (size_t)obu_header_size + 1) {
@@ -292,11 +289,8 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
              is_single_tile_vcl_obu(obu_header.type))
 #else
             (obu_header.type == OBU_TILE_GROUP || obu_header.type == OBU_SEF ||
-             obu_header.type == OBU_TIP || obu_header.type == OBU_SWITCH
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-             || obu_header.type == OBU_RAS_FRAME
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-             )
+             obu_header.type == OBU_TIP || obu_header.type == OBU_SWITCH ||
+             obu_header.type == OBU_RAS_FRAME)
 #endif  // CONFIG_F024_KEYOBU
             && first_tile_group_in_frame) ||
            (vcl_obu_count > 0 && obu_header.type == OBU_SEQUENCE_HEADER));
@@ -313,11 +307,8 @@ int obudec_read_temporal_unit(struct ObuDecInputContext *obu_ctx,
           obu_header.type == OBU_LEADING_TIP)
 #else
       if (obu_header.type == OBU_TILE_GROUP || obu_header.type == OBU_SEF ||
-          obu_header.type == OBU_TIP || obu_header.type == OBU_SWITCH
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-          || obu_header.type == OBU_RAS_FRAME
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-      )
+          obu_header.type == OBU_TIP || obu_header.type == OBU_SWITCH ||
+          obu_header.type == OBU_RAS_FRAME)
 #endif  // CONFIG_F024_KEYOBU
         vcl_obu_count++;
       if (fseeko(f, (FileOffset)obu_size, SEEK_CUR) != 0) {

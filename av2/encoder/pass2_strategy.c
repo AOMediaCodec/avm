@@ -2780,9 +2780,7 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
   const AV2EncoderConfig *const oxcf = &cpi->oxcf;
 
   if (is_stat_consumption_stage(cpi) && !twopass->stats_in) return;
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   cpi->switch_frame_mode = 0;
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   if (gf_group->index < gf_group->size) {
     assert(gf_group->index < gf_group->size);
     const int update_type = gf_group->update_type[gf_group->index];
@@ -2991,14 +2989,10 @@ void av2_get_second_pass_params(AV2_COMP *cpi,
         frame_params->frame_params_obu_type = OBU_OLK;
 #endif
       } else {
-        frame_params->frame_type =
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-            rc->frames_since_key == 0               ? KEY_FRAME
-            : (frame_params->frame_type == S_FRAME) ? S_FRAME
-                                                    : INTER_FRAME;
-#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-            rc->frames_since_key == 0 ? KEY_FRAME : INTER_FRAME;
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+        frame_params->frame_type = rc->frames_since_key == 0 ? KEY_FRAME
+                                   : (frame_params->frame_type == S_FRAME)
+                                       ? S_FRAME
+                                       : INTER_FRAME;
 #if CONFIG_F024_KEYOBU
         if (frame_params->frame_params_obu_type == NUM_OBU_TYPES)
           frame_params->frame_params_obu_type =

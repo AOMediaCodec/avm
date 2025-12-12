@@ -70,20 +70,11 @@ void av2_configure_buffer_updates(AV2_COMP *const cpi,
 void av2_set_seq_seg_info(SequenceHeader *seq_params, struct segmentation *seg);
 #endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
 
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 void av2_get_ref_frames_enc(AV2_COMP *const cpi, int cur_frame_disp,
                             RefFrameMapPair *ref_frame_map_pairs);
-#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-void av2_get_ref_frames_enc(AV2_COMMON *cm, int cur_frame_disp,
-                            RefFrameMapPair *ref_frame_map_pairs);
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 
 int av2_get_refresh_frame_flags(
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     AV2_COMP *const cpi, const EncodeFrameParams *const frame_params,
-#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-    const AV2_COMP *const cpi, const EncodeFrameParams *const frame_params,
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     FRAME_UPDATE_TYPE frame_update_type, int gf_index, int cur_frame_disp,
     RefFrameMapPair ref_frame_map_pairs[REF_FRAMES]);
 

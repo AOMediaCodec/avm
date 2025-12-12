@@ -585,11 +585,9 @@ static avm_codec_err_t decoder_peek_si_internal(const uint8_t *data,
         }
 
         FRAME_TYPE frame_type = KEY_FRAME;
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
         if (obu_header.type == OBU_RAS_FRAME || obu_header.type == OBU_SWITCH) {
           frame_type = S_FRAME;
         } else {
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
           if (avm_rb_read_bit(&rb)) {
             frame_type = INTER_FRAME;
           } else {
@@ -603,9 +601,7 @@ static avm_codec_err_t decoder_peek_si_internal(const uint8_t *data,
             }  // not key_frame
 #endif  // !CONFIG_F024_KEYOBU
           }  // not inter_frame
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
         }
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 
 #if !CONFIG_F024_KEYOBU
         if (frame_type == KEY_FRAME) {

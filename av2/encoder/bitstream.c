@@ -5269,13 +5269,8 @@ void write_sequence_inter_group_tool_flags(
 #if CONFIG_CWG_F377_STILL_PICTURE
   if (seq_params->single_picture_header_flag) {
     assert(!seq_params->enable_explicit_ref_frame_map);
-
     assert(seq_params->ref_frames == 2);
-
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     assert(seq_params->number_of_bits_for_lt_frame_id == 0);
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-
     assert(seq_params->def_max_drl_bits == MIN_MAX_DRL_BITS);
     assert(!seq_params->allow_frame_max_drl_bits);
   } else {
@@ -5288,11 +5283,7 @@ void write_sequence_inter_group_tool_flags(
     if (signal_dpb_explicit) {
       avm_wb_write_literal(wb, seq_params->ref_frames - 1, 4);
     }
-
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     avm_wb_write_literal(wb, seq_params->number_of_bits_for_lt_frame_id, 3);
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-
     avm_wb_write_primitive_quniform(
         wb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1,
         seq_params->def_max_drl_bits - MIN_MAX_DRL_BITS);
@@ -6061,7 +6052,6 @@ static AVM_INLINE void write_sequence_header_beyond_av2(
 #else
   avm_wb_write_bit(wb, seq_params->enable_short_refresh_frame_flags);
 #endif  // CONFIG_CWG_F377_STILL_PICTURE
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 #if CONFIG_CWG_F377_STILL_PICTURE
   if (seq_params->single_picture_header_flag) {
     assert(seq_params->number_of_bits_for_lt_frame_id == 0);
@@ -6071,7 +6061,6 @@ static AVM_INLINE void write_sequence_header_beyond_av2(
 #else
   avm_wb_write_literal(wb, seq_params->number_of_bits_for_lt_frame_id, 3);
 #endif  // CONFIG_CWG_F377_STILL_PICTURE
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   avm_wb_write_bit(wb, seq_params->enable_ext_seg);
 #if CONFIG_MULTI_LEVEL_SEGMENTATION
   // TODO: The above avm_wb_write_bit(wb, seq_params->enable_ext_seg); seems to
@@ -6488,12 +6477,10 @@ static AVM_INLINE void write_uncompressed_header(
     frame_type_signaled &=
         (obu_type != OBU_LEADING_TIP && obu_type != OBU_REGULAR_TIP);
     frame_type_signaled &= (!cm->bridge_frame_info.is_bridge_frame);
-#else  // CONFIG_F024_KEYOBU
+#else   // CONFIG_F024_KEYOBU
     bool frame_type_signaled = true;
     frame_type_signaled &= (obu_type != OBU_SWITCH);
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     frame_type_signaled &= (obu_type != OBU_RAS_FRAME);
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     frame_type_signaled &= (obu_type != OBU_TIP);
     frame_type_signaled &= (!cm->bridge_frame_info.is_bridge_frame);
 #endif  //  CONFIG_F024_KEYOBU
@@ -6519,7 +6506,6 @@ static AVM_INLINE void write_uncompressed_header(
       cm->cur_frame->is_restricted_switch_frame = 0;
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
 
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     if (current_frame->frame_type == KEY_FRAME) {
       avm_wb_write_literal(wb, current_frame->long_term_id,
                            seq_params->number_of_bits_for_lt_frame_id);
@@ -6530,7 +6516,6 @@ static AVM_INLINE void write_uncompressed_header(
                              seq_params->number_of_bits_for_lt_frame_id);
       }
     }
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 
     if (cm->bridge_frame_info.is_bridge_frame) {
       if (cm->show_frame) {
@@ -6705,14 +6690,10 @@ static AVM_INLINE void write_uncompressed_header(
 #if !CONFIG_F024_KEYOBU
           (current_frame->frame_type == KEY_FRAME && !cm->show_frame) ||
 #endif  // !CONFIG_F024_KEYOBU
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
           (current_frame->frame_type == INTER_FRAME &&
            cpi->switch_frame_mode != 1) ||
           (current_frame->frame_type == S_FRAME &&
            cpi->switch_frame_mode != 1) ||
-#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-          current_frame->frame_type == INTER_FRAME ||
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
           current_frame->frame_type == INTRA_ONLY_FRAME) {
         if (cm->seq_params.enable_short_refresh_frame_flags &&
             !(current_frame->frame_type == KEY_FRAME && !cm->show_frame) &&
@@ -6772,13 +6753,9 @@ static AVM_INLINE void write_uncompressed_header(
 #if CONFIG_F322_OBUER_REFRESTRICT  // refresh_frame_flags
         current_frame->frame_type == S_FRAME ||
 #endif                             // CONFIG_F322_OBUER_REFRESTRICT
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
         (current_frame->frame_type == INTER_FRAME &&
          cpi->switch_frame_mode != 1) ||
         (current_frame->frame_type == S_FRAME && cpi->switch_frame_mode != 1) ||
-#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-        current_frame->frame_type == INTER_FRAME ||
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
         current_frame->frame_type == INTRA_ONLY_FRAME) {
       if (cm->seq_params.enable_short_refresh_frame_flags &&
           !(current_frame->frame_type == KEY_FRAME && !cm->show_frame) &&
@@ -6842,12 +6819,8 @@ static AVM_INLINE void write_uncompressed_header(
       // signaling happens only when enabled by the command line flag or in
       // error resilient mode
       const int explicit_ref_frame_map =
-          (
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-              cpi->switch_frame_mode == 1 ||
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-              frame_is_sframe(cm) ||
-              seq_params->enable_explicit_ref_frame_map) &&
+          (cpi->switch_frame_mode == 1 || frame_is_sframe(cm) ||
+           seq_params->enable_explicit_ref_frame_map) &&
           !cm->bridge_frame_info.is_bridge_frame;
 #if CONFIG_F322_OBUER_EXPLICIT_REFLIST
       if (!frame_is_intra_only(cm) && !frame_is_sframe(cm) &&
@@ -7324,9 +7297,7 @@ uint32_t av2_write_obu_header(AV2LevelParams *const level_params,
   count_header |= (obu_type == OBU_TIP);
 #endif  // CONFIG_F024_KEYOBU
 
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   count_header |= (obu_type == OBU_RAS_FRAME);
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   if (level_params->keep_level_stats && count_header)
     ++level_params->frame_header_count;
 

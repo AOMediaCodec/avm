@@ -209,8 +209,6 @@ set_avm_config_var(CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID 1
                    "Enable frame output order derivation with layer ID")
 set_avm_config_var(CONFIG_CWG_E242_MFH_ID_UVLC 1
                    "Signaling multi-frame header ID in UVLC")
-set_avm_config_var(CONFIG_RANDOM_ACCESS_SWITCH_FRAME 1
-                   "Enable random access switch (RAS) frame")
 set_avm_config_var(OBU_ORDER_IN_TU 1 "Check OBU order in TU")
 
 set_avm_config_var(

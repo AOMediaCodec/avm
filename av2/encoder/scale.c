@@ -176,10 +176,7 @@ void av2_setup_frame_size(AV2_COMP *cpi) {
   setup_frame_size_from_params(cpi, &rsz);
   AV2_COMMON *const cm = &cpi->common;
   CurrentFrame *const current_frame = &cm->current_frame;
-  av2_get_ref_frames(cm, current_frame->display_order_hint, 1,
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-                     0,
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+  av2_get_ref_frames(cm, current_frame->display_order_hint, 1, 0,
                      cm->ref_frame_map_pairs);
   cm->ref_frame_flags = (1 << cpi->common.ref_frames_info.num_total_refs) - 1;
   cm->cur_frame->num_ref_frames = cm->ref_frames_info.num_total_refs;

@@ -358,9 +358,7 @@ RefCntBuffer *bru_swap_common(AV2_COMMON *cm) {
     ref_buf->display_order_hint_restricted =
         cm->cur_frame->display_order_hint_restricted;
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     ref_buf->long_term_id = cm->cur_frame->long_term_id;
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     ref_buf->absolute_poc = cm->cur_frame->absolute_poc;
     ref_buf->pyramid_level = cm->cur_frame->pyramid_level;
     if (!cm->bru.frame_inactive_flag)

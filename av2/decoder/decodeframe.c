@@ -6723,11 +6723,7 @@ void read_sequence_inter_group_tool_flags(struct SequenceHeader *seq_params,
     seq_params->enable_explicit_ref_frame_map = 0;
     seq_params->ref_frames = 2;
     seq_params->ref_frames_log2 = 1;
-
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     seq_params->number_of_bits_for_lt_frame_id = 0;
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-
     seq_params->def_max_drl_bits = MIN_MAX_DRL_BITS;
     seq_params->allow_frame_max_drl_bits = 0;
   } else {
@@ -6740,11 +6736,7 @@ void read_sequence_inter_group_tool_flags(struct SequenceHeader *seq_params,
       seq_params->ref_frames = 8;  // default DPB size: 8
     }
     seq_params->ref_frames_log2 = avm_ceil_log2(seq_params->ref_frames);
-
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     seq_params->number_of_bits_for_lt_frame_id = avm_rb_read_literal(rb, 3);
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-
     seq_params->def_max_drl_bits =
         avm_rb_read_primitive_quniform(
             rb, MAX_MAX_DRL_BITS - MIN_MAX_DRL_BITS + 1) +
@@ -7735,15 +7727,11 @@ void av2_read_sequence_header_beyond_av2(
 #if CONFIG_CWG_F377_STILL_PICTURE
   if (seq_params->single_picture_header_flag) {
     seq_params->enable_short_refresh_frame_flags = 0;
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     seq_params->number_of_bits_for_lt_frame_id = 0;
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   } else {
 #endif  // CONFIG_CWG_F377_STILL_PICTURE
     seq_params->enable_short_refresh_frame_flags = avm_rb_read_bit(rb);
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     seq_params->number_of_bits_for_lt_frame_id = avm_rb_read_literal(rb, 3);
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 #if CONFIG_CWG_F377_STILL_PICTURE
   }
 #endif  // CONFIG_CWG_F377_STILL_PICTURE
@@ -8675,7 +8663,6 @@ static void read_frame_opfl_refine_type(AV2_COMMON *const cm,
 }
 #endif  // CONFIG_FIX_OPFL_AUTO
 
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 int ras_frame_refresh_frame_flags_derivation(AV2Decoder *pbi) {
   AV2_COMMON *const cm = &pbi->common;
   int refresh_frame_flags = (1 << cm->seq_params.ref_frames) - 1;
@@ -8700,7 +8687,6 @@ void mark_reference_frames_with_long_term_ids(AV2Decoder *pbi) {
     }
   }
 }
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 
 #if CONFIG_LCR_ID_IN_SH
 static void activate_atlas_segment(AV2Decoder *pbi) {
@@ -9147,49 +9133,44 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       }
     } else
 #endif  // CONFIG_F024_KEYOBU
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-        if (obu_type == OBU_RAS_FRAME || obu_type == OBU_SWITCH) {
-#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-    if (obu_type == OBU_SWITCH) {
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-      current_frame->frame_type = S_FRAME;
+      if (obu_type == OBU_RAS_FRAME || obu_type == OBU_SWITCH) {
+        current_frame->frame_type = S_FRAME;
 #if CONFIG_F322_OBUER_REFRESTRICT
-      cm->cur_frame->is_restricted_switch_frame =
-          cm->restricted_prediction_switch;
-      if (cm->restricted_prediction_switch) {
-        pbi->restricted_predition = 1;
-        for (int i = 0; i < REF_FRAMES; i++) {
-          if (cm->ref_frame_map[i] != NULL)
-            cm->ref_frame_map[i]->is_restricted_ref = true;
+        cm->cur_frame->is_restricted_switch_frame =
+            cm->restricted_prediction_switch;
+        if (cm->restricted_prediction_switch) {
+          pbi->restricted_predition = 1;
+          for (int i = 0; i < REF_FRAMES; i++) {
+            if (cm->ref_frame_map[i] != NULL)
+              cm->ref_frame_map[i]->is_restricted_ref = true;
+          }
         }
-      }
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
-    } else
+      } else
 #if CONFIG_F024_KEYOBU
-        if (obu_type == OBU_REGULAR_TIP || obu_type == OBU_LEADING_TIP)
+          if (obu_type == OBU_REGULAR_TIP || obu_type == OBU_LEADING_TIP)
 #else
         if (obu_type == OBU_TIP)
 #endif
-    {
-      current_frame->frame_type = INTER_FRAME;
-    } else if (cm->bridge_frame_info.is_bridge_frame) {
-      current_frame->frame_type = INTER_FRAME;
-    } else {
-      if (avm_rb_read_bit(rb)) {
+      {
+        current_frame->frame_type = INTER_FRAME;
+      } else if (cm->bridge_frame_info.is_bridge_frame) {
         current_frame->frame_type = INTER_FRAME;
       } else {
-#if !CONFIG_F024_KEYOBU
         if (avm_rb_read_bit(rb)) {
-          current_frame->frame_type = KEY_FRAME;
+          current_frame->frame_type = INTER_FRAME;
         } else {
-#endif  // !CONFIG_F024_KEYOBU
-          current_frame->frame_type = INTRA_ONLY_FRAME;
 #if !CONFIG_F024_KEYOBU
-        }
+          if (avm_rb_read_bit(rb)) {
+            current_frame->frame_type = KEY_FRAME;
+          } else {
+#endif  // !CONFIG_F024_KEYOBU
+            current_frame->frame_type = INTRA_ONLY_FRAME;
+#if !CONFIG_F024_KEYOBU
+          }
 #endif  // #if !CONFIG_F024_KEYOBU
+        }
       }
-    }
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     current_frame->long_term_id = -1;
     if (current_frame->frame_type == KEY_FRAME) {
       current_frame->long_term_id =
@@ -9201,7 +9182,6 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
             avm_rb_read_literal(rb, seq_params->number_of_bits_for_lt_frame_id);
       }
     }
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 #if CONFIG_F322_OBUER_REFRESTRICT
     if (current_frame->frame_type == KEY_FRAME) {
       pbi->restricted_predition = 0;
@@ -9310,9 +9290,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     /* All frames need to be marked as not valid for referencing */
     for (int i = 0; i < seq_params->ref_frames; i++) {
       pbi->valid_for_referencing[i] = 0;
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
       pbi->long_term_ids_in_buffer[i] = -1;
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     }
   }
 
@@ -9499,7 +9477,6 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
         pbi->need_resync = 0;
       }
     } else if (pbi->need_resync != 1) { /* Skip if need resync */
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
       if (pbi->obu_type == OBU_RAS_FRAME) {
         current_frame->refresh_frame_flags =
             ras_frame_refresh_frame_flags_derivation(pbi);
@@ -9507,12 +9484,6 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
         current_frame->refresh_frame_flags =
             avm_rb_read_literal(rb, seq_params->ref_frames);
       } else {
-#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-      if (frame_is_sframe(cm)) {
-        current_frame->refresh_frame_flags =
-            ((1 << seq_params->ref_frames) - 1);
-      } else {
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
         if (cm->bridge_frame_info.is_bridge_frame) {
           cm->bridge_frame_info.bridge_frame_overwrite_flag =
               avm_rb_read_bit(rb);
@@ -9567,11 +9538,9 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     }
   }
 
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   if (pbi->obu_type == OBU_RAS_FRAME) {
     mark_reference_frames_with_long_term_ids(pbi);
   }
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 
   features->allow_lf_sub_pu = 0;
   if (current_frame->frame_type == KEY_FRAME) {
@@ -9608,12 +9577,8 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     } else if (pbi->need_resync != 1) { /* Skip if need resync */
       // Implicitly derive the reference mapping
       init_ref_map_pair(cm, cm->ref_frame_map_pairs,
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
                         current_frame->frame_type == KEY_FRAME,
                         pbi->obu_type == OBU_RAS_FRAME);
-#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-                        current_frame->frame_type == KEY_FRAME);
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
       if (cm->bridge_frame_info.is_bridge_frame) {
         current_frame->order_hint =
             cm->ref_frame_map[cm->bridge_frame_info.bridge_frame_ref_idx]
@@ -9629,10 +9594,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       // For implicit reference mode, the reference mapping is derived without
       // considering the resolution first. Later, setup_frame_size_with_refs
       // uses the reference information to obtain the resolution.
-      av2_get_ref_frames(cm, current_frame->display_order_hint, 0,
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-                         0,
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+      av2_get_ref_frames(cm, current_frame->display_order_hint, 0, 0,
                          cm->ref_frame_map_pairs);
 
       // Reference rankings will be implicitly derived in av2_get_ref_frames,
@@ -9670,9 +9632,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
         const int max_num_ref_frames =
             AVMMIN(seq_params->ref_frames, INTER_REFS_PER_FRAME);
         // Check whether num_total_refs read is valid
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
         if (current_frame->frame_type != S_FRAME)
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
           if (cm->ref_frames_info.num_total_refs < 0 ||
               cm->ref_frames_info.num_total_refs > max_num_ref_frames)
             avm_internal_error(&cm->error, AVM_CODEC_ERROR,
@@ -9727,10 +9687,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
 
       // Overwrite the reference mapping considering the resolution
       if (!explicit_ref_frame_map) {
-        av2_get_ref_frames(cm, current_frame->display_order_hint, 1,
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-                           0,
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+        av2_get_ref_frames(cm, current_frame->display_order_hint, 1, 0,
                            cm->ref_frame_map_pairs);
 
         // Note: The following if block implements bitstream constraint checks
@@ -9750,10 +9707,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
               // derive OP constrainted mapping and store in
               // cm->op_remapped_ref_idx[]
               const int default_map_idx = av2_get_op_constrained_ref_frames(
-                  cm, current_frame->display_order_hint,
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-                  0,
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                  cm, current_frame->display_order_hint, 0,
                   cm->ref_frame_map_pairs, op_mlayer, op_tlayer);
               for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
                 // get constrained mapped reference list

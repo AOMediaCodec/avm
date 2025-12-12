@@ -989,13 +989,8 @@ static AVM_INLINE void init_gop_frames_for_tpl(
   *pframe_qindex = 0;
   RefFrameMapPair ref_frame_map_pairs[REF_FRAMES];
   init_ref_map_pair(cm, ref_frame_map_pairs,
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
                     init_frame_params->frame_type == KEY_FRAME,
                     cpi->switch_frame_mode == 1);
-#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-                    cpi->gf_group.update_type[cpi->gf_group.index] ==
-                        KF_UPDATE);
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 
   EncodeFrameParams frame_params = *init_frame_params;
   TplParams *const tpl_data = &cpi->tpl_data;
@@ -1083,22 +1078,10 @@ static AVM_INLINE void init_gop_frames_for_tpl(
     const int true_disp =
         (int)(tpl_frame->frame_display_index) -
         (gf_group->subgop_cfg != NULL && frame_params.show_frame);
-    if (cm->seq_params.enable_explicit_ref_frame_map
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-        || frame_is_sframe(cm)
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-    )
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+    if (cm->seq_params.enable_explicit_ref_frame_map || frame_is_sframe(cm))
       av2_get_ref_frames_enc(cpi, true_disp, ref_frame_map_pairs);
-#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-      av2_get_ref_frames_enc(cm, true_disp, ref_frame_map_pairs);
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     else
-      av2_get_ref_frames(cm, true_disp, 1,
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-                         0,
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-                         ref_frame_map_pairs);
+      av2_get_ref_frames(cm, true_disp, 1, 0, ref_frame_map_pairs);
     int refresh_mask =
         av2_get_refresh_frame_flags(cpi, &frame_params, frame_update_type,
                                     gf_index, true_disp, ref_frame_map_pairs);
@@ -1137,30 +1120,13 @@ static AVM_INLINE void init_gop_frames_for_tpl(
         (int)(tpl_frame->frame_display_index) -
         (gf_group->subgop_cfg != NULL && init_frame_params->show_frame);
     init_ref_map_pair(cm, ref_frame_map_pairs,
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
                       init_frame_params->frame_type == KEY_FRAME,
                       cpi->switch_frame_mode == 1);
-#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-                      cpi->gf_group.update_type[cpi->gf_group.index] ==
-                          KF_UPDATE);
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-    if (cm->seq_params.enable_explicit_ref_frame_map
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-        || frame_is_sframe(cm) || cpi->switch_frame_mode == 1
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-    )
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+    if (cm->seq_params.enable_explicit_ref_frame_map || frame_is_sframe(cm) ||
+        cpi->switch_frame_mode == 1)
       av2_get_ref_frames_enc(cpi, true_disp, ref_frame_map_pairs);
-#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-      av2_get_ref_frames_enc(cm, true_disp, ref_frame_map_pairs);
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     else
-      av2_get_ref_frames(cm, true_disp, 1,
-
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-                         0,
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-                         ref_frame_map_pairs);
+      av2_get_ref_frames(cm, true_disp, 1, 0, ref_frame_map_pairs);
     return;
   }
 
@@ -1212,23 +1178,11 @@ static AVM_INLINE void init_gop_frames_for_tpl(
     const int true_disp =
         (int)(tpl_frame->frame_display_index) -
         (gf_group->subgop_cfg != NULL && frame_params.show_frame);
-    if (cm->seq_params.enable_explicit_ref_frame_map
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-        || frame_is_sframe(cm) || cpi->switch_frame_mode == 1
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-    )
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+    if (cm->seq_params.enable_explicit_ref_frame_map || frame_is_sframe(cm) ||
+        cpi->switch_frame_mode == 1)
       av2_get_ref_frames_enc(cpi, true_disp, ref_frame_map_pairs);
-#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-      av2_get_ref_frames_enc(cm, true_disp, ref_frame_map_pairs);
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     else
-      av2_get_ref_frames(cm, true_disp, 1,
-
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-                         0,
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-                         ref_frame_map_pairs);
+      av2_get_ref_frames(cm, true_disp, 1, 0, ref_frame_map_pairs);
     // TODO(kslu) av2_get_refresh_frame_flags()
     // will execute default behavior even when
     // subgop cfg is enabled. This should be addressed if we ever remove the
@@ -1271,29 +1225,13 @@ static AVM_INLINE void init_gop_frames_for_tpl(
       (int)(tpl_frame->frame_display_index) -
       (gf_group->subgop_cfg != NULL && init_frame_params->show_frame);
   init_ref_map_pair(cm, ref_frame_map_pairs,
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
                     init_frame_params->frame_type == KEY_FRAME,
                     cpi->switch_frame_mode == 1);
-#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-                    cpi->gf_group.update_type[cpi->gf_group.index] ==
-                        KF_UPDATE);
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-  if (cm->seq_params.enable_explicit_ref_frame_map
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-      || frame_is_sframe(cm) || cpi->switch_frame_mode == 1
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-  )
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+  if (cm->seq_params.enable_explicit_ref_frame_map || frame_is_sframe(cm) ||
+      cpi->switch_frame_mode == 1)
     av2_get_ref_frames_enc(cpi, true_disp, ref_frame_map_pairs);
-#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-    av2_get_ref_frames_enc(cm, true_disp, ref_frame_map_pairs);
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   else
-    av2_get_ref_frames(cm, true_disp, 1,
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-                       0,
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-                       ref_frame_map_pairs);
+    av2_get_ref_frames(cm, true_disp, 1, 0, ref_frame_map_pairs);
 }
 
 void av2_init_tpl_stats(TplParams *const tpl_data) {

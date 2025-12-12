@@ -1897,9 +1897,7 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
     // Record obu size header information.
     pbi->obu_size_hdr.data = data + obu_header.size;
     pbi->obu_size_hdr.size = bytes_read - obu_header.size;
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     pbi->obu_type = obu_header.type;
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 
     // Note: avm_read_obu_header_and_size() takes care of checking that this
     // doesn't cause 'data' to advance past 'data_end'.
@@ -2074,9 +2072,7 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
 #else
       case OBU_TIP:
 #endif  // CONFIG_F024_KEYOBU
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
       case OBU_RAS_FRAME:
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
       case OBU_BRIDGE_FRAME:
 #if CONFIG_F255_QMOBU
         for (int i = 0; i < NUM_CUSTOM_QMS; i++) {

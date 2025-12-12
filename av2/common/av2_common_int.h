@@ -310,9 +310,7 @@ typedef struct RefCntBuffer {
   unsigned int display_order_hint_restricted;
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
   unsigned int absolute_poc;
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   int long_term_id;
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   // Frame's level within the hierarchical structure
   unsigned int pyramid_level;
   unsigned int temporal_layer_id;
@@ -1080,9 +1078,7 @@ typedef struct SequenceHeader {
   uint8_t max_pb_aspect_ratio_log2_m1;    // Can be 0, 1, or 2.
   bool enable_global_motion;
   uint8_t enable_short_refresh_frame_flags;
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   uint8_t number_of_bits_for_lt_frame_id;
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   uint8_t enable_ext_seg;
 #if !CONFIG_F255_QMOBU
   bool user_defined_qmatrix;             // User defined quantizer matrix
@@ -1209,9 +1205,7 @@ typedef struct {
 #if CONFIG_F322_OBUER_REFRESTRICT
   unsigned int display_order_hint_restricted;
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   int long_term_id;
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   // Frame's level within the hierarchical structure
   unsigned int pyramid_level;
   unsigned int temporal_layer_id;
@@ -2701,7 +2695,6 @@ typedef struct AV2Common {
    */
   CommonContexts above_contexts;
 
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   /*!
    * number of referenced key frames
    */
@@ -2711,7 +2704,6 @@ typedef struct AV2Common {
    * long-term IDs of reference key frames
    */
   int ref_long_term_ids[MAX_NUM_LONG_TERM_FRAMES];
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 
   /*!
    * Motion vectors provided by motion field estimation.

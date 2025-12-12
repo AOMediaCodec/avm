@@ -2951,9 +2951,7 @@ void av2_setup_frame_buf_refs(AV2_COMMON *cm) {
   cm->cur_frame->display_order_hint_restricted =
       cm->current_frame.display_order_hint_restricted;
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   cm->cur_frame->long_term_id = cm->current_frame.long_term_id;
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   cm->cur_frame->absolute_poc = cm->current_frame.absolute_poc;
   cm->cur_frame->pyramid_level = cm->current_frame.pyramid_level;
   cm->cur_frame->temporal_layer_id = cm->current_frame.temporal_layer_id;

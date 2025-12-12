@@ -54,44 +54,22 @@ const SubGOPStepCfg *get_subgop_step(const GF_GROUP *const gf_group,
   return &subgop_cfg->step[index - offset];
 }
 
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 void av2_get_ref_frames_enc(AV2_COMP *const cpi, int cur_frame_disp,
-                            RefFrameMapPair *ref_frame_map_pairs)
-#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-void av2_get_ref_frames_enc(AV2_COMMON *cm, int cur_frame_disp,
-                            RefFrameMapPair *ref_frame_map_pairs)
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-{
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                            RefFrameMapPair *ref_frame_map_pairs) {
   AV2_COMMON *const cm = &cpi->common;
   assert(cm->seq_params.enable_explicit_ref_frame_map || frame_is_sframe(cm));
-#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-  assert(cm->seq_params.explicit_ref_frame_map);
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   // With explicit_ref_frame_map, error_resilient_mode or switch_frame_mode on,
   // an encoder-only ranking scheme can be implemented here. For now,
   // av2_get_ref_frames is used as a placeholder.
   // Do a dry run to obtain variables in resolution independent reference
   // mapping that will be used in write_frame_size_with_refs
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   if (cpi->switch_frame_mode == 1) {
     av2_get_ref_frames(cm, cur_frame_disp, 0, 1, ref_frame_map_pairs);
     av2_get_ref_frames(cm, cur_frame_disp, 1, 1, ref_frame_map_pairs);
   } else {
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-    av2_get_ref_frames(cm, cur_frame_disp, 0,
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-                       0,
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-                       ref_frame_map_pairs);
-    av2_get_ref_frames(cm, cur_frame_disp, 1,
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-                       0,
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-                       ref_frame_map_pairs);
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+    av2_get_ref_frames(cm, cur_frame_disp, 0, 0, ref_frame_map_pairs);
+    av2_get_ref_frames(cm, cur_frame_disp, 1, 0, ref_frame_map_pairs);
   }
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 
   // if BRU ref frame is not in the top n_refs list, swap bru ref to the last of
   // top_n
@@ -624,10 +602,7 @@ static int get_free_ref_map_index(RefFrameMapPair ref_map_pairs[REF_FRAMES],
 }
 
 static int get_refresh_idx(int update_arf, int refresh_level,
-                           int cur_frame_disp,
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-                           int switch_frame_mode,
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+                           int cur_frame_disp, int switch_frame_mode,
                            RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
                            const int ref_frames) {
   // refresh_level = -1
@@ -643,9 +618,7 @@ static int get_refresh_idx(int update_arf, int refresh_level,
   for (int map_idx = 0; map_idx < ref_frames; map_idx++) {
     RefFrameMapPair ref_pair = ref_frame_map_pairs[map_idx];
     if (ref_pair.ref_frame_for_inference == -1) continue;
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     if (switch_frame_mode == 1 && ref_pair.frame_type == KEY_FRAME) continue;
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 #if CONFIG_F322_OBUER_REFRESTRICT
     const int frame_order = ref_pair.disp_order_removed;
 #else
@@ -711,25 +684,16 @@ static int get_refresh_frame_flags_subgop_cfg(
   }
 
   const int update_arf = type_code == FRAME_TYPE_OOO_FILTERED && pyr_level == 1;
-  const int refresh_idx =
-      get_refresh_idx(update_arf, refresh_level, cur_disp_order,
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-                      cpi->switch_frame_mode,
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-                      ref_frame_map_pairs, cpi->common.seq_params.ref_frames);
+  const int refresh_idx = get_refresh_idx(
+      update_arf, refresh_level, cur_disp_order, cpi->switch_frame_mode,
+      ref_frame_map_pairs, cpi->common.seq_params.ref_frames);
   return 1 << refresh_idx;
 }
 
 int av2_get_refresh_frame_flags(
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     AV2_COMP *const cpi, const EncodeFrameParams *const frame_params,
-#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-    const AV2_COMP *const cpi, const EncodeFrameParams *const frame_params,
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     FRAME_UPDATE_TYPE frame_update_type, int gf_index, int cur_disp_order,
     RefFrameMapPair ref_frame_map_pairs[REF_FRAMES]) {
-
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   if (cpi->switch_frame_mode == 1) {
     AV2_COMMON *const cm = &cpi->common;
     int refresh_frame_flags = (1 << cpi->common.seq_params.ref_frames) - 1;
@@ -751,7 +715,6 @@ int av2_get_refresh_frame_flags(
     }
     return refresh_frame_flags;
   }
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 
   // Switch frames and shown key-frames overwrite all reference slots
   if (
@@ -830,10 +793,7 @@ int av2_get_refresh_frame_flags(
 
   const int update_arf = frame_update_type == ARF_UPDATE;
   const int refresh_idx =
-      get_refresh_idx(update_arf, -1, cur_disp_order,
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-                      cpi->switch_frame_mode,
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+      get_refresh_idx(update_arf, -1, cur_disp_order, cpi->switch_frame_mode,
                       ref_frame_map_pairs, cpi->common.seq_params.ref_frames);
 
   return 1 << refresh_idx;
@@ -1111,9 +1071,7 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
                                  &bru_ref_source, &frame_params);
   }
 
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
   if (frame_params.frame_type == S_FRAME) cpi->common.show_frame = 1;
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 
   if (cpi->oxcf.ref_frm_cfg.enable_generation_sef_obu)
     cpi->common.showable_frame = 0;
@@ -1306,12 +1264,8 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
   cm->current_frame.mlayer_id = cm->mlayer_id;
 
   init_ref_map_pair(&cpi->common, cm->ref_frame_map_pairs,
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
                     frame_params.frame_type == KEY_FRAME,
                     cpi->switch_frame_mode == 1);
-#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-                    gf_group->update_type[gf_group->index] == KF_UPDATE);
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
 
   if (!is_stat_generation_stage(cpi)) {
     cm->current_frame.frame_type = frame_params.frame_type;
@@ -1371,31 +1325,15 @@ int av2_encode_strategy(AV2_COMP *const cpi, size_t *const size,
     } else {
       cm->features.tip_frame_mode = TIP_FRAME_DISABLED;
     }
-    if (cm->seq_params.enable_explicit_ref_frame_map
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-        || frame_is_sframe(cm)
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-    ) {
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
+    if (cm->seq_params.enable_explicit_ref_frame_map || frame_is_sframe(cm)) {
       av2_get_ref_frames_enc(cpi, cur_frame_disp, cm->ref_frame_map_pairs);
-#else   // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-      av2_get_ref_frames_enc(cm, cur_frame_disp, cm->ref_frame_map_pairs);
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
     } else {
       // Derive reference mapping in a resolution independent manner, to
       // generate parameters (num_total_refs_res_indep and
       // remapped_ref_idx_res_indep) needed in write_frame_size_with_refs.
-      av2_get_ref_frames(cm, cur_frame_disp, 0,
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-                         0,
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-                         cm->ref_frame_map_pairs);
+      av2_get_ref_frames(cm, cur_frame_disp, 0, 0, cm->ref_frame_map_pairs);
       // Derive the reference mapping excluding frames of invalid resolutions
-      av2_get_ref_frames(cm, cur_frame_disp, 1,
-#if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-                         0,
-#endif  // CONFIG_RANDOM_ACCESS_SWITCH_FRAME
-                         cm->ref_frame_map_pairs);
+      av2_get_ref_frames(cm, cur_frame_disp, 1, 0, cm->ref_frame_map_pairs);
     }
     if (!cm->seq_params.enable_explicit_ref_frame_map && cm->bru.enabled) {
       const int num_past_refs = cm->ref_frames_info.num_past_refs;
