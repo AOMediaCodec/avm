@@ -83,7 +83,7 @@ void av2_default_coef_probs(AV2_COMMON *cm) {
   // TODO(joeyoung/hegilmez): move intra_dip_cdf and intra_dip_mode_n6_cdf to
   // the place where initializations for modes are done, since they are not part
   // of  coefficient coding.
-  av2_copy(cm->fc->intra_dip_cdf, default_intra_dip_cdf[index]);
+  av2_copy(cm->fc->intra_dip_cdf, default_intra_dip_cdf);
   av2_copy(cm->fc->intra_dip_mode_n6_cdf, default_intra_dip_mode_n6_cdf);
 }
 
