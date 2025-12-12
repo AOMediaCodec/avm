@@ -749,7 +749,7 @@ static void set_content_interpreation_params(struct AV2_COMP *cpi,
   const DecoderModelCfg *const dec_model_cfg = &oxcf->dec_model_cfg;
   const ColorCfg *const color_cfg = &oxcf->color_cfg;
   cpi->oxcf = *oxcf;
-  ContentInterpretation *ci_params = &cpi->common.ci_params;
+  ContentInterpretation *ci_params = &cpi->common.ci_params_encoder;
 
   // Scan type information
   cpi->scan_type_info_present_flag = oxcf->tool_cfg.scan_type_info_present_flag;
@@ -4211,7 +4211,7 @@ static int encode_with_recode_loop_and_filter(AV2_COMP *cpi, size_t *size,
 
   SequenceHeader *const seq_params = &cm->seq_params;
 #if CONFIG_CWG_F270_CI_OBU
-  ColorInfo *const color_info = &cm->ci_params.color_info;
+  ColorInfo *const color_info = &cm->ci_params_encoder.color_info;
 #endif  // CONFIG_CWG_F270_CI_OBU
   if (cm->bru.enabled && cm->current_frame.frame_type != KEY_FRAME) {
     enc_bru_swap_stage(cpi);
@@ -4243,7 +4243,7 @@ static int encode_with_recode_loop_and_filter(AV2_COMP *cpi, size_t *size,
   cm->cur_frame->buf.monochrome = seq_params->monochrome;
 #if CONFIG_CWG_F270_CI_OBU
   cm->cur_frame->buf.chroma_sample_position =
-      cm->ci_params.ci_chroma_sample_position[0];
+      cm->ci_params_encoder.ci_chroma_sample_position[0];
   cm->cur_frame->buf.color_range = color_info->full_range_flag;
 #else
   cm->cur_frame->buf.chroma_sample_position =
@@ -4833,7 +4833,7 @@ static int encode_frame_to_data_rate(AV2_COMP *cpi, size_t *size,
       break;
   }
 #if CONFIG_CWG_F270_CI_OBU
-  cm->ci_params.ci_timing_info_present_flag &=
+  cm->ci_params_encoder.ci_timing_info_present_flag &=
       !seq_params->single_picture_header_flag;
 #else
   seq_params->timing_info_present &= !seq_params->single_picture_header_flag;

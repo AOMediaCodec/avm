@@ -25,6 +25,7 @@
 #include "av2/decoder/obu.h"
 #include "av2/common/av2_common_int.h"
 #if CONFIG_CWG_F270_CI_OBU
+
 static void av2_set_color_info(ContentInterpretation *ci_params) {
   assert(ci_params->color_info.color_description_idc !=
          AVM_COLOR_DESC_IDC_EXPLICIT);
@@ -164,59 +165,60 @@ static INLINE void av2_read_sample_aspect_ratio_information(
   }
 }
 
-// TODO: AVM issue #1129 - Check that all instances of a CI OBU in an embedded
-// layer shall contain the same information.
 uint32_t av2_read_content_interpretation_obu(struct AV2Decoder *pbi,
                                              struct avm_read_bit_buffer *rb) {
+  // TODO: AVM issue #1172 - Add layer-dependency-based inheritance of CI params
   AV2_COMMON *const cm = &pbi->common;
+  const int obu_mlayer_id = cm->mlayer_id;
   const uint32_t saved_bit_offset = rb->bit_offset;
   cm->error.error_code = AVM_CODEC_OK;
   assert(rb->error_handler);
-  ContentInterpretation *ci_params = &cm->ci_params;
-  ci_params->ci_scan_type_idc = avm_rb_read_literal(rb, 2);
-  ci_params->ci_color_description_present_flag = avm_rb_read_bit(rb);
-  ci_params->ci_chroma_sample_position_present_flag = avm_rb_read_bit(rb);
-  ci_params->ci_aspect_ratio_info_present_flag = avm_rb_read_bit(rb);
-  ci_params->ci_timing_info_present_flag = avm_rb_read_bit(rb);
-  ci_params->ci_extension_present_flag = avm_rb_read_bit(rb);
+
+  // Parse CI OBU into a temp structure
+  ContentInterpretation ci_temp;
+  ci_temp.ci_scan_type_idc = avm_rb_read_literal(rb, 2);
+  ci_temp.ci_color_description_present_flag = avm_rb_read_bit(rb);
+  ci_temp.ci_chroma_sample_position_present_flag = avm_rb_read_bit(rb);
+  ci_temp.ci_aspect_ratio_info_present_flag = avm_rb_read_bit(rb);
+  ci_temp.ci_timing_info_present_flag = avm_rb_read_bit(rb);
+  ci_temp.ci_extension_present_flag = avm_rb_read_bit(rb);
   (void)avm_rb_read_bit(rb);  // ci_reserved_1bit
 
-  if (ci_params->ci_color_description_present_flag) {
-    av2_read_color_info(ci_params, rb);
-    if (ci_params->color_info.color_description_idc !=
-        AVM_COLOR_DESC_IDC_EXPLICIT)
-      av2_set_color_info(ci_params);
+  if (ci_temp.ci_color_description_present_flag) {
+    av2_read_color_info(&ci_temp, rb);
+    if (ci_temp.color_info.color_description_idc != AVM_COLOR_DESC_IDC_EXPLICIT)
+      av2_set_color_info(&ci_temp);
   } else {
-    ci_params->color_info.color_primaries = AVM_CICP_CP_UNSPECIFIED;
-    ci_params->color_info.matrix_coefficients = AVM_CICP_MC_UNSPECIFIED;
-    ci_params->color_info.transfer_characteristics = AVM_CICP_TC_UNSPECIFIED;
-    ci_params->color_info.full_range_flag = 0;
+    ci_temp.color_info.color_primaries = AVM_CICP_CP_UNSPECIFIED;
+    ci_temp.color_info.matrix_coefficients = AVM_CICP_MC_UNSPECIFIED;
+    ci_temp.color_info.transfer_characteristics = AVM_CICP_TC_UNSPECIFIED;
+    ci_temp.color_info.full_range_flag = 0;
   }
 
-  if (ci_params->ci_chroma_sample_position_present_flag) {
-    ci_params->ci_chroma_sample_position[0] = avm_rb_read_uvlc(rb);
-    if (ci_params->ci_scan_type_idc != 1)
-      ci_params->ci_chroma_sample_position[1] = avm_rb_read_uvlc(rb);
+  if (ci_temp.ci_chroma_sample_position_present_flag) {
+    ci_temp.ci_chroma_sample_position[0] = avm_rb_read_uvlc(rb);
+    if (ci_temp.ci_scan_type_idc != 1)
+      ci_temp.ci_chroma_sample_position[1] = avm_rb_read_uvlc(rb);
     else
-      ci_params->ci_chroma_sample_position[1] =
-          ci_params->ci_chroma_sample_position[0];
+      ci_temp.ci_chroma_sample_position[1] =
+          ci_temp.ci_chroma_sample_position[0];
   } else {
-    ci_params->ci_chroma_sample_position[0] = AVM_CSP_UNSPECIFIED;
-    ci_params->ci_chroma_sample_position[1] = AVM_CSP_UNSPECIFIED;
+    ci_temp.ci_chroma_sample_position[0] = AVM_CSP_UNSPECIFIED;
+    ci_temp.ci_chroma_sample_position[1] = AVM_CSP_UNSPECIFIED;
   }
 
-  if (ci_params->ci_aspect_ratio_info_present_flag) {
-    av2_read_sample_aspect_ratio_information(ci_params, rb);
-    if (!av2_set_sar_info(ci_params)) {
+  if (ci_temp.ci_aspect_ratio_info_present_flag) {
+    av2_read_sample_aspect_ratio_information(&ci_temp, rb);
+    if (!av2_set_sar_info(&ci_temp)) {
       avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
                          "Incorrect SAR values");
     }
   }
 
-  if (ci_params->ci_timing_info_present_flag)
-    av2_read_timing_info_header(&ci_params->timing_info, &cm->error, rb);
+  if (ci_temp.ci_timing_info_present_flag)
+    av2_read_timing_info_header(&ci_temp.timing_info, &cm->error, rb);
 
-  if (ci_params->ci_extension_present_flag) {
+  if (ci_temp.ci_extension_present_flag) {
     // TODO: issue #1111 - Add the extension mechanism
   }
 
@@ -225,7 +227,15 @@ uint32_t av2_read_content_interpretation_obu(struct AV2Decoder *pbi,
     return 0;
   }
 
-  pbi->ci_params_received = 1;
+  //  * 0. CLK/OLK signalled without CI
+  //  * 1. CI obu signalled without CLK/OLK
+  //  * 2. CI obu signalled with CLK/OLK
+  if (pbi->ci_and_key_per_layer[obu_mlayer_id] == 1) {
+    avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
+                       "CI OBU is signalled without CLK/OLK");
+  } else if (pbi->ci_and_key_per_layer[obu_mlayer_id] == 2) {
+    cm->ci_params_per_layer[obu_mlayer_id] = ci_temp;
+  }
 
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }

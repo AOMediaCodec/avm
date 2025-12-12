@@ -2658,11 +2658,16 @@ typedef struct AV2Common {
   /*!
    * Elements part of the content interpretation, when present, applicable for
    * all the frames in the video.
-   *
-   * TODO: AVM issue #1130 - Allow different CI OBUs in different embedded
-   * layers of the same bitstream.
    */
-  ContentInterpretation ci_params;
+  ContentInterpretation ci_params_per_layer[MAX_NUM_MLAYERS];
+
+  /*!
+   * Content Interpretation params. Used by the encoder only.
+   *
+   * NOTE: This field is provided for the encoder as a convenience. Eventually
+   * we should migrate the encoder to use the ci_params_per_layer array.
+   */
+  ContentInterpretation ci_params_encoder;
 #endif  // CONFIG_CWG_F270_CI_OBU
 
   /*!

@@ -3926,7 +3926,9 @@ static AVM_INLINE void resize_context_buffers(AV2_COMMON *cm, int width,
 static AVM_INLINE void setup_tip_frame_size(AV2_COMMON *cm) {
   const SequenceHeader *const seq_params = &cm->seq_params;
 #if CONFIG_CWG_F270_CI_OBU
-  const ColorInfo *const color_info = &cm->ci_params.color_info;
+  const ContentInterpretation *const ci_params =
+      &cm->ci_params_per_layer[cm->mlayer_id];
+  const ColorInfo *const color_info = &ci_params->color_info;
 #endif  // CONFIG_CWG_F270_CI_OBU
   YV12_BUFFER_CONFIG *tip_frame_buf = &cm->tip_ref.tip_frame->buf;
   if (avm_realloc_frame_buffer(
@@ -3952,9 +3954,9 @@ static AVM_INLINE void setup_tip_frame_size(AV2_COMMON *cm) {
 #endif  // CONFIG_CWG_F270_CI_OBU
     tip_frame_buf->monochrome = seq_params->monochrome;
 #if CONFIG_CWG_F270_CI_OBU
-    if (cm->ci_params.ci_chroma_sample_position_present_flag)
+    if (ci_params->ci_chroma_sample_position_present_flag)
       tip_frame_buf->chroma_sample_position =
-          cm->ci_params.ci_chroma_sample_position[0];
+          ci_params->ci_chroma_sample_position[0];
     else
       tip_frame_buf->chroma_sample_position = AVM_CSP_UNSPECIFIED;
     tip_frame_buf->color_range = color_info->full_range_flag;
@@ -3990,9 +3992,9 @@ static AVM_INLINE void setup_tip_frame_size(AV2_COMMON *cm) {
 #endif  // CONFIG_CWG_F270_CI_OBU
     tip_frame_buf->monochrome = seq_params->monochrome;
 #if CONFIG_CWG_F270_CI_OBU
-    if (cm->ci_params.ci_chroma_sample_position_present_flag)
+    if (ci_params->ci_chroma_sample_position_present_flag)
       tip_frame_buf->chroma_sample_position =
-          cm->ci_params.ci_chroma_sample_position[0];
+          ci_params->ci_chroma_sample_position[0];
     else
       tip_frame_buf->chroma_sample_position = AVM_CSP_UNSPECIFIED;
     tip_frame_buf->color_range = color_info->full_range_flag;
@@ -4009,7 +4011,9 @@ static AVM_INLINE void setup_buffer_pool(AV2_COMMON *cm) {
   BufferPool *const pool = cm->buffer_pool;
   const SequenceHeader *const seq_params = &cm->seq_params;
 #if CONFIG_CWG_F270_CI_OBU
-  const ColorInfo *const color_info = &cm->ci_params.color_info;
+  const ContentInterpretation *const ci_params =
+      &cm->ci_params_per_layer[cm->mlayer_id];
+  const ColorInfo *const color_info = &ci_params->color_info;
 #endif  // CONFIG_CWG_F270_CI_OBU
 
   lock_buffer_pool(pool);
@@ -4038,9 +4042,9 @@ static AVM_INLINE void setup_buffer_pool(AV2_COMMON *cm) {
 #endif  // CONFIG_CWG_F270_CI_OBU
   cm->cur_frame->buf.monochrome = seq_params->monochrome;
 #if CONFIG_CWG_F270_CI_OBU
-  if (cm->ci_params.ci_chroma_sample_position_present_flag)
+  if (ci_params->ci_chroma_sample_position_present_flag)
     cm->cur_frame->buf.chroma_sample_position =
-        cm->ci_params.ci_chroma_sample_position[0];
+        ci_params->ci_chroma_sample_position[0];
   else
     cm->cur_frame->buf.chroma_sample_position = AVM_CSP_UNSPECIFIED;
   cm->cur_frame->buf.color_range = color_info->full_range_flag;
@@ -8543,8 +8547,10 @@ static int read_show_existing_frame(AV2Decoder *pbi,
 #if !CONFIG_CWG_F430
   if (seq_params->decoder_model_info_present_flag &&
 #if CONFIG_CWG_F270_CI_OBU
-      (cm->ci_params.ci_timing_info_present_flag == 1) &&
-      cm->ci_params.timing_info.equal_elemental_interval == 0
+      (cm->ci_params_per_layer[cm->mlayer_id].ci_timing_info_present_flag ==
+       1) &&
+      cm->ci_params_per_layer[cm->mlayer_id]
+              .timing_info.equal_elemental_interval == 0
 #else
       seq_params->timing_info.equal_picture_interval == 0
 #endif  // CONFIG_CWG_F270_CI_OBU
@@ -8787,22 +8793,31 @@ static void handle_sequence_header(AV2Decoder *pbi,
         cm->mlayer_id, cm->seq_params.max_mlayer_id);
   }
 #if CONFIG_CWG_F270_CI_OBU
-  if (!pbi->ci_params_received) {
-    cm->ci_params.color_info.color_description_idc = 0;
-    cm->ci_params.color_info.color_primaries = AVM_CICP_CP_UNSPECIFIED;
-    cm->ci_params.color_info.matrix_coefficients = AVM_CICP_MC_UNSPECIFIED;
-    cm->ci_params.color_info.transfer_characteristics = AVM_CICP_TC_UNSPECIFIED;
-    cm->ci_params.color_info.full_range_flag = 0;
+  if ((obu_type == OBU_CLK || obu_type == OBU_OLK) &&
+      (pbi->ci_and_key_per_layer[cm->mlayer_id] == 0)) {
+    ContentInterpretation *ci_params = &cm->ci_params_per_layer[cm->mlayer_id];
+    ci_params->color_info.color_description_idc = 0;
+    ci_params->color_info.color_primaries = AVM_CICP_CP_UNSPECIFIED;
+    ci_params->color_info.matrix_coefficients = AVM_CICP_MC_UNSPECIFIED;
+    ci_params->color_info.transfer_characteristics = AVM_CICP_TC_UNSPECIFIED;
+    ci_params->color_info.full_range_flag = 0;
 
-    cm->ci_params.ci_chroma_sample_position[0] = AVM_CSP_UNSPECIFIED;
-    cm->ci_params.ci_chroma_sample_position[1] = AVM_CSP_UNSPECIFIED;
+    ci_params->ci_chroma_sample_position[0] = AVM_CSP_UNSPECIFIED;
+    ci_params->ci_chroma_sample_position[1] = AVM_CSP_UNSPECIFIED;
 
-    cm->ci_params.ci_scan_type_idc = 0;
-    cm->ci_params.ci_color_description_present_flag = 0;
-    cm->ci_params.ci_chroma_sample_position_present_flag = 0;
-    cm->ci_params.ci_aspect_ratio_info_present_flag = 0;
-    cm->ci_params.ci_timing_info_present_flag = 0;
-    cm->ci_params.ci_extension_present_flag = 0;
+    ci_params->ci_scan_type_idc = 0;
+    ci_params->ci_color_description_present_flag = 0;
+    ci_params->ci_chroma_sample_position_present_flag = 0;
+    ci_params->ci_aspect_ratio_info_present_flag = 0;
+    ci_params->ci_timing_info_present_flag = 0;
+    ci_params->ci_extension_present_flag = 0;
+    for (int ref_layer_id = 0; ref_layer_id < cm->mlayer_id; ref_layer_id++) {
+      if (cm->seq_params.mlayer_dependency_map[cm->mlayer_id][ref_layer_id]) {
+        cm->ci_params_per_layer[cm->mlayer_id] =
+            cm->ci_params_per_layer[ref_layer_id];
+        break;
+      }
+    }
   }
 #endif  // CONFIG_CWG_F270_CI_OBU
 
@@ -8999,7 +9014,9 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   AV2_COMMON *const cm = &pbi->common;
   const SequenceHeader *const seq_params = &cm->seq_params;
 #if CONFIG_CWG_F270_CI_OBU
-  const ColorInfo *const color_info = &cm->ci_params.color_info;
+  const ContentInterpretation *const ci_params =
+      &cm->ci_params_per_layer[cm->mlayer_id];
+  const ColorInfo *const color_info = &ci_params->color_info;
 #endif  // CONFIG_CWG_F270_CI_OBU
   CurrentFrame *const current_frame = &cm->current_frame;
   FeatureFlags *const features = &cm->features;
@@ -9069,17 +9086,6 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       memset(&cm->atlas_params, 0, sizeof(struct AtlasSegmentInfo));
     }
   }
-#if CONFIG_CWG_F270_CI_OBU
-  if (pbi->ci_params_received &&
-      (cm->ci_params.color_info.matrix_coefficients == AVM_CICP_MC_IDENTITY ||
-       cm->ci_params.color_info.matrix_coefficients == AVM_CICP_MC_YCGCO_RE ||
-       cm->ci_params.color_info.matrix_coefficients == AVM_CICP_MC_YCGCO_RO) &&
-      (cm->seq_params.subsampling_x || cm->seq_params.subsampling_y)) {
-    avm_internal_error(
-        &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
-        "Matrix coefficients incompatible with non 4:4:4 color sampling.");
-  }
-#endif  // CONFIG_CWG_F270_CI_OBU
 
   if (seq_params->single_picture_header_flag) {
     cm->show_existing_frame = 0;
@@ -9240,8 +9246,8 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     if ((cm->show_frame || cm->showable_frame) &&
         seq_params->decoder_model_info_present_flag &&
 #if CONFIG_CWG_F270_CI_OBU
-        (cm->ci_params.ci_timing_info_present_flag == 1) &&
-        cm->ci_params.timing_info.equal_elemental_interval == 0
+        (ci_params->ci_timing_info_present_flag == 1) &&
+        ci_params->timing_info.equal_elemental_interval == 0
 #else
         seq_params->timing_info.equal_picture_interval == 0
 #endif  // CONFIG_CWG_F270_CI_OBU
@@ -10078,9 +10084,9 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
 #endif  // CONFIG_CWG_F270_CI_OBU
   cm->cur_frame->buf.monochrome = seq_params->monochrome;
 #if CONFIG_CWG_F270_CI_OBU
-  if (cm->ci_params.ci_chroma_sample_position_present_flag)
+  if (ci_params->ci_chroma_sample_position_present_flag)
     cm->cur_frame->buf.chroma_sample_position =
-        cm->ci_params.ci_chroma_sample_position[0];
+        ci_params->ci_chroma_sample_position[0];
   else
     cm->cur_frame->buf.chroma_sample_position = AVM_CSP_UNSPECIFIED;
   cm->cur_frame->buf.color_range = color_info->full_range_flag;
@@ -10107,9 +10113,9 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
 #endif  // CONFIG_CWG_F270_CI_OBU
   tip_frame_buf->monochrome = seq_params->monochrome;
 #if CONFIG_CWG_F270_CI_OBU
-  if (cm->ci_params.ci_chroma_sample_position_present_flag)
+  if (ci_params->ci_chroma_sample_position_present_flag)
     tip_frame_buf->chroma_sample_position =
-        cm->ci_params.ci_chroma_sample_position[0];
+        ci_params->ci_chroma_sample_position[0];
   else
     tip_frame_buf->chroma_sample_position = AVM_CSP_UNSPECIFIED;
   tip_frame_buf->color_range = color_info->full_range_flag;

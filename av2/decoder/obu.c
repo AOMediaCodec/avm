@@ -463,12 +463,13 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
         seq_params->op_params[i].decoder_model_param_present_flag = 0;
       }
 #if CONFIG_CWG_F270_CI_OBU
-      if (seq_params->op_params[i].decoder_model_param_present_flag) {
+      if (seq_params->op_params[i].decoder_model_param_present_flag)
 #else
       if (seq_params->timing_info_present &&
           (seq_params->timing_info.equal_picture_interval ||
-           seq_params->op_params[i].decoder_model_param_present_flag)) {
+           seq_params->op_params[i].decoder_model_param_present_flag))
 #endif  // CONFIG_CWG_F270_CI_OBU
+      {
         seq_params->op_params[i].bitrate = av2_max_level_bitrate(
             seq_params->profile, seq_params->seq_level_idx[i],
             seq_params->tier[i]);
@@ -1681,6 +1682,47 @@ static int check_obu_order(OBU_TYPE prev_obu_type, OBU_TYPE curr_obu_type) {
 #endif  // OBU_ORDER_IN_TU
 
 #if CONFIG_F024_KEYOBU
+int av2_ci_keyframe_in_temporal_unit(struct AV2Decoder *pbi,
+                                     const uint8_t *data, size_t data_sz) {
+  const uint8_t *data_read = data;
+
+  ObuHeader obu_header;
+  memset(&obu_header, 0, sizeof(obu_header));
+  int keyframe_present_per_layer[MAX_NUM_MLAYERS] = { 0 };
+  int ci_present_per_layer[MAX_NUM_MLAYERS] = { 0 };
+  // Scan the TU and check if key frame and CI are present.
+  // Note: Should the CI follow the OLK/CLK immediately
+  while (data_read < data + data_sz) {
+    size_t payload_size = 0;
+    size_t bytes_read = 0;
+    avm_read_obu_header_and_size(data_read, data_sz, &obu_header, &payload_size,
+                                 &bytes_read);
+    const int mlayer_id = obu_header.obu_mlayer_id;
+    if (obu_header.type == OBU_CLK || obu_header.type == OBU_OLK) {
+      keyframe_present_per_layer[mlayer_id] = 1;
+    }
+    if (obu_header.type == OBU_CONTENT_INTERPRETATION) {
+      ci_present_per_layer[mlayer_id] = 1;
+    }
+    data_read += bytes_read + payload_size;
+  }
+
+  //  * 0. CLK/OLK signalled without CI
+  //  * 1. CI obu signalled without CLK/OLK
+  //  * 2. CI obu signalled with CLK/OLK
+  for (int i = 0; i < MAX_NUM_MLAYERS; i++) {
+    if (!ci_present_per_layer[i] && keyframe_present_per_layer[i])
+      pbi->ci_and_key_per_layer[i] = 0;
+    else if (ci_present_per_layer[i] && !keyframe_present_per_layer[i])
+      pbi->ci_and_key_per_layer[i] = 1;
+    else if (ci_present_per_layer[i] && keyframe_present_per_layer[i])
+      pbi->ci_and_key_per_layer[i] = 2;
+  }
+  return 0;
+}
+#endif
+
+#if CONFIG_F024_KEYOBU
 int av2_is_random_accessed_temporal_unit(const uint8_t *data, size_t data_sz) {
   const uint8_t *data_read = data;
 
@@ -1741,7 +1783,9 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
   // grain models signalled before a coded frame have the same fgm_id
   uint32_t acc_fgm_id_bitmap = 0;
 #endif  // CONFIG_F153_FGM_OBU
-
+#if CONFIG_CWG_F270_CI_OBU
+  av2_ci_keyframe_in_temporal_unit(pbi, data, data_end - data);
+#endif  // CONFIG_CWG_F270_CI_OBU
   int prev_obu_xlayer_id = -1;
 
   int keyframe_present = 0;

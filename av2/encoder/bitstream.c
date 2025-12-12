@@ -6390,7 +6390,7 @@ static AVM_INLINE void write_show_existing_frame(
 #if !CONFIG_CWG_F430
   if (seq_params->decoder_model_info_present_flag &&
 #if CONFIG_CWG_F270_CI_OBU
-      cm->ci_params.timing_info.equal_elemental_interval == 0) {
+      cm->ci_params_encoder.timing_info.equal_elemental_interval == 0) {
 #else
       seq_params->timing_info.equal_picture_interval == 0) {
 #endif  // CONFIG_CWG_F270_CI_OBU
@@ -6536,7 +6536,7 @@ static AVM_INLINE void write_uncompressed_header(
     if ((cm->show_frame || cm->showable_frame) &&
         seq_params->decoder_model_info_present_flag &&
 #if CONFIG_CWG_F270_CI_OBU
-        cm->ci_params.timing_info.equal_elemental_interval == 0
+        cm->ci_params_encoder.timing_info.equal_elemental_interval == 0
 #else
         seq_params->timing_info.equal_picture_interval == 0
 #endif  // CONFIG_CWG_F270_CI_OBU
@@ -8593,7 +8593,7 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
       obu_header_size = av2_write_obu_header(
           level_params, OBU_CONTENT_INTERPRETATION, 0, 0, data);
       obu_payload_size = av2_write_content_interpretation_obu(
-          &cm->ci_params, data + obu_header_size);
+          &cm->ci_params_encoder, data + obu_header_size);
       size_t length_field_size1 =
           obu_memmove(obu_header_size, obu_payload_size, data);
       if (av2_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
@@ -9016,8 +9016,8 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
 #if CONFIG_CWG_F430
   int write_temporal_point_metadata =
       (cpi->write_ci_obu_flag &&
-       cpi->common.ci_params.ci_timing_info_present_flag &&
-       cpi->common.ci_params.timing_info.equal_elemental_interval == 0)
+       cpi->common.ci_params_encoder.ci_timing_info_present_flag &&
+       cpi->common.ci_params_encoder.timing_info.equal_elemental_interval == 0)
           ? 1
           : 0;
   if (write_temporal_point_metadata) {

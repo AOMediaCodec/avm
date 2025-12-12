@@ -506,7 +506,8 @@ void av2_update_film_grain_parameters(struct AV2_COMP *cpi,
         reset_film_grain_chroma_params(&cm->film_grain_params);
       cm->film_grain_params.bit_depth = cm->seq_params.bit_depth;
 #if CONFIG_CWG_F270_CI_OBU
-      if (cm->ci_params.color_info.full_range_flag == AVM_CR_FULL_RANGE) {
+      if (cm->ci_params_encoder.color_info.full_range_flag ==
+          AVM_CR_FULL_RANGE) {
 #else
       if (cm->seq_params.color_range == AVM_CR_FULL_RANGE) {
 #endif  // CONFIG_CWG_F270_CI_OBU
@@ -514,7 +515,8 @@ void av2_update_film_grain_parameters(struct AV2_COMP *cpi,
       }
 #if CONFIG_FGS_IDENT
 #if CONFIG_CWG_F270_CI_OBU
-      if (cm->ci_params.color_info.matrix_coefficients == AVM_CICP_MC_IDENTITY)
+      if (cm->ci_params_per_layer[cm->mlayer_id]
+              .color_info.matrix_coefficients == AVM_CICP_MC_IDENTITY)
 #else
       if (cm->seq_params.matrix_coefficients == AVM_CICP_MC_IDENTITY)
 #endif  // CONFIG_CWG_F270_CI_OBU

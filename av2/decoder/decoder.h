@@ -489,10 +489,12 @@ typedef struct AV2Decoder {
 #endif  // CONFIG_F153_FGM_OBU
 #if CONFIG_CWG_F270_CI_OBU
   /*!
-   * indicates if content interpretation params (in cm->ci_params) were received
-   * and are valid
+   * Indicates if the ci obu is signalled with a CLK/OLK in the temporal unit
+   * 0. CLK/OLK signalled without CI
+   * 1. CI obu signalled without CLK/OLK
+   * 2. CI obu signalled with CLK/OLK
    */
-  int ci_params_received;
+  int ci_and_key_per_layer[MAX_NUM_MLAYERS];
 #endif  // CONFIG_CWG_F270_CI_OBU
 } AV2Decoder;
 

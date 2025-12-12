@@ -526,9 +526,9 @@ void av2_decoder_model_init(const AV2_COMP *const cpi, AV2_LEVEL level,
   dfg_interval_queue->size = 0;
 
 #if CONFIG_CWG_F270_CI_OBU
-  if (cm->ci_params.ci_timing_info_present_flag) {
+  if (cm->ci_params_encoder.ci_timing_info_present_flag) {
     decoder_model->num_ticks_per_picture =
-        cm->ci_params.timing_info.num_ticks_per_elemental_duration;
+        cm->ci_params_encoder.timing_info.num_ticks_per_elemental_duration;
 #else
   if (seq_params->timing_info_present) {
     decoder_model->num_ticks_per_picture =
@@ -536,8 +536,8 @@ void av2_decoder_model_init(const AV2_COMP *const cpi, AV2_LEVEL level,
 #endif  // CONFIG_CWG_F270_CI_OBU
     decoder_model->display_clock_tick =
 #if CONFIG_CWG_F270_CI_OBU
-        cm->ci_params.timing_info.num_ticks_per_elemental_duration /
-        cm->ci_params.timing_info.time_scale;
+        cm->ci_params_encoder.timing_info.num_ticks_per_elemental_duration /
+        cm->ci_params_encoder.timing_info.time_scale;
 #else
         seq_params->timing_info.num_units_in_display_tick /
         seq_params->timing_info.time_scale;

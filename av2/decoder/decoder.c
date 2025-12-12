@@ -219,13 +219,7 @@ AV2Decoder *av2_decoder_create(BufferPool *const pool) {
   pbi->common.buffer_pool = pool;
 
   cm->seq_params.bit_depth = AVM_BITS_8;
-#if CONFIG_CWG_F270_CI_OBU
-  cm->ci_params.ci_chroma_sample_position_present_flag = 0;
-  if (!cm->ci_params.ci_chroma_sample_position_present_flag) {
-    cm->ci_params.ci_chroma_sample_position[0] = AVM_CSP_UNSPECIFIED;
-    cm->ci_params.ci_chroma_sample_position[1] = AVM_CSP_UNSPECIFIED;
-  }
-#else
+#if !CONFIG_CWG_F270_CI_OBU
   cm->seq_params.chroma_sample_position = AVM_CSP_UNSPECIFIED;
 #endif  // CONFIG_CWG_F270_CI_OBU
 
@@ -281,22 +275,24 @@ AV2Decoder *av2_decoder_create(BufferPool *const pool) {
 
 #if CONFIG_CWG_F270_CI_OBU
   // Initialize the Content Interpretation parameters
-  pbi->ci_params_received = 0;
-  cm->ci_params.color_info.color_description_idc = 0;
-  cm->ci_params.color_info.color_primaries = AVM_CICP_CP_UNSPECIFIED;
-  cm->ci_params.color_info.matrix_coefficients = AVM_CICP_MC_UNSPECIFIED;
-  cm->ci_params.color_info.transfer_characteristics = AVM_CICP_TC_UNSPECIFIED;
-  cm->ci_params.color_info.full_range_flag = 0;
-
-  cm->ci_params.ci_chroma_sample_position[0] = AVM_CSP_UNSPECIFIED;
-  cm->ci_params.ci_chroma_sample_position[1] = AVM_CSP_UNSPECIFIED;
-
-  cm->ci_params.ci_scan_type_idc = AVM_SCAN_TYPE_UNSPECIFIED;
-  cm->ci_params.ci_color_description_present_flag = 0;
-  cm->ci_params.ci_chroma_sample_position_present_flag = 0;
-  cm->ci_params.ci_aspect_ratio_info_present_flag = 0;
-  cm->ci_params.ci_timing_info_present_flag = 0;
-  cm->ci_params.ci_extension_present_flag = 0;
+  for (int i = 0; i < MAX_NUM_MLAYERS; i++) {
+    pbi->ci_and_key_per_layer[i] = 0;
+    ContentInterpretation *ci_params = &cm->ci_params_per_layer[i];
+    ci_params->ci_chroma_sample_position_present_flag = 0;
+    ci_params->ci_chroma_sample_position[0] = AVM_CSP_UNSPECIFIED;
+    ci_params->ci_chroma_sample_position[1] = AVM_CSP_UNSPECIFIED;
+    ci_params->color_info.color_description_idc = 0;
+    ci_params->color_info.color_primaries = AVM_CICP_CP_UNSPECIFIED;
+    ci_params->color_info.matrix_coefficients = AVM_CICP_MC_UNSPECIFIED;
+    ci_params->color_info.transfer_characteristics = AVM_CICP_TC_UNSPECIFIED;
+    ci_params->color_info.full_range_flag = 0;
+    ci_params->ci_scan_type_idc = AVM_SCAN_TYPE_UNSPECIFIED;
+    ci_params->ci_color_description_present_flag = 0;
+    ci_params->ci_chroma_sample_position_present_flag = 0;
+    ci_params->ci_aspect_ratio_info_present_flag = 0;
+    ci_params->ci_timing_info_present_flag = 0;
+    ci_params->ci_extension_present_flag = 0;
+  }
 #endif  // CONFIG_CWG_F270_CI_OBU
 
 #if DEBUG_EXTQUANT
