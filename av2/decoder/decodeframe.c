@@ -7758,11 +7758,7 @@ void av2_read_multi_frame_header(AV2_COMMON *cm,
                        "Unsupported Sequence Header ID in MFH");
   }
 #endif  // #if CONFIG_CWG_E242_SEQ_HDR_ID
-#if CONFIG_CWG_E242_MFH_ID_UVLC
   uint32_t cur_mfh_id = avm_rb_read_uvlc(rb) + 1;
-#else
-  int cur_mfh_id = avm_rb_read_literal(rb, 4) + 1;
-#endif  // CONFIG_CWG_E242_MFH_ID_UVLC
   if (cur_mfh_id >= MAX_MFH_NUM) {
     avm_internal_error(&cm->error, AVM_CODEC_CORRUPT_FRAME,
                        "multi-frame header id is greater than or equal to the "

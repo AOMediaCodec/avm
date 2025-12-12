@@ -6076,12 +6076,7 @@ static AVM_INLINE void write_multi_frame_header(
 #if CONFIG_CWG_E242_SEQ_HDR_ID
   avm_wb_write_uvlc(wb, mfh_param->mfh_seq_header_id);
 #endif  // #if CONFIG_CWG_E242_SEQ_HDR_ID
-#if CONFIG_CWG_E242_MFH_ID_UVLC
   avm_wb_write_uvlc(wb, cm->cur_mfh_id - 1);
-#else
-  avm_wb_write_literal(wb, cm->cur_mfh_id - 1, 4);
-#endif  // CONFIG_CWG_E242_MFH_ID_UVLC
-
 #if CONFIG_CWG_E242_PARSING_INDEP
   avm_wb_write_bit(wb, mfh_param->mfh_frame_size_present_flag);
   avm_wb_write_bit(wb, mfh_param->mfh_tile_info_present_flag);
@@ -6396,11 +6391,7 @@ static AVM_INLINE void write_uncompressed_header(
     avm_wb_write_literal(wb, cm->bridge_frame_info.bridge_frame_ref_idx,
                          seq_params->ref_frames_log2);
   } else {
-#if CONFIG_CWG_E242_MFH_ID_UVLC
     avm_wb_write_uvlc(wb, cm->cur_mfh_id);
-#else
-    avm_wb_write_literal(wb, cm->cur_mfh_id, 4);
-#endif  // CONFIG_CWG_E242_MFH_ID_UVLC
     if (cm->cur_mfh_id == 0) {
       avm_wb_write_uvlc(wb, cm->seq_params.seq_header_id);
     }

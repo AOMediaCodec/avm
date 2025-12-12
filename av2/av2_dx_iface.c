@@ -552,11 +552,7 @@ static avm_codec_err_t decoder_peek_si_internal(const uint8_t *data,
           avm_rb_read_bit(&rb);  // send_uncompressed_header_flag
         }
 
-#if CONFIG_CWG_E242_MFH_ID_UVLC
         uint32_t mfh_id = avm_rb_read_uvlc(&rb);
-#else
-        int mfh_id = avm_rb_read_literal(&rb, 4);
-#endif  // CONFIG_CWG_E242_MFH_ID_UVLC
         if (mfh_id == 0) {
           uint32_t seq_header_id_in_frame_header = avm_rb_read_uvlc(&rb);
           (void)seq_header_id_in_frame_header;
