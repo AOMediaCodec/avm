@@ -157,9 +157,6 @@ set_avm_config_var(CONFIG_CWG_E242_SIGNAL_TILE_INFO 1
 set_avm_config_var(CONFIG_MULTI_LEVEL_SEGMENTATION 1
                    "Segmentation information in the multi frame header")
 
-set_avm_config_var(CONFIG_CWG_E242_PARSING_INDEP 1
-                   "Parsing independence of MFH.")
-
 set_avm_config_var(CONFIG_CWG_E242_BITDEPTH 1 "Signal Bitdepth using a LUT.")
 
 set_avm_config_var(CONFIG_CWG_E242_SEQ_HDR_ID 1 "Signal sequence header id.")
