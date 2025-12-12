@@ -1003,7 +1003,6 @@ void active_region_detection(AV2_COMP *cpi,
                              const YV12_BUFFER_CONFIG *cur_picture,
                              const YV12_BUFFER_CONFIG *last_picture);
 
-#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
 static AVM_INLINE void av2_set_seq_tile_info(SequenceHeader *const seq_params,
                                              const AV2EncoderConfig *oxcf) {
   const TileConfig *const tile_cfg = &oxcf->tile_cfg;
@@ -1058,7 +1057,6 @@ static AVM_INLINE void av2_set_seq_tile_info(SequenceHeader *const seq_params,
   }
   av2_calculate_tile_rows(tiles);
 }
-#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 
 static AVM_INLINE void av2_set_tile_info(AV2_COMMON *const cm,
                                          const TileConfig *const tile_cfg) {

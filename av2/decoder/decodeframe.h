@@ -65,11 +65,9 @@ void av2_read_sequence_header(struct avm_read_bit_buffer *rb,
 #endif  // CONFIG_IMPROVED_REORDER_SEQ_FLAGS && !CONFIG_F255_QMOBU
 );
 
-#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
 // Reads the tile information in the sequence header
 void read_sequence_tile_info(struct SequenceHeader *seq_params,
                              struct avm_read_bit_buffer *rb);
-#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 
 #if !CONFIG_IMPROVED_REORDER_SEQ_FLAGS
 // this function can be removed with CONFIG_IMPROVED_REORDER_SEQ_FLAGS == 1

@@ -4351,7 +4351,6 @@ static AVM_INLINE void write_tile_info_max_tile(
   }
 }
 
-#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
 static int check_tile_equivalence(const TileInfoSyntax *const tile_params,
                                   const CommonTileParams *const tiles) {
   if (tile_params->tile_info.uniform_spacing != tiles->uniform_spacing)
@@ -4376,7 +4375,6 @@ static int check_tile_equivalence(const TileInfoSyntax *const tile_params,
   }
   return 1;
 }
-#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 
 static AVM_INLINE void write_tile_info(AV2_COMMON *const cm,
                                        struct avm_write_bit_buffer *saved_wb,
@@ -4384,7 +4382,6 @@ static AVM_INLINE void write_tile_info(AV2_COMMON *const cm,
   if (cm->bridge_frame_info.is_bridge_frame) {
     return;
   }
-#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
   const TileInfoSyntax *const tile_params = find_effective_tile_params(cm);
   int reuse = 0;
   if (tile_params &&
@@ -4398,9 +4395,6 @@ static AVM_INLINE void write_tile_info(AV2_COMMON *const cm,
     assert(IMPLIES(reuse, check_tile_equivalence(tile_params, &cm->tiles)));
   }
   if (!reuse) write_tile_info_max_tile(&cm->tiles, wb);
-#else
-  write_tile_info_max_tile(&cm->tiles, wb);
-#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
   *saved_wb = *wb;
   if (cm->tiles.rows * cm->tiles.cols > 1 &&
       cm->features.tip_frame_mode != TIP_FRAME_AS_OUTPUT) {
@@ -4711,7 +4705,6 @@ static AVM_INLINE void write_tu_pts_info(AV2_COMMON *const cm,
 }
 #endif  // !CONFIG_CWG_F430
 
-#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
 // Writes tile syntax
 void write_tile_syntax_info(const TileInfoSyntax *tile_params,
                             struct avm_write_bit_buffer *wb) {
@@ -4758,7 +4751,6 @@ void write_tile_syntax_info(const TileInfoSyntax *tile_params,
     assert(tile_height_sb == 0);
   }
 }
-#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 
 // Writes tile information to multi-frame header
 static AVM_INLINE void write_tile_mfh(const MultiFrameHeader *const mfh_param,
@@ -5735,12 +5727,10 @@ static AVM_INLINE void write_sequence_header(
     avm_wb_write_bit(wb, seq_params->uv_ac_delta_q_enabled);
   }
 #endif  // !CONFIG_IMPROVED_REORDER_SEQ_FLAGS
-#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
   avm_wb_write_bit(wb, seq_params->seq_tile_info_present_flag);
   if (seq_params->seq_tile_info_present_flag) {
     write_tile_syntax_info(&seq_params->tile_params, wb);
   }
-#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 }
 
 static void write_frame_max_drl_bits(AV2_COMMON *const cm,

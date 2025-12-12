@@ -430,7 +430,6 @@ void av2_init_seq_coding_tools(
   seq->max_frame_height = frm_dim_cfg->forced_max_frame_height
                               ? frm_dim_cfg->forced_max_frame_height
                               : frm_dim_cfg->height;
-#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
   seq->tile_params.allow_tile_info_change = 0;
   if (!seq->still_picture && oxcf->kf_cfg.key_freq_max > 0) {
     av2_set_seq_tile_info(seq, oxcf);
@@ -438,7 +437,6 @@ void av2_init_seq_coding_tools(
   } else {
     seq->seq_tile_info_present_flag = 0;
   }
-#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 
 #if CONFIG_MULTI_LEVEL_SEGMENTATION
   seq->seg_params.allow_seg_info_change = 1;

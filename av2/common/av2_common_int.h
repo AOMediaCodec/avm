@@ -638,7 +638,6 @@ typedef struct CropWindow {
 } CropWindow;
 #endif  // CONFIG_CROP_WIN_CWG_F220
 
-#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
 // Tile Info Syntax stucture: parses the tile information
 // in the Sequence header and Multi Frame Header
 // Different from CommonTilesParams which is used to process the tiles
@@ -646,7 +645,6 @@ typedef struct TileInfoSyntax {
   uint8_t allow_tile_info_change; /*!< whether to allow tile info change */
   CommonTileParams tile_info;
 } TileInfoSyntax;
-#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 
 // This structure contains Buffer removal time parameters being parsed
 typedef struct {
@@ -1122,10 +1120,8 @@ typedef struct SequenceHeader {
   uint8_t uv_ac_delta_q_enabled;
   uint8_t film_grain_params_present;
 
-#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
   uint8_t seq_tile_info_present_flag;  // whether seq level tile_info exists
   TileInfoSyntax tile_params;
-#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 
   // Operating point info.
   int operating_points_cnt_minus_1;
@@ -1208,9 +1204,7 @@ typedef struct {
   int xlayer_id;
   SkipModeInfo skip_mode_info;
   int refresh_frame_flags;  // Which ref frames are overwritten by this frame
-#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
   bool tile_info_present_in_frame_header;
-#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 } CurrentFrame;
 
 /*!\endcond */
@@ -5909,7 +5903,6 @@ static INLINE avm_codec_err_t av2_get_chroma_subsampling(
 }
 #endif  // CONFIG_CWG_E242_CHROMA_FORMAT_IDC
 
-#if CONFIG_CWG_E242_SIGNAL_TILE_INFO
 // Returns pointer to effective sequence level or multi-frame header level tile
 // info. Returns null if none exist
 static INLINE const TileInfoSyntax *find_effective_tile_params(
@@ -5927,7 +5920,6 @@ static INLINE const TileInfoSyntax *find_effective_tile_params(
   else
     return NULL;
 }
-#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 
 static INLINE int is_frame_tile_config_reuse_eligible(
     const TileInfoSyntax *const tile_params,
