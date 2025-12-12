@@ -1090,9 +1090,7 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
 
   cm->cur_mfh_id = oxcf->tool_cfg.enable_mfh_obu_signaling ? 1 : 0;
   cpi->cur_mfh_params.mfh_loop_filter_update_flag = 0;
-#if CONFIG_MFH_SIGNAL_TILE_INFO
   cpi->cur_mfh_params.mfh_tile_info_present_flag = 0;
-#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 
   // Single thread case: use counts in common.
   cpi->td.counts = &cpi->counts;

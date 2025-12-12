@@ -1468,7 +1468,6 @@ typedef struct MultiFrameHeader {
    * loop filter levels of frames that reference this multi-frame header
    */
   int mfh_loop_filter_level[4];
-#if CONFIG_MFH_SIGNAL_TILE_INFO
   /*!
    * Presence of tile information in this multi-frame header
    */
@@ -1485,7 +1484,6 @@ typedef struct MultiFrameHeader {
    * Seq size log2 in MFH
    */
   int mfh_seq_mib_sb_size_log2;
-#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 #if CONFIG_MULTI_LEVEL_SEGMENTATION
   /*!
    * Presence of segmentation information in this multi-frame header
@@ -5932,13 +5930,11 @@ static INLINE avm_codec_err_t av2_get_chroma_subsampling(
 // info. Returns null if none exist
 static INLINE const TileInfoSyntax *find_effective_tile_params(
     const AV2_COMMON *const cm) {
-#if CONFIG_MFH_SIGNAL_TILE_INFO
   // Check MFH tile params first (if MFH is valid and has tile info)
   if (cm->mfh_valid[cm->cur_mfh_id] &&
       cm->mfh_params[cm->cur_mfh_id].mfh_tile_info_present_flag) {
     return &cm->mfh_params[cm->cur_mfh_id].mfh_tile_params;
   }
-#endif  // CONFIG_MFH_SIGNAL_TILE_INFO
   // TODO(any): when multiframe header tiling is implemented, this
   // function should return the effective mfh tile_params if it exists,
   // or the seq level tile_params if it exists, or NULL

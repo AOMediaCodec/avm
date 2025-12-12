@@ -232,9 +232,7 @@ static uint32_t read_multi_stream_decoder_operation_obu(
 static INLINE void reset_mfh_valid(AV2_COMMON *cm) {
   for (int i = 0; i < MAX_MFH_NUM; i++) {
     cm->mfh_valid[i] = false;
-#if CONFIG_MFH_SIGNAL_TILE_INFO
     cm->mfh_params[i].mfh_tile_info_present_flag = 0;
-#endif  // CONFIG_MFH_SIGNAL_TILE_INFO
   }
 }
 

@@ -4782,13 +4782,11 @@ void write_tile_syntax_info(const TileInfoSyntax *tile_params,
 }
 #endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 
-#if CONFIG_MFH_SIGNAL_TILE_INFO
 // Writes tile information to multi-frame header
 static AVM_INLINE void write_tile_mfh(const MultiFrameHeader *const mfh_param,
                                       struct avm_write_bit_buffer *wb) {
   write_tile_syntax_info(&mfh_param->mfh_tile_params, wb);
 }
-#endif  // CONFIG_MFH_SIGNAL_TILE_INFO
 
 #if CONFIG_F153_FGM_OBU
 static AVM_INLINE void encode_film_grain(const AV2_COMP *const cpi,
@@ -6086,7 +6084,6 @@ static AVM_INLINE void write_sequence_header_beyond_av2(
 }
 #endif  //! CONFIG_IMPROVED_REORDER_SEQ_FLAGS
 
-#if CONFIG_MFH_SIGNAL_TILE_INFO
 static AVM_INLINE void write_mfh_sb_size(
     const MultiFrameHeader *const mfh_params, struct avm_write_bit_buffer *wb) {
   const bool is_seq_256 = mfh_params->mfh_seq_mib_sb_size_log2 == 6;
@@ -6101,7 +6098,6 @@ static AVM_INLINE void write_mfh_sb_size(
   }
   avm_wb_write_bit(wb, mfh_params->mfh_seq_mib_sb_size_log2 == 5);
 }
-#endif  // CONFIG_MFH_SIGNAL_TILE_INFO
 
 static AVM_INLINE void write_multi_frame_header(
     AV2_COMP *cpi, const MultiFrameHeader *const mfh_param,
@@ -6118,14 +6114,9 @@ static AVM_INLINE void write_multi_frame_header(
 
 #if CONFIG_CWG_E242_PARSING_INDEP
   avm_wb_write_bit(wb, mfh_param->mfh_frame_size_present_flag);
-#if CONFIG_MFH_SIGNAL_TILE_INFO
   avm_wb_write_bit(wb, mfh_param->mfh_tile_info_present_flag);
   if (mfh_param->mfh_frame_size_present_flag ||
-      mfh_param->mfh_tile_info_present_flag)
-#else
-  if (mfh_param->mfh_frame_size_present_flag)
-#endif  // CONFIG_MFH_SIGNAL_TILE_INFO
-  {
+      mfh_param->mfh_tile_info_present_flag) {
     const int coded_width = mfh_param->mfh_frame_width;
     const int coded_height = mfh_param->mfh_frame_height;
     avm_wb_write_literal(wb, mfh_param->mfh_frame_width_bits_minus1, 4);
@@ -6159,7 +6150,6 @@ static AVM_INLINE void write_multi_frame_header(
     }
   }
 
-#if CONFIG_MFH_SIGNAL_TILE_INFO
 #if !CONFIG_CWG_E242_PARSING_INDEP
   avm_wb_write_bit(wb, mfh_param->mfh_tile_info_present_flag);
 #endif  // !CONFIG_CWG_E242_PARSING_INDEP
@@ -6167,7 +6157,6 @@ static AVM_INLINE void write_multi_frame_header(
     write_mfh_sb_size(mfh_param, wb);
     write_tile_mfh(mfh_param, wb);
   }
-#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 
 #if CONFIG_MULTI_LEVEL_SEGMENTATION
   avm_wb_write_bit(wb, mfh_param->mfh_seg_info_present_flag);
@@ -8355,10 +8344,8 @@ static size_t av2_write_frame_hash_metadata(
 static void set_multi_frame_header_with_keyframe(AV2_COMP *cpi,
                                                  MultiFrameHeader *mfh_params) {
   AV2_COMMON *cm = &cpi->common;
-#if CONFIG_MFH_SIGNAL_TILE_INFO
   SequenceHeader *const seq_params = &cpi->common.seq_params;
   TileInfoSyntax *tile_params = &mfh_params->mfh_tile_params;
-#endif  // CONFIG_MFH_SIGNAL_TILE_INFO
 
 #if CONFIG_CWG_E242_SEQ_HDR_ID
   mfh_params->mfh_seq_header_id = 0;
@@ -8370,11 +8357,8 @@ static void set_multi_frame_header_with_keyframe(AV2_COMP *cpi,
   mfh_params->mfh_frame_height = seq_params->max_frame_height;
   mfh_params->mfh_frame_width = seq_params->max_frame_width;
 
-  if (mfh_params->mfh_frame_size_present_flag
-#if CONFIG_MFH_SIGNAL_TILE_INFO
-      || seq_params->seq_tile_info_present_flag
-#endif  // CONFIG_MFH_SIGNAL_TILE_INFO
-  ) {
+  if (mfh_params->mfh_frame_size_present_flag ||
+      seq_params->seq_tile_info_present_flag) {
     mfh_params->mfh_frame_width_bits_minus1 = cm->seq_params.num_bits_width - 1;
     mfh_params->mfh_frame_height_bits_minus1 =
         cm->seq_params.num_bits_height - 1;
@@ -8382,7 +8366,6 @@ static void set_multi_frame_header_with_keyframe(AV2_COMP *cpi,
     mfh_params->mfh_frame_height = cm->height;
   }
 
-#if CONFIG_MFH_SIGNAL_TILE_INFO
   mfh_params->mfh_sb_size = seq_params->sb_size;
   assert(seq_params->sb_size == BLOCK_256X256 ||
          seq_params->sb_size == BLOCK_128X128 ||
@@ -8397,7 +8380,6 @@ static void set_multi_frame_header_with_keyframe(AV2_COMP *cpi,
   } else {
     mfh_params->mfh_tile_info_present_flag = 0;
   }
-#endif  // CONFIG_MFH_SIGNAL_TILE_INFO
 }
 #endif  // CONFIG_CWG_E242_PARSING_INDEP
 

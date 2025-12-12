@@ -6553,7 +6553,6 @@ void read_sequence_tile_info(struct SequenceHeader *seq_params,
 }
 #endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 
-#if CONFIG_MFH_SIGNAL_TILE_INFO
 // Reads tile information from multi-frame header
 static void read_multi_frame_header_tile_info(MultiFrameHeader *mfh_param,
                                               struct avm_read_bit_buffer *rb) {
@@ -6563,7 +6562,6 @@ static void read_multi_frame_header_tile_info(MultiFrameHeader *mfh_param,
       mfh_param->mfh_seq_mib_sb_size_log2);
   read_tile_syntax_info(&mfh_param->mfh_tile_params, rb);
 }
-#endif  // CONFIG_MFH_SIGNAL_TILE_INFO
 
 #if CONFIG_MULTI_LEVEL_SEGMENTATION
 static void read_seg_syntax_info(struct SegmentationInfoSyntax *seg_params,
@@ -7772,7 +7770,6 @@ void av2_read_sequence_header_beyond_av2(
 }
 #endif  // !CONFIG_IMPROVED_REORDER_SEQ_FLAGS
 
-#if CONFIG_MFH_SIGNAL_TILE_INFO
 static AVM_INLINE void read_mfh_sb_size(MultiFrameHeader *mfh_params,
                                         struct avm_read_bit_buffer *rb) {
   static const BLOCK_SIZE sb_sizes[] = { BLOCK_256X256, BLOCK_128X128,
@@ -7794,7 +7791,6 @@ static AVM_INLINE void read_mfh_sb_size(MultiFrameHeader *mfh_params,
   assert(IMPLIES(scale_sb, sb_size == BLOCK_256X256));
   mfh_params->mfh_sb_size = sb_sizes[index + scale_sb];
 }
-#endif  // CONFIG_MFH_SIGNAL_TILE_INFO
 
 #if CONFIG_MULTI_LEVEL_SEGMENTATION
 static AVM_INLINE void read_multi_frame_header_seg_info(
@@ -7836,14 +7832,9 @@ void av2_read_multi_frame_header(AV2_COMMON *cm,
   mfh_param->mfh_frame_width = cm->seq_params.max_frame_width;
   mfh_param->mfh_frame_height = cm->seq_params.max_frame_height;
   mfh_param->mfh_frame_size_present_flag = avm_rb_read_bit(rb);
-#if CONFIG_MFH_SIGNAL_TILE_INFO
   mfh_param->mfh_tile_info_present_flag = avm_rb_read_bit(rb);
   if (mfh_param->mfh_frame_size_present_flag ||
-      mfh_param->mfh_tile_info_present_flag)
-#else
-  if (mfh_param->mfh_frame_size_present_flag)
-#endif  // CONFIG_MFH_SIGNAL_TILE_INFO
-  {
+      mfh_param->mfh_tile_info_present_flag) {
     mfh_param->mfh_frame_width_bits_minus1 = avm_rb_read_literal(rb, 4);
     int num_bits_width = mfh_param->mfh_frame_width_bits_minus1 + 1;
     mfh_param->mfh_frame_height_bits_minus1 = avm_rb_read_literal(rb, 4);
@@ -7882,7 +7873,6 @@ void av2_read_multi_frame_header(AV2_COMMON *cm,
     }
   }
 
-#if CONFIG_MFH_SIGNAL_TILE_INFO
 #if !CONFIG_CWG_E242_PARSING_INDEP
   mfh_param->mfh_tile_info_present_flag = avm_rb_read_bit(rb);
 #endif  //  !CONFIG_CWG_E242_PARSING_INDEP
@@ -7890,7 +7880,6 @@ void av2_read_multi_frame_header(AV2_COMMON *cm,
     read_mfh_sb_size(mfh_param, rb);
     read_multi_frame_header_tile_info(mfh_param, rb);
   }
-#endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 #if CONFIG_MULTI_LEVEL_SEGMENTATION
   read_multi_frame_header_seg_info(mfh_param, rb);
 #endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
