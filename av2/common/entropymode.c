@@ -283,6 +283,8 @@ static void init_mode_probs(FRAME_CONTEXT *fc,
   av2_copy(fc->pb_mv_precision_cdf, default_pb_mv_precision_cdf);
   av2_copy(fc->pb_mv_mpp_flag_cdf, default_pb_mv_most_probable_precision_cdf);
   av2_copy(fc->cctx_type_cdf, default_cctx_type_cdf);
+  av2_copy(fc->intra_dip_cdf, default_intra_dip_cdf);
+  av2_copy(fc->intra_dip_mode_n6_cdf, default_intra_dip_mode_n6_cdf);
 }
 
 static AVM_INLINE void cumulative_avg_cdf_symbol(

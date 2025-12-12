@@ -1882,6 +1882,14 @@ static const avm_cdf_prob default_seg_id_ext_flag_cdf[3][CDF_SIZE(2)] = {
   { AVM_CDF2(16384),   0 },
 };
 
+static const avm_cdf_prob default_intra_dip_cdf[3][CDF_SIZE(2)] = {
+  { AVM_CDF2(11914),  31 },
+  { AVM_CDF2( 5128),  31 },
+  { AVM_CDF2( 3555),  31 },
+};
+
+static const avm_cdf_prob default_intra_dip_mode_n6_cdf[CDF_SIZE(6)] = { AVM_CDF6( 5753, 15408, 19070, 22631, 27578),   0 };
+
 /* clang-format on */
 #ifdef __cplusplus
 }  // extern "C"

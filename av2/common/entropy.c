@@ -24,9 +24,6 @@
 // Context tables for coefficient coding
 // TODO(hegilmez): use constant macros in defining array dimensions whenever
 // available in entropy_inits_coeffs.h
-// TODO(joeyoung/hegilmez): move default_intra_dip_cdf and
-// default_intra_dip_mode_n6_cdf to entropy_inits_modes.h, since they are not
-// coefficient coding elements
 #include "av2/common/entropy_inits_coeffs.h"
 
 static int get_q_ctx(int q) {
@@ -80,11 +77,6 @@ void av2_default_coef_probs(AV2_COMMON *cm) {
   av2_copy(cm->fc->coeff_base_ph_cdf, av2_default_coeff_base_ph_cdfs[index]);
   av2_copy(cm->fc->coeff_base_bob_cdf,
            av2_default_coeff_base_bob_multi_cdfs[index]);
-  // TODO(joeyoung/hegilmez): move intra_dip_cdf and intra_dip_mode_n6_cdf to
-  // the place where initializations for modes are done, since they are not part
-  // of  coefficient coding.
-  av2_copy(cm->fc->intra_dip_cdf, default_intra_dip_cdf);
-  av2_copy(cm->fc->intra_dip_mode_n6_cdf, default_intra_dip_mode_n6_cdf);
 }
 
 static AVM_INLINE void reset_cdf_symbol_counter(avm_cdf_prob *cdf_ptr,
