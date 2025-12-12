@@ -1074,6 +1074,22 @@ static void scan_past_frames(const FrameWindowBuffer *const buffer,
       AVMMAX(level_stats->max_bitrate, (int)encoded_size_in_bytes * 8);
 }
 
+double av2_get_compression_ratio(const AV2_COMMON *const cm,
+                                 size_t encoded_frame_size) {
+  const int upscaled_width = cm->width;
+  const int height = cm->height;
+  const int luma_pic_size = upscaled_width * height;
+  const SequenceHeader *const seq_params = &cm->seq_params;
+  const BITSTREAM_PROFILE profile = seq_params->profile;
+  const int pic_size_profile_factor =
+      profile == PROFILE_0 ? 15 : (profile == PROFILE_1 ? 30 : 36);
+  encoded_frame_size =
+      (encoded_frame_size > 129 ? encoded_frame_size - 128 : 1);
+  const size_t uncompressed_frame_size =
+      (luma_pic_size * pic_size_profile_factor) >> 3;
+  return uncompressed_frame_size / (double)encoded_frame_size;
+}
+
 void av2_update_level_info(AV2_COMP *cpi, size_t size, int64_t ts_start,
                            int64_t ts_end) {
   AV2_COMMON *const cm = &cpi->common;

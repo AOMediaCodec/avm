@@ -3355,10 +3355,6 @@ static INLINE int *cond_cost_list(const struct AV2_COMP *cpi, int *cost_list) {
   return use_cost_list ? cost_list : NULL;
 }
 
-// Compression ratio of current frame.
-double av2_get_compression_ratio(const AV2_COMMON *const cm,
-                                 size_t encoded_frame_size);
-
 void av2_new_framerate(AV2_COMP *cpi, double framerate);
 
 #if !CONFIG_F024_KEYOBU

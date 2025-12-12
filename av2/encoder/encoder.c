@@ -237,22 +237,6 @@ void av2_new_framerate(AV2_COMP *cpi, double framerate) {
   av2_rc_update_framerate(cpi, cpi->common.width, cpi->common.height);
 }
 
-double av2_get_compression_ratio(const AV2_COMMON *const cm,
-                                 size_t encoded_frame_size) {
-  const int upscaled_width = cm->width;
-  const int height = cm->height;
-  const int luma_pic_size = upscaled_width * height;
-  const SequenceHeader *const seq_params = &cm->seq_params;
-  const BITSTREAM_PROFILE profile = seq_params->profile;
-  const int pic_size_profile_factor =
-      profile == PROFILE_0 ? 15 : (profile == PROFILE_1 ? 30 : 36);
-  encoded_frame_size =
-      (encoded_frame_size > 129 ? encoded_frame_size - 128 : 1);
-  const size_t uncompressed_frame_size =
-      (luma_pic_size * pic_size_profile_factor) >> 3;
-  return uncompressed_frame_size / (double)encoded_frame_size;
-}
-
 static void update_frame_size(AV2_COMP *cpi) {
   AV2_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &cpi->td.mb.e_mbd;
