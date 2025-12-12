@@ -23,6 +23,7 @@
 
 #include "av2/common/common.h"
 #include "av2/common/obu_util.h"
+#include "av2/common/level.h"
 #include "av2/common/timing.h"
 #include "av2/decoder/decoder.h"
 #include "av2/decoder/decodeframe.h"
@@ -106,16 +107,6 @@ static void av2_read_mlayer_dependency_info(SequenceHeader *const seq,
           avm_rb_read_bit(rb);
     }
   }
-}
-
-static INLINE int get_max_legal_dpb_size(
-    const struct SequenceHeader *seq_params, const int max_picture_size) {
-  assert(seq_params != NULL && max_picture_size > 0);
-  int current_picture_size =
-      seq_params->max_frame_width * seq_params->max_frame_height;
-  int max_legal_dpb_size =
-      AVMMIN(REF_FRAMES, (int)((max_picture_size * 8) / current_picture_size));
-  return max_legal_dpb_size;
 }
 
 #if CONFIG_CROP_WIN_CWG_F220
@@ -589,16 +580,9 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
 #endif  // CONFIG_IMPROVED_REORDER_SEQ_FLAGS && !CONFIG_F255_QMOBU
   );
 
-  // TODO(hegilmez): the current decoder-side constraint uses the largest
-  // possible picture size in the level definitions. This covers the worst-case
-  // memory requirement. If per-level memory restriction is desired,
-  // MAX_PICTURE_SIZE should be changed with level-defined picture size. See the
-  // decoder model implementation within the function
-  // av2_get_max_legal_dpb_size() in av2/encoder/level.c, which should be moved
-  // to "av2/common" to be able to use at the decoder side.
-  const int max_picture_size = MAX_PICTURE_SIZE;
+  // Level-driven memory restriction
   const int max_legal_ref_frames =
-      get_max_legal_dpb_size(seq_params, max_picture_size);
+      av2_get_max_legal_dpb_size(seq_params, seq_params->seq_max_level_idx);
   if (seq_params->ref_frames > max_legal_ref_frames) {
     avm_internal_error(&cm->error, AVM_CODEC_UNSUP_BITSTREAM,
                        "The maximum number of reference frames shall not be "

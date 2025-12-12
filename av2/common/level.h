@@ -13,7 +13,7 @@
 #ifndef AVM_AV2_ENCODER_LEVEL_H_
 #define AVM_AV2_ENCODER_LEVEL_H_
 
-#include "av2/common/enums.h"
+#include "av2/common/av2_common_int.h"
 
 struct AV2_COMP;
 

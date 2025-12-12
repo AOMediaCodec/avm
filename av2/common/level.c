@@ -11,9 +11,8 @@
  */
 
 #include "avm_ports/system_state.h"
-
+#include "av2/common/level.h"
 #include "av2/encoder/encoder.h"
-#include "av2/encoder/level.h"
 
 /* clang-format off */
 #define UNDEFINED_LEVEL     \

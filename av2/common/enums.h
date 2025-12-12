@@ -1075,10 +1075,6 @@ typedef uint16_t TXFM_CONTEXT;
 
 #define REF_FRAMES 16
 
-// Based on the level with the maximum picture size supported.
-// TODO: MAX_PICTURE_SIZE may be changed in the final level definitions
-#define MAX_PICTURE_SIZE 35651584
-
 // NOTE: A limited number of unidirectional reference pairs can be signalled for
 //       compound prediction. The use of skip mode, on the other hand, makes it
 //       possible to have a reference pair not listed for explicit signaling.
