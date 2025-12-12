@@ -243,9 +243,7 @@ struct av2_extracfg {
 #if CONFIG_SCAN_TYPE_METADATA
   unsigned int scan_type_info_present_flag;
 #endif  // CONFIG_SCAN_TYPE_METADATA
-#if CONFIG_MULTI_FRAME_HEADER
   unsigned int enable_mfh_obu_signaling;
-#endif  // CONFIG_MULTI_FRAME_HEADER
   int operating_points_count;
 #if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   unsigned int cross_frame_cdf_init_mode;
@@ -578,9 +576,7 @@ static struct av2_extracfg default_extra_cfg = {
 #if CONFIG_SCAN_TYPE_METADATA
   0,
 #endif  // CONFIG_SCAN_TYPE_METADATA
-#if CONFIG_MULTI_FRAME_HEADER
   0,  // enable_mfh_obu_signaling
-#endif  // CONFIG_MULTI_FRAME_HEADER
   1,
 #if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   1                            // cross frame CDF init mode
@@ -1019,9 +1015,7 @@ static void update_encoder_config(cfg_options_t *cfg,
 #if CONFIG_SCAN_TYPE_METADATA
   cfg->scan_type_info_present_flag = extra_cfg->scan_type_info_present_flag;
 #endif  // CONFIG_SCAN_TYPE_METADATA
-#if CONFIG_MULTI_FRAME_HEADER
   cfg->enable_mfh_obu_signaling = extra_cfg->enable_mfh_obu_signaling;
-#endif  // CONFIG_MULTI_FRAME_HEADER
   cfg->explicit_ref_frame_map = extra_cfg->explicit_ref_frame_map;
   cfg->enable_generation_sef_obu = extra_cfg->enable_generation_sef_obu;
   cfg->disable_loopfilters_across_tiles =
@@ -1165,9 +1159,7 @@ static void update_default_encoder_config(const cfg_options_t *cfg,
 #if CONFIG_SCAN_TYPE_METADATA
   extra_cfg->scan_type_info_present_flag = cfg->scan_type_info_present_flag;
 #endif  // CONFIG_SCAN_TYPE_METADATA
-#if CONFIG_MULTI_FRAME_HEADER
   extra_cfg->enable_mfh_obu_signaling = cfg->enable_mfh_obu_signaling;
-#endif  // CONFIG_MULTI_FRAME_HEADER
   extra_cfg->operating_points_count = cfg->operating_points_count;
 }
 
@@ -1397,9 +1389,7 @@ static avm_codec_err_t set_encoder_config(AV2EncoderConfig *oxcf,
   tool_cfg->scan_type_info_present_flag =
       extra_cfg->scan_type_info_present_flag;
 #endif  // CONFIG_SCAN_TYPE_METADATA
-#if CONFIG_MULTI_FRAME_HEADER
   tool_cfg->enable_mfh_obu_signaling = extra_cfg->enable_mfh_obu_signaling;
-#endif  // CONFIG_MULTI_FRAME_HEADER
   tool_cfg->enable_bawp = extra_cfg->enable_bawp;
   tool_cfg->enable_cwp = extra_cfg->enable_cwp;
   tool_cfg->enable_imp_msk_bld = extra_cfg->enable_imp_msk_bld;
@@ -4362,12 +4352,10 @@ static avm_codec_err_t encoder_set_option(avm_codec_alg_priv_t *ctx,
                               argv, err_string)) {
     ctx->cfg.use_short_metadata = arg_parse_int_helper(&arg, err_string);
 #endif  // CONFIG_METADATA
-#if CONFIG_MULTI_FRAME_HEADER
   } else if (arg_match_helper(&arg,
                               &g_av2_codec_arg_defs.enable_mfh_obu_signaling,
                               argv, err_string)) {
     extra_cfg.enable_mfh_obu_signaling = arg_parse_int_helper(&arg, err_string);
-#endif  // CONFIG_MULTI_FRAME_HEADER
   } else if (arg_match_helper(&arg,
                               &g_av2_codec_arg_defs.operating_points_count,
                               argv, err_string)) {
@@ -4680,10 +4668,8 @@ static const avm_codec_enc_cfg_t encoder_usage_cfg[] = { {
 #endif  // CONFIG_ICC_METADATA
 #if CONFIG_SCAN_TYPE_METADATA
         0,
-#endif  // CONFIG_SCAN_TYPE_METADATA
-#if CONFIG_MULTI_FRAME_HEADER
+#endif      // CONFIG_SCAN_TYPE_METADATA
         0,  // enable_mfh_obu_signaling
-#endif      // CONFIG_MULTI_FRAME_HEADER
         1,
     },  // cfg
 } };

@@ -953,9 +953,7 @@ typedef struct {
   unsigned int scan_type_info_present_flag;
 #endif  // CONFIG_SCAN_TYPE_METADATA
 
-#if CONFIG_MULTI_FRAME_HEADER
   unsigned int enable_mfh_obu_signaling;
-#endif  // CONFIG_MULTI_FRAME_HEADER
   int operating_points_count;
 
 } ToolCfg;
@@ -2900,12 +2898,10 @@ typedef struct AV2_COMP {
    * allocation height
    */
   int alloc_height;
-#if CONFIG_MULTI_FRAME_HEADER
   /*!
    * Record the current multi-frame header parameters
    */
   MultiFrameHeader cur_mfh_params;
-#endif  // CONFIG_MULTI_FRAME_HEADER
   /*!
    * TIP mode selected count for first INTER_REFS_PER_FRAME frames
    * Encoder would use this value to decide if need to enable TIP mode

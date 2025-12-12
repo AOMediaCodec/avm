@@ -661,12 +661,10 @@ typedef struct cfg_options {
   unsigned int scan_type_info_present_flag;
 #endif  // CONFIG_SCAN_TYPE_METADATA
 
-#if CONFIG_MULTI_FRAME_HEADER
   /*!\brief enable signaling multi-frame header OBU
    *
    */
   unsigned int enable_mfh_obu_signaling;
-#endif  // CONFIG_MULTI_FRAME_HEADER
 
   /*!\brief indicate the number  of operating points
    *

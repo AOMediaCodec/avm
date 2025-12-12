@@ -52,9 +52,7 @@ bool ValidObuType(int obu_type) {
   switch (obu_type) {
     case OBU_SEQUENCE_HEADER:
     case OBU_TEMPORAL_DELIMITER:
-#if CONFIG_MULTI_FRAME_HEADER
     case OBU_MULTI_FRAME_HEADER:
-#endif  // CONFIG_MULTI_FRAME_HEADER
 #if CONFIG_F024_KEYOBU
     case OBU_CLK:
     case OBU_OLK:

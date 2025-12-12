@@ -229,7 +229,6 @@ static uint32_t read_multi_stream_decoder_operation_obu(
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }
 
-#if CONFIG_MULTI_FRAME_HEADER
 static INLINE void reset_mfh_valid(AV2_COMMON *cm) {
   for (int i = 0; i < MAX_MFH_NUM; i++) {
     cm->mfh_valid[i] = false;
@@ -238,7 +237,6 @@ static INLINE void reset_mfh_valid(AV2_COMMON *cm) {
 #endif  // CONFIG_MFH_SIGNAL_TILE_INFO
   }
 }
-#endif  // CONFIG_MULTI_FRAME_HEADER
 
 // On success, sets pbi->sequence_header_ready to 1 and returns the number of
 // bytes read from 'rb'.
@@ -668,9 +666,7 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
 #if !CONFIG_F255_QMOBU
       cm->quant_params.qmatrix_initialized = false;
 #endif  // !CONFIG_F255_QMOBU
-#if CONFIG_MULTI_FRAME_HEADER
       reset_mfh_valid(cm);
-#endif  // CONFIG_MULTI_FRAME_HEADER
 #if CONFIG_CWG_F270_CI_OBU
       pbi->ci_params_received = 0;
 #endif  // CONFIG_CWG_F270_CI_OBU
@@ -688,7 +684,6 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }
 
-#if CONFIG_MULTI_FRAME_HEADER
 static uint32_t read_multi_frame_header_obu(AV2Decoder *pbi,
                                             struct avm_read_bit_buffer *rb) {
   AV2_COMMON *const cm = &pbi->common;
@@ -703,7 +698,6 @@ static uint32_t read_multi_frame_header_obu(AV2Decoder *pbi,
 
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }
-#endif  // CONFIG_MULTI_FRAME_HEADER
 
 static uint32_t read_tilegroup_obu(AV2Decoder *pbi,
                                    struct avm_read_bit_buffer *rb,
@@ -2055,12 +2049,10 @@ int avm_decode_frame_from_obus(struct AV2Decoder *pbi, const uint8_t *data,
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
         break;
 #endif  // CONFIG_CWG_F270_CI_OBU
-#if CONFIG_MULTI_FRAME_HEADER
       case OBU_MULTI_FRAME_HEADER:
         decoded_payload_size = read_multi_frame_header_obu(pbi, &rb);
         if (cm->error.error_code != AVM_CODEC_OK) return -1;
         break;
-#endif  // CONFIG_MULTI_FRAME_HEADER
 #if CONFIG_F024_KEYOBU
       case OBU_CLK:
       case OBU_OLK:

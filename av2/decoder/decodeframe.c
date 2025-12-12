@@ -3119,36 +3119,28 @@ static AVM_INLINE void setup_loopfilter(AV2_COMMON *cm,
     return;
   }
 
-#if CONFIG_MULTI_FRAME_HEADER
   assert(cm->mfh_valid[cm->cur_mfh_id]);
   if (cm->mfh_params[cm->cur_mfh_id].mfh_loop_filter_update_flag)
     lf->filter_level[0] =
         cm->mfh_params[cm->cur_mfh_id].mfh_loop_filter_level[0];
   else
-#endif  // CONFIG_MULTI_FRAME_HEADER
     lf->filter_level[0] = avm_rb_read_bit(rb);
-#if CONFIG_MULTI_FRAME_HEADER
   if (cm->mfh_params[cm->cur_mfh_id].mfh_loop_filter_update_flag)
     lf->filter_level[1] =
         cm->mfh_params[cm->cur_mfh_id].mfh_loop_filter_level[1];
   else
-#endif  // CONFIG_MULTI_FRAME_HEADER
     lf->filter_level[1] = avm_rb_read_bit(rb);
   if (num_planes > 1) {
     if (lf->filter_level[0] || lf->filter_level[1]) {
-#if CONFIG_MULTI_FRAME_HEADER
       if (cm->mfh_params[cm->cur_mfh_id].mfh_loop_filter_update_flag) {
         lf->filter_level_u =
             cm->mfh_params[cm->cur_mfh_id].mfh_loop_filter_level[2];
         lf->filter_level_v =
             cm->mfh_params[cm->cur_mfh_id].mfh_loop_filter_level[3];
       } else {
-#endif  // CONFIG_MULTI_FRAME_HEADER
         lf->filter_level_u = avm_rb_read_bit(rb);
         lf->filter_level_v = avm_rb_read_bit(rb);
-#if CONFIG_MULTI_FRAME_HEADER
       }
-#endif  // CONFIG_MULTI_FRAME_HEADER
     } else {
       lf->filter_level_u = lf->filter_level_v = 0;
     }
@@ -4172,7 +4164,6 @@ static AVM_INLINE void setup_frame_size(AV2_COMMON *cm,
             "Frame dimensions are larger than the maximum values");
       }
     } else {
-#if CONFIG_MULTI_FRAME_HEADER
       assert(cm->mfh_valid[cm->cur_mfh_id]);
 #if CONFIG_CWG_E242_PARSING_INDEP
       if (cm->mfh_params[cm->cur_mfh_id].mfh_frame_size_present_flag) {
@@ -4186,10 +4177,6 @@ static AVM_INLINE void setup_frame_size(AV2_COMMON *cm,
       width = cm->mfh_params[cm->cur_mfh_id].mfh_frame_width;
       height = cm->mfh_params[cm->cur_mfh_id].mfh_frame_height;
 #endif  // CONFIG_CWG_E242_PARSING_INDEP
-#else   // CONFIG_MULTI_FRAME_HEADER
-      width = seq_params->max_frame_width;
-      height = seq_params->max_frame_height;
-#endif  // CONFIG_MULTI_FRAME_HEADER
     }
   }
 
@@ -6566,7 +6553,7 @@ void read_sequence_tile_info(struct SequenceHeader *seq_params,
 }
 #endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 
-#if CONFIG_MFH_SIGNAL_TILE_INFO && CONFIG_MULTI_FRAME_HEADER
+#if CONFIG_MFH_SIGNAL_TILE_INFO
 // Reads tile information from multi-frame header
 static void read_multi_frame_header_tile_info(MultiFrameHeader *mfh_param,
                                               struct avm_read_bit_buffer *rb) {
@@ -6576,7 +6563,7 @@ static void read_multi_frame_header_tile_info(MultiFrameHeader *mfh_param,
       mfh_param->mfh_seq_mib_sb_size_log2);
   read_tile_syntax_info(&mfh_param->mfh_tile_params, rb);
 }
-#endif  // CONFIG_MFH_SIGNAL_TILE_INFO && CONFIG_MULTI_FRAME_HEADER
+#endif  // CONFIG_MFH_SIGNAL_TILE_INFO
 
 #if CONFIG_MULTI_LEVEL_SEGMENTATION
 static void read_seg_syntax_info(struct SegmentationInfoSyntax *seg_params,
@@ -7833,7 +7820,6 @@ static AVM_INLINE void read_multi_frame_header_seg_info(
 }
 #endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
 
-#if CONFIG_MULTI_FRAME_HEADER
 void av2_read_multi_frame_header(AV2_COMMON *cm,
                                  struct avm_read_bit_buffer *rb) {
 #if CONFIG_CWG_E242_SEQ_HDR_ID
@@ -7923,7 +7909,6 @@ void av2_read_multi_frame_header(AV2_COMMON *cm,
 
   cm->mfh_valid[cur_mfh_id] = true;
 }
-#endif  // CONFIG_MULTI_FRAME_HEADER
 
 static int read_global_motion_params(WarpedMotionParams *params,
                                      const WarpedMotionParams *ref_params,
@@ -8869,7 +8854,6 @@ static int is_reference_mapping_consistent(
   }
   return 1;
 }
-#if CONFIG_MULTI_FRAME_HEADER
 // Called if the cur_mfh_id syntax element in uncompressed_header() is zero.
 static void handle_zero_cur_mfh_id(AV2Decoder *pbi,
 #if CONFIG_F024_KEYOBU
@@ -8903,7 +8887,6 @@ static void handle_zero_cur_mfh_id(AV2Decoder *pbi,
   }
   cm->mfh_valid[cm->cur_mfh_id] = true;
 }
-#endif  // CONFIG_MULTI_FRAME_HEADER
 
 #if CONFIG_F322_OBUER_REFRESTRICT
 void update_num_restricted_ref(AV2_COMMON *const cm) {
@@ -9044,11 +9027,9 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
 
   cm->bridge_frame_info.bridge_frame_ref_idx = INVALID_IDX;
   if (cm->bridge_frame_info.is_bridge_frame) {
-#if CONFIG_MULTI_FRAME_HEADER
     uint32_t cur_mfh_id = 0;
     cm->cur_mfh_id = (int)cur_mfh_id;
     handle_zero_cur_mfh_id(pbi, obu_type, rb);
-#endif  // CONFIG_MULTI_FRAME_HEADER
     cm->bridge_frame_info.bridge_frame_ref_idx =
         avm_rb_read_literal(rb, seq_params->ref_frames_log2);
 #if CONFIG_F322_OBUER_REFRESTRICT
@@ -9061,7 +9042,6 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     }
 #endif  // CONFIG_F322_OBUER_REFRESTRICT
   } else {
-#if CONFIG_MULTI_FRAME_HEADER
 #if CONFIG_CWG_E242_MFH_ID_UVLC
     uint32_t cur_mfh_id = avm_rb_read_uvlc(rb);
     if (cur_mfh_id >= MAX_MFH_NUM) {
@@ -9090,7 +9070,6 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
           cm->mfh_params[cm->cur_mfh_id].mfh_seq_header_id);
 #endif  // CONFIG_CWG_E242_SEQ_HDR_ID
     }
-#endif  // CONFIG_MULTI_FRAME_HEADER
   }
 
 #if CONFIG_LCR_ID_IN_SH

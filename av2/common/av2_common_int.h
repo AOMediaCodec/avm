@@ -1431,7 +1431,6 @@ typedef struct {
 /*!
  * \brief Multi-frame level parameters.
  */
-#if CONFIG_MULTI_FRAME_HEADER
 typedef struct MultiFrameHeader {
 #if CONFIG_CWG_E242_SEQ_HDR_ID
   /*!
@@ -1508,7 +1507,6 @@ typedef struct MultiFrameHeader {
   int mfh_ext_seg_flag;
 #endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
 } MultiFrameHeader;
-#endif  // CONFIG_MULTI_FRAME_HEADER
 
 typedef struct CommonModeInfoParams CommonModeInfoParams;
 /*!
@@ -2653,7 +2651,6 @@ typedef struct AV2Common {
    */
   BufferRemovalTimingInfo brt_info;
 
-#if CONFIG_MULTI_FRAME_HEADER
   /*!
    * Elements part of the multi-frame header, that are applicable for multiple
    * frames in the video.
@@ -2663,7 +2660,6 @@ typedef struct AV2Common {
    * Array of booleans to indicate whether mfh_params[i] has been received.
    */
   bool mfh_valid[MAX_MFH_NUM];
-#endif  // CONFIG_MULTI_FRAME_HEADER
 
 #if CONFIG_CWG_F270_CI_OBU
   /*!
@@ -2920,12 +2916,10 @@ typedef struct AV2Common {
    * True if we are in a decoding process.
    */
   bool decoding;
-#if CONFIG_MULTI_FRAME_HEADER
   /*!
    * Identifier to indicate mult-frame header.
    */
   int cur_mfh_id;
-#endif  // CONFIG_MULTI_FRAME_HEADER
 
   /*!
    * Flag to indicate whether wedge masks are initialized.

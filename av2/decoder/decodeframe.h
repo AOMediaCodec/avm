@@ -89,11 +89,9 @@ void av2_copy_predefined_qmatrices_to_list(struct AV2Decoder *pbi,
                                            int num_planes);
 #endif  // CONFIG_F255_QMOBU
 
-#if CONFIG_MULTI_FRAME_HEADER
 // Reads multi-frame header
 void av2_read_multi_frame_header(AV2_COMMON *cm,
                                  struct avm_read_bit_buffer *rb);
-#endif  // CONFIG_MULTI_FRAME_HEADER
 
 void av2_read_frame_size(struct avm_read_bit_buffer *rb, int num_bits_width,
                          int num_bits_height, int *width, int *height);

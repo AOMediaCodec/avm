@@ -27,9 +27,7 @@ static int valid_obu_type(int obu_type) {
     case OBU_CONTENT_INTERPRETATION:
 #endif  // CONFIG_CWG_F270_CI_OBU
     case OBU_TEMPORAL_DELIMITER:
-#if CONFIG_MULTI_FRAME_HEADER
     case OBU_MULTI_FRAME_HEADER:
-#endif  // CONFIG_MULTI_FRAME_HEADER
 #if CONFIG_F024_KEYOBU
     case OBU_SWITCH:
     case OBU_LEADING_SEF:

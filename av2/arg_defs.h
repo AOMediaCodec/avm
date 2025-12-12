@@ -294,9 +294,7 @@ typedef struct av2_codec_arg_definitions {
 #if CONFIG_SCAN_TYPE_METADATA
   arg_def_t scan_type_info_present_flag;
 #endif  // CONFIG_SCAN_TYPE_METADATA
-#if CONFIG_MULTI_FRAME_HEADER
   arg_def_t enable_mfh_obu_signaling;
-#endif  // CONFIG_MULTI_FRAME_HEADER
   arg_def_t operating_points_count;
 #if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   arg_def_t cross_frame_cdf_init_mode;

@@ -574,7 +574,6 @@ static avm_codec_err_t decoder_peek_si_internal(const uint8_t *data,
           avm_rb_read_bit(&rb);  // send_uncompressed_header_flag
         }
 
-#if CONFIG_MULTI_FRAME_HEADER
 #if CONFIG_CWG_E242_MFH_ID_UVLC
         uint32_t mfh_id = avm_rb_read_uvlc(&rb);
 #else
@@ -584,7 +583,6 @@ static avm_codec_err_t decoder_peek_si_internal(const uint8_t *data,
           uint32_t seq_header_id_in_frame_header = avm_rb_read_uvlc(&rb);
           (void)seq_header_id_in_frame_header;
         }
-#endif  // CONFIG_F024_KEYOBU
 
         FRAME_TYPE frame_type = KEY_FRAME;
 #if CONFIG_RANDOM_ACCESS_SWITCH_FRAME
@@ -793,14 +791,12 @@ static avm_codec_err_t init_decoder(avm_codec_alg_priv_t *ctx) {
        i++) {
     frame_worker_data->pbi->common.ref_frame_map[i] = NULL;
   }
-#if CONFIG_MULTI_FRAME_HEADER
   for (int i = 0; i < MAX_MFH_NUM; i++) {
     frame_worker_data->pbi->common.mfh_valid[i] = false;
   }
   // Initialize cm->cur_mfh_id to -1 to help detect if cm->cur_mfh_id is used
   // before being assigned a valid value.
   frame_worker_data->pbi->common.cur_mfh_id = -1;
-#endif  // CONFIG_MULTI_FRAME_HEADER
   return AVM_CODEC_OK;
 }
 

@@ -494,9 +494,7 @@ const arg_def_t *av2_key_val_args[] = {
 #if CONFIG_METADATA
   &g_av2_codec_arg_defs.use_short_metadata,
 #endif  // CONFIG_METADATA
-#if CONFIG_MULTI_FRAME_HEADER
   &g_av2_codec_arg_defs.enable_mfh_obu_signaling,
-#endif  // CONFIG_MULTI_FRAME_HEADER
   &g_av2_codec_arg_defs.operating_points_count,
 #if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT
   &g_av2_codec_arg_defs.cross_frame_cdf_init_mode,
@@ -726,9 +724,7 @@ static void init_config(cfg_options_t *config) {
 #if CONFIG_SCAN_TYPE_METADATA
   config->scan_type_info_present_flag = 0;
 #endif  // CONFIG_SCAN_TYPE_METADATA
-#if CONFIG_MULTI_FRAME_HEADER
   config->enable_mfh_obu_signaling = 0;
-#endif  // CONFIG_MULTI_FRAME_HEADER
   config->operating_points_count = 1;
 }
 

@@ -886,11 +886,9 @@ const av2_codec_arg_definitions_t g_av2_codec_arg_defs = {
   .scan_type_info_present_flag =
       ARG_DEF(NULL, "scan-type-info", 1, "Scan type info present flag"),
 #endif  // CONFIG_SCAN_TYPE_METADATA
-#if CONFIG_MULTI_FRAME_HEADER
   .enable_mfh_obu_signaling =
       ARG_DEF(NULL, "enable-mfh-obu-signaling", 1,
               "Enable MFH OBU signaling (0: false (default), 1: true)"),
-#endif  // CONFIG_MULTI_FRAME_HEADER
   .operating_points_count = ARG_DEF(NULL, "operating-points-count", 1,
                                     "Number of operating points (1-31)."),
 #if CONFIG_DISABLE_CROSS_FRAME_CDF_INIT

@@ -3763,9 +3763,7 @@ static AVM_INLINE void encode_loopfilter(AV2_COMMON *cm,
   }
 
   // Encode the loop filter level and type
-#if CONFIG_MULTI_FRAME_HEADER
   if (!cm->mfh_params[cm->cur_mfh_id].mfh_loop_filter_update_flag) {
-#endif  // CONFIG_MULTI_FRAME_HEADER
     avm_wb_write_bit(wb, lf->filter_level[0]);
 
     avm_wb_write_bit(wb, lf->filter_level[1]);
@@ -3776,9 +3774,7 @@ static AVM_INLINE void encode_loopfilter(AV2_COMMON *cm,
         avm_wb_write_bit(wb, lf->filter_level_v);
       }
     }
-#if CONFIG_MULTI_FRAME_HEADER
   }
-#endif  // CONFIG_MULTI_FRAME_HEADER
   const uint8_t df_par_bits = cm->seq_params.df_par_bits_minus2 + 2;
   const uint8_t df_par_offset = 1 << (df_par_bits - 1);
   if (lf->filter_level[0]) {
@@ -4786,13 +4782,13 @@ void write_tile_syntax_info(const TileInfoSyntax *tile_params,
 }
 #endif  // CONFIG_CWG_E242_SIGNAL_TILE_INFO
 
-#if CONFIG_MFH_SIGNAL_TILE_INFO && CONFIG_MULTI_FRAME_HEADER
+#if CONFIG_MFH_SIGNAL_TILE_INFO
 // Writes tile information to multi-frame header
 static AVM_INLINE void write_tile_mfh(const MultiFrameHeader *const mfh_param,
                                       struct avm_write_bit_buffer *wb) {
   write_tile_syntax_info(&mfh_param->mfh_tile_params, wb);
 }
-#endif  // CONFIG_MFH_SIGNAL_TILE_INFO && CONFIG_MULTI_FRAME_HEADER
+#endif  // CONFIG_MFH_SIGNAL_TILE_INFO
 
 #if CONFIG_F153_FGM_OBU
 static AVM_INLINE void encode_film_grain(const AV2_COMP *const cpi,
@@ -6118,7 +6114,6 @@ static AVM_INLINE void write_mfh_sb_size(
 }
 #endif  // CONFIG_MFH_SIGNAL_TILE_INFO
 
-#if CONFIG_MULTI_FRAME_HEADER
 static AVM_INLINE void write_multi_frame_header(
     AV2_COMP *cpi, const MultiFrameHeader *const mfh_param,
     struct avm_write_bit_buffer *wb) {
@@ -6193,7 +6188,6 @@ static AVM_INLINE void write_multi_frame_header(
   }
 #endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
 }
-#endif  // CONFIG_MULTI_FRAME_HEADER
 
 static AVM_INLINE void write_global_motion_params(
     const WarpedMotionParams *params, const WarpedMotionParams *ref_params,
@@ -6458,7 +6452,6 @@ static AVM_INLINE void write_uncompressed_header(
     avm_wb_write_literal(wb, cm->bridge_frame_info.bridge_frame_ref_idx,
                          seq_params->ref_frames_log2);
   } else {
-#if CONFIG_MULTI_FRAME_HEADER
 #if CONFIG_CWG_E242_MFH_ID_UVLC
     avm_wb_write_uvlc(wb, cm->cur_mfh_id);
 #else
@@ -6467,7 +6460,6 @@ static AVM_INLINE void write_uncompressed_header(
     if (cm->cur_mfh_id == 0) {
       avm_wb_write_uvlc(wb, 0);  // seq_header_id_in_frame_header
     }
-#endif  // CONFIG_MULTI_FRAME_HEADER
   }
 
   if (seq_params->still_picture) {
@@ -7599,7 +7591,6 @@ uint32_t av2_write_sequence_header_obu(const SequenceHeader *seq_params,
   return size;
 }
 
-#if CONFIG_MULTI_FRAME_HEADER
 uint32_t write_multi_frame_header_obu(AV2_COMP *cpi,
                                       const MultiFrameHeader *mfh_param,
                                       uint8_t *const dst) {
@@ -7613,7 +7604,6 @@ uint32_t write_multi_frame_header_obu(AV2_COMP *cpi,
   size = avm_wb_bytes_written(&wb);
   return size;
 }
-#endif  // CONFIG_MULTI_FRAME_HEADER
 
 static uint32_t write_tilegroup_payload(AV2_COMP *const cpi, uint8_t *const dst,
                                         struct avm_write_bit_buffer *saved_wb,
@@ -8619,13 +8609,8 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
 #endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
     obu_payload_size =
         av2_write_sequence_header_obu(&cm->seq_params, data + obu_header_size);
-#if CONFIG_MULTI_FRAME_HEADER
     size_t length_field_size =
         obu_memmove(obu_header_size, obu_payload_size, data);
-#else   // CONFIG_MULTI_FRAME_HEADER
-    const size_t length_field_size =
-        obu_memmove(obu_header_size, obu_payload_size, data);
-#endif  // CONFIG_MULTI_FRAME_HEADER
     if (av2_write_uleb_obu_size(obu_header_size, obu_payload_size, data) !=
         AVM_CODEC_OK) {
       return AVM_CODEC_ERROR;
@@ -8650,7 +8635,6 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
     }
 #endif  // CONFIG_CWG_F270_CI_OBU
 
-#if CONFIG_MULTI_FRAME_HEADER
     if (cm->cur_mfh_id != 0) {
       // write multi-frame header if KEY_FRAME
 #if CONFIG_CWG_E242_PARSING_INDEP
@@ -8668,7 +8652,6 @@ static int av2_pack_bitstream_internal(AV2_COMP *const cpi, uint8_t *dst,
       }
       data += obu_header_size + obu_payload_size + length_field_size;
     }
-#endif  // CONFIG_MULTI_FRAME_HEADER
 
 #if CONFIG_F255_QMOBU
     if (cm->quant_params.using_qmatrix) {
