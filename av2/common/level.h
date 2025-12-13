@@ -181,7 +181,9 @@ static INLINE int is_in_operating_point(int operating_point, int tlayer_id,
 
 void av2_init_level_info(struct AV2_COMP *cpi);
 
-void av2_update_level_info(struct AV2_COMP *cpi, size_t size, int64_t ts_start,
+bool is_filter_enabled_frame(const AV1_COMMON *const cm);
+
+void av1_update_level_info(struct AV1_COMP *cpi, size_t size, int64_t ts_start,
                            int64_t ts_end);
 
 // Compression ratio of current frame.

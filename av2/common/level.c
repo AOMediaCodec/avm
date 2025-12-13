@@ -454,6 +454,21 @@ static void update_ref_buffers(const AV2_COMMON *const cm,
   }
 }
 
+bool is_filter_enabled_frame(const AV1_COMMON *const cm) {
+  bool inloop_filtering_enabled =
+      cm->lf.filter_level[0] != 0 || cm->lf.filter_level[1] != 0 ||
+      cm->cdef_info.cdef_frame_enable != 0 ||
+      cm->cur_frame->ccso_info.ccso_enable[0] != 0 ||
+      cm->cur_frame->ccso_info.ccso_enable[1] != 0 ||
+      cm->cur_frame->ccso_info.ccso_enable[2] != 0 ||
+      cm->rst_info[0].frame_restoration_type != RESTORE_NONE ||
+      cm->rst_info[1].frame_restoration_type != RESTORE_NONE ||
+      cm->rst_info[2].frame_restoration_type != RESTORE_NONE ||
+      cm->gdf_info.gdf_mode != 0;
+
+  return inloop_filtering_enabled;
+}
+
 // The time (in seconds) required to decode a frame.
 static double time_to_decode_frame(const AV2_COMMON *const cm,
                                    int64_t max_decode_rate) {
@@ -461,7 +476,10 @@ static double time_to_decode_frame(const AV2_COMMON *const cm,
   const FRAME_TYPE frame_type = cm->current_frame.frame_type;
   int luma_samples = 0;
   if (frame_type == KEY_FRAME || frame_type == INTRA_ONLY_FRAME) {
-    luma_samples = cm->width * cm->height;
+    if (is_filter_enabled_frame(cm) && cm->features.allow_global_intrabc)
+      luma_samples = 2 * cm->width * cm->height;
+    else
+      luma_samples = cm->width * cm->height;
   } else {
     const int spatial_layer_dimensions_present_flag = 0;
     if (spatial_layer_dimensions_present_flag) {
