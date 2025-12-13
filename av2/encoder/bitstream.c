@@ -3757,27 +3757,27 @@ static AVM_INLINE void encode_loopfilter(AV2_COMMON *cm,
 
   if (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
     if (cm->seq_params.enable_lf_sub_pu && features->allow_lf_sub_pu) {
-      avm_wb_write_bit(wb, cm->lf.tip_filter_level);
+      avm_wb_write_bit(wb, cm->lf.apply_deblocking_filter_tip);
     }
     return;
   }
 
   // Encode the loop filter level and type
-  if (!cm->mfh_params[cm->cur_mfh_id].mfh_loop_filter_update_flag) {
-    avm_wb_write_bit(wb, lf->filter_level[0]);
+  if (!cm->mfh_params[cm->cur_mfh_id].mfh_deblocking_filter_update_flag) {
+    avm_wb_write_bit(wb, lf->apply_deblocking_filter[0]);
 
-    avm_wb_write_bit(wb, lf->filter_level[1]);
+    avm_wb_write_bit(wb, lf->apply_deblocking_filter[1]);
 
     if (num_planes > 1) {
-      if (lf->filter_level[0] || lf->filter_level[1]) {
-        avm_wb_write_bit(wb, lf->filter_level_u);
-        avm_wb_write_bit(wb, lf->filter_level_v);
+      if (lf->apply_deblocking_filter[0] || lf->apply_deblocking_filter[1]) {
+        avm_wb_write_bit(wb, lf->apply_deblocking_filter_u);
+        avm_wb_write_bit(wb, lf->apply_deblocking_filter_v);
       }
     }
   }
   const uint8_t df_par_bits = cm->seq_params.df_par_bits_minus2 + 2;
   const uint8_t df_par_offset = 1 << (df_par_bits - 1);
-  if (lf->filter_level[0]) {
+  if (lf->apply_deblocking_filter[0]) {
     int luma_delta_q_flag = lf->delta_q_luma[0] != 0;
 
     avm_wb_write_bit(wb, luma_delta_q_flag);
@@ -3788,7 +3788,7 @@ static AVM_INLINE void encode_loopfilter(AV2_COMMON *cm,
     assert(lf->delta_q_luma[0] == lf->delta_side_luma[0]);
   }
 
-  if (lf->filter_level[1]) {
+  if (lf->apply_deblocking_filter[1]) {
     int luma_delta_q_flag = lf->delta_q_luma[1] != lf->delta_q_luma[0];
 
     avm_wb_write_bit(wb, luma_delta_q_flag);
@@ -3799,7 +3799,7 @@ static AVM_INLINE void encode_loopfilter(AV2_COMMON *cm,
     assert(lf->delta_q_luma[1] == lf->delta_side_luma[1]);
   }
 
-  if (lf->filter_level_u) {
+  if (lf->apply_deblocking_filter_u) {
     int u_delta_q_flag = lf->delta_q_u != 0;
 
     avm_wb_write_bit(wb, u_delta_q_flag);
@@ -3809,7 +3809,7 @@ static AVM_INLINE void encode_loopfilter(AV2_COMMON *cm,
     assert(lf->delta_q_u == lf->delta_side_u);
   }
 
-  if (lf->filter_level_v) {
+  if (lf->apply_deblocking_filter_v) {
     int v_delta_q_flag = lf->delta_q_v != 0;
 
     avm_wb_write_bit(wb, v_delta_q_flag);
@@ -6143,10 +6143,10 @@ static AVM_INLINE void write_multi_frame_header(
   }
 #endif  //  CONFIG_CWG_E242_PARSING_INDEP
 
-  avm_wb_write_bit(wb, mfh_param->mfh_loop_filter_update_flag);
-  if (mfh_param->mfh_loop_filter_update_flag) {
+  avm_wb_write_bit(wb, mfh_param->mfh_deblocking_filter_update_flag);
+  if (mfh_param->mfh_deblocking_filter_update_flag) {
     for (int i = 0; i < 4; i++) {
-      avm_wb_write_bit(wb, mfh_param->mfh_loop_filter_level[i]);
+      avm_wb_write_bit(wb, mfh_param->mfh_apply_deblocking_filter[i]);
     }
   }
 
@@ -7136,7 +7136,7 @@ static AVM_INLINE void write_uncompressed_header(
   }
   if (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
     if (cm->seq_params.enable_lf_sub_pu && cm->features.allow_lf_sub_pu &&
-        cm->lf.tip_filter_level) {
+        cm->lf.apply_deblocking_filter_tip) {
       write_tile_info(cm, saved_wb, wb);
     }
 

@@ -3111,8 +3111,8 @@ static AVM_INLINE void setup_loopfilter(AV2_COMMON *cm,
 
   if (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
     if (cm->seq_params.enable_lf_sub_pu && features->allow_lf_sub_pu) {
-      cm->lf.tip_filter_level = avm_rb_read_bit(rb);
-      if (cm->lf.tip_filter_level) {
+      cm->lf.apply_deblocking_filter_tip = avm_rb_read_bit(rb);
+      if (cm->lf.apply_deblocking_filter_tip) {
         cm->lf.tip_delta = 0;
       }
     }
@@ -3120,38 +3120,38 @@ static AVM_INLINE void setup_loopfilter(AV2_COMMON *cm,
   }
 
   assert(cm->mfh_valid[cm->cur_mfh_id]);
-  if (cm->mfh_params[cm->cur_mfh_id].mfh_loop_filter_update_flag)
-    lf->filter_level[0] =
-        cm->mfh_params[cm->cur_mfh_id].mfh_loop_filter_level[0];
+  if (cm->mfh_params[cm->cur_mfh_id].mfh_deblocking_filter_update_flag)
+    lf->apply_deblocking_filter[0] =
+        cm->mfh_params[cm->cur_mfh_id].mfh_apply_deblocking_filter[0];
   else
-    lf->filter_level[0] = avm_rb_read_bit(rb);
-  if (cm->mfh_params[cm->cur_mfh_id].mfh_loop_filter_update_flag)
-    lf->filter_level[1] =
-        cm->mfh_params[cm->cur_mfh_id].mfh_loop_filter_level[1];
+    lf->apply_deblocking_filter[0] = avm_rb_read_bit(rb);
+  if (cm->mfh_params[cm->cur_mfh_id].mfh_deblocking_filter_update_flag)
+    lf->apply_deblocking_filter[1] =
+        cm->mfh_params[cm->cur_mfh_id].mfh_apply_deblocking_filter[1];
   else
-    lf->filter_level[1] = avm_rb_read_bit(rb);
+    lf->apply_deblocking_filter[1] = avm_rb_read_bit(rb);
   if (num_planes > 1) {
-    if (lf->filter_level[0] || lf->filter_level[1]) {
-      if (cm->mfh_params[cm->cur_mfh_id].mfh_loop_filter_update_flag) {
-        lf->filter_level_u =
-            cm->mfh_params[cm->cur_mfh_id].mfh_loop_filter_level[2];
-        lf->filter_level_v =
-            cm->mfh_params[cm->cur_mfh_id].mfh_loop_filter_level[3];
+    if (lf->apply_deblocking_filter[0] || lf->apply_deblocking_filter[1]) {
+      if (cm->mfh_params[cm->cur_mfh_id].mfh_deblocking_filter_update_flag) {
+        lf->apply_deblocking_filter_u =
+            cm->mfh_params[cm->cur_mfh_id].mfh_apply_deblocking_filter[2];
+        lf->apply_deblocking_filter_v =
+            cm->mfh_params[cm->cur_mfh_id].mfh_apply_deblocking_filter[3];
       } else {
-        lf->filter_level_u = avm_rb_read_bit(rb);
-        lf->filter_level_v = avm_rb_read_bit(rb);
+        lf->apply_deblocking_filter_u = avm_rb_read_bit(rb);
+        lf->apply_deblocking_filter_v = avm_rb_read_bit(rb);
       }
     } else {
-      lf->filter_level_u = lf->filter_level_v = 0;
+      lf->apply_deblocking_filter_u = lf->apply_deblocking_filter_v = 0;
     }
   } else {
-    lf->filter_level_u = lf->filter_level_v = 0;
+    lf->apply_deblocking_filter_u = lf->apply_deblocking_filter_v = 0;
   }
 
   const uint8_t df_par_bits = cm->seq_params.df_par_bits_minus2 + 2;
   const uint8_t df_par_offset = 1 << (df_par_bits - 1);
 
-  if (lf->filter_level[0]) {
+  if (lf->apply_deblocking_filter[0]) {
     int luma_delta_q = avm_rb_read_bit(rb);
     if (luma_delta_q) {
       lf->delta_q_luma[0] =
@@ -3164,7 +3164,7 @@ static AVM_INLINE void setup_loopfilter(AV2_COMMON *cm,
     lf->delta_q_luma[0] = 0;
     lf->delta_side_luma[0] = 0;
   }
-  if (lf->filter_level[1]) {
+  if (lf->apply_deblocking_filter[1]) {
     int luma_delta_q = avm_rb_read_bit(rb);
     if (luma_delta_q) {
       lf->delta_q_luma[1] =
@@ -3178,7 +3178,7 @@ static AVM_INLINE void setup_loopfilter(AV2_COMMON *cm,
     lf->delta_side_luma[1] = 0;
   }
 
-  if (lf->filter_level_u) {
+  if (lf->apply_deblocking_filter_u) {
     int u_delta_q = avm_rb_read_bit(rb);
     if (u_delta_q) {
       lf->delta_q_u = avm_rb_read_literal(rb, df_par_bits) - df_par_offset;
@@ -3190,7 +3190,7 @@ static AVM_INLINE void setup_loopfilter(AV2_COMMON *cm,
     lf->delta_q_u = 0;
     lf->delta_side_u = 0;
   }
-  if (lf->filter_level_v) {
+  if (lf->apply_deblocking_filter_v) {
     int v_delta_q = avm_rb_read_bit(rb);
     if (v_delta_q) {
       lf->delta_q_v = avm_rb_read_literal(rb, df_par_bits) - df_par_offset;
@@ -7862,14 +7862,14 @@ void av2_read_multi_frame_header(AV2_COMMON *cm,
   mfh_param->mfh_frame_height = height;
 #endif  // CONFIG_CWG_E242_PARSING_INDEP
 
-  mfh_param->mfh_loop_filter_update_flag = avm_rb_read_bit(rb);
-  if (mfh_param->mfh_loop_filter_update_flag) {
+  mfh_param->mfh_deblocking_filter_update_flag = avm_rb_read_bit(rb);
+  if (mfh_param->mfh_deblocking_filter_update_flag) {
     for (int i = 0; i < 4; i++) {
-      mfh_param->mfh_loop_filter_level[i] = avm_rb_read_bit(rb);
+      mfh_param->mfh_apply_deblocking_filter[i] = avm_rb_read_bit(rb);
     }
   } else {
     for (int i = 0; i < 4; i++) {
-      mfh_param->mfh_loop_filter_level[i] = 0;
+      mfh_param->mfh_apply_deblocking_filter[i] = 0;
     }
   }
 
@@ -8589,8 +8589,8 @@ static int read_show_existing_frame(AV2Decoder *pbi,
     cm->cur_frame->grain_frame_hash = grain_frame_hash;
   unlock_buffer_pool(pool);
 
-  cm->lf.filter_level[0] = 0;
-  cm->lf.filter_level[1] = 0;
+  cm->lf.apply_deblocking_filter[0] = 0;
+  cm->lf.apply_deblocking_filter[1] = 0;
   cm->show_frame = 1;
 #if CONFIG_F356_SEF_DOH
   // It is a requirement of bitstream conformance that when
@@ -8856,9 +8856,9 @@ static void handle_zero_cur_mfh_id(AV2Decoder *pbi,
   cm->mfh_params[cm->cur_mfh_id].mfh_frame_width = seq_params->max_frame_width;
   cm->mfh_params[cm->cur_mfh_id].mfh_frame_height =
       seq_params->max_frame_height;
-  cm->mfh_params[cm->cur_mfh_id].mfh_loop_filter_update_flag = 0;
+  cm->mfh_params[cm->cur_mfh_id].mfh_deblocking_filter_update_flag = 0;
   for (int i = 0; i < 4; i++) {
-    cm->mfh_params[cm->cur_mfh_id].mfh_loop_filter_level[i] = 0;
+    cm->mfh_params[cm->cur_mfh_id].mfh_apply_deblocking_filter[i] = 0;
   }
   cm->mfh_valid[cm->cur_mfh_id] = true;
 }
@@ -10141,8 +10141,8 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   if (cm->bru.frame_inactive_flag || cm->bridge_frame_info.is_bridge_frame) {
     // Set parameters corresponding to no filtering.
     struct loopfilter *lf = &cm->lf;
-    lf->filter_level[0] = 0;
-    lf->filter_level[1] = 0;
+    lf->apply_deblocking_filter[0] = 0;
+    lf->apply_deblocking_filter[1] = 0;
     cm->cdef_info.cdef_frame_enable = 0;
     cm->gdf_info.gdf_mode = 0;
     // set cm->rst_info and copy it to cur_frame->rst_info
@@ -10220,8 +10220,8 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   if (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
     // Set parameters corresponding to no filtering.
     struct loopfilter *lf = &cm->lf;
-    lf->filter_level[0] = 0;
-    lf->filter_level[1] = 0;
+    lf->apply_deblocking_filter[0] = 0;
+    lf->apply_deblocking_filter[1] = 0;
 
     cm->gdf_info.gdf_mode = 0;
 
@@ -10367,8 +10367,8 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
 #endif  // CONFIG_F255_QMOBU
 
     if (features->coded_lossless) {
-      cm->lf.filter_level[0] = 0;
-      cm->lf.filter_level[1] = 0;
+      cm->lf.apply_deblocking_filter[0] = 0;
+      cm->lf.apply_deblocking_filter[1] = 0;
     }
     if (features->coded_lossless || !seq_params->enable_cdef) {
       cm->cdef_info.cdef_frame_enable = 0;
@@ -10432,7 +10432,7 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
   }
   if (features->tip_frame_mode == TIP_FRAME_AS_OUTPUT) {
     if (cm->seq_params.enable_lf_sub_pu && cm->features.allow_lf_sub_pu &&
-        cm->lf.tip_filter_level) {
+        cm->lf.apply_deblocking_filter_tip) {
       read_tile_info(pbi, rb);
     }
 #if CONFIG_F153_FGM_OBU  // tip
@@ -11048,7 +11048,8 @@ void av2_decode_tg_tiles_and_wrapup(AV2Decoder *pbi, const uint8_t *data,
   }
 
   if (!cm->bru.frame_inactive_flag) {
-    if (cm->lf.filter_level[0] || cm->lf.filter_level[1]) {
+    if (cm->lf.apply_deblocking_filter[0] ||
+        cm->lf.apply_deblocking_filter[1]) {
       if (pbi->num_workers > 1) {
         av2_loop_filter_frame_mt(&cm->cur_frame->buf, cm, &pbi->dcb.xd, 0,
                                  num_planes, 0, pbi->tile_workers,

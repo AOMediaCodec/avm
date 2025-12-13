@@ -256,11 +256,12 @@ static void enqueue_lf_jobs(AV2LfSync *lf_sync, AV2_COMMON *cm, int start,
 
   for (dir = 0; dir < 2; dir++) {
     for (plane = plane_start; plane < plane_end; plane++) {
-      if (plane == 0 && !(cm->lf.filter_level[0]) && !(cm->lf.filter_level[1]))
+      if (plane == 0 && !(cm->lf.apply_deblocking_filter[0]) &&
+          !(cm->lf.apply_deblocking_filter[1]))
         break;
-      else if (plane == 1 && !(cm->lf.filter_level_u))
+      else if (plane == 1 && !(cm->lf.apply_deblocking_filter_u))
         continue;
-      else if (plane == 2 && !(cm->lf.filter_level_v))
+      else if (plane == 2 && !(cm->lf.apply_deblocking_filter_v))
         continue;
       for (mi_row = start; mi_row < stop; mi_row += mib_size) {
         lf_job_queue->mi_row = mi_row;

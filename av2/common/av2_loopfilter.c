@@ -123,11 +123,12 @@ void av2_loop_filter_frame_init(AV2_COMMON *cm, int plane_start,
   assert(plane_end <= MAX_MB_PLANE);
 
   for (plane = plane_start; plane < plane_end; plane++) {
-    if (plane == 0 && !cm->lf.filter_level[0] && !cm->lf.filter_level[1])
+    if (plane == 0 && !cm->lf.apply_deblocking_filter[0] &&
+        !cm->lf.apply_deblocking_filter[1])
       break;
-    else if (plane == 1 && !cm->lf.filter_level_u)
+    else if (plane == 1 && !cm->lf.apply_deblocking_filter_u)
       continue;
-    else if (plane == 2 && !cm->lf.filter_level_v)
+    else if (plane == 2 && !cm->lf.apply_deblocking_filter_v)
       continue;
 
     for (int dir = 0; dir < 2; ++dir) {
@@ -812,7 +813,7 @@ void av2_filter_block_plane_vert(AV2_COMMON *const cm,
                                  const MACROBLOCKD *const xd, const int plane,
                                  const MACROBLOCKD_PLANE *const plane_ptr,
                                  const uint32_t mi_row, const uint32_t mi_col) {
-  if (!plane && !cm->lf.filter_level[0]) return;
+  if (!plane && !cm->lf.apply_deblocking_filter[0]) return;
   const int mib_size = cm->mib_size;
   const uint32_t scale_horz = plane_ptr->subsampling_x;
   const uint32_t scale_vert = plane_ptr->subsampling_y;
@@ -911,7 +912,7 @@ void av2_filter_block_plane_horz(AV2_COMMON *const cm,
                                  const MACROBLOCKD *const xd, const int plane,
                                  const MACROBLOCKD_PLANE *const plane_ptr,
                                  const uint32_t mi_row, const uint32_t mi_col) {
-  if (!plane && !cm->lf.filter_level[1]) return;
+  if (!plane && !cm->lf.apply_deblocking_filter[1]) return;
   const int mib_size = cm->mib_size;
   const uint32_t scale_horz = plane_ptr->subsampling_x;
   const uint32_t scale_vert = plane_ptr->subsampling_y;
@@ -1015,11 +1016,12 @@ static void loop_filter_rows(YV12_BUFFER_CONFIG *frame_buffer, AV2_COMMON *cm,
 
   const int mib_size = cm->mib_size;
   for (plane = plane_start; plane < plane_end; plane++) {
-    if (plane == 0 && !(cm->lf.filter_level[0]) && !(cm->lf.filter_level[1]))
+    if (plane == 0 && !(cm->lf.apply_deblocking_filter[0]) &&
+        !(cm->lf.apply_deblocking_filter[1]))
       break;
-    else if (plane == 1 && !(cm->lf.filter_level_u))
+    else if (plane == 1 && !(cm->lf.apply_deblocking_filter_u))
       continue;
-    else if (plane == 2 && !(cm->lf.filter_level_v))
+    else if (plane == 2 && !(cm->lf.apply_deblocking_filter_v))
       continue;
 
     if (cm->lf.combine_vert_horz_lf) {
@@ -1254,7 +1256,7 @@ AVM_INLINE void setup_tip_dst_planes(AV2_COMMON *const cm, const int plane,
 // Initialize TIP lf parameters
 void init_tip_lf_parameter(struct AV2Common *cm, int plane_start,
                            int plane_end) {
-  if (!cm->lf.tip_filter_level) return;
+  if (!cm->lf.apply_deblocking_filter_tip) return;
   int q_ind[MAX_MB_PLANE], side_ind[MAX_MB_PLANE];
   loop_filter_info_n *const lfi = &cm->lf_info;
   const int tip_delta_scale = DF_DELTA_SCALE;
@@ -1295,7 +1297,7 @@ void init_tip_lf_parameter(struct AV2Common *cm, int plane_start,
 // Apply loop filtering on TIP frame
 void loop_filter_tip_frame(struct AV2Common *cm, int plane_start,
                            int plane_end) {
-  if (!cm->lf.tip_filter_level) return;
+  if (!cm->lf.apply_deblocking_filter_tip) return;
   for (int plane = plane_start; plane < plane_end; ++plane) {
     TIP *tip_ref = &cm->tip_ref;
     setup_tip_dst_planes(cm, plane, 0, 0);

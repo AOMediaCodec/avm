@@ -38,9 +38,9 @@ extern "C" {
 enum { VERT_EDGE = 0, HORZ_EDGE = 1, NUM_EDGE_DIRS } UENUM1BYTE(EDGE_DIR);
 
 struct loopfilter {
-  int filter_level[2];
-  int filter_level_u;
-  int filter_level_v;
+  int apply_deblocking_filter[2];
+  int apply_deblocking_filter_u;
+  int apply_deblocking_filter_v;
 
   int delta_q_luma[2];
   int delta_side_luma[2];
@@ -52,7 +52,7 @@ struct loopfilter {
 
   int combine_vert_horz_lf;
 
-  int tip_filter_level;
+  int apply_deblocking_filter_tip;
   int tip_delta;
 };
 

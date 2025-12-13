@@ -296,16 +296,16 @@ void av2_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
   }
 
   if (method == LPF_PICK_MINIMAL_LPF) {
-    lf->filter_level[0] = 0;
-    lf->filter_level[1] = 0;
-    lf->filter_level_u = lf->filter_level_v = 0;
+    lf->apply_deblocking_filter[0] = 0;
+    lf->apply_deblocking_filter[1] = 0;
+    lf->apply_deblocking_filter_u = lf->apply_deblocking_filter_v = 0;
   } else if (method >= LPF_PICK_FROM_Q) {
     // TODO(chengchen): retrain the model for Y, U, V filter levels
-    lf->filter_level[0] = lf->filter_level[1] = 1;
+    lf->apply_deblocking_filter[0] = lf->apply_deblocking_filter[1] = 1;
     if (num_planes > 1) {
-      lf->filter_level_u = lf->filter_level_v = 1;
+      lf->apply_deblocking_filter_u = lf->apply_deblocking_filter_v = 1;
     } else {
-      lf->filter_level_u = lf->filter_level_v = 0;
+      lf->apply_deblocking_filter_u = lf->apply_deblocking_filter_v = 0;
     }
     lf->delta_q_luma[0] = lf->delta_q_luma[1] = lf->delta_q_u = lf->delta_q_v =
         0;
@@ -313,12 +313,12 @@ void av2_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
         lf->delta_side_v = 0;
   } else {
     // To make sure the df filters are run
-    lf->filter_level[0] = 1;
-    lf->filter_level[1] = 1;
+    lf->apply_deblocking_filter[0] = 1;
+    lf->apply_deblocking_filter[1] = 1;
     if (num_planes > 1) {
-      lf->filter_level_u = lf->filter_level_v = 1;
+      lf->apply_deblocking_filter_u = lf->apply_deblocking_filter_v = 1;
     } else {
-      lf->filter_level_u = lf->filter_level_v = 0;
+      lf->apply_deblocking_filter_u = lf->apply_deblocking_filter_v = 0;
     }
     // TODO(anyone): What are good initial levels for keyframes?
     lf->delta_q_luma[0] = lf->delta_q_luma[1] = lf->delta_q_u = lf->delta_q_v =
@@ -355,8 +355,8 @@ void av2_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
     last_frame_offsets[2] = lf->delta_q_luma[1] = lf->delta_side_luma[1];
 
     if (no_deblocking_cost[0] < AVMMIN(best_single_cost, best_dual_cost)) {
-      lf->filter_level[0] = 0;
-      lf->filter_level[1] = 0;
+      lf->apply_deblocking_filter[0] = 0;
+      lf->apply_deblocking_filter[1] = 0;
       lf->delta_q_luma[0] = lf->delta_side_luma[0] = lf->delta_q_luma[1] =
           lf->delta_side_luma[1] = 0;
     } else if (best_single_cost < best_dual_cost) {
@@ -383,7 +383,7 @@ void av2_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
       last_frame_offsets[4] = lf->delta_q_u = lf->delta_side_u;
 
       if (no_deblocking_cost[1] < best_cost_u) {
-        lf->filter_level_u = 0;
+        lf->apply_deblocking_filter_u = 0;
         lf->delta_q_u = lf->delta_side_u = 0;
       }
 
@@ -398,7 +398,7 @@ void av2_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
       last_frame_offsets[6] = lf->delta_q_v = lf->delta_side_v;
 
       if (no_deblocking_cost[2] < best_cost_v) {
-        lf->filter_level_v = 0;
+        lf->apply_deblocking_filter_v = 0;
         lf->delta_q_v = lf->delta_side_v = 0;
       }
 
@@ -409,7 +409,7 @@ void av2_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
           !df_side_from_qindex(cm->quant_params.base_qindex +
                                    cm->lf.delta_side_luma[0] * DF_DELTA_SCALE,
                                cm->seq_params.bit_depth)) {
-        lf->filter_level[0] = 0;
+        lf->apply_deblocking_filter[0] = 0;
         cm->lf.delta_q_luma[0] = 0;
         cm->lf.delta_side_luma[0] = 0;
       }
@@ -419,13 +419,14 @@ void av2_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
           !df_side_from_qindex(cm->quant_params.base_qindex +
                                    cm->lf.delta_side_luma[1] * DF_DELTA_SCALE,
                                cm->seq_params.bit_depth)) {
-        lf->filter_level[1] = 0;
+        lf->apply_deblocking_filter[1] = 0;
         cm->lf.delta_q_luma[1] = 0;
         cm->lf.delta_side_luma[1] = 0;
       }
-      if (lf->filter_level[0] == 0 && lf->filter_level[1] == 0) {
-        lf->filter_level_u = 0;
-        lf->filter_level_v = 0;
+      if (lf->apply_deblocking_filter[0] == 0 &&
+          lf->apply_deblocking_filter[1] == 0) {
+        lf->apply_deblocking_filter_u = 0;
+        lf->apply_deblocking_filter_v = 0;
         cm->lf.delta_q_u = 0;
         cm->lf.delta_side_u = 0;
         cm->lf.delta_q_v = 0;
@@ -441,7 +442,7 @@ void av2_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
                                      cm->seq_params.base_uv_ac_delta_q +
                                      cm->lf.delta_side_u * DF_DELTA_SCALE,
                                  cm->seq_params.bit_depth)) {
-          lf->filter_level_u = 0;
+          lf->apply_deblocking_filter_u = 0;
           cm->lf.delta_q_u = 0;
           cm->lf.delta_side_u = 0;
         }
@@ -455,7 +456,7 @@ void av2_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV2_COMP *cpi,
                                      cm->seq_params.base_uv_ac_delta_q +
                                      cm->lf.delta_side_v * DF_DELTA_SCALE,
                                  cm->seq_params.bit_depth)) {
-          lf->filter_level_v = 0;
+          lf->apply_deblocking_filter_v = 0;
           cm->lf.delta_q_v = 0;
           cm->lf.delta_side_v = 0;
         }
@@ -471,7 +472,7 @@ static double try_filter_tip_frame(AV2_COMP *const cpi, int tip_delta) {
   const int num_planes = 1;
   double filter_cost = 0;
   int64_t filter_sse = 0;
-  cm->lf.tip_filter_level = 1;
+  cm->lf.apply_deblocking_filter_tip = 1;
   cm->lf.tip_delta = tip_delta;
 
   init_tip_lf_parameter(cm, 0, num_planes);
@@ -514,8 +515,8 @@ void search_tip_filter_level(AV2_COMP *cpi, struct AV2Common *cm) {
   cm->lf.tip_delta = 0;
   double best_filter_cost = try_filter_tip_frame(cpi, cm->lf.tip_delta);
   if (best_filter_cost < unfilter_cost) {
-    cm->lf.tip_filter_level = 1;
+    cm->lf.apply_deblocking_filter_tip = 1;
   } else {
-    cm->lf.tip_filter_level = 0;
+    cm->lf.apply_deblocking_filter_tip = 0;
   }
 }

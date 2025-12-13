@@ -1089,7 +1089,7 @@ static void init_config(struct AV2_COMP *cpi, AV2EncoderConfig *oxcf) {
   av2_update_film_grain_parameters(cpi, oxcf);
 
   cm->cur_mfh_id = oxcf->tool_cfg.enable_mfh_obu_signaling ? 1 : 0;
-  cpi->cur_mfh_params.mfh_loop_filter_update_flag = 0;
+  cpi->cur_mfh_params.mfh_deblocking_filter_update_flag = 0;
   cpi->cur_mfh_params.mfh_tile_info_present_flag = 0;
 
   // Single thread case: use counts in common.
@@ -3296,14 +3296,18 @@ static void loopfilter_frame(AV2_COMP *cpi, AV2_COMMON *cm) {
     avm_clear_system_state();
     av2_pick_filter_level(cpi->source, cpi, cpi->sf.lpf_sf.lpf_pick);
   } else {
-    lf->filter_level[0] = 0;
-    lf->filter_level[1] = 0;
+    lf->apply_deblocking_filter[0] = 0;
+    lf->apply_deblocking_filter[1] = 0;
   }
-  cpi->cur_mfh_params.mfh_loop_filter_level[0] = lf->filter_level[0];
-  cpi->cur_mfh_params.mfh_loop_filter_level[1] = lf->filter_level[1];
-  cpi->cur_mfh_params.mfh_loop_filter_level[2] = lf->filter_level_u;
-  cpi->cur_mfh_params.mfh_loop_filter_level[3] = lf->filter_level_v;
-  if (lf->filter_level[0] || lf->filter_level[1]) {
+  cpi->cur_mfh_params.mfh_apply_deblocking_filter[0] =
+      lf->apply_deblocking_filter[0];
+  cpi->cur_mfh_params.mfh_apply_deblocking_filter[1] =
+      lf->apply_deblocking_filter[1];
+  cpi->cur_mfh_params.mfh_apply_deblocking_filter[2] =
+      lf->apply_deblocking_filter_u;
+  cpi->cur_mfh_params.mfh_apply_deblocking_filter[3] =
+      lf->apply_deblocking_filter_v;
+  if (lf->apply_deblocking_filter[0] || lf->apply_deblocking_filter[1]) {
     if (num_workers > 1)
       av2_loop_filter_frame_mt(&cm->cur_frame->buf, cm, xd, 0, num_planes, 0,
                                mt_info->workers, num_workers,
@@ -4098,8 +4102,8 @@ static INLINE int finalize_tip_mode(AV2_COMP *cpi, uint8_t *dest, size_t *size,
     avm_yv12_copy_frame(&cm->tip_ref.tip_frame->buf, &cm->cur_frame->buf,
                         num_planes);
 
-    cm->lf.filter_level[0] = 0;
-    cm->lf.filter_level[1] = 0;
+    cm->lf.apply_deblocking_filter[0] = 0;
+    cm->lf.apply_deblocking_filter[1] = 0;
     cm->cdef_info.cdef_frame_enable = 0;
     cm->rst_info[0].frame_restoration_type = RESTORE_NONE;
     cm->rst_info[1].frame_restoration_type = RESTORE_NONE;

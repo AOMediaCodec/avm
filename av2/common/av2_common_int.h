@@ -1461,13 +1461,16 @@ typedef struct MultiFrameHeader {
   int mfh_render_size_present_flag;
 #endif  // CONFIG_CWG_E242_PARSING_INDEP
   /*!
-   * Presence of loop filter levels in this multi-frame header
+   * Presence of deblocking loop filter levels in this multi-frame header
    */
-  int mfh_loop_filter_update_flag;
+  int mfh_deblocking_filter_update_flag;
   /*!
-   * loop filter levels of frames that reference this multi-frame header
+   * deblocking filter application to  frames that reference this multi-frame
+   * header
    */
-  int mfh_loop_filter_level[4];
+
+  int mfh_apply_deblocking_filter[4];
+
   /*!
    * Presence of tile information in this multi-frame header
    */
