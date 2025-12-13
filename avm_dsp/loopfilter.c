@@ -55,6 +55,128 @@ static INLINE void filt_generic_asym_highbd(int q_threshold, int width_neg,
   }
 }
 
+// Determining number of samples to be modified for the current row/column
+int filt_choice_highbd(uint16_t *s, int pitch, int max_filt_neg,
+                       int max_filt_pos, uint16_t q_thresh,
+                       uint16_t side_thresh, uint16_t *t) {
+  if (!q_thresh || !side_thresh) return 0;
+
+  int max_samples_neg = max_filt_neg == 0 ? 0 : max_filt_neg / 2 - 1;
+  int max_samples_pos = max_filt_pos / 2 - 1;
+
+  if (max_samples_pos < 1 || max_samples_pos < max_samples_neg) return 0;
+
+  int16_t second_derivs_buf[SEC_DERIV_ARRAY_LEN];
+  int16_t *second_deriv = &second_derivs_buf[(SEC_DERIV_ARRAY_LEN >> 1)];
+
+  int8_t mask = 0;
+
+  // Testing for 1 sample modification
+  //-----------------------------------------------
+  second_deriv[-2] = abs(s[-3 * pitch] - (s[-2 * pitch] << 1) + s[-pitch]);
+  second_deriv[1] = abs(s[0] - (s[pitch] << 1) + s[2 * pitch]);
+
+  second_deriv[-2] += abs(t[-3 * pitch] - (t[-2 * pitch] << 1) + t[-pitch]);
+  second_deriv[-2] = (second_deriv[-2] + 1) >> 1;
+
+  second_deriv[1] += abs(t[0] - (t[pitch] << 1) + t[2 * pitch]);
+  second_deriv[1] = (second_deriv[1] + 1) >> 1;
+
+  mask |= (second_deriv[-2] > side_thresh) * -1;
+  mask |= (second_deriv[1] > side_thresh) * -1;
+
+  if (mask) return 0;
+
+  if (max_samples_pos == 1) return 1;
+
+  // Testing for 2 sample modification
+  //-----------------------------------------------
+  const int side_thresh2 = side_thresh >> 2;
+
+  mask |= (second_deriv[-2] > side_thresh2) * -1;
+  mask |= (second_deriv[1] > side_thresh2) * -1;
+
+  second_deriv[-1] = abs(s[-2 * pitch] - (s[-pitch] << 1) + s[0]);
+
+  second_deriv[-1] += abs(t[-2 * pitch] - (t[-pitch] << 1) + t[0]);
+  second_deriv[-1] = (second_deriv[-1] + 1) >> 1;
+
+  second_deriv[0] = abs(s[-1 * pitch] - (s[0] << 1) + s[pitch]);
+
+  second_deriv[0] += abs(t[-1 * pitch] - (t[0] << 1) + t[pitch]);
+  second_deriv[0] = (second_deriv[0] + 1) >> 1;
+
+  mask |= ((second_deriv[-1] + second_deriv[0]) > q_thresh * DF_6_THRESH) * -1;
+
+  if (mask) return 1;
+
+  if (max_samples_pos == 2) return 2;
+
+  // Testing 3 sample modification
+  //-----------------------------------------------
+  const int side_thresh3 = side_thresh >> FILT_8_THRESH_SHIFT;
+
+  mask |= (second_deriv[-2] > side_thresh3) * -1;
+  mask |= (second_deriv[1] > side_thresh3) * -1;
+
+  mask |= ((second_deriv[-1] + second_deriv[0]) > q_thresh * DF_8_THRESH) * -1;
+
+  int end_dir_thresh = (side_thresh * 3) >> 4;
+
+  if (max_samples_neg > 2)
+    mask |= (((abs((s[-1 * pitch] - s[(-3 - 1) * pitch]) -
+                   3 * (s[-1 * pitch] - s[-2 * pitch])) +
+               abs((t[-1 * pitch] - t[(-3 - 1) * pitch]) -
+                   3 * (t[-1 * pitch] - t[-2 * pitch])) +
+               1) >>
+              1) > end_dir_thresh) *
+            -1;
+  mask |= (((abs((s[0] - s[3 * pitch]) - 3 * (s[0] - s[1 * pitch])) +
+             abs((t[0] - t[3 * pitch]) - 3 * (t[0] - t[1 * pitch])) + 1) >>
+            1) > end_dir_thresh) *
+          -1;
+
+  if (mask) return 2;
+
+  if (max_samples_pos == 3) return 3;
+
+  // Testing  4 sample modification and above
+  //-----------------------------------------------
+
+  int transition = (second_deriv[-1] + second_deriv[0]) << DF_Q_THRESH_SHIFT;
+
+  for (int dist = 4; dist < MAX_DBL_FLT_LEN + 1; dist += 2) {
+    const int q_thresh4 = q_thresh * q_first[dist - 4];
+
+    mask |= (transition > q_thresh4) * -1;
+
+    end_dir_thresh = (side_thresh * dist) >> 4;
+
+    if (dist == 8) dist = 7;
+
+    if (max_samples_neg >= dist)
+
+      mask |= (((abs((s[-1 * pitch] - s[(-dist - 1) * pitch]) -
+                     dist * (s[-1 * pitch] - s[-2 * pitch])) +
+                 abs((t[-1 * pitch] - t[(-dist - 1) * pitch]) -
+                     dist * (t[-1 * pitch] - t[-2 * pitch])) +
+                 1) >>
+                1) > end_dir_thresh) *
+              -1;
+    mask |=
+        (((abs((s[0] - s[dist * pitch]) - dist * (s[0] - s[1 * pitch])) +
+           abs((t[0] - t[dist * pitch]) - dist * (t[0] - t[1 * pitch])) + 1) >>
+          1) > end_dir_thresh) *
+        -1;
+
+    if (dist == 7) dist = 8;
+
+    if (mask) return dist == 4 ? dist - 1 : dist - 2;
+    if (max_samples_pos <= dist) return ((dist >> 1) << 1);
+  }
+  return MAX_DBL_FLT_LEN;
+}
+
 void avm_highbd_lpf_horizontal_generic_c(uint16_t *s, int pitch,
                                          int filt_width_neg, int filt_width_pos,
                                          const uint16_t *q_thresh,
