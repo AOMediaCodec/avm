@@ -227,8 +227,6 @@ set_avm_config_var(
   CONFIG_ADJ_PYR_Q_OFFSET_LD 1
   "Encoder-only config to adjust pyr qp offsets for LD from nominal.")
 
-set_avm_config_var(CONFIG_CWG_F362 1
-                   "Implicit frame tool flags for single picture headers.")
 set_avm_config_var(
   CONFIG_CWG_F377_STILL_PICTURE 1
   "Sequence header OBU changes for single_picture_header_flag.")

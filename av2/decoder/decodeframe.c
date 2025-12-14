@@ -3213,15 +3213,11 @@ static AVM_INLINE void setup_gdf(AV2_COMMON *cm,
     return;
   }
   init_gdf(cm);
-#if CONFIG_CWG_F362
   if (cm->seq_params.single_picture_header_flag) {
     cm->gdf_info.gdf_mode = 1;
   } else {
     cm->gdf_info.gdf_mode = avm_rb_read_bit(rb);
   }
-#else
-  cm->gdf_info.gdf_mode = avm_rb_read_bit(rb);
-#endif  // CONFIG_CWG_F362
   if (cm->gdf_info.gdf_mode > 0) {
     alloc_gdf_buffers(&cm->gdf_info);
     if (cm->gdf_info.gdf_block_num > 1) {
@@ -3244,15 +3240,11 @@ static AVM_INLINE void setup_cdef(AV2_COMMON *cm,
   if (cm->bru.frame_inactive_flag ||
       cm->features.tip_frame_mode == TIP_FRAME_AS_OUTPUT)
     return;
-#if CONFIG_CWG_F362
   if (cm->seq_params.single_picture_header_flag) {
     cdef_info->cdef_frame_enable = 1;
   } else {
     cdef_info->cdef_frame_enable = avm_rb_read_bit(rb);
   }
-#else
-  cdef_info->cdef_frame_enable = avm_rb_read_bit(rb);
-#endif  // CONFIG_CWG_F362
   if (!cdef_info->cdef_frame_enable) {
     cdef_info->cdef_on_skip_txfm_frame_enable = 0;
     return;
@@ -3324,15 +3316,11 @@ static AVM_INLINE void setup_ccso(AV2_COMMON *cm,
   if (cm->bridge_frame_info.is_bridge_frame) {
     cm->ccso_info.ccso_frame_flag = 0;
   } else {
-#if CONFIG_CWG_F362
     if (cm->seq_params.single_picture_header_flag) {
       cm->ccso_info.ccso_frame_flag = 1;
     } else {
       cm->ccso_info.ccso_frame_flag = avm_rb_read_bit(rb);
     }
-#else
-    cm->ccso_info.ccso_frame_flag = avm_rb_read_bit(rb);
-#endif  // CONFIG_CWG_F362
   }
   if (cm->ccso_info.ccso_frame_flag) {
     const int ccso_blk_size = get_ccso_unit_size_log2_adaptive_tile(
@@ -6002,15 +5990,11 @@ static void setup_film_grain(AV2Decoder *pbi, struct avm_read_bit_buffer *rb) {
   if (seq_params->film_grain_params_present &&
       (cm->show_frame || cm->showable_frame)) {
     avm_film_grain_t *pars = &cm->film_grain_params;
-#if CONFIG_CWG_F362
     if (cm->seq_params.single_picture_header_flag) {
       pars->apply_grain = 1;
     } else {
       pars->apply_grain = avm_rb_read_bit(rb);
     }
-#else
-    pars->apply_grain = avm_rb_read_bit(rb);
-#endif  // CONFIG_CWG_F362
     if (pars->apply_grain) {
       cm->fgm_id = avm_rb_read_literal(rb, FGM_ID_BITS);
       pars->random_seed = avm_rb_read_literal(rb, 16);
@@ -6058,15 +6042,11 @@ void av2_read_film_grain_params(AV2_COMMON *cm,
   avm_film_grain_t *pars = &cm->film_grain_params;
   const SequenceHeader *const seq_params = &cm->seq_params;
 
-#if CONFIG_CWG_F362
   if (cm->seq_params.single_picture_header_flag) {
     pars->apply_grain = 1;
   } else {
     pars->apply_grain = avm_rb_read_bit(rb);
   }
-#else
-  pars->apply_grain = avm_rb_read_bit(rb);
-#endif                             // CONFIG_CWG_F362
   if (!pars->apply_grain) {
     memset(pars, 0, sizeof(*pars));
     return;
