@@ -5988,7 +5988,6 @@ static INLINE const SegmentationInfoSyntax *find_effective_seg_params(
 }
 #endif  // CONFIG_MULTI_LEVEL_SEGMENTATION
 
-#if CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
 // This function derives the order of frame output with layer IDs
 static INLINE uint64_t derive_output_order_idx(AV2_COMMON *cm,
                                                RefCntBuffer *output_candidate) {
@@ -5997,7 +5996,6 @@ static INLINE uint64_t derive_output_order_idx(AV2_COMMON *cm,
   uint64_t display_order = output_candidate->display_order_hint;
   return ((max_mlayer_id + 1) * display_order) + mlayer_id;
 }
-#endif  // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
 
 #ifdef __cplusplus
 }  // extern "C"

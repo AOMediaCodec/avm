@@ -10729,13 +10729,8 @@ int32_t av2_read_tilegroup_header(
 
   if (is_first_tile_group) {
 #if CONFIG_BITSTREAM_DEBUG
-#if CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
     avm_bitstream_queue_set_frame_read(
         (int)(derive_output_order_idx(cm, cm->cur_frame) * 2 + cm->show_frame));
-#else   // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
-    avm_bitstream_queue_set_frame_read(cm->current_frame.order_hint * 2 +
-                                       cm->show_frame);
-#endif  // CONFIG_FRAME_OUTPUT_ORDER_WITH_LAYER_ID
 #endif
 
     // avm_rb_bytes_read()= (rb->bit_offset + 7) >> 3;
