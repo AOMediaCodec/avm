@@ -253,6 +253,7 @@ AV2Decoder *av2_decoder_create(BufferPool *const pool) {
   pbi->lf_worker.thread_name = "avm lf worker";
 
   // Initialize the Content Interpretation parameters
+  pbi->ci_params_received = 0;
   for (int i = 0; i < MAX_NUM_MLAYERS; i++) {
     pbi->ci_and_key_per_layer[i] = 0;
     pbi->ci_obu_received_per_layer[i] = 0;

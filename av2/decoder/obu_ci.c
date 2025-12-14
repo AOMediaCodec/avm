@@ -260,9 +260,13 @@ uint32_t av2_read_content_interpretation_obu(struct AV2Decoder *pbi,
     } else {
       // Got the first CI Obu for this layer.
       cm->ci_params_per_layer[obu_mlayer_id] = ci_temp;
+      pbi->ci_params_received = 1;
       pbi->ci_obu_received_per_layer[obu_mlayer_id] = 1;
     }
   }
+
+  // Set flag to indicate CI params have been received
+  pbi->ci_params_received = 1;
 
   return ((rb->bit_offset - saved_bit_offset + 7) >> 3);
 }

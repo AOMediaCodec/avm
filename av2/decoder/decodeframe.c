@@ -7535,6 +7535,15 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
       memset(&cm->atlas_params, 0, sizeof(struct AtlasSegmentInfo));
     }
   }
+#if CONFIG_CWG_F270_CI_OBU
+  if (pbi->ci_params_received &&
+      (color_info->matrix_coefficients == AVM_CICP_MC_IDENTITY) &&
+      (cm->seq_params.subsampling_x || cm->seq_params.subsampling_y)) {
+    avm_internal_error(
+        &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+        "Matrix coefficients incompatible with non 4:4:4 color sampling.");
+  }
+#endif  // CONFIG_CWG_F270_CI_OBU
 
   if (seq_params->single_picture_header_flag) {
     cm->show_existing_frame = 0;
