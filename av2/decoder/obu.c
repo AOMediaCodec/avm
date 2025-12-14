@@ -276,7 +276,6 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
     return 0;
   }
 #endif  // !CONFIG_CWG_F270_OPS
-#if CONFIG_MODIFY_SH
   seq_params->single_picture_header_flag = avm_rb_read_bit(rb);
   if (seq_params->single_picture_header_flag) {
     seq_params->seq_lcr_id = LCR_ID_UNSPECIFIED;
@@ -311,7 +310,6 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
   else
     seq_params->tier[0] = 0;
 #endif  // CONFIG_CWG_F270_OPS
-#endif  // CONFIG_MODIFY_SH
 
   const int num_bits_width = avm_rb_read_literal(rb, 4) + 1;
   const int num_bits_height = avm_rb_read_literal(rb, 4) + 1;
@@ -344,17 +342,6 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
                        seq_params->subsampling_x, seq_params->subsampling_y);
   }
 #endif  // !CONFIG_CWG_E242_CHROMA_FORMAT_IDC
-
-#if !CONFIG_MODIFY_SH
-  // Still picture or not
-  seq_params->still_picture = avm_rb_read_bit(rb);
-  seq_params->single_picture_header_flag = avm_rb_read_bit(rb);
-  // Video must have single_picture_header_flag = 0
-  if (!seq_params->still_picture && seq_params->single_picture_header_flag) {
-    cm->error.error_code = AVM_CODEC_UNSUP_BITSTREAM;
-    return 0;
-  }
-#endif  // !CONFIG_MODIFY_SH
 
 #if CONFIG_CWG_F270_OPS
   if (seq_params->single_picture_header_flag) {
@@ -410,13 +397,6 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
     seq_params->display_model_info_present_flag = 0;
     seq_params->operating_points_cnt_minus_1 = 0;
     seq_params->operating_point_idc[0] = 0;
-#if !CONFIG_MODIFY_SH
-    if (!read_bitstream_level(&seq_params->seq_level_idx[0], rb)) {
-      cm->error.error_code = AVM_CODEC_UNSUP_BITSTREAM;
-      return 0;
-    }
-    seq_params->tier[0] = 0;
-#endif  // !CONFIG_MODIFY_SH
     seq_params->op_params[0].decoder_model_param_present_flag = 0;
     seq_params->op_params[0].display_model_param_present_flag = 0;
   } else {
@@ -439,18 +419,6 @@ static uint32_t read_sequence_header_obu(AV2Decoder *pbi,
     for (int i = 0; i < seq_params->operating_points_cnt_minus_1 + 1; i++) {
       seq_params->operating_point_idc[i] =
           avm_rb_read_literal(rb, OP_POINTS_IDC_BITS);
-#if !CONFIG_MODIFY_SH
-      if (!read_bitstream_level(&seq_params->seq_level_idx[i], rb)) {
-        cm->error.error_code = AVM_CODEC_UNSUP_BITSTREAM;
-        return 0;
-      }
-      // This is the seq_level_idx[i] > 7 check in the spec. seq_level_idx 7
-      // is equivalent to level 3.3.
-      if (seq_params->seq_level_idx[i] >= SEQ_LEVEL_4_0)
-        seq_params->tier[i] = avm_rb_read_bit(rb);
-      else
-        seq_params->tier[i] = 0;
-#endif  // !CONFIG_MODIFY_SH
       if (seq_params->decoder_model_info_present_flag) {
         seq_params->op_params[i].decoder_model_param_present_flag =
             avm_rb_read_bit(rb);

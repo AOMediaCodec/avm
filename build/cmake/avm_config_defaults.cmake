@@ -171,9 +171,6 @@ set_avm_config_var(CONFIG_CWG_E242_BITDEPTH 1 "Signal Bitdepth using a LUT.")
 
 set_avm_config_var(CONFIG_CWG_E242_SEQ_HDR_ID 1 "Signal sequence header id.")
 
-set_avm_config_var(CONFIG_MODIFY_SH 1
-                   "Modification to the sequence header elements.")
-
 set_avm_config_var(CONFIG_REORDER_SEQ_FLAGS 1 "Group sequence header flags.")
 set_avm_config_var(CONFIG_IMPROVED_REORDER_SEQ_FLAGS 1
                    "Improvement of Group sequence header flags.")

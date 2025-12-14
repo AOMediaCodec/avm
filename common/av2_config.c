@@ -366,7 +366,6 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
 
   AV2C_READ_BITS_OR_RETURN_ERROR(seq_profile, 3);
   config->seq_profile = seq_profile;
-#if CONFIG_MODIFY_SH
   AV2C_READ_BIT_OR_RETURN_ERROR(single_picture_header_flag);
   if (!single_picture_header_flag) {
     AV2C_READ_BITS_OR_RETURN_ERROR(seq_lcr_id, 3);
@@ -379,7 +378,6 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
     AV2C_READ_BIT_OR_RETURN_ERROR(single_tier_0);
     config->seq_tier_0 = 0;
   }
-#endif  // CONFIG_MODIFY_SH
 
   AV2C_READ_BITS_OR_RETURN_ERROR(frame_width_bits_minus_1, 4);
   AV2C_READ_BITS_OR_RETURN_ERROR(frame_height_bits_minus_1, 4);
@@ -417,17 +415,8 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
   }
 #endif  // CONFIG_CWG_F270_CI_OBU
 
-#if !CONFIG_MODIFY_SH
-  AV2C_READ_BIT_OR_RETURN_ERROR(still_picture);
-  AV2C_READ_BIT_OR_RETURN_ERROR(single_picture_header_flag);
-#endif  // !CONFIG_MODIFY_SH
   if (single_picture_header_flag) {
     config->initial_presentation_delay_present = 0;
-#if !CONFIG_MODIFY_SH
-    AV2C_READ_BITS_OR_RETURN_ERROR(seq_level_idx, 5);
-    config->seq_level_idx_0 = seq_level_idx;
-    config->seq_tier_0 = 0;
-#endif  // !CONFIG_MODIFY_SH
   } else {
 #if CONFIG_CWG_F270_OPS
     AV2C_READ_BIT_OR_RETURN_ERROR(max_display_model_info_present_flag);
@@ -487,15 +476,6 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
 
     for (int op_index = 0; op_index < num_operating_points; ++op_index) {
       AV2C_READ_BITS_OR_RETURN_ERROR(operating_point_idc, 12);
-#if !CONFIG_MODIFY_SH
-      AV2C_READ_BITS_OR_RETURN_ERROR(seq_level_idx, 5);
-
-      int seq_tier = 0;
-      if (seq_level_idx > 7) {
-        AV2C_READ_BIT_OR_RETURN_ERROR(seq_tier_this_op);
-        seq_tier = seq_tier_this_op;
-      }
-#endif  // !CONFIG_MODIFY_SH
       if (has_decoder_model) {
         AV2C_READ_BIT_OR_RETURN_ERROR(decoder_model_present_for_op);
         if (decoder_model_present_for_op) {
@@ -519,10 +499,6 @@ static int parse_sequence_header(const uint8_t *const buffer, size_t length,
 
       if (op_index == 0) {
         // Av2Config needs only the values from the first operating point.
-#if !CONFIG_MODIFY_SH
-        config->seq_level_idx_0 = seq_level_idx;
-        config->seq_tier_0 = seq_tier;
-#endif  // !CONFIG_MODIFY_SH
         config->initial_presentation_delay_present = 0;
         config->initial_presentation_delay_minus_one = 0;
       }

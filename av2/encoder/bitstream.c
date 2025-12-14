@@ -7378,7 +7378,6 @@ uint32_t av2_write_sequence_header_obu(const SequenceHeader *seq_params,
 #endif  // CONFIG_CWG_E242_SEQ_HDR_ID
 
   write_profile(seq_params->profile, &wb);
-#if CONFIG_MODIFY_SH
   avm_wb_write_bit(&wb, seq_params->single_picture_header_flag);
   if (!seq_params->single_picture_header_flag) {
     avm_wb_write_literal(&wb, seq_params->seq_lcr_id, 3);
@@ -7395,7 +7394,6 @@ uint32_t av2_write_sequence_header_obu(const SequenceHeader *seq_params,
       !seq_params->single_picture_header_flag)
     avm_wb_write_bit(&wb, seq_params->tier[0]);
 #endif  // CONFIG_CWG_F270_OPS
-#endif  // CONFIG_MODIFY_SH
 
   avm_wb_write_literal(&wb, seq_params->num_bits_width - 1, 4);
   avm_wb_write_literal(&wb, seq_params->num_bits_height - 1, 4);
@@ -7414,24 +7412,12 @@ uint32_t av2_write_sequence_header_obu(const SequenceHeader *seq_params,
   write_color_config(seq_params, &wb);
 #endif  // CONFIG_CWG_F270_CI_OBU
 
-#if !CONFIG_MODIFY_SH
-  // Still picture or not
-  avm_wb_write_bit(&wb, seq_params->still_picture);
-  assert(IMPLIES(!seq_params->still_picture,
-                 !seq_params->single_picture_header_flag));
-  // whether to use reduced still picture header
-  avm_wb_write_bit(&wb, seq_params->single_picture_header_flag);
-#endif  // !CONFIG_MODIFY_SH
-
   if (seq_params->single_picture_header_flag) {
 #if !CONFIG_CWG_F270_CI_OBU
     assert(seq_params->timing_info_present == 0);
 #endif  // !CONFIG_CWG_F270_CI_OBU
     assert(seq_params->decoder_model_info_present_flag == 0);
     assert(seq_params->display_model_info_present_flag == 0);
-#if !CONFIG_MODIFY_SH
-    write_bitstream_level(seq_params->seq_level_idx[0], &wb);
-#endif  // !CONFIG_MODIFY_SH
   } else {
 #if CONFIG_CWG_F270_OPS
     avm_wb_write_bit(&wb, seq_params->seq_max_display_model_info_present_flag);
@@ -7473,11 +7459,6 @@ uint32_t av2_write_sequence_header_obu(const SequenceHeader *seq_params,
     for (i = 0; i < seq_params->operating_points_cnt_minus_1 + 1; i++) {
       avm_wb_write_literal(&wb, seq_params->operating_point_idc[i],
                            OP_POINTS_IDC_BITS);
-#if !CONFIG_MODIFY_SH
-      write_bitstream_level(seq_params->seq_level_idx[i], &wb);
-      if (seq_params->seq_level_idx[i] >= SEQ_LEVEL_4_0)
-        avm_wb_write_bit(&wb, seq_params->tier[i]);
-#endif  // !CONFIG_MODIFY_SH
       if (seq_params->decoder_model_info_present_flag) {
         avm_wb_write_bit(
             &wb, seq_params->op_params[i].decoder_model_param_present_flag);

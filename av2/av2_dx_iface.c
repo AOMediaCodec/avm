@@ -366,9 +366,6 @@ static avm_codec_err_t parse_operating_points(struct avm_read_bit_buffer *rb,
                                               avm_codec_stream_info_t *si) {
   int operating_point_idc0 = 0;
   if (is_reduced_header) {
-#if !CONFIG_MODIFY_SH
-    avm_rb_read_literal(rb, LEVEL_BITS);  // level
-#endif                                    // !CONFIG_MODIFY_SH
   } else {
     uint8_t decoder_model_info_present_flag = 0;
     int buffer_delay_length_minus_1 = 0;
@@ -394,10 +391,6 @@ static avm_codec_err_t parse_operating_points(struct avm_read_bit_buffer *rb,
       int operating_point_idc;
       operating_point_idc = avm_rb_read_literal(rb, OP_POINTS_IDC_BITS);
       if (i == 0) operating_point_idc0 = operating_point_idc;
-#if !CONFIG_MODIFY_SH
-      int seq_level_idx = avm_rb_read_literal(rb, LEVEL_BITS);  // level
-      if (seq_level_idx > 7) avm_rb_read_bit(rb);               // tier
-#endif  // !CONFIG_MODIFY_SH
       if (decoder_model_info_present_flag) {
         const uint8_t decoder_model_present_for_this_op = avm_rb_read_bit(rb);
         if (decoder_model_present_for_this_op) {
@@ -476,7 +469,6 @@ static avm_codec_err_t decoder_peek_si_internal(const uint8_t *data,
 #endif                        // CONFIG_CWG_E242_SEQ_HDR_ID
 
       BITSTREAM_PROFILE profile = av2_read_profile(&rb);  // profile
-#if CONFIG_MODIFY_SH
       single_picture_header_flag = avm_rb_read_bit(&rb);
       if (!single_picture_header_flag) {
         avm_rb_read_literal(&rb, 3);  // seq_lcr_id
@@ -486,9 +478,6 @@ static avm_codec_err_t decoder_peek_si_internal(const uint8_t *data,
           avm_rb_read_literal(&rb, LEVEL_BITS);  // seq_level_idx
       if (seq_level_idx > 7 && !single_picture_header_flag)
         avm_rb_read_bit(&rb);  // seq_tier_flag
-#else
-      avm_rb_read_literal(&rb, 3);
-#endif  // CONFIG_MODIFY_SH
 
       int num_bits_width = avm_rb_read_literal(&rb, 4) + 1;
       int num_bits_height = avm_rb_read_literal(&rb, 4) + 1;
@@ -513,15 +502,6 @@ static avm_codec_err_t decoder_peek_si_internal(const uint8_t *data,
       status = parse_color_config(&rb, profile);
 #endif  // CONFIG_CWG_F270_CI_OBU
       if (status != AVM_CODEC_OK) return status;
-
-#if !CONFIG_MODIFY_SH
-      const uint8_t still_picture = avm_rb_read_bit(&rb);
-      single_picture_header_flag = avm_rb_read_bit(&rb);
-
-      if (!still_picture && single_picture_header_flag) {
-        return AVM_CODEC_UNSUP_BITSTREAM;
-      }
-#endif  // !CONFIG_MODIFY_SH
 
 #if !CONFIG_CWG_F270_OPS
       status = parse_operating_points(&rb, single_picture_header_flag, si);
