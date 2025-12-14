@@ -921,45 +921,6 @@ static int read_metadata_frame_hash(AV2Decoder *const pbi,
   return 0;
 }
 
-static void scalability_structure(struct avm_read_bit_buffer *rb) {
-  const int spatial_layers_cnt_minus_1 = avm_rb_read_literal(rb, 2);
-  const int spatial_layer_dimensions_present_flag = avm_rb_read_bit(rb);
-  const int spatial_layer_description_present_flag = avm_rb_read_bit(rb);
-  const int temporal_group_description_present_flag = avm_rb_read_bit(rb);
-  avm_rb_read_literal(rb, 3);  // reserved
-
-  if (spatial_layer_dimensions_present_flag) {
-    for (int i = 0; i <= spatial_layers_cnt_minus_1; i++) {
-      avm_rb_read_literal(rb, 16);
-      avm_rb_read_literal(rb, 16);
-    }
-  }
-  if (spatial_layer_description_present_flag) {
-    for (int i = 0; i <= spatial_layers_cnt_minus_1; i++) {
-      avm_rb_read_literal(rb, 8);
-    }
-  }
-  if (temporal_group_description_present_flag) {
-    const int temporal_group_size = avm_rb_read_literal(rb, 8);
-    for (int i = 0; i < temporal_group_size; i++) {
-      avm_rb_read_literal(rb, 3);
-      avm_rb_read_bit(rb);
-      avm_rb_read_bit(rb);
-      const int temporal_group_ref_cnt = avm_rb_read_literal(rb, 3);
-      for (int j = 0; j < temporal_group_ref_cnt; j++) {
-        avm_rb_read_literal(rb, 8);
-      }
-    }
-  }
-}
-
-static void read_metadata_scalability(struct avm_read_bit_buffer *rb) {
-  const int scalability_mode_idc = avm_rb_read_literal(rb, 8);
-  if (scalability_mode_idc == SCALABILITY_SS) {
-    scalability_structure(rb);
-  }
-}
-
 static void read_metadata_timecode(struct avm_read_bit_buffer *rb) {
   avm_rb_read_literal(rb, 5);  // counting_type f(5)
   const int full_timestamp_flag =
@@ -1140,9 +1101,7 @@ static size_t read_metadata(AV2Decoder *pbi, const uint8_t *data, size_t sz)
 
   struct avm_read_bit_buffer rb;
   av2_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);
-  if (metadata_type == OBU_METADATA_TYPE_SCALABILITY) {
-    read_metadata_scalability(&rb);
-  } else if (metadata_type == OBU_METADATA_TYPE_DECODED_FRAME_HASH) {
+  if (metadata_type == OBU_METADATA_TYPE_DECODED_FRAME_HASH) {
     if (read_metadata_frame_hash(pbi, &rb)) {
 #if !CONFIG_METADATA
       // Unsupported Decoded Frame Hash metadata. Ignoring the entire OBU and
@@ -1476,9 +1435,7 @@ static size_t read_metadata_short(AV2Decoder *pbi, const uint8_t *data,
   }
 
   av2_init_read_bit_buffer(pbi, &rb, data + type_length, data + sz);
-  if (metadata_type == OBU_METADATA_TYPE_SCALABILITY) {
-    read_metadata_scalability(&rb);
-  } else if (metadata_type == OBU_METADATA_TYPE_DECODED_FRAME_HASH) {
+  if (metadata_type == OBU_METADATA_TYPE_DECODED_FRAME_HASH) {
     if (read_metadata_frame_hash(pbi, &rb)) {
       // Unsupported Decoded Frame Hash metadata. Ignoring the entire OBU and
       // just checking trailing bits
