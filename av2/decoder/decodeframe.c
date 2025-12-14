@@ -7536,6 +7536,14 @@ static int read_uncompressed_header(AV2Decoder *pbi, OBU_TYPE obu_type,
     }
   }
 
+  if (pbi->ci_obu_received_per_layer[cm->mlayer_id] &&
+      (color_info->matrix_coefficients == AVM_CICP_MC_IDENTITY) &&
+      (seq_params->subsampling_x || seq_params->subsampling_y)) {
+    avm_internal_error(
+        &cm->error, AVM_CODEC_UNSUP_BITSTREAM,
+        "Matrix coefficients incompatible with non 4:4:4 color sampling.");
+  }
+
   if (seq_params->single_picture_header_flag) {
     cm->show_existing_frame = 0;
     cm->immediate_output_picture = 1;
